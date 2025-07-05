@@ -19,7 +19,7 @@ Date:   Fri Jul 27 10:48:18 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/syscall_linux.go           | 66 ++++++++++++++++++++++++++++++++--
  src/syscall/syscall_linux_386.go       |  1 +
  src/syscall/syscall_linux_arm.go       |  1 +
@@ -40,3 +40,498 @@ Date:   Fri Jul 27 10:48:18 2018 -0700
  src/syscall/zsyscall_linux_ppc64le.go  | 15 ++++++++
  src/syscall/zsyscall_linux_s390x.go    | 15 ++++++++
  19 files changed, 252 insertions(+), 11 deletions(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 1a304c4966..21c509f8d4 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -40,10 +40,70 @@ func Creat(path string, mode uint32) (fd int, err error) {
+ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 	if flags & ^(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
+ 		return EINVAL
+-	} else if flags&(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
+-		return EOPNOTSUPP
+ 	}
+-	return faccessat(dirfd, path, mode)
++
++	// The Linux kernel faccessat system call does not take any flags.
++	// The glibc faccessat implements the flags itself; see
++	// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/faccessat.c;hb=HEAD
++	// Because people naturally expect syscall.Faccessat to act
++	// like C faccessat, we do the same.
++
++	if flags == 0 {
++		return faccessat(dirfd, path, mode)
++	}
++
++	var st Stat_t
++	if err := fstatat(dirfd, path, &st, flags&_AT_SYMLINK_NOFOLLOW); err != nil {
++		return err
++	}
++
++	mode &= 7
++	if mode == 0 {
++		return nil
++	}
++
++	var uid int
++	if flags&_AT_EACCESS != 0 {
++		uid = Geteuid()
++	} else {
++		uid = Getuid()
++	}
++
++	if uid == 0 {
++		if mode&1 == 0 {
++			// Root can read and write any file.
++			return nil
++		}
++		if st.Mode&0111 != 0 {
++			// Root can execute any file that anybody can execute.
++			return nil
++		}
++		return EACCES
++	}
++
++	var fmode uint32
++	if uint32(uid) == st.Uid {
++		fmode = (st.Mode >> 6) & 7
++	} else {
++		var gid int
++		if flags&_AT_EACCESS != 0 {
++			gid = Getegid()
++		} else {
++			gid = Getgid()
++		}
++
++		if uint32(gid) == st.Gid {
++			fmode = (st.Mode >> 3) & 7
++		} else {
++			fmode = st.Mode & 7
++		}
++	}
++
++	if fmode&mode == mode {
++		return nil
++	}
++
++	return EACCES
+ }
+ 
+ //sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 6615265029..49db72450f 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -53,6 +53,7 @@ func Pipe2(p []int, flags int) (err error) {
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+ //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
+ //sysnb	Getegid() (egid int) = SYS_GETEGID32
+ //sysnb	Geteuid() (euid int) = SYS_GETEUID32
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index c8f5c8eff6..b0c0ac7c4f 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -77,6 +77,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+ //sysnb	Getegid() (egid int) = SYS_GETEGID32
+ //sysnb	Geteuid() (euid int) = SYS_GETEUID32
+ //sysnb	Getgid() (gid int) = SYS_GETGID32
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 6421084738..48ad0bb292 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -13,6 +13,7 @@ const (
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+ //sys	Ftruncate(fd int, length int64) (err error)
+ //sysnb	Getegid() (egid int)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 0e9018e096..a8e3a6907f 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -15,6 +15,7 @@ const (
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+ //sys	Ftruncate(fd int, length int64) (err error)
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index e5ca30db54..a76107ffa0 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -18,6 +18,7 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+ //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index c3ba32df6f..88a520e3fd 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -15,6 +15,7 @@ const (
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+ //sys	Ftruncate(fd int, length int64) (err error)
+ //sysnb	Getegid() (egid int)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 55de7b3e13..e53b63c6a4 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -14,6 +14,7 @@ const (
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
++//sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+ //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
+ //sys	Ftruncate(fd int, length int64) (err error)
+ //sysnb	Getegid() (egid int)
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 24158bb8b8..99de6ebaf2 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -57,25 +57,27 @@ const (
+ 	_AT_SYMLINK_NOFOLLOW = 0x100
+ 	_AT_FDCWD            = -0x64
+ 	_AT_EACCESS          = 0x200
++	_F_OK                = 0
++	_R_OK                = 4
+ )
+ 
+ func TestFaccessat(t *testing.T) {
+ 	defer chtmpdir(t)()
+ 	touch(t, "file1")
+ 
+-	err := syscall.Faccessat(_AT_FDCWD, "file1", syscall.O_RDONLY, 0)
++	err := syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, 0)
+ 	if err != nil {
+ 		t.Errorf("Faccessat: unexpected error: %v", err)
+ 	}
+ 
+-	err = syscall.Faccessat(_AT_FDCWD, "file1", syscall.O_RDONLY, 2)
++	err = syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, 2)
+ 	if err != syscall.EINVAL {
+ 		t.Errorf("Faccessat: unexpected error: %v, want EINVAL", err)
+ 	}
+ 
+-	err = syscall.Faccessat(_AT_FDCWD, "file1", syscall.O_RDONLY, _AT_EACCESS)
+-	if err != syscall.EOPNOTSUPP {
+-		t.Errorf("Faccessat: unexpected error: %v, want EOPNOTSUPP", err)
++	err = syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, _AT_EACCESS)
++	if err != nil {
++		t.Errorf("Faccessat: unexpected error: %v", err)
+ 	}
+ 
+ 	err = os.Symlink("file1", "symlink1")
+@@ -83,9 +85,31 @@ func TestFaccessat(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	err = syscall.Faccessat(_AT_FDCWD, "symlink1", syscall.O_RDONLY, _AT_SYMLINK_NOFOLLOW)
+-	if err != syscall.EOPNOTSUPP {
+-		t.Errorf("Faccessat: unexpected error: %v, want EOPNOTSUPP", err)
++	err = syscall.Faccessat(_AT_FDCWD, "symlink1", _R_OK, _AT_SYMLINK_NOFOLLOW)
++	if err != nil {
++		t.Errorf("Faccessat SYMLINK_NOFOLLOW: unexpected error %v", err)
++	}
++
++	// We can't really test _AT_SYMLINK_NOFOLLOW, because there
++	// doesn't seem to be any way to change the mode of a symlink.
++	// We don't test _AT_EACCESS because such tests are only
++	// meaningful if run as root.
++
++	err = syscall.Fchmodat(_AT_FDCWD, "file1", 0, 0)
++	if err != nil {
++		t.Errorf("Fchmodat: unexpected error %v", err)
++	}
++
++	err = syscall.Faccessat(_AT_FDCWD, "file1", _F_OK, _AT_SYMLINK_NOFOLLOW)
++	if err != nil {
++		t.Errorf("Faccessat: unexpected error: %v", err)
++	}
++
++	err = syscall.Faccessat(_AT_FDCWD, "file1", _R_OK, _AT_SYMLINK_NOFOLLOW)
++	if err != syscall.EACCES {
++		if syscall.Getuid() != 0 {
++			t.Errorf("Faccessat: unexpected error: %v, want EACCES", err)
++		}
+ 	}
+ }
+ 
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index ef79b3e3e2..62827f16dc 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -1188,6 +1188,21 @@ func Fstat(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT64, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Ftruncate(fd int, length int64) (err error) {
+ 	_, _, e1 := Syscall(SYS_FTRUNCATE64, uintptr(fd), uintptr(length), uintptr(length>>32))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 216924ff20..bb20d6e946 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1357,6 +1357,21 @@ func Fstat(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT64, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getegid() (egid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETEGID32, 0, 0, 0)
+ 	egid = int(r0)
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index f2dffa4bac..28d7f16f70 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -1190,6 +1190,21 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index db0f3bb65d..420c349867 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -1158,6 +1158,21 @@ func Fchown(fd int, uid int, gid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT64, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Ftruncate(fd int, length int64) (err error) {
+ 	_, _, e1 := Syscall6(SYS_FTRUNCATE64, uintptr(fd), 0, uintptr(length>>32), uintptr(length), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 4180ed1908..049e64eb3f 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -1168,6 +1168,21 @@ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_NEWFSTATAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Ftruncate(fd int, length int64) (err error) {
+ 	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 3b4b5da539..73ff68bc73 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -1168,6 +1168,21 @@ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_NEWFSTATAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Ftruncate(fd int, length int64) (err error) {
+ 	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 7f045b77c5..4b69b85c97 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -1158,6 +1158,21 @@ func Fchown(fd int, uid int, gid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT64, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Ftruncate(fd int, length int64) (err error) {
+ 	_, _, e1 := Syscall6(SYS_FTRUNCATE64, uintptr(fd), 0, uintptr(length), uintptr(length>>32), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index b76944e96c..20c78ef2d2 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1168,6 +1168,21 @@ func Fstat(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_NEWFSTATAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 613793b0bf..5929343993 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1168,6 +1168,21 @@ func Fstat(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_NEWFSTATAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 7c63c3db58..81c6d19c91 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -1168,6 +1168,21 @@ func Fstat(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_NEWFSTATAT, uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fstatfs(fd int, buf *Statfs_t) (err error) {
+ 	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
+ 	if e1 != 0 {

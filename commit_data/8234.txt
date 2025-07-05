@@ -9,7 +9,181 @@ Date:   Tue Apr 26 12:32:59 2011 -0700
     R=rsc, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4436058
-
+---
  src/pkg/http/response_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/http/transport.go     | 11 +++--
  2 files changed, 99 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+index 26c3a57ed7..5e76bbb9e1 100644
+--- a/src/pkg/http/response_test.go
++++ b/src/pkg/http/response_test.go
+@@ -9,7 +9,9 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -117,7 +119,9 @@ var respTests = []respTest{
+ 			"Transfer-Encoding: chunked\r\n" +
+ 			"\r\n" +
+ 			"0a\r\n" +
+-			"Body here\n" +
++			"Body here\n\r\n" +
++			"09\r\n" +
++			"continued\r\n" +
+ 			"0\r\n" +
+ 			"\r\n",
+ 
+@@ -134,7 +138,7 @@ var respTests = []respTest{
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+ 
+-		"Body here\n",
++		"Body here\ncontinued",
+ 	},
+ 
+ 	// Chunked response with Content-Length.
+@@ -186,6 +190,29 @@ var respTests = []respTest{
+ 		"",
+ 	},
+ 
++	// explicit Content-Length of 0.
++	{
++		"HTTP/1.1 200 OK\r\n" +
++			"Content-Length: 0\r\n" +
++			"\r\n",
++
++		Response{
++			Status:        "200 OK",
++			StatusCode:    200,
++			Proto:         "HTTP/1.1",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			RequestMethod: "GET",
++			Header: Header{
++				"Content-Length": {"0"},
++			},
++			Close:         false,
++			ContentLength: 0,
++		},
++
++		"",
++	},
++
+ 	// Status line without a Reason-Phrase, but trailing space.
+ 	// (permitted by RFC 2616)
+ 	{
+@@ -250,6 +277,68 @@ func TestReadResponse(t *testing.T) {
+ 	}
+ }
+ 
++// TestReadResponseCloseInMiddle tests that for both chunked and unchunked responses,
++// if we close the Body while only partway through reading, the underlying reader
++// advanced to the end of the request.
++func TestReadResponseCloseInMiddle(t *testing.T) {
++	for _, chunked := range []bool{false, true} {
++		var buf bytes.Buffer
++		buf.WriteString("HTTP/1.1 200 OK\r\n")
++		if chunked {
++			buf.WriteString("Transfer-Encoding: chunked\r\n\r\n")
++		} else {
++			buf.WriteString("Content-Length: 1000000\r\n\r\n")
++		}
++		chunk := strings.Repeat("x", 1000)
++		for i := 0; i < 1000; i++ {
++			if chunked {
++				buf.WriteString("03E8\r\n")
++				buf.WriteString(chunk)
++				buf.WriteString("\r\n")
++			} else {
++				buf.WriteString(chunk)
++			}
++		}
++		if chunked {
++			buf.WriteString("0\r\n\r\n")
++		}
++		buf.WriteString("Next Request Here")
++		bufr := bufio.NewReader(&buf)
++		resp, err := ReadResponse(bufr, "GET")
++		if err != nil {
++			t.Fatalf("parse error for chunked=%v: %v", chunked, err)
++		}
++
++		expectedLength := int64(-1)
++		if !chunked {
++			expectedLength = 1000000
++		}
++		if resp.ContentLength != expectedLength {
++			t.Fatalf("chunked=%v: expected response length %d, got %d", chunked, expectedLength, resp.ContentLength)
++		}
++		rbuf := make([]byte, 2500)
++		n, err := io.ReadFull(resp.Body, rbuf)
++		if err != nil {
++			t.Fatalf("ReadFull error for chunked=%v: %v", chunked, err)
++		}
++		if n != 2500 {
++			t.Fatalf("ReadFull only read %n bytes for chunked=%v", n, chunked)
++		}
++		if !bytes.Equal(bytes.Repeat([]byte{'x'}, 2500), rbuf) {
++			t.Fatalf("ReadFull didn't read 2500 'x' for chunked=%v; got %q", chunked, string(rbuf))
++		}
++		resp.Body.Close()
++
++		rest, err := ioutil.ReadAll(bufr)
++		if err != nil {
++			t.Fatalf("ReadAll error on remainder for chunked=%v: %v", chunked, err)
++		}
++		if e, g := "Next Request Here", string(rest); e != g {
++			t.Fatalf("for chunked=%v remainder = %q, expected %q", chunked, g, e)
++		}
++	}
++}
++
+ func diff(t *testing.T, prefix string, have, want interface{}) {
+ 	hv := reflect.ValueOf(have).Elem()
+ 	wv := reflect.ValueOf(want).Elem()
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index afbccef449..98ac203b72 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -576,7 +576,7 @@ func responseIsKeepAlive(res *Response) bool {
+ func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Response, err os.Error) {
+ 	resp, err = ReadResponse(r, requestMethod)
+ 	if err == nil && resp.ContentLength != 0 {
+-		resp.Body = &bodyEOFSignal{resp.Body, nil}
++		resp.Body = &bodyEOFSignal{body: resp.Body}
+ 	}
+ 	return
+ }
+@@ -585,12 +585,16 @@ func readResponseWithEOFSignal(r *bufio.Reader, requestMethod string) (resp *Res
+ // once, right before the final Read() or Close() call returns, but after
+ // EOF has been seen.
+ type bodyEOFSignal struct {
+-	body io.ReadCloser
+-	fn   func()
++	body     io.ReadCloser
++	fn       func()
++	isClosed bool
+ }
+ 
+ func (es *bodyEOFSignal) Read(p []byte) (n int, err os.Error) {
+ 	n, err = es.body.Read(p)
++	if es.isClosed && n > 0 {
++		panic("http: unexpected bodyEOFSignal Read after Close; see issue 1725")
++	}
+ 	if err == os.EOF && es.fn != nil {
+ 		es.fn()
+ 		es.fn = nil
+@@ -599,6 +603,7 @@ func (es *bodyEOFSignal) Read(p []byte) (n int, err os.Error) {
+ }
+ 
+ func (es *bodyEOFSignal) Close() (err os.Error) {
++	es.isClosed = true
+ 	err = es.body.Close()
+ 	if err == nil && es.fn != nil {
+ 		es.fn()

@@ -11,7 +11,70 @@ Date:   Tue Jul 8 22:37:18 2014 +0400
     R=golang-codereviews, crawshaw, iant
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/110930043
-
+---
  src/pkg/runtime/string_test.go | 23 +++++++++++++++++++++++
  src/pkg/runtime/stubs.goc      |  6 ++++++
  2 files changed, 29 insertions(+)
+
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index b05e0c7dd0..73ac95e018 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -122,3 +123,25 @@ func TestStringW(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestLargeStringConcat(t *testing.T) {
++	output := executeTest(t, largeStringConcatSource, nil)
++	want := "panic: " + strings.Repeat("0", 1<<10) + strings.Repeat("1", 1<<10) +
++		strings.Repeat("2", 1<<10) + strings.Repeat("3", 1<<10)
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
++var largeStringConcatSource = `
++package main
++import "strings"
++func main() {
++	s0 := strings.Repeat("0", 1<<10)
++	s1 := strings.Repeat("1", 1<<10)
++	s2 := strings.Repeat("2", 1<<10)
++	s3 := strings.Repeat("3", 1<<10)
++	s := s0 + s1 + s2 + s3
++	panic(s)
++}
++`
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index 901efa4d19..137c10e297 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -24,6 +24,7 @@ package runtime
+ 
+ #pragma textflag NOSPLIT
+ func rawstring(size intgo) (s String, b Slice) {
++	uintptr ms;
+ 	byte *p;
+ 
+ 	p = runtime·mallocgc(size, 0, FlagNoScan|FlagNoZero);
+@@ -32,6 +33,11 @@ func rawstring(size intgo) (s String, b Slice) {
+ 	b.array = p;
+ 	b.len = size;
+ 	b.cap = size;
++	for(;;) {
++		ms = runtime·maxstring;
++		if((uintptr)size <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)size))
++			break;
++	}
+ }
+ 
+ #pragma textflag NOSPLIT

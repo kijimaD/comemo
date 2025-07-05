@@ -12,8 +12,111 @@ Date:   Wed Feb 1 12:35:53 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go   | 28 ----------------------------
  src/cmd/compile/internal/gc/noder.go | 17 +++++++++++++++--
  test/notinheap.go                    |  8 ++++----
  3 files changed, 19 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6d8e609186..b6c9bfb150 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -5,7 +5,6 @@
+ package gc
+ 
+ import (
+-	"cmd/compile/internal/syntax"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -638,33 +637,6 @@ func funcbody(n *Node) {
+ 	}
+ }
+ 
+-// new type being defined with name s.
+-func typedcl0(s *Sym) *Node {
+-	n := newname(s)
+-	n.Op = OTYPE
+-	declare(n, dclcontext)
+-	return n
+-}
+-
+-// node n, which was returned by typedcl0
+-// is being declared to have uncompiled type t.
+-// returns the ODCLTYPE node to use.
+-func typedcl1(n *Node, t *Node, pragma syntax.Pragma, alias bool) *Node {
+-	if pragma != 0 && alias {
+-		yyerror("cannot specify directive with type alias")
+-		pragma = 0
+-	}
+-
+-	n.Local = true
+-
+-	p := n.Name.Param
+-	p.Ntype = t
+-	p.Pragma = pragma
+-	p.Alias = alias
+-
+-	return nod(ODCLTYPE, n, nil)
+-}
+-
+ // structs, functions, and methods.
+ // they don't belong here, but where do they belong?
+ func checkembeddedtype(t *Type) {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 14dc1a1d87..912652110c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -263,12 +263,25 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []*Node {
+ }
+ 
+ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+-	name := typedcl0(p.name(decl.Name))
++	n := p.declName(decl.Name)
++	n.Op = OTYPE
++	declare(n, dclcontext)
++	n.Local = true
+ 
+ 	// decl.Type may be nil but in that case we got a syntax error during parsing
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+-	return typedcl1(name, typ, syntax.Pragma(decl.Pragma), decl.Alias)
++	param := n.Name.Param
++	param.Ntype = typ
++	param.Pragma = decl.Pragma
++	param.Alias = decl.Alias
++	if param.Alias && param.Pragma != 0 {
++		yyerror("cannot specify directive with type alias")
++		param.Pragma = 0
++	}
++
++	return p.nod(decl, ODCLTYPE, n, nil)
++
+ }
+ 
+ func (p *noder) declNames(names []*syntax.Name) []*Node {
+diff --git a/test/notinheap.go b/test/notinheap.go
+index c3fdfd6daa..44b79646ef 100644
+--- a/test/notinheap.go
++++ b/test/notinheap.go
+@@ -13,15 +13,15 @@ type nih struct{}
+ 
+ // Types embedding notinheap types must be notinheap.
+ 
+-type embed1 struct {
++type embed1 struct { // ERROR "must be go:notinheap"
+ 	x nih
+-} // ERROR "must be go:notinheap"
++}
+ 
+ type embed2 [1]nih // ERROR "must be go:notinheap"
+ 
+-type embed3 struct {
++type embed3 struct { // ERROR "must be go:notinheap"
+ 	x [1]nih
+-} // ERROR "must be go:notinheap"
++}
+ 
+ type embed4 map[nih]int // ERROR "go:notinheap map key not allowed"
+ 

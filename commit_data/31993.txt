@@ -11,10 +11,99 @@ Date:   Wed Mar 29 10:16:50 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/addr2line/addr2line_test.go | 17 +++++++++++++----
  src/cmd/go/internal/load/pkg.go     |  2 +-
  src/cmd/go/internal/run/run.go      |  2 +-
  src/cmd/go/internal/test/test.go    |  2 +-
  src/cmd/go/internal/work/build.go   |  4 ++--
  5 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 2bd2e358c7..22bf1379bb 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -89,16 +89,25 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ func TestAddr2Line(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	syms := loadSyms(t)
+-
+ 	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")
+ 	if err != nil {
+ 		t.Fatal("TempDir failed: ", err)
+ 	}
+ 	defer os.RemoveAll(tmpDir)
+ 
+-	exepath := filepath.Join(tmpDir, "testaddr2line.exe")
+-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
++	// Build copy of test binary with debug symbols,
++	// since the one running now may not have them.
++	exepath := filepath.Join(tmpDir, "testaddr2line_test.exe")
++	out, err := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", exepath, "cmd/addr2line").CombinedOutput()
++	if err != nil {
++		t.Fatalf("go test -c -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
++	}
++	os.Args[0] = exepath
++
++	syms := loadSyms(t)
++
++	exepath = filepath.Join(tmpDir, "testaddr2line.exe")
++	out, err = exec.Command(testenv.GoToolPath(t), "build", "-o", exepath, "cmd/addr2line").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go build -o %v cmd/addr2line: %v\n%s", exepath, err, string(out))
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1609459ef8..52c2085ef5 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -109,7 +109,7 @@ type PackageInternal struct {
+ 	ExeName      string               // desired name for temporary executable
+ 	CoverMode    string               // preprocess Go source files with the coverage tool in this mode
+ 	CoverVars    map[string]*CoverVar // variables created by coverage analysis
+-	OmitDWARF    bool                 // tell linker not to write DWARF information
++	OmitDebug    bool                 // tell linker not to write debug information
+ 	BuildID      string               // expected build ID for generated package
+ 	GobinSubdir  bool                 // install target would be subdir of GOBIN
+ }
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 980e160fee..6e276c28ec 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -76,7 +76,7 @@ func runRun(cmd *base.Command, args []string) {
+ 	if p.Error != nil {
+ 		base.Fatalf("%s", p.Error)
+ 	}
+-	p.Internal.OmitDWARF = true
++	p.Internal.OmitDebug = true
+ 	if len(p.DepsErrors) > 0 {
+ 		// Since these are errors in dependencies,
+ 		// the same error might show up multiple times,
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 961466c2ff..62a1ed1ee4 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -862,7 +862,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			Build:     &build.Package{Name: "main"},
+ 			Pkgdir:    testDir,
+ 			Fake:      true,
+-			OmitDWARF: !testC && !testNeedBinary,
++			OmitDebug: !testC && !testNeedBinary,
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index c09d8d3513..870e4d7762 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2417,8 +2417,8 @@ func (gcToolchain) ld(b *Builder, root *Action, out string, allactions []*Action
+ 	if cfg.BuildContext.InstallSuffix != "" {
+ 		ldflags = append(ldflags, "-installsuffix", cfg.BuildContext.InstallSuffix)
+ 	}
+-	if root.Package.Internal.OmitDWARF {
+-		ldflags = append(ldflags, "-w")
++	if root.Package.Internal.OmitDebug {
++		ldflags = append(ldflags, "-s", "-w")
+ 	}
+ 	if cfg.BuildBuildmode == "plugin" {
+ 		pluginpath := root.Package.ImportPath

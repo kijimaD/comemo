@@ -18,6 +18,20 @@ Date:   Fri Jul 21 00:35:31 2017 +0900
     Reviewed-by: Tom Bergan <tombergan@google.com>
     Run-TryBot: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index e5ac252a68..8af4438262 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2265,7 +2265,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	defer mux.mu.Unlock()
+ 
+ 	if pattern == "" {
+-		panic("http: invalid pattern " + pattern)
++		panic("http: invalid pattern")
+ 	}
+ 	if handler == nil {
+ 		panic("http: nil handler")

@@ -17,7 +17,7 @@ Date:   Mon Oct 28 15:30:35 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 16 +++++-
  src/cmd/compile/internal/gc/builtin/runtime.go |  9 ++++
  src/cmd/compile/internal/gc/walk.go            | 55 +++++++++++++++++++
@@ -25,3 +25,303 @@ Date:   Mon Oct 28 15:30:35 2019 -0700
  src/runtime/libfuzzer_amd64.s                  | 42 +++++++++++++++
  src/runtime/libfuzzer_arm64.s                  | 31 +++++++++++
  6 files changed, 227 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 17c45cab15..b6b47440ce 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -183,6 +183,14 @@ var runtimeDecls = [...]struct {
+ 	{"msanwrite", funcTag, 119},
+ 	{"checkptrAlignment", funcTag, 120},
+ 	{"checkptrArithmetic", funcTag, 122},
++	{"libfuzzerTraceCmp1", funcTag, 124},
++	{"libfuzzerTraceCmp2", funcTag, 126},
++	{"libfuzzerTraceCmp4", funcTag, 127},
++	{"libfuzzerTraceCmp8", funcTag, 128},
++	{"libfuzzerTraceConstCmp1", funcTag, 124},
++	{"libfuzzerTraceConstCmp2", funcTag, 126},
++	{"libfuzzerTraceConstCmp4", funcTag, 127},
++	{"libfuzzerTraceConstCmp8", funcTag, 128},
+ 	{"x86HasPOPCNT", varTag, 15},
+ 	{"x86HasSSE41", varTag, 15},
+ 	{"x86HasFMA", varTag, 15},
+@@ -191,7 +199,7 @@ var runtimeDecls = [...]struct {
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [123]*types.Type
++	var typs [129]*types.Type
+ 	typs[0] = types.Bytetype
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[TANY]
+@@ -315,5 +323,11 @@ func runtimeTypes() []*types.Type {
+ 	typs[120] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[1]), anonfield(typs[50])}, nil)
+ 	typs[121] = types.NewSlice(typs[56])
+ 	typs[122] = functype(nil, []*Node{anonfield(typs[56]), anonfield(typs[121])}, nil)
++	typs[123] = types.Types[TUINT8]
++	typs[124] = functype(nil, []*Node{anonfield(typs[123]), anonfield(typs[123])}, nil)
++	typs[125] = types.Types[TUINT16]
++	typs[126] = functype(nil, []*Node{anonfield(typs[125]), anonfield(typs[125])}, nil)
++	typs[127] = functype(nil, []*Node{anonfield(typs[64]), anonfield(typs[64])}, nil)
++	typs[128] = functype(nil, []*Node{anonfield(typs[21]), anonfield(typs[21])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 3fc82c2681..afeae3e794 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -238,6 +238,15 @@ func msanwrite(addr, size uintptr)
+ func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
+ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+ 
++func libfuzzerTraceCmp1(uint8, uint8)
++func libfuzzerTraceCmp2(uint16, uint16)
++func libfuzzerTraceCmp4(uint32, uint32)
++func libfuzzerTraceCmp8(uint64, uint64)
++func libfuzzerTraceConstCmp1(uint8, uint8)
++func libfuzzerTraceConstCmp2(uint16, uint16)
++func libfuzzerTraceConstCmp4(uint32, uint32)
++func libfuzzerTraceConstCmp8(uint64, uint64)
++
+ // architecture variants
+ var x86HasPOPCNT bool
+ var x86HasSSE41 bool
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 2ec279bf37..82ec6f912d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3139,6 +3139,52 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 
+ 	switch t.Etype {
+ 	default:
++		if Debug_libfuzzer != 0 && t.IsInteger() {
++			n.Left = cheapexpr(n.Left, init)
++			n.Right = cheapexpr(n.Right, init)
++
++			// If exactly one comparison operand is
++			// constant, invoke the constcmp functions
++			// instead, and arrange for the constant
++			// operand to be the first argument.
++			l, r := n.Left, n.Right
++			if r.Op == OLITERAL {
++				l, r = r, l
++			}
++			constcmp := l.Op == OLITERAL && r.Op != OLITERAL
++
++			var fn string
++			var paramType *types.Type
++			switch t.Size() {
++			case 1:
++				fn = "libfuzzerTraceCmp1"
++				if constcmp {
++					fn = "libfuzzerTraceConstCmp1"
++				}
++				paramType = types.Types[TUINT8]
++			case 2:
++				fn = "libfuzzerTraceCmp2"
++				if constcmp {
++					fn = "libfuzzerTraceConstCmp2"
++				}
++				paramType = types.Types[TUINT16]
++			case 4:
++				fn = "libfuzzerTraceCmp4"
++				if constcmp {
++					fn = "libfuzzerTraceConstCmp4"
++				}
++				paramType = types.Types[TUINT32]
++			case 8:
++				fn = "libfuzzerTraceCmp8"
++				if constcmp {
++					fn = "libfuzzerTraceConstCmp8"
++				}
++				paramType = types.Types[TUINT64]
++			default:
++				Fatalf("unexpected integer size %d for %v", t.Size(), t)
++			}
++			init.Append(mkcall(fn, nil, init, tracecmpArg(l, paramType, init), tracecmpArg(r, paramType, init)))
++		}
+ 		return n
+ 	case TARRAY:
+ 		// We can compare several elements at once with 2/4/8 byte integer compares
+@@ -3276,6 +3322,15 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	return n
+ }
+ 
++func tracecmpArg(n *Node, t *types.Type, init *Nodes) *Node {
++	// Ugly hack to avoid "constant -1 overflows uintptr" errors, etc.
++	if n.Op == OLITERAL && n.Type.IsSigned() && n.Int64() < 0 {
++		n = copyexpr(n, n.Type, init)
++	}
++
++	return conv(n, t)
++}
++
+ func walkcompareInterface(n *Node, init *Nodes) *Node {
+ 	// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+ 	if !types.Identical(n.Left.Type, n.Right.Type) {
+diff --git a/src/runtime/libfuzzer.go b/src/runtime/libfuzzer.go
+new file mode 100644
+index 0000000000..0161955f09
+--- /dev/null
++++ b/src/runtime/libfuzzer.go
+@@ -0,0 +1,75 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build libfuzzer
++
++package runtime
++
++import _ "unsafe" // for go:linkname
++
++func libfuzzerCall(fn *byte, arg0, arg1 uintptr)
++
++func libfuzzerTraceCmp1(arg0, arg1 uint8) {
++	libfuzzerCall(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceCmp2(arg0, arg1 uint16) {
++	libfuzzerCall(&__sanitizer_cov_trace_cmp2, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceCmp4(arg0, arg1 uint32) {
++	libfuzzerCall(&__sanitizer_cov_trace_cmp4, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceCmp8(arg0, arg1 uint64) {
++	libfuzzerCall(&__sanitizer_cov_trace_cmp8, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceConstCmp1(arg0, arg1 uint8) {
++	libfuzzerCall(&__sanitizer_cov_trace_const_cmp1, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {
++	libfuzzerCall(&__sanitizer_cov_trace_const_cmp2, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {
++	libfuzzerCall(&__sanitizer_cov_trace_const_cmp4, uintptr(arg0), uintptr(arg1))
++}
++
++func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {
++	libfuzzerCall(&__sanitizer_cov_trace_const_cmp8, uintptr(arg0), uintptr(arg1))
++}
++
++//go:linkname __sanitizer_cov_trace_cmp1 __sanitizer_cov_trace_cmp1
++//go:cgo_import_static __sanitizer_cov_trace_cmp1
++var __sanitizer_cov_trace_cmp1 byte
++
++//go:linkname __sanitizer_cov_trace_cmp2 __sanitizer_cov_trace_cmp2
++//go:cgo_import_static __sanitizer_cov_trace_cmp2
++var __sanitizer_cov_trace_cmp2 byte
++
++//go:linkname __sanitizer_cov_trace_cmp4 __sanitizer_cov_trace_cmp4
++//go:cgo_import_static __sanitizer_cov_trace_cmp4
++var __sanitizer_cov_trace_cmp4 byte
++
++//go:linkname __sanitizer_cov_trace_cmp8 __sanitizer_cov_trace_cmp8
++//go:cgo_import_static __sanitizer_cov_trace_cmp8
++var __sanitizer_cov_trace_cmp8 byte
++
++//go:linkname __sanitizer_cov_trace_const_cmp1 __sanitizer_cov_trace_const_cmp1
++//go:cgo_import_static __sanitizer_cov_trace_const_cmp1
++var __sanitizer_cov_trace_const_cmp1 byte
++
++//go:linkname __sanitizer_cov_trace_const_cmp2 __sanitizer_cov_trace_const_cmp2
++//go:cgo_import_static __sanitizer_cov_trace_const_cmp2
++var __sanitizer_cov_trace_const_cmp2 byte
++
++//go:linkname __sanitizer_cov_trace_const_cmp4 __sanitizer_cov_trace_const_cmp4
++//go:cgo_import_static __sanitizer_cov_trace_const_cmp4
++var __sanitizer_cov_trace_const_cmp4 byte
++
++//go:linkname __sanitizer_cov_trace_const_cmp8 __sanitizer_cov_trace_const_cmp8
++//go:cgo_import_static __sanitizer_cov_trace_const_cmp8
++var __sanitizer_cov_trace_const_cmp8 byte
+diff --git a/src/runtime/libfuzzer_amd64.s b/src/runtime/libfuzzer_amd64.s
+new file mode 100644
+index 0000000000..890fde341b
+--- /dev/null
++++ b/src/runtime/libfuzzer_amd64.s
+@@ -0,0 +1,42 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build libfuzzer
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "textflag.h"
++
++// Based on race_amd64.s; see commentary there.
++
++#ifdef GOOS_windows
++#define RARG0 CX
++#define RARG1 DX
++#else
++#define RARG0 DI
++#define RARG1 SI
++#endif
++
++// void runtime·libfuzzerCall(fn, arg0, arg1 uintptr)
++// Calls C function fn from libFuzzer and passes 2 arguments to it.
++TEXT	runtime·libfuzzerCall(SB), NOSPLIT, $0-24
++	MOVQ	fn+0(FP), AX
++	MOVQ	arg0+8(FP), RARG0
++	MOVQ	arg1+16(FP), RARG1
++
++	get_tls(R12)
++	MOVQ	g(R12), R14
++	MOVQ	g_m(R14), R13
++
++	// Switch to g0 stack.
++	MOVQ	SP, R12		// callee-saved, preserved across the CALL
++	MOVQ	m_g0(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on g0
++	MOVQ	(g_sched+gobuf_sp)(R10), SP
++call:
++	ANDQ	$~15, SP	// alignment for gcc ABI
++	CALL	AX
++	MOVQ	R12, SP
++	RET
+diff --git a/src/runtime/libfuzzer_arm64.s b/src/runtime/libfuzzer_arm64.s
+new file mode 100644
+index 0000000000..121673e092
+--- /dev/null
++++ b/src/runtime/libfuzzer_arm64.s
+@@ -0,0 +1,31 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build libfuzzer
++
++#include "go_asm.h"
++#include "textflag.h"
++
++// Based on race_arm64.s; see commentary there.
++
++// func runtime·libfuzzerCall(fn, arg0, arg1 uintptr)
++// Calls C function fn from libFuzzer and passes 2 arguments to it.
++TEXT	runtime·libfuzzerCall(SB), NOSPLIT, $0-24
++	MOVD	fn+0(FP), R9
++	MOVD	arg0+8(FP), R0
++	MOVD	arg1+16(FP), R1
++
++	MOVD	g_m(g), R10
++
++	// Switch to g0 stack.
++	MOVD	RSP, R19	// callee-saved, preserved across the CALL
++	MOVD	m_g0(R10), R11
++	CMP	R11, g
++	BEQ	call	// already on g0
++	MOVD	(g_sched+gobuf_sp)(R11), R12
++	MOVD	R12, RSP
++call:
++	BL	R9
++	MOVD	R19, RSP
++	RET

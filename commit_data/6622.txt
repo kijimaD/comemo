@@ -8,6 +8,41 @@ Date:   Mon Oct 25 17:03:25 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/2729041
-
+---
  src/cmd/gotest/gotest | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index e634a11089..32b4aa538d 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -149,24 +149,24 @@ importpath=$(gomake -s importpath)
+ 	echo 'import "testing"'
+ 	# test array
+ 	echo
+-	echo 'var tests = []testing.Test {'
++	echo 'var tests = []testing.Test{'
+ 	for i in $tests
+ 	do
+-		echo '	testing.Test{ "'$i'", '$i' },'
++		echo '	testing.Test{"'$i'", '$i'},'
+ 	done
+ 	echo '}'
+ 	# benchmark array
+-	echo 'var benchmarks = []testing.Benchmark {'
++	echo 'var benchmarks = []testing.Benchmark{'
+ 	for i in $benchmarks
+ 	do
+-		echo '	testing.Benchmark{ "'$i'", '$i' },'
++		echo '	testing.Benchmark{"'$i'", '$i'},'
+ 	done
+ 	echo '}'
+ 
+ 	# body
+ 	echo
+ 	echo 'func main() {'
+-	echo '	testing.Main(tests);'
++	echo '	testing.Main(tests)'
+ 	echo '	testing.RunBenchmarks(benchmarks)'
+ 	echo '}'
+ }>_testmain.go

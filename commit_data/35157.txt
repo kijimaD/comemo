@@ -26,6 +26,33 @@ Date:   Thu Jan 4 10:43:29 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ff441badde..2e958f7fc5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2299,6 +2299,12 @@ stop:
+ 		return gp, false
+ 	}
+ 
++	// Before we drop our P, make a snapshot of the allp slice,
++	// which can change underfoot once we no longer block
++	// safe-points. We don't need to snapshot the contents because
++	// everything up to cap(allp) is immutable.
++	allpSnapshot := allp
++
+ 	// return P and block
+ 	lock(&sched.lock)
+ 	if sched.gcwaiting != 0 || _p_.runSafePointFn != 0 {
+@@ -2338,7 +2344,7 @@ stop:
+ 	}
+ 
+ 	// check all runqueues once again
+-	for _, _p_ := range allp {
++	for _, _p_ := range allpSnapshot {
+ 		if !runqempty(_p_) {
+ 			lock(&sched.lock)
+ 			_p_ = pidleget()

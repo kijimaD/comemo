@@ -17,6 +17,23 @@ Date:   Fri Dec 4 21:44:29 2009 -0800
     
     R=r
     https://golang.org/cl/166072
-
+---
  test/bench/reverse-complement.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/bench/reverse-complement.go b/test/bench/reverse-complement.go
+index 60e14dba8c..a685e43b5b 100644
+--- a/test/bench/reverse-complement.go
++++ b/test/bench/reverse-complement.go
+@@ -86,9 +86,9 @@ func main() {
+ 			}
+ 
+ 			// This loop is the bottleneck.
+-			for r := 0; r < len(line); r++ {
++			for _, c := range line {
+ 				w--;
+-				buf[w] = complement[line[r]];
++				buf[w] = complement[c];
+ 			}
+ 		}
+ 

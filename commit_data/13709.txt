@@ -7,7 +7,34 @@ Date:   Thu Aug 30 11:16:41 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6495059
-
+---
  src/pkg/path/path.go      | 3 ++-
  src/pkg/path/path_test.go | 1 +
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 649c1504c8..bdb85c6b92 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -198,7 +198,8 @@ func IsAbs(path string) bool {
+ }
+ 
+ // Dir returns all but the last element of path, typically the path's directory.
+-// The path is Cleaned and trailing slashes are removed before processing.
++// After dropping the final element using Split, the path is Cleaned and trailing
++// slashes are removed.
+ // If the path is empty, Dir returns ".".
+ // If the path consists entirely of slashes followed by non-slash bytes, Dir
+ // returns a single slash. In any other case, the returned path does not end in a
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 109005de39..0f353be34d 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -200,6 +200,7 @@ var dirtests = []PathTest{
+ 	{"x/", "x"},
+ 	{"abc", "."},
+ 	{"abc/def", "abc"},
++	{"abc////def", "abc"},
+ 	{"a/b/.x", "a/b"},
+ 	{"a/b/c.", "a/b"},
+ 	{"a/b/c.x", "a/b"},

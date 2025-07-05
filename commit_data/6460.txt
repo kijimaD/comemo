@@ -7,6 +7,19 @@ Date:   Wed Oct 6 11:25:40 2010 -0400
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/2290045
-
+---
  src/pkg/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index cc8279a1f9..d5c8e3997c 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -173,6 +173,7 @@ endif
+ # Disable tests that NaCl cannot run yet.
+ ifeq ($(GOOS),nacl)
+ NOTEST+=archive/tar  # no pipe
++NOTEST+=archive/zip  # no pread
+ NOTEST+=debug/dwarf  # no pread
+ NOTEST+=debug/macho  # no pread
+ NOTEST+=debug/elf    # no pread

@@ -11,6 +11,31 @@ Date:   Fri Oct 25 11:24:04 2024 +0300
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/pprof/pprof.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index be3e44c6d2..6ba6b2c8e0 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -86,7 +86,7 @@ import (
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"runtime/trace"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -413,8 +413,8 @@ func Index(w http.ResponseWriter, r *http.Request) {
+ 		})
+ 	}
+ 
+-	sort.Slice(profiles, func(i, j int) bool {
+-		return profiles[i].Name < profiles[j].Name
++	slices.SortFunc(profiles, func(a, b profileEntry) int {
++		return strings.Compare(a.Name, b.Name)
+ 	})
+ 
+ 	if err := indexTmplExecute(w, profiles); err != nil {

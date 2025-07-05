@@ -13,8 +13,116 @@ Date:   Thu Jan 28 23:06:56 2021 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/287652
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/os_openbsd_syscall1.go |  4 +--
  src/runtime/sys_openbsd1.go        |  4 +--
  src/runtime/sys_openbsd_386.s      | 59 +++++++++++++++++++++++++++-----------
  3 files changed, 46 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/os_openbsd_syscall1.go b/src/runtime/os_openbsd_syscall1.go
+index 0f3d5f0b73..ecae67aa2f 100644
+--- a/src/runtime/os_openbsd_syscall1.go
++++ b/src/runtime/os_openbsd_syscall1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build openbsd && !amd64 && !arm64
+-// +build openbsd,!amd64,!arm64
++//go:build openbsd && !386 && !amd64 && !arm64
++// +build openbsd,!386,!amd64,!arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd1.go b/src/runtime/sys_openbsd1.go
+index 43e0058985..b007b6d3f5 100644
+--- a/src/runtime/sys_openbsd1.go
++++ b/src/runtime/sys_openbsd1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && amd64) || (openbsd && arm64)
+-// +build openbsd,amd64 openbsd,arm64
++//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm64)
++// +build openbsd,386 openbsd,amd64 openbsd,arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 8eb252904f..f1911a588d 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -167,6 +167,48 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	POPL	BP
+ 	RET
+ 
++TEXT runtime·thrsleep_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$20, SP
++	MOVL	28(SP), DX		// pointer to args
++	MOVL	0(DX), AX
++	MOVL	4(DX), BX
++	MOVL	8(DX), CX
++	MOVL	AX, 0(SP)		// arg 1 - id
++	MOVL	BX, 4(SP)		// arg 2 - clock_id
++	MOVL	CX, 8(SP)		// arg 3 - abstime
++	MOVL	12(DX), AX
++	MOVL	16(DX), BX
++	MOVL	AX, 12(SP)		// arg 4 - lock
++	MOVL	BX, 16(SP)		// arg 5 - abort
++	CALL	libc_thrsleep(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
++TEXT runtime·thrwakeup_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$8, SP
++	MOVL	16(SP), DX		// pointer to args
++	MOVL	0(DX), AX
++	MOVL	4(DX), BX
++	MOVL	AX, 0(SP)		// arg 1 - id
++	MOVL	BX, 4(SP)		// arg 2 - count
++	CALL	libc_thrwakeup(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
++TEXT runtime·sched_yield_trampoline(SB),NOSPLIT,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	CALL	libc_sched_yield(SB)
++	MOVL	BP, SP
++	POPL	BP
++	RET
++
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVL	$1, AX
+@@ -403,23 +445,6 @@ TEXT set_tcb<>(SB),NOSPLIT,$8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-TEXT runtime·osyield(SB),NOSPLIT,$-4
+-	MOVL	$298, AX		// sys_sched_yield
+-	INT	$0x80
+-	RET
+-
+-TEXT runtime·thrsleep(SB),NOSPLIT,$-4
+-	MOVL	$94, AX			// sys___thrsleep
+-	INT	$0x80
+-	MOVL	AX, ret+20(FP)
+-	RET
+-
+-TEXT runtime·thrwakeup(SB),NOSPLIT,$-4
+-	MOVL	$301, AX		// sys___thrwakeup
+-	INT	$0x80
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·sysctl(SB),NOSPLIT,$28
+ 	LEAL	mib+0(FP), SI
+ 	LEAL	4(SP), DI

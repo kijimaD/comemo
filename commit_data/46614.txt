@@ -18,6 +18,42 @@ Date:   Fri Jan 15 10:16:25 2021 -0500
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/os/os_test.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index d2e8ed5d82..698dbca91e 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2298,6 +2298,7 @@ func TestLongPath(t *testing.T) {
+ 
+ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
+ 	testenv.MustHaveExec(t)
++	t.Parallel()
+ 
+ 	// Re-exec the test binary itself to emulate "sleep 1".
+ 	cmd := osexec.Command(Args[0], "-test.run", "TestSleep")
+@@ -2305,14 +2306,15 @@ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
+ 	if err != nil {
+ 		t.Fatalf("Failed to start test process: %v", err)
+ 	}
+-	go func() {
+-		time.Sleep(100 * time.Millisecond)
+-		processKiller(cmd.Process)
++
++	defer func() {
++		if err := cmd.Wait(); err == nil {
++			t.Errorf("Test process succeeded, but expected to fail")
++		}
+ 	}()
+-	err = cmd.Wait()
+-	if err == nil {
+-		t.Errorf("Test process succeeded, but expected to fail")
+-	}
++
++	time.Sleep(100 * time.Millisecond)
++	processKiller(cmd.Process)
+ }
+ 
+ // TestSleep emulates "sleep 1". It is a helper for testKillProcess, so we

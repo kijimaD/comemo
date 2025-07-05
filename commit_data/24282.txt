@@ -7,7 +7,51 @@ Date:   Mon Jul 20 15:53:33 2015 -0700
     Change-Id: I814fd0c2f1a622cca7dfd1b771f81de309a1904c
     Reviewed-on: https://go-review.googlesource.com/12441
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index eba3710460..6c4608dc6c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -95,6 +95,7 @@
+ 
+ // block rewrites
+ (If (SETL cmp) yes no) -> (LT cmp yes no)
++(If (SETEQ cmp) yes no) -> (EQ cmp yes no)
+ (If (SETNE cmp) yes no) -> (NE cmp yes no)
+ (If (SETB cmp) yes no) -> (ULT cmp yes no)
+ (If cond yes no) && cond.Op == OpAMD64MOVBload -> (NE (TESTB <TypeFlags> cond cond) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 9a879a39bb..3c7e41e0e8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2142,6 +2142,26 @@ func rewriteBlockAMD64(b *Block) bool {
+ 		}
+ 		goto ende4d36879bb8e1bd8facaa8c91ba99dcc
+ 	ende4d36879bb8e1bd8facaa8c91ba99dcc:
++		;
++		// match: (If (SETEQ cmp) yes no)
++		// cond:
++		// result: (EQ cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpAMD64SETEQ {
++				goto endf113deb06abc88613840e6282942921a
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockAMD64EQ
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto endf113deb06abc88613840e6282942921a
++	endf113deb06abc88613840e6282942921a:
+ 		;
+ 		// match: (If (SETNE cmp) yes no)
+ 		// cond:

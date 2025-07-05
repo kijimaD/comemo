@@ -26,7 +26,7 @@ Date:   Wed May 15 12:47:05 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/mvs/mvs.go                     | 50 ++++++++++++++--------
  .../testdata/mod/example.com_downgrade_v2.0.0.txt  |  9 ++++
  .../mod/example.com_downgrade_v2_v2.0.1.txt        | 13 ++++++
@@ -34,3 +34,247 @@ Date:   Wed May 15 12:47:05 2019 -0400
  .../mod/example.com_latemigrate_v2_v2.0.1.txt      | 20 +++++++++
  src/cmd/go/testdata/script/mod_get_downgrade.txt   | 17 +++++++-
  6 files changed, 102 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 90f8f269b5..04273e733c 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -13,7 +13,6 @@ import (
+ 	"sync"
+ 	"sync/atomic"
+ 
+-	"cmd/go/internal/base"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+ )
+@@ -118,7 +117,7 @@ func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
+ 	return buildList(target, reqs, nil)
+ }
+ 
+-func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) module.Version) ([]module.Version, error) {
++func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (module.Version, error)) ([]module.Version, error) {
+ 	// Explore work graph in parallel in case reqs.Required
+ 	// does high-latency network operations.
+ 	type modGraphNode struct {
+@@ -133,6 +132,10 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
+ 		min      = map[string]string{} // maps module path to minimum required version
+ 		haveErr  int32
+ 	)
++	setErr := func(n *modGraphNode, err error) {
++		n.err = err
++		atomic.StoreInt32(&haveErr, 1)
++	}
+ 
+ 	var work par.Work
+ 	work.Add(target)
+@@ -149,8 +152,7 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
+ 
+ 		required, err := reqs.Required(m)
+ 		if err != nil {
+-			node.err = err
+-			atomic.StoreInt32(&haveErr, 1)
++			setErr(node, err)
+ 			return
+ 		}
+ 		node.required = required
+@@ -159,9 +161,9 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
+ 		}
+ 
+ 		if upgrade != nil {
+-			u := upgrade(m)
+-			if u.Path == "" {
+-				base.Errorf("Upgrade(%v) returned zero module", m)
++			u, err := upgrade(m)
++			if err != nil {
++				setErr(node, err)
+ 				return
+ 			}
+ 			if u != m {
+@@ -332,17 +334,12 @@ func Req(target module.Version, list []module.Version, base []string, reqs Reqs)
+ // UpgradeAll returns a build list for the target module
+ // in which every module is upgraded to its latest version.
+ func UpgradeAll(target module.Version, reqs Reqs) ([]module.Version, error) {
+-	return buildList(target, reqs, func(m module.Version) module.Version {
++	return buildList(target, reqs, func(m module.Version) (module.Version, error) {
+ 		if m.Path == target.Path {
+-			return target
++			return target, nil
+ 		}
+ 
+-		latest, err := reqs.Upgrade(m)
+-		if err != nil {
+-			panic(err) // TODO
+-		}
+-		m.Version = latest.Version
+-		return m
++		return reqs.Upgrade(m)
+ 	})
+ }
+ 
+@@ -351,7 +348,7 @@ func UpgradeAll(target module.Version, reqs Reqs) ([]module.Version, error) {
+ func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]module.Version, error) {
+ 	list, err := reqs.Required(target)
+ 	if err != nil {
+-		panic(err) // TODO
++		return nil, err
+ 	}
+ 	// TODO: Maybe if an error is given,
+ 	// rerun with BuildList(upgrade[0], reqs) etc
+@@ -370,7 +367,7 @@ func Upgrade(target module.Version, reqs Reqs, upgrade ...module.Version) ([]mod
+ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([]module.Version, error) {
+ 	list, err := reqs.Required(target)
+ 	if err != nil {
+-		panic(err) // TODO
++		return nil, err
+ 	}
+ 	max := make(map[string]string)
+ 	for _, r := range list {
+@@ -409,7 +406,17 @@ func Downgrade(target module.Version, reqs Reqs, downgrade ...module.Version) ([
+ 		}
+ 		list, err := reqs.Required(m)
+ 		if err != nil {
+-			panic(err) // TODO
++			// If we can't load the requirements, we couldn't load the go.mod file.
++			// There are a number of reasons this can happen, but this usually
++			// means an older version of the module had a missing or invalid
++			// go.mod file. For example, if example.com/mod released v2.0.0 before
++			// migrating to modules (v2.0.0+incompatible), then added a valid go.mod
++			// in v2.0.1, downgrading from v2.0.1 would cause this error.
++			//
++			// TODO(golang.org/issue/31730, golang.org/issue/30134): if the error
++			// is transient (we couldn't download go.mod), return the error from
++			// Downgrade. Currently, we can't tell what kind of error it is.
++			exclude(m)
+ 		}
+ 		for _, r := range list {
+ 			add(r)
+@@ -429,7 +436,12 @@ List:
+ 		for excluded[r] {
+ 			p, err := reqs.Previous(r)
+ 			if err != nil {
+-				return nil, err // TODO
++				// This is likely a transient error reaching the repository,
++				// rather than a permanent error with the retrieved version.
++				//
++				// TODO(golang.org/issue/31730, golang.org/issue/30134):
++				// decode what to do based on the actual error.
++				return nil, err
+ 			}
+ 			// If the target version is a pseudo-version, it may not be
+ 			// included when iterating over prior versions using reqs.Previous.
+diff --git a/src/cmd/go/testdata/mod/example.com_downgrade_v2.0.0.txt b/src/cmd/go/testdata/mod/example.com_downgrade_v2.0.0.txt
+new file mode 100644
+index 0000000000..88d50e5bba
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_downgrade_v2.0.0.txt
+@@ -0,0 +1,9 @@
++example.com/downgrade v2.0.0
++written by hand
++
++-- .mod --
++module example.com/downgrade
++
++require rsc.io/quote v1.5.2
++-- .info --
++{"Version":"v2.0.0"}
+diff --git a/src/cmd/go/testdata/mod/example.com_downgrade_v2_v2.0.1.txt b/src/cmd/go/testdata/mod/example.com_downgrade_v2_v2.0.1.txt
+new file mode 100644
+index 0000000000..a4d665ff1b
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_downgrade_v2_v2.0.1.txt
+@@ -0,0 +1,13 @@
++example.com/downgrade/v2 v2.0.1
++written by hand
++
++-- .mod --
++module example.com/downgrade/v2
++
++require rsc.io/quote v1.5.2
++-- .info --
++{"Version":"v2.0.1"}
++-- go.mod --
++module example.com/downgrade/v2
++
++require rsc.io/quote v1.5.2
+diff --git a/src/cmd/go/testdata/mod/example.com_latemigrate_v2_v2.0.0.txt b/src/cmd/go/testdata/mod/example.com_latemigrate_v2_v2.0.0.txt
+new file mode 100644
+index 0000000000..25bd3d9d8f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_latemigrate_v2_v2.0.0.txt
+@@ -0,0 +1,14 @@
++example.com/latemigrate/v2 v2.0.0
++written by hand
++
++This repository migrated to modules in v2.0.1 after v2.0.0 was already tagged.
++All versions require rsc.io/quote so we can test downgrades.
++
++v2.0.0 is technically part of example.com/latemigrate as v2.0.0+incompatible.
++Proxies may serve it as part of the version list for example.com/latemigrate/v2.
++'go get' must be able to ignore these versions.
++
++-- .mod --
++module example.com/latemigrate
++-- .info --
++{"Version":"v2.0.0"}
+diff --git a/src/cmd/go/testdata/mod/example.com_latemigrate_v2_v2.0.1.txt b/src/cmd/go/testdata/mod/example.com_latemigrate_v2_v2.0.1.txt
+new file mode 100644
+index 0000000000..be427a3185
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_latemigrate_v2_v2.0.1.txt
+@@ -0,0 +1,20 @@
++example.com/latemigrate/v2 v2.0.1
++written by hand
++
++This repository migrated to modules in v2.0.1 after v2.0.0 was already tagged.
++All versions require rsc.io/quote so we can test downgrades.
++
++v2.0.1 belongs to example.com/latemigrate/v2.
++
++-- .mod --
++module example.com/latemigrate/v2
++
++require rsc.io/quote v1.3.0
++-- .info --
++{"Version":"v2.0.1"}
++-- go.mod --
++module example.com/latemigrate/v2
++
++require rsc.io/quote v1.3.0
++-- late.go --
++package late
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade.txt b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+index 00cd93e598..ee9ac96475 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+@@ -2,6 +2,7 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # downgrade sampler should downgrade quote
++cp go.mod.orig go.mod
+ go get rsc.io/sampler@v1.0.0
+ go list -m all
+ stdout 'rsc.io/quote v1.4.0'
+@@ -31,9 +32,21 @@ stdout 'rsc.io/quote v1.4.0'
+ stdout 'rsc.io/sampler v1.0.0'
+ ! stdout golang.org/x/text
+ 
+--- go.mod --
++# downgrading away quote should also downgrade away latemigrate/v2,
++# since there are no older versions. v2.0.0 is incompatible.
++cp go.mod.orig go.mod
++go list -m -versions example.com/latemigrate/v2
++stdout v2.0.0 # proxy may serve incompatible versions
++go get rsc.io/quote@none
++go list -m all
++! stdout 'example.com/latemigrate/v2'
++
++-- go.mod.orig --
+ module x
+-require rsc.io/quote v1.5.1
++require (
++	rsc.io/quote v1.5.1
++	example.com/latemigrate/v2 v2.0.1
++)
+ -- go.mod.empty --
+ module x
+ -- x.go --

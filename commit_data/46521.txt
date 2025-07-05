@@ -17,7 +17,7 @@ Date:   Thu Jan 7 12:35:01 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../golang.org/x/tools/go/analysis/analysis.go     |  4 +
@@ -33,3 +33,303 @@ Date:   Thu Jan 7 12:35:01 2021 -0800
  .../golang.org/x/tools/go/ast/inspector/typeof.go  |  4 +
  src/cmd/vendor/modules.txt                         |  2 +-
  14 files changed, 82 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 031b8d4ab7..879513b912 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+ 	golang.org/x/mod v0.4.0
+ 	golang.org/x/sys v0.0.0-20201204225414-ed752295db88 // indirect
+-	golang.org/x/tools v0.0.0-20201211025543-abf6a1d87e11
++	golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 2fde9445f6..fc251ed663 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -31,8 +31,8 @@ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20201211025543-abf6a1d87e11 h1:9j/upNXDRpADUw2RpUfJ7E7GHtfhDih62kX6JM8vs2c=
+-golang.org/x/tools v0.0.0-20201211025543-abf6a1d87e11/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
++golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff h1:6EkB024TP1fu6cmQqeCNw685zYDVt5g8N1BXh755SQM=
++golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 8c3c2e7ab9..d11505a165 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package analysis
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+index 57eaf6faa2..cd462a0cb5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -1,3 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package analysis
+ 
+ import "go/token"
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 9fa3302dfb..94a3bd5d07 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ /*
+ 
+ Package analysis defines the interface between a modular static
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+index c5a70f3b7d..ce92892c81 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package analysisflags
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+index 80c9476fcd..ac37e4784e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // Package analysisutil defines various helper functions
+ // used by two or more packages beneath go/analysis.
+ package analysisutil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index bd8a594ef5..6a5fae44f4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package printf
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index 02555648a0..f0b15051c5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -207,12 +207,12 @@ var (
+ )
+ 
+ // validateStructTag parses the struct tag and returns an error if it is not
+-// in the canonical format, as defined by reflect.StructTag.
++// in the canonical format, which is a space-separated list of key:"value"
++// settings. The value may contain spaces.
+ func validateStructTag(tag string) error {
+ 	// This code is based on the StructTag.Get code in package reflect.
+ 
+ 	n := 0
+-	var keys []string
+ 	for ; tag != ""; n++ {
+ 		if n > 0 && tag != "" && tag[0] != ' ' {
+ 			// More restrictive than reflect, but catches likely mistakes
+@@ -240,27 +240,14 @@ func validateStructTag(tag string) error {
+ 		if i == 0 {
+ 			return errTagKeySyntax
+ 		}
+-		if i+1 >= len(tag) || tag[i] < ' ' || tag[i] == 0x7f {
++		if i+1 >= len(tag) || tag[i] != ':' {
+ 			return errTagSyntax
+ 		}
+-		key := tag[:i]
+-		keys = append(keys, key)
+-		tag = tag[i:]
+-
+-		// If we found a space char here - assume that we have a tag with
+-		// multiple keys.
+-		if tag[0] == ' ' {
+-			continue
+-		}
+-
+-		// Spaces were filtered above so we assume that here we have
+-		// only valid tag value started with `:"`.
+-		if tag[0] != ':' || tag[1] != '"' {
++		if tag[i+1] != '"' {
+ 			return errTagValueSyntax
+ 		}
+-
+-		// Remove the colon leaving tag at the start of the quoted string.
+-		tag = tag[1:]
++		key := tag[:i]
++		tag = tag[i+1:]
+ 
+ 		// Scan quoted string to find value.
+ 		i = 1
+@@ -276,56 +263,51 @@ func validateStructTag(tag string) error {
+ 		qvalue := tag[:i+1]
+ 		tag = tag[i+1:]
+ 
+-		wholeValue, err := strconv.Unquote(qvalue)
++		value, err := strconv.Unquote(qvalue)
+ 		if err != nil {
+ 			return errTagValueSyntax
+ 		}
+ 
+-		for _, key := range keys {
+-			if !checkTagSpaces[key] {
+-				continue
+-			}
+-
+-			value := wholeValue
+-			switch key {
+-			case "xml":
+-				// If the first or last character in the XML tag is a space, it is
+-				// suspicious.
+-				if strings.Trim(value, " ") != value {
+-					return errTagValueSpace
+-				}
++		if !checkTagSpaces[key] {
++			continue
++		}
+ 
+-				// If there are multiple spaces, they are suspicious.
+-				if strings.Count(value, " ") > 1 {
+-					return errTagValueSpace
+-				}
++		switch key {
++		case "xml":
++			// If the first or last character in the XML tag is a space, it is
++			// suspicious.
++			if strings.Trim(value, " ") != value {
++				return errTagValueSpace
++			}
+ 
+-				// If there is no comma, skip the rest of the checks.
+-				comma := strings.IndexRune(value, ',')
+-				if comma < 0 {
+-					continue
+-				}
++			// If there are multiple spaces, they are suspicious.
++			if strings.Count(value, " ") > 1 {
++				return errTagValueSpace
++			}
+ 
+-				// If the character before a comma is a space, this is suspicious.
+-				if comma > 0 && value[comma-1] == ' ' {
+-					return errTagValueSpace
+-				}
+-				value = value[comma+1:]
+-			case "json":
+-				// JSON allows using spaces in the name, so skip it.
+-				comma := strings.IndexRune(value, ',')
+-				if comma < 0 {
+-					continue
+-				}
+-				value = value[comma+1:]
++			// If there is no comma, skip the rest of the checks.
++			comma := strings.IndexRune(value, ',')
++			if comma < 0 {
++				continue
+ 			}
+ 
+-			if strings.IndexByte(value, ' ') >= 0 {
++			// If the character before a comma is a space, this is suspicious.
++			if comma > 0 && value[comma-1] == ' ' {
+ 				return errTagValueSpace
+ 			}
++			value = value[comma+1:]
++		case "json":
++			// JSON allows using spaces in the name, so skip it.
++			comma := strings.IndexRune(value, ',')
++			if comma < 0 {
++				continue
++			}
++			value = value[comma+1:]
+ 		}
+ 
+-		keys = keys[:0]
++		if strings.IndexByte(value, ' ') >= 0 {
++			return errTagValueSpace
++		}
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+index 683b7e91d2..9051456e39 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker112.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build go1.12
+ 
+ package unitchecker
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+index ad0e7276c9..23e57bf02b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package analysis
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go
+index 7630629824..919d5305ab 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/util.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package astutil
+ 
+ import "go/ast"
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+index d61301b133..b6b00cf2e1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/typeof.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package inspector
+ 
+ // This file defines func typeOf(ast.Node) uint64.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 4e47f41855..7337800ba6 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -44,7 +44,7 @@ golang.org/x/mod/zip
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20201211025543-abf6a1d87e11
++# golang.org/x/tools v0.0.0-20210107193943-4ed967dd8eff
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags

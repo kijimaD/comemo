@@ -11,7 +11,7 @@ Date:   Fri Jul 2 16:54:14 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/332555
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go           |  8 +++++---
  src/cmd/compile/internal/types2/expr.go               |  6 +++---
  src/cmd/compile/internal/types2/index.go              |  4 ++--
@@ -19,3 +19,194 @@ Date:   Fri Jul 2 16:54:14 2021 -0700
  .../internal/types2/testdata/check/typeparams.go2     |  2 +-
  src/cmd/compile/internal/types2/typeset.go            |  1 +
  6 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 7ba26509e8..83d1743ee2 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -332,13 +332,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 		var src Type
+-		switch t := optype(y.typ).(type) {
++		switch t := under(y.typ).(type) {
+ 		case *Basic:
+ 			if isString(y.typ) {
+ 				src = universeByte
+ 			}
+ 		case *Slice:
+ 			src = t.elem
++		case *TypeParam:
++			check.error(x, "copy on generic operands not yet implemented")
+ 		}
+ 
+ 		if dst == nil || src == nil {
+@@ -455,12 +457,12 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		var valid func(t Type) bool
+ 		valid = func(t Type) bool {
+ 			var m int
+-			switch t := optype(t).(type) {
++			switch t := under(t).(type) {
+ 			case *Slice:
+ 				m = 2
+ 			case *Map, *Chan:
+ 				m = 1
+-			case *Union:
++			case *TypeParam:
+ 				return t.underIs(valid)
+ 			default:
+ 				return false
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 1cb0ad4752..bd35417c64 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -691,7 +691,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		return nil, nil, _InvalidUntypedConversion
+ 	}
+ 
+-	switch t := optype(target).(type) {
++	switch t := under(target).(type) {
+ 	case *Basic:
+ 		if x.mode == constant_ {
+ 			v, code := check.representation(x, t)
+@@ -723,7 +723,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		default:
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+-	case *Union:
++	case *TypeParam:
+ 		ok := t.underIs(func(t Type) bool {
+ 			target, _, _ := check.implicitTypeAndValue(x, t)
+ 			return target != nil
+@@ -1197,7 +1197,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := optype(base).(type) {
++		switch utyp := under(base).(type) {
+ 		case *Struct:
+ 			if len(e.ElemList) == 0 {
+ 				break
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 5a4dcb4741..d3e0c71f05 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -199,7 +199,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	valid := false
+ 	length := int64(-1) // valid if >= 0
+-	switch typ := optype(x.typ).(type) {
++	switch typ := under(x.typ).(type) {
+ 	case *Basic:
+ 		if isString(typ) {
+ 			if e.Full {
+@@ -239,7 +239,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 		valid = true
+ 		// x.typ doesn't change
+ 
+-	case *Union, *TypeParam:
++	case *TypeParam:
+ 		check.error(x, "generic slice expressions not yet implemented")
+ 		x.mode = invalid
+ 		return
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 5ff7840d6f..2f10898585 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -25,10 +25,10 @@ func isGeneric(typ Type) bool {
+ }
+ 
+ func is(typ Type, what BasicInfo) bool {
+-	switch t := optype(typ).(type) {
++	switch t := under(typ).(type) {
+ 	case *Basic:
+ 		return t.info&what != 0
+-	case *Union:
++	case *TypeParam:
+ 		return t.underIs(func(t Type) bool { return is(t, what) })
+ 	}
+ 	return false
+@@ -56,7 +56,7 @@ func isNumericOrString(typ Type) bool { return is(typ, IsNumeric|IsString) }
+ // are not fully set up.
+ func isTyped(typ Type) bool {
+ 	// isTyped is called with types that are not fully
+-	// set up. Must not call Basic()!
++	// set up. Must not call asBasic()!
+ 	// A *Named or *instance type is always typed, so
+ 	// we only need to check if we have a true *Basic
+ 	// type.
+@@ -97,18 +97,19 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	seen[T] = true
+ 
+ 	// If T is a type parameter not constrained by any type
+-	// list (i.e., it's operational type is the top type),
++	// (i.e., it's operational type is the top type),
+ 	// T is comparable if it has the == method. Otherwise,
+ 	// the operational type "wins". For instance
+ 	//
+ 	//     interface{ comparable; type []byte }
+ 	//
+ 	// is not comparable because []byte is not comparable.
++	// TODO(gri) this code is not 100% correct (see comment for TypeSet.IsComparable)
+ 	if t := asTypeParam(T); t != nil && optype(t) == theTop {
+ 		return t.Bound().IsComparable()
+ 	}
+ 
+-	switch t := optype(T).(type) {
++	switch t := under(T).(type) {
+ 	case *Basic:
+ 		// assume invalid types to be comparable
+ 		// to avoid follow-up errors
+@@ -124,24 +125,22 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return true
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+-	case *Union:
++	case *TypeParam:
+ 		return t.underIs(func(t Type) bool {
+ 			return comparable(t, seen)
+ 		})
+-	case *TypeParam:
+-		return t.Bound().IsComparable()
+ 	}
+ 	return false
+ }
+ 
+ // hasNil reports whether a type includes the nil value.
+ func hasNil(typ Type) bool {
+-	switch t := optype(typ).(type) {
++	switch t := under(typ).(type) {
+ 	case *Basic:
+ 		return t.kind == UnsafePointer
+ 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+ 		return true
+-	case *Union:
++	case *TypeParam:
+ 		return t.underIs(hasNil)
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 123567682a..8a7f6eb2c2 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -119,7 +119,7 @@ func _[T interface{ [10]int | *[20]int | []int }](x T, i int) { _ = x[i]; _ = x[
+ // slicing
+ // TODO(gri) implement this
+ 
+-func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
++func _[T interface{ ~string }] (x T, i, j, k int) { _ = x /* ERROR generic slice expressions not yet implemented */ [i:j:k] }
+ 
+ // len/cap built-ins
+ 
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 6ff8563974..4aee8e4097 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -28,6 +28,7 @@ func (s *TypeSet) IsTop() bool { return len(s.methods) == 0 && s.types == nil }
+ func (s *TypeSet) IsMethodSet() bool { return s.types == nil && !s.IsComparable() }
+ 
+ // IsComparable reports whether each type in the set is comparable.
++// TODO(gri) this is not correct - there may be s.types values containing non-comparable types
+ func (s *TypeSet) IsComparable() bool {
+ 	_, m := s.LookupMethod(nil, "==")
+ 	return m != nil

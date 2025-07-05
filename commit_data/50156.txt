@@ -15,7 +15,67 @@ Date:   Tue Oct 5 10:22:47 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewritePPC64.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 4c766df4b3..8e42bae215 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -1019,6 +1019,8 @@
+ (MOVWZreg x:(MOVWZloadidx _ _ _)) => x
+ (MOVWreg x:(MOVWload _ _)) => x
+ (MOVWreg x:(MOVWloadidx _ _ _)) => x
++(MOVBZreg x:(Select0 (LoweredAtomicLoad8 _ _))) => x
++(MOVWZreg x:(Select0 (LoweredAtomicLoad32 _ _))) => x
+ 
+ // don't extend if argument is already extended
+ (MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) => x
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index b278a4cb44..1e6624e906 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -7093,6 +7093,20 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (MOVBZreg x:(Select0 (LoweredAtomicLoad8 _ _)))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpSelect0 {
++			break
++		}
++		x_0 := x.Args[0]
++		if x_0.Op != OpPPC64LoweredAtomicLoad8 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVBZreg x:(Arg <t>))
+ 	// cond: is8BitInt(t) && !isSigned(t)
+ 	// result: x
+@@ -10549,6 +10563,20 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (MOVWZreg x:(Select0 (LoweredAtomicLoad32 _ _)))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpSelect0 {
++			break
++		}
++		x_0 := x.Args[0]
++		if x_0.Op != OpPPC64LoweredAtomicLoad32 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	// match: (MOVWZreg x:(Arg <t>))
+ 	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)
+ 	// result: x

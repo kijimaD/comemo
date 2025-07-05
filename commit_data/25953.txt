@@ -9,8 +9,92 @@ Date:   Fri Dec 4 14:44:27 2015 -0800
     Change-Id: Icbf4f83e965e84f7020f56c3f346193f8b91e7bf
     Reviewed-on: https://go-review.googlesource.com/17461
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 14 ++++----------
  src/cmd/compile/internal/gc/swt.go  |  2 +-
  test/fixedbugs/issue13480.go        | 38 +++++++++++++++++++++++++++++++++++++
  3 files changed, 43 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 4d355517a3..163ecbc34c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -760,17 +760,11 @@ func treecopy(n *Node, lineno int32) *Node {
+ 	return m
+ }
+ 
++// isnil reports whether n represents the universal untyped zero value "nil".
+ func isnil(n *Node) bool {
+-	if n == nil {
+-		return false
+-	}
+-	if n.Op != OLITERAL {
+-		return false
+-	}
+-	if n.Val().Ctype() != CTNIL {
+-		return false
+-	}
+-	return true
++	// Check n.Orig because constant propagation may produce typed nil constants,
++	// which don't exist in the Go spec.
++	return Isconst(n.Orig, CTNIL)
+ }
+ 
+ func isptrto(t *Type, et EType) bool {
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 3600e18268..29e634cebd 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -137,7 +137,7 @@ func typecheckswitch(n *Node) {
+ 						} else {
+ 							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ll.N, ll.N.Type)
+ 						}
+-					case nilonly != "" && !Isconst(ll.N, CTNIL):
++					case nilonly != "" && !isnil(ll.N):
+ 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ll.N, nilonly, n.Left)
+ 					}
+ 
+diff --git a/test/fixedbugs/issue13480.go b/test/fixedbugs/issue13480.go
+new file mode 100644
+index 0000000000..cd2f05de5f
+--- /dev/null
++++ b/test/fixedbugs/issue13480.go
+@@ -0,0 +1,38 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that comparisons of slice/map/func values against converted nil
++// values are properly rejected.
++
++package p
++
++func bug() {
++	type S []byte
++	type M map[int]int
++	type F func()
++
++	var s S
++	var m M
++	var f F
++
++	_ = s == S(nil) // ERROR "compare.*to nil"
++	_ = S(nil) == s // ERROR "compare.*to nil"
++	switch s {
++	case S(nil): // ERROR "compare.*to nil"
++	}
++
++	_ = m == M(nil) // ERROR "compare.*to nil"
++	_ = M(nil) == m // ERROR "compare.*to nil"
++	switch m {
++	case M(nil): // ERROR "compare.*to nil"
++	}
++
++	_ = f == F(nil) // ERROR "compare.*to nil"
++	_ = F(nil) == f // ERROR "compare.*to nil"
++	switch f {
++	case F(nil): // ERROR "compare.*to nil"
++	}
++}

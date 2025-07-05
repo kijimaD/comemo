@@ -9,6 +9,22 @@ Date:   Fri Dec 4 23:16:50 2015 -0500
     Change-Id: I3cf64164fde28ebf739706728b84d8ef5b6dc90e
     Reviewed-on: https://go-review.googlesource.com/17456
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/debug.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index ac61173b7f..0f5936566e 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -35,6 +35,10 @@ func GOMAXPROCS(n int) int {
+ }
+ 
+ // NumCPU returns the number of logical CPUs usable by the current process.
++//
++// The set of available CPUs is checked by querying the operating system
++// at process startup. Changes to operating system CPU allocation after
++// process startup are not reflected.
+ func NumCPU() int {
+ 	return int(ncpu)
+ }

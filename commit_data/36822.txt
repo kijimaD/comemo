@@ -20,7 +20,135 @@ Date:   Fri May 25 15:58:37 2018 -0400
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/type.go            | 46 ++++++++++++++++++-----------------------
  src/go/types/typestring_test.go | 36 ++++++++++++++++++++++++++++++--
  2 files changed, 54 insertions(+), 28 deletions(-)
+
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index cc87f1edb5..60e3efaec3 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -264,12 +264,9 @@ var markComplete = make([]*Func, 0)
+ // to be embedded. This is necessary for interfaces that embed alias type names referring to
+ // non-defined (literal) interface types.
+ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+-	var tnames []Type
+-	if len(embeddeds) > 0 {
+-		tnames := make([]Type, len(embeddeds))
+-		for i, t := range embeddeds {
+-			tnames[i] = t
+-		}
++	tnames := make([]Type, len(embeddeds))
++	for i, t := range embeddeds {
++		tnames[i] = t
+ 	}
+ 	return NewInterface2(methods, tnames)
+ }
+@@ -356,27 +353,24 @@ func (t *Interface) Complete() *Interface {
+ 	}
+ 
+ 	var allMethods []*Func
+-	if t.embeddeds == nil {
+-		if t.methods == nil {
+-			allMethods = make([]*Func, 0, 1)
+-		} else {
+-			allMethods = t.methods
+-		}
+-	} else {
+-		allMethods = append(allMethods, t.methods...)
+-		for _, et := range t.embeddeds {
+-			it := et.Underlying().(*Interface)
+-			it.Complete()
+-			for _, tm := range it.allMethods {
+-				// Make a copy of the method and adjust its receiver type.
+-				newm := *tm
+-				newmtyp := *tm.typ.(*Signature)
+-				newm.typ = &newmtyp
+-				newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
+-				allMethods = append(allMethods, &newm)
+-			}
++	allMethods = append(allMethods, t.methods...)
++	for _, et := range t.embeddeds {
++		it := et.Underlying().(*Interface)
++		it.Complete()
++		for _, tm := range it.allMethods {
++			// Make a copy of the method and adjust its receiver type.
++			newm := *tm
++			newmtyp := *tm.typ.(*Signature)
++			newm.typ = &newmtyp
++			newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
++			allMethods = append(allMethods, &newm)
+ 		}
+-		sort.Sort(byUniqueMethodName(allMethods))
++	}
++	sort.Sort(byUniqueMethodName(allMethods))
++
++	// t.methods and/or t.embeddeds may have been empty
++	if allMethods == nil {
++		allMethods = markComplete
+ 	}
+ 	t.allMethods = allMethods
+ 
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 78f67d1f05..6ed2d75dfe 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -140,16 +140,41 @@ func TestTypeString(t *testing.T) {
+ 
+ func TestIncompleteInterfaces(t *testing.T) {
+ 	sig := NewSignature(nil, nil, nil, false)
++	m := NewFunc(token.NoPos, nil, "m", sig)
+ 	for _, test := range []struct {
+ 		typ  *Interface
+ 		want string
+ 	}{
+ 		{new(Interface), "interface{/* incomplete */}"},
+ 		{new(Interface).Complete(), "interface{}"},
++
++		{NewInterface(nil, nil), "interface{/* incomplete */}"},
++		{NewInterface(nil, nil).Complete(), "interface{}"},
++		{NewInterface([]*Func{}, nil), "interface{/* incomplete */}"},
++		{NewInterface([]*Func{}, nil).Complete(), "interface{}"},
++		{NewInterface(nil, []*Named{}), "interface{/* incomplete */}"},
++		{NewInterface(nil, []*Named{}).Complete(), "interface{}"},
++		{NewInterface([]*Func{m}, nil), "interface{m() /* incomplete */}"},
++		{NewInterface([]*Func{m}, nil).Complete(), "interface{m()}"},
++		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}), "interface{T /* incomplete */}"},
++		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}).Complete(), "interface{T}"},
++		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil))}), "interface{T /* incomplete */}"},
++		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}), "interface{T /* incomplete */}"},
++		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}).Complete(), "interface{T}"},
++
+ 		{NewInterface2(nil, nil), "interface{/* incomplete */}"},
+ 		{NewInterface2(nil, nil).Complete(), "interface{}"},
+-		{NewInterface2([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
+-		{NewInterface2([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
++		{NewInterface2([]*Func{}, nil), "interface{/* incomplete */}"},
++		{NewInterface2([]*Func{}, nil).Complete(), "interface{}"},
++		{NewInterface2(nil, []Type{}), "interface{/* incomplete */}"},
++		{NewInterface2(nil, []Type{}).Complete(), "interface{}"},
++		{NewInterface2([]*Func{m}, nil), "interface{m() /* incomplete */}"},
++		{NewInterface2([]*Func{m}, nil).Complete(), "interface{m()}"},
++		{NewInterface2(nil, []Type{new(Interface).Complete()}), "interface{interface{} /* incomplete */}"},
++		{NewInterface2(nil, []Type{new(Interface).Complete()}).Complete(), "interface{interface{}}"},
++		{NewInterface2(nil, []Type{NewInterface2([]*Func{m}, nil)}), "interface{interface{m() /* incomplete */} /* incomplete */}"},
++		{NewInterface2(nil, []Type{NewInterface2([]*Func{m}, nil).Complete()}), "interface{interface{m()} /* incomplete */}"},
++		{NewInterface2(nil, []Type{NewInterface2([]*Func{m}, nil).Complete()}).Complete(), "interface{interface{m()}}"},
+ 	} {
+ 		got := test.typ.String()
+ 		if got != test.want {
+@@ -158,6 +183,13 @@ func TestIncompleteInterfaces(t *testing.T) {
+ 	}
+ }
+ 
++// newDefined creates a new defined type named T with the given underlying type.
++// Helper function for use with TestIncompleteInterfaces only.
++func newDefined(underlying Type) *Named {
++	tname := NewTypeName(token.NoPos, nil, "T", nil)
++	return NewNamed(tname, underlying, nil)
++}
++
+ func TestQualifiedTypeString(t *testing.T) {
+ 	p, _ := pkgFor("p.go", "package p; type T int", nil)
+ 	q, _ := pkgFor("q.go", "package q", nil)

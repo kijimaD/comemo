@@ -13,9 +13,174 @@ Date:   Fri Sep 2 10:07:29 2011 -0700
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/4952050
-
+---
  src/cmd/godoc/appconfig.go |  8 +++---
  src/cmd/godoc/appinit.go   |  4 +--
  src/cmd/godoc/godoc.go     | 67 ++++++++++++++++++++++------------------------
  src/cmd/godoc/main.go      |  8 +++---
  4 files changed, 42 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/godoc/appconfig.go b/src/cmd/godoc/appconfig.go
+index 1f420fc6cf..052a9ebc8a 100644
+--- a/src/cmd/godoc/appconfig.go
++++ b/src/cmd/godoc/appconfig.go
+@@ -17,9 +17,11 @@ const (
+ 	// in the .zip file.
+ 	zipGoroot = "/home/user/go"
+ 
+-	// indexFilenames is a glob pattern specifying
+-	// files containing the search index served by
+-	// godoc. The files are concatenated in sorted
++	// If indexFilenames != "", the search index is
++	// initialized with the index stored in these
++	// files (otherwise it will be built at run-time,
++	// eventually). indexFilenames is a glob pattern;
++	// the specified files are concatenated in sorted
+ 	// order (by filename).
+ 	// app-engine limit: file sizes must be <= 10MB;
+ 	// use "split -b8m indexfile index.split." to get
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 96f8d5e2ac..baba53fa6f 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -88,9 +88,7 @@ func init() {
+ 
+ 	// initialize search index
+ 	if *indexEnabled {
+-		if err := initIndex(); err != nil {
+-			log.Fatalf("error initializing index: %s", err)
+-		}
++		go indexer()
+ 	}
+ 
+ 	log.Println("godoc initialization complete")
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index a4e26b8726..6b646a1a66 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1065,11 +1065,7 @@ func lookup(query string) (result SearchResult) {
+ 	if *indexEnabled {
+ 		if _, ts := fsModified.get(); timestamp < ts {
+ 			// The index is older than the latest file system change under godoc's observation.
+-			if *indexFiles != "" {
+-				result.Alert = "Index not automatically updated: result may be inaccurate"
+-			} else {
+-				result.Alert = "Indexing in progress: result may be inaccurate"
+-			}
++			result.Alert = "Indexing in progress: result may be inaccurate"
+ 		}
+ 	} else {
+ 		result.Alert = "Search index disabled: no results available"
+@@ -1145,6 +1141,29 @@ func fsDirnames() <-chan string {
+ 	return c
+ }
+ 
++func readIndex(filenames string) os.Error {
++	matches, err := filepath.Glob(filenames)
++	if err != nil {
++		return err
++	}
++	sort.Strings(matches) // make sure files are in the right order
++	files := make([]io.Reader, 0, len(matches))
++	for _, filename := range matches {
++		f, err := os.Open(filename)
++		if err != nil {
++			return err
++		}
++		defer f.Close()
++		files = append(files, f)
++	}
++	x := new(Index)
++	if err := x.Read(io.MultiReader(files...)); err != nil {
++		return err
++	}
++	searchIndex.set(x)
++	return nil
++}
++
+ func updateIndex() {
+ 	if *verbose {
+ 		log.Printf("updating index...")
+@@ -1165,6 +1184,14 @@ func updateIndex() {
+ }
+ 
+ func indexer() {
++	// initialize the index from disk if possible
++	if *indexFiles != "" {
++		if err := readIndex(*indexFiles); err != nil {
++			log.Printf("error reading index: %s", err)
++		}
++	}
++
++	// repeatedly update the index when it goes out of date
+ 	for {
+ 		if !indexUpToDate() {
+ 			// index possibly out of date - make a new one
+@@ -1178,33 +1205,3 @@ func indexer() {
+ 		time.Sleep(delay)
+ 	}
+ }
+-
+-func initIndex() os.Error {
+-	if *indexFiles == "" {
+-		// run periodic indexer
+-		go indexer()
+-		return nil
+-	}
+-
+-	// get search index from files
+-	matches, err := filepath.Glob(*indexFiles)
+-	if err != nil {
+-		return err
+-	}
+-	sort.Strings(matches) // make sure files are in the right order
+-	files := make([]io.Reader, 0, len(matches))
+-	for _, filename := range matches {
+-		f, err := os.Open(filename)
+-		if err != nil {
+-			return err
+-		}
+-		defer f.Close()
+-		files = append(files, f)
+-	}
+-	x := new(Index)
+-	if err := x.Read(io.MultiReader(files...)); err != nil {
+-		return err
+-	}
+-	searchIndex.set(x)
+-	return nil
+-}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 20eff6dd3a..74d3111ffd 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -248,6 +248,7 @@ func main() {
+ 		if err != nil {
+ 			log.Fatalf("%s: %s\n", *zipfile, err)
+ 		}
++		defer rc.Close()                  // be nice (e.g., -writeIndex mode)
+ 		*goroot = path.Join("/", *goroot) // fsHttp paths are relative to '/'
+ 		fs = NewZipFS(rc)
+ 		fsHttp = NewHttpZipFS(rc, *goroot)
+@@ -262,8 +263,9 @@ func main() {
+ 	}
+ 
+ 	if *writeIndex {
++		// Write search index and exit.
+ 		if *indexFiles == "" {
+-			log.Fatal("no index files specified")
++			log.Fatal("no index file specified")
+ 		}
+ 
+ 		log.Println("initialize file systems")
+@@ -342,9 +344,7 @@ func main() {
+ 
+ 		// Initialize search index.
+ 		if *indexEnabled {
+-			if err := initIndex(); err != nil {
+-				log.Fatalf("error initializing index: %s", err)
+-			}
++			go indexer()
+ 		}
+ 
+ 		// Start http server.

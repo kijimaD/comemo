@@ -24,10 +24,175 @@ Date:   Thu Jan 24 16:16:41 2019 +0000
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go           |  6 ++++
  src/cmd/asm/internal/asm/testdata/s390x.s | 15 ++++++++++
  src/cmd/internal/obj/s390x/a.out.go       | 14 ++++++++++
  src/cmd/internal/obj/s390x/anames.go      | 14 ++++++++++
  src/cmd/internal/obj/s390x/asmz.go        | 46 +++++++++++++++++++++++++++++++
  5 files changed, 95 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 3d99af6889..d83cfb2284 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -789,6 +789,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.To = a[4]
+ 			break
+ 		}
++		if p.arch.Family == sys.S390X {
++			prog.From = a[0]
++			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
++			prog.To = a[4]
++			break
++		}
+ 		p.errorf("can't handle %s instruction with 5 operands", op)
+ 		return
+ 	case 6:
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index fbe1203aaa..713ad12aca 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -182,6 +182,21 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	XORW	(R1), R2              // 57201000
+ 	XORW	-1(R1), R2            // e3201fffff57
+ 
++	RNSBG	$0, $31, $32, R1, R2  // ec21001f2054
++	RXSBG	$17, $8, $16, R3, R4  // ec4311081057
++	ROSBG	$9, $24, $11, R5, R6  // ec6509180b56
++	RNSBGT	$0, $31, $32, R7, R8  // ec87801f2054
++	RXSBGT	$17, $8, $16, R9, R10 // eca991081057
++	ROSBGT	$9, $24, $11, R11, R0 // ec0b89180b56
++	RISBG	$0, $31, $32, R1, R2  // ec21001f2055
++	RISBGN	$17, $8, $16, R3, R4  // ec4311081059
++	RISBGZ	$9, $24, $11, R5, R6  // ec6509980b55
++	RISBGNZ	$0, $31, $32, R7, R8  // ec87009f2059
++	RISBHG	$17, $8, $16, R9, R10 // eca91108105d
++	RISBLG	$9, $24, $11, R11, R0 // ec0b09180b51
++	RISBHGZ	$17, $8, $16, R9, R10 // eca91188105d
++	RISBLGZ	$9, $24, $11, R11, R0 // ec0b09980b51
++
+ 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
+ 	LAAG	R4, R5, -524288(R6)   // eb54600080e8
+ 	LAAL	R7, R8, 8192(R9)      // eb87900002fa
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index fb246cbc47..d11a3834b0 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -289,6 +289,20 @@ const (
+ 	ASRAD
+ 	ARLL
+ 	ARLLG
++	ARNSBG
++	ARXSBG
++	AROSBG
++	ARNSBGT
++	ARXSBGT
++	AROSBGT
++	ARISBG
++	ARISBGN
++	ARISBGZ
++	ARISBGNZ
++	ARISBHG
++	ARISBLG
++	ARISBHGZ
++	ARISBLGZ
+ 
+ 	// floating point
+ 	AFABS
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 3a21e90ab1..a9bdfcafe9 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -60,6 +60,20 @@ var Anames = []string{
+ 	"SRAD",
+ 	"RLL",
+ 	"RLLG",
++	"RNSBG",
++	"RXSBG",
++	"ROSBG",
++	"RNSBGT",
++	"RXSBGT",
++	"ROSBGT",
++	"RISBG",
++	"RISBGN",
++	"RISBGZ",
++	"RISBGNZ",
++	"RISBHG",
++	"RISBLG",
++	"RISBHGZ",
++	"RISBLGZ",
+ 	"FABS",
+ 	"FADD",
+ 	"FADDS",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index f4f2317e1e..5cd4dca2a2 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -196,6 +196,7 @@ var optab = []Optab{
+ 	Optab{i: 7, as: ASLD, a1: C_REG, a2: C_REG, a6: C_REG},
+ 	Optab{i: 7, as: ASLD, a1: C_SCON, a2: C_REG, a6: C_REG},
+ 	Optab{i: 7, as: ASLD, a1: C_SCON, a6: C_REG},
++	Optab{i: 13, as: ARNSBG, a1: C_SCON, a3: C_SCON, a4: C_SCON, a5: C_REG, a6: C_REG},
+ 
+ 	// compare and swap
+ 	Optab{i: 79, as: ACSG, a1: C_REG, a2: C_REG, a6: C_SOREG},
+@@ -953,6 +954,20 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASRAW, r)
+ 			opset(ARLL, r)
+ 			opset(ARLLG, r)
++		case ARNSBG:
++			opset(ARXSBG, r)
++			opset(AROSBG, r)
++			opset(ARNSBGT, r)
++			opset(ARXSBGT, r)
++			opset(AROSBGT, r)
++			opset(ARISBG, r)
++			opset(ARISBGN, r)
++			opset(ARISBGZ, r)
++			opset(ARISBGNZ, r)
++			opset(ARISBHG, r)
++			opset(ARISBLG, r)
++			opset(ARISBHGZ, r)
++			opset(ARISBLGZ, r)
+ 		case ACSG:
+ 			opset(ACS, r)
+ 		case ASUB:
+@@ -2993,6 +3008,37 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			zRXY(opxy, uint32(r1), uint32(x2), uint32(b2), uint32(d2), asm)
+ 		}
+ 
++	case 13: // rotate, followed by operation
++		r1 := p.To.Reg
++		r2 := p.RestArgs[2].Reg
++		i3 := uint8(p.From.Offset)        // start
++		i4 := uint8(p.RestArgs[0].Offset) // end
++		i5 := uint8(p.RestArgs[1].Offset) // rotate amount
++		switch p.As {
++		case ARNSBGT, ARXSBGT, AROSBGT:
++			i3 |= 0x80 // test-results
++		case ARISBGZ, ARISBGNZ, ARISBHGZ, ARISBLGZ:
++			i4 |= 0x80 // zero-remaining-bits
++		}
++		var opcode uint32
++		switch p.As {
++		case ARNSBG, ARNSBGT:
++			opcode = op_RNSBG
++		case ARXSBG, ARXSBGT:
++			opcode = op_RXSBG
++		case AROSBG, AROSBGT:
++			opcode = op_ROSBG
++		case ARISBG, ARISBGZ:
++			opcode = op_RISBG
++		case ARISBGN, ARISBGNZ:
++			opcode = op_RISBGN
++		case ARISBHG, ARISBHGZ:
++			opcode = op_RISBHG
++		case ARISBLG, ARISBLGZ:
++			opcode = op_RISBLG
++		}
++		zRIE(_f, uint32(opcode), uint32(r1), uint32(r2), 0, uint32(i3), uint32(i4), 0, uint32(i5), asm)
++
+ 	case 15: // br/bl (reg)
+ 		r := p.To.Reg
+ 		if p.As == ABCL || p.As == ABL {

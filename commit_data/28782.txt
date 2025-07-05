@@ -10,7 +10,7 @@ Date:   Wed Jun 29 15:20:48 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/24646
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/prog.go         |  2 ++
  src/cmd/compile/internal/arm/ssa.go          |  2 ++
  src/cmd/compile/internal/ssa/gen/ARM.rules   |  5 ++---
@@ -24,3 +24,367 @@ Date:   Wed Jun 29 15:20:48 2016 -0400
  src/cmd/internal/obj/arm/obj5.go             |  4 +++-
  src/runtime/softfloat_arm.go                 | 17 +++++++++++++++
  12 files changed, 87 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index f69548a30f..1cbaa2699d 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -79,6 +79,8 @@ var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
+ 	arm.AMULF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+ 	arm.ASUBD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 	arm.ASUBF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
++	arm.ANEGD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
++	arm.ANEGF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+ 	arm.ASQRTD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+ 
+ 	// Conversions.
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 085ca8922b..99a264a167 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -662,6 +662,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		fallthrough
+ 	case ssa.OpARMMVN,
+ 		ssa.OpARMSQRTD,
++		ssa.OpARMNEGF,
++		ssa.OpARMNEGD,
+ 		ssa.OpARMMOVWF,
+ 		ssa.OpARMMOVWD,
+ 		ssa.OpARMMOVFW,
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 1dfa1af922..7e6577692d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -69,9 +69,8 @@
+ (Neg32 x) -> (RSBconst [0] x)
+ (Neg16 x) -> (RSBconst [0] x)
+ (Neg8 x) -> (RSBconst [0] x)
+-//TODO: implement NEGF, NEGD in assembler and soft float simulator, and use them.
+-(Neg32F x) -> (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
+-(Neg64F x) -> (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
++(Neg32F x) -> (NEGF x)
++(Neg64F x) -> (NEGD x)
+ 
+ (Com32 x) -> (MVN x)
+ (Com16 x) -> (MVN x)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 5ac91e15cf..9f351078d8 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -181,6 +181,8 @@ func init() {
+ 		// unary ops
+ 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
+ 
++		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
++		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 
+ 		// shifts
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a09e736b79..23cdab6a85 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -588,6 +588,8 @@ const (
+ 	OpARMBIC
+ 	OpARMBICconst
+ 	OpARMMVN
++	OpARMNEGF
++	OpARMNEGD
+ 	OpARMSQRTD
+ 	OpARMSLL
+ 	OpARMSLLconst
+@@ -7257,6 +7259,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "NEGF",
++		argLen: 1,
++		asm:    arm.ANEGF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "NEGD",
++		argLen: 1,
++		asm:    arm.ANEGD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "SQRTD",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 01c268f70b..154e1e9231 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -11908,12 +11908,12 @@ func rewriteValueAMD64_OpMod16(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod16  x y)
+ 	// cond:
+-	// result: (Select1 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
++	// result: (Select1 (DIVW  x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVW, MakeTuple(config.fe.TypeInt16(), config.fe.TypeInt16()))
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -11925,12 +11925,12 @@ func rewriteValueAMD64_OpMod16u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod16u x y)
+ 	// cond:
+-	// result: (Select1 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
++	// result: (Select1 (DIVWU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, MakeTuple(config.fe.TypeUInt16(), config.fe.TypeUInt16()))
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -11942,12 +11942,12 @@ func rewriteValueAMD64_OpMod32(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod32  x y)
+ 	// cond:
+-	// result: (Select1 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
++	// result: (Select1 (DIVL  x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVL, &TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVL, MakeTuple(config.fe.TypeInt32(), config.fe.TypeInt32()))
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -11959,12 +11959,12 @@ func rewriteValueAMD64_OpMod32u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod32u x y)
+ 	// cond:
+-	// result: (Select1 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
++	// result: (Select1 (DIVLU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVLU, &TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVLU, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -11976,12 +11976,12 @@ func rewriteValueAMD64_OpMod64(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod64  x y)
+ 	// cond:
+-	// result: (Select1 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
++	// result: (Select1 (DIVQ  x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVQ, &TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVQ, MakeTuple(config.fe.TypeInt64(), config.fe.TypeInt64()))
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -11993,12 +11993,12 @@ func rewriteValueAMD64_OpMod64u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod64u x y)
+ 	// cond:
+-	// result: (Select1 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
++	// result: (Select1 (DIVQU x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVQU, &TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVQU, MakeTuple(config.fe.TypeUInt64(), config.fe.TypeUInt64()))
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+@@ -12010,12 +12010,12 @@ func rewriteValueAMD64_OpMod8(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod8   x y)
+ 	// cond:
+-	// result: (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
++	// result: (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVW, MakeTuple(config.fe.TypeInt16(), config.fe.TypeInt16()))
+ 		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+@@ -12031,12 +12031,12 @@ func rewriteValueAMD64_OpMod8u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod8u  x y)
+ 	// cond:
+-	// result: (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
++	// result: (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpSelect1)
+-		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()})
++		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, MakeTuple(config.fe.TypeUInt16(), config.fe.TypeUInt16()))
+ 		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 87c27285c6..7e2435dc2f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -10850,13 +10850,10 @@ func rewriteValueARM_OpNeg32F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Neg32F x)
+ 	// cond:
+-	// result: (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
++	// result: (NEGF x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpARMMULF)
+-		v0 := b.NewValue0(v.Line, OpARMMOVFconst, config.fe.TypeFloat32())
+-		v0.AuxInt = int64(math.Float64bits(-1))
+-		v.AddArg(v0)
++		v.reset(OpARMNEGF)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -10866,13 +10863,10 @@ func rewriteValueARM_OpNeg64F(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Neg64F x)
+ 	// cond:
+-	// result: (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
++	// result: (NEGD x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpARMMULD)
+-		v0 := b.NewValue0(v.Line, OpARMMOVDconst, config.fe.TypeFloat64())
+-		v0.AuxInt = int64(math.Float64bits(-1))
+-		v.AddArg(v0)
++		v.reset(OpARMNEGD)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 4234b5967c..9fcc483b9a 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -234,6 +234,8 @@ const (
+ 	ASQRTD
+ 	AABSF
+ 	AABSD
++	ANEGF
++	ANEGD
+ 
+ 	ASRL
+ 	ASRA
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index 0ef68a6be2..6d7db2dee6 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -59,6 +59,8 @@ var Anames = []string{
+ 	"SQRTD",
+ 	"ABSF",
+ 	"ABSD",
++	"NEGF",
++	"NEGD",
+ 	"SRL",
+ 	"SRA",
+ 	"SLL",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index d37091fe45..2158cf19fa 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1434,6 +1434,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMOVDF, r0)
+ 			opset(AABSF, r0)
+ 			opset(AABSD, r0)
++			opset(ANEGF, r0)
++			opset(ANEGD, r0)
+ 
+ 		case ACMPF:
+ 			opset(ACMPD, r0)
+@@ -1930,7 +1932,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		r := int(p.Reg)
+ 		if r == 0 {
+ 			r = rt
+-			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD {
++			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD || p.As == ANEGF || p.As == ANEGD {
+ 				r = 0
+ 			}
+ 		}
+@@ -2508,6 +2510,10 @@ func oprrr(ctxt *obj.Link, a obj.As, sc int) uint32 {
+ 		return o | 0xe<<24 | 0xb<<20 | 0<<16 | 0xb<<8 | 0xc<<4
+ 	case AABSF:
+ 		return o | 0xe<<24 | 0xb<<20 | 0<<16 | 0xa<<8 | 0xc<<4
++	case ANEGD:
++		return o | 0xe<<24 | 0xb<<20 | 1<<16 | 0xb<<8 | 0x4<<4
++	case ANEGF:
++		return o | 0xe<<24 | 0xb<<20 | 1<<16 | 0xa<<8 | 0x4<<4
+ 	case ACMPD:
+ 		return o | 0xe<<24 | 0xb<<20 | 4<<16 | 0xb<<8 | 0xc<<4
+ 	case ACMPF:
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 9cf2f2918e..a3d421eb6b 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -669,7 +669,9 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
+ 			ASQRTF,
+ 			ASQRTD,
+ 			AABSF,
+-			AABSD:
++			AABSD,
++			ANEGF,
++			ANEGD:
+ 			goto soft
+ 
+ 		default:
+diff --git a/src/runtime/softfloat_arm.go b/src/runtime/softfloat_arm.go
+index 802a151fbf..3cbb4b3fc0 100644
+--- a/src/runtime/softfloat_arm.go
++++ b/src/runtime/softfloat_arm.go
+@@ -446,6 +446,23 @@ execute:
+ 		}
+ 		return 1
+ 
++	case 0xeeb10b40: // D[regd] = neg D[regm]
++		m.freglo[regd] = m.freglo[regm]
++		m.freghi[regd] = m.freghi[regm] ^ 1<<31
++
++		if fptrace > 0 {
++			print("*** D[", regd, "] = neg D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
++		}
++		return 1
++
++	case 0xeeb10a40: // F[regd] = neg F[regm]
++		m.freglo[regd] = m.freglo[regm] ^ 1<<31
++
++		if fptrace > 0 {
++			print("*** F[", regd, "] = neg F[", regm, "] ", hex(m.freglo[regd]), "\n")
++		}
++		return 1
++
+ 	case 0xeeb40bc0: // D[regd] :: D[regm] (CMPD)
+ 		cmp, nan := fcmp64(fgetd(regd), fgetd(regm))
+ 		m.fflag = fstatus(nan, cmp)

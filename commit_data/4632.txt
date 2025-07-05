@@ -9,8 +9,64 @@ Date:   Mon Jan 18 17:30:15 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/186215
-
+---
  src/cmd/gc/sinit.c       |  2 ++
  src/cmd/gc/typecheck.c   |  2 +-
  test/fixedbugs/bug245.go | 16 ++++++++++++++++
  3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 1b618fddb2..fd73dc0ad1 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -322,6 +322,7 @@ slicelit(Node *n, Node *var, NodeList **init)
+ 	t = shallow(n->type);
+ 	t->bound = mpgetfix(n->right->val.u.xval);
+ 	t->width = 0;
++	t->sym = nil;
+ 	dowidth(t);
+ 
+ 	// make static initialized array
+@@ -688,6 +689,7 @@ initctxt:
+ 		t = shallow(t);
+ 		t->bound = mpgetfix(n->right->right->val.u.xval);
+ 		t->width = 0;
++		t->sym = nil;
+ 		dowidth(t);
+ 
+ 		// make static initialized array
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 0c18097dac..f0866ae3bb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1715,7 +1715,7 @@ typecheckcomplit(Node **np)
+ 
+ 	memset(hash, 0, sizeof hash);
+ 
+-	l = typecheck(&n->right /* sic */, Etype /* TODO | Edotarray */);
++	l = typecheck(&n->right /* sic */, Etype);
+ 	if((t = l->type) == T)
+ 		goto error;
+ 	nerr = nerrors;
+diff --git a/test/fixedbugs/bug245.go b/test/fixedbugs/bug245.go
+new file mode 100644
+index 0000000000..6e5a8b344f
+--- /dev/null
++++ b/test/fixedbugs/bug245.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go || echo BUG: bug245
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T []int
++func (t T) m()
++
++func main() {
++	_ = T{}
++}
++
++// bug245.go:14: fatal error: method mismatch: T for T

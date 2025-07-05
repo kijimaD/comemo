@@ -12,8 +12,74 @@ Date:   Tue Oct 4 21:25:11 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5189044
-
+---
  src/cmd/5l/asm.c | 3 ++-
  src/cmd/6l/asm.c | 4 +++-
  src/cmd/8l/asm.c | 4 +++-
  3 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 5b7f6f111d..46fb6b6323 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -232,7 +232,7 @@ doelf(void)
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+ 		s->reachable = 1;
+-		s->type = SELFROSECT;
++		s->type = SELFSECT; // writable
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -251,6 +251,7 @@ doelf(void)
+ 		elfwritedynent(s, DT_PLTREL, DT_REL);
+ 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
+ 		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
++		elfwritedynent(s, DT_DEBUG, 0);
+ 		elfwritedynent(s, DT_NULL, 0);
+ 	}
+ }
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 3a8223e65c..8d599ef30a 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -649,7 +649,7 @@ doelf(void)
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+ 		s->reachable = 1;
+-		s->type = SELFROSECT;
++		s->type = SELFSECT; // writable
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -670,6 +670,8 @@ doelf(void)
+ 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rela.plt", 0));
+ 		elfwritedynentsym(s, DT_JMPREL, lookup(".rela.plt", 0));
+ 		
++		elfwritedynent(s, DT_DEBUG, 0);
++
+ 		// Do not write DT_NULL.  elfdynhash will finish it.
+ 	}
+ }
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 6c7f964837..03106386c0 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -607,7 +607,7 @@ doelf(void)
+ 		/* define dynamic elf table */
+ 		s = lookup(".dynamic", 0);
+ 		s->reachable = 1;
+-		s->type = SELFROSECT;
++		s->type = SELFSECT; // writable
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -627,6 +627,8 @@ doelf(void)
+ 		elfwritedynentsymsize(s, DT_PLTRELSZ, lookup(".rel.plt", 0));
+ 		elfwritedynentsym(s, DT_JMPREL, lookup(".rel.plt", 0));
+ 
++		elfwritedynent(s, DT_DEBUG, 0);
++
+ 		// Do not write DT_NULL.  elfdynhash will finish it.
+ 	}
+ }

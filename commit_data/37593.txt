@@ -9,7 +9,41 @@ Date:   Tue Jul 24 15:07:01 2018 -0700
     Change-Id: I407481f9c0f8e3565dcfcbbc53e5aa7427d74680
     Reviewed-on: https://go-review.googlesource.com/125646
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go       | 1 +
  src/cmd/dist/sys_windows.go | 3 +++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index eed9866ce4..06adccd9a4 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1422,6 +1422,7 @@ var cgoEnabled = map[string]bool{
+ 	"solaris/amd64":   true,
+ 	"windows/386":     true,
+ 	"windows/amd64":   true,
++	"windows/arm":     false,
+ }
+ 
+ func needCC() bool {
+diff --git a/src/cmd/dist/sys_windows.go b/src/cmd/dist/sys_windows.go
+index 216dc01798..2f6a1b0dce 100644
+--- a/src/cmd/dist/sys_windows.go
++++ b/src/cmd/dist/sys_windows.go
+@@ -32,6 +32,7 @@ type systeminfo struct {
+ const (
+ 	PROCESSOR_ARCHITECTURE_AMD64 = 9
+ 	PROCESSOR_ARCHITECTURE_INTEL = 0
++	PROCESSOR_ARCHITECTURE_ARM   = 5
+ )
+ 
+ var sysinfo systeminfo
+@@ -43,6 +44,8 @@ func sysinit() {
+ 		gohostarch = "amd64"
+ 	case PROCESSOR_ARCHITECTURE_INTEL:
+ 		gohostarch = "386"
++	case PROCESSOR_ARCHITECTURE_ARM:
++		gohostarch = "arm"
+ 	default:
+ 		fatalf("unknown processor architecture")
+ 	}

@@ -9,6 +9,19 @@ Date:   Mon Sep 8 18:07:33 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/134660043
-
+---
  src/runtime/cgocall.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 76a533e933..a21474b01f 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -134,6 +134,7 @@ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ 	return errno
+ }
+ 
++//go:nosplit
+ func endcgo(mp *m) {
+ 	mp.ncgo--
+ 	if mp.ncgo == 0 {

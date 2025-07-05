@@ -12,7 +12,7 @@ Date:   Wed Oct 28 22:43:59 2020 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/cpu/cpu.s               |  6 ++++++
  src/internal/cpu/cpu_ppc64x.go       | 27 +--------------------------
  src/internal/cpu/cpu_ppc64x_aix.go   | 21 +++++++++++++++++++++
@@ -20,3 +20,187 @@ Date:   Wed Oct 28 22:43:59 2020 +0100
  src/runtime/os2_aix.go               |  5 +++--
  src/runtime/os_aix.go                | 21 ---------------------
  6 files changed, 60 insertions(+), 49 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.s b/src/internal/cpu/cpu.s
+new file mode 100644
+index 0000000000..3c770c132d
+--- /dev/null
++++ b/src/internal/cpu/cpu.s
+@@ -0,0 +1,6 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This assembly file exists to allow internal/cpu to call
++// non-exported runtime functions that use "go:linkname".
+\ No newline at end of file
+diff --git a/src/internal/cpu/cpu_ppc64x.go b/src/internal/cpu/cpu_ppc64x.go
+index 2487879c46..beb1765427 100644
+--- a/src/internal/cpu/cpu_ppc64x.go
++++ b/src/internal/cpu/cpu_ppc64x.go
+@@ -8,39 +8,14 @@ package cpu
+ 
+ const CacheLinePadSize = 128
+ 
+-// ppc64x doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
+-// These are initialized by archauxv and should not be changed after they are
+-// initialized.
+-// On aix/ppc64, these values are initialized early in the runtime in runtime/os_aix.go.
+-var HWCap uint
+-var HWCap2 uint
+-
+-// HWCAP/HWCAP2 bits. These are exposed by the kernel.
+-const (
+-	// ISA Level
+-	PPC_FEATURE2_ARCH_2_07 = 0x80000000
+-	PPC_FEATURE2_ARCH_3_00 = 0x00800000
+-
+-	// CPU features
+-	PPC_FEATURE2_DARN = 0x00200000
+-	PPC_FEATURE2_SCV  = 0x00100000
+-)
+-
+ func doinit() {
+ 	options = []option{
+ 		{Name: "darn", Feature: &PPC64.HasDARN},
+ 		{Name: "scv", Feature: &PPC64.HasSCV},
+ 		{Name: "power9", Feature: &PPC64.IsPOWER9},
+-
+-		// These capabilities should always be enabled on ppc64 and ppc64le:
+-		{Name: "power8", Feature: &PPC64.IsPOWER8, Required: true},
+ 	}
+ 
+-	// HWCAP2 feature bits
+-	PPC64.IsPOWER8 = isSet(HWCap2, PPC_FEATURE2_ARCH_2_07)
+-	PPC64.IsPOWER9 = isSet(HWCap2, PPC_FEATURE2_ARCH_3_00)
+-	PPC64.HasDARN = isSet(HWCap2, PPC_FEATURE2_DARN)
+-	PPC64.HasSCV = isSet(HWCap2, PPC_FEATURE2_SCV)
++	osinit()
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+diff --git a/src/internal/cpu/cpu_ppc64x_aix.go b/src/internal/cpu/cpu_ppc64x_aix.go
+new file mode 100644
+index 0000000000..b840b823ba
+--- /dev/null
++++ b/src/internal/cpu/cpu_ppc64x_aix.go
+@@ -0,0 +1,21 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++package cpu
++
++const (
++	// getsystemcfg constants
++	_SC_IMPL     = 2
++	_IMPL_POWER9 = 0x20000
++)
++
++func osinit() {
++	impl := getsystemcfg(_SC_IMPL)
++	PPC64.IsPOWER9 = isSet(impl, _IMPL_POWER9)
++}
++
++// getsystemcfg is defined in runtime/os2_aix.go
++func getsystemcfg(label uint) uint
+diff --git a/src/internal/cpu/cpu_ppc64x_linux.go b/src/internal/cpu/cpu_ppc64x_linux.go
+new file mode 100644
+index 0000000000..73b191436d
+--- /dev/null
++++ b/src/internal/cpu/cpu_ppc64x_linux.go
+@@ -0,0 +1,29 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++package cpu
++
++// ppc64 doesn't have a 'cpuid' equivalent, so we rely on HWCAP/HWCAP2.
++// These are initialized by archauxv and should not be changed after they are
++// initialized.
++var HWCap uint
++var HWCap2 uint
++
++// HWCAP bits. These are exposed by Linux.
++const (
++	// ISA Level
++	hwcap2_ARCH_3_00 = 0x00800000
++
++	// CPU features
++	hwcap2_DARN = 0x00200000
++	hwcap2_SCV  = 0x00100000
++)
++
++func osinit() {
++	PPC64.IsPOWER9 = isSet(HWCap2, hwcap2_ARCH_3_00)
++	PPC64.HasDARN = isSet(HWCap2, hwcap2_DARN)
++	PPC64.HasSCV = isSet(HWCap2, hwcap2_SCV)
++}
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 31ac6ddf79..428ff7f225 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -518,9 +518,10 @@ func sigaltstack(new, old *stackt) {
+ }
+ 
+ //go:nosplit
+-func getsystemcfg(label uint) uintptr {
++//go:linkname internal_cpu_getsystemcfg internal/cpu.getsystemcfg
++func internal_cpu_getsystemcfg(label uint) uint {
+ 	r, _ := syscall1(&libc_getsystemcfg, uintptr(label))
+-	return r
++	return uint(r)
+ }
+ 
+ func usleep1(us uint32)
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 9a6b8aec7c..0c501be96a 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -7,7 +7,6 @@
+ package runtime
+ 
+ import (
+-	"internal/cpu"
+ 	"unsafe"
+ )
+ 
+@@ -94,7 +93,6 @@ func semawakeup(mp *m) {
+ func osinit() {
+ 	ncpu = int32(sysconf(__SC_NPROCESSORS_ONLN))
+ 	physPageSize = sysconf(__SC_PAGE_SIZE)
+-	setupSystemConf()
+ }
+ 
+ // newosproc0 is a version of newosproc that can be called before the runtime
+@@ -340,25 +338,6 @@ func walltime1() (sec int64, nsec int32) {
+ 	return ts.tv_sec, int32(ts.tv_nsec)
+ }
+ 
+-const (
+-	// getsystemcfg constants
+-	_SC_IMPL     = 2
+-	_IMPL_POWER8 = 0x10000
+-	_IMPL_POWER9 = 0x20000
+-)
+-
+-// setupSystemConf retrieves information about the CPU and updates
+-// cpu.HWCap variables.
+-func setupSystemConf() {
+-	impl := getsystemcfg(_SC_IMPL)
+-	if impl&_IMPL_POWER8 != 0 {
+-		cpu.HWCap2 |= cpu.PPC_FEATURE2_ARCH_2_07
+-	}
+-	if impl&_IMPL_POWER9 != 0 {
+-		cpu.HWCap2 |= cpu.PPC_FEATURE2_ARCH_3_00
+-	}
+-}
+-
+ //go:nosplit
+ func fcntl(fd, cmd, arg int32) int32 {
+ 	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))

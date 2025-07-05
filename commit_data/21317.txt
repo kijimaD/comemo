@@ -11,8 +11,149 @@ Date:   Mon Dec 15 09:52:06 2014 +0900
     Change-Id: I18f89a0bd99a105c9110e1ede641873bf9daf3af
     Reviewed-on: https://go-review.googlesource.com/1538
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/fmt_test.go  |  2 +-
  src/fmt/scan.go      | 28 +++++++++++++++-----------
  src/fmt/scan_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++-
  3 files changed, 73 insertions(+), 13 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index ff5fa79a32..c933e849fe 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1231,7 +1231,7 @@ func TestNilDoesNotBecomeTyped(t *testing.T) {
+ 	type B struct{}
+ 	var a *A = nil
+ 	var b B = B{}
+-	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil)
++	got := Sprintf("%s %s %s %s %s", nil, a, nil, b, nil) // go vet should complain about this line.
+ 	const expect = "%!s(<nil>) %!s(*fmt_test.A=<nil>) %!s(<nil>) {} %!s(<nil>)"
+ 	if got != expect {
+ 		t.Errorf("expected:\n\t%q\ngot:\n\t%q", expect, got)
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index d7befeae43..93cd553a57 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -875,34 +875,40 @@ func (s *ss) quotedString() string {
+ 	return ""
+ }
+ 
+-// hexDigit returns the value of the hexadecimal digit
+-func (s *ss) hexDigit(d rune) int {
++// hexDigit returns the value of the hexadecimal digit.
++func hexDigit(d rune) (int, bool) {
+ 	digit := int(d)
+ 	switch digit {
+ 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+-		return digit - '0'
++		return digit - '0', true
+ 	case 'a', 'b', 'c', 'd', 'e', 'f':
+-		return 10 + digit - 'a'
++		return 10 + digit - 'a', true
+ 	case 'A', 'B', 'C', 'D', 'E', 'F':
+-		return 10 + digit - 'A'
++		return 10 + digit - 'A', true
+ 	}
+-	s.errorString("illegal hex digit")
+-	return 0
++	return -1, false
+ }
+ 
+ // hexByte returns the next hex-encoded (two-character) byte from the input.
+-// There must be either two hexadecimal digits or a space character in the input.
++// It returns ok==false if the next bytes in the input do not encode a hex byte.
++// If the first byte is hex and the second is not, processing stops.
+ func (s *ss) hexByte() (b byte, ok bool) {
+ 	rune1 := s.getRune()
+ 	if rune1 == eof {
++		s.UnreadRune()
+ 		return
+ 	}
+-	if isSpace(rune1) {
++	value1, ok := hexDigit(rune1)
++	if !ok {
+ 		s.UnreadRune()
+ 		return
+ 	}
+-	rune2 := s.mustReadRune()
+-	return byte(s.hexDigit(rune1)<<4 | s.hexDigit(rune2)), true
++	value2, ok := hexDigit(s.mustReadRune())
++	if !ok {
++		s.errorString("illegal hex digit")
++		return
++	}
++	return byte(value1<<4 | value2), true
+ }
+ 
+ // hexString returns the space-delimited hexpair-encoded string.
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index 541e12df21..a932831e8d 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -864,7 +864,7 @@ func TestScanStateCount(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	if n != 3 {
+-		t.Fatalf("expected 3 items consumed, got %d")
++		t.Fatalf("expected 3 items consumed, got %d", n)
+ 	}
+ 	if a.rune != '1' || b.rune != '2' || c.rune != '➂' {
+ 		t.Errorf("bad scan rune: %q %q %q should be '1' '2' '➂'", a.rune, b.rune, c.rune)
+@@ -990,3 +990,57 @@ func BenchmarkScanRecursiveInt(b *testing.B) {
+ 		b.StopTimer()
+ 	}
+ }
++
++// Issue 9124.
++// %x on bytes couldn't handle non-space bytes terminating the scan.
++func TestHexBytes(t *testing.T) {
++	var a, b []byte
++	n, err := Sscanf("00010203", "%x", &a)
++	if n != 1 || err != nil {
++		t.Errorf("simple: got count, err = %d, %v; expected 1, nil", n, err)
++	}
++	check := func(msg string, x []byte) {
++		if len(x) != 4 {
++			t.Errorf("%s: bad length %d", msg, len(x))
++		}
++		for i, b := range x {
++			if int(b) != i {
++				t.Errorf("%s: bad x[%d] = %x", msg, i, x[i])
++			}
++		}
++	}
++	check("simple", a)
++	a = nil
++
++	n, err = Sscanf("00010203 00010203", "%x %x", &a, &b)
++	if n != 2 || err != nil {
++		t.Errorf("simple pair: got count, err = %d, %v; expected 2, nil", n, err)
++	}
++	check("simple pair a", a)
++	check("simple pair b", b)
++	a = nil
++	b = nil
++
++	n, err = Sscanf("00010203:", "%x", &a)
++	if n != 1 || err != nil {
++		t.Errorf("colon: got count, err = %d, %v; expected 1, nil", n, err)
++	}
++	check("colon", a)
++	a = nil
++
++	n, err = Sscanf("00010203:00010203", "%x:%x", &a, &b)
++	if n != 2 || err != nil {
++		t.Errorf("colon pair: got count, err = %d, %v; expected 2, nil", n, err)
++	}
++	check("colon pair a", a)
++	check("colon pair b", b)
++	a = nil
++	b = nil
++
++	// This one fails because there is a hex byte after the data,
++	// that is, an odd number of hex input bytes.
++	n, err = Sscanf("000102034:", "%x", &a)
++	if n != 0 || err == nil {
++		t.Errorf("odd count: got count, err = %d, %v; expected 0, error", n, err)
++	}
++}

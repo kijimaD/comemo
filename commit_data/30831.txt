@@ -13,7 +13,7 @@ Date:   Wed Nov 30 23:28:40 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go            |  2 +-
  src/cmd/compile/internal/syntax/nodes.go        |  2 +-
  src/cmd/compile/internal/syntax/parser.go       |  4 +-
@@ -23,3 +23,322 @@ Date:   Wed Nov 30 23:28:40 2016 -0800
  src/cmd/compile/internal/syntax/scanner_test.go | 14 +++--
  src/cmd/compile/internal/syntax/syntax.go       | 12 ++---
  8 files changed, 78 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ae4425db2d..6c9b414558 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -23,7 +23,7 @@ func parseFile(filename string) {
+ 	defer src.Close()
+ 
+ 	p := noder{baseline: lexlineno.Line()}
+-	file, _ := syntax.Parse(src, p.error, p.pragma, 0) // errors are tracked via p.error
++	file, _ := syntax.Parse(filename, src, p.error, p.pragma, 0) // errors are tracked via p.error
+ 
+ 	p.file(file)
+ 
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 4cf8cc4202..a20574f113 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -26,7 +26,7 @@ func (n *node) Pos() *Pos {
+ func (*node) aNode() {}
+ 
+ func (n *node) init(p *parser) {
+-	n.pos = MakePos(nil, p.line, p.col)
++	n.pos = MakePos(p.base, p.line, p.col)
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index dddf32f6c2..22799d429b 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -26,8 +26,8 @@ type parser struct {
+ 	indent []byte // tracing support
+ }
+ 
+-func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+-	p.scanner.init(src, errh, pragh)
++func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
++	p.scanner.init(filename, src, errh, pragh)
+ 
+ 	p.fnest = 0
+ 	p.xnest = 0
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 482ab05675..fb1a761531 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -133,7 +133,7 @@ func verifyPrint(filename string, ast1 *File) {
+ 		panic(err)
+ 	}
+ 
+-	ast2, err := ParseBytes(buf1.Bytes(), nil, nil, 0)
++	ast2, err := ParseBytes(filename, buf1.Bytes(), nil, nil, 0)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+@@ -157,7 +157,7 @@ func verifyPrint(filename string, ast1 *File) {
+ }
+ 
+ func TestIssue17697(t *testing.T) {
+-	_, err := ParseBytes(nil, nil, nil, 0) // return with parser error, don't panic
++	_, err := ParseBytes("", nil, nil, nil, 0) // return with parser error, don't panic
+ 	if err == nil {
+ 		t.Errorf("no error reported")
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index c964178a77..e9ec026af4 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -103,13 +103,15 @@ func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
+ 	return &PosBase{pos, filename, line - 1}
+ }
+ 
++var noPos Pos
++
+ // Pos returns the position at which base is located.
+ // If b == nil, the result is the empty position.
+-func (b *PosBase) Pos() Pos {
++func (b *PosBase) Pos() *Pos {
+ 	if b != nil {
+-		return b.pos
++		return &b.pos
+ 	}
+-	return Pos{}
++	return &noPos
+ }
+ 
+ // Filename returns the filename recorded with the base.
+@@ -136,13 +138,13 @@ func (b *PosBase) Line() uint {
+ // A lico is a compact encoding of a LIne and COlumn number.
+ type lico uint32
+ 
+-// Layout constants: 23 bits for line, 9 bits for column.
++// Layout constants: 24 bits for line, 8 bits for column.
+ // (If this is too tight, we can either make lico 64b wide,
+ // or we can introduce a tiered encoding where we remove column
+ // information as line numbers grow bigger; similar to what gcc
+ // does.)
+ const (
+-	lineW, lineM = 23, 1<<lineW - 1
++	lineW, lineM = 24, 1<<lineW - 1
+ 	colW, colM   = 32 - lineW, 1<<colW - 1
+ )
+ 
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 978d7d2c0a..6fdc0dc6da 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -7,6 +7,7 @@ package syntax
+ import (
+ 	"fmt"
+ 	"io"
++	"strconv"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -18,6 +19,7 @@ type scanner struct {
+ 	pragma Pragma
+ 
+ 	// current token, valid after calling next()
++	base      *PosBase
+ 	line, col uint
+ 	tok       token
+ 	lit       string   // valid if tok is _Name or _Literal
+@@ -28,9 +30,10 @@ type scanner struct {
+ 	pragh PragmaHandler
+ }
+ 
+-func (s *scanner) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
++func (s *scanner) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+ 	s.source.init(src, errh)
+ 	s.nlsemi = false
++	s.base = NewFileBase(filename)
+ 	s.pragh = pragh
+ }
+ 
+@@ -524,48 +527,70 @@ func (s *scanner) rune() {
+ 	s.tok = _Literal
+ }
+ 
++func (s *scanner) skipLine(r rune) {
++	for r >= 0 {
++		if r == '\n' {
++			s.ungetr() // don't consume '\n' - needed for nlsemi logic
++			break
++		}
++		r = s.getr()
++	}
++}
++
+ func (s *scanner) lineComment() {
+ 	// recognize pragmas
+-	var prefix string
++	prefix := ""
+ 	r := s.getr()
+-	if s.pragh == nil {
+-		goto skip
+-	}
+-
+ 	switch r {
+ 	case 'g':
++		if s.pragh == nil {
++			s.skipLine(r)
++			return
++		}
+ 		prefix = "go:"
+ 	case 'l':
+ 		prefix = "line "
+ 	default:
+-		goto skip
++		s.skipLine(r)
++		return
+ 	}
+ 
+-	s.startLit()
+ 	for _, m := range prefix {
+ 		if r != m {
+-			s.stopLit()
+-			goto skip
++			s.skipLine(r)
++			return
+ 		}
+ 		r = s.getr()
+ 	}
+ 
+-	for r >= 0 {
+-		if r == '\n' {
+-			s.ungetr()
+-			break
++	// pragma text without prefix and line ending (which may be "\r\n" if Windows)
++	s.startLit()
++	s.skipLine(r)
++	text := strings.TrimSuffix(string(s.stopLit()), "\r")
++
++	// process //line filename:line pragma
++	if prefix[0] == 'l' {
++		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
++		i := strings.LastIndex(text, ":") // look from right (Windows filenames may contain ':')
++		if i < 0 {
++			return
++		}
++		nstr := text[i+1:]
++		n, err := strconv.Atoi(nstr)
++		if err != nil || n <= 0 || n > lineM {
++			s.error_at(s.line0, s.col0-uint(len(nstr)), "invalid line number: "+nstr)
++			return
++		}
++		s.base = NewLinePragmaBase(MakePos(s.base.Pos().Base(), s.line, s.col), text[:i], uint(n))
++		// TODO(gri) Return here once we rely exclusively
++		// on node positions for line number information,
++		// and remove //line pragma handling elsewhere.
++		if s.pragh == nil {
++			return
+ 		}
+-		r = s.getr()
+ 	}
+-	s.pragma |= s.pragh(s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
+-	return
+ 
+-skip:
+-	// consume line
+-	for r != '\n' && r >= 0 {
+-		r = s.getr()
+-	}
+-	s.ungetr() // don't consume '\n' - needed for nlsemi logic
++	s.pragma |= s.pragh(s.line, prefix+text)
+ }
+ 
+ func (s *scanner) fullComment() {
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 4c00ddc5d6..b319e2c354 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
+ 	defer src.Close()
+ 
+ 	var s scanner
+-	s.init(src, nil, nil)
++	s.init("parser.go", src, nil, nil)
+ 	for {
+ 		s.next()
+ 		if s.tok == _EOF {
+@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
+ 
+ 	// scan source
+ 	var got scanner
+-	got.init(&bytesReader{buf}, nil, nil)
++	got.init("", &bytesReader{buf}, nil, nil)
+ 	got.next()
+ 	for i, want := range sampleTokens {
+ 		nlsemi := false
+@@ -317,12 +317,20 @@ func TestScanErrors(t *testing.T) {
+ 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 1, 19},
+ 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 1, 19},
+ 
++		{`//line :`, "invalid line number: ", 1, 9},
++		{`//line :x`, "invalid line number: x", 1, 9},
++		{`//line foo :`, "invalid line number: ", 1, 13},
++		{`//line foo:123abc`, "invalid line number: 123abc", 1, 12},
++		{`/**///line foo:x`, "invalid line number: x", 1, 16},
++		{`//line foo:0`, "invalid line number: 0", 1, 12},
++		{fmt.Sprintf(`//line foo:%d`, lineM+1), fmt.Sprintf("invalid line number: %d", lineM+1), 1, 12},
++
+ 		// former problem cases
+ 		{"package p\n\n\xef", "invalid UTF-8 encoding", 3, 1},
+ 	} {
+ 		var s scanner
+ 		nerrors := 0
+-		s.init(&bytesReader{[]byte(test.src)}, func(err error) {
++		s.init("", &bytesReader{[]byte(test.src)}, func(err error) {
+ 			nerrors++
+ 			// only check the first error
+ 			e := err.(Error) // we know it's an Error
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 5075861be8..fcaeb3d99d 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -41,7 +41,7 @@ type PragmaHandler func(line uint, text string) Pragma
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+ // syntax tree. If there are syntax errors, Parse will return the first error
+-// encountered.
++// encountered. The filename is only used for position information.
+ //
+ // If errh != nil, it is called with each error encountered, and Parse will
+ // process as much source as possible. If errh is nil, Parse will terminate
+@@ -50,7 +50,7 @@ type PragmaHandler func(line uint, text string) Pragma
+ // If a PragmaHandler is provided, it is called with each pragma encountered.
+ //
+ // The Mode argument is currently ignored.
+-func Parse(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, err error) {
++func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, err error) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+ 			var ok bool
+@@ -62,14 +62,14 @@ func Parse(src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_
+ 	}()
+ 
+ 	var p parser
+-	p.init(src, errh, pragh)
++	p.init(filename, src, errh, pragh)
+ 	p.next()
+ 	return p.file(), p.first
+ }
+ 
+ // ParseBytes behaves like Parse but it reads the source from the []byte slice provided.
+-func ParseBytes(src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
+-	return Parse(&bytesReader{src}, errh, pragh, mode)
++func ParseBytes(filename string, src []byte, errh ErrorHandler, pragh PragmaHandler, mode Mode) (*File, error) {
++	return Parse(filename, &bytesReader{src}, errh, pragh, mode)
+ }
+ 
+ type bytesReader struct {
+@@ -95,5 +95,5 @@ func ParseFile(filename string, errh ErrorHandler, pragh PragmaHandler, mode Mod
+ 		return nil, err
+ 	}
+ 	defer src.Close()
+-	return Parse(src, errh, pragh, mode)
++	return Parse(filename, src, errh, pragh, mode)
+ }

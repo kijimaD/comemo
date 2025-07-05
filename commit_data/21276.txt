@@ -13,9 +13,92 @@ Date:   Tue Dec 16 08:22:17 2014 -0800
     Change-Id: Ic4733700f9926b9fc2b6fd1f998acec34e518764
     Reviewed-on: https://go-review.googlesource.com/1673
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file.go          |  6 ++++++
  src/os/file_unix.go     | 12 ++++++++++++
  src/os/sticky_bsd.go    | 11 +++++++++++
  src/os/sticky_notbsd.go | 14 ++++++++++++++
  4 files changed, 43 insertions(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index e12428cbe1..79e8fc3388 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -203,6 +203,12 @@ func (f *File) WriteString(s string) (ret int, err error) {
+ // If there is an error, it will be of type *PathError.
+ func Mkdir(name string, perm FileMode) error {
+ 	e := syscall.Mkdir(name, syscallMode(perm))
++
++	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
++	if !supportsCreateWithStickyBit && e == nil && perm&ModeSticky != 0 {
++		e = Chmod(name, perm)
++	}
++
+ 	if e != nil {
+ 		return &PathError{"mkdir", name, e}
+ 	}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index ff4fc7d12e..fbe05c61a0 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -75,11 +75,23 @@ const DevNull = "/dev/null"
+ // methods on the returned File can be used for I/O.
+ // If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
++	chmod := false
++	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
++		if _, err := Stat(name); IsNotExist(err) {
++			chmod = true
++		}
++	}
++
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+ 	if e != nil {
+ 		return nil, &PathError{"open", name, e}
+ 	}
+ 
++	// open(2) itself won't handle the sticky bit on *BSD and Solaris
++	if chmod && e == nil {
++		e = Chmod(name, perm)
++	}
++
+ 	// There's a race here with fork/exec, which we are
+ 	// content to live with.  See ../syscall/exec_unix.go.
+ 	if !supportsCloseOnExec {
+diff --git a/src/os/sticky_bsd.go b/src/os/sticky_bsd.go
+new file mode 100644
+index 0000000000..6b54c758c7
+--- /dev/null
++++ b/src/os/sticky_bsd.go
+@@ -0,0 +1,11 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd netbsd openbsd solaris
++
++package os
++
++// According to sticky(8), neither open(2) nor mkdir(2) will create
++// a file with the sticky bit set.
++const supportsCreateWithStickyBit = false
+diff --git a/src/os/sticky_notbsd.go b/src/os/sticky_notbsd.go
+new file mode 100644
+index 0000000000..834e79b0b5
+--- /dev/null
++++ b/src/os/sticky_notbsd.go
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin
++// +build !dragonfly
++// +build !freebsd
++// +build !netbsd
++// +build !openbsd
++// +build !solaris
++
++package os
++
++const supportsCreateWithStickyBit = true

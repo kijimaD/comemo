@@ -7,6 +7,22 @@ Date:   Wed Jan 13 09:08:39 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/186108
-
+---
  src/pkg/runtime/386/asm.s | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 11ce3f6b6f..aa0fd95bb4 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -350,6 +350,10 @@ TEXT	runcgo(SB),7,$16
+ 	MOVL	CX, 4(SP)
+ 	MOVL	BX, 0(SP)
+ 	CALL	AX
++	
++	// Back; switch to original stack, re-establish
++	// "DF is clear" invariant.
++	CLD
+ 	MOVL	4(SP), SP
+ 	RET
+ 

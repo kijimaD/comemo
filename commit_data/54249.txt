@@ -12,6 +12,20 @@ Date:   Wed Sep 28 10:44:12 2022 +0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/test2json/test2json.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index d8b870f256..6beadae859 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -343,7 +343,7 @@ func (c *Converter) writeEvent(e *event) {
+ 	js, err := json.Marshal(e)
+ 	if err != nil {
+ 		// Should not happen - event is valid for json.Marshal.
+-		c.w.Write([]byte(fmt.Sprintf("testjson internal error: %v\n", err)))
++		fmt.Fprintf(c.w, "testjson internal error: %v\n", err)
+ 		return
+ 	}
+ 	js = append(js, '\n')

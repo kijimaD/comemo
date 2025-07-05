@@ -21,9 +21,186 @@ Date:   Wed Nov 30 09:45:29 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
-
+---
  src/cmd/compile/internal/ssa/_gen/generic.rules |  11 +++
  src/cmd/compile/internal/ssa/_gen/rulegen.go    |   1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go  | 100 ++++++++++++++++++++++++
  test/codegen/slices.go                          |   6 ++
  4 files changed, 118 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 0406fbbd17..d5d4033c7b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2067,6 +2067,17 @@
+   && canLoadUnaligned(config) && config.PtrSize == 8
+   => (MakeResult (Eq64 (Load <typ.Int64> sptr mem) (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])) mem)
+ 
++// Recognise make([]T, 0) and replace it with a pointer to the zerobase
++(SelectN [0] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) _))
++	&& isSameCall(call.Aux, "runtime.makeslice")
++	&& clobberIfDead(call)
++	=> (Addr {ir.Syms.Zerobase} (SB))
++
++(SelectN [1] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) mem))
++	&& isSameCall(call.Aux, "runtime.makeslice")
++	&& clobberIfDead(call)
++	=> mem
++
+ // Evaluate constant address comparisons.
+ (EqPtr  x x) => (ConstBool [true])
+ (NeqPtr x x) => (ConstBool [false])
+diff --git a/src/cmd/compile/internal/ssa/_gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+index 2840e8f458..15be9a1c50 100644
+--- a/src/cmd/compile/internal/ssa/_gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -585,6 +585,7 @@ func fprint(w io.Writer, n Node) {
+ 			"cmd/internal/obj",
+ 			"cmd/compile/internal/base",
+ 			"cmd/compile/internal/types",
++			"cmd/compile/internal/ir",
+ 		}, n.Arch.imports...) {
+ 			fmt.Fprintf(w, "import %q\n", path)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index e1c65fc286..6ba7fb3d55 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -4,6 +4,7 @@ package ssa
+ 
+ import "math"
+ import "cmd/compile/internal/types"
++import "cmd/compile/internal/ir"
+ 
+ func rewriteValuegeneric(v *Value) bool {
+ 	switch v.Op {
+@@ -26379,6 +26380,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	typ := &b.Func.Config.Types
+ 	// match: (SelectN [0] (MakeResult x ___))
+ 	// result: x
+ 	for {
+@@ -26409,6 +26411,104 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		v.copyOf(z)
+ 		return true
+ 	}
++	// match: (SelectN [0] call:(StaticLECall _ (Const64 [0]) (Const64 [0]) _))
++	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
++	// result: (Addr {ir.Syms.Zerobase} (SB))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticLECall || len(call.Args) != 4 {
++			break
++		}
++		_ = call.Args[2]
++		call_1 := call.Args[1]
++		if call_1.Op != OpConst64 || auxIntToInt64(call_1.AuxInt) != 0 {
++			break
++		}
++		call_2 := call.Args[2]
++		if call_2.Op != OpConst64 || auxIntToInt64(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
++			break
++		}
++		v.reset(OpAddr)
++		v.Aux = symToAux(ir.Syms.Zerobase)
++		v0 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (SelectN [0] call:(StaticLECall _ (Const32 [0]) (Const32 [0]) _))
++	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
++	// result: (Addr {ir.Syms.Zerobase} (SB))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticLECall || len(call.Args) != 4 {
++			break
++		}
++		_ = call.Args[2]
++		call_1 := call.Args[1]
++		if call_1.Op != OpConst32 || auxIntToInt32(call_1.AuxInt) != 0 {
++			break
++		}
++		call_2 := call.Args[2]
++		if call_2.Op != OpConst32 || auxIntToInt32(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
++			break
++		}
++		v.reset(OpAddr)
++		v.Aux = symToAux(ir.Syms.Zerobase)
++		v0 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (SelectN [1] call:(StaticLECall _ (Const64 [0]) (Const64 [0]) mem))
++	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
++	// result: mem
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticLECall || len(call.Args) != 4 {
++			break
++		}
++		mem := call.Args[3]
++		call_1 := call.Args[1]
++		if call_1.Op != OpConst64 || auxIntToInt64(call_1.AuxInt) != 0 {
++			break
++		}
++		call_2 := call.Args[2]
++		if call_2.Op != OpConst64 || auxIntToInt64(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
++			break
++		}
++		v.copyOf(mem)
++		return true
++	}
++	// match: (SelectN [1] call:(StaticLECall _ (Const32 [0]) (Const32 [0]) mem))
++	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
++	// result: mem
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 {
++			break
++		}
++		call := v_0
++		if call.Op != OpStaticLECall || len(call.Args) != 4 {
++			break
++		}
++		mem := call.Args[3]
++		call_1 := call.Args[1]
++		if call_1.Op != OpConst32 || auxIntToInt32(call_1.AuxInt) != 0 {
++			break
++		}
++		call_2 := call.Args[2]
++		if call_2.Op != OpConst32 || auxIntToInt32(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
++			break
++		}
++		v.copyOf(mem)
++		return true
++	}
+ 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
+ 	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, int64(sz), config) && clobber(s1, s2, s3, call)
+ 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index fa4142d767..f897200fb9 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -337,6 +337,12 @@ func SliceMakeCopyNoMemmoveDifferentLen(s []int) []int {
+ 	return a
+ }
+ 
++func SliceMakeEmptyPointerToZerobase() []int {
++	// amd64:`LEAQ.+runtime\.zerobase`
++	// amd64:-`.*runtime\.makeslice`
++	return make([]int, 0)
++}
++
+ // ---------------------- //
+ //   Nil check of &s[0]   //
+ // ---------------------- //

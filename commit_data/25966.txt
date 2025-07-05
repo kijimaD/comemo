@@ -9,7 +9,131 @@ Date:   Thu Dec 3 15:23:24 2015 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/x509.go      | 34 ++++++++++++++++++++++++++++++----
  src/crypto/x509/x509_test.go | 26 ++++++++++++++++++++++----
  2 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 3fc7e0fdfb..948565ce3e 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -19,6 +19,7 @@ import (
+ 	"encoding/asn1"
+ 	"encoding/pem"
+ 	"errors"
++	"fmt"
+ 	"io"
+ 	"math/big"
+ 	"net"
+@@ -174,6 +175,28 @@ const (
+ 	ECDSAWithSHA512
+ )
+ 
++var algoName = [...]string{
++	MD2WithRSA:      "MD2-RSA",
++	MD5WithRSA:      "MD5-RSA",
++	SHA1WithRSA:     "SHA1-RSA",
++	SHA256WithRSA:   "SHA256-RSA",
++	SHA384WithRSA:   "SHA384-RSA",
++	SHA512WithRSA:   "SHA512-RSA",
++	DSAWithSHA1:     "DSA-SHA1",
++	DSAWithSHA256:   "DSA-SHA256",
++	ECDSAWithSHA1:   "ECDSA-SHA1",
++	ECDSAWithSHA256: "ECDSA-SHA256",
++	ECDSAWithSHA384: "ECDSA-SHA384",
++	ECDSAWithSHA512: "ECDSA-SHA512",
++}
++
++func (algo SignatureAlgorithm) String() string {
++	if 0 < algo && int(algo) < len(algoName) {
++		return algoName[algo]
++	}
++	return strconv.Itoa(int(algo))
++}
++
+ type PublicKeyAlgorithm int
+ 
+ const (
+@@ -541,9 +564,12 @@ type Certificate struct {
+ // involves algorithms that are not currently implemented.
+ var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
+ 
+-// ErrInsecureAlgorithm results from attempting to perform an operation that
+-// involves algorithms that are deemed insecure, notably MD5.
+-var ErrInsecureAlgorithm = errors.New("x509: cannot verify signature: insecure algorithm")
++// An InsecureAlgorithmError
++type InsecureAlgorithmError SignatureAlgorithm
++
++func (e InsecureAlgorithmError) Error() string {
++	return fmt.Sprintf("x509: cannot verify signature: insecure algorithm %v", SignatureAlgorithm(e))
++}
+ 
+ // ConstraintViolationError results when a requested usage is not permitted by
+ // a certificate. For example: checking a signature when the public key isn't a
+@@ -656,7 +682,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 	case SHA512WithRSA, ECDSAWithSHA512:
+ 		hashType = crypto.SHA512
+ 	case MD2WithRSA, MD5WithRSA:
+-		return ErrInsecureAlgorithm
++		return InsecureAlgorithmError(algo)
+ 	default:
+ 		return ErrUnsupportedAlgorithm
+ 	}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 4cb9fd8d07..d1ef0274bc 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"encoding/base64"
+ 	"encoding/hex"
+ 	"encoding/pem"
++	"fmt"
+ 	"internal/testenv"
+ 	"math/big"
+ 	"net"
+@@ -1089,8 +1090,8 @@ func TestCriticalFlagInCSRRequestedExtensions(t *testing.T) {
+ 		t.Fatalf("failed to parse CSR: %s", err)
+ 	}
+ 
+-	expected := []struct{
+-		Id asn1.ObjectIdentifier
++	expected := []struct {
++		Id    asn1.ObjectIdentifier
+ 		Value []byte
+ 	}{
+ 		{oidExtensionBasicConstraints, fromBase64("MAYBAf8CAQA=")},
+@@ -1203,6 +1204,23 @@ func TestVerifyEmptyCertificate(t *testing.T) {
+ 	}
+ }
+ 
++func TestInsecureAlgorithmErrorString(t *testing.T) {
++	tests := []struct {
++		sa   SignatureAlgorithm
++		want string
++	}{
++		{MD2WithRSA, "x509: cannot verify signature: insecure algorithm MD2-RSA"},
++		{-1, "x509: cannot verify signature: insecure algorithm -1"},
++		{0, "x509: cannot verify signature: insecure algorithm 0"},
++		{9999, "x509: cannot verify signature: insecure algorithm 9999"},
++	}
++	for i, tt := range tests {
++		if got := fmt.Sprint(InsecureAlgorithmError(tt.sa)); got != tt.want {
++			t.Errorf("%d. mismatch.\n got: %s\nwant: %s\n", i, got, tt.want)
++		}
++	}
++}
++
+ // These CSR was generated with OpenSSL:
+ //  openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
+ //
+@@ -1249,7 +1267,7 @@ func TestMD5(t *testing.T) {
+ 	if err = cert.CheckSignatureFrom(cert); err == nil {
+ 		t.Fatalf("certificate verification succeeded incorrectly")
+ 	}
+-	if err != ErrInsecureAlgorithm {
+-		t.Fatalf("certificate verification returned %q, wanted %q", err, ErrInsecureAlgorithm)
++	if _, ok := err.(InsecureAlgorithmError); !ok {
++		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
+ 	}
+ }

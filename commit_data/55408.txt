@@ -15,8 +15,104 @@ Date:   Tue Dec 27 14:10:18 2022 -0500
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Alan Donovan <adonovan@google.com>
-
+---
  api/next/56984.txt       |  1 +
  src/math/big/int.go      | 20 ++++++++++++++++++++
  src/math/big/int_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 70 insertions(+)
+
+diff --git a/api/next/56984.txt b/api/next/56984.txt
+new file mode 100644
+index 0000000000..329c77a401
+--- /dev/null
++++ b/api/next/56984.txt
+@@ -0,0 +1 @@
++pkg math/big, method (*Int) ToFloat64() (float64, Accuracy) #56984
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 76d6eb9cae..62cf951e7d 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -442,6 +442,26 @@ func (x *Int) IsUint64() bool {
+ 	return !x.neg && len(x.abs) <= 64/_W
+ }
+ 
++// ToFloat64 returns the float64 value nearest x,
++// and an indication of any rounding that occurred.
++func (x *Int) ToFloat64() (float64, Accuracy) {
++	n := x.abs.bitLen() // NB: still uses slow crypto impl!
++	if n == 0 {
++		return 0.0, Exact
++	}
++
++	// Fast path: no more than 53 significant bits.
++	if n <= 53 || n < 64 && n-int(x.abs.trailingZeroBits()) <= 53 {
++		f := float64(low64(x.abs))
++		if x.neg {
++			f = -f
++		}
++		return f, Exact
++	}
++
++	return new(Float).SetInt(x).Float64()
++}
++
+ // SetString sets z to the value of s, interpreted in the given base,
+ // and returns z and a boolean indicating success. The entire string
+ // (not just a prefix) must be valid for success. If SetString fails,
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 53cd399b1f..2800d8f247 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1955,3 +1955,52 @@ func TestNewIntAllocs(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestToFloat64(t *testing.T) {
++	for _, test := range []struct {
++		istr string
++		f    float64
++		acc  Accuracy
++	}{
++		{"-1000000000000000000000000000000000000000000000000000000", -1000000000000000078291540404596243842305360299886116864.000000, Below},
++		{"-9223372036854775809", math.MinInt64, Above},
++		{"-9223372036854775808", -9223372036854775808, Exact}, // -2^63
++		{"-9223372036854775807", -9223372036854775807, Below},
++		{"-18014398509481985", -18014398509481984.000000, Above},
++		{"-18014398509481984", -18014398509481984.000000, Exact}, // -2^54
++		{"-18014398509481983", -18014398509481984.000000, Below},
++		{"-9007199254740993", -9007199254740992.000000, Above},
++		{"-9007199254740992", -9007199254740992.000000, Exact}, // -2^53
++		{"-9007199254740991", -9007199254740991.000000, Exact},
++		{"-4503599627370497", -4503599627370497.000000, Exact},
++		{"-4503599627370496", -4503599627370496.000000, Exact}, // -2^52
++		{"-4503599627370495", -4503599627370495.000000, Exact},
++		{"-12345", -12345, Exact},
++		{"-1", -1, Exact},
++		{"0", 0, Exact},
++		{"1", 1, Exact},
++		{"12345", 12345, Exact},
++		{"0x1010000000000000", 0x1010000000000000, Exact}, // >2^53 but exact nonetheless
++		{"9223372036854775807", 9223372036854775808, Above},
++		{"9223372036854775808", 9223372036854775808, Exact}, // +2^63
++		{"1000000000000000000000000000000000000000000000000000000", 1000000000000000078291540404596243842305360299886116864.000000, Above},
++	} {
++		i, ok := new(Int).SetString(test.istr, 0)
++		if !ok {
++			t.Errorf("SetString(%s) failed", test.istr)
++			continue
++		}
++
++		// Test against expectation.
++		f, acc := i.ToFloat64()
++		if f != test.f || acc != test.acc {
++			t.Errorf("%s: got %f (%s); want %f (%s)", test.istr, f, acc, test.f, test.acc)
++		}
++
++		// Cross-check the fast path against the big.Float implementation.
++		f2, acc2 := new(Float).SetInt(i).Float64()
++		if f != f2 || acc != acc2 {
++			t.Errorf("%s: got %f (%s); Float.Float64 gives %f (%s)", test.istr, f, acc, f2, acc2)
++		}
++	}
++}

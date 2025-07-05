@@ -11,7 +11,7 @@ Date:   Thu Feb 26 12:10:11 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/6140
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/windows/syscall_windows.go  | 21 ++++++++-
  src/internal/syscall/windows/zsyscall_windows.go | 13 ++++++
  src/os/error_windows_test.go                     | 47 --------------------
@@ -20,3 +20,265 @@ Date:   Thu Feb 26 12:10:11 2015 -0800
  src/os/file_windows.go                           |  9 ++++
  src/os/os_test.go                                | 55 ++++++++++++++++++++++--
  7 files changed, 102 insertions(+), 59 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 49bfeea1f4..dc8a91626d 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -95,8 +95,8 @@ const (
+ )
+ 
+ //sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+-
+ //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
++//sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
+ 
+ const (
+ 	ComputerNameNetBIOS                   = 0
+@@ -108,4 +108,23 @@ const (
+ 	ComputerNamePhysicalDnsDomain         = 6
+ 	ComputerNamePhysicalDnsFullyQualified = 7
+ 	ComputerNameMax                       = 8
++
++	MOVEFILE_REPLACE_EXISTING      = 0x1
++	MOVEFILE_COPY_ALLOWED          = 0x2
++	MOVEFILE_DELAY_UNTIL_REBOOT    = 0x4
++	MOVEFILE_WRITE_THROUGH         = 0x8
++	MOVEFILE_CREATE_HARDLINK       = 0x10
++	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
+ )
++
++func Rename(oldpath, newpath string) error {
++	from, err := syscall.UTF16PtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	to, err := syscall.UTF16PtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
++}
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 50c7c5165b..c6f607a46a 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -13,6 +13,7 @@ var (
+ 
+ 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
++	procMoveFileExW          = modkernel32.NewProc("MoveFileExW")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) {
+@@ -34,3 +35,15 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
+ 	}
+ 	return
+ }
++
++func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/os/error_windows_test.go b/src/os/error_windows_test.go
+deleted file mode 100644
+index 3e6504f8db..0000000000
+--- a/src/os/error_windows_test.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os_test
+-
+-import (
+-	"io/ioutil"
+-	"os"
+-	"path/filepath"
+-	"testing"
+-)
+-
+-func TestErrIsExistAfterRename(t *testing.T) {
+-	dir, err := ioutil.TempDir("", "go-build")
+-	if err != nil {
+-		t.Fatalf("Create temp directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	src := filepath.Join(dir, "src")
+-	dest := filepath.Join(dir, "dest")
+-
+-	f, err := os.Create(src)
+-	if err != nil {
+-		t.Fatalf("Create file %v: %v", src, err)
+-	}
+-	f.Close()
+-	err = os.Rename(src, dest)
+-	if err != nil {
+-		t.Fatalf("Rename %v to %v: %v", src, dest, err)
+-	}
+-
+-	f, err = os.Create(src)
+-	if err != nil {
+-		t.Fatalf("Create file %v: %v", src, err)
+-	}
+-	f.Close()
+-	err = os.Rename(src, dest)
+-	if err == nil {
+-		t.Fatal("Rename should have failed")
+-	}
+-	if s := checkErrorPredicate("os.IsExist", os.IsExist, err); s != "" {
+-		t.Fatal(s)
+-		return
+-	}
+-}
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index fbb3b5e4d8..8f10617e4b 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -28,14 +28,6 @@ func Readlink(name string) (string, error) {
+ 	}
+ }
+ 
+-func rename(oldname, newname string) error {
+-	e := syscall.Rename(oldname, newname)
+-	if e != nil {
+-		return &LinkError{"rename", oldname, newname, e}
+-	}
+-	return nil
+-}
+-
+ // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
+ func syscallMode(i FileMode) (o uint32) {
+ 	o |= uint32(i.Perm())
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 3fb70d6bc1..142f885276 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -12,6 +12,14 @@ import (
+ 	"syscall"
+ )
+ 
++func rename(oldname, newname string) error {
++	e := syscall.Rename(oldname, newname)
++	if e != nil {
++		return &LinkError{"rename", oldname, newname, e}
++	}
++	return nil
++}
++
+ // File represents an open file descriptor.
+ type File struct {
+ 	*file
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 63be8c2e9f..9444ac5d6f 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/syscall/windows"
+ 	"io"
+ 	"runtime"
+ 	"sync"
+@@ -460,6 +461,14 @@ func Remove(name string) error {
+ 	return &PathError{"remove", name, e}
+ }
+ 
++func rename(oldname, newname string) error {
++	e := windows.Rename(oldname, newname)
++	if e != nil {
++		return &LinkError{"rename", oldname, newname, e}
++	}
++	return nil
++}
++
+ // Pipe returns a connected pair of Files; reads from r return bytes written to w.
+ // It returns the files and an error, if any.
+ func Pipe() (r *File, w *File, err error) {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 4ce6b7e617..880c638915 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -708,13 +708,16 @@ func TestRename(t *testing.T) {
+ 		defer chtmpdir(t)()
+ 	}
+ 	from, to := "renamefrom", "renameto"
+-	Remove(to) // Just in case.
++	// Ensure we are not testing the overwrite case here.
++	Remove(from)
++	Remove(to)
++
+ 	file, err := Create(from)
+ 	if err != nil {
+-		t.Fatalf("open %q failed: %v", to, err)
++		t.Fatalf("open %q failed: %v", from, err)
+ 	}
+ 	if err = file.Close(); err != nil {
+-		t.Errorf("close %q failed: %v", to, err)
++		t.Errorf("close %q failed: %v", from, err)
+ 	}
+ 	err = Rename(from, to)
+ 	if err != nil {
+@@ -727,6 +730,52 @@ func TestRename(t *testing.T) {
+ 	}
+ }
+ 
++func TestRenameOverwriteDest(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9")
++	}
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
++		defer chtmpdir(t)()
++	}
++	from, to := "renamefrom", "renameto"
++	// Just in case.
++	Remove(from)
++	Remove(to)
++
++	toData := []byte("to")
++	fromData := []byte("from")
++
++	err := ioutil.WriteFile(to, toData, 0777)
++	if err != nil {
++		t.Fatalf("write file %q failed: %v", to, err)
++	}
++
++	err = ioutil.WriteFile(from, fromData, 0777)
++	if err != nil {
++		t.Fatalf("write file %q failed: %v", from, err)
++	}
++	err = Rename(from, to)
++	if err != nil {
++		t.Fatalf("rename %q, %q failed: %v", to, from, err)
++	}
++	defer Remove(to)
++
++	_, err = Stat(from)
++	if err == nil {
++		t.Errorf("from file %q still exists", from)
++	}
++	if err != nil && !IsNotExist(err) {
++		t.Fatalf("stat from: %v", err)
++	}
++	toFi, err := Stat(to)
++	if err != nil {
++		t.Fatalf("stat %q failed: %v", to, err)
++	}
++	if toFi.Size() != int64(len(fromData)) {
++		t.Errorf(`"to" size = %d; want %d (old "from" size)`, toFi.Size(), len(fromData))
++	}
++}
++
+ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	r, w, err := Pipe()
+ 	if err != nil {

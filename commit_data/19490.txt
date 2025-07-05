@@ -8,6 +8,24 @@ Date:   Mon Jun 2 11:05:46 2014 -0700
     R=khr, r
     CC=golang-codereviews
     https://golang.org/cl/103810044
-
+---
  doc/go1.3.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index b22443ef06..685d233105 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -539,6 +539,12 @@ Earlier versions of Go handled this situation inconsistently: most instances
+ were reported as deadlocks, but some trivial cases exited cleanly instead.
+ </li>
+ 
++<li>
++The runtime/debug package now has a new function
++<a href="/pkg/runtime/debug/#WriteHeapDump"><code>debug.WriteHeapDump</code></a>
++that writes out a description of the heap.
++</li>
++
+ <li>
+ The <a href="/pkg/strconv/#CanBackquote"><code>CanBackquote</code></a>
+ function in the <a href="/pkg/strconv/"><code>strconv</code></a> package

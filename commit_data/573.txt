@@ -9,8 +9,94 @@ Date:   Wed Sep 3 19:58:46 2008 -0700
     R=gri
     OCL=14782
     CL=14782
-
+---
  src/cmd/6l/pass.c                  | 52 ++++++++++++++++++++------------------
  test/{bugs => fixedbugs}/bug092.go |  0
  test/golden.out                    |  4 ---
  3 files changed, 27 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index e071f6e1a9..fed9495c17 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -669,34 +669,36 @@ dostkoff(void)
+ 			q = P;
+ 			if(pmorestack != P)
+ 			if(!(p->from.scale & NOSPLIT)) {
+-				if(autoffset <= 75) {
+-					// small stack
+-					p = appendp(p);
+-					p->as = ACMPQ;
+-					p->from.type = D_SP;
+-					p->to.type = D_INDIR+D_R15;
+-					
+-				} else {
+-					// large stack
+-					p = appendp(p);
+-					p->as = ALEAQ;
+-					p->from.type = D_INDIR+D_SP;
+-					p->from.offset = -(autoffset-75);
+-					p->to.type = D_AX;
+-
++				if(autoffset < 4096) {  // do we need to call morestack
++					if(autoffset <= 75) {
++						// small stack
++						p = appendp(p);
++						p->as = ACMPQ;
++						p->from.type = D_SP;
++						p->to.type = D_INDIR+D_R15;
++						
++					} else {
++						// large stack
++						p = appendp(p);
++						p->as = ALEAQ;
++						p->from.type = D_INDIR+D_SP;
++						p->from.offset = -(autoffset-75);
++						p->to.type = D_AX;
++	
++						p = appendp(p);
++						p->as = ACMPQ;
++						p->from.type = D_AX;
++						p->to.type = D_INDIR+D_R15;
++					}
++	
++					// common
+ 					p = appendp(p);
+-					p->as = ACMPQ;
+-					p->from.type = D_AX;
+-					p->to.type = D_INDIR+D_R15;
++					p->as = AJHI;
++					p->to.type = D_BRANCH;
++					p->to.offset = 4;
++					q = p;
+ 				}
+ 
+-				// common
+-				p = appendp(p);
+-				p->as = AJHI;
+-				p->to.type = D_BRANCH;
+-				p->to.offset = 4;
+-				q = p;
+-
+ 				p = appendp(p);
+ 				p->as = AMOVQ;
+ 				p->from.type = D_CONST;
+diff --git a/test/bugs/bug092.go b/test/fixedbugs/bug092.go
+similarity index 100%
+rename from test/bugs/bug092.go
+rename to test/fixedbugs/bug092.go
+diff --git a/test/golden.out b/test/golden.out
+index da9ff597f3..fd062fa9a7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -145,10 +145,6 @@ BUG: fails incorrectly
+ =========== bugs/bug090.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug092.go
+-BUG should not crash
+-$RUNFILE: line 1: PID Illegal instruction     ./$A.out
+-
+ =========== fixedbugs/bug015.go
+ fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+ 

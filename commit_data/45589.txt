@@ -10,6 +10,22 @@ Date:   Thu Oct 29 17:09:16 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/266438
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strings/reader.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index e03f3c5cf8..6f069a62ca 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -10,8 +10,8 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// A Reader implements the io.Reader, io.ReaderAt, io.Seeker, io.WriterTo,
+-// io.ByteScanner, and io.RuneScanner interfaces by reading
++// A Reader implements the io.Reader, io.ReaderAt, io.ByteReader, io.ByteScanner,
++// io.RuneReader, io.RuneScanner, io.Seeker, and io.WriterTo interfaces by reading
+ // from a string.
+ // The zero value for Reader operates like a Reader of an empty string.
+ type Reader struct {

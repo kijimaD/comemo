@@ -13,7 +13,117 @@ Date:   Tue Sep 1 16:31:49 2009 -0700
     DELTA=29  (21 added, 0 deleted, 8 changed)
     OCL=34215
     CL=34219
-
+---
  src/pkg/template/template.go      | 16 +++++++++-------
  src/pkg/template/template_test.go | 19 +++++++++++++++++++
  2 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 0df31755ac..847e58f443 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -595,6 +595,8 @@ func empty(v reflect.Value) bool {
+ 		return true
+ 	}
+ 	switch v := v.(type) {
++	case *reflect.BoolValue:
++		return v.Get() == false;
+ 	case *reflect.StringValue:
+ 		return v.Get() == "";
+ 	case *reflect.StructValue:
+@@ -608,13 +610,13 @@ func empty(v reflect.Value) bool {
+ }
+ 
+ // Look up a variable, up through the parent if necessary.
+-func (t *Template) varValue(v *variableElement, st *state) reflect.Value {
+-	field := st.findVar(v.name);
++func (t *Template) varValue(name string, st *state) reflect.Value {
++	field := st.findVar(name);
+ 	if field == nil {
+ 		if st.parent == nil {
+-			t.execError(st, t.linenum, "name not found: %s", v.name)
++			t.execError(st, t.linenum, "name not found: %s", name)
+ 		}
+-		return t.varValue(v, st.parent);
++		return t.varValue(name, st.parent);
+ 	}
+ 	return field;
+ }
+@@ -623,7 +625,7 @@ func (t *Template) varValue(v *variableElement, st *state) reflect.Value {
+ // If it has a formatter attached ({var|formatter}) run that too.
+ func (t *Template) writeVariable(v *variableElement, st *state) {
+ 	formatter := v.formatter;
+-	val := t.varValue(v, st).Interface();
++	val := t.varValue(v.name, st).Interface();
+ 	// is it in user-supplied map?
+ 	if t.fmap != nil {
+ 		if fn, ok := t.fmap[v.formatter]; ok {
+@@ -673,7 +675,7 @@ func (t *Template) execute(start, end int, st *state) {
+ // Execute a .section
+ func (t *Template) executeSection(s *sectionElement, st *state) {
+ 	// Find driver data for this section.  It must be in the current struct.
+-	field := st.findVar(s.field);
++	field := t.varValue(s.field, st);
+ 	if field == nil {
+ 		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, reflect.Indirect(st.data).Type());
+ 	}
+@@ -718,7 +720,7 @@ func iter(v reflect.Value) *reflect.ChanValue {
+ // Execute a .repeated section
+ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 	// Find driver data for this section.  It must be in the current struct.
+-	field := st.findVar(r.field);
++	field := t.varValue(r.field, st);
+ 	if field == nil {
+ 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, reflect.Indirect(st.data).Type());
+ 	}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 74418699ff..95356b26c2 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -35,6 +35,8 @@ type S struct {
+ 	emptystring string;
+ 	null []*T;
+ 	vec *vector.Vector;
++	true bool;
++	false bool;
+ }
+ 
+ var t1 = T{ "ItemNumber1", "ValueNumber1" }
+@@ -234,6 +236,14 @@ var tests = []*Test {
+ 
+ 		out: "ItemNumber1=ValueNumber1\n"
+ 	},
++	&Test{
++		in: "{.section @ }\n"
++		"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
++		"{.end}",
++
++		out: "ItemNumber1=ValueNumber1\n"
++	},
++
+ 
+ 	// Formatters
+ 	&Test{
+@@ -260,6 +270,13 @@ var tests = []*Test {
+ 
+ 		out: "\nheader\n"
+ 	},
++
++	&Test {
++		in: "{.section true}1{.or}2{.end}\n"
++		"{.section false}3{.or}4{.end}\n",
++
++		out: "1\n4\n"
++	},
+ }
+ 
+ func TestAll(t *testing.T) {
+@@ -276,6 +293,8 @@ func TestAll(t *testing.T) {
+ 	s.vec = vector.New(0);
+ 	s.vec.Push("elt1");
+ 	s.vec.Push("elt2");
++	s.true = true;
++	s.false = false;
+ 
+ 	var buf bytes.Buffer;
+ 	for i, test := range tests {

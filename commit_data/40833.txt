@@ -11,9 +11,123 @@ Date:   Wed Jul 17 17:08:05 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
  src/cmd/go/internal/modget/get.go                  | 19 +++++++++++++++++++
  src/cmd/go/internal/modload/query_test.go          |  8 ++++----
  src/cmd/go/testdata/script/mod_invalid_version.txt | 13 +++++++++++++
  4 files changed, 43 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 548c6846d2..f15ce67d46 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -192,7 +192,13 @@ func (r *codeRepo) Stat(rev string) (*RevInfo, error) {
+ 	codeRev := r.revToRev(rev)
+ 	info, err := r.code.Stat(codeRev)
+ 	if err != nil {
+-		return nil, err
++		return nil, &module.ModuleError{
++			Path: r.modPath,
++			Err: &module.InvalidVersionError{
++				Version: rev,
++				Err:     err,
++			},
++		}
+ 	}
+ 	return r.convert(info, rev)
+ }
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 5e5026bac9..58aa7e3181 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -765,6 +765,16 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 
+ 		// If the query fails, and the path must be a real module, report the query error.
+ 		if forceModulePath {
++			// If the query was "upgrade" or "patch" and the current version has been
++			// replaced, check to see whether the error was for that same version:
++			// if so, the version was probably replaced because it is invalid,
++			// and we should keep that replacement without complaining.
++			if vers == "upgrade" || vers == "patch" {
++				var vErr *module.InvalidVersionError
++				if errors.As(err, &vErr) && vErr.Version == prevM.Version && modload.Replacement(prevM).Path != "" {
++					return prevM, nil
++				}
++			}
+ 			return module.Version{}, err
+ 		}
+ 	}
+@@ -911,6 +921,15 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+ 	if err != nil {
+ 		// Report error but return m, to let version selection continue.
+ 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)
++
++		// Special case: if the error is for m.Version itself and m.Version has a
++		// replacement, then keep it and don't report the error: the fact that the
++		// version is invalid is likely the reason it was replaced to begin with.
++		var vErr *module.InvalidVersionError
++		if errors.As(err, &vErr) && vErr.Version == m.Version && modload.Replacement(m).Path != "" {
++			return m, nil
++		}
++
+ 		// Special case: if the error is "no matching versions" then don't
+ 		// even report the error. Because Query does not consider pseudo-versions,
+ 		// it may happen that we have a pseudo-version but during -u=patch
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 7940882781..b91cbb5a70 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -100,7 +100,7 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: ">=v0.0.0", vers: "v0.0.0"},
+ 	{path: queryRepo, query: "v0.0.1", vers: "v0.0.1"},
+ 	{path: queryRepo, query: "v0.0.1+foo", vers: "v0.0.1"},
+-	{path: queryRepo, query: "v0.0.99", err: `unknown revision v0.0.99`},
++	{path: queryRepo, query: "v0.0.99", err: `vcs-test.golang.org/git/querytest.git@v0.0.99: invalid version: unknown revision v0.0.99`},
+ 	{path: queryRepo, query: "v0", vers: "v0.3.0"},
+ 	{path: queryRepo, query: "v0.1", vers: "v0.1.2"},
+ 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
+@@ -112,8 +112,8 @@ var queryTests = []struct {
+ 	// unconditionally).
+ 	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+ 
+-	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
+-	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
++	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `vcs-test.golang.org/git/querytest.git@v1.9.10-pre2+wrongmetadata: invalid version: unknown revision v1.9.10-pre2+wrongmetadata`},
++	{path: queryRepo, query: "v1.9.10-pre2", err: `vcs-test.golang.org/git/querytest.git@v1.9.10-pre2: invalid version: unknown revision v1.9.10-pre2`},
+ 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "latest", current: "v1.9.10-pre1", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "upgrade", vers: "v1.9.9"},
+@@ -122,7 +122,7 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: "upgrade", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
+ 	{path: queryRepo, query: "upgrade", allow: "NOMATCH", err: `no matching versions for query "upgrade"`},
+ 	{path: queryRepo, query: "upgrade", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "upgrade" (current version is v1.9.9)`},
+-	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `unknown revision v1.99.99`},
++	{path: queryRepo, query: "upgrade", current: "v1.99.99", err: `vcs-test.golang.org/git/querytest.git@v1.99.99: invalid version: unknown revision v1.99.99`},
+ 	{path: queryRepo, query: "patch", current: "", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "patch", current: "v0.1.0", vers: "v0.1.2"},
+ 	{path: queryRepo, query: "patch", current: "v1.9.0", vers: "v1.9.9"},
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index a587b4422f..e6811d9fb7 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -134,6 +134,19 @@ cd ..
+ go list -m golang.org/x/text
+ stdout 'golang.org/x/text v0.0.0-0.20170915032832-14c0d48ead0c => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
+ 
++# A 'replace' directive can replace an invalid 'latest' version, and
++# should suppress errors for that version in 'go get -u'
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v1.999999.0
++go mod edit -replace golang.org/x/text@v1.999999.0=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
++cd outside
++! go get -d golang.org/x/text@upgrade
++stderr 'go get golang.org/x/text@upgrade: golang.org/x/text@v1.999999.0: invalid version: unknown revision v1.999999.0'
++cd ..
++go get -d golang.org/x/text@upgrade
++go list -m golang.org/x/text
++stdout 'golang.org/x/text v1.999999.0 => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
++
+ # A pseudo-version derived from a non-ancestor tag is invalid.
+ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c

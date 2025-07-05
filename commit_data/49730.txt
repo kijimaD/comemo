@@ -20,7 +20,7 @@ Date:   Thu Sep 2 18:39:58 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go            |  4 +--
  src/go/types/decl.go             |  2 +-
  src/go/types/environment.go      | 56 +++++++++++++++++++++++++++++++
@@ -30,3 +30,541 @@ Date:   Thu Sep 2 18:39:58 2021 -0400
  src/go/types/subst.go            | 44 ++++++++++++------------
  src/go/types/typestring.go       | 55 ++++++++++++------------------
  8 files changed, 203 insertions(+), 90 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index ab3a388e9f..0383a58c64 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -89,7 +89,7 @@ type Checker struct {
+ 	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
+ 	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+-	typMap  map[string]*Named      // maps an instantiated named type hash to a *Named type
++	env     *Environment           // for deduplicating identical instances
+ 
+ 	// pkgPathMap maps package names to the set of distinct import paths we've
+ 	// seen for that name, anywhere in the import graph. It is used for
+@@ -192,7 +192,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		version: version,
+ 		objMap:  make(map[Object]*declInfo),
+ 		impMap:  make(map[importKey]*Package),
+-		typMap:  make(map[string]*Named),
++		env:     NewEnvironment(),
+ 	}
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 275d17c826..80f8f2f429 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -316,7 +316,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		}
+ 
+ 	case *Named:
+-		t.expand(check.typMap)
++		t.expand(check.env)
+ 		// don't touch the type if it is from a different package or the Universe scope
+ 		// (doing so would lead to a race condition - was issue #35049)
+ 		if t.obj.pkg != check.pkg {
+diff --git a/src/go/types/environment.go b/src/go/types/environment.go
+new file mode 100644
+index 0000000000..f8c14c87bf
+--- /dev/null
++++ b/src/go/types/environment.go
+@@ -0,0 +1,56 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import "sync"
++
++// An Environment is an opaque type checking environment. It may be used to
++// share identical type instances across type-checked packages or calls to
++// Instantiate.
++//
++// It is safe for concurrent use.
++type Environment struct {
++	mu      sync.Mutex
++	typeMap map[string]*Named // type hash -> instance
++	nextID  int               // next unique ID
++	seen    map[*Named]int    // assigned unique IDs
++}
++
++// NewEnvironment creates a new Environment.
++func NewEnvironment() *Environment {
++	return &Environment{
++		typeMap: make(map[string]*Named),
++		seen:    make(map[*Named]int),
++	}
++}
++
++// TODO(rfindley): move Environment.typeHash here.
++
++// typeForHash returns the recorded type for the type hash h, if it exists.
++// If no type exists for h and n is non-nil, n is recorded for h.
++func (env *Environment) typeForHash(h string, n *Named) *Named {
++	env.mu.Lock()
++	defer env.mu.Unlock()
++	if existing := env.typeMap[h]; existing != nil {
++		return existing
++	}
++	if n != nil {
++		env.typeMap[h] = n
++	}
++	return n
++}
++
++// idForType returns a unique ID for the pointer n.
++func (env *Environment) idForType(n *Named) int {
++	env.mu.Lock()
++	defer env.mu.Unlock()
++	id, ok := env.seen[n]
++	if !ok {
++		id = env.nextID
++		env.seen[n] = id
++		env.nextID++
++	}
++	return id
++}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index ec4c61cf62..256a0ed79b 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -13,19 +13,6 @@ import (
+ 	"go/token"
+ )
+ 
+-// An Environment is an opaque type checking environment. It may be used to
+-// share identical type instances across type checked packages or calls to
+-// Instantiate.
+-//
+-// Currently, Environment is just a placeholder and has no effect on
+-// instantiation.
+-type Environment struct {
+-	// Environment is currently un-implemented, because our instantiatedHash
+-	// logic doesn't correctly handle Named type identity across multiple
+-	// packages.
+-	// TODO(rfindley): implement this.
+-}
+-
+ // Instantiate instantiates the type typ with the given type arguments targs.
+ // typ must be a *Named or a *Signature type, and its number of type parameters
+ // must match the number of provided type arguments. The result is a new,
+@@ -44,7 +31,7 @@ type Environment struct {
+ // TODO(rfindley): change this function to also return an error if lengths of
+ // tparams and targs do not match.
+ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type, error) {
+-	inst := (*Checker)(nil).instance(token.NoPos, typ, targs)
++	inst := (*Checker)(nil).instance(token.NoPos, typ, targs, env)
+ 
+ 	var err error
+ 	if validate {
+@@ -84,7 +71,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ 		}()
+ 	}
+ 
+-	inst := check.instance(pos, typ, targs)
++	inst := check.instance(pos, typ, targs, check.env)
+ 
+ 	assert(len(posList) <= len(targs))
+ 	check.later(func() {
+@@ -116,14 +103,15 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ // instance creates a type or function instance using the given original type
+ // typ and arguments targs. For Named types the resulting instance will be
+ // unexpanded.
+-func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
++func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, env *Environment) Type {
+ 	switch t := typ.(type) {
+ 	case *Named:
+-		h := typeHash(t, targs)
+-		if check != nil {
+-			// typ may already have been instantiated with identical type arguments.
+-			// In that case, re-use the existing instance.
+-			if named := check.typMap[h]; named != nil {
++		var h string
++		if env != nil {
++			h = env.typeHash(t, targs)
++			// typ may already have been instantiated with identical type arguments. In
++			// that case, re-use the existing instance.
++			if named := env.typeForHash(h, nil); named != nil {
+ 				return named
+ 			}
+ 		}
+@@ -131,8 +119,10 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
+ 		named.targs = NewTypeList(targs)
+ 		named.instPos = &pos
+-		if check != nil {
+-			check.typMap[h] = named
++		if env != nil {
++			// It's possible that we've lost a race to add named to the environment.
++			// In this case, use whichever instance is recorded in the environment.
++			named = env.typeForHash(h, named)
+ 		}
+ 		return named
+ 
+@@ -144,7 +134,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) Type {
+ 		if tparams.Len() == 0 {
+ 			return typ // nothing to do (minor optimization)
+ 		}
+-		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), nil).(*Signature)
++		sig := check.subst(pos, typ, makeSubstMap(tparams.list(), targs), env).(*Signature)
+ 		// If the signature doesn't use its type parameters, subst
+ 		// will not make a copy. In that case, make a copy now (so
+ 		// we can set tparams to nil w/o causing side-effects).
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+new file mode 100644
+index 0000000000..0b09bfebe3
+--- /dev/null
++++ b/src/go/types/instantiate_test.go
+@@ -0,0 +1,72 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types_test
++
++import (
++	. "go/types"
++	"testing"
++)
++
++func TestInstantiateEquality(t *testing.T) {
++	const src = genericPkg + "p; type T[P any] int"
++
++	pkg, err := pkgFor(".", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	T := pkg.Scope().Lookup("T").Type().(*Named)
++
++	// Instantiating the same type twice should result in pointer-equivalent
++	// instances.
++	env := NewEnvironment()
++	res1, err := Instantiate(env, T, []Type{Typ[Int]}, false)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res2, err := Instantiate(env, T, []Type{Typ[Int]}, false)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if res1 != res2 {
++		t.Errorf("first instance (%s) not pointer-equivalent to second instance (%s)", res1, res2)
++	}
++}
++
++func TestInstantiateNonEquality(t *testing.T) {
++	const src = genericPkg + "p; type T[P any] int"
++
++	pkg1, err := pkgFor(".", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	pkg2, err := pkgFor(".", src, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// We consider T1 and T2 to be distinct types, so their instances should not
++	// be deduplicated by the environment.
++	T1 := pkg1.Scope().Lookup("T").Type().(*Named)
++	T2 := pkg2.Scope().Lookup("T").Type().(*Named)
++
++	env := NewEnvironment()
++	res1, err := Instantiate(env, T1, []Type{Typ[Int]}, false)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res2, err := Instantiate(env, T2, []Type{Typ[Int]}, false)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if res1 == res2 {
++		t.Errorf("instance from pkg1 (%s) is pointer-equivalent to instance from pkg2 (%s)", res1, res2)
++	}
++	if Identical(res1, res2) {
++		t.Errorf("instance from pkg1 (%s) is identical to instance from pkg2 (%s)", res1, res2)
++	}
++}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 4540956658..c9ef70d7ad 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -242,7 +242,7 @@ func (n *Named) setUnderlying(typ Type) {
+ 
+ // expand ensures that the underlying type of n is instantiated.
+ // The underlying type will be Typ[Invalid] if there was an error.
+-func (n *Named) expand(typMap map[string]*Named) *Named {
++func (n *Named) expand(env *Environment) *Named {
+ 	if n.instPos != nil {
+ 		// n must be loaded before instantiation, in order to have accurate
+ 		// tparams. This is done implicitly by the call to n.TParams, but making it
+@@ -250,19 +250,25 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
+ 		n.load()
+ 		var u Type
+ 		if n.check.validateTArgLen(*n.instPos, n.tparams.Len(), n.targs.Len()) {
+-			if typMap == nil {
++			// TODO(rfindley): handling an optional Checker and Environment here (and
++			// in subst) feels overly complicated. Can we simplify?
++			if env == nil {
+ 				if n.check != nil {
+-					typMap = n.check.typMap
++					env = n.check.env
+ 				} else {
+ 					// If we're instantiating lazily, we might be outside the scope of a
+ 					// type-checking pass. In that case we won't have a pre-existing
+-					// typMap, but don't want to create a duplicate of the current instance
+-					// in the process of expansion.
+-					h := typeHash(n.orig, n.targs.list())
+-					typMap = map[string]*Named{h: n}
++					// environment, but don't want to create a duplicate of the current
++					// instance in the process of expansion.
++					env = NewEnvironment()
+ 				}
++				h := env.typeHash(n.orig, n.targs.list())
++				// add the instance to the environment to avoid infinite recursion.
++				// addInstance may return a different, existing instance, but we
++				// shouldn't return that instance from expand.
++				env.typeForHash(h, n)
+ 			}
+-			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), typMap)
++			u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), env)
+ 		} else {
+ 			u = Typ[Invalid]
+ 		}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index fb77617d0c..d0ef07652f 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -43,8 +43,8 @@ func (m substMap) lookup(tpar *TypeParam) Type {
+ // that it doesn't modify the incoming type. If a substitution took place, the
+ // result type is different from the incoming type.
+ //
+-// If the given typMap is non-nil, it is used in lieu of check.typMap.
+-func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, typMap map[string]*Named) Type {
++// If the given environment is non-nil, it is used in lieu of check.env.
++func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, env *Environment) Type {
+ 	if smap.empty() {
+ 		return typ
+ 	}
+@@ -64,27 +64,27 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap substMap, typMap map[s
+ 
+ 	if check != nil {
+ 		subst.check = check
+-		if typMap == nil {
+-			typMap = check.typMap
++		if env == nil {
++			env = check.env
+ 		}
+ 	}
+-	if typMap == nil {
++	if env == nil {
+ 		// If we don't have a *Checker and its global type map,
+ 		// use a local version. Besides avoiding duplicate work,
+ 		// the type map prevents infinite recursive substitution
+ 		// for recursive types (example: type T[P any] *T[P]).
+-		typMap = make(map[string]*Named)
++		env = NewEnvironment()
+ 	}
+-	subst.typMap = typMap
++	subst.env = env
+ 
+ 	return subst.typ(typ)
+ }
+ 
+ type subster struct {
+-	pos    token.Pos
+-	smap   substMap
+-	check  *Checker // nil if called via Instantiate
+-	typMap map[string]*Named
++	pos   token.Pos
++	smap  substMap
++	check *Checker // nil if called via Instantiate
++	env   *Environment
+ }
+ 
+ func (subst *subster) typ(typ Type) Type {
+@@ -217,25 +217,25 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := typeHash(t, newTArgs)
++		h := subst.env.typeHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+-		if named, found := subst.typMap[h]; found {
++		if named := subst.env.typeForHash(h, nil); named != nil {
+ 			dump(">>> found %s", named)
+ 			return named
+ 		}
+ 
+-		// Create a new named type and populate typMap to avoid endless recursion.
+-		// The position used here is irrelevant because validation only occurs on t
+-		// (we don't call validType on named), but we use subst.pos to help with
+-		// debugging.
++		// Create a new named type and populate the environment to avoid endless
++		// recursion. The position used here is irrelevant because validation only
++		// occurs on t (we don't call validType on named), but we use subst.pos to
++		// help with debugging.
+ 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
+ 		t.load()
+ 		// It's ok to provide a nil *Checker because the newly created type
+ 		// doesn't need to be (lazily) expanded; it's expanded below.
+ 		named := (*Checker)(nil).newNamed(tname, t.orig, nil, t.tparams, t.methods) // t is loaded, so tparams and methods are available
+ 		named.targs = NewTypeList(newTArgs)
+-		subst.typMap[h] = named
+-		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
++		subst.env.typeForHash(h, named)
++		t.expand(subst.env) // must happen after env update to avoid infinite recursion
+ 
+ 		// do the substitution
+ 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, newTArgs)
+@@ -260,14 +260,16 @@ func (subst *subster) typ(typ Type) Type {
+ // type hash: types that are identical produce identical string representations.
+ // If typ is a *Named type and targs is not empty, typ is printed as if it were
+ // instantiated with targs.
+-func typeHash(typ Type, targs []Type) string {
++func (env *Environment) typeHash(typ Type, targs []Type) string {
++	assert(env != nil)
+ 	assert(typ != nil)
+ 	var buf bytes.Buffer
+ 
+-	h := newTypeHasher(&buf)
++	h := newTypeHasher(&buf, env)
+ 	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+ 		// Don't use WriteType because we need to use the provided targs
+ 		// and not any targs that might already be with the *Named type.
++		h.typePrefix(named)
+ 		h.typeName(named.obj)
+ 		h.typeList(targs)
+ 	} else {
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index c5f0354aea..362b44a2c2 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/token"
++	"strconv"
+ 	"unicode/utf8"
+ )
+ 
+@@ -71,22 +72,23 @@ type typeWriter struct {
+ 	buf  *bytes.Buffer
+ 	seen map[Type]bool
+ 	qf   Qualifier
+-	hash bool
++	env  *Environment // if non-nil, we are type hashing
+ }
+ 
+ func newTypeWriter(buf *bytes.Buffer, qf Qualifier) *typeWriter {
+-	return &typeWriter{buf, make(map[Type]bool), qf, false}
++	return &typeWriter{buf, make(map[Type]bool), qf, nil}
+ }
+ 
+-func newTypeHasher(buf *bytes.Buffer) *typeWriter {
+-	return &typeWriter{buf, make(map[Type]bool), nil, true}
++func newTypeHasher(buf *bytes.Buffer, env *Environment) *typeWriter {
++	assert(env != nil)
++	return &typeWriter{buf, make(map[Type]bool), nil, env}
+ }
+ 
+ func (w *typeWriter) byte(b byte)                               { w.buf.WriteByte(b) }
+ func (w *typeWriter) string(s string)                           { w.buf.WriteString(s) }
+ func (w *typeWriter) writef(format string, args ...interface{}) { fmt.Fprintf(w.buf, format, args...) }
+ func (w *typeWriter) error(msg string) {
+-	if w.hash {
++	if w.env != nil {
+ 		panic(msg)
+ 	}
+ 	w.string("<" + msg + ">")
+@@ -228,14 +230,15 @@ func (w *typeWriter) typ(typ Type) {
+ 		// types. Write them to aid debugging, but don't write
+ 		// them when we need an instance hash: whether a type
+ 		// is fully expanded or not doesn't matter for identity.
+-		if !w.hash && t.instPos != nil {
++		if w.env == nil && t.instPos != nil {
+ 			w.byte(instanceMarker)
+ 		}
++		w.typePrefix(t)
+ 		w.typeName(t.obj)
+ 		if t.targs != nil {
+ 			// instantiated type
+ 			w.typeList(t.targs.list())
+-		} else if !w.hash && t.TParams().Len() != 0 { // For type hashing, don't need to format the TParams
++		} else if w.env == nil && t.TParams().Len() != 0 { // For type hashing, don't need to format the TParams
+ 			// parameterized type
+ 			w.tParamList(t.TParams().list())
+ 		}
+@@ -264,6 +267,15 @@ func (w *typeWriter) typ(typ Type) {
+ 	}
+ }
+ 
++// If w.env is non-nil, typePrefix writes a unique prefix for the named type t
++// based on the types already observed by w.env. If w.env is nil, it does
++// nothing.
++func (w *typeWriter) typePrefix(t *Named) {
++	if w.env != nil {
++		w.string(strconv.Itoa(w.env.idForType(t)))
++	}
++}
++
+ func (w *typeWriter) typeList(list []Type) {
+ 	w.byte('[')
+ 	for i, typ := range list {
+@@ -309,31 +321,6 @@ func (w *typeWriter) typeName(obj *TypeName) {
+ 		writePackage(w.buf, obj.pkg, w.qf)
+ 	}
+ 	w.string(obj.name)
+-
+-	if w.hash {
+-		// For local defined types, use the (original!) TypeName's scope
+-		// numbers to disambiguate.
+-		if typ, _ := obj.typ.(*Named); typ != nil {
+-			// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
+-			//           and whether the loop can iterate more than twice.
+-			//           (It seems somehow connected to instance types.)
+-			for typ.orig != typ {
+-				typ = typ.orig
+-			}
+-			w.writeScopeNumbers(typ.obj.parent)
+-		}
+-	}
+-}
+-
+-// writeScopeNumbers writes the number sequence for this scope to buf
+-// in the form ".i.j.k" where i, j, k, etc. stand for scope numbers.
+-// If a scope is nil or has no parent (such as a package scope), nothing
+-// is written.
+-func (w *typeWriter) writeScopeNumbers(s *Scope) {
+-	if s != nil && s.number > 0 {
+-		w.writeScopeNumbers(s.parent)
+-		w.writef(".%d", s.number)
+-	}
+ }
+ 
+ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+@@ -344,7 +331,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 				w.string(", ")
+ 			}
+ 			// parameter names are ignored for type identity and thus type hashes
+-			if !w.hash && v.name != "" {
++			if w.env == nil && v.name != "" {
+ 				w.string(v.name)
+ 				w.byte(' ')
+ 			}
+@@ -385,7 +372,7 @@ func (w *typeWriter) signature(sig *Signature) {
+ 	}
+ 
+ 	w.byte(' ')
+-	if n == 1 && (w.hash || sig.results.vars[0].name == "") {
++	if n == 1 && (w.env != nil || sig.results.vars[0].name == "") {
+ 		// single unnamed result (if type hashing, name must be ignored)
+ 		w.typ(sig.results.vars[0].typ)
+ 		return

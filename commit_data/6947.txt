@@ -7,6 +7,20 @@ Date:   Tue Dec 14 11:33:17 2010 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/3582042
-
+---
  doc/go_mem.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 35ada4ea63..da45a07d7a 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -169,7 +169,7 @@ In fact, an aggressive compiler might delete the entire <code>go</code> statemen
+ <p>
+ If the effects of a goroutine must be observed by another goroutine,
+ use a synchronization mechanism such as a lock or channel
+-communiation to establish a relative ordering.
++communication to establish a relative ordering.
+ </p>
+ 
+ <h3>Channel communication</h3>

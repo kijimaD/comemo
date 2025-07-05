@@ -16,8 +16,71 @@ Date:   Sun Jan 1 03:08:48 2017 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 16 ++++++++++++----
  test/fixedbugs/issue8481.go              | 14 ++++++++++++++
  test/init.go                             |  4 ++--
  3 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 51fc7fd442..ee4eb0353e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3648,11 +3648,19 @@ func typecheckdef(n *Node) *Node {
+ 				lineno = n.Pos
+ 			}
+ 
+-			// Note: adderrorname looks for this string and
+-			// adds context about the outer expression
+-			yyerror("undefined: %v", n.Sym)
++			switch n.Sym.Name {
++			case "init":
++				// As per the spec at:
++				//  https://golang.org/ref/spec#Program_initialization_and_execution
++				// init cannot be referred to in usercode.
++				// See https://golang.org/issues/8481.
++				yyerror("cannot refer to init functions")
++			default:
++				// Note: adderrorname looks for this string and
++				// adds context about the outer expression
++				yyerror("undefined: %v", n.Sym)
++			}
+ 		}
+-
+ 		return n
+ 	}
+ 
+diff --git a/test/fixedbugs/issue8481.go b/test/fixedbugs/issue8481.go
+new file mode 100644
+index 0000000000..a69296687a
+--- /dev/null
++++ b/test/fixedbugs/issue8481.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++}
++
++func main() {
++	init() // ERROR "cannot refer to init functions"
++}
+diff --git a/test/init.go b/test/init.go
+index f4689443cf..1855b4ff56 100644
+--- a/test/init.go
++++ b/test/init.go
+@@ -15,7 +15,7 @@ func init() {
+ }
+ 
+ func main() {
+-	init()         // ERROR "undefined.*init"
++	init()         // ERROR "cannot refer to init functions"
+ 	runtime.init() // ERROR "unexported.*runtime\.init"
+-	var _ = init   // ERROR "undefined.*init"
++	var _ = init   // ERROR "cannot refer to init functions"
+ }

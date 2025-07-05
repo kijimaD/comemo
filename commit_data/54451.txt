@@ -17,7 +17,64 @@ Date:   Wed Oct 19 11:57:15 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/importer/gcimporter_test.go | 6 ++++++
  src/go/internal/gcimporter/gcimporter_test.go        | 7 +++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index ac502e6e37..988d7daa25 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -30,6 +30,10 @@ func TestMain(m *testing.M) {
+ // builders (build.golang.org) don't have access to compiled packages for
+ // import.
+ func skipSpecialPlatforms(t *testing.T) {
++	t.Helper()
++	testenv.MustHaveGoBuild(t)
++
++	// TODO(bcmills): Is this still accurate now that ios is its own GOOS?
+ 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+ 	case "darwin-arm64":
+ 		t.Skipf("no compiled packages available for import on %s", platform)
+@@ -120,6 +124,8 @@ func TestImportTestdata(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
++	skipSpecialPlatforms(t)
++
+ 	testfiles := map[string][]string{
+ 		"exports.go":  {"go/ast", "go/token"},
+ 		"generics.go": nil,
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index de6a791dc8..7fa698d7c1 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -37,6 +37,9 @@ func TestMain(m *testing.M) {
+ // builders (build.golang.org) don't have access to compiled packages for
+ // import.
+ func skipSpecialPlatforms(t *testing.T) {
++	t.Helper()
++	testenv.MustHaveGoBuild(t)
++
+ 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+ 	case "darwin-arm64":
+ 		t.Skipf("no compiled packages available for import on %s", platform)
+@@ -130,6 +133,8 @@ func TestImportTestdata(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
++	skipSpecialPlatforms(t)
++
+ 	testfiles := map[string][]string{
+ 		"exports.go":  {"go/ast", "go/token"},
+ 		"generics.go": nil,
+@@ -168,6 +173,8 @@ func TestImportTypeparamTests(t *testing.T) {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
++	skipSpecialPlatforms(t)
++
+ 	tmpdir := mktmpdir(t)
+ 	defer os.RemoveAll(tmpdir)
+ 

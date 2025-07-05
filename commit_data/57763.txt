@@ -14,6 +14,53 @@ Date:   Mon Aug 28 22:16:33 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/sym/reloc.go | 26 ++++++++++----------------
  1 file changed, 10 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/link/internal/sym/reloc.go b/src/cmd/link/internal/sym/reloc.go
+index 53c0329180..e614caa5d8 100644
+--- a/src/cmd/link/internal/sym/reloc.go
++++ b/src/cmd/link/internal/sym/reloc.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"debug/elf"
++	"debug/macho"
+ )
+ 
+ // RelocVariant is a linker-internal variation on a relocation.
+@@ -30,24 +31,17 @@ const (
+ )
+ 
+ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+-	// We didn't have some relocation types at Go1.4.
+-	// Uncomment code when we include those in bootstrap code.
+-
+ 	switch {
+ 	case r >= objabi.MachoRelocOffset: // Mach-O
+-		// nr := (r - objabi.MachoRelocOffset)>>1
+-		// switch ctxt.Arch.Family {
+-		// case sys.AMD64:
+-		// 	return macho.RelocTypeX86_64(nr).String()
+-		// case sys.ARM:
+-		// 	return macho.RelocTypeARM(nr).String()
+-		// case sys.ARM64:
+-		// 	return macho.RelocTypeARM64(nr).String()
+-		// case sys.I386:
+-		// 	return macho.RelocTypeGeneric(nr).String()
+-		// default:
+-		// 	panic("unreachable")
+-		// }
++		nr := (r - objabi.MachoRelocOffset) >> 1
++		switch arch.Family {
++		case sys.AMD64:
++			return macho.RelocTypeX86_64(nr).String()
++		case sys.ARM64:
++			return macho.RelocTypeARM64(nr).String()
++		default:
++			panic("unreachable")
++		}
+ 	case r >= objabi.ElfRelocOffset: // ELF
+ 		nr := r - objabi.ElfRelocOffset
+ 		switch arch.Family {

@@ -7,7 +7,34 @@ Date:   Sat May 21 13:25:47 2016 -0700
     Change-Id: I91608b15e00c8eaf732db3a99a890d4ceeb41955
     Reviewed-on: https://go-review.googlesource.com/23317
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 2c2e777992..bebe250458 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -224,7 +224,7 @@ Donald Huang <don.hcd@gmail.com>
+ Donovan Hide <donovanhide@gmail.com>
+ Dropbox, Inc.
+ Duncan Holm <mail@frou.org>
+-Dustin Herbis <djherbis@gmail.com>
++Dustin Herbison <djherbis@gmail.com>
+ Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>
+ Dvir Volk <dvir@everything.me> <dvirsky@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index de3c41b16e..4d0863b3ef 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -314,7 +314,7 @@ Doug Anderson <douga@google.com>
+ Drew Hintz <adhintz@google.com>
+ Duncan Holm <mail@frou.org>
+ Dustin Carlino <dcarlino@google.com>
+-Dustin Herbis <djherbis@gmail.com>
++Dustin Herbison <djherbis@gmail.com>
+ Dustin Long <dustmop@gmail.com>
+ Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>

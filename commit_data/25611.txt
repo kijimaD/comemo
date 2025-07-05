@@ -8,6 +8,22 @@ Date:   Thu Sep 10 11:33:39 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14456
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/getrandom_linux_mips64x.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/internal/syscall/unix/getrandom_linux_mips64x.go b/src/internal/syscall/unix/getrandom_linux_mips64x.go
+new file mode 100644
+index 0000000000..8531db68b0
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_mips64x.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips64 mips64le
++
++package unix
++
++const randomTrap uintptr = 5313

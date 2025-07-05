@@ -13,7 +13,76 @@ Date:   Tue Sep 1 21:25:24 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/14200
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/fp_ssa.go | 14 ++++++++++++++
  src/cmd/internal/obj/x86/obj6.go               |  6 ++++--
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/fp_ssa.go b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+index 6193983e4c..ee3163abb3 100644
+--- a/src/cmd/compile/internal/gc/testdata/fp_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+@@ -105,6 +105,12 @@ func div64_ssa(a, b float64) float64 {
+ 	return a / b
+ }
+ 
++func neg64_ssa(a, b float64) float64 {
++	switch {
++	}
++	return -a + -1*b
++}
++
+ func add32_ssa(a, b float32) float32 {
+ 	switch {
+ 	}
+@@ -128,6 +134,12 @@ func div32_ssa(a, b float32) float32 {
+ 	return a / b
+ }
+ 
++func neg32_ssa(a, b float32) float32 {
++	switch {
++	}
++	return -a + -1*b
++}
++
+ func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
+ 	e int32, f uint32, g int64, h uint64, i float32) (aa, bb, cc, dd, ee, ff, gg, hh, ii float64) {
+ 	switch {
+@@ -1548,11 +1560,13 @@ func main() {
+ 	fails += fail64("*", mul64_ssa, a, b, 12.0)
+ 	fails += fail64("-", sub64_ssa, a, b, -1.0)
+ 	fails += fail64("/", div64_ssa, a, b, 0.75)
++	fails += fail64("neg", neg64_ssa, a, b, -7)
+ 
+ 	fails += fail32("+", add32_ssa, c, d, 7.0)
+ 	fails += fail32("*", mul32_ssa, c, d, 12.0)
+ 	fails += fail32("-", sub32_ssa, c, d, -1.0)
+ 	fails += fail32("/", div32_ssa, c, d, 0.75)
++	fails += fail32("neg", neg32_ssa, c, d, -7)
+ 
+ 	// denorm-squared should underflow to zero.
+ 	fails += fail32("*", mul32_ssa, tiny, tiny, 0)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index d0efffbc0a..d55dcc7cac 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -221,7 +221,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
+ 	case AMOVSS:
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			if p.From.Val.(float64) == 0 {
++			//  f == 0 can't be used here due to -0, so use Float64bits
++			if f := p.From.Val.(float64); math.Float64bits(f) == 0 {
+ 				if p.To.Type == obj.TYPE_REG && REG_X0 <= p.To.Reg && p.To.Reg <= REG_X15 {
+ 					p.As = AXORPS
+ 					p.From = p.To
+@@ -261,7 +262,8 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	case AMOVSD:
+ 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
+ 		if p.From.Type == obj.TYPE_FCONST {
+-			if p.From.Val.(float64) == 0 {
++			//  f == 0 can't be used here due to -0, so use Float64bits
++			if f := p.From.Val.(float64); math.Float64bits(f) == 0 {
+ 				if p.To.Type == obj.TYPE_REG && REG_X0 <= p.To.Reg && p.To.Reg <= REG_X15 {
+ 					p.As = AXORPS
+ 					p.From = p.To

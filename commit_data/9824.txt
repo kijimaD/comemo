@@ -17,7 +17,51 @@ Date:   Wed Sep 28 13:32:56 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5131051
-
+---
  src/pkg/exp/template/html/escape.go      |  4 +++-
  src/pkg/exp/template/html/escape_test.go | 10 ++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index bb286c8844..c43a16425f 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -549,6 +549,8 @@ var delimEnds = [...]string{
+ 	delimSpaceOrTagEnd: " \t\n\f\r>",
+ }
+ 
++var doctypeBytes = []byte("<!DOCTYPE")
++
+ // escapeText escapes a text template node.
+ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 	s, written, i, b := n.Text, 0, 0, new(bytes.Buffer)
+@@ -566,7 +568,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 				}
+ 			}
+ 			for j := i; j < end; j++ {
+-				if s[j] == '<' {
++				if s[j] == '<' && !bytes.HasPrefix(s[j:], doctypeBytes) {
+ 					b.Write(s[written:j])
+ 					b.WriteString("&lt;")
+ 					written = j + 1
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index c464459165..0ca3c56619 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -420,6 +420,16 @@ func TestEscape(t *testing.T) {
+ 			"a<<!-- --><!-- -->b",
+ 			"a&lt;b",
+ 		},
++		{
++			"HTML doctype not normalized",
++			"<!DOCTYPE html>Hello, World!",
++			"<!DOCTYPE html>Hello, World!",
++		},
++		{
++			"No doctype injection",
++			`<!{{"DOCTYPE"}}`,
++			"&lt;!DOCTYPE",
++		},
+ 		{
+ 			"Split HTML comment",
+ 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",

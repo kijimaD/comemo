@@ -26,7 +26,7 @@ Date:   Thu Jan 12 15:47:19 2023 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/asmb.go                 |   3 +
  src/cmd/link/internal/ld/data.go                 |  36 ++++++-
  src/cmd/link/internal/ld/lib.go                  |   3 +-
@@ -38,3 +38,430 @@ Date:   Thu Jan 12 15:47:19 2023 +0100
  src/internal/syscall/windows/zsyscall_windows.go |   7 ++
  src/runtime/runtime-seh_windows_test.go          | 128 +++++++++++++++++++++++
  10 files changed, 216 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index fc088be51e..ca9a57741c 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -63,6 +63,9 @@ func asmb(ctxt *Link) {
+ 	if Segpdata.Filelen > 0 {
+ 		writeParallel(&wg, pdatablk, ctxt, Segpdata.Fileoff, Segpdata.Vaddr, Segpdata.Filelen)
+ 	}
++	if Segxdata.Filelen > 0 {
++		writeParallel(&wg, xdatablk, ctxt, Segxdata.Fileoff, Segxdata.Vaddr, Segxdata.Filelen)
++	}
+ 
+ 	wg.Wait()
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 849629ebe3..0a0c17e928 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1158,6 +1158,10 @@ func pdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+ 	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.pdata}, addr, size, zeros[:])
+ }
+ 
++func xdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
++	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.xdata}, addr, size, zeros[:])
++}
++
+ var covCounterDataStartOff, covCounterDataLen uint64
+ 
+ var zeros [512]byte
+@@ -1686,6 +1690,10 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
+ 		sect.Extnum = n
+ 		n++
+ 	}
++	for _, sect := range Segxdata.Sections {
++		sect.Extnum = n
++		n++
++	}
+ }
+ 
+ // allocateDataSectionForSym creates a new sym.Section into which a
+@@ -2164,7 +2172,12 @@ func (state *dodataState) allocateSEHSections(ctxt *Link) {
+ 	if sehp.pdata > 0 {
+ 		sect := state.allocateDataSectionForSym(&Segpdata, sehp.pdata, 04)
+ 		state.assignDsymsToSection(sect, []loader.Sym{sehp.pdata}, sym.SRODATA, aligndatsize)
+-		state.checkdatsize(sym.SPDATASECT)
++		state.checkdatsize(sym.SSEHSECT)
++	}
++	if sehp.xdata > 0 {
++		sect := state.allocateNamedDataSection(&Segxdata, ".xdata", []sym.SymKind{}, 04)
++		state.assignDsymsToSection(sect, []loader.Sym{sehp.xdata}, sym.SRODATA, aligndatsize)
++		state.checkdatsize(sym.SSEHSECT)
+ 	}
+ }
+ 
+@@ -2719,6 +2732,21 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		Segpdata.Length = va - Segpdata.Vaddr
+ 	}
+ 
++	if len(Segxdata.Sections) > 0 {
++		va = uint64(Rnd(int64(va), int64(*FlagRound)))
++		order = append(order, &Segxdata)
++		Segxdata.Rwx = 04
++		Segxdata.Vaddr = va
++		// Segxdata.Sections is intended to contain just one section.
++		// Loop through the slice anyway for consistency.
++		for _, s := range Segxdata.Sections {
++			va = uint64(Rnd(int64(va), int64(s.Align)))
++			s.Vaddr = va
++			va += s.Length
++		}
++		Segxdata.Length = va - Segxdata.Vaddr
++	}
++
+ 	va = uint64(Rnd(int64(va), int64(*FlagRound)))
+ 	order = append(order, &Segdwarf)
+ 	Segdwarf.Rwx = 06
+@@ -2770,8 +2798,10 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		}
+ 	}
+ 
+-	if sect := ldr.SymSect(sehp.pdata); sect != nil {
+-		ldr.AddToSymValue(sehp.pdata, int64(sect.Vaddr))
++	for _, s := range []loader.Sym{sehp.pdata, sehp.xdata} {
++		if sect := ldr.SymSect(s); sect != nil {
++			ldr.AddToSymValue(s, int64(sect.Vaddr))
++		}
+ 	}
+ 
+ 	if ctxt.BuildMode == BuildModeShared {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f1eff33c6e..5b6575b3fb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -329,8 +329,9 @@ var (
+ 	Segdata      sym.Segment
+ 	Segdwarf     sym.Segment
+ 	Segpdata     sym.Segment // windows-only
++	Segxdata     sym.Segment // windows-only
+ 
+-	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf, &Segpdata}
++	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf, &Segpdata, &Segxdata}
+ )
+ 
+ const pkgdef = "__.PKGDEF"
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index b07f2763eb..9f4b00371a 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -434,6 +434,7 @@ type peFile struct {
+ 	bssSect        *peSection
+ 	ctorsSect      *peSection
+ 	pdataSect      *peSection
++	xdataSect      *peSection
+ 	nextSectOffset uint32
+ 	nextFileOffset uint32
+ 	symtabOffset   int64 // offset to the start of symbol table
+@@ -501,6 +502,8 @@ func (f *peFile) addDWARF() {
+ 
+ // addSEH adds SEH information to the COFF file f.
+ func (f *peFile) addSEH(ctxt *Link) {
++	// .pdata section can exist without the .xdata section.
++	// .xdata section depends on the .pdata section.
+ 	if Segpdata.Length == 0 {
+ 		return
+ 	}
+@@ -512,10 +515,19 @@ func (f *peFile) addSEH(ctxt *Link) {
+ 	}
+ 	pefile.pdataSect = d
+ 	d.checkSegment(&Segpdata)
+-	// TODO: remove extraSize once the dummy unwind info is removed from the .pdata section.
+-	const extraSize = 12
+-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress + extraSize
+-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize - extraSize
++	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress
++	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize
++
++	if Segxdata.Length > 0 {
++		d = pefile.addSection(".xdata", int(Segxdata.Length), int(Segxdata.Length))
++		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
++		if ctxt.LinkMode == LinkExternal {
++			// Some gcc versions don't honor the default alignment for the .xdata section.
++			d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
++		}
++		pefile.xdataSect = d
++		d.checkSegment(&Segxdata)
++	}
+ }
+ 
+ // addInitArray adds .ctors COFF section to the file f.
+@@ -626,6 +638,9 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 	if sehp.pdata != 0 {
+ 		sects = append(sects, relsect{f.pdataSect, &Segpdata, []loader.Sym{sehp.pdata}})
+ 	}
++	if sehp.xdata != 0 {
++		sects = append(sects, relsect{f.xdataSect, &Segxdata, []loader.Sym{sehp.xdata}})
++	}
+ 	for _, s := range sects {
+ 		s.peSect.emitRelocations(ctxt.Out, func() int {
+ 			var n int
+diff --git a/src/cmd/link/internal/ld/seh.go b/src/cmd/link/internal/ld/seh.go
+index b95084751c..5379528c30 100644
+--- a/src/cmd/link/internal/ld/seh.go
++++ b/src/cmd/link/internal/ld/seh.go
+@@ -12,6 +12,7 @@ import (
+ 
+ var sehp struct {
+ 	pdata loader.Sym
++	xdata loader.Sym
+ }
+ 
+ func writeSEH(ctxt *Link) {
+@@ -29,11 +30,15 @@ func writeSEHAMD64(ctxt *Link) {
+ 		s.SetAlign(4)
+ 		return s
+ 	}
+-	pdata := mkSecSym(".pdata", sym.SPDATASECT)
+-	// TODO: the following 12 bytes represent a dummy unwind info,
+-	// remove once unwind infos are encoded in the .xdata section.
+-	pdata.AddUint64(ctxt.Arch, 0)
+-	pdata.AddUint32(ctxt.Arch, 0)
++	pdata := mkSecSym(".pdata", sym.SSEHSECT)
++	xdata := mkSecSym(".xdata", sym.SSEHSECT)
++	// The .xdata entries have very low cardinality
++	// as it only contains frame pointer operations,
++	// which are very similar across functions.
++	// These are referenced by .pdata entries using
++	// an RVA, so it is possible, and binary-size wise,
++	// to deduplicate .xdata entries.
++	uwcache := make(map[string]int64) // aux symbol name --> .xdata offset
+ 	for _, s := range ctxt.Textp {
+ 		if fi := ldr.FuncInfo(s); !fi.Valid() || fi.TopFrame() {
+ 			continue
+@@ -42,13 +47,20 @@ func writeSEHAMD64(ctxt *Link) {
+ 		if uw == 0 {
+ 			continue
+ 		}
++		name := ctxt.SymName(uw)
++		off, cached := uwcache[name]
++		if !cached {
++			off = xdata.Size()
++			uwcache[name] = off
++			xdata.AddBytes(ldr.Data(uw))
++		}
+ 
+ 		// Reference:
+ 		// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-runtime_function
+ 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, 0)
+ 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, ldr.SymSize(s))
+-		// TODO: reference the .xdata symbol.
+-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, pdata.Sym(), 0)
++		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), off)
+ 	}
+ 	sehp.pdata = pdata.Sym()
++	sehp.xdata = xdata.Sym()
+ }
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index acb96ad0ad..77dbf75a51 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -126,7 +126,7 @@ const (
+ 
+ 	// SEH symbol types
+ 	SSEHUNWINDINFO
+-	SPDATASECT
++	SSEHSECT
+ )
+ 
+ // AbiSymKindToSymKind maps values read from object files (which are
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 30de0a812f..62b4fd92e5 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -68,12 +68,12 @@ func _() {
+ 	_ = x[SDWARFLOC-57]
+ 	_ = x[SDWARFLINES-58]
+ 	_ = x[SSEHUNWINDINFO-59]
+-	_ = x[SPDATASECT-60]
++	_ = x[SSEHSECT-60]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFOSPDATASECT"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFOSSEHSECT"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579, 593, 603}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579, 593, 601}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 409b334bcb..cfe4695258 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -401,3 +401,4 @@ type FILE_ID_BOTH_DIR_INFO struct {
+ //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+ 
+ //sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
++//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 4a6ca406d1..32744b00fc 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -70,6 +70,7 @@ var (
+ 	procMoveFileExW                   = modkernel32.NewProc("MoveFileExW")
+ 	procMultiByteToWideChar           = modkernel32.NewProc("MultiByteToWideChar")
+ 	procRtlLookupFunctionEntry        = modkernel32.NewProc("RtlLookupFunctionEntry")
++	procRtlVirtualUnwind              = modkernel32.NewProc("RtlVirtualUnwind")
+ 	procSetFileInformationByHandle    = modkernel32.NewProc("SetFileInformationByHandle")
+ 	procUnlockFileEx                  = modkernel32.NewProc("UnlockFileEx")
+ 	procVirtualQuery                  = modkernel32.NewProc("VirtualQuery")
+@@ -296,6 +297,12 @@ func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret
+ 	return
+ }
+ 
++func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) {
++	r0, _, _ := syscall.Syscall9(procRtlVirtualUnwind.Addr(), 8, uintptr(handlerType), uintptr(baseAddress), uintptr(pc), uintptr(entry), uintptr(ctxt), uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(frame)), uintptr(unsafe.Pointer(ctxptrs)), 0)
++	ret = uintptr(r0)
++	return
++}
++
+ func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/runtime/runtime-seh_windows_test.go b/src/runtime/runtime-seh_windows_test.go
+index 23f5b87bf5..c8a4a593b9 100644
+--- a/src/runtime/runtime-seh_windows_test.go
++++ b/src/runtime/runtime-seh_windows_test.go
+@@ -8,7 +8,9 @@ import (
+ 	"internal/abi"
+ 	"internal/syscall/windows"
+ 	"runtime"
++	"slices"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ func sehf1() int {
+@@ -61,3 +63,129 @@ func TestSehLookupFunctionEntry(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func sehCallers() []uintptr {
++	// We don't need a real context,
++	// RtlVirtualUnwind just needs a context with
++	// valid a pc, sp and fp (aka bp).
++	ctx := runtime.NewContextStub()
++
++	pcs := make([]uintptr, 15)
++	var base, frame uintptr
++	var n int
++	for i := 0; i < len(pcs); i++ {
++		fn := windows.RtlLookupFunctionEntry(ctx.GetPC(), &base, nil)
++		if fn == 0 {
++			break
++		}
++		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(&ctx)), nil, &frame, nil)
++		n++
++		pcs[i] = ctx.GetPC()
++	}
++	return pcs[:n]
++}
++
++// SEH unwinding does not report inlined frames.
++//
++//go:noinline
++func sehf3(pan bool) []uintptr {
++	return sehf4(pan)
++}
++
++//go:noinline
++func sehf4(pan bool) []uintptr {
++	var pcs []uintptr
++	if pan {
++		panic("sehf4")
++	}
++	pcs = sehCallers()
++	return pcs
++}
++
++func testSehCallersEqual(t *testing.T, pcs []uintptr, want []string) {
++	t.Helper()
++	got := make([]string, 0, len(want))
++	for _, pc := range pcs {
++		fn := runtime.FuncForPC(pc)
++		if fn == nil || len(got) >= len(want) {
++			break
++		}
++		name := fn.Name()
++		switch name {
++		case "runtime.deferCallSave", "runtime.runOpenDeferFrame", "runtime.panicmem":
++			// These functions are skipped as they appear inconsistently depending
++			// whether inlining is on or off.
++			continue
++		}
++		got = append(got, name)
++	}
++	if !slices.Equal(want, got) {
++		t.Fatalf("wanted %v, got %v", want, got)
++	}
++}
++
++func TestSehUnwind(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		t.Skip("skipping amd64-only test")
++	}
++	pcs := sehf3(false)
++	testSehCallersEqual(t, pcs, []string{"runtime_test.sehCallers", "runtime_test.sehf4",
++		"runtime_test.sehf3", "runtime_test.TestSehUnwind"})
++}
++
++func TestSehUnwindPanic(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		t.Skip("skipping amd64-only test")
++	}
++	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindPanic.func1", "runtime.gopanic",
++		"runtime_test.sehf4", "runtime_test.sehf3", "runtime_test.TestSehUnwindPanic"}
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatal("did not panic")
++		}
++		pcs := sehCallers()
++		testSehCallersEqual(t, pcs, want)
++	}()
++	sehf3(true)
++}
++
++func TestSehUnwindDoublePanic(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		t.Skip("skipping amd64-only test")
++	}
++	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindDoublePanic.func1.1", "runtime.gopanic",
++		"runtime_test.TestSehUnwindDoublePanic.func1", "runtime.gopanic", "runtime_test.TestSehUnwindDoublePanic"}
++	defer func() {
++		defer func() {
++			if recover() == nil {
++				t.Fatal("did not panic")
++			}
++			pcs := sehCallers()
++			testSehCallersEqual(t, pcs, want)
++		}()
++		if recover() == nil {
++			t.Fatal("did not panic")
++		}
++		panic(2)
++	}()
++	panic(1)
++}
++
++func TestSehUnwindNilPointerPanic(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		t.Skip("skipping amd64-only test")
++	}
++	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindNilPointerPanic.func1", "runtime.gopanic",
++		"runtime.sigpanic", "runtime_test.TestSehUnwindNilPointerPanic"}
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatal("did not panic")
++		}
++		pcs := sehCallers()
++		testSehCallersEqual(t, pcs, want)
++	}()
++	var p *int
++	if *p == 3 {
++		t.Fatal("did not see nil pointer panic")
++	}
++}

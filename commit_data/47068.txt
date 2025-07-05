@@ -11,7 +11,69 @@ Date:   Sat Nov 21 15:27:00 2020 +0800
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/search/search.go |  1 -
  src/cmd/go/internal/test/test.go     | 17 +++--------------
  2 files changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 18738cf59e..faf3a321dd 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -571,7 +571,6 @@ func IsRelativePath(pattern string) bool {
+ // If so, InDir returns an equivalent path relative to dir.
+ // If not, InDir returns an empty string.
+ // InDir makes some effort to succeed even in the presence of symbolic links.
+-// TODO(rsc): Replace internal/test.inDir with a call to this function for Go 1.12.
+ func InDir(path, dir string) string {
+ 	if rel := inDirLex(path, dir); rel != "" {
+ 		return rel
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7fc9e8fbdc..ea9dfbe4e8 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -29,6 +29,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/lockedfile"
++	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+@@ -1499,7 +1500,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)
+ 			}
+-			if a.Package.Root == "" || !inDir(name, a.Package.Root) {
++			if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+ 				// Do not recheck files outside the module, GOPATH, or GOROOT root.
+ 				break
+ 			}
+@@ -1508,7 +1509,7 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 			if !filepath.IsAbs(name) {
+ 				name = filepath.Join(pwd, name)
+ 			}
+-			if a.Package.Root == "" || !inDir(name, a.Package.Root) {
++			if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+ 				// Do not recheck files outside the module, GOPATH, or GOROOT root.
+ 				break
+ 			}
+@@ -1526,18 +1527,6 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
+ 	return sum, nil
+ }
+ 
+-func inDir(path, dir string) bool {
+-	if str.HasFilePathPrefix(path, dir) {
+-		return true
+-	}
+-	xpath, err1 := filepath.EvalSymlinks(path)
+-	xdir, err2 := filepath.EvalSymlinks(dir)
+-	if err1 == nil && err2 == nil && str.HasFilePathPrefix(xpath, xdir) {
+-		return true
+-	}
+-	return false
+-}
+-
+ func hashGetenv(name string) cache.ActionID {
+ 	h := cache.NewHash("getenv")
+ 	v, ok := os.LookupEnv(name)

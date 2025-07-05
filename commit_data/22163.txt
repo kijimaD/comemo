@@ -7,6 +7,25 @@ Date:   Thu Feb 26 09:21:19 2015 -0500
     Change-Id: Ief78a10c4aaa43f300f34519911ff73b6f510d73
     Reviewed-on: https://go-review.googlesource.com/6100
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/go/build/deps_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7076f43163..8025833639 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -376,10 +376,10 @@ var allowedErrors = map[osPkg]bool{
+ }
+ 
+ func TestDependencies(t *testing.T) {
+-	if runtime.GOOS == "nacl" {
+-		// NaCl tests run in a limited file system and we do not
++	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
++		// Tests run in a limited file system and we do not
+ 		// provide access to every source file.
+-		t.Skip("skipping on NaCl")
++		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	var all []string
+ 

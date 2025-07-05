@@ -8,6 +8,29 @@ Date:   Wed Jun 3 10:18:45 2009 -0700
     TBR=r
     OCL=29827
     CL=29831
-
+---
  src/lib/syscall/syscall_darwin.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/lib/syscall/syscall_darwin.go b/src/lib/syscall/syscall_darwin.go
+index 6909d07464..011fc7a0fe 100644
+--- a/src/lib/syscall/syscall_darwin.go
++++ b/src/lib/syscall/syscall_darwin.go
+@@ -161,17 +161,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+ 	return int64(n), e;
+ }
+ 
+-//sys	gettimeofday(tp *Timeval) (sec int64, usec int32, errno int)
+-func Gettimeofday(tv *Timeval) (errno int) {
+-	// The tv passed to gettimeofday must be non-nil
+-	// but is otherwise unused.  The answers come back
+-	// in the two registers.
+-	sec, usec, err := gettimeofday(tv);
+-	tv.Sec = sec;
+-	tv.Usec = usec;
+-	return err;
+-}
+-
+ func Sleep(ns int64) (errno int) {
+ 	tv := NsecToTimeval(ns);
+ 	return Select(0, nil, nil, nil, &tv);

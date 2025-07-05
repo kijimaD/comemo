@@ -8,10 +8,104 @@ Date:   Tue Nov 3 16:29:32 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1018031
-
+---
  src/cmd/5a/doc.go | 14 ++++++++++++++
  src/cmd/6a/doc.go | 14 ++++++++++++++
  src/cmd/6l/doc.go |  7 +++++++
  src/cmd/8a/doc.go | 14 ++++++++++++++
  src/cmd/8l/doc.go |  4 ++++
  5 files changed, 53 insertions(+)
+
+diff --git a/src/cmd/5a/doc.go b/src/cmd/5a/doc.go
+new file mode 100644
+index 0000000000..91a86e9954
+--- /dev/null
++++ b/src/cmd/5a/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++5a is a version of the Plan 9 assembler documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2a
++
++Its target architecture is the ARM, referred to by these tools as arm.
++
++*/
++package documentation
+diff --git a/src/cmd/6a/doc.go b/src/cmd/6a/doc.go
+new file mode 100644
+index 0000000000..4f372aa653
+--- /dev/null
++++ b/src/cmd/6a/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++6a is a version of the Plan 9 assembler documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2a
++
++Its target architecture is the x86-64, referred to by these tools as amd64.
++
++*/
++package documentation
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index 0417fa377a..331d0c1d99 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -19,6 +19,13 @@ Original options are listed in the link above.
+ 
+ Options new in this version:
+ 
++-d
++	Elide the dynamic linking header.  With this option, the binary
++	is statically linked and does not refer to dynld.  Without this option
++	(the default), the binary's contents are identical but it is loaded with dynld.
++-e
++	Emit an extra ELF-compatible symbol table useful with tools such as
++	nm, gdb, and oprofile. This option makes the binary file considerably larger.
+ -H6
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+ -H7
+diff --git a/src/cmd/8a/doc.go b/src/cmd/8a/doc.go
+new file mode 100644
+index 0000000000..f9970e6398
+--- /dev/null
++++ b/src/cmd/8a/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++8a is a version of the Plan 9 assembler documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2a
++
++Its target architecture is the x86, referred to by these tools for historical reasons as 386.
++
++*/
++package documentation
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index 62d588d68c..82796d26fc 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -19,6 +19,10 @@ Original options are listed in the link above.
+ 
+ Options new in this version:
+ 
++-d
++	Elide the dynamic linking header.  With this option, the binary
++	is statically linked and does not refer to dynld.  Without this option
++	(the default), the binary's contents are identical but it is loaded with dynld.
+ -H6
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+ -H7

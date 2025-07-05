@@ -12,10 +12,114 @@ Date:   Fri Feb 4 21:14:13 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mbarrier.go        |  2 +-
  src/runtime/mbitmap.go         | 12 ++++++------
  src/runtime/slice.go           |  2 +-
  src/runtime/symtab.go          |  2 +-
  src/runtime/syscall_windows.go |  2 +-
  5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 0f8b2af5fa..465c21f83f 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -198,7 +198,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 
+ // typedmemmovepartial is like typedmemmove but assumes that
+ // dst and src point off bytes into the value and only copies size bytes.
+-// off must be a multiple of sys.PtrSize.
++// off must be a multiple of goarch.PtrSize.
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ 	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 1c6f3f959f..937968807b 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -843,7 +843,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// size is sizeof(_defer{}) (at least 6 words) and dataSize may be
+ 	// arbitrarily larger.
+ 	//
+-	// The checks for size == sys.PtrSize and size == 2*sys.PtrSize can therefore
++	// The checks for size == goarch.PtrSize and size == 2*goarch.PtrSize can therefore
+ 	// assume that dataSize == size without checking it explicitly.
+ 
+ 	if goarch.PtrSize == 8 && size == goarch.PtrSize {
+@@ -893,7 +893,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			}
+ 			return
+ 		}
+-		// Otherwise typ.size must be 2*sys.PtrSize,
++		// Otherwise typ.size must be 2*goarch.PtrSize,
+ 		// and typ.kind&kindGCProg == 0.
+ 		if doubleCheck {
+ 			if typ.size != 2*goarch.PtrSize || typ.kind&kindGCProg != 0 {
+@@ -1095,8 +1095,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			// Replicate ptrmask to fill entire pbits uintptr.
+ 			// Doubling and truncating is fewer steps than
+ 			// iterating by nb each time. (nb could be 1.)
+-			// Since we loaded typ.ptrdata/sys.PtrSize bits
+-			// but are pretending to have typ.size/sys.PtrSize,
++			// Since we loaded typ.ptrdata/goarch.PtrSize bits
++			// but are pretending to have typ.size/goarch.PtrSize,
+ 			// there might be no replication necessary/possible.
+ 			pbits = b
+ 			endnb = nb
+@@ -1564,7 +1564,7 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
+ 
+ // progToPointerMask returns the 1-bit pointer mask output by the GC program prog.
+ // size the size of the region described by prog, in bytes.
+-// The resulting bitvector will have no more than size/sys.PtrSize bits.
++// The resulting bitvector will have no more than size/goarch.PtrSize bits.
+ func progToPointerMask(prog *byte, size uintptr) bitvector {
+ 	n := (size/goarch.PtrSize + 7) / 8
+ 	x := (*[1 << 30]byte)(persistentalloc(n+1, 1, &memstats.buckhash_sys))[:n+1]
+@@ -1697,7 +1697,7 @@ Run:
+ 		// into a register and use that register for the entire loop
+ 		// instead of repeatedly reading from memory.
+ 		// Handling fewer than 8 bits here makes the general loop simpler.
+-		// The cutoff is sys.PtrSize*8 - 7 to guarantee that when we add
++		// The cutoff is goarch.PtrSize*8 - 7 to guarantee that when we add
+ 		// the pattern to a bit buffer holding at most 7 bits (a partial byte)
+ 		// it will not overflow.
+ 		src := dst
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index ac0b7d5fef..e0aeba604f 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -214,7 +214,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	var lenmem, newlenmem, capmem uintptr
+ 	// Specialize for common values of et.size.
+ 	// For 1 we don't need any division/multiplication.
+-	// For sys.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
++	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
+ 	// For powers of 2, use a variable shift.
+ 	switch {
+ 	case et.size == 1:
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 21dd95a397..017b0a0749 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -863,7 +863,7 @@ type pcvalueCacheEnt struct {
+ 
+ // pcvalueCacheKey returns the outermost index in a pcvalueCache to use for targetpc.
+ // It must be very cheap to calculate.
+-// For now, align to sys.PtrSize and reduce mod the number of entries.
++// For now, align to goarch.PtrSize and reduce mod the number of entries.
+ // In practice, this appears to be fairly randomly and evenly distributed.
+ func pcvalueCacheKey(targetpc uintptr) uintptr {
+ 	return (targetpc / goarch.PtrSize) % uintptr(len(pcvalueCache{}.entries))
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index e76b403ade..9c38facf08 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -152,7 +152,7 @@ func (p *abiDesc) assignArg(t *_type) {
+ // tryRegAssignArg tries to register-assign a value of type t.
+ // If this type is nested in an aggregate type, then offset is the
+ // offset of this type within its parent type.
+-// Assumes t.size <= sys.PtrSize and t.size != 0.
++// Assumes t.size <= goarch.PtrSize and t.size != 0.
+ //
+ // Returns whether the assignment succeeded.
+ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {

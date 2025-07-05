@@ -8,6 +8,48 @@ Date:   Sun Aug 10 16:49:01 2008 -0700
     DELTA=22  (21 added, 0 deleted, 1 changed)
     OCL=14049
     CL=14049
-
+---
  src/cmd/gc/walk.c | 23 ++++++++++++++++++++++-
  1 file changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 56d1b01b11..ad96e2e2b1 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -458,7 +458,13 @@ loop:
+ 		if(top != Etop)
+ 			goto nottop;
+ 		walktype(n->left, Elv);
+-		goto com;
++		l = n->left;
++		if(l->op != OINDEX)
++			goto com;
++		if(!isptrto(l->left->type, TMAP))
++			goto com;
++		*n = *mapop(n, top);
++		goto loop;
+ 
+ 	case OLSH:
+ 	case ORSH:
+@@ -1875,6 +1881,21 @@ mapop(Node *n, int top)
+ 		r = n;
+ 		break;
+ 
++	case OASOP:
++		// rewrite map[index] op= right
++		// into tmpi := index; map[tmpi] = map[tmpi] op right
++
++		t = n->left->left->type->type;
++		a = nod(OXXX, N, N);
++		tempname(a, t->down);			// tmpi
++		r = nod(OAS, a, n->left->right);	// tmpi := index
++		n->left->right = a;			// m[tmpi]
++
++		a = nod(OXXX, N, N);
++		*a = *n->left;				// copy of map[tmpi]
++		a = nod(n->etype, a, n->right);		// m[tmpi] op right
++		a = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
++		r = nod(OLIST, r, a);
+ 	}
+ 	return r;
+ 

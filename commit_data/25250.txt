@@ -16,10 +16,258 @@ Date:   Tue Oct 13 11:08:08 2015 -0700
     Change-Id: Ibe49a4183ca91f6c859cba8135927f01d176e064
     Reviewed-on: https://go-review.googlesource.com/15804
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  6 +--
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
  src/cmd/compile/internal/ssa/gen/rulegen.go    | 29 ++++++++++----
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 52 +++++++++++++-------------
  src/cmd/compile/internal/ssa/rewritegeneric.go | 28 +++++++-------
  5 files changed, 65 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index b02af9413e..f160ce81af 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -478,10 +478,8 @@
+ // as the original load.  If not, we end up making a value with
+ // memory type live in two different blocks, which can lead to
+ // multiple memory values alive simultaneously.
+-// TODO: somehow have this rewrite rule put the new MOVBQSXload in
+-// v.Args[0].Block instead of in v.Block?
+-(MOVBQSX (MOVBload [off] {sym} ptr mem)) && b == v.Args[0].Block -> (MOVBQSXload [off] {sym} ptr mem)
+-(MOVBQZX (MOVBload [off] {sym} ptr mem)) && b == v.Args[0].Block -> (MOVBQZXload [off] {sym} ptr mem)
++(MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
++(MOVBQZX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
+ // TODO: more
+ 
+ // Don't extend before storing
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 1de7a6b00f..01026042bf 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -77,7 +77,7 @@
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+ (PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
+-(StructSelect [idx] (Load ptr mem)) && b == v.Args[0].Block -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
++(StructSelect [idx] (Load ptr mem)) -> @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 
+ // complex ops
+ (ComplexReal (ComplexMake real _  )) -> real
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 5dcbf1ee1c..80371c94c4 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -26,7 +26,7 @@ import (
+ )
+ 
+ // rule syntax:
+-//  sexpr [&& extra conditions] -> sexpr
++//  sexpr [&& extra conditions] -> [@block] sexpr
+ //
+ // sexpr are s-expressions (lisp-like parenthesized groupings)
+ // sexpr ::= (opcode sexpr*)
+@@ -266,7 +266,7 @@ func genRules(arch arch) {
+ 			if t[1] == "nil" {
+ 				fmt.Fprintf(w, "b.Control = nil\n")
+ 			} else {
+-				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false))
++				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, "b"))
+ 			}
+ 			if len(newsuccs) < len(succs) {
+ 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
+@@ -407,9 +407,16 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
+ }
+ 
+ func genResult(w io.Writer, arch arch, result string) {
+-	genResult0(w, arch, result, new(int), true)
++	loc := "b"
++	if result[0] == '@' {
++		// parse @block directive
++		s := strings.SplitN(result[1:], " ", 2)
++		loc = s[0]
++		result = s[1]
++	}
++	genResult0(w, arch, result, new(int), true, loc)
+ }
+-func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) string {
++func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc string) string {
+ 	if result[0] != '(' {
+ 		// variable
+ 		if top {
+@@ -429,7 +436,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
+ 	s := split(result[1 : len(result)-1]) // remove parens, then split
+ 	var v string
+ 	var hasType bool
+-	if top {
++	if top && loc == "b" {
+ 		v = "v"
+ 		fmt.Fprintf(w, "v.Op = %s\n", opName(s[0], arch))
+ 		fmt.Fprintf(w, "v.AuxInt = 0\n")
+@@ -439,7 +446,15 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
+ 	} else {
+ 		v = fmt.Sprintf("v%d", *alloc)
+ 		*alloc++
+-		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, TypeInvalid)\n", v, opName(s[0], arch))
++		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, TypeInvalid)\n", v, loc, opName(s[0], arch))
++		if top {
++			// Rewrite original into a copy
++			fmt.Fprintf(w, "v.Op = OpCopy\n")
++			fmt.Fprintf(w, "v.AuxInt = 0\n")
++			fmt.Fprintf(w, "v.Aux = nil\n")
++			fmt.Fprintf(w, "v.resetArgs()\n")
++			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
++		}
+ 	}
+ 	for _, a := range s[1:] {
+ 		if a[0] == '<' {
+@@ -457,7 +472,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
+ 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
+ 		} else {
+ 			// regular argument (sexpr or variable)
+-			x := genResult0(w, arch, a, alloc, false)
++			x := genResult0(w, arch, a, alloc, false, loc)
+ 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 71cbb8171b..4ac4744b64 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3973,59 +3973,59 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		;
+ 	case OpAMD64MOVBQSX:
+ 		// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
+-		// cond: b == v.Args[0].Block
+-		// result: (MOVBQSXload [off] {sym} ptr mem)
++		// cond:
++		// result: @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVBload {
+-				goto end4fcdab76af223d4a6b942b532ebf860b
++				goto end19c38f3a1a37dca50637c917fa26e4f7
+ 			}
+ 			off := v.Args[0].AuxInt
+ 			sym := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+-			if !(b == v.Args[0].Block) {
+-				goto end4fcdab76af223d4a6b942b532ebf860b
+-			}
+-			v.Op = OpAMD64MOVBQSXload
++			v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQSXload, TypeInvalid)
++			v.Op = OpCopy
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = off
+-			v.Aux = sym
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
++			v.AddArg(v0)
++			v0.Type = v.Type
++			v0.AuxInt = off
++			v0.Aux = sym
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
+ 			return true
+ 		}
+-		goto end4fcdab76af223d4a6b942b532ebf860b
+-	end4fcdab76af223d4a6b942b532ebf860b:
++		goto end19c38f3a1a37dca50637c917fa26e4f7
++	end19c38f3a1a37dca50637c917fa26e4f7:
+ 		;
+ 	case OpAMD64MOVBQZX:
+ 		// match: (MOVBQZX (MOVBload [off] {sym} ptr mem))
+-		// cond: b == v.Args[0].Block
+-		// result: (MOVBQZXload [off] {sym} ptr mem)
++		// cond:
++		// result: @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
+ 		{
+ 			if v.Args[0].Op != OpAMD64MOVBload {
+-				goto endce35c966b0a38aa124a610e5616a220c
++				goto end1169bcf3d56fa24321b002eaebd5a62d
+ 			}
+ 			off := v.Args[0].AuxInt
+ 			sym := v.Args[0].Aux
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+-			if !(b == v.Args[0].Block) {
+-				goto endce35c966b0a38aa124a610e5616a220c
+-			}
+-			v.Op = OpAMD64MOVBQZXload
++			v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQZXload, TypeInvalid)
++			v.Op = OpCopy
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v.AuxInt = off
+-			v.Aux = sym
+-			v.AddArg(ptr)
+-			v.AddArg(mem)
++			v.AddArg(v0)
++			v0.Type = v.Type
++			v0.AuxInt = off
++			v0.Aux = sym
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
+ 			return true
+ 		}
+-		goto endce35c966b0a38aa124a610e5616a220c
+-	endce35c966b0a38aa124a610e5616a220c:
++		goto end1169bcf3d56fa24321b002eaebd5a62d
++	end1169bcf3d56fa24321b002eaebd5a62d:
+ 		;
+ 	case OpAMD64MOVBload:
+ 		// match: (MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 99c49a8c79..46d97b57e3 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1513,32 +1513,32 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		;
+ 	case OpStructSelect:
+ 		// match: (StructSelect [idx] (Load ptr mem))
+-		// cond: b == v.Args[0].Block
+-		// result: (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
++		// cond:
++		// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+ 		{
+ 			idx := v.AuxInt
+ 			if v.Args[0].Op != OpLoad {
+-				goto endd1a92da3e00c16a8f5bd3bd30deca298
++				goto end27abc5bf0299ce1bd5457af6ce8e3fba
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+-			if !(b == v.Args[0].Block) {
+-				goto endd1a92da3e00c16a8f5bd3bd30deca298
+-			}
+-			v.Op = OpLoad
++			v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, TypeInvalid)
++			v.Op = OpCopy
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
+-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+-			v0.Type = v.Type.PtrTo()
+-			v0.AuxInt = idx
+-			v0.AddArg(ptr)
+ 			v.AddArg(v0)
+-			v.AddArg(mem)
++			v0.Type = v.Type
++			v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v1.Type = v.Type.PtrTo()
++			v1.AuxInt = idx
++			v1.AddArg(ptr)
++			v0.AddArg(v1)
++			v0.AddArg(mem)
+ 			return true
+ 		}
+-		goto endd1a92da3e00c16a8f5bd3bd30deca298
+-	endd1a92da3e00c16a8f5bd3bd30deca298:
++		goto end27abc5bf0299ce1bd5457af6ce8e3fba
++	end27abc5bf0299ce1bd5457af6ce8e3fba:
+ 		;
+ 	case OpSub16:
+ 		// match: (Sub16 x x)

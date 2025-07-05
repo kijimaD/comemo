@@ -7,6 +7,19 @@ Date:   Wed Jan 12 16:17:54 2011 +1100
     R=rsc, nigeltao_gnome
     CC=golang-dev
     https://golang.org/cl/3956042
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index 40ee75054d..95a1665ec4 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -12,6 +12,7 @@ syntax:glob
+ *~
+ *.orig
+ core
++_cgo_*
+ _obj
+ _test
+ _testmain.go

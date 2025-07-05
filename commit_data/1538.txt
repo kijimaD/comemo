@@ -8,8 +8,83 @@ Date:   Wed Jan 21 15:45:54 2009 -0800
     DELTA=16  (12 added, 0 deleted, 4 changed)
     OCL=23242
     CL=23242
-
+---
  src/lib/json/struct.go      |  2 +-
  src/lib/reflect/all_test.go |  2 +-
  src/lib/reflect/value.go    | 14 +++++++++++++-
  3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/json/struct.go b/src/lib/json/struct.go
+index 167fcbff0f..0d0c1476e7 100644
+--- a/src/lib/json/struct.go
++++ b/src/lib/json/struct.go
+@@ -149,7 +149,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
+ 					n *= 2
+ 				}
+ 				av1 := reflect.NewOpenArrayValue(av.Type(), av.Len(), n);
+-				reflect.CopyArray(av1, av, av.Len());
++				av1.CopyFrom(av, av.Len());
+ 				pv.SetSub(av1);
+ 				av = av1;
+ 			}
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index 631a5662c4..f991110a8d 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -308,7 +308,7 @@ func TestCopyArray(t *testing.T) {
+ 		}
+ 	}
+ 	for tocopy := 1; tocopy <= 7; tocopy++ {
+-		CopyArray(vb.(PtrValue).Sub(), va.(PtrValue).Sub(), tocopy);
++		vb.(PtrValue).Sub().(ArrayValue).CopyFrom(va.(PtrValue).Sub(), tocopy);
+ 		for i := 0; i < tocopy; i++ {
+ 			if a[i] != b[i] {
+ 				t.Errorf("1 tocopy=%d a[%d]=%d, b[%d]=%d",
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index f1651a28c8..6fd4fe2458 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -553,8 +553,11 @@ type ArrayValue interface {
+ 	Cap() int;
+ 	Elem(i int)	Value;
+ 	SetLen(len int);
++	CopyFrom(src ArrayValue, n int)
+ }
+ 
++func copyArray(dst ArrayValue, src ArrayValue, n int);
++
+ /*
+ 	Run-time representation of open arrays looks like this:
+ 		struct	Array {
+@@ -600,6 +603,10 @@ func (v *openArrayValueStruct) Elem(i int) Value {
+ 	return newValueAddr(v.elemtype, Addr(data_uint));
+ }
+ 
++func (v *openArrayValueStruct) CopyFrom(src ArrayValue, n int) {
++	copyArray(v, src, n);
++}
++
+ type fixedArrayValueStruct struct {
+ 	commonValue;
+ 	elemtype	Type;
+@@ -628,6 +635,10 @@ func (v *fixedArrayValueStruct) Elem(i int) Value {
+ 	return nil
+ }
+ 
++func (v *fixedArrayValueStruct) CopyFrom(src ArrayValue, n int) {
++	copyArray(v, src, n);
++}
++
+ func arrayCreator(typ Type, addr Addr) Value {
+ 	arraytype := typ.(ArrayType);
+ 	if arraytype.Open() {
+@@ -843,7 +854,8 @@ func NewOpenArrayValue(typ ArrayType, len, cap int) ArrayValue {
+ 	return newValueAddr(typ, Addr(array));
+ }
+ 
+-func CopyArray(dst ArrayValue, src ArrayValue, n int) {
++// Works on both fixed and open arrays.
++func copyArray(dst ArrayValue, src ArrayValue, n int) {
+ 	if n == 0 {
+ 		return
+ 	}

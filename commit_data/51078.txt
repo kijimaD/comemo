@@ -12,6 +12,33 @@ Date:   Thu Dec 2 13:18:33 2021 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 8f0fc1fb71..8dc6a88ef3 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -428,10 +428,6 @@ proposal</a>.
+       to eliminate the need to perform uintptr to unsafe.Pointer conversions at the callsite (as unsafe.Pointer rules require).
+     </p>
+ 
+-    <p><!-- CL 321889 -->
+-      TODO: <a href="https://golang.org/cl/321889">https://golang.org/cl/321889</a>: allocate hiter as part of MapIter
+-    </p>
+-
+     <p><!-- CL 321891 -->
+       The new
+       <a href="/pkg/reflect/#MapIter.Reset"><code>MapIter.Reset</code></a>
+@@ -442,10 +438,6 @@ proposal</a>.
+       over many maps.
+     </p>
+ 
+-    <p><!-- CL 345486 -->
+-      TODO: <a href="https://golang.org/cl/345486">https://golang.org/cl/345486</a>: optimize for maps with string keys
+-    </p>
+-
+     <p><!-- CL 352131 -->
+       A number of methods (
+       <a href="/pkg/reflect#Value.CanInt"><code>Value.CanInt</code></a>,

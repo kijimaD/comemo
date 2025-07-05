@@ -7,6 +7,20 @@ Date:   Thu Mar 17 20:40:02 2016 +0100
     Change-Id: I32fd5c36f055fdb1dfe56524085676aa4111089a
     Reviewed-on: https://go-review.googlesource.com/20830
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index aa75cc7cbd..c4e07dde18 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -775,7 +775,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 		// arguments leak out of scope
+ 		// TODO: leak to a dummy node instead
+-		// go f(x) - f and x escape
++		// defer f(x) - f and x escape
+ 		escassignSinkNilWhy(e, n, n.Left.Left, "defer func")
+ 
+ 		escassignSinkNilWhy(e, n, n.Left.Right, "defer func ...") // ODDDARG for call

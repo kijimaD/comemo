@@ -7,7 +7,7 @@ Date:   Mon Jan 9 20:05:34 2012 +1100
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5530048
-
+---
  doc/articles/error_handling.html | 10 +++++-----
  doc/go1.html                     | 18 +++++++++---------
  doc/go_tutorial.html             | 19 +++++++++----------
@@ -22,3 +22,424 @@ Date:   Mon Jan 9 20:05:34 2012 +1100
  doc/progs/sortmain.go            |  3 +--
  doc/tmpltohtml.go                |  2 +-
  13 files changed, 43 insertions(+), 29 deletions(-)
+
+diff --git a/doc/articles/error_handling.html b/doc/articles/error_handling.html
+index 48292c2c99..89f29983d1 100644
+--- a/doc/articles/error_handling.html
++++ b/doc/articles/error_handling.html
+@@ -20,7 +20,7 @@ occurs it calls <code>log.Fatal</code> to print the error message and stop.
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func openFile/` `/STOP/`}}
+--->f, err := os.Open(&#34;filename.ext&#34;)
++-->    f, err := os.Open(&#34;filename.ext&#34;)
+     if err != nil {
+         log.Fatal(err)
+     }
+@@ -100,7 +100,7 @@ A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func printErr/` `/STOP/`}}
+--->f, err := Sqrt(-1)
++-->    f, err := Sqrt(-1)
+     if err != nil {
+         fmt.Println(err)
+     }</pre>
+@@ -125,7 +125,7 @@ rules and returns it as an <code>error</code> created by
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/fmtError/` `/STOP/`}}
+--->if f &lt; 0 {
++-->    if f &lt; 0 {
+         return 0, fmt.Errorf(&#34;math: square root of negative number %g&#34;, f)
+     }</pre>
+ 
+@@ -177,7 +177,7 @@ messages:
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func decodeError/` `/STOP/`}}
+--->if err := dec.Decode(&amp;val); err != nil {
++-->    if err := dec.Decode(&amp;val); err != nil {
+         if serr, ok := err.(*json.SyntaxError); ok {
+             line, col := findLine(f, serr.Offset)
+             return fmt.Errorf(&#34;%s:%d:%d: %v&#34;, f.Name(), line, col, err)
+@@ -216,7 +216,7 @@ up otherwise.
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func netError/` `/STOP/`}}
+--->if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
++-->        if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
+             time.Sleep(1e9)
+             continue
+         }
+diff --git a/doc/go1.html b/doc/go1.html
+index dbf263e082..77820d0807 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -44,7 +44,7 @@ call.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
+--->greeting := []byte{}
++-->    greeting := []byte{}
+     greeting = append(greeting, []byte(&#34;hello &#34;)...)</pre>
+ 
+ <p>
+@@ -54,7 +54,7 @@ slice; the conversion is no longer necessary:
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/append.*world/`}}
+--->greeting = append(greeting, &#34;world&#34;...)</pre>
++-->    greeting = append(greeting, &#34;world&#34;...)</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -95,7 +95,7 @@ All four of the initializations in this example are legal; the last one was ille
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/type Date struct/` `/STOP/`}}
+--->type Date struct {
++-->    type Date struct {
+         month string
+         day   int
+     }
+@@ -182,7 +182,7 @@ relatives now take and return a <code>rune</code>.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/STARTRUNE/` `/ENDRUNE/`}}
+--->delta := &#39;δ&#39; // delta has type rune.
++-->    delta := &#39;δ&#39; // delta has type rune.
+     var DELTA rune
+     DELTA = unicode.ToUpper(delta)
+     epsilon := unicode.ToLower(DELTA + 1)
+@@ -231,7 +231,7 @@ function, <code>delete</code>.  The call
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/delete\(m, k\)/`}}
+--->delete(m, k)</pre>
++-->    delete(m, k)</pre>
+ 
+ <p>
+ will delete the map entry retrieved by the expression <code>m[k]</code>.
+@@ -258,7 +258,7 @@ Code should not assume that the elements are visited in any particular order.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/Sunday/` `/^	}/`}}
+--->m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
++-->    m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
+     for name, value := range m {
+         // This loop should not assume Sunday will be visited first.
+         f(name, value)
+@@ -292,7 +292,7 @@ These examples illustrate the behavior.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
+--->sa := []int{1, 2, 3}
++-->    sa := []int{1, 2, 3}
+     i := 0
+     i, sa[i] = 1, 2 // sets i = 1, sa[0] = 2
+ 
+@@ -409,7 +409,7 @@ As a result, structs and arrays can now be used as map keys:
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/type Day struct/` `/Printf/`}}
+--->type Day struct {
++-->    type Day struct {
+         long  string
+         short string
+     }
+@@ -585,7 +585,7 @@ to turn a string into an error. It replaces the old <code>os.NewError</code>.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/ErrSyntax/`}}
+--->var ErrSyntax = errors.New(&#34;syntax error&#34;)</pre>
++-->    var ErrSyntax = errors.New(&#34;syntax error&#34;)</pre>
+ 		
+ <p>
+ <em>Updating</em>:
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 13c352b87c..071ca1aa9d 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -119,8 +119,8 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
+ -->package main
+ 
+ import (
+-    &#34;os&#34;
+     &#34;flag&#34; // command line option parser
++    &#34;os&#34;
+ )
+ 
+ var omitNewline = flag.Bool(&#34;n&#34;, false, &#34;don&#39;t print final newline&#34;)
+@@ -209,7 +209,7 @@ The <code>:=</code> operator is used a lot in Go to represent an initializing de
+ There's one in the <code>for</code> clause on the next line:
+ <p>
+ <pre><!--{{code "progs/echo.go" `/for/`}}
+--->for i := 0; i &lt; flag.NArg(); i++ {</pre>
++-->    for i := 0; i &lt; flag.NArg(); i++ {</pre>
+ <p>
+ The <code>flag</code> package has parsed the arguments and left the non-flag arguments
+ in a list that can be iterated over in the obvious way.
+@@ -258,7 +258,7 @@ of course you can change a string <i>variable</i> simply by
+ reassigning it.  This snippet from <code>strings.go</code> is legal code:
+ <p>
+ <pre><!--{{code "progs/strings.go" `/hello/` `/ciao/`}}
+--->s := &#34;hello&#34;
++-->    s := &#34;hello&#34;
+     if s[1] != &#39;e&#39; {
+         os.Exit(1)
+     }
+@@ -811,8 +811,7 @@ func (r13 *rotate13) Read(b []byte) (ret int, err error) {
+ 
+ func (r13 *rotate13) String() string {
+     return r13.source.String()
+-}
+-// end of rotate13 implementation</pre>
++}</pre>
+ <p>
+ (The <code>rot13</code> function called in <code>Read</code> is trivial and not worth reproducing here.)
+ <p>
+@@ -990,7 +989,7 @@ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness
+ integer and can do the right thing for you.  The snippet
+ <p>
+ <pre><!--{{code "progs/print.go" 10 11}}
+--->var u64 uint64 = 1&lt;&lt;64 - 1
++-->    var u64 uint64 = 1&lt;&lt;64 - 1
+     fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))</pre>
+ <p>
+ prints
+@@ -1003,7 +1002,7 @@ In fact, if you're lazy the format <code>%v</code> will print, in a simple
+ appropriate style, any value, even an array or structure.  The output of
+ <p>
+ <pre><!--{{code "progs/print.go" 14 20}}
+--->type T struct {
++-->    type T struct {
+         a int
+         b string
+     }
+@@ -1025,7 +1024,7 @@ and adds a newline.  The output of each of these two lines is identical
+ to that of the <code>Printf</code> call above.
+ <p>
+ <pre><!--{{code "progs/print.go" 21 22}}
+--->fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
++-->    fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
+     fmt.Println(u64, t, a)</pre>
+ <p>
+ If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
+@@ -1442,10 +1441,10 @@ All that's left is to strobe the <code>quit</code> channel
+ at the end of main:
+ <p>
+ <pre><!--{{code "progs/server1.go" `/adder,.quit/`}}
+--->adder, quit := startServer(func(a, b int) int { return a + b })</pre>
++-->    adder, quit := startServer(func(a, b int) int { return a + b })</pre>
+ ...
+ <pre><!--{{code "progs/server1.go" `/quit....true/`}}
+--->quit &lt;- true</pre>
++-->    quit &lt;- true</pre>
+ <p>
+ There's a lot more to Go programming and concurrent programming in general but this
+ quick tour should give you some of the basics.
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index ec2521ce50..c8584ed47c 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -47,7 +47,8 @@ func (r13 *rotate13) Read(b []byte) (ret int, err error) {
+ func (r13 *rotate13) String() string {
+ 	return r13.source.String()
+ }
+-// end of rotate13 implementation
++
++// end of rotate13 implementation OMIT
+ 
+ func cat(r reader) {
+ 	const NBUF = 512
+diff --git a/doc/progs/defer2.go b/doc/progs/defer2.go
+index be6791d5c7..341a1410f3 100644
+--- a/doc/progs/defer2.go
++++ b/doc/progs/defer2.go
+@@ -35,6 +35,7 @@ func g(i int) {
+ 	fmt.Println("Printing in g", i)
+ 	g(i + 1)
+ }
++
+ // STOP OMIT
+ 
+ // Revised version.
+@@ -53,4 +54,5 @@ func CopyFile(dstName, srcName string) (written int64, err error) {
+ 
+ 	return io.Copy(dst, src)
+ }
++
+ // STOP OMIT
+diff --git a/doc/progs/echo.go b/doc/progs/echo.go
+index 3260edd747..432e808207 100644
+--- a/doc/progs/echo.go
++++ b/doc/progs/echo.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"os"
+ 	"flag" // command line option parser
++	"os"
+ )
+ 
+ var omitNewline = flag.Bool("n", false, "don't print final newline")
+diff --git a/doc/progs/error.go b/doc/progs/error.go
+index 3f98709f7c..ffa7ec1cca 100644
+--- a/doc/progs/error.go
++++ b/doc/progs/error.go
+@@ -38,12 +38,14 @@ type errorString struct {
+ func (e *errorString) Error() string {
+ 	return e.s
+ }
++
+ // STOP OMIT
+ 
+ // New returns an error that formats as the given text.
+ func New(text string) error {
+ 	return &errorString{text}
+ }
++
+ // STOP OMIT
+ 
+ func Sqrt(f float64) (float64, error) {
+@@ -53,6 +55,7 @@ func Sqrt(f float64) (float64, error) {
+ 	// implementation
+ 	return 0, nil // OMIT
+ }
++
+ // STOP OMIT
+ 
+ func printErr() (int, error) { // OMIT
+@@ -74,6 +77,7 @@ type NegativeSqrtError float64
+ func (f NegativeSqrtError) Error() string {
+ 	return fmt.Sprintf("math: square root of negative number %g", float64(f))
+ }
++
+ // STOP OMIT
+ 
+ type SyntaxError struct {
+@@ -82,6 +86,7 @@ type SyntaxError struct {
+ }
+ 
+ func (e *SyntaxError) Error() string { return e.msg }
++
+ // STOP OMIT
+ 
+ func decodeError(dec *json.Decoder, val struct{}) error { // OMIT
+diff --git a/doc/progs/error2.go b/doc/progs/error2.go
+index fe72350181..2b0e0c3563 100644
+--- a/doc/progs/error2.go
++++ b/doc/progs/error2.go
+@@ -27,6 +27,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, err.Error(), 500)
+ 	}
+ }
++
+ // STOP OMIT
+ 
+ type ap struct{}
+diff --git a/doc/progs/error3.go b/doc/progs/error3.go
+index 8305edc420..e4e57e077b 100644
+--- a/doc/progs/error3.go
++++ b/doc/progs/error3.go
+@@ -14,6 +14,7 @@ import (
+ func init() {
+ 	http.Handle("/view", appHandler(viewRecord))
+ }
++
+ // STOP OMIT
+ 
+ func viewRecord(w http.ResponseWriter, r *http.Request) error {
+@@ -25,6 +26,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) error {
+ 	}
+ 	return viewTemplate.Execute(w, record)
+ }
++
+ // STOP OMIT
+ 
+ type appHandler func(http.ResponseWriter, *http.Request) error
+@@ -34,6 +36,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, err.Error(), 500)
+ 	}
+ }
++
+ // STOP OMIT
+ 
+ type ap struct{}
+diff --git a/doc/progs/error4.go b/doc/progs/error4.go
+index 661dcdc2b6..8f35cf74bb 100644
+--- a/doc/progs/error4.go
++++ b/doc/progs/error4.go
+@@ -16,6 +16,7 @@ type appError struct {
+ 	Message string
+ 	Code    int
+ }
++
+ // STOP OMIT
+ 
+ type appHandler func(http.ResponseWriter, *http.Request) *appError
+@@ -27,6 +28,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, e.Message, e.Code)
+ 	}
+ }
++
+ // STOP OMIT
+ 
+ func viewRecord(w http.ResponseWriter, r *http.Request) *appError {
+@@ -41,6 +43,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) *appError {
+ 	}
+ 	return nil
+ }
++
+ // STOP OMIT
+ 
+ func init() {
+diff --git a/doc/progs/go1.go b/doc/progs/go1.go
+index b1bcc43f61..0eccca321b 100644
+--- a/doc/progs/go1.go
++++ b/doc/progs/go1.go
+@@ -147,6 +147,7 @@ type SyntaxError struct {
+ func (se *SyntaxError) Error() string {
+ 	return fmt.Sprintf("%s:%d: %s", se.File, se.Line, se.Message)
+ }
++
+ // END ERROR EXAMPLE OMIT
+ 
+ func errorExample() {
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index c1babb01f8..1bc3355fd0 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -5,8 +5,8 @@
+ package main
+ 
+ import (
+-	"fmt"
+ 	"./sort"
++	"fmt"
+ )
+ 
+ func ints() {
+@@ -61,7 +61,6 @@ func days() {
+ 	fmt.Printf("\n")
+ }
+ 
+-
+ func main() {
+ 	ints()
+ 	strings()
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index dbd27ab685..70745f4ddd 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -114,7 +114,7 @@ func code(file string, arg ...interface{}) (string, error) {
+ 		return "", fmt.Errorf("incorrect code invocation: code %q %q", file, arg)
+ 	}
+ 	// Trim spaces from output.
+-	text = strings.TrimSpace(text)
++	text = strings.Trim(text, "\n")
+ 	// Replace tabs by spaces, which work better in HTML.
+ 	text = strings.Replace(text, "\t", "    ", -1)
+ 	// Escape the program text for HTML.

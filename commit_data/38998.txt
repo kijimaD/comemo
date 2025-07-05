@@ -17,7 +17,68 @@ Date:   Thu Dec 13 13:37:57 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/syscall_aix.go  |  4 ----
  src/syscall/asm_aix_ppc64.s | 21 +++++++++++++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/syscall_aix.go b/src/runtime/syscall_aix.go
+index 376e22d59a..7f2bcbe9d9 100644
+--- a/src/runtime/syscall_aix.go
++++ b/src/runtime/syscall_aix.go
+@@ -57,7 +57,6 @@ var (
+ // Syscall is needed because some packages (like net) need it too.
+ // The best way is to return EINVAL and let Golang handles its failure
+ // If the syscall can't fail, this function can redirect it to a real syscall.
+-//go:linkname syscall_Syscall syscall.Syscall
+ //go:nosplit
+ func syscall_Syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	return 0, 0, _EINVAL
+@@ -65,12 +64,10 @@ func syscall_Syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 
+ // This is syscall.RawSyscall, it exists to satisfy some build dependency,
+ // but it doesn't work.
+-//go:linkname syscall_RawSyscall syscall.RawSyscall
+ func syscall_RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	panic("RawSyscall not available on AIX")
+ }
+ 
+-//go:linkname syscall_syscall6 syscall.syscall6
+ //go:nosplit
+ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	c := getg().m.libcall
+@@ -84,7 +81,6 @@ func syscall_syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
+ 	return c.r1, 0, c.err
+ }
+ 
+-//go:linkname syscall_rawSyscall6 syscall.rawSyscall6
+ //go:nosplit
+ func syscall_rawSyscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	c := getg().m.libcall
+diff --git a/src/syscall/asm_aix_ppc64.s b/src/syscall/asm_aix_ppc64.s
+new file mode 100644
+index 0000000000..7eb9ffb7e7
+--- /dev/null
++++ b/src/syscall/asm_aix_ppc64.s
+@@ -0,0 +1,21 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++//
++// System calls for aix/ppc64 are implemented in ../runtime/syscall_aix.go
++//
++
++TEXT ·syscall6(SB),NOSPLIT,$0
++	JMP	runtime·syscall_syscall6(SB)
++
++TEXT ·rawSyscall6(SB),NOSPLIT,$0
++	JMP	runtime·syscall_rawSyscall6(SB)
++
++TEXT ·RawSyscall(SB),NOSPLIT,$0
++	JMP	runtime·syscall_RawSyscall(SB)
++
++TEXT ·Syscall(SB),NOSPLIT,$0
++	JMP	runtime·syscall_Syscall(SB)

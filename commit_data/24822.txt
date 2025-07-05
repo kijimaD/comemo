@@ -13,6 +13,25 @@ Date:   Thu Aug 27 11:20:38 2015 +1200
     Change-Id: I3cec81697161b452af81fa35939f748bd1acf7fd
     Reviewed-on: https://go-review.googlesource.com/13995
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/asm_arm64.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 703ceea97a..797c95eaba 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -426,7 +426,6 @@ end:						\
+ 
+ // These have 8 added to make the overall frame size a multiple of 16,
+ // as required by the ABI. (There is another +8 for the saved LR.)
+-CALLFN(·call16, 24 )
+ CALLFN(·call32, 40 )
+ CALLFN(·call64, 72 )
+ CALLFN(·call128, 136 )
+@@ -1029,3 +1028,5 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
+ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
+ 
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
++        RET

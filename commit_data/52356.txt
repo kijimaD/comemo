@@ -47,6 +47,67 @@ Date:   Fri Apr 15 12:23:06 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/runtime/traceback.go | 15 +++++++++++++--
  1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index ca10d0420e..197683bc69 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -82,6 +82,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	}
+ 	waspanic := false
+ 	cgoCtxt := gp.cgoCtxt
++	stack := gp.stack
+ 	printing := pcbuf == nil && callback == nil
+ 
+ 	// If the PC is zero, it's likely a nil function call.
+@@ -114,7 +115,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	if !f.valid() {
+ 		if callback != nil || printing {
+ 			print("runtime: g ", gp.goid, ": unknown pc ", hex(frame.pc), "\n")
+-			tracebackHexdump(gp.stack, &frame, 0)
++			tracebackHexdump(stack, &frame, 0)
+ 		}
+ 		if callback != nil {
+ 			throw("unknown pc")
+@@ -174,12 +175,15 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 					frame.fn = findfunc(frame.pc)
+ 					f = frame.fn
+ 					flag = f.flag
++					frame.lr = gp.m.curg.sched.lr
+ 					frame.sp = gp.m.curg.sched.sp
++					stack = gp.m.curg.stack
+ 					cgoCtxt = gp.m.curg.cgoCtxt
+ 				case funcID_systemstack:
+ 					// systemstack returns normally, so just follow the
+ 					// stack transition.
+ 					frame.sp = gp.m.curg.sched.sp
++					stack = gp.m.curg.stack
+ 					cgoCtxt = gp.m.curg.cgoCtxt
+ 					flag &^= funcFlag_SPWRITE
+ 				}
+@@ -248,7 +252,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				}
+ 				if callback != nil || doPrint {
+ 					print("runtime: g ", gp.goid, ": unexpected return pc for ", funcname(f), " called from ", hex(frame.lr), "\n")
+-					tracebackHexdump(gp.stack, &frame, lrPtr)
++					tracebackHexdump(stack, &frame, lrPtr)
+ 				}
+ 				if callback != nil {
+ 					throw("unknown caller pc")
+@@ -477,6 +481,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			break
+ 		}
+ 
++		if frame.pc == frame.lr && frame.sp == frame.fp {
++			// If the next frame is identical to the current frame, we cannot make progress.
++			print("runtime: traceback stuck. pc=", hex(frame.pc), " sp=", hex(frame.sp), "\n")
++			tracebackHexdump(stack, &frame, frame.sp)
++			throw("traceback stuck")
++		}
++
+ 		// Unwind to next frame.
+ 		frame.fn = flr
+ 		frame.pc = frame.lr

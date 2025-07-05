@@ -16,6 +16,20 @@ Date:   Mon Aug 21 09:04:07 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/goobj/objfile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index a8d68d873d..6c0f5e6665 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -244,7 +244,7 @@ func (h *Header) Read(r *Reader) error {
+ }
+ 
+ func (h *Header) Size() int {
+-	return len(h.Magic) + 4 + 4*len(h.Offsets)
++	return len(h.Magic) + len(h.Fingerprint) + 4 + 4*len(h.Offsets)
+ }
+ 
+ // Autolib

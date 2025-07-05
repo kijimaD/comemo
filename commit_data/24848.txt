@@ -10,6 +10,28 @@ Date:   Sun Aug 23 13:09:02 2015 +0000
     Change-Id: Iefd5f263c4f89a81da9427a7b9d97f13c35ab64f
     Reviewed-on: https://go-review.googlesource.com/13838
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/image/gif/writer_test.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index db61a5c3c2..775ccea31d 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -328,11 +328,11 @@ func TestEncodeAllFramesOutOfBounds(t *testing.T) {
+ 
+ func TestEncodeNonZeroMinPoint(t *testing.T) {
+ 	points := []image.Point{
+-		image.Point{-8, -9},
+-		image.Point{-4, -4},
+-		image.Point{-3, +3},
+-		image.Point{+0, +0},
+-		image.Point{+2, +2},
++		{-8, -9},
++		{-4, -4},
++		{-3, +3},
++		{+0, +0},
++		{+2, +2},
+ 	}
+ 	for _, p := range points {
+ 		src := image.NewPaletted(image.Rectangle{Min: p, Max: p.Add(image.Point{6, 6})}, palette.Plan9)

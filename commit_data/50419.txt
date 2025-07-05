@@ -17,6 +17,22 @@ Date:   Fri Oct 22 14:19:34 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/internal/poll/splice_linux.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 8062d98fae..6869a40b24 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -158,6 +158,10 @@ type splicePipe struct {
+ 	rfd  int
+ 	wfd  int
+ 	data int
++
++	// We want to use a finalizer, so ensure that the size is
++	// large enough to not use the tiny allocator.
++	_ [24 - 3*unsafe.Sizeof(int(0))]byte
+ }
+ 
+ // splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.

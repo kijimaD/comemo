@@ -7,7 +7,7 @@ Date:   Wed Mar 31 11:46:01 2010 -0700
     R=ken2, r, ken3
     CC=golang-dev
     https://golang.org/cl/831042
-
+---
  src/cmd/5g/ggen.c         |  13 ++--
  src/cmd/6g/ggen.c         |   9 ++-
  src/cmd/8g/ggen.c         |   9 ++-
@@ -25,3 +25,587 @@ Date:   Wed Mar 31 11:46:01 2010 -0700
  src/pkg/runtime/runtime.h |  20 +++++-
  test/golden.out           |   1 +
  16 files changed, 239 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 50c90912e0..5831d597e4 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -190,7 +190,7 @@ ginscall(Node *f, int proc)
+ 
+ 		break;
+ 
+-	case 2:	// defered call (defer)
++	case 2:	// deferred call (defer)
+ 		regalloc(&r, types[tptr], N);
+ 		p = gins(AMOVW, N, &r);
+ 		p->from.type = D_OREG;
+@@ -222,7 +222,7 @@ ginscall(Node *f, int proc)
+ 
+ 		ginscall(deferproc, 0);
+ 
+-		regalloc(&r, types[tptr], N);
++		nodreg(&r, types[tptr], D_R1);
+ 		p = gins(AMOVW, N, &r);
+ 		p->from.type = D_OREG;
+ 		p->from.reg = REGSP;
+@@ -233,8 +233,13 @@ ginscall(Node *f, int proc)
+ 		p->to.reg = REGSP;
+ 		p->to.offset = 8;
+ 		p->scond |= C_WBIT;
+-		regfree(&r);
+-
++		
++		if(proc == 2) {
++			nodconst(&con, types[TINT32], 0);
++			nodreg(&r, types[tptr], D_R0);
++			gins(ACMP, &con, &r);
++			patch(gbranch(ABNE, T), pret);
++		}
+ 		break;
+ 	}
+ }
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 140020fdaf..10cd582937 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -142,8 +142,8 @@ ginscall(Node *f, int proc)
+ 		break;
+ 
+ 	case 1:	// call in new proc (go)
+-	case 2:	// defered call (defer)
+-		nodreg(&reg, types[TINT64], D_AX);
++	case 2:	// deferred call (defer)
++		nodreg(&reg, types[TINT64], D_CX);
+ 		gins(APUSHQ, f, N);
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(APUSHQ, &con, N);
+@@ -156,6 +156,11 @@ ginscall(Node *f, int proc)
+ 		}
+ 		gins(APOPQ, N, &reg);
+ 		gins(APOPQ, N, &reg);
++		if(proc == 2) {
++			nodreg(&reg, types[TINT64], D_AX);
++			gins(ATESTQ, &reg, &reg);
++			patch(gbranch(AJNE, T), pret);
++		}
+ 		break;
+ 	}
+ }
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 468f67ae98..193058e206 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -182,8 +182,8 @@ ginscall(Node *f, int proc)
+ 		break;
+ 
+ 	case 1:	// call in new proc (go)
+-	case 2:	// defered call (defer)
+-		nodreg(&reg, types[TINT32], D_AX);
++	case 2:	// deferred call (defer)
++		nodreg(&reg, types[TINT32], D_CX);
+ 		gins(APUSHL, f, N);
+ 		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(APUSHL, &con, N);
+@@ -193,6 +193,11 @@ ginscall(Node *f, int proc)
+ 			ginscall(deferproc, 0);
+ 		gins(APOPL, N, &reg);
+ 		gins(APOPL, N, &reg);
++		if(proc == 2) {
++			nodreg(&reg, types[TINT64], D_AX);
++			gins(ATESTL, &reg, &reg);
++			patch(gbranch(AJNE, T), pret);
++		}
+ 		break;
+ 	}
+ }
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index b74e7f5e50..59a917a9ae 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -5,7 +5,7 @@ char *runtimeimport =
+ 	"func \"\".throwreturn ()\n"
+ 	"func \"\".throwinit ()\n"
+ 	"func \"\".panic (? interface { })\n"
+-	"func \"\".recover () interface { }\n"
++	"func \"\".recover (? *int32) interface { }\n"
+ 	"func \"\".printbool (? bool)\n"
+ 	"func \"\".printfloat (? float64)\n"
+ 	"func \"\".printint (? int64)\n"
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index ecd72a56bc..bb81d2a222 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1276,7 +1276,7 @@ addmethod(Sym *sf, Type *t, int local)
+ }
+ 
+ void
+-funccompile(Node *n)
++funccompile(Node *n, int isclosure)
+ {
+ 	stksize = BADWIDTH;
+ 	maxarg = 0;
+@@ -1289,6 +1289,18 @@ funccompile(Node *n)
+ 
+ 	// assign parameter offsets
+ 	checkwidth(n->type);
++	
++	// record offset to actual frame pointer.
++	// for closure, have to skip over leading pointers and PC slot.
++	nodfp->xoffset = 0;
++	if(isclosure) {
++		NodeList *l;
++		for(l=n->nname->ntype->list; l; l=l->next) {
++			nodfp->xoffset += widthptr;
++			if(l->n->left == N)	// found slot for PC
++				break;
++		}
++	}
+ 
+ 	if(curfn)
+ 		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7ae5d99287..dabf5d3f59 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1004,7 +1004,7 @@ NodeList*	constiter(NodeList*, Node*, NodeList*);
+ 
+ Node*	unsafenmagic(Node*, NodeList*);
+ void	dclchecks(void);
+-void	funccompile(Node*);
++void	funccompile(Node*, int);
+ 
+ Node*	typedcl0(Sym*);
+ Node*	typedcl1(Node*, Node*, int);
+@@ -1169,6 +1169,8 @@ EXTERN	Prog*	breakpc;
+ EXTERN	Prog*	pc;
+ EXTERN	Prog*	firstpc;
+ 
++EXTERN	Node*	nodfp;
++
+ void	allocparams(void);
+ void	cgen_as(Node *nl, Node *nr);
+ void	cgen_callmeth(Node *n, int proc);
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index 3c2ecf27ff..a89c0181fa 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -197,5 +197,5 @@ fninit(NodeList *n)
+ 	fn->nbody = r;
+ 	funcbody(fn);
+ 	typecheck(&fn, Etop);
+-	funccompile(fn);
++	funccompile(fn, 0);
+ }
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index bde1367da0..4202ba7cd2 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -138,14 +138,14 @@ main(int argc, char *argv[])
+ 	resumecheckwidth();
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+-			funccompile(l->n);
++			funccompile(l->n, 0);
+ 	if(nerrors == 0)
+ 		fninit(xtop);
+ 	while(closures) {
+ 		l = closures;
+ 		closures = nil;
+ 		for(; l; l=l->next)
+-			funccompile(l->n);
++			funccompile(l->n, 1);
+ 	}
+ 	dclchecks();
+ 
+@@ -1443,6 +1443,13 @@ lexfini(void)
+ 		*s->def = *nodbool(0);
+ 		s->def->sym = s;
+ 	}
++	
++	nodfp = nod(ONAME, N, N);
++	nodfp->noescape = 1;
++	nodfp->type = types[TINT32];
++	nodfp->xoffset = 0;
++	nodfp->class = PPARAM;
++	nodfp->sym = lookup(".fp");
+ }
+ 
+ struct
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 0103c53d9f..ba79ab92d3 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -16,7 +16,7 @@ func throwreturn()
+ func throwinit()
+ 
+ func panic(interface{})
+-func recover() interface{}
++func recover(*int32) interface{}
+ 
+ func printbool(bool)
+ func printfloat(float64)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b38ea9dfb9..54968dc15f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2923,7 +2923,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
+ 
+ 	funcbody(fn);
+ 	typecheck(&fn, Etop);
+-	funccompile(fn);
++	funccompile(fn, 0);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1d5db4c045..37b5efa6f8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -391,6 +391,7 @@ walkstmt(Node **np)
+ 	case OPRINTN:
+ 	case OPANIC:
+ 	case OEMPTY:
++	case ORECOVER:
+ 		if(n->typecheck == 0)
+ 			fatal("missing typecheck");
+ 		init = n->ninit;
+@@ -631,7 +632,7 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case ORECOVER:
+-		n = mkcall("recover", n->type, init);
++		n = mkcall("recover", n->type, init, nod(OADDR, nodfp, N));
+ 		goto ret;
+ 
+ 	case OLITERAL:
+diff --git a/src/libmach/8db.c b/src/libmach/8db.c
+index 3c670cdb1a..dfa87da29d 100644
+--- a/src/libmach/8db.c
++++ b/src/libmach/8db.c
+@@ -147,8 +147,6 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
+ 	// G is
+ 	//	byte* stackguard
+ 	//	byte* stackbase (= Stktop*)
+-	//	Defer* defer
+-	//	Gobuf sched
+ 	// TODO(rsc): Need some way to get at the g for other threads.
+ 	// Probably need to pass it into the trace function.
+ 	g = 0;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3ef6ae8efe..6001c22892 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -447,6 +447,32 @@ scheduler(void)
+ 	lock(&sched);
+ 	if(gosave(&m->sched) != 0){
+ 		gp = m->curg;
++		if(gp->status == Grecovery) {
++			// switched to scheduler to get stack unwound.
++			// don't go through the full scheduling logic.
++			Defer *d;
++
++			d = gp->defer;
++			gp->defer = d->link;
++			
++			// unwind to the stack frame with d->sp in it.
++			unwindstack(gp, d->sp);
++			if(d->sp < gp->stackguard || gp->stackbase < d->sp)
++				throw("bad stack in recovery");
++			
++			// make the deferproc for this d return again,
++			// this time returning 1.  function will jump to
++			// standard return epilogue.
++			// the -2*sizeof(uintptr) makes up for the
++			// two extra words that are on the stack at
++			// each call to deferproc.
++			// (the pc we're returning to does pop pop
++			// before it tests the return value.)
++			gp->sched.sp = d->sp - 2*sizeof(uintptr);
++			gp->sched.pc = d->pc;
++			free(d);
++			gogo(&gp->sched, 1);
++		}
+ 
+ 		// Jumped here via gosave/gogo, so didn't
+ 		// execute lock(&sched) above.
+@@ -719,6 +745,10 @@ newstack(void)
+ 	top->fp = m->morefp;
+ 	top->args = args;
+ 	top->free = free;
++	
++	// copy flag from panic
++	top->panic = g1->ispanic;
++	g1->ispanic = false;
+ 
+ 	g1->stackbase = (byte*)top;
+ 	g1->stackguard = stk + StackGuard;
+@@ -819,7 +849,7 @@ newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ }
+ 
+ #pragma textflag 7
+-void
++uintptr
+ ·deferproc(int32 siz, byte* fn, ...)
+ {
+ 	Defer *d;
+@@ -828,10 +858,19 @@ void
+ 	d->fn = fn;
+ 	d->sp = (byte*)(&fn+1);
+ 	d->siz = siz;
++	d->pc = ·getcallerpc(&siz);
+ 	mcpy(d->args, d->sp, d->siz);
+ 
+ 	d->link = g->defer;
+ 	g->defer = d;
++	
++	// deferproc returns 0 normally.
++	// a deferred func that stops a panic
++	// makes the deferproc return 1.
++	// the code the compiler generates always
++	// checks the return value and jumps to the
++	// end of the function if deferproc returns != 0.
++	return 0;
+ }
+ 
+ #pragma textflag 7
+@@ -888,6 +927,131 @@ unwindstack(G *gp, byte *sp)
+ 	}
+ }
+ 
++static void
++printpanics(Panic *p)
++{
++	if(p->link) {
++		printpanics(p->link);
++		printf("\t");
++	}
++	printf("panic: ");
++	printany(p->arg);
++	if(p->recovered)
++		printf(" [recovered]");
++	printf("\n");
++}
++	
++void
++·panic(Eface e)
++{
++	Defer *d;
++	Panic *p;
++
++	p = mal(sizeof *p);
++	p->arg = e;
++	p->link = g->panic;
++	p->stackbase = g->stackbase;
++	g->panic = p;
++
++	for(;;) {
++		d = g->defer;
++		if(d == nil)
++			break;
++		// take defer off list in case of recursive panic
++		g->defer = d->link;
++		g->ispanic = true;	// rock for newstack, where reflect.call ends up
++		reflect·call(d->fn, d->args, d->siz);
++		if(p->recovered) {
++			g->panic = p->link;
++			free(p);
++			// put recovering defer back on list
++			// for scheduler to find.
++			d->link = g->defer;
++			g->defer = d;
++			g->status = Grecovery;
++			gosched();
++			throw("recovery failed"); // gosched should not return
++		}
++		free(d);
++	}
++
++	// ran out of deferred calls - old-school panic now
++	fd = 2;
++	printpanics(g->panic);
++	panic(0);
++}
++
++#pragma textflag 7	/* no split, or else g->stackguard is not the stack for fp */
++void
++·recover(byte *fp, Eface ret)
++{
++	Stktop *top, *oldtop;
++	Panic *p;
++
++	// Must be a panic going on.
++	if((p = g->panic) == nil || p->recovered)
++		goto nomatch;
++
++	// Frame must be at the top of the stack segment,
++	// because each deferred call starts a new stack
++	// segment as a side effect of using reflect.call.
++	// (There has to be some way to remember the
++	// variable argument frame size, and the segment
++	// code already takes care of that for us, so we
++	// reuse it.)
++	//
++	// As usual closures complicate things: the fp that
++	// the closure implementation function claims to have
++	// is where the explicit arguments start, after the
++	// implicit pointer arguments and PC slot.
++	// If we're on the first new segment for a closure,
++	// then fp == top - top->args is correct, but if
++	// the closure has its own big argument frame and
++	// allocated a second segment (see below),
++	// the fp is slightly above top - top->args.
++	// That condition can't happen normally though
++	// (stack pointer go down, not up), so we can accept
++	// any fp between top and top - top->args as
++	// indicating the top of the segment.
++	top = (Stktop*)g->stackbase;
++	if(fp < (byte*)top - top->args || (byte*)top < fp)
++		goto nomatch;
++
++	// The deferred call makes a new segment big enough
++	// for the argument frame but not necessarily big
++	// enough for the function's local frame (size unknown
++	// at the time of the call), so the function might have
++	// made its own segment immediately.  If that's the
++	// case, back top up to the older one, the one that
++	// reflect.call would have made for the panic.
++	//
++	// The fp comparison here checks that the argument
++	// frame that was copied during the split (the top->args
++	// bytes above top->fp) abuts the old top of stack.
++	// This is a correct test for both closure and non-closure code.
++	oldtop = (Stktop*)top->stackbase;
++	if(oldtop != nil && top->fp == (byte*)oldtop - top->args)
++		top = oldtop;
++
++	// Now we have the segment that was created to
++	// run this call.  It must have been marked as a panic segment.
++	if(!top->panic)
++		goto nomatch;
++
++	// Okay, this is the top frame of a deferred call
++	// in response to a panic.  It can see the panic argument.
++	p->recovered = 1;
++	ret = p->arg;
++	FLUSH(&ret);
++	return;
++
++nomatch:
++	ret.type = nil;
++	ret.data = nil;
++	FLUSH(&ret);
++}
++
++
+ // Put on gfree list.  Sched must be locked.
+ static void
+ gfput(G *g)
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index c6655d9ec0..02509deb69 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -41,15 +41,6 @@ panic(int32 unused)
+ 	exit(2);
+ }
+ 
+-void
+-·panic(Eface e)
+-{
+-	fd = 2;
+-	printf("panic: ");
+-	printany(e);
+-	panic(0);
+-}
+-
+ void
+ ·throwindex(void)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a0c0dd7a18..adb83116bb 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -62,6 +62,7 @@ typedef	struct	Itab		Itab;
+ typedef	struct	Eface		Eface;
+ typedef	struct	Type		Type;
+ typedef	struct	Defer		Defer;
++typedef	struct	Panic		Panic;
+ typedef	struct	hash		Hmap;
+ typedef	struct	Hchan		Hchan;
+ typedef	struct	Complex64	Complex64;
+@@ -98,6 +99,7 @@ enum
+ 	Gwaiting,
+ 	Gmoribund,
+ 	Gdead,
++	Grecovery,
+ };
+ enum
+ {
+@@ -176,7 +178,8 @@ struct	G
+ 	byte*	stackguard;	// cannot move - also known to linker, libmach, libcgo
+ 	byte*	stackbase;	// cannot move - also known to libmach, libcgo
+ 	Defer*	defer;
+-	Gobuf	sched;		// cannot move - also known to libmach
++	Panic*	panic;
++	Gobuf	sched;
+ 	byte*	stack0;
+ 	byte*	entry;		// initial function
+ 	G*	alllink;	// on allg
+@@ -186,6 +189,7 @@ struct	G
+ 	uint32	selgen;		// valid sudog pointer
+ 	G*	schedlink;
+ 	bool	readyonstop;
++	bool	ispanic;
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+ 	void	(*cgofn)(void*);	// for cgo/ffi
+@@ -240,6 +244,7 @@ struct	Stktop
+ 	// function call, which uses an off-stack argument frame.
+ 	uint8*	fp;
+ 	bool	free;	// call stackfree for this frame?
++	bool	panic;	// is this frame the top of a panic?
+ };
+ struct	Alg
+ {
+@@ -311,11 +316,23 @@ struct Defer
+ {
+ 	int32	siz;
+ 	byte*	sp;
++	byte*	pc;
+ 	byte*	fn;
+ 	Defer*	link;
+ 	byte	args[8];	// padded to actual size
+ };
+ 
++/*
++ * panics
++ */
++struct Panic
++{
++	Eface	arg;		// argument to panic
++	byte*	stackbase;	// g->stackbase in panic
++	Panic*	link;		// link to earlier panic
++	bool	recovered;	// whether this panic is over
++};
++
+ /*
+  * external data
+  */
+@@ -400,6 +417,7 @@ void*	malloc(uintptr size);
+ void	free(void *v);
+ void	addfinalizer(void*, void(*fn)(void*), int32);
+ void	walkfintab(void (*fn)(void*));
++void	runpanic(Panic*);
+ 
+ void	exit(int32);
+ void	breakpoint(void);
+diff --git a/test/golden.out b/test/golden.out
+index e8f7037cf5..cae5509f83 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -190,5 +190,6 @@ bar
+ bal
+ bal
+ panic: barCount != 1
++
+ panic PC=xxx
+ BUG

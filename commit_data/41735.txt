@@ -15,7 +15,72 @@ Date:   Tue Oct 22 10:09:55 2019 -0400
     Change-Id: I87d8f0995bd2f15013d203e618938f5079c9eed2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202617
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go     | 10 ++++++++++
  src/cmd/compile/internal/ssa/config.go | 17 ++++++++++++-----
  2 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bbedbbc5aa..72727cab9c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3330,6 +3330,11 @@ func init() {
+ 		sys.ARM64, sys.PPC64, sys.S390X)
+ 	addF("math", "Fma",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			if !s.config.UseFMA {
++				a := s.call(n, callNormal)
++				s.vars[n] = s.load(types.Types[TFLOAT64], a)
++				return s.variable(n, types.Types[TFLOAT64])
++			}
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasFMA, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+@@ -3360,6 +3365,11 @@ func init() {
+ 		sys.AMD64)
+ 	addF("math", "Fma",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			if !s.config.UseFMA {
++				a := s.call(n, callNormal)
++				s.vars[n] = s.load(types.Types[TFLOAT64], a)
++				return s.variable(n, types.Types[TFLOAT64])
++			}
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), armHasVFPv4, s.sb)
+ 			v := s.load(types.Types[TBOOL], addr)
+ 			b := s.endBlock()
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 4041a480b3..3cbbfcfa4e 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -43,6 +43,7 @@ type Config struct {
+ 	Race           bool          // race detector enabled
+ 	NeedsFpScratch bool          // No direct move between GP and FP register sets
+ 	BigEndian      bool          //
++	UseFMA         bool          // Use hardware FMA operation
+ }
+ 
+ type (
+@@ -326,12 +327,18 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+ 	c.useSSE = true
++	c.UseFMA = true
+ 
+-	// Don't use Duff's device nor SSE on Plan 9 AMD64, because
+-	// floating point operations are not allowed in note handler.
+-	if objabi.GOOS == "plan9" && arch == "amd64" {
+-		c.noDuffDevice = true
+-		c.useSSE = false
++	// On Plan 9, floating point operations are not allowed in note handler.
++	if objabi.GOOS == "plan9" {
++		// Don't use FMA on Plan 9
++		c.UseFMA = false
++
++		// Don't use Duff's device and SSE on Plan 9 AMD64.
++		if arch == "amd64" {
++			c.noDuffDevice = true
++			c.useSSE = false
++		}
+ 	}
+ 
+ 	if ctxt.Flag_shared {

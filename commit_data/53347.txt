@@ -35,6 +35,31 @@ Date:   Wed Aug 10 09:57:51 2022 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testsanitizers/cc_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index 4f0252a27c..f447b5c89f 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -202,16 +202,16 @@ func compilerVersion() (version, error) {
+ 			var match [][]byte
+ 			if bytes.HasPrefix(out, []byte("gcc")) {
+ 				compiler.name = "gcc"
+-				cmd, err := cc("-v")
++				cmd, err := cc("-dumpfullversion", "-dumpversion")
+ 				if err != nil {
+ 					return err
+ 				}
+-				out, err := cmd.CombinedOutput()
++				out, err := cmd.Output()
+ 				if err != nil {
+ 					// gcc, but does not support gcc's "-v" flag?!
+ 					return err
+ 				}
+-				gccRE := regexp.MustCompile(`gcc version (\d+)\.(\d+)`)
++				gccRE := regexp.MustCompile(`(\d+)\.(\d+)`)
+ 				match = gccRE.FindSubmatch(out)
+ 			} else {
+ 				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)

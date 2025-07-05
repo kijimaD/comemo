@@ -15,6 +15,23 @@ Date:   Tue Apr 18 10:54:10 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/hex/hex.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index b43c1c4b45..2768f1bac6 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -12,10 +12,7 @@ import (
+ 	"io"
+ )
+ 
+-var hextable = [16]byte{
+-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+-	'a', 'b', 'c', 'd', 'e', 'f',
+-}
++const hextable = "0123456789abcdef"
+ 
+ // EncodedLen returns the length of an encoding of n source bytes.
+ // Specifically, it returns n * 2.

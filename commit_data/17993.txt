@@ -7,6 +7,22 @@ Date:   Sun Dec 15 21:03:12 2013 -0500
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/42590043
-
+---
  doc/install-source.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index b99360c71c..ee579bea35 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -176,6 +176,10 @@ architecture, and root directory used during the install.
+ <p>
+ For more information about ways to control the build, see the discussion of
+ <a href="#environment">environment variables</a> below.
++<code>all.bash</code> (or <code>all.bat</code>) runs important tests for Go,
++which can take more time than simply building Go. If you do not want to run
++the test suite use <code>make.bash</code> (or <code>make.bat</code>)
++instead.
+ </p>
+ </div>
+ 

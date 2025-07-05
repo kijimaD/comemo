@@ -15,9 +15,112 @@ Date:   Wed Jun 8 10:46:42 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/libfuzzer.go                           | 20 ++++++++++----------
  src/runtime/testdata/testprog/crash.go             |  6 +++---
  src/runtime/testdata/testprogcgo/pprof_callback.go |  2 +-
  src/runtime/testdata/testwinlib/main.go            |  2 ++
  4 files changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/libfuzzer.go b/src/runtime/libfuzzer.go
+index 09e84d7394..8c6642443c 100644
+--- a/src/runtime/libfuzzer.go
++++ b/src/runtime/libfuzzer.go
+@@ -11,10 +11,10 @@ import "unsafe"
+ func libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
+ func libfuzzerCallTraceIntCmp(fn *byte, arg0, arg1, fakePC uintptr)
+ func libfuzzerCall4(fn *byte, fakePC uintptr, s1, s2 unsafe.Pointer, result uintptr)
++
+ // Keep in sync with the definition of ret_sled in src/runtime/libfuzzer_amd64.s
+ const retSledSize = 512
+ 
+-
+ func libfuzzerTraceCmp1(arg0, arg1 uint8, fakePC int) {
+ 	fakePC = fakePC % retSledSize
+ 	libfuzzerCallTraceIntCmp(&__sanitizer_cov_trace_cmp1, uintptr(arg0), uintptr(arg1), uintptr(fakePC))
+@@ -71,15 +71,15 @@ func init() {
+ 	libfuzzerCallWithTwoByteBuffers(&__sanitizer_cov_pcs_init, &pcTables[0], &pcTables[size-1])
+ }
+ 
+-// We call libFuzzer's __sanitizer_weak_hook_strcmp function
+-// which takes the following four arguments:
+-//   1- caller_pc: location of string comparison call site
+-//   2- s1: first string used in the comparison
+-//   3- s2: second string used in the comparison
+-//   4- result: an integer representing the comparison result. Libfuzzer only distinguishes between two cases:
+-//      - 0 means that the strings are equal and the comparison will be ignored by libfuzzer.
+-//      - Any other value means that strings are not equal and libfuzzer takes the comparison into consideration.
+-//      Here, we pass 1 when the strings are not equal.
++// We call libFuzzer's __sanitizer_weak_hook_strcmp function which takes the
++// following four arguments:
++//
++//  1. caller_pc: location of string comparison call site
++//  2. s1: first string used in the comparison
++//  3. s2: second string used in the comparison
++//  4. result: an integer representing the comparison result. 0 indicates
++//     equality (comparison will ignored by libfuzzer), non-zero indicates a
++//     difference (comparison will be taken into consideration).
+ func libfuzzerHookStrCmp(s1, s2 string, fakePC int) {
+ 	if s1 != s2 {
+ 		libfuzzerCall4(&__sanitizer_weak_hook_strcmp, uintptr(fakePC), cstring(s1), cstring(s2), uintptr(1))
+diff --git a/src/runtime/testdata/testprog/crash.go b/src/runtime/testdata/testprog/crash.go
+index a2294ba149..38c8f6a2fa 100644
+--- a/src/runtime/testdata/testprog/crash.go
++++ b/src/runtime/testdata/testprog/crash.go
+@@ -122,13 +122,13 @@ func NilPanic() {
+ 	panic(nil)
+ }
+ 
+-type exampleCircleStartError struct {}
++type exampleCircleStartError struct{}
+ 
+ func (e exampleCircleStartError) Error() string {
+ 	panic(exampleCircleEndError{})
+ }
+ 
+-type exampleCircleEndError struct {}
++type exampleCircleEndError struct{}
+ 
+ func (e exampleCircleEndError) Error() string {
+ 	panic(exampleCircleStartError{})
+@@ -136,4 +136,4 @@ func (e exampleCircleEndError) Error() string {
+ 
+ func CircularPanic() {
+ 	panic(exampleCircleStartError{})
+-}
+\ No newline at end of file
++}
+diff --git a/src/runtime/testdata/testprogcgo/pprof_callback.go b/src/runtime/testdata/testprogcgo/pprof_callback.go
+index e34564395e..fd87eb87dd 100644
+--- a/src/runtime/testdata/testprogcgo/pprof_callback.go
++++ b/src/runtime/testdata/testprogcgo/pprof_callback.go
+@@ -27,8 +27,8 @@ import "C"
+ import (
+ 	"fmt"
+ 	"os"
+-	"runtime/pprof"
+ 	"runtime"
++	"runtime/pprof"
+ 	"time"
+ )
+ 
+diff --git a/src/runtime/testdata/testwinlib/main.go b/src/runtime/testdata/testwinlib/main.go
+index 025ef913e5..407331bb83 100644
+--- a/src/runtime/testdata/testwinlib/main.go
++++ b/src/runtime/testdata/testwinlib/main.go
+@@ -11,6 +11,7 @@ package main
+ import "C"
+ 
+ // CallMeBack call backs C code.
++//
+ //export CallMeBack
+ func CallMeBack(callback C.callmeBackFunc) {
+ 	C.bridgeCallback(callback)
+@@ -21,6 +22,7 @@ func CallMeBack(callback C.callmeBackFunc) {
+ // validate that it does not crash the program before another handler could take an action.
+ // The idea here is to reproduce what happens when you attach a debugger to a running program.
+ // It also simulate the behavior of the .Net debugger, which register its exception/continue handlers lazily.
++//
+ //export Dummy
+ func Dummy() int {
+ 	return 42

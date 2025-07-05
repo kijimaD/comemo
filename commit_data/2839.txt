@@ -10,7 +10,7 @@ Date:   Thu Jul 30 16:46:14 2009 -0700
     DELTA=143  (1 added, 89 deleted, 53 changed)
     OCL=32533
     CL=32542
-
+---
  test/errchk                       | 15 ++------
  test/fixedbugs/bug035.go          |  4 +-
  test/fixedbugs/bug037.go          |  2 +-
@@ -32,3 +32,391 @@ Date:   Thu Jul 30 16:46:14 2009 -0700
  test/fixedbugs/bug146.go          |  2 +-
  test/golden.out                   | 81 ---------------------------------------
  20 files changed, 25 insertions(+), 113 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+index 31e548aa55..00694c256f 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -28,19 +28,18 @@ TMPOUT=/tmp/errchk-out-$$
+ TMPERR=/tmp/errchk-err-$$
+ TMPALL=/tmp/errchk-all-$$
+ TMPTMP=/tmp/errchk-tmp-$$
+-TMPSTAT=/tmp/errchk-stat-$$
+ TMPBUG=/tmp/errchk-bug-$$
+ 
+-rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG
++rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPBUG
+ 
+-trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG" 0 1 2 3 14 15
++trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPBUG" 0 1 2 3 14 15
+ 
+ if $* >$TMPOUT 2>$TMPERR; then
+   echo 1>&2 "BUG: errchk: command succeeded unexpectedly"
+   cat $TMPOUT
+   cat 1>&2 $TMPERR
+   rm -f $TMPOUT $TMPERR
+-  exit 1
++  exit 0
+ fi
+ 
+ cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
+@@ -54,7 +53,6 @@ bug() {
+ }
+ 
+ header=0
+-echo 0 > $TMPSTAT
+ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
+   lineno=`echo $line | sed -e 's/^[ ]*\([0-9]*\).*$/\1/'`
+   regexp=`echo $line | sed -e 's|.*// ERROR "\([^"]*\)".*$|\1|'`
+@@ -64,12 +62,10 @@ pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
+   if test -z "$errmsg"; then
+     bug
+     echo 1>&2 "errchk: $SOURCEFILE:$lineno: missing expected error: '$regexp'"
+-    echo 1 > $TMPSTAT
+   elif ! echo "$errmsg" | egrep -q "$regexp"; then
+     bug
+     echo 1>&2 "errchk: $SOURCEFILE:$lineno: error message does not match '$regexp'"
+     echo 1>&2 $errmsg
+-    echo 1 > $TMPSTAT
+   fi
+ done
+ 
+@@ -79,9 +75,6 @@ if test -s $TMPALL; then
+   echo 1>&2 "=================================================="
+   cat 1>&2 $TMPALL
+   echo 1>&2 "=================================================="
+-  echo 1 > $TMPSTAT
+ fi
+ 
+-status=`cat $TMPSTAT`
+-
+-exit $status
++exit 0
+diff --git a/test/fixedbugs/bug035.go b/test/fixedbugs/bug035.go
+index 5e93a8d89b..3c31fa553d 100644
+--- a/test/fixedbugs/bug035.go
++++ b/test/fixedbugs/bug035.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func f9(a int) (i int, f float) {
+-	i := 9;  // BUG redeclaration
+-	f := float(9);  // BUG redeclaration
++	i := 9;  // ERROR "redecl"
++	f := float(9);  // ERROR "redecl"
+ 	return i, f;
+ }
+diff --git a/test/fixedbugs/bug037.go b/test/fixedbugs/bug037.go
+index b0345ccf15..ff7d28710a 100644
+--- a/test/fixedbugs/bug037.go
++++ b/test/fixedbugs/bug037.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	s := vlong(0);  // BUG no vlong specified in the language
++	s := vlong(0);  // ERROR "undef"
+ }
+diff --git a/test/fixedbugs/bug039.go b/test/fixedbugs/bug039.go
+index a87e986510..712e843326 100644
+--- a/test/fixedbugs/bug039.go
++++ b/test/fixedbugs/bug039.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main (x int) {
+-  var x int;  // BUG redeclaration error
++  var x int;  // ERROR "redecl"
+ }
+diff --git a/test/fixedbugs/bug049.go b/test/fixedbugs/bug049.go
+index 72ac7ecbd8..13527e8722 100644
+--- a/test/fixedbugs/bug049.go
++++ b/test/fixedbugs/bug049.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func atom(s string) {
+-	if s == nil {
++	if s == nil {	// ERROR "nil"
+ 		return;
+ 	}
+ }
+diff --git a/test/fixedbugs/bug050.go b/test/fixedbugs/bug050.go
+index afc545588e..585c446237 100644
+--- a/test/fixedbugs/bug050.go
++++ b/test/fixedbugs/bug050.go
+@@ -4,5 +4,5 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-func main() {
++func main() {	// ERROR "package"
+ }
+diff --git a/test/fixedbugs/bug051.go b/test/fixedbugs/bug051.go
+index c5b960602b..199a4b95c1 100644
+--- a/test/fixedbugs/bug051.go
++++ b/test/fixedbugs/bug051.go
+@@ -11,5 +11,5 @@ func f() int {
+ }
+ 
+ func main() {
+-  const n = f();  // should report only one error
++  const n = f();  // ERROR "const"
+ }
+diff --git a/test/fixedbugs/bug062.go b/test/fixedbugs/bug062.go
+index 65d676fc44..8a9ba959ec 100644
+--- a/test/fixedbugs/bug062.go
++++ b/test/fixedbugs/bug062.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-  var s string = nil;  // nil should not be assignment compatible with string
++  var s string = nil;  // ERROR "illegal|invalid"
+ }
+diff --git a/test/fixedbugs/bug068.go b/test/fixedbugs/bug068.go
+index f1dcce379f..a7cf4239c4 100644
+--- a/test/fixedbugs/bug068.go
++++ b/test/fixedbugs/bug068.go
+@@ -9,7 +9,7 @@
+ package main
+ 
+ const c = '\'';  // this works
+-const s = "\'";  // this doesn't
++const s = "\'";  // ERROR "invalid|escape"
+ 
+ /*
+ There is no reason why the escapes need to be different inside strings and chars.
+diff --git a/test/fixedbugs/bug072.go b/test/fixedbugs/bug072.go
+index f711790570..efe5626db5 100644
+--- a/test/fixedbugs/bug072.go
++++ b/test/fixedbugs/bug072.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	s := string(bug);  // crash
++	s := string(bug);  // ERROR "undef"
+ }
+diff --git a/test/fixedbugs/bug073.go b/test/fixedbugs/bug073.go
+index e7a084306e..99e7cd19ee 100644
+--- a/test/fixedbugs/bug073.go
++++ b/test/fixedbugs/bug073.go
+@@ -9,6 +9,6 @@ package main
+ func main() {
+ 	var s int = 0;
+ 	var x int = 0;
+-	x = x << s;  // should complain that s is not a uint
+-	x = x >> s;  // should complain that s is not a uint
++	x = x << s;  // ERROR "illegal|inval|shift"
++	x = x >> s;  // ERROR "illegal|inval|shift"
+ }
+diff --git a/test/fixedbugs/bug074.go b/test/fixedbugs/bug074.go
+index d9865c579c..7b6d14e7e6 100644
+--- a/test/fixedbugs/bug074.go
++++ b/test/fixedbugs/bug074.go
+@@ -7,6 +7,6 @@
+ package main
+ 
+ func main() {
+-	x := string{'a', 'b', '\n'};
++	x := string{'a', 'b', '\n'};	// ERROR "composite"
+ 	print(x);
+ }
+diff --git a/test/fixedbugs/bug083.dir/bug1.go b/test/fixedbugs/bug083.dir/bug1.go
+index a48edbe330..486fe76073 100644
+--- a/test/fixedbugs/bug083.dir/bug1.go
++++ b/test/fixedbugs/bug083.dir/bug1.go
+@@ -10,4 +10,5 @@ import "./bug0"
+ // visible here in package bug1.  The test for failure is in
+ // ../bug083.go.
+ 
+-var v1 bug0.t0
++var v1 bug0.t0;	// ERROR "bug0"
++
+diff --git a/test/fixedbugs/bug086.go b/test/fixedbugs/bug086.go
+index ef50c0c594..7d85063f1b 100644
+--- a/test/fixedbugs/bug086.go
++++ b/test/fixedbugs/bug086.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func f() int {
++func f() int {	// ERROR "return"
+ 	if false {
+ 		return 0;
+ 	}
+diff --git a/test/fixedbugs/bug091.go b/test/fixedbugs/bug091.go
+index 82391ead04..cfbb09cd82 100644
+--- a/test/fixedbugs/bug091.go
++++ b/test/fixedbugs/bug091.go
+@@ -16,8 +16,7 @@ func f2() {
+ }
+ 
+ func f3() {
+-	i := c;	// BUG: compiles but should not. constant is not in scope in this function
+-	goto exit;	// BUG: compiles but should not. label is not in this function
++	i := c;	// ERROR "undef"
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/bug103.go b/test/fixedbugs/bug103.go
+index c350a53bb0..6ac4e9a14f 100644
+--- a/test/fixedbugs/bug103.go
++++ b/test/fixedbugs/bug103.go
+@@ -9,6 +9,6 @@ package main
+ func f() /* no return type */ {}
+ 
+ func main() {
+-	x := f();  // should not compile
++	x := f();  // ERROR "mismatch"
+ }
+ 
+diff --git a/test/fixedbugs/bug131.go b/test/fixedbugs/bug131.go
+index 96e7cc7647..376f528f65 100644
+--- a/test/fixedbugs/bug131.go
++++ b/test/fixedbugs/bug131.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+   const a uint64 = 10;
+-  var b int64 = a;
++  var b int64 = a;	// ERROR "convert"
+ }
+diff --git a/test/fixedbugs/bug133.dir/bug2.go b/test/fixedbugs/bug133.dir/bug2.go
+index 2b2b50b7f3..0b8393c934 100644
+--- a/test/fixedbugs/bug133.dir/bug2.go
++++ b/test/fixedbugs/bug133.dir/bug2.go
+@@ -12,5 +12,5 @@ type T2 struct { t bug0.T }
+ func fn(p *T2) int {
+ 	// This reference should be invalid, because bug0.T.i is local
+ 	// to package bug0 and should not be visible in package bug1.
+-	return p.t.i
++	return p.t.i;	// ERROR "field|undef"
+ }
+diff --git a/test/fixedbugs/bug146.go b/test/fixedbugs/bug146.go
+index 3095d2691b..aef8476453 100644
+--- a/test/fixedbugs/bug146.go
++++ b/test/fixedbugs/bug146.go
+@@ -10,5 +10,5 @@ func main() {
+ 	type Slice []byte;
+ 	a := [...]byte{ 0 };
+ 	b := Slice(&a);		// This should be OK.
+-	c := Slice(a);		// ERROR "invalid"
++	c := Slice(a);		// ERROR "invalid|illegal"
+ }
+diff --git a/test/golden.out b/test/golden.out
+index a528fa8186..ca01bd2a66 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -111,91 +111,21 @@ hi
+ 3 11
+ 4 0
+ 
+-=========== fixedbugs/bug035.go
+-fixedbugs/bug035.go:6: variable i redeclared in this block
+-	previous declaration at fixedbugs/bug035.go:5
+-fixedbugs/bug035.go:7: variable f redeclared in this block
+-	previous declaration at fixedbugs/bug035.go:5
+-
+-=========== fixedbugs/bug037.go
+-fixedbugs/bug037.go:6: undefined: vlong
+-fixedbugs/bug037.go:6: undefined: s
+-
+-=========== fixedbugs/bug039.go
+-fixedbugs/bug039.go:6: variable x redeclared in this block
+-	previous declaration at fixedbugs/bug039.go:5
+-
+-=========== fixedbugs/bug049.go
+-fixedbugs/bug049.go:6: invalid operation: s == nil
+-fixedbugs/bug049.go:6: illegal types for operand: EQ
+-	string
+-	nil
+-
+-=========== fixedbugs/bug050.go
+-fixedbugs/bug050.go:3: package statement must be first
+-
+-=========== fixedbugs/bug051.go
+-fixedbugs/bug051.go:10: const initializer must be constant
+-
+-=========== fixedbugs/bug062.go
+-fixedbugs/bug062.go:6: illegal types for operand: AS
+-	string
+-	nil
+-
+ =========== fixedbugs/bug067.go
+ ok
+ 
+-=========== fixedbugs/bug068.go
+-fixedbugs/bug068.go:8: unknown escape sequence: '
+-
+ =========== fixedbugs/bug070.go
+ outer loop top k 0
+ inner loop top i 0
+ do break
+ broke
+ 
+-=========== fixedbugs/bug072.go
+-fixedbugs/bug072.go:6: undefined: bug
+-
+-=========== fixedbugs/bug073.go
+-fixedbugs/bug073.go:8: illegal types for operand: LSH
+-	int
+-	int
+-fixedbugs/bug073.go:8: illegal types for operand: AS
+-	int
+-fixedbugs/bug073.go:9: illegal types for operand: RSH
+-	int
+-	int
+-fixedbugs/bug073.go:9: illegal types for operand: AS
+-	int
+-
+-=========== fixedbugs/bug074.go
+-fixedbugs/bug074.go:6: invalid type for composite literal: string
+-fixedbugs/bug074.go:6: invalid type for composite literal: string
+-
+ =========== fixedbugs/bug081.go
+ fixedbugs/bug081.go:5: fatal error: loop
+ 
+-=========== fixedbugs/bug083.go
+-fixedbugs/bug083.dir/bug1.go:9: cannot refer to bug0.t0
+-
+-=========== fixedbugs/bug086.go
+-fixedbugs/bug086.go:5: function ends without a return statement
+-
+-=========== fixedbugs/bug091.go
+-fixedbugs/bug091.go:15: undefined: c
+-fixedbugs/bug091.go:15: illegal types for operand: AS
+-	undefined
+-
+ =========== fixedbugs/bug093.go
+ M
+ 
+-=========== fixedbugs/bug103.go
+-fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
+-fixedbugs/bug103.go:8: function requires a return type
+-fixedbugs/bug103.go:8: illegal types for operand: AS
+-	int
+-
+ =========== fixedbugs/bug113.go
+ interface is int, not int32
+ throw: interface conversion
+@@ -209,17 +139,6 @@ fixedbugs/bug121.go:20: illegal types for operand: AS
+ 	I
+ 	*S
+ 
+-=========== fixedbugs/bug131.go
+-fixedbugs/bug131.go:7: cannot convert uint64 constant to int64
+-fixedbugs/bug131.go:7: illegal types for operand: AS
+-	int64
+-	uint64
+-
+-=========== fixedbugs/bug133.go
+-fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
+-fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
+-	int
+-
+ =========== fixedbugs/bug148.go
+ 2 3
+ interface is main.T, not main.T·bug148·1

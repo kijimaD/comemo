@@ -13,7 +13,7 @@ Date:   Tue Apr 14 12:03:21 2015 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/src/dep/dep.go |   7 ++
  misc/cgo/testshared/src/exe/exe.go |   7 ++
  misc/cgo/testshared/test.bash      |  62 +++++++++++--
@@ -24,3 +24,585 @@ Date:   Tue Apr 14 12:03:21 2015 +0200
  src/cmd/go/pkg.go                  |  11 +++
  src/cmd/internal/ld/lib.go         |  10 +-
  9 files changed, 315 insertions(+), 53 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/dep/dep.go b/misc/cgo/testshared/src/dep/dep.go
+new file mode 100644
+index 0000000000..fb112cdb82
+--- /dev/null
++++ b/misc/cgo/testshared/src/dep/dep.go
+@@ -0,0 +1,7 @@
++package dep
++
++var V int = 1
++
++func F() int {
++	return V
++}
+diff --git a/misc/cgo/testshared/src/exe/exe.go b/misc/cgo/testshared/src/exe/exe.go
+new file mode 100644
+index 0000000000..34fd144632
+--- /dev/null
++++ b/misc/cgo/testshared/src/exe/exe.go
+@@ -0,0 +1,7 @@
++package main
++
++import "dep"
++
++func main() {
++	dep.V = dep.F() + 1
++}
+diff --git a/misc/cgo/testshared/test.bash b/misc/cgo/testshared/test.bash
+index 0ab68b80a2..21004adaf8 100755
+--- a/misc/cgo/testshared/test.bash
++++ b/misc/cgo/testshared/test.bash
+@@ -31,9 +31,10 @@ trap cleanup EXIT
+ mysuffix=$(echo $std_install_dir | sed -e 's/.*_\([^_]*\)_dynlink/\1/')
+ 
+ # This is the smallest set of packages we can link into a shared
+-# library. Check they are built into a library with the expected name.
+-minpkgs="runtime runtime/cgo sync/atomic"
+-soname=libruntime,runtime-cgo,sync-atomic.so
++# library (runtime/cgo is built implicitly). Check they are built into
++# a library with the expected name.
++minpkgs="runtime sync/atomic"
++soname=libruntime,sync-atomic.so
+ 
+ go install -installsuffix="$mysuffix" -buildmode=shared $minpkgs || die "install -buildmode=shared failed"
+ 
+@@ -42,9 +43,10 @@ if [ ! -f "$std_install_dir/$soname" ]; then
+     exit 1
+ fi
+ 
+-# The install command should have created a "shlibname" file for each
+-# package indicating the name of the shared library containing it.
+-for pkg in $minpkgs; do
++# The install command should have created a "shlibname" file for the
++# listed packages (and runtime/cgo) indicating the name of the shared
++# library containing it.
++for pkg in $minpkgs runtime/cgo; do
+     if [ ! -f "$std_install_dir/$pkg.shlibname" ]; then
+         die "no shlibname file for $pkg"
+     fi
+@@ -60,5 +62,49 @@ go install -installsuffix="$mysuffix" -linkshared trivial || die "build -linksha
+ 
+ # And check that it is actually dynamically linked against the library
+ # we hope it is linked against.
+-a="$(ldd ./bin/trivial)" || die "ldd ./bin/trivial failed: $a"
+-{ echo "$a" | grep -q "$std_install_dir/$soname"; } || die "trivial does not appear to be linked against $soname"
++
++ensure_ldd () {
++    a="$(ldd $1)" || die "ldd $1 failed: $a"
++    { echo "$a" | grep -q "$2"; } || die "$1 does not appear to be linked against $2"
++}
++
++ensure_ldd ./bin/trivial $std_install_dir/$soname
++
++# Build a GOPATH package into a shared library that links against the above one.
++rootdir="$(dirname $(go list -installsuffix="$mysuffix" -linkshared -f '{{.Target}}' dep))"
++go install -installsuffix="$mysuffix" -buildmode=shared -linkshared dep
++ensure_ldd $rootdir/libdep.so $std_install_dir/$soname
++
++
++# And exe that links against both
++go install -installsuffix="$mysuffix" -linkshared exe
++ensure_ldd ./bin/exe $rootdir/libdep.so
++ensure_ldd ./bin/exe $std_install_dir/$soname
++
++# Now, test rebuilding of shared libraries when they are stale.
++
++will_check_rebuilt () {
++    for f in $@; do cp $f $f.bak; done
++}
++
++assert_rebuilt () {
++    find $1 -newer $1.bak | grep -q . || die "$1 was not rebuilt"
++}
++
++assert_not_rebuilt () {
++    find $1 -newer $1.bak | grep  . && die "$1 was rebuilt" || true
++}
++
++# If the source is newer than both the .a file and the .so, both are rebuilt.
++touch src/dep/dep.go
++will_check_rebuilt $rootdir/libdep.so $rootdir/dep.a
++go install -installsuffix="$mysuffix" -linkshared exe
++assert_rebuilt $rootdir/dep.a
++assert_rebuilt $rootdir/libdep.so
++
++# If the .a file is newer than the .so, the .so is rebuilt (but not the .a)
++touch $rootdir/dep.a
++will_check_rebuilt $rootdir/libdep.so $rootdir/dep.a
++go install  -installsuffix="$mysuffix" -linkshared exe
++assert_not_rebuilt $rootdir/dep.a
++assert_rebuilt $rootdir/libdep.so
+diff --git a/src/cmd/go/bootstrap.go b/src/cmd/go/bootstrap.go
+index 0c13380054..c6f569ed1c 100644
+--- a/src/cmd/go/bootstrap.go
++++ b/src/cmd/go/bootstrap.go
+@@ -36,3 +36,7 @@ func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
+ func parseMetaGoImports(r io.Reader) ([]metaImport, error) {
+ 	panic("unreachable")
+ }
++
++func readnote(a, b string, t int32) ([]byte, error) {
++	return nil, nil
++}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 68cab5b69e..20874f0389 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -507,10 +507,11 @@ func runInstall(cmd *Command, args []string) {
+ 
+ 	var b builder
+ 	b.init()
+-	a := &action{}
++	var a *action
+ 	if buildBuildmode == "shared" {
+ 		a = b.libaction(libname(args), pkgs, modeInstall, modeInstall)
+ 	} else {
++		a = &action{}
+ 		var tools []*action
+ 		for _, p := range pkgs {
+ 			// If p is a tool, delay the installation until the end of the build.
+@@ -608,8 +609,9 @@ type action struct {
+ 
+ // cacheKey is the key for the action cache.
+ type cacheKey struct {
+-	mode buildMode
+-	p    *Package
++	mode  buildMode
++	p     *Package
++	shlib string
+ }
+ 
+ // buildMode specifies the build mode:
+@@ -732,24 +734,70 @@ func goFilesPackage(gofiles []string) *Package {
+ 	return pkg
+ }
+ 
++func readpkglist(shlibpath string) []*Package {
++	pkglistbytes, err := readnote(shlibpath, "GO\x00\x00", 1)
++	if err != nil {
++		fatalf("readnote failed: %v", err)
++	}
++	scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
++	var pkgs []*Package
++	var stk importStack
++	for scanner.Scan() {
++		t := scanner.Text()
++		pkgs = append(pkgs, loadPackage(t, &stk))
++	}
++	return pkgs
++}
++
+ // action returns the action for applying the given operation (mode) to the package.
+ // depMode is the action to use when building dependencies.
++// action never looks for p in a shared library.
+ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action {
+-	key := cacheKey{mode, p}
++	return b.action1(mode, depMode, p, false)
++}
++
++// action1 returns the action for applying the given operation (mode) to the package.
++// depMode is the action to use when building dependencies.
++// action1 will look for p in a shared library if lookshared is true.
++func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, lookshared bool) *action {
++	shlib := ""
++	if lookshared {
++		shlib = p.Shlib
++	}
++	key := cacheKey{mode, p, shlib}
++
+ 	a := b.actionCache[key]
+ 	if a != nil {
+ 		return a
+ 	}
++	if shlib != "" {
++		key2 := cacheKey{modeInstall, nil, shlib}
++		a = b.actionCache[key2]
++		if a != nil {
++			b.actionCache[key] = a
++			return a
++		}
++		pkgs := readpkglist(filepath.Join(p.build.PkgTargetRoot, shlib))
++		a = b.libaction(shlib, pkgs, modeInstall, depMode)
++		b.actionCache[key2] = a
++		b.actionCache[key] = a
++		return a
++	}
+ 
+ 	a = &action{p: p, pkgdir: p.build.PkgRoot}
+ 	if p.pkgdir != "" { // overrides p.t
+ 		a.pkgdir = p.pkgdir
+ 	}
+-
+ 	b.actionCache[key] = a
+ 
+ 	for _, p1 := range p.imports {
+-		a.deps = append(a.deps, b.action(depMode, depMode, p1))
++		ls := buildLinkshared
++		// If p1 is part of the same shared library as p, we need the action
++		// that builds p here, not the shared libary or we get action loops.
++		if p1.Shlib == p.Shlib {
++			ls = false
++		}
++		a.deps = append(a.deps, b.action1(depMode, depMode, p1, ls))
+ 	}
+ 
+ 	// If we are not doing a cross-build, then record the binary we'll
+@@ -758,7 +806,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 	// a package is using it.  If this is a cross-build, then the cgo we
+ 	// are writing is not the cgo we need to use.
+ 	if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
+-		if len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo" {
++		if (len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo") && !buildLinkshared && buildBuildmode != "shared" {
+ 			var stk importStack
+ 			p1 := loadPackage("cmd/cgo", &stk)
+ 			if p1.Error != nil {
+@@ -805,7 +853,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 	switch mode {
+ 	case modeInstall:
+ 		a.f = (*builder).install
+-		a.deps = []*action{b.action(modeBuild, depMode, p)}
++		a.deps = []*action{b.action1(modeBuild, depMode, p, lookshared)}
+ 		a.target = a.p.target
+ 	case modeBuild:
+ 		a.f = (*builder).build
+@@ -840,17 +888,33 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 			}
+ 			a.deps = append(a.deps, b.action(depMode, depMode, p))
+ 		}
+-		// Currently build mode shared forces external linking
+-		// mode, and external linking mode forces an import of
+-		// runtime/cgo.
+-		var stk importStack
+-		p := loadPackage("runtime/cgo", &stk)
+-		if p.Error != nil {
+-			fatalf("load runtime/cgo: %v", p.Error)
+-		}
+-		a.deps = append(a.deps, b.action(depMode, depMode, p))
+ 	} else if mode == modeInstall {
+-		a.f = (*builder).install
++		// Currently build mode shared forces external linking mode, and
++		// external linking mode forces an import of runtime/cgo. So if it
++		// was not passed on the command line and it is not present in
++		// another shared library, add it here.
++		seencgo := false
++		for _, p := range pkgs {
++			seencgo = seencgo || (p.Standard && p.ImportPath == "runtime/cgo")
++		}
++		if !seencgo {
++			var stk importStack
++			p := loadPackage("runtime/cgo", &stk)
++			if p.Error != nil {
++				fatalf("load runtime/cgo: %v", p.Error)
++			}
++			computeStale(p)
++			// If runtime/cgo is in another shared library, then that's
++			// also the shared library that contains runtime, so
++			// something will depend on it and so runtime/cgo's staleness
++			// will be checked when processing that library.
++			if p.Shlib == "" || p.Shlib == libname {
++				pkgs = append([]*Package{}, pkgs...)
++				pkgs = append(pkgs, p)
++			}
++		}
++
++		// Figure out where the library will go.
+ 		var libdir string
+ 		for _, p := range pkgs {
+ 			plibdir := p.build.PkgTargetRoot
+@@ -861,17 +925,39 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
+ 			}
+ 		}
+ 		a.target = filepath.Join(libdir, libname)
+-		linkSharedAction := b.libaction(libname, pkgs, modeBuild, depMode)
+-		a.deps = append(a.deps, linkSharedAction)
++
++		// Now we can check whether we need to rebuild it.
++		stale := false
++		var built time.Time
++		if fi, err := os.Stat(a.target); err == nil {
++			built = fi.ModTime()
++		}
+ 		for _, p := range pkgs {
+ 			if p.target == "" {
+ 				continue
+ 			}
+-			shlibnameaction := &action{}
+-			shlibnameaction.f = (*builder).installShlibname
+-			shlibnameaction.target = p.target[:len(p.target)-2] + ".shlibname"
+-			a.deps = append(a.deps, shlibnameaction)
+-			shlibnameaction.deps = append(shlibnameaction.deps, linkSharedAction)
++			stale = stale || p.Stale
++			lstat, err := os.Stat(p.target)
++			if err != nil || lstat.ModTime().After(built) {
++				stale = true
++			}
++			a.deps = append(a.deps, b.action(depMode, depMode, p))
++		}
++
++		if stale {
++			a.f = (*builder).install
++			buildAction := b.libaction(libname, pkgs, modeBuild, depMode)
++			a.deps = []*action{buildAction}
++			for _, p := range pkgs {
++				if p.target == "" {
++					continue
++				}
++				shlibnameaction := &action{}
++				shlibnameaction.f = (*builder).installShlibname
++				shlibnameaction.target = p.target[:len(p.target)-2] + ".shlibname"
++				a.deps = append(a.deps, shlibnameaction)
++				shlibnameaction.deps = append(shlibnameaction.deps, buildAction)
++			}
+ 		}
+ 	} else {
+ 		fatalf("unregonized mode %v", mode)
+@@ -899,6 +985,31 @@ func actionList(root *action) []*action {
+ 	return all
+ }
+ 
++// allArchiveActions returns a list of the archive dependencies of root.
++// This is needed because if package p depends on package q that is in libr.so, the
++// action graph looks like p->libr.so->q and so just scanning through p's
++// dependencies does not find the import dir for q.
++func allArchiveActions(root *action) []*action {
++	seen := map[*action]bool{}
++	r := []*action{}
++	var walk func(*action)
++	walk = func(a *action) {
++		if seen[a] {
++			return
++		}
++		seen[a] = true
++		if strings.HasSuffix(a.target, ".so") || a == root {
++			for _, a1 := range a.deps {
++				walk(a1)
++			}
++		} else if strings.HasSuffix(a.target, ".a") {
++			r = append(r, a)
++		}
++	}
++	walk(root)
++	return r
++}
++
+ // do runs the action graph rooted at root.
+ func (b *builder) do(root *action) {
+ 	// Build list of all actions, assigning depth-first post-order priority.
+@@ -1166,7 +1277,7 @@ func (b *builder) build(a *action) (err error) {
+ 	}
+ 
+ 	// Prepare Go import path list.
+-	inc := b.includeArgs("-I", a.deps)
++	inc := b.includeArgs("-I", allArchiveActions(a))
+ 
+ 	// Compile Go.
+ 	ofile, out, err := buildToolchain.gc(b, a.p, a.objpkg, obj, len(sfiles) > 0, inc, gofiles)
+@@ -1346,7 +1457,7 @@ func (b *builder) linkShared(a *action) (err error) {
+ 	allactions := actionList(a)
+ 	importArgs := b.includeArgs("-L", allactions[:len(allactions)-1])
+ 	ldflags := []string{"-installsuffix", buildContext.InstallSuffix}
+-	ldflags = append(ldflags, "-buildmode="+ldBuildmode)
++	ldflags = append(ldflags, "-buildmode=shared")
+ 	ldflags = append(ldflags, buildLdflags...)
+ 	cxx := a.p != nil && (len(a.p.CXXFiles) > 0 || len(a.p.SwigCXXFiles) > 0)
+ 	for _, a := range allactions {
+@@ -1366,16 +1477,7 @@ func (b *builder) linkShared(a *action) (err error) {
+ 	}
+ 	ldflags = setextld(ldflags, compiler)
+ 	for _, d := range a.deps {
+-		if d.target == "" { // omit unsafe etc
+-			continue
+-		}
+-		if d.p.ImportPath == "runtime/cgo" {
+-			// Fudge: we always ensure runtime/cgo is built, but sometimes it is
+-			// already available as a shared library.  The linker will always look
+-			// for runtime/cgo and knows how to tell if it's in a shared library so
+-			// rather than duplicate the logic here, just don't pass it.
+-			// TODO(mwhudson): fix this properly as part of implementing the
+-			// rebuilding of stale shared libraries
++		if !strings.HasSuffix(d.target, ".a") { // omit unsafe etc and actions for other shared libraries
+ 			continue
+ 		}
+ 		ldflags = append(ldflags, d.p.ImportPath+"="+d.target)
+@@ -1430,6 +1532,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 	// This is the $WORK/my/package/_test directory for the
+ 	// package being built, so there are few of these.
+ 	for _, a1 := range all {
++		if a1.p == nil {
++			continue
++		}
+ 		if dir := a1.pkgdir; dir != a1.p.build.PkgRoot && !incMap[dir] {
+ 			incMap[dir] = true
+ 			inc = append(inc, flag, dir)
+@@ -1442,6 +1547,9 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 
+ 	// Finally, look in the installed package directories for each action.
+ 	for _, a1 := range all {
++		if a1.p == nil {
++			continue
++		}
+ 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
+ 			incMap[dir] = true
+ 			inc = append(inc, flag, a1.p.build.PkgTargetRoot)
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 6015220068..e500ece474 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -36,6 +36,7 @@ syntax of package template.  The default output is equivalent to -f
+         Name          string // package name
+         Doc           string // package documentation string
+         Target        string // install path
++        Shlib         string // the shared library that contains this package (only set when -linkshared)
+         Goroot        bool   // is this package in the Go root?
+         Standard      bool   // is this package part of the standard Go library?
+         Stale         bool   // would 'go install' do anything for this package?
+diff --git a/src/cmd/go/note.go b/src/cmd/go/note.go
+new file mode 100644
+index 0000000000..b82850d6b5
+--- /dev/null
++++ b/src/cmd/go/note.go
+@@ -0,0 +1,84 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !cmd_go_bootstrap
++
++// This is not built when bootstrapping to avoid having go_bootstrap depend on
++// debug/elf.
++
++package main
++
++import (
++	"debug/elf"
++	"encoding/binary"
++	"fmt"
++	"io"
++)
++
++func rnd(v int32, r int32) int32 {
++	if r <= 0 {
++		return v
++	}
++	v += r - 1
++	c := v % r
++	if c < 0 {
++		c += r
++	}
++	v -= c
++	return v
++}
++
++func readwithpad(r io.Reader, sz int32) ([]byte, error) {
++	full := rnd(sz, 4)
++	data := make([]byte, full)
++	_, err := io.ReadFull(r, data)
++	if err != nil {
++		return nil, err
++	}
++	data = data[:sz]
++	return data, nil
++}
++
++func readnote(filename, name string, typ int32) ([]byte, error) {
++	f, err := elf.Open(filename)
++	if err != nil {
++		return nil, err
++	}
++	for _, sect := range f.Sections {
++		if sect.Type != elf.SHT_NOTE {
++			continue
++		}
++		r := sect.Open()
++		for {
++			var namesize, descsize, noteType int32
++			err = binary.Read(r, f.ByteOrder, &namesize)
++			if err != nil {
++				if err == io.EOF {
++					break
++				}
++				return nil, fmt.Errorf("read namesize failed:", err)
++			}
++			err = binary.Read(r, f.ByteOrder, &descsize)
++			if err != nil {
++				return nil, fmt.Errorf("read descsize failed:", err)
++			}
++			err = binary.Read(r, f.ByteOrder, &noteType)
++			if err != nil {
++				return nil, fmt.Errorf("read type failed:", err)
++			}
++			noteName, err := readwithpad(r, namesize)
++			if err != nil {
++				return nil, fmt.Errorf("read name failed:", err)
++			}
++			desc, err := readwithpad(r, descsize)
++			if err != nil {
++				return nil, fmt.Errorf("read desc failed:", err)
++			}
++			if name == string(noteName) && typ == noteType {
++				return desc, nil
++			}
++		}
++	}
++	return nil, nil
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index d12d424e52..ad4b77d343 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/build"
+ 	"go/scanner"
+ 	"go/token"
++	"io/ioutil"
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
+@@ -32,6 +33,7 @@ type Package struct {
+ 	Name          string `json:",omitempty"` // package name
+ 	Doc           string `json:",omitempty"` // package documentation string
+ 	Target        string `json:",omitempty"` // install path
++	Shlib         string `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
+ 	Goroot        bool   `json:",omitempty"` // is this package found in the Go root?
+ 	Standard      bool   `json:",omitempty"` // is this package part of the standard Go library?
+ 	Stale         bool   `json:",omitempty"` // would 'go install' do anything for this package?
+@@ -522,6 +524,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		p.target = ""
+ 	} else {
+ 		p.target = p.build.PkgObj
++		if buildLinkshared {
++			shlibnamefile := p.target[:len(p.target)-2] + ".shlibname"
++			shlib, err := ioutil.ReadFile(shlibnamefile)
++			if err == nil {
++				p.Shlib = strings.TrimSpace(string(shlib))
++			} else if !os.IsNotExist(err) {
++				fatalf("unexpected error reading %s: %v", shlibnamefile, err)
++			}
++		}
+ 	}
+ 
+ 	importPaths := p.Imports
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 4dfc752539..cdf2dcaccb 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -516,14 +516,8 @@ func loadlib() {
+ 			if Ctxt.Library[i].Shlib != "" {
+ 				ldshlibsyms(Ctxt.Library[i].Shlib)
+ 			} else {
+-				// Because the linker always looks for runtime/cgo when
+-				// -buildmode=shared is passed, the go tool never passes
+-				// runtime/cgo on the command line. But runtime/cgo needs
+-				// to end up in the package list if it is being built into
+-				// the shared libarary.
+-				if Buildmode == BuildmodeShared {
+-					pkglistfornote = append(pkglistfornote, "runtime/cgo"...)
+-					pkglistfornote = append(pkglistfornote, '\n')
++				if DynlinkingGo() {
++					Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 				}
+ 				objfile(Ctxt.Library[i].File, Ctxt.Library[i].Pkg)
+ 			}

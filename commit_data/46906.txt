@@ -30,7 +30,40 @@ Date:   Sun Feb 14 13:22:15 2021 +1100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/vet/vetflag.go  | 3 ++-
  src/cmd/go/testdata/script/help.txt | 7 ++++---
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 5bf5cf4446..b5b3c462ff 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -184,7 +184,8 @@ func exitWithUsage() {
+ 	if vetTool != "" {
+ 		cmd = vetTool
+ 	}
+-	fmt.Fprintf(os.Stderr, "Run '%s -help' for the vet tool's flags.\n", cmd)
++	fmt.Fprintf(os.Stderr, "Run '%s help' for a full list of flags and analyzers.\n", cmd)
++	fmt.Fprintf(os.Stderr, "Run '%s -help' for an overview.\n", cmd)
+ 
+ 	base.SetExitStatus(2)
+ 	base.Exit()
+diff --git a/src/cmd/go/testdata/script/help.txt b/src/cmd/go/testdata/script/help.txt
+index 9752ede2e3..26a0194be5 100644
+--- a/src/cmd/go/testdata/script/help.txt
++++ b/src/cmd/go/testdata/script/help.txt
+@@ -34,9 +34,10 @@ stderr 'Run ''go help mod'' for usage.'
+ # Earlier versions of Go printed the same as 'go -h' here.
+ # Also make sure we print the short help line.
+ ! go vet -h
+-stderr 'usage: go vet'
+-stderr 'Run ''go help vet'' for details'
+-stderr 'Run ''go tool vet -help'' for the vet tool''s flags'
++stderr 'usage: go vet .*'
++stderr 'Run ''go help vet'' for details.'
++stderr 'Run ''go tool vet help'' for a full list of flags and analyzers.'
++stderr 'Run ''go tool vet -help'' for an overview.'
+ 
+ # Earlier versions of Go printed a large document here, instead of these two
+ # lines.

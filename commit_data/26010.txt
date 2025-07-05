@@ -9,6 +9,43 @@ Date:   Fri Dec 4 12:28:15 2015 -0500
     Change-Id: I2a8b54e3f07488f204b1d14eb2603842caaf1e5a
     Reviewed-on: https://go-review.googlesource.com/17386
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index da022f20d4..b1c3ceb0b7 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -511,6 +511,16 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// golang.org/issue/10433 (path beginning with //)
++	{
++		"http://example.com//foo",
++		&URL{
++			Scheme: "http",
++			Host:   "example.com",
++			Path:   "//foo",
++		},
++		"",
++	},
+ }
+ 
+ // more useful string for debugging than fmt's struct printer
+@@ -1178,6 +1188,14 @@ var requritests = []RequestURITest{
+ 		},
+ 		"opaque?q=go+language",
+ 	},
++	{
++		&URL{
++			Scheme: "http",
++			Host:   "example.com",
++			Path:   "//foo",
++		},
++		"//foo",
++	},
+ }
+ 
+ func TestRequestURI(t *testing.T) {

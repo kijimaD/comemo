@@ -7,7 +7,43 @@ Date:   Wed Jun 23 10:55:50 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1720043
-
+---
  src/cmd/gc/cplx.c | 2 +-
  test/ken/cplx4.go | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 95fafe6dde..e25f3cabb9 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -184,6 +184,7 @@ complexgen(Node *n, Node *res)
+ 	case OINDEX:
+ 	case OIND:
+ 	case ONAME:	// PHEAP or PPARAMREF var
++	case OCALLFUNC:
+ 		igen(n, &n1, res);
+ 		complexmove(&n1, res);
+ 		regfree(&n1);
+@@ -245,7 +246,6 @@ complexgen(Node *n, Node *res)
+ 	case OMUL:
+ 		complexmul(nl, nr, res);
+ 		break;
+-	// ODIV call a runtime function
+ 	}
+ }
+ 
+diff --git a/test/ken/cplx4.go b/test/ken/cplx4.go
+index c9ba2e9b93..d55d6a6e39 100644
+--- a/test/ken/cplx4.go
++++ b/test/ken/cplx4.go
+@@ -35,4 +35,10 @@ func main() {
+ 	// real, imag, cmplx
+ 	c3 := cmplx(real(c2)+3, imag(c2)-5) + c2
+ 	fmt.Printf("c = %G\n", c3)
++
++	// compiler used to crash on nested divide
++	c4 := cmplx(real(c3/2), imag(c3/2))
++	if c4 != c3/2 {
++		fmt.Printf("c3 = %G != c4 = %G\n", c3, c4)
++	}
+ }

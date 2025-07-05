@@ -13,6 +13,19 @@ Date:   Mon Nov 4 20:22:01 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 51b79c6a89..b2f295a9d3 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -21,6 +21,7 @@ package main_test
+ // An empty new format means that the format should remain unchanged.
+ var knownFormats = map[string]string{
+ 	"*bytes.Buffer %s":                                "",
++	"*cmd/compile/internal/gc.EscLocation %v":         "",
+ 	"*cmd/compile/internal/gc.Mpflt %v":               "",
+ 	"*cmd/compile/internal/gc.Mpint %v":               "",
+ 	"*cmd/compile/internal/gc.Node %#v":               "",

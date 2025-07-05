@@ -12,7 +12,7 @@ Date:   Wed Nov 4 12:30:30 2015 -0800
     Change-Id: Ic21705b9ac504ae5cf7601a59189302f072e7db1
     Reviewed-on: https://go-review.googlesource.com/16660
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testsanitizers/msan.go      |  4 +++
  misc/cgo/testsanitizers/msan2.go     |  4 +++
  misc/cgo/testsanitizers/msan4.go     | 50 ++++++++++++++++++++++++++++++++++++
@@ -21,3 +21,156 @@ Date:   Wed Nov 4 12:30:30 2015 -0800
  src/runtime/msan.go                  | 15 ++++++++++-
  src/runtime/msan_amd64.s             |  6 ++---
  7 files changed, 84 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/msan.go b/misc/cgo/testsanitizers/msan.go
+index 263fb5a2f7..ebfd5c3bd8 100644
+--- a/misc/cgo/testsanitizers/msan.go
++++ b/misc/cgo/testsanitizers/msan.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ /*
+diff --git a/misc/cgo/testsanitizers/msan2.go b/misc/cgo/testsanitizers/msan2.go
+index d1da89c912..42dcd20c08 100644
+--- a/misc/cgo/testsanitizers/msan2.go
++++ b/misc/cgo/testsanitizers/msan2.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ /*
+diff --git a/misc/cgo/testsanitizers/msan4.go b/misc/cgo/testsanitizers/msan4.go
+new file mode 100644
+index 0000000000..c75e1c3486
+--- /dev/null
++++ b/misc/cgo/testsanitizers/msan4.go
+@@ -0,0 +1,50 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// The memory profiler can call copy from a slice on the system stack,
++// which msan used to think meant a reference to uninitialized memory.
++
++/*
++#include <time.h>
++#include <unistd.h>
++
++extern void Nop(char*);
++
++// Use weak as a hack to permit defining a function even though we use export.
++void poison() __attribute__ ((weak));
++
++// Poison the stack.
++void poison() {
++	char a[1024];
++	Nop(&a[0]);
++}
++
++*/
++import "C"
++
++import (
++	"runtime"
++)
++
++func main() {
++	runtime.MemProfileRate = 1
++	start(100)
++}
++
++func start(i int) {
++	if i == 0 {
++		return
++	}
++	C.poison()
++	// Tie up a thread.
++	// We won't actually wait for this sleep to complete.
++	go func() { C.sleep(1) }()
++	start(i - 1)
++}
++
++//export Nop
++func Nop(*C.char) {
++}
+diff --git a/misc/cgo/testsanitizers/msan_fail.go b/misc/cgo/testsanitizers/msan_fail.go
+index 50379a94d7..757e22c3da 100644
+--- a/misc/cgo/testsanitizers/msan_fail.go
++++ b/misc/cgo/testsanitizers/msan_fail.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ /*
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index a4cff27701..0c28249c1b 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -57,6 +57,11 @@ if ! go run -msan msan3.go; then
+   status=1
+ fi
+ 
++if ! go run -msan msan4.go; then
++  echo "FAIL: msan4"
++  status=1
++fi
++
+ if go run -msan msan_fail.go 2>/dev/null; then
+   echo "FAIL: msan_fail"
+   status=1
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+index 7457fe1150..4dbdf05b21 100644
+--- a/src/runtime/msan.go
++++ b/src/runtime/msan.go
+@@ -23,8 +23,21 @@ func MSanWrite(addr unsafe.Pointer, len int) {
+ // Private interface for the runtime.
+ const msanenabled = true
+ 
++// If we are running on the system stack, the C program may have
++// marked part of that stack as uninitialized.  We don't instrument
++// the runtime, but operations like a slice copy can call msanread
++// anyhow for values on the stack.  Just ignore msanread when running
++// on the system stack.  The other msan functions are fine.
++func msanread(addr unsafe.Pointer, sz uintptr) {
++	g := getg()
++	if g == g.m.g0 || g == g.m.gsignal {
++		return
++	}
++	domsanread(addr, sz)
++}
++
+ //go:noescape
+-func msanread(addr unsafe.Pointer, sz uintptr)
++func domsanread(addr unsafe.Pointer, sz uintptr)
+ 
+ //go:noescape
+ func msanwrite(addr unsafe.Pointer, sz uintptr)
+diff --git a/src/runtime/msan_amd64.s b/src/runtime/msan_amd64.s
+index 6e8c1a10fc..613149593f 100644
+--- a/src/runtime/msan_amd64.s
++++ b/src/runtime/msan_amd64.s
+@@ -24,9 +24,9 @@
+ #define RARG3 CX
+ #endif
+ 
+-// func runtime·msanread(addr unsafe.Pointer, sz uintptr)
+-// Called from instrumented code.
+-TEXT	runtime·msanread(SB), NOSPLIT, $0-16
++// func runtime·domsanread(addr unsafe.Pointer, sz uintptr)
++// Called from msanread.
++TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
+ 	MOVQ	addr+0(FP), RARG0
+ 	MOVQ	size+8(FP), RARG1
+ 	// void __msan_read_go(void *addr, uintptr_t sz);

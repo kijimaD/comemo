@@ -11,9 +11,130 @@ Date:   Sun Oct 21 19:22:51 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6739048
-
+---
  src/cmd/gc/const.c       | 40 +++++++++++++++++++++++++++++++---------
  src/cmd/gc/go.h          |  3 ++-
  src/cmd/gc/typecheck.c   |  6 ++++--
  test/fixedbugs/bug255.go |  2 +-
  4 files changed, 38 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index e4c1a784ab..5720efc8e9 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -348,13 +348,9 @@ toint(Val v)
+ 	return v;
+ }
+ 
+-void
+-overflow(Val v, Type *t)
++int
++doesoverflow(Val v, Type *t)
+ {
+-	// v has already been converted
+-	// to appropriate form for t.
+-	if(t == T || t->etype == TIDEAL)
+-		return;
+ 	switch(v.ctype) {
+ 	case CTINT:
+ 	case CTRUNE:
+@@ -362,14 +358,14 @@ overflow(Val v, Type *t)
+ 			fatal("overflow: %T integer constant", t);
+ 		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0 ||
+ 		   mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
+-			yyerror("constant %B overflows %T", v.u.xval, t);
++			return 1;
+ 		break;
+ 	case CTFLT:
+ 		if(!isfloat[t->etype])
+ 			fatal("overflow: %T floating-point constant", t);
+ 		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0 ||
+ 		   mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
+-			yyerror("constant %#F overflows %T", v.u.fval, t);
++			return 1;
+ 		break;
+ 	case CTCPLX:
+ 		if(!iscomplex[t->etype])
+@@ -378,7 +374,33 @@ overflow(Val v, Type *t)
+ 		   mpcmpfltflt(&v.u.cval->real, maxfltval[t->etype]) >= 0 ||
+ 		   mpcmpfltflt(&v.u.cval->imag, minfltval[t->etype]) <= 0 ||
+ 		   mpcmpfltflt(&v.u.cval->imag, maxfltval[t->etype]) >= 0)
+-			yyerror("constant %#F overflows %T", v.u.fval, t);
++			return 1;
++		break;
++	}
++	return 0;
++}
++
++void
++overflow(Val v, Type *t)
++{
++	// v has already been converted
++	// to appropriate form for t.
++	if(t == T || t->etype == TIDEAL)
++		return;
++
++	if(!doesoverflow(v, t))
++		return;
++
++	switch(v.ctype) {
++	case CTINT:
++	case CTRUNE:
++		yyerror("constant %B overflows %T", v.u.xval, t);
++		break;
++	case CTFLT:
++		yyerror("constant %#F overflows %T", v.u.fval, t);
++		break;
++	case CTCPLX:
++		yyerror("constant %#F overflows %T", v.u.fval, t);
+ 		break;
+ 	}
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index eb2345d6da..2fa6d95bef 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -178,7 +178,7 @@ struct	Type
+ 	Strlit*	note;		// literal string annotation
+ 
+ 	// TARRAY
+-	int32	bound;		// negative is dynamic array
++	vlong	bound;		// negative is dynamic array
+ 
+ 	int32	maplineno;	// first use of TFORW as map key
+ 	int32	embedlineno;	// first use of TFORW as embedded type
+@@ -977,6 +977,7 @@ int	isconst(Node *n, int ct);
+ Node*	nodcplxlit(Val r, Val i);
+ Node*	nodlit(Val v);
+ long	nonnegconst(Node *n);
++int	doesoverflow(Val v, Type *t);
+ void	overflow(Val v, Type *t);
+ int	smallintconst(Node *n);
+ Val	toint(Val v);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ebc43e7598..9869d560cb 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -390,8 +390,10 @@ reswitch:
+ 			if(t->bound < 0) {
+ 				yyerror("array bound must be non-negative");
+ 				goto error;
+-			} else
+-				overflow(v, types[TINT]);
++			} else if(doesoverflow(v, types[TINT])) {
++				yyerror("array bound is too large"); 
++				goto error;
++			}
+ 		}
+ 		typecheck(&r, Etype);
+ 		if(r->type == T)
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index dbd41cc6ab..acf4f23910 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -12,4 +12,4 @@ var c [1.5]int	// ERROR "truncated"
+ var d ["abc"]int	// ERROR "invalid array bound|not numeric"
+ var e [nil]int	// ERROR "invalid array bound|not numeric"
+ var f [e]int	// ERROR "invalid array bound|not constant"
+-var g [1<<65]int	// ERROR "overflows"
++var g [1<<65]int	// ERROR "array bound is too large|overflows"

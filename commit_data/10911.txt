@@ -10,7 +10,7 @@ Date:   Tue Dec 20 17:11:16 2011 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5504049
-
+---
  src/buildscript.sh               | 2 +-
  src/buildscript_darwin_386.sh    | 2 +-
  src/buildscript_darwin_amd64.sh  | 2 +-
@@ -27,3 +27,199 @@ Date:   Tue Dec 20 17:11:16 2011 -0500
  src/buildscript_windows_386.sh   | 2 +-
  src/buildscript_windows_amd64.sh | 2 +-
  15 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/buildscript.sh b/src/buildscript.sh
+index e6fec6c39e..b61be731ff 100755
+--- a/src/buildscript.sh
++++ b/src/buildscript.sh
+@@ -19,7 +19,7 @@ do
+ 
+ export GOOS='$GOOS'
+ export GOARCH='$GOARCH'
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_darwin_386.sh b/src/buildscript_darwin_386.sh
+index 61f68dd38f..ae4eb45867 100755
+--- a/src/buildscript_darwin_386.sh
++++ b/src/buildscript_darwin_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=darwin
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript_darwin_amd64.sh
+index 3f6a183b04..06d7dbe00f 100755
+--- a/src/buildscript_darwin_amd64.sh
++++ b/src/buildscript_darwin_amd64.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=darwin
+ export GOARCH=amd64
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_freebsd_386.sh b/src/buildscript_freebsd_386.sh
+index c026051253..3026508e95 100755
+--- a/src/buildscript_freebsd_386.sh
++++ b/src/buildscript_freebsd_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=freebsd
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript_freebsd_amd64.sh
+index a811bb0690..955317252e 100755
+--- a/src/buildscript_freebsd_amd64.sh
++++ b/src/buildscript_freebsd_amd64.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=freebsd
+ export GOARCH=amd64
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_linux_386.sh b/src/buildscript_linux_386.sh
+index b17242f19b..69bc6371e6 100755
+--- a/src/buildscript_linux_386.sh
++++ b/src/buildscript_linux_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=linux
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript_linux_amd64.sh
+index 46cbd3a682..22da2326c6 100755
+--- a/src/buildscript_linux_amd64.sh
++++ b/src/buildscript_linux_amd64.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=linux
+ export GOARCH=amd64
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_linux_arm.sh b/src/buildscript_linux_arm.sh
+index e61abfa230..d5b9550375 100755
+--- a/src/buildscript_linux_arm.sh
++++ b/src/buildscript_linux_arm.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=linux
+ export GOARCH=arm
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_netbsd_386.sh b/src/buildscript_netbsd_386.sh
+index dcd90db57b..79cca22052 100755
+--- a/src/buildscript_netbsd_386.sh
++++ b/src/buildscript_netbsd_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=netbsd
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript_netbsd_amd64.sh
+index a5b52acf87..5a5637e5c8 100755
+--- a/src/buildscript_netbsd_amd64.sh
++++ b/src/buildscript_netbsd_amd64.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=netbsd
+ export GOARCH=amd64
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_openbsd_386.sh b/src/buildscript_openbsd_386.sh
+index 39bc0cbad4..967d23f6b5 100755
+--- a/src/buildscript_openbsd_386.sh
++++ b/src/buildscript_openbsd_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=openbsd
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript_openbsd_amd64.sh
+index 2b9984f005..a988738bc5 100755
+--- a/src/buildscript_openbsd_amd64.sh
++++ b/src/buildscript_openbsd_amd64.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=openbsd
+ export GOARCH=amd64
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_plan9_386.sh b/src/buildscript_plan9_386.sh
+index 78b894ce71..1fb2cb272b 100755
+--- a/src/buildscript_plan9_386.sh
++++ b/src/buildscript_plan9_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=plan9
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_windows_386.sh b/src/buildscript_windows_386.sh
+index b7602c0919..f65e60e697 100755
+--- a/src/buildscript_windows_386.sh
++++ b/src/buildscript_windows_386.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=windows
+ export GOARCH=386
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript_windows_amd64.sh
+index c15e9efdc3..5e5c25edb5 100755
+--- a/src/buildscript_windows_amd64.sh
++++ b/src/buildscript_windows_amd64.sh
+@@ -5,7 +5,7 @@
+ 
+ export GOOS=windows
+ export GOARCH=amd64
+-export WORK=$(mktemp -d -t go-build)
++export WORK=$(mktemp -d -t go-build.XXXXXX)
+ trap "rm -rf $WORK" EXIT SIGINT SIGTERM
+ set -e
+ 

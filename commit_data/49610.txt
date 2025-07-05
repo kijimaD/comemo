@@ -20,7 +20,45 @@ Date:   Tue Aug 31 14:09:41 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  3 ++-
  test/fixedbugs/issue48092.go           | 17 +++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 77a350720f..a64901305f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3014,7 +3014,8 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 					z := s.constInt(types.Types[types.TINT], 0)
+ 					s.boundsCheck(z, z, ssa.BoundsIndex, false)
+ 					// The return value won't be live, return junk.
+-					return s.newValue0(ssa.OpUnknown, n.Type())
++					// But not quite junk, in case bounds checks are turned off. See issue 48092.
++					return s.zeroVal(n.Type())
+ 				}
+ 				len := s.constInt(types.Types[types.TINT], bound)
+ 				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
+diff --git a/test/fixedbugs/issue48092.go b/test/fixedbugs/issue48092.go
+new file mode 100644
+index 0000000000..47b812c8d5
+--- /dev/null
++++ b/test/fixedbugs/issue48092.go
+@@ -0,0 +1,17 @@
++// compile -B
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure that we can at least compile this code
++// successfully with -B. We can't ever produce the right
++// answer at runtime with -B, as the access must panic.
++
++package p
++
++type A [0]byte
++
++func (a *A) Get(i int) byte {
++	return a[i]
++}

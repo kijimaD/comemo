@@ -10,7 +10,77 @@ Date:   Fri Dec 4 21:58:32 2009 -0800
     
     R=rsc
     https://golang.org/cl/166073
-
+---
  src/pkg/syscall/syscall_linux_386.go  | 14 ++++++++++++--
  src/pkg/syscall/zsyscall_linux_386.go | 12 ------------
  2 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index f2130f9869..8f212f32b2 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -30,7 +30,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Chown(path string, uid int, gid int) (errno int) = SYS_CHOWN32
+ //sys	Fchown(fd int, uid int, gid int) (errno int) = SYS_FCHOWN32
+ //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
+-//sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
+ //sys	Getegid() (egid int) = SYS_GETEGID32
+ //sys	Geteuid() (euid int) = SYS_GETEUID32
+ //sys	Getgid() (gid int) = SYS_GETGID32
+@@ -47,7 +46,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
+ //sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
+ //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
+-//sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
+ //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
+ //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
+@@ -150,6 +148,18 @@ func Shutdown(s, how int) (errno int) {
+ 	return;
+ }
+ 
++func Fstatfs(fd int, buf *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)));
++	errno = int(e1);
++	return;
++}
++
++func Statfs(path string, buf *Statfs_t) (errno int) {
++	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)));
++	errno = int(e1);
++	return;
++}
++
+ func (r *PtraceRegs) PC() uint64	{ return uint64(uint32(r.Eip)) }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64)	{ r.Eip = int32(pc) }
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index fa5f842de8..26b07618bc 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -598,12 +598,6 @@ func Fstat(fd int, stat *Stat_t) (errno int) {
+ 	return;
+ }
+ 
+-func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func Getegid() (egid int) {
+ 	r0, _, _ := Syscall(SYS_GETEGID32, 0, 0, 0);
+ 	egid = int(r0);
+@@ -700,12 +694,6 @@ func Stat(path string, stat *Stat_t) (errno int) {
+ 	return;
+ }
+ 
+-func Statfs(path string, buf *Statfs_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
+-	errno = int(e1);
+-	return;
+-}
+-
+ func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(n), uintptr(n>>32), uintptr(flags));
+ 	errno = int(e1);

@@ -9,6 +9,39 @@ Date:   Thu Feb 9 15:26:08 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5652048
-
+---
  src/pkg/text/scanner/scanner.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/text/scanner/scanner.go b/src/pkg/text/scanner/scanner.go
+index f46f63d0ee..565650edf9 100644
+--- a/src/pkg/text/scanner/scanner.go
++++ b/src/pkg/text/scanner/scanner.go
+@@ -5,8 +5,7 @@
+ // Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
+ // It takes an io.Reader providing the source, which then can be tokenized
+ // through repeated calls to the Scan function.  For compatibility with
+-// existing tools, the NUL character is not allowed (implementation
+-// restriction).
++// existing tools, the NUL character is not allowed.
+ //
+ // By default, a Scanner skips white space and Go comments and recognizes all
+ // literals as defined by the Go language specification.  It may be
+@@ -104,7 +103,7 @@ var tokenString = map[rune]string{
+ 	Comment:   "Comment",
+ }
+ 
+-// TokenString returns a (visible) string for a token or Unicode character.
++// TokenString returns a printable string for a token or Unicode character.
+ func TokenString(tok rune) string {
+ 	if s, found := tokenString[tok]; found {
+ 		return s
+@@ -287,7 +286,7 @@ func (s *Scanner) next() rune {
+ 	// special situations
+ 	switch ch {
+ 	case 0:
+-		// implementation restriction for compatibility with other tools
++		// for compatibility with other tools
+ 		s.error("illegal character NUL")
+ 	case '\n':
+ 		s.line++

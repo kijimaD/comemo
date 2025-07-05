@@ -16,6 +16,22 @@ Date:   Thu May 6 16:16:19 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/symtab.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 3b4fda0c89..00f557875a 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -585,7 +585,9 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			strings.HasPrefix(name, "gclocals."),
+ 			strings.HasPrefix(name, "gclocals·"),
+ 			ldr.SymType(s) == sym.SGOFUNC && s != symgofunc,
+-			strings.HasSuffix(name, ".opendefer"):
++			strings.HasSuffix(name, ".opendefer"),
++			strings.HasSuffix(name, ".arginfo0"),
++			strings.HasSuffix(name, ".arginfo1"):
+ 			symGroupType[s] = sym.SGOFUNC
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+ 			ldr.SetCarrierSym(s, symgofunc)

@@ -15,6 +15,46 @@ Date:   Thu Sep 17 15:35:31 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 7bc4f4992e..aede5fe71c 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -663,7 +663,11 @@ func (ctxt *Link) writeSymDebug(s *LSym) {
+ }
+ 
+ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+-	fmt.Fprintf(ctxt.Bso, "%s ", name)
++	ver := ""
++	if ctxt.Debugasm > 1 {
++		ver = fmt.Sprintf("<%d>", s.ABI())
++	}
++	fmt.Fprintf(ctxt.Bso, "%s%s ", name, ver)
+ 	if s.Type != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
+ 	}
+@@ -726,15 +730,19 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 	sort.Sort(relocByOff(s.R)) // generate stable output
+ 	for _, r := range s.R {
+ 		name := ""
++		ver := ""
+ 		if r.Sym != nil {
+ 			name = r.Sym.Name
++			if ctxt.Debugasm > 1 {
++				ver = fmt.Sprintf("<%d>", s.ABI())
++			}
+ 		} else if r.Type == objabi.R_TLS_LE {
+ 			name = "TLS"
+ 		}
+ 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
+-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(r.Add))
++			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%x\n", int(r.Off), r.Siz, r.Type, name, ver, uint64(r.Add))
+ 		} else {
+-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, r.Add)
++			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s%s+%d\n", int(r.Off), r.Siz, r.Type, name, ver, r.Add)
+ 		}
+ 	}
+ }

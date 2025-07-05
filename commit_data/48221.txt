@@ -11,6 +11,20 @@ Date:   Sat May 1 21:13:38 2021 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Kevin Burke <kev@inburke.com>
     Trust: Kevin Burke <kev@inburke.com>
-
+---
  src/path/filepath/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 28b30b1ae7..b56534dead 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -340,7 +340,7 @@ func Rel(basepath, targpath string) (string, error) {
+ // as an error by any function.
+ var SkipDir error = fs.SkipDir
+ 
+-// WalkFunc is the type of the function called by Walk to visit each each
++// WalkFunc is the type of the function called by Walk to visit each
+ // file or directory.
+ //
+ // The path argument contains the argument to Walk as a prefix.

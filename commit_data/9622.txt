@@ -12,10 +12,235 @@ Date:   Wed Sep 7 14:49:48 2011 -0700
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/4964067
-
+---
  src/cmd/gofix/main.go              |  6 +++++-
  src/cmd/gofmt/gofmt.go             |  6 +++++-
  src/cmd/govet/govet.go             | 18 +++++++++++-------
  src/pkg/path/filepath/path.go      | 24 +++++++++---------------
  src/pkg/path/filepath/path_test.go | 31 +++++++++++++++----------------
  5 files changed, 45 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index e7e7013c56..514bf38edb 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -200,7 +200,7 @@ func report(err os.Error) {
+ func walkDir(path string) {
+ 	v := make(fileVisitor)
+ 	go func() {
+-		filepath.Walk(path, v, v)
++		filepath.Walk(path, v)
+ 		close(v)
+ 	}()
+ 	for err := range v {
+@@ -225,6 +225,10 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+ 	}
+ }
+ 
++func (v fileVisitor) Error(path string, err os.Error) {
++	v <- err
++}
++
+ func isGoFile(f *os.FileInfo) bool {
+ 	// ignore non-Go files
+ 	return f.IsRegular() && !strings.HasPrefix(f.Name, ".") && strings.HasSuffix(f.Name, ".go")
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 975ae6ac6f..1225618031 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -164,10 +164,14 @@ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+ 	}
+ }
+ 
++func (v fileVisitor) Error(path string, err os.Error) {
++	v <- err
++}
++
+ func walkDir(path string) {
+ 	v := make(fileVisitor)
+ 	go func() {
+-		filepath.Walk(path, v, v)
++		filepath.Walk(path, v)
+ 		close(v)
+ 	}()
+ 	for err := range v {
+diff --git a/src/cmd/govet/govet.go b/src/cmd/govet/govet.go
+index 98d3d5c17f..c53515d3bf 100644
+--- a/src/cmd/govet/govet.go
++++ b/src/cmd/govet/govet.go
+@@ -104,30 +104,34 @@ func doFile(name string, reader io.Reader) {
+ // Visitor for filepath.Walk - trivial.  Just calls doFile on each file.
+ // TODO: if govet becomes richer, might want to process
+ // a directory (package) at a time.
+-type V struct{}
++type fileVisitor chan os.Error
+ 
+-func (v V) VisitDir(path string, f *os.FileInfo) bool {
++func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
+ 	return true
+ }
+ 
+-func (v V) VisitFile(path string, f *os.FileInfo) {
++func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+ 	if strings.HasSuffix(path, ".go") {
+ 		doFile(path, nil)
+ 	}
+ }
+ 
++func (v fileVisitor) Error(path string, err os.Error) {
++	v <- err
++}
++
+ // walkDir recursively walks the tree looking for .go files.
+ func walkDir(root string) {
+-	errors := make(chan os.Error)
++	v := make(fileVisitor)
+ 	done := make(chan bool)
+ 	go func() {
+-		for e := range errors {
++		for e := range v {
+ 			errorf("walk error: %s", e)
+ 		}
+ 		done <- true
+ 	}()
+-	filepath.Walk(root, V{}, errors)
+-	close(errors)
++	filepath.Walk(root, v)
++	close(v)
+ 	<-done
+ }
+ 
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 3d5b915c10..d6a7d08e83 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -255,14 +255,14 @@ func Abs(path string) (string, os.Error) {
+ }
+ 
+ // Visitor methods are invoked for corresponding file tree entries
+-// visited by Walk. The parameter path is the full path of f relative
+-// to root.
++// visited by Walk.
+ type Visitor interface {
+ 	VisitDir(path string, f *os.FileInfo) bool
+ 	VisitFile(path string, f *os.FileInfo)
++	Error(path string, err os.Error)
+ }
+ 
+-func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
++func walk(path string, f *os.FileInfo, v Visitor) {
+ 	if !f.IsDirectory() {
+ 		v.VisitFile(path, f)
+ 		return
+@@ -274,13 +274,11 @@ func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
+ 
+ 	list, err := readDir(path)
+ 	if err != nil {
+-		if errors != nil {
+-			errors <- err
+-		}
++		v.Error(path, err)
+ 	}
+ 
+ 	for _, e := range list {
+-		walk(Join(path, e.Name), e, v, errors)
++		walk(Join(path, e.Name), e, v)
+ 	}
+ }
+ 
+@@ -316,18 +314,14 @@ func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ // v.VisitFile for each directory or file in the tree, including root.
+ // If v.VisitDir returns false, Walk skips the directory's entries;
+ // otherwise it invokes itself for each directory entry in sorted order.
+-// An error reading a directory does not abort the Walk.
+-// If errors != nil, Walk sends each directory read error
+-// to the channel.  Otherwise Walk discards the error.
+-func Walk(root string, v Visitor, errors chan<- os.Error) {
++// Walk calls v.Error if an error happens while reading a directory.
++func Walk(root string, v Visitor) {
+ 	f, err := os.Lstat(root)
+ 	if err != nil {
+-		if errors != nil {
+-			errors <- err
+-		}
++		v.Error(root, err)
+ 		return // can't progress
+ 	}
+-	walk(root, f, v, errors)
++	walk(root, f, v)
+ }
+ 
+ // Base returns the last element of path.
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 395b12775a..8c566c7002 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -299,30 +299,30 @@ func mark(name string) {
+ 	})
+ }
+ 
+-type TestVisitor struct{}
++type TestVisitor chan os.Error
+ 
+-func (v *TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
++func (v TestVisitor) VisitDir(path string, f *os.FileInfo) bool {
+ 	mark(f.Name)
+ 	return true
+ }
+ 
+-func (v *TestVisitor) VisitFile(path string, f *os.FileInfo) {
++func (v TestVisitor) VisitFile(path string, f *os.FileInfo) {
+ 	mark(f.Name)
+ }
+ 
++func (v TestVisitor) Error(path string, err os.Error) {
++	v <- err
++}
++
+ func TestWalk(t *testing.T) {
+ 	makeTree(t)
+ 
+-	// 1) ignore error handling, expect none
+-	v := &TestVisitor{}
+-	filepath.Walk(tree.name, v, nil)
+-	checkMarks(t)
++	v := make(TestVisitor, 64)
+ 
+-	// 2) handle errors, expect none
+-	errors := make(chan os.Error, 64)
+-	filepath.Walk(tree.name, v, errors)
++	// 1) no errors expected.
++	filepath.Walk(tree.name, v)
+ 	select {
+-	case err := <-errors:
++	case err := <-v:
+ 		t.Errorf("no error expected, found: %s", err)
+ 	default:
+ 		// ok
+@@ -343,14 +343,13 @@ func TestWalk(t *testing.T) {
+ 		tree.entries[1].mark--
+ 		tree.entries[3].mark--
+ 
+-		// 3) handle errors, expect two
+-		errors = make(chan os.Error, 64)
++		// 2) expect two errors
+ 		os.Chmod(filepath.Join(tree.name, tree.entries[1].name), 0)
+-		filepath.Walk(tree.name, v, errors)
++		filepath.Walk(tree.name, v)
+ 	Loop:
+ 		for i := 1; i <= 2; i++ {
+ 			select {
+-			case <-errors:
++			case <-v:
+ 				// ok
+ 			default:
+ 				t.Errorf("%d. error expected, none found", i)
+@@ -358,7 +357,7 @@ func TestWalk(t *testing.T) {
+ 			}
+ 		}
+ 		select {
+-		case err := <-errors:
++		case err := <-v:
+ 			t.Errorf("only two errors expected, found 3rd: %v", err)
+ 		default:
+ 			// ok

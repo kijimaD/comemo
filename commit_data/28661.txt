@@ -16,6 +16,20 @@ Date:   Tue Jun 21 15:17:56 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 657a7b731f..e1dbe0011b 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -383,7 +383,7 @@ var _ TB = (*T)(nil)
+ var _ TB = (*B)(nil)
+ 
+ // T is a type passed to Test functions to manage test state and support formatted test logs.
+-// Logs are accumulated during execution and dumped to standard error when done.
++// Logs are accumulated during execution and dumped to standard output when done.
+ //
+ // A test ends when its Test function returns or calls any of the methods
+ // FailNow, Fatal, Fatalf, SkipNow, Skip, or Skipf. Those methods, as well as

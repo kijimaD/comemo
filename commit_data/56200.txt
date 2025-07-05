@@ -20,7 +20,7 @@ Date:   Fri Mar 10 14:02:32 2023 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/gotoolchain.go                          | 214 +++++++++++++++++++++
  src/cmd/go/gotoolchain_js.go                       |  11 ++
  src/cmd/go/internal/modcmd/download.go             |  75 ++++----
@@ -74,3 +74,1354 @@ Date:   Fri Mar 10 14:02:32 2023 -0500
  src/cmd/go/testdata/script/gotoolchain.txt         |  51 +++++
  src/internal/cfg/cfg.go                            |   1 +
  52 files changed, 947 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+new file mode 100644
+index 0000000000..a0512245f0
+--- /dev/null
++++ b/src/cmd/go/gotoolchain.go
+@@ -0,0 +1,214 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !js
++
++package main
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/modcmd"
++	"cmd/go/internal/modload"
++	"context"
++	"fmt"
++	"internal/godebug"
++	"io/fs"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"syscall"
++)
++
++const (
++	// We download golang.org/toolchain version v0.0.1-<gotoolchain>.<goos>-<goarch>.
++	// If the 0.0.1 indicates anything at all, its the version of the toolchain packaging:
++	// if for some reason we needed to change the way toolchains are packaged into
++	// module zip files in a future version of Go, we could switch to v0.0.2 and then
++	// older versions expecting the old format could use v0.0.1 and newer versions
++	// would use v0.0.2. Of course, then we'd also have to publish two of each
++	// module zip file. It's not likely we'll ever need to change this.
++	gotoolchainModule  = "golang.org/toolchain"
++	gotoolchainVersion = "v0.0.1"
++
++	// gotoolchainSwitchEnv is a special environment variable
++	// set to 1 during the toolchain switch by the parent process
++	// and cleared in the child process. When set, that indicates
++	// to the child not to do its own toolchain switch logic,
++	// to avoid an infinite recursion if for some reason a toolchain
++	// did not believe it could handle its own version and then
++	// reinvoked itself.
++	gotoolchainSwitchEnv = "GOTOOLCHAIN_INTERNAL_SWITCH"
++)
++
++// switchGoToolchain invokes a different Go toolchain if directed by
++// the GOTOOLCHAIN environment variable or the user's configuration
++// or go.mod file.
++func switchGoToolchain() {
++	log.SetPrefix("go: ")
++	defer log.SetPrefix("")
++
++	sw := os.Getenv(gotoolchainSwitchEnv)
++	os.Unsetenv(gotoolchainSwitchEnv)
++
++	if !modload.WillBeEnabled() || sw == "1" {
++		return
++	}
++
++	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
++	if gotoolchain == "" {
++		if strings.HasPrefix(runtime.Version(), "go") {
++			gotoolchain = "local" // TODO: set to "auto" once auto is implemented below
++		} else {
++			gotoolchain = "local"
++		}
++	}
++	env := gotoolchain
++	if gotoolchain == "auto" || gotoolchain == "path" {
++		// TODO: Locate and read go.mod or go.work.
++		base.Fatalf("GOTOOLCHAIN=auto not yet implemented")
++	}
++
++	if gotoolchain == "local" || gotoolchain == runtime.Version() {
++		// Let the current binary handle the command.
++		return
++	}
++
++	// Minimal sanity check of GOTOOLCHAIN setting before search.
++	// We want to allow things like go1.20.3 but also gccgo-go1.20.3.
++	// We want to disallow mistakes / bad ideas like GOTOOLCHAIN=bash,
++	// since we will find that in the path lookup.
++	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
++		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
++	}
++
++	// Look in PATH for the toolchain before we download one.
++	// This allows custom toolchains as well as reuse of toolchains
++	// already installed using go install golang.org/dl/go1.2.3@latest.
++	if exe, err := exec.LookPath(gotoolchain); err == nil {
++		execGoToolchain(gotoolchain, "", exe)
++	}
++
++	// GOTOOLCHAIN=auto looks in PATH and then falls back to download.
++	// GOTOOLCHAIN=path only looks in PATH.
++	if env == "path" {
++		base.Fatalf("cannot find %q in PATH", gotoolchain)
++	}
++
++	// Set up modules without an explicit go.mod, to download distribution.
++	modload.ForceUseModules = true
++	modload.RootMode = modload.NoRoot
++	modload.Init()
++
++	// Download and unpack toolchain module into module cache.
++	// Note that multiple go commands might be doing this at the same time,
++	// and that's OK: the module cache handles that case correctly.
++	m := &modcmd.ModuleJSON{
++		Path:    gotoolchainModule,
++		Version: gotoolchainVersion + "-" + gotoolchain + "." + runtime.GOOS + "-" + runtime.GOARCH,
++	}
++	modcmd.DownloadModule(context.Background(), m)
++	if m.Error != "" {
++		if strings.Contains(m.Error, ".info: 404") {
++			base.Fatalf("download %s for %s/%s: toolchain not available", gotoolchain, runtime.GOOS, runtime.GOARCH)
++		}
++		base.Fatalf("download %s: %v", gotoolchain, m.Error)
++	}
++
++	// On first use after download, set the execute bits on the commands
++	// so that we can run them. Note that multiple go commands might be
++	// doing this at the same time, but if so no harm done.
++	dir := m.Dir
++	if runtime.GOOS != "windows" {
++		info, err := os.Stat(filepath.Join(dir, "bin/go"))
++		if err != nil {
++			base.Fatalf("download %s: %v", gotoolchain, err)
++		}
++		if info.Mode()&0111 == 0 {
++			// allowExec sets the exec permission bits on all files found in dir.
++			allowExec := func(dir string) {
++				err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
++					if err != nil {
++						return err
++					}
++					if !d.IsDir() {
++						info, err := os.Stat(path)
++						if err != nil {
++							return err
++						}
++						if err := os.Chmod(path, info.Mode()&0777|0111); err != nil {
++							return err
++						}
++					}
++					return nil
++				})
++				if err != nil {
++					base.Fatalf("download %s: %v", gotoolchain, err)
++				}
++			}
++
++			// Set the bits in pkg/tool before bin/go.
++			// If we are racing with another go command and do bin/go first,
++			// then the check of bin/go above might succeed, the other go command
++			// would skip its own mode-setting, and then the go command might
++			// try to run a tool before we get to setting the bits on pkg/tool.
++			// Setting pkg/tool before bin/go avoids that ordering problem.
++			// The only other tool the go command invokes is gofmt,
++			// so we set that one explicitly before handling bin (which will include bin/go).
++			allowExec(filepath.Join(dir, "pkg/tool"))
++			allowExec(filepath.Join(dir, "bin/gofmt"))
++			allowExec(filepath.Join(dir, "bin"))
++		}
++	}
++
++	// Reinvoke the go command.
++	execGoToolchain(gotoolchain, dir, filepath.Join(dir, "bin/go"))
++}
++
++// execGoToolchain execs the Go toolchain with the given name (gotoolchain),
++// GOROOT directory, and go command executable.
++// The GOROOT directory is empty if we are invoking a command named
++// gotoolchain found in $PATH.
++func execGoToolchain(gotoolchain, dir, exe string) {
++	os.Setenv(gotoolchainSwitchEnv, "1")
++	if dir == "" {
++		os.Unsetenv("GOROOT")
++	} else {
++		os.Setenv("GOROOT", dir)
++	}
++
++	// On Windows, there is no syscall.Exec, so the best we can do
++	// is run a subprocess and exit with the same status.
++	// Doing the same on Unix would be a problem because it wouldn't
++	// propagate signals and such, but there are no signals on Windows.
++	// We also use the exec case when GODEBUG=gotoolchainexec=0,
++	// to allow testing this code even when not on Windows.
++	if godebug.New("gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
++		cmd := exec.Command(exe, os.Args[1:]...)
++		if runtime.GOOS == "windows" && strings.Contains(exe, "go1.999test") {
++			// See testdata/script/gotoolchain.txt.
++			cmd = exec.Command("cmd", "/c", "echo pretend we ran "+exe)
++		}
++		cmd.Stdin = os.Stdin
++		cmd.Stdout = os.Stdout
++		cmd.Stderr = os.Stderr
++		fmt.Fprintln(os.Stderr, cmd.Args)
++		err := cmd.Run()
++		if err != nil {
++			if e, ok := err.(*exec.ExitError); ok && e.ProcessState != nil {
++				if e.ProcessState.Exited() {
++					os.Exit(e.ProcessState.ExitCode())
++				}
++				base.Fatalf("exec %s: %s", gotoolchain, e.ProcessState)
++			}
++			base.Fatalf("exec %s: %s", exe, err)
++		}
++		os.Exit(0)
++	}
++	err := syscall.Exec(exe, os.Args, os.Environ())
++	base.Fatalf("exec %s: %v", gotoolchain, err)
++}
+diff --git a/src/cmd/go/gotoolchain_js.go b/src/cmd/go/gotoolchain_js.go
+new file mode 100644
+index 0000000000..0042ef30c8
+--- /dev/null
++++ b/src/cmd/go/gotoolchain_js.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js
++
++package main
++
++// nop for systems that don't even define syscall.Exec, like js/wasm.
++func switchGoToolchain() {
++}
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index f0b62e8b4b..302ab2fb6b 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -88,7 +88,8 @@ func init() {
+ 	base.AddModCommonFlags(&cmdDownload.Flag)
+ }
+ 
+-type moduleJSON struct {
++// A ModuleJSON describes the result of go mod download.
++type ModuleJSON struct {
+ 	Path     string `json:",omitempty"`
+ 	Version  string `json:",omitempty"`
+ 	Query    string `json:",omitempty"`
+@@ -167,43 +168,11 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Exit()
+ 	}
+ 
+-	downloadModule := func(m *moduleJSON) {
+-		_, file, err := modfetch.InfoFile(m.Path, m.Version)
+-		if err != nil {
+-			m.Error = err.Error()
+-			return
+-		}
+-		m.Info = file
+-		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
+-		if err != nil {
+-			m.Error = err.Error()
+-			return
+-		}
+-		m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
+-		if err != nil {
+-			m.Error = err.Error()
+-			return
+-		}
+-		mod := module.Version{Path: m.Path, Version: m.Version}
+-		m.Zip, err = modfetch.DownloadZip(ctx, mod)
+-		if err != nil {
+-			m.Error = err.Error()
+-			return
+-		}
+-		m.Sum = modfetch.Sum(mod)
+-		m.Dir, err = modfetch.Download(ctx, mod)
+-		if err != nil {
+-			m.Error = err.Error()
+-			return
+-		}
+-	}
+-
+-	var mods []*moduleJSON
+-
+ 	if *downloadReuse != "" && modload.HasModRoot() {
+ 		base.Fatalf("go mod download -reuse cannot be used inside a module")
+ 	}
+ 
++	var mods []*ModuleJSON
+ 	type token struct{}
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
+@@ -232,7 +201,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 			// Nothing to download.
+ 			continue
+ 		}
+-		m := &moduleJSON{
++		m := &ModuleJSON{
+ 			Path:    info.Path,
+ 			Version: info.Version,
+ 			Query:   info.Query,
+@@ -249,7 +218,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		sem <- token{}
+ 		go func() {
+-			downloadModule(m)
++			DownloadModule(ctx, m)
+ 			<-sem
+ 		}()
+ 	}
+@@ -309,3 +278,37 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Errorf("go: %v", infosErr)
+ 	}
+ }
++
++// DownloadModule runs 'go mod download' for m.Path@m.Version,
++// leaving the results (including any error) in m itself.
++func DownloadModule(ctx context.Context, m *ModuleJSON) {
++	var err error
++	_, file, err := modfetch.InfoFile(m.Path, m.Version)
++	if err != nil {
++		m.Error = err.Error()
++		return
++	}
++	m.Info = file
++	m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
++	if err != nil {
++		m.Error = err.Error()
++		return
++	}
++	m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
++	if err != nil {
++		m.Error = err.Error()
++		return
++	}
++	mod := module.Version{Path: m.Path, Version: m.Version}
++	m.Zip, err = modfetch.DownloadZip(ctx, mod)
++	if err != nil {
++		m.Error = err.Error()
++		return
++	}
++	m.Sum = modfetch.Sum(mod)
++	m.Dir, err = modfetch.Download(ctx, mod)
++	if err != nil {
++		m.Error = err.Error()
++		return
++	}
++}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index c9502ca432..35b8ab9eba 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -173,7 +173,18 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
+ 
+ 		// The zip or ziphash file does not exist. Acquire the lock and create them.
+ 		if cfg.CmdName != "mod download" {
+-			fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
++			vers := mod.Version
++			if mod.Path == "golang.org/toolchain" {
++				// Shorten v0.0.1-go1.13.1.darwin-amd64 to go1.13.1.darwin-amd64
++				_, vers, _ = strings.Cut(vers, "-")
++				if i := strings.LastIndex(vers, "."); i >= 0 {
++					goos, goarch, _ := strings.Cut(vers[i+1:], "-")
++					vers = vers[:i] + " (" + goos + "/" + goarch + ")"
++				}
++				fmt.Fprintf(os.Stderr, "go: downloading %s\n", vers)
++			} else {
++				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, vers)
++			}
+ 		}
+ 		unlock, err := lockVersion(mod)
+ 		if err != nil {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 6d3d5d4059..e441b4ea01 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -87,11 +87,14 @@ func init() {
+ 	}
+ }
+ 
++var _ = go11tag
++
+ func main() {
+-	_ = go11tag
++	log.SetFlags(0)
++	switchGoToolchain()
++
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
+-	log.SetFlags(0)
+ 
+ 	args := flag.Args()
+ 	if len(args) < 1 {
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt
+new file mode 100644
+index 0000000000..e70c4d7185
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.aix-ppc64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.aix-ppc64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt
+new file mode 100644
+index 0000000000..981334eae9
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.android-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.android-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt
+new file mode 100644
+index 0000000000..a01fce844a
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.android-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.android-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt
+new file mode 100644
+index 0000000000..0de1cecbab
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.android-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.android-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt
+new file mode 100644
+index 0000000000..1ebeadcb9f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.android-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.android-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt
+new file mode 100644
+index 0000000000..509185322e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.darwin-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.darwin-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt
+new file mode 100644
+index 0000000000..6b2b132d2d
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.darwin-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.darwin-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt
+new file mode 100644
+index 0000000000..814180addd
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.dragonfly-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.dragonfly-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt
+new file mode 100644
+index 0000000000..12e0df493e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.freebsd-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.freebsd-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt
+new file mode 100644
+index 0000000000..bf470a5a05
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.freebsd-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.freebsd-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt
+new file mode 100644
+index 0000000000..dc32e0edf4
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.freebsd-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.freebsd-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt
+new file mode 100644
+index 0000000000..4335ba6fc7
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.freebsd-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.freebsd-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt
+new file mode 100644
+index 0000000000..6161fe2f81
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.freebsd-riscv64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.freebsd-riscv64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt
+new file mode 100644
+index 0000000000..b677457f6e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.illumos-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.illumos-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt
+new file mode 100644
+index 0000000000..e8363bcb7f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.ios-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.ios-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt
+new file mode 100644
+index 0000000000..9585966f2a
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.ios-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.ios-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt
+new file mode 100644
+index 0000000000..37fa6c06b7
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.js-wasm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.js-wasm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt
+new file mode 100644
+index 0000000000..ee966385f6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt
+new file mode 100644
+index 0000000000..6277341561
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt
+new file mode 100644
+index 0000000000..678711b1a1
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt
+new file mode 100644
+index 0000000000..bb305ab250
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt
+new file mode 100644
+index 0000000000..52a23d4b4a
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-loong64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-loong64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt
+new file mode 100644
+index 0000000000..79fff1322e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-mips64x
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-mips64x"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt
+new file mode 100644
+index 0000000000..a725626563
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-mipsx
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-mipsx"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt
+new file mode 100644
+index 0000000000..f25ae8eddc
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-ppc64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-ppc64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt
+new file mode 100644
+index 0000000000..e22b8ee205
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-ppc64le
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-ppc64le"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt
+new file mode 100644
+index 0000000000..2e15fe3cf6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-riscv64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-riscv64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt
+new file mode 100644
+index 0000000000..1022ee4935
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.linux-s390x
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.linux-s390x"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt
+new file mode 100644
+index 0000000000..8b7b156e44
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.netbsd-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.netbsd-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt
+new file mode 100644
+index 0000000000..ebdb407c4c
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.netbsd-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.netbsd-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt
+new file mode 100644
+index 0000000000..fcacf0800f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.netbsd-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.netbsd-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt
+new file mode 100644
+index 0000000000..c2bd257cc5
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.netbsd-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.netbsd-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt
+new file mode 100644
+index 0000000000..965a054f6d
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.openbsd-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.openbsd-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt
+new file mode 100644
+index 0000000000..1acb7a3b34
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.openbsd-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.openbsd-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt
+new file mode 100644
+index 0000000000..0e47d9cda7
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.openbsd-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.openbsd-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt
+new file mode 100644
+index 0000000000..8c99161865
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.openbsd-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.openbsd-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt
+new file mode 100644
+index 0000000000..6c7cdfbfe4
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.openbsd-mips64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.openbsd-mips64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt
+new file mode 100644
+index 0000000000..26f720984c
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.plan9-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.plan9-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/rc
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt
+new file mode 100644
+index 0000000000..7cf1ddecb0
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.plan9-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.plan9-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/rc
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt
+new file mode 100644
+index 0000000000..3c3b6a74b6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.plan9-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.plan9-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/rc
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt
+new file mode 100644
+index 0000000000..a750aaf114
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt
+@@ -0,0 +1,14 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.solaris-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.solaris-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go --
++#!/bin/sh
++echo go1.999testmod here!
++-- bin/gofmt --
++echo i am unused
++-- pkg/tool/fake --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt
+new file mode 100644
+index 0000000000..ca0f7aabb0
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt
+@@ -0,0 +1,10 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.windows-386
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.windows-386"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go.bat --
++@echo go1.999testmod here!
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt
+new file mode 100644
+index 0000000000..44e16c7a04
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt
+@@ -0,0 +1,10 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.windows-amd64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.windows-amd64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go.bat --
++@echo go1.999testmod here!
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt
+new file mode 100644
+index 0000000000..ee4e016943
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt
+@@ -0,0 +1,10 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.windows-arm
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.windows-arm"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go.bat --
++@echo go1.999testmod here!
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt
+new file mode 100644
+index 0000000000..be3ff80186
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt
+@@ -0,0 +1,10 @@
++golang.org/toolchain@v0.0.1-go1.999testmod.windows-arm64
++
++-- .mod --
++module golang.org/toolchain
++-- .info --
++{"Version":"v0.0.1-go1.999testmod.windows-arm64"}
++-- go.mod --
++module golang.org/toolchain
++-- bin/go.bat --
++@echo go1.999testmod here!
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+new file mode 100644
+index 0000000000..0b7b29d04f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain.txt
+@@ -0,0 +1,51 @@
++[!GOOS:windows] chmod 0755 $WORK/bin/go1.999testpath
++[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
++[GOOS:plan9] env path=$WORK/bin${:}$path
++[GOOS:plan9] replace /bin/sh /bin/rc $WORK/bin/go1.999testpath
++
++# Plain go version
++go version
++! stdout 999
++
++# GOTOOLCHAIN from PATH
++env GOTOOLCHAIN=go1.999testpath
++go version
++[!GOOS:windows] stdout 'go1.999testpath here!'
++[GOOS:windows] stdout 'pretend we ran .*go1.999testpath'
++
++# GOTOOLCHAIN from PATH, with forced subprocess
++env GOTOOLCHAIN=go1.999testpath
++env GODEBUG=gotoolchainexec=0
++go version
++[!GOOS:windows] stdout 'go1.999testpath here!'
++[GOOS:windows] stdout 'pretend we ran .*go1.999testpath'
++env GODEBUG=
++
++# GOTOOLCHAIN from network
++env GOTOOLCHAIN=go1.999testmod
++go version
++stderr 'go: downloading go1.999testmod \(.*/.*\)'
++[!GOOS:windows] stdout 'go1.999testmod here!'
++[GOOS:windows] stdout 'pretend we ran .*go1.999testmod.*\\bin\\go'
++
++# GOTOOLCHAIN from network, does not exist
++env GOTOOLCHAIN=go1.9999x
++! go version
++stderr 'go: download go1.9999x for .*: toolchain not available'
++
++-- $WORK/bin/go1.999testpath --
++#!/bin/sh
++echo go1.999testpath here!
++-- $WORK/bin/go1.999testpath.bat --
++This should say:
++	@echo go1.999testpath here!
++but exec.Command does not directly support batch files.
++execGoToolchain in cmd/go/toolchain.go picks off versions
++named go1.999test and instead of running them just runs
++cmd /c "echo pretend we ran <file>".
++
++Since the real toolchain will have an exe file and cmd is an
++exe file, this seems like a good enough test.
++Changing execGoToolchain to use cmd /c to run the batch file
++hangs for unknown reasons.
++
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 78664d7a96..f4adea2a25 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -59,6 +59,7 @@ const KnownEnv = `
+ 	GOROOT
+ 	GOSUMDB
+ 	GOTMPDIR
++	GOTOOLCHAIN
+ 	GOTOOLDIR
+ 	GOVCS
+ 	GOWASM

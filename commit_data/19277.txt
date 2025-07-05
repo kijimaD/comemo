@@ -7,6 +7,19 @@ Date:   Mon May 5 11:34:03 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/97070043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5f5ed51422..bb70e164c9 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -501,6 +501,7 @@ Sanjay Menakuru <balasanjay@gmail.com>
+ Scott Ferguson <scottwferg@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Scott Schwartz <scotts@golang.org>
++Sean Burford <sburford@google.com>
+ Sebastien Binet	<seb.binet@gmail.com>
+ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>

@@ -9,7 +9,41 @@ Date:   Tue Dec 16 17:14:25 2014 +1100
     Change-Id: I22faf2593cb73f42612c2c2bfe38de001fb2746b
     Reviewed-on: https://go-review.googlesource.com/1630
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/runtime/debug/heapdump_test.go | 5 ++---
  src/runtime/malloc2.go             | 2 +-
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/debug/heapdump_test.go b/src/runtime/debug/heapdump_test.go
+index cf01f52015..cb2f2f0679 100644
+--- a/src/runtime/debug/heapdump_test.go
++++ b/src/runtime/debug/heapdump_test.go
+@@ -32,13 +32,12 @@ func TestWriteHeapDumpNonempty(t *testing.T) {
+ 	}
+ }
+ 
+-
+ type Obj struct {
+-       x, y int
++	x, y int
+ }
+ 
+ func objfin(x *Obj) {
+-       println("finalized", x)
++	println("finalized", x)
+ }
+ 
+ func TestWriteHeapDumpFinalizers(t *testing.T) {
+diff --git a/src/runtime/malloc2.go b/src/runtime/malloc2.go
+index cd8dc0ad8b..c975f845bc 100644
+--- a/src/runtime/malloc2.go
++++ b/src/runtime/malloc2.go
+@@ -477,7 +477,7 @@ type finblock struct {
+ 	next    *finblock
+ 	cnt     int32
+ 	_       int32
+-	fin     [(_FinBlockSize-2*ptrSize-2*4)/unsafe.Sizeof(finalizer{})]finalizer
++	fin     [(_FinBlockSize - 2*ptrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+ }
+ 
+ // Information from the compiler about the layout of stack frames.

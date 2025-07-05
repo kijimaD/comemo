@@ -14,7 +14,35 @@ Date:   Sun Sep 18 17:33:42 2022 +0200
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/dist/build.go | 1 +
  src/cmd/dist/main.go  | 4 ++++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 4b2e545b2e..dae8531466 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1561,6 +1561,7 @@ var cgoEnabled = map[string]bool{
+ 	"freebsd/amd64":   true,
+ 	"freebsd/arm":     true,
+ 	"freebsd/arm64":   true,
++	"freebsd/riscv64": true,
+ 	"illumos/amd64":   true,
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 2651ecb05f..0dc409fc77 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -143,6 +143,10 @@ func main() {
+ 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
+ 				gohostarch = "arm64"
+ 			}
++		case gohostos == "freebsd":
++			if strings.Contains(run("", CheckExit, "uname", "-p"), "riscv64") {
++				gohostarch = "riscv64"
++			}
+ 		case gohostos == "openbsd":
+ 			if strings.Contains(run("", CheckExit, "uname", "-p"), "mips64") {
+ 				gohostarch = "mips64"

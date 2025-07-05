@@ -12,8 +12,66 @@ Date:   Mon Oct 9 17:32:03 2023 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-
+---
  src/cmd/dist/build.go              | 2 +-
  src/cmd/dist/test.go               | 4 ++--
  src/internal/platform/supported.go | 4 ++--
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index b50f3342fe..23deece6fb 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -620,7 +620,7 @@ func setup() {
+ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
+ 	if cgoEnabled {
+ 		switch goarch {
+-		case "loong64", "mips", "mipsle", "mips64", "mips64le":
++		case "mips", "mipsle", "mips64", "mips64le":
+ 			// Internally linking cgo is incomplete on some architectures.
+ 			// https://golang.org/issue/14449
+ 			return true
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ae1f5db534..82c6ee4631 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1169,7 +1169,7 @@ func (t *tester) internalLink() bool {
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/10373
+ 	// https://golang.org/issue/14449
+-	if goarch == "loong64" || goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
++	if goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" || goarch == "riscv64" {
+ 		return false
+ 	}
+ 	if goos == "aix" {
+@@ -1190,7 +1190,7 @@ func (t *tester) internalLinkPIE() bool {
+ 	}
+ 	switch goos + "-" + goarch {
+ 	case "darwin-amd64", "darwin-arm64",
+-		"linux-amd64", "linux-arm64", "linux-ppc64le",
++		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le",
+ 		"android-arm64",
+ 		"windows-amd64", "windows-386", "windows-arm":
+ 		return true
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 2e09a2d6d8..7d25fd7ee9 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -85,7 +85,7 @@ func FuzzInstrumented(goos, goarch string) bool {
+ func MustLinkExternal(goos, goarch string, withCgo bool) bool {
+ 	if withCgo {
+ 		switch goarch {
+-		case "loong64", "mips", "mipsle", "mips64", "mips64le":
++		case "mips", "mipsle", "mips64", "mips64le":
+ 			// Internally linking cgo is incomplete on some architectures.
+ 			// https://go.dev/issue/14449
+ 			return true
+@@ -225,7 +225,7 @@ func InternalLinkPIESupported(goos, goarch string) bool {
+ 	switch goos + "/" + goarch {
+ 	case "android/arm64",
+ 		"darwin/amd64", "darwin/arm64",
+-		"linux/amd64", "linux/arm64", "linux/ppc64le",
++		"linux/amd64", "linux/arm64", "linux/loong64", "linux/ppc64le",
+ 		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 		return true
+ 	}

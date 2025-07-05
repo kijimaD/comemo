@@ -7,6 +7,20 @@ Date:   Thu Mar 22 03:18:47 2012 +0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5864053
-
+---
  src/pkg/go/build/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index bf9801c802..d113dc135b 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -337,7 +337,7 @@ func (e *NoGoError) Error() string {
+ // considered part of the package except for:
+ //
+ //	- .go files in package documentation
+-//	- files starting with _ or .
++//	- files starting with _ or . (likely editor temporary files)
+ //	- files with build constraints not satisfied by the context
+ //
+ // If an error occurs, Import returns a non-nil error also returns a non-nil

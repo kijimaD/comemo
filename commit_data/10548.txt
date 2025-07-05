@@ -13,7 +13,47 @@ Date:   Wed Nov 30 09:29:58 2011 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5437081
-
+---
  src/pkg/math/big/int_test.go | 8 ++++++--
  src/pkg/math/big/nat.go      | 6 ++++--
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index 163c662b0b..aa7c194954 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -1242,10 +1242,14 @@ func TestBitSet(t *testing.T) {
+ 		x.SetString(test.x, 0)
+ 		b := x.Bit(test.i)
+ 		if b != test.b {
+-
+-			t.Errorf("#%d want %v got %v", i, test.b, b)
++			t.Errorf("#%d got %v want %v", i, b, test.b)
+ 		}
+ 	}
++	z := NewInt(1)
++	z.SetBit(NewInt(0), 2, 1)
++	if z.Cmp(NewInt(4)) != 0 {
++		t.Errorf("destination leaked into result; got %s want 4", z)
++	}
+ }
+ 
+ func BenchmarkBitset(b *testing.B) {
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 9fba2d2a06..680445dc9a 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -1065,9 +1065,11 @@ func (z nat) setBit(x nat, i uint, b uint) nat {
+ 		return z.norm()
+ 	case 1:
+ 		if j >= n {
+-			n = j + 1
++			z = z.make(j + 1)
++			z[n:].clear()
++		} else {
++			z = z.make(n)
+ 		}
+-		z = z.make(n)
+ 		copy(z, x)
+ 		z[j] |= m
+ 		// no need to normalize

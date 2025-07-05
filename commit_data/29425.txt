@@ -14,6 +14,34 @@ Date:   Wed Sep 14 18:14:34 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/sort/sort_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/sort/sort_test.go b/src/sort/sort_test.go
+index 60fac2d695..10a2c19684 100644
+--- a/src/sort/sort_test.go
++++ b/src/sort/sort_test.go
+@@ -6,10 +6,12 @@ package sort_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"math"
+ 	"math/rand"
+ 	. "sort"
+ 	"strconv"
++	stringspkg "strings"
+ 	"testing"
+ )
+ 
+@@ -555,6 +557,9 @@ func TestCountStableOps(t *testing.T) { countOps(t, Stable, "Stable") }
+ func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
+ 
+ func bench(b *testing.B, size int, algo func(Interface), name string) {
++	if stringspkg.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
++		b.Skip("skipping slow benchmark on race builder")
++	}
+ 	b.StopTimer()
+ 	data := make(intPairs, size)
+ 	x := ^uint32(0)

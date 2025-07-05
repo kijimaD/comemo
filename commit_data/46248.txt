@@ -34,7 +34,7 @@ Date:   Sat Dec 12 18:50:21 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/277919
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go       | 10 ++--
  src/cmd/compile/internal/gc/const.go     |  7 ++-
  src/cmd/compile/internal/gc/dcl.go       | 11 ++--
@@ -45,3 +45,491 @@ Date:   Sat Dec 12 18:50:21 2020 -0500
  src/cmd/compile/internal/gc/walk.go      | 15 +++---
  src/cmd/compile/internal/ir/visit.go     | 90 +++++++++++++-------------------
  9 files changed, 77 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 8550edb9e0..3938dce46c 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -783,13 +783,11 @@ func geneq(t *types.Type) *obj.LSym {
+ }
+ 
+ func hasCall(fn *ir.Func) bool {
+-	found := ir.Find(fn, func(n ir.Node) interface{} {
+-		if op := n.Op(); op == ir.OCALL || op == ir.OCALLFUNC {
+-			return n
+-		}
+-		return nil
++	return ir.Find(fn, func(n ir.Node) bool {
++		// TODO(rsc): No methods?
++		op := n.Op()
++		return op == ir.OCALL || op == ir.OCALLFUNC
+ 	})
+-	return found != nil
+ }
+ 
+ // eqfield returns the node
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 677ed17dd9..1ef199c793 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -781,7 +781,7 @@ func isGoConst(n ir.Node) bool {
+ 
+ // hasCallOrChan reports whether n contains any calls or channel operations.
+ func hasCallOrChan(n ir.Node) bool {
+-	found := ir.Find(n, func(n ir.Node) interface{} {
++	return ir.Find(n, func(n ir.Node) bool {
+ 		switch n.Op() {
+ 		case ir.OAPPEND,
+ 			ir.OCALL,
+@@ -803,11 +803,10 @@ func hasCallOrChan(n ir.Node) bool {
+ 			ir.OREAL,
+ 			ir.ORECOVER,
+ 			ir.ORECV:
+-			return n
++			return true
+ 		}
+-		return nil
++		return false
+ 	})
+-	return found != nil
+ }
+ 
+ // A constSet represents a set of Go constant expressions.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 89873e2fac..ad2dc99f89 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -855,22 +855,22 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 			continue
+ 		}
+ 		c.curfn = n.(*ir.Func)
+-		ir.Inspect(n, c.findExtraCalls)
++		ir.Visit(n, c.findExtraCalls)
+ 	}
+ 	c.curfn = nil
+ 	return c
+ }
+ 
+-func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
++func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) {
+ 	if n.Op() != ir.OCALLFUNC {
+-		return true
++		return
+ 	}
+ 	fn := n.Left()
+ 	if fn == nil || fn.Op() != ir.ONAME || fn.Class() != ir.PFUNC || fn.Name().Defn == nil {
+-		return true
++		return
+ 	}
+ 	if !isRuntimePkg(fn.Sym().Pkg) || fn.Sym().Name != "systemstack" {
+-		return true
++		return
+ 	}
+ 
+ 	var callee *ir.Func
+@@ -887,7 +887,6 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
+ 		base.Fatalf("expected ODCLFUNC node, got %+v", callee)
+ 	}
+ 	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos()})
+-	return true
+ }
+ 
+ // recordCall records a call from ODCLFUNC node "from", to function
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index f317e9999c..5fce118448 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -225,7 +225,7 @@ func (e *Escape) walkFunc(fn *ir.Func) {
+ 	fn.SetEsc(EscFuncStarted)
+ 
+ 	// Identify labels that mark the head of an unstructured loop.
+-	ir.InspectList(fn.Body(), func(n ir.Node) bool {
++	ir.Visit(fn, func(n ir.Node) {
+ 		switch n.Op() {
+ 		case ir.OLABEL:
+ 			if e.labels == nil {
+@@ -240,8 +240,6 @@ func (e *Escape) walkFunc(fn *ir.Func) {
+ 				e.labels[n.Sym()] = looping
+ 			}
+ 		}
+-
+-		return true
+ 	})
+ 
+ 	e.curfn = fn
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index d39e8189d7..7870e00221 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -268,18 +268,25 @@ func collectDeps(n ir.Node, transitive bool) ir.NameSet {
+ type initDeps struct {
+ 	transitive bool
+ 	seen       ir.NameSet
++	cvisit     func(ir.Node)
+ }
+ 
+-func (d *initDeps) inspect(n ir.Node)      { ir.Inspect(n, d.visit) }
+-func (d *initDeps) inspectList(l ir.Nodes) { ir.InspectList(l, d.visit) }
++func (d *initDeps) cachedVisit() func(ir.Node) {
++	if d.cvisit == nil {
++		d.cvisit = d.visit // cache closure
++	}
++	return d.cvisit
++}
++
++func (d *initDeps) inspect(n ir.Node)      { ir.Visit(n, d.cachedVisit()) }
++func (d *initDeps) inspectList(l ir.Nodes) { ir.VisitList(l, d.cachedVisit()) }
+ 
+ // visit calls foundDep on any package-level functions or variables
+ // referenced by n, if any.
+-func (d *initDeps) visit(n ir.Node) bool {
++func (d *initDeps) visit(n ir.Node) {
+ 	switch n.Op() {
+ 	case ir.OMETHEXPR:
+ 		d.foundDep(methodExprName(n))
+-		return false
+ 
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+@@ -294,8 +301,6 @@ func (d *initDeps) visit(n ir.Node) bool {
+ 	case ir.ODOTMETH, ir.OCALLPART:
+ 		d.foundDep(methodExprName(n))
+ 	}
+-
+-	return true
+ }
+ 
+ // foundDep records that we've found a dependency on n by adding it to
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 04256d5aeb..9342046dcc 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -255,7 +255,7 @@ func inlFlood(n *ir.Name) {
+ 	// Recursively identify all referenced functions for
+ 	// reexport. We want to include even non-called functions,
+ 	// because after inlining they might be callable.
+-	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
++	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
+ 		switch n.Op() {
+ 		case ir.OMETHEXPR, ir.ODOTMETH:
+ 			inlFlood(methodExprName(n))
+@@ -282,7 +282,6 @@ func inlFlood(n *ir.Name) {
+ 			//     inlFlood(n.Func.Closure.Func.Nname)
+ 			base.Fatalf("unexpected closure in inlinable function")
+ 		}
+-		return true
+ 	})
+ }
+ 
+@@ -458,14 +457,10 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 
+ func isBigFunc(fn *ir.Func) bool {
+ 	budget := inlineBigFunctionNodes
+-	over := ir.Find(fn, func(n ir.Node) interface{} {
++	return ir.Find(fn, func(n ir.Node) bool {
+ 		budget--
+-		if budget <= 0 {
+-			return n
+-		}
+-		return nil
++		return budget <= 0
+ 	})
+-	return over != nil
+ }
+ 
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+@@ -707,8 +702,6 @@ FindRHS:
+ 	return rhs
+ }
+ 
+-var errFound = errors.New("found")
+-
+ // reassigned takes an ONAME node, walks the function in which it is defined, and returns a boolean
+ // indicating whether the name has any assignments other than its declaration.
+ // The second return value is the first such assignment encountered in the walk, if any. It is mostly
+@@ -723,22 +716,21 @@ func reassigned(name *ir.Name) bool {
+ 	if name.Curfn == nil {
+ 		return true
+ 	}
+-	a := ir.Find(name.Curfn, func(n ir.Node) interface{} {
++	return ir.Find(name.Curfn, func(n ir.Node) bool {
+ 		switch n.Op() {
+ 		case ir.OAS:
+ 			if n.Left() == name && n != name.Defn {
+-				return n
++				return true
+ 			}
+ 		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
+ 			for _, p := range n.List().Slice() {
+ 				if p == name && n != name.Defn {
+-					return n
++					return true
+ 				}
+ 			}
+ 		}
+-		return nil
++		return false
+ 	})
+-	return a != nil
+ }
+ 
+ func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
+@@ -916,11 +908,10 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool,
+ 	}
+ 
+ 	nreturns := 0
+-	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
++	ir.VisitList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) {
+ 		if n != nil && n.Op() == ir.ORETURN {
+ 			nreturns++
+ 		}
+-		return true
+ 	})
+ 
+ 	// We can delay declaring+initializing result parameters if:
+@@ -1287,11 +1278,10 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
+ // concrete-type method calls where applicable.
+ func devirtualize(fn *ir.Func) {
+ 	Curfn = fn
+-	ir.InspectList(fn.Body(), func(n ir.Node) bool {
++	ir.VisitList(fn.Body(), func(n ir.Node) {
+ 		if n.Op() == ir.OCALLINTER {
+ 			devirtualizeCall(n)
+ 		}
+-		return true
+ 	})
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index 063aaa09bd..fa7af1274b 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -75,7 +75,7 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
+ 	min := v.visitgen
+ 	v.stack = append(v.stack, n)
+ 
+-	ir.InspectList(n.Body(), func(n ir.Node) bool {
++	ir.Visit(n, func(n ir.Node) {
+ 		switch n.Op() {
+ 		case ir.ONAME:
+ 			if n.Class() == ir.PFUNC {
+@@ -111,7 +111,6 @@ func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
+ 				min = m
+ 			}
+ 		}
+-		return true
+ 	})
+ 
+ 	if (min == id || min == id+1) && !n.IsHiddenClosure() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ad5103f851..041eb900c8 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3764,11 +3764,11 @@ func usefield(n ir.Node) {
+ 
+ // hasSideEffects reports whether n contains any operations that could have observable side effects.
+ func hasSideEffects(n ir.Node) bool {
+-	found := ir.Find(n, func(n ir.Node) interface{} {
++	return ir.Find(n, func(n ir.Node) bool {
+ 		switch n.Op() {
+ 		// Assume side effects unless we know otherwise.
+ 		default:
+-			return n
++			return true
+ 
+ 		// No side effects here (arguments are checked separately).
+ 		case ir.ONAME,
+@@ -3824,29 +3824,28 @@ func hasSideEffects(n ir.Node) bool {
+ 			ir.OREAL,
+ 			ir.OIMAG,
+ 			ir.OCOMPLEX:
+-			return nil
++			return false
+ 
+ 		// Only possible side effect is division by zero.
+ 		case ir.ODIV, ir.OMOD:
+ 			if n.Right().Op() != ir.OLITERAL || constant.Sign(n.Right().Val()) == 0 {
+-				return n
++				return true
+ 			}
+ 
+ 		// Only possible side effect is panic on invalid size,
+ 		// but many makechan and makemap use size zero, which is definitely OK.
+ 		case ir.OMAKECHAN, ir.OMAKEMAP:
+ 			if !ir.IsConst(n.Left(), constant.Int) || constant.Sign(n.Left().Val()) != 0 {
+-				return n
++				return true
+ 			}
+ 
+ 		// Only possible side effect is panic on invalid size.
+ 		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
+ 		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
+-			return n
++			return true
+ 		}
+-		return nil
++		return false
+ 	})
+-	return found != nil
+ }
+ 
+ // Rewrite
+diff --git a/src/cmd/compile/internal/ir/visit.go b/src/cmd/compile/internal/ir/visit.go
+index 4f3575614d..bc2b8083ba 100644
+--- a/src/cmd/compile/internal/ir/visit.go
++++ b/src/cmd/compile/internal/ir/visit.go
+@@ -57,46 +57,40 @@ import (
+ //	}
+ //	do(root)
+ //
+-// The Inspect function illustrates a further simplification of the pattern,
+-// only considering processing before visiting children, and letting
+-// that processing decide whether children are visited at all:
++// The Visit function illustrates a further simplification of the pattern,
++// only processing before visiting children and never stopping:
+ //
+-//	func Inspect(n ir.Node, inspect func(ir.Node) bool) {
++//	func Visit(n ir.Node, visit func(ir.Node)) {
+ //		var do func(ir.Node) error
+ //		do = func(x ir.Node) error {
+-//			if inspect(x) {
+-//				ir.DoChildren(x, do)
+-//			}
+-//			return nil
++//			visit(x)
++//			return ir.DoChildren(x, do)
+ //		}
+ //		if n != nil {
+-//			do(n)
++//			visit(n)
+ //		}
+ //	}
+ //
+ // The Find function illustrates a different simplification of the pattern,
+ // visiting each node and then its children, recursively, until finding
+-// a node x such that find(x) returns a non-nil result,
+-// at which point the entire traversal stops:
++// a node x for which find(x) returns true, at which point the entire
++// traversal stops and returns true.
+ //
+-//	func Find(n ir.Node, find func(ir.Node) interface{}) interface{} {
++//	func Find(n ir.Node, find func(ir.Node)) bool {
+ //		stop := errors.New("stop")
+-//		var found interface{}
+ //		var do func(ir.Node) error
+ //		do = func(x ir.Node) error {
+-//			if v := find(x); v != nil {
+-//				found = v
++//			if find(x) {
+ //				return stop
+ //			}
+ //			return ir.DoChildren(x, do)
+ //		}
+-//		do(n)
+-//		return found
++//		return do(n) == stop
+ //	}
+ //
+-// Inspect and Find are presented above as examples of how to use
++// Visit and Find are presented above as examples of how to use
+ // DoChildren effectively, but of course, usage that fits within the
+-// simplifications captured by Inspect or Find will be best served
++// simplifications captured by Visit or Find will be best served
+ // by directly calling the ones provided by this package.
+ func DoChildren(n Node, do func(Node) error) error {
+ 	if n == nil {
+@@ -122,71 +116,59 @@ func DoList(list Nodes, do func(Node) error) error {
+ 	return nil
+ }
+ 
+-// Inspect visits each node x in the IR tree rooted at n
+-// in a depth-first preorder traversal, calling inspect on each node visited.
+-// If inspect(x) returns false, then Inspect skips over x's children.
+-//
+-// Note that the meaning of the boolean result in the callback function
+-// passed to Inspect differs from that of Scan.
+-// During Scan, if scan(x) returns false, then Scan stops the scan.
+-// During Inspect, if inspect(x) returns false, then Inspect skips x's children
+-// but continues with the remainder of the tree (x's siblings and so on).
+-func Inspect(n Node, inspect func(Node) bool) {
++// Visit visits each non-nil node x in the IR tree rooted at n
++// in a depth-first preorder traversal, calling visit on each node visited.
++func Visit(n Node, visit func(Node)) {
+ 	var do func(Node) error
+ 	do = func(x Node) error {
+-		if inspect(x) {
+-			DoChildren(x, do)
+-		}
+-		return nil
++		visit(x)
++		return DoChildren(x, do)
+ 	}
+ 	if n != nil {
+ 		do(n)
+ 	}
+ }
+ 
+-// InspectList calls Inspect(x, inspect) for each node x in the list.
+-func InspectList(list Nodes, inspect func(Node) bool) {
++// VisitList calls Visit(x, visit) for each node x in the list.
++func VisitList(list Nodes, visit func(Node)) {
+ 	for _, x := range list.Slice() {
+-		Inspect(x, inspect)
++		Visit(x, visit)
+ 	}
+ }
+ 
+ var stop = errors.New("stop")
+ 
+ // Find looks for a non-nil node x in the IR tree rooted at n
+-// for which find(x) returns a non-nil value.
++// for which find(x) returns true.
+ // Find considers nodes in a depth-first, preorder traversal.
+-// When Find finds a node x such that find(x) != nil,
+-// Find ends the traversal and returns the value of find(x) immediately.
+-// Otherwise Find returns nil.
+-func Find(n Node, find func(Node) interface{}) interface{} {
++// When Find finds a node x such that find(x) is true,
++// Find ends the traversal and returns true immediately.
++// Otherwise Find returns false after completing the entire traversal.
++func Find(n Node, find func(Node) bool) bool {
+ 	if n == nil {
+-		return nil
++		return false
+ 	}
+-	var found interface{}
+ 	var do func(Node) error
+ 	do = func(x Node) error {
+-		if v := find(x); v != nil {
+-			found = v
++		if find(x) {
+ 			return stop
+ 		}
+ 		return DoChildren(x, do)
+ 	}
+-	do(n)
+-	return found
++	return do(n) == stop
+ }
+ 
+-// FindList calls Find(x, ok) for each node x in the list, in order.
+-// If any call find(x) returns a non-nil result, FindList stops and
++// FindList calls Find(x, find) for each node x in the list, in order.
++// If any call Find(x, find) returns true, FindList stops and
+ // returns that result, skipping the remainder of the list.
+-// Otherwise FindList returns nil.
+-func FindList(list Nodes, find func(Node) interface{}) interface{} {
++// Otherwise FindList returns false.
++func FindList(list Nodes, find func(Node) bool) bool {
+ 	for _, x := range list.Slice() {
+-		if v := Find(x, find); v != nil {
+-			return v
++		if Find(x, find) {
++			return true
+ 		}
+ 	}
+-	return nil
++	return false
+ }
+ 
+ // EditChildren edits the child nodes of n, replacing each child x with edit(x).

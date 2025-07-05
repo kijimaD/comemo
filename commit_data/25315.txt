@@ -13,7 +13,7 @@ Date:   Mon Oct 19 18:54:40 2015 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 +-
@@ -23,3 +23,149 @@ Date:   Mon Oct 19 18:54:40 2015 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 10 ++++++----
  src/cmd/compile/internal/ssa/rewritegeneric.go | 10 +++++-----
  8 files changed, 16 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7219ffd653..3ef82322e5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1870,7 +1870,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.call(n, callNormal)
+ 
+ 	case OGETG:
+-		return s.newValue0(ssa.OpGetG, n.Type)
++		return s.newValue1(ssa.OpGetG, n.Type, s.mem())
+ 
+ 	case OAPPEND:
+ 		// append(s, e1, e2, e3).  Compile like:
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index f160ce81af..b30df5f8d4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -287,7 +287,7 @@
+ (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
+ 
+ (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
+-(GetG) -> (LoweredGetG)
++(GetG mem) -> (LoweredGetG mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 5d171dc87a..e9414238b0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -423,7 +423,7 @@ func init() {
+ 
+ 		// Pseudo-ops
+ 		{name: "LoweredPanicNilCheck", reg: gp10},
+-		{name: "LoweredGetG", reg: gp01},
++		{name: "LoweredGetG", reg: gp01}, // arg0=mem
+ 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of DX (the closure pointer)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 01026042bf..42eec3dd75 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -180,7 +180,7 @@
+ (Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
+ (Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
+ 
+-(If (IsNonNil (GetG)) yes no) -> (First nil yes no)
++(If (IsNonNil (GetG _)) yes no) -> (First nil yes no)
+ 
+ (If (Not cond) yes no) -> (If cond no yes)
+ (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 1ee38103ac..5881596441 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -326,7 +326,7 @@ var genericOps = []opData{
+ 
+ 	// Pseudo-ops
+ 	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
+-	{name: "GetG"},          // runtime.getg() (read g pointer)
++	{name: "GetG"},          // runtime.getg() (read g pointer).  arg0=mem
+ 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
+ 
+ 	// Indexing operations
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 72b056cd8d..9cf589b215 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -982,11 +982,6 @@ func (v *Value) rematerializeable() bool {
+ 		// which can't be moved.
+ 		return false
+ 	}
+-	if v.Op == OpAMD64LoweredGetG {
+-		// It would almost always be ok to rematerialize this op.
+-		// The annoying exception is functions that call runtime.setg.
+-		return false
+-	}
+ 	if len(v.Args) == 0 {
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4ac4744b64..5fad78aa3c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2412,18 +2412,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 	end6fd0b53f0acb4d35e7d7fa78d2ca1392:
+ 		;
+ 	case OpGetG:
+-		// match: (GetG)
++		// match: (GetG mem)
+ 		// cond:
+-		// result: (LoweredGetG)
++		// result: (LoweredGetG mem)
+ 		{
++			mem := v.Args[0]
+ 			v.Op = OpAMD64LoweredGetG
+ 			v.AuxInt = 0
+ 			v.Aux = nil
+ 			v.resetArgs()
++			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endb17140e71dd641aa4d89e14479160260
+-	endb17140e71dd641aa4d89e14479160260:
++		goto endf543eaaf68c4bef1d4cdc8ba19683723
++	endf543eaaf68c4bef1d4cdc8ba19683723:
+ 		;
+ 	case OpGoCall:
+ 		// match: (GoCall [argwid] mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 46d97b57e3..7f9c855948 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1697,16 +1697,16 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ func rewriteBlockgeneric(b *Block) bool {
+ 	switch b.Kind {
+ 	case BlockIf:
+-		// match: (If (IsNonNil (GetG)) yes no)
++		// match: (If (IsNonNil (GetG _)) yes no)
+ 		// cond:
+ 		// result: (First nil yes no)
+ 		{
+ 			v := b.Control
+ 			if v.Op != OpIsNonNil {
+-				goto endafdc4e2525f9933ab0ae7effc3559597
++				goto end41b95d88b4cebdb0ce392bd3c1c89e95
+ 			}
+ 			if v.Args[0].Op != OpGetG {
+-				goto endafdc4e2525f9933ab0ae7effc3559597
++				goto end41b95d88b4cebdb0ce392bd3c1c89e95
+ 			}
+ 			yes := b.Succs[0]
+ 			no := b.Succs[1]
+@@ -1716,8 +1716,8 @@ func rewriteBlockgeneric(b *Block) bool {
+ 			b.Succs[1] = no
+ 			return true
+ 		}
+-		goto endafdc4e2525f9933ab0ae7effc3559597
+-	endafdc4e2525f9933ab0ae7effc3559597:
++		goto end41b95d88b4cebdb0ce392bd3c1c89e95
++	end41b95d88b4cebdb0ce392bd3c1c89e95:
+ 		;
+ 		// match: (If (Not cond) yes no)
+ 		// cond:

@@ -9,7 +9,48 @@ Date:   Tue Jan 18 11:24:49 2011 -0500
     R=rsc, gri, ejsherry
     CC=golang-dev
     https://golang.org/cl/4035042
-
+---
  src/cmd/gc/walk.c        | 10 ++++++++--
  test/fixedbugs/bug318.go | 12 ++++++++++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fa3e5d5e4c..5faf630b88 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -269,9 +269,15 @@ walkdef(Node *n)
+ 		}
+ 		t = n->type;
+ 		if(t != T) {
+-			convlit(&e, t);
+-			if(!okforconst[t->etype])
++			if(!okforconst[t->etype]) {
+ 				yyerror("invalid constant type %T", t);
++				goto ret;
++			}
++			if(!isideal(e->type) && !eqtype(t, e->type)) {
++				yyerror("cannot use %+N as type %T in const initializer", e, t);
++				goto ret;
++			}
++			convlit(&e, t);
+ 		}
+ 		n->val = e->val;
+ 		n->type = e->type;
+diff --git a/test/fixedbugs/bug318.go b/test/fixedbugs/bug318.go
+new file mode 100644
+index 0000000000..9c46a04269
+--- /dev/null
++++ b/test/fixedbugs/bug318.go
+@@ -0,0 +1,12 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1411.
++
++package main
++
++const ui uint = 0
++const i int = ui // ERROR "type"

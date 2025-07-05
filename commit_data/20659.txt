@@ -33,7 +33,7 @@ Date:   Fri Sep 26 17:09:11 2014 -0400
     R=golang-codereviews, iant
     CC=adg, golang-codereviews, r
     https://golang.org/cl/150980043
-
+---
  src/cmd/go/test.bash                                | 14 ++++++++++++++
  src/cmd/go/test.go                                  |  6 ++++--
  src/cmd/go/testdata/src/badtest/badexec/x_test.go   |  5 +++++
@@ -42,3 +42,94 @@ Date:   Fri Sep 26 17:09:11 2014 -0400
  src/cmd/go/testdata/src/badtest/badvar/x.go         |  1 +
  src/cmd/go/testdata/src/badtest/badvar/x_test.go    |  5 +++++
  7 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 1284876193..6a72bcde07 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -71,6 +71,20 @@ if ! grep -q "/tool/.*/$linker" $d/err.out; then
+ fi
+ rm -r $d
+ 
++TEST broken tests without Test functions all fail
++d=$(mktemp -d -t testgoXXX)
++./testgo test ./testdata/src/badtest/... >$d/err 2>&1 || true
++if grep -q '^ok' $d/err; then
++	echo test passed unexpectedly:
++	grep '^ok' $d/err
++	ok=false
++elif ! grep -q 'FAIL.*badtest/badexec' $d/err || ! grep -q 'FAIL.*badtest/badsyntax' $d/err || ! grep -q 'FAIL.*badtest/badvar' $d/err; then
++	echo test did not run everything
++	cat $d/err
++	ok=false
++fi
++rm -rf $d
++
+ TEST 'go build -a in dev branch'
+ ./testgo install math || ok=false # should be up to date already but just in case
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 100ef5fa82..0962e5bb50 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -736,11 +736,13 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	if err != nil {
+ 		return nil, nil, nil, err
+ 	}
+-	if t.ImportTest || ptest.coverMode != "" {
++	if len(ptest.GoFiles) > 0 {
+ 		pmain.imports = append(pmain.imports, ptest)
++		t.ImportTest = true
+ 	}
+-	if t.ImportXtest {
++	if pxtest != nil {
+ 		pmain.imports = append(pmain.imports, pxtest)
++		t.ImportXtest = true
+ 	}
+ 
+ 	if ptest != p && localCover {
+diff --git a/src/cmd/go/testdata/src/badtest/badexec/x_test.go b/src/cmd/go/testdata/src/badtest/badexec/x_test.go
+new file mode 100644
+index 0000000000..12f5051712
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badtest/badexec/x_test.go
+@@ -0,0 +1,5 @@
++package badexec
++
++func init() {
++	panic("badexec")
++}
+diff --git a/src/cmd/go/testdata/src/badtest/badsyntax/x.go b/src/cmd/go/testdata/src/badtest/badsyntax/x.go
+new file mode 100644
+index 0000000000..c8a5407a5a
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badtest/badsyntax/x.go
+@@ -0,0 +1 @@
++package badsyntax
+diff --git a/src/cmd/go/testdata/src/badtest/badsyntax/x_test.go b/src/cmd/go/testdata/src/badtest/badsyntax/x_test.go
+new file mode 100644
+index 0000000000..5be10745d9
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badtest/badsyntax/x_test.go
+@@ -0,0 +1,3 @@
++package badsyntax
++
++func func func func func!
+diff --git a/src/cmd/go/testdata/src/badtest/badvar/x.go b/src/cmd/go/testdata/src/badtest/badvar/x.go
+new file mode 100644
+index 0000000000..fdd46c4c72
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badtest/badvar/x.go
+@@ -0,0 +1 @@
++package badvar
+diff --git a/src/cmd/go/testdata/src/badtest/badvar/x_test.go b/src/cmd/go/testdata/src/badtest/badvar/x_test.go
+new file mode 100644
+index 0000000000..c67df01c5c
+--- /dev/null
++++ b/src/cmd/go/testdata/src/badtest/badvar/x_test.go
+@@ -0,0 +1,5 @@
++package badvar_test
++
++func f() {
++	_ = notdefined
++}

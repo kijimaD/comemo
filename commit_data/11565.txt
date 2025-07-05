@@ -7,6 +7,20 @@ Date:   Thu Feb 2 11:53:28 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5623045
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index fd0b4b4aea..7e9f6ca728 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1572,7 +1572,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
+ 	try:
+ 		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=sys.platform != "win32")
+ 	except:
+-		return "hgpatch: " + ExceptionDetail()
++		return "hgpatch: " + ExceptionDetail() + "\nInstall hgpatch with:\n$ go get code.google.com/p/go.codereview/cmd/hgpatch\n"
+ 
+ 	out, err = cmd.communicate(patch)
+ 	if cmd.returncode != 0 and not opts["ignore_hgpatch_failure"]:

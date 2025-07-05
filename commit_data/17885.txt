@@ -11,9 +11,112 @@ Date:   Wed Nov 13 21:29:19 2013 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/22770044
-
+---
  doc/go1.2.html                         |  3 ++-
  src/pkg/encoding/gob/doc.go            | 12 ++++++------
  src/pkg/encoding/gob/gobencdec_test.go | 15 +++++++++++++++
  src/pkg/encoding/gob/type.go           | 15 +++++++++++----
  4 files changed, 34 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.2.html b/doc/go1.2.html
+index 9d890b2906..c7a9f84426 100644
+--- a/doc/go1.2.html
++++ b/doc/go1.2.html
+@@ -736,7 +736,8 @@ now treats channel and function fields of structures as if they were unexported,
+ even if they are not. That is, it ignores them completely. Previously they would
+ trigger an error, which could cause unexpected compatibility problems if an
+ embedded structure added such a field.
+-The package also now supports the generic encoding interfaces of the
++The package also now supports the generic <code>BinaryMarshaler</code> and
++<code>BinaryUnmarshaler</code> interfaces of the
+ <a href="/pkg/encoding/"><code>encoding</code></a> package
+ described above.
+ </li>
+diff --git a/src/pkg/encoding/gob/doc.go b/src/pkg/encoding/gob/doc.go
+index 28f0c05a5c..d0acaba1ad 100644
+--- a/src/pkg/encoding/gob/doc.go
++++ b/src/pkg/encoding/gob/doc.go
+@@ -86,13 +86,13 @@ Functions and channels will not be sent in a gob. Attempting to encode such a va
+ at top the level will fail. A struct field of chan or func type is treated exactly
+ like an unexported field and is ignored.
+ 
+-Gob can encode a value of any type implementing the GobEncoder,
+-encoding.BinaryMarshaler, or encoding.TextMarshaler interfaces by calling the
+-corresponding method, in that order of preference.
++Gob can encode a value of any type implementing the GobEncoder or
++encoding.BinaryMarshaler interfaces by calling the corresponding method,
++in that order of preference.
+ 
+-Gob can decode a value of any type implementing the GobDecoder,
+-encoding.BinaryUnmarshaler, or encoding.TextUnmarshaler interfaces by calling
+-the corresponding method, again in that order of preference.
++Gob can decode a value of any type implementing the GobDecoder or
++encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
++again in that order of preference.
+ 
+ Encoding Details
+ 
+diff --git a/src/pkg/encoding/gob/gobencdec_test.go b/src/pkg/encoding/gob/gobencdec_test.go
+index 301551db48..0193e2b67d 100644
+--- a/src/pkg/encoding/gob/gobencdec_test.go
++++ b/src/pkg/encoding/gob/gobencdec_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"net"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -767,3 +768,17 @@ func TestGobEncodePtrError(t *testing.T) {
+ 		t.Fatalf("expected nil, got %v", err2)
+ 	}
+ }
++
++func TestNetIP(t *testing.T) {
++	// Encoding of net.IP{1,2,3,4} in Go 1.1.
++	enc := []byte{0x07, 0x0a, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04}
++
++	var ip net.IP
++	err := NewDecoder(bytes.NewReader(enc)).Decode(&ip)
++	if err != nil {
++		t.Fatalf("decode: %v", err)
++	}
++	if ip.String() != "1.2.3.4" {
++		t.Errorf("decoded to %v, want 1.2.3.4", ip.String())
++	}
++}
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index 65bf17b7f0..cad1452795 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -88,18 +88,25 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
+ 		ut.externalEnc, ut.encIndir = xGob, indir
+ 	} else if ok, indir := implementsInterface(ut.user, binaryMarshalerInterfaceType); ok {
+ 		ut.externalEnc, ut.encIndir = xBinary, indir
+-	} else if ok, indir := implementsInterface(ut.user, textMarshalerInterfaceType); ok {
+-		ut.externalEnc, ut.encIndir = xText, indir
+ 	}
+ 
++	// NOTE(rsc): Would like to allow MarshalText here, but results in incompatibility
++	// with older encodings for net.IP. See golang.org/issue/6760.
++	// } else if ok, indir := implementsInterface(ut.user, textMarshalerInterfaceType); ok {
++	// 	ut.externalEnc, ut.encIndir = xText, indir
++	// }
++
+ 	if ok, indir := implementsInterface(ut.user, gobDecoderInterfaceType); ok {
+ 		ut.externalDec, ut.decIndir = xGob, indir
+ 	} else if ok, indir := implementsInterface(ut.user, binaryUnmarshalerInterfaceType); ok {
+ 		ut.externalDec, ut.decIndir = xBinary, indir
+-	} else if ok, indir := implementsInterface(ut.user, textUnmarshalerInterfaceType); ok {
+-		ut.externalDec, ut.decIndir = xText, indir
+ 	}
+ 
++	// See note above.
++	// } else if ok, indir := implementsInterface(ut.user, textUnmarshalerInterfaceType); ok {
++	// 	ut.externalDec, ut.decIndir = xText, indir
++	// }
++
+ 	userTypeCache[rt] = ut
+ 	return
+ }

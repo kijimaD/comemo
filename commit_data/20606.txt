@@ -24,7 +24,7 @@ Date:   Wed Sep 24 13:20:25 2014 -0400
     R=golang-codereviews, dvyukov, minux, bradfitz, iant, gobot, rsc
     CC=golang-codereviews, rsc
     https://golang.org/cl/131910043
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue7978.go | 99 ++++++++++++++++++++++++++++++++++++++++++++++
  src/run.bash               |  2 +
@@ -34,3 +34,323 @@ Date:   Wed Sep 24 13:20:25 2014 -0400
  src/runtime/runtime.h      |  1 +
  src/runtime/stubs.go       |  1 +
  8 files changed, 149 insertions(+), 13 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 3783af061c..1899d46053 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -56,5 +56,6 @@ func TestNaming(t *testing.T)              { testNaming(t) }
+ func Test7560(t *testing.T)                { test7560(t) }
+ func Test5242(t *testing.T)                { test5242(t) }
+ func Test8092(t *testing.T)                { test8092(t) }
++func Test7978(t *testing.T)                { test7978(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+new file mode 100644
+index 0000000000..39864476ce
+--- /dev/null
++++ b/misc/cgo/test/issue7978.go
+@@ -0,0 +1,99 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7978.  Stack tracing didn't work during cgo code after calling a Go
++// callback.  Make sure GC works and the stack trace is correct.
++
++package cgotest
++
++/*
++#include <stdint.h>
++
++void issue7978cb(void);
++
++// use ugly atomic variable sync since that doesn't require calling back into
++// Go code or OS dependencies
++static void issue7978c(uint32_t *sync) {
++	while(__sync_fetch_and_add(sync, 0) != 0)
++		;
++	__sync_fetch_and_add(sync, 1);
++	while(__sync_fetch_and_add(sync, 0) != 2)
++		;
++	issue7978cb();
++	__sync_fetch_and_add(sync, 1);
++	while(__sync_fetch_and_add(sync, 0) != 6)
++		;
++}
++*/
++import "C"
++
++import (
++	"runtime"
++	"strings"
++	"sync/atomic"
++	"testing"
++)
++
++var issue7978sync uint32
++
++func issue7978check(t *testing.T, wantFunc string, badFunc string, depth int) {
++	runtime.GC()
++	buf := make([]byte, 65536)
++	trace := string(buf[:runtime.Stack(buf, true)])
++	for _, goroutine := range strings.Split(trace, "\n\n") {
++		if strings.Contains(goroutine, "test.issue7978go") {
++			trace := strings.Split(goroutine, "\n")
++			// look for the expected function in the stack
++			for i := 0; i < depth; i++ {
++				if badFunc != "" && strings.Contains(trace[1+2*i], badFunc) {
++					t.Errorf("bad stack: found %s in the stack:\n%s", badFunc, goroutine)
++					return
++				}
++				if strings.Contains(trace[1+2*i], wantFunc) {
++					return
++				}
++			}
++			t.Errorf("bad stack: didn't find %s in the stack:\n%s", wantFunc, goroutine)
++			return
++		}
++	}
++	t.Errorf("bad stack: goroutine not found. Full stack dump:\n%s", trace)
++}
++
++func issue7978wait(store uint32, wait uint32) {
++	if store != 0 {
++		atomic.StoreUint32(&issue7978sync, store)
++	}
++	for atomic.LoadUint32(&issue7978sync) != wait {
++		runtime.Gosched()
++	}
++}
++
++//export issue7978cb
++func issue7978cb() {
++	issue7978wait(3, 4)
++}
++
++func issue7978go() {
++	C.issue7978c((*C.uint32_t)(&issue7978sync))
++	issue7978wait(7, 8)
++}
++
++func test7978(t *testing.T) {
++	issue7978sync = 0
++	go issue7978go()
++	// test in c code, before callback
++	issue7978wait(0, 1)
++	issue7978check(t, "runtime.cgocall_errno(", "", 1)
++	// test in go code, during callback
++	issue7978wait(2, 3)
++	issue7978check(t, "test.issue7978cb(", "test.issue7978go", 3)
++	// test in c code, after callback
++	issue7978wait(4, 5)
++	issue7978check(t, "runtime.cgocall_errno(", "runtime.cgocallback", 1)
++	// test in go code, after return from cgo
++	issue7978wait(6, 7)
++	issue7978check(t, "test.issue7978go(", "", 3)
++	atomic.StoreUint32(&issue7978sync, 8)
++}
+diff --git a/src/run.bash b/src/run.bash
+index b5f061d885..d6e53304d8 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -119,6 +119,8 @@ go run $GOROOT/test/run.go - . || exit 1
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/test
++# cgo tests inspect the traceback for runtime functions
++export GOTRACEBACK=2
+ go test -ldflags '-linkmode=auto' || exit 1
+ # linkmode=internal fails on dragonfly since errno is a TLS relocation.
+ [ "$GOHOSTOS" == dragonfly ] || go test -ldflags '-linkmode=internal' || exit 1
+diff --git a/src/run.bat b/src/run.bat
+index 62692acaf2..309e06d507 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -90,11 +90,18 @@ go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
+ if errorlevel 1 goto fail
+ echo.
+ 
++# cgo tests inspect the traceback for runtime functions
++set OLDGOTRACEBACK=%GOTRACEBACK%
++set GOTRACEBACK=2
++
+ echo # ..\misc\cgo\test
+ go test ..\misc\cgo\test
+ if errorlevel 1 goto fail
+ echo.
+ 
++set GOTRACEBACK=%OLDGOTRACEBACK%
++set OLDGOTRACEBACK=
++
+ echo # ..\misc\cgo\testso
+ cd ..\misc\cgo\testso
+ set FAIL=0
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index a21474b01f..7fd91469eb 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -177,14 +177,22 @@ func cfree(p unsafe.Pointer) {
+ // Call from C back to Go.
+ //go:nosplit
+ func cgocallbackg() {
+-	if gp := getg(); gp != gp.m.curg {
++	gp := getg()
++	if gp != gp.m.curg {
+ 		println("runtime: bad g in cgocallback")
+ 		exit(2)
+ 	}
+ 
++	// entersyscall saves the caller's SP to allow the GC to trace the Go
++	// stack. However, since we're returning to an earlier stack frame and
++	// need to pair with the entersyscall() call made by cgocall, we must
++	// save syscall* and let reentersyscall restore them.
++	savedsp := unsafe.Pointer(gp.syscallsp)
++	savedpc := gp.syscallpc
+ 	exitsyscall() // coming out of cgo call
+ 	cgocallbackg1()
+-	entersyscall() // going back to cgo call
++	// going back to cgo call
++	reentersyscall(savedpc, savedsp)
+ }
+ 
+ func cgocallbackg1() {
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 3f4179d473..564798be7b 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -1700,9 +1700,9 @@ goexit0(G *gp)
+ 
+ #pragma textflag NOSPLIT
+ static void
+-save(void *pc, uintptr sp)
++save(uintptr pc, uintptr sp)
+ {
+-	g->sched.pc = (uintptr)pc;
++	g->sched.pc = pc;
+ 	g->sched.sp = sp;
+ 	g->sched.lr = 0;
+ 	g->sched.ret = 0;
+@@ -1730,9 +1730,15 @@ static void entersyscall_gcwait(void);
+ // In practice, this means that we make the fast path run through
+ // entersyscall doing no-split things, and the slow path has to use onM
+ // to run bigger things on the m stack.
++//
++// reentersyscall is the entry point used by cgo callbacks, where explicitly
++// saved SP and PC are restored. This is needed when exitsyscall will be called
++// from a function further up in the call stack than the parent, as g->syscallsp
++// must always point to a valid stack frame. entersyscall below is the normal
++// entry point for syscalls, which obtains the SP and PC from the caller.
+ #pragma textflag NOSPLIT
+ void
+-·entersyscall(int32 dummy)
++runtime·reentersyscall(uintptr pc, uintptr sp)
+ {
+ 	void (*fn)(void);
+ 
+@@ -1748,9 +1754,9 @@ void
+ 	g->throwsplit = 1;
+ 
+ 	// Leave SP around for GC and traceback.
+-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+-	g->syscallsp = g->sched.sp;
+-	g->syscallpc = g->sched.pc;
++	save(pc, sp);
++	g->syscallsp = sp;
++	g->syscallpc = pc;
+ 	runtime·casgstatus(g, Grunning, Gsyscall);
+ 	if(g->syscallsp < g->stack.lo || g->stack.hi < g->syscallsp) {
+ 		fn = entersyscall_bad;
+@@ -1760,7 +1766,7 @@ void
+ 	if(runtime·atomicload(&runtime·sched.sysmonwait)) {  // TODO: fast atomic
+ 		fn = entersyscall_sysmon;
+ 		runtime·onM(&fn);
+-		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++		save(pc, sp);
+ 	}
+ 
+ 	g->m->mcache = nil;
+@@ -1769,7 +1775,7 @@ void
+ 	if(runtime·sched.gcwaiting) {
+ 		fn = entersyscall_gcwait;
+ 		runtime·onM(&fn);
+-		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++		save(pc, sp);
+ 	}
+ 
+ 	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
+@@ -1779,6 +1785,14 @@ void
+ 	g->m->locks--;
+ }
+ 
++// Standard syscall entry used by the go syscall library and normal cgo calls.
++#pragma textflag NOSPLIT
++void
++·entersyscall(int32 dummy)
++{
++	runtime·reentersyscall((uintptr)runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++}
++
+ static void
+ entersyscall_bad(void)
+ {
+@@ -1826,7 +1840,7 @@ void
+ 	g->stackguard0 = StackPreempt;  // see comment in entersyscall
+ 
+ 	// Leave SP around for GC and traceback.
+-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++	save((uintptr)runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	g->syscallsp = g->sched.sp;
+ 	g->syscallpc = g->sched.pc;
+ 	runtime·casgstatus(g, Grunning, Gsyscall);
+@@ -1839,7 +1853,7 @@ void
+ 	runtime·onM(&fn);
+ 
+ 	// Resave for traceback during blocked call.
+-	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++	save((uintptr)runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 
+ 	g->m->locks--;
+ }
+@@ -1856,12 +1870,15 @@ entersyscallblock_handoff(void)
+ // from the low-level system calls used by the runtime.
+ #pragma textflag NOSPLIT
+ void
+-runtime·exitsyscall(void)
++·exitsyscall(int32 dummy)
+ {
+ 	void (*fn)(G*);
+ 
+ 	g->m->locks++;  // see comment in entersyscall
+ 
++	if(runtime·getcallersp(&dummy) > g->syscallsp)
++		runtime·throw("exitsyscall: syscall frame is no longer valid");
++
+ 	g->waitsince = 0;
+ 	if(exitsyscallfast()) {
+ 		// There's a cpu for us, so we can run.
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 7fefbc2997..3a6d3e3262 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -901,6 +901,7 @@ void	runtime·goexit(void);
+ void	runtime·asmcgocall(void (*fn)(void*), void*);
+ int32	runtime·asmcgocall_errno(void (*fn)(void*), void*);
+ void	runtime·entersyscall(void);
++void	runtime·reentersyscall(uintptr, uintptr);
+ void	runtime·entersyscallblock(void);
+ void	runtime·exitsyscall(void);
+ G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2e6aadca7a..1381c7efdb 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -164,6 +164,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ }
+ 
+ func entersyscall()
++func reentersyscall(pc uintptr, sp unsafe.Pointer)
+ func entersyscallblock()
+ func exitsyscall()
+ 

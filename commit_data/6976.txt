@@ -7,6 +7,21 @@ Date:   Thu Dec 16 12:19:59 2010 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/3691042
-
+---
  src/cmd/ld/data.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 043798c455..ca580b528f 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -166,8 +166,7 @@ relocsym(Sym *s)
+ 			continue;
+ 
+ 		if(r->sym != S && r->sym->type == SDYNIMPORT)
+-			if (thechar != '8' || HEADTYPE != 10) // Windows PE supports relocation references to dynamic import symbols
+-				diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
++			diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
+ 
+ 		if(r->sym != S && !r->sym->reachable)
+ 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);

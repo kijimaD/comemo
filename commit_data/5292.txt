@@ -7,7 +7,7 @@ Date:   Tue Apr 13 22:31:47 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/854048
-
+---
  src/pkg/runtime/darwin/386/signal.c    | 14 +++++++++++---
  src/pkg/runtime/darwin/amd64/signal.c  | 16 ++++++++++++----
  src/pkg/runtime/freebsd/386/signal.c   | 14 +++++++++++---
@@ -16,3 +16,179 @@ Date:   Tue Apr 13 22:31:47 2010 -0700
  src/pkg/runtime/linux/amd64/signal.c   | 14 +++++++++++---
  src/pkg/runtime/linux/arm/signal.c     |  6 +++++-
  7 files changed, 72 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 65c217b4e0..5161796dc3 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -66,10 +66,18 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
+ 
+-		sp = (uintptr*)r->esp;
+-		*--sp = r->eip;
++		// Only push sigpanic if r->eip != 0.
++		// If r->eip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to sigpanic instead.
++		// (Otherwise the trace will end at sigpanic and we
++		// won't get to see who faulted.)
++		if(r->eip != 0) {
++			sp = (uintptr*)r->esp;
++			*--sp = r->eip;
++			r->esp = (uintptr)sp;
++		}
+ 		r->eip = (uintptr)sigpanic;
+-		r->esp = (uintptr)sp;
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 9c4f0dc147..56f02e56dc 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -74,11 +74,19 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 		gp->sig = sig;
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
+-
+-		sp = (uintptr*)r->rsp;
+-		*--sp = r->rip;
++		
++		// Only push sigpanic if r->rip != 0.
++		// If r->rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to sigpanic instead.
++		// (Otherwise the trace will end at sigpanic and we
++		// won't get to see who faulted.)
++		if(r->rip != 0) {
++			sp = (uintptr*)r->rsp;
++			*--sp = r->rip;
++			r->rsp = (uintptr)sp;
++		}
+ 		r->rip = (uintptr)sigpanic;
+-		r->rsp = (uintptr)sp;
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index ec8ac3a7d4..be2f4ce6ff 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -64,10 +64,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
+ 
+-		sp = (uintptr*)r->mc_esp;
+-		*--sp = r->mc_eip;
++		// Only push sigpanic if r->mc_eip != 0.
++		// If r->mc_eip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to sigpanic instead.
++		// (Otherwise the trace will end at sigpanic and we
++		// won't get to see who faulted.)
++		if(r->mc_eip != 0) {
++			sp = (uintptr*)r->mc_esp;
++			*--sp = r->mc_eip;
++			r->mc_esp = (uintptr)sp;
++		}
+ 		r->mc_eip = (uintptr)sigpanic;
+-		r->mc_esp = (uintptr)sp;
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index ba8a5cfdb5..b0ac650a3b 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -72,10 +72,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
+ 
+-		sp = (uintptr*)r->mc_rsp;
+-		*--sp = r->mc_rip;
++		// Only push sigpanic if r->mc_rip != 0.
++		// If r->mc_rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to sigpanic instead.
++		// (Otherwise the trace will end at sigpanic and we
++		// won't get to see who faulted.)
++		if(r->mc_rip != 0) {
++			sp = (uintptr*)r->mc_rsp;
++			*--sp = r->mc_rip;
++			r->mc_rsp = (uintptr)sp;
++		}
+ 		r->mc_rip = (uintptr)sigpanic;
+-		r->mc_rsp = (uintptr)sp;
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index fed052f63e..8c76ec366a 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -61,10 +61,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = ((uintptr*)info)[3];
+ 
+-		sp = (uintptr*)r->esp;
+-		*--sp = r->eip;
++		// Only push sigpanic if r->eip != 0.
++		// If r->eip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to sigpanic instead.
++		// (Otherwise the trace will end at sigpanic and we
++		// won't get to see who faulted.)
++		if(r->eip != 0) {
++			sp = (uintptr*)r->esp;
++			*--sp = r->eip;
++			r->esp = (uintptr)sp;
++		}
+ 		r->eip = (uintptr)sigpanic;
+-		r->esp = (uintptr)sp;
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index 57cdea1322..fbe6599f6c 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -71,10 +71,18 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = ((uintptr*)info)[2];
+ 
+-		sp = (uintptr*)r->rsp;
+-		*--sp = r->rip;
++		// Only push sigpanic if r->rip != 0.
++		// If r->rip == 0, probably panicked because of a
++		// call to a nil func.  Not pushing that onto sp will
++		// make the trace look like a call to sigpanic instead.
++		// (Otherwise the trace will end at sigpanic and we
++		// won't get to see who faulted.)
++		if(r->rip != 0) {
++			sp = (uintptr*)r->rsp;
++			*--sp = r->rip;
++			r->rsp = (uintptr)sp;
++		}
+ 		r->rip = (uintptr)sigpanic;
+-		r->rsp = (uintptr)sp;
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 6cc4ac9bea..4d315cc808 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -70,7 +70,11 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 
+ 		// If this is a leaf function, we do smash LR,
+ 		// but we're not going back there anyway.
+-		r->arm_lr = r->arm_pc;
++		// Don't bother smashing if r->arm_pc is 0,
++		// which is probably a call to a nil func: the
++		// old link register is more useful in the stack trace.
++		if(r->arm_pc != 0)
++			r->arm_lr = r->arm_pc;
+ 		r->arm_pc = (uintptr)sigpanic;
+ 		return;
+ 	}

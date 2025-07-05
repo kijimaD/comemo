@@ -17,6 +17,28 @@ Date:   Mon Feb 6 14:27:06 2023 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue58345.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/issue58345.go b/test/fixedbugs/issue58345.go
+new file mode 100644
+index 0000000000..ede8ffd1ec
+--- /dev/null
++++ b/test/fixedbugs/issue58345.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I1 interface {
++	int | any
++}
++
++type I2 interface {
++	int | any
++}

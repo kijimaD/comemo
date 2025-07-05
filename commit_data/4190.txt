@@ -9,7 +9,47 @@ Date:   Mon Nov 23 14:06:21 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/157142
-
+---
  src/pkg/regexp/all_test.go | 2 ++
  src/pkg/regexp/regexp.go   | 9 ++++++---
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index fb6f3a0301..6c586ba984 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -95,6 +95,8 @@ var matches = []tester{
+ 	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
+ 	tester{`(.*).*`, "ab", vec{0, 2, 0, 2}},
+ 	tester{`[.]`, ".", vec{0, 1}},
++	tester{`/$`, "/abc/", vec{4, 5}},
++	tester{`/$`, "/abc", vec{}},
+ }
+ 
+ func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 8f17954d79..014a9fdc7a 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -633,15 +633,18 @@ func (re *Regexp) setPrefix() {
+ 	var utf = make([]byte, utf8.UTFMax);
+ 	// First instruction is start; skip that.
+ 	i := re.inst.At(0).(instr).next().index();
++Loop:
+ 	for i < re.inst.Len() {
+ 		inst := re.inst.At(i).(instr);
+ 		// stop if this is not a char
+ 		if inst.kind() != _CHAR {
+ 			break
+ 		}
+-		// stop if this char starts a closure; liberal but easy test: is an ALT next?
+-		if re.inst.At(inst.next().index()).(instr).kind() == _ALT {
+-			break
++		// stop if this char can be followed by a match for an empty string,
++		// which includes closures, ^, and $.
++		switch re.inst.At(inst.next().index()).(instr).kind() {
++		case _BOT, _EOT, _ALT:
++			break Loop
+ 		}
+ 		n := utf8.EncodeRune(inst.(*_Char).char, utf);
+ 		b = bytes.Add(b, utf[0:n]);

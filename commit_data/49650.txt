@@ -18,6 +18,25 @@ Date:   Wed Jul 28 05:57:25 2021 +0000
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/mfixalloc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 293c16b38b..a81139a389 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -50,6 +50,13 @@ type mlink struct {
+ // Initialize f to allocate objects of the given size,
+ // using the allocator to obtain chunks of memory.
+ func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *sysMemStat) {
++	if size > _FixAllocChunk {
++		throw("runtime: fixalloc size too large")
++	}
++	if min := unsafe.Sizeof(mlink{}); size < min {
++		size = min
++	}
++
+ 	f.size = size
+ 	f.first = first
+ 	f.arg = arg

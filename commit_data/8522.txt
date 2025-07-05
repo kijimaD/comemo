@@ -7,7 +7,79 @@ Date:   Fri May 27 12:58:59 2011 -0700
     R=golang-dev, fshahriar
     CC=golang-dev
     https://golang.org/cl/4548068
-
+---
  src/pkg/os/dir_unix.go |  6 +++---
  src/pkg/os/os_test.go  | 19 +++++++++++++------
  2 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index 80ffda71df..7835ed52b5 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -32,11 +32,11 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
+ 		f.dirinfo.buf = make([]byte, blockSize)
+ 	}
+ 	d := f.dirinfo
+-	wantAll := n <= 0
+ 
+ 	size := n
+-	if size < 0 {
++	if size <= 0 {
+ 		size = 100
++		n = -1
+ 	}
+ 
+ 	names = make([]string, 0, size) // Empty with room to grow.
+@@ -60,7 +60,7 @@ func (f *File) Readdirnames(n int) (names []string, err Error) {
+ 		d.bufp += nb
+ 		n -= nc
+ 	}
+-	if !wantAll && len(names) == 0 {
++	if n >= 0 && len(names) == 0 {
+ 		return names, EOF
+ 	}
+ 	return names, nil
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index d9535be6db..8eabdee6b6 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -296,7 +296,7 @@ func TestReaddirNValues(t *testing.T) {
+ 		t.Fatalf("TempDir: %v", err)
+ 	}
+ 	defer RemoveAll(dir)
+-	for i := 1; i <= 20; i++ {
++	for i := 1; i <= 105; i++ {
+ 		f, err := Create(filepath.Join(dir, fmt.Sprintf("%d", i)))
+ 		if err != nil {
+ 			t.Fatalf("Create: %v", err)
+@@ -335,18 +335,25 @@ func TestReaddirNValues(t *testing.T) {
+ 	}
+ 
+ 	for _, fn := range []func(int, int, Error){readDirExpect, readDirNamesExpect} {
+-		// Test the -1 case
++		// Test the slurp case
+ 		openDir()
+-		fn(-1, 20, nil)
++		fn(0, 105, nil)
++		fn(0, 0, nil)
++		d.Close()
++
++		// Slurp with -1 instead
++		openDir()
++		fn(-1, 105, nil)
+ 		fn(-2, 0, nil)
+ 		fn(0, 0, nil)
+ 		d.Close()
+ 
+ 		// Test the bounded case
+ 		openDir()
+-		fn(19, 19, nil)
+-		fn(18, 1, nil)
+-		fn(17, 0, EOF)
++		fn(1, 1, nil)
++		fn(2, 2, nil)
++		fn(105, 102, nil) // and tests buffer >100 case
++		fn(3, 0, EOF)
+ 		d.Close()
+ 	}
+ }

@@ -8,6 +8,20 @@ Date:   Sat Feb 25 08:47:04 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5694071
-
+---
  test/ken/chan1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index 798b058ce4..cbd21a3d69 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test communication with multiple simultanous goroutines.
++// Test communication with multiple simultaneous goroutines.
+ 
+ package main
+ 

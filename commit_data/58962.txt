@@ -15,10 +15,77 @@ Date:   Tue Jan 23 12:02:50 2024 -0500
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go    | 5 ++---
  src/cmd/compile/internal/types2/version.go | 1 +
  src/go/types/stmt.go                       | 5 ++---
  src/go/types/version.go                    | 1 +
  src/internal/types/testdata/spec/range.go  | 2 --
  5 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index c9713dac6f..272636ff39 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -1026,9 +1026,8 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
+ 		}
+ 		return typ.elem, nil, "", false, true
+ 	case *Signature:
+-		// TODO(gri) when this becomes enabled permanently, add version check
+-		if !buildcfg.Experiment.RangeFunc {
+-			break
++		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
++			return bad("requires go1.23 or later")
+ 		}
+ 		assert(typ.Recv() == nil)
+ 		switch {
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index 5aa3c803b5..b904072a7b 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -44,6 +44,7 @@ var (
+ 	go1_20 = asGoVersion("go1.20")
+ 	go1_21 = asGoVersion("go1.21")
+ 	go1_22 = asGoVersion("go1.22")
++	go1_23 = asGoVersion("go1.23")
+ 
+ 	// current (deployed) Go version
+ 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 80f3ac75da..660085d6f2 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -1010,9 +1010,8 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
+ 		}
+ 		return typ.elem, nil, "", false, true
+ 	case *Signature:
+-		// TODO(gri) when this becomes enabled permanently, add version check
+-		if !buildcfg.Experiment.RangeFunc {
+-			break
++		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
++			return bad("requires go1.23 or later")
+ 		}
+ 		assert(typ.Recv() == nil)
+ 		switch {
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index f2466edc1f..1b02ae5493 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -45,6 +45,7 @@ var (
+ 	go1_20 = asGoVersion("go1.20")
+ 	go1_21 = asGoVersion("go1.21")
+ 	go1_22 = asGoVersion("go1.22")
++	go1_23 = asGoVersion("go1.23")
+ 
+ 	// current (deployed) Go version
+ 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
+diff --git a/src/internal/types/testdata/spec/range.go b/src/internal/types/testdata/spec/range.go
+index 4ae270d233..07bd6b6769 100644
+--- a/src/internal/types/testdata/spec/range.go
++++ b/src/internal/types/testdata/spec/range.go
+@@ -1,5 +1,3 @@
+-// -goexperiment=rangefunc
+-
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

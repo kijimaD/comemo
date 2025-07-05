@@ -20,6 +20,24 @@ Date:   Wed Jun 11 16:46:21 2025 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go/internal/fips140/fips140.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/fips140/fips140.go b/src/cmd/go/internal/fips140/fips140.go
+index 328e06088e..7ca0cde588 100644
+--- a/src/cmd/go/internal/fips140/fips140.go
++++ b/src/cmd/go/internal/fips140/fips140.go
+@@ -114,7 +114,11 @@ func Init() {
+ 		fsys.Bind(Dir(), filepath.Join(cfg.GOROOT, "src/crypto/internal/fips140"))
+ 	}
+ 
+-	if cfg.Experiment.BoringCrypto && Enabled() {
++	// ExperimentErr != nil if GOEXPERIMENT failed to parse. Typically
++	// cmd/go main will exit in this case, but it is allowed during
++	// toolchain selection, as the GOEXPERIMENT may be valid for the
++	// selected toolchain version.
++	if cfg.ExperimentErr == nil && cfg.Experiment.BoringCrypto && Enabled() {
+ 		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
+ 	}
+ }

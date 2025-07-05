@@ -16,6 +16,19 @@ Date:   Wed Sep 12 01:16:29 2018 +0200
     Change-Id: Ic99b3bbc662a4e1e1bdbde77681bd1ae597255ad
     Reviewed-on: https://go-review.googlesource.com/134795
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index ffe4cdc0d6..b8788654b7 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -286,6 +286,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 		if v := rv.Field(0); v.CanInterface() {
+ 			if h2i, ok := v.Interface().(h2Transport); ok {
+ 				t.h2transport = h2i
++				return
+ 			}
+ 		}
+ 	}

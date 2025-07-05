@@ -10,6 +10,15 @@ Date:   Fri Jun 3 14:53:13 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  codereview.cfg | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/codereview.cfg b/codereview.cfg
+index 77a74f108e..d2e791769c 100644
+--- a/codereview.cfg
++++ b/codereview.cfg
+@@ -1 +1,2 @@
+-branch: master
++branch: dev.unified
++parent-branch: master

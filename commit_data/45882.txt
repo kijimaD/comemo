@@ -53,7 +53,7 @@ Date:   Mon Nov 16 01:17:25 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272246
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go   |   2 +-
  src/cmd/compile/internal/arm/ssa.go     |   2 +-
  src/cmd/compile/internal/arm64/ssa.go   |   2 +-
@@ -84,3 +84,971 @@ Date:   Mon Nov 16 01:17:25 2020 -0500
  src/cmd/compile/internal/wasm/ssa.go    |   2 +-
  src/cmd/compile/internal/x86/ssa.go     |   2 +-
  29 files changed, 226 insertions(+), 213 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5ff05a0edd..1f2d626721 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1164,7 +1164,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpAMD64MOVBatomicload, ssa.OpAMD64MOVLatomicload, ssa.OpAMD64MOVQatomicload:
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 765a771546..82a5172ec7 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -741,7 +741,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpARMLoweredZero:
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 22b28a9308..dcbd8f9474 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1038,7 +1038,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Line==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpARM64Equal,
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index c1d8de6bad..87b905ed59 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -387,7 +387,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	typecheckslice(fn.Nbody.Slice(), ctxStmt)
+ 	Curfn = nil
+ 
+-	if debug_dclstack != 0 {
++	if Debug.DclStack != 0 {
+ 		testdclstack()
+ 	}
+ 
+@@ -766,7 +766,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 	typecheckslice(fn.Nbody.Slice(), ctxStmt)
+ 	Curfn = nil
+ 
+-	if debug_dclstack != 0 {
++	if Debug.DclStack != 0 {
+ 		testdclstack()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index f850cbe280..c25a446999 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -337,7 +337,7 @@ func hasemptycvars(clo *Node) bool {
+ // closuredebugruntimecheck applies boilerplate checks for debug flags
+ // and compiling runtime
+ func closuredebugruntimecheck(clo *Node) {
+-	if Debug_closure > 0 {
++	if Debug.Closure > 0 {
+ 		if clo.Esc == EscHeap {
+ 			Warnl(clo.Pos, "heap closure, captured vars = %v", clo.Func.ClosureVars)
+ 		} else {
+@@ -386,7 +386,7 @@ func walkclosure(clo *Node, init *Nodes) *Node {
+ 
+ 	// If no closure vars, don't bother wrapping.
+ 	if hasemptycvars(clo) {
+-		if Debug_closure > 0 {
++		if Debug.Closure > 0 {
+ 			Warnl(clo.Pos, "closure converted to global")
+ 		}
+ 		return fn.Nname
+diff --git a/src/cmd/compile/internal/gc/debug.go b/src/cmd/compile/internal/gc/debug.go
+new file mode 100644
+index 0000000000..f6be3d57b0
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/debug.go
+@@ -0,0 +1,167 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"fmt"
++	"log"
++	"os"
++	"strconv"
++	"strings"
++
++	"cmd/compile/internal/ssa"
++	"cmd/internal/objabi"
++)
++
++// Debug arguments.
++// These can be specified with the -d flag, as in "-d nil"
++// to set the debug_checknil variable.
++// Multiple options can be comma-separated.
++// Each option accepts an optional argument, as in "gcprog=2"
++var debugtab = []struct {
++	name string
++	help string
++	val  interface{} // must be *int or *string
++}{
++	{"append", "print information about append compilation", &Debug.Append},
++	{"checkptr", "instrument unsafe pointer conversions", &Debug.Checkptr},
++	{"closure", "print information about closure compilation", &Debug.Closure},
++	{"compilelater", "compile functions as late as possible", &Debug.CompileLater},
++	{"disablenil", "disable nil checks", &Debug.DisableNil},
++	{"dclstack", "run internal dclstack check", &Debug.DclStack},
++	{"dumpptrs", "show Node pointer values in Dump/dumplist output", &Debug.DumpPtrs},
++	{"gcprog", "print dump of GC programs", &Debug.GCProg},
++	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug.Libfuzzer},
++	{"nil", "print information about nil checks", &Debug.Nil},
++	{"panic", "do not hide any compiler panic", &Debug.Panic},
++	{"slice", "print information about slice compilation", &Debug.Slice},
++	{"typeassert", "print information about type assertion inlining", &Debug.TypeAssert},
++	{"wb", "print information about write barriers", &Debug.WB},
++	{"export", "print export data", &Debug.Export},
++	{"pctab", "print named pc-value table", &Debug.PCTab},
++	{"locationlists", "print information about DWARF location list creation", &Debug.LocationLists},
++	{"typecheckinl", "eager typechecking of inline function bodies", &Debug.TypecheckInl},
++	{"dwarfinl", "print information about DWARF inlined function creation", &Debug.DwarfInl},
++	{"softfloat", "force compiler to emit soft-float code", &Debug.SoftFloat},
++	{"defer", "print information about defer compilation", &Debug.Defer},
++	{"fieldtrack", "enable fieldtracking", &objabi.Fieldtrack_enabled},
++}
++
++var Debug struct {
++	Append        int
++	Checkptr      int
++	Closure       int
++	CompileLater  int
++	DisableNil    int
++	DclStack      int
++	GCProg        int
++	Libfuzzer     int
++	Nil           int
++	Panic         int
++	Slice         int
++	TypeAssert    int
++	WB            int
++	Export        int
++	PCTab         string
++	LocationLists int
++	TypecheckInl  int
++	DwarfInl      int
++	SoftFloat     int
++	Defer         int
++	DumpPtrs      int
++}
++
++func parseDebug() {
++	// parse -d argument
++	if Flag.LowerD != "" {
++	Split:
++		for _, name := range strings.Split(Flag.LowerD, ",") {
++			if name == "" {
++				continue
++			}
++			// display help about the -d option itself and quit
++			if name == "help" {
++				fmt.Print(debugHelpHeader)
++				maxLen := len("ssa/help")
++				for _, t := range debugtab {
++					if len(t.name) > maxLen {
++						maxLen = len(t.name)
++					}
++				}
++				for _, t := range debugtab {
++					fmt.Printf("\t%-*s\t%s\n", maxLen, t.name, t.help)
++				}
++				// ssa options have their own help
++				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
++				fmt.Print(debugHelpFooter)
++				os.Exit(0)
++			}
++			val, valstring, haveInt := 1, "", true
++			if i := strings.IndexAny(name, "=:"); i >= 0 {
++				var err error
++				name, valstring = name[:i], name[i+1:]
++				val, err = strconv.Atoi(valstring)
++				if err != nil {
++					val, haveInt = 1, false
++				}
++			}
++			for _, t := range debugtab {
++				if t.name != name {
++					continue
++				}
++				switch vp := t.val.(type) {
++				case nil:
++					// Ignore
++				case *string:
++					*vp = valstring
++				case *int:
++					if !haveInt {
++						log.Fatalf("invalid debug value %v", name)
++					}
++					*vp = val
++				default:
++					panic("bad debugtab type")
++				}
++				continue Split
++			}
++			// special case for ssa for now
++			if strings.HasPrefix(name, "ssa/") {
++				// expect form ssa/phase/flag
++				// e.g. -d=ssa/generic_cse/time
++				// _ in phase name also matches space
++				phase := name[4:]
++				flag := "debug" // default flag is debug
++				if i := strings.Index(phase, "/"); i >= 0 {
++					flag = phase[i+1:]
++					phase = phase[:i]
++				}
++				err := ssa.PhaseOption(phase, flag, val, valstring)
++				if err != "" {
++					log.Fatalf(err)
++				}
++				continue Split
++			}
++			log.Fatalf("unknown debug key -d %s\n", name)
++		}
++	}
++}
++
++const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
++
++<key> is one of:
++
++`
++
++const debugHelpFooter = `
++<value> is key-specific.
++
++Key "checkptr" supports values:
++	"0": instrumentation disabled
++	"1": conversions involving unsafe.Pointer are instrumented
++	"2": conversions to unsafe.Pointer force heap allocation
++
++Key "pctab" supports values:
++	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
++`
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index 48d78f6cd7..edde7a4cc5 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -26,7 +26,7 @@ type varPos struct {
+ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 	var inlcalls dwarf.InlCalls
+ 
+-	if Debug_gendwarfinl != 0 {
++	if Debug.DwarfInl != 0 {
+ 		Ctxt.Logf("assembling DWARF inlined routine info for %v\n", fnsym.Name)
+ 	}
+ 
+@@ -181,7 +181,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 	}
+ 
+ 	// Debugging
+-	if Debug_gendwarfinl != 0 {
++	if Debug.DwarfInl != 0 {
+ 		dumpInlCalls(inlcalls)
+ 		dumpInlVars(dwVars)
+ 	}
+@@ -210,7 +210,7 @@ func genAbstractFunc(fn *obj.LSym) {
+ 		Ctxt.Diag("failed to locate precursor fn for %v", fn)
+ 		return
+ 	}
+-	if Debug_gendwarfinl != 0 {
++	if Debug.DwarfInl != 0 {
+ 		Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
+ 	}
+ 	Ctxt.DwarfAbstractFunc(ifn, fn, Ctxt.Pkgpath)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index edd2703238..48f77fa182 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -12,13 +12,9 @@ import (
+ 	"go/constant"
+ )
+ 
+-var (
+-	Debug_export int // if set, print debugging information about export data
+-)
+-
+ func exportf(bout *bio.Writer, format string, args ...interface{}) {
+ 	fmt.Fprintf(bout, format, args...)
+-	if Debug_export != 0 {
++	if Debug.Export != 0 {
+ 		fmt.Printf(format, args...)
+ 	}
+ }
+@@ -71,7 +67,7 @@ func dumpexport(bout *bio.Writer) {
+ 	size := bout.Offset() - off
+ 	exportf(bout, "\n$$\n")
+ 
+-	if Debug_export != 0 {
++	if Debug.Export != 0 {
+ 		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", Ctxt.Pkgpath, size)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/flag.go b/src/cmd/compile/internal/gc/flag.go
+index 090287ef62..06b0a88ba3 100644
+--- a/src/cmd/compile/internal/gc/flag.go
++++ b/src/cmd/compile/internal/gc/flag.go
+@@ -13,10 +13,9 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"strconv"
++
+ 	"strings"
+ 
+-	"cmd/compile/internal/ssa"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ )
+@@ -209,7 +208,7 @@ func ParseFlags() {
+ 	}
+ 	if Flag.Race || Flag.MSan {
+ 		// -race and -msan imply -d=checkptr for now.
+-		Debug_checkptr = 1
++		Debug.Checkptr = 1
+ 	}
+ 
+ 	if Flag.CompilingRuntime && Flag.N != 0 {
+@@ -222,89 +221,18 @@ func ParseFlags() {
+ 		log.Fatalf("cannot use concurrent backend compilation with provided flags; invoked as %v", os.Args)
+ 	}
+ 
+-	// parse -d argument
+-	if Flag.LowerD != "" {
+-	Split:
+-		for _, name := range strings.Split(Flag.LowerD, ",") {
+-			if name == "" {
+-				continue
+-			}
+-			// display help about the -d option itself and quit
+-			if name == "help" {
+-				fmt.Print(debugHelpHeader)
+-				maxLen := len("ssa/help")
+-				for _, t := range debugtab {
+-					if len(t.name) > maxLen {
+-						maxLen = len(t.name)
+-					}
+-				}
+-				for _, t := range debugtab {
+-					fmt.Printf("\t%-*s\t%s\n", maxLen, t.name, t.help)
+-				}
+-				// ssa options have their own help
+-				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
+-				fmt.Print(debugHelpFooter)
+-				os.Exit(0)
+-			}
+-			val, valstring, haveInt := 1, "", true
+-			if i := strings.IndexAny(name, "=:"); i >= 0 {
+-				var err error
+-				name, valstring = name[:i], name[i+1:]
+-				val, err = strconv.Atoi(valstring)
+-				if err != nil {
+-					val, haveInt = 1, false
+-				}
+-			}
+-			for _, t := range debugtab {
+-				if t.name != name {
+-					continue
+-				}
+-				switch vp := t.val.(type) {
+-				case nil:
+-					// Ignore
+-				case *string:
+-					*vp = valstring
+-				case *int:
+-					if !haveInt {
+-						log.Fatalf("invalid debug value %v", name)
+-					}
+-					*vp = val
+-				default:
+-					panic("bad debugtab type")
+-				}
+-				continue Split
+-			}
+-			// special case for ssa for now
+-			if strings.HasPrefix(name, "ssa/") {
+-				// expect form ssa/phase/flag
+-				// e.g. -d=ssa/generic_cse/time
+-				// _ in phase name also matches space
+-				phase := name[4:]
+-				flag := "debug" // default flag is debug
+-				if i := strings.Index(phase, "/"); i >= 0 {
+-					flag = phase[i+1:]
+-					phase = phase[:i]
+-				}
+-				err := ssa.PhaseOption(phase, flag, val, valstring)
+-				if err != "" {
+-					log.Fatalf(err)
+-				}
+-				continue Split
+-			}
+-			log.Fatalf("unknown debug key -d %s\n", name)
+-		}
+-	}
++	parseDebug()
+ 
+ 	if Flag.CompilingRuntime {
+ 		// Runtime can't use -d=checkptr, at least not yet.
+-		Debug_checkptr = 0
++		Debug.Checkptr = 0
+ 
+ 		// Fuzzing the runtime isn't interesting either.
+-		Debug_libfuzzer = 0
++		Debug.Libfuzzer = 0
+ 	}
+ 
+ 	// set via a -d flag
+-	Ctxt.Debugpcln = Debug_pctab
++	Ctxt.Debugpcln = Debug.PCTab
+ }
+ 
+ // registerFlags adds flag registrations for all the fields in Flag.
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index f995d2e2ec..51e139e319 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -339,14 +339,14 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	short := flag&FmtShort != 0
+ 
+ 	// Useful to see which nodes in an AST printout are actually identical
+-	if Debug_dumpptrs != 0 {
++	if Debug.DumpPtrs != 0 {
+ 		fmt.Fprintf(s, " p(%p)", n)
+ 	}
+ 	if !short && n.Name != nil && n.Name.Vargen != 0 {
+ 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+ 	}
+ 
+-	if Debug_dumpptrs != 0 && !short && n.Name != nil && n.Name.Defn != nil {
++	if Debug.DumpPtrs != 0 && !short && n.Name != nil && n.Name.Defn != nil {
+ 		// Useful to see where Defn is set and what node it points to
+ 		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 6cab03d726..947dae476b 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -101,9 +101,6 @@ var pragcgobuf [][]string
+ 
+ var decldepth int32
+ 
+-var Debug_checknil int
+-var Debug_typeassert int
+-
+ var localpkg *types.Pkg // package being compiled
+ 
+ var inimport bool // set during import
+@@ -189,8 +186,6 @@ var Ctxt *obj.Link
+ 
+ var nodfp *Node
+ 
+-var disable_checknil int
+-
+ var autogeneratedPos src.XPos
+ 
+ // interface to back end
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 50091e9c11..fc467dd95a 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -86,7 +86,7 @@ func typecheckinl(fn *Node) {
+ 		return // typecheckinl on local function
+ 	}
+ 
+-	if Flag.LowerM > 2 || Debug_export != 0 {
++	if Flag.LowerM > 2 || Debug.Export != 0 {
+ 		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, asNodes(fn.Func.Inl.Body))
+ 	}
+ 
+@@ -144,7 +144,7 @@ func caninl(fn *Node) {
+ 	}
+ 
+ 	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
+-	if Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr != 0 {
++	if Debug.Checkptr != 0 && fn.Func.Pragma&NoCheckPtr != 0 {
+ 		reason = "marked go:nocheckptr"
+ 		return
+ 	}
+@@ -595,7 +595,7 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 	case OCALLMETH:
+ 		// Prevent inlining some reflect.Value methods when using checkptr,
+ 		// even when package reflect was compiled without it (#35073).
+-		if s := n.Left.Sym; Debug_checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
++		if s := n.Left.Sym; Debug.Checkptr != 0 && isReflectPkg(s.Pkg) && (s.Name == "Value.UnsafeAddr" || s.Name == "Value.Pointer") {
+ 			return n
+ 		}
+ 	}
+@@ -931,7 +931,7 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 	defer func() {
+ 		inlMap[fn] = false
+ 	}()
+-	if Debug_typecheckinl == 0 {
++	if Debug.TypecheckInl == 0 {
+ 		typecheckinl(fn)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9cf988bca8..0d41f81a52 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -34,79 +34,8 @@ import (
+ 	"strings"
+ )
+ 
+-var (
+-	Debug_append       int
+-	Debug_checkptr     int
+-	Debug_closure      int
+-	Debug_compilelater int
+-	debug_dclstack     int
+-	Debug_dumpptrs     int
+-	Debug_libfuzzer    int
+-	Debug_panic        int
+-	Debug_slice        int
+-	Debug_wb           int
+-	Debug_pctab        string
+-	Debug_locationlist int
+-	Debug_typecheckinl int
+-	Debug_gendwarfinl  int
+-	Debug_softfloat    int
+-	Debug_defer        int
+-)
+-
+-// Debug arguments.
+-// These can be specified with the -d flag, as in "-d nil"
+-// to set the debug_checknil variable.
+-// Multiple options can be comma-separated.
+-// Each option accepts an optional argument, as in "gcprog=2"
+-var debugtab = []struct {
+-	name string
+-	help string
+-	val  interface{} // must be *int or *string
+-}{
+-	{"append", "print information about append compilation", &Debug_append},
+-	{"checkptr", "instrument unsafe pointer conversions", &Debug_checkptr},
+-	{"closure", "print information about closure compilation", &Debug_closure},
+-	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
+-	{"disablenil", "disable nil checks", &disable_checknil},
+-	{"dclstack", "run internal dclstack check", &debug_dclstack},
+-	{"dumpptrs", "show Node pointer values in Dump/dumplist output", &Debug_dumpptrs},
+-	{"gcprog", "print dump of GC programs", &Debug_gcprog},
+-	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug_libfuzzer},
+-	{"nil", "print information about nil checks", &Debug_checknil},
+-	{"panic", "do not hide any compiler panic", &Debug_panic},
+-	{"slice", "print information about slice compilation", &Debug_slice},
+-	{"typeassert", "print information about type assertion inlining", &Debug_typeassert},
+-	{"wb", "print information about write barriers", &Debug_wb},
+-	{"export", "print export data", &Debug_export},
+-	{"pctab", "print named pc-value table", &Debug_pctab},
+-	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
+-	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
+-	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
+-	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
+-	{"defer", "print information about defer compilation", &Debug_defer},
+-	{"fieldtrack", "enable fieldtracking", &objabi.Fieldtrack_enabled},
+-}
+-
+-const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+-
+-<key> is one of:
+-
+-`
+-
+-const debugHelpFooter = `
+-<value> is key-specific.
+-
+-Key "checkptr" supports values:
+-	"0": instrumentation disabled
+-	"1": conversions involving unsafe.Pointer are instrumented
+-	"2": conversions to unsafe.Pointer force heap allocation
+-
+-Key "pctab" supports values:
+-	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
+-`
+-
+ func hidePanic() {
+-	if Debug_panic == 0 && Errors() > 0 {
++	if Debug.Panic == 0 && Errors() > 0 {
+ 		// If we've already complained about things
+ 		// in the program, don't bother complaining
+ 		// about a panic too; let the user clean up
+@@ -243,9 +172,9 @@ func Main(archInit func(*Arch)) {
+ 		instrumenting = true
+ 	}
+ 	if Flag.Dwarf {
+-		dwarf.EnableLogging(Debug_gendwarfinl != 0)
++		dwarf.EnableLogging(Debug.DwarfInl != 0)
+ 	}
+-	if Debug_softfloat != 0 {
++	if Debug.SoftFloat != 0 {
+ 		thearch.SoftFloat = true
+ 	}
+ 
+@@ -396,7 +325,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	// Phase 5: Inlining
+ 	timings.Start("fe", "inlining")
+-	if Debug_typecheckinl != 0 {
++	if Debug.TypecheckInl != 0 {
+ 		// Typecheck imported function bodies if Debug.l > 1,
+ 		// otherwise lazily when used or re-exported.
+ 		for _, n := range importlist {
+@@ -501,7 +430,7 @@ func Main(archInit func(*Arch)) {
+ 	// DWARF inlining gen so as to avoid problems with generated
+ 	// method wrappers.
+ 	if Ctxt.DwFixups != nil {
+-		Ctxt.DwFixups.Finalize(Ctxt.Pkgpath, Debug_gendwarfinl != 0)
++		Ctxt.DwFixups.Finalize(Ctxt.Pkgpath, Debug.DwarfInl != 0)
+ 		Ctxt.DwFixups = nil
+ 		Flag.GenDwarfInl = 0
+ 	}
+@@ -944,7 +873,7 @@ func importfile(f constant.Value) *types.Pkg {
+ 		return nil
+ 
+ 	case 'B':
+-		if Debug_export != 0 {
++		if Debug.Export != 0 {
+ 			fmt.Printf("importing %s (%s)\n", path_, file)
+ 		}
+ 		imp.ReadByte() // skip \n after $$B
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index ee0c8f2711..90c08b1b75 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -384,7 +384,7 @@ func orderMakeSliceCopy(s []*Node) {
+ 
+ // edge inserts coverage instrumentation for libfuzzer.
+ func (o *Order) edge() {
+-	if Debug_libfuzzer == 0 {
++	if Debug.Libfuzzer == 0 {
+ 		return
+ 	}
+ 
+@@ -998,7 +998,7 @@ func (o *Order) stmt(n *Node) {
+ 	// For now just clean all the temporaries at the end.
+ 	// In practice that's fine.
+ 	case OSWITCH:
+-		if Debug_libfuzzer != 0 && !hasDefaultCase(n) {
++		if Debug.Libfuzzer != 0 && !hasDefaultCase(n) {
+ 			// Add empty "default:" case for instrumentation.
+ 			n.List.Append(nod(OCASE, nil, nil))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index fe13a161bd..19a24a3235 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -291,7 +291,7 @@ func compilenow(fn *Node) bool {
+ 	if fn.IsMethod() && isInlinableButNotInlined(fn) {
+ 		return false
+ 	}
+-	return Flag.LowerC == 1 && Debug_compilelater == 0
++	return Flag.LowerC == 1 && Debug.CompileLater == 0
+ }
+ 
+ // isInlinableButNotInlined returns true if 'fn' was marked as an
+diff --git a/src/cmd/compile/internal/gc/print.go b/src/cmd/compile/internal/gc/print.go
+index 6b5f670812..345f433fe4 100644
+--- a/src/cmd/compile/internal/gc/print.go
++++ b/src/cmd/compile/internal/gc/print.go
+@@ -208,7 +208,7 @@ func Fatalf(format string, args ...interface{}) {
+ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+ 	flusherrors()
+ 
+-	if Debug_panic != 0 || numErrors == 0 {
++	if Debug.Panic != 0 || numErrors == 0 {
+ 		fmt.Printf("%v: internal compiler error: ", linestr(pos))
+ 		fmt.Printf(format, args...)
+ 		fmt.Printf("\n")
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 674a3bf3fb..11ccc15a25 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1787,13 +1787,11 @@ type GCProg struct {
+ 	w      gcprog.Writer
+ }
+ 
+-var Debug_gcprog int // set by -d gcprog
+-
+ func (p *GCProg) init(lsym *obj.LSym) {
+ 	p.lsym = lsym
+ 	p.symoff = 4 // first 4 bytes hold program length
+ 	p.w.Init(p.writeByte)
+-	if Debug_gcprog > 0 {
++	if Debug.GCProg > 0 {
+ 		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
+ 		p.w.Debug(os.Stderr)
+ 	}
+@@ -1807,7 +1805,7 @@ func (p *GCProg) end() {
+ 	p.w.End()
+ 	duint32(p.lsym, 0, uint32(p.symoff-4))
+ 	ggloblsym(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+-	if Debug_gcprog > 0 {
++	if Debug.GCProg > 0 {
+ 		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 741e0ef9a3..1f89baa3c0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -256,7 +256,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
+ 
+ 	case OCLOSURE:
+ 		if hasemptycvars(r) {
+-			if Debug_closure > 0 {
++			if Debug.Closure > 0 {
+ 				Warnl(r.Pos, "closure converted to global")
+ 			}
+ 			// Closures with no captured variables are globals,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 260df2f54f..f06f08e6ab 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1102,7 +1102,7 @@ func (s *state) stmt(n *Node) {
+ 			}
+ 		}
+ 	case ODEFER:
+-		if Debug_defer > 0 {
++		if Debug.Defer > 0 {
+ 			var defertype string
+ 			if s.hasOpenDefers {
+ 				defertype = "open-coded"
+@@ -1232,12 +1232,12 @@ func (s *state) stmt(n *Node) {
+ 				// so there will be no write barriers,
+ 				// so there's no need to attempt to prevent them.
+ 				if s.canSSA(n.Left) {
+-					if Debug_append > 0 { // replicating old diagnostic message
++					if Debug.Append > 0 { // replicating old diagnostic message
+ 						Warnl(n.Pos, "append: len-only update (in local slice)")
+ 					}
+ 					break
+ 				}
+-				if Debug_append > 0 {
++				if Debug.Append > 0 {
+ 					Warnl(n.Pos, "append: len-only update")
+ 				}
+ 				s.append(rhs, true)
+@@ -5026,7 +5026,7 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno src.XPos) *ssa.Value {
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+-	if disable_checknil != 0 || s.curfn.Func.NilCheckDisabled() {
++	if Debug.DisableNil != 0 || s.curfn.Func.NilCheckDisabled() {
+ 		return
+ 	}
+ 	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
+@@ -5837,7 +5837,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		if n.Type.IsEmptyInterface() {
+ 			// Converting to an empty interface.
+ 			// Input could be an empty or nonempty interface.
+-			if Debug_typeassert > 0 {
++			if Debug.TypeAssert > 0 {
+ 				Warnl(n.Pos, "type assertion inlined")
+ 			}
+ 
+@@ -5904,7 +5904,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 			return
+ 		}
+ 		// converting to a nonempty interface needs a runtime call.
+-		if Debug_typeassert > 0 {
++		if Debug.TypeAssert > 0 {
+ 			Warnl(n.Pos, "type assertion not inlined")
+ 		}
+ 		if n.Left.Type.IsEmptyInterface() {
+@@ -5921,14 +5921,14 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		return s.rtcall(assertI2I, true, []*types.Type{n.Type}, target, iface)[0], nil
+ 	}
+ 
+-	if Debug_typeassert > 0 {
++	if Debug.TypeAssert > 0 {
+ 		Warnl(n.Pos, "type assertion inlined")
+ 	}
+ 
+ 	// Converting to a concrete type.
+ 	direct := isdirectiface(n.Type)
+ 	itab := s.newValue1(ssa.OpITab, byteptr, iface) // type word of interface
+-	if Debug_typeassert > 0 {
++	if Debug.TypeAssert > 0 {
+ 		Warnl(n.Pos, "type assertion inlined")
+ 	}
+ 	var targetITab *ssa.Value
+@@ -6474,7 +6474,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	}
+ 
+ 	if Ctxt.Flag_locationlists {
+-		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(Ctxt, f, Debug_locationlist > 1, stackOffset)
++		e.curfn.Func.DebugInfo = ssa.BuildFuncDebug(Ctxt, f, Debug.LocationLists > 1, stackOffset)
+ 		bstart := s.bstart
+ 		// Note that at this moment, Prog.Pc is a sequence number; it's
+ 		// not a real PC until after assembly, so this mapping has to
+@@ -7113,7 +7113,7 @@ func (e *ssafn) Warnl(pos src.XPos, fmt_ string, args ...interface{}) {
+ }
+ 
+ func (e *ssafn) Debug_checknil() bool {
+-	return Debug_checknil != 0
++	return Debug.Nil != 0
+ }
+ 
+ func (e *ssafn) UseWriteBarrier() bool {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 32312e9545..989d10a561 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1412,7 +1412,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	}
+ 
+ 	funcbody()
+-	if debug_dclstack != 0 {
++	if Debug.DclStack != 0 {
+ 		testdclstack()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 75a7ae2c7a..f771a7184e 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -764,7 +764,7 @@ func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentB
+ func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
+ 
+ func (f *Func) setWBPos(pos src.XPos) {
+-	if Debug_wb != 0 {
++	if Debug.WB != 0 {
+ 		Warnl(pos, "write barrier")
+ 	}
+ 	if !f.WBPos.IsKnown() {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c2d8411a59..de2733909e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1685,7 +1685,7 @@ func reduceSlice(n *Node) *Node {
+ 	n.SetSliceBounds(low, high, max)
+ 	if (n.Op == OSLICE || n.Op == OSLICESTR) && low == nil && high == nil {
+ 		// Reduce x[:] to x.
+-		if Debug_slice > 0 {
++		if Debug.Slice > 0 {
+ 			Warn("slice: omit slice operation")
+ 		}
+ 		return n.Left
+@@ -3262,7 +3262,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 
+ 	switch t.Etype {
+ 	default:
+-		if Debug_libfuzzer != 0 && t.IsInteger() {
++		if Debug.Libfuzzer != 0 && t.IsInteger() {
+ 			n.Left = cheapexpr(n.Left, init)
+ 			n.Right = cheapexpr(n.Right, init)
+ 
+@@ -4087,5 +4087,5 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
+ // function fn at a given level. See debugHelpFooter for defined
+ // levels.
+ func checkPtr(fn *Node, level int) bool {
+-	return Debug_checkptr >= level && fn.Func.Pragma&NoCheckPtr == 0
++	return Debug.Checkptr >= level && fn.Func.Pragma&NoCheckPtr == 0
+ }
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 9d11c6bf53..1d2e2c79e6 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -766,7 +766,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpMIPSFPFlagTrue,
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 2727c4d8a8..067b8158c9 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -724,7 +724,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpMIPS64FPFlagTrue,
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 3e20c44a4c..f0e7c41923 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -1852,7 +1852,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 0beb5b4bd1..d49927ee04 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -586,7 +586,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = riscv.REG_ZERO
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 8037357131..cb13f8d3c0 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -642,7 +642,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpS390XMVC:
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index a36fbca4e0..3f05515b9a 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -165,7 +165,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index fbf76d0c5e..65d7e75a53 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -850,7 +850,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+ 		}
+-		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
++		if gc.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+ 	case ssa.OpClobber:

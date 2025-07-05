@@ -19,7 +19,101 @@ Date:   Tue Jun 11 19:52:58 2019 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 18 +++++++++++--
  test/fixedbugs/issue32560.go          | 51 +++++++++++++++++++++++++++++++++++
  2 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a73cd613f2..7c69327990 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -553,15 +553,29 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
+ 		return true
+ 	}
+ 
++	var max int64
++	switch v.Type.Size() {
++	case 1:
++		max = math.MaxInt8
++	case 2:
++		max = math.MaxInt16
++	case 4:
++		max = math.MaxInt32
++	case 8:
++		max = math.MaxInt64
++	default:
++		panic("unexpected integer size")
++	}
++
+ 	// Check if the recorded limits can prove that the value is positive
+-	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= math.MaxInt64) {
++	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= uint64(max)) {
+ 		return true
+ 	}
+ 
+ 	// Check if v = x+delta, and we can use x's limits to prove that it's positive
+ 	if x, delta := isConstDelta(v); x != nil {
+ 		if l, has := ft.limits[x.ID]; has {
+-			if delta > 0 && l.min >= -delta && l.max <= math.MaxInt64-delta {
++			if delta > 0 && l.min >= -delta && l.max <= max-delta {
+ 				return true
+ 			}
+ 			if delta < 0 && l.min >= -delta {
+diff --git a/test/fixedbugs/issue32560.go b/test/fixedbugs/issue32560.go
+new file mode 100644
+index 0000000000..c6f72b6b55
+--- /dev/null
++++ b/test/fixedbugs/issue32560.go
+@@ -0,0 +1,51 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Values smaller than 64-bits were mistakenly always proven to be
++// non-negative.
++//
++// The tests here are marked go:noinline to ensure they're
++// independently optimized by SSA.
++
++package main
++
++var x int32 = -1
++
++//go:noinline
++func a() {
++	if x != -1 {
++		panic(1)
++	}
++	if x > 0 || x != -1 {
++		panic(2)
++	}
++}
++
++//go:noinline
++func b() {
++	if x != -1 {
++		panic(3)
++	}
++	if x > 0 {
++		panic(4)
++	}
++}
++
++//go:noinline
++func c() {
++	if x > 0 || x != -1 {
++		panic(5)
++	}
++	if x > 0 || x != -1 {
++		panic(6)
++	}
++}
++
++func main() {
++	a()
++	b()
++	c()
++}

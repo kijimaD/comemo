@@ -24,7 +24,82 @@ Date:   Thu Jun 27 14:46:29 2019 -0400
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/gc_test.go |  6 ------
  src/runtime/mgc.go     | 38 +++++++++++++++++++-------------------
  2 files changed, 19 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index d55a934519..ee80021301 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -21,12 +21,6 @@ func TestGcSys(t *testing.T) {
+ 	if os.Getenv("GOGC") == "off" {
+ 		t.Skip("skipping test; GOGC=off in environment")
+ 	}
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping test; GOOS=windows http://golang.org/issue/27156")
+-	}
+-	if runtime.GOOS == "linux" && runtime.GOARCH == "arm64" {
+-		t.Skip("skipping test; GOOS=linux GOARCH=arm64 https://github.com/golang/go/issues/27636")
+-	}
+ 	got := runTestProg(t, "testprog", "GCSys")
+ 	want := "OK\n"
+ 	if got != want {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 6323054dde..2e90efd42a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -488,25 +488,25 @@ func (c *gcControllerState) revise() {
+ 	}
+ 	live := atomic.Load64(&memstats.heap_live)
+ 
+-	var heapGoal, scanWorkExpected int64
+-	if live <= memstats.next_gc {
+-		// We're under the soft goal. Pace GC to complete at
+-		// next_gc assuming the heap is in steady-state.
+-		heapGoal = int64(memstats.next_gc)
++	// Assume we're under the soft goal. Pace GC to complete at
++	// next_gc assuming the heap is in steady-state.
++	heapGoal := int64(memstats.next_gc)
+ 
+-		// Compute the expected scan work remaining.
+-		//
+-		// This is estimated based on the expected
+-		// steady-state scannable heap. For example, with
+-		// GOGC=100, only half of the scannable heap is
+-		// expected to be live, so that's what we target.
+-		//
+-		// (This is a float calculation to avoid overflowing on
+-		// 100*heap_scan.)
+-		scanWorkExpected = int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
+-	} else {
+-		// We're past the soft goal. Pace GC so that in the
+-		// worst case it will complete by the hard goal.
++	// Compute the expected scan work remaining.
++	//
++	// This is estimated based on the expected
++	// steady-state scannable heap. For example, with
++	// GOGC=100, only half of the scannable heap is
++	// expected to be live, so that's what we target.
++	//
++	// (This is a float calculation to avoid overflowing on
++	// 100*heap_scan.)
++	scanWorkExpected := int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
++
++	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
++		// We're past the soft goal, or we've already done more scan
++		// work than we expected. Pace GC so that in the worst case it
++		// will complete by the hard goal.
+ 		const maxOvershoot = 1.1
+ 		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
+ 
+@@ -518,7 +518,7 @@ func (c *gcControllerState) revise() {
+ 	//
+ 	// Note that we currently count allocations during GC as both
+ 	// scannable heap (heap_scan) and scan work completed
+-	// (scanWork), so allocation will change this difference will
++	// (scanWork), so allocation will change this difference
+ 	// slowly in the soft regime and not at all in the hard
+ 	// regime.
+ 	scanWorkRemaining := scanWorkExpected - c.scanWork

@@ -43,7 +43,7 @@ Date:   Sat Nov 2 15:40:13 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/loong64/ssa.go            |  3 ++
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  4 +++
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  4 +++
@@ -53,3 +53,245 @@ Date:   Sat Nov 2 15:40:13 2024 +0800
  src/cmd/compile/internal/ssagen/intrinsics_test.go |  5 +++
  test/codegen/mathbits.go                           | 29 +++++++++++++++
  8 files changed, 118 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index e7cb82a280..4c9bcfe46e 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -516,6 +516,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64REVB2H,
+ 		ssa.OpLOONG64REVB2W,
+ 		ssa.OpLOONG64REVBV,
++		ssa.OpLOONG64BITREV4B,
++		ssa.OpLOONG64BITREVW,
++		ssa.OpLOONG64BITREVV,
+ 		ssa.OpLOONG64ABSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index bac1f27b1d..6ff98a46f7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -148,6 +148,10 @@
+ (BitLen64 <t> x) => (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
+ (BitLen32 <t> x) => (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
+ (Bswap(16|32|64) ...) => (REVB(2H|2W|V) ...)
++(BitRev8 ...) => (BITREV4B ...)
++(BitRev16 <t> x) => (REVB2H (BITREV4B <t> x))
++(BitRev32 ...) => (BITREVW ...)
++(BitRev64 ...) => (BITREVV ...)
+ 
+ // math package intrinsics
+ (Sqrt ...) => (SQRTD ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 0da0bb8227..a8a38ee7b8 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -216,6 +216,10 @@ func init() {
+ 		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655
+ 		{name: "REVBV", argLength: 1, reg: gp11, asm: "REVBV"},   // Swap bytes: 0x1122334455667788 -> 0x8877665544332211
+ 
++		{name: "BITREV4B", argLength: 1, reg: gp11, asm: "BITREV4B"}, // Reverse the bits of each byte inside a 32-bit arg[0]
++		{name: "BITREVW", argLength: 1, reg: gp11, asm: "BITREVW"},   // Reverse the bits in a 32-bit arg[0]
++		{name: "BITREVV", argLength: 1, reg: gp11, asm: "BITREVV"},   // Reverse the bits in a 64-bit arg[0]
++
+ 		{name: "FMINF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINF", commutative: true, typ: "Float32"}, // min(arg0, arg1), float32
+ 		{name: "FMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"}, // min(arg0, arg1), float64
+ 		{name: "FMAXF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXF", commutative: true, typ: "Float32"}, // max(arg0, arg1), float32
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f1006a3f3c..ae0e87702a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1801,6 +1801,9 @@ const (
+ 	OpLOONG64REVB2H
+ 	OpLOONG64REVB2W
+ 	OpLOONG64REVBV
++	OpLOONG64BITREV4B
++	OpLOONG64BITREVW
++	OpLOONG64BITREVV
+ 	OpLOONG64FMINF
+ 	OpLOONG64FMIND
+ 	OpLOONG64FMAXF
+@@ -24201,6 +24204,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "BITREV4B",
++		argLen: 1,
++		asm:    loong64.ABITREV4B,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "BITREVW",
++		argLen: 1,
++		asm:    loong64.ABITREVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "BITREVV",
++		argLen: 1,
++		asm:    loong64.ABITREVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:            "FMINF",
+ 		argLen:          2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 88c5036b54..779ec89134 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -125,6 +125,17 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpBitLen32(v)
+ 	case OpBitLen64:
+ 		return rewriteValueLOONG64_OpBitLen64(v)
++	case OpBitRev16:
++		return rewriteValueLOONG64_OpBitRev16(v)
++	case OpBitRev32:
++		v.Op = OpLOONG64BITREVW
++		return true
++	case OpBitRev64:
++		v.Op = OpLOONG64BITREVV
++		return true
++	case OpBitRev8:
++		v.Op = OpLOONG64BITREV4B
++		return true
+ 	case OpBswap16:
+ 		v.Op = OpLOONG64REVB2H
+ 		return true
+@@ -975,6 +986,21 @@ func rewriteValueLOONG64_OpBitLen64(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpBitRev16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (BitRev16 <t> x)
++	// result: (REVB2H (BITREV4B <t> x))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpLOONG64REVB2H)
++		v0 := b.NewValue0(v.Pos, OpLOONG64BITREV4B, t)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpCom16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 33345e9296..db335ee8b3 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -946,27 +946,27 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
+ 		},
+-		sys.ARM64)
++		sys.ARM64, sys.Loong64)
+ 	addF("math/bits", "Reverse32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitRev32, types.Types[types.TINT], args[0])
+ 		},
+-		sys.ARM64)
++		sys.ARM64, sys.Loong64)
+ 	addF("math/bits", "Reverse16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitRev16, types.Types[types.TINT], args[0])
+ 		},
+-		sys.ARM64)
++		sys.ARM64, sys.Loong64)
+ 	addF("math/bits", "Reverse8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitRev8, types.Types[types.TINT], args[0])
+ 		},
+-		sys.ARM64)
++		sys.ARM64, sys.Loong64)
+ 	addF("math/bits", "Reverse",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitRev64, types.Types[types.TINT], args[0])
+ 		},
+-		sys.ARM64)
++		sys.ARM64, sys.Loong64)
+ 	addF("math/bits", "RotateLeft8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft8, types.Types[types.TUINT8], args[0], args[1])
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index a8656cc3d4..ca9e1c9e0a 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -421,6 +421,11 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Len16"}:                          struct{}{},
+ 	{"loong64", "math/bits", "Len32"}:                          struct{}{},
+ 	{"loong64", "math/bits", "Len64"}:                          struct{}{},
++	{"loong64", "math/bits", "Reverse"}:                        struct{}{},
++	{"loong64", "math/bits", "Reverse8"}:                       struct{}{},
++	{"loong64", "math/bits", "Reverse16"}:                      struct{}{},
++	{"loong64", "math/bits", "Reverse32"}:                      struct{}{},
++	{"loong64", "math/bits", "Reverse64"}:                      struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft"}:                     struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft32"}:                   struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft64"}:                   struct{}{},
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 715f67a3c8..a3d1143424 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -199,6 +199,35 @@ func OnesCount8(n uint8) int {
+ 	return bits.OnesCount8(n)
+ }
+ 
++// ------------------ //
++//    bits.Reverse    //
++// ------------------ //
++
++func Reverse(n uint) uint {
++	// loong64:"BITREVV"
++	return bits.Reverse(n)
++}
++
++func Reverse64(n uint64) uint64 {
++	// loong64:"BITREVV"
++	return bits.Reverse64(n)
++}
++
++func Reverse32(n uint32) uint32 {
++	// loong64:"BITREVW"
++	return bits.Reverse32(n)
++}
++
++func Reverse16(n uint16) uint16 {
++	// loong64:"BITREV4B","REVB2H"
++	return bits.Reverse16(n)
++}
++
++func Reverse8(n uint8) uint8 {
++	// loong64:"BITREV4B"
++	return bits.Reverse8(n)
++}
++
+ // ----------------------- //
+ //    bits.ReverseBytes    //
+ // ----------------------- //

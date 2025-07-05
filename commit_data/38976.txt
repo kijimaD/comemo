@@ -14,7 +14,44 @@ Date:   Wed Dec 12 16:53:09 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  .../go/testdata/mod/example.com_invalidpath_v1_v1.0.0.txt   | 13 +++++++++++++
  src/cmd/go/testdata/script/mod_import_v1suffix.txt          | 11 +++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/go/testdata/mod/example.com_invalidpath_v1_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_invalidpath_v1_v1.0.0.txt
+new file mode 100644
+index 0000000000..7d9d1303a9
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_invalidpath_v1_v1.0.0.txt
+@@ -0,0 +1,13 @@
++example.com/invalidpath/v1 v1.0.0
++written by hand
++
++-- .mod --
++module example.com/invalidpath/v1
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module example.com/invalidpath/v1
++-- version.go --
++package version
++
++const V = "v1.0.0"
+diff --git a/src/cmd/go/testdata/script/mod_import_v1suffix.txt b/src/cmd/go/testdata/script/mod_import_v1suffix.txt
+new file mode 100644
+index 0000000000..82bb5e2a2f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_import_v1suffix.txt
+@@ -0,0 +1,11 @@
++env GO111MODULE=on
++
++! go get -m example.com/invalidpath/v1
++! go install .
++
++-- go.mod --
++module example.com
++-- main.go --
++package main
++import _ "example.com/invalidpath/v1"
++func main() {}

@@ -13,7 +13,231 @@ Date:   Tue Jan 14 08:57:03 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214637
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go       | 42 ++++++++++---------
  src/cmd/compile/internal/gc/scope_test.go | 67 ++++++++++++++++++++++++++-----
  2 files changed, 79 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ec25277a2b..e8141b5237 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -426,24 +426,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 
+ 	var varScopes []ScopeID
+ 	for _, decl := range decls {
+-		pos := decl.Pos
+-		if decl.Name.Defn != nil && (decl.Name.Captured() || decl.Name.Byval()) {
+-			// It's not clear which position is correct for captured variables here:
+-			// * decl.Pos is the wrong position for captured variables, in the inner
+-			//   function, but it is the right position in the outer function.
+-			// * decl.Name.Defn is nil for captured variables that were arguments
+-			//   on the outer function, however the decl.Pos for those seems to be
+-			//   correct.
+-			// * decl.Name.Defn is the "wrong" thing for variables declared in the
+-			//   header of a type switch, it's their position in the header, rather
+-			//   than the position of the case statement. In principle this is the
+-			//   right thing, but here we prefer the latter because it makes each
+-			//   instance of the header variable local to the lexical block of its
+-			//   case statement.
+-			// This code is probably wrong for type switch variables that are also
+-			// captured.
+-			pos = decl.Name.Defn.Pos
+-		}
++		pos := declPos(decl)
+ 		varScopes = append(varScopes, findScope(fn.Func.Marks, pos))
+ 	}
+ 
+@@ -455,6 +438,27 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	return scopes, inlcalls
+ }
+ 
++func declPos(decl *Node) src.XPos {
++	if decl.Name.Defn != nil && (decl.Name.Captured() || decl.Name.Byval()) {
++		// It's not clear which position is correct for captured variables here:
++		// * decl.Pos is the wrong position for captured variables, in the inner
++		//   function, but it is the right position in the outer function.
++		// * decl.Name.Defn is nil for captured variables that were arguments
++		//   on the outer function, however the decl.Pos for those seems to be
++		//   correct.
++		// * decl.Name.Defn is the "wrong" thing for variables declared in the
++		//   header of a type switch, it's their position in the header, rather
++		//   than the position of the case statement. In principle this is the
++		//   right thing, but here we prefer the latter because it makes each
++		//   instance of the header variable local to the lexical block of its
++		//   case statement.
++		// This code is probably wrong for type switch variables that are also
++		// captured.
++		return decl.Name.Defn.Pos
++	}
++	return decl.Pos
++}
++
+ // createSimpleVars creates a DWARF entry for every variable declared in the
+ // function, claiming that they are permanently on the stack.
+ func createSimpleVars(apDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+@@ -505,7 +509,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
+ 			}
+ 		}
+ 	}
+-	declpos := Ctxt.InnermostPos(n.Pos)
++	declpos := Ctxt.InnermostPos(declPos(n))
+ 	return &dwarf.Var{
+ 		Name:          n.Sym.Name,
+ 		IsReturnValue: n.Class() == PPARAMOUT,
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index d3af61824d..b0e038d27f 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -7,6 +7,7 @@ package gc_test
+ import (
+ 	"cmd/internal/objfile"
+ 	"debug/dwarf"
++	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -39,6 +40,12 @@ type testline struct {
+ 	// Must be ordered alphabetically.
+ 	// Set to nil to skip the check.
+ 	vars []string
++
++	// decl is the list of variables declared at this line.
++	decl []string
++
++	// declBefore is the list of variables declared at or before this line.
++	declBefore []string
+ }
+ 
+ var testfile = []testline{
+@@ -58,11 +65,11 @@ var testfile = []testline{
+ 	{line: "var floatch = make(chan float64)"},
+ 	{line: "var iface interface{}"},
+ 	{line: "func TestNestedFor() {", vars: []string{"var a int"}},
+-	{line: "	a := 0"},
++	{line: "	a := 0", decl: []string{"a"}},
+ 	{line: "	f1(a)"},
+-	{line: "	for i := 0; i < 5; i++ {", scopes: []int{1}, vars: []string{"var i int"}},
++	{line: "	for i := 0; i < 5; i++ {", scopes: []int{1}, vars: []string{"var i int"}, decl: []string{"i"}},
+ 	{line: "		f2(i)", scopes: []int{1}},
+-	{line: "		for i := 0; i < 5; i++ {", scopes: []int{1, 2}, vars: []string{"var i int"}},
++	{line: "		for i := 0; i < 5; i++ {", scopes: []int{1, 2}, vars: []string{"var i int"}, decl: []string{"i"}},
+ 	{line: "			f3(i)", scopes: []int{1, 2}},
+ 	{line: "		}"},
+ 	{line: "		f4(i)", scopes: []int{1}},
+@@ -153,7 +160,7 @@ var testfile = []testline{
+ 	{line: "}"},
+ 	{line: "func TestClosureScope() {", vars: []string{"var a int", "var b int", "var f func(int)"}},
+ 	{line: "	a := 1; b := 1"},
+-	{line: "	f := func(c int) {", scopes: []int{0}, vars: []string{"arg c int", "var &b *int", "var a int", "var d int"}},
++	{line: "	f := func(c int) {", scopes: []int{0}, vars: []string{"arg c int", "var &b *int", "var a int", "var d int"}, declBefore: []string{"&b", "a"}},
+ 	{line: "		d := 3"},
+ 	{line: "		f1(c); f1(d)"},
+ 	{line: "		if e := 3; e != 0 {", scopes: []int{1}, vars: []string{"var e int"}},
+@@ -286,7 +293,18 @@ func TestScopeRanges(t *testing.T) {
+ 			if len(out) > 0 {
+ 				varsok = checkVars(testfile[i].vars, out[len(out)-1].vars)
+ 				if !varsok {
+-					t.Logf("variable mismatch at line %d %q for scope %d: expected: %v got: %v\n", i, testfile[i].line, out[len(out)-1].id, testfile[i].vars, out[len(out)-1].vars)
++					t.Logf("variable mismatch at line %d %q for scope %d: expected: %v got: %v\n", i+1, testfile[i].line, out[len(out)-1].id, testfile[i].vars, out[len(out)-1].vars)
++				}
++				for j := range testfile[i].decl {
++					if line := declLineForVar(out[len(out)-1].vars, testfile[i].decl[j]); line != i+1 {
++						t.Errorf("wrong declaration line for variable %s, expected %d got: %d", testfile[i].decl[j], i+1, line)
++					}
++				}
++
++				for j := range testfile[i].declBefore {
++					if line := declLineForVar(out[len(out)-1].vars, testfile[i].declBefore[j]); line > i+1 {
++						t.Errorf("wrong declaration line for variable %s, expected %d (or less) got: %d", testfile[i].declBefore[j], i+1, line)
++					}
+ 				}
+ 			}
+ 		}
+@@ -323,25 +341,43 @@ func checkScopes(tgt []int, out []*lexblock) bool {
+ 	return true
+ }
+ 
+-func checkVars(tgt, out []string) bool {
++func checkVars(tgt []string, out []variable) bool {
+ 	if len(tgt) != len(out) {
+ 		return false
+ 	}
+ 	for i := range tgt {
+-		if tgt[i] != out[i] {
++		if tgt[i] != out[i].expr {
+ 			return false
+ 		}
+ 	}
+ 	return true
+ }
+ 
++func declLineForVar(scope []variable, name string) int {
++	for i := range scope {
++		if scope[i].name() == name {
++			return scope[i].declLine
++		}
++	}
++	return -1
++}
++
+ type lexblock struct {
+ 	id     int
+ 	ranges [][2]uint64
+-	vars   []string
++	vars   []variable
+ 	scopes []lexblock
+ }
+ 
++type variable struct {
++	expr     string
++	declLine int
++}
++
++func (v *variable) name() string {
++	return strings.Split(v.expr, " ")[1]
++}
++
+ type line struct {
+ 	file   string
+ 	lineno int
+@@ -369,20 +405,22 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
+ 		}
+ 		switch e.Tag {
+ 		case 0:
+-			sort.Strings(scope.vars)
++			sort.Slice(scope.vars, func(i, j int) bool {
++				return scope.vars[i].expr < scope.vars[j].expr
++			})
+ 			return
+ 		case dwarf.TagFormalParameter:
+ 			typ, err := ctxt.dwarfData.Type(e.Val(dwarf.AttrType).(dwarf.Offset))
+ 			if err != nil {
+ 				panic(err)
+ 			}
+-			scope.vars = append(scope.vars, "arg "+e.Val(dwarf.AttrName).(string)+" "+typ.String())
++			scope.vars = append(scope.vars, entryToVar(e, "arg", typ))
+ 		case dwarf.TagVariable:
+ 			typ, err := ctxt.dwarfData.Type(e.Val(dwarf.AttrType).(dwarf.Offset))
+ 			if err != nil {
+ 				panic(err)
+ 			}
+-			scope.vars = append(scope.vars, "var "+e.Val(dwarf.AttrName).(string)+" "+typ.String())
++			scope.vars = append(scope.vars, entryToVar(e, "var", typ))
+ 		case dwarf.TagLexDwarfBlock:
+ 			scope.scopes = append(scope.scopes, lexblock{id: ctxt.scopegen})
+ 			ctxt.scopegen++
+@@ -391,6 +429,13 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
+ 	}
+ }
+ 
++func entryToVar(e *dwarf.Entry, kind string, typ dwarf.Type) variable {
++	return variable{
++		fmt.Sprintf("%s %s %s", kind, e.Val(dwarf.AttrName).(string), typ.String()),
++		int(e.Val(dwarf.AttrDeclLine).(int64)),
++	}
++}
++
+ // markLines marks all lines that belong to this scope with this scope
+ // Recursively calls markLines for all children scopes.
+ func (scope *lexblock) markLines(pcln objfile.Liner, lines map[line][]*lexblock) {

@@ -7,6 +7,20 @@ Date:   Fri Dec 17 13:43:59 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3751041
-
+---
  src/pkg/json/decode_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 92c1cafa70..2a18a62268 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -112,7 +112,7 @@ func TestMarshalBadUTF8(t *testing.T) {
+ 		t.Fatal("Marshal returned data")
+ 	}
+ 	if _, ok := err.(*InvalidUTF8Error); !ok {
+-		t.Fatal("Marshal did not return InvalidUTF8Error: %T %v", err, err)
++		t.Fatalf("Marshal did not return InvalidUTF8Error: %T %v", err, err)
+ 	}
+ }
+ 

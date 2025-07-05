@@ -9,7 +9,37 @@ Date:   Tue May 29 19:45:34 2018 +0000
     Change-Id: If86aa5d54cfd7a7c32d630fb2bf4f47e057dbfb2
     Reviewed-on: https://go-review.googlesource.com/115039
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/request.go | 3 ++-
  src/net/http/server.go  | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 119a015a53..7c4325027c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -316,7 +316,8 @@ type Request struct {
+ //
+ // For incoming server requests, the context is canceled when the
+ // client's connection closes, the request is canceled (with HTTP/2),
+-// or when the ServeHTTP method returns.
++// the ServeHTTP method returns, or if the Hijack method is
++// called on the ResponseWriter.
+ func (r *Request) Context() context.Context {
+ 	if r.ctx != nil {
+ 		return r.ctx
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ac5cadd8d0..2d3486dc66 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -187,8 +187,8 @@ type Hijacker interface {
+ 	// The returned bufio.Reader may contain unprocessed buffered
+ 	// data from the client.
+ 	//
+-	// After a call to Hijack, the original Request.Body must
+-	// not be used.
++	// After a call to Hijack, the original Request.Body must not
++	// be used, and the Request.Context will be canceled.
+ 	Hijack() (net.Conn, *bufio.ReadWriter, error)
+ }
+ 

@@ -9,7 +9,7 @@ Date:   Fri Jan 29 14:44:15 2016 -0500
     Change-Id: I4b662d55b8a94fe724759a2b22f05a08d0bf40f8
     Reviewed-on: https://go-review.googlesource.com/19103
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go          |  5 +++++
  src/cmd/compile/internal/ssa/block.go       |  1 +
  src/cmd/compile/internal/ssa/compile.go     | 16 ++++++++++++----
@@ -18,3 +18,144 @@ Date:   Fri Jan 29 14:44:15 2016 -0500
  src/cmd/compile/internal/ssa/func.go        |  1 +
  src/cmd/compile/internal/ssa/value.go       |  1 +
  7 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 89286f4356..c5be3496c3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -327,6 +327,7 @@ func (s *state) label(sym *Sym) *ssaLabel {
+ }
+ 
+ func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
++func (s *state) Log() bool                              { return s.config.Log() }
+ func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
+ func (s *state) Unimplementedf(msg string, args ...interface{}) {
+ 	s.config.Unimplementedf(s.peekLine(), msg, args...)
+@@ -4885,6 +4886,10 @@ func (e *ssaExport) Logf(msg string, args ...interface{}) {
+ 	}
+ }
+ 
++func (e *ssaExport) Log() bool {
++	return e.log
++}
++
+ // Fatal reports a compiler error and exits.
+ func (e *ssaExport) Fatalf(line int32, msg string, args ...interface{}) {
+ 	// If e was marked as unimplemented, anything could happen. Ignore.
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 6585528b28..7641811a5f 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -105,6 +105,7 @@ func (b *Block) AddEdgeTo(c *Block) {
+ }
+ 
+ func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
++func (b *Block) Log() bool                                      { return b.Func.Log() }
+ func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
+ func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
+ 
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 75c73eb24f..99e3c2b01e 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -20,7 +20,9 @@ import (
+ func Compile(f *Func) {
+ 	// TODO: debugging - set flags to control verbosity of compiler,
+ 	// which phases to dump IR before/after, etc.
+-	f.Logf("compiling %s\n", f.Name)
++	if f.Log() {
++		f.Logf("compiling %s\n", f.Name)
++	}
+ 
+ 	// hook to print function & phase if panic happens
+ 	phaseName := "init"
+@@ -44,7 +46,9 @@ func Compile(f *Func) {
+ 			continue
+ 		}
+ 		phaseName = p.name
+-		f.Logf("  pass %s begin\n", p.name)
++		if f.Log() {
++			f.Logf("  pass %s begin\n", p.name)
++		}
+ 		// TODO: capture logging during this pass, add it to the HTML
+ 		var mStart runtime.MemStats
+ 		if logMemStats {
+@@ -67,9 +71,13 @@ func Compile(f *Func) {
+ 			stats = fmt.Sprintf("[%d ns]", time)
+ 		}
+ 
+-		f.Logf("  pass %s end %s\n", p.name, stats)
++		if f.Log() {
++			f.Logf("  pass %s end %s\n", p.name, stats)
++		}
+ 		printFunc(f)
+-		f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
++		if f.Config.HTML != nil {
++			f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
++		}
+ 		checkFunc(f)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 52e772ce81..060eec2335 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -46,9 +46,13 @@ type TypeSource interface {
+ }
+ 
+ type Logger interface {
+-	// Log logs a message from the compiler.
++	// Logf logs a message from the compiler.
+ 	Logf(string, ...interface{})
+ 
++	// Log returns true if logging is not a no-op
++	// some logging calls account for more than a few heap allocations.
++	Log() bool
++
+ 	// Fatal reports a compiler error and exits.
+ 	Fatalf(line int32, msg string, args ...interface{})
+ 
+@@ -131,6 +135,7 @@ func (c *Config) NewFunc() *Func {
+ }
+ 
+ func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
++func (c *Config) Log() bool                                          { return c.fe.Log() }
+ func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
+ func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
+ 	c.fe.Unimplementedf(line, msg, args...)
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 962dc52a5f..dae9ed7de0 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -36,6 +36,7 @@ func (DummyFrontend) Line(line int32) string {
+ }
+ 
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
++func (d DummyFrontend) Log() bool                            { return true }
+ 
+ func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+ func (d DummyFrontend) Unimplementedf(line int32, msg string, args ...interface{}) {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 6d20a2797d..a28484010d 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -264,6 +264,7 @@ func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
+ }
+ 
+ func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
++func (f *Func) Log() bool                              { return f.Config.Log() }
+ func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
+ func (f *Func) Unimplementedf(msg string, args ...interface{}) {
+ 	f.Config.Unimplementedf(f.Entry.Line, msg, args...)
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 7e6e544e26..e338c4435b 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -147,6 +147,7 @@ func (v *Value) copyInto(b *Block) *Value {
+ }
+ 
+ func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
++func (v *Value) Log() bool                            { return v.Block.Log() }
+ func (v *Value) Fatalf(msg string, args ...interface{}) {
+ 	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
+ }

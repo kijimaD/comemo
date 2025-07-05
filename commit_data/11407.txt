@@ -9,8 +9,302 @@ Date:   Wed Jan 25 17:47:32 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5557063
-
+---
  src/pkg/database/sql/fakedb_test.go |  14 ++++
  src/pkg/database/sql/sql.go         |  79 ++++++++++++++++++++++-
  src/pkg/database/sql/sql_test.go    | 125 +++++++++++++++++++++++++-----------
  3 files changed, 181 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index b0d137cd71..df25023e12 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -585,12 +585,26 @@ func converterForType(typ string) driver.ValueConverter {
+ 	switch typ {
+ 	case "bool":
+ 		return driver.Bool
++	case "nullbool":
++		return driver.Null{driver.Bool}
+ 	case "int32":
+ 		return driver.Int32
+ 	case "string":
+ 		return driver.NotNull{driver.String}
+ 	case "nullstring":
+ 		return driver.Null{driver.String}
++	case "int64":
++		// TODO(coopernurse): add type-specific converter
++		return driver.NotNull{driver.DefaultParameterConverter}
++	case "nullint64":
++		// TODO(coopernurse): add type-specific converter
++		return driver.Null{driver.DefaultParameterConverter}
++	case "float64":
++		// TODO(coopernurse): add type-specific converter
++		return driver.NotNull{driver.DefaultParameterConverter}
++	case "nullfloat64":
++		// TODO(coopernurse): add type-specific converter
++		return driver.Null{driver.DefaultParameterConverter}
+ 	case "datetime":
+ 		return driver.DefaultParameterConverter
+ 	}
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index a8bf2a8b00..70499b9a95 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -47,7 +47,6 @@ type RawBytes []byte
+ //     // NULL value
+ //  }
+ //
+-// TODO(bradfitz): add other types.
+ type NullString struct {
+ 	String string
+ 	Valid  bool // Valid is true if String is not NULL
+@@ -71,6 +70,84 @@ func (ns NullString) SubsetValue() (interface{}, error) {
+ 	return ns.String, nil
+ }
+ 
++// NullInt64 represents an int64 that may be null.
++// NullInt64 implements the ScannerInto interface so
++// it can be used as a scan destination, similar to NullString.
++type NullInt64 struct {
++	Int64 int64
++	Valid bool // Valid is true if Int64 is not NULL
++}
++
++// ScanInto implements the ScannerInto interface.
++func (n *NullInt64) ScanInto(value interface{}) error {
++	if value == nil {
++		n.Int64, n.Valid = 0, false
++		return nil
++	}
++	n.Valid = true
++	return convertAssign(&n.Int64, value)
++}
++
++// SubsetValue implements the driver SubsetValuer interface.
++func (n NullInt64) SubsetValue() (interface{}, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return n.Int64, nil
++}
++
++// NullFloat64 represents a float64 that may be null.
++// NullFloat64 implements the ScannerInto interface so
++// it can be used as a scan destination, similar to NullString.
++type NullFloat64 struct {
++	Float64 float64
++	Valid   bool // Valid is true if Float64 is not NULL
++}
++
++// ScanInto implements the ScannerInto interface.
++func (n *NullFloat64) ScanInto(value interface{}) error {
++	if value == nil {
++		n.Float64, n.Valid = 0, false
++		return nil
++	}
++	n.Valid = true
++	return convertAssign(&n.Float64, value)
++}
++
++// SubsetValue implements the driver SubsetValuer interface.
++func (n NullFloat64) SubsetValue() (interface{}, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return n.Float64, nil
++}
++
++// NullBool represents a bool that may be null.
++// NullBool implements the ScannerInto interface so
++// it can be used as a scan destination, similar to NullString.
++type NullBool struct {
++	Bool  bool
++	Valid bool // Valid is true if Bool is not NULL
++}
++
++// ScanInto implements the ScannerInto interface.
++func (n *NullBool) ScanInto(value interface{}) error {
++	if value == nil {
++		n.Bool, n.Valid = false, false
++		return nil
++	}
++	n.Valid = true
++	return convertAssign(&n.Bool, value)
++}
++
++// SubsetValue implements the driver SubsetValuer interface.
++func (n NullBool) SubsetValue() (interface{}, error) {
++	if !n.Valid {
++		return nil, nil
++	}
++	return n.Bool, nil
++}
++
+ // ScannerInto is an interface used by Scan.
+ type ScannerInto interface {
+ 	// ScanInto assigns a value from a database driver.
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 3fe93986fa..3fb137eb24 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -5,6 +5,7 @@
+ package sql
+ 
+ import (
++	"fmt"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -341,64 +342,116 @@ func TestQueryRowClosingStmt(t *testing.T) {
+ 	}
+ }
+ 
++type nullTestRow struct {
++	nullParam    interface{}
++	notNullParam interface{}
++	scanNullVal  interface{}
++}
++
++type nullTestSpec struct {
++	nullType    string
++	notNullType string
++	rows        [6]nullTestRow
++}
++
+ func TestNullStringParam(t *testing.T) {
++	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
++		nullTestRow{NullString{"aqua", true}, "", NullString{"aqua", true}},
++		nullTestRow{NullString{"brown", false}, "", NullString{"", false}},
++		nullTestRow{"chartreuse", "", NullString{"chartreuse", true}},
++		nullTestRow{NullString{"darkred", true}, "", NullString{"darkred", true}},
++		nullTestRow{NullString{"eel", false}, "", NullString{"", false}},
++		nullTestRow{"foo", NullString{"black", false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
++func TestNullInt64Param(t *testing.T) {
++	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
++		nullTestRow{NullInt64{31, true}, 1, NullInt64{31, true}},
++		nullTestRow{NullInt64{-22, false}, 1, NullInt64{0, false}},
++		nullTestRow{22, 1, NullInt64{22, true}},
++		nullTestRow{NullInt64{33, true}, 1, NullInt64{33, true}},
++		nullTestRow{NullInt64{222, false}, 1, NullInt64{0, false}},
++		nullTestRow{0, NullInt64{31, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
++func TestNullFloat64Param(t *testing.T) {
++	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
++		nullTestRow{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
++		nullTestRow{NullFloat64{13.1, false}, 1, NullFloat64{0, false}},
++		nullTestRow{-22.9, 1, NullFloat64{-22.9, true}},
++		nullTestRow{NullFloat64{33.81, true}, 1, NullFloat64{33.81, true}},
++		nullTestRow{NullFloat64{222, false}, 1, NullFloat64{0, false}},
++		nullTestRow{10, NullFloat64{31.2, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
++func TestNullBoolParam(t *testing.T) {
++	spec := nullTestSpec{"nullbool", "bool", [6]nullTestRow{
++		nullTestRow{NullBool{false, true}, true, NullBool{false, true}},
++		nullTestRow{NullBool{true, false}, false, NullBool{false, false}},
++		nullTestRow{true, true, NullBool{true, true}},
++		nullTestRow{NullBool{true, true}, false, NullBool{true, true}},
++		nullTestRow{NullBool{true, false}, true, NullBool{false, false}},
++		nullTestRow{true, NullBool{true, false}, nil},
++	}}
++	nullTestRun(t, spec)
++}
++
++func nullTestRun(t *testing.T, spec nullTestSpec) {
+ 	db := newTestDB(t, "")
+ 	defer closeDB(t, db)
+-	exec(t, db, "CREATE|t|id=int32,name=string,favcolor=nullstring")
++	exec(t, db, fmt.Sprintf("CREATE|t|id=int32,name=string,nullf=%s,notnullf=%s", spec.nullType, spec.notNullType))
+ 
+ 	// Inserts with db.Exec:
+-	exec(t, db, "INSERT|t|id=?,name=?,favcolor=?", 1, "alice", NullString{"aqua", true})
+-	exec(t, db, "INSERT|t|id=?,name=?,favcolor=?", 2, "bob", NullString{"brown", false})
+-
+-	_, err := db.Exec("INSERT|t|id=?,name=?,favcolor=?", 999, nil, nil)
+-	if err == nil {
+-		// TODO: this test fails, but it's just because
+-		// fakeConn implements the optional Execer interface,
+-		// so arguably this is the correct behavior.  But
+-		// maybe I should flesh out the fakeConn.Exec
+-		// implementation so this properly fails.
+-		// t.Errorf("expected error inserting nil name with Exec")
+-	}
++	exec(t, db, "INSERT|t|id=?,name=?,nullf=?,notnullf=?", 1, "alice", spec.rows[0].nullParam, spec.rows[0].notNullParam)
++	exec(t, db, "INSERT|t|id=?,name=?,nullf=?,notnullf=?", 2, "bob", spec.rows[1].nullParam, spec.rows[1].notNullParam)
+ 
+ 	// Inserts with a prepared statement:
+-	stmt, err := db.Prepare("INSERT|t|id=?,name=?,favcolor=?")
++	stmt, err := db.Prepare("INSERT|t|id=?,name=?,nullf=?,notnullf=?")
+ 	if err != nil {
+ 		t.Fatalf("prepare: %v", err)
+ 	}
+-	if _, err := stmt.Exec(3, "chris", "chartreuse"); err != nil {
++	if _, err := stmt.Exec(3, "chris", spec.rows[2].nullParam, spec.rows[2].notNullParam); err != nil {
+ 		t.Errorf("exec insert chris: %v", err)
+ 	}
+-	if _, err := stmt.Exec(4, "dave", NullString{"darkred", true}); err != nil {
++	if _, err := stmt.Exec(4, "dave", spec.rows[3].nullParam, spec.rows[3].notNullParam); err != nil {
+ 		t.Errorf("exec insert dave: %v", err)
+ 	}
+-	if _, err := stmt.Exec(5, "eleanor", NullString{"eel", false}); err != nil {
+-		t.Errorf("exec insert dave: %v", err)
++	if _, err := stmt.Exec(5, "eleanor", spec.rows[4].nullParam, spec.rows[4].notNullParam); err != nil {
++		t.Errorf("exec insert eleanor: %v", err)
+ 	}
+ 
+-	// Can't put null name into non-nullstring column,
+-	if _, err := stmt.Exec(5, NullString{"", false}, nil); err == nil {
+-		t.Errorf("expected error inserting nil name with prepared statement Exec")
++	// Can't put null val into non-null col
++	if _, err := stmt.Exec(6, "bob", spec.rows[5].nullParam, spec.rows[5].notNullParam); err == nil {
++		t.Errorf("expected error inserting nil val with prepared statement Exec")
+ 	}
+ 
+-	type nameColor struct {
+-		name     string
+-		favColor NullString
++	_, err = db.Exec("INSERT|t|id=?,name=?,nullf=?", 999, nil, nil)
++	if err == nil {
++		// TODO: this test fails, but it's just because
++		// fakeConn implements the optional Execer interface,
++		// so arguably this is the correct behavior.  But
++		// maybe I should flesh out the fakeConn.Exec
++		// implementation so this properly fails.
++		// t.Errorf("expected error inserting nil name with Exec")
+ 	}
+ 
+-	wantMap := map[int]nameColor{
+-		1: nameColor{"alice", NullString{"aqua", true}},
+-		2: nameColor{"bob", NullString{"", false}},
+-		3: nameColor{"chris", NullString{"chartreuse", true}},
+-		4: nameColor{"dave", NullString{"darkred", true}},
+-		5: nameColor{"eleanor", NullString{"", false}},
+-	}
+-	for id, want := range wantMap {
+-		var got nameColor
+-		if err := db.QueryRow("SELECT|t|name,favcolor|id=?", id).Scan(&got.name, &got.favColor); err != nil {
++	paramtype := reflect.TypeOf(spec.rows[0].nullParam)
++	bindVal := reflect.New(paramtype).Interface()
++
++	for i := 0; i < 5; i++ {
++		id := i + 1
++		if err := db.QueryRow("SELECT|t|nullf|id=?", id).Scan(bindVal); err != nil {
+ 			t.Errorf("id=%d Scan: %v", id, err)
+ 		}
+-		if got != want {
+-			t.Errorf("id=%d got %#v, want %#v", id, got, want)
++		bindValDeref := reflect.ValueOf(bindVal).Elem().Interface()
++		if !reflect.DeepEqual(bindValDeref, spec.rows[i].scanNullVal) {
++			t.Errorf("id=%d got %#v, want %#v", id, bindValDeref, spec.rows[i].scanNullVal)
+ 		}
+ 	}
+ }

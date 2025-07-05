@@ -11,6 +11,23 @@ Date:   Tue Mar 29 06:47:39 2011 -0700
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4313055
-
+---
  test/syntax/chan.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/syntax/chan.go b/test/syntax/chan.go
+index 48beb1e709..ff3577502f 100644
+--- a/test/syntax/chan.go
++++ b/test/syntax/chan.go
+@@ -8,9 +8,9 @@ package main
+ 
+ type xyz struct {
+     ch chan
+-} // ERROR "unexpected } in channel type"
++} // ERROR "unexpected .*}.* in channel type"
+ 
+-func Foo(y chan) { // ERROR "unexpected \) in channel type"
++func Foo(y chan) { // ERROR "unexpected .*\).* in channel type"
+ }
+ 
+ func Bar(x chan, y int) { // ERROR "unexpected comma in channel type"

@@ -7,7 +7,34 @@ Date:   Thu Feb 25 10:13:09 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/224053
-
+---
  src/pkg/runtime/mheapmap32.c | 2 +-
  src/pkg/runtime/mheapmap64.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mheapmap32.c b/src/pkg/runtime/mheapmap32.c
+index 13491595da..1e3598cbea 100644
+--- a/src/pkg/runtime/mheapmap32.c
++++ b/src/pkg/runtime/mheapmap32.c
+@@ -10,7 +10,7 @@
+ 
+ // 3-level radix tree mapping page ids to Span*.
+ void
+-MHeapMap_Init(MHeapMap *m, void *(*allocator)(size_t))
++MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr))
+ {
+ 	m->allocator = allocator;
+ }
+diff --git a/src/pkg/runtime/mheapmap64.c b/src/pkg/runtime/mheapmap64.c
+index 97e20b6d20..2f856ee179 100644
+--- a/src/pkg/runtime/mheapmap64.c
++++ b/src/pkg/runtime/mheapmap64.c
+@@ -10,7 +10,7 @@
+ 
+ // 3-level radix tree mapping page ids to Span*.
+ void
+-MHeapMap_Init(MHeapMap *m, void *(*allocator)(size_t))
++MHeapMap_Init(MHeapMap *m, void *(*allocator)(uintptr))
+ {
+ 	m->allocator = allocator;
+ }

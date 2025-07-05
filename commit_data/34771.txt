@@ -31,7 +31,7 @@ Date:   Sat Nov 4 10:19:53 2017 -0700
     Change-Id: If2a4d8554cb96bfd699b58149d13ac294615f8b8
     Reviewed-on: https://go-review.googlesource.com/76070
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/bytes/bytes.go             | 43 ++++++++++++++++++++++++++++++++++++++++++
  src/bytes/bytes_amd64.go       | 40 +--------------------------------------
  src/bytes/bytes_generic.go     | 36 ++++++++++++++++++++++++++---------
@@ -43,3 +43,434 @@ Date:   Sat Nov 4 10:19:53 2017 -0700
  src/strings/strings_s390x.go   | 20 +-------------------
  src/strings/strings_test.go    | 15 +++++++++++++++
  10 files changed, 154 insertions(+), 140 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 68ed8e1b43..260f32500a 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -815,3 +815,46 @@ func EqualFold(s, t []byte) bool {
+ 	// One string is empty. Are both?
+ 	return len(s) == len(t)
+ }
++
++func indexRabinKarp(s, sep []byte) int {
++	// Rabin-Karp search
++	hashsep, pow := hashStr(sep)
++	n := len(sep)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashsep && Equal(s[:n], sep) {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashsep && Equal(s[i-n:i], sep) {
++			return i - n
++		}
++	}
++	return -1
++}
++
++// primeRK is the prime base used in Rabin-Karp algorithm.
++const primeRK = 16777619
++
++// hashStr returns the hash and the appropriate multiplicative
++// factor for use in Rabin-Karp algorithm.
++func hashStr(sep []byte) (uint32, uint32) {
++	hash := uint32(0)
++	for i := 0; i < len(sep); i++ {
++		hash = hash*primeRK + uint32(sep[i])
++	}
++	var pow, sq uint32 = 1, primeRK
++	for i := len(sep); i > 0; i >>= 1 {
++		if i&1 != 0 {
++			pow *= sq
++		}
++		sq *= sq
++	}
++	return hash, pow
++}
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+index 88b0564db4..0c9d613ef9 100644
+--- a/src/bytes/bytes_amd64.go
++++ b/src/bytes/bytes_amd64.go
+@@ -75,25 +75,7 @@ func Index(s, sep []byte) int {
+ 		}
+ 		return -1
+ 	}
+-	// Rabin-Karp search
+-	hashsep, pow := hashStr(sep)
+-	var h uint32
+-	for i := 0; i < n; i++ {
+-		h = h*primeRK + uint32(s[i])
+-	}
+-	if h == hashsep && Equal(s[:n], sep) {
+-		return 0
+-	}
+-	for i := n; i < len(s); {
+-		h *= primeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i-n])
+-		i++
+-		if h == hashsep && Equal(s[i-n:i], sep) {
+-			return i - n
+-		}
+-	}
+-	return -1
++	return indexRabinKarp(s, sep)
+ }
+ 
+ // Count counts the number of non-overlapping instances of sep in s.
+@@ -104,23 +86,3 @@ func Count(s, sep []byte) int {
+ 	}
+ 	return countGeneric(s, sep)
+ }
+-
+-// primeRK is the prime base used in Rabin-Karp algorithm.
+-const primeRK = 16777619
+-
+-// hashStr returns the hash and the appropriate multiplicative
+-// factor for use in Rabin-Karp algorithm.
+-func hashStr(sep []byte) (uint32, uint32) {
+-	hash := uint32(0)
+-	for i := 0; i < len(sep); i++ {
+-		hash = hash*primeRK + uint32(sep[i])
+-	}
+-	var pow, sq uint32 = 1, primeRK
+-	for i := len(sep); i > 0; i >>= 1 {
+-		if i&1 != 0 {
+-			pow *= sq
+-		}
+-		sq *= sq
+-	}
+-	return hash, pow
+-}
+diff --git a/src/bytes/bytes_generic.go b/src/bytes/bytes_generic.go
+index 32abd3b33f..b30e53bf2e 100644
+--- a/src/bytes/bytes_generic.go
++++ b/src/bytes/bytes_generic.go
+@@ -6,23 +6,25 @@
+ 
+ package bytes
+ 
+-// TODO: implements short string optimization on non amd64 platforms
+-// and get rid of bytes_amd64.go
+-
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep []byte) int {
+ 	n := len(sep)
+-	if n == 0 {
++	switch {
++	case n == 0:
+ 		return 0
+-	}
+-	if n > len(s) {
++	case n == 1:
++		return IndexByte(s, sep[0])
++	case n == len(s):
++		if Equal(sep, s) {
++			return 0
++		}
++		return -1
++	case n > len(s):
+ 		return -1
+ 	}
+ 	c := sep[0]
+-	if n == 1 {
+-		return IndexByte(s, c)
+-	}
+ 	i := 0
++	fails := 0
+ 	t := s[:len(s)-n+1]
+ 	for i < len(t) {
+ 		if t[i] != c {
+@@ -36,6 +38,22 @@ func Index(s, sep []byte) int {
+ 			return i
+ 		}
+ 		i++
++		fails++
++		if fails >= 4+i>>4 && i < len(t) {
++			// Give up on IndexByte, it isn't skipping ahead
++			// far enough to be better than Rabin-Karp.
++			// Experiments (using IndexPeriodic) suggest
++			// the cutover is about 16 byte skips.
++			// TODO: if large prefixes of sep are matching
++			// we should cutover at even larger average skips,
++			// because Equal becomes that much more expensive.
++			// This code does not take that effect into account.
++			j := indexRabinKarp(s[i:], sep)
++			if j < 0 {
++				return -1
++			}
++			return i + j
++		}
+ 	}
+ 	return -1
+ }
+diff --git a/src/bytes/bytes_s390x.go b/src/bytes/bytes_s390x.go
+index e25ca4b84e..c59b891292 100644
+--- a/src/bytes/bytes_s390x.go
++++ b/src/bytes/bytes_s390x.go
+@@ -76,25 +76,7 @@ func Index(s, sep []byte) int {
+ 		}
+ 		return -1
+ 	}
+-	// Rabin-Karp search
+-	hashsep, pow := hashStr(sep)
+-	var h uint32
+-	for i := 0; i < n; i++ {
+-		h = h*primeRK + uint32(s[i])
+-	}
+-	if h == hashsep && Equal(s[:n], sep) {
+-		return 0
+-	}
+-	for i := n; i < len(s); {
+-		h *= primeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i-n])
+-		i++
+-		if h == hashsep && Equal(s[i-n:i], sep) {
+-			return i - n
+-		}
+-	}
+-	return -1
++	return indexRabinKarp(s, sep)
+ }
+ 
+ // Count counts the number of non-overlapping instances of sep in s.
+@@ -102,23 +84,3 @@ func Index(s, sep []byte) int {
+ func Count(s, sep []byte) int {
+ 	return countGeneric(s, sep)
+ }
+-
+-// primeRK is the prime base used in Rabin-Karp algorithm.
+-const primeRK = 16777619
+-
+-// hashStr returns the hash and the appropriate multiplicative
+-// factor for use in Rabin-Karp algorithm.
+-func hashStr(sep []byte) (uint32, uint32) {
+-	hash := uint32(0)
+-	for i := 0; i < len(sep); i++ {
+-		hash = hash*primeRK + uint32(sep[i])
+-	}
+-	var pow, sq uint32 = 1, primeRK
+-	for i := len(sep); i > 0; i >>= 1 {
+-		if i&1 != 0 {
+-			pow *= sq
+-		}
+-		sq *= sq
+-	}
+-	return hash, pow
+-}
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 78eca2064a..1e56571c73 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -139,6 +139,9 @@ var indexTests = []BinOpTest{
+ 	{"barfoobarfooyyyzzzyyyzzzyyyzzzyyyxxxzzzyyy", "x", 33},
+ 	{"foofyfoobarfoobar", "y", 4},
+ 	{"oooooooooooooooooooooo", "r", -1},
++	// test fallback to Rabin-Karp.
++	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
++	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
+ }
+ 
+ var lastIndexTests = []BinOpTest{
+@@ -1730,3 +1733,18 @@ func BenchmarkTrimASCII(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkIndexPeriodic(b *testing.B) {
++	key := []byte{1, 1}
++	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
++		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
++			buf := make([]byte, 1<<16)
++			for i := 0; i < len(buf); i += skip {
++				buf[i] = 1
++			}
++			for i := 0; i < b.N; i++ {
++				Index(buf, key)
++			}
++		})
++	}
++}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 8520f8a732..c66c248c02 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -918,3 +918,27 @@ func EqualFold(s, t string) bool {
+ 	// One string is empty. Are both?
+ 	return s == t
+ }
++
++func indexRabinKarp(s, substr string) int {
++	// Rabin-Karp search
++	hashss, pow := hashStr(substr)
++	n := len(substr)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashss && s[:n] == substr {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashss && s[i-n:i] == substr {
++			return i - n
++		}
++	}
++	return -1
++
++}
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+index a9c01bbf7f..68a1d0125c 100644
+--- a/src/strings/strings_amd64.go
++++ b/src/strings/strings_amd64.go
+@@ -75,25 +75,7 @@ func Index(s, substr string) int {
+ 		}
+ 		return -1
+ 	}
+-	// Rabin-Karp search
+-	hashss, pow := hashStr(substr)
+-	var h uint32
+-	for i := 0; i < n; i++ {
+-		h = h*primeRK + uint32(s[i])
+-	}
+-	if h == hashss && s[:n] == substr {
+-		return 0
+-	}
+-	for i := n; i < len(s); {
+-		h *= primeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i-n])
+-		i++
+-		if h == hashss && s[i-n:i] == substr {
+-			return i - n
+-		}
+-	}
+-	return -1
++	return indexRabinKarp(s, substr)
+ }
+ 
+ // Count counts the number of non-overlapping instances of substr in s.
+diff --git a/src/strings/strings_generic.go b/src/strings/strings_generic.go
+index 5429a74a22..b2af48bec8 100644
+--- a/src/strings/strings_generic.go
++++ b/src/strings/strings_generic.go
+@@ -25,22 +25,30 @@ func Index(s, substr string) int {
+ 	case n > len(s):
+ 		return -1
+ 	}
+-	// Rabin-Karp search
+-	hashss, pow := hashStr(substr)
+-	var h uint32
+-	for i := 0; i < n; i++ {
+-		h = h*primeRK + uint32(s[i])
+-	}
+-	if h == hashss && s[:n] == substr {
+-		return 0
+-	}
+-	for i := n; i < len(s); {
+-		h *= primeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i-n])
++	c := substr[0]
++	i := 0
++	t := s[:len(s)-n+1]
++	fails := 0
++	for i < len(t) {
++		if t[i] != c {
++			o := IndexByte(t[i:], c)
++			if o < 0 {
++				return -1
++			}
++			i += o
++		}
++		if s[i:i+n] == substr {
++			return i
++		}
+ 		i++
+-		if h == hashss && s[i-n:i] == substr {
+-			return i - n
++		fails++
++		if fails >= 4+i>>4 && i < len(t) {
++			// See comment in ../bytes/bytes_generic.go.
++			j := indexRabinKarp(s[i:], substr)
++			if j < 0 {
++				return -1
++			}
++			return i + j
+ 		}
+ 	}
+ 	return -1
+diff --git a/src/strings/strings_s390x.go b/src/strings/strings_s390x.go
+index ccf2da632d..67c8e1700d 100644
+--- a/src/strings/strings_s390x.go
++++ b/src/strings/strings_s390x.go
+@@ -76,25 +76,7 @@ func Index(s, substr string) int {
+ 		}
+ 		return -1
+ 	}
+-	// Rabin-Karp search
+-	hashss, pow := hashStr(substr)
+-	var h uint32
+-	for i := 0; i < n; i++ {
+-		h = h*primeRK + uint32(s[i])
+-	}
+-	if h == hashss && s[:n] == substr {
+-		return 0
+-	}
+-	for i := n; i < len(s); {
+-		h *= primeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i-n])
+-		i++
+-		if h == hashss && s[i-n:i] == substr {
+-			return i - n
+-		}
+-	}
+-	return -1
++	return indexRabinKarp(s, substr)
+ }
+ 
+ // Count counts the number of non-overlapping instances of substr in s.
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 289dd92d51..d8fcb62a87 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -125,6 +125,9 @@ var indexTests = []IndexTest{
+ 	{"xx012345678901234567890123456789012345678901234567890123456789012"[:41], "0123456789012345678901234567890123456789", -1},
+ 	{"xx012345678901234567890123456789012345678901234567890123456789012", "0123456789012345678901234567890123456xxx", -1},
+ 	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx", "0123456789012345678901234567890123456xxx", 65},
++	// test fallback to Rabin-Karp.
++	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
++	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
+ }
+ 
+ var lastIndexTests = []IndexTest{
+@@ -1641,3 +1644,15 @@ func BenchmarkTrimASCII(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkIndexPeriodic(b *testing.B) {
++	key := "aa"
++	for _, skip := range [...]int{2, 4, 8, 16, 32, 64} {
++		b.Run(fmt.Sprintf("IndexPeriodic%d", skip), func(b *testing.B) {
++			s := Repeat("a"+Repeat(" ", skip-1), 1<<16/skip)
++			for i := 0; i < b.N; i++ {
++				Index(s, key)
++			}
++		})
++	}
++}

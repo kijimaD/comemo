@@ -11,6 +11,20 @@ Date:   Thu Oct 30 16:44:42 2014 -0400
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/165210043
-
+---
  src/runtime/asm_power64x.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_power64x.s b/src/runtime/asm_power64x.s
+index e1f8a84aff..ab2db061c2 100644
+--- a/src/runtime/asm_power64x.s
++++ b/src/runtime/asm_power64x.s
+@@ -711,7 +711,7 @@ test:
+ 	CMP	R6, R7
+ 	BEQ	loop
+ 
+-	MOVB	$0, ret+24(FP)
++	MOVB	R0, ret+24(FP)
+ 	RETURN
+ 
+ // eqstring tests whether two strings are equal.

@@ -9,7 +9,32 @@ Date:   Thu Feb 27 09:35:06 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/68930047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 80d552b0a8..54af7a411b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -155,6 +155,7 @@ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+ Gordon Klaus <gordon.klaus@gmail.com>
++Graham King <graham4king@gmail.com>
+ Graham Miller <graham.miller@gmail.com>
+ Greg Ward <greg@gerg.ca>
+ Gustav Paul <gustav.paul@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index efce0cadfc..bc268762ff 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -221,6 +221,7 @@ Gerasimos Dimitriadis <gedimitr@gmail.com>
+ Gideon Jan-Wessel Redelinghuys <gjredelinghuys@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Gordon Klaus <gordon.klaus@gmail.com>
++Graham King <graham4king@gmail.com>
+ Graham Miller <graham.miller@gmail.com>
+ Greg Ward <greg@gerg.ca>
+ Gustav Paul <gustav.paul@gmail.com>

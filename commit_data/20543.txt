@@ -14,9 +14,66 @@ Date:   Tue Sep 16 20:53:38 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/143160045
-
+---
  include/link.h               | 1 +
  src/liblink/obj5.c           | 1 +
  src/liblink/objfile.c        | 7 ++++++-
  src/sync/atomic/64bit_arm.go | 6 ++++++
  4 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/include/link.h b/include/link.h
+index 8c73eab51e..292b077394 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -471,6 +471,7 @@ struct LinkArch
+ 	int	D_PARAM;
+ 	int	D_SCONST;
+ 	int	D_STATIC;
++	int	D_OREG;
+ 
+ 	int	ACALL;
+ 	int	ADATA;
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index a571d8f166..e192b082b5 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -1061,6 +1061,7 @@ LinkArch linkarm = {
+ 	.D_PARAM = D_PARAM,
+ 	.D_SCONST = D_SCONST,
+ 	.D_STATIC = D_STATIC,
++	.D_OREG = D_OREG,
+ 
+ 	.ACALL = ABL,
+ 	.ADATA = ADATA,
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 7d4b28c9ac..9b1e1b7a8f 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -268,7 +268,12 @@ writeobj(Link *ctxt, Biobuf *b)
+ 			p->as = ctxt->arch->AFUNCDATA;
+ 			p->from.type = ctxt->arch->D_CONST;
+ 			p->from.offset = FUNCDATA_ArgsPointerMaps;
+-			p->to.type = ctxt->arch->D_EXTERN;
++			if(ctxt->arch->thechar == '6' || ctxt->arch->thechar == '8')
++				p->to.type = ctxt->arch->D_EXTERN;
++			else {
++				p->to.type = ctxt->arch->D_OREG;
++				p->to.name = ctxt->arch->D_EXTERN;
++			}
+ 			p->to.sym = linklookup(ctxt, smprint("%s.args_stackmap", s->name), s->version);
+ 		}
+ 	}
+diff --git a/src/sync/atomic/64bit_arm.go b/src/sync/atomic/64bit_arm.go
+index c08f214c7e..0aab7160e9 100644
+--- a/src/sync/atomic/64bit_arm.go
++++ b/src/sync/atomic/64bit_arm.go
+@@ -44,3 +44,9 @@ func swapUint64(addr *uint64, new uint64) (old uint64) {
+ 	}
+ 	return
+ }
++
++// Additional ARM-specific assembly routines.
++// Declaration here to give assembly routines correct stack maps for arguments.
++func armCompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
++func armCompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)
++func generalCAS64(addr *uint64, old, new uint64) (swapped bool)

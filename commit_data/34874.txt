@@ -19,8 +19,108 @@ Date:   Sun Jul 30 21:14:10 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/user/getgrouplist_darwin.go | 23 +++++++++++++++++++++++
  src/os/user/getgrouplist_unix.go   | 19 +++++++++++++++++++
  src/os/user/listgroups_unix.go     | 15 ++++++---------
  3 files changed, 48 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/user/getgrouplist_darwin.go b/src/os/user/getgrouplist_darwin.go
+index 54a2da3610..935c6de942 100644
+--- a/src/os/user/getgrouplist_darwin.go
++++ b/src/os/user/getgrouplist_darwin.go
+@@ -23,7 +23,30 @@ static int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngr
+ }
+ */
+ import "C"
++import (
++	"fmt"
++	"unsafe"
++)
+ 
+ func getGroupList(name *C.char, userGID C.gid_t, gids *C.gid_t, n *C.int) C.int {
+ 	return C.mygetgrouplist(name, userGID, gids, n)
+ }
++
++// groupRetry retries getGroupList with an increasingly large size for n. The
++// result is stored in gids.
++func groupRetry(username string, name []byte, userGID C.gid_t, gids *[]C.gid_t, n *C.int) error {
++	*n = C.int(256 * 2)
++	for {
++		*gids = make([]C.gid_t, *n)
++		rv := getGroupList((*C.char)(unsafe.Pointer(&name[0])), userGID, &(*gids)[0], n)
++		if rv >= 0 {
++			// n is set correctly
++			break
++		}
++		if *n > maxGroups {
++			return fmt.Errorf("user: %q is a member of more than %d groups", username, maxGroups)
++		}
++		*n = *n * C.int(2)
++	}
++	return nil
++}
+diff --git a/src/os/user/getgrouplist_unix.go b/src/os/user/getgrouplist_unix.go
+index 14da7c00a2..8ad51286c6 100644
+--- a/src/os/user/getgrouplist_unix.go
++++ b/src/os/user/getgrouplist_unix.go
+@@ -16,7 +16,26 @@ static int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngr
+ }
+ */
+ import "C"
++import (
++	"fmt"
++	"unsafe"
++)
+ 
+ func getGroupList(name *C.char, userGID C.gid_t, gids *C.gid_t, n *C.int) C.int {
+ 	return C.mygetgrouplist(name, userGID, gids, n)
+ }
++
++// groupRetry retries getGroupList with much larger size for n. The result is
++// stored in gids.
++func groupRetry(username string, name []byte, userGID C.gid_t, gids *[]C.gid_t, n *C.int) error {
++	// More than initial buffer, but now n contains the correct size.
++	if *n > maxGroups {
++		return fmt.Errorf("user: %q is a member of more than %d groups", username, maxGroups)
++	}
++	*gids = make([]C.gid_t, *n)
++	rv := getGroupList((*C.char)(unsafe.Pointer(&name[0])), userGID, &(*gids)[0], n)
++	if rv == -1 {
++		return fmt.Errorf("user: list groups for %s failed", username)
++	}
++	return nil
++}
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index 6f8c644f69..44f4ae1714 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -18,6 +18,8 @@ import (
+ */
+ import "C"
+ 
++const maxGroups = 2048
++
+ func listGroups(u *User) ([]string, error) {
+ 	ug, err := strconv.Atoi(u.Gid)
+ 	if err != nil {
+@@ -31,15 +33,10 @@ func listGroups(u *User) ([]string, error) {
+ 	gidsC := make([]C.gid_t, n)
+ 	rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
+ 	if rv == -1 {
+-		// More than initial buffer, but now n contains the correct size.
+-		const maxGroups = 2048
+-		if n > maxGroups {
+-			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
+-		}
+-		gidsC = make([]C.gid_t, n)
+-		rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
+-		if rv == -1 {
+-			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
++		// Mac is the only Unix that does not set n properly when rv == -1, so
++		// we need to use different logic for Mac vs. the other OS's.
++		if err := groupRetry(u.Username, nameC, userGID, &gidsC, &n); err != nil {
++			return nil, err
+ 		}
+ 	}
+ 	gidsC = gidsC[:n]

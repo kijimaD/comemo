@@ -7,6 +7,20 @@ Date:   Fri May 28 11:47:09 2010 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/1382041
-
+---
  src/pkg/runtime/windows/mem.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index 256ad9a7b4..09f39998c6 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -10,7 +10,7 @@
+ void*
+ SysAlloc(uintptr n)
+ {
+-	return stdcall(VirtualAlloc, nil, n, 0x3000, 0x40);
++	return stdcall_raw(VirtualAlloc, nil, n, 0x3000, 0x40);
+ }
+ 
+ void

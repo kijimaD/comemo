@@ -22,7 +22,77 @@ Date:   Thu May 15 13:53:23 2025 +0000
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 12 ++++++++---
  test/fixedbugs/issue73716.go           | 37 ++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index e30de3d8c8..e3480c2463 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1117,12 +1117,18 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
+ 			// Not a standard call.
+ 			return
+ 		}
+-		if n.Fun.Op() != ir.OCLOSURE {
+-			// Not a direct closure call.
++
++		var nf = n.Fun
++		// Skips ir.OCONVNOPs, see issue #73716.
++		for nf.Op() == ir.OCONVNOP {
++			nf = nf.(*ir.ConvExpr).X
++		}
++		if nf.Op() != ir.OCLOSURE {
++			// Not a direct closure call or one with type conversion.
+ 			return
+ 		}
+ 
+-		clo := n.Fun.(*ir.ClosureExpr)
++		clo := nf.(*ir.ClosureExpr)
+ 		if !clo.Func.IsClosure() {
+ 			// enqueueFunc will handle non closures anyways.
+ 			return
+diff --git a/test/fixedbugs/issue73716.go b/test/fixedbugs/issue73716.go
+new file mode 100644
+index 0000000000..4680b362c6
+--- /dev/null
++++ b/test/fixedbugs/issue73716.go
+@@ -0,0 +1,37 @@
++// build
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 73716: cmd/compile: unnamed functions missing FuncInfo
++
++package main
++
++import "fmt"
++
++type EP func()
++type F func(EP) EP
++
++func main() {
++	eps := []EP{ep1, ep2}
++	var h EP
++
++	for _, ep := range eps {
++		h = F(func(e EP) EP {
++			return func() {
++				ep()
++				e()
++			}
++		})(h)
++	}
++	h()
++}
++
++func ep1() {
++	fmt.Printf("ep1\n")
++}
++
++func ep2() {
++	fmt.Printf("ep2\n")
++}

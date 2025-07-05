@@ -8,7 +8,40 @@ Date:   Wed Dec 17 10:14:29 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=21403
     CL=21415
-
+---
  src/cmd/gc/mksys.c     | 2 +-
  src/cmd/gc/sysimport.c | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/mksys.c b/src/cmd/gc/mksys.c
+index a3838203fd..25593d4152 100644
+--- a/src/cmd/gc/mksys.c
++++ b/src/cmd/gc/mksys.c
+@@ -40,7 +40,7 @@ main(int argc, char **argv)
+ 	exit(1);
+ 
+ begin:
+-	printf("char *%simport = \n", name);
++	printf("char *%simport =\n", name);
+ 
+ 	// process imports, stopping at $$ that closes them
+ 	while(fgets(buf, sizeof buf, fin) != NULL) {
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index aa40e773f0..173db4c392 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,4 +1,4 @@
+-char *sysimport = 
++char *sysimport =
+ 	"package sys\n"
+ 	"export func sys.mal (? int32) (? *any)\n"
+ 	"export func sys.breakpoint ()\n"
+@@ -79,7 +79,7 @@ char *sysimport =
+ 	"export func sys.semrelease (sema *int32)\n"
+ 	"\n"
+ 	"$$\n";
+-char *unsafeimport = 
++char *unsafeimport =
+ 	"package unsafe\n"
+ 	"export type unsafe.pointer *any\n"
+ 	"\n"

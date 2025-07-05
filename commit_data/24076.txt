@@ -20,6 +20,25 @@ Date:   Sat Jul 4 09:07:54 2015 -0700
     Change-Id: I766cebeec8e36d14512bea26f54c06c8eaf95e23
     Reviewed-on: https://go-review.googlesource.com/11876
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b21b4137dc..14c39d337f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -409,8 +409,11 @@ func (s *state) stmt(n *Node) {
+ 			s.stmt(n.Right)
+ 		}
+ 		b = s.endBlock()
+-		addEdge(b, bCond)
+-
++		// If the body ends in a return statement,
++		// the condition check and loop are unreachable.
++		if b != nil {
++			addEdge(b, bCond)
++		}
+ 		s.startBlock(bEnd)
+ 
+ 	case OCALLFUNC:

@@ -15,7 +15,7 @@ Date:   Fri Sep 12 07:51:00 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/139530043
-
+---
  src/cmd/5c/cgen.c      |  2 --
  src/cmd/5g/gg.h        |  1 -
  src/cmd/5g/ggen.c      | 19 -------------------
@@ -30,3 +30,314 @@ Date:   Fri Sep 12 07:51:00 2014 -0400
  src/cmd/8g/gsubr.c     | 10 ----------
  src/runtime/funcdata.h |  8 +-------
  13 files changed, 1 insertion(+), 104 deletions(-)
+
+diff --git a/src/cmd/5c/cgen.c b/src/cmd/5c/cgen.c
+index 9be10bf452..5a049ae628 100644
+--- a/src/cmd/5c/cgen.c
++++ b/src/cmd/5c/cgen.c
+@@ -366,14 +366,12 @@ _cgen(Node *n, Node *nn, int inrel)
+ 		if(REGARG >= 0)
+ 			o = reg[REGARG];
+ 		gargs(r, &nod, &nod1);
+-		gpcdata(PCDATA_ArgSize, curarg);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, Z);
+ 			gopcode(OFUNC, Z, Z, &nod);
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, Z, Z, l);
+-		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0)
+ 			if(o != reg[REGARG])
+ 				reg[REGARG]--;
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 62f73c8659..00914bfa34 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -109,7 +109,6 @@ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ Node*	ncon(uint32 i);
+ void	gtrack(Sym*);
+-void	gargsize(int32);
+ 
+ /*
+  * obj.c
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 6174e760c4..53cddb7605 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -179,28 +179,12 @@ fixautoused(Prog* p)
+ void
+ ginscall(Node *f, int proc)
+ {
+-	int32 arg;
+ 	Prog *p;
+ 	Node n1, r, r1, con;
+ 
+ 	if(f->type != T)
+ 		setmaxarg(f->type);
+ 
+-	arg = -1;
+-	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
+-	// Not all, though: there are some variadic functions in package runtime,
+-	// and for those we emit call-specific metadata recorded by caller.
+-	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
+-	// so we do this for all indirect calls as well.
+-	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+-		arg = f->type->argwid;
+-		if(proc == 1 || proc == 2)
+-			arg += 3*widthptr;
+-	}
+-
+-	if(arg != -1)
+-		gargsize(arg);
+-
+ 	switch(proc) {
+ 	default:
+ 		fatal("ginscall: bad proc %d", proc);
+@@ -297,9 +281,6 @@ ginscall(Node *f, int proc)
+ 		}
+ 		break;
+ 	}
+-	
+-	if(arg != -1)
+-		gargsize(-1);
+ }
+ 
+ /*
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ebd2c70a05..93bfafef66 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -205,16 +205,6 @@ ggloblnod(Node *nam)
+ 		p->reg |= NOPTR;
+ }
+ 
+-void
+-gargsize(int32 size)
+-{
+-	Node n1, n2;
+-	
+-	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
+-	nodconst(&n2, types[TINT32], size);
+-	gins(APCDATA, &n1, &n2);
+-}
+-
+ void
+ ggloblsym(Sym *s, int32 width, int8 flags)
+ {
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index bb09ec05d3..68dd7bb5fa 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -945,7 +945,6 @@ cgen(Node *n, Node *nn)
+ 			return;
+ 		}
+ 		gargs(r, &nod, &nod1);
+-		gpcdata(PCDATA_ArgSize, curarg);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, nn);
+ 			nod.op = OREGISTER;
+@@ -953,12 +952,9 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
+-		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+ 		regret(&nod, n, l->type, 1); // update maxarg if nothing else
+-		gpcdata(PCDATA_ArgSize, curarg);
+-		gpcdata(PCDATA_ArgSize, -1);
+ 		if(nn != Z)
+ 			gmove(&nod, nn);
+ 		if(nod.op == OREGISTER)
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 27f6c01fee..fe69d5c968 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -99,7 +99,6 @@ int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*, Node*);
+ void	nodfconst(Node*, Type*, Mpflt*);
+ void	gtrack(Sym*);
+-void	gargsize(vlong);
+ void	fixlargeoffset(Node *n);
+ 
+ /*
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 5a9b8418c4..987473ccab 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -175,7 +175,6 @@ fixautoused(Prog *p)
+ void
+ ginscall(Node *f, int proc)
+ {
+-	int32 arg;
+ 	Prog *p;
+ 	Node reg, con;
+ 	Node r1;
+@@ -183,21 +182,6 @@ ginscall(Node *f, int proc)
+ 	if(f->type != T)
+ 		setmaxarg(f->type);
+ 
+-	arg = -1;
+-	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
+-	// Not all, though: there are some variadic functions in package runtime,
+-	// and for those we emit call-specific metadata recorded by caller.
+-	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
+-	// so we do this for all indirect calls as well.
+-	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+-		arg = f->type->argwid;
+-		if(proc == 1 || proc == 2)
+-			arg += 2*widthptr;
+-	}
+-
+-	if(arg != -1)
+-		gargsize(arg);
+-
+ 	switch(proc) {
+ 	default:
+ 		fatal("ginscall: bad proc %d", proc);
+@@ -275,9 +259,6 @@ ginscall(Node *f, int proc)
+ 		}
+ 		break;
+ 	}
+-
+-	if(arg != -1)
+-		gargsize(-1);
+ }
+ 
+ /*
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index e1ed3b3b86..5bd9246607 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -214,16 +214,6 @@ gtrack(Sym *s)
+ 	p->from.sym = linksym(s);
+ }
+ 
+-void
+-gargsize(vlong size)
+-{
+-	Node n1, n2;
+-	
+-	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
+-	nodconst(&n2, types[TINT32], size);
+-	gins(APCDATA, &n1, &n2);
+-}
+-
+ void
+ ggloblsym(Sym *s, int32 width, int8 flags)
+ {
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index 6f0f7c97fe..87e8fdad8b 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -938,7 +938,6 @@ cgen(Node *n, Node *nn)
+ 			return;
+ 		}
+ 		gargs(r, &nod, &nod1);
+-		gpcdata(PCDATA_ArgSize, curarg);
+ 		if(l->addable < INDEXED) {
+ 			reglcgen(&nod, l, nn);
+ 			nod.op = OREGISTER;
+@@ -946,7 +945,6 @@ cgen(Node *n, Node *nn)
+ 			regfree(&nod);
+ 		} else
+ 			gopcode(OFUNC, n->type, Z, l);
+-		gpcdata(PCDATA_ArgSize, -1);
+ 		if(REGARG >= 0 && reg[REGARG])
+ 			reg[REGARG]--;
+ 		regret(&nod, n, l->type, 1); // update maxarg if nothing else
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index bdefa93b5b..238f927656 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -114,7 +114,6 @@ void	split64(Node*, Node*, Node*);
+ void	splitclean(void);
+ void	nswap(Node*, Node*);
+ void	gtrack(Sym*);
+-void	gargsize(int32);
+ /*
+  * cplx.c
+  */
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 6038731f7b..a095be36e9 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -217,21 +217,6 @@ ginscall(Node *f, int proc)
+ 	if(f->type != T)
+ 		setmaxarg(f->type);
+ 
+-	arg = -1;
+-	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
+-	// Not all, though: there are some variadic functions in package runtime,
+-	// and for those we emit call-specific metadata recorded by caller.
+-	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
+-	// so we do this for all indirect calls as well.
+-	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+-		arg = f->type->argwid;
+-		if(proc == 1 || proc == 2)
+-			arg += 2*widthptr;
+-	}
+-
+-	if(arg != -1)
+-		gargsize(arg);
+-
+ 	switch(proc) {
+ 	default:
+ 		fatal("ginscall: bad proc %d", proc);
+@@ -293,9 +278,6 @@ ginscall(Node *f, int proc)
+ 		}
+ 		break;
+ 	}
+-	
+-	if(arg != -1)
+-		gargsize(-1);
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 9f923cc9aa..a83d048f40 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -205,16 +205,6 @@ ggloblnod(Node *nam)
+ 		p->from.scale |= NOPTR;
+ }
+ 
+-void
+-gargsize(int32 size)
+-{
+-	Node n1, n2;
+-	
+-	nodconst(&n1, types[TINT32], PCDATA_ArgSize);
+-	nodconst(&n2, types[TINT32], size);
+-	gins(APCDATA, &n1, &n2);
+-}
+-
+ void
+ ggloblsym(Sym *s, int32 width, int8 flags)
+ {
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index 5ddc877c2b..a2667a4c02 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -9,18 +9,12 @@
+ //
+ // symtab.go also contains a copy of these constants.
+ 
+-// TODO(rsc): Remove PCDATA_ArgSize, renumber StackMapIndex to 0.
+-#define PCDATA_ArgSize 0 /* argument size at CALL instruction */
+-#define PCDATA_StackMapIndex 1
++#define PCDATA_StackMapIndex 0
+ 
+ #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 1
+ #define FUNCDATA_DeadValueMaps 2
+ 
+-// TODO(rsc): Remove ARGSIZE.
+-// To be used in assembly.
+-#define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
+-
+ // Pseudo-assembly statements.
+ 
+ // GO_ARGS, GO_RESULTS_INITIALIZED, and NO_LOCAL_POINTERS are macros

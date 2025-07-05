@@ -7,7 +7,7 @@ Date:   Wed Jul 13 12:44:21 2011 -0700
     R=rsc, alex.brainman
     CC=golang-dev
     https://golang.org/cl/3790044
-
+---
  src/pkg/net/fd_windows.go                 |  2 +-
  src/pkg/syscall/syscall_windows.go        |  2 +-
  src/pkg/syscall/zsyscall_windows_386.go   |  2 +-
@@ -16,3 +16,152 @@ Date:   Wed Jul 13 12:44:21 2011 -0700
  src/pkg/syscall/ztypes_windows_386.go     | 17 +++++++++++++++++
  src/pkg/syscall/ztypes_windows_amd64.go   | 17 +++++++++++++++++
  7 files changed, 40 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index f727696740..6ab9053348 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -493,7 +493,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 	}
+ 
+ 	// Inherit properties of the listening socket.
+-	e = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, int(fd.sysfd))
++	e = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
+ 	if e != 0 {
+ 		closesocket(s)
+ 		return nil, err
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 5b8143aac9..048c4fa436 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -594,7 +594,7 @@ func Socket(domain, typ, proto int) (fd Handle, errno int) {
+ 
+ func SetsockoptInt(fd Handle, level, opt int, value int) (errno int) {
+ 	v := int32(value)
+-	return int(setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
++	return int(Setsockopt(fd, int32(level), int32(opt), (*byte)(unsafe.Pointer(&v)), int32(unsafe.Sizeof(v))))
+ }
+ 
+ func Bind(fd Handle, sa Sockaddr) (errno int) {
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 350ad232ad..ccb63abe01 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -1076,7 +1076,7 @@ func socket(af int32, typ int32, protocol int32) (handle Handle, errno int) {
+ 	return
+ }
+ 
+-func setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) {
++func Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) {
+ 	r1, _, e1 := Syscall6(procsetsockopt, 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index e7d09fbc2d..af237e891b 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -1076,7 +1076,7 @@ func socket(af int32, typ int32, protocol int32) (handle Handle, errno int) {
+ 	return
+ }
+ 
+-func setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) {
++func Setsockopt(s Handle, level int32, optname int32, optval *byte, optlen int32) (errno int) {
+ 	r1, _, e1 := Syscall6(procsetsockopt, 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 1a264a405f..2943df580c 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -212,8 +212,8 @@ type SecurityAttributes struct {
+ }
+ 
+ type Overlapped struct {
+-	Internal     uint32
+-	InternalHigh uint32
++	Internal     uintptr
++	InternalHigh uintptr
+ 	Offset       uint32
+ 	OffsetHigh   uint32
+ 	HEvent       Handle
+@@ -388,16 +388,6 @@ const (
+ 	WSASYS_STATUS_LEN  = 128
+ )
+ 
+-type WSAData struct {
+-	Version      uint16
+-	HighVersion  uint16
+-	Description  [WSADESCRIPTION_LEN + 1]byte
+-	SystemStatus [WSASYS_STATUS_LEN + 1]byte
+-	MaxSockets   uint16
+-	MaxUdpDg     uint16
+-	VendorInfo   *byte
+-}
+-
+ type WSABuf struct {
+ 	Len uint32
+ 	Buf *byte
+@@ -453,13 +443,6 @@ type Hostent struct {
+ 	AddrList **byte
+ }
+ 
+-type Servent struct {
+-	Name    *byte
+-	Aliases **byte
+-	Port    uint16
+-	Proto   *byte
+-}
+-
+ const (
+ 	DNS_TYPE_A       = 0x0001
+ 	DNS_TYPE_NS      = 0x0002
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index d1008bd03c..734ee6e0f0 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -3,3 +3,20 @@
+ // license that can be found in the LICENSE file.
+ 
+ package syscall
++
++type WSAData struct {
++	Version      uint16
++	HighVersion  uint16
++	Description  [WSADESCRIPTION_LEN + 1]byte
++	SystemStatus [WSASYS_STATUS_LEN + 1]byte
++	MaxSockets   uint16
++	MaxUdpDg     uint16
++	VendorInfo   *byte
++}
++
++type Servent struct {
++	Name    *byte
++	Aliases **byte
++	Port    uint16
++	Proto   *byte
++}
+diff --git a/src/pkg/syscall/ztypes_windows_amd64.go b/src/pkg/syscall/ztypes_windows_amd64.go
+index d1008bd03c..78aa55b2ee 100644
+--- a/src/pkg/syscall/ztypes_windows_amd64.go
++++ b/src/pkg/syscall/ztypes_windows_amd64.go
+@@ -3,3 +3,20 @@
+ // license that can be found in the LICENSE file.
+ 
+ package syscall
++
++type WSAData struct {
++	Version      uint16
++	HighVersion  uint16
++	MaxSockets   uint16
++	MaxUdpDg     uint16
++	VendorInfo   *byte
++	Description  [WSADESCRIPTION_LEN + 1]byte
++	SystemStatus [WSASYS_STATUS_LEN + 1]byte
++}
++
++type Servent struct {
++	Name    *byte
++	Aliases **byte
++	Proto   *byte
++	Port    uint16
++}

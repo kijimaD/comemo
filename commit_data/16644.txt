@@ -8,7 +8,57 @@ Date:   Tue Jun 25 17:04:18 2013 -0700
     R=golang-dev, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/10571043
-
+---
  src/pkg/crypto/sha1/sha1.go      | 16 ++++++++++++++--
  src/pkg/crypto/sha1/sha1_test.go |  4 ++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 7cfde47dc0..8eb3f7a798 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -90,9 +90,13 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := *d0
++	hash := d.checkSum()
++	return append(in, hash[:]...)
++}
+ 
+-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
++func (d *digest) checkSum() [Size]byte {
+ 	len := d.len
++	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	var tmp [64]byte
+ 	tmp[0] = 0x80
+ 	if len%64 < 56 {
+@@ -120,5 +124,13 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 		digest[i*4+3] = byte(s)
+ 	}
+ 
+-	return append(in, digest[:]...)
++	return digest
++}
++
++// Sum returns the SHA1 checksum of the data.
++func Sum(data []byte) [Size]byte {
++	var d digest
++	d.Reset()
++	d.Write(data)
++	return d.checkSum()
+ }
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index 57cd4313eb..61ece671f4 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -54,6 +54,10 @@ var golden = []sha1Test{
+ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
++		s := fmt.Sprintf("%x", Sum([]byte(g.in)))
++		if s != g.out {
++			t.Fatalf("Sum function: sha1(%s) = %s want %s", g.in, s, g.out)
++		}
+ 		c := New()
+ 		for j := 0; j < 3; j++ {
+ 			if j < 2 {

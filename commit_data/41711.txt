@@ -12,7 +12,44 @@ Date:   Fri Apr 5 16:53:13 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go | 6 ++++++
  src/runtime/time.go | 8 ++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fd93a3db5f..09ef784a04 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4117,6 +4117,12 @@ func (pp *p) destroy() {
+ 		globrunqputhead(pp.runnext.ptr())
+ 		pp.runnext = 0
+ 	}
++	if len(pp.timers) > 0 {
++		plocal := getg().m.p.ptr()
++		// The world is stopped so we don't need to hold timersLock.
++		moveTimers(plocal, pp.timers)
++		pp.timers = nil
++	}
+ 	// If there's a background worker, make it runnable and put
+ 	// it on the global queue so it can clean itself up.
+ 	if gp := pp.gcBgMarkWorker.ptr(); gp != nil {
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 1bbb5684cb..0148f47a9e 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -325,6 +325,14 @@ func timerproc(tb *timersBucket) {
+ 	}
+ }
+ 
++// moveTimers moves a slice of timers to pp. The slice has been taken
++// from a different P.
++// This is currently called when the world is stopped, but it could
++// work as long as the timers for pp are locked.
++func moveTimers(pp *p, timers []*timer) {
++	throw("movetimers: not yet implemented")
++}
++
+ // adjusttimers looks through the timers in the current P's heap for
+ // any timers that have been modified to run earlier, and puts them in
+ // the correct place in the heap.

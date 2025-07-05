@@ -27,7 +27,66 @@ Date:   Mon Jan 23 08:22:10 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/memmove_amd64.s | 10 ++++++++--
  src/runtime/memmove_test.go | 20 ++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 464f5fdc1b..c2286d3edd 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -146,10 +146,16 @@ move_1or2:
+ move_0:
+ 	RET
+ move_3or4:
++	CMPQ	BX, $4
++	JB	move_3
++	MOVL	(SI), AX
++	MOVL	AX, (DI)
++	RET
++move_3:
+ 	MOVW	(SI), AX
+-	MOVW	-2(SI)(BX*1), CX
++	MOVB	2(SI), CX
+ 	MOVW	AX, (DI)
+-	MOVW	CX, -2(DI)(BX*1)
++	MOVB	CX, 2(DI)
+ 	RET
+ move_5through7:
+ 	MOVL	(SI), AX
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index dbfa284c28..74b8753b5f 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"crypto/rand"
++	"encoding/binary"
+ 	"fmt"
+ 	"internal/race"
+ 	. "runtime"
+@@ -447,3 +448,22 @@ func BenchmarkCopyFat1024(b *testing.B) {
+ 		_ = y
+ 	}
+ }
++
++func BenchmarkIssue18740(b *testing.B) {
++	// This tests that memmove uses one 4-byte load/store to move 4 bytes.
++	// It used to do 2 2-byte load/stores, which leads to a pipeline stall
++	// when we try to read the result with one 4-byte load.
++	var buf [4]byte
++	for j := 0; j < b.N; j++ {
++		s := uint32(0)
++		for i := 0; i < 4096; i += 4 {
++			copy(buf[:], g[i:])
++			s += binary.LittleEndian.Uint32(buf[:])
++		}
++		sink = uint64(s)
++	}
++}
++
++// TODO: 2 byte and 8 byte benchmarks also.
++
++var g [4096]byte

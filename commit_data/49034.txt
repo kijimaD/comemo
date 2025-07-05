@@ -17,6 +17,21 @@ Date:   Wed Jul 7 23:32:49 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index e460adaf95..6d8c53e722 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -152,6 +152,9 @@ func (s *SymABIs) GenABIWrappers() {
+ 		// Apply definitions.
+ 		defABI, hasDefABI := s.defs[symName]
+ 		if hasDefABI {
++			if len(fn.Body) != 0 {
++				base.ErrorfAt(fn.Pos(), "%v defined in both Go and assembly", fn)
++			}
+ 			fn.ABI = defABI
+ 		}
+ 

@@ -9,7 +9,47 @@ Date:   Fri Apr 29 20:17:06 2016 -0400
     Change-Id: Ia75945ef563956613bf88bbe57800a96455c265d
     Reviewed-on: https://go-review.googlesource.com/22661
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_ppc64x.s     | 8 ++++----
  src/runtime/cgo/asm_ppc64x.s | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index f7e00198a3..32c63c2671 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -588,7 +588,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
+ 
+ // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Load m and g from thread-local storage.
+@@ -662,9 +662,9 @@ havem:
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVD	(g_sched+gobuf_pc)(g), R5
+-	MOVD	R5, -(FIXED_FRAME+8)(R4)
+-	MOVD	ctxt+24(FP), R1
+-	MOVD	R1, -(FIXED_FRAME+16)(R4)
++	MOVD	R5, -(FIXED_FRAME+16)(R4)
++	MOVD	ctxt+24(FP), R3
++	MOVD	R3, -16(R4)
+ 	MOVD	$-(FIXED_FRAME+16)(R4), R1
+ 	BL	runtime·cgocallbackg(SB)
+ 
+diff --git a/src/runtime/cgo/asm_ppc64x.s b/src/runtime/cgo/asm_ppc64x.s
+index 954ed7edb3..dded1be399 100644
+--- a/src/runtime/cgo/asm_ppc64x.s
++++ b/src/runtime/cgo/asm_ppc64x.s
+@@ -33,7 +33,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R6, FIXED_FRAME+16(R1)
+ 	BL	(CTR)
+ 
+-	ADD	$(288+2*8+FIXED_FRAME), R1
++	ADD	$(288+3*8+FIXED_FRAME), R1
+ 
+ 	BL	restoreregs2<>(SB)
+ 

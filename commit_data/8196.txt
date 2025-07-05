@@ -18,7 +18,7 @@ Date:   Fri Apr 22 15:33:41 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4378046
-
+---
  src/pkg/crypto/openpgp/packet/private_key.go |   6 +-
  src/pkg/crypto/rsa/rsa.go                    | 288 ++++++++++++---------------
  src/pkg/crypto/rsa/rsa_test.go               |  36 +++-
@@ -26,3 +26,719 @@ Date:   Fri Apr 22 15:33:41 2011 -0400
  src/pkg/crypto/x509/x509.go                  |  77 ++++++-
  src/pkg/crypto/x509/x509_test.go             |  49 ++++-
  6 files changed, 275 insertions(+), 187 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index 6944823902..fde2a9933d 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -164,8 +164,10 @@ func (pk *PrivateKey) parseRSAPrivateKey(data []byte) (err os.Error) {
+ 	}
+ 
+ 	rsaPriv.D = new(big.Int).SetBytes(d)
+-	rsaPriv.P = new(big.Int).SetBytes(p)
+-	rsaPriv.Q = new(big.Int).SetBytes(q)
++	rsaPriv.Primes = make([]*big.Int, 2)
++	rsaPriv.Primes[0] = new(big.Int).SetBytes(p)
++	rsaPriv.Primes[1] = new(big.Int).SetBytes(q)
++	rsaPriv.Precompute()
+ 	pk.PrivateKey = rsaPriv
+ 	pk.Encrypted = false
+ 	pk.encryptedData = nil
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index c5bdf0e8cd..e1813dbf93 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -13,7 +13,6 @@ import (
+ 	"hash"
+ 	"io"
+ 	"os"
+-	"sync"
+ )
+ 
+ var bigZero = big.NewInt(0)
+@@ -90,50 +89,60 @@ type PublicKey struct {
+ 
+ // A PrivateKey represents an RSA key
+ type PrivateKey struct {
+-	PublicKey          // public part.
+-	D         *big.Int // private exponent
+-	P, Q, R   *big.Int // prime factors of N (R may be nil)
+-
+-	rwMutex    sync.RWMutex // protects the following
+-	dP, dQ, dR *big.Int     // D mod (P-1) (or mod Q-1 etc) 
+-	qInv       *big.Int     // q^-1 mod p
+-	pq         *big.Int     // P*Q
+-	tr         *big.Int     // pq·tr ≡ 1 mod r
++	PublicKey            // public part.
++	D         *big.Int   // private exponent
++	Primes    []*big.Int // prime factors of N, has >= 2 elements.
++
++	// Precomputed contains precomputed values that speed up private
++	// operations, if availible.
++	Precomputed PrecomputedValues
++}
++
++type PrecomputedValues struct {
++	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1) 
++	Qinv   *big.Int // Q^-1 mod Q
++
++	// CRTValues is used for the 3rd and subsequent primes. Due to a
++	// historical accident, the CRT for the first two primes is handled
++	// differently in PKCS#1 and interoperability is sufficiently
++	// important that we mirror this.
++	CRTValues []CRTValue
++}
++
++// CRTValue contains the precomputed chinese remainder theorem values.
++type CRTValue struct {
++	Exp   *big.Int // D mod (prime-1).
++	Coeff *big.Int // R·Coeff ≡ 1 mod Prime.
++	R     *big.Int // product of primes prior to this (inc p and q).
+ }
+ 
+ // Validate performs basic sanity checks on the key.
+ // It returns nil if the key is valid, or else an os.Error describing a problem.
+ 
+ func (priv *PrivateKey) Validate() os.Error {
+-	// Check that p, q and, maybe, r are prime. Note that this is just a
+-	// sanity check. Since the random witnesses chosen by ProbablyPrime are
+-	// deterministic, given the candidate number, it's easy for an attack
+-	// to generate composites that pass this test.
+-	if !big.ProbablyPrime(priv.P, 20) {
+-		return os.ErrorString("P is composite")
+-	}
+-	if !big.ProbablyPrime(priv.Q, 20) {
+-		return os.ErrorString("Q is composite")
+-	}
+-	if priv.R != nil && !big.ProbablyPrime(priv.R, 20) {
+-		return os.ErrorString("R is composite")
++	// Check that the prime factors are actually prime. Note that this is
++	// just a sanity check. Since the random witnesses chosen by
++	// ProbablyPrime are deterministic, given the candidate number, it's
++	// easy for an attack to generate composites that pass this test.
++	for _, prime := range priv.Primes {
++		if !big.ProbablyPrime(prime, 20) {
++			return os.ErrorString("Prime factor is composite")
++		}
+ 	}
+ 
+-	// Check that p*q*r == n.
+-	modulus := new(big.Int).Mul(priv.P, priv.Q)
+-	if priv.R != nil {
+-		modulus.Mul(modulus, priv.R)
++	// Check that Πprimes == n.
++	modulus := new(big.Int).Set(bigOne)
++	for _, prime := range priv.Primes {
++		modulus.Mul(modulus, prime)
+ 	}
+ 	if modulus.Cmp(priv.N) != 0 {
+ 		return os.ErrorString("invalid modulus")
+ 	}
+-	// Check that e and totient(p, q, r) are coprime.
+-	pminus1 := new(big.Int).Sub(priv.P, bigOne)
+-	qminus1 := new(big.Int).Sub(priv.Q, bigOne)
+-	totient := new(big.Int).Mul(pminus1, qminus1)
+-	if priv.R != nil {
+-		rminus1 := new(big.Int).Sub(priv.R, bigOne)
+-		totient.Mul(totient, rminus1)
++	// Check that e and totient(Πprimes) are coprime.
++	totient := new(big.Int).Set(bigOne)
++	for _, prime := range priv.Primes {
++		pminus1 := new(big.Int).Sub(prime, bigOne)
++		totient.Mul(totient, pminus1)
+ 	}
+ 	e := big.NewInt(int64(priv.E))
+ 	gcd := new(big.Int)
+@@ -143,7 +152,7 @@ func (priv *PrivateKey) Validate() os.Error {
+ 	if gcd.Cmp(bigOne) != 0 {
+ 		return os.ErrorString("invalid public exponent E")
+ 	}
+-	// Check that de ≡ 1 (mod totient(p, q, r))
++	// Check that de ≡ 1 (mod totient(Πprimes))
+ 	de := new(big.Int).Mul(priv.D, e)
+ 	de.Mod(de, totient)
+ 	if de.Cmp(bigOne) != 0 {
+@@ -154,6 +163,20 @@ func (priv *PrivateKey) Validate() os.Error {
+ 
+ // GenerateKey generates an RSA keypair of the given bit size.
+ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
++	return GenerateMultiPrimeKey(rand, 2, bits)
++}
++
++// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
++// size, as suggested in [1]. Although the public keys are compatible
++// (actually, indistinguishable) from the 2-prime case, the private keys are
++// not. Thus it may not be possible to export multi-prime private keys in
++// certain formats or to subsequently import them into other code.
++//
++// Table 1 in [2] suggests maximum numbers of primes for a given size.
++//
++// [1] US patent 4405829 (1972, expired)
++// [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
++func GenerateMultiPrimeKey(rand io.Reader, nprimes int, bits int) (priv *PrivateKey, err os.Error) {
+ 	priv = new(PrivateKey)
+ 	// Smaller public exponents lead to faster public key
+ 	// operations. Since the exponent must be coprime to
+@@ -165,100 +188,41 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	// [1] http://marc.info/?l=cryptography&m=115694833312008&w=2
+ 	priv.E = 3
+ 
+-	pminus1 := new(big.Int)
+-	qminus1 := new(big.Int)
+-	totient := new(big.Int)
+-
+-	for {
+-		p, err := randomPrime(rand, bits/2)
+-		if err != nil {
+-			return nil, err
+-		}
+-
+-		q, err := randomPrime(rand, bits/2)
+-		if err != nil {
+-			return nil, err
+-		}
+-
+-		if p.Cmp(q) == 0 {
+-			continue
+-		}
+-
+-		n := new(big.Int).Mul(p, q)
+-		pminus1.Sub(p, bigOne)
+-		qminus1.Sub(q, bigOne)
+-		totient.Mul(pminus1, qminus1)
+-
+-		g := new(big.Int)
+-		priv.D = new(big.Int)
+-		y := new(big.Int)
+-		e := big.NewInt(int64(priv.E))
+-		big.GcdInt(g, priv.D, y, e, totient)
+-
+-		if g.Cmp(bigOne) == 0 {
+-			priv.D.Add(priv.D, totient)
+-			priv.P = p
+-			priv.Q = q
+-			priv.N = n
+-
+-			break
+-		}
++	if nprimes < 2 {
++		return nil, os.ErrorString("rsa.GenerateMultiPrimeKey: nprimes must be >= 2")
+ 	}
+ 
+-	return
+-}
+-
+-// Generate3PrimeKey generates a 3-prime RSA keypair of the given bit size, as
+-// suggested in [1]. Although the public keys are compatible (actually,
+-// indistinguishable) from the 2-prime case, the private keys are not. Thus it
+-// may not be possible to export 3-prime private keys in certain formats or to
+-// subsequently import them into other code.
+-//
+-// Table 1 in [2] suggests that size should be >= 1024 when using 3 primes.
+-//
+-// [1] US patent 4405829 (1972, expired)
+-// [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+-func Generate3PrimeKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+-	priv = new(PrivateKey)
+-	priv.E = 3
+-
+-	pminus1 := new(big.Int)
+-	qminus1 := new(big.Int)
+-	rminus1 := new(big.Int)
+-	totient := new(big.Int)
++	primes := make([]*big.Int, nprimes)
+ 
++NextSetOfPrimes:
+ 	for {
+-		p, err := randomPrime(rand, bits/3)
+-		if err != nil {
+-			return nil, err
+-		}
+-
+-		todo := bits - p.BitLen()
+-		q, err := randomPrime(rand, todo/2)
+-		if err != nil {
+-			return nil, err
++		todo := bits
++		for i := 0; i < nprimes; i++ {
++			primes[i], err = randomPrime(rand, todo/(nprimes-i))
++			if err != nil {
++				return nil, err
++			}
++			todo -= primes[i].BitLen()
+ 		}
+ 
+-		todo -= q.BitLen()
+-		r, err := randomPrime(rand, todo)
+-		if err != nil {
+-			return nil, err
++		// Make sure that primes is pairwise unequal.
++		for i, prime := range primes {
++			for j := 0; j < i; j++ {
++				if prime.Cmp(primes[j]) == 0 {
++					continue NextSetOfPrimes
++				}
++			}
+ 		}
+ 
+-		if p.Cmp(q) == 0 ||
+-			q.Cmp(r) == 0 ||
+-			r.Cmp(p) == 0 {
+-			continue
++		n := new(big.Int).Set(bigOne)
++		totient := new(big.Int).Set(bigOne)
++		pminus1 := new(big.Int)
++		for _, prime := range primes {
++			n.Mul(n, prime)
++			pminus1.Sub(prime, bigOne)
++			totient.Mul(totient, pminus1)
+ 		}
+ 
+-		n := new(big.Int).Mul(p, q)
+-		n.Mul(n, r)
+-		pminus1.Sub(p, bigOne)
+-		qminus1.Sub(q, bigOne)
+-		rminus1.Sub(r, bigOne)
+-		totient.Mul(pminus1, qminus1)
+-		totient.Mul(totient, rminus1)
+-
+ 		g := new(big.Int)
+ 		priv.D = new(big.Int)
+ 		y := new(big.Int)
+@@ -267,15 +231,14 @@ func Generate3PrimeKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error
+ 
+ 		if g.Cmp(bigOne) == 0 {
+ 			priv.D.Add(priv.D, totient)
+-			priv.P = p
+-			priv.Q = q
+-			priv.R = r
++			priv.Primes = primes
+ 			priv.N = n
+ 
+ 			break
+ 		}
+ 	}
+ 
++	priv.Precompute()
+ 	return
+ }
+ 
+@@ -409,23 +372,34 @@ func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
+ 	return x, true
+ }
+ 
+-// precompute performs some calculations that speed up private key operations
++// Precompute performs some calculations that speed up private key operations
+ // in the future.
+-func (priv *PrivateKey) precompute() {
+-	priv.dP = new(big.Int).Sub(priv.P, bigOne)
+-	priv.dP.Mod(priv.D, priv.dP)
++func (priv *PrivateKey) Precompute() {
++	if priv.Precomputed.Dp != nil {
++		return
++	}
+ 
+-	priv.dQ = new(big.Int).Sub(priv.Q, bigOne)
+-	priv.dQ.Mod(priv.D, priv.dQ)
++	priv.Precomputed.Dp = new(big.Int).Sub(priv.Primes[0], bigOne)
++	priv.Precomputed.Dp.Mod(priv.D, priv.Precomputed.Dp)
+ 
+-	priv.qInv = new(big.Int).ModInverse(priv.Q, priv.P)
++	priv.Precomputed.Dq = new(big.Int).Sub(priv.Primes[1], bigOne)
++	priv.Precomputed.Dq.Mod(priv.D, priv.Precomputed.Dq)
+ 
+-	if priv.R != nil {
+-		priv.dR = new(big.Int).Sub(priv.R, bigOne)
+-		priv.dR.Mod(priv.D, priv.dR)
++	priv.Precomputed.Qinv = new(big.Int).ModInverse(priv.Primes[1], priv.Primes[0])
+ 
+-		priv.pq = new(big.Int).Mul(priv.P, priv.Q)
+-		priv.tr = new(big.Int).ModInverse(priv.pq, priv.R)
++	r := new(big.Int).Mul(priv.Primes[0], priv.Primes[1])
++	priv.Precomputed.CRTValues = make([]CRTValue, len(priv.Primes)-2)
++	for i := 2; i < len(priv.Primes); i++ {
++		prime := priv.Primes[i]
++		values := &priv.Precomputed.CRTValues[i-2]
++
++		values.Exp = new(big.Int).Sub(prime, bigOne)
++		values.Exp.Mod(priv.D, values.Exp)
++
++		values.R = new(big.Int).Set(r)
++		values.Coeff = new(big.Int).ModInverse(r, prime)
++
++		r.Mul(r, prime)
+ 	}
+ }
+ 
+@@ -463,53 +437,41 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
+ 		}
+ 		bigE := big.NewInt(int64(priv.E))
+ 		rpowe := new(big.Int).Exp(r, bigE, priv.N)
+-		c.Mul(c, rpowe)
+-		c.Mod(c, priv.N)
+-	}
+-
+-	priv.rwMutex.RLock()
+-
+-	if priv.dP == nil && priv.P != nil {
+-		priv.rwMutex.RUnlock()
+-		priv.rwMutex.Lock()
+-		if priv.dP == nil && priv.P != nil {
+-			priv.precompute()
+-		}
+-		priv.rwMutex.Unlock()
+-		priv.rwMutex.RLock()
++		cCopy := new(big.Int).Set(c)
++		cCopy.Mul(cCopy, rpowe)
++		cCopy.Mod(cCopy, priv.N)
++		c = cCopy
+ 	}
+ 
+-	if priv.dP == nil {
++	if priv.Precomputed.Dp == nil {
+ 		m = new(big.Int).Exp(c, priv.D, priv.N)
+ 	} else {
+ 		// We have the precalculated values needed for the CRT.
+-		m = new(big.Int).Exp(c, priv.dP, priv.P)
+-		m2 := new(big.Int).Exp(c, priv.dQ, priv.Q)
++		m = new(big.Int).Exp(c, priv.Precomputed.Dp, priv.Primes[0])
++		m2 := new(big.Int).Exp(c, priv.Precomputed.Dq, priv.Primes[1])
+ 		m.Sub(m, m2)
+ 		if m.Sign() < 0 {
+-			m.Add(m, priv.P)
++			m.Add(m, priv.Primes[0])
+ 		}
+-		m.Mul(m, priv.qInv)
+-		m.Mod(m, priv.P)
+-		m.Mul(m, priv.Q)
++		m.Mul(m, priv.Precomputed.Qinv)
++		m.Mod(m, priv.Primes[0])
++		m.Mul(m, priv.Primes[1])
+ 		m.Add(m, m2)
+ 
+-		if priv.dR != nil {
+-			// 3-prime CRT.
+-			m2.Exp(c, priv.dR, priv.R)
++		for i, values := range priv.Precomputed.CRTValues {
++			prime := priv.Primes[2+i]
++			m2.Exp(c, values.Exp, prime)
+ 			m2.Sub(m2, m)
+-			m2.Mul(m2, priv.tr)
+-			m2.Mod(m2, priv.R)
++			m2.Mul(m2, values.Coeff)
++			m2.Mod(m2, prime)
+ 			if m2.Sign() < 0 {
+-				m2.Add(m2, priv.R)
++				m2.Add(m2, prime)
+ 			}
+-			m2.Mul(m2, priv.pq)
++			m2.Mul(m2, values.R)
+ 			m.Add(m, m2)
+ 		}
+ 	}
+ 
+-	priv.rwMutex.RUnlock()
+-
+ 	if ir != nil {
+ 		// Unblind.
+ 		m.Mul(m, ir)
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index d8a936eb68..c36bca1cd3 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -30,7 +30,20 @@ func Test3PrimeKeyGeneration(t *testing.T) {
+ 	}
+ 
+ 	size := 768
+-	priv, err := Generate3PrimeKey(rand.Reader, size)
++	priv, err := GenerateMultiPrimeKey(rand.Reader, 3, size)
++	if err != nil {
++		t.Errorf("failed to generate key")
++	}
++	testKeyBasics(t, priv)
++}
++
++func Test4PrimeKeyGeneration(t *testing.T) {
++	if testing.Short() {
++		return
++	}
++
++	size := 768
++	priv, err := GenerateMultiPrimeKey(rand.Reader, 4, size)
+ 	if err != nil {
+ 		t.Errorf("failed to generate key")
+ 	}
+@@ -45,6 +58,7 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
+ 	pub := &priv.PublicKey
+ 	m := big.NewInt(42)
+ 	c := encrypt(new(big.Int), pub, m)
++
+ 	m2, err := decrypt(nil, priv, c)
+ 	if err != nil {
+ 		t.Errorf("error while decrypting: %s", err)
+@@ -59,7 +73,7 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
+ 		t.Errorf("error while decrypting (blind): %s", err)
+ 	}
+ 	if m.Cmp(m3) != 0 {
+-		t.Errorf("(blind) got:%v, want:%v", m3, m)
++		t.Errorf("(blind) got:%v, want:%v (%#v)", m3, m, priv)
+ 	}
+ }
+ 
+@@ -77,10 +91,12 @@ func BenchmarkRSA2048Decrypt(b *testing.B) {
+ 			E: 3,
+ 		},
+ 		D: fromBase10("9542755287494004433998723259516013739278699355114572217325597900889416163458809501304132487555642811888150937392013824621448709836142886006653296025093941418628992648429798282127303704957273845127141852309016655778568546006839666463451542076964744073572349705538631742281931858219480985907271975884773482372966847639853897890615456605598071088189838676728836833012254065983259638538107719766738032720239892094196108713378822882383694456030043492571063441943847195939549773271694647657549658603365629458610273821292232646334717612674519997533901052790334279661754176490593041941863932308687197618671528035670452762731"),
+-		P: fromBase10("130903255182996722426771613606077755295583329135067340152947172868415809027537376306193179624298874215608270802054347609836776473930072411958753044562214537013874103802006369634761074377213995983876788718033850153719421695468704276694983032644416930879093914927146648402139231293035971427838068945045019075433"),
+-		Q: fromBase10("109348945610485453577574767652527472924289229538286649661240938988020367005475727988253438647560958573506159449538793540472829815903949343191091817779240101054552748665267574271163617694640513549693841337820602726596756351006149518830932261246698766355347898158548465400674856021497190430791824869615170301029"),
++		Primes: []*big.Int{
++			fromBase10("130903255182996722426771613606077755295583329135067340152947172868415809027537376306193179624298874215608270802054347609836776473930072411958753044562214537013874103802006369634761074377213995983876788718033850153719421695468704276694983032644416930879093914927146648402139231293035971427838068945045019075433"),
++			fromBase10("109348945610485453577574767652527472924289229538286649661240938988020367005475727988253438647560958573506159449538793540472829815903949343191091817779240101054552748665267574271163617694640513549693841337820602726596756351006149518830932261246698766355347898158548465400674856021497190430791824869615170301029"),
++		},
+ 	}
+-	priv.precompute()
++	priv.Precompute()
+ 
+ 	c := fromBase10("1000")
+ 
+@@ -99,11 +115,13 @@ func Benchmark3PrimeRSA2048Decrypt(b *testing.B) {
+ 			E: 3,
+ 		},
+ 		D: fromBase10("10897585948254795600358846499957366070880176878341177571733155050184921896034527397712889205732614568234385175145686545381899460748279607074689061600935843283397424506622998458510302603922766336783617368686090042765718290914099334449154829375179958369993407724946186243249568928237086215759259909861748642124071874879861299389874230489928271621259294894142840428407196932444474088857746123104978617098858619445675532587787023228852383149557470077802718705420275739737958953794088728369933811184572620857678792001136676902250566845618813972833750098806496641114644760255910789397593428910198080271317419213080834885003"),
+-		P: fromBase10("1025363189502892836833747188838978207017355117492483312747347695538428729137306368764177201532277413433182799108299960196606011786562992097313508180436744488171474690412562218914213688661311117337381958560443"),
+-		Q: fromBase10("3467903426626310123395340254094941045497208049900750380025518552334536945536837294961497712862519984786362199788654739924501424784631315081391467293694361474867825728031147665777546570788493758372218019373"),
+-		R: fromBase10("4597024781409332673052708605078359346966325141767460991205742124888960305710298765592730135879076084498363772408626791576005136245060321874472727132746643162385746062759369754202494417496879741537284589047"),
++		Primes: []*big.Int{
++			fromBase10("1025363189502892836833747188838978207017355117492483312747347695538428729137306368764177201532277413433182799108299960196606011786562992097313508180436744488171474690412562218914213688661311117337381958560443"),
++			fromBase10("3467903426626310123395340254094941045497208049900750380025518552334536945536837294961497712862519984786362199788654739924501424784631315081391467293694361474867825728031147665777546570788493758372218019373"),
++			fromBase10("4597024781409332673052708605078359346966325141767460991205742124888960305710298765592730135879076084498363772408626791576005136245060321874472727132746643162385746062759369754202494417496879741537284589047"),
++		},
+ 	}
+-	priv.precompute()
++	priv.Precompute()
+ 
+ 	c := fromBase10("1000")
+ 
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index 6beb6a9f62..5a1e754dcf 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -188,8 +188,10 @@ var testPrivateKey = &rsa.PrivateKey{
+ 		E: 65537,
+ 	},
+ 	D: bigFromString("29354450337804273969007277378287027274721892607543397931919078829901848876371746653677097639302788129485893852488285045793268732234230875671682624082413996177431586734171663258657462237320300610850244186316880055243099640544518318093544057213190320837094958164973959123058337475052510833916491060913053867729"),
+-	P: bigFromString("11969277782311800166562047708379380720136961987713178380670422671426759650127150688426177829077494755200794297055316163155755835813760102405344560929062149"),
+-	Q: bigFromString("10998999429884441391899182616418192492905073053684657075974935218461686523870125521822756579792315215543092255516093840728890783887287417039645833477273829"),
++	Primes: []*big.Int{
++		bigFromString("11969277782311800166562047708379380720136961987713178380670422671426759650127150688426177829077494755200794297055316163155755835813760102405344560929062149"),
++		bigFromString("10998999429884441391899182616418192492905073053684657075974935218461686523870125521822756579792315215543092255516093840728890783887287417039645833477273829"),
++	},
+ }
+ 
+ // Script of interaction with gnutls implementation.
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index f9e6eb6b3f..f2a039b5ad 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -8,6 +8,7 @@ package x509
+ import (
+ 	"asn1"
+ 	"big"
++	"bytes"
+ 	"container/vector"
+ 	"crypto"
+ 	"crypto/rsa"
+@@ -26,6 +27,20 @@ type pkcs1PrivateKey struct {
+ 	D       asn1.RawValue
+ 	P       asn1.RawValue
+ 	Q       asn1.RawValue
++	// We ignore these values, if present, because rsa will calculate them.
++	Dp   asn1.RawValue "optional"
++	Dq   asn1.RawValue "optional"
++	Qinv asn1.RawValue "optional"
++
++	AdditionalPrimes []pkcs1AddtionalRSAPrime "optional"
++}
++
++type pkcs1AddtionalRSAPrime struct {
++	Prime asn1.RawValue
++
++	// We ignore these values because rsa will calculate them.
++	Exp   asn1.RawValue
++	Coeff asn1.RawValue
+ }
+ 
+ // rawValueIsInteger returns true iff the given ASN.1 RawValue is an INTEGER type.
+@@ -45,6 +60,10 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+ 		return
+ 	}
+ 
++	if priv.Version > 1 {
++		return nil, os.ErrorString("x509: unsupported private key version")
++	}
++
+ 	if !rawValueIsInteger(&priv.N) ||
+ 		!rawValueIsInteger(&priv.D) ||
+ 		!rawValueIsInteger(&priv.P) ||
+@@ -60,26 +79,66 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
+ 	}
+ 
+ 	key.D = new(big.Int).SetBytes(priv.D.Bytes)
+-	key.P = new(big.Int).SetBytes(priv.P.Bytes)
+-	key.Q = new(big.Int).SetBytes(priv.Q.Bytes)
++	key.Primes = make([]*big.Int, 2+len(priv.AdditionalPrimes))
++	key.Primes[0] = new(big.Int).SetBytes(priv.P.Bytes)
++	key.Primes[1] = new(big.Int).SetBytes(priv.Q.Bytes)
++	for i, a := range priv.AdditionalPrimes {
++		if !rawValueIsInteger(&a.Prime) {
++			return nil, asn1.StructuralError{"tags don't match"}
++		}
++		key.Primes[i+2] = new(big.Int).SetBytes(a.Prime.Bytes)
++		// We ignore the other two values because rsa will calculate
++		// them as needed.
++	}
+ 
+ 	err = key.Validate()
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	key.Precompute()
+ 
+ 	return
+ }
+ 
++// rawValueForBig returns an asn1.RawValue which represents the given integer.
++func rawValueForBig(n *big.Int) asn1.RawValue {
++	b := n.Bytes()
++	if n.Sign() >= 0 && len(b) > 0 && b[0]&0x80 != 0 {
++		// This positive number would be interpreted as a negative
++		// number in ASN.1 because the MSB is set.
++		padded := make([]byte, len(b)+1)
++		copy(padded[1:], b)
++		b = padded
++	}
++	return asn1.RawValue{Tag: 2, Bytes: b}
++}
++
+ // MarshalPKCS1PrivateKey converts a private key to ASN.1 DER encoded form.
+ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
++	key.Precompute()
++
++	version := 0
++	if len(key.Primes) > 2 {
++		version = 1
++	}
++
+ 	priv := pkcs1PrivateKey{
+-		Version: 1,
+-		N:       asn1.RawValue{Tag: 2, Bytes: key.PublicKey.N.Bytes()},
++		Version: version,
++		N:       rawValueForBig(key.N),
+ 		E:       key.PublicKey.E,
+-		D:       asn1.RawValue{Tag: 2, Bytes: key.D.Bytes()},
+-		P:       asn1.RawValue{Tag: 2, Bytes: key.P.Bytes()},
+-		Q:       asn1.RawValue{Tag: 2, Bytes: key.Q.Bytes()},
++		D:       rawValueForBig(key.D),
++		P:       rawValueForBig(key.Primes[0]),
++		Q:       rawValueForBig(key.Primes[1]),
++		Dp:      rawValueForBig(key.Precomputed.Dp),
++		Dq:      rawValueForBig(key.Precomputed.Dq),
++		Qinv:    rawValueForBig(key.Precomputed.Qinv),
++	}
++
++	priv.AdditionalPrimes = make([]pkcs1AddtionalRSAPrime, len(key.Precomputed.CRTValues))
++	for i, values := range key.Precomputed.CRTValues {
++		priv.AdditionalPrimes[i].Prime = rawValueForBig(key.Primes[2+i])
++		priv.AdditionalPrimes[i].Exp = rawValueForBig(values.Exp)
++		priv.AdditionalPrimes[i].Coeff = rawValueForBig(values.Coeff)
+ 	}
+ 
+ 	b, _ := asn1.Marshal(priv)
+@@ -396,6 +455,10 @@ func (ConstraintViolationError) String() string {
+ 	return "invalid signature: parent certificate cannot sign this kind of certificate"
+ }
+ 
++func (c *Certificate) Equal(other *Certificate) bool {
++	return bytes.Equal(c.Raw, other.Raw)
++}
++
+ // CheckSignatureFrom verifies that the signature on c is a valid signature
+ // from parent.
+ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index d9511b863f..a42113addd 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -20,12 +20,13 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
+ 	priv, err := ParsePKCS1PrivateKey(block.Bytes)
+ 	if err != nil {
+ 		t.Errorf("Failed to parse private key: %s", err)
++		return
+ 	}
+ 	if priv.PublicKey.N.Cmp(rsaPrivateKey.PublicKey.N) != 0 ||
+ 		priv.PublicKey.E != rsaPrivateKey.PublicKey.E ||
+ 		priv.D.Cmp(rsaPrivateKey.D) != 0 ||
+-		priv.P.Cmp(rsaPrivateKey.P) != 0 ||
+-		priv.Q.Cmp(rsaPrivateKey.Q) != 0 {
++		priv.Primes[0].Cmp(rsaPrivateKey.Primes[0]) != 0 ||
++		priv.Primes[1].Cmp(rsaPrivateKey.Primes[1]) != 0 {
+ 		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
+ 	}
+ }
+@@ -47,14 +48,54 @@ func bigFromString(s string) *big.Int {
+ 	return ret
+ }
+ 
++func fromBase10(base10 string) *big.Int {
++	i := new(big.Int)
++	i.SetString(base10, 10)
++	return i
++}
++
+ var rsaPrivateKey = &rsa.PrivateKey{
+ 	PublicKey: rsa.PublicKey{
+ 		N: bigFromString("9353930466774385905609975137998169297361893554149986716853295022578535724979677252958524466350471210367835187480748268864277464700638583474144061408845077"),
+ 		E: 65537,
+ 	},
+ 	D: bigFromString("7266398431328116344057699379749222532279343923819063639497049039389899328538543087657733766554155839834519529439851673014800261285757759040931985506583861"),
+-	P: bigFromString("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
+-	Q: bigFromString("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
++	Primes: []*big.Int{
++		bigFromString("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
++		bigFromString("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
++	},
++}
++
++func TestMarshalRSAPrivateKey(t *testing.T) {
++	priv := &rsa.PrivateKey{
++		PublicKey: rsa.PublicKey{
++			N: fromBase10("16346378922382193400538269749936049106320265317511766357599732575277382844051791096569333808598921852351577762718529818072849191122419410612033592401403764925096136759934497687765453905884149505175426053037420486697072448609022753683683718057795566811401938833367954642951433473337066311978821180526439641496973296037000052546108507805269279414789035461158073156772151892452251106173507240488993608650881929629163465099476849643165682709047462010581308719577053905787496296934240246311806555924593059995202856826239801816771116902778517096212527979497399966526283516447337775509777558018145573127308919204297111496233"),
++			E: 3,
++		},
++		D: fromBase10("10897585948254795600358846499957366070880176878341177571733155050184921896034527397712889205732614568234385175145686545381899460748279607074689061600935843283397424506622998458510302603922766336783617368686090042765718290914099334449154829375179958369993407724946186243249568928237086215759259909861748642124071874879861299389874230489928271621259294894142840428407196932444474088857746123104978617098858619445675532587787023228852383149557470077802718705420275739737958953794088728369933811184572620857678792001136676902250566845618813972833750098806496641114644760255910789397593428910198080271317419213080834885003"),
++		Primes: []*big.Int{
++			fromBase10("1025363189502892836833747188838978207017355117492483312747347695538428729137306368764177201532277413433182799108299960196606011786562992097313508180436744488171474690412562218914213688661311117337381958560443"),
++			fromBase10("3467903426626310123395340254094941045497208049900750380025518552334536945536837294961497712862519984786362199788654739924501424784631315081391467293694361474867825728031147665777546570788493758372218019373"),
++			fromBase10("4597024781409332673052708605078359346966325141767460991205742124888960305710298765592730135879076084498363772408626791576005136245060321874472727132746643162385746062759369754202494417496879741537284589047"),
++		},
++	}
++
++	derBytes := MarshalPKCS1PrivateKey(priv)
++
++	priv2, err := ParsePKCS1PrivateKey(derBytes)
++	if err != nil {
++		t.Errorf("error parsing serialized key: %s", err)
++		return
++	}
++	if priv.PublicKey.N.Cmp(priv2.PublicKey.N) != 0 ||
++		priv.PublicKey.E != priv2.PublicKey.E ||
++		priv.D.Cmp(priv2.D) != 0 ||
++		len(priv2.Primes) != 3 ||
++		priv.Primes[0].Cmp(priv2.Primes[0]) != 0 ||
++		priv.Primes[1].Cmp(priv2.Primes[1]) != 0 ||
++		priv.Primes[2].Cmp(priv2.Primes[2]) != 0 {
++		t.Errorf("got:%+v want:%+v", priv, priv2)
++	}
+ }
+ 
+ type matchHostnamesTest struct {

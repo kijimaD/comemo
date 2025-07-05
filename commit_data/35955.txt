@@ -11,7 +11,93 @@ Date:   Fri Mar 23 18:50:39 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 40 ---------------------------------
  test/codegen/comparisons.go             | 26 +++++++++++++++++++++
  2 files changed, 26 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 852f8e3a17..0fe3d31734 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -481,46 +481,6 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"LSL\t\\$17"},
+ 		neg: []string{"CMP"},
+ 	},
+-	{
+-		fn: `
+-		func $(a int32, ptr *int) {
+-			if a >= 0 {
+-				*ptr = 0
+-			}
+-		}
+-		`,
+-		pos: []string{"TBNZ"},
+-	},
+-	{
+-		fn: `
+-		func $(a int64, ptr *int) {
+-			if a >= 0 {
+-				*ptr = 0
+-			}
+-		}
+-		`,
+-		pos: []string{"TBNZ"},
+-	},
+-	{
+-		fn: `
+-		func $(a int32, ptr *int) {
+-			if a < 0 {
+-				*ptr = 0
+-			}
+-		}
+-		`,
+-		pos: []string{"TBZ"},
+-	},
+-	{
+-		fn: `
+-		func $(a int64, ptr *int) {
+-			if a < 0 {
+-				*ptr = 0
+-			}
+-		}
+-		`,
+-		pos: []string{"TBZ"},
+-	},
+ 	// Load-combining tests.
+ 	{
+ 		fn: `
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index c0824e6ed1..15a659a4e6 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -106,3 +106,29 @@ func CmpMem5(p **int) {
+ 	// amd64:`CMPL\truntime.writeBarrier\(SB\), [$]0`
+ 	*p = nil
+ }
++
++// Check tbz/tbnz are generated when comparing against zero on arm64
++
++func CmpZero1(a int32, ptr *int) {
++	if a < 0 { // arm64:"TBZ"
++		*ptr = 0
++	}
++}
++
++func CmpZero2(a int64, ptr *int) {
++	if a < 0 { // arm64:"TBZ"
++		*ptr = 0
++	}
++}
++
++func CmpZero3(a int32, ptr *int) {
++	if a >= 0 { // arm64:"TBNZ"
++		*ptr = 0
++	}
++}
++
++func CmpZero4(a int64, ptr *int) {
++	if a >= 0 { // arm64:"TBNZ"
++		*ptr = 0
++	}
++}

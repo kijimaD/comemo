@@ -9,6 +9,23 @@ Date:   Tue Oct 30 10:51:29 2012 +0100
     R=golang-dev, dsymonds, nigeltao, rsc, r
     CC=golang-dev
     https://golang.org/cl/6760045
-
+---
  src/pkg/io/io.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 5187eff70a..bddb701786 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -216,6 +216,11 @@ type ByteScanner interface {
+ 	UnreadByte() error
+ }
+ 
++// ByteWriter is the interface that wraps the WriteByte method.
++type ByteWriter interface {
++	WriteByte(c byte) error
++}
++
+ // RuneReader is the interface that wraps the ReadRune method.
+ //
+ // ReadRune reads a single UTF-8 encoded Unicode character

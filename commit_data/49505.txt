@@ -37,7 +37,7 @@ Date:   Sun Aug 22 08:58:24 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/344613
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go       |  4 +-
  src/cmd/compile/internal/reflectdata/reflect.go |  8 +---
  src/cmd/compile/internal/typecheck/iimport.go   | 29 +-----------
@@ -46,3 +46,309 @@ Date:   Sun Aug 22 08:58:24 2021 -0700
  test/typeparam/issue47713.out                   |  1 +
  test/typeparam/issue47877.go                    | 23 ++++++++++
  7 files changed, 115 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 570dec9990..602e88c102 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -590,7 +590,7 @@ func (g *irgen) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth
+ 		shapes = s1
+ 	}
+ 
+-	sym := typecheck.MakeInstName(nameNode.Sym(), shapes, isMeth)
++	sym := typecheck.MakeFuncInstSym(nameNode.Sym(), shapes, isMeth)
+ 	info := g.instInfoMap[sym]
+ 	if info == nil {
+ 		// If instantiation doesn't exist yet, create it and add
+@@ -1372,7 +1372,7 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 	}
+ 
+ 	// Get a symbol representing the dictionary.
+-	sym := typecheck.MakeDictName(gf.Sym(), targs, isMeth)
++	sym := typecheck.MakeDictSym(gf.Sym(), targs, isMeth)
+ 
+ 	// Initialize the dictionary, if we haven't yet already.
+ 	lsym := sym.Linksym()
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index a95c76ff26..9b9efe04a2 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1897,10 +1897,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 			} else {
+ 				targs = rcvr.RParams()
+ 			}
+-			if strings.HasPrefix(ir.MethodSym(orig, method.Sym).Name, ".inst.") {
+-				fmt.Printf("%s\n", ir.MethodSym(orig, method.Sym).Name)
+-				panic("multiple .inst.")
+-			}
+ 			// The wrapper for an auto-generated pointer/non-pointer
+ 			// receiver method should share the same dictionary as the
+ 			// corresponding original (user-written) method.
+@@ -1929,7 +1925,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 			}
+ 			targs = targs2
+ 
+-			sym := typecheck.MakeInstName(ir.MethodSym(methodrcvr, method.Sym), targs, true)
++			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, true)
+ 			if sym.Def == nil {
+ 				// Currently we make sure that we have all the instantiations
+ 				// we need by generating them all in ../noder/stencil.go:instantiateMethods
+@@ -2040,7 +2036,7 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
+ 		}
+ 	}
+ 
+-	sym := typecheck.MakeDictName(gf, targs, true)
++	sym := typecheck.MakeDictSym(gf, targs, true)
+ 
+ 	// Initialize the dictionary, if we haven't yet already.
+ 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 2e3fdbc1bc..a1a3ac3e8a 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -8,7 +8,6 @@
+ package typecheck
+ 
+ import (
+-	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+@@ -1751,32 +1750,6 @@ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+ 	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+ }
+ 
+-// InstTypeName creates a name for an instantiated type, based on the name of the
+-// generic type and the type args.
+-func InstTypeName(name string, targs []*types.Type) string {
+-	b := bytes.NewBufferString(name)
+-	b.WriteByte('[')
+-	for i, targ := range targs {
+-		if i > 0 {
+-			b.WriteByte(',')
+-		}
+-		// WriteString() does not include the package name for the local
+-		// package, but we want it to make sure type arguments (including
+-		// type params) are uniquely specified.
+-		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
+-			b.WriteString(targ.Sym().Pkg.Name)
+-			b.WriteByte('.')
+-		}
+-		// types1 uses "interface {" and types2 uses "interface{" - convert
+-		// to consistent types2 format.
+-		tstring := targ.String()
+-		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
+-		b.WriteString(tstring)
+-	}
+-	b.WriteByte(']')
+-	return b.String()
+-}
+-
+ // NewIncompleteNamedType returns a TFORW type t with name specified by sym, such
+ // that t.nod and sym.Def are set correctly.
+ func NewIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
+@@ -1879,7 +1852,7 @@ func substInstType(t *types.Type, baseType *types.Type, targs []*types.Type) {
+ 		}
+ 		t2 := msubst.Typ(f.Type)
+ 		oldsym := f.Nname.Sym()
+-		newsym := MakeInstName(oldsym, targs, true)
++		newsym := MakeFuncInstSym(oldsym, targs, true)
+ 		var nname *ir.Name
+ 		if newsym.Def != nil {
+ 			nname = newsym.Def.(*ir.Name)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index c7a3718b31..7ae10ef406 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -900,6 +900,35 @@ func TypesOf(x []ir.Node) []*types.Type {
+ 	return r
+ }
+ 
++// addTargs writes out the targs to buffer b as a comma-separated list enclosed by
++// brackets.
++func addTargs(b *bytes.Buffer, targs []*types.Type) {
++	b.WriteByte('[')
++	for i, targ := range targs {
++		if i > 0 {
++			b.WriteByte(',')
++		}
++		// Use NameString(), which includes the package name for the local
++		// package, to make sure that type arguments (including type params),
++		// are uniquely specified.
++		tstring := targ.NameString()
++		// types1 uses "interface {" and types2 uses "interface{" - convert
++		// to consistent types2 format.  Same for "struct {"
++		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
++		tstring = strings.Replace(tstring, "struct {", "struct{", -1)
++		b.WriteString(tstring)
++	}
++	b.WriteString("]")
++}
++
++// InstTypeName creates a name for an instantiated type, based on the name of the
++// generic type and the type args.
++func InstTypeName(name string, targs []*types.Type) string {
++	b := bytes.NewBufferString(name)
++	addTargs(b, targs)
++	return b.String()
++}
++
+ // makeInstName1 returns the name of the generic function instantiated with the
+ // given types, which can have type params or shapes, or be concrete types. name is
+ // the name of the generic function or method.
+@@ -912,36 +941,16 @@ func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
+ 	} else {
+ 		b.WriteString(name)
+ 	}
+-	b.WriteString("[")
+-	for i, targ := range targs {
+-		if i > 0 {
+-			b.WriteString(",")
+-		}
+-		// WriteString() does not include the package name for the local
+-		// package, but we want it for uniqueness.
+-		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
+-			b.WriteString(targ.Sym().Pkg.Name)
+-			b.WriteByte('.')
+-		}
+-		// types1 uses "interface {" and types2 uses "interface{" - convert
+-		// to consistent types2 format.
+-		tstring := targ.String()
+-		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
+-		b.WriteString(tstring)
+-	}
+-	b.WriteString("]")
++	addTargs(b, targs)
+ 	if i >= 0 {
+ 		i2 := strings.LastIndex(name[i:], "]")
+ 		assert(i2 >= 0)
+ 		b.WriteString(name[i+i2+1:])
+ 	}
+-	if strings.HasPrefix(b.String(), ".inst..inst.") {
+-		panic(fmt.Sprintf("multiple .inst. prefix in %s", b.String()))
+-	}
+ 	return b.String()
+ }
+ 
+-// MakeInstName makes the unique name for a stenciled generic function or method,
++// MakeFuncInstSym makes the unique sym for a stenciled generic function or method,
+ // based on the name of the function fnsym and the targs. It replaces any
+ // existing bracket type list in the name. MakeInstName asserts that fnsym has
+ // brackets in its name if and only if hasBrackets is true.
+@@ -953,11 +962,11 @@ func makeInstName1(name string, targs []*types.Type, hasBrackets bool) string {
+ //
+ // The standard naming is something like: 'genFn[int,bool]' for functions and
+ // '(*genType[int,bool]).methodName' for methods
+-func MakeInstName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
++func MakeFuncInstSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+ 	return gf.Pkg.Lookup(makeInstName1(gf.Name, targs, hasBrackets))
+ }
+ 
+-func MakeDictName(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
++func MakeDictSym(gf *types.Sym, targs []*types.Type, hasBrackets bool) *types.Sym {
+ 	for _, targ := range targs {
+ 		if targ.HasTParam() {
+ 			fmt.Printf("FUNCTION %s\n", gf.Name)
+@@ -1222,7 +1231,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		for i, f := range t.Methods().Slice() {
+ 			t2 := ts.Typ(f.Type)
+ 			oldsym := f.Nname.Sym()
+-			newsym := MakeInstName(oldsym, ts.Targs, true)
++			newsym := MakeFuncInstSym(oldsym, ts.Targs, true)
+ 			var nname *ir.Name
+ 			if newsym.Def != nil {
+ 				nname = newsym.Def.(*ir.Name)
+diff --git a/test/typeparam/issue47713.go b/test/typeparam/issue47713.go
+new file mode 100644
+index 0000000000..a38eea19eb
+--- /dev/null
++++ b/test/typeparam/issue47713.go
+@@ -0,0 +1,52 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"encoding"
++	"fmt"
++)
++
++type Seralizable interface {
++	encoding.BinaryMarshaler
++	encoding.BinaryUnmarshaler
++}
++
++type SerDeString string
++
++func (s *SerDeString) UnmarshalBinary(in []byte) error {
++	*s = SerDeString(in)
++	return nil
++}
++
++func (s SerDeString) MarshalBinary() ([]byte, error) {
++	return []byte(s), nil
++}
++
++
++type GenericSerializable[T Seralizable] struct {
++	Key string
++	Value T
++}
++
++func (g GenericSerializable[T]) Send() {
++	out, err := g.Value.MarshalBinary()
++	if err != nil {
++		panic("bad")
++	}
++	var newval SerDeString
++	newval.UnmarshalBinary(out)
++	fmt.Printf("Sent %s\n", newval)
++}
++
++func main() {
++	val := SerDeString("asdf")
++	x := GenericSerializable[*SerDeString]{
++		Value: &val,
++	}
++	x.Send()
++}
+diff --git a/test/typeparam/issue47713.out b/test/typeparam/issue47713.out
+new file mode 100644
+index 0000000000..a6e77197d8
+--- /dev/null
++++ b/test/typeparam/issue47713.out
+@@ -0,0 +1 @@
++Sent asdf
+diff --git a/test/typeparam/issue47877.go b/test/typeparam/issue47877.go
+new file mode 100644
+index 0000000000..0a834590dd
+--- /dev/null
++++ b/test/typeparam/issue47877.go
+@@ -0,0 +1,23 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Map[K comparable, V any] struct {
++        m map[K]V
++}
++
++func NewMap[K comparable, V any]() Map[K, V] {
++        return Map[K, V]{m: map[K]V{}}
++}
++
++func (m Map[K, V]) Get(key K) V {
++        return m.m[key]
++}
++
++func main() {
++        _ = NewMap[int, struct{}]()
++}

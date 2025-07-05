@@ -10,6 +10,20 @@ Date:   Wed May 21 06:18:45 2014 -0700
     R=golang-codereviews, minux.ma, iant
     CC=golang-codereviews, tk
     https://golang.org/cl/94670047
-
+---
  src/cmd/ld/elf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 7859497594..0555cf46aa 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -388,7 +388,7 @@ elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+ {
+ 	int n;
+ 
+-	n = ELF_NOTE_NETBSD_NAMESZ + ELF_NOTE_NETBSD_DESCSZ + 1;
++	n = rnd(ELF_NOTE_NETBSD_NAMESZ, 4) + rnd(ELF_NOTE_NETBSD_DESCSZ, 4);
+ 	return elfnote(sh, startva, resoff, n);
+ }
+ 

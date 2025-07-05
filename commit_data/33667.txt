@@ -7,6 +7,152 @@ Date:   Mon Aug 28 13:25:45 2017 +1000
     Change-Id: I807412bd743d544195aaf9d720f81b128b4636b3
     Reviewed-on: https://go-review.googlesource.com/59421
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 111 +++++++++++++++++++----------------------
  1 file changed, 52 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 743efb07f2..5adc53f623 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -555,10 +555,58 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 		Cput(0)
+ 	}
+ 
++	// relocsect relocates symbols from first in section sect, and returns
++	// the total number of relocations emitted.
++	relocsect := func(sect *Section, syms []*Symbol, base uint64) int {
++		// If main section has no bits, nothing to relocate.
++		if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
++			return 0
++		}
++		relocs := 0
++		sect.Reloff = uint64(coutbuf.Offset())
++		for i, s := range syms {
++			if !s.Attr.Reachable() {
++				continue
++			}
++			if uint64(s.Value) >= sect.Vaddr {
++				syms = syms[i:]
++				break
++			}
++		}
++		eaddr := int32(sect.Vaddr + sect.Length)
++		for _, sym := range syms {
++			if !sym.Attr.Reachable() {
++				continue
++			}
++			if sym.Value >= int64(eaddr) {
++				break
++			}
++			for ri := 0; ri < len(sym.R); ri++ {
++				r := &sym.R[ri]
++				if r.Done != 0 {
++					continue
++				}
++				if r.Xsym == nil {
++					Errorf(sym, "missing xsym in relocation")
++					continue
++				}
++				if r.Xsym.Dynid < 0 {
++					Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
++				}
++				if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
++					Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
++				}
++				relocs++
++			}
++		}
++		sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
++		return relocs
++	}
++
+ 	f.textSect.emitRelocations(func() int {
+-		n := perelocsect(ctxt, Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
++		n := relocsect(Segtext.Sections[0], ctxt.Textp, Segtext.Vaddr)
+ 		for _, sect := range Segtext.Sections[1:] {
+-			n += perelocsect(ctxt, sect, datap, Segtext.Vaddr)
++			n += relocsect(sect, datap, Segtext.Vaddr)
+ 		}
+ 		return n
+ 	})
+@@ -566,7 +614,7 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 	f.dataSect.emitRelocations(func() int {
+ 		var n int
+ 		for _, sect := range Segdata.Sections {
+-			n += perelocsect(ctxt, sect, datap, Segdata.Vaddr)
++			n += relocsect(sect, datap, Segdata.Vaddr)
+ 		}
+ 		return n
+ 	})
+@@ -576,7 +624,7 @@ dwarfLoop:
+ 		for _, pesect := range f.sections {
+ 			if sect.Name == pesect.name {
+ 				pesect.emitRelocations(func() int {
+-					return perelocsect(ctxt, sect, dwarfp, sect.Vaddr)
++					return relocsect(sect, dwarfp, sect.Vaddr)
+ 				})
+ 				continue dwarfLoop
+ 			}
+@@ -973,61 +1021,6 @@ func addexports(ctxt *Link) {
+ 	sect.pad(uint32(size))
+ }
+ 
+-// perelocsect relocates symbols from first in section sect, and returns
+-// the total number of relocations emitted.
+-func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
+-	// If main section has no bits, nothing to relocate.
+-	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
+-		return 0
+-	}
+-
+-	relocs := 0
+-
+-	sect.Reloff = uint64(coutbuf.Offset())
+-	for i, s := range syms {
+-		if !s.Attr.Reachable() {
+-			continue
+-		}
+-		if uint64(s.Value) >= sect.Vaddr {
+-			syms = syms[i:]
+-			break
+-		}
+-	}
+-
+-	eaddr := int32(sect.Vaddr + sect.Length)
+-	for _, sym := range syms {
+-		if !sym.Attr.Reachable() {
+-			continue
+-		}
+-		if sym.Value >= int64(eaddr) {
+-			break
+-		}
+-		for ri := 0; ri < len(sym.R); ri++ {
+-			r := &sym.R[ri]
+-			if r.Done {
+-				continue
+-			}
+-			if r.Xsym == nil {
+-				Errorf(sym, "missing xsym in relocation")
+-				continue
+-			}
+-
+-			if r.Xsym.Dynid < 0 {
+-				Errorf(sym, "reloc %d (%s) to non-coff symbol %s (outer=%s) %d (%s)", r.Type, RelocName(r.Type), r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+-			}
+-			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+-				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, RelocName(r.Type), r.Siz, r.Sym.Name)
+-			}
+-
+-			relocs++
+-		}
+-	}
+-
+-	sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
+-
+-	return relocs
+-}
+-
+ func (ctxt *Link) dope() {
+ 	/* relocation table */
+ 	rel := ctxt.Syms.Lookup(".rel", 0)

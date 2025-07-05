@@ -13,9 +13,241 @@ Date:   Thu Mar 14 10:25:18 2024 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/compare/compare.go      |  3 +-
  src/cmd/compile/internal/reflectdata/alg.go      |  8 ++--
  src/cmd/compile/internal/types/alg.go            | 61 +++++++++++-------------
  src/cmd/compile/internal/types/algkind_string.go |  7 +--
  4 files changed, 37 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index e165cd67db..2f137daf82 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -18,8 +18,7 @@ import (
+ 
+ // IsRegularMemory reports whether t can be compared/hashed as regular memory.
+ func IsRegularMemory(t *types.Type) bool {
+-	a, _ := types.AlgType(t)
+-	return a == types.AMEM
++	return types.AlgType(t) == types.AMEM
+ }
+ 
+ // Memrun finds runs of struct fields for which memory-only algs are appropriate.
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index a0f5522153..7cc50d866f 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -20,7 +20,7 @@ import (
+ // AlgType returns the fixed-width AMEMxx variants instead of the general
+ // AMEM kind when possible.
+ func AlgType(t *types.Type) types.AlgKind {
+-	a, _ := types.AlgType(t)
++	a := types.AlgType(t)
+ 	if a == types.AMEM {
+ 		if t.Alignment() < int64(base.Ctxt.Arch.Alignment) && t.Alignment() < t.Size() {
+ 			// For example, we can't treat [2]int16 as an int32 if int32s require
+@@ -254,7 +254,7 @@ func runtimeHashFor(name string, t *types.Type) *ir.Name {
+ 
+ // hashfor returns the function to compute the hash of a value of type t.
+ func hashfor(t *types.Type) *ir.Name {
+-	switch a, _ := types.AlgType(t); a {
++	switch types.AlgType(t) {
+ 	case types.AMEM:
+ 		base.Fatalf("hashfor with AMEM type")
+ 	case types.AINTER:
+@@ -293,7 +293,7 @@ func sysClosure(name string) *obj.LSym {
+ // equality for two objects of type t.
+ func geneq(t *types.Type) *obj.LSym {
+ 	switch AlgType(t) {
+-	case types.ANOEQ:
++	case types.ANOEQ, types.ANOALG:
+ 		// The runtime will panic if it tries to compare
+ 		// a type with a nil equality function.
+ 		return nil
+@@ -643,7 +643,7 @@ func eqFunc(t *types.Type) *ir.Func {
+ // EqFor returns ONAME node represents type t's equal function, and a boolean
+ // to indicates whether a length needs to be passed when calling the function.
+ func EqFor(t *types.Type) (ir.Node, bool) {
+-	switch a, _ := types.AlgType(t); a {
++	switch types.AlgType(t) {
+ 	case types.AMEM:
+ 		return typecheck.LookupRuntime("memequal", t, t), true
+ 	case types.ASPECIAL:
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index d3b446213e..6ebfd4c6e4 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -27,6 +27,7 @@ const (
+ 	AFLOAT64
+ 	ACPLX64
+ 	ACPLX128
++	ANOALG // implies ANOEQ, and in addition has a part that is marked Noalg
+ 
+ 	// Type can be compared/hashed as regular memory.
+ 	AMEM AlgKind = 100
+@@ -36,71 +37,66 @@ const (
+ )
+ 
+ // AlgType returns the AlgKind used for comparing and hashing Type t.
+-// If it returns ANOEQ, it also returns the component type of t that
+-// makes it incomparable.
+-func AlgType(t *Type) (AlgKind, *Type) {
++func AlgType(t *Type) AlgKind {
+ 	if t.Noalg() {
+-		return ANOEQ, t
++		return ANOALG
+ 	}
+ 
+ 	switch t.Kind() {
+ 	case TANY, TFORW:
+ 		// will be defined later.
+-		return ANOEQ, t
++		return ANOEQ
+ 
+ 	case TINT8, TUINT8, TINT16, TUINT16,
+ 		TINT32, TUINT32, TINT64, TUINT64,
+ 		TINT, TUINT, TUINTPTR,
+ 		TBOOL, TPTR,
+ 		TCHAN, TUNSAFEPTR:
+-		return AMEM, nil
++		return AMEM
+ 
+ 	case TFUNC, TMAP:
+-		return ANOEQ, t
++		return ANOEQ
+ 
+ 	case TFLOAT32:
+-		return AFLOAT32, nil
++		return AFLOAT32
+ 
+ 	case TFLOAT64:
+-		return AFLOAT64, nil
++		return AFLOAT64
+ 
+ 	case TCOMPLEX64:
+-		return ACPLX64, nil
++		return ACPLX64
+ 
+ 	case TCOMPLEX128:
+-		return ACPLX128, nil
++		return ACPLX128
+ 
+ 	case TSTRING:
+-		return ASTRING, nil
++		return ASTRING
+ 
+ 	case TINTER:
+ 		if t.IsEmptyInterface() {
+-			return ANILINTER, nil
++			return ANILINTER
+ 		}
+-		return AINTER, nil
++		return AINTER
+ 
+ 	case TSLICE:
+-		return ANOEQ, t
++		return ANOEQ
+ 
+ 	case TARRAY:
+-		a, bad := AlgType(t.Elem())
+-		switch a {
+-		case AMEM:
+-			return AMEM, nil
+-		case ANOEQ:
+-			return ANOEQ, bad
++		a := AlgType(t.Elem())
++		if a == AMEM || a == ANOEQ || a == ANOALG {
++			return a
+ 		}
+ 
+ 		switch t.NumElem() {
+ 		case 0:
+ 			// We checked above that the element type is comparable.
+-			return AMEM, nil
++			return AMEM
+ 		case 1:
+ 			// Single-element array is same as its lone element.
+-			return a, nil
++			return a
+ 		}
+ 
+-		return ASPECIAL, nil
++		return ASPECIAL
+ 
+ 	case TSTRUCT:
+ 		fields := t.Fields()
+@@ -113,9 +109,9 @@ func AlgType(t *Type) (AlgKind, *Type) {
+ 		ret := AMEM
+ 		for i, f := range fields {
+ 			// All fields must be comparable.
+-			a, bad := AlgType(f.Type)
+-			if a == ANOEQ {
+-				return ANOEQ, bad
++			a := AlgType(f.Type)
++			if a == ANOEQ || a == ANOALG {
++				return a
+ 			}
+ 
+ 			// Blank fields, padded fields, fields with non-memory
+@@ -125,24 +121,23 @@ func AlgType(t *Type) (AlgKind, *Type) {
+ 			}
+ 		}
+ 
+-		return ret, nil
++		return ret
+ 	}
+ 
+ 	base.Fatalf("AlgType: unexpected type %v", t)
+-	return 0, nil
++	return 0
+ }
+ 
+ // TypeHasNoAlg reports whether t does not have any associated hash/eq
+ // algorithms because t, or some component of t, is marked Noalg.
+ func TypeHasNoAlg(t *Type) bool {
+-	a, bad := AlgType(t)
+-	return a == ANOEQ && bad.Noalg()
++	return AlgType(t) == ANOALG
+ }
+ 
+ // IsComparable reports whether t is a comparable type.
+ func IsComparable(t *Type) bool {
+-	a, _ := AlgType(t)
+-	return a != ANOEQ
++	a := AlgType(t)
++	return a != ANOEQ && a != ANOALG
+ }
+ 
+ // IncomparableField returns an incomparable Field of struct Type t, if any.
+diff --git a/src/cmd/compile/internal/types/algkind_string.go b/src/cmd/compile/internal/types/algkind_string.go
+index a1b518e4dd..f38f5ad8e2 100644
+--- a/src/cmd/compile/internal/types/algkind_string.go
++++ b/src/cmd/compile/internal/types/algkind_string.go
+@@ -22,22 +22,23 @@ func _() {
+ 	_ = x[AFLOAT64-11]
+ 	_ = x[ACPLX64-12]
+ 	_ = x[ACPLX128-13]
++	_ = x[ANOALG-14]
+ 	_ = x[AMEM-100]
+ 	_ = x[ASPECIAL - -1]
+ }
+ 
+ const (
+-	_AlgKind_name_0 = "SPECIALNOEQMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128"
++	_AlgKind_name_0 = "SPECIALNOEQMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128NOALG"
+ 	_AlgKind_name_1 = "MEM"
+ )
+ 
+ var (
+-	_AlgKind_index_0 = [...]uint8{0, 7, 11, 15, 19, 24, 29, 34, 40, 46, 51, 59, 66, 73, 79, 86}
++	_AlgKind_index_0 = [...]uint8{0, 7, 11, 15, 19, 24, 29, 34, 40, 46, 51, 59, 66, 73, 79, 86, 91}
+ )
+ 
+ func (i AlgKind) String() string {
+ 	switch {
+-	case -1 <= i && i <= 13:
++	case -1 <= i && i <= 14:
+ 		i -= -1
+ 		return _AlgKind_name_0[_AlgKind_index_0[i]:_AlgKind_index_0[i+1]]
+ 	case i == 100:

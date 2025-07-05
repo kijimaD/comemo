@@ -17,7 +17,39 @@ Date:   Sun Jan 14 15:34:49 2024 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/fmt/fmt_test.go | 4 ++--
  src/fmt/print.go    | 5 +++++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 6a79862f28..3f82fb6814 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -304,8 +304,8 @@ var fmtTests = []struct {
+ 	{"%2s", []byte("\u263a"), " ☺"},
+ 	{"%-5s", "abc", "abc  "},
+ 	{"%-5s", []byte("abc"), "abc  "},
+-	{"%05s", "abc", "00abc"},
+-	{"%05s", []byte("abc"), "00abc"},
++	{"%05s", "abc", "  abc"},
++	{"%05s", []byte("abc"), "  abc"},
+ 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+ 	{"%5s", []byte("abcdefghijklmnopqrstuvwxyz"), "abcdefghijklmnopqrstuvwxyz"},
+ 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index cb393bd763..9596888854 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -703,6 +703,11 @@ func (p *pp) printArg(arg any, verb rune) {
+ 		return
+ 	}
+ 
++	// Bug fix: avoid padding strings with zeros. Issue 56486.
++	if verb == 's' {
++		p.fmt.zero = false
++	}
++
+ 	// Some types can be done without reflection.
+ 	switch f := arg.(type) {
+ 	case bool:

@@ -7,6 +7,25 @@ Date:   Fri Apr 10 06:22:41 2009 -0700
     TBR=r
     OCL=27306
     CL=27306
-
+---
  test/stack.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/test/stack.go b/test/stack.go
+index 7b7d36f916..ffc9ac14b0 100644
+--- a/test/stack.go
++++ b/test/stack.go
+@@ -31,8 +31,13 @@ func d(t T) {
+ 
+ var c = make(chan int);
+ var t T;
++var b = []byte{1,2,3,4,5,6,7,8,9,10};
+ 
+ func recur(n int) {
++	ss := string(b);
++	if len(ss) != len(b) {
++		panic("bad []byte -> string");
++	}
+ 	go g(c, t);
+ 	s := <-c;
+ 	if s != len(t) {

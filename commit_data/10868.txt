@@ -7,6 +7,19 @@ Date:   Mon Dec 19 17:30:14 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5495086
-
+---
  src/pkg/io/ioutil/ioutil_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/io/ioutil/ioutil_test.go b/src/pkg/io/ioutil/ioutil_test.go
+index 3e85e3d0c8..d9c43beada 100644
+--- a/src/pkg/io/ioutil/ioutil_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -60,6 +60,7 @@ func TestWriteFile(t *testing.T) {
+ 	}
+ 
+ 	// cleanup
++	f.Close()
+ 	os.Remove(filename) // ignore error
+ }
+ 

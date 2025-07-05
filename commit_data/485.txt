@@ -7,6 +7,32 @@ Date:   Tue Aug 5 08:20:34 2008 -0700
     TBR=iant
     OCL=13873
     CL=13873
-
+---
  test/chan/powser1.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 9a5498a7af..5358458dea 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -624,8 +624,9 @@ func check(U PS, c *rat, count int, str string) {
+ 	}
+ }
+ 
++const N=10
+ func checka(U PS, a *[]*rat, str string) {
+-	for i := 0; i < len(a); i++ {
++	for i := 0; i < N; i++ {
+ 		check(U, a[i], 1, str);
+ 	}
+ }
+@@ -648,8 +649,7 @@ func main() {
+ 		check(Ones, one, 5, "Ones");
+ 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+ 		check(Add(Ones, Twos), itor(3), 0, "Add Ones Twos"); // 3 3 3 3 3
+-		const N = 5;
+-		a := new([10] *rat);
++		a := new([N] *rat);
+ 		d := Diff(Ones);
+ 		// BUG: want array initializer
+ 		for i:=0; i < N; i++ {

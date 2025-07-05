@@ -8,8 +8,188 @@ Date:   Fri Mar 29 11:04:07 2013 -0700
     R=minux.ma, bradfitz, khr, rsc
     CC=golang-dev
     https://golang.org/cl/7746045
-
+---
  src/cmd/ld/dwarf.c             | 72 +++++++++++++++++++++++++++++++++++++++---
  src/pkg/runtime/hashmap.c      |  2 +-
  src/pkg/runtime/runtime-gdb.py | 49 ++++++++++++++++------------
  3 files changed, 98 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 4bf788e64e..436e1e67ef 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1130,14 +1130,24 @@ mkinternaltypename(char *base, char *arg1, char *arg2)
+ 	return n;
+ }
+ 
++// synthesizemaptypes is way too closely married to runtime/hashmap.c
++enum {
++	MaxKeySize = 128,
++	MaxValSize = 128,
++	BucketSize = 8,
++};
+ 
+ static void
+ synthesizemaptypes(DWDie *die)
+ {
+ 
+-	DWDie *hash, *dwh, *keytype, *valtype;
++	DWDie *hash, *bucket, *dwh, *dwhk, *dwhv, *dwhb, *keytype, *valtype, *fld;
++	int indirect_key, indirect_val;
++	int keysize, valsize;
++	DWAttr *a;
+ 
+-	hash		= defgotype(lookup_or_diag("type.runtime.hmap"));
++	hash		= walktypedef(defgotype(lookup_or_diag("type.runtime.hmap")));
++	bucket		= walktypedef(defgotype(lookup_or_diag("type.runtime.bucket")));
+ 
+ 	if (hash == nil)
+ 		return;
+@@ -1146,8 +1156,59 @@ synthesizemaptypes(DWDie *die)
+ 		if (die->abbrev != DW_ABRV_MAPTYPE)
+ 			continue;
+ 
+-		keytype = (DWDie*) getattr(die, DW_AT_internal_key_type)->data;
+-		valtype = (DWDie*) getattr(die, DW_AT_internal_val_type)->data;
++		keytype = walktypedef((DWDie*) getattr(die, DW_AT_internal_key_type)->data);
++		valtype = walktypedef((DWDie*) getattr(die, DW_AT_internal_val_type)->data);
++
++		// compute size info like hashmap.c does.
++		a = getattr(keytype, DW_AT_byte_size);
++		keysize = a ? a->value : PtrSize;  // We don't store size with Pointers
++		a = getattr(valtype, DW_AT_byte_size);
++		valsize = a ? a->value : PtrSize;
++		indirect_key = 0;
++		indirect_val = 0;
++		if(keysize > MaxKeySize) {
++			keysize = PtrSize;
++			indirect_key = 1;
++		}
++		if(valsize > MaxValSize) {
++			valsize = PtrSize;
++			indirect_val = 1;
++		}
++
++		// Construct type to represent an array of BucketSize keys
++		dwhk = newdie(&dwtypes, DW_ABRV_ARRAYTYPE,
++			      mkinternaltypename("[]key",
++						 getattr(keytype, DW_AT_name)->data, nil));
++		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * keysize, 0);
++		newrefattr(dwhk, DW_AT_type, indirect_key ? defptrto(keytype) : keytype);
++		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size");
++		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
++		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
++		
++		// Construct type to represent an array of BucketSize values
++		dwhv = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, 
++			      mkinternaltypename("[]val",
++						 getattr(valtype, DW_AT_name)->data, nil));
++		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * valsize, 0);
++		newrefattr(dwhv, DW_AT_type, indirect_val ? defptrto(valtype) : valtype);
++		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size");
++		newattr(fld, DW_AT_upper_bound, DW_CLS_CONSTANT, BucketSize, 0);
++		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
++
++		// Construct bucket<K,V>
++		dwhb = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
++			      mkinternaltypename("bucket",
++						 getattr(keytype, DW_AT_name)->data,
++						 getattr(valtype, DW_AT_name)->data));
++		copychildren(dwhb, bucket);
++		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "keys");
++		newrefattr(fld, DW_AT_type, dwhk);
++		newmemberoffsetattr(fld, BucketSize + PtrSize);
++		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "values");
++		newrefattr(fld, DW_AT_type, dwhv);
++		newmemberoffsetattr(fld, BucketSize + PtrSize + BucketSize * keysize);
++		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + PtrSize + BucketSize * keysize + BucketSize * valsize, 0);
++		substitutetype(dwhb, "overflow", defptrto(dwhb));
+ 
+ 		// Construct hash<K,V>
+ 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+@@ -1155,9 +1216,12 @@ synthesizemaptypes(DWDie *die)
+ 				getattr(keytype, DW_AT_name)->data,
+ 				getattr(valtype, DW_AT_name)->data));
+ 		copychildren(dwh, hash);
++		substitutetype(dwh, "buckets", defptrto(dwhb));
++		substitutetype(dwh, "oldbuckets", defptrto(dwhb));
+ 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
+ 			getattr(hash, DW_AT_byte_size)->value, nil);
+ 
++		// make map type a pointer to hash<K,V>
+ 		newrefattr(die, DW_AT_type, defptrto(dwh));
+ 	}
+ }
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 6cd5c480d5..a2ad1a0812 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -222,7 +222,7 @@ hash_init(MapType *t, Hmap *h, uint32 hint)
+ 		keysize = sizeof(byte*);
+ 	}
+ 	valuesize = t->elem->size;
+-	if(valuesize >= MAXVALUESIZE) {
++	if(valuesize > MAXVALUESIZE) {
+ 		flags |= IndirectValue;
+ 		valuesize = sizeof(byte*);
+ 	}
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index eff9a40037..cb70ca028e 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -84,26 +84,35 @@ class MapTypePrinter:
+ 		return str(self.val.type)
+ 
+ 	def children(self):
+-		stab = self.val['st']
+-		i = 0
+-		for v in self.traverse_hash(stab):
+-			yield ("[%d]" % i, v['key'])
+-			yield ("[%d]" % (i + 1), v['val'])
+-			i += 2
+-
+-	def traverse_hash(self, stab):
+-		ptr = stab['entry'].address
+-		last = stab['last']
+-		while ptr <= last:
+-			v = ptr.dereference()
+-			ptr = ptr + 1
+-			if v['hash'] == 0: continue
+-			if v['hash'] & 63 == 63:   # subtable
+-				for v in self.traverse_hash(v['key'].cast(self.val['st'].type)):
+-					yield v
+-			else:
+-				yield v
+-
++		B = self.val['b']
++		buckets = self.val['buckets']
++		oldbuckets = self.val['oldbuckets']
++		flags = self.val['flags']
++		inttype = self.val['hash0'].type
++		cnt = 0
++		for bucket in xrange(2 ** B):
++			bp = buckets + bucket
++			if oldbuckets:
++				oldbucket = bucket & (2 ** (B - 1) - 1)
++				oldbp = oldbuckets + oldbucket
++				oldb = oldbp.dereference()
++				if (oldb['overflow'].cast(inttype) & 1) == 0: # old bucket not evacuated yet
++					if bucket >= 2 ** (B - 1): continue   # already did old bucket
++					bp = oldbp
++			while bp:
++				b = bp.dereference()
++				for i in xrange(8):
++					if b['tophash'][i] != 0:
++						k = b['keys'][i]
++						v = b['values'][i]
++						if flags & 1:
++							k = k.dereference()
++						if flags & 2:
++							v = v.dereference()
++						yield '%d' % cnt, k
++						yield '%d' % (cnt + 1), v
++						cnt += 2
++				bp = b['overflow']
+ 
+ class ChanTypePrinter:
+ 	"""Pretty print chan[T] types.

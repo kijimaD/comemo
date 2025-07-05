@@ -9,10 +9,359 @@ Date:   Tue Sep 1 11:06:28 2009 -0700
     DELTA=206  (123 added, 2 deleted, 81 changed)
     OCL=34170
     CL=34194
-
+---
  src/pkg/json/struct.go          |   2 +-
  src/pkg/strings/strings.go      | 115 +++++++++++++++++++++++----------------
  src/pkg/strings/strings_test.go | 118 ++++++++++++++++++++++++++++++++++++----
  src/pkg/unicode/maketables.go   |   2 +-
  src/pkg/utf8/utf8.go            |   6 ++
  5 files changed, 182 insertions(+), 61 deletions(-)
+
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 99312e9c4f..49766bebe4 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -188,7 +188,7 @@ func (b *_StructBuilder) Key(k string) Builder {
+ 		}
+ 		// Again, case-insensitive.
+ 		for i := 0; i < t.NumField(); i++ {
+-			if strings.LowerASCII(t.Field(i).Name) == k {
++			if strings.ToLower(t.Field(i).Name) == k {
+ 				return &_StructBuilder{ v.Field(i) }
+ 			}
+ 		}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index c76024b6fe..eaa6a71a1f 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -5,7 +5,10 @@
+ // A package of simple functions to manipulate strings.
+ package strings
+ 
+-import "utf8"
++import (
++	"unicode";
++	"utf8";
++)
+ 
+ // explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n <= 0 means no limit).
+ // Invalid UTF-8 sequences become correct encodings of U+FFF8.
+@@ -145,65 +148,84 @@ func HasSuffix(s, suffix string) bool {
+ 	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
+ }
+ 
+-// Upper returns a copy of the string s, with all low ASCII lowercase letters
+-// converted to uppercase.
+-// TODO: full Unicode support
+-func UpperASCII(s string) string {
+-	// Note, we can work byte-by-byte because UTF-8 multibyte characters
+-	// don't use any low ASCII byte values.
+-	b := make([]byte, len(s));
+-	for i := 0; i < len(s); i++ {
+-		c := s[i];
+-		if 'a' <= c && c <= 'z' {
+-			c -= 'a' - 'A';
++// Map returns a copy of the string s with all its characters modified
++// according to mapping function.
++func Map(mapping func(rune int) int, s string) string {
++	// In the worst case, the string can grow when mapped, making
++	// things unpleasant.  But it's so rare we barge in assuming it's
++	// fine.  It could also shrink but that falls out naturally.
++	maxbytes := len(s);	// length of b
++	nbytes := 0;	// number of bytes encoded in b
++	b := make([]byte, maxbytes);
++	for i, c := range s {
++		rune := mapping(c);
++		wid := 1;
++		if rune >= utf8.RuneSelf {
++			wid = utf8.RuneLen(rune);
+ 		}
+-		b[i] = c;
++		if nbytes + wid > maxbytes {
++			// Grow the buffer.
++			maxbytes = maxbytes*2 + utf8.UTFMax;
++			nb := make([]byte, maxbytes);
++			for i, c := range b[0:nbytes] {
++				nb[i] = c
++			}
++			b = nb;
++		}
++		nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
+ 	}
+-	return string(b);
++	return string(b[0:nbytes]);
+ }
+ 
+-// Upper returns a copy of the string s, with all low ASCII lowercase letters
+-// converted to lowercase.
+-// TODO: full Unicode support
+-func LowerASCII(s string) string {
+-	// Note, we can work byte-by-byte because UTF-8 multibyte characters
+-	// don't use any low ASCII byte values.
+-	b := make([]byte, len(s));
+-	for i := 0; i < len(s); i++ {
+-		c := s[i];
+-		if 'A' <= c && c <= 'Z' {
+-			c += 'a' - 'A';
+-		}
+-		b[i] = c;
+-	}
+-	return string(b);
++// ToUpper returns a copy of the string s with all letters mapped to their upper case.
++func ToUpper(s string) string {
++	return Map(unicode.ToUpper, s)
+ }
+ 
+-func isWhitespaceASCII(c byte) bool {
+-	switch int(c) {
+-	case ' ', '\t', '\r', '\n':
+-		return true;
+-	}
+- 	return false;
++// ToUpper returns a copy of the string s with all letters mapped to their lower case.
++func ToLower(s string) string {
++	return Map(unicode.ToLower, s)
+ }
+ 
+-// Trim returns a slice of the string s, with all leading and trailing whitespace
+-// removed.  "Whitespace" for now defined as space, tab, CR, or LF.
+-// TODO: full Unicode whitespace support (need a unicode.IsWhitespace method)
+-func TrimSpaceASCII(s string) string {
+-	// Note, we can work byte-by-byte because UTF-8 multibyte characters
+-	// don't use any low ASCII byte values.
++// ToTitle returns a copy of the string s with all letters mapped to their title case.
++func Title(s string) string {
++	return Map(unicode.ToTitle, s)
++}
++
++// Trim returns a slice of the string s, with all leading and trailing white space
++// removed, as defined by Unicode.
++func TrimSpace(s string) string {
+ 	start, end := 0, len(s);
+-	for start < end && isWhitespaceASCII(s[start]) {
+-		start++;
++	for wid := 0; start < end; start += wid {
++		wid = 1;
++		rune := int(s[start]);
++		if rune >= utf8.RuneSelf {
++			rune, wid = utf8.DecodeRuneInString(s[start:end])
++		}
++		if !unicode.IsSpace(rune) {
++			break;
++		}
+ 	}
+-	for start < end && isWhitespaceASCII(s[end-1]) {
+-		end--;
++	for wid := 0; start < end; end -= wid {
++		wid = 1;
++		rune := int(s[end-1]);
++		if rune >= utf8.RuneSelf {
++			// Back up carefully looking for beginning of rune. Mustn't pass start.
++			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
++			}
++			if start > end-wid {	// invalid UTF-8 sequence; stop processing
++				return s[start:end]
++			}
++			rune, wid = utf8.DecodeRuneInString(s[end-wid:end]);
++		}
++		if !unicode.IsSpace(rune) {
++			break;
++		}
+ 	}
+ 	return s[start:end];
+ }
+ 
+-// Bytes returns an array of the bytes in s.
++// Bytes returns a new slice containing the bytes in s.
+ func Bytes(s string) []byte {
+ 	b := make([]byte, len(s));
+ 	for i := 0; i < len(s); i++ {
+@@ -211,4 +233,3 @@ func Bytes(s string) []byte {
+ 	}
+ 	return b;
+ }
+-
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index cd9679e948..7925ae8352 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -7,6 +7,8 @@ package strings_test
+ import (
+ 	. "strings";
+ 	"testing";
++	"unicode";
++	"utf8";
+ )
+ 
+ func eq(a, b []string) bool {
+@@ -155,39 +157,131 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
+ 	}
+ }
+ 
+-var upperASCIITests = []StringTest {
++var upperTests = []StringTest {
+ 	StringTest{"", ""},
+ 	StringTest{"abc", "ABC"},
+ 	StringTest{"AbC123", "ABC123"},
+-	StringTest{"azAZ09_", "AZAZ09_"}
++	StringTest{"azAZ09_", "AZAZ09_"},
++	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
+ }
+ 
+-var lowerASCIITests = []StringTest {
++var lowerTests = []StringTest {
+ 	StringTest{"", ""},
+ 	StringTest{"abc", "abc"},
+ 	StringTest{"AbC123", "abc123"},
+-	StringTest{"azAZ09_", "azaz09_"}
++	StringTest{"azAZ09_", "azaz09_"},
++	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"},	// shrinks one byte per char
+ }
+ 
+-var trimSpaceASCIITests = []StringTest {
++const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
++
++var trimSpaceTests = []StringTest {
+ 	StringTest{"", ""},
+ 	StringTest{"abc", "abc"},
++	StringTest{space + "abc" + space, "abc"},
+ 	StringTest{" ", ""},
+ 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
+ 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
+-	StringTest{" \t\r\n x\t\t\r\r\ny\n ", "x\t\t\r\r\ny"},
++	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
+ 	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
++	StringTest{" x\x80", "x\x80"},	// invalid UTF-8 on end
++	StringTest{" x\xc0", "x\xc0"},	// invalid UTF-8 on end
++}
++
++func tenRunes(rune int) string {
++	r := make([]int, 10);
++	for i := range r {
++		r[i] = rune
++	}
++	return string(r)
++}
++
++func TestMap(t *testing.T) {
++	// Run a couple of awful growth/shrinkage tests
++	a := tenRunes('a');
++	// 1.  Grow.  This triggers two reallocations in Map.
++	maxRune := func(rune int) int { return unicode.MaxRune };
++	m := Map(maxRune, a);
++	expect := tenRunes(unicode.MaxRune);
++	if m != expect {
++		t.Errorf("growing: expected %q got %q", expect, m);
++	}
++	// 2. Shrink
++	minRune := func(rune int) int { return 'a' };
++	m = Map(minRune, tenRunes(unicode.MaxRune));
++	expect = a;
++	if m != expect {
++		t.Errorf("shrinking: expected %q got %q", expect, m);
++	}
++}
++
++func TestToUpper(t *testing.T) {
++	runStringTests(t, ToUpper, "ToUpper", upperTests);
+ }
+ 
+-func TestUpperASCII(t *testing.T) {
+-	runStringTests(t, UpperASCII, "UpperASCII", upperASCIITests);
++func TestToLower(t *testing.T) {
++	runStringTests(t, ToLower, "ToLower", lowerTests);
+ }
+ 
+-func TestLowerASCII(t *testing.T) {
+-	runStringTests(t, LowerASCII, "LowerASCII", lowerASCIITests);
++func TestTrimSpace(t *testing.T) {
++	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
+ }
+ 
+-func TestTrimSpaceASCII(t *testing.T) {
+-	runStringTests(t, TrimSpaceASCII, "TrimSpaceASCII", trimSpaceASCIITests);
++func equal(m string, s1, s2 string, t *testing.T) bool {
++	if s1 == s2 {
++		return true
++	}
++	e1 := Split(s1, "", 0);
++	e2 := Split(s2, "", 0);
++	for i, c1 := range e1 {
++		if i > len(e2) {
++			break
++		}
++		r1, w := utf8.DecodeRuneInString(c1);
++		r2, w := utf8.DecodeRuneInString(e2[i]);
++		if r1 != r2 {
++			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2)
++		}
++	}
++	return false;
+ }
+ 
++func TestCaseConsistency(t *testing.T) {
++	// Make a string of all the runes.
++	a := make([]int, unicode.MaxRune+1);
++	for i := range a {
++		a[i] = i
++	}
++	s := string(a);
++	// convert the cases.
++	upper := ToUpper(s);
++	lower := ToLower(s);
++
++	// Consistency checks
++	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
++		t.Error("rune count wrong in upper:", n);
++	}
++	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
++		t.Error("rune count wrong in lower:", n);
++	}
++	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
++		t.Error("ToUpper(upper) consistency fail");
++	}
++	if !equal("ToLower(lower)", ToLower(lower), lower, t) {
++		t.Error("ToLower(lower) consistency fail");
++	}
++	/*
++	  These fail because of non-one-to-oneness of the data, such as multiple
++	  upper case 'I' mapping to 'i'.  We comment them out but keep them for
++	  interest.
++	  For instance: CAPITAL LETTER I WITH DOT ABOVE:
++		unicode.ToUpper(unicode.ToLower('\u0130')) != '\u0130'
++
++	if !equal("ToUpper(lower)", ToUpper(lower), upper, t) {
++		t.Error("ToUpper(lower) consistency fail");
++	}
++	if !equal("ToLower(upper)", ToLower(upper), lower, t) {
++		t.Error("ToLower(upper) consistency fail");
++	}
++	*/
++}
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index cd3f38105a..73bfd2cbfd 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -474,7 +474,7 @@ func parseScript(line string, scripts map[string] []Script) {
+ 	if comment >= 0 {
+ 		line = line[0:comment]
+ 	}
+-	line = strings.TrimSpaceASCII(line);
++	line = strings.TrimSpace(line);
+ 	if len(line) == 0 {
+ 		return
+ 	}
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 62adcd9e01..2604c55419 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -290,3 +290,9 @@ func RuneCountInString(s string) int {
+ 	return n;
+ }
+ 
++// RuneStart reports whether the byte could be the first byte of
++// an encoded rune.  Second and subsequent bytes always have the top
++// two bits set to 10.
++func RuneStart(b byte) bool {
++	return b & 0xC0 != 0x80
++}

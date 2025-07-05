@@ -17,10 +17,144 @@ Date:   Fri Dec 1 16:13:08 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/objabi/funcid.go |  4 +---
  src/cmd/link/internal/ld/pcln.go  |  8 ++------
  src/cmd/trace/trace.go            |  8 +++++++-
  src/runtime/symtab.go             |  4 +---
  src/runtime/traceback.go          | 21 ++++++++++++++-------
  5 files changed, 25 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 55f1328ba8..ff75d3d571 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -13,6 +13,7 @@ type FuncID uint32
+ 
+ const (
+ 	FuncID_normal FuncID = iota // not a special function
++	FuncID_runtime_main
+ 	FuncID_goexit
+ 	FuncID_jmpdefer
+ 	FuncID_mcall
+@@ -22,9 +23,6 @@ const (
+ 	FuncID_asmcgocall
+ 	FuncID_sigpanic
+ 	FuncID_runfinq
+-	FuncID_bgsweep
+-	FuncID_forcegchelper
+-	FuncID_timerproc
+ 	FuncID_gcBgMarkWorker
+ 	FuncID_systemstack_switch
+ 	FuncID_systemstack
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 446f64bdbc..1bd4d1d762 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -312,6 +312,8 @@ func (ctxt *Link) pclntab() {
+ 		// funcID uint32
+ 		funcID := objabi.FuncID_normal
+ 		switch s.Name {
++		case "runtime.main":
++			funcID = objabi.FuncID_runtime_main
+ 		case "runtime.goexit":
+ 			funcID = objabi.FuncID_goexit
+ 		case "runtime.jmpdefer":
+@@ -330,12 +332,6 @@ func (ctxt *Link) pclntab() {
+ 			funcID = objabi.FuncID_sigpanic
+ 		case "runtime.runfinq":
+ 			funcID = objabi.FuncID_runfinq
+-		case "runtime.bgsweep":
+-			funcID = objabi.FuncID_bgsweep
+-		case "runtime.forcegchelper":
+-			funcID = objabi.FuncID_forcegchelper
+-		case "runtime.timerproc":
+-			funcID = objabi.FuncID_timerproc
+ 		case "runtime.gcBgMarkWorker":
+ 			funcID = objabi.FuncID_gcBgMarkWorker
+ 		case "runtime.systemstack_switch":
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 7a61d5b412..fcba0cbc3f 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -576,7 +576,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 
+ 			fname := stk[0].Fn
+ 			info.name = fmt.Sprintf("G%v %s", newG, fname)
+-			info.isSystemG = strings.HasPrefix(fname, "runtime.") && fname != "runtime.main"
++			info.isSystemG = isSystemGoroutine(fname)
+ 
+ 			ctx.gcount++
+ 			setGState(ev, newG, gDead, gRunnable)
+@@ -1125,6 +1125,12 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
+ 	return ctx.buildBranch(node, stk)
+ }
+ 
++func isSystemGoroutine(entryFn string) bool {
++	// This mimics runtime.isSystemGoroutine as closely as
++	// possible.
++	return entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
++}
++
+ // firstTimestamp returns the timestamp of the first event record.
+ func firstTimestamp() int64 {
+ 	res, _ := parseTrace()
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 8d54369d88..c829bfdec1 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -358,6 +358,7 @@ type funcID uint32
+ 
+ const (
+ 	funcID_normal funcID = iota // not a special function
++	funcID_runtime_main
+ 	funcID_goexit
+ 	funcID_jmpdefer
+ 	funcID_mcall
+@@ -367,9 +368,6 @@ const (
+ 	funcID_asmcgocall
+ 	funcID_sigpanic
+ 	funcID_runfinq
+-	funcID_bgsweep
+-	funcID_forcegchelper
+-	funcID_timerproc
+ 	funcID_gcBgMarkWorker
+ 	funcID_systemstack_switch
+ 	funcID_systemstack
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index fd649cbbc6..0fd7ef1987 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -990,18 +990,25 @@ func topofstack(f funcInfo, g0 bool) bool {
+ 		(g0 && f.funcID == funcID_asmcgocall)
+ }
+ 
+-// isSystemGoroutine reports whether the goroutine g must be omitted in
+-// stack dumps and deadlock detector.
++// isSystemGoroutine reports whether the goroutine g must be omitted
++// in stack dumps and deadlock detector. This is any goroutine that
++// starts at a runtime.* entry point, except for runtime.main and
++// sometimes runtime.runfinq.
+ func isSystemGoroutine(gp *g) bool {
++	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
+ 	f := findfunc(gp.startpc)
+ 	if !f.valid() {
+ 		return false
+ 	}
+-	return f.funcID == funcID_runfinq && !fingRunning ||
+-		f.funcID == funcID_bgsweep ||
+-		f.funcID == funcID_forcegchelper ||
+-		f.funcID == funcID_timerproc ||
+-		f.funcID == funcID_gcBgMarkWorker
++	if f.funcID == funcID_runtime_main {
++		return false
++	}
++	if f.funcID == funcID_runfinq {
++		// We include the finalizer goroutine if it's calling
++		// back into user code.
++		return !fingRunning
++	}
++	return hasprefix(funcname(f), "runtime.")
+ }
+ 
+ // SetCgoTraceback records three C functions to use to gather

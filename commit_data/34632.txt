@@ -53,7 +53,7 @@ Date:   Tue Oct 31 13:00:51 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go            |  2 +-
  src/cmd/go/alldocs.go                         | 11 ++++
  src/cmd/go/go_test.go                         | 35 ++++++++++
@@ -75,3 +75,1222 @@ Date:   Tue Oct 31 13:00:51 2017 -0400
  src/runtime/race/testdata/sync_test.go        |  6 ++
  src/runtime/race/testdata/waitgroup_test.go   |  8 +++
  20 files changed, 270 insertions(+), 20 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 9e8e88ee0f..f1e8f0605b 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -504,7 +504,7 @@ func testABIHashNote(t *testing.T, f *elf.File, note *note) {
+ 		t.Errorf("%s has incorrect binding %v, want STB_LOCAL", hashbytes.Name, elf.ST_BIND(hashbytes.Info))
+ 	}
+ 	if f.Sections[hashbytes.Section] != note.section {
+-		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section)
++		t.Errorf("%s has incorrect section %v, want %s", hashbytes.Name, f.Sections[hashbytes.Section].Name, note.section.Name)
+ 	}
+ 	if hashbytes.Value-note.section.Addr != 16 {
+ 		t.Errorf("%s has incorrect offset into section %d, want 16", hashbytes.Name, hashbytes.Value-note.section.Addr)
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5fbefb7b32..75cf8c5322 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -735,6 +735,13 @@
+ // The go tool will ignore a directory named "testdata", making it available
+ // to hold ancillary data needed by the tests.
+ //
++// As part of building a test binary, go test runs go vet on the package
++// and its test source files to identify significant problems. If go vet
++// finds any problems, go test reports those and does not run the test binary.
++// Only a high-confidence subset of the default go vet checks are used.
++// To disable the running of go vet, use the -vet=off flag.
++//
++//
+ // Go test runs in two different modes: local directory mode when invoked with
+ // no package arguments (for example, 'go test'), and package list mode when
+ // invoked with package arguments (for example 'go test math', 'go test ./...',
+@@ -1547,6 +1554,10 @@
+ // 	    Verbose output: log all tests as they are run. Also print all
+ // 	    text from Log and Logf calls even if the test succeeds.
+ //
++// 	-vet mode
++// 	    Configure the invocation of "go vet" during "go test".
++// 	    The default is to run "go vet". If mode is "off", vet is disabled.
++//
+ // The following flags are also recognized by 'go test' and can be used to
+ // profile the tests during execution:
+ //
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 23b7920ebc..ed0d601d8b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4748,6 +4748,7 @@ func TestTestCache(t *testing.T) {
+ 	}
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
++	tg.parallel()
+ 	tg.makeTempdir()
+ 	tg.setenv("GOPATH", tg.tempdir)
+ 	tg.setenv("GOCACHE", filepath.Join(tg.tempdir, "cache"))
+@@ -4834,3 +4835,37 @@ func TestTestCache(t *testing.T) {
+ 	tg.grepStderr(`([\\/]link|gccgo).*t4\.test`, "did not relink t4_test")
+ 	tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
+ }
++
++func TestTestVet(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++
++	tg.tempFile("p1_test.go", `
++		package p
++		import "testing"
++		func Test(t *testing.T) {
++			t.Logf("%d") // oops
++		}
++	`)
++
++	tg.runFail("test", filepath.Join(tg.tempdir, "p1_test.go"))
++	tg.grepStderr(`Logf format %d`, "did not diagnose bad Logf")
++	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1_test.go"))
++	tg.grepStdout(`^ok`, "did not print test summary")
++
++	tg.tempFile("p1.go", `
++		package p
++		import "fmt"
++		func F() {
++			fmt.Printf("%d") // oops
++		}
++	`)
++	tg.runFail("test", filepath.Join(tg.tempdir, "p1.go"))
++	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
++	tg.run("test", "-x", "-vet=shift", filepath.Join(tg.tempdir, "p1.go"))
++	tg.grepStderr(`[\\/]vet.*-shift`, "did not run vet with -shift")
++	tg.grepStdout(`\[no test files\]`, "did not print test summary")
++	tg.run("test", "-vet=off", filepath.Join(tg.tempdir, "p1.go"))
++	tg.grepStdout(`\[no test files\]`, "did not print test summary")
++}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 7bf24d4a08..0a76d9309d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -69,6 +69,12 @@ separate package, and then linked and run with the main test binary.
+ The go tool will ignore a directory named "testdata", making it available
+ to hold ancillary data needed by the tests.
+ 
++As part of building a test binary, go test runs go vet on the package
++and its test source files to identify significant problems. If go vet
++finds any problems, go test reports those and does not run the test binary.
++Only a high-confidence subset of the default go vet checks are used.
++To disable the running of go vet, use the -vet=off flag.
++
+ Go test runs in two different modes: local directory mode when invoked with
+ no package arguments (for example, 'go test'), and package list mode when
+ invoked with package arguments (for example 'go test math', 'go test ./...',
+@@ -258,6 +264,13 @@ const testFlag2 = `
+ 	    Verbose output: log all tests as they are run. Also print all
+ 	    text from Log and Logf calls even if the test succeeds.
+ 
++	-vet list
++	    Configure the invocation of "go vet" during "go test"
++	    to use the comma-separated list of vet checks.
++	    If list is empty, "go test" runs "go vet" with a curated list of
++	    checks believed to be always worth addressing.
++	    If list is "off", "go test" does not run "go vet" at all.
++
+ The following flags are also recognized by 'go test' and can be used to
+ profile the tests during execution:
+ 
+@@ -446,7 +459,8 @@ var (
+ 	testArgs       []string
+ 	testBench      bool
+ 	testList       bool
+-	testShowPass   bool // show passing output
++	testShowPass   bool   // show passing output
++	testVetList    string // -vet flag
+ 	pkgArgs        []string
+ 	pkgs           []*load.Package
+ 
+@@ -460,6 +474,32 @@ var testMainDeps = []string{
+ 	"testing/internal/testdeps",
+ }
+ 
++// testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
++var testVetFlags = []string{
++	// TODO(rsc): Decide which tests are enabled by default.
++	// See golang.org/issue/18085.
++	// "-asmdecl",
++	// "-assign",
++	"-atomic",
++	"-bool",
++	"-buildtags",
++	// "-cgocall",
++	// "-composites",
++	// "-copylocks",
++	// "-httpresponse",
++	// "-lostcancel",
++	// "-methods",
++	"-nilfunc",
++	"-printf",
++	// "-rangeloops",
++	// "-shift",
++	// "-structtags",
++	// "-tests",
++	// "-unreachable",
++	// "-unsafeptr",
++	// "-unusedresult",
++}
++
+ func runTest(cmd *base.Command, args []string) {
+ 	pkgArgs, testArgs = testFlags(args)
+ 
+@@ -467,6 +507,8 @@ func runTest(cmd *base.Command, args []string) {
+ 
+ 	work.InstrumentInit()
+ 	work.BuildModeInit()
++	work.VetFlags = testVetFlags
++
+ 	pkgs = load.PackagesForBuild(pkgArgs)
+ 	if len(pkgs) == 0 {
+ 		base.Fatalf("no packages to test")
+@@ -668,6 +710,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+ 		run := &work.Action{Mode: "test run", Package: p, Deps: []*work.Action{build}}
++		addTestVet(b, p, run, nil)
+ 		print := &work.Action{Mode: "test print", Func: builderNoTest, Package: p, Deps: []*work.Action{run}}
+ 		return build, run, print, nil
+ 	}
+@@ -681,6 +724,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 	var imports, ximports []*load.Package
+ 	var stk load.ImportStack
+ 	stk.Push(p.ImportPath + " (test)")
++	rawTestImports := str.StringList(p.TestImports)
+ 	for i, path := range p.TestImports {
+ 		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], load.UseVendor)
+ 		if p1.Error != nil {
+@@ -708,6 +752,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 	stk.Pop()
+ 	stk.Push(p.ImportPath + "_test")
+ 	pxtestNeedsPtest := false
++	rawXTestImports := str.StringList(p.XTestImports)
+ 	for i, path := range p.XTestImports {
+ 		p1 := load.LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], load.UseVendor)
+ 		if p1.Error != nil {
+@@ -753,8 +798,20 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+ 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+ 		ptest.Target = ""
+-		ptest.Imports = str.StringList(p.Imports, p.TestImports)
+-		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
++		// Note: The preparation of the vet config requires that common
++		// indexes in ptest.Imports, ptest.Internal.Imports, and ptest.Internal.RawImports
++		// all line up (but RawImports can be shorter than the others).
++		// That is, for 0 ≤ i < len(RawImports),
++		// RawImports[i] is the import string in the program text,
++		// Imports[i] is the expanded import string (vendoring applied or relative path expanded away),
++		// and Internal.Imports[i] is the corresponding *Package.
++		// Any implicitly added imports appear in Imports and Internal.Imports
++		// but not RawImports (because they were not in the source code).
++		// We insert TestImports, imports, and rawTestImports at the start of
++		// these lists to preserve the alignment.
++		ptest.Imports = str.StringList(p.TestImports, p.Imports)
++		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
++		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
+ 		ptest.Internal.ForceLibrary = true
+ 		ptest.Internal.Build = new(build.Package)
+ 		*ptest.Internal.Build = *p.Internal.Build
+@@ -794,7 +851,8 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 				Build: &build.Package{
+ 					ImportPos: p.Internal.Build.XTestImportPos,
+ 				},
+-				Imports: ximports,
++				Imports:    ximports,
++				RawImports: rawXTestImports,
+ 			},
+ 		}
+ 		if pxtestNeedsPtest {
+@@ -942,6 +1000,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		}
+ 	}
+ 	buildAction = a
++	var installAction *work.Action
+ 
+ 	if testC || testNeedBinary {
+ 		// -c or profiling flag: create action to copy binary to ./test.out.
+@@ -953,14 +1012,15 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			}
+ 		}
+ 		pmain.Target = target
+-		buildAction = &work.Action{
++		installAction = &work.Action{
+ 			Mode:    "test build",
+ 			Func:    work.BuildInstallFunc,
+ 			Deps:    []*work.Action{buildAction},
+ 			Package: pmain,
+ 			Target:  target,
+ 		}
+-		runAction = buildAction // make sure runAction != nil even if not running test
++		buildAction = installAction
++		runAction = installAction // make sure runAction != nil even if not running test
+ 	}
+ 	if testC {
+ 		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
+@@ -975,6 +1035,12 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 			IgnoreFail: true,
+ 			TryCache:   c.tryCache,
+ 		}
++		if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
++			addTestVet(b, ptest, runAction, installAction)
++		}
++		if pxtest != nil {
++			addTestVet(b, pxtest, runAction, installAction)
++		}
+ 		cleanAction := &work.Action{
+ 			Mode:    "test clean",
+ 			Func:    builderCleanTest,
+@@ -993,6 +1059,22 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 	return buildAction, runAction, printAction, nil
+ }
+ 
++func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
++	if testVetList == "off" {
++		return
++	}
++
++	vet := b.VetAction(work.ModeBuild, work.ModeBuild, p)
++	runAction.Deps = append(runAction.Deps, vet)
++	// Install will clean the build directory.
++	// Make sure vet runs first.
++	// The install ordering in b.VetAction does not apply here
++	// because we are using a custom installAction (created above).
++	if installAction != nil {
++		installAction.Deps = append(installAction.Deps, vet)
++	}
++}
++
+ func testImportStack(top string, p *load.Package, target string) []string {
+ 	stk := []string{top, p.ImportPath}
+ Search:
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index bff8656a4c..4bfe6b7327 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -33,6 +33,7 @@ var testFlagDefn = []*cmdflag.Defn{
+ 	{Name: "covermode"},
+ 	{Name: "coverpkg"},
+ 	{Name: "exec"},
++	{Name: "vet"},
+ 
+ 	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+ 	{Name: "bench", PassToTest: true},
+@@ -175,6 +176,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				testCover = true
+ 			case "outputdir":
+ 				outputDir = value
++			case "vet":
++				testVetList = value
+ 			}
+ 		}
+ 		if extraWord {
+@@ -193,6 +196,20 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		}
+ 	}
+ 
++	if testVetList != "" && testVetList != "off" {
++		if strings.Contains(testVetList, "=") {
++			base.Fatalf("-vet argument cannot contain equal signs")
++		}
++		if strings.Contains(testVetList, " ") {
++			base.Fatalf("-vet argument is comma-separated list, cannot contain spaces")
++		}
++		list := strings.Split(testVetList, ",")
++		for i, arg := range list {
++			list[i] = "-" + arg
++		}
++		testVetFlags = list
++	}
++
+ 	if cfg.BuildRace && testCoverMode != "atomic" {
+ 		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, testCoverMode)
+ 	}
+diff --git a/src/cmd/go/testdata/src/testrace/race_test.go b/src/cmd/go/testdata/src/testrace/race_test.go
+index 264dcf0d8a..7ec0c6d17a 100644
+--- a/src/cmd/go/testdata/src/testrace/race_test.go
++++ b/src/cmd/go/testdata/src/testrace/race_test.go
+@@ -12,6 +12,7 @@ func TestRace(t *testing.T) {
+ 		}()
+ 		x = 3
+ 		<-c
++		_ = x
+ 	}
+ }
+ 
+@@ -25,5 +26,6 @@ func BenchmarkRace(b *testing.B) {
+ 		}()
+ 		x = 3
+ 		<-c
++		_ = x
+ 	}
+ }
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 055deb9b67..66f9449d7e 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -425,12 +425,19 @@ func doPackage(names []string, basePkg *Package) *Package {
+ 	pkg.path = astFiles[0].Name.Name
+ 	pkg.files = files
+ 	// Type check the package.
+-	err := pkg.check(fs, astFiles)
+-	if err != nil {
+-		// Note that we only report this error when *verbose.
+-		Println(err)
+-		if mustTypecheck {
+-			errorf("%v", err)
++	errs := pkg.check(fs, astFiles)
++	if errs != nil {
++		if *verbose || mustTypecheck {
++			for _, err := range errs {
++				fmt.Fprintf(os.Stderr, "%v\n", err)
++			}
++			if mustTypecheck {
++				// This message could be silenced, and we could just exit,
++				// but it might be helpful at least at first to make clear that the
++				// above errors are coming from vet and not the compiler
++				// (they often look like compiler errors, such as "declared but not used").
++				errorf("typecheck failures")
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 3d6936d136..799dc655e6 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -62,7 +62,7 @@ func importType(path, name string) types.Type {
+ 	return nil
+ }
+ 
+-func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
++func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
+ 	if stdImporter == nil {
+ 		if *source {
+ 			stdImporter = importer.For("source", nil)
+@@ -76,13 +76,17 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+ 	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)
+ 	pkg.spans = make(map[types.Object]Span)
+ 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
++
++	var allErrors []error
+ 	config := types.Config{
+ 		// We use the same importer for all imports to ensure that
+ 		// everybody sees identical packages for the given paths.
+ 		Importer: stdImporter,
+ 		// By providing a Config with our own error function, it will continue
+-		// past the first error. There is no need for that function to do anything.
+-		Error: func(error) {},
++		// past the first error. We collect them all for printing later.
++		Error: func(e error) {
++			allErrors = append(allErrors, e)
++		},
+ 
+ 		Sizes: archSizes,
+ 	}
+@@ -93,6 +97,9 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+ 		Uses:       pkg.uses,
+ 	}
+ 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
++	if len(allErrors) == 0 && err != nil {
++		allErrors = append(allErrors, err)
++	}
+ 	pkg.typesPkg = typesPkg
+ 	// update spans
+ 	for id, obj := range pkg.defs {
+@@ -101,7 +108,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+ 	for id, obj := range pkg.uses {
+ 		pkg.growSpan(id, obj)
+ 	}
+-	return err
++	return allErrors
+ }
+ 
+ // matchArgType reports an error if printf verb t is not appropriate
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 86f8652a2e..7ac2431df9 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1169,9 +1169,9 @@ func testChtimes(t *testing.T, name string) {
+ 			// the contents are accessed; also, it is set
+ 			// whenever mtime is set.
+ 		case "netbsd":
+-			t.Logf("AccessTime didn't go backwards; was=%d, after=%d (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
++			t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
+ 		default:
+-			t.Errorf("AccessTime didn't go backwards; was=%d, after=%d", at, pat)
++			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index ee6bf6b035..45c9afae23 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -185,6 +185,7 @@ import "testing"
+ func TestFail(t *testing.T) {
+ 	done := make(chan bool)
+ 	x := 0
++	_ = x
+ 	go func() {
+ 		x = 42
+ 		done <- true
+@@ -196,7 +197,7 @@ func TestFail(t *testing.T) {
+ `, `
+ ==================
+ --- FAIL: TestFail \(0...s\)
+-.*main_test.go:13: true
++.*main_test.go:14: true
+ .*testing.go:.*: race detected during execution of test
+ FAIL`},
+ 
+@@ -275,6 +276,7 @@ import "testing"
+ func TestFail(t *testing.T) {
+ 	done := make(chan bool)
+ 	x := 0
++	_ = x
+ 	go func() {
+ 		x = 42
+ 		done <- true
+diff --git a/src/runtime/race/testdata/atomic_test.go b/src/runtime/race/testdata/atomic_test.go
+index 232744b3dd..769c8d7398 100644
+--- a/src/runtime/race/testdata/atomic_test.go
++++ b/src/runtime/race/testdata/atomic_test.go
+@@ -14,6 +14,7 @@ import (
+ 
+ func TestNoRaceAtomicAddInt64(t *testing.T) {
+ 	var x1, x2 int8
++	_ = x1 + x2
+ 	var s int64
+ 	ch := make(chan bool, 2)
+ 	go func() {
+@@ -36,6 +37,7 @@ func TestNoRaceAtomicAddInt64(t *testing.T) {
+ 
+ func TestRaceAtomicAddInt64(t *testing.T) {
+ 	var x1, x2 int8
++	_ = x1 + x2
+ 	var s int64
+ 	ch := make(chan bool, 2)
+ 	go func() {
+@@ -58,6 +60,7 @@ func TestRaceAtomicAddInt64(t *testing.T) {
+ 
+ func TestNoRaceAtomicAddInt32(t *testing.T) {
+ 	var x1, x2 int8
++	_ = x1 + x2
+ 	var s int32
+ 	ch := make(chan bool, 2)
+ 	go func() {
+@@ -80,6 +83,7 @@ func TestNoRaceAtomicAddInt32(t *testing.T) {
+ 
+ func TestNoRaceAtomicLoadAddInt32(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s int32
+ 	go func() {
+ 		x = 2
+@@ -93,6 +97,7 @@ func TestNoRaceAtomicLoadAddInt32(t *testing.T) {
+ 
+ func TestNoRaceAtomicLoadStoreInt32(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s int32
+ 	go func() {
+ 		x = 2
+@@ -106,6 +111,7 @@ func TestNoRaceAtomicLoadStoreInt32(t *testing.T) {
+ 
+ func TestNoRaceAtomicStoreCASInt32(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s int32
+ 	go func() {
+ 		x = 2
+@@ -119,6 +125,7 @@ func TestNoRaceAtomicStoreCASInt32(t *testing.T) {
+ 
+ func TestNoRaceAtomicCASLoadInt32(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s int32
+ 	go func() {
+ 		x = 2
+@@ -134,6 +141,7 @@ func TestNoRaceAtomicCASLoadInt32(t *testing.T) {
+ 
+ func TestNoRaceAtomicCASCASInt32(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s int32
+ 	go func() {
+ 		x = 2
+@@ -149,6 +157,7 @@ func TestNoRaceAtomicCASCASInt32(t *testing.T) {
+ 
+ func TestNoRaceAtomicCASCASInt32_2(t *testing.T) {
+ 	var x1, x2 int8
++	_ = x1 + x2
+ 	var s int32
+ 	ch := make(chan bool, 2)
+ 	go func() {
+@@ -171,6 +180,7 @@ func TestNoRaceAtomicCASCASInt32_2(t *testing.T) {
+ 
+ func TestNoRaceAtomicLoadInt64(t *testing.T) {
+ 	var x int32
++	_ = x
+ 	var s int64
+ 	go func() {
+ 		x = 2
+@@ -184,6 +194,7 @@ func TestNoRaceAtomicLoadInt64(t *testing.T) {
+ 
+ func TestNoRaceAtomicCASCASUInt64(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s uint64
+ 	go func() {
+ 		x = 2
+@@ -199,6 +210,7 @@ func TestNoRaceAtomicCASCASUInt64(t *testing.T) {
+ 
+ func TestNoRaceAtomicLoadStorePointer(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s unsafe.Pointer
+ 	var y int = 2
+ 	var p unsafe.Pointer = unsafe.Pointer(&y)
+@@ -214,6 +226,7 @@ func TestNoRaceAtomicLoadStorePointer(t *testing.T) {
+ 
+ func TestNoRaceAtomicStoreCASUint64(t *testing.T) {
+ 	var x int64
++	_ = x
+ 	var s uint64
+ 	go func() {
+ 		x = 2
+diff --git a/src/runtime/race/testdata/chan_test.go b/src/runtime/race/testdata/chan_test.go
+index 449191639e..7f349c42ed 100644
+--- a/src/runtime/race/testdata/chan_test.go
++++ b/src/runtime/race/testdata/chan_test.go
+@@ -12,6 +12,7 @@ import (
+ 
+ func TestNoRaceChanSync(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int)
+ 	go func() {
+ 		v = 1
+@@ -23,6 +24,7 @@ func TestNoRaceChanSync(t *testing.T) {
+ 
+ func TestNoRaceChanSyncRev(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int)
+ 	go func() {
+ 		c <- 0
+@@ -34,6 +36,7 @@ func TestNoRaceChanSyncRev(t *testing.T) {
+ 
+ func TestNoRaceChanAsync(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		v = 1
+@@ -45,6 +48,7 @@ func TestNoRaceChanAsync(t *testing.T) {
+ 
+ func TestRaceChanAsyncRev(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		c <- 0
+@@ -56,6 +60,7 @@ func TestRaceChanAsyncRev(t *testing.T) {
+ 
+ func TestNoRaceChanAsyncCloseRecv(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		v = 1
+@@ -72,6 +77,7 @@ func TestNoRaceChanAsyncCloseRecv(t *testing.T) {
+ 
+ func TestNoRaceChanAsyncCloseRecv2(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		v = 1
+@@ -83,6 +89,7 @@ func TestNoRaceChanAsyncCloseRecv2(t *testing.T) {
+ 
+ func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		v = 1
+@@ -95,6 +102,7 @@ func TestNoRaceChanAsyncCloseRecv3(t *testing.T) {
+ 
+ func TestNoRaceChanSyncCloseRecv(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int)
+ 	go func() {
+ 		v = 1
+@@ -111,6 +119,7 @@ func TestNoRaceChanSyncCloseRecv(t *testing.T) {
+ 
+ func TestNoRaceChanSyncCloseRecv2(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int)
+ 	go func() {
+ 		v = 1
+@@ -122,6 +131,7 @@ func TestNoRaceChanSyncCloseRecv2(t *testing.T) {
+ 
+ func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int)
+ 	go func() {
+ 		v = 1
+@@ -134,6 +144,7 @@ func TestNoRaceChanSyncCloseRecv3(t *testing.T) {
+ 
+ func TestRaceChanSyncCloseSend(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int)
+ 	go func() {
+ 		v = 1
+@@ -150,6 +161,7 @@ func TestRaceChanSyncCloseSend(t *testing.T) {
+ 
+ func TestRaceChanAsyncCloseSend(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		v = 1
+@@ -170,6 +182,7 @@ func TestRaceChanCloseClose(t *testing.T) {
+ 	compl := make(chan bool, 2)
+ 	v1 := 0
+ 	v2 := 0
++	_ = v1 + v2
+ 	c := make(chan int)
+ 	go func() {
+ 		defer func() {
+@@ -197,6 +210,7 @@ func TestRaceChanCloseClose(t *testing.T) {
+ 
+ func TestRaceChanSendLen(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	go func() {
+ 		v = 1
+@@ -210,6 +224,7 @@ func TestRaceChanSendLen(t *testing.T) {
+ 
+ func TestRaceChanRecvLen(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	c <- 1
+ 	go func() {
+@@ -226,6 +241,7 @@ func TestRaceChanSendSend(t *testing.T) {
+ 	compl := make(chan bool, 2)
+ 	v1 := 0
+ 	v2 := 0
++	_ = v1 + v2
+ 	c := make(chan int, 1)
+ 	go func() {
+ 		v1 = 1
+@@ -264,6 +280,7 @@ func TestNoRaceChanPtr(t *testing.T) {
+ func TestRaceChanWrongSend(t *testing.T) {
+ 	v1 := 0
+ 	v2 := 0
++	_ = v1 + v2
+ 	c := make(chan int, 2)
+ 	go func() {
+ 		v1 = 1
+@@ -284,6 +301,7 @@ func TestRaceChanWrongSend(t *testing.T) {
+ func TestRaceChanWrongClose(t *testing.T) {
+ 	v1 := 0
+ 	v2 := 0
++	_ = v1 + v2
+ 	c := make(chan int, 1)
+ 	done := make(chan bool)
+ 	go func() {
+@@ -561,6 +579,7 @@ func TestRaceChanItselfCap(t *testing.T) {
+ 
+ func TestRaceChanCloseLen(t *testing.T) {
+ 	v := 0
++	_ = v
+ 	c := make(chan int, 10)
+ 	c <- 0
+ 	go func() {
+@@ -587,6 +606,7 @@ func TestNoRaceChanMutex(t *testing.T) {
+ 	done := make(chan struct{})
+ 	mtx := make(chan struct{}, 1)
+ 	data := 0
++	_ = data
+ 	go func() {
+ 		mtx <- struct{}{}
+ 		data = 42
+@@ -604,6 +624,7 @@ func TestNoRaceSelectMutex(t *testing.T) {
+ 	mtx := make(chan struct{}, 1)
+ 	aux := make(chan bool)
+ 	data := 0
++	_ = data
+ 	go func() {
+ 		select {
+ 		case mtx <- struct{}{}:
+@@ -632,6 +653,7 @@ func TestRaceChanSem(t *testing.T) {
+ 	done := make(chan struct{})
+ 	mtx := make(chan bool, 2)
+ 	data := 0
++	_ = data
+ 	go func() {
+ 		mtx <- true
+ 		data = 42
+diff --git a/src/runtime/race/testdata/finalizer_test.go b/src/runtime/race/testdata/finalizer_test.go
+index 222cbf67a8..3ac33d2b59 100644
+--- a/src/runtime/race/testdata/finalizer_test.go
++++ b/src/runtime/race/testdata/finalizer_test.go
+@@ -53,6 +53,7 @@ func TestNoRaceFinGlobal(t *testing.T) {
+ func TestRaceFin(t *testing.T) {
+ 	c := make(chan bool)
+ 	y := 0
++	_ = y
+ 	go func() {
+ 		x := new(string)
+ 		runtime.SetFinalizer(x, func(x *string) {
+diff --git a/src/runtime/race/testdata/map_test.go b/src/runtime/race/testdata/map_test.go
+index a8d8148d0e..88e735ecd3 100644
+--- a/src/runtime/race/testdata/map_test.go
++++ b/src/runtime/race/testdata/map_test.go
+@@ -130,6 +130,7 @@ func TestRaceMapLenDelete(t *testing.T) {
+ func TestRaceMapVariable(t *testing.T) {
+ 	ch := make(chan bool, 1)
+ 	m := make(map[int]int)
++	_ = m
+ 	go func() {
+ 		m = make(map[int]int)
+ 		ch <- true
+@@ -230,6 +231,7 @@ func TestRaceMapAssignMultipleReturn(t *testing.T) {
+ 	conns[1] = []int{0}
+ 	ch := make(chan bool, 1)
+ 	var err error
++	_ = err
+ 	go func() {
+ 		conns[1][0], err = connect()
+ 		ch <- true
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index c96acb9021..5d25ed4bb6 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -60,6 +60,7 @@ func TestRaceIntRWGlobalFuncs(t *testing.T) {
+ 
+ func TestRaceIntRWClosures(t *testing.T) {
+ 	var x, y int
++	_ = y
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -76,6 +77,7 @@ func TestRaceIntRWClosures(t *testing.T) {
+ 
+ func TestNoRaceIntRWClosures(t *testing.T) {
+ 	var x, y int
++	_ = y
+ 	ch := make(chan int, 1)
+ 
+ 	go func() {
+@@ -93,6 +95,7 @@ func TestNoRaceIntRWClosures(t *testing.T) {
+ 
+ func TestRaceInt32RWClosures(t *testing.T) {
+ 	var x, y int32
++	_ = y
+ 	ch := make(chan bool, 2)
+ 
+ 	go func() {
+@@ -168,6 +171,7 @@ func TestRaceCaseCondition2(t *testing.T) {
+ 
+ func TestRaceCaseBody(t *testing.T) {
+ 	var x, y int
++	_ = y
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -189,6 +193,7 @@ func TestRaceCaseBody(t *testing.T) {
+ 
+ func TestNoRaceCaseFallthrough(t *testing.T) {
+ 	var x, y, z int
++	_ = y
+ 	ch := make(chan int, 2)
+ 	z = 1
+ 
+@@ -210,6 +215,7 @@ func TestNoRaceCaseFallthrough(t *testing.T) {
+ 
+ func TestRaceCaseFallthrough(t *testing.T) {
+ 	var x, y, z int
++	_ = y
+ 	ch := make(chan int, 2)
+ 	z = 1
+ 
+@@ -323,6 +329,7 @@ func TestRaceRange(t *testing.T) {
+ 	const N = 2
+ 	var a [N]int
+ 	var x, y int
++	_ = x + y
+ 	done := make(chan bool, N)
+ 	for i, v := range a {
+ 		go func(i int) {
+@@ -433,6 +440,7 @@ func TestNoRaceForIncr(t *testing.T) {
+ 
+ func TestRacePlus(t *testing.T) {
+ 	var x, y, z int
++	_ = y
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -449,6 +457,7 @@ func TestRacePlus(t *testing.T) {
+ 
+ func TestRacePlus2(t *testing.T) {
+ 	var x, y, z int
++	_ = y
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -465,6 +474,7 @@ func TestRacePlus2(t *testing.T) {
+ 
+ func TestNoRacePlus(t *testing.T) {
+ 	var x, y, z, f int
++	_ = x + y + f
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -481,6 +491,7 @@ func TestNoRacePlus(t *testing.T) {
+ 
+ func TestRaceComplement(t *testing.T) {
+ 	var x, y, z int
++	_ = x
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -497,6 +508,7 @@ func TestRaceComplement(t *testing.T) {
+ 
+ func TestRaceDiv(t *testing.T) {
+ 	var x, y, z int
++	_ = x
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -513,6 +525,7 @@ func TestRaceDiv(t *testing.T) {
+ 
+ func TestRaceDivConst(t *testing.T) {
+ 	var x, y, z uint32
++	_ = x
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -529,6 +542,7 @@ func TestRaceDivConst(t *testing.T) {
+ 
+ func TestRaceMod(t *testing.T) {
+ 	var x, y, z int
++	_ = x
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -545,6 +559,7 @@ func TestRaceMod(t *testing.T) {
+ 
+ func TestRaceModConst(t *testing.T) {
+ 	var x, y, z int
++	_ = x
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -561,6 +576,7 @@ func TestRaceModConst(t *testing.T) {
+ 
+ func TestRaceRotate(t *testing.T) {
+ 	var x, y, z uint32
++	_ = x
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+@@ -932,6 +948,7 @@ func TestRaceFuncVariableRW(t *testing.T) {
+ 
+ func TestRaceFuncVariableWW(t *testing.T) {
+ 	var f func(x int) int
++	_ = f
+ 	ch := make(chan bool, 1)
+ 	go func() {
+ 		f = func(x int) int {
+@@ -948,6 +965,7 @@ func TestRaceFuncVariableWW(t *testing.T) {
+ // This one should not belong to mop_test
+ func TestRacePanic(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var zero int = 0
+ 	ch := make(chan bool, 2)
+ 	go func() {
+@@ -1284,6 +1302,7 @@ func TestNoRaceFuncUnlock(t *testing.T) {
+ 	ch := make(chan bool, 1)
+ 	var mu sync.Mutex
+ 	x := 0
++	_ = x
+ 	go func() {
+ 		mu.Lock()
+ 		x = 42
+@@ -1812,6 +1831,7 @@ func TestNoRaceAsFunc4(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	var mu sync.Mutex
+ 	x := 0
++	_ = x
+ 	go func() {
+ 		x = func() int { // Write of x must be under the mutex.
+ 			mu.Lock()
+@@ -2042,6 +2062,7 @@ func TestNoRaceTinyAlloc(t *testing.T) {
+ 	const P = 4
+ 	const N = 1e6
+ 	var tinySink *byte
++	_ = tinySink
+ 	done := make(chan bool)
+ 	for p := 0; p < P; p++ {
+ 		go func() {
+diff --git a/src/runtime/race/testdata/mutex_test.go b/src/runtime/race/testdata/mutex_test.go
+index 3cf03ae6b8..cbed2d370c 100644
+--- a/src/runtime/race/testdata/mutex_test.go
++++ b/src/runtime/race/testdata/mutex_test.go
+@@ -13,6 +13,7 @@ import (
+ func TestNoRaceMutex(t *testing.T) {
+ 	var mu sync.Mutex
+ 	var x int16 = 0
++	_ = x
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		mu.Lock()
+@@ -33,6 +34,7 @@ func TestNoRaceMutex(t *testing.T) {
+ func TestRaceMutex(t *testing.T) {
+ 	var mu sync.Mutex
+ 	var x int16 = 0
++	_ = x
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		x = 1
+@@ -54,6 +56,7 @@ func TestRaceMutex2(t *testing.T) {
+ 	var mu1 sync.Mutex
+ 	var mu2 sync.Mutex
+ 	var x int8 = 0
++	_ = x
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		mu1.Lock()
+@@ -74,6 +77,7 @@ func TestRaceMutex2(t *testing.T) {
+ func TestNoRaceMutexPureHappensBefore(t *testing.T) {
+ 	var mu sync.Mutex
+ 	var x int16 = 0
++	_ = x
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		x = 1
+@@ -96,6 +100,7 @@ func TestNoRaceMutexSemaphore(t *testing.T) {
+ 	var mu sync.Mutex
+ 	ch := make(chan bool, 2)
+ 	x := 0
++	_ = x
+ 	mu.Lock()
+ 	go func() {
+ 		x = 1
+diff --git a/src/runtime/race/testdata/rwmutex_test.go b/src/runtime/race/testdata/rwmutex_test.go
+index 7ac829d759..39219e58ae 100644
+--- a/src/runtime/race/testdata/rwmutex_test.go
++++ b/src/runtime/race/testdata/rwmutex_test.go
+@@ -14,6 +14,7 @@ func TestRaceMutexRWMutex(t *testing.T) {
+ 	var mu1 sync.Mutex
+ 	var mu2 sync.RWMutex
+ 	var x int16 = 0
++	_ = x
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		mu1.Lock()
+@@ -34,6 +35,7 @@ func TestRaceMutexRWMutex(t *testing.T) {
+ func TestNoRaceRWMutex(t *testing.T) {
+ 	var mu sync.RWMutex
+ 	var x, y int64 = 0, 1
++	_ = y
+ 	ch := make(chan bool, 2)
+ 	go func() {
+ 		mu.Lock()
+diff --git a/src/runtime/race/testdata/select_test.go b/src/runtime/race/testdata/select_test.go
+index 9969f47e8e..3827867687 100644
+--- a/src/runtime/race/testdata/select_test.go
++++ b/src/runtime/race/testdata/select_test.go
+@@ -11,6 +11,7 @@ import (
+ 
+ func TestNoRaceSelect1(t *testing.T) {
+ 	var x int
++	_ = x
+ 	compl := make(chan bool)
+ 	c := make(chan bool)
+ 	c1 := make(chan bool)
+@@ -36,6 +37,7 @@ func TestNoRaceSelect1(t *testing.T) {
+ 
+ func TestNoRaceSelect2(t *testing.T) {
+ 	var x int
++	_ = x
+ 	compl := make(chan bool)
+ 	c := make(chan bool)
+ 	c1 := make(chan bool)
+@@ -55,6 +57,7 @@ func TestNoRaceSelect2(t *testing.T) {
+ 
+ func TestNoRaceSelect3(t *testing.T) {
+ 	var x int
++	_ = x
+ 	compl := make(chan bool)
+ 	c := make(chan bool, 10)
+ 	c1 := make(chan bool)
+@@ -112,6 +115,7 @@ func TestNoRaceSelect4(t *testing.T) {
+ func TestNoRaceSelect5(t *testing.T) {
+ 	test := func(sel, needSched bool) {
+ 		var x int
++		_ = x
+ 		ch := make(chan bool)
+ 		c1 := make(chan bool)
+ 
+@@ -158,6 +162,7 @@ func TestNoRaceSelect5(t *testing.T) {
+ 
+ func TestRaceSelect1(t *testing.T) {
+ 	var x int
++	_ = x
+ 	compl := make(chan bool, 2)
+ 	c := make(chan bool)
+ 	c1 := make(chan bool)
+@@ -182,6 +187,7 @@ func TestRaceSelect1(t *testing.T) {
+ 
+ func TestRaceSelect2(t *testing.T) {
+ 	var x int
++	_ = x
+ 	compl := make(chan bool)
+ 	c := make(chan bool)
+ 	c1 := make(chan bool)
+@@ -200,6 +206,7 @@ func TestRaceSelect2(t *testing.T) {
+ 
+ func TestRaceSelect3(t *testing.T) {
+ 	var x int
++	_ = x
+ 	compl := make(chan bool)
+ 	c := make(chan bool)
+ 	c1 := make(chan bool)
+diff --git a/src/runtime/race/testdata/sync_test.go b/src/runtime/race/testdata/sync_test.go
+index d48680d5e6..2b2d95d76b 100644
+--- a/src/runtime/race/testdata/sync_test.go
++++ b/src/runtime/race/testdata/sync_test.go
+@@ -12,6 +12,7 @@ import (
+ 
+ func TestNoRaceCond(t *testing.T) {
+ 	x := 0
++	_ = x
+ 	condition := 0
+ 	var mu sync.Mutex
+ 	cond := sync.NewCond(&mu)
+@@ -35,6 +36,7 @@ func TestRaceCond(t *testing.T) {
+ 	var mu sync.Mutex
+ 	cond := sync.NewCond(&mu)
+ 	x := 0
++	_ = x
+ 	condition := 0
+ 	go func() {
+ 		time.Sleep(10 * time.Millisecond) // Enter cond.Wait loop
+@@ -67,6 +69,7 @@ func TestRaceAnnounceThreads(t *testing.T) {
+ 	allDone := make(chan bool, N)
+ 
+ 	var x int
++	_ = x
+ 
+ 	var f, g, h func()
+ 	f = func() {
+@@ -133,6 +136,7 @@ func TestNoRaceAfterFunc2(t *testing.T) {
+ func TestNoRaceAfterFunc3(t *testing.T) {
+ 	c := make(chan bool, 1)
+ 	x := 0
++	_ = x
+ 	time.AfterFunc(1e7, func() {
+ 		x = 1
+ 		c <- true
+@@ -143,6 +147,7 @@ func TestNoRaceAfterFunc3(t *testing.T) {
+ func TestRaceAfterFunc3(t *testing.T) {
+ 	c := make(chan bool, 2)
+ 	x := 0
++	_ = x
+ 	time.AfterFunc(1e7, func() {
+ 		x = 1
+ 		c <- true
+@@ -161,6 +166,7 @@ func TestRaceAfterFunc3(t *testing.T) {
+ // comprehensible.
+ func TestRaceGoroutineCreationStack(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var ch = make(chan bool, 1)
+ 
+ 	f1 := func() {
+diff --git a/src/runtime/race/testdata/waitgroup_test.go b/src/runtime/race/testdata/waitgroup_test.go
+index ff152b0abe..169337315b 100644
+--- a/src/runtime/race/testdata/waitgroup_test.go
++++ b/src/runtime/race/testdata/waitgroup_test.go
+@@ -13,6 +13,7 @@ import (
+ 
+ func TestNoRaceWaitGroup(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	n := 1
+ 	for i := 0; i < n; i++ {
+@@ -28,6 +29,7 @@ func TestNoRaceWaitGroup(t *testing.T) {
+ 
+ func TestRaceWaitGroup(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	n := 2
+ 	for i := 0; i < n; i++ {
+@@ -43,6 +45,7 @@ func TestRaceWaitGroup(t *testing.T) {
+ 
+ func TestNoRaceWaitGroup2(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	wg.Add(1)
+ 	go func() {
+@@ -56,6 +59,7 @@ func TestNoRaceWaitGroup2(t *testing.T) {
+ // incrementing counter in Add and locking wg's mutex
+ func TestRaceWaitGroupAsMutex(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	c := make(chan bool, 2)
+ 	go func() {
+@@ -82,6 +86,7 @@ func TestRaceWaitGroupAsMutex(t *testing.T) {
+ func TestRaceWaitGroupWrongWait(t *testing.T) {
+ 	c := make(chan bool, 2)
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	go func() {
+ 		wg.Add(1)
+@@ -187,6 +192,7 @@ func TestNoRaceWaitGroupMultipleWait3(t *testing.T) {
+ // Correct usage but still a race
+ func TestRaceWaitGroup2(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	wg.Add(2)
+ 	go func() {
+@@ -202,6 +208,7 @@ func TestRaceWaitGroup2(t *testing.T) {
+ 
+ func TestNoRaceWaitGroupPanicRecover(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	defer func() {
+ 		err := recover()
+@@ -219,6 +226,7 @@ func TestNoRaceWaitGroupPanicRecover(t *testing.T) {
+ // Is it possible to get a race by synchronization via panic?
+ func TestNoRaceWaitGroupPanicRecover2(t *testing.T) {
+ 	var x int
++	_ = x
+ 	var wg sync.WaitGroup
+ 	ch := make(chan bool, 1)
+ 	var f func() = func() {

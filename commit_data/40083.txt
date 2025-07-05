@@ -15,8 +15,200 @@ Date:   Mon Apr 8 14:31:21 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go               | 28 ++++++++---
  src/cmd/go/internal/modload/query.go            | 65 +++++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_get_patterns.txt | 33 +++++++++++++
  3 files changed, 119 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index c8368acce3..e183151d29 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -351,15 +351,18 @@ func runGet(cmd *base.Command, args []string) {
+ 			match := search.MatchPattern(path)
+ 			matched := false
+ 			for _, m := range modload.BuildList() {
++				// TODO(bcmills): Patterns that don't contain the module path but do
++				// contain partial package paths will not match here. For example,
++				// ...html/... would not match html/template or golang.org/x/net/html.
++				// Related golang.org/issue/26902.
+ 				if match(m.Path) || str.HasPathPrefix(path, m.Path) {
+ 					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: vers, prevM: m, forceModulePath: true})
+ 					matched = true
+ 				}
+ 			}
+ 			// If matched, we're done.
+-			// Otherwise assume pattern is inside a single module
+-			// (golang.org/x/text/unicode/...) and leave for usual lookup.
+-			// Unless we're using -m.
++			// If we're using -m, report an error.
++			// Otherwise, look up a module containing packages that match the pattern.
+ 			if matched {
+ 				continue
+ 			}
+@@ -367,7 +370,10 @@ func runGet(cmd *base.Command, args []string) {
+ 				base.Errorf("go get %s: pattern matches no modules in build list", arg)
+ 				continue
+ 			}
++			tasks = append(tasks, &task{arg: arg, path: path, vers: vers})
++			continue
+ 		}
++
+ 		t := &task{arg: arg, path: path, vers: vers}
+ 		if vers == "patch" {
+ 			if *getM {
+@@ -605,7 +611,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			if p.Error != nil {
+ 				if len(args) == 0 && getU != "" && strings.HasPrefix(p.Error.Err, "no Go files") {
+ 					// Upgrading modules: skip the implicitly-requested package at the
+-					// current directory, even if it is not tho module root.
++					// current directory, even if it is not the module root.
+ 					continue
+ 				}
+ 				if strings.Contains(p.Error.Err, "cannot find module providing") && modload.ModuleInfo(p.ImportPath) != nil {
+@@ -644,14 +650,22 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		}
+ 	}
+ 
+-	// First choice is always to assume path is a module path.
+-	// If that works out, we're done.
++	// If the path has a wildcard, search for a module that matches the pattern.
++	if strings.Contains(path, "...") {
++		if forceModulePath {
++			panic("forceModulePath is true for path with wildcard " + path)
++		}
++		_, m, _, err := modload.QueryPattern(path, vers, modload.Allowed)
++		return m, err
++	}
++
++	// Try interpreting the path as a module path.
+ 	info, err := modload.Query(path, vers, modload.Allowed)
+ 	if err == nil {
+ 		return module.Version{Path: path, Version: info.Version}, nil
+ 	}
+ 
+-	// Even if the query fails, if the path must be a real module, then report the query error.
++	// If the query fails, and the path must be a real module, report the query error.
+ 	if forceModulePath || *getM {
+ 		return module.Version{}, err
+ 	}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 30bdc4dc7d..84950732be 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/semver"
+ 	"cmd/go/internal/str"
++	"errors"
+ 	"fmt"
+ 	pathpkg "path"
+ 	"strings"
+@@ -254,3 +255,67 @@ func QueryPackage(path, query string, allowed func(module.Version) bool) (module
+ 
+ 	return module.Version{}, nil, finalErr
+ }
++
++// QueryPattern looks up a module with at least one package matching the
++// given pattern at the given version. It returns a list of matched packages
++// and information about the module.
++//
++// QueryPattern queries modules with package paths up to the first "..."
++// in the pattern. For the pattern "example.com/a/b.../c", QueryPattern would
++// consider prefixes of "example.com/a". If multiple modules have versions
++// that match the query and packages that match the pattern, QueryPattern
++// picks the one with the longest module path.
++func QueryPattern(pattern string, query string, allowed func(module.Version) bool) ([]string, module.Version, *modfetch.RevInfo, error) {
++	i := strings.Index(pattern, "...")
++	if i < 0 {
++		m, info, err := QueryPackage(pattern, query, allowed)
++		if err != nil {
++			return nil, module.Version{}, nil, err
++		} else {
++			return []string{pattern}, m, info, nil
++		}
++	}
++	base := pathpkg.Dir(pattern[:i+3])
++
++	// Return the most specific error for the longest module path.
++	const (
++		errNoModule  = 0
++		errNoVersion = 1
++		errNoMatch   = 2
++	)
++	errLevel := errNoModule
++	finalErr := errors.New("cannot find module matching pattern")
++
++	for p := base; p != "." && p != "/"; p = pathpkg.Dir(p) {
++		info, err := Query(p, query, allowed)
++		if err != nil {
++			if _, ok := err.(*codehost.VCSError); ok {
++				// A VCSError means we know where to find the code,
++				// we just can't. Abort search.
++				return nil, module.Version{}, nil, err
++			}
++			if errLevel < errNoVersion {
++				errLevel = errNoVersion
++				finalErr = err
++			}
++			continue
++		}
++		m := module.Version{Path: p, Version: info.Version}
++		// matchPackages also calls fetch but treats errors as fatal, so we
++		// fetch here first.
++		_, _, err = fetch(m)
++		if err != nil {
++			return nil, module.Version{}, nil, err
++		}
++		pkgs := matchPackages(pattern, anyTags, false, []module.Version{m})
++		if len(pkgs) > 0 {
++			return pkgs, m, info, nil
++		}
++		if errLevel < errNoMatch {
++			errLevel = errNoMatch
++			finalErr = fmt.Errorf("no matching packages in module %s@%s", m.Path, m.Version)
++		}
++	}
++
++	return nil, module.Version{}, nil, finalErr
++}
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+new file mode 100644
+index 0000000000..123490da6c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -0,0 +1,33 @@
++env GO111MODULE=on
++
++# If a pattern doesn't match any modules in the build list,
++# and -m is used, an error should be reported.
++cp go.mod.orig go.mod
++! go get -m rsc.io/quote/...
++stderr 'pattern matches no modules in build list'
++
++# If a pattern doesn't match any modules in the build list,
++# we assume the pattern matches a single module where the
++# part of the pattern before "..." is the module path.
++cp go.mod.orig go.mod
++go get -d rsc.io/quote/...
++grep 'require rsc.io/quote' go.mod
++
++cp go.mod.orig go.mod
++! go get -d rsc.io/quote/x...
++stderr 'go get rsc.io/quote/x...: no matching packages in module rsc.io/quote@v1.5.2'
++! grep 'require rsc.io/quote' go.mod
++
++! go get -d rsc.io/quote/x/...
++stderr 'go get rsc.io/quote/x/...: no matching packages in module rsc.io/quote@v1.5.2'
++! grep 'require rsc.io/quote' go.mod
++
++-- go.mod.orig --
++module m
++
++go 1.13
++
++-- use/use.go --
++package use
++
++import _ "rsc.io/quote"

@@ -14,7 +14,93 @@ Date:   Fri Apr 10 13:33:03 2015 -0700
     Change-Id: If540b991d758c4d845a719779f8255ece7c452e7
     Reviewed-on: https://go-review.googlesource.com/8761
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/log/log.go      |  8 ++++++--
  src/log/log_test.go | 28 +++++++++++++++++++++++++++-
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 9b6800891c..4cfe550300 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -32,11 +32,12 @@ const (
+ 	//	2009/01/23 01:23:23 message
+ 	// while flags Ldate | Ltime | Lmicroseconds | Llongfile produce,
+ 	//	2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
+-	Ldate         = 1 << iota     // the date: 2009/01/23
+-	Ltime                         // the time: 01:23:23
++	Ldate         = 1 << iota     // the date in the local time zone: 2009/01/23
++	Ltime                         // the time in the local time zone: 01:23:23
+ 	Lmicroseconds                 // microsecond resolution: 01:23:23.123123.  assumes Ltime.
+ 	Llongfile                     // full file name and line number: /a/b/c/d.go:23
+ 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
++	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
+ 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
+ )
+ 
+@@ -88,6 +89,9 @@ func itoa(buf *[]byte, i int, wid int) {
+ 
+ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+ 	*buf = append(*buf, l.prefix...)
++	if l.flag&LUTC != 0 {
++		t = t.UTC()
++	}
+ 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+ 		if l.flag&Ldate != 0 {
+ 			year, month, day := t.Date()
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index d7d2490062..709de1e542 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -8,17 +8,19 @@ package log
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"os"
+ 	"regexp"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ const (
+ 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
+ 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
+ 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
+-	Rline         = `(55|57):` // must update if the calls to l.Printf / l.Print below move
++	Rline         = `(57|59):` // must update if the calls to l.Printf / l.Print below move
+ 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
+ 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
+ )
+@@ -119,6 +121,30 @@ func TestFlagAndPrefixSetting(t *testing.T) {
+ 	}
+ }
+ 
++func TestUTCFlag(t *testing.T) {
++	var b bytes.Buffer
++	l := New(&b, "Test:", LstdFlags)
++	l.SetFlags(Ldate | Ltime | LUTC)
++	// Verify a log message looks right in the right time zone. Quantize to the second only.
++	now := time.Now().UTC()
++	l.Print("hello")
++	want := fmt.Sprintf("Test:%d/%.2d/%.2d %.2d:%.2d:%.2d hello\n",
++		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
++	got := b.String()
++	if got == want {
++		return
++	}
++	// It's possible we crossed a second boundary between getting now and logging,
++	// so add a second and try again. This should very nearly always work.
++	now.Add(time.Second)
++	want = fmt.Sprintf("Test:%d/%.2d/%.2d %.2d:%.2d:%.2d hello\n",
++		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute())
++	if got == want {
++		return
++	}
++	t.Errorf("got %q; want %q", got, want)
++}
++
+ func TestEmptyPrintCreatesLine(t *testing.T) {
+ 	var b bytes.Buffer
+ 	l := New(&b, "Header:", LstdFlags)

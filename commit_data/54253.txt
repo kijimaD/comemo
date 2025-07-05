@@ -13,6 +13,25 @@ Date:   Thu Sep 29 13:44:01 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/internal/buildcfg/exp.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index a5955d3947..8531aac908 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -70,9 +70,10 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	}
+ 
+ 	baseline := goexperiment.Flags{
+-		RegabiWrappers: regabiSupported,
+-		RegabiArgs:     regabiSupported,
+-		Unified:        true,
++		RegabiWrappers:   regabiSupported,
++		RegabiArgs:       regabiSupported,
++		Unified:          true,
++		CoverageRedesign: true,
+ 	}
+ 
+ 	// Start with the statically enabled set of experiments.

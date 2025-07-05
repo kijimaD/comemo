@@ -12,8 +12,241 @@ Date:   Wed Jun 13 11:56:15 2018 -0700
     Change-Id: Ic2c47018ef1284bf2e26379f8dd7646edaad4d05
     Reviewed-on: https://go-review.googlesource.com/118566
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/fifo_test.go | 109 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/os/file_unix.go |  15 +++++++-
  src/os/pipe_test.go |  67 ++++++++++++++++++++++++++++++++
  3 files changed, 189 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/fifo_test.go b/src/os/fifo_test.go
+new file mode 100644
+index 0000000000..66bc2965ab
+--- /dev/null
++++ b/src/os/fifo_test.go
+@@ -0,0 +1,109 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package os_test
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"runtime"
++	"sync"
++	"syscall"
++	"testing"
++	"time"
++)
++
++// Issue 24164.
++func TestFifoEOF(t *testing.T) {
++	if runtime.GOOS == "openbsd" {
++		// On OpenBSD 6.2 this test just hangs for some reason.
++		t.Skip("skipping on OpenBSD; issue 25877")
++	}
++
++	dir, err := ioutil.TempDir("", "TestFifoEOF")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	fifoName := filepath.Join(dir, "fifo")
++	if err := syscall.Mkfifo(fifoName, 0600); err != nil {
++		t.Fatal(err)
++	}
++
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++
++		w, err := os.OpenFile(fifoName, os.O_WRONLY, 0)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++
++		defer func() {
++			if err := w.Close(); err != nil {
++				t.Errorf("error closing writer: %v", err)
++			}
++		}()
++
++		for i := 0; i < 3; i++ {
++			time.Sleep(10 * time.Millisecond)
++			_, err := fmt.Fprintf(w, "line %d\n", i)
++			if err != nil {
++				t.Errorf("error writing to fifo: %v", err)
++				return
++			}
++		}
++		time.Sleep(10 * time.Millisecond)
++	}()
++
++	defer wg.Wait()
++
++	r, err := os.Open(fifoName)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	done := make(chan bool)
++	go func() {
++		defer close(done)
++
++		defer func() {
++			if err := r.Close(); err != nil {
++				t.Errorf("error closing reader: %v", err)
++			}
++		}()
++
++		rbuf := bufio.NewReader(r)
++		for {
++			b, err := rbuf.ReadBytes('\n')
++			if err == io.EOF {
++				break
++			}
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			t.Logf("%s\n", bytes.TrimSpace(b))
++		}
++	}()
++
++	select {
++	case <-done:
++		// Test succeeded.
++	case <-time.After(time.Second):
++		t.Error("timed out waiting for read")
++		// Close the reader to force the read to complete.
++		r.Close()
++	}
++}
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 11fdb19808..e0b8119d96 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -114,6 +114,8 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 		stdoutOrErr: fdi == 1 || fdi == 2,
+ 	}}
+ 
++	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
++
+ 	// Don't try to use kqueue with regular files on FreeBSD.
+ 	// It crashes the system unpredictably while running all.bash.
+ 	// Issue 19093.
+@@ -121,10 +123,19 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 	// we assume they know what they are doing so we allow it to be
+ 	// used with kqueue.
+ 	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
+-		kind = kindNewFile
++		pollable = false
++	}
++
++	// On Darwin, kqueue does not work properly with fifos:
++	// closing the last writer does not cause a kqueue event
++	// for any readers. See issue #24164.
++	if runtime.GOOS == "darwin" && kind == kindOpenFile {
++		var st syscall.Stat_t
++		if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFIFO {
++			pollable = false
++		}
+ 	}
+ 
+-	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+ 	if err := f.pfd.Init("file", pollable); err != nil {
+ 		// An error here indicates a failure to register
+ 		// with the netpoll system. That can happen for
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 929e9bec53..1d81f57eab 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -8,6 +8,8 @@
+ package os_test
+ 
+ import (
++	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -305,3 +307,68 @@ func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
+ 
+ 	wg.Wait()
+ }
++
++// Issue 24164, for pipes.
++func TestPipeEOF(t *testing.T) {
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++
++		defer func() {
++			if err := w.Close(); err != nil {
++				t.Errorf("error closing writer: %v", err)
++			}
++		}()
++
++		for i := 0; i < 3; i++ {
++			time.Sleep(10 * time.Millisecond)
++			_, err := fmt.Fprintf(w, "line %d\n", i)
++			if err != nil {
++				t.Errorf("error writing to fifo: %v", err)
++				return
++			}
++		}
++		time.Sleep(10 * time.Millisecond)
++	}()
++
++	defer wg.Wait()
++
++	done := make(chan bool)
++	go func() {
++		defer close(done)
++
++		defer func() {
++			if err := r.Close(); err != nil {
++				t.Errorf("error closing reader: %v", err)
++			}
++		}()
++
++		rbuf := bufio.NewReader(r)
++		for {
++			b, err := rbuf.ReadBytes('\n')
++			if err == io.EOF {
++				break
++			}
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			t.Logf("%s\n", bytes.TrimSpace(b))
++		}
++	}()
++
++	select {
++	case <-done:
++		// Test succeeded.
++	case <-time.After(time.Second):
++		t.Error("timed out waiting for read")
++		// Close the reader to force the read to complete.
++		r.Close()
++	}
++}

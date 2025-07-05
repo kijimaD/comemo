@@ -9,7 +9,34 @@ Date:   Mon Jan 6 09:53:55 2014 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/47950043
-
+---
  src/pkg/runtime/cpuprof.c       | 2 +-
  src/pkg/runtime/runtime_test.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 1c34b9e6f6..040ffcd8c7 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -168,7 +168,7 @@ runtime·SetCPUProfileRate(intgo hz)
+ 		runtime·noteclear(&prof->wait);
+ 
+ 		runtime·setcpuprofilerate(tick, hz);
+-	} else if(prof->on) {
++	} else if(prof != nil && prof->on) {
+ 		runtime·setcpuprofilerate(nil, 0);
+ 		prof->on = false;
+ 
+diff --git a/src/pkg/runtime/runtime_test.go b/src/pkg/runtime/runtime_test.go
+index f6b48ba3a6..c673275620 100644
+--- a/src/pkg/runtime/runtime_test.go
++++ b/src/pkg/runtime/runtime_test.go
+@@ -126,3 +126,8 @@ func TestRuntimeGogoBytes(t *testing.T) {
+ 
+ 	t.Fatalf("go tool nm did not report size for runtime.gogo")
+ }
++
++// golang.org/issue/7063
++func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
++	SetCPUProfileRate(0)
++}

@@ -13,6 +13,30 @@ Date:   Mon Oct 15 23:00:58 2018 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 89f887b765..56dd95e469 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -297,6 +297,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 		slow.TotalAlloc = 0
+ 		slow.Mallocs = 0
+ 		slow.Frees = 0
++		slow.HeapReleased = 0
+ 		var bySize [_NumSizeClasses]struct {
+ 			Mallocs, Frees uint64
+ 		}
+@@ -336,6 +337,10 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			slow.BySize[i].Frees = bySize[i].Frees
+ 		}
+ 
++		mheap_.scav.treap.walkTreap(func(tn *treapNode) {
++			slow.HeapReleased += uint64(tn.spanKey.released())
++		})
++
+ 		getg().m.mallocing--
+ 	})
+ 

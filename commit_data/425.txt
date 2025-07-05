@@ -7,6 +7,29 @@ Date:   Fri Jul 25 12:49:36 2008 -0700
     R=gri
     OCL=13470
     CL=13470
-
+---
  test/bugs/bug078.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/bugs/bug078.go b/test/bugs/bug078.go
+new file mode 100644
+index 0000000000..3ffadb7d00
+--- /dev/null
++++ b/test/bugs/bug078.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func dosplit(wait *chan int ){
++	select {
++	case <-wait:
++	}
++}
++
++func main() {
++}

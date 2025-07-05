@@ -8,8 +8,50 @@ Date:   Mon Apr 7 11:34:35 2014 +1000
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/84920043
-
+---
  doc/articles/wiki/Makefile  | 10 ----------
  doc/articles/wiki/test.bash |  2 ++
  src/run.bash                |  1 -
  3 files changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/doc/articles/wiki/Makefile b/doc/articles/wiki/Makefile
+deleted file mode 100644
+index 67563bc092..0000000000
+--- a/doc/articles/wiki/Makefile
++++ /dev/null
+@@ -1,10 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-all: index.html
+-
+-CLEANFILES=get.bin final.bin a.out
+-
+-clean:
+-	rm -f $(CLEANFILES)
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index 46c357ebde..2997f1680a 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -11,6 +11,8 @@ cleanup() {
+ }
+ trap cleanup 0 INT
+ 
++rm -f get.bin final.bin a.out
++
+ # If called with -all, check that all code snippets compile.
+ if [ "$1" == "-all" ]; then
+ 	for fn in *.go; do
+diff --git a/src/run.bash b/src/run.bash
+index 8e8715cab0..dee30183f5 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -166,7 +166,6 @@ time ./run || exit 1
+ 
+ [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
+ (xcd ../doc/articles/wiki
+-make clean || exit 1
+ ./test.bash || exit 1
+ ) || exit $?
+ 

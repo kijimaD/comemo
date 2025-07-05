@@ -12,6 +12,20 @@ Date:   Thu Jul 7 17:41:25 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27120
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/net/dnsmsg_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dnsmsg_test.go b/src/net/dnsmsg_test.go
+index 26e9485b20..2a25a21d4c 100644
+--- a/src/net/dnsmsg_test.go
++++ b/src/net/dnsmsg_test.go
+@@ -393,7 +393,7 @@ func TestIsResponseTo(t *testing.T) {
+ 
+ 	for i := range badResponses {
+ 		if badResponses[i].IsResponseTo(&query) {
+-			t.Error("%v: got true, want false", i)
++			t.Errorf("%v: got true, want false", i)
+ 		}
+ 	}
+ }

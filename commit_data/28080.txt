@@ -11,6 +11,23 @@ Date:   Thu Apr 28 11:50:48 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/interface_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index a0b26c3750..69de095e66 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -158,10 +158,10 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 						l = addrPrefixLen(pfx6, IP(sa.Addr[:]))
+ 					}
+ 					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(l, 8*IPv6len)}
++					copy(ifa.IP, sa.Addr[:])
+ 					if ifa.IP.IsLinkLocalUnicast() {
+ 						ifa.Zone = syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:])
+ 					}
+-					copy(ifa.IP, sa.Addr[:])
+ 					ifat = append(ifat, ifa)
+ 				}
+ 			}

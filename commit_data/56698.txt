@@ -9,6 +9,25 @@ Date:   Fri May 19 07:51:36 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/json_handler_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+index 61078caec8..dcfd701dd4 100644
+--- a/src/log/slog/json_handler_test.go
++++ b/src/log/slog/json_handler_test.go
+@@ -76,9 +76,12 @@ func (jsonMarshalerError) Error() string { return "oops" }
+ func TestAppendJSONValue(t *testing.T) {
+ 	// jsonAppendAttrValue should always agree with json.Marshal.
+ 	for _, value := range []any{
+-		"hello",
++		"hello\r\n\t\a",
+ 		`"[{escape}]"`,
+ 		"<escapeHTML&>",
++		// \u2028\u2029 is an edge case in JavaScript vs JSON.
++		// \xF6 is an incomplete encoding.
++		"\u03B8\u2028\u2029\uFFFF\xF6",
+ 		`-123`,
+ 		int64(-9_200_123_456_789_123_456),
+ 		uint64(9_200_123_456_789_123_456),

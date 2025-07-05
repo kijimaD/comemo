@@ -7,6 +7,30 @@ Date:   Thu Aug 18 11:01:43 2011 +1000
     R=golang-dev, dsymonds, adg
     CC=golang-dev
     https://golang.org/cl/4907049
-
+---
  src/pkg/http/request.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 9126920810..ed41fa45c1 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -619,8 +619,6 @@ func (r *Request) ParseForm() (err os.Error) {
+ 
+ 	if r.URL != nil {
+ 		r.Form, err = url.ParseQuery(r.URL.RawQuery)
+-	} else {
+-		r.Form = make(url.Values) // TODO: remove when nil maps work.
+ 	}
+ 	if r.Method == "POST" {
+ 		if r.Body == nil {
+@@ -645,6 +643,9 @@ func (r *Request) ParseForm() (err os.Error) {
+ 			if err == nil {
+ 				err = e
+ 			}
++			if r.Form == nil {
++				r.Form = make(url.Values)
++			}
+ 			// Copy values into r.Form. TODO: make this smoother.
+ 			for k, vs := range newValues {
+ 				for _, value := range vs {

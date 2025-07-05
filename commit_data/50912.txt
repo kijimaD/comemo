@@ -10,7 +10,152 @@ Date:   Tue Nov 16 08:39:44 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364394
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../compile/internal/types2/instantiate_test.go    | 32 +++++++++++
  src/cmd/compile/internal/types2/typestring.go      | 66 ++++++++++++++++++----
  2 files changed, 86 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate_test.go b/src/cmd/compile/internal/types2/instantiate_test.go
+index 289fe98fd2..591b467a2e 100644
+--- a/src/cmd/compile/internal/types2/instantiate_test.go
++++ b/src/cmd/compile/internal/types2/instantiate_test.go
+@@ -10,6 +10,7 @@ import (
+ )
+ 
+ func TestInstantiateEquality(t *testing.T) {
++	emptySignature := NewSignatureType(nil, nil, nil, nil, nil, false)
+ 	tests := []struct {
+ 		src       string
+ 		name1     string
+@@ -36,6 +37,37 @@ func TestInstantiateEquality(t *testing.T) {
+ 			"T", []Type{NewSlice(Typ[Int])},
+ 			true,
+ 		},
++		{
++			// interface{interface{...}} is equivalent to interface{...}
++			"package equivalentinterfaces; type T[P any] int",
++			"T", []Type{
++				NewInterfaceType([]*Func{NewFunc(nopos, nil, "M", emptySignature)}, nil),
++			},
++			"T", []Type{
++				NewInterfaceType(
++					nil,
++					[]Type{
++						NewInterfaceType([]*Func{NewFunc(nopos, nil, "M", emptySignature)}, nil),
++					},
++				),
++			},
++			true,
++		},
++		{
++			// int|string is equivalent to string|int
++			"package equivalenttypesets; type T[P any] int",
++			"T", []Type{
++				NewInterfaceType(nil, []Type{
++					NewUnion([]*Term{NewTerm(false, Typ[Int]), NewTerm(false, Typ[String])}),
++				}),
++			},
++			"T", []Type{
++				NewInterfaceType(nil, []Type{
++					NewUnion([]*Term{NewTerm(false, Typ[String]), NewTerm(false, Typ[Int])}),
++				}),
++			},
++			true,
++		},
+ 		{
+ 			"package basicfunc; func F[P any]() {}",
+ 			"F", []Type{Typ[Int]},
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index ba3494d9d9..4d03eba657 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -9,7 +9,9 @@ package types2
+ import (
+ 	"bytes"
+ 	"fmt"
++	"sort"
+ 	"strconv"
++	"strings"
+ 	"unicode/utf8"
+ )
+ 
+@@ -217,20 +219,24 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 		w.string("interface{")
+ 		first := true
+-		for _, m := range t.methods {
+-			if !first {
+-				w.byte(';')
++		if w.ctxt != nil {
++			w.typeSet(t.typeSet())
++		} else {
++			for _, m := range t.methods {
++				if !first {
++					w.byte(';')
++				}
++				first = false
++				w.string(m.name)
++				w.signature(m.typ.(*Signature))
+ 			}
+-			first = false
+-			w.string(m.name)
+-			w.signature(m.typ.(*Signature))
+-		}
+-		for _, typ := range t.embeddeds {
+-			if !first {
+-				w.byte(';')
++			for _, typ := range t.embeddeds {
++				if !first {
++					w.byte(';')
++				}
++				first = false
++				w.typ(typ)
+ 			}
+-			first = false
+-			w.typ(typ)
+ 		}
+ 		w.byte('}')
+ 
+@@ -305,6 +311,42 @@ func (w *typeWriter) typ(typ Type) {
+ 	}
+ }
+ 
++// typeSet writes a canonical hash for an interface type set.
++func (w *typeWriter) typeSet(s *_TypeSet) {
++	assert(w.ctxt != nil)
++	first := true
++	for _, m := range s.methods {
++		if !first {
++			w.byte(';')
++		}
++		first = false
++		w.string(m.name)
++		w.signature(m.typ.(*Signature))
++	}
++	switch {
++	case s.terms.isAll():
++		// nothing to do
++	case s.terms.isEmpty():
++		w.string(s.terms.String())
++	default:
++		var termHashes []string
++		for _, term := range s.terms {
++			// terms are not canonically sorted, so we sort their hashes instead.
++			var buf bytes.Buffer
++			if term.tilde {
++				buf.WriteByte('~')
++			}
++			newTypeHasher(&buf, w.ctxt).typ(term.typ)
++			termHashes = append(termHashes, buf.String())
++		}
++		sort.Strings(termHashes)
++		if !first {
++			w.byte(';')
++		}
++		w.string(strings.Join(termHashes, "|"))
++	}
++}
++
+ func (w *typeWriter) typeList(list []Type) {
+ 	w.byte('[')
+ 	for i, typ := range list {

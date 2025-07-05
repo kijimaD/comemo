@@ -9,6 +9,23 @@ Date:   Tue Jun 18 10:26:46 2019 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/{dirent_bsd_test.go => dirent_test.go} | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/dirent_bsd_test.go b/src/syscall/dirent_test.go
+similarity index 97%
+rename from src/syscall/dirent_bsd_test.go
+rename to src/syscall/dirent_test.go
+index 43b667b6b6..f63153340a 100644
+--- a/src/syscall/dirent_bsd_test.go
++++ b/src/syscall/dirent_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd netbsd openbsd
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package syscall_test
+ 

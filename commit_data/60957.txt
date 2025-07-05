@@ -21,7 +21,7 @@ Date:   Tue Sep 10 01:04:51 2024 +1000
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s        | 12 ++--
  src/cmd/compile/internal/riscv64/ssa.go            |  3 +-
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules    |  1 -
@@ -31,3 +31,354 @@ Date:   Tue Sep 10 01:04:51 2024 +1000
  .../internal/ssa/rewriteRISCV64latelower.go        | 84 ++++++++++++++++++++++
  src/cmd/internal/obj/riscv/obj.go                  | 28 ++++++++
  8 files changed, 188 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 5c8d529029..8ac043d56c 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -361,8 +361,8 @@ start:
+ 	SLLIUW		$1, X18, X19			// 9b191908
+ 
+ 	// 1.2: Basic Bit Manipulation (Zbb)
+-	ANDN	X19, X20, X21				// b37a3a41
+-	ANDN	X19, X20				// 337a3a41
++	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
++	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
+ 	CLZ	X20, X21				// 931a0a60
+ 	CLZW	X21, X22				// 1b9b0a60
+ 	CPOP	X22, X23				// 931b2b60
+@@ -377,12 +377,12 @@ start:
+ 	MIN	X29, X30				// 334fdf0b
+ 	MINU	X30, X5, X6				// 33d3e20b
+ 	MINU	X30, X5					// b3d2e20b
+-	ORN	X6, X7, X8				// 33e46340
+-	ORN	X6, X7					// b3e36340
++	ORN	X6, X7, X8				// 33e46340 or 1344f3ff33e48300
++	ORN	X6, X7					// b3e36340 or 934ff3ffb3e3f301
+ 	SEXTB	X16, X17				// 93184860
+ 	SEXTH	X17, X18				// 13995860
+-	XNOR	X18, X19, X20				// 33ca2941
+-	XNOR	X18, X19				// b3c92941
++	XNOR	X18, X19, X20				// 33ca2941 or 33ca2901134afaff
++	XNOR	X18, X19				// b3c92941 or b3c9290193c9f9ff
+ 	ZEXTH	X19, X20				// 3bca0908
+ 
+ 	// 1.3: Bitwise Rotation (Zbb)
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index e3a2889697..759d8d7cf4 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -278,7 +278,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = rs
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = rd
+-	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
++	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XNOR, ssa.OpRISCV64XOR,
++		ssa.OpRISCV64OR, ssa.OpRISCV64ORN, ssa.OpRISCV64AND, ssa.OpRISCV64ANDN,
+ 		ssa.OpRISCV64SLL, ssa.OpRISCV64SLLW, ssa.OpRISCV64SRA, ssa.OpRISCV64SRAW, ssa.OpRISCV64SRL, ssa.OpRISCV64SRLW,
+ 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
+ 		ssa.OpRISCV64MULHU, ssa.OpRISCV64DIV, ssa.OpRISCV64DIVU, ssa.OpRISCV64DIVW,
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index f0afd6b345..9ae9604381 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -62,7 +62,6 @@
+ 
+ (Com(64|32|16|8) ...) => (NOT ...)
+ 
+-
+ (Sqrt ...) => (FSQRTD ...)
+ (Sqrt32 ...) => (FSQRTS ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 8badefa9ac..7f3c4a2bf4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -226,19 +226,22 @@ func init() {
+ 		{name: "SH3ADD", argLength: 2, reg: gp21, asm: "SH3ADD"}, // arg0 << 3 + arg1
+ 
+ 		// Bitwise ops
+-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+-		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},    // arg0 & auxint
+-		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                    // ^arg0
+-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},   // arg0 | arg1
+-		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},      // arg0 | auxint
+-		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL"},                    // rotate left arg0 by (arg1 & 63)
+-		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW"},                  // rotate left least significant word of arg0 by (arg1 & 31), sign extended
+-		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                    // rotate right arg0 by (arg1 & 63)
+-		{name: "RORI", argLength: 1, reg: gp11, asm: "RORI", aux: "Int64"},    // rotate right arg0 by auxint, shift amount 0-63
+-		{name: "RORIW", argLength: 1, reg: gp11, asm: "RORIW", aux: "Int64"},  // rotate right least significant word of arg0 by auxint, shift amount 0-31, sign extended
+-		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW"},                  // rotate right least significant word of arg0 by (arg1 & 31), sign extended
+-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
+-		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},    // arg0 ^ auxint
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},   // arg0 & arg1
++		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                    // ^arg0 & arg1
++		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},      // arg0 & auxint
++		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                      // ^arg0
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},     // arg0 | arg1
++		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                      // ^arg0 | arg1
++		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},        // arg0 | auxint
++		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL"},                      // rotate left arg0 by (arg1 & 63)
++		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW"},                    // rotate left least significant word of arg0 by (arg1 & 31), sign extended
++		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                      // rotate right arg0 by (arg1 & 63)
++		{name: "RORI", argLength: 1, reg: gp11, asm: "RORI", aux: "Int64"},      // rotate right arg0 by auxint, shift amount 0-63
++		{name: "RORIW", argLength: 1, reg: gp11, asm: "RORIW", aux: "Int64"},    // rotate right least significant word of arg0 by auxint, shift amount 0-31, sign extended
++		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW"},                    // rotate right least significant word of arg0 by (arg1 & 31), sign extended
++		{name: "XNOR", argLength: 2, reg: gp21, asm: "XNOR", commutative: true}, // ^(arg0 ^ arg1)
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true},   // arg0 ^ arg1
++		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},      // arg0 ^ auxint
+ 
+ 		// Minimum and maximum
+ 		{name: "MIN", argLength: 2, reg: gp21, asm: "MIN", commutative: true},   // min(arg0,arg1), signed
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64latelower.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64latelower.rules
+index cd55331dfd..7acaa2f3fe 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64latelower.rules
+@@ -2,6 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Combine bitwise operation and bitwise inversion.
++(AND x (NOT y)) => (ANDN x y)
++(OR  x (NOT y)) => (ORN  x y)
++(XOR x (NOT y)) => (XNOR x y)
++(NOT (XOR x y)) => (XNOR x y)
++
+ // Fold constant shift with extension.
+ (SRAI [c] (MOVBreg  x)) && c <   8 => (SRAI [56+c] (SLLI <typ.Int64> [56] x))
+ (SRAI [c] (MOVHreg  x)) && c <  16 => (SRAI [48+c] (SLLI <typ.Int64> [48] x))
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c92c96880e..7f5ab229e0 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2425,9 +2425,11 @@ const (
+ 	OpRISCV64SH2ADD
+ 	OpRISCV64SH3ADD
+ 	OpRISCV64AND
++	OpRISCV64ANDN
+ 	OpRISCV64ANDI
+ 	OpRISCV64NOT
+ 	OpRISCV64OR
++	OpRISCV64ORN
+ 	OpRISCV64ORI
+ 	OpRISCV64ROL
+ 	OpRISCV64ROLW
+@@ -2435,6 +2437,7 @@ const (
+ 	OpRISCV64RORI
+ 	OpRISCV64RORIW
+ 	OpRISCV64RORW
++	OpRISCV64XNOR
+ 	OpRISCV64XOR
+ 	OpRISCV64XORI
+ 	OpRISCV64MIN
+@@ -32683,6 +32686,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ANDN",
++		argLen: 2,
++		asm:    riscv.AANDN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:    "ANDI",
+ 		auxType: auxInt64,
+@@ -32725,6 +32742,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ORN",
++		argLen: 2,
++		asm:    riscv.AORN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:    "ORI",
+ 		auxType: auxInt64,
+@@ -32823,6 +32854,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "XNOR",
++		argLen:      2,
++		commutative: true,
++		asm:         riscv.AXNOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:        "XOR",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go b/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go
+index 6dd97d65bd..d2c3a8f73d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64latelower.go
+@@ -4,12 +4,76 @@ package ssa
+ 
+ func rewriteValueRISCV64latelower(v *Value) bool {
+ 	switch v.Op {
++	case OpRISCV64AND:
++		return rewriteValueRISCV64latelower_OpRISCV64AND(v)
++	case OpRISCV64NOT:
++		return rewriteValueRISCV64latelower_OpRISCV64NOT(v)
++	case OpRISCV64OR:
++		return rewriteValueRISCV64latelower_OpRISCV64OR(v)
+ 	case OpRISCV64SLLI:
+ 		return rewriteValueRISCV64latelower_OpRISCV64SLLI(v)
+ 	case OpRISCV64SRAI:
+ 		return rewriteValueRISCV64latelower_OpRISCV64SRAI(v)
+ 	case OpRISCV64SRLI:
+ 		return rewriteValueRISCV64latelower_OpRISCV64SRLI(v)
++	case OpRISCV64XOR:
++		return rewriteValueRISCV64latelower_OpRISCV64XOR(v)
++	}
++	return false
++}
++func rewriteValueRISCV64latelower_OpRISCV64AND(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AND x (NOT y))
++	// result: (ANDN x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpRISCV64NOT {
++				continue
++			}
++			y := v_1.Args[0]
++			v.reset(OpRISCV64ANDN)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValueRISCV64latelower_OpRISCV64NOT(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (NOT (XOR x y))
++	// result: (XNOR x y)
++	for {
++		if v_0.Op != OpRISCV64XOR {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpRISCV64XNOR)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValueRISCV64latelower_OpRISCV64OR(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (OR x (NOT y))
++	// result: (ORN x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpRISCV64NOT {
++				continue
++			}
++			y := v_1.Args[0]
++			v.reset(OpRISCV64ORN)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
+ 	}
+ 	return false
+ }
+@@ -241,6 +305,26 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64latelower_OpRISCV64XOR(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (XOR x (NOT y))
++	// result: (XNOR x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpRISCV64NOT {
++				continue
++			}
++			y := v_1.Args[0]
++			v.reset(OpRISCV64XNOR)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteBlockRISCV64latelower(b *Block) bool {
+ 	return false
+ }
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 2055f4836e..dc47d1882d 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2535,6 +2535,34 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 
+ 	case AORCB, AREV8:
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
++
++	case AANDN, AORN:
++		if buildcfg.GORISCV64 >= 22 {
++			// ANDN and ORN instructions are supported natively.
++			break
++		}
++		// ANDN -> (AND (NOT x) y)
++		// ORN  -> (OR  (NOT x) y)
++		bitwiseOp, notReg := AAND, ins.rd
++		if ins.as == AORN {
++			bitwiseOp = AOR
++		}
++		if ins.rs1 == notReg {
++			notReg = REG_TMP
++		}
++		inss = []*instruction{
++			&instruction{as: AXORI, rs1: ins.rs2, rs2: obj.REG_NONE, rd: notReg, imm: -1},
++			&instruction{as: bitwiseOp, rs1: ins.rs1, rs2: notReg, rd: ins.rd},
++		}
++
++	case AXNOR:
++		if buildcfg.GORISCV64 >= 22 {
++			// XNOR instruction is supported natively.
++			break
++		}
++		// XNOR -> (NOT (XOR x y))
++		ins.as = AXOR
++		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
+ 	}
+ 
+ 	for _, ins := range inss {

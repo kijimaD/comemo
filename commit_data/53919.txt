@@ -12,8 +12,175 @@ Date:   Sun Sep 4 19:19:27 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/text/template/exec_test.go  | 18 +++++++++---------
  src/text/template/funcs.go      |  5 ++---
  src/text/template/multi_test.go | 10 +++++-----
  3 files changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 56566b920f..6bfae3d319 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -772,7 +772,7 @@ func mapOfThree() any {
+ }
+ 
+ func testExecute(execTests []execTest, template *Template, t *testing.T) {
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	funcs := FuncMap{
+ 		"add":         add,
+ 		"count":       count,
+@@ -861,7 +861,7 @@ func TestDelims(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("delim %q text %q parse err %s", left, text, err)
+ 		}
+-		var b = new(bytes.Buffer)
++		var b = new(strings.Builder)
+ 		err = tmpl.Execute(b, value)
+ 		if err != nil {
+ 			t.Fatalf("delim %q exec err %s", left, err)
+@@ -1024,7 +1024,7 @@ func TestTree(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("parse error:", err)
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
+ 	// First by looking up the template.
+ 	err = tmpl.Lookup("tree").Execute(&b, tree)
+@@ -1236,7 +1236,7 @@ var cmpTests = []cmpTest{
+ }
+ 
+ func TestComparison(t *testing.T) {
+-	b := new(bytes.Buffer)
++	b := new(strings.Builder)
+ 	var cmpStruct = struct {
+ 		Uthree, Ufour    uint
+ 		NegOne, Three    int
+@@ -1284,7 +1284,7 @@ func TestMissingMapKey(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	// By default, just get "<no value>"
+ 	err = tmpl.Execute(&b, data)
+ 	if err != nil {
+@@ -1454,7 +1454,7 @@ func TestBlock(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	if err := tmpl.Execute(&buf, "hello"); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -1560,7 +1560,7 @@ func TestAddrOfIndex(t *testing.T) {
+ 	}
+ 	for _, text := range texts {
+ 		tmpl := Must(New("tmpl").Parse(text))
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		err := tmpl.Execute(&buf, reflect.ValueOf([]V{{1}}))
+ 		if err != nil {
+ 			t.Fatalf("%s: Execute: %v", text, err)
+@@ -1616,7 +1616,7 @@ func TestInterfaceValues(t *testing.T) {
+ 
+ 	for _, tt := range tests {
+ 		tmpl := Must(New("tmpl").Parse(tt.text))
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		err := tmpl.Execute(&buf, map[string]any{
+ 			"PlusOne": func(n int) int {
+ 				return n + 1
+@@ -1709,7 +1709,7 @@ func TestExecutePanicDuringCall(t *testing.T) {
+ // Issue 31810. Check that a parenthesized first argument behaves properly.
+ func TestIssue31810(t *testing.T) {
+ 	// A simple value with no arguments is fine.
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	const text = "{{ (.)  }}"
+ 	tmpl, err := New("").Parse(text)
+ 	if err != nil {
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 42bb529e50..dbea6e705a 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -5,7 +5,6 @@
+ package template
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -642,7 +641,7 @@ func HTMLEscapeString(s string) string {
+ 	if !strings.ContainsAny(s, "'\"&<>\000") {
+ 		return s
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	HTMLEscape(&b, []byte(s))
+ 	return b.String()
+ }
+@@ -725,7 +724,7 @@ func JSEscapeString(s string) string {
+ 	if strings.IndexFunc(s, jsIsSpecial) < 0 {
+ 		return s
+ 	}
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	JSEscape(&b, []byte(s))
+ 	return b.String()
+ }
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index 6b81ffe7ac..63cd3f74b2 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -7,9 +7,9 @@ package template
+ // Tests for multiple-template parsing and execution.
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"os"
++	"strings"
+ 	"testing"
+ 	"text/template/parse"
+ )
+@@ -242,7 +242,7 @@ func TestClone(t *testing.T) {
+ 		}
+ 	}
+ 	// Execute root.
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	err = root.ExecuteTemplate(&b, "a", 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -281,7 +281,7 @@ func TestAddParseTree(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// Execute.
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	err = added.ExecuteTemplate(&b, "a", 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -410,7 +410,7 @@ func TestEmptyTemplate(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 		}
+-		buf := &bytes.Buffer{}
++		buf := &strings.Builder{}
+ 		if err := m.Execute(buf, c.in); err != nil {
+ 			t.Error(i, err)
+ 			continue
+@@ -445,7 +445,7 @@ func TestIssue19294(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 		}
+-		var buf bytes.Buffer
++		var buf strings.Builder
+ 		res.Execute(&buf, 0)
+ 		if buf.String() != "stylesheet" {
+ 			t.Fatalf("iteration %d: got %q; expected %q", i, buf.String(), "stylesheet")

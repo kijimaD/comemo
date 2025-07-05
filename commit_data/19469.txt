@@ -100,9 +100,351 @@ Date:   Fri May 30 16:41:58 2014 -0400
     R=golang-codereviews, josharian, khr
     CC=golang-codereviews, iant, r
     https://golang.org/cl/99660044
-
+---
  src/cmd/5g/reg.c            | 57 +++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/6g/reg.c            | 57 +++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/8g/reg.c            | 57 +++++++++++++++++++++++++++++++++++++++++++--
  test/fixedbugs/issue8036.go | 45 +++++++++++++++++++++++++++++++++++
  4 files changed, 210 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 6129698f3a..4762df5062 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -129,13 +129,15 @@ static char* regname[] = {
+ 
+ static Node* regnodes[NREGVAR];
+ 
++static void walkvardef(Node *n, Reg *r, int active);
++
+ void
+ regopt(Prog *firstp)
+ {
+ 	Reg *r, *r1;
+ 	Prog *p;
+ 	Graph *g;
+-	int i, z;
++	int i, z, active;
+ 	uint32 vreg;
+ 	Bits bit;
+ 	ProgInfo info;
+@@ -249,6 +251,26 @@ regopt(Prog *firstp)
+ 	if(debug['R'] && debug['v'])
+ 		dumpit("pass2", &firstr->f, 1);
+ 
++	/*
++	 * pass 2.5
++	 * iterate propagating fat vardef covering forward
++	 * r->act records vars with a VARDEF since the last CALL.
++	 * (r->act will be reused in pass 5 for something else,
++	 * but we'll be done with it by then.)
++	 */
++	active = 0;
++	for(r = firstr; r != R; r = (Reg*)r->f.link) {
++		r->f.active = 0;
++		r->act = zbits;
++	}
++	for(r = firstr; r != R; r = (Reg*)r->f.link) {
++		p = r->f.prog;
++		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++			active++;
++			walkvardef(p->to.node, r, active);
++		}
++	}
++
+ 	/*
+ 	 * pass 3
+ 	 * iterate propagating usage
+@@ -524,6 +546,32 @@ brk:
+ 	}
+ }
+ 
++static void
++walkvardef(Node *n, Reg *r, int active)
++{
++	Reg *r1, *r2;
++	int bn;
++	Var *v;
++	
++	for(r1=r; r1!=R; r1=(Reg*)r1->f.s1) {
++		if(r1->f.active == active)
++			break;
++		r1->f.active = active;
++		if(r1->f.prog->as == AVARKILL && r1->f.prog->to.node == n)
++			break;
++		for(v=n->opt; v!=nil; v=v->nextinnode) {
++			bn = v - var;
++			r1->act.b[bn/32] |= 1L << (bn%32);
++		}
++		if(r1->f.prog->as == ABL)
++			break;
++	}
++
++	for(r2=r; r2!=r1; r2=(Reg*)r2->f.s1)
++		if(r2->f.s2 != nil)
++			walkvardef(n, (Reg*)r2->f.s2, active);
++}
++
+ void
+ addsplits(void)
+ {
+@@ -891,8 +939,13 @@ prop(Reg *r, Bits ref, Bits cal)
+ 			// Mark all input variables (ivar) as used, because that's what the
+ 			// liveness bitmaps say. The liveness bitmaps say that so that a
+ 			// panic will not show stale values in the parameter dump.
++			// Mark variables with a recent VARDEF (r1->act) as used,
++			// so that the optimizer flushes initializations to memory,
++			// so that if a garbage collection happens during this CALL,
++			// the collector will see initialized memory. Again this is to
++			// match what the liveness bitmaps say.
+ 			for(z=0; z<BITS; z++) {
+-				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z];
++				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z] | r1->act.b[z];
+ 				ref.b[z] = 0;
+ 			}
+ 			
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 919a07d7bc..f3b1e55de8 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -114,6 +114,8 @@ static char* regname[] = {
+ 
+ static Node* regnodes[NREGVAR];
+ 
++static void walkvardef(Node *n, Reg *r, int active);
++
+ void
+ regopt(Prog *firstp)
+ {
+@@ -121,7 +123,7 @@ regopt(Prog *firstp)
+ 	Prog *p;
+ 	Graph *g;
+ 	ProgInfo info;
+-	int i, z;
++	int i, z, active;
+ 	uint32 vreg;
+ 	Bits bit;
+ 
+@@ -234,6 +236,26 @@ regopt(Prog *firstp)
+ 	if(debug['R'] && debug['v'])
+ 		dumpit("pass2", &firstr->f, 1);
+ 
++	/*
++	 * pass 2.5
++	 * iterate propagating fat vardef covering forward
++	 * r->act records vars with a VARDEF since the last CALL.
++	 * (r->act will be reused in pass 5 for something else,
++	 * but we'll be done with it by then.)
++	 */
++	active = 0;
++	for(r = firstr; r != R; r = (Reg*)r->f.link) {
++		r->f.active = 0;
++		r->act = zbits;
++	}
++	for(r = firstr; r != R; r = (Reg*)r->f.link) {
++		p = r->f.prog;
++		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++			active++;
++			walkvardef(p->to.node, r, active);
++		}
++	}
++
+ 	/*
+ 	 * pass 3
+ 	 * iterate propagating usage
+@@ -435,6 +457,32 @@ brk:
+ 	}
+ }
+ 
++static void
++walkvardef(Node *n, Reg *r, int active)
++{
++	Reg *r1, *r2;
++	int bn;
++	Var *v;
++	
++	for(r1=r; r1!=R; r1=(Reg*)r1->f.s1) {
++		if(r1->f.active == active)
++			break;
++		r1->f.active = active;
++		if(r1->f.prog->as == AVARKILL && r1->f.prog->to.node == n)
++			break;
++		for(v=n->opt; v!=nil; v=v->nextinnode) {
++			bn = v - var;
++			r1->act.b[bn/32] |= 1L << (bn%32);
++		}
++		if(r1->f.prog->as == ACALL)
++			break;
++	}
++
++	for(r2=r; r2!=r1; r2=(Reg*)r2->f.s1)
++		if(r2->f.s2 != nil)
++			walkvardef(n, (Reg*)r2->f.s2, active);
++}
++
+ /*
+  * add mov b,rn
+  * just after r
+@@ -745,8 +793,13 @@ prop(Reg *r, Bits ref, Bits cal)
+ 			// Mark all input variables (ivar) as used, because that's what the
+ 			// liveness bitmaps say. The liveness bitmaps say that so that a
+ 			// panic will not show stale values in the parameter dump.
++			// Mark variables with a recent VARDEF (r1->act) as used,
++			// so that the optimizer flushes initializations to memory,
++			// so that if a garbage collection happens during this CALL,
++			// the collector will see initialized memory. Again this is to
++			// match what the liveness bitmaps say.
+ 			for(z=0; z<BITS; z++) {
+-				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z];
++				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z] | r1->act.b[z];
+ 				ref.b[z] = 0;
+ 			}
+ 			
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index ed019f9373..fd610f87a6 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -84,6 +84,8 @@ static char* regname[] = {
+ 
+ static Node* regnodes[NREGVAR];
+ 
++static void walkvardef(Node *n, Reg *r, int active);
++
+ void
+ regopt(Prog *firstp)
+ {
+@@ -91,7 +93,7 @@ regopt(Prog *firstp)
+ 	Prog *p;
+ 	Graph *g;
+ 	ProgInfo info;
+-	int i, z;
++	int i, z, active;
+ 	uint32 vreg;
+ 	Bits bit;
+ 
+@@ -206,6 +208,26 @@ regopt(Prog *firstp)
+ 	if(debug['R'] && debug['v'])
+ 		dumpit("pass2", &firstr->f, 1);
+ 
++	/*
++	 * pass 2.5
++	 * iterate propagating fat vardef covering forward
++	 * r->act records vars with a VARDEF since the last CALL.
++	 * (r->act will be reused in pass 5 for something else,
++	 * but we'll be done with it by then.)
++	 */
++	active = 0;
++	for(r = firstr; r != R; r = (Reg*)r->f.link) {
++		r->f.active = 0;
++		r->act = zbits;
++	}
++	for(r = firstr; r != R; r = (Reg*)r->f.link) {
++		p = r->f.prog;
++		if(p->as == AVARDEF && isfat(p->to.node->type) && p->to.node->opt != nil) {
++			active++;
++			walkvardef(p->to.node, r, active);
++		}
++	}
++
+ 	/*
+ 	 * pass 3
+ 	 * iterate propagating usage
+@@ -404,6 +426,32 @@ brk:
+ 	}
+ }
+ 
++static void
++walkvardef(Node *n, Reg *r, int active)
++{
++	Reg *r1, *r2;
++	int bn;
++	Var *v;
++	
++	for(r1=r; r1!=R; r1=(Reg*)r1->f.s1) {
++		if(r1->f.active == active)
++			break;
++		r1->f.active = active;
++		if(r1->f.prog->as == AVARKILL && r1->f.prog->to.node == n)
++			break;
++		for(v=n->opt; v!=nil; v=v->nextinnode) {
++			bn = v - var;
++			r1->act.b[bn/32] |= 1L << (bn%32);
++		}
++		if(r1->f.prog->as == ACALL)
++			break;
++	}
++
++	for(r2=r; r2!=r1; r2=(Reg*)r2->f.s1)
++		if(r2->f.s2 != nil)
++			walkvardef(n, (Reg*)r2->f.s2, active);
++}
++
+ /*
+  * add mov b,rn
+  * just after r
+@@ -711,8 +759,13 @@ prop(Reg *r, Bits ref, Bits cal)
+ 			// Mark all input variables (ivar) as used, because that's what the
+ 			// liveness bitmaps say. The liveness bitmaps say that so that a
+ 			// panic will not show stale values in the parameter dump.
++			// Mark variables with a recent VARDEF (r1->act) as used,
++			// so that the optimizer flushes initializations to memory,
++			// so that if a garbage collection happens during this CALL,
++			// the collector will see initialized memory. Again this is to
++			// match what the liveness bitmaps say.
+ 			for(z=0; z<BITS; z++) {
+-				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z];
++				cal.b[z] |= ref.b[z] | externs.b[z] | ivar.b[z] | r1->act.b[z];
+ 				ref.b[z] = 0;
+ 			}
+ 			
+diff --git a/test/fixedbugs/issue8036.go b/test/fixedbugs/issue8036.go
+new file mode 100644
+index 0000000000..f32fde84ab
+--- /dev/null
++++ b/test/fixedbugs/issue8036.go
+@@ -0,0 +1,45 @@
++// run
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8036. Stores necessary for stack scan being eliminated as redundant by optimizer.
++
++package main
++
++import "runtime"
++
++type T struct {
++	X *int
++	Y *int
++	Z *int
++}
++
++type TI [3]uintptr
++
++func G() (t TI) {
++	t[0] = 1
++	t[1] = 2
++	t[2] = 3
++	runtime.GC() // prevent inlining
++	return
++}
++
++func F() (t T) {
++	t.X = newint()
++	t.Y = t.X
++	t.Z = t.Y
++	runtime.GC() // prevent inlining
++	return
++}
++
++func newint() *int {
++	runtime.GC()
++	return nil
++}
++
++func main() {
++	G() // leave non-pointers where F's return values go
++	F()
++}

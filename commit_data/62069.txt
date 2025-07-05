@@ -18,8 +18,89 @@ Date:   Sun Nov 17 17:17:50 2024 -0500
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go   |  7 +++++++
  src/cmd/go/internal/modindex/read.go    | 11 +++++++----
  src/cmd/go/testdata/script/fipssnap.txt |  9 +++------
  3 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 02d3849314..9c34581a91 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -113,6 +113,13 @@ func DownloadDir(ctx context.Context, m module.Version) (string, error) {
+ 		return dir, err
+ 	}
+ 
++	// Special case: ziphash is not required for the golang.org/fips140 module,
++	// because it is unpacked from a file in GOROOT, not downloaded.
++	// We've already checked that it's not a partial unpacking, so we're happy.
++	if m.Path == "golang.org/fips140" {
++		return dir, nil
++	}
++
+ 	// Check if a .ziphash file exists. It should be created before the
+ 	// zip is extracted, but if it was deleted (by another program?), we need
+ 	// to re-calculate it. Note that checkMod will repopulate the ziphash
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 4c1fbd8359..76216f35ba 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -33,10 +33,7 @@ import (
+ 	"cmd/internal/par"
+ )
+ 
+-// enabled is used to flag off the behavior of the module index on tip.
+-// It will be removed before the release.
+-// TODO(matloob): Remove enabled once we have more confidence on the
+-// module index.
++// enabled is used to flag off the behavior of the module index on tip, for debugging.
+ var enabled = godebug.New("#goindex").Value() != "0"
+ 
+ // Module represents and encoded module index file. It is used to
+@@ -126,6 +123,7 @@ var ErrNotIndexed = errors.New("not in module index")
+ var (
+ 	errDisabled           = fmt.Errorf("%w: module indexing disabled", ErrNotIndexed)
+ 	errNotFromModuleCache = fmt.Errorf("%w: not from module cache", ErrNotIndexed)
++	errFIPS140            = fmt.Errorf("%w: fips140 snapshots not indexed", ErrNotIndexed)
+ )
+ 
+ // GetPackage returns the IndexPackage for the directory at the given path.
+@@ -143,6 +141,11 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
+ 		return nil, err // gccgo has no sources for GOROOT packages.
+ 	}
++	// The pkgdir for fips140 has been replaced in the fsys overlay,
++	// but the module index does not see that. Do not try to use the module index.
++	if strings.Contains(filepath.ToSlash(pkgdir), "internal/fips140/v") {
++		return nil, errFIPS140
++	}
+ 	return openIndexPackage(modroot, pkgdir)
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/fipssnap.txt b/src/cmd/go/testdata/script/fipssnap.txt
+index 465f304c46..9888bc82f1 100644
+--- a/src/cmd/go/testdata/script/fipssnap.txt
++++ b/src/cmd/go/testdata/script/fipssnap.txt
+@@ -1,10 +1,6 @@
+-## Note: Need a snapshot in lib/fips140 to run this test.
+-## For local testing, can run 'cd lib/fips140; make v0.0.1.test'
+-## and then remove the skip.
+-env snap=v0.0.1
++env snap=v1.0.0
+ env alias=inprocess
+ 
+-skip 'no snapshots yet'
+ env GOFIPS140=$snap
+ 
+ # Go+BoringCrypto conflicts with GOFIPS140.
+@@ -27,7 +23,8 @@ stdout crypto/internal/fips140/$snap/sha256
+ ! stdout crypto/internal/fips140/check
+ 
+ # again with GOFIPS140=$alias
+-env GOFIPS140=$alias
++# TODO: enable when we add inprocess.txt
++# env GOFIPS140=$alias
+ 
+ # default GODEBUG includes fips140=on
+ go list -f '{{.DefaultGODEBUG}}'

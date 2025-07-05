@@ -7,8 +7,50 @@ Date:   Mon Aug 24 09:23:04 2009 -0700
     R=ken
     OCL=33745
     CL=33745
-
+---
  src/cmd/gc/typecheck.c             | 2 ++
  test/{bugs => fixedbugs}/bug189.go | 2 +-
  test/golden.out                    | 3 ---
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 8c76ebb837..bca203ee64 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1608,6 +1608,8 @@ typecheckcomplit(Node **np)
+ 				ll->n->left->typecheck = 1;
+ 				f = f->down;
+ 			}
++			if(f != nil)
++				yyerror("too few values in struct initializer");
+ 		} else {
+ 			// keyed list
+ 			for(ll=n->list; ll; ll=ll->next) {
+diff --git a/test/bugs/bug189.go b/test/fixedbugs/bug189.go
+similarity index 81%
+rename from test/bugs/bug189.go
+rename to test/fixedbugs/bug189.go
+index 3befe82f69..d585ac463d 100644
+--- a/test/bugs/bug189.go
++++ b/test/fixedbugs/bug189.go
+@@ -13,5 +13,5 @@ type S struct {
+ func main() {
+ 	s1 := S{a: 7};	// ok - field is named
+ 	s3 := S{7, 11};	// ok - all fields have values
+-	s2 := S{7};	// bug - should not compile since not all fields have values
++	s2 := S{7};	// ERROR "too few"
+ }
+diff --git a/test/golden.out b/test/golden.out
+index c1a6092e67..f3d59679ba 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -157,9 +157,6 @@ BUG: errchk: command succeeded unexpectedly
+ =========== bugs/bug187.go
+ BUG: 0 1
+ 
+-=========== bugs/bug189.go
+-BUG: errchk: command succeeded unexpectedly
+-
+ =========== bugs/bug190.go
+ bugs/bug190.go:11: invalid recursive type []S
+ bugs/bug190.go:16: invalid recursive type S

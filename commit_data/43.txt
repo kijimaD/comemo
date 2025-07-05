@@ -5,6 +5,20 @@ Date:   Thu Mar 27 22:11:10 2008 -0700
     add script to generate .html from .txt
     
     SVN=114148
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 319de951f9..e888455bfc 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -438,7 +438,7 @@ It is erroneous for an octal_byte_value to represent a value larger than 255.
+ 
+ A character literal is a form of unsigned integer constant.  Its value
+ is that of the Unicode code point represented by the text between the
+-quotes. [Note: the Unicode doesn't look right in the browser.]
++quotes.
+ 
+     'a'
+     'ä'

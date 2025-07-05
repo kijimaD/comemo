@@ -22,7 +22,119 @@ Date:   Tue Apr 20 17:38:54 2021 +0300
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/executable_procfs.go | 21 +++++++++------
  src/os/executable_test.go   | 65 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 78 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 9c64a0d474..76ba0e6d08 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -12,10 +12,7 @@ import (
+ 	"runtime"
+ )
+ 
+-// We query the executable path at init time to avoid the problem of
+-// readlink returns a path appended with " (deleted)" when the original
+-// binary gets deleted.
+-var executablePath, executablePathErr = func() (string, error) {
++func executable() (string, error) {
+ 	var procfn string
+ 	switch runtime.GOOS {
+ 	default:
+@@ -25,9 +22,17 @@ var executablePath, executablePathErr = func() (string, error) {
+ 	case "netbsd":
+ 		procfn = "/proc/curproc/exe"
+ 	}
+-	return Readlink(procfn)
+-}()
++	path, err := Readlink(procfn)
+ 
+-func executable() (string, error) {
+-	return executablePath, executablePathErr
++	// When the executable has been deleted then Readlink returns a
++	// path appended with " (deleted)".
++	return stringsTrimSuffix(path, " (deleted)"), err
++}
++
++// stringsTrimSuffix is the same as strings.TrimSuffix.
++func stringsTrimSuffix(s, suffix string) string {
++	if len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix {
++		return s[:len(s)-len(suffix)]
++	}
++	return s
+ }
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index f25ee0c95a..f682105fa6 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -86,3 +86,68 @@ func init() {
+ 		os.Exit(0)
+ 	}
+ }
++
++func TestExecutableDeleted(t *testing.T) {
++	testenv.MustHaveExec(t)
++	switch runtime.GOOS {
++	case "windows":
++		t.Skip("windows does not support deleting running binary")
++	case "openbsd", "freebsd":
++		t.Skipf("%v does not support reading deleted binary name", runtime.GOOS)
++	}
++
++	dir := t.TempDir()
++
++	src := filepath.Join(dir, "testdel.go")
++	exe := filepath.Join(dir, "testdel.exe")
++
++	err := os.WriteFile(src, []byte(testExecutableDeletion), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	out, err := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src).CombinedOutput()
++	t.Logf("build output:\n%s", out)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	out, err = osexec.Command(exe).CombinedOutput()
++	t.Logf("exec output:\n%s", out)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
++const testExecutableDeletion = `package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func main() {
++	before, err := os.Executable()
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "failed to read executable name before deletion: %v\n", err)
++		os.Exit(1)
++	}
++
++	err = os.Remove(before)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "failed to remove executable: %v\n", err)
++		os.Exit(1)
++	}
++
++	after, err := os.Executable()
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "failed to read executable name after deletion: %v\n", err)
++		os.Exit(1)
++	}
++
++	if before != after {
++		fmt.Fprintf(os.Stderr, "before and after do not match: %v != %v\n", before, after)
++		os.Exit(1)
++	}
++}
++`

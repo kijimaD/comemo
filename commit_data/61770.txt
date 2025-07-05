@@ -12,7 +12,7 @@ Date:   Wed Nov 20 13:59:09 2024 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/godebug.md                                 |   4 +
  doc/next/6-stdlib/99-minor/crypto/rsa/68762.md |   7 ++
  src/crypto/rsa/boring_test.go                  |   2 +
@@ -30,3 +30,828 @@ Date:   Wed Nov 20 13:59:09 2024 +0100
  src/internal/godebugs/table.go                 |   1 +
  src/runtime/metrics/doc.go                     |   4 +
  16 files changed, 317 insertions(+), 61 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 0418482746..c088e7bccf 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -177,6 +177,10 @@ This behavior can be controlled with the `gotestjsonbuildtext` setting.
+ Using `gotestjsonbuildtext=1` restores the 1.23 behavior.
+ This setting will be removed in a future release, Go 1.28 at the earliest.
+ 
++Go 1.24 changed [`crypto/rsa`](/pkg/crypto/rsa) to require RSA keys to be at
++least 1024 bits. This behavior can be controlled with the `rsa1024min` setting.
++Using `rsa1024min=0` restores the Go 1.23 behavior.
++
+ Go 1.24 introduced a mechanism for enabling platform specific Data Independent
+ Timing (DIT) modes in the [`crypto/subtle`](/pkg/crypto/subtle) package. This
+ mode can be enabled for an entire program with the `dataindependenttiming` setting.
+diff --git a/doc/next/6-stdlib/99-minor/crypto/rsa/68762.md b/doc/next/6-stdlib/99-minor/crypto/rsa/68762.md
+new file mode 100644
+index 0000000000..f4b5e066f3
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/rsa/68762.md
+@@ -0,0 +1,7 @@
++[GenerateKey] now returns an error if a key of less than 1024 bits is requested.
++All Sign, Verify, Encrypt, and Decrypt methods now return an error if used with
++a key smaller than 1024 bits. Such keys are insecure and should not be used.
++Setting `GODEBUG=rsa1024min=0` or including `//go:debug rsa1024min=0` in a
++source file restores the old behavior, but we recommend doing so only in tests,
++if necessary. A new [GenerateKey] example provides an easy-to-use standard
++2048-bit test key.
+diff --git a/src/crypto/rsa/boring_test.go b/src/crypto/rsa/boring_test.go
+index 2234d079f0..838fcc1244 100644
+--- a/src/crypto/rsa/boring_test.go
++++ b/src/crypto/rsa/boring_test.go
+@@ -22,6 +22,8 @@ import (
+ )
+ 
+ func TestBoringASN1Marshal(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
++
+ 	k, err := GenerateKey(rand.Reader, 128)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/crypto/rsa/equal_test.go b/src/crypto/rsa/equal_test.go
+index 90f4bf9475..cf86e6c024 100644
+--- a/src/crypto/rsa/equal_test.go
++++ b/src/crypto/rsa/equal_test.go
+@@ -6,14 +6,15 @@ package rsa_test
+ 
+ import (
+ 	"crypto"
+-	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/x509"
+ 	"testing"
+ )
+ 
+ func TestEqual(t *testing.T) {
+-	private, _ := rsa.GenerateKey(rand.Reader, 512)
++	t.Setenv("GODEBUG", "rsa1024min=0")
++
++	private := test512Key
+ 	public := &private.PublicKey
+ 
+ 	if !public.Equal(public) {
+@@ -41,7 +42,7 @@ func TestEqual(t *testing.T) {
+ 		t.Errorf("private key is not equal to itself after decoding: %v", private)
+ 	}
+ 
+-	other, _ := rsa.GenerateKey(rand.Reader, 512)
++	other := test512KeyTwo
+ 	if public.Equal(other.Public()) {
+ 		t.Errorf("different public keys are Equal")
+ 	}
+diff --git a/src/crypto/rsa/example_test.go b/src/crypto/rsa/example_test.go
+index d176743f2f..4a5c1c60fc 100644
+--- a/src/crypto/rsa/example_test.go
++++ b/src/crypto/rsa/example_test.go
+@@ -11,11 +11,69 @@ import (
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/sha256"
++	"crypto/x509"
+ 	"encoding/hex"
++	"encoding/pem"
+ 	"fmt"
+ 	"os"
++	"strings"
+ )
+ 
++func ExampleGenerateKey() {
++	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "Error generating RSA key: %s", err)
++		return
++	}
++
++	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "Error marshalling RSA private key: %s", err)
++		return
++	}
++
++	fmt.Printf("%s", pem.EncodeToMemory(&pem.Block{
++		Type:  "PRIVATE KEY",
++		Bytes: der,
++	}))
++}
++
++func ExampleGenerateKey_testKey() {
++	// This is an insecure, test-only key from RFC 9500, Section 2.1.
++	// It can be used in tests to avoid slow key generation.
++	block, _ := pem.Decode([]byte(strings.ReplaceAll(
++		`-----BEGIN RSA TESTING KEY-----
++MIIEowIBAAKCAQEAsPnoGUOnrpiSqt4XynxA+HRP7S+BSObI6qJ7fQAVSPtRkqso
++tWxQYLEYzNEx5ZSHTGypibVsJylvCfuToDTfMul8b/CZjP2Ob0LdpYrNH6l5hvFE
++89FU1nZQF15oVLOpUgA7wGiHuEVawrGfey92UE68mOyUVXGweJIVDdxqdMoPvNNU
++l86BU02vlBiESxOuox+dWmuVV7vfYZ79Toh/LUK43YvJh+rhv4nKuF7iHjVjBd9s
++B6iDjj70HFldzOQ9r8SRI+9NirupPTkF5AKNe6kUhKJ1luB7S27ZkvB3tSTT3P59
++3VVJvnzOjaA1z6Cz+4+eRvcysqhrRgFlwI9TEwIDAQABAoIBAEEYiyDP29vCzx/+
++dS3LqnI5BjUuJhXUnc6AWX/PCgVAO+8A+gZRgvct7PtZb0sM6P9ZcLrweomlGezI
++FrL0/6xQaa8bBr/ve/a8155OgcjFo6fZEw3Dz7ra5fbSiPmu4/b/kvrg+Br1l77J
++aun6uUAs1f5B9wW+vbR7tzbT/mxaUeDiBzKpe15GwcvbJtdIVMa2YErtRjc1/5B2
++BGVXyvlJv0SIlcIEMsHgnAFOp1ZgQ08aDzvilLq8XVMOahAhP1O2A3X8hKdXPyrx
++IVWE9bS9ptTo+eF6eNl+d7htpKGEZHUxinoQpWEBTv+iOoHsVunkEJ3vjLP3lyI/
++fY0NQ1ECgYEA3RBXAjgvIys2gfU3keImF8e/TprLge1I2vbWmV2j6rZCg5r/AS0u
++pii5CvJ5/T5vfJPNgPBy8B/yRDs+6PJO1GmnlhOkG9JAIPkv0RBZvR0PMBtbp6nT
++Y3yo1lwamBVBfY6rc0sLTzosZh2aGoLzrHNMQFMGaauORzBFpY5lU50CgYEAzPHl
++u5DI6Xgep1vr8QvCUuEesCOgJg8Yh1UqVoY/SmQh6MYAv1I9bLGwrb3WW/7kqIoD
++fj0aQV5buVZI2loMomtU9KY5SFIsPV+JuUpy7/+VE01ZQM5FdY8wiYCQiVZYju9X
++Wz5LxMNoz+gT7pwlLCsC4N+R8aoBk404aF1gum8CgYAJ7VTq7Zj4TFV7Soa/T1eE
++k9y8a+kdoYk3BASpCHJ29M5R2KEA7YV9wrBklHTz8VzSTFTbKHEQ5W5csAhoL5Fo
++qoHzFFi3Qx7MHESQb9qHyolHEMNx6QdsHUn7rlEnaTTyrXh3ifQtD6C0yTmFXUIS
++CW9wKApOrnyKJ9nI0HcuZQKBgQCMtoV6e9VGX4AEfpuHvAAnMYQFgeBiYTkBKltQ
++XwozhH63uMMomUmtSG87Sz1TmrXadjAhy8gsG6I0pWaN7QgBuFnzQ/HOkwTm+qKw
++AsrZt4zeXNwsH7QXHEJCFnCmqw9QzEoZTrNtHJHpNboBuVnYcoueZEJrP8OnUG3r
++UjmopwKBgAqB2KYYMUqAOvYcBnEfLDmyZv9BTVNHbR2lKkMYqv5LlvDaBxVfilE0
++2riO4p6BaAdvzXjKeRrGNEKoHNBpOSfYCOM16NjL8hIZB1CaV3WbT5oY+jp7Mzd5
++7d56RZOE+ERK2uz/7JX9VSsM/LbH9pJibd4e8mikDS9ntciqOH/3
++-----END RSA TESTING KEY-----`, "TESTING KEY", "PRIVATE KEY")))
++	testRSA2048, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
++
++	fmt.Println("Private key bit size:", testRSA2048.N.BitLen())
++}
++
+ // RSA is able to encrypt only a very limited amount of data. In order
+ // to encrypt reasonable amounts of data a hybrid scheme is commonly
+ // used: RSA is used to encrypt a key for a symmetric primitive like
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index 309ed273ec..581bcf194e 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -57,6 +57,10 @@ func (opts *PSSOptions) saltLength() int {
+ // using bytes from rand. Most applications should use [crypto/rand.Reader] as
+ // rand.
+ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
++	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
++		return nil, err
++	}
++
+ 	if opts != nil && opts.Hash != 0 {
+ 		hash = opts.Hash
+ 	}
+@@ -106,6 +110,10 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ // The inputs are not considered confidential, and may leak through timing side
+ // channels, or if an attacker has control of part of the inputs.
+ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
++	if err := checkPublicKeySize(pub); err != nil {
++		return err
++	}
++
+ 	if boring.Enabled {
+ 		bkey, err := boringPublicKey(pub)
+ 		if err != nil {
+@@ -152,6 +160,10 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
+ // The message must be no longer than the length of the public modulus minus
+ // twice the hash length, minus a further 2.
+ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
++	if err := checkPublicKeySize(pub); err != nil {
++		return nil, err
++	}
++
+ 	defer hash.Reset()
+ 
+ 	if boring.Enabled && random == boring.RandReader {
+@@ -191,6 +203,10 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext
+ }
+ 
+ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
++	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
++		return nil, err
++	}
++
+ 	if boring.Enabled {
+ 		k := priv.Size()
+ 		if len(ciphertext) > k ||
+@@ -229,6 +245,10 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
+ // messages to signatures and identify the signed messages. As ever,
+ // signatures provide authenticity, not confidentiality.
+ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
++	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
++		return nil, err
++	}
++
+ 	if boring.Enabled {
+ 		bkey, err := boringPrivateKey(priv)
+ 		if err != nil {
+@@ -260,6 +280,10 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
+ // The inputs are not considered confidential, and may leak through timing side
+ // channels, or if an attacker has control of part of the inputs.
+ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
++	if err := checkPublicKeySize(pub); err != nil {
++		return err
++	}
++
+ 	if boring.Enabled {
+ 		bkey, err := boringPublicKey(pub)
+ 		if err != nil {
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index b144be7662..819b447f1e 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -38,6 +38,10 @@ type PKCS1v15DecryptOptions struct {
+ // WARNING: use of this function to encrypt plaintexts other than
+ // session keys is dangerous. Use RSA OAEP in new protocols.
+ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
++	if err := checkPublicKeySize(pub); err != nil {
++		return nil, err
++	}
++
+ 	randutil.MaybeReadByte(random)
+ 
+ 	k := pub.Size()
+@@ -90,6 +94,10 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
+ // forge signatures as if they had the private key. See
+ // DecryptPKCS1v15SessionKey for a way of solving this problem.
+ func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
++	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
++		return nil, err
++	}
++
+ 	if boring.Enabled {
+ 		bkey, err := boringPrivateKey(priv)
+ 		if err != nil {
+@@ -147,6 +155,10 @@ func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]b
+ //   - [1] RFC 3218, Preventing the Million Message Attack on CMS,
+ //     https://www.rfc-editor.org/rfc/rfc3218.html
+ func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
++	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
++		return err
++	}
++
+ 	k := priv.Size()
+ 	if k-(len(key)+3+8) < 0 {
+ 		return ErrDecryption
+diff --git a/src/crypto/rsa/pkcs1v15_test.go b/src/crypto/rsa/pkcs1v15_test.go
+index dfa1eddc88..c65552cd93 100644
+--- a/src/crypto/rsa/pkcs1v15_test.go
++++ b/src/crypto/rsa/pkcs1v15_test.go
+@@ -54,12 +54,14 @@ var decryptPKCS1v15Tests = []DecryptPKCS1v15Test{
+ }
+ 
+ func TestDecryptPKCS1v15(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
++
+ 	decryptionFuncs := []func([]byte) ([]byte, error){
+ 		func(ciphertext []byte) (plaintext []byte, err error) {
+-			return DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
++			return DecryptPKCS1v15(nil, test512Key, ciphertext)
+ 		},
+ 		func(ciphertext []byte) (plaintext []byte, err error) {
+-			return rsaPrivateKey.Decrypt(nil, ciphertext, nil)
++			return test512Key.Decrypt(nil, ciphertext, nil)
+ 		},
+ 	}
+ 
+@@ -139,9 +141,10 @@ var decryptPKCS1v15SessionKeyTests = []DecryptPKCS1v15Test{
+ }
+ 
+ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	for i, test := range decryptPKCS1v15SessionKeyTests {
+ 		key := []byte("FAIL")
+-		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key)
++		err := DecryptPKCS1v15SessionKey(nil, test512Key, decodeBase64(test.in), key)
+ 		if err != nil {
+ 			t.Errorf("#%d error decrypting", i)
+ 		}
+@@ -153,8 +156,9 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
+ }
+ 
+ func TestEncryptPKCS1v15DecrypterSessionKey(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	for i, test := range decryptPKCS1v15SessionKeyTests {
+-		plaintext, err := rsaPrivateKey.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
++		plaintext, err := test512Key.Decrypt(rand.Reader, decodeBase64(test.in), &PKCS1v15DecryptOptions{SessionKeyLen: 4})
+ 		if err != nil {
+ 			t.Fatalf("#%d: error decrypting: %s", i, err)
+ 		}
+@@ -196,12 +200,13 @@ var signPKCS1v15Tests = []signPKCS1v15Test{
+ }
+ 
+ func TestSignPKCS1v15(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	for i, test := range signPKCS1v15Tests {
+ 		h := sha1.New()
+ 		h.Write([]byte(test.in))
+ 		digest := h.Sum(nil)
+ 
+-		s, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.SHA1, digest)
++		s, err := SignPKCS1v15(nil, test512Key, crypto.SHA1, digest)
+ 		if err != nil {
+ 			t.Errorf("#%d %s", i, err)
+ 		}
+@@ -214,6 +219,7 @@ func TestSignPKCS1v15(t *testing.T) {
+ }
+ 
+ func TestVerifyPKCS1v15(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	for i, test := range signPKCS1v15Tests {
+ 		h := sha1.New()
+ 		h.Write([]byte(test.in))
+@@ -221,7 +227,7 @@ func TestVerifyPKCS1v15(t *testing.T) {
+ 
+ 		sig, _ := hex.DecodeString(test.out)
+ 
+-		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.SHA1, digest, sig)
++		err := VerifyPKCS1v15(&test512Key.PublicKey, crypto.SHA1, digest, sig)
+ 		if err != nil {
+ 			t.Errorf("#%d %s", i, err)
+ 		}
+@@ -229,14 +235,17 @@ func TestVerifyPKCS1v15(t *testing.T) {
+ }
+ 
+ func TestOverlongMessagePKCS1v15(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	ciphertext := decodeBase64("fjOVdirUzFoLlukv80dBllMLjXythIf22feqPrNo0YoIjzyzyoMFiLjAc/Y4krkeZ11XFThIrEvw\nkRiZcCq5ng==")
+-	_, err := DecryptPKCS1v15(nil, rsaPrivateKey, ciphertext)
++	_, err := DecryptPKCS1v15(nil, test512Key, ciphertext)
+ 	if err == nil {
+ 		t.Error("RSA decrypted a message that was too long.")
+ 	}
+ }
+ 
+ func TestUnpaddedSignature(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
++
+ 	msg := []byte("Thu Dec 19 18:06:16 EST 2013\n")
+ 	// This base64 value was generated with:
+ 	// % echo Thu Dec 19 18:06:16 EST 2013 > /tmp/msg
+@@ -246,14 +255,14 @@ func TestUnpaddedSignature(t *testing.T) {
+ 	// file.
+ 	expectedSig := decodeBase64("pX4DR8azytjdQ1rtUiC040FjkepuQut5q2ZFX1pTjBrOVKNjgsCDyiJDGZTCNoh9qpXYbhl7iEym30BWWwuiZg==")
+ 
+-	sig, err := SignPKCS1v15(nil, rsaPrivateKey, crypto.Hash(0), msg)
++	sig, err := SignPKCS1v15(nil, test512Key, crypto.Hash(0), msg)
+ 	if err != nil {
+ 		t.Fatalf("SignPKCS1v15 failed: %s", err)
+ 	}
+ 	if !bytes.Equal(sig, expectedSig) {
+ 		t.Fatalf("signature is not expected value: got %x, want %x", sig, expectedSig)
+ 	}
+-	if err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, crypto.Hash(0), msg, sig); err != nil {
++	if err := VerifyPKCS1v15(&test512Key.PublicKey, crypto.Hash(0), msg, sig); err != nil {
+ 		t.Fatalf("signature failed to verify: %s", err)
+ 	}
+ }
+@@ -278,16 +287,6 @@ func TestShortSessionKey(t *testing.T) {
+ 	}
+ }
+ 
+-var rsaPrivateKey = parseKey(testingKey(`-----BEGIN RSA TESTING KEY-----
+-MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+-fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
+-/ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
+-RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
+-EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
+-IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
+-tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
+------END RSA TESTING KEY-----`))
+-
+ func parsePublicKey(s string) *PublicKey {
+ 	p, _ := pem.Decode([]byte(s))
+ 	k, err := x509.ParsePKCS1PublicKey(p.Bytes)
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index b888dfb41a..e03f4ab066 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -115,6 +115,8 @@ func TestPSSGolden(t *testing.T) {
+ // TestPSSOpenSSL ensures that we can verify a PSS signature from OpenSSL with
+ // the default options. OpenSSL sets the salt length to be maximal.
+ func TestPSSOpenSSL(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
++
+ 	hash := crypto.SHA256
+ 	h := hash.New()
+ 	h.Write([]byte("testing"))
+@@ -131,7 +133,7 @@ func TestPSSOpenSSL(t *testing.T) {
+ 		0x0a, 0x37, 0x9c, 0x69,
+ 	}
+ 
+-	if err := VerifyPSS(&rsaPrivateKey.PublicKey, hash, hashed, sig, nil); err != nil {
++	if err := VerifyPSS(&test512Key.PublicKey, hash, hashed, sig, nil); err != nil {
+ 		t.Error(err)
+ 	}
+ }
+@@ -159,7 +161,7 @@ func TestPSSSigning(t *testing.T) {
+ 		{42, PSSSaltLengthAuto, true, true},
+ 		// In FIPS mode, PSSSaltLengthAuto is capped at PSSSaltLengthEqualsHash.
+ 		{PSSSaltLengthAuto, PSSSaltLengthEqualsHash, false, true},
+-		{PSSSaltLengthAuto, 42, true, false},
++		{PSSSaltLengthAuto, 106, true, false},
+ 		{PSSSaltLengthAuto, 20, false, true},
+ 		{PSSSaltLengthAuto, -2, false, false},
+ 	}
+@@ -194,6 +196,7 @@ func TestPSS513(t *testing.T) {
+ 	// See Issue 42741, and separately, RFC 8017: "Note that the octet length of
+ 	// EM will be one less than k if modBits - 1 is divisible by 8 and equal to
+ 	// k otherwise, where k is the length in octets of the RSA modulus n."
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	key, err := GenerateKey(rand.Reader, 513)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -237,6 +240,7 @@ func fromHex(hexStr string) []byte {
+ }
+ 
+ func TestInvalidPSSSaltLength(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	key, err := GenerateKey(rand.Reader, 245)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -260,20 +264,15 @@ func TestInvalidPSSSaltLength(t *testing.T) {
+ }
+ 
+ func TestHashOverride(t *testing.T) {
+-	key, err := GenerateKey(rand.Reader, 1024)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+ 	digest := sha512.Sum512([]byte("message"))
+ 	// opts.Hash overrides the passed hash argument.
+-	sig, err := SignPSS(rand.Reader, key, crypto.SHA256, digest[:], &PSSOptions{Hash: crypto.SHA512})
++	sig, err := SignPSS(rand.Reader, test2048Key, crypto.SHA256, digest[:], &PSSOptions{Hash: crypto.SHA512})
+ 	if err != nil {
+ 		t.Fatalf("SignPSS unexpected error: got %v, want nil", err)
+ 	}
+ 
+ 	// VerifyPSS has the inverse behavior, opts.Hash is always ignored, check this is true.
+-	if err := VerifyPSS(&key.PublicKey, crypto.SHA512, digest[:], sig, &PSSOptions{Hash: crypto.SHA256}); err != nil {
++	if err := VerifyPSS(&test2048Key.PublicKey, crypto.SHA512, digest[:], sig, &PSSOptions{Hash: crypto.SHA256}); err != nil {
+ 		t.Fatalf("VerifyPSS unexpected error: got %v, want nil", err)
+ 	}
+ }
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 9138a993a6..9a57056f03 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -22,6 +22,22 @@
+ // Operations involving private keys are implemented using constant-time
+ // algorithms, except for [GenerateKey], [PrivateKey.Precompute], and
+ // [PrivateKey.Validate].
++//
++// # Minimum key size
++//
++// [GenerateKey] returns an error if a key of less than 1024 bits is requested,
++// and all Sign, Verify, Encrypt, and Decrypt methods return an error if used
++// with a key smaller than 1024 bits. Such keys are insecure and should not be
++// used.
++//
++// The `rsa1024min=0` GODEBUG setting suppresses this error, but we recommend
++// doing so only in tests, if necessary. Tests can use [testing.T.Setenv] or
++// include `//go:debug rsa1024min=0` in a `_test.go` source file to set it.
++//
++// Alternatively, see the [GenerateKey (TestKey)] example for a pregenerated
++// test-only 2048-bit key.
++//
++// [GenerateKey (TestKey)]: #example-GenerateKey-TestKey
+ package rsa
+ 
+ import (
+@@ -34,6 +50,8 @@ import (
+ 	"crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
++	"fmt"
++	"internal/godebug"
+ 	"io"
+ 	"math"
+ 	"math/big"
+@@ -249,12 +267,42 @@ func (priv *PrivateKey) Validate() error {
+ 	return nil
+ }
+ 
++// rsa1024min is a GODEBUG that re-enables weak RSA keys if set to "0".
++// See https://go.dev/issue/68762.
++var rsa1024min = godebug.New("rsa1024min")
++
++func checkKeySize(size int) error {
++	if size >= 1024 {
++		return nil
++	}
++	if rsa1024min.Value() == "0" {
++		rsa1024min.IncNonDefault()
++		return nil
++	}
++	return fmt.Errorf("crypto/rsa: %d-bit keys are insecure (see https://go.dev/pkg/crypto/rsa#hdr-Minimum_key_size)", size)
++}
++
++func checkPublicKeySize(k *PublicKey) error {
++	if k.N == nil {
++		return errors.New("crypto/rsa: missing public modulus")
++	}
++	return checkKeySize(k.N.BitLen())
++}
++
+ // GenerateKey generates a random RSA private key of the given bit size.
+ //
++// If bits is less than 1024, [GenerateKey] returns an error. See the "[Minimum
++// key size]" section for further details.
++//
+ // Most applications should use [crypto/rand.Reader] as rand. Note that the
+ // returned key does not depend deterministically on the bytes read from rand,
+ // and may change between calls and/or between versions.
++//
++// [Minimum key size]: #hdr-Minimum_key_size
+ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
++	if err := checkKeySize(bits); err != nil {
++		return nil, err
++	}
+ 	return GenerateMultiPrimeKey(random, 2, bits)
+ }
+ 
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 9d084ae2de..99535128a5 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -14,6 +14,7 @@ import (
+ 	. "crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
++	"crypto/sha512"
+ 	"crypto/x509"
+ 	"encoding/pem"
+ 	"flag"
+@@ -24,24 +25,35 @@ import (
+ )
+ 
+ func TestKeyGeneration(t *testing.T) {
+-	for _, size := range []int{128, 1024, 2048, 3072} {
+-		priv, err := GenerateKey(rand.Reader, size)
+-		if err != nil {
+-			t.Errorf("GenerateKey(%d): %v", size, err)
+-		}
+-		if bits := priv.N.BitLen(); bits != size {
+-			t.Errorf("key too short (%d vs %d)", bits, size)
+-		}
+-		testKeyBasics(t, priv)
+-		if testing.Short() {
+-			break
+-		}
++	sizes := []int{128, 512, 1024, 2048, 3072, 4096}
++	if testing.Short() {
++		sizes = sizes[:2]
++	}
++	for _, size := range sizes {
++		t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
++			if size < 1024 {
++				_, err := GenerateKey(rand.Reader, size)
++				if err == nil {
++					t.Errorf("GenerateKey(%d) succeeded without GODEBUG", size)
++				}
++				t.Setenv("GODEBUG", "rsa1024min=0")
++			}
++			priv, err := GenerateKey(rand.Reader, size)
++			if err != nil {
++				t.Errorf("GenerateKey(%d): %v", size, err)
++			}
++			if bits := priv.N.BitLen(); bits != size {
++				t.Errorf("key too short (%d vs %d)", bits, size)
++			}
++			testKeyBasics(t, priv)
++		})
+ 	}
+ }
+ 
+ func Test3PrimeKeyGeneration(t *testing.T) {
+-	size := 768
++	size := 1024
+ 	if testing.Short() {
++		t.Setenv("GODEBUG", "rsa1024min=0")
+ 		size = 256
+ 	}
+ 
+@@ -53,8 +65,9 @@ func Test3PrimeKeyGeneration(t *testing.T) {
+ }
+ 
+ func Test4PrimeKeyGeneration(t *testing.T) {
+-	size := 768
++	size := 1024
+ 	if testing.Short() {
++		t.Setenv("GODEBUG", "rsa1024min=0")
+ 		size = 256
+ 	}
+ 
+@@ -66,6 +79,7 @@ func Test4PrimeKeyGeneration(t *testing.T) {
+ }
+ 
+ func TestNPrimeKeyGeneration(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	primeSize := 64
+ 	maxN := 24
+ 	if testing.Short() {
+@@ -86,6 +100,7 @@ func TestNPrimeKeyGeneration(t *testing.T) {
+ func TestImpossibleKeyGeneration(t *testing.T) {
+ 	// This test ensures that trying to generate toy RSA keys doesn't enter
+ 	// an infinite loop.
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	for i := 0; i < 32; i++ {
+ 		GenerateKey(rand.Reader, i)
+ 		GenerateMultiPrimeKey(rand.Reader, 3, i)
+@@ -95,6 +110,7 @@ func TestImpossibleKeyGeneration(t *testing.T) {
+ }
+ 
+ func TestGnuTLSKey(t *testing.T) {
++	t.Setenv("GODEBUG", "rsa1024min=0")
+ 	// This is a key generated by `certtool --generate-privkey --bits 128`.
+ 	// It's such that de ≢ 1 mod φ(n), but is congruent mod the order of
+ 	// the group.
+@@ -156,11 +172,20 @@ func TestAllocations(t *testing.T) {
+ var allFlag = flag.Bool("all", false, "test all key sizes up to 2048")
+ 
+ func TestEverything(t *testing.T) {
+-	min := 32
+-	max := 560 // any smaller than this and not all tests will run
+ 	if testing.Short() {
+-		min = max
++		// Skip key generation, but still test real sizes.
++		for _, key := range []*PrivateKey{test1024Key, test2048Key} {
++			t.Run(fmt.Sprintf("%d", key.N.BitLen()), func(t *testing.T) {
++				t.Parallel()
++				testEverything(t, key)
++			})
++		}
++		return
+ 	}
++
++	t.Setenv("GODEBUG", "rsa1024min=0")
++	min := 32
++	max := 560 // any smaller than this and not all tests will run
+ 	if *allFlag {
+ 		max = 2048
+ 	}
+@@ -323,6 +348,37 @@ func testEverything(t *testing.T, priv *PrivateKey) {
+ 	}
+ }
+ 
++func TestKeyTooSmall(t *testing.T) {
++	checkErr := func(err error) {
++		t.Helper()
++		if err == nil {
++			t.Error("expected error")
++		}
++		if !strings.Contains(err.Error(), "insecure") {
++			t.Errorf("unexpected error: %v", err)
++		}
++	}
++	checkErr2 := func(_ []byte, err error) {
++		t.Helper()
++		checkErr(err)
++	}
++
++	buf := make([]byte, 512/8)
++	checkErr2(test512Key.Sign(rand.Reader, buf, crypto.SHA512))
++	checkErr2(test512Key.Sign(rand.Reader, buf, &PSSOptions{SaltLength: PSSSaltLengthEqualsHash}))
++	checkErr2(test512Key.Decrypt(rand.Reader, buf, &PKCS1v15DecryptOptions{}))
++	checkErr2(test512Key.Decrypt(rand.Reader, buf, &OAEPOptions{Hash: crypto.SHA512}))
++	checkErr(VerifyPKCS1v15(&test512Key.PublicKey, crypto.SHA512, buf, buf))
++	checkErr(VerifyPSS(&test512Key.PublicKey, crypto.SHA512, buf, buf, &PSSOptions{SaltLength: PSSSaltLengthEqualsHash}))
++	checkErr2(SignPKCS1v15(rand.Reader, test512Key, crypto.SHA512, buf))
++	checkErr2(SignPSS(rand.Reader, test512Key, crypto.SHA512, buf, &PSSOptions{SaltLength: PSSSaltLengthEqualsHash}))
++	checkErr2(EncryptPKCS1v15(rand.Reader, &test512Key.PublicKey, buf))
++	checkErr2(EncryptOAEP(sha512.New(), rand.Reader, &test512Key.PublicKey, buf, nil))
++	checkErr2(DecryptPKCS1v15(nil, test512Key, buf))
++	checkErr2(DecryptOAEP(sha512.New(), nil, test512Key, buf, nil))
++	checkErr(DecryptPKCS1v15SessionKey(nil, test512Key, buf, buf))
++}
++
+ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+ 
+ func parseKey(s string) *PrivateKey {
+@@ -341,6 +397,45 @@ func parseKey(s string) *PrivateKey {
+ 	return k
+ }
+ 
++var rsaPrivateKey = test1024Key
++
++var test512Key = parseKey(testingKey(`-----BEGIN RSA TESTING KEY-----
++MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
++fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
++/ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
++RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
++EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
++IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
++tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
++-----END RSA TESTING KEY-----`))
++
++var test512KeyTwo = parseKey(testingKey(`-----BEGIN TESTING KEY-----
++MIIBVgIBADANBgkqhkiG9w0BAQEFAASCAUAwggE8AgEAAkEA0wLCoguSfgskR8tY
++Fh2AzXQzBpSEmPucxtVe93HzPdQpxvtSTvZe5kIsdvPc7QZ0dCc/qbnUBRbuGIAl
++Ir0c9QIDAQABAkAzul+AXhnhcFXKi9ziPwVOWIgRuuLupe//BluriXG53BEBSVrV
++Hr7qFqwnSLSLroMzqhZwoqyRgjsLYyGEHDGBAiEA8T0sDPuht3w2Qv61IAvBwjLH
++H4HXjRUEWYRn1XjHqAUCIQDf7BYlANRqFfvg1YK3VCM4YyK2mH1UivDi8wdPlJRk
++MQIhAMp5i2WCNeNpD6n/WkqBU6kJMXPSaPZy82mm5feYHgt5AiEAkg/QnhB9fjma
++1BzRqD4Uv0pDMXIkhooe+Rrn0OwtI3ECIQDP6nxML3JOjbAS7ydFBv176uVsMJib
++r4PZozCXKuuGNg==
++-----END PRIVATE KEY-----`))
++
++var test1024Key = parseKey(testingKey(`-----BEGIN RSA TESTING KEY-----
++MIICXQIBAAKBgQCw0YNSqI9T1VFvRsIOejZ9feiKz1SgGfbe9Xq5tEzt2yJCsbyg
+++xtcuCswNhdqY5A1ZN7G60HbL4/Hh/TlLhFJ4zNHVylz9mDDx3yp4IIcK2lb566d
++fTD0B5EQ9Iqub4twLUdLKQCBfyhmJJvsEqKxm4J4QWgI+Brh/Pm3d4piPwIDAQAB
++AoGASC6fj6TkLfMNdYHLQqG9kOlPfys4fstarpZD7X+fUBJ/H/7y5DzeZLGCYAIU
+++QeAHWv6TfZIQjReW7Qy00RFJdgwFlTFRCsKXhG5x+IB+jL0Grr08KbgPPDgy4Jm
++xirRHZVtU8lGbkiZX+omDIU28EHLNWL6rFEcTWao/tERspECQQDp2G5Nw0qYWn7H
++Wm9Up1zkUTnkUkCzhqtxHbeRvNmHGKE7ryGMJEk2RmgHVstQpsvuFY4lIUSZEjAc
++DUFJERhFAkEAwZH6O1ULORp8sHKDdidyleYcZU8L7y9Y3OXJYqELfddfBgFUZeVQ
++duRmJj7ryu0g0uurOTE+i8VnMg/ostxiswJBAOc64Dd8uLJWKa6uug+XPr91oi0n
++OFtM+xHrNK2jc+WmcSg3UJDnAI3uqMc5B+pERLq0Dc6hStehqHjUko3RnZECQEGZ
++eRYWciE+Cre5dzfZkomeXE0xBrhecV0bOq6EKWLSVE+yr6mAl05ThRK9DCfPSOpy
++F6rgN3QiyCA9J/1FluUCQQC5nX+PTU1FXx+6Ri2ZCi6EjEKMHr7gHcABhMinZYOt
++N59pra9UdVQw9jxCU9G7eMyb0jJkNACAuEwakX3gi27b
++-----END RSA TESTING KEY-----`))
++
+ var test2048Key = parseKey(testingKey(`-----BEGIN TESTING KEY-----
+ MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDNoyFUYeDuqw+k
+ iyv47iBy/udbWmQdpbUZ8JobHv8uQrvL7sQN6l83teHgNJsXqtiLF3MC+K+XI6Dq
+diff --git a/src/crypto/tls/fips_test.go b/src/crypto/tls/fips_test.go
+index 5447aa11e8..52266de775 100644
+--- a/src/crypto/tls/fips_test.go
++++ b/src/crypto/tls/fips_test.go
+@@ -350,7 +350,7 @@ func TestFIPSCertAlgs(t *testing.T) {
+ 	// Set up some roots, intermediate CAs, and leaf certs with various algorithms.
+ 	// X_Y is X signed by Y.
+ 	R1 := fipsCert(t, "R1", fipsRSAKey(t, 2048), nil, fipsCertCA|fipsCertFIPSOK)
+-	R2 := fipsCert(t, "R2", fipsRSAKey(t, 512), nil, fipsCertCA)
++	R2 := fipsCert(t, "R2", fipsRSAKey(t, 1024), nil, fipsCertCA)
+ 	R3 := fipsCert(t, "R3", fipsRSAKey(t, 4096), nil, fipsCertCA|fipsCertFIPSOK)
+ 
+ 	M1_R1 := fipsCert(t, "M1_R1", fipsECDSAKey(t, elliptic.P256()), R1, fipsCertCA|fipsCertFIPSOK)
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 873598c3b0..4fdd68a2a9 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2976,12 +2976,8 @@ func TestUnknownExtKey(t *testing.T) {
+ 		DNSNames:     []string{"foo"},
+ 		ExtKeyUsage:  []ExtKeyUsage{ExtKeyUsage(-1)},
+ 	}
+-	signer, err := rsa.GenerateKey(rand.Reader, 1024)
+-	if err != nil {
+-		t.Errorf("failed to generate key for TestUnknownExtKey")
+-	}
+ 
+-	_, err = CreateCertificate(rand.Reader, template, template, signer.Public(), signer)
++	_, err := CreateCertificate(rand.Reader, template, template, testPrivateKey.Public(), testPrivateKey)
+ 	if !strings.Contains(err.Error(), errorContains) {
+ 		t.Errorf("expected error containing %q, got %s", errorContains, err)
+ 	}
+diff --git a/src/crypto/x509/x509_test_import.go b/src/crypto/x509/x509_test_import.go
+index 2474e3d810..e68f89c91d 100644
+--- a/src/crypto/x509/x509_test_import.go
++++ b/src/crypto/x509/x509_test_import.go
+@@ -43,13 +43,19 @@ func main() {
+ }
+ 
+ var pemPrivateKey = testingKey(`-----BEGIN RSA TESTING KEY-----
+-MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+-fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
+-/ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
+-RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
+-EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
+-IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
+-tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
++MIICXQIBAAKBgQCw0YNSqI9T1VFvRsIOejZ9feiKz1SgGfbe9Xq5tEzt2yJCsbyg
+++xtcuCswNhdqY5A1ZN7G60HbL4/Hh/TlLhFJ4zNHVylz9mDDx3yp4IIcK2lb566d
++fTD0B5EQ9Iqub4twLUdLKQCBfyhmJJvsEqKxm4J4QWgI+Brh/Pm3d4piPwIDAQAB
++AoGASC6fj6TkLfMNdYHLQqG9kOlPfys4fstarpZD7X+fUBJ/H/7y5DzeZLGCYAIU
+++QeAHWv6TfZIQjReW7Qy00RFJdgwFlTFRCsKXhG5x+IB+jL0Grr08KbgPPDgy4Jm
++xirRHZVtU8lGbkiZX+omDIU28EHLNWL6rFEcTWao/tERspECQQDp2G5Nw0qYWn7H
++Wm9Up1zkUTnkUkCzhqtxHbeRvNmHGKE7ryGMJEk2RmgHVstQpsvuFY4lIUSZEjAc
++DUFJERhFAkEAwZH6O1ULORp8sHKDdidyleYcZU8L7y9Y3OXJYqELfddfBgFUZeVQ
++duRmJj7ryu0g0uurOTE+i8VnMg/ostxiswJBAOc64Dd8uLJWKa6uug+XPr91oi0n
++OFtM+xHrNK2jc+WmcSg3UJDnAI3uqMc5B+pERLq0Dc6hStehqHjUko3RnZECQEGZ
++eRYWciE+Cre5dzfZkomeXE0xBrhecV0bOq6EKWLSVE+yr6mAl05ThRK9DCfPSOpy
++F6rgN3QiyCA9J/1FluUCQQC5nX+PTU1FXx+6Ri2ZCi6EjEKMHr7gHcABhMinZYOt
++N59pra9UdVQw9jxCU9G7eMyb0jJkNACAuEwakX3gi27b
+ -----END RSA TESTING KEY-----
+ `)
+ 
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a3c1b2dedd..123b839924 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -50,6 +50,7 @@ var All = []Info{
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
+ 	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},
++	{Name: "rsa1024min", Package: "crypto/rsa", Changed: 24, Old: "0"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
+ 	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tls3des", Package: "crypto/tls", Changed: 23, Old: "1"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 2e780e430d..34a1b01fe4 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -315,6 +315,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the math/rand
+ 		package due to a non-default GODEBUG=randseednop=... setting.
+ 
++	/godebug/non-default-behavior/rsa1024min:events
++		The number of non-default behaviors executed by the crypto/rsa
++		package due to a non-default GODEBUG=rsa1024min=... setting.
++
+ 	/godebug/non-default-behavior/tarinsecurepath:events
+ 		The number of non-default behaviors executed by the archive/tar
+ 		package due to a non-default GODEBUG=tarinsecurepath=...

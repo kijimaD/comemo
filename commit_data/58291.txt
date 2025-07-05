@@ -19,7 +19,45 @@ Date:   Tue Oct 17 22:54:27 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/internal/atomic/atomic_mipsx.go | 7 +------
  src/runtime/internal/atomic/atomic_mipsx.s  | 1 +
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 5dd15a0b02..e3dcde1bde 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -48,11 +48,6 @@ func unlock() {
+ 	spinUnlock(&lock.state)
+ }
+ 
+-//go:nosplit
+-func unlockNoFence() {
+-	lock.state = 0
+-}
+-
+ //go:nosplit
+ func Xadd64(addr *uint64, delta int64) (new uint64) {
+ 	lockAndCheck(addr)
+@@ -85,7 +80,7 @@ func Cas64(addr *uint64, old, new uint64) (swapped bool) {
+ 		return true
+ 	}
+ 
+-	unlockNoFence()
++	unlock()
+ 	return false
+ }
+ 
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.s b/src/runtime/internal/atomic/atomic_mipsx.s
+index 390e9ce7ac..8f5fc53cb7 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.s
++++ b/src/runtime/internal/atomic/atomic_mipsx.s
+@@ -28,6 +28,7 @@ try_cas:
+ 	MOVB	R3, ret+12(FP)
+ 	RET
+ cas_fail:
++	SYNC
+ 	MOVB	R0, ret+12(FP)
+ 	RET
+ 

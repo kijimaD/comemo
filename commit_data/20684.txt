@@ -10,7 +10,108 @@ Date:   Tue Sep 30 12:08:09 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/150270043
-
+---
  src/regexp/syntax/parse.go      | 34 ++++++++++++++++++++++++++++++++++
  src/regexp/syntax/parse_test.go | 13 +++++++++++++
  2 files changed, 47 insertions(+)
+
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 08f8d307ae..3dc8ccf503 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -244,6 +244,7 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
+ 	if sub.Op >= opPseudo {
+ 		return "", &Error{ErrMissingRepeatArgument, before[:len(before)-len(after)]}
+ 	}
++
+ 	re := p.newRegexp(op)
+ 	re.Min = min
+ 	re.Max = max
+@@ -251,9 +252,42 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
+ 	re.Sub = re.Sub0[:1]
+ 	re.Sub[0] = sub
+ 	p.stack[n-1] = re
++
++	if op == OpRepeat && (min >= 2 || max >= 2) && !repeatIsValid(re, 1000) {
++		return "", &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
++	}
++
+ 	return after, nil
+ }
+ 
++// repeatIsValid reports whether the repetition re is valid.
++// Valid means that the combination of the top-level repetition
++// and any inner repetitions does not exceed n copies of the
++// innermost thing.
++// This function rewalks the regexp tree and is called for every repetition,
++// so we have to worry about inducing quadratic behavior in the parser.
++// We avoid this by only calling repeatIsValid when min or max >= 2.
++// In that case the depth of any >= 2 nesting can only get to 9 without
++// triggering a parse error, so each subtree can only be rewalked 9 times.
++func repeatIsValid(re *Regexp, n int) bool {
++	if re.Op == OpRepeat {
++		m := re.Max
++		if m < 0 {
++			m = re.Min
++		}
++		if m > n {
++			return false
++		}
++		n /= m
++	}
++	for _, sub := range re.Sub {
++		if !repeatIsValid(sub, n) {
++			return false
++		}
++	}
++	return true
++}
++
+ // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
+ func (p *parser) concat() *Regexp {
+ 	p.maybeConcat(-1, 0)
+diff --git a/src/regexp/syntax/parse_test.go b/src/regexp/syntax/parse_test.go
+index f3089294c6..c4a1117ff8 100644
+--- a/src/regexp/syntax/parse_test.go
++++ b/src/regexp/syntax/parse_test.go
+@@ -200,6 +200,10 @@ var parseTests = []parseTest{
+ 		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
+ 	{`x{2}y|x{2}[0-9]y`,
+ 		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
++
++	// Valid repetitions.
++	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
++	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+ }
+ 
+ const testFlags = MatchNL | PerlX | UnicodeGroups
+@@ -262,6 +266,10 @@ func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
+ 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
+ 			continue
+ 		}
++		if tt.Dump == "" {
++			// It parsed. That's all we care about.
++			continue
++		}
+ 		d := dump(re)
+ 		if d != tt.Dump {
+ 			t.Errorf("Parse(%#q).Dump() = %#q want %#q", tt.Regexp, d, tt.Dump)
+@@ -470,6 +478,7 @@ var invalidRegexps = []string{
+ 	`(?i)[a-Z]`,
+ 	`a{100000}`,
+ 	`a{100000,}`,
++	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
+ }
+ 
+ var onlyPerl = []string{
+@@ -527,6 +536,10 @@ func TestToStringEquivalentParse(t *testing.T) {
+ 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
+ 			continue
+ 		}
++		if tt.Dump == "" {
++			// It parsed. That's all we care about.
++			continue
++		}
+ 		d := dump(re)
+ 		if d != tt.Dump {
+ 			t.Errorf("Parse(%#q).Dump() = %#q want %#q", tt.Regexp, d, tt.Dump)

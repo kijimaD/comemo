@@ -15,7 +15,68 @@ Date:   Thu Jul 12 14:12:50 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6346097
-
+---
  src/pkg/math/big/nat.go      | 13 ++++++++-----
  src/pkg/math/big/nat_test.go |  4 ++--
  2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 43d53d17a6..04f5dfd8ba 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -438,8 +438,9 @@ func (z nat) mul(x, y nat) nat {
+ 
+ 		// add x0*y1*b
+ 		x0 := x0.norm()
+-		y1 := y[k:] // y1 is normalized because y is
+-		addAt(z, t.mul(x0, y1), k)
++		y1 := y[k:]       // y1 is normalized because y is
++		t = t.mul(x0, y1) // update t so we don't lose t's underlying array
++		addAt(z, t, k)
+ 
+ 		// add xi*y0<<i, xi*y1*b<<(i+k)
+ 		y0 := y0.norm()
+@@ -449,8 +450,10 @@ func (z nat) mul(x, y nat) nat {
+ 				xi = xi[:k]
+ 			}
+ 			xi = xi.norm()
+-			addAt(z, t.mul(xi, y0), i)
+-			addAt(z, t.mul(xi, y1), i+k)
++			t = t.mul(xi, y0)
++			addAt(z, t, i)
++			t = t.mul(xi, y1)
++			addAt(z, t, i+k)
+ 		}
+ 	}
+ 
+@@ -1232,7 +1235,7 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
+ // reuses the storage of z if possible.
+ func (z nat) expNN(x, y, m nat) nat {
+ 	if alias(z, x) || alias(z, y) {
+-		// We cannot allow in place modification of x or y.
++		// We cannot allow in-place modification of x or y.
+ 		z = nil
+ 	}
+ 
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index e4ea1ca441..f0c1ace73f 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -179,7 +179,7 @@ func allocBytes(f func()) uint64 {
+ 
+ // TestMulUnbalanced tests that multiplying numbers of different lengths
+ // does not cause deep recursion and in turn allocate too much memory.
+-// test case for issue 3807
++// Test case for issue 3807.
+ func TestMulUnbalanced(t *testing.T) {
+ 	x := rndNat(50000)
+ 	y := rndNat(40)
+@@ -201,7 +201,7 @@ func rndNat(n int) nat {
+ 	for i := 0; i < n; i++ {
+ 		x[i] = Word(rnd.Int63()<<1 + rnd.Int63n(2))
+ 	}
+-	return x
++	return x.norm()
+ }
+ 
+ func BenchmarkMul(b *testing.B) {

@@ -7,7 +7,48 @@ Date:   Sat Mar 7 00:48:26 2015 +0100
     Change-Id: I11b4cf00ceeb4441b865e0de3f1674095d1c32d0
     Reviewed-on: https://go-review.googlesource.com/7043
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/os_test.go   | 8 ++++----
  src/os/path_test.go | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 380e2b8ffe..4ce6b7e617 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -584,18 +584,18 @@ func TestHardLink(t *testing.T) {
+ func chtmpdir(t *testing.T) func() {
+ 	oldwd, err := Getwd()
+ 	if err != nil {
+-		t.Fatal("chtmpdir: %v", err)
++		t.Fatalf("chtmpdir: %v", err)
+ 	}
+ 	d, err := ioutil.TempDir("", "test")
+ 	if err != nil {
+-		t.Fatal("chtmpdir: %v", err)
++		t.Fatalf("chtmpdir: %v", err)
+ 	}
+ 	if err := Chdir(d); err != nil {
+-		t.Fatal("chtmpdir: %v", err)
++		t.Fatalf("chtmpdir: %v", err)
+ 	}
+ 	return func() {
+ 		if err := Chdir(oldwd); err != nil {
+-			t.Fatal("chtmpdir: %v", err)
++			t.Fatalf("chtmpdir: %v", err)
+ 		}
+ 		RemoveAll(d)
+ 	}
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index c2258736de..50d2c36f14 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -221,7 +221,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
+ 		if ok && (pathErr.Err == syscall.EACCES || isReadonlyError(pathErr.Err)) {
+ 			t.Skipf("could not create %v: %v", dir, err)
+ 		}
+-		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v, %s, %d`, err, pathErr.Err, pathErr.Err)
++		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v, %s`, err, pathErr.Err)
+ 	}
+ 	RemoveAll("/_go_os_test")
+ }

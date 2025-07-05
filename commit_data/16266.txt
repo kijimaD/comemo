@@ -7,6 +7,20 @@ Date:   Fri May 3 14:22:34 2013 -0700
     R=golang-dev, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/9086043
-
+---
  src/pkg/text/template/funcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/text/template/funcs.go b/src/pkg/text/template/funcs.go
+index 31549dc45b..8187663648 100644
+--- a/src/pkg/text/template/funcs.go
++++ b/src/pkg/text/template/funcs.go
+@@ -18,7 +18,7 @@ import (
+ // FuncMap is the type of the map defining the mapping from names to functions.
+ // Each function must have either a single return value, or two return values of
+ // which the second has type error. In that case, if the second (error)
+-// argument evaluates to non-nil during execution, execution terminates and
++// return value evaluates to non-nil during execution, execution terminates and
+ // Execute returns that error.
+ type FuncMap map[string]interface{}
+ 

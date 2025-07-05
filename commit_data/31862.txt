@@ -18,6 +18,33 @@ Date:   Wed Mar 8 14:58:41 2017 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/syscall_windows_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 11e67df100..099baa2edf 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1037,7 +1037,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
+ 	defer os.RemoveAll(tmpdir)
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err = ioutil.WriteFile(src, []byte(benchmarkRunnigGoProgram), 0666)
++	err = ioutil.WriteFile(src, []byte(benchmarkRunningGoProgram), 0666)
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+@@ -1060,9 +1060,11 @@ func BenchmarkRunningGoProgram(b *testing.B) {
+ 	}
+ }
+ 
+-const benchmarkRunnigGoProgram = `
++const benchmarkRunningGoProgram = `
+ package main
+ 
++import _ "os" // average Go program will use "os" package, do the same here
++
+ func main() {
+ }
+ `

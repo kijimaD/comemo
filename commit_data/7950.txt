@@ -7,6 +7,27 @@ Date:   Fri Apr 1 13:38:33 2011 +1100
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4347041
-
+---
  src/cmd/gotest/gotest.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index d110a8d1a5..f69c7286fc 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -252,7 +252,14 @@ func doRun(argv []string, returnStdout bool) string {
+ 	}
+ 	if runtime.GOOS == "windows" && argv[0] == "gomake" {
+ 		// gomake is a shell script and it cannot be executed directly on Windows.
+-		argv = append([]string{"cmd", "/c", "sh", "-c"}, strings.Join(argv, " "))
++		cmd := ""
++		for i, v := range argv {
++			if i > 0 {
++				cmd += " "
++			}
++			cmd += `"` + v + `"`
++		}
++		argv = []string{"cmd", "/c", "sh", "-c", cmd}
+ 	}
+ 	var err os.Error
+ 	argv[0], err = exec.LookPath(argv[0])

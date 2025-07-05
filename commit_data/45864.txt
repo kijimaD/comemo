@@ -26,10 +26,204 @@ Date:   Fri Nov 20 17:32:46 2020 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/crash_cgo_test.go                  | 18 +++++++++++
  src/runtime/stack_test.go                      | 41 ++++++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/traceback.go  | 21 +++++++++++++
  src/runtime/testdata/testprogcgo/traceback_c.c | 11 +++++--
  src/runtime/traceback.go                       | 15 ++++++++--
  5 files changed, 102 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 0680d07a32..140c170ddc 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -254,6 +254,24 @@ func TestCgoCrashTraceback(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoCrashTracebackGo(t *testing.T) {
++	t.Parallel()
++	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
++	case "darwin/amd64":
++	case "linux/amd64":
++	case "linux/ppc64le":
++	default:
++		t.Skipf("not yet supported on %s", platform)
++	}
++	got := runTestProg(t, "testprogcgo", "CrashTracebackGo")
++	for i := 1; i <= 3; i++ {
++		want := fmt.Sprintf("main.h%d", i)
++		if !strings.Contains(got, want) {
++			t.Errorf("missing %s", want)
++		}
++	}
++}
++
+ func TestCgoTracebackContext(t *testing.T) {
+ 	t.Parallel()
+ 	got := runTestProg(t, "testprogcgo", "TracebackContext")
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index adfc65384a..43fc5cac55 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"sync/atomic"
+ 	"testing"
+ 	"time"
++	_ "unsafe" // for go:linkname
+ )
+ 
+ // TestStackMem measures per-thread stack segment cache behavior.
+@@ -851,3 +852,43 @@ func deferHeapAndStack(n int) (r int) {
+ 
+ // Pass a value to escapeMe to force it to escape.
+ var escapeMe = func(x interface{}) {}
++
++// Test that when F -> G is inlined and F is excluded from stack
++// traces, G still appears.
++func TestTracebackInlineExcluded(t *testing.T) {
++	defer func() {
++		recover()
++		buf := make([]byte, 4<<10)
++		stk := string(buf[:Stack(buf, false)])
++
++		t.Log(stk)
++
++		if not := "tracebackExcluded"; strings.Contains(stk, not) {
++			t.Errorf("found but did not expect %q", not)
++		}
++		if want := "tracebackNotExcluded"; !strings.Contains(stk, want) {
++			t.Errorf("expected %q in stack", want)
++		}
++	}()
++	tracebackExcluded()
++}
++
++// tracebackExcluded should be excluded from tracebacks. There are
++// various ways this could come up. Linking it to a "runtime." name is
++// rather synthetic, but it's easy and reliable. See issue #42754 for
++// one way this happened in real code.
++//
++//go:linkname tracebackExcluded runtime.tracebackExcluded
++//go:noinline
++func tracebackExcluded() {
++	// Call an inlined function that should not itself be excluded
++	// from tracebacks.
++	tracebackNotExcluded()
++}
++
++// tracebackNotExcluded should be inlined into tracebackExcluded, but
++// should not itself be excluded from the traceback.
++func tracebackNotExcluded() {
++	var x *int
++	*x = 0
++}
+diff --git a/src/runtime/testdata/testprogcgo/traceback.go b/src/runtime/testdata/testprogcgo/traceback.go
+index 03de894c89..e2d7599131 100644
+--- a/src/runtime/testdata/testprogcgo/traceback.go
++++ b/src/runtime/testdata/testprogcgo/traceback.go
+@@ -12,6 +12,7 @@ package main
+ #cgo CFLAGS: -g -O0
+ 
+ // Defined in traceback_c.c.
++extern int crashInGo;
+ int tracebackF1(void);
+ void cgoTraceback(void* parg);
+ void cgoSymbolizer(void* parg);
+@@ -25,9 +26,29 @@ import (
+ 
+ func init() {
+ 	register("CrashTraceback", CrashTraceback)
++	register("CrashTracebackGo", CrashTracebackGo)
+ }
+ 
+ func CrashTraceback() {
+ 	runtime.SetCgoTraceback(0, unsafe.Pointer(C.cgoTraceback), nil, unsafe.Pointer(C.cgoSymbolizer))
+ 	C.tracebackF1()
+ }
++
++func CrashTracebackGo() {
++	C.crashInGo = 1
++	CrashTraceback()
++}
++
++//export h1
++func h1() {
++	h2()
++}
++
++func h2() {
++	h3()
++}
++
++func h3() {
++	var x *int
++	*x = 0
++}
+diff --git a/src/runtime/testdata/testprogcgo/traceback_c.c b/src/runtime/testdata/testprogcgo/traceback_c.c
+index 54f44e11fc..56eda8fa8c 100644
+--- a/src/runtime/testdata/testprogcgo/traceback_c.c
++++ b/src/runtime/testdata/testprogcgo/traceback_c.c
+@@ -2,14 +2,21 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The C definitions for traceback.go.
++// The C definitions for traceback.go. That file uses //export so
++// it can't put function definitions in the "C" import comment.
+ 
+ #include <stdint.h>
+ 
+ char *p;
+ 
++int crashInGo;
++extern void h1(void);
++
+ int tracebackF3(void) {
+-	*p = 0;
++	if (crashInGo)
++		h1();
++	else
++		*p = 0;
+ 	return 0;
+ }
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index f3df152535..0825e9e707 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -396,13 +396,21 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// If there is inlining info, print the inner frames.
+ 			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+ 				inltree := (*[1 << 20]inlinedCall)(inldata)
++				var inlFunc _func
++				inlFuncInfo := funcInfo{&inlFunc, f.datap}
+ 				for {
+ 					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
+ 					if ix < 0 {
+ 						break
+ 					}
+-					if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, inltree[ix].funcID, lastFuncID) {
+-						name := funcnameFromNameoff(f, inltree[ix].func_)
++
++					// Create a fake _func for the
++					// inlined function.
++					inlFunc.nameoff = inltree[ix].func_
++					inlFunc.funcID = inltree[ix].funcID
++
++					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, lastFuncID) {
++						name := funcname(inlFuncInfo)
+ 						file, line := funcline(f, tracepc)
+ 						print(name, "(...)\n")
+ 						print("\t", file, ":", line, "\n")
+@@ -811,6 +819,9 @@ func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool
+ // showfuncinfo reports whether a function with the given characteristics should
+ // be printed during a traceback.
+ func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
++	// Note that f may be a synthesized funcInfo for an inlined
++	// function, in which case only nameoff and funcID are set.
++
+ 	level, _, _ := gotraceback()
+ 	if level > 1 {
+ 		// Show all frames.

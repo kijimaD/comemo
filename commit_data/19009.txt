@@ -12,7 +12,36 @@ Date:   Wed Apr 2 21:33:50 2014 +0200
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/83660043
-
+---
  src/cmd/8g/ggen.c | 3 ++-
  src/cmd/gc/walk.c | 2 --
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 35494f795b..1b7d81dee6 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -32,7 +32,8 @@ defframe(Prog *ptxt)
+ 	// so that the garbage collector only sees initialized values
+ 	// when it looks for pointers.
+ 	p = ptxt;
+-	lo = hi = 0;
++	hi = 0;
++	lo = hi;
+ 	ax = 0;
+ 	for(l=curfn->dcl; l != nil; l = l->next) {
+ 		n = l->n;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4137a79555..1ffe8937f8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -653,9 +653,7 @@ walkexpr(Node **np, NodeList **init)
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r, init);
+-		l = n->list->n;
+ 
+-		l = n->list->next->n;
+ 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+ 		n = liststmt(concat(list1(r), ll));
+ 		goto ret;

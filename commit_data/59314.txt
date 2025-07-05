@@ -13,7 +13,7 @@ Date:   Thu Feb 29 12:49:05 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/568256
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../golang.org/x/telemetry/counter/counter.go      | 10 +++-
@@ -27,3 +27,388 @@ Date:   Thu Feb 29 12:49:05 2024 -0500
  .../x/telemetry/internal/telemetry/types.go        | 51 ++++++++++++++++++
  src/cmd/vendor/modules.txt                         |  2 +-
  12 files changed, 160 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 941666ae4f..42db94ad25 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.17.0
+-	golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808
++	golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb
+ 	golang.org/x/term v0.17.0
+ 	golang.org/x/tools v0.18.0
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 5b6dc6f293..1514026e62 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
+ golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808 h1:+Kc94D8UVEVxJnLXp/+FMfqQARZtWHfVrcRtcG8aT3g=
+-golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808/go.mod h1:KG1lNk5ZFNssSZLrpVb4sMXKMpGwGXOxSG3rnu2gZQQ=
++golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb h1:LxVQXEmTbdDLG1nTKZrjqjn72V7ry1X1HLQFVioaRmE=
++golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb/go.mod h1:TeRTkGYfJXctD9OcfyVLyj2J3IxLnKwHJR8f4D8a3YE=
+ golang.org/x/term v0.17.0 h1:mkTF7LCd6WGJNL3K1Ad7kwxNfYAW6a8a8QqtMblp/4U=
+ golang.org/x/term v0.17.0/go.mod h1:lLRBjIVuehSbZlaOtGMbcMncT+aqLLLmKrsjNrUguwk=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+index 9b80d46f84..e6af9ea6cf 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build go1.19 && !openbsd && !js && !wasip1 && !solaris && !android && !plan9 && !386
++//go:build go1.19
+ 
+ package counter
+ 
+@@ -31,6 +31,9 @@ func Add(name string, n int64) {
+ // New can be called in global initializers and will be compiled down to
+ // linker-initialized data. That is, calling New to initialize a global
+ // has no cost at program startup.
++//
++// See "Counter Naming" in the package doc for a description of counter naming
++// conventions.
+ func New(name string) *Counter {
+ 	// Note: not calling DefaultFile.New in order to keep this
+ 	// function something the compiler can inline and convert
+@@ -61,12 +64,15 @@ func New(name string) *Counter {
+ // multiple calls to Add, so it is more expensive and not recommended.
+ type Counter = counter.Counter
+ 
+-// a StackCounter is the in-memory knowledge about a stack counter.
++// A StackCounter is the in-memory knowledge about a stack counter.
+ // StackCounters are more expensive to use than regular Counters,
+ // requiring, at a minimum, a call to runtime.Callers.
+ type StackCounter = counter.StackCounter
+ 
+ // NewStack returns a new stack counter with the given name and depth.
++//
++// See "Counter Naming" in the package doc for a description of counter naming
++// conventions.
+ func NewStack(name string, depth int) *StackCounter {
+ 	return counter.NewStack(name, depth)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter_disabled.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter_118.go
+similarity index 91%
+rename from src/cmd/vendor/golang.org/x/telemetry/counter/counter_disabled.go
+rename to src/cmd/vendor/golang.org/x/telemetry/counter/counter_118.go
+index c4b948d482..432e0d7ef8 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter_disabled.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter_118.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !go1.19 || openbsd || js || wasip1 || solaris || android || plan9 || 386
++//go:build !go1.19
+ 
+ package counter
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go b/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
+index 4160e84bf2..53695ac270 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
+@@ -5,26 +5,47 @@
+ // Package counter implements a simple counter system for collecting
+ // totally public telemetry data.
+ //
+-// There are two kinds of counters, simple counters and stack counters.
+-// Simple counters are created by New(<counter-name>).
+-// Stack counters are created by NewStack(<counter-name>, depth).
++// There are two kinds of counters, basic counters and stack counters.
++// Basic counters are created by [New].
++// Stack counters are created by [NewStack].
+ // Both are incremented by calling Inc().
+ //
+-// Counter files are stored in LocalDir(). Their content can be accessed
+-// by Parse().
+-//
+-// Simple counters are very cheap. Stack counters are more
+-// expensive, as they require parsing the stack.
+-// (Stack counters are implemented as a set of regular counters whose names
+-// are the concatenation of the name and the stack trace. There is an upper
+-// limit on the size of this name, about 4K bytes. If the name is too long
+-// the stack will be truncated and "truncated" appended.)
+-//
+-// When counter files expire they are turned into reports by the upload package.
+-// The first time any counter file is created for a user, a random
+-// day of the week is selected on which counter files will expire.
+-// For the first week, that day is more than 7 days (but not more than
+-// two weeks) in the future.
+-// After that the counter files expire weekly on the same day of
+-// the week.
++// Basic counters are very cheap. Stack counters are more expensive, as they
++// require parsing the stack. (Stack counters are implemented as basic counters
++// whose names are the concatenation of the name and the stack trace. There is
++// an upper limit on the size of this name, about 4K bytes. If the name is too
++// long the stack will be truncated and "truncated" appended.)
++//
++// When counter files expire they are turned into reports by the upload
++// package. The first time any counter file is created for a user, a random day
++// of the week is selected on which counter files will expire. For the first
++// week, that day is more than 7 days (but not more than two weeks) in the
++// future. After that the counter files expire weekly on the same day of the
++// week.
++//
++// # Counter Naming
++//
++// Counter names passed to [New] and [NewStack] should follow these
++// conventions:
++//
++//   - Names cannot contain whitespace or newlines.
++//
++//   - Names must be valid unicode, with no unprintable characters.
++//
++//   - Names may contain at most one ':'. In the counter "foo:bar", we refer to
++//     "foo" as the "chart name" and "bar" as the "bucket name".
++//
++//   - The '/' character should partition counter names into a hierarchy. The
++//     root of this hierarchy should identify the logical entity that "owns"
++//     the counter. This could be an application, such as "gopls" in the case
++//     of "gopls/client:vscode", or a shared library, such as "crash" in the
++//     case of the "crash/crash" counter owned by the crashmonitor library. If
++//     the entity name itself contains a '/', that's ok: "cmd/go/flag" is fine.
++//
++//   - Words should be '-' separated, as in "gopls/completion/errors-latency"
++//
++//   - Histograms should use bucket names identifying upper bounds with '<'.
++//     For example given two counters "gopls/completion/latency:<50ms" and
++//     "gopls/completion/latency:<100ms", the "<100ms" bucket counts events
++//     with latency in the half-open interval [50ms, 100ms).
+ package counter
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+index dbd1042951..7248502424 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+@@ -293,12 +293,18 @@ func (c *Counter) refresh() {
+ // Read reads the given counter.
+ // This is the implementation of x/telemetry/counter/countertest.ReadCounter.
+ func Read(c *Counter) (uint64, error) {
++	if c.file.current.Load() == nil {
++		return c.state.load().extra(), nil
++	}
+ 	pf, err := readFile(c.file)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	// counter doesn't write the entry to file until the value becomes non-zero.
+-	return pf.Count[c.name], nil
++	v, ok := pf.Count[DecodeStack(c.Name())]
++	if !ok {
++		return v, fmt.Errorf("not found:%q", DecodeStack(c.Name()))
++	}
++	return v, nil
+ }
+ 
+ func readFile(f *file) (*File, error) {
+@@ -326,3 +332,28 @@ func readFile(f *file) (*File, error) {
+ 	}
+ 	return pf, nil
+ }
++
++// ReadFile reads the counters and stack counters from the given file.
++// This is the implementation of x/telemetry/counter/countertest.Read
++func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
++	// TODO: Document the format of the stackCounters names.
++
++	data, err := os.ReadFile(name)
++	if err != nil {
++		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
++	}
++	pf, err := Parse(name, data)
++	if err != nil {
++		return nil, nil, fmt.Errorf("failed to parse: %v", err)
++	}
++	counters = make(map[string]uint64)
++	stackCounters = make(map[string]uint64)
++	for k, v := range pf.Count {
++		if IsStackCounter(k) {
++			stackCounters[DecodeStack(k)] = v
++		} else {
++			counters[k] = v
++		}
++	}
++	return counters, stackCounters, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 6bdca5291e..742b1fc427 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -354,6 +354,9 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
+ // any reports are generated.
+ // (Otherwise expired count files will not be deleted on Windows.)
+ func Open() func() {
++	if telemetry.DisabledOnPlatform {
++		return func() {}
++	}
+ 	if mode, _ := telemetry.Mode(); mode == "off" {
+ 		// Don't open the file when telemetry is off.
+ 		defaultFile.err = ErrDisabled
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
+index 3838715be6..568d40c616 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
+@@ -185,17 +185,18 @@ func eq(a, b []uintptr) bool {
+ // This is the implementation of
+ // golang.org/x/telemetry/counter/countertest.ReadStackCounter.
+ func ReadStack(c *StackCounter) (map[string]uint64, error) {
+-	pf, err := readFile(c.file)
+-	if err != nil {
+-		return nil, err
+-	}
+ 	ret := map[string]uint64{}
+-	prefix := c.name + "\n"
+-
+-	for k, v := range pf.Count {
+-		if strings.HasPrefix(k, prefix) {
+-			ret[k] = v
++	for _, ctr := range c.Counters() {
++		v, err := Read(ctr)
++		if err != nil {
++			return nil, err
+ 		}
++		ret[DecodeStack(ctr.Name())] = v
+ 	}
+ 	return ret, nil
+ }
++
++// IsStackCounter reports whether the counter name is for a stack counter.
++func IsStackCounter(name string) bool {
++	return strings.Contains(name, "\n")
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
+index d1255fd712..e70e7c7b07 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
+@@ -25,22 +25,20 @@ func mmapFile(f *os.File, previous *Data) (Data, error) {
+ 	if size == 0 {
+ 		return Data{f, nil, nil}, nil
+ 	}
++	// set the min and max sizes to zero to map the whole file, as described in
++	// https://learn.microsoft.com/en-us/windows/win32/memory/creating-a-file-mapping-object#file-mapping-size
+ 	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, syscall.PAGE_READWRITE, 0, 0, nil)
+ 	if err != nil {
+ 		return Data{}, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
+ 	}
+-
++	// the mapping extends from zero to the end of the file mapping
++	// https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile
+ 	addr, err := windows.MapViewOfFile(h, syscall.FILE_MAP_READ|syscall.FILE_MAP_WRITE, 0, 0, 0)
+ 	if err != nil {
+ 		return Data{}, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
+ 	}
+-	var info windows.MemoryBasicInformation
+-	err = windows.VirtualQuery(addr, &info, unsafe.Sizeof(info))
+-	if err != nil {
+-		return Data{}, fmt.Errorf("VirtualQuery %s: %w", f.Name(), err)
+-	}
+-	data := unsafe.Slice((*byte)(unsafe.Pointer(addr)), int(info.RegionSize))
+-	return Data{f, data, h}, nil
++	// need to remember addr and h for unmapping
++	return Data{f, unsafe.Slice((*byte)(unsafe.Pointer(addr)), size), h}, nil
+ }
+ 
+ func munmapFile(d Data) error {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+index 52345ae328..d7d3f24a18 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+@@ -20,7 +20,7 @@ import (
+ // For convenience, each field is made to global
+ // and they are not supposed to be changed.
+ var (
+-	// Default directory containing count files and local reports (not yet uploaded)
++	// Default directory containing count files, local reports (not yet uploaded), and logs
+ 	LocalDir string
+ 	// Default directory containing uploaded reports.
+ 	UploadDir string
+@@ -124,9 +124,8 @@ const DisabledOnPlatform = false ||
+ 	runtime.GOOS == "openbsd" || // #60614
+ 	runtime.GOOS == "solaris" || // #60968 #60970
+ 	runtime.GOOS == "android" || // #60967
++	runtime.GOOS == "illumos" || // #65544
+ 	// These platforms fundamentally can't be supported:
+ 	runtime.GOOS == "js" || // #60971
+ 	runtime.GOOS == "wasip1" || // #60971
+-	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
+-	// Work is in progress to support 386:
+-	runtime.GOARCH == "386" // #60615 #60692 #60965 #60967
++	runtime.GOOS == "plan9" // https://github.com/golang/go/issues/57540#issuecomment-1470766639
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+new file mode 100644
+index 0000000000..bcd172d97f
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+@@ -0,0 +1,51 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package telemetry
++
++// Common types and directories used by multiple packages.
++
++// An UploadConfig controls what data is uploaded.
++type UploadConfig struct {
++	GOOS       []string
++	GOARCH     []string
++	GoVersion  []string
++	SampleRate float64
++	Programs   []*ProgramConfig
++}
++
++type ProgramConfig struct {
++	// the counter names may have to be
++	// repeated for each program. (e.g., if the counters are in a package
++	// that is used in more than one program.)
++	Name     string
++	Versions []string        // versions present in a counterconfig
++	Counters []CounterConfig `json:",omitempty"`
++	Stacks   []CounterConfig `json:",omitempty"`
++}
++
++type CounterConfig struct {
++	Name  string
++	Rate  float64 // If X <= Rate, report this counter
++	Depth int     `json:",omitempty"` // for stack counters
++}
++
++// A Report is what's uploaded (or saved locally)
++type Report struct {
++	Week     string  // first day this report covers (YYYY-MM-DD)
++	LastWeek string  // Week field from latest previous report uploaded
++	X        float64 // A random probability used to determine which counters are uploaded
++	Programs []*ProgramReport
++	Config   string // version of UploadConfig used
++}
++
++type ProgramReport struct {
++	Program   string
++	Version   string
++	GoVersion string
++	GOOS      string
++	GOARCH    string
++	Counters  map[string]int64
++	Stacks    map[string]int64
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 72a59bdc28..642c0608eb 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -44,7 +44,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240208230135-b75ee8823808
++# golang.org/x/telemetry v0.0.0-20240229223025-3d5706d2d0fb
+ ## explicit; go 1.20
+ golang.org/x/telemetry/counter
+ golang.org/x/telemetry/internal/counter

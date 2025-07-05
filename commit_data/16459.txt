@@ -9,6 +9,28 @@ Date:   Sat Jun 1 12:03:21 2013 -0700
     R=golang-dev, akumar
     CC=golang-dev
     https://golang.org/cl/9249045
-
+---
  include/plan9/libc.h | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/include/plan9/libc.h b/include/plan9/libc.h
+index dcecc7c8b8..9c86df0c77 100644
+--- a/include/plan9/libc.h
++++ b/include/plan9/libc.h
+@@ -2,16 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define Runemax Plan9Runemax
+ #include "/sys/include/libc.h"
+-#undef Runemax
+ #include "/sys/include/ctype.h"
+ 
+-enum
+-{
+-	Runemax = 0x10FFFF, /* maximum rune value */
+-};
+-
+ char*	getgoos(void);
+ char*	getgoarch(void);
+ char*	getgoroot(void);

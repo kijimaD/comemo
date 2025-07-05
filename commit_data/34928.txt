@@ -23,7 +23,43 @@ Date:   Wed Nov 15 12:38:26 2017 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/struct.go | 8 ++------
  src/archive/zip/writer.go | 2 +-
  2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 63fa0b3b4d..f613ebdc34 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -228,15 +228,11 @@ func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
+ 	return
+ }
+ 
+-// ModTime returns the modification time in UTC.
+-// This returns Modified if non-zero, otherwise it computes the timestamp
+-// from the legacy ModifiedDate and ModifiedTime fields.
++// ModTime returns the modification time in UTC using the legacy
++// ModifiedDate and ModifiedTime fields.
+ //
+ // Deprecated: Use Modified instead.
+ func (h *FileHeader) ModTime() time.Time {
+-	if !h.Modified.IsZero() {
+-		return h.Modified.UTC() // Convert to UTC for compatibility
+-	}
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index bcab212d40..14a5ee48c1 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -310,7 +310,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 		// This format happens to be identical for both local and central header
+ 		// if modification time is the only timestamp being encoded.
+ 		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
+-		mt := uint32(fh.ModTime().Unix())
++		mt := uint32(fh.Modified.Unix())
+ 		eb := writeBuf(mbuf[:])
+ 		eb.uint16(extTimeExtraID)
+ 		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)

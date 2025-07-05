@@ -7,8 +7,69 @@ Date:   Thu Aug 24 11:52:35 2017 -0700
     Change-Id: I97075f24319a4b96cbeb9e3ff2e7b2056ff59e32
     Reviewed-on: https://go-review.googlesource.com/58651
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html  | 9 ++++++++-
  doc/go1.9.html          | 7 +------
  doc/install-source.html | 4 ++--
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index e4821ff61c..8304522449 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -20,7 +20,14 @@ For example, Go 1.8 is supported until Go 1.10 is released,
+ and Go 1.9 is supported until Go 1.11 is released.
+ We fix critical problems, including <a href="/security">critical security problems</a>,
+ in supported releases as needed by issuing minor revisions
+-(for example, Go 1.8.1, Go 1.8.2, and so on).
++(for example, Go 1.9.1, Go 1.9.2, and so on).
++</p>
++
++<h2 id="go1.9">go1.9 (released 2017/08/24)</h2>
++
++<p>
++Go 1.9 is a major release of Go.
++Read the <a href="/doc/go1.9">Go 1.9 Release Notes</a> for more information.
+ </p>
+ 
+ <h2 id="go1.8">go1.8 (released 2017/02/16)</h2>
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index c7836add5e..90bf442f70 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -15,12 +15,7 @@ Do not send CLs removing the interior tags from such phrases.
+ ul li { margin: 0.5em 0; }
+ </style>
+ 
+-<h2 id="introduction">DRAFT RELEASE NOTES - Introduction to Go 1.9</h2>
+-
+-<p><strong>
+-    Go 1.9 is not yet released. These are work-in-progress
+-    release notes. Go 1.9 is expected to be released in August 2017.
+-</strong></p>
++<h2 id="introduction">Introduction to Go 1.9</h2>
+ 
+ <p>
+   The latest Go release, version 1.9, arrives six months
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 5d732b053e..d120f7d6f2 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -221,7 +221,7 @@ To build without <code>cgo</code>, set the environment variable
+ Change to the directory that will be its parent
+ and make sure the <code>go</code> directory does not exist.
+ Then clone the repository and check out the latest release tag
+-(<code class="versionTag">go1.8.1</code>, for example):</p>
++(<code class="versionTag">go1.9</code>, for example):</p>
+ 
+ <pre>
+ $ git clone https://go.googlesource.com/go
+@@ -409,7 +409,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code class="versionTag">go1.8.1</code>.
++<code class="versionTag">go1.9</code>.
+ </p>
+ 
+ <p>

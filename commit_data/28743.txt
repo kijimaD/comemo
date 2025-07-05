@@ -15,6 +15,28 @@ Date:   Sun Jul 10 21:47:56 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  doc/go1.7.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 2a2675e98a..6605e4b366 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -793,6 +793,16 @@ The
+ now produce a pseudo-random stream of bytes that is consistent and not
+ dependent on the size of the input buffer.
+ </p>
++
++<p>
++The documentation clarifies that
++Rand's <a href="/pkg/math/rand/#Rand.Seed"><code>Seed</code></a>
++and <a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> methods
++are not safe to call concurrently, though the global
++functions <a href="/pkg/math/rand/#Seed"><code>Seed</code></a>
++and <a href="/pkg/math/rand/#Read"><code>Read</code></a> are (and have
++always been) safe.
++</p>
+ </dd>
+ </dl>
+ 

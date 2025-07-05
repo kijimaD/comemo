@@ -10,6 +10,20 @@ Date:   Mon Jun 2 16:26:08 2014 +1000
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/106760043
-
+---
  misc/makerelease/makerelease.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index 2496a865a4..f5526a00af 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -721,7 +721,7 @@ type File struct {
+ func setupOAuthClient() error {
+ 	config := &oauth.Config{
+ 		ClientId:     "999119582588-h7kpj5pcm6d9solh5lgrbusmvvk4m9dn.apps.googleusercontent.com",
+-		ClientSecret: "8YLFgOhXIELWbO",
++		ClientSecret: "8YLFgOhXIELWbO-NtF3iqIQz",
+ 		Scope:        storage.DevstorageRead_writeScope,
+ 		AuthURL:      "https://accounts.google.com/o/oauth2/auth",
+ 		TokenURL:     "https://accounts.google.com/o/oauth2/token",

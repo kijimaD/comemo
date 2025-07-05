@@ -11,6 +11,20 @@ Date:   Thu Jun 22 07:32:37 2023 +0000
     TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/log/slog/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/doc.go b/src/log/slog/doc.go
+index 8237b4e3d5..97c1a0b5ef 100644
+--- a/src/log/slog/doc.go
++++ b/src/log/slog/doc.go
+@@ -255,7 +255,7 @@ and hidden fields that refer to state (such as attributes) indirectly. This
+ means that modifying a simple copy of a Record (e.g. by calling
+ [Record.Add] or [Record.AddAttrs] to add attributes)
+ may have unexpected effects on the original.
+-Before modifying a Record, use [Clone] to
++Before modifying a Record, use [Record.Clone] to
+ create a copy that shares no state with the original,
+ or create a new Record with [NewRecord]
+ and build up its Attrs by traversing the old ones with [Record.Attrs].

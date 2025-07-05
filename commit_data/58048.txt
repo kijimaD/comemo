@@ -30,9 +30,124 @@ Date:   Tue Sep 12 03:01:33 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 ++--
  src/cmd/compile/internal/ssa/bench_test.go    | 18 ++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteARM64.go  | 20 ++++++++++----------
  test/codegen/comparisons.go                   | 13 +++++++++++++
  4 files changed, 43 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 1719312fbd..227ec5d610 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1569,8 +1569,8 @@
+ (LessEqualF       (InvertFlags x)) => (GreaterEqualF x)
+ (GreaterThanF     (InvertFlags x)) => (LessThanF x)
+ (GreaterEqualF    (InvertFlags x)) => (LessEqualF x)
+-(LessThanNoov     (InvertFlags x)) => (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
+-(GreaterEqualNoov (InvertFlags x)) => (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
++(LessThanNoov     (InvertFlags x)) => (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
++(GreaterEqualNoov (InvertFlags x)) => (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
+ 
+ // Boolean-generating instructions (NOTE: NOT all boolean Values) always
+ // zero upper bit of the register; no need to zero-extend
+diff --git a/src/cmd/compile/internal/ssa/bench_test.go b/src/cmd/compile/internal/ssa/bench_test.go
+index 0971667507..1dc733bf55 100644
+--- a/src/cmd/compile/internal/ssa/bench_test.go
++++ b/src/cmd/compile/internal/ssa/bench_test.go
+@@ -30,3 +30,21 @@ func BenchmarkPhioptPass(b *testing.B) {
+ 		}
+ 	}
+ }
++
++type Point struct {
++	X, Y int
++}
++
++//go:noinline
++func sign(p1, p2, p3 Point) bool {
++	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
++}
++
++func BenchmarkInvertLessThanNoov(b *testing.B) {
++	p1 := Point{1, 2}
++	p2 := Point{2, 3}
++	p3 := Point{3, 4}
++	for i := 0; i < b.N; i++ {
++		sign(p1, p2, p3)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index caeed8b6b9..d7752d3876 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -5974,18 +5974,19 @@ func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (GreaterEqualNoov (InvertFlags x))
+-	// result: (OR (LessThanNoov <typ.Bool> x) (Equal <typ.Bool> x))
++	// result: (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
+ 	for {
+ 		if v_0.Op != OpARM64InvertFlags {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+-		v.reset(OpARM64OR)
++		v.reset(OpARM64CSINC)
++		v.AuxInt = opToAuxInt(OpARM64NotEqual)
+ 		v0 := b.NewValue0(v.Pos, OpARM64LessThanNoov, typ.Bool)
+ 		v0.AddArg(x)
+-		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
+-		v1.AddArg(x)
+-		v.AddArg2(v0, v1)
++		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(0)
++		v.AddArg3(v0, v1, x)
+ 		return true
+ 	}
+ 	return false
+@@ -6709,18 +6710,17 @@ func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (LessThanNoov (InvertFlags x))
+-	// result: (BIC (GreaterEqualNoov <typ.Bool> x) (Equal <typ.Bool> x))
++	// result: (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
+ 	for {
+ 		if v_0.Op != OpARM64InvertFlags {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+-		v.reset(OpARM64BIC)
++		v.reset(OpARM64CSEL0)
++		v.AuxInt = opToAuxInt(OpARM64NotEqual)
+ 		v0 := b.NewValue0(v.Pos, OpARM64GreaterEqualNoov, typ.Bool)
+ 		v0.AddArg(x)
+-		v1 := b.NewValue0(v.Pos, OpARM64Equal, typ.Bool)
+-		v1.AddArg(x)
+-		v.AddArg2(v0, v1)
++		v.AddArg2(v0, x)
+ 		return true
+ 	}
+ 	return false
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 071b68facf..4edf9303df 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -788,3 +788,16 @@ func cmp7() {
+ 	cmp5[string]("") // force instantiation
+ 	cmp6[string]("") // force instantiation
+ }
++
++type Point struct {
++	X, Y int
++}
++
++// invertLessThanNoov checks (LessThanNoov (InvertFlags x)) is lowered as
++// CMP, CSET, CSEL instruction sequence. InvertFlags are only generated under
++// certain conditions, see canonLessThan, so if the code below does not
++// generate an InvertFlags OP, this check may fail.
++func invertLessThanNoov(p1, p2, p3 Point) bool {
++	// arm64:`CMP`,`CSET`,`CSEL`
++	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
++}

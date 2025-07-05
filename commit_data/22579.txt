@@ -15,7 +15,38 @@ Date:   Fri Mar 20 12:22:49 2015 +0100
     Change-Id: Ibb4b1e4b8bf4fa65ff895ba486a931d90308bf70
     Reviewed-on: https://go-review.googlesource.com/7891
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/quotedprintable/reader.go      | 3 +++
  src/mime/quotedprintable/reader_test.go | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/quotedprintable/reader.go b/src/mime/quotedprintable/reader.go
+index 86c7f58cc8..a39a20ef83 100644
+--- a/src/mime/quotedprintable/reader.go
++++ b/src/mime/quotedprintable/reader.go
+@@ -36,6 +36,9 @@ func fromHex(b byte) (byte, error) {
+ 		return b - '0', nil
+ 	case b >= 'A' && b <= 'F':
+ 		return b - 'A' + 10, nil
++	// Accept badly encoded bytes.
++	case b >= 'a' && b <= 'f':
++		return b - 'a' + 10, nil
+ 	}
+ 	return 0, fmt.Errorf("quotedprintable: invalid hex byte 0x%02x", b)
+ }
+diff --git a/src/mime/quotedprintable/reader_test.go b/src/mime/quotedprintable/reader_test.go
+index 23dae2becb..e77b2610ec 100644
+--- a/src/mime/quotedprintable/reader_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -27,10 +27,10 @@ func TestReader(t *testing.T) {
+ 		{in: "", want: ""},
+ 		{in: "foo bar", want: "foo bar"},
+ 		{in: "foo bar=3D", want: "foo bar="},
++		{in: "foo bar=3d", want: "foo bar="}, // lax.
+ 		{in: "foo bar=\n", want: "foo bar"},
+ 		{in: "foo bar\n", want: "foo bar\n"}, // somewhat lax.
+ 		{in: "foo bar=0", want: "foo bar", err: io.ErrUnexpectedEOF},
+-		{in: "foo bar=ab", want: "foo bar", err: "quotedprintable: invalid hex byte 0x61"},
+ 		{in: "foo bar=0D=0A", want: "foo bar\r\n"},
+ 		{in: " A B        \r\n C ", want: " A B\r\n C"},
+ 		{in: " A B =\r\n C ", want: " A B  C"},

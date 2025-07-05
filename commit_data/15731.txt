@@ -7,6 +7,19 @@ Date:   Tue Mar 12 22:25:15 2013 +0100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7762046
-
+---
  test/bench/garbage/parser.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/test/bench/garbage/parser.go b/test/bench/garbage/parser.go
+index ff7630a9e5..d85110b63d 100644
+--- a/test/bench/garbage/parser.go
++++ b/test/bench/garbage/parser.go
+@@ -205,7 +205,6 @@ var packages = []string{
+ 	"go/printer",
+ 	"go/scanner",
+ 	"go/token",
+-	"go/types",
+ 	"hash",
+ 	"hash/adler32",
+ 	"hash/crc32",

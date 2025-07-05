@@ -10,7 +10,7 @@ Date:   Wed Jan 2 09:27:33 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7024043
-
+---
  src/pkg/go/types/check.go      |  6 ++----
  src/pkg/go/types/errors.go     |  4 ++--
  src/pkg/go/types/expr.go       | 19 +++++++------------
@@ -20,3 +20,263 @@ Date:   Wed Jan 2 09:27:33 2013 -0800
  src/pkg/go/types/types.go      | 16 +++++++++++-----
  src/pkg/go/types/universe.go   |  4 +---
  8 files changed, 36 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index db02e03cd7..27bb452336 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -379,10 +379,8 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg
+ 	// handle panics
+ 	defer func() {
+ 		switch p := recover().(type) {
+-		case nil:
+-			// normal return - nothing to do
+-		case bailout:
+-			// early exit
++		case nil, bailout:
++			// normal return or early exit
+ 			err = check.firsterr
+ 		default:
+ 			// unexpected panic: don't crash clients
+diff --git a/src/pkg/go/types/errors.go b/src/pkg/go/types/errors.go
+index 728ea9fcbf..85a9db729e 100644
+--- a/src/pkg/go/types/errors.go
++++ b/src/pkg/go/types/errors.go
+@@ -197,7 +197,7 @@ func typeString(typ Type) string {
+ 	return buf.String()
+ }
+ 
+-func writeParams(buf *bytes.Buffer, params []*ast.Object, isVariadic bool) {
++func writeParams(buf *bytes.Buffer, params []*Var, isVariadic bool) {
+ 	buf.WriteByte('(')
+ 	for i, par := range params {
+ 		if i > 0 {
+@@ -210,7 +210,7 @@ func writeParams(buf *bytes.Buffer, params []*ast.Object, isVariadic bool) {
+ 		if isVariadic && i == len(params)-1 {
+ 			buf.WriteString("...")
+ 		}
+-		writeType(buf, par.Type.(Type))
++		writeType(buf, par.Type)
+ 	}
+ 	buf.WriteByte(')')
+ }
+diff --git a/src/pkg/go/types/expr.go b/src/pkg/go/types/expr.go
+index 8063f391c2..7b80978aad 100644
+--- a/src/pkg/go/types/expr.go
++++ b/src/pkg/go/types/expr.go
+@@ -17,12 +17,13 @@ import (
+ // - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
+ // - rethink error handling: should all callers check if x.mode == valid after making a call?
+ // - at the moment, iota is passed around almost everywhere - in many places we know it cannot be used
++// - use "" or "_" consistently for anonymous identifiers? (e.g. reeceivers that have no name)
+ 
+ // TODO(gri) API issues
+ // - clients need access to builtins type information
+ // - API tests are missing (e.g., identifiers should be handled as expressions in callbacks)
+ 
+-func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*ast.Object, isVariadic bool) {
++func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (params []*Var, isVariadic bool) {
+ 	if list == nil {
+ 		return
+ 	}
+@@ -46,26 +47,22 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
+ 			for _, name := range field.Names {
+ 				obj := name.Obj
+ 				obj.Type = typ
+-				params = append(params, obj)
+ 				last = obj
++				params = append(params, &Var{obj.Name, typ})
+ 			}
+ 		} else {
+ 			// anonymous parameter
+ 			obj := ast.NewObj(ast.Var, "")
+ 			obj.Type = typ
+-			params = append(params, obj)
+ 			last = obj
++			params = append(params, &Var{obj.Name, typ})
+ 		}
+ 	}
+ 	// For a variadic function, change the last parameter's object type
+ 	// from T to []T (this is the type used inside the function), but
+-	// keep a copy of the object with the original type T in the params
+-	// list (this is the externally visible type).
++	// keep the params list unchanged (this is the externally visible type).
+ 	if isVariadic {
+-		// if isVariadic is set, last must exist and len(params) > 0
+-		copy := *last
+ 		last.Type = &Slice{Elt: last.Type.(Type)}
+-		params[len(params)-1] = &copy
+ 	}
+ 	return
+ }
+@@ -576,7 +573,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota
+ //
+ func (check *checker) argument(sig *Signature, i int, arg ast.Expr, x *operand, passSlice bool) {
+ 	// determine parameter
+-	var par *ast.Object
++	var par *Var
+ 	n := len(sig.Params)
+ 	if i < n {
+ 		par = sig.Params[i]
+@@ -922,11 +919,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			// argument of the method expression's function type
+ 			// TODO(gri) at the moment, method sets don't correctly track
+ 			// pointer vs non-pointer receivers => typechecker is too lenient
+-			arg := ast.NewObj(ast.Var, "")
+-			arg.Type = x.typ
+ 			x.mode = value
+ 			x.typ = &Signature{
+-				Params:     append([]*ast.Object{arg}, sig.Params...),
++				Params:     append([]*Var{{"", x.typ}}, sig.Params...),
+ 				Results:    sig.Results,
+ 				IsVariadic: sig.IsVariadic,
+ 			}
+diff --git a/src/pkg/go/types/gcimporter.go b/src/pkg/go/types/gcimporter.go
+index 732bb46682..0e20d5c9a9 100644
+--- a/src/pkg/go/types/gcimporter.go
++++ b/src/pkg/go/types/gcimporter.go
+@@ -428,7 +428,7 @@ func (p *gcParser) parseStructType() Type {
+ 
+ // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
+ //
+-func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
++func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
+ 	name := p.parseName()
+ 	if name == "" {
+ 		name = "_" // cannot access unnamed identifiers
+@@ -437,20 +437,19 @@ func (p *gcParser) parseParameter() (par *ast.Object, isVariadic bool) {
+ 		p.expectSpecial("...")
+ 		isVariadic = true
+ 	}
+-	ptyp := p.parseType()
++	typ := p.parseType()
+ 	// ignore argument tag (e.g. "noescape")
+ 	if p.tok == scanner.String {
+ 		p.next()
+ 	}
+-	par = ast.NewObj(ast.Var, name)
+-	par.Type = ptyp
++	par = &Var{name, typ}
+ 	return
+ }
+ 
+ // Parameters    = "(" [ ParameterList ] ")" .
+ // ParameterList = { Parameter "," } Parameter .
+ //
+-func (p *gcParser) parseParameters() (list []*ast.Object, isVariadic bool) {
++func (p *gcParser) parseParameters() (list []*Var, isVariadic bool) {
+ 	parseParameter := func() {
+ 		par, variadic := p.parseParameter()
+ 		list = append(list, par)
+@@ -482,13 +481,11 @@ func (p *gcParser) parseSignature() *Signature {
+ 	params, isVariadic := p.parseParameters()
+ 
+ 	// optional result type
+-	var results []*ast.Object
++	var results []*Var
+ 	switch p.tok {
+ 	case scanner.Ident, '[', '*', '<', '@':
+ 		// single, unnamed result
+-		result := ast.NewObj(ast.Var, "_")
+-		result.Type = p.parseType()
+-		results = []*ast.Object{result}
++		results = []*Var{{"", p.parseType()}}
+ 	case '(':
+ 		// named or multiple result(s)
+ 		var variadic bool
+diff --git a/src/pkg/go/types/predicates.go b/src/pkg/go/types/predicates.go
+index 21d08fe14c..0f4aad6a12 100644
+--- a/src/pkg/go/types/predicates.go
++++ b/src/pkg/go/types/predicates.go
+@@ -6,8 +6,6 @@
+ 
+ package types
+ 
+-import "go/ast"
+-
+ func isNamed(typ Type) bool {
+ 	if _, ok := typ.(*Basic); ok {
+ 		return ok
+@@ -194,13 +192,13 @@ func isIdentical(x, y Type) bool {
+ 
+ // identicalTypes returns true if both lists a and b have the
+ // same length and corresponding objects have identical types.
+-func identicalTypes(a, b []*ast.Object) bool {
++func identicalTypes(a, b []*Var) bool {
+ 	if len(a) != len(b) {
+ 		return false
+ 	}
+ 	for i, x := range a {
+ 		y := b[i]
+-		if !isIdentical(x.Type.(Type), y.Type.(Type)) {
++		if !isIdentical(x.Type, y.Type) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index c4d05b2e16..26962e8a4a 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -416,7 +416,11 @@ func (check *checker) stmt(s ast.Stmt) {
+ 				}
+ 				name := ast.NewIdent(res.Name)
+ 				name.NamePos = s.Pos()
+-				name.Obj = res
++				// TODO(gri) Avoid creating new objects here once we
++				//           move away from ast.Objects completely.
++				obj := ast.NewObj(ast.Var, res.Name)
++				obj.Type = res.Type
++				name.Obj = obj
+ 				lhs[i] = name
+ 			}
+ 			if len(s.Results) > 0 || !named {
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 871d34ecf7..5a4e81856e 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -120,19 +120,25 @@ type Pointer struct {
+ 	Base Type
+ }
+ 
++// A Variable represents a variable (including function parameters and results).
++type Var struct {
++	Name string
++	Type Type
++}
++
+ // A Result represents a (multi-value) function call result.
+ type Result struct {
+ 	implementsType
+-	Values []*ast.Object // Signature.Results of the function called
++	Values []*Var // Signature.Results of the function called
+ }
+ 
+ // A Signature represents a user-defined function type func(...) (...).
+ type Signature struct {
+ 	implementsType
+-	Recv       *ast.Object   // nil if not a method
+-	Params     []*ast.Object // (incoming) parameters from left to right; or nil
+-	Results    []*ast.Object // (outgoing) results from left to right; or nil
+-	IsVariadic bool          // true if the last parameter's type is of the form ...T
++	Recv       *Var   // nil if not a method
++	Params     []*Var // (incoming) parameters from left to right; or nil
++	Results    []*Var // (outgoing) results from left to right; or nil
++	IsVariadic bool   // true if the last parameter's type is of the form ...T
+ }
+ 
+ // builtinId is an id of a builtin function.
+diff --git a/src/pkg/go/types/universe.go b/src/pkg/go/types/universe.go
+index 3b45fb74a9..1306a59fa5 100644
+--- a/src/pkg/go/types/universe.go
++++ b/src/pkg/go/types/universe.go
+@@ -116,9 +116,7 @@ func init() {
+ 
+ 	// error type
+ 	{
+-		res := ast.NewObj(ast.Var, "")
+-		res.Type = Typ[String]
+-		err := &Method{"Error", &Signature{Results: []*ast.Object{res}}}
++		err := &Method{"Error", &Signature{Results: []*Var{{"", Typ[String]}}}}
+ 		obj := def(ast.Typ, "error")
+ 		obj.Type = &NamedType{Underlying: &Interface{Methods: []*Method{err}}, Obj: obj}
+ 	}

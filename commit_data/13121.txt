@@ -47,9 +47,286 @@ Date:   Tue May 22 10:04:34 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6209080
-
+---
  src/pkg/go/parser/parser.go      |  12 ++--
  src/pkg/go/parser/parser_test.go | 134 +++++++++++++++++++++++++++++++++++++--
  src/pkg/go/printer/nodes.go      |  15 ++++-
  src/pkg/strings/example_test.go  |   1 -
  4 files changed, 147 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index e362e13a7b..fc676de565 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -267,13 +267,13 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
+ 
+ // Consume a group of adjacent comments, add it to the parser's
+ // comments list, and return it together with the line at which
+-// the last comment in the group ends. An empty line or non-comment
+-// token terminates a comment group.
++// the last comment in the group ends. A non-comment token or n
++// empty lines terminate a comment group.
+ //
+-func (p *parser) consumeCommentGroup() (comments *ast.CommentGroup, endline int) {
++func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline int) {
+ 	var list []*ast.Comment
+ 	endline = p.file.Line(p.pos)
+-	for p.tok == token.COMMENT && endline+1 >= p.file.Line(p.pos) {
++	for p.tok == token.COMMENT && p.file.Line(p.pos) <= endline+n {
+ 		var comment *ast.Comment
+ 		comment, endline = p.consumeComment()
+ 		list = append(list, comment)
+@@ -314,7 +314,7 @@ func (p *parser) next() {
+ 		if p.file.Line(p.pos) == line {
+ 			// The comment is on same line as the previous token; it
+ 			// cannot be a lead comment but may be a line comment.
+-			comment, endline = p.consumeCommentGroup()
++			comment, endline = p.consumeCommentGroup(0)
+ 			if p.file.Line(p.pos) != endline {
+ 				// The next token is on a different line, thus
+ 				// the last comment group is a line comment.
+@@ -325,7 +325,7 @@ func (p *parser) next() {
+ 		// consume successor comments, if any
+ 		endline = -1
+ 		for p.tok == token.COMMENT {
+-			comment, endline = p.consumeCommentGroup()
++			comment, endline = p.consumeCommentGroup(1)
+ 		}
+ 
+ 		if endline+1 == p.file.Line(p.pos) {
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 5e45acd007..7e0ae88218 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,10 +5,12 @@
+ package parser
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -25,7 +27,7 @@ func TestParse(t *testing.T) {
+ 	for _, filename := range validFiles {
+ 		_, err := ParseFile(fset, filename, nil, DeclarationErrors)
+ 		if err != nil {
+-			t.Errorf("ParseFile(%s): %v", filename, err)
++			t.Fatalf("ParseFile(%s): %v", filename, err)
+ 		}
+ 	}
+ }
+@@ -70,7 +72,7 @@ func TestParseExpr(t *testing.T) {
+ 	src := "a + b"
+ 	x, err := ParseExpr(src)
+ 	if err != nil {
+-		t.Errorf("ParseExpr(%s): %v", src, err)
++		t.Fatalf("ParseExpr(%s): %v", src, err)
+ 	}
+ 	// sanity check
+ 	if _, ok := x.(*ast.BinaryExpr); !ok {
+@@ -81,7 +83,7 @@ func TestParseExpr(t *testing.T) {
+ 	src = "a + *"
+ 	_, err = ParseExpr(src)
+ 	if err == nil {
+-		t.Errorf("ParseExpr(%s): %v", src, err)
++		t.Fatalf("ParseExpr(%s): %v", src, err)
+ 	}
+ 
+ 	// it must not crash
+@@ -93,7 +95,7 @@ func TestParseExpr(t *testing.T) {
+ func TestColonEqualsScope(t *testing.T) {
+ 	f, err := ParseFile(fset, "", `package p; func f() { x, y, z := x, y, z }`, 0)
+ 	if err != nil {
+-		t.Errorf("parse: %s", err)
++		t.Fatal(err)
+ 	}
+ 
+ 	// RHS refers to undefined globals; LHS does not.
+@@ -115,7 +117,7 @@ func TestColonEqualsScope(t *testing.T) {
+ func TestVarScope(t *testing.T) {
+ 	f, err := ParseFile(fset, "", `package p; func f() { var x, y, z = x, y, z }`, 0)
+ 	if err != nil {
+-		t.Errorf("parse: %s", err)
++		t.Fatal(err)
+ 	}
+ 
+ 	// RHS refers to undefined globals; LHS does not.
+@@ -177,3 +179,125 @@ func TestImports(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCommentGroups(t *testing.T) {
++	f, err := ParseFile(fset, "", `
++package p /* 1a */ /* 1b */      /* 1c */ // 1d
++/* 2a
++*/
++// 2b
++const pi = 3.1415
++/* 3a */ // 3b
++/* 3c */ const e = 2.7182
++
++// Example from issue 3139
++func ExampleCount() {
++	fmt.Println(strings.Count("cheese", "e"))
++	fmt.Println(strings.Count("five", "")) // before & after each rune
++	// Output:
++	// 3
++	// 5
++}
++`, ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++	expected := [][]string{
++		{"/* 1a */", "/* 1b */", "/* 1c */", "// 1d"},
++		{"/* 2a\n*/", "// 2b"},
++		{"/* 3a */", "// 3b", "/* 3c */"},
++		{"// Example from issue 3139"},
++		{"// before & after each rune"},
++		{"// Output:", "// 3", "// 5"},
++	}
++	if len(f.Comments) != len(expected) {
++		t.Fatalf("got %d comment groups; expected %d", len(f.Comments), len(expected))
++	}
++	for i, exp := range expected {
++		got := f.Comments[i].List
++		if len(got) != len(exp) {
++			t.Errorf("got %d comments in group %d; expected %d", len(got), i, len(exp))
++			continue
++		}
++		for j, exp := range exp {
++			got := got[j].Text
++			if got != exp {
++				t.Errorf("got %q in group %d; expected %q", got, i, exp)
++			}
++		}
++	}
++}
++
++func getField(file *ast.File, fieldname string) *ast.Field {
++	parts := strings.Split(fieldname, ".")
++	for _, d := range file.Decls {
++		if d, ok := d.(*ast.GenDecl); ok && d.Tok == token.TYPE {
++			for _, s := range d.Specs {
++				if s, ok := s.(*ast.TypeSpec); ok && s.Name.Name == parts[0] {
++					if s, ok := s.Type.(*ast.StructType); ok {
++						for _, f := range s.Fields.List {
++							for _, name := range f.Names {
++								if name.Name == parts[1] {
++									return f
++								}
++							}
++						}
++					}
++				}
++			}
++		}
++	}
++	return nil
++}
++
++// Don't use ast.CommentGroup.Text() - we want to see exact comment text.
++func commentText(c *ast.CommentGroup) string {
++	var buf bytes.Buffer
++	if c != nil {
++		for _, c := range c.List {
++			buf.WriteString(c.Text)
++		}
++	}
++	return buf.String()
++}
++
++func checkFieldComments(t *testing.T, file *ast.File, fieldname, lead, line string) {
++	f := getField(file, fieldname)
++	if f == nil {
++		t.Fatalf("field not found: %s", fieldname)
++	}
++	if got := commentText(f.Doc); got != lead {
++		t.Errorf("got lead comment %q; expected %q", got, lead)
++	}
++	if got := commentText(f.Comment); got != line {
++		t.Errorf("got line comment %q; expected %q", got, line)
++	}
++}
++
++func TestLeadAndLineComments(t *testing.T) {
++	f, err := ParseFile(fset, "", `
++package p
++type T struct {
++	/* F1 lead comment */
++	//
++	F1 int  /* F1 */ // line comment
++	// F2 lead
++	// comment
++	F2 int  // F2 line comment
++	// f3 lead comment
++	f3 int  // f3 line comment
++}
++`, ParseComments)
++	if err != nil {
++		t.Fatal(err)
++	}
++	checkFieldComments(t, f, "T.F1", "/* F1 lead comment *///", "/* F1 */// line comment")
++	checkFieldComments(t, f, "T.F2", "// F2 lead// comment", "// F2 line comment")
++	checkFieldComments(t, f, "T.f3", "// f3 lead comment", "// f3 line comment")
++	ast.FileExports(f)
++	checkFieldComments(t, f, "T.F1", "/* F1 lead comment *///", "/* F1 */// line comment")
++	checkFieldComments(t, f, "T.F2", "// F2 lead// comment", "// F2 line comment")
++	if getField(f, "T.f3") != nil {
++		t.Error("not expected to find T.f3")
++	}
++}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 71dfccdcd5..138f3eee60 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -60,8 +60,8 @@ func (p *printer) linebreak(line, min int, ws whiteSpace, newSection bool) (prin
+ 
+ // setComment sets g as the next comment if g != nil and if node comments
+ // are enabled - this mode is used when printing source code fragments such
+-// as exports only. It assumes that there are no other pending comments to
+-// intersperse.
++// as exports only. It assumes that there is no pending comment in p.comments
++// and at most one pending comment in the p.comment cache.
+ func (p *printer) setComment(g *ast.CommentGroup) {
+ 	if g == nil || !p.useNodeComments {
+ 		return
+@@ -74,10 +74,19 @@ func (p *printer) setComment(g *ast.CommentGroup) {
+ 		// should never happen - handle gracefully and flush
+ 		// all comments up to g, ignore anything after that
+ 		p.flush(p.posFor(g.List[0].Pos()), token.ILLEGAL)
++		p.comments = p.comments[0:1]
++		// in debug mode, report error
++		p.internalError("setComment found pending comments")
+ 	}
+ 	p.comments[0] = g
+ 	p.cindex = 0
+-	p.nextComment() // get comment ready for use
++	// don't overwrite any pending comment in the p.comment cache
++	// (there may be a pending comment when a line comment is
++	// immediately followed by a lead comment with no other
++	// tokens inbetween)
++	if p.commentOffset == infinity {
++		p.nextComment() // get comment ready for use
++	}
+ }
+ 
+ type exprListMode uint
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+index 1141710728..733caf5f2d 100644
+--- a/src/pkg/strings/example_test.go
++++ b/src/pkg/strings/example_test.go
+@@ -41,7 +41,6 @@ func ExampleContainsAny() {
+ func ExampleCount() {
+ 	fmt.Println(strings.Count("cheese", "e"))
+ 	fmt.Println(strings.Count("five", "")) // before & after each rune
+-
+ 	// Output:
+ 	// 3
+ 	// 5

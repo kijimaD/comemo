@@ -14,8 +14,97 @@ Date:   Mon Jan 23 16:52:33 2023 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/math/big/float.go           | 15 +++++++++++----
  src/math/big/floatmarsh.go      |  4 ++++
  src/math/big/floatmarsh_test.go | 22 ++++++++++++++++++++++
  3 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 84666d817b..2f0635a03b 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -365,20 +365,27 @@ func (x *Float) validate() {
+ 		// avoid performance bugs
+ 		panic("validate called but debugFloat is not set")
+ 	}
++	if msg := x.validate0(); msg != "" {
++		panic(msg)
++	}
++}
++
++func (x *Float) validate0() string {
+ 	if x.form != finite {
+-		return
++		return ""
+ 	}
+ 	m := len(x.mant)
+ 	if m == 0 {
+-		panic("nonzero finite number with empty mantissa")
++		return "nonzero finite number with empty mantissa"
+ 	}
+ 	const msb = 1 << (_W - 1)
+ 	if x.mant[m-1]&msb == 0 {
+-		panic(fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0)))
++		return fmt.Sprintf("msb not set in last word %#x of %s", x.mant[m-1], x.Text('p', 0))
+ 	}
+ 	if x.prec == 0 {
+-		panic("zero precision finite number")
++		return "zero precision finite number"
+ 	}
++	return ""
+ }
+ 
+ // round rounds z according to z.mode to z.prec bits and sets z.acc accordingly.
+diff --git a/src/math/big/floatmarsh.go b/src/math/big/floatmarsh.go
+index 990e085abe..2a78c69e34 100644
+--- a/src/math/big/floatmarsh.go
++++ b/src/math/big/floatmarsh.go
+@@ -99,6 +99,10 @@ func (z *Float) GobDecode(buf []byte) error {
+ 		z.SetPrec(uint(oldPrec))
+ 	}
+ 
++	if msg := z.validate0(); msg != "" {
++		return errors.New("Float.GobDecode: " + msg)
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/src/math/big/floatmarsh_test.go b/src/math/big/floatmarsh_test.go
+index 401f45a51f..20def68a6d 100644
+--- a/src/math/big/floatmarsh_test.go
++++ b/src/math/big/floatmarsh_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/gob"
+ 	"encoding/json"
+ 	"io"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -149,3 +150,24 @@ func TestFloatGobDecodeShortBuffer(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestFloatGobDecodeInvalid(t *testing.T) {
++	for _, tc := range []struct {
++		buf []byte
++		msg string
++	}{
++		{
++			[]byte{0x1, 0x2a, 0x20, 0x20, 0x20, 0x20, 0x0, 0x20, 0x20, 0x20, 0x0, 0x20, 0x20, 0x20, 0x20, 0x0, 0x0, 0x0, 0x0, 0xc},
++			"Float.GobDecode: msb not set in last word",
++		},
++		{
++			[]byte{1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
++			"Float.GobDecode: nonzero finite number with empty mantissa",
++		},
++	} {
++		err := NewFloat(0).GobDecode(tc.buf)
++		if err == nil || !strings.HasPrefix(err.Error(), tc.msg) {
++			t.Errorf("expected GobDecode error prefix: %s, got: %v", tc.msg, err)
++		}
++	}
++}

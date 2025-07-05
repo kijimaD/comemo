@@ -19,7 +19,7 @@ Date:   Thu Aug 19 14:06:08 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/infer.go       |  2 +-
  src/go/types/instantiate.go | 12 ++++-----
  src/go/types/lookup.go      |  4 +--
@@ -32,3 +32,369 @@ Date:   Thu Aug 19 14:06:08 2021 -0400
  src/go/types/typestring.go  |  2 +-
  src/go/types/unify.go       | 10 +++++---
  11 files changed, 96 insertions(+), 69 deletions(-)
+
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 58456444ed..e6417545e9 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -330,7 +330,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 		return w.isParameterized(t.elem)
+ 
+ 	case *Named:
+-		return w.isParameterizedTypeList(t.targs)
++		return w.isParameterizedTypeList(t.targs.list())
+ 
+ 	case *TypeParam:
+ 		// t must be one of w.tparams
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index fb2fddfc0f..3ee09b7e84 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -131,7 +131,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ 
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is loaded
+-		named.targs = targs
++		named.targs = &TypeList{targs}
+ 		named.instance = &instance{pos}
+ 		if check != nil {
+ 			check.typMap[h] = named
+@@ -139,7 +139,7 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ 		res = named
+ 	case *Signature:
+ 		tparams := t.TParams()
+-		if !check.validateTArgLen(pos, tparams, targs) {
++		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
+ 			return Typ[Invalid]
+ 		}
+ 		if tparams.Len() == 0 {
+@@ -174,14 +174,14 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type) (res Type)
+ // validateTArgLen verifies that the length of targs and tparams matches,
+ // reporting an error if not. If validation fails and check is nil,
+ // validateTArgLen panics.
+-func (check *Checker) validateTArgLen(pos token.Pos, tparams *TParamList, targs []Type) bool {
+-	if len(targs) != tparams.Len() {
++func (check *Checker) validateTArgLen(pos token.Pos, ntparams, ntargs int) bool {
++	if ntargs != ntparams {
+ 		// TODO(gri) provide better error message
+ 		if check != nil {
+-			check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", len(targs), tparams.Len())
++			check.errorf(atPos(pos), _Todo, "got %d arguments but %d type parameters", ntargs, ntparams)
+ 			return false
+ 		}
+-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, len(targs), tparams.Len()))
++		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
+ 	}
+ 	return true
+ }
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 20a24cab73..862e59401d 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -392,10 +392,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 			// here. Exit early in this case to prevent an assertion
+ 			// failure in makeSubstMap.
+ 			// TODO(gri) Can we avoid this check by fixing the lengths?
+-			if len(ftyp.RParams().list()) != len(Vn.targs) {
++			if len(ftyp.RParams().list()) != Vn.targs.Len() {
+ 				return
+ 			}
+-			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs), nil).(*Signature)
++			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.RParams().list(), Vn.targs.list()), nil).(*Signature)
+ 		}
+ 
+ 		// If the methods have type parameters we don't care whether they
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 105f34e1fb..6bc33b9538 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -21,7 +21,7 @@ type Named struct {
+ 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
+ 	instance   *instance   // syntactic information for lazy instantiation
+ 	tparams    *TParamList // type parameters, or nil
+-	targs      []Type      // type arguments (after instantiation), or nil
++	targs      *TypeList   // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ 
+ 	resolve func(*Named) ([]*TypeParam, Type, []*Func)
+@@ -46,7 +46,7 @@ func (t *Named) load() *Named {
+ 	// underlying is set when t is expanded.
+ 	//
+ 	// By convention, a type instance is loaded iff its tparams are set.
+-	if len(t.targs) > 0 && t.tparams == nil {
++	if t.targs.Len() > 0 && t.tparams == nil {
+ 		t.orig.load()
+ 		t.tparams = t.orig.tparams
+ 		t.methods = t.orig.methods
+@@ -128,12 +128,8 @@ func (t *Named) TParams() *TParamList { return t.load().tparams }
+ // SetTParams sets the type parameters of the named type t.
+ func (t *Named) SetTParams(tparams []*TypeParam) { t.load().tparams = bindTParams(tparams) }
+ 
+-// NumTArgs returns the number of type arguments used to instantiate the named
+-// type t, or 0 if t is not an instantiated type.
+-func (t *Named) NumTArgs() int { return len(t.targs) }
+-
+-// TArgs returns the i'th type argument of the named type t for 0 <= i < t.NumTArgs().
+-func (t *Named) TArg(i int) Type { return t.targs[i] }
++// TArgs returns the type arguments used to instantiate the named type t.
++func (t *Named) TArgs() *TypeList { return t.targs }
+ 
+ // NumMethods returns the number of explicit methods whose receiver is named type t.
+ func (t *Named) NumMethods() int { return len(t.load().methods) }
+@@ -263,7 +259,7 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
+ 		// explicit is harmless: load is idempotent.
+ 		n.load()
+ 		var u Type
+-		if n.check.validateTArgLen(n.instance.pos, n.tparams, n.targs) {
++		if n.check.validateTArgLen(n.instance.pos, n.tparams.Len(), n.targs.Len()) {
+ 			if typMap == nil {
+ 				if n.check != nil {
+ 					typMap = n.check.typMap
+@@ -272,11 +268,11 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
+ 					// type-checking pass. In that case we won't have a pre-existing
+ 					// typMap, but don't want to create a duplicate of the current instance
+ 					// in the process of expansion.
+-					h := instantiatedHash(n.orig, n.targs)
++					h := instantiatedHash(n.orig, n.targs.list())
+ 					typMap = map[string]*Named{h: n}
+ 				}
+ 			}
+-			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs), typMap)
++			u = n.check.subst(n.instance.pos, n.orig.underlying, makeSubstMap(n.TParams().list(), n.targs.list()), typMap)
+ 		} else {
+ 			u = Typ[Invalid]
+ 		}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 027e30c1a1..2f4ef9dace 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -305,22 +305,22 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 			x.expand(nil)
+ 			y.expand(nil)
+ 
+-			// xargs := x.TArgs()
+-			// yargs := y.TArgs()
++			xargs := x.TArgs().list()
++			yargs := y.TArgs().list()
+ 
+-			if x.NumTArgs() != y.NumTArgs() {
++			if len(xargs) != len(yargs) {
+ 				return false
+ 			}
+ 
+-			if nargs := x.NumTArgs(); nargs > 0 {
++			if nargs := len(xargs); nargs > 0 {
+ 				// Instances are identical if their original type and type arguments
+ 				// are identical.
+ 				if !Identical(x.orig, y.orig) {
+ 					return false
+ 				}
+ 				for i := 0; i < nargs; i++ {
+-					xa := x.TArg(i)
+-					ya := y.TArg(i)
++					xa := xargs[i]
++					ya := yargs[i]
+ 					if !Identical(xa, ya) {
+ 						return false
+ 					}
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 403f2bbece..c2f5b3c333 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -30,7 +30,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 40, 80},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 80, 152},
++		{Named{}, 72, 136},
+ 		{TypeParam{}, 28, 48},
+ 		{term{}, 12, 24},
+ 		{top{}, 0, 0},
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 75f1ca5fab..8b8d6fb82a 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -191,21 +191,21 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		var newTArgs []Type
+-		assert(len(t.targs) == t.TParams().Len())
++		assert(t.targs.Len() == t.TParams().Len())
+ 
+ 		// already instantiated
+ 		dump(">>> %s already instantiated", t)
+ 		// For each (existing) type argument targ, determine if it needs
+ 		// to be substituted; i.e., if it is or contains a type parameter
+ 		// that has a type argument for it.
+-		for i, targ := range t.targs {
++		for i, targ := range t.targs.list() {
+ 			dump(">>> %d targ = %s", i, targ)
+ 			new_targ := subst.typ(targ)
+ 			if new_targ != targ {
+ 				dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
+ 				if newTArgs == nil {
+ 					newTArgs = make([]Type, t.TParams().Len())
+-					copy(newTArgs, t.targs)
++					copy(newTArgs, t.targs.list())
+ 				}
+ 				newTArgs[i] = new_targ
+ 			}
+@@ -233,7 +233,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// It's ok to provide a nil *Checker because the newly created type
+ 		// doesn't need to be (lazily) expanded; it's expanded below.
+ 		named := (*Checker)(nil).newNamed(tname, t.orig, nil, t.tparams, t.methods) // t is loaded, so tparams and methods are available
+-		named.targs = newTArgs
++		named.targs = &TypeList{newTArgs}
+ 		subst.typMap[h] = named
+ 		t.expand(subst.typMap) // must happen after typMap update to avoid infinite recursion
+ 
+diff --git a/src/go/types/typelists.go b/src/go/types/typelists.go
+new file mode 100644
+index 0000000000..a8181404bf
+--- /dev/null
++++ b/src/go/types/typelists.go
+@@ -0,0 +1,61 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++// TParamList holds a list of type parameters.
++type TParamList struct{ tparams []*TypeParam }
++
++// Len returns the number of type parameters in the list.
++// It is safe to call on a nil receiver.
++func (l *TParamList) Len() int { return len(l.list()) }
++
++// At returns the i'th type parameter in the list.
++func (l *TParamList) At(i int) *TypeParam { return l.tparams[i] }
++
++// list is for internal use where we expect a []*TypeParam.
++// TODO(rfindley): list should probably be eliminated: we can pass around a
++// TParamList instead.
++func (l *TParamList) list() []*TypeParam {
++	if l == nil {
++		return nil
++	}
++	return l.tparams
++}
++
++// TypeList holds a list of types.
++type TypeList struct{ types []Type }
++
++// Len returns the number of types in the list.
++// It is safe to call on a nil receiver.
++func (l *TypeList) Len() int { return len(l.list()) }
++
++// At returns the i'th type in the list.
++func (l *TypeList) At(i int) Type { return l.types[i] }
++
++// list is for internal use where we expect a []Type.
++// TODO(rfindley): list should probably be eliminated: we can pass around a
++// TypeList instead.
++func (l *TypeList) list() []Type {
++	if l == nil {
++		return nil
++	}
++	return l.types
++}
++
++// ----------------------------------------------------------------------------
++// Implementation
++
++func bindTParams(list []*TypeParam) *TParamList {
++	if len(list) == 0 {
++		return nil
++	}
++	for i, typ := range list {
++		if typ.index >= 0 {
++			panic("type parameter bound more than once")
++		}
++		typ.index = i
++	}
++	return &TParamList{tparams: list}
++}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 49eda1b43a..b6952489ca 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -88,40 +88,6 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 
+-// TParamList holds a list of type parameters bound to a type.
+-type TParamList struct{ tparams []*TypeParam }
+-
+-// Len returns the number of type parameters in the list.
+-// It is safe to call on a nil receiver.
+-func (tps *TParamList) Len() int {
+-	return len(tps.list())
+-}
+-
+-// At returns the i'th type parameter in the list.
+-func (tps *TParamList) At(i int) *TypeParam {
+-	return tps.list()[i]
+-}
+-
+-func (tps *TParamList) list() []*TypeParam {
+-	if tps == nil {
+-		return nil
+-	}
+-	return tps.tparams
+-}
+-
+-func bindTParams(list []*TypeParam) *TParamList {
+-	if len(list) == 0 {
+-		return nil
+-	}
+-	for i, typ := range list {
+-		if typ.index >= 0 {
+-			panic("type parameter bound more than once")
+-		}
+-		typ.index = i
+-	}
+-	return &TParamList{tparams: list}
+-}
+-
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 41dde0e469..cdc7ea9f51 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -204,7 +204,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		if t.targs != nil {
+ 			// instantiated type
+ 			buf.WriteByte('[')
+-			writeTypeList(buf, t.targs, qf, visited)
++			writeTypeList(buf, t.targs.list(), qf, visited)
+ 			buf.WriteByte(']')
+ 		} else if t.TParams().Len() != 0 {
+ 			// parameterized type
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 8f5b23ce39..1720646db9 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -426,13 +426,17 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		if y, ok := y.(*Named); ok {
+ 			x.expand(nil)
+ 			y.expand(nil)
++
++			xargs := x.targs.list()
++			yargs := y.targs.list()
++
+ 			// TODO(gri) This is not always correct: two types may have the same names
+ 			//           in the same package if one of them is nested in a function.
+ 			//           Extremely unlikely but we need an always correct solution.
+ 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
+-				assert(len(x.targs) == len(y.targs))
+-				for i, x := range x.targs {
+-					if !u.nify(x, y.targs[i], p) {
++				assert(len(xargs) == len(yargs))
++				for i, x := range xargs {
++					if !u.nify(x, yargs[i], p) {
+ 						return false
+ 					}
+ 				}

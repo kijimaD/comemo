@@ -26,10 +26,153 @@ Date:   Wed Oct 5 21:13:08 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.20.html          |  2 +-
  src/cmd/dist/notgo117.go |  4 ++--
  src/make.bash            | 14 ++++++++------
  src/make.bat             |  8 +++++---
  src/make.rc              |  7 ++++---
  5 files changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index abdc684d54..fbfd0b78d2 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -85,7 +85,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <h2 id="bootstrap">Bootstrap</h2>
+ 
+ <p><!-- https://go.dev/issue/44505 -->
+-  TODO: <a href="https://go.dev/issue/44505">https://go.dev/issue/44505</a>: adopt Go 1.17 as bootstrap toolchain for Go 1.20
++  TODO: <a href="https://go.dev/issue/44505">https://go.dev/issue/44505</a>: adopt Go 1.17.13 as bootstrap toolchain for Go 1.20
+ </p>
+ 
+ <h2 id="library">Core library</h2>
+diff --git a/src/cmd/dist/notgo117.go b/src/cmd/dist/notgo117.go
+index eb1c949b00..8d551df24b 100644
+--- a/src/cmd/dist/notgo117.go
++++ b/src/cmd/dist/notgo117.go
+@@ -8,7 +8,7 @@
+ //
+ // % GOROOT_BOOTSTRAP=$HOME/sdk/go1.16 ./make.bash
+ // Building Go cmd/dist using /Users/rsc/sdk/go1.16. (go1.16 darwin/amd64)
+-// found packages main (build.go) and building_Go_requires_Go_1_17_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
++// found packages main (build.go) and building_Go_requires_Go_1_17_13_or_later (notgo117.go) in /Users/rsc/go/src/cmd/dist
+ // %
+ //
+ // which is the best we can do under the circumstances.
+@@ -19,4 +19,4 @@
+ //go:build !go1.17
+ // +build !go1.17
+ 
+-package building_Go_requires_Go_1_17_or_later
++package building_Go_requires_Go_1_17_13_or_later
+diff --git a/src/make.bash b/src/make.bash
+index 4616502cec..c07f39bb40 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -67,13 +67,15 @@
+ # timing information to this file. Useful for profiling where the
+ # time goes when these scripts run.
+ #
+-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.17 for bootstrap.
++# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.17.13 for bootstrap.
+ # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
+-# tried for all "go" in $PATH. By default, one of $HOME/go1.17,
+-# $HOME/sdk/go1.17, or $HOME/go1.4, whichever exists, in that order.
++# tried for all "go" in $PATH. By default, one of $HOME/go1.17.13,
++# $HOME/sdk/go1.17.13, or $HOME/go1.4, whichever exists, in that order.
+ # We still check $HOME/go1.4 to allow for build scripts that still hard-code
+ # that name even though they put newer Go toolchains there.
+ 
++bootgo=1.17.13
++
+ set -e
+ 
+ if [ ! -f run.bash ]; then
+@@ -152,7 +154,7 @@ fi
+ goroot_bootstrap_set=${GOROOT_BOOTSTRAP+"true"}
+ if [ -z "$GOROOT_BOOTSTRAP" ]; then
+ 	GOROOT_BOOTSTRAP="$HOME/go1.4"
+-	for d in sdk/go1.17 go1.17; do
++	for d in sdk/go$bootgo go$bootgo; do
+ 		if [ -d "$HOME/$d" ]; then
+ 			GOROOT_BOOTSTRAP="$HOME/$d"
+ 		fi
+@@ -175,7 +177,7 @@ IFS=$'\n'; for go_exe in $(type -ap go); do
+ done; unset IFS
+ if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+ 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
+-	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17." >&2
++	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go $bootgo." >&2
+ 	exit 1
+ fi
+ # Get the exact bootstrap toolchain version to help with debugging.
+@@ -188,7 +190,7 @@ if $verbose; then
+ fi
+ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
+ 	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
+-	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17." >&2
++	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go $bootgo." >&2
+ 	exit 1
+ fi
+ rm -f cmd/dist/dist
+diff --git a/src/make.bat b/src/make.bat
+index f956dc2064..104fb485b4 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -80,8 +80,10 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
+ 		)
+ 	)
+ )
+-if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go1.17
+-if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go1.17" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go1.17
++
++set bootgo=1.17.13
++if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go%bootgo%
++if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%
+ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+ 
+ :bootstrapset
+@@ -147,7 +149,7 @@ goto end
+ 
+ :bootstrapfail
+ echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+-echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go 1.17.
++echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
+ 
+ :fail
+ set GOBUILDFAIL=1
+diff --git a/src/make.rc b/src/make.rc
+index 04f309b4c5..e17ee316ad 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -47,12 +47,13 @@ if(~ $1 -v) {
+ 	shift
+ }
+ 
++bootgo = 1.17.13
+ GOROOT = `{cd .. && pwd}
+ goroot_bootstrap_set = 'true'
+ if(! ~ $#GOROOT_BOOTSTRAP 1){
+ 	goroot_bootstrap_set = 'false'
+ 	GOROOT_BOOTSTRAP = $home/go1.4
+-	for(d in sdk/go1.17 go1.17)
++	for(d in sdk/go$bootgo go$bootgo)
+ 		if(test -d $home/$d)
+ 			GOROOT_BOOTSTRAP = $home/$d
+ }
+@@ -72,12 +73,12 @@ for(p in $path){
+ }
+ if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+ 	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
+-	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17.' >[1=2]
++	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go '$bootgo'.' >[1=2]
+ 	exit bootstrap
+ }
+ if(~ $GOROOT_BOOTSTRAP $GOROOT){
+ 	echo 'ERROR: $GOROOT_BOOTSTRAP must not be set to $GOROOT' >[1=2]
+-	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.17.' >[1=2]
++	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go '$bootgo'.' >[1=2]
+ 	exit bootstrap
+ }
+ 

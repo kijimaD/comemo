@@ -11,6 +11,36 @@ Date:   Thu Mar 10 12:29:31 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index fc97b9aea4..22566efa7d 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2073,7 +2073,6 @@ func (p *parser) xdcl_list() (l []*Node) {
+ 		defer p.trace("xdcl_list")()
+ 	}
+ 
+-loop:
+ 	for p.tok != EOF {
+ 		switch p.tok {
+ 		case LVAR, LCONST, LTYPE:
+@@ -2090,7 +2089,7 @@ loop:
+ 				p.syntax_error("non-declaration statement outside function body")
+ 			}
+ 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
+-			goto loop
++			continue
+ 		}
+ 
+ 		if nsyntaxerrors == 0 {
+@@ -2104,7 +2103,6 @@ loop:
+ 		if p.tok != EOF && !p.got(';') {
+ 			p.syntax_error("after top level declaration")
+ 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
+-			goto loop
+ 		}
+ 	}
+ 	return

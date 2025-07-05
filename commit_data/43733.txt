@@ -10,7 +10,69 @@ Date:   Fri Apr 17 10:23:07 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228777
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/x509.go      |  4 ++++
  src/crypto/x509/x509_test.go | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 6d03a129f8..ecf44071cf 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2100,6 +2100,10 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 		return nil, errors.New("x509: no SerialNumber given")
+ 	}
+ 
++	if template.BasicConstraintsValid && !template.IsCA && (template.MaxPathLen != 0 || template.MaxPathLenZero) {
++		return nil, errors.New("x509: only CAs are allowed to specify MaxPathLen")
++	}
++
+ 	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(key.Public(), template.SignatureAlgorithm)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index bbb1f8d4f1..05bade5a8f 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1645,6 +1645,41 @@ func serialiseAndParse(t *testing.T, template *Certificate) *Certificate {
+ 	return cert
+ }
+ 
++func TestMaxPathLenNotCA(t *testing.T) {
++	template := &Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			CommonName: "Σ Acme Co",
++		},
++		NotBefore: time.Unix(1000, 0),
++		NotAfter:  time.Unix(100000, 0),
++
++		BasicConstraintsValid: true,
++		IsCA:                  false,
++	}
++	cert := serialiseAndParse(t, template)
++	if m := cert.MaxPathLen; m != -1 {
++		t.Errorf("MaxPathLen should be -1 when IsCa is false, got %d", m)
++	}
++
++	template.MaxPathLen = 5
++	if _, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey); err == nil {
++		t.Error("specifying a MaxPathLen when IsCA is false should fail")
++	}
++
++	template.MaxPathLen = 0
++	template.MaxPathLenZero = true
++	if _, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey); err == nil {
++		t.Error("setting MaxPathLenZero when IsCA is false should fail")
++	}
++
++	template.BasicConstraintsValid = false
++	cert2 := serialiseAndParse(t, template)
++	if m := cert2.MaxPathLen; m != 0 {
++		t.Errorf("Bad MaxPathLen should be ignored if BasicConstraintsValid is false, got %d", m)
++	}
++}
++
+ func TestMaxPathLen(t *testing.T) {
+ 	template := &Certificate{
+ 		SerialNumber: big.NewInt(1),

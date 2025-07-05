@@ -14,8 +14,71 @@ Date:   Wed Mar 24 17:36:40 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/resolver_test.go                   |  6 +++++-
  src/go/parser/testdata/resolution/resolution.src |  4 +++-
  src/go/parser/testdata/resolution/typeparams.go2 | 24 ++++++++++++++++++++++++
  3 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/parser/resolver_test.go b/src/go/parser/resolver_test.go
+index 018214e437..9ae2844d73 100644
+--- a/src/go/parser/resolver_test.go
++++ b/src/go/parser/resolver_test.go
+@@ -39,7 +39,11 @@ func TestResolution(t *testing.T) {
+ 			fset := token.NewFileSet()
+ 			path := filepath.Join(dir, fi.Name())
+ 			src := readFile(path) // panics on failure
+-			file, err := ParseFile(fset, path, src, 0)
++			var mode Mode
++			if strings.HasSuffix(path, ".go2") {
++				mode = parseTypeParams
++			}
++			file, err := ParseFile(fset, path, src, mode)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+diff --git a/src/go/parser/testdata/resolution/resolution.src b/src/go/parser/testdata/resolution/resolution.src
+index e1ecdb5393..d76a83d9ed 100644
+--- a/src/go/parser/testdata/resolution/resolution.src
++++ b/src/go/parser/testdata/resolution/resolution.src
+@@ -19,7 +19,9 @@ const (
+ 	labelOk // =@labelOk
+ )
+ 
+-func _ /* =@blankFunc */ () {
++type T /* =@T */ int
++
++func _ /* =@blankFunc */ (count /* =@count */ T /* @T */) {
+ 	x /* =@x1 */ := c /* @cdecl */{}
+ 	switch x /* =@x2 */ := x /* @x1 */; x /* =@x3 */ := x /* @x2 */.(type) {
+ 	case c /* @cdecl */:
+diff --git a/src/go/parser/testdata/resolution/typeparams.go2 b/src/go/parser/testdata/resolution/typeparams.go2
+new file mode 100644
+index 0000000000..922f7790f5
+--- /dev/null
++++ b/src/go/parser/testdata/resolution/typeparams.go2
+@@ -0,0 +1,24 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package resolution
++
++type List /* =@List */ [E /* =@E */ any] []E // @E
++
++type Pair /* =@Pair */ [L /* =@L */, R /* =@R */ any] struct {
++	Left /* =@Left */ L // @L
++	Right /* =@Right */ R // @R
++}
++
++var _ /* =@blank */ = Pair /* @Pair */ [int, string]{}
++
++type Addable /* =@Addable */ interface {
++	type int64, float64
++}
++
++// TODO (#45221): resolve references to T in the signature below.
++func Add /* =@AddDecl */[T /* =@T */ Addable /* @Addable */](l /* =@l */, r /* =@r */ T) T {
++	var t /* =@t */ T /* @T */
++	return l /* @l */ + r /* @r */ + t /* @t */
++}

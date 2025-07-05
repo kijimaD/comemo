@@ -12,8 +12,48 @@ Date:   Mon Mar 29 18:22:15 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/mgcwork.go        | 2 +-
  src/runtime/proc.go           | 2 +-
  src/runtime/sys_windows_arm.s | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index b3a068661e..667c7afa97 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -398,7 +398,7 @@ func getempty() *workbuf {
+ }
+ 
+ // putempty puts a workbuf onto the work.empty list.
+-// Upon entry this go routine owns b. The lfstack.push relinquishes ownership.
++// Upon entry this goroutine owns b. The lfstack.push relinquishes ownership.
+ //go:nowritebarrier
+ func putempty(b *workbuf) {
+ 	b.checkempty()
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 89d36321a6..c2edb40948 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6231,7 +6231,7 @@ func doInit(t *initTask) {
+ 
+ 		if inittrace.active {
+ 			end := nanotime()
+-			// Load stats non-atomically since tracinit is updated only by this init go routine.
++			// Load stats non-atomically since tracinit is updated only by this init goroutine.
+ 			after := inittrace
+ 
+ 			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 275b827fcb..22c6d63bdd 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -157,7 +157,7 @@ g0:
+ 	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
+ 	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
+ 	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
+-	BL	(R7)		// Call the go routine
++	BL	(R7)		// Call the goroutine
+ 	MOVW	16(R13), R4	// Fetch return value from stack
+ 
+ 	// Save system stack pointer for sigresume setup below.

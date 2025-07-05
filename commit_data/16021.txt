@@ -13,8 +13,69 @@ Date:   Sat Mar 30 09:44:52 2013 -0700
     R=dave, golang-dev, lucio.dere, remyoudompheng, bradfitz
     CC=golang-dev
     https://golang.org/cl/8182043
-
+---
  src/cmd/gc/closure.c | 6 +++---
  src/cmd/gc/const.c   | 1 -
  src/cmd/ld/data.c    | 3 +--
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index aca30dc1cf..c1a9eb14cc 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -76,7 +76,7 @@ closurebody(NodeList *body)
+ 	return func;
+ }
+ 
+-static Node* makeclosure(Node *func, int nowrap);
++static Node* makeclosure(Node *func);
+ 
+ void
+ typecheckclosure(Node *func, int top)
+@@ -125,11 +125,11 @@ typecheckclosure(Node *func, int top)
+ 	}
+ 
+ 	// Create top-level function 
+-	xtop = list(xtop, makeclosure(func, func->cvars==nil || (top&Ecall)));
++	xtop = list(xtop, makeclosure(func));
+ }
+ 
+ static Node*
+-makeclosure(Node *func, int nowrap)
++makeclosure(Node *func)
+ {
+ 	Node *xtype, *v, *addr, *xfunc, *cv;
+ 	NodeList *l, *body;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index add438daf8..e9d99df18b 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1136,7 +1136,6 @@ defaultlit(Node **np, Type *t)
+ 
+ 	lno = setlineno(n);
+ 	ctype = idealkind(n);
+-	t1 = T;
+ 	switch(ctype) {
+ 	default:
+ 		if(t != T) {
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 9851a390a4..fa34aa3a12 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -650,7 +650,7 @@ datblk(int32 addr, int32 size)
+ 					break;
+ 				}
+ 				Bprint(&bso, "\treloc %.8ux/%d %s %s+%#llx [%#llx]\n",
+-					(uint)(sym->value+r->off), r->siz, typ, rsname, r->add, r->sym->value+r->add);
++					(uint)(sym->value+r->off), r->siz, typ, rsname, (vlong)r->add, (vlong)(r->sym->value+r->add));
+ 			}
+ 		}				
+ 	}
+@@ -1227,7 +1227,6 @@ dodata(void)
+ 
+ 	/* we finished segdata, begin segtext */
+ 	s = datap;
+-	datsize = 0;
+ 
+ 	/* read-only data */
+ 	sect = addsection(&segtext, ".rodata", 04);

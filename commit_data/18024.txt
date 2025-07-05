@@ -12,8 +12,62 @@ Date:   Tue Dec 17 14:18:58 2013 -0800
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/43580043
-
+---
  src/pkg/runtime/extern.go      | 3 +++
  src/pkg/runtime/malloc.goc     | 5 ++++-
  src/pkg/runtime/mfinal_test.go | 7 +++++++
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index c96dc10384..30fc34c0ba 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -160,6 +160,9 @@ func funcentry_go(*Func) uintptr
+ // to depend on a finalizer to flush an in-memory I/O buffer such as a
+ // bufio.Writer, because the buffer would not be flushed at program exit.
+ //
++// It is not guaranteed that a finalizer will run if the size of *x is
++// zero bytes.
++//
+ // A single goroutine runs all finalizers for a program, sequentially.
+ // If a finalizer must run for a long time, it should do so by starting
+ // a new goroutine.
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index cd124f0f71..b81fc398f0 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -760,12 +760,15 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
+ 		goto throw;
+ 	}
++	ot = (PtrType*)obj.type;
++	if(ot->elem != nil && ot->elem->size == 0) {
++		return;
++	}
+ 	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
+ 		runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
+ 		goto throw;
+ 	}
+ 	nret = 0;
+-	ot = (PtrType*)obj.type;
+ 	fint = nil;
+ 	if(finalizer.type != nil) {
+ 		if(finalizer.type->kind != KindFunc)
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+index 6efef9bb03..4a34cd61bd 100644
+--- a/src/pkg/runtime/mfinal_test.go
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -100,6 +100,13 @@ func TestFinalizerInterfaceBig(t *testing.T) {
+ func fin(v *int) {
+ }
+ 
++// Verify we don't crash at least. golang.org/issue/6857
++func TestFinalizerZeroSizedStruct(t *testing.T) {
++	type Z struct{}
++	z := new(Z)
++	runtime.SetFinalizer(z, func(*Z) {})
++}
++
+ func BenchmarkFinalizer(b *testing.B) {
+ 	const CallsPerSched = 1000
+ 	procs := runtime.GOMAXPROCS(-1)

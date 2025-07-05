@@ -7,6 +7,22 @@ Date:   Thu Mar 21 20:03:27 2013 -0700
     R=adonovan, cw, patrick.allen.higgins, bradfitz
     CC=golang-dev
     https://golang.org/cl/7844045
-
+---
  misc/emacs/go-mode.el | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 93e2a68673..9b6ea74f3a 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -537,7 +537,9 @@ buffer."
+     ;; output in case of success.
+     (if (zerop (call-process "gofmt" nil errbuf nil "-w" tmpfile))
+         (if (zerop (call-process-region (point-min) (point-max) "diff" nil patchbuf nil "-n" "-" tmpfile))
+-            (message "Buffer is already gofmted")
++            (progn
++              (kill-buffer errbuf)
++              (message "Buffer is already gofmted"))
+           (go--apply-rcs-patch patchbuf)
+           (kill-buffer errbuf)
+           (message "Applied gofmt"))

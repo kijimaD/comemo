@@ -11,6 +11,28 @@ Date:   Fri May 5 12:47:53 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/go/internal/gcimporter/gcimporter.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index f99f0f8bef..f3f90f2591 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -43,6 +43,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		}
+ 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
+ 		if bp.PkgObj == "" {
++			id = path // make sure we have an id to print in error message
+ 			return
+ 		}
+ 		noext = strings.TrimSuffix(bp.PkgObj, ".a")
+@@ -89,7 +90,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
+ 		if path == "unsafe" {
+ 			return types.Unsafe, nil
+ 		}
+-		err = fmt.Errorf("can't find import: %s", id)
++		err = fmt.Errorf("can't find import: %q", id)
+ 		return
+ 	}
+ 

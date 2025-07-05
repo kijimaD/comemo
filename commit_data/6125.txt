@@ -8,10 +8,83 @@ Date:   Mon Aug 30 09:58:27 2010 +1000
     R=golang-dev, adg1, adg
     CC=golang-dev
     https://golang.org/cl/2039043
-
+---
  doc/codereview_with_mq.html     | 6 +++---
  doc/gccgo_install.html          | 4 ++--
  doc/go_for_cpp_programmers.html | 2 +-
  doc/install.html                | 1 -
  doc/root.html                   | 2 +-
  5 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/doc/codereview_with_mq.html b/doc/codereview_with_mq.html
+index 7b2e0f3bf3..33f415f139 100644
+--- a/doc/codereview_with_mq.html
++++ b/doc/codereview_with_mq.html
+@@ -36,11 +36,11 @@ prevent that case:
+ <pre>
+ [hooks]
+ # Prevent "hg pull" if MQ patches are applied.
+-prechangegroup.mq-no-pull = ! hg qtop > /dev/null 2>&1
++prechangegroup.mq-no-pull = ! hg qtop > /dev/null 2>&amp;1
+ # Prevent "hg push" if MQ patches are applied.
+-preoutgoing.mq-no-push = ! hg qtop > /dev/null 2>&1
++preoutgoing.mq-no-push = ! hg qtop > /dev/null 2>&amp;1
+ # Prevent "hg update" if MQ patches are applied.
+-preupdate.mq-no-update = ! hg qtop > /dev/null 2>&1
++preupdate.mq-no-update = ! hg qtop > /dev/null 2>&amp;1
+ </pre>
+ 
+ <h2>Making a change</h2>
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index e4e471b76c..393e57963b 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -396,9 +396,9 @@ This procedure is full of unstated caveats and restrictions and we make no
+ guarantee that it will not change in the future. It is more useful as a
+ starting point for real Go code than as a regular procedure.
+ 
+-<h2 id="RTEMS Port">RTEMS Port</h2>
++<h2 id="RTEMS_Port">RTEMS Port</h2>
+ <p>
+-The <code>gccgo</code> compiler has been ported to <a href="http://www.rtems.com/"
++The <code>gccgo</code> compiler has been ported to <a href="http://www.rtems.com/">
+ <code>RTEMS</code></a>. <code>RTEMS</code> is a real-time executive
+ that provides a high performance environment for embedded applications
+ on a range of processors and embedded hardware. The current <code>gccgo</code>
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index a2291715ce..33e3412421 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -198,7 +198,7 @@ the <code>else</code>, causing a syntax error.
+ Since semicolons do end statements, you may continue using them as in
+ C++.  However, that is not the recommended style.  Idiomatic Go code
+ omits unnecessary semicolons, which in practice is all of them other
+-than the initial <for> loop clause and cases where you want several
++than the initial <code>for</code> loop clause and cases where you want several
+ short statements on a single line.
+ 
+ <p>
+diff --git a/doc/install.html b/doc/install.html
+index 05771260cd..25be700d66 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -293,7 +293,6 @@ to override the defaults.
+ 	<code>386</code> (32-bit x86), and
+ 	<code>arm</code> (32-bit ARM, an incomplete port).
+ 	The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+-	<p>
+ 	<table cellpadding="0">
+ 	<tr>
+ 	<th width="50"><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th> <th align="left"></th>
+diff --git a/doc/root.html b/doc/root.html
+index 168755f4f0..65869183cb 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -1,6 +1,6 @@
+ <!-- The Go Programming Language -->
+ 
+-<script>
++<script type="text/javascript">
+   // On the frontpage we hide the header and navigation elements that other
+   // pages have.
+   document.getElementById('generatedHeader').style.display = 'none';

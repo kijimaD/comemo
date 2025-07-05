@@ -8,9 +8,112 @@ Date:   Tue Mar 10 16:31:19 2009 -0700
     R=r
     OCL=26060
     CL=26060
-
+---
  usr/gri/pretty/compilation.go |  2 +-
  usr/gri/pretty/parser.go      | 24 +++++++++++++++++++++++-
  usr/gri/pretty/printer.go     |  6 +++++-
  usr/gri/pretty/untab.go       |  2 +-
  4 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index bec5d07031..4a90204783 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -123,7 +123,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	scanner.Init(src, &err, true);
+ 
+ 	var parser Parser.Parser;
+-	parser.Open(&scanner, &err, flags.Verbose);
++	parser.Init(&scanner, &err, flags.Verbose);
+ 
+ 	prog := parser.ParseProgram();
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index f71620b90f..4712996d97 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -2,6 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// A parser for Go source text. The input is a stream of lexical tokens
++// provided via the Scanner interface. The output is an abstract syntax
++// tree (AST) representing the Go source.
++//
++// A client may parse the entire program (ParseProgram), only the package
++// clause (ParsePackageClause), or the package clause and the import
++// declarations (ParseImportDecls). The resulting AST represents the part
++// of the program that is parsed.
++//
+ package Parser
+ 
+ import (
+@@ -12,16 +21,29 @@ import (
+ )
+ 
+ 
++// An implementation of an ErrorHandler must be provided to the Parser.
++// If a syntax error is encountered, Error is called with the exact
++// token position (the byte position of the token in the source) and the
++// error message.
++//
+ type ErrorHandler interface {
+ 	Error(pos int, msg string);
+ }
+ 
+ 
++// An implementation of a Scanner must be provided to the Parser.
++// The parser calls Scan repeatedly to get a sequential stream of
++// tokens. The source end is indicated by token.EOF.
++//
+ type Scanner interface {
+ 	Scan() (pos, tok int, lit []byte);
+ }
+ 
+ 
++// A Parser holds the parser's internal state while processing
++// a given text. It can be allocated as part of another data
++// structure but must be initialized via Init before use.
++//
+ type Parser struct {
+ 	scanner Scanner;
+ 	err ErrorHandler;
+@@ -125,7 +147,7 @@ func (P *Parser) next() {
+ }
+ 
+ 
+-func (P *Parser) Open(scanner Scanner, err ErrorHandler, trace bool) {
++func (P *Parser) Init(scanner Scanner, err ErrorHandler, trace bool) {
+ 	P.scanner = scanner;
+ 	P.err = err;
+ 
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 5a75483fb2..7bb0d1c6cc 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -1124,7 +1124,11 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
+ 	if *usetabs {
+ 		padchar = '\t';
+ 	}
+-	text := tabwriter.New(writer, *tabwidth, 1, padchar, true, html);
++	flags := uint(0);
++	if html {
++		flags |= tabwriter.FilterHTML;
++	}
++	text := tabwriter.NewWriter(writer, *tabwidth, 1, padchar, flags);
+ 	P.Init(text, html, prog.Comments);
+ 
+ 	if P.html {
+diff --git a/usr/gri/pretty/untab.go b/usr/gri/pretty/untab.go
+index 00f1306e6e..419264f4df 100644
+--- a/usr/gri/pretty/untab.go
++++ b/usr/gri/pretty/untab.go
+@@ -40,7 +40,7 @@ func main() {
+ 	if *usetabs {
+ 		padchar = '\t';
+ 	}
+-	dst := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, false);
++	dst := tabwriter.NewWriter(os.Stdout, *tabwidth, 1, padchar, 0);
+ 	if flag.NArg() > 0 {
+ 		for i := 0; i < flag.NArg(); i++ {
+ 			name := flag.Arg(i);

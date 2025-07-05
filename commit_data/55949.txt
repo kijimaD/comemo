@@ -26,10 +26,101 @@ Date:   Tue Mar 28 10:19:21 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ir/node.go      |  2 +-
  src/cmd/compile/internal/ssagen/ssa.go   |  5 ++++-
  src/cmd/compile/internal/walk/convert.go |  4 +++-
  src/cmd/compile/internal/walk/range.go   |  1 +
  test/fixedbugs/issue59293.go             | 28 ++++++++++++++++++++++++++++
  5 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index ad25b9ff32..bdc40a8e7c 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -292,7 +292,7 @@ const (
+ 	OEFACE         // itable and data words of an empty-interface value.
+ 	OITAB          // itable word of an interface value.
+ 	OIDATA         // data word of an interface value in X
+-	OSPTR          // base pointer of a slice or string.
++	OSPTR          // base pointer of a slice or string. Bounded==1 means known non-nil.
+ 	OCFUNC         // reference to c function pointer (not go func value)
+ 	OCHECKNIL      // emit code to ensure pointer/interface not nil
+ 	ORESULT        // result of a function call; Xoffset is stack offset
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e49ba5ee71..a37604963f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3199,7 +3199,10 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 		n := n.(*ir.UnaryExpr)
+ 		a := s.expr(n.X)
+ 		if n.X.Type().IsSlice() {
+-			return s.newValue1(ssa.OpSlicePtr, n.Type(), a)
++			if n.Bounded() {
++				return s.newValue1(ssa.OpSlicePtr, n.Type(), a)
++			}
++			return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), a)
+ 		} else {
+ 			return s.newValue1(ssa.OpStringPtr, n.Type(), a)
+ 		}
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 07ddd0458f..bfa0c5480f 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -281,7 +281,9 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 
+ 		// Copy from the static string data to the [n]byte.
+ 		if len(sc) > 0 {
+-			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewUnaryExpr(base.Pos, ir.OSPTR, s), t.PtrTo())))
++			sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
++			sptr.SetBounded(true)
++			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(sptr, t.PtrTo())))
+ 			appendWalkStmt(init, as)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index e20ffc2a61..1d757a62a5 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -193,6 +193,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// Pointer to current iteration position. Start on entry to the loop
+ 		// with the pointer in hu.
+ 		ptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, hs)
++		ptr.SetBounded(true)
+ 		huVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ptr)
+ 		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
+ 		hu := typecheck.Temp(types.Types[types.TUINTPTR])
+diff --git a/test/fixedbugs/issue59293.go b/test/fixedbugs/issue59293.go
+new file mode 100644
+index 0000000000..1f05fe9a7a
+--- /dev/null
++++ b/test/fixedbugs/issue59293.go
+@@ -0,0 +1,28 @@
++// run
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++//go:noinline
++func f(x []byte) bool {
++	return unsafe.SliceData(x) != nil
++}
++
++//go:noinline
++func g(x string) bool {
++	return unsafe.StringData(x) != nil
++}
++
++func main() {
++	if f(nil) {
++		panic("bad f")
++	}
++	if g("") {
++		panic("bad g")
++	}
++}

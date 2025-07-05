@@ -13,7 +13,7 @@ Date:   Wed Apr 3 07:41:26 2013 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/8267045
-
+---
  src/cmd/gofmt/gofmt_test.go            |  1 +
  src/cmd/gofmt/rewrite.go               |  4 ++--
  src/cmd/gofmt/testdata/rewrite8.golden | 10 ++++++++++
@@ -21,3 +21,137 @@ Date:   Wed Apr 3 07:41:26 2013 -0700
  src/pkg/go/parser/interface.go         | 29 ++++++++++++++++++++---------
  src/pkg/go/parser/parser_test.go       | 13 ++++++++++++-
  6 files changed, 55 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 8ff00a253a..75a322a6c8 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -84,6 +84,7 @@ var tests = []struct {
+ 	{"testdata/rewrite5.input", "-r=x+x->2*x"},
+ 	{"testdata/rewrite6.input", "-r=fun(x)->Fun(x)"},
+ 	{"testdata/rewrite7.input", "-r=fun(x...)->Fun(x)"},
++	{"testdata/rewrite8.input", "-r=interface{}->int"},
+ 	{"testdata/stdin*.input", "-stdin"},
+ 	{"testdata/comments.input", ""},
+ 	{"testdata/import.input", ""},
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 1aa1f6ed00..66d2331a5e 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -35,10 +35,10 @@ func initRewrite() {
+ // It might make sense to expand this to allow statement patterns,
+ // but there are problems with preserving formatting and also
+ // with what a wildcard for a statement looks like.
+-func parseExpr(s string, what string) ast.Expr {
++func parseExpr(s, what string) ast.Expr {
+ 	x, err := parser.ParseExpr(s)
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "parsing %s %s: %s\n", what, s, err)
++		fmt.Fprintf(os.Stderr, "parsing %s %s at %s\n", what, s, err)
+ 		os.Exit(2)
+ 	}
+ 	return x
+diff --git a/src/cmd/gofmt/testdata/rewrite8.golden b/src/cmd/gofmt/testdata/rewrite8.golden
+new file mode 100644
+index 0000000000..cfc452b031
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite8.golden
+@@ -0,0 +1,10 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that literal type expression rewrites are accepted.
++// Was issue 4406.
++
++package p
++
++type T int
+diff --git a/src/cmd/gofmt/testdata/rewrite8.input b/src/cmd/gofmt/testdata/rewrite8.input
+new file mode 100644
+index 0000000000..235efa91cc
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/rewrite8.input
+@@ -0,0 +1,10 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that literal type expression rewrites are accepted.
++// Was issue 4406.
++
++package p
++
++type T interface{}
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 39affdd6b9..149257ca6b 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -162,16 +162,27 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ }
+ 
+ // ParseExpr is a convenience function for obtaining the AST of an expression x.
+-// The position information recorded in the AST is undefined.
++// The position information recorded in the AST is undefined. The filename used
++// in error messages is the empty string.
+ //
+ func ParseExpr(x string) (ast.Expr, error) {
+-	// parse x within the context of a complete package for correct scopes;
+-	// use //line directive for correct positions in error messages and put
+-	// x alone on a separate line (handles line comments), followed by a ';'
+-	// to force an error if the expression is incomplete
+-	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+"\n;}", 0)
+-	if err != nil {
+-		return nil, err
++	var p parser
++	p.init(token.NewFileSet(), "", []byte(x), 0)
++
++	// Set up pkg-level scopes to avoid nil-pointer errors.
++	// This is not needed for a correct expression x as the
++	// parser will be ok with a nil topScope, but be cautious
++	// in case of an erroneous x.
++	p.openScope()
++	p.pkgScope = p.topScope
++	e := p.parseRhsOrType()
++	p.closeScope()
++	assert(p.topScope == nil, "unbalanced scopes")
++
++	if p.errors.Len() > 0 {
++		p.errors.Sort()
++		return nil, p.errors.Err()
+ 	}
+-	return file.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.AssignStmt).Rhs[0], nil
++
++	return e, nil
+ }
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 1960377b0a..48813d1061 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -68,7 +68,7 @@ func TestParseDir(t *testing.T) {
+ 
+ func TestParseExpr(t *testing.T) {
+ 	// just kicking the tires:
+-	// a valid expression
++	// a valid arithmetic expression
+ 	src := "a + b"
+ 	x, err := ParseExpr(src)
+ 	if err != nil {
+@@ -79,6 +79,17 @@ func TestParseExpr(t *testing.T) {
+ 		t.Errorf("ParseExpr(%s): got %T, expected *ast.BinaryExpr", src, x)
+ 	}
+ 
++	// a valid type expression
++	src = "struct{x *int}"
++	x, err = ParseExpr(src)
++	if err != nil {
++		t.Fatalf("ParseExpr(%s): %v", src, err)
++	}
++	// sanity check
++	if _, ok := x.(*ast.StructType); !ok {
++		t.Errorf("ParseExpr(%s): got %T, expected *ast.StructType", src, x)
++	}
++
+ 	// an invalid expression
+ 	src = "a + *"
+ 	_, err = ParseExpr(src)

@@ -7,8 +7,56 @@ Date:   Fri Apr 1 20:52:38 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4316051
-
+---
  src/cmd/gc/const.c | 1 -
  src/cmd/gc/subr.c  | 5 ++++-
  test/ddd1.go       | 2 +-
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 0cc26fc3b5..a36ec68c0a 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -136,7 +136,6 @@ convlit1(Node **np, Type *t, int explicit)
+ 	case CTNIL:
+ 		switch(et) {
+ 		default:
+-			yyerror("cannot use nil as %T", t);
+ 			n->type = T;
+ 			goto bad;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 26b9a40a29..b4c58d10d7 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2053,13 +2053,16 @@ Node*
+ assignconv(Node *n, Type *t, char *context)
+ {
+ 	int op;
+-	Node *r;
++	Node *r, *old;
+ 	char *why;
+ 	
+ 	if(n == N || n->type == T)
+ 		return n;
+ 
++	old = n;
++	old->diag++;  // silence errors about n; we'll issue one below
+ 	defaultlit(&n, t);
++	old->diag--;
+ 	if(t->etype == TBLANK)
+ 		return n;
+ 
+diff --git a/test/ddd1.go b/test/ddd1.go
+index ff6342843a..a0bc73814f 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -15,7 +15,7 @@ var (
+ 	_ = sum()
+ 	_ = sum(1.0, 2.0)
+ 	_ = sum(1.5)      // ERROR "integer"
+-	_ = sum("hello")  // ERROR "convert|incompatible"
++	_ = sum("hello")  // ERROR "string.*as type int|incompatible"
+ 	_ = sum([]int{1}) // ERROR "slice literal.*as type int|incompatible"
+ )
+ 

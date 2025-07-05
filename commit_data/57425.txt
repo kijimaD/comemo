@@ -12,6 +12,22 @@ Date:   Thu Aug 3 10:07:21 2023 +0200
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/time.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 26872b1c05..00c6d6423f 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -83,9 +83,7 @@
+ // and the underlying hardware.
+ // On Unix, the resolution is approximately 1ms.
+ // On Windows, the default resolution is approximately 16ms, but
+-// a lower resolution may be requested using [timeBeginPeriod].
+-//
+-// [timeBeginPeriod]: https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
++// a higher resolution may be requested using [golang.org/x/sys/windows.TimeBeginPeriod].
+ package time
+ 
+ import (

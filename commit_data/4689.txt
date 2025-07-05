@@ -7,7 +7,32 @@ Date:   Tue Jan 26 13:15:53 2010 -0800
     R=gri
     CC=golang-dev, icarus
     https://golang.org/cl/194090
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 704a09bda2..10453f2e08 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -30,6 +30,7 @@ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Google Inc.
+ Hector Chu <hectorchu@gmail.com>
++Icarus Sparry <golang@icarus.freeuk.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+ James Meneghello <rawrz0r@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f3b419066a..c961924a7b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -57,6 +57,7 @@ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Hector Chu <hectorchu@gmail.com>
+ Ian Lance Taylor <iant@golang.org>
++Icarus Sparry <golang@icarus.freeuk.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>

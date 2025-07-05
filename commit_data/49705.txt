@@ -15,6 +15,30 @@ Date:   Tue Sep 7 00:38:40 2021 -0700
     Trust: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index d50d8b3516..073373144d 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -398,10 +398,14 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		n := n.(*ir.IfStmt)
+ 		if ir.IsConst(n.Cond, constant.Bool) {
+ 			// This if and the condition cost nothing.
+-			// TODO(rsc): It seems strange that we visit the dead branch.
+-			return doList(n.Init(), v.do) ||
+-				doList(n.Body, v.do) ||
+-				doList(n.Else, v.do)
++			if doList(n.Init(), v.do) {
++				return true
++			}
++			if ir.BoolVal(n.Cond) {
++				return doList(n.Body, v.do)
++			} else {
++				return doList(n.Else, v.do)
++			}
+ 		}
+ 
+ 	case ir.ONAME:

@@ -18,7 +18,48 @@ Date:   Tue Mar 5 22:31:37 2019 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go      | 15 +++++++++++++++
  src/net/mail/message_test.go |  3 +++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 554377aa1d..e0907806ca 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -342,6 +342,21 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
+ 	}
+ 	// angle-addr = "<" addr-spec ">"
+ 	if !p.consume('<') {
++		atext := true
++		for _, r := range displayName {
++			if !isAtext(r, true, false) {
++				atext = false
++				break
++			}
++		}
++		if atext {
++			// The input is like "foo.bar"; it's possible the input
++			// meant to be "foo.bar@domain", or "foo.bar <...>".
++			return nil, errors.New("mail: missing '@' or angle-addr")
++		}
++		// The input is like "Full Name", which couldn't possibly be a
++		// valid email address if followed by "@domain"; the input
++		// likely meant to be "Full Name <...>".
+ 		return nil, errors.New("mail: no angle-addr")
+ 	}
+ 	spec, err = p.consumeAddrSpec()
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 14ac9192a4..2950bc4de9 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -144,6 +144,9 @@ func TestAddressParsingError(t *testing.T) {
+ 		12: {"root group: embed group: null@example.com;", "no angle-addr"},
+ 		13: {"group not closed: null@example.com", "expected comma"},
+ 		14: {"group: first@example.com, second@example.com;", "group with multiple addresses"},
++		15: {"john.doe", "missing '@' or angle-addr"},
++		16: {"john.doe@", "no angle-addr"},
++		17: {"John Doe@foo.bar", "no angle-addr"},
+ 	}
+ 
+ 	for i, tc := range mustErrTestCases {

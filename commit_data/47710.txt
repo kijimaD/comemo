@@ -11,7 +11,44 @@ Date:   Wed Apr 7 13:42:22 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/http/filetransport_test.go | 6 ++----
  src/net/http/fs_test.go            | 6 +-----
  2 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/filetransport_test.go b/src/net/http/filetransport_test.go
+index b58888dcb1..77fc8eeccf 100644
+--- a/src/net/http/filetransport_test.go
++++ b/src/net/http/filetransport_test.go
+@@ -23,12 +23,10 @@ func checker(t *testing.T) func(string, error) {
+ func TestFileTransport(t *testing.T) {
+ 	check := checker(t)
+ 
+-	dname, err := os.MkdirTemp("", "")
+-	check("TempDir", err)
++	dname := t.TempDir()
+ 	fname := filepath.Join(dname, "foo.txt")
+-	err = os.WriteFile(fname, []byte("Bar"), 0644)
++	err := os.WriteFile(fname, []byte("Bar"), 0644)
+ 	check("WriteFile", err)
+-	defer os.Remove(dname)
+ 	defer os.Remove(fname)
+ 
+ 	tr := &Transport{}
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 0ebb511b5c..1bf207e0f7 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -378,11 +378,7 @@ func mustRemoveAll(dir string) {
+ 
+ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+ 	defer afterTest(t)
+-	tempDir, err := os.MkdirTemp("", "")
+-	if err != nil {
+-		t.Fatalf("TempDir: %v", err)
+-	}
+-	defer mustRemoveAll(tempDir)
++	tempDir := t.TempDir()
+ 	if err := os.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
+ 		t.Fatalf("WriteFile: %v", err)
+ 	}

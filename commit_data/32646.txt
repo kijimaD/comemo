@@ -30,10 +30,421 @@ Date:   Thu Feb 2 14:51:15 2017 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go       |  26 ++++-
  src/cmd/compile/internal/ssa/regalloc.go |   6 +-
  src/cmd/compile/internal/ssa/value.go    |  16 ++-
  test/fixedbugs/issue18902.go             | 137 ++++++++++++++++++++++++++
  test/fixedbugs/issue18902b.go            | 161 +++++++++++++++++++++++++++++++
  5 files changed, 340 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7d53595c49..d3079a2c0e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4346,6 +4346,29 @@ func (s *SSAGenState) SetPos(pos src.XPos) {
+ 	s.pp.pos = pos
+ }
+ 
++// DebugFriendlySetPos sets the position subject to heuristics
++// that reduce "jumpy" line number churn when debugging.
++// Spill/fill/copy instructions from the register allocator,
++// phi functions, and instructions with a no-pos position
++// are examples of instructions that can cause churn.
++func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
++	// The two choices here are either to leave lineno unchanged,
++	// or to explicitly set it to src.NoXPos.  Leaving it unchanged
++	// (reusing the preceding line number) produces slightly better-
++	// looking assembly language output from the compiler, and is
++	// expected by some already-existing tests.
++	// The debug information appears to be the same in either case
++	switch v.Op {
++	case ssa.OpPhi, ssa.OpCopy, ssa.OpLoadReg, ssa.OpStoreReg:
++		// leave the position unchanged from beginning of block
++		// or previous line number.
++	default:
++		if v.Pos != src.NoXPos {
++			s.SetPos(v.Pos)
++		}
++	}
++}
++
+ // genssa appends entries to pp for each instruction in f.
+ func genssa(f *ssa.Func, pp *Progs) {
+ 	var s SSAGenState
+@@ -4381,8 +4404,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		thearch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+ 			x := s.pp.next
+-			s.SetPos(v.Pos)
+-
++			s.DebugFriendlySetPosFrom(v)
+ 			switch v.Op {
+ 			case ssa.OpInitMem:
+ 				// memory arg needs no code
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index e0c73f92d3..137e5fc4c2 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -468,7 +468,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos
+ 		c = s.curBlock.NewValue1(pos, OpCopy, v.Type, s.regs[r2].c)
+ 	} else if v.rematerializeable() {
+ 		// Rematerialize instead of loading from the spill location.
+-		c = v.copyInto(s.curBlock)
++		c = v.copyIntoNoXPos(s.curBlock)
+ 	} else {
+ 		// Load v from its spill location.
+ 		spill := s.makeSpill(v, s.curBlock)
+@@ -1949,13 +1949,13 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
+ 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
+ 		}
+ 		if dstReg {
+-			x = v.copyInto(e.p)
++			x = v.copyIntoNoXPos(e.p)
+ 		} else {
+ 			// Rematerialize into stack slot. Need a free
+ 			// register to accomplish this.
+ 			e.erase(loc) // see pre-clobber comment below
+ 			r := e.findRegFor(v.Type)
+-			x = v.copyInto(e.p)
++			x = v.copyIntoNoXPos(e.p)
+ 			e.set(r, vid, x, false, pos)
+ 			// Make sure we spill with the size of the slot, not the
+ 			// size of x (which might be wider due to our dropping
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 84634484ce..ba5780fb9d 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -212,7 +212,21 @@ func (v *Value) reset(op Op) {
+ 
+ // copyInto makes a new value identical to v and adds it to the end of b.
+ func (v *Value) copyInto(b *Block) *Value {
+-	c := b.NewValue0(v.Pos, v.Op, v.Type)
++	c := b.NewValue0(v.Pos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
++	c.Aux = v.Aux
++	c.AuxInt = v.AuxInt
++	c.AddArgs(v.Args...)
++	for _, a := range v.Args {
++		if a.Type.IsMemory() {
++			v.Fatalf("can't move a value with a memory arg %s", v.LongString())
++		}
++	}
++	return c
++}
++
++// copyInto makes a new value identical to v and adds it to the end of b.
++func (v *Value) copyIntoNoXPos(b *Block) *Value {
++	c := b.NewValue0(src.NoXPos, v.Op, v.Type) // Lose the position, this causes line number churn otherwise.
+ 	c.Aux = v.Aux
+ 	c.AuxInt = v.AuxInt
+ 	c.AddArgs(v.Args...)
+diff --git a/test/fixedbugs/issue18902.go b/test/fixedbugs/issue18902.go
+new file mode 100644
+index 0000000000..f5bca16a32
+--- /dev/null
++++ b/test/fixedbugs/issue18902.go
+@@ -0,0 +1,137 @@
++// run
++// +build !nacl
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Runs a build -S to capture the assembly language
++// output, checks that the line numbers associated with
++// the stream of instructions do not change "too much".
++// The changes that fixes this (that reduces the amount
++// of change) does so by treating register spill, reload,
++// copy, and rematerializations as being "unimportant" and
++// just assigns them the line numbers of whatever "real"
++// instructions preceded them.
++
++// nacl is excluded because this runs a compiler.
++
++package main
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"os"
++	"os/exec"
++	"strconv"
++	"strings"
++)
++
++// updateEnv modifies env to ensure that key=val
++func updateEnv(env *[]string, key, val string) {
++	if val != "" {
++		var found bool
++		key = key + "="
++		for i, kv := range *env {
++			if strings.HasPrefix(kv, key) {
++				(*env)[i] = key + val
++				found = true
++				break
++			}
++		}
++		if !found {
++			*env = append(*env, key+val)
++		}
++	}
++}
++
++func main() {
++	testarch := os.Getenv("TESTARCH")     // Targets other platform in test compilation.
++	debug := os.Getenv("TESTDEBUG") != "" // Output the relevant assembly language.
++
++	cmd := exec.Command("go", "build", "-gcflags", "-S", "fixedbugs/issue18902b.go")
++	var buf bytes.Buffer
++	cmd.Stdout = &buf
++	cmd.Stderr = &buf
++	cmd.Env = os.Environ()
++
++	updateEnv(&cmd.Env, "GOARCH", testarch)
++
++	err := cmd.Run()
++	if err != nil {
++		fmt.Printf("%s\n%s", err, buf.Bytes())
++		return
++	}
++	begin := "\"\".(*gcSortBuf).flush" // Text at beginning of relevant dissassembly.
++	s := buf.String()
++	i := strings.Index(s, begin)
++	if i < 0 {
++		fmt.Printf("Failed to find expected symbol %s in output\n%s\n", begin, s)
++		return
++	}
++	s = s[i:]
++	r := strings.NewReader(s)
++	scanner := bufio.NewScanner(r)
++	first := true                         // The first line after the begin text will be skipped
++	beforeLineNumber := "issue18902b.go:" // Text preceding line number in each line.
++	lbln := len(beforeLineNumber)
++
++	var scannedCount, changes, sumdiffs float64
++
++	prevVal := 0
++	for scanner.Scan() {
++		line := scanner.Text()
++		if first {
++			first = false
++			continue
++		}
++		i = strings.Index(line, beforeLineNumber)
++		if i < 0 {
++			// Done reading lines
++			if scannedCount < 200 { // When test was written, 251 lines observed on amd64
++				fmt.Printf("Scanned only %d lines, was expecting more than 200", scannedCount)
++				return
++			}
++			// Note: when test was written, before changes=92, after=50 (was 62 w/o rematerialization NoXPos in *Value.copyInto())
++			// and before sumdiffs=784, after=180 (was 446 w/o rematerialization NoXPos in *Value.copyInto())
++			// Set the dividing line between pass and fail at the midpoint.
++			// Normalize against instruction count in case we unroll loops, etc.
++			if changes/scannedCount >= (50+92)/(2*scannedCount) || sumdiffs/scannedCount >= (180+784)/(2*scannedCount) {
++				fmt.Printf("Line numbers change too much, # of changes=%.f, sumdiffs=%.f, # of instructions=%.f\n", changes, sumdiffs, scannedCount)
++			}
++			return
++		}
++		scannedCount++
++		i += lbln
++		lineVal, err := strconv.Atoi(line[i : i+3])
++		if err != nil {
++			fmt.Printf("Expected 3-digit line number after %s in %s\n", beforeLineNumber, line)
++		}
++		if prevVal == 0 {
++			prevVal = lineVal
++		}
++		diff := lineVal - prevVal
++		if diff < 0 {
++			diff = -diff
++		}
++		if diff != 0 {
++			changes++
++			sumdiffs += float64(diff)
++		}
++		// If things change too much, set environment variable TESTDEBUG to help figure out what's up.
++		// The "before" behavior can be recreated in DebugFriendlySetPosFrom (currently in gc/ssa.go)
++		// by inserting unconditional
++		//   	s.SetPos(v.Pos)
++		// at the top of the function.
++
++		if debug {
++			fmt.Printf("%d %.f %.f %s\n", lineVal, changes, sumdiffs, line)
++		}
++		prevVal = lineVal
++	}
++	if err := scanner.Err(); err != nil {
++		fmt.Println("Reading standard input:", err)
++		return
++	}
++}
+diff --git a/test/fixedbugs/issue18902b.go b/test/fixedbugs/issue18902b.go
+new file mode 100644
+index 0000000000..2e43e9f320
+--- /dev/null
++++ b/test/fixedbugs/issue18902b.go
+@@ -0,0 +1,161 @@
++// skip
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++import (
++	"unsafe"
++)
++
++type gcMaxTreeNodeVal uint64
++
++var work struct {
++	full         uint64    // lock-free list of full blocks workbuf
++	empty        uint64    // lock-free list of empty blocks workbuf
++	pad0         [64]uint8 // prevents false-sharing between full/empty and nproc/nwait
++	bytesMarked  uint64
++	markrootNext uint32 // next markroot job
++	markrootJobs uint32 // number of markroot jobs
++	nproc        uint32
++	tstart       int64
++	nwait        uint32
++	ndone        uint32
++}
++
++type gcShardQueue1 struct {
++	partial *workbuf
++	full    *workbuf
++	n       uintptr
++	maxTree gcMaxTreeNodeVal
++}
++type gcShardQueue struct {
++	gcShardQueue1
++	pad [64 - unsafe.Sizeof(gcShardQueue1{})]byte
++}
++
++const gcSortBufPointers = (64 << 10) / 8
++
++type gcSortBuf struct {
++	buf *gcSortArray
++	tmp *gcSortArray
++	n   uintptr
++}
++
++//go:notinheap
++type gcSortArray [gcSortBufPointers]uintptr
++
++const (
++	_DebugGC             = 0
++	_ConcurrentSweep     = true
++	_FinBlockSize        = 4 * 1024
++	sweepMinHeapDistance = 1024 * 1024
++	gcShardShift         = 2 + 20
++	gcShardBytes         = 1 << gcShardShift
++)
++
++//go:notinheap
++type mheap struct {
++	shardQueues       []gcShardQueue
++	_                 uint32     // align uint64 fields on 32-bit for atomics
++	pagesInUse        uint64     // pages of spans in stats _MSpanInUse; R/W with mheap.lock
++	spanBytesAlloc    uint64     // bytes of spans allocated this cycle; updated atomically
++	pagesSwept        uint64     // pages swept this cycle; updated atomically
++	sweepPagesPerByte float64    // proportional sweep ratio; written with lock, read without
++	largefree         uint64     // bytes freed for large objects (>maxsmallsize)
++	nlargefree        uint64     // number of frees for large objects (>maxsmallsize)
++	nsmallfree        [67]uint64 // number of frees for small objects (<=maxsmallsize)
++	bitmap            uintptr    // Points to one byte past the end of the bitmap
++	bitmap_mapped     uintptr
++	arena_start       uintptr
++	arena_used        uintptr // always mHeap_Map{Bits,Spans} before updating
++	arena_end         uintptr
++	arena_reserved    bool
++}
++
++var mheap_ mheap
++
++type lfnode struct {
++	next    uint64
++	pushcnt uintptr
++}
++type workbufhdr struct {
++	node lfnode // must be first
++	next *workbuf
++	nobj int
++}
++
++//go:notinheap
++type workbuf struct {
++	workbufhdr
++	obj [(2048 - unsafe.Sizeof(workbufhdr{})) / 8]uintptr
++}
++
++//go:noinline
++func (b *workbuf) checkempty() {
++	if b.nobj != 0 {
++		b.nobj = 0
++	}
++}
++func putempty(b *workbuf) {
++	b.checkempty()
++	lfstackpush(&work.empty, &b.node)
++}
++
++//go:noinline
++func lfstackpush(head *uint64, node *lfnode) {
++}
++
++//go:noinline
++func (q *gcShardQueue) add(qidx uintptr, ptrs []uintptr, spare *workbuf) *workbuf {
++	return spare
++}
++
++func (b *gcSortBuf) flush() {
++	if b.n == 0 {
++		return
++	}
++	const sortDigitBits = 11
++	buf, tmp := b.buf[:b.n], b.tmp[:b.n]
++	moreBits := true
++	for shift := uint(gcShardShift); moreBits; shift += sortDigitBits {
++		const k = 1 << sortDigitBits
++		var pos [k]uint16
++		nshift := shift + sortDigitBits
++		nbits := buf[0] >> nshift
++		moreBits = false
++		for _, v := range buf {
++			pos[(v>>shift)%k]++
++			moreBits = moreBits || v>>nshift != nbits
++		}
++		var sum uint16
++		for i, count := range &pos {
++			pos[i] = sum
++			sum += count
++		}
++		for _, v := range buf {
++			digit := (v >> shift) % k
++			tmp[pos[digit]] = v
++			pos[digit]++
++		}
++		buf, tmp = tmp, buf
++	}
++	start := mheap_.arena_start
++	i0 := 0
++	shard0 := (buf[0] - start) / gcShardBytes
++	var spare *workbuf
++	for i, p := range buf {
++		shard := (p - start) / gcShardBytes
++		if shard != shard0 {
++			spare = mheap_.shardQueues[shard0].add(shard0, buf[i0:i], spare)
++			i0, shard0 = i, shard
++		}
++	}
++	spare = mheap_.shardQueues[shard0].add(shard0, buf[i0:], spare)
++	b.n = 0
++	if spare != nil {
++		putempty(spare)
++	}
++}

@@ -12,6 +12,21 @@ Date:   Mon Apr 15 02:11:58 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index bc1a4cf9f7..d4db9df285 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -84,8 +84,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	defer resp.Body.Close()
+ 	if resp.StatusCode != http.StatusOK {
+-		defer resp.Body.Close()
+ 		return nil, statusCodeError(resp)
+ 	}
+ 	return profile.Parse(resp.Body)

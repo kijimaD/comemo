@@ -11,6 +11,21 @@ Date:   Thu Jan 23 16:14:40 2020 +0000
     GitHub-Pull-Request: golang/go#36584
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214980
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index b531cb4760..9beb5d9a48 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -792,6 +792,9 @@ func skip(value, prefix string) (string, error) {
+ // Years must be in the range 0000..9999. The day of the week is checked
+ // for syntax but it is otherwise ignored.
+ //
++// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
++// as 19NN and a value NN < 69 will be treated as 20NN.
++//
+ // In the absence of a time zone indicator, Parse returns a time in UTC.
+ //
+ // When parsing a time with a zone offset like -0700, if the offset corresponds

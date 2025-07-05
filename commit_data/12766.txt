@@ -9,7 +9,58 @@ Date:   Tue Mar 27 12:56:56 2012 +1100
     R=golang-dev, aram, r, rsc
     CC=golang-dev
     https://golang.org/cl/5918043
-
+---
  src/pkg/path/filepath/path_test.go       | 23 +++++++++++++++++++++++
  src/pkg/path/filepath/symlink_windows.go | 10 +++++++++-
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 2aba553d23..b8766588cf 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -846,3 +846,26 @@ func TestVolumeName(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDriveLetterInEvalSymlinks(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		return
++	}
++	wd, _ := os.Getwd()
++	if len(wd) < 3 {
++		t.Errorf("Current directory path %q is too short", wd)
++	}
++	lp := strings.ToLower(wd)
++	up := strings.ToUpper(wd)
++	flp, err := filepath.EvalSymlinks(lp)
++	if err != nil {
++		t.Fatalf("EvalSymlinks(%q) failed: %q", lp, err)
++	}
++	fup, err := filepath.EvalSymlinks(up)
++	if err != nil {
++		t.Fatalf("EvalSymlinks(%q) failed: %q", up, err)
++	}
++	if flp != fup {
++		t.Errorf("Results of EvalSymlinks do not match: %q and %q", flp, fup)
++	}
++}
+diff --git a/src/pkg/path/filepath/symlink_windows.go b/src/pkg/path/filepath/symlink_windows.go
+index afa88bfe87..2d4257720e 100644
+--- a/src/pkg/path/filepath/symlink_windows.go
++++ b/src/pkg/path/filepath/symlink_windows.go
+@@ -23,5 +23,13 @@ func evalSymlinks(path string) (string, error) {
+ 		}
+ 	}
+ 	b = b[:n]
+-	return Clean(syscall.UTF16ToString(b)), nil
++	s := syscall.UTF16ToString(b)
++	// syscall.GetLongPathName does not change the case of the drive letter,
++	// but the result of EvalSymlinks must be unique, so we have
++	// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
++	// Make drive letter upper case. This matches what os.Getwd returns.
++	if len(s) >= 2 && s[1] == ':' && 'a' <= s[0] && s[0] <= 'z' {
++		s = string(s[0]+'A'-'a') + s[1:]
++	}
++	return Clean(s), nil
+ }

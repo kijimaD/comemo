@@ -11,6 +11,33 @@ Date:   Thu Feb 22 22:03:50 2024 +0100
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/cgo_unix.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 82ec4441fc..0f62fdeb11 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -14,6 +14,7 @@ package net
+ import (
+ 	"context"
+ 	"errors"
++	"internal/bytealg"
+ 	"net/netip"
+ 	"syscall"
+ 	"unsafe"
+@@ -287,11 +288,8 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
+ 		}
+ 		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary, IsNotFound: isErrorNoSuchHost}
+ 	}
+-	for i := 0; i < len(b); i++ {
+-		if b[i] == 0 {
+-			b = b[:i]
+-			break
+-		}
++	if i := bytealg.IndexByte(b, 0); i != -1 {
++		b = b[:i]
+ 	}
+ 	return []string{absDomainName(string(b))}, nil
+ }

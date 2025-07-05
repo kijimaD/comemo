@@ -10,6 +10,35 @@ Date:   Thu Mar 25 14:46:15 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/270000
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Trust: Cherry Zhang <cherryyz@google.com>
-
+---
  src/database/sql/fakedb_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 1bfd1118aa..72e16e05b1 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -915,7 +915,7 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
+ 				parentMem: s.c,
+ 				posRow:    -1,
+ 				rows: [][]*row{
+-					[]*row{
++					{
+ 						{
+ 							cols: []interface{}{
+ 								txStatus,
+@@ -924,12 +924,12 @@ func (s *fakeStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (
+ 					},
+ 				},
+ 				cols: [][]string{
+-					[]string{
++					{
+ 						"tx_status",
+ 					},
+ 				},
+ 				colType: [][]string{
+-					[]string{
++					{
+ 						"string",
+ 					},
+ 				},

@@ -16,6 +16,24 @@ Date:   Thu Jun 21 16:56:13 2018 -0400
     Change-Id: I52d7bd4717ffae94a821f4249585f3eb6cd5aa41
     Reviewed-on: https://go-review.googlesource.com/120416
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/panic.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 9ba7e1063f..ce367cfa70 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -716,6 +716,12 @@ func startpanic_m() bool {
+ 	// happen (even if we're not in one of these situations).
+ 	_g_.m.mallocing++
+ 
++	// If we're dying because of a bad lock count, set it to a
++	// good lock count so we don't recursively panic below.
++	if _g_.m.locks < 0 {
++		_g_.m.locks = 1
++	}
++
+ 	switch _g_.m.dying {
+ 	case 0:
+ 		_g_.m.dying = 1

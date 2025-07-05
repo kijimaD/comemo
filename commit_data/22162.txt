@@ -16,6 +16,41 @@ Date:   Wed Feb 11 19:11:32 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/4553
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/proc1.go | 22 +++++++++++++++-------
  1 file changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 7b0d7fd497..17be698c67 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1237,14 +1237,22 @@ top:
+ 		}
+ 	}
+ 
+-	// poll network - returns list of goroutines
+-	if gp := netpoll(false); gp != nil { // non-blocking
+-		injectglist(gp.schedlink)
+-		casgstatus(gp, _Gwaiting, _Grunnable)
+-		if trace.enabled {
+-			traceGoUnpark(gp)
++	// Poll network.
++	// This netpoll is only an optimization before we resort to stealing.
++	// We can safely skip it if there a thread blocked in netpoll already.
++	// If there is any kind of logical race with that blocked thread
++	// (e.g. it has already returned from netpoll, but does not set lastpoll yet),
++	// this thread will do blocking netpoll below anyway.
++	if netpollinited() && sched.lastpoll != 0 {
++		if gp := netpoll(false); gp != nil { // non-blocking
++			// netpoll returns list of goroutines linked by schedlink.
++			injectglist(gp.schedlink)
++			casgstatus(gp, _Gwaiting, _Grunnable)
++			if trace.enabled {
++				traceGoUnpark(gp)
++			}
++			return gp
+ 		}
+-		return gp
+ 	}
+ 
+ 	// If number of spinning M's >= number of busy P's, block.

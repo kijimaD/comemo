@@ -9,6 +9,21 @@ Date:   Tue Sep 15 14:04:35 2015 -0700
     Change-Id: Iee96dc4f806a38f3cd8e065b8d0d5f682bb7e29b
     Reviewed-on: https://go-review.googlesource.com/14597
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3413c8c1ec..abd6308774 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1839,6 +1839,9 @@ func TestIssue6480(t *testing.T) {
+ 
+ // cmd/cgo: undefined reference when linking a C-library using gccgo
+ func TestIssue7573(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
+ 	if _, err := exec.LookPath("gccgo"); err != nil {
+ 		t.Skip("skipping because no gccgo compiler found")
+ 	}

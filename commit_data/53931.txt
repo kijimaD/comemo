@@ -11,8 +11,149 @@ Date:   Sun Sep 4 19:04:44 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/pprof/pprof.go      |  3 +--
  src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
  src/runtime/pprof/proto_test.go |  2 +-
  3 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index f0b25c131f..3a7191e092 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -74,7 +74,6 @@ package pprof
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"fmt"
+ 	"internal/abi"
+ 	"io"
+@@ -402,7 +401,7 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
+ // The profile will be in compressed proto format unless debug is nonzero.
+ func printCountProfile(w io.Writer, debug int, name string, p countProfile) error {
+ 	// Build count of each stack.
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	key := func(stk []uintptr, lbls *labelMap) string {
+ 		buf.Reset()
+ 		fmt.Fprintf(&buf, "@")
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 31a4024be8..79febc4285 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -528,7 +528,7 @@ func profileOk(t *testing.T, matches profileMatchFunc, prof bytes.Buffer, durati
+ 	ok = true
+ 
+ 	var samples uintptr
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	p := parseProfile(t, prof.Bytes(), func(count uintptr, stk []*profile.Location, labels map[string][]string) {
+ 		fmt.Fprintf(&buf, "%d:", count)
+ 		fprintStack(&buf, stk)
+@@ -718,7 +718,7 @@ func TestGoroutineSwitch(t *testing.T) {
+ 			// The place we'd see it would be the inner most frame.
+ 			name := stk[0].Line[0].Function.Name
+ 			if name == "gogo" {
+-				var buf bytes.Buffer
++				var buf strings.Builder
+ 				fprintStack(&buf, stk)
+ 				t.Fatalf("found profile entry for gogo:\n%s", buf.String())
+ 			}
+@@ -922,7 +922,7 @@ func TestBlockProfile(t *testing.T) {
+ 	}
+ 
+ 	t.Run("debug=1", func(t *testing.T) {
+-		var w bytes.Buffer
++		var w strings.Builder
+ 		Lookup("block").WriteTo(&w, 1)
+ 		prof := w.String()
+ 
+@@ -1194,7 +1194,7 @@ func TestMutexProfile(t *testing.T) {
+ 	blockMutex(t)
+ 
+ 	t.Run("debug=1", func(t *testing.T) {
+-		var w bytes.Buffer
++		var w strings.Builder
+ 		Lookup("mutex").WriteTo(&w, 1)
+ 		prof := w.String()
+ 		t.Logf("received profile: %v", prof)
+@@ -1417,7 +1417,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 				go func() {
+ 					defer wg.Done()
+ 					for ctx.Err() == nil {
+-						var w bytes.Buffer
++						var w strings.Builder
+ 						goroutineProf.WriteTo(&w, 1)
+ 						prof := w.String()
+ 						count := profilerCalls(prof)
+@@ -1435,7 +1435,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 	// The finalizer goroutine should not show up in most profiles, since it's
+ 	// marked as a system goroutine when idle.
+ 	t.Run("finalizer not present", func(t *testing.T) {
+-		var w bytes.Buffer
++		var w strings.Builder
+ 		goroutineProf.WriteTo(&w, 1)
+ 		prof := w.String()
+ 		if includesFinalizer(prof) {
+@@ -1463,7 +1463,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 				runtime.GC()
+ 			}
+ 		}
+-		var w bytes.Buffer
++		var w strings.Builder
+ 		goroutineProf.WriteTo(&w, 1)
+ 		prof := w.String()
+ 		if !includesFinalizer(prof) {
+@@ -1677,7 +1677,7 @@ func TestEmptyCallStack(t *testing.T) {
+ 	emptyCallStackTestRun++
+ 
+ 	t.Parallel()
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	p := NewProfile(name)
+ 
+ 	p.Add("foo", 47674)
+@@ -1757,7 +1757,7 @@ func TestGoroutineProfileLabelRace(t *testing.T) {
+ 		go func() {
+ 			goroutineProf := Lookup("goroutine")
+ 			for ctx.Err() == nil {
+-				var w bytes.Buffer
++				var w strings.Builder
+ 				goroutineProf.WriteTo(&w, 1)
+ 				prof := w.String()
+ 				if strings.Contains(prof, "loop-i") {
+@@ -1870,17 +1870,17 @@ func TestLabelSystemstack(t *testing.T) {
+ 			mayBeLabeled = false
+ 		}
+ 		if mustBeLabeled && !isLabeled {
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			fprintStack(&buf, s.Location)
+ 			t.Errorf("Sample labeled got false want true: %s", buf.String())
+ 		}
+ 		if mustNotBeLabeled && isLabeled {
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			fprintStack(&buf, s.Location)
+ 			t.Errorf("Sample labeled got true want false: %s", buf.String())
+ 		}
+ 		if isLabeled && !(mayBeLabeled || mustBeLabeled) {
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			fprintStack(&buf, s.Location)
+ 			t.Errorf("Sample labeled got true want false: %s", buf.String())
+ 		}
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 797c6502b4..780b481de8 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -315,7 +315,7 @@ func TestProcSelfMaps(t *testing.T) {
+ 			if len(out) > 0 && out[len(out)-1] != '\n' {
+ 				out += "\n"
+ 			}
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			parseProcSelfMaps([]byte(in), func(lo, hi, offset uint64, file, buildID string) {
+ 				fmt.Fprintf(&buf, "%08x %08x %08x %s\n", lo, hi, offset, file)
+ 			})

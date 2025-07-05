@@ -51,7 +51,107 @@ Date:   Thu Mar 23 15:50:21 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 11 +++++------
  test/closure3.dir/main.go              | 26 +++++++++++++++-----------
  2 files changed, 20 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 80be841efa..b8f3f9baee 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -446,6 +446,8 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
+ 	return false
+ }
+ 
++// doNode visits n and its children, updates the state in v, and returns true if
++// n makes the current function too hairy for inlining.
+ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 	if n == nil {
+ 		return false
+@@ -577,13 +579,10 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 		// TODO(danscales): Maybe make budget proportional to number of closure
+ 		// variables, e.g.:
+ 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
++		// TODO(austin): However, if we're able to inline this closure into
++		// v.curFunc, then we actually pay nothing for the closure captures. We
++		// should try to account for that if we're going to account for captures.
+ 		v.budget -= 15
+-		// Scan body of closure (which DoChildren doesn't automatically
+-		// do) to check for disallowed ops in the body and include the
+-		// body in the budget.
+-		if doList(n.(*ir.ClosureExpr).Func.Body, v.do) {
+-			return true
+-		}
+ 
+ 	case ir.OGO,
+ 		ir.ODEFER,
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 4d02a4d10e..04a669206e 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -232,15 +232,15 @@ func main() {
+ 
+ 	{
+ 		c := 3
+-		func() { // ERROR "func literal does not escape"
++		func() { // ERROR "can inline main.func26"
+ 			c = 4
+-			func() { // ERROR "func literal does not escape"
++			func() {
+ 				if c != 4 {
+ 					ppanic("c != 4")
+ 				}
+ 				recover() // prevent inlining
+ 			}()
+-		}()
++		}() // ERROR "inlining call to main.func26" "func literal does not escape"
+ 		if c != 4 {
+ 			ppanic("c != 4")
+ 		}
+@@ -248,33 +248,37 @@ func main() {
+ 
+ 	{
+ 		a := 2
+-		if r := func(x int) int { // ERROR "func literal does not escape"
++		// This has an unfortunate exponential growth, where as we visit each
++		// function, we inline the inner closure, and that constructs a new
++		// function for any closures inside the inner function, and then we
++		// revisit those. E.g., func34 and func36 are constructed by the inliner.
++		if r := func(x int) int { // ERROR "can inline main.func27"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func27.1"
++			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.func34"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2" "can inline main.func34.1" "can inline main.func36"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+ 			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.(func)?2"
+-		}(1000); r != 2350 {
++		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.func34" "inlining call to main.func36"
+ 			ppanic("r != 2350")
+ 		}
+ 	}
+ 
+ 	{
+ 		a := 2
+-		if r := func(x int) int { // ERROR "func literal does not escape"
++		if r := func(x int) int { // ERROR "can inline main.func28"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func28.1"
++			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.func35"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2" "can inline main.func35.1" "can inline main.func37"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+ 			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.(func)?2"
+-		}(1000); r != 2350 {
++		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.func35" "inlining call to main.func37"
+ 			ppanic("r != 2350")
+ 		}
+ 		if a != 2000 {

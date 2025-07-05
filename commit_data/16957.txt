@@ -9,7 +9,79 @@ Date:   Wed Jul 31 14:11:25 2013 -0700
     R=golang-dev, bradfitz, gri
     CC=golang-dev
     https://golang.org/cl/12021044
-
+---
  src/pkg/container/list/list.go      | 18 ++++++++++++++++++
  src/pkg/container/list/list_test.go | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 52 insertions(+)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 20d612ef9a..53e839ed65 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -179,6 +179,24 @@ func (l *List) MoveToBack(e *Element) {
+ 	l.insert(l.remove(e), l.root.prev)
+ }
+ 
++// MoveBefore moves element e to its new position before mark.
++// If e is not an element of l, or e == mark, the list is not modified.
++func (l *List) MoveBefore(e, mark *Element) {
++	if e.list != l || e == mark {
++		return
++	}
++	l.insert(l.remove(e), mark.prev)
++}
++
++// MoveAfter moves element e to its new position after mark.
++// If e is not an element of l, or e == mark, the list is not modified.
++func (l *List) MoveAfter(e, mark *Element) {
++	if e.list != l || e == mark {
++		return
++	}
++	l.insert(l.remove(e), mark)
++}
++
+ // PushBackList inserts a copy of an other list at the back of list l.
+ // The lists l and other may be the same.
+ func (l *List) PushBackList(other *List) {
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index b4fc77d140..33f060c7f5 100644
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -233,3 +233,37 @@ func TestIssue4103(t *testing.T) {
+ 		t.Errorf("l1.Len() = %d, want 3", n)
+ 	}
+ }
++
++func TestMove(t *testing.T) {
++	l := New()
++	e1 := l.PushBack(1)
++	e2 := l.PushBack(2)
++	e3 := l.PushBack(3)
++	e4 := l.PushBack(4)
++
++	l.MoveAfter(e3, e3)
++	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
++	l.MoveBefore(e2, e2)
++	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
++
++	l.MoveAfter(e3, e2)
++	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
++	l.MoveBefore(e2, e3)
++	checkListPointers(t, l, []*Element{e1, e2, e3, e4})
++
++	l.MoveBefore(e2, e4)
++	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
++	e1, e2, e3, e4 = e1, e3, e2, e4
++
++	l.MoveBefore(e4, e1)
++	checkListPointers(t, l, []*Element{e4, e1, e2, e3})
++	e1, e2, e3, e4 = e4, e1, e2, e3
++
++	l.MoveAfter(e4, e1)
++	checkListPointers(t, l, []*Element{e1, e4, e2, e3})
++	e1, e2, e3, e4 = e1, e4, e2, e3
++
++	l.MoveAfter(e2, e3)
++	checkListPointers(t, l, []*Element{e1, e3, e2, e4})
++	e1, e2, e3, e4 = e1, e3, e2, e4
++}

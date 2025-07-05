@@ -11,8 +11,69 @@ Date:   Wed Feb 26 13:04:39 2014 +1100
     R=r, josharian
     CC=golang-codereviews
     https://golang.org/cl/68890043
-
+---
  doc/go1.3.txt      |  2 +-
  src/cmd/go/pkg.go  | 23 +++++++++++------------
  src/cmd/go/tool.go |  2 +-
  3 files changed, 13 insertions(+), 14 deletions(-)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index c2f26c42a0..bfcf769cf6 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -5,7 +5,7 @@ runtime: output how long goroutines are blocked (CL 50420043)
+ syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)
+ testing: diagnose buggy tests that panic(nil) (CL 55780043)
+ testing: add b.RunParallel function (CL 57270043)
+-misc/benchcmp has been replaced by go tool benchcmp (CL 47980043)
++misc/benchcmp: removed and replaced by go.tools/cmd/benchcmp (CL 47980043)
+ cmd/go, go/build: support .m files (CL 60590044)
+ unicode: upgrade from Unicode 6.2.0 to 6.3.0 (CL 65400044)
+ runtime/debug: add SetPanicOnFault (CL 66590044)
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 191d04c233..0964008dd8 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -307,18 +307,17 @@ const (
+ 
+ // goTools is a map of Go program import path to install target directory.
+ var goTools = map[string]targetDir{
+-	"cmd/addr2line": toTool,
+-	"cmd/api":       toTool,
+-	"cmd/cgo":       toTool,
+-	"cmd/fix":       toTool,
+-	"cmd/link":      toTool,
+-	"cmd/nm":        toTool,
+-	"cmd/pack":      toTool,
+-	"cmd/yacc":      toTool,
+-	"code.google.com/p/go.tools/cmd/benchcmp": toTool,
+-	"code.google.com/p/go.tools/cmd/cover":    toTool,
+-	"code.google.com/p/go.tools/cmd/godoc":    toBin,
+-	"code.google.com/p/go.tools/cmd/vet":      toTool,
++	"cmd/addr2line":                        toTool,
++	"cmd/api":                              toTool,
++	"cmd/cgo":                              toTool,
++	"cmd/fix":                              toTool,
++	"cmd/link":                             toTool,
++	"cmd/nm":                               toTool,
++	"cmd/pack":                             toTool,
++	"cmd/yacc":                             toTool,
++	"code.google.com/p/go.tools/cmd/cover": toTool,
++	"code.google.com/p/go.tools/cmd/godoc": toBin,
++	"code.google.com/p/go.tools/cmd/vet":   toTool,
+ }
+ 
+ // expandScanner expands a scanner.List error into all the errors in the list.
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 943a33ea89..6d26f7a4b4 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -65,7 +65,7 @@ func tool(toolName string) string {
+ 
+ func isInGoToolsRepo(toolName string) bool {
+ 	switch toolName {
+-	case "benchcmp", "cover", "vet":
++	case "cover", "vet":
+ 		return true
+ 	}
+ 	return false

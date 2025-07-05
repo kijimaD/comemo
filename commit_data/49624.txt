@@ -13,6 +13,19 @@ Date:   Tue Aug 31 14:53:53 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 1717317925..7ba266a150 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -966,6 +966,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 					// of zeroing assignment of a dcl (rhs[0] is nil).
+ 					lhs, rhs := []ir.Node{as.X}, []ir.Node{as.Y}
+ 					transformAssign(as, lhs, rhs)
++					as.X, as.Y = lhs[0], rhs[0]
+ 				}
+ 
+ 			case ir.OASOP:

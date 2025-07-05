@@ -11,7 +11,87 @@ Date:   Fri Jan 22 16:25:06 2016 -0500
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 32 ++++++++++++++--------------
  src/cmd/internal/obj/x86/asm6.go             | 11 ++++++++++
  2 files changed, 27 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index a24e8d3050..ae743afe44 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -4145,22 +4145,22 @@ TEXT asmtest(SB),7,$0
+ 	POPQ DX                                 // 8fc2 or 5a
+ 	PUSHQ AX
+ 	POPQ R11                                // 418fc3 or 415b
+-	//TODO: POPCNTW (BX), DX                // 66f30fb813
+-	//TODO: POPCNTW (R11), DX               // 66f3410fb813
+-	//TODO: POPCNTW DX, DX                  // 66f30fb8d2
+-	//TODO: POPCNTW R11, DX                 // 66f3410fb8d3
+-	//TODO: POPCNTW (BX), R11               // 66f3440fb81b
+-	//TODO: POPCNTW (R11), R11              // 66f3450fb81b
+-	//TODO: POPCNTW DX, R11                 // 66f3440fb8da
+-	//TODO: POPCNTW R11, R11                // 66f3450fb8db
+-	//TODO: POPCNTL (BX), DX                // f30fb813
+-	//TODO: POPCNTL (R11), DX               // f3410fb813
+-	//TODO: POPCNTL DX, DX                  // f30fb8d2
+-	//TODO: POPCNTL R11, DX                 // f3410fb8d3
+-	//TODO: POPCNTL (BX), R11               // f3440fb81b
+-	//TODO: POPCNTL (R11), R11              // f3450fb81b
+-	//TODO: POPCNTL DX, R11                 // f3440fb8da
+-	//TODO: POPCNTL R11, R11                // f3450fb8db
++	POPCNTW (BX), DX                        // 66f30fb813
++	POPCNTW (R11), DX                       // 66f3410fb813
++	POPCNTW DX, DX                          // 66f30fb8d2
++	POPCNTW R11, DX                         // 66f3410fb8d3
++	POPCNTW (BX), R11                       // 66f3440fb81b
++	POPCNTW (R11), R11                      // 66f3450fb81b
++	POPCNTW DX, R11                         // 66f3440fb8da
++	POPCNTW R11, R11                        // 66f3450fb8db
++	POPCNTL (BX), DX                        // f30fb813
++	POPCNTL (R11), DX                       // f3410fb813
++	POPCNTL DX, DX                          // f30fb8d2
++	POPCNTL R11, DX                         // f3410fb8d3
++	POPCNTL (BX), R11                       // f3440fb81b
++	POPCNTL (R11), R11                      // f3450fb81b
++	POPCNTL DX, R11                         // f3440fb8da
++	POPCNTL R11, R11                        // f3450fb8db
+ 	POPCNTQ (BX), DX                        // f3480fb813
+ 	POPCNTQ (R11), DX                       // f3490fb813
+ 	POPCNTQ DX, DX                          // f3480fb8d2
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index f67dfa9449..2ffceceba9 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -219,6 +219,7 @@ const (
+ 	Pb    = 0xfe /* byte operands */
+ 	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
+ 	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
++	Pef3  = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
+ 	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
+ 	Pfw   = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
+ 	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
+@@ -1208,6 +1209,8 @@ var optab =
+ 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
+ 	{APOPAL, ynone, P32, [23]uint8{0x61}},
+ 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
++	{APOPCNTW, yml_rl, Pef3, [23]uint8{0xb8}},
++	{APOPCNTL, yml_rl, Pf3, [23]uint8{0xb8}},
+ 	{APOPCNTQ, yml_rl, Pfw, [23]uint8{0xb8}},
+ 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
+ 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
+@@ -3204,6 +3207,14 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Andptr[0] = Pm
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
++			case Pef3:
++				ctxt.Andptr[0] = Pe
++				ctxt.Andptr = ctxt.Andptr[1:]
++				ctxt.Andptr[0] = Pf3
++				ctxt.Andptr = ctxt.Andptr[1:]
++				ctxt.Andptr[0] = Pm
++				ctxt.Andptr = ctxt.Andptr[1:]
++
+ 			case Pfw: /* xmm opcode escape + REX.W */
+ 				ctxt.Rexflag |= Pw
+ 				ctxt.Andptr[0] = Pf3

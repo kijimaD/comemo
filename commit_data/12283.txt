@@ -7,6 +7,19 @@ Date:   Wed Feb 29 15:50:46 2012 -0500
     R=golang-dev, r, bradfitz, gustavo
     CC=golang-dev
     https://golang.org/cl/5712044
-
+---
  src/pkg/path/filepath/path.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index f468d33264..cfe46981f1 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -139,6 +139,7 @@ func FromSlash(path string) string {
+ 
+ // SplitList splits a list of paths joined by the OS-specific ListSeparator,
+ // usually found in PATH or GOPATH environment variables.
++// Unlike strings.Split, SplitList returns an empty slice when passed an empty string.
+ func SplitList(path string) []string {
+ 	if path == "" {
+ 		return []string{}

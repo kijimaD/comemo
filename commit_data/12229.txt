@@ -7,8 +7,401 @@ Date:   Mon Feb 27 16:29:22 2012 +1100
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5694085
-
+---
  src/pkg/archive/zip/reader.go |  93 +++++++++++++------------
  src/pkg/archive/zip/struct.go |  10 ---
  src/pkg/archive/zip/writer.go | 156 +++++++++++++++++++++++-------------------
  3 files changed, 131 insertions(+), 128 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index c3009869b6..1c2a2189cc 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -7,7 +7,6 @@ package zip
+ import (
+ 	"bufio"
+ 	"compress/flate"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ 	"hash/crc32"
+@@ -174,20 +173,19 @@ func readFileHeader(f *File, r io.Reader) error {
+ 	if _, err := io.ReadFull(r, b[:]); err != nil {
+ 		return err
+ 	}
+-	c := binary.LittleEndian
+-	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
++	if sig := toUint32(b[:]); sig != fileHeaderSignature {
+ 		return ErrFormat
+ 	}
+-	f.ReaderVersion = c.Uint16(b[4:6])
+-	f.Flags = c.Uint16(b[6:8])
+-	f.Method = c.Uint16(b[8:10])
+-	f.ModifiedTime = c.Uint16(b[10:12])
+-	f.ModifiedDate = c.Uint16(b[12:14])
+-	f.CRC32 = c.Uint32(b[14:18])
+-	f.CompressedSize = c.Uint32(b[18:22])
+-	f.UncompressedSize = c.Uint32(b[22:26])
+-	filenameLen := int(c.Uint16(b[26:28]))
+-	extraLen := int(c.Uint16(b[28:30]))
++	f.ReaderVersion = toUint16(b[4:])
++	f.Flags = toUint16(b[6:])
++	f.Method = toUint16(b[8:])
++	f.ModifiedTime = toUint16(b[10:])
++	f.ModifiedDate = toUint16(b[12:])
++	f.CRC32 = toUint32(b[14:])
++	f.CompressedSize = toUint32(b[18:])
++	f.UncompressedSize = toUint32(b[22:])
++	filenameLen := int(toUint16(b[26:]))
++	extraLen := int(toUint16(b[28:]))
+ 	d := make([]byte, filenameLen+extraLen)
+ 	if _, err := io.ReadFull(r, d); err != nil {
+ 		return err
+@@ -205,12 +203,11 @@ func (f *File) findBodyOffset() (int64, error) {
+ 	if _, err := io.ReadFull(r, b[:]); err != nil {
+ 		return 0, err
+ 	}
+-	c := binary.LittleEndian
+-	if sig := c.Uint32(b[:4]); sig != fileHeaderSignature {
++	if sig := toUint32(b[:4]); sig != fileHeaderSignature {
+ 		return 0, ErrFormat
+ 	}
+-	filenameLen := int(c.Uint16(b[26:28]))
+-	extraLen := int(c.Uint16(b[28:30]))
++	filenameLen := int(toUint16(b[26:28]))
++	extraLen := int(toUint16(b[28:30]))
+ 	return int64(fileHeaderLen + filenameLen + extraLen), nil
+ }
+ 
+@@ -222,26 +219,24 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	if _, err := io.ReadFull(r, b[:]); err != nil {
+ 		return err
+ 	}
+-	c := binary.LittleEndian
+-	if sig := c.Uint32(b[:4]); sig != directoryHeaderSignature {
++	if sig := toUint32(b[:]); sig != directoryHeaderSignature {
+ 		return ErrFormat
+ 	}
+-	f.CreatorVersion = c.Uint16(b[4:6])
+-	f.ReaderVersion = c.Uint16(b[6:8])
+-	f.Flags = c.Uint16(b[8:10])
+-	f.Method = c.Uint16(b[10:12])
+-	f.ModifiedTime = c.Uint16(b[12:14])
+-	f.ModifiedDate = c.Uint16(b[14:16])
+-	f.CRC32 = c.Uint32(b[16:20])
+-	f.CompressedSize = c.Uint32(b[20:24])
+-	f.UncompressedSize = c.Uint32(b[24:28])
+-	filenameLen := int(c.Uint16(b[28:30]))
+-	extraLen := int(c.Uint16(b[30:32]))
+-	commentLen := int(c.Uint16(b[32:34]))
+-	// startDiskNumber := c.Uint16(b[34:36])    // Unused
+-	// internalAttributes := c.Uint16(b[36:38]) // Unused
+-	f.ExternalAttrs = c.Uint32(b[38:42])
+-	f.headerOffset = int64(c.Uint32(b[42:46]))
++	f.CreatorVersion = toUint16(b[4:])
++	f.ReaderVersion = toUint16(b[6:])
++	f.Flags = toUint16(b[8:])
++	f.Method = toUint16(b[10:])
++	f.ModifiedTime = toUint16(b[12:])
++	f.ModifiedDate = toUint16(b[14:])
++	f.CRC32 = toUint32(b[16:])
++	f.CompressedSize = toUint32(b[20:])
++	f.UncompressedSize = toUint32(b[24:])
++	filenameLen := int(toUint16(b[28:]))
++	extraLen := int(toUint16(b[30:32]))
++	commentLen := int(toUint16(b[32:]))
++	// skipped start disk number and internal attributes (2x uint16)
++	f.ExternalAttrs = toUint32(b[38:])
++	f.headerOffset = int64(toUint32(b[42:]))
+ 	d := make([]byte, filenameLen+extraLen+commentLen)
+ 	if _, err := io.ReadFull(r, d); err != nil {
+ 		return err
+@@ -257,10 +252,9 @@ func readDataDescriptor(r io.Reader, f *File) error {
+ 	if _, err := io.ReadFull(r, b[:]); err != nil {
+ 		return err
+ 	}
+-	c := binary.LittleEndian
+-	f.CRC32 = c.Uint32(b[:4])
+-	f.CompressedSize = c.Uint32(b[4:8])
+-	f.UncompressedSize = c.Uint32(b[8:12])
++	f.CRC32 = toUint32(b[:4])
++	f.CompressedSize = toUint32(b[4:8])
++	f.UncompressedSize = toUint32(b[8:12])
+ 	return nil
+ }
+ 
+@@ -285,15 +279,14 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error)
+ 	}
+ 
+ 	// read header into struct
+-	c := binary.LittleEndian
+ 	d := new(directoryEnd)
+-	d.diskNbr = c.Uint16(b[4:6])
+-	d.dirDiskNbr = c.Uint16(b[6:8])
+-	d.dirRecordsThisDisk = c.Uint16(b[8:10])
+-	d.directoryRecords = c.Uint16(b[10:12])
+-	d.directorySize = c.Uint32(b[12:16])
+-	d.directoryOffset = c.Uint32(b[16:20])
+-	d.commentLen = c.Uint16(b[20:22])
++	d.diskNbr = toUint16(b[4:])
++	d.dirDiskNbr = toUint16(b[6:])
++	d.dirRecordsThisDisk = toUint16(b[8:])
++	d.directoryRecords = toUint16(b[10:])
++	d.directorySize = toUint32(b[12:])
++	d.directoryOffset = toUint32(b[16:])
++	d.commentLen = toUint16(b[20:])
+ 	d.comment = string(b[22 : 22+int(d.commentLen)])
+ 	return d, nil
+ }
+@@ -311,3 +304,9 @@ func findSignatureInBlock(b []byte) int {
+ 	}
+ 	return -1
+ }
++
++func toUint16(b []byte) uint16 { return uint16(b[0]) | uint16(b[1])<<8 }
++
++func toUint32(b []byte) uint32 {
++	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
++}
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 35dcec6468..fdbd16da04 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -100,16 +100,6 @@ type directoryEnd struct {
+ 	comment            string
+ }
+ 
+-func recoverError(errp *error) {
+-	if e := recover(); e != nil {
+-		if err, ok := e.(error); ok {
+-			*errp = err
+-			return
+-		}
+-		panic(e)
+-	}
+-}
+-
+ // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
+ // The resolution is 2s.
+ // See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index c591aed5ce..8404e3f09a 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -7,7 +7,6 @@ package zip
+ import (
+ 	"bufio"
+ 	"compress/flate"
+-	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ 	"hash/crc32"
+@@ -37,10 +36,10 @@ func NewWriter(w io.Writer) *Writer {
+ 
+ // Close finishes writing the zip file by writing the central directory.
+ // It does not (and can not) close the underlying writer.
+-func (w *Writer) Close() (err error) {
++func (w *Writer) Close() error {
+ 	if w.last != nil && !w.last.closed {
+-		if err = w.last.close(); err != nil {
+-			return
++		if err := w.last.close(); err != nil {
++			return err
+ 		}
+ 		w.last = nil
+ 	}
+@@ -49,43 +48,54 @@ func (w *Writer) Close() (err error) {
+ 	}
+ 	w.closed = true
+ 
+-	defer recoverError(&err)
+-
+ 	// write central directory
+ 	start := w.cw.count
+ 	for _, h := range w.dir {
+-		write(w.cw, uint32(directoryHeaderSignature))
+-		write(w.cw, h.CreatorVersion)
+-		write(w.cw, h.ReaderVersion)
+-		write(w.cw, h.Flags)
+-		write(w.cw, h.Method)
+-		write(w.cw, h.ModifiedTime)
+-		write(w.cw, h.ModifiedDate)
+-		write(w.cw, h.CRC32)
+-		write(w.cw, h.CompressedSize)
+-		write(w.cw, h.UncompressedSize)
+-		write(w.cw, uint16(len(h.Name)))
+-		write(w.cw, uint16(len(h.Extra)))
+-		write(w.cw, uint16(len(h.Comment)))
+-		write(w.cw, uint16(0)) // disk number start
+-		write(w.cw, uint16(0)) // internal file attributes
+-		write(w.cw, h.ExternalAttrs)
+-		write(w.cw, h.offset)
+-		writeBytes(w.cw, []byte(h.Name))
+-		writeBytes(w.cw, h.Extra)
+-		writeBytes(w.cw, []byte(h.Comment))
++		var b [directoryHeaderLen]byte
++		putUint32(b[:], uint32(directoryHeaderSignature))
++		putUint16(b[4:], h.CreatorVersion)
++		putUint16(b[6:], h.ReaderVersion)
++		putUint16(b[8:], h.Flags)
++		putUint16(b[10:], h.Method)
++		putUint16(b[12:], h.ModifiedTime)
++		putUint16(b[14:], h.ModifiedDate)
++		putUint32(b[16:], h.CRC32)
++		putUint32(b[20:], h.CompressedSize)
++		putUint32(b[24:], h.UncompressedSize)
++		putUint16(b[28:], uint16(len(h.Name)))
++		putUint16(b[30:], uint16(len(h.Extra)))
++		putUint16(b[32:], uint16(len(h.Comment)))
++		// skip two uint16's, disk number start and internal file attributes
++		putUint32(b[38:], h.ExternalAttrs)
++		putUint32(b[42:], h.offset)
++		if _, err := w.cw.Write(b[:]); err != nil {
++			return err
++		}
++		if _, err := io.WriteString(w.cw, h.Name); err != nil {
++			return err
++		}
++		if _, err := w.cw.Write(h.Extra); err != nil {
++			return err
++		}
++		if _, err := io.WriteString(w.cw, h.Comment); err != nil {
++			return err
++		}
+ 	}
+ 	end := w.cw.count
+ 
+ 	// write end record
+-	write(w.cw, uint32(directoryEndSignature))
+-	write(w.cw, uint16(0))          // disk number
+-	write(w.cw, uint16(0))          // disk number where directory starts
+-	write(w.cw, uint16(len(w.dir))) // number of entries this disk
+-	write(w.cw, uint16(len(w.dir))) // number of entries total
+-	write(w.cw, uint32(end-start))  // size of directory
+-	write(w.cw, uint32(start))      // start of directory
+-	write(w.cw, uint16(0))          // size of comment
++	var b [directoryEndLen]byte
++	putUint32(b[:], uint32(directoryEndSignature))
++	putUint16(b[4:], uint16(0))           // disk number
++	putUint16(b[6:], uint16(0))           // disk number where directory starts
++	putUint16(b[8:], uint16(len(w.dir)))  // number of entries this disk
++	putUint16(b[10:], uint16(len(w.dir))) // number of entries total
++	putUint32(b[12:], uint32(end-start))  // size of directory
++	putUint32(b[16:], uint32(start))      // start of directory
++	// skipped size of comment (always zero)
++	if _, err := w.cw.Write(b[:]); err != nil {
++		return err
++	}
+ 
+ 	return w.cw.w.(*bufio.Writer).Flush()
+ }
+@@ -152,22 +162,27 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	return fw, nil
+ }
+ 
+-func writeHeader(w io.Writer, h *FileHeader) (err error) {
+-	defer recoverError(&err)
+-	write(w, uint32(fileHeaderSignature))
+-	write(w, h.ReaderVersion)
+-	write(w, h.Flags)
+-	write(w, h.Method)
+-	write(w, h.ModifiedTime)
+-	write(w, h.ModifiedDate)
+-	write(w, h.CRC32)
+-	write(w, h.CompressedSize)
+-	write(w, h.UncompressedSize)
+-	write(w, uint16(len(h.Name)))
+-	write(w, uint16(len(h.Extra)))
+-	writeBytes(w, []byte(h.Name))
+-	writeBytes(w, h.Extra)
+-	return nil
++func writeHeader(w io.Writer, h *FileHeader) error {
++	var b [fileHeaderLen]byte
++	putUint32(b[:], uint32(fileHeaderSignature))
++	putUint16(b[4:], h.ReaderVersion)
++	putUint16(b[6:], h.Flags)
++	putUint16(b[8:], h.Method)
++	putUint16(b[10:], h.ModifiedTime)
++	putUint16(b[12:], h.ModifiedDate)
++	putUint32(b[14:], h.CRC32)
++	putUint32(b[18:], h.CompressedSize)
++	putUint32(b[22:], h.UncompressedSize)
++	putUint16(b[26:], uint16(len(h.Name)))
++	putUint16(b[28:], uint16(len(h.Extra)))
++	if _, err := w.Write(b[:]); err != nil {
++		return err
++	}
++	if _, err := io.WriteString(w, h.Name); err != nil {
++		return err
++	}
++	_, err := w.Write(h.Extra)
++	return err
+ }
+ 
+ type fileWriter struct {
+@@ -188,13 +203,13 @@ func (w *fileWriter) Write(p []byte) (int, error) {
+ 	return w.rawCount.Write(p)
+ }
+ 
+-func (w *fileWriter) close() (err error) {
++func (w *fileWriter) close() error {
+ 	if w.closed {
+ 		return errors.New("zip: file closed twice")
+ 	}
+ 	w.closed = true
+-	if err = w.comp.Close(); err != nil {
+-		return
++	if err := w.comp.Close(); err != nil {
++		return err
+ 	}
+ 
+ 	// update FileHeader
+@@ -204,12 +219,12 @@ func (w *fileWriter) close() (err error) {
+ 	fh.UncompressedSize = uint32(w.rawCount.count)
+ 
+ 	// write data descriptor
+-	defer recoverError(&err)
+-	write(w.zipw, fh.CRC32)
+-	write(w.zipw, fh.CompressedSize)
+-	write(w.zipw, fh.UncompressedSize)
+-
+-	return nil
++	var b [dataDescriptorLen]byte
++	putUint32(b[:], fh.CRC32)
++	putUint32(b[4:], fh.CompressedSize)
++	putUint32(b[8:], fh.UncompressedSize)
++	_, err := w.zipw.Write(b[:])
++	return err
+ }
+ 
+ type countWriter struct {
+@@ -231,18 +246,17 @@ func (w nopCloser) Close() error {
+ 	return nil
+ }
+ 
+-func write(w io.Writer, data interface{}) {
+-	if err := binary.Write(w, binary.LittleEndian, data); err != nil {
+-		panic(err)
+-	}
++// We use these putUintXX functions instead of encoding/binary's Write to avoid
++// reflection. It's easy enough, anyway.
++
++func putUint16(b []byte, v uint16) {
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
+ }
+ 
+-func writeBytes(w io.Writer, b []byte) {
+-	n, err := w.Write(b)
+-	if err != nil {
+-		panic(err)
+-	}
+-	if n != len(b) {
+-		panic(io.ErrShortWrite)
+-	}
++func putUint32(b []byte, v uint32) {
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
+ }

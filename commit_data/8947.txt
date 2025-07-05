@@ -7,9 +7,139 @@ Date:   Wed Jul 6 10:13:53 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4675053
-
+---
  src/pkg/exp/template/lex.go      |  9 +++++++--
  src/pkg/exp/template/lex_test.go |  4 ++--
  src/pkg/exp/template/parse.go    | 17 +++++++----------
  src/pkg/exp/template/set.go      |  4 ++--
  4 files changed, 18 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/template/lex.go b/src/pkg/exp/template/lex.go
+index d22d825a1d..52d0617058 100644
+--- a/src/pkg/exp/template/lex.go
++++ b/src/pkg/exp/template/lex.go
+@@ -190,15 +190,20 @@ func (l *lexer) run() {
+ 	close(l.items)
+ }
+ 
++// nextItem returns the next item from the input.
++func (l *lexer) nextItem() item {
++	return <-l.items
++}
++
+ // lex launches a new scanner and returns the channel of items.
+-func lex(name, input string) (*lexer, chan item) {
++func lex(name, input string) *lexer {
+ 	l := &lexer{
+ 		name:  name,
+ 		input: input,
+ 		items: make(chan item),
+ 	}
+ 	go l.run()
+-	return l, l.items
++	return l
+ }
+ 
+ // state functions
+diff --git a/src/pkg/exp/template/lex_test.go b/src/pkg/exp/template/lex_test.go
+index e13a7247a9..4b4d619bf0 100644
+--- a/src/pkg/exp/template/lex_test.go
++++ b/src/pkg/exp/template/lex_test.go
+@@ -127,8 +127,8 @@ var lexTests = []lexTest{
+ 
+ // collect gathers the emitted items into a slice.
+ func collect(t *lexTest) (items []item) {
+-	_, tokens := lex(t.name, t.input)
+-	for i := range tokens {
++	l := lex(t.name, t.input)
++	for i := range l.items {
+ 		items = append(items, i)
+ 	}
+ 	return
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index 8514399b82..23f3665d62 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -23,7 +23,6 @@ type Template struct {
+ 	// Parsing only; cleared after parse.
+ 	set      *Set
+ 	lex      *lexer
+-	tokens   <-chan item
+ 	token    item // token lookahead for parser
+ 	havePeek bool
+ }
+@@ -33,7 +32,7 @@ func (t *Template) next() item {
+ 	if t.havePeek {
+ 		t.havePeek = false
+ 	} else {
+-		t.token = <-t.tokens
++		t.token = t.lex.nextItem()
+ 	}
+ 	return t.token
+ }
+@@ -48,7 +47,7 @@ func (t *Template) peek() item {
+ 	if t.havePeek {
+ 		return t.token
+ 	}
+-	t.token = <-t.tokens
++	t.token = t.lex.nextItem()
+ 	t.havePeek = true
+ 	return t.token
+ }
+@@ -508,15 +507,15 @@ func (t *Template) recover(errp *os.Error) {
+ }
+ 
+ // startParse starts the template parsing from the lexer.
+-func (t *Template) startParse(set *Set, lex *lexer, tokens <-chan item) {
++func (t *Template) startParse(set *Set, lex *lexer) {
+ 	t.root = nil
+ 	t.set = set
+-	t.lex, t.tokens = lex, tokens
++	t.lex = lex
+ }
+ 
+ // stopParse terminates parsing.
+ func (t *Template) stopParse() {
+-	t.set, t.lex, t.tokens = nil, nil, nil
++	t.set, t.lex = nil, nil
+ }
+ 
+ // atEOF returns true if, possibly after spaces, we're at EOF.
+@@ -543,8 +542,7 @@ func (t *Template) atEOF() bool {
+ // Parse parses the template definition string to construct an internal representation
+ // of the template for execution.
+ func (t *Template) Parse(s string) (err os.Error) {
+-	lexer, tokens := lex(t.name, s)
+-	t.startParse(nil, lexer, tokens)
++	t.startParse(nil, lex(t.name, s))
+ 	defer t.recover(&err)
+ 	t.parse(true)
+ 	t.stopParse()
+@@ -554,8 +552,7 @@ func (t *Template) Parse(s string) (err os.Error) {
+ // ParseInSet parses the template definition string to construct an internal representation
+ // of the template for execution. Function bindings are checked against those in the set.
+ func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
+-	lexer, tokens := lex(t.name, s)
+-	t.startParse(set, lexer, tokens)
++	t.startParse(set, lex(t.name, s))
+ 	defer t.recover(&err)
+ 	t.parse(true)
+ 	t.stopParse()
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index 7100e7e3ec..8b38135861 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -66,11 +66,11 @@ func (s *Set) recover(errp *os.Error) {
+ // Parse parses the file into a set of named templates.
+ func (s *Set) Parse(text string) (err os.Error) {
+ 	defer s.recover(&err)
+-	lex, tokens := lex("set", text)
++	lex := lex("set", text)
+ 	const context = "define clause"
+ 	for {
+ 		t := New("set") // name will be updated once we know it.
+-		t.startParse(s, lex, tokens)
++		t.startParse(s, lex)
+ 		// Expect EOF or "{{ define name }}".
+ 		if t.atEOF() {
+ 			return

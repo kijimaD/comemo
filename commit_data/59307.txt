@@ -13,7 +13,40 @@ Date:   Thu Feb 22 18:52:39 2024 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-
+---
  src/cmd/compile/internal/noder/writer.go |  2 +-
  test/fixedbugs/issue65778.go             | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 87c54b9769..c57ccdf36d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -831,7 +831,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 	case *types2.TypeName:
+ 		if obj.IsAlias() {
+ 			w.pos(obj)
+-			w.typ(obj.Type())
++			w.typ(types2.Unalias(obj.Type()))
+ 			return pkgbits.ObjAlias
+ 		}
+ 
+diff --git a/test/fixedbugs/issue65778.go b/test/fixedbugs/issue65778.go
+new file mode 100644
+index 0000000000..30c680404d
+--- /dev/null
++++ b/test/fixedbugs/issue65778.go
+@@ -0,0 +1,13 @@
++// compile -godebug gotypesalias=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A = int
++
++type T[P any] *A
++
++var _ T[int]

@@ -13,7 +13,77 @@ Date:   Fri Feb 10 17:23:55 2017 -0800
     Change-Id: Idf034eb4bfb9672ef10190e66fcbf873e8f08f6a
     Reviewed-on: https://go-review.googlesource.com/36803
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/doc.go  | 30 ++++++++++++++++++++++++++++++
  src/cmd/trace/main.go | 22 ----------------------
  2 files changed, 30 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/trace/doc.go b/src/cmd/trace/doc.go
+new file mode 100644
+index 0000000000..79506ca9bb
+--- /dev/null
++++ b/src/cmd/trace/doc.go
+@@ -0,0 +1,30 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Trace is a tool for viewing trace files.
++
++Trace files can be generated with:
++	- runtime/trace.Start
++	- net/http/pprof package
++	- go test -trace
++
++Example usage:
++Generate a trace file with 'go test':
++	go test -trace trace.out pkg
++View the trace in a web browser:
++	go tool trace trace.out
++Generate a pprof-like profile from the trace:
++	go tool trace -pprof=TYPE trace.out > TYPE.pprof
++
++Supported profile types are:
++	- net: network blocking profile
++	- sync: synchronization blocking profile
++	- syscall: syscall blocking profile
++	- sched: scheduler latency profile
++
++Then, you can use the pprof tool to analyze the profile:
++	go tool pprof TYPE.pprof
++*/
++package main
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index c7bf75ef68..6367874d70 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -2,28 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-/*
+-Trace is a tool for viewing trace files.
+-
+-Trace files can be generated with:
+-	- runtime/trace.Start
+-	- net/http/pprof package
+-	- go test -trace
+-
+-Example usage:
+-Generate a trace file with 'go test':
+-	go test -trace trace.out pkg
+-View the trace in a web browser:
+-	go tool trace trace.out
+-Generate a pprof-like profile from the trace:
+-	go tool trace -pprof=TYPE trace.out > TYPE.pprof
+-
+-Supported profile types are:
+-	- net: network blocking profile
+-	- sync: synchronization blocking profile
+-	- syscall: syscall blocking profile
+-	- sched: scheduler latency profile
+-*/
+ package main
+ 
+ import (

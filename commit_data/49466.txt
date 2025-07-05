@@ -13,6 +13,20 @@ Date:   Sat Dec 12 16:46:01 2020 +0100
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 0ba415ba5a..0e6043cf2a 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -142,7 +142,7 @@ var (
+ 	mbuckets  *bucket // memory profile buckets
+ 	bbuckets  *bucket // blocking profile buckets
+ 	xbuckets  *bucket // mutex profile buckets
+-	buckhash  *[179999]*bucket
++	buckhash  *[buckHashSize]*bucket
+ 	bucketmem uintptr
+ 
+ 	mProf struct {

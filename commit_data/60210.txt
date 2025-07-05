@@ -13,8 +13,60 @@ Date:   Tue May 28 14:18:42 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go             |  2 +-
  src/go/types/expr.go                                |  2 +-
  src/internal/types/testdata/fixedbugs/issue67683.go | 19 +++++++++++++++++++
  3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index da676f47da..92949a924d 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1013,7 +1013,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
+ 	}
+ 	var what string
+ 	switch t := x.typ.(type) {
+-	case *Named:
++	case *Alias, *Named:
+ 		if isGeneric(t) {
+ 			what = "type"
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 474db75cc8..cf8ceddc9a 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -998,7 +998,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
+ 	}
+ 	var what string
+ 	switch t := x.typ.(type) {
+-	case *Named:
++	case *Alias, *Named:
+ 		if isGeneric(t) {
+ 			what = "type"
+ 		}
+diff --git a/src/internal/types/testdata/fixedbugs/issue67683.go b/src/internal/types/testdata/fixedbugs/issue67683.go
+new file mode 100644
+index 0000000000..f7c9bcdd01
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue67683.go
+@@ -0,0 +1,19 @@
++// -goexperiment=aliastypeparams -gotypesalias=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A[P any] func()
++
++// alias signature types
++type B[P any] = func()
++type C[P any] = B[P]
++
++var _ = A /* ERROR "cannot use generic type A without instantiation" */ (nil)
++
++// generic alias signature types must be instantiated before use
++var _ = B /* ERROR "cannot use generic type B without instantiation" */ (nil)
++var _ = C /* ERROR "cannot use generic type C without instantiation" */ (nil)

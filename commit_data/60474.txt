@@ -15,7 +15,7 @@ Date:   Wed Jul 24 10:39:58 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/build/build_test.go           | 22 ++++++++++++----------
  src/go/build/constraint/expr_test.go |  6 ++++--
  src/go/token/position_test.go        |  6 +++---
@@ -28,3 +28,358 @@ Date:   Wed Jul 24 10:39:58 2024 +0000
  src/mime/mediatype_test.go           |  4 ++--
  src/mime/type_test.go                |  6 +++---
  11 files changed, 37 insertions(+), 33 deletions(-)
+
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index cef0230236..cb2941d097 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -8,10 +8,12 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
++	"maps"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -30,7 +32,7 @@ func TestMatch(t *testing.T) {
+ 		if !ctxt.matchAuto(tag, m) {
+ 			t.Errorf("%s context should match %s, does not", what, tag)
+ 		}
+-		if !reflect.DeepEqual(m, want) {
++		if !maps.Equal(m, want) {
+ 			t.Errorf("%s tags = %v, want %v", tag, m, want)
+ 		}
+ 	}
+@@ -40,7 +42,7 @@ func TestMatch(t *testing.T) {
+ 		if ctxt.matchAuto(tag, m) {
+ 			t.Errorf("%s context should NOT match %s, does", what, tag)
+ 		}
+-		if !reflect.DeepEqual(m, want) {
++		if !maps.Equal(m, want) {
+ 			t.Errorf("%s tags = %v, want %v", tag, m, want)
+ 		}
+ 	}
+@@ -121,11 +123,11 @@ func TestMultiplePackageImport(t *testing.T) {
+ 		t.Errorf("pkg.Name = %q; want %q", pkg.Name, wantName)
+ 	}
+ 
+-	if wantGoFiles := []string{"file.go", "file_appengine.go"}; !reflect.DeepEqual(pkg.GoFiles, wantGoFiles) {
++	if wantGoFiles := []string{"file.go", "file_appengine.go"}; !slices.Equal(pkg.GoFiles, wantGoFiles) {
+ 		t.Errorf("pkg.GoFiles = %q; want %q", pkg.GoFiles, wantGoFiles)
+ 	}
+ 
+-	if wantInvalidFiles := []string{"file_appengine.go"}; !reflect.DeepEqual(pkg.InvalidGoFiles, wantInvalidFiles) {
++	if wantInvalidFiles := []string{"file_appengine.go"}; !slices.Equal(pkg.InvalidGoFiles, wantInvalidFiles) {
+ 		t.Errorf("pkg.InvalidGoFiles = %q; want %q", pkg.InvalidGoFiles, wantInvalidFiles)
+ 	}
+ }
+@@ -345,7 +347,7 @@ func TestShouldBuild(t *testing.T) {
+ 			ctx := &Context{BuildTags: []string{"yes"}}
+ 			tags := map[string]bool{}
+ 			shouldBuild, binaryOnly, err := ctx.shouldBuild([]byte(tt.content), tags)
+-			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !reflect.DeepEqual(tags, tt.tags) || err != tt.err {
++			if shouldBuild != tt.shouldBuild || binaryOnly != tt.binaryOnly || !maps.Equal(tags, tt.tags) || err != tt.err {
+ 				t.Errorf("mismatch:\n"+
+ 					"have shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v\n"+
+ 					"want shouldBuild=%v, binaryOnly=%v, tags=%v, err=%v",
+@@ -363,7 +365,7 @@ func TestGoodOSArchFile(t *testing.T) {
+ 	if !ctx.goodOSArchFile("hello_linux.go", m) {
+ 		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
+ 	}
+-	if !reflect.DeepEqual(m, want) {
++	if !maps.Equal(m, want) {
+ 		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
+ 	}
+ }
+@@ -770,11 +772,11 @@ func TestAllTags(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	want := []string{"arm", "netbsd"}
+-	if !reflect.DeepEqual(p.AllTags, want) {
++	if !slices.Equal(p.AllTags, want) {
+ 		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
+ 	}
+ 	wantFiles := []string{"alltags.go", "x_netbsd_arm.go"}
+-	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
++	if !slices.Equal(p.GoFiles, wantFiles) {
+ 		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
+ 	}
+ 
+@@ -784,11 +786,11 @@ func TestAllTags(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if !reflect.DeepEqual(p.AllTags, want) {
++	if !slices.Equal(p.AllTags, want) {
+ 		t.Errorf("AllTags = %v, want %v", p.AllTags, want)
+ 	}
+ 	wantFiles = []string{"alltags.go"}
+-	if !reflect.DeepEqual(p.GoFiles, wantFiles) {
++	if !slices.Equal(p.GoFiles, wantFiles) {
+ 		t.Errorf("GoFiles = %v, want %v", p.GoFiles, wantFiles)
+ 	}
+ }
+diff --git a/src/go/build/constraint/expr_test.go b/src/go/build/constraint/expr_test.go
+index 15d189012e..de30caf412 100644
+--- a/src/go/build/constraint/expr_test.go
++++ b/src/go/build/constraint/expr_test.go
+@@ -6,7 +6,9 @@ package constraint
+ 
+ import (
+ 	"fmt"
++	"maps"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -194,7 +196,7 @@ func TestExprEval(t *testing.T) {
+ 				return tag == "yes"
+ 			}
+ 			ok := x.Eval(hasTag)
+-			if ok != tt.ok || !reflect.DeepEqual(tags, wantTags) {
++			if ok != tt.ok || !maps.Equal(tags, wantTags) {
+ 				t.Errorf("Eval(%#q):\nhave ok=%v, tags=%v\nwant ok=%v, tags=%v",
+ 					tt.in, ok, tags, tt.ok, wantTags)
+ 			}
+@@ -313,7 +315,7 @@ func TestPlusBuildLines(t *testing.T) {
+ 			for _, line := range tt.out {
+ 				want = append(want, "// +build "+line)
+ 			}
+-			if !reflect.DeepEqual(lines, want) {
++			if !slices.Equal(lines, want) {
+ 				t.Errorf("PlusBuildLines(%q):\nhave %q\nwant %q", tt.in, lines, want)
+ 			}
+ 		})
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 685bf61380..677a0a251d 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -7,7 +7,7 @@ package token
+ import (
+ 	"fmt"
+ 	"math/rand"
+-	"reflect"
++	"slices"
+ 	"sync"
+ 	"testing"
+ )
+@@ -130,7 +130,7 @@ func TestPositions(t *testing.T) {
+ 		if f.LineCount() != len(test.lines) {
+ 			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
+ 		}
+-		if !reflect.DeepEqual(f.Lines(), test.lines) {
++		if !slices.Equal(f.Lines(), test.lines) {
+ 			t.Errorf("%s, Lines after SetLines(v): got %v; want %v", f.Name(), f.Lines(), test.lines)
+ 		}
+ 		verifyPositions(t, fset, f, test.lines)
+@@ -472,7 +472,7 @@ func TestFileAddLineColumnInfo(t *testing.T) {
+ 			for _, info := range test.infos {
+ 				f.AddLineColumnInfo(info.Offset, info.Filename, info.Line, info.Column)
+ 			}
+-			if !reflect.DeepEqual(f.infos, test.want) {
++			if !slices.Equal(f.infos, test.want) {
+ 				t.Errorf("\ngot %+v, \nwant %+v", f.infos, test.want)
+ 			}
+ 		})
+diff --git a/src/internal/dag/alg_test.go b/src/internal/dag/alg_test.go
+index e5ea8b6ab6..0659eb18e3 100644
+--- a/src/internal/dag/alg_test.go
++++ b/src/internal/dag/alg_test.go
+@@ -5,7 +5,7 @@
+ package dag
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -26,7 +26,7 @@ func TestTopo(t *testing.T) {
+ 	//
+ 	// "a" is a leaf.
+ 	wantNodes := strings.Fields("d c b a")
+-	if !reflect.DeepEqual(wantNodes, got) {
++	if !slices.Equal(wantNodes, got) {
+ 		t.Fatalf("want topo sort %v, got %v", wantNodes, got)
+ 	}
+ }
+diff --git a/src/internal/dag/parse_test.go b/src/internal/dag/parse_test.go
+index b2520c3659..dda304ad3e 100644
+--- a/src/internal/dag/parse_test.go
++++ b/src/internal/dag/parse_test.go
+@@ -5,7 +5,7 @@
+ package dag
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -52,7 +52,7 @@ func TestParse(t *testing.T) {
+ 	g := mustParse(t, diamond)
+ 
+ 	wantNodes := strings.Fields("a b c d")
+-	if !reflect.DeepEqual(wantNodes, g.Nodes) {
++	if !slices.Equal(wantNodes, g.Nodes) {
+ 		t.Fatalf("want nodes %v, got %v", wantNodes, g.Nodes)
+ 	}
+ 
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index 5d426fd52e..6929630356 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+-	"reflect"
+ 	"runtime/metrics"
+ 	"slices"
+ 	"strings"
+@@ -125,7 +124,7 @@ func TestCmdBisect(t *testing.T) {
+ 	}
+ 	slices.Sort(have)
+ 
+-	if !reflect.DeepEqual(have, want) {
++	if !slices.Equal(have, want) {
+ 		t.Errorf("bad bisect output:\nhave %v\nwant %v\ncomplete output:\n%s", have, want, string(out))
+ 	}
+ }
+diff --git a/src/internal/profile/proto_test.go b/src/internal/profile/proto_test.go
+index 46c6d83063..4c09f7c47e 100644
+--- a/src/internal/profile/proto_test.go
++++ b/src/internal/profile/proto_test.go
+@@ -5,7 +5,7 @@
+ package profile
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -34,7 +34,7 @@ func TestPackedEncoding(t *testing.T) {
+ 		},
+ 	} {
+ 		source := &packedInts{tc.uint64s, tc.int64s}
+-		if got, want := marshal(source), tc.encoded; !reflect.DeepEqual(got, want) {
++		if got, want := marshal(source), tc.encoded; !slices.Equal(got, want) {
+ 			t.Errorf("failed encode %d, got %v, want %v", i, got, want)
+ 		}
+ 
+@@ -43,10 +43,10 @@ func TestPackedEncoding(t *testing.T) {
+ 			t.Errorf("failed decode %d: %v", i, err)
+ 			continue
+ 		}
+-		if got, want := dest.uint64s, tc.uint64s; !reflect.DeepEqual(got, want) {
++		if got, want := dest.uint64s, tc.uint64s; !slices.Equal(got, want) {
+ 			t.Errorf("failed decode uint64s %d, got %v, want %v", i, got, want)
+ 		}
+-		if got, want := dest.int64s, tc.int64s; !reflect.DeepEqual(got, want) {
++		if got, want := dest.int64s, tc.int64s; !slices.Equal(got, want) {
+ 			t.Errorf("failed decode int64s %d, got %v, want %v", i, got, want)
+ 		}
+ 	}
+diff --git a/src/internal/xcoff/file_test.go b/src/internal/xcoff/file_test.go
+index a6722e9453..d1f10d6bf1 100644
+--- a/src/internal/xcoff/file_test.go
++++ b/src/internal/xcoff/file_test.go
+@@ -6,6 +6,7 @@ package xcoff
+ 
+ import (
+ 	"reflect"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -87,7 +88,7 @@ func TestOpen(t *testing.T) {
+ 		if err != nil {
+ 			t.Error(err)
+ 		}
+-		if !reflect.DeepEqual(tl, fl) {
++		if !slices.Equal(tl, fl) {
+ 			t.Errorf("open %s: loader import = %v, want %v", tt.file, tl, fl)
+ 		}
+ 	}
+diff --git a/src/io/fs/walk_test.go b/src/io/fs/walk_test.go
+index 40f4e1ab9d..4934df164b 100644
+--- a/src/io/fs/walk_test.go
++++ b/src/io/fs/walk_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"os"
+ 	pathpkg "path"
+ 	"path/filepath"
+-	"reflect"
++	"slices"
+ 	"testing"
+ 	"testing/fstest"
+ )
+@@ -145,7 +145,7 @@ func TestIssue51617(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	want := []string{".", "a", "a/bad", "a/next"}
+-	if !reflect.DeepEqual(saw, want) {
++	if !slices.Equal(saw, want) {
+ 		t.Errorf("got directories %v, want %v", saw, want)
+ 	}
+ }
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 1458cdb6e2..1731f7361e 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -5,7 +5,7 @@
+ package mime
+ 
+ import (
+-	"reflect"
++	"maps"
+ 	"strings"
+ 	"testing"
+ )
+@@ -429,7 +429,7 @@ func TestParseMediaType(t *testing.T) {
+ 		if len(params) == 0 && len(test.p) == 0 {
+ 			continue
+ 		}
+-		if !reflect.DeepEqual(params, test.p) {
++		if !maps.Equal(params, test.p) {
+ 			t.Errorf("for input %#q, wrong params.\n"+
+ 				"expected: %#v\n"+
+ 				"     got: %#v",
+diff --git a/src/mime/type_test.go b/src/mime/type_test.go
+index d8368e8846..2e55468dd7 100644
+--- a/src/mime/type_test.go
++++ b/src/mime/type_test.go
+@@ -5,7 +5,7 @@
+ package mime
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -136,7 +136,7 @@ func TestExtensionsByType(t *testing.T) {
+ 			t.Errorf("ExtensionsByType(%q) = %q, %v; want error substring %q", tt.typ, got, err, tt.wantErr)
+ 			continue
+ 		}
+-		if !reflect.DeepEqual(got, tt.want) {
++		if !slices.Equal(got, tt.want) {
+ 			t.Errorf("ExtensionsByType(%q) = %q; want %q", tt.typ, got, tt.want)
+ 		}
+ 	}
+@@ -213,7 +213,7 @@ func TestExtensionsByType2(t *testing.T) {
+ 			t.Errorf("ExtensionsByType(%q): %v", tt.typ, err)
+ 			continue
+ 		}
+-		if !reflect.DeepEqual(got, tt.want) {
++		if !slices.Equal(got, tt.want) {
+ 			t.Errorf("ExtensionsByType(%q) = %q; want %q", tt.typ, got, tt.want)
+ 		}
+ 	}

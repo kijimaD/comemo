@@ -13,9 +13,68 @@ Date:   Sun Jul 4 12:06:39 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/utils.go   | 2 +-
  src/cmd/compile/internal/typecheck/func.go | 8 ++++----
  src/cmd/compile/internal/walk/closure.go   | 2 +-
  src/cmd/compile/internal/walk/order.go     | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/utils.go b/src/cmd/compile/internal/escape/utils.go
+index 6e2f9c424a..5f462ef570 100644
+--- a/src/cmd/compile/internal/escape/utils.go
++++ b/src/cmd/compile/internal/escape/utils.go
+@@ -193,7 +193,7 @@ func HeapAllocReason(n ir.Node) string {
+ 	if n.Op() == ir.OCLOSURE && typecheck.ClosureType(n.(*ir.ClosureExpr)).Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+-	if n.Op() == ir.OMETHVALUE && typecheck.PartialCallType(n.(*ir.SelectorExpr)).Size() > ir.MaxImplicitStackVarSize {
++	if n.Op() == ir.OMETHVALUE && typecheck.MethodValueType(n.(*ir.SelectorExpr)).Size() > ir.MaxImplicitStackVarSize {
+ 		return "too large for stack"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 847e9b9aea..7dec65c1d6 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -125,10 +125,10 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ 	return typ
+ }
+ 
+-// PartialCallType returns the struct type used to hold all the information
+-// needed in the closure for n (n must be a OMETHVALUE node).
+-// The address of a variable of the returned type can be cast to a func.
+-func PartialCallType(n *ir.SelectorExpr) *types.Type {
++// MethodValueType returns the struct type used to hold all the information
++// needed in the closure for a OMETHVALUE node. The address of a variable of
++// the returned type can be cast to a func.
++func MethodValueType(n *ir.SelectorExpr) *types.Type {
+ 	t := types.NewStruct(types.NoPkg, []*types.Field{
+ 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
+ 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 7f6ef473bf..2d0b2dcc0e 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -175,7 +175,7 @@ func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ 		init.Append(typecheck.Stmt(check))
+ 	}
+ 
+-	typ := typecheck.PartialCallType(n)
++	typ := typecheck.MethodValueType(n)
+ 
+ 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+ 	clos.SetEsc(n.Esc())
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index eec340261e..cd2bbcb73b 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1306,7 +1306,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 		n := n.(*ir.SelectorExpr)
+ 		n.X = o.expr(n.X, nil)
+ 		if n.Transient() {
+-			t := typecheck.PartialCallType(n)
++			t := typecheck.MethodValueType(n)
+ 			n.Prealloc = o.newTemp(t, false)
+ 		}
+ 		return n

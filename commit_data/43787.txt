@@ -15,6 +15,52 @@ Date:   Fri Apr 24 12:13:11 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/main.go | 22 ++++++++++------------
  1 file changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8b6b9b84a6..d8b4c8a94d 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -155,13 +155,8 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 			usage()
+ 		}
+ 	}
+-
+-	if *flagnewDoData {
+-		// New dodata() is currently only implemented for selected targets.
+-		if !(ctxt.IsElf() &&
+-			(ctxt.IsAMD64() || ctxt.Is386())) {
+-			*flagnewDoData = false
+-		}
++	if ctxt.HeadType == objabi.Hunknown {
++		ctxt.HeadType.Set(objabi.GOOS)
+ 	}
+ 
+ 	checkStrictDups = *FlagStrictDups
+@@ -199,16 +194,19 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	bench.Start("libinit")
+ 	libinit(ctxt) // creates outfile
+-
+-	if ctxt.HeadType == objabi.Hunknown {
+-		ctxt.HeadType.Set(objabi.GOOS)
+-	}
+-
+ 	bench.Start("computeTLSOffset")
+ 	ctxt.computeTLSOffset()
+ 	bench.Start("Archinit")
+ 	thearch.Archinit(ctxt)
+ 
++	if *flagnewDoData {
++		// New dodata() is currently only implemented for selected targets.
++		if !(ctxt.IsElf() &&
++			(ctxt.IsAMD64() || ctxt.Is386())) {
++			*flagnewDoData = false
++		}
++	}
++
+ 	if ctxt.linkShared && !ctxt.IsELF {
+ 		Exitf("-linkshared can only be used on elf systems")
+ 	}

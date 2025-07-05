@@ -7,6 +7,20 @@ Date:   Mon Sep 20 10:51:05 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2250041
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d3026ca903..e9bfe0ee76 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2627,7 +2627,7 @@ Greeting("hello:", "Joe", "Anna", "Eileen")
+ 
+ <p>
+ Within <code>Greeting</code>, <code>who</code> will have value
+-<code>[]string{"Joe", "Anna", "Eileen")</code>
++<code>[]string{"Joe", "Anna", "Eileen"}</code>
+ </p>
+ 
+ 

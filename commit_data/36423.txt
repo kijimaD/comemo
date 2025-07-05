@@ -9,10 +9,280 @@ Date:   Wed Apr 25 14:40:17 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  8 ++-
  src/cmd/compile/internal/ssa/gen/AMD64.rules | 14 ++--
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  7 +-
  src/cmd/compile/internal/ssa/opGen.go        |  2 -
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 96 ++++++++++------------------
  5 files changed, 53 insertions(+), 74 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 4108fa041a..c0629ec514 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -946,12 +946,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRQ, ssa.OpAMD64BSRL:
++	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
++	case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64SQRTSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 95f996395e..3058cccb6f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -57,13 +57,13 @@
+ // Lowering other arithmetic
+ (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+ (Ctz32 x) -> (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+-(Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
+-(Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
++(Ctz16 x) -> (BSFL (BTSLconst <typ.UInt32> [16] x))
++(Ctz8  x) -> (BSFL (BTSLconst <typ.UInt32> [ 8] x))
+ 
+ (Ctz64NonZero x) -> (Select0 (BSFQ x))
+-(Ctz32NonZero x) -> (Select0 (BSFL x))
+-(Ctz16NonZero x) -> (Select0 (BSFL x))
+-(Ctz8NonZero  x) -> (Select0 (BSFL x))
++(Ctz32NonZero x) -> (BSFL x)
++(Ctz16NonZero x) -> (BSFL x)
++(Ctz8NonZero  x) -> (BSFL x)
+ 
+ // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
+ // However, for zero-extended values, we can cheat a bit, and calculate
+@@ -71,8 +71,8 @@
+ // places the index of the highest set bit where we want it.
+ (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
+ (BitLen32 x) -> (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
+-(BitLen16 x) -> (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x))))
+-(BitLen8  x) -> (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x))))
++(BitLen16 x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
++(BitLen8  x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+ 
+ (Bswap(64|32) x) -> (BSWAP(Q|L) x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index c99aeb9ef6..b3bd6d06dd 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -345,13 +345,14 @@ func init() {
+ 		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true, clobberFlags: true}, // ^arg0
+ 		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, clobberFlags: true}, // ^arg0
+ 
+-		// BSF{L,Q} returns a tuple [result, flags]
++		// BS{F,R}Q returns a tuple [result, flags]
+ 		// result is undefined if the input is zero.
+ 		// flags are set to "equal" if the input is zero, "not equal" otherwise.
++		// BS{F,R}L returns only the result.
+ 		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"}, // # of low-order zeroes in 64-bit arg
+-		{name: "BSFL", argLength: 1, reg: gp11flags, asm: "BSFL", typ: "(UInt32,Flags)"}, // # of low-order zeroes in 32-bit arg
++		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", typ: "UInt32"},              // # of low-order zeroes in 32-bit arg
+ 		{name: "BSRQ", argLength: 1, reg: gp11flags, asm: "BSRQ", typ: "(UInt64,Flags)"}, // # of high-order zeroes in 64-bit arg
+-		{name: "BSRL", argLength: 1, reg: gp11flags, asm: "BSRL", typ: "(UInt32,Flags)"}, // # of high-order zeroes in 32-bit arg
++		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", typ: "UInt32"},              // # of high-order zeroes in 32-bit arg
+ 
+ 		// CMOV instructions: 64, 32 and 16-bit sizes.
+ 		// if arg2 encodes a true result, return arg1, else arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 211ffe88c9..50ad872b43 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -7232,7 +7232,6 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{1, 0},
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+@@ -7260,7 +7259,6 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{1, 0},
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c2b997ce9c..71b932985a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -51924,20 +51924,18 @@ func rewriteValueAMD64_OpBitLen16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (BitLen16 x)
+ 	// cond:
+-	// result: (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x))))
++	// result: (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSRL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v1 := b.NewValue0(v.Pos, OpAMD64LEAL1, typ.UInt32)
+-		v1.AuxInt = 1
++		v.reset(OpAMD64BSRL)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAL1, typ.UInt32)
++		v0.AuxInt = 1
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
++		v1.AddArg(x)
++		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
+ 		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
+-		v3.AddArg(x)
+-		v1.AddArg(v3)
+-		v0.AddArg(v1)
++		v0.AddArg(v2)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -52005,20 +52003,18 @@ func rewriteValueAMD64_OpBitLen8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (BitLen8 x)
+ 	// cond:
+-	// result: (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x))))
++	// result: (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSRL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v1 := b.NewValue0(v.Pos, OpAMD64LEAL1, typ.UInt32)
+-		v1.AuxInt = 1
++		v.reset(OpAMD64BSRL)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAL1, typ.UInt32)
++		v0.AuxInt = 1
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
++		v1.AddArg(x)
++		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
+ 		v2.AddArg(x)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
+-		v3.AddArg(x)
+-		v1.AddArg(v3)
+-		v0.AddArg(v1)
++		v0.AddArg(v2)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -53301,33 +53297,25 @@ func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Ctz16 x)
+ 	// cond:
+-	// result: (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
++	// result: (BSFL (BTSLconst <typ.UInt32> [16] x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v1 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
+-		v1.AuxInt = 16
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpAMD64BSFL)
++		v0 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
++		v0.AuxInt = 16
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+ func rewriteValueAMD64_OpCtz16NonZero_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (Ctz16NonZero x)
+ 	// cond:
+-	// result: (Select0 (BSFL x))
++	// result: (BSFL x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpAMD64BSFL)
++		v.AddArg(x)
+ 		return true
+ 	}
+ }
+@@ -53352,19 +53340,13 @@ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueAMD64_OpCtz32NonZero_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (Ctz32NonZero x)
+ 	// cond:
+-	// result: (Select0 (BSFL x))
++	// result: (BSFL x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpAMD64BSFL)
++		v.AddArg(x)
+ 		return true
+ 	}
+ }
+@@ -53420,33 +53402,25 @@ func rewriteValueAMD64_OpCtz8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Ctz8 x)
+ 	// cond:
+-	// result: (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
++	// result: (BSFL (BTSLconst <typ.UInt32> [ 8] x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v1 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
+-		v1.AuxInt = 8
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpAMD64BSFL)
++		v0 := b.NewValue0(v.Pos, OpAMD64BTSLconst, typ.UInt32)
++		v0.AuxInt = 8
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+ func rewriteValueAMD64_OpCtz8NonZero_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	typ := &b.Func.Config.Types
+-	_ = typ
+ 	// match: (Ctz8NonZero x)
+ 	// cond:
+-	// result: (Select0 (BSFL x))
++	// result: (BSFL x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpSelect0)
+-		v0 := b.NewValue0(v.Pos, OpAMD64BSFL, types.NewTuple(typ.UInt32, types.TypeFlags))
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpAMD64BSFL)
++		v.AddArg(x)
+ 		return true
+ 	}
+ }

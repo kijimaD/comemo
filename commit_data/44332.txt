@@ -11,6 +11,22 @@ Date:   Thu Jun 11 15:57:18 2020 +0000
     Change-Id: I1948536c3a1860d93726484be2dc7bcb03dfdc2f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237539
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index f451c1bbfd..d6e238ef2f 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -50,8 +50,8 @@ Do not send CLs removing the interior tags from such phrases.
+ <h3 id="windows">Windows</h3>
+ 
+ <p> <!-- CL 214397 and CL 230217 -->
+-  Go 1.15 now generates Windows ASLR executables when -buildmode=pie
+-  cmd/link flag is provided. Go command uses -buildmode=pie by default
++  Go 1.15 now generates Windows ASLR executables when <code>-buildmode=pie</code>
++  cmd/link flag is provided. Go command uses <code>-buildmode=pie</code> by default
+   on Windows.
+ </p>
+ 

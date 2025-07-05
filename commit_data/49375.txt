@@ -14,7 +14,36 @@ Date:   Wed May 12 12:30:34 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 4 +++-
  src/cmd/link/internal/ld/pe.go  | 2 ++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 644faeb2fb..894e5afe63 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -697,7 +697,9 @@ func (ctxt *Link) linksetup() {
+ 		Peinit(ctxt)
+ 	}
+ 
+-	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
++	if ctxt.LinkMode == LinkExternal {
++		// When external linking, we are creating an object file. The
++		// absolute address is irrelevant.
+ 		*FlagTextAddr = 0
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 8eb4231c3a..871bf8de2b 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1061,6 +1061,8 @@ func Peinit(ctxt *Link) {
+ 		// linker will honour that requirement.
+ 		PESECTALIGN = 32
+ 		PEFILEALIGN = 0
++		// We are creating an object file. The absolute address is irrelevant.
++		PEBASE = 0
+ 	}
+ 
+ 	var sh [16]pe.SectionHeader32

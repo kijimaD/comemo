@@ -12,7 +12,38 @@ Date:   Thu Jun 9 06:42:42 2016 -0700
     Change-Id: I374d80efd301814b6d98b86b7a4a68dd09704c92
     Reviewed-on: https://go-review.googlesource.com/23925
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/alldocs.go | 4 ++--
  src/cmd/go/get.go     | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2a64657732..b8ca833a88 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -473,8 +473,8 @@ Usage:
+ 
+ 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
+ 
+-Get downloads and installs the packages named by the import paths,
+-along with their dependencies.
++Get downloads the packages named by the import paths, along with their
++dependencies. It then installs the named packages, like 'go install'.
+ 
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index b52991a5fc..969760a77e 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -19,8 +19,8 @@ var cmdGet = &Command{
+ 	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+-Get downloads and installs the packages named by the import paths,
+-along with their dependencies.
++Get downloads the packages named by the import paths, along with their
++dependencies. It then installs the named packages, like 'go install'.
+ 
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.

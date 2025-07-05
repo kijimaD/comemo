@@ -11,6 +11,33 @@ Date:   Wed Sep 28 00:31:44 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/net/textproto/reader.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 1f7afc5766..1cae6ba1e6 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -42,9 +42,7 @@ func (r *Reader) ReadLine() (string, error) {
+ func (r *Reader) ReadLineBytes() ([]byte, error) {
+ 	line, err := r.readLineSlice()
+ 	if line != nil {
+-		buf := make([]byte, len(line))
+-		copy(buf, line)
+-		line = buf
++		line = bytes.Clone(line)
+ 	}
+ 	return line, err
+ }
+@@ -111,9 +109,7 @@ func trim(s []byte) []byte {
+ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
+ 	line, err := r.readContinuedLineSlice(noValidation)
+ 	if line != nil {
+-		buf := make([]byte, len(line))
+-		copy(buf, line)
+-		line = buf
++		line = bytes.Clone(line)
+ 	}
+ 	return line, err
+ }

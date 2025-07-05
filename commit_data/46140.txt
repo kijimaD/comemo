@@ -22,7 +22,7 @@ Date:   Thu Oct 29 14:46:29 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/clean/clean.go              |  3 +-
  src/cmd/go/internal/imports/scan_test.go        |  3 +-
  src/cmd/go/internal/load/pkg.go                 |  7 ++---
@@ -43,3 +43,640 @@ Date:   Thu Oct 29 14:46:29 2020 -0400
  src/os/exec/exec_test.go                        |  3 +-
  src/testing/testing_test.go                     |  7 ++---
  19 files changed, 91 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 87933f04f3..b1d40feb27 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -9,7 +9,6 @@ import (
+ 	"context"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+@@ -244,7 +243,7 @@ func clean(p *load.Package) {
+ 		base.Errorf("%v", p.Error)
+ 		return
+ 	}
+-	dirs, err := ioutil.ReadDir(p.Dir)
++	dirs, err := os.ReadDir(p.Dir)
+ 	if err != nil {
+ 		base.Errorf("go clean %s: %v", p.Dir, err)
+ 		return
+diff --git a/src/cmd/go/internal/imports/scan_test.go b/src/cmd/go/internal/imports/scan_test.go
+index 5ba3201968..2d245ee787 100644
+--- a/src/cmd/go/internal/imports/scan_test.go
++++ b/src/cmd/go/internal/imports/scan_test.go
+@@ -7,7 +7,6 @@ package imports
+ import (
+ 	"bytes"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -58,7 +57,7 @@ func TestScan(t *testing.T) {
+ func TestScanDir(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dirs, err := ioutil.ReadDir("testdata")
++	dirs, err := os.ReadDir("testdata")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index da3e0b895c..6f95af4f7e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -15,7 +15,6 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	pathpkg "path"
+@@ -1296,9 +1295,9 @@ HaveGoMod:
+ // Otherwise it is not possible to vendor just a/b/c and still import the
+ // non-vendored a/b. See golang.org/issue/13832.
+ func hasGoFiles(dir string) bool {
+-	fis, _ := ioutil.ReadDir(dir)
+-	for _, fi := range fis {
+-		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
++	files, _ := os.ReadDir(dir)
++	for _, f := range files {
++		if !f.IsDir() && strings.HasSuffix(f.Name(), ".go") {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 390a195547..1bbb57d353 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -244,7 +243,7 @@ var metaPrefixes = []string{
+ }
+ 
+ // matchMetadata reports whether info is a metadata file.
+-func matchMetadata(dir string, info fs.FileInfo) bool {
++func matchMetadata(dir string, info fs.DirEntry) bool {
+ 	name := info.Name()
+ 	for _, p := range metaPrefixes {
+ 		if strings.HasPrefix(name, p) {
+@@ -255,7 +254,7 @@ func matchMetadata(dir string, info fs.FileInfo) bool {
+ }
+ 
+ // matchPotentialSourceFile reports whether info may be relevant to a build operation.
+-func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
++func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ 	if strings.HasSuffix(info.Name(), "_test.go") {
+ 		return false
+ 	}
+@@ -281,8 +280,8 @@ func matchPotentialSourceFile(dir string, info fs.FileInfo) bool {
+ }
+ 
+ // copyDir copies all regular files satisfying match(info) from src to dst.
+-func copyDir(dst, src string, match func(dir string, info fs.FileInfo) bool) {
+-	files, err := ioutil.ReadDir(src)
++func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool) {
++	files, err := os.ReadDir(src)
+ 	if err != nil {
+ 		base.Fatalf("go mod vendor: %v", err)
+ 	}
+@@ -290,7 +289,7 @@ func copyDir(dst, src string, match func(dir string, info fs.FileInfo) bool) {
+ 		base.Fatalf("go mod vendor: %v", err)
+ 	}
+ 	for _, file := range files {
+-		if file.IsDir() || !file.Mode().IsRegular() || !match(src, file) {
++		if file.IsDir() || !file.Type().IsRegular() || !match(src, file) {
+ 			continue
+ 		}
+ 		r, err := os.Open(filepath.Join(src, file.Name()))
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 7572ff24f8..3a2ff63721 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -598,7 +597,7 @@ func rewriteVersionList(dir string) {
+ 	}
+ 	defer unlock()
+ 
+-	infos, err := ioutil.ReadDir(dir)
++	infos, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 6a2cea668d..3f70d04145 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/lazyregexp"
+-	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -445,13 +444,13 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	// this is an existing project. Walking the tree for packages would be more
+ 	// accurate, but could take much longer.
+ 	empty := true
+-	fis, _ := ioutil.ReadDir(modRoot)
+-	for _, fi := range fis {
+-		name := fi.Name()
++	files, _ := os.ReadDir(modRoot)
++	for _, f := range files {
++		name := f.Name()
+ 		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
+ 			continue
+ 		}
+-		if strings.HasSuffix(name, ".go") || fi.IsDir() {
++		if strings.HasSuffix(name, ".go") || f.IsDir() {
+ 			empty = false
+ 			break
+ 		}
+@@ -731,9 +730,9 @@ func findModulePath(dir string) (string, error) {
+ 
+ 	// Cast about for import comments,
+ 	// first in top-level directory, then in subdirectories.
+-	list, _ := ioutil.ReadDir(dir)
++	list, _ := os.ReadDir(dir)
+ 	for _, info := range list {
+-		if info.Mode().IsRegular() && strings.HasSuffix(info.Name(), ".go") {
++		if info.Type().IsRegular() && strings.HasSuffix(info.Name(), ".go") {
+ 			if com := findImportComment(filepath.Join(dir, info.Name())); com != "" {
+ 				return com, nil
+ 			}
+@@ -741,9 +740,9 @@ func findModulePath(dir string) (string, error) {
+ 	}
+ 	for _, info1 := range list {
+ 		if info1.IsDir() {
+-			files, _ := ioutil.ReadDir(filepath.Join(dir, info1.Name()))
++			files, _ := os.ReadDir(filepath.Join(dir, info1.Name()))
+ 			for _, info2 := range files {
+-				if info2.Mode().IsRegular() && strings.HasSuffix(info2.Name(), ".go") {
++				if info2.Type().IsRegular() && strings.HasSuffix(info2.Name(), ".go") {
+ 					if com := findImportComment(filepath.Join(dir, info1.Name(), info2.Name())); com != "" {
+ 						return path.Dir(com), nil
+ 					}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 401b67c260..e8a7aacb85 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/build"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+@@ -1561,13 +1560,18 @@ func hashOpen(name string) (cache.ActionID, error) {
+ 	}
+ 	hashWriteStat(h, info)
+ 	if info.IsDir() {
+-		names, err := ioutil.ReadDir(name)
++		files, err := os.ReadDir(name)
+ 		if err != nil {
+ 			fmt.Fprintf(h, "err %v\n", err)
+ 		}
+-		for _, f := range names {
++		for _, f := range files {
+ 			fmt.Fprintf(h, "file %s ", f.Name())
+-			hashWriteStat(h, f)
++			finfo, err := f.Info()
++			if err != nil {
++				fmt.Fprintf(h, "err %v\n", err)
++			} else {
++				hashWriteStat(h, finfo)
++			}
+ 		}
+ 	} else if info.Mode().IsRegular() {
+ 		// Because files might be very large, do not attempt
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 3ed42face2..e390c73a9c 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	"net/http"
+@@ -75,12 +74,12 @@ func StartProxy() {
+ var modList []module.Version
+ 
+ func readModList() {
+-	infos, err := ioutil.ReadDir("testdata/mod")
++	files, err := os.ReadDir("testdata/mod")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	for _, info := range infos {
+-		name := info.Name()
++	for _, f := range files {
++		name := f.Name()
+ 		if !strings.HasSuffix(name, ".txt") {
+ 			continue
+ 		}
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 3c643466ed..262fc079d5 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -8,7 +8,6 @@ package x509
+ 
+ import (
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -82,17 +81,17 @@ func loadSystemRoots() (*CertPool, error) {
+ 	return nil, firstErr
+ }
+ 
+-// readUniqueDirectoryEntries is like ioutil.ReadDir but omits
++// readUniqueDirectoryEntries is like os.ReadDir but omits
+ // symlinks that point within the directory.
+-func readUniqueDirectoryEntries(dir string) ([]fs.FileInfo, error) {
+-	fis, err := ioutil.ReadDir(dir)
++func readUniqueDirectoryEntries(dir string) ([]fs.DirEntry, error) {
++	files, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	uniq := fis[:0]
+-	for _, fi := range fis {
+-		if !isSameDirSymlink(fi, dir) {
+-			uniq = append(uniq, fi)
++	uniq := files[:0]
++	for _, f := range files {
++		if !isSameDirSymlink(f, dir) {
++			uniq = append(uniq, f)
+ 		}
+ 	}
+ 	return uniq, nil
+@@ -100,10 +99,10 @@ func readUniqueDirectoryEntries(dir string) ([]fs.FileInfo, error) {
+ 
+ // isSameDirSymlink reports whether fi in dir is a symlink with a
+ // target not containing a slash.
+-func isSameDirSymlink(fi fs.FileInfo, dir string) bool {
+-	if fi.Mode()&fs.ModeSymlink == 0 {
++func isSameDirSymlink(f fs.DirEntry, dir string) bool {
++	if f.Type()&fs.ModeSymlink == 0 {
+ 		return false
+ 	}
+-	target, err := os.Readlink(filepath.Join(dir, fi.Name()))
++	target, err := os.Readlink(filepath.Join(dir, f.Name()))
+ 	return err == nil && !strings.Contains(target, "/")
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e9ed26aa5f..56942c0fd2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -597,7 +596,7 @@ func findImports(pkg string) ([]string, error) {
+ 		vpkg = "vendor/" + pkg
+ 	}
+ 	dir := filepath.Join(Default.GOROOT, "src", vpkg)
+-	files, err := ioutil.ReadDir(dir)
++	files, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 8991e3bdee..3c76aafde3 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -66,7 +65,7 @@ const maxTime = 30 * time.Second
+ 
+ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+ 	dirname := filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
+-	list, err := ioutil.ReadDir(dirname)
++	list, err := os.ReadDir(dirname)
+ 	if err != nil {
+ 		t.Fatalf("testDir(%s): %s", dirname, err)
+ 	}
+@@ -144,7 +143,7 @@ func TestVersionHandling(t *testing.T) {
+ 	}
+ 
+ 	const dir = "./testdata/versions"
+-	list, err := ioutil.ReadDir(dir)
++	list, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 102ac43f94..05b12f1636 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -59,7 +58,7 @@ func walkDir(t *testing.T, path string, endTime time.Time) (int, bool) {
+ 		return 0, false
+ 	}
+ 
+-	list, err := ioutil.ReadDir(filepath.Join(runtime.GOROOT(), "src", path))
++	list, err := os.ReadDir(filepath.Join(runtime.GOROOT(), "src", path))
+ 	if err != nil {
+ 		t.Fatalf("walkDir %s failed (%v)", path, err)
+ 	}
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index 9b79097acf..358a844f65 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -25,7 +25,7 @@ package parser
+ import (
+ 	"go/scanner"
+ 	"go/token"
+-	"io/ioutil"
++	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"strings"
+@@ -174,13 +174,13 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
+ }
+ 
+ func TestErrors(t *testing.T) {
+-	list, err := ioutil.ReadDir(testdata)
++	list, err := os.ReadDir(testdata)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	for _, fi := range list {
+-		name := fi.Name()
+-		if !fi.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
++	for _, d := range list {
++		name := d.Name()
++		if !d.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".src") {
+ 			checkErrors(t, filepath.Join(testdata, name), nil)
+ 		}
+ 	}
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 41d9a52847..56ff5fefb4 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -13,7 +13,6 @@ import (
+ 	"go/token"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -134,29 +133,39 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
+ // first error encountered are returned.
+ //
+ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+-	list, err := ioutil.ReadDir(path)
++	list, err := os.ReadDir(path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	pkgs = make(map[string]*ast.Package)
+ 	for _, d := range list {
+-		if !d.IsDir() && strings.HasSuffix(d.Name(), ".go") && (filter == nil || filter(d)) {
+-			filename := filepath.Join(path, d.Name())
+-			if src, err := ParseFile(fset, filename, nil, mode); err == nil {
+-				name := src.Name.Name
+-				pkg, found := pkgs[name]
+-				if !found {
+-					pkg = &ast.Package{
+-						Name:  name,
+-						Files: make(map[string]*ast.File),
+-					}
+-					pkgs[name] = pkg
++		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
++			continue
++		}
++		if filter != nil {
++			info, err := d.Info()
++			if err != nil {
++				return nil, err
++			}
++			if !filter(info) {
++				continue
++			}
++		}
++		filename := filepath.Join(path, d.Name())
++		if src, err := ParseFile(fset, filename, nil, mode); err == nil {
++			name := src.Name.Name
++			pkg, found := pkgs[name]
++			if !found {
++				pkg = &ast.Package{
++					Name:  name,
++					Files: make(map[string]*ast.File),
+ 				}
+-				pkg.Files[filename] = src
+-			} else if first == nil {
+-				first = err
++				pkgs[name] = pkg
+ 			}
++			pkg.Files[filename] = src
++		} else if first == nil {
++			first = err
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 841ca24511..ce31dab68b 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -33,7 +33,6 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -330,17 +329,17 @@ func TestFixedBugs(t *testing.T) { testDir(t, "fixedbugs") }
+ func testDir(t *testing.T, dir string) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	fis, err := ioutil.ReadDir(dir)
++	dirs, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	for _, fi := range fis {
+-		testname := filepath.Base(fi.Name())
++	for _, d := range dirs {
++		testname := filepath.Base(d.Name())
+ 		testname = strings.TrimSuffix(testname, filepath.Ext(testname))
+ 		t.Run(testname, func(t *testing.T) {
+-			filename := filepath.Join(dir, fi.Name())
+-			if fi.IsDir() {
++			filename := filepath.Join(dir, d.Name())
++			if d.IsDir() {
+ 				t.Errorf("skipped directory %q", filename)
+ 				return
+ 			}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 669e7bec20..23f8f9a18d 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -16,7 +16,6 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -87,7 +86,7 @@ func firstComment(filename string) string {
+ }
+ 
+ func testTestDir(t *testing.T, path string, ignore ...string) {
+-	files, err := ioutil.ReadDir(path)
++	files, err := os.ReadDir(path)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -297,7 +296,7 @@ func (w *walker) walk(dir string) {
+ 		return
+ 	}
+ 
+-	fis, err := ioutil.ReadDir(dir)
++	files, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		w.errh(err)
+ 		return
+@@ -317,9 +316,9 @@ func (w *walker) walk(dir string) {
+ 	}
+ 
+ 	// traverse subdirectories, but don't walk into testdata
+-	for _, fi := range fis {
+-		if fi.IsDir() && fi.Name() != "testdata" {
+-			w.walk(filepath.Join(dir, fi.Name()))
++	for _, f := range files {
++		if f.IsDir() && f.Name() != "testdata" {
++			w.walk(filepath.Join(dir, f.Name()))
+ 		}
+ 	}
+ }
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index 316220cfa8..cdab95a59e 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -6,7 +6,6 @@ package trace
+ 
+ import (
+ 	"bytes"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+@@ -34,19 +33,19 @@ func TestCorruptedInputs(t *testing.T) {
+ }
+ 
+ func TestParseCanned(t *testing.T) {
+-	files, err := ioutil.ReadDir("./testdata")
++	files, err := os.ReadDir("./testdata")
+ 	if err != nil {
+ 		t.Fatalf("failed to read ./testdata: %v", err)
+ 	}
+ 	for _, f := range files {
+-		name := filepath.Join("./testdata", f.Name())
+-		info, err := os.Stat(name)
++		info, err := f.Info()
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		if testing.Short() && info.Size() > 10000 {
+ 			continue
+ 		}
++		name := filepath.Join("./testdata", f.Name())
+ 		data, err := os.ReadFile(name)
+ 		if err != nil {
+ 			t.Fatal(err)
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 92429f63a5..8b0c93f382 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"internal/poll"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"net"
+ 	"net/http"
+@@ -386,7 +385,7 @@ func TestPipeLookPathLeak(t *testing.T) {
+ 	// Reading /proc/self/fd is more reliable than calling lsof, so try that
+ 	// first.
+ 	numOpenFDs := func() (int, []byte, error) {
+-		fds, err := ioutil.ReadDir("/proc/self/fd")
++		fds, err := os.ReadDir("/proc/self/fd")
+ 		if err != nil {
+ 			return 0, nil, err
+ 		}
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index d665a334e4..0f096980ca 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -5,7 +5,6 @@
+ package testing_test
+ 
+ import (
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -102,11 +101,11 @@ func testTempDir(t *testing.T) {
+ 	if !fi.IsDir() {
+ 		t.Errorf("dir %q is not a dir", dir)
+ 	}
+-	fis, err := ioutil.ReadDir(dir)
++	files, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if len(fis) > 0 {
+-		t.Errorf("unexpected %d files in TempDir: %v", len(fis), fis)
++	if len(files) > 0 {
++		t.Errorf("unexpected %d files in TempDir: %v", len(files), files)
+ 	}
+ }

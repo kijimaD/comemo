@@ -10,6 +10,20 @@ Date:   Thu May 10 19:08:46 2018 +0200
     Change-Id: I3aa0cc95b96c9a594cb5a49713efa22d67e4990c
     Reviewed-on: https://go-review.googlesource.com/112675
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 0a5071a08b..35b3285a08 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -319,7 +319,7 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
+ <br>
+ Types of profiles available:
+ <table>
+-<thread><td>Count</td><td>Profile</td></thead>
++<thead><td>Count</td><td>Profile</td></thead>
+ {{range .}}
+ 	<tr>
+ 	<td>{{.Count}}</td><td><a href={{.Href}}>{{.Name}}</a></td>

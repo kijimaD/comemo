@@ -21,9 +21,118 @@ Date:   Thu Jun 25 14:04:55 2015 -0700
     Change-Id: If966b38ec52243a25f355dab871300d29db02e16
     Reviewed-on: https://go-review.googlesource.com/11520
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/dom.go           |  3 ++
  src/cmd/compile/internal/ssa/export_test.go   |  2 +-
  src/cmd/compile/internal/ssa/nilcheck.go      |  1 +
  src/cmd/compile/internal/ssa/nilcheck_test.go | 56 +++++++++++++++++++++++++++
  4 files changed, 61 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 343df76b22..6f700ec7e9 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -55,6 +55,8 @@ func postorder(f *Func) []*Block {
+ // which maps block ID to the immediate dominator of that block.
+ // Unreachable blocks map to nil.  The entry block maps to nil.
+ func dominators(f *Func) []*Block {
++	// TODO: Benchmarks. See BenchmarkNilCheckDeep* for an example.
++
+ 	// A simple algorithm for now
+ 	// Cooper, Harvey, Kennedy
+ 	idom := make([]*Block, f.NumBlocks())
+@@ -108,6 +110,7 @@ func dominators(f *Func) []*Block {
+ // intersect finds the closest dominator of both b and c.
+ // It requires a postorder numbering of all the blocks.
+ func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
++	// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
+ 	for b != c {
+ 		if postnum[b.ID] < postnum[c.ID] {
+ 			b = idom[b.ID]
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index f254e066ac..cec4abff56 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -12,7 +12,7 @@ var Opt = opt
+ var Deadcode = deadcode
+ 
+ type DummyFrontend struct {
+-	t *testing.T
++	t testing.TB
+ }
+ 
+ func (DummyFrontend) StringSym(s string) interface{} {
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 28544d5900..1265ee9971 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -33,6 +33,7 @@ func nilcheckelim(f *Func) {
+ 		var elim bool
+ 		// Walk up the dominator tree,
+ 		// looking for identical nil checks.
++		// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
+ 		for c := idom[b.ID]; c != nil; c = idom[c.ID] {
+ 			if checkedptr(c) == ptr {
+ 				elim = true
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+new file mode 100644
+index 0000000000..2d60957d49
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -0,0 +1,56 @@
++package ssa
++
++import (
++	"strconv"
++	"testing"
++)
++
++func BenchmarkNilCheckDeep1(b *testing.B)     { benchmarkNilCheckDeep(b, 1) }
++func BenchmarkNilCheckDeep10(b *testing.B)    { benchmarkNilCheckDeep(b, 10) }
++func BenchmarkNilCheckDeep100(b *testing.B)   { benchmarkNilCheckDeep(b, 100) }
++func BenchmarkNilCheckDeep1000(b *testing.B)  { benchmarkNilCheckDeep(b, 1000) }
++func BenchmarkNilCheckDeep10000(b *testing.B) { benchmarkNilCheckDeep(b, 10000) }
++
++// benchmarkNilCheckDeep is a stress test of nilcheckelim.
++// It uses the worst possible input: A linear string of
++// nil checks, none of which can be eliminated.
++// Run with multiple depths to observe big-O behavior.
++func benchmarkNilCheckDeep(b *testing.B, depth int) {
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++
++	var blocs []bloc
++	blocs = append(blocs,
++		Bloc("entry",
++			Valu("mem", OpArg, TypeMem, 0, ".mem"),
++			Goto(blockn(0)),
++		),
++	)
++	for i := 0; i < depth; i++ {
++		blocs = append(blocs,
++			Bloc(blockn(i),
++				Valu(ptrn(i), OpGlobal, ptrType, 0, nil),
++				Valu(booln(i), OpIsNonNil, TypeBool, 0, nil, ptrn(i)),
++				If(booln(i), blockn(i+1), "exit"),
++			),
++		)
++	}
++	blocs = append(blocs,
++		Bloc(blockn(depth), Goto("exit")),
++		Bloc("exit", Exit("mem")),
++	)
++
++	c := NewConfig("amd64", DummyFrontend{b})
++	fun := Fun(c, "entry", blocs...)
++
++	CheckFunc(fun.f)
++	b.SetBytes(int64(depth)) // helps for eyeballing linearity
++	b.ResetTimer()
++
++	for i := 0; i < b.N; i++ {
++		nilcheckelim(fun.f)
++	}
++}
++
++func blockn(n int) string { return "b" + strconv.Itoa(n) }
++func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
++func booln(n int) string  { return "c" + strconv.Itoa(n) }

@@ -29,7 +29,35 @@ Date:   Mon Nov 16 22:23:48 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/expr.go            | 4 +---
  src/go/types/testdata/expr3.src | 1 +
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 1f8b946407..11f9411284 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1357,9 +1357,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			var key operand
+ 			check.expr(&key, e.Index)
+ 			check.assignment(&key, typ.key, "map index")
+-			if x.mode == invalid {
+-				goto Error
+-			}
++			// ok to continue even if indexing failed - map element type is known
+ 			x.mode = mapindex
+ 			x.typ = typ.elem
+ 			x.expr = e
+diff --git a/src/go/types/testdata/expr3.src b/src/go/types/testdata/expr3.src
+index 6f2201c365..e6777aad2b 100644
+--- a/src/go/types/testdata/expr3.src
++++ b/src/go/types/testdata/expr3.src
+@@ -102,6 +102,7 @@ func indexes() {
+ 	var ok mybool
+ 	_, ok = m["bar"]
+ 	_ = ok
++	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "cannot convert"
+ 
+ 	var t string
+ 	_ = t[- /* ERROR "negative" */ 1]

@@ -17,8 +17,109 @@ Date:   Mon Jan 6 11:10:02 2025 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/640577
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/cache/cache.go   | 12 ++++++------
  src/cmd/go/internal/mmap/mmap.go     |  7 ++++---
  src/cmd/go/internal/modindex/read.go | 22 ++++++++++++++++------
  3 files changed, 26 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index c9acd8782d..1bef1db08c 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -296,19 +296,19 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
+ // GetMmap looks up the action ID in the cache and returns
+ // the corresponding output bytes.
+ // GetMmap should only be used for data that can be expected to fit in memory.
+-func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
++func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
+ 	entry, err := c.Get(id)
+ 	if err != nil {
+-		return nil, entry, err
++		return nil, entry, false, err
+ 	}
+-	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
++	md, opened, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+ 	if err != nil {
+-		return nil, Entry{}, err
++		return nil, Entry{}, opened, err
+ 	}
+ 	if int64(len(md.Data)) != entry.Size {
+-		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
++		return nil, Entry{}, true, &entryNotFoundError{Err: errors.New("file incomplete")}
+ 	}
+-	return md.Data, entry, nil
++	return md.Data, entry, true, nil
+ }
+ 
+ // OutputFile returns the name of the cache file storing output with the given OutputID.
+diff --git a/src/cmd/go/internal/mmap/mmap.go b/src/cmd/go/internal/mmap/mmap.go
+index fcbd3e08c1..fd374df82e 100644
+--- a/src/cmd/go/internal/mmap/mmap.go
++++ b/src/cmd/go/internal/mmap/mmap.go
+@@ -22,10 +22,11 @@ type Data struct {
+ }
+ 
+ // Mmap maps the given file into memory.
+-func Mmap(file string) (Data, error) {
++func Mmap(file string) (Data, bool, error) {
+ 	f, err := os.Open(file)
+ 	if err != nil {
+-		return Data{}, err
++		return Data{}, false, err
+ 	}
+-	return mmapFile(f)
++	data, err := mmapFile(f)
++	return data, true, err
+ }
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index c4102409b4..4c1fbd8359 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -183,16 +183,21 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		data, _, err := cache.GetMmap(cache.Default(), id)
++		data, _, opened, err := cache.GetMmap(cache.Default(), id)
+ 		if err != nil {
+ 			// Couldn't read from modindex. Assume we couldn't read from
+ 			// the index because the module hasn't been indexed yet.
++			// But double check on Windows that we haven't opened the file yet,
++			// because once mmap opens the file, we can't close it, and
++			// Windows won't let us open an already opened file.
+ 			data, err = indexModule(modroot)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
+-				return nil, err
++			if runtime.GOOS != "windows" || !opened {
++				if err = cache.PutBytes(cache.Default(), id, data); err != nil {
++					return nil, err
++				}
+ 			}
+ 		}
+ 		mi, err := fromBytes(modroot, data)
+@@ -212,13 +217,18 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		data, _, err := cache.GetMmap(cache.Default(), id)
++		data, _, opened, err := cache.GetMmap(cache.Default(), id)
+ 		if err != nil {
+ 			// Couldn't read from index. Assume we couldn't read from
+ 			// the index because the package hasn't been indexed yet.
++			// But double check on Windows that we haven't opened the file yet,
++			// because once mmap opens the file, we can't close it, and
++			// Windows won't let us open an already opened file.
+ 			data = indexPackage(modroot, pkgdir)
+-			if err = cache.PutBytes(cache.Default(), id, data); err != nil {
+-				return nil, err
++			if runtime.GOOS != "windows" || !opened {
++				if err = cache.PutBytes(cache.Default(), id, data); err != nil {
++					return nil, err
++				}
+ 			}
+ 		}
+ 		pkg, err := packageFromBytes(modroot, data)

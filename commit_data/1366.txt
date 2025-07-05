@@ -8,7 +8,88 @@ Date:   Thu Dec 18 18:23:48 2008 -0800
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=21558
     CL=21558
-
+---
  src/libmach_amd64/8db.c      | 12 ++++++------
  src/libmach_amd64/machdata.c |  4 ++--
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/libmach_amd64/8db.c b/src/libmach_amd64/8db.c
+index 040dd1e861..bab5ffb9b1 100644
+--- a/src/libmach_amd64/8db.c
++++ b/src/libmach_amd64/8db.c
+@@ -301,7 +301,7 @@ enum{
+ 	REXX		= 1<<1,	/* extend sib index */
+ 	REXB		= 1<<0	/* extend modrm r/m, sib base, or opcode reg */
+ };
+-	
++
+ 	/* Operand Format codes */
+ /*
+ %A	-	address size register modifier (!asize -> 'E')
+@@ -361,7 +361,7 @@ enum {
+ 	OPOVER,			/* Operand size override */
+ 	ADDOVER,		/* Address size override */
+ };
+-	
++
+ static Optable optab0F00[8]=
+ {
+ [0x00]	0,0,		"MOVW	LDT,%e",
+@@ -859,7 +859,7 @@ static Optable optabD8[8+8] =
+ [0x0f]	0,0,		"FDIVRD	%f,F0",
+ };
+ /*
+- *	optabD9 and optabDB use the following encoding: 
++ *	optabD9 and optabDB use the following encoding:
+  *	if (0 <= modrm <= 2) instruction = optabDx[modrm&0x07];
+  *	else instruction = optabDx[(modrm&0x3f)+8];
+  *
+@@ -1931,7 +1931,7 @@ immediate(Instr *ip, vlong val)
+ 			w = -w;
+ 		if (issymref(ip, &s, w, val)) {
+ 			if (w)
+-				bprint(ip, "%s+%lux(SB)", s.name, w);
++				bprint(ip, "%s+%#lux(SB)", s.name, w);
+ 			else
+ 				bprint(ip, "%s(SB)", s.name);
+ 			return;
+@@ -1942,7 +1942,7 @@ immediate(Instr *ip, vlong val)
+ 			if (w < 0)
+ 				w = -w;
+ 			if (w < 4096) {
+-				bprint(ip, "%s-%lux(SB)", s.name, w);
++				bprint(ip, "%s-%#lux(SB)", s.name, w);
+ 				return;
+ 			}
+ 		}
+@@ -2250,7 +2250,7 @@ i386foll(Map *map, uvlong pc, Rgetter rget, uvlong *foll)
+ 		return 1;
+ 	default:
+ 		break;
+-	}		
++	}
+ 	if (strncmp(op->proto,"JMP", 3) == 0 || strncmp(op->proto,"CALL", 4) == 0)
+ 		return 1;
+ 	foll[n++] = pc+i.n;
+diff --git a/src/libmach_amd64/machdata.c b/src/libmach_amd64/machdata.c
+index dfbce3acd6..2b7368ddeb 100644
+--- a/src/libmach_amd64/machdata.c
++++ b/src/libmach_amd64/machdata.c
+@@ -113,7 +113,7 @@ symoff(char *buf, int n, uvlong v, int space)
+ 	if (s.type != 't' && s.type != 'T' && delta >= 4096)
+ 		return snprint(buf, n, "%llux", v);
+ 	else if (delta)
+-		return snprint(buf, n, "%s+%lux", s.name, delta);
++		return snprint(buf, n, "%s+%#lux", s.name, delta);
+ 	else
+ 		return snprint(buf, n, "%s", s.name);
+ }
+@@ -150,7 +150,7 @@ fpformat(Map *map, Reglist *rp, char *buf, int n, int modif)
+ 			if (rp->rformat == 'F')
+ 				return 1;
+ 			return 2;
+-		}	
++		}
+ 			/* treat it like 'f' */
+ 		if (get1(map, rp->roffs, (uchar *)reg, 4) < 0)
+ 			return -1;

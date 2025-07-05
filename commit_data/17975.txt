@@ -7,6 +7,28 @@ Date:   Thu Dec 12 17:14:05 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/41550044
-
+---
  test/fixedbugs/issue4618.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue4618.go b/test/fixedbugs/issue4618.go
+index 335feaadb0..ff91ae7067 100644
+--- a/test/fixedbugs/issue4618.go
++++ b/test/fixedbugs/issue4618.go
+@@ -9,6 +9,7 @@ package main
+ import (
+ 	"fmt"
+ 	"os"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -33,7 +34,7 @@ func main() {
+ 		fmt.Printf("AllocsPerRun(100, F) = %v, want 1\n", nf)
+ 		os.Exit(1)
+ 	}
+-	if int(ng) != 0 {
++	if int(ng) != 0 && (runtime.Compiler != "gccgo" || int(ng) != 1) {
+ 		fmt.Printf("AllocsPerRun(100, G) = %v, want 0\n", ng)
+ 		os.Exit(1)
+ 	}

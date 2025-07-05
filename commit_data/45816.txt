@@ -18,7 +18,51 @@ Date:   Thu Nov 19 10:56:35 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/271577
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go            | 15 ---------------
  src/cmd/go/testdata/script/mod_gonoproxy.txt |  6 ++++++
  2 files changed, 6 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 13106de2f2..f2fafa85cb 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -466,21 +466,6 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
+ 	modload.DisallowWriteGoMod()
+-
+-	// Ensure .info files are cached for each module in the build list.
+-	// This ensures 'go list -m all' can succeed later if offline.
+-	// 'go get' only loads .info files for queried versions. 'go list -m' needs
+-	// them to add timestamps to the output.
+-	//
+-	// This is best effort since build commands don't need .info files to load
+-	// the build list.
+-	//
+-	// TODO(golang.org/issue/40775): ListModules resets modload.loader, which
+-	// contains information about direct dependencies that WriteGoMod uses.
+-	// Refactor to avoid these kinds of global side effects.
+-	if modload.HasModRoot() {
+-		modload.ListModules(ctx, []string{"all"}, false, false, false)
+-	}
+ }
+ 
+ // parseArgs parses command-line arguments and reports errors.
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index 7ead946c24..546605da21 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -18,6 +18,12 @@ env GOPRIVATE='*/quote,*/*mple*,golang.org/x'
+ env GONOPROXY=none # that is, proxy all despite GOPRIVATE
+ go get -d rsc.io/quote
+ 
++# Download .info files needed for 'go list -m all' later.
++# TODO(#42723): either 'go list -m' should not read these files,
++# or 'go get' and 'go mod tidy' should download them.
++go list -m all  
++stdout '^golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c$'
++
+ # When GOPROXY is not empty but contains no entries, an error should be reported.
+ env GOPROXY=','
+ ! go get -d golang.org/x/text

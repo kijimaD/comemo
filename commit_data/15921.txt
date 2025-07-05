@@ -7,8 +7,65 @@ Date:   Mon Mar 25 12:13:34 2013 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7510048
-
+---
  src/all.bat  | 2 +-
  src/make.bat | 4 ++--
  src/run.bat  | 6 +++---
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index 8929f77273..0647a715ba 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -20,7 +20,7 @@ if %GOBUILDFAIL%==1 goto end
+ :: can get the original %PATH% and give suggestion to add %GOROOT%/bin
+ :: to %PATH% if necessary.
+ set PATH=%OLDPATH%
+-%GOTOOLDIR%/dist banner
++"%GOTOOLDIR%/dist" banner
+ 
+ :end
+ if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
+diff --git a/src/make.bat b/src/make.bat
+index be1c8f52dc..c1f171de49 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -109,8 +109,8 @@ if x%1==x--no-banner goto nobanner
+ goto end
+ 
+ :copydist
+-mkdir %GOTOOLDIR% 2>NUL
+-copy cmd\dist\dist.exe %GOTOOLDIR%\
++mkdir "%GOTOOLDIR%" 2>NUL
++copy cmd\dist\dist.exe "%GOTOOLDIR%\"
+ goto end
+ 
+ :fail
+diff --git a/src/run.bat b/src/run.bat
+index 3f950f5414..1a68eb5738 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -74,12 +74,12 @@ echo.
+ :: cgo tests
+ if x%CGO_ENABLED% == x0 goto nocgo
+ echo # ..\misc\cgo\life
+-go run %GOROOT%\test\run.go - ..\misc\cgo\life
++go run "%GOROOT%\test\run.go" - ..\misc\cgo\life
+ if errorlevel 1 goto fail
+ echo.
+ 
+ echo # ..\misc\cgo\stdio
+-go run %GOROOT%\test\run.go - ..\misc\cgo\stdio
++go run "%GOROOT%\test\run.go" - ..\misc\cgo\stdio
+ if errorlevel 1 goto fail
+ echo.
+ 
+@@ -90,7 +90,7 @@ echo.
+ :nocgo
+ 
+ echo # ..\doc\progs
+-go run %GOROOT%\test\run.go - ..\doc\progs
++go run "%GOROOT%\test\run.go" - ..\doc\progs
+ if errorlevel 1 goto fail
+ echo.
+ 

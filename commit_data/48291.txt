@@ -12,7 +12,78 @@ Date:   Mon Apr 26 18:46:22 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/mime/multipart/multipart.go | 14 +++++++++++---
  src/net/http/request_test.go    | 23 +++++++++++++++++++++++
  2 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index cb8bf39338..81bf722d4e 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -20,6 +20,7 @@ import (
+ 	"mime"
+ 	"mime/quotedprintable"
+ 	"net/textproto"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+@@ -67,13 +68,20 @@ func (p *Part) FormName() string {
+ 	return p.dispositionParams["name"]
+ }
+ 
+-// FileName returns the filename parameter of the Part's
+-// Content-Disposition header.
++// FileName returns the filename parameter of the Part's Content-Disposition
++// header. If not empty, the filename is passed through filepath.Base (which is
++// platform dependent) before being returned.
+ func (p *Part) FileName() string {
+ 	if p.dispositionParams == nil {
+ 		p.parseContentDisposition()
+ 	}
+-	return p.dispositionParams["filename"]
++	filename := p.dispositionParams["filename"]
++	if filename == "" {
++		return ""
++	}
++	// RFC 7578, Section 4.2 requires that if a filename is provided, the
++	// directory path information must not be used.
++	return filepath.Base(filename)
+ }
+ 
+ func (p *Part) parseContentDisposition() {
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 07b3d6a1c7..952828b395 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -245,6 +245,29 @@ func TestParseMultipartForm(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 45789: multipart form should not include directory path in filename
++func TestParseMultipartFormFilename(t *testing.T) {
++	postData :=
++		`--xxx
++Content-Disposition: form-data; name="file"; filename="../usr/foobar.txt/"
++Content-Type: text/plain
++
++--xxx--
++`
++	req := &Request{
++		Method: "POST",
++		Header: Header{"Content-Type": {`multipart/form-data; boundary=xxx`}},
++		Body:   io.NopCloser(strings.NewReader(postData)),
++	}
++	_, hdr, err := req.FormFile("file")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if hdr.Filename != "foobar.txt" {
++		t.Errorf("expected only the last element of the path, got %q", hdr.Filename)
++	}
++}
++
+ // Issue #40430: Test that if maxMemory for ParseMultipartForm when combined with
+ // the payload size and the internal leeway buffer size of 10MiB overflows, that we
+ // correctly return an error.

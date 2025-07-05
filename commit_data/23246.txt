@@ -7,7 +7,34 @@ Date:   Fri May 1 15:53:45 2015 +1000
     Change-Id: Ia9191bd7ecdf7bd5ee7d69ae23aa71760f379aa8
     Reviewed-on: https://go-review.googlesource.com/9590
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/chan_test.go | 2 +-
  src/runtime/stack1.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 0b918bb99f..9119371d5c 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -528,7 +528,7 @@ func TestMultiConsumer(t *testing.T) {
+ func TestShrinkStackDuringBlockedSend(t *testing.T) {
+ 	// make sure that channel operations still work when we are
+ 	// blocked on a channel send and we shrink the stack.
+-	// NOTE: this test probably won't fail unless stack1.go:StackDebug
++	// NOTE: this test probably won't fail unless stack1.go:stackDebug
+ 	// is set to >= 1.
+ 	const n = 10
+ 	c := make(chan int)
+diff --git a/src/runtime/stack1.go b/src/runtime/stack1.go
+index 4fa1a58ea8..f74694b7e9 100644
+--- a/src/runtime/stack1.go
++++ b/src/runtime/stack1.go
+@@ -7,7 +7,7 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	// StackDebug == 0: no logging
++	// stackDebug == 0: no logging
+ 	//            == 1: logging of per-stack operations
+ 	//            == 2: logging of per-frame operations
+ 	//            == 3: logging of per-word updates

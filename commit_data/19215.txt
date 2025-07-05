@@ -9,9 +9,74 @@ Date:   Mon Apr 21 00:08:59 2014 -0400
     R=golang-codereviews, dave, gobot, iant
     CC=golang-codereviews
     https://golang.org/cl/89520043
-
+---
  src/cmd/5l/obj.c                  | 1 +
  src/cmd/ld/elf.c                  | 4 ++--
  src/pkg/runtime/rt0_freebsd_arm.s | 5 +++++
  src/run.bash                      | 7 ++++++-
  4 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index a866b1f69b..86a0ece2e4 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -62,6 +62,7 @@ archinit(void)
+ 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+ 		break;
+ 	case Hlinux:
++	case Hfreebsd:
+ 		break;
+ 	}
+ 
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 3b0f578814..7859497594 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -55,8 +55,8 @@ elfinit(void)
+ 
+ 	// 32-bit architectures
+ 	case '5':
+-		// we only use EABI on linux/arm
+-		if(HEADTYPE == Hlinux)
++		// we use EABI on both linux/arm and freebsd/arm.
++		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd)
+ 			hdr.flags = 0x5000002; // has entry point, Version5 EABI
+ 		// fallthrough
+ 	default:
+diff --git a/src/pkg/runtime/rt0_freebsd_arm.s b/src/pkg/runtime/rt0_freebsd_arm.s
+index d110876395..56219f8999 100644
+--- a/src/pkg/runtime/rt0_freebsd_arm.s
++++ b/src/pkg/runtime/rt0_freebsd_arm.s
+@@ -11,3 +11,8 @@ TEXT _rt0_arm_freebsd(SB),NOSPLIT,$-4
+ 	MOVW	$4(R13), R1		// argv
+ 	MOVM.DB.W [R0-R1], (R13)
+ 	B	_rt0_go(SB)
++
++TEXT main(SB),NOSPLIT,$-4
++	MOVM.DB.W [R0-R1], (R13)
++	MOVW	$_rt0_go(SB), R4
++	B		(R4)
+diff --git a/src/run.bash b/src/run.bash
+index f0fb928b2c..0f3e4e0f36 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -127,13 +127,18 @@ darwin-386 | darwin-amd64)
+ 	*) go test -ldflags '-linkmode=external'  || exit 1;;
+ 	esac
+ 	;;
+-dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
++dragonfly-386 | dragonfly-amd64 | freebsd-386 | freebsd-amd64 | freebsd-arm | linux-386 | linux-amd64 | linux-arm | netbsd-386 | netbsd-amd64)
+ 	go test -ldflags '-linkmode=external' || exit 1
+ 	go test -ldflags '-linkmode=auto' ../testtls || exit 1
+ 	go test -ldflags '-linkmode=external' ../testtls || exit 1
+ 	
+ 	case "$GOHOSTOS-$GOARCH" in
+ 	netbsd-386 | netbsd-amd64) ;; # no static linking
++	freebsd-arm) ;; # -fPIC compiled tls code will use __tls_get_addr instead
++	                # of __aeabi_read_tp, however, on FreeBSD/ARM, __tls_get_addr
++	                # is implemented in rtld-elf, so -fPIC isn't compatible with
++	                # static linking on FreeBSD/ARM with clang. (cgo depends on
++			# -fPIC fundamentally.)
+ 	*)
+ 		go test -ldflags '-linkmode=external -extldflags "-static -pthread"' ../testtls || exit 1
+ 		;;

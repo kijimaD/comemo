@@ -20,9 +20,127 @@ Date:   Thu Jul 23 20:24:56 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgc.go         | 13 +++++++------
  src/runtime/mgcscavenge.go |  2 +-
  src/runtime/mstats.go      | 10 ++++++++--
  src/runtime/trace.go       |  5 +++--
  4 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4b9a6da3b3..5c565a5853 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -409,7 +409,8 @@ type gcControllerState struct {
+ }
+ 
+ // startCycle resets the GC controller's state and computes estimates
+-// for a new GC cycle. The caller must hold worldsema.
++// for a new GC cycle. The caller must hold worldsema and the world
++// must be stopped.
+ func (c *gcControllerState) startCycle() {
+ 	c.scanWork = 0
+ 	c.bgScanCredit = 0
+@@ -499,7 +500,7 @@ func (c *gcControllerState) revise() {
+ 
+ 	// Assume we're under the soft goal. Pace GC to complete at
+ 	// next_gc assuming the heap is in steady-state.
+-	heapGoal := int64(memstats.next_gc)
++	heapGoal := int64(atomic.Load64(&memstats.next_gc))
+ 
+ 	// Compute the expected scan work remaining.
+ 	//
+@@ -512,12 +513,12 @@ func (c *gcControllerState) revise() {
+ 	// 100*heap_scan.)
+ 	scanWorkExpected := int64(float64(scan) * 100 / float64(100+gcpercent))
+ 
+-	if live > memstats.next_gc || work > scanWorkExpected {
++	if int64(live) > heapGoal || work > scanWorkExpected {
+ 		// We're past the soft goal, or we've already done more scan
+ 		// work than we expected. Pace GC so that in the worst case it
+ 		// will complete by the hard goal.
+ 		const maxOvershoot = 1.1
+-		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
++		heapGoal = int64(float64(heapGoal) * maxOvershoot)
+ 
+ 		// Compute the upper bound on the scan work remaining.
+ 		scanWorkExpected = int64(scan)
+@@ -846,7 +847,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ 
+ 	// Commit to the trigger and goal.
+ 	memstats.gc_trigger = trigger
+-	memstats.next_gc = goal
++	atomic.Store64(&memstats.next_gc, goal)
+ 	if trace.enabled {
+ 		traceNextGC()
+ 	}
+@@ -903,7 +904,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ //
+ // mheap_.lock must be held or the world must be stopped.
+ func gcEffectiveGrowthRatio() float64 {
+-	egogc := float64(memstats.next_gc-memstats.heap_marked) / float64(memstats.heap_marked)
++	egogc := float64(atomic.Load64(&memstats.next_gc)-memstats.heap_marked) / float64(memstats.heap_marked)
+ 	if egogc < 0 {
+ 		// Shouldn't happen, but just in case.
+ 		egogc = 0
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 34646828e5..6328b295ca 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -123,7 +123,7 @@ func gcPaceScavenger() {
+ 		return
+ 	}
+ 	// Compute our scavenging goal.
+-	goalRatio := float64(memstats.next_gc) / float64(memstats.last_next_gc)
++	goalRatio := float64(atomic.Load64(&memstats.next_gc)) / float64(memstats.last_next_gc)
+ 	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
+ 	// Add retainExtraPercent overhead to retainedGoal. This calculation
+ 	// looks strange but the purpose is to arrive at an integer division
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 2c217ecf84..8cc20552fb 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -57,9 +57,15 @@ type mstats struct {
+ 	gc_sys       uint64 // updated atomically or during STW
+ 	other_sys    uint64 // updated atomically or during STW
+ 
+-	// Statistics about garbage collector.
++	// Statistics about the garbage collector.
++
++	// next_gc is the goal heap_live for when next GC ends.
++	// Set to ^uint64(0) if disabled.
++	//
++	// Read and written atomically, unless the world is stopped.
++	next_gc uint64
++
+ 	// Protected by mheap or stopping the world during GC.
+-	next_gc         uint64 // goal heap_live for when next GC ends; ^0 if disabled
+ 	last_gc_unix    uint64 // last gc (in unix time)
+ 	pause_total_ns  uint64
+ 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 169b650eb4..d3ecd148be 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -13,6 +13,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -1146,11 +1147,11 @@ func traceHeapAlloc() {
+ }
+ 
+ func traceNextGC() {
+-	if memstats.next_gc == ^uint64(0) {
++	if nextGC := atomic.Load64(&memstats.next_gc); nextGC == ^uint64(0) {
+ 		// Heap-based triggering is disabled.
+ 		traceEvent(traceEvNextGC, -1, 0)
+ 	} else {
+-		traceEvent(traceEvNextGC, -1, memstats.next_gc)
++		traceEvent(traceEvNextGC, -1, nextGC)
+ 	}
+ }
+ 

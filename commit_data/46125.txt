@@ -15,8 +15,66 @@ Date:   Tue Dec 8 15:01:32 2020 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/ast/ast.go          | 6 +++++-
  src/go/parser/parser.go    | 3 ++-
  src/go/types/typestring.go | 1 +
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 8195ec022f..2456020c5e 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -372,7 +372,9 @@ type (
+ 		Args     []Expr    // function arguments; or nil
+ 		Ellipsis token.Pos // position of "..." (token.NoPos if there is no "...")
+ 		Rparen   token.Pos // position of ")"
+-		Brackets bool      // if set, "[" and "]" are used instead of "(" and ")"
++		// TODO(rFindley) use a new ListExpr type rather than overloading CallExpr
++		//                via Brackets, as is done in the syntax package
++		Brackets bool // if set, "[" and "]" are used instead of "(" and ")"
+ 	}
+ 
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+@@ -987,6 +989,8 @@ type (
+ 		Name *Ident        // function/method name
+ 		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
+ 		Body *BlockStmt    // function body; or nil for external (non-Go) function
++		// TODO(rFindley) consider storing TParams here, rather than FuncType, as
++		//                they are only valid for declared functions
+ 	}
+ )
+ 
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 9c414c411e..24e84d5103 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -798,7 +798,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+ 	} else {
+ 		// embedded, possibly generic type
+ 		// (using the enclosing parentheses to distinguish it from a named field declaration)
+-		// TODO(gri) confirm that this doesn't allow parenthesized embedded type
++		// TODO(rFindley) confirm that this doesn't allow parenthesized embedded type
+ 		typ = p.parseType()
+ 	}
+ 
+@@ -870,6 +870,7 @@ type field struct {
+ }
+ 
+ func (p *parser) parseParamDecl(name *ast.Ident) (f field) {
++	// TODO(rFindley) compare with parser.paramDeclOrNil in the syntax package
+ 	if p.trace {
+ 		defer un(trace(p, "ParamDeclOrNil"))
+ 	}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index c82fa3395b..b9c227d460 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -313,6 +313,7 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
+ }
+ 
+ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
++	// TODO(rFindley) compare this with the corresponding implementation in types2
+ 	buf.WriteString("[")
+ 	var prev Type
+ 	for i, p := range list {

@@ -17,8 +17,389 @@ Date:   Tue Dec 20 09:51:39 2011 -0800
     R=bradfitz, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5492060
-
+---
  src/pkg/testing/benchmark.go |  71 +++++++++++++++++++++++-----
  src/pkg/testing/testing.go   | 110 +++++++++++++++++++++++++------------------
  test/fixedbugs/bug229.go     |   4 +-
  3 files changed, 126 insertions(+), 59 deletions(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index e81e5c5845..4ce637082c 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -25,12 +25,12 @@ type InternalBenchmark struct {
+ // B is a type passed to Benchmark functions to manage benchmark
+ // timing and to specify the number of iterations to run.
+ type B struct {
++	common
+ 	N         int
+ 	benchmark InternalBenchmark
+-	ns        time.Duration
+ 	bytes     int64
+-	start     time.Time
+ 	timerOn   bool
++	result    BenchmarkResult
+ }
+ 
+ // StartTimer starts timing a test.  This function is called automatically
+@@ -48,7 +48,7 @@ func (b *B) StartTimer() {
+ // want to measure.
+ func (b *B) StopTimer() {
+ 	if b.timerOn {
+-		b.ns += time.Now().Sub(b.start)
++		b.duration += time.Now().Sub(b.start)
+ 		b.timerOn = false
+ 	}
+ }
+@@ -59,7 +59,7 @@ func (b *B) ResetTimer() {
+ 	if b.timerOn {
+ 		b.start = time.Now()
+ 	}
+-	b.ns = 0
++	b.duration = 0
+ }
+ 
+ // SetBytes records the number of bytes processed in a single operation.
+@@ -70,7 +70,7 @@ func (b *B) nsPerOp() int64 {
+ 	if b.N <= 0 {
+ 		return 0
+ 	}
+-	return b.ns.Nanoseconds() / int64(b.N)
++	return b.duration.Nanoseconds() / int64(b.N)
+ }
+ 
+ // runN runs a single benchmark for the specified number of iterations.
+@@ -127,17 +127,25 @@ func roundUp(n int) int {
+ 	return 10 * base
+ }
+ 
+-// run times the benchmark function.  It gradually increases the number
++// run times the benchmark function in a separate goroutine.
++func (b *B) run() BenchmarkResult {
++	go b.launch()
++	<-b.signal
++	return b.result
++}
++
++// launch launches the benchmark function.  It gradually increases the number
+ // of benchmark iterations until the benchmark runs for a second in order
+ // to get a reasonable measurement.  It prints timing information in this form
+ //		testing.BenchmarkHello	100000		19 ns/op
+-func (b *B) run() BenchmarkResult {
++// launch is run by the fun function as a separate goroutine.
++func (b *B) launch() {
+ 	// Run the benchmark for a single iteration in case it's expensive.
+ 	n := 1
+ 	b.runN(n)
+ 	// Run the benchmark for at least the specified amount of time.
+ 	d := time.Duration(*benchTime * float64(time.Second))
+-	for b.ns < d && n < 1e9 {
++	for !b.failed && b.duration < d && n < 1e9 {
+ 		last := n
+ 		// Predict iterations/sec.
+ 		if b.nsPerOp() == 0 {
+@@ -153,7 +161,8 @@ func (b *B) run() BenchmarkResult {
+ 		n = roundUp(n)
+ 		b.runN(n)
+ 	}
+-	return BenchmarkResult{b.N, b.ns, b.bytes}
++	b.result = BenchmarkResult{b.N, b.duration, b.bytes}
++	b.signal <- b
+ }
+ 
+ // The results of a benchmark run.
+@@ -215,14 +224,32 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 		}
+ 		for _, procs := range cpuList {
+ 			runtime.GOMAXPROCS(procs)
+-			b := &B{benchmark: Benchmark}
++			b := &B{
++				common: common{
++					signal: make(chan interface{}),
++				},
++				benchmark: Benchmark,
++			}
+ 			benchName := Benchmark.Name
+ 			if procs != 1 {
+ 				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
+ 			}
+ 			fmt.Printf("%s\t", benchName)
+ 			r := b.run()
++			if b.failed {
++				// The output could be very long here, but probably isn't.
++				// We print it all, regardless, because we don't want to trim the reason
++				// the benchmark failed.
++				fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
++				continue
++			}
+ 			fmt.Printf("%v\n", r)
++			// Unlike with tests, we ignore the -chatty flag and always print output for
++			// benchmarks since the output generation time will skew the results.
++			if len(b.output) > 0 {
++				b.trimOutput()
++				fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
++			}
+ 			if p := runtime.GOMAXPROCS(-1); p != procs {
+ 				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+ 			}
+@@ -230,9 +257,31 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
+ 	}
+ }
+ 
++// trimOutput shortens the output from a benchmark, which can be very long.
++func (b *B) trimOutput() {
++	// The output is likely to appear multiple times because the benchmark
++	// is run multiple times, but at least it will be seen. This is not a big deal
++	// because benchmarks rarely print, but just in case, we trim it if it's too long.
++	const maxNewlines = 10
++	for nlCount, j := 0, 0; j < len(b.output); j++ {
++		if b.output[j] == '\n' {
++			nlCount++
++			if nlCount >= maxNewlines {
++				b.output = append(b.output[:j], "\n\t... [output truncated]\n"...)
++				break
++			}
++		}
++	}
++}
++
+ // Benchmark benchmarks a single function. Useful for creating
+ // custom benchmarks that do not use gotest.
+ func Benchmark(f func(b *B)) BenchmarkResult {
+-	b := &B{benchmark: InternalBenchmark{"", f}}
++	b := &B{
++		common: common{
++			signal: make(chan interface{}),
++		},
++		benchmark: InternalBenchmark{"", f},
++	}
+ 	return b.run()
+ }
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index ca2fced3fb..3d81ee0b9e 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -23,8 +23,8 @@
+ //     }
+ // The benchmark package will vary b.N until the benchmark function lasts
+ // long enough to be timed reliably.  The output
+-//     testing.BenchmarkHello	500000	      4076 ns/op
+-// means that the loop ran 500000 times at a speed of 4076 ns per loop.
++//     testing.BenchmarkHello    10000000    282 ns/op
++// means that the loop ran 10000000 times at a speed of 282 ns per loop.
+ //
+ // If a benchmark needs some expensive setup before running, the timer
+ // may be stopped:
+@@ -70,6 +70,17 @@ var (
+ 	cpuList []int
+ )
+ 
++// common holds the elements common between T and B and
++// captures common methods such as Errorf.
++type common struct {
++	output   []byte    // Output generated by test or benchmark.
++	failed   bool      // Test or benchmark has failed.
++	start    time.Time // Time test or benchmark started
++	duration time.Duration
++	self     interface{}      // To be sent on signal channel when done.
++	signal   chan interface{} // Output for serial tests.
++}
++
+ // Short reports whether the -test.short flag is set.
+ func Short() bool {
+ 	return *short
+@@ -111,69 +122,67 @@ func decorate(s string, addFileLine bool) string {
+ // T is a type passed to Test functions to manage test state and support formatted test logs.
+ // Logs are accumulated during execution and dumped to standard error when done.
+ type T struct {
+-	name          string        // Name of test.
+-	errors        string        // Error string from test.
+-	failed        bool          // Test has failed.
+-	ch            chan *T       // Output for serial tests.
+-	startParallel chan bool     // Parallel tests will wait on this.
+-	start         time.Time     // Time test started
+-	dt            time.Duration // Length of test
++	common
++	name          string    // Name of test.
++	startParallel chan bool // Parallel tests will wait on this.
+ }
+ 
+-// Fail marks the Test function as having failed but continues execution.
+-func (t *T) Fail() { t.failed = true }
++// Fail marks the function as having failed but continues execution.
++func (c *common) Fail() { c.failed = true }
+ 
+-// Failed returns whether the Test function has failed.
+-func (t *T) Failed() bool { return t.failed }
++// Failed returns whether the function has failed.
++func (c *common) Failed() bool { return c.failed }
+ 
+-// FailNow marks the Test function as having failed and stops its execution.
++// FailNow marks the function as having failed and stops its execution.
+ // Execution will continue at the next Test.
+-func (t *T) FailNow() {
+-	t.dt = time.Now().Sub(t.start)
+-	t.Fail()
+-	t.ch <- t
++func (c *common) FailNow() {
++	c.duration = time.Now().Sub(c.start)
++	c.Fail()
++	c.signal <- c.self
+ 	runtime.Goexit()
+ }
+ 
+ // log generates the output. It's always at the same stack depth.
+-func (t *T) log(s string) { t.errors += decorate(s, true) }
++func (c *common) log(s string) {
++	c.output = append(c.output, decorate(s, true)...)
++}
+ 
+ // Log formats its arguments using default formatting, analogous to Print(),
+ // and records the text in the error log.
+-func (t *T) Log(args ...interface{}) { t.log(fmt.Sprintln(args...)) }
++func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
+ 
+ // Logf formats its arguments according to the format, analogous to Printf(),
+ // and records the text in the error log.
+-func (t *T) Logf(format string, args ...interface{}) { t.log(fmt.Sprintf(format, args...)) }
++func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
+ 
+ // Error is equivalent to Log() followed by Fail().
+-func (t *T) Error(args ...interface{}) {
+-	t.log(fmt.Sprintln(args...))
+-	t.Fail()
++func (c *common) Error(args ...interface{}) {
++	c.log(fmt.Sprintln(args...))
++	c.Fail()
+ }
+ 
+ // Errorf is equivalent to Logf() followed by Fail().
+-func (t *T) Errorf(format string, args ...interface{}) {
+-	t.log(fmt.Sprintf(format, args...))
+-	t.Fail()
++func (c *common) Errorf(format string, args ...interface{}) {
++	c.log(fmt.Sprintf(format, args...))
++	c.Fail()
+ }
+ 
+ // Fatal is equivalent to Log() followed by FailNow().
+-func (t *T) Fatal(args ...interface{}) {
+-	t.log(fmt.Sprintln(args...))
+-	t.FailNow()
++func (c *common) Fatal(args ...interface{}) {
++	c.log(fmt.Sprintln(args...))
++	c.FailNow()
+ }
+ 
+ // Fatalf is equivalent to Logf() followed by FailNow().
+-func (t *T) Fatalf(format string, args ...interface{}) {
+-	t.log(fmt.Sprintf(format, args...))
+-	t.FailNow()
++func (c *common) Fatalf(format string, args ...interface{}) {
++	c.log(fmt.Sprintf(format, args...))
++	c.FailNow()
+ }
+ 
+ // Parallel signals that this test is to be run in parallel with (and only with) 
+ // other parallel tests in this CPU group.
+ func (t *T) Parallel() {
+-	t.ch <- nil       // Release main testing loop
++	t.signal <- nil   // Release main testing loop
+ 	<-t.startParallel // Wait for serial tests to finish
+ }
+ 
+@@ -187,8 +196,8 @@ type InternalTest struct {
+ func tRunner(t *T, test *InternalTest) {
+ 	t.start = time.Now()
+ 	test.F(t)
+-	t.dt = time.Now().Sub(t.start)
+-	t.ch <- t
++	t.duration = time.Now().Sub(t.start)
++	t.signal <- t
+ }
+ 
+ // An internal function but exported because it is cross-package; part of the implementation
+@@ -211,13 +220,13 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ 	after()
+ }
+ 
+-func report(t *T) {
+-	tstr := fmt.Sprintf("(%.2f seconds)", t.dt.Seconds())
++func (t *T) report() {
++	tstr := fmt.Sprintf("(%.2f seconds)", t.duration.Seconds())
+ 	format := "--- %s: %s %s\n%s"
+ 	if t.failed {
+-		fmt.Printf(format, "FAIL", t.name, tstr, t.errors)
++		fmt.Printf(format, "FAIL", t.name, tstr, t.output)
+ 	} else if *chatty {
+-		fmt.Printf(format, "PASS", t.name, tstr, t.errors)
++		fmt.Printf(format, "PASS", t.name, tstr, t.output)
+ 	}
+ }
+ 
+@@ -227,7 +236,9 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
+ 		return
+ 	}
+-	ch := make(chan *T)
++	// TODO: each test should have its own channel, although that means
++	// keeping track of the channels when we're running parallel tests.
++	signal := make(chan interface{})
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+ 
+@@ -247,17 +258,24 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 			if procs != 1 {
+ 				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
+ 			}
+-			t := &T{ch: ch, name: testName, startParallel: startParallel}
++			t := &T{
++				common: common{
++					signal: signal,
++				},
++				name:          testName,
++				startParallel: startParallel,
++			}
++			t.self = t
+ 			if *chatty {
+ 				fmt.Printf("=== RUN %s\n", t.name)
+ 			}
+ 			go tRunner(t, &tests[i])
+-			out := <-t.ch
++			out := (<-t.signal).(*T)
+ 			if out == nil { // Parallel run.
+ 				numParallel++
+ 				continue
+ 			}
+-			report(t)
++			t.report()
+ 			ok = ok && !out.failed
+ 		}
+ 
+@@ -269,8 +287,8 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				numParallel--
+ 				continue
+ 			}
+-			t := <-ch
+-			report(t)
++			t := (<-signal).(*T)
++			t.report()
+ 			ok = ok && !t.failed
+ 			running--
+ 		}
+diff --git a/test/fixedbugs/bug229.go b/test/fixedbugs/bug229.go
+index 6c9de9ba93..a70a926da1 100644
+--- a/test/fixedbugs/bug229.go
++++ b/test/fixedbugs/bug229.go
+@@ -12,9 +12,9 @@ func main() {
+ 	var t testing.T
+ 	
+ 	// make sure error mentions that
+-	// ch is unexported, not just "ch not found".
++	// name is unexported, not just "name not found".
+ 
+-	t.ch = nil	// ERROR "unexported"
++	t.name = nil	// ERROR "unexported"
+ 	
+ 	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported" "undefined: testing.anyLowercaseName"
+ }

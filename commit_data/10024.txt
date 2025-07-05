@@ -7,9 +7,173 @@ Date:   Tue Oct 18 09:45:36 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5286043
-
+---
  src/cmd/gofix/Makefile          |  1 +
  src/cmd/gofix/fix.go            |  1 +
  src/cmd/gofix/mapdelete.go      | 84 +++++++++++++++++++++++++++++++++++++++++
  src/cmd/gofix/mapdelete_test.go | 43 +++++++++++++++++++++
  4 files changed, 129 insertions(+)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index fc129790a5..72d690f58d 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -16,6 +16,7 @@ GOFILES=\
+ 	imagenew.go\
+ 	iocopyn.go\
+ 	main.go\
++	mapdelete.go\
+ 	math.go\
+ 	netdial.go\
+ 	netudpgroup.go\
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index 6d15cc8dc7..9e4fd56a6e 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -53,6 +53,7 @@ var fixes = fixlist{
+ 	mathFix,
+ 	ioCopyNFix,
+ 	imagecolorFix,
++	mapdeleteFix,
+ }
+ 
+ // walk traverses the AST x, calling visit(y) for each node y in the tree but
+diff --git a/src/cmd/gofix/mapdelete.go b/src/cmd/gofix/mapdelete.go
+new file mode 100644
+index 0000000000..b99602dcc2
+--- /dev/null
++++ b/src/cmd/gofix/mapdelete.go
+@@ -0,0 +1,84 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/ast"
++
++var mapdeleteFix = fix{
++	"mapdelete",
++	mapdelete,
++	`Use delete(m, k) instead of m[k] = 0, false.
++
++http://codereview.appspot.com/5272045
++`,
++}
++
++func mapdelete(f *ast.File) bool {
++	fixed := false
++	walk(f, func(n interface{}) {
++		stmt, ok := n.(*ast.Stmt)
++		if !ok {
++			return
++		}
++		as, ok := (*stmt).(*ast.AssignStmt)
++		if !ok || len(as.Lhs) != 1 || len(as.Rhs) != 2 {
++			return
++		}
++		ix, ok := as.Lhs[0].(*ast.IndexExpr)
++		if !ok {
++			return
++		}
++		if !isTopName(as.Rhs[1], "false") {
++			warn(as.Pos(), "two-element map assignment with non-false second value")
++			return
++		}
++		if !canDrop(as.Rhs[0]) {
++			warn(as.Pos(), "two-element map assignment with non-trivial first value")
++			return
++		}
++		*stmt = &ast.ExprStmt{
++			X: &ast.CallExpr{
++				Fun: &ast.Ident{
++					NamePos: as.Pos(),
++					Name:    "delete",
++				},
++				Args: []ast.Expr{ix.X, ix.Index},
++			},
++		}
++		fixed = true
++	})
++	return fixed
++}
++
++// canDrop reports whether it is safe to drop the
++// evaluation of n from the program.
++// It is very conservative.
++func canDrop(n ast.Expr) bool {
++	switch n := n.(type) {
++	case *ast.Ident, *ast.BasicLit:
++		return true
++	case *ast.ParenExpr:
++		return canDrop(n.X)
++	case *ast.SelectorExpr:
++		return canDrop(n.X)
++	case *ast.CompositeLit:
++		if !canDrop(n.Type) {
++			return false
++		}
++		for _, e := range n.Elts {
++			if !canDrop(e) {
++				return false
++			}
++		}
++		return true
++	case *ast.StarExpr:
++		// Dropping *x is questionable,
++		// but we have to be able to drop (*T)(nil).
++		return canDrop(n.X)
++	case *ast.ArrayType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.StructType:
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/gofix/mapdelete_test.go b/src/cmd/gofix/mapdelete_test.go
+new file mode 100644
+index 0000000000..8ed50328e9
+--- /dev/null
++++ b/src/cmd/gofix/mapdelete_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(mapdeleteTests, mapdelete)
++}
++
++var mapdeleteTests = []testCase{
++	{
++		Name: "mapdelete.0",
++		In: `package main
++
++func f() {
++	m[x] = 0, false
++	m[x] = g(), false
++	m[x] = 1
++	delete(m, x)
++	m[x] = 0, b
++}
++
++func g(false bool) {
++	m[x] = 0, false
++}
++`,
++		Out: `package main
++
++func f() {
++	delete(m, x)
++	m[x] = g(), false
++	m[x] = 1
++	delete(m, x)
++	m[x] = 0, b
++}
++
++func g(false bool) {
++	m[x] = 0, false
++}
++`,
++	},
++}

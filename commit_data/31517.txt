@@ -9,8 +9,366 @@ Date:   Wed Feb 22 15:24:30 2017 -0800
     Change-Id: I87a8f534ab9dfd5022422457ea637b342c057d77
     Reviewed-on: https://go-review.googlesource.com/37393
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/build/deps_test.go                       |   1 +
  src/go/internal/srcimporter/srcimporter.go      | 199 ++++++++++++++++++++++++
  src/go/internal/srcimporter/srcimporter_test.go | 134 ++++++++++++++++
  3 files changed, 334 insertions(+)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5b36282b38..4220a83e4a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -220,6 +220,7 @@ var pkgDeps = map[string][]string{
+ 	"go/importer":               {"L4", "go/internal/gcimporter", "go/internal/gccgoimporter", "go/types"},
+ 	"go/internal/gcimporter":    {"L4", "OS", "go/build", "go/constant", "go/token", "go/types", "text/scanner"},
+ 	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "text/scanner"},
++	"go/internal/srcimporter":   {"L4", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
+ 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
+ 
+ 	// One of a kind.
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+new file mode 100644
+index 0000000000..0892e906f1
+--- /dev/null
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -0,0 +1,199 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package srcimporter implements importing directly
++// from source files rather than installed packages.
++package srcimporter // import "go/internal/srcimporter"
++
++import (
++	"fmt"
++	"go/ast"
++	"go/build"
++	"go/parser"
++	"go/token"
++	"go/types"
++	"path/filepath"
++)
++
++// An Importer provides the context for importing packages from source code.
++type Importer struct {
++	ctxt     *build.Context
++	fset     *token.FileSet
++	sizes    types.Sizes
++	packages map[string]*types.Package
++}
++
++// NewImporter returns a new Importer for the given context, file set, and map
++// of packages. The context is used to resolve import paths to package paths,
++// and identifying the files belonging to the package. If the context provides
++// non-nil file system functions, they are used instead of the regular package
++// os functions. The file set is used to track position information of package
++// files; and imported packages are added to the packages map.
++func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Package) *Importer {
++	return &Importer{
++		ctxt:     ctxt,
++		fset:     fset,
++		sizes:    archSizes[ctxt.GOARCH], // use go/types default if GOARCH not found (map access returns nil)
++		packages: packages,
++	}
++}
++
++// Importing is a sentinel taking the place in Importer.packages
++// for a package that is in the process of being imported.
++var importing types.Package
++
++// Import(path) is a shortcut for ImportFrom(path, "", 0).
++func (p *Importer) Import(path string) (*types.Package, error) {
++	return p.ImportFrom(path, "", 0)
++}
++
++// ImportFrom imports the package with the given import path resolved from the given srcDir,
++// adds the new package to the set of packages maintained by the importer, and returns the
++// package. Package path resolution and file system operations are controlled by the context
++// maintained with the importer. The import mode must be zero but is otherwise ignored.
++// Packages that are not comprised entirely of pure Go files may fail to import because the
++// type checker may not be able to determine all exported entities (e.g. due to cgo dependencies).
++func (p *Importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
++	if mode != 0 {
++		panic("non-zero import mode")
++	}
++
++	// determine package path (do vendor resolution)
++	var bp *build.Package
++	var err error
++	switch {
++	default:
++		if abs, err := p.absPath(srcDir); err == nil { // see issue #14282
++			srcDir = abs
++		}
++		bp, err = p.ctxt.Import(path, srcDir, build.FindOnly)
++
++	case build.IsLocalImport(path):
++		// "./x" -> "srcDir/x"
++		bp, err = p.ctxt.ImportDir(filepath.Join(srcDir, path), build.FindOnly)
++
++	case p.isAbsPath(path):
++		return nil, fmt.Errorf("invalid absolute import path %q", path)
++	}
++	if err != nil {
++		return nil, err // err may be *build.NoGoError - return as is
++	}
++
++	// package unsafe is known to the type checker
++	if bp.ImportPath == "unsafe" {
++		return types.Unsafe, nil
++	}
++
++	// no need to re-import if the package was imported completely before
++	pkg := p.packages[bp.ImportPath]
++	if pkg != nil {
++		if pkg == &importing {
++			return nil, fmt.Errorf("import cycle through package %q", bp.ImportPath)
++		}
++		if pkg.Complete() {
++			return pkg, nil
++		}
++	} else {
++		p.packages[bp.ImportPath] = &importing
++		defer func() {
++			// clean up in case of error
++			// TODO(gri) Eventually we may want to leave a (possibly empty)
++			// package in the map in all cases (and use that package to
++			// identify cycles). See also issue 16088.
++			if p.packages[bp.ImportPath] == &importing {
++				p.packages[bp.ImportPath] = nil
++			}
++		}()
++	}
++
++	// collect package files
++	bp, err = p.ctxt.ImportDir(bp.Dir, 0)
++	if err != nil {
++		return nil, err // err may be *build.NoGoError - return as is
++	}
++	var filenames []string
++	filenames = append(filenames, bp.GoFiles...)
++	filenames = append(filenames, bp.CgoFiles...)
++
++	// parse package files
++	// TODO(gri) do this concurrently
++	var files []*ast.File
++	for _, filename := range filenames {
++		filepath := p.joinPath(bp.Dir, filename)
++		var file *ast.File
++		if open := p.ctxt.OpenFile; open != nil {
++			f, err := open(filepath)
++			if err != nil {
++				return nil, fmt.Errorf("opening package file %s failed (%v)", filepath, err)
++			}
++			file, err = parser.ParseFile(p.fset, filepath, f, 0)
++			f.Close() // ignore Close error - import may still succeed
++		} else {
++			// Special-case when ctxt doesn't provide a custom OpenFile and use the
++			// parser's file reading mechanism directly. This appears to be quite a
++			// bit faster than opening the file and providing an io.ReaderCloser in
++			// both cases.
++			// TODO(gri) investigate performance difference (issue #19281)
++			file, err = parser.ParseFile(p.fset, filepath, nil, 0)
++		}
++		if err != nil {
++			return nil, fmt.Errorf("parsing package file %s failed (%v)", filepath, err)
++		}
++		files = append(files, file)
++	}
++
++	// type-check package files
++	conf := types.Config{
++		IgnoreFuncBodies: true,
++		FakeImportC:      true,
++		Importer:         p,
++		Sizes:            p.sizes,
++	}
++	pkg, err = conf.Check(bp.ImportPath, p.fset, files, nil)
++	if err != nil {
++		return nil, fmt.Errorf("type-checking package %q failed (%v)", bp.ImportPath, err)
++	}
++
++	p.packages[bp.ImportPath] = pkg
++	return pkg, nil
++}
++
++// context-controlled file system operations
++
++func (p *Importer) absPath(path string) (string, error) {
++	// TODO(gri) This should be using p.ctxt.AbsPath which doesn't
++	// exist but probably should. See also issue #14282.
++	return filepath.Abs(path)
++}
++
++func (p *Importer) isAbsPath(path string) bool {
++	if f := p.ctxt.IsAbsPath; f != nil {
++		return f(path)
++	}
++	return filepath.IsAbs(path)
++}
++
++func (p *Importer) joinPath(elem ...string) string {
++	if f := p.ctxt.JoinPath; f != nil {
++		return f(elem...)
++	}
++	return filepath.Join(elem...)
++}
++
++// common architecture word sizes and alignments
++// TODO(gri) consider making this available via go/types
++var archSizes = map[string]*types.StdSizes{
++	"386":      {WordSize: 4, MaxAlign: 4},
++	"arm":      {WordSize: 4, MaxAlign: 4},
++	"arm64":    {WordSize: 8, MaxAlign: 8},
++	"amd64":    {WordSize: 8, MaxAlign: 8},
++	"amd64p32": {WordSize: 4, MaxAlign: 8},
++	"mips":     {WordSize: 4, MaxAlign: 4},
++	"mipsle":   {WordSize: 4, MaxAlign: 4},
++	"mips64":   {WordSize: 8, MaxAlign: 8},
++	"mips64le": {WordSize: 8, MaxAlign: 8},
++	"ppc64":    {WordSize: 8, MaxAlign: 8},
++	"ppc64le":  {WordSize: 8, MaxAlign: 8},
++	"s390x":    {WordSize: 8, MaxAlign: 8},
++}
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+new file mode 100644
+index 0000000000..fd15b5b6e1
+--- /dev/null
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -0,0 +1,134 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package srcimporter
++
++import (
++	"go/build"
++	"go/token"
++	"go/types"
++	"internal/testenv"
++	"io/ioutil"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++	"time"
++)
++
++const maxTime = 2 * time.Second
++
++var importer = New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
++
++func doImport(t *testing.T, path, srcDir string) {
++	t0 := time.Now()
++	if _, err := importer.ImportFrom(path, srcDir, 0); err != nil {
++		// don't report an error if there's no buildable Go files
++		if _, nogo := err.(*build.NoGoError); !nogo {
++			t.Errorf("import %q failed (%v)", path, err)
++		}
++		return
++	}
++	t.Logf("import %q: %v", path, time.Since(t0))
++}
++
++// walkDir imports the all the packages with the given path
++// prefix recursively. It returns the number of packages
++// imported and whether importing was aborted because time
++// has passed endTime.
++func walkDir(t *testing.T, path string, endTime time.Time) (int, bool) {
++	if time.Now().After(endTime) {
++		t.Log("testing time used up")
++		return 0, true
++	}
++
++	// ignore fake packages and testdata directories
++	if path == "builtin" || path == "unsafe" || strings.HasSuffix(path, "testdata") {
++		return 0, false
++	}
++
++	list, err := ioutil.ReadDir(filepath.Join(runtime.GOROOT(), "src", path))
++	if err != nil {
++		t.Fatalf("walkDir %s failed (%v)", path, err)
++	}
++
++	nimports := 0
++	hasGoFiles := false
++	for _, f := range list {
++		if f.IsDir() {
++			n, abort := walkDir(t, filepath.Join(path, f.Name()), endTime)
++			nimports += n
++			if abort {
++				return nimports, true
++			}
++		} else if strings.HasSuffix(f.Name(), ".go") {
++			hasGoFiles = true
++		}
++	}
++
++	if hasGoFiles {
++		doImport(t, path, "")
++		nimports++
++	}
++
++	return nimports, false
++}
++
++func TestImportStdLib(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("no source code available")
++	}
++
++	dt := maxTime
++	if testing.Short() && testenv.Builder() == "" {
++		dt = 500 * time.Millisecond
++	}
++	nimports, _ := walkDir(t, "", time.Now().Add(dt)) // installed packages
++	t.Logf("tested %d imports", nimports)
++}
++
++var importedObjectTests = []struct {
++	name string
++	want string
++}{
++	{"flag.Bool", "func Bool(name string, value bool, usage string) *bool"},
++	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
++	{"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"}, // go/types.gcCompatibilityMode is off => interface not flattened
++	{"math.Pi", "const Pi untyped float"},
++	{"math.Sin", "func Sin(x float64) float64"},
++	{"math/big.Int", "type Int struct{neg bool; abs nat}"},
++	{"golang_org/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
++}
++
++func TestImportedTypes(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("no source code available")
++	}
++
++	for _, test := range importedObjectTests {
++		s := strings.Split(test.name, ".")
++		if len(s) != 2 {
++			t.Fatal("invalid test data format")
++		}
++		importPath := s[0]
++		objName := s[1]
++
++		pkg, err := importer.ImportFrom(importPath, ".", 0)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++
++		obj := pkg.Scope().Lookup(objName)
++		if obj == nil {
++			t.Errorf("%s: object not found", test.name)
++			continue
++		}
++
++		got := types.ObjectString(obj, types.RelativeTo(pkg))
++		if got != test.want {
++			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
++		}
++	}
++}

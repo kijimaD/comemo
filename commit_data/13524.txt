@@ -7,6 +7,29 @@ Date:   Mon Jul 30 11:45:17 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6449060
-
+---
  misc/dashboard/codereview/dashboard/front.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index 970ed3e1a0..5c3a88b136 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -55,7 +55,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 
+ 	if data.UserIsReviewer {
+ 		tableFetch(0, func(tbl *clTable) error {
+-			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(10)
++			q := activeCLs.Filter("Reviewer =", currentPerson).Limit(50)
+ 			tbl.Title = "CLs assigned to you for review"
+ 			tbl.Assignable = true
+ 			_, err := q.GetAll(c, &tbl.CLs)
+@@ -64,7 +64,7 @@ func handleFront(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	tableFetch(1, func(tbl *clTable) error {
+-		q := activeCLs.Filter("Author =", currentPerson).Limit(10)
++		q := activeCLs.Filter("Author =", currentPerson).Limit(50)
+ 		tbl.Title = "CLs sent by you"
+ 		tbl.Assignable = true
+ 		_, err := q.GetAll(c, &tbl.CLs)

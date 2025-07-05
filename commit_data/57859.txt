@@ -15,9 +15,270 @@ Date:   Fri Jul 21 14:03:49 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/doc/doc_test.go     |   1 +
  src/cmd/doc/main.go         |  17 ++-----
  src/cmd/doc/pkg.go          | 115 +++++++++++++++++++++++++-------------------
  src/cmd/doc/testdata/pkg.go |   1 +
  4 files changed, 71 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 7690a930e5..354adc87af 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -215,6 +215,7 @@ var tests = []test{
+ 			`type SimpleConstraint interface {`,
+ 			`type TildeConstraint interface {`,
+ 			`type StructConstraint interface {`,
++			`BUG: function body note`,
+ 		},
+ 		[]string{
+ 			`constThree`,
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index ae1b7575e8..273d7febbc 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -147,12 +147,6 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 			panic(e)
+ 		}()
+ 
+-		// We have a package.
+-		if showAll && symbol == "" {
+-			pkg.allDoc()
+-			return
+-		}
+-
+ 		switch {
+ 		case symbol == "":
+ 			pkg.packageDoc() // The package exists, so we got some output.
+@@ -161,13 +155,10 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 			if pkg.symbolDoc(symbol) {
+ 				return
+ 			}
+-		default:
+-			if pkg.methodDoc(symbol, method) {
+-				return
+-			}
+-			if pkg.fieldDoc(symbol, method) {
+-				return
+-			}
++		case pkg.printMethodDoc(symbol, method):
++			return
++		case pkg.printFieldDoc(symbol, method):
++			return
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 9779275359..dfdc5674e9 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -467,86 +467,109 @@ func joinStrings(ss []string) string {
+ 	return strings.Join(ss, ", ")
+ }
+ 
+-// allDoc prints all the docs for the package.
+-func (pkg *Package) allDoc() {
+-	pkg.Printf("") // Trigger the package clause; we know the package exists.
+-	pkg.ToText(&pkg.buf, pkg.doc.Doc, "", indent)
+-	pkg.newlines(1)
+-
+-	printed := make(map[*ast.GenDecl]bool)
+-
+-	hdr := ""
+-	printHdr := func(s string) {
+-		if hdr != s {
+-			pkg.Printf("\n%s\n\n", s)
+-			hdr = s
+-		}
+-	}
++// printHeader prints a header for the section named s, adding a blank line on each side.
++func (pkg *Package) printHeader(s string) {
++	pkg.Printf("\n%s\n\n", s)
++}
+ 
+-	// Constants.
++// constsDoc prints all const documentation, if any, including a header.
++// The one argument is the valueDoc registry.
++func (pkg *Package) constsDoc(printed map[*ast.GenDecl]bool) {
++	var header bool
+ 	for _, value := range pkg.doc.Consts {
+ 		// Constants and variables come in groups, and valueDoc prints
+ 		// all the items in the group. We only need to find one exported symbol.
+ 		for _, name := range value.Names {
+ 			if isExported(name) && !pkg.typedValue[value] {
+-				printHdr("CONSTANTS")
++				if !header {
++					pkg.printHeader("CONSTANTS")
++					header = true
++				}
+ 				pkg.valueDoc(value, printed)
+ 				break
+ 			}
+ 		}
+ 	}
++}
+ 
+-	// Variables.
++// varsDoc prints all var documentation, if any, including a header.
++// Printed is the valueDoc registry.
++func (pkg *Package) varsDoc(printed map[*ast.GenDecl]bool) {
++	var header bool
+ 	for _, value := range pkg.doc.Vars {
+ 		// Constants and variables come in groups, and valueDoc prints
+ 		// all the items in the group. We only need to find one exported symbol.
+ 		for _, name := range value.Names {
+ 			if isExported(name) && !pkg.typedValue[value] {
+-				printHdr("VARIABLES")
++				if !header {
++					pkg.printHeader("VARIABLES")
++					header = true
++				}
+ 				pkg.valueDoc(value, printed)
+ 				break
+ 			}
+ 		}
+ 	}
++}
+ 
+-	// Functions.
++// funcsDoc prints all func documentation, if any, including a header.
++func (pkg *Package) funcsDoc() {
++	var header bool
+ 	for _, fun := range pkg.doc.Funcs {
+ 		if isExported(fun.Name) && !pkg.constructor[fun] {
+-			printHdr("FUNCTIONS")
++			if !header {
++				pkg.printHeader("FUNCTIONS")
++				header = true
++			}
+ 			pkg.emit(fun.Doc, fun.Decl)
+ 		}
+ 	}
++}
+ 
+-	// Types.
++// funcsDoc prints all type documentation, if any, including a header.
++func (pkg *Package) typesDoc() {
++	var header bool
+ 	for _, typ := range pkg.doc.Types {
+ 		if isExported(typ.Name) {
+-			printHdr("TYPES")
++			if !header {
++				pkg.printHeader("TYPES")
++				header = true
++			}
+ 			pkg.typeDoc(typ)
+ 		}
+ 	}
+ }
+ 
+-// packageDoc prints the docs for the package (package doc plus one-liners of the rest).
++// packageDoc prints the docs for the package.
+ func (pkg *Package) packageDoc() {
+ 	pkg.Printf("") // Trigger the package clause; we know the package exists.
+-	if !short {
++	if showAll || !short {
+ 		pkg.ToText(&pkg.buf, pkg.doc.Doc, "", indent)
+ 		pkg.newlines(1)
+ 	}
+ 
+-	if pkg.pkg.Name == "main" && !showCmd {
++	switch {
++	case showAll:
++		printed := make(map[*ast.GenDecl]bool) // valueDoc registry
++		pkg.constsDoc(printed)
++		pkg.varsDoc(printed)
++		pkg.funcsDoc()
++		pkg.typesDoc()
++
++	case pkg.pkg.Name == "main" && !showCmd:
+ 		// Show only package docs for commands.
+ 		return
+-	}
+ 
+-	if !short {
+-		pkg.newlines(2) // Guarantee blank line before the components.
++	default:
++		if !short {
++			pkg.newlines(2) // Guarantee blank line before the components.
++		}
++		pkg.valueSummary(pkg.doc.Consts, false)
++		pkg.valueSummary(pkg.doc.Vars, false)
++		pkg.funcSummary(pkg.doc.Funcs, false)
++		pkg.typeSummary()
+ 	}
+ 
+-	pkg.valueSummary(pkg.doc.Consts, false)
+-	pkg.valueSummary(pkg.doc.Vars, false)
+-	pkg.funcSummary(pkg.doc.Funcs, false)
+-	pkg.typeSummary()
+ 	if !short {
+ 		pkg.bugs()
+ 	}
+@@ -732,11 +755,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
+ 	// Constants and variables behave the same.
+ 	values := pkg.findValues(symbol, pkg.doc.Consts)
+ 	values = append(values, pkg.findValues(symbol, pkg.doc.Vars)...)
+-	// A declaration like
+-	//	const ( c = 1; C = 2 )
+-	// could be printed twice if the -u flag is set, as it matches twice.
+-	// So we remember which declarations we've printed to avoid duplication.
+-	printed := make(map[*ast.GenDecl]bool)
++	printed := make(map[*ast.GenDecl]bool) // valueDoc registry
+ 	for _, value := range values {
+ 		pkg.valueDoc(value, printed)
+ 		found = true
+@@ -755,7 +774,13 @@ func (pkg *Package) symbolDoc(symbol string) bool {
+ 	return true
+ }
+ 
+-// valueDoc prints the docs for a constant or variable.
++// valueDoc prints the docs for a constant or variable. The printed map records
++// which values have been printed already to avoid duplication. Otherwise, a
++// declaration like:
++//
++//	const ( c = 1; C = 2 )
++//
++// … could be printed twice if the -u flag is set, as it matches twice.
+ func (pkg *Package) valueDoc(value *doc.Value, printed map[*ast.GenDecl]bool) {
+ 	if printed[value.Decl] {
+ 		return
+@@ -815,7 +840,7 @@ func (pkg *Package) typeDoc(typ *doc.Type) {
+ 	pkg.newlines(2)
+ 	// Show associated methods, constants, etc.
+ 	if showAll {
+-		printed := make(map[*ast.GenDecl]bool)
++		printed := make(map[*ast.GenDecl]bool) // valueDoc registry
+ 		// We can use append here to print consts, then vars. Ditto for funcs and methods.
+ 		values := typ.Consts
+ 		values = append(values, typ.Vars...)
+@@ -1105,16 +1130,6 @@ func (pkg *Package) printFieldDoc(symbol, fieldName string) bool {
+ 	return found
+ }
+ 
+-// methodDoc prints the docs for matches of symbol.method.
+-func (pkg *Package) methodDoc(symbol, method string) bool {
+-	return pkg.printMethodDoc(symbol, method)
+-}
+-
+-// fieldDoc prints the docs for matches of symbol.field.
+-func (pkg *Package) fieldDoc(symbol, field string) bool {
+-	return pkg.printFieldDoc(symbol, field)
+-}
+-
+ // match reports whether the user's symbol matches the program's.
+ // A lower-case character in the user's string matches either case in the program's.
+ // The program string must be exported.
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index 1b1b8fbebe..4d269ff0a2 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -57,6 +57,7 @@ var (
+ 
+ // Comment about exported function.
+ func ExportedFunc(a int) bool {
++	// BUG(me): function body note
+ 	return true != false
+ }
+ 

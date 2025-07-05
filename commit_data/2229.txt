@@ -8,9 +8,81 @@ Date:   Fri May 15 19:15:45 2009 -0700
     DELTA=9270  (0 added, 9270 deleted, 0 changed)
     OCL=28958
     CL=28958
-
+---
  usr/gri/gosrc/test/a.go |  7 -------
  usr/gri/gosrc/test/b.go | 13 -------------
  usr/gri/gosrc/test/c.go |  7 -------
  usr/gri/gosrc/test/d.go | 19 -------------------
  4 files changed, 46 deletions(-)
+
+diff --git a/usr/gri/gosrc/test/a.go b/usr/gri/gosrc/test/a.go
+deleted file mode 100644
+index b4fff19f35..0000000000
+--- a/usr/gri/gosrc/test/a.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package A
+-
+-import (
+-	B "b";
+-	C "c";
+-	D "d";
+-)
+diff --git a/usr/gri/gosrc/test/b.go b/usr/gri/gosrc/test/b.go
+deleted file mode 100644
+index a3a6b4363d..0000000000
+--- a/usr/gri/gosrc/test/b.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-package B
+-
+-import C "c"
+-import D "d"
+-
+-type T1 C.T1;
+-type T2 D.T2;
+-
+-var (
+-	v0 D.T1;
+-	v1 C.T1;
+-	v2 *C.F1;
+-)
+diff --git a/usr/gri/gosrc/test/c.go b/usr/gri/gosrc/test/c.go
+deleted file mode 100644
+index 63ad3fb35c..0000000000
+--- a/usr/gri/gosrc/test/c.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package C
+-
+-import "d"
+-
+-type T1 D.T1;
+-type T2 D.T2;
+-type F1 (a D.T1, b *D.T2);
+diff --git a/usr/gri/gosrc/test/d.go b/usr/gri/gosrc/test/d.go
+deleted file mode 100644
+index 9d2eb50c67..0000000000
+--- a/usr/gri/gosrc/test/d.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-package D
+-
+-type T0 int
+-
+-type T1 struct {
+-	n int;
+-	a, b T0;
+-}
+-
+-type T2 struct {
+-	u, v float;
+-}
+-
+-func (obj *T2) M1(u, v float) {
+-}
+-
+-func F0(a int, b T0) int {
+-	return a + b;
+-}
+\ No newline at end of file

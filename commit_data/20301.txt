@@ -11,7 +11,65 @@ Date:   Fri Aug 29 16:41:08 2014 -0400
     R=dvyukov, iant
     CC=golang-codereviews
     https://golang.org/cl/139960043
-
+---
  src/pkg/runtime/proc.c    | 6 +-----
  src/pkg/runtime/runtime.h | 8 +++++++-
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d91a829c15..666adfb7db 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -62,10 +62,6 @@ struct Sched {
+ 
+ enum
+ {
+-	// The max value of GOMAXPROCS.
+-	// There are no fundamental restrictions on the value.
+-	MaxGomaxprocs = 1<<8,
+-
+ 	// Number of goroutine ids to grab from runtime·sched.goidgen to local per-P cache at once.
+ 	// 16 seems to provide enough amortization, but other than that it's mostly arbitrary number.
+ 	GoidCacheBatch = 16,
+@@ -80,6 +76,7 @@ G	runtime·g0;	// idle goroutine for m0
+ G*	runtime·lastg;
+ M*	runtime·allm;
+ M*	runtime·extram;
++P*	runtime·allp[MaxGomaxprocs+1];
+ int8*	runtime·goos;
+ int32	runtime·ncpu;
+ static int32	newprocs;
+@@ -180,7 +177,6 @@ runtime·schedinit(void)
+ 			n = MaxGomaxprocs;
+ 		procs = n;
+ 	}
+-	runtime·allp = runtime·mallocgc((MaxGomaxprocs+1)*sizeof(runtime·allp[0]), nil, 0);
+ 	procresize(procs);
+ 
+ 	runtime·copystack = runtime·precisestack;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 27b945e979..3f03a4da06 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -422,6 +422,12 @@ struct P
+ 	byte	pad[64];
+ };
+ 
++enum {
++	// The max value of GOMAXPROCS.
++	// There are no fundamental restrictions on the value.
++	MaxGomaxprocs = 1<<8,
++};
++
+ // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
+ // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
+ // External locks are not recursive; a second lock is silently ignored.
+@@ -768,7 +774,7 @@ extern	G**	runtime·allg;
+ extern	uintptr runtime·allglen;
+ extern	G*	runtime·lastg;
+ extern	M*	runtime·allm;
+-extern	P**	runtime·allp;
++extern	P*	runtime·allp[MaxGomaxprocs+1];
+ extern	int32	runtime·gomaxprocs;
+ extern	uint32	runtime·needextram;
+ extern	uint32	runtime·panicking;

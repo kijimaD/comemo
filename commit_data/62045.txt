@@ -19,6 +19,22 @@ Date:   Fri Jan 3 16:53:32 2025 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Carlos Amedee <carlos@golang.org>
-
+---
  src/os/root_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index b461ee2208..cbb985b2ce 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -1077,6 +1077,10 @@ func TestRootConcurrentClose(t *testing.T) {
+ 				first = false
+ 			}
+ 			f.Close()
++			if runtime.GOARCH == "wasm" {
++				// TODO(go.dev/issue/71134) can lead to goroutine starvation.
++				runtime.Gosched()
++			}
+ 		}
+ 	}()
+ 	if err := <-ch; err != nil {

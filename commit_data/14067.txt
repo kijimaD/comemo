@@ -10,6 +10,21 @@ Date:   Sun Oct 7 21:52:57 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6614062
-
+---
  test/declbad.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/declbad.go b/test/declbad.go
+index ff53ab0d7c..728eceb7f1 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -41,7 +41,8 @@ func main() {
+ 	{
+ 		// multiline no new variables
+ 		i := f1
+-		i := func() { // ERROR "redeclared|no new|incompatible"
++		i := func() int { // ERROR "redeclared|no new|incompatible"
++			return 0
+ 		}
+ 		_ = i
+ 	}

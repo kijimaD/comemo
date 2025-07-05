@@ -14,6 +14,23 @@ Date:   Fri Feb 21 14:18:52 2025 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/encoding/json/encode.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index d53e862d73..7b4bfff700 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -1015,10 +1015,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
+ 		// For now, cast only a small portion of byte slices to a string
+ 		// so that it can be stack allocated. This slows down []byte slightly
+ 		// due to the extra copy, but keeps string performance roughly the same.
+-		n := len(src) - i
+-		if n > utf8.UTFMax {
+-			n = utf8.UTFMax
+-		}
++		n := min(len(src)-i, utf8.UTFMax)
+ 		c, size := utf8.DecodeRuneInString(string(src[i : i+n]))
+ 		if c == utf8.RuneError && size == 1 {
+ 			dst = append(dst, src[start:i]...)

@@ -9,7 +9,35 @@ Date:   Thu Mar 31 13:13:04 2011 -0700
     R=golang-dev, bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4339041
-
+---
  doc/contrib.html       | 2 +-
  doc/devel/roadmap.html | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index b0a77a7c24..9d0c42726d 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -49,7 +49,7 @@ systems and architectures.</p>
+ <p>Features and ideas being developed or discussed by the Go team.</p>
+ 
+ <h3 id="release"><a href="devel/release.html">Release History</a></h3>
+-<p>A summarization of the changes between tagged releases of Go.</p>
++<p>A summary of the changes between tagged releases of Go.</p>
+ 
+ <h3 id="golang-dev"><a href="http://groups.google.com/group/golang-dev">Developer Mailing List</a></h3>
+ <p>The <a href="http://groups.google.com/group/golang-dev">golang-dev</a>
+diff --git a/doc/devel/roadmap.html b/doc/devel/roadmap.html
+index 97d8a08b8d..6cf72114b8 100644
+--- a/doc/devel/roadmap.html
++++ b/doc/devel/roadmap.html
+@@ -37,8 +37,7 @@ Implementation roadmap</h3>
+ 
+ <ul>
+ <li>
+-Improved garbage collector, most likely a reference counting collector
+-with a cycle detector running in a separate core.
++Improved garbage collector.
+ <li>
+ Debugger.
+ <li>

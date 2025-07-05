@@ -6,7 +6,7 @@ Date:   Sun Nov 8 23:22:06 2009 -0800
     
     R=ken
     http://go/go-review/1026032
-
+---
  src/cmd/gc/print.c                 |  7 +++++++
  src/cmd/gc/subr.c                  | 19 ++++++++++++-------
  src/cmd/gc/swt.c                   | 10 +++++++---
@@ -15,3 +15,137 @@ Date:   Sun Nov 8 23:22:06 2009 -0800
  test/{bugs => fixedbugs}/bug213.go |  0
  test/golden.out                    |  6 ------
  7 files changed, 28 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 14dd57fa17..ce4f721aed 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -328,6 +328,13 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		}
+ 		fmtprint(f, ")");
+ 		break;
++
++	case OMAKEMAP:
++		fmtprint(f, "make(%#T)", n->type);
++		break;
++
++	case OMAPLIT:
++		fmtprint(f, "map literal");
+ 	}
+ 
+ 	if(prec > nprec)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index ccb2b76530..35a3a2f951 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1654,7 +1654,7 @@ iscomposite(Type *t)
+ int
+ eqtype1(Type *t1, Type *t2, int d, int names)
+ {
+-	if(d >= 10)
++	if(d >= 20)
+ 		return 1;
+ 	if(t1 == t2)
+ 		return 1;
+@@ -1720,14 +1720,19 @@ eqtype1(Type *t1, Type *t2, int d, int names)
+ 		return 1;
+ 
+ 	case TARRAY:
+-		if(t1->bound == t2->bound)
+-			break;
+-		return 0;
++		if(t1->bound != t2->bound)
++			return 0;
++		break;
+ 
+ 	case TCHAN:
+-		if(t1->chan == t2->chan)
+-			break;
+-		return 0;
++		if(t1->chan != t2->chan)
++			return 0;
++		break;
++
++	case TMAP:
++		if(!eqtype1(t1->down, t2->down, d+1, names))
++			return 0;
++		break;
+ 	}
+ 	return eqtype1(t1->type, t2->type, d+1, names);
+ }
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 1cd4cfaa86..952c472462 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -313,9 +313,13 @@ casebody(Node *sw, Node *typeswvar)
+ 
+ 		// botch - shouldnt fall thru declaration
+ 		last = stat->end->n;
+-		if(last->op == OXFALL)
++		if(last->op == OXFALL) {
++			if(typeswvar) {
++				setlineno(last);
++				yyerror("cannot fallthrough in type switch");
++			}
+ 			last->op = OFALL;
+-		else
++		} else
+ 			stat = list(stat, br);
+ 	}
+ 
+@@ -771,7 +775,7 @@ walkswitch(Node *sw)
+ 		sw->ntest = nodbool(1);
+ 		typecheck(&sw->ntest, Erv);
+ 	}
+-	
++
+ 	if(sw->ntest->op == OTYPESW) {
+ 		typeswitch(sw);
+ //dump("sw", sw);
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index 6fc34fed30..1b50beaa4d 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -51,7 +51,7 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
+ 		ranges: ranges,
+ 		str: str,
+ 		abbrevCache: make(map[uint32]abbrevTable),
+-		typeCache: make(map[uint32]Type),
++		typeCache: make(map[Offset]Type),
+ 	};
+ 
+ 	// Sniff .debug_info to figure out byte order.
+diff --git a/test/bugs/bug212.go b/test/fixedbugs/bug212.go
+similarity index 97%
+rename from test/bugs/bug212.go
+rename to test/fixedbugs/bug212.go
+index 079bb5791f..51df9b8ae8 100644
+--- a/test/bugs/bug212.go
++++ b/test/fixedbugs/bug212.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-type I int 
++type I int
+ type S struct { f map[I]int }
+ var v1 = S{ make(map[int]int) }		// ERROR "cannot|illegal|incompatible|wrong"
+ var v2 map[I]int = map[int]int{}	// ERROR "cannot|illegal|incompatible|wrong"
+diff --git a/test/bugs/bug213.go b/test/fixedbugs/bug213.go
+similarity index 100%
+rename from test/bugs/bug213.go
+rename to test/fixedbugs/bug213.go
+diff --git a/test/golden.out b/test/golden.out
+index d23369b6ef..a7dcd090a2 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -201,9 +201,3 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
+-
+-=========== bugs/bug212.go
+-BUG: errchk: command succeeded unexpectedly
+-
+-=========== bugs/bug213.go
+-BUG: errchk: command succeeded unexpectedly

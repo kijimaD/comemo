@@ -17,6 +17,20 @@ Date:   Mon Jul 21 20:56:44 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/105280047
-
+---
  src/cmd/gc/gen.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index cf630f3484..908a5e53d9 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -584,6 +584,8 @@ cgen_dcl(Node *n)
+ 	}
+ 	if(!(n->class & PHEAP))
+ 		return;
++	if(compiling_runtime)
++		fatal("%N escapes to heap, not allowed in runtime.", n);
+ 	if(n->alloc == nil)
+ 		n->alloc = callnew(n->type);
+ 	cgen_as(n->heapaddr, n->alloc);

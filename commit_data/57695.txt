@@ -41,8 +41,142 @@ Date:   Tue Aug 22 17:44:19 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 33 ++++++++++++++++++++++++++------
  src/cmd/compile/internal/noder/writer.go | 18 +++++++++--------
  test/inline.go                           | 30 +++++++++++++++++++++++++++++
  3 files changed, 67 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 2a526dbe69..0efe2ea2d5 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1677,7 +1677,11 @@ func (r *reader) closeAnotherScope() {
+ // @@@ Statements
+ 
+ func (r *reader) stmt() ir.Node {
+-	switch stmts := r.stmts(); len(stmts) {
++	return block(r.stmts())
++}
++
++func block(stmts []ir.Node) ir.Node {
++	switch len(stmts) {
+ 	case 0:
+ 		return nil
+ 	case 1:
+@@ -1687,7 +1691,7 @@ func (r *reader) stmt() ir.Node {
+ 	}
+ }
+ 
+-func (r *reader) stmts() []ir.Node {
++func (r *reader) stmts() ir.Nodes {
+ 	assert(ir.CurFunc == r.curfn)
+ 	var res ir.Nodes
+ 
+@@ -1912,12 +1916,29 @@ func (r *reader) ifStmt() ir.Node {
+ 	pos := r.pos()
+ 	init := r.stmts()
+ 	cond := r.expr()
+-	then := r.blockStmt()
+-	els := r.stmts()
++	staticCond := r.Int()
++	var then, els []ir.Node
++	if staticCond >= 0 {
++		then = r.blockStmt()
++	} else {
++		r.lastCloseScopePos = r.pos()
++	}
++	if staticCond <= 0 {
++		els = r.stmts()
++	}
+ 	r.closeAnotherScope()
+ 
+-	if ir.IsConst(cond, constant.Bool) && len(init)+len(then)+len(els) == 0 {
+-		return nil // drop empty if statement
++	if staticCond != 0 {
++		// We may have removed a dead return statement, which can trip up
++		// later passes (#62211). To avoid confusion, we instead flatten
++		// the if statement into a block.
++
++		if cond.Op() != ir.OLITERAL {
++			init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, ir.BlankNode, cond))) // for side effects
++		}
++		init.Append(then...)
++		init.Append(els...)
++		return block(init)
+ 	}
+ 
+ 	n := ir.NewIfStmt(pos, cond, then, els)
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index f5b83c6402..824b8883bd 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1520,20 +1520,22 @@ func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
+ }
+ 
+ func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+-	switch cond := w.p.staticBool(&stmt.Cond); {
+-	case cond > 0: // always true
+-		stmt.Else = nil
+-	case cond < 0: // always false
+-		stmt.Then.List = nil
+-	}
++	cond := w.p.staticBool(&stmt.Cond)
+ 
+ 	w.Sync(pkgbits.SyncIfStmt)
+ 	w.openScope(stmt.Pos())
+ 	w.pos(stmt)
+ 	w.stmt(stmt.Init)
+ 	w.expr(stmt.Cond)
+-	w.blockStmt(stmt.Then)
+-	w.stmt(stmt.Else)
++	w.Int(cond)
++	if cond >= 0 {
++		w.blockStmt(stmt.Then)
++	} else {
++		w.pos(stmt.Then.Rbrace)
++	}
++	if cond <= 0 {
++		w.stmt(stmt.Else)
++	}
+ 	w.closeAnotherScope()
+ }
+ 
+diff --git a/test/inline.go b/test/inline.go
+index 3a9cd5c20c..a2c13103d3 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -393,3 +393,33 @@ loop:
+ 		select2(x, y) // ERROR "inlining call to select2"
+ 	}
+ }
++
++// Issue #62211: inlining a function with unreachable "return"
++// statements could trip up phi insertion.
++func issue62211(x bool) { // ERROR "can inline issue62211"
++	if issue62211F(x) { // ERROR "inlining call to issue62211F"
++	}
++	if issue62211G(x) { // ERROR "inlining call to issue62211G"
++	}
++
++	// Initial fix CL caused a "non-monotonic scope positions" failure
++	// on code like this.
++	if z := 0; false {
++		panic(z)
++	}
++}
++
++func issue62211F(x bool) bool { // ERROR "can inline issue62211F"
++	if x || true {
++		return true
++	}
++	return true
++}
++
++func issue62211G(x bool) bool { // ERROR "can inline issue62211G"
++	if x || true {
++		return true
++	} else {
++		return true
++	}
++}

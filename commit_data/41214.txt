@@ -24,6 +24,30 @@ Date:   Thu Sep 12 17:56:57 2019 +1000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/lzw/reader.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 912b7d3f40..f08021190c 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -199,6 +199,9 @@ loop:
+ 		}
+ 		d.last, d.hi = code, d.hi+1
+ 		if d.hi >= d.overflow {
++			if d.hi > d.overflow {
++				panic("unreachable")
++			}
+ 			if d.width == maxWidth {
+ 				d.last = decoderInvalidCode
+ 				// Undo the d.hi++ a few lines above, so that (1) we maintain
+@@ -207,7 +210,7 @@ loop:
+ 				d.hi--
+ 			} else {
+ 				d.width++
+-				d.overflow <<= 1
++				d.overflow = 1 << d.width
+ 			}
+ 		}
+ 		if d.o >= flushBuffer {

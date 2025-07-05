@@ -12,6 +12,20 @@ Date:   Fri Nov 11 11:06:32 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
     Reviewed-by: Caleb Spare <cespare@gmail.com>
-
+---
  src/encoding/json/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 98a9899502..8f21ddaed9 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -34,7 +34,7 @@ import (
+ // and is not a nil pointer, Marshal calls its MarshalJSON method
+ // to produce JSON. If no MarshalJSON method is present but the
+ // value implements encoding.TextMarshaler instead, Marshal calls
+-// its MarshalText method.
++// its MarshalText method and encodes the result as a JSON string.
+ // The nil pointer exception is not strictly necessary
+ // but mimics a similar, necessary exception in the behavior of
+ // UnmarshalJSON.

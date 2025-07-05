@@ -9,6 +9,34 @@ Date:   Fri Aug 9 17:08:02 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12694043
-
+---
  src/pkg/encoding/binary/binary.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index edbac197d6..87bc3947ed 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package binary implements translation between numbers and byte sequences
+-// and encoding and decoding of varints.
++// Package binary implements simple translation between numbers and byte
++// sequences and encoding and decoding of varints.
+ //
+ // Numbers are translated by reading and writing fixed-size values.
+ // A fixed-size value is either a fixed-size arithmetic
+@@ -13,6 +13,11 @@
+ // Varints are a method of encoding integers using one or more bytes;
+ // numbers with smaller absolute value take a smaller number of bytes.
+ // For a specification, see http://code.google.com/apis/protocolbuffers/docs/encoding.html.
++//
++// This package favors simplicity over efficiency. Clients that require
++// high-performance serialization, especially for large data structures,
++// should look at more advanced solutions such as the encoding/gob
++// package or protocol buffers.
+ package binary
+ 
+ import (

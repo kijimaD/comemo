@@ -9,7 +9,33 @@ Date:   Thu Jan 8 13:34:05 2015 -0800
     Change-Id: I91469a9a67b1ee31dd508a4e105c39c815ecde58
     Reviewed-on: https://go-review.googlesource.com/2581
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/export_test.go  | 2 ++
  src/runtime/runtime_test.go | 4 ++--
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 87df7c99e4..016938ed4e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -117,3 +117,5 @@ func GostringW(w []uint16) (s string) {
+ 
+ var Gostringnocopy = gostringnocopy
+ var Maxstring = &maxstring
++
++type Uintreg uintreg
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index c4de3e247b..229d7e27ee 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -261,8 +261,8 @@ func TestTrailingZero(t *testing.T) {
+ 		n int64
+ 		z struct{}
+ 	}
+-	if unsafe.Sizeof(T2{}) != 16 {
+-		t.Errorf("sizeof(%#v)==%d, want 16", T2{}, unsafe.Sizeof(T2{}))
++	if unsafe.Sizeof(T2{}) != 8 + unsafe.Sizeof(Uintreg(0)) {
++		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8 + unsafe.Sizeof(Uintreg(0)))
+ 	}
+ 	type T3 struct {
+ 		n byte

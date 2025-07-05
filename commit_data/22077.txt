@@ -9,6 +9,20 @@ Date:   Sun Feb 22 13:17:43 2015 -0500
     Change-Id: Ia5e14ca2c7640f08abbbed1a777a6cf04d71d0e7
     Reviewed-on: https://go-review.googlesource.com/5570
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index d7e522bd5a..372f0897d0 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -505,7 +505,7 @@ func matchPackages(pattern string) []string {
+ 	var pkgs []string
+ 
+ 	for _, src := range buildContext.SrcDirs() {
+-		if pattern == "std" && src != gorootSrc {
++		if (pattern == "std" || pattern == "cmd") && src != gorootSrc {
+ 			continue
+ 		}
+ 		src = filepath.Clean(src) + string(filepath.Separator)

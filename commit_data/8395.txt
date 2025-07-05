@@ -10,6 +10,33 @@ Date:   Sat May 14 09:45:32 2011 -0700
     R=dchest, jnwhiteh, rlight2
     CC=golang-dev
     https://golang.org/cl/4521065
-
+---
  misc/vim/indent/go.vim | 12 +++---------
  1 file changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/misc/vim/indent/go.vim b/misc/vim/indent/go.vim
+index dbea5a5380..faf4d79e25 100644
+--- a/misc/vim/indent/go.vim
++++ b/misc/vim/indent/go.vim
+@@ -54,18 +54,12 @@ function! GoIndent(lnum)
+   endif
+ 
+   " Colons are tricky.
+-  " We want to outdent if it's part of a switch ("case foo:" or "default:"),
++  " We want to outdent if it's part of a switch ("case foo:" or "default:").
++  " We ignore trying to deal with jump labels because (a) they're rare, and
++  " (b) they're hard to disambiguate from a composite literal key.
+   if thisl =~# '^\s*\(case .*\|default\):$'
+     let ind -= &sw
+   endif
+-  " ... and put jump labels in the first column (ignore "default:").
+-  if thisl =~ '^\s*\S\+:\s*$' 
+-    " ignore "default:" and if there's a string on the line;
+-    " the latter will more likely be something like "blah: %v".
+-    if thisl !~# '^\s*default:\s*$' && thisl !~# '".*:'
+-      return 0
+-    endif
+-  endif
+ 
+   return ind
+ endfunction

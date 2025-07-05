@@ -17,8 +17,55 @@ Date:   Fri May 12 10:27:33 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go           |  4 ++++
  src/go/types/lookup.go                              |  4 ++++
  src/internal/types/testdata/fixedbugs/issue59848.go | 10 ++++++++++
  3 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index e0b19718a1..ccf724373b 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -387,6 +387,10 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+ 					f, _ = obj.(*Func)
+ 					if f != nil {
++						// This method is formatted in funcString below, so must be type-checked.
++						if check != nil {
++							check.objDecl(f, nil)
++						}
+ 						state = wrongName
+ 					}
+ 				}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 8187cfb1a5..0ff5db74e6 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -389,6 +389,10 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
+ 					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+ 					f, _ = obj.(*Func)
+ 					if f != nil {
++						// This method is formatted in funcString below, so must be type-checked.
++						if check != nil {
++							check.objDecl(f, nil)
++						}
+ 						state = wrongName
+ 					}
+ 				}
+diff --git a/src/internal/types/testdata/fixedbugs/issue59848.go b/src/internal/types/testdata/fixedbugs/issue59848.go
+new file mode 100644
+index 0000000000..51da7475e5
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue59848.go
+@@ -0,0 +1,10 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T struct{}
++type I interface{ M() }
++var _ I = T /* ERROR "missing method M" */ {} // must not crash
++func (T) m() {}

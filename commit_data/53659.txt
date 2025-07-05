@@ -13,7 +13,34 @@ Date:   Fri Aug 26 09:16:47 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/mstats.go   | 2 --
  src/runtime/runtime2.go | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index d2a956deae..70c5a703e7 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -45,8 +45,6 @@ type mstats struct {
+ 
+ 	enablegc bool
+ 
+-	_ uint32 // ensure gcPauseDist is aligned.
+-
+ 	// gcPauseDist represents the distribution of all GC-related
+ 	// application pauses in the runtime.
+ 	//
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 88e93a315f..e6c8180d6d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -836,8 +836,6 @@ type schedt struct {
+ 	// with the rest of the runtime.
+ 	sysmonlock mutex
+ 
+-	_ uint32 // ensure timeToRun has 8-byte alignment
+-
+ 	// timeToRun is a distribution of scheduling latencies, defined
+ 	// as the sum of time a G spends in the _Grunnable state before
+ 	// it transitions to _Grunning.

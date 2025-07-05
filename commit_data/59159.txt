@@ -30,7 +30,7 @@ Date:   Tue Jun 20 11:16:56 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go             |  7 +++-
  src/cmd/asm/internal/asm/parse.go           |  4 +--
  src/cmd/asm/internal/asm/testdata/riscv64.s | 40 ++++++++++++++++++++++
@@ -39,3 +39,267 @@ Date:   Tue Jun 20 11:16:56 2023 +0800
  src/cmd/internal/obj/riscv/list.go          | 16 +++++++++
  src/cmd/internal/obj/riscv/obj.go           | 17 ++++++++--
  7 files changed, 130 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 375ef803bb..949b688bbd 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
++	"cmd/internal/obj/riscv"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/sys"
+ )
+@@ -46,7 +47,11 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 				p.errorf("%v", err)
+ 				return
+ 			}
+-
++		case sys.RISCV64:
++			if err := riscv.ParseSuffix(prog, cond); err != nil {
++				p.errorf("unrecognized suffix .%q", cond)
++				return
++			}
+ 		default:
+ 			p.errorf("unrecognized suffix .%q", cond)
+ 			return
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index ef6c840dc2..7a52e54090 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -217,8 +217,8 @@ next:
+ 		for {
+ 			tok = p.nextToken()
+ 			if len(operands) == 0 && len(items) == 0 {
+-				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
+-					// Suffixes: ARM conditionals or x86 modifiers.
++				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.RISCV64) && tok == '.' {
++					// Suffixes: ARM conditionals, RISCV rounding mode or x86 modifiers.
+ 					tok = p.nextToken()
+ 					str := p.lex.Text()
+ 					if tok != scanner.Ident {
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 072302b225..a5ab254eaa 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -233,11 +233,31 @@ start:
+ 
+ 	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
+ 	FCVTWS	F0, X5					// d31200c0
++	FCVTWS.RNE	F0, X5				// d30200c0
++	FCVTWS.RTZ	F0, X5				// d31200c0
++	FCVTWS.RDN	F0, X5				// d32200c0
++	FCVTWS.RUP	F0, X5				// d33200c0
++	FCVTWS.RMM	F0, X5				// d34200c0
+ 	FCVTLS	F0, X5					// d31220c0
++	FCVTLS.RNE	F0, X5				// d30220c0
++	FCVTLS.RTZ	F0, X5				// d31220c0
++	FCVTLS.RDN	F0, X5				// d32220c0
++	FCVTLS.RUP	F0, X5				// d33220c0
++	FCVTLS.RMM	F0, X5				// d34220c0
+ 	FCVTSW	X5, F0					// 538002d0
+ 	FCVTSL	X5, F0					// 538022d0
+ 	FCVTWUS	F0, X5					// d31210c0
++	FCVTWUS.RNE	F0, X5				// d30210c0
++	FCVTWUS.RTZ	F0, X5				// d31210c0
++	FCVTWUS.RDN	F0, X5				// d32210c0
++	FCVTWUS.RUP	F0, X5				// d33210c0
++	FCVTWUS.RMM	F0, X5				// d34210c0
+ 	FCVTLUS	F0, X5					// d31230c0
++	FCVTLUS.RNE	F0, X5				// d30230c0
++	FCVTLUS.RTZ	F0, X5				// d31230c0
++	FCVTLUS.RDN	F0, X5				// d32230c0
++	FCVTLUS.RUP	F0, X5				// d33230c0
++	FCVTLUS.RMM	F0, X5				// d34230c0
+ 	FCVTSWU	X5, F0					// 538012d0
+ 	FCVTSLU	X5, F0					// 538032d0
+ 	FSGNJS	F1, F0, F2				// 53011020
+@@ -277,11 +297,31 @@ start:
+ 
+ 	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
+ 	FCVTWD	F0, X5					// d31200c2
++	FCVTWD.RNE	F0, X5				// d30200c2
++	FCVTWD.RTZ	F0, X5				// d31200c2
++	FCVTWD.RDN	F0, X5				// d32200c2
++	FCVTWD.RUP	F0, X5				// d33200c2
++	FCVTWD.RMM	F0, X5				// d34200c2
+ 	FCVTLD	F0, X5					// d31220c2
++	FCVTLD.RNE	F0, X5				// d30220c2
++	FCVTLD.RTZ	F0, X5				// d31220c2
++	FCVTLD.RDN	F0, X5				// d32220c2
++	FCVTLD.RUP	F0, X5				// d33220c2
++	FCVTLD.RMM	F0, X5				// d34220c2
+ 	FCVTDW	X5, F0					// 538002d2
+ 	FCVTDL	X5, F0					// 538022d2
+ 	FCVTWUD F0, X5					// d31210c2
++	FCVTWUD.RNE F0, X5				// d30210c2
++	FCVTWUD.RTZ F0, X5				// d31210c2
++	FCVTWUD.RDN F0, X5				// d32210c2
++	FCVTWUD.RUP F0, X5				// d33210c2
++	FCVTWUD.RMM F0, X5				// d34210c2
+ 	FCVTLUD F0, X5					// d31230c2
++	FCVTLUD.RNE F0, X5				// d30230c2
++	FCVTLUD.RTZ F0, X5				// d31230c2
++	FCVTLUD.RDN F0, X5				// d32230c2
++	FCVTLUD.RUP F0, X5				// d33230c2
++	FCVTLUD.RMM F0, X5				// d34230c2
+ 	FCVTDWU X5, F0					// 538012d2
+ 	FCVTDLU X5, F0					// 538032d2
+ 	FCVTSD	F0, F1					// d3001040
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 0b7878656c..5be493e176 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -314,7 +314,7 @@ type Prog struct {
+ 	RegTo2   int16     // 2nd destination operand
+ 	Mark     uint16    // bitmask of arch-specific items
+ 	Optab    uint16    // arch-specific opcode index
+-	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions)
++	Scond    uint8     // bits that describe instruction suffixes (e.g. ARM conditions, RISCV Rounding Mode)
+ 	Back     uint8     // for x86 back end: backwards branch state
+ 	Ft       uint8     // for x86 back end: type index of Prog.From
+ 	Tt       uint8     // for x86 back end: type index of Prog.To
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index edd1ac820b..919f07b1a9 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -28,7 +28,12 @@
+ 
+ package riscv
+ 
+-import "cmd/internal/obj"
++import (
++	"errors"
++	"fmt"
++
++	"cmd/internal/obj"
++)
+ 
+ //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p riscv
+ 
+@@ -607,6 +612,50 @@ const (
+ 	ALAST
+ )
+ 
++// opSuffix encoding to uint8 which fit into p.Scond
++var rmSuffixSet = map[string]uint8{
++	"RNE": RM_RNE,
++	"RTZ": RM_RTZ,
++	"RDN": RM_RDN,
++	"RUP": RM_RUP,
++	"RMM": RM_RMM,
++}
++
++const rmSuffixBit uint8 = 1 << 7
++
++func rmSuffixEncode(s string) (uint8, error) {
++	if s == "" {
++		return 0, errors.New("empty suffix")
++	}
++	enc, ok := rmSuffixSet[s]
++	if !ok {
++		return 0, fmt.Errorf("invalid encoding for unknown suffix:%q", s)
++	}
++	return enc | rmSuffixBit, nil
++}
++
++func rmSuffixString(u uint8) (string, error) {
++	if u&rmSuffixBit == 0 {
++		return "", fmt.Errorf("invalid suffix, require round mode bit:%x", u)
++	}
++
++	u &^= rmSuffixBit
++	for k, v := range rmSuffixSet {
++		if v == u {
++			return k, nil
++		}
++	}
++	return "", fmt.Errorf("unknown suffix:%x", u)
++}
++
++const (
++	RM_RNE uint8 = iota // Round to Nearest, ties to Even
++	RM_RTZ              // Round towards Zero
++	RM_RDN              // Round Down
++	RM_RUP              // Round Up
++	RM_RMM              // Round to Nearest, ties to Max Magnitude
++)
++
+ // All unary instructions which write to their arguments (as opposed to reading
+ // from them) go here. The assembly parser uses this information to populate
+ // its AST in a semantically reasonable way.
+diff --git a/src/cmd/internal/obj/riscv/list.go b/src/cmd/internal/obj/riscv/list.go
+index de90961e32..bc87539f27 100644
+--- a/src/cmd/internal/obj/riscv/list.go
++++ b/src/cmd/internal/obj/riscv/list.go
+@@ -13,6 +13,7 @@ import (
+ func init() {
+ 	obj.RegisterRegister(obj.RBaseRISCV, REG_END, RegName)
+ 	obj.RegisterOpcode(obj.ABaseRISCV, Anames)
++	obj.RegisterOpSuffix("riscv64", opSuffixString)
+ }
+ 
+ func RegName(r int) string {
+@@ -31,3 +32,18 @@ func RegName(r int) string {
+ 		return fmt.Sprintf("Rgok(%d)", r-obj.RBaseRISCV)
+ 	}
+ }
++
++func opSuffixString(s uint8) string {
++	if s&rmSuffixBit == 0 {
++		return ""
++	}
++
++	ss, err := rmSuffixString(s)
++	if err != nil {
++		ss = fmt.Sprintf("<invalid 0x%x>", s)
++	}
++	if ss == "" {
++		return ss
++	}
++	return fmt.Sprintf(".%s", ss)
++}
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 11d6c202ea..3ec740f85a 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -28,6 +28,7 @@ import (
+ 	"internal/abi"
+ 	"log"
+ 	"math/bits"
++	"strings"
+ )
+ 
+ func buildop(ctxt *obj.Link) {}
+@@ -2273,8 +2274,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.imm = 0x0ff
+ 
+ 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+-		// Set the rounding mode in funct3 to round to zero.
+-		ins.funct3 = 1
++		// Set the default rounding mode in funct3 to round to zero.
++		if p.Scond&rmSuffixBit == 0 {
++			ins.funct3 = uint32(RM_RTZ)
++		} else {
++			ins.funct3 = uint32(p.Scond &^ rmSuffixBit)
++		}
+ 
+ 	case AFNES, AFNED:
+ 		// Replace FNE[SD] with FEQ[SD] and NOT.
+@@ -2478,6 +2483,14 @@ func isUnsafePoint(p *obj.Prog) bool {
+ 	return p.Mark&USES_REG_TMP == USES_REG_TMP || p.From.Reg == REG_TMP || p.To.Reg == REG_TMP || p.Reg == REG_TMP
+ }
+ 
++func ParseSuffix(prog *obj.Prog, cond string) (err error) {
++	switch prog.As {
++	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
++		prog.Scond, err = rmSuffixEncode(strings.TrimPrefix(cond, "."))
++	}
++	return
++}
++
+ var LinkRISCV64 = obj.LinkArch{
+ 	Arch:           sys.ArchRISCV64,
+ 	Init:           buildop,

@@ -9,7 +9,160 @@ Date:   Tue Oct 15 12:46:14 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/14682044
-
+---
  misc/cgo/test/issue6506.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         | 48 ++++++++++++++++++++++++++++++++++++++++--
  2 files changed, 98 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue6506.go b/misc/cgo/test/issue6506.go
+new file mode 100644
+index 0000000000..e2a733206e
+--- /dev/null
++++ b/misc/cgo/test/issue6506.go
+@@ -0,0 +1,52 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Test handling of size_t in the face of incorrect clang debug information.
++// golang.org/issue/6506.
++
++/*
++#include <stdlib.h>
++#include <string.h>
++
++// These functions are clang builtins but not standard on other systems.
++// Give them prototypes so that this test can be compiled on other systems.
++// One of the great things about this bug is that even with these prototypes
++// clang still generates the wrong debug information.
++
++void bzero(void*, size_t);
++int bcmp(const void*, const void*, size_t);
++int strncasecmp(const char*, const char*, size_t n);
++size_t strlcpy(char*, const char*, size_t);
++size_t strlcat(char*, const char*, size_t);
++*/
++import "C"
++
++func test6506() {
++	// nothing to run, just make sure this compiles
++	var x C.size_t
++
++	C.calloc(x, x)
++	C.malloc(x)
++	C.realloc(nil, x)
++	C.memcpy(nil, nil, x)
++	C.memcmp(nil, nil, x)
++	C.memmove(nil, nil, x)
++	C.strncpy(nil, nil, x)
++	C.strncmp(nil, nil, x)
++	C.strncat(nil, nil, x)
++	x = C.strxfrm(nil, nil, x)
++	C.memchr(nil, 0, x)
++	x = C.strcspn(nil, nil)
++	x = C.strspn(nil, nil)
++	C.memset(nil, 0, x)
++	x = C.strlen(nil)
++	C.alloca(x)
++	C.bzero(nil, x)
++	C.strncasecmp(nil, nil, x)
++	x = C.strlcpy(nil, nil, x)
++	x = C.strlcat(nil, nil, x)
++	_ = x
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 6a919b4b6d..1cd938ba2c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -530,7 +530,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 		f, fok := types[i].(*dwarf.FuncType)
+ 		if n.Kind != "type" && fok {
+ 			n.Kind = "func"
+-			n.FuncType = conv.FuncType(f, pos)
++			n.FuncType = conv.FuncType(n, f, pos)
+ 		} else {
+ 			n.Type = conv.Type(types[i], pos)
+ 			if enums[i] != 0 && n.Type.EnumValues != nil {
+@@ -1314,6 +1314,41 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 	return t
+ }
+ 
++// Clang contains built-in prototypes for many functions in the standard library.
++// If you use the function without a header, clang uses these definitions to print
++// an error telling which header to #include and then to continue on with the correct
++// prototype. Unfortunately, the DWARF debug information generated for one
++// of these functions, even after the header has been #included, records each of
++// the size_t arguments as an unsigned long instead. Go treats C.ulong and C.size_t
++// as different types, so we must correct the prototype for code that works on other
++// systems to work with clang and vice versa. See golang.org/issue/6506#c21.
++var usesSizeT = map[string]bool{
++	"alloca":      true,
++	"bzero":       true,
++	"calloc":      true,
++	"malloc":      true,
++	"memchr":      true,
++	"memcmp":      true,
++	"memcpy":      true,
++	"memmove":     true,
++	"memset":      true,
++	"realloc":     true,
++	"snprintf":    true,
++	"stpncpy":     true,
++	"strcspn":     true,
++	"strlcat":     true,
++	"strlcpy":     true,
++	"strlen":      true,
++	"strncasecmp": true,
++	"strncat":     true,
++	"strncmp":     true,
++	"strncpy":     true,
++	"strndup":     true,
++	"strspn":      true,
++	"strxfrm":     true,
++	"vsnprintf":   true,
++}
++
+ // FuncArg returns a Go type with the same memory layout as
+ // dtype when used as the type of a C function argument.
+ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+@@ -1330,6 +1365,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 			Go:    &ast.StarExpr{X: t.Go},
+ 			C:     tr,
+ 		}
++
+ 	case *dwarf.TypedefType:
+ 		// C has much more relaxed rules than Go for
+ 		// implicit type conversions.  When the parameter
+@@ -1357,7 +1393,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 
+ // FuncType returns the Go type analogous to dtype.
+ // There is no guarantee about matching memory layout.
+-func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
++func (c *typeConv) FuncType(name *Name, dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+ 	p := make([]*Type, len(dtype.ParamType))
+ 	gp := make([]*ast.Field, len(dtype.ParamType))
+ 	for i, f := range dtype.ParamType {
+@@ -1371,6 +1407,10 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+ 			break
+ 		}
+ 		p[i] = c.FuncArg(f, pos)
++		// See comment on usesSizeT.
++		if id, ok := p[i].Go.(*ast.Ident); ok && id.Name == "_Ctype_ulong" && usesSizeT[name.C] {
++			p[i].Go = c.Ident("_Ctype_size_t")
++		}
+ 		gp[i] = &ast.Field{Type: p[i].Go}
+ 	}
+ 	var r *Type
+@@ -1379,6 +1419,10 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+ 		gr = []*ast.Field{{Type: c.goVoid}}
+ 	} else if dtype.ReturnType != nil {
+ 		r = c.Type(dtype.ReturnType, pos)
++		// See comment on usesSizeT.
++		if id, ok := r.Go.(*ast.Ident); ok && id.Name == "_Ctype_ulong" && usesSizeT[name.C] {
++			r.Go = c.Ident("_Ctype_size_t")
++		}
+ 		gr = []*ast.Field{{Type: r.Go}}
+ 	}
+ 	return &FuncType{

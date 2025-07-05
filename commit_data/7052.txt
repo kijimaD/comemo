@@ -7,6 +7,23 @@ Date:   Fri Jan 7 09:34:13 2011 +1100
     R=r, brainman, r2
     CC=golang-dev
     https://golang.org/cl/3881041
-
+---
  doc/docs.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 91893a5fa6..e8152bb352 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -79,6 +79,11 @@ An introduction to Go for C++ programmers.
+ <li><a href="http://golang.jp/">golang.jp</a> - Go documentation and news.
+ </ul>
+ 
++<h3 id="docs_ru">Russian &mdash; Русский</h3>
++<ul>
++<li><a href="http://golanguage.ru/">golanguage.ru</a> - Go documentation.
++</ul>
++
+ </div>
+ 
+ 

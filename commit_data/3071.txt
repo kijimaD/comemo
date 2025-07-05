@@ -11,6 +11,20 @@ Date:   Mon Aug 24 15:56:39 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=33780
     CL=33790
-
+---
  test/fixedbugs/bug192.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug192.go b/test/fixedbugs/bug192.go
+index 0131a516f2..282ed30d36 100644
+--- a/test/fixedbugs/bug192.go
++++ b/test/fixedbugs/bug192.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ 
+-import "fmt"
++import "fmt"	// GCCGO_ERROR "previous"
+ 
+-var fmt int	// ERROR "redecl"
++var fmt int	// ERROR "redecl|redefinition"

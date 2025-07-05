@@ -17,8 +17,55 @@ Date:   Wed Feb 1 12:33:11 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 9 +++++++++
  src/cmd/dist/test.go                   | 2 +-
  src/internal/platform/supported.go     | 2 +-
  3 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 30e12be6c6..8a39c24a6d 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -132,6 +132,15 @@ func testMain(m *testing.M) int {
+ 		// in .text section.
+ 		cc = append(cc, "-Wl,-bnoobjreorder")
+ 	}
++	if GOOS == "ios" {
++		// Linking runtime/cgo on ios requires the CoreFoundation framework because
++		// x_cgo_init uses CoreFoundation APIs to switch directory to the app root.
++		//
++		// TODO(#58225): This special case probably should not be needed.
++		// runtime/cgo is a very low-level package, and should not provide
++		// high-level behaviors like changing the current working directory at init.
++		cc = append(cc, "-framework", "CoreFoundation")
++	}
+ 	libbase := GOOS + "_" + GOARCH
+ 	if runtime.Compiler == "gccgo" {
+ 		libbase = "gccgo_" + libgodir + "_fPIC"
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b540984e38..35a9b50a70 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1143,7 +1143,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			return false
+ 		}
+ 		switch goos {
+-		case "aix", "darwin", "windows":
++		case "aix", "darwin", "ios", "windows":
+ 			return true
+ 		case "linux":
+ 			switch goarch {
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 857aff4d94..4c75b1d849 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -101,7 +101,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "c-archive":
+ 		switch goos {
+-		case "aix", "darwin", "windows":
++		case "aix", "darwin", "ios", "windows":
+ 			return true
+ 		case "linux":
+ 			switch goarch {

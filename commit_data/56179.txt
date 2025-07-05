@@ -59,8 +59,72 @@ Date:   Thu Apr 13 14:51:05 2023 +0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/deadcode/deadcode.go |  8 ++++----
  src/cmd/compile/internal/inline/inl.go        |  2 +-
  test/inline.go                                | 14 ++++++++++++++
  3 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/deadcode/deadcode.go b/src/cmd/compile/internal/deadcode/deadcode.go
+index decd261183..46a2239f48 100644
+--- a/src/cmd/compile/internal/deadcode/deadcode.go
++++ b/src/cmd/compile/internal/deadcode/deadcode.go
+@@ -122,16 +122,16 @@ func stmts(nn *ir.Nodes) {
+ 							// This switch entry is the one that always triggers.
+ 							for _, cas2 := range n.Cases {
+ 								for _, c2 := range cas2.List {
+-									if cas2 != cas || c2 != c {
+-										ir.Visit(c2, markHiddenClosureDead)
+-									}
++									ir.Visit(c2, markHiddenClosureDead)
+ 								}
+ 								if cas2 != cas {
+ 									ir.VisitList(cas2.Body, markHiddenClosureDead)
+ 								}
+ 							}
+ 
+-							cas.List[0] = c
++							// Rewrite to switch { case true: ... }
++							n.Tag = nil
++							cas.List[0] = ir.NewBool(c.Pos(), true)
+ 							cas.List = cas.List[:1]
+ 							n.Cases[0] = cas
+ 							n.Cases = n.Cases[:1]
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index d030a822fc..1a65e16f51 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1035,7 +1035,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 	if ok, maxCost := inlineCostOK(n, ir.CurFunc, fn, bigCaller); !ok {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-			fmt.Sprintf("cost %d of %s exceeds max caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
++				fmt.Sprintf("cost %d of %s exceeds max caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
+ 		}
+ 		return n
+ 	}
+diff --git a/test/inline.go b/test/inline.go
+index 45a6255efc..af39ad8cb5 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -195,6 +195,20 @@ func switchConst3() string { // ERROR "can inline switchConst3"
+ 		return "oh nose!"
+ 	}
+ }
++func switchConst4() { // ERROR "can inline switchConst4"
++	const intSize = 32 << (^uint(0) >> 63)
++	want := func() string { // ERROR "can inline switchConst4.func1"
++		switch intSize {
++		case 32:
++			return "32"
++		case 64:
++			return "64"
++		default:
++			panic("unreachable")
++		}
++	}() // ERROR "inlining call to switchConst4.func1"
++	_ = want
++}
+ 
+ func inlineRangeIntoMe(data []int) { // ERROR "can inline inlineRangeIntoMe" "data does not escape"
+ 	rangeFunc(data, 12) // ERROR "inlining call to rangeFunc"

@@ -19,7 +19,7 @@ Date:   Thu Sep 30 22:46:09 2021 +0800
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go  | 4 ++--
  src/runtime/mbitmap.go | 2 +-
  src/runtime/proc.go    | 2 +-
@@ -27,3 +27,102 @@ Date:   Thu Sep 30 22:46:09 2021 +0800
  src/runtime/symtab.go  | 2 +-
  src/sync/pool.go       | 4 ++--
  6 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 7affe244a2..c389cb1e45 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1301,7 +1301,7 @@ func fastexprand(mean int) int32 {
+ 	// x = -log_e(q) * mean
+ 	// x = log_2(q) * (-log_e(2)) * mean    ; Using log_2 for efficiency
+ 	const randomBitCount = 26
+-	q := fastrand()%(1<<randomBitCount) + 1
++	q := fastrandn(1<<randomBitCount) + 1
+ 	qlog := fastlog2(float64(q)) - randomBitCount
+ 	if qlog > 0 {
+ 		qlog = 0
+@@ -1319,7 +1319,7 @@ func nextSampleNoFP() uintptr {
+ 		rate = 0x3fffffff
+ 	}
+ 	if rate != 0 {
+-		return uintptr(fastrand() % uint32(2*rate))
++		return uintptr(fastrandn(uint32(2 * rate)))
+ 	}
+ 	return 0
+ }
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 9363409e36..daf1fcfbc0 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -974,7 +974,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// machine instructions.
+ 
+ 	outOfPlace := false
+-	if arenaIndex(x+size-1) != arenaIdx(h.arena) || (doubleCheck && fastrand()%2 == 0) {
++	if arenaIndex(x+size-1) != arenaIdx(h.arena) || (doubleCheck && fastrandn(2) == 0) {
+ 		// This object spans heap arenas, so the bitmap may be
+ 		// discontiguous. Unroll it into the object instead
+ 		// and then copy it out.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index aa2ba96c8f..c14a1f143c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5840,7 +5840,7 @@ const randomizeScheduler = raceenabled
+ // If the run queue is full, runnext puts g on the global queue.
+ // Executed only by the owner P.
+ func runqput(_p_ *p, gp *g, next bool) {
+-	if randomizeScheduler && next && fastrand()%2 == 0 {
++	if randomizeScheduler && next && fastrandn(2) == 0 {
+ 		next = false
+ 	}
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 91380a0d51..ad78363bb6 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -156,8 +156,8 @@ func fastrandn(n uint32) uint32 {
+ 	return uint32(uint64(fastrand()) * uint64(n) >> 32)
+ }
+ 
+-//go:linkname sync_fastrand sync.fastrand
+-func sync_fastrand() uint32 { return fastrand() }
++//go:linkname sync_fastrandn sync.fastrandn
++func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }
+ 
+ //go:linkname net_fastrand net.fastrand
+ func net_fastrand() uint32 { return fastrand() }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 7641c491f1..2de518d2e6 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -921,7 +921,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
+ 			if cache != nil {
+ 				x := pcvalueCacheKey(targetpc)
+ 				e := &cache.entries[x]
+-				ci := fastrand() % uint32(len(cache.entries[x]))
++				ci := fastrandn(uint32(len(cache.entries[x])))
+ 				e[ci] = e[0]
+ 				e[0] = pcvalueCacheEnt{
+ 					targetpc: targetpc,
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 1ae70127ac..9802f29d6f 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -71,7 +71,7 @@ type poolLocal struct {
+ }
+ 
+ // from runtime
+-func fastrand() uint32
++func fastrandn(n uint32) uint32
+ 
+ var poolRaceHash [128]uint64
+ 
+@@ -92,7 +92,7 @@ func (p *Pool) Put(x interface{}) {
+ 		return
+ 	}
+ 	if race.Enabled {
+-		if fastrand()%4 == 0 {
++		if fastrandn(4) == 0 {
+ 			// Randomly drop x on floor.
+ 			return
+ 		}

@@ -8,7 +8,7 @@ Date:   Tue Sep 14 11:16:36 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2182041
-
+---
  src/cmd/godoc/Makefile    |   1 +
  src/cmd/godoc/dirtrees.go |  44 +++++++++--
  src/cmd/godoc/doc.go      |  11 +++
@@ -17,3 +17,676 @@ Date:   Tue Sep 14 11:16:36 2010 -0700
  src/cmd/godoc/mapping.go  |  94 ++++++++++------------
  src/cmd/godoc/utils.go    |  87 ++++++++++++++++++++
  7 files changed, 348 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index f93324f281..3e21adcdfd 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -14,5 +14,6 @@ GOFILES=\
+ 	mapping.go\
+ 	snippet.go\
+ 	spec.go\
++	utils.go\
+ 
+ include ../../Make.cmd
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 937d1047fc..d76fb99a11 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"go/doc"
+ 	"go/parser"
+ 	"io/ioutil"
+@@ -80,8 +81,18 @@ func firstSentence(s string) string {
+ }
+ 
+ 
+-func newDirTree(path, name string, depth, maxDepth int) *Directory {
+-	if depth >= maxDepth {
++type treeBuilder struct {
++	pathFilter func(string) bool
++	maxDepth   int
++}
++
++
++func (b *treeBuilder) newDirTree(path, name string, depth int) *Directory {
++	if b.pathFilter != nil && !b.pathFilter(path) {
++		return nil
++	}
++
++	if depth >= b.maxDepth {
+ 		// return a dummy directory so that the parent directory
+ 		// doesn't get discarded just because we reached the max
+ 		// directory depth
+@@ -132,7 +143,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
+ 		i := 0
+ 		for _, d := range list {
+ 			if isPkgDir(d) {
+-				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1, maxDepth)
++				dd := b.newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1)
+ 				if dd != nil {
+ 					dirs[i] = dd
+ 					i++
+@@ -160,20 +171,41 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
+ }
+ 
+ 
++// Maximum directory depth, adjust as needed.
++const maxDirDepth = 24
++
+ // newDirectory creates a new package directory tree with at most maxDepth
+ // levels, anchored at root. The result tree is pruned such that it only
+ // contains directories that contain package files or that contain
+-// subdirectories containing package files (transitively). If maxDepth is
++// subdirectories containing package files (transitively). If a non-nil
++// pathFilter is provided, directory paths additionally must be accepted
++// by the filter (i.e., pathFilter(path) must be true). If maxDepth is
+ // too shallow, the leaf nodes are assumed to contain package files even if
+ // their contents are not known (i.e., in this case the tree may contain
+ // directories w/o any package files).
+ //
+-func newDirectory(root string, maxDepth int) *Directory {
++func newDirectory(root string, pathFilter func(string) bool, maxDepth int) *Directory {
+ 	d, err := os.Lstat(root)
+ 	if err != nil || !isPkgDir(d) {
+ 		return nil
+ 	}
+-	return newDirTree(root, d.Name, 0, maxDepth)
++	b := treeBuilder{pathFilter, maxDepth}
++	return b.newDirTree(root, d.Name, 0)
++}
++
++
++func (dir *Directory) writeLeafs(buf *bytes.Buffer) {
++	if dir != nil {
++		if len(dir.Dirs) == 0 {
++			buf.WriteString(dir.Path)
++			buf.WriteByte('\n')
++			return
++		}
++
++		for _, d := range dir.Dirs {
++			d.writeLeafs(buf)
++		}
++	}
+ }
+ 
+ 
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 955ed35bf2..82281b1755 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -61,6 +61,10 @@ The flags are:
+ 		repository holding the source files.
+ 	-sync_minutes=0
+ 		sync interval in minutes; sync is disabled if <= 0
++	-filter=""
++		file containing permitted permitted directory paths
++	-filter_minutes=0
++		filter update interval in minutes; update is disabled if <= 0
+ 
+ The -path flag accepts a list of colon-separated paths; unrooted paths are relative
+ to the current working directory. Each path is considered as an additional root for
+@@ -76,6 +80,13 @@ as follows:
+ 	/home/bar/x        -> bar/x
+ 	/public/x          -> public/x
+ 
++Paths provided via -path may point to very large file systems that contain
++non-Go files. Creating the subtree of directories with Go packages may take
++a long amount of time. A file containing newline-separated directory paths
++may be provided with the -filter flag; if it exists, only directories
++on those paths are considered. If -filter_minutes is set, the filter_file is
++updated regularly by walking the entire directory tree.
++
+ When godoc runs as a web server, it creates a search index from all .go files
+ under -goroot (excluding files starting with .). The index is created at startup
+ and is automatically updated every time the -sync command terminates with exit
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index b1456bb812..e1a828fe79 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -22,40 +22,12 @@ import (
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+-	"sync"
+ 	"template"
+ 	"time"
+ 	"utf8"
+ )
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Support types
+-
+-// An RWValue wraps a value and permits mutually exclusive
+-// access to it and records the time the value was last set.
+-type RWValue struct {
+-	mutex     sync.RWMutex
+-	value     interface{}
+-	timestamp int64 // time of last set(), in seconds since epoch
+-}
+-
+-
+-func (v *RWValue) set(value interface{}) {
+-	v.mutex.Lock()
+-	v.value = value
+-	v.timestamp = time.Seconds()
+-	v.mutex.Unlock()
+-}
+-
+-
+-func (v *RWValue) get() (interface{}, int64) {
+-	v.mutex.RLock()
+-	defer v.mutex.RUnlock()
+-	return v.value, v.timestamp
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Globals
+ 
+@@ -79,15 +51,19 @@ var (
+ 	verbose = flag.Bool("v", false, "verbose mode")
+ 
+ 	// file system roots
+-	goroot = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+-	path   = flag.String("path", "", "additional package directories (colon-separated)")
++	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
++	path        = flag.String("path", "", "additional package directories (colon-separated)")
++	filter      = flag.String("filter", "godoc.dirlist", "file containing permitted package directory paths")
++	filterMin   = flag.Int("filter_minutes", 0, "filter update interval in minutes; disabled if <= 0")
++	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width")
+ 
+ 	// file system mapping
+-	fsMap  Mapping // user-defined mapping
+-	fsTree RWValue // *Directory tree of packages, updated with each sync
++	fsMap      Mapping // user-defined mapping
++	fsTree     RWValue // *Directory tree of packages, updated with each sync
++	pathFilter RWValue // filter used when building fsMap directory trees
+ 
+ 	// http handlers
+ 	fileServer http.Handler // default file server
+@@ -113,6 +89,134 @@ func registerPublicHandlers(mux *http.ServeMux) {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Directory filters
++
++// isParentOf returns true if p is a parent of (or the same as) q
++// where p and q are directory paths.
++func isParentOf(p, q string) bool {
++	n := len(p)
++	return strings.HasPrefix(q, p) && (len(q) <= n || q[n] == '/')
++}
++
++
++// isRelated returns true if p is a parent or child of (or the same as) q
++// where p and q are directory paths.
++func isRelated(p, q string) bool {
++	return isParentOf(p, q) || isParentOf(q, p)
++}
++
++
++func setPathFilter(list []string) {
++	if len(list) == 0 {
++		pathFilter.set(nil)
++		return
++	}
++
++	// TODO(gri) This leads to quadratic behavior.
++	//           Need to find a better filter solution.
++	pathFilter.set(func(path string) bool {
++		for _, p := range list {
++			if isRelated(path, p) {
++				return true
++			}
++		}
++		return false
++	})
++}
++
++
++func getPathFilter() func(string) bool {
++	f, _ := pathFilter.get()
++	if f != nil {
++		return f.(func(string) bool)
++	}
++	return nil
++}
++
++
++// readDirList reads a file containing newline-separated list
++// of directory paths and returns the list of paths.
++func readDirList(filename string) ([]string, os.Error) {
++	contents, err := ioutil.ReadFile(filename)
++	if err != nil {
++		return nil, err
++	}
++	// create list of valid directory names
++	filter := func(path string) bool {
++		d, err := os.Lstat(path)
++		return err == nil && isPkgDir(d)
++	}
++	return canonicalizePaths(strings.Split(string(contents), "\n", -1), filter), nil
++}
++
++
++func updateFilterFile() {
++	// for each user-defined file system mapping, compute
++	// respective directory tree w/o filter for accuracy
++	fsMap.Iterate(func(path string, value *RWValue) bool {
++		value.set(newDirectory(path, nil, maxDirDepth))
++		return true
++	})
++
++	// collect directory tree leaf node paths
++	var buf bytes.Buffer
++	fsMap.Iterate(func(_ string, value *RWValue) bool {
++		v, _ := value.get()
++		if v != nil && v.(*Directory) != nil {
++			v.(*Directory).writeLeafs(&buf)
++		}
++		return true
++	})
++
++	// update filter file
++	// TODO(gri) should write a tmp file and atomically rename
++	err := ioutil.WriteFile(*filter, buf.Bytes(), 0666)
++	if err != nil {
++		log.Stderrf("ioutil.Writefile(%s): %s", *filter, err)
++		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
++	} else {
++		filterDelay.set(*filterMin) // revert to regular filter update schedule
++	}
++}
++
++
++func initDirTrees() {
++	// setup initial path filter
++	if *filter != "" {
++		list, err := readDirList(*filter)
++		if err != nil {
++			log.Stderrf("%s", err)
++		} else if len(list) == 0 {
++			log.Stderrf("no directory paths in file %s", *filter)
++		}
++		setPathFilter(list)
++	}
++
++	// for each user-defined file system mapping, compute
++	// respective directory tree quickly using pathFilter
++	go fsMap.Iterate(func(path string, value *RWValue) bool {
++		value.set(newDirectory(path, getPathFilter(), maxDirDepth))
++		return true
++	})
++
++	// start filter update goroutine, if enabled.
++	if *filter != "" && *filterMin > 0 {
++		filterDelay.set(*filterMin) // initial filter update delay
++		go func() {
++			for {
++				updateFilterFile()
++				delay, _ := syncDelay.get()
++				if *verbose {
++					log.Stderrf("next filter update in %dmin", delay.(int))
++				}
++				time.Sleep(int64(delay.(int)) * 60e9)
++			}
++		}()
++	}
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Path mapping
+ 
+@@ -1073,14 +1177,35 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		// directory tree is present; lookup respective directory
+ 		// (may still fail if the file system was updated and the
+ 		// new directory tree has not yet been computed)
+-		// TODO(gri) Need to build directory tree for fsMap entries
+ 		dir = tree.(*Directory).lookup(abspath)
+ 	}
++	if dir == nil {
++		// the path may refer to a user-specified file system mapped
++		// via fsMap; lookup that mapping and corresponding RWValue
++		// if any
++		var v *RWValue
++		fsMap.Iterate(func(path string, value *RWValue) bool {
++			if isParentOf(path, abspath) {
++				// mapping found
++				v = value
++				return false
++			}
++			return true
++		})
++		if v != nil {
++			// found a RWValue associated with a user-specified file
++			// system; a non-nil RWValue stores a (possibly out-of-date)
++			// directory tree for that file system
++			if tree, _ := v.get(); tree != nil && tree.(*Directory) != nil {
++				dir = tree.(*Directory).lookup(abspath)
++			}
++		}
++	}
+ 	if dir == nil {
+ 		// no directory tree present (either early after startup
+-		// or command-line mode, or we don't build a tree for the
+-		// directory; e.g. google3); compute one level for this page
+-		dir = newDirectory(abspath, 1)
++		// or command-line mode, or we don't have a tree for the
++		// directory yet; e.g. google3); compute one level for this page
++		dir = newDirectory(abspath, getPathFilter(), 1)
+ 	}
+ 
+ 	return PageInfo{abspath, plist, past, pdoc, dir.listing(true), h.isPkg, nil}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 9990c33857..028c8a0631 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -49,7 +49,7 @@ var (
+ 	// periodic sync
+ 	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
+ 	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
+-	syncDelay delayTime // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
++	syncDelay delayTime // actual sync interval in minutes; usually syncDelay == syncMin, but syncDelay may back off exponentially
+ 
+ 	// network
+ 	httpAddr   = flag.String("http", "", "HTTP service address (e.g., '"+defaultAddr+"')")
+@@ -118,9 +118,6 @@ func exec(c *http.Conn, args []string) (status int) {
+ }
+ 
+ 
+-// Maximum directory depth, adjust as needed.
+-const maxDirDepth = 24
+-
+ func dosync(c *http.Conn, r *http.Request) {
+ 	args := []string{"/bin/sh", "-c", *syncCmd}
+ 	switch exec(c, args) {
+@@ -130,7 +127,7 @@ func dosync(c *http.Conn, r *http.Request) {
+ 		// TODO(gri): The directory tree may be temporarily out-of-sync.
+ 		//            Consider keeping separate time stamps so the web-
+ 		//            page can indicate this discrepancy.
+-		fsTree.set(newDirectory(*goroot, maxDirDepth))
++		fsTree.set(newDirectory(*goroot, nil, maxDirDepth))
+ 		fallthrough
+ 	case 1:
+ 		// sync failed because no files changed;
+@@ -257,12 +254,15 @@ func main() {
+ 			http.Handle("/debug/sync", http.HandlerFunc(dosync))
+ 		}
+ 
+-		// Initialize directory tree with corresponding timestamp.
++		// Initialize default directory tree with corresponding timestamp.
+ 		// Do it in two steps:
+ 		// 1) set timestamp right away so that the indexer is kicked on
+ 		fsTree.set(nil)
+ 		// 2) compute initial directory tree in a goroutine so that launch is quick
+-		go func() { fsTree.set(newDirectory(*goroot, maxDirDepth)) }()
++		go func() { fsTree.set(newDirectory(*goroot, nil, maxDirDepth)) }()
++
++		// Initialize directory trees for user-defined file systems (-path flag).
++		initDirTrees()
+ 
+ 		// Start sync goroutine, if enabled.
+ 		if *syncCmd != "" && *syncMin > 0 {
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index 400f97e1f7..1d87bbc76e 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"os"
+ 	pathutil "path"
++	"sort"
+ 	"strings"
+ )
+ 
+@@ -42,14 +43,19 @@ import (
+ //
+ // (assuming that file exists).
+ //
++// Each individual mapping also has a RWValue associated with it that
++// may be used to store mapping-specific information. See the Iterate
++// method. 
++//
+ type Mapping struct {
+ 	list     []mapping
+-	prefixes []string
++	prefixes []string // lazily computed from list
+ }
+ 
+ 
+ type mapping struct {
+ 	prefix, path string
++	value        *RWValue
+ }
+ 
+ 
+@@ -75,43 +81,16 @@ type mapping struct {
+ //	public -> /home/build/public
+ //
+ func (m *Mapping) Init(paths string) {
+-	cwd, _ := os.Getwd() // ignore errors
+-
+-	pathlist := strings.Split(paths, ":", -1)
+-
++	pathlist := canonicalizePaths(strings.Split(paths, ":", -1), nil)
+ 	list := make([]mapping, len(pathlist))
+-	n := 0 // number of mappings
+ 
+-	for _, path := range pathlist {
+-		if len(path) == 0 {
+-			// ignore empty paths (don't assume ".")
+-			continue
+-		}
+-
+-		// len(path) > 0: normalize path
+-		if path[0] != '/' {
+-			path = pathutil.Join(cwd, path)
+-		} else {
+-			path = pathutil.Clean(path)
+-		}
+-
+-		// check if mapping exists already
+-		var i int
+-		for i = 0; i < n; i++ {
+-			if path == list[i].path {
+-				break
+-			}
+-		}
+-
+-		// add mapping if it is new
+-		if i >= n {
+-			_, prefix := pathutil.Split(path)
+-			list[n] = mapping{prefix, path}
+-			n++
+-		}
++	// create mapping list
++	for i, path := range pathlist {
++		_, prefix := pathutil.Split(path)
++		list[i] = mapping{prefix, path, new(RWValue)}
+ 	}
+ 
+-	m.list = list[0:n]
++	m.list = list
+ }
+ 
+ 
+@@ -134,24 +113,25 @@ func (m *Mapping) PrefixList() []string {
+ 	// compute the list lazily
+ 	if m.prefixes == nil {
+ 		list := make([]string, len(m.list))
+-		n := 0 // nuber of prefixes
+-
+-		for _, e := range m.list {
+-			// check if prefix exists already
+-			var i int
+-			for i = 0; i < n; i++ {
+-				if e.prefix == list[i] {
+-					break
+-				}
+-			}
+ 
+-			// add prefix if it is new
+-			if i >= n {
+-				list[n] = e.prefix
+-				n++
++		// populate list
++		for i, e := range m.list {
++			list[i] = e.prefix
++		}
++
++		// sort the list and remove duplicate entries
++		sort.SortStrings(list)
++		i := 0
++		prev := ""
++		for _, path := range list {
++			if path != prev {
++				list[i] = path
++				i++
++				prev = path
+ 			}
+ 		}
+-		m.prefixes = list[0:n]
++
++		m.prefixes = list[0:i]
+ 	}
+ 
+ 	return m.prefixes
+@@ -166,7 +146,7 @@ func (m *Mapping) Fprint(w io.Writer) {
+ }
+ 
+ 
+-func split(path string) (head, tail string) {
++func splitFirst(path string) (head, tail string) {
+ 	i := strings.Index(path, "/")
+ 	if i > 0 {
+ 		// 0 < i < len(path)
+@@ -181,7 +161,7 @@ func split(path string) (head, tail string) {
+ // string is returned.
+ //
+ func (m *Mapping) ToAbsolute(path string) string {
+-	prefix, tail := split(path)
++	prefix, tail := splitFirst(path)
+ 	for _, e := range m.list {
+ 		switch {
+ 		case e.prefix == prefix:
+@@ -214,3 +194,15 @@ func (m *Mapping) ToRelative(path string) string {
+ 	}
+ 	return "" // no match
+ }
++
++
++// Iterate calls f for each path and RWValue in the mapping (in uspecified order)
++// until f returns false.
++//
++func (m *Mapping) Iterate(f func(path string, value *RWValue) bool) {
++	for _, e := range m.list {
++		if !f(e.path, e.value) {
++			return
++		}
++	}
++}
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+new file mode 100644
+index 0000000000..f95ff83f23
+--- /dev/null
++++ b/src/cmd/godoc/utils.go
+@@ -0,0 +1,87 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains support functionality for godoc.
++
++package main
++
++import (
++	"os"
++	pathutil "path"
++	"sort"
++	"strings"
++	"sync"
++	"time"
++)
++
++
++// An RWValue wraps a value and permits mutually exclusive
++// access to it and records the time the value was last set.
++type RWValue struct {
++	mutex     sync.RWMutex
++	value     interface{}
++	timestamp int64 // time of last set(), in seconds since epoch
++}
++
++
++func (v *RWValue) set(value interface{}) {
++	v.mutex.Lock()
++	v.value = value
++	v.timestamp = time.Seconds()
++	v.mutex.Unlock()
++}
++
++
++func (v *RWValue) get() (interface{}, int64) {
++	v.mutex.RLock()
++	defer v.mutex.RUnlock()
++	return v.value, v.timestamp
++}
++
++
++var cwd, _ = os.Getwd() // ignore errors
++
++// canonicalizePaths takes a list of (directory/file) paths and returns
++// the list of corresponding absolute paths in sorted (increasing) order.
++// Relative paths are assumed to be relative to the current directory,
++// empty and duplicate paths as well as paths for which filter(path) is
++// false are discarded. filter may be nil in which case it is not used.
++//
++func canonicalizePaths(list []string, filter func(path string) bool) []string {
++	i := 0
++	for _, path := range list {
++		path = strings.TrimSpace(path)
++		if len(path) == 0 {
++			continue // ignore empty paths (don't assume ".")
++		}
++		// len(path) > 0: normalize path
++		if path[0] != '/' {
++			path = pathutil.Join(cwd, path)
++		} else {
++			path = pathutil.Clean(path)
++		}
++		// we have a non-empty absolute path
++		if filter != nil && !filter(path) {
++			continue
++		}
++		// keep the path
++		list[i] = path
++		i++
++	}
++	list = list[0:i]
++
++	// sort the list and remove duplicate entries
++	sort.SortStrings(list)
++	i = 0
++	prev := ""
++	for _, path := range list {
++		if path != prev {
++			list[i] = path
++			i++
++			prev = path
++		}
++	}
++
++	return list[0:i]
++}

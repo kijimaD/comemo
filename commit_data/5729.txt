@@ -9,8 +9,95 @@ Date:   Tue Jun 29 16:51:56 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1738047
-
+---
  src/pkg/strconv/atof_test.go |  4 +++-
  src/pkg/strconv/decimal.go   | 13 ++++++++-----
  src/pkg/strconv/ftoa_test.go | 10 ++++++++++
  3 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 30f1b05bab..0039a6e440 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -74,8 +74,10 @@ var atoftests = []atofTest{
+ 	atofTest{"1e-322", "1e-322", nil},
+ 	// smallest denormal
+ 	atofTest{"5e-324", "5e-324", nil},
++	atofTest{"4e-324", "5e-324", nil},
++	atofTest{"3e-324", "5e-324", nil},
+ 	// too small
+-	atofTest{"4e-324", "0", nil},
++	atofTest{"2e-324", "0", nil},
+ 	// way too small
+ 	atofTest{"1e-350", "0", nil},
+ 	atofTest{"1e-400000", "0", nil},
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index b3348512f4..3be61d7bc7 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -289,11 +289,11 @@ func (a *decimal) Shift(k int) *decimal {
+ 
+ // If we chop a at nd digits, should we round up?
+ func shouldRoundUp(a *decimal, nd int) bool {
+-	if nd <= 0 || nd >= a.nd {
++	if nd < 0 || nd >= a.nd {
+ 		return false
+ 	}
+ 	if a.d[nd] == '5' && nd+1 == a.nd { // exactly halfway - round to even
+-		return (a.d[nd-1]-'0')%2 != 0
++		return nd > 0 && (a.d[nd-1]-'0')%2 != 0
+ 	}
+ 	// not halfway - digit tells all
+ 	return a.d[nd] >= '5'
+@@ -301,8 +301,11 @@ func shouldRoundUp(a *decimal, nd int) bool {
+ 
+ // Round a to nd digits (or fewer).
+ // Returns receiver for convenience.
++// If nd is zero, it means we're rounding
++// just to the left of the digits, as in
++// 0.09 -> 0.1.
+ func (a *decimal) Round(nd int) *decimal {
+-	if nd <= 0 || nd >= a.nd {
++	if nd < 0 || nd >= a.nd {
+ 		return a
+ 	}
+ 	if shouldRoundUp(a, nd) {
+@@ -314,7 +317,7 @@ func (a *decimal) Round(nd int) *decimal {
+ // Round a down to nd digits (or fewer).
+ // Returns receiver for convenience.
+ func (a *decimal) RoundDown(nd int) *decimal {
+-	if nd <= 0 || nd >= a.nd {
++	if nd < 0 || nd >= a.nd {
+ 		return a
+ 	}
+ 	a.nd = nd
+@@ -325,7 +328,7 @@ func (a *decimal) RoundDown(nd int) *decimal {
+ // Round a up to nd digits (or fewer).
+ // Returns receiver for convenience.
+ func (a *decimal) RoundUp(nd int) *decimal {
+-	if nd <= 0 || nd >= a.nd {
++	if nd < 0 || nd >= a.nd {
+ 		return a
+ 	}
+ 
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index cc01ccd780..49832b6266 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -108,6 +108,16 @@ var ftoatests = []ftoaTest{
+ 	ftoaTest{-math.Inf(0), 'g', -1, "-Inf"},
+ 
+ 	ftoaTest{-1, 'b', -1, "-4503599627370496p-52"},
++
++	// fixed bugs
++	ftoaTest{0.9, 'f', 1, "0.9"},
++	ftoaTest{0.09, 'f', 1, "0.1"},
++	ftoaTest{0.0999, 'f', 1, "0.1"},
++	ftoaTest{0.05, 'f', 1, "0.1"},
++	ftoaTest{0.05, 'f', 0, "0"},
++	ftoaTest{0.5, 'f', 1, "0.5"},
++	ftoaTest{0.5, 'f', 0, "0"},
++	ftoaTest{1.5, 'f', 0, "2"},
+ }
+ 
+ func TestFtoa(t *testing.T) {

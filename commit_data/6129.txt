@@ -7,7 +7,32 @@ Date:   Mon Aug 30 14:57:23 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2048043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index a95f6829ff..714fbc71ad 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -90,6 +90,7 @@ Sven Almgren <sven@tras.se>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
++Vincent Ambo <tazjin@googlemail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 043696f8bb..e8d40d87b2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -146,6 +146,7 @@ Tom Szymanski <tgs@google.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
++Vincent Ambo <tazjin@googlemail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vish Subramanian <vish@google.com>
+ Wei Guangjing <vcc.163@gmail.com>

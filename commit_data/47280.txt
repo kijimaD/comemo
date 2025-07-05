@@ -20,8 +20,117 @@ Date:   Fri Feb 26 12:57:44 2021 -0500
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/fuzz.go        |  2 +-
  src/internal/fuzz/sys_windows.go | 43 +++++++++++++++++++---------------------
  src/internal/fuzz/worker.go      |  2 +-
  3 files changed, 22 insertions(+), 25 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index aa121bf2a0..b8405622df 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -96,7 +96,7 @@ func CoordinateFuzzing(ctx context.Context, parallel int, seed []CorpusEntry, ty
+ 			dir:         dir,
+ 			binPath:     binPath,
+ 			args:        args,
+-			env:         env,
++			env:         env[:len(env):len(env)], // copy on append to ensure workers don't overwrite each other.
+ 			coordinator: c,
+ 			memMu:       memMu,
+ 		}, nil
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+index 6d015c0195..e1734af53c 100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@ -9,8 +9,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"reflect"
+-	"strconv"
+-	"strings"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -19,7 +17,13 @@ type sharedMemSys struct {
+ 	mapObj syscall.Handle
+ }
+ 
+-func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (*sharedMem, error) {
++func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (mem *sharedMem, err error) {
++	defer func() {
++		if err != nil {
++			err = fmt.Errorf("mapping temporary file %s: %w", f.Name(), err)
++		}
++	}()
++
+ 	// Create a file mapping object. The object itself is not shared.
+ 	mapObj, err := syscall.CreateFileMapping(
+ 		syscall.Handle(f.Fd()), // fhandle
+@@ -86,12 +90,11 @@ func (m *sharedMem) Close() error {
+ // run a worker process.
+ func setWorkerComm(cmd *exec.Cmd, comm workerComm) {
+ 	mem := <-comm.memMu
+-	memFD := mem.f.Fd()
++	memName := mem.f.Name()
+ 	comm.memMu <- mem
+ 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzIn.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
+ 	syscall.SetHandleInformation(syscall.Handle(comm.fuzzOut.Fd()), syscall.HANDLE_FLAG_INHERIT, 1)
+-	syscall.SetHandleInformation(syscall.Handle(memFD), syscall.HANDLE_FLAG_INHERIT, 1)
+-	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%x", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memFD))
++	cmd.Env = append(cmd.Env, fmt.Sprintf("GO_TEST_FUZZ_WORKER_HANDLES=%x,%x,%q", comm.fuzzIn.Fd(), comm.fuzzOut.Fd(), memName))
+ }
+ 
+ // getWorkerComm returns communication channels in the worker process.
+@@ -100,27 +103,21 @@ func getWorkerComm() (comm workerComm, err error) {
+ 	if v == "" {
+ 		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES not set")
+ 	}
+-	parts := strings.Split(v, ",")
+-	if len(parts) != 3 {
+-		return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value")
+-	}
+-	base := 16
+-	bitSize := 64
+-	handles := make([]syscall.Handle, len(parts))
+-	for i, s := range parts {
+-		h, err := strconv.ParseInt(s, base, bitSize)
+-		if err != nil {
+-			return workerComm{}, fmt.Errorf("GO_TEST_FUZZ_WORKER_HANDLES has invalid value: %v", err)
+-		}
+-		handles[i] = syscall.Handle(h)
++	var fuzzInFD, fuzzOutFD uintptr
++	var memName string
++	if _, err := fmt.Sscanf(v, "%x,%x,%q", &fuzzInFD, &fuzzOutFD, &memName); err != nil {
++		return workerComm{}, fmt.Errorf("parsing GO_TEST_FUZZ_WORKER_HANDLES=%s: %v", v, err)
+ 	}
+ 
+-	fuzzIn := os.NewFile(uintptr(handles[0]), "fuzz_in")
+-	fuzzOut := os.NewFile(uintptr(handles[1]), "fuzz_out")
+-	tmpFile := os.NewFile(uintptr(handles[2]), "fuzz_mem")
++	fuzzIn := os.NewFile(fuzzInFD, "fuzz_in")
++	fuzzOut := os.NewFile(fuzzOutFD, "fuzz_out")
++	tmpFile, err := os.OpenFile(memName, os.O_RDWR, 0)
++	if err != nil {
++		return workerComm{}, fmt.Errorf("worker opening temp file: %w", err)
++	}
+ 	fi, err := tmpFile.Stat()
+ 	if err != nil {
+-		return workerComm{}, err
++		return workerComm{}, fmt.Errorf("worker checking temp file size: %w", err)
+ 	}
+ 	size := int(fi.Size())
+ 	if int64(size) != fi.Size() {
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 1a590fad42..4ccf469d60 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -219,7 +219,7 @@ func (w *worker) start() (err error) {
+ 
+ 	cmd := exec.Command(w.binPath, w.args...)
+ 	cmd.Dir = w.dir
+-	cmd.Env = w.env
++	cmd.Env = w.env[:len(w.env):len(w.env)] // copy on append to ensure workers don't overwrite each other.
+ 	// TODO(jayconrod): set stdout and stderr to nil or buffer. A large number
+ 	// of workers may be very noisy, but for now, this output is useful for
+ 	// debugging.

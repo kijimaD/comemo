@@ -36,7 +36,7 @@ Date:   Tue Apr 13 08:44:56 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/internal/objabi/funcid.go | 44 ++++++++++++-------------
  src/cmd/link/internal/ld/pe.go    |  4 +--
  src/runtime/memclr_386.s          |  2 --
@@ -48,3 +48,404 @@ Date:   Tue Apr 13 08:44:56 2021 -0400
  src/runtime/sys_windows_arm.s     | 67 ---------------------------------------
  src/runtime/sys_windows_arm64.s   | 60 -----------------------------------
  10 files changed, 22 insertions(+), 261 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 4229ae2c02..2634106cdf 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -29,7 +29,6 @@ const (
+ 	FuncID_asyncPreempt
+ 	FuncID_cgocallback
+ 	FuncID_debugCallV1
+-	FuncID_externalthreadhandler
+ 	FuncID_gcBgMarkWorker
+ 	FuncID_goexit
+ 	FuncID_gogo
+@@ -50,28 +49,27 @@ const (
+ )
+ 
+ var funcIDs = map[string]FuncID{
+-	"abort":                 FuncID_abort,
+-	"asmcgocall":            FuncID_asmcgocall,
+-	"asyncPreempt":          FuncID_asyncPreempt,
+-	"cgocallback":           FuncID_cgocallback,
+-	"debugCallV1":           FuncID_debugCallV1,
+-	"externalthreadhandler": FuncID_externalthreadhandler,
+-	"gcBgMarkWorker":        FuncID_gcBgMarkWorker,
+-	"go":                    FuncID_rt0_go,
+-	"goexit":                FuncID_goexit,
+-	"gogo":                  FuncID_gogo,
+-	"gopanic":               FuncID_gopanic,
+-	"handleAsyncEvent":      FuncID_handleAsyncEvent,
+-	"jmpdefer":              FuncID_jmpdefer,
+-	"main":                  FuncID_runtime_main,
+-	"mcall":                 FuncID_mcall,
+-	"morestack":             FuncID_morestack,
+-	"mstart":                FuncID_mstart,
+-	"panicwrap":             FuncID_panicwrap,
+-	"runfinq":               FuncID_runfinq,
+-	"sigpanic":              FuncID_sigpanic,
+-	"switch":                FuncID_systemstack_switch,
+-	"systemstack":           FuncID_systemstack,
++	"abort":            FuncID_abort,
++	"asmcgocall":       FuncID_asmcgocall,
++	"asyncPreempt":     FuncID_asyncPreempt,
++	"cgocallback":      FuncID_cgocallback,
++	"debugCallV1":      FuncID_debugCallV1,
++	"gcBgMarkWorker":   FuncID_gcBgMarkWorker,
++	"go":               FuncID_rt0_go,
++	"goexit":           FuncID_goexit,
++	"gogo":             FuncID_gogo,
++	"gopanic":          FuncID_gopanic,
++	"handleAsyncEvent": FuncID_handleAsyncEvent,
++	"jmpdefer":         FuncID_jmpdefer,
++	"main":             FuncID_runtime_main,
++	"mcall":            FuncID_mcall,
++	"morestack":        FuncID_morestack,
++	"mstart":           FuncID_mstart,
++	"panicwrap":        FuncID_panicwrap,
++	"runfinq":          FuncID_runfinq,
++	"sigpanic":         FuncID_sigpanic,
++	"switch":           FuncID_systemstack_switch,
++	"systemstack":      FuncID_systemstack,
+ 
+ 	// Don't show in call stack but otherwise not special.
+ 	"deferreturn":       FuncID_wrapper,
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index dc1b53010a..3ed8943828 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -947,9 +947,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 	// calls that may need more stack than we think.
+ 	//
+ 	// The default stack reserve size directly affects only the main
+-	// thread and threads that enter in externalthreadhandler.
+-	// For this, it must be greater than the stack size assumed by
+-	// externalthreadhandler.
++	// thread.
+ 	//
+ 	// For other threads, the runtime explicitly asks the kernel
+ 	// to use the default stack size so that all stacks are
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 5e090ef09e..d2ef17f7ce 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -7,8 +7,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+-
+ // See memclrNoHeapPointers Go doc for important implementation constraints.
+ 
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index b4bc9988ec..5d2bebb901 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -7,8 +7,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+-
+ // See memclrNoHeapPointers Go doc for important implementation constraints.
+ 
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 5bff4b6646..bc1240f8bb 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -386,7 +386,6 @@ const (
+ )
+ 
+ // in sys_windows_386.s and sys_windows_amd64.s:
+-func externalthreadhandler()
+ func getlasterror() uint32
+ 
+ // When loading DLLs, we prefer to use LoadLibraryEx with
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index a382cf6002..c0630c874e 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -317,7 +317,6 @@ const (
+ 	funcID_asyncPreempt
+ 	funcID_cgocallback
+ 	funcID_debugCallV1
+-	funcID_externalthreadhandler
+ 	funcID_gcBgMarkWorker
+ 	funcID_goexit
+ 	funcID_gogo
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index c8839b9976..d6b521ab65 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -156,57 +156,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
+ 	MOVL	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$0
+-	PUSHL	BP
+-	MOVL	SP, BP
+-	PUSHL	BX
+-	PUSHL	SI
+-	PUSHL	DI
+-	PUSHL	0x14(FS)
+-	MOVL	SP, DX
+-
+-	// setup dummy m, g
+-	SUBL	$m__size, SP		// space for M
+-	MOVL	SP, 0(SP)
+-	MOVL	$m__size, 4(SP)
+-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
+-
+-	LEAL	m_tls(SP), CX
+-	MOVL	CX, 0x14(FS)
+-	MOVL	SP, BX
+-	SUBL	$g__size, SP		// space for G
+-	MOVL	SP, g(CX)
+-	MOVL	SP, m_g0(BX)
+-
+-	MOVL	SP, 0(SP)
+-	MOVL	$g__size, 4(SP)
+-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX
+-	LEAL	g__size(SP), BX
+-	MOVL	BX, g_m(SP)
+-
+-	LEAL	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
+-	MOVL	CX, (g_stack+stack_lo)(SP)
+-	ADDL	$const__StackGuard, CX
+-	MOVL	CX, g_stackguard0(SP)
+-	MOVL	CX, g_stackguard1(SP)
+-	MOVL	DX, (g_stack+stack_hi)(SP)
+-
+-	PUSHL	AX			// room for return value
+-	PUSHL	16(BP)			// arg for handler
+-	CALL	8(BP)
+-	POPL	CX
+-	POPL	AX			// pass return value to Windows in AX
+-
+-	get_tls(CX)
+-	MOVL	g(CX), CX
+-	MOVL	(g_stack+stack_hi)(CX), SP
+-	POPL	0x14(FS)
+-	POPL	DI
+-	POPL	SI
+-	POPL	BX
+-	POPL	BP
+-	RET
+-
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index df1462b877..f7250c65a8 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -202,57 +202,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+-	PUSHQ	BP
+-	MOVQ	SP, BP
+-	PUSHQ	BX
+-	PUSHQ	SI
+-	PUSHQ	DI
+-	PUSHQ	0x28(GS)
+-	MOVQ	SP, DX
+-
+-	// setup dummy m, g
+-	SUBQ	$m__size, SP		// space for M
+-	MOVQ	SP, 0(SP)
+-	MOVQ	$m__size, 8(SP)
+-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
+-
+-	LEAQ	m_tls(SP), CX
+-	MOVQ	CX, 0x28(GS)
+-	MOVQ	SP, BX
+-	SUBQ	$g__size, SP		// space for G
+-	MOVQ	SP, g(CX)
+-	MOVQ	SP, m_g0(BX)
+-
+-	MOVQ	SP, 0(SP)
+-	MOVQ	$g__size, 8(SP)
+-	CALL	runtime·memclrNoHeapPointers(SB)	// smashes AX,BX,CX, maybe BP
+-	LEAQ	g__size(SP), BX
+-	MOVQ	BX, g_m(SP)
+-
+-	LEAQ	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
+-	MOVQ	CX, (g_stack+stack_lo)(SP)
+-	ADDQ	$const__StackGuard, CX
+-	MOVQ	CX, g_stackguard0(SP)
+-	MOVQ	CX, g_stackguard1(SP)
+-	MOVQ	DX, (g_stack+stack_hi)(SP)
+-
+-	PUSHQ	AX			// room for return value
+-	PUSHQ	32(BP)			// arg for handler
+-	CALL	16(BP)
+-	POPQ	CX
+-	POPQ	AX			// pass return value to Windows in AX
+-
+-	get_tls(CX)
+-	MOVQ	g(CX), CX
+-	MOVQ	(g_stack+stack_hi)(CX), SP
+-	POPQ	0x28(GS)
+-	POPQ	DI
+-	POPQ	SI
+-	POPQ	BX
+-	POPQ	BP
+-	RET
+-
+ GLOBL runtime·cbctxts(SB), NOPTR, $8
+ 
+ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 8914a2688f..8073fc0198 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -233,73 +233,6 @@ TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·lastcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-// int32 externalthreadhandler(uint32 arg, int (*func)(uint32))
+-// stack layout:
+-//   +----------------+
+-//   | callee-save    |
+-//   | registers      |
+-//   +----------------+
+-//   | m              |
+-//   +----------------+
+-// 20| g              |
+-//   +----------------+
+-// 16| func ptr (r1)  |
+-//   +----------------+
+-// 12| argument (r0)  |
+-//---+----------------+
+-// 8 | param1         | (also return value for called Go function)
+-//   +----------------+
+-// 4 | param0         |
+-//   +----------------+
+-// 0 | slot for LR    |
+-//   +----------------+
+-//
+-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+-	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
+-	SUB	$(m__size + g__size + 20), R13	// space for locals
+-	MOVW	R14, 0(R13)			// push LR again for anything unwinding the stack
+-	MOVW	R0, 12(R13)
+-	MOVW	R1, 16(R13)
+-
+-	// zero out m and g structures
+-	ADD	$20, R13, R0			// compute pointer to g
+-	MOVW	R0, 4(R13)
+-	MOVW	$(m__size + g__size), R0
+-	MOVW	R0, 8(R13)
+-	BL	runtime·memclrNoHeapPointers(SB)
+-
+-	// initialize m and g structures
+-	ADD	$20, R13, R2			// R2 = g
+-	ADD	$(20 + g__size), R13, R3	// R3 = m
+-	MOVW	R2, m_g0(R3)			// m->g0 = g
+-	MOVW	R3, g_m(R2)			// g->m = m
+-	MOVW	R2, m_curg(R3)			// m->curg = g
+-
+-	MOVW	R2, g
+-	BL	runtime·save_g(SB)
+-
+-	// set up stackguard stuff
+-	MOVW	R13, R0
+-	MOVW	R0, g_stack+stack_hi(g)
+-	SUB	$(32*1024), R0
+-	MOVW	R0, (g_stack+stack_lo)(g)
+-	MOVW	R0, g_stackguard0(g)
+-	MOVW	R0, g_stackguard1(g)
+-
+-	// move argument into position and call function
+-	MOVW	12(R13), R0
+-	MOVW	R0, 4(R13)
+-	MOVW	16(R13), R1
+-	BL	(R1)
+-
+-	// clear g
+-	MOVW	$0, g
+-	BL	runtime·save_g(SB)
+-
+-	MOVW	8(R13), R0			// load return value
+-	ADD	$(m__size + g__size + 20), R13	// free locals
+-	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
+-
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 70f628c27d..6b28a0c2ef 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -299,66 +299,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·lastcontinuehandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-// externalthreadhander called with R0 = uint32 arg, R1 = Go function f.
+-// Need to call f(arg), which returns a uint32, and return it in R0.
+-TEXT runtime·externalthreadhandler<ABIInternal>(SB),NOSPLIT|TOPFRAME,$96-0
+-	NO_LOCAL_POINTERS
+-
+-	// Push C callee-save registers R19-R28. LR, FP already saved.
+-	SAVE_R19_TO_R28(-10*8)
+-
+-	// Allocate space for args, saved R0+R1, g, and m structures.
+-	// Hide from nosplit check.
+-	#define extra ((64+g__size+m__size+15)&~15)
+-	SUB	$extra, RSP, R2	// hide from nosplit overflow check
+-	MOVD	R2, RSP
+-
+-	// Save R0 and R1 (our args).
+-	MOVD	R0, 32(RSP)
+-	MOVD	R1, 40(RSP)
+-
+-	// Zero out m and g structures.
+-	MOVD	$64(RSP), R0
+-	MOVD	R0, 8(RSP)
+-	MOVD	$(m__size + g__size), R0
+-	MOVD	R0, 16(RSP)
+-	MOVD	$0, 0(RSP)	// not-saved LR
+-	BL	runtime·memclrNoHeapPointers(SB)
+-
+-	// Initialize m and g structures.
+-	MOVD	$64(RSP), g
+-	MOVD	$g__size(g), R3		// m
+-	MOVD	R3, g_m(g)		// g->m = m
+-	MOVD	g, m_g0(R3)		// m->g0 = g
+-	MOVD	g, m_curg(R3)		// m->curg = g
+-	MOVD	RSP, R0
+-	MOVD	R0, g_stack+stack_hi(g)
+-	SUB	$(32*1024), R0
+-	MOVD	R0, (g_stack+stack_lo)(g)
+-	MOVD	R0, g_stackguard0(g)
+-	MOVD	R0, g_stackguard1(g)
+-	BL	runtime·save_g(SB)
+-
+-	// Call function.
+-	MOVD	32(RSP), R0
+-	MOVD	40(RSP), R1
+-	MOVW	R0, 8(RSP)
+-	BL	(R1)
+-
+-	// Clear g.
+-	MOVD	$0, g
+-	BL	runtime·save_g(SB)
+-
+-	// Load return value (save_g would have smashed)
+-	MOVW	(2*8)(RSP), R0
+-
+-	ADD	$extra, RSP, R2
+-	MOVD	R2, RSP
+-	#undef extra
+-
+-	RESTORE_R19_TO_R28(-10*8)
+-	RET
+-
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0

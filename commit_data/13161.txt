@@ -7,6 +7,20 @@ Date:   Thu May 24 14:32:18 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6249052
-
+---
  src/pkg/archive/tar/tar_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/tar/tar_test.go b/src/pkg/archive/tar/tar_test.go
+index d3d2a62852..0adc179003 100644
+--- a/src/pkg/archive/tar/tar_test.go
++++ b/src/pkg/archive/tar/tar_test.go
+@@ -22,7 +22,7 @@ func TestFileInfoHeader(t *testing.T) {
+ 	if g, e := h.Name, "small.txt"; g != e {
+ 		t.Errorf("Name = %q; want %q", g, e)
+ 	}
+-	if g, e := h.Mode, int64(0644|c_ISREG); g != e {
++	if g, e := h.Mode, int64(fi.Mode().Perm())|c_ISREG; g != e {
+ 		t.Errorf("Mode = %#o; want %#o", g, e)
+ 	}
+ 	if g, e := h.Size, int64(5); g != e {

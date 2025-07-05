@@ -22,6 +22,20 @@ Date:   Wed Jul 1 16:41:27 2015 +0200
     Change-Id: Id1df96af41dff68ea1782ab4b23d5afd63b890c9
     Reviewed-on: https://go-review.googlesource.com/11834
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/trace/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 330671325d..1117b18e47 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -254,7 +254,7 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+ 	}
+ 
+ 	// Sort by time and translate cpu ticks to real time.
+-	sort.Sort(eventList(events))
++	sort.Stable(eventList(events))
+ 	if ticksPerSec == 0 {
+ 		err = fmt.Errorf("no EvFrequency event")
+ 		return

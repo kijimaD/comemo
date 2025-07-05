@@ -8,7 +8,53 @@ Date:   Mon Aug 20 21:21:09 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6464078
-
+---
  doc/install-source.html | 10 ++++++++--
  doc/install.html        |  9 +++++++--
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index f32d48d6d0..d9f9577a67 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -86,8 +86,14 @@ To build it, you need a C compiler installed.
+ </p>
+ 
+ <p>
+-On OS X, a C compiler can be installed as part of
+-<a href="http://developer.apple.com/Xcode/">Xcode</a>. 
++On OS X, a C compiler is bundled in the command line tools for
++<a href="http://developer.apple.com/Xcode/">Xcode</a>,
++and you don't need to install the whole Xcode to compile Go.
++If you have already installed Xcode 4.3+, you can install command
++line tools from the Components tab of the Downloads preferences panel.
++To verify you have a working compiler, just invoke <code>gcc</code>
++in a freshly created Terminal window, unless you see the
++"<code>gcc: command not found</code>" error, you are ready to go.
+ </p>
+ 
+ <p>
+diff --git a/doc/install.html b/doc/install.html
+index ec78d2a5a8..39de519b08 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -42,12 +42,17 @@ proceeding. If your OS or architecture is not on the list, it's possible that
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 7 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+ <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
+-<tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode</td></tr>
++<tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
+ <tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
+ </table>
+ 
+ <p>
+-<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use <a href="/cmd/cgo">cgo</a>.
++<sup>&#8224;</sup><code>gcc</code> is required only if you plan to use
++<a href="/cmd/cgo">cgo</a>.<br/>
++<sup>&#8225;</sup>You only need to install the command line tools for
++<a href="http://developer.apple.com/Xcode/">Xcode</a>. If you have already
++installed Xcode 4.3+, you can install it from the Components tab of the
++Downloads preferences panel.
+ </p>
+ 
+ <h2 id="download">Download the Go tools</h2>

@@ -20,6 +20,36 @@ Date:   Tue Jul 12 16:54:36 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/sha256/example_test.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/crypto/sha256/example_test.go b/src/crypto/sha256/example_test.go
+new file mode 100644
+index 0000000000..0eb70b711b
+--- /dev/null
++++ b/src/crypto/sha256/example_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha256_test
++
++import (
++	"crypto/sha256"
++	"fmt"
++)
++
++func ExampleSum256() {
++	sum := sha256.Sum256([]byte("hello world\n"))
++	fmt.Printf("%x", sum)
++	// Output: a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
++}
++
++func ExampleNew() {
++	h := sha256.New()
++	h.Write([]byte("hello world\n"))
++	fmt.Printf("%x", h.Sum(nil))
++	// Output: a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
++}

@@ -24,7 +24,54 @@ Date:   Sun Oct 8 18:29:45 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/assign.go          |  3 +++
  src/cmd/vet/testdata/assign.go | 15 ++++++++++++++-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/assign.go b/src/cmd/vet/assign.go
+index 54c1ae1fdc..bfa5b30329 100644
+--- a/src/cmd/vet/assign.go
++++ b/src/cmd/vet/assign.go
+@@ -37,6 +37,9 @@ func checkAssignStmt(f *File, node ast.Node) {
+ 	}
+ 	for i, lhs := range stmt.Lhs {
+ 		rhs := stmt.Rhs[i]
++		if hasSideEffects(lhs) || hasSideEffects(rhs) {
++			continue // expressions may not be equal
++		}
+ 		if reflect.TypeOf(lhs) != reflect.TypeOf(rhs) {
+ 			continue // short-circuit the heavy-weight gofmt check
+ 		}
+diff --git a/src/cmd/vet/testdata/assign.go b/src/cmd/vet/testdata/assign.go
+index 32ba8683c1..6140ad4db8 100644
+--- a/src/cmd/vet/testdata/assign.go
++++ b/src/cmd/vet/testdata/assign.go
+@@ -6,13 +6,26 @@
+ 
+ package testdata
+ 
++import "math/rand"
++
+ type ST struct {
+ 	x int
++	l []int
+ }
+ 
+-func (s *ST) SetX(x int) {
++func (s *ST) SetX(x int, ch chan int) {
+ 	// Accidental self-assignment; it should be "s.x = x"
+ 	x = x // ERROR "self-assignment of x to x"
+ 	// Another mistake
+ 	s.x = s.x // ERROR "self-assignment of s.x to s.x"
++
++	s.l[0] = s.l[0] // ERROR "self-assignment of s.l.0. to s.l.0."
++
++	// Bail on any potential side effects to avoid false positives
++	s.l[num()] = s.l[num()]
++	rng := rand.New(rand.NewSource(0))
++	s.l[rng.Intn(len(s.l))] = s.l[rng.Intn(len(s.l))]
++	s.l[<-ch] = s.l[<-ch]
+ }
++
++func num() int { return 2 }

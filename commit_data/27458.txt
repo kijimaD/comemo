@@ -15,7 +15,7 @@ Date:   Thu Mar 17 07:00:33 2016 -0700
     Change-Id: Ie93b59acf0fcba908a876d506afbf796f222dbac
     Reviewed-on: https://go-review.googlesource.com/20889
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/goobj/read.go       |  2 ++
  src/cmd/internal/obj/link.go         |  1 +
  src/cmd/internal/objfile/goobj.go    |  2 +-
@@ -26,3 +26,224 @@ Date:   Thu Mar 17 07:00:33 2016 -0700
  src/cmd/link/internal/ld/symtab.go   | 17 +++++++++++++++++
  src/runtime/symtab.go                |  1 +
  9 files changed, 52 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 6a906a4627..2506f07de2 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -43,6 +43,7 @@ const (
+ 	SRODATA    SymKind = obj.SRODATA
+ 	SFUNCTAB   SymKind = obj.SFUNCTAB
+ 	STYPELINK  SymKind = obj.STYPELINK
++	SITABLINK  SymKind = obj.SITABLINK
+ 	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
+ 	SPCLNTAB   SymKind = obj.SPCLNTAB
+ 	SELFROSECT SymKind = obj.SELFROSECT
+@@ -106,6 +107,7 @@ var symKindStrings = []string{
+ 	STLSBSS:           "STLSBSS",
+ 	STYPE:             "STYPE",
+ 	STYPELINK:         "STYPELINK",
++	SITABLINK:         "SITABLINK",
+ 	SWINDOWS:          "SWINDOWS",
+ 	SXREF:             "SXREF",
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 11d451abb2..152a2acea0 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -397,6 +397,7 @@ const (
+ 	SFUNCTABRELRO
+ 
+ 	STYPELINK
++	SITABLINK
+ 	SSYMTAB
+ 	SPCLNTAB
+ 	SELFROSECT
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index cf89ebb9e4..46e5f4e866 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -41,7 +41,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ 		switch s.Kind {
+ 		case goobj.STEXT, goobj.SELFRXSECT:
+ 			sym.Code = 'T'
+-		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
++		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SITABLINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
+ 			sym.Code = 'R'
+ 		case goobj.SMACHOPLT, goobj.SELFSECT, goobj.SMACHO, goobj.SMACHOGOT, goobj.SNOPTRDATA, goobj.SINITARR, goobj.SDATA, goobj.SWINDOWS:
+ 			sym.Code = 'D'
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a5901c52c6..cacec8f8fe 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1605,6 +1605,24 @@ func dodata() {
+ 
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
++	/* itablink */
++	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
++
++	sect.Align = maxalign(s, obj.SITABLINK)
++	datsize = Rnd(datsize, int64(sect.Align))
++	sect.Vaddr = uint64(datsize)
++	Linklookup(Ctxt, "runtime.itablink", 0).Sect = sect
++	Linklookup(Ctxt, "runtime.eitablink", 0).Sect = sect
++	for ; s != nil && s.Type == obj.SITABLINK; s = s.Next {
++		datsize = aligndatsize(datsize, s)
++		s.Sect = sect
++		s.Type = obj.SRODATA
++		s.Value = int64(uint64(datsize) - sect.Vaddr)
++		growdatsize(&datsize, s)
++	}
++
++	sect.Length = uint64(datsize) - sect.Vaddr
++
+ 	/* gosymtab */
+ 	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
+ 
+@@ -1835,7 +1853,8 @@ func address() {
+ 		// object on elf systems.
+ 		typelink = typelink.Next
+ 	}
+-	symtab := typelink.Next
++	itablink := typelink.Next
++	symtab := itablink.Next
+ 	pclntab := symtab.Next
+ 
+ 	var sub *LSym
+@@ -1862,6 +1881,8 @@ func address() {
+ 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
+ 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
+ 	xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
++	xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
++	xdefine("runtime.eitablink", obj.SRODATA, int64(itablink.Vaddr+itablink.Length))
+ 
+ 	sym := Linklookup(Ctxt, "runtime.gcdata", 0)
+ 	sym.Attr |= AttrLocal
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index f99f5e8984..e1badc2a48 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -107,10 +107,11 @@ func deadcode(ctxt *Link) {
+ 	}
+ 
+ 	if Buildmode != BuildmodeShared {
+-		// Keep a typelink if the symbol it points at is being kept.
+-		// (When BuildmodeShared, always keep typelinks.)
++		// Keep a typelink or itablink if the symbol it points at is being kept.
++		// (When BuildmodeShared, always keep typelinks and itablinks.)
+ 		for _, s := range ctxt.Allsym {
+-			if strings.HasPrefix(s.Name, "go.typelink.") {
++			if strings.HasPrefix(s.Name, "go.typelink.") ||
++				strings.HasPrefix(s.Name, "go.itablink.") {
+ 				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index c5f68273f4..6db7898624 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1740,6 +1740,7 @@ func doelf() {
+ 		relro_prefix = ".data.rel.ro"
+ 	}
+ 	Addstring(shstrtab, relro_prefix+".typelink")
++	Addstring(shstrtab, relro_prefix+".itablink")
+ 	Addstring(shstrtab, relro_prefix+".gosymtab")
+ 	Addstring(shstrtab, relro_prefix+".gopclntab")
+ 
+@@ -1751,6 +1752,7 @@ func doelf() {
+ 			Addstring(shstrtab, ".rela.text")
+ 			Addstring(shstrtab, ".rela.rodata")
+ 			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
++			Addstring(shstrtab, ".rela"+relro_prefix+".itablink")
+ 			Addstring(shstrtab, ".rela"+relro_prefix+".gosymtab")
+ 			Addstring(shstrtab, ".rela"+relro_prefix+".gopclntab")
+ 			Addstring(shstrtab, ".rela.noptrdata")
+@@ -1763,6 +1765,7 @@ func doelf() {
+ 			Addstring(shstrtab, ".rel.text")
+ 			Addstring(shstrtab, ".rel.rodata")
+ 			Addstring(shstrtab, ".rel"+relro_prefix+".typelink")
++			Addstring(shstrtab, ".rel"+relro_prefix+".itablink")
+ 			Addstring(shstrtab, ".rel"+relro_prefix+".gosymtab")
+ 			Addstring(shstrtab, ".rel"+relro_prefix+".gopclntab")
+ 			Addstring(shstrtab, ".rel.noptrdata")
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5121a873b2..5ec5c98290 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1930,6 +1930,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 			obj.SGCBITSRELRO,
+ 			obj.SRODATARELRO,
+ 			obj.STYPELINK,
++			obj.SITABLINK,
+ 			obj.SWINDOWS:
+ 			if !s.Attr.Reachable() {
+ 				continue
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 6d1175b1c6..c44b67d50d 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -342,6 +342,8 @@ func symtab() {
+ 	xdefine("runtime.etext", obj.STEXT, 0)
+ 	xdefine("runtime.typelink", obj.SRODATA, 0)
+ 	xdefine("runtime.etypelink", obj.SRODATA, 0)
++	xdefine("runtime.itablink", obj.SRODATA, 0)
++	xdefine("runtime.eitablink", obj.SRODATA, 0)
+ 	xdefine("runtime.rodata", obj.SRODATA, 0)
+ 	xdefine("runtime.erodata", obj.SRODATA, 0)
+ 	xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
+@@ -428,6 +430,9 @@ func symtab() {
+ 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
+ 	symtypelink.Type = obj.STYPELINK
+ 
++	symitablink := Linklookup(Ctxt, "runtime.itablink", 0)
++	symitablink.Type = obj.SITABLINK
++
+ 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
+ 	symt.Attr |= AttrLocal
+ 	symt.Type = obj.SSYMTAB
+@@ -435,6 +440,7 @@ func symtab() {
+ 	symt.Attr |= AttrReachable
+ 
+ 	ntypelinks := 0
++	nitablinks := 0
+ 
+ 	// assign specific types so that they sort together.
+ 	// within a type they sort by size, so the .* symbols
+@@ -463,6 +469,13 @@ func symtab() {
+ 			s.Outer = symtypelink
+ 		}
+ 
++		if strings.HasPrefix(s.Name, "go.itablink.") {
++			nitablinks++
++			s.Type = obj.SITABLINK
++			s.Attr |= AttrHidden
++			s.Outer = symitablink
++		}
++
+ 		if strings.HasPrefix(s.Name, "go.string.") {
+ 			s.Type = obj.SGOSTRING
+ 			s.Attr |= AttrHidden
+@@ -543,6 +556,10 @@ func symtab() {
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
++	// The itablinks slice
++	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.itablink", 0))
++	adduint(Ctxt, moduledata, uint64(nitablinks))
++	adduint(Ctxt, moduledata, uint64(nitablinks))
+ 	if len(Ctxt.Shlibs) > 0 {
+ 		thismodulename := filepath.Base(outfile)
+ 		switch Buildmode {
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index cd328eb899..158bdcea0d 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -129,6 +129,7 @@ type moduledata struct {
+ 	end, gcdata, gcbss    uintptr
+ 
+ 	typelinks []*_type
++	itablinks []*itab
+ 
+ 	modulename   string
+ 	modulehashes []modulehash

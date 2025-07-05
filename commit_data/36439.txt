@@ -10,6 +10,19 @@ Date:   Sat Apr 7 23:59:58 2018 +0200
     Change-Id: I774309db2872b6a2de77a1b0392608058414160d
     Reviewed-on: https://go-review.googlesource.com/110097
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index e0d6cb93cc..a929fbcca3 100755
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -38,6 +38,7 @@ if (typeof process !== "undefined") { // detect Node.js
+ 
+ 	compileAndRun(fs.readFileSync(process.argv[2])).catch((err) => {
+ 		console.error(err);
++		process.exit(1);
+ 	});
+ } else {
+ 	window.global = window;

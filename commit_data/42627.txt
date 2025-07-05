@@ -34,10 +34,95 @@ Date:   Tue Jan 28 13:20:57 2020 -0500
     Reviewed-by: Katie Hockman <katiehockman@google.com>
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216680
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/go.mod                                          | 2 +-
  src/go.sum                                          | 4 ++--
  src/vendor/golang.org/x/crypto/cryptobyte/asn1.go   | 5 +++--
  src/vendor/golang.org/x/crypto/cryptobyte/string.go | 7 +------
  src/vendor/modules.txt                              | 2 +-
  5 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 3ef0710745..72114080ce 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,7 +3,7 @@ module std
+ go 1.14
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20200109152110-61a87790db17
++	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
+ 	golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933
+ 	golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 // indirect
+ 	golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f // indirect
+diff --git a/src/go.sum b/src/go.sum
+index 697caf4ece..9f24502dc2 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,6 +1,6 @@
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20200109152110-61a87790db17 h1:nVJ3guKA9qdkEQ3TUdXI9QSINo2CUPM/cySEvw2w8I0=
+-golang.org/x/crypto v0.0.0-20200109152110-61a87790db17/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d h1:9FCpayM9Egr1baVnV1SX0H87m+XB0B8S0hAMi99X/3U=
++golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933 h1:e6HwijUxhDe+hPNjZQQn9bA5PW3vNmnN64U2ZW759Lk=
+ golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index 528b9bff67..f930f7e526 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -470,7 +470,8 @@ func (s *String) ReadASN1GeneralizedTime(out *time.Time) bool {
+ // It reports whether the read was successful.
+ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
+ 	var bytes String
+-	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 {
++	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 ||
++		len(bytes)*8/8 != len(bytes) {
+ 		return false
+ 	}
+ 
+@@ -740,7 +741,7 @@ func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {
+ 		length = headerLen + len32
+ 	}
+ 
+-	if uint32(int(length)) != length || !s.ReadBytes((*[]byte)(out), int(length)) {
++	if int(length) < 0 || !s.ReadBytes((*[]byte)(out), int(length)) {
+ 		return false
+ 	}
+ 	if skipHeader && !out.Skip(int(headerLen)) {
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/string.go b/src/vendor/golang.org/x/crypto/cryptobyte/string.go
+index 39bf98aeea..589d297e6b 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/string.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/string.go
+@@ -24,7 +24,7 @@ type String []byte
+ // read advances a String by n bytes and returns them. If less than n bytes
+ // remain, it returns nil.
+ func (s *String) read(n int) []byte {
+-	if len(*s) < n {
++	if len(*s) < n || n < 0 {
+ 		return nil
+ 	}
+ 	v := (*s)[:n]
+@@ -105,11 +105,6 @@ func (s *String) readLengthPrefixed(lenLen int, outChild *String) bool {
+ 		length = length << 8
+ 		length = length | uint32(b)
+ 	}
+-	if int(length) < 0 {
+-		// This currently cannot overflow because we read uint24 at most, but check
+-		// anyway in case that changes in the future.
+-		return false
+-	}
+ 	v := s.read(int(length))
+ 	if v == nil {
+ 		return false
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index ba6bd9845c..0944c9a533 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.0.0-20200109152110-61a87790db17
++# golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
+ ## explicit
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305

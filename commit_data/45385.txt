@@ -23,7 +23,7 @@ Date:   Tue Oct 20 11:01:46 2020 +0200
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Elias Naur <mail@eliasnaur.com>
-
+---
  src/cmd/dist/build.go              |  1 +
  src/cmd/go/internal/load/pkg.go    |  4 +++-
  src/cmd/go/internal/work/init.go   |  5 ++++-
@@ -31,3 +31,98 @@ Date:   Tue Oct 20 11:01:46 2020 +0200
  src/cmd/link/internal/ld/config.go |  8 +-------
  src/runtime/rt0_ios_amd64.s        | 14 ++++++++++++++
  6 files changed, 24 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d902addb0c..e46c33522d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1557,6 +1557,7 @@ var cgoEnabled = map[string]bool{
+ 	"android/arm":     true,
+ 	"android/arm64":   true,
+ 	"ios/arm64":       true,
++	"ios/amd64":       true,
+ 	"js/wasm":         false,
+ 	"netbsd/386":      true,
+ 	"netbsd/amd64":    true,
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index f07bd3e075..29709a6dd3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1966,7 +1966,9 @@ func externalLinkingForced(p *Package) bool {
+ 		if cfg.BuildContext.GOARCH != "arm64" {
+ 			return true
+ 		}
+-	case "darwin", "ios":
++	case "ios":
++		return true
++	case "darwin":
+ 		if cfg.BuildContext.GOARCH == "arm64" {
+ 			return true
+ 		}
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 81c4fb7465..d65c076c6a 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -168,7 +168,10 @@ func buildModeInit() {
+ 			ldBuildmode = "pie"
+ 		case "windows":
+ 			ldBuildmode = "pie"
+-		case "darwin", "ios":
++		case "ios":
++			codegenArg = "-shared"
++			ldBuildmode = "pie"
++		case "darwin":
+ 			switch cfg.Goarch {
+ 			case "arm64":
+ 				codegenArg = "-shared"
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index c433a872be..ccc5b2245b 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -88,6 +88,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",
++			"ios/amd64", "ios/arm64",
+ 			"aix/ppc64",
+ 			"windows/386", "windows/amd64", "windows/arm":
+ 			return true
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index a54b96dd5d..54a94cebba 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -42,13 +42,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildModeExe
+ 	case "pie":
+ 		switch objabi.GOOS {
+-		case "aix", "android", "linux", "windows":
+-		case "darwin":
+-			switch objabi.GOARCH {
+-			case "amd64", "arm64":
+-			default:
+-				return badmode()
+-			}
++		case "aix", "android", "linux", "windows", "darwin", "ios":
+ 		case "freebsd":
+ 			switch objabi.GOARCH {
+ 			case "amd64":
+diff --git a/src/runtime/rt0_ios_amd64.s b/src/runtime/rt0_ios_amd64.s
+new file mode 100644
+index 0000000000..c6990324f4
+--- /dev/null
++++ b/src/runtime/rt0_ios_amd64.s
+@@ -0,0 +1,14 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// internal linking executable entry point.
++// ios/amd64 only supports external linking.
++TEXT _rt0_amd64_ios(SB),NOSPLIT|NOFRAME,$0
++	UNDEF
++
++// library entry point.
++TEXT _rt0_amd64_ios_lib(SB),NOSPLIT|NOFRAME,$0
++	JMP	_rt0_amd64_darwin_lib(SB)

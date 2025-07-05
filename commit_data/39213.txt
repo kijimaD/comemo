@@ -18,8 +18,168 @@ Date:   Sat Jan 26 11:55:00 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++--
  src/cmd/compile/internal/ssa/rewritePPC64.go | 42 ++++++++++++++++------------
  test/fixedbugs/issue29943.go                 | 28 +++++++++++++++++++
  3 files changed, 55 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 24cee6f0a3..e5d5295908 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -930,11 +930,11 @@
+ (ZeroExt16to(32|64) x) -> (MOVHZreg x)
+ (ZeroExt32to64 x) -> (MOVWZreg x)
+ 
+-(Trunc(16|32|64)to8  x) && isSigned(x.Type) -> (MOVBreg x)
++(Trunc(16|32|64)to8 <t> x) && isSigned(t) -> (MOVBreg x)
+ (Trunc(16|32|64)to8  x) -> (MOVBZreg x)
+-(Trunc(32|64)to16 x) && isSigned(x.Type) -> (MOVHreg x)
++(Trunc(32|64)to16 <t> x) && isSigned(t) -> (MOVHreg x)
+ (Trunc(32|64)to16 x) -> (MOVHZreg x)
+-(Trunc64to32 x) && isSigned(x.Type) -> (MOVWreg x)
++(Trunc64to32 <t> x) && isSigned(t) -> (MOVWreg x)
+ (Trunc64to32 x) -> (MOVWZreg x)
+ 
+ (Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d06953bafa..fdb34aec0a 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -30296,12 +30296,13 @@ func rewriteValuePPC64_OpTrunc_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
+-	// match: (Trunc16to8 x)
+-	// cond: isSigned(x.Type)
++	// match: (Trunc16to8 <t> x)
++	// cond: isSigned(t)
+ 	// result: (MOVBreg x)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(isSigned(x.Type)) {
++		if !(isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+@@ -30319,12 +30320,13 @@ func rewriteValuePPC64_OpTrunc16to8_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpTrunc32to16_0(v *Value) bool {
+-	// match: (Trunc32to16 x)
+-	// cond: isSigned(x.Type)
++	// match: (Trunc32to16 <t> x)
++	// cond: isSigned(t)
+ 	// result: (MOVHreg x)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(isSigned(x.Type)) {
++		if !(isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHreg)
+@@ -30342,12 +30344,13 @@ func rewriteValuePPC64_OpTrunc32to16_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpTrunc32to8_0(v *Value) bool {
+-	// match: (Trunc32to8 x)
+-	// cond: isSigned(x.Type)
++	// match: (Trunc32to8 <t> x)
++	// cond: isSigned(t)
+ 	// result: (MOVBreg x)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(isSigned(x.Type)) {
++		if !(isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+@@ -30365,12 +30368,13 @@ func rewriteValuePPC64_OpTrunc32to8_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpTrunc64to16_0(v *Value) bool {
+-	// match: (Trunc64to16 x)
+-	// cond: isSigned(x.Type)
++	// match: (Trunc64to16 <t> x)
++	// cond: isSigned(t)
+ 	// result: (MOVHreg x)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(isSigned(x.Type)) {
++		if !(isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVHreg)
+@@ -30388,12 +30392,13 @@ func rewriteValuePPC64_OpTrunc64to16_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpTrunc64to32_0(v *Value) bool {
+-	// match: (Trunc64to32 x)
+-	// cond: isSigned(x.Type)
++	// match: (Trunc64to32 <t> x)
++	// cond: isSigned(t)
+ 	// result: (MOVWreg x)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(isSigned(x.Type)) {
++		if !(isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVWreg)
+@@ -30411,12 +30416,13 @@ func rewriteValuePPC64_OpTrunc64to32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValuePPC64_OpTrunc64to8_0(v *Value) bool {
+-	// match: (Trunc64to8 x)
+-	// cond: isSigned(x.Type)
++	// match: (Trunc64to8 <t> x)
++	// cond: isSigned(t)
+ 	// result: (MOVBreg x)
+ 	for {
++		t := v.Type
+ 		x := v.Args[0]
+-		if !(isSigned(x.Type)) {
++		if !(isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64MOVBreg)
+diff --git a/test/fixedbugs/issue29943.go b/test/fixedbugs/issue29943.go
+new file mode 100644
+index 0000000000..ff47de55d5
+--- /dev/null
++++ b/test/fixedbugs/issue29943.go
+@@ -0,0 +1,28 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code was miscompiled on ppc64le due to incorrect zero-extension
++// that was CSE'd.
++
++package main
++
++//go:noinline
++func g(i uint64) uint64 {
++	return uint64(uint32(i))
++}
++
++var sink uint64
++
++func main() {
++	for i := uint64(0); i < 1; i++ {
++		i32 := int32(i - 1)
++		sink = uint64((uint32(i32) << 1) ^ uint32((i32 >> 31)))
++		x := g(uint64(i32))
++		if x != uint64(uint32(i32)) {
++			panic(x)
++		}
++	}
++}

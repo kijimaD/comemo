@@ -9,7 +9,46 @@ Date:   Mon Apr 4 15:45:03 2011 -0400
     R=rsc, rh, msolo
     CC=golang-dev
     https://golang.org/cl/4317049
-
+---
  src/pkg/os/path.go      |  2 +-
  src/pkg/os/path_test.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index b762971d9c..318dc735bf 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -33,7 +33,7 @@ func MkdirAll(path string, perm uint32) Error {
+ 		j--
+ 	}
+ 
+-	if j > 0 {
++	if j > 1 {
+ 		// Create parent
+ 		err = MkdirAll(path[0:j-1], perm)
+ 		if err != nil {
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 799e3ec2fa..d30e904fff 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -179,3 +179,20 @@ func TestMkdirAllWithSymlink(t *testing.T) {
+ 		t.Errorf("MkdirAll %q: %s", path, err)
+ 	}
+ }
++
++func TestMkdirAllAtSlash(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		return
++	}
++	RemoveAll("/_go_os_test")
++	err := MkdirAll("/_go_os_test/dir", 0777)
++	if err != nil {
++		pathErr, ok := err.(*PathError)
++		// common for users not to be able to write to /
++		if ok && pathErr.Error == EACCES {
++			return
++		}
++		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
++	}
++	RemoveAll("/_go_os_test")
++}

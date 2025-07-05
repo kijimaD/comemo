@@ -7,6 +7,26 @@ Date:   Fri Aug 2 13:29:45 2013 +1000
     R=r, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/12312043
-
+---
  src/pkg/image/draw/draw_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/draw/draw_test.go b/src/pkg/image/draw/draw_test.go
+index 3fa10f7b5a..0dd7fbd479 100644
+--- a/src/pkg/image/draw/draw_test.go
++++ b/src/pkg/image/draw/draw_test.go
+@@ -390,12 +390,12 @@ type embeddedPaletted struct {
+ func TestPaletted(t *testing.T) {
+ 	f, err := os.Open("../testdata/video-001.png")
+ 	if err != nil {
+-		t.Fatal("open: %v", err)
++		t.Fatalf("open: %v", err)
+ 	}
+ 	defer f.Close()
+ 	src, err := png.Decode(f)
+ 	if err != nil {
+-		t.Fatal("decode: %v", err)
++		t.Fatalf("decode: %v", err)
+ 	}
+ 	b := src.Bounds()
+ 

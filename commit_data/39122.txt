@@ -22,6 +22,54 @@ Date:   Thu Jan 3 14:48:30 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 29 ++++++++++++++++++++++++++++-
  1 file changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f5d6374ce6..4d4cdc14ca 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1367,7 +1367,7 @@ var gcMarkDoneFlushed uint32
+ // termination.
+ //
+ // For debugging issue #27993.
+-const debugCachedWork = true
++const debugCachedWork = false
+ 
+ // gcWorkPauseGen is for debugging the mark completion algorithm.
+ // gcWork put operations spin while gcWork.pauseGen == gcWorkPauseGen.
+@@ -1525,6 +1525,33 @@ top:
+ 				throw("throwOnGCWork")
+ 			}
+ 		}
++	} else {
++		// For unknown reasons (see issue #27993), there is
++		// sometimes work left over when we enter mark
++		// termination. Detect this and resume concurrent
++		// mark. This is obviously unfortunate.
++		//
++		// Switch to the system stack to call wbBufFlush1,
++		// though in this case it doesn't matter because we're
++		// non-preemptible anyway.
++		restart := false
++		systemstack(func() {
++			for _, p := range allp {
++				wbBufFlush1(p)
++				if !p.gcw.empty() {
++					restart = true
++					break
++				}
++			}
++		})
++		if restart {
++			getg().m.preemptoff = ""
++			systemstack(func() {
++				now := startTheWorldWithSema(true)
++				work.pauseNS += now - work.pauseStart
++			})
++			goto top
++		}
+ 	}
+ 
+ 	// Disable assists and background workers. We must do

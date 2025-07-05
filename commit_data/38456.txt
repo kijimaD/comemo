@@ -9,7 +9,7 @@ Date:   Mon Oct 29 10:18:05 2018 -0400
     Run-TryBot: Peter Weinberger <pjw@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/annotations.go      |   7 +-
  src/cmd/trace/annotations_test.go |  14 ++--
  src/cmd/trace/goroutines.go       |  11 +--
@@ -19,3 +19,1144 @@ Date:   Mon Oct 29 10:18:05 2018 -0400
  src/cmd/trace/trace_test.go       |  46 ++++++-----
  src/cmd/trace/trace_unix_test.go  |  12 ++-
  8 files changed, 194 insertions(+), 177 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 307da58bd5..9905456b46 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"html/template"
+-	"internal/trace"
+ 	"log"
+ 	"math"
+ 	"net/http"
+@@ -17,6 +16,8 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
++
++	trace "internal/traceparser"
+ )
+ 
+ func init() {
+@@ -308,7 +309,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 		}
+ 	}
+ 	// combine region info.
+-	analyzeGoroutines(events)
++	analyzeGoroutines(res)
+ 	for goid, stats := range gs {
+ 		// gs is a global var defined in goroutines.go as a result
+ 		// of analyzeGoroutines. TODO(hyangah): fix this not to depend
+@@ -321,7 +322,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 			}
+ 			var frame trace.Frame
+ 			if s.Start != nil {
+-				frame = *s.Start.Stk[0]
++				frame = *res.Stacks[s.Start.StkID][0]
+ 			}
+ 			id := regionTypeID{Frame: frame, Type: s.Name}
+ 			regions[id] = append(regions[id], regionDesc{UserRegionDesc: s, G: goid})
+diff --git a/src/cmd/trace/annotations_test.go b/src/cmd/trace/annotations_test.go
+index a9068d53c1..8b9daabcdb 100644
+--- a/src/cmd/trace/annotations_test.go
++++ b/src/cmd/trace/annotations_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"context"
+ 	"flag"
+ 	"fmt"
+-	traceparser "internal/trace"
++	"internal/traceparser"
+ 	"io/ioutil"
+ 	"reflect"
+ 	"runtime/debug"
+@@ -338,10 +338,8 @@ func traceProgram(t *testing.T, f func(), name string) error {
+ 	trace.Stop()
+ 
+ 	saveTrace(buf, name)
+-	res, err := traceparser.Parse(buf, name+".faketrace")
+-	if err == traceparser.ErrTimeOrder {
+-		t.Skipf("skipping due to golang.org/issue/16755: %v", err)
+-	} else if err != nil {
++	res, err := traceparser.ParseBuffer(buf)
++	if err != nil {
+ 		return err
+ 	}
+ 
+@@ -370,15 +368,15 @@ func childrenNames(task *taskDesc) (ret []string) {
+ 	return ret
+ }
+ 
+-func swapLoaderData(res traceparser.ParseResult, err error) {
++func swapLoaderData(res *traceparser.Parsed, err error) {
+ 	// swap loader's data.
+ 	parseTrace() // fool loader.once.
+ 
+ 	loader.res = res
+ 	loader.err = err
+ 
+-	analyzeGoroutines(nil) // fool gsInit once.
+-	gs = traceparser.GoroutineStats(res.Events)
++	analyzeGoroutines(res) // fool gsInit once.
++	gs = res.GoroutineStats()
+ 
+ }
+ 
+diff --git a/src/cmd/trace/goroutines.go b/src/cmd/trace/goroutines.go
+index 548871a82c..c954704a47 100644
+--- a/src/cmd/trace/goroutines.go
++++ b/src/cmd/trace/goroutines.go
+@@ -9,7 +9,6 @@ package main
+ import (
+ 	"fmt"
+ 	"html/template"
+-	"internal/trace"
+ 	"log"
+ 	"net/http"
+ 	"reflect"
+@@ -17,6 +16,8 @@ import (
+ 	"strconv"
+ 	"sync"
+ 	"time"
++
++	trace "internal/traceparser"
+ )
+ 
+ func init() {
+@@ -38,15 +39,15 @@ var (
+ )
+ 
+ // analyzeGoroutines generates statistics about execution of all goroutines and stores them in gs.
+-func analyzeGoroutines(events []*trace.Event) {
++func analyzeGoroutines(res *trace.Parsed) {
+ 	gsInit.Do(func() {
+-		gs = trace.GoroutineStats(events)
++		gs = res.GoroutineStats()
+ 	})
+ }
+ 
+ // httpGoroutines serves list of goroutine groups.
+ func httpGoroutines(w http.ResponseWriter, r *http.Request) {
+-	events, err := parseEvents()
++	events, err := parseTrace()
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+@@ -89,7 +90,7 @@ Goroutines: <br>
+ func httpGoroutine(w http.ResponseWriter, r *http.Request) {
+ 	// TODO(hyangah): support format=csv (raw data)
+ 
+-	events, err := parseEvents()
++	events, err := parseTrace()
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 0c98b85c37..a33d2f4679 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -5,12 +5,12 @@
+ package main
+ 
+ import (
+-	"bufio"
++	"bytes"
+ 	"cmd/internal/browser"
+ 	"flag"
+ 	"fmt"
+ 	"html/template"
+-	"internal/trace"
++	trace "internal/traceparser"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -115,8 +115,22 @@ func main() {
+ 		dief("%v\n", err)
+ 	}
+ 
+-	if *debugFlag {
+-		trace.Print(res.Events)
++	if *debugFlag { // match go tool trace -d (except for Offset and Seq)
++		f := func(ev *trace.Event) {
++			desc := trace.EventDescriptions[ev.Type]
++			w := new(bytes.Buffer)
++			fmt.Fprintf(w, "%v %v p=%v g=%v", ev.Ts, desc.Name, ev.P, ev.G)
++			for i, a := range desc.Args {
++				fmt.Fprintf(w, " %v=%v", a, ev.Args[i])
++			}
++			for i, a := range desc.SArgs {
++				fmt.Fprintf(w, " %v=%v", a, ev.SArgs[i])
++			}
++			fmt.Println(w.String())
++		}
++		for i := 0; i < len(res.Events); i++ {
++			f(res.Events[i])
++		}
+ 		os.Exit(0)
+ 	}
+ 	reportMemoryUsage("after parsing trace")
+@@ -141,36 +155,23 @@ var ranges []Range
+ 
+ var loader struct {
+ 	once sync.Once
+-	res  trace.ParseResult
++	res  *trace.Parsed
+ 	err  error
+ }
+ 
+-// parseEvents is a compatibility wrapper that returns only
+-// the Events part of trace.ParseResult returned by parseTrace.
+-func parseEvents() ([]*trace.Event, error) {
+-	res, err := parseTrace()
+-	if err != nil {
+-		return nil, err
+-	}
+-	return res.Events, err
+-}
+-
+-func parseTrace() (trace.ParseResult, error) {
++func parseTrace() (*trace.Parsed, error) {
+ 	loader.once.Do(func() {
+-		tracef, err := os.Open(traceFile)
++		x, err := trace.New(traceFile)
+ 		if err != nil {
+-			loader.err = fmt.Errorf("failed to open trace file: %v", err)
++			loader.err = err
+ 			return
+ 		}
+-		defer tracef.Close()
+-
+-		// Parse and symbolize.
+-		res, err := trace.Parse(bufio.NewReader(tracef), programBinary)
++		err = x.Parse(0, x.MaxTs, nil)
+ 		if err != nil {
+-			loader.err = fmt.Errorf("failed to parse trace: %v", err)
++			loader.err = err
+ 			return
+ 		}
+-		loader.res = res
++		loader.res = x
+ 	})
+ 	return loader.res, loader.err
+ }
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index 3389d2799b..cf74fe56ae 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -9,7 +9,6 @@ package main
+ import (
+ 	"bufio"
+ 	"fmt"
+-	"internal/trace"
+ 	"io"
+ 	"io/ioutil"
+ 	"net/http"
+@@ -21,6 +20,8 @@ import (
+ 	"strconv"
+ 	"time"
+ 
++	trace "internal/traceparser"
++
+ 	"github.com/google/pprof/profile"
+ )
+ 
+@@ -60,22 +61,22 @@ type interval struct {
+ 	begin, end int64 // nanoseconds.
+ }
+ 
+-func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
++func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, *trace.Parsed) error) func(w io.Writer, r *http.Request) error {
+ 	return func(w io.Writer, r *http.Request) error {
+ 		id := r.FormValue("id")
+-		events, err := parseEvents()
++		res, err := parseTrace()
+ 		if err != nil {
+ 			return err
+ 		}
+-		gToIntervals, err := pprofMatchingGoroutines(id, events)
++		gToIntervals, err := pprofMatchingGoroutines(id, res)
+ 		if err != nil {
+ 			return err
+ 		}
+-		return compute(w, gToIntervals, events)
++		return compute(w, gToIntervals, res)
+ 	}
+ }
+ 
+-func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
++func pprofByRegion(compute func(io.Writer, map[uint64][]interval, *trace.Parsed) error) func(w io.Writer, r *http.Request) error {
+ 	return func(w io.Writer, r *http.Request) error {
+ 		filter, err := newRegionFilter(r)
+ 		if err != nil {
+@@ -85,7 +86,7 @@ func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event
+ 		if err != nil {
+ 			return err
+ 		}
+-		events, _ := parseEvents()
++		events, _ := parseTrace()
+ 
+ 		return compute(w, gToIntervals, events)
+ 	}
+@@ -94,7 +95,7 @@ func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event
+ // pprofMatchingGoroutines parses the goroutine type id string (i.e. pc)
+ // and returns the ids of goroutines of the matching type and its interval.
+ // If the id string is empty, returns nil without an error.
+-func pprofMatchingGoroutines(id string, events []*trace.Event) (map[uint64][]interval, error) {
++func pprofMatchingGoroutines(id string, p *trace.Parsed) (map[uint64][]interval, error) {
+ 	if id == "" {
+ 		return nil, nil
+ 	}
+@@ -102,7 +103,7 @@ func pprofMatchingGoroutines(id string, events []*trace.Event) (map[uint64][]int
+ 	if err != nil {
+ 		return nil, fmt.Errorf("invalid goroutine type: %v", id)
+ 	}
+-	analyzeGoroutines(events)
++	analyzeGoroutines(p)
+ 	var res map[uint64][]interval
+ 	for _, g := range gs {
+ 		if g.PC != pc {
+@@ -171,17 +172,25 @@ func pprofMatchingRegions(filter *regionFilter) (map[uint64][]interval, error) {
+ 	return gToIntervals, nil
+ }
+ 
++func stklen(p *trace.Parsed, ev *trace.Event) int {
++	if ev.StkID == 0 {
++		return 0
++	}
++	return len(p.Stacks[ev.StkID])
++}
++
+ // computePprofIO generates IO pprof-like profile (time spent in IO wait, currently only network blocking event).
+-func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+-	prof := make(map[uint64]Record)
++func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
++	events := res.Events
++	prof := make(map[uint32]Record)
+ 	for _, ev := range events {
+-		if ev.Type != trace.EvGoBlockNet || ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
++		if ev.Type != trace.EvGoBlockNet || ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+ 			continue
+ 		}
+ 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
+ 		if overlapping > 0 {
+ 			rec := prof[ev.StkID]
+-			rec.stk = ev.Stk
++			rec.stk = res.Stacks[ev.StkID]
+ 			rec.n++
+ 			rec.time += overlapping.Nanoseconds()
+ 			prof[ev.StkID] = rec
+@@ -191,8 +200,9 @@ func computePprofIO(w io.Writer, gToIntervals map[uint64][]interval, events []*t
+ }
+ 
+ // computePprofBlock generates blocking pprof-like profile (time spent blocked on synchronization primitives).
+-func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+-	prof := make(map[uint64]Record)
++func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
++	events := res.Events
++	prof := make(map[uint32]Record)
+ 	for _, ev := range events {
+ 		switch ev.Type {
+ 		case trace.EvGoBlockSend, trace.EvGoBlockRecv, trace.EvGoBlockSelect,
+@@ -203,13 +213,13 @@ func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, events [
+ 		default:
+ 			continue
+ 		}
+-		if ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
++		if ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+ 			continue
+ 		}
+ 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
+ 		if overlapping > 0 {
+ 			rec := prof[ev.StkID]
+-			rec.stk = ev.Stk
++			rec.stk = res.Stacks[ev.StkID]
+ 			rec.n++
+ 			rec.time += overlapping.Nanoseconds()
+ 			prof[ev.StkID] = rec
+@@ -219,16 +229,17 @@ func computePprofBlock(w io.Writer, gToIntervals map[uint64][]interval, events [
+ }
+ 
+ // computePprofSyscall generates syscall pprof-like profile (time spent blocked in syscalls).
+-func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+-	prof := make(map[uint64]Record)
++func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
++	events := res.Events
++	prof := make(map[uint32]Record)
+ 	for _, ev := range events {
+-		if ev.Type != trace.EvGoSysCall || ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
++		if ev.Type != trace.EvGoSysCall || ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+ 			continue
+ 		}
+ 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
+ 		if overlapping > 0 {
+ 			rec := prof[ev.StkID]
+-			rec.stk = ev.Stk
++			rec.stk = res.Stacks[ev.StkID]
+ 			rec.n++
+ 			rec.time += overlapping.Nanoseconds()
+ 			prof[ev.StkID] = rec
+@@ -239,17 +250,18 @@ func computePprofSyscall(w io.Writer, gToIntervals map[uint64][]interval, events
+ 
+ // computePprofSched generates scheduler latency pprof-like profile
+ // (time between a goroutine become runnable and actually scheduled for execution).
+-func computePprofSched(w io.Writer, gToIntervals map[uint64][]interval, events []*trace.Event) error {
+-	prof := make(map[uint64]Record)
++func computePprofSched(w io.Writer, gToIntervals map[uint64][]interval, res *trace.Parsed) error {
++	events := res.Events
++	prof := make(map[uint32]Record)
+ 	for _, ev := range events {
+ 		if (ev.Type != trace.EvGoUnblock && ev.Type != trace.EvGoCreate) ||
+-			ev.Link == nil || ev.StkID == 0 || len(ev.Stk) == 0 {
++			ev.Link == nil || ev.StkID == 0 || stklen(res, ev) == 0 {
+ 			continue
+ 		}
+ 		overlapping := pprofOverlappingDuration(gToIntervals, ev)
+ 		if overlapping > 0 {
+ 			rec := prof[ev.StkID]
+-			rec.stk = ev.Stk
++			rec.stk = res.Stacks[ev.StkID]
+ 			rec.n++
+ 			rec.time += overlapping.Nanoseconds()
+ 			prof[ev.StkID] = rec
+@@ -327,7 +339,7 @@ func serveSVGProfile(prof func(w io.Writer, r *http.Request) error) http.Handler
+ 	}
+ }
+ 
+-func buildProfile(prof map[uint64]Record) *profile.Profile {
++func buildProfile(prof map[uint32]Record) *profile.Profile {
+ 	p := &profile.Profile{
+ 		PeriodType: &profile.ValueType{Type: "trace", Unit: "count"},
+ 		Period:     1,
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 07fc4333eb..d0e0acd78c 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"encoding/json"
+ 	"fmt"
+-	"internal/trace"
++	trace "internal/traceparser"
+ 	"io"
+ 	"log"
+ 	"math"
+@@ -23,7 +23,7 @@ import (
+ 
+ func init() {
+ 	http.HandleFunc("/trace", httpTrace)
+-	http.HandleFunc("/jsontrace", httpJsonTrace)
++	http.HandleFunc("/jsontrace", httpJSONTrace)
+ 	http.HandleFunc("/trace_viewer_html", httpTraceViewerHTML)
+ }
+ 
+@@ -38,7 +38,7 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	html := strings.ReplaceAll(templTrace, "{{PARAMS}}", r.Form.Encode())
++	html := strings.Replace(templTrace, "{{PARAMS}}", r.Form.Encode(), -1)
+ 	w.Write([]byte(html))
+ 
+ }
+@@ -165,8 +165,8 @@ func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
+ 	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_full.html"))
+ }
+ 
+-// httpJsonTrace serves json trace, requested from within templTrace HTML.
+-func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
++// httpJSONTrace serves json trace, requested from within templTrace HTML.
++func httpJSONTrace(w http.ResponseWriter, r *http.Request) {
+ 	defer debug.FreeOSMemory()
+ 	defer reportMemoryUsage("after httpJsonTrace")
+ 	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
+@@ -188,7 +188,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 			log.Printf("failed to parse goid parameter %q: %v", goids, err)
+ 			return
+ 		}
+-		analyzeGoroutines(res.Events)
++		analyzeGoroutines(res)
+ 		g, ok := gs[goid]
+ 		if !ok {
+ 			log.Printf("failed to find goroutine %d", goid)
+@@ -202,7 +202,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 			params.endTime = lastTimestamp()
+ 		}
+ 		params.maing = goid
+-		params.gs = trace.RelatedGoroutines(res.Events, goid)
++		params.gs = res.RelatedGoroutines(goid)
+ 	} else if taskids := r.FormValue("taskid"); taskids != "" {
+ 		taskid, err := strconv.ParseUint(taskids, 10, 64)
+ 		if err != nil {
+@@ -264,12 +264,13 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	c := viewerDataTraceConsumer(w, start, end)
+-	if err := generateTrace(params, c); err != nil {
++	if err := generateTrace(res, params, c); err != nil {
+ 		log.Printf("failed to generate trace: %v", err)
+ 		return
+ 	}
+ }
+ 
++// Range is a named range
+ type Range struct {
+ 	Name  string
+ 	Start int
+@@ -279,13 +280,13 @@ type Range struct {
+ // splitTrace splits the trace into a number of ranges,
+ // each resulting in approx 100MB of json output
+ // (trace viewer can hardly handle more).
+-func splitTrace(res trace.ParseResult) []Range {
++func splitTrace(res *trace.Parsed) []Range {
+ 	params := &traceParams{
+ 		parsed:  res,
+ 		endTime: math.MaxInt64,
+ 	}
+ 	s, c := splittingTraceConsumer(100 << 20) // 100M
+-	if err := generateTrace(params, c); err != nil {
++	if err := generateTrace(res, params, c); err != nil {
+ 		dief("%v\n", err)
+ 	}
+ 	return s.Ranges
+@@ -302,7 +303,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
+ 	}
+ 
+ 	var (
+-		data = ViewerData{Frames: make(map[string]ViewerFrame)}
++		data = viewerData{Frames: make(map[string]viewerFrame)}
+ 
+ 		sizes []eventSz
+ 		cw    countingWriter
+@@ -314,7 +315,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
+ 		consumeTimeUnit: func(unit string) {
+ 			data.TimeUnit = unit
+ 		},
+-		consumeViewerEvent: func(v *ViewerEvent, required bool) {
++		consumeViewerEvent: func(v *viewerEvent, required bool) {
+ 			if required {
+ 				// Store required events inside data
+ 				// so flush can include them in the required
+@@ -327,7 +328,7 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
+ 			sizes = append(sizes, eventSz{v.Time, cw.size + 1}) // +1 for ",".
+ 			cw.size = 0
+ 		},
+-		consumeViewerFrame: func(k string, v ViewerFrame) {
++		consumeViewerFrame: func(k string, v viewerFrame) {
+ 			data.Frames[k] = v
+ 		},
+ 		flush: func() {
+@@ -382,7 +383,7 @@ func (cw *countingWriter) Write(data []byte) (int, error) {
+ }
+ 
+ type traceParams struct {
+-	parsed    trace.ParseResult
++	parsed    *trace.Parsed
+ 	mode      traceviewMode
+ 	startTime int64
+ 	endTime   int64
+@@ -399,6 +400,7 @@ const (
+ )
+ 
+ type traceContext struct {
++	res *trace.Parsed
+ 	*traceParams
+ 	consumer  traceConsumer
+ 	frameTree frameNode
+@@ -449,16 +451,16 @@ type gInfo struct {
+ 	markAssist *trace.Event // if non-nil, the mark assist currently running.
+ }
+ 
+-type ViewerData struct {
+-	Events   []*ViewerEvent         `json:"traceEvents"`
+-	Frames   map[string]ViewerFrame `json:"stackFrames"`
++type viewerData struct {
++	Events   []*viewerEvent         `json:"traceEvents"`
++	Frames   map[string]viewerFrame `json:"stackFrames"`
+ 	TimeUnit string                 `json:"displayTimeUnit"`
+ 
+ 	// This is where mandatory part of the trace starts (e.g. thread names)
+ 	footer int
+ }
+ 
+-type ViewerEvent struct {
++type viewerEvent struct {
+ 	Name     string      `json:"name,omitempty"`
+ 	Phase    string      `json:"ph"`
+ 	Scope    string      `json:"s,omitempty"`
+@@ -474,33 +476,33 @@ type ViewerEvent struct {
+ 	Category string      `json:"cat,omitempty"`
+ }
+ 
+-type ViewerFrame struct {
++type viewerFrame struct {
+ 	Name   string `json:"name"`
+ 	Parent int    `json:"parent,omitempty"`
+ }
+ 
+-type NameArg struct {
++type nameArg struct {
+ 	Name string `json:"name"`
+ }
+ 
+-type TaskArg struct {
++type taskArg struct {
+ 	ID     uint64 `json:"id"`
+ 	StartG uint64 `json:"start_g,omitempty"`
+ 	EndG   uint64 `json:"end_g,omitempty"`
+ }
+ 
+-type RegionArg struct {
++type regionArg struct {
+ 	TaskID uint64 `json:"taskid,omitempty"`
+ }
+ 
+-type SortIndexArg struct {
++type sortIndexArg struct {
+ 	Index int `json:"sort_index"`
+ }
+ 
+ type traceConsumer struct {
+ 	consumeTimeUnit    func(unit string)
+-	consumeViewerEvent func(v *ViewerEvent, required bool)
+-	consumeViewerFrame func(key string, f ViewerFrame)
++	consumeViewerEvent func(v *viewerEvent, required bool)
++	consumeViewerFrame func(key string, f viewerFrame)
+ 	flush              func()
+ }
+ 
+@@ -517,15 +519,15 @@ const (
+ // If mode==goroutineMode, generate trace for goroutine goid, otherwise whole trace.
+ // startTime, endTime determine part of the trace that we are interested in.
+ // gset restricts goroutines that are included in the resulting trace.
+-func generateTrace(params *traceParams, consumer traceConsumer) error {
++func generateTrace(res *trace.Parsed, params *traceParams, consumer traceConsumer) error {
+ 	defer consumer.flush()
+ 
+-	ctx := &traceContext{traceParams: params}
++	ctx := &traceContext{res: res, traceParams: params}
+ 	ctx.frameTree.children = make(map[uint64]frameNode)
+ 	ctx.consumer = consumer
+ 
+ 	ctx.consumer.consumeTimeUnit("ns")
+-	maxProc := 0
++	maxProc := int32(0)
+ 	ginfos := make(map[uint64]*gInfo)
+ 	stacks := params.parsed.Stacks
+ 
+@@ -570,12 +572,12 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 			newG := ev.Args[0]
+ 			info := getGInfo(newG)
+ 			if info.name != "" {
+-				return fmt.Errorf("duplicate go create event for go id=%d detected at offset %d", newG, ev.Off)
++				return fmt.Errorf("duplicate go create event for go id=%d detected at time %d", newG, ev.Ts)
+ 			}
+ 
+-			stk, ok := stacks[ev.Args[1]]
++			stk, ok := stacks[uint32(ev.Args[1])]
+ 			if !ok || len(stk) == 0 {
+-				return fmt.Errorf("invalid go create event: missing stack information for go id=%d at offset %d", newG, ev.Off)
++				return fmt.Errorf("invalid go create event: missing stack information for go id=%d at time %d", newG, ev.Ts)
+ 			}
+ 
+ 			fname := stk[0].Fn
+@@ -746,23 +748,23 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 		ctx.emitSectionFooter(procsSection, "PROCS", 2)
+ 	}
+ 
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &NameArg{"GC"}})
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &SortIndexArg{-6}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &nameArg{"GC"}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.GCP, Arg: &sortIndexArg{-6}})
+ 
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &NameArg{"Network"}})
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &SortIndexArg{-5}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &nameArg{"Network"}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.NetpollP, Arg: &sortIndexArg{-5}})
+ 
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &NameArg{"Timers"}})
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &SortIndexArg{-4}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &nameArg{"Timers"}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.TimerP, Arg: &sortIndexArg{-4}})
+ 
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &nameArg{"Syscalls"}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: trace.SyscallP, Arg: &sortIndexArg{-3}})
+ 
+ 	// Display rows for Ps if we are in the default trace view mode (not goroutine-oriented presentation)
+ 	if ctx.mode&modeGoroutineOriented == 0 {
+-		for i := 0; i <= maxProc; i++ {
+-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+-			ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &SortIndexArg{i}})
++		for i := 0; i <= int(maxProc); i++ {
++			ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &nameArg{fmt.Sprintf("Proc %v", i)}})
++			ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: uint64(i), Arg: &sortIndexArg{i}})
+ 		}
+ 	}
+ 
+@@ -800,27 +802,27 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 			if !ctx.gs[k] {
+ 				continue
+ 			}
+-			ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: k, Arg: &NameArg{v.name}})
++			ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: procsSection, Tid: k, Arg: &nameArg{v.name}})
+ 		}
+ 		// Row for the main goroutine (maing)
+-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: ctx.maing, Arg: &SortIndexArg{-2}})
++		ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: ctx.maing, Arg: &sortIndexArg{-2}})
+ 		// Row for GC or global state (specified with G=0)
+-		ctx.emitFooter(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: 0, Arg: &SortIndexArg{-1}})
++		ctx.emitFooter(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: procsSection, Tid: 0, Arg: &sortIndexArg{-1}})
+ 	}
+ 
+ 	return nil
+ }
+ 
+-func (ctx *traceContext) emit(e *ViewerEvent) {
++func (ctx *traceContext) emit(e *viewerEvent) {
+ 	ctx.consumer.consumeViewerEvent(e, false)
+ }
+ 
+-func (ctx *traceContext) emitFooter(e *ViewerEvent) {
++func (ctx *traceContext) emitFooter(e *viewerEvent) {
+ 	ctx.consumer.consumeViewerEvent(e, true)
+ }
+ func (ctx *traceContext) emitSectionFooter(sectionID uint64, name string, priority int) {
+-	ctx.emitFooter(&ViewerEvent{Name: "process_name", Phase: "M", Pid: sectionID, Arg: &NameArg{name}})
+-	ctx.emitFooter(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: sectionID, Arg: &SortIndexArg{priority}})
++	ctx.emitFooter(&viewerEvent{Name: "process_name", Phase: "M", Pid: sectionID, Arg: &nameArg{name}})
++	ctx.emitFooter(&viewerEvent{Name: "process_sort_index", Phase: "M", Pid: sectionID, Arg: &sortIndexArg{priority}})
+ }
+ 
+ func (ctx *traceContext) time(ev *trace.Event) float64 {
+@@ -842,31 +844,30 @@ func tsWithinRange(ts, s, e int64) bool {
+ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
+ 	if ctx.mode&modeGoroutineOriented != 0 && ev.P < trace.FakeP {
+ 		return ev.G
+-	} else {
+-		return uint64(ev.P)
+ 	}
++	return uint64(ev.P)
+ }
+ 
+ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
+ 	ctx.emit(ctx.makeSlice(ev, name))
+ }
+ 
+-func (ctx *traceContext) makeSlice(ev *trace.Event, name string) *ViewerEvent {
+-	// If ViewerEvent.Dur is not a positive value,
++func (ctx *traceContext) makeSlice(ev *trace.Event, name string) *viewerEvent {
++	// If viewerEvent.Dur is not a positive value,
+ 	// trace viewer handles it as a non-terminating time interval.
+ 	// Avoid it by setting the field with a small value.
+ 	durationUsec := ctx.time(ev.Link) - ctx.time(ev)
+-	if ev.Link.Ts-ev.Ts <= 0 {
++	if ev.Link == nil || ev.Link.Ts-ev.Ts <= 0 {
+ 		durationUsec = 0.0001 // 0.1 nanoseconds
+ 	}
+-	sl := &ViewerEvent{
++	sl := &viewerEvent{
+ 		Name:     name,
+ 		Phase:    "X",
+ 		Time:     ctx.time(ev),
+ 		Dur:      durationUsec,
+ 		Tid:      ctx.proc(ev),
+-		Stack:    ctx.stack(ev.Stk),
+-		EndStack: ctx.stack(ev.Link.Stk),
++		Stack:    ctx.stack(ctx.res.Stacks[ev.StkID]),
++		EndStack: ctx.stack(ctx.res.Stacks[ev.Link.StkID]),
+ 	}
+ 
+ 	// grey out non-overlapping events if the event is not a global event (ev.G == 0)
+@@ -876,7 +877,7 @@ func (ctx *traceContext) makeSlice(ev *trace.Event, name string) *ViewerEvent {
+ 			type Arg struct {
+ 				P int
+ 			}
+-			sl.Arg = &Arg{P: ev.P}
++			sl.Arg = &Arg{P: int(ev.P)}
+ 		}
+ 		// grey out non-overlapping events.
+ 		overlapping := false
+@@ -898,10 +899,10 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
+ 	taskName := task.name
+ 	durationUsec := float64(task.lastTimestamp()-task.firstTimestamp()) / 1e3
+ 
+-	ctx.emitFooter(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &NameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
+-	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &SortIndexArg{sortIndex}})
++	ctx.emitFooter(&viewerEvent{Name: "thread_name", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &nameArg{fmt.Sprintf("T%d %s", task.id, taskName)}})
++	ctx.emit(&viewerEvent{Name: "thread_sort_index", Phase: "M", Pid: tasksSection, Tid: taskRow, Arg: &sortIndexArg{sortIndex}})
+ 	ts := float64(task.firstTimestamp()) / 1e3
+-	sl := &ViewerEvent{
++	sl := &viewerEvent{
+ 		Name:  taskName,
+ 		Phase: "X",
+ 		Time:  ts,
+@@ -910,13 +911,13 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
+ 		Tid:   taskRow,
+ 		Cname: pickTaskColor(task.id),
+ 	}
+-	targ := TaskArg{ID: task.id}
++	targ := taskArg{ID: task.id}
+ 	if task.create != nil {
+-		sl.Stack = ctx.stack(task.create.Stk)
++		sl.Stack = ctx.stack(ctx.res.Stacks[task.create.StkID])
+ 		targ.StartG = task.create.G
+ 	}
+ 	if task.end != nil {
+-		sl.EndStack = ctx.stack(task.end.Stk)
++		sl.EndStack = ctx.stack(ctx.res.Stacks[task.end.StkID])
+ 		targ.EndG = task.end.G
+ 	}
+ 	sl.Arg = targ
+@@ -924,8 +925,8 @@ func (ctx *traceContext) emitTask(task *taskDesc, sortIndex int) {
+ 
+ 	if task.create != nil && task.create.Type == trace.EvUserTaskCreate && task.create.Args[1] != 0 {
+ 		ctx.arrowSeq++
+-		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "s", Tid: task.create.Args[1], ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+-		ctx.emit(&ViewerEvent{Name: "newTask", Phase: "t", Tid: taskRow, ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
++		ctx.emit(&viewerEvent{Name: "newTask", Phase: "s", Tid: task.create.Args[1], ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
++		ctx.emit(&viewerEvent{Name: "newTask", Phase: "t", Tid: taskRow, ID: ctx.arrowSeq, Time: ts, Pid: tasksSection})
+ 	}
+ }
+ 
+@@ -946,7 +947,7 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
+ 	scopeID := fmt.Sprintf("%x", id)
+ 	name := s.Name
+ 
+-	sl0 := &ViewerEvent{
++	sl0 := &viewerEvent{
+ 		Category: "Region",
+ 		Name:     name,
+ 		Phase:    "b",
+@@ -957,11 +958,11 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
+ 		Cname:    pickTaskColor(s.TaskID),
+ 	}
+ 	if s.Start != nil {
+-		sl0.Stack = ctx.stack(s.Start.Stk)
++		sl0.Stack = ctx.stack(ctx.res.Stacks[s.Start.StkID])
+ 	}
+ 	ctx.emit(sl0)
+ 
+-	sl1 := &ViewerEvent{
++	sl1 := &viewerEvent{
+ 		Category: "Region",
+ 		Name:     name,
+ 		Phase:    "e",
+@@ -970,10 +971,10 @@ func (ctx *traceContext) emitRegion(s regionDesc) {
+ 		ID:       uint64(regionID),
+ 		Scope:    scopeID,
+ 		Cname:    pickTaskColor(s.TaskID),
+-		Arg:      RegionArg{TaskID: s.TaskID},
++		Arg:      regionArg{TaskID: s.TaskID},
+ 	}
+ 	if s.End != nil {
+-		sl1.Stack = ctx.stack(s.End.Stk)
++		sl1.Stack = ctx.stack(ctx.res.Stacks[s.End.StkID])
+ 	}
+ 	ctx.emit(sl1)
+ }
+@@ -992,7 +993,7 @@ func (ctx *traceContext) emitHeapCounters(ev *trace.Event) {
+ 		diff = ctx.heapStats.nextGC - ctx.heapStats.heapAlloc
+ 	}
+ 	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+-		ctx.emit(&ViewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
++		ctx.emit(&viewerEvent{Name: "Heap", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &heapCountersArg{ctx.heapStats.heapAlloc, diff}})
+ 	}
+ 	ctx.prevHeapStats = ctx.heapStats
+ }
+@@ -1008,7 +1009,7 @@ func (ctx *traceContext) emitGoroutineCounters(ev *trace.Event) {
+ 		return
+ 	}
+ 	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+-		ctx.emit(&ViewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
++		ctx.emit(&viewerEvent{Name: "Goroutines", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &goroutineCountersArg{uint64(ctx.gstates[gRunning]), uint64(ctx.gstates[gRunnable]), uint64(ctx.gstates[gWaitingGC])}})
+ 	}
+ 	ctx.prevGstates = ctx.gstates
+ }
+@@ -1023,7 +1024,7 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
+ 		return
+ 	}
+ 	if tsWithinRange(ev.Ts, ctx.startTime, ctx.endTime) {
+-		ctx.emit(&ViewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
++		ctx.emit(&viewerEvent{Name: "Threads", Phase: "C", Time: ctx.time(ev), Pid: 1, Arg: &threadCountersArg{
+ 			Running:   ctx.threadStats.prunning,
+ 			InSyscall: ctx.threadStats.insyscall}})
+ 	}
+@@ -1061,14 +1062,14 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
+ 		}
+ 		arg = &Arg{ev.Args[0]}
+ 	}
+-	ctx.emit(&ViewerEvent{
++	ctx.emit(&viewerEvent{
+ 		Name:     name,
+ 		Category: category,
+ 		Phase:    "I",
+ 		Scope:    "t",
+ 		Time:     ctx.time(ev),
+ 		Tid:      ctx.proc(ev),
+-		Stack:    ctx.stack(ev.Stk),
++		Stack:    ctx.stack(ctx.res.Stacks[ev.StkID]),
+ 		Cname:    cname,
+ 		Arg:      arg})
+ }
+@@ -1105,8 +1106,11 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
+ 	}
+ 
+ 	ctx.arrowSeq++
+-	ctx.emit(&ViewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev), ID: ctx.arrowSeq, Time: ctx.time(ev), Stack: ctx.stack(ev.Stk), Cname: color})
+-	ctx.emit(&ViewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link), ID: ctx.arrowSeq, Time: ctx.time(ev.Link), Cname: color})
++	ctx.emit(&viewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev),
++		ID: ctx.arrowSeq, Time: ctx.time(ev),
++		Stack: ctx.stack(ctx.res.Stacks[ev.StkID]), Cname: color})
++	ctx.emit(&viewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link),
++		ID: ctx.arrowSeq, Time: ctx.time(ev.Link), Cname: color})
+ }
+ 
+ func (ctx *traceContext) stack(stk []*trace.Frame) int {
+@@ -1128,7 +1132,7 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
+ 		node.id = ctx.frameSeq
+ 		node.children = make(map[uint64]frameNode)
+ 		parent.children[frame.PC] = node
+-		ctx.consumer.consumeViewerFrame(strconv.Itoa(node.id), ViewerFrame{fmt.Sprintf("%v:%v", frame.Fn, frame.Line), parent.id})
++		ctx.consumer.consumeViewerFrame(strconv.Itoa(node.id), viewerFrame{fmt.Sprintf("%v:%v", frame.Fn, frame.Line), parent.id})
+ 	}
+ 	return ctx.buildBranch(node, stk)
+ }
+@@ -1163,7 +1167,7 @@ type jsonWriter struct {
+ }
+ 
+ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
+-	frames := make(map[string]ViewerFrame)
++	frames := make(map[string]viewerFrame)
+ 	enc := json.NewEncoder(w)
+ 	written := 0
+ 	index := int64(-1)
+@@ -1175,7 +1179,7 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
+ 			enc.Encode(unit)
+ 			io.WriteString(w, ",")
+ 		},
+-		consumeViewerEvent: func(v *ViewerEvent, required bool) {
++		consumeViewerEvent: func(v *viewerEvent, required bool) {
+ 			index++
+ 			if !required && (index < start || index > end) {
+ 				// not in the range. Skip!
+@@ -1192,7 +1196,7 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
+ 			// Same should be applied to splittingTraceConsumer.
+ 			written++
+ 		},
+-		consumeViewerFrame: func(k string, v ViewerFrame) {
++		consumeViewerFrame: func(k string, v viewerFrame) {
+ 			frames[k] = v
+ 		},
+ 		flush: func() {
+diff --git a/src/cmd/trace/trace_test.go b/src/cmd/trace/trace_test.go
+index 9e90f50d4b..abeb330924 100644
+--- a/src/cmd/trace/trace_test.go
++++ b/src/cmd/trace/trace_test.go
+@@ -8,26 +8,27 @@ package main
+ 
+ import (
+ 	"context"
+-	"internal/trace"
+ 	"io/ioutil"
+ 	rtrace "runtime/trace"
+ 	"strings"
+ 	"testing"
++
++	trace "internal/traceparser"
+ )
+ 
+ // stacks is a fake stack map populated for test.
+-type stacks map[uint64][]*trace.Frame
++type stacks map[uint32][]*trace.Frame
+ 
+ // add adds a stack with a single frame whose Fn field is
+ // set to the provided fname and returns a unique stack id.
+ func (s *stacks) add(fname string) uint64 {
+ 	if *s == nil {
+-		*s = make(map[uint64][]*trace.Frame)
++		*s = make(map[uint32][]*trace.Frame)
+ 	}
+ 
+-	id := uint64(len(*s))
++	id := uint32(len(*s))
+ 	(*s)[id] = []*trace.Frame{{Fn: fname}}
+-	return id
++	return uint64(id)
+ }
+ 
+ // TestGoroutineCount tests runnable/running goroutine counts computed by generateTrace
+@@ -36,8 +37,7 @@ func (s *stacks) add(fname string) uint64 {
+ //   - the counts must not include goroutines blocked waiting on channels or in syscall.
+ func TestGoroutineCount(t *testing.T) {
+ 	w := trace.NewWriter()
+-	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
+-	w.Emit(trace.EvFrequency, 1) // [ticks per second]
++	w.Emit(trace.EvBatch, 0, 0) // start of per-P batch event [pid, timestamp]
+ 
+ 	var s stacks
+ 
+@@ -61,8 +61,9 @@ func TestGoroutineCount(t *testing.T) {
+ 	w.Emit(trace.EvGoCreate, 1, 40, s.add("pkg.f4"), s.add("main.f4"))
+ 	w.Emit(trace.EvGoStartLocal, 1, 40)          // [timestamp, goroutine id]
+ 	w.Emit(trace.EvGoSched, 1, s.add("main.f4")) // [timestamp, stack]
++	w.Emit(trace.EvFrequency, 1)                 // [ticks per second]
+ 
+-	res, err := trace.Parse(w, "")
++	res, err := trace.ParseBuffer(w)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse test trace: %v", err)
+ 	}
+@@ -74,9 +75,9 @@ func TestGoroutineCount(t *testing.T) {
+ 	}
+ 
+ 	// Use the default viewerDataTraceConsumer but replace
+-	// consumeViewerEvent to intercept the ViewerEvents for testing.
++	// consumeViewerEvent to intercept the viewerEvents for testing.
+ 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
++	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
+ 		if ev.Name == "Goroutines" {
+ 			cnt := ev.Arg.(*goroutineCountersArg)
+ 			if cnt.Runnable+cnt.Running > 2 {
+@@ -87,7 +88,7 @@ func TestGoroutineCount(t *testing.T) {
+ 	}
+ 
+ 	// If the counts drop below 0, generateTrace will return an error.
+-	if err := generateTrace(params, c); err != nil {
++	if err := generateTrace(res, params, c); err != nil {
+ 		t.Fatalf("generateTrace failed: %v", err)
+ 	}
+ }
+@@ -99,8 +100,7 @@ func TestGoroutineFilter(t *testing.T) {
+ 	var s stacks
+ 
+ 	w := trace.NewWriter()
+-	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
+-	w.Emit(trace.EvFrequency, 1) // [ticks per second]
++	w.Emit(trace.EvBatch, 0, 0) // start of per-P batch event [pid, timestamp]
+ 
+ 	// goroutine 10: blocked
+ 	w.Emit(trace.EvGoCreate, 1, 10, s.add("pkg.f1"), s.add("main.f1")) // [timestamp, new goroutine id, new stack id, stack id]
+@@ -115,8 +115,9 @@ func TestGoroutineFilter(t *testing.T) {
+ 	// goroutine 10: runnable->running->block
+ 	w.Emit(trace.EvGoStartLocal, 1, 10)         // [timestamp, goroutine id]
+ 	w.Emit(trace.EvGoBlock, 1, s.add("pkg.f3")) // [timestamp, stack]
++	w.Emit(trace.EvFrequency, 1)                // [ticks per second]
+ 
+-	res, err := trace.Parse(w, "")
++	res, err := trace.ParseBuffer(w)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse test trace: %v", err)
+ 	}
+@@ -129,15 +130,14 @@ func TestGoroutineFilter(t *testing.T) {
+ 	}
+ 
+ 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+-	if err := generateTrace(params, c); err != nil {
++	if err := generateTrace(res, params, c); err != nil {
+ 		t.Fatalf("generateTrace failed: %v", err)
+ 	}
+ }
+ 
+ func TestPreemptedMarkAssist(t *testing.T) {
+ 	w := trace.NewWriter()
+-	w.Emit(trace.EvBatch, 0, 0)  // start of per-P batch event [pid, timestamp]
+-	w.Emit(trace.EvFrequency, 1) // [ticks per second]
++	w.Emit(trace.EvBatch, 0, 0) // start of per-P batch event [pid, timestamp]
+ 
+ 	var s stacks
+ 	// goroutine 9999: running -> mark assisting -> preempted -> assisting -> running -> block
+@@ -148,11 +148,13 @@ func TestPreemptedMarkAssist(t *testing.T) {
+ 	w.Emit(trace.EvGoStartLocal, 1, 9999)                                // [timestamp, goroutine id]
+ 	w.Emit(trace.EvGCMarkAssistDone, 1)                                  // [timestamp]
+ 	w.Emit(trace.EvGoBlock, 1, s.add("main.f2"))                         // [timestamp, stack]
++	w.Emit(trace.EvFrequency, 1)                                         // [ticks per second]
+ 
+-	res, err := trace.Parse(w, "")
++	res, err := trace.ParseBuffer(w)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse test trace: %v", err)
+ 	}
++	t.Logf("%+v", *res)
+ 	res.Stacks = s // use fake stacks
+ 
+ 	params := &traceParams{
+@@ -163,12 +165,12 @@ func TestPreemptedMarkAssist(t *testing.T) {
+ 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+ 
+ 	marks := 0
+-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
++	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
+ 		if strings.Contains(ev.Name, "MARK ASSIST") {
+ 			marks++
+ 		}
+ 	}
+-	if err := generateTrace(params, c); err != nil {
++	if err := generateTrace(res, params, c); err != nil {
+ 		t.Fatalf("generateTrace failed: %v", err)
+ 	}
+ 
+@@ -214,7 +216,7 @@ func TestFoo(t *testing.T) {
+ 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+ 
+ 	var logBeforeTaskEnd, logAfterTaskEnd bool
+-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
++	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
+ 		if ev.Name == "log before task ends" {
+ 			logBeforeTaskEnd = true
+ 		}
+@@ -222,7 +224,7 @@ func TestFoo(t *testing.T) {
+ 			logAfterTaskEnd = true
+ 		}
+ 	}
+-	if err := generateTrace(params, c); err != nil {
++	if err := generateTrace(res, params, c); err != nil {
+ 		t.Fatalf("generateTrace failed: %v", err)
+ 	}
+ 	if !logBeforeTaskEnd {
+diff --git a/src/cmd/trace/trace_unix_test.go b/src/cmd/trace/trace_unix_test.go
+index fec060e121..144642ad9e 100644
+--- a/src/cmd/trace/trace_unix_test.go
++++ b/src/cmd/trace/trace_unix_test.go
+@@ -8,7 +8,7 @@ package main
+ 
+ import (
+ 	"bytes"
+-	traceparser "internal/trace"
++	"internal/traceparser"
+ 	"io/ioutil"
+ 	"runtime"
+ 	"runtime/trace"
+@@ -73,17 +73,15 @@ func TestGoroutineInSyscall(t *testing.T) {
+ 	}
+ 	trace.Stop()
+ 
+-	res, err := traceparser.Parse(buf, "")
+-	if err == traceparser.ErrTimeOrder {
+-		t.Skipf("skipping due to golang.org/issue/16755 (timestamps are unreliable): %v", err)
+-	} else if err != nil {
++	res, err := traceparser.ParseBuffer(buf)
++	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+ 	}
+ 
+ 	// Check only one thread for the pipe read goroutine is
+ 	// considered in-syscall.
+ 	c := viewerDataTraceConsumer(ioutil.Discard, 0, 1<<63-1)
+-	c.consumeViewerEvent = func(ev *ViewerEvent, _ bool) {
++	c.consumeViewerEvent = func(ev *viewerEvent, _ bool) {
+ 		if ev.Name == "Threads" {
+ 			arg := ev.Arg.(*threadCountersArg)
+ 			if arg.InSyscall > 1 {
+@@ -96,7 +94,7 @@ func TestGoroutineInSyscall(t *testing.T) {
+ 		parsed:  res,
+ 		endTime: int64(1<<63 - 1),
+ 	}
+-	if err := generateTrace(param, c); err != nil {
++	if err := generateTrace(res, param, c); err != nil {
+ 		t.Fatalf("failed to generate ViewerData: %v", err)
+ 	}
+ }

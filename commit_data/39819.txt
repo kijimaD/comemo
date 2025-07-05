@@ -10,10 +10,109 @@ Date:   Fri Mar 15 08:26:53 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167680
     Run-TryBot: Ben Shi <powerman1st@163.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/mips.go        | 3 ++-
  src/cmd/asm/internal/asm/testdata/mips.s | 8 ++++++++
  src/cmd/internal/obj/mips/a.out.go       | 2 ++
  src/cmd/internal/obj/mips/anames.go      | 2 ++
  src/cmd/internal/obj/mips/asm0.go        | 6 ++++++
  5 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/mips.go b/src/cmd/asm/internal/arch/mips.go
+index 14b29331e5..22c9ebd2da 100644
+--- a/src/cmd/asm/internal/arch/mips.go
++++ b/src/cmd/asm/internal/arch/mips.go
+@@ -38,7 +38,8 @@ func IsMIPSMUL(op obj.As) bool {
+ 	switch op {
+ 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,
+ 		mips.ADIV, mips.ADIVU, mips.ADIVV, mips.ADIVVU,
+-		mips.AREM, mips.AREMU, mips.AREMV, mips.AREMVU:
++		mips.AREM, mips.AREMU, mips.AREMV, mips.AREMVU,
++		mips.AMADD, mips.AMSUB:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/mips.s b/src/cmd/asm/internal/asm/testdata/mips.s
+index 0c6f7fd552..7136d686d7 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips.s
++++ b/src/cmd/asm/internal/asm/testdata/mips.s
+@@ -424,7 +424,15 @@ label4:
+ 	CALL	foo(SB)
+ 	RET	foo(SB)
+ 
++	// unary operation
+ 	NEGW	R1, R2 // 00011023
++	CLZ	R1, R2 // 70221020
++	CLO	R1, R2 // 70221021
++
++	// to (Hi, Lo)
++	MADD	R2, R1 // 70220000
++	MSUB	R2, R1 // 70220004
++	MUL	R2, R1 // 00220018
+ 
+ 	// END
+ 	//
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index d2ae2f8c0b..026e8db76a 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -319,6 +319,7 @@ const (
+ 	ALL
+ 	ALLV
+ 	ALUI
++	AMADD
+ 	AMOVB
+ 	AMOVBU
+ 	AMOVD
+@@ -334,6 +335,7 @@ const (
+ 	AMOVWF
+ 	AMOVWL
+ 	AMOVWR
++	AMSUB
+ 	AMUL
+ 	AMULD
+ 	AMULF
+diff --git a/src/cmd/internal/obj/mips/anames.go b/src/cmd/internal/obj/mips/anames.go
+index d588d131bc..9a2e4f5703 100644
+--- a/src/cmd/internal/obj/mips/anames.go
++++ b/src/cmd/internal/obj/mips/anames.go
+@@ -46,6 +46,7 @@ var Anames = []string{
+ 	"LL",
+ 	"LLV",
+ 	"LUI",
++	"MADD",
+ 	"MOVB",
+ 	"MOVBU",
+ 	"MOVD",
+@@ -61,6 +62,7 @@ var Anames = []string{
+ 	"MOVWF",
+ 	"MOVWL",
+ 	"MOVWR",
++	"MSUB",
+ 	"MUL",
+ 	"MULD",
+ 	"MULF",
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index c117269c35..c08d97a9aa 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -959,6 +959,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ADIVU, r0)
+ 			opset(AMULU, r0)
+ 			opset(ADIV, r0)
++			opset(AMADD, r0)
++			opset(AMSUB, r0)
+ 
+ 		case AMULV:
+ 			opset(ADIVV, r0)
+@@ -1785,6 +1787,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return SP(3, 4) | OP(4, 1)
+ 	case ACLZ:
+ 		return SP(3, 4) | OP(4, 0)
++	case AMADD:
++		return SP(3, 4) | OP(0, 0)
++	case AMSUB:
++		return SP(3, 4) | OP(0, 4)
+ 	}
+ 
+ 	if a < 0 {

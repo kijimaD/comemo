@@ -15,7 +15,7 @@ Date:   Tue Jul 2 09:08:43 2013 +0200
     R=rsc, golang-dev, daniel.morsing, bradfitz, gri, r
     CC=golang-dev
     https://golang.org/cl/10271046
-
+---
  src/cmd/gc/subr.c           | 18 +++++++++---------
  test/blank.go               | 11 +++++++++++
  test/blank1.go              |  7 +++++++
@@ -23,3 +23,141 @@ Date:   Tue Jul 2 09:08:43 2013 +0200
  test/cmp6.go                |  2 +-
  test/fixedbugs/issue5698.go | 18 ++++++++++++++++++
  6 files changed, 47 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e49709dc6d..dee5b01610 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -615,23 +615,23 @@ algtype1(Type *t, Type **bad)
+ 		return -1;  // needs special compare
+ 
+ 	case TSTRUCT:
+-		if(t->type != T && t->type->down == T) {
++		if(t->type != T && t->type->down == T && !isblanksym(t->type->sym)) {
+ 			// One-field struct is same as that one field alone.
+ 			return algtype1(t->type->type, bad);
+ 		}
+ 		ret = AMEM;
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			// Blank fields and padding must be ignored,
+-			// so need special compare.
+-			if(isblanksym(t1->sym) || ispaddedfield(t1, t->width)) {
++			// All fields must be comparable.
++			a = algtype1(t1->type, bad);
++			if(a == ANOEQ)
++				return ANOEQ;
++
++			// Blank fields, padded fields, fields with non-memory
++			// equality need special compare.
++			if(a != AMEM || isblanksym(t1->sym) || ispaddedfield(t1, t->width)) {
+ 				ret = -1;
+ 				continue;
+ 			}
+-			a = algtype1(t1->type, bad);
+-			if(a == ANOEQ)
+-				return ANOEQ;  // not comparable
+-			if(a != AMEM)
+-				ret = -1;  // needs special compare
+ 		}
+ 		return ret;
+ 	}
+diff --git a/test/blank.go b/test/blank.go
+index 7f7d9f6f7f..46b61559d7 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -27,6 +27,10 @@ func (T) _() {
+ func (T) _() {
+ }
+ 
++type U struct {
++	_ struct{ a, b, c int }
++}
++
+ const (
+ 	c0 = iota
+ 	_
+@@ -116,6 +120,13 @@ func main() {
+ 		if t1 != t2 {
+ 			panic("T{} != T{}")
+ 		}
++
++		var u1, u2 interface{}
++		u1 = *(*U)(unsafe.Pointer(&T1{1, 2, 3}))
++		u2 = *(*U)(unsafe.Pointer(&T1{4, 5, 6}))
++		if u1 != u2 {
++			panic("U{} != U{}")
++		}
+ 	}
+ 
+ 	h(a, b)
+diff --git a/test/blank1.go b/test/blank1.go
+index 4edb2db702..f46a50051b 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -13,9 +13,16 @@ var t struct {
+ 	_ int
+ }
+ 
++type T struct {
++      _ []int
++}
++
+ func main() {
+ 	_()	// ERROR "cannot use _ as value"
+ 	x := _+1	// ERROR "cannot use _ as value"
+ 	_ = x
+ 	_ = t._ // ERROR "cannot refer to blank field"
++
++      var v1, v2 T
++      _ = v1 == v2 // ERROR "cannot be compared|non-comparable"
+ }
+diff --git a/test/cmp.go b/test/cmp.go
+index 5be64561d5..7183f02079 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -296,7 +296,7 @@ func main() {
+ 	{
+ 		var x = struct {
+ 			x int
+-			_ []int
++			_ string
+ 			y float64
+ 			_ float64
+ 			z int
+diff --git a/test/cmp6.go b/test/cmp6.go
+index 7d99aae18b..839c274bcc 100644
+--- a/test/cmp6.go
++++ b/test/cmp6.go
+@@ -53,7 +53,7 @@ func main() {
+ 
+ 	// Comparison of structs should have a good message
+ 	use(t3 == t3) // ERROR "struct|expected"
+-	use(t4 == t4) // ok; the []int is a blank field
++	use(t4 == t4) // ERROR "cannot be compared|non-comparable"
+ 
+ 	// Slices, functions, and maps too.
+ 	var x []int
+diff --git a/test/fixedbugs/issue5698.go b/test/fixedbugs/issue5698.go
+new file mode 100644
+index 0000000000..035bbd35d2
+--- /dev/null
++++ b/test/fixedbugs/issue5698.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5698: can define a key type with slices.
++
++package main
++
++type Key struct {
++	a int16 // the compiler was confused by the padding.
++	b []int
++}
++
++type Val struct{}
++
++type Map map[Key]Val // ERROR "invalid map key type"

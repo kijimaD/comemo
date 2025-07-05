@@ -12,6 +12,23 @@ Date:   Sun Sep 10 00:22:27 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/elliptic/p256_s390x.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/elliptic/p256_s390x.go b/src/crypto/elliptic/p256_s390x.go
+index 2ed4c0b9e7..45cd2915f9 100644
+--- a/src/crypto/elliptic/p256_s390x.go
++++ b/src/crypto/elliptic/p256_s390x.go
+@@ -32,7 +32,10 @@ func hasVectorFacility() bool
+ var hasVX = hasVectorFacility()
+ 
+ func initP256Arch() {
+-	if hasVX {
++	// Assembly implementation is temporarily disabled until issue
++	// #20215 is fixed.
++	// if hasVX {
++	if false {
+ 		p256 = p256CurveFast{p256Params}
+ 		initTable()
+ 		return

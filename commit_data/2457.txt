@@ -17,7 +17,7 @@ Date:   Tue Jun 16 11:25:58 2009 -0700
     DELTA=305  (125 added, 29 deleted, 151 changed)
     OCL=30246
     CL=30347
-
+---
  src/cmd/5c/gc.h           |  11 ++-
  src/cmd/5c/list.c         |  14 ++-
  src/cmd/5c/sgen.c         |  30 +++++-
@@ -31,3 +31,883 @@ Date:   Tue Jun 16 11:25:58 2009 -0700
  src/libmach_amd64/5obj.c  |   5 +
  src/pkg/runtime/arm/asm.s | 229 ++++++++++++++++++++++++----------------------
  12 files changed, 293 insertions(+), 196 deletions(-)
+
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 4ddff6d9a2..297a6073e1 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -61,6 +61,7 @@ typedef	struct	Rgn	Rgn;
+ struct	Adr
+ {
+ 	int32	offset;
++	int32	offset2;
+ 	double	dval;
+ 	char	sval[NSNAME];
+ 	Ieee	ieee;
+@@ -140,7 +141,7 @@ struct	Reg
+ 	int32	regu;
+ 	int32	loop;		/* could be shorter */
+ 
+-	
++
+ 	Reg*	log5;
+ 	int32	active;
+ 
+@@ -362,10 +363,10 @@ int32	FtoB(int);
+ int	BtoR(int32);
+ int	BtoF(int32);
+ 
+-void	predicate(void); 
+-int	isbranch(Prog *); 
+-int	predicable(Prog *p); 
+-int	modifiescpsr(Prog *p); 
++void	predicate(void);
++int	isbranch(Prog *);
++int	predicable(Prog *p);
++int	modifiescpsr(Prog *p);
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Bits
+diff --git a/src/cmd/5c/list.c b/src/cmd/5c/list.c
+index 14454abb05..c792c130da 100644
+--- a/src/cmd/5c/list.c
++++ b/src/cmd/5c/list.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++
+ #define	EXTERN
+ #include "gc.h"
+ 
+@@ -71,9 +72,9 @@ Bconv(Fmt *fp)
+ }
+ 
+ char *extra [] = {
+-	".EQ", ".NE", ".CS", ".CC", 
+-	".MI", ".PL", ".VS", ".VC", 
+-	".HI", ".LS", ".GE", ".LT", 
++	".EQ", ".NE", ".CS", ".CC",
++	".MI", ".PL", ".VS", ".VC",
++	".HI", ".LS", ".GE", ".LT",
+ 	".GT", ".LE", "", ".NV",
+ };
+ 
+@@ -86,7 +87,7 @@ Pconv(Fmt *fp)
+ 
+ 	p = va_arg(fp->args, Prog*);
+ 	a = p->as;
+-	s = p->scond; 
++	s = p->scond;
+ 	strcpy(sc, extra[s & C_SCOND]);
+ 	if(s & C_SBIT)
+ 		strcat(sc, ".S");
+@@ -162,6 +163,10 @@ Dconv(Fmt *fp)
+ 			sprint(str, "$%N", a);
+ 		break;
+ 
++	case D_CONST2:
++		sprint(str, "$%d-%d", a->offset, a->offset2);
++		break;
++
+ 	case D_SHIFT:
+ 		v = a->offset;
+ 		op = "<<>>->@>" + (((v>>5) & 3) << 1);
+@@ -224,6 +229,7 @@ Rconv(Fmt *fp)
+ 	sprint(str, "GOK-reglist");
+ 	switch(a->type) {
+ 	case D_CONST:
++	case D_CONST2:
+ 		if(a->reg != NREG)
+ 			break;
+ 		if(a->sym != S)
+diff --git a/src/cmd/5c/sgen.c b/src/cmd/5c/sgen.c
+index b7f61bb7ea..e18cb61680 100644
+--- a/src/cmd/5c/sgen.c
++++ b/src/cmd/5c/sgen.c
+@@ -30,6 +30,31 @@
+ 
+ #include "gc.h"
+ 
++int32
++argsize(void)
++{
++	Type *t;
++	int32 s;
++
++//print("t=%T\n", thisfn);
++	s = 0;
++	for(t=thisfn->down; t!=T; t=t->down) {
++		switch(t->etype) {
++		case TVOID:
++			break;
++		case TDOT:
++			s += 64;
++			break;
++		default:
++			s = align(s, t, Aarg1);
++			s = align(s, t, Aarg2);
++			break;
++		}
++//print("	%d %T\n", s, t);
++	}
++	return (s+7) & ~7;
++}
++
+ void
+ codgen(Node *n, Node *nn)
+ {
+@@ -53,6 +78,9 @@ codgen(Node *n, Node *nn)
+ 	}
+ 	nearln = nn->lineno;
+ 	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
++	p->to.type = D_CONST2;
++	p->to.offset2 = argsize();
++
+ 	sp = p;
+ 
+ 	/*
+@@ -313,7 +341,7 @@ loop:
+ 
+ 		patch(spc, pc);
+ 		gen(l->right->right);	/* inc */
+-		patch(sp, pc);	
++		patch(sp, pc);
+ 		if(l->left != Z) {	/* test */
+ 			bcomplex(l->left, Z);
+ 			patch(p, breakpc);
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 83f7f5621c..28314dacaa 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -338,7 +338,7 @@ loop:
+ 		if(vs < 0) {
+ 			gopcode(OAS, &nod1, Z, &nod1);
+ 			gopcode(OSUB, &nod1, nodconst(0), nn);
+-		} else 
++		} else
+ 			gopcode(OAS, &nod1, Z, nn);
+ 		regfree(&nod1);
+ 		return 1;
+@@ -649,6 +649,13 @@ zaddr(char *bp, Adr *a, int s)
+ 	case D_PSR:
+ 		break;
+ 
++	case D_CONST2:
++		l = a->offset2;
++		bp[0] = l;
++		bp[1] = l>>8;
++		bp[2] = l>>16;
++		bp[3] = l>>24;
++		bp += 4;	// fall through
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_BRANCH:
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 1a0da76952..45f30fa5d5 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -84,10 +84,10 @@ enum	as
+ 	AB,
+ 	ABL,
+ 
+-/* 
+- * Do not reorder or fragment the conditional branch 
+- * opcodes, or the predication code will break 
+- */ 
++/*
++ * Do not reorder or fragment the conditional branch
++ * opcodes, or the predication code will break
++ */
+ 	ABEQ,
+ 	ABNE,
+ 	ABCS,
+@@ -186,6 +186,22 @@ enum	as
+ #define	C_FBIT	(1<<7)	/* psr flags-only */
+ #define	C_UBIT	(1<<7)	/* up bit */
+ 
++#define C_SCOND_EQ	0
++#define C_SCOND_NE	1
++#define C_SCOND_HS	2
++#define C_SCOND_LO	3
++#define C_SCOND_MI	4
++#define C_SCOND_PL	5
++#define C_SCOND_VS	6
++#define C_SCOND_VC	7
++#define C_SCOND_HI	8
++#define C_SCOND_LS	9
++#define C_SCOND_GE	10
++#define C_SCOND_LT	11
++#define C_SCOND_GT	12
++#define C_SCOND_LE	13
++#define C_SCOND_N	15
++
+ /* type/name */
+ #define	D_GOK	0
+ #define	D_NONE	1
+@@ -209,6 +225,7 @@ enum	as
+ #define D_ADDR		(D_NONE+22)
+ 
+ #define D_SBIG		(D_NONE+23)
++#define	D_CONST2	(D_NONE+24)
+ 
+ /* name */
+ #define	D_EXTERN	(D_NONE+3)
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index fdb0488275..36ada96d29 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -72,6 +72,7 @@ struct	Adr
+ 	uchar	index; // not used on arm, required by ld/go.c
+ 	char	reg;
+ 	char	name;
++	int32	offset2; // argsize
+ 	char	class;
+ };
+ 
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 5375829185..c3153938c1 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -61,7 +61,7 @@ Pconv(Fmt *fp)
+ 	switch(a) {
+ 	default:
+ 		s = str;
+-		s += sprint(s, "(%ld)", p->line);
++		s += sprint(s, "(%d)", p->line);
+ 		if(p->reg == NREG)
+ 			sprint(s, "	%A%C	%D,%D",
+ 				a, p->scond, &p->from, &p->to);
+@@ -76,23 +76,23 @@ Pconv(Fmt *fp)
+ 
+ 	case ASWPW:
+ 	case ASWPBU:
+-		sprint(str, "(%ld)	%A%C	R%d,%D,%D",
++		sprint(str, "(%d)	%A%C	R%d,%D,%D",
+ 			p->line, a, p->scond, p->reg, &p->from, &p->to);
+ 		break;
+ 
+ 	case ADATA:
+ 	case AINIT:
+ 	case ADYNT:
+-		sprint(str, "(%ld)	%A%C	%D/%d,%D",
++		sprint(str, "(%d)	%A%C	%D/%d,%D",
+ 			p->line, a, p->scond, &p->from, p->reg, &p->to);
+ 		break;
+ 
+ 	case AWORD:
+-		sprint(str, "WORD %ld", p->to.offset);
++		sprint(str, "WORD %x", p->to.offset);
+ 		break;
+ 
+ 	case ADWORD:
+-		sprint(str, "DWORD %ld %ld", p->from.offset, p->to.offset);
++		sprint(str, "DWORD %x %x", p->from.offset, p->to.offset);
+ 		break;
+ 	}
+ 	return fmtstrcpy(fp, str);
+@@ -178,13 +178,17 @@ Dconv(Fmt *fp)
+ 			sprint(str, "$%N(R%d)", a, a->reg);
+ 		break;
+ 
++	case D_CONST2:
++		sprint(str, "$%d-%d", a->offset, a->offset2);
++		break;
++
+ 	case D_SHIFT:
+ 		v = a->offset;
+ 		op = "<<>>->@>" + (((v>>5) & 3) << 1);
+ 		if(v & (1<<4))
+-			sprint(str, "R%ld%c%cR%ld", v&15, op[0], op[1], (v>>8)&15);
++			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+ 		else
+-			sprint(str, "R%ld%c%c%ld", v&15, op[0], op[1], (v>>7)&31);
++			sprint(str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
+ 		if(a->reg != NREG)
+ 			sprint(str+strlen(str), "(R%d)", a->reg);
+ 		break;
+@@ -262,9 +266,9 @@ Dconv(Fmt *fp)
+ 				sprint(str, "%.5lux(BRANCH)", v);
+ 		} else
+ 			if(a->sym != S)
+-				sprint(str, "%s+%ld(APC)", a->sym->name, a->offset);
++				sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
+ 			else
+-				sprint(str, "%ld(APC)", a->offset);
++				sprint(str, "%d(APC)", a->offset);
+ 		break;
+ 
+ 	case D_FCONST:
+@@ -293,35 +297,35 @@ Nconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_NONE:
+-		sprint(str, "%ld", a->offset);
++		sprint(str, "%d", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:
+ 		if(s == S)
+-			sprint(str, "%ld(SB)", a->offset);
++			sprint(str, "%d(SB)", a->offset);
+ 		else
+-			sprint(str, "%s+%ld(SB)", s->name, a->offset);
++			sprint(str, "%s+%d(SB)", s->name, a->offset);
+ 		break;
+ 
+ 	case D_STATIC:
+ 		if(s == S)
+-			sprint(str, "<>+%ld(SB)", a->offset);
++			sprint(str, "<>+%d(SB)", a->offset);
+ 		else
+-			sprint(str, "%s<>+%ld(SB)", s->name, a->offset);
++			sprint(str, "%s<>+%d(SB)", s->name, a->offset);
+ 		break;
+ 
+ 	case D_AUTO:
+ 		if(s == S)
+-			sprint(str, "%ld(SP)", a->offset);
++			sprint(str, "%d(SP)", a->offset);
+ 		else
+-			sprint(str, "%s-%ld(SP)", s->name, -a->offset);
++			sprint(str, "%s-%d(SP)", s->name, -a->offset);
+ 		break;
+ 
+ 	case D_PARAM:
+ 		if(s == S)
+-			sprint(str, "%ld(FP)", a->offset);
++			sprint(str, "%d(FP)", a->offset);
+ 		else
+-			sprint(str, "%s+%ld(FP)", s->name, a->offset);
++			sprint(str, "%s+%d(FP)", s->name, a->offset);
+ 		break;
+ 	}
+ 	return fmtstrcpy(fp, str);
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 333a3999a3..f4de0a0eba 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -128,7 +128,7 @@ noops(void)
+ 	Bflush(&bso);
+ 
+ 	pmorestack = P;
+-	symmorestack = lookup("sys·morestack", 0);
++	symmorestack = lookup("sys·morestackx", 0);
+ 
+ 	if(symmorestack->type == STEXT)
+ 	for(p = firstp; p != P; p = p->link) {
+@@ -342,8 +342,7 @@ noops(void)
+ 				break;
+ 			}
+ 
+-// 			if(p->reg & NOSPLIT) {
+-			if(1) {
++			if(p->reg & NOSPLIT) {
+ 				q1 = prg();
+ 				q1->as = AMOVW;
+ 				q1->scond |= C_WBIT;
+@@ -355,61 +354,78 @@ noops(void)
+ 				q1->to.reg = REGSP;
+ 				q1->link = p->link;
+ 				p->link = q1;
+-			} else { // !NOSPLIT
+-				// split stack check
+-				if(autosize < StackBig) {
+-					p = appendp(p); // load G.stackguard into R1
+-					p->as = AMOVW;
+-					p->from.type = D_OREG;
+-					p->from.reg = REGG;
+-					p->to.type = D_REG;
+-					p->to.reg = 1;
+-
+-					p = appendp(p);
+-					p->as = ACMP;
+-					p->from.type = D_REG;
+-					p->from.reg = 1;
+-					p->from.offset = -autosize;
+-					p->reg = REGSP;
+-				}
+-
+-				// TODO(kaib): Optimize the heck out of this
+-				p = appendp(p); // store autosize in M.morearg
++			} else if (autosize < StackBig) {
++				// split stack check for small functions
++				// MOVW			(REGG), R1
++				// CMP			R1, $-autosize(SP)
++				// MOVW.W.LT	R14,$-autosize(SP)
++				// MOVW.W.GE	R14,$-4(SP)
++				// MOVW.GE		$(args << 24 | autosize), R1
++				// BL.GE		callmorestack(SB)
++
++				// TODO(kaib): double check we allocate autosize after
++				// 				stack has been split
++				// TODO(kaib): add error in case autosize doesn't pack
++				// TODO(kaib): add more trampolines
++				// TODO(kaib): put stackguard in register
++				// TODO(kaib): add support for -K and underflow detection
++
++				p = appendp(p); // load G.stackguard into R1
+ 				p->as = AMOVW;
+-				p->from.type = D_CONST;
+-				if(autosize+160 > 4096)
+-					p->from.offset = (autosize+160) & ~7LL;
++				p->from.type = D_OREG;
++				p->from.reg = REGG;
+ 				p->to.type = D_REG;
+-				p->to.reg = REGTMP;
++				p->to.reg = 1;
++
++				p = appendp(p);
++				p->as = ACMP;
++				p->from.type = D_REG;
++				p->from.reg = 1;
++				p->from.offset = -autosize;
++				p->reg = REGSP;
+ 
+ 				p = appendp(p);
+ 				p->as = AMOVW;
++ 				p->scond = C_SCOND_GE | C_WBIT;
+ 				p->from.type = D_REG;
+-				p->from.reg = REGTMP;
++				p->from.reg = REGLINK;
+ 				p->to.type = D_OREG;
+-				p->to.reg = REGM;
+-				p->to.offset = 4;
++				p->to.offset = -autosize;
++				p->to.reg = REGSP;
+ 
+ 				p = appendp(p);
+ 				p->as = AMOVW;
++				p->scond = C_SCOND_LT | C_WBIT;
++				p->from.type = D_REG;
++				p->from.reg = REGLINK;
++				p->to.type = D_OREG;
++				p->to.offset = -4;
++				p->to.reg = REGSP;
++
++				p = appendp(p); // packs args and autosize
++				p->as = AMOVW;
++				p->scond = C_SCOND_LT;
+ 				p->from.type = D_CONST;
+-// 				p->from.offset = curtext->to.offset2;
++				// top 8 bits are arg count, lower 24 bits number of 4 byte
++				// words
++				p->from.offset =
++					(curtext->to.offset2 & ~7) << 21 |
++					(autosize & ~7) >> 3;
+ 				p->to.type = D_REG;
+-				p->to.reg = REGTMP;
++				p->to.reg = 1;
+ 
+ 				p = appendp(p);
+-				p->as = AMOVW;
+-				p->from.type = D_REG;
+-				p->from.reg = REGTMP;
+-				p->to.type = D_OREG;
+-				p->to.reg = REGM;
+-				p->to.offset = 8;
+- 
+-// 				p = appendp(p);
+-// 				p->as = ABL;
+-// 				p->to.type = D_BRANCH;
+-// 				p->to.sym = symmorestack;
+-// 				p->cond = pmorestack;
++				p->as = ABL;
++				p->scond = C_SCOND_LT;
++ 				p->to.type = D_BRANCH;
++				p->to.sym = symmorestack;
++				p->cond = pmorestack;
++			} else { // > StackBig
++				// MOVW.W		R14,$-4(SP)
++				// MOVW			$(args << 24 | autosize), R1
++				// BL			callmorestack(SB)
++				// TODO(kaib): Fix large stacks, don't use packing
++				diag("StackBig broken");
+ 			}
+ 			break;
+ 
+@@ -803,7 +819,7 @@ noops(void)
+ 					p->link = q;
+ 				}
+ 			}
+-			if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){	
++			if(seenthumb && !thumb && p->to.type == D_OREG && p->to.reg == REGLINK){
+ 				// print("warn %s:	b	(R%d)	assuming a return\n", curtext->from.sym->name, p->to.reg);
+ 				p->as = ABXRET;
+ 			}
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index a34a20ebcd..bcb2110f01 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -546,6 +546,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		c++;
+ 		break;
+ 
++	case D_CONST2:
++		a->offset2 = Bget4(f);	// fall through
+ 	case D_BRANCH:
+ 	case D_OREG:
+ 	case D_CONST:
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index c60b5478cc..4ca8e01f74 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -87,12 +87,12 @@ fninc(Sym *s)
+ 				return 4;
+ 			else
+ 				return 0;
+-		}			
++		}
+ 	}
+ 	return 0;
+ }
+ 
+-int 
++int
+ fnpinc(Sym *s)
+ {
+ 	if(!s->fnptr){	// a simplified case BX O(R) -> BL O(R)
+@@ -318,7 +318,7 @@ span(void)
+ 				else
+ 					m = 2;
+ 				p->align = 0;
+-			}	
++			}
+ 			if(p->align){
+ 				if((p->align == 4 && (c&3)) || (p->align == 2 && !(c&3))){
+ 					if(ispad(op)){
+@@ -374,9 +374,9 @@ span(void)
+ 		// print("%d bytes removed (padding)\n", d);
+ 		c -= d;
+ 	}
+-	
++
+ 	if(debug['t']) {
+-		/* 
++		/*
+ 		 * add strings to text segment
+ 		 */
+ 		c = rnd(c, 8);
+@@ -391,7 +391,7 @@ span(void)
+ 			c += v;
+ 		}
+ 	}
+-			
++
+ 	c = rnd(c, 8);
+ 
+ 	setext = lookup("etext", 0);
+@@ -726,6 +726,7 @@ aclass(Adr *a)
+ 		return C_FCON;
+ 
+ 	case D_CONST:
++	case D_CONST2:
+ 		switch(a->name) {
+ 
+ 		case D_NONE:
+@@ -1072,7 +1073,7 @@ buildop(void)
+ 			oprange[AMOVFD] = oprange[r];
+ 			oprange[AMOVDF] = oprange[r];
+ 			break;
+-			
++
+ 		case ACMPF:
+ 			oprange[ACMPD] = oprange[r];
+ 			break;
+@@ -1246,7 +1247,7 @@ asmdyn()
+ 				t += 4;
+ 				t += sput(s->name);
+ 			}
+-	
++
+ 	la = 0;
+ 	r = &rels;
+ 	n = r->n;
+diff --git a/src/libmach_amd64/5obj.c b/src/libmach_amd64/5obj.c
+index fa7be5abd4..08a7738d2a 100644
+--- a/src/libmach_amd64/5obj.c
++++ b/src/libmach_amd64/5obj.c
+@@ -123,6 +123,11 @@ addr(Biobuf *bp)
+ 	case D_PSR:
+ 	case D_FPCR:
+ 		break;
++	case D_CONST2:
++		Bgetc(bp);
++		Bgetc(bp);
++		Bgetc(bp);
++		Bgetc(bp);	// fall through
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_BRANCH:
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index e47ab86e31..5e68b72ffe 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -3,88 +3,80 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT _rt0_arm(SB),7,$0
+-// copy arguments forward on an even stack
+-//     	MOVW	$0(SP), R0
+-//	MOVL	0(SP), R1		// argc
+-//	LEAL	4(SP), R1		// argv
+-//	SUBL	$128, SP		// plenty of scratch
+-//	ANDL	$~7, SP
+-//	MOVL	AX, 120(SP)		// save argc, argv away
+-//	MOVL	BX, 124(SP)
+-
+-
+-//	// write "go386\n"
+-//	PUSHL	$6
+-//	PUSHL	$hello(SB)
+-//	PUSHL	$1
+-//	CALL	sys·write(SB)
+-//	POPL	AX
+-//	POPL	AX
+-//	POPL	AX
+-
+-
+-//	CALL	ldt0setup(SB)
+-
+-	// set up %fs to refer to that ldt entry
+-//	MOVL	$(7*8+7), AX
+-//	MOVW	AX, FS
+-
+-//	// store through it, to make sure it works
+-//	MOVL	$0x123, 0(FS)
+-//	MOVL	tls0(SB), AX
+-//	CMPL	AX, $0x123
+-//	JEQ	ok
+-//	MOVL	AX, 0
+-// ok:
+-
+-//	// set up m and g "registers"
+-//	// g is 0(FS), m is 4(FS)
+-//	LEAL	g0(SB), CX
+-//	MOVL	CX, 0(FS)
+-//	LEAL	m0(SB), AX
+-//	MOVL	AX, 4(FS)
+-
+-//	// save m->g0 = g0
+-//	MOVL	CX, 0(AX)
+-
+-//	// create istack out of the OS stack
+-//	LEAL	(-8192+104)(SP), AX	// TODO: 104?
+-//	MOVL	AX, 0(CX)	// 8(g) is stack limit (w 104b guard)
+-//	MOVL	SP, 4(CX)	// 12(g) is base
+-//	CALL	emptyfunc(SB)	// fault if stack check is wrong
+-
+-//	// convention is D is always cleared
+-//	CLD
+-
+-//	CALL	check(SB)
+-
+-//	// saved argc, argv
+-//	MOVL	120(SP), AX
+-//	MOVL	AX, 0(SP)
+-//	MOVL	124(SP), AX
+-//	MOVL	AX, 4(SP)
+-//	CALL	args(SB)
+-//	CALL	osinit(SB)
+-//	CALL	schedinit(SB)
+-
+-//	// create a new goroutine to start program
+-//	PUSHL	$mainstart(SB)	// entry
+-//	PUSHL	$8	// arg size
+-//	CALL	sys·newproc(SB)
+-//	POPL	AX
+-//	POPL	AX
++	MOVW $setR12(SB), R12
++
++	// copy arguments forward on an even stack
++	MOVW	0(SP), R0		// argc
++	MOVW	4(SP), R1		// argv
++	SUB	$128, SP		// plenty of scratch
++	AND	$~7, SP
++	MOVW	R0, 120(SP)		// save argc, argv away
++	MOVW	R1, 124(SP)
++
++	// set up m and g registers
++	// g is R10, m is R9
++	MOVW	$g0(SB), R10
++	MOVW	$m0(SB), R9
++
++	// save m->g0 = g0
++	MOVW	R10, 0(R9)
++
++	// create istack out of the OS stack
++	MOVW	$(-8192+104)(SP), R0
++	MOVW	R0, 0(R10)	// 0(g) is stack limit (w 104b guard)
++	MOVW	SP, 4(R10)	// 4(g) is base
++	BL	emptyfunc(SB)	// fault if stack check is wrong
++
++	BL	check(SB)
++
++	// saved argc, argv
++	MOVW	120(SP), R0
++	MOVW	R0, 0(SP)
++	MOVW	124(SP), R0
++	MOVW	R0, 4(SP)
++	BL	args(SB)
++	BL	osinit(SB)
++	BL	schedinit(SB)
++
++	// create a new goroutine to start program
++	MOVW	$mainstart(SB), R0
++	MOVW.W	R0, -4(SP)
++	MOVW	$8, R0
++	MOVW.W	R0, -4(SP)
++	MOVW	$0, R0
++	MOVW.W	R0, -4(SP)	// push $0 as guard
++	BL	sys·newproc(SB)
++	MOVW	$12(SP), SP	// pop args and LR
++
++	// start this M
++	BL	mstart(SB)
++
++	MOVW	$0, R0
++	SWI	$0x00900001
++	B	_dep_dummy(SB)	// Never reached
+ 
+-//	// start this M
+-//	CALL	mstart(SB)
+ 
++TEXT mainstart(SB),7,$0
++	BL	main·init(SB)
++	BL	initdone(SB)
+ 	BL	main·main(SB)
+-	MOVW	$99, R0
+-	SWI	$0x00900001
++	MOVW	$0, R0
++	MOVW.W	R0, -4(SP)
++	MOVW.W	R14, -4(SP)	// Push link as well
++	BL	exit(SB)
++	MOVW	$8(SP), SP	// pop args and LR
++	RET
+ 
+ // TODO(kaib): remove these once linker works properly
+ // pull in dummy dependencies
+-// TEXT _dep_dummy(SB),7,$0
+-//	BL	sys·morestack(SB)
++TEXT _dep_dummy(SB),7,$0
++	BL	sys·morestack(SB)
++	BL	sys·morestackx(SB)
++	BL	_div(SB)
++	BL	_divu(SB)
++	BL	_mod(SB)
++	BL	_modu(SB)
++	BL	_modu(SB)
+ 
+ 
+ TEXT	breakpoint(SB),7,$0
+@@ -114,33 +106,38 @@ TEXT gosave(SB), 7, $0
+ // support for morestack
+ 
+ // return point when leaving new stack.
+-// save AX, jmp to lesstack to switch back
++// save R0, jmp to lesstack to switch back
+ TEXT	retfromnewstack(SB),7,$0
+-	BL	abort(SB)
+-//	MOVL	4(FS), BX	// m
+-//	MOVL	AX, 12(BX)	// save AX in m->cret
+-//	JMP	lessstack(SB)
++	MOVW	R0,12(R9)	// m->cret
++	B	lessstack(SB)
+ 
+ // gogo, returning 2nd arg instead of 1
+ TEXT gogoret(SB), 7, $0
+-	BL	abort(SB)
+-//	MOVL	8(SP), AX	// return 2nd arg
+-//	MOVL	4(SP), BX	// gobuf
+-//	MOVL	0(BX), SP	// restore SP
+-//	MOVL	4(BX), BX
+-//	MOVL	BX, 0(SP)	// put PC on the stack
+-//	RET
++	MOVW	8(SP), R0	// return 2nd arg
++	MOVW	4(SP), R1	// gobuf
++	MOVW	0(R1), SP	// restore SP
++	MOVW	4(R1), PC	// restore PC
+ 
+ TEXT setspgoto(SB), 7, $0
+-	BL	abort(SB)
+-//	MOVL	4(SP), AX	// SP
+-//	MOVL	8(SP), BX	// fn to call
+-//	MOVL	12(SP), CX	// fn to return
+-//	MOVL	AX, SP
+-//	PUSHL	CX
+-//	JMP	BX
+-//	POPL	AX	// not reached
+-//	RET
++	MOVW	4(SP), R0	// SP
++	MOVW	8(SP), R1	// fn to call
++	MOVW	12(SP), R2	// fn to return into
++	MOVW	R2, R14		// restore LR
++	MOVW	R0, SP
++	MOVW	R1, PC		// goto
++
++// Optimization to make inline stack splitting code smaller
++// R0 is original first argument
++// R1 is arg_num << 24 | autosize >> 3
++TEXT sys·morestackx(SB), 7, $0
++	MOVW	R0, 4(SP)	// Save arg0
++	MOVW	R1<<8, R2
++	MOVW	R2>>5, R2
++	MOVW	R2, 4(R10)	// autooffset into g
++	MOVW	R1>>24, R2
++	MOVW	R2<<3, R2
++	MOVW	R2, 8(R10)	// argsize into g
++	B	sys·morestack(SB)
+ 
+ // bool cas(int32 *val, int32 old, int32 new)
+ // Atomically:
+@@ -149,18 +146,26 @@ TEXT setspgoto(SB), 7, $0
+ //		return 1;
+ //	}else
+ //		return 0;
+-TEXT cas(SB), 7, $0
+-	BL	abort(SB)
+-//	MOVL	4(SP), BX
+-//	MOVL	8(SP), AX
+-//	MOVL	12(SP), CX
+-//	LOCK
+-//	CMPXCHGL	CX, 0(BX)
+-//	JZ 3(PC)
+-//	MOVL	$0, AX
+-//	RET
+-//	MOVL	$1, AX
+-//	RET
++#define	LDREX(a,r)	WORD	$(0xe<<28|0x01900f9f | (a)<<16 | (r)<<12)
++#define	STREX(a,v,r)	WORD	$(0xe<<28|0x01800f90 | (a)<<16 | (r)<<12 | (v)<<0)
++
++TEXT	cas+0(SB),0,$12		/* r0 holds p */
++	MOVW	ov+4(FP), R1
++	MOVW	nv+8(FP), R2
++spin:
++/*	LDREX	0(R0),R3	*/
++	LDREX(0,3)
++	CMP.S	R3, R1
++	BNE	fail
++/*	STREX	0(R0),R2,R4	*/
++	STREX(0,2,4)
++	CMP.S	$0, R4
++	BNE	spin
++	MOVW	$1, R0
++	RET
++fail:
++	MOVW	$0, R0
++	RET
+ 
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+@@ -200,6 +205,10 @@ TEXT	sys·setcallerpc+0(SB),7,$0
+ //	MOVL	BX, -4(AX)		// set calling pc
+ //	RET
+ 
++TEXT emptyfunc(SB),0,$0
++	RET
++
+ TEXT abort(SB),7,$0
+-	WORD	$0
++	MOVW	$0, R0
++	MOVW	(R0), R1
+ 

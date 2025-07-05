@@ -20,9 +20,56 @@ Date:   Wed Jul 26 05:59:50 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/59599.txt                              | 1 +
  src/cmd/compile/internal/reflectdata/reflect.go | 2 +-
  src/encoding/gob/decode.go                      | 2 +-
  src/reflect/type.go                             | 2 ++
  4 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/59599.txt b/api/next/59599.txt
+new file mode 100644
+index 0000000000..952291f323
+--- /dev/null
++++ b/api/next/59599.txt
+@@ -0,0 +1 @@
++pkg reflect, func PtrTo //deprecated #59599
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 6ef40cb84c..88a233842e 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1224,7 +1224,7 @@ func writeType(t *types.Type) *obj.LSym {
+ 	keep := base.Ctxt.Flag_dynlink
+ 	if !keep && t.Sym() == nil {
+ 		// For an unnamed type, we only need the link if the type can
+-		// be created at run time by reflect.PtrTo and similar
++		// be created at run time by reflect.PointerTo and similar
+ 		// functions. If the type exists in the program, those
+ 		// functions must return the existing type structure rather
+ 		// than creating a new one.
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 76ea332e5d..66c76a0709 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -656,7 +656,7 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
+ 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
+ 	}
+ 	if value.Cap() < n {
+-		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
++		safe := saferio.SliceCap(reflect.Zero(reflect.PointerTo(typ.Elem())).Interface(), uint64(n))
+ 		if safe < 0 {
+ 			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
+ 		}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 9fd242e732..cefb9a43ab 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1171,6 +1171,8 @@ var ptrMap sync.Map // map[*rtype]*ptrType
+ //
+ // PtrTo is the old spelling of PointerTo.
+ // The two functions behave identically.
++//
++// Deprecated: Superseded by [PointerTo].
+ func PtrTo(t Type) Type { return PointerTo(t) }
+ 
+ // PointerTo returns the pointer type with element t.

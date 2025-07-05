@@ -15,7 +15,61 @@ Date:   Tue Sep 19 17:23:58 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/pattern_test.go       |  6 +++---
  src/net/http/routing_index_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/pattern_test.go b/src/net/http/pattern_test.go
+index e71cba8632..abda4d872d 100644
+--- a/src/net/http/pattern_test.go
++++ b/src/net/http/pattern_test.go
+@@ -159,11 +159,11 @@ func TestIsValidHTTPToken(t *testing.T) {
+ 	}
+ }
+ 
+-func mustParsePattern(t *testing.T, s string) *pattern {
+-	t.Helper()
++func mustParsePattern(tb testing.TB, s string) *pattern {
++	tb.Helper()
+ 	p, err := parsePattern(s)
+ 	if err != nil {
+-		t.Fatal(err)
++		tb.Fatal(err)
+ 	}
+ 	return p
+ }
+diff --git a/src/net/http/routing_index_test.go b/src/net/http/routing_index_test.go
+index 404574a66a..1ffb9272c6 100644
+--- a/src/net/http/routing_index_test.go
++++ b/src/net/http/routing_index_test.go
+@@ -151,3 +151,29 @@ func genStar(max int, g generator) generator {
+ 		}
+ 	}
+ }
++
++func BenchmarkMultiConflicts(b *testing.B) {
++	// How fast is indexing if the corpus is all multis?
++	const nMultis = 1000
++	var pats []*pattern
++	for i := 0; i < nMultis; i++ {
++		pats = append(pats, mustParsePattern(b, fmt.Sprintf("/a/b/{x}/d%d/", i)))
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		var idx routingIndex
++		for _, p := range pats {
++			got := indexConflicts(p, &idx)
++			if len(got) != 0 {
++				b.Fatalf("got %d conflicts, want 0", len(got))
++			}
++			idx.addPattern(p)
++		}
++		if i == 0 {
++			// Confirm that all the multis ended up where they belong.
++			if g, w := len(idx.multis), nMultis; g != w {
++				b.Fatalf("got %d multis, want %d", g, w)
++			}
++		}
++	}
++}

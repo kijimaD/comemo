@@ -17,7 +17,7 @@ Date:   Thu Apr 4 08:50:27 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial.go          |  8 ++++++++
  src/net/file_plan9.go    |  2 +-
  src/net/file_unix.go     |  2 +-
@@ -26,3 +26,182 @@ Date:   Thu Apr 4 08:50:27 2019 +0000
  src/net/tcpsock_plan9.go | 14 ++++++++++++--
  src/net/tcpsock_posix.go | 14 ++++++++++++--
  7 files changed, 37 insertions(+), 26 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 1dd8690739..1f3ce1dfa3 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -596,6 +596,14 @@ type ListenConfig struct {
+ 	// necessarily the ones passed to Listen. For example, passing "tcp" to
+ 	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
+ 	Control func(network, address string, c syscall.RawConn) error
++
++	// KeepAlive specifies the keep-alive period for network
++	// connections accepted by this listener.
++	// If zero, keep-alives are enabled if supported by the protocol
++	// and operating system. Network protocols or operating systems
++	// that do not support keep-alives ignore this field.
++	// If negative, keep-alives are disabled.
++	KeepAlive time.Duration
+ }
+ 
+ // Listen announces on the local network address.
+diff --git a/src/net/file_plan9.go b/src/net/file_plan9.go
+index d16e5a166c..dfb23d2e84 100644
+--- a/src/net/file_plan9.go
++++ b/src/net/file_plan9.go
+@@ -127,7 +127,7 @@ func fileListener(f *os.File) (Listener, error) {
+ 		return nil, errors.New("file does not represent a listener")
+ 	}
+ 
+-	return &TCPListener{fd}, nil
++	return &TCPListener{fd: fd}, nil
+ }
+ 
+ func filePacketConn(f *os.File) (PacketConn, error) {
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index 452a079bfc..dba69554ca 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -93,7 +93,7 @@ func fileListener(f *os.File) (Listener, error) {
+ 	}
+ 	switch laddr := fd.laddr.(type) {
+ 	case *TCPAddr:
+-		return &TCPListener{fd}, nil
++		return &TCPListener{fd: fd}, nil
+ 	case *UnixAddr:
+ 		return &UnixListener{fd: fd, path: laddr.Name, unlink: false}, nil
+ 	}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 4e9ea34491..14f74285c1 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2792,7 +2792,7 @@ func (srv *Server) ListenAndServe() error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
++	return srv.Serve(ln)
+ }
+ 
+ var testHookServerServe func(*Server, net.Listener) // used if non-nil
+@@ -3076,7 +3076,7 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 
+ 	defer ln.Close()
+ 
+-	return srv.ServeTLS(tcpKeepAliveListener{ln.(*net.TCPListener)}, certFile, keyFile)
++	return srv.ServeTLS(ln, certFile, keyFile)
+ }
+ 
+ // setupHTTP2_ServeTLS conditionally configures HTTP/2 on
+@@ -3269,24 +3269,6 @@ func (tw *timeoutWriter) writeHeader(code int) {
+ 	tw.code = code
+ }
+ 
+-// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+-// connections. It's used by ListenAndServe and ListenAndServeTLS so
+-// dead TCP connections (e.g. closing laptop mid-download) eventually
+-// go away.
+-type tcpKeepAliveListener struct {
+-	*net.TCPListener
+-}
+-
+-func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+-	tc, err := ln.AcceptTCP()
+-	if err != nil {
+-		return nil, err
+-	}
+-	tc.SetKeepAlive(true)
+-	tc.SetKeepAlivePeriod(3 * time.Minute)
+-	return tc, nil
+-}
+-
+ // onceCloseListener wraps a net.Listener, protecting it from
+ // multiple Close calls.
+ type onceCloseListener struct {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index db5d1f8482..666c804169 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -224,6 +224,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ // use variables of type Listener instead of assuming TCP.
+ type TCPListener struct {
+ 	fd *netFD
++	lc ListenConfig
+ }
+ 
+ // SyscallConn returns a raw network connection.
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index f70ef6f43a..e538f55865 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"io"
+ 	"os"
++	"time"
+ )
+ 
+ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
+@@ -44,7 +45,16 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newTCPConn(fd), nil
++	tc := newTCPConn(fd)
++	if ln.lc.KeepAlive >= 0 {
++		setKeepAlive(fd, true)
++		ka := ln.lc.KeepAlive
++		if ln.lc.KeepAlive == 0 {
++			ka = 3 * time.Minute
++		}
++		setKeepAlivePeriod(fd, ka)
++	}
++	return tc, nil
+ }
+ 
+ func (ln *TCPListener) close() error {
+@@ -74,5 +84,5 @@ func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListe
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &TCPListener{fd}, nil
++	return &TCPListener{fd: fd, lc: sl.ListenConfig}, nil
+ }
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 64e71bf97c..14d383b74d 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"syscall"
++	"time"
+ )
+ 
+ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+@@ -140,7 +141,16 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newTCPConn(fd), nil
++	tc := newTCPConn(fd)
++	if ln.lc.KeepAlive >= 0 {
++		setKeepAlive(fd, true)
++		ka := ln.lc.KeepAlive
++		if ln.lc.KeepAlive == 0 {
++			ka = 3 * time.Minute
++		}
++		setKeepAlivePeriod(fd, ka)
++	}
++	return tc, nil
+ }
+ 
+ func (ln *TCPListener) close() error {
+@@ -160,5 +170,5 @@ func (sl *sysListener) listenTCP(ctx context.Context, laddr *TCPAddr) (*TCPListe
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &TCPListener{fd}, nil
++	return &TCPListener{fd: fd, lc: sl.ListenConfig}, nil
+ }

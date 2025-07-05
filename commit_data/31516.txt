@@ -28,7 +28,61 @@ Date:   Mon Feb 27 11:37:54 2017 -0800
     Change-Id: I0d420b69c84a41ba9968c394e8957910bab5edea
     Reviewed-on: https://go-review.googlesource.com/37508
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 19 ++++++++++++++-----
  test/escape2.go                    | 15 +++++++++++++++
  2 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 1b29aebcc4..dcfab54a09 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -685,11 +685,20 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 		e.escassignSinkWhy(n, n, "too large for stack") // TODO category: tooLarge
+ 	}
+ 
+-	e.esc(n.Left, n)
+-	e.esc(n.Right, n)
+-	e.esclist(n.Nbody, n)
+-	e.esclist(n.List, n)
+-	e.esclist(n.Rlist, n)
++	if n.Op == OIF && Isconst(n.Left, CTBOOL) {
++		// Don't examine dead code.
++		if n.Left.Bool() {
++			e.esclist(n.Nbody, n)
++		} else {
++			e.esclist(n.Rlist, n)
++		}
++	} else {
++		e.esc(n.Left, n)
++		e.esc(n.Right, n)
++		e.esclist(n.Nbody, n)
++		e.esclist(n.List, n)
++		e.esclist(n.Rlist, n)
++	}
+ 
+ 	if n.Op == OFOR || n.Op == ORANGE {
+ 		e.loopdepth--
+diff --git a/test/escape2.go b/test/escape2.go
+index 3490c29d3b..e10dbc2acc 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1824,3 +1824,18 @@ func issue11387(x int) func() int {
+ 	copy(slice2, slice1)
+ 	return slice2[0]
+ }
++
++func issue12397(x, y int) { // ERROR "moved to heap: y$"
++	// x does not escape below, because all relevant code is dead.
++	if false {
++		gxx = &x
++	} else {
++		gxx = &y // ERROR "&y escapes to heap$"
++	}
++
++	if true {
++		gxx = &y // ERROR "&y escapes to heap$"
++	} else {
++		gxx = &x
++	}
++}

@@ -13,7 +13,76 @@ Date:   Tue Jan 24 07:40:17 2017 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/writer.go      |  7 ++++++-
  src/mime/multipart/writer_test.go | 15 +++++++++------
  2 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index 44e2f1bce3..3dd0c8fb13 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -50,13 +50,18 @@ func (w *Writer) SetBoundary(boundary string) error {
+ 	if len(boundary) < 1 || len(boundary) > 70 {
+ 		return errors.New("mime: invalid boundary length")
+ 	}
+-	for _, b := range boundary {
++	end := len(boundary) - 1
++	for i, b := range boundary {
+ 		if 'A' <= b && b <= 'Z' || 'a' <= b && b <= 'z' || '0' <= b && b <= '9' {
+ 			continue
+ 		}
+ 		switch b {
+ 		case '\'', '(', ')', '+', '_', ',', '-', '.', '/', ':', '=', '?':
+ 			continue
++		case ' ':
++			if i != end {
++				continue
++			}
+ 		}
+ 		return errors.New("mime: invalid boundary character")
+ 	}
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index 23e650f5e4..8b1bcd68d8 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -80,8 +80,6 @@ func TestWriter(t *testing.T) {
+ }
+ 
+ func TestWriterSetBoundary(t *testing.T) {
+-	var b bytes.Buffer
+-	w := NewWriter(&b)
+ 	tests := []struct {
+ 		b  string
+ 		ok bool
+@@ -94,8 +92,12 @@ func TestWriterSetBoundary(t *testing.T) {
+ 		{strings.Repeat("x", 71), false},
+ 		{"bad!ascii!", false},
+ 		{"my-separator", true},
++		{"with space", true},
++		{"badspace ", false},
+ 	}
+ 	for i, tt := range tests {
++		var b bytes.Buffer
++		w := NewWriter(&b)
+ 		err := w.SetBoundary(tt.b)
+ 		got := err == nil
+ 		if got != tt.ok {
+@@ -105,12 +107,13 @@ func TestWriterSetBoundary(t *testing.T) {
+ 			if got != tt.b {
+ 				t.Errorf("boundary = %q; want %q", got, tt.b)
+ 			}
++			w.Close()
++			wantSub := "\r\n--" + tt.b + "--\r\n"
++			if got := b.String(); !strings.Contains(got, wantSub) {
++				t.Errorf("expected %q in output. got: %q", wantSub, got)
++			}
+ 		}
+ 	}
+-	w.Close()
+-	if got := b.String(); !strings.Contains(got, "\r\n--my-separator--\r\n") {
+-		t.Errorf("expected my-separator in output. got: %q", got)
+-	}
+ }
+ 
+ func TestWriterBoundaryGoroutines(t *testing.T) {

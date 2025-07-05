@@ -28,7 +28,34 @@ Date:   Wed Mar 29 16:55:58 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/http.go | 2 +-
  src/net/net.go       | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 826f7ff3da..b95ca89f40 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -20,7 +20,7 @@ const maxInt64 = 1<<63 - 1
+ 
+ // aLongTimeAgo is a non-zero time, far in the past, used for
+ // immediate cancelation of network operations.
+-var aLongTimeAgo = time.Unix(233431200, 0)
++var aLongTimeAgo = time.Unix(1, 0)
+ 
+ // TODO(bradfitz): move common stuff here. The other files have accumulated
+ // generic http stuff in random places.
+diff --git a/src/net/net.go b/src/net/net.go
+index 9c27f1baf9..bfb9c291b8 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -467,7 +467,7 @@ func (e *OpError) Error() string {
+ var (
+ 	// aLongTimeAgo is a non-zero time, far in the past, used for
+ 	// immediate cancelation of dials.
+-	aLongTimeAgo = time.Unix(233431200, 0)
++	aLongTimeAgo = time.Unix(1, 0)
+ 
+ 	// nonDeadline and noCancel are just zero values for
+ 	// readability with functions taking too many parameters.

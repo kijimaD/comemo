@@ -8,9 +8,115 @@ Date:   Wed Sep 3 15:54:33 2008 -0700
     R=gri
     OCL=14766
     CL=14766
-
+---
  test/complit.go                    | 44 ++++++++++++++++++++++++++++++++++++++
  test/{bugs => fixedbugs}/bug047.go |  2 +-
  test/{bugs => fixedbugs}/bug048.go |  3 +--
  test/golden.out                    | 15 -------------
  4 files changed, 46 insertions(+), 18 deletions(-)
+
+diff --git a/test/complit.go b/test/complit.go
+new file mode 100644
+index 0000000000..bba690cfe4
+--- /dev/null
++++ b/test/complit.go
+@@ -0,0 +1,44 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct { i int; f float; s string; next *T }
++
++func main() {
++	var t T;
++	t = T(0, 7.2, "hi", &t);
++
++	var tp *T;
++	tp = &T(0, 7.2, "hi", &t);
++
++	a1 := []int(1,2,3);
++	if len(a1) != 3 { panic("a1") }
++	a2 := [10]int(1,2,3);
++	if len(a2) != 10 || a2[3] != 0 { panic("a2") }
++	//a3 := [10]int(1,2,3,);  // BUG: trailing commas not allowed
++	//if len(a3) != 10 || a2[3] != 0 { panic("a3") }
++
++	var oai *[]int;
++	oai = &[]int(1,2,3);
++	if len(oai) != 3 { panic("oai") }
++
++	at := []*T(&t, &t, &t);
++	if len(at) != 3 { panic("at") }
++
++	c := new(chan int);
++	ac := []*chan int(c, c, c);
++	if len(ac) != 3 { panic("ac") }
++
++	aat := [][len(at)]*T(at, at);
++	if len(aat) != 2 || len(aat[1]) != 3 { panic("at") }
++	
++	s := string([]byte('h', 'e', 'l', 'l', 'o'));
++	if s != "hello" { panic("s") }
++
++	m := map[string]float("one":1.0, "two":2.0, "pi":22./7.);
++	if len(m) != 3 { panic("m") }
++}
+diff --git a/test/bugs/bug047.go b/test/fixedbugs/bug047.go
+similarity index 95%
+rename from test/bugs/bug047.go
+rename to test/fixedbugs/bug047.go
+index a5beae5b74..61b4255b0c 100644
+--- a/test/bugs/bug047.go
++++ b/test/fixedbugs/bug047.go
+@@ -17,5 +17,5 @@ func main() {
+ 	t := T(s, f);
+ 
+ 	type M map[int] int;
+-	m0 := M(7 , 8);
++	m0 := M(7:8);
+ }
+diff --git a/test/bugs/bug048.go b/test/fixedbugs/bug048.go
+similarity index 67%
+rename from test/bugs/bug048.go
+rename to test/fixedbugs/bug048.go
+index 519d7bc7b2..30a015cc26 100644
+--- a/test/bugs/bug048.go
++++ b/test/fixedbugs/bug048.go
+@@ -8,6 +8,5 @@ package main
+ 
+ func main() {
+ 	type M map[int] int;
+-	m0 := M(7 , 8);	// parses OK
+-	m1 := M(7 : 8);	// BUG: syntax error  (grammar but not doc has [a:b]; what should we do?
++	m1 := M(7 : 8);
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 0fe042c3b2..da9ff597f3 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -71,21 +71,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug047.go
+-bugs/bug047.go:16: illegal types for operand: CONV
+-	(MAP[<int32>INT32]<int32>INT32)
+-bugs/bug047.go:16: illegal types for operand: CONV
+-	(MAP[<int32>INT32]<int32>INT32)
+-BUG: known to fail incorrectly
+-
+-=========== bugs/bug048.go
+-bugs/bug048.go:7: illegal types for operand: CONV
+-	(MAP[<int32>INT32]<int32>INT32)
+-bugs/bug048.go:8: syntax error
+-bugs/bug048.go:7: illegal types for operand: CONV
+-	(MAP[<int32>INT32]<int32>INT32)
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug061.go
+ BUG: known to fail incorrectly
+ Bus error               $G $D/$F.go

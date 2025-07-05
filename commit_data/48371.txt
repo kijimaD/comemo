@@ -37,7 +37,7 @@ Date:   Tue May 11 10:52:44 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/regexp/find_test.go                    |   1 +
  src/regexp/onepass_test.go                 |   2 +-
  src/regexp/syntax/compile.go               |  29 ++++--
@@ -47,3 +47,406 @@ Date:   Tue May 11 10:52:44 2021 -0400
  src/regexp/testdata/re2-exhaustive.txt.bz2 | Bin 394016 -> 428262 bytes
  src/regexp/testdata/re2-search.txt         | 145 +++++++++++++++++++++++++----
  8 files changed, 176 insertions(+), 46 deletions(-)
+
+diff --git a/src/regexp/find_test.go b/src/regexp/find_test.go
+index 87c49b074f..64c2239d90 100644
+--- a/src/regexp/find_test.go
++++ b/src/regexp/find_test.go
+@@ -97,6 +97,7 @@ var findTests = []FindTest{
+ 	{`\B`, "xx", build(1, 1, 1)},
+ 	{`\B`, "x y", nil},
+ 	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
++	{`(|a)*`, "aa", build(3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2)},
+ 
+ 	// RE2 tests
+ 	{`[^\S\s]`, "abcd", nil},
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index 32264d5f1e..6a42eda391 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -142,7 +142,7 @@ var onePassTests = []struct {
+ 	{`^(?:(a)|(?:a*))$`, false},
+ 	{`^(?:(?:(?:.(?:$))?))$`, true},
+ 	{`^abcd$`, true},
+-	{`^(?:(?:a{0,})*?)$`, true},
++	{`^(?:(?:a{0,})*?)$`, false},
+ 	{`^(?:(?:a+)*)$`, true},
+ 	{`^(?:(?:a|(?:aa)))$`, true},
+ 	{`^(?:[^\s\S])$`, true},
+diff --git a/src/regexp/syntax/compile.go b/src/regexp/syntax/compile.go
+index 7524d628fe..c9f9fa024b 100644
+--- a/src/regexp/syntax/compile.go
++++ b/src/regexp/syntax/compile.go
+@@ -57,8 +57,9 @@ func (l1 patchList) append(p *Prog, l2 patchList) patchList {
+ 
+ // A frag represents a compiled program fragment.
+ type frag struct {
+-	i   uint32    // index of first instruction
+-	out patchList // where to record end instruction
++	i        uint32    // index of first instruction
++	out      patchList // where to record end instruction
++	nullable bool      // whether fragment can match empty string
+ }
+ 
+ type compiler struct {
+@@ -159,7 +160,7 @@ func (c *compiler) compile(re *Regexp) frag {
+ 
+ func (c *compiler) inst(op InstOp) frag {
+ 	// TODO: impose length limit
+-	f := frag{i: uint32(len(c.p.Inst))}
++	f := frag{i: uint32(len(c.p.Inst)), nullable: true}
+ 	c.p.Inst = append(c.p.Inst, Inst{Op: op})
+ 	return f
+ }
+@@ -194,7 +195,7 @@ func (c *compiler) cat(f1, f2 frag) frag {
+ 	// TODO: elide nop
+ 
+ 	f1.out.patch(c.p, f2.i)
+-	return frag{f1.i, f2.out}
++	return frag{f1.i, f2.out, f1.nullable && f2.nullable}
+ }
+ 
+ func (c *compiler) alt(f1, f2 frag) frag {
+@@ -211,6 +212,7 @@ func (c *compiler) alt(f1, f2 frag) frag {
+ 	i.Out = f1.i
+ 	i.Arg = f2.i
+ 	f.out = f1.out.append(c.p, f2.out)
++	f.nullable = f1.nullable || f2.nullable
+ 	return f
+ }
+ 
+@@ -228,7 +230,12 @@ func (c *compiler) quest(f1 frag, nongreedy bool) frag {
+ 	return f
+ }
+ 
+-func (c *compiler) star(f1 frag, nongreedy bool) frag {
++// loop returns the fragment for the main loop of a plus or star.
++// For plus, it can be used after changing the entry to f1.i.
++// For star, it can be used directly when f1 can't match an empty string.
++// (When f1 can match an empty string, f1* must be implemented as (f1+)?
++// to get the priority match order correct.)
++func (c *compiler) loop(f1 frag, nongreedy bool) frag {
+ 	f := c.inst(InstAlt)
+ 	i := &c.p.Inst[f.i]
+ 	if nongreedy {
+@@ -242,8 +249,17 @@ func (c *compiler) star(f1 frag, nongreedy bool) frag {
+ 	return f
+ }
+ 
++func (c *compiler) star(f1 frag, nongreedy bool) frag {
++	if f1.nullable {
++		// Use (f1+)? to get priority match order correct.
++		// See golang.org/issue/46123.
++		return c.quest(c.plus(f1, nongreedy), nongreedy)
++	}
++	return c.loop(f1, nongreedy)
++}
++
+ func (c *compiler) plus(f1 frag, nongreedy bool) frag {
+-	return frag{f1.i, c.star(f1, nongreedy).out}
++	return frag{f1.i, c.loop(f1, nongreedy).out, f1.nullable}
+ }
+ 
+ func (c *compiler) empty(op EmptyOp) frag {
+@@ -255,6 +271,7 @@ func (c *compiler) empty(op EmptyOp) frag {
+ 
+ func (c *compiler) rune(r []rune, flags Flags) frag {
+ 	f := c.inst(InstRune)
++	f.nullable = false
+ 	i := &c.p.Inst[f.i]
+ 	i.Rune = r
+ 	flags &= FoldCase // only relevant flag is FoldCase
+diff --git a/src/regexp/syntax/prog_test.go b/src/regexp/syntax/prog_test.go
+index 50bfa3d4be..5603aea228 100644
+--- a/src/regexp/syntax/prog_test.go
++++ b/src/regexp/syntax/prog_test.go
+@@ -88,6 +88,21 @@ var compileTests = []struct {
+   1*	empty 4 -> 2
+   2	anynotnl -> 3
+   3	match
++`},
++	{"(?:|a)+", `  0	fail
++  1	nop -> 4
++  2	rune1 "a" -> 4
++  3*	alt -> 1, 2
++  4	alt -> 3, 5
++  5	match
++`},
++	{"(?:|a)*", `  0	fail
++  1	nop -> 4
++  2	rune1 "a" -> 4
++  3	alt -> 1, 2
++  4	alt -> 3, 6
++  5*	alt -> 3, 6
++  6	match
+ `},
+ }
+ 
+diff --git a/src/regexp/testdata/basic.dat b/src/regexp/testdata/basic.dat
+index 7859290ba1..1776b1ff96 100644
+--- a/src/regexp/testdata/basic.dat
++++ b/src/regexp/testdata/basic.dat
+@@ -124,24 +124,20 @@ E	((a))			abc		(0,1)(0,1)(0,1)
+ E	(a)b(c)			abc		(0,3)(0,1)(2,3)
+ E	a+b+c			aabbabc		(4,7)
+ E	a*			aaa		(0,3)
+-#E	(a*)*			-		(0,0)(0,0)
+-E	(a*)*			-		(0,0)(?,?)	RE2/Go
++E	(a*)*			-		(0,0)(0,0)
+ E	(a*)+			-		(0,0)(0,0)
+-#E	(a*|b)*			-		(0,0)(0,0)
+-E	(a*|b)*			-		(0,0)(?,?)	RE2/Go
++E	(a*|b)*			-		(0,0)(0,0)
+ E	(a+|b)*			ab		(0,2)(1,2)
+ E	(a+|b)+			ab		(0,2)(1,2)
+ E	(a+|b)?			ab		(0,1)(0,1)
+ BE	[^ab]*			cde		(0,3)
+-#E	(^)*			-		(0,0)(0,0)
+-E	(^)*			-		(0,0)(?,?)	RE2/Go
++E	(^)*			-		(0,0)(0,0)
+ BE	a*			NULL		(0,0)
+ E	([abc])*d		abbbcd		(0,6)(4,5)
+ E	([abc])*bcd		abcd		(0,4)(0,1)
+ E	a|b|c|d|e		e		(0,1)
+ E	(a|b|c|d|e)f		ef		(0,2)(0,1)
+-#E	((a*|b))*		-		(0,0)(0,0)(0,0)
+-E	((a*|b))*		-		(0,0)(?,?)(?,?)	RE2/Go
++E	((a*|b))*		-		(0,0)(0,0)(0,0)
+ BE	abcd*efg		abcdefg		(0,7)
+ BE	ab*			xabyabbbz	(1,3)
+ BE	ab*			xayabbbz	(1,2)
+diff --git a/src/regexp/testdata/nullsubexpr.dat b/src/regexp/testdata/nullsubexpr.dat
+index 2e18fbb917..68d9c99996 100644
+--- a/src/regexp/testdata/nullsubexpr.dat
++++ b/src/regexp/testdata/nullsubexpr.dat
+@@ -1,8 +1,7 @@
+ NOTE	null subexpression matches : 2002-06-06
+ 
+ E	(a*)*		a		(0,1)(0,1)
+-#E	SAME		x		(0,0)(0,0)
+-E	SAME		x		(0,0)(?,?)	RE2/Go
++E	SAME		x		(0,0)(0,0)
+ E	SAME		aaaaaa		(0,6)(0,6)
+ E	SAME		aaaaaax		(0,6)(0,6)
+ E	(a*)+		a		(0,1)(0,1)
+@@ -19,8 +18,7 @@ E	SAME		aaaaaa		(0,6)(0,6)
+ E	SAME		aaaaaax		(0,6)(0,6)
+ 
+ E	([a]*)*		a		(0,1)(0,1)
+-#E	SAME		x		(0,0)(0,0)
+-E	SAME		x		(0,0)(?,?)	RE2/Go
++E	SAME		x		(0,0)(0,0)
+ E	SAME		aaaaaa		(0,6)(0,6)
+ E	SAME		aaaaaax		(0,6)(0,6)
+ E	([a]*)+		a		(0,1)(0,1)
+@@ -28,8 +26,7 @@ E	SAME		x		(0,0)(0,0)
+ E	SAME		aaaaaa		(0,6)(0,6)
+ E	SAME		aaaaaax		(0,6)(0,6)
+ E	([^b]*)*	a		(0,1)(0,1)
+-#E	SAME		b		(0,0)(0,0)
+-E	SAME		b		(0,0)(?,?)	RE2/Go
++E	SAME		b		(0,0)(0,0)
+ E	SAME		aaaaaa		(0,6)(0,6)
+ E	SAME		aaaaaab		(0,6)(0,6)
+ E	([ab]*)*	a		(0,1)(0,1)
+@@ -41,11 +38,9 @@ E	SAME		bbbbbb		(0,6)(0,6)
+ E	SAME		aaaabcde	(0,5)(0,5)
+ E	([^a]*)*	b		(0,1)(0,1)
+ E	SAME		bbbbbb		(0,6)(0,6)
+-#E	SAME		aaaaaa		(0,0)(0,0)
+-E	SAME		aaaaaa		(0,0)(?,?)	RE2/Go
++E	SAME		aaaaaa		(0,0)(0,0)
+ E	([^ab]*)*	ccccxx		(0,6)(0,6)
+-#E	SAME		ababab		(0,0)(0,0)
+-E	SAME		ababab		(0,0)(?,?)	RE2/Go
++E	SAME		ababab		(0,0)(0,0)
+ 
+ E	((z)+|a)*	zabcde		(0,2)(1,2)
+ 
+@@ -65,8 +60,7 @@ B	\(a*\)*\(x\)\(\1\)	axa	(0,3)(0,1)(1,2)(2,3)
+ B	\(a*\)*\(x\)\(\1\)\(x\)	axax	(0,4)(0,1)(1,2)(2,3)(3,4)
+ B	\(a*\)*\(x\)\(\1\)\(x\)	axxa	(0,3)(1,1)(1,2)(2,2)(2,3)
+ 
+-#E	(a*)*(x)		x	(0,1)(0,0)(0,1)
+-E	(a*)*(x)		x	(0,1)(?,?)(0,1)	RE2/Go
++E	(a*)*(x)		x	(0,1)(0,0)(0,1)
+ E	(a*)*(x)		ax	(0,2)(0,1)(1,2)
+ E	(a*)*(x)		axa	(0,2)(0,1)(1,2)
+ 
+diff --git a/src/regexp/testdata/re2-exhaustive.txt.bz2 b/src/regexp/testdata/re2-exhaustive.txt.bz2
+index a357f28016..6638476dec 100644
+Binary files a/src/regexp/testdata/re2-exhaustive.txt.bz2 and b/src/regexp/testdata/re2-exhaustive.txt.bz2 differ
+diff --git a/src/regexp/testdata/re2-search.txt b/src/regexp/testdata/re2-search.txt
+index 4d02e9cebd..8c4098a4f1 100644
+--- a/src/regexp/testdata/re2-search.txt
++++ b/src/regexp/testdata/re2-search.txt
+@@ -1,5 +1,5 @@
+ # RE2 basic search tests built by make log
+-# Thu Sep 8 13:43:43 EDT 2011
++# Wed May 12 12:13:22 EDT 2021
+ Regexp.SearchTests
+ strings
+ ""
+@@ -227,22 +227,6 @@ regexps
+ 0-0;0-0;0-0;0-0
+ strings
+ ""
+-""
+-regexps
+-"a*"
+-0-0;0-0;0-0;0-0
+-0-0;0-0;0-0;0-0
+-"^(?:a*)$"
+-0-0;0-0;0-0;0-0
+-0-0;0-0;0-0;0-0
+-"^(?:a*)"
+-0-0;0-0;0-0;0-0
+-0-0;0-0;0-0;0-0
+-"(?:a*)$"
+-0-0;0-0;0-0;0-0
+-0-0;0-0;0-0;0-0
+-strings
+-""
+ "xabcdx"
+ regexps
+ "ab|cd"
+@@ -3651,6 +3635,86 @@ regexps
+ 0-1;0-1;0-1;0-1
+ strings
+ ""
++"a"
++regexps
++"a\\C+"
++-;-;-;-
++-;-;-;-
++"^(?:a\\C+)$"
++-;-;-;-
++-;-;-;-
++"^(?:a\\C+)"
++-;-;-;-
++-;-;-;-
++"(?:a\\C+)$"
++-;-;-;-
++-;-;-;-
++strings
++""
++"a"
++regexps
++"a\\C?"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"^(?:a\\C?)$"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"^(?:a\\C?)"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"(?:a\\C?)$"
++-;-;-;-
++0-1;0-1;0-1;0-1
++strings
++""
++"a"
++regexps
++"a\\C*?"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"^(?:a\\C*?)$"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"^(?:a\\C*?)"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"(?:a\\C*?)$"
++-;-;-;-
++0-1;0-1;0-1;0-1
++strings
++""
++"a"
++regexps
++"a\\C+?"
++-;-;-;-
++-;-;-;-
++"^(?:a\\C+?)$"
++-;-;-;-
++-;-;-;-
++"^(?:a\\C+?)"
++-;-;-;-
++-;-;-;-
++"(?:a\\C+?)$"
++-;-;-;-
++-;-;-;-
++strings
++""
++"a"
++regexps
++"a\\C??"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"^(?:a\\C??)$"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"^(?:a\\C??)"
++-;-;-;-
++0-1;0-1;0-1;0-1
++"(?:a\\C??)$"
++-;-;-;-
++0-1;0-1;0-1;0-1
++strings
++""
+ "baba"
+ regexps
+ "a\\C*|ba\\C"
+@@ -3666,7 +3730,50 @@ regexps
+ -;-;-;-
+ -;1-4;-;1-4
+ strings
+-"abc"
++""
++"Inc."
+ regexps
+-"a.*?c|a.*?b"
++"\\w*I\\w*"
++-;-;-;-
++-;0-3;-;0-3
++"^(?:\\w*I\\w*)$"
++-;-;-;-
++-;-;-;-
++"^(?:\\w*I\\w*)"
++-;-;-;-
++-;0-3;-;0-3
++"(?:\\w*I\\w*)$"
++-;-;-;-
++-;-;-;-
++strings
++""
++"aaa"
++regexps
++"(?:|a)*"
++0-0;0-0;0-0;0-0
++0-3;0-0;0-3;0-3
++"^(?:(?:|a)*)$"
++0-0;0-0;0-0;0-0
++0-3;0-3;0-3;0-3
++"^(?:(?:|a)*)"
++0-0;0-0;0-0;0-0
++0-3;0-0;0-3;0-3
++"(?:(?:|a)*)$"
++0-0;0-0;0-0;0-0
++0-3;0-3;0-3;0-3
++strings
++""
++"aaa"
++regexps
++"(?:|a)+"
++0-0;0-0;0-0;0-0
++0-3;0-0;0-3;0-3
++"^(?:(?:|a)+)$"
++0-0;0-0;0-0;0-0
++0-3;0-3;0-3;0-3
++"^(?:(?:|a)+)"
++0-0;0-0;0-0;0-0
++0-3;0-0;0-3;0-3
++"(?:(?:|a)+)$"
++0-0;0-0;0-0;0-0
+ 0-3;0-3;0-3;0-3

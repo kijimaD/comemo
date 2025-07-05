@@ -7,6 +7,54 @@ Date:   Tue Jul 26 14:44:51 2011 -0700
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4819048
-
+---
  src/pkg/rpc/debug.go | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index 32dc8a18ba..e0602e676f 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -10,33 +10,33 @@ package rpc
+ */
+ 
+ import (
++	"exp/template"
+ 	"fmt"
+ 	"http"
+ 	"sort"
+-	"template"
+ )
+ 
+ const debugText = `<html>
+ 	<body>
+ 	<title>Services</title>
+-	{.repeated section @}
++	{{range .}}
+ 	<hr>
+-	Service {Name}
++	Service {{.Name}}
+ 	<hr>
+ 		<table>
+ 		<th align=center>Method</th><th align=center>Calls</th>
+-		{.repeated section Method}
++		{{range .Method}}
+ 			<tr>
+-			<td align=left font=fixed>{Name}({Type.ArgType}, {Type.ReplyType}) os.Error</td>
+-			<td align=center>{Type.NumCalls}</td>
++			<td align=left font=fixed>{{.Name}}({{.Type.ArgType}}, {{.Type.ReplyType}}) os.Error</td>
++			<td align=center>{{.Type.NumCalls}}</td>
+ 			</tr>
+-		{.end}
++		{{end}}
+ 		</table>
+-	{.end}
++	{{end}}
+ 	</body>
+ 	</html>`
+ 
+-var debug = template.MustParse(debugText, nil)
++var debug = template.New("RPC debug").MustParse(debugText)
+ 
+ type debugMethod struct {
+ 	Type *methodType

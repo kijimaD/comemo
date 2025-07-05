@@ -13,6 +13,41 @@ Date:   Tue Nov 13 22:51:21 2018 -0700
     Change-Id: If23aeb10e0709ee1a60b7d614afc9103d674a980
     Reviewed-on: https://go-review.googlesource.com/c/149517
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/bits/bits.go | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index fbf4966157..9da1c6e580 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -454,8 +454,7 @@ func Mul64(x, y uint64) (hi, lo uint64) {
+ // Div returns the quotient and remainder of (hi, lo) divided by y:
+ // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
+ // half in parameter hi and the lower half in parameter lo.
+-// hi must be < y otherwise the behavior is undefined (the quotient
+-// won't fit into quo).
++// Div panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+ func Div(hi, lo, y uint) (quo, rem uint) {
+ 	if UintSize == 32 {
+ 		q, r := Div32(uint32(hi), uint32(lo), uint32(y))
+@@ -468,8 +467,7 @@ func Div(hi, lo, y uint) (quo, rem uint) {
+ // Div32 returns the quotient and remainder of (hi, lo) divided by y:
+ // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
+ // half in parameter hi and the lower half in parameter lo.
+-// hi must be < y otherwise the behavior is undefined (the quotient
+-// won't fit into quo).
++// Div32 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+ func Div32(hi, lo, y uint32) (quo, rem uint32) {
+ 	if y != 0 && y <= hi {
+ 		panic(overflowError)
+@@ -482,8 +480,7 @@ func Div32(hi, lo, y uint32) (quo, rem uint32) {
+ // Div64 returns the quotient and remainder of (hi, lo) divided by y:
+ // quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
+ // half in parameter hi and the lower half in parameter lo.
+-// hi must be < y otherwise the behavior is undefined (the quotient
+-// won't fit into quo).
++// Div64 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+ func Div64(hi, lo, y uint64) (quo, rem uint64) {
+ 	const (
+ 		two32  = 1 << 32

@@ -11,6 +11,27 @@ Date:   Sun Aug 2 08:55:17 2015 -0700
     Change-Id: I91f9c95594cf4fd6d25d9a81f155a643c7a1f8e0
     Reviewed-on: https://go-review.googlesource.com/13038
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 5add4e5d3e..1b3e3c0440 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -129,12 +129,12 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
+ 
+ func (n Name) ToRDNSequence() (ret RDNSequence) {
+ 	ret = n.appendRDNs(ret, n.Country, oidCountry)
+-	ret = n.appendRDNs(ret, n.Organization, oidOrganization)
+-	ret = n.appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
+-	ret = n.appendRDNs(ret, n.Locality, oidLocality)
+ 	ret = n.appendRDNs(ret, n.Province, oidProvince)
++	ret = n.appendRDNs(ret, n.Locality, oidLocality)
+ 	ret = n.appendRDNs(ret, n.StreetAddress, oidStreetAddress)
+ 	ret = n.appendRDNs(ret, n.PostalCode, oidPostalCode)
++	ret = n.appendRDNs(ret, n.Organization, oidOrganization)
++	ret = n.appendRDNs(ret, n.OrganizationalUnit, oidOrganizationalUnit)
+ 	if len(n.CommonName) > 0 {
+ 		ret = n.appendRDNs(ret, []string{n.CommonName}, oidCommonName)
+ 	}

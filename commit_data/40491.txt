@@ -18,6 +18,26 @@ Date:   Thu May 16 18:15:39 2019 -0600
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/errors/example_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/errors/example_test.go b/src/errors/example_test.go
+index 7724c16cdf..d7dd782bef 100644
+--- a/src/errors/example_test.go
++++ b/src/errors/example_test.go
+@@ -36,11 +36,12 @@ func Example() {
+ }
+ 
+ func ExampleAs() {
+-	_, err := os.Open("non-existing")
+-	if err != nil {
++	if _, err := os.Open("non-existing"); err != nil {
+ 		var pathError *os.PathError
+ 		if errors.As(err, &pathError) {
+ 			fmt.Println("Failed at path:", pathError.Path)
++		} else {
++			fmt.Println(err)
+ 		}
+ 	}
+ 

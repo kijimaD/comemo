@@ -23,7 +23,51 @@ Date:   Thu Jul 1 12:47:58 2021 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/linker.go | 6 ++++--
  src/cmd/compile/internal/noder/noder.go  | 6 +++++-
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index ed47a355d8..eefb5083e5 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -149,9 +149,11 @@ func (l *linker) relocObj(pr *pkgReader, idx int) int {
+ 		var ok bool
+ 		obj, ok = sym.Def.(*ir.Name)
+ 
+-		// Generic types and functions won't have definitions.
++		// Generic types and functions and declared constraint types won't
++		// have definitions.
+ 		// For now, just generically copy their extension data.
+-		if !ok && base.Flag.G == 0 {
++		// TODO(mdempsky): Restore assertion.
++		if !ok && false {
+ 			base.Fatalf("missing definition for %v", sym)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 3d83129aea..6a2aacd3fe 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -30,8 +31,11 @@ import (
+ func LoadPackage(filenames []string) {
+ 	base.Timer.Start("fe", "parse")
+ 
++	// -G=3 and unified expect generics syntax, but -G=0 does not.
++	supportsGenerics := base.Flag.G != 0 || buildcfg.Experiment.Unified
++
+ 	mode := syntax.CheckBranches
+-	if base.Flag.G != 0 {
++	if supportsGenerics && types.AllowsGoVersion(types.LocalPkg, 1, 18) {
+ 		mode |= syntax.AllowGenerics
+ 	}
+ 

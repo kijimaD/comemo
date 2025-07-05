@@ -12,7 +12,7 @@ Date:   Fri Jun 7 13:48:42 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/aes/cipher.go         | 3 ++-
  src/crypto/aes/cipher_asm.go     | 3 ++-
  src/crypto/ecdsa/ecdsa.go        | 7 +++++--
@@ -30,3 +30,340 @@ Date:   Fri Jun 7 13:48:42 2019 -0400
  src/crypto/tls/cipher_suites.go  | 3 ++-
  src/crypto/tls/common.go         | 3 ++-
  16 files changed, 38 insertions(+), 18 deletions(-)
+
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index db0ee38b78..29d01796eb 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -6,11 +6,12 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/boring"
+ 	"crypto/internal/subtle"
+ 	"strconv"
+ )
+ 
++import "crypto/internal/boring"
++
+ // The AES block size in bytes.
+ const BlockSize = 16
+ 
+diff --git a/src/crypto/aes/cipher_asm.go b/src/crypto/aes/cipher_asm.go
+index 93b963b285..4936699481 100644
+--- a/src/crypto/aes/cipher_asm.go
++++ b/src/crypto/aes/cipher_asm.go
+@@ -8,11 +8,12 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/boring"
+ 	"crypto/internal/subtle"
+ 	"internal/cpu"
+ )
+ 
++import "crypto/internal/boring"
++
+ // defined in asm_*.s
+ 
+ //go:noescape
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index db139dacb0..0e6bb8b23f 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -21,17 +21,20 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/elliptic"
+-	"crypto/internal/boring"
+ 	"crypto/sha512"
+ 	"encoding/asn1"
+ 	"errors"
+ 	"io"
+ 	"math/big"
+-	"unsafe"
+ 
+ 	"crypto/internal/randutil"
+ )
+ 
++import (
++	"crypto/internal/boring"
++	"unsafe"
++)
++
+ // A invertible implements fast inverse mod Curve.Params().N
+ type invertible interface {
+ 	// Inverse returns the inverse of k in GF(P)
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index d9f0bd24ea..52885b0760 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -22,11 +22,12 @@ timing side-channels:
+ package hmac
+ 
+ import (
+-	"crypto/internal/boring"
+ 	"crypto/subtle"
+ 	"hash"
+ )
+ 
++import "crypto/internal/boring"
++
+ // FIPS 198-1:
+ // https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
+ 
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 80c8eaf97b..246639702e 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -13,7 +13,6 @@ import (
+ 	"bufio"
+ 	"crypto/aes"
+ 	"crypto/cipher"
+-	"crypto/internal/boring"
+ 	"encoding/binary"
+ 	"io"
+ 	"os"
+@@ -23,6 +22,8 @@ import (
+ 	"time"
+ )
+ 
++import "crypto/internal/boring"
++
+ const urandomDevice = "/dev/urandom"
+ 
+ // Easy implementation: read from /dev/urandom.
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 5a0e9e2fb5..6bd16f529d 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -6,7 +6,6 @@ package rsa
+ 
+ import (
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
+@@ -15,6 +14,8 @@ import (
+ 	"crypto/internal/randutil"
+ )
+ 
++import "crypto/internal/boring"
++
+ // This file implements encryption and decryption using PKCS#1 v1.5 padding.
+ 
+ // PKCS1v15DecrypterOpts is for passing options to PKCS#1 v1.5 decryption using
+diff --git a/src/crypto/rsa/pss.go b/src/crypto/rsa/pss.go
+index 89f850ed0f..e32cb7e0a7 100644
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@ -11,13 +11,14 @@ package rsa
+ import (
+ 	"bytes"
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"errors"
+ 	"hash"
+ 	"io"
+ 	"math/big"
+ )
+ 
++import "crypto/internal/boring"
++
+ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byte, error) {
+ 	// See [1], section 9.1.1
+ 	hLen := hash.Size()
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 755bd6d5dc..f43eb0b4d3 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -24,7 +24,6 @@ package rsa
+ 
+ import (
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+@@ -32,11 +31,15 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/big"
+-	"unsafe"
+ 
+ 	"crypto/internal/randutil"
+ )
+ 
++import (
++	"crypto/internal/boring"
++	"unsafe"
++)
++
+ var bigZero = big.NewInt(0)
+ var bigOne = big.NewInt(1)
+ 
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 3abe88a27d..766d9a954f 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -7,7 +7,6 @@ package rsa
+ import (
+ 	"bytes"
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -16,6 +15,8 @@ import (
+ 	"testing"
+ )
+ 
++import "crypto/internal/boring"
++
+ func TestKeyGeneration(t *testing.T) {
+ 	for _, size := range []int{128, 1024, 2048, 3072} {
+ 		priv, err := GenerateKey(rand.Reader, size)
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 0ad7040b19..8e7a3d339c 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -8,7 +8,6 @@ package sha1
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
+@@ -17,6 +16,8 @@ import (
+ 	"testing"
+ )
+ 
++import "crypto/internal/boring"
++
+ type sha1Test struct {
+ 	out       string
+ 	in        string
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index faf29f25ad..8b54a427d7 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -8,12 +8,13 @@ package sha256
+ 
+ import (
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ )
+ 
++import "crypto/internal/boring"
++
+ func init() {
+ 	crypto.RegisterHash(crypto.SHA224, New224)
+ 	crypto.RegisterHash(crypto.SHA256, New)
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 688bad5001..13178fb21f 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -8,7 +8,6 @@ package sha256
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
+@@ -17,6 +16,8 @@ import (
+ 	"testing"
+ )
+ 
++import "crypto/internal/boring"
++
+ type sha256Test struct {
+ 	out       string
+ 	in        string
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 3fefd65c65..1a2cef317c 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -12,12 +12,13 @@ package sha512
+ 
+ import (
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ )
+ 
++import "crypto/internal/boring"
++
+ func init() {
+ 	crypto.RegisterHash(crypto.SHA384, New384)
+ 	crypto.RegisterHash(crypto.SHA512, New)
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index f9213a8d30..6964bef8f7 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -8,7 +8,6 @@ package sha512
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"encoding"
+ 	"encoding/hex"
+@@ -18,6 +17,8 @@ import (
+ 	"testing"
+ )
+ 
++import "crypto/internal/boring"
++
+ type sha512Test struct {
+ 	out       string
+ 	in        string
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 19b75f9d2d..1febee40ee 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/des"
+ 	"crypto/hmac"
+-	"crypto/internal/boring"
+ 	"crypto/rc4"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -19,6 +18,8 @@ import (
+ 	"hash"
+ )
+ 
++import "crypto/internal/boring"
++
+ // a keyAgreement implements the client and server side of a TLS key agreement
+ // protocol by generating and processing key exchange messages.
+ type keyAgreement interface {
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 9d501eca4a..396676328a 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -7,7 +7,6 @@ package tls
+ import (
+ 	"container/list"
+ 	"crypto"
+-	"crypto/internal/boring"
+ 	"crypto/rand"
+ 	"crypto/sha512"
+ 	"crypto/x509"
+@@ -23,6 +22,8 @@ import (
+ 	"time"
+ )
+ 
++import "crypto/internal/boring"
++
+ const (
+ 	VersionSSL30 = 0x0300
+ 	VersionTLS10 = 0x0301

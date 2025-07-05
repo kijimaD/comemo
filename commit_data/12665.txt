@@ -11,6 +11,21 @@ Date:   Fri Mar 16 14:30:43 2012 +1100
     R=golang-dev, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5838043
-
+---
  src/make.bat | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/make.bat b/src/make.bat
+index 9b0ab6920a..fd4ce890eb 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -28,6 +28,9 @@ cd src
+ if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
+ set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
+ 
++:: Clean old generated file that will cause problems in the build.
++del /F ".\pkg\runtime\runtime_defs.go"
++
+ echo # Building C bootstrap tool.
+ echo cmd/dist
+ if not exist ..\bin\tool mkdir ..\bin\tool

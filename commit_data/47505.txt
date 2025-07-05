@@ -10,7 +10,7 @@ Date:   Tue Mar 23 17:03:46 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304229
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/go/internal/modfetch/cache.go              |   4 +-
@@ -25,3 +25,688 @@ Date:   Tue Mar 23 17:03:46 2021 -0400
  src/cmd/vendor/golang.org/x/mod/semver/semver.go   |  20 +++
  src/cmd/vendor/modules.txt                         |   2 +-
  13 files changed, 71 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index d78fabe196..9b08040433 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
+ 	golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+ 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+-	golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa
++	golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
+ 	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
+ 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
+ 	golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 706230f4cf..391e99ca99 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
+ golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa h1:++oSKjoJSsXNHyhUdK1BtBKMAaMHER+GWyKN3319OZA=
+-golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740 h1:UYbWz0ISU1ccVf+FK/BRuwA4LGw2SzoambF9r5ozR/E=
++golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 776def7cbc..c1303502e5 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -497,7 +497,7 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
+ 	for _, name := range names {
+ 		if strings.HasSuffix(name, suffix) {
+ 			v := strings.TrimSuffix(name, ".info")
+-			if IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
++			if module.IsPseudoVersion(v) && semver.Compare(v, maxVersion) > 0 {
+ 				maxVersion = v
+ 				file, info, err = readDiskStat(path, strings.TrimSuffix(name, ".info"))
+ 			}
+@@ -674,7 +674,7 @@ func rewriteVersionList(dir string) (err error) {
+ 			}
+ 		}
+ 	}
+-	SortVersions(list)
++	semver.Sort(list)
+ 
+ 	var buf bytes.Buffer
+ 	for _, v := range list {
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 2dcbb99b18..f817a04583 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -159,7 +159,7 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 		if r.codeDir != "" {
+ 			v = v[len(r.codeDir)+1:]
+ 		}
+-		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
++		if v == "" || v != module.CanonicalVersion(v) || module.IsPseudoVersion(v) {
+ 			continue
+ 		}
+ 
+@@ -172,8 +172,8 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 
+ 		list = append(list, v)
+ 	}
+-	SortVersions(list)
+-	SortVersions(incompatible)
++	semver.Sort(list)
++	semver.Sort(incompatible)
+ 
+ 	return r.appendIncompatibleVersions(list, incompatible)
+ }
+@@ -385,7 +385,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 	if statVers != "" && statVers == module.CanonicalVersion(statVers) {
+ 		info2.Version = statVers
+ 
+-		if IsPseudoVersion(info2.Version) {
++		if module.IsPseudoVersion(info2.Version) {
+ 			if err := r.validatePseudoVersion(info, info2.Version); err != nil {
+ 				return nil, err
+ 			}
+@@ -433,7 +433,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		}
+ 		trimmed := tag[len(tagPrefix):]
+ 		// Tags that look like pseudo-versions would be confusing. Ignore them.
+-		if IsPseudoVersion(tag) {
++		if module.IsPseudoVersion(tag) {
+ 			return "", false
+ 		}
+ 
+@@ -531,7 +531,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		pseudoBase, _ = tagToVersion(tag) // empty if the tag is invalid
+ 	}
+ 
+-	info2.Version = PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short)
++	info2.Version = module.PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short)
+ 	return checkGoMod()
+ }
+ 
+@@ -560,7 +560,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		return err
+ 	}
+ 
+-	rev, err := PseudoVersionRev(version)
++	rev, err := module.PseudoVersionRev(version)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -575,12 +575,12 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		}
+ 	}
+ 
+-	t, err := PseudoVersionTime(version)
++	t, err := module.PseudoVersionTime(version)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	if !t.Equal(info.Time.Truncate(time.Second)) {
+-		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
++		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(module.PseudoVersionTimestampFormat))
+ 	}
+ 
+ 	tagPrefix := ""
+@@ -604,7 +604,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 	// not enforce that property when resolving existing pseudo-versions: we don't
+ 	// know when the parent tags were added, and the highest-tagged parent may not
+ 	// have existed when the pseudo-version was first resolved.
+-	base, err := PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
++	base, err := module.PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -661,7 +661,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		if err != nil {
+ 			return err
+ 		}
+-		rev, err := PseudoVersionRev(version)
++		rev, err := module.PseudoVersionRev(version)
+ 		if err != nil {
+ 			return fmt.Errorf("not a descendent of preceding tag (%s)", lastTag)
+ 		}
+@@ -672,8 +672,8 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 
+ func (r *codeRepo) revToRev(rev string) string {
+ 	if semver.IsValid(rev) {
+-		if IsPseudoVersion(rev) {
+-			r, _ := PseudoVersionRev(rev)
++		if module.IsPseudoVersion(rev) {
++			r, _ := module.PseudoVersionRev(rev)
+ 			return r
+ 		}
+ 		if semver.Build(rev) == "+incompatible" {
+@@ -843,7 +843,7 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
+ 		return nil, fmt.Errorf("version %s is not canonical", version)
+ 	}
+ 
+-	if IsPseudoVersion(version) {
++	if module.IsPseudoVersion(version) {
+ 		// findDir ignores the metadata encoded in a pseudo-version,
+ 		// only using the revision at the end.
+ 		// Invoke Stat to verify the metadata explicitly so we don't return
+@@ -942,7 +942,7 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 		return fmt.Errorf("version %s is not canonical", version)
+ 	}
+ 
+-	if IsPseudoVersion(version) {
++	if module.IsPseudoVersion(version) {
+ 		// findDir ignores the metadata encoded in a pseudo-version,
+ 		// only using the revision at the end.
+ 		// Invoke Stat to verify the metadata explicitly so we don't return
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 6c86d8d786..31d453c807 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -228,7 +228,7 @@ func (p *proxyRepo) versionError(version string, err error) error {
+ 			Path: p.path,
+ 			Err: &module.InvalidVersionError{
+ 				Version: version,
+-				Pseudo:  IsPseudoVersion(version),
++				Pseudo:  module.IsPseudoVersion(version),
+ 				Err:     err,
+ 			},
+ 		}
+@@ -276,11 +276,11 @@ func (p *proxyRepo) Versions(prefix string) ([]string, error) {
+ 	var list []string
+ 	for _, line := range strings.Split(string(data), "\n") {
+ 		f := strings.Fields(line)
+-		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !IsPseudoVersion(f[0]) {
++		if len(f) >= 1 && semver.IsValid(f[0]) && strings.HasPrefix(f[0], prefix) && !module.IsPseudoVersion(f[0]) {
+ 			list = append(list, f[0])
+ 		}
+ 	}
+-	SortVersions(list)
++	semver.Sort(list)
+ 	return list, nil
+ }
+ 
+@@ -307,8 +307,8 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
+ 			)
+ 			if len(f) >= 2 {
+ 				ft, _ = time.Parse(time.RFC3339, f[1])
+-			} else if IsPseudoVersion(f[0]) {
+-				ft, _ = PseudoVersionTime(f[0])
++			} else if module.IsPseudoVersion(f[0]) {
++				ft, _ = module.PseudoVersionTime(f[0])
+ 				ftIsFromPseudo = true
+ 			} else {
+ 				// Repo.Latest promises that this method is only called where there are
+diff --git a/src/cmd/go/internal/modfetch/pseudo_test.go b/src/cmd/go/internal/modfetch/pseudo_test.go
+deleted file mode 100644
+index 4483f8e962..0000000000
+--- a/src/cmd/go/internal/modfetch/pseudo_test.go
++++ /dev/null
+@@ -1,154 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package modfetch
+-
+-import (
+-	"testing"
+-	"time"
+-)
+-
+-var pseudoTests = []struct {
+-	major   string
+-	older   string
+-	version string
+-}{
+-	{"", "", "v0.0.0-20060102150405-hash"},
+-	{"v0", "", "v0.0.0-20060102150405-hash"},
+-	{"v1", "", "v1.0.0-20060102150405-hash"},
+-	{"v2", "", "v2.0.0-20060102150405-hash"},
+-	{"unused", "v0.0.0", "v0.0.1-0.20060102150405-hash"},
+-	{"unused", "v1.2.3", "v1.2.4-0.20060102150405-hash"},
+-	{"unused", "v1.2.99999999999999999", "v1.2.100000000000000000-0.20060102150405-hash"},
+-	{"unused", "v1.2.3-pre", "v1.2.3-pre.0.20060102150405-hash"},
+-	{"unused", "v1.3.0-pre", "v1.3.0-pre.0.20060102150405-hash"},
+-	{"unused", "v0.0.0--", "v0.0.0--.0.20060102150405-hash"},
+-	{"unused", "v1.0.0+metadata", "v1.0.1-0.20060102150405-hash+metadata"},
+-	{"unused", "v2.0.0+incompatible", "v2.0.1-0.20060102150405-hash+incompatible"},
+-	{"unused", "v2.3.0-pre+incompatible", "v2.3.0-pre.0.20060102150405-hash+incompatible"},
+-}
+-
+-var pseudoTime = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
+-
+-func TestPseudoVersion(t *testing.T) {
+-	for _, tt := range pseudoTests {
+-		v := PseudoVersion(tt.major, tt.older, pseudoTime, "hash")
+-		if v != tt.version {
+-			t.Errorf("PseudoVersion(%q, %q, ...) = %v, want %v", tt.major, tt.older, v, tt.version)
+-		}
+-	}
+-}
+-
+-func TestIsPseudoVersion(t *testing.T) {
+-	for _, tt := range pseudoTests {
+-		if !IsPseudoVersion(tt.version) {
+-			t.Errorf("IsPseudoVersion(%q) = false, want true", tt.version)
+-		}
+-		if IsPseudoVersion(tt.older) {
+-			t.Errorf("IsPseudoVersion(%q) = true, want false", tt.older)
+-		}
+-	}
+-}
+-
+-func TestPseudoVersionTime(t *testing.T) {
+-	for _, tt := range pseudoTests {
+-		tm, err := PseudoVersionTime(tt.version)
+-		if tm != pseudoTime || err != nil {
+-			t.Errorf("PseudoVersionTime(%q) = %v, %v, want %v, nil", tt.version, tm.Format(time.RFC3339), err, pseudoTime.Format(time.RFC3339))
+-		}
+-		tm, err = PseudoVersionTime(tt.older)
+-		if tm != (time.Time{}) || err == nil {
+-			t.Errorf("PseudoVersionTime(%q) = %v, %v, want %v, error", tt.older, tm.Format(time.RFC3339), err, time.Time{}.Format(time.RFC3339))
+-		}
+-	}
+-}
+-
+-func TestInvalidPseudoVersionTime(t *testing.T) {
+-	const v = "---"
+-	if _, err := PseudoVersionTime(v); err == nil {
+-		t.Error("expected error, got nil instead")
+-	}
+-}
+-
+-func TestPseudoVersionRev(t *testing.T) {
+-	for _, tt := range pseudoTests {
+-		rev, err := PseudoVersionRev(tt.version)
+-		if rev != "hash" || err != nil {
+-			t.Errorf("PseudoVersionRev(%q) = %q, %v, want %q, nil", tt.older, rev, err, "hash")
+-		}
+-		rev, err = PseudoVersionRev(tt.older)
+-		if rev != "" || err == nil {
+-			t.Errorf("PseudoVersionRev(%q) = %q, %v, want %q, error", tt.older, rev, err, "")
+-		}
+-	}
+-}
+-
+-func TestPseudoVersionBase(t *testing.T) {
+-	for _, tt := range pseudoTests {
+-		base, err := PseudoVersionBase(tt.version)
+-		if err != nil {
+-			t.Errorf("PseudoVersionBase(%q): %v", tt.version, err)
+-		} else if base != tt.older {
+-			t.Errorf("PseudoVersionBase(%q) = %q; want %q", tt.version, base, tt.older)
+-		}
+-	}
+-}
+-
+-func TestInvalidPseudoVersionBase(t *testing.T) {
+-	for _, in := range []string{
+-		"v0.0.0",
+-		"v0.0.0-",                                 // malformed: empty prerelease
+-		"v0.0.0-0.20060102150405-hash",            // Z+1 == 0
+-		"v0.1.0-0.20060102150405-hash",            // Z+1 == 0
+-		"v1.0.0-0.20060102150405-hash",            // Z+1 == 0
+-		"v0.0.0-20060102150405-hash+incompatible", // "+incompatible without base version
+-		"v0.0.0-20060102150405-hash+metadata",     // other metadata without base version
+-	} {
+-		base, err := PseudoVersionBase(in)
+-		if err == nil || base != "" {
+-			t.Errorf(`PseudoVersionBase(%q) = %q, %v; want "", error`, in, base, err)
+-		}
+-	}
+-}
+-
+-func TestIncDecimal(t *testing.T) {
+-	cases := []struct {
+-		in, want string
+-	}{
+-		{"0", "1"},
+-		{"1", "2"},
+-		{"99", "100"},
+-		{"100", "101"},
+-		{"101", "102"},
+-	}
+-
+-	for _, tc := range cases {
+-		got := incDecimal(tc.in)
+-		if got != tc.want {
+-			t.Fatalf("incDecimal(%q) = %q; want %q", tc.in, tc.want, got)
+-		}
+-	}
+-}
+-
+-func TestDecDecimal(t *testing.T) {
+-	cases := []struct {
+-		in, want string
+-	}{
+-		{"", ""},
+-		{"0", ""},
+-		{"00", ""},
+-		{"1", "0"},
+-		{"2", "1"},
+-		{"99", "98"},
+-		{"100", "99"},
+-		{"101", "100"},
+-	}
+-
+-	for _, tc := range cases {
+-		got := decDecimal(tc.in)
+-		if got != tc.want {
+-			t.Fatalf("decDecimal(%q) = %q; want %q", tc.in, tc.want, got)
+-		}
+-	}
+-}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index ed9a52267a..46923cb7dc 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -9,7 +9,6 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"os"
+-	"sort"
+ 	"strconv"
+ 	"time"
+ 
+@@ -20,7 +19,6 @@ import (
+ 	web "cmd/go/internal/web"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ const traceRepo = false // trace all repo actions, for debugging
+@@ -35,7 +33,7 @@ type Repo interface {
+ 	// Pseudo-versions are not included.
+ 	//
+ 	// Versions should be returned sorted in semver order
+-	// (implementations can use SortVersions).
++	// (implementations can use semver.Sort).
+ 	//
+ 	// Versions returns a non-nil error only if there was a problem
+ 	// fetching the list of versions: it may return an empty list
+@@ -346,16 +344,6 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+ 	return repo, info, nil
+ }
+ 
+-func SortVersions(list []string) {
+-	sort.Slice(list, func(i, j int) bool {
+-		cmp := semver.Compare(list[i], list[j])
+-		if cmp != 0 {
+-			return cmp < 0
+-		}
+-		return list[i] < list[j]
+-	})
+-}
+-
+ // A loggingRepo is a wrapper around an underlying Repo
+ // that prints a log message at the start and end of each call.
+ // It can be inserted when debugging.
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 995641c9f1..31eb0c4874 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -60,7 +60,7 @@ func (e *ImportMissingError) Error() string {
+ 
+ 		if e.replaced.Path != "" {
+ 			suggestArg := e.replaced.Path
+-			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
++			if !module.IsZeroPseudoVersion(e.replaced.Version) {
+ 				suggestArg = e.replaced.String()
+ 			}
+ 			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
+@@ -344,9 +344,9 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 				// used from within some other module, the user will be able to upgrade
+ 				// the requirement to any real version they choose.
+ 				if _, pathMajor, ok := module.SplitPathVersion(mp); ok && len(pathMajor) > 0 {
+-					mv = modfetch.ZeroPseudoVersion(pathMajor[1:])
++					mv = module.ZeroPseudoVersion(pathMajor[1:])
+ 				} else {
+-					mv = modfetch.ZeroPseudoVersion("v0")
++					mv = module.ZeroPseudoVersion("v0")
+ 				}
+ 			}
+ 			mods = append(mods, module.Version{Path: mp, Version: mv})
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 1707bd88ed..6f6c6e8c98 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -177,7 +177,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			return nil, err
+ 		}
+ 
+-		if (query == "upgrade" || query == "patch") && modfetch.IsPseudoVersion(current) && !rev.Time.IsZero() {
++		if (query == "upgrade" || query == "patch") && module.IsPseudoVersion(current) && !rev.Time.IsZero() {
+ 			// Don't allow "upgrade" or "patch" to move from a pseudo-version
+ 			// to a chronologically older version or pseudo-version.
+ 			//
+@@ -196,7 +196,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 			// newer but v1.1.0 is still an “upgrade”; or v1.0.2 might be a revert of
+ 			// an unsuccessful fix in v1.0.1, in which case the v1.0.2 commit may be
+ 			// older than the v1.0.1 commit despite the tag itself being newer.)
+-			currentTime, err := modfetch.PseudoVersionTime(current)
++			currentTime, err := module.PseudoVersionTime(current)
+ 			if err == nil && rev.Time.Before(currentTime) {
+ 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
+ 					return nil, err
+@@ -325,7 +325,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 		if current == "" || current == "none" {
+ 			qm.mayUseLatest = true
+ 		} else {
+-			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
++			qm.mayUseLatest = module.IsPseudoVersion(current)
+ 			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
+ 		}
+ 
+@@ -336,7 +336,7 @@ func newQueryMatcher(path string, query, current string, allowed AllowedFunc) (*
+ 		if current == "" {
+ 			qm.mayUseLatest = true
+ 		} else {
+-			qm.mayUseLatest = modfetch.IsPseudoVersion(current)
++			qm.mayUseLatest = module.IsPseudoVersion(current)
+ 			qm.prefix = semver.MajorMinor(current) + "."
+ 			qm.filter = func(mv string) bool { return semver.Compare(mv, current) >= 0 }
+ 		}
+@@ -1009,7 +1009,7 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+ 	if index != nil && len(index.replace) > 0 {
+ 		path := rr.ModulePath()
+ 		for m, _ := range index.replace {
+-			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !modfetch.IsPseudoVersion(m.Version) {
++			if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
+ 				versions = append(versions, m.Version)
+ 			}
+ 		}
+@@ -1066,9 +1066,9 @@ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
+ 				// used from within some other module, the user will be able to upgrade
+ 				// the requirement to any real version they choose.
+ 				if _, pathMajor, ok := module.SplitPathVersion(path); ok && len(pathMajor) > 0 {
+-					v = modfetch.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
++					v = module.PseudoVersion(pathMajor[1:], "", time.Time{}, "000000000000")
+ 				} else {
+-					v = modfetch.PseudoVersion("v0", "", time.Time{}, "000000000000")
++					v = module.PseudoVersion("v0", "", time.Time{}, "000000000000")
+ 				}
+ 			}
+ 
+@@ -1083,9 +1083,9 @@ func (rr *replacementRepo) Latest() (*modfetch.RevInfo, error) {
+ 
+ func (rr *replacementRepo) replacementStat(v string) (*modfetch.RevInfo, error) {
+ 	rev := &modfetch.RevInfo{Version: v}
+-	if modfetch.IsPseudoVersion(v) {
+-		rev.Time, _ = modfetch.PseudoVersionTime(v)
+-		rev.Short, _ = modfetch.PseudoVersionRev(v)
++	if module.IsPseudoVersion(v) {
++		rev.Time, _ = module.PseudoVersionTime(v)
++		rev.Short, _ = module.PseudoVersionRev(v)
+ 	}
+ 	return rev, nil
+ }
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 7d8a97dd99..74bfecc08d 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -23,7 +23,6 @@ import (
+ 	"sync"
+ 	"testing"
+ 
+-	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/txtar"
+@@ -229,7 +228,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 			if m.Path != modPath {
+ 				continue
+ 			}
+-			if modfetch.IsPseudoVersion(m.Version) && (latestPseudo == "" || semver.Compare(latestPseudo, m.Version) > 0) {
++			if module.IsPseudoVersion(m.Version) && (latestPseudo == "" || semver.Compare(latestPseudo, m.Version) > 0) {
+ 				latestPseudo = m.Version
+ 			} else if semver.Prerelease(m.Version) != "" && (latestPrerelease == "" || semver.Compare(latestPrerelease, m.Version) > 0) {
+ 				latestPrerelease = m.Version
+@@ -282,7 +281,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 				continue
+ 			}
+ 			found = true
+-			if !modfetch.IsPseudoVersion(m.Version) {
++			if !module.IsPseudoVersion(m.Version) {
+ 				if err := module.Check(m.Path, m.Version); err == nil {
+ 					fmt.Fprintf(w, "%s\n", m.Version)
+ 				}
+@@ -315,7 +314,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		for _, m := range modList {
+ 			if m.Path == path && semver.Compare(best, m.Version) < 0 {
+ 				var hash string
+-				if modfetch.IsPseudoVersion(m.Version) {
++				if module.IsPseudoVersion(m.Version) {
+ 					hash = m.Version[strings.LastIndex(m.Version, "-")+1:]
+ 				} else {
+ 					hash = findHash(m)
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/vendor/golang.org/x/mod/module/pseudo.go
+similarity index 95%
+rename from src/cmd/go/internal/modfetch/pseudo.go
+rename to src/cmd/vendor/golang.org/x/mod/module/pseudo.go
+index 93eb0fad96..f04ad37886 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/pseudo.go
+@@ -32,7 +32,7 @@
+ // If the most recent tagged version before the target commit is vX.Y.Z-pre or vX.Y.Z-pre+incompatible,
+ // then the pseudo-version uses form (4) or (5), making it a slightly later prerelease.
+ 
+-package modfetch
++package module
+ 
+ import (
+ 	"errors"
+@@ -40,15 +40,13 @@ import (
+ 	"strings"
+ 	"time"
+ 
+-	"internal/lazyregexp"
+-
+-	"golang.org/x/mod/module"
++	"golang.org/x/mod/internal/lazyregexp"
+ 	"golang.org/x/mod/semver"
+ )
+ 
+ var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
+ 
+-const pseudoVersionTimestampFormat = "20060102150405"
++const PseudoVersionTimestampFormat = "20060102150405"
+ 
+ // PseudoVersion returns a pseudo-version for the given major version ("v1")
+ // preexisting older tagged version ("" or "v1.2.3" or "v1.2.3-pre"), revision time,
+@@ -57,7 +55,7 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	if major == "" {
+ 		major = "v0"
+ 	}
+-	segment := fmt.Sprintf("%s-%s", t.UTC().Format(pseudoVersionTimestampFormat), rev)
++	segment := fmt.Sprintf("%s-%s", t.UTC().Format(PseudoVersionTimestampFormat), rev)
+ 	build := semver.Build(older)
+ 	older = semver.Canonical(older)
+ 	if older == "" {
+@@ -142,7 +140,7 @@ func PseudoVersionTime(v string) (time.Time, error) {
+ 	}
+ 	t, err := time.Parse("20060102150405", timestamp)
+ 	if err != nil {
+-		return time.Time{}, &module.InvalidVersionError{
++		return time.Time{}, &InvalidVersionError{
+ 			Version: v,
+ 			Pseudo:  true,
+ 			Err:     fmt.Errorf("malformed time %q", timestamp),
+@@ -180,7 +178,7 @@ func PseudoVersionBase(v string) (string, error) {
+ 			//
+ 			// There are a few such entries in the index generated by proxy.golang.org,
+ 			// but we believe those entries were generated by the proxy itself.
+-			return "", &module.InvalidVersionError{
++			return "", &InvalidVersionError{
+ 				Version: v,
+ 				Pseudo:  true,
+ 				Err:     fmt.Errorf("lacks base version, but has build metadata %q", build),
+@@ -208,7 +206,7 @@ func PseudoVersionBase(v string) (string, error) {
+ 			// treat them as equivalent to vX.0.0 (especially since the invalid
+ 			// pseudo-versions have lower precedence than the real ones). For now, we
+ 			// reject them.
+-			return "", &module.InvalidVersionError{
++			return "", &InvalidVersionError{
+ 				Version: v,
+ 				Pseudo:  true,
+ 				Err:     fmt.Errorf("version before %s would have negative patch number", base),
+@@ -230,7 +228,7 @@ var errPseudoSyntax = errors.New("syntax error")
+ 
+ func parsePseudoVersion(v string) (base, timestamp, rev, build string, err error) {
+ 	if !IsPseudoVersion(v) {
+-		return "", "", "", "", &module.InvalidVersionError{
++		return "", "", "", "", &InvalidVersionError{
+ 			Version: v,
+ 			Pseudo:  true,
+ 			Err:     errPseudoSyntax,
+diff --git a/src/cmd/vendor/golang.org/x/mod/semver/semver.go b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+index 4338f35177..7be398f80d 100644
+--- a/src/cmd/vendor/golang.org/x/mod/semver/semver.go
++++ b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+@@ -22,6 +22,8 @@
+ // as shorthands for vMAJOR.0.0 and vMAJOR.MINOR.0.
+ package semver
+ 
++import "sort"
++
+ // parsed returns the parsed form of a semantic version string.
+ type parsed struct {
+ 	major      string
+@@ -150,6 +152,24 @@ func Max(v, w string) string {
+ 	return w
+ }
+ 
++// ByVersion implements sort.Interface for sorting semantic version strings.
++type ByVersion []string
++
++func (vs ByVersion) Len() int      { return len(vs) }
++func (vs ByVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
++func (vs ByVersion) Less(i, j int) bool {
++	cmp := Compare(vs[i], vs[j])
++	if cmp != 0 {
++		return cmp < 0
++	}
++	return vs[i] < vs[j]
++}
++
++// Sort sorts a list of semantic version strings using ByVersion.
++func Sort(list []string) {
++	sort.Sort(ByVersion(list))
++}
++
+ func parse(v string) (p parsed, ok bool) {
+ 	if v == "" || v[0] != 'v' {
+ 		p.err = "missing v prefix"
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 3dd50ccddb..6960ff1c7e 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.4.3-0.20210310185834-19d50cac98aa
++# golang.org/x/mod v0.4.3-0.20210323215154-1cc8812c1740
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

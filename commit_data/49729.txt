@@ -12,7 +12,272 @@ Date:   Thu Sep 2 11:23:20 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/edit.go               |  93 ++++++++++++++---
  src/cmd/go/testdata/script/mod_get_issue47979.txt | 117 ++++++++++++++++++++++
  2 files changed, 195 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index b99ac1242b..023983caed 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -192,8 +192,8 @@ func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelec
+ 
+ // raiseLimitsForUpgrades increases the module versions in maxVersions to the
+ // versions that would be needed to allow each of the modules in tryUpgrade
+-// (individually) and all of the modules in mustSelect (simultaneously) to be
+-// added as roots.
++// (individually or in any combination) and all of the modules in mustSelect
++// (simultaneously) to be added as roots.
+ //
+ // Versions not present in maxVersion are unrestricted, and it is assumed that
+ // they will not be promoted to root requirements (and thus will not contribute
+@@ -215,18 +215,42 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, p
+ 		}
+ 	}
+ 
+-	var unprunedUpgrades []module.Version
++	var (
++		unprunedUpgrades []module.Version
++		isPrunedRootPath map[string]bool
++	)
+ 	if pruning == unpruned {
+ 		unprunedUpgrades = tryUpgrade
+ 	} else {
++		isPrunedRootPath = make(map[string]bool, len(maxVersion))
++		for p := range maxVersion {
++			isPrunedRootPath[p] = true
++		}
+ 		for _, m := range tryUpgrade {
++			isPrunedRootPath[m.Path] = true
++		}
++		for _, m := range mustSelect {
++			isPrunedRootPath[m.Path] = true
++		}
++
++		allowedRoot := map[module.Version]bool{}
++
++		var allowRoot func(m module.Version) error
++		allowRoot = func(m module.Version) error {
++			if allowedRoot[m] {
++				return nil
++			}
++			allowedRoot[m] = true
++
+ 			if MainModules.Contains(m.Path) {
+-				// The main module versions are already considered to be higher than any possible m, so we
+-				// won't be upgrading to it anyway and there is no point scanning its
+-				// dependencies.
+-				continue
++				// The main module versions are already considered to be higher than any
++				// possible m, so m cannot be selected as a root and there is no point
++				// scanning its dependencies.
++				return nil
+ 			}
+ 
++			allow(m)
++
+ 			summary, err := goModSummary(m)
+ 			if err != nil {
+ 				return err
+@@ -236,13 +260,27 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, p
+ 				// graph, rather than loading the (potentially-overlapping) subgraph for
+ 				// each upgrade individually.
+ 				unprunedUpgrades = append(unprunedUpgrades, m)
+-				continue
++				return nil
+ 			}
+-
+-			allow(m)
+ 			for _, r := range summary.require {
+-				allow(r)
++				if isPrunedRootPath[r.Path] {
++					// r could become a root as the result of an upgrade or downgrade,
++					// in which case its dependencies will not be pruned out.
++					// We need to allow those dependencies to be upgraded too.
++					if err := allowRoot(r); err != nil {
++						return err
++					}
++				} else {
++					// r will not become a root, so its dependencies don't matter.
++					// Allow only r itself.
++					allow(r)
++				}
+ 			}
++			return nil
++		}
++
++		for _, m := range tryUpgrade {
++			allowRoot(m)
+ 		}
+ 	}
+ 
+@@ -269,16 +307,41 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, p
+ 		}
+ 	}
+ 
+-	if len(mustSelect) > 0 {
+-		mustGraph, err := readModGraph(ctx, pruning, mustSelect)
++	// Explicitly allow any (transitive) upgrades implied by mustSelect.
++	nextRoots := append([]module.Version(nil), mustSelect...)
++	for nextRoots != nil {
++		module.Sort(nextRoots)
++		rs := newRequirements(pruning, nextRoots, nil)
++		nextRoots = nil
++
++		rs, mustGraph, err := expandGraph(ctx, rs)
+ 		if err != nil {
+ 			return err
+ 		}
+ 
+ 		for _, r := range mustGraph.BuildList() {
+-			// Some module in mustSelect requires r, so we must allow at least r.Version
+-			// unless it conflicts with an entry in mustSelect.
++			// Some module in mustSelect requires r, so we must allow at least
++			// r.Version (unless it conflicts with another entry in mustSelect, in
++			// which case we will error out either way).
+ 			allow(r)
++
++			if isPrunedRootPath[r.Path] {
++				if v, ok := rs.rootSelected(r.Path); ok && r.Version == v {
++					// r is already a root, so its requirements are already included in
++					// the build list.
++					continue
++				}
++
++				// The dependencies in mustSelect may upgrade (or downgrade) an existing
++				// root to match r, which will remain as a root. However, since r is not
++				// a root of rs, its dependencies have been pruned out of this build
++				// list. We need to add it back explicitly so that we allow any
++				// transitive upgrades that r will pull in.
++				if nextRoots == nil {
++					nextRoots = rs.rootModules // already capped
++				}
++				nextRoots = append(nextRoots, r)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_issue47979.txt b/src/cmd/go/testdata/script/mod_get_issue47979.txt
+new file mode 100644
+index 0000000000..f5d4304ab2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_issue47979.txt
+@@ -0,0 +1,117 @@
++# Regression test for https://golang.org/issue/47979:
++#
++# An argument to 'go get' that results in an upgrade to a different existing
++# root should be allowed, and should not panic the 'go' command.
++
++cp go.mod go.mod.orig
++
++
++# Transitive upgrades from upgraded roots should not prevent
++# 'go get -u' from performing upgrades.
++
++cp go.mod.orig go.mod
++go get -u -d .
++cmp go.mod go.mod.want
++
++
++# 'go get' of a specific version should allow upgrades of
++# every dependency (transitively) required by that version,
++# including dependencies that are pulled into the module
++# graph by upgrading other root requirements
++# (in this case, example.net/indirect).
++
++cp go.mod.orig go.mod
++go get -d example.net/a@v0.2.0
++cmp go.mod go.mod.want
++
++
++-- go.mod --
++module golang.org/issue47979
++
++go 1.17
++
++replace (
++	example.net/a v0.1.0 => ./a1
++	example.net/a v0.2.0 => ./a2
++	example.net/indirect v0.1.0 => ./indirect1
++	example.net/indirect v0.2.0 => ./indirect2
++	example.net/other v0.1.0 => ./other
++	example.net/other v0.2.0 => ./other
++)
++
++require (
++	example.net/a v0.1.0
++	example.net/other v0.1.0
++)
++
++require example.net/indirect v0.1.0 // indirect
++-- go.mod.want --
++module golang.org/issue47979
++
++go 1.17
++
++replace (
++	example.net/a v0.1.0 => ./a1
++	example.net/a v0.2.0 => ./a2
++	example.net/indirect v0.1.0 => ./indirect1
++	example.net/indirect v0.2.0 => ./indirect2
++	example.net/other v0.1.0 => ./other
++	example.net/other v0.2.0 => ./other
++)
++
++require (
++	example.net/a v0.2.0
++	example.net/other v0.2.0
++)
++
++require example.net/indirect v0.2.0 // indirect
++-- issue.go --
++package issue
++
++import _ "example.net/a"
++-- useother/useother.go --
++package useother
++
++import _ "example.net/other"
++-- a1/go.mod --
++module example.net/a
++
++go 1.17
++
++require example.net/indirect v0.1.0
++-- a1/a.go --
++package a
++-- a2/go.mod --
++module example.net/a
++
++go 1.17
++
++require example.net/indirect v0.2.0
++-- a2/a.go --
++package a
++
++import "example.net/indirect"
++-- indirect1/go.mod --
++module example.net/indirect
++
++go 1.17
++
++require example.net/other v0.1.0
++-- indirect1/indirect.go --
++package indirect
++-- indirect2/go.mod --
++module example.net/indirect
++
++go 1.17
++
++require example.net/other v0.2.0
++-- indirect2/indirect.go --
++package indirect
++
++import "example.net/other"
++-- other/go.mod --
++module example.net/other
++
++go 1.17
++-- other/other.go --
++package other

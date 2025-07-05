@@ -9,6 +9,20 @@ Date:   Tue Aug 27 19:32:17 2019 -0700
     Change-Id: I306a95883c3db2d674d3294a6feb50adc50ee5d6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/192017
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/rat.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index c8bf698b18..712116a08c 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -413,6 +413,8 @@ func (x *Rat) Num() *Int {
+ // Denom returns the denominator of x; it is always > 0.
+ // The result is a reference to x's denominator; it
+ // may change if a new value is assigned to x, and vice versa.
++// If x's denominator is 1, Denom may materialize the denominator, thereby
++// modifying x.
+ func (x *Rat) Denom() *Int {
+ 	x.b.neg = false // the result is always >= 0
+ 	if len(x.b.abs) == 0 {

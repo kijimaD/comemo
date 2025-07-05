@@ -16,8 +16,194 @@ Date:   Mon Aug 9 10:21:54 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1895049
-
+---
  src/pkg/big/int.go      | 18 +++++++++---------
  src/pkg/big/int_test.go | 20 ++++++++++----------
  src/pkg/big/nat.go      | 18 +++++++++---------
  3 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index e7ba4021ef..c78532011e 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -590,7 +590,7 @@ func (z *Int) And(x, y *Int) *Int {
+ 		if x.neg {
+ 			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
+ 			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := z.abs.sub(y.abs, natOne)
++			y1 := nat{}.sub(y.abs, natOne)
+ 			z.abs = z.abs.add(z.abs.or(x1, y1), natOne)
+ 			z.neg = true // z cannot be zero if x and y are negative
+ 			return z
+@@ -608,7 +608,7 @@ func (z *Int) And(x, y *Int) *Int {
+ 	}
+ 
+ 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
+-	y1 := z.abs.sub(y.abs, natOne)
++	y1 := nat{}.sub(y.abs, natOne)
+ 	z.abs = z.abs.andNot(x.abs, y1)
+ 	z.neg = false
+ 	return z
+@@ -621,7 +621,7 @@ func (z *Int) AndNot(x, y *Int) *Int {
+ 		if x.neg {
+ 			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
+ 			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := z.abs.sub(y.abs, natOne)
++			y1 := nat{}.sub(y.abs, natOne)
+ 			z.abs = z.abs.andNot(y1, x1)
+ 			z.neg = false
+ 			return z
+@@ -635,14 +635,14 @@ func (z *Int) AndNot(x, y *Int) *Int {
+ 
+ 	if x.neg {
+ 		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
+-		x1 := z.abs.sub(x.abs, natOne)
++		x1 := nat{}.sub(x.abs, natOne)
+ 		z.abs = z.abs.add(z.abs.or(x1, y.abs), natOne)
+ 		z.neg = true // z cannot be zero if x is negative and y is positive
+ 		return z
+ 	}
+ 
+ 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
+-	y1 := z.abs.add(y.abs, natOne)
++	y1 := nat{}.add(y.abs, natOne)
+ 	z.abs = z.abs.and(x.abs, y1)
+ 	z.neg = false
+ 	return z
+@@ -655,7 +655,7 @@ func (z *Int) Or(x, y *Int) *Int {
+ 		if x.neg {
+ 			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
+ 			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := z.abs.sub(y.abs, natOne)
++			y1 := nat{}.sub(y.abs, natOne)
+ 			z.abs = z.abs.add(z.abs.and(x1, y1), natOne)
+ 			z.neg = true // z cannot be zero if x and y are negative
+ 			return z
+@@ -673,7 +673,7 @@ func (z *Int) Or(x, y *Int) *Int {
+ 	}
+ 
+ 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
+-	y1 := z.abs.sub(y.abs, natOne)
++	y1 := nat{}.sub(y.abs, natOne)
+ 	z.abs = z.abs.add(z.abs.andNot(y1, x.abs), natOne)
+ 	z.neg = true // z cannot be zero if one of x or y is negative
+ 	return z
+@@ -686,7 +686,7 @@ func (z *Int) Xor(x, y *Int) *Int {
+ 		if x.neg {
+ 			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
+ 			x1 := nat{}.sub(x.abs, natOne)
+-			y1 := z.abs.sub(y.abs, natOne)
++			y1 := nat{}.sub(y.abs, natOne)
+ 			z.abs = z.abs.xor(x1, y1)
+ 			z.neg = false
+ 			return z
+@@ -704,7 +704,7 @@ func (z *Int) Xor(x, y *Int) *Int {
+ 	}
+ 
+ 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
+-	y1 := z.abs.sub(y.abs, natOne)
++	y1 := nat{}.sub(y.abs, natOne)
+ 	z.abs = z.abs.add(z.abs.xor(x.abs, y1), natOne)
+ 	z.neg = true // z cannot be zero if only one of x or y is negative
+ 	return z
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 66379ca1ba..117852a90b 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -938,7 +938,7 @@ var bitwiseTests = []bitwiseTest{
+ 	bitwiseTest{"0x00", "0x01", "0x00", "0x01", "0x01", "0x00"},
+ 	bitwiseTest{"0x01", "0x00", "0x00", "0x01", "0x01", "0x01"},
+ 	bitwiseTest{"-0x01", "0x00", "0x00", "-0x01", "-0x01", "-0x01"},
+-	bitwiseTest{"-0xAF", "-0x50", "0x00", "-0xFF", "-0x01", "-0x01"},
++	bitwiseTest{"-0xaf", "-0x50", "-0xf0", "-0x0f", "0xe1", "0x41"},
+ 	bitwiseTest{"0x00", "-0x01", "0x00", "-0x01", "-0x01", "0x00"},
+ 	bitwiseTest{"0x01", "0x01", "0x01", "0x01", "0x00", "0x00"},
+ 	bitwiseTest{"-0x01", "-0x01", "-0x01", "-0x01", "0x00", "0x00"},
+@@ -978,24 +978,24 @@ type bitFun func(z, x, y *Int) *Int
+ 
+ func testBitFun(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
+ 	expected := new(Int)
+-	expected.SetString(exp, 16)
++	expected.SetString(exp, 0)
+ 
+ 	out := f(new(Int), x, y)
+ 	if out.Cmp(expected) != 0 {
+-		println("Test failed")
+ 		t.Errorf("%s: got %s want %s", msg, out, expected)
+ 	}
+ }
+ 
+ 
+ func testBitFunSelf(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
++	self := new(Int)
++	self.Set(x)
+ 	expected := new(Int)
+-	expected.SetString(exp, 16)
++	expected.SetString(exp, 0)
+ 
+-	x = f(x, x, y)
+-	if x.Cmp(expected) != 0 {
+-		println("Test failed")
+-		t.Errorf("%s: got %s want %s", msg, x, expected)
++	self = f(self, self, y)
++	if self.Cmp(expected) != 0 {
++		t.Errorf("%s: got %s want %s", msg, self, expected)
+ 	}
+ }
+ 
+@@ -1004,8 +1004,8 @@ func TestBitwise(t *testing.T) {
+ 	x := new(Int)
+ 	y := new(Int)
+ 	for _, test := range bitwiseTests {
+-		x.SetString(test.x, 16)
+-		y.SetString(test.y, 16)
++		x.SetString(test.x, 0)
++		y.SetString(test.y, 0)
+ 
+ 		testBitFun(t, "and", (*Int).And, x, y, test.and)
+ 		testBitFunSelf(t, "and", (*Int).And, x, y, test.and)
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 72d9f05ee2..a308f69e8c 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -816,13 +816,13 @@ func (z nat) or(x, y nat) nat {
+ 		n, m = m, n
+ 		s = y
+ 	}
+-	// n >= m
++	// m >= n
+ 
+-	z = z.make(n)
+-	for i := 0; i < m; i++ {
++	z = z.make(m)
++	for i := 0; i < n; i++ {
+ 		z[i] = x[i] | y[i]
+ 	}
+-	copy(z[m:n], s[m:n])
++	copy(z[n:m], s[n:m])
+ 
+ 	return z.norm()
+ }
+@@ -832,17 +832,17 @@ func (z nat) xor(x, y nat) nat {
+ 	m := len(x)
+ 	n := len(y)
+ 	s := x
+-	if n < m {
++	if m < n {
+ 		n, m = m, n
+ 		s = y
+ 	}
+-	// n >= m
++	// m >= n
+ 
+-	z = z.make(n)
+-	for i := 0; i < m; i++ {
++	z = z.make(m)
++	for i := 0; i < n; i++ {
+ 		z[i] = x[i] ^ y[i]
+ 	}
+-	copy(z[m:n], s[m:n])
++	copy(z[n:m], s[n:m])
+ 
+ 	return z.norm()
+ }

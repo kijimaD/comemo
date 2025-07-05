@@ -256,3 +256,30 @@ Date:   Wed Jun 5 06:23:38 2019 -0400
  test/fixedbugs/issue32175.out                      |    1 +
  test/run.go                                        |   38 +-
  248 files changed, 4553 insertions(+), 4384 deletions(-)
+
+diff --cc src/crypto/sha256/sha256.go
+index 8e4915a7d8,e1cccf65a6..faf29f25ad
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@@ -8,7 -8,7 +8,8 @@@ package sha25
+  
+  import (
+  	"crypto"
+ +	"crypto/internal/boring"
++ 	"encoding/binary"
+  	"errors"
+  	"hash"
+  )
+diff --cc src/crypto/sha512/sha512.go
+index 394e001eee,9c143a2a28..3fefd65c65
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@@ -12,7 -12,7 +12,8 @@@ package sha51
+  
+  import (
+  	"crypto"
+ +	"crypto/internal/boring"
++ 	"encoding/binary"
+  	"errors"
+  	"hash"
+  )

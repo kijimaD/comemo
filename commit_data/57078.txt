@@ -14,6 +14,27 @@ Date:   Wed Jun 14 20:31:08 2023 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/codegen/math.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index e630530965..6a7d304afd 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -57,6 +57,7 @@ func sqrt(x float64) float64 {
+ 	// mips64/hardfloat:"SQRTD" mips64/softfloat:-"SQRTD"
+ 	// wasm:"F64Sqrt"
+ 	// ppc64x:"FSQRT"
++	// riscv64: "FSQRTD"
+ 	return math.Sqrt(x)
+ }
+ 
+@@ -69,6 +70,7 @@ func sqrt32(x float32) float32 {
+ 	// mips64/hardfloat:"SQRTF" mips64/softfloat:-"SQRTF"
+ 	// wasm:"F32Sqrt"
+ 	// ppc64x:"FSQRTS"
++	// riscv64: "FSQRTS"
+ 	return float32(math.Sqrt(float64(x)))
+ }
+ 

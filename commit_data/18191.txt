@@ -9,7 +9,44 @@ Date:   Wed Jan 8 11:28:40 2014 -0800
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/49180043
-
+---
  src/pkg/archive/zip/reader_test.go       |  14 +++++++++++++-
  src/pkg/archive/zip/testdata/zip64-2.zip | Bin 0 -> 266 bytes
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 78875ecbf0..4292a50e30 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -235,6 +235,18 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	// Another zip64 file with different Extras fields. (golang.org/issue/7069)
++	{
++		Name: "zip64-2.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "README",
++				Content: []byte("This small file is in ZIP64 format.\n"),
++				Mtime:   "08-10-12 14:33:32",
++				Mode:    0644,
++			},
++		},
++	},
+ }
+ 
+ var crossPlatform = []ZipTestFile{
+@@ -348,7 +360,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
+ 	var b bytes.Buffer
+ 	r, err := f.Open()
+ 	if err != nil {
+-		t.Error(err)
++		t.Errorf("%s: %v", zt.Name, err)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/archive/zip/testdata/zip64-2.zip b/src/pkg/archive/zip/testdata/zip64-2.zip
+new file mode 100644
+index 0000000000..f844e35373
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/zip64-2.zip differ

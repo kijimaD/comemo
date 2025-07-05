@@ -9,7 +9,7 @@ Date:   Tue Mar 9 15:09:09 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/218042
-
+---
  src/pkg/runtime/Makefile              |   3 +
  src/pkg/runtime/mingw/os.h            |   3 +
  src/pkg/runtime/mingw/syscall.cgo     |  37 ++++++++
@@ -23,3 +23,465 @@ Date:   Tue Mar 9 15:09:09 2010 -0800
  src/pkg/syscall/zsysnum_mingw_386.go  |  15 ++++
  src/pkg/syscall/ztypes_mingw_386.go   |  44 +++++++++
  12 files changed, 356 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 103515c13a..bc8a2d8bfa 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -27,6 +27,9 @@ GOFILES=\
+ GOFILES_pchw=\
+ 	pchw/io.go\
+ 
++OFILES_mingw=\
++	syscall.$O\
++
+ # 386-specific object files
+ OFILES_386=\
+ 	vlop.$O\
+diff --git a/src/pkg/runtime/mingw/os.h b/src/pkg/runtime/mingw/os.h
+index 3864dbf8f1..0de3885243 100644
+--- a/src/pkg/runtime/mingw/os.h
++++ b/src/pkg/runtime/mingw/os.h
+@@ -12,6 +12,9 @@ void *stdcall(void *fn, ...);
+ void *stdcall_raw(void *fn, ...);
+ 
+ extern void *VirtualAlloc;
++extern void *LoadLibraryEx;
++extern void *GetProcAddress;
++extern void *GetLastError;
+ 
+ #define goargs mingw_goargs
+ void mingw_goargs(void);
+diff --git a/src/pkg/runtime/mingw/syscall.cgo b/src/pkg/runtime/mingw/syscall.cgo
+new file mode 100644
+index 0000000000..1553c61315
+--- /dev/null
++++ b/src/pkg/runtime/mingw/syscall.cgo
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++#include "runtime.h"
++#include "os.h"
++
++func loadlibraryex(filename uintptr) (handle uint32) {
++	handle = (uint32)stdcall(LoadLibraryEx, filename, 0, 0);
++}
++
++func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
++	proc = (uintptr)stdcall(GetProcAddress, handle, procname);
++}
++
++func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	·entersyscall();
++	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
++	r2 = 0;
++	err = (uintptr)stdcall_raw(GetLastError);
++	·exitsyscall();
++}
++
++func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	·entersyscall();
++	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6);
++	r2 = 0;
++	err = (uintptr)stdcall_raw(GetLastError);
++	·exitsyscall();
++}
++
++func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
++	r2 = 0;
++	err = (uintptr)stdcall_raw(GetLastError);
++}
+diff --git a/src/pkg/runtime/mingw/thread.c b/src/pkg/runtime/mingw/thread.c
+index 89f33f8a4a..94ffc27521 100644
+--- a/src/pkg/runtime/mingw/thread.c
++++ b/src/pkg/runtime/mingw/thread.c
+@@ -16,12 +16,13 @@ void *GetStdHandle;
+ void *SetEvent;
+ void *WriteFile;
+ void *VirtualAlloc;
++void *LoadLibraryEx;
++void *GetProcAddress;
++void *GetLastError;
+ 
+ static void *CreateEvent;
+ static void *CreateThread;
+ static void *GetModuleHandle;
+-static void *GetProcAddress;
+-static void *LoadLibraryEx;
+ static void *WaitForSingleObject;
+ 
+ static void*
+@@ -65,6 +66,7 @@ osinit(void)
+ 	VirtualAlloc = get_proc_addr("kernel32.dll", "VirtualAlloc");
+ 	WaitForSingleObject = get_proc_addr("kernel32.dll", "WaitForSingleObject");
+ 	WriteFile = get_proc_addr("kernel32.dll", "WriteFile");
++	GetLastError = get_proc_addr("kernel32.dll", "GetLastError");
+ }
+ 
+ // The arguments are strings.
+diff --git a/src/pkg/syscall/asm_mingw_386.s b/src/pkg/syscall/asm_mingw_386.s
+new file mode 100644
+index 0000000000..c1bd3cc9ed
+--- /dev/null
++++ b/src/pkg/syscall/asm_mingw_386.s
+@@ -0,0 +1,7 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for 386, Windows are implemented in ../runtime/mingw/syscall.cgo
++//
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index cfefc67198..b1650d7ca8 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -144,6 +144,13 @@ linux_arm)
+ 	mktypes="godefs -gsyscall -carm-gcc"
+ 	mkerrors="mkerrors.sh"
+ 	;;
++mingw_386)
++	# TODO(brainman): create proper mksyscall / mksysnum / mktypes
++	mksyscall="mksyscall.sh -l32"
++	mksysnum="XXXXXX_mksysnum.sh"
++	mktypes="XXXXXX_godefs -gsyscall -f-m32"
++	exit 1
++	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+ 	exit 1
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+new file mode 100644
+index 0000000000..b653a5a20e
+--- /dev/null
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -0,0 +1,163 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Windows system calls.
++
++package syscall
++
++import "unsafe"
++
++const OS = "mingw"
++
++/*
++
++small demo to detect version of windows you are running:
++
++package main
++
++import (
++	"syscall"
++)
++
++func print_version(v uint32) {
++	major := byte(v)
++	minor := uint8(v >> 8)
++	build := uint16(v >> 16)
++	print("windows version ", major, ".", minor, " (Build ", build, ")\n")
++}
++
++func main() {
++	h, err := syscall.LoadLibrary("kernel32.dll")
++	if err != 0 {
++		panic("failed to LoadLibrary #", err, "\n")
++	}
++	defer syscall.FreeLibrary(h)
++	proc, err := syscall.GetProcAddress(h, "GetVersion")
++	if err != 0 {
++		panic("could not GetProcAddress #", err, "\n")
++	}
++	r, _, e := syscall.Syscall(uintptr(proc), 0, 0, 0)
++	err = int(e)
++	if err != 0 {
++		panic("GetVersion failed #", err, "\n")
++	}
++	print_version(uint32(r))
++}
++
++*/
++
++//sys	GetLastError() (lasterrno int)
++
++// TODO(brainman): probably should use LoadLibraryW here instead
++//sys	LoadLibraryA(libname string) (handle Module, errno int)
++
++func LoadLibrary(libname string) (handle Module, errno int) {
++	h, e := LoadLibraryA(libname)
++	if int(h) != 0 {
++		return h, 0
++	}
++	return h, e
++}
++
++// TODO(brainman): should handle errors like in LoadLibrary, otherwise will be returning 'old' errors
++//sys	FreeLibrary(handle Module) (ok Bool, errno int)
++//sys	GetProcAddress(module Module, procname string) (proc uint32, errno int)
++//sys	GetVersion() (ver uint32, errno int)
++
++// dll helpers
++
++// implemented in ../pkg/runtime/mingw/syscall.cgo
++func loadlibraryex(filename uintptr) (handle uint32)
++func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
++
++func loadDll(fname string) Module {
++	m := loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(fname))))
++	if m == 0 {
++		panic("syscall: could not LoadLibraryEx ", fname)
++	}
++	return Module(m)
++}
++
++func getSysProcAddr(m Module, pname string) uintptr {
++	p := getprocaddress(uint32(m), uintptr(unsafe.Pointer(StringBytePtr(pname))))
++	if p == 0 {
++		panic("syscall: could not GetProcAddress for ", pname)
++	}
++	return p
++}
++
++// TODO(brainman): fix all this meaningless code, it is here to compile exec.go
++
++func Pipe(p []int) (errno int) { return EMINGW }
++
++//sys	Close(fd int) (errno int)
++//sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
++
++func fcntl(fd, cmd, arg int) (val int, errno int) {
++	return 0, EMINGW
++}
++
++const (
++	F_SETFD = 1 + iota
++	FD_CLOEXEC
++	F_GETFL
++	F_SETFL
++	O_NONBLOCK
++	SYS_FORK
++	SYS_PTRACE
++	SYS_CHDIR
++	SYS_DUP2
++	SYS_FCNTL
++	SYS_EXECVE
++	PTRACE_TRACEME
++	SYS_CLOSE
++	SYS_WRITE
++	SYS_EXIT
++	SYS_READ
++	EPIPE
++	EINTR
++)
++
++type Rusage struct {
++	Utime    Timeval
++	Stime    Timeval
++	Maxrss   int32
++	Ixrss    int32
++	Idrss    int32
++	Isrss    int32
++	Minflt   int32
++	Majflt   int32
++	Nswap    int32
++	Inblock  int32
++	Oublock  int32
++	Msgsnd   int32
++	Msgrcv   int32
++	Nsignals int32
++	Nvcsw    int32
++	Nivcsw   int32
++}
++
++func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
++	return 0, EMINGW
++}
++
++type WaitStatus uint32
++
++func (WaitStatus) Exited() bool { return false }
++
++func (WaitStatus) ExitStatus() int { return -1 }
++
++func (WaitStatus) Signal() int { return -1 }
++
++func (WaitStatus) CoreDump() bool { return false }
++
++func (WaitStatus) Stopped() bool { return false }
++
++func (WaitStatus) Continued() bool { return false }
++
++func (WaitStatus) StopSignal() int { return -1 }
++
++func (WaitStatus) Signaled() bool { return false }
++
++func (WaitStatus) TrapCause() int { return -1 }
+diff --git a/src/pkg/syscall/syscall_mingw_386.go b/src/pkg/syscall/syscall_mingw_386.go
+new file mode 100644
+index 0000000000..61d2d8cb65
+--- /dev/null
++++ b/src/pkg/syscall/syscall_mingw_386.go
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_mingw_386.go
+new file mode 100644
+index 0000000000..cd51d22fb3
+--- /dev/null
++++ b/src/pkg/syscall/zerrors_mingw_386.go
+@@ -0,0 +1,15 @@
++// mkerrors_nacl.sh /home/rsc/pub/nacl/native_client/src/trusted/service_runtime/include/sys/errno.h
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++// TODO(brainman): populate errors in zerrors_mingw.go
++
++const (
++	EMINGW = 99 /* otherwise unused */
++)
++
++// Error table
++var errors = [...]string{
++	EMINGW: "not supported by windows",
++}
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_mingw_386.go
+new file mode 100644
+index 0000000000..c457eb43ca
+--- /dev/null
++++ b/src/pkg/syscall/zsyscall_mingw_386.go
+@@ -0,0 +1,53 @@
++// mksyscall.sh -l32 syscall_mingw.go
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++import "unsafe"
++
++func GetLastError() (lasterrno int) {
++	r0, _, _ := Syscall(SYS_GET_LAST_ERROR, 0, 0, 0)
++	lasterrno = int(r0)
++	return
++}
++
++func LoadLibraryA(libname string) (handle Module, errno int) {
++	r0, _, e1 := Syscall(SYS_LOAD_LIBRARY_A, uintptr(unsafe.Pointer(StringBytePtr(libname))), 0, 0)
++	handle = Module(r0)
++	errno = int(e1)
++	return
++}
++
++func FreeLibrary(handle Module) (ok Bool, errno int) {
++	r0, _, e1 := Syscall(SYS_FREE_LIBRARY, uintptr(handle), 0, 0)
++	ok = Bool(r0)
++	errno = int(e1)
++	return
++}
++
++func GetProcAddress(module Module, procname string) (proc uint32, errno int) {
++	r0, _, e1 := Syscall(SYS_GET_PROC_ADDRESS, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++	proc = uint32(r0)
++	errno = int(e1)
++	return
++}
++
++func GetVersion() (ver uint32, errno int) {
++	r0, _, e1 := Syscall(SYS_GET_VERSION, 0, 0, 0)
++	ver = uint32(r0)
++	errno = int(e1)
++	return
++}
++
++func Close(fd int) (errno int) {
++	_, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
++	errno = int(e1)
++	return
++}
++
++func read(fd int, buf *byte, nbuf int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
++	n = int(r0)
++	errno = int(e1)
++	return
++}
+diff --git a/src/pkg/syscall/zsysnum_mingw_386.go b/src/pkg/syscall/zsysnum_mingw_386.go
+new file mode 100644
+index 0000000000..144cf2b623
+--- /dev/null
++++ b/src/pkg/syscall/zsysnum_mingw_386.go
+@@ -0,0 +1,15 @@
++// mksysnum_nacl.sh /home/rsc/pub/nacl/native_client/src/trusted/service_runtime/include/bits/nacl_syscalls.h
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++// TODO(brainman): autogenerate winapi proc pointers in zsysnum_mingw.go
++
++var (
++	SYS_KERNEL32         = loadDll("kernel32.dll")
++	SYS_GET_LAST_ERROR   = getSysProcAddr(SYS_KERNEL32, "GetLastError")
++	SYS_LOAD_LIBRARY_A   = getSysProcAddr(SYS_KERNEL32, "LoadLibraryA")
++	SYS_FREE_LIBRARY     = getSysProcAddr(SYS_KERNEL32, "FreeLibrary")
++	SYS_GET_PROC_ADDRESS = getSysProcAddr(SYS_KERNEL32, "GetProcAddress")
++	SYS_GET_VERSION      = getSysProcAddr(SYS_KERNEL32, "GetVersion")
++)
+diff --git a/src/pkg/syscall/ztypes_mingw_386.go b/src/pkg/syscall/ztypes_mingw_386.go
+new file mode 100644
+index 0000000000..24e9f40997
+--- /dev/null
++++ b/src/pkg/syscall/ztypes_mingw_386.go
+@@ -0,0 +1,44 @@
++// godefs -gsyscall -f-m32 types_linux.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package syscall
++
++// TODO(brainman): autogenerate types in ztypes_mingw_386.go
++
++//import "unsafe"
++
++// Constants
++const (
++	sizeofPtr           = 0x4
++	sizeofShort         = 0x2
++	sizeofInt           = 0x4
++	sizeofLong          = 0x4
++	sizeofLongLong      = 0x8
++	PathMax             = 0x1000
++	SizeofSockaddrInet4 = 0x10
++	SizeofSockaddrInet6 = 0x1c
++	SizeofSockaddrAny   = 0x70
++	SizeofSockaddrUnix  = 0x6e
++	SizeofLinger        = 0x8
++	SizeofMsghdr        = 0x1c
++	SizeofCmsghdr       = 0xc
++)
++
++// Types
++
++type _C_short int16
++
++type _C_int int32
++
++type _C_long int32
++
++type _C_long_long int64
++
++type Bool uint32
++type Module uint32
++
++type Timeval struct {
++	Sec  int32
++	Usec int32
++}

@@ -10,6 +10,20 @@ Date:   Fri Dec 4 01:09:13 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275312
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go1.16.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index e644ad0575..eaa8e46572 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -287,7 +287,7 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <p><!-- CL 254659 -->
+-  Setting the <code>GODEBUG<code> environment variable
++  Setting the <code>GODEBUG</code> environment variable
+   to <code>inittrace=1</code> now causes the runtime to emit a single
+   line to standard error for each package <code>init</code>,
+   summarizing its execution time and memory allocation. This trace can

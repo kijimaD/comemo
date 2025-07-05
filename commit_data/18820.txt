@@ -16,6 +16,24 @@ Date:   Mon Mar 10 22:22:51 2014 -0400
     R=bradfitz
     CC=golang-codereviews, gri, rsc
     https://golang.org/cl/73850043
-
+---
  src/pkg/net/http/client_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 1f8a8b12cf..7f1c4b1392 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -886,11 +886,9 @@ func TestClientTimeout(t *testing.T) {
+ 		t.Fatal("handler never got /slow request")
+ 	}
+ 
+-	var all []byte
+ 	errc := make(chan error, 1)
+ 	go func() {
+-		var err error
+-		all, err = ioutil.ReadAll(res.Body)
++		_, err := ioutil.ReadAll(res.Body)
+ 		errc <- err
+ 		res.Body.Close()
+ 	}()

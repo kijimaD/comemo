@@ -13,8 +13,62 @@ Date:   Wed Apr 11 22:51:17 2018 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file_plan9.go   | 4 ++++
  src/os/file_posix.go   | 5 +++--
  src/syscall/fs_nacl.go | 8 ++++++--
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 7e28178964..feca8630be 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -451,7 +451,11 @@ func Readlink(name string) (string, error) {
+ 
+ // Chown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
++// A uid or gid of -1 means to not change that value.
+ // If there is an error, it will be of type *PathError.
++//
++// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
++// EPLAN9 error, wrapped in *PathError.
+ func Chown(name string, uid, gid int) error {
+ 	return &PathError{"chown", name, syscall.EPLAN9}
+ }
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 36f7b90e80..b8835a70b8 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -65,10 +65,11 @@ func (f *File) chmod(mode FileMode) error {
+ 
+ // Chown changes the numeric uid and gid of the named file.
+ // If the file is a symbolic link, it changes the uid and gid of the link's target.
++// A uid or gid of -1 means to not change that value.
+ // If there is an error, it will be of type *PathError.
+ //
+-// On Windows, it always returns the syscall.EWINDOWS error, wrapped
+-// in *PathError.
++// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
++// EPLAN9 error, wrapped in *PathError.
+ func Chown(name string, uid, gid int) error {
+ 	if e := syscall.Chown(name, uid, gid); e != nil {
+ 		return &PathError{"chown", name, e}
+diff --git a/src/syscall/fs_nacl.go b/src/syscall/fs_nacl.go
+index 33334dc24b..dfe13d92a1 100644
+--- a/src/syscall/fs_nacl.go
++++ b/src/syscall/fs_nacl.go
+@@ -582,8 +582,12 @@ func Chown(path string, uid, gid int) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	ip.Uid = uint32(uid)
+-	ip.Gid = uint32(gid)
++	if uid != -1 {
++		ip.Uid = uint32(uid)
++	}
++	if gid != -1 {
++		ip.Gid = uint32(gid)
++	}
+ 	return nil
+ }
+ 

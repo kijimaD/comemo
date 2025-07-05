@@ -11,9 +11,138 @@ Date:   Mon Aug 24 13:48:16 2009 -0700
     DELTA=29  (17 added, 0 deleted, 12 changed)
     OCL=33760
     CL=33766
-
+---
  usr/austin/eval/decls.go |  8 +++++++-
  usr/austin/eval/expr.go  |  2 ++
  usr/austin/eval/scope.go | 29 +++++++++++++++++++----------
  usr/austin/eval/value.go |  2 +-
  4 files changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+index 068acf92bd..6b8a887f36 100644
+--- a/usr/austin/eval/decls.go
++++ b/usr/austin/eval/decls.go
+@@ -35,7 +35,7 @@ type Type interface {
+ 	isFloat() bool;
+ 	// isIdeal returns true if this is an ideal int or float.
+ 	isIdeal() bool;
+-	// ZeroVal returns a new zero value of this type.
++	// Zero returns a new zero value of this type.
+ 	Zero() Value;
+ 	// String returns the string representation of this type.
+ 	String() string;
+@@ -82,6 +82,8 @@ type IntValue interface {
+ 	Set(int64);
+ }
+ 
++// TODO(austin) IdealIntValue and IdealFloatValue should not exist
++// because ideals are not l-values.
+ type IdealIntValue interface {
+ 	Value;
+ 	Get() *bignum.Integer;
+@@ -183,6 +185,10 @@ type Variable struct {
+ 	Index int;
+ 	// Static type of this variable
+ 	Type Type;
++	// Value of this variable.  This is only used by Scope.NewFrame;
++	// therefore, it is useful for global scopes but cannot be used
++	// in function scopes.
++	Init Value;
+ }
+ 
+ type Constant struct {
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 024d574f56..73125f3a6d 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -1705,6 +1705,8 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
+ 		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = ec.evalIdealFloat() }}, nil;
+ 	case *stringType:
+ 		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(ec.evalString(f)) }}, nil;
++	case *ArrayType:
++		return &Expr{t, func(f *Frame, out Value) { out.(ArrayValue).Assign(ec.evalArray(f)) }}, nil;
+ 	case *PtrType:
+ 		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
+ 	case *FuncType:
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index 7ab4f36a29..fd95530b1c 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func (b *block) enterChild() *block {
+-	if b.inner != nil {
++	if b.inner != nil && b.inner.scope == b.scope {
+ 		log.Crash("Failed to exit child block before entering another child");
+ 	}
+ 	sub := &block{
+@@ -28,17 +28,19 @@ func (b *block) exit() {
+ 	if b.outer == nil {
+ 		log.Crash("Cannot exit top-level block");
+ 	}
+-	if b.outer.inner != b {
+-		log.Crash("Already exited block");
+-	}
+-	if b.inner != nil {
+-		log.Crash("Exit of parent block without exit of child block");
++	if b.outer.scope == b.scope {
++		if b.outer.inner != b {
++			log.Crash("Already exited block");
++		}
++		if b.inner != nil && b.inner.scope == b.scope {
++			log.Crash("Exit of parent block without exit of child block");
++		}
+ 	}
+ 	b.outer.inner = nil;
+ }
+ 
+ func (b *block) ChildScope() *Scope {
+-	if b.inner != nil {
++	if b.inner != nil && b.inner.scope == b.scope {
+ 		log.Crash("Failed to exit child block before entering a child scope");
+ 	}
+ 	sub := b.enterChild();
+@@ -58,11 +60,11 @@ func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, D
+ }
+ 
+ func (b *block) DefineSlot(t Type) *Variable {
+-	if b.inner != nil {
++	if b.inner != nil && b.inner.scope == b.scope {
+ 		log.Crash("Failed to exit child block before defining variable");
+ 	}
+ 	index := b.offset+b.numVars;
+-	v := &Variable{token.Position{}, index, t};
++	v := &Variable{token.Position{}, index, t, nil};
+ 	b.numVars++;
+ 	if index+1 > b.scope.maxVars {
+ 		b.scope.maxVars = index+1;
+@@ -107,7 +109,14 @@ func (b *block) Lookup(name string) (level int, def Def) {
+ }
+ 
+ func (s *Scope) NewFrame(outer *Frame) *Frame {
+-	return outer.child(s.maxVars);
++	fr := outer.child(s.maxVars);
++	for _, v := range s.defs {
++		switch v := v.(type) {
++		case *Variable:
++			fr.Vars[v.Index] = v.Init;
++		}
++	}
++	return fr;
+ }
+ 
+ func (f *Frame) Get(level int, index int) Value {
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index 3aa2319970..5f533c0d67 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -400,7 +400,7 @@ func (v *structV) String() string {
+ 	res := "{";
+ 	for i, v := range *v {
+ 		if i > 0 {
+-			res += "; ";
++			res += ", ";
+ 		}
+ 		res += v.String();
+ 	}

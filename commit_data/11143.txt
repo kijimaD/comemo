@@ -11,7 +11,83 @@ Date:   Thu Jan 12 15:27:57 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5543046
-
+---
  src/cmd/go/main.go | 20 +++++++++++++++++++-
  src/cmd/go/pkg.go  | 15 ++++++++++++++-
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 4b1ff357da..8ef6395f4f 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -192,7 +192,7 @@ func importPaths(args []string) []string {
+ 	}
+ 	var out []string
+ 	for _, a := range args {
+-		if (strings.HasPrefix(a, "./") || strings.HasPrefix(a, "../")) && strings.Contains(a, "...") {
++		if isLocalPath(a) && strings.Contains(a, "...") {
+ 			out = append(out, allPackagesInFS(a)...)
+ 			continue
+ 		}
+@@ -246,6 +246,17 @@ func run(cmdargs ...interface{}) {
+ 	}
+ }
+ 
++func runOut(cmdargs ...interface{}) []byte {
++	cmdline := stringList(cmdargs...)
++	out, err := exec.Command(cmdline[0], cmdline[1:]...).CombinedOutput()
++	if err != nil {
++		os.Stderr.Write(out)
++		errorf("%v", err)
++		out = nil
++	}
++	return out
++}
++
+ // matchPattern(pattern)(name) reports whether
+ // name matches pattern.  Pattern is a limited glob
+ // pattern in which '...' means 'any string' and there
+@@ -422,3 +433,10 @@ func stringList(args ...interface{}) []string {
+ 	}
+ 	return x
+ }
++
++// isLocalPath returns true if arg is an import path denoting
++// a local file system directory.  That is, it returns true if the
++// path begins with ./ or ../ .
++func isLocalPath(arg string) bool {
++	return arg == "." || arg == ".." || strings.HasPrefix(arg, "./") || strings.HasPrefix(arg, "../")
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index d2060b0a38..9c41c7db0b 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -79,7 +79,7 @@ func loadPackage(arg string) (*Package, error) {
+ 	t, importPath, err := build.FindTree(arg)
+ 	dir := ""
+ 	// Maybe it is a standard command.
+-	if err != nil && !filepath.IsAbs(arg) && strings.HasPrefix(arg, "cmd/") {
++	if err != nil && strings.HasPrefix(arg, "cmd/") {
+ 		goroot := build.Path[0]
+ 		p := filepath.Join(goroot.Path, "src", arg)
+ 		if st, err1 := os.Stat(p); err1 == nil && st.IsDir() {
+@@ -89,6 +89,19 @@ func loadPackage(arg string) (*Package, error) {
+ 			err = nil
+ 		}
+ 	}
++	// Maybe it is a path to a standard command.
++	if err != nil && (filepath.IsAbs(arg) || isLocalPath(arg)) {
++		arg, _ := filepath.Abs(arg)
++		goroot := build.Path[0]
++		cmd := filepath.Join(goroot.Path, "src", "cmd") + string(filepath.Separator)
++		if st, err1 := os.Stat(arg); err1 == nil && st.IsDir() && strings.HasPrefix(arg, cmd) {
++			t = goroot
++			importPath = filepath.FromSlash(arg[len(cmd):])
++			dir = arg
++			err = nil
++		}
++	}
++
+ 	if err != nil {
+ 		return nil, err
+ 	}

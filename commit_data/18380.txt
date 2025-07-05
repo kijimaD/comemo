@@ -8,6 +8,42 @@ Date:   Thu Jan 30 09:49:32 2014 +0900
     R=golang-codereviews, 0intro, mischief, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/53960044
-
+---
  src/pkg/net/ipsock_plan9.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index c2225002ee..914ed50826 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -12,7 +12,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func probe(filename, query string, bufSize int) bool {
++func probe(filename, query string) bool {
+ 	var file *file
+ 	var err error
+ 	if file, err = open(filename); err != nil {
+@@ -37,7 +37,7 @@ func probe(filename, query string, bufSize int) bool {
+ }
+ 
+ func probeIPv4Stack() bool {
+-	return probe(netdir+"/ipselftab", "127.0.0.1", 128)
++	return probe(netdir+"/iproute", "4i")
+ }
+ 
+ // probeIPv6Stack returns two boolean values.  If the first boolean
+@@ -45,10 +45,10 @@ func probeIPv4Stack() bool {
+ // second boolean value is true, kernel supports IPv6 IPv4-mapping.
+ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	// Plan 9 uses IPv6 natively, see ip(3).
+-	r := probe(netdir+"/iproute", "6i", 128)
++	r := probe(netdir+"/iproute", "6i")
+ 	v := false
+ 	if r {
+-		v = probe(netdir+"/iproute", "4b", 128)
++		v = probe(netdir+"/iproute", "4i")
+ 	}
+ 	return r, v
+ }

@@ -9,7 +9,7 @@ Date:   Mon Dec 14 17:35:12 2009 -0800
     
     R=rsc
     https://golang.org/cl/179047
-
+---
  src/pkg/go/printer/nodes.go                     | 33 +++++++++++++++++++++----
  src/pkg/go/printer/testdata/declarations.golden | 27 ++++++++++++++++++--
  src/pkg/go/printer/testdata/declarations.input  | 21 ++++++++++++++++
@@ -17,3 +17,227 @@ Date:   Mon Dec 14 17:35:12 2009 -0800
  src/pkg/go/printer/testdata/expressions.input   | 12 +++++++++
  src/pkg/go/printer/testdata/expressions.raw     | 12 +++++++++
  6 files changed, 110 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 2e1417a3ac..f324bbc90b 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -141,6 +141,27 @@ const (
+ )
+ 
+ 
++// Obtain a (single) token position before the next comment.
++// Use this function to correct a token position such that the
++// token is placed before the next comment (which may be a line
++// comment introducing a newline and possibly introducing a
++// semicolon). Use moveCommentsAfter() to move a comment past
++// more than a single token. beforeComment() is preferable if
++// if can be used as it produces better results.
++//
++// Remove this after transitioning to new semicolon syntax and
++// some reasonable grace period (12/11/09).
++func (p *printer) beforeComment(pos token.Position) token.Position {
++	if p.comment != nil {
++		p := p.comment.List[0].Position;
++		if !pos.IsValid() || pos.Offset > p.Offset {
++			return p
++		}
++	}
++	return pos;
++}
++
++
+ // Print a list of expressions. If the list spans multiple
+ // source lines, the original line breaks are respected between
+ // expressions. Sets multiLine to true if the list spans multiple
+@@ -200,7 +221,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 		line = x.Pos().Line;
+ 		if i > 0 {
+ 			if mode&plusSep != 0 {
+-				p.print(blank, token.ADD)
++				p.print(blank, p.beforeComment(noPos), token.ADD)
+ 			}
+ 			if mode&commaSep != 0 {
+ 				p.print(token.COMMA)
+@@ -583,7 +604,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
+ 	}
+ 	xline := p.pos.Line;	// before the operator (it may be on the next line!)
+ 	yline := x.Y.Pos().Line;
+-	p.print(x.OpPos, x.Op);
++	p.print(p.beforeComment(x.OpPos), x.Op);
+ 	if xline != yline && xline > 0 && yline > 0 {
+ 		// at least one line break, but respect an extra empty line
+ 		// in the source
+@@ -851,9 +872,11 @@ func (p *printer) moveCommentsAfter(pos token.Position) {
+ // block prints an *ast.BlockStmt; it always spans at least two lines.
+ func (p *printer) block(s *ast.BlockStmt, indent int, moveComments bool) {
+ 	if moveComments {
+-		p.moveCommentsAfter(s.Pos())
++		p.print(p.beforeComment(s.Pos()))
++	} else {
++		p.print(s.Pos())
+ 	}
+-	p.print(s.Pos(), token.LBRACE);
++	p.print(token.LBRACE);
+ 	p.stmtList(s.List, indent);
+ 	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
+ 	p.print(s.Rbrace, token.RBRACE);
+@@ -1116,8 +1139,8 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
+ 		if s.Name != nil {
+ 			p.expr(s.Name, multiLine);
+ 			p.print(blank);
++			p.moveCommentsAfter(s.Path[0].Pos());
+ 		}
+-		p.moveCommentsAfter(s.Path[0].Pos());
+ 		p.expr(&ast.StringList{s.Path}, multiLine);
+ 		comment = s.Comment;
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 089fac448c..1af6005c53 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -42,8 +42,29 @@ import _ "fmt"
+ 
+ // make sure a comment doesn't cause semicolons to be inserted
+ import _ "foo"	// a comment
++import		// a comment
++"bar"
++import "foo"	// a comment
+ import "bar"	// a comment
+ 
++import (
++	_ "foo" +	// a comment
++		// a comment
++		"bar" +
++		"foo" +	// a comment
++		"bar";	// a comment
++)
++
++// a case that caused problems in the past (comment placement)
++import (
++	. "fmt";
++	"io";
++	"malloc";	// for the malloc count test only
++	"math";
++	"strings";
++	"testing";
++)
++
+ 
+ // at least one empty line between declarations of different kind
+ import _ "io"
+@@ -471,9 +492,11 @@ func _() int		{ type T struct{} }
+ // making function declarations safe for new semicolon rules
+ func _() { /* one-line func */ }
+ 
+-func _() { // opening "{" must move up /* one-line func */ }
++func _() {	// opening "{" must move up
++	/* one-line func */ }
+ 
+-func _() {	// opening "{" must move up// multi-line func
++func _() {	// opening "{" must move up
++	// multi-line func
+ 
+ 	// in the following declarations, a comment must not
+ 	// introduce a newline and thus cause a semicolon to
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index b876815f22..c54a1c0467 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -45,6 +45,27 @@ import _ // a comment
+ 	"foo"
+ import // a comment
+ 	"bar"
++import "foo"  // a comment
++import "bar"  // a comment
++
++import (
++	_ // a comment
++	"foo"
++	// a comment
++	"bar"
++	"foo"  // a comment
++	"bar"  // a comment
++)
++
++// a case that caused problems in the past (comment placement)
++import (
++	. "fmt";
++	"io";
++	"malloc";	// for the malloc count test only
++	"math";
++	"strings";
++	"testing";
++)
+ 
+ 
+ // at least one empty line between declarations of different kind
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 4eab165d6f..abc66c738a 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -297,6 +297,18 @@ const (
+ )
+ 
+ 
++// Correct placement of operators and comments in multi-line expressions
++func _() {
++	_ = a +	// comment
++		b +	// comment
++		c;
++	_ = "a" +	// comment
++		"b" +	// comment
++		"c";
++	_ = "ba0408" + "7265717569726564";	// field 71, encoding 2, string "required"
++}
++
++
+ func same(t, u *Time) bool {
+ 	// respect source lines in multi-line expressions
+ 	return t.Year == u.Year &&
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index b271e1c626..87e05ba1eb 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -302,6 +302,18 @@ const (
+ )
+ 
+ 
++// Correct placement of operators and comments in multi-line expressions
++func _() {
++	_ = a  // comment
++		+ b +  // comment
++		c;
++	_ = "a"	// comment
++		"b"	// comment
++		"c";
++	_ = "ba0408" "7265717569726564"     // field 71, encoding 2, string "required"
++}
++
++
+ func same(t, u *Time) bool {
+ 	// respect source lines in multi-line expressions
+ 	return t.Year == u.Year &&
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 2c4bb254f6..366a639afa 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -297,6 +297,18 @@ const (
+ )
+ 
+ 
++// Correct placement of operators and comments in multi-line expressions
++func _() {
++	_ = a +	// comment
++		b +	// comment
++		c;
++	_ = "a" +	// comment
++		"b" +	// comment
++		"c";
++	_ = "ba0408" + "7265717569726564";	// field 71, encoding 2, string "required"
++}
++
++
+ func same(t, u *Time) bool {
+ 	// respect source lines in multi-line expressions
+ 	return t.Year == u.Year &&

@@ -17,6 +17,22 @@ Date:   Tue Oct 27 14:49:51 2015 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/symtab.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 005e876d28..646968f584 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -498,8 +498,8 @@ func symtab() {
+ 	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
+ 	// The filetab slice
+ 	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
+-	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile))
+-	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile))
++	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile)+1)
++	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile)+1)
+ 	// findfunctab
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.findfunctab", 0))
+ 	// minpc, maxpc

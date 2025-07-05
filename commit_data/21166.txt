@@ -8,6 +8,28 @@ Date:   Fri Nov 21 15:58:01 2014 -0500
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/176130044
-
+---
  src/cmd/9g/prog.c | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/9g/prog.c b/src/cmd/9g/prog.c
+index e3e50f28a9..51c132d183 100644
+--- a/src/cmd/9g/prog.c
++++ b/src/cmd/9g/prog.c
+@@ -134,11 +134,12 @@ proginfo(ProgInfo *info, Prog *p)
+ 	}
+ 
+ 	if(p->as == ADUFFZERO) {
+-		info->reguse |= RtoB(0) | RtoB(2);
+-		info->regset |= RtoB(2);
++		info->reguse |= (1<<D_R0) | RtoB(3);
++		info->regset |= RtoB(3);
+ 	}
+ 	if(p->as == ADUFFCOPY) {
+-		info->reguse |= RtoB(0) | RtoB(2) | RtoB(3);
+-		info->regset |= RtoB(2) | RtoB(3);
++		// TODO(austin) Revisit when duffcopy is implemented
++		info->reguse |= RtoB(3) | RtoB(4) | RtoB(5);
++		info->regset |= RtoB(3) | RtoB(4);
+ 	}
+ }

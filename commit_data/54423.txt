@@ -20,9 +20,465 @@ Date:   Fri Oct 7 12:19:32 2022 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  .../compile/internal/ssa/_gen/AMD64latelower.rules |  11 +
  src/cmd/compile/internal/ssa/compile.go            |   2 +-
  src/cmd/compile/internal/ssa/config.go             |   1 +
  .../compile/internal/ssa/rewriteAMD64latelower.go  | 406 +++++++++++++++++++++
  4 files changed, 419 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules b/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
+new file mode 100644
+index 0000000000..67aa64a101
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// split 3 operand LEA.
++// Note: Don't split pointer computations in order to avoid invalid pointers.
++(LEA(Q|L|W)1 <t> [c] {s} x y) &&  isPtr(x.Type) && c != 0 && s == nil => (ADD(Q|L|L) x (ADD(Q|L|L)const <y.Type> [c] y))
++(LEA(Q|L|W)1 <t> [c] {s} x y) && !isPtr(x.Type) && c != 0 && s == nil => (ADD(Q|L|L) y (ADD(Q|L|L)const <x.Type> [c] x))
++(LEA(Q|L|W)2 <t> [c] {s} x y) && !isPtr(t)      && c != 0 && s == nil => (ADD(Q|L|L)const [c] (LEA(Q|L|W)2 <x.Type> x y))
++(LEA(Q|L|W)4 <t> [c] {s} x y) && !isPtr(t)      && c != 0 && s == nil => (ADD(Q|L|L)const [c] (LEA(Q|L|W)4 <x.Type> x y))
++(LEA(Q|L|W)8 <t> [c] {s} x y) && !isPtr(t)      && c != 0 && s == nil => (ADD(Q|L|L)const [c] (LEA(Q|L|W)8 <x.Type> x y))
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 2eaef72445..769f225850 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -486,8 +486,8 @@ var passes = [...]pass{
+ 	{name: "insert resched checks", fn: insertLoopReschedChecks,
+ 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
+ 	{name: "lower", fn: lower, required: true},
+-	{name: "late lower", fn: lateLower, required: true},
+ 	{name: "addressing modes", fn: addressingModes, required: false},
++	{name: "late lower", fn: lateLower, required: true},
+ 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
+ 	{name: "lowered cse", fn: cse},
+ 	{name: "elim unread autos", fn: elimUnreadAutos},
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 5f39a6dfb3..17f336315a 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -185,6 +185,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.RegSize = 8
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
++		c.lateLowerValue = rewriteValueAMD64latelower
+ 		c.splitLoad = rewriteValueAMD64splitload
+ 		c.registers = registersAMD64[:]
+ 		c.gpRegMask = gpRegMaskAMD64
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go b/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+new file mode 100644
+index 0000000000..6bd9640744
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64latelower.go
+@@ -0,0 +1,406 @@
++// Code generated from gen/AMD64latelower.rules; DO NOT EDIT.
++// generated with: cd gen; go run *.go
++
++package ssa
++
++func rewriteValueAMD64latelower(v *Value) bool {
++	switch v.Op {
++	case OpAMD64LEAL1:
++		return rewriteValueAMD64latelower_OpAMD64LEAL1(v)
++	case OpAMD64LEAL2:
++		return rewriteValueAMD64latelower_OpAMD64LEAL2(v)
++	case OpAMD64LEAL4:
++		return rewriteValueAMD64latelower_OpAMD64LEAL4(v)
++	case OpAMD64LEAL8:
++		return rewriteValueAMD64latelower_OpAMD64LEAL8(v)
++	case OpAMD64LEAQ1:
++		return rewriteValueAMD64latelower_OpAMD64LEAQ1(v)
++	case OpAMD64LEAQ2:
++		return rewriteValueAMD64latelower_OpAMD64LEAQ2(v)
++	case OpAMD64LEAQ4:
++		return rewriteValueAMD64latelower_OpAMD64LEAQ4(v)
++	case OpAMD64LEAQ8:
++		return rewriteValueAMD64latelower_OpAMD64LEAQ8(v)
++	case OpAMD64LEAW1:
++		return rewriteValueAMD64latelower_OpAMD64LEAW1(v)
++	case OpAMD64LEAW2:
++		return rewriteValueAMD64latelower_OpAMD64LEAW2(v)
++	case OpAMD64LEAW4:
++		return rewriteValueAMD64latelower_OpAMD64LEAW4(v)
++	case OpAMD64LEAW8:
++		return rewriteValueAMD64latelower_OpAMD64LEAW8(v)
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAL1(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAL1 <t> [c] {s} x y)
++	// cond: isPtr(x.Type) && c != 0 && s == nil
++	// result: (ADDL x (ADDLconst <y.Type> [c] y))
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(isPtr(x.Type) && c != 0 && s == nil) {
++				continue
++			}
++			v.reset(OpAMD64ADDL)
++			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, y.Type)
++			v0.AuxInt = int32ToAuxInt(c)
++			v0.AddArg(y)
++			v.AddArg2(x, v0)
++			return true
++		}
++		break
++	}
++	// match: (LEAL1 <t> [c] {s} x y)
++	// cond: !isPtr(x.Type) && c != 0 && s == nil
++	// result: (ADDL y (ADDLconst <x.Type> [c] x))
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(!isPtr(x.Type) && c != 0 && s == nil) {
++				continue
++			}
++			v.reset(OpAMD64ADDL)
++			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, x.Type)
++			v0.AuxInt = int32ToAuxInt(c)
++			v0.AddArg(x)
++			v.AddArg2(y, v0)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAL2(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAL2 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDLconst [c] (LEAL2 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAL4(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAL4 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDLconst [c] (LEAL4 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAL8(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAL8 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDLconst [c] (LEAL8 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAQ1(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAQ1 <t> [c] {s} x y)
++	// cond: isPtr(x.Type) && c != 0 && s == nil
++	// result: (ADDQ x (ADDQconst <y.Type> [c] y))
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(isPtr(x.Type) && c != 0 && s == nil) {
++				continue
++			}
++			v.reset(OpAMD64ADDQ)
++			v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, y.Type)
++			v0.AuxInt = int32ToAuxInt(c)
++			v0.AddArg(y)
++			v.AddArg2(x, v0)
++			return true
++		}
++		break
++	}
++	// match: (LEAQ1 <t> [c] {s} x y)
++	// cond: !isPtr(x.Type) && c != 0 && s == nil
++	// result: (ADDQ y (ADDQconst <x.Type> [c] x))
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(!isPtr(x.Type) && c != 0 && s == nil) {
++				continue
++			}
++			v.reset(OpAMD64ADDQ)
++			v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, x.Type)
++			v0.AuxInt = int32ToAuxInt(c)
++			v0.AddArg(x)
++			v.AddArg2(y, v0)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAQ2(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAQ2 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDQconst [c] (LEAQ2 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDQconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAQ4(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAQ4 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDQconst [c] (LEAQ4 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDQconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAQ8(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAQ8 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDQconst [c] (LEAQ8 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDQconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAW1(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAW1 <t> [c] {s} x y)
++	// cond: isPtr(x.Type) && c != 0 && s == nil
++	// result: (ADDL x (ADDLconst <y.Type> [c] y))
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(isPtr(x.Type) && c != 0 && s == nil) {
++				continue
++			}
++			v.reset(OpAMD64ADDL)
++			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, y.Type)
++			v0.AuxInt = int32ToAuxInt(c)
++			v0.AddArg(y)
++			v.AddArg2(x, v0)
++			return true
++		}
++		break
++	}
++	// match: (LEAW1 <t> [c] {s} x y)
++	// cond: !isPtr(x.Type) && c != 0 && s == nil
++	// result: (ADDL y (ADDLconst <x.Type> [c] x))
++	for {
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			y := v_1
++			if !(!isPtr(x.Type) && c != 0 && s == nil) {
++				continue
++			}
++			v.reset(OpAMD64ADDL)
++			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, x.Type)
++			v0.AuxInt = int32ToAuxInt(c)
++			v0.AddArg(x)
++			v.AddArg2(y, v0)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAW2(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAW2 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDLconst [c] (LEAW2 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAW2, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAW4(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAW4 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDLconst [c] (LEAW4 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAW4, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64latelower_OpAMD64LEAW8(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (LEAW8 <t> [c] {s} x y)
++	// cond: !isPtr(t) && c != 0 && s == nil
++	// result: (ADDLconst [c] (LEAW8 <x.Type> x y))
++	for {
++		t := v.Type
++		c := auxIntToInt32(v.AuxInt)
++		s := auxToSym(v.Aux)
++		x := v_0
++		y := v_1
++		if !(!isPtr(t) && c != 0 && s == nil) {
++			break
++		}
++		v.reset(OpAMD64ADDLconst)
++		v.AuxInt = int32ToAuxInt(c)
++		v0 := b.NewValue0(v.Pos, OpAMD64LEAW8, x.Type)
++		v0.AddArg2(x, y)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteBlockAMD64latelower(b *Block) bool {
++	return false
++}

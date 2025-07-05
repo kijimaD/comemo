@@ -12,9 +12,81 @@ Date:   Tue Sep 10 22:56:40 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/611919
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/panic.go                         |  2 --
  src/runtime/proc.go                          |  3 ---
  src/runtime/proc_test.go                     | 10 ----------
  src/runtime/testdata/testprogcgo/callback.go | 11 -----------
  4 files changed, 26 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ed08bf4f30..bd1ea096aa 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -614,8 +614,6 @@ func deferreturn() {
+ // without func main returning. Since func main has not returned,
+ // the program continues execution of other goroutines.
+ // If all other goroutines exit, the program crashes.
+-//
+-// It crashes if called from a thread not created by the Go runtime.
+ func Goexit() {
+ 	// Create a panic object for Goexit, so we can recognize when it might be
+ 	// bypassed by a recover().
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0909d138ff..c4db86225d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4321,9 +4321,6 @@ func gdestroy(gp *g) {
+ 
+ 	if locked && mp.lockedInt != 0 {
+ 		print("runtime: mp.lockedInt = ", mp.lockedInt, "\n")
+-		if mp.isextra {
+-			throw("runtime.Goexit called in a thread that was not created by the Go runtime")
+-		}
+ 		throw("exited a goroutine internally locked to the OS thread")
+ 	}
+ 	gfput(pp, gp)
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 0a54240984..a930ea707f 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1158,13 +1158,3 @@ func TestBigGOMAXPROCS(t *testing.T) {
+ 		t.Errorf("output:\n%s\nwanted:\nunknown function: NonexistentTest", output)
+ 	}
+ }
+-
+-func TestCgoToGoCallGoexit(t *testing.T) {
+-	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+-		t.Skipf("no pthreads on %s", runtime.GOOS)
+-	}
+-	output := runTestProg(t, "testprogcgo", "CgoToGoCallGoexit")
+-	if !strings.Contains(output, "runtime.Goexit called in a thread that was not created by the Go runtime") {
+-		t.Fatalf("output should contain %s, got %s", "runtime.Goexit called in a thread that was not created by the Go runtime", output)
+-	}
+-}
+diff --git a/src/runtime/testdata/testprogcgo/callback.go b/src/runtime/testdata/testprogcgo/callback.go
+index 39993f13a6..319572fe10 100644
+--- a/src/runtime/testdata/testprogcgo/callback.go
++++ b/src/runtime/testdata/testprogcgo/callback.go
+@@ -38,21 +38,10 @@ import (
+ 
+ func init() {
+ 	register("CgoCallbackGC", CgoCallbackGC)
+-	register("CgoToGoCallGoexit", CgoToGoCallGoexit)
+ }
+ 
+-func CgoToGoCallGoexit() {
+-	goexit = true
+-	C.foo()
+-}
+-
+-var goexit = false
+-
+ //export go_callback
+ func go_callback() {
+-	if goexit {
+-		runtime.Goexit()
+-	}
+ 	if e := extraMInUse.Load(); e == 0 {
+ 		fmt.Printf("in callback extraMInUse got %d want >0\n", e)
+ 		os.Exit(1)

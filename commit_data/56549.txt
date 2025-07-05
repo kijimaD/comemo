@@ -14,6 +14,71 @@ Date:   Mon May 8 12:07:21 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/arm/a | 58 ----------------------------------------------------------
  1 file changed, 58 deletions(-)
+
+diff --git a/misc/arm/a b/misc/arm/a
+deleted file mode 100755
+index 644e775bb5..0000000000
+--- a/misc/arm/a
++++ /dev/null
+@@ -1,58 +0,0 @@
+-#!/usr/bin/env bash
+-
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This is a small script for executing go binaries on the android platform.
+-#
+-# example:
+-# ./a 5.out foo bar baz
+-#
+-# The script exports the local values of GOARCH, GOTRACEBACK and GOGC
+-# to the android environment.
+-#
+-# Known issues:
+-# The script fails unless the last character output by the program is "\n"
+-#
+-# TODO(kaib): add gdb bridge support
+-
+-exp ()
+-{
+-	if [ ${!1} ]; then
+-		echo "export $1=\"${!1}\"; "
+-	fi
+-}
+-
+-# adb does not correctly return the exit value of the executed program. use this
+-# wrapper to manually extract the exit value
+-rloc=/data/local/tmp/retval
+-rsize=$(adb shell "ls -l $rloc"|tr -s ' '|cut -d' ' -f4)
+-rcheck=38
+-if [ "$rsize" != "$rcheck" ]; then
+-#	echo "debug: retval size incorrect want $rcheck, got $rsize. uploading"
+-	echo  >/tmp/adb.retval '#!/system/bin/sh
+-"$@"
+-echo RETVAL: $?' 
+-	adb push /tmp/adb.retval $rloc >/dev/null 2>&1
+-	adb shell chmod 755 $rloc
+-fi
+-
+-# run the main binary
+-if [ "-g" == "$1" ]; then
+-	adb forward tcp:$2 tcp:$2
+-	args=$(echo $*| cut -d' ' -f4-)
+-	adb push $3 /data/local/tmp/$3 >/dev/null 2>&1
+-	adb shell "$(exp GOARCH) $(exp GOTRACEBACK) $(exp GOGC) \
+-		gdbserver :$2 /data/local/tmp/retval /data/local/tmp/$3 $args" \
+-		2>&1|tr -d '\r' |tee /tmp/adb.out|grep -v RETVAL
+-else
+-	if [ "$*" != "$1" ]; then
+-		args=$(echo $*| cut -d' ' -f2-)
+-	fi
+-	adb push $1 /data/local/tmp/$1 >/dev/null 2>&1
+-	adb shell "$(exp GOARCH) $(exp GOTRACEBACK) $(exp GOGC) \
+-		/data/local/tmp/retval /data/local/tmp/$1 $args" \
+-		2>&1|tr -d '\r' |tee /tmp/adb.out|grep -v RETVAL
+-fi
+-exit $(grep RETVAL /tmp/adb.out|tr -d '\n\r'| cut -d' ' -f2)

@@ -20,6 +20,34 @@ Date:   Fri Apr 22 10:39:04 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/net_test.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index fa5ad632bb..29a2c5d4ba 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -529,17 +529,19 @@ func TestNotTemporaryRead(t *testing.T) {
+ 		<-dialed
+ 		cs.(*TCPConn).SetLinger(0)
+ 		cs.Close()
+-
++	}()
++	defer func() {
+ 		ln.Close()
++		<-serverDone
+ 	}()
+-	defer func() { <-serverDone }()
+ 
+ 	ss, err := Dial("tcp", ln.Addr().String())
++	close(dialed)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer ss.Close()
+-	close(dialed)
++
+ 	_, err = ss.Read([]byte{0})
+ 	if err == nil {
+ 		t.Fatal("Read succeeded unexpectedly")

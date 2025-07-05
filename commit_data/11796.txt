@@ -11,8 +11,155 @@ Date:   Fri Feb 10 22:46:56 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5654059
-
+---
  src/cmd/gc/subr.c        |  7 +++++--
  src/cmd/gc/typecheck.c   | 25 +++++++++++++++++--------
  test/fixedbugs/bug412.go | 16 ++++++++++++++++
  3 files changed, 38 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d865961104..55932ff3f0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2170,8 +2170,11 @@ adddot(Node *n)
+ 	goto ret;
+ 
+ out:
+-	if(c > 1)
+-		yyerror("ambiguous selector %T.%S", t, s);
++	if(c > 1) {
++		yyerror("ambiguous selector %N", n);
++		n->left = N;
++		return n;
++	}
+ 
+ 	// rebuild elided dots
+ 	for(c=d-1; c>=0; c--)
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2339efe072..edd6b729d0 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -20,7 +20,7 @@ static int	twoarg(Node*);
+ static int	lookdot(Node*, Type*, int);
+ static int	looktypedot(Node*, Type*, int);
+ static void	typecheckaste(int, Node*, int, Type*, NodeList*, char*);
+-static Type*	lookdot1(Sym *s, Type *t, Type *f, int);
++static Type*	lookdot1(Node*, Sym *s, Type *t, Type *f, int);
+ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+ static void	typecheckas2(Node*);
+@@ -581,6 +581,8 @@ reswitch:
+ 	case OXDOT:
+ 		n = adddot(n);
+ 		n->op = ODOT;
++		if(n->left == N)
++			goto error;
+ 		// fall through
+ 	case ODOT:
+ 		typecheck(&n->left, Erv|Etype);
+@@ -1495,6 +1497,7 @@ implicitstar(Node **nn)
+ 	if(!isfixedarray(t))
+ 		return;
+ 	n = nod(OIND, n, N);
++	n->implicit = 1;
+ 	typecheck(&n, Erv);
+ 	*nn = n;
+ }
+@@ -1554,7 +1557,7 @@ twoarg(Node *n)
+ }
+ 
+ static Type*
+-lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
++lookdot1(Node *errnode, Sym *s, Type *t, Type *f, int dostrcmp)
+ {
+ 	Type *r;
+ 
+@@ -1565,7 +1568,12 @@ lookdot1(Sym *s, Type *t, Type *f, int dostrcmp)
+ 		if(f->sym != s)
+ 			continue;
+ 		if(r != T) {
+-			yyerror("ambiguous selector %T.%S", t, s);
++			if(errnode)
++				yyerror("ambiguous selector %N", errnode);
++			else if(isptr[t->etype])
++				yyerror("ambiguous selector (%T).%S", t, s);
++			else
++				yyerror("ambiguous selector %T.%S", t, s);
+ 			break;
+ 		}
+ 		r = f;
+@@ -1582,7 +1590,7 @@ looktypedot(Node *n, Type *t, int dostrcmp)
+ 	s = n->right->sym;
+ 
+ 	if(t->etype == TINTER) {
+-		f1 = lookdot1(s, t, t->type, dostrcmp);
++		f1 = lookdot1(n, s, t, t->type, dostrcmp);
+ 		if(f1 == T)
+ 			return 0;
+ 
+@@ -1604,7 +1612,7 @@ looktypedot(Node *n, Type *t, int dostrcmp)
+ 		return 0;
+ 
+ 	expandmeth(f2->sym, f2);
+-	f2 = lookdot1(s, f2, f2->xmethod, dostrcmp);
++	f2 = lookdot1(n, s, f2, f2->xmethod, dostrcmp);
+ 	if(f2 == T)
+ 		return 0;
+ 
+@@ -1643,7 +1651,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 	dowidth(t);
+ 	f1 = T;
+ 	if(t->etype == TSTRUCT || t->etype == TINTER)
+-		f1 = lookdot1(s, t, t->type, dostrcmp);
++		f1 = lookdot1(n, s, t, t->type, dostrcmp);
+ 
+ 	f2 = T;
+ 	if(n->left->type == t || n->left->type->sym == S) {
+@@ -1651,7 +1659,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 		if(f2 != T) {
+ 			// Use f2->method, not f2->xmethod: adddot has
+ 			// already inserted all the necessary embedded dots.
+-			f2 = lookdot1(s, f2, f2->method, dostrcmp);
++			f2 = lookdot1(n, s, f2, f2->method, dostrcmp);
+ 		}
+ 	}
+ 
+@@ -1666,6 +1674,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 		if(t->etype == TINTER) {
+ 			if(isptr[n->left->type->etype]) {
+ 				n->left = nod(OIND, n->left, N);	// implicitstar
++				n->left->implicit = 1;
+ 				typecheck(&n->left, Erv);
+ 			}
+ 			n->op = ODOTINTER;
+@@ -2194,7 +2203,7 @@ typecheckcomplit(Node **np)
+ 				if(s->pkg != localpkg && exportname(s->name))
+ 					s = lookup(s->name);
+ 
+-				f = lookdot1(s, t, t->type, 0);
++				f = lookdot1(nil, s, t, t->type, 0);
+ 				if(f == nil) {
+ 					yyerror("unknown %T field '%S' in struct literal", t, s);
+ 					continue;
+diff --git a/test/fixedbugs/bug412.go b/test/fixedbugs/bug412.go
+new file mode 100644
+index 0000000000..e05b555759
+--- /dev/null
++++ b/test/fixedbugs/bug412.go
+@@ -0,0 +1,16 @@
++// errchk $G $D/$F.go
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type t struct {
++	x int  // ERROR "duplicate field x"
++	x int
++}
++
++func f(t *t) int {
++	return t.x  // ERROR "ambiguous selector t.x"
++}

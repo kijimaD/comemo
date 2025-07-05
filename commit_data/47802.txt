@@ -17,6 +17,31 @@ Date:   Sun Apr 11 12:07:33 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index cb8b2eeec8..d947443cb2 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1449,6 +1449,19 @@ func expandCalls(f *Func) {
+ 	}
+ 
+ 	// Step 6: elide any copies introduced.
++	// Update named values.
++	for _, name := range f.Names {
++		values := f.NamedValues[name]
++		for i, v := range values {
++			if v.Op == OpCopy {
++				a := v.Args[0]
++				for a.Op == OpCopy {
++					a = a.Args[0]
++				}
++				values[i] = a
++			}
++		}
++	}
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			for i, a := range v.Args {

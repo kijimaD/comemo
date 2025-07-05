@@ -9,7 +9,68 @@ Date:   Thu Sep 3 21:04:04 2015 +0000
     Change-Id: Id4374ed35802cfbfe11e015ccd9526d3497dc8cc
     Reviewed-on: https://go-review.googlesource.com/14239
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/link/internal/arm/obj.go |  6 ++++++
  src/cmd/link/internal/ld/lib.go  | 31 ++++++++++---------------------
  2 files changed, 16 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index c4678209ce..14fe7a64eb 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -169,4 +169,10 @@ func archinit() {
+ 	if ld.INITDAT != 0 && ld.INITRND != 0 {
+ 		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
+ 	}
++
++	// embed goarm to runtime.goarm
++	s := ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
++
++	s.Type = obj.SRODATA
++	ld.Adduint8(ld.Ctxt, s, uint8(ld.Ctxt.Goarm))
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index ae56a653dd..66f0a514a4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -558,30 +558,19 @@ func loadlib() {
+ 	Ctxt.Tlsg = tlsg
+ 
+ 	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
+-	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
+-		// If the module (toolchain-speak for "executable or shared
+-		// library") we are linking contains the runtime package, it
+-		// will define the runtime.firstmoduledata symbol and we
+-		// truncate it back to 0 bytes so we can define its entire
+-		// contents in symtab.go:symtab().
+-		moduledata.Size = 0
+-
+-		// In addition, on ARM, the runtime depends on the linker
+-		// recording the value of GOARM.
+-		if Thearch.Thechar == '5' {
+-			s := Linklookup(Ctxt, "runtime.goarm", 0)
+-
+-			s.Type = obj.SRODATA
+-			Adduint8(Ctxt, s, uint8(Ctxt.Goarm))
+-		}
+-	} else {
+-		// If OTOH the module does not contain the runtime package,
+-		// create a local symbol for the moduledata.
++	if moduledata.Type == 0 || moduledata.Type == obj.SDYNIMPORT {
++		// If the module we are linking does not define the
++		// runtime.firstmoduledata symbol, create a local symbol for
++		// the moduledata.
+ 		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
+ 		moduledata.Local = true
++	} else {
++		// If OTOH the module does define the symbol, we truncate the
++		// symbol back to 0 bytes so we can define its entire
++		// contents.
++		moduledata.Size = 0
+ 	}
+-	// In all cases way we mark the moduledata as noptrdata to hide it from
+-	// the GC.
++	// Either way we mark it as noptrdata to hide it from the GC.
+ 	moduledata.Type = obj.SNOPTRDATA
+ 	moduledata.Reachable = true
+ 	Ctxt.Moduledata = moduledata

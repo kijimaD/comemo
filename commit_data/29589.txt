@@ -9,7 +9,7 @@ Date:   Mon Sep 26 11:35:55 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go  | 4 +---
  src/runtime/os_darwin.go    | 4 +---
  src/runtime/os_dragonfly.go | 4 +---
@@ -19,3 +19,129 @@ Date:   Mon Sep 26 11:35:55 2016 -0700
  src/runtime/os_openbsd.go   | 4 +---
  src/runtime/signal_unix.go  | 9 +++++++++
  8 files changed, 16 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 715fb60c96..144d9cdc1f 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -214,9 +214,7 @@ func minit() {
+ 
+ // Called from dropm to undo the effect of an minit.
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 2ac57d3753..5061dde1c5 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -188,9 +188,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ // Mach IPC, to get at semaphores
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index f55b93e67e..df73346a18 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -190,9 +190,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 7c533d4f34..2fc020e528 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -180,9 +180,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 92c3db8616..52b6b63868 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -266,9 +266,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 27c1932fd4..e9c0490455 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -244,9 +244,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index b16b524ab9..d6db2518f3 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -223,9 +223,7 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	if getg().m.newSigstack {
+-		signalstack(nil)
+-	}
++	unminitSignals()
+ }
+ 
+ func memlimit() uintptr {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 3e7c49934b..3a26245221 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -619,6 +619,15 @@ func minitSignalMask() {
+ 	sigprocmask(_SIG_SETMASK, &nmask, nil)
+ }
+ 
++// unminitSignals is called from dropm, via unminit, to undo the
++// effect of calling minit on a non-Go thread.
++//go:nosplit
++func unminitSignals() {
++	if getg().m.newSigstack {
++		signalstack(nil)
++	}
++}
++
+ // setGsignalStack sets the gsignal stack of the current m to an
+ // alternate signal stack returned from the sigaltstack system call.
+ // This is used when handling a signal if non-Go code has set the

@@ -8,7 +8,78 @@ Date:   Fri Jan 18 17:07:34 2013 -0500
     R=anacrolix, rsc
     CC=golang-dev
     https://golang.org/cl/7131052
-
+---
  src/pkg/encoding/xml/read.go      |  7 +++++++
  src/pkg/encoding/xml/read_test.go | 44 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 7a06a29b95..6bc23e1226 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -394,6 +394,13 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ 		return err == nil
+ 	}
+ 
++	if pv := dst; pv.Kind() == reflect.Ptr {
++		if pv.IsNil() {
++			pv.Set(reflect.New(pv.Type().Elem()))
++		}
++		dst = pv.Elem()
++	}
++
+ 	// Save accumulated data.
+ 	switch t := dst; t.Kind() {
+ 	case reflect.Invalid:
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index 8df09b3cce..b45e2f0e61 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -355,3 +355,47 @@ func TestUnmarshalWithoutNameType(t *testing.T) {
+ 		t.Fatalf("have %v\nwant %v", x.Attr, OK)
+ 	}
+ }
++
++func TestUnmarshalAttr(t *testing.T) {
++	type ParamVal struct {
++		Int int `xml:"int,attr"`
++	}
++
++	type ParamPtr struct {
++		Int *int `xml:"int,attr"`
++	}
++
++	type ParamStringPtr struct {
++		Int *string `xml:"int,attr"`
++	}
++
++	x := []byte(`<Param int="1" />`)
++
++	p1 := &ParamPtr{}
++	if err := Unmarshal(x, p1); err != nil {
++		t.Fatalf("Unmarshal: %s", err)
++	}
++	if p1.Int == nil {
++		t.Fatalf("Unmarshal failed in to *int field")
++	} else if *p1.Int != 1 {
++		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p1.Int, 1)
++	}
++
++	p2 := &ParamVal{}
++	if err := Unmarshal(x, p2); err != nil {
++		t.Fatalf("Unmarshal: %s", err)
++	}
++	if p2.Int != 1 {
++		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p2.Int, 1)
++	}
++
++	p3 := &ParamStringPtr{}
++	if err := Unmarshal(x, p3); err != nil {
++		t.Fatalf("Unmarshal: %s", err)
++	}
++	if p3.Int == nil {
++		t.Fatalf("Unmarshal failed in to *string field")
++	} else if *p3.Int != "1" {
++		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p3.Int, 1)
++	}
++}

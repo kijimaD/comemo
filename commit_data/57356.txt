@@ -15,9 +15,78 @@ Date:   Mon Jul 31 15:20:54 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
-
+---
  src/encoding/xml/marshal.go   | 6 +++---
  src/encoding/xml/read.go      | 8 ++++----
  src/encoding/xml/read_test.go | 8 ++++----
  src/encoding/xml/typeinfo.go  | 2 +-
  4 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 0c3cc0dc36..e641148011 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -415,9 +415,9 @@ func (p *printer) popPrefix() {
+ }
+ 
+ var (
+-	marshalerType     = reflect.TypeOf((*Marshaler)(nil)).Elem()
+-	marshalerAttrType = reflect.TypeOf((*MarshalerAttr)(nil)).Elem()
+-	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
++	marshalerType     = reflect.TypeFor[Marshaler]()
++	marshalerAttrType = reflect.TypeFor[MarshalerAttr]()
++	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
+ )
+ 
+ // marshalValue writes one or more XML elements representing val.
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index c1c843e4c0..e3f9a587dd 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -304,10 +304,10 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+ }
+ 
+ var (
+-	attrType            = reflect.TypeOf(Attr{})
+-	unmarshalerType     = reflect.TypeOf((*Unmarshaler)(nil)).Elem()
+-	unmarshalerAttrType = reflect.TypeOf((*UnmarshalerAttr)(nil)).Elem()
+-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
++	attrType            = reflect.TypeFor[Attr]()
++	unmarshalerType     = reflect.TypeFor[Unmarshaler]()
++	unmarshalerAttrType = reflect.TypeFor[UnmarshalerAttr]()
++	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
+ )
+ 
+ const (
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 3e85fca5c6..ce99894295 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -326,10 +326,10 @@ type BadPathEmbeddedB struct {
+ var badPathTests = []struct {
+ 	v, e any
+ }{
+-	{&BadPathTestA{}, &TagPathError{reflect.TypeOf(BadPathTestA{}), "First", "items>item1", "Second", "items"}},
+-	{&BadPathTestB{}, &TagPathError{reflect.TypeOf(BadPathTestB{}), "First", "items>item1", "Second", "items>item1>value"}},
+-	{&BadPathTestC{}, &TagPathError{reflect.TypeOf(BadPathTestC{}), "First", "", "Second", "First"}},
+-	{&BadPathTestD{}, &TagPathError{reflect.TypeOf(BadPathTestD{}), "First", "", "Second", "First"}},
++	{&BadPathTestA{}, &TagPathError{reflect.TypeFor[BadPathTestA](), "First", "items>item1", "Second", "items"}},
++	{&BadPathTestB{}, &TagPathError{reflect.TypeFor[BadPathTestB](), "First", "items>item1", "Second", "items>item1>value"}},
++	{&BadPathTestC{}, &TagPathError{reflect.TypeFor[BadPathTestC](), "First", "", "Second", "First"}},
++	{&BadPathTestD{}, &TagPathError{reflect.TypeFor[BadPathTestD](), "First", "", "Second", "First"}},
+ }
+ 
+ func TestUnmarshalBadPaths(t *testing.T) {
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 2f123fdbb4..12d3918760 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -46,7 +46,7 @@ const (
+ 
+ var tinfoMap sync.Map // map[reflect.Type]*typeInfo
+ 
+-var nameType = reflect.TypeOf(Name{})
++var nameType = reflect.TypeFor[Name]()
+ 
+ // getTypeInfo returns the typeInfo structure with details necessary
+ // for marshaling and unmarshaling typ.

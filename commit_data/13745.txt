@@ -9,6 +9,20 @@ Date:   Tue Sep 4 15:28:09 2012 +1000
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6506064
-
+---
  doc/articles/concurrency_patterns.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/concurrency_patterns.html b/doc/articles/concurrency_patterns.html
+index 515d974d2b..62168b840b 100644
+--- a/doc/articles/concurrency_patterns.html
++++ b/doc/articles/concurrency_patterns.html
+@@ -64,7 +64,7 @@ could fail since no one is ready.
+ </p>
+ 
+ <p>
+-This problem is a textbook of example of what is known as a
++This problem is a textbook example of what is known as a
+ <a href="https://en.wikipedia.org/wiki/Race_condition">race condition</a>, but
+ the fix is trivial. We just make sure to buffer the channel <code>ch</code> (by
+ adding the buffer length as the second argument to <a href="/pkg/builtin/#make">make</a>),

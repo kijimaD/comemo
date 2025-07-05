@@ -11,8 +11,164 @@ Date:   Wed Jan 8 10:15:23 2025 +0100
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/mlkem/example_test.go | 47 ++++++++++++++++++++++++++++++++++++++++
  src/crypto/mlkem/mlkem1024.go    | 12 +++++-----
  src/crypto/mlkem/mlkem768.go     | 15 +++++++------
  3 files changed, 60 insertions(+), 14 deletions(-)
+
+diff --git a/src/crypto/mlkem/example_test.go b/src/crypto/mlkem/example_test.go
+new file mode 100644
+index 0000000000..28bf3f29e7
+--- /dev/null
++++ b/src/crypto/mlkem/example_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mlkem_test
++
++import (
++	"crypto/mlkem"
++	"log"
++)
++
++func Example() {
++	// Alice generates a new key pair and sends the encapsulation key to Bob.
++	dk, err := mlkem.GenerateKey768()
++	if err != nil {
++		log.Fatal(err)
++	}
++	encapsulationKey := dk.EncapsulationKey().Bytes()
++
++	// Bob uses the encapsulation key to encapsulate a shared secret, and sends
++	// back the ciphertext to Alice.
++	ciphertext := Bob(encapsulationKey)
++
++	// Alice decapsulates the shared secret from the ciphertext.
++	sharedSecret, err := dk.Decapsulate(ciphertext)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	// Alice and Bob now share a secret.
++	_ = sharedSecret
++}
++
++func Bob(encapsulationKey []byte) (ciphertext []byte) {
++	// Bob encapsulates a shared secret using the encapsulation key.
++	ek, err := mlkem.NewEncapsulationKey768(encapsulationKey)
++	if err != nil {
++		log.Fatal(err)
++	}
++	sharedSecret, ciphertext := ek.Encapsulate()
++
++	// Alice and Bob now share a secret.
++	_ = sharedSecret
++
++	// Bob sends the ciphertext to Alice.
++	return ciphertext
++}
+diff --git a/src/crypto/mlkem/mlkem1024.go b/src/crypto/mlkem/mlkem1024.go
+index 05bad1eb2a..014cfce1e4 100644
+--- a/src/crypto/mlkem/mlkem1024.go
++++ b/src/crypto/mlkem/mlkem1024.go
+@@ -7,12 +7,10 @@ package mlkem
+ import "crypto/internal/fips140/mlkem"
+ 
+ const (
+-	// CiphertextSize1024 is the size of a ciphertext produced by the 1024-bit
+-	// variant of ML-KEM.
++	// CiphertextSize1024 is the size of a ciphertext produced by ML-KEM-1024.
+ 	CiphertextSize1024 = 1568
+ 
+-	// EncapsulationKeySize1024 is the size of an encapsulation key for the
+-	// 1024-bit variant of ML-KEM.
++	// EncapsulationKeySize1024 is the size of an ML-KEM-1024 encapsulation key.
+ 	EncapsulationKeySize1024 = 1568
+ )
+ 
+@@ -23,7 +21,7 @@ type DecapsulationKey1024 struct {
+ }
+ 
+ // GenerateKey1024 generates a new decapsulation key, drawing random bytes from
+-// crypto/rand. The decapsulation key must be kept secret.
++// the default crypto/rand source. The decapsulation key must be kept secret.
+ func GenerateKey1024() (*DecapsulationKey1024, error) {
+ 	key, err := mlkem.GenerateKey1024()
+ 	if err != nil {
+@@ -33,7 +31,7 @@ func GenerateKey1024() (*DecapsulationKey1024, error) {
+ 	return &DecapsulationKey1024{key}, nil
+ }
+ 
+-// NewDecapsulationKey1024 parses a decapsulation key from a 64-byte seed in the
++// NewDecapsulationKey1024 expands a decapsulation key from a 64-byte seed in the
+ // "d || z" form. The seed must be uniformly random.
+ func NewDecapsulationKey1024(seed []byte) (*DecapsulationKey1024, error) {
+ 	key, err := mlkem.NewDecapsulationKey1024(seed)
+@@ -88,7 +86,7 @@ func (ek *EncapsulationKey1024) Bytes() []byte {
+ }
+ 
+ // Encapsulate generates a shared key and an associated ciphertext from an
+-// encapsulation key, drawing random bytes from crypto/rand.
++// encapsulation key, drawing random bytes from the default crypto/rand source.
+ //
+ // The shared key must be kept secret.
+ func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
+diff --git a/src/crypto/mlkem/mlkem768.go b/src/crypto/mlkem/mlkem768.go
+index c367c551e6..a165eb1c9f 100644
+--- a/src/crypto/mlkem/mlkem768.go
++++ b/src/crypto/mlkem/mlkem768.go
+@@ -5,6 +5,9 @@
+ // Package mlkem implements the quantum-resistant key encapsulation method
+ // ML-KEM (formerly known as Kyber), as specified in [NIST FIPS 203].
+ //
++// Most applications should use the ML-KEM-768 parameter set, as implemented by
++// [DecapsulationKey768] and [EncapsulationKey768].
++//
+ // [NIST FIPS 203]: https://doi.org/10.6028/NIST.FIPS.203
+ package mlkem
+ 
+@@ -17,12 +20,10 @@ const (
+ 	// SeedSize is the size of a seed used to generate a decapsulation key.
+ 	SeedSize = 64
+ 
+-	// CiphertextSize768 is the size of a ciphertext produced by the 768-bit
+-	// variant of ML-KEM.
++	// CiphertextSize768 is the size of a ciphertext produced by ML-KEM-768.
+ 	CiphertextSize768 = 1088
+ 
+-	// EncapsulationKeySize768 is the size of an encapsulation key for the
+-	// 768-bit variant of ML-KEM.
++	// EncapsulationKeySize768 is the size of an ML-KEM-768 encapsulation key.
+ 	EncapsulationKeySize768 = 1184
+ )
+ 
+@@ -33,7 +34,7 @@ type DecapsulationKey768 struct {
+ }
+ 
+ // GenerateKey768 generates a new decapsulation key, drawing random bytes from
+-// crypto/rand. The decapsulation key must be kept secret.
++// the default crypto/rand source. The decapsulation key must be kept secret.
+ func GenerateKey768() (*DecapsulationKey768, error) {
+ 	key, err := mlkem.GenerateKey768()
+ 	if err != nil {
+@@ -43,7 +44,7 @@ func GenerateKey768() (*DecapsulationKey768, error) {
+ 	return &DecapsulationKey768{key}, nil
+ }
+ 
+-// NewDecapsulationKey768 parses a decapsulation key from a 64-byte seed in the
++// NewDecapsulationKey768 expands a decapsulation key from a 64-byte seed in the
+ // "d || z" form. The seed must be uniformly random.
+ func NewDecapsulationKey768(seed []byte) (*DecapsulationKey768, error) {
+ 	key, err := mlkem.NewDecapsulationKey768(seed)
+@@ -98,7 +99,7 @@ func (ek *EncapsulationKey768) Bytes() []byte {
+ }
+ 
+ // Encapsulate generates a shared key and an associated ciphertext from an
+-// encapsulation key, drawing random bytes from crypto/rand.
++// encapsulation key, drawing random bytes from the default crypto/rand source.
+ //
+ // The shared key must be kept secret.
+ func (ek *EncapsulationKey768) Encapsulate() (sharedKey, ciphertext []byte) {

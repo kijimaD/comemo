@@ -14,9 +14,77 @@ Date:   Thu Aug 17 15:44:20 2023 -0400
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/sysinfo/cpuinfo_bsd.go  | 14 ++++++++++++++
  src/internal/sysinfo/cpuinfo_stub.go |  2 +-
  src/internal/sysinfo/export_test.go  |  7 +++++++
  src/internal/sysinfo/sysinfo_test.go | 15 +++++++++++++++
  4 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/sysinfo/cpuinfo_bsd.go b/src/internal/sysinfo/cpuinfo_bsd.go
+new file mode 100644
+index 0000000000..2c04c8f7d6
+--- /dev/null
++++ b/src/internal/sysinfo/cpuinfo_bsd.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || freebsd || netbsd || openbsd
++
++package sysinfo
++
++import "syscall"
++
++func osCpuInfoName() string {
++	cpu, _ := syscall.Sysctl("machdep.cpu.brand_string")
++	return cpu
++}
+diff --git a/src/internal/sysinfo/cpuinfo_stub.go b/src/internal/sysinfo/cpuinfo_stub.go
+index 5dcfed1137..273166ee61 100644
+--- a/src/internal/sysinfo/cpuinfo_stub.go
++++ b/src/internal/sysinfo/cpuinfo_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux
++//go:build !(darwin || freebsd || linux || netbsd || openbsd)
+ 
+ package sysinfo
+ 
+diff --git a/src/internal/sysinfo/export_test.go b/src/internal/sysinfo/export_test.go
+new file mode 100644
+index 0000000000..1c668d9c79
+--- /dev/null
++++ b/src/internal/sysinfo/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sysinfo
++
++var XosCpuInfoName = osCpuInfoName
+diff --git a/src/internal/sysinfo/sysinfo_test.go b/src/internal/sysinfo/sysinfo_test.go
+new file mode 100644
+index 0000000000..c2f1dd298e
+--- /dev/null
++++ b/src/internal/sysinfo/sysinfo_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sysinfo_test
++
++import (
++	. "internal/sysinfo"
++	"testing"
++)
++
++func TestCPUName(t *testing.T) {
++	t.Logf("CPUName: %s", CPUName())
++	t.Logf("osCpuInfoName: %s", XosCpuInfoName())
++}

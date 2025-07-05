@@ -16,10 +16,174 @@ Date:   Fri Dec 1 13:42:53 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 21 ++++++++++++++-------
  src/cmd/go/internal/test/test.go             | 10 ++++++++--
  src/cmd/go/testdata/src/skipper/skip_test.go |  7 +++++++
  src/cmd/internal/test2json/test2json.go      | 23 +++++++++++++++++++----
  src/cmd/test2json/main.go                    |  4 ++--
  5 files changed, 50 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c2fe8b09b4..4551193b88 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5237,13 +5237,20 @@ func TestGoTestJSON(t *testing.T) {
+ 	// It would be nice to test that the output is interlaced
+ 	// but it seems to be impossible to do that in a short test
+ 	// that isn't also flaky. Just check that we get JSON output.
+-	tg.run("test", "-json", "-short", "-v", "errors")
+-	for _, line := range strings.Split(tg.getStdout(), "\n") {
+-		if strings.Contains(line, `"Package":"errors"`) {
+-			return
+-		}
+-	}
+-	t.Fatalf("did not see JSON output")
++	tg.run("test", "-json", "-short", "-v", "errors", "empty/pkg", "skipper")
++	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
++	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
++
++	tg.grepStdout(`"Action":"output","Package":"empty/pkg","Output":".*no test files`, "did not see no test files print")
++	tg.grepStdout(`"Action":"skip","Package":"empty/pkg"`, "did not see skip")
++
++	tg.grepStdout(`"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:`, "did not see SKIP output")
++	tg.grepStdout(`"Action":"skip","Package":"skipper","Test":"Test"`, "did not see skip result for Test")
++
++	tg.run("test", "-json", "-bench=NONE", "-short", "-v", "errors")
++	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
++	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
++
+ }
+ 
+ func TestFailFast(t *testing.T) {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index a14a3f4438..e06d7dbbca 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1283,7 +1283,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 		// Stream test output (no buffering) when no package has
+ 		// been given on the command line (implicit current directory)
+ 		// or when benchmarking.
+-		cmd.Stdout = os.Stdout
++		cmd.Stdout = stdout
+ 	} else {
+ 		// If we're only running a single package under test or if parallelism is
+ 		// set to 1, and if we're displaying all output (testShowPass), we can
+@@ -1547,7 +1547,13 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
+ 
+ // builderNoTest is the action for testing a package with no test files.
+ func builderNoTest(b *work.Builder, a *work.Action) error {
+-	fmt.Printf("?   \t%s\t[no test files]\n", a.Package.ImportPath)
++	var stdout io.Writer = os.Stdout
++	if testJSON {
++		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
++		defer json.Close()
++		stdout = json
++	}
++	fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", a.Package.ImportPath)
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/testdata/src/skipper/skip_test.go b/src/cmd/go/testdata/src/skipper/skip_test.go
+new file mode 100644
+index 0000000000..58e6dc505b
+--- /dev/null
++++ b/src/cmd/go/testdata/src/skipper/skip_test.go
+@@ -0,0 +1,7 @@
++package skipper
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Skip("skipping")
++}
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index fa08e34a98..3e09c8d915 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -54,7 +54,7 @@ type converter struct {
+ 	start    time.Time  // time converter started
+ 	testName string     // name of current test, for output attribution
+ 	report   []*event   // pending test result reports (nested for subtests)
+-	passed   bool       // whether we've seen the final whole-package PASS line
++	result   string     // overall test result if seen
+ 	input    lineBuffer // input buffer
+ 	output   lineBuffer // output buffer
+ }
+@@ -139,9 +139,13 @@ var (
+ 	reports = [][]byte{
+ 		[]byte("--- PASS: "),
+ 		[]byte("--- FAIL: "),
++		[]byte("--- SKIP: "),
+ 	}
+ 
+ 	fourSpace = []byte("    ")
++
++	skipLinePrefix = []byte("?   \t")
++	skipLineSuffix = []byte("\t[no test files]\n")
+ )
+ 
+ // handleInputLine handles a single whole test output line.
+@@ -152,10 +156,20 @@ func (c *converter) handleInputLine(line []byte) {
+ 	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
+ 		c.flushReport(0)
+ 		c.output.write(line)
+-		c.passed = bytes.Equal(line, bigPass)
++		if bytes.Equal(line, bigPass) {
++			c.result = "pass"
++		} else {
++			c.result = "fail"
++		}
+ 		return
+ 	}
+ 
++	// Special case for entirely skipped test binary: "?   \tpkgname\t[no test files]\n" is only line.
++	// Report it as plain output but remember to say skip in the final summary.
++	if bytes.HasPrefix(line, skipLinePrefix) && bytes.HasSuffix(line, skipLineSuffix) && len(c.report) == 0 {
++		c.result = "skip"
++	}
++
+ 	// "=== RUN   "
+ 	// "=== PAUSE "
+ 	// "=== CONT  "
+@@ -171,6 +185,7 @@ func (c *converter) handleInputLine(line []byte) {
+ 	if !ok {
+ 		// "--- PASS: "
+ 		// "--- FAIL: "
++		// "--- SKIP: "
+ 		// but possibly indented.
+ 		for bytes.HasPrefix(line, fourSpace) {
+ 			line = line[4:]
+@@ -257,8 +272,8 @@ func (c *converter) Close() error {
+ 	c.input.flush()
+ 	c.output.flush()
+ 	e := &event{Action: "fail"}
+-	if c.passed {
+-		e.Action = "pass"
++	if c.result != "" {
++		e.Action = c.result
+ 	}
+ 	if c.mode&Timestamp != 0 {
+ 		dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 3d7c5601a3..14004977f5 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -25,7 +25,7 @@
+ //
+ //	type TestEvent struct {
+ //		Time    time.Time // encodes as an RFC3339-format string
+-//		Event   string
++//		Action  string
+ //		Package string
+ //		Test    string
+ //		Elapsed float64 // seconds
+@@ -35,7 +35,7 @@
+ // The Time field holds the time the event happened.
+ // It is conventionally omitted for cached test results.
+ //
+-// The Event field is one of a fixed set of event descriptions:
++// The Action field is one of a fixed set of action descriptions:
+ //
+ //	run    - the test has started running
+ //	pause  - the test has been paused

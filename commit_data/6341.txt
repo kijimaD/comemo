@@ -7,7 +7,92 @@ Date:   Wed Sep 22 16:59:35 2010 +1000
     R=nigeltao, nigeltao_golang
     CC=golang-dev
     https://golang.org/cl/2206044
-
+---
  src/pkg/http/request.go |  2 +-
  src/pkg/http/url.go     | 21 ++++++++++++---------
  2 files changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index a602fd52c0..56a930e451 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -191,7 +191,7 @@ func (req *Request) Write(w io.Writer) os.Error {
+ 
+ 	uri := req.RawURL
+ 	if uri == "" {
+-		uri = valueOrDefault(urlEscape(req.URL.Path, false), "/")
++		uri = valueOrDefault(urlEscape(req.URL.Path, false, false), "/")
+ 		if req.URL.RawQuery != "" {
+ 			uri += "?" + req.URL.RawQuery
+ 		}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 060619b835..c1ede28112 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -54,15 +54,18 @@ func (e URLEscapeError) String() string {
+ 
+ // Return true if the specified character should be escaped when
+ // appearing in a URL string, according to RFC 2396.
+-func shouldEscape(c byte) bool {
++// When 'all' is true the full range of reserved characters are matched.
++func shouldEscape(c byte, all bool) bool {
+ 	if c <= ' ' || c >= 0x7F {
+ 		return true
+ 	}
+ 	switch c {
+ 	case '<', '>', '#', '%', '"', // RFC 2396 delims
+ 		'{', '}', '|', '\\', '^', '[', ']', '`', // RFC2396 unwise
+-		';', '/', '?', ':', '@', '&', '=', '+', '$', ',': // RFC 2396 reserved
++		'?', '&', '=', '+': // RFC 2396 reserved
+ 		return true
++	case ';', '/', ':', '@', '$', ',': // RFC 2396 reserved
++		return all
+ 	}
+ 	return false
+ }
+@@ -188,13 +191,13 @@ func urlUnescape(s string, doPlus bool) (string, os.Error) {
+ }
+ 
+ // URLEscape converts a string into URL-encoded form.
+-func URLEscape(s string) string { return urlEscape(s, true) }
++func URLEscape(s string) string { return urlEscape(s, true, true) }
+ 
+-func urlEscape(s string, doPlus bool) string {
++func urlEscape(s string, doPlus, all bool) string {
+ 	spaceCount, hexCount := 0, 0
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i]
+-		if shouldEscape(c) {
++		if shouldEscape(c, all) {
+ 			if c == ' ' && doPlus {
+ 				spaceCount++
+ 			} else {
+@@ -214,7 +217,7 @@ func urlEscape(s string, doPlus bool) string {
+ 		case c == ' ' && doPlus:
+ 			t[j] = '+'
+ 			j++
+-		case shouldEscape(c):
++		case shouldEscape(c, all):
+ 			t[j] = '%'
+ 			t[j+1] = "0123456789abcdef"[c>>4]
+ 			t[j+2] = "0123456789abcdef"[c&15]
+@@ -394,16 +397,16 @@ func (url *URL) String() string {
+ 			if i := strings.Index(info, ":"); i >= 0 {
+ 				info = info[0:i] + ":******"
+ 			}
+-			result += urlEscape(info, false) + "@"
++			result += urlEscape(info, false, false) + "@"
+ 		}
+ 		result += url.Host
+ 	}
+-	result += urlEscape(url.Path, false)
++	result += urlEscape(url.Path, false, false)
+ 	if url.RawQuery != "" {
+ 		result += "?" + url.RawQuery
+ 	}
+ 	if url.Fragment != "" {
+-		result += "#" + urlEscape(url.Fragment, false)
++		result += "#" + urlEscape(url.Fragment, false, false)
+ 	}
+ 	return result
+ }

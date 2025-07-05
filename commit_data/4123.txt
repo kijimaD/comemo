@@ -8,6 +8,24 @@ Date:   Tue Nov 17 23:42:21 2009 -0800
     
     R=rsc
     https://golang.org/cl/157060
-
+---
  src/cmd/cgo/gcc.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d6b5c6bc85..79dcd29a96 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -552,7 +552,11 @@ func (c *typeConv) FuncArg(dtype dwarf.Type) *Type {
+ 		// is type T defined as *X, simulate a little of the
+ 		// laxness of C by making the argument *X instead of T.
+ 		if ptr, ok := base(dt.Type).(*dwarf.PtrType); ok {
+-			return c.Type(ptr)
++			// Unless the typedef happens to point to void* since
++			// Go has special rules around using unsafe.Pointer.
++			if _, void := base(ptr.Type).(*dwarf.VoidType); !void {
++				return c.Type(ptr)
++			}
+ 		}
+ 	}
+ 	return t;

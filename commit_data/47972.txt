@@ -15,9 +15,101 @@ Date:   Tue Apr 20 02:47:54 2021 +0000
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go                  | 25 +++++++++++++++++++++++++
  src/reflect/internal/example1/example.go |  6 ++++++
  src/reflect/internal/example2/example.go |  6 ++++++
  src/reflect/type.go                      |  2 +-
  4 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 241f6b0b5a..3269f5ffce 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -15,6 +15,8 @@ import (
+ 	"math/rand"
+ 	"os"
+ 	. "reflect"
++	"reflect/internal/example1"
++	"reflect/internal/example2"
+ 	"runtime"
+ 	"sort"
+ 	"strconv"
+@@ -3808,6 +3810,16 @@ type Empty struct{}
+ type MyStruct struct {
+ 	x int `some:"tag"`
+ }
++type MyStruct1 struct {
++	x struct {
++		int `some:"bar"`
++	}
++}
++type MyStruct2 struct {
++	x struct {
++		int `some:"foo"`
++	}
++}
+ type MyString string
+ type MyBytes []byte
+ type MyRunes []int32
+@@ -4158,6 +4170,9 @@ var convertTests = []struct {
+ 		x int `some:"bar"`
+ 	}{}), V(MyStruct{})},
+ 
++	{V(MyStruct1{}), V(MyStruct2{})},
++	{V(MyStruct2{}), V(MyStruct1{})},
++
+ 	// can convert *byte and *MyByte
+ 	{V((*byte)(nil)), V((*MyByte)(nil))},
+ 	{V((*MyByte)(nil)), V((*byte)(nil))},
+@@ -7231,3 +7246,13 @@ func iterateToString(it *MapIter) string {
+ 	sort.Strings(got)
+ 	return "[" + strings.Join(got, ", ") + "]"
+ }
++
++func TestConvertibleTo(t *testing.T) {
++	t1 := ValueOf(example1.MyStruct{}).Type()
++	t2 := ValueOf(example2.MyStruct{}).Type()
++
++	// Shouldn't raise stack overflow
++	if t1.ConvertibleTo(t2) {
++		t.Fatalf("(%s).ConvertibleTo(%s) = true, want false", t1, t2)
++	}
++}
+diff --git a/src/reflect/internal/example1/example.go b/src/reflect/internal/example1/example.go
+new file mode 100644
+index 0000000000..0f829a86bf
+--- /dev/null
++++ b/src/reflect/internal/example1/example.go
+@@ -0,0 +1,6 @@
++package example1
++
++type MyStruct struct {
++	MyStructs []MyStruct
++	MyStruct  *MyStruct
++}
+diff --git a/src/reflect/internal/example2/example.go b/src/reflect/internal/example2/example.go
+new file mode 100644
+index 0000000000..df64ba1ff9
+--- /dev/null
++++ b/src/reflect/internal/example2/example.go
+@@ -0,0 +1,6 @@
++package example2
++
++type MyStruct struct {
++	MyStructs []MyStruct
++	MyStruct  *MyStruct
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index c213b31941..d50559e933 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1599,7 +1599,7 @@ func haveIdenticalType(T, V Type, cmpTags bool) bool {
+ 		return T == V
+ 	}
+ 
+-	if T.Name() != V.Name() || T.Kind() != V.Kind() {
++	if T.Name() != V.Name() || T.Kind() != V.Kind() || T.PkgPath() != V.PkgPath() {
+ 		return false
+ 	}
+ 

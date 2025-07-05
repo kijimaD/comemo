@@ -15,8 +15,66 @@ Date:   Thu Dec 3 14:00:19 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go   | 12 ------------
  src/cmd/compile/internal/gc/noder.go |  5 ++++-
  test/interface/explicit.go           |  7 ++++---
  3 files changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5936aeb950..a77c1aed45 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -317,18 +317,6 @@ func colasdefn(left []ir.Node, defn ir.Node) {
+ 	}
+ }
+ 
+-// declare the arguments in an
+-// interface field declaration.
+-func ifacedcl(n *ir.Field) {
+-	if n.Sym == nil {
+-		base.Fatalf("ifacedcl")
+-	}
+-
+-	if n.Sym.IsBlank() {
+-		base.Errorf("methods must have a unique non-blank name")
+-	}
+-}
+-
+ // declare the function proper
+ // and declare the arguments.
+ // called in extern-declaration context
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 61320123a8..1cd8375677 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -899,10 +899,13 @@ func (p *noder) interfaceType(expr *syntax.InterfaceType) ir.Node {
+ 			n = ir.NewField(p.pos(method), nil, importName(p.packname(method.Type)).(ir.Ntype), nil)
+ 		} else {
+ 			mname := p.name(method.Name)
++			if mname.IsBlank() {
++				base.Errorf("methods must have a unique non-blank name")
++				continue
++			}
+ 			sig := p.typeExpr(method.Type).(*ir.FuncType)
+ 			sig.Recv = fakeRecv()
+ 			n = ir.NewField(p.pos(method), mname, sig, nil)
+-			ifacedcl(n)
+ 		}
+ 		l = append(l, n)
+ 	}
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 3f9451e8d2..b705b97676 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -100,6 +100,7 @@ type T2 struct{}
+ func (t *T2) M() {}
+ func (t *T2) _() {}
+ 
+-// Check that nothing satisfies an interface with blank methods.
+-var b1 B1 = &T2{} // ERROR "incompatible|missing _ method"
+-var b2 B2 = &T2{} // ERROR "incompatible|missing _ method"
++// Already reported about the invalid blank interface method above;
++// no need to report about not implementing it.
++var b1 B1 = &T2{}
++var b2 B2 = &T2{}

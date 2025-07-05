@@ -11,9 +11,105 @@ Date:   Mon Jul 22 09:33:15 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue33219.dir/a.go | 17 +++++++++++++++++
  test/fixedbugs/issue33219.dir/b.go | 25 +++++++++++++++++++++++++
  test/fixedbugs/issue33219.dir/c.go | 20 ++++++++++++++++++++
  test/fixedbugs/issue33219.go       |  9 +++++++++
  4 files changed, 71 insertions(+)
+
+diff --git a/test/fixedbugs/issue33219.dir/a.go b/test/fixedbugs/issue33219.dir/a.go
+new file mode 100644
+index 0000000000..2d96301f9c
+--- /dev/null
++++ b/test/fixedbugs/issue33219.dir/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type A interface {
++	M(i interface{}) interface{}
++}
++
++var a1 A
++var a2 A
++
++func V(p A, k, v interface{}) A {
++	defer func() { a1, a2 = a2, a1 }()
++	return a1
++}
+diff --git a/test/fixedbugs/issue33219.dir/b.go b/test/fixedbugs/issue33219.dir/b.go
+new file mode 100644
+index 0000000000..2a8f518bef
+--- /dev/null
++++ b/test/fixedbugs/issue33219.dir/b.go
+@@ -0,0 +1,25 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type Service uint64
++
++var q *Service
++var r *Service
++
++type f struct{}
++
++var fk f
++
++func No(s a.A, qq uint8) *Service {
++	defer func() { q, r = r, q }()
++	return q
++}
++
++func Yes(s a.A, p *uint64) a.A {
++	return a.V(s, fk, p)
++}
+diff --git a/test/fixedbugs/issue33219.dir/c.go b/test/fixedbugs/issue33219.dir/c.go
+new file mode 100644
+index 0000000000..ece48d7603
+--- /dev/null
++++ b/test/fixedbugs/issue33219.dir/c.go
+@@ -0,0 +1,20 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import (
++	"a"
++	"b"
++)
++
++type BI interface {
++	Another(pxp a.A) int32
++}
++
++//go:noinline
++func BRS(sd a.A, xyz int) *b.Service {
++	x := b.Yes(sd, nil)
++	return b.No(x, 1)
++}
+diff --git a/test/fixedbugs/issue33219.go b/test/fixedbugs/issue33219.go
+new file mode 100644
+index 0000000000..45edc8ba65
+--- /dev/null
++++ b/test/fixedbugs/issue33219.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33219: gccgo assert in "implements_interface()"
++
++package ignored

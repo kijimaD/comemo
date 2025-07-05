@@ -14,7 +14,7 @@ Date:   Wed Mar 27 16:03:11 2024 -0500
     Reviewed-by: Archana Ravindar <aravinda@redhat.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go              |  2 +-
  src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  2 ++
  src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  9 +++---
@@ -27,3 +27,278 @@ Date:   Wed Mar 27 16:03:11 2024 -0500
  src/cmd/compile/internal/ssagen/intrinsics_test.go |  2 ++
  test/codegen/bool.go                               |  6 ++++
  11 files changed, 104 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 367fd2f6b0..0c5137f97d 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -594,7 +594,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = r
+ 
+ 	case ssa.OpPPC64ADDCC, ssa.OpPPC64ANDCC, ssa.OpPPC64SUBCC, ssa.OpPPC64ORCC, ssa.OpPPC64XORCC, ssa.OpPPC64NORCC,
+-		ssa.OpPPC64ANDNCC:
++		ssa.OpPPC64ANDNCC, ssa.OpPPC64MULHDUCC:
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index d89cc59714..323ec520fa 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -40,6 +40,8 @@
+ (Mul(32|16|8) ...) => (MULLW ...)
+ (Select0 (Mul64uhilo x y)) => (MULHDU x y)
+ (Select1 (Mul64uhilo x y)) => (MULLD x y)
++(Select0 (Mul64uover x y)) => (MULLD x y)
++(Select1 (Mul64uover x y)) => (SETBCR [2] (CMPconst [0] (MULHDU <x.Type> x y)))
+ 
+ (Div64 [false] x y) => (DIVD x y)
+ (Div64u ...) => (DIVDU ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index 799881a8cd..eab185e05c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -199,10 +199,11 @@ func init() {
+ 		{name: "MULLWconst", argLength: 1, reg: gp11, asm: "MULLW", aux: "Int32", typ: "Int64"}, // arg0*auxInt (signed 64-bit)
+ 		{name: "MADDLD", argLength: 3, reg: gp31, asm: "MADDLD", typ: "Int64"},                  // (arg0*arg1)+arg2 (signed 64-bit)
+ 
+-		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},   // (arg0 * arg1) >> 64, signed
+-		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
+-		{name: "MULHDU", argLength: 2, reg: gp21, asm: "MULHDU", commutative: true}, // (arg0 * arg1) >> 64, unsigned
+-		{name: "MULHWU", argLength: 2, reg: gp21, asm: "MULHWU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
++		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},                             // (arg0 * arg1) >> 64, signed
++		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},                             // (arg0 * arg1) >> 32, signed
++		{name: "MULHDU", argLength: 2, reg: gp21, asm: "MULHDU", commutative: true},                           // (arg0 * arg1) >> 64, unsigned
++		{name: "MULHDUCC", argLength: 2, reg: gp21, asm: "MULHDUCC", commutative: true, typ: "(Int64,Flags)"}, // (arg0 * arg1) >> 64, unsigned, sets CC
++		{name: "MULHWU", argLength: 2, reg: gp21, asm: "MULHWU", commutative: true},                           // (arg0 * arg1) >> 32, unsigned
+ 
+ 		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},   // arg0*arg1
+ 		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0*arg1
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+index 7aa8f41e78..15e6f72519 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64latelower.rules
+@@ -43,13 +43,13 @@
+ //   2. Rewrite (CMPconst [0] (Select0 (OpCC ...))) into (Select1 (OpCC...))
+ // Note: to minimize potentially expensive regeneration of CC opcodes during the flagalloc pass, only rewrite if
+ //       both ops are in the same block.
+-(CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
++(CMPconst [0] z:((ADD|AND|ANDN|OR|SUB|NOR|XOR|MULHDU) x y)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+ (CMPconst [0] z:((NEG|CNTLZD|RLDICL) x)) && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+ // Note: ADDCCconst only assembles to 1 instruction for int16 constants.
+ (CMPconst [0] z:(ADDconst [c] x)) && int64(int16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+ (CMPconst [0] z:(ANDconst [c] x)) && int64(uint16(c)) == c && v.Block == z.Block => (CMPconst [0] convertPPC64OpToOpCC(z))
+ // And finally, fixup the flag user.
+-(CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR)CC x y))) => (Select1 <t> z)
++(CMPconst <t> [0] (Select0 z:((ADD|AND|ANDN|OR|SUB|NOR|XOR|MULHDU)CC x y))) => (Select1 <t> z)
+ (CMPconst <t> [0] (Select0 z:((ADDCCconst|ANDCCconst|NEGCC|CNTLZDCC|RLDICLCC) y))) => (Select1 <t> z)
+ 
+ // After trying to convert ANDconst to ANDCCconst above, if the CC result is not needed, try to avoid using
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a1dafe37cf..cfea0342c8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2142,6 +2142,7 @@ const (
+ 	OpPPC64MULHD
+ 	OpPPC64MULHW
+ 	OpPPC64MULHDU
++	OpPPC64MULHDUCC
+ 	OpPPC64MULHWU
+ 	OpPPC64FMUL
+ 	OpPPC64FMULS
+@@ -28869,6 +28870,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "MULHDUCC",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AMULHDUCC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:        "MULHWU",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index fd7deadcdc..1f81217fc8 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1786,14 +1786,15 @@ func convertPPC64OpToOpCC(op *Value) *Value {
+ 		OpPPC64ADD:      OpPPC64ADDCC,
+ 		OpPPC64ADDconst: OpPPC64ADDCCconst,
+ 		OpPPC64AND:      OpPPC64ANDCC,
+-		OpPPC64ANDconst: OpPPC64ANDCCconst,
+ 		OpPPC64ANDN:     OpPPC64ANDNCC,
++		OpPPC64ANDconst: OpPPC64ANDCCconst,
+ 		OpPPC64CNTLZD:   OpPPC64CNTLZDCC,
++		OpPPC64MULHDU:   OpPPC64MULHDUCC,
++		OpPPC64NEG:      OpPPC64NEGCC,
++		OpPPC64NOR:      OpPPC64NORCC,
+ 		OpPPC64OR:       OpPPC64ORCC,
+ 		OpPPC64RLDICL:   OpPPC64RLDICLCC,
+ 		OpPPC64SUB:      OpPPC64SUBCC,
+-		OpPPC64NEG:      OpPPC64NEGCC,
+-		OpPPC64NOR:      OpPPC64NORCC,
+ 		OpPPC64XOR:      OpPPC64XORCC,
+ 	}
+ 	b := op.Block
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index b45770995e..0811566114 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -14498,6 +14498,18 @@ func rewriteValuePPC64_OpSelect0(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (Select0 (Mul64uover x y))
++	// result: (MULLD x y)
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpPPC64MULLD)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (Select0 (Add64carry x y c))
+ 	// result: (Select0 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1]))))
+ 	for {
+@@ -14558,6 +14570,24 @@ func rewriteValuePPC64_OpSelect1(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (Select1 (Mul64uover x y))
++	// result: (SETBCR [2] (CMPconst [0] (MULHDU <x.Type> x y)))
++	for {
++		if v_0.Op != OpMul64uover {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpPPC64SETBCR)
++		v.AuxInt = int32ToAuxInt(2)
++		v0 := b.NewValue0(v.Pos, OpPPC64CMPconst, types.TypeFlags)
++		v0.AuxInt = int64ToAuxInt(0)
++		v1 := b.NewValue0(v.Pos, OpPPC64MULHDU, x.Type)
++		v1.AddArg2(x, y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Select1 (Add64carry x y c))
+ 	// result: (ADDZEzero (Select1 <typ.UInt64> (ADDE x y (Select1 <typ.UInt64> (ADDCconst c [-1])))))
+ 	for {
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+index 23d8601fb4..18c05280c0 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64latelower.go
+@@ -296,6 +296,25 @@ func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
+ 		v.AddArg(convertPPC64OpToOpCC(z))
+ 		return true
+ 	}
++	// match: (CMPconst [0] z:(MULHDU x y))
++	// cond: v.Block == z.Block
++	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		z := v_0
++		if z.Op != OpPPC64MULHDU {
++			break
++		}
++		if !(v.Block == z.Block) {
++			break
++		}
++		v.reset(OpPPC64CMPconst)
++		v.AuxInt = int64ToAuxInt(0)
++		v.AddArg(convertPPC64OpToOpCC(z))
++		return true
++	}
+ 	// match: (CMPconst [0] z:(NEG x))
+ 	// cond: v.Block == z.Block
+ 	// result: (CMPconst [0] convertPPC64OpToOpCC(z))
+@@ -505,6 +524,22 @@ func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
+ 		v.AddArg(z)
+ 		return true
+ 	}
++	// match: (CMPconst <t> [0] (Select0 z:(MULHDUCC x y)))
++	// result: (Select1 <t> z)
++	for {
++		t := v.Type
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpSelect0 {
++			break
++		}
++		z := v_0.Args[0]
++		if z.Op != OpPPC64MULHDUCC {
++			break
++		}
++		v.reset(OpSelect1)
++		v.Type = t
++		v.AddArg(z)
++		return true
++	}
+ 	// match: (CMPconst <t> [0] (Select0 z:(ADDCCconst y)))
+ 	// result: (Select1 <t> z)
+ 	for {
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index f44531b88c..d0d35c3f5f 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -91,7 +91,7 @@ func initIntrinsics() {
+ 			}
+ 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
+ 		},
+-		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64, sys.ARM64)
++		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.ARM64)
+ 	add("runtime", "KeepAlive",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 768b0c4245..a778e95a12 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -782,6 +782,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "internal/runtime/atomic", "Xchguintptr"}:        struct{}{},
+ 	{"ppc64", "internal/runtime/math", "Add64"}:                struct{}{},
+ 	{"ppc64", "internal/runtime/math", "Mul64"}:                struct{}{},
++	{"ppc64", "internal/runtime/math", "MulUintptr"}:           struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -896,6 +897,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "internal/runtime/atomic", "Xchguintptr"}:      struct{}{},
+ 	{"ppc64le", "internal/runtime/math", "Add64"}:              struct{}{},
+ 	{"ppc64le", "internal/runtime/math", "Mul64"}:              struct{}{},
++	{"ppc64le", "internal/runtime/math", "MulUintptr"}:         struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Len64"}:               struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Len8"}:                struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "OnesCount64"}:         struct{}{},
+diff --git a/test/codegen/bool.go b/test/codegen/bool.go
+index 0daeb88b9b..164ca1b224 100644
+--- a/test/codegen/bool.go
++++ b/test/codegen/bool.go
+@@ -273,6 +273,12 @@ func TestLogicalCompareZero(x *[64]uint64) {
+ 		x[12] = uint64(c)
+ 	}
+ 
++	// ppc64x:"MULHDUCC",^"MULHDU"
++	hi, _ := bits.Mul64(x[13], x[14])
++	if hi != 0 {
++		x[14] = hi
++	}
++
+ }
+ 
+ func constantWrite(b bool, p *bool) {

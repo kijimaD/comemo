@@ -9,6 +9,28 @@ Date:   Mon Nov 10 18:13:20 2008 -0800
     DELTA=3  (2 added, 1 deleted, 0 changed)
     OCL=18945
     CL=18953
-
+---
  src/cmd/prof/main.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index 22a2605c93..a4223e75a8 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -98,7 +98,6 @@ sample(void)
+ 		if(get8(map, (uvlong)i, &((uvlong*)&ureg)[i/8]) < 0) {
+ 			if(n == 1)
+ 				fprint(2, "prof: can't read registers at %d: %r\n", i);
+-			ctlproc(pid, "start");
+ 			return 0;
+ 		}
+ 	}
+@@ -136,6 +135,8 @@ stacktracepcsp(uvlong pc, uvlong sp)
+ 		fprint(2, "no machdata->ctrace\n");
+ 	else if(machdata->ctrace(map, pc, sp, 0, xptrace) <= 0)
+ 		fprint(2, "no stack frame: pc=%#p sp=%#p\n", pc, sp);
++	else
++		print("\n");
+ }
+ 
+ void

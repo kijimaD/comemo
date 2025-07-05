@@ -7,6 +7,19 @@ Date:   Wed Feb 18 11:59:16 2015 -0800
     Change-Id: I829529929906d4758c7ba10d356c251b44e35a8d
     Reviewed-on: https://go-review.googlesource.com/5190
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index c26a6fa427..95db022c74 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -14,6 +14,7 @@ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/17
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
++net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+ net/smtp: add TLSConnectionState accessor (https://golang.org/cl/2151)
+ os/signal: add Ignore and Reset (https://golang.org/cl/3580)
+ runtime, syscall: use SYSCALL instruction on FreeBSD (Go 1.5 now requires FreeBSD 8-STABLE+) (https://golang.org/cl/3020)

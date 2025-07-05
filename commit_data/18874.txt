@@ -11,6 +11,20 @@ Date:   Fri Mar 14 22:49:46 2014 +0100
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/76250043
-
+---
  src/pkg/runtime/sys_nacl_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_nacl_386.s b/src/pkg/runtime/sys_nacl_386.s
+index 79381d3859..42ba0e0edf 100644
+--- a/src/pkg/runtime/sys_nacl_386.s
++++ b/src/pkg/runtime/sys_nacl_386.s
+@@ -35,7 +35,7 @@ TEXT syscall·naclWrite(SB), NOSPLIT, $12-16
+ 	MOVL SI, 4(SP)
+ 	MOVL DX, 8(SP)
+ 	CALL runtime·write(SB)
+-	MOVL AX, ret+12(FP)
++	MOVL AX, ret+16(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0

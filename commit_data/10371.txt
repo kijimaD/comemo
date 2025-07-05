@@ -7,7 +7,7 @@ Date:   Sun Nov 13 22:58:08 2011 -0500
     R=ken, ken
     CC=golang-dev
     https://golang.org/cl/5373079
-
+---
  src/cmd/gc/align.c       |   6 +-
  src/cmd/gc/subr.c        |   2 +
  src/cmd/gc/swt.c         |  14 +++
@@ -20,3 +20,679 @@ Date:   Sun Nov 13 22:58:08 2011 -0500
  test/switch3.go          |  28 ++++-
  test/typeswitch.go       |   5 +-
  11 files changed, 301 insertions(+), 125 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index f316c19e01..9766e088c6 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -491,12 +491,12 @@ typeinit(void)
+ 	okforeq[TPTR64] = 1;
+ 	okforeq[TUNSAFEPTR] = 1;
+ 	okforeq[TINTER] = 1;
+-	okforeq[TMAP] = 1;
+ 	okforeq[TCHAN] = 1;
+-	okforeq[TFUNC] = 1;
+ 	okforeq[TSTRING] = 1;
+ 	okforeq[TBOOL] = 1;
+-	okforeq[TARRAY] = 1;	// refined in typecheck
++	okforeq[TMAP] = 1;	// nil only; refined in typecheck
++	okforeq[TFUNC] = 1;	// nil only; refined in typecheck
++	okforeq[TARRAY] = 1;	// nil slice only; refined in typecheck
+ 
+ 	okforcmp[TSTRING] = 1;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index adf8eb16c2..0df34c1a4f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -547,6 +547,8 @@ maptype(Type *key, Type *val)
+ 		switch(key->etype) {
+ 		case TARRAY:
+ 		case TSTRUCT:
++		case TMAP:
++		case TFUNC:
+ 			yyerror("invalid map key type %T", key);
+ 			break;
+ 		case TFORW:
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 4d07970c71..fb19129812 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -811,6 +811,7 @@ void
+ typecheckswitch(Node *n)
+ {
+ 	int top, lno, ptr;
++	char *nilonly;
+ 	Type *t, *missing, *have;
+ 	NodeList *l, *ll;
+ 	Node *ncase, *nvar;
+@@ -818,6 +819,7 @@ typecheckswitch(Node *n)
+ 
+ 	lno = lineno;
+ 	typechecklist(n->ninit, Etop);
++	nilonly = nil;
+ 
+ 	if(n->ntest != N && n->ntest->op == OTYPESW) {
+ 		// type switch
+@@ -835,6 +837,16 @@ typecheckswitch(Node *n)
+ 			t = n->ntest->type;
+ 		} else
+ 			t = types[TBOOL];
++		if(t) {
++			if(!okforeq[t->etype] || isfixedarray(t))
++				yyerror("cannot switch on %lN", n->ntest);
++			else if(t->etype == TARRAY)
++				nilonly = "slice";
++			else if(t->etype == TFUNC)
++				nilonly = "func";
++			else if(t->etype == TMAP)
++				nilonly = "map";
++		}
+ 	}
+ 	n->type = t;
+ 
+@@ -865,6 +877,8 @@ typecheckswitch(Node *n)
+ 							yyerror("invalid case %N in switch on %N (mismatched types %T and %T)", ll->n, n->ntest, ll->n->type, t);
+ 						else
+ 							yyerror("invalid case %N in switch (mismatched types %T and bool)", ll->n, n->ntest, ll->n->type, t);
++					} else if(nilonly && !isconst(ll->n, CTNIL)) {
++						yyerror("invalid case %N in switch (can only compare %s %N to nil)", ll->n, nilonly, n->ntest);
+ 					}
+ 					break;
+ 				case Etype:	// type switch
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 34c241b06b..aaf836f823 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -445,8 +445,8 @@ reswitch:
+ 			yyerror("invalid operation: %N (operator %O not defined on %s)", n, op, typekind(et));
+ 			goto error;
+ 		}
+-		// okfor allows any array == array;
+-		// restrict to slice == nil and nil == slice.
++		// okfor allows any array == array, map == map, func == func.
++		// restrict to slice/map/func == nil and nil == slice/map/func.
+ 		if(l->type->etype == TARRAY && !isslice(l->type))
+ 			goto notokfor;
+ 		if(r->type->etype == TARRAY && !isslice(r->type))
+@@ -455,6 +455,15 @@ reswitch:
+ 			yyerror("invalid operation: %N (slice can only be compared to nil)", n);
+ 			goto error;
+ 		}
++		if(l->type->etype == TMAP && !isnil(l) && !isnil(r)) {
++			yyerror("invalid operation: %N (map can only be compared to nil)", n);
++			goto error;
++		}
++		if(l->type->etype == TFUNC && !isnil(l) && !isnil(r)) {
++			yyerror("invalid operation: %N (func can only be compared to nil)", n);
++			goto error;
++		}
++		
+ 		t = l->type;
+ 		if(iscmp[n->op]) {
+ 			evconst(n);
+diff --git a/test/closure.go b/test/closure.go
+index 3033c02ed8..191514def4 100644
+--- a/test/closure.go
++++ b/test/closure.go
+@@ -76,7 +76,6 @@ func h() {
+ 
+ func newfunc() func(int) int { return func(x int) int { return x } }
+ 
+-
+ func main() {
+ 	go f()
+ 	check([]int{1, 4, 5, 4})
+@@ -90,10 +89,6 @@ func main() {
+ 	check([]int{100, 200, 101, 201, 500, 101, 201, 500})
+ 
+ 	x, y := newfunc(), newfunc()
+-	if x == y {
+-		println("newfunc returned same func")
+-		panic("fail")
+-	}
+ 	if x(1) != 1 || y(2) != 2 {
+ 		println("newfunc returned broken funcs")
+ 		panic("fail")
+diff --git a/test/cmp6.go b/test/cmp6.go
+index b3ea8ffebf..6b13cac236 100644
+--- a/test/cmp6.go
++++ b/test/cmp6.go
+@@ -11,7 +11,7 @@ func use(bool) {}
+ type T1 *int
+ type T2 *int
+ 
+-type T3 struct {}
++type T3 struct{}
+ 
+ var t3 T3
+ 
+@@ -21,12 +21,12 @@ func main() {
+ 	// so chan int can be compared against
+ 	// directional channels but channel of different
+ 	// direction cannot be compared against each other.
+-	var c1 chan <-int
++	var c1 chan<- int
+ 	var c2 <-chan int
+ 	var c3 chan int
+-	
+-	use(c1 == c2)	// ERROR "invalid operation|incompatible"
+-	use(c2 == c1)	// ERROR "invalid operation|incompatible"
++
++	use(c1 == c2) // ERROR "invalid operation|incompatible"
++	use(c2 == c1) // ERROR "invalid operation|incompatible"
+ 	use(c1 == c3)
+ 	use(c2 == c2)
+ 	use(c3 == c1)
+@@ -36,14 +36,22 @@ func main() {
+ 	var p1 T1
+ 	var p2 T2
+ 	var p3 *int
+-	
+-	use(p1 == p2)	// ERROR "invalid operation|incompatible"
+-	use(p2 == p1)	// ERROR "invalid operation|incompatible"
++
++	use(p1 == p2) // ERROR "invalid operation|incompatible"
++	use(p2 == p1) // ERROR "invalid operation|incompatible"
+ 	use(p1 == p3)
+ 	use(p2 == p2)
+ 	use(p3 == p1)
+ 	use(p3 == p2)
+-	
++
+ 	// Comparison of structs should have a good message
+-	use(t3 == t3)	// ERROR "struct|expected"
++	use(t3 == t3) // ERROR "struct|expected"
++
++	// Slices, functions, and maps too.
++	var x []int
++	var f func()
++	var m map[int]int
++	use(x == x) // ERROR "slice can only be compared to nil"
++	use(f == f) // ERROR "func can only be compared to nil"
++	use(m == m) // ERROR "map can only be compared to nil"
+ }
+diff --git a/test/fixedbugs/bug285.go b/test/fixedbugs/bug285.go
+index 544d3487ef..7eed8fb7ab 100644
+--- a/test/fixedbugs/bug285.go
++++ b/test/fixedbugs/bug285.go
+@@ -45,20 +45,6 @@ func main() {
+ 	mp[p] = 42
+ 	mp[&T{7}] = 42
+ 
+-	type F func(x int)
+-	f := func(x int) {}
+-	mf := make(map[F]int)
+-	mf[nil] = 42
+-	mf[f] = 42
+-	mf[func(x int) {}] = 42
+-
+-	type M map[int]int
+-	m := make(M)
+-	mm := make(map[M]int)
+-	mm[nil] = 42
+-	mm[m] = 42
+-	mm[make(M)] = 42
+-
+ 	type C chan int
+ 	c := make(C)
+ 	mc := make(map[C]int)
+diff --git a/test/map1.go b/test/map1.go
+index 3a56cf057d..923e27e672 100644
+--- a/test/map1.go
++++ b/test/map1.go
+@@ -12,16 +12,16 @@ type v bool
+ 
+ var (
+ 	// valid
+-	_ map[int8]v 
+-	_ map[uint8]v 
+-	_ map[int16]v 
+-	_ map[uint16]v 
+-	_ map[int32]v 
+-	_ map[uint32]v 
+-	_ map[int64]v 
+-	_ map[uint64]v 
+-	_ map[int]v 
+-	_ map[uint]v 
++	_ map[int8]v
++	_ map[uint8]v
++	_ map[int16]v
++	_ map[uint16]v
++	_ map[int32]v
++	_ map[uint32]v
++	_ map[int64]v
++	_ map[uint64]v
++	_ map[int]v
++	_ map[uint]v
+ 	_ map[uintptr]v
+ 	_ map[float32]v
+ 	_ map[float64]v
+@@ -30,12 +30,12 @@ var (
+ 	_ map[bool]v
+ 	_ map[string]v
+ 	_ map[chan int]v
+-	_ map[func()]v
+ 	_ map[*int]v
+-	_ map[map[int]int]v
+ 
+ 	// invalid
+-	_ map[struct{}]v // ERROR "invalid map key"
+-	_ map[[]int]v  // ERROR "invalid map key"
+-	_ map[[10]int]v // ERROR "invalid map key"
++	_ map[struct{}]v    // ERROR "invalid map key"
++	_ map[[]int]v       // ERROR "invalid map key"
++	_ map[[10]int]v     // ERROR "invalid map key"
++	_ map[func()]v      // ERROR "invalid map key"
++	_ map[map[int]int]v // ERROR "invalid map key"
+ )
+diff --git a/test/switch.go b/test/switch.go
+index 0c253d6e2a..bed027ce85 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -19,48 +19,75 @@ func main() {
+ 	hello := "hello"
+ 
+ 	switch true {
+-	case i5 < 5: assert(false, "<")
+-	case i5 == 5: assert(true, "!")
+-	case i5 > 5: assert(false, ">")
++	case i5 < 5:
++		assert(false, "<")
++	case i5 == 5:
++		assert(true, "!")
++	case i5 > 5:
++		assert(false, ">")
+ 	}
+ 
+ 	switch {
+-	case i5 < 5: assert(false, "<")
+-	case i5 == 5: assert(true, "!")
+-	case i5 > 5: assert(false, ">")
++	case i5 < 5:
++		assert(false, "<")
++	case i5 == 5:
++		assert(true, "!")
++	case i5 > 5:
++		assert(false, ">")
+ 	}
+ 
+ 	switch x := 5; true {
+-	case i5 < x: assert(false, "<")
+-	case i5 == x: assert(true, "!")
+-	case i5 > x: assert(false, ">")
++	case i5 < x:
++		assert(false, "<")
++	case i5 == x:
++		assert(true, "!")
++	case i5 > x:
++		assert(false, ">")
+ 	}
+ 
+ 	switch x := 5; true {
+-	case i5 < x: assert(false, "<")
+-	case i5 == x: assert(true, "!")
+-	case i5 > x: assert(false, ">")
++	case i5 < x:
++		assert(false, "<")
++	case i5 == x:
++		assert(true, "!")
++	case i5 > x:
++		assert(false, ">")
+ 	}
+ 
+ 	switch i5 {
+-	case 0: assert(false, "0")
+-	case 1: assert(false, "1")
+-	case 2: assert(false, "2")
+-	case 3: assert(false, "3")
+-	case 4: assert(false, "4")
+-	case 5: assert(true, "5")
+-	case 6: assert(false, "6")
+-	case 7: assert(false, "7")
+-	case 8: assert(false, "8")
+-	case 9: assert(false, "9")
+-	default: assert(false, "default")
++	case 0:
++		assert(false, "0")
++	case 1:
++		assert(false, "1")
++	case 2:
++		assert(false, "2")
++	case 3:
++		assert(false, "3")
++	case 4:
++		assert(false, "4")
++	case 5:
++		assert(true, "5")
++	case 6:
++		assert(false, "6")
++	case 7:
++		assert(false, "7")
++	case 8:
++		assert(false, "8")
++	case 9:
++		assert(false, "9")
++	default:
++		assert(false, "default")
+ 	}
+ 
+ 	switch i5 {
+-	case 0,1,2,3,4: assert(false, "4")
+-	case 5: assert(true, "5")
+-	case 6,7,8,9: assert(false, "9")
+-	default: assert(false, "default")
++	case 0, 1, 2, 3, 4:
++		assert(false, "4")
++	case 5:
++		assert(true, "5")
++	case 6, 7, 8, 9:
++		assert(false, "9")
++	default:
++		assert(false, "default")
+ 	}
+ 
+ 	switch i5 {
+@@ -68,72 +95,188 @@ func main() {
+ 	case 1:
+ 	case 2:
+ 	case 3:
+-	case 4: assert(false, "4")
+-	case 5: assert(true, "5")
++	case 4:
++		assert(false, "4")
++	case 5:
++		assert(true, "5")
+ 	case 6:
+ 	case 7:
+ 	case 8:
+ 	case 9:
+-	default: assert(i5 == 5, "good")
++	default:
++		assert(i5 == 5, "good")
+ 	}
+ 
+ 	switch i5 {
+-	case 0: dummy := 0; _ = dummy; fallthrough
+-	case 1: dummy := 0; _ = dummy; fallthrough
+-	case 2: dummy := 0; _ = dummy; fallthrough
+-	case 3: dummy := 0; _ = dummy; fallthrough
+-	case 4: dummy := 0; _ = dummy; assert(false, "4")
+-	case 5: dummy := 0; _ = dummy; fallthrough
+-	case 6: dummy := 0; _ = dummy; fallthrough
+-	case 7: dummy := 0; _ = dummy; fallthrough
+-	case 8: dummy := 0; _ = dummy; fallthrough
+-	case 9: dummy := 0; _ = dummy; fallthrough
+-	default: dummy := 0; _ = dummy; assert(i5 == 5, "good")
++	case 0:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 1:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 2:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 3:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 4:
++		dummy := 0
++		_ = dummy
++		assert(false, "4")
++	case 5:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 6:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 7:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 8:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 9:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	default:
++		dummy := 0
++		_ = dummy
++		assert(i5 == 5, "good")
+ 	}
+ 
+ 	fired := false
+ 	switch i5 {
+-	case 0: dummy := 0; _ = dummy; fallthrough;  // tests scoping of cases
+-	case 1: dummy := 0; _ = dummy; fallthrough
+-	case 2: dummy := 0; _ = dummy; fallthrough
+-	case 3: dummy := 0; _ = dummy; fallthrough
+-	case 4: dummy := 0; _ = dummy; assert(false, "4")
+-	case 5: dummy := 0; _ = dummy; fallthrough
+-	case 6: dummy := 0; _ = dummy; fallthrough
+-	case 7: dummy := 0; _ = dummy; fallthrough
+-	case 8: dummy := 0; _ = dummy; fallthrough
+-	case 9: dummy := 0; _ = dummy; fallthrough
+-	default: dummy := 0; _ = dummy; fired = !fired; assert(i5 == 5, "good")
++	case 0:
++		dummy := 0
++		_ = dummy
++		fallthrough // tests scoping of cases
++	case 1:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 2:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 3:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 4:
++		dummy := 0
++		_ = dummy
++		assert(false, "4")
++	case 5:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 6:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 7:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 8:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	case 9:
++		dummy := 0
++		_ = dummy
++		fallthrough
++	default:
++		dummy := 0
++		_ = dummy
++		fired = !fired
++		assert(i5 == 5, "good")
+ 	}
+ 	assert(fired, "fired")
+ 
+ 	count := 0
+ 	switch i5 {
+-	case 0: count = count + 1; fallthrough
+-	case 1: count = count + 1; fallthrough
+-	case 2: count = count + 1; fallthrough
+-	case 3: count = count + 1; fallthrough
+-	case 4: count = count + 1; assert(false, "4")
+-	case 5: count = count + 1; fallthrough
+-	case 6: count = count + 1; fallthrough
+-	case 7: count = count + 1; fallthrough
+-	case 8: count = count + 1; fallthrough
+-	case 9: count = count + 1; fallthrough
+-	default: assert(i5 == count, "good")
++	case 0:
++		count = count + 1
++		fallthrough
++	case 1:
++		count = count + 1
++		fallthrough
++	case 2:
++		count = count + 1
++		fallthrough
++	case 3:
++		count = count + 1
++		fallthrough
++	case 4:
++		count = count + 1
++		assert(false, "4")
++	case 5:
++		count = count + 1
++		fallthrough
++	case 6:
++		count = count + 1
++		fallthrough
++	case 7:
++		count = count + 1
++		fallthrough
++	case 8:
++		count = count + 1
++		fallthrough
++	case 9:
++		count = count + 1
++		fallthrough
++	default:
++		assert(i5 == count, "good")
+ 	}
+ 	assert(fired, "fired")
+ 
+ 	switch hello {
+-	case "wowie": assert(false, "wowie")
+-	case "hello": assert(true, "hello")
+-	case "jumpn": assert(false, "jumpn")
+-	default: assert(false, "default")
++	case "wowie":
++		assert(false, "wowie")
++	case "hello":
++		assert(true, "hello")
++	case "jumpn":
++		assert(false, "jumpn")
++	default:
++		assert(false, "default")
+ 	}
+ 
+ 	fired = false
+ 	switch i := i5 + 2; i {
+-	case i7: fired = true
+-	default: assert(false, "fail")
++	case i7:
++		fired = true
++	default:
++		assert(false, "fail")
+ 	}
+ 	assert(fired, "var")
++
++	// switch on nil-only comparison types
++	switch f := func() {}; f {
++	case nil:
++		assert(false, "f should not be nil")
++	default:
++	}
++
++	switch m := make(map[int]int); m {
++	case nil:
++		assert(false, "m should not be nil")
++	default:
++	}
++
++	switch a := make([]int, 1); a {
++	case nil:
++		assert(false, "m should not be nil")
++	default:
++	}
+ }
+diff --git a/test/switch3.go b/test/switch3.go
+index 95ff6ec3c2..e91499db09 100644
+--- a/test/switch3.go
++++ b/test/switch3.go
+@@ -6,9 +6,8 @@
+ 
+ package main
+ 
+-
+ type I interface {
+-       M()
++	M()
+ }
+ 
+ func bad() {
+@@ -16,11 +15,32 @@ func bad() {
+ 	var s string
+ 
+ 	switch i {
+-	case s:  // ERROR "mismatched types string and I"
++	case s: // ERROR "mismatched types string and I"
+ 	}
+ 
+ 	switch s {
+-	case i:  // ERROR "mismatched types I and string"
++	case i: // ERROR "mismatched types I and string"
++	}
++
++	var m, m1 map[int]int
++	switch m {
++	case nil:
++	case m1: // ERROR "can only compare map m to nil"
++	default:
++	}
++
++	var a, a1 []int
++	switch a {
++	case nil:
++	case a1: // ERROR "can only compare slice a to nil"
++	default:
++	}
++
++	var f, f1 func()
++	switch f {
++	case nil:
++	case f1: // ERROR "can only compare func f to nil"
++	default:
+ 	}
+ }
+ 
+diff --git a/test/typeswitch.go b/test/typeswitch.go
+index 83fb0985a9..aa911f9b62 100644
+--- a/test/typeswitch.go
++++ b/test/typeswitch.go
+@@ -82,9 +82,9 @@ func main() {
+ 		case []int:
+ 			assert(x[3] == 3 && i == Array, "array")
+ 		case map[string]int:
+-			assert(x == m && i == Map, "map")
++			assert(x != nil && i == Map, "map")
+ 		case func(i int) interface{}:
+-			assert(x == f && i == Func, "fun")
++			assert(x != nil && i == Func, "fun")
+ 		default:
+ 			assert(false, "unknown")
+ 		}
+@@ -111,5 +111,4 @@ func main() {
+ 	default:
+ 		assert(false, "switch 4 unknown")
+ 	}
+-
+ }

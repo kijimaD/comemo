@@ -5,7 +5,34 @@ Date:   Fri Jul 18 11:59:35 2008 -0700
     len(fixed array)
     
     SVN=128050
-
+---
  src/cmd/gc/go.h   | 1 +
  src/cmd/gc/walk.c | 5 ++++-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ed1f903e58..ffc75ade7a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -613,3 +613,4 @@ void	dumpobj(void);
+ void	dowidth(Type*);
+ void	argspace(long);
+ Node*	nodarg(Type*, int);
++void	nodconst(Node*, Type*, vlong);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 28774a5a28..576fe90b02 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -501,8 +501,11 @@ loop:
+ 		default:
+ 			goto badt;
+ 		case TSTRING:
+-			break;
+ 		case TMAP:
++		case TDARRAY:
++			break;
++		case TARRAY:
++			nodconst(n, types[TINT32], t->bound);
+ 			break;
+ 		}
+ 		n->type = types[TINT32];

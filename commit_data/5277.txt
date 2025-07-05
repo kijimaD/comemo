@@ -7,7 +7,32 @@ Date:   Mon Apr 12 10:11:18 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/890044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b1d1ad875e..01dc82d4cc 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -12,6 +12,7 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
++Andrei Vieru <euvieru@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 75aa31cb61..963a908aa2 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -31,6 +31,7 @@ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
++Andrei Vieru <euvieru@gmail.com>
+ Andrew Gerrand <adg@golang.org>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>

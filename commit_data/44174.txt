@@ -16,7 +16,78 @@ Date:   Tue May 19 20:23:58 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/os_test.go              | 31 +++++++++++++++++++++++++++++++
  src/syscall/syscall_windows.go | 20 ++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index f86428b7b9..e8c64510f5 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2539,3 +2539,34 @@ func isDeadlineExceeded(err error) bool {
+ 	}
+ 	return true
+ }
++
++// Test that opening a file does not change its permissions.  Issue 38225.
++func TestOpenFileKeepsPermissions(t *testing.T) {
++	t.Parallel()
++	dir := t.TempDir()
++	name := filepath.Join(dir, "x")
++	f, err := Create(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := f.Close(); err != nil {
++		t.Error(err)
++	}
++	f, err = OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if fi, err := f.Stat(); err != nil {
++		t.Error(err)
++	} else if fi.Mode()&0222 == 0 {
++		t.Errorf("f.Stat.Mode after OpenFile is %v, should be writable", fi.Mode())
++	}
++	if err := f.Close(); err != nil {
++		t.Error(err)
++	}
++	if fi, err := Stat(name); err != nil {
++		t.Error(err)
++	} else if fi.Mode()&0222 == 0 {
++		t.Errorf("Stat after OpenFile is %v, should be writable", fi.Mode())
++	}
++}
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 89c0a930cb..f62c00d72f 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -339,6 +339,26 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
+ 	if perm&S_IWRITE == 0 {
+ 		attrs = FILE_ATTRIBUTE_READONLY
++		if createmode == CREATE_ALWAYS {
++			// We have been asked to create a read-only file.
++			// If the file already exists, the semantics of
++			// the Unix open system call is to preserve the
++			// existing permissions. If we pass CREATE_ALWAYS
++			// and FILE_ATTRIBUTE_READONLY to CreateFile,
++			// and the file already exists, CreateFile will
++			// change the file permissions.
++			// Avoid that to preserve the Unix semantics.
++			h, e := CreateFile(pathp, access, sharemode, sa, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
++			switch e {
++			case ERROR_FILE_NOT_FOUND, _ERROR_BAD_NETPATH, ERROR_PATH_NOT_FOUND:
++				// File does not exist. These are the same
++				// errors as Errno.Is checks for ErrNotExist.
++				// Carry on to create the file.
++			default:
++				// Success or some different error.
++				return h, e
++			}
++		}
+ 	}
+ 	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
+ 	return h, e

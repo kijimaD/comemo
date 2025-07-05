@@ -28,7 +28,46 @@ Date:   Thu Jan 28 17:17:38 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/288803
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/symtab.go    | 14 ++++++++++++++
  src/runtime/traceback.go |  1 -
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index d7da255e43..00f802aaa7 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -337,7 +337,21 @@ const (
+ type funcFlag uint8
+ 
+ const (
++	// TOPFRAME indicates a function that appears at the top of its stack.
++	// The traceback routine stop at such a function and consider that a
++	// successful, complete traversal of the stack.
++	// Examples of TOPFRAME functions include goexit, which appears
++	// at the top of a user goroutine stack, and mstart, which appears
++	// at the top of a system goroutine stack.
+ 	funcFlag_TOPFRAME funcFlag = 1 << iota
++
++	// SPWRITE indicates a function that writes an arbitrary value to SP
++	// (any write other than adding or subtracting a constant amount).
++	// The traceback routines cannot encode such changes into the
++	// pcsp tables, so the function traceback cannot safely unwind past
++	// SPWRITE functions. Stopping at an SPWRITE function is considered
++	// to be an incomplete unwinding of the stack. In certain contexts
++	// (in particular garbage collector stack scans) that is a fatal error.
+ 	funcFlag_SPWRITE
+ )
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index e2bd968919..c89a8913ae 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1003,7 +1003,6 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+ // Does f mark the top of a goroutine stack?
+ func topofstack(f funcInfo, g0 bool) bool {
+ 	return f.flag&funcFlag_TOPFRAME != 0 ||
+-		f.funcID == funcID_mcall ||
+ 		f.funcID == funcID_morestack ||
+ 		// asmcgocall is TOS on the system stack because it
+ 		// switches to the system stack, but in this case we

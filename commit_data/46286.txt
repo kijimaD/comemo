@@ -292,3 +292,365 @@ Date:   Sun Dec 20 10:36:21 2020 -0800
  test/run.go                                        |   2 +-
  test/sinit_run.go                                  |   2 +-
  263 files changed, 2764 insertions(+), 1852 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/inl.go
+index b571c2b914,600d12b59b..d81aa52651
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@@ -726,43 -801,94 +726,43 @@@ FindRHS
+  // useful for -m output documenting the reason for inhibited optimizations.
+  // NB: global variables are always considered to be re-assigned.
+  // TODO: handle initial declaration not including an assignment and followed by a single assignment?
+ -func reassigned(n *Node) (bool, *Node) {
+ -	if n.Op != ONAME {
+ -		Fatalf("reassigned %v", n)
+ +func reassigned(name *ir.Name) bool {
+ +	if name.Op() != ir.ONAME {
+ +		base.Fatalf("reassigned %v", name)
+  	}
+  	// no way to reliably check for no-reassignment of globals, assume it can be
+ -	if n.Name.Curfn == nil {
+ -		return true, nil
+ -	}
+ -	f := n.Name.Curfn
+ -	// There just might be a good reason for this although this can be pretty surprising:
+ -	// local variables inside a closure have Curfn pointing to the OCLOSURE node instead
+ -	// of the corresponding ODCLFUNC.
+ -	// We need to walk the function body to check for reassignments so we follow the
+ -	// linkage to the ODCLFUNC node as that is where body is held.
+ -	if f.Op == OCLOSURE {
+ -		f = f.Func.Closure
+ -	}
+ -	v := reassignVisitor{name: n}
+ -	a := v.visitList(f.Nbody)
+ -	return a != nil, a
+ -}
+ -
+ -type reassignVisitor struct {
+ -	name *Node
+ -}
+ -
+ -func (v *reassignVisitor) visit(n *Node) *Node {
+ -	if n == nil {
+ -		return nil
+ +	if name.Curfn == nil {
+ +		return true
+  	}
+ -	switch n.Op {
+ -	case OAS, OSELRECV:
+ -		if n.Left == v.name && n != v.name.Name.Defn {
+ -			return n
+ -		}
+ -	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
+ -		for _, p := range n.List.Slice() {
+ -			if p == v.name && n != v.name.Name.Defn {
+ -				return n
+ +	return ir.Any(name.Curfn, func(n ir.Node) bool {
+ +		switch n.Op() {
+ +		case ir.OAS:
+ +			if n.Left() == name && n != name.Defn {
+ +				return true
+ +			}
+- 		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE:
+++		case ir.OAS2, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2DOTTYPE, ir.OAS2RECV, ir.OSELRECV2:
+ +			for _, p := range n.List().Slice() {
+ +				if p == name && n != name.Defn {
+ +					return true
+ +				}
+  			}
+  		}
+ -	case OSELRECV2:
+ -		if (n.Left == v.name || n.List.First() == v.name) && n != v.name.Name.Defn {
+ -			return n
+ -		}
+ -	}
+ -	if a := v.visit(n.Left); a != nil {
+ -		return a
+ -	}
+ -	if a := v.visit(n.Right); a != nil {
+ -		return a
+ -	}
+ -	if a := v.visitList(n.List); a != nil {
+ -		return a
+ -	}
+ -	if a := v.visitList(n.Rlist); a != nil {
+ -		return a
+ -	}
+ -	if a := v.visitList(n.Ninit); a != nil {
+ -		return a
+ -	}
+ -	if a := v.visitList(n.Nbody); a != nil {
+ -		return a
+ -	}
+ -	return nil
+ -}
+ -
+ -func (v *reassignVisitor) visitList(l Nodes) *Node {
+ -	for _, n := range l.Slice() {
+ -		if a := v.visit(n); a != nil {
+ -			return a
+ -		}
+ -	}
+ -	return nil
+ +		return false
+ +	})
+  }
+  
+ -func inlParam(t *types.Field, as *Node, inlvars map[*Node]*Node) *Node {
+ -	n := asNode(t.Nname)
+ -	if n == nil || n.isBlank() {
+ -		return nblank
+ +func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
+ +	n := ir.AsNode(t.Nname)
+ +	if n == nil || ir.IsBlank(n) {
+ +		return ir.BlankNode
+  	}
+  
+ -	inlvar := inlvars[n]
+ +	inlvar := inlvars[n.(*ir.Name)]
+  	if inlvar == nil {
+ -		Fatalf("missing inlvar for %v", n)
+ +		base.Fatalf("missing inlvar for %v", n)
+  	}
+ -	as.Ninit.Append(nod(ODCL, inlvar, nil))
+ -	inlvar.Name.Defn = as
+ +	as.PtrInit().Append(ir.Nod(ir.ODCL, inlvar, nil))
+ +	inlvar.Name().Defn = as
+  	return inlvar
+  }
+  
+diff --cc src/cmd/compile/internal/gc/order.go
+index 87d7cf3aa9,30e1535c09..888e8ea907
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@@ -885,58 -856,94 +885,58 @@@ func (o *Order) stmt(n ir.Node) 
+  			if r == nil {
+  				continue
+  			}
+ -			switch r.Op {
+ +			switch r.Op() {
+  			default:
+ -				Dump("select case", r)
+ -				Fatalf("unknown op in select %v", r.Op)
+ -
+ -			// If this is case x := <-ch or case x, y := <-ch, the case has
+ -			// the ODCL nodes to declare x and y. We want to delay that
+ -			// declaration (and possible allocation) until inside the case body.
+ -			// Delete the ODCL nodes here and recreate them inside the body below.
+ -			case OSELRECV, OSELRECV2:
+ -				if r.Colas() {
+ -					i := 0
+ -					if r.Ninit.Len() != 0 && r.Ninit.First().Op == ODCL && r.Ninit.First().Left == r.Left {
+ -						i++
+ -					}
+ -					if i < r.Ninit.Len() && r.Ninit.Index(i).Op == ODCL && r.List.Len() != 0 && r.Ninit.Index(i).Left == r.List.First() {
+ -						i++
+ -					}
+ -					if i >= r.Ninit.Len() {
+ -						r.Ninit.Set(nil)
+ -					}
+ -				}
+ +				ir.Dump("select case", r)
+ +				base.Fatalf("unknown op in select %v", r.Op())
+  
+ -				if r.Ninit.Len() != 0 {
+ -					dumplist("ninit", r.Ninit)
+ -					Fatalf("ninit on select recv")
+ -				}
+ -
+ -				// case x = <-c
+ +			case ir.OSELRECV2:
+  				// case x, ok = <-c
+ -				// r->left is x, r->ntest is ok, r->right is ORECV, r->right->left is c.
+ -				// r->left == N means 'case <-c'.
+ -				// c is always evaluated; x and ok are only evaluated when assigned.
+ -				r.Right.Left = o.expr(r.Right.Left, nil)
+ -
+ -				if !r.Right.Left.IsAutoTmp() {
+ -					r.Right.Left = o.copyExpr(r.Right.Left, r.Right.Left.Type, false)
+ +				recv := r.Rlist().First().(*ir.UnaryExpr)
+ +				recv.SetLeft(o.expr(recv.Left(), nil))
+- 				if recv.Left().Op() != ir.ONAME {
+++				if !ir.IsAutoTmp(recv.Left()) {
+ +					recv.SetLeft(o.copyExpr(recv.Left()))
+  				}
+ -
+ -				// Introduce temporary for receive and move actual copy into case body.
+ -				// avoids problems with target being addressed, as usual.
+ -				// NOTE: If we wanted to be clever, we could arrange for just one
+ -				// temporary per distinct type, sharing the temp among all receives
+ -				// with that temp. Similarly one ok bool could be shared among all
+ -				// the x,ok receives. Not worth doing until there's a clear need.
+ -				if r.Left != nil && r.Left.isBlank() {
+ -					r.Left = nil
+ -				}
+ -				if r.Left != nil {
+ -					// use channel element type for temporary to avoid conversions,
+ -					// such as in case interfacevalue = <-intchan.
+ -					// the conversion happens in the OAS instead.
+ -					tmp1 := r.Left
+ -
+ -					if r.Colas() {
+ -						tmp2 := nod(ODCL, tmp1, nil)
+ -						tmp2 = typecheck(tmp2, ctxStmt)
+ -						n2.Ninit.Append(tmp2)
+ +				r := r.(*ir.AssignListStmt)
+ +				init := r.PtrInit().Slice()
+ +				r.PtrInit().Set(nil)
+ +
+ +				colas := r.Colas()
+ +				do := func(i int, t *types.Type) {
+ +					n := r.List().Index(i)
+ +					if ir.IsBlank(n) {
+ +						return
+  					}
+ -
+ -					r.Left = o.newTemp(r.Right.Left.Type.Elem(), r.Right.Left.Type.Elem().HasPointers())
+ -					tmp2 := nod(OAS, tmp1, r.Left)
+ -					tmp2 = typecheck(tmp2, ctxStmt)
+ -					n2.Ninit.Append(tmp2)
+ -				}
+ -
+ -				if r.List.Len() != 0 && r.List.First().isBlank() {
+ -					r.List.Set(nil)
+ -				}
+ -				if r.List.Len() != 0 {
+ -					tmp1 := r.List.First()
+ -					if r.Colas() {
+ -						tmp2 := nod(ODCL, tmp1, nil)
+ -						tmp2 = typecheck(tmp2, ctxStmt)
+ -						n2.Ninit.Append(tmp2)
+ +					// If this is case x := <-ch or case x, y := <-ch, the case has
+ +					// the ODCL nodes to declare x and y. We want to delay that
+ +					// declaration (and possible allocation) until inside the case body.
+ +					// Delete the ODCL nodes here and recreate them inside the body below.
+ +					if colas {
+ +						if len(init) > 0 && init[0].Op() == ir.ODCL && init[0].(*ir.Decl).Left() == n {
+ +							init = init[1:]
+ +						}
+ +						dcl := ir.Nod(ir.ODCL, n, nil)
+ +						dcl = typecheck(dcl, ctxStmt)
+ +						ncas.PtrInit().Append(dcl)
+  					}
+ -
+ -					r.List.Set1(o.newTemp(types.Types[TBOOL], false))
+ -					tmp2 := okas(tmp1, r.List.First())
+ -					tmp2 = typecheck(tmp2, ctxStmt)
+ -					n2.Ninit.Append(tmp2)
+ +					tmp := o.newTemp(t, t.HasPointers())
+ +					as := ir.Nod(ir.OAS, n, conv(tmp, n.Type()))
+ +					as = typecheck(as, ctxStmt)
+ +					ncas.PtrInit().Append(as)
+ +					r.PtrList().SetIndex(i, tmp)
+  				}
+ -				orderBlock(&n2.Ninit, o.free)
+ +				do(0, recv.Left().Type().Elem())
+ +				do(1, types.Types[types.TBOOL])
+ +				if len(init) != 0 {
+ +					ir.DumpList("ninit", r.Init())
+ +					base.Fatalf("ninit on select recv")
+ +				}
+ +				orderBlock(ncas.PtrInit(), o.free)
+  
+ -			case OSEND:
+ -				if r.Ninit.Len() != 0 {
+ -					dumplist("ninit", r.Ninit)
+ -					Fatalf("ninit on select send")
+ +			case ir.OSEND:
+ +				if r.Init().Len() != 0 {
+ +					ir.DumpList("ninit", r.Init())
+ +					base.Fatalf("ninit on select send")
+  				}
+  
+  				// case c <- x
+diff --cc src/cmd/compile/internal/gc/ssa.go
+index fbfed0640d,5b74754b53..d3b4e903b2
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@@ -6003,8 -5925,8 +6003,8 @@@ func (s *state) dottype(n *ir.TypeAsser
+  				// Load type out of itab, build interface with existing idata.
+  				off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), itab)
+  				typ := s.load(byteptr, off)
+- 				idata := s.newValue1(ssa.OpIData, n.Type(), iface)
++ 				idata := s.newValue1(ssa.OpIData, byteptr, iface)
+ -				res = s.newValue2(ssa.OpIMake, n.Type, typ, idata)
+ +				res = s.newValue2(ssa.OpIMake, n.Type(), typ, idata)
+  				return
+  			}
+  
+@@@ -6025,10 -5947,10 +6025,10 @@@
+  			bOk.AddEdgeTo(bEnd)
+  			bFail.AddEdgeTo(bEnd)
+  			s.startBlock(bEnd)
+- 			idata := s.newValue1(ssa.OpIData, n.Type(), iface)
++ 			idata := s.newValue1(ssa.OpIData, byteptr, iface)
+ -			res = s.newValue2(ssa.OpIMake, n.Type, s.variable(&typVar, byteptr), idata)
+ +			res = s.newValue2(ssa.OpIMake, n.Type(), s.variable(typVar, byteptr), idata)
+  			resok = cond
+ -			delete(s.vars, &typVar)
+ +			delete(s.vars, typVar)
+  			return
+  		}
+  		// converting to a nonempty interface needs a runtime call.
+diff --cc test/fixedbugs/issue20415.go
+index 5ad085564b,9e7649fc95..1d9a745ab4
+--- a/test/fixedbugs/issue20415.go
++++ b/test/fixedbugs/issue20415.go
+@@@ -11,7 -11,7 +11,7 @@@ package 
+  // 1
+  var f byte
+  
+- var f interface{} // ERROR "issue20415.go:12: previous declaration"
+ -var f interface{} // ERROR "previous declaration at issue20415.go:12|redefinition"
+++var f interface{} // ERROR "issue20415.go:12: previous declaration|redefinition"
+  
+  func _(f int) {
+  }
+@@@ -22,7 -22,7 +22,7 @@@ var g byt
+  func _(g int) {
+  }
+  
+- var g interface{} // ERROR "issue20415.go:20: previous declaration"
+ -var g interface{} // ERROR "previous declaration at issue20415.go:20|redefinition"
+++var g interface{} // ERROR "issue20415.go:20: previous declaration|redefinition"
+  
+  // 3
+  func _(h int) {
+@@@ -30,4 -30,4 +30,4 @@@
+  
+  var h byte
+  
+- var h interface{} // ERROR "issue20415.go:31: previous declaration"
+ -var h interface{} // ERROR "previous declaration at issue20415.go:31|redefinition"
+++var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition"
+diff --cc test/fixedbugs/issue22822.go
+index 0e838cb597,ea53452f09..dc86c97fe5
+--- a/test/fixedbugs/issue22822.go
++++ b/test/fixedbugs/issue22822.go
+@@@ -12,7 -12,5 +12,7 @@@ package mai
+  func F() {
+  	slice := []int{1, 2, 3}
+  	len := int(2)
+- 	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1"
+ -	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at|expected function"
+++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function"
+ +	const iota = 1
+- 	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1"
+++	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function"
+  }
+diff --cc test/fixedbugs/issue28079b.go
+index 9ff221baff,d1992e1d09..54c9db994b
+--- a/test/fixedbugs/issue28079b.go
++++ b/test/fixedbugs/issue28079b.go
+@@@ -10,8 -10,8 +10,8 @@@ package 
+  
+  import "unsafe"
+  
+- type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound"
++ type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound|array bound is not constant"
+  
+  func f() {
+- 	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "shift of type float64"
+ -	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // GCCGO_ERROR "non-integer type for left operand of shift"
+++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "shift of type float64|non-integer type for left operand of shift"
+  }

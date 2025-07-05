@@ -16,6 +16,24 @@ Date:   Wed Feb 13 19:18:25 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/name_constraints_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 4c9bc1b87a..735534da95 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -2220,10 +2220,8 @@ func TestBadNamesInSANs(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if err != nil {
+-			if str := err.Error(); !strings.Contains(str, "cannot parse ") {
+-				t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
+-			}
++		if str := err.Error(); !strings.Contains(str, "cannot parse ") {
++			t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
+ 		}
+ 	}
+ }

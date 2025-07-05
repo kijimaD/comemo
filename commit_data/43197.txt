@@ -20,7 +20,7 @@ Date:   Sun Feb 16 14:42:29 2020 +0100
     Change-Id: I9598023e03b0a6260f0217f34df41c231c7d6489
     Reviewed-on: https://go-review.googlesource.com/c/go/+/219639
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html                                  |  7 ++++++
  src/cmd/go/internal/load/test.go                 |  5 +++-
  src/cmd/go/testdata/script/list_importmap.txt    |  2 +-
@@ -28,3 +28,196 @@ Date:   Sun Feb 16 14:42:29 2020 +0100
  src/cmd/go/testdata/script/test_main.txt         | 26 ++++++++++++++++++++
  src/testing/testing.go                           | 31 +++++++++++++++++-------
  6 files changed, 61 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index b4319874c9..aa951eefad 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -86,6 +86,13 @@ TODO
+       that reports the time at which the test binary will have exceeded its
+       timeout.
+     </p>
++    <p><!-- golang.org/issue/34129 -->
++      A <code>TestMain</code> function is no longer required to call
++      <code>os.Exit</code>. If a <code>TestMain</code> function returns,
++      the test binary will call <code>os.Exit</code> with the value returned
++      by <code>m.Run</code>.
++    </p>
++  </dd>
+ </dl><!-- testing -->
+ 
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index fefc7d2e30..866e0e567f 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -26,6 +26,7 @@ import (
+ var TestMainDeps = []string{
+ 	// Dependencies for testmain.
+ 	"os",
++	"reflect",
+ 	"testing",
+ 	"testing/internal/testdeps",
+ }
+@@ -612,8 +613,9 @@ var testmainTmpl = lazytemplate.New("main", `
+ package main
+ 
+ import (
+-{{if not .TestMain}}
+ 	"os"
++{{if .TestMain}}
++	"reflect"
+ {{end}}
+ 	"testing"
+ 	"testing/internal/testdeps"
+@@ -704,6 +706,7 @@ func main() {
+ 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
+ {{with .TestMain}}
+ 	{{.Package}}.{{.Name}}(m)
++	os.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))
+ {{else}}
+ 	os.Exit(m.Run())
+ {{end}}
+diff --git a/src/cmd/go/testdata/script/list_importmap.txt b/src/cmd/go/testdata/script/list_importmap.txt
+index 52ee6028f5..f424b9814c 100644
+--- a/src/cmd/go/testdata/script/list_importmap.txt
++++ b/src/cmd/go/testdata/script/list_importmap.txt
+@@ -16,7 +16,7 @@ go list -deps -test -f '{{.ImportPath}} MAP: {{.ImportMap}}{{"\n"}}{{.ImportPath
+ stdout '^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]'
+ stdout '^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]'
+ ! stdout '^fmt\.test MAP: map\[(.* )?os:'
+-stdout '^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]'
++stdout '^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os reflect testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]'
+ 
+ 
+ -- a/b/b.go --
+diff --git a/src/cmd/go/testdata/script/list_test_imports.txt b/src/cmd/go/testdata/script/list_test_imports.txt
+index b2a6bc45f9..0342eba862 100644
+--- a/src/cmd/go/testdata/script/list_test_imports.txt
++++ b/src/cmd/go/testdata/script/list_test_imports.txt
+@@ -16,6 +16,6 @@ package b_test; import _ "a"
+ -- imports.txt --
+ a: b
+ b:
+-b.test: b [b.test], b_test [b.test], os, testing, testing/internal/testdeps
++b.test: b [b.test], b_test [b.test], os, reflect, testing, testing/internal/testdeps
+ b [b.test]:
+ b_test [b.test]: a [b.test]
+diff --git a/src/cmd/go/testdata/script/test_main.txt b/src/cmd/go/testdata/script/test_main.txt
+index e255eab7e1..25d02e4465 100644
+--- a/src/cmd/go/testdata/script/test_main.txt
++++ b/src/cmd/go/testdata/script/test_main.txt
+@@ -12,6 +12,10 @@ stdout '^ok.*\[no tests to run\]'
+ ! go test standalone_main_wrong_test.go
+ stderr 'wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)'
+ 
++# Test TestMain does not call os.Exit (Issue #34129)
++! go test standalone_testmain_not_call_os_exit_test.go
++! stdout '^ok'
++
+ -- standalone_main_normal_test.go --
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -64,3 +68,25 @@ func TestMain(m *testing.M) {
+ 	}
+ 	os.Exit(m.Run())
+ }
++-- standalone_testmain_not_call_os_exit_test.go --
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_testmain_not_call_os_exit_test
++
++import (
++	"testing"
++)
++
++func TestWillFail(t *testing.T) {
++	t.Error("this test will fail.")
++}
++
++func TestMain(m *testing.M) {
++	defer func() {
++		recover()
++	}()
++	exit := m.Run()
++	panic(exit)
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 83cd72fff3..039d3e6209 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -217,10 +217,11 @@
+ //
+ // then the generated test will call TestMain(m) instead of running the tests
+ // directly. TestMain runs in the main goroutine and can do whatever setup
+-// and teardown is necessary around a call to m.Run. It should then call
+-// os.Exit with the result of m.Run. When TestMain is called, flag.Parse has
+-// not been run. If TestMain depends on command-line flags, including those
+-// of the testing package, it should call flag.Parse explicitly.
++// and teardown is necessary around a call to m.Run. m.Run will return an exit
++// status that may be passed to os.Exit. If TestMain returns, the test wrapper
++// will pass the result of m.Run to os.Exit itself. When TestMain is called,
++// flag.Parse has not been run. If TestMain depends on command-line flags,
++// including those of the testing package, it should call flag.Parse explicitly.
+ //
+ // A simple implementation of TestMain is:
+ //
+@@ -1148,6 +1149,10 @@ type M struct {
+ 	afterOnce sync.Once
+ 
+ 	numRun int
++
++	// value to pass to os.Exit, the outer test func main
++	// harness calls os.Exit with this code. See #34129.
++	exitCode int
+ }
+ 
+ // testDeps is an internal interface of functionality that is
+@@ -1178,7 +1183,11 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
+ }
+ 
+ // Run runs the tests. It returns an exit code to pass to os.Exit.
+-func (m *M) Run() int {
++func (m *M) Run() (code int) {
++	defer func() {
++		code = m.exitCode
++	}()
++
+ 	// Count the number of calls to m.Run.
+ 	// We only ever expected 1, but we didn't enforce that,
+ 	// and now there are tests in the wild that call m.Run multiple times.
+@@ -1193,12 +1202,14 @@ func (m *M) Run() int {
+ 	if *parallel < 1 {
+ 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
+ 		flag.Usage()
+-		return 2
++		m.exitCode = 2
++		return
+ 	}
+ 
+ 	if len(*matchList) != 0 {
+ 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
+-		return 0
++		m.exitCode = 0
++		return
+ 	}
+ 
+ 	parseCpuList()
+@@ -1215,11 +1226,13 @@ func (m *M) Run() int {
+ 	}
+ 	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
+ 		fmt.Println("FAIL")
+-		return 1
++		m.exitCode = 1
++		return
+ 	}
+ 
+ 	fmt.Println("PASS")
+-	return 0
++	m.exitCode = 0
++	return
+ }
+ 
+ func (t *T) report() {

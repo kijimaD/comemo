@@ -7,7 +7,43 @@ Date:   Mon Nov 30 12:03:26 2009 -0800
     
     R=rsc
     https://golang.org/cl/161061
-
+---
  src/pkg/json/parse.go       |  2 +-
  src/pkg/json/struct_test.go | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index 008637593a..f9c472977f 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -198,7 +198,7 @@ func punct(c byte) bool {
+ 	return c == '"' || c == '[' || c == ']' || c == ':' || c == '{' || c == '}' || c == ','
+ }
+ 
+-func white(c byte) bool	{ return c == ' ' || c == '\t' || c == '\n' || c == '\v' }
++func white(c byte) bool	{ return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' }
+ 
+ func skipwhite(p string, i int) int {
+ 	for i < len(p) && white(p[i]) {
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index caf398b11e..c01f4ddeb9 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -66,6 +66,17 @@ func check(t *testing.T, ok bool, name string, v interface{}) {
+ 	}
+ }
+ 
++const whiteSpaceEncoded = " \t{\n\"s\"\r:\"string\"\v}"
++
++func TestUnmarshalWhitespace(t *testing.T) {
++	var m myStruct;
++	ok, errtok := Unmarshal(whiteSpaceEncoded, &m);
++	if !ok {
++		t.Fatalf("Unmarshal failed near %s", errtok)
++	}
++	check(t, m.S == "string", "string", m.S);
++}
++
+ func TestUnmarshal(t *testing.T) {
+ 	var m myStruct;
+ 	m.F = true;

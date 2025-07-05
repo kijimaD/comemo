@@ -21,10 +21,100 @@ Date:   Thu Feb 1 15:56:05 2024 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/scriptconds_test.go                           | 7 +++++++
  src/cmd/go/testdata/script/README                        | 2 ++
  src/cmd/go/testdata/script/build_plugin_reproducible.txt | 3 ++-
  src/cmd/go/testdata/script/version.txt                   | 7 +++----
  src/cmd/go/testdata/script/version_cshared.txt           | 1 +
  5 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 8dd9b0d1cd..13007daba5 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -55,6 +55,7 @@ func scriptConditions() map[string]script.Cond {
+ 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
+ 	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
+ 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
++	add("pielinkext", script.Condition("platform requires external linking for PIE", pieLinkExt))
+ 	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
+ 	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
+ 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
+@@ -233,3 +234,9 @@ func mustLinkExt(s *script.State) (bool, error) {
+ 	GOARCH, _ := s.LookupEnv("GOARCH")
+ 	return platform.MustLinkExternal(GOOS, GOARCH, false), nil
+ }
++
++func pieLinkExt(s *script.State) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return !platform.InternalLinkPIESupported(GOOS, GOARCH), nil
++}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 792a158760..39971f8029 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -410,6 +410,8 @@ The available conditions are:
+ 	platform always requires external linking
+ [net:*]
+ 	can connect to external network host <suffix>
++[pielinkext]
++	platform requires external linking for PIE
+ [race]
+ 	GOOS/GOARCH supports -race
+ [root]
+diff --git a/src/cmd/go/testdata/script/build_plugin_reproducible.txt b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+index 5369954859..3379a6be5f 100644
+--- a/src/cmd/go/testdata/script/build_plugin_reproducible.txt
++++ b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+@@ -1,5 +1,6 @@
+ [!buildmode:plugin] skip
+ [short] skip
++[!cgo] skip '-buildmode=plugin requires external linking'
+ 
+ go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
+ go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go
+@@ -8,4 +9,4 @@ cmp -q a.so b.so
+ -- main.go --
+ package main
+ 
+-func main() {}
+\ No newline at end of file
++func main() {}
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 0a2ac1e1d5..a18bcdd915 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -57,8 +57,9 @@ stdout '^test2json.exe: .+'
+ stdout '^\tpath\tcmd/test2json$'
+ ! stdout 'mod[^e]'
+ 
+-# Repeat the test with -buildmode=pie.
++# Repeat the test with -buildmode=pie and default linking.
+ [!buildmode:pie] stop
++[pielinkext] [!cgo] stop
+ go build -buildmode=pie -o external.exe rsc.io/fortune
+ go version external.exe
+ stdout '^external.exe: .+'
+@@ -68,9 +69,7 @@ stdout '^\tpath\trsc.io/fortune'
+ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
+ # Also test PIE with internal linking.
+-# currently only supported on linux/amd64, linux/arm64 and windows/amd64.
+-[!GOOS:linux] [!GOOS:windows] stop
+-[!GOARCH:amd64] [!GOARCH:arm64] stop
++[pielinkext] stop
+ go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
+ go version internal.exe
+ stdout '^internal.exe: .+'
+diff --git a/src/cmd/go/testdata/script/version_cshared.txt b/src/cmd/go/testdata/script/version_cshared.txt
+index 29e21fc09a..18f257f64a 100644
+--- a/src/cmd/go/testdata/script/version_cshared.txt
++++ b/src/cmd/go/testdata/script/version_cshared.txt
+@@ -1,4 +1,5 @@
+ [short] skip
++[!cgo] skip '-buildmode=c-shared requires external linking'
+ [!buildmode:c-shared] stop
+ 
+ env GO111MODULE=on

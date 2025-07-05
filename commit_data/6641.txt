@@ -7,7 +7,7 @@ Date:   Tue Oct 26 21:52:54 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/2763041
-
+---
  src/pkg/archive/tar/writer.go         |  4 +---
  src/pkg/bufio/bufio.go                |  4 +---
  src/pkg/bufio/bufio_test.go           |  5 +----
@@ -54,3 +54,879 @@ Date:   Tue Oct 26 21:52:54 2010 -0700
  src/pkg/unicode/maketables.go         |  4 +---
  src/pkg/xml/xml.go                    |  4 +---
  45 files changed, 68 insertions(+), 199 deletions(-)
+
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 1f2656d324..8673bad316 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -71,9 +71,7 @@ func (tw *Writer) cString(b []byte, s string) {
+ 		}
+ 		return
+ 	}
+-	for i, ch := range []byte(s) {
+-		b[i] = ch
+-	}
++	copy(b, s)
+ 	if len(s) < len(b) {
+ 		b[len(s)] = 0
+ 	}
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 70caf5dae8..b5b8fb3ee6 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -316,9 +316,7 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
+ 			full = make([][]byte, 16)
+ 		} else if nfull >= len(full) {
+ 			newfull := make([][]byte, len(full)*2)
+-			for i := 0; i < len(full); i++ {
+-				newfull[i] = full[i]
+-			}
++			copy(newfull, full)
+ 			full = newfull
+ 		}
+ 
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 753cf3e77f..ef91d94cae 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -179,10 +179,7 @@ type StringReader struct {
+ func (r *StringReader) Read(p []byte) (n int, err os.Error) {
+ 	if r.step < len(r.data) {
+ 		s := r.data[r.step]
+-		for i := 0; i < len(s); i++ {
+-			p[i] = s[i]
+-		}
+-		n = len(s)
++		n = copy(p, s)
+ 		r.step++
+ 	} else {
+ 		err = os.EOF
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 01e6aef674..6f93869584 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -12,14 +12,6 @@ import (
+ 	"utf8"
+ )
+ 
+-// Copy from string to byte array at offset doff.  Assume there's room.
+-func copyString(dst []byte, doff int, str string) {
+-	for soff := 0; soff < len(str); soff++ {
+-		dst[doff] = str[soff]
+-		doff++
+-	}
+-}
+-
+ // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
+ // The zero value for Buffer is an empty buffer ready to use.
+ type Buffer struct {
+@@ -99,8 +91,7 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
+ // value n is the length of s; err is always nil.
+ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
+ 	m := b.grow(len(s))
+-	copyString(b.buf, m, s)
+-	return len(s), nil
++	return copy(b.buf[m:], s), nil
+ }
+ 
+ // MinRead is the minimum slice size passed to a Read call by
+@@ -259,7 +250,5 @@ func NewBuffer(buf []byte) *Buffer { return &Buffer{buf: buf} }
+ // initial contents.  It is intended to prepare a buffer to read an existing
+ // string.
+ func NewBufferString(s string) *Buffer {
+-	buf := make([]byte, len(s))
+-	copyString(buf, 0, s)
+-	return &Buffer{buf: buf}
++	return &Buffer{buf: []byte(s)}
+ }
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 53086a4df7..1ba77493d6 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -132,7 +132,7 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.Truncate(0)
+ 		check(t, "TestBasicOperations (3)", &buf, "")
+ 
+-		n, err := buf.Write(Bytes(data[0:1]))
++		n, err := buf.Write([]byte(data[0:1]))
+ 		if n != 1 {
+ 			t.Errorf("wrote 1 byte, but n == %d", n)
+ 		}
+@@ -144,7 +144,7 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.WriteByte(data[1])
+ 		check(t, "TestBasicOperations (5)", &buf, "ab")
+ 
+-		n, err = buf.Write(Bytes(data[2:26]))
++		n, err = buf.Write([]byte(data[2:26]))
+ 		if n != 24 {
+ 			t.Errorf("wrote 25 bytes, but n == %d", n)
+ 		}
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 458f407771..62311d41d6 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -325,9 +325,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 				// Grow the buffer.
+ 				maxbytes = maxbytes*2 + utf8.UTFMax
+ 				nb := make([]byte, maxbytes)
+-				for i, c := range b[0:nbytes] {
+-					nb[i] = c
+-				}
++				copy(nb, b[0:nbytes])
+ 				b = nb
+ 			}
+ 			nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes])
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index a43708e0d8..6f42338eb8 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -416,21 +416,11 @@ var trimSpaceTests = []StringTest{
+ 	{"x ☺ ", "x ☺"},
+ }
+ 
+-// Bytes returns a new slice containing the bytes in s.
+-// Borrowed from strings to avoid dependency.
+-func Bytes(s string) []byte {
+-	b := make([]byte, len(s))
+-	for i := 0; i < len(s); i++ {
+-		b[i] = s[i]
+-	}
+-	return b
+-}
+-
+ // Execute f on each test case.  funcName should be the name of f; it's used
+ // in failure reports.
+ func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCases []StringTest) {
+ 	for _, tc := range testCases {
+-		actual := string(f(Bytes(tc.in)))
++		actual := string(f([]byte(tc.in)))
+ 		if actual != tc.out {
+ 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
+ 		}
+@@ -463,7 +453,7 @@ func TestMap(t *testing.T) {
+ 
+ 	// 1.  Grow.  This triggers two reallocations in Map.
+ 	maxRune := func(rune int) int { return unicode.MaxRune }
+-	m := Map(maxRune, Bytes(a))
++	m := Map(maxRune, []byte(a))
+ 	expect := tenRunes(unicode.MaxRune)
+ 	if string(m) != expect {
+ 		t.Errorf("growing: expected %q got %q", expect, m)
+@@ -471,21 +461,21 @@ func TestMap(t *testing.T) {
+ 
+ 	// 2. Shrink
+ 	minRune := func(rune int) int { return 'a' }
+-	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)))
++	m = Map(minRune, []byte(tenRunes(unicode.MaxRune)))
+ 	expect = a
+ 	if string(m) != expect {
+ 		t.Errorf("shrinking: expected %q got %q", expect, m)
+ 	}
+ 
+ 	// 3. Rot13
+-	m = Map(rot13, Bytes("a to zed"))
++	m = Map(rot13, []byte("a to zed"))
+ 	expect = "n gb mrq"
+ 	if string(m) != expect {
+ 		t.Errorf("rot13: expected %q got %q", expect, m)
+ 	}
+ 
+ 	// 4. Rot13^2
+-	m = Map(rot13, Map(rot13, Bytes("a to zed")))
++	m = Map(rot13, Map(rot13, []byte("a to zed")))
+ 	expect = "a to zed"
+ 	if string(m) != expect {
+ 		t.Errorf("rot13: expected %q got %q", expect, m)
+@@ -498,7 +488,7 @@ func TestMap(t *testing.T) {
+ 		}
+ 		return -1
+ 	}
+-	m = Map(dropNotLatin, Bytes("Hello, 세계"))
++	m = Map(dropNotLatin, []byte("Hello, 세계"))
+ 	expect = "Hello"
+ 	if string(m) != expect {
+ 		t.Errorf("drop: expected %q got %q", expect, m)
+@@ -526,9 +516,7 @@ var addtests = []AddTest{
+ func TestAdd(t *testing.T) {
+ 	for _, test := range addtests {
+ 		b := make([]byte, len(test.s), test.cap)
+-		for i := 0; i < len(test.s); i++ {
+-			b[i] = test.s[i]
+-		}
++		copy(b, test.s)
+ 		b = Add(b, []byte(test.t))
+ 		if string(b) != test.s+test.t {
+ 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
+diff --git a/src/pkg/crypto/block/cbc.go b/src/pkg/crypto/block/cbc.go
+index 10235f5411..b0b8bf638e 100644
+--- a/src/pkg/crypto/block/cbc.go
++++ b/src/pkg/crypto/block/cbc.go
+@@ -27,7 +27,7 @@ func newCBC(c Cipher, iv []byte) *cbcCipher {
+ 	x := new(cbcCipher)
+ 	x.c = c
+ 	x.blockSize = n
+-	x.iv = copy(iv)
++	x.iv = dup(iv)
+ 	x.tmp = make([]byte, n)
+ 	return x
+ }
+diff --git a/src/pkg/crypto/block/cfb.go b/src/pkg/crypto/block/cfb.go
+index 177ae939d8..2c84b32c5f 100644
+--- a/src/pkg/crypto/block/cfb.go
++++ b/src/pkg/crypto/block/cfb.go
+@@ -33,7 +33,7 @@ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
+ 	x.c = c
+ 	x.blockSize = s / 8
+ 	x.cipherSize = b
+-	x.iv = copy(iv)
++	x.iv = dup(iv)
+ 	x.tmp = make([]byte, b)
+ 	return x
+ }
+diff --git a/src/pkg/crypto/block/cipher.go b/src/pkg/crypto/block/cipher.go
+index 1b786cca49..f95c7a76e3 100644
+--- a/src/pkg/crypto/block/cipher.go
++++ b/src/pkg/crypto/block/cipher.go
+@@ -49,10 +49,8 @@ func same(p, q []byte) bool {
+ 	return true
+ }
+ 
+-func copy(p []byte) []byte {
++func dup(p []byte) []byte {
+ 	q := make([]byte, len(p))
+-	for i, b := range p {
+-		q[i] = b
+-	}
++	copy(q, p)
+ 	return q
+ }
+diff --git a/src/pkg/crypto/block/ctr.go b/src/pkg/crypto/block/ctr.go
+index 085ae05b18..bb9aaaaa0a 100644
+--- a/src/pkg/crypto/block/ctr.go
++++ b/src/pkg/crypto/block/ctr.go
+@@ -25,7 +25,7 @@ type ctrStream struct {
+ func newCTRStream(c Cipher, ctr []byte) *ctrStream {
+ 	x := new(ctrStream)
+ 	x.c = c
+-	x.ctr = copy(ctr)
++	x.ctr = dup(ctr)
+ 	x.out = make([]byte, len(ctr))
+ 	return x
+ }
+diff --git a/src/pkg/crypto/block/eax.go b/src/pkg/crypto/block/eax.go
+index cc3662787c..3f3b96431e 100644
+--- a/src/pkg/crypto/block/eax.go
++++ b/src/pkg/crypto/block/eax.go
+@@ -45,8 +45,8 @@ func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac h
+ 	cmac.Write(buf) // 0
+ 	cmac.Write(iv)
+ 	sum := cmac.Sum()
+-	ctrIV = copy(sum)
+-	tag = copy(sum[0:tagBytes])
++	ctrIV = dup(sum)
++	tag = dup(sum[0:tagBytes])
+ 
+ 	cmac.Reset()
+ 	buf[n-1] = 1
+@@ -237,8 +237,8 @@ func (x *eaxDecrypter) checkTag() os.Error {
+ 	finishEAX(x.tag, x.cr.cmac)
+ 	if !same(x.tag, x.cr.tag) {
+ 		e := new(EAXTagError)
+-		e.Computed = copy(x.tag)
+-		e.Read = copy(x.cr.tag)
++		e.Computed = dup(x.tag)
++		e.Read = dup(x.cr.tag)
+ 		return e
+ 	}
+ 	return nil
+diff --git a/src/pkg/crypto/block/ecb.go b/src/pkg/crypto/block/ecb.go
+index 73d1d63f71..cf09f7cb3f 100644
+--- a/src/pkg/crypto/block/ecb.go
++++ b/src/pkg/crypto/block/ecb.go
+@@ -127,9 +127,7 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
+ 	// Save it for next time.
+ 	if i < n {
+ 		p = p[i:n]
+-		for j, v := range p {
+-			x.buf[j] = v
+-		}
++		copy(x.buf, p)
+ 		x.crypt = x.buf[0:len(p)]
+ 		n = i
+ 	}
+@@ -191,11 +189,7 @@ func (x *ecbEncrypter) slidePlain() {
+ 	if len(x.plain) == 0 {
+ 		x.plain = x.buf[0:0]
+ 	} else if cap(x.plain) < cap(x.buf) {
+-		// plain and buf share same data,
+-		// but buf is before plain, so forward loop is correct
+-		for i := 0; i < len(x.plain); i++ {
+-			x.buf[i] = x.plain[i]
+-		}
++		copy(x.buf, x.plain)
+ 		x.plain = x.buf[0:len(x.plain)]
+ 	}
+ }
+diff --git a/src/pkg/crypto/block/ofb.go b/src/pkg/crypto/block/ofb.go
+index 0cd5e73c43..11aaaa4d71 100644
+--- a/src/pkg/crypto/block/ofb.go
++++ b/src/pkg/crypto/block/ofb.go
+@@ -29,7 +29,7 @@ func newOFBStream(c Cipher, iv []byte) *ofbStream {
+ 	if n != c.BlockSize() {
+ 		panic(fmt.Sprintln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize()))
+ 	}
+-	x.iv = copy(iv)
++	x.iv = dup(iv)
+ 	return x
+ }
+ 
+diff --git a/src/pkg/crypto/md4/md4.go b/src/pkg/crypto/md4/md4.go
+index adbdf29e7c..e13c986e68 100644
+--- a/src/pkg/crypto/md4/md4.go
++++ b/src/pkg/crypto/md4/md4.go
+@@ -68,10 +68,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 	n := _Block(d, p)
+ 	p = p[n:]
+ 	if len(p) > 0 {
+-		for i, x := range p {
+-			d.x[i] = x
+-		}
+-		d.nx = len(p)
++		d.nx = copy(d.x[:], p)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index a833376512..54fddb63b9 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -68,10 +68,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 	n := _Block(d, p)
+ 	p = p[n:]
+ 	if len(p) > 0 {
+-		for i, x := range p {
+-			d.x[i] = x
+-		}
+-		d.nx = len(p)
++		d.nx = copy(d.x[:], p)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/ripemd160/ripemd160.go b/src/pkg/crypto/ripemd160/ripemd160.go
+index 5d55198424..5614f1360e 100644
+--- a/src/pkg/crypto/ripemd160/ripemd160.go
++++ b/src/pkg/crypto/ripemd160/ripemd160.go
+@@ -72,10 +72,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 	n := _Block(d, p)
+ 	p = p[n:]
+ 	if len(p) > 0 {
+-		for i, x := range p {
+-			d.x[i] = x
+-		}
+-		d.nx = len(p)
++		d.nx = copy(d.x[:], p)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/sha1/sha1.go b/src/pkg/crypto/sha1/sha1.go
+index 681870a218..8716c35910 100644
+--- a/src/pkg/crypto/sha1/sha1.go
++++ b/src/pkg/crypto/sha1/sha1.go
+@@ -70,10 +70,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 	n := _Block(d, p)
+ 	p = p[n:]
+ 	if len(p) > 0 {
+-		for i, x := range p {
+-			d.x[i] = x
+-		}
+-		d.nx = len(p)
++		d.nx = copy(d.x[:], p)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/sha256/sha256.go b/src/pkg/crypto/sha256/sha256.go
+index df00a72985..57a8ffa0d7 100644
+--- a/src/pkg/crypto/sha256/sha256.go
++++ b/src/pkg/crypto/sha256/sha256.go
+@@ -112,10 +112,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 	n := _Block(d, p)
+ 	p = p[n:]
+ 	if len(p) > 0 {
+-		for i, x := range p {
+-			d.x[i] = x
+-		}
+-		d.nx = len(p)
++		d.nx = copy(d.x[:], p)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 21b030563d..c3cda97d96 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -112,10 +112,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
+ 	n := _Block(d, p)
+ 	p = p[n:]
+ 	if len(p) > 0 {
+-		for i, x := range p {
+-			d.x[i] = x
+-		}
+-		d.nx = len(p)
++		d.nx = copy(d.x[:], p)
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 4005bf0b62..327a5de2ef 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -504,9 +504,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
+ func appendString(in []string, v string) (out []string) {
+ 	if cap(in)-len(in) < 1 {
+ 		out = make([]string, len(in)+1, len(in)*2+1)
+-		for i, v := range in {
+-			out[i] = v
+-		}
++		copy(out, in)
+ 	} else {
+ 		out = in[0 : len(in)+1]
+ 	}
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 5d4a516539..dc2e8b116d 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -454,9 +454,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 				n := len(t.Field)
+ 				if n >= cap(t.Field) {
+ 					fld := make([]*StructField, n, n*2)
+-					for i, f := range t.Field {
+-						fld[i] = f
+-					}
++					copy(fld, t.Field)
+ 					t.Field = fld
+ 				}
+ 				t.Field = t.Field[0 : n+1]
+@@ -505,9 +503,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 				n := len(t.Val)
+ 				if n >= cap(t.Val) {
+ 					val := make([]*EnumValue, n, n*2)
+-					for i, f := range t.Val {
+-						val[i] = f
+-					}
++					copy(val, t.Val)
+ 					t.Val = val
+ 				}
+ 				t.Val = t.Val[0 : n+1]
+@@ -561,9 +557,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 			n := len(t.ParamType)
+ 			if n >= cap(t.ParamType) {
+ 				param := make([]Type, n, n*2)
+-				for i, t := range t.ParamType {
+-					param[i] = t
+-				}
++				copy(param, t.ParamType)
+ 				t.ParamType = param
+ 			}
+ 			t.ParamType = t.ParamType[0 : n+1]
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index 246dad8e78..4664f0190d 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -306,9 +306,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
+ 	if n >= cap(f.Sections) {
+ 		m := (n + 1) * 2
+ 		new := make([]*Section, n, m)
+-		for i, sh := range f.Sections {
+-			new[i] = sh
+-		}
++		copy(new, f.Sections)
+ 		f.Sections = new
+ 	}
+ 	f.Sections = f.Sections[0 : n+1]
+diff --git a/src/pkg/exp/4s/4s.go b/src/pkg/exp/4s/4s.go
+index 271af78e27..ccc0d0051f 100644
+--- a/src/pkg/exp/4s/4s.go
++++ b/src/pkg/exp/4s/4s.go
+@@ -65,9 +65,7 @@ func audioServer() {
+ 			println(n, len(b)*2)
+ 		}
+ 		a := make([]uint16, n/2)
+-		for i := range b {
+-			a[i] = b[i]
+-		}
++		copy(a, b)
+ 		n, err = av.AudioStream(a)
+ 	}
+ }
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 2cde189692..823f240188 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -1174,12 +1174,8 @@ func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
+ 
+ 	// Gather argument and out types to initialize frame variables
+ 	vts := make([]Type, nin+nout)
+-	for i, t := range lt.In {
+-		vts[i] = t
+-	}
+-	for i, t := range lt.Out {
+-		vts[i+nin] = t
+-	}
++	copy(vts, lt.In)
++	copy(vts[nin:], lt.Out)
+ 
+ 	// Compile
+ 	lf := l.asFunc()
+diff --git a/src/pkg/exp/eval/func.go b/src/pkg/exp/eval/func.go
+index e672d0783e..777f7e5f64 100644
+--- a/src/pkg/exp/eval/func.go
++++ b/src/pkg/exp/eval/func.go
+@@ -46,9 +46,7 @@ func (b *codeBuf) push(instr func(*Thread)) {
+ 	n := len(b.instrs)
+ 	if n >= cap(b.instrs) {
+ 		a := make(code, n, n*2)
+-		for i := range b.instrs {
+-			a[i] = b.instrs[i]
+-		}
++		copy(a, b.instrs)
+ 		b.instrs = a
+ 	}
+ 	b.instrs = b.instrs[0 : n+1]
+@@ -60,9 +58,7 @@ func (b *codeBuf) nextPC() uint { return uint(len(b.instrs)) }
+ func (b *codeBuf) get() code {
+ 	// Freeze this buffer into an array of exactly the right size
+ 	a := make(code, len(b.instrs))
+-	for i := range b.instrs {
+-		a[i] = b.instrs[i]
+-	}
++	copy(a, b.instrs)
+ 	return code(a)
+ }
+ 
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 534bc3587c..6c465dd727 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -870,9 +870,7 @@ func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType
+ 
+ 	// Combine methods
+ 	allMethods := make([]IMethod, nMethods)
+-	for i, m := range methods {
+-		allMethods[i] = m
+-	}
++	copy(allMethods, methods)
+ 	n := len(methods)
+ 	for _, e := range embeds {
+ 		for _, m := range e.methods {
+diff --git a/src/pkg/exp/nacl/srpc/msg.go b/src/pkg/exp/nacl/srpc/msg.go
+index fe36dbdeb5..92601ed373 100644
+--- a/src/pkg/exp/nacl/srpc/msg.go
++++ b/src/pkg/exp/nacl/srpc/msg.go
+@@ -126,9 +126,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
+ 	// The system call *did* update r.hdr.ndesc.
+ 	if r.hdr.ndesc > 0 {
+ 		m.rdesc = make([]int32, r.hdr.ndesc)
+-		for i := range m.rdesc {
+-			m.rdesc[i] = r.desc[i]
+-		}
++		copy(m.rdesc, r.desc)
+ 	}
+ 
+ 	return m, nil
+@@ -253,9 +251,7 @@ func (m *msg) wbytes(p []byte) { copy(m.grow(len(p)), p) }
+ 
+ func (m *msg) wstring(s string) {
+ 	b := m.grow(len(s))
+-	for i := range b {
+-		b[i] = s[i]
+-	}
++	copy(b, s)
+ }
+ 
+ // Parsing of RPC header and arguments.
+diff --git a/src/pkg/exp/nacl/srpc/server.go b/src/pkg/exp/nacl/srpc/server.go
+index 433484b4ea..0abc6df418 100644
+--- a/src/pkg/exp/nacl/srpc/server.go
++++ b/src/pkg/exp/nacl/srpc/server.go
+@@ -56,9 +56,7 @@ func Add(name, fmt string, handler Handler) {
+ 	n := len(rpcMethod)
+ 	if n >= cap(rpcMethod) {
+ 		a := make([]method, n, (n+4)*2)
+-		for i := range a {
+-			a[i] = rpcMethod[i]
+-		}
++		copy(a, rpcMethod)
+ 		rpcMethod = a
+ 	}
+ 	rpcMethod = rpcMethod[0 : n+1]
+diff --git a/src/pkg/exp/ogle/process.go b/src/pkg/exp/ogle/process.go
+index a3aa22f9f4..2c59c79fc9 100644
+--- a/src/pkg/exp/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -396,9 +396,7 @@ func (p *Process) postEvent(ev Event) {
+ 		m = 4
+ 	}
+ 	posted := make([]Event, n+1, m)
+-	for i, p := range p.posted {
+-		posted[i] = p
+-	}
++	copy(posted, p.posted)
+ 	posted[n] = ev
+ 	p.posted = posted
+ }
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 6f044ee689..39950525ad 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -277,11 +277,9 @@ func (doc *docReader) addDecl(decl ast.Decl) {
+ 
+ 
+ func copyCommentList(list []*ast.Comment) []*ast.Comment {
+-	copy := make([]*ast.Comment, len(list))
+-	for i, c := range list {
+-		copy[i] = c
+-	}
+-	return copy
++	nlist := make([]*ast.Comment, len(list))
++	copy(nlist, list)
++	return nlist
+ }
+ 
+ 
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 1d1b62eebb..dc195caf80 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -430,10 +430,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 				}
+ 				msg[off] = byte(len(s))
+ 				off++
+-				for i := 0; i < len(s); i++ {
+-					msg[off+i] = s[i]
+-				}
+-				off += len(s)
++				off += copy(msg[off:], s)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/os/dir_darwin.go b/src/pkg/os/dir_darwin.go
+index f9f51221da..a512190bb5 100644
+--- a/src/pkg/os/dir_darwin.go
++++ b/src/pkg/os/dir_darwin.go
+@@ -66,9 +66,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			count--
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names))
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
+-				}
++				copy(nnames, names)
+ 				names = nnames
+ 			}
+ 			names = names[0 : len(names)+1]
+diff --git a/src/pkg/os/dir_freebsd.go b/src/pkg/os/dir_freebsd.go
+index b32c474e69..9c4b446994 100644
+--- a/src/pkg/os/dir_freebsd.go
++++ b/src/pkg/os/dir_freebsd.go
+@@ -61,9 +61,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			count--
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names))
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
+-				}
++				copy(nnames, names)
+ 				names = nnames
+ 			}
+ 			names = names[0 : len(names)+1]
+diff --git a/src/pkg/os/dir_linux.go b/src/pkg/os/dir_linux.go
+index 42cc88a8a7..2177625e2d 100644
+--- a/src/pkg/os/dir_linux.go
++++ b/src/pkg/os/dir_linux.go
+@@ -64,9 +64,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			count--
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names))
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
+-				}
++				copy(nnames, names)
+ 				names = nnames
+ 			}
+ 			names = names[0 : len(names)+1]
+diff --git a/src/pkg/os/dir_nacl.go b/src/pkg/os/dir_nacl.go
+index 42cc88a8a7..2177625e2d 100644
+--- a/src/pkg/os/dir_nacl.go
++++ b/src/pkg/os/dir_nacl.go
+@@ -64,9 +64,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			count--
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names))
+-				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
+-				}
++				copy(nnames, names)
+ 				names = nnames
+ 			}
+ 			names = names[0 : len(names)+1]
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+index 557f5c03b8..ed34481555 100644
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -89,9 +89,7 @@ func Environ() []string {
+ 			}
+ 			if len(r) == cap(r) {
+ 				nr := make([]string, len(r), 2*len(r))
+-				for k := 0; k < len(r); k++ {
+-					nr[k] = r[k]
+-				}
++				copy(nr, r)
+ 				r = nr
+ 			}
+ 			r = r[0 : len(r)+1]
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index d5978a83c3..f13911ad82 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -159,9 +159,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 		count--
+ 		if len(fi) == cap(fi) {
+ 			nfi := make([]FileInfo, len(fi), 2*len(fi))
+-			for i := 0; i < len(fi); i++ {
+-				nfi[i] = fi[i]
+-			}
++			copy(nfi, fi)
+ 			fi = nfi
+ 		}
+ 		fi = fi[0 : len(fi)+1]
+diff --git a/src/pkg/scanner/scanner_test.go b/src/pkg/scanner/scanner_test.go
+index a9d46dd1bc..506f434fe7 100644
+--- a/src/pkg/scanner/scanner_test.go
++++ b/src/pkg/scanner/scanner_test.go
+@@ -23,10 +23,7 @@ type StringReader struct {
+ func (r *StringReader) Read(p []byte) (n int, err os.Error) {
+ 	if r.step < len(r.data) {
+ 		s := r.data[r.step]
+-		for i := 0; i < len(s); i++ {
+-			p[i] = s[i]
+-		}
+-		n = len(s)
++		n = copy(p, s)
+ 		r.step++
+ 	} else {
+ 		err = os.EOF
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 6fbf67b3e6..431e3f82ea 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -527,21 +527,10 @@ func Replace(s, old, new string, n int) string {
+ 		} else {
+ 			j += Index(s[start:], old)
+ 		}
+-		w += copyString(t[w:], s[start:j])
+-		w += copyString(t[w:], new)
++		w += copy(t[w:], s[start:j])
++		w += copy(t[w:], new)
+ 		start = j + len(old)
+ 	}
+-	w += copyString(t[w:], s[start:])
++	w += copy(t[w:], s[start:])
+ 	return string(t[0:w])
+ }
+-
+-func copyString(dst []byte, src string) int {
+-	n := len(dst)
+-	if n > len(src) {
+-		n = len(src)
+-	}
+-	for i := 0; i < n; i++ {
+-		dst[i] = src[i]
+-	}
+-	return n
+-}
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 46f5c98764..b7761a699e 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -21,9 +21,7 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ // containing the text of s.
+ func StringByteSlice(s string) []byte {
+ 	a := make([]byte, len(s)+1)
+-	for i := 0; i < len(s); i++ {
+-		a[i] = s[i]
+-	}
++	copy(a, s)
+ 	return a
+ }
+ 
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 455b6ccb91..a575ce1af0 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -320,9 +320,7 @@ func words(buf []byte) []string {
+ 		}
+ 		if i == cap(s) {
+ 			ns := make([]string, 2*cap(s))
+-			for j := range s {
+-				ns[j] = s[j]
+-			}
++			copy(ns, s)
+ 			s = ns
+ 		}
+ 		s = s[0 : i+1]
+diff --git a/src/pkg/testing/regexp.go b/src/pkg/testing/regexp.go
+index 76baf1ec06..8f15b27625 100644
+--- a/src/pkg/testing/regexp.go
++++ b/src/pkg/testing/regexp.go
+@@ -170,9 +170,7 @@ func (cclass *_CharClass) addRange(a, b int) {
+ 	n := len(cclass.ranges)
+ 	if n >= cap(cclass.ranges) {
+ 		nr := make([]int, n, 2*n)
+-		for i, j := range nr {
+-			nr[i] = j
+-		}
++		copy(nr, cclass.ranges)
+ 		cclass.ranges = nr
+ 	}
+ 	cclass.ranges = cclass.ranges[0 : n+2]
+@@ -255,9 +253,7 @@ func (re *Regexp) add(i instr) instr {
+ 	i.setIndex(len(re.inst))
+ 	if n >= cap(re.inst) {
+ 		ni := make([]instr, n, 2*n)
+-		for i, j := range re.inst {
+-			ni[i] = j
+-		}
++		copy(ni, re.inst)
+ 		re.inst = ni
+ 	}
+ 	re.inst = re.inst[0 : n+1]
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 4fc41cdea0..102b034a54 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -496,9 +496,7 @@ func parseScript(line string, scripts map[string][]Script) {
+ 	s, ok := scripts[name]
+ 	if !ok || len(s) == cap(s) {
+ 		ns := make([]Script, len(s), len(s)+100)
+-		for i, sc := range s {
+-			ns[i] = sc
+-		}
++		copy(ns, s)
+ 		s = ns
+ 	}
+ 	s = s[0 : len(s)+1]
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 0a43393ecc..eed9355547 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -595,9 +595,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
+ 		n := len(attr)
+ 		if n >= cap(attr) {
+ 			nattr := make([]Attr, n, 2*cap(attr))
+-			for i, a := range attr {
+-				nattr[i] = a
+-			}
++			copy(nattr, attr)
+ 			attr = nattr
+ 		}
+ 		attr = attr[0 : n+1]

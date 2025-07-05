@@ -9,7 +9,43 @@ Date:   Tue Aug 11 19:31:53 2015 -0500
     Change-Id: I7a4a487885267c24fdc52d79fb7d450231328812
     Reviewed-on: https://go-review.googlesource.com/13551
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/deadstore_test.go | 3 ++-
  src/cmd/compile/internal/ssa/type_test.go      | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 8d9b4b1298..634192f25b 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -8,7 +8,8 @@ import "testing"
+ 
+ func TestDeadStore(t *testing.T) {
+ 	c := testConfig(t)
+-	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	elemType := &TypeImpl{Size_: 8, Name: "testtype"}
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr", Elem_: elemType} // dummy for testing
+ 	fun := Fun(c, "entry",
+ 		Bloc("entry",
+ 			Valu("start", OpArg, TypeMem, 0, ".mem"),
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 6f8dd6d937..29bd5cd131 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -14,6 +14,7 @@ type TypeImpl struct {
+ 	Float   bool
+ 	Ptr     bool
+ 	string  bool
++	Elem_   Type
+ 
+ 	Name string
+ }
+@@ -29,7 +30,7 @@ func (t *TypeImpl) IsString() bool   { return t.string }
+ func (t *TypeImpl) IsMemory() bool   { return false }
+ func (t *TypeImpl) IsFlags() bool    { return false }
+ func (t *TypeImpl) String() string   { return t.Name }
+-func (t *TypeImpl) Elem() Type       { panic("not implemented") }
++func (t *TypeImpl) Elem() Type       { return t.Elem_ }
+ func (t *TypeImpl) PtrTo() Type      { panic("not implemented") }
+ 
+ func (t *TypeImpl) Equal(u Type) bool {

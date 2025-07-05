@@ -7,6 +7,20 @@ Date:   Thu Apr 19 12:24:53 2018 -0400
     Change-Id: Ie4da1a515d5405140d742bdcd55f54a73a7f71fe
     Reviewed-on: https://go-review.googlesource.com/108175
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 259473c9ce..0455fe86ac 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -434,7 +434,7 @@ var mutexprofilerate uint64 // fraction sampled
+ // reported. The previous rate is returned.
+ //
+ // To turn off profiling entirely, pass rate 0.
+-// To just read the current rate, pass rate -1.
++// To just read the current rate, pass rate < 0.
+ // (For n>1 the details of sampling may change.)
+ func SetMutexProfileFraction(rate int) int {
+ 	if rate < 0 {

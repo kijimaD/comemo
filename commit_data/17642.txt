@@ -7,7 +7,102 @@ Date:   Wed Sep 18 10:48:28 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13700044
-
+---
  src/pkg/net/http/cgi/child.go      | 23 ++++++++++++++---------
  src/pkg/net/http/cgi/child_test.go | 28 +++++++++++++++++++++++++---
  2 files changed, 39 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/http/cgi/child.go b/src/pkg/net/http/cgi/child.go
+index 100b8b7776..45fc2e57cd 100644
+--- a/src/pkg/net/http/cgi/child.go
++++ b/src/pkg/net/http/cgi/child.go
+@@ -100,10 +100,21 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 			uriStr += "?" + s
+ 		}
+ 	}
++
++	// There's apparently a de-facto standard for this.
++	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
++	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
++		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
++	}
++
+ 	if r.Host != "" {
+-		// Hostname is provided, so we can reasonably construct a URL,
+-		// even if we have to assume 'http' for the scheme.
+-		rawurl := "http://" + r.Host + uriStr
++		// Hostname is provided, so we can reasonably construct a URL.
++		rawurl := r.Host + uriStr
++		if r.TLS == nil {
++			rawurl = "http://" + rawurl
++		} else {
++			rawurl = "https://" + rawurl
++		}
+ 		url, err := url.Parse(rawurl)
+ 		if err != nil {
+ 			return nil, errors.New("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
+@@ -120,12 +131,6 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 		r.URL = url
+ 	}
+ 
+-	// There's apparently a de-facto standard for this.
+-	// http://docstore.mik.ua/orelly/linux/cgi/ch03_02.htm#ch03-35636
+-	if s := params["HTTPS"]; s == "on" || s == "ON" || s == "1" {
+-		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
+-	}
+-
+ 	// Request.RemoteAddr has its port set by Go's standard http
+ 	// server, so we do here too. We don't have one, though, so we
+ 	// use a dummy one.
+diff --git a/src/pkg/net/http/cgi/child_test.go b/src/pkg/net/http/cgi/child_test.go
+index 74e068014b..075d8411bc 100644
+--- a/src/pkg/net/http/cgi/child_test.go
++++ b/src/pkg/net/http/cgi/child_test.go
+@@ -21,7 +21,6 @@ func TestRequest(t *testing.T) {
+ 		"REQUEST_URI":     "/path?a=b",
+ 		"CONTENT_LENGTH":  "123",
+ 		"CONTENT_TYPE":    "text/xml",
+-		"HTTPS":           "1",
+ 		"REMOTE_ADDR":     "5.6.7.8",
+ 	}
+ 	req, err := RequestFromMap(env)
+@@ -58,14 +57,37 @@ func TestRequest(t *testing.T) {
+ 	if req.Trailer == nil {
+ 		t.Errorf("unexpected nil Trailer")
+ 	}
+-	if req.TLS == nil {
+-		t.Errorf("expected non-nil TLS")
++	if req.TLS != nil {
++		t.Errorf("expected nil TLS")
+ 	}
+ 	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
+ 		t.Errorf("RemoteAddr: got %q; want %q", g, e)
+ 	}
+ }
+ 
++func TestRequestWithTLS(t *testing.T) {
++	env := map[string]string{
++		"SERVER_PROTOCOL": "HTTP/1.1",
++		"REQUEST_METHOD":  "GET",
++		"HTTP_HOST":       "example.com",
++		"HTTP_REFERER":    "elsewhere",
++		"REQUEST_URI":     "/path?a=b",
++		"CONTENT_TYPE":    "text/xml",
++		"HTTPS":           "1",
++		"REMOTE_ADDR":     "5.6.7.8",
++	}
++	req, err := RequestFromMap(env)
++	if err != nil {
++		t.Fatalf("RequestFromMap: %v", err)
++	}
++	if g, e := req.URL.String(), "https://example.com/path?a=b"; e != g {
++		t.Errorf("expected URL %q; got %q", e, g)
++	}
++	if req.TLS == nil {
++		t.Errorf("expected non-nil TLS")
++	}
++}
++
+ func TestRequestWithoutHost(t *testing.T) {
+ 	env := map[string]string{
+ 		"SERVER_PROTOCOL": "HTTP/1.1",

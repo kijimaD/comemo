@@ -68,7 +68,7 @@ Date:   Wed Dec 23 01:05:16 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go                     |   2 +-
  src/cmd/compile/internal/gc/compile.go             |   3 +-
  src/cmd/compile/internal/gc/initorder.go           |  11 +-
@@ -88,3 +88,2207 @@ Date:   Wed Dec 23 01:05:16 2020 -0500
  .../compile/internal/{gc/swt.go => walk/switch.go} |   9 +-
  src/cmd/compile/internal/{gc => walk}/walk.go      | 135 +----
  18 files changed, 790 insertions(+), 764 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 9bc059c2e4..a925ec05ac 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -37,7 +37,6 @@ var knownFormats = map[string]string{
+ 	"[]cmd/compile/internal/syntax.token %s":       "",
+ 	"cmd/compile/internal/arm.shift %d":            "",
+ 	"cmd/compile/internal/gc.RegIndex %d":          "",
+-	"cmd/compile/internal/gc.initKind %d":          "",
+ 	"cmd/compile/internal/ir.Class %d":             "",
+ 	"cmd/compile/internal/ir.Node %+v":             "",
+ 	"cmd/compile/internal/ir.Node %L":              "",
+@@ -68,6 +67,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.token %s":         "",
+ 	"cmd/compile/internal/types.Kind %d":           "",
+ 	"cmd/compile/internal/types.Kind %s":           "",
++	"cmd/compile/internal/walk.initKind %d":        "",
+ 	"go/constant.Value %#v":                        "",
+ 	"math/big.Accuracy %s":                         "",
+ 	"reflect.Type %s":                              "",
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index c2a6a9e327..926b2dee95 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -17,6 +17,7 @@ import (
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/compile/internal/walk"
+ )
+ 
+ // "Portable" code generation.
+@@ -61,7 +62,7 @@ func compile(fn *ir.Func) {
+ 	ssagen.InitLSym(fn, true)
+ 
+ 	errorsBefore := base.Errors()
+-	walk(fn)
++	walk.Walk(fn)
+ 	if base.Errors() > errorsBefore {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index 5caa2e769f..4ac468fb4e 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -11,6 +11,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/staticinit"
+ )
+ 
+ // Package initialization
+@@ -77,9 +78,9 @@ type InitOrder struct {
+ // corresponding list of statements to include in the init() function
+ // body.
+ func initOrder(l []ir.Node) []ir.Node {
+-	s := InitSchedule{
+-		initplans: make(map[ir.Node]*InitPlan),
+-		inittemps: make(map[ir.Node]*ir.Name),
++	s := staticinit.Schedule{
++		Plans: make(map[ir.Node]*staticinit.Plan),
++		Temps: make(map[ir.Node]*ir.Name),
+ 	}
+ 	o := InitOrder{
+ 		blocking: make(map[ir.Node][]ir.Node),
+@@ -91,7 +92,7 @@ func initOrder(l []ir.Node) []ir.Node {
+ 		switch n.Op() {
+ 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
+ 			o.processAssign(n)
+-			o.flushReady(s.staticInit)
++			o.flushReady(s.StaticInit)
+ 		case ir.ODCLCONST, ir.ODCLFUNC, ir.ODCLTYPE:
+ 			// nop
+ 		default:
+@@ -124,7 +125,7 @@ func initOrder(l []ir.Node) []ir.Node {
+ 		base.Fatalf("expected empty map: %v", o.blocking)
+ 	}
+ 
+-	return s.out
++	return s.Out
+ }
+ 
+ func (o *InitOrder) processAssign(n ir.Node) {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 2a8012b462..aeb58a3310 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/compile/internal/staticdata"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/compile/internal/walk"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -268,7 +269,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 			n := n.(*ir.Func)
+ 			if n.OClosure != nil {
+ 				ir.CurFunc = n
+-				transformclosure(n)
++				walk.Closure(n)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index f159256da6..0ab3a8dad4 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -18,7 +18,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"encoding/json"
+ 	"fmt"
+-	"go/constant"
+ )
+ 
+ // These modes say which kind of object file to generate.
+@@ -261,62 +260,6 @@ func addGCLocals() {
+ 	}
+ }
+ 
+-// litsym writes the static literal c to n.
+-// Neither n nor c is modified.
+-func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
+-	if n.Op() != ir.ONAME {
+-		base.Fatalf("litsym n op %v", n.Op())
+-	}
+-	if n.Sym() == nil {
+-		base.Fatalf("litsym nil n sym")
+-	}
+-	if c.Op() == ir.ONIL {
+-		return
+-	}
+-	if c.Op() != ir.OLITERAL {
+-		base.Fatalf("litsym c op %v", c.Op())
+-	}
+-	s := n.Sym().Linksym()
+-	switch u := c.Val(); u.Kind() {
+-	case constant.Bool:
+-		i := int64(obj.Bool2int(constant.BoolVal(u)))
+-		s.WriteInt(base.Ctxt, noff, wid, i)
+-
+-	case constant.Int:
+-		s.WriteInt(base.Ctxt, noff, wid, ir.IntVal(c.Type(), u))
+-
+-	case constant.Float:
+-		f, _ := constant.Float64Val(u)
+-		switch c.Type().Kind() {
+-		case types.TFLOAT32:
+-			s.WriteFloat32(base.Ctxt, noff, float32(f))
+-		case types.TFLOAT64:
+-			s.WriteFloat64(base.Ctxt, noff, f)
+-		}
+-
+-	case constant.Complex:
+-		re, _ := constant.Float64Val(constant.Real(u))
+-		im, _ := constant.Float64Val(constant.Imag(u))
+-		switch c.Type().Kind() {
+-		case types.TCOMPLEX64:
+-			s.WriteFloat32(base.Ctxt, noff, float32(re))
+-			s.WriteFloat32(base.Ctxt, noff+4, float32(im))
+-		case types.TCOMPLEX128:
+-			s.WriteFloat64(base.Ctxt, noff, re)
+-			s.WriteFloat64(base.Ctxt, noff+8, im)
+-		}
+-
+-	case constant.String:
+-		i := constant.StringVal(u)
+-		symdata := staticdata.StringSym(n.Pos(), i)
+-		s.WriteAddr(base.Ctxt, noff, types.PtrSize, symdata, 0)
+-		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
+-
+-	default:
+-		base.Fatalf("litsym unhandled OLITERAL %v", c)
+-	}
+-}
+-
+ func ggloblnod(nam ir.Node) {
+ 	s := nam.Sym().Linksym()
+ 	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index a93516d716..6bc8cd574c 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -288,3 +288,24 @@ func MarkFunc(n *Name) {
+ 	n.Class_ = PFUNC
+ 	n.Sym().SetFunc(true)
+ }
++
++// ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
++// and compiling runtime
++func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
++	if base.Debug.Closure > 0 {
++		if clo.Esc() == EscHeap {
++			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func.ClosureVars)
++		} else {
++			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
++		}
++	}
++	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap {
++		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
++	}
++}
++
++// IsTrivialClosure reports whether closure clo has an
++// empty list of captured vars.
++func IsTrivialClosure(clo *ClosureExpr) bool {
++	return len(clo.Func.ClosureVars) == 0
++}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index a5e2fb407a..ba3e0fa75e 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1834,3 +1834,29 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ }
+ 
+ var ZeroSize int64
++
++// MarkTypeUsedInInterface marks that type t is converted to an interface.
++// This information is used in the linker in dead method elimination.
++func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
++	tsym := TypeSym(t).Linksym()
++	// Emit a marker relocation. The linker will know the type is converted
++	// to an interface if "from" is reachable.
++	r := obj.Addrel(from)
++	r.Sym = tsym
++	r.Type = objabi.R_USEIFACE
++}
++
++// MarkUsedIfaceMethod marks that an interface method is used in the current
++// function. n is OCALLINTER node.
++func MarkUsedIfaceMethod(n *ir.CallExpr) {
++	dot := n.X.(*ir.SelectorExpr)
++	ityp := dot.X.Type()
++	tsym := TypeSym(ityp).Linksym()
++	r := obj.Addrel(ir.CurFunc.LSym)
++	r.Sym = tsym
++	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
++	// in itab).
++	midx := dot.Offset / int64(types.PtrSize)
++	r.Add = InterfaceMethodOffset(ityp, midx)
++	r.Type = objabi.R_USEIFACEMETHOD
++}
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 7627aaa11a..342a2e2bbc 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -7,6 +7,7 @@ package staticdata
+ import (
+ 	"crypto/sha256"
+ 	"fmt"
++	"go/constant"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -294,3 +295,59 @@ func WriteFuncSyms() {
+ 		objw.Global(sf, int32(types.PtrSize), obj.DUPOK|obj.RODATA)
+ 	}
+ }
++
++// InitConst writes the static literal c to n.
++// Neither n nor c is modified.
++func InitConst(n *ir.Name, noff int64, c ir.Node, wid int) {
++	if n.Op() != ir.ONAME {
++		base.Fatalf("litsym n op %v", n.Op())
++	}
++	if n.Sym() == nil {
++		base.Fatalf("litsym nil n sym")
++	}
++	if c.Op() == ir.ONIL {
++		return
++	}
++	if c.Op() != ir.OLITERAL {
++		base.Fatalf("litsym c op %v", c.Op())
++	}
++	s := n.Sym().Linksym()
++	switch u := c.Val(); u.Kind() {
++	case constant.Bool:
++		i := int64(obj.Bool2int(constant.BoolVal(u)))
++		s.WriteInt(base.Ctxt, noff, wid, i)
++
++	case constant.Int:
++		s.WriteInt(base.Ctxt, noff, wid, ir.IntVal(c.Type(), u))
++
++	case constant.Float:
++		f, _ := constant.Float64Val(u)
++		switch c.Type().Kind() {
++		case types.TFLOAT32:
++			s.WriteFloat32(base.Ctxt, noff, float32(f))
++		case types.TFLOAT64:
++			s.WriteFloat64(base.Ctxt, noff, f)
++		}
++
++	case constant.Complex:
++		re, _ := constant.Float64Val(constant.Real(u))
++		im, _ := constant.Float64Val(constant.Imag(u))
++		switch c.Type().Kind() {
++		case types.TCOMPLEX64:
++			s.WriteFloat32(base.Ctxt, noff, float32(re))
++			s.WriteFloat32(base.Ctxt, noff+4, float32(im))
++		case types.TCOMPLEX128:
++			s.WriteFloat64(base.Ctxt, noff, re)
++			s.WriteFloat64(base.Ctxt, noff+8, im)
++		}
++
++	case constant.String:
++		i := constant.StringVal(u)
++		symdata := StringSym(n.Pos(), i)
++		s.WriteAddr(base.Ctxt, noff, types.PtrSize, symdata, 0)
++		s.WriteInt(base.Ctxt, noff+int64(types.PtrSize), types.PtrSize, int64(len(i)))
++
++	default:
++		base.Fatalf("litsym unhandled OLITERAL %v", c)
++	}
++}
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+new file mode 100644
+index 0000000000..2a499d6eed
+--- /dev/null
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -0,0 +1,596 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package staticinit
++
++import (
++	"fmt"
++	"go/constant"
++
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/staticdata"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++)
++
++type Entry struct {
++	Xoffset int64   // struct, array only
++	Expr    ir.Node // bytes of run-time computed expressions
++}
++
++type Plan struct {
++	E []Entry
++}
++
++// An Schedule is used to decompose assignment statements into
++// static and dynamic initialization parts. Static initializations are
++// handled by populating variables' linker symbol data, while dynamic
++// initializations are accumulated to be executed in order.
++type Schedule struct {
++	// Out is the ordered list of dynamic initialization
++	// statements.
++	Out []ir.Node
++
++	Plans map[ir.Node]*Plan
++	Temps map[ir.Node]*ir.Name
++}
++
++func (s *Schedule) append(n ir.Node) {
++	s.Out = append(s.Out, n)
++}
++
++// StaticInit adds an initialization statement n to the schedule.
++func (s *Schedule) StaticInit(n ir.Node) {
++	if !s.tryStaticInit(n) {
++		if base.Flag.Percent != 0 {
++			ir.Dump("nonstatic", n)
++		}
++		s.append(n)
++	}
++}
++
++// tryStaticInit attempts to statically execute an initialization
++// statement and reports whether it succeeded.
++func (s *Schedule) tryStaticInit(nn ir.Node) bool {
++	// Only worry about simple "l = r" assignments. Multiple
++	// variable/expression OAS2 assignments have already been
++	// replaced by multiple simple OAS assignments, and the other
++	// OAS2* assignments mostly necessitate dynamic execution
++	// anyway.
++	if nn.Op() != ir.OAS {
++		return false
++	}
++	n := nn.(*ir.AssignStmt)
++	if ir.IsBlank(n.X) && !AnySideEffects(n.Y) {
++		// Discard.
++		return true
++	}
++	lno := ir.SetPos(n)
++	defer func() { base.Pos = lno }()
++	nam := n.X.(*ir.Name)
++	return s.StaticAssign(nam, 0, n.Y, nam.Type())
++}
++
++// like staticassign but we are copying an already
++// initialized value r.
++func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
++	if rn.Class_ == ir.PFUNC {
++		// TODO if roff != 0 { panic }
++		staticdata.InitFunc(l, loff, rn)
++		return true
++	}
++	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
++		return false
++	}
++	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
++		return false
++	}
++	if rn.Defn.Op() != ir.OAS {
++		return false
++	}
++	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
++		return false
++	}
++	orig := rn
++	r := rn.Defn.(*ir.AssignStmt).Y
++
++	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
++		r = r.(*ir.ConvExpr).X
++	}
++
++	switch r.Op() {
++	case ir.OMETHEXPR:
++		r = r.(*ir.MethodExpr).FuncName()
++		fallthrough
++	case ir.ONAME:
++		r := r.(*ir.Name)
++		if s.staticcopy(l, loff, r, typ) {
++			return true
++		}
++		// We may have skipped past one or more OCONVNOPs, so
++		// use conv to ensure r is assignable to l (#13263).
++		dst := ir.Node(l)
++		if loff != 0 || !types.Identical(typ, l.Type()) {
++			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
++		}
++		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(r, typ)))
++		return true
++
++	case ir.ONIL:
++		return true
++
++	case ir.OLITERAL:
++		if ir.IsZero(r) {
++			return true
++		}
++		staticdata.InitConst(l, loff, r, int(typ.Width))
++		return true
++
++	case ir.OADDR:
++		r := r.(*ir.AddrExpr)
++		if a := r.X; a.Op() == ir.ONAME {
++			a := a.(*ir.Name)
++			staticdata.InitAddr(l, loff, a, 0)
++			return true
++		}
++
++	case ir.OPTRLIT:
++		r := r.(*ir.AddrExpr)
++		switch r.X.Op() {
++		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
++			// copy pointer
++			staticdata.InitAddr(l, loff, s.Temps[r], 0)
++			return true
++		}
++
++	case ir.OSLICELIT:
++		r := r.(*ir.CompLitExpr)
++		// copy slice
++		staticdata.InitSlice(l, loff, s.Temps[r], r.Len)
++		return true
++
++	case ir.OARRAYLIT, ir.OSTRUCTLIT:
++		r := r.(*ir.CompLitExpr)
++		p := s.Plans[r]
++		for i := range p.E {
++			e := &p.E[i]
++			typ := e.Expr.Type()
++			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
++				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(typ.Width))
++				continue
++			}
++			x := e.Expr
++			if x.Op() == ir.OMETHEXPR {
++				x = x.(*ir.MethodExpr).FuncName()
++			}
++			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
++				continue
++			}
++			// Requires computation, but we're
++			// copying someone else's computation.
++			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
++			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
++			ir.SetPos(rr)
++			s.append(ir.NewAssignStmt(base.Pos, ll, rr))
++		}
++
++		return true
++	}
++
++	return false
++}
++
++func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
++	for r.Op() == ir.OCONVNOP {
++		r = r.(*ir.ConvExpr).X
++	}
++
++	switch r.Op() {
++	case ir.ONAME:
++		r := r.(*ir.Name)
++		return s.staticcopy(l, loff, r, typ)
++
++	case ir.OMETHEXPR:
++		r := r.(*ir.MethodExpr)
++		return s.staticcopy(l, loff, r.FuncName(), typ)
++
++	case ir.ONIL:
++		return true
++
++	case ir.OLITERAL:
++		if ir.IsZero(r) {
++			return true
++		}
++		staticdata.InitConst(l, loff, r, int(typ.Width))
++		return true
++
++	case ir.OADDR:
++		r := r.(*ir.AddrExpr)
++		if name, offset, ok := StaticLoc(r.X); ok {
++			staticdata.InitAddr(l, loff, name, offset)
++			return true
++		}
++		fallthrough
++
++	case ir.OPTRLIT:
++		r := r.(*ir.AddrExpr)
++		switch r.X.Op() {
++		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
++			// Init pointer.
++			a := StaticName(r.X.Type())
++
++			s.Temps[r] = a
++			staticdata.InitAddr(l, loff, a, 0)
++
++			// Init underlying literal.
++			if !s.StaticAssign(a, 0, r.X, a.Type()) {
++				s.append(ir.NewAssignStmt(base.Pos, a, r.X))
++			}
++			return true
++		}
++		//dump("not static ptrlit", r);
++
++	case ir.OSTR2BYTES:
++		r := r.(*ir.ConvExpr)
++		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
++			sval := ir.StringVal(r.X)
++			staticdata.InitSliceBytes(l, loff, sval)
++			return true
++		}
++
++	case ir.OSLICELIT:
++		r := r.(*ir.CompLitExpr)
++		s.initplan(r)
++		// Init slice.
++		ta := types.NewArray(r.Type().Elem(), r.Len)
++		ta.SetNoalg(true)
++		a := StaticName(ta)
++		s.Temps[r] = a
++		staticdata.InitSlice(l, loff, a, r.Len)
++		// Fall through to init underlying array.
++		l = a
++		loff = 0
++		fallthrough
++
++	case ir.OARRAYLIT, ir.OSTRUCTLIT:
++		r := r.(*ir.CompLitExpr)
++		s.initplan(r)
++
++		p := s.Plans[r]
++		for i := range p.E {
++			e := &p.E[i]
++			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
++				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
++				continue
++			}
++			ir.SetPos(e.Expr)
++			if !s.StaticAssign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
++				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
++				s.append(ir.NewAssignStmt(base.Pos, a, e.Expr))
++			}
++		}
++
++		return true
++
++	case ir.OMAPLIT:
++		break
++
++	case ir.OCLOSURE:
++		r := r.(*ir.ClosureExpr)
++		if ir.IsTrivialClosure(r) {
++			if base.Debug.Closure > 0 {
++				base.WarnfAt(r.Pos(), "closure converted to global")
++			}
++			// Closures with no captured variables are globals,
++			// so the assignment can be done at link time.
++			// TODO if roff != 0 { panic }
++			staticdata.InitFunc(l, loff, r.Func.Nname)
++			return true
++		}
++		ir.ClosureDebugRuntimeCheck(r)
++
++	case ir.OCONVIFACE:
++		// This logic is mirrored in isStaticCompositeLiteral.
++		// If you change something here, change it there, and vice versa.
++
++		// Determine the underlying concrete type and value we are converting from.
++		r := r.(*ir.ConvExpr)
++		val := ir.Node(r)
++		for val.Op() == ir.OCONVIFACE {
++			val = val.(*ir.ConvExpr).X
++		}
++
++		if val.Type().IsInterface() {
++			// val is an interface type.
++			// If val is nil, we can statically initialize l;
++			// both words are zero and so there no work to do, so report success.
++			// If val is non-nil, we have no concrete type to record,
++			// and we won't be able to statically initialize its value, so report failure.
++			return val.Op() == ir.ONIL
++		}
++
++		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Sym().Linksym())
++
++		var itab *ir.AddrExpr
++		if typ.IsEmptyInterface() {
++			itab = reflectdata.TypePtr(val.Type())
++		} else {
++			itab = reflectdata.ITabAddr(val.Type(), typ)
++		}
++
++		// Create a copy of l to modify while we emit data.
++
++		// Emit itab, advance offset.
++		staticdata.InitAddr(l, loff, itab.X.(*ir.Name), 0)
++
++		// Emit data.
++		if types.IsDirectIface(val.Type()) {
++			if val.Op() == ir.ONIL {
++				// Nil is zero, nothing to do.
++				return true
++			}
++			// Copy val directly into n.
++			ir.SetPos(val)
++			if !s.StaticAssign(l, loff+int64(types.PtrSize), val, val.Type()) {
++				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(types.PtrSize), val.Type())
++				s.append(ir.NewAssignStmt(base.Pos, a, val))
++			}
++		} else {
++			// Construct temp to hold val, write pointer to temp into n.
++			a := StaticName(val.Type())
++			s.Temps[val] = a
++			if !s.StaticAssign(a, 0, val, val.Type()) {
++				s.append(ir.NewAssignStmt(base.Pos, a, val))
++			}
++			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
++		}
++
++		return true
++	}
++
++	//dump("not static", r);
++	return false
++}
++
++func (s *Schedule) initplan(n ir.Node) {
++	if s.Plans[n] != nil {
++		return
++	}
++	p := new(Plan)
++	s.Plans[n] = p
++	switch n.Op() {
++	default:
++		base.Fatalf("initplan")
++
++	case ir.OARRAYLIT, ir.OSLICELIT:
++		n := n.(*ir.CompLitExpr)
++		var k int64
++		for _, a := range n.List {
++			if a.Op() == ir.OKEY {
++				kv := a.(*ir.KeyExpr)
++				k = typecheck.IndexConst(kv.Key)
++				if k < 0 {
++					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
++				}
++				a = kv.Value
++			}
++			s.addvalue(p, k*n.Type().Elem().Width, a)
++			k++
++		}
++
++	case ir.OSTRUCTLIT:
++		n := n.(*ir.CompLitExpr)
++		for _, a := range n.List {
++			if a.Op() != ir.OSTRUCTKEY {
++				base.Fatalf("initplan structlit")
++			}
++			a := a.(*ir.StructKeyExpr)
++			if a.Field.IsBlank() {
++				continue
++			}
++			s.addvalue(p, a.Offset, a.Value)
++		}
++
++	case ir.OMAPLIT:
++		n := n.(*ir.CompLitExpr)
++		for _, a := range n.List {
++			if a.Op() != ir.OKEY {
++				base.Fatalf("initplan maplit")
++			}
++			a := a.(*ir.KeyExpr)
++			s.addvalue(p, -1, a.Value)
++		}
++	}
++}
++
++func (s *Schedule) addvalue(p *Plan, xoffset int64, n ir.Node) {
++	// special case: zero can be dropped entirely
++	if ir.IsZero(n) {
++		return
++	}
++
++	// special case: inline struct and array (not slice) literals
++	if isvaluelit(n) {
++		s.initplan(n)
++		q := s.Plans[n]
++		for _, qe := range q.E {
++			// qe is a copy; we are not modifying entries in q.E
++			qe.Xoffset += xoffset
++			p.E = append(p.E, qe)
++		}
++		return
++	}
++
++	// add to plan
++	p.E = append(p.E, Entry{Xoffset: xoffset, Expr: n})
++}
++
++// from here down is the walk analysis
++// of composite literals.
++// most of the work is to generate
++// data statements for the constant
++// part of the composite literal.
++
++var statuniqgen int // name generator for static temps
++
++// StaticName returns a name backed by a (writable) static data symbol.
++// Use readonlystaticname for read-only node.
++func StaticName(t *types.Type) *ir.Name {
++	// Don't use lookupN; it interns the resulting string, but these are all unique.
++	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
++	statuniqgen++
++	typecheck.Declare(n, ir.PEXTERN)
++	n.SetType(t)
++	n.Sym().Linksym().Set(obj.AttrLocal, true)
++	return n
++}
++
++// StaticLoc returns the static address of n, if n has one, or else nil.
++func StaticLoc(n ir.Node) (name *ir.Name, offset int64, ok bool) {
++	if n == nil {
++		return nil, 0, false
++	}
++
++	switch n.Op() {
++	case ir.ONAME:
++		n := n.(*ir.Name)
++		return n, 0, true
++
++	case ir.OMETHEXPR:
++		n := n.(*ir.MethodExpr)
++		return StaticLoc(n.FuncName())
++
++	case ir.ODOT:
++		n := n.(*ir.SelectorExpr)
++		if name, offset, ok = StaticLoc(n.X); !ok {
++			break
++		}
++		offset += n.Offset
++		return name, offset, true
++
++	case ir.OINDEX:
++		n := n.(*ir.IndexExpr)
++		if n.X.Type().IsSlice() {
++			break
++		}
++		if name, offset, ok = StaticLoc(n.X); !ok {
++			break
++		}
++		l := getlit(n.Index)
++		if l < 0 {
++			break
++		}
++
++		// Check for overflow.
++		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
++			break
++		}
++		offset += int64(l) * n.Type().Width
++		return name, offset, true
++	}
++
++	return nil, 0, false
++}
++
++// AnySideEffects reports whether n contains any operations that could have observable side effects.
++func AnySideEffects(n ir.Node) bool {
++	return ir.Any(n, func(n ir.Node) bool {
++		switch n.Op() {
++		// Assume side effects unless we know otherwise.
++		default:
++			return true
++
++		// No side effects here (arguments are checked separately).
++		case ir.ONAME,
++			ir.ONONAME,
++			ir.OTYPE,
++			ir.OPACK,
++			ir.OLITERAL,
++			ir.ONIL,
++			ir.OADD,
++			ir.OSUB,
++			ir.OOR,
++			ir.OXOR,
++			ir.OADDSTR,
++			ir.OADDR,
++			ir.OANDAND,
++			ir.OBYTES2STR,
++			ir.ORUNES2STR,
++			ir.OSTR2BYTES,
++			ir.OSTR2RUNES,
++			ir.OCAP,
++			ir.OCOMPLIT,
++			ir.OMAPLIT,
++			ir.OSTRUCTLIT,
++			ir.OARRAYLIT,
++			ir.OSLICELIT,
++			ir.OPTRLIT,
++			ir.OCONV,
++			ir.OCONVIFACE,
++			ir.OCONVNOP,
++			ir.ODOT,
++			ir.OEQ,
++			ir.ONE,
++			ir.OLT,
++			ir.OLE,
++			ir.OGT,
++			ir.OGE,
++			ir.OKEY,
++			ir.OSTRUCTKEY,
++			ir.OLEN,
++			ir.OMUL,
++			ir.OLSH,
++			ir.ORSH,
++			ir.OAND,
++			ir.OANDNOT,
++			ir.ONEW,
++			ir.ONOT,
++			ir.OBITNOT,
++			ir.OPLUS,
++			ir.ONEG,
++			ir.OOROR,
++			ir.OPAREN,
++			ir.ORUNESTR,
++			ir.OREAL,
++			ir.OIMAG,
++			ir.OCOMPLEX:
++			return false
++
++		// Only possible side effect is division by zero.
++		case ir.ODIV, ir.OMOD:
++			n := n.(*ir.BinaryExpr)
++			if n.Y.Op() != ir.OLITERAL || constant.Sign(n.Y.Val()) == 0 {
++				return true
++			}
++
++		// Only possible side effect is panic on invalid size,
++		// but many makechan and makemap use size zero, which is definitely OK.
++		case ir.OMAKECHAN, ir.OMAKEMAP:
++			n := n.(*ir.MakeExpr)
++			if !ir.IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
++				return true
++			}
++
++		// Only possible side effect is panic on invalid size.
++		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
++		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
++			return true
++		}
++		return false
++	})
++}
++
++func getlit(lit ir.Node) int {
++	if ir.IsSmallIntConst(lit) {
++		return int(ir.Int64Val(lit))
++	}
++	return -1
++}
++
++func isvaluelit(n ir.Node) bool {
++	return n.Op() == ir.OARRAYLIT || n.Op() == ir.OSTRUCTLIT
++}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/walk/closure.go
+similarity index 85%
+rename from src/cmd/compile/internal/gc/closure.go
+rename to src/cmd/compile/internal/walk/closure.go
+index 4679b6535b..545c762ac7 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
+ 	"cmd/compile/internal/base"
+@@ -12,9 +12,9 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// transformclosure is called in a separate phase after escape analysis.
++// Closure is called in a separate phase after escape analysis.
+ // It transform closure bodies to properly reference captured variables.
+-func transformclosure(fn *ir.Func) {
++func Closure(fn *ir.Func) {
+ 	lno := base.Pos
+ 	base.Pos = fn.Pos()
+ 
+@@ -115,38 +115,17 @@ func transformclosure(fn *ir.Func) {
+ 	base.Pos = lno
+ }
+ 
+-// hasemptycvars reports whether closure clo has an
+-// empty list of captured vars.
+-func hasemptycvars(clo *ir.ClosureExpr) bool {
+-	return len(clo.Func.ClosureVars) == 0
+-}
+-
+-// closuredebugruntimecheck applies boilerplate checks for debug flags
+-// and compiling runtime
+-func closuredebugruntimecheck(clo *ir.ClosureExpr) {
+-	if base.Debug.Closure > 0 {
+-		if clo.Esc() == ir.EscHeap {
+-			base.WarnfAt(clo.Pos(), "heap closure, captured vars = %v", clo.Func.ClosureVars)
+-		} else {
+-			base.WarnfAt(clo.Pos(), "stack closure, captured vars = %v", clo.Func.ClosureVars)
+-		}
+-	}
+-	if base.Flag.CompilingRuntime && clo.Esc() == ir.EscHeap {
+-		base.ErrorfAt(clo.Pos(), "heap-allocated closure, not allowed in runtime")
+-	}
+-}
+-
+ func walkclosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 	fn := clo.Func
+ 
+ 	// If no closure vars, don't bother wrapping.
+-	if hasemptycvars(clo) {
++	if ir.IsTrivialClosure(clo) {
+ 		if base.Debug.Closure > 0 {
+ 			base.WarnfAt(clo.Pos(), "closure converted to global")
+ 		}
+ 		return fn.Nname
+ 	}
+-	closuredebugruntimecheck(clo)
++	ir.ClosureDebugRuntimeCheck(clo)
+ 
+ 	typ := typecheck.ClosureType(clo)
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/walk/order.go
+similarity index 95%
+rename from src/cmd/compile/internal/gc/order.go
+rename to src/cmd/compile/internal/walk/order.go
+index d1c5bb04a1..03310a50c6 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -2,17 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
++	"fmt"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/escape"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"fmt"
+ )
+ 
+ // Rewrite tree to use separate statements to enforce
+@@ -45,8 +47,8 @@ import (
+ // it can result in unnecessary zeroing of those variables in the function
+ // prologue.
+ 
+-// Order holds state during the ordering process.
+-type Order struct {
++// orderState holds state during the ordering process.
++type orderState struct {
+ 	out  []ir.Node             // list of generated statements
+ 	temp []*ir.Name            // stack of temporary variables
+ 	free map[string][]*ir.Name // free list of unused temporaries, by type.LongString().
+@@ -65,14 +67,14 @@ func order(fn *ir.Func) {
+ }
+ 
+ // append typechecks stmt and appends it to out.
+-func (o *Order) append(stmt ir.Node) {
++func (o *orderState) append(stmt ir.Node) {
+ 	o.out = append(o.out, typecheck.Stmt(stmt))
+ }
+ 
+ // newTemp allocates a new temporary with the given type,
+ // pushes it onto the temp stack, and returns it.
+ // If clear is true, newTemp emits code to zero the temporary.
+-func (o *Order) newTemp(t *types.Type, clear bool) *ir.Name {
++func (o *orderState) newTemp(t *types.Type, clear bool) *ir.Name {
+ 	var v *ir.Name
+ 	// Note: LongString is close to the type equality we want,
+ 	// but not exactly. We still need to double-check with types.Identical.
+@@ -100,7 +102,7 @@ func (o *Order) newTemp(t *types.Type, clear bool) *ir.Name {
+ 
+ // copyExpr behaves like newTemp but also emits
+ // code to initialize the temporary to the value n.
+-func (o *Order) copyExpr(n ir.Node) ir.Node {
++func (o *orderState) copyExpr(n ir.Node) ir.Node {
+ 	return o.copyExpr1(n, false)
+ }
+ 
+@@ -114,11 +116,11 @@ func (o *Order) copyExpr(n ir.Node) ir.Node {
+ // (The other candidate would be map access, but map access
+ // returns a pointer to the result data instead of taking a pointer
+ // to be filled in.)
+-func (o *Order) copyExprClear(n ir.Node) *ir.Name {
++func (o *orderState) copyExprClear(n ir.Node) *ir.Name {
+ 	return o.copyExpr1(n, true)
+ }
+ 
+-func (o *Order) copyExpr1(n ir.Node, clear bool) *ir.Name {
++func (o *orderState) copyExpr1(n ir.Node, clear bool) *ir.Name {
+ 	t := n.Type()
+ 	v := o.newTemp(t, clear)
+ 	o.append(ir.NewAssignStmt(base.Pos, v, n))
+@@ -129,7 +131,7 @@ func (o *Order) copyExpr1(n ir.Node, clear bool) *ir.Name {
+ // The definition of cheap is that n is a variable or constant.
+ // If not, cheapExpr allocates a new tmp, emits tmp = n,
+ // and then returns tmp.
+-func (o *Order) cheapExpr(n ir.Node) ir.Node {
++func (o *orderState) cheapExpr(n ir.Node) ir.Node {
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -158,7 +160,7 @@ func (o *Order) cheapExpr(n ir.Node) ir.Node {
+ // as assigning to the original n.
+ //
+ // The intended use is to apply to x when rewriting x += y into x = x + y.
+-func (o *Order) safeExpr(n ir.Node) ir.Node {
++func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ 	switch n.Op() {
+ 	case ir.ONAME, ir.OLITERAL, ir.ONIL:
+ 		return n
+@@ -241,15 +243,15 @@ func isaddrokay(n ir.Node) bool {
+ // tmp = n, and then returns tmp.
+ // The result of addrTemp MUST be assigned back to n, e.g.
+ // 	n.Left = o.addrTemp(n.Left)
+-func (o *Order) addrTemp(n ir.Node) ir.Node {
++func (o *orderState) addrTemp(n ir.Node) ir.Node {
+ 	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
+ 		// TODO: expand this to all static composite literal nodes?
+ 		n = typecheck.DefaultLit(n, nil)
+ 		types.CalcSize(n.Type())
+ 		vstat := readonlystaticname(n.Type())
+-		var s InitSchedule
+-		s.staticassign(vstat, 0, n, n.Type())
+-		if s.out != nil {
++		var s staticinit.Schedule
++		s.StaticAssign(vstat, 0, n, n.Type())
++		if s.Out != nil {
+ 			base.Fatalf("staticassign of const generated code: %+v", n)
+ 		}
+ 		vstat = typecheck.Expr(vstat).(*ir.Name)
+@@ -263,7 +265,7 @@ func (o *Order) addrTemp(n ir.Node) ir.Node {
+ 
+ // mapKeyTemp prepares n to be a key in a map runtime call and returns n.
+ // It should only be used for map runtime calls which have *_fast* versions.
+-func (o *Order) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
++func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 	// Most map calls need to take the address of the key.
+ 	// Exception: map*_fast* calls. See golang.org/issue/19015.
+ 	if mapfast(t) == mapslow {
+@@ -318,13 +320,13 @@ func mapKeyReplaceStrConv(n ir.Node) bool {
+ type ordermarker int
+ 
+ // markTemp returns the top of the temporary variable stack.
+-func (o *Order) markTemp() ordermarker {
++func (o *orderState) markTemp() ordermarker {
+ 	return ordermarker(len(o.temp))
+ }
+ 
+ // popTemp pops temporaries off the stack until reaching the mark,
+ // which must have been returned by markTemp.
+-func (o *Order) popTemp(mark ordermarker) {
++func (o *orderState) popTemp(mark ordermarker) {
+ 	for _, n := range o.temp[mark:] {
+ 		key := n.Type().LongString()
+ 		o.free[key] = append(o.free[key], n)
+@@ -335,7 +337,7 @@ func (o *Order) popTemp(mark ordermarker) {
+ // cleanTempNoPop emits VARKILL instructions to *out
+ // for each temporary above the mark on the temporary stack.
+ // It does not pop the temporaries from the stack.
+-func (o *Order) cleanTempNoPop(mark ordermarker) []ir.Node {
++func (o *orderState) cleanTempNoPop(mark ordermarker) []ir.Node {
+ 	var out []ir.Node
+ 	for i := len(o.temp) - 1; i >= int(mark); i-- {
+ 		n := o.temp[i]
+@@ -346,13 +348,13 @@ func (o *Order) cleanTempNoPop(mark ordermarker) []ir.Node {
+ 
+ // cleanTemp emits VARKILL instructions for each temporary above the
+ // mark on the temporary stack and removes them from the stack.
+-func (o *Order) cleanTemp(top ordermarker) {
++func (o *orderState) cleanTemp(top ordermarker) {
+ 	o.out = append(o.out, o.cleanTempNoPop(top)...)
+ 	o.popTemp(top)
+ }
+ 
+ // stmtList orders each of the statements in the list.
+-func (o *Order) stmtList(l ir.Nodes) {
++func (o *orderState) stmtList(l ir.Nodes) {
+ 	s := l
+ 	for i := range s {
+ 		orderMakeSliceCopy(s[i:])
+@@ -396,14 +398,14 @@ func orderMakeSliceCopy(s []ir.Node) {
+ }
+ 
+ // edge inserts coverage instrumentation for libfuzzer.
+-func (o *Order) edge() {
++func (o *orderState) edge() {
+ 	if base.Debug.Libfuzzer == 0 {
+ 		return
+ 	}
+ 
+ 	// Create a new uint8 counter to be allocated in section
+ 	// __libfuzzer_extra_counters.
+-	counter := staticname(types.Types[types.TUINT8])
++	counter := staticinit.StaticName(types.Types[types.TUINT8])
+ 	counter.Name().SetLibfuzzerExtraCounter(true)
+ 
+ 	// counter += 1
+@@ -415,7 +417,7 @@ func (o *Order) edge() {
+ // and then replaces the old slice in n with the new slice.
+ // free is a map that can be used to obtain temporary variables by type.
+ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
+-	var order Order
++	var order orderState
+ 	order.free = free
+ 	mark := order.markTemp()
+ 	order.edge()
+@@ -428,8 +430,8 @@ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
+ // leaves them as the init list of the final *np.
+ // The result of exprInPlace MUST be assigned back to n, e.g.
+ // 	n.Left = o.exprInPlace(n.Left)
+-func (o *Order) exprInPlace(n ir.Node) ir.Node {
+-	var order Order
++func (o *orderState) exprInPlace(n ir.Node) ir.Node {
++	var order orderState
+ 	order.free = o.free
+ 	n = order.expr(n, nil)
+ 	n = ir.InitExpr(order.out, n)
+@@ -446,7 +448,7 @@ func (o *Order) exprInPlace(n ir.Node) ir.Node {
+ // 	n.Left = orderStmtInPlace(n.Left)
+ // free is a map that can be used to obtain temporary variables by type.
+ func orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
+-	var order Order
++	var order orderState
+ 	order.free = free
+ 	mark := order.markTemp()
+ 	order.stmt(n)
+@@ -455,7 +457,7 @@ func orderStmtInPlace(n ir.Node, free map[string][]*ir.Name) ir.Node {
+ }
+ 
+ // init moves n's init list to o.out.
+-func (o *Order) init(n ir.Node) {
++func (o *orderState) init(n ir.Node) {
+ 	if ir.MayBeShared(n) {
+ 		// For concurrency safety, don't mutate potentially shared nodes.
+ 		// First, ensure that no work is required here.
+@@ -470,7 +472,7 @@ func (o *Order) init(n ir.Node) {
+ 
+ // call orders the call expression n.
+ // n.Op is OCALLMETH/OCALLFUNC/OCALLINTER or a builtin like OCOPY.
+-func (o *Order) call(nn ir.Node) {
++func (o *orderState) call(nn ir.Node) {
+ 	if len(nn.Init()) > 0 {
+ 		// Caller should have already called o.init(nn).
+ 		base.Fatalf("%v with unexpected ninit", nn.Op())
+@@ -551,7 +553,7 @@ func (o *Order) call(nn ir.Node) {
+ // cases they are also typically registerizable, so not much harm done.
+ // And this only applies to the multiple-assignment form.
+ // We could do a more precise analysis if needed, like in walk.go.
+-func (o *Order) mapAssign(n ir.Node) {
++func (o *orderState) mapAssign(n ir.Node) {
+ 	switch n.Op() {
+ 	default:
+ 		base.Fatalf("order.mapAssign %v", n.Op())
+@@ -596,7 +598,7 @@ func (o *Order) mapAssign(n ir.Node) {
+ 	}
+ }
+ 
+-func (o *Order) safeMapRHS(r ir.Node) ir.Node {
++func (o *orderState) safeMapRHS(r ir.Node) ir.Node {
+ 	// Make sure we evaluate the RHS before starting the map insert.
+ 	// We need to make sure the RHS won't panic.  See issue 22881.
+ 	if r.Op() == ir.OAPPEND {
+@@ -613,7 +615,7 @@ func (o *Order) safeMapRHS(r ir.Node) ir.Node {
+ // stmt orders the statement n, appending to o.out.
+ // Temporaries created during the statement are cleaned
+ // up using VARKILL instructions as possible.
+-func (o *Order) stmt(n ir.Node) {
++func (o *orderState) stmt(n ir.Node) {
+ 	if n == nil {
+ 		return
+ 	}
+@@ -1061,7 +1063,7 @@ func hasDefaultCase(n *ir.SwitchStmt) bool {
+ }
+ 
+ // exprList orders the expression list l into o.
+-func (o *Order) exprList(l ir.Nodes) {
++func (o *orderState) exprList(l ir.Nodes) {
+ 	s := l
+ 	for i := range s {
+ 		s[i] = o.expr(s[i], nil)
+@@ -1070,14 +1072,14 @@ func (o *Order) exprList(l ir.Nodes) {
+ 
+ // exprListInPlace orders the expression list l but saves
+ // the side effects on the individual expression ninit lists.
+-func (o *Order) exprListInPlace(l ir.Nodes) {
++func (o *orderState) exprListInPlace(l ir.Nodes) {
+ 	s := l
+ 	for i := range s {
+ 		s[i] = o.exprInPlace(s[i])
+ 	}
+ }
+ 
+-func (o *Order) exprNoLHS(n ir.Node) ir.Node {
++func (o *orderState) exprNoLHS(n ir.Node) ir.Node {
+ 	return o.expr(n, nil)
+ }
+ 
+@@ -1088,7 +1090,7 @@ func (o *Order) exprNoLHS(n ir.Node) ir.Node {
+ // to avoid copying the result of the expression to a temporary.)
+ // The result of expr MUST be assigned back to n, e.g.
+ // 	n.Left = o.expr(n.Left, lhs)
+-func (o *Order) expr(n, lhs ir.Node) ir.Node {
++func (o *orderState) expr(n, lhs ir.Node) ir.Node {
+ 	if n == nil {
+ 		return n
+ 	}
+@@ -1098,7 +1100,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
+ 	return n
+ }
+ 
+-func (o *Order) expr1(n, lhs ir.Node) ir.Node {
++func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 	o.init(n)
+ 
+ 	switch n.Op() {
+@@ -1441,7 +1443,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
+ //	tmp1, tmp2, tmp3 = ...
+ // 	a, b, a = tmp1, tmp2, tmp3
+ // This is necessary to ensure left to right assignment order.
+-func (o *Order) as2(n *ir.AssignListStmt) {
++func (o *orderState) as2(n *ir.AssignListStmt) {
+ 	tmplist := []ir.Node{}
+ 	left := []ir.Node{}
+ 	for ni, l := range n.Lhs {
+@@ -1463,7 +1465,7 @@ func (o *Order) as2(n *ir.AssignListStmt) {
+ 
+ // okAs2 orders OAS2XXX with ok.
+ // Just like as2, this also adds temporaries to ensure left-to-right assignment.
+-func (o *Order) okAs2(n *ir.AssignListStmt) {
++func (o *orderState) okAs2(n *ir.AssignListStmt) {
+ 	var tmp1, tmp2 ir.Node
+ 	if !ir.IsBlank(n.Lhs[0]) {
+ 		typ := n.Rhs[0].Type()
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/walk/race.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/racewalk.go
+rename to src/cmd/compile/internal/walk/race.go
+index c52bf1479b..1fe439a99a 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/walk/race.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
+ 	"cmd/compile/internal/base"
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/walk/range.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/range.go
+rename to src/cmd/compile/internal/walk/range.go
+index 2b2178a8bd..ea23761a39 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
++	"unicode/utf8"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/reflectdata"
+@@ -12,7 +14,6 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/sys"
+-	"unicode/utf8"
+ )
+ 
+ func cheapComputableIndex(width int64) bool {
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/walk/select.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/select.go
+rename to src/cmd/compile/internal/walk/select.go
+index 51bb1e5355..006833eb7b 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
+ 	"cmd/compile/internal/base"
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/walk/sinit.go
+similarity index 59%
+rename from src/cmd/compile/internal/gc/sinit.go
+rename to src/cmd/compile/internal/walk/sinit.go
+index 337b67af46..dbb17dfe50 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/walk/sinit.go
+@@ -2,358 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/staticdata"
++	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+-	"fmt"
+ )
+ 
+-type InitEntry struct {
+-	Xoffset int64   // struct, array only
+-	Expr    ir.Node // bytes of run-time computed expressions
+-}
+-
+-type InitPlan struct {
+-	E []InitEntry
+-}
+-
+-// An InitSchedule is used to decompose assignment statements into
+-// static and dynamic initialization parts. Static initializations are
+-// handled by populating variables' linker symbol data, while dynamic
+-// initializations are accumulated to be executed in order.
+-type InitSchedule struct {
+-	// out is the ordered list of dynamic initialization
+-	// statements.
+-	out []ir.Node
+-
+-	initplans map[ir.Node]*InitPlan
+-	inittemps map[ir.Node]*ir.Name
+-}
+-
+-func (s *InitSchedule) append(n ir.Node) {
+-	s.out = append(s.out, n)
+-}
+-
+-// staticInit adds an initialization statement n to the schedule.
+-func (s *InitSchedule) staticInit(n ir.Node) {
+-	if !s.tryStaticInit(n) {
+-		if base.Flag.Percent != 0 {
+-			ir.Dump("nonstatic", n)
+-		}
+-		s.append(n)
+-	}
+-}
+-
+-// tryStaticInit attempts to statically execute an initialization
+-// statement and reports whether it succeeded.
+-func (s *InitSchedule) tryStaticInit(nn ir.Node) bool {
+-	// Only worry about simple "l = r" assignments. Multiple
+-	// variable/expression OAS2 assignments have already been
+-	// replaced by multiple simple OAS assignments, and the other
+-	// OAS2* assignments mostly necessitate dynamic execution
+-	// anyway.
+-	if nn.Op() != ir.OAS {
+-		return false
+-	}
+-	n := nn.(*ir.AssignStmt)
+-	if ir.IsBlank(n.X) && !anySideEffects(n.Y) {
+-		// Discard.
+-		return true
+-	}
+-	lno := ir.SetPos(n)
+-	defer func() { base.Pos = lno }()
+-	nam := n.X.(*ir.Name)
+-	return s.staticassign(nam, 0, n.Y, nam.Type())
+-}
+-
+-// like staticassign but we are copying an already
+-// initialized value r.
+-func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
+-	if rn.Class_ == ir.PFUNC {
+-		// TODO if roff != 0 { panic }
+-		staticdata.InitFunc(l, loff, rn)
+-		return true
+-	}
+-	if rn.Class_ != ir.PEXTERN || rn.Sym().Pkg != types.LocalPkg {
+-		return false
+-	}
+-	if rn.Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+-		return false
+-	}
+-	if rn.Defn.Op() != ir.OAS {
+-		return false
+-	}
+-	if rn.Type().IsString() { // perhaps overwritten by cmd/link -X (#34675)
+-		return false
+-	}
+-	orig := rn
+-	r := rn.Defn.(*ir.AssignStmt).Y
+-
+-	for r.Op() == ir.OCONVNOP && !types.Identical(r.Type(), typ) {
+-		r = r.(*ir.ConvExpr).X
+-	}
+-
+-	switch r.Op() {
+-	case ir.OMETHEXPR:
+-		r = r.(*ir.MethodExpr).FuncName()
+-		fallthrough
+-	case ir.ONAME:
+-		r := r.(*ir.Name)
+-		if s.staticcopy(l, loff, r, typ) {
+-			return true
+-		}
+-		// We may have skipped past one or more OCONVNOPs, so
+-		// use conv to ensure r is assignable to l (#13263).
+-		dst := ir.Node(l)
+-		if loff != 0 || !types.Identical(typ, l.Type()) {
+-			dst = ir.NewNameOffsetExpr(base.Pos, l, loff, typ)
+-		}
+-		s.append(ir.NewAssignStmt(base.Pos, dst, typecheck.Conv(r, typ)))
+-		return true
+-
+-	case ir.ONIL:
+-		return true
+-
+-	case ir.OLITERAL:
+-		if ir.IsZero(r) {
+-			return true
+-		}
+-		litsym(l, loff, r, int(typ.Width))
+-		return true
+-
+-	case ir.OADDR:
+-		r := r.(*ir.AddrExpr)
+-		if a := r.X; a.Op() == ir.ONAME {
+-			a := a.(*ir.Name)
+-			staticdata.InitAddr(l, loff, a, 0)
+-			return true
+-		}
+-
+-	case ir.OPTRLIT:
+-		r := r.(*ir.AddrExpr)
+-		switch r.X.Op() {
+-		case ir.OARRAYLIT, ir.OSLICELIT, ir.OSTRUCTLIT, ir.OMAPLIT:
+-			// copy pointer
+-			staticdata.InitAddr(l, loff, s.inittemps[r], 0)
+-			return true
+-		}
+-
+-	case ir.OSLICELIT:
+-		r := r.(*ir.CompLitExpr)
+-		// copy slice
+-		staticdata.InitSlice(l, loff, s.inittemps[r], r.Len)
+-		return true
+-
+-	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+-		r := r.(*ir.CompLitExpr)
+-		p := s.initplans[r]
+-		for i := range p.E {
+-			e := &p.E[i]
+-			typ := e.Expr.Type()
+-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+-				litsym(l, loff+e.Xoffset, e.Expr, int(typ.Width))
+-				continue
+-			}
+-			x := e.Expr
+-			if x.Op() == ir.OMETHEXPR {
+-				x = x.(*ir.MethodExpr).FuncName()
+-			}
+-			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
+-				continue
+-			}
+-			// Requires computation, but we're
+-			// copying someone else's computation.
+-			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
+-			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
+-			ir.SetPos(rr)
+-			s.append(ir.NewAssignStmt(base.Pos, ll, rr))
+-		}
+-
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
+-	for r.Op() == ir.OCONVNOP {
+-		r = r.(*ir.ConvExpr).X
+-	}
+-
+-	switch r.Op() {
+-	case ir.ONAME:
+-		r := r.(*ir.Name)
+-		return s.staticcopy(l, loff, r, typ)
+-
+-	case ir.OMETHEXPR:
+-		r := r.(*ir.MethodExpr)
+-		return s.staticcopy(l, loff, r.FuncName(), typ)
+-
+-	case ir.ONIL:
+-		return true
+-
+-	case ir.OLITERAL:
+-		if ir.IsZero(r) {
+-			return true
+-		}
+-		litsym(l, loff, r, int(typ.Width))
+-		return true
+-
+-	case ir.OADDR:
+-		r := r.(*ir.AddrExpr)
+-		if name, offset, ok := stataddr(r.X); ok {
+-			staticdata.InitAddr(l, loff, name, offset)
+-			return true
+-		}
+-		fallthrough
+-
+-	case ir.OPTRLIT:
+-		r := r.(*ir.AddrExpr)
+-		switch r.X.Op() {
+-		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
+-			// Init pointer.
+-			a := staticname(r.X.Type())
+-
+-			s.inittemps[r] = a
+-			staticdata.InitAddr(l, loff, a, 0)
+-
+-			// Init underlying literal.
+-			if !s.staticassign(a, 0, r.X, a.Type()) {
+-				s.append(ir.NewAssignStmt(base.Pos, a, r.X))
+-			}
+-			return true
+-		}
+-		//dump("not static ptrlit", r);
+-
+-	case ir.OSTR2BYTES:
+-		r := r.(*ir.ConvExpr)
+-		if l.Class_ == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
+-			sval := ir.StringVal(r.X)
+-			staticdata.InitSliceBytes(l, loff, sval)
+-			return true
+-		}
+-
+-	case ir.OSLICELIT:
+-		r := r.(*ir.CompLitExpr)
+-		s.initplan(r)
+-		// Init slice.
+-		ta := types.NewArray(r.Type().Elem(), r.Len)
+-		ta.SetNoalg(true)
+-		a := staticname(ta)
+-		s.inittemps[r] = a
+-		staticdata.InitSlice(l, loff, a, r.Len)
+-		// Fall through to init underlying array.
+-		l = a
+-		loff = 0
+-		fallthrough
+-
+-	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+-		r := r.(*ir.CompLitExpr)
+-		s.initplan(r)
+-
+-		p := s.initplans[r]
+-		for i := range p.E {
+-			e := &p.E[i]
+-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
+-				litsym(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Width))
+-				continue
+-			}
+-			ir.SetPos(e.Expr)
+-			if !s.staticassign(l, loff+e.Xoffset, e.Expr, e.Expr.Type()) {
+-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, e.Expr.Type())
+-				s.append(ir.NewAssignStmt(base.Pos, a, e.Expr))
+-			}
+-		}
+-
+-		return true
+-
+-	case ir.OMAPLIT:
+-		break
+-
+-	case ir.OCLOSURE:
+-		r := r.(*ir.ClosureExpr)
+-		if hasemptycvars(r) {
+-			if base.Debug.Closure > 0 {
+-				base.WarnfAt(r.Pos(), "closure converted to global")
+-			}
+-			// Closures with no captured variables are globals,
+-			// so the assignment can be done at link time.
+-			// TODO if roff != 0 { panic }
+-			staticdata.InitFunc(l, loff, r.Func.Nname)
+-			return true
+-		}
+-		closuredebugruntimecheck(r)
+-
+-	case ir.OCONVIFACE:
+-		// This logic is mirrored in isStaticCompositeLiteral.
+-		// If you change something here, change it there, and vice versa.
+-
+-		// Determine the underlying concrete type and value we are converting from.
+-		r := r.(*ir.ConvExpr)
+-		val := ir.Node(r)
+-		for val.Op() == ir.OCONVIFACE {
+-			val = val.(*ir.ConvExpr).X
+-		}
+-
+-		if val.Type().IsInterface() {
+-			// val is an interface type.
+-			// If val is nil, we can statically initialize l;
+-			// both words are zero and so there no work to do, so report success.
+-			// If val is non-nil, we have no concrete type to record,
+-			// and we won't be able to statically initialize its value, so report failure.
+-			return val.Op() == ir.ONIL
+-		}
+-
+-		markTypeUsedInInterface(val.Type(), l.Sym().Linksym())
+-
+-		var itab *ir.AddrExpr
+-		if typ.IsEmptyInterface() {
+-			itab = reflectdata.TypePtr(val.Type())
+-		} else {
+-			itab = reflectdata.ITabAddr(val.Type(), typ)
+-		}
+-
+-		// Create a copy of l to modify while we emit data.
+-
+-		// Emit itab, advance offset.
+-		staticdata.InitAddr(l, loff, itab.X.(*ir.Name), 0)
+-
+-		// Emit data.
+-		if types.IsDirectIface(val.Type()) {
+-			if val.Op() == ir.ONIL {
+-				// Nil is zero, nothing to do.
+-				return true
+-			}
+-			// Copy val directly into n.
+-			ir.SetPos(val)
+-			if !s.staticassign(l, loff+int64(types.PtrSize), val, val.Type()) {
+-				a := ir.NewNameOffsetExpr(base.Pos, l, loff+int64(types.PtrSize), val.Type())
+-				s.append(ir.NewAssignStmt(base.Pos, a, val))
+-			}
+-		} else {
+-			// Construct temp to hold val, write pointer to temp into n.
+-			a := staticname(val.Type())
+-			s.inittemps[val] = a
+-			if !s.staticassign(a, 0, val, val.Type()) {
+-				s.append(ir.NewAssignStmt(base.Pos, a, val))
+-			}
+-			staticdata.InitAddr(l, loff+int64(types.PtrSize), a, 0)
+-		}
+-
+-		return true
+-	}
+-
+-	//dump("not static", r);
+-	return false
+-}
+-
+ // initContext is the context in which static data is populated.
+ // It is either in an init function or in any other function.
+ // Static data populated in an init function will be written either
+@@ -378,29 +38,9 @@ func (c initContext) String() string {
+ 	return "inNonInitFunction"
+ }
+ 
+-// from here down is the walk analysis
+-// of composite literals.
+-// most of the work is to generate
+-// data statements for the constant
+-// part of the composite literal.
+-
+-var statuniqgen int // name generator for static temps
+-
+-// staticname returns a name backed by a (writable) static data symbol.
+-// Use readonlystaticname for read-only node.
+-func staticname(t *types.Type) *ir.Name {
+-	// Don't use lookupN; it interns the resulting string, but these are all unique.
+-	n := typecheck.NewName(typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen)))
+-	statuniqgen++
+-	typecheck.Declare(n, ir.PEXTERN)
+-	n.SetType(t)
+-	n.Sym().Linksym().Set(obj.AttrLocal, true)
+-	return n
+-}
+-
+ // readonlystaticname returns a name backed by a (writable) static data symbol.
+ func readonlystaticname(t *types.Type) *ir.Name {
+-	n := staticname(t)
++	n := staticinit.StaticName(t)
+ 	n.MarkReadonly()
+ 	n.Sym().Linksym().Set(obj.AttrContentAddressable, true)
+ 	return n
+@@ -572,7 +212,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node,
+ 
+ 	for _, r := range n.List {
+ 		a, value := splitnode(r)
+-		if a == ir.BlankNode && !anySideEffects(value) {
++		if a == ir.BlankNode && !staticinit.AnySideEffects(value) {
+ 			// Discard.
+ 			continue
+ 		}
+@@ -629,14 +269,14 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 
+ 	if ctxt == inNonInitFunction {
+ 		// put everything into static array
+-		vstat := staticname(t)
++		vstat := staticinit.StaticName(t)
+ 
+ 		fixedlit(ctxt, initKindStatic, n, vstat, init)
+ 		fixedlit(ctxt, initKindDynamic, n, vstat, init)
+ 
+ 		// copy static to slice
+ 		var_ = typecheck.AssignExpr(var_)
+-		name, offset, ok := stataddr(var_)
++		name, offset, ok := staticinit.StaticLoc(var_)
+ 		if !ok || name.Class_ != ir.PEXTERN {
+ 			base.Fatalf("slicelit: %v", var_)
+ 		}
+@@ -672,7 +312,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 		if ctxt == inInitFunction {
+ 			vstat = readonlystaticname(t)
+ 		} else {
+-			vstat = staticname(t)
++			vstat = staticinit.StaticName(t)
+ 		}
+ 		fixedlit(ctxt, initKindStatic, n, vstat, init)
+ 	}
+@@ -993,150 +633,19 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+ 	return true
+ }
+ 
+-func getlit(lit ir.Node) int {
+-	if ir.IsSmallIntConst(lit) {
+-		return int(ir.Int64Val(lit))
+-	}
+-	return -1
+-}
+-
+-// stataddr returns the static address of n, if n has one, or else nil.
+-func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
+-	if n == nil {
+-		return nil, 0, false
+-	}
+-
+-	switch n.Op() {
+-	case ir.ONAME:
+-		n := n.(*ir.Name)
+-		return n, 0, true
+-
+-	case ir.OMETHEXPR:
+-		n := n.(*ir.MethodExpr)
+-		return stataddr(n.FuncName())
+-
+-	case ir.ODOT:
+-		n := n.(*ir.SelectorExpr)
+-		if name, offset, ok = stataddr(n.X); !ok {
+-			break
+-		}
+-		offset += n.Offset
+-		return name, offset, true
+-
+-	case ir.OINDEX:
+-		n := n.(*ir.IndexExpr)
+-		if n.X.Type().IsSlice() {
+-			break
+-		}
+-		if name, offset, ok = stataddr(n.X); !ok {
+-			break
+-		}
+-		l := getlit(n.Index)
+-		if l < 0 {
+-			break
+-		}
+-
+-		// Check for overflow.
+-		if n.Type().Width != 0 && types.MaxWidth/n.Type().Width <= int64(l) {
+-			break
+-		}
+-		offset += int64(l) * n.Type().Width
+-		return name, offset, true
+-	}
+-
+-	return nil, 0, false
+-}
+-
+-func (s *InitSchedule) initplan(n ir.Node) {
+-	if s.initplans[n] != nil {
+-		return
+-	}
+-	p := new(InitPlan)
+-	s.initplans[n] = p
+-	switch n.Op() {
+-	default:
+-		base.Fatalf("initplan")
+-
+-	case ir.OARRAYLIT, ir.OSLICELIT:
+-		n := n.(*ir.CompLitExpr)
+-		var k int64
+-		for _, a := range n.List {
+-			if a.Op() == ir.OKEY {
+-				kv := a.(*ir.KeyExpr)
+-				k = typecheck.IndexConst(kv.Key)
+-				if k < 0 {
+-					base.Fatalf("initplan arraylit: invalid index %v", kv.Key)
+-				}
+-				a = kv.Value
+-			}
+-			s.addvalue(p, k*n.Type().Elem().Width, a)
+-			k++
+-		}
+-
+-	case ir.OSTRUCTLIT:
+-		n := n.(*ir.CompLitExpr)
+-		for _, a := range n.List {
+-			if a.Op() != ir.OSTRUCTKEY {
+-				base.Fatalf("initplan structlit")
+-			}
+-			a := a.(*ir.StructKeyExpr)
+-			if a.Field.IsBlank() {
+-				continue
+-			}
+-			s.addvalue(p, a.Offset, a.Value)
+-		}
+-
+-	case ir.OMAPLIT:
+-		n := n.(*ir.CompLitExpr)
+-		for _, a := range n.List {
+-			if a.Op() != ir.OKEY {
+-				base.Fatalf("initplan maplit")
+-			}
+-			a := a.(*ir.KeyExpr)
+-			s.addvalue(p, -1, a.Value)
+-		}
+-	}
+-}
+-
+-func (s *InitSchedule) addvalue(p *InitPlan, xoffset int64, n ir.Node) {
+-	// special case: zero can be dropped entirely
+-	if ir.IsZero(n) {
+-		return
+-	}
+-
+-	// special case: inline struct and array (not slice) literals
+-	if isvaluelit(n) {
+-		s.initplan(n)
+-		q := s.initplans[n]
+-		for _, qe := range q.E {
+-			// qe is a copy; we are not modifying entries in q.E
+-			qe.Xoffset += xoffset
+-			p.E = append(p.E, qe)
+-		}
+-		return
+-	}
+-
+-	// add to plan
+-	p.E = append(p.E, InitEntry{Xoffset: xoffset, Expr: n})
+-}
+-
+-func isvaluelit(n ir.Node) bool {
+-	return n.Op() == ir.OARRAYLIT || n.Op() == ir.OSTRUCTLIT
+-}
+-
+ func genAsStatic(as *ir.AssignStmt) {
+ 	if as.X.Type() == nil {
+ 		base.Fatalf("genAsStatic as.Left not typechecked")
+ 	}
+ 
+-	name, offset, ok := stataddr(as.X)
++	name, offset, ok := staticinit.StaticLoc(as.X)
+ 	if !ok || (name.Class_ != ir.PEXTERN && as.X != ir.BlankNode) {
+ 		base.Fatalf("genAsStatic: lhs %v", as.X)
+ 	}
+ 
+ 	switch r := as.Y; r.Op() {
+ 	case ir.OLITERAL:
+-		litsym(name, offset, r, int(r.Type().Width))
++		staticdata.InitConst(name, offset, r, int(r.Type().Width))
+ 		return
+ 	case ir.OMETHEXPR:
+ 		r := r.(*ir.MethodExpr)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/walk/subr.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/subr.go
+rename to src/cmd/compile/internal/walk/subr.go
+index 17bbd1c3a2..bc65432d49 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/walk/subr.go
+@@ -2,16 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
++	"fmt"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"fmt"
+ )
+ 
+ // backingArrayPtrLen extracts the pointer and length from a slice or string.
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/walk/switch.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/swt.go
+rename to src/cmd/compile/internal/walk/switch.go
+index 9ffa8b67bb..9becd0e404 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -2,17 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
++	"go/constant"
++	"go/token"
++	"sort"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"go/constant"
+-	"go/token"
+-	"sort"
+ )
+ 
+ // walkswitch walks a switch statement.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/walk/walk.go
+similarity index 97%
+rename from src/cmd/compile/internal/gc/walk.go
+rename to src/cmd/compile/internal/walk/walk.go
+index f86dbba2c9..cb3018a4ac 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -2,9 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package walk
+ 
+ import (
++	"encoding/binary"
++	"errors"
++	"fmt"
++	"go/constant"
++	"go/token"
++	"strings"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/escape"
+ 	"cmd/compile/internal/ir"
+@@ -17,19 +24,13 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+-	"encoding/binary"
+-	"errors"
+-	"fmt"
+-	"go/constant"
+-	"go/token"
+-	"strings"
+ )
+ 
+ // The constant is known to runtime.
+ const tmpstringbufsize = 32
+ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
+ 
+-func walk(fn *ir.Func) {
++func Walk(fn *ir.Func) {
+ 	ir.CurFunc = fn
+ 	errorsBefore := base.Errors()
+ 	order(fn)
+@@ -670,7 +671,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		n := n.(*ir.CallExpr)
+ 		if n.Op() == ir.OCALLINTER {
+ 			usemethod(n)
+-			markUsedIfaceMethod(n)
++			reflectdata.MarkUsedIfaceMethod(n)
+ 		}
+ 
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.OCLOSURE {
+@@ -933,7 +934,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		toType := n.Type()
+ 
+ 		if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) { // skip unnamed functions (func _())
+-			markTypeUsedInInterface(fromType, ir.CurFunc.LSym)
++			reflectdata.MarkTypeUsedInInterface(fromType, ir.CurFunc.LSym)
+ 		}
+ 
+ 		// typeword generates the type word of the interface value.
+@@ -1708,32 +1709,6 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 	// in the presence of type assertions.
+ }
+ 
+-// markTypeUsedInInterface marks that type t is converted to an interface.
+-// This information is used in the linker in dead method elimination.
+-func markTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+-	tsym := reflectdata.TypeSym(t).Linksym()
+-	// Emit a marker relocation. The linker will know the type is converted
+-	// to an interface if "from" is reachable.
+-	r := obj.Addrel(from)
+-	r.Sym = tsym
+-	r.Type = objabi.R_USEIFACE
+-}
+-
+-// markUsedIfaceMethod marks that an interface method is used in the current
+-// function. n is OCALLINTER node.
+-func markUsedIfaceMethod(n *ir.CallExpr) {
+-	dot := n.X.(*ir.SelectorExpr)
+-	ityp := dot.X.Type()
+-	tsym := reflectdata.TypeSym(ityp).Linksym()
+-	r := obj.Addrel(ir.CurFunc.LSym)
+-	r.Sym = tsym
+-	// dot.Xoffset is the method index * Widthptr (the offset of code pointer
+-	// in itab).
+-	midx := dot.Offset / int64(types.PtrSize)
+-	r.Add = reflectdata.InterfaceMethodOffset(ityp, midx)
+-	r.Type = objabi.R_USEIFACEMETHOD
+-}
+-
+ // rtconvfn returns the parameter and result types that will be used by a
+ // runtime function to convert from type src to type dst. The runtime function
+ // name can be derived from the names of the returned types.
+@@ -3737,94 +3712,6 @@ func usefield(n *ir.SelectorExpr) {
+ 	ir.CurFunc.FieldTrack[sym] = struct{}{}
+ }
+ 
+-// anySideEffects reports whether n contains any operations that could have observable side effects.
+-func anySideEffects(n ir.Node) bool {
+-	return ir.Any(n, func(n ir.Node) bool {
+-		switch n.Op() {
+-		// Assume side effects unless we know otherwise.
+-		default:
+-			return true
+-
+-		// No side effects here (arguments are checked separately).
+-		case ir.ONAME,
+-			ir.ONONAME,
+-			ir.OTYPE,
+-			ir.OPACK,
+-			ir.OLITERAL,
+-			ir.ONIL,
+-			ir.OADD,
+-			ir.OSUB,
+-			ir.OOR,
+-			ir.OXOR,
+-			ir.OADDSTR,
+-			ir.OADDR,
+-			ir.OANDAND,
+-			ir.OBYTES2STR,
+-			ir.ORUNES2STR,
+-			ir.OSTR2BYTES,
+-			ir.OSTR2RUNES,
+-			ir.OCAP,
+-			ir.OCOMPLIT,
+-			ir.OMAPLIT,
+-			ir.OSTRUCTLIT,
+-			ir.OARRAYLIT,
+-			ir.OSLICELIT,
+-			ir.OPTRLIT,
+-			ir.OCONV,
+-			ir.OCONVIFACE,
+-			ir.OCONVNOP,
+-			ir.ODOT,
+-			ir.OEQ,
+-			ir.ONE,
+-			ir.OLT,
+-			ir.OLE,
+-			ir.OGT,
+-			ir.OGE,
+-			ir.OKEY,
+-			ir.OSTRUCTKEY,
+-			ir.OLEN,
+-			ir.OMUL,
+-			ir.OLSH,
+-			ir.ORSH,
+-			ir.OAND,
+-			ir.OANDNOT,
+-			ir.ONEW,
+-			ir.ONOT,
+-			ir.OBITNOT,
+-			ir.OPLUS,
+-			ir.ONEG,
+-			ir.OOROR,
+-			ir.OPAREN,
+-			ir.ORUNESTR,
+-			ir.OREAL,
+-			ir.OIMAG,
+-			ir.OCOMPLEX:
+-			return false
+-
+-		// Only possible side effect is division by zero.
+-		case ir.ODIV, ir.OMOD:
+-			n := n.(*ir.BinaryExpr)
+-			if n.Y.Op() != ir.OLITERAL || constant.Sign(n.Y.Val()) == 0 {
+-				return true
+-			}
+-
+-		// Only possible side effect is panic on invalid size,
+-		// but many makechan and makemap use size zero, which is definitely OK.
+-		case ir.OMAKECHAN, ir.OMAKEMAP:
+-			n := n.(*ir.MakeExpr)
+-			if !ir.IsConst(n.Len, constant.Int) || constant.Sign(n.Len.Val()) != 0 {
+-				return true
+-			}
+-
+-		// Only possible side effect is panic on invalid size.
+-		// TODO(rsc): Merge with previous case (probably breaks toolstash -cmp).
+-		case ir.OMAKESLICE, ir.OMAKESLICECOPY:
+-			return true
+-		}
+-		return false
+-	})
+-}
+-
+ // Rewrite
+ //	go builtin(x, y, z)
+ // into

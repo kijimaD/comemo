@@ -22,7 +22,7 @@ Date:   Sat Feb 20 22:54:15 2016 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 108 ++++++++++++++++++-----------
  src/cmd/link/internal/ld/decodesym.go  |  35 ++++++----
  src/reflect/type.go                    | 120 ++++++++++++++++++++++++++-------
@@ -31,3 +31,731 @@ Date:   Sat Feb 20 22:54:15 2016 -0500
  src/runtime/mfinal.go                  |   2 +-
  src/runtime/type.go                    |  70 ++++++++++++++++++-
  7 files changed, 260 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 0bb980e92f..a18016fa78 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -53,6 +53,15 @@ const (
+ 	MAXVALSIZE = 128
+ )
+ 
++func structfieldSize() int       { return 5 * Widthptr } // Sizeof(runtime.structfield{})
++func imethodSize() int           { return 3 * Widthptr } // Sizeof(runtime.imethod{})
++func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
++	if t.Sym == nil && len(methods(t)) == 0 {
++		return 0
++	}
++	return 2*Widthptr + 2*Widthint
++}
++
+ func makefield(name string, t *Type) *Type {
+ 	f := typ(TFIELD)
+ 	f.Type = t
+@@ -473,18 +482,19 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
+ 	return dsymptr(s, ot, pkg.Pathsym, 0)
+ }
+ 
+-// uncommonType
+-// ../../../../runtime/type.go:/uncommonType
+-func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
++// dextratype dumps the fields of a runtime.uncommontype.
++// dataAdd is the offset in bytes after the header where the
++// backing array of the []method field is written (by dextratypeData).
++func dextratype(sym *Sym, off int, t *Type, dataAdd int) int {
+ 	m := methods(t)
+ 	if t.Sym == nil && len(m) == 0 {
+ 		return off
+ 	}
+-
+-	// fill in *extraType pointer in header
+-	off = int(Rnd(int64(off), int64(Widthptr)))
+-
+-	dsymptr(sym, ptroff, sym, off)
++	noff := int(Rnd(int64(off), int64(Widthptr)))
++	if noff != off {
++		panic("dextratype rounding does something. :-(")
++	}
++	off = noff
+ 
+ 	for _, a := range m {
+ 		dtypesym(a.type_)
+@@ -499,14 +509,19 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
+ 	}
+ 
+ 	// slice header
+-	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
++	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+dataAdd)
+ 
+ 	n := len(m)
+ 	ot = duintxx(s, ot, uint64(n), Widthint)
+ 	ot = duintxx(s, ot, uint64(n), Widthint)
+ 
+-	// methods
+-	for _, a := range m {
++	return ot
++}
++
++// dextratypeData dumps the backing array for the []method field of
++// runtime.uncommontype.
++func dextratypeData(s *Sym, ot int, t *Type) int {
++	for _, a := range methods(t) {
+ 		// method
+ 		// ../../../../runtime/type.go:/method
+ 		ot = dgostringptr(s, ot, a.name)
+@@ -525,7 +540,6 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
+ 			ot = duintptr(s, ot, 0)
+ 		}
+ 	}
+-
+ 	return ot
+ }
+ 
+@@ -674,8 +688,11 @@ func typeptrdata(t *Type) int64 {
+ 	}
+ }
+ 
++// tflag is documented in ../../../../reflect/type.go.
++const tflagUncommon = 1
++
+ // commonType
+-// ../../runtime/type.go:/commonType
++// ../../../../runtime/type.go:/commonType
+ 
+ var dcommontype_algarray *Sym
+ 
+@@ -713,20 +730,24 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	//		size          uintptr
+ 	//		ptrdata       uintptr
+ 	//		hash          uint32
+-	//		_             uint8
++	//		tflag         tflag
+ 	//		align         uint8
+ 	//		fieldAlign    uint8
+ 	//		kind          uint8
+ 	//		alg           *typeAlg
+ 	//		gcdata        *byte
+ 	//		string        *string
+-	//		*uncommonType
+ 	//	}
+ 	ot = duintptr(s, ot, uint64(t.Width))
+ 	ot = duintptr(s, ot, uint64(ptrdata))
+ 
+ 	ot = duint32(s, ot, typehash(t))
+-	ot = duint8(s, ot, 0) // unused
++
++	var tflag uint8
++	if uncommonSize(t) != 0 {
++		tflag |= tflagUncommon
++	}
++	ot = duint8(s, ot, tflag)
+ 
+ 	// runtime (and common sense) expects alignment to be a power of two.
+ 	i := int(t.Align)
+@@ -776,13 +797,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	_, symdata := stringsym(p) // string
+ 	ot = dsymptr(s, ot, symdata, prefix)
+ 	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
+-	//fmt.Printf("dcommontype: %s\n", p)
+-
+-	// skip pointer to extraType,
+-	// which follows the rest of this type structure.
+-	// caller will fill in if needed.
+-	// otherwise linker will assume 0.
+-	ot += Widthptr
+ 
+ 	return ot
+ }
+@@ -1000,11 +1014,10 @@ func dtypesym(t *Type) *Sym {
+ 
+ ok:
+ 	ot := 0
+-	xt := 0
+ 	switch t.Etype {
+ 	default:
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 1*Widthptr
++		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TARRAY:
+ 		if t.Bound >= 0 {
+@@ -1016,7 +1029,6 @@ ok:
+ 			t2.Bound = -1 // slice
+ 			s2 := dtypesym(t2)
+ 			ot = dcommontype(s, ot, t)
+-			xt = ot - 1*Widthptr
+ 			ot = dsymptr(s, ot, s1, 0)
+ 			ot = dsymptr(s, ot, s2, 0)
+ 			ot = duintptr(s, ot, uint64(t.Bound))
+@@ -1025,18 +1037,18 @@ ok:
+ 			s1 := dtypesym(t.Type)
+ 
+ 			ot = dcommontype(s, ot, t)
+-			xt = ot - 1*Widthptr
+ 			ot = dsymptr(s, ot, s1, 0)
+ 		}
++		ot = dextratype(s, ot, t, 0)
+ 
+ 	// ../../../../runtime/type.go:/chanType
+ 	case TCHAN:
+ 		s1 := dtypesym(t.Type)
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = duintptr(s, ot, uint64(t.Chan))
++		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TFUNC:
+ 		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+@@ -1053,20 +1065,31 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 1*Widthptr
+ 		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
+ 
+ 		// two slice headers: in and out.
+ 		ot = int(Rnd(int64(ot), int64(Widthptr)))
+ 
+-		ot = dsymptr(s, ot, s, ot+2*(Widthptr+2*Widthint))
++		ot = dsymptr(s, ot, s, ot+2*(Widthptr+2*Widthint)+uncommonSize(t))
+ 		n := t.Thistuple + t.Intuple
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+-		ot = dsymptr(s, ot, s, ot+1*(Widthptr+2*Widthint)+n*Widthptr)
++		ot = dsymptr(s, ot, s, ot+1*(Widthptr+2*Widthint)+uncommonSize(t)+n*Widthptr)
+ 		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
+ 		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
+ 
++		dataAdd := 0
++		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
++			dataAdd += Widthptr
++		}
++		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
++			dataAdd += Widthptr
++		}
++		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
++			dataAdd += Widthptr
++		}
++		ot = dextratype(s, ot, t, dataAdd)
++
+ 		// slice data
+ 		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+ 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
+@@ -1091,14 +1114,15 @@ ok:
+ 		// ../../../../runtime/type.go:/interfaceType
+ 		ot = dcommontype(s, ot, t)
+ 
+-		xt = ot - 1*Widthptr
+-		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
++		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
++		dataAdd := imethodSize() * n
++		ot = dextratype(s, ot, t, dataAdd)
++
+ 		for _, a := range m {
+ 			// ../../../../runtime/type.go:/imethod
+ 			ot = dgostringptr(s, ot, a.name)
+-
+ 			ot = dgopkgpath(s, ot, a.pkg)
+ 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
+ 		}
+@@ -1111,7 +1135,6 @@ ok:
+ 		s3 := dtypesym(mapbucket(t))
+ 		s4 := dtypesym(hmap(t))
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
+ 		ot = dsymptr(s, ot, s2, 0)
+ 		ot = dsymptr(s, ot, s3, 0)
+@@ -1135,11 +1158,13 @@ ok:
+ 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
+ 		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
+ 		ot = duint8(s, ot, uint8(obj.Bool2int(needkeyupdate(t.Down))))
++		ot = dextratype(s, ot, t, 0)
+ 
+ 	case TPTR32, TPTR64:
+ 		if t.Type.Etype == TANY {
+ 			// ../../../../runtime/type.go:/UnsafePointerType
+ 			ot = dcommontype(s, ot, t)
++			ot = dextratype(s, ot, t, 0)
+ 
+ 			break
+ 		}
+@@ -1148,8 +1173,8 @@ ok:
+ 		s1 := dtypesym(t.Type)
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 1*Widthptr
+ 		ot = dsymptr(s, ot, s1, 0)
++		ot = dextratype(s, ot, t, 0)
+ 
+ 	// ../../../../runtime/type.go:/structType
+ 	// for security, only the exported fields.
+@@ -1162,12 +1187,15 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(s, ot, t)
+-		xt = ot - 1*Widthptr
+-		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
++		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
+ 		ot = duintxx(s, ot, uint64(n), Widthint)
++
++		dataAdd := n * structfieldSize()
++		ot = dextratype(s, ot, t, dataAdd)
++
+ 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+-			// ../../../../runtime/type.go:/structField
++			// ../../../../runtime/type.go:/structfield
+ 			if t1.Sym != nil && t1.Embedded == 0 {
+ 				ot = dgostringptr(s, ot, t1.Sym.Name)
+ 				if exportname(t1.Sym.Name) {
+@@ -1191,7 +1219,7 @@ ok:
+ 		}
+ 	}
+ 
+-	ot = dextratype(s, ot, t, xt)
++	ot = dextratypeData(s, ot, t)
+ 	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
+ 
+ 	// generate typelink.foo pointing at s = type.foo.
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index ec3a9b5613..89cf0b0564 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -44,11 +44,9 @@ func decode_inuxi(p []byte, sz int) uint64 {
+ 	}
+ }
+ 
+-// commonsize returns the size of the common prefix for all type
+-// structures (runtime._type).
+-func commonsize() int {
+-	return 7*Thearch.Ptrsize + 8
+-}
++func commonsize() int      { return 6*Thearch.Ptrsize + 8 }                 // runtime._type
++func structfieldSize() int { return 5 * Thearch.Ptrsize }                   // runtime.structfield
++func uncommonSize() int    { return 2*Thearch.Ptrsize + 2*Thearch.Intsize } // runtime.uncommontype
+ 
+ // Type.commonType.kind
+ func decodetype_kind(s *LSym) uint8 {
+@@ -75,6 +73,12 @@ func decodetype_ptrdata(s *LSym) int64 {
+ 	return int64(decode_inuxi(s.P[Thearch.Ptrsize:], Thearch.Ptrsize)) // 0x8 / 0x10
+ }
+ 
++// Type.commonType.tflag
++func decodetype_hasUncommon(s *LSym) bool {
++	const tflagUncommon = 1 // see ../../../../reflect/type.go:/^type.tflag
++	return s.P[2*Thearch.Ptrsize+4]&tflagUncommon != 0
++}
++
+ // Find the elf.Section of a given shared library that contains a given address.
+ func findShlibSection(path string, addr uint64) *elf.Section {
+ 	for _, shlib := range Ctxt.Shlibs {
+@@ -201,15 +205,18 @@ func decodetype_structfieldcount(s *LSym) int {
+ 	return int(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
+ }
+ 
+-func structfieldsize() int {
+-	return 5 * Thearch.Ptrsize
++func decodetype_structfieldarrayoff(s *LSym, i int) int {
++	off := commonsize() + Thearch.Ptrsize + 2*Thearch.Intsize
++	if decodetype_hasUncommon(s) {
++		off += uncommonSize()
++	}
++	off += i * structfieldSize()
++	return off
+ }
+ 
+-// Type.StructType.fields[]-> name, typ and offset.
+ func decodetype_structfieldname(s *LSym, i int) string {
+-	// go.string."foo"  0x28 / 0x40
+-	s = decode_reloc_sym(s, int32(commonsize())+int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize)+int32(i)*int32(structfieldsize()))
+-
++	off := decodetype_structfieldarrayoff(s, i)
++	s = decode_reloc_sym(s, int32(off))
+ 	if s == nil { // embedded structs have a nil name.
+ 		return ""
+ 	}
+@@ -222,11 +229,13 @@ func decodetype_structfieldname(s *LSym, i int) string {
+ }
+ 
+ func decodetype_structfieldtype(s *LSym, i int) *LSym {
+-	return decode_reloc_sym(s, int32(commonsize())+int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize)+int32(i)*int32(structfieldsize())+2*int32(Thearch.Ptrsize))
++	off := decodetype_structfieldarrayoff(s, i)
++	return decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
+ }
+ 
+ func decodetype_structfieldoffs(s *LSym, i int) int64 {
+-	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize+2*Thearch.Intsize+i*structfieldsize()+4*Thearch.Ptrsize:], Thearch.Intsize))
++	off := decodetype_structfieldarrayoff(s, i)
++	return int64(decode_inuxi(s.P[off+4*Thearch.Ptrsize:], Thearch.Intsize))
+ }
+ 
+ // InterfaceType.methods.length
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 425b275881..de0768a45f 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -240,22 +240,40 @@ const (
+ 	UnsafePointer
+ )
+ 
++// tflag is used by an rtype to signal what extra type information is
++// available in the memory directly following the rtype value.
++type tflag uint8
++
++const (
++	// tflagUncommon means that there is a pointer, *uncommonType,
++	// just beyond the outer type structure.
++	//
++	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
++	// then t has uncommonType data and it can be accessed as:
++	//
++	//	type tUncommon struct {
++	//		structType
++	//		u uncommonType
++	//	}
++	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
++	tflagUncommon tflag = 1
++)
++
+ // rtype is the common implementation of most values.
+ // It is embedded in other, public struct types, but always
+ // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
+ // so that code cannot convert from, say, *arrayType to *ptrType.
+ type rtype struct {
+-	size          uintptr
+-	ptrdata       uintptr
+-	hash          uint32   // hash of type; avoids computation in hash tables
+-	_             uint8    // unused/padding
+-	align         uint8    // alignment of variable with this type
+-	fieldAlign    uint8    // alignment of struct field with this type
+-	kind          uint8    // enumeration for C
+-	alg           *typeAlg // algorithm table
+-	gcdata        *byte    // garbage collection data
+-	string        string   // string form; unnecessary but undeniably useful
+-	*uncommonType          // (relatively) uncommon fields
++	size       uintptr
++	ptrdata    uintptr
++	hash       uint32   // hash of type; avoids computation in hash tables
++	tflag      tflag    // extra type information flags
++	align      uint8    // alignment of variable with this type
++	fieldAlign uint8    // alignment of struct field with this type
++	kind       uint8    // enumeration for C
++	alg        *typeAlg // algorithm table
++	gcdata     *byte    // garbage collection data
++	string     string   // string form; unnecessary but undeniably useful
+ }
+ 
+ // a copy of runtime.typeAlg
+@@ -440,10 +458,6 @@ var kindNames = []string{
+ 	UnsafePointer: "unsafe.Pointer",
+ }
+ 
+-func (t *uncommonType) uncommon() *uncommonType {
+-	return t
+-}
+-
+ func (t *uncommonType) PkgPath() string {
+ 	if t == nil || t.pkgPath == nil {
+ 		return ""
+@@ -451,6 +465,68 @@ func (t *uncommonType) PkgPath() string {
+ 	return *t.pkgPath
+ }
+ 
++func (t *rtype) uncommon() *uncommonType {
++	if t.tflag&tflagUncommon == 0 {
++		return nil
++	}
++	switch t.Kind() {
++	case Struct:
++		type u struct {
++			structType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Ptr:
++		type u struct {
++			ptrType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Func:
++		type u struct {
++			funcType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Slice:
++		type u struct {
++			sliceType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Array:
++		type u struct {
++			arrayType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Chan:
++		type u struct {
++			chanType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Map:
++		type u struct {
++			mapType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Interface:
++		type u struct {
++			interfaceType
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	default:
++		type u struct {
++			rtype
++			u uncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	}
++}
++
+ func (t *rtype) String() string { return t.string }
+ 
+ func (t *rtype) Size() uintptr { return t.size }
+@@ -526,7 +602,7 @@ func (t *rtype) NumMethod() int {
+ 		tt := (*interfaceType)(unsafe.Pointer(t))
+ 		return tt.NumMethod()
+ 	}
+-	return t.uncommonType.NumMethod()
++	return t.uncommon().NumMethod()
+ }
+ 
+ func (t *rtype) Method(i int) (m Method) {
+@@ -534,7 +610,7 @@ func (t *rtype) Method(i int) (m Method) {
+ 		tt := (*interfaceType)(unsafe.Pointer(t))
+ 		return tt.Method(i)
+ 	}
+-	return t.uncommonType.Method(i)
++	return t.uncommon().Method(i)
+ }
+ 
+ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+@@ -542,11 +618,11 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ 		tt := (*interfaceType)(unsafe.Pointer(t))
+ 		return tt.MethodByName(name)
+ 	}
+-	return t.uncommonType.MethodByName(name)
++	return t.uncommon().MethodByName(name)
+ }
+ 
+ func (t *rtype) PkgPath() string {
+-	return t.uncommonType.PkgPath()
++	return t.uncommon().PkgPath()
+ }
+ 
+ func hasPrefix(s, prefix string) bool {
+@@ -1099,7 +1175,6 @@ func (t *rtype) ptrTo() *rtype {
+ 	// old hash and the new "*".
+ 	p.hash = fnv1(t.hash, '*')
+ 
+-	p.uncommonType = nil
+ 	p.elem = t
+ 
+ 	ptrMap.m[t] = p
+@@ -1477,7 +1552,6 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	ch.string = s
+ 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
+ 	ch.elem = typ
+-	ch.uncommonType = nil
+ 
+ 	return cachePut(ckey, &ch.rtype)
+ }
+@@ -1539,7 +1613,6 @@ func MapOf(key, elem Type) Type {
+ 	mt.bucketsize = uint16(mt.bucket.size)
+ 	mt.reflexivekey = isReflexive(ktyp)
+ 	mt.needkeyupdate = needKeyUpdate(ktyp)
+-	mt.uncommonType = nil
+ 
+ 	return cachePut(ckey, &mt.rtype)
+ }
+@@ -1617,7 +1690,6 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 
+ 	// Populate the remaining fields of ft and store in cache.
+ 	ft.string = str
+-	ft.uncommonType = nil
+ 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
+ 
+ 	return &ft.rtype
+@@ -1846,7 +1918,6 @@ func SliceOf(t Type) Type {
+ 	slice.string = s
+ 	slice.hash = fnv1(typ.hash, '[')
+ 	slice.elem = typ
+-	slice.uncommonType = nil
+ 
+ 	return cachePut(ckey, &slice.rtype)
+ }
+@@ -1903,7 +1974,6 @@ func ArrayOf(count int, elem Type) Type {
+ 	}
+ 	array.align = typ.align
+ 	array.fieldAlign = typ.fieldAlign
+-	array.uncommonType = nil
+ 	array.len = uintptr(count)
+ 	array.slice = slice.(*rtype)
+ 
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 508ee9a916..ae63b2182c 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -183,10 +183,10 @@ func dumptype(t *_type) {
+ 	dumpint(tagType)
+ 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
+ 	dumpint(uint64(t.size))
+-	if t.x == nil || t.x.pkgpath == nil {
++	if x := t.uncommon(); x == nil || x.pkgpath == nil {
+ 		dumpstr(t._string)
+ 	} else {
+-		pkgpath := stringStructOf(t.x.pkgpath)
++		pkgpath := stringStructOf(x.pkgpath)
+ 		namestr := t.name()
+ 		name := stringStructOf(&namestr)
+ 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 917b5b3f2a..ff54c59a52 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -25,7 +25,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	}
+ 
+ 	// easy case
+-	x := typ.x
++	x := typ.uncommon()
+ 	if x == nil {
+ 		if canfail {
+ 			return nil
+@@ -89,6 +89,9 @@ search:
+ 		itype := i._type
+ 		for ; j < nt; j++ {
+ 			t := &x.mhdr[j]
++			if t.name == nil {
++				throw("itab t.name is nil")
++			}
+ 			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
+ 				if m != nil {
+ 					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 95cd1ef2f5..6d5378200e 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -340,7 +340,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		// ok - same type
+ 		goto okarg
+ 	case fint.kind&kindMask == kindPtr:
+-		if (fint.x == nil || etyp.x == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
++		if (fint.uncommon() == nil || etyp.uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+ 			// ok - not same type, but both pointers,
+ 			// one or the other is unnamed, and same element type, so assignable.
+ 			goto okarg
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 2312f819ea..9c9b5fb8cc 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -8,6 +8,11 @@ package runtime
+ 
+ import "unsafe"
+ 
++// tflag is documented in ../reflect/type.go.
++type tflag uint8
++
++const tflagUncommon tflag = 1
++
+ // Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
+ // ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
+ // ../reflect/type.go:/^type.rtype.
+@@ -15,7 +20,7 @@ type _type struct {
+ 	size       uintptr
+ 	ptrdata    uintptr // size of memory prefix holding all pointers
+ 	hash       uint32
+-	_unused    uint8
++	tflag      tflag
+ 	align      uint8
+ 	fieldalign uint8
+ 	kind       uint8
+@@ -25,7 +30,68 @@ type _type struct {
+ 	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
+ 	gcdata  *byte
+ 	_string string
+-	x       *uncommontype
++}
++
++func (t *_type) uncommon() *uncommontype {
++	if t.tflag&tflagUncommon == 0 {
++		return nil
++	}
++	switch t.kind & kindMask {
++	case kindStruct:
++		type u struct {
++			structtype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindPtr:
++		type u struct {
++			ptrtype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindFunc:
++		type u struct {
++			functype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindSlice:
++		type u struct {
++			slicetype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindArray:
++		type u struct {
++			arraytype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindChan:
++		type u struct {
++			chantype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindMap:
++		type u struct {
++			maptype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case kindInterface:
++		type u struct {
++			interfacetype
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	default:
++		type u struct {
++			_type
++			u uncommontype
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	}
+ }
+ 
+ func hasPrefix(s, prefix string) bool {

@@ -11,10 +11,81 @@ Date:   Wed Jan 30 17:34:34 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modconv/glide.go | 3 +--
  src/cmd/go/internal/modconv/glock.go | 3 +--
  src/cmd/go/internal/modconv/tsv.go   | 3 +--
  src/cmd/go/internal/modconv/vconf.go | 3 +--
  src/cmd/go/internal/modconv/vyml.go  | 3 +--
  5 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/glide.go b/src/cmd/go/internal/modconv/glide.go
+index 3bc675fcc0..18ab57814d 100644
+--- a/src/cmd/go/internal/modconv/glide.go
++++ b/src/cmd/go/internal/modconv/glide.go
+@@ -15,8 +15,7 @@ func ParseGlideLock(file string, data []byte) (*modfile.File, error) {
+ 	mf := new(modfile.File)
+ 	imports := false
+ 	name := ""
+-	for lineno, line := range strings.Split(string(data), "\n") {
+-		lineno++
++	for _, line := range strings.Split(string(data), "\n") {
+ 		if line == "" {
+ 			continue
+ 		}
+diff --git a/src/cmd/go/internal/modconv/glock.go b/src/cmd/go/internal/modconv/glock.go
+index 1b786a939c..164a8e70d9 100644
+--- a/src/cmd/go/internal/modconv/glock.go
++++ b/src/cmd/go/internal/modconv/glock.go
+@@ -13,8 +13,7 @@ import (
+ 
+ func ParseGLOCKFILE(file string, data []byte) (*modfile.File, error) {
+ 	mf := new(modfile.File)
+-	for lineno, line := range strings.Split(string(data), "\n") {
+-		lineno++
++	for _, line := range strings.Split(string(data), "\n") {
+ 		f := strings.Fields(line)
+ 		if len(f) >= 2 && f[0] != "cmd" {
+ 			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[1]}})
+diff --git a/src/cmd/go/internal/modconv/tsv.go b/src/cmd/go/internal/modconv/tsv.go
+index feba181e05..106cddedd3 100644
+--- a/src/cmd/go/internal/modconv/tsv.go
++++ b/src/cmd/go/internal/modconv/tsv.go
+@@ -13,8 +13,7 @@ import (
+ 
+ func ParseDependenciesTSV(file string, data []byte) (*modfile.File, error) {
+ 	mf := new(modfile.File)
+-	for lineno, line := range strings.Split(string(data), "\n") {
+-		lineno++
++	for _, line := range strings.Split(string(data), "\n") {
+ 		f := strings.Split(line, "\t")
+ 		if len(f) >= 3 {
+ 			mf.Require = append(mf.Require, &modfile.Require{Mod: module.Version{Path: f[0], Version: f[2]}})
+diff --git a/src/cmd/go/internal/modconv/vconf.go b/src/cmd/go/internal/modconv/vconf.go
+index a9a8e62518..f62eba7762 100644
+--- a/src/cmd/go/internal/modconv/vconf.go
++++ b/src/cmd/go/internal/modconv/vconf.go
+@@ -13,8 +13,7 @@ import (
+ 
+ func ParseVendorConf(file string, data []byte) (*modfile.File, error) {
+ 	mf := new(modfile.File)
+-	for lineno, line := range strings.Split(string(data), "\n") {
+-		lineno++
++	for _, line := range strings.Split(string(data), "\n") {
+ 		if i := strings.Index(line, "#"); i >= 0 {
+ 			line = line[:i]
+ 		}
+diff --git a/src/cmd/go/internal/modconv/vyml.go b/src/cmd/go/internal/modconv/vyml.go
+index 0f017a3c7a..8a06519932 100644
+--- a/src/cmd/go/internal/modconv/vyml.go
++++ b/src/cmd/go/internal/modconv/vyml.go
+@@ -15,8 +15,7 @@ func ParseVendorYML(file string, data []byte) (*modfile.File, error) {
+ 	mf := new(modfile.File)
+ 	vendors := false
+ 	path := ""
+-	for lineno, line := range strings.Split(string(data), "\n") {
+-		lineno++
++	for _, line := range strings.Split(string(data), "\n") {
+ 		if line == "" {
+ 			continue
+ 		}

@@ -11,6 +11,29 @@ Date:   Sat Jan 28 19:56:41 2023 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 53dc686a4b..2ff35e4897 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/internal/objfile"
+ 	"cmd/internal/quoted"
+ 	"debug/dwarf"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -192,6 +193,9 @@ func TestDWARF(t *testing.T) {
+ 		if runtime.GOOS == "windows" {
+ 			t.Skip("skipping Windows/c-archive; see Issue 35512 for more.")
+ 		}
++		if !platform.BuildModeSupported(runtime.Compiler, "c-archive", runtime.GOOS, runtime.GOARCH) {
++			t.Skipf("skipping c-archive test on unsupported platform %s-%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 		t.Run("c-archive", func(t *testing.T) {
+ 			testDWARF(t, "c-archive", true)
+ 		})

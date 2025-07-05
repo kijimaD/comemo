@@ -19,8 +19,71 @@ Date:   Thu Nov 24 13:15:09 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5437051
-
+---
  src/pkg/html/parse.go      | 17 +++++++++++++++++
  src/pkg/html/parse_test.go |  2 +-
  src/pkg/html/render.go     | 10 ++++++++++
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 041c5390ed..36a5fd2fdc 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -628,6 +628,23 @@ func copyAttributes(dst *Node, src Token) {
+ func inBodyIM(p *parser) bool {
+ 	switch p.tok.Type {
+ 	case TextToken:
++		switch n := p.oe.top(); n.Data {
++		case "pre", "listing", "textarea":
++			if len(n.Child) == 0 {
++				// Ignore a newline at the start of a <pre> block.
++				d := p.tok.Data
++				if d != "" && d[0] == '\r' {
++					d = d[1:]
++				}
++				if d != "" && d[0] == '\n' {
++					d = d[1:]
++				}
++				if d == "" {
++					return true
++				}
++				p.tok.Data = d
++			}
++		}
+ 		p.reconstructActiveFormattingElements()
+ 		p.addText(p.tok.Data)
+ 		p.framesetOK = false
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 90d3f46c61..cb1559169e 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -152,7 +152,7 @@ func TestParser(t *testing.T) {
+ 		{"doctype01.dat", -1},
+ 		{"tests1.dat", -1},
+ 		{"tests2.dat", -1},
+-		{"tests3.dat", 0},
++		{"tests3.dat", 12},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index 57d78beef1..2c868f511d 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -173,6 +173,16 @@ func render1(w writer, n *Node) error {
+ 		return err
+ 	}
+ 
++	// Add initial newline where there is danger of a newline beging ignored.
++	if len(n.Child) > 0 && n.Child[0].Type == TextNode && strings.HasPrefix(n.Child[0].Data, "\n") {
++		switch n.Data {
++		case "pre", "listing", "textarea":
++			if err := w.WriteByte('\n'); err != nil {
++				return err
++			}
++		}
++	}
++
+ 	// Render any child nodes.
+ 	switch n.Data {
+ 	case "noembed", "noframes", "noscript", "plaintext", "script", "style":

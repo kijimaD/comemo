@@ -16,6 +16,33 @@ Date:   Tue Apr 20 15:41:24 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/debug/dwarf/unit.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/dwarf/unit.go b/src/debug/dwarf/unit.go
+index 29a744fd18..9b3d6e902d 100644
+--- a/src/debug/dwarf/unit.go
++++ b/src/debug/dwarf/unit.go
+@@ -48,7 +48,9 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 			break
+ 		}
+ 		b.skip(int(len))
+-		nunit++
++		if len > 0 {
++			nunit++
++		}
+ 	}
+ 	if b.err != nil {
+ 		return nil, b.err
+@@ -61,7 +63,9 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 		u := &units[i]
+ 		u.base = b.off
+ 		var n Offset
+-		n, u.is64 = b.unitLength()
++		for n == 0 {
++			n, u.is64 = b.unitLength()
++		}
+ 		dataOff := b.off
+ 		vers := b.uint16()
+ 		if vers < 2 || vers > 5 {

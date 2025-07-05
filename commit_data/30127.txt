@@ -36,9 +36,267 @@ Date:   Wed Oct 5 17:50:39 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go         |   7 ++-
  src/runtime/mgcsweep.go    |  29 +++++++---
  src/runtime/mgcsweepbuf.go | 133 +++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/mheap.go       |  12 ++++
  4 files changed, 173 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 6be1ffda99..e162ab8b41 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1684,7 +1684,12 @@ func gcSweep(mode gcMode) {
+ 	lock(&mheap_.lock)
+ 	mheap_.sweepgen += 2
+ 	mheap_.sweepdone = 0
+-	sweep.spanidx = 0
++	if mheap_.sweepSpans[mheap_.sweepgen/2%2].index != 0 {
++		// We should have drained this list during the last
++		// sweep phase. We certainly need to start this phase
++		// with an empty swept list.
++		throw("non-empty swept list")
++	}
+ 	unlock(&mheap_.lock)
+ 
+ 	if !_ConcurrentSweep || mode == gcForceBlockMode {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 947c38e400..8119ade5a5 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -20,10 +20,12 @@ type sweepdata struct {
+ 	parked  bool
+ 	started bool
+ 
+-	spanidx uint32 // background sweeper position
+-
+ 	nbgsweep    uint32
+ 	npausesweep uint32
++
++	// pacertracegen is the sweepgen at which the last pacer trace
++	// "sweep finished" message was printed.
++	pacertracegen uint32
+ }
+ 
+ //go:nowritebarrier
+@@ -91,18 +93,23 @@ func sweepone() uintptr {
+ 	_g_.m.locks++
+ 	sg := mheap_.sweepgen
+ 	for {
+-		idx := atomic.Xadd(&sweep.spanidx, 1) - 1
+-		if idx >= uint32(len(work.spans)) {
++		s := mheap_.sweepSpans[1-sg/2%2].pop()
++		if s == nil {
+ 			mheap_.sweepdone = 1
+ 			_g_.m.locks--
+-			if debug.gcpacertrace > 0 && idx == uint32(len(work.spans)) {
++			if debug.gcpacertrace > 0 && atomic.Cas(&sweep.pacertracegen, sg-2, sg) {
+ 				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+ 			}
+ 			return ^uintptr(0)
+ 		}
+-		s := work.spans[idx]
+ 		if s.state != mSpanInUse {
+-			s.sweepgen = sg
++			// This can happen if direct sweeping already
++			// swept this span, but in that case the sweep
++			// generation should always be up-to-date.
++			if s.sweepgen != sg {
++				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
++				throw("non in-use span in unswept list")
++			}
+ 			continue
+ 		}
+ 		if s.sweepgen != sg-2 || !atomic.Cas(&s.sweepgen, sg-2, sg-1) {
+@@ -110,6 +117,9 @@ func sweepone() uintptr {
+ 		}
+ 		npages := s.npages
+ 		if !s.sweep(false) {
++			// Span is still in-use, so this returned no
++			// pages to the heap and the span needs to
++			// move to the swept in-use list.
+ 			npages = 0
+ 		}
+ 		_g_.m.locks--
+@@ -348,6 +358,11 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		c.local_largefree += size
+ 		res = true
+ 	}
++	if !res {
++		// The span has been swept and is still in-use, so put
++		// it on the swept in-use list.
++		mheap_.sweepSpans[sweepgen/2%2].push(s)
++	}
+ 	if trace.enabled {
+ 		traceGCSweepDone()
+ 	}
+diff --git a/src/runtime/mgcsweepbuf.go b/src/runtime/mgcsweepbuf.go
+new file mode 100644
+index 0000000000..4a7b535e57
+--- /dev/null
++++ b/src/runtime/mgcsweepbuf.go
+@@ -0,0 +1,133 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/atomic"
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++// A gcSweepBuf is a set of *mspans.
++//
++// gcSweepBuf is safe for concurrent push operations *or* concurrent
++// pop operations, but not both simultaneously.
++type gcSweepBuf struct {
++	// A gcSweepBuf is a two-level data structure consisting of a
++	// growable spine that points to fixed-sized blocks. The spine
++	// can be accessed without locks, but adding a block or
++	// growing it requires taking the spine lock.
++	//
++	// Because each mspan covers at least 8K of heap and takes at
++	// most 8 bytes in the gcSweepBuf, the growth of the spine is
++	// quite limited.
++	//
++	// The spine and all blocks are allocated off-heap, which
++	// allows this to be used in the memory manager and avoids the
++	// need for write barriers on all of these. We never release
++	// this memory because there could be concurrent lock-free
++	// access and we're likely to reuse it anyway. (In principle,
++	// we could do this during STW.)
++
++	spineLock mutex
++	spine     unsafe.Pointer // *[N]*gcSweepBlock, accessed atomically
++	spineLen  uintptr        // Spine array length, accessed atomically
++	spineCap  uintptr        // Spine array cap, accessed under lock
++
++	// index is the first unused slot in the logical concatenation
++	// of all blocks. It is accessed atomically.
++	index uint32
++}
++
++const (
++	gcSweepBlockEntries    = 512 // 4KB on 64-bit
++	gcSweepBufInitSpineCap = 256 // Enough for 1GB heap on 64-bit
++)
++
++type gcSweepBlock struct {
++	spans [gcSweepBlockEntries]*mspan
++}
++
++// push adds span s to buffer b. push is safe to call concurrently
++// with other push operations, but NOT to call concurrently with pop.
++func (b *gcSweepBuf) push(s *mspan) {
++	// Obtain our slot.
++	cursor := uintptr(atomic.Xadd(&b.index, +1) - 1)
++	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
++
++	// Do we need to add a block?
++	spineLen := atomic.Loaduintptr(&b.spineLen)
++	var block *gcSweepBlock
++retry:
++	if top < spineLen {
++		spine := atomic.Loadp(unsafe.Pointer(&b.spine))
++		blockp := add(spine, sys.PtrSize*top)
++		block = (*gcSweepBlock)(atomic.Loadp(blockp))
++	} else {
++		// Add a new block to the spine, potentially growing
++		// the spine.
++		lock(&b.spineLock)
++		// spineLen cannot change until we release the lock,
++		// but may have changed while we were waiting.
++		spineLen = atomic.Loaduintptr(&b.spineLen)
++		if top < spineLen {
++			unlock(&b.spineLock)
++			goto retry
++		}
++
++		if spineLen == b.spineCap {
++			// Grow the spine.
++			newCap := b.spineCap * 2
++			if newCap == 0 {
++				newCap = gcSweepBufInitSpineCap
++			}
++			newSpine := persistentalloc(newCap*sys.PtrSize, sys.CacheLineSize, &memstats.gc_sys)
++			if b.spineCap != 0 {
++				// Blocks are allocated off-heap, so
++				// no write barriers.
++				memmove(newSpine, b.spine, b.spineCap*sys.PtrSize)
++			}
++			// Spine is allocated off-heap, so no write barrier.
++			atomic.StorepNoWB(unsafe.Pointer(&b.spine), newSpine)
++			b.spineCap = newCap
++			// We can't immediately free the old spine
++			// since a concurrent push with a lower index
++			// could still be reading from it. We let it
++			// leak because even a 1TB heap would waste
++			// less than 2MB of memory on old spines. If
++			// this is a problem, we could free old spines
++			// during STW.
++		}
++
++		// Allocate a new block and add it to the spine.
++		block = (*gcSweepBlock)(persistentalloc(unsafe.Sizeof(gcSweepBlock{}), sys.CacheLineSize, &memstats.gc_sys))
++		blockp := add(b.spine, sys.PtrSize*top)
++		// Blocks are allocated off-heap, so no write barrier.
++		atomic.StorepNoWB(blockp, unsafe.Pointer(block))
++		atomic.Storeuintptr(&b.spineLen, spineLen+1)
++		unlock(&b.spineLock)
++	}
++
++	// We have a block. Insert the span.
++	block.spans[bottom] = s
++}
++
++// pop removes and returns a span from buffer b, or nil if b is empty.
++// pop is safe to call concurrently with other pop operations, but NOT
++// to call concurrently with push.
++func (b *gcSweepBuf) pop() *mspan {
++	cursor := atomic.Xadd(&b.index, -1)
++	if int32(cursor) < 0 {
++		atomic.Xadd(&b.index, +1)
++		return nil
++	}
++
++	// There are no concurrent spine or block modifications during
++	// pop, so we can omit the atomics.
++	top, bottom := cursor/gcSweepBlockEntries, cursor%gcSweepBlockEntries
++	blockp := (**gcSweepBlock)(add(b.spine, sys.PtrSize*uintptr(top)))
++	block := *blockp
++	return block.spans[bottom]
++}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 62cf8fe267..a34a5eb1e4 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -60,6 +60,17 @@ type mheap struct {
+ 	// mapped. cap(spans) indicates the total reserved memory.
+ 	spans []*mspan
+ 
++	// sweepSpans contains two mspan stacks: one of swept in-use
++	// spans, and one of unswept in-use spans. These two trade
++	// roles on each GC cycle. Since the sweepgen increases by 2
++	// on each cycle, this means the swept spans are in
++	// sweepSpans[sweepgen/2%2] and the unswept spans are in
++	// sweepSpans[1-sweepgen/2%2]. Sweeping pops spans from the
++	// unswept stack and pushes spans that are still in-use on the
++	// swept stack. Likewise, allocating an in-use span pushes it
++	// on the swept stack.
++	sweepSpans [2]gcSweepBuf
++
+ 	_ uint32 // align uint64 fields on 32-bit for atomics
+ 
+ 	// Proportional sweep
+@@ -546,6 +557,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 		// Record span info, because gc needs to be
+ 		// able to map interior pointer to containing span.
+ 		atomic.Store(&s.sweepgen, h.sweepgen)
++		h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
+ 		s.state = _MSpanInUse
+ 		s.allocCount = 0
+ 		s.sizeclass = uint8(sizeclass)

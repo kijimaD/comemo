@@ -8,6 +8,25 @@ Date:   Sun Nov 15 12:57:39 2009 -0800
     
     R=r
     https://golang.org/cl/155054
-
+---
  src/cmd/godefs/main.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godefs/main.c b/src/cmd/godefs/main.c
+index 835bfd9865..9a7734b840 100644
+--- a/src/cmd/godefs/main.c
++++ b/src/cmd/godefs/main.c
+@@ -163,11 +163,11 @@ main(int argc, char **argv)
+ 
+ 	n = 0;
+ 	av[n++] = "gcc";
+-	av[n++] = "-c";
+ 	av[n++] = "-fdollars-in-identifiers";
+ 	av[n++] = "-S";	// write assembly
+ 	av[n++] = "-gstabs";	// include stabs info
+-	av[n++] = "-o-";	// to stdout
++	av[n++] = "-o";	// to ...
++	av[n++] = "-";	// ... stdout
+ 	av[n++] = "-xc";	// read C
+ 
+ 	ARGBEGIN{

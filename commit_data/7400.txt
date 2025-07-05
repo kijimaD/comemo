@@ -7,6 +7,24 @@ Date:   Tue Feb 8 22:30:06 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4145046
-
+---
  lib/codereview/codereview.py | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 94270f840d..96efc855b6 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1146,10 +1146,8 @@ def clpatch(ui, repo, clname, **opts):
+ 	except:
+ 		return "hgpatch: " + ExceptionDetail()
+ 
+-	cmd.stdin.write(patch)
+-	cmd.stdin.close()
+-	out = cmd.stdout.read()
+-	if cmd.wait() != 0 and not opts["ignore_hgpatch_failure"]:
++	out, err = cmd.communicate(patch)
++	if cmd.returncode != 0 and not opts["ignore_hgpatch_failure"]:
+ 		return "hgpatch failed"
+ 	cl.local = True
+ 	cl.files = out.strip().split()

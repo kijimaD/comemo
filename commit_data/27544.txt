@@ -10,7 +10,33 @@ Date:   Fri Apr 1 11:49:25 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/21356
     Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_darwin_arm_gen.go | 2 +-
  src/crypto/x509/root_darwin_armx.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin_arm_gen.go b/src/crypto/x509/root_darwin_arm_gen.go
+index 6b373b9d53..fc2488adc6 100644
+--- a/src/crypto/x509/root_darwin_arm_gen.go
++++ b/src/crypto/x509/root_darwin_arm_gen.go
+@@ -187,6 +187,6 @@ package x509
+ func loadSystemRoots() (*CertPool, error) {
+ 	p := NewCertPool()
+ 	p.AppendCertsFromPEM([]byte(systemRootsPEM))
+-	return p
++	return p, nil
+ }
+ `
+diff --git a/src/crypto/x509/root_darwin_armx.go b/src/crypto/x509/root_darwin_armx.go
+index 66b7051684..ad1c53d8a4 100644
+--- a/src/crypto/x509/root_darwin_armx.go
++++ b/src/crypto/x509/root_darwin_armx.go
+@@ -13,7 +13,7 @@ package x509
+ func loadSystemRoots() (*CertPool, error) {
+ 	p := NewCertPool()
+ 	p.AppendCertsFromPEM([]byte(systemRootsPEM))
+-	return p
++	return p, nil
+ }
+ 
+ const systemRootsPEM = `

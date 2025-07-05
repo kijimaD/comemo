@@ -9,7 +9,7 @@ Date:   Sun Mar 10 16:24:01 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7558044
-
+---
  src/cmd/6l/asm.c         |  58 +-----------
  src/cmd/8l/asm.c         |  58 +-----------
  src/cmd/ld/data.c        |  14 ++-
@@ -20,3 +20,648 @@ Date:   Sun Mar 10 16:24:01 2013 -0400
  src/cmd/ld/macho.h       |   1 +
  src/libmach/executable.c |   1 -
  9 files changed, 231 insertions(+), 170 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 95a161b88a..40bea63bfe 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -448,10 +448,9 @@ addgotsym(Sym *s)
+ void
+ adddynsym(Sym *s)
+ {
+-	Sym *d, *str;
++	Sym *d;
+ 	int t;
+ 	char *name;
+-	vlong off;
+ 
+ 	if(s->dynid >= 0)
+ 		return;
+@@ -515,57 +514,10 @@ adddynsym(Sym *s)
+ 				addstring(lookup(".dynstr", 0), s->dynimplib));
+ 		}
+ 	} else if(HEADTYPE == Hdarwin) {
+-		// Mach-o symbol nlist64
+-		d = lookup(".dynsym", 0);
+-		name = s->dynimpname;
+-		if(name == nil)
+-			name = s->name;
+-		if(d->size == 0 && ndynexp > 0) { // pre-allocate for dynexps
+-			symgrow(d, ndynexp*16);
+-		}
+-		if(s->dynid <= -100) { // pre-allocated, see cmd/ld/go.c:^sortdynexp()
+-			s->dynid = -s->dynid-100;
+-			off = s->dynid*16;
+-		} else {
+-			off = d->size;
+-			s->dynid = off/16;
+-		}
+-		// darwin still puts _ prefixes on all C symbols
+-		str = lookup(".dynstr", 0);
+-		setuint32(d, off, str->size);
+-		off += 4;
+-		adduint8(str, '_');
+-		addstring(str, name);
+-		if(s->type == SDYNIMPORT) {
+-			setuint8(d, off, 0x01); // type - N_EXT - external symbol
+-			off++;
+-			setuint8(d, off, 0); // section
+-			off++;
+-		} else {
+-			setuint8(d, off, 0x0f);
+-			off++;
+-			switch(s->type) {
+-			default:
+-			case STEXT:
+-				setuint8(d, off, 1);
+-				break;
+-			case SDATA:
+-				setuint8(d, off, 2);
+-				break;
+-			case SBSS:
+-				setuint8(d, off, 4);
+-				break;
+-			}
+-			off++;
+-		}
+-		setuint16(d, off, 0); // desc
+-		off += 2;
+-		if(s->type == SDYNIMPORT)
+-			setuint64(d, off, 0); // value
+-		else
+-			setaddr(d, off, s);
+-		off += 8;
+-	} else if(HEADTYPE != Hwindows) {
++		diag("adddynsym: missed symbol %s (%s)", s->name, s->dynimpname);
++	} else if(HEADTYPE == Hwindows) {
++		// already taken care of
++	} else {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+ }
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 1ac265aaa7..683eeba109 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -428,10 +428,9 @@ addgotsym(Sym *s)
+ void
+ adddynsym(Sym *s)
+ {
+-	Sym *d, *str;
++	Sym *d;
+ 	int t;
+ 	char *name;
+-	vlong off;
+ 	
+ 	if(s->dynid >= 0)
+ 		return;
+@@ -490,57 +489,10 @@ adddynsym(Sym *s)
+ 			adduint16(d, t);
+ 		}
+ 	} else if(HEADTYPE == Hdarwin) {
+-		// Mach-O symbol nlist32
+-		d = lookup(".dynsym", 0);
+-		name = s->dynimpname;
+-		if(name == nil)
+-			name = s->name;
+-		if(d->size == 0 && ndynexp > 0) { // pre-allocate for dynexps
+-			symgrow(d, ndynexp*12);
+-		}
+-		if(s->dynid <= -100) { // pre-allocated, see cmd/ld/go.c:^sortdynexp()
+-			s->dynid = -s->dynid-100;
+-			off = s->dynid*12;
+-		} else {
+-			off = d->size;
+-			s->dynid = off/12;
+-		}
+-		// darwin still puts _ prefixes on all C symbols
+-		str = lookup(".dynstr", 0);
+-		setuint32(d, off, str->size);
+-		off += 4;
+-		adduint8(str, '_');
+-		addstring(str, name);
+-		if(s->type == SDYNIMPORT) {
+-			setuint8(d, off, 0x01); // type - N_EXT - external symbol
+-			off++;
+-			setuint8(d, off, 0); // section
+-			off++;
+-		} else {
+-			setuint8(d, off, 0x0f);
+-			off++;
+-			switch(s->type) {
+-			default:
+-			case STEXT:
+-				setuint8(d, off, 1);
+-				break;
+-			case SDATA:
+-				setuint8(d, off, 2);
+-				break;
+-			case SBSS:
+-				setuint8(d, off, 4);
+-				break;
+-			}
+-			off++;
+-		}
+-		setuint16(d, off, 0); // desc
+-		off += 2;
+-		if(s->type == SDYNIMPORT)
+-			setuint32(d, off, 0); // value
+-		else
+-			setaddr(d, off, s);
+-		off += 4;
+-	} else if(HEADTYPE != Hwindows) {
++		diag("adddynsym: missed symbol %s (%s)", s->name, s->dynimpname);
++	} else if(HEADTYPE == Hwindows) {
++		// already taken care of
++	} else {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+ }
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 10dba90305..3e2af0adb3 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -33,6 +33,7 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
++#include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+ #include	"../../pkg/runtime/mgc0.h"
+ 
+@@ -943,7 +944,7 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
+ void
+ dodata(void)
+ {
+-	int32 datsize;
++	int32 n, datsize;
+ 	Section *sect;
+ 	Sym *s, *last, **l;
+ 	Sym *gcdata1, *gcbss1;
+@@ -992,7 +993,11 @@ dodata(void)
+ 	 * to assign addresses, record all the necessary
+ 	 * dynamic relocations.  these will grow the relocation
+ 	 * symbol, which is itself data.
++	 *
++	 * on darwin, we need the symbol table numbers for dynreloc.
+ 	 */
++	if(HEADTYPE == Hdarwin)
++		machosymorder();
+ 	dynreloc();
+ 
+ 	/* some symbols may no longer belong in datap (Mach-O) */
+@@ -1218,6 +1223,13 @@ dodata(void)
+ 		datsize += s->size;
+ 		sect->len = datsize - sect->vaddr;
+ 	}
++	
++	/* number the sections */
++	n = 1;
++	for(sect = segtext.sect; sect != nil; sect = sect->next)
++		sect->extnum = n++;
++	for(sect = segdata.sect; sect != nil; sect = sect->next)
++		sect->extnum = n++;
+ }
+ 
+ // assign addresses to text
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 403b800b9b..246d73c23f 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -773,6 +773,9 @@ addexport(void)
+ {
+ 	int i;
+ 	
++	if(HEADTYPE == Hdarwin)
++		return;
++
+ 	for(i=0; i<ndynexp; i++)
+ 		adddynsym(dynexp[i]);
+ }
+@@ -920,28 +923,3 @@ importcycles(void)
+ 	for(p=pkgall; p; p=p->all)
+ 		cycle(p);
+ }
+-
+-static int
+-scmp(const void *p1, const void *p2)
+-{
+-	Sym *s1, *s2;
+-
+-	s1 = *(Sym**)p1;
+-	s2 = *(Sym**)p2;
+-	return strcmp(s1->dynimpname, s2->dynimpname);
+-}
+-void
+-sortdynexp(void)
+-{
+-	int i;
+-
+-	// On Mac OS X Mountain Lion, we must sort exported symbols
+-	// So we sort them here and pre-allocate dynid for them
+-	// See http://golang.org/issue/4029
+-	if(HEADTYPE != Hdarwin)
+-		return;
+-	qsort(dynexp, ndynexp, sizeof dynexp[0], scmp);
+-	for(i=0; i<ndynexp; i++) {
+-		dynexp[i]->dynid = -i-100; // also known to [68]l/asm.c:^adddynsym
+-	}
+-}
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 5a5cbd0a15..5468c7b0e7 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -336,7 +336,6 @@ loadlib(void)
+ 		debug['d'] = 1;
+ 	
+ 	importcycles();
+-	sortdynexp();
+ }
+ 
+ /*
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 4e18bf2677..e5dcdc353c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -54,8 +54,8 @@ enum
+ 	SNOPTRBSS,
+ 
+ 	SXREF,
+-	SMACHODYNSTR,
+-	SMACHODYNSYM,
++	SMACHOSYMSTR,
++	SMACHOSYMTAB,
+ 	SMACHOINDIRECTPLT,
+ 	SMACHOINDIRECTGOT,
+ 	SFILE,
+@@ -102,6 +102,7 @@ struct Segment
+ struct Section
+ {
+ 	uchar	rwx;
++	int16	extnum;
+ 	int32	align;
+ 	char	*name;
+ 	uvlong	vaddr;
+@@ -224,6 +225,7 @@ vlong	adduint8(Sym*, uint8);
+ vlong	adduint16(Sym*, uint16);
+ vlong	adduint32(Sym*, uint32);
+ vlong	adduint64(Sym*, uint64);
++vlong	adduintxx(Sym*, uint64, int);
+ vlong	addaddr(Sym*, Sym*);
+ vlong	addaddrplus(Sym*, Sym*, int32);
+ vlong	addpcrelplus(Sym*, Sym*, int32);
+@@ -380,5 +382,3 @@ char*	decodetype_structfieldname(Sym*, int);
+ Sym*	decodetype_structfieldtype(Sym*, int);
+ vlong	decodetype_structfieldoffs(Sym*, int);
+ vlong	decodetype_ifacemethodcount(Sym*);
+-
+-void	sortdynexp(void);
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index a282987de2..be85bf8093 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -16,6 +16,18 @@ static	MachoLoad	*load;
+ static	MachoSeg	seg[16];
+ static	int	nload, mload, nseg, ndebug, nsect;
+ 
++enum
++{
++	SymKindLocal = 0,
++	SymKindExtdef,
++	SymKindUndef,
++	NumSymKind
++};
++
++static	int nkind[NumSymKind];
++static	Sym** sortsym;
++static	int	nsortsym;
++
+ // Amount of space left for adding load commands
+ // that refer to dynamic libraries.  Because these have
+ // to go in the Mach-O header, we can't just pick a
+@@ -24,6 +36,8 @@ static	int	nload, mload, nseg, ndebug, nsect;
+ // up about 1300 bytes; we overestimate that as 2k.
+ static	int	load_budget = INITIAL_MACHO_HEADR - 2*1024;
+ 
++static	void	machodysymtab(void);
++
+ void
+ machoinit(void)
+ {
+@@ -221,14 +235,14 @@ domacho(void)
+ 		return;
+ 
+ 	// empirically, string table must begin with " \x00".
+-	s = lookup(".dynstr", 0);
+-	s->type = SMACHODYNSTR;
++	s = lookup(".machosymstr", 0);
++	s->type = SMACHOSYMSTR;
+ 	s->reachable = 1;
+ 	adduint8(s, ' ');
+ 	adduint8(s, '\0');
+ 	
+-	s = lookup(".dynsym", 0);
+-	s->type = SMACHODYNSYM;
++	s = lookup(".machosymtab", 0);
++	s->type = SMACHOSYMTAB;
+ 	s->reachable = 1;
+ 	
+ 	s = lookup(".plt", 0);	// will be __symbol_stub
+@@ -286,14 +300,15 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
+ 		msect->align++;
+ 	msect->addr = sect->vaddr;
+ 	msect->size = sect->len;
+-	msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
+ 	
+ 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen) {
+ 		// data in file
+ 		if(sect->len > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
+ 			diag("macho cannot represent section %s crossing data and bss", sect->name);
++		msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
+ 	} else {
+ 		// zero fill
++		msect->off = 0;
+ 		msect->flag |= 1;
+ 	}
+ 
+@@ -303,7 +318,7 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
+ 	if(strcmp(sect->name, ".plt") == 0) {
+ 		msect->name = "__symbol_stub1";
+ 		msect->flag = 0x80000408; /* only instructions, code, symbol stubs */
+-		msect->res1 = 0;
++		msect->res1 = 0;//nkind[SymKindLocal];
+ 		msect->res2 = 6;
+ 	}
+ 
+@@ -390,15 +405,15 @@ asmbmacho(void)
+ 		ml->data[2+10] = entryvalue();	/* start pc */
+ 		break;
+ 	}
+-
++	
+ 	if(!debug['d']) {
+ 		Sym *s1, *s2, *s3, *s4;
+ 
+ 		// must match domacholink below
+-		s1 = lookup(".dynsym", 0);
++		s1 = lookup(".machosymtab", 0);
+ 		s2 = lookup(".linkedit.plt", 0);
+ 		s3 = lookup(".linkedit.got", 0);
+-		s4 = lookup(".dynstr", 0);
++		s4 = lookup(".machosymstr", 0);
+ 
+ 		ms = newMachoSeg("__LINKEDIT", 0);
+ 		ms->vaddr = va+v+rnd(segdata.len, INITRND);
+@@ -410,29 +425,11 @@ asmbmacho(void)
+ 
+ 		ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
+ 		ml->data[0] = linkoff;	/* symoff */
+-		ml->data[1] = s1->size / (macho64 ? 16 : 12);	/* nsyms */
++		ml->data[1] = nsortsym;	/* nsyms */
+ 		ml->data[2] = linkoff + s1->size + s2->size + s3->size;	/* stroff */
+ 		ml->data[3] = s4->size;	/* strsize */
+ 
+-		ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
+-		ml->data[0] = 0;	/* ilocalsym */
+-		ml->data[1] = 0;	/* nlocalsym */
+-		ml->data[2] = 0;	/* iextdefsym */
+-		ml->data[3] = ndynexp;	/* nextdefsym */
+-		ml->data[4] = ndynexp;	/* iundefsym */
+-		ml->data[5] = (s1->size / (macho64 ? 16 : 12)) - ndynexp;	/* nundefsym */
+-		ml->data[6] = 0;	/* tocoffset */
+-		ml->data[7] = 0;	/* ntoc */
+-		ml->data[8] = 0;	/* modtaboff */
+-		ml->data[9] = 0;	/* nmodtab */
+-		ml->data[10] = 0;	/* extrefsymoff */
+-		ml->data[11] = 0;	/* nextrefsyms */
+-		ml->data[12] = linkoff + s1->size;	/* indirectsymoff */
+-		ml->data[13] = (s2->size + s3->size) / 4;	/* nindirectsyms */
+-		ml->data[14] = 0;	/* extreloff */
+-		ml->data[15] = 0;	/* nextrel */
+-		ml->data[16] = 0;	/* locreloff */
+-		ml->data[17] = 0;	/* nlocrel */
++		machodysymtab();
+ 
+ 		ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
+ 		ml->data[0] = 12;	/* offset to string */
+@@ -456,18 +453,188 @@ asmbmacho(void)
+ 		diag("HEADR too small: %d > %d", a, HEADR);
+ }
+ 
++static int
++symkind(Sym *s)
++{
++	if(s->type == SDYNIMPORT)
++		return SymKindUndef;
++	if(s->dynimpname)
++		return SymKindExtdef;
++	return SymKindLocal;
++}
++
++static void
++addsym(Sym *s, char *name, int type, vlong addr, vlong size, int ver, Sym *gotype)
++{
++	USED(name);
++	USED(addr);
++	USED(size);
++	USED(ver);
++	USED(gotype);
++
++	if(s == nil)
++		return;
++
++	switch(type) {
++	default:
++		return;
++	case 'D':
++	case 'B':
++	case 'T':
++		break;
++	}
++	
++	if(sortsym) {
++		sortsym[nsortsym] = s;
++		nkind[symkind(s)]++;
++	}
++	nsortsym++;
++}
++
++static char*
++xsymname(Sym *s)
++{
++	if(s->dynimpname != nil)
++		return s->dynimpname;
++	return s->name;
++}
++	
++static int
++scmp(const void *p1, const void *p2)
++{
++	Sym *s1, *s2;
++	int k1, k2;
++
++	s1 = *(Sym**)p1;
++	s2 = *(Sym**)p2;
++	
++	k1 = symkind(s1);
++	k2 = symkind(s2);
++	if(k1 != k2)
++		return k1 - k2;
++
++	return strcmp(xsymname(s1), xsymname(s2));
++}
++
++static void
++machogenasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
++{
++	Sym *s;
++
++	genasmsym(put);
++	for(s=allsym; s; s=s->allsym)
++		if(s->type == SDYNIMPORT)
++			put(s, nil, 'D', 0, 0, 0, nil);
++}
++			
++void
++machosymorder(void)
++{
++	int i;
++
++	// On Mac OS X Mountain Lion, we must sort exported symbols
++	// So we sort them here and pre-allocate dynid for them
++	// See http://golang.org/issue/4029
++	for(i=0; i<ndynexp; i++)
++		dynexp[i]->reachable = 1;
++	machogenasmsym(addsym);
++	sortsym = mal(nsortsym * sizeof sortsym[0]);
++	nsortsym = 0;
++	machogenasmsym(addsym);
++	qsort(sortsym, nsortsym, sizeof sortsym[0], scmp);
++	for(i=0; i<nsortsym; i++)
++		sortsym[i]->dynid = i;
++}
++
++static void
++machosymtab(void)
++{
++	int i;
++	Sym *symtab, *symstr, *s, *o;
++
++	symtab = lookup(".machosymtab", 0);
++	symstr = lookup(".machosymstr", 0);
++
++	for(i=0; i<nsortsym; i++) {
++		s = sortsym[i];
++		adduint32(symtab, symstr->size);
++		adduint8(symstr, '_');
++		addstring(symstr, xsymname(s));
++		if(s->type == SDYNIMPORT) {
++			adduint8(symtab, 0x01); // type N_EXT, external symbol
++			adduint8(symtab, 0); // no section
++			adduint16(symtab, 0); // desc
++			adduintxx(symtab, 0, PtrSize); // no value
++		} else {
++			adduint8(symtab, 0x0f);
++			o = s;
++			while(o->outer != nil)
++				o = o->outer;
++			if(o->sect == nil) {
++				diag("missing section for %s", s->name);
++				adduint8(symtab, 0);
++			} else
++				adduint8(symtab, o->sect->extnum);
++			adduint16(symtab, 0); // desc
++			adduintxx(symtab, symaddr(s), PtrSize);
++		}
++	}
++}
++
++static void
++machodysymtab(void)
++{
++	int n;
++	MachoLoad *ml;
++	Sym *s1, *s2, *s3;
++
++	ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
++
++	n = 0;
++	ml->data[0] = n;	/* ilocalsym */
++	ml->data[1] = nkind[SymKindLocal];	/* nlocalsym */
++	n += nkind[SymKindLocal];
++
++	ml->data[2] = n;	/* iextdefsym */
++	ml->data[3] = nkind[SymKindExtdef];	/* nextdefsym */
++	n += nkind[SymKindExtdef];
++
++	ml->data[4] = n;	/* iundefsym */
++	ml->data[5] = nkind[SymKindUndef];	/* nundefsym */
++
++	ml->data[6] = 0;	/* tocoffset */
++	ml->data[7] = 0;	/* ntoc */
++	ml->data[8] = 0;	/* modtaboff */
++	ml->data[9] = 0;	/* nmodtab */
++	ml->data[10] = 0;	/* extrefsymoff */
++	ml->data[11] = 0;	/* nextrefsyms */
++
++	// must match domacholink below
++	s1 = lookup(".machosymtab", 0);
++	s2 = lookup(".linkedit.plt", 0);
++	s3 = lookup(".linkedit.got", 0);
++	ml->data[12] = linkoff + s1->size;	/* indirectsymoff */
++	ml->data[13] = (s2->size + s3->size) / 4;	/* nindirectsyms */
++
++	ml->data[14] = 0;	/* extreloff */
++	ml->data[15] = 0;	/* nextrel */
++	ml->data[16] = 0;	/* locreloff */
++	ml->data[17] = 0;	/* nlocrel */
++}
++
+ vlong
+ domacholink(void)
+ {
+ 	int size;
+ 	Sym *s1, *s2, *s3, *s4;
+ 
++	machosymtab();
++
+ 	// write data that will be linkedit section
+-	s1 = lookup(".dynsym", 0);
+-	relocsym(s1);
++	s1 = lookup(".machosymtab", 0);
+ 	s2 = lookup(".linkedit.plt", 0);
+ 	s3 = lookup(".linkedit.got", 0);
+-	s4 = lookup(".dynstr", 0);
++	s4 = lookup(".machosymstr", 0);
+ 
+ 	// Force the linkedit section to end on a 16-byte
+ 	// boundary.  This allows pure (non-cgo) Go binaries
+@@ -503,3 +670,4 @@ domacholink(void)
+ 
+ 	return rnd(size, INITRND);
+ }
++
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index 4499bb06fe..59900c9402 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -51,6 +51,7 @@ MachoSect*	newMachoSect(MachoSeg*, char*, char*);
+ MachoLoad*	newMachoLoad(uint32, uint32);
+ int	machowrite(void);
+ void	machoinit(void);
++void	machosymorder(void);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 1dd81dc9c9..91c0cbe76b 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -1186,7 +1186,6 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 				textsize = seg->vmsize;
+ 				sect = (MachSect64*)(cmdp + sizeof(MachSeg64));
+ 				for(j = 0; j < seg->nsects; j++, sect++) {
+-print("%s %#x %#x\n", sect->sectname, swal(sect->offset), swal(sect->size));
+ 					if (strcmp(sect->sectname, "__gosymtab") == 0) {
+ 						symoff = swal(sect->offset);
+ 						symsize = swal(sect->size);

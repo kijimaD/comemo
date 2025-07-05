@@ -41,7 +41,33 @@ Date:   Fri May 2 14:18:03 2025 -0400
     Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/asm_amd64.s | 1 +
  src/runtime/asm_arm64.s | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 9c262a7ce8..14e2ea6686 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -452,6 +452,7 @@ goodm:
+ 	get_tls(CX)		// Set G in TLS
+ 	MOVQ	R14, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(R14), SP	// sp = g0.sched.sp
++	MOVQ	$0, BP	// clear frame pointer, as caller may execute on another M
+ 	PUSHQ	AX	// open up space for fn's arg spill slot
+ 	MOVQ	0(DX), R12
+ 	CALL	R12		// fn(g)
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6c447ac23c..18d2dc5d57 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -233,7 +233,7 @@ TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+ 
+ 	MOVD	(g_sched+gobuf_sp)(g), R0
+ 	MOVD	R0, RSP	// sp = m->g0->sched.sp
+-	MOVD	(g_sched+gobuf_bp)(g), R29
++	MOVD	$0, R29				// clear frame pointer, as caller may execute on another M
+ 	MOVD	R3, R0				// arg = g
+ 	MOVD	$0, -16(RSP)			// dummy LR
+ 	SUB	$16, RSP

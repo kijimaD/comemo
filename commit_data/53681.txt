@@ -18,8 +18,128 @@ Date:   Mon Aug 22 13:33:56 2022 -0700
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/export_test.go |  3 +++
  src/time/format.go      | 23 ++++++++++++++---------
  src/time/format_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 61 insertions(+), 9 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index b450aec01f..afe1560dea 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -132,3 +132,6 @@ var StdChunkNames = map[int]string{
+ }
+ 
+ var Quote = quote
++
++var AppendFormatAny = Time.appendFormat
++var AppendFormatRFC3339 = Time.appendFormatRFC3339
+diff --git a/src/time/format.go b/src/time/format.go
+index c32861c6db..6d5da323dc 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -618,6 +618,17 @@ func (t Time) Format(layout string) string {
+ // AppendFormat is like Format but appends the textual
+ // representation to b and returns the extended buffer.
+ func (t Time) AppendFormat(b []byte, layout string) []byte {
++	switch layout {
++	case RFC3339:
++		return t.appendFormatRFC3339(b, false)
++	case RFC3339Nano:
++		return t.appendFormatRFC3339(b, true)
++	default:
++		return t.appendFormat(b, layout)
++	}
++}
++
++func (t Time) appendFormat(b []byte, layout string) []byte {
+ 	var (
+ 		name, offset, abs = t.locabs()
+ 
+@@ -630,14 +641,6 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 		sec   int
+ 	)
+ 
+-	// Handle most frequent layouts separately.
+-	switch layout {
+-	case RFC3339:
+-		return t.appendFormatRFC3339(b, abs, offset, false)
+-	case RFC3339Nano:
+-		return t.appendFormatRFC3339(b, abs, offset, true)
+-	}
+-
+ 	// Each iteration generates one std value.
+ 	for layout != "" {
+ 		prefix, std, suffix := nextStdChunk(layout)
+@@ -793,7 +796,9 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 	return b
+ }
+ 
+-func (t Time) appendFormatRFC3339(b []byte, abs uint64, offset int, nanos bool) []byte {
++func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
++	_, offset, abs := t.locabs()
++
+ 	// Format date.
+ 	year, month, day, _ := absDate(abs, true)
+ 	b = appendInt(b, year, 4)
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 5c18ef45de..4880e1703c 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -5,7 +5,9 @@
+ package time_test
+ 
+ import (
++	"bytes"
+ 	"fmt"
++	"math"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -911,3 +913,45 @@ func TestParseFractionalSecondsLongerThanNineDigits(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func FuzzFormatRFC3339(f *testing.F) {
++	for _, ts := range [][2]int64{
++		{math.MinInt64, math.MinInt64}, // 292277026304-08-26T15:42:51Z
++		{-62167219200, 0},              // 0000-01-01T00:00:00Z
++		{1661201140, 676836973},        // 2022-08-22T20:45:40.676836973Z
++		{253402300799, 999999999},      // 9999-12-31T23:59:59.999999999Z
++		{math.MaxInt64, math.MaxInt64}, // -292277022365-05-08T08:17:07Z
++	} {
++		f.Add(ts[0], ts[1], true, false, 0)
++		f.Add(ts[0], ts[1], false, true, 0)
++		for _, offset := range []int{0, 60, 60 * 60, 99*60*60 + 99*60, 123456789} {
++			f.Add(ts[0], ts[1], false, false, -offset)
++			f.Add(ts[0], ts[1], false, false, +offset)
++		}
++	}
++
++	f.Fuzz(func(t *testing.T, sec, nsec int64, useUTC, useLocal bool, tzOffset int) {
++		var loc *Location
++		switch {
++		case useUTC:
++			loc = UTC
++		case useLocal:
++			loc = Local
++		default:
++			loc = FixedZone("", tzOffset)
++		}
++		ts := Unix(sec, nsec).In(loc)
++
++		got := AppendFormatRFC3339(ts, nil, false)
++		want := AppendFormatAny(ts, nil, RFC3339)
++		if !bytes.Equal(got, want) {
++			t.Errorf("Format(%s, RFC3339) mismatch:\n\tgot:  %s\n\twant: %s", ts, got, want)
++		}
++
++		gotNanos := AppendFormatRFC3339(ts, nil, true)
++		wantNanos := AppendFormatAny(ts, nil, RFC3339Nano)
++		if !bytes.Equal(got, want) {
++			t.Errorf("Format(%s, RFC3339Nano) mismatch:\n\tgot:  %s\n\twant: %s", ts, gotNanos, wantNanos)
++		}
++	})
++}

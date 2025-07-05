@@ -11,6 +11,34 @@ Date:   Mon Jan 6 21:12:03 2025 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/rsa/fips.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index 24dfb38cf6..347775df16 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -67,6 +67,11 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
+ 		return nil, err
+ 	}
++
++	if opts != nil && opts.Hash != 0 {
++		hash = opts.Hash
++	}
++
+ 	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
+ 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+ 	}
+@@ -74,10 +79,6 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+ 	}
+ 
+-	if opts != nil && opts.Hash != 0 {
+-		hash = opts.Hash
+-	}
+-
+ 	if boring.Enabled && rand == boring.RandReader {
+ 		bkey, err := boringPrivateKey(priv)
+ 		if err != nil {

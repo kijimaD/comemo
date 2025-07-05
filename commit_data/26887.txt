@@ -18,8 +18,88 @@ Date:   Tue Mar 1 21:18:56 2016 +0100
     Change-Id: Ia6a6bf396668dcba9a24f025a08d8826db31f434
     Reviewed-on: https://go-review.googlesource.com/20093
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/main.go            | 6 +++---
  src/cmd/vet/shadow.go          | 4 ++--
  src/cmd/vet/testdata/shadow.go | 8 ++++----
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index fc3873997b..c401fed0b4 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -435,17 +435,17 @@ func (f *File) loc(pos token.Pos) string {
+ 	// expression instead of the inner part with the actual error, the
+ 	// precision can mislead.
+ 	posn := f.fset.Position(pos)
+-	return fmt.Sprintf("%s:%d: ", posn.Filename, posn.Line)
++	return fmt.Sprintf("%s:%d", posn.Filename, posn.Line)
+ }
+ 
+ // Warn reports an error but does not set the exit code.
+ func (f *File) Warn(pos token.Pos, args ...interface{}) {
+-	fmt.Fprint(os.Stderr, f.loc(pos)+fmt.Sprintln(args...))
++	fmt.Fprintf(os.Stderr, "%s: %s", f.loc(pos), fmt.Sprintln(args...))
+ }
+ 
+ // Warnf reports a formatted error but does not set the exit code.
+ func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
+-	fmt.Fprintf(os.Stderr, f.loc(pos)+format+"\n", args...)
++	fmt.Fprintf(os.Stderr, "%s: %s\n", f.loc(pos), fmt.Sprintf(format, args...))
+ }
+ 
+ // walkFile walks the file's tree.
+diff --git a/src/cmd/vet/shadow.go b/src/cmd/vet/shadow.go
+index 5d0d6b5bf5..29c952fd88 100644
+--- a/src/cmd/vet/shadow.go
++++ b/src/cmd/vet/shadow.go
+@@ -232,7 +232,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
+ 		// the shadowing identifier.
+ 		span, ok := f.pkg.spans[shadowed]
+ 		if !ok {
+-			f.Badf(ident.Pos(), "internal error: no range for %s", ident.Name)
++			f.Badf(ident.Pos(), "internal error: no range for %q", ident.Name)
+ 			return
+ 		}
+ 		if !span.contains(ident.Pos()) {
+@@ -241,6 +241,6 @@ func checkShadowing(f *File, ident *ast.Ident) {
+ 	}
+ 	// Don't complain if the types differ: that implies the programmer really wants two different things.
+ 	if types.Identical(obj.Type(), shadowed.Type()) {
+-		f.Badf(ident.Pos(), "declaration of %s shadows declaration at %s", obj.Name(), f.loc(shadowed.Pos()))
++		f.Badf(ident.Pos(), "declaration of %q shadows declaration at %s", obj.Name(), f.loc(shadowed.Pos()))
+ 	}
+ }
+diff --git a/src/cmd/vet/testdata/shadow.go b/src/cmd/vet/testdata/shadow.go
+index 241109f4ee..3b61137b87 100644
+--- a/src/cmd/vet/testdata/shadow.go
++++ b/src/cmd/vet/testdata/shadow.go
+@@ -17,7 +17,7 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
+ 		_ = err
+ 	}
+ 	if f != nil {
+-		_, err := f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
++		_, err := f.Read(buf) // ERROR "declaration of .err. shadows declaration at testdata/shadow.go:13"
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -25,8 +25,8 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
+ 		_ = i
+ 	}
+ 	if f != nil {
+-		x := one()               // ERROR "declaration of x shadows declaration at testdata/shadow.go:14"
+-		var _, err = f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
++		x := one()               // ERROR "declaration of .x. shadows declaration at testdata/shadow.go:14"
++		var _, err = f.Read(buf) // ERROR "declaration of .err. shadows declaration at testdata/shadow.go:13"
+ 		if x == 1 && err != nil {
+ 			return err
+ 		}
+@@ -46,7 +46,7 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
+ 	if shadowTemp := shadowTemp; true { // OK: obviously intentional idiomatic redeclaration
+ 		var f *os.File // OK because f is not mentioned later in the function.
+ 		// The declaration of x is a shadow because x is mentioned below.
+-		var x int // ERROR "declaration of x shadows declaration at testdata/shadow.go:14"
++		var x int // ERROR "declaration of .x. shadows declaration at testdata/shadow.go:14"
+ 		_, _, _ = x, f, shadowTemp
+ 	}
+ 	// Use a couple of variables to trigger shadowing errors.

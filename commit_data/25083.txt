@@ -13,6 +13,37 @@ Date:   Thu Sep 17 23:26:39 2015 -0500
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index a4e0da8eaa..d05e87b0db 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -146,3 +146,25 @@ func ExampleRegexp_SubexpNames() {
+ 	// ${last} ${first}
+ 	// Turing Alan
+ }
++
++func ExampleRegexp_Split() {
++	a := regexp.MustCompile("a")
++	fmt.Println(a.Split("banana", -1))
++	fmt.Println(a.Split("banana", 0))
++	fmt.Println(a.Split("banana", 1))
++	fmt.Println(a.Split("banana", 2))
++	zp := regexp.MustCompile("z+")
++	fmt.Println(zp.Split("pizza", -1))
++	fmt.Println(zp.Split("pizza", 0))
++	fmt.Println(zp.Split("pizza", 1))
++	fmt.Println(zp.Split("pizza", 2))
++	// Output:
++	// [b n n ]
++	// []
++	// [banana]
++	// [b nana]
++	// [pi a]
++	// []
++	// [pizza]
++	// [pi a]
++}

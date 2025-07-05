@@ -12,6 +12,28 @@ Date:   Fri Jan 27 16:34:00 2023 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 72c4c02bf2..5c1b0fc64d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1287,14 +1287,12 @@ func cmdbootstrap() {
+ 	timelog("start", "dist bootstrap")
+ 	defer timelog("end", "dist bootstrap")
+ 
+-	var noBanner, noClean bool
+-	var debug bool
+-	var force bool
++	var debug, force, noBanner, noClean bool
+ 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
+ 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
++	flag.BoolVar(&force, "force", force, "build even if the port is marked as broken")
+ 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
+ 	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
+-	flag.BoolVar(&force, "force", force, "build even if the port is marked as broken")
+ 
+ 	xflagparse(0)
+ 

@@ -9,6 +9,34 @@ Date:   Tue Jun 11 20:47:35 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/10191043
-
+---
  src/cmd/go/build.go | 15 ++++++++-------
  1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3a6577d1ee..e8f390483c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1110,14 +1110,15 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode) error {
+ }
+ 
+ // cover runs, in effect,
+-//	go tool cover -mode=b.coverMode -count="count" -pos="pos" src.go >dst.go
++//	go tool cover -mode=b.coverMode -count="count" -pos="pos" -o dst.go src.go
+ func (b *builder) cover(a *action, dst, src string, perm os.FileMode, count, pos string) error {
+-	out, err := b.runOut(a.objdir, "cover "+a.p.ImportPath, nil, tool("cover"), "-mode="+a.p.coverMode, "-count="+count, "-pos="+pos, src)
+-	if err != nil {
+-		return err
+-	}
+-	// Output is processed source code. Write it to destination.
+-	return ioutil.WriteFile(dst, out, perm)
++	return b.run(a.objdir, "cover "+a.p.ImportPath, nil,
++		tool("cover"),
++		"-mode", a.p.coverMode,
++		"-count", count,
++		"-pos", pos,
++		"-o", dst,
++		src)
+ }
+ 
+ var objectMagic = [][]byte{

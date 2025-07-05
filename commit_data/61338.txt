@@ -16,7 +16,7 @@ Date:   Mon Sep 23 14:46:09 2024 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/reflectdata/map_swiss.go  |  9 +++----
  src/internal/runtime/maps/map.go                   | 17 ++++++++----
  src/internal/runtime/maps/runtime_fast32_swiss.go  |  8 +++---
@@ -26,3 +26,388 @@ Date:   Mon Sep 23 14:46:09 2024 -0400
  src/internal/runtime/maps/table.go                 | 30 ++++++++--------------
  src/internal/runtime/maps/table_debug.go           | 20 +++++++--------
  8 files changed, 46 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index 4b1166347b..d2fa1a881e 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -104,8 +104,6 @@ func swissTableType() *types.Type {
+ 	//     localDepth uint8
+ 	//     // N.B Padding
+ 	//
+-	//     seed uintptr
+-	//
+ 	//     index int
+ 	//
+ 	//     // From groups.
+@@ -119,7 +117,6 @@ func swissTableType() *types.Type {
+ 		makefield("capacity", types.Types[types.TUINT16]),
+ 		makefield("growthLeft", types.Types[types.TUINT16]),
+ 		makefield("localDepth", types.Types[types.TUINT8]),
+-		makefield("seed", types.Types[types.TUINTPTR]),
+ 		makefield("index", types.Types[types.TINT]),
+ 		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
+ 		makefield("groups_lengthMask", types.Types[types.TUINT64]),
+@@ -134,9 +131,9 @@ func swissTableType() *types.Type {
+ 	table.SetUnderlying(types.NewStruct(fields))
+ 	types.CalcSize(table)
+ 
+-	// The size of table should be 48 bytes on 64 bit
+-	// and 36 bytes on 32 bit platforms.
+-	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 3*types.PtrSize); table.Size() != size {
++	// The size of table should be 40 bytes on 64 bit
++	// and 32 bytes on 32 bit platforms.
++	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 2*types.PtrSize); table.Size() != size {
+ 		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index d9df9fd015..80de397d31 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -197,7 +197,6 @@ type Map struct {
+ 	used uint64
+ 
+ 	// seed is the hash seed, computed as a unique random number per map.
+-	// TODO(prattmic): Populate this on table initialization.
+ 	seed uintptr
+ 
+ 	// The directory of tables.
+@@ -293,10 +292,7 @@ func NewMap(mt *abi.SwissMapType, hint, maxAlloc uintptr) *Map {
+ 	}
+ 
+ 	m := &Map{
+-		//TODO
+-		//seed: uintptr(rand()),
+-
+-		//directory: make([]*table, dirSize),
++		seed: uintptr(rand()),
+ 
+ 		globalDepth: globalDepth,
+ 		globalShift: depthToShift(globalDepth),
+@@ -654,6 +650,13 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
+ 		m.directoryAt(idx).Delete(typ, m, key)
+ 	}
+ 
++	if m.used == 0 {
++		// Reset the hash seed to make it more difficult for attackers
++		// to repeatedly trigger hash collisions. See
++		// https://go.dev/issue/25237.
++		m.seed = uintptr(rand())
++	}
++
+ 	if m.writing == 0 {
+ 		fatal("concurrent map writes")
+ 	}
+@@ -735,6 +738,10 @@ func (m *Map) Clear(typ *abi.SwissMapType) {
+ 		// TODO: shrink directory?
+ 	}
+ 
++	// Reset the hash seed to make it more difficult for attackers to
++	// repeatedly trigger hash collisions. See https://go.dev/issue/25237.
++	m.seed = uintptr(rand())
++
+ 	if m.writing == 0 {
+ 		fatal("concurrent map writes")
+ 	}
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index 2c3ddc26c2..db4472186c 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -259,7 +259,7 @@ outer:
+ 				if key == *(*uint32)(slotKey) {
+ 					slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 				match = match.removeFirst()
+@@ -297,7 +297,7 @@ outer:
+ 					t.used++
+ 					m.used++
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 
+@@ -400,7 +400,7 @@ outer:
+ 				if key == *(*unsafe.Pointer)(slotKey) {
+ 					slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 				match = match.removeFirst()
+@@ -438,7 +438,7 @@ outer:
+ 					t.used++
+ 					m.used++
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index e2d1792ffa..f20df2069b 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -259,7 +259,7 @@ outer:
+ 				if key == *(*uint64)(slotKey) {
+ 					slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 				match = match.removeFirst()
+@@ -297,7 +297,7 @@ outer:
+ 					t.used++
+ 					m.used++
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 
+@@ -438,7 +438,7 @@ outer:
+ 				if key == *(*unsafe.Pointer)(slotKey) {
+ 					slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 				match = match.removeFirst()
+@@ -476,7 +476,7 @@ outer:
+ 					t.used++
+ 					m.used++
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index 3da6cbf3a1..abdd894077 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -266,7 +266,7 @@ outer:
+ 					*(*string)(slotKey) = key
+ 					slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 				match = match.removeFirst()
+@@ -304,7 +304,7 @@ outer:
+ 					t.used++
+ 					m.used++
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index 4cf96cab64..f2c5d9e2e5 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -269,7 +269,7 @@ outer:
+ 						slotElem = *((*unsafe.Pointer)(slotElem))
+ 					}
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 				match = match.removeFirst()
+@@ -317,7 +317,7 @@ outer:
+ 					t.used++
+ 					m.used++
+ 
+-					t.checkInvariants(typ)
++					t.checkInvariants(typ, m)
+ 					break outer
+ 				}
+ 
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index bb3006bfa2..a23193f63b 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -51,10 +51,6 @@ type table struct {
+ 	// but this table has not yet been split.
+ 	localDepth uint8
+ 
+-	// seed is the hash seed, computed as a unique random number per table.
+-	// TODO(prattmic): Populate this on table initialization.
+-	seed uintptr
+-
+ 	// Index of this table in the Map directory. This is the index of the
+ 	// _first_ location in the directory. The table may occur in multiple
+ 	// sequential indicies.
+@@ -148,15 +144,15 @@ func (t *table) Used() uint64 {
+ 
+ // Get performs a lookup of the key that key points to. It returns a pointer to
+ // the element, or false if the key doesn't exist.
+-func (t *table) Get(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
++func (t *table) Get(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	// TODO(prattmic): We could avoid hashing in a variety of special
+ 	// cases.
+ 	//
+ 	// - One entry maps could just directly compare the single entry
+ 	//   without hashing.
+ 	// - String keys could do quick checks of a few bytes before hashing.
+-	hash := typ.Hasher(key, t.seed)
+-	_, elem, ok := t.getWithKey(typ, hash, key)
++	hash := typ.Hasher(key, m.seed)
++ 	_, elem, ok := t.getWithKey(typ, hash, key)
+ 	return elem, ok
+ }
+ 
+@@ -299,7 +295,7 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 					slotElem = *((*unsafe.Pointer)(slotElem))
+ 				}
+ 
+-				t.checkInvariants(typ)
++				t.checkInvariants(typ, m)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+@@ -347,7 +343,7 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 				t.used++
+ 				m.used++
+ 
+-				t.checkInvariants(typ)
++				t.checkInvariants(typ, m)
+ 				return slotElem, true
+ 			}
+ 
+@@ -425,7 +421,7 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
+ }
+ 
+ func (t *table) Delete(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) {
+-	hash := typ.Hasher(key, t.seed)
++	hash := typ.Hasher(key, m.seed)
+ 
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+@@ -482,7 +478,7 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) {
+ 					g.ctrls().set(i, ctrlDeleted)
+ 				}
+ 
+-				t.checkInvariants(typ)
++				t.checkInvariants(typ, m)
+ 				return
+ 			}
+ 			match = match.removeFirst()
+@@ -514,12 +510,6 @@ func (t *table) Clear(typ *abi.SwissMapType) {
+ 
+ 	t.used = 0
+ 	t.resetGrowthLeft()
+-
+-	// Reset the hash seed to make it more difficult for attackers to
+-	// repeatedly trigger hash collisions. See issue
+-	// https://github.com/golang/go/issues/25237.
+-	// TODO
+-	//t.seed = uintptr(rand())
+ }
+ 
+ type Iter struct {
+@@ -948,7 +938,7 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
+ 				elem = *((*unsafe.Pointer)(elem))
+ 			}
+ 
+-			hash := typ.Hasher(key, t.seed)
++			hash := typ.Hasher(key, m.seed)
+ 			var newTable *table
+ 			if hash&mask == 0 {
+ 				newTable = left
+@@ -994,7 +984,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
+ 					elem = *((*unsafe.Pointer)(elem))
+ 				}
+ 
+-				hash := typ.Hasher(key, t.seed)
++				hash := typ.Hasher(key, m.seed)
+ 
+ 				// TODO(prattmic): For indirect key/elem, this is
+ 				// allocating new objects for key/elem. That is
+@@ -1007,7 +997,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
+ 		}
+ 	}
+ 
+-	newTable.checkInvariants(typ)
++	newTable.checkInvariants(typ, m)
+ 	m.replaceTable(newTable)
+ }
+ 
+diff --git a/src/internal/runtime/maps/table_debug.go b/src/internal/runtime/maps/table_debug.go
+index 345f1feb6e..b1def3b85e 100644
+--- a/src/internal/runtime/maps/table_debug.go
++++ b/src/internal/runtime/maps/table_debug.go
+@@ -12,7 +12,7 @@ import (
+ 
+ const debugLog = false
+ 
+-func (t *table) checkInvariants(typ *abi.SwissMapType) {
++func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
+ 	if !debugLog {
+ 		return
+ 	}
+@@ -45,12 +45,12 @@ func (t *table) checkInvariants(typ *abi.SwissMapType) {
+ 					continue
+ 				}
+ 
+-				if _, ok := t.Get(typ, key); !ok {
+-					hash := typ.Hasher(key, t.seed)
++				if _, ok := t.Get(typ, m, key); !ok {
++					hash := typ.Hasher(key, m.seed)
+ 					print("invariant failed: slot(", i, "/", j, "): key ")
+ 					dump(key, typ.Key.Size_)
+ 					print(" not found [hash=", hash, ", h2=", h2(hash), " h1=", h1(hash), "]\n")
+-					t.Print(typ)
++					t.Print(typ, m)
+ 					panic("invariant failed: slot: key not found")
+ 				}
+ 			}
+@@ -59,32 +59,30 @@ func (t *table) checkInvariants(typ *abi.SwissMapType) {
+ 
+ 	if used != t.used {
+ 		print("invariant failed: found ", used, " used slots, but used count is ", t.used, "\n")
+-		t.Print(typ)
++		t.Print(typ, m)
+ 		panic("invariant failed: found mismatched used slot count")
+ 	}
+ 
+ 	growthLeft := (t.capacity*maxAvgGroupLoad)/abi.SwissMapGroupSlots - t.used - deleted
+ 	if growthLeft != t.growthLeft {
+ 		print("invariant failed: found ", t.growthLeft, " growthLeft, but expected ", growthLeft, "\n")
+-		t.Print(typ)
++		t.Print(typ, m)
+ 		panic("invariant failed: found mismatched growthLeft")
+ 	}
+ 	if deleted != t.tombstones() {
+ 		print("invariant failed: found ", deleted, " tombstones, but expected ", t.tombstones(), "\n")
+-		t.Print(typ)
++		t.Print(typ, m)
+ 		panic("invariant failed: found mismatched tombstones")
+ 	}
+ 
+ 	if empty == 0 {
+ 		print("invariant failed: found no empty slots (violates probe invariant)\n")
+-		t.Print(typ)
++		t.Print(typ, m)
+ 		panic("invariant failed: found no empty slots (violates probe invariant)")
+ 	}
+ }
+-
+-func (t *table) Print(typ *abi.SwissMapType) {
++func (t *table) Print(typ *abi.SwissMapType, m *Map) {
+ 	print(`table{
+-	seed: `, t.seed, `
+ 	index: `, t.index, `
+ 	localDepth: `, t.localDepth, `
+ 	capacity: `, t.capacity, `

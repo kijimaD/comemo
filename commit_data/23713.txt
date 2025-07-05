@@ -9,6 +9,31 @@ Date:   Fri Jun 5 11:44:31 2015 -0700
     Change-Id: I6aba6a63a5448b8fcbcc7f072c627c27965dbe20
     Reviewed-on: https://go-review.googlesource.com/10774
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/typexpr.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 3fc1574e80..a2e082e842 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -140,8 +140,8 @@ func (check *Checker) typ(e ast.Expr) Type {
+ 	return check.typExpr(e, nil, nil)
+ }
+ 
+-// funcType type-checks a function or method type and returns its signature.
+-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) *Signature {
++// funcType type-checks a function or method type.
++func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+ 	scope := NewScope(check.scope, "function")
+ 	check.recordScope(ftyp, scope)
+ 
+@@ -202,8 +202,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 	sig.params = NewTuple(params...)
+ 	sig.results = NewTuple(results...)
+ 	sig.variadic = variadic
+-
+-	return sig
+ }
+ 
+ // typExprInternal drives type checking of types.

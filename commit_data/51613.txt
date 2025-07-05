@@ -20,7 +20,7 @@ Date:   Wed Feb 23 21:43:06 2022 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go     | 13 ++++----
  src/cmd/compile/internal/types2/signature.go       | 34 ++++++++++----------
  .../types2/testdata/fixedbugs/issue51339.go2       | 16 ++++++++++
@@ -28,3 +28,222 @@ Date:   Wed Feb 23 21:43:06 2022 -0800
  src/go/types/signature.go                          | 37 +++++++++++-----------
  src/go/types/testdata/fixedbugs/issue51339.go2     | 16 ++++++++++
  6 files changed, 80 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 936930f0b1..d88b03748f 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -294,15 +294,14 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 	return "(" + strings.Join(res, ", ") + ")"
+ }
+ 
+-func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+-	measure := func(x int, unit string) string {
+-		s := fmt.Sprintf("%d %s", x, unit)
+-		if x != 1 {
+-			s += "s"
+-		}
+-		return s
++func measure(x int, unit string) string {
++	if x != 1 {
++		unit += "s"
+ 	}
++	return fmt.Sprintf("%d %s", x, unit)
++}
+ 
++func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+ 	vars := measure(nvars, "variable")
+ 	vals := measure(nvals, "value")
+ 	rhs0 := rhs[0]
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index c87fab749c..76e588254d 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -116,11 +116,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 			// lookup in the scope.
+ 			for i, p := range rparams {
+ 				if p.Value == "_" {
+-					tpar := sig.rparams.At(i)
+ 					if check.recvTParamMap == nil {
+ 						check.recvTParamMap = make(map[*syntax.Name]*TypeParam)
+ 					}
+-					check.recvTParamMap[p] = tpar
++					check.recvTParamMap[p] = tparams[i]
+ 				}
+ 			}
+ 			// determine receiver type to get its type parameters
+@@ -136,22 +135,23 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				}
+ 			}
+ 			// provide type parameter bounds
+-			// - only do this if we have the right number (otherwise an error is reported elsewhere)
+-			if sig.RecvTypeParams().Len() == len(recvTParams) {
+-				// We have a list of *TypeNames but we need a list of Types.
+-				list := make([]Type, sig.RecvTypeParams().Len())
+-				for i, t := range sig.RecvTypeParams().list() {
+-					list[i] = t
+-					check.mono.recordCanon(t, recvTParams[i])
+-				}
+-				smap := makeSubstMap(recvTParams, list)
+-				for i, tpar := range sig.RecvTypeParams().list() {
+-					bound := recvTParams[i].bound
+-					// bound is (possibly) parameterized in the context of the
+-					// receiver type declaration. Substitute parameters for the
+-					// current context.
+-					tpar.bound = check.subst(tpar.obj.pos, bound, smap, nil)
++			if len(tparams) == len(recvTParams) {
++				smap := makeRenameMap(recvTParams, tparams)
++				for i, tpar := range tparams {
++					recvTPar := recvTParams[i]
++					check.mono.recordCanon(tpar, recvTPar)
++					// recvTPar.bound is (possibly) parameterized in the context of the
++					// receiver type declaration. Substitute parameters for the current
++					// context.
++					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil)
+ 				}
++			} else if len(tparams) < len(recvTParams) {
++				// Reporting an error here is a stop-gap measure to avoid crashes in the
++				// compiler when a type parameter/argument cannot be inferred later. It
++				// may lead to follow-on errors (see issues #51339, #51343).
++				// TODO(gri) find a better solution
++				got := measure(len(tparams), "type parameter")
++				check.errorf(recvPar, "got %s, but receiver base type declares %d", got, len(recvTParams))
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2
+new file mode 100644
+index 0000000000..40706ec493
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51339.go2
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is tested when running "go test -run Manual"
++// without source arguments. Use for one-off debugging.
++
++package p
++
++type T[P any, B *P] struct{}
++
++func (T /* ERROR cannot use generic type */ ) m0() {}
++func (T /* ERROR got 1 type parameter, but receiver base type declares 2 */ [_]) m1() {}
++func (T[_, _]) m2() {}
++// TODO(gri) this error is unfortunate (issue #51343)
++func (T /* ERROR got 3 arguments but 2 type parameters */ [_, _, _]) m3() {}
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index f75b8b6f6b..f5e22c2f67 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -290,15 +290,14 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 	return "(" + strings.Join(res, ", ") + ")"
+ }
+ 
+-func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
+-	measure := func(x int, unit string) string {
+-		s := fmt.Sprintf("%d %s", x, unit)
+-		if x != 1 {
+-			s += "s"
+-		}
+-		return s
++func measure(x int, unit string) string {
++	if x != 1 {
++		unit += "s"
+ 	}
++	return fmt.Sprintf("%d %s", x, unit)
++}
+ 
++func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
+ 	vars := measure(nvars, "variable")
+ 	vals := measure(nvals, "value")
+ 	rhs0 := rhs[0]
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 8f89e931fb..f174516268 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -112,7 +112,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
+ 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
+ 		if len(rparams) > 0 {
+-			sig.rparams = bindTParams(check.declareTypeParams(nil, rparams))
++			tparams := check.declareTypeParams(nil, rparams)
++			sig.rparams = bindTParams(tparams)
+ 			// Blank identifiers don't get declared, so naive type-checking of the
+ 			// receiver type expression would fail in Checker.collectParams below,
+ 			// when Checker.ident cannot resolve the _ to a type.
+@@ -122,11 +123,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			// lookup in the scope.
+ 			for i, p := range rparams {
+ 				if p.Name == "_" {
+-					tpar := sig.rparams.At(i)
+ 					if check.recvTParamMap == nil {
+ 						check.recvTParamMap = make(map[*ast.Ident]*TypeParam)
+ 					}
+-					check.recvTParamMap[p] = tpar
++					check.recvTParamMap[p] = tparams[i]
+ 				}
+ 			}
+ 			// determine receiver type to get its type parameters
+@@ -142,22 +142,23 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				}
+ 			}
+ 			// provide type parameter bounds
+-			// - only do this if we have the right number (otherwise an error is reported elsewhere)
+-			if sig.RecvTypeParams().Len() == len(recvTParams) {
+-				// We have a list of *TypeNames but we need a list of Types.
+-				list := make([]Type, sig.RecvTypeParams().Len())
+-				for i, t := range sig.RecvTypeParams().list() {
+-					list[i] = t
+-					check.mono.recordCanon(t, recvTParams[i])
+-				}
+-				smap := makeSubstMap(recvTParams, list)
+-				for i, tpar := range sig.RecvTypeParams().list() {
+-					bound := recvTParams[i].bound
+-					// bound is (possibly) parameterized in the context of the
+-					// receiver type declaration. Substitute parameters for the
+-					// current context.
+-					tpar.bound = check.subst(tpar.obj.pos, bound, smap, nil)
++			if len(tparams) == len(recvTParams) {
++				smap := makeRenameMap(recvTParams, tparams)
++				for i, tpar := range tparams {
++					recvTPar := recvTParams[i]
++					check.mono.recordCanon(tpar, recvTPar)
++					// recvTPar.bound is (possibly) parameterized in the context of the
++					// receiver type declaration. Substitute parameters for the current
++					// context.
++					tpar.bound = check.subst(tpar.obj.pos, recvTPar.bound, smap, nil)
+ 				}
++			} else if len(tparams) < len(recvTParams) {
++				// Reporting an error here is a stop-gap measure to avoid crashes in the
++				// compiler when a type parameter/argument cannot be inferred later. It
++				// may lead to follow-on errors (see issues #51339, #51343).
++				// TODO(gri) find a better solution
++				got := measure(len(tparams), "type parameter")
++				check.errorf(recvPar, _BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/types/testdata/fixedbugs/issue51339.go2 b/src/go/types/testdata/fixedbugs/issue51339.go2
+new file mode 100644
+index 0000000000..6803c44d76
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51339.go2
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is tested when running "go test -run Manual"
++// without source arguments. Use for one-off debugging.
++
++package p
++
++type T[P any, B *P] struct{}
++
++func (T /* ERROR cannot use generic type */ ) m0() {}
++func (/* ERROR got 1 type parameter, but receiver base type declares 2 */ T[_]) m1() {}
++func (T[_, _]) m2() {}
++// TODO(gri) this error is unfortunate (issue #51343)
++func (T /* ERROR got 3 arguments but 2 type parameters */ [_, _, _]) m3() {}

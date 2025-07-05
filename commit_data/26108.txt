@@ -9,7 +9,67 @@ Date:   Thu Dec 17 00:54:45 2015 -0500
     Change-Id: I5e2fd1fbb21816e9f6fb022e2664484a71093b04
     Reviewed-on: https://go-review.googlesource.com/17947
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go  | 12 +++++++++++-
  src/cmd/go/generate.go |  4 +++-
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 4487b7442e..6fe2b9e2b4 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -362,7 +362,7 @@ Generate Go files by processing source
+ 
+ Usage:
+ 
+-	go generate [-run regexp] [file.go... | packages]
++	go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]
+ 
+ Generate runs commands described by directives within existing
+ files. Those commands can run any process but the intent is to
+@@ -460,6 +460,8 @@ processed.
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
++For more about build flags, see 'go help build'.
++
+ For more about specifying packages, see 'go help packages'.
+ 
+ 
+@@ -1316,6 +1318,14 @@ internally at Google all begin with 'google', and paths
+ denoting remote repositories begin with the path to the code,
+ such as 'github.com/user/repo'.
+ 
++Packages in a program need not have unique package names,
++but there are two reserved package names with special meaning.
++The name main indicates a command, not a library.
++Commands are built into binaries and cannot be imported.
++The name documentation indicates documentation for
++a non-Go program in the directory. Files in package documentation
++are ignored by the go command.
++
+ As a special case, if the package list is a list of .go files from a
+ single directory, the command is applied to a single synthesized
+ package made up of exactly those files, ignoring any build constraints
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 0834aa7823..cb54018bab 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -22,7 +22,7 @@ import (
+ 
+ var cmdGenerate = &Command{
+ 	Run:       runGenerate,
+-	UsageLine: "generate [-run regexp] [file.go... | packages]",
++	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
+ 	Short:     "generate Go files by processing source",
+ 	Long: `
+ Generate runs commands described by directives within existing
+@@ -121,6 +121,8 @@ processed.
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
++For more about build flags, see 'go help build'.
++
+ For more about specifying packages, see 'go help packages'.
+ 	`,
+ }

@@ -11,7 +11,64 @@ Date:   Wed Apr 11 10:50:09 2018 +0200
     Change-Id: I55f77004b00391875d26df8e55e54d79cef168dc
     Reviewed-on: https://go-review.googlesource.com/106255
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 10 +++++++---
  src/cmd/go/internal/help/helpdoc.go | 10 +++++++---
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d78a08821e..8cceb7d231 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1009,6 +1009,9 @@
+ // 		Examples are amd64, 386, arm, ppc64.
+ // 	GOBIN
+ // 		The directory where 'go install' will install a command.
++// 	GOCACHE
++// 		The directory where the go command will store cached
++// 		information for reuse in future builds.
+ // 	GOOS
+ // 		The operating system for which to compile code.
+ // 		Examples are linux, darwin, windows, netbsd.
+@@ -1022,9 +1025,10 @@
+ // 	GOTMPDIR
+ // 		The directory where the go command will write
+ // 		temporary source files, packages, and binaries.
+-// 	GOCACHE
+-// 		The directory where the go command will store
+-// 		cached information for reuse in future builds.
++// 	GOTOOLDIR
++// 		The directory where the go tools (compile, cover, doc, etc...)
++// 		are installed. This is printed by go env, but setting the
++// 		environment variable has no effect.
+ //
+ // Environment variables for use with cgo:
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index c39af79604..f7ec839f02 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -461,6 +461,9 @@ General-purpose environment variables:
+ 		Examples are amd64, 386, arm, ppc64.
+ 	GOBIN
+ 		The directory where 'go install' will install a command.
++	GOCACHE
++		The directory where the go command will store cached
++		information for reuse in future builds.
+ 	GOOS
+ 		The operating system for which to compile code.
+ 		Examples are linux, darwin, windows, netbsd.
+@@ -474,9 +477,10 @@ General-purpose environment variables:
+ 	GOTMPDIR
+ 		The directory where the go command will write
+ 		temporary source files, packages, and binaries.
+-	GOCACHE
+-		The directory where the go command will store
+-		cached information for reuse in future builds.
++	GOTOOLDIR
++		The directory where the go tools (compile, cover, doc, etc...)
++		are installed. This is printed by go env, but setting the
++		environment variable has no effect.
+ 
+ Environment variables for use with cgo:
+ 

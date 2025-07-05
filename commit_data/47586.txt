@@ -19,7 +19,67 @@ Date:   Tue Mar 30 17:30:45 2021 +0000
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/doc/example.go      |  5 ++++-
  src/go/doc/example_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 125fd530b1..274000cecb 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -237,7 +237,10 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+ 				}
+ 			}
+ 
+-			ast.Inspect(d.Body, inspectFunc)
++			// Functions might not have a body. See #42706.
++			if d.Body != nil {
++				ast.Inspect(d.Body, inspectFunc)
++			}
+ 		case *ast.GenDecl:
+ 			for _, spec := range d.Specs {
+ 				switch s := spec.(type) {
+diff --git a/src/go/doc/example_test.go b/src/go/doc/example_test.go
+index 7c96f0300a..cf1b702549 100644
+--- a/src/go/doc/example_test.go
++++ b/src/go/doc/example_test.go
+@@ -352,6 +352,25 @@ func main() {
+ }
+ `
+ 
++const exampleWholeFileExternalFunction = `package foo_test
++
++func foo(int)
++
++func Example() {
++	foo(42)
++	// Output:
++}
++`
++
++const exampleWholeFileExternalFunctionOutput = `package main
++
++func foo(int)
++
++func main() {
++	foo(42)
++}
++`
++
+ var exampleWholeFileTestCases = []struct {
+ 	Title, Source, Play, Output string
+ }{
+@@ -367,6 +386,12 @@ var exampleWholeFileTestCases = []struct {
+ 		exampleWholeFileFunctionOutput,
+ 		"Hello, world!\n",
+ 	},
++	{
++		"ExternalFunction",
++		exampleWholeFileExternalFunction,
++		exampleWholeFileExternalFunctionOutput,
++		"",
++	},
+ }
+ 
+ func TestExamplesWholeFile(t *testing.T) {

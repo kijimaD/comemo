@@ -13,7 +13,7 @@ Date:   Sun Aug 7 17:43:57 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/runtime/HACKING.md          | 36 +----------------------------------
  src/runtime/debuglog.go         | 37 ++++++++++++++++++------------------
  src/runtime/export_test.go      |  2 --
@@ -34,3 +34,793 @@ Date:   Sun Aug 7 17:43:57 2022 +0700
  src/runtime/stack.go            |  2 +-
  src/runtime/trace.go            | 10 ++++------
  19 files changed, 133 insertions(+), 125 deletions(-)
+
+diff --git a/src/runtime/HACKING.md b/src/runtime/HACKING.md
+index 61b5a51959..ce0b42a354 100644
+--- a/src/runtime/HACKING.md
++++ b/src/runtime/HACKING.md
+@@ -235,7 +235,7 @@ There are three mechanisms for allocating unmanaged memory:
+   objects of the same type.
+ 
+ In general, types that are allocated using any of these should be
+-marked `//go:notinheap` (see below).
++marked as not in heap by embedding `runtime/internal/sys.NotInHeap`.
+ 
+ Objects that are allocated in unmanaged memory **must not** contain
+ heap pointers unless the following rules are also obeyed:
+@@ -330,37 +330,3 @@ transitive calls) to prevent stack growth.
+ The conversion from pointer to uintptr must appear in the argument list of any
+ call to this function. This directive is used for some low-level system call
+ implementations.
+-
+-go:notinheap
+-------------
+-
+-`go:notinheap` applies to type declarations. It indicates that a type
+-must never be allocated from the GC'd heap or on the stack.
+-Specifically, pointers to this type must always fail the
+-`runtime.inheap` check. The type may be used for global variables, or
+-for objects in unmanaged memory (e.g., allocated with `sysAlloc`,
+-`persistentalloc`, `fixalloc`, or from a manually-managed span).
+-Specifically:
+-
+-1. `new(T)`, `make([]T)`, `append([]T, ...)` and implicit heap
+-   allocation of T are disallowed. (Though implicit allocations are
+-   disallowed in the runtime anyway.)
+-
+-2. A pointer to a regular type (other than `unsafe.Pointer`) cannot be
+-   converted to a pointer to a `go:notinheap` type, even if they have
+-   the same underlying type.
+-
+-3. Any type that contains a `go:notinheap` type is itself
+-   `go:notinheap`. Structs and arrays are `go:notinheap` if their
+-   elements are. Maps and channels of `go:notinheap` types are
+-   disallowed. To keep things explicit, any type declaration where the
+-   type is implicitly `go:notinheap` must be explicitly marked
+-   `go:notinheap` as well.
+-
+-4. Write barriers on pointers to `go:notinheap` types can be omitted.
+-
+-The last point is the real benefit of `go:notinheap`. The runtime uses
+-it for low-level internal structures to avoid memory barriers in the
+-scheduler and the memory allocator where they are illegal or simply
+-inefficient. This mechanism is reasonably safe and does not compromise
+-the readability of the runtime.
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index ca1a791c93..904d8983f6 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -17,6 +17,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -121,9 +122,8 @@ func dlog() *dlogger {
+ //
+ // To obtain a dlogger, call dlog(). When done with the dlogger, call
+ // end().
+-//
+-//go:notinheap
+ type dlogger struct {
++	_ sys.NotInHeap
+ 	w debugLogWriter
+ 
+ 	// allLink is the next dlogger in the allDloggers list.
+@@ -356,9 +356,8 @@ func (l *dlogger) traceback(x []uintptr) *dlogger {
+ // overwrite old records. Hence, it maintains a reader that consumes
+ // the log as it gets overwritten. That reader state is where an
+ // actual log reader would start.
+-//
+-//go:notinheap
+ type debugLogWriter struct {
++	_     sys.NotInHeap
+ 	write uint64
+ 	data  debugLogBuf
+ 
+@@ -376,8 +375,10 @@ type debugLogWriter struct {
+ 	buf [10]byte
+ }
+ 
+-//go:notinheap
+-type debugLogBuf [debugLogBytes]byte
++type debugLogBuf struct {
++	_ sys.NotInHeap
++	b [debugLogBytes]byte
++}
+ 
+ const (
+ 	// debugLogHeaderSize is the number of bytes in the framing
+@@ -390,7 +391,7 @@ const (
+ 
+ //go:nosplit
+ func (l *debugLogWriter) ensure(n uint64) {
+-	for l.write+n >= l.r.begin+uint64(len(l.data)) {
++	for l.write+n >= l.r.begin+uint64(len(l.data.b)) {
+ 		// Consume record at begin.
+ 		if l.r.skip() == ^uint64(0) {
+ 			// Wrapped around within a record.
+@@ -406,8 +407,8 @@ func (l *debugLogWriter) ensure(n uint64) {
+ 
+ //go:nosplit
+ func (l *debugLogWriter) writeFrameAt(pos, size uint64) bool {
+-	l.data[pos%uint64(len(l.data))] = uint8(size)
+-	l.data[(pos+1)%uint64(len(l.data))] = uint8(size >> 8)
++	l.data.b[pos%uint64(len(l.data.b))] = uint8(size)
++	l.data.b[(pos+1)%uint64(len(l.data.b))] = uint8(size >> 8)
+ 	return size <= 0xFFFF
+ }
+ 
+@@ -441,7 +442,7 @@ func (l *debugLogWriter) byte(x byte) {
+ 	l.ensure(1)
+ 	pos := l.write
+ 	l.write++
+-	l.data[pos%uint64(len(l.data))] = x
++	l.data.b[pos%uint64(len(l.data.b))] = x
+ }
+ 
+ //go:nosplit
+@@ -450,7 +451,7 @@ func (l *debugLogWriter) bytes(x []byte) {
+ 	pos := l.write
+ 	l.write += uint64(len(x))
+ 	for len(x) > 0 {
+-		n := copy(l.data[pos%uint64(len(l.data)):], x)
++		n := copy(l.data.b[pos%uint64(len(l.data.b)):], x)
+ 		pos += uint64(n)
+ 		x = x[n:]
+ 	}
+@@ -513,15 +514,15 @@ func (r *debugLogReader) skip() uint64 {
+ 
+ //go:nosplit
+ func (r *debugLogReader) readUint16LEAt(pos uint64) uint16 {
+-	return uint16(r.data[pos%uint64(len(r.data))]) |
+-		uint16(r.data[(pos+1)%uint64(len(r.data))])<<8
++	return uint16(r.data.b[pos%uint64(len(r.data.b))]) |
++		uint16(r.data.b[(pos+1)%uint64(len(r.data.b))])<<8
+ }
+ 
+ //go:nosplit
+ func (r *debugLogReader) readUint64LEAt(pos uint64) uint64 {
+ 	var b [8]byte
+ 	for i := range b {
+-		b[i] = r.data[pos%uint64(len(r.data))]
++		b[i] = r.data.b[pos%uint64(len(r.data.b))]
+ 		pos++
+ 	}
+ 	return uint64(b[0]) | uint64(b[1])<<8 |
+@@ -557,7 +558,7 @@ func (r *debugLogReader) peek() (tick uint64) {
+ 	pos := r.begin + debugLogHeaderSize
+ 	var u uint64
+ 	for i := uint(0); ; i += 7 {
+-		b := r.data[pos%uint64(len(r.data))]
++		b := r.data.b[pos%uint64(len(r.data.b))]
+ 		pos++
+ 		u |= uint64(b&^0x80) << i
+ 		if b&0x80 == 0 {
+@@ -588,7 +589,7 @@ func (r *debugLogReader) header() (end, tick, nano uint64, p int) {
+ func (r *debugLogReader) uvarint() uint64 {
+ 	var u uint64
+ 	for i := uint(0); ; i += 7 {
+-		b := r.data[r.begin%uint64(len(r.data))]
++		b := r.data.b[r.begin%uint64(len(r.data.b))]
+ 		r.begin++
+ 		u |= uint64(b&^0x80) << i
+ 		if b&0x80 == 0 {
+@@ -610,7 +611,7 @@ func (r *debugLogReader) varint() int64 {
+ }
+ 
+ func (r *debugLogReader) printVal() bool {
+-	typ := r.data[r.begin%uint64(len(r.data))]
++	typ := r.data.b[r.begin%uint64(len(r.data.b))]
+ 	r.begin++
+ 
+ 	switch typ {
+@@ -644,7 +645,7 @@ func (r *debugLogReader) printVal() bool {
+ 			break
+ 		}
+ 		for sl > 0 {
+-			b := r.data[r.begin%uint64(len(r.data)):]
++			b := r.data.b[r.begin%uint64(len(r.data.b)):]
+ 			if uint64(len(b)) > sl {
+ 				b = b[:sl]
+ 			}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d9f36c06c2..32d33adc79 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1196,8 +1196,6 @@ func (t *SemTable) Dequeue(addr *uint32) bool {
+ }
+ 
+ // mspan wrapper for testing.
+-//
+-//go:notinheap
+ type MSpan mspan
+ 
+ // Allocate an mspan for testing.
+diff --git a/src/runtime/internal/sys/nih.go b/src/runtime/internal/sys/nih.go
+new file mode 100644
+index 0000000000..2e3c9794e6
+--- /dev/null
++++ b/src/runtime/internal/sys/nih.go
+@@ -0,0 +1,42 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++// TODO: make this as a compiler intrinsic type, and remove go:notinheap
++//
++//go:notinheap
++type nih struct{}
++
++// NotInHeap is a type must never be allocated from the GC'd heap or on the stack,
++// and is called not-in-heap.
++//
++// Other types can embed NotInHeap to make it not-in-heap. Specifically, pointers
++// to these types must always fail the `runtime.inheap` check. The type may be used
++// for global variables, or for objects in unmanaged memory (e.g., allocated with
++// `sysAlloc`, `persistentalloc`, r`fixalloc`, or from a manually-managed span).
++//
++// Specifically:
++//
++// 1. `new(T)`, `make([]T)`, `append([]T, ...)` and implicit heap
++// allocation of T are disallowed. (Though implicit allocations are
++// disallowed in the runtime anyway.)
++//
++// 2. A pointer to a regular type (other than `unsafe.Pointer`) cannot be
++// converted to a pointer to a not-in-heap type, even if they have the
++// same underlying type.
++//
++// 3. Any type that containing a not-in-heap type is itself considered as not-in-heap.
++//
++// - Structs and arrays are not-in-heap if their elements are not-in-heap.
++// - Maps and channels contains no-in-heap types are disallowed.
++//
++// 4. Write barriers on pointers to not-in-heap types can be omitted.
++//
++// The last point is the real benefit of NotInHeap. The runtime uses
++// it for low-level internal structures to avoid memory barriers in the
++// scheduler and the memory allocator where they are illegal or simply
++// inefficient. This mechanism is reasonably safe and does not compromise
++// the readability of the runtime.
++type NotInHeap struct{ _ nih }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0219401c83..205c6d44a8 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1330,7 +1330,8 @@ var persistentChunks *notInHeap
+ // The returned memory will be zeroed.
+ // sysStat must be non-nil.
+ //
+-// Consider marking persistentalloc'd types go:notinheap.
++// Consider marking persistentalloc'd types not in heap by embedding
++// runtime/internal/sys.NotInHeap.
+ func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	var p *notInHeap
+ 	systemstack(func() {
+@@ -1471,14 +1472,12 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
+ // notInHeap is off-heap memory allocated by a lower-level allocator
+ // like sysAlloc or persistentAlloc.
+ //
+-// In general, it's better to use real types marked as go:notinheap,
+-// but this serves as a generic type for situations where that isn't
+-// possible (like in the allocators).
++// In general, it's better to use real types which embed
++// runtime/internal/sys.NotInHeap, but this serves as a generic type
++// for situations where that isn't possible (like in the allocators).
+ //
+ // TODO: Use this as the return type of sysAlloc, persistentAlloc, etc?
+-//
+-//go:notinheap
+-type notInHeap struct{}
++type notInHeap struct{ _ sys.NotInHeap }
+ 
+ func (p *notInHeap) add(bytes uintptr) *notInHeap {
+ 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 1050a60468..2c2e8a0290 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -233,7 +233,7 @@ func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
+ }
+ 
+ func (s *mspan) markBitsForBase() markBits {
+-	return markBits{(*uint8)(s.gcmarkBits), uint8(1), 0}
++	return markBits{&s.gcmarkBits.x, uint8(1), 0}
+ }
+ 
+ // isMarked reports whether mark bit m is set.
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 40674d8939..e01a99bd6e 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -15,9 +16,9 @@ import (
+ //
+ // mcaches are allocated from non-GC'd memory, so any heap pointers
+ // must be specially handled.
+-//
+-//go:notinheap
+ type mcache struct {
++	_ sys.NotInHeap
++
+ 	// The following members are accessed on every malloc,
+ 	// so they are grouped here for better caching.
+ 	nextSample uintptr // trigger heap sample after allocating this many bytes
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index c7ce573da6..8e68955095 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -12,12 +12,14 @@
+ 
+ package runtime
+ 
+-import "runtime/internal/atomic"
++import (
++	"runtime/internal/atomic"
++	"runtime/internal/sys"
++)
+ 
+ // Central list of free objects of a given size.
+-//
+-//go:notinheap
+ type mcentral struct {
++	_         sys.NotInHeap
+ 	spanclass spanClass
+ 
+ 	// partial and full contain two mspan sets: one of swept in-use
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 1dd28585f1..73c1a10d23 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -15,6 +15,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -22,9 +23,10 @@ import (
+ // per-arena bitmap with a bit for every word in the arena. The mark
+ // is stored on the bit corresponding to the first word of the marked
+ // allocation.
+-//
+-//go:notinheap
+-type checkmarksMap [heapArenaBytes / goarch.PtrSize / 8]uint8
++type checkmarksMap struct {
++	_ sys.NotInHeap
++	b [heapArenaBytes / goarch.PtrSize / 8]uint8
++}
+ 
+ // If useCheckmark is true, marking of an object uses the checkmark
+ // bits instead of the standard mark bits.
+@@ -50,8 +52,8 @@ func startCheckmarks() {
+ 			arena.checkmarks = bitmap
+ 		} else {
+ 			// Otherwise clear the existing bitmap.
+-			for i := range bitmap {
+-				bitmap[i] = 0
++			for i := range bitmap.b {
++				bitmap.b[i] = 0
+ 			}
+ 		}
+ 	}
+@@ -88,9 +90,9 @@ func setCheckmark(obj, base, off uintptr, mbits markBits) bool {
+ 
+ 	ai := arenaIndex(obj)
+ 	arena := mheap_.arenas[ai.l1()][ai.l2()]
+-	arenaWord := (obj / heapArenaBytes / 8) % uintptr(len(arena.checkmarks))
++	arenaWord := (obj / heapArenaBytes / 8) % uintptr(len(arena.checkmarks.b))
+ 	mask := byte(1 << ((obj / heapArenaBytes) % 8))
+-	bytep := &arena.checkmarks[arenaWord]
++	bytep := &arena.checkmarks.b[arenaWord]
+ 
+ 	if atomic.Load8(bytep)&mask != 0 {
+ 		// Already checkmarked.
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index a379cce8a3..9de364c260 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -10,6 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -19,9 +20,8 @@ import (
+ // finblock is allocated from non-GC'd memory, so any heap pointers
+ // must be specially handled. GC currently assumes that the finalizer
+ // queue does not grow during marking (but it can shrink).
+-//
+-//go:notinheap
+ type finblock struct {
++	_       sys.NotInHeap
+ 	alllink *finblock
+ 	next    *finblock
+ 	cnt     uint32
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index b701a09b40..8788d95c00 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -8,7 +8,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+ // Malloc uses a FixAlloc wrapped around sysAlloc to manage its
+@@ -23,7 +26,8 @@ import "unsafe"
+ // Callers can keep state in the object but the first word is
+ // smashed by freeing and reallocating.
+ //
+-// Consider marking fixalloc'd types go:notinheap.
++// Consider marking fixalloc'd types not in heap by embedding
++// runtime/internal/sys.NotInHeap.
+ type fixalloc struct {
+ 	size   uintptr
+ 	first  func(arg, p unsafe.Pointer) // called first time p is returned
+@@ -42,9 +46,8 @@ type fixalloc struct {
+ // this cannot be used by some of the internal GC structures. For example when
+ // the sweeper is placing an unmarked object on the free list it does not want the
+ // write barrier to be called since that could result in the object being reachable.
+-//
+-//go:notinheap
+ type mlink struct {
++	_    sys.NotInHeap
+ 	next *mlink
+ }
+ 
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index 472c61a491..6b552203ee 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -96,6 +96,7 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -103,17 +104,15 @@ const stackTraceDebug = false
+ 
+ // Buffer for pointers found during stack tracing.
+ // Must be smaller than or equal to workbuf.
+-//
+-//go:notinheap
+ type stackWorkBuf struct {
++	_ sys.NotInHeap
+ 	stackWorkBufHdr
+ 	obj [(_WorkbufSize - unsafe.Sizeof(stackWorkBufHdr{})) / goarch.PtrSize]uintptr
+ }
+ 
+ // Header declaration must come after the buf declaration above, because of issue #14620.
+-//
+-//go:notinheap
+ type stackWorkBufHdr struct {
++	_ sys.NotInHeap
+ 	workbufhdr
+ 	next *stackWorkBuf // linked list of workbufs
+ 	// Note: we could theoretically repurpose lfnode.next as this next pointer.
+@@ -123,15 +122,14 @@ type stackWorkBufHdr struct {
+ 
+ // Buffer for stack objects found on a goroutine stack.
+ // Must be smaller than or equal to workbuf.
+-//
+-//go:notinheap
+ type stackObjectBuf struct {
++	_ sys.NotInHeap
+ 	stackObjectBufHdr
+ 	obj [(_WorkbufSize - unsafe.Sizeof(stackObjectBufHdr{})) / unsafe.Sizeof(stackObject{})]stackObject
+ }
+ 
+-//go:notinheap
+ type stackObjectBufHdr struct {
++	_ sys.NotInHeap
+ 	workbufhdr
+ 	next *stackObjectBuf
+ }
+@@ -147,9 +145,8 @@ func init() {
+ 
+ // A stackObject represents a variable on the stack that has had
+ // its address taken.
+-//
+-//go:notinheap
+ type stackObject struct {
++	_     sys.NotInHeap
+ 	off   uint32             // offset above stack.lo
+ 	size  uint32             // size of object
+ 	r     *stackObjectRecord // info of the object (for ptr/nonptr bits). nil if object has been scanned.
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 424de2fcca..65ac0a6fc7 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -320,8 +321,8 @@ type workbufhdr struct {
+ 	nobj int
+ }
+ 
+-//go:notinheap
+ type workbuf struct {
++	_ sys.NotInHeap
+ 	workbufhdr
+ 	// account for the above fields
+ 	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / goarch.PtrSize]uintptr
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 00d445c1fa..af14bf58a3 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -12,6 +12,7 @@ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -57,9 +58,9 @@ const (
+ //
+ // mheap must not be heap-allocated because it contains mSpanLists,
+ // which must not be heap-allocated.
+-//
+-//go:notinheap
+ type mheap struct {
++	_ sys.NotInHeap
++
+ 	// lock must only be acquired on the system stack, otherwise a g
+ 	// could self-deadlock if its stack grows with the lock held.
+ 	lock mutex
+@@ -217,9 +218,9 @@ var mheap_ mheap
+ 
+ // A heapArena stores metadata for a heap arena. heapArenas are stored
+ // outside of the Go heap and accessed via the mheap_.arenas index.
+-//
+-//go:notinheap
+ type heapArena struct {
++	_ sys.NotInHeap
++
+ 	// bitmap stores the pointer/scalar bitmap for the words in
+ 	// this arena. See mbitmap.go for a description.
+ 	// This array uses 1 bit per word of heap, or 1.6% of the heap size (for 64-bit).
+@@ -303,9 +304,8 @@ type heapArena struct {
+ 
+ // arenaHint is a hint for where to grow the heap arenas. See
+ // mheap_.arenaHints.
+-//
+-//go:notinheap
+ type arenaHint struct {
++	_    sys.NotInHeap
+ 	addr uintptr
+ 	down bool
+ 	next *arenaHint
+@@ -379,15 +379,14 @@ func (b *mSpanStateBox) get() mSpanState {
+ }
+ 
+ // mSpanList heads a linked list of spans.
+-//
+-//go:notinheap
+ type mSpanList struct {
++	_     sys.NotInHeap
+ 	first *mspan // first span in list, or nil if none
+ 	last  *mspan // last span in list, or nil if none
+ }
+ 
+-//go:notinheap
+ type mspan struct {
++	_    sys.NotInHeap
+ 	next *mspan     // next span in list, or nil if none
+ 	prev *mspan     // previous span in list, or nil if none
+ 	list *mSpanList // For debugging. TODO: Remove.
+@@ -1728,8 +1727,8 @@ const (
+ 	// if that happens.
+ )
+ 
+-//go:notinheap
+ type special struct {
++	_      sys.NotInHeap
+ 	next   *special // linked list in span
+ 	offset uint16   // span offset of object
+ 	kind   byte     // kind of special
+@@ -1849,9 +1848,8 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
+ //
+ // specialfinalizer is allocated from non-GC'd memory, so any heap
+ // pointers must be specially handled.
+-//
+-//go:notinheap
+ type specialfinalizer struct {
++	_       sys.NotInHeap
+ 	special special
+ 	fn      *funcval // May be a heap pointer.
+ 	nret    uintptr
+@@ -1910,9 +1908,8 @@ func removefinalizer(p unsafe.Pointer) {
+ }
+ 
+ // The described object is being heap profiled.
+-//
+-//go:notinheap
+ type specialprofile struct {
++	_       sys.NotInHeap
+ 	special special
+ 	b       *bucket
+ }
+@@ -1991,14 +1988,15 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 	}
+ }
+ 
+-// gcBits is an alloc/mark bitmap. This is always used as *gcBits.
+-//
+-//go:notinheap
+-type gcBits uint8
++// gcBits is an alloc/mark bitmap. This is always used as gcBits.x.
++type gcBits struct {
++	_ sys.NotInHeap
++	x uint8
++}
+ 
+ // bytep returns a pointer to the n'th byte of b.
+ func (b *gcBits) bytep(n uintptr) *uint8 {
+-	return addb((*uint8)(b), n)
++	return addb(&b.x, n)
+ }
+ 
+ // bitp returns a pointer to the byte containing bit n and a mask for
+@@ -2015,8 +2013,8 @@ type gcBitsHeader struct {
+ 	next uintptr // *gcBits triggers recursive type bug. (issue 14620)
+ }
+ 
+-//go:notinheap
+ type gcBitsArena struct {
++	_ sys.NotInHeap
+ 	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
+ 	free uintptr // free is the index into bits of the next free byte; read/write atomically
+ 	next *gcBitsArena
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 99a67b9a3a..6547b6b56b 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -10,6 +10,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -57,9 +58,8 @@ type bucketType int
+ // creation, including its next and allnext links.
+ //
+ // No heap pointers.
+-//
+-//go:notinheap
+ type bucket struct {
++	_       sys.NotInHeap
+ 	next    *bucket
+ 	allnext *bucket
+ 	typ     bucketType // memBucket or blockBucket (includes mutexProfile)
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 7933f36db7..833d793d88 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -8,6 +8,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -68,9 +69,8 @@ const pollBlockSize = 4 * 1024
+ // Network poller descriptor.
+ //
+ // No heap pointers.
+-//
+-//go:notinheap
+ type pollDesc struct {
++	_    sys.NotInHeap
+ 	link *pollDesc // in pollcache, protected by pollcache.lock
+ 	fd   uintptr   // constant for pollDesc usage lifetime
+ 
+@@ -641,8 +641,8 @@ func (c *pollCache) alloc() *pollDesc {
+ // makeArg converts pd to an interface{}.
+ // makeArg does not do any allocation. Normally, such
+ // a conversion requires an allocation because pointers to
+-// go:notinheap types (which pollDesc is) must be stored
+-// in interfaces indirectly. See issue 42076.
++// types which embed runtime/internal/sys.NotInHeap (which pollDesc is)
++// must be stored in interfaces indirectly. See issue 42076.
+ func (pd *pollDesc) makeArg() (i any) {
+ 	x := (*eface)(unsafe.Pointer(&i))
+ 	x._type = pdType
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 89f5343c34..e537f15826 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -18,7 +18,7 @@ type slice struct {
+ 	cap   int
+ }
+ 
+-// A notInHeapSlice is a slice backed by go:notinheap memory.
++// A notInHeapSlice is a slice backed by runtime/internal/sys.NotInHeap memory.
+ type notInHeapSlice struct {
+ 	array *notInHeap
+ 	len   int
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 0bfa9320e0..b94a4a7249 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -160,8 +160,8 @@ var stackpool [_NumStackOrders]struct {
+ 	_    [cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize]byte
+ }
+ 
+-//go:notinheap
+ type stackpoolItem struct {
++	_    sys.NotInHeap
+ 	mu   mutex
+ 	span mSpanList
+ }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 1b5e9df38b..927a66d161 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -176,9 +176,8 @@ type traceBufHeader struct {
+ }
+ 
+ // traceBuf is per-P tracing buffer.
+-//
+-//go:notinheap
+ type traceBuf struct {
++	_ sys.NotInHeap
+ 	traceBufHeader
+ 	arr [64<<10 - unsafe.Sizeof(traceBufHeader{})]byte // underlying buffer for traceBufHeader.buf
+ }
+@@ -189,7 +188,7 @@ type traceBuf struct {
+ // manipulated in contexts where write barriers are not allowed, so
+ // this is necessary.
+ //
+-// TODO: Since traceBuf is now go:notinheap, this isn't necessary.
++// TODO: Since traceBuf is now embedded runtime/internal/sys.NotInHeap, this isn't necessary.
+ type traceBufPtr uintptr
+ 
+ func (tp traceBufPtr) ptr() *traceBuf   { return (*traceBuf)(unsafe.Pointer(tp)) }
+@@ -1243,14 +1242,13 @@ type traceAlloc struct {
+ // traceAllocBlock is allocated from non-GC'd memory, so it must not
+ // contain heap pointers. Writes to pointers to traceAllocBlocks do
+ // not need write barriers.
+-//
+-//go:notinheap
+ type traceAllocBlock struct {
++	_    sys.NotInHeap
+ 	next traceAllocBlockPtr
+ 	data [64<<10 - goarch.PtrSize]byte
+ }
+ 
+-// TODO: Since traceAllocBlock is now go:notinheap, this isn't necessary.
++// TODO: Since traceAllocBlock is now embedded runtime/internal/sys.NotInHeap, this isn't necessary.
+ type traceAllocBlockPtr uintptr
+ 
+ func (p traceAllocBlockPtr) ptr() *traceAllocBlock   { return (*traceAllocBlock)(unsafe.Pointer(p)) }

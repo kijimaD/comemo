@@ -18,6 +18,20 @@ Date:   Fri Mar 1 11:13:21 2024 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
     Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
-
+---
  src/cmd/link/internal/loong64/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index b68ed494f6..06ac5302cc 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -30,7 +30,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 		ELF: ld.ELFArch{
+ 			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
+-			LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
++			LinuxdynldMusl: "/lib/ld-musl-loongarch.so.1",
+ 			Freebsddynld:   "XXX",
+ 			Openbsddynld:   "XXX",
+ 			Netbsddynld:    "XXX",

@@ -14,9 +14,165 @@ Date:   Wed Jan 20 14:46:38 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go     |  1 -
  src/cmd/compile/internal/ir/node_gen.go |  5 ----
  src/cmd/compile/internal/ssagen/ssa.go  | 44 ++++-----------------------------
  src/cmd/compile/internal/walk/expr.go   |  6 ++---
  4 files changed, 8 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index e944a0b155..b32ed71260 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -159,7 +159,6 @@ type CallExpr struct {
+ 	origNode
+ 	X         Node
+ 	Args      Nodes
+-	Rargs     Nodes   // TODO(rsc): Delete.
+ 	KeepAlive []*Name // vars to be kept alive until call returns
+ 	IsDDD     bool
+ 	Use       CallUse
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index af9ee8d86e..fe436867b2 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -250,7 +250,6 @@ func (n *CallExpr) copy() Node {
+ 	c := *n
+ 	c.init = copyNodes(c.init)
+ 	c.Args = copyNodes(c.Args)
+-	c.Rargs = copyNodes(c.Rargs)
+ 	c.KeepAlive = copyNames(c.KeepAlive)
+ 	return &c
+ }
+@@ -264,9 +263,6 @@ func (n *CallExpr) doChildren(do func(Node) bool) bool {
+ 	if doNodes(n.Args, do) {
+ 		return true
+ 	}
+-	if doNodes(n.Rargs, do) {
+-		return true
+-	}
+ 	if doNames(n.KeepAlive, do) {
+ 		return true
+ 	}
+@@ -278,7 +274,6 @@ func (n *CallExpr) editChildren(edit func(Node) Node) {
+ 		n.X = edit(n.X).(Node)
+ 	}
+ 	editNodes(n.Args, edit)
+-	editNodes(n.Rargs, edit)
+ 	editNames(n.KeepAlive, edit)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 5ba8579f6a..ecf3294082 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4492,30 +4492,8 @@ func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
+ 
+ // intrinsicArgs extracts args from n, evaluates them to SSA values, and returns them.
+ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
+-	// Construct map of temps; see comments in s.call about the structure of n.
+-	temps := map[ir.Node]*ssa.Value{}
+-	for _, a := range n.Args {
+-		if a.Op() != ir.OAS {
+-			s.Fatalf("non-assignment as a temp function argument %v", a.Op())
+-		}
+-		a := a.(*ir.AssignStmt)
+-		l, r := a.X, a.Y
+-		if l.Op() != ir.ONAME {
+-			s.Fatalf("non-ONAME temp function argument %v", a.Op())
+-		}
+-		// Evaluate and store to "temporary".
+-		// Walk ensures these temporaries are dead outside of n.
+-		temps[l] = s.expr(r)
+-	}
+-	args := make([]*ssa.Value, len(n.Rargs))
+-	for i, n := range n.Rargs {
+-		// Store a value to an argument slot.
+-		if x, ok := temps[n]; ok {
+-			// This is a previously computed temporary.
+-			args[i] = x
+-			continue
+-		}
+-		// This is an explicit value; evaluate it.
++	args := make([]*ssa.Value, len(n.Args))
++	for i, n := range n.Args {
+ 		args[i] = s.expr(n)
+ 	}
+ 	return args
+@@ -4528,13 +4506,6 @@ func (s *state) intrinsicArgs(n *ir.CallExpr) []*ssa.Value {
+ // (as well as the deferBits variable), and this will enable us to run the proper
+ // defer calls during panics.
+ func (s *state) openDeferRecord(n *ir.CallExpr) {
+-	// Do any needed expression evaluation for the args (including the
+-	// receiver, if any). This may be evaluating something like 'autotmp_3 =
+-	// once.mutex'. Such a statement will create a mapping in s.vars[] from
+-	// the autotmp name to the evaluated SSA arg value, but won't do any
+-	// stores to the stack.
+-	s.stmtList(n.Args)
+-
+ 	var args []*ssa.Value
+ 	var argNodes []*ir.Name
+ 
+@@ -4567,7 +4538,7 @@ func (s *state) openDeferRecord(n *ir.CallExpr) {
+ 		opendefer.closureNode = opendefer.closure.Aux.(*ir.Name)
+ 		opendefer.rcvrNode = opendefer.rcvr.Aux.(*ir.Name)
+ 	}
+-	for _, argn := range n.Rargs {
++	for _, argn := range n.Args {
+ 		var v *ssa.Value
+ 		if TypeOK(argn.Type()) {
+ 			v = s.openDeferSave(nil, argn.Type(), s.expr(argn))
+@@ -4853,11 +4824,6 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 	types.CalcSize(fn.Type())
+ 	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
+ 
+-	// Run all assignments of temps.
+-	// The temps are introduced to avoid overwriting argument
+-	// slots when arguments themselves require function calls.
+-	s.stmtList(n.Args)
+-
+ 	var call *ssa.Value
+ 	if k == callDeferStack {
+ 		testLateExpansion = ssa.LateCallExpansionEnabledWithin(s.f)
+@@ -4891,7 +4857,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// Then, store all the arguments of the defer call.
+ 		ft := fn.Type()
+ 		off := t.FieldOff(12)
+-		args := n.Rargs
++		args := n.Args
+ 
+ 		// Set receiver (for interface calls). Always a pointer.
+ 		if rcvr != nil {
+@@ -4966,7 +4932,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 
+ 		// Write args.
+ 		t := n.X.Type()
+-		args := n.Rargs
++		args := n.Args
+ 		if n.Op() == ir.OCALLMETH {
+ 			base.Fatalf("OCALLMETH missed by walkCall")
+ 		}
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 82a76dc239..bc4ae23759 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -535,15 +535,15 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		if mayCall(arg) {
+ 			// assignment of arg to Temp
+ 			tmp := typecheck.Temp(param.Type)
+-			a := convas(ir.NewAssignStmt(base.Pos, tmp, arg), init)
++			a := convas(typecheck.Stmt(ir.NewAssignStmt(base.Pos, tmp, arg)).(*ir.AssignStmt), init)
+ 			tempAssigns = append(tempAssigns, a)
+ 			// replace arg with temp
+ 			args[i] = tmp
+ 		}
+ 	}
+ 
+-	n.Args = tempAssigns
+-	n.Rargs = args
++	init.Append(tempAssigns...)
++	n.Args = args
+ }
+ 
+ // walkDivMod walks an ODIV or OMOD node.

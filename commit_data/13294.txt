@@ -12,6 +12,18 @@ Date:   Wed Jun 6 22:03:31 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6305054
-
+---
  src/pkg/net/cgo_bsd.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+index cf9cabbfeb..3b38e3d83e 100644
+--- a/src/pkg/net/cgo_bsd.go
++++ b/src/pkg/net/cgo_bsd.go
+@@ -12,5 +12,5 @@ package net
+ import "C"
+ 
+ func cgoAddrInfoFlags() C.int {
+-	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
++	return (C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL) & C.AI_MASK
+ }

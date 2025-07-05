@@ -11,7 +11,7 @@ Date:   Mon Nov 15 14:56:33 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/364135
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/context.go     | 52 ++++++++++++++++++++------
  src/cmd/compile/internal/types2/instantiate.go |  4 +-
  src/cmd/compile/internal/types2/named.go       |  2 +-
@@ -20,3 +20,233 @@ Date:   Mon Nov 15 14:56:33 2021 -0800
  src/cmd/compile/internal/types2/typexpr.go     | 18 ++++-----
  src/go/types/typexpr.go                        |  2 +-
  7 files changed, 72 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index 9e9eb5bdf6..8833b8097e 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -5,6 +5,7 @@ package types2
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"strings"
+ 	"sync"
+ )
+@@ -16,15 +17,15 @@ import (
+ // It is safe for concurrent use.
+ type Context struct {
+ 	mu      sync.Mutex
+-	typeMap map[string]*Named // type hash -> instance
+-	nextID  int               // next unique ID
+-	seen    map[*Named]int    // assigned unique IDs
++	typeMap map[string][]*Named // type hash -> instances
++	nextID  int                 // next unique ID
++	seen    map[*Named]int      // assigned unique IDs
+ }
+ 
+ // NewContext creates a new Context.
+ func NewContext() *Context {
+ 	return &Context{
+-		typeMap: make(map[string]*Named),
++		typeMap: make(map[string][]*Named),
+ 		seen:    make(map[*Named]int),
+ 	}
+ }
+@@ -56,17 +57,46 @@ func (ctxt *Context) typeHash(typ Type, targs []Type) string {
+ 	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
+ }
+ 
+-// typeForHash returns the recorded type for the type hash h, if it exists.
+-// If no type exists for h and n is non-nil, n is recorded for h.
+-func (ctxt *Context) typeForHash(h string, n *Named) *Named {
++// lookup returns an existing instantiation of orig with targs, if it exists.
++// Otherwise, it returns nil.
++func (ctxt *Context) lookup(h string, orig *Named, targs []Type) *Named {
+ 	ctxt.mu.Lock()
+ 	defer ctxt.mu.Unlock()
+-	if existing := ctxt.typeMap[h]; existing != nil {
+-		return existing
++
++	for _, e := range ctxt.typeMap[h] {
++		if identicalInstance(orig, targs, e.orig, e.TypeArgs().list()) {
++			return e
++		}
++		if debug {
++			// Panic during development to surface any imperfections in our hash.
++			panic(fmt.Sprintf("non-identical instances: (orig: %s, targs: %v) and %s", orig, targs, e))
++		}
+ 	}
+-	if n != nil {
+-		ctxt.typeMap[h] = n
++
++	return nil
++}
++
++// update de-duplicates n against previously seen types with the hash h.  If an
++// identical type is found with the type hash h, the previously seen type is
++// returned. Otherwise, n is returned, and recorded in the Context for the hash
++// h.
++func (ctxt *Context) update(h string, n *Named) *Named {
++	assert(n != nil)
++
++	ctxt.mu.Lock()
++	defer ctxt.mu.Unlock()
++
++	for _, e := range ctxt.typeMap[h] {
++		if n == nil || Identical(n, e) {
++			return e
++		}
++		if debug {
++			// Panic during development to surface any imperfections in our hash.
++			panic(fmt.Sprintf("%s and %s are not identical", n, e))
++		}
+ 	}
++
++	ctxt.typeMap[h] = append(ctxt.typeMap[h], n)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 3834c6ba87..65ed25ddff 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -60,7 +60,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
+ 			h = ctxt.typeHash(t, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+-			if named := ctxt.typeForHash(h, nil); named != nil {
++			if named := ctxt.lookup(h, t, targs); named != nil {
+ 				return named
+ 			}
+ 		}
+@@ -73,7 +73,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, ctxt *Con
+ 		if ctxt != nil {
+ 			// It's possible that we've lost a race to add named to the context.
+ 			// In this case, use whichever instance is recorded in the context.
+-			named = ctxt.typeForHash(h, named)
++			named = ctxt.update(h, named)
+ 		}
+ 		return named
+ 
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index e73a31d42e..78c6803d99 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -253,7 +253,7 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
+ 		ctxt = check.bestContext(ctxt)
+ 		h := ctxt.typeHash(n.orig, n.targs.list())
+ 		// ensure that an instance is recorded for h to avoid infinite recursion.
+-		ctxt.typeForHash(h, n)
++		ctxt.update(h, n)
+ 
+ 		smap := makeSubstMap(n.orig.tparams.list(), n.targs.list())
+ 		underlying = n.check.subst(instPos, n.orig.underlying, smap, ctxt)
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 8ba534ce77..e7834a0f9e 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -372,6 +372,23 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	return false
+ }
+ 
++// identicalInstance reports if two type instantiations are identical.
++// Instantiations are identical if their origin and type arguments are
++// identical.
++func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool {
++	if len(xargs) != len(yargs) {
++		return false
++	}
++
++	for i, xa := range xargs {
++		if !Identical(xa, yargs[i]) {
++			return false
++		}
++	}
++
++	return Identical(xorig, yorig)
++}
++
+ func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
+ 	if len(x) != len(y) {
+ 		return false
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index ed1fbbf941..9b82f8889a 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -209,7 +209,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// before creating a new named type, check if we have this one already
+ 		h := subst.ctxt.typeHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+-		if named := subst.ctxt.typeForHash(h, nil); named != nil {
++		if named := subst.ctxt.lookup(h, t.orig, newTArgs); named != nil {
+ 			dump(">>> found %s", named)
+ 			return named
+ 		}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index e077879b9d..05481a9a64 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -418,8 +418,8 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 		return gtyp // error already reported
+ 	}
+ 
+-	origin, _ := gtyp.(*Named)
+-	if origin == nil {
++	orig, _ := gtyp.(*Named)
++	if orig == nil {
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
+ 	}
+ 
+@@ -437,23 +437,23 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 	}
+ 
+ 	// create the instance
+-	h := check.conf.Context.typeHash(origin, targs)
++	h := check.conf.Context.typeHash(orig, targs)
+ 	// targs may be incomplete, and require inference. In any case we should de-duplicate.
+-	inst := check.conf.Context.typeForHash(h, nil)
++	inst := check.conf.Context.lookup(h, orig, targs)
+ 	// If inst is non-nil, we can't just return here. Inst may have been
+ 	// constructed via recursive substitution, in which case we wouldn't do the
+ 	// validation below. Ensure that the validation (and resulting errors) runs
+ 	// for each instantiated type in the source.
+ 	if inst == nil {
+-		tname := NewTypeName(x.Pos(), origin.obj.pkg, origin.obj.name, nil)
+-		inst = check.newNamed(tname, origin, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
++		tname := NewTypeName(x.Pos(), orig.obj.pkg, orig.obj.name, nil)
++		inst = check.newNamed(tname, orig, nil, nil, nil) // underlying, methods and tparams are set when named is resolved
+ 		inst.targs = NewTypeList(targs)
+-		inst = check.conf.Context.typeForHash(h, inst)
++		inst = check.conf.Context.update(h, inst)
+ 	}
+ 	def.setUnderlying(inst)
+ 
+ 	inst.resolver = func(ctxt *Context, n *Named) (*TypeParamList, Type, []*Func) {
+-		tparams := origin.TypeParams().list()
++		tparams := orig.TypeParams().list()
+ 
+ 		inferred := targs
+ 		if len(targs) < len(tparams) {
+@@ -469,7 +469,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def
+ 		return expandNamed(ctxt, n, x.Pos())
+ 	}
+ 
+-	// origin.tparams may not be set up, so we need to do expansion later.
++	// orig.tparams may not be set up, so we need to do expansion later.
+ 	check.later(func() {
+ 		// This is an instance from the source, not from recursive substitution,
+ 		// and so it must be resolved during type-checking so that we can report
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index d80acbe7d6..5828c2e7c3 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -449,7 +449,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 		return expandNamed(ctxt, n, pos)
+ 	}
+ 
+-	// origin.tparams may not be set up, so we need to do expansion later.
++	// orig.tparams may not be set up, so we need to do expansion later.
+ 	check.later(func() {
+ 		// This is an instance from the source, not from recursive substitution,
+ 		// and so it must be resolved during type-checking so that we can report

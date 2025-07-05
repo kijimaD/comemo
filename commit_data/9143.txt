@@ -7,7 +7,73 @@ Date:   Wed Jul 20 11:41:41 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4815041
-
+---
  src/pkg/mime/multipart/multipart_test.go | 12 ++++++------
  src/pkg/net/textproto/reader.go          | 15 ++++++++++++---
  2 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index 3f3b8b1a0e..38079e53a1 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -141,14 +141,14 @@ func testMultipart(t *testing.T, r io.Reader, onlyNewlines bool) {
+ 		t.Error("Expected part1")
+ 		return
+ 	}
+-	if part.Header.Get("Header1") != "value1" {
+-		t.Error("Expected Header1: value")
++	if x := part.Header.Get("Header1"); x != "value1" {
++		t.Errorf("part.Header.Get(%q) = %q, want %q", "Header1", x, "value1")
+ 	}
+-	if part.Header.Get("foo-bar") != "baz" {
+-		t.Error("Expected foo-bar: baz")
++	if x := part.Header.Get("foo-bar"); x != "baz" {
++		t.Errorf("part.Header.Get(%q) = %q, want %q", "foo-bar", x, "baz")
+ 	}
+-	if part.Header.Get("Foo-Bar") != "baz" {
+-		t.Error("Expected Foo-Bar: baz")
++	if x := part.Header.Get("Foo-Bar"); x != "baz" {
++		t.Errorf("part.Header.Get(%q) = %q, want %q", "Foo-Bar", x, "baz")
+ 	}
+ 	buf.Reset()
+ 	if _, err := io.Copy(buf, part); err != nil {
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index 9b5befe9aa..6031baa3bb 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -115,6 +115,13 @@ func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
+ 	}
+ 	line = trim(line)
+ 
++	copied := false
++	if r.R.Buffered() < 1 {
++		// ReadByte will flush the buffer; make a copy of the slice.
++		copied = true
++		line = append([]byte(nil), line...)
++	}
++
+ 	// Look for a continuation line.
+ 	c, err := r.R.ReadByte()
+ 	if err != nil {
+@@ -127,6 +134,11 @@ func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
+ 		return line, nil
+ 	}
+ 
++	if !copied {
++		// The next readLineSlice will invalidate the previous one.
++		line = append(make([]byte, 0, len(line)*2), line...)
++	}
++
+ 	// Read continuation lines.
+ 	for {
+ 		// Consume leading spaces; one already gone.
+@@ -140,9 +152,6 @@ func (r *Reader) readContinuedLineSlice() ([]byte, os.Error) {
+ 				break
+ 			}
+ 		}
+-		// copy now since the next call to read a slice invalidates line
+-		line = append(make([]byte, 0, len(line)*2), line...)
+-
+ 		var cont []byte
+ 		cont, err = r.readLineSlice()
+ 		cont = trim(cont)

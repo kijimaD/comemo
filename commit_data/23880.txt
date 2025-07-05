@@ -13,7 +13,35 @@ Date:   Wed Jun 17 14:07:13 2015 +0200
     Change-Id: I20cfb4df35739f7bfeb50b92c78249df3d47942c
     Reviewed-on: https://go-review.googlesource.com/11063
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/compress/lzw/reader.go | 3 ++-
  src/compress/lzw/writer.go | 2 +-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 6800e8323b..28e9f7514f 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -227,7 +227,8 @@ func (d *decoder) Close() error {
+ // It is the caller's responsibility to call Close on the ReadCloser when
+ // finished reading.
+ // The number of bits to use for literal codes, litWidth, must be in the
+-// range [2,8] and is typically 8.
++// range [2,8] and is typically 8. It must equal the litWidth
++// used during compression.
+ func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
+ 	d := new(decoder)
+ 	switch order {
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index 961b25f94f..e9314fc474 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -230,7 +230,7 @@ func (e *encoder) Close() error {
+ // It is the caller's responsibility to call Close on the WriteCloser when
+ // finished writing.
+ // The number of bits to use for literal codes, litWidth, must be in the
+-// range [2,8] and is typically 8.
++// range [2,8] and is typically 8. Input bytes must be less than 1<<litWidth.
+ func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
+ 	var write func(*encoder, uint32) error
+ 	switch order {

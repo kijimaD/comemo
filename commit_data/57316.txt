@@ -20,9 +20,136 @@ Date:   Thu Jul 27 19:36:55 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/internal/test/issue1435.go |  8 ++++++++
  src/syscall/exec_linux_test.go         | 16 ++++++++++++++++
  src/syscall/exec_pdeathsig_test.go     |  8 ++++++++
  src/syscall/syscall_linux_test.go      | 15 +++++++++++++++
  4 files changed, 47 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/test/issue1435.go b/src/cmd/cgo/internal/test/issue1435.go
+index a672e26aa0..1588d39ea9 100644
+--- a/src/cmd/cgo/internal/test/issue1435.go
++++ b/src/cmd/cgo/internal/test/issue1435.go
+@@ -8,6 +8,7 @@ package cgotest
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"runtime"
+ 	"sort"
+@@ -145,6 +146,13 @@ func test1435(t *testing.T) {
+ 	if syscall.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
++	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
++		// The Go build system's swarming user is known not to be root.
++		// Unfortunately, it sometimes appears as root due the current
++		// implementation of a no-network check using 'unshare -n -r'.
++		// Since this test does need root to work, we need to skip it.
++		t.Skip("skipping root only test on a non-root builder")
++	}
+ 	if runtime.GOOS == "linux" {
+ 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+ 			t.Skip("skipping failing test on alpine - go.dev/issue/19938")
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index e9919b6801..f894bbaae9 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -249,6 +249,14 @@ func TestUnshareMountNameSpace(t *testing.T) {
+ 		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
+ 		}
++		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
++			// The Go build system's swarming user is known not to support
++			// starting a process with CLONE_NEWNS.
++			// Unfortunately, it doesn't get recognized as such due the current
++			// implementation of a no-network check using 'unshare -n -r'.
++			// Since this test does need start this process, we need to skip it.
++			t.Skipf("skipping: could not start process with CLONE_NEWNS: %v", err)
++		}
+ 		t.Fatalf("unshare failed: %v\n%s", err, o)
+ 	}
+ 
+@@ -301,6 +309,14 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 		if testenv.SyscallIsNotSupported(err) {
+ 			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
+ 		}
++		if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
++			// The Go build system's swarming user is known not to support
++			// starting a process with CLONE_NEWNS and Chroot.
++			// Unfortunately, it doesn't get recognized as such due the current
++			// implementation of a no-network check using 'unshare -n -r'.
++			// Since this test does need start this process, we need to skip it.
++			t.Skipf("skipping: could not start process with CLONE_NEWNS and Chroot %q: %v", d, err)
++		}
+ 		t.Fatalf("unshare failed: %v\n%s", err, o)
+ 	}
+ 
+diff --git a/src/syscall/exec_pdeathsig_test.go b/src/syscall/exec_pdeathsig_test.go
+index 96ae27b494..46ce33443d 100644
+--- a/src/syscall/exec_pdeathsig_test.go
++++ b/src/syscall/exec_pdeathsig_test.go
+@@ -9,6 +9,7 @@ package syscall_test
+ import (
+ 	"bufio"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"os"
+ 	"os/exec"
+@@ -23,6 +24,13 @@ func TestDeathSignal(t *testing.T) {
+ 	if os.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
++	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
++		// The Go build system's swarming user is known not to be root.
++		// Unfortunately, it sometimes appears as root due the current
++		// implementation of a no-network check using 'unshare -n -r'.
++		// Since this test does need root to work, we need to skip it.
++		t.Skip("skipping root only test on a non-root builder")
++	}
+ 
+ 	// Copy the test binary to a location that a non-root user can read/execute
+ 	// after we drop privileges
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index ff128b1a19..1300fc046e 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -6,6 +6,7 @@ package syscall_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -198,6 +199,13 @@ func TestSyscallNoError(t *testing.T) {
+ 	if os.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
++	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
++		// The Go build system's swarming user is known not to be root.
++		// Unfortunately, it sometimes appears as root due the current
++		// implementation of a no-network check using 'unshare -n -r'.
++		// Since this test does need root to work, we need to skip it.
++		t.Skip("skipping root only test on a non-root builder")
++	}
+ 
+ 	if runtime.GOOS == "android" {
+ 		t.Skip("skipping on rooted android, see issue 27364")
+@@ -516,6 +524,13 @@ func TestSetuidEtc(t *testing.T) {
+ 	if syscall.Getuid() != 0 {
+ 		t.Skip("skipping root only test")
+ 	}
++	if testing.Short() && testenv.Builder() != "" && os.Getenv("USER") == "swarming" {
++		// The Go build system's swarming user is known not to be root.
++		// Unfortunately, it sometimes appears as root due the current
++		// implementation of a no-network check using 'unshare -n -r'.
++		// Since this test does need root to work, we need to skip it.
++		t.Skip("skipping root only test on a non-root builder")
++	}
+ 	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+ 		t.Skip("skipping glibc test on alpine - go.dev/issue/19938")
+ 	}

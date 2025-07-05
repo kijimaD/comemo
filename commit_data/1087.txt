@@ -8,7 +8,34 @@ Date:   Fri Nov 7 11:44:15 2008 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=18781
     CL=18785
-
+---
  test/fixedbugs/bug113.go | 2 +-
  test/ken/interbasic.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug113.go b/test/fixedbugs/bug113.go
+index c3109a9cd2..ea75260cf2 100644
+--- a/test/fixedbugs/bug113.go
++++ b/test/fixedbugs/bug113.go
+@@ -13,7 +13,7 @@ func main() {
+   i = 1;
+   var v1 int = i;
+   if foo1(v1) != 1 { panicln(1) }
+-  var v2 int32 = i.(int).(int32);
++  var v2 int32 = int32(i.(int));
+   if foo2(v2) != 1 { panicln(2) }
+   var v3 int32 = i; // This implicit type conversion should fail at runtime.
+   if foo2(v3) != 1 { panicln(3) }
+diff --git a/test/ken/interbasic.go b/test/ken/interbasic.go
+index e4b0b79a43..05eea395bb 100644
+--- a/test/ken/interbasic.go
++++ b/test/ken/interbasic.go
+@@ -86,7 +86,7 @@ main()
+ 	u64 = 765432;	ia[12] = u64;
+ 
+ 	s = ia[0];	if s != "xxx" { panicln(0,s); }
+-	i32 = ia[1].(int).(int32);
++	i32 = int32(ia[1].(int));
+ 			if i32 != 12345 { panicln(1,i32); }
+ 	b = ia[2];	if b != true { panicln(2,b); }
+ 

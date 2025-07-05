@@ -13,6 +13,20 @@ Date:   Thu Feb 27 03:14:21 2020 -0500
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/logopt/log_opts.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 2639d27105..49cb9cf57f 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -390,7 +390,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
+ 		var w io.WriteCloser
+ 
+ 		if slashPkgPath == "" {
+-			slashPkgPath = string(0)
++			slashPkgPath = "\000"
+ 		}
+ 		subdirpath := filepath.Join(dest, pathEscape(slashPkgPath))
+ 		err := os.MkdirAll(subdirpath, 0755)

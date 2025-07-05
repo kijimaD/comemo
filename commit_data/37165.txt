@@ -9,6 +9,20 @@ Date:   Fri Jul 6 09:56:04 2018 +0100
     Change-Id: Ia3dff6a56c7f6c782be74a998a622ef0611eca7e
     Reviewed-on: https://go-review.googlesource.com/122456
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 60019b308c..f91a21329f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1058,7 +1058,7 @@ Michael Matloob <matloob@google.com>
+ Michael McConville <momcconville@gmail.com>
+ Michael McGreevy <mcgreevy@golang.org>
+ Michael McLoughlin <mmcloughlin@gmail.com>
+-Michael Munday <munday@ca.ibm.com>
++Michael Munday <mike.munday@ibm.com>
+ Michael Pearson <mipearson@gmail.com>
+ Michael Piatek <piatek@google.com>
+ Michael Pratt <mpratt@google.com>

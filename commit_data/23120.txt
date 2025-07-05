@@ -26,7 +26,56 @@ Date:   Tue Jan 6 21:07:24 2015 -0800
     Change-Id: I284042eb9954ff9b7cde80b8b693b1d468c7e1e8
     Reviewed-on: https://go-review.googlesource.com/2421
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go      |  6 +++++-
  src/crypto/elliptic/elliptic_test.go | 13 +++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 396bb5caf5..f3b84e1eac 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -308,7 +308,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
+ 	return ret
+ }
+ 
+-// Unmarshal converts a point, serialized by Marshal, into an x, y pair. On error, x = nil.
++// Unmarshal converts a point, serialized by Marshal, into an x, y pair.
++// It is an error if the point is not on the curve. On error, x = nil.
+ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+ 	byteLen := (curve.Params().BitSize + 7) >> 3
+ 	if len(data) != 1+2*byteLen {
+@@ -319,6 +320,9 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
+ 	}
+ 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
+ 	y = new(big.Int).SetBytes(data[1+byteLen:])
++	if !curve.Params().IsOnCurve(x, y) {
++		x, y = nil, nil
++	}
+ 	return
+ }
+ 
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 4dc27c92bf..7e27913dcd 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -19,6 +19,19 @@ func TestOnCurve(t *testing.T) {
+ 	}
+ }
+ 
++func TestOffCurve(t *testing.T) {
++	p224 := P224()
++	x, y := new(big.Int).SetInt64(1), new(big.Int).SetInt64(1)
++	if p224.IsOnCurve(x, y) {
++		t.Errorf("FAIL: point off curve is claimed to be on the curve")
++	}
++	b := Marshal(p224, x, y)
++	x1, y1 := Unmarshal(p224, b)
++	if x1 != nil || y1 != nil {
++		t.Errorf("FAIL: unmarshalling a point not on the curve succeeded")
++	}
++}
++
+ type baseMultTest struct {
+ 	k    string
+ 	x, y string

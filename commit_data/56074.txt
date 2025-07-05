@@ -20,6 +20,26 @@ Date:   Fri Apr 7 15:37:18 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/responsecontroller_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/responsecontroller_test.go b/src/net/http/responsecontroller_test.go
+index c560e4bc54..5828f3795a 100644
+--- a/src/net/http/responsecontroller_test.go
++++ b/src/net/http/responsecontroller_test.go
+@@ -199,8 +199,12 @@ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
+ 		select {
+ 		case <-readc:
+ 		case <-donec:
+-			t.Errorf("server handler unexpectedly exited without closing readc")
+-			return
++			select {
++			case <-readc:
++			default:
++				t.Errorf("server handler unexpectedly exited without closing readc")
++				return
++			}
+ 		}
+ 		pw.Write([]byte("two"))
+ 	}()

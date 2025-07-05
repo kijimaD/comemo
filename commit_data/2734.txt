@@ -8,8 +8,62 @@ Date:   Thu Jul 16 21:24:30 2009 -0700
     DELTA=20  (0 added, 12 deleted, 8 changed)
     OCL=31758
     CL=31758
-
+---
  src/pkg/datafmt/datafmt.go   | 7 ++-----
  src/pkg/json/struct.go       | 6 ++----
  src/pkg/template/template.go | 7 ++-----
  3 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 9b2d4dfb09..be5575d57c 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -423,11 +423,8 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
+ 	styp := sval.Type().(*reflect.StructType);
+ 
+ 	// look for field at the top level
+-	for i := 0; i < styp.NumField(); i++ {
+-		f := styp.Field(i);
+-		if f.Name == fieldname {
+-			return sval.Field(i), 0;
+-		}
++	if field, ok := styp.FieldByName(fieldname); ok {
++		return sval.Field(field.Index), 0;
+ 	}
+ 
+ 	// look for field in anonymous fields
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index 81887b1c80..ee23d1e9dd 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -184,10 +184,8 @@ func (b *_StructBuilder) Key(k string) Builder {
+ 	}
+ 	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
+ 		t := v.Type().(*reflect.StructType);
+-		for i := 0; i < t.NumField(); i++ {
+-			if t.Field(i).Name == k {
+-				return &_StructBuilder{ v.Field(i) }
+-			}
++		if field, ok := t.FieldByName(k); ok {
++			return &_StructBuilder{ v.Field(field.Index) }
+ 		}
+ 		// Again, case-insensitive.
+ 		for i := 0; i < t.NumField(); i++ {
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 6db58442ac..7c38b778fc 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -571,11 +571,8 @@ func (st *state) findVar(s string) reflect.Value {
+ 	data := reflect.Indirect(st.data);
+ 	typ, ok := data.Type().(*reflect.StructType);
+ 	if ok {
+-		for i := 0; i < typ.NumField(); i++ {
+-			f := typ.Field(i);
+-			if f.Name == s {
+-				return data.(*reflect.StructValue).Field(i)
+-			}
++		if field, ok := typ.FieldByName(s); ok {
++			return data.(*reflect.StructValue).Field(field.Index)
+ 		}
+ 	}
+ 	return nil

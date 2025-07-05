@@ -20,7 +20,44 @@ Date:   Fri Jan 25 18:56:22 2019 +1100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/sys_windows_amd64.s     | 2 +-
  src/runtime/syscall_windows_test.go | 8 ++++++--
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 612f0a474d..43a26497ad 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -351,7 +351,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	ADDQ	$64, SP
+ 	POPFQ
+ 
+-	MOVL	-8(CX)(DX*1), AX  // return value
++	MOVQ	-8(CX)(DX*1), AX  // return value
+ 	POPQ	-8(CX)(DX*1)      // restore bytes just after the args
+ 	RET
+ 
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 3ad6512976..5335c12f0f 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -655,12 +655,16 @@ uintptr_t cfunc(callback f, uintptr_t n) {
+ 		r   uintptr
+ 		err syscall.Errno
+ 	}
++	want := result{
++		// Make it large enough to test issue #29331.
++		r:   (^uintptr(0)) >> 24,
++		err: 333,
++	}
+ 	c := make(chan result)
+ 	go func() {
+-		r, _, err := proc.Call(cb, 100)
++		r, _, err := proc.Call(cb, want.r)
+ 		c <- result{r, err.(syscall.Errno)}
+ 	}()
+-	want := result{r: 100, err: 333}
+ 	if got := <-c; got != want {
+ 		t.Errorf("got %d want %d", got, want)
+ 	}

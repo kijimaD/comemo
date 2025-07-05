@@ -24,6 +24,45 @@ Date:   Wed Jun 26 13:20:05 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/sync/pool_test.go | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index 090f1a8c6a..814c4a6812 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -180,6 +180,12 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
+ 	have := make([]int32, N)
+ 	var stop int32
+ 	var wg WaitGroup
++	record := func(val int) {
++		atomic.AddInt32(&have[val], 1)
++		if val == N-1 {
++			atomic.StoreInt32(&stop, 1)
++		}
++	}
+ 
+ 	// Start P-1 consumers.
+ 	for i := 1; i < P; i++ {
+@@ -190,10 +196,7 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
+ 				val, ok := d.PopTail()
+ 				if ok {
+ 					fail = 0
+-					atomic.AddInt32(&have[val.(int)], 1)
+-					if val.(int) == N-1 {
+-						atomic.StoreInt32(&stop, 1)
+-					}
++					record(val.(int))
+ 				} else {
+ 					// Speed up the test by
+ 					// allowing the pusher to run.
+@@ -219,7 +222,7 @@ func testPoolDequeue(t *testing.T, d PoolDequeue) {
+ 				val, ok := d.PopHead()
+ 				if ok {
+ 					nPopHead++
+-					atomic.AddInt32(&have[val.(int)], 1)
++					record(val.(int))
+ 				}
+ 			}
+ 		}

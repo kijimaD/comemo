@@ -9,6 +9,24 @@ Date:   Fri May 16 09:30:28 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/100500047
-
+---
  src/pkg/syscall/syscall_linux_amd64.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 1e330dd99c..8915ed83b8 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -73,10 +73,10 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ 	var tv Timeval
+ 	errno := gettimeofday(&tv)
+ 	if errno != 0 {
+-		return errno
++		return 0, errno
+ 	}
+ 	if t != nil {
+-		*t = tv.Sec
++		*t = Time_t(tv.Sec)
+ 	}
+ 	return Time_t(tv.Sec), nil
+ }

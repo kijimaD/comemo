@@ -17,6 +17,34 @@ Date:   Thu Apr 13 13:17:26 2023 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/regexp/regexp.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 82023868ec..1c9b2fd4de 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -1284,18 +1284,18 @@ func (re *Regexp) Split(s string, n int) []string {
+ 	return strings
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface. The output
++// MarshalText implements [encoding.TextMarshaler]. The output
+ // matches that of calling the [Regexp.String] method.
+ //
+ // Note that the output is lossy in some cases: This method does not indicate
+-// POSIX regular expressions (i.e. those compiled by calling CompilePOSIX), or
++// POSIX regular expressions (i.e. those compiled by calling [CompilePOSIX]), or
+ // those for which the [Regexp.Longest] method has been called.
+ func (re *Regexp) MarshalText() ([]byte, error) {
+ 	return []byte(re.String()), nil
+ }
+ 
+-// MarshalText implements the encoding.TextUnmarshaler interface by calling
+-// Compile on the encoded value.
++// UnmarshalText implements [encoding.TextUnmarshaler] by calling
++// [Compile] on the encoded value.
+ func (re *Regexp) UnmarshalText(text []byte) error {
+ 	newRE, err := Compile(string(text))
+ 	if err != nil {

@@ -14,6 +14,20 @@ Date:   Thu Jan 14 11:30:27 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 0639c3b620..39659c45c0 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -145,7 +145,7 @@ func (n *BinaryExpr) SetOp(op Op) {
+ }
+ 
+ // A CallUse records how the result of the call is used:
+-type CallUse int
++type CallUse byte
+ 
+ const (
+ 	_ CallUse = iota

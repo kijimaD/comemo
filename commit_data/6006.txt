@@ -7,9 +7,168 @@ Date:   Wed Aug 11 22:27:47 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1960042
-
+---
  src/cmd/6g/ggen.c            | 16 +++++++++-------
  src/cmd/8g/ggen.c            | 31 ++++++++++++++++++++++++++-----
  src/pkg/exp/draw/x11/auth.go |  5 +----
  test/fixedbugs/bug303.go     | 37 +++++++++++++++++++++++++++++++++++++
  4 files changed, 73 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 46ca326745..1e045da8ba 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1145,16 +1145,18 @@ cmpandthrow(Node *nl, Node *nr)
+ 
+ 	n1.op = OXXX;
+ 	t = types[TUINT32];
+-	if(is64(nl->type) || is64(nr->type)) {
+-		// two 64-bit is just a 64-bit compare,
+-		// but one 32 and one 64 needs to copy
+-		// the 32 into a register to get the full comparison.
+-		t = types[TUINT64];
+-		if(!is64(nl->type) && nl->op != OLITERAL) {
++	if(nl->type->width != t->width || nr->type->width != t->width) {
++		if((is64(nl->type) && nl->op != OLITERAL) || (is64(nr->type) && nr->op != OLITERAL))
++			t = types[TUINT64];
++
++		// Check if we need to use a temporary.
++		// At least one of the arguments is 32 bits
++		// (the len or cap) so one temporary suffices.
++		if(nl->type->width != t->width && nl->op != OLITERAL) {
+ 			regalloc(&n1, t, nl);
+ 			gmove(nl, &n1);
+ 			nl = &n1;
+-		} else if(!is64(nr->type) && nr->op != OLITERAL) {
++		} else if(nr->type->width != t->width && nr->op != OLITERAL) {
+ 			regalloc(&n1, t, nr);
+ 			gmove(nr, &n1);
+ 			nr = &n1;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 40f348c7d8..5c51833ea2 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -857,7 +857,8 @@ cmpandthrow(Node *nl, Node *nr)
+ 	vlong cl;
+ 	Prog *p1;
+ 	int op;
+-	Node *c;
++	Node *c, n1;
++	Type *t;
+ 
+ 	op = OLE;
+ 	if(smallintconst(nl)) {
+@@ -872,16 +873,34 @@ cmpandthrow(Node *nl, Node *nr)
+ 		nl = nr;
+ 		nr = c;
+ 	}
+-
+-	gins(optoas(OCMP, types[TUINT32]), nl, nr);
++	
++	// Arguments are known not to be 64-bit,
++	// but they might be smaller than 32 bits.
++	// Check if we need to use a temporary.
++	// At least one of the arguments is 32 bits
++	// (the len or cap) so one temporary suffices.
++	n1.op = OXXX;
++	t = types[TUINT32];
++	if(nl->type->width != t->width) {
++		regalloc(&n1, t, nl);
++		gmove(nl, &n1);
++		nl = &n1;
++	} else if(nr->type->width != t->width) {
++		regalloc(&n1, t, nr);
++		gmove(nr, &n1);
++		nr = &n1;
++	}
++	gins(optoas(OCMP, t), nl, nr);
++	if(n1.op != OXXX)
++		regfree(&n1);
+ 	if(throwpc == nil) {
+-		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		p1 = gbranch(optoas(op, t), T);
+ 		throwpc = pc;
+ 		ginscall(panicslice, 0);
+ 		patch(p1, pc);
+ 	} else {
+ 		op = brcom(op);
+-		p1 = gbranch(optoas(op, types[TUINT32]), T);
++		p1 = gbranch(optoas(op, t), T);
+ 		patch(p1, throwpc);
+ 	}
+ }
+@@ -1045,6 +1064,7 @@ sliceslice:
+ 		// if(lb[1] > old.nel[0]) goto throw;
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_nel;
++		n2.type = types[TUINT32];
+ 		cmpandthrow(&nodes[1], &n2);
+ 
+ 		// ret.nel = old.nel[0]-lb[1];
+@@ -1064,6 +1084,7 @@ sliceslice:
+ 		// if(hb[2] > old.cap[0]) goto throw;
+ 		n2 = nodes[0];
+ 		n2.xoffset += Array_cap;
++		n2.type = types[TUINT32];
+ 		cmpandthrow(&nodes[2], &n2);
+ 
+ 		// if(lb[1] > hb[2]) goto throw;
+diff --git a/src/pkg/exp/draw/x11/auth.go b/src/pkg/exp/draw/x11/auth.go
+index b4c75a360d..896dedf05c 100644
+--- a/src/pkg/exp/draw/x11/auth.go
++++ b/src/pkg/exp/draw/x11/auth.go
+@@ -16,10 +16,7 @@ func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	// TODO(nigeltao): remove the workaround when bug 1011 gets fixed.
+-	//return uint16(b[0])<<8 + uint16(b[1]), nil
+-	ret := uint16(b[0])<<8 + uint16(b[1])
+-	return ret, nil
++	return uint16(b[0])<<8 + uint16(b[1]), nil
+ }
+ 
+ // readStr reads a length-prefixed string from r, using b as a scratch buffer.
+diff --git a/test/fixedbugs/bug303.go b/test/fixedbugs/bug303.go
+new file mode 100644
+index 0000000000..3bd790f136
+--- /dev/null
++++ b/test/fixedbugs/bug303.go
+@@ -0,0 +1,37 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1011.  Removing either #1 or #3 avoided the crash at #2.
++
++package main
++
++import (
++	"io"
++	"strings"
++)
++
++func readU16BE(b []byte) uint16 {
++	b[0] = 0
++	b[1] = 1
++	return uint16(b[0])<<8 + uint16(b[1]) // #1
++	n := uint16(b[0])<<8 + uint16(b[1])
++	return n
++}
++
++func readStr(r io.Reader, b []byte) string {
++	n := readU16BE(b)
++	if int(n) > len(b) {
++		return "err: n>b"
++	}
++	io.ReadFull(r, b[0:n]) // #2
++	return string(b[0:n])  // #3
++	return "ok"
++}
++
++func main() {
++	br := strings.NewReader("abcd")
++	readStr(br, make([]byte, 256))
++}

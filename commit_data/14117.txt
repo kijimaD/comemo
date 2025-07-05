@@ -7,7 +7,32 @@ Date:   Wed Oct 10 11:35:43 2012 -0700
     R=golang-dev, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/6635061
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 41f4ac5e3c..9d205cc71e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -222,6 +222,7 @@ Stéphane Travostino <stephane.travostino@gmail.com>
+ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>
++Taj Khattra <taj.khattra@gmail.com>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index dfec4d8a99..9bb0b2940b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -321,6 +321,7 @@ Stephen Weinberg <stephen@q5comm.com>
+ Sugu Sougoumarane <ssougou@gmail.com>
+ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>
++Taj Khattra <taj.khattra@gmail.com>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Thomas Alan Copeland <talan.copeland@gmail.com>

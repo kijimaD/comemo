@@ -9,7 +9,7 @@ Date:   Fri Jan 9 00:17:46 2009 -0800
     DELTA=171  (97 added, 22 deleted, 52 changed)
     OCL=22382
     CL=22382
-
+---
  src/cmd/gc/sys.go           |   4 +-
  src/cmd/gc/sysimport.c      |   4 +-
  src/lib/reflect/all_test.go |  21 ++++++++
@@ -18,3 +18,418 @@ Date:   Fri Jan 9 00:17:46 2009 -0800
  src/runtime/iface.c         | 128 ++++++++++++++++++++++++++++----------------
  src/runtime/runtime.h       |   2 +-
  7 files changed, 138 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 445104b044..ba74fae61d 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -35,8 +35,8 @@ export func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+ export func	ifaceI2I(sigi *byte, iface any) (ret any);
+ export func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ export func	ifaceeq(i1 any, i2 any) (ret bool);
+-export func	reflect(i interface { }) (uint64, string);
+-export func	unreflect(uint64, string) (ret interface { });
++export func	reflect(i interface { }) (uint64, string, bool);
++export func	unreflect(uint64, string, bool) (ret interface { });
+ 
+ export func	argc() int;
+ export func	envc() int;
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index b183830f61..00251018e9 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -27,8 +27,8 @@ char *sysimport =
+ 	"export func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+ 	"export func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
+ 	"export func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+-	"export func sys.reflect (i interface { }) (? uint64, ? string)\n"
+-	"export func sys.unreflect (? uint64, ? string) (ret interface { })\n"
++	"export func sys.reflect (i interface { }) (? uint64, ? string, ? bool)\n"
++	"export func sys.unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+ 	"export func sys.argc () (? int)\n"
+ 	"export func sys.envc () (? int)\n"
+ 	"export func sys.argv (? int) (? string)\n"
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index eb0bbf9e66..38e2589fe8 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -332,3 +332,24 @@ export func TestCopyArray(t *testing.T) {
+ 		}
+ 	}
+ }
++
++export func TestBigUnnamedStruct(t *testing.T) {
++	b := struct{a,b,c,d int64}{1, 2, 3, 4};
++	v := NewValue(b);
++	b1 := v.Interface().(struct{a,b,c,d int64});
++	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
++		t.Errorf("NewValue(%v).Interface().(Big) = %v", b, b1);
++	}
++}
++
++type Big struct {
++	a, b, c, d, e int64
++}
++export func TestBigStruct(t *testing.T) {
++	b := Big{1, 2, 3, 4, 5};
++	v := NewValue(b);
++	b1 := v.Interface().(Big);
++	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d || b1.e != b.e {
++		t.Errorf("NewValue(%v).Interface().(Big) = %v", b, b1);
++	}
++}
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 2cc3e48430..8653ef6eb5 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -75,6 +75,12 @@ func (c *Common) Name() string {
+ }
+ 
+ func (c *Common) String() string {
++	// If there is a name, show that instead of its expansion.
++	// This is important for reflection: a named type
++	// might have methods that the unnamed type does not.
++	if c.name != "" {
++		return c.name
++	}
+ 	return c.str
+ }
+ 
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 2ff4b85e03..1327e8f671 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -46,10 +46,16 @@ func (c *Common) Addr() Addr {
+ }
+ 
+ func (c *Common) Interface() interface {} {
+-	if uintptr(c.addr) == 0 {
+-		panicln("reflect: address 0 for", c.typ.String());
++	var i interface {};
++	if c.typ.Size() > 8 {	// TODO(rsc): how do we know it is 8?
++		i = sys.unreflect(c.addr.(uintptr).(uint64), c.typ.String(), true);
++	} else {
++		if uintptr(c.addr) == 0 {
++			panicln("reflect: address 0 for", c.typ.String());
++		}
++		i = sys.unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String(), false);
+ 	}
+-	return sys.unreflect(uint64(uintptr(*c.addr.(*Addr))), c.typ.String());
++	return i;
+ }
+ 
+ func NewValueAddr(typ Type, addr Addr) Value
+@@ -783,7 +789,7 @@ var creator = map[int] Creator {
+ 	FuncKind : &FuncCreator,
+ }
+ 
+-var typecache = make(map[string] *Type);
++var typecache = make(map[string] Type);
+ 
+ func NewValueAddr(typ Type, addr Addr) Value {
+ 	c, ok := creator[typ.Kind()];
+@@ -870,17 +876,21 @@ export func CopyArray(dst ArrayValue, src ArrayValue, n int) {
+ 
+ 
+ export func NewValue(e interface {}) Value {
+-	value, typestring  := sys.reflect(e);
+-	p, ok := typecache[typestring];
++	value, typestring, indir := sys.reflect(e);
++	typ, ok := typecache[typestring];
+ 	if !ok {
+-		typ := ParseTypeString("", typestring);
+-		p = new(Type);
+-		*p = typ;
+-		typecache[typestring] = p;
++		typ = ParseTypeString("", typestring);
++		typecache[typestring] = typ;
+ 	}
+-	// Content of interface is a value; need a permanent copy to take its address
+-	// so we can modify the contents. Values contain pointers to 'values'.
++
++	if indir {
++		// Content of interface is a pointer.
++		return NewValueAddr(typ, value.(uintptr).(Addr));
++	}
++
++	// Content of interface is a value;
++	// need a permanent copy to take its address.
+ 	ap := new(uint64);
+ 	*ap = value;
+-	return NewValueAddr(*p, ap.(Addr));
++	return NewValueAddr(typ, ap.(Addr));
+ }
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index f752f005ac..6dfba09283 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -38,6 +38,7 @@ struct	Itype
+ 	void	(*fun[])(void);
+ };
+ 
++static	Iface	niliface;
+ static	Itype*	hash[1009];
+ 
+ Sigi	sigi·empty[2] =	{ (byte*)"interface { }" };
+@@ -102,16 +103,10 @@ printsigt(Sigt *st)
+ static void
+ printiface(Iface i)
+ {
+-	int32 j;
+-
+ 	prints("(");
+ 	sys·printpointer(i.type);
+ 	prints(",");
+-	for(j=0; j<nelem(i.data); j++) {
+-		if(j > 0)
+-			prints(".");
+-		sys·printpointer(i.data[0]);
+-	}
++	sys·printpointer(i.data);
+ 	prints(")");
+ }
+ 
+@@ -217,12 +212,12 @@ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
+ 	alg = st->hash;
+ 	wid = st->offset;
+ 	if(wid <= sizeof ret->data)
+-		algarray[alg].copy(wid, ret->data, elem);
++		algarray[alg].copy(wid, &ret->data, elem);
+ 	else{
+-		ret->data[0] = mal(wid);
++		ret->data = mal(wid);
+ 		if(iface_debug)
+-			printf("T2I mal %d %p\n", wid, ret->data[0]);
+-		algarray[alg].copy(wid, ret->data[0], elem);
++			printf("T2I mal %d %p\n", wid, ret->data);
++		algarray[alg].copy(wid, ret->data, elem);
+ 	}
+ 
+ 	if(iface_debug) {
+@@ -273,9 +268,9 @@ sys·ifaceI2T(Sigt *st, Iface i, ...)
+ 	alg = st->hash;
+ 	wid = st->offset;
+ 	if(wid <= sizeof i.data)
+-		algarray[alg].copy(wid, ret, i.data);
++		algarray[alg].copy(wid, ret, &i.data);
+ 	else
+-		algarray[alg].copy(wid, ret, i.data[0]);
++		algarray[alg].copy(wid, ret, i.data);
+ 
+ 	if(iface_debug) {
+ 		prints("I2T ret=");
+@@ -314,9 +309,9 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
+ 	} else {
+ 		*ok = true;
+ 		if(wid <= sizeof i.data)
+-			algarray[alg].copy(wid, ret, i.data);
++			algarray[alg].copy(wid, ret, &i.data);
+ 		else
+-			algarray[alg].copy(wid, ret, i.data[0]);
++			algarray[alg].copy(wid, ret, i.data);
+ 	}
+ 	if(iface_debug) {
+ 		prints("I2T2 ret=");
+@@ -331,7 +326,6 @@ void
+ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ {
+ 	Itype *im;
+-	int32 j;
+ 
+ 	if(iface_debug) {
+ 		prints("I2I sigi=");
+@@ -345,9 +339,7 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ 	if(im == nil) {
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+-		ret.type = nil;
+-		for(j=0; j<nelem(ret.data); j++)
+-			ret.data[j] = nil;
++		ret = niliface;
+ 	} else {
+ 		ret = i;
+ 		if(im->sigi != si)
+@@ -368,7 +360,6 @@ void
+ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ {
+ 	Itype *im;
+-	int32 j;
+ 
+ 	if(iface_debug) {
+ 		prints("I2I2 sigi=");
+@@ -382,9 +373,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ 	if(im == nil) {
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+-		ret.type = nil;
+-		for(j=0; j<nelem(ret.data); j++)
+-			ret.data[j] = nil;
++		ret = niliface;
+ 		ok = 1;
+ 	} else {
+ 		ret = i;
+@@ -392,8 +381,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ 		if(im->sigi != si) {
+ 			ret.type = itype(si, im->sigt, 1);
+ 			if(ret.type == nil) {
+-				for(j=0; j<nelem(ret.data); j++)
+-					ret.data[j] = nil;
++				ret = niliface;
+ 				ok = 0;
+ 			}
+ 		}
+@@ -444,10 +432,10 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
+ 		goto no;
+ 
+ 	if(wid <= sizeof i1.data) {
+-		if(!algarray[alg].equal(wid, i1.data, i2.data))
++		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
+ 			goto no;
+ 	} else {
+-		if(!algarray[alg].equal(wid, i1.data[0], i2.data[0]))
++		if(!algarray[alg].equal(wid, i1.data, i2.data))
+ 			goto no;
+ 	}
+ 
+@@ -469,24 +457,61 @@ sys·printinter(Iface i)
+ }
+ 
+ void
+-sys·reflect(Itype *im, void *it, uint64 retit, string rettype)
++sys·reflect(Iface i, uint64 retit, string rettype, bool retindir)
+ {
+-	if(im == nil) {
++	int32 wid;
++
++	if(i.type == nil) {
+ 		retit = 0;
+ 		rettype = nil;
++		retindir = false;
+ 	} else {
+-		retit = (uint64)it;
+-		rettype = gostring(im->sigt->name);
++		retit = (uint64)i.data;
++		rettype = gostring(i.type->sigt->name);
++		wid = i.type->sigt->offset;
++		retindir = wid > sizeof i.data;
+ 	}
+ 	FLUSH(&retit);
+ 	FLUSH(&rettype);
++	FLUSH(&retindir);
+ }
+ 
+ extern Sigt *gotypesigs[];
+ extern int32 ngotypesigs;
+ 
++
++// The reflection library can ask to unreflect on a type
++// that has never been used, so we don't have a signature for it.
++// For concreteness, suppose a program does
++//
++// 	type T struct{ x []int }
++// 	var t T;
++// 	v := reflect.NewValue(v);
++// 	vv := v.Field(0);
++// 	if s, ok := vv.Interface().(string) {
++// 		print("first field is string");
++// 	}
++//
++// vv.Interface() returns the result of sys.unreflect with
++// a typestring of "[]int".  If []int is not used with interfaces
++// in the rest of the program, there will be no signature in gotypesigs
++// for "[]int", so we have to invent one.  The only requirements
++// on the fake signature are:
++//
++//	(1) any interface conversion using the signature will fail
++//	(2) calling sys.reflect() returns the args to unreflect
++//
++// (1) is ensured by the fact that we allocate a new Sigt,
++// so it will necessarily be != any Sigt in gotypesigs.
++// (2) is ensured by storing the type string in the signature
++// and setting the width to force the correct value of the bool indir.
++//
++// Note that (1) is correct behavior: if the program had tested
++// for .([]int) instead of .(string) above, then there would be a
++// signature with type string "[]int" in gotypesigs, and unreflect
++// wouldn't call fakesigt.
+ static Sigt*
+-fakesigt(string type)
++fakesigt(string type, bool indir)
+ {
+ 	// TODO(rsc): Cache these by type string.
+ 	Sigt *sigt;
+@@ -495,7 +520,10 @@ fakesigt(string type)
+ 	sigt[0].name = mal(type->len + 1);
+ 	mcpy(sigt[0].name, type->str, type->len);
+ 	sigt[0].hash = ASIMP;	// alg
+-	sigt[0].offset = sizeof(void*);	// width
++	if(indir)
++		sigt[0].offset = 2*sizeof(niliface.data);  // big width
++	else
++		sigt[0].offset = 1;  // small width
+ 	return sigt;
+ }
+ 
+@@ -521,27 +549,37 @@ cmpstringchars(string a, uint8 *b)
+ }
+ 
+ static Sigt*
+-findtype(string type)
++findtype(string type, bool indir)
+ {
+ 	int32 i;
+ 
+ 	for(i=0; i<ngotypesigs; i++)
+ 		if(cmpstringchars(type, gotypesigs[i]->name) == 0)
+ 			return gotypesigs[i];
+-	return fakesigt(type);
++	return fakesigt(type, indir);
+ }
+ 
++
+ void
+-sys·unreflect(uint64 it, string type, Itype *retim, void *retit)
++sys·unreflect(uint64 it, string type, bool indir, Iface ret)
+ {
+-	if(cmpstring(type, emptystring) == 0) {
+-		retim = 0;
+-		retit = 0;
+-	} else {
+-		retim = itype(sigi·empty, findtype(type), 0);
+-		retit = (void*)it;
+-	}
+-	FLUSH(&retim);
+-	FLUSH(&retit);
++	Sigt *sigt;
++
++	ret = niliface;
++
++	if(cmpstring(type, emptystring) == 0)
++		goto out;
++
++	// if we think the type should be indirect
++	// and caller does not, play it safe, return nil.
++	sigt = findtype(type, indir);
++	if(indir != (sigt[0].offset > sizeof ret.data))
++		goto out;
++
++	ret.type = itype(sigi·empty, sigt, 0);
++	ret.data = (void*)it;
++
++out:
++	FLUSH(&ret);
+ }
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 687e4e0ee0..ba210aee7c 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -110,7 +110,7 @@ struct String
+ struct Iface
+ {
+ 	Itype *type;
+-	void *data[1];	// could make bigger later, but must be in sync with compilers
++	void *data;
+ };
+ 
+ struct	Array

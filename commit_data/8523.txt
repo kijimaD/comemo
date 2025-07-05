@@ -8,7 +8,136 @@ Date:   Sat May 28 07:06:53 2011 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4515150
-
+---
  src/pkg/time/format.go    | 36 +++++++++++++++++++++++-------------
  src/pkg/time/time_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 4b427f9d75..47d7363425 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -272,18 +272,19 @@ func (t *Time) Format(layout string) string {
+ 		case stdHour:
+ 			p = zeroPad(t.Hour)
+ 		case stdHour12:
+-			// Noon is 12PM.
+-			if t.Hour == 12 {
+-				p = "12"
+-			} else {
+-				p = strconv.Itoa(t.Hour % 12)
++			// Noon is 12PM, midnight is 12AM.
++			hr := t.Hour % 12
++			if hr == 0 {
++				hr = 12
+ 			}
++			p = strconv.Itoa(hr)
+ 		case stdZeroHour12:
+-			if t.Hour == 12 {
+-				p = "12"
+-			} else {
+-				p = zeroPad(t.Hour % 12)
++			// Noon is 12PM, midnight is 12AM.
++			hr := t.Hour % 12
++			if hr == 0 {
++				hr = 12
+ 			}
++			p = zeroPad(hr)
+ 		case stdMinute:
+ 			p = strconv.Itoa(t.Minute)
+ 		case stdZeroMinute:
+@@ -438,6 +439,7 @@ func skip(value, prefix string) (string, os.Error) {
+ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 	var t Time
+ 	rangeErrString := "" // set if a value is out of range
++	amSet := false       // do we need to subtract 12 from the hour for midnight?
+ 	pmSet := false       // do we need to add 12 to the hour?
+ 	layout, value := alayout, avalue
+ 	// Each iteration processes one std value.
+@@ -567,9 +569,12 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 				break
+ 			}
+ 			p, value = value[0:2], value[2:]
+-			if p == "PM" {
++			switch p {
++			case "PM":
+ 				pmSet = true
+-			} else if p != "AM" {
++			case "AM":
++				amSet = true
++			default:
+ 				err = errBad
+ 			}
+ 		case stdpm:
+@@ -578,9 +583,12 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 				break
+ 			}
+ 			p, value = value[0:2], value[2:]
+-			if p == "pm" {
++			switch p {
++			case "pm":
+ 				pmSet = true
+-			} else if p != "am" {
++			case "am":
++				amSet = true
++			default:
+ 				err = errBad
+ 			}
+ 		case stdTZ:
+@@ -622,6 +630,8 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 	}
+ 	if pmSet && t.Hour < 12 {
+ 		t.Hour += 12
++	} else if amSet && t.Hour == 12 {
++		t.Hour = 0
+ 	}
+ 	return &t, nil
+ }
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 9c70ad1cc1..eb676bf64a 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -315,6 +315,19 @@ func TestNoonIs12PM(t *testing.T) {
+ 	}
+ }
+ 
++func TestMidnightIs12AM(t *testing.T) {
++	midnight := Time{Hour: 0}
++	expect := "12:00AM"
++	got := midnight.Format("3:04PM")
++	if got != expect {
++		t.Errorf("got %q; expect %q", got, expect)
++	}
++	got = midnight.Format("03:04PM")
++	if got != expect {
++		t.Errorf("got %q; expect %q", got, expect)
++	}
++}
++
+ func Test12PMIsNoon(t *testing.T) {
+ 	noon, err := Parse("3:04PM", "12:00PM")
+ 	if err != nil {
+@@ -332,6 +345,23 @@ func Test12PMIsNoon(t *testing.T) {
+ 	}
+ }
+ 
++func Test12AMIsMidnight(t *testing.T) {
++	midnight, err := Parse("3:04PM", "12:00AM")
++	if err != nil {
++		t.Fatal("error parsing date:", err)
++	}
++	if midnight.Hour != 0 {
++		t.Errorf("got %d; expect 0", midnight.Hour)
++	}
++	midnight, err = Parse("03:04PM", "12:00AM")
++	if err != nil {
++		t.Fatal("error parsing date:", err)
++	}
++	if midnight.Hour != 0 {
++		t.Errorf("got %d; expect 0", midnight.Hour)
++	}
++}
++
+ // Check that a time without a Zone still produces a (numeric) time zone
+ // when formatted with MST as a requested zone.
+ func TestMissingZone(t *testing.T) {

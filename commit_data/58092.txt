@@ -19,7 +19,92 @@ Date:   Tue Sep 12 15:39:56 2023 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/obj/ppc64/asm9.go     | 22 +++++++++++++---------
  src/cmd/internal/obj/ppc64/asm_test.go | 16 ++++++++++++++++
  2 files changed, 29 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index c1207b01f9..4ce506cbf9 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -99,7 +99,11 @@ type Optab struct {
+ //
+ // Likewise, each slice of optab is dynamically sorted using the ocmp Sort interface
+ // to arrange entries to minimize text size of each opcode.
+-var optab = []Optab{
++//
++// optab is the sorted result of combining optabBase, optabGen, and prefixableOptab.
++var optab []Optab
++
++var optabBase = []Optab{
+ 	{as: obj.ATEXT, a1: C_LOREG, a6: C_TEXTSIZE, type_: 0, size: 0},
+ 	{as: obj.ATEXT, a1: C_LOREG, a3: C_LCON, a6: C_TEXTSIZE, type_: 0, size: 0},
+ 	{as: obj.ATEXT, a1: C_ADDR, a6: C_TEXTSIZE, type_: 0, size: 0},
+@@ -1303,10 +1307,6 @@ func buildop(ctxt *obj.Link) {
+ 			entry.ispfx = true
+ 			entry.size = entry.pfxsize
+ 		}
+-		// Use the legacy assembler function if none provided.
+-		if entry.asmout == nil {
+-			entry.asmout = asmout
+-		}
+ 		prefixOptab = append(prefixOptab, entry.Optab)
+ 
+ 	}
+@@ -1318,16 +1318,20 @@ func buildop(ctxt *obj.Link) {
+ 			}
+ 		}
+ 	}
++
++	// Append the generated entries, sort, and fill out oprange.
++	optab = make([]Optab, 0, len(optabBase)+len(optabGen)+len(prefixOptab))
++	optab = append(optab, optabBase...)
++	optab = append(optab, optabGen...)
++	optab = append(optab, prefixOptab...)
++	sort.Slice(optab, optabLess)
++
+ 	for i := range optab {
+ 		// Use the legacy assembler function if none provided.
+ 		if optab[i].asmout == nil {
+ 			optab[i].asmout = asmout
+ 		}
+ 	}
+-	// Append the generated entries, sort, and fill out oprange.
+-	optab = append(optab, optabGen...)
+-	optab = append(optab, prefixOptab...)
+-	sort.Slice(optab, optabLess)
+ 
+ 	for i := 0; i < len(optab); {
+ 		r := optab[i].as
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 433df5c8aa..87d4156ef9 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -7,6 +7,7 @@ package ppc64
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/testenv"
+ 	"math"
+ 	"os"
+@@ -553,3 +554,18 @@ func TestAddrClassifier(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// The optab size should remain constant when reinitializing the PPC64 assembler backend.
++func TestOptabReinit(t *testing.T) {
++	buildcfg.GOOS = "linux"
++	buildcfg.GOARCH = "ppc64le"
++	buildcfg.GOPPC64 = 8
++	buildop(nil)
++	optabLen := len(optab)
++	buildcfg.GOPPC64 = 9
++	buildop(nil)
++	reinitOptabLen := len(optab)
++	if reinitOptabLen != optabLen {
++		t.Errorf("rerunning buildop changes optab size from %d to %d", optabLen, reinitOptabLen)
++	}
++}

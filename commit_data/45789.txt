@@ -17,8 +17,57 @@ Date:   Wed Nov 18 08:53:00 2020 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/export_pipe2_test.go | 15 +++++++++++++++
  src/runtime/export_pipe_test.go  |  9 +++++++++
  src/runtime/export_unix_test.go  |  1 -
  3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_pipe2_test.go b/src/runtime/export_pipe2_test.go
+new file mode 100644
+index 0000000000..9d580d3313
+--- /dev/null
++++ b/src/runtime/export_pipe2_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd linux netbsd openbsd solaris
++
++package runtime
++
++func Pipe() (r, w int32, errno int32) {
++	r, w, errno = pipe2(0)
++	if errno == _ENOSYS {
++		return pipe()
++	}
++	return r, w, errno
++}
+diff --git a/src/runtime/export_pipe_test.go b/src/runtime/export_pipe_test.go
+new file mode 100644
+index 0000000000..8f66770fb9
+--- /dev/null
++++ b/src/runtime/export_pipe_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly
++
++package runtime
++
++var Pipe = pipe
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index 621488eaba..307c63fd68 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -9,7 +9,6 @@ package runtime
+ import "unsafe"
+ 
+ var NonblockingPipe = nonblockingPipe
+-var Pipe = pipe
+ var SetNonblock = setNonblock
+ var Closeonexec = closeonexec
+ 

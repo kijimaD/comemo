@@ -11,7 +11,7 @@ Date:   Fri Mar 13 16:59:51 2009 -0700
     R=rsc
     OCL=26287
     CL=26287
-
+---
  usr/gri/pretty/ast.go              |  21 +++----
  usr/gri/pretty/compilation.go      |  94 +++++++++++++++----------------
  usr/gri/pretty/dir_template.html   |  17 ++++++
@@ -23,3 +23,888 @@ Date:   Fri Mar 13 16:59:51 2009 -0700
  usr/gri/pretty/template.go         |  22 +++++++-
  usr/gri/pretty/test.sh             |   2 +-
  10 files changed, 247 insertions(+), 155 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index dc86a03cc2..e3b033a6f0 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -144,7 +144,7 @@ type (
+ 	};
+ 	
+ 	Field struct {
+-		Idents []*Ident;
++		Names []*Ident;
+ 		Typ Expr;
+ 		Tag Expr;  // nil = no tag
+ 		Comment CommentGroup;
+@@ -341,9 +341,10 @@ type (
+ 		Loc scanner.Location;
+ 	};
+ 
+-	LabelDecl struct {
++	LabeledStat struct {
+ 		Loc scanner.Location;  // location of ":"
+ 		Label *Ident;
++		Stat Stat;
+ 	};
+ 
+ 	DeclarationStat struct {
+@@ -408,7 +409,7 @@ type (
+ 
+ type StatVisitor interface {
+ 	DoBadStat(s *BadStat);
+-	DoLabelDecl(s *LabelDecl);
++	DoLabeledStat(s *LabeledStat);
+ 	DoDeclarationStat(s *DeclarationStat);
+ 	DoExpressionStat(s *ExpressionStat);
+ 	DoCompositeStat(s *CompositeStat);
+@@ -423,7 +424,7 @@ type StatVisitor interface {
+ 
+ 
+ func (s *BadStat) Visit(v StatVisitor) { v.DoBadStat(s); }
+-func (s *LabelDecl) Visit(v StatVisitor) { v.DoLabelDecl(s); }
++func (s *LabeledStat) Visit(v StatVisitor) { v.DoLabeledStat(s); }
+ func (s *DeclarationStat) Visit(v StatVisitor) { v.DoDeclarationStat(s); }
+ func (s *ExpressionStat) Visit(v StatVisitor) { v.DoExpressionStat(s); }
+ func (s *CompositeStat) Visit(v StatVisitor) { v.DoCompositeStat(s); }
+@@ -452,13 +453,13 @@ type (
+ 
+ 	ImportDecl struct {
+ 		Loc scanner.Location;  // if > 0: position of "import"
+-		Ident *Ident;
++		Name *Ident;
+ 		Path Expr;
+ 	};
+ 	
+ 	ConstDecl struct {
+ 		Loc scanner.Location;  // if > 0: position of "const"
+-		Idents []*Ident;
++		Names []*Ident;
+ 		Typ Expr;
+ 		Vals Expr;
+ 		Comment CommentGroup;
+@@ -466,14 +467,14 @@ type (
+ 	
+ 	TypeDecl struct {
+ 		Loc scanner.Location;  // if > 0: position of "type"
+-		Ident *Ident;
++		Name *Ident;
+ 		Typ Expr;
+ 		Comment CommentGroup;
+ 	};
+ 	
+ 	VarDecl struct {
+ 		Loc scanner.Location;  // if > 0: position of "var"
+-		Idents []*Ident;
++		Names []*Ident;
+ 		Typ Expr;
+ 		Vals Expr;
+ 		Comment CommentGroup;
+@@ -482,7 +483,7 @@ type (
+ 	FuncDecl struct {
+ 		Loc scanner.Location;  // location of "func"
+ 		Recv *Field;
+-		Ident *Ident;
++		Name *Ident;
+ 		Sig *Signature;
+ 		Body *Block;
+ 		Comment CommentGroup;
+@@ -523,7 +524,7 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
+ // TODO rename to Package
+ type Program struct {
+ 	Loc scanner.Location;  // tok is token.PACKAGE
+-	Ident *Ident;
++	Name *Ident;
+ 	Decls []Decl;
+ 	Comment CommentGroup;
+ 	Comments []CommentGroup;
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 5f7f13336e..5803f701b8 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -9,12 +9,13 @@ import (
+ 	"utf8";
+ 	"fmt";
+ 	"os";
+-	Utils "utils";
+-	Platform "platform";
++	"utils";
++	"platform";
+ 	"scanner";
+ 	Parser "parser";
+-	AST "ast";
+-	TypeChecker "typechecker";
++	"ast";
++	"typechecker";
++	"sort";
+ )
+ 
+ 
+@@ -32,12 +33,25 @@ type Flags struct {
+ }
+ 
+ 
++type Error struct {
++	Loc scanner.Location;
++	Msg string;
++}
++
++
++type ErrorList []Error
++
++func (list ErrorList) Len() int { return len(list); }
++func (list ErrorList) Less(i, j int) bool { return list[i].Loc.Pos < list[j].Loc.Pos; }
++func (list ErrorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
++
++
+ type errorHandler struct {
+ 	filename string;
+ 	src []byte;
+ 	columns bool;
+ 	errline int;
+-	nerrors int;
++	errors vector.Vector;
+ }
+ 
+ 
+@@ -45,62 +59,35 @@ func (h *errorHandler) Init(filename string, src []byte, columns bool) {
+ 	h.filename = filename;
+ 	h.src = src;
+ 	h.columns = columns;
++	h.errors.Init(0);
+ }
+ 
+ 
+-/*
+-// Compute (line, column) information for a given source position.
+-func (h *errorHandler) LineCol(pos int) (line, col int) {
+-	line = 1;
+-	lpos := 0;
+-
+-	src := h.src;
+-	if pos > len(src) {
+-		pos = len(src);
+-	}
+-
+-	for i := 0; i < pos; i++ {
+-		if src[i] == '\n' {
+-			line++;
+-			lpos = i;
+-		}
++func (h *errorHandler) Error(loc scanner.Location, msg string) {
++	// only report errors that are on a new line 
++	// in the hope to avoid most follow-up errors
++	if loc.Line == h.errline {
++		return;
+ 	}
+ 
+-	return line, utf8.RuneCount(src[lpos : pos]);
+-}
+-*/
+-
+-
+-func (h *errorHandler) ErrorMsg(loc scanner.Location, msg string) {
++	// report error
+ 	fmt.Printf("%s:%d:", h.filename, loc.Line);
+ 	if h.columns {
+ 		fmt.Printf("%d:", loc.Col);
+ 	}
+ 	fmt.Printf(" %s\n", msg);
+ 
++	// collect the error
++	h.errors.Push(Error{loc, msg});
+ 	h.errline = loc.Line;
+-
+-	h.nerrors++;
+-	if h.nerrors >= 10 {
+-		sys.Exit(1);
+-	}
+ }
+ 
+ 
+-func (h *errorHandler) Error(loc scanner.Location, msg string) {
+-	// only report errors that are on a new line 
+-	// in the hope to avoid most follow-up errors
+-	if loc.Line != h.errline {
+-		h.ErrorMsg(loc, msg);
+-	}
+-}
+-
+-
+-func Compile(src_file string, flags *Flags) (*AST.Program, int) {
++func Compile(src_file string, flags *Flags) (*ast.Program, ErrorList) {
+ 	src, ok := Platform.ReadSourceFile(src_file);
+ 	if !ok {
+ 		print("cannot open ", src_file, "\n");
+-		return nil, 1;
++		return nil, nil;
+ 	}
+ 
+ 	var err errorHandler;
+@@ -114,11 +101,18 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 
+ 	prog := parser.Parse(Parser.ParseEntirePackage);
+ 
+-	if err.nerrors == 0 {
++	if err.errors.Len() == 0 {
+ 		TypeChecker.CheckProgram(&err, prog);
+ 	}
++	
++	// convert error list and sort it
++	errors := make(ErrorList, err.errors.Len());
++	for i := 0; i < err.errors.Len(); i++ {
++		errors[i] = err.errors.At(i).(Error);
++	}
++	sort.Sort(errors);
+ 
+-	return prog, err.nerrors;
++	return prog, errors;
+ }
+ 
+ 
+@@ -128,8 +122,8 @@ func fileExists(name string) bool {
+ }
+ 
+ /*
+-func printDep(localset map [string] bool, wset *vector.Vector, decl AST.Decl2) {
+-	src := decl.Val.(*AST.BasicLit).Val;
++func printDep(localset map [string] bool, wset *vector.Vector, decl ast.Decl2) {
++	src := decl.Val.(*ast.BasicLit).Val;
+ 	src = src[1 : len(src) - 1];  // strip "'s
+ 
+ 	// ignore files when they are seen a 2nd time
+@@ -157,8 +151,8 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string,
+ 	if !found {
+ 		globalset[src_file] = true;
+ 
+-		prog, nerrors := Compile(src_file, flags);
+-		if nerrors > 0 {
++		prog, errors := Compile(src_file, flags);
++		if errors == nil || len(errors) > 0 {
+ 			return;
+ 		}
+ 
+@@ -176,7 +170,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string,
+ 					printDep(localset, wset, decl);
+ 				} else {
+ 					for j := 0; j < decl.List.Len(); j++ {
+-						printDep(localset, wset, decl.List.At(j).(*AST.Decl));
++						printDep(localset, wset, decl.List.At(j).(*ast.Decl));
+ 					}
+ 				}
+ 				*/
+diff --git a/usr/gri/pretty/dir_template.html b/usr/gri/pretty/dir_template.html
+new file mode 100644
+index 0000000000..2fbb698bfb
+--- /dev/null
++++ b/usr/gri/pretty/dir_template.html
+@@ -0,0 +1,17 @@
++
++<h1><!--PATH--></h1>
++
++<h2>Directories</h2>
++<!--DIRECTORIES-->
++
++<h2>Go files</h2>
++<!--GO FILES-->
++
++<h2>Other files</h2>
++<font color=grey>
++<!--OTHER FILES-->
++</font>
++
++</div>  <!-- content -->
++</body>
++</html>
+diff --git a/usr/gri/pretty/error_template.html b/usr/gri/pretty/error_template.html
+new file mode 100644
+index 0000000000..cfc1df1616
+--- /dev/null
++++ b/usr/gri/pretty/error_template.html
+@@ -0,0 +1,12 @@
++
++<font color=red>THIS SECTION IS CURRENTLY UNDER CONSTRUCTION</font>
++
++<h1>Compilation errors in <!--FILE_NAME--></h1>
++
++<pre>
++<!--ERRORS-->
++</pre>
++
++</div>  <!-- content -->
++</body>
++</html>
+diff --git a/usr/gri/pretty/gds.go b/usr/gri/pretty/gds.go
+index 919b6ea832..db4ce81af1 100644
+--- a/usr/gri/pretty/gds.go
++++ b/usr/gri/pretty/gds.go
+@@ -16,11 +16,12 @@ import (
+ 	"os";
+ 	"sort";
+ 	"log";
++	"template";
+ 
+-	Utils "utils";
+-	Platform "platform";
+-	Compilation "compilation";
+-	Printer "printer";
++	"utils";
++	"platform";
++	"compilation";
++	"printer";
+ )
+ 
+ 
+@@ -39,16 +40,18 @@ func (p DirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+ func isGoFile(dir *os.Dir) bool {
+-	ext := ".go";  // TODO 6g bug - should be const
++	const ext = ".go";
+ 	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
+ }
+ 
+ 
+ func printLink(c *http.Conn, path, name string) {
+-	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br>\n", path + name, name);
++	fmt.Fprintf(c, "<a href=\"%s\">%s</a><br />\n", path + name, name);
+ }
+ 
+ 
++var dir_template = template.NewTemplateOrDie("dir_template.html");
++
+ func serveDir(c *http.Conn, dirname string) {
+ 	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
+ 	if err1 != nil {
+@@ -68,42 +71,90 @@ func serveDir(c *http.Conn, dirname string) {
+ 
+ 	c.SetHeader("content-type", "text/html; charset=utf-8");
+ 	path := dirname + "/";
+-	fmt.Fprintf(c, "<b>%s</b>\n", path);
+ 
+ 	// Print contents in 3 sections: directories, go files, everything else
+ 
+-	// 1) directories
+-	fmt.Fprintln(c, "<p>");
+-	for i, entry := range list {
+-		if entry.IsDirectory() {
+-			printLink(c, path, entry.Name);
++	// TODO handle Apply errors
++	dir_template.Apply(c, "<!--", template.Substitution {
++		"PATH-->" : func() {
++			fmt.Fprintf(c, "%s", path);
++		},
++
++		"DIRECTORIES-->" : func() {
++			for i, entry := range list {
++				if entry.IsDirectory() {
++					printLink(c, path, entry.Name);
++				}
++			}
++		},
++
++		"GO FILES-->" : func() {
++			for i, entry := range list {
++				if isGoFile(&entry) {
++					printLink(c, path, entry.Name);
++				}
++			}
++		},
++
++		"OTHER FILES-->" : func() {
++			for i, entry := range list {
++				if !entry.IsDirectory() && !isGoFile(&entry) {
++					fmt.Fprintf(c, "%s<br />\n", entry.Name);
++				}
++			}
+ 		}
+-	}
++	});
++}
+ 
+-	// 2) .go files
+-	fmt.Fprintln(c, "<p>");
+-	for i, entry := range list {
+-		if isGoFile(&entry) {
+-			printLink(c, path, entry.Name);
+-		}
+-	}
+ 
+-	// 3) everything else
+-	fmt.Fprintln(c, "<p>");
+-	for i, entry := range list {
+-		if !entry.IsDirectory() && !isGoFile(&entry) {
+-			fmt.Fprintf(c, "<font color=grey>%s</font><br>\n", entry.Name);
++var error_template = template.NewTemplateOrDie("error_template.html");
++
++func printErrors(c *http.Conn, filename string, errors Compilation.ErrorList) {
++	// TODO factor code - shouldn't do this here and in Compilation
++	src, ok := Platform.ReadSourceFile(*root + filename);
++
++	// TODO handle Apply errors
++	error_template.Apply(c, "<!--", template.Substitution {
++		"FILE_NAME-->" : func() {
++			fmt.Fprintf(c, "%s", filename);
++		},
++
++		"ERRORS-->" : func () {
++			if ok == false /* 6g bug139 */ {
++				fmt.Fprintf(c, "could not read file %s\n", *root + filename);
++				return;
++			}
++			pos := 0;
++			for i, e := range errors {
++				if 0 <= e.Loc.Pos && e.Loc.Pos <= len(src) {
++					// TODO handle Write errors
++					c.Write(src[pos : e.Loc.Pos]);
++					// TODO this should be done using a .css file
++					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.Msg);
++					pos = e.Loc.Pos;
++				} else {
++					log.Stdoutf("error position %d out of bounds (len = %d)", e.Loc.Pos, len(src));
++				}
++			}
++			// TODO handle Write errors
++			c.Write(src[pos : len(src)]);
+ 		}
+-	}
++	});
+ }
+ 
+ 
+ func serveFile(c *http.Conn, filename string) {
+ 	var flags Compilation.Flags;
+-	prog, nerrors := Compilation.Compile(*root + filename, &flags);
+-	if nerrors > 0 {
++	prog, errors := Compilation.Compile(*root + filename, &flags);
++	if errors == nil {
+ 		c.WriteHeader(http.StatusNotFound);
+-		fmt.Fprintf(c, "Error: File has compilation errors (%s)\n", filename);
++		fmt.Fprintf(c, "Error: could not read file (%s)\n", filename);
++		return;
++	}
++
++	if len(errors) > 0 {
++		c.SetHeader("content-type", "text/html; charset=utf-8");
++		printErrors(c, filename, errors);
+ 		return;
+ 	}
+ 
+@@ -143,7 +194,7 @@ func main() {
+ 	*root = Utils.SanitizePath(*root);
+ 	dir, err1 := os.Stat(*root);
+ 	if err1 != nil || !dir.IsDirectory() {
+-		log.Exitf("root not found or not a directory: ", *root);
++		log.Exitf("root not found or not a directory: %s", *root);
+ 	}
+ 
+ 	if *verbose {
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 2e9b34e571..dd50e00068 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -1085,7 +1085,12 @@ func (P *Parser) parseExpression(prec int) ast.Expr {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+-func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
++const /* mode */ (
++	label_ok = 1 << iota;
++	range_ok;
++)
++
++func (P *Parser) parseSimpleStat(mode int) ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "SimpleStat"));
+ 	}
+@@ -1094,13 +1099,13 @@ func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
+ 
+ 	switch P.tok {
+ 	case token.COLON:
+-		// label declaration
++		// labeled statement
+ 		loc := P.loc;
+ 		P.next();  // consume ":"
+ 		P.opt_semi = true;
+-		if ast.ExprLen(x) == 1 {
++		if mode & label_ok != 0 && ast.ExprLen(x) == 1 {
+ 			if label, is_ident := x.(*ast.Ident); is_ident {
+-				return &ast.LabelDecl{loc, label};
++				return &ast.LabeledStat{loc, label, P.parseStatement()};
+ 			}
+ 		}
+ 		P.error(x.Loc(), "illegal label declaration");
+@@ -1115,7 +1120,7 @@ func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
+ 		loc, tok := P.loc, P.tok;
+ 		P.next();
+ 		var y ast.Expr;
+-		if range_ok && P.tok == token.RANGE {
++		if mode & range_ok != 0 && P.tok == token.RANGE {
+ 			range_loc := P.loc;
+ 			P.next();
+ 			y = &ast.UnaryExpr{range_loc, token.RANGE, P.parseExpression(1)};
+@@ -1202,7 +1207,11 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
+ 		prev_lev := P.expr_lev;
+ 		P.expr_lev = -1;
+ 		if P.tok != token.SEMICOLON {
+-			init = P.parseSimpleStat(isForStat);
++			mode := 0;
++			if isForStat {
++				mode = range_ok;
++			}
++			init = P.parseSimpleStat(mode);
+ 			// TODO check for range clause and exit if found
+ 		}
+ 		if P.tok == token.SEMICOLON {
+@@ -1213,7 +1222,7 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
+ 			if isForStat {
+ 				P.expect(token.SEMICOLON);
+ 				if P.tok != token.LBRACE {
+-					post = P.parseSimpleStat(false);
++					post = P.parseSimpleStat(0);
+ 				}
+ 			}
+ 		} else {
+@@ -1363,16 +1372,12 @@ func (P *Parser) parseStatement() ast.Stat {
+ 	switch P.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+ 		return &ast.DeclarationStat{P.parseDeclaration()};
+-	case token.FUNC:
+-		// for now we do not allow local function declarations,
+-		// instead we assume this starts a function literal
+-		fallthrough;
+ 	case
+-		// only the tokens that are legal top-level expression starts
+-		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.LPAREN,  // operand
++		// tokens that may start a top-level expression
++		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
+ 		token.LBRACK, token.STRUCT,  // composite type
+-		token.MUL, token.AND, token.ARROW:  // unary
+-		return P.parseSimpleStat(false);
++		token.MUL, token.AND, token.ARROW:  // unary operators
++		return P.parseSimpleStat(label_ok);
+ 	case token.GO, token.DEFER:
+ 		return P.parseInvocationStat(P.tok);
+ 	case token.RETURN:
+@@ -1389,7 +1394,7 @@ func (P *Parser) parseStatement() ast.Stat {
+ 		return P.parseSwitchStat();
+ 	case token.SELECT:
+ 		return P.parseSelectStat();
+-	case token.SEMICOLON:
++	case token.SEMICOLON, token.RBRACE:
+ 		// don't consume the ";", it is the separator following the empty statement
+ 		return &ast.EmptyStat{P.loc};
+ 	}
+@@ -1434,10 +1439,9 @@ func (P *Parser) parseConstSpec(loc scanner.Location, comment ast.CommentGroup)
+ 
+ 	idents := P.parseIdentList2(nil);
+ 	typ := P.tryType();
+-
+ 	var vals ast.Expr;
+-	if P.tok == token.ASSIGN {
+-		P.next();
++	if typ != nil || P.tok == token.ASSIGN {
++		P.expect(token.ASSIGN);
+ 		vals = P.parseExpressionList();
+ 	}
+ 
+@@ -1463,17 +1467,11 @@ func (P *Parser) parseVarSpec(loc scanner.Location, comment ast.CommentGroup) *a
+ 	}
+ 
+ 	idents := P.parseIdentList2(nil);
+-	var typ ast.Expr;
++	typ := P.tryType();
+ 	var vals ast.Expr;
+-	if P.tok == token.ASSIGN {
+-		P.next();
++	if typ == nil || P.tok == token.ASSIGN {
++		P.expect(token.ASSIGN);
+ 		vals = P.parseExpressionList();
+-	} else {
+-		typ = P.parseVarType();
+-		if P.tok == token.ASSIGN {
+-			P.next();
+-			vals = P.parseExpressionList();
+-		}
+ 	}
+ 
+ 	return &ast.VarDecl{loc, idents, typ, vals, comment};
+@@ -1626,8 +1624,14 @@ func (P *Parser) Parse(mode int) *ast.Program {
+ 	loc := P.loc;
+ 	P.expect(token.PACKAGE);
+ 	name := P.parseIdent();
++	if P.tok == token.SEMICOLON {
++		// common error
++		P.error(P.loc, "extra semicolon");
++		P.next();
++	}
++	
++	
+ 	var decls []ast.Decl;
+-
+ 	if mode <= ParseImportDeclsOnly {
+ 		// import decls
+ 		list := vector.New(0);
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index c87617b714..1f80212677 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -48,8 +48,8 @@ func main() {
+ 			Compilation.ComputeDeps(src_file, &flags);
+ 
+ 		} else {
+-			prog, nerrors := Compilation.Compile(src_file, &flags);
+-			if nerrors > 0 {
++			prog, errors := Compilation.Compile(src_file, &flags);
++			if errors == nil || len(errors) > 0 {
+ 				sys.Exit(1);
+ 			}
+ 			if !*silent {
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index c975a35eff..9b54a7b4b9 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -470,7 +470,7 @@ func (P *Printer) Parameters(list []*ast.Field) {
+ 			if i > 0 {
+ 				P.separator = comma;
+ 			}
+-			n := P.Idents(par.Idents, true);
++			n := P.Idents(par.Names, true);
+ 			if n > 0 {
+ 				P.separator = blank
+ 			};
+@@ -488,7 +488,7 @@ func (P *Printer) Signature(sig *ast.Signature) {
+ 	if sig.Result != nil {
+ 		P.separator = blank;
+ 
+-		if len(sig.Result) == 1 && sig.Result[0].Idents == nil {
++		if len(sig.Result) == 1 && sig.Result[0].Names == nil {
+ 			// single anonymous result
+ 			// => no parentheses needed unless it's a function type
+ 			fld := sig.Result[0];
+@@ -515,12 +515,12 @@ func (P *Printer) Fields(list []*ast.Field, end scanner.Location, is_interface b
+ 				P.separator = semicolon;
+ 				P.newlines = 1;
+ 			}
+-			n := P.Idents(fld.Idents, P.full);
++			n := P.Idents(fld.Names, P.full);
+ 			if n > 0 {
+ 				// at least one identifier
+ 				P.separator = tab
+ 			};
+-			if n > 0 || len(fld.Idents) == 0 {
++			if n > 0 || len(fld.Names) == 0 {
+ 				// at least one identifier or anonymous field
+ 				if is_interface {
+ 					if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
+@@ -820,15 +820,14 @@ func (P *Printer) DoBadStat(s *ast.BadStat) {
+ }
+ 
+ 
+-func (P *Printer) DoLabelDecl(s *ast.LabelDecl) {
++func (P *Printer) DoLabeledStat(s *ast.LabeledStat) {
+ 	P.indentation--;
+ 	P.Expr(s.Label);
+ 	P.Token(s.Loc, token.COLON);
+-	// TODO not quite correct:
+-	// - we must not print this optional semicolon, as it may invalidate code.
+-	// - this will change once the AST reflects the LabelStatement change
+-	P.opt_semi = true;
+ 	P.indentation++;
++	// TODO be more clever if s.Stat is a labeled stat as well
++	P.separator = tab;
++	P.Stat(s.Stat);
+ }
+ 
+ 
+@@ -973,8 +972,8 @@ func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
+ 		P.Token(d.Loc, token.IMPORT);
+ 		P.separator = blank;
+ 	}
+-	if d.Ident != nil {
+-		P.Expr(d.Ident);
++	if d.Name != nil {
++		P.Expr(d.Name);
+ 	} else {
+ 		P.String(d.Path.Loc(), "");  // flush pending ';' separator/newlines
+ 	}
+@@ -995,7 +994,7 @@ func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+ 		P.Token(d.Loc, token.CONST);
+ 		P.separator = blank;
+ 	}
+-	P.Idents(d.Idents, P.full);
++	P.Idents(d.Names, P.full);
+ 	if d.Typ != nil {
+ 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+ 		P.Expr(d.Typ);
+@@ -1015,7 +1014,7 @@ func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
+ 		P.Token(d.Loc, token.TYPE);
+ 		P.separator = blank;
+ 	}
+-	P.Expr(d.Ident);
++	P.Expr(d.Name);
+ 	P.separator = blank;  // TODO switch to tab? (but indentation problem with structs)
+ 	P.Expr(d.Typ);
+ 	P.newlines = 2;
+@@ -1027,7 +1026,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 		P.Token(d.Loc, token.VAR);
+ 		P.separator = blank;
+ 	}
+-	P.Idents(d.Idents, P.full);
++	P.Idents(d.Names, P.full);
+ 	if d.Typ != nil {
+ 		P.separator = blank;  // TODO switch to tab? (indentation problem with structs)
+ 		P.Expr(d.Typ);
+@@ -1049,15 +1048,15 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+ 	if recv := d.Recv; recv != nil {
+ 		// method: print receiver
+ 		P.Token(noloc, token.LPAREN);
+-		if len(recv.Idents) > 0 {
+-			P.Expr(recv.Idents[0]);
++		if len(recv.Names) > 0 {
++			P.Expr(recv.Names[0]);
+ 			P.separator = blank;
+ 		}
+ 		P.Expr(recv.Typ);
+ 		P.Token(noloc, token.RPAREN);
+ 		P.separator = blank;
+ 	}
+-	P.Expr(d.Ident);
++	P.Expr(d.Name);
+ 	P.Signature(d.Sig);
+ 	if P.full && d.Body != nil {
+ 		P.separator = blank;
+@@ -1149,7 +1148,7 @@ func (P *Printer) Interface(p *ast.Program) {
+ 	for i := 0; i < len(p.Decls); i++ {
+ 		switch d := p.Decls[i].(type) {
+ 		case *ast.ConstDecl:
+-			if hasExportedNames(d.Idents) {
++			if hasExportedNames(d.Names) {
+ 				P.Printf("<h2>Constants</h2>\n");
+ 				P.Printf("<p><pre>");
+ 				P.DoConstDecl(d);
+@@ -1161,8 +1160,8 @@ func (P *Printer) Interface(p *ast.Program) {
+ 			}
+ 
+ 		case *ast.TypeDecl:
+-			if isExported(d.Ident) {
+-				P.Printf("<h2>type %s</h2>\n", d.Ident.Str);
++			if isExported(d.Name) {
++				P.Printf("<h2>type %s</h2>\n", d.Name.Str);
+ 				P.Printf("<p><pre>");
+ 				P.DoTypeDecl(d);
+ 				P.String(noloc, "");
+@@ -1173,7 +1172,7 @@ func (P *Printer) Interface(p *ast.Program) {
+ 			}
+ 
+ 		case *ast.VarDecl:
+-			if hasExportedNames(d.Idents) {
++			if hasExportedNames(d.Names) {
+ 				P.Printf("<h2>Variables</h2>\n");
+ 				P.Printf("<p><pre>");
+ 				P.DoVarDecl(d);
+@@ -1185,13 +1184,13 @@ func (P *Printer) Interface(p *ast.Program) {
+ 			}
+ 
+ 		case *ast.FuncDecl:
+-			if isExported(d.Ident) {
++			if isExported(d.Name) {
+ 				if d.Recv != nil {
+ 					P.Printf("<h3>func (");
+ 					P.Expr(d.Recv.Typ);
+-					P.Printf(") %s</h3>\n", d.Ident.Str);
++					P.Printf(") %s</h3>\n", d.Name.Str);
+ 				} else {
+-					P.Printf("<h2>func %s</h2>\n", d.Ident.Str);
++					P.Printf("<h2>func %s</h2>\n", d.Name.Str);
+ 				}
+ 				P.Printf("<p><code>");
+ 				P.DoFuncDecl(d);
+@@ -1216,7 +1215,7 @@ func (P *Printer) Program(p *ast.Program) {
+ 	P.full = true;
+ 	P.Token(p.Loc, token.PACKAGE);
+ 	P.separator = blank;
+-	P.Expr(p.Ident);
++	P.Expr(p.Name);
+ 	P.newlines = 1;
+ 	for i := 0; i < len(p.Decls); i++ {
+ 		P.Decl(p.Decls[i]);
+@@ -1228,11 +1227,7 @@ func (P *Printer) Program(p *ast.Program) {
+ // ----------------------------------------------------------------------------
+ // External interface
+ 
+-var templ template.Template;
+-
+-func init() {
+-	templ.Init("template.html");
+-}
++var templ = template.NewTemplateOrDie("template.html");
+ 
+ 
+ func Print(writer io.Write, prog *ast.Program, html bool) {
+@@ -1251,7 +1246,7 @@ func Print(writer io.Write, prog *ast.Program, html bool) {
+ 
+ 	if P.html {
+ 		err := templ.Apply(text, "<!--", template.Substitution {
+-			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Ident.Str); },
++			"PACKAGE_NAME-->" : func() { P.Printf("%s", prog.Name.Str); },
+ 			"PACKAGE_COMMENT-->": func() { P.printComment(prog.Comment); },
+ 			"PACKAGE_INTERFACE-->" : func() { P.Interface(prog); },
+ 			"PACKAGE_BODY-->" : func() { P.Program(prog); },
+diff --git a/usr/gri/pretty/template.go b/usr/gri/pretty/template.go
+index 70b8b7eceb..6b70c66a7e 100644
+--- a/usr/gri/pretty/template.go
++++ b/usr/gri/pretty/template.go
+@@ -38,7 +38,7 @@ func (T *Template) Init(filename string) *os.Error {
+ 
+ 
+ // Returns true if buf starts with s, returns false otherwise.
+-
++//
+ func match(buf []byte, s string) bool {
+ 	if len(buf) < len(s) {
+ 		return false;
+@@ -54,7 +54,7 @@ func match(buf []byte, s string) bool {
+ 
+ // Find the position of string s in buf, starting at i.
+ // Returns a value < 0 if not found.
+-
++//
+ func find(buf []byte, s string, i int) int {
+     if s == "" {
+         return i;
+@@ -103,3 +103,21 @@ func (T *Template) Apply(w io.Write, prefix string, subs Substitution) *os.Error
+ 	len, err := w.Write(T.template[i0 : len(T.template)]);  // TODO handle errors
+ 	return err;
+ }
++
++
++func NewTemplate(filename string) *Template {
++	t := new(Template);
++	if t.Init(filename) != nil {
++		return nil;
++	}
++	return t;
++}
++
++
++func NewTemplateOrDie(filename string) *Template {
++	t := NewTemplate(filename);
++	if t == nil {
++		panic("could not read template");
++	}
++	return t;
++}
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 86d1801752..02d95a7eef 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -26,7 +26,7 @@ apply1() {
+ 	case `basename $F` in
+ 	# files with errors (skip them)
+ 	# the following have semantic errors: bug039.go | bug040.go
+-	calc.go | method1.go | selftest1.go | func3.go | \
++	test_errors.go | calc.go | method1.go | selftest1.go | func3.go | const2.go | \
+ 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+ 	bug088.go | bug083.go | bug106.go | bug121.go | bug125.go | bug126.go | bug132.go | bug133.go | bug134.go ) ;;
+ 	* ) $1 $2; count $F;;

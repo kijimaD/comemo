@@ -7,10 +7,135 @@ Date:   Tue Oct 21 16:53:54 2008 -0700
     R=ken
     OCL=17592
     CL=17592
-
+---
  src/cmd/gc/go.y   |  4 ----
  src/cmd/gc/walk.c | 30 ++++++++++++++++++++++++++++++
  test/addr.go      |  9 ---------
  test/complit.go   |  9 +++++++++
  test/golden.out   |  5 -----
  5 files changed, 39 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 12fe548c9d..fd0c5b48dc 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -754,8 +754,6 @@ uexpr:
+ 	}
+ |	'&' uexpr
+ 	{
+-		if($2->op == OCONV && !func)
+-			yyerror("& of composite literal at top level");
+ 		$$ = nod(OADDR, $2, N);
+ 	}
+ |	'+' uexpr
+@@ -1186,13 +1184,11 @@ xfndcl:
+ 	{
+ 		maxarg = 0;
+ 		stksize = 0;
+-		func++;
+ 	} fndcl fnbody
+ 	{
+ 		$$ = $3;
+ 		$$->nbody = $4;
+ 		funcbody($$);
+-		func--;
+ 	}
+ 
+ fndcl:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fedf578b0e..f63b293344 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -895,6 +895,36 @@ loop:
+ 	case OADDR:
+ 		if(top != Erv)
+ 			goto nottop;
++		if(n->left->op == OCONV && iscomposite(n->left->type)) {
++			// turn &Point{1, 2} into allocation.
++			// initialize with
++			//	nvar := new(Point);
++			//	*nvar = Point{1, 2};
++			// and replace expression with nvar
++
++			// TODO(rsc): might do a better job (fewer copies) later
++			Node *nnew, *nvar, *nas;
++
++			walktype(n->left, Elv);
++			if(n->left == N)
++				goto ret;
++
++			nvar = nod(0, N, N);
++			tempname(nvar, ptrto(n->left->type));
++
++			nnew = nod(ONEW, N, N);
++			nnew->type = nvar->type;
++			nnew = newcompat(nnew);
++			
++			nas = nod(OAS, nvar, nnew);
++			addtop = list(addtop, nas);
++			
++			nas = nod(OAS, nod(OIND, nvar, N), n->left);
++			addtop = list(addtop, nas);
++
++			indir(n, nvar);
++			goto ret;
++		}
+ 		walktype(n->left, Elv);
+ 		if(n->left == N)
+ 			goto ret;
+diff --git a/test/addr.go b/test/addr.go
+deleted file mode 100644
+index c803ee7c25..0000000000
+--- a/test/addr.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-var a = &[]int{1,2};	// ERROR "composite"
+diff --git a/test/complit.go b/test/complit.go
+index d0ebfad97c..86985b994a 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -22,6 +22,11 @@ func eq(a *[]*R) {
+ 	}
+ }
+ 
++type P struct { a, b int };
++func NewP(a, b int) *P {
++	return &P{a, b}
++}
++
+ func main() {
+ 	var t T;
+ 	t = T{0, 7.2, "hi", &t};
+@@ -57,4 +62,8 @@ func main() {
+ 	if len(m) != 3 { panic("m") }
+ 
+ 	eq(&[]*R{itor(0), itor(1), itor(2), itor(3), itor(4), itor(5)});
++	
++	p1 := NewP(1, 2);
++	p2 := NewP(1, 2);
++	if p1 == p2 { panic("NewP") }
+ }
+diff --git a/test/golden.out b/test/golden.out
+index d7c87598a3..a7de99bf71 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -129,11 +129,6 @@ found 2, expected 1
+ panic on line 74 PC=xxx
+ BUG wrong result
+ 
+-=========== bugs/bug097.go
+-
+-panic on line 76 PC=xxx
+-BUG wrong result
+-
+ =========== bugs/bug098.go
+ bugs/bug098.go:10: illegal types for operand: AS
+ 	*M

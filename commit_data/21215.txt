@@ -13,9 +13,159 @@ Date:   Mon Dec 8 10:11:08 2014 -0800
     Change-Id: I231aaeafea0ecd93d27b268a0b2128530df3ddd6
     Reviewed-on: https://go-review.googlesource.com/1200
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/select.c      |  2 +-
  src/runtime/chan.go      | 17 ++++++++++++-----
  src/runtime/chan_test.go | 23 +++++++++++++++++++++++
  src/runtime/select.go    | 46 ++++++++++++++++++++++++++++++----------------
  4 files changed, 66 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 965ad277fa..5d3b71164a 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -336,7 +336,7 @@ selecttype(int32 size)
+ 	sudog = nod(OTSTRUCT, N, N);
+ 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("g")), typenod(ptrto(types[TUINT8]))));
+ 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("selectdone")), typenod(ptrto(types[TUINT8]))));
+-	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("link")), typenod(ptrto(types[TUINT8]))));
++	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("next")), typenod(ptrto(types[TUINT8]))));
+ 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("prev")), typenod(ptrto(types[TUINT8]))));
+ 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(types[TUINT8]))));
+ 	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("releasetime")), typenod(types[TUINT64])));
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 330422ad09..d673bb993a 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -614,12 +614,15 @@ func reflect_chancap(c *hchan) int {
+ 
+ func (q *waitq) enqueue(sgp *sudog) {
+ 	sgp.next = nil
+-	if q.first == nil {
++	x := q.last
++	if x == nil {
++		sgp.prev = nil
+ 		q.first = sgp
+ 		q.last = sgp
+ 		return
+ 	}
+-	q.last.next = sgp
++	sgp.prev = x
++	x.next = sgp
+ 	q.last = sgp
+ }
+ 
+@@ -629,10 +632,14 @@ func (q *waitq) dequeue() *sudog {
+ 		if sgp == nil {
+ 			return nil
+ 		}
+-		q.first = sgp.next
+-		sgp.next = nil
+-		if q.last == sgp {
++		y := sgp.next
++		if y == nil {
++			q.first = nil
+ 			q.last = nil
++		} else {
++			y.prev = nil
++			q.first = y
++			sgp.next = nil // mark as removed (see dequeueSudog)
+ 		}
+ 
+ 		// if sgp participates in a select and is already signaled, ignore it
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index e689ceaed1..8a357c1f23 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -818,3 +818,26 @@ func BenchmarkChanSem(b *testing.B) {
+ 		}
+ 	})
+ }
++
++func BenchmarkChanPopular(b *testing.B) {
++	const n = 1000
++	c := make(chan bool)
++	var a []chan bool
++	for j := 0; j < n; j++ {
++		d := make(chan bool)
++		a = append(a, d)
++		go func() {
++			for i := 0; i < b.N; i++ {
++				select {
++				case <-c:
++				case <-d:
++				}
++			}
++		}()
++	}
++	for i := 0; i < b.N; i++ {
++		for _, d := range a {
++			d <- true
++		}
++	}
++}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 5e5047bc10..63d436a9b6 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -389,6 +389,7 @@ loop:
+ 			k.releasetime = sglist.releasetime
+ 		}
+ 		if sg == sglist {
++			// sg has already been dequeued by the G that woke us up.
+ 			cas = k
+ 		} else {
+ 			c = k._chan
+@@ -624,23 +625,36 @@ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 	return
+ }
+ 
+-func (q *waitq) dequeueSudoG(s *sudog) {
+-	var prevsgp *sudog
+-	l := &q.first
+-	for {
+-		sgp := *l
+-		if sgp == nil {
++func (q *waitq) dequeueSudoG(sgp *sudog) {
++	x := sgp.prev
++	y := sgp.next
++	if x != nil {
++		if y != nil {
++			// middle of queue
++			x.next = y
++			y.prev = x
++			sgp.next = nil
++			sgp.prev = nil
+ 			return
+ 		}
+-		if sgp == s {
+-			*l = sgp.next
+-			if q.last == sgp {
+-				q.last = prevsgp
+-			}
+-			s.next = nil
+-			return
+-		}
+-		l = &sgp.next
+-		prevsgp = sgp
++		// end of queue
++		x.next = nil
++		q.last = x
++		sgp.prev = nil
++		return
++	}
++	if y != nil {
++		// start of queue
++		y.prev = nil
++		q.first = y
++		sgp.next = nil
++		return
++	}
++
++	// x==y==nil.  Either sgp is the only element in the queue,
++	// or it has already been removed.  Use q.first to disambiguate.
++	if q.first == sgp {
++		q.first = nil
++		q.last = nil
+ 	}
+ }

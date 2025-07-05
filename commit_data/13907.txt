@@ -12,6 +12,20 @@ Date:   Sun Sep 23 10:44:56 2012 +1000
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/6552060
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 2ea3dc751b..91f6d6a86a 100755
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1774,7 +1774,7 @@ func init() {
+         log.Fatal("$USER not set")
+     }
+     if HOME == "" {
+-        HOME = "/usr/" + USER
++        HOME = "/home/" + USER
+     }
+     if GOROOT == "" {
+         GOROOT = HOME + "/go"

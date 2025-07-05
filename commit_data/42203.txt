@@ -11,7 +11,55 @@ Date:   Wed Nov 13 10:02:17 2019 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file_windows.go      | 11 +++++++++--
  src/os/path_windows_test.go | 15 +++++++++++++++
  2 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 1e78f4e867..96f934d039 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -111,10 +111,17 @@ func openDir(name string) (file *File, err error) {
+ 
+ 	path := fixLongPath(name)
+ 
+-	if len(path) == 2 && path[1] == ':' || (len(path) > 0 && path[len(path)-1] == '\\') { // it is a drive letter, like C:
++	if len(path) == 2 && path[1] == ':' { // it is a drive letter, like C:
+ 		mask = path + `*`
++	} else if len(path) > 0 {
++		lc := path[len(path)-1]
++		if lc == '/' || lc == '\\' {
++			mask = path + `*`
++		} else {
++			mask = path + `\*`
++		}
+ 	} else {
+-		mask = path + `\*`
++		mask = `\*`
+ 	}
+ 	maskp, e := syscall.UTF16PtrFromString(mask)
+ 	if e != nil {
+diff --git a/src/os/path_windows_test.go b/src/os/path_windows_test.go
+index f1745ad132..862b404362 100644
+--- a/src/os/path_windows_test.go
++++ b/src/os/path_windows_test.go
+@@ -74,3 +74,18 @@ func TestMkdirAllExtendedLength(t *testing.T) {
+ 		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
+ 	}
+ }
++
++func TestOpenRootSlash(t *testing.T) {
++	tests := []string{
++		`/`,
++		`\`,
++	}
++
++	for _, test := range tests {
++		dir, err := os.Open(test)
++		if err != nil {
++			t.Fatalf("Open(%q) failed: %v", test, err)
++		}
++		dir.Close()
++	}
++}

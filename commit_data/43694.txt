@@ -19,7 +19,83 @@ Date:   Tue Apr 21 03:47:02 2020 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
  src/cmd/compile/internal/ssa/rewritegeneric.go | 12 ++++++------
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index edd8259de3..899e3e6752 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -448,9 +448,9 @@
+ 
+ // (x >> c) & uppermask = 0
+ (And64 (Const64 [m]) (Rsh64Ux64 _ (Const64 [c]))) && c >= int64(64-ntz64(m)) => (Const64 [0])
+-(And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c]))) && c >= int64(64-ntz32(m)) => (Const32 [0])
+-(And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c]))) && c >= int64(64-ntz16(m)) => (Const16 [0])
+-(And8  (Const8  [m]) (Rsh8Ux64  _ (Const64 [c]))) && c >= int64(64-ntz8(m))  => (Const8  [0])
++(And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c]))) && c >= int64(32-ntz32(m)) => (Const32 [0])
++(And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c]))) && c >= int64(16-ntz16(m)) => (Const16 [0])
++(And8  (Const8  [m]) (Rsh8Ux64  _ (Const64 [c]))) && c >= int64(8-ntz8(m))  => (Const8  [0])
+ 
+ // (x << c) & lowermask = 0
+ (And64 (Const64 [m]) (Lsh64x64  _ (Const64 [c]))) && c >= int64(64-nlz64(m)) => (Const64 [0])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 214de6448d..6d42f3a36c 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -1571,7 +1571,7 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c])))
+-	// cond: c >= int64(64-ntz16(m))
++	// cond: c >= int64(16-ntz16(m))
+ 	// result: (Const16 [0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1588,7 +1588,7 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
+ 				continue
+ 			}
+ 			c := auxIntToInt64(v_1_1.AuxInt)
+-			if !(c >= int64(64-ntz16(m))) {
++			if !(c >= int64(16-ntz16(m))) {
+ 				continue
+ 			}
+ 			v.reset(OpConst16)
+@@ -1769,7 +1769,7 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c])))
+-	// cond: c >= int64(64-ntz32(m))
++	// cond: c >= int64(32-ntz32(m))
+ 	// result: (Const32 [0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1786,7 +1786,7 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
+ 				continue
+ 			}
+ 			c := auxIntToInt64(v_1_1.AuxInt)
+-			if !(c >= int64(64-ntz32(m))) {
++			if !(c >= int64(32-ntz32(m))) {
+ 				continue
+ 			}
+ 			v.reset(OpConst32)
+@@ -2165,7 +2165,7 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (And8 (Const8 [m]) (Rsh8Ux64 _ (Const64 [c])))
+-	// cond: c >= int64(64-ntz8(m))
++	// cond: c >= int64(8-ntz8(m))
+ 	// result: (Const8 [0])
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -2182,7 +2182,7 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
+ 				continue
+ 			}
+ 			c := auxIntToInt64(v_1_1.AuxInt)
+-			if !(c >= int64(64-ntz8(m))) {
++			if !(c >= int64(8-ntz8(m))) {
+ 				continue
+ 			}
+ 			v.reset(OpConst8)

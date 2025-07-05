@@ -17,6 +17,22 @@ Date:   Sun Jul 3 11:04:04 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/build/constraint/expr.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/go/build/constraint/expr.go b/src/go/build/constraint/expr.go
+index d64eead654..505cbffa4c 100644
+--- a/src/go/build/constraint/expr.go
++++ b/src/go/build/constraint/expr.go
+@@ -5,9 +5,7 @@
+ // Package constraint implements parsing and evaluation of build constraint lines.
+ // See https://golang.org/cmd/go/#hdr-Build_constraints for documentation about build constraints themselves.
+ //
+-// This package parses both the original “// +build” syntax and the “//go:build” syntax that will be added in Go 1.17.
+-// The parser is being included in Go 1.16 to allow tools that need to process Go 1.17 source code
+-// to still be built against the Go 1.16 release.
++// This package parses both the original “// +build” syntax and the “//go:build” syntax that was added in Go 1.17.
+ // See https://golang.org/design/draft-gobuild for details about the “//go:build” syntax.
+ package constraint
+ 

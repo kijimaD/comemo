@@ -10,6 +10,19 @@ Date:   Wed May 23 05:33:06 2018 +0000
     Change-Id: Ib47953d7b16e8927a4d6be7d5be8de8f2ddbcc39
     Reviewed-on: https://go-review.googlesource.com/114010
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
-
+---
  misc/android/README | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/android/README b/misc/android/README
+index a0dd8500ee..f01ca2cc2b 100644
+--- a/misc/android/README
++++ b/misc/android/README
+@@ -21,4 +21,5 @@ and set GOOS to android. For example, to run the go1 benchmarks
+ 
+ 	export PATH=$GOROOT/bin:$PATH
+ 	cd $GOROOT/test/bench/go1/
+-	GOOS=android GOARCH=arm64 go test -bench=. -count=N -timeout=T
+\ No newline at end of file
++	GOOS=android GOARCH=arm64 go test -bench=. -count=N -timeout=T
++

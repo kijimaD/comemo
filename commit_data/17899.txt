@@ -24,7 +24,7 @@ Date:   Mon Dec 2 13:05:04 2013 -0800
     R=golang-dev, dvyukov, khr, rsc
     CC=golang-dev
     https://golang.org/cl/14794043
-
+---
  src/cmd/gc/builtin.c             |  10 +-
  src/cmd/gc/fmt.c                 |   4 +
  src/cmd/gc/go.h                  |   2 +
@@ -41,3 +41,1242 @@ Date:   Mon Dec 2 13:05:04 2013 -0800
  src/pkg/runtime/type.h           |   1 +
  src/pkg/runtime/typekind.h       |   2 +-
  15 files changed, 389 insertions(+), 280 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 309dc1ea04..7d4b3e5590 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -60,20 +60,18 @@ char *runtimeimport =
+ 	"func @\"\".efacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n"
+ 	"func @\"\".equal (@\"\".typ·2 *byte, @\"\".x1·3 any, @\"\".x2·4 any) (@\"\".ret·1 bool)\n"
+ 	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64) (@\"\".hmap·1 map[any]any)\n"
+-	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 any)\n"
++	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any) (@\"\".val·1 *any)\n"
+ 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
+ 	"func @\"\".mapaccess1_fast64 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
+ 	"func @\"\".mapaccess1_faststr (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n"
+-	"func @\"\".mapaccess2 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 any, @\"\".pres·2 bool)\n"
++	"func @\"\".mapaccess2 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 *any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
+ 	"func @\"\".mapaccess2_fast32 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
+ 	"func @\"\".mapaccess2_fast64 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
+ 	"func @\"\".mapaccess2_faststr (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n"
+-	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 any, @\"\".val·4 any)\n"
++	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any, @\"\".val·4 *any)\n"
+ 	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *any)\n"
+-	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 any)\n"
++	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any)\n"
+ 	"func @\"\".mapiternext (@\"\".hiter·1 *any)\n"
+-	"func @\"\".mapiter1 (@\"\".hiter·2 *any) (@\"\".key·1 any)\n"
+-	"func @\"\".mapiter2 (@\"\".hiter·3 *any) (@\"\".key·1 any, @\"\".val·2 any)\n"
+ 	"func @\"\".makechan (@\"\".chanType·2 *byte, @\"\".hint·3 int64) (@\"\".hchan·1 chan any)\n"
+ 	"func @\"\".chanrecv1 (@\"\".chanType·2 *byte, @\"\".hchan·3 <-chan any) (@\"\".elem·1 any)\n"
+ 	"func @\"\".chanrecv2 (@\"\".chanType·3 *byte, @\"\".hchan·4 <-chan any) (@\"\".elem·1 any, @\"\".received·2 bool)\n"
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 9cd3448701..afa9d8020c 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -706,6 +706,10 @@ typefmt(Fmt *fp, Type *t)
+ 			t = t->hmap;
+ 			return fmtprint(fp, "map.bucket[%T]%T", t->down, t->type);
+ 		}
++		if(t->hiter != T) {
++			t = t->hiter;
++			return fmtprint(fp, "map.iter[%T]%T", t->down, t->type);
++		}
+ 
+ 		if(t->funarg) {
+ 			fmtstrcpy(fp, "(");
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 562f16890c..5bf3068175 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -190,6 +190,7 @@ struct	Type
+ 	// TMAP
+ 	Type*	bucket;		// internal type representing a hash bucket
+ 	Type*	hmap;		// internal type representing a Hmap (map header object)
++	Type*	hiter;		// internal type representing hash iterator state
+ 
+ 	int32	maplineno;	// first use of TFORW as map key
+ 	int32	embedlineno;	// first use of TFORW as embedded type
+@@ -1274,6 +1275,7 @@ Sym*	tracksym(Type *t);
+ Sym*	typesymprefix(char *prefix, Type *t);
+ int	haspointers(Type *t);
+ void	usefield(Node*);
++Type*	hiter(Type* t);
+ 
+ /*
+  *	select.c
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index bd271da386..d20734ae07 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -111,6 +111,8 @@ walkrange(Node *n)
+ 	Node *hb;  // hidden bool
+ 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
+ 	Node *fn, *tmp;
++	Node *keyname, *valname;
++	Node *key, *val;
+ 	NodeList *body, *init;
+ 	Type *th, *t;
+ 	int lno;
+@@ -182,37 +184,33 @@ walkrange(Node *n)
+ 		break;
+ 
+ 	case TMAP:
+-		th = typ(TARRAY);
+-		th->type = ptrto(types[TUINT8]);
+-		// see ../../pkg/runtime/hashmap.c:/hash_iter
+-		// Size of hash_iter in # of pointers.
+-		th->bound = 11;
++		// allocate an iterator state structure on the stack
++		th = hiter(t);
+ 		hit = temp(th);
++		keyname = newname(th->type->sym);  // depends on layout of iterator struct.  See reflect.c:hiter
++		valname = newname(th->type->down->sym); // ditto
+ 
+ 		fn = syslook("mapiterinit", 1);
+ 		argtype(fn, t->down);
+ 		argtype(fn, t->type);
+ 		argtype(fn, th);
+ 		init = list(init, mkcall1(fn, T, nil, typename(t), ha, nod(OADDR, hit, N)));
+-		n->ntest = nod(ONE, nod(OINDEX, hit, nodintconst(0)), nodnil());
++		n->ntest = nod(ONE, nod(ODOT, hit, keyname), nodnil());
+ 
+ 		fn = syslook("mapiternext", 1);
+ 		argtype(fn, th);
+ 		n->nincr = mkcall1(fn, T, nil, nod(OADDR, hit, N));
+ 
++		key = nod(ODOT, hit, keyname);
++		key = nod(OIND, key, N);
+ 		if(v2 == N) {
+-			fn = syslook("mapiter1", 1);
+-			argtype(fn, th);
+-			argtype(fn, t->down);
+-			a = nod(OAS, v1, mkcall1(fn, t->down, nil, nod(OADDR, hit, N)));
++			a = nod(OAS, v1, key);
+ 		} else {
+-			fn = syslook("mapiter2", 1);
+-			argtype(fn, th);
+-			argtype(fn, t->down);
+-			argtype(fn, t->type);
++			val = nod(ODOT, hit, valname);
++			val = nod(OIND, val, N);
+ 			a = nod(OAS2, N, N);
+ 			a->list = list(list1(v1), v2);
+-			a->rlist = list1(mkcall1(fn, getoutargx(fn->type), nil, nod(OADDR, hit, N)));
++			a->rlist = list(list1(key), val);
+ 		}
+ 		body = list1(a);
+ 		break;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 0a8aa8d7a6..1097d15219 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -233,6 +233,85 @@ hmap(Type *t)
+ 	return h;
+ }
+ 
++Type*
++hiter(Type *t)
++{
++	int32 n, off;
++	Type *field[7];
++	Type *i;
++
++	if(t->hiter != T)
++		return t->hiter;
++
++	// build a struct:
++	// hash_iter {
++	//    key *Key
++	//    val *Value
++	//    t *MapType
++	//    h *Hmap
++	//    buckets *Bucket
++	//    bptr *Bucket
++	//    other [5]uintptr
++	// }
++	// must match ../../pkg/runtime/hashmap.c:hash_iter.
++	field[0] = typ(TFIELD);
++	field[0]->type = ptrto(t->down);
++	field[0]->sym = mal(sizeof(Sym));
++	field[0]->sym->name = "key";
++	
++	field[1] = typ(TFIELD);
++	field[1]->type = ptrto(t->type);
++	field[1]->sym = mal(sizeof(Sym));
++	field[1]->sym->name = "val";
++	
++	field[2] = typ(TFIELD);
++	field[2]->type = ptrto(types[TUINT8]); // TODO: is there a Type type?
++	field[2]->sym = mal(sizeof(Sym));
++	field[2]->sym->name = "t";
++	
++	field[3] = typ(TFIELD);
++	field[3]->type = ptrto(hmap(t));
++	field[3]->sym = mal(sizeof(Sym));
++	field[3]->sym->name = "h";
++	
++	field[4] = typ(TFIELD);
++	field[4]->type = ptrto(mapbucket(t));
++	field[4]->sym = mal(sizeof(Sym));
++	field[4]->sym->name = "buckets";
++	
++	field[5] = typ(TFIELD);
++	field[5]->type = ptrto(mapbucket(t));
++	field[5]->sym = mal(sizeof(Sym));
++	field[5]->sym->name = "bptr";
++	
++	// all other non-pointer fields
++	field[6] = typ(TFIELD);
++	field[6]->type = typ(TARRAY);
++	field[6]->type->type = types[TUINTPTR];
++	field[6]->type->bound = 5;
++	field[6]->type->width = 5 * widthptr;
++	field[6]->sym = mal(sizeof(Sym));
++	field[6]->sym->name = "other";
++	
++	// build iterator struct holding the above fields
++	i = typ(TSTRUCT);
++	i->noalg = 1;
++	i->type = field[0];
++	off = 0;
++	for(n = 0; n < 6; n++) {
++		field[n]->down = field[n+1];
++		field[n]->width = off;
++		off += field[n]->type->width;
++	}
++	field[6]->down = T;
++	off += field[6]->type->width;
++	if(off != 11 * widthptr)
++		yyerror("hash_iter size not correct %d %d", off, 11 * widthptr);
++	t->hiter = i;
++	i->hiter = t;
++	return i;
++}
++
+ /*
+  * f is method type, with receiver.
+  * return function type, receiver as first argument (or not).
+@@ -656,7 +735,7 @@ static int
+ dcommontype(Sym *s, int ot, Type *t)
+ {
+ 	int i, alg, sizeofAlg;
+-	Sym *sptr, *algsym;
++	Sym *sptr, *algsym, *zero;
+ 	static Sym *algarray;
+ 	char *p;
+ 	
+@@ -677,6 +756,18 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	else
+ 		sptr = weaktypesym(ptrto(t));
+ 
++	// All (non-reflect-allocated) Types share the same zero object.
++	// Each place in the compiler where a pointer to the zero object
++	// might be returned by a runtime call (map access return value,
++	// 2-arg type cast) declares the size of the zerovalue it needs.
++	// The linker magically takes the max of all the sizes.
++	zero = pkglookup("zerovalue", runtimepkg);
++	ggloblsym(zero, 0, 1, 1);
++	// We use size 0 here so we get the pointer to the zero value,
++	// but don't allocate space for the zero value unless we need it.
++	// TODO: how do we get this symbol into bss?  We really want
++	// a read-only bss, but I don't think such a thing exists.
++
+ 	// ../../pkg/reflect/type.go:/^type.commonType
+ 	// actual type structure
+ 	//	type commonType struct {
+@@ -691,6 +782,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	//		string        *string
+ 	//		*extraType
+ 	//		ptrToThis     *Type
++	//		zero          unsafe.Pointer
+ 	//	}
+ 	ot = duintptr(s, ot, t->width);
+ 	ot = duint32(s, ot, typehash(t));
+@@ -728,6 +820,7 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	ot += widthptr;
+ 
+ 	ot = dsymptr(s, ot, sptr, 0);  // ptrto type
++	ot = dsymptr(s, ot, zero, 0);  // ptr to zero value
+ 	return ot;
+ }
+ 
+@@ -893,7 +986,7 @@ ok:
+ 	switch(t->etype) {
+ 	default:
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		break;
+ 
+ 	case TARRAY:
+@@ -905,7 +998,7 @@ ok:
+ 			t2->bound = -1;  // slice
+ 			s2 = dtypesym(t2);
+ 			ot = dcommontype(s, ot, t);
+-			xt = ot - 2*widthptr;
++			xt = ot - 3*widthptr;
+ 			ot = dsymptr(s, ot, s1, 0);
+ 			ot = dsymptr(s, ot, s2, 0);
+ 			ot = duintptr(s, ot, t->bound);
+@@ -913,7 +1006,7 @@ ok:
+ 			// ../../pkg/runtime/type.go:/SliceType
+ 			s1 = dtypesym(t->type);
+ 			ot = dcommontype(s, ot, t);
+-			xt = ot - 2*widthptr;
++			xt = ot - 3*widthptr;
+ 			ot = dsymptr(s, ot, s1, 0);
+ 		}
+ 		break;
+@@ -922,7 +1015,7 @@ ok:
+ 		// ../../pkg/runtime/type.go:/ChanType
+ 		s1 = dtypesym(t->type);
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		ot = dsymptr(s, ot, s1, 0);
+ 		ot = duintptr(s, ot, t->chan);
+ 		break;
+@@ -939,7 +1032,7 @@ ok:
+ 			dtypesym(t1->type);
+ 
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		ot = duint8(s, ot, isddd);
+ 
+ 		// two slice headers: in and out.
+@@ -971,7 +1064,7 @@ ok:
+ 
+ 		// ../../pkg/runtime/type.go:/InterfaceType
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+@@ -990,7 +1083,7 @@ ok:
+ 		s3 = dtypesym(mapbucket(t));
+ 		s4 = dtypesym(hmap(t));
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		ot = dsymptr(s, ot, s1, 0);
+ 		ot = dsymptr(s, ot, s2, 0);
+ 		ot = dsymptr(s, ot, s3, 0);
+@@ -1007,7 +1100,7 @@ ok:
+ 		// ../../pkg/runtime/type.go:/PtrType
+ 		s1 = dtypesym(t->type);
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		ot = dsymptr(s, ot, s1, 0);
+ 		break;
+ 
+@@ -1020,7 +1113,7 @@ ok:
+ 			n++;
+ 		}
+ 		ot = dcommontype(s, ot, t);
+-		xt = ot - 2*widthptr;
++		xt = ot - 3*widthptr;
+ 		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index c8d57ab33f..34c9e90169 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -83,20 +83,18 @@ func equal(typ *byte, x1, x2 any) (ret bool)
+ 
+ // *byte is really *runtime.Type
+ func makemap(mapType *byte, hint int64) (hmap map[any]any)
+-func mapaccess1(mapType *byte, hmap map[any]any, key any) (val any)
++func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
+ func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapaccess1_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
+-func mapaccess2(mapType *byte, hmap map[any]any, key any) (val any, pres bool)
++func mapaccess2(mapType *byte, hmap map[any]any, key *any) (val *any, pres bool)
+ func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+-func mapassign1(mapType *byte, hmap map[any]any, key any, val any)
++func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
+ func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+-func mapdelete(mapType *byte, hmap map[any]any, key any)
++func mapdelete(mapType *byte, hmap map[any]any, key *any)
+ func mapiternext(hiter *any)
+-func mapiter1(hiter *any) (key any)
+-func mapiter2(hiter *any) (key any, val any)
+ 
+ // *byte is really *runtime.Type
+ func makechan(chanType *byte, hint int64) (hchan chan any)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 66409d5305..4648b74887 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -341,13 +341,14 @@ void
+ walkexpr(Node **np, NodeList **init)
+ {
+ 	Node *r, *l, *var, *a;
++	Node *map, *key, *keyvar;
+ 	NodeList *ll, *lr, *lpost;
+ 	Type *t;
+ 	int et, old_safemode;
+ 	int64 v;
+ 	int32 lno;
+ 	Node *n, *fn, *n1, *n2;
+-	Sym *sym;
++	Sym *sym, *zero;
+ 	char buf[100], *p;
+ 
+ 	n = *np;
+@@ -657,6 +658,7 @@ walkexpr(Node **np, NodeList **init)
+ 		r = n->rlist->n;
+ 		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
++		walkexpr(&r->right, init);
+ 		t = r->left->type;
+ 		p = nil;
+ 		if(t->type->width <= 128) { // Check ../../pkg/runtime/hashmap.c:MAXVALUESIZE before changing.
+@@ -675,41 +677,65 @@ walkexpr(Node **np, NodeList **init)
+ 			}
+ 		}
+ 		if(p != nil) {
+-			// from:
+-			//   a,b = m[i]
+-			// to:
+-			//   var,b = mapaccess2_fast*(t, m, i)
+-			//   a = *var
+-			a = n->list->n;
+-			var = temp(ptrto(t->type));
+-			var->typecheck = 1;
+-
+-			fn = mapfn(p, t);
+-			r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
+-			n->rlist = list1(r);
+-			n->op = OAS2FUNC;
+-			n->list->n = var;
+-			walkexpr(&n, init);
+-			*init = list(*init, n);
+-
+-			n = nod(OAS, a, nod(OIND, var, N));
+-			typecheck(&n, Etop);
+-			walkexpr(&n, init);
+-			goto ret;
+-		}
+-		fn = mapfn("mapaccess2", t);
+-		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, r->right);
++			// fast versions take key by value
++			key = r->right;
++		} else {
++			// standard version takes key by reference
++			if(islvalue(r->right)) {
++				key = nod(OADDR, r->right, N);
++			} else {
++				keyvar = temp(t->down);
++				n1 = nod(OAS, keyvar, r->right);
++				typecheck(&n1, Etop);
++				*init = list(*init, n1);
++				key = nod(OADDR, keyvar, N);
++			}
++			p = "mapaccess2";
++		}
++
++		// from:
++		//   a,b = m[i]
++		// to:
++		//   var,b = mapaccess2*(t, m, i)
++		//   a = *var
++		a = n->list->n;
++		var = temp(ptrto(t->type));
++		var->typecheck = 1;
++		fn = mapfn(p, t);
++		r = mkcall1(fn, getoutargx(fn->type), init, typename(t), r->left, key);
+ 		n->rlist = list1(r);
+ 		n->op = OAS2FUNC;
+-		goto as2func;
++		n->list->n = var;
++		walkexpr(&n, init);
++		*init = list(*init, n);
++		
++		n = nod(OAS, a, nod(OIND, var, N));
++		typecheck(&n, Etop);
++		walkexpr(&n, init);
++		// mapaccess needs a zero value to be at least this big.
++		zero = pkglookup("zerovalue", runtimepkg);
++		ggloblsym(zero, t->type->width, 1, 1);
++		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
++		goto ret;
+ 
+ 	case ODELETE:
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+-		l = n->list->n;
+-		r = n->list->next->n;
+-		t = l->type;
+-		n = mkcall1(mapfndel("mapdelete", t), t->down, init, typename(t), l, r);
++		map = n->list->n;
++		key = n->list->next->n;
++		walkexpr(&map, init);
++		walkexpr(&key, init);
++		if(islvalue(key)) {
++			key = nod(OADDR, key, N);
++		} else {
++			keyvar = temp(key->type);
++			n1 = nod(OAS, keyvar, key);
++			typecheck(&n1, Etop);
++			*init = list(*init, n1);
++			key = nod(OADDR, keyvar, N);
++		}
++		t = map->type;
++		n = mkcall1(mapfndel("mapdelete", t), T, init, typename(t), map, key);
+ 		goto ret;
+ 
+ 	case OAS2DOTTYPE:
+@@ -1063,6 +1089,8 @@ walkexpr(Node **np, NodeList **init)
+ 	case OINDEXMAP:
+ 		if(n->etype == 1)
+ 			goto ret;
++		walkexpr(&n->left, init);
++		walkexpr(&n->right, init);
+ 
+ 		t = n->left->type;
+ 		p = nil;
+@@ -1082,16 +1110,28 @@ walkexpr(Node **np, NodeList **init)
+ 			}
+ 		}
+ 		if(p != nil) {
+-			// use fast version.  The fast versions return a pointer to the value - we need
+-			// to dereference it to get the result.
+-			n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, n->right);
+-			n = nod(OIND, n, N);
+-			n->type = t->type;
+-			n->typecheck = 1;
++			// fast versions take key by value
++			key = n->right;
+ 		} else {
+-			// no fast version for this key
+-			n = mkcall1(mapfn("mapaccess1", t), t->type, init, typename(t), n->left, n->right);
+-		}
++			// standard version takes key by reference
++			if(islvalue(n->right)) {
++				key = nod(OADDR, n->right, N);
++			} else {
++				keyvar = temp(t->down);
++				n1 = nod(OAS, keyvar, n->right);
++				typecheck(&n1, Etop);
++				*init = list(*init, n1);
++				key = nod(OADDR, keyvar, N);
++			}
++			p = "mapaccess1";
++		}
++		n = mkcall1(mapfn(p, t), ptrto(t->type), init, typename(t), n->left, key);
++		n = nod(OIND, n, N);
++		n->type = t->type;
++		n->typecheck = 1;
++		// mapaccess needs a zero value to be at least this big.
++		zero = pkglookup("zerovalue", runtimepkg);
++		ggloblsym(zero, t->type->width, 1, 1);
+ 		goto ret;
+ 
+ 	case ORECV:
+@@ -1911,6 +1951,8 @@ static Node*
+ convas(Node *n, NodeList **init)
+ {
+ 	Type *lt, *rt;
++	Node *map, *key, *keyvar, *val, *valvar;
++	Node *n1;
+ 
+ 	if(n->op != OAS)
+ 		fatal("convas: not OAS %O", n->op);
+@@ -1931,9 +1973,32 @@ convas(Node *n, NodeList **init)
+ 	}
+ 
+ 	if(n->left->op == OINDEXMAP) {
+-		n = mkcall1(mapfn("mapassign1", n->left->left->type), T, init,
+-			typename(n->left->left->type),
+-			n->left->left, n->left->right, n->right);
++		map = n->left->left;
++		key = n->left->right;
++		val = n->right;
++		walkexpr(&map, init);
++		walkexpr(&key, init);
++		walkexpr(&val, init);
++		if(islvalue(key)) {
++			key = nod(OADDR, key, N);
++		} else {
++			keyvar = temp(key->type);
++			n1 = nod(OAS, keyvar, key);
++			typecheck(&n1, Etop);
++			*init = list(*init, n1);
++			key = nod(OADDR, keyvar, N);
++		}
++		if(islvalue(val)) {
++			val = nod(OADDR, val, N);
++		} else {
++			valvar = temp(val->type);
++			n1 = nod(OAS, valvar, val);
++			typecheck(&n1, Etop);
++			*init = list(*init, n1);
++			val = nod(OADDR, valvar, N);
++		}
++		n = mkcall1(mapfn("mapassign1", map->type), T, init,
++			typename(map->type), map, key, val);
+ 		goto out;
+ 	}
+ 
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 7afb7defea..ffc653b192 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -252,6 +252,7 @@ type rtype struct {
+ 	string        *string        // string form; unnecessary but undeniably useful
+ 	*uncommonType                // (relatively) uncommon fields
+ 	ptrToThis     *rtype         // type for pointer to this type, if used in binary or has methods
++	zero          unsafe.Pointer // pointer to zero value
+ }
+ 
+ // Method on non-interface type
+@@ -1089,6 +1090,7 @@ func (t *rtype) ptrTo() *rtype {
+ 
+ 	p.uncommonType = nil
+ 	p.ptrToThis = nil
++	p.zero = unsafe.Pointer(&make([]byte, p.size)[0])
+ 	p.elem = t
+ 
+ 	if t.kind&kindNoPointers != 0 {
+@@ -1475,6 +1477,7 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	ch.elem = typ
+ 	ch.uncommonType = nil
+ 	ch.ptrToThis = nil
++	ch.zero = unsafe.Pointer(&make([]byte, ch.size)[0])
+ 
+ 	ch.gc = unsafe.Pointer(&chanGC{
+ 		width: ch.size,
+@@ -1534,6 +1537,7 @@ func MapOf(key, elem Type) Type {
+ 	mt.hmap = hMapOf(mt.bucket)
+ 	mt.uncommonType = nil
+ 	mt.ptrToThis = nil
++	mt.zero = unsafe.Pointer(&make([]byte, mt.size)[0])
+ 
+ 	// INCORRECT. Uncomment to check that TestMapOfGC and TestMapOfGCValues
+ 	// fail when mt.gc is wrong.
+@@ -1709,6 +1713,7 @@ func SliceOf(t Type) Type {
+ 	slice.elem = typ
+ 	slice.uncommonType = nil
+ 	slice.ptrToThis = nil
++	slice.zero = unsafe.Pointer(&make([]byte, slice.size)[0])
+ 
+ 	if typ.size == 0 {
+ 		slice.gc = unsafe.Pointer(&sliceEmptyGCProg)
+@@ -1778,6 +1783,7 @@ func arrayOf(count int, elem Type) Type {
+ 	// TODO: array.gc
+ 	array.uncommonType = nil
+ 	array.ptrToThis = nil
++	array.zero = unsafe.Pointer(&make([]byte, array.size)[0])
+ 	array.len = uintptr(count)
+ 	array.slice = slice.(*rtype)
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index df549f5e16..761308708f 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -2143,7 +2143,7 @@ func Zero(typ Type) Value {
+ 	if t.size <= ptrSize {
+ 		return Value{t, nil, fl}
+ 	}
+-	return Value{t, unsafe_New(typ.(*rtype)), fl | flagIndir}
++	return Value{t, t.zero, fl | flagIndir}
+ }
+ 
+ // New returns a Value representing a pointer to a new zero value
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 6d2ab21689..d67637b6d4 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -513,10 +513,6 @@ hash_lookup(MapType *t, Hmap *h, byte **keyp)
+ 	return nil;
+ }
+ 
+-// When an item is not found, fast versions return a pointer to this zeroed memory.
+-#pragma dataflag RODATA
+-static uint8 empty_value[MAXVALUESIZE];
+-
+ // Specialized versions of mapaccess1 for specific types.
+ // See ./hashmap_fast.c and ../../cmd/gc/walk.c.
+ #define HASH_LOOKUP1 runtime·mapaccess1_fast32
+@@ -737,15 +733,17 @@ hash_remove(MapType *t, Hmap *h, void *key)
+ 
+ // TODO: shrink the map, the same way we grow it.
+ 
+-// If you modify hash_iter, also change cmd/gc/range.c to indicate
+-// the size of this structure.
++// If you modify hash_iter, also change cmd/gc/reflect.c to indicate
++// the layout of this structure.
+ struct hash_iter
+ {
+ 	uint8* key; // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
+-	uint8* value;
++	uint8* value; // Must be in second position (see cmd/gc/range.c).
+ 
+ 	MapType *t;
+ 	Hmap *h;
++	byte *buckets; // bucket ptr at hash_iter initialization time
++	struct Bucket *bptr; // current bucket
+ 
+ 	// end point for iteration
+ 	uintptr endbucket;
+@@ -753,11 +751,9 @@ struct hash_iter
+ 
+ 	// state of table at time iterator is initialized
+ 	uint8 B;
+-	byte *buckets;
+ 
+ 	// iter state
+ 	uintptr bucket;
+-	struct Bucket *bptr;
+ 	uintptr i;
+ 	intptr check_bucket;
+ };
+@@ -940,8 +936,8 @@ reflect·ismapkey(Type *typ, bool ret)
+ 	FLUSH(&ret);
+ }
+ 
+-Hmap*
+-runtime·makemap_c(MapType *typ, int64 hint)
++static Hmap*
++makemap_c(MapType *typ, int64 hint)
+ {
+ 	Hmap *h;
+ 	Type *key;
+@@ -975,7 +971,7 @@ runtime·makemap_c(MapType *typ, int64 hint)
+ void
+ runtime·makemap(MapType *typ, int64 hint, Hmap *ret)
+ {
+-	ret = runtime·makemap_c(typ, hint);
++	ret = makemap_c(typ, hint);
+ 	FLUSH(&ret);
+ }
+ 
+@@ -984,53 +980,26 @@ runtime·makemap(MapType *typ, int64 hint, Hmap *ret)
+ void
+ reflect·makemap(MapType *t, Hmap *ret)
+ {
+-	ret = runtime·makemap_c(t, 0);
++	ret = makemap_c(t, 0);
+ 	FLUSH(&ret);
+ }
+ 
+-void
+-runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
+-{
+-	byte *res;
+-	Type *elem;
+-
+-	elem = t->elem;
+-	if(h == nil || h->count == 0) {
+-		elem->alg->copy(elem->size, av, nil);
+-		*pres = false;
+-		return;
+-	}
+-
+-	res = hash_lookup(t, h, &ak);
+-
+-	if(res != nil) {
+-		*pres = true;
+-		elem->alg->copy(elem->size, av, res);
+-	} else {
+-		*pres = false;
+-		elem->alg->copy(elem->size, av, nil);
+-	}
+-}
+-
+-// mapaccess1(hmap *map[any]any, key any) (val any);
++// mapaccess1(hmap *map[any]any, key *any) (val *any);
++// NOTE: The returned pointer may keep the whole map live, so don't
++// hold onto it for very long.
+ #pragma textflag NOSPLIT
+ void
+-runtime·mapaccess1(MapType *t, Hmap *h, ...)
++runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
+ {
+-	byte *ak, *av;
+-	byte *res;
+-
+ 	if(raceenabled && h != nil)
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+ 
+-	ak = (byte*)(&h + 1);
+-	av = ak + ROUND(t->key->size, Structrnd);
+-
+ 	if(h == nil || h->count == 0) {
+-		t->elem->alg->copy(t->elem->size, av, nil);
++		av = t->elem->zero;
+ 	} else {
+-		res = hash_lookup(t, h, &ak);
+-		t->elem->alg->copy(t->elem->size, av, res);
++		av = hash_lookup(t, h, &ak);
++		if(av == nil)
++			av = t->elem->zero;
+ 	}
+ 
+ 	if(debug) {
+@@ -1042,23 +1011,31 @@ runtime·mapaccess1(MapType *t, Hmap *h, ...)
+ 		t->elem->alg->print(t->elem->size, av);
+ 		runtime·prints("\n");
+ 	}
++	FLUSH(&av);
+ }
+ 
+-// mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
++// mapaccess2(hmap *map[any]any, key *any) (val *any, pres bool);
++// NOTE: The returned pointer keeps the whole map live, so don't
++// hold onto it for very long.
+ #pragma textflag NOSPLIT
+ void
+-runtime·mapaccess2(MapType *t, Hmap *h, ...)
++runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
+ {
+-	byte *ak, *av, *ap;
+-
+ 	if(raceenabled && h != nil)
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+ 
+-	ak = (byte*)(&h + 1);
+-	av = ak + ROUND(t->key->size, Structrnd);
+-	ap = av + t->elem->size;
+-
+-	runtime·mapaccess(t, h, ak, av, ap);
++	if(h == nil || h->count == 0) {
++		av = t->elem->zero;
++		pres = false;
++	} else {
++		av = hash_lookup(t, h, &ak);
++		if(av == nil) {
++			av = t->elem->zero;
++			pres = false;
++		} else {
++			pres = true;
++		}
++	}
+ 
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess2: map=");
+@@ -1068,9 +1045,11 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
+ 		runtime·prints("; val=");
+ 		t->elem->alg->print(t->elem->size, av);
+ 		runtime·prints("; pres=");
+-		runtime·printbool(*ap);
++		runtime·printbool(pres);
+ 		runtime·prints("\n");
+ 	}
++	FLUSH(&av);
++	FLUSH(&pres);
+ }
+ 
+ // For reflect:
+@@ -1080,7 +1059,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, ...)
+ void
+ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ {
+-	byte *ak, *av;
++	byte *ak, *av, *r;
+ 
+ 	if(raceenabled && h != nil)
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+@@ -1089,77 +1068,63 @@ reflect·mapaccess(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ 		ak = (byte*)&key;
+ 	else
+ 		ak = (byte*)key;
+-	val = 0;
+-	pres = false;
+-	if(t->elem->size <= sizeof(val))
+-		av = (byte*)&val;
+-	else {
+-		av = runtime·mal(t->elem->size);
+-		val = (uintptr)av;
++
++	av = hash_lookup(t, h, &ak);
++	if(av == nil) {
++		val = 0;
++		pres = false;
++	} else {
++		if(t->elem->size <= sizeof(val)) {
++			val = 0; // clear high-order bits if value is smaller than a word
++			t->elem->alg->copy(t->elem->size, &val, av);
++		} else {
++			// make a copy because reflect can hang on to result indefinitely
++			r = runtime·cnew(t->elem);
++			t->elem->alg->copy(t->elem->size, r, av);
++			val = (uintptr)r;
++		}
++		pres = true;
+ 	}
+-	runtime·mapaccess(t, h, ak, av, &pres);
+ 	FLUSH(&val);
+ 	FLUSH(&pres);
+ }
+ 
++// mapassign1(mapType *type, hmap *map[any]any, key *any, val *any);
++#pragma textflag NOSPLIT
+ void
+-runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
++runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
+ {
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
+-	if(av == nil) {
+-		hash_remove(t, h, ak);
+-	} else {
+-		hash_insert(t, h, ak, av);
+-	}
++	if(raceenabled)
++		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
++
++	hash_insert(t, h, ak, av);
+ 
+ 	if(debug) {
+-		runtime·prints("mapassign: map=");
++		runtime·prints("mapassign1: map=");
+ 		runtime·printpointer(h);
+ 		runtime·prints("; key=");
+ 		t->key->alg->print(t->key->size, ak);
+ 		runtime·prints("; val=");
+-		if(av)
+-			t->elem->alg->print(t->elem->size, av);
+-		else
+-			runtime·prints("nil");
++		t->elem->alg->print(t->elem->size, av);
+ 		runtime·prints("\n");
+ 	}
+ }
+ 
+-// mapassign1(mapType *type, hmap *map[any]any, key any, val any);
+-#pragma textflag NOSPLIT
+-void
+-runtime·mapassign1(MapType *t, Hmap *h, ...)
+-{
+-	byte *ak, *av;
+-
+-	if(h == nil)
+-		runtime·panicstring("assignment to entry in nil map");
+-
+-	if(raceenabled)
+-		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+-	ak = (byte*)(&h + 1);
+-	av = ak + ROUND(t->key->size, t->elem->align);
+-
+-	runtime·mapassign(t, h, ak, av);
+-}
+-
+-// mapdelete(mapType *type, hmap *map[any]any, key any)
++// mapdelete(mapType *type, hmap *map[any]any, key *any)
+ #pragma textflag NOSPLIT
+ void
+-runtime·mapdelete(MapType *t, Hmap *h, ...)
++runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
+ {
+-	byte *ak;
+-
+ 	if(h == nil)
+ 		return;
+ 
+ 	if(raceenabled)
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+-	ak = (byte*)(&h + 1);
+-	runtime·mapassign(t, h, ak, nil);
++
++	hash_remove(t, h, ak);
+ 
+ 	if(debug) {
+ 		runtime·prints("mapdelete: map=");
+@@ -1187,13 +1152,35 @@ reflect·mapassign(MapType *t, Hmap *h, uintptr key, uintptr val, bool pres)
+ 		ak = (byte*)&key;
+ 	else
+ 		ak = (byte*)key;
+-	if(t->elem->size <= sizeof(val))
+-		av = (byte*)&val;
+-	else
+-		av = (byte*)val;
+-	if(!pres)
+-		av = nil;
+-	runtime·mapassign(t, h, ak, av);
++	if(!pres) {
++		hash_remove(t, h, ak);
++
++		if(debug) {
++			runtime·prints("mapassign: map=");
++			runtime·printpointer(h);
++			runtime·prints("; key=");
++			t->key->alg->print(t->key->size, ak);
++			runtime·prints("; val=nil");
++			runtime·prints("\n");
++		}
++	} else {
++		if(t->elem->size <= sizeof(val))
++			av = (byte*)&val;
++		else
++			av = (byte*)val;
++
++		hash_insert(t, h, ak, av);
++
++		if(debug) {
++			runtime·prints("mapassign: map=");
++			runtime·printpointer(h);
++			runtime·prints("; key=");
++			t->key->alg->print(t->key->size, ak);
++			runtime·prints("; val=");
++			t->elem->alg->print(t->elem->size, av);
++			runtime·prints("\n");
++		}
++	}
+ }
+ 
+ // mapiterinit(mapType *type, hmap *map[any]any, hiter *any);
+@@ -1254,46 +1241,6 @@ reflect·mapiternext(struct hash_iter *it)
+ 	runtime·mapiternext(it);
+ }
+ 
+-// mapiter1(hiter *any) (key any);
+-#pragma textflag NOSPLIT
+-void
+-runtime·mapiter1(struct hash_iter *it, ...)
+-{
+-	byte *ak, *res;
+-	Type *key;
+-
+-	ak = (byte*)(&it + 1);
+-
+-	res = it->key;
+-	if(res == nil)
+-		runtime·throw("runtime.mapiter1: key:val nil pointer");
+-
+-	key = it->t->key;
+-	key->alg->copy(key->size, ak, res);
+-
+-	if(debug) {
+-		runtime·prints("mapiter1: iter=");
+-		runtime·printpointer(it);
+-		runtime·prints("; map=");
+-		runtime·printpointer(it->h);
+-		runtime·prints("\n");
+-	}
+-}
+-
+-bool
+-runtime·mapiterkey(struct hash_iter *it, void *ak)
+-{
+-	byte *res;
+-	Type *key;
+-
+-	res = it->key;
+-	if(res == nil)
+-		return false;
+-	key = it->t->key;
+-	key->alg->copy(key->size, ak, res);
+-	return true;
+-}
+-
+ // For reflect:
+ //	func mapiterkey(h map) (key iword, ok bool)
+ // where an iword is the same word an interface value would use:
+@@ -1301,18 +1248,24 @@ runtime·mapiterkey(struct hash_iter *it, void *ak)
+ void
+ reflect·mapiterkey(struct hash_iter *it, uintptr key, bool ok)
+ {
+-	byte *res;
++	byte *res, *r;
+ 	Type *tkey;
+ 
+-	key = 0;
+-	ok = false;
+ 	res = it->key;
+-	if(res != nil) {
++	if(res == nil) {
++		key = 0;
++		ok = false;
++	} else {
+ 		tkey = it->t->key;
+-		if(tkey->size <= sizeof(key))
++		if(tkey->size <= sizeof(key)) {
++			key = 0; // clear high-order bits if value is smaller than a word
+ 			tkey->alg->copy(tkey->size, (byte*)&key, res);
+-		else
+-			key = (uintptr)res;
++		} else {
++			// make a copy because reflect can hang on to result indefinitely
++			r = runtime·cnew(tkey);
++			tkey->alg->copy(tkey->size, r, res);
++			key = (uintptr)r;
++		}
+ 		ok = true;
+ 	}
+ 	FLUSH(&key);
+@@ -1335,33 +1288,5 @@ reflect·maplen(Hmap *h, intgo len)
+ 	FLUSH(&len);
+ }
+ 
+-// mapiter2(hiter *any) (key any, val any);
+-#pragma textflag NOSPLIT
+-void
+-runtime·mapiter2(struct hash_iter *it, ...)
+-{
+-	byte *ak, *av, *res;
+-	MapType *t;
+-
+-	t = it->t;
+-	ak = (byte*)(&it + 1);
+-	av = ak + ROUND(t->key->size, t->elem->align);
+-
+-	res = it->key;
+-	if(res == nil)
+-		runtime·throw("runtime.mapiter2: key:val nil pointer");
+-
+-	t->key->alg->copy(t->key->size, ak, res);
+-	t->elem->alg->copy(t->elem->size, av, it->value);
+-
+-	if(debug) {
+-		runtime·prints("mapiter2: iter=");
+-		runtime·printpointer(it);
+-		runtime·prints("; map=");
+-		runtime·printpointer(it->h);
+-		runtime·prints("\n");
+-	}
+-}
+-
+ // exported value for testing
+ float64 runtime·hashLoad = LOAD;
+diff --git a/src/pkg/runtime/hashmap_fast.c b/src/pkg/runtime/hashmap_fast.c
+index 796582e2da..669379279e 100644
+--- a/src/pkg/runtime/hashmap_fast.c
++++ b/src/pkg/runtime/hashmap_fast.c
+@@ -5,11 +5,6 @@
+ // Fast hashmap lookup specialized to a specific key type.
+ // Included by hashmap.c once for each specialized type.
+ 
+-// Note that this code differs from hash_lookup in that
+-// it returns a pointer to the result, not the result itself.
+-// The returned pointer is only valid until the next GC
+-// point, so the caller must dereference it before then.
+-
+ // +build ignore
+ 
+ #pragma textflag NOSPLIT
+@@ -31,7 +26,7 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 		runtime·prints("\n");
+ 	}
+ 	if(h == nil || h->count == 0) {
+-		value = empty_value;
++		value = t->elem->zero;
+ 		FLUSH(&value);
+ 		return;
+ 	}
+@@ -120,7 +115,7 @@ dohash:
+ 			b = b->overflow;
+ 		} while(b != nil);
+ 	}
+-	value = empty_value;
++	value = t->elem->zero;
+ 	FLUSH(&value);
+ }
+ 
+@@ -143,7 +138,7 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 		runtime·prints("\n");
+ 	}
+ 	if(h == nil || h->count == 0) {
+-		value = empty_value;
++		value = t->elem->zero;
+ 		res = false;
+ 		FLUSH(&value);
+ 		FLUSH(&res);
+@@ -242,7 +237,7 @@ dohash:
+ 			b = b->overflow;
+ 		} while(b != nil);
+ 	}
+-	value = empty_value;
++	value = t->elem->zero;
+ 	res = false;
+ 	FLUSH(&value);
+ 	FLUSH(&res);
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index d643d98985..da45ea11e4 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -268,3 +268,33 @@ func BenchmarkSameLengthMap(b *testing.B) {
+ 		_ = m[s1]
+ 	}
+ }
++
++type BigKey [3]int64
++
++func BenchmarkBigKeyMap(b *testing.B) {
++	m := make(map[BigKey]bool)
++	k := BigKey{3, 4, 5}
++	m[k] = true
++	for i := 0; i < b.N; i++ {
++		_ = m[k]
++	}
++}
++
++type BigVal [3]int64
++
++func BenchmarkBigValMap(b *testing.B) {
++	m := make(map[BigKey]BigVal)
++	k := BigKey{3, 4, 5}
++	m[k] = BigVal{6, 7, 8}
++	for i := 0; i < b.N; i++ {
++		_ = m[k]
++	}
++}
++
++func BenchmarkSmallKeyMap(b *testing.B) {
++	m := make(map[int16]bool)
++	m[5] = true
++	for i := 0; i < b.N; i++ {
++		_ = m[5]
++	}
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f7c2adb121..129dc7d152 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -1037,12 +1037,6 @@ void	runtime·osyield(void);
+ void	runtime·lockOSThread(void);
+ void	runtime·unlockOSThread(void);
+ 
+-void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
+-void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);
+-void	runtime·mapiternext(struct hash_iter*);
+-bool	runtime·mapiterkey(struct hash_iter*, void*);
+-Hmap*	runtime·makemap_c(MapType*, int64);
+-
+ Hchan*	runtime·makechan_c(ChanType*, int64);
+ void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
+ void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 30936046c7..6052e24234 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -31,6 +31,7 @@ struct Type
+ 	String *string;
+ 	UncommonType *x;
+ 	Type *ptrto;
++	byte *zero;  // ptr to the zero value for this type
+ };
+ 
+ struct Method
+diff --git a/src/pkg/runtime/typekind.h b/src/pkg/runtime/typekind.h
+index 9bae2a8710..df53f20c84 100644
+--- a/src/pkg/runtime/typekind.h
++++ b/src/pkg/runtime/typekind.h
+@@ -36,6 +36,6 @@ enum {
+ 	KindNoPointers = 1<<7,
+ 
+ 	// size of Type structure.
+-	CommonSize = 6*PtrSize + 8,
++	CommonSize = 7*PtrSize + 8,
+ };
+ 

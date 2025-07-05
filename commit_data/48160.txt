@@ -9,7 +9,7 @@ Date:   Wed Apr 28 11:42:34 2021 -0700
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  misc/wasm/wasm_exec.js             | 4 ++--
  src/runtime/os3_solaris.go         | 2 +-
  src/runtime/os_aix.go              | 2 +-
@@ -42,3 +42,451 @@ Date:   Wed Apr 28 11:42:34 2021 -0700
  src/runtime/timestub2.go           | 2 +-
  src/runtime/vdso_freebsd.go        | 2 +-
  31 files changed, 51 insertions(+), 54 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 82041e6bb9..3e41e628ef 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -296,8 +296,8 @@
+ 						setInt64(sp + 8, (timeOrigin + performance.now()) * 1000000);
+ 					},
+ 
+-					// func walltime1() (sec int64, nsec int32)
+-					"runtime.walltime1": (sp) => {
++					// func walltime() (sec int64, nsec int32)
++					"runtime.walltime": (sp) => {
+ 						sp >>>= 0;
+ 						const msec = (new Date).getTime();
+ 						setInt64(sp + 8, msec / 1000);
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 4b65139eb8..39ef831acf 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -531,7 +531,7 @@ func usleep(µs uint32) {
+ 	usleep1(µs)
+ }
+ 
+-func walltime1() (sec int64, nsec int32) {
++func walltime() (sec int64, nsec int32) {
+ 	var ts mts
+ 	sysvicall2(&libc_clock_gettime, _CLOCK_REALTIME, uintptr(unsafe.Pointer(&ts)))
+ 	return ts.tv_sec, int32(ts.tv_nsec)
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 557b17cc75..4fb1c8e845 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -336,7 +336,7 @@ func nanotime1() int64 {
+ 	return tp.tv_sec*1000000000 + tp.tv_nsec
+ }
+ 
+-func walltime1() (sec int64, nsec int32) {
++func walltime() (sec int64, nsec int32) {
+ 	ts := &timespec{}
+ 	if clock_gettime(_CLOCK_REALTIME, ts) != 0 {
+ 		throw("syscall clock_gettime failed")
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index 3b1707126b..e16f9420db 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -98,4 +98,4 @@ func sigaltstack(new, old *stackt)
+ func closeonexec(fd int32)
+ func setNonblock(fd int32)
+ 
+-func walltime1() (sec int64, nsec int32)
++func walltime() (sec int64, nsec int32)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 36182f4e9a..f0935264ac 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -804,9 +804,6 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
+ 	return
+ }
+ 
+-// walltime1 isn't implemented on Windows, but will never be called.
+-func walltime1() (sec int64, nsec int32)
+-
+ //go:nosplit
+ func semasleep(ns int64) int32 {
+ 	const (
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 6d7460fae2..0f91685d6c 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -274,7 +274,7 @@ func nanotime_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func walltime1() (int64, int32) {
++func walltime() (int64, int32) {
+ 	var t timespec
+ 	libcCall(unsafe.Pointer(abi.FuncPCABI0(walltime_trampoline)), unsafe.Pointer(&t))
+ 	return t.tv_sec, int32(t.tv_nsec)
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 43f864194d..d57bc2a7a4 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -184,8 +184,8 @@ TEXT runtime·setitimer(SB), NOSPLIT, $-8
+ 	SYSCALL
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	$232, AX // clock_gettime
+ 	MOVQ	$0, DI  	// CLOCK_REALTIME
+ 	LEAQ	8(SP), SI
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 6e7737e89f..3ae5a9099f 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -219,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $8-12
+ 	// We don't know how much stack space the VDSO code will need,
+ 	// so switch to g0.
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index da8a1f7663..ee587de805 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -204,9 +204,9 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
++// func walltime() (sec int64, nsec int32)
+ // non-zero frame-size means bp is saved and restored
+-TEXT runtime·walltime1(SB),NOSPLIT,$16-12
++TEXT runtime·walltime(SB),NOSPLIT,$16-12
+ 	// We don't know how much stack space the VDSO code will need,
+ 	// so switch to g0.
+ 	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 475f52344c..02a5d4a642 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -242,7 +242,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	// We don't know how much stack space the VDSO code will need,
+ 	// so switch to g0.
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 198a5bacef..69ac160278 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -206,8 +206,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$24-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$24-12
+ 	MOVD	RSP, R20	// R20 is unchanged by C code
+ 	MOVD	RSP, R1
+ 
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index c3e9f37694..0206cb88bd 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -213,8 +213,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$16-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16-12
+ 	MOVV	R29, R16	// R16 is unchanged by C code
+ 	MOVV	R29, R1
+ 
+@@ -319,7 +319,7 @@ noswitch:
+ 	BEQ	R25, fallback
+ 
+ 	JAL	(R25)
+-	// see walltime1 for detail
++	// see walltime for detail
+ 	BEQ	R2, R0, finish
+ 	MOVV	R0, runtime·vdsoClockgettimeSym(SB)
+ 	MOVW	$1, R4 // CLOCK_MONOTONIC
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index fab2ab3892..d5317d3957 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -218,8 +218,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	MOVW	$0, R4	// CLOCK_REALTIME
+ 	MOVW	$4(R29), R5
+ 	MOVW	$SYS_clock_gettime, R2
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index fd69ee70a5..75da130357 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -184,8 +184,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$16-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16-12
+ 	MOVD	R1, R15		// R15 is unchanged by C code
+ 	MOVD	g_m(g), R21	// R21 = m
+ 
+diff --git a/src/runtime/sys_linux_riscv64.s b/src/runtime/sys_linux_riscv64.s
+index 626ab3912c..2389f1cc18 100644
+--- a/src/runtime/sys_linux_riscv64.s
++++ b/src/runtime/sys_linux_riscv64.s
+@@ -219,8 +219,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	A0, ret+24(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$24-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$24-12
+ 	MOV	$0, A0 // CLOCK_REALTIME
+ 	MOV	$8(X2), A1
+ 	MOV	$SYS_clock_gettime, A7
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index c15a1d5364..916dfada8d 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -194,8 +194,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$16
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$16
+ 	MOVW	$0, R2 // CLOCK_REALTIME
+ 	MOVD	$tp-16(SP), R3
+ 	MOVW	$SYS_clock_gettime, R1
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index d3f22454a4..8a33894892 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -206,8 +206,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	LEAL	12(SP), BX
+ 	MOVL	$CLOCK_REALTIME, 4(SP)	// arg 1 - clock_id
+ 	MOVL	BX, 8(SP)		// arg 2 - tp
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index db76e86d1d..02f5b4ba3b 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -238,8 +238,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	SYSCALL
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVQ	$CLOCK_REALTIME, DI	// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$SYS___clock_gettime50, AX
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 82f9d2161e..3a763b2a6a 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -216,8 +216,8 @@ TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0
+ 	SWI $SYS___setitimer50
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW $0, R0	// CLOCK_REALTIME
+ 	MOVW $8(R13), R1
+ 	SWI $SYS___clock_gettime50
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 1446a27f4c..2d0b894d47 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -224,8 +224,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-8
+ 	SVC	$SYS___setitimer50
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW	$CLOCK_REALTIME, R0	// arg 1 - clock_id
+ 	MOVD	$8(RSP), R1		// arg 2 - tp
+ 	SVC	$SYS___clock_gettime50
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index 73157043be..16a518df17 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -162,7 +162,7 @@ func nanotime1() int64 {
+ func clock_gettime_trampoline()
+ 
+ //go:nosplit
+-func walltime1() (int64, int32) {
++func walltime() (int64, int32) {
+ 	var ts timespec
+ 	args := struct {
+ 		clock_id int32
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 24fbfd6266..0f7895aef8 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -170,8 +170,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+ 	INT	$0x80
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	LEAL	12(SP), BX
+ 	MOVL	$0, 4(SP)		// arg 1 - clock_id
+ 	MOVL	BX, 8(SP)		// arg 2 - tp
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 9e18ce0e16..45d69a312a 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -188,8 +188,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	INVOKE_SYSCALL
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
+ 	MOVW	$8(R13), R1		// arg 2 - tp
+ 	MOVW	$87, R12		// sys_clock_gettime
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index 3e4d209081..f8ae8e7c30 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -186,8 +186,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $32
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVW	CLOCK_REALTIME, R4	// arg 1 - clock_id
+ 	MOVV	$8(R29), R5		// arg 2 - tp
+ 	MOVV	$87, R2			// sys_clock_gettime
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index f9969f6d10..b3d2f1376d 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -102,8 +102,8 @@ TEXT runtime·nsec(SB),NOSPLIT,$8
+ 	MOVL	$-1, ret_hi+8(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·nanotime1(SB)
+ 	MOVL	0(SP), AX
+ 	MOVL	4(SP), DX
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 383622b5a6..731306ab44 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -88,8 +88,8 @@ TEXT runtime·nsec(SB),NOSPLIT,$0
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	CALL	runtime·nanotime1(SB)
+ 	MOVQ	0(SP), AX
+ 
+diff --git a/src/runtime/sys_plan9_arm.s b/src/runtime/sys_plan9_arm.s
+index 9fbe30536d..5343085743 100644
+--- a/src/runtime/sys_plan9_arm.s
++++ b/src/runtime/sys_plan9_arm.s
+@@ -138,8 +138,8 @@ TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVW	R0, ret_hi+8(FP)
+ 	RET
+ 
+-// func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$12-12
++// func walltime() (sec int64, nsec int32)
++TEXT runtime·walltime(SB),NOSPLIT,$12-12
+ 	// use nsec system call to get current time in nanoseconds
+ 	MOVW	$sysnsec_lo-8(SP), R0	// destination addr
+ 	MOVW	R0,res-12(SP)
+diff --git a/src/runtime/sys_wasm.s b/src/runtime/sys_wasm.s
+index e7a6570095..164dd16ec9 100644
+--- a/src/runtime/sys_wasm.s
++++ b/src/runtime/sys_wasm.s
+@@ -185,7 +185,7 @@ TEXT ·nanotime1(SB), NOSPLIT, $0
+ 	CallImport
+ 	RET
+ 
+-TEXT ·walltime1(SB), NOSPLIT, $0
++TEXT ·walltime(SB), NOSPLIT, $0
+ 	CallImport
+ 	RET
+ 
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index 44e65845cb..6f16c70b81 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -16,6 +16,6 @@ import _ "unsafe" // for go:linkname
+ 
+ //go:linkname time_now time.now
+ func time_now() (sec int64, nsec int32, mono int64) {
+-	sec, nsec = walltime1()
++	sec, nsec = walltime()
+ 	return sec, nsec, nanotime()
+ }
+diff --git a/src/runtime/timestub2.go b/src/runtime/timestub2.go
+index 53b10885af..d66579440e 100644
+--- a/src/runtime/timestub2.go
++++ b/src/runtime/timestub2.go
+@@ -7,4 +7,4 @@
+ 
+ package runtime
+ 
+-func walltime1() (sec int64, nsec int32)
++func walltime() (sec int64, nsec int32)
+diff --git a/src/runtime/vdso_freebsd.go b/src/runtime/vdso_freebsd.go
+index 74b2f1435a..7ca7b2810b 100644
+--- a/src/runtime/vdso_freebsd.go
++++ b/src/runtime/vdso_freebsd.go
+@@ -106,7 +106,7 @@ func nanotime1() int64 {
+ 	return int64((1e9 * uint64(bt.sec)) + ((1e9 * uint64(bt.frac>>32)) >> 32))
+ }
+ 
+-func walltime1() (sec int64, nsec int32) {
++func walltime() (sec int64, nsec int32) {
+ 	bt := vdsoClockGettime(_CLOCK_REALTIME)
+ 	if bt == zeroBintime {
+ 		return fallback_walltime()

@@ -7,7 +7,7 @@ Date:   Fri May 8 14:40:38 2009 -0700
     R=ken
     OCL=28559
     CL=28562
-
+---
  src/cmd/6g/cgen.c   |  4 ++--
  src/cmd/gc/const.c  |  2 +-
  src/cmd/gc/dcl.c    |  6 +++---
@@ -18,3 +18,360 @@ Date:   Fri May 8 14:40:38 2009 -0700
  src/cmd/gc/subr.c   | 22 ++++++++++++++--------
  src/cmd/gc/walk.c   | 32 ++++++++++++++++----------------
  9 files changed, 47 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d12bbef688..8f8fe7273a 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -191,7 +191,7 @@ cgen(Node *n, Node *res)
+ 		goto abop;
+ 
+ 	case OCONV:
+-		if(eqtype(n->type, nl->type, 0)) {
++		if(eqtype(n->type, nl->type)) {
+ 			cgen(nl, res);
+ 			break;
+ 		}
+@@ -384,7 +384,7 @@ agen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OCONV:
+-		if(!eqtype(n->type, nl->type, 0))
++		if(!eqtype(n->type, nl->type))
+ 			fatal("agen: non-trivial OCONV");
+ 		agen(nl, res);
+ 		return;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d38bf79d6b..59a591ccca 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -80,7 +80,7 @@ convlit1(Node *n, Type *t, int explicit)
+ 	}
+ 
+ 	// avoided repeated calculations, errors
+-	if(eqtype(n->type, t, 0)) {
++	if(eqtype(n->type, t)) {
+ 		n->type = t;
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 14617fb604..bf9afee2f7 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -212,7 +212,7 @@ methcmp(Type *t1, Type *t2)
+ 		if(t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+ 			return 0;
+ 
+-		if(!eqtype(t1->type, t2->type, 0))
++		if(!eqtype(t1->type, t2->type))
+ 			return 0;
+ 
+ 		t1 = t1->down;
+@@ -327,7 +327,7 @@ addmethod(Node *n, Type *t, int local)
+ 			d = f;
+ 			continue;
+ 		}
+-		if(!eqtype(t, f->type, 0)) {
++		if(!eqtype(t, f->type)) {
+ 			yyerror("method redeclared: %T.%S", pa, sf);
+ 			print("\t%T\n\t%T\n", f->type, t);
+ 		}
+@@ -387,7 +387,7 @@ funchdr(Node *n)
+ 
+ 	// check for same types
+ 	if(on != N) {
+-		if(eqtype(n->type, on->type, 0)) {
++		if(eqtype(n->type, on->type)) {
+ 			if(!eqargs(n->type, on->type)) {
+ 				yyerror("function arg names changed: %S", s);
+ 				print("\t%T\n\t%T\n", on->type, n->type);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index ae943daab9..07c7411e40 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -371,7 +371,7 @@ importvar(Node *ss, Type *t, int ctxt)
+ 
+ 	s = importsym(ss, LNAME);
+ 	if(s->oname != N) {
+-		if(eqtype(t, s->oname->type, 0))
++		if(eqtype(t, s->oname->type))
+ 			return;
+ 		warn("redeclare import var %S from %T to %T",
+ 			s, s->oname->type, t);
+@@ -390,7 +390,7 @@ importtype(Node *ss, Type *t)
+ 
+ 	s = importsym(ss, LATYPE);
+ 	if(s->otype != T) {
+-		if(eqtype(t, s->otype, 0))
++		if(eqtype(t, s->otype))
+ 			return;
+ 		if(s->otype->etype != TFORW) {
+ 			warn("redeclare import type %S from %T to %T",
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a7f10ced29..a74dd645c2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -726,7 +726,7 @@ int	isddd(Type*);
+ Type*	maptype(Type*, Type*);
+ Type*	methtype(Type*);
+ Sym*	signame(Type*);
+-int	eqtype(Type*, Type*, int);
++int	eqtype(Type*, Type*);
+ int	eqtypenoname(Type*, Type*);
+ void	argtype(Node*, Type*);
+ int	eqargs(Type*, Type*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e5b808460a..db78c4dc93 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1088,6 +1088,10 @@ name:
+ 
+ labelname:
+ 	name
++|	LATYPE
++	{
++		$$ = oldname($1);
++	}
+ |	keyword
+ 	{
+ 		$$ = oldname($1);
+@@ -2049,6 +2053,9 @@ hidden_pkg_importsym:
+  * to check whether the rest of the grammar is free of
+  * reduce/reduce conflicts, comment this section out by
+  * removing the slash on the next line.
++ *
++ * there should be exactly 1 reduce/reduce conflict
++ * when this block is commented out.
+  */
+ lpack:
+ 	LATYPE
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index ee0fd53dcd..525669e9f9 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -230,7 +230,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
+ 		if(!a->sym->siggen) {
+ 			a->sym->siggen = 1;
+ 
+-			if(!eqtype(this, ifacet, 0)) {
++			if(!eqtype(this, ifacet)) {
+ 				if(oldlist == nil)
+ 					oldlist = pc;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7972c41d8c..50f5269816 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1607,7 +1607,7 @@ bad:
+ }
+ 
+ int
+-eqtype(Type *t1, Type *t2, int d)
++eqtype1(Type *t1, Type *t2, int d)
+ {
+ 	if(d >= 10)
+ 		return 1;
+@@ -1623,7 +1623,7 @@ eqtype(Type *t1, Type *t2, int d)
+ 		t1 = t1->type;
+ 		t2 = t2->type;
+ 		for(;;) {
+-			if(!eqtype(t1, t2, d+1))
++			if(!eqtype1(t1, t2, d+1))
+ 				return 0;
+ 			if(t1 == T)
+ 				return 1;
+@@ -1659,7 +1659,7 @@ eqtype(Type *t1, Type *t2, int d)
+ 					return 0;
+ 				if(ta->etype != TFIELD || tb->etype != TFIELD)
+ 					return 0;
+-				if(!eqtype(ta->type, tb->type, d+1))
++				if(!eqtype1(ta->type, tb->type, d+1))
+ 					return 0;
+ 				ta = ta->down;
+ 				tb = tb->down;
+@@ -1675,20 +1675,26 @@ eqtype(Type *t1, Type *t2, int d)
+ 			break;
+ 		return 0;
+ 	}
+-	return eqtype(t1->type, t2->type, d+1);
++	return eqtype1(t1->type, t2->type, d+1);
++}
++
++int
++eqtype(Type *t1, Type *t2)
++{
++	return eqtype1(t1, t2, 0);
+ }
+ 
+ int
+ eqtypenoname(Type *t1, Type *t2)
+ {
+ 	if(t1 == T || t2 == T || t1->etype != TSTRUCT || t2->etype != TSTRUCT)
+-		return eqtype(t1, t2, 0);
++		return eqtype(t1, t2);
+ 
+ 
+ 	t1 = t1->type;
+ 	t2 = t2->type;
+ 	for(;;) {
+-		if(!eqtype(t1, t2, 1))
++		if(!eqtype(t1, t2))
+ 			return 0;
+ 		if(t1 == T)
+ 			return 1;
+@@ -1873,7 +1879,7 @@ eqargs(Type *t1, Type *t2)
+ 	for(;;) {
+ 		if(t1 == t2)
+ 			break;
+-		if(!eqtype(t1, t2, 0))
++		if(!eqtype(t1, t2))
+ 			return 0;
+ 		t1 = t1->down;
+ 		t2 = t2->down;
+@@ -2032,7 +2038,7 @@ loop:
+ 		}
+ 		if(tl->etype != TFUNC || tr->etype != TFUNC)
+ 			break;
+-//		if(eqtype(t1, t2, 0))
++//		if(eqtype(t1, t2))
+ 	}
+ 
+ 	yyerror("illegal types for operand: %O", o);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index efb092ab81..f5d390203e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -700,7 +700,7 @@ loop:
+ 		defaultlit2(n->left, n->right);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+-		if(!eqtype(n->left->type, n->right->type, 0))
++		if(!eqtype(n->left->type, n->right->type))
+ 			goto badt;
+ 
+ 		switch(n->op) {
+@@ -831,7 +831,7 @@ loop:
+ 			defaultlit(n->right, t->down);
+ 			if(n->right->type == T)
+ 				break;
+-			if(!eqtype(n->right->type, t->down, 0))
++			if(!eqtype(n->right->type, t->down))
+ 				goto badt;
+ 			n->type = t->type;
+ 			if(top == Erv)
+@@ -1169,7 +1169,7 @@ walkbool(Node *n)
+ 	defaultlit(n, T);
+ 	addtotop(n);
+ 	if(n != N && n->type != T)
+-		if(!eqtype(n->type, types[TBOOL], 0))
++		if(!eqtype(n->type, types[TBOOL]))
+ 			yyerror("IF and FOR require a boolean type");
+ }
+ 
+@@ -1210,7 +1210,7 @@ walkconv(Node *n)
+ 		return;
+ 
+ 	// nil conversion
+-	if(eqtype(t, l->type, 0)) {
++	if(eqtype(t, l->type)) {
+ 		if(l->op != ONAME) {
+ 			indir(n, l);
+ 			n->type = t;
+@@ -1248,7 +1248,7 @@ walkconv(Node *n)
+ 
+ 	// convert static array to dynamic array
+ 	if(isslice(t) && isptr[l->type->etype] && isfixedarray(l->type->type)) {
+-		if(eqtype(t->type->type, l->type->type->type->type, 0)) {
++		if(eqtype(t->type->type, l->type->type->type->type)) {
+ 			indir(n, arrayop(n, Erv));
+ 			return;
+ 		}
+@@ -1622,13 +1622,13 @@ lookdot(Node *n, Type *t)
+ 	if(f2 != T) {
+ 		tt = n->left->type;
+ 		rcvr = getthisx(f2->type)->type->type;
+-		if(!eqtype(rcvr, tt, 0)) {
+-			if(rcvr->etype == tptr && eqtype(rcvr->type, tt, 0)) {
++		if(!eqtype(rcvr, tt)) {
++			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
+ 				walktype(n->left, Elv);
+ 				addrescapes(n->left);
+ 				n->left = nod(OADDR, n->left, N);
+ 				n->left->type = ptrto(tt);
+-			} else if(tt->etype == tptr && eqtype(tt->type, rcvr, 0)) {
++			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
+ 				n->left = nod(OIND, n->left, N);
+ 				n->left->type = tt->type;
+ 			} else {
+@@ -2017,7 +2017,7 @@ loop:
+ int
+ ascompat(Type *dst, Type *src)
+ {
+-	if(eqtype(dst, src, 0))
++	if(eqtype(dst, src))
+ 		return 1;
+ 
+ 	if(dst == T || src == T)
+@@ -2026,7 +2026,7 @@ ascompat(Type *dst, Type *src)
+ 	if(isslice(dst)
+ 	&& isptr[src->etype]
+ 	&& isfixedarray(src->type)
+-	&& eqtype(dst->type, src->type->type, 0))
++	&& eqtype(dst->type, src->type->type))
+ 		return 1;
+ 
+ 	if(isnilinter(dst) || isnilinter(src))
+@@ -2120,7 +2120,7 @@ loop:
+ 	if(t != nil)
+ 		t = t->type;
+ 
+-	if(!eqtype(t, l->type, 0)) {
++	if(!eqtype(t, l->type)) {
+ 		l = nod(OCONV, l, N);
+ 		l->type = t;
+ 	}
+@@ -2380,7 +2380,7 @@ mapop(Node *n, int top)
+ 
+ 		convlit(n->right, t->down);
+ 
+-		if(!eqtype(n->right->type, t->down, 0)) {
++		if(!eqtype(n->right->type, t->down)) {
+ 			badtype(n->op, n->right->type, t->down);
+ 			break;
+ 		}
+@@ -2900,7 +2900,7 @@ ifaceas1(Type *dst, Type *src, int explicit)
+ 
+ 	if(isinter(dst)) {
+ 		if(isinter(src)) {
+-			if(eqtype(dst, src, 0))
++			if(eqtype(dst, src))
+ 				return I2Isame;
+ 			if(!isnilinter(dst))
+ 				ifacecheck(dst, src, lineno, explicit);
+@@ -3065,7 +3065,7 @@ convas(Node *n)
+ 		goto out;
+ 	}
+ 
+-	if(eqtype(lt, rt, 0))
++	if(eqtype(lt, rt))
+ 		goto out;
+ 
+ 	et = ifaceas(lt, rt, 0);
+@@ -3075,7 +3075,7 @@ convas(Node *n)
+ 	}
+ 
+ 	if(isslice(lt) && isptr[rt->etype] && isfixedarray(rt->type)) {
+-		if(!eqtype(lt->type->type, rt->type->type->type, 0))
++		if(!eqtype(lt->type->type, rt->type->type->type))
+ 			goto bad;
+ 		indir(n, arrayop(n, Etop));
+ 		goto out;
+@@ -3154,7 +3154,7 @@ checkmixed(Node *nl)
+ 		if(!colasname(l))
+ 			goto allnew;
+ 		if(l->sym->block == block) {
+-			if(!eqtype(l->type, t, 0))
++			if(!eqtype(l->type, t))
+ 				goto allnew;
+ 			nred++;
+ 		}

@@ -11,9 +11,80 @@ Date:   Wed Mar 1 22:43:22 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/coverage/emit.go | 6 +++---
  src/runtime/mgclimit.go      | 2 +-
  src/runtime/mgcsweep.go      | 2 +-
  src/runtime/os_netbsd.go     | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/coverage/emit.go b/src/runtime/coverage/emit.go
+index 2aed99c718..300ff2caca 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/runtime/coverage/emit.go
+@@ -241,7 +241,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
+ 	return ml, nil
+ }
+ 
+-// emitMetaData emits the meta-data output file to the specified
++// emitMetaDataToDirectory emits the meta-data output file to the specified
+ // directory, returning an error if something went wrong.
+ func emitMetaDataToDirectory(outdir string, ml []rtcov.CovMetaBlob) error {
+ 	ml, err := prepareForMetaEmit()
+@@ -289,7 +289,7 @@ func emitCounterData() {
+ 	}
+ }
+ 
+-// emitMetaData emits the counter-data output file for this coverage run.
++// emitCounterDataToDirectory emits the counter-data output file for this coverage run.
+ func emitCounterDataToDirectory(outdir string) error {
+ 	// Ask the runtime for the list of coverage counter symbols.
+ 	cl := getCovCounterList()
+@@ -336,7 +336,7 @@ func emitCounterDataToDirectory(outdir string) error {
+ 	return nil
+ }
+ 
+-// emitMetaData emits counter data for this coverage run to an io.Writer.
++// emitCounterDataToWriter emits counter data for this coverage run to an io.Writer.
+ func (s *emitState) emitCounterDataToWriter(w io.Writer) error {
+ 	if err := s.emitCounterDataFile(finalHash, w); err != nil {
+ 		return err
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+index bcbe7f88a0..51c5506eee 100644
+--- a/src/runtime/mgclimit.go
++++ b/src/runtime/mgclimit.go
+@@ -174,7 +174,7 @@ func (l *gcCPULimiterState) update(now int64) {
+ 	l.unlock()
+ }
+ 
+-// updatedLocked is the implementation of update. l.lock must be held.
++// updateLocked is the implementation of update. l.lock must be held.
+ func (l *gcCPULimiterState) updateLocked(now int64) {
+ 	lastUpdate := l.lastUpdate.Load()
+ 	if now < lastUpdate {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 6ccf090ac5..773e27e646 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -484,7 +484,7 @@ func (s *mspan) ensureSwept() {
+ 	}
+ }
+ 
+-// Sweep frees or collects finalizers for blocks not marked in the mark phase.
++// sweep frees or collects finalizers for blocks not marked in the mark phase.
+ // It clears the mark bits in preparation for the next GC round.
+ // Returns true if the span was returned to heap.
+ // If preserve=true, don't return it to heap nor relink in mcentral lists;
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 7f8c6bc4e3..f76c87e02e 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -246,7 +246,7 @@ func newosproc(mp *m) {
+ // It is written in assembly, uses ABI0, is marked TOPFRAME, and calls netbsdMstart0.
+ func netbsdMstart()
+ 
+-// netbsdMStart0 is the function call that starts executing a newly
++// netbsdMstart0 is the function call that starts executing a newly
+ // created thread. On NetBSD, a new thread inherits the signal stack
+ // of the creating thread. That confuses minit, so we remove that
+ // signal stack here before calling the regular mstart. It's a bit

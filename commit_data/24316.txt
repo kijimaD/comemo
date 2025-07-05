@@ -7,7 +7,7 @@ Date:   Tue Jul 21 16:58:18 2015 +0200
     Change-Id: Ibc645d6cf229ecc18af3549dd3750be9d7451abe
     Reviewed-on: https://go-review.googlesource.com/12472
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  17 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   9 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  28 ++--
@@ -15,3 +15,576 @@ Date:   Tue Jul 21 16:58:18 2015 +0200
  src/cmd/compile/internal/ssa/opGen.go          | 208 +++++++++++++++++--------
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 137 ++++++++++++++++
  6 files changed, 330 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1b01894ee3..a77e788a1c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -471,6 +471,15 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OSUB, TINT64}:  ssa.OpSub64,
+ 	opAndType{OSUB, TUINT64}: ssa.OpSub64U,
+ 
++	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
++	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8U,
++	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
++	opAndType{OMINUS, TUINT16}: ssa.OpNeg16U,
++	opAndType{OMINUS, TINT32}:  ssa.OpNeg32,
++	opAndType{OMINUS, TUINT32}: ssa.OpNeg32U,
++	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
++	opAndType{OMINUS, TUINT64}: ssa.OpNeg64U,
++
+ 	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
+ 	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
+ 	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
+@@ -654,9 +663,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.variable(n, n.Type)
+ 
+ 	// unary ops
+-	case ONOT:
++	case ONOT, OMINUS:
+ 		a := s.expr(n.Left)
+-		return s.newValue1(ssa.OpNot, a.Type, a)
++		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+ 
+ 	case OADDR:
+ 		return s.addr(n.Left)
+@@ -1384,6 +1393,10 @@ func genValue(v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[0])
++	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB:
++		p := Prog(v.Op.Asm())
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v.Args[0])
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+ 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 6c4608dc6c..eb14b6a55b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -32,6 +32,15 @@
+ (Sub8U x y) -> (SUBB x y)
+ (Sub8 x y) -> (MOVBQSX (SUBB <v.Type> x y))
+ 
++(Neg64 x) -> (NEGQ x)
++(Neg64U x) -> (NEGQ x)
++(Neg32U x) -> (NEGL x)
++(Neg32 x) -> (MOVLQSX (NEGL <v.Type> x))
++(Neg16U x) -> (NEGW x)
++(Neg16 x) -> (MOVWQSX (NEGW <v.Type> x))
++(Neg8U x) -> (NEGB x)
++(Neg8 x) -> (MOVBQSX (NEGB <v.Type> x))
++
+ (Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
+ 
+ (MOVLstore ptr (MOVLQSX x) mem) -> (MOVLstore ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 1c7b817610..ac527918c3 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -96,10 +96,6 @@ func init() {
+ 
+ 	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
+ 	var AMD64ops = []opData{
+-		{name: "ADDQ", reg: gp21},                    // arg0 + arg1
+-		{name: "ADDQconst", reg: gp11},               // arg0 + auxint
+-		{name: "SUBQ", reg: gp21, asm: "SUBQ"},       // arg0 - arg1
+-		{name: "SUBQconst", reg: gp11, asm: "SUBQ"},  // arg0 - auxint
+ 		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
+ 		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
+ 		{name: "ANDQ", reg: gp21, asm: "ANDQ"},       // arg0 & arg1
+@@ -111,7 +107,6 @@ func init() {
+ 		{name: "SARQ", reg: gp21shift, asm: "SARQ"},  // signed arg0 >> arg1, shift amount is mod 64
+ 		{name: "SARQconst", reg: gp11, asm: "SARQ"},  // signed arg0 >> auxint, shift amount 0-63
+ 
+-		{name: "NEGQ", reg: gp11},                   // -arg0
+ 		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0^auxint
+ 
+ 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
+@@ -170,13 +165,22 @@ func init() {
+ 
+ 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
+ 
+-		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0+arg1
+-		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0+arg1
+-		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0+arg1
+-
+-		{name: "SUBL", reg: gp21, asm: "SUBL"}, // arg0-arg1
+-		{name: "SUBW", reg: gp21, asm: "SUBW"}, // arg0-arg1
+-		{name: "SUBB", reg: gp21, asm: "SUBB"}, // arg0-arg1
++		{name: "ADDQ", reg: gp21},              // arg0 + arg1
++		{name: "ADDQconst", reg: gp11},         // arg0 + auxint
++		{name: "ADDL", reg: gp21, asm: "ADDL"}, // arg0 + arg1
++		{name: "ADDW", reg: gp21, asm: "ADDW"}, // arg0 + arg1
++		{name: "ADDB", reg: gp21, asm: "ADDB"}, // arg0 + arg1
++
++		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
++		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
++		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
++		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
++		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
++
++		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
++		{name: "NEGL", reg: gp11, asm: "NEGL"}, // -arg0
++		{name: "NEGW", reg: gp11, asm: "NEGW"}, // -arg0
++		{name: "NEGB", reg: gp11, asm: "NEGB"}, // -arg0
+ 
+ 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+ 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 12c2901076..5e1856a2fc 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -95,6 +95,15 @@ var genericOps = []opData{
+ 	// 1-input ops
+ 	{name: "Not"}, // !arg0
+ 
++	{name: "Neg8"}, // - arg0
++	{name: "Neg16"},
++	{name: "Neg32"},
++	{name: "Neg64"},
++	{name: "Neg8U"},
++	{name: "Neg16U"},
++	{name: "Neg32U"},
++	{name: "Neg64U"},
++
+ 	// Data movement
+ 	{name: "Phi"},  // select an argument based on which predecessor block we came from
+ 	{name: "Copy"}, // output = arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4cb9dc42b8..009e9d4e6d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -51,10 +51,6 @@ func (k BlockKind) String() string { return blockString[k] }
+ const (
+ 	OpInvalid Op = iota
+ 
+-	OpAMD64ADDQ
+-	OpAMD64ADDQconst
+-	OpAMD64SUBQ
+-	OpAMD64SUBQconst
+ 	OpAMD64MULQ
+ 	OpAMD64MULQconst
+ 	OpAMD64ANDQ
+@@ -65,7 +61,6 @@ const (
+ 	OpAMD64SHRQconst
+ 	OpAMD64SARQ
+ 	OpAMD64SARQconst
+-	OpAMD64NEGQ
+ 	OpAMD64XORQconst
+ 	OpAMD64CMPQ
+ 	OpAMD64CMPQconst
+@@ -108,12 +103,20 @@ const (
+ 	OpAMD64CALLstatic
+ 	OpAMD64CALLclosure
+ 	OpAMD64REPMOVSB
++	OpAMD64ADDQ
++	OpAMD64ADDQconst
+ 	OpAMD64ADDL
+ 	OpAMD64ADDW
+ 	OpAMD64ADDB
++	OpAMD64SUBQ
++	OpAMD64SUBQconst
+ 	OpAMD64SUBL
+ 	OpAMD64SUBW
+ 	OpAMD64SUBB
++	OpAMD64NEGQ
++	OpAMD64NEGL
++	OpAMD64NEGW
++	OpAMD64NEGB
+ 	OpAMD64InvertFlags
+ 
+ 	OpAdd8
+@@ -187,6 +190,14 @@ const (
+ 	OpGeq64
+ 	OpGeq64U
+ 	OpNot
++	OpNeg8
++	OpNeg16
++	OpNeg32
++	OpNeg64
++	OpNeg8U
++	OpNeg16U
++	OpNeg32U
++	OpNeg64U
+ 	OpPhi
+ 	OpCopy
+ 	OpConst
+@@ -224,54 +235,6 @@ const (
+ var opcodeTable = [...]opInfo{
+ 	{name: "OpInvalid"},
+ 
+-	{
+-		name: "ADDQ",
+-		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-		},
+-	},
+-	{
+-		name: "ADDQconst",
+-		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-		},
+-	},
+-	{
+-		name: "SUBQ",
+-		asm:  x86.ASUBQ,
+-		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-		},
+-	},
+-	{
+-		name: "SUBQconst",
+-		asm:  x86.ASUBQ,
+-		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-		},
+-	},
+ 	{
+ 		name: "MULQ",
+ 		asm:  x86.AIMULQ,
+@@ -397,17 +360,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name: "NEGQ",
+-		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-			outputs: []regMask{
+-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-			},
+-		},
+-	},
+ 	{
+ 		name: "XORQconst",
+ 		asm:  x86.AXORQ,
+@@ -880,6 +832,29 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 194, // .CX .SI .DI
+ 		},
+ 	},
++	{
++		name: "ADDQ",
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ADDQconst",
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "ADDL",
+ 		asm:  x86.AADDL,
+@@ -919,6 +894,31 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "SUBQ",
++		asm:  x86.ASUBQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "SUBQconst",
++		asm:  x86.ASUBQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "SUBL",
+ 		asm:  x86.ASUBL,
+@@ -958,6 +958,54 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "NEGQ",
++		asm:  x86.ANEGQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "NEGL",
++		asm:  x86.ANEGL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "NEGW",
++		asm:  x86.ANEGW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "NEGB",
++		asm:  x86.ANEGB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "InvertFlags",
+ 		reg:  regInfo{},
+@@ -1247,6 +1295,38 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Not",
+ 		generic: true,
+ 	},
++	{
++		name:    "Neg8",
++		generic: true,
++	},
++	{
++		name:    "Neg16",
++		generic: true,
++	},
++	{
++		name:    "Neg32",
++		generic: true,
++	},
++	{
++		name:    "Neg64",
++		generic: true,
++	},
++	{
++		name:    "Neg8U",
++		generic: true,
++	},
++	{
++		name:    "Neg16U",
++		generic: true,
++	},
++	{
++		name:    "Neg32U",
++		generic: true,
++	},
++	{
++		name:    "Neg64U",
++		generic: true,
++	},
+ 	{
+ 		name:    "Phi",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3c7e41e0e8..68c7d2eb42 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1285,6 +1285,143 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endfab0d598f376ecba45a22587d50f7aff
+ 	endfab0d598f376ecba45a22587d50f7aff:
+ 		;
++	case OpNeg16:
++		// match: (Neg16 x)
++		// cond:
++		// result: (MOVWQSX (NEGW <v.Type> x))
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64MOVWQSX
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64NEGW, TypeInvalid)
++			v0.Type = v.Type
++			v0.AddArg(x)
++			v.AddArg(v0)
++			return true
++		}
++		goto end089988d857b555c3065177bcad1eface
++	end089988d857b555c3065177bcad1eface:
++		;
++	case OpNeg16U:
++		// match: (Neg16U x)
++		// cond:
++		// result: (NEGW x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64NEGW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end8f43be5b376227e92d70b382bded232b
++	end8f43be5b376227e92d70b382bded232b:
++		;
++	case OpNeg32:
++		// match: (Neg32 x)
++		// cond:
++		// result: (MOVLQSX (NEGL <v.Type> x))
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64MOVLQSX
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64NEGL, TypeInvalid)
++			v0.Type = v.Type
++			v0.AddArg(x)
++			v.AddArg(v0)
++			return true
++		}
++		goto end2217d3f168126b2ee157cb33befba76d
++	end2217d3f168126b2ee157cb33befba76d:
++		;
++	case OpNeg32U:
++		// match: (Neg32U x)
++		// cond:
++		// result: (NEGL x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64NEGL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end1fe0112076c436ffceabac066776cd18
++	end1fe0112076c436ffceabac066776cd18:
++		;
++	case OpNeg64:
++		// match: (Neg64 x)
++		// cond:
++		// result: (NEGQ x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64NEGQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto enda06c5b1718f2b96aba10bf5a5c437c6c
++	enda06c5b1718f2b96aba10bf5a5c437c6c:
++		;
++	case OpNeg64U:
++		// match: (Neg64U x)
++		// cond:
++		// result: (NEGQ x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64NEGQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endbc6beca972ff7f28273a1cdd146e3959
++	endbc6beca972ff7f28273a1cdd146e3959:
++		;
++	case OpNeg8:
++		// match: (Neg8 x)
++		// cond:
++		// result: (MOVBQSX (NEGB <v.Type> x))
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64MOVBQSX
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue0(v.Line, OpAMD64NEGB, TypeInvalid)
++			v0.Type = v.Type
++			v0.AddArg(x)
++			v.AddArg(v0)
++			return true
++		}
++		goto end9cfacf0b7d826b85041092625ed494c1
++	end9cfacf0b7d826b85041092625ed494c1:
++		;
++	case OpNeg8U:
++		// match: (Neg8U x)
++		// cond:
++		// result: (NEGB x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64NEGB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto enda1ffb93a68702148c5fd18e2b72964d0
++	enda1ffb93a68702148c5fd18e2b72964d0:
++		;
+ 	case OpNeq64:
+ 		// match: (Neq64 x y)
+ 		// cond:

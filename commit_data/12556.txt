@@ -12,6 +12,24 @@ Date:   Mon Mar 12 11:25:38 2012 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5777062
-
+---
  src/cmd/api/goapi.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index fe9c862f4f..552e2f331e 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -52,6 +52,12 @@ var contexts = []*build.Context{
+ 	{GOOS: "windows", GOARCH: "386"},
+ }
+ 
++func init() {
++	for _, c := range contexts {
++		c.Compiler = build.Default.Compiler
++	}
++}
++
+ func contextName(c *build.Context) string {
+ 	s := c.GOOS + "-" + c.GOARCH
+ 	if c.CgoEnabled {

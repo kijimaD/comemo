@@ -27,8 +27,153 @@ Date:   Tue Mar 25 16:55:54 2025 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go  | 29 +++++++++++++------
  src/cmd/link/link_test.go               | 50 +++++++++++++++++++++++++++++++++
  src/cmd/link/testdata/linkname/sched.go | 19 +++++++++++++
  3 files changed, 90 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 0c234e8975..182379f0df 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -432,16 +432,16 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 		return i
+ 	}
+ 	// symbol already exists
++	// Fix for issue #47185 -- given two dupok or BSS symbols with
++	// different sizes, favor symbol with larger size. See also
++	// issue #46653 and #72032.
++	oldsz := l.SymSize(oldi)
++	sz := int64(r.Sym(li).Siz())
+ 	if osym.Dupok() {
+ 		if l.flags&FlagStrictDups != 0 {
+ 			l.checkdup(name, r, li, oldi)
+ 		}
+-		// Fix for issue #47185 -- given two dupok symbols with
+-		// different sizes, favor symbol with larger size. See
+-		// also issue #46653.
+-		szdup := l.SymSize(oldi)
+-		sz := int64(r.Sym(li).Siz())
+-		if szdup < sz {
++		if oldsz < sz {
+ 			// new symbol overwrites old symbol.
+ 			l.objSyms[oldi] = objSym{r.objidx, li}
+ 		}
+@@ -452,11 +452,24 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 	if oldsym.Dupok() {
+ 		return oldi
+ 	}
+-	overwrite := r.DataSize(li) != 0
++	// If one is a DATA symbol (i.e. has content, DataSize != 0)
++	// and the other is BSS, the one with content wins.
++	// If both are BSS, the one with larger size wins.
++	// Specifically, the "overwrite" variable and the final result are
++	//
++	// new sym       old sym       overwrite
++	// ---------------------------------------------
++	// DATA          DATA          true  => ERROR
++	// DATA lg/eq    BSS  sm/eq    true  => new wins
++	// DATA small    BSS  large    true  => ERROR
++	// BSS  large    DATA small    true  => ERROR
++	// BSS  large    BSS  small    true  => new wins
++	// BSS  sm/eq    D/B  lg/eq    false => old wins
++	overwrite := r.DataSize(li) != 0 || oldsz < sz
+ 	if overwrite {
+ 		// new symbol overwrites old symbol.
+ 		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
+-		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
++		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) || oldsz > sz {
+ 			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
+ 		}
+ 		l.objSyms[oldi] = objSym{r.objidx, li}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index ab56b49e15..5f265c4c2b 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"testing"
+ 
+ 	imacho "cmd/internal/macho"
++	"cmd/internal/objfile"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -1541,3 +1542,52 @@ func TestCheckLinkname(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestLinknameBSS(t *testing.T) {
++	// Test that the linker chooses the right one as the definition
++	// for linknamed variables. See issue #72032.
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++
++	src := filepath.Join("testdata", "linkname", "sched.go")
++	exe := filepath.Join(tmpdir, "sched.exe")
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failed unexpectedly: %v:\n%s", err, out)
++	}
++
++	// Check the symbol size.
++	f, err := objfile.Open(exe)
++	if err != nil {
++		t.Fatalf("fail to open executable: %v", err)
++	}
++	syms, err := f.Symbols()
++	if err != nil {
++		t.Fatalf("fail to get symbols: %v", err)
++	}
++	found := false
++	for _, s := range syms {
++		if s.Name == "runtime.sched" || s.Name == "_runtime.sched" {
++			found = true
++			if s.Size < 100 {
++				// As of Go 1.25 (Mar 2025), runtime.sched has 6848 bytes on
++				// darwin/arm64. It should always be larger than 100 bytes on
++				// all platforms.
++				t.Errorf("runtime.sched symbol size too small: want > 100, got %d", s.Size)
++			}
++		}
++	}
++	if !found {
++		t.Errorf("runtime.sched symbol not found")
++	}
++
++	// Executable should run.
++	cmd = testenv.Command(t, exe)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("executable failed to run: %v\n%s", err, out)
++	}
++}
+diff --git a/src/cmd/link/testdata/linkname/sched.go b/src/cmd/link/testdata/linkname/sched.go
+new file mode 100644
+index 0000000000..7a9d66f495
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/sched.go
+@@ -0,0 +1,19 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import _ "unsafe"
++
++type schedt struct{}
++
++//go:linkname sched runtime.sched
++var sched schedt
++
++func main() {
++	select {
++	default:
++		println("hello")
++	}
++}

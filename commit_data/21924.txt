@@ -12,7 +12,86 @@ Date:   Sun Feb 8 18:09:23 2015 -0500
     Change-Id: Ifffd3639aa9264e795686ef1879a7686f182d2e5
     Reviewed-on: https://go-review.googlesource.com/4182
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/doc.go  | 42 +++++++++++++++++++++---------------------
  src/cmd/go/main.go |  4 ++--
  2 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 5bf089df0a..7c92389767 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -14,32 +14,32 @@ Usage:
+ 
+ The commands are:
+ 
+-    build       compile packages and dependencies
+-    clean       remove object files
+-    env         print Go environment information
+-    fix         run go tool fix on packages
+-    fmt         run gofmt on package sources
+-    generate    generate Go files by processing source
+-    get         download and install packages and dependencies
+-    install     compile and install packages and dependencies
+-    list        list packages
+-    run         compile and run Go program
+-    test        test packages
+-    tool        run specified go tool
+-    version     print Go version
+-    vet         run go tool vet on packages
++	build       compile packages and dependencies
++	clean       remove object files
++	env         print Go environment information
++	fix         run go tool fix on packages
++	fmt         run gofmt on package sources
++	generate    generate Go files by processing source
++	get         download and install packages and dependencies
++	install     compile and install packages and dependencies
++	list        list packages
++	run         compile and run Go program
++	test        test packages
++	tool        run specified go tool
++	version     print Go version
++	vet         run go tool vet on packages
+ 
+ Use "go help [command]" for more information about a command.
+ 
+ Additional help topics:
+ 
+-    c           calling between Go and C
+-    filetype    file types
+-    gopath      GOPATH environment variable
+-    importpath  import path syntax
+-    packages    description of package lists
+-    testflag    description of testing flags
+-    testfunc    description of testing functions
++	c           calling between Go and C
++	filetype    file types
++	gopath      GOPATH environment variable
++	importpath  import path syntax
++	packages    description of package lists
++	testflag    description of testing flags
++	testfunc    description of testing functions
+ 
+ Use "go help [topic]" for more information about that topic.
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index f3dfc8824f..bd3ac5a1e4 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -180,13 +180,13 @@ Usage:
+ 
+ The commands are:
+ {{range .}}{{if .Runnable}}
+-    {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
++	{{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
+ 
+ Use "go help [command]" for more information about a command.
+ 
+ Additional help topics:
+ {{range .}}{{if not .Runnable}}
+-    {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
++	{{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
+ 
+ Use "go help [topic]" for more information about that topic.
+ 

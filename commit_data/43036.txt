@@ -50,9 +50,273 @@ Date:   Sun Mar 1 17:41:44 2020 -0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html                             |  12 +++
  src/runtime/error.go                        |  51 +++++++++++--
  src/runtime/panic_test.go                   |  48 ++++++++++++
  src/runtime/testdata/testprog/panicprint.go | 111 ++++++++++++++++++++++++++++
  4 files changed, 216 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 1eb159c318..9cc576e4be 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -92,6 +92,18 @@ TODO
+ TODO
+ </p>
+ 
++<dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
++  <dd>
++    <p><!-- CL 221779 -->
++      If <code>panic</code> is invoked with a value whose type is derived from any
++      of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
++      <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
++      <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
++      then the value will be printed, instead of just its address.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+   <dd>
+     <p><!-- golang.org/issue/33762 -->
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 555befa43d..386569bead 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -185,11 +185,6 @@ type stringer interface {
+ 	String() string
+ }
+ 
+-func typestring(x interface{}) string {
+-	e := efaceOf(&x)
+-	return e._type.string()
+-}
+-
+ // printany prints an argument passed to panic.
+ // If panic is called with a value that has a String or Error method,
+ // it has already been converted into a string by preprintpanics.
+@@ -232,7 +227,51 @@ func printany(i interface{}) {
+ 	case string:
+ 		print(v)
+ 	default:
+-		print("(", typestring(i), ") ", i)
++		printanycustomtype(i)
++	}
++}
++
++func printanycustomtype(i interface{}) {
++	eface := efaceOf(&i)
++	typestring := eface._type.string()
++
++	switch eface._type.kind {
++	case kindString:
++		print(typestring, `("`, *(*string)(eface.data), `")`)
++	case kindBool:
++		print(typestring, "(", *(*bool)(eface.data), ")")
++	case kindInt:
++		print(typestring, "(", *(*int)(eface.data), ")")
++	case kindInt8:
++		print(typestring, "(", *(*int8)(eface.data), ")")
++	case kindInt16:
++		print(typestring, "(", *(*int16)(eface.data), ")")
++	case kindInt32:
++		print(typestring, "(", *(*int32)(eface.data), ")")
++	case kindInt64:
++		print(typestring, "(", *(*int64)(eface.data), ")")
++	case kindUint:
++		print(typestring, "(", *(*uint)(eface.data), ")")
++	case kindUint8:
++		print(typestring, "(", *(*uint8)(eface.data), ")")
++	case kindUint16:
++		print(typestring, "(", *(*uint16)(eface.data), ")")
++	case kindUint32:
++		print(typestring, "(", *(*uint32)(eface.data), ")")
++	case kindUint64:
++		print(typestring, "(", *(*uint64)(eface.data), ")")
++	case kindUintptr:
++		print(typestring, "(", *(*uintptr)(eface.data), ")")
++	case kindFloat32:
++		print(typestring, "(", *(*float32)(eface.data), ")")
++	case kindFloat64:
++		print(typestring, "(", *(*float64)(eface.data), ")")
++	case kindComplex64:
++		print(typestring, *(*complex64)(eface.data))
++	case kindComplex128:
++		print(typestring, *(*complex128)(eface.data))
++	default:
++		print("(", typestring, ") ", eface.data)
+ 	}
+ }
+ 
+diff --git a/src/runtime/panic_test.go b/src/runtime/panic_test.go
+new file mode 100644
+index 0000000000..45ffa9858b
+--- /dev/null
++++ b/src/runtime/panic_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"strings"
++	"testing"
++)
++
++// Test that panics print out the underlying value
++// when the underlying kind is directly printable.
++// Issue: https://golang/go/issues/37531
++func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
++	tests := []struct {
++		name            string
++		wantPanicPrefix string
++	}{
++		{"panicCustomBool", `panic: main.MyBool(true)`},
++		{"panicCustomComplex128", `panic: main.MyComplex128(+3.210000e+001+1.000000e+001i)`},
++		{"panicCustomComplex64", `panic: main.MyComplex64(+1.100000e-001+3.000000e+000i)`},
++		{"panicCustomFloat32", `panic: main.MyFloat32(-9.370000e+001)`},
++		{"panicCustomFloat64", `panic: main.MyFloat64(-9.370000e+001)`},
++		{"panicCustomInt", `panic: main.MyInt(93)`},
++		{"panicCustomInt8", `panic: main.MyInt8(93)`},
++		{"panicCustomInt16", `panic: main.MyInt16(93)`},
++		{"panicCustomInt32", `panic: main.MyInt32(93)`},
++		{"panicCustomInt64", `panic: main.MyInt64(93)`},
++		{"panicCustomString", `panic: main.MyString("Panic")`},
++		{"panicCustomUint", `panic: main.MyUint(93)`},
++		{"panicCustomUint8", `panic: main.MyUint8(93)`},
++		{"panicCustomUint16", `panic: main.MyUint16(93)`},
++		{"panicCustomUint32", `panic: main.MyUint32(93)`},
++		{"panicCustomUint64", `panic: main.MyUint64(93)`},
++		{"panicCustomUintptr", `panic: main.MyUintptr(93)`},
++	}
++
++	for _, tt := range tests {
++		t := t
++		t.Run(tt.name, func(t *testing.T) {
++			output := runTestProg(t, "testprog", tt.name)
++			if !strings.HasPrefix(output, tt.wantPanicPrefix) {
++				t.Fatalf("%q\nis not present in\n%s", tt.wantPanicPrefix, output)
++			}
++		})
++	}
++}
+diff --git a/src/runtime/testdata/testprog/panicprint.go b/src/runtime/testdata/testprog/panicprint.go
+new file mode 100644
+index 0000000000..c8deabe2ab
+--- /dev/null
++++ b/src/runtime/testdata/testprog/panicprint.go
+@@ -0,0 +1,111 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type MyBool bool
++type MyComplex128 complex128
++type MyComplex64 complex64
++type MyFloat32 float32
++type MyFloat64 float64
++type MyInt int
++type MyInt8 int8
++type MyInt16 int16
++type MyInt32 int32
++type MyInt64 int64
++type MyString string
++type MyUint uint
++type MyUint8 uint8
++type MyUint16 uint16
++type MyUint32 uint32
++type MyUint64 uint64
++type MyUintptr uintptr
++
++func panicCustomComplex64() {
++	panic(MyComplex64(0.11 + 3i))
++}
++
++func panicCustomComplex128() {
++	panic(MyComplex128(32.1 + 10i))
++}
++
++func panicCustomString() {
++	panic(MyString("Panic"))
++}
++
++func panicCustomBool() {
++	panic(MyBool(true))
++}
++
++func panicCustomInt() {
++	panic(MyInt(93))
++}
++
++func panicCustomInt8() {
++	panic(MyInt8(93))
++}
++
++func panicCustomInt16() {
++	panic(MyInt16(93))
++}
++
++func panicCustomInt32() {
++	panic(MyInt32(93))
++}
++
++func panicCustomInt64() {
++	panic(MyInt64(93))
++}
++
++func panicCustomUint() {
++	panic(MyUint(93))
++}
++
++func panicCustomUint8() {
++	panic(MyUint8(93))
++}
++
++func panicCustomUint16() {
++	panic(MyUint16(93))
++}
++
++func panicCustomUint32() {
++	panic(MyUint32(93))
++}
++
++func panicCustomUint64() {
++	panic(MyUint64(93))
++}
++
++func panicCustomUintptr() {
++	panic(MyUintptr(93))
++}
++
++func panicCustomFloat64() {
++	panic(MyFloat64(-93.70))
++}
++
++func panicCustomFloat32() {
++	panic(MyFloat32(-93.70))
++}
++
++func init() {
++	register("panicCustomComplex64", panicCustomComplex64)
++	register("panicCustomComplex128", panicCustomComplex128)
++	register("panicCustomBool", panicCustomBool)
++	register("panicCustomFloat32", panicCustomFloat32)
++	register("panicCustomFloat64", panicCustomFloat64)
++	register("panicCustomInt", panicCustomInt)
++	register("panicCustomInt8", panicCustomInt8)
++	register("panicCustomInt16", panicCustomInt16)
++	register("panicCustomInt32", panicCustomInt32)
++	register("panicCustomInt64", panicCustomInt64)
++	register("panicCustomString", panicCustomString)
++	register("panicCustomUint", panicCustomUint)
++	register("panicCustomUint8", panicCustomUint8)
++	register("panicCustomUint16", panicCustomUint16)
++	register("panicCustomUint32", panicCustomUint32)
++	register("panicCustomUint64", panicCustomUint64)
++	register("panicCustomUintptr", panicCustomUintptr)
++}

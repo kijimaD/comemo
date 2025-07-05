@@ -16,7 +16,7 @@ Date:   Wed May 8 13:16:05 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176100
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/amd64.txt           | 15 ---------------
  src/cmd/vet/all/whitelist/android_amd64.txt   |  3 ---
  src/cmd/vet/all/whitelist/darwin_amd64.txt    |  3 ---
@@ -38,3 +38,294 @@ Date:   Wed May 8 13:16:05 2019 -0400
  src/runtime/sys_netbsd_386.s                  |  6 +++---
  src/runtime/sys_openbsd_386.s                 |  6 +++---
  20 files changed, 17 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+deleted file mode 100644
+index 5ce30cc6c2..0000000000
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// amd64-specific vet whitelist. See readme.txt for details.
+-
+-// False positives.
+-
+-// reflect trampolines intentionally omit arg size. Same for morestack.
+-runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+-runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
+-runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+-
+-// Intentionally missing declarations. These are special assembly routines.
+-// Some are jumped into from other routines, with values in specific registers.
+-// duff* have direct calls from the compiler.
+-// Others use the platform ABI.
+-// There is no sensible corresponding Go prototype.
+-runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/android_amd64.txt b/src/cmd/vet/all/whitelist/android_amd64.txt
+deleted file mode 100644
+index 90dabb0209..0000000000
+--- a/src/cmd/vet/all/whitelist/android_amd64.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// android/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/darwin_amd64.txt b/src/cmd/vet/all/whitelist/darwin_amd64.txt
+deleted file mode 100644
+index fcdacb2dc1..0000000000
+--- a/src/cmd/vet/all/whitelist/darwin_amd64.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// darwin/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_darwin_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/dragonfly_amd64.txt b/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
+index 6c44159793..0db5503ef0 100644
+--- a/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
++++ b/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
+@@ -1,6 +1,5 @@
+ // dragonfly/amd64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_dragonfly_amd64.s: [amd64] settls: function settls missing Go declaration
+ 
+ syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
+ syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
+diff --git a/src/cmd/vet/all/whitelist/freebsd_amd64.txt b/src/cmd/vet/all/whitelist/freebsd_amd64.txt
+index a910f48ca5..356be022cc 100644
+--- a/src/cmd/vet/all/whitelist/freebsd_amd64.txt
++++ b/src/cmd/vet/all/whitelist/freebsd_amd64.txt
+@@ -1,6 +1,5 @@
+ // freebsd/amd64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_freebsd_amd64.s: [amd64] settls: function settls missing Go declaration
+ syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
+ syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
+ syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 24(SP) should be a2+16(FP)
+diff --git a/src/cmd/vet/all/whitelist/illumos_amd64.txt b/src/cmd/vet/all/whitelist/illumos_amd64.txt
+index 4525c03cd7..30f3912e3e 100644
+--- a/src/cmd/vet/all/whitelist/illumos_amd64.txt
++++ b/src/cmd/vet/all/whitelist/illumos_amd64.txt
+@@ -1,6 +1,5 @@
+ // illumos/amd64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_solaris_amd64.s: [amd64] settls: function settls missing Go declaration
+ runtime/sys_solaris_amd64.s: [amd64] pipe1: function pipe1 missing Go declaration
+ runtime/sys_solaris_amd64.s: [amd64] asmsysvicall6: function asmsysvicall6 missing Go declaration
+ runtime/sys_solaris_amd64.s: [amd64] usleep2: function usleep2 missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_amd64.txt b/src/cmd/vet/all/whitelist/linux_amd64.txt
+deleted file mode 100644
+index 2f4a933553..0000000000
+--- a/src/cmd/vet/all/whitelist/linux_amd64.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// linux/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_linux_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index b3d6aa40a1..fb95a360a6 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -10,7 +10,6 @@ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+ runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+-runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go declaration
+ 
+ // Clearer using FP than SP, but that requires named offsets.
+ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
+diff --git a/src/cmd/vet/all/whitelist/netbsd_386.txt b/src/cmd/vet/all/whitelist/netbsd_386.txt
+index a85c6e0f78..608021cae4 100644
+--- a/src/cmd/vet/all/whitelist/netbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_386.txt
+@@ -1,8 +1,5 @@
+ // netbsd/386-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] settls: function settls missing Go declaration
+-runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
+-
+ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 140(SP) points beyond argument frame
+ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
+ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/netbsd_amd64.txt b/src/cmd/vet/all/whitelist/netbsd_amd64.txt
+deleted file mode 100644
+index 23b6a8c0ad..0000000000
+--- a/src/cmd/vet/all/whitelist/netbsd_amd64.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// netbsd/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
+-
+-runtime/sys_netbsd_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/openbsd_386.txt b/src/cmd/vet/all/whitelist/openbsd_386.txt
+index 66172ff008..bfbf4d9c56 100644
+--- a/src/cmd/vet/all/whitelist/openbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/openbsd_386.txt
+@@ -3,7 +3,6 @@
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable signo
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable context
+-runtime/sys_openbsd_386.s: [386] settls: function settls missing Go declaration
+ syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+ syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+ syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/openbsd_amd64.txt b/src/cmd/vet/all/whitelist/openbsd_amd64.txt
+deleted file mode 100644
+index 433f62ca07..0000000000
+--- a/src/cmd/vet/all/whitelist/openbsd_amd64.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// openbsd/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_openbsd_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/plan9_amd64.txt b/src/cmd/vet/all/whitelist/plan9_amd64.txt
+deleted file mode 100644
+index 1390475c77..0000000000
+--- a/src/cmd/vet/all/whitelist/plan9_amd64.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// plan9/amd64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_plan9_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/solaris_amd64.txt b/src/cmd/vet/all/whitelist/solaris_amd64.txt
+index 26a9da4271..19f66f7588 100644
+--- a/src/cmd/vet/all/whitelist/solaris_amd64.txt
++++ b/src/cmd/vet/all/whitelist/solaris_amd64.txt
+@@ -1,6 +1,5 @@
+ // solaris/amd64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_solaris_amd64.s: [amd64] settls: function settls missing Go declaration
+ runtime/sys_solaris_amd64.s: [amd64] pipe1: function pipe1 missing Go declaration
+ runtime/sys_solaris_amd64.s: [amd64] asmsysvicall6: function asmsysvicall6 missing Go declaration
+ runtime/sys_solaris_amd64.s: [amd64] usleep2: function usleep2 missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/windows_amd64.txt b/src/cmd/vet/all/whitelist/windows_amd64.txt
+index 4e6da405e3..348afd152e 100644
+--- a/src/cmd/vet/all/whitelist/windows_amd64.txt
++++ b/src/cmd/vet/all/whitelist/windows_amd64.txt
+@@ -3,4 +3,3 @@
+ runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte ret+8(FP)
+ runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
+ runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
+-runtime/sys_windows_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2807f4c238..fd3a9c3127 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -424,6 +424,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
++	NOP	SP	// tell vet SP changed - stop checking offsets
+ 	MOVQ	8(SP), AX	// f's caller's PC
+ 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+ 	LEAQ	16(SP), AX	// f's caller's SP
+@@ -890,7 +891,7 @@ TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	s+16(FP), CX	// size
+ 	LEAQ	ret+24(FP), DX
+-	JMP	runtime·aeshashbody(SB)
++	JMP	aeshashbody<>(SB)
+ 
+ // func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
+ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
+@@ -898,12 +899,12 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
+ 	MOVQ	8(AX), CX	// length of string
+ 	MOVQ	(AX), AX	// string data
+ 	LEAQ	ret+16(FP), DX
+-	JMP	runtime·aeshashbody(SB)
++	JMP	aeshashbody<>(SB)
+ 
+ // AX: data
+ // CX: length
+ // DX: address to put return value
+-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
++TEXT aeshashbody<>(SB),NOSPLIT,$0-0
+ 	// Fill an SSE register with our seeds.
+ 	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
+ 	PINSRW	$4, CX, X0			// 16 bits of length
+diff --git a/src/runtime/stubs_386.go b/src/runtime/stubs_386.go
+index ecdf0a9df0..5108294d83 100644
+--- a/src/runtime/stubs_386.go
++++ b/src/runtime/stubs_386.go
+@@ -9,6 +9,9 @@ import "unsafe"
+ func float64touint32(a float64) uint32
+ func uint32tofloat64(a uint32) float64
+ 
++// stackcheck checks that SP is in range [g->stack.lo, g->stack.hi).
++func stackcheck()
++
+ // Called from assembly only; declared for go vet.
+ func setldt(slot uintptr, base unsafe.Pointer, size uintptr)
+ func emptyfunc()
+diff --git a/src/runtime/stubs_x86.go b/src/runtime/stubs_amd64x.go
+similarity index 70%
+rename from src/runtime/stubs_x86.go
+rename to src/runtime/stubs_amd64x.go
+index 830c48bd01..e7a1be8135 100644
+--- a/src/runtime/stubs_x86.go
++++ b/src/runtime/stubs_amd64x.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 amd64p32 386
++// +build amd64 amd64p32
+ 
+ package runtime
+ 
+ // stackcheck checks that SP is in range [g->stack.lo, g->stack.hi).
+ func stackcheck()
++
++// Called from assembly only; declared for go vet.
++func settls() // argument in DI
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index ee4e3cf5a2..960e4d55e4 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -324,7 +324,7 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
+ 	LEAL	m_tls(BX), BP
+ 	PUSHAL				// save registers
+ 	PUSHL	BP
+-	CALL	runtime·settls(SB)
++	CALL	lwp_setprivate<>(SB)
+ 	POPL	AX
+ 	POPAL
+ 
+@@ -363,10 +363,10 @@ TEXT runtime·setldt(SB),NOSPLIT,$8
+ 	// Under NetBSD we set the GS base instead of messing with the LDT.
+ 	MOVL	base+4(FP), AX
+ 	MOVL	AX, 0(SP)
+-	CALL	runtime·settls(SB)
++	CALL	lwp_setprivate<>(SB)
+ 	RET
+ 
+-TEXT runtime·settls(SB),NOSPLIT,$16
++TEXT lwp_setprivate<>(SB),NOSPLIT,$16
+ 	// adjust for ELF: wants to use -4(GS) for g
+ 	MOVL	base+0(FP), CX
+ 	ADDL	$4, CX
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 741907312e..a45e1ea282 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -292,7 +292,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
+ 	LEAL	m_tls(BX), BP
+ 	PUSHAL				// save registers
+ 	PUSHL	BP
+-	CALL	runtime·settls(SB)
++	CALL	set_tcb<>(SB)
+ 	POPL	AX
+ 	POPAL
+ 
+@@ -331,10 +331,10 @@ TEXT runtime·setldt(SB),NOSPLIT,$4
+ 	// Under OpenBSD we set the GS base instead of messing with the LDT.
+ 	MOVL	base+4(FP), AX
+ 	MOVL	AX, 0(SP)
+-	CALL	runtime·settls(SB)
++	CALL	set_tcb<>(SB)
+ 	RET
+ 
+-TEXT runtime·settls(SB),NOSPLIT,$8
++TEXT set_tcb<>(SB),NOSPLIT,$8
+ 	// adjust for ELF: wants to use -4(GS) for g
+ 	MOVL	tlsbase+0(FP), CX
+ 	ADDL	$4, CX

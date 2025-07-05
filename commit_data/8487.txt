@@ -7,8 +7,122 @@ Date:   Wed May 25 07:53:00 2011 -0400
     R=alex.brainman, rsc
     CC=golang-dev, vcc.163
     https://golang.org/cl/4516055
-
+---
  src/cmd/ld/ldpe.c |  5 ++++-
  src/cmd/ld/pe.c   | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/ld/pe.h   |  2 ++
  3 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index d8b0a6fc23..d6aa267c4e 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -147,7 +147,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			goto bad;
+ 		obj->sect[i].size = obj->sect[i].sh.SizeOfRawData;
+ 		obj->sect[i].name = (char*)obj->sect[i].sh.Name;
+-		// TODO return error if found .cormeta .rsrc
++		// TODO return error if found .cormeta
+ 	}
+ 	// load string table
+ 	Bseek(f, base+obj->fh.PointerToSymbolTable+18*obj->fh.NumberOfSymbols, 0);
+@@ -222,6 +222,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			etextp = s;
+ 		}
+ 		sect->sym = s;
++		if(strcmp(sect->name, ".rsrc") == 0)
++			setpersrc(sect->sym);
+ 	}
+ 	
+ 	// load relocations
+@@ -259,6 +261,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					rp->type = D_PCREL;
+ 					rp->add = 0;
+ 					break;
++				case IMAGE_REL_I386_DIR32NB:
+ 				case IMAGE_REL_I386_DIR32:
+ 					rp->type = D_ADDR;
+ 					// load addend from image
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 1c0c665383..91e15d343c 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -34,6 +34,8 @@ static char dosstub[] =
+ 	0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+ };
+ 
++static Sym *rsrcsym;
++
+ static char symnames[256]; 
+ static int  nextsymoff;
+ 
+@@ -458,6 +460,48 @@ addsymtable(void)
+ 	cflush();
+ }
+ 
++void
++setpersrc(Sym *sym)
++{
++	if(rsrcsym != nil)
++		diag("too many .rsrc sections");
++	
++	rsrcsym = sym;
++}
++
++void
++addpersrc(void)
++{
++	IMAGE_SECTION_HEADER *h;
++	uchar *p;
++	uint32 val;
++	Reloc *r;
++
++	if(rsrcsym == nil)
++		return;
++	
++	h = addpesection(".rsrc", rsrcsym->size, rsrcsym->size, 0);
++	h->Characteristics = IMAGE_SCN_MEM_READ|
++		IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA;
++	// relocation
++	for(r=rsrcsym->r; r<rsrcsym->r+rsrcsym->nr; r++) {
++		p = rsrcsym->p + r->off;
++		val = h->VirtualAddress + r->add;
++		// 32-bit little-endian
++		p[0] = val;
++		p[1] = val>>8;
++		p[2] = val>>16;
++		p[3] = val>>24;
++	}
++	ewrite(cout, rsrcsym->p, rsrcsym->size);
++	strnput("", h->SizeOfRawData - rsrcsym->size);
++	cflush();
++
++	// update data directory
++	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h->VirtualAddress;
++	dd[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h->VirtualSize;
++}
++
+ void
+ asmbpe(void)
+ {
+@@ -492,7 +536,9 @@ asmbpe(void)
+ 	addexports(nextfileoff);
+ 	
+ 	addsymtable();
+-		
++	
++	addpersrc();
++	
+ 	fh.NumberOfSections = nsect;
+ 	fh.TimeDateStamp = time(0);
+ 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
+diff --git a/src/cmd/ld/pe.h b/src/cmd/ld/pe.h
+index 2180fb88cb..7aa9388293 100644
+--- a/src/cmd/ld/pe.h
++++ b/src/cmd/ld/pe.h
+@@ -175,3 +175,5 @@ typedef struct {
+ 	uint32 NumberOfRvaAndSizes;
+ 	IMAGE_DATA_DIRECTORY DataDirectory[16];
+ } PE64_IMAGE_OPTIONAL_HEADER;
++
++void setpersrc(Sym *sym);

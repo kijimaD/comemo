@@ -13,6 +13,20 @@ Date:   Mon Sep 30 00:07:34 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 93001635be..0f5bbc01c9 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -64,7 +64,7 @@ func unregisterAllDrivers() {
+ func Drivers() []string {
+ 	driversMu.RLock()
+ 	defer driversMu.RUnlock()
+-	var list []string
++	list := make([]string, 0, len(drivers))
+ 	for name := range drivers {
+ 		list = append(list, name)
+ 	}

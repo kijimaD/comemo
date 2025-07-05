@@ -21,7 +21,7 @@ Date:   Wed May 17 14:04:25 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go                              |  22 +++
  src/cmd/go/internal/modcmd/vendor.go               |  88 ++++++---
  src/cmd/go/internal/modload/buildlist.go           |  31 +++-
@@ -40,3 +40,1502 @@ Date:   Wed May 17 14:04:25 2023 -0400
  src/cmd/go/testdata/script/work_vendor_prune.txt   | 115 ++++++++++++
  .../go/testdata/script/work_vendor_prune_all.txt   | 200 +++++++++++++++++++++
  17 files changed, 936 insertions(+), 149 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index bb28756133..45de1cc869 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1504,6 +1504,7 @@
+ //	init        initialize workspace file
+ //	sync        sync workspace build list to modules
+ //	use         add modules to workspace file
++//	vendor      make vendored copy of dependencies
+ //
+ // Use "go help work <command>" for more information about a command.
+ //
+@@ -1652,6 +1653,27 @@
+ // See the workspaces reference at https://go.dev/ref/mod#workspaces
+ // for more information.
+ //
++// # Make vendored copy of dependencies
++//
++// Usage:
++//
++//	go work vendor [-e] [-v] [-o outdir]
++//
++// Vendor resets the workspace's vendor directory to include all packages
++// needed to build and test all the workspace's packages.
++// It does not include test code for vendored packages.
++//
++// The -v flag causes vendor to print the names of vendored
++// modules and packages to standard error.
++//
++// The -e flag causes vendor to attempt to proceed despite errors
++// encountered while loading packages.
++//
++// The -o flag causes vendor to create the vendor directory at the given
++// path instead of "vendor". The go command can only use a vendor directory
++// named "vendor" within the module root directory, so this flag is
++// primarily useful for other tools.
++//
+ // # Compile and run Go program
+ //
+ // Usage:
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 1a0d69eca2..82a267587a 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -66,6 +66,14 @@ func init() {
+ }
+ 
+ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
++	modload.InitWorkfile()
++	if modload.WorkFilePath() != "" {
++		base.Fatalf("go: 'go mod vendor' cannot be run in workspace mode. Run 'go work vendor' to vendor the workspace or set 'GOWORK=off' to exit workspace mode.")
++	}
++	RunVendor(ctx, vendorE, vendorO, args)
++}
++
++func RunVendor(ctx context.Context, vendorE bool, vendorO string, args []string) {
+ 	if len(args) != 0 {
+ 		base.Fatalf("go: 'go mod vendor' accepts no arguments")
+ 	}
+@@ -98,7 +106,7 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	modpkgs := make(map[module.Version][]string)
+ 	for _, pkg := range pkgs {
+ 		m := modload.PackageModule(pkg)
+-		if m.Path == "" || m.Version == "" && modload.MainModules.Contains(m.Path) {
++		if m.Path == "" || modload.MainModules.Contains(m.Path) {
+ 			continue
+ 		}
+ 		modpkgs[m] = append(modpkgs[m], pkg)
+@@ -107,21 +115,25 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	includeAllReplacements := false
+ 	includeGoVersions := false
+ 	isExplicit := map[module.Version]bool{}
+-	if gv := modload.ModFile().Go; gv != nil {
+-		if gover.Compare(gv.Version, "1.14") >= 0 {
+-			// If the Go version is at least 1.14, annotate all explicit 'require' and
+-			// 'replace' targets found in the go.mod file so that we can perform a
+-			// stronger consistency check when -mod=vendor is set.
+-			for _, r := range modload.ModFile().Require {
+-				isExplicit[r.Mod] = true
++	gv := modload.MainModules.GoVersion()
++	if gover.Compare(gv, "1.14") >= 0 && (modload.FindGoWork(base.Cwd()) != "" || modload.ModFile().Go != nil) {
++		// If the Go version is at least 1.14, annotate all explicit 'require' and
++		// 'replace' targets found in the go.mod file so that we can perform a
++		// stronger consistency check when -mod=vendor is set.
++		for _, m := range modload.MainModules.Versions() {
++			if modFile := modload.MainModules.ModFile(m); modFile != nil {
++				for _, r := range modFile.Require {
++					isExplicit[r.Mod] = true
++				}
+ 			}
+-			includeAllReplacements = true
+-		}
+-		if gover.Compare(gv.Version, "1.17") >= 0 {
+-			// If the Go version is at least 1.17, annotate all modules with their
+-			// 'go' version directives.
+-			includeGoVersions = true
++
+ 		}
++		includeAllReplacements = true
++	}
++	if gover.Compare(gv, "1.17") >= 0 {
++		// If the Go version is at least 1.17, annotate all modules with their
++		// 'go' version directives.
++		includeGoVersions = true
+ 	}
+ 
+ 	var vendorMods []module.Version
+@@ -143,9 +155,11 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 		w = io.MultiWriter(&buf, os.Stderr)
+ 	}
+ 
++	replacementWritten := make(map[module.Version]bool)
+ 	for _, m := range vendorMods {
+ 		replacement := modload.Replacement(m)
+ 		line := moduleLine(m, replacement)
++		replacementWritten[m] = true
+ 		io.WriteString(w, line)
+ 
+ 		goVersion := ""
+@@ -173,17 +187,41 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 		// Record unused and wildcard replacements at the end of the modules.txt file:
+ 		// without access to the complete build list, the consumer of the vendor
+ 		// directory can't otherwise determine that those replacements had no effect.
+-		for _, r := range modload.ModFile().Replace {
+-			if len(modpkgs[r.Old]) > 0 {
+-				// We we already recorded this replacement in the entry for the replaced
+-				// module with the packages it provides.
+-				continue
++		for _, m := range modload.MainModules.Versions() {
++			if workFile := modload.MainModules.WorkFile(); workFile != nil {
++				for _, r := range workFile.Replace {
++					if replacementWritten[r.Old] {
++						// We already recorded this replacement.
++						continue
++					}
++					replacementWritten[r.Old] = true
++
++					line := moduleLine(r.Old, r.New)
++					buf.WriteString(line)
++					if cfg.BuildV {
++						os.Stderr.WriteString(line)
++					}
++				}
+ 			}
+-
+-			line := moduleLine(r.Old, r.New)
+-			buf.WriteString(line)
+-			if cfg.BuildV {
+-				os.Stderr.WriteString(line)
++			if modFile := modload.MainModules.ModFile(m); modFile != nil {
++				for _, r := range modFile.Replace {
++					if replacementWritten[r.Old] {
++						// We already recorded this replacement.
++						continue
++					}
++					replacementWritten[r.Old] = true
++					rNew := modload.Replacement(r.Old)
++					if rNew == (module.Version{}) {
++						// There is no replacement. Don't try to write it.
++						continue
++					}
++
++					line := moduleLine(r.Old, rNew)
++					buf.WriteString(line)
++					if cfg.BuildV {
++						os.Stderr.WriteString(line)
++					}
++				}
+ 			}
+ 		}
+ 	}
+@@ -367,7 +405,7 @@ func matchPotentialSourceFile(dir string, info fs.DirEntry) bool {
+ 		return false
+ 	}
+ 	if info.Name() == "go.mod" || info.Name() == "go.sum" {
+-		if gv := modload.ModFile().Go; gv != nil && gover.Compare(gv.Version, "1.17") >= 0 {
++		if gv := modload.MainModules.GoVersion(); gover.Compare(gv, "1.17") >= 0 {
+ 			// As of Go 1.17, we strip go.mod and go.sum files from dependency modules.
+ 			// Otherwise, 'go' commands invoked within the vendor subtree may misidentify
+ 			// an arbitrary directory within the vendor tree as a module root.
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 8d3af0888c..3908e85622 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -174,17 +174,20 @@ func (rs *Requirements) String() string {
+ // requirements.
+ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 	rs.graphOnce.Do(func() {
+-		mg := &ModuleGraph{
+-			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
++		roots := MainModules.Versions()
++		if inWorkspaceMode() {
++			// Use rs.rootModules to pull in the go and toolchain roots
++			// from the go.work file and preserve the invariant that all
++			// of rs.rootModules are in mg.g.
++			roots = rs.rootModules
+ 		}
+-
+-		if MainModules.Len() != 1 {
+-			panic("There should be exactly one main module in Vendor mode.")
++		mg := &ModuleGraph{
++			g: mvs.NewGraph(cmpVersion, roots),
+ 		}
+-		mainModule := MainModules.Versions()[0]
+ 
+ 		if rs.pruning == pruned {
+-			// The roots of a pruned module should already include every module in the
++			mainModule := MainModules.mustGetSingleMainModule()
++			// The roots of a single pruned module should already include every module in the
+ 			// vendor list, because the vendored modules are the same as those needed
+ 			// for graph pruning.
+ 			//
+@@ -215,8 +218,18 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 			// graph, but still distinguishes between direct and indirect
+ 			// dependencies.
+ 			vendorMod := module.Version{Path: "vendor/modules.txt", Version: ""}
+-			mg.g.Require(mainModule, append(rs.rootModules, vendorMod))
+-			mg.g.Require(vendorMod, vendorList)
++			if inWorkspaceMode() {
++				for _, m := range MainModules.Versions() {
++					reqs, _ := rootsFromModFile(m, MainModules.ModFile(m), omitToolchainRoot)
++					mg.g.Require(m, append(reqs, vendorMod))
++				}
++				mg.g.Require(vendorMod, vendorList)
++
++			} else {
++				mainModule := MainModules.mustGetSingleMainModule()
++				mg.g.Require(mainModule, append(rs.rootModules, vendorMod))
++				mg.g.Require(vendorMod, vendorList)
++			}
+ 		}
+ 
+ 		rs.graph.Store(&cachedGraph{mg, nil})
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 83b9ad44e9..cc6a482fd4 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -318,30 +318,41 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		mods = append(mods, module.Version{})
+ 	}
+ 	// -mod=vendor is special.
+-	// Everything must be in the main module or the main module's vendor directory.
++	// Everything must be in the main modules or the main module's or workspace's vendor directory.
+ 	if cfg.BuildMod == "vendor" {
+-		mainModule := MainModules.mustGetSingleMainModule()
+-		modRoot := MainModules.ModRoot(mainModule)
+ 		var mainErr error
+-		if modRoot != "" {
+-			mainDir, mainOK, err := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
+-			mainErr = err
+-			if mainOK {
+-				mods = append(mods, mainModule)
+-				dirs = append(dirs, mainDir)
+-				roots = append(roots, modRoot)
++		for _, mainModule := range MainModules.Versions() {
++			modRoot := MainModules.ModRoot(mainModule)
++			if modRoot != "" {
++				dir, mainOK, err := dirInModule(path, MainModules.PathPrefix(mainModule), modRoot, true)
++				if mainErr == nil {
++					mainErr = err
++				}
++				if mainOK {
++					mods = append(mods, mainModule)
++					dirs = append(dirs, dir)
++					roots = append(roots, modRoot)
++				}
+ 			}
+-			vendorDir, vendorOK, _ := dirInModule(path, "", filepath.Join(modRoot, "vendor"), false)
++		}
++
++		if HasModRoot() {
++			vendorDir := VendorDir()
++			dir, vendorOK, _ := dirInModule(path, "", vendorDir, false)
+ 			if vendorOK {
+-				readVendorList(mainModule)
++				readVendorList(vendorDir)
++				// TODO(#60922): It's possible for a package to manually have been added to the
++				// vendor directory, causing the dirInModule to succeed, but no vendorPkgModule
++				// to exist, causing an empty module path to be reported. Do better checking
++				// here.
+ 				mods = append(mods, vendorPkgModule[path])
+-				dirs = append(dirs, vendorDir)
+-				roots = append(roots, modRoot)
++				dirs = append(dirs, dir)
++				roots = append(roots, vendorDir)
+ 			}
+ 		}
+ 
+ 		if len(dirs) > 1 {
+-			return module.Version{}, modRoot, "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs}
++			return module.Version{}, "", "", nil, &AmbiguousImportError{importPath: path, Dirs: dirs}
+ 		}
+ 
+ 		if mainErr != nil {
+@@ -349,7 +360,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
+ 		}
+ 
+ 		if len(dirs) == 0 {
+-			return module.Version{}, modRoot, "", nil, &ImportMissingError{Path: path}
++			return module.Version{}, "", "", nil, &ImportMissingError{Path: path}
+ 		}
+ 
+ 		return mods[0], roots[0], dirs[0], nil, nil
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 1c6f7d9d3a..5ab46d5693 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -200,6 +200,10 @@ func (mms *MainModuleSet) ModFile(m module.Version) *modfile.File {
+ 	return mms.modFiles[m]
+ }
+ 
++func (mms *MainModuleSet) WorkFile() *modfile.WorkFile {
++	return mms.workFile
++}
++
+ func (mms *MainModuleSet) Len() int {
+ 	if mms == nil {
+ 		return 0
+@@ -553,7 +557,17 @@ func Enabled() bool {
+ }
+ 
+ func VendorDir() string {
+-	return filepath.Join(MainModules.ModRoot(MainModules.mustGetSingleMainModule()), "vendor")
++	if inWorkspaceMode() {
++		return filepath.Join(filepath.Dir(WorkFilePath()), "vendor")
++	}
++	// Even if -mod=vendor, we could be operating with no mod root (and thus no
++	// vendor directory). As long as there are no dependencies that is expected
++	// to work. See script/vendor_outside_module.txt.
++	modRoot := MainModules.ModRoot(MainModules.mustGetSingleMainModule())
++	if modRoot == "" {
++		panic("vendor directory does not exist when in single module mode outside of a module")
++	}
++	return filepath.Join(modRoot, "vendor")
+ }
+ 
+ func inWorkspaceMode() bool {
+@@ -914,23 +928,28 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 	setDefaultBuildMod() // possibly enable automatic vendoring
+ 	rs := requirementsFromModFiles(ctx, workFile, modFiles, opts)
+ 
++	if cfg.BuildMod == "vendor" {
++		readVendorList(VendorDir())
++		var indexes []*modFileIndex
++		var modFiles []*modfile.File
++		var modRoots []string
++		for _, m := range MainModules.Versions() {
++			indexes = append(indexes, MainModules.Index(m))
++			modFiles = append(modFiles, MainModules.ModFile(m))
++			modRoots = append(modRoots, MainModules.ModRoot(m))
++		}
++		checkVendorConsistency(indexes, modFiles, modRoots)
++		rs.initVendor(vendorList)
++	}
++
+ 	if inWorkspaceMode() {
+-		// We don't need to do anything for vendor or update the mod file so
+-		// return early.
++		// We don't need to update the mod file so return early.
+ 		requirements = rs
+ 		return rs, nil
+ 	}
+ 
+ 	mainModule := MainModules.mustGetSingleMainModule()
+ 
+-	if cfg.BuildMod == "vendor" {
+-		readVendorList(mainModule)
+-		index := MainModules.Index(mainModule)
+-		modFile := MainModules.ModFile(mainModule)
+-		checkVendorConsistency(index, modFile)
+-		rs.initVendor(vendorList)
+-	}
+-
+ 	if rs.hasRedundantRoot() {
+ 		// If any module path appears more than once in the roots, we know that the
+ 		// go.mod file needs to be updated even though we have not yet loaded any
+@@ -1243,44 +1262,69 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
+ 	var roots []module.Version
+ 	direct := map[string]bool{}
+ 	var pruning modPruning
+-	var goVersion, toolchain string
+ 	if inWorkspaceMode() {
+ 		pruning = workspace
+ 		roots = make([]module.Version, len(MainModules.Versions()), 2+len(MainModules.Versions()))
+ 		copy(roots, MainModules.Versions())
+-		goVersion = gover.FromGoWork(workFile)
++		goVersion := gover.FromGoWork(workFile)
++		var toolchain string
+ 		if workFile.Toolchain != nil {
+ 			toolchain = workFile.Toolchain.Name
+ 		}
++		roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
+ 	} else {
+ 		pruning = pruningForGoVersion(MainModules.GoVersion())
+ 		if len(modFiles) != 1 {
+ 			panic(fmt.Errorf("requirementsFromModFiles called with %v modfiles outside workspace mode", len(modFiles)))
+ 		}
+ 		modFile := modFiles[0]
+-		roots = make([]module.Version, 0, 2+len(modFile.Require))
+-		mm := MainModules.mustGetSingleMainModule()
+-		for _, r := range modFile.Require {
+-			if index := MainModules.Index(mm); index != nil && index.exclude[r.Mod] {
+-				if cfg.BuildMod == "mod" {
+-					fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+-				} else {
+-					fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+-				}
+-				continue
+-			}
++		roots, direct = rootsFromModFile(MainModules.mustGetSingleMainModule(), modFile, withToolchainRoot)
++	}
++
++	gover.ModSort(roots)
++	rs := newRequirements(pruning, roots, direct)
++	return rs
++}
++
++type addToolchainRoot bool
++
++const (
++	omitToolchainRoot addToolchainRoot = false
++	withToolchainRoot                  = true
++)
+ 
+-			roots = append(roots, r.Mod)
+-			if !r.Indirect {
+-				direct[r.Mod.Path] = true
++func rootsFromModFile(m module.Version, modFile *modfile.File, addToolchainRoot addToolchainRoot) (roots []module.Version, direct map[string]bool) {
++	direct = make(map[string]bool)
++	padding := 2 // Add padding for the toolchain and go version, added upon return.
++	if !addToolchainRoot {
++		padding = 1
++	}
++	roots = make([]module.Version, 0, padding+len(modFile.Require))
++	for _, r := range modFile.Require {
++		if index := MainModules.Index(m); index != nil && index.exclude[r.Mod] {
++			if cfg.BuildMod == "mod" {
++				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
++			} else {
++				fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+ 			}
++			continue
+ 		}
+-		goVersion = gover.FromGoMod(modFile)
+-		if modFile.Toolchain != nil {
+-			toolchain = modFile.Toolchain.Name
++
++		roots = append(roots, r.Mod)
++		if !r.Indirect {
++			direct[r.Mod.Path] = true
+ 		}
+ 	}
++	goVersion := gover.FromGoMod(modFile)
++	var toolchain string
++	if addToolchainRoot && modFile.Toolchain != nil {
++		toolchain = modFile.Toolchain.Name
++	}
++	roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
++	return roots, direct
++}
+ 
++func appendGoAndToolchainRoots(roots []module.Version, goVersion, toolchain string, direct map[string]bool) []module.Version {
+ 	// Add explicit go and toolchain versions, inferring as needed.
+ 	roots = append(roots, module.Version{Path: "go", Version: goVersion})
+ 	direct["go"] = true // Every module directly uses the language and runtime.
+@@ -1293,19 +1337,16 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
+ 		// automatically if the 'go' version is changed so that it implies the exact
+ 		// same toolchain.
+ 	}
+-
+-	gover.ModSort(roots)
+-	rs := newRequirements(pruning, roots, direct)
+-	return rs
++	return roots
+ }
+ 
+ // setDefaultBuildMod sets a default value for cfg.BuildMod if the -mod flag
+ // wasn't provided. setDefaultBuildMod may be called multiple times.
+ func setDefaultBuildMod() {
+ 	if cfg.BuildModExplicit {
+-		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
+-			base.Fatalf("go: -mod may only be set to readonly when in workspace mode, but it is set to %q"+
+-				"\n\tRemove the -mod flag to use the default readonly value,"+
++		if inWorkspaceMode() && cfg.BuildMod != "readonly" && cfg.BuildMod != "vendor" {
++			base.Fatalf("go: -mod may only be set to readonly or vendor when in workspace mode, but it is set to %q"+
++				"\n\tRemove the -mod flag to use the default readonly value, "+
+ 				"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
+ 		}
+ 		// Don't override an explicit '-mod=' argument.
+@@ -1327,7 +1368,7 @@ func setDefaultBuildMod() {
+ 		// to work in buggy situations.
+ 		cfg.BuildMod = "mod"
+ 		return
+-	case "mod vendor":
++	case "mod vendor", "work vendor":
+ 		cfg.BuildMod = "readonly"
+ 		return
+ 	}
+@@ -1340,25 +1381,47 @@ func setDefaultBuildMod() {
+ 		return
+ 	}
+ 
+-	if len(modRoots) == 1 && !inWorkspaceMode() {
+-		index := MainModules.GetSingleIndexOrNil()
+-		if fi, err := fsys.Stat(filepath.Join(modRoots[0], "vendor")); err == nil && fi.IsDir() {
++	if len(modRoots) >= 1 {
++		var goVersion string
++		var versionSource string
++		if inWorkspaceMode() {
++			versionSource = "go.work"
++			if wfg := MainModules.WorkFile().Go; wfg != nil {
++				goVersion = wfg.Version
++			}
++		} else {
++			versionSource = "go.mod"
++			index := MainModules.GetSingleIndexOrNil()
++			if index != nil {
++				goVersion = index.goVersion
++			}
++		}
++		vendorDir := ""
++		if workFilePath != "" {
++			vendorDir = filepath.Join(filepath.Dir(workFilePath), "vendor")
++		} else {
++			if len(modRoots) != 1 {
++				panic(fmt.Errorf("outside workspace mode, but have %v modRoots", modRoots))
++			}
++			vendorDir = filepath.Join(modRoots[0], "vendor")
++		}
++		if fi, err := fsys.Stat(vendorDir); err == nil && fi.IsDir() {
+ 			modGo := "unspecified"
+-			if index != nil && index.goVersion != "" {
+-				if gover.Compare(index.goVersion, "1.14") >= 0 {
++			if goVersion != "" {
++				if gover.Compare(goVersion, "1.14") >= 0 {
+ 					// The Go version is at least 1.14, and a vendor directory exists.
+ 					// Set -mod=vendor by default.
+ 					cfg.BuildMod = "vendor"
+-					cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
++					cfg.BuildModReason = "Go version in " + versionSource + " is at least 1.14 and vendor directory exists."
+ 					return
+ 				} else {
+-					modGo = index.goVersion
++					modGo = goVersion
+ 				}
+ 			}
+ 
+ 			// Since a vendor directory exists, we should record why we didn't use it.
+ 			// This message won't normally be shown, but it may appear with import errors.
+-			cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s, so vendor directory was not used.", modGo)
++			cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", modGo)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index a993fe819c..9b4cb19ebf 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -571,7 +571,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
+ 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+ 				}
+ 
+-				readVendorList(mainModule)
++				readVendorList(VendorDir())
+ 				if _, ok := vendorPkgModule[pkg]; !ok {
+ 					return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
+ 				}
+@@ -1354,6 +1354,15 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 				// In workspace mode / workspace pruning mode, the roots are the main modules
+ 				// rather than the main module's direct dependencies. The check below on the selected
+ 				// roots does not apply.
++				if cfg.BuildMod == "vendor" {
++					// In workspace vendor mode, we don't need to load the requirements of the workspace
++					// modules' dependencies so the check below doesn't work. But that's okay, because
++					// checking whether modules are required directly for the purposes of pruning is
++					// less important in vendor mode: if we were able to load the package, we have
++					// everything we need  to build the package, and dependencies' tests are pruned out
++					// of the vendor directory anyway.
++					continue
++				}
+ 				if mg, err := rs.Graph(ctx); err != nil {
+ 					return false, err
+ 				} else if _, ok := mg.RequiredBy(dep.mod); !ok {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index d6c395f1fc..8107b234b5 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -318,15 +318,22 @@ func replacement(mod module.Version, replace map[module.Version]module.Version)
+ // module.Version is relative it's relative to the single main module outside
+ // workspace mode, or the workspace's directory in workspace mode.
+ func Replacement(mod module.Version) module.Version {
++	r, foundModRoot, _ := replacementFrom(mod)
++	return canonicalizeReplacePath(r, foundModRoot)
++}
++
++// replacementFrom returns the replacement for mod, if any, the modroot of the replacement if it appeared in a go.mod,
++// and the source of the replacement. The replacement is relative to the go.work or go.mod file it appears in.
++func replacementFrom(mod module.Version) (r module.Version, modroot string, fromFile string) {
+ 	foundFrom, found, foundModRoot := "", module.Version{}, ""
+ 	if MainModules == nil {
+-		return module.Version{}
++		return module.Version{}, "", ""
+ 	} else if MainModules.Contains(mod.Path) && mod.Version == "" {
+ 		// Don't replace the workspace version of the main module.
+-		return module.Version{}
++		return module.Version{}, "", ""
+ 	}
+ 	if _, r, ok := replacement(mod, MainModules.WorkFileReplaceMap()); ok {
+-		return r
++		return r, "", workFilePath
+ 	}
+ 	for _, v := range MainModules.Versions() {
+ 		if index := MainModules.Index(v); index != nil {
+@@ -335,13 +342,13 @@ func Replacement(mod module.Version) module.Version {
+ 				if foundModRoot != "" && foundFrom != from && found != r {
+ 					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
+ 						mod, modFilePath(foundModRoot), modFilePath(modRoot))
+-					return canonicalizeReplacePath(found, foundModRoot)
++					return found, foundModRoot, modFilePath(foundModRoot)
+ 				}
+ 				found, foundModRoot = r, modRoot
+ 			}
+ 		}
+ 	}
+-	return canonicalizeReplacePath(found, foundModRoot)
++	return found, foundModRoot, modFilePath(foundModRoot)
+ }
+ 
+ func replaceRelativeTo() string {
+@@ -355,7 +362,7 @@ func replaceRelativeTo() string {
+ // are relative to the workspace directory (in workspace mode) or to the module's
+ // directory (in module mode, as they already are).
+ func canonicalizeReplacePath(r module.Version, modRoot string) module.Version {
+-	if filepath.IsAbs(r.Path) || r.Version != "" {
++	if filepath.IsAbs(r.Path) || r.Version != "" || modRoot == "" {
+ 		return r
+ 	}
+ 	workFilePath := WorkFilePath()
+@@ -364,11 +371,11 @@ func canonicalizeReplacePath(r module.Version, modRoot string) module.Version {
+ 	}
+ 	abs := filepath.Join(modRoot, r.Path)
+ 	if rel, err := filepath.Rel(filepath.Dir(workFilePath), abs); err == nil {
+-		return module.Version{Path: rel, Version: r.Version}
++		return module.Version{Path: ToDirectoryPath(rel), Version: r.Version}
+ 	}
+ 	// We couldn't make the version's path relative to the workspace's path,
+ 	// so just return the absolute path. It's the best we can do.
+-	return module.Version{Path: abs, Version: r.Version}
++	return module.Version{Path: ToDirectoryPath(abs), Version: r.Version}
+ }
+ 
+ // resolveReplacement returns the module actually used to load the source code
+@@ -549,7 +556,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 			module: module.Version{Path: m.Path},
+ 		}
+ 
+-		readVendorList(MainModules.mustGetSingleMainModule())
++		readVendorList(VendorDir())
+ 		if vendorVersion[m.Path] != m.Version {
+ 			// This module is not vendored, so packages cannot be loaded from it and
+ 			// it cannot be relevant to the build.
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index cb03b697a8..aea301a7db 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -164,10 +164,13 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 	}
+ 
+ 	if cfg.BuildMod == "vendor" {
+-		mod := MainModules.mustGetSingleMainModule()
+-		if modRoot := MainModules.ModRoot(mod); modRoot != "" {
+-			walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
+-			walkPkgs(filepath.Join(modRoot, "vendor"), "", pruneVendor)
++		for _, mod := range MainModules.Versions() {
++			if modRoot := MainModules.ModRoot(mod); modRoot != "" {
++				walkPkgs(modRoot, MainModules.PathPrefix(mod), pruneGoMod|pruneVendor)
++			}
++		}
++		if HasModRoot() {
++			walkPkgs(VendorDir(), "", pruneVendor)
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index ffc79bb93f..b2cb44100e 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -37,13 +37,13 @@ type vendorMetadata struct {
+ }
+ 
+ // readVendorList reads the list of vendored modules from vendor/modules.txt.
+-func readVendorList(mainModule module.Version) {
++func readVendorList(vendorDir string) {
+ 	vendorOnce.Do(func() {
+ 		vendorList = nil
+ 		vendorPkgModule = make(map[string]module.Version)
+ 		vendorVersion = make(map[string]string)
+ 		vendorMeta = make(map[module.Version]vendorMetadata)
+-		vendorFile := filepath.Join(MainModules.ModRoot(mainModule), "vendor/modules.txt")
++		vendorFile := filepath.Join(vendorDir, "modules.txt")
+ 		data, err := os.ReadFile(vendorFile)
+ 		if err != nil {
+ 			if !errors.Is(err, fs.ErrNotExist) {
+@@ -140,15 +140,31 @@ func readVendorList(mainModule module.Version) {
+ // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
+ // go 1.14) or at least does not contradict (go 1.13 or earlier) the
+ // requirements and replacements listed in the main module's go.mod file.
+-func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+-	readVendorList(MainModules.mustGetSingleMainModule())
++func checkVendorConsistency(indexes []*modFileIndex, modFiles []*modfile.File, modRoots []string) {
++	// readVendorList only needs the main module to get the directory
++	// the vendor directory is in.
++	readVendorList(VendorDir())
++
++	if len(modFiles) < 1 {
++		// We should never get here if there are zero modfiles. Either
++		// we're in single module mode and there's a single module, or
++		// we're in workspace mode, and we fail earlier reporting that
++		// "no modules were found in the current workspace".
++		panic("checkVendorConsistency called with zero modfiles")
++	}
+ 
+ 	pre114 := false
+-	if gover.Compare(index.goVersion, "1.14") < 0 {
+-		// Go versions before 1.14 did not include enough information in
+-		// vendor/modules.txt to check for consistency.
+-		// If we know that we're on an earlier version, relax the consistency check.
+-		pre114 = true
++	if !inWorkspaceMode() { // workspace mode was added after Go 1.14
++		if len(indexes) != 1 {
++			panic(fmt.Errorf("not in workspace mode but number of indexes is %v, not 1", len(indexes)))
++		}
++		index := indexes[0]
++		if gover.Compare(index.goVersion, "1.14") < 0 {
++			// Go versions before 1.14 did not include enough information in
++			// vendor/modules.txt to check for consistency.
++			// If we know that we're on an earlier version, relax the consistency check.
++			pre114 = true
++		}
+ 	}
+ 
+ 	vendErrors := new(strings.Builder)
+@@ -163,18 +179,20 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+ 
+ 	// Iterate over the Require directives in their original (not indexed) order
+ 	// so that the errors match the original file.
+-	for _, r := range modFile.Require {
+-		if !vendorMeta[r.Mod].Explicit {
+-			if pre114 {
+-				// Before 1.14, modules.txt did not indicate whether modules were listed
+-				// explicitly in the main module's go.mod file.
+-				// However, we can at least detect a version mismatch if packages were
+-				// vendored from a non-matching version.
+-				if vv, ok := vendorVersion[r.Mod.Path]; ok && vv != r.Mod.Version {
+-					vendErrorf(r.Mod, fmt.Sprintf("is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv))
++	for _, modFile := range modFiles {
++		for _, r := range modFile.Require {
++			if !vendorMeta[r.Mod].Explicit {
++				if pre114 {
++					// Before 1.14, modules.txt did not indicate whether modules were listed
++					// explicitly in the main module's go.mod file.
++					// However, we can at least detect a version mismatch if packages were
++					// vendored from a non-matching version.
++					if vv, ok := vendorVersion[r.Mod.Path]; ok && vv != r.Mod.Version {
++						vendErrorf(r.Mod, fmt.Sprintf("is explicitly required in go.mod, but vendor/modules.txt indicates %s@%s", r.Mod.Path, vv))
++					}
++				} else {
++					vendErrorf(r.Mod, "is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt")
+ 				}
+-			} else {
+-				vendErrorf(r.Mod, "is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt")
+ 			}
+ 		}
+ 	}
+@@ -190,42 +208,77 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
+ 	// don't directly apply to any module in the vendor list, the replacement
+ 	// go.mod file can affect the selected versions of other (transitive)
+ 	// dependencies
+-	for _, r := range modFile.Replace {
+-		vr := vendorMeta[r.Old].Replacement
+-		if vr == (module.Version{}) {
+-			if pre114 && (r.Old.Version == "" || vendorVersion[r.Old.Path] != r.Old.Version) {
+-				// Before 1.14, modules.txt omitted wildcard replacements and
+-				// replacements for modules that did not have any packages to vendor.
+-			} else {
+-				vendErrorf(r.Old, "is replaced in go.mod, but not marked as replaced in vendor/modules.txt")
++	seenrep := make(map[module.Version]bool)
++	checkReplace := func(replaces []*modfile.Replace) {
++		for _, r := range replaces {
++			if seenrep[r.Old] {
++				continue // Don't print the same error more than once
++			}
++			seenrep[r.Old] = true
++			rNew, modRoot, replacementSource := replacementFrom(r.Old)
++			rNewCanonical := canonicalizeReplacePath(rNew, modRoot)
++			vr := vendorMeta[r.Old].Replacement
++			if vr == (module.Version{}) {
++				if rNewCanonical == (module.Version{}) {
++					// r.Old is not actually replaced. It might be a main module.
++					// Don't return an error.
++				} else if pre114 && (r.Old.Version == "" || vendorVersion[r.Old.Path] != r.Old.Version) {
++					// Before 1.14, modules.txt omitted wildcard replacements and
++					// replacements for modules that did not have any packages to vendor.
++				} else {
++					vendErrorf(r.Old, "is replaced in %s, but not marked as replaced in vendor/modules.txt", base.ShortPath(replacementSource))
++				}
++			} else if vr != rNewCanonical {
++				vendErrorf(r.Old, "is replaced by %s in %s, but marked as replaced by %s in vendor/modules.txt", describe(rNew), base.ShortPath(replacementSource), describe(vr))
+ 			}
+-		} else if vr != r.New {
+-			vendErrorf(r.Old, "is replaced by %s in go.mod, but marked as replaced by %s in vendor/modules.txt", describe(r.New), describe(vr))
+ 		}
+ 	}
++	for _, modFile := range modFiles {
++		checkReplace(modFile.Replace)
++	}
++	if MainModules.workFile != nil {
++		checkReplace(MainModules.workFile.Replace)
++	}
+ 
+ 	for _, mod := range vendorList {
+ 		meta := vendorMeta[mod]
+ 		if meta.Explicit {
+-			if _, inGoMod := index.require[mod]; !inGoMod {
+-				vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in go.mod")
++			// in workspace mode, check that it's required by at least one of the main modules
++			var foundRequire bool
++			for _, index := range indexes {
++				if _, inGoMod := index.require[mod]; inGoMod {
++					foundRequire = true
++				}
++			}
++			if !foundRequire {
++				article := ""
++				if inWorkspaceMode() {
++					article = "a "
++				}
++				vendErrorf(mod, "is marked as explicit in vendor/modules.txt, but not explicitly required in %vgo.mod", article)
+ 			}
++
+ 		}
+ 	}
+ 
+ 	for _, mod := range vendorReplaced {
+ 		r := Replacement(mod)
++		replacementSource := "go.mod"
++		if inWorkspaceMode() {
++			replacementSource = "the workspace"
++		}
+ 		if r == (module.Version{}) {
+-			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in go.mod")
++			vendErrorf(mod, "is marked as replaced in vendor/modules.txt, but not replaced in %s", replacementSource)
+ 			continue
+ 		}
+-		if meta := vendorMeta[mod]; r != meta.Replacement {
+-			vendErrorf(mod, "is marked as replaced by %s in vendor/modules.txt, but replaced by %s in go.mod", describe(meta.Replacement), describe(r))
+-		}
++		// If both replacements exist, we've already reported that they're different above.
+ 	}
+ 
+ 	if vendErrors.Len() > 0 {
+-		modRoot := MainModules.ModRoot(MainModules.mustGetSingleMainModule())
+-		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo mod vendor", modRoot, vendErrors)
++		subcmd := "mod"
++		if inWorkspaceMode() {
++			subcmd = "work"
++		}
++		base.Fatalf("go: inconsistent vendoring in %s:%s\n\n\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo sync the vendor directory, run:\n\t\tgo %s vendor", filepath.Dir(VendorDir()), vendErrors, subcmd)
+ 	}
+ }
+diff --git a/src/cmd/go/internal/workcmd/vendor.go b/src/cmd/go/internal/workcmd/vendor.go
+new file mode 100644
+index 0000000000..f9f0cc0898
+--- /dev/null
++++ b/src/cmd/go/internal/workcmd/vendor.go
+@@ -0,0 +1,55 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package workcmd
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/modcmd"
++	"cmd/go/internal/modload"
++	"context"
++)
++
++var cmdVendor = &base.Command{
++	UsageLine: "go work vendor [-e] [-v] [-o outdir]",
++	Short:     "make vendored copy of dependencies",
++	Long: `
++Vendor resets the workspace's vendor directory to include all packages
++needed to build and test all the workspace's packages.
++It does not include test code for vendored packages.
++
++The -v flag causes vendor to print the names of vendored
++modules and packages to standard error.
++
++The -e flag causes vendor to attempt to proceed despite errors
++encountered while loading packages.
++
++The -o flag causes vendor to create the vendor directory at the given
++path instead of "vendor". The go command can only use a vendor directory
++named "vendor" within the module root directory, so this flag is
++primarily useful for other tools.`,
++
++	Run: runVendor,
++}
++
++var vendorE bool   // if true, report errors but proceed anyway
++var vendorO string // if set, overrides the default output directory
++
++func init() {
++	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
++	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
++	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
++	base.AddChdirFlag(&cmdVendor.Flag)
++	base.AddModCommonFlags(&cmdVendor.Flag)
++}
++
++func runVendor(ctx context.Context, cmd *base.Command, args []string) {
++	modload.InitWorkfile()
++	if modload.WorkFilePath() == "" {
++		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
++	}
++
++	modcmd.RunVendor(ctx, vendorE, vendorO, args)
++}
+diff --git a/src/cmd/go/internal/workcmd/work.go b/src/cmd/go/internal/workcmd/work.go
+index c99cc2a3fa..bfbed83e88 100644
+--- a/src/cmd/go/internal/workcmd/work.go
++++ b/src/cmd/go/internal/workcmd/work.go
+@@ -74,5 +74,6 @@ used.
+ 		cmdInit,
+ 		cmdSync,
+ 		cmdUse,
++		cmdVendor,
+ 	},
+ }
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index e229ab6432..69391efc86 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -32,7 +32,7 @@ stdout 'example.com/b'
+ # -mod can only be set to readonly in workspace mode
+ go list -mod=readonly all
+ ! go list -mod=mod all
+-stderr '^go: -mod may only be set to readonly when in workspace mode'
++stderr '^go: -mod may only be set to readonly or vendor when in workspace mode'
+ env GOWORK=off
+ go list -mod=mod all
+ env GOWORK=
+diff --git a/src/cmd/go/testdata/script/work_vendor_empty.txt b/src/cmd/go/testdata/script/work_vendor_empty.txt
+new file mode 100644
+index 0000000000..3c0c7ed6a4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vendor_empty.txt
+@@ -0,0 +1,16 @@
++go work vendor
++stderr 'go: no dependencies to vendor'
++! exists vendor/modules.txt
++! go list .
++stderr 'go: no modules were found in the current workspace'
++mkdir vendor
++mv bad_modules.txt vendor/modules.txt
++! go list .
++stderr 'go: no modules were found in the current workspace'
++
++-- bad_modules.txt --
++# a/module
++a/package
++-- go.work --
++go 1.21
++
+diff --git a/src/cmd/go/testdata/script/work_vendor_main_module_replaced.txt b/src/cmd/go/testdata/script/work_vendor_main_module_replaced.txt
+new file mode 100644
+index 0000000000..70446c7d41
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vendor_main_module_replaced.txt
+@@ -0,0 +1,46 @@
++# This is a test that if one of the main modules replaces the other
++# the vendor consistency checks still pass. The replacement is ignored
++# because it is of a main module, but it is still recorded in
++# vendor/modules.txt.
++
++go work vendor
++go list all # make sure the consistency checks pass
++! stderr .
++
++# Removing the replace causes consistency checks to fail
++cp a_go_mod_no_replace a/go.mod
++! go list all # consistency checks fail
++stderr 'example.com/b@v0.0.0: is marked as replaced in vendor/modules.txt, but not replaced in the workspace'
++
++
++-- a_go_mod_no_replace --
++module example.com/a
++
++go 1.21
++
++require example.com/b v0.0.0
++-- go.work --
++go 1.21
++
++use (
++    a
++    b
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.21
++
++require example.com/b v0.0.0
++
++replace example.com/b => ../b
++-- a/a.go --
++package a
++
++import _ "example.com/b"
++-- b/go.mod --
++module example.com/b
++
++go 1.21
++-- b/b.go --
++package b
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt b/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt
+new file mode 100644
+index 0000000000..038e1a54d6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vendor_modules_txt_consistent.txt
+@@ -0,0 +1,135 @@
++go work vendor
++cmp modules.txt.want vendor/modules.txt
++go list example.com/a example.com/b
++
++# Module required in go.mod but not marked explicit in modules.txt
++cp modules.txt.required_but_not_explicit vendor/modules.txt
++! go list example.com/a example.com/b
++cmpenv stderr required_but_not_explicit_error.txt
++
++# Replacement in go.mod but no replacement in modules.txt
++cp modules.txt.missing_replacement vendor/modules.txt
++! go list example.com/a example.com/b
++cmpenv stderr missing_replacement_error.txt
++
++# Replacement in go.mod but different replacement target in modules.txt
++cp modules.txt.different_replacement vendor/modules.txt
++! go list example.com/a example.com/b
++cmpenv stderr different_replacement_error.txt
++
++# Module marked explicit in modules.txt but not required in go.mod
++cp modules.txt.extra_explicit vendor/modules.txt
++! go list example.com/a example.com/b
++cmpenv stderr extra_explicit_error.txt
++
++# Replacement in modules.txt but not in go.mod
++cp modules.txt.extra_replacement vendor/modules.txt
++! go list example.com/a example.com/b
++cmpenv stderr extra_replacement_error.txt
++
++-- modules.txt.want --
++# example.com/p v1.0.0 => ./p
++## explicit; go 1.21
++# example.com/q v1.0.0 => ./q
++## explicit; go 1.21
++-- modules.txt.required_but_not_explicit --
++# example.com/p v1.0.0 => ./p
++## go 1.21
++# example.com/q v1.0.0 => ./q
++## explicit; go 1.21
++-- required_but_not_explicit_error.txt --
++go: inconsistent vendoring in $GOPATH${/}src:
++	example.com/p@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt
++
++	To ignore the vendor directory, use -mod=readonly or -mod=mod.
++	To sync the vendor directory, run:
++		go work vendor
++-- modules.txt.missing_replacement --
++# example.com/p v1.0.0
++## explicit; go 1.21
++# example.com/q v1.0.0 => ./q
++## explicit; go 1.21
++-- missing_replacement_error.txt --
++go: inconsistent vendoring in $GOPATH${/}src:
++	example.com/p@v1.0.0: is replaced in a${/}go.mod, but not marked as replaced in vendor/modules.txt
++
++	To ignore the vendor directory, use -mod=readonly or -mod=mod.
++	To sync the vendor directory, run:
++		go work vendor
++-- modules.txt.different_replacement --
++# example.com/p v1.0.0 => ./r
++## explicit; go 1.21
++# example.com/q v1.0.0 => ./q
++## explicit; go 1.21
++-- different_replacement_error.txt --
++go: inconsistent vendoring in $GOPATH${/}src:
++	example.com/p@v1.0.0: is replaced by ../p in a${/}go.mod, but marked as replaced by ./r in vendor/modules.txt
++
++	To ignore the vendor directory, use -mod=readonly or -mod=mod.
++	To sync the vendor directory, run:
++		go work vendor
++-- modules.txt.extra_explicit --
++# example.com/p v1.0.0 => ./p
++## explicit; go 1.21
++# example.com/q v1.0.0 => ./q
++## explicit; go 1.21
++# example.com/r v1.0.0
++example.com/r
++## explicit; go 1.21
++-- extra_explicit_error.txt --
++go: inconsistent vendoring in $GOPATH${/}src:
++	example.com/r@v1.0.0: is marked as explicit in vendor/modules.txt, but not explicitly required in a go.mod
++
++	To ignore the vendor directory, use -mod=readonly or -mod=mod.
++	To sync the vendor directory, run:
++		go work vendor
++-- modules.txt.extra_replacement --
++# example.com/p v1.0.0 => ./p
++## explicit; go 1.21
++# example.com/q v1.0.0 => ./q
++## explicit; go 1.21
++# example.com/r v1.0.0 => ./r
++example.com/r
++## go 1.21
++-- extra_replacement_error.txt --
++go: inconsistent vendoring in $GOPATH${/}src:
++	example.com/r@v1.0.0: is marked as replaced in vendor/modules.txt, but not replaced in the workspace
++
++	To ignore the vendor directory, use -mod=readonly or -mod=mod.
++	To sync the vendor directory, run:
++		go work vendor
++-- go.work --
++go 1.21
++
++use (
++    ./a
++    ./b
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.21
++
++require example.com/p v1.0.0
++
++replace example.com/p v1.0.0 => ../p
++-- a/a.go --
++package p
++-- b/go.mod --
++module example.com/b
++
++go 1.21
++
++require example.com/q v1.0.0
++
++replace example.com/q v1.0.0 => ../q
++-- b/b.go --
++package b
++-- p/go.mod --
++module example.com/p
++
++go 1.21
++-- q/go.mod --
++module example.com/q
++
++go 1.21
+diff --git a/src/cmd/go/testdata/script/work_vendor_prune.txt b/src/cmd/go/testdata/script/work_vendor_prune.txt
+new file mode 100644
+index 0000000000..5972cc70d6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vendor_prune.txt
+@@ -0,0 +1,115 @@
++# This test exercises that vendoring works properly using the workspace in the
++# the work_prune test case.
++
++go work vendor
++cmp vendor/modules.txt modules.txt.want
++cmp vendor/example.com/b/b.go b/b.go
++cmp vendor/example.com/q/q.go q1_1_0/q.go
++go list -m -f '{{.Version}}' example.com/q
++stdout '^v1.1.0$'
++
++go list -f '{{.Dir}}' example.com/q
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]q
++go list -f '{{.Dir}}' example.com/b
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
++
++[short] skip
++
++rm b
++rm q1_0_0
++rm q1_1_0
++go run example.com/p
++stdout 'version 1.1.0'
++
++-- modules.txt.want --
++# example.com/b v1.0.0 => ./b
++## explicit; go 1.18
++example.com/b
++# example.com/q v1.0.0 => ./q1_0_0
++## explicit; go 1.18
++# example.com/q v1.1.0 => ./q1_1_0
++## go 1.18
++example.com/q
++-- go.work --
++go 1.18
++
++use (
++	./a
++	./p
++)
++-- a/go.mod --
++module example.com/a
++
++go 1.18
++
++require example.com/b v1.0.0
++
++replace example.com/b v1.0.0 => ../b
++-- a/foo.go --
++package main
++
++import "example.com/b"
++
++func main() {
++	b.B()
++}
++-- b/go.mod --
++module example.com/b
++
++go 1.18
++
++require example.com/q v1.1.0
++-- b/b.go --
++package b
++
++func B() {
++}
++-- b/b_test.go --
++package b
++
++import "example.com/q"
++
++func TestB() {
++	q.PrintVersion()
++}
++-- p/go.mod --
++module example.com/p
++
++go 1.18
++
++require example.com/q v1.0.0
++
++replace example.com/q v1.0.0 => ../q1_0_0
++replace example.com/q v1.1.0 => ../q1_1_0
++-- p/main.go --
++package main
++
++import "example.com/q"
++
++func main() {
++	q.PrintVersion()
++}
++-- q1_0_0/go.mod --
++module example.com/q
++
++go 1.18
++-- q1_0_0/q.go --
++package q
++
++import "fmt"
++
++func PrintVersion() {
++	fmt.Println("version 1.0.0")
++}
++-- q1_1_0/go.mod --
++module example.com/q
++
++go 1.18
++-- q1_1_0/q.go --
++package q
++
++import "fmt"
++
++func PrintVersion() {
++	fmt.Println("version 1.1.0")
++}
+diff --git a/src/cmd/go/testdata/script/work_vendor_prune_all.txt b/src/cmd/go/testdata/script/work_vendor_prune_all.txt
+new file mode 100644
+index 0000000000..b004afddf7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_vendor_prune_all.txt
+@@ -0,0 +1,200 @@
++# This test exercises that vendoring works properly using the workspace in the
++# the work_prune test case.
++
++go work vendor
++cmp vendor/modules.txt modules.txt.want
++go list -f '{{with .Module}}{{.Path}}@{{.Version}}{{end}}' all
++cmp stdout want_versions
++
++go list -f '{{.Dir}}' example.com/q
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]q
++go list -f '{{.Dir}}' example.com/b
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]b
++go list -f '{{.Dir}}' example.com/w
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]w
++go list -f '{{.Dir}}' example.com/z
++stdout $GOPATH[\\/]src[\\/]vendor[\\/]example.com[\\/]z
++
++cmp $GOPATH/src/vendor/example.com/q/q.go q1_1_0/q.go
++
++-- modules.txt.want --
++# example.com/b v1.0.0 => ./b
++## explicit; go 1.18
++example.com/b
++# example.com/q v1.0.0 => ./q1_0_0
++## explicit; go 1.18
++# example.com/q v1.1.0 => ./q1_1_0
++## go 1.18
++example.com/q
++# example.com/w v1.0.0 => ./w
++## go 1.18
++example.com/w
++# example.com/z v1.0.0 => ./z1_0_0
++## explicit; go 1.18
++# example.com/z v1.1.0 => ./z1_1_0
++## go 1.18
++example.com/z
++# example.com/q v1.0.5 => ./q1_0_5
++# example.com/r v1.0.0 => ./r
++# example.com/x v1.0.0 => ./x
++# example.com/y v1.0.0 => ./y
++-- want_versions --
++example.com/a@
++example.com/b@v1.0.0
++example.com/p@
++example.com/q@v1.1.0
++example.com/w@v1.0.0
++example.com/z@v1.1.0
++-- go.work --
++go 1.18
++
++use (
++	./a
++	./p
++)
++
++replace example.com/b v1.0.0 => ./b
++replace example.com/q v1.0.0 => ./q1_0_0
++replace example.com/q v1.0.5 => ./q1_0_5
++replace example.com/q v1.1.0 => ./q1_1_0
++replace example.com/r v1.0.0 => ./r
++replace example.com/w v1.0.0 => ./w
++replace example.com/x v1.0.0 => ./x
++replace example.com/y v1.0.0 => ./y
++replace example.com/z v1.0.0 => ./z1_0_0
++replace example.com/z v1.1.0 => ./z1_1_0
++
++-- a/go.mod --
++module example.com/a
++
++go 1.18
++
++require example.com/b v1.0.0
++require example.com/z v1.0.0
++-- a/foo.go --
++package main
++
++import "example.com/b"
++
++func main() {
++	b.B()
++}
++-- b/go.mod --
++module example.com/b
++
++go 1.18
++
++require example.com/q v1.1.0
++-- b/b.go --
++package b
++
++func B() {
++}
++-- p/go.mod --
++module example.com/p
++
++go 1.18
++
++require example.com/q v1.0.0
++
++replace example.com/q v1.0.0 => ../q1_0_0
++replace example.com/q v1.1.0 => ../q1_1_0
++-- p/main.go --
++package main
++
++import "example.com/q"
++
++func main() {
++	q.PrintVersion()
++}
++-- q1_0_0/go.mod --
++module example.com/q
++
++go 1.18
++-- q1_0_0/q.go --
++package q
++
++import "fmt"
++
++func PrintVersion() {
++	fmt.Println("version 1.0.0")
++}
++-- q1_0_5/go.mod --
++module example.com/q
++
++go 1.18
++
++require example.com/r v1.0.0
++-- q1_0_5/q.go --
++package q
++
++import _ "example.com/r"
++-- q1_1_0/go.mod --
++module example.com/q
++
++require example.com/w v1.0.0
++require example.com/z v1.1.0
++
++go 1.18
++-- q1_1_0/q.go --
++package q
++
++import _ "example.com/w"
++import _ "example.com/z"
++
++import "fmt"
++
++func PrintVersion() {
++	fmt.Println("version 1.1.0")
++}
++-- r/go.mod --
++module example.com/r
++
++go 1.18
++
++require example.com/r v1.0.0
++-- r/r.go --
++package r
++-- w/go.mod --
++module example.com/w
++
++go 1.18
++
++require example.com/x v1.0.0
++-- w/w.go --
++package w
++-- w/w_test.go --
++package w
++
++import _ "example.com/x"
++-- x/go.mod --
++module example.com/x
++
++go 1.18
++-- x/x.go --
++package x
++-- x/x_test.go --
++package x
++import _ "example.com/y"
++-- y/go.mod --
++module example.com/y
++
++go 1.18
++-- y/y.go --
++package y
++-- z1_0_0/go.mod --
++module example.com/z
++
++go 1.18
++
++require example.com/q v1.0.5
++-- z1_0_0/z.go --
++package z
++
++import _ "example.com/q"
++-- z1_1_0/go.mod --
++module example.com/z
++
++go 1.18
++-- z1_1_0/z.go --
++package z

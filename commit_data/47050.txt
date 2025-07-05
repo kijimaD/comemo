@@ -24,7 +24,69 @@ Date:   Sat Nov 28 02:46:00 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 16 ++++++++++++++--
  test/prove.go                         | 16 ++++++++++++++++
  2 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 8a2e7c09bc..bcfdfc13f0 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -778,7 +778,14 @@ func prove(f *Func) {
+ 				if ft.lens == nil {
+ 					ft.lens = map[ID]*Value{}
+ 				}
+-				ft.lens[v.Args[0].ID] = v
++				// Set all len Values for the same slice as equal in the poset.
++				// The poset handles transitive relations, so Values related to
++				// any OpSliceLen for this slice will be correctly related to others.
++				if l, ok := ft.lens[v.Args[0].ID]; ok {
++					ft.update(b, v, l, signed, eq)
++				} else {
++					ft.lens[v.Args[0].ID] = v
++				}
+ 				ft.update(b, v, ft.zero, signed, gt|eq)
+ 				if v.Args[0].Op == OpSliceMake {
+ 					if lensVars == nil {
+@@ -790,7 +797,12 @@ func prove(f *Func) {
+ 				if ft.caps == nil {
+ 					ft.caps = map[ID]*Value{}
+ 				}
+-				ft.caps[v.Args[0].ID] = v
++				// Same as case OpSliceLen above, but for slice cap.
++				if c, ok := ft.caps[v.Args[0].ID]; ok {
++					ft.update(b, v, c, signed, eq)
++				} else {
++					ft.caps[v.Args[0].ID] = v
++				}
+ 				ft.update(b, v, ft.zero, signed, gt|eq)
+ 				if v.Args[0].Op == OpSliceMake {
+ 					if lensVars == nil {
+diff --git a/test/prove.go b/test/prove.go
+index d37021d283..af9c06a6f7 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -629,6 +629,22 @@ func trans3(a, b []int, i int) {
+ 	_ = b[i] // ERROR "Proved IsInBounds$"
+ }
+ 
++func trans4(b []byte, x int) {
++	// Issue #42603: slice len/cap transitive relations.
++	switch x {
++	case 0:
++		if len(b) < 20 {
++			return
++		}
++		_ = b[:2] // ERROR "Proved IsSliceInBounds$"
++	case 1:
++		if len(b) < 40 {
++			return
++		}
++		_ = b[:2] // ERROR "Proved IsSliceInBounds$"
++	}
++}
++
+ // Derived from nat.cmp
+ func natcmp(x, y []uint) (r int) {
+ 	m := len(x)

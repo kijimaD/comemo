@@ -29,7 +29,7 @@ Date:   Mon Nov 13 18:57:06 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/trace/v2/goroutines.go          |   2 +-
  src/cmd/trace/v2/main.go                |  48 +++-
  src/cmd/trace/v2/pprof.go               | 435 ++++++++++++++++++++++++++++++++
@@ -37,3 +37,839 @@ Date:   Mon Nov 13 18:57:06 2023 +0000
  src/internal/trace/goroutinesv2_test.go |  18 +-
  src/internal/trace/traceviewer/http.go  |   2 +-
  6 files changed, 532 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/trace/v2/goroutines.go b/src/cmd/trace/v2/goroutines.go
+index 8fbfc9c22d..5c300024ee 100644
+--- a/src/cmd/trace/v2/goroutines.go
++++ b/src/cmd/trace/v2/goroutines.go
+@@ -346,7 +346,7 @@ Table of contents
+ 		<td> <a href="/block?id={{.PC}}">graph</a> <a href="/block?id={{.PC}}&raw=1" download="block.profile">(download)</a></td>
+ 	</tr>
+ 	<tr>
+-		<td>Syscall block profile:</td>
++		<td>Syscall profile:</td>
+ 		<td> <a href="/syscall?id={{.PC}}">graph</a> <a href="/syscall?id={{.PC}}&raw=1" download="syscall.profile">(download)</a></td>
+ 		</tr>
+ 	<tr>
+diff --git a/src/cmd/trace/v2/main.go b/src/cmd/trace/v2/main.go
+index 51b5ebf6cf..b10373920a 100644
+--- a/src/cmd/trace/v2/main.go
++++ b/src/cmd/trace/v2/main.go
+@@ -56,8 +56,6 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	log.Printf("Analyzing goroutines...")
+-	gSummaries := trace.SummarizeGoroutines(parsed.events)
+ 
+ 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
+ 	browser.Open(addr)
+@@ -67,28 +65,50 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
+ 	}
+ 
+ 	mux := http.NewServeMux()
++
++	// Main endpoint.
+ 	mux.Handle("/", traceviewer.MainHandler(ranges))
++
++	// Catapult handlers.
+ 	mux.Handle("/trace", traceviewer.TraceHandler())
+ 	mux.Handle("/jsontrace", JSONTraceHandler(parsed))
+ 	mux.Handle("/static/", traceviewer.StaticHandler())
+-	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(gSummaries))
+-	mux.HandleFunc("/goroutine", GoroutineHandler(gSummaries))
++
++	// Goroutines handlers.
++	mux.HandleFunc("/goroutines", GoroutinesHandlerFunc(parsed.gSummaries))
++	mux.HandleFunc("/goroutine", GoroutineHandler(parsed.gSummaries))
++
++	// MMU handler.
+ 	mux.HandleFunc("/mmu", traceviewer.MMUHandlerFunc(ranges, mutatorUtil))
+ 
++	// Basic pprof endpoints.
++	mux.HandleFunc("/io", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofIO(), parsed)))
++	mux.HandleFunc("/block", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofBlock(), parsed)))
++	mux.HandleFunc("/syscall", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofSyscall(), parsed)))
++	mux.HandleFunc("/sched", traceviewer.SVGProfileHandlerFunc(pprofByGoroutine(computePprofSched(), parsed)))
++
++	// Region-based pprof endpoints.
++	mux.HandleFunc("/regionio", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofIO(), parsed)))
++	mux.HandleFunc("/regionblock", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofBlock(), parsed)))
++	mux.HandleFunc("/regionsyscall", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSyscall(), parsed)))
++	mux.HandleFunc("/regionsched", traceviewer.SVGProfileHandlerFunc(pprofByRegion(computePprofSched(), parsed)))
++
+ 	err = http.Serve(ln, mux)
+ 	return fmt.Errorf("failed to start http server: %w", err)
+ }
+ 
+ type parsedTrace struct {
+-	events []tracev2.Event
++	events     []tracev2.Event
++	gSummaries map[tracev2.GoID]*trace.GoroutineSummary
+ }
+ 
+-func parseTrace(trace io.Reader) (*parsedTrace, error) {
+-	r, err := tracev2.NewReader(trace)
++func parseTrace(tr io.Reader) (*parsedTrace, error) {
++	r, err := tracev2.NewReader(tr)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to create trace reader: %w", err)
+ 	}
+-	var t parsedTrace
++	s := trace.NewGoroutineSummarizer()
++	t := new(parsedTrace)
+ 	for {
+ 		ev, err := r.ReadEvent()
+ 		if err == io.EOF {
+@@ -97,8 +117,18 @@ func parseTrace(trace io.Reader) (*parsedTrace, error) {
+ 			return nil, fmt.Errorf("failed to read event: %w", err)
+ 		}
+ 		t.events = append(t.events, ev)
++		s.Event(&t.events[len(t.events)-1])
+ 	}
+-	return &t, nil
++	t.gSummaries = s.Finalize()
++	return t, nil
++}
++
++func (t *parsedTrace) startTime() tracev2.Time {
++	return t.events[0].Time()
++}
++
++func (t *parsedTrace) endTime() tracev2.Time {
++	return t.events[len(t.events)-1].Time()
+ }
+ 
+ // splitTrace splits the trace into a number of ranges, each resulting in approx 100 MiB of
+diff --git a/src/cmd/trace/v2/pprof.go b/src/cmd/trace/v2/pprof.go
+new file mode 100644
+index 0000000000..39ef96ad26
+--- /dev/null
++++ b/src/cmd/trace/v2/pprof.go
+@@ -0,0 +1,435 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Serving of pprof-like profiles.
++
++package trace
++
++import (
++	"cmp"
++	"fmt"
++	"internal/trace"
++	"internal/trace/traceviewer"
++	tracev2 "internal/trace/v2"
++	"net/http"
++	"net/url"
++	"slices"
++	"strconv"
++	"strings"
++	"time"
++)
++
++func pprofByGoroutine(compute computePprofFunc, t *parsedTrace) traceviewer.ProfileFunc {
++	return func(r *http.Request) ([]traceviewer.ProfileRecord, error) {
++		id := r.FormValue("id")
++		gToIntervals, err := pprofMatchingGoroutines(id, t)
++		if err != nil {
++			return nil, err
++		}
++		return compute(gToIntervals, t.events)
++	}
++}
++
++func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.ProfileFunc {
++	return func(r *http.Request) ([]traceviewer.ProfileRecord, error) {
++		filter, err := newRegionFilter(r)
++		if err != nil {
++			return nil, err
++		}
++		gToIntervals, err := pprofMatchingRegions(filter, t)
++		if err != nil {
++			return nil, err
++		}
++		return compute(gToIntervals, t.events)
++	}
++}
++
++// pprofMatchingGoroutines parses the goroutine type id string (i.e. pc)
++// and returns the ids of goroutines of the matching type and its interval.
++// If the id string is empty, returns nil without an error.
++func pprofMatchingGoroutines(id string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
++	if id == "" {
++		return nil, nil
++	}
++	pc, err := strconv.ParseUint(id, 10, 64) // id is string
++	if err != nil {
++		return nil, fmt.Errorf("invalid goroutine type: %v", id)
++	}
++	res := make(map[tracev2.GoID][]interval)
++	for _, g := range t.gSummaries {
++		if g.PC != pc {
++			continue
++		}
++		endTime := g.EndTime
++		if g.EndTime == 0 {
++			endTime = t.endTime() // Use the trace end time, since the goroutine is still live then.
++		}
++		res[g.ID] = []interval{{start: g.StartTime, end: endTime}}
++	}
++	if len(res) == 0 && id != "" {
++		return nil, fmt.Errorf("failed to find matching goroutines for ID: %s", id)
++	}
++	return res, nil
++}
++
++// pprofMatchingRegions returns the time intervals of matching regions
++// grouped by the goroutine id. If the filter is nil, returns nil without an error.
++func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
++	if filter == nil {
++		return nil, nil
++	}
++
++	gToIntervals := make(map[tracev2.GoID][]interval)
++	for _, g := range t.gSummaries {
++		for _, r := range g.Regions {
++			if !filter.match(t, r) {
++				continue
++			}
++			gToIntervals[g.ID] = append(gToIntervals[g.ID], regionInterval(t, r))
++		}
++	}
++
++	for g, intervals := range gToIntervals {
++		// In order to remove nested regions and
++		// consider only the outermost regions,
++		// first, we sort based on the start time
++		// and then scan through to select only the outermost regions.
++		slices.SortFunc(intervals, func(a, b interval) int {
++			if c := cmp.Compare(a.start, b.start); c != 0 {
++				return c
++			}
++			return cmp.Compare(a.end, b.end)
++		})
++		var lastTimestamp tracev2.Time
++		var n int
++		// Select only the outermost regions.
++		for _, i := range intervals {
++			if lastTimestamp <= i.start {
++				intervals[n] = i // new non-overlapping region starts.
++				lastTimestamp = i.end
++				n++
++			}
++			// Otherwise, skip because this region overlaps with a previous region.
++		}
++		gToIntervals[g] = intervals[:n]
++	}
++	return gToIntervals, nil
++}
++
++type computePprofFunc func(gToIntervals map[tracev2.GoID][]interval, events []tracev2.Event) ([]traceviewer.ProfileRecord, error)
++
++// computePprofIO returns a computePprofFunc that generates IO pprof-like profile (time spent in
++// IO wait, currently only network blocking event).
++func computePprofIO() computePprofFunc {
++	return makeComputePprofFunc(tracev2.GoWaiting, func(reason string) bool {
++		return reason == "network"
++	})
++}
++
++// computePprofBlock returns a computePprofFunc that generates blocking pprof-like profile
++// (time spent blocked on synchronization primitives).
++func computePprofBlock() computePprofFunc {
++	return makeComputePprofFunc(tracev2.GoWaiting, func(reason string) bool {
++		return strings.Contains(reason, "chan") || strings.Contains(reason, "sync") || strings.Contains(reason, "select")
++	})
++}
++
++// computePprofSyscall returns a computePprofFunc that generates a syscall pprof-like
++// profile (time spent in syscalls).
++func computePprofSyscall() computePprofFunc {
++	return makeComputePprofFunc(tracev2.GoSyscall, func(_ string) bool {
++		return true
++	})
++}
++
++// computePprofSched returns a computePprofFunc that generates a scheduler latency pprof-like profile
++// (time between a goroutine become runnable and actually scheduled for execution).
++func computePprofSched() computePprofFunc {
++	return makeComputePprofFunc(tracev2.GoRunnable, func(_ string) bool {
++		return true
++	})
++}
++
++// makeComputePprofFunc returns a computePprofFunc that generates a profile of time goroutines spend
++// in a particular state for the specified reasons.
++func makeComputePprofFunc(state tracev2.GoState, trackReason func(string) bool) computePprofFunc {
++	return func(gToIntervals map[tracev2.GoID][]interval, events []tracev2.Event) ([]traceviewer.ProfileRecord, error) {
++		stacks := newStackMap()
++		tracking := make(map[tracev2.GoID]*tracev2.Event)
++		for i := range events {
++			ev := &events[i]
++
++			// Filter out any non-state-transitions and events without stacks.
++			if ev.Kind() != tracev2.EventStateTransition {
++				continue
++			}
++			stack := ev.Stack()
++			if stack == tracev2.NoStack {
++				continue
++			}
++
++			// The state transition has to apply to a goroutine.
++			st := ev.StateTransition()
++			if st.Resource.Kind != tracev2.ResourceGoroutine {
++				continue
++			}
++			id := st.Resource.Goroutine()
++			_, new := st.Goroutine()
++
++			// Check if we're tracking this goroutine.
++			startEv := tracking[id]
++			if startEv == nil {
++				// We're not. Start tracking if the new state
++				// matches what we want and the transition is
++				// for one of the reasons we care about.
++				if new == state && trackReason(st.Reason) {
++					tracking[id] = ev
++				}
++				continue
++			}
++			// We're tracking this goroutine.
++			if new == state {
++				// We're tracking this goroutine, but it's just transitioning
++				// to the same state (this is a no-ip
++				continue
++			}
++			// The goroutine has transitioned out of the state we care about,
++			// so remove it from tracking and record the stack.
++			delete(tracking, id)
++
++			overlapping := pprofOverlappingDuration(gToIntervals, id, interval{startEv.Time(), ev.Time()})
++			if overlapping > 0 {
++				rec := stacks.getOrAdd(startEv.Stack())
++				rec.Count++
++				rec.Time += overlapping
++			}
++		}
++		return stacks.profile(), nil
++	}
++}
++
++// pprofOverlappingDuration returns the overlapping duration between
++// the time intervals in gToIntervals and the specified event.
++// If gToIntervals is nil, this simply returns the event's duration.
++func pprofOverlappingDuration(gToIntervals map[tracev2.GoID][]interval, id tracev2.GoID, sample interval) time.Duration {
++	if gToIntervals == nil { // No filtering.
++		return sample.duration()
++	}
++	intervals := gToIntervals[id]
++	if len(intervals) == 0 {
++		return 0
++	}
++
++	var overlapping time.Duration
++	for _, i := range intervals {
++		if o := i.overlap(sample); o > 0 {
++			overlapping += o
++		}
++	}
++	return overlapping
++}
++
++// interval represents a time interval in the trace.
++type interval struct {
++	start, end tracev2.Time
++}
++
++func (i interval) duration() time.Duration {
++	return i.end.Sub(i.start)
++}
++
++func (i1 interval) overlap(i2 interval) time.Duration {
++	// Assume start1 <= end1 and start2 <= end2
++	if i1.end < i2.start || i2.end < i1.start {
++		return 0
++	}
++	if i1.start < i2.start { // choose the later one
++		i1.start = i2.start
++	}
++	if i1.end > i2.end { // choose the earlier one
++		i1.end = i2.end
++	}
++	return i1.duration()
++}
++
++// pprofMaxStack is the extent of the deduplication we're willing to do.
++//
++// Because slices aren't comparable and we want to leverage maps for deduplication,
++// we have to choose a fixed constant upper bound on the amount of frames we want
++// to support. In practice this is fine because there's a maximum depth to these
++// stacks anyway.
++const pprofMaxStack = 128
++
++// stackMap is a map of tracev2.Stack to some value V.
++type stackMap struct {
++	// stacks contains the full list of stacks in the set, however
++	// it is insufficient for deduplication because tracev2.Stack
++	// equality is only optimistic. If two tracev2.Stacks are equal,
++	// then they are guaranteed to be equal in content. If they are
++	// not equal, then they might still be equal in content.
++	stacks map[tracev2.Stack]*traceviewer.ProfileRecord
++
++	// pcs is the source-of-truth for deduplication. It is a map of
++	// the actual PCs in the stack to a tracev2.Stack.
++	pcs map[[pprofMaxStack]uint64]tracev2.Stack
++}
++
++func newStackMap() *stackMap {
++	return &stackMap{
++		stacks: make(map[tracev2.Stack]*traceviewer.ProfileRecord),
++		pcs:    make(map[[pprofMaxStack]uint64]tracev2.Stack),
++	}
++}
++
++func (m *stackMap) getOrAdd(stack tracev2.Stack) *traceviewer.ProfileRecord {
++	// Fast path: check to see if this exact stack is already in the map.
++	if rec, ok := m.stacks[stack]; ok {
++		return rec
++	}
++	// Slow path: the stack may still be in the map.
++
++	// Grab the stack's PCs as the source-of-truth.
++	var pcs [pprofMaxStack]uint64
++	pcsForStack(stack, &pcs)
++
++	// Check the source-of-truth.
++	var rec *traceviewer.ProfileRecord
++	if existing, ok := m.pcs[pcs]; ok {
++		// In the map.
++		rec = m.stacks[existing]
++		delete(m.stacks, existing)
++	} else {
++		// Not in the map.
++		rec = new(traceviewer.ProfileRecord)
++	}
++	// Insert regardless of whether we have a match in m.pcs.
++	// Even if we have a match, we want to keep the newest version
++	// of that stack, since we're much more likely tos see it again
++	// as we iterate through the trace linearly. Simultaneously, we
++	// are likely to never see the old stack again.
++	m.pcs[pcs] = stack
++	m.stacks[stack] = rec
++	return rec
++}
++
++func (m *stackMap) profile() []traceviewer.ProfileRecord {
++	prof := make([]traceviewer.ProfileRecord, 0, len(m.stacks))
++	for stack, record := range m.stacks {
++		rec := *record
++		i := 0
++		stack.Frames(func(frame tracev2.StackFrame) bool {
++			rec.Stack = append(rec.Stack, &trace.Frame{
++				PC:   frame.PC,
++				Fn:   frame.Func,
++				File: frame.File,
++				Line: int(frame.Line),
++			})
++			i++
++			// Cut this off at pprofMaxStack because that's as far
++			// as our deduplication goes.
++			return i < pprofMaxStack
++		})
++		prof = append(prof, rec)
++	}
++	return prof
++}
++
++// pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
++func pcsForStack(stack tracev2.Stack, pcs *[pprofMaxStack]uint64) {
++	i := 0
++	stack.Frames(func(frame tracev2.StackFrame) bool {
++		pcs[i] = frame.PC
++		i++
++		return i < len(pcs)
++	})
++}
++
++func regionInterval(t *parsedTrace, s *trace.UserRegionSummary) interval {
++	var i interval
++	if s.Start != nil {
++		i.start = s.Start.Time()
++	} else {
++		i.start = t.startTime()
++	}
++	if s.End != nil {
++		i.end = s.End.Time()
++	} else {
++		i.end = t.endTime()
++	}
++	return i
++}
++
++// regionFilter represents a region filter specified by a user of cmd/trace.
++type regionFilter struct {
++	name   string
++	params url.Values
++	cond   []func(*parsedTrace, *trace.UserRegionSummary) bool
++}
++
++// match returns true if a region, described by its ID and summary, matches
++// the filter.
++func (f *regionFilter) match(t *parsedTrace, s *trace.UserRegionSummary) bool {
++	for _, c := range f.cond {
++		if !c(t, s) {
++			return false
++		}
++	}
++	return true
++}
++
++// newRegionFilter creates a new region filter from URL query variables.
++func newRegionFilter(r *http.Request) (*regionFilter, error) {
++	if err := r.ParseForm(); err != nil {
++		return nil, err
++	}
++
++	var name []string
++	var conditions []func(*parsedTrace, *trace.UserRegionSummary) bool
++	filterParams := make(url.Values)
++
++	param := r.Form
++	if typ, ok := param["type"]; ok && len(typ) > 0 {
++		name = append(name, "type="+typ[0])
++		conditions = append(conditions, func(_ *parsedTrace, r *trace.UserRegionSummary) bool {
++			return r.Name == typ[0]
++		})
++		filterParams.Add("type", typ[0])
++	}
++	if pc, err := strconv.ParseUint(r.FormValue("pc"), 16, 64); err == nil {
++		encPC := fmt.Sprintf("%x", pc)
++		name = append(name, "pc="+encPC)
++		conditions = append(conditions, func(_ *parsedTrace, r *trace.UserRegionSummary) bool {
++			var regionPC uint64
++			if r.Start != nil && r.Start.Stack() != tracev2.NoStack {
++				r.Start.Stack().Frames(func(f tracev2.StackFrame) bool {
++					regionPC = f.PC
++					return false
++				})
++			}
++			return regionPC == pc
++		})
++		filterParams.Add("pc", encPC)
++	}
++
++	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
++		name = append(name, fmt.Sprintf("latency >= %s", lat))
++		conditions = append(conditions, func(t *parsedTrace, r *trace.UserRegionSummary) bool {
++			return regionInterval(t, r).duration() >= lat
++		})
++		filterParams.Add("latmin", lat.String())
++	}
++	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
++		name = append(name, fmt.Sprintf("latency <= %s", lat))
++		conditions = append(conditions, func(t *parsedTrace, r *trace.UserRegionSummary) bool {
++			return regionInterval(t, r).duration() <= lat
++		})
++		filterParams.Add("latmax", lat.String())
++	}
++
++	return &regionFilter{
++		name:   strings.Join(name, ","),
++		cond:   conditions,
++		params: filterParams,
++	}, nil
++}
+diff --git a/src/internal/trace/goroutinesv2.go b/src/internal/trace/goroutinesv2.go
+index 7ed5771cd3..c5e5fadc0b 100644
+--- a/src/internal/trace/goroutinesv2.go
++++ b/src/internal/trace/goroutinesv2.go
+@@ -209,26 +209,8 @@ type goroutineSummary struct {
+ 	activeRegions        []*UserRegionSummary // stack of active regions
+ }
+ 
+-// SummarizeGoroutines generates statistics for all goroutines in the trace.
+-func SummarizeGoroutines(events []tracev2.Event) map[tracev2.GoID]*GoroutineSummary {
+-	// Create the analysis state.
+-	b := goroutineStatsBuilder{
+-		gs:          make(map[tracev2.GoID]*GoroutineSummary),
+-		syscallingP: make(map[tracev2.ProcID]tracev2.GoID),
+-		syscallingG: make(map[tracev2.GoID]tracev2.ProcID),
+-		rangesP:     make(map[rangeP]tracev2.GoID),
+-	}
+-
+-	// Process the trace.
+-	for i := range events {
+-		ev := &events[i]
+-		b.event(ev)
+-	}
+-	return b.finalize()
+-}
+-
+-// goroutineStatsBuilder constructs per-goroutine time statistics for v2 traces.
+-type goroutineStatsBuilder struct {
++// GoroutineSummarizer constructs per-goroutine time statistics for v2 traces.
++type GoroutineSummarizer struct {
+ 	// gs contains the map of goroutine summaries we're building up to return to the caller.
+ 	gs map[tracev2.GoID]*GoroutineSummary
+ 
+@@ -247,22 +229,32 @@ type goroutineStatsBuilder struct {
+ 	syncTs tracev2.Time // timestamp of the last sync event processed (or the first timestamp in the trace).
+ }
+ 
++// NewGoroutineSummarizer creates a new struct to build goroutine stats from a trace.
++func NewGoroutineSummarizer() *GoroutineSummarizer {
++	return &GoroutineSummarizer{
++		gs:          make(map[tracev2.GoID]*GoroutineSummary),
++		syscallingP: make(map[tracev2.ProcID]tracev2.GoID),
++		syscallingG: make(map[tracev2.GoID]tracev2.ProcID),
++		rangesP:     make(map[rangeP]tracev2.GoID),
++	}
++}
++
+ type rangeP struct {
+ 	id   tracev2.ProcID
+ 	name string
+ }
+ 
+-// event feeds a single event into the stats builder.
+-func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+-	if b.syncTs == 0 {
+-		b.syncTs = ev.Time()
++// Event feeds a single event into the stats summarizer.
++func (s *GoroutineSummarizer) Event(ev *tracev2.Event) {
++	if s.syncTs == 0 {
++		s.syncTs = ev.Time()
+ 	}
+-	b.lastTs = ev.Time()
++	s.lastTs = ev.Time()
+ 
+ 	switch ev.Kind() {
+ 	// Record sync time for the RangeActive events.
+ 	case tracev2.EventSync:
+-		b.syncTs = ev.Time()
++		s.syncTs = ev.Time()
+ 
+ 	// Handle state transitions.
+ 	case tracev2.EventStateTransition:
+@@ -278,14 +270,14 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 			}
+ 
+ 			// Handle transition out.
+-			g := b.gs[id]
++			g := s.gs[id]
+ 			switch old {
+ 			case tracev2.GoUndetermined, tracev2.GoNotExist:
+ 				g = &GoroutineSummary{ID: id, goroutineSummary: &goroutineSummary{}}
+ 				// If we're coming out of GoUndetermined, then the creation time is the
+ 				// time of the last sync.
+ 				if old == tracev2.GoUndetermined {
+-					g.CreationTime = b.syncTs
++					g.CreationTime = s.syncTs
+ 				} else {
+ 					g.CreationTime = ev.Time()
+ 				}
+@@ -304,14 +296,14 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 				//
+ 				// N.B. ev.Goroutine() will always be NoGoroutine for the
+ 				// Undetermined case, so this is will simply not fire.
+-				if creatorG := b.gs[ev.Goroutine()]; creatorG != nil && len(creatorG.activeRegions) > 0 {
++				if creatorG := s.gs[ev.Goroutine()]; creatorG != nil && len(creatorG.activeRegions) > 0 {
+ 					regions := creatorG.activeRegions
+ 					s := regions[len(regions)-1]
+ 					if s.TaskID != tracev2.NoTask {
+ 						g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
+ 					}
+ 				}
+-				b.gs[g.ID] = g
++				s.gs[g.ID] = g
+ 			case tracev2.GoRunning:
+ 				// Record execution time as we transition out of running
+ 				g.ExecTime += ev.Time().Sub(g.lastStartTime)
+@@ -341,8 +333,8 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 					g.lastSyscallBlockTime = 0
+ 
+ 					// Clear the syscall map.
+-					delete(b.syscallingP, b.syscallingG[id])
+-					delete(b.syscallingG, id)
++					delete(s.syscallingP, s.syscallingG[id])
++					delete(s.syscallingG, id)
+ 				}
+ 			}
+ 
+@@ -388,8 +380,8 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 			case tracev2.GoNotExist:
+ 				g.finalize(ev.Time(), ev)
+ 			case tracev2.GoSyscall:
+-				b.syscallingP[ev.Proc()] = id
+-				b.syscallingG[id] = ev.Proc()
++				s.syscallingP[ev.Proc()] = id
++				s.syscallingG[id] = ev.Proc()
+ 				g.lastSyscallTime = ev.Time()
+ 			}
+ 
+@@ -399,10 +391,10 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 			id := st.Resource.Proc()
+ 			old, new := st.Proc()
+ 			if old != new && new == tracev2.ProcIdle {
+-				if goid, ok := b.syscallingP[id]; ok {
+-					g := b.gs[goid]
++				if goid, ok := s.syscallingP[id]; ok {
++					g := s.gs[goid]
+ 					g.lastSyscallBlockTime = ev.Time()
+-					delete(b.syscallingP, id)
++					delete(s.syscallingP, id)
+ 				}
+ 			}
+ 		}
+@@ -418,14 +410,14 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 			// goroutine blocked often in mark assist will have both high mark assist
+ 			// and high block times. Those interested in a deeper view can look at the
+ 			// trace viewer.
+-			g = b.gs[r.Scope.Goroutine()]
++			g = s.gs[r.Scope.Goroutine()]
+ 		case tracev2.ResourceProc:
+ 			// N.B. These ranges are not actually bound to the goroutine, they're
+ 			// bound to the P. But if we happen to be on the P the whole time, let's
+ 			// try to attribute it to the goroutine. (e.g. GC sweeps are here.)
+-			g = b.gs[ev.Goroutine()]
++			g = s.gs[ev.Goroutine()]
+ 			if g != nil {
+-				b.rangesP[rangeP{id: r.Scope.Proc(), name: r.Name}] = ev.Goroutine()
++				s.rangesP[rangeP{id: r.Scope.Proc(), name: r.Name}] = ev.Goroutine()
+ 			}
+ 		}
+ 		if g == nil {
+@@ -433,9 +425,9 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 		}
+ 		if ev.Kind() == tracev2.EventRangeActive {
+ 			if ts := g.lastRangeTime[r.Name]; ts != 0 {
+-				g.RangeTime[r.Name] += b.syncTs.Sub(ts)
++				g.RangeTime[r.Name] += s.syncTs.Sub(ts)
+ 			}
+-			g.lastRangeTime[r.Name] = b.syncTs
++			g.lastRangeTime[r.Name] = s.syncTs
+ 		} else {
+ 			g.lastRangeTime[r.Name] = ev.Time()
+ 		}
+@@ -444,16 +436,16 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 		var g *GoroutineSummary
+ 		switch r.Scope.Kind {
+ 		case tracev2.ResourceGoroutine:
+-			g = b.gs[r.Scope.Goroutine()]
++			g = s.gs[r.Scope.Goroutine()]
+ 		case tracev2.ResourceProc:
+ 			rp := rangeP{id: r.Scope.Proc(), name: r.Name}
+-			if goid, ok := b.rangesP[rp]; ok {
++			if goid, ok := s.rangesP[rp]; ok {
+ 				if goid == ev.Goroutine() {
+ 					// As the comment in the RangeBegin case states, this is only OK
+ 					// if we finish on the same goroutine we started on.
+-					g = b.gs[goid]
++					g = s.gs[goid]
+ 				}
+-				delete(b.rangesP, rp)
++				delete(s.rangesP, rp)
+ 			}
+ 		}
+ 		if g == nil {
+@@ -468,7 +460,7 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 
+ 	// Handle user-defined regions.
+ 	case tracev2.EventRegionBegin:
+-		g := b.gs[ev.Goroutine()]
++		g := s.gs[ev.Goroutine()]
+ 		r := ev.Region()
+ 		g.activeRegions = append(g.activeRegions, &UserRegionSummary{
+ 			Name:               r.Type,
+@@ -477,7 +469,7 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 			GoroutineExecStats: g.snapshotStat(ev.Time()),
+ 		})
+ 	case tracev2.EventRegionEnd:
+-		g := b.gs[ev.Goroutine()]
++		g := s.gs[ev.Goroutine()]
+ 		r := ev.Region()
+ 		var sd *UserRegionSummary
+ 		if regionStk := g.activeRegions; len(regionStk) > 0 {
+@@ -496,11 +488,11 @@ func (b *goroutineStatsBuilder) event(ev *tracev2.Event) {
+ 	}
+ }
+ 
+-// finalize indicates to the builder that we're done processing the trace.
++// Finalize indicates to the summarizer that we're done processing the trace.
+ // It cleans up any remaining state and returns the full summary.
+-func (b *goroutineStatsBuilder) finalize() map[tracev2.GoID]*GoroutineSummary {
+-	for _, g := range b.gs {
+-		g.finalize(b.lastTs, nil)
++func (s *GoroutineSummarizer) Finalize() map[tracev2.GoID]*GoroutineSummary {
++	for _, g := range s.gs {
++		g.finalize(s.lastTs, nil)
+ 
+ 		// Sort based on region start time.
+ 		sort.Slice(g.Regions, func(i, j int) bool {
+@@ -516,7 +508,7 @@ func (b *goroutineStatsBuilder) finalize() map[tracev2.GoID]*GoroutineSummary {
+ 		})
+ 		g.goroutineSummary = nil
+ 	}
+-	return b.gs
++	return s.gs
+ }
+ 
+ // RelatedGoroutinesV2 finds a set of goroutines related to goroutine goid for v2 traces.
+diff --git a/src/internal/trace/goroutinesv2_test.go b/src/internal/trace/goroutinesv2_test.go
+index ecd7f2631d..ea689aca65 100644
+--- a/src/internal/trace/goroutinesv2_test.go
++++ b/src/internal/trace/goroutinesv2_test.go
+@@ -92,26 +92,30 @@ func basicSummaryChecks(t *testing.T, summary *GoroutineSummary) {
+ }
+ 
+ func summarizeTraceTest(t *testing.T, testPath string) map[tracev2.GoID]*GoroutineSummary {
+-	r, _, err := testtrace.ParseFile(testPath)
++	trace, _, err := testtrace.ParseFile(testPath)
+ 	if err != nil {
+ 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 	}
+-	var events []tracev2.Event
+-	tr, err := tracev2.NewReader(r)
++	// Create the analysis state.
++	s := NewGoroutineSummarizer()
++
++	// Create a reader.
++	r, err := tracev2.NewReader(trace)
+ 	if err != nil {
+-		t.Fatalf("failed to create trace reader %s: %v", testPath, err)
++		t.Fatalf("failed to create trace reader for %s: %v", testPath, err)
+ 	}
++	// Process the trace.
+ 	for {
+-		ev, err := tr.ReadEvent()
++		ev, err := r.ReadEvent()
+ 		if err == io.EOF {
+ 			break
+ 		}
+ 		if err != nil {
+ 			t.Fatalf("failed to process trace %s: %v", testPath, err)
+ 		}
+-		events = append(events, ev)
++		s.Event(&ev)
+ 	}
+-	return SummarizeGoroutines(events)
++	return s.Finalize()
+ }
+ 
+ func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid tracev2.GoID, region *UserRegionSummary) {
+diff --git a/src/internal/trace/traceviewer/http.go b/src/internal/trace/traceviewer/http.go
+index ac2803be2d..b279b62a23 100644
+--- a/src/internal/trace/traceviewer/http.go
++++ b/src/internal/trace/traceviewer/http.go
+@@ -185,7 +185,7 @@ var templMain = template.Must(template.New("").Parse(`
+ <ul>
+ <li><a href="/io">Network blocking profile</a> (<a href="/io?raw=1" download="io.profile">⬇</a>)</li>
+ <li><a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)</li>
+-<li><a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)</li>
++<li><a href="/syscall">Syscall profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)</li>
+ <li><a href="/sched">Scheduler latency profile</a> (<a href="/sched?raw=1" download="sched.profile">⬇</a>)</li>
+ </ul>
+ 

@@ -7,7 +7,7 @@ Date:   Fri May 22 22:42:12 2009 -0700
     R=ken
     OCL=29300
     CL=29302
-
+---
  src/cmd/gc/align.c       |   2 +-
  src/cmd/gc/dcl.c         |  16 +++++--
  src/cmd/gc/export.c      |  11 ++---
@@ -20,3 +20,700 @@ Date:   Fri May 22 22:42:12 2009 -0700
  src/lib/runtime/types.go | 121 +++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/sync/mutex.go    |  22 +++++----
  11 files changed, 251 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index d2598fd313..739851a338 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -213,7 +213,7 @@ typeinit(int lex)
+ 	int i, etype, sameas;
+ 	Type *t;
+ 	Sym *s;
+-	
++
+ 	if(widthptr == 0)
+ 		fatal("typeinit before betypeinit");
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 67a53df4a0..52c034c19c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1056,7 +1056,7 @@ addconst(Node *n, Node *e, int ctxt)
+ 
+ 	redeclare("constant", s);
+ 	s->oconst = e;
+-	s->lexical = LACONST;
++	s->lexical = LNAME;
+ 
+ 	d = dcl();
+ 	d->dsym = s;
+@@ -1136,6 +1136,14 @@ oldname(Sym *s)
+ 	Node *n;
+ 	Node *c;
+ 
++	if(s->oconst) {
++		n = nod(OLITERAL, N, N);
++		n->sym = s;
++		n->val = s->oconst->val;
++		n->type = s->oconst->type;
++		return n;
++	}
++
+ 	n = s->oname;
+ 	if(n == N) {
+ 		n = nod(ONONAME, N, N);
+@@ -1205,11 +1213,11 @@ nametoanondcl(Node *na)
+ 	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
+ 		n->right = nametoanondcl(n->right);
+ 
+-	if(n->sym->lexical != LATYPE && n->sym->lexical != LBASETYPE) {
++	t = n->sym->otype;
++	if(t == T) {
+ 		yyerror("%s is not a type", n->sym->name);
+ 		t = typ(TINT32);
+-	} else
+-		t = oldtype(n->sym);
++	}
+ 	n = nod(ODCLFIELD, N, N);
+ 	n->type = t;
+ 	*l = n;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 001cabde12..e9bb438d77 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -190,7 +190,6 @@ dumpsym(Sym *s)
+ 		yyerror("package export symbol: %S", s);
+ 		break;
+ 	case LATYPE:
+-	case LBASETYPE:
+ 		// TODO(rsc): sort methods by name
+ 		for(f=s->otype->method; f!=T; f=f->down)
+ 			dumpprereq(f);
+@@ -201,10 +200,10 @@ dumpsym(Sym *s)
+ 				f->type->type->type, f->sym, f->type);
+ 		break;
+ 	case LNAME:
+-		dumpexportvar(s);
+-		break;
+-	case LACONST:
+-		dumpexportconst(s);
++		if(s->oconst)
++			dumpexportconst(s);
++		else
++			dumpexportvar(s);
+ 		break;
+ 	}
+ }
+@@ -344,7 +343,7 @@ importconst(Node *ss, Type *t, Node *n)
+ 		return;
+ 
+ 	convlit(n, t);
+-	s = importsym(ss, LACONST);
++	s = importsym(ss, LNAME);
+ 	if(s->oconst != N) {
+ 		// TODO: check if already the same.
+ 		return;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0fae90b7fa..374b671b67 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -14,7 +14,7 @@
+ }
+ %token	<val>		LLITERAL
+ %token	<lint>		LASOP
+-%token	<sym>		LNAME LBASETYPE LATYPE LPACK LACONST
++%token	<sym>		LNAME LATYPE LPACK
+ %token	<sym>		LPACKAGE LIMPORT LDEFER LCLOSE LCLOSED
+ %token	<sym>		LMAP LCHAN LINTERFACE LFUNC LSTRUCT
+ %token	<sym>		LCOLAS LFALL LRETURN LDDD
+@@ -42,7 +42,7 @@
+  * names like Bstmt, Bvardcl, etc. can't.
+  */
+ 
+-%type	<sym>		sym sym1 sym2 sym3 keyword laconst lname latype lpackatype
++%type	<sym>		sym sym1 sym2 sym3 keyword lname latype lpackatype
+ %type	<node>		xdcl xdcl_list_r oxdcl_list
+ %type	<node>		common_dcl Acommon_dcl Bcommon_dcl
+ %type	<node>		oarg_type_list arg_type_list_r arg_chunk arg_chunk_list_r arg_type_list
+@@ -913,13 +913,6 @@ pexpr:
+ 	{
+ 		$$ = nodbool(0);
+ 	}
+-|	laconst
+-	{
+-		$$ = nod(OLITERAL, N, N);
+-		$$->sym = $1;
+-		$$->val = $1->oconst->val;
+-		$$->type = $1->oconst->type;
+-	}
+ |	LIOTA
+ 	{
+ 		$$ = nodintconst(iota);
+@@ -1023,14 +1016,6 @@ lpack:
+ 	}
+  */
+ 
+-laconst:
+-	LACONST
+-|	lpack '.' LACONST
+-	{
+-		$$ = $3;
+-		context = nil;
+-	}
+-
+ lname:
+ 	LNAME
+ |	lpack '.' LNAME
+@@ -1082,7 +1067,6 @@ onew_name:
+ sym:
+ 	LATYPE
+ |	LNAME
+-|	LACONST
+ |	LPACK
+ 
+ sym1:
+@@ -1112,7 +1096,6 @@ sym3:
+ |	LPRINTN
+ |	LNEW
+ |	LMAKE
+-|	LBASETYPE
+ 
+ /*
+  * keywords that we can
+@@ -2129,20 +2112,8 @@ lpack:
+ 		YYERROR;
+ 	}
+ 
+-laconst:
+-	LATYPE
+-	{
+-		yyerror("%s is type, not var", $1->name);
+-		YYERROR;
+-	}
+-
+ latype:
+-	LACONST
+-	{
+-		yyerror("%s is const, not type", $1->name);
+-		YYERROR;
+-	}
+-|	LPACK
++	LPACK
+ 	{
+ 		yyerror("%s is package, not type", $1->name);
+ 		YYERROR;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e7ee30a757..e67f8f572b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -64,7 +64,7 @@ main(int argc, char *argv[])
+ 		fatal("betypeinit failed");
+ 
+ 	lexinit();
+-	typeinit(LBASETYPE);
++	typeinit(LATYPE);
+ 
+ 	lineno = 1;
+ 	block = 1;
+@@ -775,8 +775,6 @@ talph:
+ 
+ 	DBG("lex: %S %s\n", s, lexname(s->lexical));
+ 	yylval.sym = s;
+-	if(s->lexical == LBASETYPE)
+-		return LATYPE;
+ 	return s->lexical;
+ 
+ tnum:
+@@ -1111,25 +1109,25 @@ static	struct
+ /*	name		lexical		etype
+  */
+ /* basic types */
+-	"int8",		LBASETYPE,	TINT8,
+-	"int16",	LBASETYPE,	TINT16,
+-	"int32",	LBASETYPE,	TINT32,
+-	"int64",	LBASETYPE,	TINT64,
++	"int8",		LATYPE,	TINT8,
++	"int16",	LATYPE,	TINT16,
++	"int32",	LATYPE,	TINT32,
++	"int64",	LATYPE,	TINT64,
+ 
+-	"uint8",	LBASETYPE,	TUINT8,
+-	"uint16",	LBASETYPE,	TUINT16,
+-	"uint32",	LBASETYPE,	TUINT32,
+-	"uint64",	LBASETYPE,	TUINT64,
++	"uint8",	LATYPE,	TUINT8,
++	"uint16",	LATYPE,	TUINT16,
++	"uint32",	LATYPE,	TUINT32,
++	"uint64",	LATYPE,	TUINT64,
+ 
+-	"float32",	LBASETYPE,	TFLOAT32,
+-	"float64",	LBASETYPE,	TFLOAT64,
+-	"float80",	LBASETYPE,	TFLOAT80,
++	"float32",	LATYPE,	TFLOAT32,
++	"float64",	LATYPE,	TFLOAT64,
++	"float80",	LATYPE,	TFLOAT80,
+ 
+-	"bool",		LBASETYPE,	TBOOL,
+-	"byte",		LBASETYPE,	TUINT8,
+-	"string",	LBASETYPE,	TSTRING,
++	"bool",		LATYPE,	TBOOL,
++	"byte",		LATYPE,	TUINT8,
++	"string",	LATYPE,	TSTRING,
+ 
+-	"any",		LBASETYPE,	TANY,
++	"any",		LATYPE,	TANY,
+ 
+ 	"break",	LBREAK,		Txxx,
+ 	"case",		LCASE,		Txxx,
+@@ -1197,10 +1195,10 @@ lexinit(void)
+ 		s->lexical = lex;
+ 		s->package = package;
+ 
+-		if(lex != LBASETYPE)
++		etype = syms[i].etype;
++		if(etype == Txxx)
+ 			continue;
+ 
+-		etype = syms[i].etype;
+ 		if(etype < 0 || etype >= nelem(types))
+ 			fatal("lexinit: %s bad etype", s->name);
+ 
+@@ -1234,9 +1232,6 @@ struct
+ {
+ 	LANDAND,	"ANDAND",
+ 	LASOP,		"ASOP",
+-	LACONST,	"ACONST",
+-	LATYPE,		"ATYPE",
+-	LBASETYPE,	"BASETYPE",
+ 	LBREAK,		"BREAK",
+ 	LCASE,		"CASE",
+ 	LCHAN,		"CHAN",
+diff --git a/src/lib/Make.deps b/src/lib/Make.deps
+index 30083f2631..4b0df407ce 100644
+--- a/src/lib/Make.deps
++++ b/src/lib/Make.deps
+@@ -10,7 +10,7 @@ exvar.install: fmt.install http.install io.install log.install strconv.install s
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+-go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install
++go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+ go/parser.install: container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install
+ go/scanner.install: go/token.install strconv.install unicode.install utf8.install
+ go/token.install: strconv.install
+@@ -39,7 +39,7 @@ syscall.install: sync.install
+ tabwriter.install: container/vector.install io.install os.install utf8.install
+ template.install: container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
+ testing.install: flag.install fmt.install os.install runtime.install
+-testing/iotest.install: io.install os.install
++testing/iotest.install: io.install log.install os.install
+ time.install: io.install once.install os.install syscall.install
+ unicode.install:
+ utf8.install:
+diff --git a/src/lib/bufio/bufio.go b/src/lib/bufio/bufio.go
+index 7bfbb089f7..d008b6d7b4 100644
+--- a/src/lib/bufio/bufio.go
++++ b/src/lib/bufio/bufio.go
+@@ -109,11 +109,11 @@ func (b *Reader) fill() os.Error {
+ 	return nil
+ }
+ 
+-// Read reads data into p.
+-// It returns the number of bytes read into p.
+-// If nn < len(p), also returns an error explaining
++// Read reads data into p, returning the number of bytes read.
++// Read reads as much data as possible into p.
++// If nn < len(p), Read also returns an error explaining
+ // why the read is short.  At EOF, the count will be
+-// zero and err will be io.ErrEOF.
++// zero and err will be io.ErrUnexpectedEOF.
+ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
+ 	nn = 0;
+ 	for len(p) > 0 {
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index c120d8d443..68ef8c4803 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -69,7 +69,19 @@ type ReadWriteCloser interface {
+ 	Closer;
+ }
+ 
+-// Convert a string to an array of bytes for easy marshaling.
++// ReadByter is the interface that wraps the basic ReadByte method.
++// Implementations of ReadByte typically use buffered I/O.
++type ReadByter interface {
++	ReadByte() (byte, os.Error);
++}
++
++// WriteByter is the interface that wraps the basic WriteByte method.
++// Implementations of WriteByte typically use buffered I/O.
++type WriteByter interface {
++	WriteByte(byte) os.Error;
++}
++
++// StringBytes converts a string to an array of bytes for easy marshaling.
+ func StringBytes(s string) []byte {
+ 	b := make([]byte, len(s));
+ 	for i := 0; i < len(s); i++ {
+diff --git a/src/lib/io/pipe.go b/src/lib/io/pipe.go
+index 5f9e7a488c..f91bf34567 100644
+--- a/src/lib/io/pipe.go
++++ b/src/lib/io/pipe.go
+@@ -21,7 +21,9 @@ type pipeReturn struct {
+ // Shared pipe structure.
+ type pipe struct {
+ 	rclosed bool;		// Read end closed?
++	rerr os.Error;		// Error supplied to CloseReader
+ 	wclosed bool;		// Write end closed?
++	werr os.Error;		// Error supplied to CloseWriter
+ 	wpend []byte;		// Written data waiting to be read.
+ 	wtot int;		// Bytes consumed so far in current write.
+ 	cr chan []byte;		// Write sends data here...
+@@ -39,7 +41,7 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
+ 			p.wpend = <-p.cr;
+ 		}
+ 		if p.wpend == nil {
+-			return 0, nil;
++			return 0, p.werr;
+ 		}
+ 		p.wtot = 0;
+ 	}
+@@ -70,7 +72,7 @@ func (p *pipe) Write(data []byte) (n int, err os.Error) {
+ 		return 0, os.EINVAL;
+ 	}
+ 	if p.rclosed {
+-		return 0, os.EPIPE;
++		return 0, p.rerr;
+ 	}
+ 
+ 	// Send data to reader.
+@@ -81,29 +83,34 @@ func (p *pipe) Write(data []byte) (n int, err os.Error) {
+ 	return res.n, res.err;
+ }
+ 
+-func (p *pipe) CloseReader() os.Error {
++func (p *pipe) CloseReader(rerr os.Error) os.Error {
+ 	if p == nil || p.rclosed {
+ 		return os.EINVAL;
+ 	}
+ 
+ 	// Stop any future writes.
+ 	p.rclosed = true;
++	if rerr == nil {
++		rerr = os.EPIPE;
++	}
++	p.rerr = rerr;
+ 
+ 	// Stop the current write.
+ 	if !p.wclosed {
+-		p.cw <- pipeReturn{p.wtot, os.EPIPE};
++		p.cw <- pipeReturn{p.wtot, rerr};
+ 	}
+ 
+ 	return nil;
+ }
+ 
+-func (p *pipe) CloseWriter() os.Error {
++func (p *pipe) CloseWriter(werr os.Error) os.Error {
+ 	if p == nil || p.wclosed {
+ 		return os.EINVAL;
+ 	}
+ 
+ 	// Stop any future reads.
+ 	p.wclosed = true;
++	p.werr = werr;
+ 
+ 	// Stop the current read.
+ 	if !p.rclosed {
+@@ -121,70 +128,97 @@ func (p *pipe) CloseWriter() os.Error {
+ //  2.  Clients cannot use interface conversions on the
+ //      read end to find the Write method, and vice versa.
+ 
+-// Read half of pipe.
+-type pipeRead struct {
++// A PipeReader is the read half of a pipe.
++type PipeReader struct {
+ 	lock sync.Mutex;
+ 	p *pipe;
+ }
+ 
+-func (r *pipeRead) Read(data []byte) (n int, err os.Error) {
++// Read implements the standard Read interface:
++// it reads data from the pipe, blocking until a writer
++// arrives or the write end is closed.
++// If the write end is closed with an error, that error is
++// returned as err; otherwise err is nil.
++func (r *PipeReader) Read(data []byte) (n int, err os.Error) {
+ 	r.lock.Lock();
+ 	defer r.lock.Unlock();
+ 
+ 	return r.p.Read(data);
+ }
+ 
+-func (r *pipeRead) Close() os.Error {
++// Close closes the reader; subsequent writes to the
++// write half of the pipe will return the error os.EPIPE.
++func (r *PipeReader) Close() os.Error {
++	r.lock.Lock();
++	defer r.lock.Unlock();
++
++	return r.p.CloseReader(nil);
++}
++
++// CloseWithError closes the reader; subsequent writes
++// to the write half of the pipe will return the error rerr.
++func (r *PipeReader) CloseWithError(rerr os.Error) os.Error {
+ 	r.lock.Lock();
+ 	defer r.lock.Unlock();
+ 
+-	return r.p.CloseReader();
++	return r.p.CloseReader(rerr);
+ }
+ 
+-func (r *pipeRead) finish() {
++func (r *PipeReader) finish() {
+ 	r.Close();
+ }
+ 
+ // Write half of pipe.
+-type pipeWrite struct {
++type PipeWriter struct {
+ 	lock sync.Mutex;
+ 	p *pipe;
+ }
+ 
+-func (w *pipeWrite) Write(data []byte) (n int, err os.Error) {
++// Write implements the standard Write interface:
++// it writes data to the pipe, blocking until readers
++// have consumed all the data or the read end is closed.
++// If the read end is closed with an error, that err is
++// returned as err; otherwise err is os.EPIPE.
++func (w *PipeWriter) Write(data []byte) (n int, err os.Error) {
+ 	w.lock.Lock();
+ 	defer w.lock.Unlock();
+ 
+ 	return w.p.Write(data);
+ }
+ 
+-func (w *pipeWrite) Close() os.Error {
++// Close closes the writer; subsequent reads from the
++// read half of the pipe will return no bytes and a nil error.
++func (w *PipeWriter) Close() os.Error {
++	w.lock.Lock();
++	defer w.lock.Unlock();
++
++	return w.p.CloseWriter(nil);
++}
++
++// CloseWithError closes the writer; subsequent reads from the
++// read half of the pipe will return no bytes and the error werr.
++func (w *PipeWriter) CloseWithError(werr os.Error) os.Error {
+ 	w.lock.Lock();
+ 	defer w.lock.Unlock();
+ 
+-	return w.p.CloseWriter();
++	return w.p.CloseWriter(werr);
+ }
+ 
+-func (w *pipeWrite) finish() {
++func (w *PipeWriter) finish() {
+ 	w.Close();
+ }
+ 
+ // Pipe creates a synchronous in-memory pipe.
+-// Used to connect code expecting an io.Reader
++// It can be used to connect code expecting an io.Reader
+ // with code expecting an io.Writer.
+-//
+-// Reads on one end are matched by writes on the other.
+-// Writes don't complete until all the data has been
+-// written or the read end is closed.  Reads return
+-// any available data or block until the next write
+-// or the write end is closed.
+-func Pipe() (io.ReadCloser, io.WriteCloser) {
++// Reads on one end are matched with writes on the other.
++func Pipe() (*PipeReader, *PipeWriter) {
+ 	p := new(pipe);
+ 	p.cr = make(chan []byte, 1);
+ 	p.cw = make(chan pipeReturn, 1);
+-	r := new(pipeRead);
++	r := new(PipeReader);
+ 	r.p = p;
+-	w := new(pipeWrite);
++	w := new(PipeWriter);
+ 	w.p = p;
+ 	return r, w;
+ }
+diff --git a/src/lib/runtime/types.go b/src/lib/runtime/types.go
+new file mode 100644
+index 0000000000..41c4b3a1e9
+--- /dev/null
++++ b/src/lib/runtime/types.go
+@@ -0,0 +1,121 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(rsc): Doc comments
++
++package runtime
++
++import "unsafe"
++
++// The Type interface stands for any of the run-time type structures
++// in this package.
++type Type interface { }
++
++// All types begin with a few common fields needed for
++// the interface runtime.
++type CommonType struct {
++	Size uintptr;
++	Hash uint32;
++	Alg uint8;
++	Align uint8;
++	FieldAlign uint8;
++}
++
++// Basic types; should these be one struct with an enum kind?
++// The benefit of splitting them up into many types is that
++// one can use a single type switch instead of needing an
++// enum switch inside a type switch.
++type BoolType CommonType
++type Float32Type CommonType
++type Float64Type CommonType
++type FloatType CommonType
++type Int16Type CommonType
++type Int32Type CommonType
++type Int64Type CommonType
++type Int8Type CommonType
++type IntType CommonType
++type Uint16Type CommonType
++type Uint32Type CommonType
++type Uint64Type CommonType
++type Uint8Type CommonType
++type UintType CommonType
++type StringType CommonType
++type UintptrType CommonType
++type UnsafePointerType CommonType
++
++type ArrayType struct {
++	CommonType;
++	Elem *Type;
++	Bound int32;	// -1 means slice
++}
++
++type ChanDir int
++const (
++	SendDir ChanDir = 1<<iota;
++	RecvDir;
++	BothDir = SendDir | RecvDir;
++)
++
++type ChanType struct {
++	CommonType;
++	Elem *Type;
++	Dir ChanDir;
++}
++
++type FuncType struct {
++	CommonType;
++	In []*Type;
++	Out []*Type;
++}
++
++type IMethod struct {
++	Name *string;
++	Package *string;
++	Type *Type;
++}
++
++type InterfaceType struct {
++	CommonType;
++	Methods []*IMethod;
++}
++
++type MapType struct {
++	CommonType;
++	Key *Type;
++	Elem *Type;
++}
++
++type Method struct {
++	Name *string;
++	Package *string;
++	Type *Type;
++	Func unsafe.Pointer;
++}
++
++type NamedType struct {
++	CommonType;
++	Name *string;
++	Package *string;
++	Type *Type;
++	ValueMethods []*Method;
++	PtrMethods []*Method;
++}
++
++type PtrType struct {
++	CommonType;
++	Sub *Type;
++}
++
++type StructField struct {
++	Name *string;
++	Type *Type;
++	Tag *string;
++	Offset uintptr;
++}
++
++type StructType struct {
++	CommonType;
++	Fields []*StructField;
++}
++
+diff --git a/src/lib/sync/mutex.go b/src/lib/sync/mutex.go
+index 5a6311a837..e485867802 100644
+--- a/src/lib/sync/mutex.go
++++ b/src/lib/sync/mutex.go
+@@ -2,19 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The sync package provides basic synchronization primitives
+-// such as mutual exclusion locks.  These are intended for use
+-// by low-level library routines.  Higher-level synchronization
+-// is better done via channels and communication.
++/*
++	The sync /* package * / provides basic sync primitives.
++	// Such as mutual exclusion locks.
++*/
+ package sync
+ 
+ func cas(val *int32, old, new int32) bool
+ func semacquire(*int32)
+ func semrelease(*int32)
+ 
+-// A Mutex is a mutual exclusion lock.
+-// Mutexes can be created as part of other structures;
+-// the zero value for a Mutex is an unlocked mutex.
++	// A Mutex is a mutual exclusion lock.
++	// Mutexes can be created as part of other structures;
++	// the zero value for a Mutex is an unlocked mutex.
+ type Mutex struct {
+ 	key int32;
+ 	sema int32;
+@@ -30,9 +30,11 @@ func xadd(val *int32, delta int32) (new int32) {
+ 	panic("unreached")
+ }
+ 
+-// Lock locks m.
+-// If the lock is already in use, the calling goroutine
+-// blocks until the mutex is available.
++/*
++ * Lock locks m.
++ * If the lock is already in use, the calling goroutine
++ * blocks until the mutex is available.
++ */
+ func (m *Mutex) Lock() {
+ 	if xadd(&m.key, 1) == 1 {
+ 		// changed from 0 to 1; we hold lock

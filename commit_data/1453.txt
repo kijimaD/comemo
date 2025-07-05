@@ -9,7 +9,7 @@ Date:   Fri Jan 9 13:42:46 2009 -0800
     DELTA=404  (94 added, 139 deleted, 171 changed)
     OCL=22414
     CL=22422
-
+---
  src/lib/flag.go                | 349 ++++++++++++++++++-----------------------
  src/lib/net/dialgoogle_test.go |   5 +-
  src/lib/testing.go             |   9 +-
@@ -21,3 +21,935 @@ Date:   Fri Jan 9 13:42:46 2009 -0800
  usr/gri/pretty/printer.go      |  42 ++---
  usr/gri/pretty/untab.go        |   8 +-
  10 files changed, 217 insertions(+), 259 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index 6db76bbdee..49294bc4e4 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -8,21 +8,22 @@ package flag
+  * Flags
+  *
+  * Usage:
+- *	1) Define flags using flag.String(), Bool(), or Int(). Int flag values have type int64. Example:
++ *	1) Define flags using flag.String(), Bool(), Int(), etc. Example:
+  *		import flag "flag"
+- *		var i int64
+- *		var fi *flag.Flag = flag.Int("flagname", 1234, &i, "help message for flagname")
+- *	The pointer may be nil; if non-nil, it points to a cell of the appropriate type to store the
+- *	flag's value.
+- *
++ *		var ip *int = flag.Int("flagname", 1234, "help message for flagname")
++ *	If you like, you can bind the flag to a variable using the Var() functions.
++ *		var flagvar int
++ *		func init() {
++ *              	flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
++ *		}
+  *	2) After all flags are defined, call
+  *		flag.Parse()
+  *	to parse the command line into the defined flags.
+  *
+- *	3) Flags may then be used directly (getters are SVal, BVal, Ival) or through the associated
+- *	cell, if set:
+- *		print("fi has value ", fi.IVal(), "\n");
+- *		print("i has value ", i, "\n");
++ *	3) Flags may then be used directly. If you're using the flags themselves,
++ *	they are all pointers; if you bind to variables, they're values.
++ *		print("ip has value ", *ip, "\n");
++ *		print("flagvar has value ", flagvar, "\n");
+  *
+  *	4) After parsing, flag.Arg(i) is the i'th argument after the flags.
+  *	Args are indexed from 0 up to flag.NArg().
+@@ -40,14 +41,7 @@ package flag
+  *	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
+  */
+ 
+-import fmt "fmt"
+-
+-//export Bool, Int, String
+-//export Arg, NArg
+-//export Parse
+-//export Flag.BVal BUG: variable exported but not defined: Flag.BVal
+-//export Flag.SVal BUG: variable exported but not defined: Flag.SVal
+-//export Flag
++import "fmt"
+ 
+ // BUG: ctoi, atoi, atob belong elsewhere
+ func ctoi(c int64) int64 {
+@@ -104,180 +98,123 @@ func atob(str string) (value bool, ok bool) {
+ type (
+ 	BoolValue struct;
+ 	IntValue struct;
++	Int64Value struct;
++	UintValue struct;
++	Uint64Value struct;
+ 	StringValue struct;
+ )
+ 
+ // -- Bool Value
+ type BoolValue struct {
+-	val bool;
+ 	p *bool;
+ }
+ 
+ func NewBoolValue(val bool, p *bool) *BoolValue {
+-	if p != nil {
+-		*p = val
+-	}
+-	return &BoolValue{val, p}
+-}
+-
+-func (b *BoolValue) AsBool() *BoolValue {
+-	return b
+-}
+-
+-func (b *BoolValue) AsInt() *IntValue {
+-	return nil
+-}
+-
+-func (b *BoolValue) AsString() *StringValue {
+-	return nil
+-}
+-
+-func (b *BoolValue) IsBool() bool {
+-	return true
+-}
+-
+-func (b *BoolValue) IsInt() bool {
+-	return false
+-}
+-
+-func (b *BoolValue) IsString() bool {
+-	return false
+-}
+-
+-func (b *BoolValue) ValidValue(str string) bool {
+-	i, ok := atob(str);
+-	return ok;
++	*p = val;
++	return &BoolValue{p}
+ }
+ 
+ func (b *BoolValue) Set(val bool) {
+-	if b.p != nil {
+-		*b.p = val
+-	}
+-	b.val = val
++	*b.p = val;
+ }
+ 
+ func (b *BoolValue) Str() string {
+-	if b.val {
+-		return "true"
+-	}
+-	return "false"
++	return fmt.sprintf("%v", *b.p)
+ }
+ 
+ // -- Int Value
+ type IntValue struct {
+-	val	int64;
+-	p	*int64;
++	p	*int;
+ }
+ 
+-func NewIntValue(val int64, p *int64) *IntValue {
+-	if p != nil {
+-		*p = val
+-	}
+-	return &IntValue{val, p}
++func NewIntValue(val int, p *int) *IntValue {
++	*p = val;
++	return &IntValue{p}
+ }
+ 
+-func (i *IntValue) AsBool() *BoolValue {
+-	return nil
++func (i *IntValue) Set(val int) {
++	*i.p = val;
+ }
+ 
+-func (i *IntValue) AsInt() *IntValue {
+-	return i
++func (i *IntValue) Str() string {
++	return fmt.sprintf("%v", *i.p)
+ }
+ 
+-func (i *IntValue) AsString() *StringValue{
+-	return nil
++// -- Int64 Value
++type Int64Value struct {
++	p	*int64;
+ }
+ 
+-func (i *IntValue) IsBool() bool {
+-	return false
++func NewInt64Value(val int64, p *int64) *Int64Value {
++	*p = val;
++	return &Int64Value{p}
+ }
+ 
+-func (i *IntValue) IsInt() bool {
+-	return true
++func (i *Int64Value) Set(val int64) {
++	*i.p = val;
+ }
+ 
+-func (i *IntValue) IsString() bool {
+-	return false
++func (i *Int64Value) Str() string {
++	return fmt.sprintf("%v", *i.p)
+ }
+ 
+-func (i *IntValue) ValidValue(str string) bool {
+-	k, ok := atoi(str);
+-	return ok;
++// -- Uint Value
++type UintValue struct {
++	p	*uint;
+ }
+ 
+-func (i *IntValue) Set(val int64) {
+-	if i.p != nil {
+-		*i.p = val
+-	}
+-	i.val = val
++func NewUintValue(val uint, p *uint) *UintValue {
++	*p = val;
++	return &UintValue{p}
+ }
+ 
+-func (i *IntValue) Str() string {
+-	return fmt.New().d64(i.val).str()
++func (i *UintValue) Set(val uint) {
++	*i.p = val
+ }
+ 
+-// -- String Value
+-type StringValue struct {
+-	val	string;
+-	p	*string;
++func (i *UintValue) Str() string {
++	return fmt.sprintf("%v", *i.p)
+ }
+ 
+-func NewStringValue(val string, p *string) *StringValue {
+-	if p != nil {
+-		*p = val
+-	}
+-	return &StringValue{val, p}
+-}
+-
+-func (e *StringValue) AsBool() *BoolValue {
+-	return nil
+-}
+-
+-func (e *StringValue) AsInt() *IntValue {
+-	return nil
++// -- Uint64 Value
++type Uint64Value struct {
++	p	*uint64;
+ }
+ 
+-func (s *StringValue) AsString() *StringValue{
+-	return s
++func NewUint64Value(val uint64, p *uint64) *Uint64Value {
++	*p = val;
++	return &Uint64Value{p}
+ }
+ 
+-func (s *StringValue) IsBool() bool {
+-	return false
++func (i *Uint64Value) Set(val uint64) {
++	*i.p = val;
+ }
+ 
+-func (s *StringValue) IsInt() bool {
+-	return false
++func (i *Uint64Value) Str() string {
++	return fmt.sprintf("%v", *i.p)
+ }
+ 
+-func (s *StringValue) IsString() bool {
+-	return true
++// -- String Value
++type StringValue struct {
++	p	*string;
+ }
+ 
+-func (s *StringValue) ValidValue(str string) bool {
+-	return true
++func NewStringValue(val string, p *string) *StringValue {
++	*p = val;
++	return &StringValue{p}
+ }
+ 
+ func (s *StringValue) Set(val string) {
+-	if s.p != nil {
+-		*s.p = val
+-	}
+-	s.val = val
++	*s.p = val;
+ }
+ 
+ func (s *StringValue) Str() string {
+-	return `"` + s.val + `"`
++	return fmt.sprintf("%#q", *s.p)
+ }
+ 
+ // -- Value interface
+ type Value interface {
+-	AsBool()	*BoolValue;
+-	AsInt()	*IntValue;
+-	AsString()	*StringValue;
+-	IsBool()	bool;
+-	IsInt()	bool;
+-	IsString()	bool;
+-	Str()		string;
+-	ValidValue(str string) bool;
++	Str() string;
+ }
+ 
+ // -- Flag structure (internal)
+@@ -285,37 +222,14 @@ export type Flag struct {
+ 	name	string;
+ 	usage	string;
+ 	value	Value;
+-	next	*Flag;  // BUG: remove when we can iterate over maps
+ }
+ 
+ type Flags struct {
+ 	actual map[string] *Flag;
+ 	formal map[string] *Flag;
+ 	first_arg	int;
+-	flag_list	*Flag;  // BUG: remove when we can iterate over maps
+-}
+-
+-// --Customer's value getters
+-func (f *Flag) BVal() bool {
+-	if !f.value.IsBool() {
+-		return false;
+-	}
+-	return f.value.AsBool().val;
+-}
+-
+-func (f *Flag) IVal() int64 {
+-	if !f.value.IsInt() {
+-		return 0
+-	}
+-	return f.value.AsInt().val;
+ }
+ 
+-func (f *Flag) SVal() string {
+-	if !f.value.IsString() {
+-		return "???";
+-	}
+-	return f.value.AsString().val;
+-}
+ 
+ func New() *Flags {
+ 	f := new(Flags);
+@@ -328,8 +242,7 @@ func New() *Flags {
+ var flags *Flags = New();
+ 
+ export func PrintDefaults() {
+-	// BUG: use map iteration when available
+-	for f := flags.flag_list; f != nil; f = f.next {
++	for k, f := range flags.formal {
+ 		print("  -", f.name, "=", f.value.Str(), ": ", f.usage, "\n");
+ 	}
+ }
+@@ -360,7 +273,7 @@ export func NArg() int {
+ 	return sys.argc() - flags.first_arg
+ }
+ 
+-func Add(name string, value Value, usage string) *Flag {
++func Add(name string, value Value, usage string) {
+ 	f := new(Flag);
+ 	f.name = name;
+ 	f.usage = usage;
+@@ -371,21 +284,66 @@ func Add(name string, value Value, usage string) *Flag {
+ 		panic("flag redefinition");
+ 	}
+ 	flags.formal[name] = f;
+-	f.next = flags.flag_list;  // BUG: remove when we can iterate over maps
+-	flags.flag_list = f;  // BUG: remove when we can iterate over maps
+-	return f;
+ }
+ 
+-export func Bool(name string, value bool, p *bool, usage string) *Flag {
+-	return Add(name, NewBoolValue(value, p), usage);
++export func Bool(name string, value bool, usage string) *bool {
++	p := new(bool);
++	Add(name, NewBoolValue(value, p), usage);
++	return p;
++}
++
++export func BoolVar(p *bool, name string, value bool, usage string) {
++	Add(name, NewBoolValue(value, p), usage);
++}
++
++export func Int(name string, value int, usage string) *int {
++	p := new(int);
++	Add(name, NewIntValue(value, p), usage);
++	return p;
++}
++
++export func IntVar(p *int, name string, value int, usage string) {
++	Add(name, NewIntValue(value, p), usage);
++}
++
++export func Int64(name string, value int64, usage string) *int64 {
++	p := new(int64);
++	Add(name, NewInt64Value(value, p), usage);
++	return p;
++}
++
++export func Int64Var(p *int64, name string, value int64, usage string) {
++	Add(name, NewInt64Value(value, p), usage);
++}
++
++export func Uint(name string, value uint, usage string) *uint {
++	p := new(uint);
++	Add(name, NewUintValue(value, p), usage);
++	return p;
++}
++
++export func UintVar(p *uint, name string, value uint, usage string) {
++	Add(name, NewUintValue(value, p), usage);
+ }
+ 
+-export func Int(name string, value int64, p *int64, usage string) *Flag {
+-	return Add(name, NewIntValue(value, p), usage);
++export func Uint64(name string, value uint64, usage string) *uint64 {
++	p := new(uint64);
++	Add(name, NewUint64Value(value, p), usage);
++	return p;
+ }
+ 
+-export func String(name, value string, p *string, usage string) *Flag {
+-	return Add(name, NewStringValue(value, p), usage);
++export func Uint64Var(p *uint64, name string, value uint64, usage string) {
++	Add(name, NewUint64Value(value, p), usage);
++}
++
++export func String(name, value string, usage string) *string {
++	p := new(string);
++	Add(name, NewStringValue(value, p), usage);
++	return p;
++}
++
++export func StringVar(p *string, name, value string, usage string) {
++	Add(name, NewStringValue(value, p), usage);
+ }
+ 
+ func (f *Flags) ParseOne(index int) (ok bool, next int)
+@@ -436,48 +394,55 @@ func (f *Flags) ParseOne(index int) (ok bool, next int)
+ 		print("flag provided but not defined: -", name, "\n");
+ 		Usage();
+ 	}
+-	if !has_value && index < sys.argc()-1 && flag.value.ValidValue(sys.argv(index+1)) {
+-		// value is the next arg
+-		has_value = true;
+-		index++;
+-		value = sys.argv(index);
+-	}
+-	switch {
+-		case flag.value.IsBool():
+-			if has_value {
+-				k, ok := atob(value);
+-				if !ok {
+-					print("invalid boolean value ", value, " for flag: -", name, "\n");
+-					Usage();
+-				}
+-				flag.value.AsBool().Set(k)
+-			} else {
+-				flag.value.AsBool().Set(true)
+-			}
+-		case flag.value.IsInt():
+-			if !has_value {
+-				print("flag needs an argument: -", name, "\n");
++	if f, ok := flag.value.(*BoolValue); ok {
++		if has_value {
++			k, ok := atob(value);
++			if !ok {
++				print("invalid boolean value ", value, " for flag: -", name, "\n");
+ 				Usage();
+ 			}
++			f.Set(k)
++		} else {
++			f.Set(true)
++		}
++	} else {
++		// It must have a value, which might be the next argument.
++		if !has_value && index < sys.argc()-1 {
++			// value is the next arg
++			has_value = true;
++			index++;
++			value = sys.argv(index);
++		}
++		if !has_value {
++			print("flag needs an argument: -", name, "\n");
++			Usage();
++		}
++		if f, ok := flag.value.(*StringValue); ok {
++			f.Set(value)
++		} else {
++			// It's an integer flag.  TODO(r): check for overflow?
+ 			k, ok := atoi(value);
+ 			if !ok {
+ 				print("invalid integer value ", value, " for flag: -", name, "\n");
+ 				Usage();
+ 			}
+-			flag.value.AsInt().Set(k);
+-		case flag.value.IsString():
+-			if !has_value {
+-				print("flag needs an argument: -", name, "\n");
+-				Usage();
++			if f, ok := flag.value.(*IntValue); ok {
++				f.Set(int(k));
++			} else if f, ok := flag.value.(*Int64Value); ok {
++				f.Set(k);
++			} else if f, ok := flag.value.(*UintValue); ok {
++				f.Set(uint(k));
++			} else if f, ok := flag.value.(*Uint64Value); ok {
++				f.Set(uint64(k));
+ 			}
+-			flag.value.AsString().Set(value)
++		}
+ 	}
+ 	flags.actual[name] = flag;
+ 	return true, index + 1
+ }
+ 
+ export func Parse() {
+-	for i := 1; i < sys.argc();  {
++	for i := 1; i < sys.argc(); {
+ 		ok, next := flags.ParseOne(i);
+ 		if next > 0 {
+ 			flags.first_arg = next;
+diff --git a/src/lib/net/dialgoogle_test.go b/src/lib/net/dialgoogle_test.go
+index 86ef5b91e9..4a9f7ffa6b 100644
+--- a/src/lib/net/dialgoogle_test.go
++++ b/src/lib/net/dialgoogle_test.go
+@@ -13,8 +13,7 @@ import (
+ )
+ 
+ // If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
+-var ipv6 = false
+-var ipv6_flag = flag.Bool("ipv6", false, &ipv6, "assume ipv6 tunnel is present")
++var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+ 
+ // fd is already connected to www.google.com port 80.
+ // Run an HTTP request to fetch the main page.
+@@ -67,7 +66,7 @@ var googleaddrs = []string {
+ 
+ export func TestDialGoogle(t *testing.T) {
+ 	// If no ipv6 tunnel, don't try the last address.
+-	if !ipv6 {
++	if !*ipv6 {
+ 		googleaddrs[len(googleaddrs)-1] = ""
+ 	}
+ 
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 6d3275f00b..12512f5d28 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -9,10 +9,7 @@ import (
+ 	"flag";
+ )
+ 
+-var chatty bool;
+-func init() {
+-	flag.Bool("chatty", false, &chatty, "chatty");
+-}
++var chatty = flag.Bool("chatty", false, "chatty")
+ 
+ // Insert tabs after newlines - but not the last one
+ func Tabify(s string) string {
+@@ -89,7 +86,7 @@ export func Main(tests []Test) {
+ 		println("testing: warning: no tests to run");
+ 	}
+ 	for i := 0; i < len(tests); i++ {
+-		if chatty {
++		if *chatty {
+ 			println("=== RUN ", tests[i].name);
+ 		}
+ 		t := new(T);
+@@ -100,7 +97,7 @@ export func Main(tests []Test) {
+ 			println("--- FAIL:", tests[i].name);
+ 			print(t.errors);
+ 			ok = false;
+-		} else if chatty {
++		} else if *chatty {
+ 			println("--- PASS:", tests[i].name);
+ 			print(t.errors);
+ 		}
+diff --git a/test/malloc1.go b/test/malloc1.go
+index fe1a5c0d5f..eee596e3c6 100644
+--- a/test/malloc1.go
++++ b/test/malloc1.go
+@@ -14,12 +14,11 @@ import (
+ 	"malloc";
+ )
+ 
+-var chatty bool;
+-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++var chatty = flag.Bool("v", false, "chatty");
+ 
+ func main() {
+ 	malloc.Free(malloc.Alloc(1));
+-	if chatty {
++	if *chatty {
+ 		fmt.printf("%+v %v\n", *malloc.GetStats(), uint64(0));
+ 	}
+ }
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index 63e70f3787..aafa90e6a8 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -15,15 +15,14 @@ import (
+ 	"unsafe";
+ )
+ 
+-var chatty bool;
+-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++var chatty = flag.Bool("v", false, "chatty");
+ 
+ var footprint uint64;
+ var allocated uint64;
+ func bigger() {
+ 	if f := malloc.GetStats().sys; footprint < f {
+ 		footprint = f;
+-		if chatty {
++		if *chatty {
+ 			println("Footprint", footprint, " for ", allocated);
+ 		}
+ 		if footprint > 1e9 {
+@@ -58,7 +57,7 @@ func main() {
+ //	prime();
+ 	var blocks [1] struct { base *byte; siz uint64; };
+ 	for i := 0; i < 1<<12; i++ {
+-		if i%(1<<10) == 0 && chatty {
++		if i%(1<<10) == 0 && *chatty {
+ 			println(i);
+ 		}
+ 		b := rand.rand() % len(blocks);
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 8373cc0eb9..26537a0bfc 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -13,14 +13,13 @@ import (
+ 	"malloc"
+ )
+ 
+-var chatty bool;
+-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
++var chatty = flag.Bool("v", false, "chatty");
+ 
+ var oldsys uint64;
+ func bigger() {
+ 	if st := malloc.GetStats(); oldsys < st.sys {
+ 		oldsys = st.sys;
+-		if chatty {
++		if *chatty {
+ 			println(st.sys, " system bytes for ", st.alloc, " Go bytes");
+ 		}
+ 		if st.sys > 1e9 {
+@@ -34,7 +33,7 @@ func main() {
+ 	malloc.GetStats().alloc = 0;	// ignore stacks
+ 	for i := 0; i < 1<<8; i++ {
+ 		for j := 1; j <= 1<<22; j<<=1 {
+-			if i == 0 && chatty {
++			if i == 0 && *chatty {
+ 				println("First alloc:", j);
+ 			}
+ 			b := malloc.Alloc(uint64(j));
+@@ -45,11 +44,11 @@ func main() {
+ 			}
+ 			bigger();
+ 		}
+-		if i%(1<<10) == 0 && chatty {
++		if i%(1<<10) == 0 && *chatty {
+ 			println(i);
+ 		}
+ 		if i == 0 {
+-			if chatty {
++			if *chatty {
+ 				println("Primed", i);
+ 			}
+ 		//	malloc.frozen = true;
+diff --git a/test/mallocrep1.go b/test/mallocrep1.go
+index f0486477c5..26d28715b5 100644
+--- a/test/mallocrep1.go
++++ b/test/mallocrep1.go
+@@ -15,12 +15,9 @@ import (
+ 	"strconv"
+ )
+ 
+-var chatty bool;
+-var chatty_flag = flag.Bool("v", false, &chatty, "chatty");
+-var reverse bool;
+-var reverse_flag = flag.Bool("r", false, &reverse, "reverse");
+-var longtest bool;
+-var longtest_flag = flag.Bool("l", false, &longtest, "long test");
++var chatty = flag.Bool("v", false, "chatty");
++var reverse = flag.Bool("r", false, "reverse");
++var longtest = flag.Bool("l", false, "long test");
+ 
+ var b []*byte;
+ var stats = malloc.GetStats();
+@@ -42,7 +39,7 @@ func OkAmount(size, n uint64) bool {
+ }
+ 
+ func AllocAndFree(size, count int) {
+-	if chatty {
++	if *chatty {
+ 		fmt.printf("size=%d count=%d ...\n", size, count);
+ 	}
+ 	n1 := stats.alloc;
+@@ -57,13 +54,13 @@ func AllocAndFree(size, count int) {
+ 		}
+ 	}
+ 	n2 := stats.alloc;
+-	if chatty {
++	if *chatty {
+ 		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+ 	}
+ 	n3 := stats.alloc;
+ 	for j := 0; j < count; j++ {
+ 		i := j;
+-		if reverse {
++		if *reverse {
+ 			i = count - 1 - j;
+ 		}
+ 		alloc := stats.alloc;
+@@ -81,7 +78,7 @@ func AllocAndFree(size, count int) {
+ 	}
+ 	n4 := stats.alloc;
+ 
+-	if chatty {
++	if *chatty {
+ 		fmt.printf("size=%d count=%d stats=%+v\n", size, count, *stats);
+ 	}
+ 	if n2-n1 != n3-n4 {
+@@ -104,7 +101,7 @@ func main() {
+ 	for j := 1; j <= 1<<22; j<<=1 {
+ 		n := len(b);
+ 		max := uint64(1<<28);
+-		if !longtest {
++		if !*longtest {
+ 			max = 1<<22;
+ 		}
+ 		if uint64(j)*uint64(n) > max {
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 4d36bbe4f1..9758d8b40b 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -14,16 +14,19 @@ import (
+ 
+ var (
+ 	flags Compilation.Flags;
+-	silent = Flag.Bool("s", false, nil, "silent mode: no pretty print output");
+-	verbose = Flag.Bool("v", false, &flags.verbose, "verbose mode: trace parsing");
+-	sixg = Flag.Bool("6g", true, &flags.sixg, "6g compatibility mode");
+-	//TODO fix this code again
+-	//deps = Flag.Bool("d", false, &flags.deps, "print dependency information only");
+-	columns = Flag.Bool("columns", Platform.USER == "gri", &flags.columns, "print column info in error messages");
+-	testmode = Flag.Bool("t", false, &flags.testmode, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+-	tokenchan = Flag.Bool("token_chan", false, &flags.tokenchan, "use token channel for scanner-parser connection");
++	silent = Flag.Bool("s", false, "silent mode: no pretty print output");
+ )
+ 
++func init() {
++	Flag.BoolVar(&flags.verbose, "v", false, "verbose mode: trace parsing");
++	Flag.BoolVar(&flags.sixg, "6g", true, "6g compatibility mode");
++	//TODO fix this code again
++	//Flag.BoolVar(&flags.deps, "d", false, "print dependency information only");
++	Flag.BoolVar(&flags.columns, "columns", Platform.USER == "gri", "print column info in error messages");
++	Flag.BoolVar(&flags.testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
++	Flag.BoolVar(&flags.tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
++}
++
+ 
+ func Usage() {
+ 	print("usage: pretty { flags } { files }\n");
+@@ -51,7 +54,7 @@ func main() {
+ 			if nerrors > 0 {
+ 				return;
+ 			}
+-			if !silent.BVal() && !flags.testmode {
++			if !*silent && !flags.testmode {
+ 				Printer.Print(prog);
+ 			}
+ 		}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 2338ab2331..2afc95cedf 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -19,18 +19,18 @@ import (
+ )
+ 
+ var (
+-	debug = flag.Bool("debug", false, nil, "print debugging information");
++	debug = flag.Bool("debug", false, "print debugging information");
+ 	
+ 	// layout control
+-	tabwidth = flag.Int("tabwidth", 8, nil, "tab width");
+-	usetabs = flag.Bool("usetabs", true, nil, "align with tabs instead of blanks");
+-	newlines = flag.Bool("newlines", true, nil, "respect newlines in source");
+-	maxnewlines = flag.Int("maxnewlines", 3, nil, "max. number of consecutive newlines");
++	tabwidth = flag.Int("tabwidth", 8, "tab width");
++	usetabs = flag.Bool("usetabs", true, "align with tabs instead of blanks");
++	newlines = flag.Bool("newlines", true, "respect newlines in source");
++	maxnewlines = flag.Int("maxnewlines", 3, "max. number of consecutive newlines");
+ 
+ 	// formatting control
+-	html = flag.Bool("html", false, nil, "generate html");
+-	comments = flag.Bool("comments", true, nil, "print comments");
+-	optsemicolons = flag.Bool("optsemicolons", false, nil, "print optional semicolons");
++	html = flag.Bool("html", false, "generate html");
++	comments = flag.Bool("comments", true, "print comments");
++	optsemicolons = flag.Bool("optsemicolons", false, "print optional semicolons");
+ )
+ 
+ 
+@@ -81,7 +81,7 @@ type Printer struct {
+ 
+ 
+ func (P *Printer) HasComment(pos int) bool {
+-	return comments.BVal() && P.cpos < pos;
++	return *comments && P.cpos < pos;
+ }
+ 
+ 
+@@ -112,7 +112,7 @@ func (P *Printer) Init(text io.Write, comments *array.Array) {
+ // Printing support
+ 
+ func HtmlEscape(s string) string {
+-	if html.BVal() {
++	if *html {
+ 		var esc string;
+ 		for i := 0; i < len(s); i++ {
+ 			switch s[i] {
+@@ -137,7 +137,7 @@ func (P *Printer) Printf(format string, s ...) {
+ 
+ func (P *Printer) Newline(n int) {
+ 	if n > 0 {
+-		m := int(maxnewlines.IVal());
++		m := int(*maxnewlines);
+ 		if n > m {
+ 			n = m;
+ 		}
+@@ -208,7 +208,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 				// only white space before comment on this line
+ 				// or file starts with comment
+ 				// - indent
+-				if !newlines.BVal() && P.cpos != 0 {
++				if !*newlines && P.cpos != 0 {
+ 					nlcount = 1;
+ 				}
+ 				P.Newline(nlcount);
+@@ -243,7 +243,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 			}
+ 			
+ 			// print comment
+-			if debug.BVal() {
++			if *debug {
+ 				P.Printf("[%d]", P.cpos);
+ 			}
+ 			P.Printf("%s", HtmlEscape(ctext));
+@@ -275,7 +275,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 
+ 	// --------------------------------
+ 	// print pending newlines
+-	if newlines.BVal() && (P.newlines > 0 || P.state == inside_list) && nlcount > P.newlines {
++	if *newlines && (P.newlines > 0 || P.state == inside_list) && nlcount > P.newlines {
+ 		// Respect additional newlines in the source, but only if we
+ 		// enabled this feature (newlines.BVal()) and we are expecting
+ 		// newlines (P.newlines > 0 || P.state == inside_list).
+@@ -289,7 +289,7 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 
+ 	// --------------------------------
+ 	// print string
+-	if debug.BVal() {
++	if *debug {
+ 		P.Printf("[%d]", pos);
+ 	}
+ 	P.Printf("%s%s%s", tag, HtmlEscape(s), endtag);
+@@ -337,7 +337,7 @@ func (P *Printer) Error(pos int, tok int, msg string) {
+ // HTML support
+ 
+ func (P *Printer) HtmlPrologue(title string) {
+-	if html.BVal() {
++	if *html {
+ 		P.TaggedString(0,
+ 			"<html>\n"
+ 			"<head>\n"
+@@ -355,7 +355,7 @@ func (P *Printer) HtmlPrologue(title string) {
+ 
+ 
+ func (P *Printer) HtmlEpilogue() {
+-	if html.BVal() {
++	if *html {
+ 		P.TaggedString(0, 
+ 			"</pre>\n"
+ 			"</body>\n"
+@@ -371,7 +371,7 @@ func (P *Printer) HtmlIdentifier(x *AST.Expr) {
+ 		panic();
+ 	}
+ 	obj := x.obj;
+-	if html.BVal() && obj.kind != Object.NONE {
++	if *html && obj.kind != Object.NONE {
+ 		// depending on whether we have a declaration or use, generate different html
+ 		// - no need to HtmlEscape ident
+ 		id := Utils.IntToString(obj.id, 10);
+@@ -647,7 +647,7 @@ func (P *Printer) Block(pos int, list *array.Array, end int, indent bool) {
+ 	if !indent {
+ 		P.indentation++;
+ 	}
+-	if !optsemicolons.BVal() {
++	if !*optsemicolons {
+ 		P.separator = none;
+ 	}
+ 	P.state = closing_scope;
+@@ -874,10 +874,10 @@ export func Print(prog *AST.Program) {
+ 	// setup
+ 	var P Printer;
+ 	padchar := byte(' ');
+-	if usetabs.BVal() {
++	if *usetabs {
+ 		padchar = '\t';
+ 	}
+-	text := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
++	text := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, *html);
+ 	P.Init(text, prog.comments);
+ 
+ 	// TODO would be better to make the name of the src file be the title
+diff --git a/usr/gri/pretty/untab.go b/usr/gri/pretty/untab.go
+index 3098c9e6e4..b01fd1e95d 100644
+--- a/usr/gri/pretty/untab.go
++++ b/usr/gri/pretty/untab.go
+@@ -14,8 +14,8 @@ import (
+ 
+ 
+ var (
+-	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
+-	usetabs = flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
++	tabwidth = flag.Int("tabwidth", 4, "tab width");
++	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
+ )
+ 
+ 
+@@ -37,10 +37,10 @@ func Untab(name string, src *os.FD, dst *tabwriter.Writer) {
+ func main() {
+ 	flag.Parse();
+ 	padchar := byte(' ');
+-	if usetabs.BVal() {
++	if *usetabs {
+ 		padchar = '\t';
+ 	}
+-	dst := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, false);
++	dst := tabwriter.New(os.Stdout, *tabwidth, 1, padchar, true, false);
+ 	if flag.NArg() > 0 {
+ 		for i := 0; i < flag.NArg(); i++ {
+ 			name := flag.Arg(i);

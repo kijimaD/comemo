@@ -16,7 +16,7 @@ Date:   Fri Feb 11 13:16:52 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../types2/testdata/fixedbugs/issue43527.go2         |  2 +-
  .../internal/types2/testdata/fixedbugs/issue51145.go | 18 ++++++++++++++++++
  src/cmd/compile/internal/types2/typexpr.go           | 20 ++++++++++++++------
@@ -26,3 +26,184 @@ Date:   Fri Feb 11 13:16:52 2022 -0800
  src/go/types/typexpr.go                              | 20 ++++++++++++++------
  test/fixedbugs/bug255.go                             | 13 +++++++------
  8 files changed, 75 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go2
+index e4bcee51fe..2955c261f9 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue43527.go2
+@@ -9,7 +9,7 @@ const L = 10
+ type (
+ 	_        [L]struct{}
+ 	_        [A /* ERROR undeclared name A for array length */ ]struct{}
+-	_        [B /* ERROR not an expression */ ]struct{}
++	_        [B /* ERROR invalid array length B */ ]struct{}
+ 	_[A any] struct{}
+ 
+ 	B int
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51145.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51145.go
+new file mode 100644
+index 0000000000..b84391df19
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51145.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "fmt"
++
++type (
++	_ [fmt /* ERROR invalid array length fmt */ ]int
++	_ [float64 /* ERROR invalid array length float64 */ ]int
++	_ [f /* ERROR invalid array length f */ ]int
++	_ [nil /* ERROR invalid array length nil */ ]int
++)
++
++func f()
++
++var _ fmt.Stringer // use fmt
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index de778fb010..149bd5b0b3 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -502,12 +502,20 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ // and returns the constant length >= 0, or a value < 0
+ // to indicate an error (and thus an unknown length).
+ func (check *Checker) arrayLength(e syntax.Expr) int64 {
+-	// If e is an undeclared identifier, the array declaration might be an
+-	// attempt at a parameterized type declaration with missing constraint.
+-	// Provide a better error message than just "undeclared name: X".
+-	if name, _ := e.(*syntax.Name); name != nil && check.lookup(name.Value) == nil {
+-		check.errorf(name, "undeclared name %s for array length", name.Value)
+-		return -1
++	// If e is an identifier, the array declaration might be an
++	// attempt at a parameterized type declaration with missing
++	// constraint. Provide an error message that mentions array
++	// length.
++	if name, _ := e.(*syntax.Name); name != nil {
++		obj := check.lookup(name.Value)
++		if obj == nil {
++			check.errorf(name, "undeclared name %s for array length", name.Value)
++			return -1
++		}
++		if _, ok := obj.(*Const); !ok {
++			check.errorf(name, "invalid array length %s", name.Value)
++			return -1
++		}
+ 	}
+ 
+ 	var x operand
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 51f091a9cb..a7514b317a 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -98,13 +98,10 @@ const (
+ 	// _InvalidDeclCycle occurs when a declaration cycle is not valid.
+ 	//
+ 	// Example:
+-	//  import "unsafe"
+-	//
+-	//  type T struct {
+-	//  	a [n]int
++	//  type S struct {
++	//  	S
+ 	//  }
+ 	//
+-	//  var n = unsafe.Sizeof(T{})
+ 	_InvalidDeclCycle
+ 
+ 	// _InvalidTypeCycle occurs when a cycle in type definitions results in a
+diff --git a/src/go/types/testdata/fixedbugs/issue43527.go2 b/src/go/types/testdata/fixedbugs/issue43527.go2
+index e4bcee51fe..2955c261f9 100644
+--- a/src/go/types/testdata/fixedbugs/issue43527.go2
++++ b/src/go/types/testdata/fixedbugs/issue43527.go2
+@@ -9,7 +9,7 @@ const L = 10
+ type (
+ 	_        [L]struct{}
+ 	_        [A /* ERROR undeclared name A for array length */ ]struct{}
+-	_        [B /* ERROR not an expression */ ]struct{}
++	_        [B /* ERROR invalid array length B */ ]struct{}
+ 	_[A any] struct{}
+ 
+ 	B int
+diff --git a/src/go/types/testdata/fixedbugs/issue51145.go b/src/go/types/testdata/fixedbugs/issue51145.go
+new file mode 100644
+index 0000000000..b84391df19
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51145.go
+@@ -0,0 +1,18 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "fmt"
++
++type (
++	_ [fmt /* ERROR invalid array length fmt */ ]int
++	_ [float64 /* ERROR invalid array length float64 */ ]int
++	_ [f /* ERROR invalid array length f */ ]int
++	_ [nil /* ERROR invalid array length nil */ ]int
++)
++
++func f()
++
++var _ fmt.Stringer // use fmt
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 00c250b5b6..db6a904aaa 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -487,12 +487,20 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ // and returns the constant length >= 0, or a value < 0
+ // to indicate an error (and thus an unknown length).
+ func (check *Checker) arrayLength(e ast.Expr) int64 {
+-	// If e is an undeclared identifier, the array declaration might be an
+-	// attempt at a parameterized type declaration with missing constraint.
+-	// Provide a better error message than just "undeclared name: X".
+-	if name, _ := e.(*ast.Ident); name != nil && check.lookup(name.Name) == nil {
+-		check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
+-		return -1
++	// If e is an identifier, the array declaration might be an
++	// attempt at a parameterized type declaration with missing
++	// constraint. Provide an error message that mentions array
++	// length.
++	if name, _ := e.(*ast.Ident); name != nil {
++		obj := check.lookup(name.Name)
++		if obj == nil {
++			check.errorf(name, _InvalidArrayLen, "undeclared name %s for array length", name.Name)
++			return -1
++		}
++		if _, ok := obj.(*Const); !ok {
++			check.errorf(name, _InvalidArrayLen, "invalid array length %s", name.Name)
++			return -1
++		}
+ 	}
+ 
+ 	var x operand
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index 38df7813c9..184ff2d378 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -6,12 +6,13 @@
+ 
+ package main
+ 
+-var a [10]int      // ok
+-var b [1e1]int     // ok
+-var c [1.5]int     // ERROR "truncated|must be integer"
+-var d ["abc"]int   // ERROR "invalid array bound|not numeric|must be integer"
+-var e [nil]int     // ERROR "use of untyped nil|invalid array bound|not numeric|must be constant"
+-var f [e]int       // ok: error already reported for e
++var a [10]int    // ok
++var b [1e1]int   // ok
++var c [1.5]int   // ERROR "truncated|must be integer"
++var d ["abc"]int // ERROR "invalid array bound|not numeric|must be integer"
++var e [nil]int   // ERROR "use of untyped nil|invalid array (bound|length)|not numeric|must be constant"
++// var f [e]int  // ok with Go 1.17 because an error was reported for e; leads to an error for Go 1.18
++var f [ee]int      // ERROR "undefined|undeclared"
+ var g [1 << 65]int // ERROR "array bound is too large|overflows|must be integer"
+ var h [len(a)]int  // ok
+ 

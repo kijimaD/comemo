@@ -28,8 +28,132 @@ Date:   Fri Apr 29 11:58:03 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go  | 28 ++++++++++++++--------------
  src/cmd/compile/internal/typecheck/subr.go |  9 ++-------
  src/cmd/compile/internal/types/pkg.go      | 10 ++++++++++
  3 files changed, 26 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 92a5945da6..51ef6b1ff1 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -416,8 +416,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	var dictVar *ir.Name
+ 	var dictAssign *ir.AssignStmt
+ 	if outer != nil {
+-		dictVar = ir.NewNameAt(pos, typecheck.LookupNum(typecheck.LocalDictName, g.dnum))
+-		dictVar.SetSym(outer.Sym().Pkg.Lookup(dictVar.Sym().Name))
++		dictVar = ir.NewNameAt(pos, closureSym(outer, typecheck.LocalDictName, g.dnum))
+ 		g.dnum++
+ 		dictVar.Class = ir.PAUTO
+ 		typed(types.Types[types.TUINTPTR], dictVar)
+@@ -431,10 +430,7 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
+ 	var rcvrVar *ir.Name
+ 	var rcvrAssign ir.Node
+ 	if rcvrValue != nil {
+-		rcvrVar = ir.NewNameAt(pos, typecheck.LookupNum(".rcvr", g.dnum))
+-		if outer != nil {
+-			rcvrVar.SetSym(outer.Sym().Pkg.Lookup(rcvrVar.Sym().Name))
+-		}
++		rcvrVar = ir.NewNameAt(pos, closureSym(outer, ".rcvr", g.dnum))
+ 		g.dnum++
+ 		typed(rcvrValue.Type(), rcvrVar)
+ 		rcvrAssign = ir.NewAssignStmt(pos, rcvrVar, rcvrValue)
+@@ -2225,10 +2221,7 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
+ 	var formalResults []*types.Field // returns of closure
+ 	for i := 0; i < typ.NumParams(); i++ {
+ 		t := typ.Params().Field(i).Type
+-		arg := ir.NewNameAt(pos, typecheck.LookupNum("a", i))
+-		if outer != nil {
+-			arg.SetSym(outer.Sym().Pkg.Lookup(arg.Sym().Name))
+-		}
++		arg := ir.NewNameAt(pos, closureSym(outer, "a", i))
+ 		arg.Class = ir.PPARAM
+ 		typed(t, arg)
+ 		arg.Curfn = fn
+@@ -2240,10 +2233,7 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
+ 	}
+ 	for i := 0; i < typ.NumResults(); i++ {
+ 		t := typ.Results().Field(i).Type
+-		result := ir.NewNameAt(pos, typecheck.LookupNum("r", i)) // TODO: names not needed?
+-		if outer != nil {
+-			result.SetSym(outer.Sym().Pkg.Lookup(result.Sym().Name))
+-		}
++		result := ir.NewNameAt(pos, closureSym(outer, "r", i)) // TODO: names not needed?
+ 		result.Class = ir.PPARAMOUT
+ 		typed(t, result)
+ 		result.Curfn = fn
+@@ -2262,6 +2252,16 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
+ 
+ }
+ 
++// closureSym returns outer.Sym().Pkg.LookupNum(prefix, n).
++// If outer is nil, then types.LocalPkg is used instead.
++func closureSym(outer *ir.Func, prefix string, n int) *types.Sym {
++	pkg := types.LocalPkg
++	if outer != nil {
++		pkg = outer.Sym().Pkg
++	}
++	return pkg.LookupNum(prefix, n)
++}
++
+ // assertToBound returns a new node that converts a node rcvr with interface type to
+ // the 'dst' interface type.
+ func assertToBound(info *instInfo, dictVar *ir.Name, pos src.XPos, rcvr ir.Node, dst *types.Type) ir.Node {
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index d4ec52adf9..af16e826bd 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"sort"
+-	"strconv"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -22,13 +21,9 @@ func AssignConv(n ir.Node, t *types.Type, context string) ir.Node {
+ 	return assignconvfn(n, t, func() string { return context })
+ }
+ 
+-// LookupNum looks up the symbol starting with prefix and ending with
+-// the decimal n. If prefix is too long, LookupNum panics.
++// LookupNum returns types.LocalPkg.LookupNum(prefix, n).
+ func LookupNum(prefix string, n int) *types.Sym {
+-	var buf [20]byte // plenty long enough for all current users
+-	copy(buf[:], prefix)
+-	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
+-	return types.LocalPkg.LookupBytes(b)
++	return types.LocalPkg.LookupNum(prefix, n)
+ }
+ 
+ // Given funarg struct list, return list of fn args.
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index b159eb5eeb..4bf39a5e9d 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"fmt"
+ 	"sort"
++	"strconv"
+ 	"sync"
+ )
+ 
+@@ -121,6 +122,15 @@ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
+ 	return pkg.Lookup(str)
+ }
+ 
++// LookupNum looks up the symbol starting with prefix and ending with
++// the decimal n. If prefix is too long, LookupNum panics.
++func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
++	var buf [20]byte // plenty long enough for all current users
++	copy(buf[:], prefix)
++	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
++	return pkg.LookupBytes(b)
++}
++
+ var (
+ 	internedStringsmu sync.Mutex // protects internedStrings
+ 	internedStrings   = map[string]string{}

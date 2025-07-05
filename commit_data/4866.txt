@@ -7,6 +7,21 @@ Date:   Tue Feb 16 16:47:18 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/209042
-
+---
  doc/go_spec.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0f6475eac5..06dcf3918e 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -89,6 +89,9 @@ will use the term <i>character</i> to refer to a Unicode code point.
+ Each code point is distinct; for instance, upper and lower case letters
+ are different characters.
+ </p>
++<p>
++Source code must not contain the NUL character (U+0000).
++</p>
+ 
+ <h3 id="Characters">Characters</h3>
+ 

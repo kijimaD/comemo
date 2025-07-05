@@ -6,6 +6,19 @@ Date:   Fri Nov 20 11:26:40 2009 -0800
     
     R=rsc
     https://golang.org/cl/159044
-
+---
  src/pkg/regexp/regexp.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 0b1d97d136..30043fcb9a 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -763,7 +763,6 @@ func (a *matchArena) addState(s []state, inst instr, match *matchVec, pos, end i
+ 	}
+ 	index := inst.index();
+ 	l := len(s);
+-	begin := match.m[0];
+ 	// States are inserted in order so it's sufficient to see if we have the same
+ 	// instruction; no need to see if existing match is earlier (it is).
+ 	for i := 0; i < l; i++ {

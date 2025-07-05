@@ -7,6 +7,19 @@ Date:   Sat Sep 18 11:09:08 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2225042
-
+---
  src/pkg/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index da44167c34..910dd41889 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -189,6 +189,7 @@ endif
+ # Disable tests that windows cannot run yet.
+ ifeq ($(GOOS),windows)
+ NOTEST+=exec         # no pipe
++NOTEST+=netchan      # net.Dial("tcp", "", "0.0.0.0:80") doesn't work on windows
+ NOTEST+=os           # many things unimplemented
+ NOTEST+=os/signal    # no signals
+ NOTEST+=path         # tree walking does not work

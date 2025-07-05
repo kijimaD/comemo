@@ -15,10 +15,100 @@ Date:   Wed Jan 23 20:14:30 2019 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go                    | 2 +-
  src/cmd/cgo/out.go                    | 8 ++++----
  src/runtime/cgo/gcc_libinit.c         | 2 +-
  src/runtime/cgo/gcc_libinit_windows.c | 2 +-
  src/runtime/cgo/libcgo.h              | 2 +-
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index cceb33edbd..73ad4ba079 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -710,7 +710,7 @@ _cgo_main.c:
+ 
+ 	int main() { return 0; }
+ 	void crosscall2(void(*fn)(void*, int, uintptr_t), void *a, int c, uintptr_t ctxt) { }
+-	uintptr_t _cgo_wait_runtime_init_done() { return 0; }
++	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
+ 	void _cgo_release_context(uintptr_t ctxt) { }
+ 	char* _cgo_topofstack(void) { return (char*)0; }
+ 	void _cgo_allocate(void *a, int c) { }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 0cf8b174f8..bb0d016fa5 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -59,14 +59,14 @@ func (p *Package) writeDefs() {
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+ 	if *importRuntimeCgo {
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt) { }\n")
+-		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done() { return 0; }\n")
++		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void) { return 0; }\n")
+ 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__ ctxt) { }\n")
+ 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
+ 	} else {
+ 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+ 		// which provides these functions. We just need a prototype.
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt);\n")
+-		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
++		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
+ 		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__);\n")
+ 	}
+ 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
+@@ -784,7 +784,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 	fmt.Fprintf(fgcc, "#pragma GCC diagnostic ignored \"-Waddress-of-packed-member\"\n")
+ 
+ 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int, __SIZE_TYPE__), void *, int, __SIZE_TYPE__);\n")
+-	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
++	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done(void);\n")
+ 	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
+ 	fmt.Fprintf(fgcc, "extern char* _cgo_topofstack(void);")
+ 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
+@@ -1924,5 +1924,5 @@ static void GoInit(void) {
+ 		runtime_iscgo = 1;
+ }
+ 
+-extern __SIZE_TYPE__ _cgo_wait_runtime_init_done() __attribute__ ((weak));
++extern __SIZE_TYPE__ _cgo_wait_runtime_init_done(void) __attribute__ ((weak));
+ `
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index d35726d953..3304d95fdf 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -32,7 +32,7 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+ }
+ 
+ uintptr_t
+-_cgo_wait_runtime_init_done() {
++_cgo_wait_runtime_init_done(void) {
+ 	void (*pfn)(struct context_arg*);
+ 
+ 	pthread_mutex_lock(&runtime_init_mu);
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 248d59fd69..9fd7d36bfb 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -70,7 +70,7 @@ _cgo_is_runtime_initialized() {
+ }
+ 
+ uintptr_t
+-_cgo_wait_runtime_init_done() {
++_cgo_wait_runtime_init_done(void) {
+ 	void (*pfn)(struct context_arg*);
+ 
+ 	 _cgo_maybe_run_preinit();
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 60326720a7..aba500a301 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -61,7 +61,7 @@ void _cgo_sys_thread_start(ThreadStart *ts);
+  * If runtime.SetCgoTraceback is used to set a context function,
+  * calls the context function and returns the context value.
+  */
+-uintptr_t _cgo_wait_runtime_init_done();
++uintptr_t _cgo_wait_runtime_init_done(void);
+ 
+ /*
+  * Call fn in the 6c world.

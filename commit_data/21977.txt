@@ -7,6 +7,20 @@ Date:   Tue Feb 17 09:16:06 2015 +0900
     Change-Id: I9797b44dfa7c2c853b7a656f4f722df2c862824b
     Reviewed-on: https://go-review.googlesource.com/4991
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/os/env.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index d0494a4763..5c22fbc3d7 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -48,7 +48,7 @@ func isAlphaNum(c uint8) bool {
+ 	return c == '_' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
+ }
+ 
+-// getName returns the name that begins the string and the number of bytes
++// getShellName returns the name that begins the string and the number of bytes
+ // consumed to extract it.  If the name is enclosed in {}, it's part of a ${}
+ // expansion and two more bytes are needed than the length of the name.
+ func getShellName(s string) (string, int) {

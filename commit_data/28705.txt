@@ -23,6 +23,20 @@ Date:   Wed Jun 29 16:56:43 2016 -0700
     Change-Id: I93c4c873e500f51af2b4762055e22f5487a625ac
     Reviewed-on: https://go-review.googlesource.com/24610
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/response.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 979651c08a..5450d50c3c 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -213,7 +213,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ 		r.ProtoMajor == major && r.ProtoMinor >= minor
+ }
+ 
+-// Write writes r to w in the HTTP/1.n server response format,
++// Write writes r to w in the HTTP/1.x server response format,
+ // including the status line, headers, body, and optional trailer.
+ //
+ // This method consults the following fields of the response r:

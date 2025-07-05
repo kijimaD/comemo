@@ -11,6 +11,20 @@ Date:   Mon Apr 25 10:48:45 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 42efa9f312..9d840baae2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2360,6 +2360,8 @@ func TestIssue4210(t *testing.T) {
+ func TestGoGetInsecure(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
++	t.Skip("golang.org/issue/15410")
++
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()

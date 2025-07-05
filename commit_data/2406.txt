@@ -8,6 +8,20 @@ Date:   Fri Jun 5 23:28:02 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=29969
     CL=29969
-
+---
  usr/gri/pretty/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 3c3a3cd261..069f969d2d 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -86,7 +86,7 @@ var (
+ 
+ 	// workspace control
+ 	p4binary = flag.String("p4", "/usr/local/scripts/p4", "p4 binary");
+-	syncSleep = flag.Int("sync", 10, "p4 sync interval in minutes; disabled if <= 0");
++	syncSleep = flag.Int("sync", 0, "p4 sync interval in minutes; disabled if <= 0");
+ 	syncTime timeStamp;  // time of last p4 sync
+ 
+ 	// layout control

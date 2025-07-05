@@ -17,8 +17,99 @@ Date:   Sun May 1 17:03:46 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue3250.go |  2 +-
  misc/cgo/test/issue5986.go |  3 ++-
  src/cmd/cgo/out.go         | 20 +++++++++++++++-----
  3 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/test/issue3250.go b/misc/cgo/test/issue3250.go
+index b1ff03941d..4df3e348c8 100644
+--- a/misc/cgo/test/issue3250.go
++++ b/misc/cgo/test/issue3250.go
+@@ -13,9 +13,9 @@ package cgotest
+ #include <stdlib.h>
+ 
+ static void *thread(void *p) {
+-	(void)p;
+ 	const int M = 100;
+ 	int i;
++	(void)p;
+ 	for (i = 0; i < M; i++) {
+ 		pthread_kill(pthread_self(), SIGCHLD);
+ 		usleep(rand() % 20 + 5);
+diff --git a/misc/cgo/test/issue5986.go b/misc/cgo/test/issue5986.go
+index 4f772cdb96..b6a5b685f9 100644
+--- a/misc/cgo/test/issue5986.go
++++ b/misc/cgo/test/issue5986.go
+@@ -13,6 +13,7 @@ static void output5986()
+ {
+     int current_row = 0, row_count = 0;
+     double sum_squares = 0;
++    double d;
+     do {
+         if (current_row == 10) {
+             current_row = 0;
+@@ -20,7 +21,7 @@ static void output5986()
+         ++row_count;
+     }
+     while (current_row++ != 1);
+-    double d =  sqrt(sum_squares / row_count);
++    d =  sqrt(sum_squares / row_count);
+     printf("sqrt is: %g\n", d);
+ }
+ */
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 1fa3a93bec..e91abe6e9d 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -568,7 +568,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
+ 	fmt.Fprintf(fgcc, "{\n")
+ 	if n.AddError {
+-		fmt.Fprintf(fgcc, "\terrno = 0;\n")
++		fmt.Fprintf(fgcc, "\tint _cgo_errno;\n")
+ 	}
+ 	// We're trying to write a gcc struct that matches gc's layout.
+ 	// Use packed attribute to force no padding in this struct in case
+@@ -578,11 +578,18 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 		// Save the stack top for use below.
+ 		fmt.Fprintf(fgcc, "\tchar *stktop = _cgo_topofstack();\n")
+ 	}
++	tr := n.FuncType.Result
++	if tr != nil {
++		fmt.Fprintf(fgcc, "\t__typeof__(a->r) r;\n")
++	}
+ 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
++	if n.AddError {
++		fmt.Fprintf(fgcc, "\terrno = 0;\n")
++	}
+ 	fmt.Fprintf(fgcc, "\t")
+-	if t := n.FuncType.Result; t != nil {
+-		fmt.Fprintf(fgcc, "__typeof__(a->r) r = ")
+-		if c := t.C.String(); c[len(c)-1] == '*' {
++	if tr != nil {
++		fmt.Fprintf(fgcc, "r = ")
++		if c := tr.C.String(); c[len(c)-1] == '*' {
+ 			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
+ 		}
+ 	}
+@@ -604,6 +611,9 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 		fmt.Fprintf(fgcc, "a->p%d", i)
+ 	}
+ 	fmt.Fprintf(fgcc, ");\n")
++	if n.AddError {
++		fmt.Fprintf(fgcc, "\t_cgo_errno = errno;\n")
++	}
+ 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
+ 	if n.FuncType.Result != nil {
+ 		// The cgo call may have caused a stack copy (via a callback).
+@@ -613,7 +623,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 		fmt.Fprintf(fgcc, "\ta->r = r;\n")
+ 	}
+ 	if n.AddError {
+-		fmt.Fprintf(fgcc, "\treturn errno;\n")
++		fmt.Fprintf(fgcc, "\treturn _cgo_errno;\n")
+ 	}
+ 	fmt.Fprintf(fgcc, "}\n")
+ 	fmt.Fprintf(fgcc, "\n")

@@ -14,7 +14,109 @@ Date:   Tue Apr 7 22:20:37 2009 -0700
     R=ken
     OCL=27198
     CL=27201
-
+---
  src/cmd/gc/walk.c | 58 +++++++++++++++++++++++++++++++++----------------------
  test/golden.out   |  6 ++++--
  2 files changed, 39 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d1a5bd5e47..0958a9f2f8 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3067,6 +3067,41 @@ colas(Node *nl, Node *nr)
+ 	n = N;
+ 	cr = listcount(nr);
+ 	cl = listcount(nl);
++
++	/* check calls early, to give better message for a := f() */
++	if(cr == 1) {
++		switch(nr->op) {
++		case OCALLMETH:
++		case OCALLINTER:
++		case OCALL:
++			walktype(nr->left, Erv);
++			convlit(nr->left, types[TFUNC]);
++			t = nr->left->type;
++			if(t == T)
++				return;	// error already printed
++			if(t->etype == tptr)
++				t = t->type;
++			if(t == T || t->etype != TFUNC) {
++				yyerror("cannot call %T", t);
++				return;
++			}
++			if(t->outtuple != cl) {
++				cr = t->outtuple;
++				goto badt;
++			}
++			// finish call - first half above
++			l = listfirst(&savel, &nl);
++			t = structfirst(&saver, getoutarg(t));
++			while(l != N) {
++				a = old2new(l, t->type);
++				n = list(n, a);
++				l = listnext(&savel);
++				t = structnext(&saver);
++			}
++			n = rev(n);
++			return n;
++		}
++	}
+ 	if(cl != cr) {
+ 		if(cr == 1)
+ 			goto multi;
+@@ -3099,29 +3134,6 @@ multi:
+ 	default:
+ 		goto badt;
+ 
+-	case OCALLMETH:
+-	case OCALLINTER:
+-	case OCALL:
+-		walktype(nr->left, Erv);
+-		convlit(nr->left, types[TFUNC]);
+-		t = nr->left->type;
+-		if(t != T && t->etype == tptr)
+-			t = t->type;
+-		if(t == T || t->etype != TFUNC)
+-			goto badt;
+-		if(t->outtuple != cl)
+-			goto badt;
+-
+-		l = listfirst(&savel, &nl);
+-		t = structfirst(&saver, getoutarg(t));
+-		while(l != N) {
+-			a = old2new(l, t->type);
+-			n = list(n, a);
+-			l = listnext(&savel);
+-			t = structnext(&saver);
+-		}
+-		break;
+-
+ 	case OINDEX:
+ 		// check if rhs is a map index.
+ 		// if so, types are valuetype,bool
+diff --git a/test/golden.out b/test/golden.out
+index 0063cffea1..ccd5ad9e8d 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -145,8 +145,6 @@ fixedbugs/bug035.go:7: variable f redeclared in this block
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
+-fixedbugs/bug037.go:6: illegal types for operand: AS
+-	undefined
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: variable x redeclared in this block
+@@ -219,7 +217,11 @@ fixedbugs/bug091.go:15: illegal types for operand: AS
+ M
+ 
+ =========== fixedbugs/bug103.go
++fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
++fixedbugs/bug103.go:8: x: undefined
+ fixedbugs/bug103.go:8: function requires a return type
++fixedbugs/bug103.go:8: illegal types for operand: AS
++	int
+ 
+ =========== fixedbugs/bug113.go
+ main.I is int, not int32

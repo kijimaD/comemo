@@ -10,6 +10,20 @@ Date:   Tue Jun 2 20:52:46 2015 -0400
     Change-Id: Ie5f2b445cb67a8e63d6b868e63379c68847554f9
     Reviewed-on: https://go-review.googlesource.com/10636
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 2c80aa6181..b6f3d29459 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -476,7 +476,7 @@ func (t *tester) extLink() bool {
+ 		"darwin-arm", "darwin-arm64",
+ 		"dragonfly-386", "dragonfly-amd64",
+ 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
+-		"linux-386", "linux-amd64", "linux-arm",
++		"linux-386", "linux-amd64", "linux-arm", "linux-arm64",
+ 		"netbsd-386", "netbsd-amd64",
+ 		"openbsd-386", "openbsd-amd64",
+ 		"windows-386", "windows-amd64":

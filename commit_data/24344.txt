@@ -13,6 +13,20 @@ Date:   Thu Jul 23 22:12:24 2015 +0200
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/stdlib_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 2014e98467..c6c946e976 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -129,7 +129,7 @@ func TestStdTest(t *testing.T) {
+ 
+ 	// test/recover4.go is only built for Linux and Darwin.
+ 	// TODO(gri) Remove once tests consider +build tags (issue 10370).
+-	if runtime.GOOS != "linux" || runtime.GOOS != "darwin" {
++	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+ 		return
+ 	}
+ 

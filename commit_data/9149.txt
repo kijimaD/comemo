@@ -8,6 +8,35 @@ Date:   Wed Jul 20 14:34:49 2011 -0700
     R=bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4817041
-
+---
  src/pkg/io/ioutil/ioutil.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index f79bf87f5c..fffa1320f5 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -108,6 +108,23 @@ func (devNull) Write(p []byte) (int, os.Error) {
+ 	return len(p), nil
+ }
+ 
++var blackHole = make([]byte, 8192)
++
++func (devNull) ReadFrom(r io.Reader) (n int64, err os.Error) {
++	readSize := 0
++	for {
++		readSize, err = r.Read(blackHole)
++		n += int64(readSize)
++		if err != nil {
++			if err == os.EOF {
++				return n, nil
++			}
++			return
++		}
++	}
++	panic("unreachable")
++}
++
+ // Discard is an io.Writer on which all Write calls succeed
+ // without doing anything.
+ var Discard io.Writer = devNull(0)

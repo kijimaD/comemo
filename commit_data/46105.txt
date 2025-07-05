@@ -13,10 +13,389 @@ Date:   Sun Dec 6 14:15:09 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275780
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go         |   1 -
  src/cmd/compile/internal/ir/fmt.go          |  35 ++++++-
  src/cmd/compile/internal/ssa/export_test.go |   1 -
  src/cmd/compile/internal/types/fmt.go       | 141 +++++++++++-----------------
  src/cmd/compile/internal/types/utils.go     |  45 +--------
  5 files changed, 87 insertions(+), 136 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 15659dc7fd..503dc449d3 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -212,7 +212,6 @@ func Main(archInit func(*Arch)) {
+ 	// would lead to import cycles)
+ 	types.Widthptr = Widthptr
+ 	types.Dowidth = dowidth
+-	types.InstallTypeFormats()
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+ 		return typenamesym(t).Linksym()
+ 	}
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 79d85d1803..85c6b218e2 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -86,6 +86,7 @@ var OpNames = []string{
+ 	OXOR:      "^",
+ }
+ 
++// GoString returns the Go syntax for the Op, or else its name.
+ func (o Op) GoString() string {
+ 	if int(o) < len(OpNames) && OpNames[o] != "" {
+ 		return OpNames[o]
+@@ -93,6 +94,12 @@ func (o Op) GoString() string {
+ 	return o.String()
+ }
+ 
++// Format implements formatting for an Op.
++// The valid formats are:
++//
++//	%v	Go syntax ("+", "<-", "print")
++//	%+v	Debug syntax ("ADD", "RECV", "PRINT")
++//
+ func (o Op) Format(s fmt.State, verb rune) {
+ 	switch verb {
+ 	default:
+@@ -109,6 +116,14 @@ func (o Op) Format(s fmt.State, verb rune) {
+ 
+ // Node
+ 
++// FmtNode implements formatting for a Node n.
++// Every Node implementation must define a Format method that calls FmtNode.
++// The valid formats are:
++//
++//	%v	Go syntax
++//	%L	Go syntax followed by " (type T)" if type is known.
++//	%+v	Debug syntax, as in Dump.
++//
+ func FmtNode(n Node, s fmt.State, verb rune) {
+ 	// TODO(rsc): Remove uses of %#v, which behaves just like %v.
+ 	// TODO(rsc): Remove uses of %S, which behaves just like %v.
+@@ -276,7 +291,7 @@ var OpPrec = []int{
+ 	OEND: 0,
+ }
+ 
+-// Statements which may be rendered with a simplestmt as init.
++// StmtWithInit reports whether op is a statement with an explicit init list.
+ func StmtWithInit(op Op) bool {
+ 	switch op {
+ 	case OIF, OFOR, OFORUNTIL, OSWITCH:
+@@ -869,6 +884,13 @@ func ellipsisIf(b bool) string {
+ 
+ // Nodes
+ 
++// Format implements formatting for a Nodes.
++// The valid formats are:
++//
++//	%v	Go syntax, semicolon-separated
++//	%.v	Go syntax, comma-separated
++//	%+v	Debug syntax, as in DumpList.
++//
+ func (l Nodes) Format(s fmt.State, verb rune) {
+ 	if s.Flag('+') && verb == 'v' {
+ 		// %+v is DumpList output
+@@ -896,19 +918,22 @@ func (l Nodes) Format(s fmt.State, verb rune) {
+ 
+ // Dump
+ 
++// Dump prints the message s followed by a debug dump of n.
+ func Dump(s string, n Node) {
+ 	fmt.Printf("%s [%p]%+v", s, n, n)
+ }
+ 
+-func DumpList(s string, l Nodes) {
++// DumpList prints the message s followed by a debug dump of each node in the list.
++func DumpList(s string, list Nodes) {
+ 	var buf bytes.Buffer
+-	FDumpList(&buf, s, l)
++	FDumpList(&buf, s, list)
+ 	os.Stdout.Write(buf.Bytes())
+ }
+ 
+-func FDumpList(w io.Writer, s string, l Nodes) {
++// FDumpList prints to w the message s followed by a debug dump of each node in the list.
++func FDumpList(w io.Writer, s string, list Nodes) {
+ 	io.WriteString(w, s)
+-	dumpNodes(w, l, 1)
++	dumpNodes(w, list, 1)
+ 	io.WriteString(w, "\n")
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index decb843465..55fce31088 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -137,7 +137,6 @@ func init() {
+ 	// Initialize just enough of the universe and the types package to make our tests function.
+ 	// TODO(josharian): move universe initialization to the types package,
+ 	// so this test setup can share it.
+-	types.InstallTypeFormats()
+ 	types.Dowidth = func(t *types.Type) {}
+ 
+ 	for _, typ := range [...]struct {
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 4f36e4c393..d63f7a4f8d 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -15,14 +15,16 @@ import (
+ 	"cmd/compile/internal/base"
+ )
+ 
+-// builtinpkg is a fake package that declares the universe block.
++// BuiltinPkg is a fake package that declares the universe block.
+ var BuiltinPkg *Pkg
+ 
+-var LocalPkg *Pkg // package being compiled
++// LocalPkg is the package being compiled.
++var LocalPkg *Pkg
+ 
++// BlankSym is the blank (_) symbol.
+ var BlankSym *Sym
+ 
+-// origSym returns the original symbol written by the user.
++// OrigSym returns the original symbol written by the user.
+ func OrigSym(s *Sym) *Sym {
+ 	if s == nil {
+ 		return nil
+@@ -47,84 +49,36 @@ func OrigSym(s *Sym) *Sym {
+ 	return s
+ }
+ 
+-// Sym
+-
+ // numImport tracks how often a package with a given name is imported.
+ // It is used to provide a better error message (by using the package
+ // path to disambiguate) if a package that appears multiple times with
+ // the same name appears in an error message.
+ var NumImport = make(map[string]int)
+ 
+-// Format conversions:
+-// TODO(gri) verify these; eliminate those not used anymore
+-//
+-//	%v Op		Node opcodes
+-//		Flags:  #: print Go syntax (automatic unless mode == FDbg)
+-//
+-//	%j *Node	Node details
+-//		Flags:  0: suppresses things not relevant until walk
+-//
+-//	%v *Val		Constant values
+-//
+-//	%v *types.Sym		Symbols
+-//	%S              unqualified identifier in any mode
+-//		Flags:  +,- #: mode (see below)
+-//			0: in export mode: unqualified identifier if exported, qualified if not
+-//
+-//	%v *types.Type	Types
+-//	%S              omit "func" and receiver in function types
+-//	%L              definition instead of name.
+-//		Flags:  +,- #: mode (see below)
+-//			' ' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
+-//
+-//	%v *Node	Nodes
+-//	%S              (only in +/debug mode) suppress recursion
+-//	%L              (only in Error mode) print "foo (type Bar)"
+-//		Flags:  +,- #: mode (see below)
+-//
+-//	%v Nodes	Node lists
+-//		Flags:  those of *Node
+-//			.: separate items with ',' instead of ';'
+-
+-// *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
+-
+-// The mode flags '+', '-', and '#' are sticky; they persist through
+-// recursions of *Node, *types.Type, and *types.Sym values. The ' ' flag is
+-// sticky only on *types.Type recursions and only used in %-/*types.Sym mode.
+-//
+-// Example: given a *types.Sym: %+v %#v %-v print an identifier properly qualified for debug/export/internal mode
+-
+-// Useful format combinations:
+-// TODO(gri): verify these
+-//
+-// *Node, Nodes:
+-//   %+v    multiline recursive debug dump of *Node/Nodes
+-//   %+S    non-recursive debug dump
+-//
+-// *Node:
+-//   %#v    Go format
+-//   %L     "foo (type Bar)" for error messages
+-//
+-// *types.Type:
+-//   %#v    Go format
+-//   %#L    type definition instead of name
+-//   %#S    omit "func" and receiver in function signature
+-//
+-//   %-v    type identifiers
+-//   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
+-//   %- v   type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
+-
++// fmtMode represents the kind of printing being done.
++// The default is regular Go syntax (fmtGo).
++// fmtDebug is like fmtGo but for debugging dumps and prints the type kind too.
++// fmtTypeID and fmtTypeIDName are for generating various unique representations
++// of types used in hashes and the linker.
+ type fmtMode int
+ 
+ const (
+ 	fmtGo fmtMode = iota
+ 	fmtDebug
+ 	fmtTypeID
+-	fmtTypeIDName // same as FTypeId, but use package name instead of prefix
++	fmtTypeIDName
+ )
+ 
+-// "%S" suppresses qualifying with package
+-func symFormat(s *Sym, f fmt.State, verb rune) {
++// Sym
++
++// Format implements formatting for a Sym.
++// The valid formats are:
++//
++//	%v	Go syntax: Name for symbols in the local package, PkgName.Name for imported symbols.
++//	%+v	Debug syntax: always include PkgName. prefix even for local names.
++//	%S	Short syntax: Name only, no matter what.
++//
++func (s *Sym) Format(f fmt.State, verb rune) {
+ 	mode := fmtGo
+ 	switch verb {
+ 	case 'v', 'S':
+@@ -138,6 +92,10 @@ func symFormat(s *Sym, f fmt.State, verb rune) {
+ 	}
+ }
+ 
++func (s *Sym) String() string {
++	return sconv(s, 0, fmtGo)
++}
++
+ // See #16897 for details about performance implications
+ // before changing the implementation of sconv.
+ func sconv(s *Sym, verb rune, mode fmtMode) string {
+@@ -261,26 +219,16 @@ var fmtBufferPool = sync.Pool{
+ 	},
+ }
+ 
+-func InstallTypeFormats() {
+-	SymString = func(s *Sym) string {
+-		return sconv(s, 0, fmtGo)
+-	}
+-	TypeString = func(t *Type) string {
+-		return tconv(t, 0, fmtGo)
+-	}
+-	TypeShortString = func(t *Type) string {
+-		return tconv(t, 0, fmtTypeID)
+-	}
+-	TypeLongString = func(t *Type) string {
+-		return tconv(t, 0, fmtTypeIDName)
+-	}
+-	FormatSym = symFormat
+-	FormatType = typeFormat
+-}
+-
+-// "%L"  print definition, not name
+-// "%S"  omit 'func' and receiver from function types, short type names
+-func typeFormat(t *Type, s fmt.State, verb rune) {
++// Format implements formatting for a Type.
++// The valid formats are:
++//
++//	%v	Go syntax
++//	%+v	Debug syntax: Go syntax with a KIND- prefix for all but builtins.
++//	%L	Go syntax for underlying type if t is named
++//	%S	short Go syntax: drop leading "func" in function type
++//	%-S	special case for method receiver symbol
++//
++func (t *Type) Format(s fmt.State, verb rune) {
+ 	mode := fmtGo
+ 	switch verb {
+ 	case 'v', 'S', 'L':
+@@ -296,6 +244,25 @@ func typeFormat(t *Type, s fmt.State, verb rune) {
+ 	}
+ }
+ 
++// String returns the Go syntax for the type t.
++func (t *Type) String() string {
++	return tconv(t, 0, fmtGo)
++}
++
++// ShortString generates a short description of t.
++// It is used in autogenerated method names, reflection,
++// and itab names.
++func (t *Type) ShortString() string {
++	return tconv(t, 0, fmtTypeID)
++}
++
++// LongString generates a complete description of t.
++// It is useful for reflection,
++// or when a unique fingerprint or hash of a type is required.
++func (t *Type) LongString() string {
++	return tconv(t, 0, fmtTypeIDName)
++}
++
+ func tconv(t *Type, verb rune, mode fmtMode) string {
+ 	buf := fmtBufferPool.Get().(*bytes.Buffer)
+ 	buf.Reset()
+diff --git a/src/cmd/compile/internal/types/utils.go b/src/cmd/compile/internal/types/utils.go
+index a1be77eef1..531f3ea1ca 100644
+--- a/src/cmd/compile/internal/types/utils.go
++++ b/src/cmd/compile/internal/types/utils.go
+@@ -6,7 +6,6 @@ package types
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"fmt"
+ )
+ 
+ const BADWIDTH = -1000000000
+@@ -15,49 +14,11 @@ const BADWIDTH = -1000000000
+ // They are here to break import cycles.
+ // TODO(gri) eliminate these dependencies.
+ var (
+-	Widthptr        int
+-	Dowidth         func(*Type)
+-	SymString       func(*Sym) string
+-	TypeString      func(*Type) string
+-	TypeShortString func(*Type) string
+-	TypeLongString  func(*Type) string
+-	FormatSym       func(*Sym, fmt.State, rune)
+-	FormatType      func(*Type, fmt.State, rune)
+-	TypeLinkSym     func(*Type) *obj.LSym
++	Widthptr    int
++	Dowidth     func(*Type)
++	TypeLinkSym func(*Type) *obj.LSym
+ )
+ 
+-func (s *Sym) String() string {
+-	return SymString(s)
+-}
+-
+-func (sym *Sym) Format(s fmt.State, verb rune) {
+-	FormatSym(sym, s, verb)
+-}
+-
+-func (t *Type) String() string {
+-	// The implementation
+-	// must handle recursive types correctly.
+-	return TypeString(t)
+-}
+-
+-// ShortString generates a short description of t.
+-// It is used in autogenerated method names, reflection,
+-// and itab names.
+-func (t *Type) ShortString() string {
+-	return TypeShortString(t)
+-}
+-
+-// LongString generates a complete description of t.
+-// It is useful for reflection,
+-// or when a unique fingerprint or hash of a type is required.
+-func (t *Type) LongString() string {
+-	return TypeLongString(t)
+-}
+-
+-func (t *Type) Format(s fmt.State, verb rune) {
+-	FormatType(t, s, verb)
+-}
+-
+ type bitset8 uint8
+ 
+ func (f *bitset8) set(mask uint8, b bool) {

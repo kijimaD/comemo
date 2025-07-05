@@ -12,7 +12,66 @@ Date:   Tue May 5 14:17:07 2015 +1200
     Change-Id: Ic51a571d60291f1ac2dad1b50dba4679643168ae
     Reviewed-on: https://go-review.googlesource.com/9710
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6l/obj.go          |  8 ++++++++
  src/cmd/internal/ld/elf.go | 13 ++++++++++---
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index ba3580ef5f..9e6dc60e2d 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -169,6 +169,14 @@ func archinit() {
+ 		ld.Elfinit()
+ 
+ 		ld.HEADR = ld.ELFRESERVE
++		if ld.Buildmode == ld.BuildmodeShared {
++			// When building a shared library we write a package list
++			// note that can get quite large. The external linker will
++			// re-layout all the sections anyway, so making this larger
++			// just wastes a little space in the intermediate object
++			// file, not the final shared library.
++			ld.HEADR *= 3
++		}
+ 		if ld.INITTEXT == -1 {
+ 			ld.INITTEXT = (1 << 22) + int64(ld.HEADR)
+ 		}
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index 01be55e16d..ab87be60ed 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1909,8 +1909,9 @@ func Asmbelf(symo int64) {
+ 		eh.machine = EM_PPC64
+ 	}
+ 
++	elfreserve := int64(ELFRESERVE)
+ 	startva := INITTEXT - int64(HEADR)
+-	resoff := int64(ELFRESERVE)
++	resoff := elfreserve
+ 
+ 	var pph *ElfPhdr
+ 	var pnote *ElfPhdr
+@@ -1921,6 +1922,12 @@ func Asmbelf(symo int64) {
+ 		eh.phentsize = 0
+ 
+ 		if Buildmode == BuildmodeShared {
++			// The package list note we make space for here can get quite
++			// large. The external linker will re-layout all the sections
++			// anyway, so making this larger just wastes a little space
++			// in the intermediate object file, not the final shared
++			// library.
++			elfreserve *= 3
+ 			sh := elfshname(".note.go.pkg-list")
+ 			resoff -= int64(elfgopkgnote(sh, uint64(startva), uint64(resoff)))
+ 		}
+@@ -2336,8 +2343,8 @@ elfobj:
+ 		a += int64(elfwritegopkgnote())
+ 	}
+ 
+-	if a > ELFRESERVE {
+-		Diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE)
++	if a > elfreserve {
++		Diag("ELFRESERVE too small: %d > %d", a, elfreserve)
+ 	}
+ }
+ 

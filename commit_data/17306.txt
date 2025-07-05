@@ -7,8 +7,48 @@ Date:   Sat Aug 17 13:40:14 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13080043
-
+---
  src/pkg/net/fd_bsd.go          | 2 +-
  src/pkg/net/fd_poll_runtime.go | 2 +-
  src/pkg/net/fd_poll_unix.go    | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/fd_bsd.go b/src/pkg/net/fd_bsd.go
+index 784091da13..616c2ac775 100644
+--- a/src/pkg/net/fd_bsd.go
++++ b/src/pkg/net/fd_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd,arm netbsd
++// +build freebsd,arm
+ 
+ // Waiting for FDs via kqueue/kevent.
+ 
+diff --git a/src/pkg/net/fd_poll_runtime.go b/src/pkg/net/fd_poll_runtime.go
+index b65cffbe56..8a4d20cff9 100644
+--- a/src/pkg/net/fd_poll_runtime.go
++++ b/src/pkg/net/fd_poll_runtime.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd,amd64 freebsd,386 linux openbsd windows
++// +build darwin freebsd,amd64 freebsd,386 linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/fd_poll_unix.go b/src/pkg/net/fd_poll_unix.go
+index 922c62d6bd..3b34707244 100644
+--- a/src/pkg/net/fd_poll_unix.go
++++ b/src/pkg/net/fd_poll_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd,arm netbsd
++// +build freebsd,arm
+ 
+ package net
+ 

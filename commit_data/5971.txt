@@ -7,7 +7,182 @@ Date:   Fri Aug 6 16:44:38 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1879043
-
+---
  src/pkg/encoding/binary/binary.go      | 48 ++++++++++++++++++++++-------
  src/pkg/encoding/binary/binary_test.go | 56 ++++++++++++++++++++++++----------
  2 files changed, 77 insertions(+), 27 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 5a92faa219..2343e0398b 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -115,11 +115,11 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // Read reads structured binary data from r into data.
+ // Data must be a pointer to a fixed-size value or a slice
+ // of fixed-size values.
+-// A fixed-size value is either a fixed-size integer
+-// (int8, uint8, int16, uint16, ...) or an array or struct
+-// containing only fixed-size values.  Bytes read from
+-// r are decoded using the specified byte order and written
+-// to successive fields of the data.
++// A fixed-size value is either a fixed-size arithmetic
++// type (int8, uint8, int16, float32, complex64, ...)
++// or an array or struct containing only fixed-size values.
++// Bytes read from r are decoded using the specified byte order
++// and written to successive fields of the data.
+ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+ 	var v reflect.Value
+ 	switch d := reflect.NewValue(data).(type) {
+@@ -145,11 +145,11 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+ // Write writes the binary representation of data into w.
+ // Data must be a fixed-size value or a pointer to
+ // a fixed-size value.
+-// A fixed-size value is either a fixed-size integer
+-// (int8, uint8, int16, uint16, ...) or an array or struct
+-// containing only fixed-size values.  Bytes written to
+-// w are encoded using the specified byte order and read
+-// from successive fields of the data.
++// A fixed-size value is either a fixed-size arithmetic
++// type (int8, uint8, int16, float32, complex64, ...)
++// or an array or struct containing only fixed-size values.
++// Bytes written to w are encoded using the specified byte order
++// and read from successive fields of the data.
+ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+ 	v := reflect.Indirect(reflect.NewValue(data))
+ 	size := TotalSize(v)
+@@ -194,7 +194,7 @@ func sizeof(v reflect.Type) int {
+ 		}
+ 		return sum
+ 
+-	case *reflect.UintType, *reflect.IntType, *reflect.FloatType:
++	case *reflect.UintType, *reflect.IntType, *reflect.FloatType, *reflect.ComplexType:
+ 		return int(v.Size())
+ 	}
+ 	return -1
+@@ -320,6 +320,20 @@ func (d *decoder) value(v reflect.Value) {
+ 		case reflect.Float64:
+ 			v.Set(math.Float64frombits(d.uint64()))
+ 		}
++
++	case *reflect.ComplexValue:
++		switch v.Type().Kind() {
++		case reflect.Complex64:
++			v.Set(cmplx(
++				float64(math.Float32frombits(d.uint32())),
++				float64(math.Float32frombits(d.uint32())),
++			))
++		case reflect.Complex128:
++			v.Set(cmplx(
++				math.Float64frombits(d.uint64()),
++				math.Float64frombits(d.uint64()),
++			))
++		}
+ 	}
+ }
+ 
+@@ -372,5 +386,17 @@ func (e *encoder) value(v reflect.Value) {
+ 		case reflect.Float64:
+ 			e.uint64(math.Float64bits(v.Get()))
+ 		}
++
++	case *reflect.ComplexValue:
++		switch v.Type().Kind() {
++		case reflect.Complex64:
++			x := v.Get()
++			e.uint32(math.Float32bits(float32(real(x))))
++			e.uint32(math.Float32bits(float32(imag(x))))
++		case reflect.Complex128:
++			x := v.Get()
++			e.uint64(math.Float64bits(real(x)))
++			e.uint64(math.Float64bits(imag(x)))
++		}
+ 	}
+ }
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index 12d192d1ed..d372d2d027 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -13,16 +13,19 @@ import (
+ )
+ 
+ type Struct struct {
+-	Int8    int8
+-	Int16   int16
+-	Int32   int32
+-	Int64   int64
+-	Uint8   uint8
+-	Uint16  uint16
+-	Uint32  uint32
+-	Uint64  uint64
+-	Float64 float64
+-	Array   [4]uint8
++	Int8       int8
++	Int16      int16
++	Int32      int32
++	Int64      int64
++	Uint8      uint8
++	Uint16     uint16
++	Uint32     uint32
++	Uint64     uint64
++	Float32    float32
++	Float64    float64
++	Complex64  complex64
++	Complex128 complex128
++	Array      [4]uint8
+ }
+ 
+ var s = Struct{
+@@ -34,8 +37,19 @@ var s = Struct{
+ 	0x1112,
+ 	0x13141516,
+ 	0x1718191a1b1c1d1e,
+-	math.Float64frombits(0x1f20212223242526),
+-	[4]uint8{0x27, 0x28, 0x29, 0x2a},
++
++	math.Float32frombits(0x1f202122),
++	math.Float64frombits(0x232425262728292a),
++	cmplx(
++		math.Float32frombits(0x2b2c2d2e),
++		math.Float32frombits(0x2f303132),
++	),
++	cmplx(
++		math.Float64frombits(0x333435363738393a),
++		math.Float64frombits(0x3b3c3d3e3f404142),
++	),
++
++	[4]uint8{0x43, 0x44, 0x45, 0x46},
+ }
+ 
+ var big = []byte{
+@@ -47,8 +61,13 @@ var big = []byte{
+ 	17, 18,
+ 	19, 20, 21, 22,
+ 	23, 24, 25, 26, 27, 28, 29, 30,
+-	31, 32, 33, 34, 35, 36, 37, 38,
+-	39, 40, 41, 42,
++
++	31, 32, 33, 34,
++	35, 36, 37, 38, 39, 40, 41, 42,
++	43, 44, 45, 46, 47, 48, 49, 50,
++	51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
++
++	67, 68, 69, 70,
+ }
+ 
+ var little = []byte{
+@@ -60,8 +79,13 @@ var little = []byte{
+ 	18, 17,
+ 	22, 21, 20, 19,
+ 	30, 29, 28, 27, 26, 25, 24, 23,
+-	38, 37, 36, 35, 34, 33, 32, 31,
+-	39, 40, 41, 42,
++
++	34, 33, 32, 31,
++	42, 41, 40, 39, 38, 37, 36, 35,
++	46, 45, 44, 43, 50, 49, 48, 47,
++	58, 57, 56, 55, 54, 53, 52, 51, 66, 65, 64, 63, 62, 61, 60, 59,
++
++	67, 68, 69, 70,
+ }
+ 
+ var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}

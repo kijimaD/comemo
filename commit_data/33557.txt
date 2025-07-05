@@ -11,7 +11,52 @@ Date:   Mon Aug 21 09:51:35 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/hashmap.go      | 2 +-
  src/runtime/hashmap_fast.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 9456500f00..1cfa9070fb 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -666,7 +666,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 	if h.growing() {
+ 		growWork(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index de52f2cc04..1d830cc8cf 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -646,7 +646,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 	if h.growing() {
+ 		growWork(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+@@ -698,7 +698,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 	if h.growing() {
+ 		growWork(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+@@ -751,7 +751,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 	if h.growing() {
+ 		growWork(t, h, bucket)
+ 	}
+-	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	b := (*bmap)(add(h.buckets, bucket*uintptr(t.bucketsize)))
+ 	top := tophash(hash)
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {

@@ -9,7 +9,7 @@ Date:   Fri Dec 9 14:30:40 2016 -0500
     Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go      | 40 ++++++++++++++++++------------------
  src/cmd/compile/internal/gc/gsubr.go |  4 ++--
  src/cmd/compile/internal/gc/plive.go |  6 +++---
@@ -27,3 +27,670 @@ Date:   Fri Dec 9 14:30:40 2016 -0500
  src/cmd/internal/obj/util.go         |  2 +-
  src/cmd/internal/obj/x86/obj6.go     |  6 +++---
  16 files changed, 80 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index c2a8784a27..e7b4d2b9d7 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -162,10 +162,10 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 		argSize = p.positiveAtoi(op[1].String())
+ 	}
+ 	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		As:     obj.ATEXT,
+-		Lineno: src.MakePos(p.histLineNum),
+-		From:   nameAddr,
++		Ctxt: p.ctxt,
++		As:   obj.ATEXT,
++		Pos:  src.MakePos(p.histLineNum),
++		From: nameAddr,
+ 		From3: &obj.Addr{
+ 			Type:   obj.TYPE_CONST,
+ 			Offset: flag,
+@@ -295,11 +295,11 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
+ 
+ 	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
+ 	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		As:     obj.APCDATA,
+-		Lineno: src.MakePos(p.histLineNum),
+-		From:   key,
+-		To:     value,
++		Ctxt: p.ctxt,
++		As:   obj.APCDATA,
++		Pos:  src.MakePos(p.histLineNum),
++		From: key,
++		To:   value,
+ 	}
+ 	p.append(prog, "", true)
+ }
+@@ -325,11 +325,11 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ 	}
+ 
+ 	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		As:     obj.AFUNCDATA,
+-		Lineno: src.MakePos(p.histLineNum),
+-		From:   valueAddr,
+-		To:     nameAddr,
++		Ctxt: p.ctxt,
++		As:   obj.AFUNCDATA,
++		Pos:  src.MakePos(p.histLineNum),
++		From: valueAddr,
++		To:   nameAddr,
+ 	}
+ 	p.append(prog, "", true)
+ }
+@@ -341,9 +341,9 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
+ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
+ 	var target *obj.Addr
+ 	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		Lineno: src.MakePos(p.histLineNum),
+-		As:     op,
++		Ctxt: p.ctxt,
++		Pos:  src.MakePos(p.histLineNum),
++		As:   op,
+ 	}
+ 	switch len(a) {
+ 	case 1:
+@@ -469,9 +469,9 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
+ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 	// fmt.Printf("%s %+v\n", op, a)
+ 	prog := &obj.Prog{
+-		Ctxt:   p.ctxt,
+-		Lineno: src.MakePos(p.histLineNum),
+-		As:     op,
++		Ctxt: p.ctxt,
++		Pos:  src.MakePos(p.histLineNum),
++		As:   op,
+ 	}
+ 	switch len(a) {
+ 	case 0:
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 0b3d217948..e0127afe89 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -45,7 +45,7 @@ func Prog(as obj.As) *obj.Prog {
+ 	}
+ 
+ 	p.As = as
+-	p.Lineno = lineno
++	p.Pos = lineno
+ 	return p
+ }
+ 
+@@ -60,7 +60,7 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
+ 	q := Ctxt.NewProg()
+ 	Clearp(q)
+ 	q.As = as
+-	q.Lineno = p.Lineno
++	q.Pos = p.Pos
+ 	q.From.Type = ftype
+ 	q.From.Reg = freg
+ 	q.From.Offset = foffset
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 5fa864568f..03161f889f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1014,7 +1014,7 @@ func unlinkedprog(as obj.As) *obj.Prog {
+ // covering an existing instruction.
+ func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
+ 	pcdata := unlinkedprog(obj.APCDATA)
+-	pcdata.Lineno = prog.Lineno
++	pcdata.Pos = prog.Pos
+ 	pcdata.From.Type = obj.TYPE_CONST
+ 	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+ 	pcdata.To.Type = obj.TYPE_CONST
+@@ -1253,7 +1253,7 @@ func livenessepilogue(lv *Liveness) {
+ 						if !n.Name.Needzero {
+ 							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+-								Warnl(p.Lineno, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
++								Warnl(p.Pos, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
+ 							}
+ 						}
+ 					}
+@@ -1344,7 +1344,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n := lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(p.Lineno, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
++							yyerrorl(p.Pos, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index a1213bcfb8..a7217e2e6d 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -820,7 +820,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) bool {
+ 			q.To.Type = obj.TYPE_BRANCH
+ 			q.Pcond = p.Link
+ 			q.Link = ctxt.Blitrl
+-			q.Lineno = p.Lineno
++			q.Pos = p.Pos
+ 			ctxt.Blitrl = q
+ 		} else if force == 0 && (p.Pc+int64(12+pool.size)-int64(pool.start) < 2048) { // 12 take into account the maximum nacl literal pool alignment padding size
+ 			return false
+@@ -838,7 +838,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int, force int) bool {
+ 		// We set it to the line number of the preceding instruction so that
+ 		// there are no deltas to encode in the pc-line tables.
+ 		for q := ctxt.Blitrl; q != nil; q = q.Link {
+-			q.Lineno = p.Lineno
++			q.Pos = p.Pos
+ 		}
+ 
+ 		ctxt.Elitrl.Link = p.Link
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 6e5390c24e..0bf8014398 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -547,7 +547,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			/* MOV m(g),REGTMP */
+ 			p.As = AMOVW
+-			p.Lineno = q1.Lineno
++			p.Pos = q1.Pos
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Reg = REGG
+ 			p.From.Offset = 6 * 4 // offset of g.m
+@@ -558,7 +558,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			/* MOV a,m_divmod(REGTMP) */
+ 			p = obj.Appendp(ctxt, p)
+ 			p.As = AMOVW
+-			p.Lineno = q1.Lineno
++			p.Pos = q1.Pos
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = q1.From.Reg
+ 			p.To.Type = obj.TYPE_MEM
+@@ -568,7 +568,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			/* MOV b, R8 */
+ 			p = obj.Appendp(ctxt, p)
+ 			p.As = AMOVW
+-			p.Lineno = q1.Lineno
++			p.Pos = q1.Pos
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = q1.Reg
+ 			if q1.Reg == 0 {
+@@ -581,7 +581,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			/* CALL appropriate */
+ 			p = obj.Appendp(ctxt, p)
+ 			p.As = ABL
+-			p.Lineno = q1.Lineno
++			p.Pos = q1.Pos
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			switch o {
+ 			case ADIV:
+@@ -600,7 +600,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			/* MOV REGTMP, b */
+ 			p = obj.Appendp(ctxt, p)
+ 			p.As = AMOVW
+-			p.Lineno = q1.Lineno
++			p.Pos = q1.Pos
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = REGTMP
+ 			p.From.Offset = 0
+@@ -689,7 +689,7 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
+ 			p.As = ABL
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			p.To.Sym = symsfloat
+-			p.Lineno = next.Lineno
++			p.Pos = next.Pos
+ 
+ 			p = next
+ 			wasfloat = 1
+@@ -811,7 +811,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Pos = ctxt.Cursym.Text.Pos
+ 	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+@@ -995,7 +995,7 @@ loop:
+ 		a = AB
+ 		q = ctxt.NewProg()
+ 		q.As = a
+-		q.Lineno = p.Lineno
++		q.Pos = p.Pos
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		q.To.Offset = p.Pc
+ 		q.Pcond = p
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 3409957112..1a0ca75703 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -696,7 +696,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+ 			q.To.Type = obj.TYPE_BRANCH
+ 			q.Pcond = p.Link
+ 			q.Link = ctxt.Blitrl
+-			q.Lineno = p.Lineno
++			q.Pos = p.Pos
+ 			ctxt.Blitrl = q
+ 		} else if p.Pc+int64(pool.size)-int64(pool.start) < maxPCDisp {
+ 			return
+@@ -706,7 +706,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
+ 		// We set it to the line number of the preceding instruction so that
+ 		// there are no deltas to encode in the pc-line tables.
+ 		for q := ctxt.Blitrl; q != nil; q = q.Link {
+-			q.Lineno = p.Lineno
++			q.Pos = p.Pos
+ 		}
+ 
+ 		ctxt.Elitrl.Link = p.Link
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 3ea78cd556..f70ca345ed 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -169,7 +169,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Pos = ctxt.Cursym.Text.Pos
+ 	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+@@ -585,7 +585,7 @@ loop:
+ 		a = AB
+ 		q = ctxt.NewProg()
+ 		q.As = a
+-		q.Lineno = p.Lineno
++		q.Pos = p.Pos
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		q.To.Offset = p.Pc
+ 		q.Pcond = p
+@@ -771,7 +771,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				// during the execution of the function prologue, the traceback
+ 				// code will not see a half-updated stack frame.
+ 				q = obj.Appendp(ctxt, q)
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.As = ASUB
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = int64(ctxt.Autosize)
+@@ -780,7 +780,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q.To.Reg = REGTMP
+ 
+ 				q = obj.Appendp(ctxt, q)
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.As = AMOVD
+ 				q.From.Type = obj.TYPE_REG
+ 				q.From.Reg = REGLINK
+@@ -788,7 +788,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q.To.Reg = REGTMP
+ 
+ 				q1 = obj.Appendp(ctxt, q)
+-				q1.Lineno = p.Lineno
++				q1.Pos = p.Pos
+ 				q1.As = AMOVD
+ 				q1.From.Type = obj.TYPE_REG
+ 				q1.From.Reg = REGTMP
+@@ -799,7 +799,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				// small frame, update SP and save LR in a single MOVD.W instruction
+ 				q1 = obj.Appendp(ctxt, q)
+ 				q1.As = AMOVD
+-				q1.Lineno = p.Lineno
++				q1.Pos = p.Pos
+ 				q1.From.Type = obj.TYPE_REG
+ 				q1.From.Reg = REGLINK
+ 				q1.To.Type = obj.TYPE_MEM
+@@ -939,7 +939,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 					q.To.Reg = REGSP
+ 					q.Link = p.Link
+ 					q.Spadj = int32(-q.From.Offset)
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					p.Link = q
+ 					p = q
+ 				}
+@@ -947,7 +947,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			if p.As != obj.ARET {
+ 				q = ctxt.NewProg()
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.Link = p.Link
+ 				p.Link = q
+ 				p = q
+diff --git a/src/cmd/internal/obj/ld.go b/src/cmd/internal/obj/ld.go
+index 54fde2f203..dbc924d630 100644
+--- a/src/cmd/internal/obj/ld.go
++++ b/src/cmd/internal/obj/ld.go
+@@ -86,7 +86,7 @@ func Appendp(ctxt *Link, q *Prog) *Prog {
+ 	p := ctxt.NewProg()
+ 	p.Link = q.Link
+ 	q.Link = p
+-	p.Lineno = q.Lineno
++	p.Pos = q.Pos
+ 	p.Mode = q.Mode
+ 	return p
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index e428d1747d..41cf84a64e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -222,7 +222,7 @@ const (
+ // The Progs for a given function are arranged in a list linked through the Link field.
+ //
+ // Each Prog is charged to a specific source line in the debug information,
+-// specified by Lineno, an index into the line history (see LineHist).
++// specified by Pos.Line(), an index into the line history (see LineHist).
+ // Every Prog has a Ctxt field that defines various context, including the current LineHist.
+ // Progs should be allocated using ctxt.NewProg(), not new(Prog).
+ //
+@@ -239,7 +239,7 @@ type Prog struct {
+ 	Forwd  *Prog       // for x86 back end
+ 	Rel    *Prog       // for x86, arm back ends
+ 	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
+-	Lineno src.Pos     // line number of this instruction
++	Pos    src.Pos     // source position of this instruction
+ 	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
+ 	As     As          // assembler opcode
+ 	Reg    int16       // 2nd source operand
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index c421deecb9..48f2b7de40 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -435,7 +435,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = AJMP
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.To.Type = obj.TYPE_BRANCH
+ 					q.Pcond = p.Pcond
+ 					p.Pcond = q
+@@ -443,7 +443,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = AJMP
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.To.Type = obj.TYPE_BRANCH
+ 					q.Pcond = q.Link.Link
+ 
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 221fd428a3..d3d819e9ce 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -322,7 +322,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				// code will not see a half-updated stack frame.
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = mov
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_REG
+ 				q.From.Reg = REGLINK
+ 				q.To.Type = obj.TYPE_MEM
+@@ -331,7 +331,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = add
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = int64(-autosize)
+ 				q.To.Type = obj.TYPE_REG
+@@ -469,7 +469,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 				q = ctxt.NewProg()
+ 				q.As = AJMP
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.To.Type = obj.TYPE_MEM
+ 				q.To.Offset = 0
+ 				q.To.Reg = REGLINK
+@@ -494,7 +494,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if autosize != 0 {
+ 				q = ctxt.NewProg()
+ 				q.As = add
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = int64(autosize)
+ 				q.To.Type = obj.TYPE_REG
+@@ -507,7 +507,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			q1 = ctxt.NewProg()
+ 			q1.As = AJMP
+-			q1.Lineno = p.Lineno
++			q1.Pos = p.Pos
+ 			if retSym != nil { // retjmp
+ 				q1.To.Type = obj.TYPE_BRANCH
+ 				q1.To.Name = obj.NAME_EXTERN
+@@ -775,7 +775,7 @@ func addnop(ctxt *obj.Link, p *obj.Prog) {
+ 	// as R0, we have to resort to manually encode the SLL
+ 	// instruction as WORD $0.
+ 	q.As = AWORD
+-	q.Lineno = p.Lineno
++	q.Pos = p.Pos
+ 	q.From.Type = obj.TYPE_CONST
+ 	q.From.Name = obj.NAME_NONE
+ 	q.From.Offset = 0
+@@ -1486,7 +1486,7 @@ loop:
+ 		a = AJMP
+ 		q = ctxt.NewProg()
+ 		q.As = a
+-		q.Lineno = p.Lineno
++		q.Pos = p.Pos
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		q.To.Offset = p.Pc
+ 		q.Pcond = p
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 408bb2bfe7..9099a98f64 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -135,13 +135,13 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 
+ // pctofileline computes either the file number (arg == 0)
+ // or the line number (arg == 1) to use at p.
+-// Because p->lineno applies to p, phase == 0 (before p)
++// Because p.Pos applies to p, phase == 0 (before p)
+ // takes care of the update.
+ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
+-	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno.Line() == 0 || phase == 1 {
++	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Pos.Line() == 0 || phase == 1 {
+ 		return oldval
+ 	}
+-	f, l := linkgetline(ctxt, p.Lineno.Line())
++	f, l := linkgetline(ctxt, p.Pos.Line())
+ 	if f == nil {
+ 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
+ 		return oldval
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 68211eefe4..b328781d87 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -496,12 +496,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				// way to use r12 as the source.
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AWORD
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = 0x3c4c0000
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AWORD
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = 0x38420000
+ 				rel := obj.Addrel(ctxt.Cursym)
+@@ -522,7 +522,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 					// Use MOVDU to adjust R1 when saving R31, if autosize is small.
+ 					q = obj.Appendp(ctxt, q)
+ 					q.As = AMOVD
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.From.Type = obj.TYPE_REG
+ 					q.From.Reg = REG_LR
+ 					q.To.Type = obj.TYPE_REG
+@@ -530,7 +530,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 					q = obj.Appendp(ctxt, q)
+ 					q.As = AMOVDU
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.From.Type = obj.TYPE_REG
+ 					q.From.Reg = REGTMP
+ 					q.To.Type = obj.TYPE_MEM
+@@ -544,7 +544,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 					// code will not see a half-updated stack frame.
+ 					q = obj.Appendp(ctxt, q)
+ 					q.As = AMOVD
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.From.Type = obj.TYPE_REG
+ 					q.From.Reg = REG_LR
+ 					q.To.Type = obj.TYPE_REG
+@@ -552,7 +552,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 					q = obj.Appendp(ctxt, q)
+ 					q.As = AMOVD
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.From.Type = obj.TYPE_REG
+ 					q.From.Reg = REG_R29
+ 					q.To.Type = obj.TYPE_MEM
+@@ -561,7 +561,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 					q = obj.Appendp(ctxt, q)
+ 					q.As = AADD
+-					q.Lineno = p.Lineno
++					q.Pos = p.Pos
+ 					q.From.Type = obj.TYPE_CONST
+ 					q.From.Offset = int64(-autosize)
+ 					q.To.Type = obj.TYPE_REG
+@@ -583,7 +583,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if ctxt.Flag_shared {
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AMOVD
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_REG
+ 				q.From.Reg = REG_R2
+ 				q.To.Type = obj.TYPE_MEM
+@@ -713,7 +713,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 				q = ctxt.NewProg()
+ 				q.As = ABR
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.To.Type = obj.TYPE_REG
+ 				q.To.Reg = REG_LR
+ 				q.Mark |= BRANCH
+@@ -733,7 +733,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			q = ctxt.NewProg()
+ 			q.As = AMOVD
+-			q.Lineno = p.Lineno
++			q.Pos = p.Pos
+ 			q.From.Type = obj.TYPE_REG
+ 			q.From.Reg = REGTMP
+ 			q.To.Type = obj.TYPE_REG
+@@ -748,7 +748,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q = ctxt.NewProg()
+ 
+ 				q.As = AMOVD
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_MEM
+ 				q.From.Offset = 0
+ 				q.From.Reg = REGTMP
+@@ -763,7 +763,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if autosize != 0 {
+ 				q = ctxt.NewProg()
+ 				q.As = AADD
+-				q.Lineno = p.Lineno
++				q.Pos = p.Pos
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = int64(autosize)
+ 				q.To.Type = obj.TYPE_REG
+@@ -776,7 +776,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			q1 = ctxt.NewProg()
+ 			q1.As = ABR
+-			q1.Lineno = p.Lineno
++			q1.Pos = p.Pos
+ 			if retTarget == nil {
+ 				q1.To.Type = obj.TYPE_REG
+ 				q1.To.Reg = REG_LR
+@@ -1199,7 +1199,7 @@ loop:
+ 		a = ABR
+ 		q = ctxt.NewProg()
+ 		q.As = a
+-		q.Lineno = p.Lineno
++		q.Pos = p.Pos
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		q.To.Offset = p.Pc
+ 		q.Pcond = p
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index fca8f85c0f..86af775aad 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -795,7 +795,7 @@ func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.P
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Pos = ctxt.Cursym.Text.Pos
+ 	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+@@ -970,7 +970,7 @@ func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+ 			a = ABR
+ 			q = ctxt.NewProg()
+ 			q.As = a
+-			q.Lineno = p.Lineno
++			q.Pos = p.Pos
+ 			q.To.Type = obj.TYPE_BRANCH
+ 			q.To.Offset = p.Pc
+ 			q.Pcond = p
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 472e13bc44..ccf4f4b5f6 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return p.Ctxt.LineHist.LineString(int(p.Lineno.Line()))
++	return p.Ctxt.LineHist.LineString(int(p.Pos.Line()))
+ }
+ 
+ var armCondCode = []string{
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index eb6f867ca7..f1e2b2507d 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1137,7 +1137,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := obj.Appendp(ctxt, spfix)
+-	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Pos = ctxt.Cursym.Text.Pos
+ 	pcdata.Mode = ctxt.Cursym.Text.Mode
+ 	pcdata.As = obj.APCDATA
+ 	pcdata.From.Type = obj.TYPE_CONST
+@@ -1146,7 +1146,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+ 
+ 	call := obj.Appendp(ctxt, pcdata)
+-	call.Lineno = ctxt.Cursym.Text.Lineno
++	call.Pos = ctxt.Cursym.Text.Pos
+ 	call.Mode = ctxt.Cursym.Text.Mode
+ 	call.As = obj.ACALL
+ 	call.To.Type = obj.TYPE_BRANCH
+@@ -1351,7 +1351,7 @@ loop:
+ 		}
+ 		q = ctxt.NewProg()
+ 		q.As = obj.AJMP
+-		q.Lineno = p.Lineno
++		q.Pos = p.Pos
+ 		q.To.Type = obj.TYPE_BRANCH
+ 		q.To.Offset = p.Pc
+ 		q.Pcond = p

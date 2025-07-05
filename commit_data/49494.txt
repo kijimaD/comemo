@@ -19,7 +19,7 @@ Date:   Sun Aug 22 11:50:58 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go   | 10 ++++-
  src/cmd/compile/internal/noder/stencil.go   |  2 +-
  src/cmd/compile/internal/noder/transform.go |  5 ++-
@@ -27,3 +27,168 @@ Date:   Sun Aug 22 11:50:58 2021 -0700
  src/cmd/compile/internal/typecheck/const.go |  4 +-
  test/typeparam/issue47716.go                | 68 +++++++++++++++++++++++++++++
  6 files changed, 95 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index b9dbd030af..9487e76336 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -138,10 +138,18 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 		//    until arg type known
+ 		// OAPPEND: transformAppend requires that the arg is a slice
+ 		// ODELETE: transformDelete requires that the arg is a map
++		// OALIGNOF, OSIZEOF: can be eval'ed to a constant until types known.
+ 		switch fun.BuiltinOp {
+-		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
++		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+ 			hasTParam := false
+ 			for _, arg := range args {
++				if fun.BuiltinOp == ir.OOFFSETOF {
++					// It's the type of left operand of the
++					// selection that matters, not the type of
++					// the field itself (which is irrelevant for
++					// offsetof).
++					arg = arg.(*ir.SelectorExpr).X
++				}
+ 				if arg.Type().HasTParam() {
+ 					hasTParam = true
+ 					break
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 4ed1850597..2d275d6a3b 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1037,7 +1037,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				name := call.X.Name()
+ 				if name.BuiltinOp != ir.OXXX {
+ 					switch name.BuiltinOp {
+-					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE:
++					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+ 						// Transform these builtins now that we
+ 						// know the type of the args.
+ 						m = transformBuiltin(call)
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 140bb33234..be8651d47b 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -811,7 +811,10 @@ func transformBuiltin(n *ir.CallExpr) ir.Node {
+ 			return transformRealImag(u1.(*ir.UnaryExpr))
+ 		case ir.OPANIC:
+ 			return transformPanic(u1.(*ir.UnaryExpr))
+-		case ir.OCLOSE, ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
++		case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
++			// This corresponds to the EvalConst() call near end of typecheck().
++			return typecheck.EvalConst(u1)
++		case ir.OCLOSE, ir.ONEW:
+ 			// nothing more to do
+ 			return u1
+ 		}
+diff --git a/src/cmd/compile/internal/noder/validate.go b/src/cmd/compile/internal/noder/validate.go
+index 68a059b96f..dcacae7480 100644
+--- a/src/cmd/compile/internal/noder/validate.go
++++ b/src/cmd/compile/internal/noder/validate.go
+@@ -81,7 +81,16 @@ func (g *irgen) validateBuiltin(name string, call *syntax.CallExpr) {
+ 		// Check that types2+gcSizes calculates sizes the same
+ 		// as cmd/compile does.
+ 
+-		got, ok := constant.Int64Val(g.info.Types[call].Value)
++		tv := g.info.Types[call]
++		if !tv.IsValue() {
++			base.FatalfAt(g.pos(call), "expected a value")
++		}
++
++		if tv.Value == nil {
++			break // unsafe op is not a constant, so no further validation
++		}
++
++		got, ok := constant.Int64Val(tv.Value)
+ 		if !ok {
+ 			base.FatalfAt(g.pos(call), "expected int64 constant value")
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index f8150d249a..c27cf0e646 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -881,7 +881,9 @@ func evalunsafe(n ir.Node) int64 {
+ 	case ir.OOFFSETOF:
+ 		// must be a selector.
+ 		n := n.(*ir.UnaryExpr)
+-		if n.X.Op() != ir.OXDOT {
++		// ODOT and ODOTPTR are allowed in case the OXDOT transformation has
++		// already happened (e.g. during -G=3 stenciling).
++		if n.X.Op() != ir.OXDOT && n.X.Op() != ir.ODOT && n.X.Op() != ir.ODOTPTR {
+ 			base.Errorf("invalid expression %v", n)
+ 			return 0
+ 		}
+diff --git a/test/typeparam/issue47716.go b/test/typeparam/issue47716.go
+new file mode 100644
+index 0000000000..7f34fcb21f
+--- /dev/null
++++ b/test/typeparam/issue47716.go
+@@ -0,0 +1,68 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"unsafe"
++)
++
++// size returns the size of type T
++func size[T any](x T) uintptr {
++	return unsafe.Sizeof(x)
++}
++
++// size returns the alignment of type T
++func align[T any](x T) uintptr {
++	return unsafe.Alignof(x)
++}
++
++type Tstruct[T any] struct {
++	f1 T
++	f2 int
++}
++
++// offset returns the offset of field f2 in the generic type Tstruct
++func (r *Tstruct[T]) offset() uintptr {
++	return unsafe.Offsetof(r.f2)
++}
++
++func main() {
++	v1 := int(5)
++	if got, want := size(v1), unsafe.Sizeof(v1); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++	if got, want := align(v1), unsafe.Alignof(v1); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	v2 := "abc"
++	if got, want := size(v2), unsafe.Sizeof(v2); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++	if got, want := align(v2), unsafe.Alignof(v2); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	var v3 Tstruct[int]
++	if got, want := unsafe.Offsetof(v3.f2), unsafe.Sizeof(v1); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	var v4 Tstruct[interface{}]
++	var v5 interface{}
++	if got, want := unsafe.Offsetof(v4.f2), unsafe.Sizeof(v5); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got, want := v3.offset(), unsafe.Offsetof(v3.f2); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++	if got, want := v4.offset(), unsafe.Offsetof(v4.f2); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}

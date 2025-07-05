@@ -21,6 +21,20 @@ Date:   Mon Nov 16 12:05:13 2020 +0000
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/security.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index b8df3dddd3..36bbab37ee 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -179,7 +179,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,-berok`),
+ 	re(`-Wl,-Bstatic`),
+ 	re(`-Wl,-Bsymbolic-functions`),
+-	re(`-WL,-O([^@,\-][^,]*)?`),
++	re(`-Wl,-O([^@,\-][^,]*)?`),
+ 	re(`-Wl,-d[ny]`),
+ 	re(`-Wl,--disable-new-dtags`),
+ 	re(`-Wl,-e[=,][a-zA-Z0-9]*`),

@@ -13,7 +13,43 @@ Date:   Tue Sep 28 14:43:58 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/runtime/memclr_ppc64x.s  | 4 +++-
  src/runtime/memmove_ppc64x.s | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index 65639322b2..91aa417ca2 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -10,9 +10,11 @@
+ // See memclrNoHeapPointers Go doc for important implementation constraints.
+ 
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+-TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT|NOFRAME, $0-16
++TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-16
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD ptr+0(FP), R3
+ 	MOVD n+8(FP), R4
++#endif
+ 
+ 	// Determine if there are doublewords to clear
+ check:
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index fd16ad8129..b36b23f8ef 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -28,10 +28,12 @@
+ // number of 32 byte chunks
+ #define QWORDS R10
+ 
+-TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
++TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD	to+0(FP), TGT
+ 	MOVD	from+8(FP), SRC
+ 	MOVD	n+16(FP), LEN
++#endif
+ 
+ 	// Determine if there are doublewords to
+ 	// copy so a more efficient move can be done

@@ -14,7 +14,7 @@ Date:   Fri Jul 19 16:04:09 2013 -0400
     R=golang-dev, dvyukov, cshapiro
     CC=golang-dev
     https://golang.org/cl/11406044
-
+---
  src/cmd/5c/reg.c                |  1 +
  src/cmd/5g/peep.c               |  7 +-----
  src/cmd/5g/reg.c                |  3 ---
@@ -44,3 +44,966 @@ Date:   Fri Jul 19 16:04:09 2013 -0400
  src/pkg/runtime/traceback_arm.c | 27 +++-----------------
  src/pkg/runtime/traceback_x86.c | 22 ++--------------
  28 files changed, 126 insertions(+), 275 deletions(-)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 42c5193de5..030b0c327e 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -112,6 +112,7 @@ regopt(Prog *p)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case AFUNCDATA:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 87afa86a8c..c8e8174d36 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -76,10 +76,7 @@ peep(void)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
+-		case ALOCALS:
+ 		case ATYPE:
+-		case ANPTRS:
+-		case APTRS:
+ 			p = p->link;
+ 		}
+ 	}
+@@ -1196,10 +1193,8 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 				return 3;
+ 		return 0;
+ 
+-	case ALOCALS:	/* funny */
+-	case ANPTRS:
+-	case APTRS:
+ 	case APCDATA:
++	case AFUNCDATA:
+ 		return 0;
+ 	}
+ }
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index e0875995c7..0c2898c4c9 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -248,10 +248,7 @@ regopt(Prog *firstp)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
+-		case ALOCALS:
+ 		case ATYPE:
+-		case ANPTRS:
+-		case APTRS:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 042017c2a8..eda379c6f6 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -201,11 +201,6 @@ enum	as
+ 	AFUNCDATA,
+ 	APCDATA,
+ 
+-	// TODO: Remove these.
+-	ALOCALS,
+-	ANPTRS,
+-	APTRS,
+-
+ 	ALAST,
+ };
+ 
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index c79bb79e05..10d8b5bd3e 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -154,8 +154,6 @@ struct	Sym
+ 	int32	elfsym;
+ 	int32	locals;	// size of stack frame locals area
+ 	int32	args;	// size of stack frame incoming arguments area
+-	int32	nptrs;	// number of bits in the pointer map
+-	uint32*	ptrs;	// pointer map data
+ 	uchar	special;
+ 	uchar	fnptr;	// used as fn ptr
+ 	uchar	stkcheck;
+@@ -436,7 +434,6 @@ int32	immaddr(int32);
+ int32	opbra(int, int);
+ int	brextra(Prog*);
+ int	isbranch(Prog*);
+-void	fnptrs(void);
+ void	doelf(void);
+ void	dozerostk(void); // used by -Z
+ 
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index d087bb470c..168cf01de9 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -615,51 +615,12 @@ loop:
+ 		pc++;
+ 		break;
+ 
+-	case ALOCALS:
+-		if(skip)
+-			goto casedef;
+-		cursym->locals = p->to.offset;
+-		pc++;
+-		break;
+-
+ 	case ATYPE:
+ 		if(skip)
+ 			goto casedef;
+ 		pc++;
+ 		goto loop;
+ 
+-	case ANPTRS:
+-		if(skip)
+-			goto casedef;
+-		if(cursym->nptrs != -1) {
+-			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
+-			errorexit();
+-		}
+-		if(p->to.offset > cursym->args/PtrSize) {
+-			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
+-			errorexit();
+-		}
+-		cursym->nptrs = p->to.offset;
+-		if(cursym->nptrs != 0)
+-			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
+-		pc++;
+-		goto loop;
+-
+-	case APTRS:
+-		if(skip)
+-			goto casedef;
+-		if(cursym->nptrs == -1 || cursym->ptrs == nil) {
+-			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
+-			errorexit();
+-		}
+-		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
+-			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
+-			errorexit();
+-		}
+-		cursym->ptrs[p->from.offset] = p->to.offset;
+-		pc++;
+-		goto loop;
+-
+ 	case ATEXT:
+ 		if(cursym != nil && cursym->text) {
+ 			histtoauto();
+@@ -704,7 +665,6 @@ loop:
+ 		s->text = p;
+ 		s->value = pc;
+ 		s->args = p->to.offset2;
+-		s->nptrs = -1;
+ 		lastp = p;
+ 		p->pc = pc;
+ 		pc++;
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 96138b2663..fe7aface97 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -830,7 +830,6 @@ buildop(void)
+ 		case ARFE:
+ 		case ATEXT:
+ 		case AUSEFIELD:
+-		case ALOCALS:
+ 		case ACASE:
+ 		case ABCASE:
+ 		case ATYPE:
+diff --git a/src/cmd/6c/reg.c b/src/cmd/6c/reg.c
+index e40e6c8f0f..edd93a0a06 100644
+--- a/src/cmd/6c/reg.c
++++ b/src/cmd/6c/reg.c
+@@ -111,6 +111,7 @@ regopt(Prog *p)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case AFUNCDATA:
+ 			continue;
+ 		}
+ 		r = rega();
+@@ -645,6 +646,7 @@ brk:
+ 			case AGLOBL:
+ 			case ANAME:
+ 			case ASIGNAME:
++			case AFUNCDATA:
+ 				break;
+ 			}
+ 		}
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 5db9f4cf16..fcccea24c4 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -132,10 +132,7 @@ peep(void)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
+-		case ALOCALS:
+ 		case ATYPE:
+-		case ANPTRS:
+-		case APTRS:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 2cdf5f3e08..2640a99433 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -223,10 +223,7 @@ regopt(Prog *firstp)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
+-		case ALOCALS:
+ 		case ATYPE:
+-		case ANPTRS:
+-		case APTRS:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 5c3e806970..b95b3fd13b 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -766,11 +766,6 @@ enum	as
+ 	AFUNCDATA,
+ 	APCDATA,
+ 	
+-	// TODO: Remove these.
+-	ALOCALS,
+-	ANPTRS,
+-	APTRS,
+-	
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 97676267fc..ab6fcb0785 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -159,10 +159,7 @@ struct	Sym
+ 	int32	got;
+ 	int32	align;	// if non-zero, required alignment in bytes
+ 	int32	elfsym;
+-	int32	locals;	// size of stack frame locals area
+ 	int32	args;	// size of stack frame incoming arguments area
+-	int32	nptrs;	// number of bits in the pointer map
+-	uint32*	ptrs;	// pointer map data
+ 	Sym*	hash;	// in hash table
+ 	Sym*	allsym;	// in all symbol list
+ 	Sym*	next;	// in text or data list
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index d2d0459a4e..c4c743cffd 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -604,51 +604,12 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
+-	case ALOCALS:
+-		if(skip)
+-			goto casdef;
+-		cursym->locals = p->to.offset;
+-		pc++;
+-		goto loop;
+-	
+ 	case ATYPE:
+ 		if(skip)
+ 			goto casdef;
+ 		pc++;
+ 		goto loop;
+ 
+-	case ANPTRS:
+-		if(skip)
+-			goto casdef;
+-		if(cursym->nptrs != -1) {
+-			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
+-			errorexit();
+-		}
+-		if(p->to.offset > cursym->args/PtrSize) {
+-			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
+-			errorexit();
+-		}
+-		cursym->nptrs = p->to.offset;
+-		if(cursym->nptrs != 0)
+-			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
+-		pc++;
+-		goto loop;
+-
+-	case APTRS:
+-		if(skip)
+-			goto casdef;
+-		if(cursym->nptrs == -1 || cursym->ptrs == nil) {
+-			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
+-			errorexit();
+-		}
+-		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
+-			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
+-			errorexit();
+-		}
+-		cursym->ptrs[p->from.offset] = p->to.offset;
+-		pc++;
+-		goto loop;
+-
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+@@ -694,7 +655,6 @@ loop:
+ 		s->hist = gethist();
+ 		s->value = pc;
+ 		s->args = p->to.offset >> 32;
+-		s->nptrs = -1;
+ 		lastp = p;
+ 		p->pc = pc++;
+ 		goto loop;
+diff --git a/src/cmd/8c/reg.c b/src/cmd/8c/reg.c
+index 6c87d70a5b..a3d5d61151 100644
+--- a/src/cmd/8c/reg.c
++++ b/src/cmd/8c/reg.c
+@@ -111,6 +111,7 @@ regopt(Prog *p)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
++		case AFUNCDATA:
+ 			continue;
+ 		}
+ 		r = rega();
+@@ -584,6 +585,7 @@ brk:
+ 			case AGLOBL:
+ 			case ANAME:
+ 			case ASIGNAME:
++			case AFUNCDATA:
+ 				break;
+ 			}
+ 		}
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index e4c8afa372..fff755cbda 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -126,10 +126,7 @@ peep(void)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
+-		case ALOCALS:
+ 		case ATYPE:
+-		case ANPTRS:
+-		case APTRS:
+ 			p = p->link;
+ 		}
+ 	}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 4a0bf91fbc..e8f055f761 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -195,10 +195,7 @@ regopt(Prog *firstp)
+ 		case AGLOBL:
+ 		case ANAME:
+ 		case ASIGNAME:
+-		case ALOCALS:
+ 		case ATYPE:
+-		case ANPTRS:
+-		case APTRS:
+ 			continue;
+ 		}
+ 		r = rega();
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index fecb0852c8..7683d50ada 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -582,11 +582,6 @@ enum	as
+ 	AFUNCDATA,
+ 	APCDATA,
+ 	
+-	// TODO: Remove these.
+-	ALOCALS,
+-	ANPTRS,
+-	APTRS,
+-
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 2cf8c76b1f..67e607b5bd 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -143,10 +143,7 @@ struct	Sym
+ 	int32	got;
+ 	int32	align;	// if non-zero, required alignment in bytes
+ 	int32	elfsym;
+-	int32	locals;	// size of stack frame locals area
+ 	int32	args;	// size of stack frame incoming arguments area
+-	int32	nptrs;	// number of bits in the pointer map
+-	uint32*	ptrs;	// pointer map data
+ 	Sym*	hash;	// in hash table
+ 	Sym*	allsym;	// in all symbol list
+ 	Sym*	next;	// in text or data list
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 5e8988c9cb..8c84aaaea7 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -614,51 +614,12 @@ loop:
+ 		pc++;
+ 		goto loop;
+ 
+-	case ALOCALS:
+-		if(skip)
+-			goto casdef;
+-		cursym->locals = p->to.offset;
+-		pc++;
+-		goto loop;
+-
+ 	case ATYPE:
+ 		if(skip)
+ 			goto casdef;
+ 		pc++;
+ 		goto loop;
+ 
+-	case ANPTRS:
+-		if(skip)
+-			goto casdef;
+-		if(cursym->nptrs != -1) {
+-			diag("ldobj1: multiple pointer maps defined for %s", cursym->name);
+-			errorexit();
+-		}
+-		if(p->to.offset > cursym->args/PtrSize) {
+-			diag("ldobj1: pointer map definition for %s exceeds its argument size", cursym->name);
+-			errorexit();
+-		}
+-		cursym->nptrs = p->to.offset;
+-		if(cursym->nptrs != 0)
+-			cursym->ptrs = mal((rnd(cursym->nptrs, 32) / 32) * sizeof(*cursym->ptrs));
+-		pc++;
+-		goto loop;
+-
+-	case APTRS:
+-		if(skip)
+-			goto casdef;
+-		if(cursym->nptrs == -1 || cursym->ptrs == nil) {
+-			diag("ldobj1: pointer map data provided for %s without a definition", cursym->name);
+-			errorexit();
+-		}
+-		if(p->from.offset*32 >= rnd(cursym->nptrs, 32)) {
+-			diag("ldobj1: excessive pointer map data provided for %s", cursym->name);
+-			errorexit();
+-		}
+-		cursym->ptrs[p->from.offset] = p->to.offset;
+-		pc++;
+-		goto loop;
+-
+ 	case ATEXT:
+ 		s = p->from.sym;
+ 		if(s->text != nil) {
+@@ -699,7 +660,6 @@ loop:
+ 		s->hist = gethist();
+ 		s->value = pc;
+ 		s->args = p->to.offset2;
+-		s->nptrs = -1;
+ 		lastp = p;
+ 		p->pc = pc++;
+ 		goto loop;
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 8a33898531..27022d54e8 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -77,6 +77,10 @@ codgen(Node *n, Node *nn)
+ {
+ 	Prog *sp;
+ 	Node *n1, nod, nod1;
++	Sym *gcsym;
++	static int ngcsym;
++	static char namebuf[40];
++	int32 off;
+ 
+ 	cursafe = 0;
+ 	curarg = 0;
+@@ -97,8 +101,7 @@ codgen(Node *n, Node *nn)
+ 
+ 	p = gtext(n1->sym, stkoff);
+ 	sp = p;
+-	gins(ALOCALS, Z, nodconst(stkoff));
+-
++	
+ 	/*
+ 	 * isolate first argument
+ 	 */
+@@ -135,6 +138,34 @@ codgen(Node *n, Node *nn)
+ 	if(thechar=='6' || thechar=='7')	/* [sic] */
+ 		maxargsafe = xround(maxargsafe, 8);
+ 	sp->to.offset += maxargsafe;
++	
++	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
++	gcsym = slookup(namebuf);
++	gcsym->class = CSTATIC;
++
++	memset(&nod, 0, sizeof nod);
++	nod.op = ONAME;
++	nod.sym = gcsym;
++	nod.class = CSTATIC;
++
++	gins(AFUNCDATA, nodconst(FUNCDATA_GC), &nod);
++
++	// TODO(rsc): "stkoff" is not right. It does not account for
++	// the possibility of data stored in .safe variables.
++	// Unfortunately those move up and down just like
++	// the argument frame (and in fact dovetail with it)
++	// so the number we need is not available or even
++	// well-defined. Probably we need to make the safe
++	// area its own section.
++	// That said, we've been using stkoff for months
++	// and nothing too terrible has happened.
++	off = 0;
++	gextern(gcsym, nodconst(stkoff), off, 4); // locals
++	off += 4;
++	gextern(gcsym, nodconst(0), off, 4); // nptrs
++	off += 4;
++	gcsym->type = typ(0, T);
++	gcsym->type->width = off;
+ }
+ 
+ void
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 4d3859d02d..c25cccdd38 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -6,21 +6,25 @@
+ #include	<libc.h>
+ #include	"gg.h"
+ #include	"opt.h"
++#include	"../../pkg/runtime/funcdata.h"
+ 
+ static void allocauto(Prog* p);
+-static void pointermap(Node* fn);
++static int pointermap(Sym*, int, Node*);
++static void gcsymbol(Sym*, Node*);
+ 
+ void
+ compile(Node *fn)
+ {
+ 	Plist *pl;
+-	Node nod1, *n;
+-	Prog *plocals, *ptxt, *p, *p1;
++	Node nod1, *n, *gcnod;
++	Prog *pfuncdata, *ptxt, *p, *p1;
+ 	int32 lno;
+ 	Type *t;
+ 	Iter save;
+ 	vlong oldstksize;
+ 	NodeList *l;
++	Sym *gcsym;
++	static int ngcsym;
+ 
+ 	if(newproc == N) {
+ 		newproc = sysfunc("newproc");
+@@ -89,7 +93,13 @@ compile(Node *fn)
+ 
+ 	ginit();
+ 
+-	plocals = gins(ALOCALS, N, N);
++	snprint(namebuf, sizeof namebuf, "gc·%d", ngcsym++);
++	gcsym = lookup(namebuf);
++	gcnod = newname(gcsym);
++	gcnod->class = PEXTERN;
++
++	nodconst(&nod1, types[TINT32], FUNCDATA_GC);
++	pfuncdata = gins(AFUNCDATA, &nod1, gcnod);
+ 
+ 	for(t=curfn->paramfld; t; t=t->down)
+ 		gtrack(tracksym(t->type));
+@@ -109,8 +119,6 @@ compile(Node *fn)
+ 		}
+ 	}
+ 
+-	pointermap(fn);
+-
+ 	genlist(curfn->enter);
+ 
+ 	retpc = nil;
+@@ -151,9 +159,9 @@ compile(Node *fn)
+ 
+ 	oldstksize = stksize;
+ 	allocauto(ptxt);
+-
+-	plocals->to.type = D_CONST;
+-	plocals->to.offset = stksize;
++	
++	// Emit garbage collection symbol.
++	gcsymbol(gcsym, fn);
+ 
+ 	if(0)
+ 		print("allocauto: %lld to %lld\n", oldstksize, (vlong)stksize);
+@@ -171,6 +179,17 @@ ret:
+ 	lineno = lno;
+ }
+ 
++static void
++gcsymbol(Sym *gcsym, Node *fn)
++{
++	int off;
++
++	off = 0;
++	off = duint32(gcsym, off, stksize); // size of local block
++	off = pointermap(gcsym, off, fn); // pointer bitmap for args (must be last)
++	ggloblsym(gcsym, off, 0, 1);
++}
++
+ static void
+ walktype1(Type *t, vlong *xoffset, Bvec *bv)
+ {
+@@ -278,12 +297,11 @@ walktype(Type *type, Bvec *bv)
+ 
+ // Compute a bit vector to describes the pointer containing locations
+ // in the argument list.
+-static void
+-pointermap(Node *fn)
++static int
++pointermap(Sym *gcsym, int off, Node *fn)
+ {
+ 	Type *thistype, *inargtype, *outargtype;
+ 	Bvec *bv;
+-	Prog *prog;
+ 	int32 i;
+ 
+ 	thistype = getthisx(fn->type);
+@@ -296,17 +314,11 @@ pointermap(Node *fn)
+ 		walktype(inargtype, bv);
+ 	if(outargtype != nil)
+ 		walktype(outargtype, bv);
+-	prog = gins(ANPTRS, N, N);
+-	prog->to.type = D_CONST;
+-	prog->to.offset = bv->n;
+-	for(i = 0; i < bv->n; i += 32) {
+-		prog = gins(APTRS, N, N);
+-		prog->from.type = D_CONST;
+-		prog->from.offset = i / 32;
+-		prog->to.type = D_CONST;
+-		prog->to.offset = bv->b[i / 32];
+-	}
++	off = duint32(gcsym, off, bv->n);
++	for(i = 0; i < bv->n; i += 32)
++		off = duint32(gcsym, off, bv->b[i/32]);
+ 	free(bv);
++	return off;
+ }
+ 
+ // Sort the list of stack variables.  autos after anything else,
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index feb84736df..6a299e7f9a 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -2354,7 +2354,7 @@ void
+ pclntab(void)
+ {
+ 	Prog *p;
+-	int32 i, n, nfunc, start, funcstart, nameoff;
++	int32 i, n, nfunc, start, funcstart;
+ 	uint32 *havepc, *havefunc;
+ 	Sym *ftab, *s;
+ 	int32 npcdata, nfuncdata, off, end;
+@@ -2409,9 +2409,7 @@ pclntab(void)
+ 		off = setaddr(ftab, off, cursym);
+ 
+ 		// name int32
+-		// Filled in below, after we emit the ptrs.
+-		nameoff = off;
+-		off += 4;
++		off = setuint32(ftab, off, ftabaddstring(ftab, cursym->name));
+ 		
+ 		// args int32
+ 		// TODO: Move into funcinfo.
+@@ -2420,9 +2418,8 @@ pclntab(void)
+ 		else
+ 			off = setuint32(ftab, off, cursym->args);
+ 
+-		// locals int32
+-		// TODO: Move into funcinfo.
+-		off = setuint32(ftab, off, cursym->locals);
++		// Dead space. TODO: Delete (and update all parsers).
++		off = setuint32(ftab, off, 0);
+ 	
+ 		// frame int32
+ 		// TODO: Remove entirely. The pcsp table is more precise.
+@@ -2435,23 +2432,9 @@ pclntab(void)
+ 		else
+ 			off = setuint32(ftab, off, (uint32)cursym->text->to.offset+PtrSize);
+ 
+-		// TODO: Move into funcinfo.
+-		// ptrsoff, ptrslen int32
+-		start = ftab->np;
+-		if(start&3) {
+-			diag("bad math in functab: ptrs misaligned");
+-			errorexit();
+-		}
+-		ftab->size = ftab->np; // for adduint32
+-		for(i = 0; i < cursym->nptrs; i += 32)
+-			adduint32(ftab, cursym->ptrs[i/32]);
+-		off = setuint32(ftab, off, start);
+-		off = setuint32(ftab, off, i/32);
+-
+-		// Now that ptrs are emitted, can fill in function name.
+-		// The string is appended to ftab; we waited until now
+-		// to avoid misaligning the ptrs data.
+-		setuint32(ftab, nameoff, ftabaddstring(ftab, cursym->name));
++		// Dead space. TODO: Delete (and update all parsers).
++		off = setuint32(ftab, off, 0);
++		off = setuint32(ftab, off, 0);
+ 
+ 		// pcsp table (offset int32)
+ 		off = addpctab(ftab, off, cursym, "pctospadj", pctospadj, 0);
+diff --git a/src/pkg/runtime/funcdata.h b/src/pkg/runtime/funcdata.h
+index 850288bf64..f12bf49fb1 100644
+--- a/src/pkg/runtime/funcdata.h
++++ b/src/pkg/runtime/funcdata.h
+@@ -7,7 +7,9 @@
+ // be written using #defines. It is included by the runtime package
+ // as well as the compilers.
+ 
+-#define PCDATA_ArgSize 0
++#define PCDATA_ArgSize 0 /* argument size at CALL instruction */
++
++#define FUNCDATA_GC 0 /* garbage collector block */
+ 
+ // To be used in assembly.
+ #define ARGSIZE(n) PCDATA $PCDATA_ArgSize, $n
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index abf93e425b..8654e38544 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -13,6 +13,7 @@
+ #include "type.h"
+ #include "typekind.h"
+ #include "hashmap.h"
++#include "funcdata.h"
+ 
+ enum {
+ 	Debug = 0,
+@@ -1385,6 +1386,14 @@ addroot(Obj obj)
+ 
+ extern byte pclntab[]; // base for f->ptrsoff
+ 
++typedef struct GCFunc GCFunc;
++struct GCFunc
++{
++	uint32	locals; // size of local variables in bytes
++	uint32	nptrs; // number of words that follow
++	uint32	ptrs[1]; // bitmap of pointers in arguments
++};
++
+ // Scan a stack frame: local variables and function arguments/results.
+ static void
+ addframeroots(Stkframe *frame, void*)
+@@ -1392,21 +1401,28 @@ addframeroots(Stkframe *frame, void*)
+ 	Func *f;
+ 	byte *ap;
+ 	int32 i, j, nuintptr;
+-	uint32 w, b, *ptrs;
++	uint32 w, b;
++	GCFunc *gcf;
+ 
++	f = frame->fn;
++	gcf = runtime·funcdata(f, FUNCDATA_GC);
++	
+ 	// Scan local variables if stack frame has been allocated.
+-	if(frame->varlen > 0)
+-		addroot((Obj){frame->varp, frame->varlen, 0});
++	i = frame->varp - (byte*)frame->sp;
++	if(i > 0) {
++		if(gcf == nil)
++			addroot((Obj){frame->varp - i, i, 0});
++		else if(i >= gcf->locals)
++			addroot((Obj){frame->varp - gcf->locals, gcf->locals, 0});
++	}
+ 
+ 	// Scan arguments.
+ 	// Use pointer information if known.
+-	f = frame->fn;
+-	if(f->args > 0 && f->ptrslen > 0) {
++	if(f->args > 0 && gcf != nil && gcf->nptrs > 0) {
+ 		ap = frame->argp;
+ 		nuintptr = f->args / sizeof(uintptr);
+-		ptrs = (uint32*)(pclntab + f->ptrsoff);
+-		for(i = 0; i < f->ptrslen; i++) {
+-			w = ptrs[i];
++		for(i = 0; i < gcf->nptrs; i++) {
++			w = gcf->ptrs[i];
+ 			b = 1;
+ 			j = nuintptr;
+ 			if(j > 32)
+@@ -2017,8 +2033,10 @@ runtime·gc(int32 force)
+ 
+ 	// all done
+ 	m->gcing = 0;
++	m->locks++;
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
++	m->locks--;
+ 
+ 	// now that gc is done and we're back on g stack, kick off finalizer thread if needed
+ 	if(finq != nil) {
+@@ -2185,8 +2203,10 @@ runtime·ReadMemStats(MStats *stats)
+ 	updatememstats(nil);
+ 	*stats = mstats;
+ 	m->gcing = 0;
++	m->locks++;
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
++	m->locks--;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 811ec76653..f405287aa8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -407,10 +407,10 @@ struct	Func
+ 	
+ 	// TODO: Remove these fields.
+ 	int32	args;	// in/out args size
+-	int32	locals;	// locals size
++	int32	x1;	// locals size
+ 	int32	frame;	// legacy frame size; use pcsp if possible
+-	int32	ptrsoff;
+-	int32	ptrslen;
++	int32	x2;
++	int32	x3;
+ 
+ 	int32	pcsp;
+ 	int32	pcfile;
+@@ -677,10 +677,9 @@ struct Stkframe
+ 	uintptr	lr;	// program counter at caller aka link register
+ 	uintptr	sp;	// stack pointer at pc
+ 	uintptr	fp;	// stack pointer at caller aka frame pointer
++	byte*	varp;		// top of local variables
+ 	byte*	argp;	// pointer to function arguments
+ 	uintptr	arglen;	// number of bytes at argp
+-	byte*	varp;	// pointer to local variables
+-	uintptr	varlen;	// number of bytes at varp
+ };
+ 
+ int32	runtime·gentraceback(uintptr, uintptr, uintptr, G*, int32, uintptr*, int32, void(*)(Stkframe*, void*), void*, bool);
+@@ -856,6 +855,7 @@ void	runtime·netpollready(G**, PollDesc*, int32);
+ void	runtime·crash(void);
+ void	runtime·parsedebugvars(void);
+ void	_rt0_go(void);
++void*	runtime·funcdata(Func*, int32);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"c"	int32
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index e877a60cd9..053e255079 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -78,17 +78,17 @@ readvarint(byte **pp)
+ 	return v;
+ }
+ 
+-static uintptr
+-funcdata(Func *f, int32 i)
++void*
++runtime·funcdata(Func *f, int32 i)
+ {
+ 	byte *p;
+ 
+ 	if(i < 0 || i >= f->nfuncdata)
+-		return 0;
++		return nil;
+ 	p = (byte*)&f->nfuncdata + 4 + f->npcdata*4;
+ 	if(sizeof(void*) == 8 && ((uintptr)p & 4))
+ 		p += 4;
+-	return ((uintptr*)p)[i];
++	return ((void**)p)[i];
+ }
+ 
+ static bool
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 5aea699e34..563ba28c94 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -95,7 +95,9 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 					runtime·throw("unknown caller pc");
+ 			}
+ 		}
+-			
++
++		frame.varp = (byte*)frame.fp;
++
+ 		// Derive size of arguments.
+ 		// Most functions have a fixed-size argument block,
+ 		// so we can use metadata about the function f.
+@@ -121,27 +123,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			}
+ 		}
+ 
+-		// Derive location and size of local variables.
+-		if(frame.fp == frame.sp) {
+-			// Function has not created a frame for itself yet.
+-			frame.varp = nil;
+-			frame.varlen = 0;
+-		} else if(f->locals == 0) {
+-			// Assume no information, so use whole frame.
+-			// TODO: Distinguish local==0 from local==unknown.
+-			frame.varp = (byte*)frame.sp;
+-			frame.varlen = frame.fp - frame.sp;
+-		} else {
+-			if(f->locals > frame.fp - frame.sp) {
+-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
+-				if(callback != nil)
+-					runtime·throw("invalid stack");
+-			}
+-			frame.varp = (byte*)frame.fp - f->locals;
+-			frame.varlen = f->locals;
+-		}
+-
+-
+ 		if(skip > 0) {
+ 			skip--;
+ 			goto skipped;
+@@ -203,7 +184,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.fn = f = runtime·findfunc(frame.pc);
+ 			if(f == nil)
+ 				frame.pc = x;
+-			else if (f->frame == 0)
++			else if(f->frame == 0)
+ 				frame.lr = x;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 3153103d34..b88797210e 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -111,6 +111,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 					runtime·throw("unknown caller pc");
+ 			}
+ 		}
++		
++		frame.varp = (byte*)frame.fp - sizeof(uintptr);
+ 
+ 		// Derive size of arguments.
+ 		// Most functions have a fixed-size argument block,
+@@ -137,26 +139,6 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			}
+ 		}
+ 
+-		// Derive location and size of local variables.
+-		if(frame.fp == frame.sp + sizeof(uintptr)) {
+-			// Function has not created a frame for itself yet.
+-			frame.varp = nil;
+-			frame.varlen = 0;
+-		} else if(f->locals == 0) {
+-			// Assume no information, so use whole frame.
+-			// TODO: Distinguish local==0 from local==unknown.
+-			frame.varp = (byte*)frame.sp;
+-			frame.varlen = frame.fp - sizeof(uintptr) - frame.sp;
+-		} else {
+-			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
+-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
+-				if(callback != nil)
+-					runtime·throw("invalid stack");
+-			}
+-			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
+-			frame.varlen = f->locals;
+-		}
+-
+ 		if(skip > 0) {
+ 			skip--;
+ 			goto skipped;

@@ -8,6 +8,20 @@ Date:   Thu Oct 30 14:15:00 2014 +0900
     R=r, adg
     CC=golang-codereviews
     https://golang.org/cl/165890043
-
+---
  doc/go1.4.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index 19bad0065d..9f65aaf24c 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -621,7 +621,7 @@ for the decompressors, allowing them to reuse buffers and improve performance.
+ 
+ <li>
+ The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+-now supports APLN as defined in <a href="http://tools.ietf.org/html/rfc7301">RFC 7301</a>.
++now supports ALPN as defined in <a href="http://tools.ietf.org/html/rfc7301">RFC 7301</a>.
+ </li>
+ 
+ <li>

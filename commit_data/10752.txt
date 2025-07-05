@@ -100,7 +100,7 @@ Date:   Tue Dec 13 15:20:12 2011 -0500
     R=golang-dev, r, cw, iant, r
     CC=golang-dev
     https://golang.org/cl/5488057
-
+---
  src/pkg/math/Makefile                             |  70 +++-----
  src/pkg/math/abs.go                               |   4 +-
  src/pkg/math/{log_decl.go => abs_arm.s}           |   7 +-
@@ -186,3 +186,2158 @@ Date:   Tue Dec 13 15:20:12 2011 -0500
  src/pkg/math/tan_arm.s                            |   6 +
  src/pkg/runtime/arm/softfloat.c                   |   4 +-
  84 files changed, 763 insertions(+), 655 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index ad012b64cb..d70cba79d3 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -6,44 +6,31 @@ include ../../Make.inc
+ 
+ TARG=math
+ 
+-OFILES_arm=\
+-	sqrt_arm.$O\
+-
+-OFILES_amd64=\
+-	abs_amd64.$O\
+-	dim_amd64.$O\
+-	exp_amd64.$O\
+-	hypot_amd64.$O\
+-	log_amd64.$O\
+-	sqrt_amd64.$O\
+-
+-OFILES_386=\
+-	abs_386.$O\
+-	asin_386.$O\
+-	atan_386.$O\
+-	atan2_386.$O\
+-	exp_386.$O\
+-	exp2_386.$O\
+-	expm1_386.$O\
+-	floor_386.$O\
+-	frexp_386.$O\
+-	hypot_386.$O\
+-	ldexp_386.$O\
+-	log_386.$O\
+-	log10_386.$O\
+-	log1p_386.$O\
+-	mod_386.$O\
+-	modf_386.$O\
+-	remainder_386.$O\
+-	sin_386.$O\
+-	sincos_386.$O\
+-	sqrt_386.$O\
+-	tan_386.$O\
+-
+ OFILES=\
+-	$(OFILES_$(GOARCH))
++	abs_$(GOARCH).$O\
++	asin_$(GOARCH).$O\
++	atan_$(GOARCH).$O\
++	atan2_$(GOARCH).$O\
++	dim_$(GOARCH).$O\
++	exp_$(GOARCH).$O\
++	exp2_$(GOARCH).$O\
++	expm1_$(GOARCH).$O\
++	floor_$(GOARCH).$O\
++	frexp_$(GOARCH).$O\
++	hypot_$(GOARCH).$O\
++	ldexp_$(GOARCH).$O\
++	log_$(GOARCH).$O\
++	log10_$(GOARCH).$O\
++	log1p_$(GOARCH).$O\
++	mod_$(GOARCH).$O\
++	modf_$(GOARCH).$O\
++	remainder_$(GOARCH).$O\
++	sin_$(GOARCH).$O\
++	sincos_$(GOARCH).$O\
++	sqrt_$(GOARCH).$O\
++	tan_$(GOARCH).$O\
+ 
+-ALLGOFILES=\
++GOFILES=\
+ 	abs.go\
+ 	acosh.go\
+ 	asin.go\
+@@ -58,14 +45,11 @@ ALLGOFILES=\
+ 	dim.go\
+ 	erf.go\
+ 	exp.go\
+-	exp_port.go\
+-	exp2.go\
+ 	expm1.go\
+ 	floor.go\
+ 	frexp.go\
+ 	gamma.go\
+ 	hypot.go\
+-	hypot_port.go\
+ 	j0.go\
+ 	j1.go\
+ 	jn.go\
+@@ -86,16 +70,8 @@ ALLGOFILES=\
+ 	sincos.go\
+ 	sinh.go\
+ 	sqrt.go\
+-	sqrt_port.go\
+ 	tan.go\
+ 	tanh.go\
+ 	unsafe.go\
+ 
+-NOGOFILES=\
+-	$(subst _$(GOARCH).$O,.go,$(OFILES_$(GOARCH)))
+-
+-GOFILES=\
+-	$(filter-out $(NOGOFILES),$(ALLGOFILES))\
+-	$(subst .go,_decl.go,$(NOGOFILES))\
+-
+ include ../../Make.pkg
+diff --git a/src/pkg/math/abs.go b/src/pkg/math/abs.go
+index 4c6297c6f3..bc41a6d6b5 100644
+--- a/src/pkg/math/abs.go
++++ b/src/pkg/math/abs.go
+@@ -9,7 +9,9 @@ package math
+ // Special cases are:
+ //	Abs(±Inf) = +Inf
+ //	Abs(NaN) = NaN
+-func Abs(x float64) float64 {
++func Abs(x float64) float64
++
++func abs(x float64) float64 {
+ 	switch {
+ 	case x < 0:
+ 		return -x
+diff --git a/src/pkg/math/log_decl.go b/src/pkg/math/abs_arm.s
+similarity index 51%
+rename from src/pkg/math/log_decl.go
+rename to src/pkg/math/abs_arm.s
+index deda305dd8..23f6a2a2de 100644
+--- a/src/pkg/math/log_decl.go
++++ b/src/pkg/math/abs_arm.s
+@@ -1,7 +1,6 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
+-
+-func Log(x float64) float64
++TEXT ·Abs(SB),7,$0
++	B ·abs(SB)
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 98a4df0c1f..7091c035ab 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -2062,6 +2062,34 @@ func TestHypot(t *testing.T) {
+ 	}
+ }
+ 
++func TestHypotSqrtGo(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := Abs(1e200 * tanh[i] * Sqrt(2))
++		if f := HypotSqrtGo(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
++			t.Errorf("HypotSqrtGo(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
++		}
++	}
++	for i := 0; i < len(vfhypotSC); i++ {
++		if f := HypotSqrtGo(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
++			t.Errorf("HypotSqrtGo(%g, %g) = %g, want %g", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
++		}
++	}
++}
++
++func TestHypotNoSqrtGo(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := Abs(1e200 * tanh[i] * Sqrt(2))
++		if f := HypotNoSqrtGo(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
++			t.Errorf("HypotNoSqrtGo(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
++		}
++	}
++	for i := 0; i < len(vfhypotSC); i++ {
++		if f := HypotNoSqrtGo(vfhypotSC[i][0], vfhypotSC[i][1]); !alike(hypotSC[i], f) {
++			t.Errorf("HypotNoSqrtGo(%g, %g) = %g, want %g", vfhypotSC[i][0], vfhypotSC[i][1], f, hypotSC[i])
++		}
++	}
++}
++
+ func TestIlogb(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := frexp[i].i - 1 // adjust because fr in the interval [½, 1)
+@@ -2713,9 +2741,15 @@ func BenchmarkHypot(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkHypotGo(b *testing.B) {
++func BenchmarkHypotNoSqrtGo(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		HypotNoSqrtGo(3, 4)
++	}
++}
++
++func BenchmarkHypotSqrtGo(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		HypotGo(3, 4)
++		HypotSqrtGo(3, 4)
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/asin.go b/src/pkg/math/asin.go
+index 0a0b0a11cb..00bf61ee4b 100644
+--- a/src/pkg/math/asin.go
++++ b/src/pkg/math/asin.go
+@@ -16,7 +16,9 @@ package math
+ // Special cases are:
+ //	Asin(±0) = ±0
+ //	Asin(x) = NaN if x < -1 or x > 1
+-func Asin(x float64) float64 {
++func Asin(x float64) float64
++
++func asin(x float64) float64 {
+ 	if x == 0 {
+ 		return x // special case
+ 	}
+@@ -46,4 +48,8 @@ func Asin(x float64) float64 {
+ //
+ // Special case is:
+ //	Acos(x) = NaN if x < -1 or x > 1
+-func Acos(x float64) float64 { return Pi/2 - Asin(x) }
++func Acos(x float64) float64
++
++func acos(x float64) float64 {
++	return Pi/2 - Asin(x)
++}
+diff --git a/src/pkg/math/asin_amd64.s b/src/pkg/math/asin_amd64.s
+new file mode 100644
+index 0000000000..42151f1e95
+--- /dev/null
++++ b/src/pkg/math/asin_amd64.s
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Asin(SB),7,$0
++	JMP ·asin(SB)
++
++TEXT ·Acos(SB),7,$0
++	JMP ·acos(SB)
+diff --git a/src/pkg/math/asin_arm.s b/src/pkg/math/asin_arm.s
+new file mode 100644
+index 0000000000..d27213fadc
+--- /dev/null
++++ b/src/pkg/math/asin_arm.s
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Asin(SB),7,$0
++	B ·asin(SB)
++
++TEXT ·Acos(SB),7,$0
++	B ·acos(SB)
+diff --git a/src/pkg/math/asin_decl.go b/src/pkg/math/asin_decl.go
+deleted file mode 100644
+index 63a55dce9a..0000000000
+--- a/src/pkg/math/asin_decl.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Acos(x float64) float64
+-func Asin(x float64) float64
+diff --git a/src/pkg/math/atan.go b/src/pkg/math/atan.go
+index 9d4ec2f72d..d424a2be4f 100644
+--- a/src/pkg/math/atan.go
++++ b/src/pkg/math/atan.go
+@@ -51,7 +51,9 @@ func satan(arg float64) float64 {
+ // Special cases are:
+ //	Atan(±0) = ±0
+ //	Atan(±Inf) = ±Pi/2
+-func Atan(x float64) float64 {
++func Atan(x float64) float64
++
++func atan(x float64) float64 {
+ 	if x == 0 {
+ 		return x
+ 	}
+diff --git a/src/pkg/math/atan2.go b/src/pkg/math/atan2.go
+index 49d4bdd719..3d1b52a5cc 100644
+--- a/src/pkg/math/atan2.go
++++ b/src/pkg/math/atan2.go
+@@ -26,7 +26,9 @@ package math
+ //	Atan2(y<0, -Inf) = -Pi
+ //	Atan2(+Inf, x) = +Pi/2
+ //	Atan2(-Inf, x) = -Pi/2
+-func Atan2(y, x float64) float64 {
++func Atan2(y, x float64) float64
++
++func atan2(y, x float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	// special cases
+diff --git a/src/pkg/math/exp_decl.go b/src/pkg/math/atan2_amd64.s
+similarity index 51%
+rename from src/pkg/math/exp_decl.go
+rename to src/pkg/math/atan2_amd64.s
+index dc8404c4fe..1c5b038c2a 100644
+--- a/src/pkg/math/exp_decl.go
++++ b/src/pkg/math/atan2_amd64.s
+@@ -1,7 +1,6 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
+-
+-func Exp(x float64) float64
++TEXT ·Atan2(SB),7,$0
++	JMP ·atan2(SB)
+diff --git a/src/pkg/math/tan_decl.go b/src/pkg/math/atan2_arm.s
+similarity index 51%
+rename from src/pkg/math/tan_decl.go
+rename to src/pkg/math/atan2_arm.s
+index 2796b35010..c2edafae17 100644
+--- a/src/pkg/math/tan_decl.go
++++ b/src/pkg/math/atan2_arm.s
+@@ -1,7 +1,6 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
+-
+-func Tan(x float64) float64
++TEXT ·Atan2(SB),7,$0
++	B ·atan2(SB)
+diff --git a/src/pkg/math/atan_amd64.s b/src/pkg/math/atan_amd64.s
+new file mode 100644
+index 0000000000..206072b931
+--- /dev/null
++++ b/src/pkg/math/atan_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Atan(SB),7,$0
++	JMP ·atan(SB)
+diff --git a/src/pkg/math/atan_arm.s b/src/pkg/math/atan_arm.s
+new file mode 100644
+index 0000000000..ed492ab468
+--- /dev/null
++++ b/src/pkg/math/atan_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Atan(SB),7,$0
++	B ·atan(SB)
+diff --git a/src/pkg/math/dim.go b/src/pkg/math/dim.go
+index 5701b14173..16363ac7f5 100644
+--- a/src/pkg/math/dim.go
++++ b/src/pkg/math/dim.go
+@@ -10,8 +10,10 @@ package math
+ //	Dim(+Inf, +Inf) = NaN
+ //	Dim(-Inf, -Inf) = NaN
+ //	Dim(x, NaN) = Dim(NaN, x) = NaN
+-func Dim(x, y float64) float64 {
+-	return Max(x-y, 0)
++func Dim(x, y float64) float64
++
++func dim(x, y float64) float64 {
++	return max(x-y, 0)
+ }
+ 
+ // Max returns the larger of x or y.
+@@ -21,7 +23,9 @@ func Dim(x, y float64) float64 {
+ //	Max(x, NaN) = Max(NaN, x) = NaN
+ //	Max(+0, ±0) = Max(±0, +0) = +0
+ //	Max(-0, -0) = -0
+-func Max(x, y float64) float64 {
++func Max(x, y float64) float64
++
++func max(x, y float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	// special cases
+@@ -48,7 +52,9 @@ func Max(x, y float64) float64 {
+ //	Min(x, -Inf) = Min(-Inf, x) = -Inf
+ //	Min(x, NaN) = Min(NaN, x) = NaN
+ //	Min(-0, ±0) = Min(±0, -0) = -0
+-func Min(x, y float64) float64 {
++func Min(x, y float64) float64
++
++func min(x, y float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	// special cases
+diff --git a/src/pkg/math/dim_386.s b/src/pkg/math/dim_386.s
+new file mode 100644
+index 0000000000..6a31c75407
+--- /dev/null
++++ b/src/pkg/math/dim_386.s
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Dim(SB),7,$0
++	JMP ·dim(SB)
++
++TEXT ·Max(SB),7,$0
++	JMP ·max(SB)
++
++TEXT ·Min(SB),7,$0
++	JMP ·min(SB)
+diff --git a/src/pkg/math/dim_arm.s b/src/pkg/math/dim_arm.s
+new file mode 100644
+index 0000000000..304fa78cde
+--- /dev/null
++++ b/src/pkg/math/dim_arm.s
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Dim(SB),7,$0
++	B ·dim(SB)
++
++TEXT ·Min(SB),7,$0
++	B ·min(SB)
++
++TEXT ·Max(SB),7,$0
++	B ·max(SB)
+diff --git a/src/pkg/math/dim_decl.go b/src/pkg/math/dim_decl.go
+deleted file mode 100644
+index 196f84fd79..0000000000
+--- a/src/pkg/math/dim_decl.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Dim(x, y float64) float64
+-func Max(x, y float64) float64
+-func Min(x, y float64) float64
+diff --git a/src/pkg/math/exp.go b/src/pkg/math/exp.go
+index c519c2cb6b..2a1710a6d7 100644
+--- a/src/pkg/math/exp.go
++++ b/src/pkg/math/exp.go
+@@ -11,4 +11,185 @@ package math
+ //	Exp(NaN) = NaN
+ // Very large values overflow to 0 or +Inf.
+ // Very small values underflow to 1.
+-func Exp(x float64) float64 { return expGo(x) }
++func Exp(x float64) float64
++
++// The original C code, the long comment, and the constants
++// below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
++// and came with this notice.  The go code is a simplified
++// version of the original C.
++//
++// ====================================================
++// Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
++//
++// Permission to use, copy, modify, and distribute this
++// software is freely granted, provided that this notice
++// is preserved.
++// ====================================================
++//
++//
++// exp(x)
++// Returns the exponential of x.
++//
++// Method
++//   1. Argument reduction:
++//      Reduce x to an r so that |r| <= 0.5*ln2 ~ 0.34658.
++//      Given x, find r and integer k such that
++//
++//               x = k*ln2 + r,  |r| <= 0.5*ln2.
++//
++//      Here r will be represented as r = hi-lo for better
++//      accuracy.
++//
++//   2. Approximation of exp(r) by a special rational function on
++//      the interval [0,0.34658]:
++//      Write
++//          R(r**2) = r*(exp(r)+1)/(exp(r)-1) = 2 + r*r/6 - r**4/360 + ...
++//      We use a special Remes algorithm on [0,0.34658] to generate
++//      a polynomial of degree 5 to approximate R. The maximum error
++//      of this polynomial approximation is bounded by 2**-59. In
++//      other words,
++//          R(z) ~ 2.0 + P1*z + P2*z**2 + P3*z**3 + P4*z**4 + P5*z**5
++//      (where z=r*r, and the values of P1 to P5 are listed below)
++//      and
++//          |                  5          |     -59
++//          | 2.0+P1*z+...+P5*z   -  R(z) | <= 2
++//          |                             |
++//      The computation of exp(r) thus becomes
++//                             2*r
++//              exp(r) = 1 + -------
++//                            R - r
++//                                 r*R1(r)
++//                     = 1 + r + ----------- (for better accuracy)
++//                                2 - R1(r)
++//      where
++//                               2       4             10
++//              R1(r) = r - (P1*r  + P2*r  + ... + P5*r   ).
++//
++//   3. Scale back to obtain exp(x):
++//      From step 1, we have
++//         exp(x) = 2**k * exp(r)
++//
++// Special cases:
++//      exp(INF) is INF, exp(NaN) is NaN;
++//      exp(-INF) is 0, and
++//      for finite argument, only exp(0)=1 is exact.
++//
++// Accuracy:
++//      according to an error analysis, the error is always less than
++//      1 ulp (unit in the last place).
++//
++// Misc. info.
++//      For IEEE double
++//          if x >  7.09782712893383973096e+02 then exp(x) overflow
++//          if x < -7.45133219101941108420e+02 then exp(x) underflow
++//
++// Constants:
++// The hexadecimal values are the intended ones for the following
++// constants. The decimal values may be used, provided that the
++// compiler will convert from decimal to binary accurately enough
++// to produce the hexadecimal values shown.
++
++func exp(x float64) float64 {
++	const (
++		Ln2Hi = 6.93147180369123816490e-01
++		Ln2Lo = 1.90821492927058770002e-10
++		Log2e = 1.44269504088896338700e+00
++
++		Overflow  = 7.09782712893383973096e+02
++		Underflow = -7.45133219101941108420e+02
++		NearZero  = 1.0 / (1 << 28) // 2**-28
++	)
++
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
++		return x
++	case x < -MaxFloat64: // IsInf(x, -1):
++		return 0
++	case x > Overflow:
++		return Inf(1)
++	case x < Underflow:
++		return 0
++	case -NearZero < x && x < NearZero:
++		return 1 + x
++	}
++
++	// reduce; computed as r = hi - lo for extra precision.
++	var k int
++	switch {
++	case x < 0:
++		k = int(Log2e*x - 0.5)
++	case x > 0:
++		k = int(Log2e*x + 0.5)
++	}
++	hi := x - float64(k)*Ln2Hi
++	lo := float64(k) * Ln2Lo
++
++	// compute
++	return expmulti(hi, lo, k)
++}
++
++// Exp2 returns 2**x, the base-2 exponential of x.
++//
++// Special cases are the same as Exp.
++func Exp2(x float64) float64
++
++func exp2(x float64) float64 {
++	const (
++		Ln2Hi = 6.93147180369123816490e-01
++		Ln2Lo = 1.90821492927058770002e-10
++
++		Overflow  = 1.0239999999999999e+03
++		Underflow = -1.0740e+03
++	)
++
++	// TODO: remove manual inlining of IsNaN and IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
++		return x
++	case x < -MaxFloat64: // IsInf(x, -1):
++		return 0
++	case x > Overflow:
++		return Inf(1)
++	case x < Underflow:
++		return 0
++	}
++
++	// argument reduction; x = r×lg(e) + k with |r| ≤ ln(2)/2.
++	// computed as r = hi - lo for extra precision.
++	var k int
++	switch {
++	case x > 0:
++		k = int(x + 0.5)
++	case x < 0:
++		k = int(x - 0.5)
++	}
++	t := x - float64(k)
++	hi := t * Ln2Hi
++	lo := -t * Ln2Lo
++
++	// compute
++	return expmulti(hi, lo, k)
++}
++
++// exp1 returns e**r × 2**k where r = hi - lo and |r| ≤ ln(2)/2.
++func expmulti(hi, lo float64, k int) float64 {
++	const (
++		P1 = 1.66666666666666019037e-01  /* 0x3FC55555; 0x5555553E */
++		P2 = -2.77777777770155933842e-03 /* 0xBF66C16C; 0x16BEBD93 */
++		P3 = 6.61375632143793436117e-05  /* 0x3F11566A; 0xAF25DE2C */
++		P4 = -1.65339022054652515390e-06 /* 0xBEBBBD41; 0xC5D26BF1 */
++		P5 = 4.13813679705723846039e-08  /* 0x3E663769; 0x72BEA4D0 */
++	)
++
++	r := hi - lo
++	t := r * r
++	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))))
++	y := 1 - ((lo - (r*c)/(2-c)) - hi)
++	// TODO(rsc): make sure Ldexp can handle boundary k
++	return Ldexp(y, k)
++}
+diff --git a/src/pkg/math/exp2.go b/src/pkg/math/exp2.go
+deleted file mode 100644
+index 1cface9d36..0000000000
+--- a/src/pkg/math/exp2.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// Exp2 returns 2**x, the base-2 exponential of x.
+-//
+-// Special cases are the same as Exp.
+-func Exp2(x float64) float64 { return exp2Go(x) }
+diff --git a/src/pkg/math/exp2_amd64.s b/src/pkg/math/exp2_amd64.s
+new file mode 100644
+index 0000000000..7bb44f78a2
+--- /dev/null
++++ b/src/pkg/math/exp2_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Exp2(SB),7,$0
++	JMP ·exp2(SB)
+diff --git a/src/pkg/math/exp2_arm.s b/src/pkg/math/exp2_arm.s
+new file mode 100644
+index 0000000000..41b63bfaf8
+--- /dev/null
++++ b/src/pkg/math/exp2_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Exp2(SB),7,$0
++	B ·exp2(SB)
+diff --git a/src/pkg/math/exp_arm.s b/src/pkg/math/exp_arm.s
+new file mode 100644
+index 0000000000..a95fa9342a
+--- /dev/null
++++ b/src/pkg/math/exp_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Exp(SB),7,$0
++	B ·exp(SB)
+diff --git a/src/pkg/math/exp_port.go b/src/pkg/math/exp_port.go
+deleted file mode 100644
+index 618c31a5d1..0000000000
+--- a/src/pkg/math/exp_port.go
++++ /dev/null
+@@ -1,191 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// The original C code, the long comment, and the constants
+-// below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
+-// and came with this notice.  The go code is a simplified
+-// version of the original C.
+-//
+-// ====================================================
+-// Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
+-//
+-// Permission to use, copy, modify, and distribute this
+-// software is freely granted, provided that this notice
+-// is preserved.
+-// ====================================================
+-//
+-//
+-// exp(x)
+-// Returns the exponential of x.
+-//
+-// Method
+-//   1. Argument reduction:
+-//      Reduce x to an r so that |r| <= 0.5*ln2 ~ 0.34658.
+-//      Given x, find r and integer k such that
+-//
+-//               x = k*ln2 + r,  |r| <= 0.5*ln2.
+-//
+-//      Here r will be represented as r = hi-lo for better
+-//      accuracy.
+-//
+-//   2. Approximation of exp(r) by a special rational function on
+-//      the interval [0,0.34658]:
+-//      Write
+-//          R(r**2) = r*(exp(r)+1)/(exp(r)-1) = 2 + r*r/6 - r**4/360 + ...
+-//      We use a special Remes algorithm on [0,0.34658] to generate
+-//      a polynomial of degree 5 to approximate R. The maximum error
+-//      of this polynomial approximation is bounded by 2**-59. In
+-//      other words,
+-//          R(z) ~ 2.0 + P1*z + P2*z**2 + P3*z**3 + P4*z**4 + P5*z**5
+-//      (where z=r*r, and the values of P1 to P5 are listed below)
+-//      and
+-//          |                  5          |     -59
+-//          | 2.0+P1*z+...+P5*z   -  R(z) | <= 2
+-//          |                             |
+-//      The computation of exp(r) thus becomes
+-//                             2*r
+-//              exp(r) = 1 + -------
+-//                            R - r
+-//                                 r*R1(r)
+-//                     = 1 + r + ----------- (for better accuracy)
+-//                                2 - R1(r)
+-//      where
+-//                               2       4             10
+-//              R1(r) = r - (P1*r  + P2*r  + ... + P5*r   ).
+-//
+-//   3. Scale back to obtain exp(x):
+-//      From step 1, we have
+-//         exp(x) = 2**k * exp(r)
+-//
+-// Special cases:
+-//      exp(INF) is INF, exp(NaN) is NaN;
+-//      exp(-INF) is 0, and
+-//      for finite argument, only exp(0)=1 is exact.
+-//
+-// Accuracy:
+-//      according to an error analysis, the error is always less than
+-//      1 ulp (unit in the last place).
+-//
+-// Misc. info.
+-//      For IEEE double
+-//          if x >  7.09782712893383973096e+02 then exp(x) overflow
+-//          if x < -7.45133219101941108420e+02 then exp(x) underflow
+-//
+-// Constants:
+-// The hexadecimal values are the intended ones for the following
+-// constants. The decimal values may be used, provided that the
+-// compiler will convert from decimal to binary accurately enough
+-// to produce the hexadecimal values shown.
+-
+-// Exp returns e**x, the base-e exponential of x.
+-//
+-// Special cases are:
+-//	Exp(+Inf) = +Inf
+-//	Exp(NaN) = NaN
+-// Very large values overflow to 0 or +Inf.
+-// Very small values underflow to 1.
+-func expGo(x float64) float64 {
+-	const (
+-		Ln2Hi = 6.93147180369123816490e-01
+-		Ln2Lo = 1.90821492927058770002e-10
+-		Log2e = 1.44269504088896338700e+00
+-
+-		Overflow  = 7.09782712893383973096e+02
+-		Underflow = -7.45133219101941108420e+02
+-		NearZero  = 1.0 / (1 << 28) // 2**-28
+-	)
+-
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	// special cases
+-	switch {
+-	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
+-		return x
+-	case x < -MaxFloat64: // IsInf(x, -1):
+-		return 0
+-	case x > Overflow:
+-		return Inf(1)
+-	case x < Underflow:
+-		return 0
+-	case -NearZero < x && x < NearZero:
+-		return 1 + x
+-	}
+-
+-	// reduce; computed as r = hi - lo for extra precision.
+-	var k int
+-	switch {
+-	case x < 0:
+-		k = int(Log2e*x - 0.5)
+-	case x > 0:
+-		k = int(Log2e*x + 0.5)
+-	}
+-	hi := x - float64(k)*Ln2Hi
+-	lo := float64(k) * Ln2Lo
+-
+-	// compute
+-	return exp(hi, lo, k)
+-}
+-
+-// Exp2 returns 2**x, the base-2 exponential of x.
+-//
+-// Special cases are the same as Exp.
+-func exp2Go(x float64) float64 {
+-	const (
+-		Ln2Hi = 6.93147180369123816490e-01
+-		Ln2Lo = 1.90821492927058770002e-10
+-
+-		Overflow  = 1.0239999999999999e+03
+-		Underflow = -1.0740e+03
+-	)
+-
+-	// TODO: remove manual inlining of IsNaN and IsInf
+-	// when compiler does it for us
+-	// special cases
+-	switch {
+-	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
+-		return x
+-	case x < -MaxFloat64: // IsInf(x, -1):
+-		return 0
+-	case x > Overflow:
+-		return Inf(1)
+-	case x < Underflow:
+-		return 0
+-	}
+-
+-	// argument reduction; x = r×lg(e) + k with |r| ≤ ln(2)/2.
+-	// computed as r = hi - lo for extra precision.
+-	var k int
+-	switch {
+-	case x > 0:
+-		k = int(x + 0.5)
+-	case x < 0:
+-		k = int(x - 0.5)
+-	}
+-	t := x - float64(k)
+-	hi := t * Ln2Hi
+-	lo := -t * Ln2Lo
+-
+-	// compute
+-	return exp(hi, lo, k)
+-}
+-
+-// exp returns e**r × 2**k where r = hi - lo and |r| ≤ ln(2)/2.
+-func exp(hi, lo float64, k int) float64 {
+-	const (
+-		P1 = 1.66666666666666019037e-01  /* 0x3FC55555; 0x5555553E */
+-		P2 = -2.77777777770155933842e-03 /* 0xBF66C16C; 0x16BEBD93 */
+-		P3 = 6.61375632143793436117e-05  /* 0x3F11566A; 0xAF25DE2C */
+-		P4 = -1.65339022054652515390e-06 /* 0xBEBBBD41; 0xC5D26BF1 */
+-		P5 = 4.13813679705723846039e-08  /* 0x3E663769; 0x72BEA4D0 */
+-	)
+-
+-	r := hi - lo
+-	t := r * r
+-	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))))
+-	y := 1 - ((lo - (r*c)/(2-c)) - hi)
+-	// TODO(rsc): make sure Ldexp can handle boundary k
+-	return Ldexp(y, k)
+-}
+diff --git a/src/pkg/math/exp_test.go b/src/pkg/math/exp_test.go
+deleted file mode 100644
+index 7381fd5ad3..0000000000
+--- a/src/pkg/math/exp_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// Make expGo and exp2Go available for testing.
+-
+-func ExpGo(x float64) float64  { return expGo(x) }
+-func Exp2Go(x float64) float64 { return exp2Go(x) }
+diff --git a/src/pkg/math/expm1.go b/src/pkg/math/expm1.go
+index e9f833140b..15fc25f135 100644
+--- a/src/pkg/math/expm1.go
++++ b/src/pkg/math/expm1.go
+@@ -121,7 +121,9 @@ package math
+ //	Expm1(-Inf) = -1
+ //	Expm1(NaN) = NaN
+ // Very large values overflow to -1 or +Inf.
+-func Expm1(x float64) float64 {
++func Expm1(x float64) float64
++
++func expm1(x float64) float64 {
+ 	const (
+ 		Othreshold = 7.09782712893383973096e+02 // 0x40862E42FEFA39EF
+ 		Ln2X56     = 3.88162421113569373274e+01 // 0x4043687a9f1af2b1
+diff --git a/src/pkg/math/expm1_amd64.s b/src/pkg/math/expm1_amd64.s
+new file mode 100644
+index 0000000000..a3b09e2f6d
+--- /dev/null
++++ b/src/pkg/math/expm1_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Expm1(SB),7,$0
++	JMP ·expm1(SB)
+diff --git a/src/pkg/math/expm1_arm.s b/src/pkg/math/expm1_arm.s
+new file mode 100644
+index 0000000000..e4e40441b5
+--- /dev/null
++++ b/src/pkg/math/expm1_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Expm1(SB),7,$0
++	B ·expm1(SB)
+diff --git a/src/pkg/math/expm1_decl.go b/src/pkg/math/expm1_decl.go
+deleted file mode 100644
+index 4dab70bc9f..0000000000
+--- a/src/pkg/math/expm1_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Expm1(x float64) float64
+diff --git a/src/pkg/math/export_test.go b/src/pkg/math/export_test.go
+new file mode 100644
+index 0000000000..c32a5dbd1d
+--- /dev/null
++++ b/src/pkg/math/export_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Export internal functions for testing.
++var ExpGo = exp
++var Exp2Go = exp2
++var HypotSqrtGo = hypotSqrt
++var HypotNoSqrtGo = hypotNoSqrt
++var SqrtGo = sqrt
+diff --git a/src/pkg/math/floor.go b/src/pkg/math/floor.go
+index e5b52c48c1..a7090f5e4a 100644
+--- a/src/pkg/math/floor.go
++++ b/src/pkg/math/floor.go
+@@ -10,7 +10,9 @@ package math
+ //	Floor(±0) = ±0
+ //	Floor(±Inf) = ±Inf
+ //	Floor(NaN) = NaN
+-func Floor(x float64) float64 {
++func Floor(x float64) float64
++
++func floor(x float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	if x == 0 || x != x || x > MaxFloat64 || x < -MaxFloat64 { // x == 0 || IsNaN(x) || IsInf(x, 0)
+@@ -33,7 +35,11 @@ func Floor(x float64) float64 {
+ //	Ceil(±0) = ±0
+ //	Ceil(±Inf) = ±Inf
+ //	Ceil(NaN) = NaN
+-func Ceil(x float64) float64 { return -Floor(-x) }
++func Ceil(x float64) float64
++
++func ceil(x float64) float64 {
++	return -Floor(-x)
++}
+ 
+ // Trunc returns the integer value of x.
+ //
+@@ -41,7 +47,9 @@ func Ceil(x float64) float64 { return -Floor(-x) }
+ //	Trunc(±0) = ±0
+ //	Trunc(±Inf) = ±Inf
+ //	Trunc(NaN) = NaN
+-func Trunc(x float64) float64 {
++func Trunc(x float64) float64
++
++func trunc(x float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	if x == 0 || x != x || x > MaxFloat64 || x < -MaxFloat64 { // x == 0 || IsNaN(x) || IsInf(x, 0)
+diff --git a/src/pkg/math/floor_amd64.s b/src/pkg/math/floor_amd64.s
+new file mode 100644
+index 0000000000..9fc49a56fd
+--- /dev/null
++++ b/src/pkg/math/floor_amd64.s
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Floor(SB),7,$0
++	JMP	·floor(SB)
++
++TEXT ·Ceil(SB),7,$0
++	JMP	·ceil(SB)
++
++TEXT ·Trunc(SB),7,$0
++	JMP	·trunc(SB)
+diff --git a/src/pkg/math/floor_arm.s b/src/pkg/math/floor_arm.s
+new file mode 100644
+index 0000000000..e3ae53f525
+--- /dev/null
++++ b/src/pkg/math/floor_arm.s
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Floor(SB),7,$0
++	B	·floor(SB)
++
++TEXT ·Ceil(SB),7,$0
++	B	·ceil(SB)
++
++TEXT ·Trunc(SB),7,$0
++	B	·trunc(SB)
+diff --git a/src/pkg/math/floor_decl.go b/src/pkg/math/floor_decl.go
+deleted file mode 100644
+index 7da4201794..0000000000
+--- a/src/pkg/math/floor_decl.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Ceil(x float64) float64
+-func Floor(x float64) float64
+-func Trunc(x float64) float64
+diff --git a/src/pkg/math/frexp.go b/src/pkg/math/frexp.go
+index 867b78f364..b5458d7639 100644
+--- a/src/pkg/math/frexp.go
++++ b/src/pkg/math/frexp.go
+@@ -13,7 +13,9 @@ package math
+ //	Frexp(±0) = ±0, 0
+ //	Frexp(±Inf) = ±Inf, 0
+ //	Frexp(NaN) = NaN, 0
+-func Frexp(f float64) (frac float64, exp int) {
++func Frexp(f float64) (frac float64, exp int)
++
++func frexp(f float64) (frac float64, exp int) {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	// special cases
+diff --git a/src/pkg/math/frexp_amd64.s b/src/pkg/math/frexp_amd64.s
+new file mode 100644
+index 0000000000..bc52b79ab7
+--- /dev/null
++++ b/src/pkg/math/frexp_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Frexp(SB),7,$0
++	JMP ·frexp(SB)
+diff --git a/src/pkg/math/frexp_arm.s b/src/pkg/math/frexp_arm.s
+new file mode 100644
+index 0000000000..cfd5d0b525
+--- /dev/null
++++ b/src/pkg/math/frexp_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Frexp(SB),7,$0
++	B ·frexp(SB)
+diff --git a/src/pkg/math/frexp_decl.go b/src/pkg/math/frexp_decl.go
+deleted file mode 100644
+index b36bf2eb7c..0000000000
+--- a/src/pkg/math/frexp_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Frexp(x float64) (f float64, e int)
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index ecd115d9ef..ee9759ad7a 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -14,7 +14,9 @@ package math
+ // Special cases are:
+ //	Hypot(p, q) = +Inf if p or q is infinite
+ //	Hypot(p, q) = NaN if p or q is NaN
+-func Hypot(p, q float64) float64 {
++func Hypot(p, q float64) float64
++
++func hypotSqrt(p, q float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	// special cases
+@@ -39,3 +41,46 @@ func Hypot(p, q float64) float64 {
+ 	q = q / p
+ 	return p * Sqrt(1+q*q)
+ }
++
++func hypotNoSqrt(p, q float64) float64 {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case p < -MaxFloat64 || p > MaxFloat64 || q < -MaxFloat64 || q > MaxFloat64: // IsInf(p, 0) || IsInf(q, 0):
++		return Inf(1)
++	case p != p || q != q: // IsNaN(p) || IsNaN(q):
++		return NaN()
++	}
++	if p < 0 {
++		p = -p
++	}
++	if q < 0 {
++		q = -q
++	}
++
++	if p < q {
++		p, q = q, p
++	}
++
++	if p == 0 {
++		return 0
++	}
++
++	pfac := p
++	q = q / p
++	r := q
++	p = 1
++	for {
++		r = r * r
++		s := r + 4
++		if s == 4 {
++			return p * pfac
++		}
++		r = r / s
++		p = p + 2*r*p
++		q = q * r
++		r = q / p
++	}
++	panic("unreachable")
++}
+diff --git a/src/pkg/math/atan_decl.go b/src/pkg/math/hypot_arm.s
+similarity index 51%
+rename from src/pkg/math/atan_decl.go
+rename to src/pkg/math/hypot_arm.s
+index 14d3fc0149..f3f492719e 100644
+--- a/src/pkg/math/atan_decl.go
++++ b/src/pkg/math/hypot_arm.s
+@@ -1,7 +1,6 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
+-
+-func Atan(x float64) float64
++TEXT ·Hypot(SB),7,$0
++	B ·hypotNoSqrt(SB)
+diff --git a/src/pkg/math/hypot_decl.go b/src/pkg/math/hypot_decl.go
+deleted file mode 100644
+index 72603c5d56..0000000000
+--- a/src/pkg/math/hypot_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Hypot(x, y float64) float64
+diff --git a/src/pkg/math/hypot_port.go b/src/pkg/math/hypot_port.go
+deleted file mode 100644
+index 27f335ba2d..0000000000
+--- a/src/pkg/math/hypot_port.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2009-2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-/*
+-	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+-	See:
+-		Cleve Moler and Donald Morrison,
+-		Replacing Square Roots by Pythagorean Sums
+-		IBM Journal of Research and Development,
+-		Vol. 27, Number 6, pp. 577-581, Nov. 1983
+-*/
+-
+-// Hypot computes Sqrt(p*p + q*q), taking care to avoid
+-// unnecessary overflow and underflow.
+-//
+-// Special cases are:
+-//	Hypot(p, q) = +Inf if p or q is infinite
+-//	Hypot(p, q) = NaN if p or q is NaN
+-func hypotGo(p, q float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	// special cases
+-	switch {
+-	case p < -MaxFloat64 || p > MaxFloat64 || q < -MaxFloat64 || q > MaxFloat64: // IsInf(p, 0) || IsInf(q, 0):
+-		return Inf(1)
+-	case p != p || q != q: // IsNaN(p) || IsNaN(q):
+-		return NaN()
+-	}
+-	if p < 0 {
+-		p = -p
+-	}
+-	if q < 0 {
+-		q = -q
+-	}
+-
+-	if p < q {
+-		p, q = q, p
+-	}
+-
+-	if p == 0 {
+-		return 0
+-	}
+-
+-	pfac := p
+-	q = q / p
+-	r := q
+-	p = 1
+-	for {
+-		r = r * r
+-		s := r + 4
+-		if s == 4 {
+-			return p * pfac
+-		}
+-		r = r / s
+-		p = p + 2*r*p
+-		q = q * r
+-		r = q / p
+-	}
+-	panic("unreachable")
+-}
+diff --git a/src/pkg/math/hypot_test.go b/src/pkg/math/hypot_test.go
+deleted file mode 100644
+index 85ce1d404d..0000000000
+--- a/src/pkg/math/hypot_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// Make hypotGo available for testing.
+-
+-func HypotGo(x, y float64) float64 { return hypotGo(x, y) }
+diff --git a/src/pkg/math/ldexp.go b/src/pkg/math/ldexp.go
+index 96c95cad4a..95342301bf 100644
+--- a/src/pkg/math/ldexp.go
++++ b/src/pkg/math/ldexp.go
+@@ -11,7 +11,9 @@ package math
+ //	Ldexp(±0, exp) = ±0
+ //	Ldexp(±Inf, exp) = ±Inf
+ //	Ldexp(NaN, exp) = NaN
+-func Ldexp(frac float64, exp int) float64 {
++func Ldexp(frac float64, exp int) float64
++
++func ldexp(frac float64, exp int) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us
+ 	// special cases
+diff --git a/src/pkg/math/ldexp_amd64.s b/src/pkg/math/ldexp_amd64.s
+new file mode 100644
+index 0000000000..a8d458322f
+--- /dev/null
++++ b/src/pkg/math/ldexp_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Ldexp(SB),7,$0
++	JMP ·ldexp(SB)
+diff --git a/src/pkg/math/ldexp_arm.s b/src/pkg/math/ldexp_arm.s
+new file mode 100644
+index 0000000000..3c42f515e6
+--- /dev/null
++++ b/src/pkg/math/ldexp_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Ldexp(SB),7,$0
++	B ·ldexp(SB)
+diff --git a/src/pkg/math/ldexp_decl.go b/src/pkg/math/ldexp_decl.go
+deleted file mode 100644
+index 40e11e7a1a..0000000000
+--- a/src/pkg/math/ldexp_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Ldexp(f float64, e int) float64
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index a786c8ce3a..1d467fbda9 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -77,7 +77,9 @@ package math
+ //	Log(0) = -Inf
+ //	Log(x < 0) = NaN
+ //	Log(NaN) = NaN
+-func Log(x float64) float64 {
++func Log(x float64) float64
++
++func log(x float64) float64 {
+ 	const (
+ 		Ln2Hi = 6.93147180369123816490e-01 /* 3fe62e42 fee00000 */
+ 		Ln2Lo = 1.90821492927058770002e-10 /* 3dea39ef 35793c76 */
+diff --git a/src/pkg/math/log10.go b/src/pkg/math/log10.go
+index 6d18baae2a..67c163a490 100644
+--- a/src/pkg/math/log10.go
++++ b/src/pkg/math/log10.go
+@@ -6,8 +6,16 @@ package math
+ 
+ // Log10 returns the decimal logarithm of x.
+ // The special cases are the same as for Log.
+-func Log10(x float64) float64 { return Log(x) * (1 / Ln10) }
++func Log10(x float64) float64
++
++func log10(x float64) float64 {
++	return Log(x) * (1 / Ln10)
++}
+ 
+ // Log2 returns the binary logarithm of x.
+ // The special cases are the same as for Log.
+-func Log2(x float64) float64 { return Log(x) * (1 / Ln2) }
++func Log2(x float64) float64
++
++func log2(x float64) float64 {
++	return Log(x) * (1 / Ln2)
++}
+diff --git a/src/pkg/math/log10_amd64.s b/src/pkg/math/log10_amd64.s
+new file mode 100644
+index 0000000000..86a3b05777
+--- /dev/null
++++ b/src/pkg/math/log10_amd64.s
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Log10(SB),7,$0
++	JMP ·log10(SB)
++
++TEXT ·Log2(SB),7,$0
++	JMP ·log2(SB)
+diff --git a/src/pkg/math/log10_arm.s b/src/pkg/math/log10_arm.s
+new file mode 100644
+index 0000000000..619b0fe1e9
+--- /dev/null
++++ b/src/pkg/math/log10_arm.s
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Log10(SB),7,$0
++	B ·log10(SB)
++
++TEXT ·Log2(SB),7,$0
++	B ·log2(SB)
+diff --git a/src/pkg/math/log10_decl.go b/src/pkg/math/log10_decl.go
+deleted file mode 100644
+index 5aec94e1c4..0000000000
+--- a/src/pkg/math/log10_decl.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Log10(x float64) float64
+-func Log2(x float64) float64
+diff --git a/src/pkg/math/log1p.go b/src/pkg/math/log1p.go
+index e8914a1d05..dee7f2b64b 100644
+--- a/src/pkg/math/log1p.go
++++ b/src/pkg/math/log1p.go
+@@ -92,7 +92,9 @@ package math
+ //	Log1p(-1) = -Inf
+ //	Log1p(x < -1) = NaN
+ //	Log1p(NaN) = NaN
+-func Log1p(x float64) float64 {
++func Log1p(x float64) float64
++
++func log1p(x float64) float64 {
+ 	const (
+ 		Sqrt2M1     = 4.142135623730950488017e-01  // Sqrt(2)-1 = 0x3fda827999fcef34
+ 		Sqrt2HalfM1 = -2.928932188134524755992e-01 // Sqrt(2)/2-1 = 0xbfd2bec333018866
+diff --git a/src/pkg/math/log1p_amd64.s b/src/pkg/math/log1p_amd64.s
+new file mode 100644
+index 0000000000..65c93adad7
+--- /dev/null
++++ b/src/pkg/math/log1p_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Log1p(SB),7,$0
++	JMP ·log1p(SB)
+diff --git a/src/pkg/math/log1p_arm.s b/src/pkg/math/log1p_arm.s
+new file mode 100644
+index 0000000000..0e599aaffb
+--- /dev/null
++++ b/src/pkg/math/log1p_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Log1p(SB),7,$0
++	B ·log1p(SB)
+diff --git a/src/pkg/math/log1p_decl.go b/src/pkg/math/log1p_decl.go
+deleted file mode 100644
+index 84b6030fbc..0000000000
+--- a/src/pkg/math/log1p_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Log1p(x float64) float64
+diff --git a/src/pkg/math/log_arm.s b/src/pkg/math/log_arm.s
+new file mode 100644
+index 0000000000..3dce1e9d4e
+--- /dev/null
++++ b/src/pkg/math/log_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Log(SB),7,$0
++	B ·log(SB)
+diff --git a/src/pkg/math/mod.go b/src/pkg/math/mod.go
+index 0dd5d0607a..c1f244d67b 100644
+--- a/src/pkg/math/mod.go
++++ b/src/pkg/math/mod.go
+@@ -18,7 +18,9 @@ package math
+ //	Mod(x, 0) = NaN
+ //	Mod(x, ±Inf) = x
+ //	Mod(x, NaN) = NaN
+-func Mod(x, y float64) float64 {
++func Mod(x, y float64) float64
++
++func mod(x, y float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us.
+ 	if y == 0 || x > MaxFloat64 || x < -MaxFloat64 || x != x || y != y { // y == 0 || IsInf(x, 0) || IsNaN(x) || IsNan(y)
+diff --git a/src/pkg/math/mod_amd64.s b/src/pkg/math/mod_amd64.s
+new file mode 100644
+index 0000000000..33b86be408
+--- /dev/null
++++ b/src/pkg/math/mod_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Mod(SB),7,$0
++	JMP ·mod(SB)
+diff --git a/src/pkg/math/mod_arm.s b/src/pkg/math/mod_arm.s
+new file mode 100644
+index 0000000000..47c564bf11
+--- /dev/null
++++ b/src/pkg/math/mod_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Mod(SB),7,$0
++	B ·mod(SB)
+diff --git a/src/pkg/math/mod_decl.go b/src/pkg/math/mod_decl.go
+deleted file mode 100644
+index d5047a754a..0000000000
+--- a/src/pkg/math/mod_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Mod(x, y float64) float64
+diff --git a/src/pkg/math/modf.go b/src/pkg/math/modf.go
+index 34889e0c0a..1e8376a938 100644
+--- a/src/pkg/math/modf.go
++++ b/src/pkg/math/modf.go
+@@ -10,7 +10,9 @@ package math
+ // Special cases are:
+ //	Modf(±Inf) = ±Inf, NaN
+ //	Modf(NaN) = NaN, NaN
+-func Modf(f float64) (int float64, frac float64) {
++func Modf(f float64) (int float64, frac float64)
++
++func modf(f float64) (int float64, frac float64) {
+ 	if f < 1 {
+ 		if f < 0 {
+ 			int, frac = Modf(-f)
+diff --git a/src/pkg/math/modf_amd64.s b/src/pkg/math/modf_amd64.s
+new file mode 100644
+index 0000000000..2a6d7ea042
+--- /dev/null
++++ b/src/pkg/math/modf_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Modf(SB),7,$0
++	JMP ·modf(SB)
+diff --git a/src/pkg/math/modf_arm.s b/src/pkg/math/modf_arm.s
+new file mode 100644
+index 0000000000..6cef187340
+--- /dev/null
++++ b/src/pkg/math/modf_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Modf(SB),7,$0
++	B ·modf(SB)
+diff --git a/src/pkg/math/modf_decl.go b/src/pkg/math/modf_decl.go
+deleted file mode 100644
+index 7add2af953..0000000000
+--- a/src/pkg/math/modf_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Modf(f float64) (int float64, frac float64)
+diff --git a/src/pkg/math/remainder.go b/src/pkg/math/remainder.go
+index 8d8a746304..69d23e58e4 100644
+--- a/src/pkg/math/remainder.go
++++ b/src/pkg/math/remainder.go
+@@ -34,7 +34,9 @@ package math
+ //	Remainder(x, 0) = NaN
+ //	Remainder(x, ±Inf) = x
+ //	Remainder(x, NaN) = NaN
+-func Remainder(x, y float64) float64 {
++func Remainder(x, y float64) float64
++
++func remainder(x, y float64) float64 {
+ 	const (
+ 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000
+ 		HalfMax = MaxFloat64 / 2
+diff --git a/src/pkg/math/atan2_decl.go b/src/pkg/math/remainder_amd64.s
+similarity index 50%
+rename from src/pkg/math/atan2_decl.go
+rename to src/pkg/math/remainder_amd64.s
+index 3932ed6e4a..f04bd3de7a 100644
+--- a/src/pkg/math/atan2_decl.go
++++ b/src/pkg/math/remainder_amd64.s
+@@ -1,7 +1,6 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
++// Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
+-
+-func Atan2(y, x float64) float64
++TEXT ·Remainder(SB),7,$0
++	JMP ·remainder(SB)
+diff --git a/src/pkg/math/remainder_arm.s b/src/pkg/math/remainder_arm.s
+new file mode 100644
+index 0000000000..642af6a85a
+--- /dev/null
++++ b/src/pkg/math/remainder_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Remainder(SB),7,$0
++	B ·remainder(SB)
+diff --git a/src/pkg/math/remainder_decl.go b/src/pkg/math/remainder_decl.go
+deleted file mode 100644
+index 1407d9a6a4..0000000000
+--- a/src/pkg/math/remainder_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Remainder(x, y float64) float64
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 18509d95cf..ec30477eac 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -113,7 +113,9 @@ var _cos = [...]float64{
+ // Special cases are:
+ //	Cos(±Inf) = NaN
+ //	Cos(NaN) = NaN
+-func Cos(x float64) float64 {
++func Cos(x float64) float64
++
++func cos(x float64) float64 {
+ 	const (
+ 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+ 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+@@ -170,7 +172,9 @@ func Cos(x float64) float64 {
+ //	Sin(±0) = ±0
+ //	Sin(±Inf) = NaN
+ //	Sin(NaN) = NaN
+-func Sin(x float64) float64 {
++func Sin(x float64) float64
++
++func sin(x float64) float64 {
+ 	const (
+ 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+ 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+diff --git a/src/pkg/math/exp2_decl.go b/src/pkg/math/sin_amd64.s
+similarity index 69%
+rename from src/pkg/math/exp2_decl.go
+rename to src/pkg/math/sin_amd64.s
+index cff7411742..c9c99e5b35 100644
+--- a/src/pkg/math/exp2_decl.go
++++ b/src/pkg/math/sin_amd64.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
++TEXT ·Sin(SB),7,$0
++	JMP	·sin(SB)
+ 
+-func Exp2(x float64) float64
++TEXT ·Cos(SB),7,$0
++	JMP	·cos(SB)
+diff --git a/src/pkg/math/abs_decl.go b/src/pkg/math/sin_arm.s
+similarity index 71%
+rename from src/pkg/math/abs_decl.go
+rename to src/pkg/math/sin_arm.s
+index 6be9305ac5..9447ca2ebc 100644
+--- a/src/pkg/math/abs_decl.go
++++ b/src/pkg/math/sin_arm.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package math
++TEXT ·Sin(SB),7,$0
++	B	·sin(SB)
+ 
+-func Abs(x float64) float64
++TEXT ·Cos(SB),7,$0
++	B	·cos(SB)
+diff --git a/src/pkg/math/sin_decl.go b/src/pkg/math/sin_decl.go
+deleted file mode 100644
+index fc37b032c9..0000000000
+--- a/src/pkg/math/sin_decl.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Cos(x float64) float64
+-func Sin(x float64) float64
+diff --git a/src/pkg/math/sincos.go b/src/pkg/math/sincos.go
+index 74294256be..ff6c3281d6 100644
+--- a/src/pkg/math/sincos.go
++++ b/src/pkg/math/sincos.go
+@@ -12,7 +12,9 @@ package math
+ //	Sincos(±0) = ±0, 1
+ //	Sincos(±Inf) = NaN, NaN
+ //	Sincos(NaN) = NaN, NaN
+-func Sincos(x float64) (sin, cos float64) {
++func Sincos(x float64) (sin, cos float64)
++
++func sincos(x float64) (sin, cos float64) {
+ 	const (
+ 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+ 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+diff --git a/src/pkg/math/sincos_arm.s b/src/pkg/math/sincos_arm.s
+new file mode 100644
+index 0000000000..3e2b0e4e0d
+--- /dev/null
++++ b/src/pkg/math/sincos_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Sincos(SB),7,$0
++	B ·sincos(SB)
+diff --git a/src/pkg/math/sincos_decl.go b/src/pkg/math/sincos_decl.go
+deleted file mode 100644
+index 0b40544694..0000000000
+--- a/src/pkg/math/sincos_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Sincos(x float64) (sin, cos float64)
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index ff5cc91e08..d0b5535f29 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -11,4 +11,142 @@ package math
+ //	Sqrt(±0) = ±0
+ //	Sqrt(x < 0) = NaN
+ //	Sqrt(NaN) = NaN
+-func Sqrt(x float64) float64 { return sqrtGo(x) }
++func Sqrt(x float64) float64
++
++// The original C code and the long comment below are
++// from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
++// came with this notice.  The go code is a simplified
++// version of the original C.
++//
++// ====================================================
++// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++//
++// Developed at SunPro, a Sun Microsystems, Inc. business.
++// Permission to use, copy, modify, and distribute this
++// software is freely granted, provided that this notice
++// is preserved.
++// ====================================================
++//
++// __ieee754_sqrt(x)
++// Return correctly rounded sqrt.
++//           -----------------------------------------
++//           | Use the hardware sqrt if you have one |
++//           -----------------------------------------
++// Method:
++//   Bit by bit method using integer arithmetic. (Slow, but portable)
++//   1. Normalization
++//      Scale x to y in [1,4) with even powers of 2:
++//      find an integer k such that  1 <= (y=x*2**(2k)) < 4, then
++//              sqrt(x) = 2**k * sqrt(y)
++//   2. Bit by bit computation
++//      Let q  = sqrt(y) truncated to i bit after binary point (q = 1),
++//           i                                                   0
++//                                     i+1         2
++//          s  = 2*q , and      y  =  2   * ( y - q  ).          (1)
++//           i      i            i                 i
++//
++//      To compute q    from q , one checks whether
++//                  i+1       i
++//
++//                            -(i+1) 2
++//                      (q + 2      )  <= y.                     (2)
++//                        i
++//                                                            -(i+1)
++//      If (2) is false, then q   = q ; otherwise q   = q  + 2      .
++//                             i+1   i             i+1   i
++//
++//      With some algebraic manipulation, it is not difficult to see
++//      that (2) is equivalent to
++//                             -(i+1)
++//                      s  +  2       <= y                       (3)
++//                       i                i
++//
++//      The advantage of (3) is that s  and y  can be computed by
++//                                    i      i
++//      the following recurrence formula:
++//          if (3) is false
++//
++//          s     =  s  ,       y    = y   ;                     (4)
++//           i+1      i          i+1    i
++//
++//      otherwise,
++//                         -i                      -(i+1)
++//          s     =  s  + 2  ,  y    = y  -  s  - 2              (5)
++//           i+1      i          i+1    i     i
++//
++//      One may easily use induction to prove (4) and (5).
++//      Note. Since the left hand side of (3) contain only i+2 bits,
++//            it does not necessary to do a full (53-bit) comparison
++//            in (3).
++//   3. Final rounding
++//      After generating the 53 bits result, we compute one more bit.
++//      Together with the remainder, we can decide whether the
++//      result is exact, bigger than 1/2ulp, or less than 1/2ulp
++//      (it will never equal to 1/2ulp).
++//      The rounding mode can be detected by checking whether
++//      huge + tiny is equal to huge, and whether huge - tiny is
++//      equal to huge for some floating point number "huge" and "tiny".
++//
++//
++// Notes:  Rounding mode detection omitted.  The constants "mask", "shift",
++// and "bias" are found in src/pkg/math/bits.go
++
++// Sqrt returns the square root of x.
++//
++// Special cases are:
++//	Sqrt(+Inf) = +Inf
++//	Sqrt(±0) = ±0
++//	Sqrt(x < 0) = NaN
++//	Sqrt(NaN) = NaN
++func sqrt(x float64) float64 {
++	// special cases
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	switch {
++	case x == 0 || x != x || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 1):
++		return x
++	case x < 0:
++		return NaN()
++	}
++	ix := Float64bits(x)
++	// normalize x
++	exp := int((ix >> shift) & mask)
++	if exp == 0 { // subnormal x
++		for ix&1<<shift == 0 {
++			ix <<= 1
++			exp--
++		}
++		exp++
++	}
++	exp -= bias // unbias exponent
++	ix &^= mask << shift
++	ix |= 1 << shift
++	if exp&1 == 1 { // odd exp, double x to make it even
++		ix <<= 1
++	}
++	exp >>= 1 // exp = exp/2, exponent of square root
++	// generate sqrt(x) bit by bit
++	ix <<= 1
++	var q, s uint64               // q = sqrt(x)
++	r := uint64(1 << (shift + 1)) // r = moving bit from MSB to LSB
++	for r != 0 {
++		t := s + r
++		if t <= ix {
++			s = t + r
++			ix -= t
++			q += r
++		}
++		ix <<= 1
++		r >>= 1
++	}
++	// final rounding
++	if ix != 0 { // remainder, result not exact
++		q += q & 1 // round according to extra bit
++	}
++	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
++	return Float64frombits(ix)
++}
++
++func sqrtC(f float64, r *float64) {
++	*r = sqrt(f)
++}
+diff --git a/src/pkg/math/sqrt_decl.go b/src/pkg/math/sqrt_decl.go
+deleted file mode 100644
+index e507746458..0000000000
+--- a/src/pkg/math/sqrt_decl.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func Sqrt(x float64) float64
+diff --git a/src/pkg/math/sqrt_port.go b/src/pkg/math/sqrt_port.go
+deleted file mode 100644
+index 148239bcff..0000000000
+--- a/src/pkg/math/sqrt_port.go
++++ /dev/null
+@@ -1,147 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-/*
+-	Floating-point square root.
+-*/
+-
+-// The original C code and the long comment below are
+-// from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
+-// came with this notice.  The go code is a simplified
+-// version of the original C.
+-//
+-// ====================================================
+-// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+-//
+-// Developed at SunPro, a Sun Microsystems, Inc. business.
+-// Permission to use, copy, modify, and distribute this
+-// software is freely granted, provided that this notice
+-// is preserved.
+-// ====================================================
+-//
+-// __ieee754_sqrt(x)
+-// Return correctly rounded sqrt.
+-//           -----------------------------------------
+-//           | Use the hardware sqrt if you have one |
+-//           -----------------------------------------
+-// Method:
+-//   Bit by bit method using integer arithmetic. (Slow, but portable)
+-//   1. Normalization
+-//      Scale x to y in [1,4) with even powers of 2:
+-//      find an integer k such that  1 <= (y=x*2**(2k)) < 4, then
+-//              sqrt(x) = 2**k * sqrt(y)
+-//   2. Bit by bit computation
+-//      Let q  = sqrt(y) truncated to i bit after binary point (q = 1),
+-//           i                                                   0
+-//                                     i+1         2
+-//          s  = 2*q , and      y  =  2   * ( y - q  ).          (1)
+-//           i      i            i                 i
+-//
+-//      To compute q    from q , one checks whether
+-//                  i+1       i
+-//
+-//                            -(i+1) 2
+-//                      (q + 2      )  <= y.                     (2)
+-//                        i
+-//                                                            -(i+1)
+-//      If (2) is false, then q   = q ; otherwise q   = q  + 2      .
+-//                             i+1   i             i+1   i
+-//
+-//      With some algebraic manipulation, it is not difficult to see
+-//      that (2) is equivalent to
+-//                             -(i+1)
+-//                      s  +  2       <= y                       (3)
+-//                       i                i
+-//
+-//      The advantage of (3) is that s  and y  can be computed by
+-//                                    i      i
+-//      the following recurrence formula:
+-//          if (3) is false
+-//
+-//          s     =  s  ,       y    = y   ;                     (4)
+-//           i+1      i          i+1    i
+-//
+-//      otherwise,
+-//                         -i                      -(i+1)
+-//          s     =  s  + 2  ,  y    = y  -  s  - 2              (5)
+-//           i+1      i          i+1    i     i
+-//
+-//      One may easily use induction to prove (4) and (5).
+-//      Note. Since the left hand side of (3) contain only i+2 bits,
+-//            it does not necessary to do a full (53-bit) comparison
+-//            in (3).
+-//   3. Final rounding
+-//      After generating the 53 bits result, we compute one more bit.
+-//      Together with the remainder, we can decide whether the
+-//      result is exact, bigger than 1/2ulp, or less than 1/2ulp
+-//      (it will never equal to 1/2ulp).
+-//      The rounding mode can be detected by checking whether
+-//      huge + tiny is equal to huge, and whether huge - tiny is
+-//      equal to huge for some floating point number "huge" and "tiny".
+-//
+-//
+-// Notes:  Rounding mode detection omitted.  The constants "mask", "shift",
+-// and "bias" are found in src/pkg/math/bits.go
+-
+-// Sqrt returns the square root of x.
+-//
+-// Special cases are:
+-//	Sqrt(+Inf) = +Inf
+-//	Sqrt(±0) = ±0
+-//	Sqrt(x < 0) = NaN
+-//	Sqrt(NaN) = NaN
+-func sqrtGo(x float64) float64 {
+-	// special cases
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	switch {
+-	case x == 0 || x != x || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 1):
+-		return x
+-	case x < 0:
+-		return NaN()
+-	}
+-	ix := Float64bits(x)
+-	// normalize x
+-	exp := int((ix >> shift) & mask)
+-	if exp == 0 { // subnormal x
+-		for ix&1<<shift == 0 {
+-			ix <<= 1
+-			exp--
+-		}
+-		exp++
+-	}
+-	exp -= bias // unbias exponent
+-	ix &^= mask << shift
+-	ix |= 1 << shift
+-	if exp&1 == 1 { // odd exp, double x to make it even
+-		ix <<= 1
+-	}
+-	exp >>= 1 // exp = exp/2, exponent of square root
+-	// generate sqrt(x) bit by bit
+-	ix <<= 1
+-	var q, s uint64               // q = sqrt(x)
+-	r := uint64(1 << (shift + 1)) // r = moving bit from MSB to LSB
+-	for r != 0 {
+-		t := s + r
+-		if t <= ix {
+-			s = t + r
+-			ix -= t
+-			q += r
+-		}
+-		ix <<= 1
+-		r >>= 1
+-	}
+-	// final rounding
+-	if ix != 0 { // remainder, result not exact
+-		q += q & 1 // round according to extra bit
+-	}
+-	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+-	return Float64frombits(ix)
+-}
+-
+-func sqrtGoC(f float64, r *float64) {
+-	*r = sqrtGo(f)
+-}
+diff --git a/src/pkg/math/sqrt_test.go b/src/pkg/math/sqrt_test.go
+deleted file mode 100644
+index 84cbc169e8..0000000000
+--- a/src/pkg/math/sqrt_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// Make sqrtGo available for testing.
+-
+-func SqrtGo(x float64) float64 { return sqrtGo(x) }
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index 76131fcd93..4e722e1ad2 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -79,7 +79,9 @@ var _tanQ = [...]float64{
+ //	Tan(±0) = ±0
+ //	Tan(±Inf) = NaN
+ //	Tan(NaN) = NaN
+-func Tan(x float64) float64 {
++func Tan(x float64) float64
++
++func tan(x float64) float64 {
+ 	const (
+ 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+ 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+diff --git a/src/pkg/math/tan_amd64.s b/src/pkg/math/tan_amd64.s
+new file mode 100644
+index 0000000000..823ceb254b
+--- /dev/null
++++ b/src/pkg/math/tan_amd64.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Tan(SB),7,$0
++	JMP ·tan(SB)
+diff --git a/src/pkg/math/tan_arm.s b/src/pkg/math/tan_arm.s
+new file mode 100644
+index 0000000000..4be35c38b1
+--- /dev/null
++++ b/src/pkg/math/tan_arm.s
+@@ -0,0 +1,6 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT ·Tan(SB),7,$0
++	B ·tan(SB)
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index 0a071dada1..fbe0b04136 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -15,7 +15,7 @@
+ #define FLAGS_V (1 << 28)
+ 
+ void	runtime·abort(void);
+-void	math·sqrtGoC(uint64, uint64*);
++void	math·sqrtC(uint64, uint64*);
+ 
+ static	uint32	trace = 0;
+ 
+@@ -359,7 +359,7 @@ stage3:	// regd, regm are 4bit variables
+ 		break;
+ 
+ 	case 0xeeb10bc0:	// D[regd] = sqrt D[regm]
+-		math·sqrtGoC(getd(regm), &uval);
++		math·sqrtC(getd(regm), &uval);
+ 		putd(regd, uval);
+ 
+ 		if(trace)

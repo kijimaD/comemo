@@ -14,6 +14,24 @@ Date:   Sun Feb 2 14:43:54 2020 +0100
     Change-Id: I187178b3a59f2604187af453207fb4e24a56105c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217358
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index dec8e98d73..c6daba4988 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -52,12 +52,6 @@ appropriately.)
+ 
+ <h2 id="ports">Ports</h2>
+ 
+-<p>
+-  TODO: is Dragonfly passing? On both Dragonfly release & tip? (ABI
+-  change happened) Does the net package's interface APIs work on both?
+-  https://golang.org/issue/34368.
+-</p>
+-
+ <p>
+   TODO: is Illumos up with a builder and passing?
+   https://golang.org/issue/15581.

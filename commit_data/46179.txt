@@ -98,7 +98,7 @@ Date:   Fri Dec 11 19:53:32 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue14136.go          |  4 ++--
  test/fixedbugs/issue14520.go          |  4 ++--
  test/fixedbugs/issue14652.go          |  2 +-
@@ -122,3 +122,322 @@ Date:   Fri Dec 11 19:53:32 2020 -0800
  test/fixedbugs/issue19482.go          |  8 ++++----
  test/fixedbugs/issue19667.go          |  4 ++--
  22 files changed, 46 insertions(+), 46 deletions(-)
+
+diff --git a/test/fixedbugs/issue14136.go b/test/fixedbugs/issue14136.go
+index f9efd05f96..38308cd75c 100644
+--- a/test/fixedbugs/issue14136.go
++++ b/test/fixedbugs/issue14136.go
+@@ -14,6 +14,6 @@ package main
+ type T struct{}
+ 
+ func main() {
+-	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T"
+-	var s string = 1 // ERROR "cannot use 1"
++	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T|unknown field .*X.* in .*T.*"
++	var s string = 1 // ERROR "cannot use 1|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue14520.go b/test/fixedbugs/issue14520.go
+index 84d240faf0..0b840ff4be 100644
+--- a/test/fixedbugs/issue14520.go
++++ b/test/fixedbugs/issue14520.go
+@@ -9,6 +9,6 @@ package f
+ import /* // ERROR "import path" */ `
+ bogus`
+ 
+-func f(x int /* // ERROR "unexpected newline"
++func f(x int /* // GC_ERROR "unexpected newline"
+ 
+-*/)
++*/) // GCCGO_ERROR "expected .*\).*|expected declaration"
+diff --git a/test/fixedbugs/issue14652.go b/test/fixedbugs/issue14652.go
+index b030aee16f..d53b412668 100644
+--- a/test/fixedbugs/issue14652.go
++++ b/test/fixedbugs/issue14652.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-var x any // ERROR "undefined: any"
++var x any // ERROR "undefined: any|undefined type .*any.*"
+diff --git a/test/fixedbugs/issue14729.go b/test/fixedbugs/issue14729.go
+index 88e01f9e16..9b30fd2715 100644
+--- a/test/fixedbugs/issue14729.go
++++ b/test/fixedbugs/issue14729.go
+@@ -10,5 +10,5 @@ package main
+ 
+ import "unsafe"
+ 
+-type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer"
++type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer|embedded type may not be a pointer"
+ type s1 struct { p unsafe.Pointer }
+diff --git a/test/fixedbugs/issue15514.dir/c.go b/test/fixedbugs/issue15514.dir/c.go
+index 11624f9256..dc2ef5bed5 100644
+--- a/test/fixedbugs/issue15514.dir/c.go
++++ b/test/fixedbugs/issue15514.dir/c.go
+@@ -7,4 +7,4 @@ package c
+ import "./a"
+ import "./b"
+ 
+-var _ a.A = b.B() // ERROR "cannot use b\.B"
++var _ a.A = b.B() // ERROR "cannot use b\.B|incompatible type"
+diff --git a/test/fixedbugs/issue15898.go b/test/fixedbugs/issue15898.go
+index 7b66ea23dc..94369f9345 100644
+--- a/test/fixedbugs/issue15898.go
++++ b/test/fixedbugs/issue15898.go
+@@ -8,11 +8,11 @@ package p
+ 
+ func f(e interface{}) {
+ 	switch e.(type) {
+-	case nil, nil: // ERROR "multiple nil cases in type switch"
++	case nil, nil: // ERROR "multiple nil cases in type switch|duplicate type in switch"
+ 	}
+ 
+ 	switch e.(type) {
+ 	case nil:
+-	case nil: // ERROR "multiple nil cases in type switch"
++	case nil: // ERROR "multiple nil cases in type switch|duplicate type in switch"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue16439.go b/test/fixedbugs/issue16439.go
+index f9382bafcd..704b6b15a6 100644
+--- a/test/fixedbugs/issue16439.go
++++ b/test/fixedbugs/issue16439.go
+@@ -7,12 +7,12 @@
+ package p
+ 
+ var a []int = []int{1: 1}
+-var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant"
++var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant|index expression is negative"
+ 
+ var c []int = []int{2.0: 2}
+-var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant"
++var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant|index expression is negative"
+ 
+ var e []int = []int{3 + 0i: 3}
+-var f []int = []int{3i: 3} // ERROR "truncated to integer"
++var f []int = []int{3i: 3} // ERROR "truncated to integer|index expression is not integer constant"
+ 
+-var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant"
++var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|index expression is not integer constant"
+diff --git a/test/fixedbugs/issue17328.go b/test/fixedbugs/issue17328.go
+index abe4daa353..ef60edbd42 100644
+--- a/test/fixedbugs/issue17328.go
++++ b/test/fixedbugs/issue17328.go
+@@ -8,6 +8,6 @@ package main
+ 
+ func main() {
+ 	i := 0
+-	for ; ; i++) { // ERROR "unexpected \), expecting { after for clause"
++	for ; ; i++) { // ERROR "unexpected \), expecting { after for clause|expected .*{.*|expected .*;.*"
+ 	}
+-}
++} // GCCGO_ERROR "expected declaration"
+diff --git a/test/fixedbugs/issue17588.go b/test/fixedbugs/issue17588.go
+index 1be57c6292..0e3a14ef7c 100644
+--- a/test/fixedbugs/issue17588.go
++++ b/test/fixedbugs/issue17588.go
+@@ -11,7 +11,7 @@
+ 
+ package p
+ 
+-type F func(b T)  // ERROR "T is not a type"
++type F func(b T)  // ERROR "T is not a type|expected type"
+ 
+ func T(fn F) {
+     func() {
+diff --git a/test/fixedbugs/issue17631.go b/test/fixedbugs/issue17631.go
+index 79b7e8a751..b820b2d5a7 100644
+--- a/test/fixedbugs/issue17631.go
++++ b/test/fixedbugs/issue17631.go
+@@ -17,6 +17,6 @@ func main() {
+ 		expect     map[string]int
+ 	}{
+ 		about:   "this one",
+-		updates: map[string]int{"gopher": 10}, // ERROR "unknown field 'updates' in struct literal of type"
++		updates: map[string]int{"gopher": 10}, // ERROR "unknown field 'updates' in struct literal of type|unknown field .*updates.* in .*unnamed struct.*"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue17645.go b/test/fixedbugs/issue17645.go
+index 95fcecd1e0..bb34e4ee97 100644
+--- a/test/fixedbugs/issue17645.go
++++ b/test/fixedbugs/issue17645.go
+@@ -12,5 +12,5 @@ type Foo struct {
+ 
+ func main() {
+ 	var s []int
+-	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(type untyped string\) as type int in field value" "cannot use Foo{...} \(type Foo\) as type int in append" "cannot use append\(s\, Foo{...}\) \(type \[\]int\) as type string in assignment"
++	var _ string = append(s, Foo{""}) // ERROR "cannot use .. \(type untyped string\) as type int in field value|incompatible type" "cannot use Foo{...} \(type Foo\) as type int in append" "cannot use append\(s\, Foo{...}\) \(type \[\]int\) as type string in assignment"
+ }
+diff --git a/test/fixedbugs/issue17758.go b/test/fixedbugs/issue17758.go
+index e7f2f3af91..8e40f9db73 100644
+--- a/test/fixedbugs/issue17758.go
++++ b/test/fixedbugs/issue17758.go
+@@ -10,7 +10,7 @@ func foo() {
+ 	_ = func() {}
+ }
+ 
+-func foo() { // ERROR "foo redeclared in this block"
++func foo() { // ERROR "foo redeclared in this block|redefinition of .*foo.*"
+ 	_ = func() {}
+ }
+ 
+diff --git a/test/fixedbugs/issue18092.go b/test/fixedbugs/issue18092.go
+index 94fd2dd383..a0f7eddda5 100644
+--- a/test/fixedbugs/issue18092.go
++++ b/test/fixedbugs/issue18092.go
+@@ -10,6 +10,6 @@ func _() {
+ 	var ch chan bool
+ 	select {
+ 	default:
+-	case <-ch { // don't crash here
+-	}           // ERROR "expecting :"
++	case <-ch { // GCCGO_ERROR "expected colon"
++	}           // GC_ERROR "expecting :"
+ }
+diff --git a/test/fixedbugs/issue18231.go b/test/fixedbugs/issue18231.go
+index adfd2277ff..7747304052 100644
+--- a/test/fixedbugs/issue18231.go
++++ b/test/fixedbugs/issue18231.go
+@@ -14,7 +14,7 @@ type T struct {
+ }
+ 
+ var _ = T{
+-	f: {                // ERROR "missing type in composite literal"
++	f: {                // ERROR "missing type in composite literal|may only omit types within"
+ 		"a": "b",
+ 	},
+ }
+diff --git a/test/fixedbugs/issue18393.go b/test/fixedbugs/issue18393.go
+index c16ff4df97..454392721f 100644
+--- a/test/fixedbugs/issue18393.go
++++ b/test/fixedbugs/issue18393.go
+@@ -21,4 +21,4 @@ var x     // error on line 24, not 30
+ 
+ 
+ 
+-// ERROR "syntax error: unexpected newline, expecting type"
++// ERROR "syntax error: unexpected newline, expecting type|expected type"
+diff --git a/test/fixedbugs/issue18419.dir/test.go b/test/fixedbugs/issue18419.dir/test.go
+index 31c6025e3f..da9639dd72 100644
+--- a/test/fixedbugs/issue18419.dir/test.go
++++ b/test/fixedbugs/issue18419.dir/test.go
+@@ -9,7 +9,7 @@ package main
+ import "./other"
+ 
+ func InMyCode(e *other.Exported) {
+-	e.member() // ERROR "e\.member undefined .cannot refer to unexported field or method other\.\(\*Exported\)\.member."
++	e.member() // ERROR "e\.member undefined .cannot refer to unexported field or method other\.\(\*Exported\)\.member.|unexported field or method"
+ }
+ 
+ func main() {}
+diff --git a/test/fixedbugs/issue18655.go b/test/fixedbugs/issue18655.go
+index abc2600280..13762f1a94 100644
+--- a/test/fixedbugs/issue18655.go
++++ b/test/fixedbugs/issue18655.go
+@@ -11,12 +11,12 @@ type A = T
+ type B = T
+ 
+ func (T) m() {}
+-func (T) m() {} // ERROR "redeclared"
+-func (A) m() {} // ERROR "redeclared"
+-func (A) m() {} // ERROR "redeclared"
+-func (B) m() {} // ERROR "redeclared"
+-func (B) m() {} // ERROR "redeclared"
++func (T) m() {} // ERROR "redeclared|redefinition"
++func (A) m() {} // ERROR "redeclared|redefinition"
++func (A) m() {} // ERROR "redeclared|redefinition"
++func (B) m() {} // ERROR "redeclared|redefinition"
++func (B) m() {} // ERROR "redeclared|redefinition"
+ 
+-func (*T) m() {} // ERROR "redeclared"
+-func (*A) m() {} // ERROR "redeclared"
+-func (*B) m() {} // ERROR "redeclared"
++func (*T) m() {} // ERROR "redeclared|redefinition"
++func (*A) m() {} // ERROR "redeclared|redefinition"
++func (*B) m() {} // ERROR "redeclared|redefinition"
+diff --git a/test/fixedbugs/issue18915.go b/test/fixedbugs/issue18915.go
+index 66e31e2556..22f97c6b62 100644
+--- a/test/fixedbugs/issue18915.go
++++ b/test/fixedbugs/issue18915.go
+@@ -10,12 +10,12 @@
+ package p
+ 
+ func _() {
+-	if a := 10 { // ERROR "cannot use a := 10 as value"
++	if a := 10 { // ERROR "cannot use a := 10 as value|expected .*;|declared but not used"
+ 	}
+ 
+-	for b := 10 { // ERROR "cannot use b := 10 as value"
++	for b := 10 { // ERROR "cannot use b := 10 as value|parse error|declared but not used"
+ 	}
+ 
+-	switch c := 10 { // ERROR "cannot use c := 10 as value"
++	switch c := 10 { // ERROR "cannot use c := 10 as value|expected .*;|declared but not used"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue19012.go b/test/fixedbugs/issue19012.go
+index 636bf06e75..158618aa27 100644
+--- a/test/fixedbugs/issue19012.go
++++ b/test/fixedbugs/issue19012.go
+@@ -13,13 +13,13 @@ package main
+ 
+ func f(x int, y uint) {
+ 	if true {
+-		return "a" > 10 // ERROR "^too many arguments to return$" "."
++		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
+ 	}
+-	return "gopher" == true, 10 // ERROR "^too many arguments to return$" "."
++	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
+ }
+ 
+ func main() {
+-	f(2, 3 < "x", 10) // ERROR "^too many arguments in call to f$" "."
++	f(2, 3 < "x", 10) // ERROR "too many arguments|invalid operation|incompatible type"
+ 
+-	f(10, 10, "a") // ERROR "too many arguments in call to f\n\thave \(number, number, string\)\n\twant \(int, uint\)"
++	f(10, 10, "a") // ERROR "too many arguments"
+ }
+diff --git a/test/fixedbugs/issue19056.go b/test/fixedbugs/issue19056.go
+index e4e8d07905..d279eaa3cf 100644
+--- a/test/fixedbugs/issue19056.go
++++ b/test/fixedbugs/issue19056.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-var _ = ... . // ERROR "unexpected ..."
++var _ = ... . // ERROR "unexpected ...|expected operand|expected .*;"
+diff --git a/test/fixedbugs/issue19482.go b/test/fixedbugs/issue19482.go
+index 97497a434c..4c2c19ec9d 100644
+--- a/test/fixedbugs/issue19482.go
++++ b/test/fixedbugs/issue19482.go
+@@ -22,13 +22,13 @@ func ok() {
+ 
+ var (
+ 	y = T{"stare"}
+-	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer"
++	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+ 	_ = T{"page"}
+-	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer"
++	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+ )
+ 
+ func bad() {
+-	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer"
++	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+ 	_ = z
+-	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer"
++	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer|expected struct field name"
+ }
+diff --git a/test/fixedbugs/issue19667.go b/test/fixedbugs/issue19667.go
+index c94a11d871..e33e350487 100644
+--- a/test/fixedbugs/issue19667.go
++++ b/test/fixedbugs/issue19667.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f() {
+-	if err := http.ListenAndServe(
+-} // ERROR "unexpected }, expecting expression"
++	if err := http.ListenAndServe( // GCCGO_ERROR "undefined name"
++} // ERROR "unexpected }, expecting expression|expected operand|missing .*\)|expected .*;|expected .*{"

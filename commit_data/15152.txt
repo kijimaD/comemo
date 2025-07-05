@@ -7,7 +7,82 @@ Date:   Wed Feb 6 06:45:57 2013 -0800
     R=rsc, iant, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7300047
-
+---
  src/pkg/net/unix_test.go         | 34 ++++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_linux.go |  7 +++++--
  2 files changed, 39 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/unix_test.go b/src/pkg/net/unix_test.go
+index 7ea3320417..dda717ea93 100644
+--- a/src/pkg/net/unix_test.go
++++ b/src/pkg/net/unix_test.go
+@@ -10,6 +10,8 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
++	"reflect"
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -121,3 +123,35 @@ func TestReadUnixgramWithZeroBytesBuffer(t *testing.T) {
+ 		t.Errorf("peer adddress is %v", peer)
+ 	}
+ }
++
++func TestUnixAutobind(t *testing.T) {
++	if runtime.GOOS != "linux" {
++		t.Skip("skipping: autobind is linux only")
++	}
++
++	laddr := &UnixAddr{Name: "", Net: "unixgram"}
++	c1, err := ListenUnixgram("unixgram", laddr)
++	if err != nil {
++		t.Fatalf("ListenUnixgram failed: %v", err)
++	}
++	defer c1.Close()
++
++	// retrieve the autobind address
++	autoAddr := c1.LocalAddr().(*UnixAddr)
++	if len(autoAddr.Name) <= 1 {
++		t.Fatalf("Invalid autobind address: %v", autoAddr)
++	}
++	if autoAddr.Name[0] != '@' {
++		t.Fatalf("Invalid autobind address: %v", autoAddr)
++	}
++
++	c2, err := DialUnix("unixgram", nil, autoAddr)
++	if err != nil {
++		t.Fatalf("DialUnix failed: %v", err)
++	}
++	defer c2.Close()
++
++	if !reflect.DeepEqual(c1.LocalAddr(), c2.RemoteAddr()) {
++		t.Fatalf("Expected autobind address %v, got %v", c1.LocalAddr(), c2.RemoteAddr())
++	}
++}
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 038eb4a017..689511426a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -279,7 +279,7 @@ type SockaddrUnix struct {
+ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
+ 	name := sa.Name
+ 	n := len(name)
+-	if n >= len(sa.raw.Path) || n == 0 {
++	if n >= len(sa.raw.Path) {
+ 		return 0, 0, EINVAL
+ 	}
+ 	sa.raw.Family = AF_UNIX
+@@ -287,7 +287,10 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, error) {
+ 		sa.raw.Path[i] = int8(name[i])
+ 	}
+ 	// length is family (uint16), name, NUL.
+-	sl := 2 + _Socklen(n) + 1
++	sl := _Socklen(2)
++	if n > 0 {
++		sl += _Socklen(n) + 1
++	}
+ 	if sa.raw.Path[0] == '@' {
+ 		sa.raw.Path[0] = 0
+ 		// Don't count trailing NUL for abstract address.

@@ -22,7 +22,7 @@ Date:   Mon Mar 23 17:02:11 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/7981
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/ssa/cgen.go                   | 117 +++++++++
  src/cmd/internal/ssa/compile.go                |  58 ++++-
  src/cmd/internal/ssa/critical.go               |  51 ++++
@@ -42,3 +42,1586 @@ Date:   Mon Mar 23 17:02:11 2015 -0700
  src/cmd/internal/ssa/ssac/fib.goir             |   5 +-
  src/cmd/internal/ssa/ssac/fibiter.goir         |   4 +-
  18 files changed, 1372 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/internal/ssa/cgen.go b/src/cmd/internal/ssa/cgen.go
+new file mode 100644
+index 0000000000..4b1a90b89d
+--- /dev/null
++++ b/src/cmd/internal/ssa/cgen.go
+@@ -0,0 +1,117 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "fmt"
++
++// cgen selects machine instructions for the function.
++// This pass generates assembly output for now, but should
++// TODO(khr): generate binary output (via liblink?) instead of text.
++func cgen(f *Func) {
++	fmt.Printf("TEXT %s(SB),0,$0\n", f.Name) // TODO: frame size / arg size
++
++	// TODO: prolog, allocate stack frame
++
++	// hack for now, until regalloc is done
++	f.RegAlloc = make([]Location, f.NumValues())
++
++	for idx, b := range f.Blocks {
++		fmt.Printf("%d:\n", b.ID)
++		for _, v := range b.Values {
++			asm := opcodeTable[v.Op].asm
++			fmt.Print("\t")
++			if asm == "" {
++				fmt.Print("\t")
++			}
++			for i := 0; i < len(asm); i++ {
++				switch asm[i] {
++				default:
++					fmt.Printf("%c", asm[i])
++				case '%':
++					i++
++					switch asm[i] {
++					case '%':
++						fmt.Print("%")
++					case 'I':
++						i++
++						n := asm[i] - '0'
++						if f.RegAlloc[v.Args[n].ID] != nil {
++							fmt.Print(f.RegAlloc[v.Args[n].ID].Name())
++						} else {
++							fmt.Printf("v%d", v.Args[n].ID)
++						}
++					case 'O':
++						i++
++						n := asm[i] - '0'
++						if n != 0 {
++							panic("can only handle 1 output for now")
++						}
++						if f.RegAlloc[v.ID] != nil {
++							// TODO: output tuple
++							fmt.Print(f.RegAlloc[v.ID].Name())
++						} else {
++							fmt.Printf("v%d", v.ID)
++						}
++					case 'A':
++						fmt.Print(v.Aux)
++					}
++				}
++			}
++			fmt.Println("\t; " + v.LongString())
++		}
++		// find next block in layout sequence
++		var next *Block
++		if idx < len(f.Blocks)-1 {
++			next = f.Blocks[idx+1]
++		}
++		// emit end of block code
++		// TODO: this is machine specific
++		switch b.Kind {
++		case BlockPlain:
++			if b.Succs[0] != next {
++				fmt.Printf("\tJMP\t%d\n", b.Succs[0].ID)
++			}
++		case BlockExit:
++			// TODO: run defers (if any)
++			// TODO: deallocate frame
++			fmt.Println("\tRET")
++		case BlockCall:
++			// nothing to emit - call instruction already happened
++		case BlockEQ:
++			if b.Succs[0] == next {
++				fmt.Printf("\tJNE\t%d\n", b.Succs[1].ID)
++			} else if b.Succs[1] == next {
++				fmt.Printf("\tJEQ\t%d\n", b.Succs[0].ID)
++			} else {
++				fmt.Printf("\tJEQ\t%d\n", b.Succs[0].ID)
++				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
++			}
++		case BlockNE:
++			if b.Succs[0] == next {
++				fmt.Printf("\tJEQ\t%d\n", b.Succs[1].ID)
++			} else if b.Succs[1] == next {
++				fmt.Printf("\tJNE\t%d\n", b.Succs[0].ID)
++			} else {
++				fmt.Printf("\tJNE\t%d\n", b.Succs[0].ID)
++				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
++			}
++		case BlockLT:
++			if b.Succs[0] == next {
++				fmt.Printf("\tJGE\t%d\n", b.Succs[1].ID)
++			} else if b.Succs[1] == next {
++				fmt.Printf("\tJLT\t%d\n", b.Succs[0].ID)
++			} else {
++				fmt.Printf("\tJLT\t%d\n", b.Succs[0].ID)
++				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
++			}
++		default:
++			fmt.Printf("\t%s ->", b.Kind.String())
++			for _, s := range b.Succs {
++				fmt.Printf(" %d", s.ID)
++			}
++			fmt.Printf("\n")
++		}
++	}
++}
+diff --git a/src/cmd/internal/ssa/compile.go b/src/cmd/internal/ssa/compile.go
+index 5e21bdf6e1..b8f34c52fc 100644
+--- a/src/cmd/internal/ssa/compile.go
++++ b/src/cmd/internal/ssa/compile.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "fmt"
++import (
++	"fmt"
++	"log"
++)
+ 
+ // Compile is the main entry point for this package.
+ // Compile modifies f so that on return:
+@@ -50,16 +53,55 @@ type pass struct {
+ var passes = [...]pass{
+ 	{"phielim", phielim},
+ 	{"copyelim", copyelim},
+-	//{"opt", opt},
++	{"opt", opt},
+ 	// cse
+ 	{"deadcode", deadcode},
+-	//{"fuse", fuse},
+-	//{"lower", lower},
++	{"fuse", fuse},
++	{"lower", lower},
+ 	// cse
+-	//{"critical", critical}, // remove critical edges
+-	//{"layout", layout},     // schedule blocks
+-	//{"schedule", schedule}, // schedule values
++	{"critical", critical}, // remove critical edges
++	{"layout", layout},     // schedule blocks
++	{"schedule", schedule}, // schedule values
+ 	// regalloc
+ 	// stack slot alloc (+size stack frame)
+-	//{"cgen", cgen},
++	{"cgen", cgen},
++}
++
++// Double-check phase ordering constraints.
++// This code is intended to document the ordering requirements
++// between different phases.  It does not override the passes
++// list above.
++var passOrder = map[string]string{
++	// don't layout blocks until critical edges have been removed
++	"critical": "layout",
++	// regalloc requires the removal of all critical edges
++	//"critical": "regalloc",
++	// regalloc requires all the values in a block to be scheduled
++	//"schedule": "regalloc",
++	// code generation requires register allocation
++	//"cgen":"regalloc",
++}
++
++func init() {
++	for a, b := range passOrder {
++		i := -1
++		j := -1
++		for k, p := range passes {
++			if p.name == a {
++				i = k
++			}
++			if p.name == b {
++				j = k
++			}
++		}
++		if i < 0 {
++			log.Panicf("pass %s not found", a)
++		}
++		if j < 0 {
++			log.Panicf("pass %s not found", b)
++		}
++		if i >= j {
++			log.Panicf("passes %s and %s out of order", a, b)
++		}
++	}
+ }
+diff --git a/src/cmd/internal/ssa/critical.go b/src/cmd/internal/ssa/critical.go
+new file mode 100644
+index 0000000000..5bbad8f2f5
+--- /dev/null
++++ b/src/cmd/internal/ssa/critical.go
+@@ -0,0 +1,51 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// critical splits critical edges (those that go from a block with
++// more than one outedge to a block with more than one inedge).
++// Regalloc wants a critical-edge-free CFG so it can implement phi values.
++func critical(f *Func) {
++	for _, b := range f.Blocks {
++		if len(b.Preds) <= 1 {
++			continue
++		}
++
++		// decide if we need to split edges coming into b.
++		hasphi := false
++		for _, v := range b.Values {
++			if v.Op == OpPhi && v.Type != TypeMem {
++				hasphi = true
++				break
++			}
++		}
++		if !hasphi {
++			// no splitting needed
++			continue
++		}
++
++		// split input edges coming from multi-output blocks.
++		for i, c := range b.Preds {
++			if c.Kind == BlockPlain {
++				continue
++			}
++
++			// allocate a new block to place on the edge
++			d := f.NewBlock(BlockPlain)
++
++			// splice it in
++			d.Preds = append(d.Preds, c)
++			d.Succs = append(d.Succs, b)
++			b.Preds[i] = d
++			// replace b with d in c's successor list.
++			for j, b2 := range c.Succs {
++				if b2 == b {
++					c.Succs[j] = d
++					break
++				}
++			}
++		}
++	}
++}
+diff --git a/src/cmd/internal/ssa/fuse.go b/src/cmd/internal/ssa/fuse.go
+new file mode 100644
+index 0000000000..bfce9ef970
+--- /dev/null
++++ b/src/cmd/internal/ssa/fuse.go
+@@ -0,0 +1,40 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// fuse simplifies control flow by joining basic blocks.
++func fuse(f *Func) {
++	for _, b := range f.Blocks {
++		if b.Kind != BlockPlain {
++			continue
++		}
++		c := b.Succs[0]
++		if len(c.Preds) != 1 {
++			continue
++		}
++
++		// move all of b's values to c.
++		for _, v := range b.Values {
++			v.Block = c
++			c.Values = append(c.Values, v)
++		}
++
++		// replace b->c edge with preds(b) -> c
++		c.Preds = b.Preds
++		for _, p := range c.Preds {
++			for i, q := range p.Succs {
++				if q == b {
++					p.Succs[i] = c
++				}
++			}
++		}
++
++		// trash b, just in case
++		b.Kind = BlockUnknown
++		b.Values = nil
++		b.Preds = nil
++		b.Succs = nil
++	}
++}
+diff --git a/src/cmd/internal/ssa/generic.go b/src/cmd/internal/ssa/generic.go
+new file mode 100644
+index 0000000000..f28633b19a
+--- /dev/null
++++ b/src/cmd/internal/ssa/generic.go
+@@ -0,0 +1,111 @@
++// autogenerated from rulegen/generic.rules: do not edit!
++// generated with: go run rulegen/rulegen.go rulegen/generic.rules genericRules generic.go
++package ssa
++
++func genericRules(v *Value) bool {
++	switch v.Op {
++	case OpAdd:
++		// match: (Add <t> (ConstInt [c]) (ConstInt [d]))
++		// cond: is64BitInt(t)
++		// result: (ConstInt [{c.(int64)+d.(int64)}])
++		{
++			t := v.Type
++			if v.Args[0].Op != OpConstInt {
++				goto end0
++			}
++			c := v.Args[0].Aux
++			if v.Args[1].Op != OpConstInt {
++				goto end0
++			}
++			d := v.Args[1].Aux
++			if !(is64BitInt(t)) {
++				goto end0
++			}
++			v.Op = OpConstInt
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = c.(int64) + d.(int64)
++			return true
++		}
++	end0:
++		;
++	case OpLoad:
++		// match: (Load (FPAddr [offset]) mem)
++		// cond:
++		// result: (LoadFP [offset] mem)
++		{
++			if v.Args[0].Op != OpFPAddr {
++				goto end1
++			}
++			offset := v.Args[0].Aux
++			mem := v.Args[1]
++			v.Op = OpLoadFP
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = offset
++			v.AddArg(mem)
++			return true
++		}
++	end1:
++		;
++		// match: (Load (SPAddr [offset]) mem)
++		// cond:
++		// result: (LoadSP [offset] mem)
++		{
++			if v.Args[0].Op != OpSPAddr {
++				goto end2
++			}
++			offset := v.Args[0].Aux
++			mem := v.Args[1]
++			v.Op = OpLoadSP
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = offset
++			v.AddArg(mem)
++			return true
++		}
++	end2:
++		;
++	case OpStore:
++		// match: (Store (FPAddr [offset]) val mem)
++		// cond:
++		// result: (StoreFP [offset] val mem)
++		{
++			if v.Args[0].Op != OpFPAddr {
++				goto end3
++			}
++			offset := v.Args[0].Aux
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpStoreFP
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = offset
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++	end3:
++		;
++		// match: (Store (SPAddr [offset]) val mem)
++		// cond:
++		// result: (StoreSP [offset] val mem)
++		{
++			if v.Args[0].Op != OpSPAddr {
++				goto end4
++			}
++			offset := v.Args[0].Aux
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpStoreSP
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = offset
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++	end4:
++	}
++	return false
++}
+diff --git a/src/cmd/internal/ssa/layout.go b/src/cmd/internal/ssa/layout.go
+new file mode 100644
+index 0000000000..7123397c4c
+--- /dev/null
++++ b/src/cmd/internal/ssa/layout.go
+@@ -0,0 +1,88 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "log"
++
++// layout orders basic blocks in f with the goal of minimizing control flow instructions.
++// After this phase returns, the order of f.Blocks matters and is the order
++// in which those blocks will appear in the assembly output.
++func layout(f *Func) {
++	order := make([]*Block, 0, f.NumBlocks())
++	scheduled := make([]bool, f.NumBlocks())
++	idToBlock := make([]*Block, f.NumBlocks())
++	indegree := make([]int, f.NumBlocks())
++	posdegree := newSparseSet(f.NumBlocks())  // blocks with positive remaining degree
++	zerodegree := newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
++
++	// Initialize indegree of each block
++	for _, b := range f.Blocks {
++		idToBlock[b.ID] = b
++		indegree[b.ID] = len(b.Preds)
++		if len(b.Preds) == 0 {
++			zerodegree.add(b.ID)
++		} else {
++			posdegree.add(b.ID)
++		}
++	}
++
++	bid := f.Entry.ID
++blockloop:
++	for {
++		// add block to schedule
++		b := idToBlock[bid]
++		order = append(order, b)
++		scheduled[bid] = true
++		if len(order) == len(f.Blocks) {
++			break
++		}
++
++		for _, c := range b.Succs {
++			indegree[c.ID]--
++			if indegree[c.ID] == 0 {
++				posdegree.remove(c.ID)
++				zerodegree.add(c.ID)
++			}
++		}
++
++		// Pick the next block to schedule
++		// Pick among the successor blocks that have not been scheduled yet.
++		// Just use degree for now.  TODO(khr): use likely direction hints.
++		bid = 0
++		mindegree := f.NumBlocks()
++		for _, c := range order[len(order)-1].Succs {
++			if scheduled[c.ID] {
++				continue
++			}
++			if indegree[c.ID] < mindegree {
++				mindegree = indegree[c.ID]
++				bid = c.ID
++			}
++		}
++		if bid != 0 {
++			continue
++		}
++		// TODO: improve this part
++		// No successor of the previously scheduled block works.
++		// Pick a zero-degree block if we can.
++		for zerodegree.size() > 0 {
++			cid := zerodegree.pop()
++			if !scheduled[cid] {
++				bid = cid
++				continue blockloop
++			}
++		}
++		// Still nothing, pick any block.
++		for {
++			cid := posdegree.pop()
++			if !scheduled[cid] {
++				bid = cid
++				continue blockloop
++			}
++		}
++		log.Panicf("no block available for layout")
++	}
++	f.Blocks = order
++}
+diff --git a/src/cmd/internal/ssa/lower.go b/src/cmd/internal/ssa/lower.go
+new file mode 100644
+index 0000000000..7d97b0b466
+--- /dev/null
++++ b/src/cmd/internal/ssa/lower.go
+@@ -0,0 +1,43 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++var (
++	// TODO(khr): put arch configuration constants together somewhere
++	intSize = 8
++	ptrSize = 8
++)
++
++//go:generate go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
++
++// convert to machine-dependent ops
++func lower(f *Func) {
++	// repeat rewrites until we find no more rewrites
++	// TODO: pick the target arch from config
++	applyRewrite(f, lowerAmd64)
++
++	// TODO: check for unlowered opcodes, fail if we find one
++
++	// additional pass for 386/amd64, link condition codes directly to blocks
++	// TODO: do generically somehow?  Special "block" rewrite rules?
++	for _, b := range f.Blocks {
++		switch b.Kind {
++		case BlockIf:
++			switch b.Control.Op {
++			case OpSETL:
++				b.Kind = BlockLT
++				b.Control = b.Control.Args[0]
++				// TODO: others
++			}
++		case BlockLT:
++			if b.Control.Op == OpInvertFlags {
++				b.Kind = BlockGE
++				b.Control = b.Control.Args[0]
++			}
++			// TODO: others
++		}
++	}
++	deadcode(f) // TODO: separate pass?
++}
+diff --git a/src/cmd/internal/ssa/lowerAmd64.go b/src/cmd/internal/ssa/lowerAmd64.go
+new file mode 100644
+index 0000000000..ab79ed09b1
+--- /dev/null
++++ b/src/cmd/internal/ssa/lowerAmd64.go
+@@ -0,0 +1,307 @@
++// autogenerated from rulegen/lower_amd64.rules: do not edit!
++// generated with: go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
++package ssa
++
++func lowerAmd64(v *Value) bool {
++	switch v.Op {
++	case OpADDQ:
++		// match: (ADDQ x (ConstInt [c]))
++		// cond:
++		// result: (ADDCQ [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpConstInt {
++				goto end0
++			}
++			c := v.Args[1].Aux
++			v.Op = OpADDCQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++	end0:
++		;
++		// match: (ADDQ (ConstInt [c]) x)
++		// cond:
++		// result: (ADDCQ [c] x)
++		{
++			if v.Args[0].Op != OpConstInt {
++				goto end1
++			}
++			c := v.Args[0].Aux
++			x := v.Args[1]
++			v.Op = OpADDCQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++	end1:
++		;
++	case OpAdd:
++		// match: (Add <t> x y)
++		// cond: is64BitInt(t)
++		// result: (ADDQ x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(t)) {
++				goto end2
++			}
++			v.Op = OpADDQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++	end2:
++		;
++		// match: (Add <t> x y)
++		// cond: is32BitInt(t)
++		// result: (ADDL x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is32BitInt(t)) {
++				goto end3
++			}
++			v.Op = OpADDL
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++	end3:
++		;
++	case OpCMPQ:
++		// match: (CMPQ x (ConstInt [c]))
++		// cond:
++		// result: (CMPCQ x [c])
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpConstInt {
++				goto end4
++			}
++			c := v.Args[1].Aux
++			v.Op = OpCMPCQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.AddArg(x)
++			v.Aux = c
++			return true
++		}
++	end4:
++		;
++		// match: (CMPQ (ConstInt [c]) x)
++		// cond:
++		// result: (InvertFlags (CMPCQ x [c]))
++		{
++			if v.Args[0].Op != OpConstInt {
++				goto end5
++			}
++			c := v.Args[0].Aux
++			x := v.Args[1]
++			v.Op = OpInvertFlags
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v0 := v.Block.NewValue(OpCMPCQ, TypeInvalid, nil)
++			v0.AddArg(x)
++			v0.Aux = c
++			v0.SetType()
++			v.AddArg(v0)
++			return true
++		}
++	end5:
++		;
++	case OpLess:
++		// match: (Less x y)
++		// cond: is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)
++		// result: (SETL (CMPQ x y))
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
++				goto end6
++			}
++			v.Op = OpSETL
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v0 := v.Block.NewValue(OpCMPQ, TypeInvalid, nil)
++			v0.AddArg(x)
++			v0.AddArg(y)
++			v0.SetType()
++			v.AddArg(v0)
++			return true
++		}
++	end6:
++		;
++	case OpLoadFP:
++		// match: (LoadFP <t> [offset] mem)
++		// cond: typeSize(t) == 8
++		// result: (LoadFP8 <t> [offset] mem)
++		{
++			t := v.Type
++			offset := v.Aux
++			mem := v.Args[0]
++			if !(typeSize(t) == 8) {
++				goto end7
++			}
++			v.Op = OpLoadFP8
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Type = t
++			v.Aux = offset
++			v.AddArg(mem)
++			return true
++		}
++	end7:
++		;
++	case OpLoadSP:
++		// match: (LoadSP <t> [offset] mem)
++		// cond: typeSize(t) == 8
++		// result: (LoadSP8 <t> [offset] mem)
++		{
++			t := v.Type
++			offset := v.Aux
++			mem := v.Args[0]
++			if !(typeSize(t) == 8) {
++				goto end8
++			}
++			v.Op = OpLoadSP8
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Type = t
++			v.Aux = offset
++			v.AddArg(mem)
++			return true
++		}
++	end8:
++		;
++	case OpSETL:
++		// match: (SETL (InvertFlags x))
++		// cond:
++		// result: (SETGE x)
++		{
++			if v.Args[0].Op != OpInvertFlags {
++				goto end9
++			}
++			x := v.Args[0].Args[0]
++			v.Op = OpSETGE
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.AddArg(x)
++			return true
++		}
++	end9:
++		;
++	case OpSUBQ:
++		// match: (SUBQ x (ConstInt [c]))
++		// cond:
++		// result: (SUBCQ x [c])
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpConstInt {
++				goto end10
++			}
++			c := v.Args[1].Aux
++			v.Op = OpSUBCQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.AddArg(x)
++			v.Aux = c
++			return true
++		}
++	end10:
++		;
++		// match: (SUBQ (ConstInt [c]) x)
++		// cond:
++		// result: (NEGQ (SUBCQ x [c]))
++		{
++			if v.Args[0].Op != OpConstInt {
++				goto end11
++			}
++			c := v.Args[0].Aux
++			x := v.Args[1]
++			v.Op = OpNEGQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v0 := v.Block.NewValue(OpSUBCQ, TypeInvalid, nil)
++			v0.AddArg(x)
++			v0.Aux = c
++			v0.SetType()
++			v.AddArg(v0)
++			return true
++		}
++	end11:
++		;
++	case OpStoreFP:
++		// match: (StoreFP [offset] val mem)
++		// cond: typeSize(val.Type) == 8
++		// result: (StoreFP8 [offset] val mem)
++		{
++			offset := v.Aux
++			val := v.Args[0]
++			mem := v.Args[1]
++			if !(typeSize(val.Type) == 8) {
++				goto end12
++			}
++			v.Op = OpStoreFP8
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = offset
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++	end12:
++		;
++	case OpStoreSP:
++		// match: (StoreSP [offset] val mem)
++		// cond: typeSize(val.Type) == 8
++		// result: (StoreSP8 [offset] val mem)
++		{
++			offset := v.Aux
++			val := v.Args[0]
++			mem := v.Args[1]
++			if !(typeSize(val.Type) == 8) {
++				goto end13
++			}
++			v.Op = OpStoreSP8
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.Aux = offset
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++	end13:
++		;
++	case OpSub:
++		// match: (Sub <t> x y)
++		// cond: is64BitInt(t)
++		// result: (SUBQ x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(t)) {
++				goto end14
++			}
++			v.Op = OpSUBQ
++			v.Aux = nil
++			v.Args = v.argstorage[:0]
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++	end14:
++	}
++	return false
++}
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index 905d62b69c..da69657411 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -62,7 +62,9 @@ const (
+ 	OpCheckBound // 0 <= arg[0] < arg[1]
+ 
+ 	// function calls.  Arguments to the call have already been written to the stack.
+-	// Return values appear on the stack.
++	// Return values appear on the stack.  The method receiver, if any, is treated
++	// as a phantom first argument.
++	// TODO: closure pointer must be in a register.
+ 	OpCall       // args are function ptr, memory
+ 	OpStaticCall // aux is function, arg is memory
+ 
+@@ -82,33 +84,38 @@ const (
+ 	OpStoreFP
+ 	OpStoreSP
+ 
+-	// spill and restore ops for the register allocator.  These are
+-	// semantically identical to OpCopy - they do not take/return
+-	// stores like regular memory ops do.  We can get away with that because
+-	// we know there is no aliasing to spill slots on the stack.
++	// spill&restore ops for the register allocator.  These are
++	// semantically identical to OpCopy; they do not take/return
++	// stores like regular memory ops do.  We can get away without memory
++	// args because we know there is no aliasing of spill slots on the stack.
+ 	OpStoreReg8
+ 	OpLoadReg8
+ 
+ 	// machine-dependent opcodes go here
+ 
+-	// x86
++	// amd64
+ 	OpADDQ
+ 	OpSUBQ
+-	OpADDCQ // 1 input arg, add aux which is an int64 constant
++	OpADDCQ // 1 input arg.  output = input + aux.(int64)
+ 	OpSUBCQ // 1 input arg.  output = input - aux.(int64)
+ 	OpNEGQ
+ 	OpCMPQ
+ 	OpCMPCQ // 1 input arg.  Compares input with aux.(int64)
+ 	OpADDL
+-	OpInvertFlags // inverts interpretation of the flags register (< to >=, etc.)
+-	OpSETL        // generate bool = "flags encode less than"
++	OpSETL // generate bool = "flags encode less than"
+ 	OpSETGE
+ 
++	// InvertFlags reverses direction of flags register interpretation:
++	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
++	// This is a pseudo-op which can't appear in assembly output.
++	OpInvertFlags
++
+ 	OpLEAQ  // x+y
+ 	OpLEAQ2 // x+2*y
+ 	OpLEAQ4 // x+4*y
+ 	OpLEAQ8 // x+8*y
+ 
++	// load/store 8-byte integer register from stack slot.
+ 	OpLoadFP8
+ 	OpLoadSP8
+ 	OpStoreFP8
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index 40051eb321..9aee7de43e 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -4,9 +4,9 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstNilOpConstBoolOpConstStringOpConstIntOpConstFloatOpConstComplexOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpInvertFlagsOpSETLOpSETGEOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
++const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstNilOpConstBoolOpConstStringOpConstIntOpConstFloatOpConstComplexOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpSETLOpSETGEOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
+ 
+-var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 52, 63, 76, 86, 98, 112, 117, 125, 131, 137, 142, 153, 163, 173, 183, 195, 206, 217, 224, 231, 242, 248, 255, 265, 277, 283, 295, 304, 313, 321, 329, 337, 345, 354, 363, 374, 384, 390, 396, 403, 410, 416, 422, 429, 435, 448, 454, 461, 467, 474, 481, 488, 497, 506, 516, 526, 531}
++var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 52, 63, 76, 86, 98, 112, 117, 125, 131, 137, 142, 153, 163, 173, 183, 195, 206, 217, 224, 231, 242, 248, 255, 265, 277, 283, 295, 304, 313, 321, 329, 337, 345, 354, 363, 374, 384, 390, 396, 403, 410, 416, 422, 429, 435, 441, 448, 461, 467, 474, 481, 488, 497, 506, 516, 526, 531}
+ 
+ func (i Op) String() string {
+ 	if i < 0 || i+1 >= Op(len(_Op_index)) {
+diff --git a/src/cmd/internal/ssa/opt.go b/src/cmd/internal/ssa/opt.go
+new file mode 100644
+index 0000000000..ea2bcf0e98
+--- /dev/null
++++ b/src/cmd/internal/ssa/opt.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// machine-independent optimization
++
++//go:generate go run rulegen/rulegen.go rulegen/generic.rules genericRules generic.go
++
++func opt(f *Func) {
++	applyRewrite(f, genericRules)
++}
+diff --git a/src/cmd/internal/ssa/rewrite.go b/src/cmd/internal/ssa/rewrite.go
+new file mode 100644
+index 0000000000..0d7c0c1c64
+--- /dev/null
++++ b/src/cmd/internal/ssa/rewrite.go
+@@ -0,0 +1,70 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"cmd/internal/ssa/types" // TODO: use golang.org/x/tools/go/types instead
++)
++
++func applyRewrite(f *Func, r func(*Value) bool) {
++	// repeat rewrites until we find no more rewrites
++	for {
++		change := false
++		for _, b := range f.Blocks {
++			for _, v := range b.Values {
++				if r(v) {
++					change = true
++				}
++			}
++		}
++		if !change {
++			return
++		}
++	}
++}
++
++// Common functions called from rewriting rules
++
++func is64BitInt(t Type) bool {
++	return typeIdentical(t, TypeInt64) ||
++		typeIdentical(t, TypeUint64) ||
++		(typeIdentical(t, TypeInt) && intSize == 8) ||
++		(typeIdentical(t, TypeUint) && intSize == 8) ||
++		(typeIdentical(t, TypeUintptr) && ptrSize == 8)
++}
++
++func is32BitInt(t Type) bool {
++	return typeIdentical(t, TypeInt32) ||
++		typeIdentical(t, TypeUint32) ||
++		(typeIdentical(t, TypeInt) && intSize == 4) ||
++		(typeIdentical(t, TypeUint) && intSize == 4) ||
++		(typeIdentical(t, TypeUintptr) && ptrSize == 4)
++}
++
++func isSigned(t Type) bool {
++	return typeIdentical(t, TypeInt) ||
++		typeIdentical(t, TypeInt8) ||
++		typeIdentical(t, TypeInt16) ||
++		typeIdentical(t, TypeInt32) ||
++		typeIdentical(t, TypeInt64)
++}
++
++func typeSize(t Type) int {
++	switch t {
++	case TypeInt32, TypeUint32:
++		return 4
++	case TypeInt64, TypeUint64:
++		return 8
++	case TypeUintptr:
++		return ptrSize
++	case TypeInt, TypeUint:
++		return intSize
++	default:
++		if _, ok := t.(*types.Pointer); ok {
++			return ptrSize
++		}
++		panic("TODO: width of " + t.String())
++	}
++}
+diff --git a/src/cmd/internal/ssa/rulegen/generic.rules b/src/cmd/internal/ssa/rulegen/generic.rules
+new file mode 100644
+index 0000000000..73e6e4a329
+--- /dev/null
++++ b/src/cmd/internal/ssa/rulegen/generic.rules
+@@ -0,0 +1,16 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// constant folding
++(Add <t> (ConstInt [c]) (ConstInt [d])) && is64BitInt(t) -> (ConstInt [{c.(int64)+d.(int64)}])
++
++// load/store to stack
++(Load (FPAddr [offset]) mem) -> (LoadFP [offset] mem)
++(Store (FPAddr [offset]) val mem) -> (StoreFP [offset] val mem)
++
++(Load (SPAddr [offset]) mem) -> (LoadSP [offset] mem)
++(Store (SPAddr [offset]) val mem) -> (StoreSP [offset] val mem)
++
++// expand array indexing
++// others?  Depends on what is already done by frontend
+diff --git a/src/cmd/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+new file mode 100644
+index 0000000000..525035b8c2
+--- /dev/null
++++ b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+@@ -0,0 +1,46 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// values are specified using the following format:
++// (op <type> [aux] arg0 arg1 ...)
++// the type and aux fields are optional
++// on the matching side
++//  - the types and aux fields must match if they are specified.
++// on the generated side
++//  - types will be computed by opcode typers if not specified explicitly.
++//  - aux will be nil if not specified.
++
++// x86 register conventions:
++//  - Integer types live in the low portion of registers.  Upper portions are junk.
++//  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
++//  - We do not use AH,BH,CH,DH registers.
++//  - Floating-point types will live in the low natural slot of an sse2 register.
++//    Unused portions are junk.
++
++// These are the lowerings themselves
++(Add <t> x y) && is64BitInt(t) -> (ADDQ x y)
++(Add <t> x y) && is32BitInt(t) -> (ADDL x y)
++
++(Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
++
++(Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ x y))
++
++// stack loads/stores
++(LoadFP <t> [offset] mem) && typeSize(t) == 8 -> (LoadFP8 <t> [offset] mem)
++(StoreFP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreFP8 [offset] val mem)
++(LoadSP <t> [offset] mem) && typeSize(t) == 8 -> (LoadSP8 <t> [offset] mem)
++(StoreSP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreSP8 [offset] val mem)
++
++// Rules below here apply some simple optimizations after lowering.
++// TODO: Should this be a separate pass?
++
++(ADDQ x (ConstInt [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
++(ADDQ (ConstInt [c]) x) -> (ADDCQ [c] x)
++(SUBQ x (ConstInt [c])) -> (SUBCQ x [c])
++(SUBQ (ConstInt [c]) x) -> (NEGQ (SUBCQ x [c]))
++(CMPQ x (ConstInt [c])) -> (CMPCQ x [c])
++(CMPQ (ConstInt [c]) x) -> (InvertFlags (CMPCQ x [c]))
++
++// reverse ordering of compare instruction
++(SETL (InvertFlags x)) -> (SETGE x)
+diff --git a/src/cmd/internal/ssa/rulegen/rulegen.go b/src/cmd/internal/ssa/rulegen/rulegen.go
+new file mode 100644
+index 0000000000..f125828f64
+--- /dev/null
++++ b/src/cmd/internal/ssa/rulegen/rulegen.go
+@@ -0,0 +1,328 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This program generates Go code that applies rewrite rules to a Value.
++// The generated code implements a function of type func (v *Value) bool
++// which returns true iff if did something.
++// Ideas stolen from Swift: http://www.hpl.hp.com/techreports/Compaq-DEC/WRL-2000-2.html
++
++// Run with something like "go run rulegen.go lower_amd64.rules lowerAmd64 lowerAmd64.go"
++
++package main
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"go/format"
++	"io"
++	"log"
++	"os"
++	"sort"
++	"strings"
++)
++
++// rule syntax:
++//  sexpr [&& extra conditions] -> sexpr
++//
++// sexpr are s-expressions (lisp-like parenthesized groupings)
++// sexpr ::= (opcode sexpr*)
++//         | variable
++//         | [aux]
++//         | <type>
++//         | {code}
++//
++// aux      ::= variable | {code}
++// type     ::= variable | {code}
++// variable ::= some token
++// opcode   ::= one of the opcodes from ../op.go (without the Op prefix)
++
++// extra conditions is just a chunk of Go that evaluates to a boolean.  It may use
++// variables declared in the matching sexpr.  The variable "v" is predefined to be
++// the value matched by the entire rule.
++
++// If multiple rules match, the first one in file order is selected.
++
++func main() {
++	if len(os.Args) < 3 || len(os.Args) > 4 {
++		fmt.Printf("usage: go run rulegen.go <rule file> <function name> [<output file>]")
++		os.Exit(1)
++	}
++	rulefile := os.Args[1]
++	rulefn := os.Args[2]
++
++	// Open input file.
++	text, err := os.Open(rulefile)
++	if err != nil {
++		log.Fatalf("can't read rule file: %v", err)
++	}
++
++	// oprules contains a list of rules for each opcode
++	oprules := map[string][]string{}
++
++	// read rule file
++	scanner := bufio.NewScanner(text)
++	for scanner.Scan() {
++		line := scanner.Text()
++		if i := strings.Index(line, "//"); i >= 0 {
++			// Remove comments.  Note that this isn't string safe, so
++			// it will truncate lines with // inside strings.  Oh well.
++			line = line[:i]
++		}
++		line = strings.TrimSpace(line)
++		if line == "" {
++			continue
++		}
++		op := strings.Split(line, " ")[0][1:]
++		oprules[op] = append(oprules[op], line)
++	}
++	if err := scanner.Err(); err != nil {
++		log.Fatalf("scanner failed: %v\n", err)
++	}
++
++	// Start output buffer, write header.
++	w := new(bytes.Buffer)
++	fmt.Fprintf(w, "// autogenerated from %s: do not edit!\n", rulefile)
++	fmt.Fprintf(w, "// generated with: go run rulegen/rulegen.go %s\n", strings.Join(os.Args[1:], " "))
++	fmt.Fprintln(w, "package ssa")
++	fmt.Fprintf(w, "func %s(v *Value) bool {\n", rulefn)
++
++	// generate code for each rule
++	fmt.Fprintf(w, "switch v.Op {\n")
++	var ops []string
++	for op := range oprules {
++		ops = append(ops, op)
++	}
++	sort.Strings(ops)
++	rulenum := 0
++	for _, op := range ops {
++		fmt.Fprintf(w, "case Op%s:\n", op)
++		for _, rule := range oprules[op] {
++			// split at ->
++			s := strings.Split(rule, "->")
++			if len(s) != 2 {
++				log.Fatalf("no arrow in rule %s", rule)
++			}
++			lhs := strings.Trim(s[0], " \t")
++			result := strings.Trim(s[1], " \t\n")
++
++			// split match into matching part and additional condition
++			match := lhs
++			cond := ""
++			if i := strings.Index(match, "&&"); i >= 0 {
++				cond = strings.Trim(match[i+2:], " \t")
++				match = strings.Trim(match[:i], " \t")
++			}
++
++			fmt.Fprintf(w, "// match: %s\n", match)
++			fmt.Fprintf(w, "// cond: %s\n", cond)
++			fmt.Fprintf(w, "// result: %s\n", result)
++
++			fail := fmt.Sprintf("{\ngoto end%d\n}\n", rulenum)
++
++			fmt.Fprintf(w, "{\n")
++			genMatch(w, match, fail)
++
++			if cond != "" {
++				fmt.Fprintf(w, "if !(%s) %s", cond, fail)
++			}
++
++			genResult(w, result)
++			fmt.Fprintf(w, "return true\n")
++
++			fmt.Fprintf(w, "}\n")
++			fmt.Fprintf(w, "end%d:;\n", rulenum)
++			rulenum++
++		}
++	}
++	fmt.Fprintf(w, "}\n")
++	fmt.Fprintf(w, "return false\n")
++	fmt.Fprintf(w, "}\n")
++
++	// gofmt result
++	b := w.Bytes()
++	b, err = format.Source(b)
++	if err != nil {
++		panic(err)
++	}
++
++	// Write to a file if given, otherwise stdout.
++	var out io.WriteCloser
++	if len(os.Args) >= 4 {
++		outfile := os.Args[3]
++		out, err = os.Create(outfile)
++		if err != nil {
++			log.Fatalf("can't open output file %s: %v\n", outfile, err)
++		}
++	} else {
++		out = os.Stdout
++	}
++	if _, err = out.Write(b); err != nil {
++		log.Fatalf("can't write output: %v\n", err)
++	}
++	if err = out.Close(); err != nil {
++		log.Fatalf("can't close output: %v\n", err)
++	}
++}
++
++func genMatch(w io.Writer, match, fail string) {
++	genMatch0(w, match, "v", fail, map[string]string{}, true)
++}
++
++func genMatch0(w io.Writer, match, v, fail string, m map[string]string, top bool) {
++	if match[0] != '(' {
++		if x, ok := m[match]; ok {
++			// variable already has a definition.  Check whether
++			// the old definition and the new definition match.
++			// For example, (add x x).  Equality is just pointer equality
++			// on Values (so cse is important to do before lowering).
++			fmt.Fprintf(w, "if %s != %s %s", v, x, fail)
++			return
++		}
++		// remember that this variable references the given value
++		m[match] = v
++		fmt.Fprintf(w, "%s := %s\n", match, v)
++		return
++	}
++
++	// split body up into regions.  Split by spaces/tabs, except those
++	// contained in () or {}.
++	s := split(match[1 : len(match)-1])
++
++	// check op
++	if !top {
++		fmt.Fprintf(w, "if %s.Op != Op%s %s", v, s[0], fail)
++	}
++
++	// check type/aux/args
++	argnum := 0
++	for _, a := range s[1:] {
++		if a[0] == '<' {
++			// type restriction
++			t := a[1 : len(a)-1]
++			if t[0] == '{' {
++				// code.  We must match the results of this code.
++				fmt.Fprintf(w, "if %s.Type != %s %s", v, t[1:len(t)-1], fail)
++			} else {
++				// variable
++				if u, ok := m[t]; ok {
++					// must match previous variable
++					fmt.Fprintf(w, "if %s.Type != %s %s", v, u, fail)
++				} else {
++					m[t] = v + ".Type"
++					fmt.Fprintf(w, "%s := %s.Type\n", t, v)
++				}
++			}
++		} else if a[0] == '[' {
++			// aux restriction
++			x := a[1 : len(a)-1]
++			if x[0] == '{' {
++				// code
++				fmt.Fprintf(w, "if %s.Aux != %s %s", v, x[1:len(x)-1], fail)
++			} else {
++				// variable
++				if y, ok := m[x]; ok {
++					fmt.Fprintf(w, "if %s.Aux != %s %s", v, y, fail)
++				} else {
++					m[x] = v + ".Aux"
++					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
++				}
++			}
++		} else if a[0] == '{' {
++			fmt.Fprintf(w, "if %s.Args[%d] != %s %s", v, argnum, a[1:len(a)-1], fail)
++			argnum++
++		} else {
++			// variable or sexpr
++			genMatch0(w, a, fmt.Sprintf("%s.Args[%d]", v, argnum), fail, m, false)
++			argnum++
++		}
++	}
++}
++
++func genResult(w io.Writer, result string) {
++	genResult0(w, result, new(int), true)
++}
++func genResult0(w io.Writer, result string, alloc *int, top bool) string {
++	if result[0] != '(' {
++		// variable
++		return result
++	}
++
++	s := split(result[1 : len(result)-1])
++	var v string
++	var needsType bool
++	if top {
++		v = "v"
++		fmt.Fprintf(w, "v.Op = Op%s\n", s[0])
++		fmt.Fprintf(w, "v.Aux = nil\n")
++		fmt.Fprintf(w, "v.Args = v.argstorage[:0]\n")
++	} else {
++		v = fmt.Sprintf("v%d", *alloc)
++		*alloc++
++		fmt.Fprintf(w, "%s := v.Block.NewValue(Op%s, TypeInvalid, nil)\n", v, s[0])
++		needsType = true
++	}
++	for _, a := range s[1:] {
++		if a[0] == '<' {
++			// type restriction
++			t := a[1 : len(a)-1]
++			if t[0] == '{' {
++				t = t[1 : len(t)-1]
++			}
++			fmt.Fprintf(w, "%s.Type = %s\n", v, t)
++			needsType = false
++		} else if a[0] == '[' {
++			// aux restriction
++			x := a[1 : len(a)-1]
++			if x[0] == '{' {
++				x = x[1 : len(x)-1]
++			}
++			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
++		} else if a[0] == '{' {
++			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, a[1:len(a)-1])
++		} else {
++			// regular argument (sexpr or variable)
++			x := genResult0(w, a, alloc, false)
++			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
++		}
++	}
++	if needsType {
++		fmt.Fprintf(w, "%s.SetType()\n", v)
++	}
++	return v
++}
++
++func split(s string) []string {
++	var r []string
++
++outer:
++	for s != "" {
++		d := 0         // depth of ({[<
++		nonsp := false // found a non-space char so far
++		for i := 0; i < len(s); i++ {
++			switch s[i] {
++			case '(', '{', '[', '<':
++				d++
++			case ')', '}', ']', '>':
++				d--
++			case ' ', '\t':
++				if d == 0 && nonsp {
++					r = append(r, strings.TrimSpace(s[:i]))
++					s = s[i:]
++					continue outer
++				}
++			default:
++				nonsp = true
++			}
++		}
++		if d != 0 {
++			panic("imbalanced expression: " + s)
++		}
++		if nonsp {
++			r = append(r, strings.TrimSpace(s))
++		}
++		break
++	}
++	return r
++}
+diff --git a/src/cmd/internal/ssa/schedule.go b/src/cmd/internal/ssa/schedule.go
+new file mode 100644
+index 0000000000..0a89ac3773
+--- /dev/null
++++ b/src/cmd/internal/ssa/schedule.go
+@@ -0,0 +1,69 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// Schedule the Values in each Block.  After this phase returns, the
++// order of b.Values matters and is the order in which those values
++// will appear in the assembly output.  For now it generates an
++// arbitrary valid schedule using a topological sort.  TODO(khr):
++// schedule smarter.
++func schedule(f *Func) {
++	const (
++		unmarked = 0
++		found    = 1
++		expanded = 2
++		done     = 3
++	)
++	state := make([]byte, f.NumValues())
++	var queue []*Value //stack-like worklist.  Contains found and expanded nodes.
++	var order []*Value
++
++	for _, b := range f.Blocks {
++		// Topologically sort the values in b.
++		order = order[:0]
++		for _, v := range b.Values {
++			if v.Op == OpPhi {
++				// Phis all go first.  We handle phis specially
++				// because they may have self edges "a = phi(a, b, c)"
++				order = append(order, v)
++				continue
++			}
++			if state[v.ID] != unmarked {
++				if state[v.ID] != done {
++					panic("bad state")
++				}
++				continue
++			}
++			state[v.ID] = found
++			queue = append(queue, v)
++			for len(queue) > 0 {
++				v = queue[len(queue)-1]
++				switch state[v.ID] {
++				case found:
++					state[v.ID] = expanded
++					// Note that v is not popped.  We leave it in place
++					// until all its children have been explored.
++					for _, w := range v.Args {
++						if w.Block == b && w.Op != OpPhi && state[w.ID] == unmarked {
++							state[w.ID] = found
++							queue = append(queue, w)
++						}
++					}
++				case expanded:
++					queue = queue[:len(queue)-1]
++					state[v.ID] = done
++					order = append(order, v)
++				default:
++					panic("bad state")
++				}
++			}
++		}
++		copy(b.Values, order)
++	}
++	// TODO: only allow one live mem type and one live flags type (x86)
++	// This restriction will force any loads (and any flag uses) to appear
++	// before the next store (flag update).  This "anti-dependence" is not
++	// recorded explicitly in ssa form.
++}
+diff --git a/src/cmd/internal/ssa/ssac/fib.goir b/src/cmd/internal/ssa/ssac/fib.goir
+index b572cdaa3a..0875d63ca3 100644
+--- a/src/cmd/internal/ssa/ssac/fib.goir
++++ b/src/cmd/internal/ssa/ssac/fib.goir
+@@ -13,6 +13,7 @@
+     (TYPE T127bd68 int)
+     (TYPE T127bd68 int)
+     (DCL n T127bd68)
++    (AS n (LOAD (FP T127bd68 0)))
+     (DCL ~r1 T127bd68)
+     (DCL n T127bd68)
+     (DCL autotmp_0000 T127bd68)
+@@ -29,7 +30,7 @@
+     (IF (LT n (CINT 2)) .then0 .else0)
+     (LABEL .then0)
+     (AS ~r1 n)
+-    (AS (SP T127bd68 8) ~r1)
++    (AS (FP T127bd68 8) ~r1)
+     (RETURN)
+     (GOTO .end0)
+     (LABEL .else0)
+@@ -42,5 +43,5 @@
+     (CALL fib)
+     (AS autotmp_0001 (LOAD (SP T127bd68 8)))
+     (AS ~r1 (ADD autotmp_0000 autotmp_0001))
+-    (AS (SP T127bd68 8) ~r1)
++    (AS (FP T127bd68 8) ~r1)
+     (RETURN)
+diff --git a/src/cmd/internal/ssa/ssac/fibiter.goir b/src/cmd/internal/ssa/ssac/fibiter.goir
+index 43c7a3de91..98b2b2b576 100644
+--- a/src/cmd/internal/ssa/ssac/fibiter.goir
++++ b/src/cmd/internal/ssa/ssac/fibiter.goir
+@@ -43,7 +43,7 @@
+     (DCL autotmp_0003 Tf5dd68)
+     (DCL ~r1 Tf5dd68)
+     (DCL a Tf5dd68)
+-    (AS n (LOAD (SP Tf5dd68 0)))
++    (AS n (LOAD (FP Tf5dd68 0)))
+     (AS a (CINT 0))
+     (AS b (CINT 1))
+     (AS i (CINT 0))
+@@ -58,5 +58,5 @@
+     (AS i (ADD autotmp_0002 (CINT 1)))
+     (GOTO .top0)
+     (LABEL .end0)
+-    (AS (SP Tf5dd68 8) a)
++    (AS (FP Tf5dd68 8) a)
+     (RETURN)

@@ -7,8 +7,141 @@ Date:   Tue Feb 9 13:33:07 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/204067
-
+---
  src/cmd/8a/lex.c   | 33 +++++++++++++++++++++++++++++++++
  src/cmd/8l/8.out.h | 34 ++++++++++++++++++++++++++++++++++
  src/cmd/8l/optab.c | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 100 insertions(+)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 6903e2c66a..c164151c65 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -554,6 +554,39 @@ struct
+ 	"XORL",		LTYPE3,	AXORL,
+ 	"XORW",		LTYPE3,	AXORW,
+ 
++	"CMOVLCC",	LTYPE3,	ACMOVLCC,
++	"CMOVLCS",	LTYPE3,	ACMOVLCS,
++	"CMOVLEQ",	LTYPE3,	ACMOVLEQ,
++	"CMOVLGE",	LTYPE3,	ACMOVLGE,
++	"CMOVLGT",	LTYPE3,	ACMOVLGT,
++	"CMOVLHI",	LTYPE3,	ACMOVLHI,
++	"CMOVLLE",	LTYPE3,	ACMOVLLE,
++	"CMOVLLS",	LTYPE3,	ACMOVLLS,
++	"CMOVLLT",	LTYPE3,	ACMOVLLT,
++	"CMOVLMI",	LTYPE3,	ACMOVLMI,
++	"CMOVLNE",	LTYPE3,	ACMOVLNE,
++	"CMOVLOC",	LTYPE3,	ACMOVLOC,
++	"CMOVLOS",	LTYPE3,	ACMOVLOS,
++	"CMOVLPC",	LTYPE3,	ACMOVLPC,
++	"CMOVLPL",	LTYPE3,	ACMOVLPL,
++	"CMOVLPS",	LTYPE3,	ACMOVLPS,
++	"CMOVWCC",	LTYPE3,	ACMOVWCC,
++	"CMOVWCS",	LTYPE3,	ACMOVWCS,
++	"CMOVWEQ",	LTYPE3,	ACMOVWEQ,
++	"CMOVWGE",	LTYPE3,	ACMOVWGE,
++	"CMOVWGT",	LTYPE3,	ACMOVWGT,
++	"CMOVWHI",	LTYPE3,	ACMOVWHI,
++	"CMOVWLE",	LTYPE3,	ACMOVWLE,
++	"CMOVWLS",	LTYPE3,	ACMOVWLS,
++	"CMOVWLT",	LTYPE3,	ACMOVWLT,
++	"CMOVWMI",	LTYPE3,	ACMOVWMI,
++	"CMOVWNE",	LTYPE3,	ACMOVWNE,
++	"CMOVWOC",	LTYPE3,	ACMOVWOC,
++	"CMOVWOS",	LTYPE3,	ACMOVWOS,
++	"CMOVWPC",	LTYPE3,	ACMOVWPC,
++	"CMOVWPL",	LTYPE3,	ACMOVWPL,
++	"CMOVWPS",	LTYPE3,	ACMOVWPS,
++
+ 	"FMOVB",	LTYPE3, AFMOVB,
+ 	"FMOVBP",	LTYPE3, AFMOVBP,
+ 	"FMOVD",	LTYPE3, AFMOVD,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index a62c4a5747..eba475b9a9 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -392,6 +392,40 @@ enum	as
+ 	ACMPXCHGL,
+ 	ACMPXCHGW,
+ 
++	/* conditional move */
++	ACMOVLCC,
++	ACMOVLCS,
++	ACMOVLEQ,
++	ACMOVLGE,
++	ACMOVLGT,
++	ACMOVLHI,
++	ACMOVLLE,
++	ACMOVLLS,
++	ACMOVLLT,
++	ACMOVLMI,
++	ACMOVLNE,
++	ACMOVLOC,
++	ACMOVLOS,
++	ACMOVLPC,
++	ACMOVLPL,
++	ACMOVLPS,
++	ACMOVWCC,
++	ACMOVWCS,
++	ACMOVWEQ,
++	ACMOVWGE,
++	ACMOVWGT,
++	ACMOVWHI,
++	ACMOVWLE,
++	ACMOVWLS,
++	ACMOVWLT,
++	ACMOVWMI,
++	ACMOVWNE,
++	ACMOVWOC,
++	ACMOVWOS,
++	ACMOVWPC,
++	ACMOVWPL,
++	ACMOVWPS,
++
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 09b2623b4a..f41734f82e 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -697,5 +697,38 @@ Optab optab[] =
+ 	{ ACMPXCHGB,	yrb_mb,	Pm, 0xb0 },
+ 	{ ACMPXCHGL,	yrl_ml,	Pm, 0xb1 },
+ 	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
++
++	{ ACMOVLCC,	yml_rl,	Pm, 0x43 },
++	{ ACMOVLCS,	yml_rl,	Pm, 0x42 },
++	{ ACMOVLEQ,	yml_rl,	Pm, 0x44 },
++	{ ACMOVLGE,	yml_rl,	Pm, 0x4d },
++	{ ACMOVLGT,	yml_rl,	Pm, 0x4f },
++	{ ACMOVLHI,	yml_rl,	Pm, 0x47 },
++	{ ACMOVLLE,	yml_rl,	Pm, 0x4e },
++	{ ACMOVLLS,	yml_rl,	Pm, 0x46 },
++	{ ACMOVLLT,	yml_rl,	Pm, 0x4c },
++	{ ACMOVLMI,	yml_rl,	Pm, 0x48 },
++	{ ACMOVLNE,	yml_rl,	Pm, 0x45 },
++	{ ACMOVLOC,	yml_rl,	Pm, 0x41 },
++	{ ACMOVLOS,	yml_rl,	Pm, 0x40 },
++	{ ACMOVLPC,	yml_rl,	Pm, 0x4b },
++	{ ACMOVLPL,	yml_rl,	Pm, 0x49 },
++	{ ACMOVLPS,	yml_rl,	Pm, 0x4a },
++	{ ACMOVWCC,	yml_rl,	Pq, 0x43 },
++	{ ACMOVWCS,	yml_rl,	Pq, 0x42 },
++	{ ACMOVWEQ,	yml_rl,	Pq, 0x44 },
++	{ ACMOVWGE,	yml_rl,	Pq, 0x4d },
++	{ ACMOVWGT,	yml_rl,	Pq, 0x4f },
++	{ ACMOVWHI,	yml_rl,	Pq, 0x47 },
++	{ ACMOVWLE,	yml_rl,	Pq, 0x4e },
++	{ ACMOVWLS,	yml_rl,	Pq, 0x46 },
++	{ ACMOVWLT,	yml_rl,	Pq, 0x4c },
++	{ ACMOVWMI,	yml_rl,	Pq, 0x48 },
++	{ ACMOVWNE,	yml_rl,	Pq, 0x45 },
++	{ ACMOVWOC,	yml_rl,	Pq, 0x41 },
++	{ ACMOVWOS,	yml_rl,	Pq, 0x40 },
++	{ ACMOVWPC,	yml_rl,	Pq, 0x4b },
++	{ ACMOVWPL,	yml_rl,	Pq, 0x49 },
++	{ ACMOVWPS,	yml_rl,	Pq, 0x4a },
+ 	0
+ };

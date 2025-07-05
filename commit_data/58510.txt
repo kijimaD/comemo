@@ -18,7 +18,40 @@ Date:   Wed Nov 15 21:54:45 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/542716
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/mbitmap_allocheaders.go   | 5 +++++
  src/runtime/mbitmap_noallocheaders.go | 5 +++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index 77f5b4c990..319d71f92f 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -1078,6 +1078,11 @@ func getgcmask(ep any) (mask []byte) {
+ 		for len(mask) > 0 && mask[len(mask)-1] == 0 {
+ 			mask = mask[:len(mask)-1]
+ 		}
++
++		// Make sure we keep ep alive. We may have stopped referencing
++		// ep's data pointer sometime before this point and it's possible
++		// for that memory to get freed.
++		KeepAlive(ep)
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/mbitmap_noallocheaders.go b/src/runtime/mbitmap_noallocheaders.go
+index 96c70a0970..dab15889a4 100644
+--- a/src/runtime/mbitmap_noallocheaders.go
++++ b/src/runtime/mbitmap_noallocheaders.go
+@@ -744,6 +744,11 @@ func getgcmask(ep any) (mask []byte) {
+ 		for len(mask) > 0 && mask[len(mask)-1] == 0 {
+ 			mask = mask[:len(mask)-1]
+ 		}
++
++		// Make sure we keep ep alive. We may have stopped referencing
++		// ep's data pointer sometime before this point and it's possible
++		// for that memory to get freed.
++		KeepAlive(ep)
+ 		return
+ 	}
+ 

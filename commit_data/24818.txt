@@ -15,7 +15,95 @@ Date:   Mon Aug 31 14:36:36 2015 -0700
     Change-Id: Ice125a84559f0394f7fa7272b5d31ae602b07f83
     Reviewed-on: https://go-review.googlesource.com/14122
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/vet/print.go          | 19 ++++++++++++++++++-
  src/cmd/vet/testdata/print.go | 11 +++++++++--
  2 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index d79b0967ab..5436c5bf04 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -447,6 +447,10 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
+ 	arg := call.Args[argNum]
+ 	if !f.matchArgType(v.typ, nil, arg) {
+ 		typeString := ""
++		if f.isFunctionValue(arg) {
++			f.Badf(call.Pos(), "arg %s in printf call is a function value, not a function call", f.gofmt(arg))
++			return false
++		}
+ 		if typ := f.pkg.types[arg].Type; typ != nil {
+ 			typeString = typ.String()
+ 		}
+@@ -490,6 +494,16 @@ func (f *File) recursiveStringer(e ast.Expr) bool {
+ 	return f.stringers[obj]
+ }
+ 
++// isFunctionValue reports whether the expression is a function as opposed to a function call.
++// It is almost always a mistake to print a function value.
++func (f *File) isFunctionValue(e ast.Expr) bool {
++	if typ := f.pkg.types[e].Type; typ != nil {
++		_, ok := typ.(*types.Signature)
++		return ok
++	}
++	return false
++}
++
+ // argCanBeChecked reports whether the specified argument is statically present;
+ // it may be beyond the list of arguments or in a terminal slice... argument, which
+ // means we can't see it.
+@@ -579,8 +593,11 @@ func (f *File) checkPrint(call *ast.CallExpr, name string, firstArg int) {
+ 		}
+ 	}
+ 	for _, arg := range args {
++		if f.isFunctionValue(arg) {
++			f.Badf(call.Pos(), "arg %s in %s call is a function value, not a function call", f.gofmt(arg), name)
++		}
+ 		if f.recursiveStringer(arg) {
+-			f.Badf(call.Pos(), "arg %s for print causes recursive call to String method", f.gofmt(arg))
++			f.Badf(call.Pos(), "arg %s in %s call causes recursive call to String method", f.gofmt(arg), name)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 3390a31f2c..beeb642f2a 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -195,6 +195,9 @@ func PrintfTests() {
+ 	et4.Error() // ok, not an error method.
+ 	var et5 errorTest5
+ 	et5.error() // ok, not an error method.
++	// Can't print a function.
++	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
++	Println(someFunction)      // ERROR "arg someFunction in Println call is a function value, not a function call"
+ 	// Bug: used to recur forever.
+ 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
+ 	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)
+@@ -209,6 +212,10 @@ func PrintfTests() {
+ 
+ }
+ 
++// A function we use as a function value; it has no other purpose.
++func someFunction() {
++}
++
+ // Printf is used by the test so we must declare it.
+ func Printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+@@ -297,14 +304,14 @@ func (s recursiveStringer) String() string {
+ 	_ = fmt.Sprintf("%v", s)  // ERROR "arg s for printf causes recursive call to String method"
+ 	_ = fmt.Sprintf("%v", &s) // ERROR "arg &s for printf causes recursive call to String method"
+ 	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
+-	return fmt.Sprintln(s)    // ERROR "arg s for print causes recursive call to String method"
++	return fmt.Sprintln(s)    // ERROR "arg s in Sprintln call causes recursive call to String method"
+ }
+ 
+ type recursivePtrStringer int
+ 
+ func (p *recursivePtrStringer) String() string {
+ 	_ = fmt.Sprintf("%v", *p)
+-	return fmt.Sprintln(p) // ERROR "arg p for print causes recursive call to String method"
++	return fmt.Sprintln(p) // ERROR "arg p in Sprintln call causes recursive call to String method"
+ }
+ 
+ type Formatter bool

@@ -7,8 +7,237 @@ Date:   Thu Nov 18 19:55:38 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3209041
-
+---
  src/cmd/godoc/godoc.go | 83 ++++++++++++++++++++++++++++++++++++++++----------
  src/cmd/godoc/index.go | 29 ++++++++++++------
  src/cmd/godoc/main.go  | 11 ++++---
  3 files changed, 92 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 57345e0ea9..d941e7b891 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -43,6 +43,7 @@ func (dt *delayTime) backoff(max int) {
+ 		v = max
+ 	}
+ 	dt.value = v
++	// don't change dt.timestamp - calling backoff indicates an error condition
+ 	dt.mutex.Unlock()
+ }
+ 
+@@ -66,6 +67,7 @@ var (
+ 	fsMap      Mapping // user-defined mapping
+ 	fsTree     RWValue // *Directory tree of packages, updated with each sync
+ 	pathFilter RWValue // filter used when building fsMap directory trees
++	fsModified RWValue // timestamp of last call to invalidateIndex
+ 
+ 	// http handlers
+ 	fileServer http.Handler // default file server
+@@ -179,13 +181,21 @@ func readDirList(filename string) ([]string, os.Error) {
+ }
+ 
+ 
+-func updateFilterFile() {
+-	// for each user-defined file system mapping, compute
+-	// respective directory tree w/o filter for accuracy
++// updateMappedDirs computes the directory tree for
++// each user-defined file system mapping. If a filter
++// is provided, it is used to filter directories.
++//
++func updateMappedDirs(filter func(string) bool) {
+ 	fsMap.Iterate(func(path string, value *RWValue) bool {
+-		value.set(newDirectory(path, nil, -1))
++		value.set(newDirectory(path, filter, -1))
+ 		return true
+ 	})
++	invalidateIndex()
++}
++
++
++func updateFilterFile() {
++	updateMappedDirs(nil) // no filter for accuracy
+ 
+ 	// collect directory tree leaf node paths
+ 	var buf bytes.Buffer
+@@ -219,12 +229,7 @@ func initDirTrees() {
+ 		setPathFilter(list)
+ 	}
+ 
+-	// for each user-defined file system mapping, compute
+-	// respective directory tree quickly using pathFilter
+-	go fsMap.Iterate(func(path string, value *RWValue) bool {
+-		value.set(newDirectory(path, getPathFilter(), -1))
+-		return true
+-	})
++	go updateMappedDirs(getPathFilter()) // use filter for speed
+ 
+ 	// start filter update goroutine, if enabled.
+ 	if *filter != "" && *filterMin > 0 {
+@@ -1350,16 +1355,62 @@ func search(w http.ResponseWriter, r *http.Request) {
+ // ----------------------------------------------------------------------------
+ // Indexer
+ 
++// invalidateIndex should be called whenever any of the file systems
++// under godoc's observation change so that the indexer is kicked on.
++//
++func invalidateIndex() {
++	fsModified.set(nil)
++}
++
++
++// indexUpToDate() returns true if the search index is not older
++// than any of the file systems under godoc's observation.
++//
++func indexUpToDate() bool {
++	_, fsTime := fsModified.get()
++	_, siTime := searchIndex.get()
++	return fsTime <= siTime
++}
++
++
++// feedDirnames feeds the directory names of all directories
++// under the file system given by root to channel c.
++//
++func feedDirnames(root *RWValue, c chan<- string) {
++	if dir, _ := root.get(); dir != nil {
++		for d := range dir.(*Directory).iter(false) {
++			c <- d.Path
++		}
++	}
++}
++
++
++// fsDirnames() returns a channel sending all directory names
++// of all the file systems under godoc's observation.
++//
++func fsDirnames() <-chan string {
++	c := make(chan string, 256) // asynchronous for fewer context switches
++	go func() {
++		feedDirnames(&fsTree, c)
++		fsMap.Iterate(func(_ string, root *RWValue) bool {
++			feedDirnames(root, c)
++			return true
++		})
++		close(c)
++	}()
++	return c
++}
++
++
+ func indexer() {
+ 	for {
+-		_, ts := fsTree.get()
+-		if _, timestamp := searchIndex.get(); timestamp < ts {
++		if !indexUpToDate() {
+ 			// index possibly out of date - make a new one
+-			// (could use a channel to send an explicit signal
+-			// from the sync goroutine, but this solution is
+-			// more decoupled, trivial, and works well enough)
++			if *verbose {
++				log.Printf("updating index...")
++			}
+ 			start := time.Nanoseconds()
+-			index := NewIndex(*goroot)
++			index := NewIndex(fsDirnames())
+ 			stop := time.Nanoseconds()
+ 			searchIndex.set(index)
+ 			if *verbose {
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index c21c8bda01..9c3f55619c 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -30,6 +30,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/scanner"
++	"io/ioutil"
+ 	"os"
+ 	pathutil "path"
+ 	"sort"
+@@ -578,11 +579,6 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
+ }
+ 
+ 
+-func (x *Indexer) VisitDir(path string, f *os.FileInfo) bool {
+-	return true
+-}
+-
+-
+ func pkgName(filename string) string {
+ 	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+ 	if err != nil || file == nil {
+@@ -592,11 +588,12 @@ func pkgName(filename string) string {
+ }
+ 
+ 
+-func (x *Indexer) VisitFile(path string, f *os.FileInfo) {
++func (x *Indexer) visitFile(dirname string, f *os.FileInfo) {
+ 	if !isGoFile(f) {
+ 		return
+ 	}
+ 
++	path := pathutil.Join(dirname, f.Name)
+ 	if excludeTestFiles && (!isPkgFile(f) || strings.HasPrefix(path, "test/")) {
+ 		return
+ 	}
+@@ -637,15 +634,27 @@ type Index struct {
+ func canonical(w string) string { return strings.ToLower(w) }
+ 
+ 
+-// NewIndex creates a new index for the file tree rooted at root.
+-func NewIndex(root string) *Index {
++// NewIndex creates a new index for the .go files
++// in the directories given by dirnames.
++//
++func NewIndex(dirnames <-chan string) *Index {
+ 	var x Indexer
+ 
+ 	// initialize Indexer
+ 	x.words = make(map[string]*IndexResult)
+ 
+-	// collect all Spots
+-	pathutil.Walk(root, &x, nil)
++	// index all files in the directories given by dirnames
++	for dirname := range dirnames {
++		list, err := ioutil.ReadDir(dirname)
++		if err != nil {
++			continue // ignore this directory
++		}
++		for _, f := range list {
++			if !f.IsDirectory() {
++				x.visitFile(dirname, f)
++			}
++		}
++	}
+ 
+ 	// for each word, reduce the RunLists into a LookupResult;
+ 	// also collect the word with its canonical spelling in a
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 616983b378..6b94ff5612 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -128,6 +128,7 @@ func dosync(w http.ResponseWriter, r *http.Request) {
+ 		//            Consider keeping separate time stamps so the web-
+ 		//            page can indicate this discrepancy.
+ 		fsTree.set(newDirectory(*goroot, nil, -1))
++		invalidateIndex()
+ 		fallthrough
+ 	case 1:
+ 		// sync failed because no files changed;
+@@ -255,11 +256,11 @@ func main() {
+ 		}
+ 
+ 		// Initialize default directory tree with corresponding timestamp.
+-		// Do it in two steps:
+-		// 1) set timestamp right away so that the indexer is kicked on
+-		fsTree.set(nil)
+-		// 2) compute initial directory tree in a goroutine so that launch is quick
+-		go func() { fsTree.set(newDirectory(*goroot, nil, -1)) }()
++		// (Do it in a goroutine so that launch is quick.)
++		go func() {
++			fsTree.set(newDirectory(*goroot, nil, -1))
++			invalidateIndex()
++		}()
+ 
+ 		// Initialize directory trees for user-defined file systems (-path flag).
+ 		initDirTrees()

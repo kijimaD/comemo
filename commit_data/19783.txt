@@ -18,7 +18,7 @@ Date:   Sun Jul 20 15:07:10 2014 +0400
     R=golang-codereviews, rsc, dominik.honnef, khr
     CC=golang-codereviews, remyoudompheng
     https://golang.org/cl/107670043
-
+---
  src/cmd/gc/builtin.c            |  2 +-
  src/cmd/gc/runtime.go           |  2 +-
  src/cmd/gc/select.c             | 62 +++++++++++++++++++++++++++++++++++++++--
@@ -30,3 +30,324 @@ Date:   Sun Jul 20 15:07:10 2014 +0400
  src/pkg/runtime/chan.h          |  8 +++++-
  test/live.go                    |  6 ++--
  10 files changed, 96 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 5ca5aeb770..986a1de9ac 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -86,7 +86,7 @@ char *runtimeimport =
+ 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n"
+ 	"func @\"\".selectnbrecv (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".hchan·4 <-chan any) (? bool)\n"
+ 	"func @\"\".selectnbrecv2 (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".received·4 *bool, @\"\".hchan·5 <-chan any) (? bool)\n"
+-	"func @\"\".newselect (@\"\".size·2 int32) (@\"\".sel·1 *byte)\n"
++	"func @\"\".newselect (@\"\".sel·1 *byte, @\"\".selsize·2 int64, @\"\".size·3 int32)\n"
+ 	"func @\"\".selectsend (@\"\".sel·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (@\"\".selected·1 bool)\n"
+ 	"func @\"\".selectrecv (@\"\".sel·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any) (@\"\".selected·1 bool)\n"
+ 	"func @\"\".selectrecv2 (@\"\".sel·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any, @\"\".received·5 *bool) (@\"\".selected·1 bool)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index fb5c2a150e..6a9e68bcb4 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -112,7 +112,7 @@ func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool
+ func selectnbrecv(chanType *byte, elem *any, hchan <-chan any) bool
+ func selectnbrecv2(chanType *byte, elem *any, received *bool, hchan <-chan any) bool
+ 
+-func newselect(size int32) (sel *byte)
++func newselect(sel *byte, selsize int64, size int32)
+ func selectsend(sel *byte, hchan chan<- any, elem *any) (selected bool)
+ func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
+ func selectrecv2(sel *byte, hchan <-chan any, elem *any, received *bool) (selected bool)
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 58a1206749..7346cf5814 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -10,6 +10,8 @@
+ #include <libc.h>
+ #include "go.h"
+ 
++static Type* selecttype(int32 size);
++
+ void
+ typecheckselect(Node *sel)
+ {
+@@ -95,7 +97,7 @@ void
+ walkselect(Node *sel)
+ {
+ 	int lno, i;
+-	Node *n, *r, *a, *var, *cas, *dflt, *ch;
++	Node *n, *r, *a, *var, *selv, *cas, *dflt, *ch;
+ 	NodeList *l, *init;
+ 	
+ 	if(sel->list == nil && sel->xoffset != 0)
+@@ -257,8 +259,13 @@ walkselect(Node *sel)
+ 
+ 	// generate sel-struct
+ 	setlineno(sel);
+-	var = temp(ptrto(types[TUINT8]));
+-	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(sel->xoffset)));
++	selv = temp(selecttype(sel->xoffset));
++	selv->esc = EscNone;
++	r = nod(OAS, selv, N);
++	typecheck(&r, Etop);
++	init = list(init, r);
++	var = conv(conv(nod(OADDR, selv, N), types[TUNSAFEPTR]), ptrto(types[TUINT8]));
++	r = mkcall("newselect", T, nil, var, nodintconst(selv->type->width), nodintconst(sel->xoffset));
+ 	typecheck(&r, Etop);
+ 	init = list(init, r);
+ 
+@@ -301,6 +308,8 @@ walkselect(Node *sel)
+ 				break;
+ 			}
+ 		}
++		// selv is no longer alive after use.
++		r->nbody = list(r->nbody, nod(OVARKILL, selv, N));
+ 		r->nbody = concat(r->nbody, cas->nbody);
+ 		r->nbody = list(r->nbody, nod(OBREAK, N, N));
+ 		init = list(init, r);
+@@ -316,3 +325,50 @@ out:
+ 	walkstmtlist(sel->nbody);
+ 	lineno = lno;
+ }
++
++// Keep in sync with src/pkg/runtime/chan.h.
++static Type*
++selecttype(int32 size)
++{
++	Node *sel, *sudog, *scase, *arr;
++
++	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
++	// and then cache; and also cache Select per size.
++	sudog = nod(OTSTRUCT, N, N);
++	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("g")), typenod(ptrto(types[TUINT8]))));
++	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("selectdone")), typenod(ptrto(types[TUINT8]))));
++	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("link")), typenod(ptrto(types[TUINT8]))));
++	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(types[TUINT8]))));
++	sudog->list = list(sudog->list, nod(ODCLFIELD, newname(lookup("releasetime")), typenod(types[TUINT64])));
++	typecheck(&sudog, Etype);
++	sudog->type->noalg = 1;
++	sudog->type->local = 1;
++
++	scase = nod(OTSTRUCT, N, N);
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("sg")), sudog));
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(types[TUINT8]))));
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("pc")), typenod(ptrto(types[TUINT8]))));
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("kind")), typenod(types[TUINT16])));
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("so")), typenod(types[TUINT16])));
++	scase->list = list(scase->list, nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(types[TUINT8]))));
++	typecheck(&scase, Etype);
++	scase->type->noalg = 1;
++	scase->type->local = 1;
++
++	sel = nod(OTSTRUCT, N, N);
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("tcase")), typenod(types[TUINT16])));
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("ncase")), typenod(types[TUINT16])));
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("pollorder")), typenod(ptrto(types[TUINT8]))));
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("lockorder")), typenod(ptrto(types[TUINT8]))));
++	arr = nod(OTARRAY, nodintconst(size), scase);
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("scase")), arr));
++	arr = nod(OTARRAY, nodintconst(size), typenod(ptrto(types[TUINT8])));
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("lockorderarr")), arr));
++	arr = nod(OTARRAY, nodintconst(size), typenod(types[TUINT16]));
++	sel->list = list(sel->list, nod(ODCLFIELD, newname(lookup("pollorderarr")), arr));
++	typecheck(&sel, Etype);
++	sel->type->noalg = 1;
++	sel->type->local = 1;
++
++	return sel->type;
++}
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index 5c0a54f8c0..75a5ba77f6 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -12,5 +12,6 @@ enum {
+ #else
+ 	PhysPageSize = 4096,
+ #endif
+-	PCQuantum = 1
++	PCQuantum = 1,
++	Int64Align = 4
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index 56d07229b6..d7b81ee904 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -20,5 +20,6 @@ enum {
+ #endif	// Windows
+ #endif	// Solaris
+ 	PhysPageSize = 4096,
+-	PCQuantum = 1
++	PCQuantum = 1,
++	Int64Align = 8
+ };
+diff --git a/src/pkg/runtime/arch_amd64p32.h b/src/pkg/runtime/arch_amd64p32.h
+index 073a9e30e1..d3e8649875 100644
+--- a/src/pkg/runtime/arch_amd64p32.h
++++ b/src/pkg/runtime/arch_amd64p32.h
+@@ -12,5 +12,6 @@ enum {
+ #else
+ 	PhysPageSize = 4096,
+ #endif
+-	PCQuantum = 1
++	PCQuantum = 1,
++	Int64Align = 8
+ };
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index 2a1077e2fc..3868d78623 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -12,5 +12,6 @@ enum {
+ #else
+ 	PhysPageSize = 4096,
+ #endif
+-	PCQuantum = 4
++	PCQuantum = 4,
++	Int64Align = 4
+ };
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index 54b97697af..e4b19aad04 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -434,32 +434,25 @@ func reflect·chanrecv(t *ChanType, c *Hchan, nb bool, elem *byte) (selected boo
+ 	selected = chanrecv(t, c, elem, !nb, &received);
+ }
+ 
+-static Select* newselect(int32);
+-
+-#pragma textflag NOSPLIT
+-func newselect(size int32) (sel *byte) {
+-	sel = (byte*)newselect(size);
+-}
+-
+-static Select*
+-newselect(int32 size)
++static int64
++selectsize(int32 size)
+ {
+-	int32 n;
+ 	Select *sel;
++	int64 selsize;
+ 
+-	n = 0;
+-	if(size > 1)
+-		n = size-1;
+-
+-	// allocate all the memory we need in a single allocation
+-	// start with Select with size cases
+-	// then lockorder with size entries
+-	// then pollorder with size entries
+-	sel = runtime·mal(sizeof(*sel) +
+-		n*sizeof(sel->scase[0]) +
++	selsize = sizeof(*sel) +
++		(size-1)*sizeof(sel->scase[0]) +
+ 		size*sizeof(sel->lockorder[0]) +
+-		size*sizeof(sel->pollorder[0]));
++		size*sizeof(sel->pollorder[0]);
++	return ROUND(selsize, Int64Align);
++}
+ 
++#pragma textflag NOSPLIT
++func newselect(sel *Select, selsize int64, size int32) {
++	if(selsize != selectsize(size)) {
++		runtime·printf("runtime: bad select size %D, want %D\n", selsize, selectsize(size));
++		runtime·throw("bad select size");
++	}
+ 	sel->tcase = size;
+ 	sel->ncase = 0;
+ 	sel->lockorder = (void*)(sel->scase + size);
+@@ -467,7 +460,6 @@ newselect(int32 size)
+ 
+ 	if(debug)
+ 		runtime·printf("newselect s=%p size=%d\n", sel, size);
+-	return sel;
+ }
+ 
+ // cut in half to give stack a chance to split
+@@ -960,7 +952,6 @@ retc:
+ 	}
+ 	if(cas->sg.releasetime > 0)
+ 		runtime·blockevent(cas->sg.releasetime - t0, 2);
+-	runtime·free(sel);
+ 	return pc;
+ 
+ sclose:
+@@ -997,7 +988,9 @@ func reflect·rselect(cases Slice) (chosen int, recvOK bool) {
+ 
+ 	rcase = (runtimeSelect*)cases.array;
+ 
+-	sel = newselect(cases.len);
++	// FlagNoScan is safe here, because all objects are also referenced from cases.
++	sel = runtime·mallocgc(selectsize(cases.len), 0, FlagNoScan);
++	runtime·newselect(sel, selectsize(cases.len), cases.len);
+ 	for(i=0; i<cases.len; i++) {
+ 		rc = &rcase[i];
+ 		switch(rc->dir) {
+diff --git a/src/pkg/runtime/chan.h b/src/pkg/runtime/chan.h
+index ce2eb9f4e2..b23b3417fe 100644
+--- a/src/pkg/runtime/chan.h
++++ b/src/pkg/runtime/chan.h
+@@ -9,13 +9,15 @@ typedef	struct	SudoG	SudoG;
+ typedef	struct	Select	Select;
+ typedef	struct	Scase	Scase;
+ 
++// Known to compiler.
++// Changes here must also be made in src/cmd/gc/select.c's selecttype.
+ struct	SudoG
+ {
+ 	G*	g;
+ 	uint32*	selectdone;
+ 	SudoG*	link;
+-	int64	releasetime;
+ 	byte*	elem;		// data element
++	int64	releasetime;
+ };
+ 
+ struct	WaitQ
+@@ -55,6 +57,8 @@ enum
+ 	CaseDefault,
+ };
+ 
++// Known to compiler.
++// Changes here must also be made in src/cmd/gc/select.c's selecttype.
+ struct	Scase
+ {
+ 	SudoG	sg;			// must be first member (cast to Scase)
+@@ -65,6 +69,8 @@ struct	Scase
+ 	bool*	receivedp;		// pointer to received bool (recv2)
+ };
+ 
++// Known to compiler.
++// Changes here must also be made in src/cmd/gc/select.c's selecttype.
+ struct	Select
+ {
+ 	uint16	tcase;			// total count of scase[]
+diff --git a/test/live.go b/test/live.go
+index b4cced47e3..fd52798473 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -138,7 +138,7 @@ var b bool
+ 
+ // this used to have a spurious "live at entry to f11a: ~r0"
+ func f11a() *int {
+-	select { // ERROR "live at call to selectgo: autotmp"
++	select { // ERROR "live at call to newselect: autotmp" "live at call to selectgo: autotmp"
+ 	case <-c: // ERROR "live at call to selectrecv: autotmp"
+ 		return nil
+ 	case <-c: // ERROR "live at call to selectrecv: autotmp"
+@@ -153,7 +153,7 @@ func f11b() *int {
+ 		// get to the bottom of the function.
+ 		// This used to have a spurious "live at call to printint: p".
+ 		print(1) // nothing live here!
+-		select { // ERROR "live at call to selectgo: autotmp"
++		select { // ERROR "live at call to newselect: autotmp" "live at call to selectgo: autotmp"
+ 		case <-c: // ERROR "live at call to selectrecv: autotmp"
+ 			return nil
+ 		case <-c: // ERROR "live at call to selectrecv: autotmp"
+@@ -170,7 +170,7 @@ func f11c() *int {
+ 		// Unlike previous, the cases in this select fall through,
+ 		// so we can get to the println, so p is not dead.
+ 		print(1) // ERROR "live at call to printint: p"
+-		select { // ERROR "live at call to newselect: p" "live at call to selectgo: autotmp.* p"
++		select { // ERROR "live at call to newselect: autotmp.* p" "live at call to selectgo: autotmp.* p"
+ 		case <-c: // ERROR "live at call to selectrecv: autotmp.* p"
+ 		case <-c: // ERROR "live at call to selectrecv: autotmp.* p"
+ 		}

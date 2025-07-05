@@ -18,7 +18,7 @@ Date:   Wed Mar 14 15:21:37 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/issue24351/main.go   | 21 +++++++
  misc/cgo/testplugin/src/issue24351/plugin.go | 14 +++++
  misc/cgo/testplugin/test.bash                |  5 ++
@@ -31,3 +31,480 @@ Date:   Wed Mar 14 15:21:37 2018 -0700
  src/runtime/symtab.go                        | 33 +++++++++-
  src/runtime/traceback.go                     | 91 ++++++++--------------------
  11 files changed, 181 insertions(+), 84 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/issue24351/main.go b/misc/cgo/testplugin/src/issue24351/main.go
+new file mode 100644
+index 0000000000..4107adff7b
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue24351/main.go
+@@ -0,0 +1,21 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "plugin"
++
++func main() {
++	p, err := plugin.Open("issue24351.so")
++	if err != nil {
++		panic(err)
++	}
++	f, err := p.Lookup("B")
++	if err != nil {
++		panic(err)
++	}
++	c := make(chan bool)
++	f.(func(chan bool))(c)
++	<-c
++}
+diff --git a/misc/cgo/testplugin/src/issue24351/plugin.go b/misc/cgo/testplugin/src/issue24351/plugin.go
+new file mode 100644
+index 0000000000..db17e0a609
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue24351/plugin.go
+@@ -0,0 +1,14 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func B(c chan bool) {
++	go func() {
++		fmt.Println(1.5)
++		c <- true
++	}()
++}
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 18e3803bf4..df38204a4e 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -85,3 +85,8 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22175 src/issue22175/main.
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue.22295.so issue22295.pkg
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22295 src/issue22295.pkg/main.go
+ ./issue22295
++
++# Test for issue 24351
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue24351.so src/issue24351/plugin.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue24351 src/issue24351/main.go
++./issue24351
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+new file mode 100644
+index 0000000000..55f1328ba8
+--- /dev/null
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -0,0 +1,34 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package objabi
++
++// A FuncID identifies particular functions that need to be treated
++// specially by the runtime.
++// Note that in some situations involving plugins, there may be multiple
++// copies of a particular special runtime function.
++// Note: this list must match the list in runtime/symtab.go.
++type FuncID uint32
++
++const (
++	FuncID_normal FuncID = iota // not a special function
++	FuncID_goexit
++	FuncID_jmpdefer
++	FuncID_mcall
++	FuncID_morestack
++	FuncID_mstart
++	FuncID_rt0_go
++	FuncID_asmcgocall
++	FuncID_sigpanic
++	FuncID_runfinq
++	FuncID_bgsweep
++	FuncID_forcegchelper
++	FuncID_timerproc
++	FuncID_gcBgMarkWorker
++	FuncID_systemstack_switch
++	FuncID_systemstack
++	FuncID_cgocallback_gofunc
++	FuncID_gogo
++	FuncID_externalthreadhandler
++)
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 9d82677059..8708924d92 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -312,12 +312,47 @@ func (ctxt *Link) pclntab() {
+ 		}
+ 		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), args))
+ 
+-		// frame int32
+-		// This has been removed (it was never set quite correctly anyway).
+-		// Nothing should use it.
+-		// Leave an obviously incorrect value.
+-		// TODO: Remove entirely.
+-		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), 0x1234567))
++		// funcID uint32
++		funcID := objabi.FuncID_normal
++		switch s.Name {
++		case "runtime.goexit":
++			funcID = objabi.FuncID_goexit
++		case "runtime.jmpdefer":
++			funcID = objabi.FuncID_jmpdefer
++		case "runtime.mcall":
++			funcID = objabi.FuncID_mcall
++		case "runtime.morestack":
++			funcID = objabi.FuncID_morestack
++		case "runtime.mstart":
++			funcID = objabi.FuncID_mstart
++		case "runtime.rt0_go":
++			funcID = objabi.FuncID_rt0_go
++		case "runtime.asmcgocall":
++			funcID = objabi.FuncID_asmcgocall
++		case "runtime.sigpanic":
++			funcID = objabi.FuncID_sigpanic
++		case "runtime.runfinq":
++			funcID = objabi.FuncID_runfinq
++		case "runtime.bgsweep":
++			funcID = objabi.FuncID_bgsweep
++		case "runtime.forcegchelper":
++			funcID = objabi.FuncID_forcegchelper
++		case "runtime.timerproc":
++			funcID = objabi.FuncID_timerproc
++		case "runtime.gcBgMarkWorker":
++			funcID = objabi.FuncID_gcBgMarkWorker
++		case "runtime.systemstack_switch":
++			funcID = objabi.FuncID_systemstack_switch
++		case "runtime.systemstack":
++			funcID = objabi.FuncID_systemstack
++		case "runtime.cgocallback_gofunc":
++			funcID = objabi.FuncID_cgocallback_gofunc
++		case "runtime.gogo":
++			funcID = objabi.FuncID_gogo
++		case "runtime.externalthreadhandler":
++			funcID = objabi.FuncID_externalthreadhandler
++		}
++		off = int32(ftab.SetUint32(ctxt.Arch, int64(off), uint32(funcID)))
+ 
+ 		if pcln != &pclntabZpcln {
+ 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index d27bf74455..415ec0cb90 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -304,8 +304,6 @@ func osinit() {
+ 
+ 	disableWER()
+ 
+-	externalthreadhandlerp = funcPC(externalthreadhandler)
+-
+ 	initExceptionHandler()
+ 
+ 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 008bd244e0..8f32320e0c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -393,6 +393,11 @@ func releaseSudog(s *sudog) {
+ 
+ // funcPC returns the entry PC of the function f.
+ // It assumes that f is a func value. Otherwise the behavior is undefined.
++// CAREFUL: In programs with plugins, funcPC can return different values
++// for the same function (because there are actually multiple copies of
++// the same function in the address space). To be safe, don't use the
++// results of this function in any == expression. It is only safe to
++// use the result as an address at which to start executing code.
+ //go:nosplit
+ func funcPC(f interface{}) uintptr {
+ 	return **(**uintptr)(add(unsafe.Pointer(&f), sys.PtrSize))
+@@ -3789,8 +3794,8 @@ func setsSP(pc uintptr) bool {
+ 		// so assume the worst and stop traceback
+ 		return true
+ 	}
+-	switch f.entry {
+-	case gogoPC, systemstackPC, mcallPC, morestackPC:
++	switch f.funcID {
++	case funcID_gogo, funcID_systemstack, funcID_mcall, funcID_morestack:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e6808ac023..059e14e002 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -638,8 +638,8 @@ type _func struct {
+ 	entry   uintptr // start pc
+ 	nameoff int32   // function name
+ 
+-	args int32 // in/out args size
+-	_    int32 // previously legacy frame size; kept for layout compatibility
++	args   int32  // in/out args size
++	funcID funcID // set for certain special runtime functions
+ 
+ 	pcsp      int32
+ 	pcfile    int32
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 8f10508a7d..2dc7001e38 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -619,7 +619,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 	if stackDebug >= 2 {
+ 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
+ 	}
+-	if f.entry == systemstack_switchPC {
++	if f.funcID == funcID_systemstack_switch {
+ 		// A special routine at the bottom of stack of a goroutine that does an systemstack call.
+ 		// We will allow it to be copied even though we don't
+ 		// have full GC info for it (because it is written in asm).
+@@ -1110,7 +1110,8 @@ func shrinkstack(gp *g) {
+ 	if debug.gcshrinkstackoff > 0 {
+ 		return
+ 	}
+-	if gp.startpc == gcBgMarkWorkerPC {
++	f := findfunc(gp.startpc)
++	if f.valid() && f.funcID == funcID_gcBgMarkWorker {
+ 		// We're not allowed to shrink the gcBgMarkWorker
+ 		// stack (see gcBgMarkWorker for explanation).
+ 		return
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 7d7c363b5b..91a8f8eb05 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -133,7 +133,7 @@ again:
+ 		}
+ 		se.pcExpander.init(ncallers[0], se.wasPanic)
+ 		ncallers = ncallers[1:]
+-		se.wasPanic = se.pcExpander.funcInfo.valid() && se.pcExpander.funcInfo.entry == sigpanicPC
++		se.wasPanic = se.pcExpander.funcInfo.valid() && se.pcExpander.funcInfo.funcID == funcID_sigpanic
+ 		if se.skip > 0 {
+ 			for ; se.skip > 0; se.skip-- {
+ 				se.pcExpander.next()
+@@ -349,6 +349,35 @@ const (
+ 	_ArgsSizeUnknown            = -0x80000000
+ )
+ 
++// A FuncID identifies particular functions that need to be treated
++// specially by the runtime.
++// Note that in some situations involving plugins, there may be multiple
++// copies of a particular special runtime function.
++// Note: this list must match the list in cmd/internal/objabi/funcid.go.
++type funcID uint32
++
++const (
++	funcID_normal funcID = iota // not a special function
++	funcID_goexit
++	funcID_jmpdefer
++	funcID_mcall
++	funcID_morestack
++	funcID_mstart
++	funcID_rt0_go
++	funcID_asmcgocall
++	funcID_sigpanic
++	funcID_runfinq
++	funcID_bgsweep
++	funcID_forcegchelper
++	funcID_timerproc
++	funcID_gcBgMarkWorker
++	funcID_systemstack_switch
++	funcID_systemstack
++	funcID_cgocallback_gofunc
++	funcID_gogo
++	funcID_externalthreadhandler
++)
++
+ // moduledata records information about the layout of the executable
+ // image. It is written by the linker. Any changes here must be
+ // matched changes to the code in cmd/internal/ld/symtab.go:symtab.
+@@ -648,7 +677,6 @@ func findfunc(pc uintptr) funcInfo {
+ 		idx = uint32(len(datap.ftab) - 1)
+ 	}
+ 	if pc < datap.ftab[idx].entry {
+-
+ 		// With multiple text sections, the idx might reference a function address that
+ 		// is higher than the pc being searched, so search backward until the matching address is found.
+ 
+@@ -659,7 +687,6 @@ func findfunc(pc uintptr) funcInfo {
+ 			throw("findfunc: bad findfunctab entry idx")
+ 		}
+ 	} else {
+-
+ 		// linear search to find func with pc >= entry.
+ 		for datap.ftab[idx+1].entry <= pc {
+ 			idx++
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2261942ab4..06df9385fd 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -35,56 +35,14 @@ import (
+ 
+ const usesLR = sys.MinFrameSize > 0
+ 
+-var (
+-	// initialized in tracebackinit
+-	goexitPC             uintptr
+-	jmpdeferPC           uintptr
+-	mcallPC              uintptr
+-	morestackPC          uintptr
+-	mstartPC             uintptr
+-	rt0_goPC             uintptr
+-	asmcgocallPC         uintptr
+-	sigpanicPC           uintptr
+-	runfinqPC            uintptr
+-	bgsweepPC            uintptr
+-	forcegchelperPC      uintptr
+-	timerprocPC          uintptr
+-	gcBgMarkWorkerPC     uintptr
+-	systemstack_switchPC uintptr
+-	systemstackPC        uintptr
+-	cgocallback_gofuncPC uintptr
+-	skipPC               uintptr
+-
+-	gogoPC uintptr
+-
+-	externalthreadhandlerp uintptr // initialized elsewhere
+-)
++var skipPC uintptr
+ 
+ func tracebackinit() {
+ 	// Go variable initialization happens late during runtime startup.
+ 	// Instead of initializing the variables above in the declarations,
+ 	// schedinit calls this function so that the variables are
+ 	// initialized and available earlier in the startup sequence.
+-	goexitPC = funcPC(goexit)
+-	jmpdeferPC = funcPC(jmpdefer)
+-	mcallPC = funcPC(mcall)
+-	morestackPC = funcPC(morestack)
+-	mstartPC = funcPC(mstart)
+-	rt0_goPC = funcPC(rt0_go)
+-	asmcgocallPC = funcPC(asmcgocall)
+-	sigpanicPC = funcPC(sigpanic)
+-	runfinqPC = funcPC(runfinq)
+-	bgsweepPC = funcPC(bgsweep)
+-	forcegchelperPC = funcPC(forcegchelper)
+-	timerprocPC = funcPC(timerproc)
+-	gcBgMarkWorkerPC = funcPC(gcBgMarkWorker)
+-	systemstack_switchPC = funcPC(systemstack_switch)
+-	systemstackPC = funcPC(systemstack)
+-	cgocallback_gofuncPC = funcPC(cgocallback_gofunc)
+ 	skipPC = funcPC(skipPleaseUseCallersFrames)
+-
+-	// used by sigprof handler
+-	gogoPC = funcPC(gogo)
+ }
+ 
+ // Traceback over the deferred function calls.
+@@ -137,9 +95,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 	if skip > 0 && callback != nil {
+ 		throw("gentraceback callback cannot be used with non-zero skip")
+ 	}
+-	if goexitPC == 0 {
+-		throw("gentraceback before goexitPC initialization")
+-	}
+ 	g := getg()
+ 	if g == gp && g == g.m.curg {
+ 		// The starting sp has been passed in as a uintptr, and the caller may
+@@ -241,7 +196,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			// g0, this systemstack is at the top of the stack.
+ 			// if we're not on g0 or there's a no curg, then this is a regular call.
+ 			sp := frame.sp
+-			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
++			if flags&_TraceJumpStack != 0 && f.funcID == funcID_systemstack && gp == g.m.g0 && gp.m.curg != nil {
+ 				sp = gp.m.curg.sched.sp
+ 				frame.sp = sp
+ 				cgoCtxt = gp.m.curg.cgoCtxt
+@@ -256,7 +211,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		if topofstack(f, gp.m != nil && gp == gp.m.g0) {
+ 			frame.lr = 0
+ 			flr = funcInfo{}
+-		} else if usesLR && f.entry == jmpdeferPC {
++		} else if usesLR && f.funcID == funcID_jmpdefer {
+ 			// jmpdefer modifies SP/LR/PC non-atomically.
+ 			// If a profiling interrupt arrives during jmpdefer,
+ 			// the stack unwind may see a mismatched register set
+@@ -287,7 +242,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				// But if callback is set, we're doing a garbage collection and must
+ 				// get everything, so crash loudly.
+ 				doPrint := printing
+-				if doPrint && gp.m.incgo && f.entry == sigpanicPC {
++				if doPrint && gp.m.incgo && f.funcID == funcID_sigpanic {
+ 					// We can inject sigpanic
+ 					// calls directly into C code,
+ 					// in which case we'll see a C
+@@ -396,8 +351,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				// if there's room, pcbuf[1] is a skip PC that encodes the number of skipped frames in pcbuf[0]
+ 				if n+1 < max {
+ 					n++
+-					skipPC := funcPC(skipPleaseUseCallersFrames) + uintptr(logicalSkipped)
+-					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = skipPC
++					pc := skipPC + uintptr(logicalSkipped)
++					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+ 				}
+ 			}
+ 		}
+@@ -466,7 +421,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		n++
+ 
+ 	skipped:
+-		if f.entry == cgocallback_gofuncPC && len(cgoCtxt) > 0 {
++		if f.funcID == funcID_cgocallback_gofunc && len(cgoCtxt) > 0 {
+ 			ctxt := cgoCtxt[len(cgoCtxt)-1]
+ 			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
+ 
+@@ -478,7 +433,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			}
+ 		}
+ 
+-		waspanic = f.entry == sigpanicPC
++		waspanic = f.funcID == funcID_sigpanic
+ 
+ 		// Do not unwind past the bottom of the stack.
+ 		if !flr.valid() {
+@@ -931,30 +886,32 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+ 
+ // Does f mark the top of a goroutine stack?
+ func topofstack(f funcInfo, g0 bool) bool {
+-	pc := f.entry
+-	return pc == goexitPC ||
+-		pc == mstartPC ||
+-		pc == mcallPC ||
+-		pc == morestackPC ||
+-		pc == rt0_goPC ||
+-		externalthreadhandlerp != 0 && pc == externalthreadhandlerp ||
++	return f.funcID == funcID_goexit ||
++		f.funcID == funcID_mstart ||
++		f.funcID == funcID_mcall ||
++		f.funcID == funcID_morestack ||
++		f.funcID == funcID_rt0_go ||
++		f.funcID == funcID_externalthreadhandler ||
+ 		// asmcgocall is TOS on the system stack because it
+ 		// switches to the system stack, but in this case we
+ 		// can come back to the regular stack and still want
+ 		// to be able to unwind through the call that appeared
+ 		// on the regular stack.
+-		(g0 && pc == asmcgocallPC)
++		(g0 && f.funcID == funcID_asmcgocall)
+ }
+ 
+ // isSystemGoroutine reports whether the goroutine g must be omitted in
+ // stack dumps and deadlock detector.
+ func isSystemGoroutine(gp *g) bool {
+-	pc := gp.startpc
+-	return pc == runfinqPC && !fingRunning ||
+-		pc == bgsweepPC ||
+-		pc == forcegchelperPC ||
+-		pc == timerprocPC ||
+-		pc == gcBgMarkWorkerPC
++	f := findfunc(gp.startpc)
++	if !f.valid() {
++		return false
++	}
++	return f.funcID == funcID_runfinq && !fingRunning ||
++		f.funcID == funcID_bgsweep ||
++		f.funcID == funcID_forcegchelper ||
++		f.funcID == funcID_timerproc ||
++		f.funcID == funcID_gcBgMarkWorker
+ }
+ 
+ // SetCgoTraceback records three C functions to use to gather

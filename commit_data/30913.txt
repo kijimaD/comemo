@@ -15,6 +15,22 @@ Date:   Mon Dec 19 08:19:50 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8248d503b3..efe2016e46 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -694,6 +694,10 @@ opswitch:
+ 			break
+ 		}
+ 
++		if !instrumenting && iszero(n.Right) && !needwritebarrier(n.Left, n.Right) {
++			break
++		}
++
+ 		switch n.Right.Op {
+ 		default:
+ 			n.Right = walkexpr(n.Right, init)

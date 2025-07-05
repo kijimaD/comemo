@@ -13,8 +13,183 @@ Date:   Tue Jul 31 16:06:09 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  .../internal/gc/testdata/{cmp.go => cmp_test.go}   | 27 +++-------
  src/cmd/compile/internal/gc/testdata/divbyzero.go  | 58 ----------------------
  .../compile/internal/gc/testdata/divbyzero_test.go | 48 ++++++++++++++++++
  3 files changed, 56 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/cmp.go b/src/cmd/compile/internal/gc/testdata/cmp_test.go
+similarity index 58%
+rename from src/cmd/compile/internal/gc/testdata/cmp.go
+rename to src/cmd/compile/internal/gc/testdata/cmp_test.go
+index ba420f2e4e..06b58f2a02 100644
+--- a/src/cmd/compile/internal/gc/testdata/cmp.go
++++ b/src/cmd/compile/internal/gc/testdata/cmp_test.go
+@@ -5,9 +5,7 @@
+ // cmp_ssa.go tests compare simplification operations.
+ package main
+ 
+-import "fmt"
+-
+-var failed = false
++import "testing"
+ 
+ //go:noinline
+ func eq_ssa(a int64) bool {
+@@ -19,30 +17,21 @@ func neq_ssa(a int64) bool {
+ 	return 10 != a+4
+ }
+ 
+-func testCmp() {
++func testCmp(t *testing.T) {
+ 	if wanted, got := true, eq_ssa(6); wanted != got {
+-		fmt.Printf("eq_ssa: expected %v, got %v\n", wanted, got)
+-		failed = true
++		t.Errorf("eq_ssa: expected %v, got %v\n", wanted, got)
+ 	}
+ 	if wanted, got := false, eq_ssa(7); wanted != got {
+-		fmt.Printf("eq_ssa: expected %v, got %v\n", wanted, got)
+-		failed = true
++		t.Errorf("eq_ssa: expected %v, got %v\n", wanted, got)
+ 	}
+-
+ 	if wanted, got := false, neq_ssa(6); wanted != got {
+-		fmt.Printf("neq_ssa: expected %v, got %v\n", wanted, got)
+-		failed = true
++		t.Errorf("neq_ssa: expected %v, got %v\n", wanted, got)
+ 	}
+ 	if wanted, got := true, neq_ssa(7); wanted != got {
+-		fmt.Printf("neq_ssa: expected %v, got %v\n", wanted, got)
+-		failed = true
++		t.Errorf("neq_ssa: expected %v, got %v\n", wanted, got)
+ 	}
+ }
+ 
+-func main() {
+-	testCmp()
+-
+-	if failed {
+-		panic("failed")
+-	}
++func TestCmp(t *testing.T) {
++	testCmp(t)
+ }
+diff --git a/src/cmd/compile/internal/gc/testdata/divbyzero.go b/src/cmd/compile/internal/gc/testdata/divbyzero.go
+deleted file mode 100644
+index 2165a1912d..0000000000
+--- a/src/cmd/compile/internal/gc/testdata/divbyzero.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-package main
+-
+-import (
+-	"fmt"
+-	"runtime"
+-)
+-
+-var failed = false
+-
+-func checkDivByZero(f func()) (divByZero bool) {
+-	defer func() {
+-		if r := recover(); r != nil {
+-			if e, ok := r.(runtime.Error); ok && e.Error() == "runtime error: integer divide by zero" {
+-				divByZero = true
+-			}
+-		}
+-	}()
+-	f()
+-	return false
+-}
+-
+-//go:noinline
+-func a(i uint, s []int) int {
+-	return s[i%uint(len(s))]
+-}
+-
+-//go:noinline
+-func b(i uint, j uint) uint {
+-	return i / j
+-}
+-
+-//go:noinline
+-func c(i int) int {
+-	return 7 / (i - i)
+-}
+-
+-func main() {
+-	if got := checkDivByZero(func() { b(7, 0) }); !got {
+-		fmt.Printf("expected div by zero for b(7, 0), got no error\n")
+-		failed = true
+-	}
+-	if got := checkDivByZero(func() { b(7, 7) }); got {
+-		fmt.Printf("expected no error for b(7, 7), got div by zero\n")
+-		failed = true
+-	}
+-	if got := checkDivByZero(func() { a(4, nil) }); !got {
+-		fmt.Printf("expected div by zero for a(4, nil), got no error\n")
+-		failed = true
+-	}
+-	if got := checkDivByZero(func() { c(5) }); !got {
+-		fmt.Printf("expected div by zero for c(5), got no error\n")
+-		failed = true
+-	}
+-
+-	if failed {
+-		panic("tests failed")
+-	}
+-}
+diff --git a/src/cmd/compile/internal/gc/testdata/divbyzero_test.go b/src/cmd/compile/internal/gc/testdata/divbyzero_test.go
+new file mode 100644
+index 0000000000..ee848b3cc0
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/divbyzero_test.go
+@@ -0,0 +1,48 @@
++package main
++
++import (
++	"runtime"
++	"testing"
++)
++
++func checkDivByZero(f func()) (divByZero bool) {
++	defer func() {
++		if r := recover(); r != nil {
++			if e, ok := r.(runtime.Error); ok && e.Error() == "runtime error: integer divide by zero" {
++				divByZero = true
++			}
++		}
++	}()
++	f()
++	return false
++}
++
++//go:noinline
++func div_a(i uint, s []int) int {
++	return s[i%uint(len(s))]
++}
++
++//go:noinline
++func div_b(i uint, j uint) uint {
++	return i / j
++}
++
++//go:noinline
++func div_c(i int) int {
++	return 7 / (i - i)
++}
++
++func TestDivByZero(t *testing.T) {
++	if got := checkDivByZero(func() { div_b(7, 0) }); !got {
++		t.Errorf("expected div by zero for b(7, 0), got no error\n")
++	}
++	if got := checkDivByZero(func() { div_b(7, 7) }); got {
++		t.Errorf("expected no error for b(7, 7), got div by zero\n")
++	}
++	if got := checkDivByZero(func() { div_a(4, nil) }); !got {
++		t.Errorf("expected div by zero for a(4, nil), got no error\n")
++	}
++	if got := checkDivByZero(func() { div_c(5) }); !got {
++		t.Errorf("expected div by zero for c(5), got no error\n")
++	}
++}

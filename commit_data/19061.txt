@@ -10,7 +10,81 @@ Date:   Tue Apr 8 11:12:51 2014 -0400
     R=golang-codereviews, r, rsc, dan.kortschak, applezinc
     CC=golang-codereviews
     https://golang.org/cl/79210044
-
+---
  src/pkg/encoding/xml/marshal_test.go | 41 ++++++++++++++++++++++++++++++++++++
  src/pkg/encoding/xml/typeinfo.go     |  3 +++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 8bd589644c..ecb9998dac 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -314,6 +314,31 @@ type MarshalerStruct struct {
+ 	Foo MyMarshalerAttrTest `xml:",attr"`
+ }
+ 
++type InnerStruct struct {
++	XMLName Name `xml:"testns outer"`
++}
++
++type OuterStruct struct {
++	InnerStruct
++	IntAttr int `xml:"int,attr"`
++}
++
++type OuterNamedStruct struct {
++	InnerStruct
++	XMLName Name `xml:"outerns test"`
++	IntAttr int  `xml:"int,attr"`
++}
++
++type OuterNamedOrderedStruct struct {
++	XMLName Name `xml:"outerns test"`
++	InnerStruct
++	IntAttr int `xml:"int,attr"`
++}
++
++type OuterOuterStruct struct {
++	OuterStruct
++}
++
+ func ifaceptr(x interface{}) interface{} {
+ 	return &x
+ }
+@@ -883,6 +908,22 @@ var marshalTests = []struct {
+ 		ExpectXML: `<MarshalerStruct Foo="hello world"></MarshalerStruct>`,
+ 		Value:     &MarshalerStruct{},
+ 	},
++	{
++		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
++		Value:     &OuterStruct{IntAttr: 10},
++	},
++	{
++		ExpectXML: `<test xmlns="outerns" int="10"></test>`,
++		Value:     &OuterNamedStruct{XMLName: Name{Space: "outerns", Local: "test"}, IntAttr: 10},
++	},
++	{
++		ExpectXML: `<test xmlns="outerns" int="10"></test>`,
++		Value:     &OuterNamedOrderedStruct{XMLName: Name{Space: "outerns", Local: "test"}, IntAttr: 10},
++	},
++	{
++		ExpectXML: `<outer xmlns="testns" int="10"></outer>`,
++		Value:     &OuterOuterStruct{OuterStruct{IntAttr: 10}},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index 83e65402c0..22248d20a6 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -75,6 +75,9 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 					if err != nil {
+ 						return nil, err
+ 					}
++					if tinfo.xmlname == nil {
++						tinfo.xmlname = inner.xmlname
++					}
+ 					for _, finfo := range inner.fields {
+ 						finfo.idx = append([]int{i}, finfo.idx...)
+ 						if err := addFieldInfo(typ, tinfo, &finfo); err != nil {

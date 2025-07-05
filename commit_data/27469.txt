@@ -14,10 +14,85 @@ Date:   Tue Mar 29 14:09:22 2016 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 2 +-
  src/cmd/link/internal/ld/link.go     | 2 +-
  src/crypto/elliptic/p256.go          | 4 ++--
  src/syscall/exec_unix.go             | 2 +-
  src/syscall/lsf_linux.go             | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 6fa76e765d..51d1d316e8 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -244,7 +244,7 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
+ 	p.From.Sym = s
+ 	if flags&obj.LOCAL != 0 {
+ 		p.From.Sym.Local = true
+-		flags &= ^obj.LOCAL
++		flags &^= obj.LOCAL
+ 	}
+ 	p.To.Type = obj.TYPE_CONST
+ 	p.To.Offset = int64(width)
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index f1df056adf..b00f80abbd 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -129,7 +129,7 @@ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	if value {
+ 		*a |= flag
+ 	} else {
+-		*a &= ^flag
++		*a &^= flag
+ 	}
+ }
+ 
+diff --git a/src/crypto/elliptic/p256.go b/src/crypto/elliptic/p256.go
+index e00d4f79f9..05a3311b29 100644
+--- a/src/crypto/elliptic/p256.go
++++ b/src/crypto/elliptic/p256.go
+@@ -1056,7 +1056,7 @@ func p256ScalarBaseMult(xOut, yOut, zOut *[p256Limbs]uint32, scalar *[32]uint8)
+ 			p256CopyConditional(yOut, &ty, mask)
+ 			p256CopyConditional(zOut, &tz, mask)
+ 			// If p was not zero, then n is now non-zero.
+-			nIsInfinityMask &= ^pIsNoninfiniteMask
++			nIsInfinityMask &^= pIsNoninfiniteMask
+ 		}
+ 	}
+ }
+@@ -1136,7 +1136,7 @@ func p256ScalarMult(xOut, yOut, zOut, x, y *[p256Limbs]uint32, scalar *[32]uint8
+ 		p256CopyConditional(xOut, &tx, mask)
+ 		p256CopyConditional(yOut, &ty, mask)
+ 		p256CopyConditional(zOut, &tz, mask)
+-		nIsInfinityMask &= ^pIsNoninfiniteMask
++		nIsInfinityMask &^= pIsNoninfiniteMask
+ 	}
+ }
+ 
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 82e33124e2..9fd8cf4dba 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -103,7 +103,7 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
+ 	if nonblocking {
+ 		flag |= O_NONBLOCK
+ 	} else {
+-		flag &= ^O_NONBLOCK
++		flag &^= O_NONBLOCK
+ 	}
+ 	_, err = fcntl(fd, F_SETFL, flag)
+ 	return err
+diff --git a/src/syscall/lsf_linux.go b/src/syscall/lsf_linux.go
+index 98e25885ef..4a6aa2d6eb 100644
+--- a/src/syscall/lsf_linux.go
++++ b/src/syscall/lsf_linux.go
+@@ -56,7 +56,7 @@ func SetLsfPromisc(name string, m bool) error {
+ 	if m {
+ 		ifl.flags |= uint16(IFF_PROMISC)
+ 	} else {
+-		ifl.flags &= ^uint16(IFF_PROMISC)
++		ifl.flags &^= uint16(IFF_PROMISC)
+ 	}
+ 	_, _, ep = Syscall(SYS_IOCTL, uintptr(s), SIOCSIFFLAGS, uintptr(unsafe.Pointer(&ifl)))
+ 	if ep != 0 {

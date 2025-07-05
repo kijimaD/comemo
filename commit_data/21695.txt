@@ -11,9 +11,250 @@ Date:   Wed Jan 28 11:11:33 2015 -0800
     Change-Id: I0dd652baf65b48a3f26c9287c420702db4eaec59
     Reviewed-on: https://go-review.googlesource.com/3443
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/expr_test.go | 71 +++++++++++++++++++++++++
  src/cmd/asm/internal/asm/parse.go     | 99 ++++++++++++++++++++---------------
  src/cmd/asm/internal/lex/input.go     |  4 +-
  src/cmd/asm/internal/lex/lex.go       |  4 +-
  4 files changed, 132 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/expr_test.go b/src/cmd/asm/internal/asm/expr_test.go
+new file mode 100644
+index 0000000000..2ca66250e0
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/expr_test.go
+@@ -0,0 +1,71 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asm
++
++import (
++	"cmd/asm/internal/lex"
++	"testing"
++	"text/scanner"
++)
++
++type exprTest struct {
++	input  string
++	output int64
++	atEOF  bool
++}
++
++var exprTests = []exprTest{
++	// Simple
++	{"0", 0, true},
++	{"3", 3, true},
++	{"070", 8 * 7, true},
++	{"0x0f", 15, true},
++	{"0xFF", 255, true},
++	{"9223372036854775807", 9223372036854775807, true}, // max int64
++	// Unary
++	{"-0", 0, true},
++	{"~0", -1, true},
++	{"~0*0", 0, true},
++	{"+3", 3, true},
++	{"-3", -3, true},
++	{"-9223372036854775808", -9223372036854775808, true}, // min int64
++	// Binary
++	{"3+4", 3 + 4, true},
++	{"3-4", 3 - 4, true},
++	{"2|5", 2 | 5, true},
++	{"3^4", 3 ^ 4, true},
++	{"3*4", 3 * 4, true},
++	{"14/4", 14 / 4, true},
++	{"3<<4", 3 << 4, true},
++	{"48>>3", 48 >> 3, true},
++	{"3&9", 3 & 9, true},
++	// General
++	{"3*2+3", 3*2 + 3, true},
++	{"3+2*3", 3 + 2*3, true},
++	{"3*(2+3)", 3 * (2 + 3), true},
++	{"3*-(2+3)", 3 * -(2 + 3), true},
++	{"3<<2+4", 3<<2 + 4, true},
++	{"3<<2+4", 3<<2 + 4, true},
++	{"3<<(2+4)", 3 << (2 + 4), true},
++	// Junk at EOF.
++	{"3 x", 3, false},
++}
++
++func TestExpr(t *testing.T) {
++	p := NewParser(nil, nil, nil) // Expression evaluation uses none of these fields of the parser.
++	for i, test := range exprTests {
++		p.start(lex.Tokenize(test.input))
++		result := int64(p.expr())
++		if result != test.output {
++			t.Errorf("%d: %q evaluated to %d; expected %d", i, test.input, result, test.output)
++		}
++		tok := p.next()
++		if test.atEOF && tok.ScanToken != scanner.EOF {
++			t.Errorf("%d: %q: at EOF got %s", i, test.input, tok)
++		} else if !test.atEOF && tok.ScanToken == scanner.EOF {
++			t.Errorf("%d: %q: expected not EOF but at EOF", i, test.input)
++		}
++	}
++}
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index e1e3af2983..18ec932f97 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -345,7 +345,15 @@ func (p *Parser) operand(a *addr.Addr) bool {
+ 	return true
+ }
+ 
+-// expr = term | term '+' term
++// Note: There are two changes in the expression handling here
++// compared to the old yacc/C implemenatations. Neither has
++// much practical consequence because the expressions we
++// see in assembly code are simple, but for the record:
++//
++// 1) Evaluation uses uint64; the old one used int64.
++// 2) Precedence uses Go rules not C rules.
++
++// expr = term | term ('+' | '-' | '|' | '^') term.
+ func (p *Parser) expr() uint64 {
+ 	value := p.term()
+ 	for {
+@@ -393,56 +401,63 @@ func (p *Parser) floatExpr() float64 {
+ 	return 0
+ }
+ 
+-// term = const | term '*' term | '(' expr ')'
++// term = factor | factor ('*' | '/' | '%' | '>>' | '<<' | '&') factor
+ func (p *Parser) term() uint64 {
++	value := p.factor()
++	for {
++		switch p.peek() {
++		case '*':
++			p.next()
++			value *= p.factor() // OVERFLOW?
++		case '/':
++			p.next()
++			value /= p.factor()
++		case '%':
++			p.next()
++			value %= p.factor()
++		case lex.LSH:
++			p.next()
++			shift := p.factor()
++			if shift < 0 {
++				p.errorf("negative left shift %d", shift)
++			}
++			value <<= uint(shift) // OVERFLOW?
++		case lex.RSH:
++			p.next()
++			shift := p.term()
++			if shift < 0 {
++				p.errorf("negative right shift %d", shift)
++			}
++			value >>= uint(shift)
++		case '&':
++			p.next()
++			value &= p.factor()
++		default:
++			return value
++		}
++	}
++	p.errorf("unexpected %s evaluating expression", p.peek())
++	return 0
++}
++
++// factor = const | '+' factor | '-' factor | '~' factor | '(' expr ')'
++func (p *Parser) factor() uint64 {
+ 	tok := p.next()
+ 	switch tok.ScanToken {
++	case scanner.Int:
++		return p.atoi(tok.String())
++	case '+':
++		return +p.factor()
++	case '-':
++		return -p.factor()
++	case '~':
++		return ^p.factor()
+ 	case '(':
+ 		v := p.expr()
+ 		if p.next().ScanToken != ')' {
+ 			p.errorf("missing closing paren")
+ 		}
+ 		return v
+-	case '+':
+-		return +p.term()
+-	case '-':
+-		return -p.term()
+-	case '~':
+-		return ^p.term()
+-	case scanner.Int:
+-		value := p.atoi(tok.String())
+-		for {
+-			switch p.peek() {
+-			case '*':
+-				p.next()
+-				value *= p.term() // OVERFLOW?
+-			case '/':
+-				p.next()
+-				value /= p.term()
+-			case '%':
+-				p.next()
+-				value %= p.term()
+-			case lex.LSH:
+-				p.next()
+-				shift := p.term()
+-				if shift < 0 {
+-					p.errorf("negative left shift %d", shift)
+-				}
+-				value <<= uint(shift)
+-			case lex.RSH:
+-				p.next()
+-				shift := p.term()
+-				if shift < 0 {
+-					p.errorf("negative right shift %d", shift)
+-				}
+-				value >>= uint(shift)
+-			case '&':
+-				p.next()
+-				value &= p.term()
+-			default:
+-				return value
+-			}
+-		}
+ 	}
+ 	p.errorf("unexpected %s evaluating expression", tok)
+ 	return 0
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index eefd6eb6ef..a193649fee 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -46,7 +46,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 		if i > 0 {
+ 			name, value = name[:i], name[i+1:]
+ 		}
+-		tokens := tokenize(name)
++		tokens := Tokenize(name)
+ 		if len(tokens) != 1 || tokens[0].ScanToken != scanner.Ident {
+ 			fmt.Fprintf(os.Stderr, "asm: parsing -D: %q is not a valid identifier name\n", tokens[0])
+ 			flags.Usage()
+@@ -54,7 +54,7 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
+ 		macros[name] = &Macro{
+ 			name:   name,
+ 			args:   nil,
+-			tokens: tokenize(value),
++			tokens: Tokenize(value),
+ 		}
+ 	}
+ 	return macros
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 4785350b1f..45224fe1b3 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -128,8 +128,8 @@ type Macro struct {
+ 	tokens []Token  // Body of macro.
+ }
+ 
+-// tokenize turns a string into a list of Tokens; used to parse the -D flag.
+-func tokenize(str string) []Token {
++// Tokenize turns a string into a list of Tokens; used to parse the -D flag and in tests.
++func Tokenize(str string) []Token {
+ 	t := NewTokenizer("command line", strings.NewReader(str), nil)
+ 	var tokens []Token
+ 	for {

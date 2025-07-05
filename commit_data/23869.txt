@@ -52,7 +52,48 @@ Date:   Sat Apr 18 05:30:30 2015 -0400
     Change-Id: I3d4f2b67f7a038adfb33ba48bb6b680f528baf18
     Reviewed-on: https://go-review.googlesource.com/9074
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/json/bench_test.go | 11 +++++++++++
  src/encoding/json/scanner.go    |  9 ++++++++-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index 29dbc26d41..709e048a53 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -187,3 +187,14 @@ func BenchmarkUnmarshalInt64(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkIssue10335(b *testing.B) {
++	b.ReportAllocs()
++	var s struct{}
++	j := []byte(`{"a":{ }}`)
++	for n := 0; n < b.N; n++ {
++		if err := Unmarshal(j, &s); err != nil {
++			b.Fatal(err)
++		}
++	}
++}
+diff --git a/src/encoding/json/scanner.go b/src/encoding/json/scanner.go
+index a4609c8950..38d0b0802b 100644
+--- a/src/encoding/json/scanner.go
++++ b/src/encoding/json/scanner.go
+@@ -38,8 +38,15 @@ func nextValue(data []byte, scan *scanner) (value, rest []byte, err error) {
+ 	scan.reset()
+ 	for i, c := range data {
+ 		v := scan.step(scan, int(c))
+-		if v >= scanEnd {
++		if v >= scanEndObject {
+ 			switch v {
++			// probe the scanner with a space to determine whether we will
++			// get scanEnd on the next character. Otherwise, if the next character
++			// is not a space, scanEndTop allocates a needless error.
++			case scanEndObject, scanEndArray:
++				if scan.step(scan, ' ') == scanEnd {
++					return data[:i+1], data[i+1:], nil
++				}
+ 			case scanError:
+ 				return nil, nil, scan.err
+ 			case scanEnd:

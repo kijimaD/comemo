@@ -13,7 +13,44 @@ Date:   Fri Nov 11 14:05:51 2016 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go        | 3 ++-
  src/net/tcpsock_unix_test.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index b8d317cbf0..a609aaa7ba 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -97,7 +97,8 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress:
++	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress,
++		context.DeadlineExceeded, context.Canceled:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+diff --git a/src/net/tcpsock_unix_test.go b/src/net/tcpsock_unix_test.go
+index c07f7d7889..2375fe24dc 100644
+--- a/src/net/tcpsock_unix_test.go
++++ b/src/net/tcpsock_unix_test.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ // See golang.org/issue/14548.
+-func TestTCPSupriousConnSetupCompletion(t *testing.T) {
++func TestTCPSpuriousConnSetupCompletion(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+@@ -57,7 +57,7 @@ func TestTCPSupriousConnSetupCompletion(t *testing.T) {
+ 			c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
+ 			if err != nil {
+ 				if perr := parseDialError(err); perr != nil {
+-					t.Errorf("#%d: %v", i, err)
++					t.Errorf("#%d: %v (original error: %v)", i, perr, err)
+ 				}
+ 				return
+ 			}

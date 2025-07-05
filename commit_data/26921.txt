@@ -9,8 +9,57 @@ Date:   Wed Mar 2 20:32:40 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 4 ++--
  src/cmd/compile/internal/gc/go.go    | 2 +-
  src/cmd/compile/internal/gc/subr.go  | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 03c6a0e936..e5d7e6b93e 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -125,7 +125,7 @@ func dowidth(t *Type) {
+ 	if t.Width == -2 {
+ 		if !t.Broke {
+ 			t.Broke = true
+-			yyerrorl(int32(t.Lineno), "invalid recursive type %v", t)
++			yyerrorl(t.Lineno, "invalid recursive type %v", t)
+ 		}
+ 
+ 		t.Width = 0
+@@ -142,7 +142,7 @@ func dowidth(t *Type) {
+ 	defercalc++
+ 
+ 	lno := lineno
+-	lineno = int32(t.Lineno)
++	lineno = t.Lineno
+ 	t.Width = -2
+ 	t.Align = 0
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 43158e0604..e1b75d1b0c 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -104,7 +104,7 @@ type Type struct {
+ 
+ 	Nod    *Node // canonical OTYPE node
+ 	Orig   *Type // original type (type literal or predefined type)
+-	Lineno int
++	Lineno int32
+ 
+ 	// TFUNC
+ 	Thistuple int
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 72bdfb24f9..b8bd66c7b1 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -391,7 +391,7 @@ func typ(et EType) *Type {
+ 	t := new(Type)
+ 	t.Etype = et
+ 	t.Width = BADWIDTH
+-	t.Lineno = int(lineno)
++	t.Lineno = lineno
+ 	t.Orig = t
+ 	return t
+ }

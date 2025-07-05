@@ -13,7 +13,136 @@ Date:   Mon Mar 6 20:38:31 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                   | 29 ++------
  .../script/build_shorten_sibling_package.txt       | 81 ----------------------
  2 files changed, 5 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6a0a53429f..b22e8b6e95 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2239,31 +2239,12 @@ func (e *prefixSuffixError) ImportPath() string {
+ func formatOutput(workDir, dir, importPath, desc, out string) *prefixSuffixError {
+ 	prefix := "# " + desc
+ 	suffix := "\n" + out
+-
+-	suffix = strings.ReplaceAll(suffix, " "+workDir, " $WORK")
+-
+-	for {
+-		// Note that dir starts out long, something like
+-		// /foo/bar/baz/root/a
+-		// The target string to be reduced is something like
+-		// (blah-blah-blah) /foo/bar/baz/root/sibling/whatever.go:blah:blah
+-		// /foo/bar/baz/root/a doesn't match /foo/bar/baz/root/sibling, but the prefix
+-		// /foo/bar/baz/root does.  And there may be other niblings sharing shorter
+-		// prefixes, the only way to find them is to look.
+-		// This doesn't always produce a relative path --
+-		// /foo is shorter than ../../.., for example.
+-		//
+-		if reldir := base.ShortPath(dir); reldir != dir {
+-			suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
+-			suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
+-			suffix = strings.ReplaceAll(suffix, "\n\t"+dir, "\n\t"+reldir)
+-		}
+-		dirP := filepath.Dir(dir)
+-		if dir == dirP {
+-			break
+-		}
+-		dir = dirP
++	if reldir := base.ShortPath(dir); reldir != dir {
++		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
++		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
++		suffix = strings.ReplaceAll(suffix, "\n\t"+dir, "\n\t"+reldir)
+ 	}
++	suffix = strings.ReplaceAll(suffix, " "+workDir, " $WORK")
+ 
+ 	return &prefixSuffixError{importPath: importPath, prefix: prefix, suffix: suffix}
+ }
+diff --git a/src/cmd/go/testdata/script/build_shorten_sibling_package.txt b/src/cmd/go/testdata/script/build_shorten_sibling_package.txt
+deleted file mode 100644
+index 38672b65df..0000000000
+--- a/src/cmd/go/testdata/script/build_shorten_sibling_package.txt
++++ /dev/null
+@@ -1,81 +0,0 @@
+-[short] skip
+-
+-# This test may go away when the loopvar experiment goes away.
+-# Accurate reporting of notable loops in the presence of inlining
+-# can create warnings in sibling directories, and it's nice if those
+-# can be trimmed like subdirectory paths are.
+-
+-env GOEXPERIMENT=loopvar
+-go build -gcflags=inlines/a=-d=loopvar=2 .
+-stderr ^\.[\\/]b[\\/]b\.go:12:6:.*loop.inlined.into.a[\\/]a\.go
+-stderr ^\.[\\/]b[\\/]b\.go:12:9:.*loop.inlined.into.a[\\/]a\.go
+-
+--- go.mod --
+-module inlines
+-
+-go 1.21
+--- a/a.go --
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package a
+-
+-import "inlines/b"
+-
+-func F() []*int {
+-	var s []*int
+-	for i := 0; i < 10; i++ {
+-		s = append(s, &i)
+-	}
+-	return s
+-}
+-
+-func Fb() []*int {
+-	bf, _ := b.F()
+-	return bf
+-}
+--- b/b.go --
+-package b
+-
+-var slice = []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024}
+-
+-func F() ([]*int, []*int) {
+-	return g()
+-}
+-
+-func g() ([]*int, []*int) {
+-	var s []*int
+-	var t []*int
+-	for i, j := range slice {
+-		s = append(s, &i)
+-		t = append(t, &j)
+-	}
+-	return s[:len(s)-1], t
+-}
+--- main.go --
+-package main
+-
+-import (
+-	"fmt"
+-	"inlines/a"
+-	"inlines/b"
+-)
+-
+-func sum(s []*int) int {
+-	sum := 0
+-	for _, pi := range s {
+-		sum += *pi
+-	}
+-	return sum
+-}
+-
+-func main() {
+-	af := a.F()
+-	bf, _ := b.F()
+-	abf := a.Fb()
+-
+-	saf, sbf, sabf := sum(af), sum(bf), sum(abf)
+-
+-	fmt.Printf("af, bf, abf sums = %d, %d, %d\n", saf, sbf, sabf)
+-}

@@ -10,6 +10,25 @@ Date:   Mon Mar 23 10:15:35 2015 -0400
     Change-Id: I7bdef63d9ee4edcede23613a14a2ddce14018f34
     Reviewed-on: https://go-review.googlesource.com/7931
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport_test.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 78f62a9859..504a6a7b56 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1788,13 +1788,6 @@ var proxyFromEnvTests = []proxyFromEnvTest{
+ }
+ 
+ func TestProxyFromEnvironment(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		// fmt.Sprintf("%v", (*URL)(nil)) causes a segfault inside the string
+-		// method, which lldb intercepts on the darwin/arm builder. Until it
+-		// is fixed, skipping the test.
+-		t.Skipf("skipping on %s/%s, issue 10043", runtime.GOOS, runtime.GOARCH)
+-	}
+-
+ 	ResetProxyEnv()
+ 	for _, tt := range proxyFromEnvTests {
+ 		os.Setenv("HTTP_PROXY", tt.env)

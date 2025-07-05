@@ -7,6 +7,28 @@ Date:   Wed Mar 23 11:33:53 2011 -0400
     R=iant
     CC=golang-dev
     https://golang.org/cl/4291063
-
+---
  src/cmd/godefs/stabs.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godefs/stabs.c b/src/cmd/godefs/stabs.c
+index f2bb57eb65..30a05fc700 100644
+--- a/src/cmd/godefs/stabs.c
++++ b/src/cmd/godefs/stabs.c
+@@ -219,7 +219,7 @@ parsedef(char **pp, char *name)
+ 	t = emalloc(sizeof *t);
+ 	switch(*p) {
+ 	default:
+-		fprint(2, "unknown type char %c\n", *p);
++		fprint(2, "unknown type char %c in %s\n", *p, p);
+ 		*pp = "";
+ 		return t;
+ 
+@@ -284,6 +284,7 @@ parsedef(char **pp, char *name)
+ 			return nil;
+ 		break;
+ 
++	case 'B':	// volatile
+ 	case 'k':	// const
+ 		++*pp;
+ 		return parsedef(pp, nil);

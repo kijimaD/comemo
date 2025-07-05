@@ -6,6 +6,19 @@ Date:   Sun Aug 24 11:33:32 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/132890043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index b3ba7480d6..8cabeb4eb6 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -10,6 +10,7 @@ spec: permit for range x (CL 104680043)
+ cmd/6l, liblink: use pc-relative addressing for all memory references, so that linking Go binaries at high addresses works (CL 125140043). This cuts the maximum size of a Go binary's text+data+bss from 4GB to 2GB.
+ cmd/go: import comments (CL 124940043)
+ cmd/go: implement "internal" (CL 120600043)
++cmd/go: implement "generate" (CL 125580044)
+ 
+ asm: make textflag.h available outside of cmd/ld (CL 128050043)
+ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)

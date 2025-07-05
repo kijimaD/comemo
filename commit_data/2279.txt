@@ -7,10 +7,250 @@ Date:   Thu May 21 17:32:44 2009 -0700
     R=ken
     OCL=29209
     CL=29216
-
+---
  src/cmd/gc/builtin.c.boot | 18 ++++++++---------
  src/cmd/gc/go.h           |  6 +++---
  src/cmd/gc/subr.c         |  7 +++++++
  src/cmd/gc/sys.go         | 18 ++++++++---------
  src/cmd/gc/walk.c         | 51 +++++++++++++++++++++++++++++++++++++----------
  5 files changed, 68 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 38c8b4cb5e..aa51b97b53 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -48,16 +48,16 @@ char *sysimport =
+ 	"func sys.mapiter1 (hiter *any) (key any)\n"
+ 	"func sys.mapiter2 (hiter *any) (key any, val any)\n"
+ 	"func sys.newchan (elemsize int, elemalg int, hint int) (hchan chan any)\n"
+-	"func sys.chanrecv1 (hchan chan any) (elem any)\n"
+-	"func sys.chanrecv2 (hchan chan any) (elem any, pres bool)\n"
+-	"func sys.chanrecv3 (hchan chan any, elem *any) (pres bool)\n"
+-	"func sys.chansend1 (hchan chan any, elem any)\n"
+-	"func sys.chansend2 (hchan chan any, elem any) (pres bool)\n"
+-	"func sys.closechan (hchan chan any)\n"
+-	"func sys.closedchan (hchan chan any) (? bool)\n"
++	"func sys.chanrecv1 (hchan <-chan any) (elem any)\n"
++	"func sys.chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
++	"func sys.chanrecv3 (hchan <-chan any, elem *any) (pres bool)\n"
++	"func sys.chansend1 (hchan chan<- any, elem any)\n"
++	"func sys.chansend2 (hchan chan<- any, elem any) (pres bool)\n"
++	"func sys.closechan (hchan any)\n"
++	"func sys.closedchan (hchan any) (? bool)\n"
+ 	"func sys.newselect (size int) (sel *uint8)\n"
+-	"func sys.selectsend (sel *uint8, hchan chan any, elem any) (selected bool)\n"
+-	"func sys.selectrecv (sel *uint8, hchan chan any, elem *any) (selected bool)\n"
++	"func sys.selectsend (sel *uint8, hchan chan<- any, elem any) (selected bool)\n"
++	"func sys.selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
+ 	"func sys.selectdefault (sel *uint8) (selected bool)\n"
+ 	"func sys.selectgo (sel *uint8)\n"
+ 	"func sys.newarray (nel int, cap int, width int) (ary []any)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4d4ff3ef30..71aa57190b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -390,9 +390,9 @@ enum
+ {
+ 	/* types of channel */
+ 	Cxxx,
+-	Cboth,
+-	Crecv,
+-	Csend,
++	Crecv = 1<<0,
++	Csend = 1<<1,
++	Cboth = Crecv | Csend,
+ };
+ 
+ enum
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 38226a25c5..3afaa5ba29 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1067,6 +1067,8 @@ Tpretty(Fmt *fp, Type *t)
+ 		case Crecv:
+ 			return fmtprint(fp, "<-chan %T", t->type);
+ 		case Csend:
++			if(t->type != T && t->type->etype == TCHAN)
++				return fmtprint(fp, "chan<- (%T)", t->type);
+ 			return fmtprint(fp, "chan<- %T", t->type);
+ 		}
+ 		return fmtprint(fp, "chan %T", t->type);
+@@ -1704,6 +1706,11 @@ eqtype1(Type *t1, Type *t2, int d, int names)
+ 		if(t1->bound == t2->bound)
+ 			break;
+ 		return 0;
++
++	case TCHAN:
++		if(t1->chan == t2->chan)
++			break;
++		return 0;
+ 	}
+ 	return eqtype1(t1->type, t2->type, d+1, names);
+ }
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index b5a6ddc2bb..c3c715b7ea 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -62,17 +62,17 @@ func	mapiter1(hiter *any) (key any);
+ func	mapiter2(hiter *any) (key any, val any);
+ 
+ func	newchan(elemsize int, elemalg int, hint int) (hchan chan any);
+-func	chanrecv1(hchan chan any) (elem any);
+-func	chanrecv2(hchan chan any) (elem any, pres bool);
+-func	chanrecv3(hchan chan any, elem *any) (pres bool);
+-func	chansend1(hchan chan any, elem any);
+-func	chansend2(hchan chan any, elem any) (pres bool);
+-func	closechan(hchan chan any);
+-func	closedchan(hchan chan any) bool;
++func	chanrecv1(hchan <-chan any) (elem any);
++func	chanrecv2(hchan <-chan any) (elem any, pres bool);
++func	chanrecv3(hchan <-chan any, elem *any) (pres bool);
++func	chansend1(hchan chan<- any, elem any);
++func	chansend2(hchan chan<- any, elem any) (pres bool);
++func	closechan(hchan any);
++func	closedchan(hchan any) bool;
+ 
+ func	newselect(size int) (sel *byte);
+-func	selectsend(sel *byte, hchan chan any, elem any) (selected bool);
+-func	selectrecv(sel *byte, hchan chan any, elem *any) (selected bool);
++func	selectsend(sel *byte, hchan chan<- any, elem any) (selected bool);
++func	selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool);
+ func	selectdefault(sel *byte) (selected bool);
+ func	selectgo(sel *byte);
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e20f0c75ce..a6303a82fc 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1335,6 +1335,11 @@ selcase(Node *n, Node *var)
+ 	if(t == T)
+ 		return N;
+ 
++	if(!(t->chan & Csend)) {
++		yyerror("cannot send on %T", t);
++		return N;
++	}
++
+ 	convlit(c->right, t->type);
+ 	if(!ascompat(t->type, c->right->type)) {
+ 		badtype(c->op, t->type, c->right->type);
+@@ -1365,6 +1370,11 @@ recv:
+ 	if(t == T)
+ 		return N;
+ 
++	if(!(t->chan & Crecv)) {
++		yyerror("cannot receive from %T", t);
++		return N;
++	}
++
+ 	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 	on = syslook("selectrecv", 1);
+ 	argtype(on, t->type);
+@@ -1389,6 +1399,11 @@ recv2:
+ 	if(t == T)
+ 		return N;
+ 
++	if(!(t->chan & Crecv)) {
++		yyerror("cannot receive from %T", t);
++		return N;
++	}
++
+ 	walktype(c->left, Elv);	// elem
+ 	convlit(c->left, t->type);
+ 	if(!ascompat(t->type, c->left->type)) {
+@@ -2103,6 +2118,14 @@ ascompat(Type *dst, Type *src)
+ 	if(dst == T || src == T)
+ 		return 0;
+ 
++	if(dst->etype == TCHAN && src->etype == TCHAN) {
++		if(!eqtype(dst->type, src->type))
++			return 0;
++		if(dst->chan & ~src->chan)
++			return 0;
++		return 1;
++	}
++
+ 	if(isslice(dst)
+ 	&& isptr[src->etype]
+ 	&& isfixedarray(src->type)
+@@ -2634,7 +2657,7 @@ chanop(Node *n, int top)
+ 		r = a;
+ 
+ 		on = syslook("closechan", 1);
+-		argtype(on, t->type);	// any-1
++		argtype(on, t);	// any-1
+ 
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, top);
+@@ -2651,7 +2674,7 @@ chanop(Node *n, int top)
+ 		r = a;
+ 
+ 		on = syslook("closedchan", 1);
+-		argtype(on, t->type);	// any-1
++		argtype(on, t);	// any-1
+ 
+ 		r = nod(OCALL, on, r);
+ 		walktype(r, top);
+@@ -2704,6 +2727,11 @@ chanop(Node *n, int top)
+ 		if(t == T)
+ 			break;
+ 
++		if(!(t->chan & Crecv)) {
++			yyerror("cannot receive from %T", t);
++			break;
++		}
++
+ 		a = n->right->left;			// chan
+ 		r = a;
+ 
+@@ -2727,6 +2755,11 @@ chanop(Node *n, int top)
+ 		if(t == T)
+ 			break;
+ 
++		if(!(t->chan & Crecv)) {
++			yyerror("cannot receive from %T", t);
++			break;
++		}
++
+ 		a = n->left;			// chan
+ 		r = a;
+ 
+@@ -2769,14 +2802,15 @@ chanop(Node *n, int top)
+ 		t = fixchan(n->left->type);
+ 		if(t == T)
+ 			break;
++		if(!(t->chan & Csend)) {
++			yyerror("cannot send to %T", t);
++			break;
++		}
++
+ 		if(top != Etop)
+ 			goto send2;
+ 
+ 		// chansend1(hchan *chan any, elem any);
+-		t = fixchan(n->left->type);
+-		if(t == T)
+-			break;
+-
+ 		a = n->right;			// e
+ 		r = a;
+ 		a = n->left;			// chan
+@@ -2791,10 +2825,6 @@ chanop(Node *n, int top)
+ 
+ 	send2:
+ 		// chansend2(hchan *chan any, val any) (pres bool);
+-		t = fixchan(n->left->type);
+-		if(t == T)
+-			break;
+-
+ 		a = n->right;			// e
+ 		r = a;
+ 		a = n->left;			// chan
+@@ -4144,7 +4174,6 @@ maplit(Node *n, Node *var)
+ 	if(r != N && r->op == OEMPTY)
+ 		r = N;
+ 
+-loop:
+ 	while(r != N) {
+ 		if(r == N)
+ 			break;

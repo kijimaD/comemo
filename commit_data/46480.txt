@@ -18,7 +18,52 @@ Date:   Sun Jan 3 00:53:51 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 9 ---------
  src/cmd/compile/internal/walk/race.go  | 6 +++++-
  2 files changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 2887abb061..b9b424b74d 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1096,15 +1096,6 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		if n.Sym() != nil {
+ 			return n
+ 		}
+-		if n, ok := n.(*ir.Name); ok && n.Op() == ir.OLITERAL {
+-			// This happens for unnamed OLITERAL.
+-			// which should really not be a *Name, but for now it is.
+-			// ir.Copy(n) is not allowed generally and would panic below,
+-			// but it's OK in this situation.
+-			n = n.CloneName()
+-			n.SetPos(subst.updatedPos(n.Pos()))
+-			return n
+-		}
+ 
+ 	case ir.ORETURN:
+ 		// Since we don't handle bodies with closures,
+diff --git a/src/cmd/compile/internal/walk/race.go b/src/cmd/compile/internal/walk/race.go
+index 87a8839dcd..20becf9be9 100644
+--- a/src/cmd/compile/internal/walk/race.go
++++ b/src/cmd/compile/internal/walk/race.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/ssagen"
++	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+@@ -36,7 +37,10 @@ func instrument(fn *ir.Func) {
+ 			// This only works for amd64. This will not
+ 			// work on arm or others that might support
+ 			// race in the future.
+-			nodpc := ir.RegFP.CloneName()
++
++			nodpc := ir.NewNameAt(src.NoXPos, typecheck.Lookup(".fp"))
++			nodpc.Class_ = ir.PPARAM
++			nodpc.SetUsed(true)
+ 			nodpc.SetType(types.Types[types.TUINTPTR])
+ 			nodpc.SetFrameOffset(int64(-types.PtrSize))
+ 			fn.Dcl = append(fn.Dcl, nodpc)

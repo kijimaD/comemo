@@ -16,7 +16,46 @@ Date:   Fri Mar 17 13:12:13 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/internal/list/list.go                 |  4 ++--
  src/cmd/go/testdata/script/list_export_embed.txt | 17 +++++++++++++++++
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 31c14c86c6..672c3c122f 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -609,8 +609,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		// might not expect those errors to stop showing up.
+ 		// See issue #52443.
+ 		SuppressDeps:       !listJsonFields.needAny("Deps", "DepsErrors"),
+-		SuppressBuildInfo:  !listJsonFields.needAny("Stale", "StaleReason"),
+-		SuppressEmbedFiles: !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
++		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
++		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
+ 	}
+ 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
+ 	if !*listE {
+diff --git a/src/cmd/go/testdata/script/list_export_embed.txt b/src/cmd/go/testdata/script/list_export_embed.txt
+new file mode 100644
+index 0000000000..da74998085
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_export_embed.txt
+@@ -0,0 +1,17 @@
++# Regression test for https://go.dev/issue/58885:
++# 'go list -json=Export' should not fail due to missing go:embed metadata.
++
++[short] skip 'runs the compiler to produce export data'
++
++go list -json=Export -export .
++
++-- go.mod --
++module example
++go 1.20
++-- example.go --
++package example
++
++import _ "embed"
++
++//go:embed example.go
++var src string

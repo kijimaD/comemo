@@ -11,6 +11,20 @@ Date:   Mon Oct 12 15:47:39 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/261362
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/time/zoneinfo_ios.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_ios.go
+index 65feb84711..0f1e9334b5 100644
+--- a/src/time/zoneinfo_ios.go
++++ b/src/time/zoneinfo_ios.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ios
++
+ package time
+ 
+ import (

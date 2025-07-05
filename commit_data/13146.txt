@@ -11,7 +11,7 @@ Date:   Thu May 24 10:35:31 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6228049
-
+---
  .../html/testdata/webkit/pending-spec-changes.dat  |  24 +++++
  .../exp/html/testdata/webkit/plain-text-unsafe.dat | Bin 86 -> 4166 bytes
  src/pkg/exp/html/testdata/webkit/tables01.dat      |  15 +++
@@ -31,3 +31,549 @@ Date:   Thu May 24 10:35:31 2012 +1000
  src/pkg/exp/html/testlogs/webkit01.dat.log         |   6 +-
  src/pkg/exp/html/testlogs/webkit02.dat.log         |   4 +
  18 files changed, 324 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/html/testdata/webkit/pending-spec-changes.dat b/src/pkg/exp/html/testdata/webkit/pending-spec-changes.dat
+index e00ee85d3b..5a9208465f 100644
+--- a/src/pkg/exp/html/testdata/webkit/pending-spec-changes.dat
++++ b/src/pkg/exp/html/testdata/webkit/pending-spec-changes.dat
+@@ -26,3 +26,27 @@
+ |         <svg svg>
+ |           "foo"
+ |     "bar"
++
++#data
++<table><tr><td><svg><desc><td></desc><circle>
++#errors
++7: Start tag seen without seeing a doctype first. Expected “<!DOCTYPE html>”.
++30: A table cell was implicitly closed, but there were open elements.
++26: Unclosed element “desc”.
++20: Unclosed element “svg”.
++37: Stray end tag “desc”.
++45: End of file seen and there were open elements.
++45: Unclosed element “circle”.
++7: Unclosed element “table”.
++#document
++| <html>
++|   <head>
++|   <body>
++|     <table>
++|       <tbody>
++|         <tr>
++|           <td>
++|             <svg svg>
++|               <svg desc>
++|           <td>
++|             <circle>
+diff --git a/src/pkg/exp/html/testdata/webkit/plain-text-unsafe.dat b/src/pkg/exp/html/testdata/webkit/plain-text-unsafe.dat
+index 2f40e83bab..04cc11fb9d 100644
+Binary files a/src/pkg/exp/html/testdata/webkit/plain-text-unsafe.dat and b/src/pkg/exp/html/testdata/webkit/plain-text-unsafe.dat differ
+diff --git a/src/pkg/exp/html/testdata/webkit/tables01.dat b/src/pkg/exp/html/testdata/webkit/tables01.dat
+index 88ef1fe2ee..c4b47e48a8 100644
+--- a/src/pkg/exp/html/testdata/webkit/tables01.dat
++++ b/src/pkg/exp/html/testdata/webkit/tables01.dat
+@@ -195,3 +195,18 @@
+ |           <td>
+ |             <button>
+ |           <td>
++
++#data
++<table><tr><td><svg><desc><td>
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <table>
++|       <tbody>
++|         <tr>
++|           <td>
++|             <svg svg>
++|               <svg desc>
++|           <td>
+diff --git a/src/pkg/exp/html/testdata/webkit/tests16.dat b/src/pkg/exp/html/testdata/webkit/tests16.dat
+index 937dba9f42..c8ef66f0e6 100644
+--- a/src/pkg/exp/html/testdata/webkit/tests16.dat
++++ b/src/pkg/exp/html/testdata/webkit/tests16.dat
+@@ -1075,6 +1075,28 @@ Line: 1 Col: 64 Unexpected end tag (textarea).
+ |     <textarea>
+ |       "</textarea>"
+ 
++#data
++<!doctype html><textarea>&lt;</textarea>
++#errors
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <textarea>
++|       "<"
++
++#data
++<!doctype html><textarea>a&lt;b</textarea>
++#errors
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <textarea>
++|       "a<b"
++
+ #data
+ <!doctype html><iframe><!--<iframe></iframe>--></iframe>
+ #errors
+diff --git a/src/pkg/exp/html/testdata/webkit/tests19.dat b/src/pkg/exp/html/testdata/webkit/tests19.dat
+index 06222f5b9d..0d62f5a5b0 100644
+--- a/src/pkg/exp/html/testdata/webkit/tests19.dat
++++ b/src/pkg/exp/html/testdata/webkit/tests19.dat
+@@ -173,7 +173,7 @@
+ |     <ruby>
+ |       <div>
+ |         <span>
+-|       <rp>
++|           <rp>
+ 
+ #data
+ <!doctype html><ruby><div><p><rp>
+@@ -186,7 +186,7 @@
+ |     <ruby>
+ |       <div>
+ |         <p>
+-|       <rp>
++|         <rp>
+ 
+ #data
+ <!doctype html><ruby><p><rt>
+@@ -211,7 +211,7 @@
+ |     <ruby>
+ |       <div>
+ |         <span>
+-|       <rt>
++|           <rt>
+ 
+ #data
+ <!doctype html><ruby><div><p><rt>
+@@ -224,7 +224,7 @@
+ |     <ruby>
+ |       <div>
+ |         <p>
+-|       <rt>
++|         <rt>
+ 
+ #data
+ <!doctype html><math/><foo>
+@@ -1218,3 +1218,20 @@
+ |     <plaintext>
+ |       <a>
+ |         "b"
++
++#data
++<!DOCTYPE html><div>a<a></div>b<p>c</p>d
++#errors
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <div>
++|       "a"
++|       <a>
++|     <a>
++|       "b"
++|       <p>
++|         "c"
++|       "d"
+diff --git a/src/pkg/exp/html/testdata/webkit/tests26.dat b/src/pkg/exp/html/testdata/webkit/tests26.dat
+index da128e7794..fae11ffdf9 100644
+--- a/src/pkg/exp/html/testdata/webkit/tests26.dat
++++ b/src/pkg/exp/html/testdata/webkit/tests26.dat
+@@ -193,3 +193,121 @@
+ |     <i>
+ |       <nobr>
+ |         "2"
++
++#data
++<p><code x</code></p>
++
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <p>
++|       <code>
++|         code=""
++|         x<=""
++|     <code>
++|       code=""
++|       x<=""
++|       "
++"
++
++#data
++<!DOCTYPE html><svg><foreignObject><p><i></p>a
++#errors
++45: End tag “p” seen, but there were open elements.
++41: Unclosed element “i”.
++46: End of file seen and there were open elements.
++35: Unclosed element “foreignObject”.
++20: Unclosed element “svg”.
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <svg svg>
++|       <svg foreignObject>
++|         <p>
++|           <i>
++|         <i>
++|           "a"
++
++#data
++<!DOCTYPE html><table><tr><td><svg><foreignObject><p><i></p>a
++#errors
++56: End tag “p” seen, but there were open elements.
++52: Unclosed element “i”.
++57: End of file seen and there were open elements.
++46: Unclosed element “foreignObject”.
++31: Unclosed element “svg”.
++22: Unclosed element “table”.
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <table>
++|       <tbody>
++|         <tr>
++|           <td>
++|             <svg svg>
++|               <svg foreignObject>
++|                 <p>
++|                   <i>
++|                 <i>
++|                   "a"
++
++#data
++<!DOCTYPE html><math><mtext><p><i></p>a
++#errors
++38: End tag “p” seen, but there were open elements.
++34: Unclosed element “i”.
++39: End of file in a foreign namespace context.
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <math math>
++|       <math mtext>
++|         <p>
++|           <i>
++|         <i>
++|           "a"
++
++#data
++<!DOCTYPE html><table><tr><td><math><mtext><p><i></p>a
++#errors
++53: End tag “p” seen, but there were open elements.
++49: Unclosed element “i”.
++54: End of file in a foreign namespace context.
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <table>
++|       <tbody>
++|         <tr>
++|           <td>
++|             <math math>
++|               <math mtext>
++|                 <p>
++|                   <i>
++|                 <i>
++|                   "a"
++
++#data
++<!DOCTYPE html><body><div><!/div>a
++#errors
++29: Bogus comment.
++34: End of file seen and there were open elements.
++26: Unclosed element “div”.
++#document
++| <!DOCTYPE html>
++| <html>
++|   <head>
++|   <body>
++|     <div>
++|       <!-- /div -->
++|       "a"
+diff --git a/src/pkg/exp/html/testdata/webkit/tests_innerHTML_1.dat b/src/pkg/exp/html/testdata/webkit/tests_innerHTML_1.dat
+index 052fac7d55..6c78661e0c 100644
+--- a/src/pkg/exp/html/testdata/webkit/tests_innerHTML_1.dat
++++ b/src/pkg/exp/html/testdata/webkit/tests_innerHTML_1.dat
+@@ -731,3 +731,11 @@ html
+ frameset
+ #document
+ | <frame>
++
++#data
++#errors
++#document-fragment
++html
++#document
++| <head>
++| <body>
+diff --git a/src/pkg/exp/html/testdata/webkit/webkit01.dat b/src/pkg/exp/html/testdata/webkit/webkit01.dat
+index 4101b216e1..9d425e99d5 100644
+--- a/src/pkg/exp/html/testdata/webkit/webkit01.dat
++++ b/src/pkg/exp/html/testdata/webkit/webkit01.dat
+@@ -289,8 +289,8 @@ console.log("FOO<span>BAR</span>BAZ");
+ |   <body>
+ |     <ruby>
+ |       <div>
+-|       <rp>
+-|         "xx"
++|         <rp>
++|           "xx"
+ 
+ #data
+ <html><body><ruby><div><rt>xx</rt></div></ruby></body></html>
+@@ -301,8 +301,8 @@ console.log("FOO<span>BAR</span>BAZ");
+ |   <body>
+ |     <ruby>
+ |       <div>
+-|       <rt>
+-|         "xx"
++|         <rt>
++|           "xx"
+ 
+ #data
+ <html><frameset><!--1--><noframes>A</noframes><!--2--></frameset><!--3--><noframes>B</noframes><!--4--></html><!--5--><noframes>C</noframes><!--6-->
+@@ -560,7 +560,8 @@ console.log("FOO<span>BAR</span>BAZ");
+ |           <td>
+ |             <svg svg>
+ |               <svg desc>
+-|               <svg circle>
++|           <td>
++|             <circle>
+ 
+ #data
+ <svg><tfoot></mi><td>
+diff --git a/src/pkg/exp/html/testdata/webkit/webkit02.dat b/src/pkg/exp/html/testdata/webkit/webkit02.dat
+index 2218f4298c..905783d3cd 100644
+--- a/src/pkg/exp/html/testdata/webkit/webkit02.dat
++++ b/src/pkg/exp/html/testdata/webkit/webkit02.dat
+@@ -102,3 +102,58 @@
+ |   <body>
+ |     <legend>
+ |       "test"
++
++#data
++<table><input>
++#errors
++#document
++| <html>
++|   <head>
++|   <body>
++|     <input>
++|     <table>
++
++#data
++<b><em><dcell><postfield><postfield><postfield><postfield><missing_glyph><missing_glyph><missing_glyph><missing_glyph><hkern><aside></b></em>
++#errors
++#document-fragment
++div
++#document
++| <b>
++|   <em>
++|     <dcell>
++|       <postfield>
++|         <postfield>
++|           <postfield>
++|             <postfield>
++|               <missing_glyph>
++|                 <missing_glyph>
++|                   <missing_glyph>
++|                     <missing_glyph>
++|                       <hkern>
++| <aside>
++|   <em>
++|     <b>
++
++#data
++<isindex action="x">
++#errors
++#document-fragment
++table
++#document
++| <form>
++|   action="x"
++| <hr>
++| <label>
++|   "This is a searchable index. Enter search keywords: "
++|   <input>
++|     name="isindex"
++| <hr>
++
++#data
++<option><XH<optgroup></optgroup>
++#errors
++#document-fragment
++select
++#document
++| <option>
+diff --git a/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log b/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
+index 3adabe79ee..cc0ffb015d 100644
+--- a/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
++++ b/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
+@@ -1,2 +1,3 @@
+ PASS "<input type=\"hidden\"><frameset>"
+ PASS "<!DOCTYPE html><table><caption><svg>foo</table>bar"
++FAIL "<table><tr><td><svg><desc><td></desc><circle>"
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+index ae7f1c8ae0..de9f385a20 100644
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+@@ -1 +1,33 @@
+ PASS "FOO&#x000D;ZOO"
++PASS "<html>\x00<frameset></frameset>"
++FAIL "<html> \x00 <frameset></frameset>"
++PASS "<html>a\x00a<frameset></frameset>"
++PASS "<html>\x00\x00<frameset></frameset>"
++FAIL "<html>\x00\n <frameset></frameset>"
++FAIL "<html><select>\x00"
++PASS "\x00"
++PASS "<body>\x00"
++FAIL "<plaintext>\x00filler\x00text\x00"
++FAIL "<svg><![CDATA[\x00filler\x00text\x00]]>"
++FAIL "<body><!\x00>"
++FAIL "<body><!\x00filler\x00text>"
++FAIL "<body><svg><foreignObject>\x00filler\x00text"
++FAIL "<svg>\x00filler\x00text"
++FAIL "<svg>\x00<frameset>"
++FAIL "<svg>\x00 <frameset>"
++FAIL "<svg>\x00a<frameset>"
++FAIL "<svg>\x00</svg><frameset>"
++FAIL "<svg>\x00 </svg><frameset>"
++FAIL "<svg>\x00a</svg><frameset>"
++PASS "<svg><path></path></svg><frameset>"
++PASS "<svg><p><frameset>"
++FAIL "<!DOCTYPE html><pre>\r\n\r\nA</pre>"
++FAIL "<!DOCTYPE html><pre>\r\rA</pre>"
++PASS "<!DOCTYPE html><pre>\rA</pre>"
++FAIL "<!DOCTYPE html><table><tr><td><math><mtext>\x00a"
++FAIL "<!DOCTYPE html><table><tr><td><svg><foreignObject>\x00a"
++FAIL "<!DOCTYPE html><math><mi>a\x00b"
++FAIL "<!DOCTYPE html><math><mo>a\x00b"
++FAIL "<!DOCTYPE html><math><mn>a\x00b"
++FAIL "<!DOCTYPE html><math><ms>a\x00b"
++FAIL "<!DOCTYPE html><math><mtext>a\x00b"
+diff --git a/src/pkg/exp/html/testlogs/tables01.dat.log b/src/pkg/exp/html/testlogs/tables01.dat.log
+index a95223cff0..265b754ce0 100644
+--- a/src/pkg/exp/html/testlogs/tables01.dat.log
++++ b/src/pkg/exp/html/testlogs/tables01.dat.log
+@@ -14,3 +14,4 @@ PASS "<table><tr><caption>"
+ PASS "<table><tr></body></caption></col></colgroup></html></td></th><td>foo"
+ PASS "<table><td><tr>"
+ PASS "<table><td><button><td>"
++FAIL "<table><tr><td><svg><desc><td>"
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+index 902c684841..670e6c39af 100644
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ b/src/pkg/exp/html/testlogs/tests16.dat.log
+@@ -88,6 +88,8 @@ PASS "<!doctype html><noframes><!--<noframes></noframes>--></noframes>"
+ PASS "<!doctype html><noframes><body><script><!--...</script></body></noframes></html>"
+ PASS "<!doctype html><textarea><!--<textarea></textarea>--></textarea>"
+ PASS "<!doctype html><textarea>&lt;/textarea></textarea>"
++PASS "<!doctype html><textarea>&lt;</textarea>"
++PASS "<!doctype html><textarea>a&lt;b</textarea>"
+ PASS "<!doctype html><iframe><!--<iframe></iframe>--></iframe>"
+ PASS "<!doctype html><iframe>...<!--X->...<!--/X->...</iframe>"
+ PASS "<!doctype html><xmp><!--<xmp></xmp>--></xmp>"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 9ada3791f1..f1202346be 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -11,11 +11,11 @@ PASS "<!doctype html><isindex prompt=\"this is isindex\">"
+ PASS "<!doctype html><isindex type=\"hidden\">"
+ PASS "<!doctype html><isindex name=\"foo\">"
+ PASS "<!doctype html><ruby><p><rp>"
+-FAIL "<!doctype html><ruby><div><span><rp>"
+-FAIL "<!doctype html><ruby><div><p><rp>"
++PASS "<!doctype html><ruby><div><span><rp>"
++PASS "<!doctype html><ruby><div><p><rp>"
+ PASS "<!doctype html><ruby><p><rt>"
+-FAIL "<!doctype html><ruby><div><span><rt>"
+-FAIL "<!doctype html><ruby><div><p><rt>"
++PASS "<!doctype html><ruby><div><span><rt>"
++PASS "<!doctype html><ruby><div><p><rt>"
+ PASS "<!doctype html><math/><foo>"
+ PASS "<!doctype html><svg/><foo>"
+ PASS "<!doctype html><div></body><!--foo-->"
+@@ -101,3 +101,4 @@ PASS "<!doctype html><a><b></a><bgsound>"
+ PASS "<!doctype html><figcaption><article></figcaption>a"
+ PASS "<!doctype html><summary><article></summary>a"
+ PARSE "<!doctype html><p><a><plaintext>b"
++PASS "<!DOCTYPE html><div>a<a></div>b<p>c</p>d"
+diff --git a/src/pkg/exp/html/testlogs/tests26.dat.log b/src/pkg/exp/html/testlogs/tests26.dat.log
+index e5fc975fbc..864f1ea131 100644
+--- a/src/pkg/exp/html/testlogs/tests26.dat.log
++++ b/src/pkg/exp/html/testlogs/tests26.dat.log
+@@ -7,3 +7,9 @@ PASS "<!DOCTYPE html><body><b><nobr>1<nobr></b><div><i><nobr>2<nobr></i>3"
+ PASS "<!DOCTYPE html><body><b><nobr>1<nobr><ins></b><i><nobr>"
+ PASS "<!DOCTYPE html><body><b><nobr>1<ins><nobr></b><i>2"
+ PASS "<!DOCTYPE html><body><b>1<nobr></b><i><nobr>2</i>"
++FAIL "<p><code x</code></p>"
++FAIL "<!DOCTYPE html><svg><foreignObject><p><i></p>a"
++FAIL "<!DOCTYPE html><table><tr><td><svg><foreignObject><p><i></p>a"
++FAIL "<!DOCTYPE html><math><mtext><p><i></p>a"
++FAIL "<!DOCTYPE html><table><tr><td><math><mtext><p><i></p>a"
++PASS "<!DOCTYPE html><body><div><!/div>a"
+diff --git a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+index 95f9f70000..f34bb783ac 100644
+--- a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
++++ b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+@@ -82,3 +82,4 @@ PASS "<keygen><option>"
+ FAIL "<textarea><option>"
+ FAIL "</html><!--abc-->"
+ PASS "</frameset><frame>"
++PASS ""
+diff --git a/src/pkg/exp/html/testlogs/webkit01.dat.log b/src/pkg/exp/html/testlogs/webkit01.dat.log
+index 3488b7eec8..cf520cfae6 100644
+--- a/src/pkg/exp/html/testlogs/webkit01.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit01.dat.log
+@@ -23,8 +23,8 @@ PASS "<html><body></body></html><!-- Hi there -->"
+ PASS "<html><body></body></html>x<!-- Hi there -->"
+ PASS "<html><body></body></html>x<!-- Hi there --></html><!-- Again -->"
+ PASS "<html><body></body></html>x<!-- Hi there --></body></html><!-- Again -->"
+-FAIL "<html><body><ruby><div><rp>xx</rp></div></ruby></body></html>"
+-FAIL "<html><body><ruby><div><rt>xx</rt></div></ruby></body></html>"
++PASS "<html><body><ruby><div><rp>xx</rp></div></ruby></body></html>"
++PASS "<html><body><ruby><div><rt>xx</rt></div></ruby></body></html>"
+ PASS "<html><frameset><!--1--><noframes>A</noframes><!--2--></frameset><!--3--><noframes>B</noframes><!--4--></html><!--5--><noframes>C</noframes><!--6-->"
+ PASS "<select><option>A<select><option>B<select><option>C<select><option>D<select><option>E<select><option>F<select><option>G<select>"
+ PASS "<dd><dd><dt><dt><dd><li><li>"
+@@ -42,7 +42,7 @@ FAIL "<svg><title><svg><div>"
+ PASS "<img <=\"\" FAIL>"
+ FAIL "<ul><li><div id='foo'/>A</li><li>B<div>C</div></li></ul>"
+ PASS "<svg><em><desc></em>"
+-PASS "<table><tr><td><svg><desc><td></desc><circle>"
++FAIL "<table><tr><td><svg><desc><td></desc><circle>"
+ PASS "<svg><tfoot></mi><td>"
+ PASS "<math><mrow><mrow><mn>1</mn></mrow><mi>a</mi></mrow></math>"
+ PASS "<!doctype html><input type=\"hidden\"><frameset>"
+diff --git a/src/pkg/exp/html/testlogs/webkit02.dat.log b/src/pkg/exp/html/testlogs/webkit02.dat.log
+index 1a32ff2106..fd0ae38eb8 100644
+--- a/src/pkg/exp/html/testlogs/webkit02.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit02.dat.log
+@@ -7,3 +7,7 @@ PASS "<table><td></thead>A"
+ PASS "<table><td></tfoot>A"
+ PASS "<table><thead><td></tbody>A"
+ PASS "<legend>test</legend>"
++PASS "<table><input>"
++PASS "<b><em><dcell><postfield><postfield><postfield><postfield><missing_glyph><missing_glyph><missing_glyph><missing_glyph><hkern><aside></b></em>"
++FAIL "<isindex action=\"x\">"
++PASS "<option><XH<optgroup></optgroup>"

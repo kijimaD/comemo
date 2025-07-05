@@ -9,7 +9,43 @@ Date:   Fri Mar 20 12:25:57 2020 -0700
     Change-Id: I6fc22bdd65f0263d5672731b73d09249201ab0aa
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224458
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/proto_test.go | 13 +++++++++++++
  src/runtime/symtab.go           |  3 +++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index f3456ffede..37e68b9c53 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -422,3 +422,16 @@ func TestFakeMapping(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Make sure the profiler can handle an empty stack trace.
++// See issue 37967.
++func TestEmptyStack(t *testing.T) {
++	b := []uint64{
++		3, 0, 500, // hz = 500
++		3, 0, 10, // 10 samples with an empty stack trace
++	}
++	_, err := translateCPUProfile(b)
++	if err != nil {
++		t.Fatalf("translating profile: %v", err)
++	}
++}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 997cfa3f7a..b2147c4cb4 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -153,6 +153,9 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ //
+ //go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
+ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
++	if len(stk) == 0 {
++		return stk
++	}
+ 	pc := stk[len(stk)-1]
+ 	tracepc := pc - 1
+ 

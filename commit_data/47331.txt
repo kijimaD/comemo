@@ -63,7 +63,7 @@ Date:   Thu Jan 7 19:25:05 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  9 ++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  3 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 +++
@@ -71,3 +71,194 @@ Date:   Thu Jan 7 19:25:05 2021 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 48 ++++++++++++++++++++++++++++
  test/codegen/shift.go                        | 13 ++++++++
  6 files changed, 113 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index af398c814a..3798c37b34 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -253,6 +253,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ:
+ 		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+ 
++	case ssa.OpAMD64SHRDQ, ssa.OpAMD64SHLDQ:
++		p := s.Prog(v.Op.Asm())
++		lo, hi, bits := v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg()
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = bits
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = lo
++		p.SetFrom3Reg(hi)
++
+ 	case ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
+ 		// Arg[0] (the dividend) is in AX.
+ 		// Arg[1] (the divisor) can be in any other register.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c61b460a56..bece886c0d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -902,6 +902,9 @@
+ ((SHRB|SARB)const           x [0]) => x
+ ((ROLQ|ROLL|ROLW|ROLB)const x [0]) => x
+ 
++// Multi-register shifts
++(ORQ (SH(R|L)Q lo bits) (SH(L|R)Q hi (NEGQ bits))) => (SH(R|L)DQ lo hi bits)
++
+ // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
+ // because the x86 instructions are defined to use all 5 bits of the shift even
+ // for the small shifts. I don't think we'll ever generate a weird shift (e.g.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 5f5ebaaa35..6bf5be9e47 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -122,6 +122,7 @@ func init() {
+ 		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
+ 		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
+ 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
++		gp31shift      = regInfo{inputs: []regMask{gp, gp, cx}, outputs: []regMask{gp}}
+ 		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
+ 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
+ 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+@@ -408,6 +409,9 @@ func init() {
+ 		{name: "SARWconst", argLength: 1, reg: gp11, asm: "SARW", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int16(arg0) >> auxint, shift amount 0-15
+ 		{name: "SARBconst", argLength: 1, reg: gp11, asm: "SARB", aux: "Int8", resultInArg0: true, clobberFlags: true}, // signed int8(arg0) >> auxint, shift amount 0-7
+ 
++		{name: "SHRDQ", argLength: 3, reg: gp31shift, asm: "SHRQ", resultInArg0: true, clobberFlags: true}, // unsigned arg0 >> arg2, shifting in bits from arg1 (==(arg1<<64+arg0)>>arg2, keeping low 64 bits), shift amount is mod 64
++		{name: "SHLDQ", argLength: 3, reg: gp31shift, asm: "SHLQ", resultInArg0: true, clobberFlags: true}, // unsigned arg0 << arg2, shifting in bits from arg1 (==(arg0<<64+arg1)<<arg2, keeping high 64 bits), shift amount is mod 64
++
+ 		{name: "ROLQ", argLength: 2, reg: gp21shift, asm: "ROLQ", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.
+ 		{name: "ROLL", argLength: 2, reg: gp21shift, asm: "ROLL", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.
+ 		{name: "ROLW", argLength: 2, reg: gp21shift, asm: "ROLW", resultInArg0: true, clobberFlags: true},              // arg0 rotate left arg1 bits.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 34445cfbf1..e65c4c4a18 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -732,6 +732,8 @@ const (
+ 	OpAMD64SARLconst
+ 	OpAMD64SARWconst
+ 	OpAMD64SARBconst
++	OpAMD64SHRDQ
++	OpAMD64SHLDQ
+ 	OpAMD64ROLQ
+ 	OpAMD64ROLL
+ 	OpAMD64ROLW
+@@ -9101,6 +9103,40 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "SHRDQ",
++		argLen:       3,
++		resultInArg0: true,
++		clobberFlags: true,
++		asm:          x86.ASHRQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 2},     // CX
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:         "SHLDQ",
++		argLen:       3,
++		resultInArg0: true,
++		clobberFlags: true,
++		asm:          x86.ASHLQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 2},     // CX
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
+ 	{
+ 		name:         "ROLQ",
+ 		argLen:       2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index d208624d0e..ac5bf9d928 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -18743,6 +18743,54 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ORQ (SHRQ lo bits) (SHLQ hi (NEGQ bits)))
++	// result: (SHRDQ lo hi bits)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpAMD64SHRQ {
++				continue
++			}
++			bits := v_0.Args[1]
++			lo := v_0.Args[0]
++			if v_1.Op != OpAMD64SHLQ {
++				continue
++			}
++			_ = v_1.Args[1]
++			hi := v_1.Args[0]
++			v_1_1 := v_1.Args[1]
++			if v_1_1.Op != OpAMD64NEGQ || bits != v_1_1.Args[0] {
++				continue
++			}
++			v.reset(OpAMD64SHRDQ)
++			v.AddArg3(lo, hi, bits)
++			return true
++		}
++		break
++	}
++	// match: (ORQ (SHLQ lo bits) (SHRQ hi (NEGQ bits)))
++	// result: (SHLDQ lo hi bits)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpAMD64SHLQ {
++				continue
++			}
++			bits := v_0.Args[1]
++			lo := v_0.Args[0]
++			if v_1.Op != OpAMD64SHRQ {
++				continue
++			}
++			_ = v_1.Args[1]
++			hi := v_1.Args[0]
++			v_1_1 := v_1.Args[1]
++			if v_1_1.Op != OpAMD64NEGQ || bits != v_1_1.Args[0] {
++				continue
++			}
++			v.reset(OpAMD64SHLDQ)
++			v.AddArg3(lo, hi, bits)
++			return true
++		}
++		break
++	}
+ 	// match: (ORQ (MOVQconst [c]) (MOVQconst [d]))
+ 	// result: (MOVQconst [c|d])
+ 	for {
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index ab0ffc2e13..06f6f12473 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -288,3 +288,16 @@ func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
+ 	//ppc64: -"SLD", "RLWNM\t[$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
+ 	b[2] = b[v>>25]
+ }
++
++// 128 bit shifts
++
++func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
++	s := bits & 63
++	ŝ := (64 - bits) & 63
++	// check that the shift operation has two commas (three operands)
++	// amd64:"SHRQ.*,.*,"
++	shr := x>>s | y<<ŝ
++	// amd64:"SHLQ.*,.*,"
++	shl := x<<s | y>>ŝ
++	return shr, shl
++}

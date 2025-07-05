@@ -12,6 +12,29 @@ Date:   Sun Nov 6 11:09:09 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 7b4559bbd0..3c6c47fe8e 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -256,7 +256,7 @@ var classnames = []string{
+ func (n *Node) Format(s fmt.State, verb rune) {
+ 	switch verb {
+ 	case 'v', 'S', 'L':
+-		n.Nconv(s, fmtFlag(s, verb))
++		n.nconv(s, fmtFlag(s, verb))
+ 
+ 	case 'j':
+ 		n.jconv(s, fmtFlag(s, verb))
+@@ -1731,7 +1731,7 @@ func (n *Node) String() string {
+ 
+ // "%L"  suffix with "(type %T)" where possible
+ // "%+S" in debug mode, don't recurse, no multiline output
+-func (n *Node) Nconv(s fmt.State, flag FmtFlag) {
++func (n *Node) nconv(s fmt.State, flag FmtFlag) {
+ 	if n == nil {
+ 		fmt.Fprint(s, "<N>")
+ 		return

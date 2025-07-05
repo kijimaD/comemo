@@ -31,7 +31,60 @@ Date:   Tue Apr 28 21:58:46 2020 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/all_test.go | 20 ++++++++++++++++++++
  src/reflect/value.go    | 10 +++++++++-
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 3129ff8e5d..b95f74354f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -1680,6 +1680,26 @@ func TestSelectMaxCases(t *testing.T) {
+ 	_, _, _ = Select(sCases)
+ }
+ 
++func BenchmarkSelect(b *testing.B) {
++	channel := make(chan int)
++	close(channel)
++	var cases []SelectCase
++	for i := 0; i < 8; i++ {
++		cases = append(cases, SelectCase{
++			Dir:  SelectRecv,
++			Chan: ValueOf(channel),
++		})
++	}
++	for _, numCases := range []int{1, 4, 8} {
++		b.Run(strconv.Itoa(numCases), func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				_, _, _ = Select(cases[:numCases])
++			}
++		})
++	}
++}
++
+ // selectWatch and the selectWatcher are a watchdog mechanism for running Select.
+ // If the selectWatcher notices that the select has been blocked for >1 second, it prints
+ // an error describing the select and panics the entire test binary.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index de6f22b5b3..b0f06b936e 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2175,7 +2175,15 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 	// NOTE: Do not trust that caller is not modifying cases data underfoot.
+ 	// The range is safe because the caller cannot modify our copy of the len
+ 	// and each iteration makes its own copy of the value c.
+-	runcases := make([]runtimeSelect, len(cases))
++	var runcases []runtimeSelect
++	if len(cases) > 4 {
++		// Slice is heap allocated due to runtime dependent capacity.
++		runcases = make([]runtimeSelect, len(cases))
++	} else {
++		// Slice can be stack allocated due to constant capacity.
++		runcases = make([]runtimeSelect, len(cases), 4)
++	}
++
+ 	haveDefault := false
+ 	for i, c := range cases {
+ 		rc := &runcases[i]

@@ -10,7 +10,7 @@ Date:   Fri Oct 30 12:36:08 2015 +1300
     Change-Id: Ib2b4f24f0649eb1d13e3a58d265f13d1b6cc9bf9
     Reviewed-on: https://go-review.googlesource.com/15964
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/link.go             |  4 ++++
  src/cmd/link/internal/ld/link.go         |  4 ++++
  src/runtime/asm_ppc64x.h                 | 14 ++++----------
@@ -18,3 +18,110 @@ Date:   Fri Oct 30 12:36:08 2015 +1300
  src/runtime/internal/sys/arch_ppc64.go   |  2 +-
  src/runtime/internal/sys/arch_ppc64le.go |  2 +-
  6 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 8ebb2f4c62..c1f2260e76 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -585,6 +585,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ 	switch ctxt.Arch.Thechar {
+ 	case '6', '8':
+ 		return 0
++	case '9':
++		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
++		// just use that much stack always on ppc64x.
++		return int64(4 * ctxt.Arch.Ptrsize)
+ 	default:
+ 		return int64(ctxt.Arch.Ptrsize)
+ 	}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index a9ea2d9589..73d23c6cf0 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -168,6 +168,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
+ 	switch ctxt.Arch.Thechar {
+ 	case '6', '8':
+ 		return 0
++	case '9':
++		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
++		// just use that much stack always on ppc64x.
++		return int64(4 * ctxt.Arch.Ptrsize)
+ 	default:
+ 		return int64(ctxt.Arch.Ptrsize)
+ 	}
+diff --git a/src/runtime/asm_ppc64x.h b/src/runtime/asm_ppc64x.h
+index a2d2e5beaf..a413df6488 100644
+--- a/src/runtime/asm_ppc64x.h
++++ b/src/runtime/asm_ppc64x.h
+@@ -18,14 +18,8 @@
+ // with arguments (the arguments should be stored at FIXED_FRAME+0(R1),
+ // FIXED_FRAME+8(R1) etc) and some other low-level places.
+ //
+-// The reason for using a constant is when code is compiled as PIC on ppc64le
+-// the fixed part of the stack is 32 bytes large (although PIC is not actually
+-// supported yet).
++// The reason for using a constant is to make supporting PIC easier (although
++// we only support PIC on ppc64le which has a minimum 32 bytes of stack frame,
++// and currently always use that much, PIC on ppc64 would need to use 48).
+ 
+-#ifdef GOARCH_ppc64
+-#define FIXED_FRAME 8
+-#endif
+-
+-#ifdef GOARCH_ppc64le
+-#define FIXED_FRAME 8
+-#endif
++#define FIXED_FRAME 32
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 6f1191be02..5f5a658562 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -74,8 +74,11 @@ nocgo:
+ 	MOVDU	R3, -8(R1)
+ 	MOVDU	R0, -8(R1)
+ 	MOVDU	R0, -8(R1)
++	MOVDU	R0, -8(R1)
++	MOVDU	R0, -8(R1)
++	MOVDU	R0, -8(R1)
+ 	BL	runtime·newproc(SB)
+-	ADD	$24, R1
++	ADD	$(16+FIXED_FRAME), R1
+ 
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+@@ -174,6 +177,9 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVD	(g_sched+gobuf_sp)(g), R1	// sp = m->g0->sched.sp
+ 	MOVDU	R3, -8(R1)
+ 	MOVDU	R0, -8(R1)
++	MOVDU	R0, -8(R1)
++	MOVDU	R0, -8(R1)
++	MOVDU	R0, -8(R1)
+ 	BL	(CTR)
+ 	BR	runtime·badmcall2(SB)
+ 
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index fca31c28d0..3aa07e1f56 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -12,7 +12,7 @@ const (
+ 	PCQuantum     = 4
+ 	Int64Align    = 8
+ 	HugePageSize  = 0
+-	MinFrameSize  = 8
++	MinFrameSize  = 32
+ )
+ 
+ type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index 586a954a0c..0f02f0bf3c 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -12,7 +12,7 @@ const (
+ 	PCQuantum     = 4
+ 	Int64Align    = 8
+ 	HugePageSize  = 0
+-	MinFrameSize  = 8
++	MinFrameSize  = 32
+ )
+ 
+ type Uintreg uint64

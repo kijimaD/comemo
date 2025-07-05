@@ -9,6 +9,23 @@ Date:   Thu May 16 09:45:56 2019 -0700
     Change-Id: I21051f26c6722a957295819f2f385f2bbd0db355
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177618
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/errors/wrap.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 62332b1a88..760a08a4ef 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -8,8 +8,9 @@ import (
+ 	"internal/reflectlite"
+ )
+ 
+-// Unwrap returns the result of calling the Unwrap method on err, if err
+-// implements Wrapper. Otherwise, Unwrap returns nil.
++// Unwrap returns the result of calling the Unwrap method on err, if err's
++// type contains an Unwrap method returning error.
++// Otherwise, Unwrap returns nil.
+ func Unwrap(err error) error {
+ 	u, ok := err.(interface {
+ 		Unwrap() error

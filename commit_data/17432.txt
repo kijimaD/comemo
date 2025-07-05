@@ -11,6 +11,20 @@ Date:   Thu Aug 29 13:55:30 2013 -0700
     R=golang-dev, crawshaw
     CC=golang-dev
     https://golang.org/cl/13393045
-
+---
  src/pkg/regexp/exec_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index 555e06e826..70d069c061 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -689,7 +689,7 @@ func BenchmarkMatchEasy1_1K(b *testing.B)   { benchmark(b, easy1, 1<<10) }
+ func BenchmarkMatchEasy1_32K(b *testing.B)  { benchmark(b, easy1, 32<<10) }
+ func BenchmarkMatchEasy1_1M(b *testing.B)   { benchmark(b, easy1, 1<<20) }
+ func BenchmarkMatchEasy1_32M(b *testing.B)  { benchmark(b, easy1, 32<<20) }
+-func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 1<<0) }
++func BenchmarkMatchMedium_32(b *testing.B)  { benchmark(b, medium, 32<<0) }
+ func BenchmarkMatchMedium_1K(b *testing.B)  { benchmark(b, medium, 1<<10) }
+ func BenchmarkMatchMedium_32K(b *testing.B) { benchmark(b, medium, 32<<10) }
+ func BenchmarkMatchMedium_1M(b *testing.B)  { benchmark(b, medium, 1<<20) }

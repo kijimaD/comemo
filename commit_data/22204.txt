@@ -11,6 +11,23 @@ Date:   Sat Feb 28 17:06:06 2015 -0500
     Change-Id: I69ea2d4d871800ae56634b23ffa48583559ddbc6
     Reviewed-on: https://go-review.googlesource.com/6363
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_arm.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index 7bb7f88a86..aa7f43832a 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -123,6 +123,11 @@ init_working_dir()
+ 	if (chdir(dir) != 0) {
+ 		fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", dir);
+ 	}
++
++	// No-op to set a breakpoint on, immediately after the real chdir.
++	// Gives the test harness in go_darwin_arm_exec (which uses lldb) a
++	// chance to move the working directory.
++	getwd(dir);
+ }
+ 
+ void

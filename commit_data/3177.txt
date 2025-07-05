@@ -8,7 +8,7 @@ Date:   Tue Sep 1 16:11:17 2009 -0700
     DELTA=958  (956 added, 0 deleted, 2 changed)
     OCL=34180
     CL=34212
-
+---
  src/pkg/debug/binary/binary.go      |   4 +-
  src/pkg/debug/elf/file.go           |  10 +-
  src/pkg/debug/gosym/pclinetest.h    |   7 +
@@ -18,3 +18,1038 @@ Date:   Tue Sep 1 16:11:17 2009 -0700
  src/pkg/debug/gosym/symtab.go       | 548 ++++++++++++++++++++++++++++++++++++
  src/pkg/io/io.go                    |   4 +
  8 files changed, 954 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/binary/binary.go b/src/pkg/debug/binary/binary.go
+index 2b6aeba7c6..18c1d648bb 100644
+--- a/src/pkg/debug/binary/binary.go
++++ b/src/pkg/debug/binary/binary.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This package implements translation between
++// unsigned integer values and byte sequences.
+ package binary
+ 
+ import (
+@@ -12,7 +14,7 @@ import (
+ )
+ 
+ // A ByteOrder specifies how to convert byte sequences into
+-// 16-, 32-, or 64-bit integers.
++// 16-, 32-, or 64-bit unsigned integers.
+ type ByteOrder interface {
+ 	Uint16(b []byte) uint16;
+ 	Uint32(b []byte) uint32;
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index b91944a855..2bdf100d71 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -2,11 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package elf implements access to ELF object files.
+ package elf
+ 
+ import (
+ 	"debug/binary";
+-"fmt";
++	"fmt";
+ 	"io";
+ 	"os";
+ )
+@@ -66,6 +67,13 @@ type Section struct {
+ 	sr *io.SectionReader;
+ }
+ 
++// Data reads and returns the contents of the ELF section.
++func (s *Section) Data() ([]byte, os.Error) {
++	dat := make([]byte, s.sr.Size());
++	n, err := s.sr.ReadAt(dat, 0);
++	return dat[0:n], err;
++}
++
+ // Open returns a new ReadSeeker reading the ELF section.
+ func (s *Section) Open() io.ReadSeeker {
+ 	return io.NewSectionReader(s.sr, 0, 1<<63 - 1);
+diff --git a/src/pkg/debug/gosym/pclinetest.h b/src/pkg/debug/gosym/pclinetest.h
+new file mode 100644
+index 0000000000..a6c40e76cd
+--- /dev/null
++++ b/src/pkg/debug/gosym/pclinetest.h
+@@ -0,0 +1,7 @@
++// Empty include file to generate z symbols
++
++
++
++
++
++// EOF
+diff --git a/src/pkg/debug/gosym/pclinetest.s b/src/pkg/debug/gosym/pclinetest.s
+new file mode 100644
+index 0000000000..5a410c8b84
+--- /dev/null
++++ b/src/pkg/debug/gosym/pclinetest.s
+@@ -0,0 +1,89 @@
++TEXT linefrompc(SB),7,$0	// Each byte stores its line delta
++BYTE $2;
++BYTE $1;
++BYTE $1; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1;
++BYTE $1;
++BYTE $1; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++BYTE $1; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++#include "pclinetest.h"
++BYTE $2;
++#include "pclinetest.h"
++BYTE $2;
++
++TEXT pcfromline(SB),7,$0	// Each record stores its line delta, then n, then n more bytes
++BYTE $31; BYTE $0;
++BYTE $1; BYTE $1; BYTE $0;
++BYTE $1; BYTE $0;
++
++BYTE $2; BYTE $4; BYTE $0; BYTE $0; BYTE $0; BYTE $0;
++
++
++#include "pclinetest.h"
++BYTE $4; BYTE $0;
++
++
++BYTE $3; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
++#include "pclinetest.h"
++
++
++BYTE $4; BYTE $3; BYTE $0; BYTE $0; BYTE $0;
++
++TEXT main(SB),7,$0
++	// Prevent GC of our test symbols
++	CALL linefrompc(SB)
++	CALL pcfromline(SB)
++
++// Keep the linker happy
++TEXT sys·morestack(SB),7,$0
++	RET
++
++TEXT sys·morestack00(SB),7,$0
++	RET
++
++TEXT sys·morestack10(SB),7,$0
++	RET
++
++TEXT sys·morestack01(SB),7,$0
++	RET
++
++TEXT sys·morestack11(SB),7,$0
++	RET
++
++TEXT sys·morestack8(SB),7,$0
++	RET
++
++TEXT sys·morestack16(SB),7,$0
++	RET
++
++TEXT sys·morestack24(SB),7,$0
++	RET
++
++TEXT sys·morestack32(SB),7,$0
++	RET
++
++TEXT sys·morestack40(SB),7,$0
++	RET
++
++TEXT sys·morestack48(SB),7,$0
++	RET
++
++TEXT sys·morestack8(SB),7,$0
++	RET
++
+diff --git a/src/pkg/debug/gosym/pclntab.go b/src/pkg/debug/gosym/pclntab.go
+new file mode 100644
+index 0000000000..9671d9aa0a
+--- /dev/null
++++ b/src/pkg/debug/gosym/pclntab.go
+@@ -0,0 +1,85 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Line tables
++ */
++
++package gosym
++
++import (
++	"debug/binary";
++	"io";
++)
++
++type LineTable struct {
++	Data []byte;
++	PC uint64;
++	Line int;
++}
++
++// TODO(rsc): Need to pull in quantum from architecture definition.
++const quantum = 1;
++
++func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64, line int) {
++	// The PC/line table can be thought of as a sequence of
++	//  <pc update>* <line update>
++	// batches.  Each update batch results in a (pc, line) pair,
++	// where line applies to every PC from pc up to but not
++	// including the pc of the next pair.
++	//
++	// Here we process each update individually, which simplifies
++	// the code, but makes the corner cases more confusing.
++	b, pc, line = t.Data, t.PC, t.Line;
++	for pc <= targetPC && line != targetLine && len(b) > 0 {
++		code := b[0];
++		b = b[1:len(b)];
++		switch {
++		case code == 0:
++			if len(b) < 4 {
++				b = b[0:0];
++				break;
++			}
++			val := binary.BigEndian.Uint32(b);
++			b = b[4:len(b)];
++			line += int(val);
++		case code <= 64:
++			line += int(code);
++		case code <= 128:
++			line -= int(code - 64);
++		default:
++			pc += quantum*uint64(code - 128);
++			continue;
++		}
++		pc += quantum;
++	}
++	return b, pc, line;
++}
++
++func (t *LineTable) slice(pc uint64) *LineTable {
++	data, pc, line := t.parse(pc, -1);
++	return &LineTable{data, pc, line};
++}
++
++func (t *LineTable) PCToLine(pc uint64) int {
++	b, pc, line := t.parse(pc, -1);
++	return line;
++}
++
++func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
++	b, pc, line1 := t.parse(maxpc, line);
++	if line1 != line {
++		return 0;
++	}
++	// Subtract quantum from PC to account for post-line increment
++	return pc - quantum;
++}
++
++// NewLineTable returns a new PC/line table
++// corresponding to the encoded data.
++// Text must be the start address of the
++// corresponding text segment.
++func NewLineTable(data []byte, text uint64) *LineTable {
++	return &LineTable{data, text, 0};
++}
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+new file mode 100644
+index 0000000000..9a32d050ce
+--- /dev/null
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -0,0 +1,209 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gosym
++
++import (
++	"debug/elf";
++	"exec";
++	"io";
++	"os";
++	"testing";
++	"syscall";
++)
++
++func dotest() bool {
++	// For now, only works on ELF platforms.
++	return syscall.OS == "linux" && os.Getenv("GOARCH") == "amd64"
++}
++
++func getTable(t *testing.T) *Table {
++	f, tab := crack(os.Args[0], t);
++	f.Close();
++	return tab;
++}
++
++func crack(file string, t *testing.T) (*elf.File, *Table) {
++	// Open self
++	f, err := elf.Open(file);
++	if err != nil {
++		t.Fatal(err);
++	}
++	return parse(file, f, t);
++}
++
++func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
++	symdat, err := f.Section(".gosymtab").Data();
++	if err != nil {
++		f.Close();
++		t.Fatalf("reading %s gosymtab: %v", file, err);
++	}
++	pclndat, err := f.Section(".gopclntab").Data();
++	if err != nil {
++		f.Close();
++		t.Fatalf("reading %s gopclntab: %v", file, err);
++	}
++
++	pcln := NewLineTable(pclndat, f.Section(".text").Addr);
++	tab, err := NewTable(symdat, pcln);
++	if err != nil {
++		f.Close();
++		t.Fatalf("parsing %s gosymtab: %v", file, err);
++	}
++
++	return f, tab;
++}
++
++var goarch = os.Getenv("O")
++
++func TestLineFromAline(t *testing.T) {
++	if !dotest() {
++		return;
++	}
++
++	tab := getTable(t);
++
++	// Find the sym package
++	pkg := tab.LookupFunc("gosym.TestLineFromAline").Obj;
++	if pkg == nil {
++		t.Fatalf("nil pkg");
++	}
++
++	// Walk every absolute line and ensure that we hit every
++	// source line monotonically
++	lastline := make(map[string] int);
++	final := -1;
++	for i := 0; i < 10000; i++ {
++		path, line := pkg.lineFromAline(i);
++		// Check for end of object
++		if path == "" {
++			if final == -1 {
++				final = i - 1;
++			}
++			continue;
++		} else if final != -1 {
++			t.Fatalf("reached end of package at absolute line %d, but absolute line %d mapped to %s:%d", final, i, path, line);
++		}
++		// It's okay to see files multiple times (e.g., sys.a)
++		if line == 1 {
++			lastline[path] = 1;
++			continue;
++		}
++		// Check that the is the next line in path
++		ll, ok := lastline[path];
++		if !ok {
++			t.Errorf("file %s starts on line %d", path, line);
++		} else if line != ll + 1 {
++			t.Errorf("expected next line of file %s to be %d, got %d", path, ll + 1, line);
++		}
++		lastline[path] = line;
++	}
++	if final == -1 {
++		t.Errorf("never reached end of object");
++	}
++}
++
++func TestLineAline(t *testing.T) {
++	if !dotest() {
++		return;
++	}
++
++	tab := getTable(t);
++
++	for _, o := range tab.Files {
++		// A source file can appear multiple times in a
++		// object.  alineFromLine will always return alines in
++		// the first file, so track which lines we've seen.
++		found := make(map[string] int);
++		for i := 0; i < 1000; i++ {
++			path, line := o.lineFromAline(i);
++			if path == "" {
++				break;
++			}
++
++			// cgo files are full of 'Z' symbols, which we don't handle
++			if len(path) > 4 && path[len(path)-4:len(path)] == ".cgo" {
++				continue;
++			}
++
++			if minline, ok := found[path]; path != "" && ok {
++				if minline >= line {
++					// We've already covered this file
++					continue;
++				}
++			}
++			found[path] = line;
++
++			a, err := o.alineFromLine(path, line);
++			if err != nil {
++				t.Errorf("absolute line %d in object %s maps to %s:%d, but mapping that back gives error %s", i, o.Paths[0].Name, path, line, err);
++			} else if a != i {
++				t.Errorf("absolute line %d in object %s maps to %s:%d, which maps back to absolute line %d\n", i, o.Paths[0].Name, path, line, a);
++			}
++		}
++	}
++}
++
++// gotest: if [ "$(uname)-$(uname -m)" = Linux-x86_64 ]; then
++// gotest:    mkdir -p _test && $AS pclinetest.s && $LD -E main -l -o _test/pclinetest pclinetest.$O
++// gotest: fi
++func TestPCLine(t *testing.T) {
++	if !dotest() {
++		return;
++	}
++
++	f, tab := crack("_test/pclinetest", t);
++	text := f.Section(".text");
++	textdat, err := text.Data();
++	if err != nil {
++		t.Fatalf("reading .text: %v", err);
++	}
++
++	// Test PCToLine
++	sym := tab.LookupFunc("linefrompc");
++	wantLine := 0;
++	for pc := sym.Entry; pc < sym.End; pc++ {
++		file, line, fn := tab.PCToLine(pc);
++		off := pc - text.Addr;	// TODO(rsc): should not need off; bug in 8g
++		wantLine += int(textdat[off]);
++		if fn == nil {
++			t.Errorf("failed to get line of PC %#x", pc);
++		} else if len(file) < 12 || file[len(file)-12:len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
++			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name);
++		}
++	}
++
++	// Test LineToPC
++	sym = tab.LookupFunc("pcfromline");
++	lookupline := -1;
++	wantLine = 0;
++	off := uint64(0);	// TODO(rsc): should not need off; bug in 8g
++	for pc := sym.Value; pc < sym.End; pc += 2 + uint64(textdat[off]) {
++		file, line, fn := tab.PCToLine(pc);
++		off = pc-text.Addr;
++		wantLine += int(textdat[off]);
++		if line != wantLine {
++			t.Errorf("expected line %d at PC %#x in pcfromline, got %d", wantLine, pc, line);
++			off = pc+1-text.Addr;
++			continue;
++		}
++		if lookupline == -1 {
++			lookupline = line;
++		}
++		for ; lookupline <= line; lookupline++ {
++			pc2, fn2, err := tab.LineToPC(file, lookupline);
++			if lookupline != line {
++				// Should be nothing on this line
++				if err == nil {
++					t.Errorf("expected no PC at line %d, got %#x (%s)", lookupline, pc2, fn2.Name);
++				}
++			} else if err != nil {
++				t.Errorf("failed to get PC of line %d: %s", lookupline, err);
++			} else if pc != pc2 {
++				t.Errorf("expected PC %#x (%s) at line %d, got PC %#x (%s)", pc, fn.Name, line, pc2, fn2.Name);
++			}
++		}
++		off = pc+1-text.Addr;
++	}
++}
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+new file mode 100644
+index 0000000000..d236be5153
+--- /dev/null
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -0,0 +1,548 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++// Package gosym implements access to the Go symbol
++// and line number tables embedded in Go binaries generated
++// by the gc compilers.
++package gosym
++
++// The table format is a variant of the format used in Plan 9's a.out
++// format, documented at http://plan9.bell-labs.com/magic/man2html/6/a.out.
++// The best reference for the differences between the Plan 9 format
++// and the Go format is the runtime source, specifically ../../runtime/symtab.c.
++
++import (
++	"debug/binary";
++	"fmt";
++	"os";
++	"strconv";
++	"strings";
++)
++
++/*
++ * Symbols
++ */
++
++// A Sym represents a single symbol table entry.
++type Sym struct {
++	Value uint64;
++	Type byte;
++	Name string;
++	GoType uint64;
++}
++
++// Static returns whether this symbol is static (not visible outside its file).
++func (s *Sym) Static() bool {
++	return s.Type >= 'a';
++}
++
++// PackageName returns the package part of the symbol name,
++// or the empty string if there is none.
++func (s *Sym) PackageName() string {
++	if i := strings.Index(s.Name, "."); i != -1 {
++		return s.Name[0:i];
++	}
++	return "";
++}
++
++// ReceiverName returns the receiver type name of this symbol,
++// or the empty string if there is none.
++func (s *Sym) ReceiverName() string {
++	l := strings.Index(s.Name, ".");
++	r := strings.LastIndex(s.Name, ".");
++	if l == -1 || r == -1 {
++		return "";
++	}
++	return s.Name[l+1:r];
++}
++
++// BaseName returns the symbol name without the package or receiver name.
++func (s *Sym) BaseName() string {
++	if i := strings.LastIndex(s.Name, "."); i != -1 {
++		return s.Name[i+1:len(s.Name)];
++	}
++	return s.Name;
++}
++
++// A Func collects information about a single function.
++type Func struct {
++	Entry uint64;
++	*Sym;
++	End uint64;
++	Params []*Sym;
++	Locals []*Sym;
++	FrameSize int;
++	LineTable *LineTable;
++	Obj *Obj;
++}
++
++// An Obj represents a single object file.
++type Obj struct {
++	Funcs []Func;
++	Paths []Sym;
++}
++
++/*
++ * Symbol tables
++ */
++
++// Table represents a Go symbol table.  It stores all of the
++// symbols decoded from the program and provides methods to translate
++// between symbols, names, and addresses.
++type Table struct {
++	Syms []Sym;
++	Funcs []Func;
++	Files map[string] *Obj;
++	Objs []Obj;
++//	textEnd uint64;
++}
++
++type sym struct {
++	value uint32;
++	gotype uint32;
++	typ byte;
++	name []byte;
++}
++
++func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
++	var s sym;
++	p := data;
++	for len(p) >= 6 {
++		s.value = binary.BigEndian.Uint32(p[0:4]);
++		typ := p[4];
++		if typ&0x80 == 0 {
++			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ};
++		}
++		typ &^= 0x80;
++		s.typ = typ;
++		p = p[5:len(p)];
++		var i int;
++		var nnul int;
++		for i = 0; i < len(p); i++ {
++			if p[i] == 0 {
++				nnul = 1;
++				break;
++			}
++		}
++		switch typ {
++		case 'z', 'Z':
++			p = p[i+nnul:len(p)];
++			for i = 0; i+2 <= len(p); i += 2 {
++				if p[i] == 0 && p[i+1] == 0 {
++					nnul = 2;
++					break;
++				}
++			}
++		}
++		if i+nnul+4 > len(p) {
++			return &DecodingError{len(data), "unexpected EOF", nil};
++		}
++		s.name = p[0:i];
++		i += nnul;
++		s.gotype = binary.BigEndian.Uint32(p[i:i+4]);
++		p = p[i+4:len(p)];
++		fn(s);
++	}
++	return nil;
++}
++
++// NewTable decodes the Go symbol table in data,
++// returning an in-memory representation.
++func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
++	var n int;
++	err := walksymtab(symtab, func(s sym) os.Error { n++; return nil });
++	if err != nil {
++		return nil, err;
++	}
++
++	var t Table;
++	fname := make(map[uint16]string);
++	t.Syms = make([]Sym, 0, n);
++	nf := 0;
++	nz := 0;
++	lasttyp := uint8(0);
++	err = walksymtab(symtab, func(s sym) os.Error {
++		n := len(t.Syms);
++		t.Syms = t.Syms[0:n+1];
++		ts := &t.Syms[n];
++		ts.Type = s.typ;
++		ts.Value = uint64(s.value);
++		ts.GoType = uint64(s.gotype);
++		switch s.typ {
++		default:
++			// rewrite name to use . instead of · (c2 b7)
++			w := 0;
++			b := s.name;
++			for i := 0; i < len(b); i++ {
++				if b[i] == 0xc2 && i+1 < len(b) && b[i+1] == 0xb7 {
++					i++;
++					b[i] = '.';
++				}
++				b[w] = b[i];
++				w++;
++			}
++			ts.Name = string(s.name[0:w]);
++		case 'z', 'Z':
++			if lasttyp != 'z' && lasttyp != 'Z' {
++				nz++;
++			}
++			for i := 0; i < len(s.name); i += 2 {
++				eltIdx := binary.BigEndian.Uint16(s.name[i:i+2]);
++				elt, ok := fname[eltIdx];
++				if !ok {
++					return &DecodingError{-1, "bad filename code", eltIdx};
++				}
++				if n := len(ts.Name); n > 0 && ts.Name[n-1] != '/' {
++					ts.Name += "/";
++				}
++				ts.Name += elt;
++			}
++		}
++		switch s.typ {
++		case 'T', 't', 'L', 'l':
++			nf++;
++		case 'f':
++			fname[uint16(s.value)] = ts.Name;
++		}
++		lasttyp = s.typ;
++		return nil
++	});
++	if err != nil {
++		return nil, err;
++	}
++
++	t.Funcs = make([]Func, 0, nf);
++	t.Objs = make([]Obj, 0, nz);
++	t.Files = make(map[string] *Obj);
++
++	// Count text symbols and attach frame sizes, parameters, and
++	// locals to them.  Also, find object file boundaries.
++	var obj *Obj;
++	lastf := 0;
++	for i := 0; i < len(t.Syms); i++ {
++		sym := &t.Syms[i];
++		switch sym.Type {
++		case 'Z', 'z':	// path symbol
++			// Finish the current object
++			if obj != nil {
++				obj.Funcs = t.Funcs[lastf:len(t.Funcs)];
++			}
++			lastf = len(t.Funcs);
++
++			// Start new object
++			n := len(t.Objs);
++			t.Objs = t.Objs[0:n+1];
++			obj = &t.Objs[n];
++
++			// Count & copy path symbols
++			var end int;
++			for end = i+1; end < len(t.Syms); end++ {
++				if c := t.Syms[end].Type; c != 'Z' && c != 'z' {
++					break;
++				}
++			}
++			obj.Paths = t.Syms[i:end];
++			i = end-1;	// loop will i++
++
++			// Record file names
++			depth := 0;
++			for j := range obj.Paths {
++				s := &obj.Paths[j];
++				if s.Name == "" {
++					depth--;
++				} else {
++					if depth == 0 {
++						t.Files[s.Name] = obj;
++					}
++					depth++;
++				}
++			}
++
++		case 'T', 't', 'L', 'l':	// text symbol
++			if n := len(t.Funcs); n > 0 {
++				t.Funcs[n-1].End = sym.Value;
++			}
++			if sym.Name == "etext" {
++				continue;
++			}
++
++			// Count parameter and local (auto) syms
++			var np, na int;
++			var end int;
++		countloop:
++			for end = i+1; end < len(t.Syms); end++ {
++				switch t.Syms[end].Type {
++				case 'T', 't', 'L', 'l', 'Z', 'z':
++					break countloop;
++				case 'p':
++					np++;
++				case 'a':
++					na++;
++				}
++			}
++
++			// Fill in the function symbol
++			n := len(t.Funcs);
++			t.Funcs = t.Funcs[0:n+1];
++			fn := &t.Funcs[n];
++			fn.Params = make([]*Sym, 0, np);
++			fn.Locals = make([]*Sym, 0, na);
++			fn.Sym = sym;
++			fn.Entry = sym.Value;
++			fn.Obj = obj;
++			if pcln != nil {
++				fn.LineTable = pcln.slice(fn.Entry);
++				pcln = fn.LineTable;
++			}
++			for j := i; j < end; j++ {
++				s := &t.Syms[j];
++				switch s.Type {
++				case 'm':
++					fn.FrameSize = int(s.Value);
++				case 'p':
++					n := len(fn.Params);
++					fn.Params = fn.Params[0:n+1];
++					fn.Params[n] = s;
++				case 'a':
++					n := len(fn.Locals);
++					fn.Locals = fn.Locals[0:n+1];
++					fn.Locals[n] = s;
++				}
++			}
++			i = end-1;	// loop will i++
++		}
++	}
++	if obj != nil {
++		obj.Funcs = t.Funcs[lastf:len(t.Funcs)];
++	}
++	return &t, nil;
++}
++
++// PCToFunc returns the function containing the program counter pc,
++// or nil if there is no such function.
++func (t *Table) PCToFunc(pc uint64) *Func {
++	funcs := t.Funcs;
++	for len(funcs) > 0 {
++		m := len(funcs)/2;
++		fn := &funcs[m];
++		switch {
++		case pc < fn.Entry:
++			funcs = funcs[0:m];
++		case fn.Entry <= pc && pc < fn.End:
++			return fn;
++		default:
++			funcs = funcs[m+1:len(funcs)];
++		}
++	}
++	return nil;
++}
++
++// PCToLine looks up line number information for a program counter.
++// If there is no information, it returns fn == nil.
++func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
++	if fn = t.PCToFunc(pc); fn == nil {
++		return
++	}
++	file, line = fn.Obj.lineFromAline(fn.LineTable.PCToLine(pc));
++	return;
++}
++
++// LineToPC looks up the first program counter on the given line in
++// the named file.  Returns UnknownPathError or UnknownLineError if
++// there is an error looking up this line.
++func (t *Table) LineToPC(file string, line int) (pc uint64, fn *Func, err os.Error) {
++	obj, ok := t.Files[file];
++	if !ok {
++		return 0, nil, UnknownFileError(file);
++	}
++	abs, err := obj.alineFromLine(file, line);
++	if err != nil {
++		return;
++	}
++	for i := range obj.Funcs {
++		f := &obj.Funcs[i];
++		pc := f.LineTable.LineToPC(abs, f.End);
++		if pc != 0 {
++			return pc, f, nil;
++		}
++	}
++	return 0, nil, &UnknownLineError{file, line};
++}
++
++// LookupSym returns the text, data, or bss symbol with the given name,
++// or nil if no such symbol is found.
++func (t *Table) LookupSym(name string) *Sym {
++	// TODO(austin) Maybe make a map
++	for i := range t.Syms {
++		s := &t.Syms[i];
++		switch s.Type {
++		case 'T', 't', 'L', 'l', 'D', 'd', 'B', 'b':
++			if s.Name == name {
++				return s;
++			}
++		}
++	}
++	return nil;
++}
++
++// LookupFunc returns the text, data, or bss symbol with the given name,
++// or nil if no such symbol is found.
++func (t *Table) LookupFunc(name string) *Func {
++	for i := range t.Funcs {
++		f := &t.Funcs[i];
++		if f.Sym.Name == name {
++			return f;
++		}
++	}
++	return nil;
++}
++
++// SymByAddr returns the text, data, or bss symbol starting at the given address.
++// TODO(rsc): Allow lookup by any address within the symbol.
++func (t *Table) SymByAddr(addr uint64) *Sym {
++	// TODO(austin) Maybe make a map
++	for i := range t.Syms {
++		s := &t.Syms[i];
++		switch s.Type {
++		case 'T', 't', 'L', 'l', 'D', 'd', 'B', 'b':
++			if s.Value == addr {
++				return s;
++			}
++		}
++	}
++	return nil;
++}
++
++/*
++ * Object files
++ */
++
++func (o *Obj) lineFromAline(aline int) (string, int) {
++	type stackEnt struct {
++		path string;
++		start int;
++		offset int;
++		prev *stackEnt;
++	};
++
++	noPath := &stackEnt{"", 0, 0, nil};
++	tos := noPath;
++
++	// TODO(austin) I have no idea how 'Z' symbols work, except
++	// that they pop the stack.
++pathloop:
++	for _, s := range o.Paths {
++		val := int(s.Value);
++		switch {
++		case val > aline:
++			break pathloop;
++
++		case val == 1:
++			// Start a new stack
++			tos = &stackEnt{s.Name, val, 0, noPath};
++
++		case s.Name == "":
++			// Pop
++			if tos == noPath {
++				return "<malformed symbol table>", 0;
++			}
++			tos.prev.offset += val - tos.start;
++			tos = tos.prev;
++
++		default:
++			// Push
++			tos = &stackEnt{s.Name, val, 0, tos};
++		}
++	}
++
++	if tos == noPath {
++		return "", 0;
++	}
++	return tos.path, aline - tos.start - tos.offset + 1;
++}
++
++func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
++	if line < 1 {
++		return 0, &UnknownLineError{path, line};
++	}
++
++	for i, s := range o.Paths {
++		// Find this path
++		if s.Name != path {
++			continue;
++		}
++
++		// Find this line at this stack level
++		depth := 0;
++		var incstart int;
++		line += int(s.Value);
++	pathloop:
++		for _, s := range o.Paths[i:len(o.Paths)] {
++			val := int(s.Value);
++			switch {
++			case depth == 1 && val >= line:
++				return line - 1, nil;
++
++			case s.Name == "":
++				depth--;
++				if depth == 0 {
++					break pathloop;
++				} else if depth == 1 {
++					line += val - incstart;
++				}
++
++			default:
++				if depth == 1 {
++					incstart = val;
++				}
++				depth++;
++			}
++		}
++		return 0, &UnknownLineError{path, line};
++	}
++	return 0, UnknownFileError(path);
++}
++
++/*
++ * Errors
++ */
++
++// UnknownFileError represents a failure to find the specific file in
++// the symbol table.
++type UnknownFileError string
++
++func (e UnknownFileError) String() string {
++	return "unknown file: " + string(e);
++}
++
++// UnknownLineError represents a failure to map a line to a program
++// counter, either because the line is beyond the bounds of the file
++// or because there is no code on the given line.
++type UnknownLineError struct {
++	File string;
++	Line int;
++}
++
++func (e *UnknownLineError) String() string {
++	return "no code at " + e.File + ":" + strconv.Itoa(e.Line);
++}
++
++// DecodingError represents an error during the decoding of
++// the symbol table.
++type DecodingError struct {
++	off int;
++	msg string;
++	val interface{};
++}
++
++func (e *DecodingError) String() string {
++	msg := e.msg;
++	if e.val != nil {
++		msg += fmt.Sprintf(" '%v'", e.val);
++	}
++	msg += fmt.Sprintf(" at byte %#x", e.off);
++	return msg;
++}
++
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 546203800f..be6614b643 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -321,3 +321,7 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
+ 	return s.r.ReadAt(p, off);
+ }
+ 
++// Size returns the size of the section in bytes.
++func (s *SectionReader) Size() int64 {
++	return s.limit - s.base
++}

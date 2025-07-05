@@ -12,7 +12,7 @@ Date:   Fri Jan 6 09:20:31 2012 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5520044
-
+---
  doc/articles/defer_panic_recover.html |  18 ++---
  doc/articles/error_handling.html      |  70 +++++++----------
  doc/effective_go.html                 |  12 +--
@@ -20,3 +20,962 @@ Date:   Fri Jan 6 09:20:31 2012 +1100
  doc/go_tutorial.html                  | 137 ++++++++++++----------------------
  doc/tmpltohtml.go                     |   2 +
  6 files changed, 102 insertions(+), 185 deletions(-)
+
+diff --git a/doc/articles/defer_panic_recover.html b/doc/articles/defer_panic_recover.html
+index 86144fdc2c..b78258d1c8 100644
+--- a/doc/articles/defer_panic_recover.html
++++ b/doc/articles/defer_panic_recover.html
+@@ -37,8 +37,7 @@ contents of one file to the other:
+     dst.Close()
+     src.Close()
+     return
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ This works, but there is a bug. If the second call to os.Open fails, the
+@@ -64,8 +63,7 @@ files are always closed:
+     defer dst.Close()
+ 
+     return io.Copy(dst, src)
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ Defer statements allow us to think about closing each file right after opening
+@@ -94,8 +92,7 @@ deferred. The deferred call will print "0" after the function returns.
+     defer fmt.Println(i)
+     i++
+     return
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ 2. <i>Deferred function calls are executed in Last In First Out order
+@@ -111,8 +108,7 @@ This function prints "3210":
+     for i := 0; i &lt; 4; i++ {
+         defer fmt.Print(i)
+     }
+-}
+-</pre>
++}</pre>
+  
+ <p>
+ 3. <i>Deferred functions may read and assign to the returning function's named
+@@ -128,8 +124,7 @@ the surrounding function returns. Thus, this function returns 2:
+ -->func c() (i int) {
+     defer func() { i++ }()
+     return 1
+-}
+-</pre>
++}</pre>
+  
+ <p>
+ This is convenient for modifying the error return value of a function; we will
+@@ -188,8 +183,7 @@ func g(i int) {
+     defer fmt.Println(&#34;Defer in g&#34;, i)
+     fmt.Println(&#34;Printing in g&#34;, i)
+     g(i + 1)
+-}
+-</pre>
++}</pre>
+  
+ <p>
+ The function g takes the int i, and panics if i is greater than 3, or else it
+diff --git a/doc/articles/error_handling.html b/doc/articles/error_handling.html
+index 2b9e84c3cd..48292c2c99 100644
+--- a/doc/articles/error_handling.html
++++ b/doc/articles/error_handling.html
+@@ -12,8 +12,7 @@ returns a non-nil <code>error</code> value when it fails to open a file.
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func Open/`}}
+--->func Open(name string) (file *File, err error)
+-</pre>
++-->func Open(name string) (file *File, err error)</pre>
+ 
+ <p>
+ The following code uses <code>os.Open</code> to open a file. If an error
+@@ -21,12 +20,11 @@ occurs it calls <code>log.Fatal</code> to print the error message and stop.
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func openFile/` `/STOP/`}}
+--->    f, err := os.Open(&#34;filename.ext&#34;)
++-->f, err := os.Open(&#34;filename.ext&#34;)
+     if err != nil {
+         log.Fatal(err)
+     }
+-    // do something with the open *File f
+-</pre>
++    // do something with the open *File f</pre>
+ 
+ <p>
+ You can get a lot done in Go knowing just this about the <code>error</code>
+@@ -67,8 +65,7 @@ type errorString struct {
+ 
+ func (e *errorString) Error() string {
+     return e.s
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ You can construct one of these values with the <code>errors.New</code>
+@@ -80,8 +77,7 @@ and returns as an <code>error</code> value.
+ -->// New returns an error that formats as the given text.
+ func New(text string) error {
+     return &amp;errorString{text}
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ Here's how you might use <code>errors.New</code>:
+@@ -93,8 +89,7 @@ Here's how you might use <code>errors.New</code>:
+         return 0, errors.New(&#34;math: square root of negative number&#34;)
+     }
+     // implementation
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
+@@ -105,11 +100,10 @@ A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func printErr/` `/STOP/`}}
+--->    f, err := Sqrt(-1)
++-->f, err := Sqrt(-1)
+     if err != nil {
+         fmt.Println(err)
+-    }
+-</pre>
++    }</pre>
+ 
+ <p>
+ The <a href="/pkg/fmt/">fmt</a> package formats an <code>error</code> value
+@@ -131,10 +125,9 @@ rules and returns it as an <code>error</code> created by
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/fmtError/` `/STOP/`}}
+--->    if f &lt; 0 {
++-->if f &lt; 0 {
+         return 0, fmt.Errorf(&#34;math: square root of negative number %g&#34;, f)
+-    }
+-</pre>
++    }</pre>
+ 
+ <p>
+ In many cases <code>fmt.Errorf</code> is good enough, but since
+@@ -153,8 +146,7 @@ error implementation instead of using <code>errors.errorString</code>:
+ 
+ func (f NegativeSqrtError) Error() string {
+     return fmt.Sprintf(&#34;math: square root of negative number %g&#34;, float64(f))
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ A sophisticated caller can then use a
+@@ -176,8 +168,7 @@ returns when it encounters a syntax error parsing a JSON blob.
+     Offset int64  // error occurred after reading Offset bytes
+ }
+ 
+-func (e *SyntaxError) Error() string { return e.msg }
+-</pre>
++func (e *SyntaxError) Error() string { return e.msg }</pre>
+ 
+ <p>
+ The <code>Offset</code> field isn't even shown in the default formatting of the
+@@ -186,14 +177,13 @@ messages:
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func decodeError/` `/STOP/`}}
+--->    if err := dec.Decode(&amp;val); err != nil {
++-->if err := dec.Decode(&amp;val); err != nil {
+         if serr, ok := err.(*json.SyntaxError); ok {
+             line, col := findLine(f, serr.Offset)
+             return fmt.Errorf(&#34;%s:%d:%d: %v&#34;, f.Name(), line, col, err)
+         }
+         return err
+-    }
+-</pre>
++    }</pre>
+ 
+ <p>
+ (This is a slightly simplified version of some
+@@ -226,14 +216,13 @@ up otherwise.
+ </p>
+ 
+ <pre><!--{{code "progs/error.go" `/func netError/` `/STOP/`}}
+--->        if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
++-->if nerr, ok := err.(net.Error); ok &amp;&amp; nerr.Temporary() {
+             time.Sleep(1e9)
+             continue
+         }
+         if err != nil {
+             log.Fatal(err)
+-        }
+-</pre>
++        }</pre>
+ 
+ <p>
+ <b>Simplifying repetitive error handling</b>
+@@ -269,8 +258,7 @@ func viewRecord(w http.ResponseWriter, r *http.Request) {
+     if err := viewTemplate.Execute(w, record); err != nil {
+         http.Error(w, err.Error(), 500)
+     }
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ This function handles errors returned by the <code>datastore.Get</code>
+@@ -287,8 +275,7 @@ type that includes an <code>error</code> return value:
+ </p>
+ 
+ <pre><!--{{code "progs/error3.go" `/type appHandler/`}}
+--->type appHandler func(http.ResponseWriter, *http.Request) error
+-</pre>
++-->type appHandler func(http.ResponseWriter, *http.Request) error</pre>
+ 
+ <p>
+ Then we can change our <code>viewRecord</code> function to return errors:
+@@ -303,8 +290,7 @@ Then we can change our <code>viewRecord</code> function to return errors:
+         return err
+     }
+     return viewTemplate.Execute(w, record)
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ This is simpler than the original version, but the <a
+@@ -319,8 +305,7 @@ To fix this we can implement the <code>http.Handler</code> interface's
+     if err := fn(w, r); err != nil {
+         http.Error(w, err.Error(), 500)
+     }
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ The <code>ServeHTTP</code> method calls the <code>appHandler</code> function
+@@ -339,8 +324,7 @@ Now when registering <code>viewRecord</code> with the http package we use the
+ <pre><!--{{code "progs/error3.go" `/func init/` `/STOP/`}}
+ -->func init() {
+     http.Handle(&#34;/view&#34;, appHandler(viewRecord))
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ With this basic error handling infrastructure in place, we can make it more
+@@ -360,16 +344,14 @@ To do this we create an <code>appError</code> struct containing an
+     Error   error
+     Message string
+     Code    int
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ Next we modify the appHandler type to return <code>*appError</code> values:
+ </p>
+ 
+ <pre><!--{{code "progs/error4.go" `/type appHandler/`}}
+--->type appHandler func(http.ResponseWriter, *http.Request) *appError
+-</pre>
++-->type appHandler func(http.ResponseWriter, *http.Request) *appError</pre>
+ 
+ <p>
+ (It's usually a mistake to pass back the concrete type of an error rather than
+@@ -392,8 +374,7 @@ console:
+         c.Errorf(&#34;%v&#34;, e.Error)
+         http.Error(w, e.Message, e.Code)
+     }
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ Finally, we update <code>viewRecord</code> to the new function signature and
+@@ -412,8 +393,7 @@ have it return more context when it encounters an error:
+         return &amp;appError{err, &#34;Can&#39;t display record&#34;, 500}
+     }
+     return nil
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ This version of <code>viewRecord</code> is the same length as the original, but
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 0e0a36bd52..43b18e6179 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1690,8 +1690,7 @@ const (
+     EB
+     ZB
+     YB
+-)
+-</pre>
++)</pre>
+ <p>
+ The ability to attach a method such as <code>String</code> to a
+ type makes it possible for such values to format themselves
+@@ -1718,8 +1717,7 @@ automatically for printing, even as part of a general type.
+         return fmt.Sprintf(&#34;%.2fKB&#34;, float64(b/KB))
+     }
+     return fmt.Sprintf(&#34;%.2fB&#34;, float64(b))
+-}
+-</pre>
++}</pre>
+ <p>
+ (The <code>float64</code> conversions prevent <code>Sprintf</code> 
+ from recurring back through the <code>String</code> method for 
+@@ -1893,8 +1891,7 @@ func (s Sequence) String() string {
+         str += fmt.Sprint(elem)
+     }
+     return str + &#34;]&#34;
+-}
+-</pre>
++}</pre>
+ 
+ <h3 id="conversions">Conversions</h3>
+ 
+@@ -3044,8 +3041,7 @@ value=&#34;Show QR&#34; name=qr&gt;
+ &lt;/form&gt;
+ &lt;/body&gt;
+ &lt;/html&gt;
+-`
+-</pre>
++`</pre>
+ <p>
+ The pieces up to <code>main</code> should be easy to follow.
+ The one flag sets a default HTTP port for our server.  The template
+diff --git a/doc/go1.html b/doc/go1.html
+index f362fe970a..dbf263e082 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -44,9 +44,8 @@ call.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/greeting := ..byte/` `/append.*hello/`}}
+--->    greeting := []byte{}
+-    greeting = append(greeting, []byte(&#34;hello &#34;)...)
+-</pre>
++-->greeting := []byte{}
++    greeting = append(greeting, []byte(&#34;hello &#34;)...)</pre>
+ 
+ <p>
+ By analogy with the similar property of <code>copy</code>, Go 1
+@@ -55,8 +54,7 @@ slice; the conversion is no longer necessary:
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/append.*world/`}}
+--->    greeting = append(greeting, &#34;world&#34;...)
+-</pre>
++-->greeting = append(greeting, &#34;world&#34;...)</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -97,7 +95,7 @@ All four of the initializations in this example are legal; the last one was ille
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/type Date struct/` `/STOP/`}}
+--->    type Date struct {
++-->type Date struct {
+         month string
+         day   int
+     }
+@@ -124,8 +122,7 @@ All four of the initializations in this example are legal; the last one was ille
+         {&#34;Feb&#34;, 14},
+         {&#34;Nov&#34;, 11},
+         {&#34;Dec&#34;, 25},
+-    }
+-</pre>
++    }</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -152,8 +149,7 @@ func init() {
+     c := make(chan int)
+     go initializationFunction(c)
+     PackageGlobal = &lt;-c
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -186,14 +182,13 @@ relatives now take and return a <code>rune</code>.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/STARTRUNE/` `/ENDRUNE/`}}
+--->    delta := &#39;δ&#39; // delta has type rune.
++-->delta := &#39;δ&#39; // delta has type rune.
+     var DELTA rune
+     DELTA = unicode.ToUpper(delta)
+     epsilon := unicode.ToLower(DELTA + 1)
+     if epsilon != &#39;δ&#39;+1 {
+         log.Fatal(&#34;inconsistent casing for Greek&#34;)
+-    }
+-</pre>
++    }</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -236,8 +231,7 @@ function, <code>delete</code>.  The call
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/delete\(m, k\)/`}}
+--->    delete(m, k)
+-</pre>
++-->delete(m, k)</pre>
+ 
+ <p>
+ will delete the map entry retrieved by the expression <code>m[k]</code>.
+@@ -264,12 +258,11 @@ Code should not assume that the elements are visited in any particular order.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/Sunday/` `/^	}/`}}
+--->    m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
++-->m := map[string]int{&#34;Sunday&#34;: 0, &#34;Monday&#34;: 1}
+     for name, value := range m {
+         // This loop should not assume Sunday will be visited first.
+         f(name, value)
+-    }
+-</pre>
++    }</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -299,7 +292,7 @@ These examples illustrate the behavior.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/sa :=/` `/then sc.0. = 2/`}}
+--->    sa := []int{1, 2, 3}
++-->sa := []int{1, 2, 3}
+     i := 0
+     i, sa[i] = 1, 2 // sets i = 1, sa[0] = 2
+ 
+@@ -308,8 +301,7 @@ These examples illustrate the behavior.
+     sb[j], j = 2, 1 // sets sb[0] = 2, j = 1
+ 
+     sc := []int{1, 2, 3}
+-    sc[0], sc[0] = 1, 2 // sets sc[0] = 1, then sc[0] = 2 (so sc[0] = 2 at end)
+-</pre>
++    sc[0], sc[0] = 1, 2 // sets sc[0] = 1, then sc[0] = 2 (so sc[0] = 2 at end)</pre>
+ 
+ <p>
+ <em>Updating</em>:
+@@ -417,7 +409,7 @@ As a result, structs and arrays can now be used as map keys:
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/type Day struct/` `/Printf/`}}
+--->    type Day struct {
++-->type Day struct {
+         long  string
+         short string
+     }
+@@ -427,8 +419,7 @@ As a result, structs and arrays can now be used as map keys:
+         Christmas:    true,
+         Thanksgiving: true,
+     }
+-    fmt.Printf(&#34;Christmas is a holiday: %t\n&#34;, holiday[Christmas])
+-</pre>
++    fmt.Printf(&#34;Christmas is a holiday: %t\n&#34;, holiday[Christmas])</pre>
+ 
+ <p>
+ Note that equality is still undefined for slices, for which the
+@@ -575,8 +566,7 @@ does for <code>String</code>, for easy printing of error values.
+ 
+ func (se *SyntaxError) Error() string {
+     return fmt.Sprintf(&#34;%s:%d: %s&#34;, se.File, se.Line, se.Message)
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ All standard packages have been updated to use the new interface; the old <code>os.Error</code> is gone.
+@@ -595,8 +585,7 @@ to turn a string into an error. It replaces the old <code>os.NewError</code>.
+ </p>
+ 
+ <pre><!--{{code "progs/go1.go" `/ErrSyntax/`}}
+--->    var ErrSyntax = errors.New(&#34;syntax error&#34;)
+-</pre>
++-->var ErrSyntax = errors.New(&#34;syntax error&#34;)</pre>
+ 		
+ <p>
+ <em>Updating</em>:
+@@ -677,8 +666,7 @@ func sleepUntil(wakeup time.Time) {
+     delta := wakeup.Sub(now) // A Duration.
+     log.Printf(&#34;Sleeping for %.3fs&#34;, delta.Seconds())
+     time.Sleep(delta)
+-}
+-</pre>
++}</pre>
+ 
+ <p>
+ The new types, methods, and constants have been propagated through
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index d97ebe8ba4..13c352b87c 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -33,8 +33,7 @@ import fmt &#34;fmt&#34; // Package implementing formatted I/O.
+ 
+ func main() {
+     fmt.Printf(&#34;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&#34;)
+-}
+-</pre>
++}</pre>
+ <p>
+ Every Go source file declares, using a <code>package</code> statement, which package it's part of.
+ It may also import other packages to use their facilities.
+@@ -144,8 +143,7 @@ func main() {
+         s += Newline
+     }
+     os.Stdout.WriteString(s)
+-}
+-</pre>
++}</pre>
+ <p>
+ This program is small but it's doing a number of new things.  In the last example,
+ we saw <code>func</code> introduce a function.  The keywords <code>var</code>, <code>const</code>, and <code>type</code>
+@@ -211,8 +209,7 @@ The <code>:=</code> operator is used a lot in Go to represent an initializing de
+ There's one in the <code>for</code> clause on the next line:
+ <p>
+ <pre><!--{{code "progs/echo.go" `/for/`}}
+--->    for i := 0; i &lt; flag.NArg(); i++ {
+-</pre>
++-->for i := 0; i &lt; flag.NArg(); i++ {</pre>
+ <p>
+ The <code>flag</code> package has parsed the arguments and left the non-flag arguments
+ in a list that can be iterated over in the obvious way.
+@@ -261,14 +258,13 @@ of course you can change a string <i>variable</i> simply by
+ reassigning it.  This snippet from <code>strings.go</code> is legal code:
+ <p>
+ <pre><!--{{code "progs/strings.go" `/hello/` `/ciao/`}}
+--->    s := &#34;hello&#34;
++-->s := &#34;hello&#34;
+     if s[1] != &#39;e&#39; {
+         os.Exit(1)
+     }
+     s = &#34;good bye&#34;
+     var p *string = &amp;s
+-    *p = &#34;ciao&#34;
+-</pre>
++    *p = &#34;ciao&#34;</pre>
+ <p>
+ However the following statements are illegal because they would modify
+ a <code>string</code> value:
+@@ -340,8 +336,7 @@ Using slices one can write this function (from <code>sum.go</code>):
+         s += a[i]
+     }
+     return s
+-}
+-</pre>
++}</pre>
+ <p>
+ Note how the return type (<code>int</code>) is defined for <code>sum</code> by stating it
+ after the parameter list.
+@@ -493,8 +488,7 @@ import (
+ type File struct {
+     fd   int    // file descriptor number
+     name string // file name at Open time
+-}
+-</pre>
++}</pre>
+ <p>
+ The first few lines declare the name of the
+ package&mdash;<code>file</code>&mdash;and then import two packages.  The <code>os</code>
+@@ -535,8 +529,7 @@ First, though, here is a factory to create a <code>File</code>:
+         return nil
+     }
+     return &amp;File{fd, name}
+-}
+-</pre>
++}</pre>
+ <p>
+ This returns a pointer to a new <code>File</code> structure with the file descriptor and name
+ filled in.  This code uses Go's notion of a ''composite literal'', analogous to
+@@ -560,8 +553,7 @@ We can use the factory to construct some familiar, exported variables of type <c
+     Stdin  = newFile(syscall.Stdin, &#34;/dev/stdin&#34;)
+     Stdout = newFile(syscall.Stdout, &#34;/dev/stdout&#34;)
+     Stderr = newFile(syscall.Stderr, &#34;/dev/stderr&#34;)
+-)
+-</pre>
++)</pre>
+ <p>
+ The <code>newFile</code> function was not exported because it's internal. The proper,
+ exported factory to use is <code>OpenFile</code> (we'll explain that name in a moment):
+@@ -570,8 +562,7 @@ exported factory to use is <code>OpenFile</code> (we'll explain that name in a m
+ -->func OpenFile(name string, mode int, perm uint32) (file *File, err error) {
+     r, err := syscall.Open(name, mode, perm)
+     return newFile(r, name), err
+-}
+-</pre>
++}</pre>
+ <p>
+ There are a number of new things in these few lines.  First, <code>OpenFile</code> returns
+ multiple values, a <code>File</code> and an error (more about errors in a moment).
+@@ -613,14 +604,12 @@ the tricky standard arguments to open and, especially, to create a file:
+ 
+ func Open(name string) (file *File, err error) {
+     return OpenFile(name, O_RDONLY, 0)
+-}
+-</pre>
++}</pre>
+ <p>
+ <pre><!--{{code "progs/file.go" `/func.Create/` `/^}/`}}
+ -->func Create(name string) (file *File, err error) {
+     return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
+-}
+-</pre>
++}</pre>
+ <p>
+ Back to our main story.
+ Now that we can build <code>Files</code>, we can write methods for them. To declare
+@@ -657,8 +646,7 @@ func (file *File) Write(b []byte) (ret int, err error) {
+ 
+ func (file *File) String() string {
+     return file.name
+-}
+-</pre>
++}</pre>
+ <p>
+ There is no implicit <code>this</code> and the receiver variable must be used to access
+ members of the structure.  Methods are not declared within
+@@ -692,8 +680,7 @@ func main() {
+         fmt.Printf(&#34;can&#39;t open file; err=%s\n&#34;, err.Error())
+         os.Exit(1)
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the compiler
+ to use our own package rather than
+@@ -761,8 +748,7 @@ func main() {
+         cat(f)
+         f.Close()
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ By now this should be easy to follow, but the <code>switch</code> statement introduces some
+ new features.  Like a <code>for</code> loop, an <code>if</code> or <code>switch</code> can include an
+@@ -794,8 +780,7 @@ Here is code from <code>progs/cat_rot13.go</code>:
+ -->type reader interface {
+     Read(b []byte) (ret int, err error)
+     String() string
+-}
+-</pre>
++}</pre>
+ <p>
+ Any type that has the two methods of <code>reader</code>&mdash;regardless of whatever
+ other methods the type may also have&mdash;is said to <i>implement</i> the
+@@ -827,16 +812,14 @@ func (r13 *rotate13) Read(b []byte) (ret int, err error) {
+ func (r13 *rotate13) String() string {
+     return r13.source.String()
+ }
+-// end of rotate13 implementation
+-</pre>
++// end of rotate13 implementation</pre>
+ <p>
+ (The <code>rot13</code> function called in <code>Read</code> is trivial and not worth reproducing here.)
+ <p>
+ To use the new feature, we define a flag:
+ <p>
+ <pre><!--{{code "progs/cat_rot13.go" `/rot13Flag/`}}
+--->var rot13Flag = flag.Bool(&#34;rot13&#34;, false, &#34;rot13 the input&#34;)
+-</pre>
++-->var rot13Flag = flag.Bool(&#34;rot13&#34;, false, &#34;rot13 the input&#34;)</pre>
+ <p>
+ and use it from within a mostly unchanged <code>cat</code> function:
+ <p>
+@@ -863,8 +846,7 @@ and use it from within a mostly unchanged <code>cat</code> function:
+             }
+         }
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ (We could also do the wrapping in <code>main</code> and leave <code>cat</code> mostly alone, except
+ for changing the type of the argument; consider that an exercise.)
+@@ -918,8 +900,7 @@ As an example, consider this simple sort algorithm taken from <code>progs/sort.g
+             data.Swap(j, j-1)
+         }
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ The code needs only three methods, which we wrap into sort's <code>Interface</code>:
+ <p>
+@@ -928,8 +909,7 @@ The code needs only three methods, which we wrap into sort's <code>Interface</co
+     Len() int
+     Less(i, j int) bool
+     Swap(i, j int)
+-}
+-</pre>
++}</pre>
+ <p>
+ We can apply <code>Sort</code> to any type that implements <code>Len</code>, <code>Less</code>, and <code>Swap</code>.
+ The <code>sort</code> package includes the necessary methods to allow sorting of
+@@ -940,8 +920,7 @@ arrays of integers, strings, etc.; here's the code for arrays of <code>int</code
+ 
+ func (p IntSlice) Len() int           { return len(p) }
+ func (p IntSlice) Less(i, j int) bool { return p[i] &lt; p[j] }
+-func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-</pre>
++func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }</pre>
+ <p>
+ Here we see methods defined for non-<code>struct</code> types.  You can define methods
+ for any type you define and name in your package.
+@@ -958,8 +937,7 @@ to test that the result is sorted.
+     if !sort.IsSorted(a) {
+         panic(&#34;fail&#34;)
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ If we have a new type we want to be able to sort, all we need to do is
+ to implement the three methods for that type, like this:
+@@ -977,8 +955,7 @@ type dayArray struct {
+ 
+ func (p *dayArray) Len() int           { return len(p.data) }
+ func (p *dayArray) Less(i, j int) bool { return p.data[i].num &lt; p.data[j].num }
+-func (p *dayArray) Swap(i, j int)      { p.data[i], p.data[j] = p.data[j], p.data[i] }
+-</pre>
++func (p *dayArray) Swap(i, j int)      { p.data[i], p.data[j] = p.data[j], p.data[i] }</pre>
+ <p>
+ <p>
+ <h2>Printing</h2>
+@@ -1013,9 +990,8 @@ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness
+ integer and can do the right thing for you.  The snippet
+ <p>
+ <pre><!--{{code "progs/print.go" 10 11}}
+--->    var u64 uint64 = 1&lt;&lt;64 - 1
+-    fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))
+-</pre>
++-->var u64 uint64 = 1&lt;&lt;64 - 1
++    fmt.Printf(&#34;%d %d\n&#34;, u64, int64(u64))</pre>
+ <p>
+ prints
+ <p>
+@@ -1027,14 +1003,13 @@ In fact, if you're lazy the format <code>%v</code> will print, in a simple
+ appropriate style, any value, even an array or structure.  The output of
+ <p>
+ <pre><!--{{code "progs/print.go" 14 20}}
+--->    type T struct {
++-->type T struct {
+         a int
+         b string
+     }
+     t := T{77, &#34;Sunset Strip&#34;}
+     a := []int{1, 2, 3, 4}
+-    fmt.Printf(&#34;%v %v %v\n&#34;, u64, t, a)
+-</pre>
++    fmt.Printf(&#34;%v %v %v\n&#34;, u64, t, a)</pre>
+ <p>
+ is
+ <p>
+@@ -1050,9 +1025,8 @@ and adds a newline.  The output of each of these two lines is identical
+ to that of the <code>Printf</code> call above.
+ <p>
+ <pre><!--{{code "progs/print.go" 21 22}}
+--->    fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
+-    fmt.Println(u64, t, a)
+-</pre>
++-->fmt.Print(u64, &#34; &#34;, t, &#34; &#34;, a, &#34;\n&#34;)
++    fmt.Println(u64, t, a)</pre>
+ <p>
+ If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
+ just give it a <code>String</code> method that returns a string.  The print
+@@ -1073,8 +1047,7 @@ func (t *testType) String() string {
+ func main() {
+     t := &amp;testType{77, &#34;Sunset Strip&#34;}
+     fmt.Println(t)
+-}
+-</pre>
++}</pre>
+ <p>
+ Since <code>*testType</code> has a <code>String</code> method, the
+ default formatter for that type will use it and produce the output
+@@ -1200,8 +1173,7 @@ func generate(ch chan int) {
+     for i := 2; ; i++ {
+         ch &lt;- i // Send &#39;i&#39; to channel &#39;ch&#39;.
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ The <code>generate</code> function sends the sequence 2, 3, 4, 5, ... to its
+ argument channel, <code>ch</code>, using the binary communications operator <code>&lt;-</code>.
+@@ -1223,8 +1195,7 @@ func filter(in, out chan int, prime int) {
+             out &lt;- i // Send &#39;i&#39; to channel &#39;out&#39;.
+         }
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ The generator and filters execute concurrently.  Go has
+ its own model of process/threads/light-weight processes/coroutines,
+@@ -1262,8 +1233,7 @@ together:
+         go filter(ch, ch1, prime)
+         ch = ch1
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ The first line of <code>main</code> creates the initial channel to pass to <code>generate</code>, which it
+ then starts up.  As each prime pops out of the channel, a new <code>filter</code>
+@@ -1283,8 +1253,7 @@ of <code>generate</code>, from <code>progs/sieve1.go</code>:
+         }
+     }()
+     return ch
+-}
+-</pre>
++}</pre>
+ <p>
+ This version does all the setup internally. It creates the output
+ channel, launches a goroutine running a function literal, and
+@@ -1309,8 +1278,7 @@ The same change can be made to <code>filter</code>:
+         }
+     }()
+     return out
+-}
+-</pre>
++}</pre>
+ <p>
+ The <code>sieve</code> function's main loop becomes simpler and clearer as a
+ result, and while we're at it let's turn it into a factory too:
+@@ -1327,8 +1295,7 @@ result, and while we're at it let's turn it into a factory too:
+         }
+     }()
+     return out
+-}
+-</pre>
++}</pre>
+ <p>
+ Now <code>main</code>'s interface to the prime sieve is a channel of primes:
+ <p>
+@@ -1338,8 +1305,7 @@ Now <code>main</code>'s interface to the prime sieve is a channel of primes:
+     for i := 0; i &lt; 100; i++ { // Print the first hundred primes.
+         fmt.Println(&lt;-primes)
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ <h2>Multiplexing</h2>
+ <p>
+@@ -1354,8 +1320,7 @@ that will be used for the reply.
+ -->type request struct {
+     a, b   int
+     replyc chan int
+-}
+-</pre>
++}</pre>
+ <p>
+ The server will be trivial: it will do simple binary operations on integers.  Here's the
+ code that invokes the operation and responds to the request:
+@@ -1366,8 +1331,7 @@ code that invokes the operation and responds to the request:
+ func run(op binOp, req *request) {
+     reply := op(req.a, req.b)
+     req.replyc &lt;- reply
+-}
+-</pre>
++}</pre>
+ <p>
+ The type declaration makes <code>binOp</code> represent a function taking two integers and
+ returning a third.
+@@ -1381,8 +1345,7 @@ a long-running operation, starting a goroutine to do the actual work.
+         req := &lt;-service
+         go run(op, req) // don&#39;t wait for it
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ There's a new feature in the signature of <code>server</code>: the type of the
+ <code>service</code> channel specifies the direction of communication.
+@@ -1403,8 +1366,7 @@ connected to it:
+     req := make(chan *request)
+     go server(op, req)
+     return req
+-}
+-</pre>
++}</pre>
+ <p>
+ The returned channel is send only, even though the channel was created bidirectionally.
+ The read end is passed to <code>server</code>, while the send end is returned
+@@ -1441,8 +1403,7 @@ does it check the results.
+         }
+     }
+     fmt.Println(&#34;done&#34;)
+-}
+-</pre>
++}</pre>
+ <p>
+ One annoyance with this program is that it doesn't shut down the server cleanly; when <code>main</code> returns
+ there are a number of lingering goroutines blocked on communication.  To solve this,
+@@ -1454,8 +1415,7 @@ we can provide a second, <code>quit</code> channel to the server:
+     quit = make(chan bool)
+     go server(op, service, quit)
+     return service, quit
+-}
+-</pre>
++}</pre>
+ <p>
+ It passes the quit channel to the <code>server</code> function, which uses it like this:
+ <p>
+@@ -1469,8 +1429,7 @@ It passes the quit channel to the <code>server</code> function, which uses it li
+             return
+         }
+     }
+-}
+-</pre>
++}</pre>
+ <p>
+ Inside <code>server</code>, the <code>select</code> statement chooses which of the multiple communications
+ listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
+@@ -1483,12 +1442,10 @@ All that's left is to strobe the <code>quit</code> channel
+ at the end of main:
+ <p>
+ <pre><!--{{code "progs/server1.go" `/adder,.quit/`}}
+--->    adder, quit := startServer(func(a, b int) int { return a + b })
+-</pre>
++-->adder, quit := startServer(func(a, b int) int { return a + b })</pre>
+ ...
+ <pre><!--{{code "progs/server1.go" `/quit....true/`}}
+--->    quit &lt;- true
+-</pre>
++-->quit &lt;- true</pre>
+ <p>
+ There's a lot more to Go programming and concurrent programming in general but this
+ quick tour should give you some of the basics.
+diff --git a/doc/tmpltohtml.go b/doc/tmpltohtml.go
+index df761fa421..dbd27ab685 100644
+--- a/doc/tmpltohtml.go
++++ b/doc/tmpltohtml.go
+@@ -113,6 +113,8 @@ func code(file string, arg ...interface{}) (string, error) {
+ 	default:
+ 		return "", fmt.Errorf("incorrect code invocation: code %q %q", file, arg)
+ 	}
++	// Trim spaces from output.
++	text = strings.TrimSpace(text)
+ 	// Replace tabs by spaces, which work better in HTML.
+ 	text = strings.Replace(text, "\t", "    ", -1)
+ 	// Escape the program text for HTML.

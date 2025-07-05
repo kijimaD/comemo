@@ -9,7 +9,7 @@ Date:   Fri Mar 26 18:01:02 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/793041
-
+---
  doc/go_spec.html       |  2 +-
  src/cmd/5g/ggen.c      | 20 ++++++++++++++++++++
  src/cmd/6g/ggen.c      | 27 ++++++++++++++++++++++++---
@@ -19,3 +19,322 @@ Date:   Fri Mar 26 18:01:02 2010 -0700
  test/escape.go         | 32 ++++++++++++++++++++++++++++++++
  test/escape1.go        | 17 -----------------
  8 files changed, 128 insertions(+), 29 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 46dc33e8a0..b35af9b037 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5109,7 +5109,7 @@ The following minimal alignment properties are guaranteed:
+ 	<li><span class="alert">Method expressions are partially implemented.</span></li>
+ 	<li><span class="alert">Gccgo allows only one init() function per source file.</span></li>
+ 	<li><span class="alert">Deferred functions cannot access the surrounding function's result parameters.</span></li>
+-	<li><span class="alert">Function results are not addressable.</span></li>
++	<li><span class="alert">Function results are not addressable in gccgo.</span></li>
+ 	<li><span class="alert">Recover is not implemented.</span></li>
+ 	<li><span class="alert">The implemented version of panic differs from its specification.</span></li>
+ </ul>
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index e2313d85b6..c60c05863a 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -7,6 +7,8 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
++static Prog *pret;
++
+ void
+ compile(Node *fn)
+ {
+@@ -65,6 +67,16 @@ compile(Node *fn)
+ 	afunclit(&ptxt->from);
+ 
+ 	genlist(curfn->enter);
++	
++	pret = nil;
++	if(hasdefer || curfn->exit) {
++		Prog *p1;
++
++		p1 = gjmp(nil);
++		pret = gjmp(nil);
++		patch(p1, pc);
++	}
++
+ 	genlist(curfn->nbody);
+ 	checklabels();
+ 	if(nerrors != 0)
+@@ -73,6 +85,14 @@ compile(Node *fn)
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+ 
++	if(pret)
++		patch(pret, pc);
++	ginit();
++	if(curfn->exit)
++		genlist(curfn->exit);
++	gclean();
++	if(nerrors != 0)
++		goto ret;
+ 	if(hasdefer)
+ 		ginscall(deferreturn, 0);
+ 	pc->as = ARET;	// overwrite AEND
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 99a4aea045..140020fdaf 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -7,6 +7,8 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
++static Prog *pret;
++
+ void
+ compile(Node *fn)
+ {
+@@ -66,6 +68,16 @@ compile(Node *fn)
+ 
+ 	ginit();
+ 	genlist(curfn->enter);
++
++	pret = nil;
++	if(hasdefer || curfn->exit) {
++		Prog *p1;
++
++		p1 = gjmp(nil);
++		pret = gjmp(nil);
++		patch(p1, pc);
++	}
++
+ 	genlist(curfn->nbody);
+ 	gclean();
+ 	checklabels();
+@@ -75,6 +87,14 @@ compile(Node *fn)
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+ 
++	if(pret)
++		patch(pret, pc);
++	ginit();
++	if(curfn->exit)
++		genlist(curfn->exit);
++	gclean();
++	if(nerrors != 0)
++		goto ret;
+ 	if(hasdefer)
+ 		ginscall(deferreturn, 0);
+ 	pc->as = ARET;	// overwrite AEND
+@@ -325,9 +345,10 @@ void
+ cgen_ret(Node *n)
+ {
+ 	genlist(n->list);		// copy out args
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+-	gins(ARET, N, N);
++	if(hasdefer || curfn->exit)
++		gjmp(pret);
++	else
++		gins(ARET, N, N);
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 23177c2408..468f67ae98 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -7,6 +7,8 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
++static Prog *pret;
++
+ void
+ compile(Node *fn)
+ {
+@@ -66,6 +68,16 @@ compile(Node *fn)
+ 
+ 	ginit();
+ 	genlist(curfn->enter);
++
++	pret = nil;
++	if(hasdefer || curfn->exit) {
++		Prog *p1;
++
++		p1 = gjmp(nil);
++		pret = gjmp(nil);
++		patch(p1, pc);
++	}
++
+ 	genlist(curfn->nbody);
+ 	gclean();
+ 	checklabels();
+@@ -75,6 +87,14 @@ compile(Node *fn)
+ 	if(curfn->type->outtuple != 0)
+ 		ginscall(throwreturn, 0);
+ 
++	if(pret)
++		patch(pret, pc);
++	ginit();
++	if(curfn->exit)
++		genlist(curfn->exit);
++	gclean();
++	if(nerrors != 0)
++		goto ret;
+ 	if(hasdefer)
+ 		ginscall(deferreturn, 0);
+ 	pc->as = ARET;	// overwrite AEND
+@@ -362,9 +382,10 @@ void
+ cgen_ret(Node *n)
+ {
+ 	genlist(n->list);		// copy out args
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+-	gins(ARET, N, N);
++	if(pret)
++		gjmp(pret);
++	else
++		gins(ARET, N, N);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index d10bf8f74b..c219ad8c53 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1988,17 +1988,15 @@ addrescapes(Node *n)
+ 		if(n->noescape)
+ 			break;
+ 		switch(n->class) {
+-		case PPARAMOUT:
+-			yyerror("cannot take address of out parameter %s", n->sym->name);
+-			break;
+ 		case PAUTO:
+ 		case PPARAM:
++		case PPARAMOUT:
+ 			// if func param, need separate temporary
+ 			// to hold heap pointer.
+ 			// the function type has already been checked
+ 			// (we're in the function body)
+ 			// so the param already has a valid xoffset.
+-			if(n->class == PPARAM) {
++			if(n->class == PPARAM || n->class == PPARAMOUT) {
+ 				// expression to refer to stack copy
+ 				n->stackparam = nod(OPARAM, n, N);
+ 				n->stackparam->type = n->type;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 9c904f14c6..fa6157bb02 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2288,7 +2288,29 @@ paramstoheap(Type **argin)
+ 		if(v->alloc == nil)
+ 			v->alloc = callnew(v->type);
+ 		nn = list(nn, nod(OAS, v->heapaddr, v->alloc));
+-		nn = list(nn, nod(OAS, v, v->stackparam));
++		if((v->class & ~PHEAP) != PPARAMOUT)
++			nn = list(nn, nod(OAS, v, v->stackparam));
++	}
++	return nn;
++}
++
++/*
++ * walk through argout parameters copying back to stack
++ */
++NodeList*
++returnsfromheap(Type **argin)
++{
++	Type *t;
++	Iter savet;
++	Node *v;
++	NodeList *nn;
++
++	nn = nil;
++	for(t = structfirst(&savet, argin); t != T; t = structnext(&savet)) {
++		v = t->nname;
++		if(v == N || v->class != (PHEAP|PPARAMOUT))
++			continue;
++		nn = list(nn, nod(OAS, v->stackparam, v));
+ 	}
+ 	return nn;
+ }
+@@ -2305,7 +2327,9 @@ heapmoves(void)
+ 
+ 	nn = paramstoheap(getthis(curfn->type));
+ 	nn = concat(nn, paramstoheap(getinarg(curfn->type)));
++	nn = concat(nn, paramstoheap(getoutarg(curfn->type)));
+ 	curfn->enter = concat(curfn->enter, nn);
++	curfn->exit = returnsfromheap(getoutarg(curfn->type));
+ }
+ 
+ static Node*
+diff --git a/test/escape.go b/test/escape.go
+index 2c5881d49c..19c08a5276 100644
+--- a/test/escape.go
++++ b/test/escape.go
+@@ -141,6 +141,24 @@ func for_escapes2(x int, y int) (*int, *int) {
+ 	return p[0], p[1]
+ }
+ 
++func out_escapes(i int) (x int, p *int) {
++	x = i
++	p = &x;	// ERROR "address of out parameter"
++	return;
++}
++
++func out_escapes_2(i int) (x int, p *int) {
++	x = i
++	return x, &x;	// ERROR "address of out parameter"
++}
++
++func defer1(i int) (x int) {
++	c := make(chan int)
++	go func() { x = i; c <- 1 }()
++	<-c
++	return
++}
++
+ func main() {
+ 	p, q := i_escapes(1), i_escapes(2);
+ 	chk(p, q, 1, "i_escapes");
+@@ -169,6 +187,20 @@ func main() {
+ 	p, q = for_escapes2(103, 104);
+ 	chkalias(p, q, 103, "for_escapes2");
+ 
++	_, p = out_escapes(15)
++	_, q = out_escapes(16);
++	chk(p, q, 15, "out_escapes");
++
++	_, p = out_escapes_2(17)
++	_, q = out_escapes_2(18);
++	chk(p, q, 17, "out_escapes_2");
++
++	x := defer1(20)
++	if x != 20 {
++		println("defer failed", x)
++		bad = true
++	}
++
+ 	if bad {
+ 		panic("BUG: no escape");
+ 	}
+diff --git a/test/escape1.go b/test/escape1.go
+deleted file mode 100644
+index 646e4b3519..0000000000
+--- a/test/escape1.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func out_escapes() (x int, p *int) {
+-	p = &x;	// ERROR "address of out parameter"
+-	return;
+-}
+-
+-func out_escapes_2() (x int, p *int) {
+-	return 2, &x;	// ERROR "address of out parameter"
+-}
+-

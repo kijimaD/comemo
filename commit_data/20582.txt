@@ -17,7 +17,52 @@ Date:   Thu Sep 18 23:51:22 2014 -0400
     R=khr, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/145180043
-
+---
  src/runtime/proc.c    | 2 +-
  src/runtime/runtime.h | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 860701ee58..3f4179d473 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -31,7 +31,7 @@ enum
+ 	GoidCacheBatch = 16,
+ };
+ 
+-SchedType	runtime·sched;
++SchedT	runtime·sched;
+ int32	runtime·gomaxprocs;
+ uint32	runtime·needextram;
+ bool	runtime·iscgo;
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 386b09b96b..7fefbc2997 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -60,7 +60,7 @@ typedef	struct	SudoG		SudoG;
+ typedef	struct	Mutex		Mutex;
+ typedef	struct	M		M;
+ typedef	struct	P		P;
+-typedef struct	SchedType	SchedType;
++typedef	struct	SchedT	SchedT;
+ typedef	struct	Note		Note;
+ typedef	struct	Slice		Slice;
+ typedef	struct	String		String;
+@@ -434,7 +434,7 @@ enum {
+ 	MaxGomaxprocs = 1<<8,
+ };
+ 
+-struct	SchedType
++struct	SchedT
+ {
+ 	Mutex	lock;
+ 
+@@ -753,7 +753,7 @@ extern	DebugVars	runtime·debug;
+ extern	uintptr	runtime·maxstacksize;
+ extern	Note	runtime·signote;
+ extern	ForceGCState	runtime·forcegc;
+-extern	SchedType	runtime·sched;
++extern	SchedT	runtime·sched;
+ extern	int32		runtime·newprocs;
+ 
+ /*

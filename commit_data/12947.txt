@@ -7,6 +7,22 @@ Date:   Tue Apr 24 23:19:44 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6100053
-
+---
  src/pkg/runtime/asm_arm.s | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 489a347400..74be9cead9 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -60,7 +60,9 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW	R0, (R1)	// fail hard
+ 
+ TEXT runtime·breakpoint(SB),7,$0
+-	// no breakpoint yet; let program exit
++	// gdb won't skip this breakpoint instruction automatically,
++	// so you must manually "set $pc+=4" to skip it and continue.
++	WORD    $0xe1200071 // BKPT 0x0001
+ 	RET
+ 
+ TEXT runtime·asminit(SB),7,$0

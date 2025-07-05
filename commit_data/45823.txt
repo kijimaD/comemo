@@ -16,8 +16,248 @@ Date:   Fri Nov 20 12:54:18 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/cgo/out.go                       | 23 ++++++-----
  src/cmd/internal/pkgpath/pkgpath.go      | 68 ++++++++++++++++++++++++++++++--
  src/cmd/internal/pkgpath/pkgpath_test.go | 22 ++++++++++-
  3 files changed, 98 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index bb963799f6..11c53facf8 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -186,7 +186,7 @@ func (p *Package) writeDefs() {
+ 			panic(fmt.Errorf("invalid var kind %q", n.Kind))
+ 		}
+ 		if *gccgo {
+-			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, n.Mangle)
++			fmt.Fprintf(fc, `extern void *%s __asm__("%s.%s");`, n.Mangle, gccgoSymbolPrefix, gccgoToSymbol(n.Mangle))
+ 			fmt.Fprintf(&gccgoInit, "\t%s = &%s;\n", n.Mangle, n.C)
+ 			fmt.Fprintf(fc, "\n")
+ 		}
+@@ -1148,7 +1148,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		// will not be able to link against it from the C
+ 		// code.
+ 		goName := "Cgoexp_" + exp.ExpName
+-		fmt.Fprintf(fgcc, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, goName)
++		fmt.Fprintf(fgcc, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, gccgoToSymbol(goName))
+ 		fmt.Fprint(fgcc, "\n")
+ 
+ 		fmt.Fprint(fgcc, "\nCGO_NO_SANITIZE_THREAD\n")
+@@ -1182,7 +1182,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		fmt.Fprint(fgcc, "}\n")
+ 
+ 		// Dummy declaration for _cgo_main.c
+-		fmt.Fprintf(fm, `char %s[1] __asm__("%s.%s");`, goName, gccgoSymbolPrefix, goName)
++		fmt.Fprintf(fm, `char %s[1] __asm__("%s.%s");`, goName, gccgoSymbolPrefix, gccgoToSymbol(goName))
+ 		fmt.Fprint(fm, "\n")
+ 
+ 		// For gccgo we use a wrapper function in Go, in order
+@@ -1266,9 +1266,8 @@ func (p *Package) writeExportHeader(fgcch io.Writer) {
+ 	fmt.Fprintf(fgcch, "%s\n", p.gccExportHeaderProlog())
+ }
+ 
+-// gccgoPkgpathToSymbol converts a package path to a mangled packagepath
+-// symbol.
+-func gccgoPkgpathToSymbol(ppath string) string {
++// gccgoToSymbol converts a name to a mangled symbol for gccgo.
++func gccgoToSymbol(ppath string) string {
+ 	if gccgoMangler == nil {
+ 		var err error
+ 		cmd := os.Getenv("GCCGO")
+@@ -1293,12 +1292,12 @@ func (p *Package) gccgoSymbolPrefix() string {
+ 	}
+ 
+ 	if *gccgopkgpath != "" {
+-		return gccgoPkgpathToSymbol(*gccgopkgpath)
++		return gccgoToSymbol(*gccgopkgpath)
+ 	}
+ 	if *gccgoprefix == "" && p.PackageName == "main" {
+ 		return "main"
+ 	}
+-	prefix := gccgoPkgpathToSymbol(*gccgoprefix)
++	prefix := gccgoToSymbol(*gccgoprefix)
+ 	if prefix == "" {
+ 		prefix = "go"
+ 	}
+@@ -1687,8 +1686,12 @@ void _cgoPREFIX_Cfunc__Cmalloc(void *v) {
+ `
+ 
+ func (p *Package) cPrologGccgo() string {
+-	return strings.Replace(strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1),
+-		"GCCGOSYMBOLPREF", p.gccgoSymbolPrefix(), -1)
++	r := strings.NewReplacer(
++		"PREFIX", cPrefix,
++		"GCCGOSYMBOLPREF", p.gccgoSymbolPrefix(),
++		"_cgoCheckPointer", gccgoToSymbol("_cgoCheckPointer"),
++		"_cgoCheckResult", gccgoToSymbol("_cgoCheckResult"))
++	return r.Replace(cPrologGccgo)
+ }
+ 
+ const cPrologGccgo = `
+diff --git a/src/cmd/internal/pkgpath/pkgpath.go b/src/cmd/internal/pkgpath/pkgpath.go
+index 0b24468be6..40a040a81a 100644
+--- a/src/cmd/internal/pkgpath/pkgpath.go
++++ b/src/cmd/internal/pkgpath/pkgpath.go
+@@ -50,9 +50,12 @@ func ToSymbolFunc(cmd, tmpdir string) (func(string) string, error) {
+ 		return nil, err
+ 	}
+ 
+-	// New mangling: expect go.l..u00e4ufer.Run
+-	// Old mangling: expect go.l__ufer.Run
+-	if bytes.Contains(buf, []byte("go.l..u00e4ufer.Run")) {
++	// Original mangling: go.l__ufer.Run
++	// Mangling v2: go.l..u00e4ufer.Run
++	// Mangling v3: go_0l_u00e4ufer.Run
++	if bytes.Contains(buf, []byte("go_0l_u00e4ufer.Run")) {
++		return toSymbolV3, nil
++	} else if bytes.Contains(buf, []byte("go.l..u00e4ufer.Run")) {
+ 		return toSymbolV2, nil
+ 	} else if bytes.Contains(buf, []byte("go.l__ufer.Run")) {
+ 		return toSymbolV1, nil
+@@ -82,7 +85,7 @@ func toSymbolV1(ppath string) string {
+ 	return strings.Map(clean, ppath)
+ }
+ 
+-// toSymbolV2 converts a package path using the newer mangling scheme.
++// toSymbolV2 converts a package path using the second mangling scheme.
+ func toSymbolV2(ppath string) string {
+ 	// This has to build at boostrap time, so it has to build
+ 	// with Go 1.4, so we don't use strings.Builder.
+@@ -112,3 +115,60 @@ func toSymbolV2(ppath string) string {
+ 	}
+ 	return string(bsl)
+ }
++
++// v3UnderscoreCodes maps from a character that supports an underscore
++// encoding to the underscore encoding character.
++var v3UnderscoreCodes = map[byte]byte{
++	'_': '_',
++	'.': '0',
++	'/': '1',
++	'*': '2',
++	',': '3',
++	'{': '4',
++	'}': '5',
++	'[': '6',
++	']': '7',
++	'(': '8',
++	')': '9',
++	'"': 'a',
++	' ': 'b',
++	';': 'c',
++}
++
++// toSymbolV3 converts a package path using the third mangling scheme.
++func toSymbolV3(ppath string) string {
++	// This has to build at boostrap time, so it has to build
++	// with Go 1.4, so we don't use strings.Builder.
++	bsl := make([]byte, 0, len(ppath))
++	changed := false
++	for _, c := range ppath {
++		if ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') {
++			bsl = append(bsl, byte(c))
++			continue
++		}
++
++		if c < 0x80 {
++			if u, ok := v3UnderscoreCodes[byte(c)]; ok {
++				bsl = append(bsl, '_', u)
++				changed = true
++				continue
++			}
++		}
++
++		var enc string
++		switch {
++		case c < 0x80:
++			enc = fmt.Sprintf("_x%02x", c)
++		case c < 0x10000:
++			enc = fmt.Sprintf("_u%04x", c)
++		default:
++			enc = fmt.Sprintf("_U%08x", c)
++		}
++		bsl = append(bsl, enc...)
++		changed = true
++	}
++	if !changed {
++		return ppath
++	}
++	return string(bsl)
++}
+diff --git a/src/cmd/internal/pkgpath/pkgpath_test.go b/src/cmd/internal/pkgpath/pkgpath_test.go
+index 7355f81bae..232e803a60 100644
+--- a/src/cmd/internal/pkgpath/pkgpath_test.go
++++ b/src/cmd/internal/pkgpath/pkgpath_test.go
+@@ -24,6 +24,9 @@ func init() {
+ 	case "v2":
+ 		os.Stdout.WriteString(`.string	"go.l..u00e4ufer.Run"`)
+ 		os.Exit(0)
++	case "v3":
++		os.Stdout.WriteString(`.string	"go_0l_u00e4ufer.Run"`)
++		os.Exit(0)
+ 	case "error":
+ 		os.Stdout.WriteString(`unknown string`)
+ 		os.Exit(0)
+@@ -45,6 +48,10 @@ func TestToSymbolFunc(t *testing.T) {
+ 			env:     "v2",
+ 			mangled: "p..u00e4..u4e16..U0001f703",
+ 		},
++		{
++			env:     "v3",
++			mangled: "p_u00e4_u4e16_U0001f703",
++		},
+ 		{
+ 			env:  "error",
+ 			fail: true,
+@@ -75,32 +82,37 @@ func TestToSymbolFunc(t *testing.T) {
+ }
+ 
+ var symbolTests = []struct {
+-	input, v1, v2 string
++	input, v1, v2, v3 string
+ }{
+ 	{
+ 		"",
+ 		"",
+ 		"",
++		"",
+ 	},
+ 	{
+ 		"bytes",
+ 		"bytes",
+ 		"bytes",
++		"bytes",
+ 	},
+ 	{
+ 		"net/http",
+ 		"net_http",
+ 		"net..z2fhttp",
++		"net_1http",
+ 	},
+ 	{
+ 		"golang.org/x/net/http",
+ 		"golang_org_x_net_http",
+ 		"golang.x2eorg..z2fx..z2fnet..z2fhttp",
++		"golang_0org_1x_1net_1http",
+ 	},
+ 	{
+ 		"pä世.🜃",
+ 		"p____",
+ 		"p..u00e4..u4e16.x2e..U0001f703",
++		"p_u00e4_u4e16_0_U0001f703",
+ 	},
+ }
+ 
+@@ -119,3 +131,11 @@ func TestV2(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestV3(t *testing.T) {
++	for _, test := range symbolTests {
++		if got, want := toSymbolV3(test.input), test.v3; got != want {
++			t.Errorf("toSymbolV3(%q) = %q, want %q", test.input, got, want)
++		}
++	}
++}

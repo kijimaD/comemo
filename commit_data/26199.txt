@@ -19,9 +19,206 @@ Date:   Mon Dec 28 11:29:22 2015 -0800
     Change-Id: Ic85d77e386a8bb0255dc4be1e4b3f55875d10f18
     Reviewed-on: https://go-review.googlesource.com/18151
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/file_unix.go         |  13 ++---
  src/os/pipe_test.go         | 114 ++++++++++++++++++++++++++++++++++++++++++++
  src/os/signal/doc.go        |  12 +++++
  src/runtime/signal1_unix.go |   3 ++
  4 files changed, 134 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 8261b90b49..05d94f6edb 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -8,7 +8,6 @@ package os
+ 
+ import (
+ 	"runtime"
+-	"sync/atomic"
+ 	"syscall"
+ )
+ 
+@@ -37,7 +36,6 @@ type file struct {
+ 	fd      int
+ 	name    string
+ 	dirinfo *dirInfo // nil unless directory being read
+-	nepipe  int32    // number of consecutive EPIPE in Write
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+@@ -67,13 +65,12 @@ type dirInfo struct {
+ 	bufp int    // location of next record in buf.
+ }
+ 
++// epipecheck raises SIGPIPE if we get an EPIPE error on standard
++// output or standard error. See the SIGPIPE docs in os/signal, and
++// issue 11845.
+ func epipecheck(file *File, e error) {
+-	if e == syscall.EPIPE {
+-		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
+-			sigpipe()
+-		}
+-	} else {
+-		atomic.StoreInt32(&file.nepipe, 0)
++	if e == syscall.EPIPE && (file.fd == 1 || file.fd == 2) {
++		sigpipe()
+ 	}
+ }
+ 
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+new file mode 100644
+index 0000000000..2f5b5d99c3
+--- /dev/null
++++ b/src/os/pipe_test.go
+@@ -0,0 +1,114 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test broken pipes on Unix systems.
++// +build !windows,!plan9,!nacl
++
++package os_test
++
++import (
++	"fmt"
++	"internal/testenv"
++	"os"
++	osexec "os/exec"
++	"os/signal"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func TestEPIPE(t *testing.T) {
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := r.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	// Every time we write to the pipe we should get an EPIPE.
++	for i := 0; i < 20; i++ {
++		_, err = w.Write([]byte("hi"))
++		if err == nil {
++			t.Fatal("unexpected success of Write to broken pipe")
++		}
++		if pe, ok := err.(*os.PathError); ok {
++			err = pe.Err
++		}
++		if se, ok := err.(*os.SyscallError); ok {
++			err = se.Err
++		}
++		if err != syscall.EPIPE {
++			t.Errorf("iteration %d: got %v, expected EPIPE", i, err)
++		}
++	}
++}
++
++func TestStdPipe(t *testing.T) {
++	testenv.MustHaveExec(t)
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := r.Close(); err != nil {
++		t.Fatal(err)
++	}
++	// Invoke the test program to run the test and write to a closed pipe.
++	// If sig is false:
++	// writing to stdout or stderr should cause an immediate SIGPIPE;
++	// writing to descriptor 3 should fail with EPIPE and then exit 0.
++	// If sig is true:
++	// all writes should fail with EPIPE and then exit 0.
++	for _, sig := range []bool{false, true} {
++		for dest := 1; dest < 4; dest++ {
++			cmd := osexec.Command(os.Args[0], "-test.run", "TestStdPipeHelper")
++			cmd.Stdout = w
++			cmd.Stderr = w
++			cmd.ExtraFiles = []*os.File{w}
++			cmd.Env = append(os.Environ(), fmt.Sprintf("GO_TEST_STD_PIPE_HELPER=%d", dest))
++			if sig {
++				cmd.Env = append(cmd.Env, "GO_TEST_STD_PIPE_HELPER_SIGNAL=1")
++			}
++			if err := cmd.Run(); err == nil {
++				if !sig && dest < 3 {
++					t.Errorf("unexpected success of write to closed pipe %d sig %t in child", dest, sig)
++				}
++			} else if ee, ok := err.(*osexec.ExitError); !ok {
++				t.Errorf("unexpected exec error type %T: %v", err, err)
++			} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
++				t.Errorf("unexpected wait status type %T: %v", ee.Sys(), ee.Sys())
++			} else if ws.Signaled() && ws.Signal() == syscall.SIGPIPE {
++				if sig || dest > 2 {
++					t.Errorf("unexpected SIGPIPE signal for descriptor %d sig %t", dest, sig)
++				}
++			} else {
++				t.Errorf("unexpected exit status %v for descriptor %ds sig %t", err, dest, sig)
++			}
++		}
++	}
++}
++
++// This is a helper for TestStdPipe.  It's not a test in itself.
++func TestStdPipeHelper(t *testing.T) {
++	if os.Getenv("GO_TEST_STD_PIPE_HELPER_SIGNAL") != "" {
++		signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)
++	}
++	switch os.Getenv("GO_TEST_STD_PIPE_HELPER") {
++	case "1":
++		os.Stdout.Write([]byte("stdout"))
++	case "2":
++		os.Stderr.Write([]byte("stderr"))
++	case "3":
++		if _, err := os.NewFile(3, "3").Write([]byte("3")); err == nil {
++			os.Exit(3)
++		}
++	default:
++		t.Skip("skipping test helper")
++	}
++	// For stdout/stderr, we should have crashed with a broken pipe error.
++	// The caller will be looking for that exit status,
++	// so just exit normally here to cause a failure in the caller.
++	// For descriptor 3, a normal exit is expected.
++	os.Exit(0)
++}
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index b36c16c8a9..955f3ff1fb 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -87,6 +87,18 @@ for a blocked signal, it will be unblocked. If, later, Reset is
+ called for that signal, or Stop is called on all channels passed to
+ Notify for that signal, the signal will once again be blocked.
+ 
++SIGPIPE
++
++When a Go program receives an EPIPE error from the kernel while
++writing to file descriptors 1 or 2 (standard output or standard
++error), it will raise a SIGPIPE signal.  If the program is not
++currently receiving SIGPIPE via a call to Notify, this will cause the
++program to exit with SIGPIPE.  On descriptors other than 1 or 2, the
++write will return the EPIPE error.  This means that, by default,
++command line programs will behave like typical Unix command line
++programs, while other programs will not crash with SIGPIPE when
++writing to a closed network connection.
++
+ Go programs that use cgo or SWIG
+ 
+ In a Go program that includes non-Go code, typically C/C++ code
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 468d6f6946..c2530322cc 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -139,6 +139,9 @@ func resetcpuprofiler(hz int32) {
+ }
+ 
+ func sigpipe() {
++	if sigsend(_SIGPIPE) {
++		return
++	}
+ 	setsig(_SIGPIPE, _SIG_DFL, false)
+ 	raise(_SIGPIPE)
+ }

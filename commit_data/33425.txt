@@ -17,7 +17,34 @@ Date:   Tue Aug 15 23:49:12 2017 +0200
     Change-Id: I0a36d585906a5e1879e5b7927d1b6173e97cb500
     Reviewed-on: https://go-review.googlesource.com/55990
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 2 +-
  src/cmd/go/internal/tool/tool.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7dd7ba90f0..c3d75ee793 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -782,7 +782,7 @@
+ // The -n flag causes tool to print the command that would be
+ // executed but not execute it.
+ //
+-// For more about each tool command, see 'go tool command -h'.
++// For more about each tool command, see 'go doc cmd/<command>'.
+ //
+ //
+ // Print Go version
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 51675262e5..db92884f6a 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -27,7 +27,7 @@ With no arguments it prints the list of known tools.
+ The -n flag causes tool to print the command that would be
+ executed but not execute it.
+ 
+-For more about each tool command, see 'go tool command -h'.
++For more about each tool command, see 'go doc cmd/<command>'.
+ `,
+ }
+ 

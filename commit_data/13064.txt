@@ -7,6 +7,19 @@ Date:   Tue May 15 08:38:05 2012 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/6203076
-
+---
  misc/dashboard/codereview/dashboard/people.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/dashboard/codereview/dashboard/people.go b/misc/dashboard/codereview/dashboard/people.go
+index 779889a9e6..47f5ca08bf 100644
+--- a/misc/dashboard/codereview/dashboard/people.go
++++ b/misc/dashboard/codereview/dashboard/people.go
+@@ -28,6 +28,7 @@ func init() {
+ 		"nigeltao",
+ 		"r",
+ 		"rsc",
++		"sameer",
+ 	}
+ 	for _, p := range gophers {
+ 		personList = append(personList, p)

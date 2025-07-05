@@ -10,7 +10,134 @@ Date:   Mon Oct 2 19:03:41 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/67635
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/smtp/smtp.go      | 28 ++++++++++++++++++++++++++++
  src/net/smtp/smtp_test.go | 23 +++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index 28472e447b..ab457d3f95 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -93,6 +93,9 @@ func (c *Client) hello() error {
+ // automatically otherwise. If Hello is called, it must be called before
+ // any of the other methods.
+ func (c *Client) Hello(localName string) error {
++	if err := validateLine(localName); err != nil {
++		return err
++	}
+ 	if c.didHello {
+ 		return errors.New("smtp: Hello called after other methods")
+ 	}
+@@ -179,6 +182,9 @@ func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
+ // does not necessarily indicate an invalid address. Many servers
+ // will not verify addresses for security reasons.
+ func (c *Client) Verify(addr string) error {
++	if err := validateLine(addr); err != nil {
++		return err
++	}
+ 	if err := c.hello(); err != nil {
+ 		return err
+ 	}
+@@ -237,6 +243,9 @@ func (c *Client) Auth(a Auth) error {
+ // parameter.
+ // This initiates a mail transaction and is followed by one or more Rcpt calls.
+ func (c *Client) Mail(from string) error {
++	if err := validateLine(from); err != nil {
++		return err
++	}
+ 	if err := c.hello(); err != nil {
+ 		return err
+ 	}
+@@ -254,6 +263,9 @@ func (c *Client) Mail(from string) error {
+ // A call to Rcpt must be preceded by a call to Mail and may be followed by
+ // a Data call or another Rcpt call.
+ func (c *Client) Rcpt(to string) error {
++	if err := validateLine(to); err != nil {
++		return err
++	}
+ 	_, _, err := c.cmd(25, "RCPT TO:<%s>", to)
+ 	return err
+ }
+@@ -304,6 +316,14 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
+ // functionality. Higher-level packages exist outside of the standard
+ // library.
+ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
++	if err := validateLine(from); err != nil {
++		return err
++	}
++	for _, recp := range to {
++		if err := validateLine(recp); err != nil {
++			return err
++		}
++	}
+ 	c, err := Dial(addr)
+ 	if err != nil {
+ 		return err
+@@ -388,3 +408,11 @@ func (c *Client) Quit() error {
+ 	}
+ 	return c.Text.Close()
+ }
++
++// validateLine checks to see if a line has CR or LF as per RFC 5321
++func validateLine(line string) error {
++	if strings.ContainsAny(line, "\n\r") {
++		return errors.New("smtp: A line must not contain CR or LF")
++	}
++	return nil
++}
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 9dbe3eb9ec..009fb643a1 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -182,6 +182,9 @@ func TestBasic(t *testing.T) {
+ 	if err := c.Verify("user1@gmail.com"); err == nil {
+ 		t.Fatalf("First VRFY: expected no verification")
+ 	}
++	if err := c.Verify("user2@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
++		t.Fatalf("VRFY should have failed due to a message injection attempt")
++	}
+ 	if err := c.Verify("user2@gmail.com"); err != nil {
+ 		t.Fatalf("Second VRFY: expected verification, got %s", err)
+ 	}
+@@ -193,6 +196,12 @@ func TestBasic(t *testing.T) {
+ 		t.Fatalf("AUTH failed: %s", err)
+ 	}
+ 
++	if err := c.Rcpt("golang-nuts@googlegroups.com>\r\nDATA\r\nInjected message body\r\n.\r\nQUIT\r\n"); err == nil {
++		t.Fatalf("RCPT should have failed due to a message injection attempt")
++	}
++	if err := c.Mail("user@gmail.com>\r\nDATA\r\nAnother injected message body\r\n.\r\nQUIT\r\n"); err == nil {
++		t.Fatalf("MAIL should have failed due to a message injection attempt")
++	}
+ 	if err := c.Mail("user@gmail.com"); err != nil {
+ 		t.Fatalf("MAIL failed: %s", err)
+ 	}
+@@ -375,6 +384,10 @@ func TestHello(t *testing.T) {
+ 
+ 		switch i {
+ 		case 0:
++			err = c.Hello("hostinjection>\n\rDATA\r\nInjected message body\r\n.\r\nQUIT\r\n")
++			if err == nil {
++				t.Errorf("Expected Hello to be rejected due to a message injection attempt")
++			}
+ 			err = c.Hello("customhost")
+ 		case 1:
+ 			err = c.StartTLS(nil)
+@@ -506,6 +519,16 @@ func TestSendMail(t *testing.T) {
+ 		}
+ 	}(strings.Split(server, "\r\n"))
+ 
++	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com>\n\rDATA\r\nInjected message body\r\n.\r\nQUIT\r\n"}, []byte(strings.Replace(`From: test@example.com
++To: other@example.com
++Subject: SendMail test
++
++SendMail is working for me.
++`, "\n", "\r\n", -1)))
++	if err == nil {
++		t.Errorf("Expected SendMail to be rejected due to a message injection attempt")
++	}
++
+ 	err = SendMail(l.Addr().String(), nil, "test@example.com", []string{"other@example.com"}, []byte(strings.Replace(`From: test@example.com
+ To: other@example.com
+ Subject: SendMail test

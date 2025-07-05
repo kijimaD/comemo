@@ -8,7 +8,7 @@ Date:   Fri Sep 12 16:12:39 2014 -0400
     R=khr, iant, bradfitz, rlh
     CC=dvyukov, golang-codereviews
     https://golang.org/cl/142030044
-
+---
  src/cmd/api/goapi.go     |  9 +++++----
  src/runtime/os_windows.c |  6 ++----
  src/runtime/proc.c       | 52 +++++++++++-------------------------------------
@@ -17,3 +17,303 @@ Date:   Fri Sep 12 16:12:39 2014 -0400
  src/runtime/runtime.go   |  4 ++++
  src/runtime/runtime.h    |  2 ++
  7 files changed, 45 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index fb0e984f72..da0dc4a923 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -377,7 +377,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 		}
+ 	}
+ 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
+-		// Just enough to keep the api checker happy.
++		// Just enough to keep the api checker happy. Keep sorted.
+ 		src := "package runtime; type (" +
+ 			" _defer struct{};" +
+ 			" _func struct{};" +
+@@ -388,6 +388,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" chantype struct{};" +
+ 			" context struct{};" + // windows
+ 			" eface struct{};" +
++			" epollevent struct{};" +
+ 			" funcval struct{};" +
+ 			" g struct{};" +
+ 			" gobuf struct{};" +
+@@ -395,20 +396,20 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" iface struct{};" +
+ 			" interfacetype struct{};" +
+ 			" itab struct{};" +
++			" keventt struct{};" +
+ 			" m struct{};" +
+ 			" maptype struct{};" +
+ 			" mcache struct{};" +
+ 			" mspan struct{};" +
+ 			" mutex struct{};" +
+ 			" note struct{};" +
++			" p struct{};" +
+ 			" slicetype struct{};" +
+ 			" stkframe struct{};" +
+ 			" sudog struct{};" +
++			" timespec struct{};" +
+ 			" waitq struct{};" +
+ 			" wincallbackcontext struct{};" +
+-			" keventt struct{};" +
+-			" timespec struct{};" +
+-			" epollevent struct{};" +
+ 			"); " +
+ 			"const (" +
+ 			" cb_max = 2000;" +
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 8d069d3ee3..61cfdb5bf1 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -146,16 +146,14 @@ runtime·goenvs(void)
+ 	for(p=env; *p; n++)
+ 		p += runtime·findnullw(p)+1;
+ 
+-	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
++	syscall·envs = runtime·makeStringSlice(n);
++	s = (String*)syscall·envs.array;
+ 
+ 	p = env;
+ 	for(i=0; i<n; i++) {
+ 		s[i] = runtime·gostringw(p);
+ 		p += runtime·findnullw(p)+1;
+ 	}
+-	syscall·envs.array = (byte*)s;
+-	syscall·envs.len = n;
+-	syscall·envs.cap = n;
+ 
+ 	runtime·stdcall1(runtime·FreeEnvironmentStringsW, (uintptr)env);
+ }
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 004d93a973..25f9166403 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -81,11 +81,10 @@ int8*	runtime·goos;
+ int32	runtime·ncpu;
+ static int32	newprocs;
+ 
+-static	Mutex allglock;	// the following vars are protected by this lock or by stoptheworld
++Mutex runtime·allglock;	// the following vars are protected by this lock or by stoptheworld
+ G**	runtime·allg;
+ Slice	runtime·allgs;
+ uintptr runtime·allglen;
+-static	uintptr allgcap;
+ ForceGCState	runtime·forcegc;
+ 
+ void runtime·mstart(void);
+@@ -127,7 +126,7 @@ static bool preemptall(void);
+ static bool preemptone(P*);
+ static bool exitsyscallfast(void);
+ static bool haveexperiment(int8*);
+-static void allgadd(G*);
++void runtime·allgadd(G*);
+ static void dropg(void);
+ 
+ extern String runtime·buildVersion;
+@@ -1064,7 +1063,7 @@ runtime·newextram(void)
+ 	if(raceenabled)
+ 		gp->racectx = runtime·racegostart(runtime·newextram);
+ 	// put on allg for garbage collector
+-	allgadd(gp);
++	runtime·allgadd(gp);
+ 
+ 	// Add m to the extra list.
+ 	mnext = lockextra(true);
+@@ -2210,7 +2209,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	if((newg = gfget(p)) == nil) {
+ 		newg = runtime·malg(StackMin);
+ 		runtime·casgstatus(newg, Gidle, Gdead);
+-		allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
++		runtime·allgadd(newg); // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+ 	}
+ 	if(newg->stack.hi == 0)
+ 		runtime·throw("newproc1: newg missing stack");
+@@ -2257,35 +2256,6 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 	return newg;
+ }
+ 
+-static void
+-allgadd(G *gp)
+-{
+-	G **new;
+-	uintptr cap;
+-
+-	if(runtime·readgstatus(gp) == Gidle) 
+-		runtime·throw("allgadd: bad status Gidle");
+-
+-	runtime·lock(&allglock);
+-	if(runtime·allglen >= allgcap) {
+-		cap = 4096/sizeof(new[0]);
+-		if(cap < 2*allgcap)
+-			cap = 2*allgcap;
+-		new = runtime·mallocgc(cap*sizeof(new[0]), runtime·conservative, 0);
+-		if(new == nil)
+-			runtime·throw("runtime: cannot allocate memory");
+-		if(runtime·allg != nil)
+-			runtime·memmove(new, runtime·allg, runtime·allglen*sizeof(new[0]));
+-		runtime·allg = new;
+-		runtime·allgs.array = (void*)runtime·allg;
+-		allgcap = cap;
+-		runtime·allgs.cap = allgcap;
+-	}
+-	runtime·allg[runtime·allglen++] = gp;
+-	runtime·allgs.len = runtime·allglen;
+-	runtime·unlock(&allglock);
+-}
+-
+ // Put on gfree list.
+ // If local list is too long, transfer a batch to the global list.
+ static void
+@@ -2713,6 +2683,8 @@ runtime·setcpuprofilerate_m(void)
+ 	g->m->locks--;
+ }
+ 
++P *runtime·newP(void);
++
+ // Change number of processors.  The world is stopped, sched is locked.
+ static void
+ procresize(int32 new)
+@@ -2729,7 +2701,7 @@ procresize(int32 new)
+ 	for(i = 0; i < new; i++) {
+ 		p = runtime·allp[i];
+ 		if(p == nil) {
+-			p = (P*)runtime·mallocgc(sizeof(*p), runtime·conservative, 0);
++			p = runtime·newP();
+ 			p->id = i;
+ 			p->status = Pgcstop;
+ 			runtime·atomicstorep(&runtime·allp[i], p);
+@@ -2875,7 +2847,7 @@ checkdead(void)
+ 		runtime·throw("checkdead: inconsistent counts");
+ 	}
+ 	grunning = 0;
+-	runtime·lock(&allglock);
++	runtime·lock(&runtime·allglock);
+ 	for(i = 0; i < runtime·allglen; i++) {
+ 		gp = runtime·allg[i];
+ 		if(gp->issystem)
+@@ -2888,13 +2860,13 @@ checkdead(void)
+ 		case Grunnable:
+ 		case Grunning:
+ 		case Gsyscall:
+-			runtime·unlock(&allglock);
++			runtime·unlock(&runtime·allglock);
+ 			runtime·printf("runtime: checkdead: find g %D in status %d\n", gp->goid, s);
+ 			runtime·throw("checkdead: runnable g");
+ 			break;
+ 		}
+ 	}
+-	runtime·unlock(&allglock);
++	runtime·unlock(&runtime·allglock);
+ 	if(grunning == 0)  // possible if main goroutine calls runtime·Goexit()
+ 		runtime·throw("no goroutines (main called runtime.Goexit) - deadlock!");
+ 	g->m->throwing = -1;  // do not dump full stacks
+@@ -3198,7 +3170,7 @@ runtime·schedtrace(bool detailed)
+ 			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
+ 			mp->spinning, g->m->blocked, id3);
+ 	}
+-	runtime·lock(&allglock);
++	runtime·lock(&runtime·allglock);
+ 	for(gi = 0; gi < runtime·allglen; gi++) {
+ 		gp = runtime·allg[gi];
+ 		mp = gp->m;
+@@ -3207,7 +3179,7 @@ runtime·schedtrace(bool detailed)
+ 			gp->goid, runtime·readgstatus(gp), gp->waitreason, mp ? mp->id : -1,
+ 			lockedm ? lockedm->id : -1);
+ 	}
+-	runtime·unlock(&allglock);
++	runtime·unlock(&runtime·allglock);
+ 	runtime·unlock(&runtime·sched.lock);
+ }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4e3d2855f6..2f07c8a0b3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -196,3 +196,19 @@ func lockedOSThread() bool {
+ 	gp := getg()
+ 	return gp.lockedm != nil && gp.m.lockedg != nil
+ }
++
++func newP() *p {
++	return new(p)
++}
++
++func allgadd(gp *g) {
++	if readgstatus(gp) == _Gidle {
++		gothrow("allgadd: bad status Gidle")
++	}
++
++	lock(&allglock)
++	allgs = append(allgs, gp)
++	allg = &allgs[0]
++	allglen = uintptr(len(allgs))
++	unlock(&allglock)
++}
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 97d040664b..ae754dc5cd 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -97,12 +97,10 @@ runtime·goargs(void)
+ 	if(Windows)
+ 		return;
+ 
+-	s = runtime·mallocgc(argc*sizeof s[0], runtime·conservative, 0);
++	os·Args = runtime·makeStringSlice(argc);
++	s = (String*)os·Args.array;
+ 	for(i=0; i<argc; i++)
+ 		s[i] = runtime·gostringnocopy(argv[i]);
+-	os·Args.array = (byte*)s;
+-	os·Args.len = argc;
+-	os·Args.cap = argc;
+ }
+ 
+ void
+@@ -114,12 +112,10 @@ runtime·goenvs_unix(void)
+ 	for(n=0; argv[argc+1+n] != 0; n++)
+ 		;
+ 
+-	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
++	syscall·envs = runtime·makeStringSlice(n);
++	s = (String*)syscall·envs.array;
+ 	for(i=0; i<n; i++)
+ 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
+-	syscall·envs.array = (byte*)s;
+-	syscall·envs.len = n;
+-	syscall·envs.cap = n;
+ }
+ 
+ #pragma textflag NOSPLIT
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index d5b31559a2..d4f7c64a52 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -35,3 +35,7 @@ func tickspersecond() int64 {
+ 	unlock(&ticks.lock)
+ 	return r
+ }
++
++func makeStringSlice(n int) []string {
++	return make([]string, n)
++}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 8c2b09b317..37728b4130 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -682,6 +682,7 @@ struct Stkframe
+ };
+ 
+ intgo	runtime·gentraceback(uintptr, uintptr, uintptr, G*, intgo, uintptr*, intgo, bool(**)(Stkframe*, void*), void*, bool);
++void	runtime·tracebackdefers(G*, bool(**)(Stkframe*, void*), void*);
+ void	runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ bool	runtime·haszeroargs(uintptr pc);
+@@ -776,6 +777,7 @@ int32	runtime·mcmp(byte*, byte*, uintptr);
+ void	runtime·memmove(void*, void*, uintptr);
+ String	runtime·catstring(String, String);
+ String	runtime·gostring(byte*);
++Slice	runtime·makeStringSlice(intgo);
+ String  runtime·gostringn(byte*, intgo);
+ Slice	runtime·gobytes(byte*, intgo);
+ String	runtime·gostringnocopy(byte*);

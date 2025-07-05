@@ -8,7 +8,32 @@ Date:   Wed Mar 5 15:27:36 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/71700043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 001b188e41..82d038422d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -276,6 +276,7 @@ Miki Tebeka <miki.tebeka@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk>
+ Miquel Sabaté Solà <mikisabate@gmail.com>
++Moov Corporation
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nan Deng <monnand@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e6fd95ecba..a5f55f0423 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -337,6 +337,7 @@ Lucio De Re <lucio.dere@gmail.com>
+ Luit van Drongelen <luitvd@gmail.com>
+ Luke Curley <qpingu@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
++Manoj Dayaram <platform-dev@moovweb.com> <manoj.dayaram@moovweb.com>
+ Manu Garg <manugarg@google.com>
+ Marc Weistroff <marc@weistroff.net>
+ Marcel van Lohuizen <mpvl@golang.org>

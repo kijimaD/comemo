@@ -7,8 +7,76 @@ Date:   Thu Dec 15 17:50:59 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5487077
-
+---
  src/cmd/gc/fmt.c | 4 ++++
  src/cmd/gc/inl.c | 6 +++---
  test/cmp.go      | 3 ++-
  3 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index c627adb34f..f3be53c8fb 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -914,6 +914,9 @@ stmtfmt(Fmt *f, Node *n)
+ 			fmtprint(f, "%#O", n->op);
+ 		break;
+ 
++	case OEMPTY:
++		break;
++
+ 	case OLABEL:
+ 		fmtprint(f, "%N: ", n->left);
+ 		break;
+@@ -1018,6 +1021,7 @@ static int opprec[] = {
+ 	[ODCL] = -1,
+ 	[ODCLFIELD] = -1,
+ 	[ODEFER] = -1,
++	[OEMPTY] = -1,
+ 	[OFALL] = -1,
+ 	[OFOR] = -1,
+ 	[OIF] = -1,
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 196a6eff3d..e2d122c91d 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -60,7 +60,7 @@ caninl(Node *fn)
+ 	case ORETURN:
+ 	case OAS:
+ 	case OAS2:
+-	  // case OEMPTY:  // TODO
++	case OEMPTY:
+ 		break;
+ 	}
+ 
+@@ -449,7 +449,7 @@ mkinlcall(Node **np, Node *fn)
+ 		// TODO check that n->list->n is a call?
+ 		as->rlist = n->list;
+ 		for(t = getinargx(fn->type)->type; t; t=t->down) {
+-			if(t->nname) {
++			if(t->nname && !isblank(t->nname)) {
+ 				if(!t->nname->inlvar)
+ 					fatal("missing inlvar for %N\n", t->nname);
+ 				as->list = list(as->list, t->nname->inlvar);
+@@ -460,7 +460,7 @@ mkinlcall(Node **np, Node *fn)
+ 	} else {
+ 		ll = n->list;
+ 		for(t = getinargx(fn->type)->type; t && ll; t=t->down) {
+-			if(t->nname) {
++			if(t->nname && !isblank(t->nname)) {
+ 				if(!t->nname->inlvar)
+ 					fatal("missing inlvar for %N\n", t->nname);
+ 				as->list = list(as->list, t->nname->inlvar);
+diff --git a/test/cmp.go b/test/cmp.go
+index f079c5d560..d51a11aa24 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -8,7 +8,8 @@ package main
+ 
+ import "unsafe"
+ 
+-func use(bool) {}
++var global bool
++func use(b bool) { global = b }
+ 
+ func stringptr(s string) uintptr { return *(*uintptr)(unsafe.Pointer(&s)) }
+ 

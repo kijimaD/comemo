@@ -9,7 +9,76 @@ Date:   Thu Apr 14 15:05:02 2011 -0700
     R=rsc, bradfitzgo, bradfitzwork
     CC=bradfitz, golang-dev
     https://golang.org/cl/4368052
-
+---
  src/pkg/http/cookie.go      | 21 +++++++++++++++++----
  src/pkg/http/cookie_test.go |  6 +++++-
  2 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/http/cookie.go b/src/pkg/http/cookie.go
+index 2bb66e58e5..2c01826a12 100644
+--- a/src/pkg/http/cookie.go
++++ b/src/pkg/http/cookie.go
+@@ -142,12 +142,12 @@ func writeSetCookies(w io.Writer, kk []*Cookie) os.Error {
+ 	var b bytes.Buffer
+ 	for _, c := range kk {
+ 		b.Reset()
+-		fmt.Fprintf(&b, "%s=%s", c.Name, c.Value)
++		fmt.Fprintf(&b, "%s=%s", sanitizeName(c.Name), sanitizeValue(c.Value))
+ 		if len(c.Path) > 0 {
+-			fmt.Fprintf(&b, "; Path=%s", URLEscape(c.Path))
++			fmt.Fprintf(&b, "; Path=%s", sanitizeValue(c.Path))
+ 		}
+ 		if len(c.Domain) > 0 {
+-			fmt.Fprintf(&b, "; Domain=%s", URLEscape(c.Domain))
++			fmt.Fprintf(&b, "; Domain=%s", sanitizeValue(c.Domain))
+ 		}
+ 		if len(c.Expires.Zone) > 0 {
+ 			fmt.Fprintf(&b, "; Expires=%s", c.Expires.Format(time.RFC1123))
+@@ -225,7 +225,7 @@ func readCookies(h Header) []*Cookie {
+ func writeCookies(w io.Writer, kk []*Cookie) os.Error {
+ 	lines := make([]string, 0, len(kk))
+ 	for _, c := range kk {
+-		lines = append(lines, fmt.Sprintf("Cookie: %s=%s\r\n", c.Name, c.Value))
++		lines = append(lines, fmt.Sprintf("Cookie: %s=%s\r\n", sanitizeName(c.Name), sanitizeValue(c.Value)))
+ 	}
+ 	sort.SortStrings(lines)
+ 	for _, l := range lines {
+@@ -236,6 +236,19 @@ func writeCookies(w io.Writer, kk []*Cookie) os.Error {
+ 	return nil
+ }
+ 
++func sanitizeName(n string) string {
++	n = strings.Replace(n, "\n", "-", -1)
++	n = strings.Replace(n, "\r", "-", -1)
++	return n
++}
++
++func sanitizeValue(v string) string {
++	v = strings.Replace(v, "\n", " ", -1)
++	v = strings.Replace(v, "\r", " ", -1)
++	v = strings.Replace(v, ";", " ", -1)
++	return v
++}
++
+ func unquoteCookieValue(v string) string {
+ 	if len(v) > 1 && v[0] == '"' && v[len(v)-1] == '"' {
+ 		return v[1 : len(v)-1]
+diff --git a/src/pkg/http/cookie_test.go b/src/pkg/http/cookie_test.go
+index db09970406..a3ae85cd6c 100644
+--- a/src/pkg/http/cookie_test.go
++++ b/src/pkg/http/cookie_test.go
+@@ -21,9 +21,13 @@ var writeSetCookiesTests = []struct {
+ 		[]*Cookie{
+ 			&Cookie{Name: "cookie-1", Value: "v$1"},
+ 			&Cookie{Name: "cookie-2", Value: "two", MaxAge: 3600},
++			&Cookie{Name: "cookie-3", Value: "three", Domain: ".example.com"},
++			&Cookie{Name: "cookie-4", Value: "four", Path: "/restricted/"},
+ 		},
+ 		"Set-Cookie: cookie-1=v$1\r\n" +
+-			"Set-Cookie: cookie-2=two; Max-Age=3600\r\n",
++			"Set-Cookie: cookie-2=two; Max-Age=3600\r\n" +
++			"Set-Cookie: cookie-3=three; Domain=.example.com\r\n" +
++			"Set-Cookie: cookie-4=four; Path=/restricted/\r\n",
+ 	},
+ }
+ 

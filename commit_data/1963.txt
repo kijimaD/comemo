@@ -9,6 +9,20 @@ Date:   Mon Apr 6 17:03:07 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=27123
     CL=27130
-
+---
  src/lib/io/bytebuffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/io/bytebuffer.go b/src/lib/io/bytebuffer.go
+index cb2d44815a..440f265c53 100644
+--- a/src/lib/io/bytebuffer.go
++++ b/src/lib/io/bytebuffer.go
+@@ -47,7 +47,7 @@ func (b *ByteBuffer) Write(p []byte) (n int, err *os.Error) {
+ 		b.buf = make([]byte, b.cap);
+ 		b.len = 0;
+ 	}
+-	if b.len + len(p) > b.cap {
++	if b.len + plen > b.cap {
+ 		b.cap = 2*(b.cap + plen);
+ 		nb := make([]byte, b.cap);
+ 		bytecopy(nb, 0, b.buf, 0, b.len);

@@ -7,6 +7,20 @@ Date:   Fri Jun 5 17:02:09 2015 +1000
     Change-Id: I283ab238b60d3a47e86296e1fbfc73ba121bef19
     Reviewed-on: https://go-review.googlesource.com/10745
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 94f80a6223..1c3a6855b4 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1458,7 +1458,7 @@ func TestManyErrBadConn(t *testing.T) {
+ 	}
+ }
+ 
+-// golang.org/issue/5781
++// golang.org/issue/5718
+ func TestErrBadConnReconnect(t *testing.T) {
+ 	db := newTestDB(t, "foo")
+ 	defer closeDB(t, db)

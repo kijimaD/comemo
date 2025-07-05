@@ -30,7 +30,120 @@ Date:   Thu Jan 12 16:54:42 2017 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/value.go    |  8 ++++++
  2 files changed, 76 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 033a18171d..022350b322 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -26,6 +26,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var sink interface{}
++
+ func TestBool(t *testing.T) {
+ 	v := ValueOf(true)
+ 	if v.Bool() != true {
+@@ -5331,6 +5333,72 @@ func TestCallGC(t *testing.T) {
+ 	f2("four", "five5", "six666", "seven77", "eight888")
+ }
+ 
++// Issue 18635 (function version).
++func TestKeepFuncLive(t *testing.T) {
++	// Test that we keep makeFuncImpl live as long as it is
++	// referenced on the stack.
++	typ := TypeOf(func(i int) {})
++	var f, g func(in []Value) []Value
++	f = func(in []Value) []Value {
++		clobber()
++		i := int(in[0].Int())
++		if i > 0 {
++			// We can't use Value.Call here because
++			// runtime.call* will keep the makeFuncImpl
++			// alive. However, by converting it to an
++			// interface value and calling that,
++			// reflect.callReflect is the only thing that
++			// can keep the makeFuncImpl live.
++			//
++			// Alternate between f and g so that if we do
++			// reuse the memory prematurely it's more
++			// likely to get obviously corrupted.
++			MakeFunc(typ, g).Interface().(func(i int))(i - 1)
++		}
++		return nil
++	}
++	g = func(in []Value) []Value {
++		clobber()
++		i := int(in[0].Int())
++		MakeFunc(typ, f).Interface().(func(i int))(i)
++		return nil
++	}
++	MakeFunc(typ, f).Call([]Value{ValueOf(10)})
++}
++
++// Issue 18635 (method version).
++type KeepMethodLive struct{}
++
++func (k KeepMethodLive) Method1(i int) {
++	clobber()
++	if i > 0 {
++		ValueOf(k).MethodByName("Method2").Interface().(func(i int))(i - 1)
++	}
++}
++
++func (k KeepMethodLive) Method2(i int) {
++	clobber()
++	ValueOf(k).MethodByName("Method1").Interface().(func(i int))(i)
++}
++
++func TestKeepMethodLive(t *testing.T) {
++	// Test that we keep methodValue live as long as it is
++	// referenced on the stack.
++	KeepMethodLive{}.Method1(10)
++}
++
++// clobber tries to clobber unreachable memory.
++func clobber() {
++	runtime.GC()
++	for i := 1; i < 32; i++ {
++		for j := 0; j < 10; j++ {
++			obj := make([]*byte, i)
++			sink = obj
++		}
++	}
++	runtime.GC()
++}
++
+ type funcLayoutTest struct {
+ 	rcvr, t                  Type
+ 	size, argsize, retOffset uintptr
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 042414ffe7..699ba69408 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -538,6 +538,11 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ 			off += typ.size
+ 		}
+ 	}
++
++	// runtime.getArgInfo expects to be able to find ctxt on the
++	// stack when it finds our caller, makeFuncStub. Make sure it
++	// doesn't get garbage collected.
++	runtime.KeepAlive(ctxt)
+ }
+ 
+ // methodReceiver returns information about the receiver
+@@ -650,6 +655,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+ 	// though it's a heap object.
+ 	memclrNoHeapPointers(args, frametype.size)
+ 	framePool.Put(args)
++
++	// See the comment in callReflect.
++	runtime.KeepAlive(ctxt)
+ }
+ 
+ // funcName returns the name of f, for use in error messages.

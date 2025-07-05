@@ -13,8 +13,189 @@ Date:   Tue Oct 27 17:42:57 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go       | 107 -----------------------------------------------
  src/runtime/proc.go      |   2 +-
  src/runtime/traceback.go |   3 --
  3 files changed, 1 insertion(+), 111 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 315db2d06c..b987bcc833 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -727,57 +727,6 @@ const gcAssistTimeSlack = 5000
+ // of future allocations.
+ const gcOverAssistBytes = 1 << 20
+ 
+-// bgMarkSignal synchronizes the GC coordinator and background mark workers.
+-type bgMarkSignal struct {
+-	// Workers race to cas to 1. Winner signals coordinator.
+-	done uint32
+-	// Coordinator to wake up.
+-	lock mutex
+-	g    *g
+-	wake bool
+-}
+-
+-func (s *bgMarkSignal) wait() {
+-	lock(&s.lock)
+-	if s.wake {
+-		// Wakeup already happened
+-		unlock(&s.lock)
+-	} else {
+-		s.g = getg()
+-		goparkunlock(&s.lock, "mark wait (idle)", traceEvGoBlock, 1)
+-	}
+-	s.wake = false
+-	s.g = nil
+-}
+-
+-// complete signals the completion of this phase of marking. This can
+-// be called multiple times during a cycle; only the first call has
+-// any effect.
+-//
+-// The caller should arrange to deschedule itself as soon as possible
+-// after calling complete in order to let the coordinator goroutine
+-// run.
+-func (s *bgMarkSignal) complete() bool {
+-	if cas(&s.done, 0, 1) {
+-		// This is the first worker to reach this completion point.
+-		// Signal the main GC goroutine.
+-		lock(&s.lock)
+-		if s.g == nil {
+-			// It hasn't parked yet.
+-			s.wake = true
+-		} else {
+-			ready(s.g, 0)
+-		}
+-		unlock(&s.lock)
+-		return true
+-	}
+-	return false
+-}
+-
+-func (s *bgMarkSignal) clear() {
+-	s.done = 0
+-}
+-
+ var work struct {
+ 	full  uint64                // lock-free list of full blocks workbuf
+ 	empty uint64                // lock-free list of empty blocks workbuf
+@@ -825,11 +774,6 @@ var work struct {
+ 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
+ 	// Background mark completion signaling
+ 
+-	// Coordination for the 2 parts of the mark phase.
+-	// TODO(austin): Unused. Remove.
+-	bgMark1 bgMarkSignal
+-	bgMark2 bgMarkSignal
+-
+ 	// mode is the concurrency mode of the current GC cycle.
+ 	mode gcMode
+ 
+@@ -892,53 +836,6 @@ const (
+ 	gcForceBlockMode               // stop-the-world GC now and STW sweep
+ )
+ 
+-// startGCCoordinator starts and readies the GC coordinator goroutine.
+-//
+-// TODO(austin): This function unused. Remove it and backgroundgc.
+-func startGCCoordinator() {
+-	// trigger concurrent GC
+-	readied := false
+-	lock(&bggc.lock)
+-	if !bggc.started {
+-		bggc.working = 1
+-		bggc.started = true
+-		bggc.wakeSema = 1
+-		readied = true
+-		go backgroundgc()
+-	} else {
+-		bggc.working++
+-		readied = true
+-		semrelease(&bggc.wakeSema)
+-	}
+-	unlock(&bggc.lock)
+-	if readied {
+-		// This G just started or ready()d the GC goroutine.
+-		// Switch directly to it by yielding.
+-		Gosched()
+-	}
+-}
+-
+-// State of the background concurrent GC goroutine.
+-var bggc struct {
+-	lock    mutex
+-	working uint
+-	started bool
+-
+-	wakeSema uint32
+-}
+-
+-// backgroundgc is running in a goroutine and does the concurrent GC work.
+-// bggc holds the state of the backgroundgc.
+-func backgroundgc() {
+-	for {
+-		gcMarkTermination()
+-		lock(&bggc.lock)
+-		bggc.working--
+-		unlock(&bggc.lock)
+-		semacquire(&bggc.wakeSema, false)
+-	}
+-}
+-
+ // gcShouldStart returns true if the exit condition for the _GCoff
+ // phase has been met. The exit condition should be tested when
+ // allocating.
+@@ -1423,10 +1320,6 @@ func gcBgMarkPrepare() {
+ 	// there are no workers.
+ 	work.nproc = ^uint32(0)
+ 	work.nwait = ^uint32(0)
+-
+-	// Reset background mark completion points.
+-	work.bgMark1.done = 1
+-	work.bgMark2.done = 1
+ }
+ 
+ func gcBgMarkWorker(p *p) {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2da29be82a..cc2134fc1b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3366,7 +3366,7 @@ func sysmon() {
+ 		}
+ 		// check if we need to force a GC
+ 		lastgc := int64(atomicload64(&memstats.last_gc))
+-		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 && atomicloaduint(&bggc.working) == 0 {
++		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 {
+ 			lock(&forcegc.lock)
+ 			forcegc.idle = 0
+ 			forcegc.g.schedlink = 0
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index e6412a35e5..8b33e4a29e 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -41,7 +41,6 @@ var (
+ 	rt0_goPC             uintptr
+ 	sigpanicPC           uintptr
+ 	runfinqPC            uintptr
+-	backgroundgcPC       uintptr
+ 	bgsweepPC            uintptr
+ 	forcegchelperPC      uintptr
+ 	timerprocPC          uintptr
+@@ -69,7 +68,6 @@ func tracebackinit() {
+ 	rt0_goPC = funcPC(rt0_go)
+ 	sigpanicPC = funcPC(sigpanic)
+ 	runfinqPC = funcPC(runfinq)
+-	backgroundgcPC = funcPC(backgroundgc)
+ 	bgsweepPC = funcPC(bgsweep)
+ 	forcegchelperPC = funcPC(forcegchelper)
+ 	timerprocPC = funcPC(timerproc)
+@@ -706,7 +704,6 @@ func topofstack(f *_func) bool {
+ func isSystemGoroutine(gp *g) bool {
+ 	pc := gp.startpc
+ 	return pc == runfinqPC && !fingRunning ||
+-		pc == backgroundgcPC ||
+ 		pc == bgsweepPC ||
+ 		pc == forcegchelperPC ||
+ 		pc == timerprocPC ||

@@ -7,6 +7,20 @@ Date:   Sun Jul 15 09:48:31 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6399047
-
+---
  src/pkg/os/types.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index 0c95c9cece..ecb57872d5 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -12,7 +12,7 @@ import (
+ // Getpagesize returns the underlying system's memory page size.
+ func Getpagesize() int { return syscall.Getpagesize() }
+ 
+-// A FileInfo describes a file and is returned by Stat and Lstat
++// A FileInfo describes a file and is returned by Stat and Lstat.
+ type FileInfo interface {
+ 	Name() string       // base name of the file
+ 	Size() int64        // length in bytes for regular files; system-dependent for others

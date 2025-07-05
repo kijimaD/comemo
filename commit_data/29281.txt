@@ -13,7 +13,73 @@ Date:   Tue Sep 6 13:39:22 2016 -0700
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/prog.go |  2 ++
  test/fixedbugs/issue17005.go           | 46 ++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index b08ec49f6d..455db9af6c 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -112,6 +112,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
+ 	// Jumps
+ 	ppc64.ABR & obj.AMask:  {Flags: gc.Jump | gc.Break},
+ 	ppc64.ABL & obj.AMask:  {Flags: gc.Call},
++	ppc64.ABVS & obj.AMask: {Flags: gc.Cjmp},
++	ppc64.ABVC & obj.AMask: {Flags: gc.Cjmp},
+ 	ppc64.ABEQ & obj.AMask: {Flags: gc.Cjmp},
+ 	ppc64.ABNE & obj.AMask: {Flags: gc.Cjmp},
+ 	ppc64.ABGE & obj.AMask: {Flags: gc.Cjmp},
+diff --git a/test/fixedbugs/issue17005.go b/test/fixedbugs/issue17005.go
+new file mode 100644
+index 0000000000..e539519b6f
+--- /dev/null
++++ b/test/fixedbugs/issue17005.go
+@@ -0,0 +1,46 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This tickles (a version of) the PPC64 back end to
++// emit a BVS instruction.
++
++package foo
++
++type Flag int
++
++const (
++	Identity  Flag = iota - 2 // H is the identity matrix; no rotation is needed.
++	Rescaling                 // H specifies rescaling.
++)
++
++type DrotmParams struct {
++	Flag
++}
++
++func Drotmg(d1, d2, x1, y1 float64) (p DrotmParams, rd1, rd2, rx1 float64) {
++
++	const (
++		gam    = 4.0
++		gamsq  = 16.0
++		rgamsq = 5e-8
++	)
++
++	if d1 < 0 {
++		p.Flag = Rescaling
++		return
++	}
++
++	for rd1 <= rgamsq || rd1 >= gamsq {
++		if rd1 <= rgamsq {
++			rd1 *= gam * gam
++			rx1 /= gam
++		} else {
++			rd1 /= gam * gam
++			rx1 *= gam
++		}
++	}
++	return
++}

@@ -7,6 +7,35 @@ Date:   Fri Apr 10 16:47:14 2015 -0700
     Change-Id: I353ff7eb35b066a1a2693c087c9876adac8e3fd0
     Reviewed-on: https://go-review.googlesource.com/8763
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.txt | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 2d50d19c52..78076936cd 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -57,6 +57,12 @@ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5
+ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+ cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
++cmd/go: add -toolexec build option
++cmd/go: drop -ccflags build option
++cmd/go: add -asmflags build option
++cmd/go: add -buildmode build option
++cmd/gc: add -dynlink option (for amd64 only)
++cmd/ld: add -buildmode option
+ cmd/trace: new command to view traces (https://golang.org/cl/3601)
+ 
+ Performance:
+@@ -82,6 +88,10 @@ regexp: port RE2's bitstate backtracker to the regexp package (https://golang.or
+ 
+ Assembler:
+ 
++New cmd/asm tool (now use go tool asm, not go tool 6a)
++
++Assembler now supports -dynlink option.
++
+ ARM assembly syntax has had some features removed.
+ 
+ 	- mentioning SP or PC as a hardware register

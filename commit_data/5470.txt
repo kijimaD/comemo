@@ -7,7 +7,7 @@ Date:   Thu May 13 11:53:44 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1207041
-
+---
  doc/{gordon => gopher}/bumper.png           | Bin
  doc/{gordon => gopher}/bumper192x108.png    | Bin
  doc/{gordon => gopher}/bumper320x180.png    | Bin
@@ -17,3 +17,36 @@ Date:   Thu May 13 11:53:44 2010 -0700
  doc/{gordon => gopher}/gophercolor.png      | Bin
  doc/{gordon => gopher}/gophercolor16x16.png | Bin
  8 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gordon/bumper.png b/doc/gopher/bumper.png
+similarity index 100%
+rename from doc/gordon/bumper.png
+rename to doc/gopher/bumper.png
+diff --git a/doc/gordon/bumper192x108.png b/doc/gopher/bumper192x108.png
+similarity index 100%
+rename from doc/gordon/bumper192x108.png
+rename to doc/gopher/bumper192x108.png
+diff --git a/doc/gordon/bumper320x180.png b/doc/gopher/bumper320x180.png
+similarity index 100%
+rename from doc/gordon/bumper320x180.png
+rename to doc/gopher/bumper320x180.png
+diff --git a/doc/gordon/bumper480x270.png b/doc/gopher/bumper480x270.png
+similarity index 100%
+rename from doc/gordon/bumper480x270.png
+rename to doc/gopher/bumper480x270.png
+diff --git a/doc/gordon/bumper640x360.png b/doc/gopher/bumper640x360.png
+similarity index 100%
+rename from doc/gordon/bumper640x360.png
+rename to doc/gopher/bumper640x360.png
+diff --git a/doc/gordon/gopherbw.png b/doc/gopher/gopherbw.png
+similarity index 100%
+rename from doc/gordon/gopherbw.png
+rename to doc/gopher/gopherbw.png
+diff --git a/doc/gordon/gophercolor.png b/doc/gopher/gophercolor.png
+similarity index 100%
+rename from doc/gordon/gophercolor.png
+rename to doc/gopher/gophercolor.png
+diff --git a/doc/gordon/gophercolor16x16.png b/doc/gopher/gophercolor16x16.png
+similarity index 100%
+rename from doc/gordon/gophercolor16x16.png
+rename to doc/gopher/gophercolor16x16.png

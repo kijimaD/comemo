@@ -16,7 +16,7 @@ Date:   Sat Oct 3 10:37:12 2009 -0700
     DELTA=2031  (1316 added, 626 deleted, 89 changed)
     OCL=35264
     CL=35304
-
+---
  misc/cgo/gmp/Makefile               |  21 ++-
  misc/cgo/gmp/fib.go                 |  43 +++++
  misc/cgo/gmp/{pidigits.go => pi.go} |   0
@@ -70,3 +70,2849 @@ Date:   Sat Oct 3 10:37:12 2009 -0700
  src/pkg/runtime/proc.c              |  45 ++++-
  src/pkg/runtime/runtime.h           |  10 +-
  52 files changed, 1333 insertions(+), 639 deletions(-)
+
+diff --git a/misc/cgo/gmp/Makefile b/misc/cgo/gmp/Makefile
+index b261ff2352..c92458c908 100644
+--- a/misc/cgo/gmp/Makefile
++++ b/misc/cgo/gmp/Makefile
+@@ -5,6 +5,9 @@
+ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=gmp
++
++# Can have plain GOFILES too, but this example doesn't.
++
+ CGOFILES=\
+ 	gmp.go
+ 
+@@ -15,15 +18,21 @@ CGO_LDFLAGS=-lgmp
+ # alternate installation of the library:
+ #	CGO_CFLAGS=-I/home/rsc/gmp32/include
+ #	CGO_LDFLAGS+=-L/home/rsc/gmp32/lib
++# Note the += on the second line.
+ 
+-# Can have plain GOFILES too, but this example doesn't.
++CLEANFILES+=pi fib
+ 
+ include $(GOROOT)/src/Make.pkg
+ 
+-# Simple test program
++# Simple test programs
++
++# Computes 1000 digits of pi; single-threaded.
++pi: install pi.go
++	$(GC) pi.go
++	$(LD) -o $@ pi.$O
+ 
+-pidigits.$O: install pidigits.go
+-	$(GC) pidigits.go
++# Computes 200 Fibonacci numbers; multi-threaded.
++fib: install fib.go
++	$(GC) fib.go
++	$(LD) -o $@ fib.$O
+ 
+-pidigits: pidigits.$O
+-	$(LD) -o $@ pidigits.$O
+diff --git a/misc/cgo/gmp/fib.go b/misc/cgo/gmp/fib.go
+new file mode 100644
+index 0000000000..02b98b108c
+--- /dev/null
++++ b/misc/cgo/gmp/fib.go
+@@ -0,0 +1,43 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Compute Fibonacci numbers with two goroutines
++// that pass integers back and forth.  No actual
++// concurrency, just threads and synchronization
++// and foreign code on multiple pthreads.
++
++package main
++
++import (
++	big "gmp";
++	"runtime";
++)
++
++func fibber(c chan *big.Int, out chan string, n int64) {
++	// Keep the fibbers in dedicated operating system
++	// threads, so that this program tests coordination
++	// between pthreads and not just goroutines.
++	runtime.LockOSThread();
++
++	i := big.NewInt(n);
++	if n == 0 {
++		c <- i;
++	}
++	for {
++		j := <-c;
++		out <- j.String();
++		i.Add(i, j);
++		c <- i;
++	}
++}
++
++func main() {
++	c := make(chan *big.Int);
++	out := make(chan string);
++	go fibber(c, out, 0);
++	go fibber(c, out, 1);
++	for i := 0; i < 200; i++ {
++		println(<-out);
++	}
++}
+diff --git a/misc/cgo/gmp/pidigits.go b/misc/cgo/gmp/pi.go
+similarity index 100%
+rename from misc/cgo/gmp/pidigits.go
+rename to misc/cgo/gmp/pi.go
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+new file mode 100644
+index 0000000000..010e179742
+--- /dev/null
++++ b/misc/cgo/stdio/Makefile
+@@ -0,0 +1,17 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=stdio
++CGOFILES=\
++	file.go
++
++CLEANFILES+=hello fib chain
++
++include $(GOROOT)/src/Make.pkg
++
++%: install %.go
++	$(GC) $*.go
++	$(LD) -o $@ $*.$O
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+new file mode 100644
+index 0000000000..972057e11f
+--- /dev/null
++++ b/misc/cgo/stdio/fib.go
+@@ -0,0 +1,47 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Compute Fibonacci numbers with two goroutines
++// that pass integers back and forth.  No actual
++// concurrency, just threads and synchronization
++// and foreign code on multiple pthreads.
++
++package main
++
++import (
++	"runtime";
++	"stdio";
++	"strconv";
++)
++
++func fibber(c, out chan int64, i int64) {
++	// Keep the fibbers in dedicated operating system
++	// threads, so that this program tests coordination
++	// between pthreads and not just goroutines.
++	runtime.LockOSThread();
++
++	if i == 0 {
++		c <- i;
++	}
++	for {
++		j := <-c;
++		stdio.Puts(strconv.Itoa64(j));
++		out <- j;
++		<-out;
++		i += j;
++		c <- i;
++	}
++}
++
++func main() {
++	c := make(chan int64);
++	out := make(chan int64);
++	go fibber(c, out, 0);
++	go fibber(c, out, 1);
++	<-out;
++	for i := 0; i < 90; i++ {
++		out <- 1;
++		<-out;
++	}
++}
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+new file mode 100644
+index 0000000000..7935f8f4db
+--- /dev/null
++++ b/misc/cgo/stdio/file.go
+@@ -0,0 +1,43 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++A trivial example of wrapping a C library in Go.
++For a more complex example and explanation,
++see ../gmp/gmp.go.
++*/
++
++package stdio
++
++// TODO(rsc): Remove fflushstdout when C.fflush(C.stdout) works in cgo.
++
++/*
++#include <stdio.h>
++#include <stdlib.h>
++
++void fflushstdout(void) { fflush(stdout); }
++*/
++import "C"
++import "unsafe"
++
++/*
++type File C.FILE
++
++var Stdout = (*File)(C.stdout)
++var Stderr = (*File)(C.stderr)
++
++func (f *File) WriteString(s string) {
++	p := C.CString(s);
++	C.fputs(p, (*C.FILE)(f));
++	C.free(p);
++}
++*/
++
++func Puts(s string) {
++	p := C.CString(s);
++	C.puts(p);
++	C.free(unsafe.Pointer(p));
++	C.fflushstdout();
++}
++
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+new file mode 100644
+index 0000000000..8809c9a9cb
+--- /dev/null
++++ b/misc/cgo/stdio/hello.go
+@@ -0,0 +1,12 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "stdio"
++
++func main() {
++//	stdio.Stdout.WriteString("hello, world\n");
++	stdio.Puts("hello, world");
++}
+diff --git a/src/Make.pkg b/src/Make.pkg
+index bc00eeaefd..24cd454372 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -24,7 +24,7 @@ coverage:
+ 	6cov -g $(shell pwd) | grep -v '_test\.go:'
+ 
+ clean:
+-	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go
++	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)
+ 
+ test:
+ 	gotest
+@@ -81,7 +81,7 @@ dir:
+ #	x.cgo4.c - C implementations compiled with gcc to create dynamic library
+ #
+ %.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
+-	cgo $*.go
++	cgo $(CGO_CFLAGS) $*.go
+ 
+ # The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
+ # added x.cgo3.$O to $OFILES, and added the installed copy of
+@@ -96,13 +96,16 @@ RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
+ # Have to run gcc with the right size argument on hybrid 32/64 machines.
+ _CGO_CFLAGS_386=-m32
+ _CGO_CFLAGS_amd64=-m64
++_CGO_LDFLAGS_linux=-shared -lpthread -lm
++_CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
++
+ 
+ # Compile x.cgo4.c with gcc to make package_x.so.
+ %.cgo4.o: %.cgo4.c
+ 	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
+ 
+ $(elem)_%.so: %.cgo4.o
+-	gcc $(_CGO_CFLAGS_$(GOARCH)) -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
++	gcc $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)
+ 
+ $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
+ 	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 5562ee4e3b..a0f8524e73 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -425,16 +425,11 @@ asmb(void)
+ 	int32 v, magic;
+ 	int a, dynsym;
+ 	uchar *op1;
+-	vlong vl, va, startva, fo, w, symo;
++	vlong vl, va, startva, fo, w, symo, machlink;
+ 	vlong symdatva = 0x99LL<<32;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+-	MachoHdr *mh;
+-	MachoSect *msect;
+-	MachoSeg *ms;
+-	MachoDebug *md;
+-	MachoLoad *ml;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -523,6 +518,10 @@ asmb(void)
+ 			datblk(v, datsize-v);
+ 	}
+ 
++	machlink = 0;
++	if(HEADTYPE == 6)
++		machlink = domacholink();
++
+ 	symsize = 0;
+ 	spsize = 0;
+ 	lcsize = 0;
+@@ -539,7 +538,7 @@ asmb(void)
+ 			symo = HEADR+textsize+datsize;
+ 			break;
+ 		case 6:
+-			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
++			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
+ 			break;
+ 		case 7:
+ 			symo = rnd(HEADR+textsize, INITRND)+datsize;
+@@ -607,92 +606,8 @@ asmb(void)
+ 		lputb(lcsize);			/* line offsets */
+ 		break;
+ 	case 6:
+-		/* apple MACH */
+-		va = HEADR;
+-		mh = getMachoHdr();
+-		mh->cpu = MACHO_CPU_AMD64;
+-		mh->subcpu = MACHO_SUBCPU_X86;
+-
+-		/* segment for zero page */
+-		ms = newMachoSeg("__PAGEZERO", 0);
+-		ms->vsize = va;
+-
+-		/* text */
+-		v = rnd(HEADR+textsize, INITRND);
+-		ms = newMachoSeg("__TEXT", 1);
+-		ms->vaddr = va;
+-		ms->vsize = v;
+-		ms->filesize = v;
+-		ms->prot1 = 7;
+-		ms->prot2 = 5;
+-
+-		msect = newMachoSect(ms, "__text");
+-		msect->addr = va+HEADR;
+-		msect->size = v - HEADR;
+-		msect->off = HEADR;
+-		msect->flag = 0x400;	/* flag - some instructions */
+-
+-		/* data */
+-		w = datsize+bsssize;
+-		ms = newMachoSeg("__DATA", 2);
+-		ms->vaddr = va+v;
+-		ms->vsize = w;
+-		ms->fileoffset = v;
+-		ms->filesize = datsize;
+-		ms->prot1 = 7;
+-		ms->prot2 = 3;
+-
+-		msect = newMachoSect(ms, "__data");
+-		msect->addr = va+v;
+-		msect->size = datsize;
+-		msect->off = v;
+-
+-		msect = newMachoSect(ms, "__bss");
+-		msect->addr = va+v+datsize;
+-		msect->size = bsssize;
+-		msect->flag = 1;	/* flag - zero fill */
+-
+-		ml = newMachoLoad(5, 42+2);	/* unix thread */
+-		ml->data[0] = 4;	/* thread type */
+-		ml->data[1] = 42;	/* word count */
+-		ml->data[2+32] = entryvalue();	/* start pc */
+-		ml->data[2+32+1] = entryvalue()>>32;
+-
+-		if(!debug['d']) {
+-			ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
+-			USED(ml);
+-
+-			ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
+-			USED(ml);
+-
+-			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
+-			ml->data[0] = 12;	/* offset to string */
+-			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
+-		}
+-
+-		if(!debug['s']) {
+-			ms = newMachoSeg("__SYMDAT", 1);
+-			ms->vaddr = symdatva;
+-			ms->vsize = 8+symsize+lcsize;
+-			ms->fileoffset = symo;
+-			ms->filesize = 8+symsize+lcsize;
+-			ms->prot1 = 7;
+-			ms->prot2 = 5;
+-
+-			md = newMachoDebug();
+-			md->fileoffset = symo+8;
+-			md->filesize = symsize;
+-
+-			md = newMachoDebug();
+-			md->fileoffset = symo+8+symsize;
+-			md->filesize = lcsize;
+-		}
+-
+-		a = machowrite();
+-		if(a > MACHORESERVE)
+-			diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
++		asmbmacho(symdatva, symo);
+ 		break;
+-
+ 	case 7:
+ 		/* elf amd-64 */
+ 
+@@ -965,6 +880,8 @@ datblk(int32 s, int32 n)
+ 		curp = p;
+ 		if(!p->from.sym->reachable)
+ 			diag("unreachable symbol in datblk - %s", p->from.sym->name);
++		if(p->from.sym->type == SMACHO)
++			continue;
+ 		l = p->from.sym->value + p->from.offset - s;
+ 		c = p->from.scale;
+ 		i = 0;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index a1c2ec5272..28c37a82c4 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -160,6 +160,8 @@ enum
+ 	SIMPORT,
+ 	SEXPORT,
+ 
++	SMACHO,
++
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+ 	MINSIZ		= 8,
+@@ -362,6 +364,7 @@ EXTERN	Prog	undefp;
+ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
+ extern	char	thechar;
++EXTERN	int	dynptrsize;
+ 
+ #define	UP	(&undefp)
+ 
+@@ -403,6 +406,7 @@ void	dobss(void);
+ void	dodata(void);
+ void	doelf(void);
+ void	doinit(void);
++void	domacho(void);
+ void	doprof1(void);
+ void	doprof2(void);
+ void	dostkoff(void);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index ba2dec3b27..4b40cce617 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -191,12 +191,12 @@ main(int argc, char *argv[])
+ 	case 6:	/* apple MACH */
+ 		machoinit();
+ 		HEADR = MACHORESERVE;
++		if(INITRND == -1)
++			INITRND = 4096;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+HEADR;
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+-		if(INITRND == -1)
+-			INITRND = 4096;
+ 		break;
+ 	case 7:	/* elf64 executable */
+ 		elfinit();
+@@ -393,6 +393,8 @@ main(int argc, char *argv[])
+ 	patch();
+ 	follow();
+ 	doelf();
++	if(HEADTYPE == 6)
++		domacho();
+ 	dodata();
+ 	dobss();
+ 	dostkoff();
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index c2f5605001..2da88bac1d 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -142,6 +142,11 @@ dobss(void)
+ 	Sym *s;
+ 	int32 t;
+ 
++	if(dynptrsize > 0) {
++		/* dynamic pointer section between data and bss */
++		datsize = rnd(datsize, 8);
++	}
++
+ 	/* now the bss */
+ 	bsssize = 0;
+ 	for(i=0; i<NHASH; i++)
+@@ -154,12 +159,13 @@ dobss(void)
+ 		s->size = t;
+ 		if(t >= 8)
+ 			bsssize = rnd(bsssize, 8);
+-		s->value = bsssize + datsize;
++		s->value = bsssize + dynptrsize + datsize;
+ 		bsssize += t;
+ 	}
++
+ 	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, datsize);
+-	xdefine("end", SBSS, bsssize + datsize);
++	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
+ }
+ 
+ Prog*
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index f1eafff008..18bf8cc0cc 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -237,6 +237,12 @@ asmsym(void)
+ 				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
+ 				continue;
+ 
++			case SMACHO:
++				if(!s->reachable)
++					continue;
++				putsymb(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->version, s->gotype);
++				continue;
++
+ 			case SBSS:
+ 				if(!s->reachable)
+ 					continue;
+@@ -715,6 +721,11 @@ vaddr(Adr *a)
+ 					v += INITTEXT;	/* TO DO */
+ 				v += s->value;
+ 				break;
++			case SMACHO:
++				if(!s->reachable)
++					sysfatal("unreachable symbol in vaddr - %s", s->name);
++				v += INITDAT + datsize + s->value;
++				break;
+ 			default:
+ 				if(!s->reachable)
+ 					diag("unreachable symbol in vaddr - %s", s->name);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 449467a5c8..c70af7072c 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -257,7 +257,7 @@ needlib(char *name)
+ 	Sym *s;
+ 
+ 	/* reuse hash code in symbol table */
+-	p = smprint(".elfload.%s", name);
++	p = smprint(".dynlib.%s", name);
+ 	s = lookup(p, 0);
+ 	if(s->type == 0) {
+ 		s->type = 100;	// avoid SDATA, etc.
+@@ -414,8 +414,8 @@ asmb(void)
+ {
+ 	Prog *p;
+ 	int32 v, magic;
+-	int a, dynsym;
+-	uint32 va, fo, w, symo, startva;
++	int a, i, dynsym;
++	uint32 va, fo, w, symo, startva, machlink;
+ 	uchar *op1;
+ 	ulong expectpc;
+ 	ElfEhdr *eh;
+@@ -547,6 +547,10 @@ asmb(void)
+ 			datblk(v, datsize-v);
+ 	}
+ 
++	machlink = 0;
++	if(HEADTYPE == 6)
++		machlink = domacholink();
++
+ 	symsize = 0;
+ 	spsize = 0;
+ 	lcsize = 0;
+@@ -572,7 +576,7 @@ asmb(void)
+ 			symo = HEADR+textsize+datsize;
+ 			break;
+ 		case 6:
+-			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
++			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
+ 			break;
+ 		case 7:
+ 		case 8:
+@@ -740,89 +744,7 @@ asmb(void)
+ 		break;
+ 
+ 	case 6:
+-		/* apple MACH */
+-		va = HEADR;
+-		mh = getMachoHdr();
+-		mh->cpu = MACHO_CPU_386;
+-		mh->subcpu = MACHO_SUBCPU_X86;
+-
+-		/* segment for zero page */
+-		ms = newMachoSeg("__PAGEZERO", 0);
+-		ms->vsize = va;
+-
+-		/* text */
+-		v = rnd(HEADR+textsize, INITRND);
+-		ms = newMachoSeg("__TEXT", 1);
+-		ms->vaddr = va;
+-		ms->vsize = v;
+-		ms->filesize = v;
+-		ms->prot1 = 7;
+-		ms->prot2 = 5;
+-
+-		msect = newMachoSect(ms, "__text");
+-		msect->addr = va+HEADR;
+-		msect->size = v - HEADR;
+-		msect->off = HEADR;
+-		msect->flag = 0x400;	/* flag - some instructions */
+-
+-		/* data */
+-		w = datsize+bsssize;
+-		ms = newMachoSeg("__DATA", 2);
+-		ms->vaddr = va+v;
+-		ms->vsize = w;
+-		ms->fileoffset = v;
+-		ms->filesize = datsize;
+-		ms->prot1 = 7;
+-		ms->prot2 = 3;
+-
+-		msect = newMachoSect(ms, "__data");
+-		msect->addr = va+v;
+-		msect->size = datsize;
+-		msect->off = v;
+-
+-		msect = newMachoSect(ms, "__bss");
+-		msect->addr = va+v+datsize;
+-		msect->size = bsssize;
+-		msect->flag = 1;	/* flag - zero fill */
+-
+-		ml = newMachoLoad(5, 16+2);	/* unix thread */
+-		ml->data[0] = 1;	/* thread type */
+-		ml->data[1] = 16;	/* word count */
+-		ml->data[2+10] = entryvalue();	/* start pc */
+-
+-		if(!debug['d']) {
+-			ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
+-			USED(ml);
+-
+-			ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
+-			USED(ml);
+-
+-			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
+-			ml->data[0] = 12;	/* offset to string */
+-			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
+-		}
+-
+-		if(!debug['s']) {
+-			ms = newMachoSeg("__SYMDAT", 1);
+-			ms->vaddr = symdatva;
+-			ms->vsize = 8+symsize+lcsize;
+-			ms->fileoffset = symo;
+-			ms->filesize = 8+symsize+lcsize;
+-			ms->prot1 = 7;
+-			ms->prot2 = 5;
+-
+-			md = newMachoDebug();
+-			md->fileoffset = symo+8;
+-			md->filesize = symsize;
+-
+-			md = newMachoDebug();
+-			md->fileoffset = symo+8+symsize;
+-			md->filesize = lcsize;
+-		}
+-
+-		a = machowrite();
+-		if(a > MACHORESERVE)
+-			diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
++		asmbmacho(symdatva, symo);
+ 		break;
+ 
+ 	case 7:
+@@ -963,6 +885,17 @@ asmb(void)
+ 			ph->type = PT_DYNAMIC;
+ 			ph->flags = PF_R + PF_W;
+ 			phsh(ph, sh);
++
++			/*
++			 * Thread-local storage segment (really just size).
++			 */
++			if(tlsoffset != 0) {
++				ph = newElfPhdr();
++				ph->type = PT_TLS;
++				ph->flags = PF_R;
++				ph->memsz = -tlsoffset;
++				ph->align = 4;
++			}
+ 		}
+ 
+ 		ph = newElfPhdr();
+@@ -1105,6 +1038,8 @@ datblk(int32 s, int32 n)
+ 		curp = p;
+ 		if(!p->from.sym->reachable)
+ 			diag("unreachable symbol in datblk - %s", p->from.sym->name);
++		if(p->from.sym->type == SMACHO)
++			continue;
+ 		l = p->from.sym->value + p->from.offset - s;
+ 		c = p->from.scale;
+ 		i = 0;
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index cc5901fcbd..1959b2c74d 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -151,6 +151,8 @@ enum
+ 	SIMPORT,
+ 	SEXPORT,
+ 
++	SMACHO,	/* pointer to mach-o imported symbol */
++
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+ 	MINSIZ		= 4,
+@@ -272,6 +274,7 @@ EXTERN	Prog*	curtext;
+ EXTERN	Prog*	datap;
+ EXTERN	Prog*	edatap;
+ EXTERN	int32	datsize;
++EXTERN	int32	dynptrsize;
+ EXTERN	char	debug[128];
+ EXTERN	char	literal[32];
+ EXTERN	Prog*	etextp;
+@@ -311,6 +314,7 @@ EXTERN	int	version;
+ EXTERN	Prog	zprg;
+ EXTERN	int	dtype;
+ EXTERN	char	thechar;
++EXTERN	int	tlsoffset;
+ 
+ EXTERN	Adr*	reloca;
+ EXTERN	int	doexp, dlm;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 4b65325680..aa197be531 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -213,6 +213,11 @@ main(int argc, char *argv[])
+ 			Bprint(&bso, "HEADR = 0x%ld\n", HEADR);
+ 		break;
+ 	case 6:	/* apple MACH */
++		/*
++		 * OS X system constant - offset from %gs to our TLS.
++		 * Explained in ../../libcgo/darwin_386.c.
++		 */
++		tlsoffset = 0x468;
+ 		machoinit();
+ 		HEADR = MACHORESERVE;
+ 		if(INITTEXT == -1)
+@@ -223,6 +228,13 @@ main(int argc, char *argv[])
+ 			INITRND = 4096;
+ 		break;
+ 	case 7:	/* elf32 executable */
++		/*
++		 * Linux ELF uses TLS offsets negative from %gs.
++		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
++		 * Also known to ../../pkg/runtime/linux/386/sys.s
++		 * and ../../libcgo/linux_386.c.
++		 */
++		tlsoffset = -8;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+@@ -373,6 +385,8 @@ main(int argc, char *argv[])
+ 	patch();
+ 	follow();
+ 	doelf();
++	if(HEADTYPE == 6)
++		domacho();
+ 	dodata();
+ 	dostkoff();
+ 	if(debug['p'])
+@@ -592,11 +606,14 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 		a->type = Bgetc(f);
+ 	if(t & T_GOTYPE)
+ 		a->gotype = h[Bgetc(f)];
++
++	t = a->type;
++	if(t == D_INDIR+D_GS)
++		a->offset += tlsoffset;
++
+ 	s = a->sym;
+ 	if(s == S)
+ 		return;
+-
+-	t = a->type;
+ 	if(t != D_AUTO && t != D_PARAM) {
+ 		if(a->gotype)
+ 			s->gotype = a->gotype;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 7ce419e8fb..c624f750aa 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -125,6 +125,11 @@ dodata(void)
+ 		datsize += u;
+ 	}
+ 
++	if(dynptrsize > 0) {
++		/* dynamic pointer section between data and bss */
++		datsize = rnd(datsize, 4);
++	}
++
+ 	/* now the bss */
+ 	bsssize = 0;
+ 	for(i=0; i<NHASH; i++)
+@@ -135,12 +140,13 @@ dodata(void)
+ 			continue;
+ 		t = s->value;
+ 		s->size = t;
+-		s->value = bsssize + datsize;
++		s->value = bsssize + dynptrsize + datsize;
+ 		bsssize += t;
+ 	}
++
+ 	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, datsize);
+-	xdefine("end", SBSS, bsssize + datsize);
++	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
+ }
+ 
+ Prog*
+@@ -570,7 +576,7 @@ dostkoff(void)
+ 				p = appendp(p);	// load g into CX
+ 				p->as = AMOVL;
+ 				p->from.type = D_INDIR+D_GS;
+-				p->from.offset = 0;
++				p->from.offset = tlsoffset + 0;
+ 				p->to.type = D_CX;
+ 
+ 				if(debug['K']) {
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 71607fcf27..6f62f9b4d4 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -219,6 +219,12 @@ asmsym(void)
+ 				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
+ 				continue;
+ 
++			case SMACHO:
++				if(!s->reachable)
++					continue;
++				putsymb(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->version, s->gotype);
++				continue;
++
+ 			case SBSS:
+ 				if(!s->reachable)
+ 					continue;
+@@ -611,6 +617,11 @@ vaddr(Adr *a)
+ 					sysfatal("unreachable symbol in vaddr - %s", s->name);
+ 				v += s->value;
+ 				break;
++			case SMACHO:
++				if(!s->reachable)
++					sysfatal("unreachable symbol in vaddr - %s", s->name);
++				v += INITDAT + datsize + s->value;
++				break;
+ 			default:
+ 				if(!s->reachable)
+ 					sysfatal("unreachable symbol in vaddr - %s", s->name);
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 9b122676c8..57500680ba 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -36,6 +36,7 @@ type Prog struct {
+ 	Vardef map[string]*Type;
+ 	Funcdef map[string]*FuncType;
+ 	PtrSize int64;
++	GccOptions []string;
+ }
+ 
+ // A Type collects information about a type in both the C and Go worlds.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index e3f5268458..f573b98cb5 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -172,6 +172,17 @@ func (p *Prog) loadDebugInfo() {
+ 	p.Typedef = conv.typedef;
+ }
+ 
++func concat(a, b []string) []string {
++	c := make([]string, len(a)+len(b));
++	for i, s := range a {
++		c[i] = s;
++	}
++	for i, s := range b {
++		c[i+len(a)] = s;
++	}
++	return c;
++}
++
+ // gccDebug runs gcc -gdwarf-2 over the C program stdin and
+ // returns the corresponding DWARF data and any messages
+ // printed to standard error.
+@@ -182,7 +193,7 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 	}
+ 
+ 	tmp := "_cgo_.o";
+-	_, stderr, ok := run(stdin, []string{
++	base := []string{
+ 		"gcc",
+ 		machine,
+ 		"-Wall",	// many warnings
+@@ -192,7 +203,8 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 		"-c",	// do not link
+ 		"-xc", 	// input language is C
+ 		"-",	// read input from standard input
+-	});
++	};
++	_, stderr, ok := run(stdin, concat(base, p.GccOptions));
+ 	if !ok {
+ 		return nil, string(stderr);
+ 	}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index b629f0a22c..eb04fa77d1 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -11,15 +11,13 @@
+ package main
+ 
+ import (
+-	"flag";
+ 	"fmt";
+ 	"go/ast";
+ 	"os";
+ )
+ 
+ func usage() {
+-	fmt.Fprint(os.Stderr, "usage: cgo file.cgo\n");
+-	flag.PrintDefaults();
++	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n");
+ }
+ 
+ var ptrSizeMap = map[string]int64 {
+@@ -28,9 +26,24 @@ var ptrSizeMap = map[string]int64 {
+ 	"arm": 4
+ }
+ 
++var expandName = map[string]string {
++	"schar": "signed char",
++	"uchar": "unsigned char",
++	"ushort": "unsigned short",
++	"uint": "unsigned int",
++	"ulong": "unsigned long",
++	"longlong": "long long",
++	"ulonglong": "unsigned long long",
++}
++
+ func main() {
+-	flag.Usage = usage;
+-	flag.Parse();
++	args := os.Args;
++	if len(args) < 2 {
++		usage();
++		os.Exit(2);
++	}
++	gccOptions := args[1:len(args)-1];
++	input := args[len(args)-1];
+ 
+ 	arch := os.Getenv("GOARCH");
+ 	if arch == "" {
+@@ -41,14 +54,17 @@ func main() {
+ 		fatal("unknown architecture %s", arch);
+ 	}
+ 
+-	args := flag.Args();
+-	if len(args) != 1 {
+-		usage();
+-		os.Exit(2);
++	p := openProg(input);
++	for _, cref := range p.Crefs {
++		// Convert C.ulong to C.unsigned long, etc.
++		if expand, ok := expandName[cref.Name]; ok {
++			cref.Name = expand;
++		}
+ 	}
+-	p := openProg(args[0]);
++
+ 	p.PtrSize = ptrSize;
+ 	p.Preamble = p.Preamble + "\n" + builtinProlog;
++	p.GccOptions = gccOptions;
+ 	p.loadDebugInfo();
+ 	p.Vardef = make(map[string]*Type);
+ 	p.Funcdef = make(map[string]*FuncType);
+@@ -83,5 +99,5 @@ func main() {
+ 	}
+ 
+ 	p.PackagePath = p.Package;
+-	p.writeOutput(args[0]);
++	p.writeOutput(input);
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 91473abeb5..d2eedc3313 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -198,7 +198,7 @@ const cProlog = `
+ #include "cgocall.h"
+ 
+ #pragma dynld initcgo initcgo "%s/libcgo.so"
+-#pragma dynld cgo cgo "%s/libcgo.so"
++#pragma dynld libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
+ #pragma dynld _cgo_malloc _cgo_malloc "%s/libcgo.so"
+ #pragma dynld _cgo_free free "%s/libcgo.so"
+ 
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index cb48572485..e0c2bd1b6c 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -243,7 +243,7 @@ typedef struct {
+ #define PT_NOTE		4	/* Auxiliary information. */
+ #define PT_SHLIB	5	/* Reserved (not used). */
+ #define PT_PHDR		6	/* Location of program header itself. */
+-#define	PT_TLS		7	/* Thread local storage segment */
++#define PT_TLS		7	/* Thread local storage segment */
+ #define PT_LOOS		0x60000000	/* First OS-specific. */
+ #define PT_HIOS		0x6fffffff	/* Last OS-specific. */
+ #define PT_LOPROC	0x70000000	/* First processor-specific type. */
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 159aceb9e1..e4fe963ac1 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -92,6 +92,22 @@ newMachoDebug(void)
+ 	return &xdebug[ndebug++];
+ }
+ 
++
++// Generic linking code.
++
++static uchar *linkdata;
++static uint32 nlinkdata;
++static uint32 mlinkdata;
++
++static uchar *strtab;
++static uint32 nstrtab;
++static uint32 mstrtab;
++
++static char **dylib;
++static int ndylib;
++
++static vlong linkoff;
++
+ int
+ machowrite(void)
+ {
+@@ -205,3 +221,308 @@ machowrite(void)
+ 
+ 	return Boffset(&bso) - o1;
+ }
++
++static void*
++grow(uchar **dat, uint32 *ndat, uint32 *mdat, uint32 n)
++{
++	uchar *p;
++	uint32 old;
++
++	if(*ndat+n > *mdat) {
++		old = *mdat;
++		*mdat = (*ndat+n)*2 + 128;
++		*dat = realloc(*dat, *mdat);
++		if(*dat == 0) {
++			diag("out of memory");
++			errorexit();
++		}
++		memset(*dat+old, 0, *mdat-old);
++	}
++	p = *dat + *ndat;
++	*ndat += n;
++	return p;
++}
++
++static int
++needlib(char *name)
++{
++	char *p;
++	Sym *s;
++
++	/* reuse hash code in symbol table */
++	p = smprint(".machoload.%s", name);
++	s = lookup(p, 0);
++	if(s->type == 0) {
++		s->type = 100;	// avoid SDATA, etc.
++		return 1;
++	}
++	return 0;
++}
++
++void
++domacho(void)
++{
++	int h, nsym, ptrsize;
++	char *p;
++	uchar *dat;
++	uint32 x;
++	Sym *s;
++
++	ptrsize = 4;
++	if(macho64)
++		ptrsize = 8;
++
++	// empirically, string table must begin with " \x00".
++	if(!debug['d'])
++		*(char*)grow(&strtab, &nstrtab, &mstrtab, 2) = ' ';
++
++	nsym = 0;
++	for(h=0; h<NHASH; h++) {
++		for(s=hash[h]; s!=S; s=s->link) {
++			if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
++				continue;
++			if(debug['d']) {
++				diag("cannot use dynamic loading and -d");
++				errorexit();
++			}
++			s->type = SMACHO;
++			s->value = nsym*ptrsize;
++
++			/* symbol table entry - darwin still puts _ prefixes on all C symbols */
++			x = nstrtab;
++			p = grow(&strtab, &nstrtab, &mstrtab, 1+strlen(s->dynldname)+1);
++			*p++ = '_';
++			strcpy(p, s->dynldname);
++
++			dat = grow(&linkdata, &nlinkdata, &mlinkdata, 8+ptrsize);
++			dat[0] = x;
++			dat[1] = x>>8;
++			dat[2] = x>>16;
++			dat[3] = x>>24;
++			dat[4] = 0x01;	// type: N_EXT - external symbol
++
++			if(needlib(s->dynldlib)) {
++				if(ndylib%32 == 0) {
++					dylib = realloc(dylib, (ndylib+32)*sizeof dylib[0]);
++					if(dylib == nil) {
++						diag("out of memory");
++						errorexit();
++					}
++				}
++				dylib[ndylib++] = s->dynldlib;
++			}
++			nsym++;
++		}
++	}
++
++	/*
++	 * list of symbol table indexes.
++	 * we don't take advantage of the opportunity
++	 * to order the symbol table differently from
++	 * this list, so it is boring: 0 1 2 3 4 ...
++	 */
++	for(x=0; x<nsym; x++) {
++		dat = grow(&linkdata, &nlinkdata, &mlinkdata, 4);
++		dat[0] = x;
++		dat[1] = x>>8;
++		dat[2] = x>>16;
++		dat[3] = x>>24;
++	}
++
++	dynptrsize = nsym*ptrsize;
++}
++
++vlong
++domacholink(void)
++{
++	linkoff = 0;
++	if(nlinkdata > 0) {
++		linkoff = rnd(HEADR+textsize, INITRND) + rnd(datsize, INITRND);
++		seek(cout, linkoff, 0);
++		write(cout, linkdata, nlinkdata);
++		write(cout, strtab, nstrtab);
++	}
++	return rnd(nlinkdata+nstrtab, INITRND);
++}
++
++void
++asmbmacho(vlong symdatva, vlong symo)
++{
++	vlong v, w;
++	vlong va;
++	int a, i, ptrsize;
++	MachoHdr *mh;
++	MachoSect *msect;
++	MachoSeg *ms;
++	MachoDebug *md;
++	MachoLoad *ml;
++
++	/* apple MACH */
++	va = INITTEXT - HEADR;
++	mh = getMachoHdr();
++	switch(thechar){
++	default:
++		diag("unknown mach architecture");
++		errorexit();
++	case '6':
++		mh->cpu = MACHO_CPU_AMD64;
++		mh->subcpu = MACHO_SUBCPU_X86;
++		ptrsize = 8;
++		break;
++	case '8':
++		mh->cpu = MACHO_CPU_386;
++		mh->subcpu = MACHO_SUBCPU_X86;
++		ptrsize = 4;
++		break;
++	}
++
++	/* segment for zero page */
++	ms = newMachoSeg("__PAGEZERO", 0);
++	ms->vsize = va;
++
++	/* text */
++	v = rnd(HEADR+textsize, INITRND);
++	ms = newMachoSeg("__TEXT", 1);
++	ms->vaddr = va;
++	ms->vsize = v;
++	ms->filesize = v;
++	ms->prot1 = 7;
++	ms->prot2 = 5;
++
++	msect = newMachoSect(ms, "__text");
++	msect->addr = INITTEXT;
++	msect->size = textsize;
++	msect->off = INITTEXT - va;
++	msect->flag = 0x400;	/* flag - some instructions */
++
++	/* data */
++	w = datsize+dynptrsize+bsssize;
++	ms = newMachoSeg("__DATA", 2+(dynptrsize>0));
++	ms->vaddr = va+v;
++	ms->vsize = w;
++	ms->fileoffset = v;
++	ms->filesize = datsize;
++	ms->prot1 = 7;
++	ms->prot2 = 3;
++
++	msect = newMachoSect(ms, "__data");
++	msect->addr = va+v;
++	msect->size = datsize;
++	msect->off = v;
++
++	if(dynptrsize > 0) {
++		msect = newMachoSect(ms, "__nl_symbol_ptr");
++		msect->addr = va+v+datsize;
++		msect->size = dynptrsize;
++		msect->align = 2;
++		msect->flag = 6;	/* section with nonlazy symbol pointers */
++		/*
++		 * The reserved1 field is supposed to be the index of
++		 * the first entry in the list of symbol table indexes
++		 * in isymtab for the symbols we need.  We only use
++		 * pointers, so we need the entire list, so the index
++		 * here should be 0, which luckily is what the Mach-O
++		 * writing code emits by default for this not really reserved field.
++		msect->reserved1 = 0; - first indirect symbol table entry we need
++		 */
++	}
++
++	msect = newMachoSect(ms, "__bss");
++	msect->addr = va+v+datsize+dynptrsize;
++	msect->size = bsssize;
++	msect->flag = 1;	/* flag - zero fill */
++
++	switch(thechar) {
++	default:
++		diag("unknown macho architecture");
++		errorexit();
++	case '6':
++		ml = newMachoLoad(5, 42+2);	/* unix thread */
++		ml->data[0] = 4;	/* thread type */
++		ml->data[1] = 42;	/* word count */
++		ml->data[2+32] = entryvalue();	/* start pc */
++		ml->data[2+32+1] = entryvalue()>>32;
++		break;
++	case '8':
++		ml = newMachoLoad(5, 16+2);	/* unix thread */
++		ml->data[0] = 1;	/* thread type */
++		ml->data[1] = 16;	/* word count */
++		ml->data[2+10] = entryvalue();	/* start pc */
++		break;
++	}
++
++	if(!debug['d']) {
++		int nsym;
++
++		nsym = dynptrsize/ptrsize;
++
++		ms = newMachoSeg("__LINKEDIT", 0);
++		ms->vaddr = va+v+rnd(datsize+dynptrsize+bsssize, INITRND);
++		ms->vsize = nlinkdata+nstrtab;
++		ms->fileoffset = linkoff;
++		ms->filesize = nlinkdata+nstrtab;
++		ms->prot1 = 7;
++		ms->prot2 = 3;
++
++		ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
++		ml->data[0] = linkoff;	/* symoff */
++		ml->data[1] = nsym;	/* nsyms */
++		ml->data[2] = linkoff + nlinkdata;	/* stroff */
++		ml->data[3] = nstrtab;	/* strsize */
++
++		ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
++		ml->data[0] = 0;	/* ilocalsym */
++		ml->data[1] = 0;	/* nlocalsym */
++		ml->data[2] = 0;	/* iextdefsym */
++		ml->data[3] = 0;	/* nextdefsym */
++		ml->data[4] = 0;	/* iundefsym */
++		ml->data[5] = nsym;	/* nundefsym */
++		ml->data[6] = 0;	/* tocoffset */
++		ml->data[7] = 0;	/* ntoc */
++		ml->data[8] = 0;	/* modtaboff */
++		ml->data[9] = 0;	/* nmodtab */
++		ml->data[10] = 0;	/* extrefsymoff */
++		ml->data[11] = 0;	/* nextrefsyms */
++		ml->data[12] = linkoff + nlinkdata - nsym*4;	/* indirectsymoff */
++		ml->data[13] = nsym;	/* nindirectsyms */
++		ml->data[14] = 0;	/* extreloff */
++		ml->data[15] = 0;	/* nextrel */
++		ml->data[16] = 0;	/* locreloff */
++		ml->data[17] = 0;	/* nlocrel */
++
++		ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
++		ml->data[0] = 12;	/* offset to string */
++		strcpy((char*)&ml->data[1], "/usr/lib/dyld");
++
++		for(i=0; i<ndylib; i++) {
++			ml = newMachoLoad(12, 4+(strlen(dylib[i])+1+7)/8*2);	/* LC_LOAD_DYLIB */
++			ml->data[0] = 24;	/* offset of string from beginning of load */
++			ml->data[1] = 0;	/* time stamp */
++			ml->data[2] = 0;	/* version */
++			ml->data[3] = 0;	/* compatibility version */
++			strcpy((char*)&ml->data[4], dylib[i]);
++		}
++	}
++
++	if(!debug['s']) {
++		ms = newMachoSeg("__SYMDAT", 1);
++		ms->vaddr = symdatva;
++		ms->vsize = 8+symsize+lcsize;
++		ms->fileoffset = symo;
++		ms->filesize = 8+symsize+lcsize;
++		ms->prot1 = 7;
++		ms->prot2 = 5;
++
++		md = newMachoDebug();
++		md->fileoffset = symo+8;
++		md->filesize = symsize;
++
++		md = newMachoDebug();
++		md->fileoffset = symo+8+symsize;
++		md->filesize = lcsize;
++	}
++
++	a = machowrite();
++	if(a > MACHORESERVE)
++		diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
++}
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index 747adac2dc..a96b2a3835 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -61,10 +61,17 @@ void	machoinit(void);
+  * for Header, PHeaders, and SHeaders.
+  * May waste some.
+  */
+-#define	MACHORESERVE	4096
++#define	MACHORESERVE	3*1024
+ 
+ enum {
+ 	MACHO_CPU_AMD64 = (1<<24)|7,
+ 	MACHO_CPU_386 = 7,
+ 	MACHO_SUBCPU_X86 = 3,
++
++	MACHO32SYMSIZE = 12,
++	MACHO64SYMSIZE = 16,
+ };
++
++void	domacho(void);
++vlong	domacholink(void);
++void	asmbmacho(vlong, vlong);
+diff --git a/src/libcgo/386.S b/src/libcgo/386.S
+new file mode 100644
+index 0000000000..3d7786d14e
+--- /dev/null
++++ b/src/libcgo/386.S
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Apple still insists on underscore prefixes for C function names.
++ */
++#ifdef __APPLE__
++#define EXT(s) _##s
++#else
++#define EXT(s) s
++#endif
++
++/*
++ * void crosscall_386(void (*fn)(void))
++ *
++ * Calling into the 8c tool chain, where all registers are caller save.
++ * Called from standard x86 ABI, where %ebp, %ebx, %esi,
++ * and %edi are callee-save, so they must be saved explicitly.
++ */
++.globl EXT(crosscall_386)
++EXT(crosscall_386):
++	pushl %ebp
++	movl %esp, %ebp
++	pushl %ebx
++	pushl %esi
++	pushl %edi
++
++	movl 8(%ebp), %eax	/* fn */
++	call *%eax
++
++	popl %edi
++	popl %esi
++	popl %ebx
++	popl %ebp
++	ret
++
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index ea4ccc7ef7..a323823503 100644
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -2,21 +2,29 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# not linked into build for now
++all: libcgo.so
+ 
+-CFLAGS_386=-m32
++install: $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
+ 
+-TARG=libcgo.so
++OFILES=\
++	$(GOOS)_$(GOARCH).o\
++	$(GOARCH).o\
++	util.o\
+ 
+-all: libcgo.so
++CFLAGS_386=-m32
++CFLAGS_amd64=-m64
+ 
+-cgocall.o: cgocall.c
+-	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o cgocall.o -c cgocall.c
++LDFLAGS_linux=-shared -lpthread -lm
++LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
+ 
+-libcgo.so: cgocall.o
+-	gcc $(CFLAGS_$(GOARCH)) -shared -o libcgo.so cgocall.o -lpthread -lm
++%.o: %.c
++	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
+ 
+-install: $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
++%.o: %.S
++	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
++
++libcgo.so: $(OFILES)
++	gcc $(CFLAGS_$(GOARCH)) $(LDFLAGS_$(GOOS)) -o libcgo.so $(OFILES)
+ 
+ $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+ 	cp libcgo.so $@
+diff --git a/src/libcgo/amd64.S b/src/libcgo/amd64.S
+new file mode 100644
+index 0000000000..eaa346a143
+--- /dev/null
++++ b/src/libcgo/amd64.S
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * Apple still insists on underscore prefixes for C function names.
++ */
++#ifdef __APPLE__
++#define EXT(s) _##s
++#else
++#define EXT(s) s
++#endif
++
++/*
++ * void crosscall_amd64(M *m, G *g, void (*fn)(void))
++ *
++ * Calling into the 6c tool chain, where all registers are caller save.
++ * Called from standard x86-64 ABI, where %rbx, %rbp, %r12-%r15
++ * are callee-save so they must be saved explicitly.
++ * The standard x86-64 ABI passes the three arguments m, g, fn
++ * in %rdi, %rsi, %rdx.
++ *
++ * Also need to set %r15 to g and %r14 to m (see ../pkg/runtime/mkasmh.sh)
++ * during the call.
++ */
++.globl EXT(crosscall_amd64)
++EXT(crosscall_amd64):
++	pushq %rbx
++	pushq %rbp
++	pushq %r12
++	pushq %r13
++	pushq %r14
++	pushq %r15
++
++	movq %rdi, %r14	/* m */
++	movq %rsi, %r15	/* g */
++	call *%rdx	/* fn */
++
++	popq %r15
++	popq %r14
++	popq %r13
++	popq %r12
++	popq %rbp
++	popq %rbx
++	ret
+diff --git a/src/libcgo/cgocall.c b/src/libcgo/cgocall.c
+deleted file mode 100644
+index 13843d400f..0000000000
+--- a/src/libcgo/cgocall.c
++++ /dev/null
+@@ -1,308 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define _GNU_SOURCE
+-#include <stdio.h>
+-#include <errno.h>
+-#include <linux/futex.h>
+-#include <sys/syscall.h>
+-#include <sys/time.h>
+-#include <pthread.h>
+-#include <stdint.h>
+-#include <string.h>
+-#include <stdlib.h>
+-
+-#define nil ((void*)0)
+-
+-/*
+- * gcc implementation of src/pkg/runtime/linux/thread.c
+- */
+-typedef struct Lock Lock;
+-typedef struct Note Note;
+-typedef uint32_t uint32;
+-
+-struct Lock
+-{
+-	uint32 key;
+-	uint32 sema;	// ignored
+-};
+-
+-struct Note
+-{
+-	Lock lock;
+-	uint32 pad;
+-};
+-
+-static struct timespec longtime =
+-{
+-	1<<30,	// 34 years
+-	0
+-};
+-
+-static int
+-cas(uint32 *val, uint32 old, uint32 new)
+-{
+-	int ret;
+-
+-	__asm__ __volatile__(
+-		"lock; cmpxchgl %2, 0(%3)\n"
+-		"setz %%al\n"
+-	:	"=a" (ret)
+-	:	"a" (old),
+-		"r" (new),
+-		"r" (val)
+-	:	"memory", "cc"
+-	);
+-
+-	return ret & 1;
+-}
+-
+-static void
+-futexsleep(uint32 *addr, uint32 val)
+-{
+-	int ret;
+-
+-	ret = syscall(SYS_futex, (int*)addr, FUTEX_WAIT, val, &longtime, nil, 0);
+-	if(ret >= 0 || errno == EAGAIN || errno == EINTR)
+-		return;
+-	fprintf(stderr, "futexsleep: %s\n", strerror(errno));
+-	*(int*)0 = 0;
+-}
+-
+-static void
+-futexwakeup(uint32 *addr)
+-{
+-	int ret;
+-
+-	ret = syscall(SYS_futex, (int*)addr, FUTEX_WAKE, 1, nil, nil, 0);
+-	if(ret >= 0)
+-		return;
+-	fprintf(stderr, "futexwakeup: %s\n", strerror(errno));
+-	*(int*)0 = 0;
+-}
+-
+-static void
+-futexlock(Lock *l)
+-{
+-	uint32 v;
+-
+-again:
+-	v = l->key;
+-	if((v&1) == 0){
+-		if(cas(&l->key, v, v|1)){
+-			// Lock wasn't held; we grabbed it.
+-			return;
+-		}
+-		goto again;
+-	}
+-
+-	if(!cas(&l->key, v, v+2))
+-		goto again;
+-
+-	futexsleep(&l->key, v+2);
+-	for(;;){
+-		v = l->key;
+-		if((int)v < 2) {
+-			fprintf(stderr, "futexsleep: invalid key %d\n", (int)v);
+-			*(int*)0 = 0;
+-		}
+-		if(cas(&l->key, v, v-2))
+-			break;
+-	}
+-	goto again;
+-}
+-
+-static void
+-futexunlock(Lock *l)
+-{
+-	uint32 v;
+-
+-again:
+-	v = l->key;
+-	if((v&1) == 0)
+-		*(int*)0 = 0;
+-	if(!cas(&l->key, v, v&~1))
+-		goto again;
+-
+-	// If there were waiters, wake one.
+-	if(v & ~1)
+-		futexwakeup(&l->key);
+-}
+-
+-static void
+-lock(Lock *l)
+-{
+-	futexlock(l);
+-}
+-
+-static void
+-unlock(Lock *l)
+-{
+-	futexunlock(l);
+-}
+-
+-void
+-noteclear(Note *n)
+-{
+-	n->lock.key = 0;
+-	futexlock(&n->lock);
+-}
+-
+-static void
+-notewakeup(Note *n)
+-{
+-	futexunlock(&n->lock);
+-}
+-
+-static void
+-notesleep(Note *n)
+-{
+-	futexlock(&n->lock);
+-	futexunlock(&n->lock);
+-}
+-
+-/*
+- * runtime Cgo server.
+- * gcc half of src/pkg/runtime/cgocall.c
+- */
+-
+-typedef struct CgoWork CgoWork;
+-typedef struct CgoServer CgoServer;
+-typedef struct Cgo Cgo;
+-
+-struct Cgo
+-{
+-	Lock lock;
+-	CgoServer *idle;
+-	CgoWork *whead;
+-	CgoWork *wtail;
+-};
+-
+-struct CgoServer
+-{
+-	CgoServer *next;
+-	Note note;
+-	CgoWork *work;
+-};
+-
+-struct CgoWork
+-{
+-	CgoWork *next;
+-	Note note;
+-	void (*fn)(void*);
+-	void *arg;
+-};
+-
+-Cgo cgo;
+-
+-static void newserver(void);
+-
+-void
+-initcgo(void)
+-{
+-	newserver();
+-}
+-
+-static void* go_pthread(void*);
+-
+-/*
+- * allocate servers to handle any work that has piled up
+- * and one more server to sit idle and wait for new work.
+- */
+-static void
+-newserver(void)
+-{
+-	CgoServer *f;
+-	CgoWork *w, *next;
+-	pthread_t p;
+-
+-	lock(&cgo.lock);
+-	// kick off new servers with work to do
+-	for(w=cgo.whead; w; w=next) {
+-		next = w;
+-		w->next = nil;
+-		f = malloc(sizeof *f);
+-		memset(f, 0, sizeof *f);
+-		f->work = w;
+-		noteclear(&f->note);
+-		notewakeup(&f->note);
+-		if(pthread_create(&p, nil, go_pthread, f) < 0) {
+-			fprintf(stderr, "pthread_create: %s\n", strerror(errno));
+-			*(int*)0 = 0;
+-		}
+-	}
+-	cgo.whead = nil;
+-	cgo.wtail = nil;
+-
+-	// kick off one more server to sit idle
+-	if(cgo.idle == nil) {
+-		f = malloc(sizeof *f);
+-		memset(f, 0, sizeof *f);
+-		f->next = cgo.idle;
+-		noteclear(&f->note);
+-		cgo.idle = f;
+-		if(pthread_create(&p, nil, go_pthread, f) < 0) {
+-			fprintf(stderr, "pthread_create: %s\n", strerror(errno));
+-			*(int*)0 = 0;
+-		}
+-	}
+-	unlock(&cgo.lock);
+-}
+-
+-static void*
+-go_pthread(void *v)
+-{
+-	CgoServer *f;
+-	CgoWork *w;
+-
+-	// newserver queued us; wait for work
+-	f = v;
+-	goto wait;
+-
+-	for(;;) {
+-		// kick off new server to handle requests while we work
+-		newserver();
+-
+-		// do work
+-		w = f->work;
+-		w->fn(w->arg);
+-		notewakeup(&w->note);
+-		f->work = nil;
+-
+-		// take some work if available
+-		lock(&cgo.lock);
+-		if((w = cgo.whead) != nil) {
+-			cgo.whead = w->next;
+-			if(cgo.whead == nil)
+-				cgo.wtail = nil;
+-			unlock(&cgo.lock);
+-			f->work = w;
+-			continue;
+-		}
+-
+-		// otherwise queue
+-		f->work = nil;
+-		noteclear(&f->note);
+-		f->next = cgo.idle;
+-		cgo.idle = f;
+-		unlock(&cgo.lock);
+-
+-wait:
+-		// wait for work
+-		notesleep(&f->note);
+-	}
+-}
+-
+-// Helper.
+-
+-void
+-_cgo_malloc(void *p)
+-{
+-	struct a {
+-		long long n;
+-		void *ret;
+-	} *a = p;
+-
+-	a->ret = malloc(a->n);
+-}
+diff --git a/src/libcgo/darwin_386.c b/src/libcgo/darwin_386.c
+new file mode 100644
+index 0000000000..28a4283090
+--- /dev/null
++++ b/src/libcgo/darwin_386.c
+@@ -0,0 +1,144 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++static pthread_key_t k1, k2;
++
++/* gccism: arrange for inittls to be called at dynamic load time */
++static void inittls(void) __attribute__((constructor));
++
++static void
++inittls(void)
++{
++	uint32 x, y;
++	pthread_key_t tofree[16], k;
++	int i, ntofree;
++	int havek1, havek2;
++
++	/*
++	 * Allocate thread-local storage slots for m, g.
++	 * The key numbers start at 0x100, and we expect to be
++	 * one of the early calls to pthread_key_create, so we
++	 * should be able to get pretty low numbers.
++	 *
++	 * In Darwin/386 pthreads, %gs points at the thread
++	 * structure, and each key is an index into the thread-local
++	 * storage array that begins at offset 0x48 within in that structure.
++	 * It may happen that we are not quite the first function to try
++	 * to allocate thread-local storage keys, so instead of depending
++	 * on getting 0x100 and 0x101, we try for 0x108 and 0x109,
++	 * allocating keys until we get the ones we want and then freeing
++	 * the ones we didn't want.
++	 *
++	 * Thus the final offsets to use in %gs references are
++	 * 0x48+4*0x108 = 0x468 and 0x48+4*0x109 = 0x46c.
++	 *
++	 * The linker and runtime hard-code these constant offsets
++	 * from %gs where we expect to find m and g.  The code
++	 * below verifies that the constants are correct once it has
++	 * obtained the keys.  Known to ../cmd/8l/obj.c:/468
++	 * and to ../pkg/runtime/darwin/386/sys.s:/468
++	 *
++	 * This is truly disgusting and a bit fragile, but taking care
++	 * of it here protects the rest of the system from damage.
++	 * The alternative would be to use a global variable that
++	 * held the offset and refer to that variable each time we
++	 * need a %gs variable (m or g).  That approach would
++	 * require an extra instruction and memory reference in
++	 * every stack growth prolog and would also require
++	 * rewriting the code that 8c generates for extern registers.
++	 */
++	havek1 = 0;
++	havek2 = 0;
++	ntofree = 0;
++	while(!havek1 || !havek2) {
++		if(pthread_key_create(&k, nil) < 0) {
++			fprintf(stderr, "libcgo: pthread_key_create failed\n");
++			abort();
++		}
++		if(k == 0x108) {
++			havek1 = 1;
++			k1 = k;
++			continue;
++		}
++		if(k == 0x109) {
++			havek2 = 1;
++			k2 = k;
++			continue;
++		}
++		if(ntofree >= nelem(tofree)) {
++			fprintf(stderr, "libcgo: could not obtain pthread_keys\n");
++			fprintf(stderr, "\twanted 0x108 and 0x109\n");
++			fprintf(stderr, "\tgot");
++			for(i=0; i<ntofree; i++)
++				fprintf(stderr, " %#x", tofree[i]);
++			fprintf(stderr, "\n");
++			abort();
++		}
++		tofree[ntofree++] = k;
++	}
++
++	for(i=0; i<ntofree; i++)
++		pthread_key_delete(tofree[i]);
++
++	/*
++	 * We got the keys we wanted.  Make sure that we observe
++	 * updates to k1 at 0x468, to verify that the TLS array
++	 * offset from %gs hasn't changed.
++	 */
++	pthread_setspecific(k1, (void*)0x12345678);
++	asm volatile("movl %%gs:0x468, %0" : "=r"(x));
++
++	pthread_setspecific(k1, (void*)0x87654321);
++	asm volatile("movl %%gs:0x468, %0" : "=r"(y));
++
++	if(x != 0x12345678 || y != 0x87654321) {
++		printf("libcgo: thread-local storage %#x not at %%gs:0x468 - x=%#x y=%#x\n", k1, x, y);
++		abort();
++	}
++}
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	pthread_create(&p, &attr, threadentry, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	pthread_setspecific(k1, (void*)ts.g);
++	pthread_setspecific(k2, (void*)ts.m);
++
++	crosscall_386(ts.fn);
++	return nil;
++}
+diff --git a/src/libcgo/darwin_amd64.c b/src/libcgo/darwin_amd64.c
+new file mode 100644
+index 0000000000..14a409f5eb
+--- /dev/null
++++ b/src/libcgo/darwin_amd64.c
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	pthread_create(&p, &attr, threadentry, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	crosscall_amd64(ts.m, ts.g, ts.fn);
++	return nil;
++}
+diff --git a/src/libcgo/libcgo.h b/src/libcgo/libcgo.h
+new file mode 100644
+index 0000000000..b4b25accb5
+--- /dev/null
++++ b/src/libcgo/libcgo.h
+@@ -0,0 +1,60 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdint.h>
++#include <stdlib.h>
++#include <stdio.h>
++
++#define nil ((void*)0)
++#define nelem(x) (sizeof(x)/sizeof((x)[0]))
++
++typedef uint32_t uint32;
++typedef uintptr_t uintptr;
++
++/*
++ * The beginning of the per-goroutine structure,
++ * as defined in ../pkg/runtime/runtime.h.
++ * Just enough to edit these two fields.
++ */
++typedef struct G G;
++struct G
++{
++	uintptr stackguard;
++	uintptr stackbase;
++};
++
++/*
++ * Arguments to the libcgo_thread_start call.
++ * Also known to ../pkg/runtime/runtime.h.
++ */
++typedef struct ThreadStart ThreadStart;
++struct ThreadStart
++{
++	uintptr m;
++	G *g;
++	void (*fn)(void);
++};
++
++/*
++ * Called by 5c/6c/8c world.
++ * Makes a local copy of the ThreadStart and
++ * calls libcgo_sys_thread_start(ts).
++ */
++void libcgo_thread_start(ThreadStart *ts);
++
++/*
++ * Creates the new operating system thread (OS, arch dependent).
++ */
++void libcgo_sys_thread_start(ThreadStart *ts);
++
++/*
++ * Call fn in the 6c world, with m and g
++ * set to the given parameters.
++ */
++void crosscall_amd64(uintptr m, G *g, void (*fn)(void));
++
++/*
++ * Call fn in the 8c world.
++ */
++void crosscall_386(void (*fn)(void));
+diff --git a/src/libcgo/linux_386.c b/src/libcgo/linux_386.c
+new file mode 100644
+index 0000000000..9d02455cc9
+--- /dev/null
++++ b/src/libcgo/linux_386.c
+@@ -0,0 +1,57 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++static void *threadentry(void*);
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	pthread_create(&p, &attr, threadentry, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	/*
++	 * Set specific keys.  On Linux/ELF, the thread local storage
++	 * is just before %gs:0.  Our dynamic 8.out's reserve 8 bytes
++	 * for the two words g and m at %gs:-8 and %gs:-4.
++	 */
++	asm volatile (
++		"movl %0, %%gs:-8\n"	// MOVL g, -8(GS)
++		"movl %1, %%gs:-4\n"	// MOVL m, -4(GS)
++		:: "r"(ts.g), "r"(ts.m)
++	);
++
++	crosscall_386(ts.fn);
++	return nil;
++}
+diff --git a/src/libcgo/linux_amd64.c b/src/libcgo/linux_amd64.c
+new file mode 100644
+index 0000000000..14a409f5eb
+--- /dev/null
++++ b/src/libcgo/linux_amd64.c
+@@ -0,0 +1,46 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include "libcgo.h"
++
++static void* threadentry(void*);
++
++void
++initcgo(void)
++{
++}
++
++void
++libcgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	pthread_t p;
++	size_t size;
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	ts->g->stackguard = size;
++	pthread_create(&p, &attr, threadentry, ts);
++}
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	ts.g->stackbase = (uintptr)&ts;
++
++	/*
++	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * change to actual guard pointer.
++	 */
++	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
++
++	crosscall_amd64(ts.m, ts.g, ts.fn);
++	return nil;
++}
+diff --git a/src/libcgo/linux_arm.c b/src/libcgo/linux_arm.c
+new file mode 100644
+index 0000000000..32d8629849
+--- /dev/null
++++ b/src/libcgo/linux_arm.c
+@@ -0,0 +1 @@
++/* unimplemented */
+diff --git a/src/libcgo/nacl_386.c b/src/libcgo/nacl_386.c
+new file mode 100644
+index 0000000000..32d8629849
+--- /dev/null
++++ b/src/libcgo/nacl_386.c
+@@ -0,0 +1 @@
++/* unimplemented */
+diff --git a/src/libcgo/util.c b/src/libcgo/util.c
+new file mode 100644
+index 0000000000..a814e018b3
+--- /dev/null
++++ b/src/libcgo/util.c
+@@ -0,0 +1,35 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "libcgo.h"
++
++/* Stub for calling malloc from the other world */
++void
++_cgo_malloc(void *p)
++{
++	struct a {
++		long long n;
++		void *ret;
++	} *a = p;
++
++	a->ret = malloc(a->n);
++}
++
++/* Stub for creating a new thread */
++void
++libcgo_thread_start(ThreadStart *arg)
++{
++	ThreadStart *ts;
++
++	/* Make our own copy that can persist after we return. */
++	ts = malloc(sizeof *ts);
++	if(ts == nil) {
++		fprintf(stderr, "libcgo: out of memory in thread_start\n");
++		abort();
++	}
++	*ts = *arg;
++
++	libcgo_sys_thread_start(ts);	/* OS-dependent half */
++}
++
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 0cc7d0f997..075738e9c8 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -1,11 +1,11 @@
+ // Inferno libmach/executable.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/libmach/executable.c
+ //
+-// 	Copyright © 1994-1999 Lucent Technologies Inc.
+-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
+-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
++//	Copyright © 1994-1999 Lucent Technologies Inc.
++//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
++//	Portions Copyright © 1997-1999 Vita Nuova Limited.
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
++//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+ //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ //
+ // Permission is hereby granted, free of charge, to any person obtaining a copy
+@@ -1126,6 +1126,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 					goto bad;
+ 				}
+ 				sect32++;
++				if (strcmp(sect32->sectname, "__nl_symbol_ptr") == 0)
++					sect32++;
+ 				if (strcmp(sect32->sectname, "__bss") == 0) {
+ 					bsssize = swal(sect32->size);
+ 				} else {
+diff --git a/src/make.bash b/src/make.bash
+index 5f3643c015..ca5304512f 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -19,7 +19,7 @@ rm -f $GOBIN/quietgcc
+ cp quietgcc.bash $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+-for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 67b72f73f3..5aa73a6b8f 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -9,10 +9,19 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	0(SP), AX		// argc
+ 	LEAL	4(SP), BX		// argv
+ 	SUBL	$128, SP		// plenty of scratch
+-	ANDL	$~7, SP
++	ANDL	$~15, SP
+ 	MOVL	AX, 120(SP)		// save argc, argv away
+ 	MOVL	BX, 124(SP)
+ 
++	// if there is an initcgo, call it to let it
++	// initialize and to set up GS.  if not,
++	// we set up GS ourselves.
++	MOVL	initcgo(SB), AX
++	TESTL	AX, AX
++	JZ	3(PC)
++	CALL	AX
++	JMP	ok
++
+ 	// set up %gs
+ 	CALL	ldt0setup(SB)
+ 
+@@ -21,9 +30,8 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	tls0(SB), AX
+ 	CMPL	AX, $0x123
+ 	JEQ	ok
+-	MOVL	AX, 0
++	MOVL	AX, 0	// abort
+ ok:
+-
+ 	// set up m and g "registers"
+ 	LEAL	g0(SB), CX
+ 	MOVL	CX, g
+@@ -285,13 +293,29 @@ TEXT ldt0setup(SB),7,$16
+ 	CALL	setldt(SB)
+ 	RET
+ 
+-GLOBL m0+0(SB), $1024
+-GLOBL g0+0(SB), $1024
+-
+-GLOBL tls0+0(SB), $32
+-
+ TEXT emptyfunc(SB),0,$0
+ 	RET
+ 
+ TEXT	abort(SB),7,$0
+ 	INT $0x3
++
++// runcgo(void(*fn)(void*), void *arg)
++// Just call fn(arg), but first align the stack
++// appropriately for the gcc ABI.
++TEXT	runcgo(SB),7,$16
++	MOVL	fn+0(FP), AX
++	MOVL	arg+4(FP), BX
++	MOVL	SP, CX
++	ANDL	$~15, SP	// alignment for gcc ABI
++	MOVL	CX, 4(SP)
++	MOVL	BX, 0(SP)
++	CALL	AX
++	MOVL	4(SP), SP
++	RET
++
++
++GLOBL m0(SB), $1024
++GLOBL g0(SB), $1024
++GLOBL tls0(SB), $32
++GLOBL initcgo(SB), $4
++
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index efd3f37de3..ab24a77654 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -83,8 +83,8 @@ clean: clean-local
+ clean-local:
+ 	rm -f runtime.acid cgo2c */asm.h
+ 
+-$(GOARCH)/asm.h: runtime.acid mkasmh
+-	./mkasmh >$@.x
++$(GOARCH)/asm.h: runtime.acid mkasmh.sh
++	./mkasmh.sh >$@.x
+ 	mv -f $@.x $@
+ 
+ cgo2c: cgo2c.c
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 0674d518c5..6cb6d5c77a 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -270,3 +270,23 @@ TEXT jmpdefer(SB), 7, $0
+ 	LEAQ	-8(BX), SP	// caller sp after CALL
+ 	SUBQ	$5, (SP)	// return to CALL again
+ 	JMP	AX	// but first run the deferred function
++
++// runcgo(void(*fn)(void*), void *arg)
++// Call fn(arg), but align the stack
++// appropriately for the gcc ABI
++// and also save g and m across the call,
++// since the foreign code might reuse them.
++TEXT runcgo(SB),7,$32
++	MOVQ	fn+0(FP),AX
++	MOVQ	arg+8(FP),DI	// DI = first argument in AMD64 ABI
++	MOVQ	SP, CX
++	ANDQ	$~15, SP	// alignment for gcc ABI
++	MOVQ	g, 24(SP)	// save old g, m, SP
++	MOVQ	m, 16(SP)
++	MOVQ	CX, 8(SP)
++	CALL	AX
++	MOVQ	16(SP), m	// restore
++	MOVQ	24(SP), g
++	MOVQ	8(SP), SP
++	RET
++
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 9022267a1f..a475603957 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -5,39 +5,32 @@
+ #include "runtime.h"
+ #include "cgocall.h"
+ 
+-Cgo *cgo;	/* filled in by dynamic linker when Cgo is available */
++void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+ int64 ncgocall;
++void sys·entersyscall(void);
++void sys·exitsyscall(void);
+ 
+ void
+ cgocall(void (*fn)(void*), void *arg)
+ {
+-	CgoWork w;
+-	CgoServer *s;
++	if(initcgo == nil)
++		throw("cgocall unavailable");
+ 
+ 	ncgocall++;
+ 
+-	if(cgo == nil)
+-		throw("cgocall unavailable");
+-
+-	noteclear(&w.note);
+-	w.next = nil;
+-	w.fn = fn;
+-	w.arg = arg;
+-	lock(&cgo->lock);
+-	if((s = cgo->idle) != nil) {
+-		cgo->idle = s->next;
+-		s->work = &w;
+-		unlock(&cgo->lock);
+-		notewakeup(&s->note);
+-	} else {
+-		if(cgo->whead == nil) {
+-			cgo->whead = &w;
+-		} else
+-			cgo->wtail->next = &w;
+-		cgo->wtail = &w;
+-		unlock(&cgo->lock);
+-	}
+-	notesleep(&w.note);
++	/*
++	 * Announce we are entering a system call
++	 * so that the scheduler knows to create another
++	 * M to run goroutines while we are in the
++	 * foreign code.
++	 */
++	sys·entersyscall();
++	g->cgofn = fn;
++	g->cgoarg = arg;
++	g->status = Gcgocall;
++	gosched();
++	sys·exitsyscall();
++	return;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/cgocall.h b/src/pkg/runtime/cgocall.h
+index 5352a2f92e..816c426d78 100644
+--- a/src/pkg/runtime/cgocall.h
++++ b/src/pkg/runtime/cgocall.h
+@@ -4,39 +4,8 @@
+ 
+ /*
+  * Cgo interface.
+- * Dynamically linked shared libraries compiled with gcc
+- * know these data structures and functions too.
+- * See ../../libcgo/cgocall.c
+  */
+ 
+-typedef struct CgoWork CgoWork;
+-typedef struct CgoServer CgoServer;
+-typedef struct Cgo Cgo;
+-
+-struct Cgo
+-{
+-	Lock lock;
+-	CgoServer *idle;
+-	CgoWork *whead;
+-	CgoWork *wtail;
+-};
+-
+-struct CgoServer
+-{
+-	CgoServer *next;
+-	Note note;
+-	CgoWork *work;
+-};
+-
+-struct CgoWork
+-{
+-	CgoWork *next;
+-	Note note;
+-	void (*fn)(void*);
+-	void *arg;
+-};
+-
+ void cgocall(void (*fn)(void*), void*);
+-
+ void *cmalloc(uintptr);
+ void cfree(void*);
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index bded7e4211..617847039f 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -137,9 +137,6 @@ TEXT bsdthread_start(SB),7,$0
+ 	POPL	AX
+ 	POPL	AX
+ 	POPAL
+-	SHLL	$3, DI	// segment# is ldt*8 + 7.
+-	ADDL	$7, DI
+-	MOVW	DI, GS
+ 
+ 	// Now segment is established.  Initialize m, g.
+ 	MOVL	AX, g
+@@ -243,36 +240,51 @@ int i386_set_ldt(int, const union ldt_entry *, int);
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT setldt(SB),7,$32
++	MOVL	address+4(FP), BX	// aka base
++	MOVL	limit+8(FP), CX
++
++	/*
++	 * When linking against the system libraries,
++	 * we use its pthread_create and let it set up %gs
++	 * for us.  When we do that, the private storage
++	 * we get is not at 0(GS) but at 0x468(GS).
++	 * To insulate the rest of the tool chain from this ugliness,
++	 * 8l rewrites 0(GS) into 0x468(GS) for us.
++	 * To accommodate that rewrite, we translate the
++	 * address and limit here so that 0x468(GS) maps to 0(address).
++	 *
++	 * See ../../../../libcgo/darwin_386.c for the derivation
++	 * of the constant.
++	 */
++	SUBL	$0x468, BX
++	ADDL	$0x468, CX
++
+ 	// set up data_desc
+ 	LEAL	16(SP), AX	// struct data_desc
+ 	MOVL	$0, 0(AX)
+ 	MOVL	$0, 4(AX)
+ 
+-	MOVL	address+4(FP), BX	// aka base
+ 	MOVW	BX, 2(AX)
+ 	SHRL	$16, BX
+ 	MOVB	BX, 4(AX)
+ 	SHRL	$8, BX
+ 	MOVB	BX, 7(AX)
+ 
+-	MOVL	limit+8(FP), BX
+-	MOVW	BX, 0(AX)
+-	SHRL	$16, BX
+-	ANDL	$0x0F, BX
+-	ORL	$0x40, BX		// 32-bit operand size
+-	MOVB	BX, 6(AX)
++	MOVW	CX, 0(AX)
++	SHRL	$16, CX
++	ANDL	$0x0F, CX
++	ORL	$0x40, CX		// 32-bit operand size
++	MOVB	CX, 6(AX)
+ 
+ 	MOVL	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
+ 
+ 	// call i386_set_ldt(entry, desc, 1)
+-	MOVL	entry+0(FP), BX
+-	MOVL	BX, 0(SP)
++	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$1, 8(SP)
+ 	CALL	i386_set_ldt(SB)
+ 
+ 	// compute segment selector - (entry*8+7)
+-	MOVL	entry+0(FP), AX
+ 	SHLL	$3, AX
+ 	ADDL	$7, AX
+ 	MOVW	AX, GS
+@@ -285,3 +297,4 @@ TEXT i386_set_ldt(SB),7,$0
+ 	CALL	notok(SB)
+ 	RET
+ 
++GLOBL tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index c394ab490e..7e6d7c2d75 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -144,15 +144,18 @@ notewakeup(Note *n)
+ void
+ osinit(void)
+ {
+-	// Register our thread-creation callback (see {amd64,386}/sys.s).
+-	bsdthread_register();
++	// Register our thread-creation callback (see {amd64,386}/sys.s)
++	// but only if we're not using cgo.  If we are using cgo we need
++	// to let the C pthread libary install its own thread-creation callback.
++	extern void (*libcgo_thread_start)(void*);
++	if(libcgo_thread_start == nil)
++		bsdthread_register();
+ }
+ 
+ void
+ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+-
+ 	if(0){
+ 		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
+ 			stk, m, g, fn, m->id, m->tls[0], &m);
+diff --git a/src/pkg/runtime/linux/386/rt0.s b/src/pkg/runtime/linux/386/rt0.s
+index d5d270be20..4d2345d8c2 100755
+--- a/src/pkg/runtime/linux/386/rt0.s
++++ b/src/pkg/runtime/linux/386/rt0.s
+@@ -5,11 +5,5 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT	_rt0_386_linux(SB),7,$0
+-	MOVL	initcgo(SB), AX
+-	TESTL	AX, AX
+-	JZ	2(PC)
+-	CALL	AX
+-
+ 	JMP	_rt0_386(SB)
+ 
+-GLOBL initcgo(SB), $4
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index fe07ddd54f..3b0babcd05 100755
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -198,15 +198,28 @@ TEXT sigaltstack(SB),7,$-8
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT setldt(SB),7,$32
++	MOVL	entry+0(FP), BX	// entry
++	MOVL	address+4(FP), CX	// base address
++
++	/*
++	 * When linking against the system libraries,
++	 * we use its pthread_create and let it set up %gs
++	 * for us.  When we do that, the private storage
++	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
++	 * To insulate the rest of the tool chain from this
++	 * ugliness, 8l rewrites 0(GS) into -8(GS) for us.
++	 * To accommodate that rewrite, we translate
++	 * the address here and bump the limit to 0xffffffff (no limit)
++	 * so that -8(GS) maps to 0(address).
++	 */
++	ADDL	$0x8, CX	// address
++
+ 	// set up user_desc
+ 	LEAL	16(SP), AX	// struct user_desc
+-	MOVL	entry+0(FP), BX	// entry
+ 	MOVL	BX, 0(AX)
+-	MOVL	address+4(FP), BX	// base address
+-	MOVL	BX, 4(AX)
+-	MOVL	limit+8(FP), BX	// limit
+-	MOVL	BX, 8(AX)
+-	MOVL	$(SEG_32BIT|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
++	MOVL	CX, 4(AX)
++	MOVL	$0xfffff, 8(AX)
++	MOVL	$(SEG_32BIT|LIMIT_IN_PAGES|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
+ 
+ 	// call modify_ldt
+ 	MOVL	$1, BX	// func = 1 (write)
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index a1d927c7bb..fd488d4da0 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -92,7 +92,7 @@ futexwakeup(uint32 *addr)
+ //
+ // A reminder: compare-and-swap cas(addr, old, new) does
+ //	if(*addr == old) { *addr = new; return 1; }
+-// 	else return 0;
++//	else return 0;
+ // but atomically.
+ 
+ static void
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 30df166652..291ee042dd 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -13,11 +13,17 @@ EOF
+ 
+ case "$GOARCH" in
+ 386)
+-	# The offsets 0 and 4 are known to nacl/thread.c:/^newosproc too.
++	# The offsets 0 and 4 are also known to:
++	#	nacl/thread.c:/^newosproc
++	#	../../cmd/8l/pass.c:/D_GS
++	#	../../libcgo/linux_386.c:/^start
++	#	../../libcgo/darwin_386.c:/^start
+ 	echo '#define	g	0(GS)'
+ 	echo '#define	m	4(GS)'
+ 	;;
+ amd64)
++	# These registers are also known to:
++	#	../../libcgo/linux_amd64.c:/^start
+ 	echo '#define	g	R15'
+ 	echo '#define	m	R14'
+ 	;;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 590c277dde..e3c7beccdf 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -389,7 +389,20 @@ mstart(void)
+ 	scheduler();
+ }
+ 
+-// Kick of new ms as needed (up to mcpumax).
++// When running with cgo, we call libcgo_thread_start
++// to start threads for us so that we can play nicely with
++// foreign code.
++void (*libcgo_thread_start)(void*);
++
++typedef struct CgoThreadStart CgoThreadStart;
++struct CgoThreadStart
++{
++	M *m;
++	G *g;
++	void (*fn)(void);
++};
++
++// Kick off new ms as needed (up to mcpumax).
+ // There are already `other' other cpus that will
+ // start looking for goroutines shortly.
+ // Sched is locked.
+@@ -405,7 +418,21 @@ matchmg(void)
+ 			m = malloc(sizeof(M));
+ 			m->g0 = malg(8192);
+ 			m->id = sched.mcount++;
+-			newosproc(m, m->g0, m->g0->stackbase, mstart);
++
++			if(libcgo_thread_start != nil) {
++				CgoThreadStart ts;
++				// pthread_create will make us a stack,
++				// so free the one malg made.
++				stackfree(m->g0->stack0);
++				m->g0->stack0 = nil;
++				m->g0->stackguard = nil;
++				m->g0->stackbase = nil;
++				ts.m = m;
++				ts.g = m->g0;
++				ts.fn = mstart;
++				runcgo(libcgo_thread_start, &ts);
++			} else
++				newosproc(m, m->g0, m->g0->stackbase, mstart);
+ 		}
+ 		mnextg(m, g);
+ 	}
+@@ -419,6 +446,17 @@ scheduler(void)
+ 
+ 	lock(&sched);
+ 	if(gosave(&m->sched) != 0){
++		gp = m->curg;
++		if(gp->status == Gcgocall){
++			// Runtime call into external code (FFI).
++			// When running with FFI, the scheduler stack is a
++			// native pthread stack, so it suffices to switch to the
++			// scheduler stack and make the call.
++			runcgo(gp->cgofn, gp->cgoarg);
++			gp->status = Grunning;
++			gogo(&gp->sched, 1);
++		}
++
+ 		// Jumped here via gosave/gogo, so didn't
+ 		// execute lock(&sched) above.
+ 		lock(&sched);
+@@ -426,8 +464,7 @@ scheduler(void)
+ 		if(sched.predawn)
+ 			throw("init sleeping");
+ 
+-		// Just finished running m->curg.
+-		gp = m->curg;
++		// Just finished running gp.
+ 		gp->m = nil;
+ 		sched.mcpu--;
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 34bc262525..d3027b9ce6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -94,6 +94,7 @@ enum
+ 	Gwaiting,
+ 	Gmoribund,
+ 	Gdead,
++	Gcgocall,
+ };
+ enum
+ {
+@@ -156,11 +157,11 @@ struct	Gobuf
+ };
+ struct	G
+ {
+-	byte*	stackguard;	// cannot move - also known to linker, libmach
+-	byte*	stackbase;	// cannot move - also known to libmach
++	byte*	stackguard;	// cannot move - also known to linker, libmach, libcgo
++	byte*	stackbase;	// cannot move - also known to libmach, libcgo
+ 	Defer*	defer;
+ 	Gobuf	sched;		// cannot move - also known to libmach
+-	byte*	stack0;		// first stack segment
++	byte*	stack0;
+ 	byte*	entry;		// initial function
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+@@ -171,6 +172,8 @@ struct	G
+ 	bool	readyonstop;
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
++	void	(*cgofn)(void*);	// for cgo/ffi
++	void	*cgoarg;
+ };
+ struct	Mem
+ {
+@@ -375,6 +378,7 @@ void	exit(int32);
+ void	breakpoint(void);
+ void	gosched(void);
+ void	goexit(void);
++void	runcgo(void (*fn)(void*), void*);
+ 
+ #pragma	varargck	argpos	printf	1
+ 

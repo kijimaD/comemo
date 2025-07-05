@@ -22,7 +22,43 @@ Date:   Mon Dec 19 12:20:00 2011 +1100
     R=andybalholm
     CC=golang-dev
     https://golang.org/cl/5495061
-
+---
  src/pkg/html/parse.go      | 11 +++++++++++
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 104adc1b7b..a69262115c 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -1585,6 +1585,17 @@ func afterAfterFramesetIM(p *parser) bool {
+ // Section 12.2.5.5.
+ func inForeignContentIM(p *parser) bool {
+ 	switch p.tok.Type {
++	case TextToken:
++		// TODO: HTML integration points.
++		if p.top().Namespace == "" {
++			inBodyIM(p)
++			p.resetInsertionMode()
++			return true
++		}
++		if p.framesetOK {
++			p.framesetOK = strings.TrimLeft(p.tok.Data, whitespace) == ""
++		}
++		p.addText(p.tok.Data)
+ 	case CommentToken:
+ 		p.addChild(&Node{
+ 			Type: CommentNode,
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index f501915759..b938ca7185 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -173,7 +173,7 @@ func TestParser(t *testing.T) {
+ 		{"tests4.dat", -1},
+ 		{"tests5.dat", -1},
+ 		{"tests6.dat", 36},
+-		{"tests10.dat", 6},
++		{"tests10.dat", 13},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)

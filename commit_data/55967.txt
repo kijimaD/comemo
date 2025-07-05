@@ -19,7 +19,32 @@ Date:   Sat Mar 25 15:53:55 2023 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  .github/SUPPORT.md | 2 +-
  CONTRIBUTING.md    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/.github/SUPPORT.md b/.github/SUPPORT.md
+index 2ec957a52b..d1fb277bc2 100644
+--- a/.github/SUPPORT.md
++++ b/.github/SUPPORT.md
+@@ -1,5 +1,5 @@
+ Unlike many projects on GitHub, the Go project does not use its bug tracker for general discussion or asking questions.
+-We only use our bug tracker for tracking bugs and tracking proposals going through the [Proposal Process](https://golang.org/s/proposal-process).
++We only use our bug tracker for tracking bugs and tracking proposals going through the [Proposal Process](https://go.dev/s/proposal-process).
+ 
+ For asking questions, see:
+ 
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 7c1dd54b30..4cd76c2950 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -24,7 +24,7 @@ Otherwise, when filing an issue, make sure to answer these five questions:
+ 4. What did you expect to see?
+ 5. What did you see instead?
+ 
+-For change proposals, see [Proposing Changes To Go](https://github.com/golang/proposal/).
++For change proposals, see [Proposing Changes To Go](https://go.dev/s/proposal-process).
+ 
+ ## Contributing code
+ 

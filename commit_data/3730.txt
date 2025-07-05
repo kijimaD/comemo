@@ -37,7 +37,7 @@ Date:   Mon Nov 2 18:37:30 2009 -0800
     R=p
     CC=go-dev, r
     http://go/go-review/1018017
-
+---
  src/pkg/http/server.go         |  10 +-
  src/pkg/net/Makefile           |   2 +
  src/pkg/net/dialgoogle_test.go |  14 --
@@ -56,3 +56,2315 @@ Date:   Mon Nov 2 18:37:30 2009 -0800
  src/pkg/rpc/server.go          |   2 +-
  src/pkg/rpc/server_test.go     |   4 +-
  17 files changed, 1254 insertions(+), 502 deletions(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index fb6b3bd4d8..3aa5c072f5 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -56,9 +56,11 @@ type Conn struct {
+ }
+ 
+ // Create new connection from rwc.
+-func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, err os.Error) {
++func newConn(rwc net.Conn, handler Handler) (c *Conn, err os.Error) {
+ 	c = new(Conn);
+-	c.RemoteAddr = raddr;
++	if a := rwc.RemoteAddr(); a != nil {
++		c.RemoteAddr = a.String();
++	}
+ 	c.handler = handler;
+ 	c.rwc = rwc;
+ 	br := bufio.NewReader(rwc);
+@@ -527,11 +529,11 @@ func Serve(l net.Listener, handler Handler) os.Error {
+ 		handler = DefaultServeMux;
+ 	}
+ 	for {
+-		rw, raddr, e := l.Accept();
++		rw, e := l.Accept();
+ 		if e != nil {
+ 			return e;
+ 		}
+-		c, err := newConn(rw, raddr, handler);
++		c, err := newConn(rw, handler);
+ 		if err != nil {
+ 			continue;
+ 		}
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 4c8ec38231..a11b0009a1 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -17,6 +17,8 @@ GOFILES=\
+ 	parse.go\
+ 	port.go\
+ 	sock.go\
++	tcpsock.go\
++	udpsock.go\
+ 	unixsock.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 810277713c..81c65c9d1d 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -40,16 +40,6 @@ func doDial(t *testing.T, network, addr string) {
+ 	fd.Close()
+ }
+ 
+-func doDialTCP(t *testing.T, network, addr string) {
+-	fd, err := DialTCP(network, "", addr);
+-	if err != nil {
+-		t.Errorf("DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
+-	} else {
+-		fetchGoogle(t, fd, network, addr);
+-	}
+-	fd.Close()
+-}
+-
+ var googleaddrs = []string {
+ 	"74.125.19.99:80",
+ 	"www.google.com:80",
+@@ -77,22 +67,18 @@ func TestDialGoogle(t *testing.T) {
+ 		}
+ 		t.Logf("-- %s --", addr);
+ 		doDial(t, "tcp", addr);
+-		doDialTCP(t, "tcp", addr);
+ 		if addr[0] != '[' {
+ 			doDial(t, "tcp4", addr);
+-			doDialTCP(t, "tcp4", addr);
+ 
+ 			if !preferIPv4 {
+ 				// make sure preferIPv4 flag works.
+ 				preferIPv4 = true;
+ 				syscall.SocketDisableIPv6 = true;
+ 				doDial(t, "tcp4", addr);
+-				doDialTCP(t, "tcp4", addr);
+ 				syscall.SocketDisableIPv6 = false;
+ 				preferIPv4 = false;
+ 			}
+ 		}
+ 		doDial(t, "tcp6", addr);
+-		doDialTCP(t, "tcp6", addr)
+ 	}
+ }
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 228d481ceb..46b8218a4c 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -78,7 +78,11 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 		}
+ 		return in, nil
+ 	}
+-	return nil, &DNSError{"no answer from server", name, c.RemoteAddr()}
++	var server string;
++	if a := c.RemoteAddr(); a != nil {
++		server = a.String();
++	}
++	return nil, &DNSError{"no answer from server", name, server}
+ }
+ 
+ 
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 0f422396e5..64d505ae39 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -17,12 +17,14 @@ import (
+ type netFD struct {
+ 	// immutable until Close
+ 	fd int;
++	family int;
++	proto int;
+ 	file *os.File;
+ 	cr chan *netFD;
+ 	cw chan *netFD;
+ 	net string;
+-	laddr string;
+-	raddr string;
++	laddr Addr;
++	raddr Addr;
+ 
+ 	// owned by client
+ 	rdeadline_delta int64;
+@@ -289,7 +291,7 @@ func (s *pollServer) WaitWrite(fd *netFD) {
+ 
+ var pollserver *pollServer
+ 
+-func _StartServer() {
++func startServer() {
+ 	p, err := newPollServer();
+ 	if err != nil {
+ 		print("Start pollServer: ", err.String(), "\n")
+@@ -297,19 +299,27 @@ func _StartServer() {
+ 	pollserver = p
+ }
+ 
+-func newFD(fd int, net, laddr, raddr string) (f *netFD, err os.Error) {
+-	if pollserver == nil {
+-		once.Do(_StartServer);
+-	}
++func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
++	once.Do(startServer);
+ 	if e := syscall.SetNonblock(fd, true); e != 0 {
+-		return nil, &os.PathError{"setnonblock", laddr, os.Errno(e)};
+-	}
+-	f = new(netFD);
+-	f.fd = fd;
+-	f.net = net;
+-	f.laddr = laddr;
+-	f.raddr = raddr;
+-	f.file = os.NewFile(fd, net + "!" + laddr + "->" + raddr);
++		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)};
++	}
++	f = &netFD{
++		fd: fd,
++		family: family,
++		proto: proto,
++		net: net,
++		laddr: laddr,
++		raddr: raddr,
++	};
++	var ls, rs string;
++	if laddr != nil {
++		ls = laddr.String();
++	}
++	if raddr != nil {
++		rs = raddr.String();
++	}
++	f.file = os.NewFile(fd, net + ":" + ls + "->" + rs);
+ 	f.cr = make(chan *netFD, 1);
+ 	f.cw = make(chan *netFD, 1);
+ 	return f, nil
+@@ -322,24 +332,6 @@ func isEAGAIN(e os.Error) bool {
+ 	return e == os.EAGAIN;
+ }
+ 
+-func (fd *netFD) addr() string {
+-	sa, e := syscall.Getsockname(fd.fd);
+-	if e != 0 {
+-		return "";
+-	}
+-	addr, _ := sockaddrToString(sa);
+-	return addr;
+-}
+-
+-func (fd *netFD) remoteAddr() string {
+-	sa, e := syscall.Getpeername(fd.fd);
+-	if e != 0 {
+-		return "";
+-	}
+-	addr, _ := sockaddrToString(sa);
+-	return addr;
+-}
+-
+ func (fd *netFD) Close() os.Error {
+ 	if fd == nil || fd.file == nil {
+ 		return os.EINVAL
+@@ -413,7 +405,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	return nn, err
+ }
+ 
+-func (fd *netFD) accept() (nfd *netFD, err os.Error) {
++func (fd *netFD) accept(toAddr func(syscall.Sockaddr)Addr) (nfd *netFD, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+ 		return nil, os.EINVAL
+ 	}
+@@ -435,16 +427,12 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
+ 	}
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+-		return nil, &os.PathError{"accept", fd.addr(), os.Errno(e)}
++		return nil, &OpError{"accept", fd.net, fd.laddr, os.Errno(e)}
+ 	}
+ 	syscall.CloseOnExec(s);
+ 	syscall.ForkLock.RUnlock();
+ 
+-	raddr, err1 := sockaddrToString(sa);
+-	if err1 != nil {
+-		raddr = "invalid-address";
+-	}
+-	if nfd, err = newFD(s, fd.net, fd.laddr, raddr); err != nil {
++	if nfd, err = newFD(s, fd.family, fd.proto, fd.net, fd.laddr, toAddr(sa)); err != nil {
+ 		syscall.Close(s);
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 6f1e078820..b6f5ef49ec 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -180,6 +180,10 @@ func itox(i uint) string {
+ func (ip IP) String() string {
+ 	p := ip;
+ 
++	if len(ip) == 0 {
++		return "";
++	}
++
+ 	// If IPv4, use dotted notation.
+ 	if p4 := p.To4(); len(p4) == 4 {
+ 		return itod(uint(p4[0]))+"."
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 6406952563..705fc075a3 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -34,125 +34,47 @@ func listenBacklog() int {
+ 	return syscall.SOMAXCONN
+ }
+ 
+-// ListenerTCP is a TCP network listener.
+-// Clients should typically use variables of type Listener
+-// instead of assuming TCP.
+-type ListenerTCP struct {
+-	fd *netFD;
+-}
+-
+-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
+-// Net must be "tcp", "tcp4", or "tcp6".
+-// If laddr has a port of 0, it means to listen on some available port.
+-// The caller can use l.Addr() to retrieve the chosen address.
+-func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
+-	fd, e := internetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
+-	if e != nil {
+-		return nil, e
+-	}
+-	e1 := syscall.Listen(fd.fd, listenBacklog());
+-	if e1 != 0 {
+-		syscall.Close(fd.fd);
+-		return nil, &OpError{"listen", "tcp", laddr, os.Errno(e1)};
+-	}
+-	l = new(ListenerTCP);
+-	l.fd = fd;
+-	return l, nil
+-}
+-
+-// AcceptTCP accepts the next incoming call and returns the new connection
+-// and the remote address.
+-func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err os.Error) {
+-	if l == nil || l.fd == nil || l.fd.fd < 0 {
+-		return nil, "", os.EINVAL
+-	}
+-	fd, e := l.fd.accept();
+-	if e != nil {
+-		return nil, "", e
+-	}
+-	return newConnTCP(fd, fd.raddr), fd.raddr, nil
+-}
+-
+-// Accept implements the Accept method in the Listener interface;
+-// it waits for the next call and returns a generic Conn.
+-func (l *ListenerTCP) Accept() (c Conn, raddr string, err os.Error) {
+-	c1, r1, e1 := l.AcceptTCP();
+-	if e1 != nil {
+-		return nil, "", e1
+-	}
+-	return c1, r1, nil
+-}
+-
+-// Close stops listening on the TCP address.
+-// Already Accepted connections are not closed.
+-func (l *ListenerTCP) Close() os.Error {
+-	if l == nil || l.fd == nil {
+-		return os.EINVAL
+-	}
+-	return l.fd.Close()
+-}
+-
+-// Addr returns the listener's network address.
+-func (l *ListenerTCP) Addr() string {
+-	return l.fd.addr();
+-}
+-
+ // Internet sockets (TCP, UDP)
+ 
+-func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD, err os.Error) {
+-	// Parse addresses (unless they are empty).
+-	var lip, rip IP;
+-	var lport, rport int;
+-
+-	if laddr != "" {
+-		if lip, lport, err = hostPortToIP(net, laddr, mode); err != nil {
+-			goto Error;
+-		}
+-	}
+-	if raddr != "" {
+-		if rip, rport, err = hostPortToIP(net, raddr, mode); err != nil {
+-			goto Error;
+-		}
+-	}
++// A sockaddr represents a TCP or UDP network address that can
++// be converted into a syscall.Sockaddr.
++type sockaddr interface {
++	Addr;
++	sockaddr(family int) (syscall.Sockaddr, os.Error);
++	family() int;
++}
+ 
++func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+ 	// Figure out IP version.
+ 	// If network has a suffix like "tcp4", obey it.
+-	vers := 0;
++	family := syscall.AF_INET6;
+ 	switch net[len(net)-1] {
+ 	case '4':
+-		vers = 4;
++		family = syscall.AF_INET
+ 	case '6':
+-		vers = 6;
++		// nothing to do
+ 	default:
+ 		// Otherwise, guess.
+ 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
+-		if preferIPv4 && (lip == nil || lip.To4() != nil) && (rip == nil || rip.To4() != nil) {
+-			vers = 4
+-		} else {
+-			vers = 6
++		if preferIPv4 &&
++			(laddr == nil || laddr.family() == syscall.AF_INET) &&
++			(raddr == nil || raddr.family() == syscall.AF_INET) {
++			family = syscall.AF_INET;
+ 		}
+ 	}
+ 
+-	var family int;
+-	if vers == 4 {
+-		family = syscall.AF_INET
+-	} else {
+-		family = syscall.AF_INET6
+-	}
+-
+ 	var la, ra syscall.Sockaddr;
+-	if lip != nil {
+-		if la, err = ipToSockaddr(family, lip, lport); err != nil {
++	if laddr != nil {
++		if la, err = laddr.sockaddr(family); err != nil {
+ 			goto Error;
+ 		}
+ 	}
+-	if rip != nil {
+-		if ra, err = ipToSockaddr(family, rip, rport); err != nil {
++	if raddr != nil {
++		if ra, err = raddr.sockaddr(family); err != nil {
+ 			goto Error;
+ 		}
+ 	}
+-
+-	fd, err = socket(net, laddr, raddr, family, proto, 0, la, ra);
++	fd, err = socket(net, family, proto, 0, la, ra, toAddr);
+ 	if err != nil {
+ 		goto Error;
+ 	}
+@@ -166,77 +88,31 @@ Error:
+ 	return nil, &OpError{mode, net, addr, err};
+ }
+ 
+-
+-// TCP connections.
+-
+-// ConnTCP is an implementation of the Conn interface
+-// for TCP network connections.
+-type ConnTCP struct {
+-	connBase
+-}
+-
+-func (c *ConnTCP) SetNoDelay(nodelay bool) os.Error {
+-	if c == nil {
+-		return os.EINVAL
+-	}
+-	return setsockoptInt(c.sysFD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
+-}
+-
+-func newConnTCP(fd *netFD, raddr string) *ConnTCP {
+-	c := new(ConnTCP);
+-	c.fd = fd;
+-	c.raddr = raddr;
+-	c.SetNoDelay(true);
+-	return c
+-}
+-
+-// DialTCP is like Dial but can only connect to TCP networks
+-// and returns a ConnTCP structure.
+-func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
+-	if raddr == "" {
+-		return nil, &OpError{"dial", "tcp", "", errMissingAddress}
+-	}
+-	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
+-	if e != nil {
+-		return nil, e
+-	}
+-	return newConnTCP(fd, raddr), nil
+-}
+-
+-
+-// UDP connections.
+-
+-// TODO(rsc): UDP headers mode
+-
+-// ConnUDP is an implementation of the Conn interface
+-// for UDP network connections.
+-type ConnUDP struct {
+-	connBase
+-}
+-
+-func newConnUDP(fd *netFD, raddr string) *ConnUDP {
+-	c := new(ConnUDP);
+-	c.fd = fd;
+-	c.raddr = raddr;
+-	return c
+-}
+-
+-// DialUDP is like Dial but can only connect to UDP networks
+-// and returns a ConnUDP structure.
+-func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
+-	if raddr == "" {
+-		return nil, &OpError{"dial", "udp", "", errMissingAddress}
++func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
++	// No attempt at error reporting because
++	// there are no possible errors, and the
++	// caller won't report them anyway.
++	var sa syscall.Sockaddr;
++	if remote {
++		sa, _ = syscall.Getpeername(fd);
++	} else {
++		sa, _ = syscall.Getsockname(fd);
+ 	}
+-	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
+-	if e != nil {
+-		return nil, e
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &sa.Addr, sa.Port, true;
++	case *syscall.SockaddrInet6:
++		return &sa.Addr, sa.Port, true;
+ 	}
+-	return newConnUDP(fd, raddr), nil
++	return;
+ }
+ 
+ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 	switch family {
+ 	case syscall.AF_INET:
++		if len(ip) == 0 {
++			ip = IPv4zero;
++		}
+ 		if ip = ip.To4(); ip == nil {
+ 			return nil, os.EINVAL
+ 		}
+@@ -247,6 +123,9 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 		s.Port = port;
+ 		return s, nil;
+ 	case syscall.AF_INET6:
++		if len(ip) == 0 {
++			ip = IPzero;
++		}
+ 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
+ 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
+ 		// which it refuses to do.  Rewrite to the IPv6 all zeros.
+@@ -302,43 +181,29 @@ func joinHostPort(host, port string) string {
+ }
+ 
+ // Convert "host:port" into IP address and port.
+-// For now, host and port must be numeric literals.
+-// Eventually, we'll have name resolution.
+-func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
++func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 	host, port, err := splitHostPort(hostport);
+ 	if err != nil {
+ 		goto Error;
+ 	}
+ 
+ 	var addr IP;
+-	if host == "" {
+-		if mode != "listen" {
+-			err = &AddrError{"no host in address", hostport};
+-			goto Error;
+-		}
+-		if preferIPv4 {
+-			addr = IPv4zero;
+-		} else {
+-			addr = IPzero;	// wildcard - listen to all
+-		}
+-	}
+-
+-	// Try as an IP address.
+-	if addr == nil {
++	if host != "" {
++		// Try as an IP address.
+ 		addr = ParseIP(host);
+-	}
+-	if addr == nil {
+-		// Not an IP address.  Try as a DNS name.
+-		_, addrs, err1 := LookupHost(host);
+-		if err1 != nil {
+-			err = err1;
+-			goto Error;
+-		}
+-		addr = ParseIP(addrs[0]);
+ 		if addr == nil {
+-			// should not happen
+-			err = &AddrError{"LookupHost returned invalid address", addrs[0]};
+-			goto Error;
++			// Not an IP address.  Try as a DNS name.
++			_, addrs, err1 := LookupHost(host);
++			if err1 != nil {
++				err = err1;
++				goto Error;
++			}
++			addr = ParseIP(addrs[0]);
++			if addr == nil {
++				// should not happen
++				err = &AddrError{"LookupHost returned invalid address", addrs[0]};
++				goto Error;
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 8669ed3aec..1532fc0a76 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -10,43 +10,71 @@ package net
+ 
+ import "os"
+ 
+-// Conn is a generic network connection.
++// Addr represents a network end point address.
++type Addr interface {
++	Network() string;	// name of the network
++	String() string;		// string form of address
++}
++
++// Conn is a generic stream-oriented network connection.
+ type Conn interface {
+-	// Read blocks until data is ready from the connection
+-	// and then reads into b.  It returns the number
+-	// of bytes read, or 0 if the connection has been closed.
++	// Read reads data from the connection.
++	// Read can be made to time out and return err == os.EAGAIN
++	// after a fixed time limit; see SetTimeout and SetReadTimeout.
+ 	Read(b []byte) (n int, err os.Error);
+ 
+-	// Write writes the data in b to the connection.
++	// Write writes data to the connection.
++	// Write can be made to time out and return err == os.EAGAIN
++	// after a fixed time limit; see SetTimeout and SetReadTimeout.
+ 	Write(b []byte) (n int, err os.Error);
+ 
+ 	// Close closes the connection.
+ 	Close() os.Error;
+ 
+ 	// LocalAddr returns the local network address.
+-	LocalAddr() string;
++	LocalAddr() Addr;
+ 
+ 	// RemoteAddr returns the remote network address.
+-	RemoteAddr() string;
++	RemoteAddr() Addr;
++
++	// SetTimeout sets the read and write deadlines associated
++	// with the connection.
++	SetTimeout(nsec int64) os.Error;
++
++	// SetReadTimeout sets the time (in nanoseconds) that
++	// Read will wait for data before returning os.EAGAIN.
++	// Setting nsec == 0 (the default) disables the deadline.
++	SetReadTimeout(nsec int64) os.Error;
++
++	// SetWriteTimeout sets the time (in nanoseconds) that
++	// Write will wait to send its data before returning os.EAGAIN.
++	// Setting nsec == 0 (the default) disables the deadline.
++	// Even if write times out, it may return n > 0, indicating that
++	// some of the data was successfully written.
++	SetWriteTimeout(nsec int64) os.Error;
++}
+ 
+-	// For packet-based protocols such as UDP,
+-	// ReadFrom reads the next packet from the network,
+-	// returning the number of bytes read and the remote
+-	// address that sent them.
+-	ReadFrom(b []byte) (n int, addr string, err os.Error);
++// PacketConn is a generic packet-oriented network connection.
++type PacketConn interface {
++	// ReadFrom reads a packet from the connection,
++	// copying the payload into b.  It returns the number of
++	// bytes copied into b and the return address that
++	// was on the packet.
++	// ReadFrom can be made to time out and return err == os.EAGAIN
++	// after a fixed time limit; see SetTimeout and SetReadTimeout.
++	ReadFrom(b []byte) (n int, addr Addr, err os.Error);
+ 
+-	// For packet-based protocols such as UDP,
+-	// WriteTo writes the byte buffer b to the network
+-	// as a single payload, sending it to the target address.
+-	WriteTo(addr string, b []byte) (n int, err os.Error);
++	// WriteTo writes a packet with payload b to addr.
++	// WriteTo can be made to time out and return err == os.EAGAIN
++	// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++	// On packet-oriented connections, write timeouts are rare.
++	WriteTo(b []byte, addr Addr) (n int, err os.Error);
+ 
+-	// SetReadBuffer sets the size of the operating system's
+-	// receive buffer associated with the connection.
+-	SetReadBuffer(bytes int) os.Error;
++	// Close closes the connection.
++	Close() os.Error;
+ 
+-	// SetReadBuffer sets the size of the operating system's
+-	// transmit buffer associated with the connection.
+-	SetWriteBuffer(bytes int) os.Error;
++	// LocalAddr returns the local network address.
++	LocalAddr() Addr;
+ 
+ 	// SetTimeout sets the read and write deadlines associated
+ 	// with the connection.
+@@ -63,42 +91,14 @@ type Conn interface {
+ 	// Even if write times out, it may return n > 0, indicating that
+ 	// some of the data was successfully written.
+ 	SetWriteTimeout(nsec int64) os.Error;
+-
+-	// SetLinger sets the behavior of Close() on a connection
+-	// which still has data waiting to be sent or to be acknowledged.
+-	//
+-	// If sec < 0 (the default), Close returns immediately and
+-	// the operating system finishes sending the data in the background.
+-	//
+-	// If sec == 0, Close returns immediately and the operating system
+-	// discards any unsent or unacknowledged data.
+-	//
+-	// If sec > 0, Close blocks for at most sec seconds waiting for
+-	// data to be sent and acknowledged.
+-	SetLinger(sec int) os.Error;
+-
+-	// SetReuseAddr sets whether it is okay to reuse addresses
+-	// from recent connections that were not properly closed.
+-	SetReuseAddr(reuseaddr bool) os.Error;
+-
+-	// SetDontRoute sets whether outgoing messages should
+-	// bypass the system routing tables.
+-	SetDontRoute(dontroute bool) os.Error;
+-
+-	// SetKeepAlive sets whether the operating system should send
+-	// keepalive messages on the connection.
+-	SetKeepAlive(keepalive bool) os.Error;
+-
+-	// BindToDevice binds a connection to a particular network device.
+-	BindToDevice(dev string) os.Error;
+ }
+ 
+-// A Listener is a generic network listener.
++// A Listener is a generic network listener for stream-oriented protocols.
+ // Accept waits for the next connection and Close closes the connection.
+ type Listener interface {
+-	Accept() (c Conn, raddr string, err os.Error);
++	Accept() (c Conn, err os.Error);
+ 	Close() os.Error;
+-	Addr() string;	// Listener's network address
++	Addr() Addr;	// Listener's network address
+ }
+ 
+ // Dial connects to the remote address raddr on the network net.
+@@ -116,42 +116,116 @@ type Listener interface {
+ //	Dial("tcp", "", "google.com:80")
+ //	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
+ //	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
++//
+ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+-		c, err := DialTCP(net, laddr, raddr);
+-		if err != nil {
+-			return nil, err
++		var la, ra *TCPAddr;
++		if laddr != "" {
++			if la, err = ResolveTCPAddr(laddr); err != nil {
++				goto Error;
++			}
+ 		}
+-		return c, nil;
++		if raddr != "" {
++			if ra, err = ResolveTCPAddr(raddr); err != nil {
++				goto Error;
++			}
++		}
++		return DialTCP(net, la, ra);
+ 	case "udp", "udp4", "upd6":
+-		c, err := DialUDP(net, laddr, raddr);
+-		return c, err;
+-	case "unix", "unix-dgram":
+-		c, err := DialUnix(net, laddr, raddr);
+-		return c, err;
++		var la, ra *UDPAddr;
++		if laddr != "" {
++			if la, err = ResolveUDPAddr(laddr); err != nil {
++				goto Error;
++			}
++		}
++		if raddr != "" {
++			if ra, err = ResolveUDPAddr(raddr); err != nil {
++				goto Error;
++			}
++		}
++		return DialUDP(net, la, ra);
++	case "unix", "unixgram":
++		var la, ra *UnixAddr;
++		if raddr != "" {
++			if ra, err = ResolveUnixAddr(net, raddr); err != nil {
++				goto Error;
++			}
++		}
++		if laddr != "" {
++			if la, err = ResolveUnixAddr(net, laddr); err != nil {
++				goto Error;
++			}
++		}
++		return DialUnix(net, la, ra);
+ 	}
+-	return nil, &OpError{"dial", net, raddr, UnknownNetworkError(net)};
++	err = UnknownNetworkError(net);
++Error:
++	return nil, &OpError{"dial", net+" "+raddr, nil, err};
+ }
+ 
+ // Listen announces on the local network address laddr.
+-// The network string net must be "tcp", "tcp4", "tcp6",
+-// "unix", or "unix-dgram".
++// The network string net must be a stream-oriented
++// network: "tcp", "tcp4", "tcp6", or "unix".
+ func Listen(net, laddr string) (l Listener, err os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+-		l, err := ListenTCP(net, laddr);
++		var la *TCPAddr;
++		if laddr != "" {
++			if la, err = ResolveTCPAddr(laddr); err != nil {
++				return nil, err;
++			}
++		}
++		l, err := ListenTCP(net, la);
+ 		if err != nil {
+ 			return nil, err;
+ 		}
+ 		return l, nil;
+-	case "unix", "unix-dgram":
+-		l, err := ListenUnix(net, laddr);
++	case "unix":
++		var la *UnixAddr;
++		if laddr != "" {
++			if la, err = ResolveUnixAddr(net, laddr); err != nil {
++				return nil, err;
++			}
++		}
++		l, err := ListenUnix(net, la);
+ 		if err != nil {
+ 			return nil, err;
+ 		}
+ 		return l, nil;
+-	// BUG(rsc): Listen should support UDP.
++	}
++	return nil, UnknownNetworkError(net);
++}
++
++// ListenPacket announces on the local network address laddr.
++// The network string net must be a packet-oriented network:
++// "udp", "udp4", "udp6", or "unixgram".
++func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++		var la *UDPAddr;
++		if laddr != "" {
++			if la, err = ResolveUDPAddr(laddr); err != nil {
++				return nil, err;
++			}
++		}
++		c, err := ListenUDP(net, la);
++		if err != nil {
++			return nil, err;
++		}
++		return c, nil;
++	case "unixgram":
++		var la *UnixAddr;
++		if laddr != "" {
++			if la, err = ResolveUnixAddr(net, laddr); err != nil {
++				return nil, err;
++			}
++		}
++		c, err := DialUnix(net, la, nil);
++		if err != nil {
++			return nil, err;
++		}
++		return c, nil;
+ 	}
+ 	return nil, UnknownNetworkError(net);
+ }
+@@ -161,7 +235,7 @@ var errMissingAddress = os.ErrorString("missing address")
+ type OpError struct {
+ 	Op string;
+ 	Net string;
+-	Addr string;
++	Addr Addr;
+ 	Error os.Error;
+ }
+ 
+@@ -170,8 +244,8 @@ func (e *OpError) String() string {
+ 	if e.Net != "" {
+ 		s += " " + e.Net;
+ 	}
+-	if e.Addr != "" {
+-		s += " " + e.Addr;
++	if e.Addr != nil {
++		s += " " + e.Addr.String();
+ 	}
+ 	s += ": " + e.Error.String();
+ 	return s;
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index d961ae0687..cdcc99e312 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"io";
++	"os";
+ 	"strings";
+ 	"syscall";
+ 	"testing";
+@@ -29,10 +30,10 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done
+ 	if err != nil {
+ 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
+ 	}
+-	listening <- l.Addr();
++	listening <- l.Addr().String();
+ 
+ 	for {
+-		fd, _, err := l.Accept();
++		fd, err := l.Accept();
+ 		if err != nil {
+ 			break;
+ 		}
+@@ -45,9 +46,13 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done
+ }
+ 
+ func connect(t *testing.T, network, addr string) {
+-	fd, err := Dial(network, "", addr);
++	var laddr string;
++	if network == "unixgram" {
++		laddr = addr + ".local";
++	}
++	fd, err := Dial(network, laddr, addr);
+ 	if err != nil {
+-		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
++		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err);
+ 	}
+ 
+ 	b := strings.Bytes("hello, world\n");
+@@ -81,7 +86,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 	<-done;	// make sure server stopped
+ }
+ 
+-func TestTcpServer(t *testing.T) {
++func TestTCPServer(t *testing.T) {
+ 	doTest(t,  "tcp", "0.0.0.0", "127.0.0.1");
+ 	doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
+ 	doTest(t, "tcp", "[::]", "127.0.0.1");
+@@ -90,9 +95,75 @@ func TestTcpServer(t *testing.T) {
+ }
+ 
+ func TestUnixServer(t *testing.T) {
++	os.Remove("/tmp/gotest.net");
+ 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net");
++	os.Remove("/tmp/gotest.net");
+ 	if syscall.OS == "linux" {
+ 		// Test abstract unix domain socket, a Linux-ism
+ 		doTest(t, "unix", "@gotest/net", "@gotest/net");
+ 	}
+ }
++
++func runPacket(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
++	c, err := ListenPacket(network, addr);
++	if err != nil {
++		t.Fatalf("net.ListenPacket(%q, %q) = _, %v", network, addr, err);
++	}
++	listening <- c.LocalAddr().String();
++	c.SetReadTimeout(10e6);	// 10ms
++	var buf [1000]byte;
++	for {
++		n, addr, err := c.ReadFrom(&buf);
++		if err == os.EAGAIN {
++			if done <- 1 {
++				break;
++			}
++			continue;
++		}
++		if err != nil {
++			break;
++		}
++		if _, err = c.WriteTo(buf[0:n], addr); err != nil {
++			t.Fatalf("WriteTo %v: %v", addr, err);
++		}
++	}
++	c.Close();
++	done <- 1;
++}
++
++func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
++	t.Logf("TestPacket %s %s %s\n", network, listenaddr, dialaddr);
++	listening := make(chan string);
++	done := make(chan int);
++	if network == "udp" {
++		listenaddr += ":0";	// any available port
++	}
++	go runPacket(t, network, listenaddr, listening, done);
++	addr := <-listening;	// wait for server to start
++	if network == "udp" {
++		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)];
++	}
++	connect(t, network, dialaddr);
++	<-done;	// tell server to stop
++	<-done;	// wait for stop
++}
++
++func TestUDPServer(t *testing.T) {
++	doTestPacket(t,  "udp", "0.0.0.0", "127.0.0.1");
++	doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
++	doTestPacket(t, "udp", "[::]", "127.0.0.1");
++	doTestPacket(t, "udp", "", "127.0.0.1");
++	doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]");
++}
++
++func TestUnixDatagramServer(t *testing.T) {
++	os.Remove("/tmp/gotest1.net");
++	os.Remove("/tmp/gotest1.net.local");
++	doTestPacket(t, "unixgram", "/tmp/gotest1.net", "/tmp/gotest1.net");
++	os.Remove("/tmp/gotest1.net");
++	os.Remove("/tmp/gotest1.net.local");
++	if syscall.OS == "linux" {
++		// Test abstract unix domain socket, a Linux-ism
++		doTestPacket(t, "unixgram", "@gotest1/net", "@gotest1/net");
++	}
++}
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 857a228bdc..8b40184588 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -21,7 +21,7 @@ func boolint(b bool) int {
+ }
+ 
+ // Generic socket creation.
+-func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd *netFD, err os.Error) {
++func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
+ 	// See ../syscall/exec.go for description of ForkLock.
+ 	syscall.ForkLock.RLock();
+ 	s, e := syscall.Socket(f, p, t);
+@@ -51,7 +51,12 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd
+ 		}
+ 	}
+ 
+-	fd, err = newFD(s, net, laddr, raddr);
++	sa, _ := syscall.Getsockname(s);
++	laddr := toAddr(sa);
++	sa, _ = syscall.Getpeername(s);
++	raddr := toAddr(sa);
++
++	fd, err = newFD(s, f, p, net, laddr, raddr);
+ 	if err != nil {
+ 		syscall.Close(s);
+ 		return nil, err
+@@ -60,78 +65,6 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd
+ 	return fd, nil
+ }
+ 
+-
+-// Generic implementation of Conn interface; not exported.
+-type connBase struct {
+-	fd *netFD;
+-	raddr string;
+-}
+-
+-func (c *connBase) LocalAddr() string {
+-	if c == nil {
+-		return ""
+-	}
+-	return c.fd.addr();
+-}
+-
+-func (c *connBase) RemoteAddr() string {
+-	if c == nil {
+-		return ""
+-	}
+-	return c.fd.remoteAddr();
+-}
+-
+-func (c *connBase) File() *os.File {
+-	if c == nil {
+-		return nil
+-	}
+-	return c.fd.file;
+-}
+-
+-func (c *connBase) sysFD() int {
+-	if c == nil || c.fd == nil {
+-		return -1;
+-	}
+-	return c.fd.fd;
+-}
+-
+-func (c *connBase) Read(b []byte) (n int, err os.Error) {
+-	n, err = c.fd.Read(b);
+-	return n, err
+-}
+-
+-func (c *connBase) Write(b []byte) (n int, err os.Error) {
+-	n, err = c.fd.Write(b);
+-	return n, err
+-}
+-
+-func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err os.Error) {
+-	if c == nil {
+-		return -1, "", os.EINVAL
+-	}
+-	n, err = c.Read(b);
+-	return n, c.raddr, err
+-}
+-
+-func (c *connBase) WriteTo(raddr string, b []byte) (n int, err os.Error) {
+-	if c == nil {
+-		return -1, os.EINVAL
+-	}
+-	if raddr != c.raddr {
+-		return -1, os.EINVAL
+-	}
+-	n, err = c.Write(b);
+-	return n, err
+-}
+-
+-func (c *connBase) Close() os.Error {
+-	if c == nil {
+-		return os.EINVAL
+-	}
+-	return c.fd.Close()
+-}
+-
+-
+ func setsockoptInt(fd, level, opt int, value int) os.Error {
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value));
+ }
+@@ -141,49 +74,49 @@ func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
+ 	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd, level, opt, &tv));
+ }
+ 
+-func (c *connBase) SetReadBuffer(bytes int) os.Error {
+-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
++func setReadBuffer(fd *netFD, bytes int) os.Error {
++	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
+ }
+ 
+-func (c *connBase) SetWriteBuffer(bytes int) os.Error {
+-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
++func setWriteBuffer(fd *netFD, bytes int) os.Error {
++	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
+ }
+ 
+-func (c *connBase) SetReadTimeout(nsec int64) os.Error {
+-	c.fd.rdeadline_delta = nsec;
++func setReadTimeout(fd *netFD, nsec int64) os.Error {
++	fd.rdeadline_delta = nsec;
+ 	return nil;
+ }
+ 
+-func (c *connBase) SetWriteTimeout(nsec int64) os.Error {
+-	c.fd.wdeadline_delta = nsec;
++func setWriteTimeout(fd *netFD, nsec int64) os.Error {
++	fd.wdeadline_delta = nsec;
+ 	return nil;
+ }
+ 
+-func (c *connBase) SetTimeout(nsec int64) os.Error {
+-	if e := c.SetReadTimeout(nsec); e != nil {
++func setTimeout(fd *netFD, nsec int64) os.Error {
++	if e := setReadTimeout(fd, nsec); e != nil {
+ 		return e
+ 	}
+-	return c.SetWriteTimeout(nsec)
++	return setWriteTimeout(fd, nsec)
+ }
+ 
+-func (c *connBase) SetReuseAddr(reuse bool) os.Error {
+-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
++func setReuseAddr(fd *netFD, reuse bool) os.Error {
++	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
+ }
+ 
+-func (c *connBase) BindToDevice(dev string) os.Error {
++func bindToDevice(fd *netFD, dev string) os.Error {
+ 	// TODO(rsc): call setsockopt with null-terminated string pointer
+ 	return os.EINVAL
+ }
+ 
+-func (c *connBase) SetDontRoute(dontroute bool) os.Error {
+-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
++func setDontRoute(fd *netFD, dontroute bool) os.Error {
++	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
+ }
+ 
+-func (c *connBase) SetKeepAlive(keepalive bool) os.Error {
+-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
++func setKeepAlive(fd *netFD, keepalive bool) os.Error {
++	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
+ }
+ 
+-func (c *connBase) SetLinger(sec int) os.Error {
++func setLinger(fd *netFD, sec int) os.Error {
+ 	var l syscall.Linger;
+ 	if sec >= 0 {
+ 		l.Onoff = 1;
+@@ -192,11 +125,10 @@ func (c *connBase) SetLinger(sec int) os.Error {
+ 		l.Onoff = 0;
+ 		l.Linger = 0;
+ 	}
+-	e := syscall.SetsockoptLinger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
++	e := syscall.SetsockoptLinger(fd.fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
+ 	return os.NewSyscallError("setsockopt", e);
+ }
+ 
+-
+ type UnknownSocketError struct {
+ 	sa syscall.Sockaddr;
+ }
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+new file mode 100644
+index 0000000000..cfe1a4bd49
+--- /dev/null
++++ b/src/pkg/net/tcpsock.go
+@@ -0,0 +1,289 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TCP sockets
++
++package net
++
++import (
++	"os";
++	"syscall";
++)
++
++func sockaddrToTCP(sa syscall.Sockaddr) Addr {
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &TCPAddr{&sa.Addr, sa.Port};
++	case *syscall.SockaddrInet6:
++		return &TCPAddr{&sa.Addr, sa.Port};
++	}
++	return nil;
++}
++
++// TCPAddr represents the address of a TCP end point.
++type TCPAddr struct {
++	IP IP;
++	Port int;
++}
++
++// Network returns the address's network name, "tcp".
++func (a *TCPAddr) Network() string {
++	return "tcp";
++}
++
++func (a *TCPAddr) String() string {
++	return joinHostPort(a.IP.String(), itoa(a.Port));
++}
++
++func (a *TCPAddr) family() int {
++	if a == nil || len(a.IP) <= 4 {
++		return syscall.AF_INET;
++	}
++	if ip := a.IP.To4(); ip != nil {
++		return syscall.AF_INET;
++	}
++	return syscall.AF_INET6;
++}
++
++func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
++	return ipToSockaddr(family, a.IP, a.Port);
++}
++
++func (a *TCPAddr) toAddr() sockaddr {
++	if a == nil {	// nil *TCPAddr
++		return nil;	// nil interface
++	}
++	return a;
++}
++
++// ResolveTCPAddr parses addr as a TCP address of the form
++// host:port and resolves domain names or port names to
++// numeric addresses.  A literal IPv6 host address must be
++// enclosed in square brackets, as in "[::]:80".
++func ResolveTCPAddr(addr string) (*TCPAddr, os.Error) {
++	ip, port, err := hostPortToIP("tcp", addr);
++	if err != nil {
++		return nil, err;
++	}
++	return &TCPAddr{ip, port}, nil;
++}
++
++// TCPConn is an implementation of the Conn interface
++// for TCP network connections.
++type TCPConn struct {
++	fd *netFD;
++}
++
++func newTCPConn(fd *netFD) *TCPConn {
++	c := &TCPConn{fd};
++	setsockoptInt(fd.fd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1);
++	return c
++}
++
++func (c *TCPConn) ok() bool {
++if c == nil || c.fd == nil { panic() }
++	return c != nil && c.fd != nil;
++}
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read reads data from the TCP connection.
++//
++// Read can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Read(b);
++}
++
++// Write writes data to the TCP connection.
++//
++// Write can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b);
++}
++
++// Close closes the TCP connection.
++func (c *TCPConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close();
++	c.fd = nil;
++	return err;
++}
++
++// LocalAddr returns the local network address, a *TCPAddr.
++func (c *TCPConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil;
++	}
++	return c.fd.laddr;
++}
++
++// RemoteAddr returns the remote network address, a *TCPAddr.
++func (c *TCPConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil;
++	}
++	return c.fd.raddr;
++}
++
++// SetTimeout sets the read and write deadlines associated
++// with the connection.
++func (c *TCPConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec);
++}
++
++// SetReadTimeout sets the time (in nanoseconds) that
++// Read will wait for data before returning os.EAGAIN.
++// Setting nsec == 0 (the default) disables the deadline.
++func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec);
++}
++
++// SetWriteTimeout sets the time (in nanoseconds) that
++// Write will wait to send its data before returning os.EAGAIN.
++// Setting nsec == 0 (the default) disables the deadline.
++// Even if write times out, it may return n > 0, indicating that
++// some of the data was successfully written.
++func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec);
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes);
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes);
++}
++
++// SetLinger sets the behavior of Close() on a connection
++// which still has data waiting to be sent or to be acknowledged.
++//
++// If sec < 0 (the default), Close returns immediately and
++// the operating system finishes sending the data in the background.
++//
++// If sec == 0, Close returns immediately and the operating system
++// discards any unsent or unacknowledged data.
++//
++// If sec > 0, Close blocks for at most sec seconds waiting for
++// data to be sent and acknowledged.
++func (c *TCPConn) SetLinger(sec int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setLinger(c.fd, sec);
++}
++
++// SetKeepAlive sets whether the operating system should send
++// keepalive messages on the connection.
++func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setKeepAlive(c.fd, keepalive);
++}
++
++// DialTCP is like Dial but can only connect to TCP networks
++// and returns a TCPConn structure.
++func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
++	if raddr == nil {
++		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, "dial", sockaddrToTCP);
++	if e != nil {
++		return nil, e
++	}
++	return newTCPConn(fd), nil
++}
++
++// TCPListener is a TCP network listener.
++// Clients should typically use variables of type Listener
++// instead of assuming TCP.
++type TCPListener struct {
++	fd *netFD;
++}
++
++// ListenTCP announces on the TCP address laddr and returns a TCP listener.
++// Net must be "tcp", "tcp4", or "tcp6".
++// If laddr has a port of 0, it means to listen on some available port.
++// The caller can use l.Addr() to retrieve the chosen address.
++func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
++	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, "listen", sockaddrToTCP);
++	if err != nil {
++		return nil, err
++	}
++	errno := syscall.Listen(fd.fd, listenBacklog());
++	if errno != 0 {
++		syscall.Close(fd.fd);
++		return nil, &OpError{"listen", "tcp", laddr, os.Errno(errno)};
++	}
++	l = new(TCPListener);
++	l.fd = fd;
++	return l, nil
++}
++
++// AcceptTCP accepts the next incoming call and returns the new connection
++// and the remote address.
++func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
++	if l == nil || l.fd == nil || l.fd.fd < 0 {
++		return nil, os.EINVAL
++	}
++	fd, err := l.fd.accept(sockaddrToTCP);
++	if err != nil {
++		return nil, err
++	}
++	return newTCPConn(fd), nil
++}
++
++// Accept implements the Accept method in the Listener interface;
++// it waits for the next call and returns a generic Conn.
++func (l *TCPListener) Accept() (c Conn, err os.Error) {
++	c1, err := l.AcceptTCP();
++	if err != nil {
++		return nil, err
++	}
++	return c1, nil;
++}
++
++// Close stops listening on the TCP address.
++// Already Accepted connections are not closed.
++func (l *TCPListener) Close() os.Error {
++	if l == nil || l.fd == nil {
++		return os.EINVAL
++	}
++	return l.fd.Close()
++}
++
++// Addr returns the listener's network address, a *TCPAddr.
++func (l *TCPListener) Addr() Addr {
++	return l.fd.laddr;
++}
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+new file mode 100644
+index 0000000000..03549f536e
+--- /dev/null
++++ b/src/pkg/net/udpsock.go
+@@ -0,0 +1,299 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// UDP sockets
++
++package net
++
++import (
++	"os";
++	"syscall";
++)
++
++func sockaddrToUDP(sa syscall.Sockaddr) Addr {
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		return &UDPAddr{&sa.Addr, sa.Port};
++	case *syscall.SockaddrInet6:
++		return &UDPAddr{&sa.Addr, sa.Port};
++	}
++	return nil;
++}
++
++// UDPAddr represents the address of a UDP end point.
++type UDPAddr struct {
++	IP IP;
++	Port int;
++}
++
++// Network returns the address's network name, "udp".
++func (a *UDPAddr) Network() string {
++	return "udp";
++}
++
++func (a *UDPAddr) String() string {
++	return joinHostPort(a.IP.String(), itoa(a.Port));
++
++}
++
++func (a *UDPAddr) family() int {
++	if a == nil || len(a.IP) <= 4 {
++		return syscall.AF_INET;
++	}
++	if ip := a.IP.To4(); ip != nil {
++		return syscall.AF_INET;
++	}
++	return syscall.AF_INET6;
++}
++
++func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
++	return ipToSockaddr(family, a.IP, a.Port);
++}
++
++func (a *UDPAddr) toAddr() sockaddr {
++	if a == nil {	// nil *UDPAddr
++		return nil;	// nil interface
++	}
++	return a;
++}
++
++// ResolveUDPAddr parses addr as a UDP address of the form
++// host:port and resolves domain names or port names to
++// numeric addresses.  A literal IPv6 host address must be
++// enclosed in square brackets, as in "[::]:80".
++func ResolveUDPAddr(addr string) (*UDPAddr, os.Error) {
++	ip, port, err := hostPortToIP("udp", addr);
++	if err != nil {
++		return nil, err;
++	}
++	return &UDPAddr{ip, port}, nil;
++}
++
++// UDPConn is the implementation of the Conn and PacketConn
++// interfaces for UDP network connections.
++type UDPConn struct {
++	fd *netFD;
++}
++
++func newUDPConn(fd *netFD) *UDPConn {
++	return &UDPConn{fd};
++}
++
++func (c *UDPConn) ok() bool {
++	return c != nil && c.fd != nil;
++}
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read reads data from a single UDP packet on the connection.
++// If the slice b is smaller than the arriving packet,
++// the excess packet data may be discarded.
++//
++// Read can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Read(b);
++}
++
++// Write writes data to the connection as a single UDP packet.
++//
++// Write can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b);
++}
++
++// Close closes the UDP connection.
++func (c *UDPConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close();
++	c.fd = nil;
++	return err;
++}
++
++// LocalAddr returns the local network address.
++func (c *UDPConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil;
++	}
++	return c.fd.laddr;
++}
++
++// RemoteAddr returns the remote network address, a *UDPAddr.
++func (c *UDPConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil;
++	}
++	return c.fd.raddr;
++}
++
++// SetTimeout sets the read and write deadlines associated
++// with the connection.
++func (c *UDPConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec);
++}
++
++// SetReadTimeout sets the time (in nanoseconds) that
++// Read will wait for data before returning os.EAGAIN.
++// Setting nsec == 0 (the default) disables the deadline.
++func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec);
++}
++
++// SetWriteTimeout sets the time (in nanoseconds) that
++// Write will wait to send its data before returning os.EAGAIN.
++// Setting nsec == 0 (the default) disables the deadline.
++// Even if write times out, it may return n > 0, indicating that
++// some of the data was successfully written.
++func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec);
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes);
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes);
++}
++
++// UDP-specific methods.
++
++// ReadFromUDP reads a UDP packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromUDP can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
++	if errno != 0 {
++		err = os.Errno(errno);
++	}
++	switch sa := sa.(type) {
++	case *syscall.SockaddrInet4:
++		addr = &UDPAddr{&sa.Addr, sa.Port};
++	case *syscall.SockaddrInet6:
++		addr = &UDPAddr{&sa.Addr, sa.Port};
++	}
++	return;
++}
++
++// ReadFrom reads a UDP packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFrom can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, uaddr, err := c.ReadFromUDP(b);
++	return n, uaddr.toAddr(), err;
++}
++
++// WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
++//
++// WriteToUDP can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections such as UDP, write timeouts are rare.
++func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	sa, err := addr.sockaddr(c.fd.family);
++	if err != nil {
++		return 0, err;
++	}
++	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
++		return 0, os.Errno(errno);
++	}
++	return len(b), nil;
++}
++
++// WriteTo writes a UDP packet with payload b to addr via c.
++//
++// WriteTo can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections such as UDP, write timeouts are rare.
++func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*UDPAddr);
++	if !ok {
++		return 0, &OpError{"writeto", "udp", addr, os.EINVAL};
++	}
++	return c.WriteToUDP(b, a);
++}
++
++// DialUDP connects to the remote address raddr on the network net,
++// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if raddr == nil {
++		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, "dial", sockaddrToUDP);
++	if e != nil {
++		return nil, e
++	}
++	return newUDPConn(fd), nil
++}
++
++// ListenUDP listens for incoming UDP packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send UDP
++// packets with per-packet addressing.
++func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "udp", "udp4", "udp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
++	}
++	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, "dial", sockaddrToUDP);
++	if e != nil {
++		return nil, e
++	}
++	return newUDPConn(fd), nil
++}
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index e02658a3fe..5c61f1437d 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -11,14 +11,14 @@ import (
+ 	"syscall";
+ )
+ 
+-func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error) {
++func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err os.Error) {
+ 	var proto int;
+ 	switch net {
+ 	default:
+ 		return nil, UnknownNetworkError(net);
+ 	case "unix":
+ 		proto = syscall.SOCK_STREAM;
+-	case "unix-dgram":
++	case "unixgram":
+ 		proto = syscall.SOCK_DGRAM;
+ 	}
+ 
+@@ -28,25 +28,30 @@ func unixSocket(net, laddr, raddr string, mode string) (fd *netFD, err os.Error)
+ 		panic("unixSocket", mode);
+ 
+ 	case "dial":
+-		if laddr != "" {
+-			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected local address", laddr}}
++		if laddr != nil {
++			la = &syscall.SockaddrUnix{Name: laddr.Name};
+ 		}
+-		if raddr == "" {
+-			return nil, &OpError{mode, net, "", errMissingAddress}
++		if raddr != nil {
++			ra = &syscall.SockaddrUnix{Name: raddr.Name};
++		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
++			return nil, &OpError{mode, net, nil, errMissingAddress}
+ 		}
+-		ra = &syscall.SockaddrUnix{Name: raddr};
+ 
+ 	case "listen":
+-		if laddr == "" {
+-			return nil, &OpError{mode, net, "", errMissingAddress}
++		if laddr == nil {
++			return nil, &OpError{mode, net, nil, errMissingAddress}
+ 		}
+-		la = &syscall.SockaddrUnix{Name: laddr};
+-		if raddr != "" {
+-			return nil, &OpError{mode, net, laddr, &AddrError{"unexpected remote address", raddr}}
++		la = &syscall.SockaddrUnix{Name: laddr.Name};
++		if raddr != nil {
++			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}}
+ 		}
+ 	}
+ 
+-	fd, err = socket(net, laddr, raddr, syscall.AF_UNIX, proto, 0, la, ra);
++	f := sockaddrToUnix;
++	if proto != syscall.SOCK_STREAM {
++		f = sockaddrToUnixgram;
++	}
++	fd, err = socket(net, syscall.AF_UNIX, proto, 0, la, ra, f);
+ 	if err != nil {
+ 		goto Error;
+ 	}
+@@ -60,108 +65,318 @@ Error:
+ 	return nil, &OpError{mode, net, addr, err};
+ }
+ 
+-// ConnUnix is an implementation of the Conn interface
++// UnixAddr represents the address of a Unix domain socket end point.
++type UnixAddr struct {
++	Name string;
++	Datagram bool;
++}
++
++func sockaddrToUnix(sa syscall.Sockaddr) Addr {
++	if s, ok := sa.(*syscall.SockaddrUnix); ok {
++		return &UnixAddr{s.Name, false};
++	}
++	return nil;
++}
++
++func sockaddrToUnixgram(sa syscall.Sockaddr) Addr {
++	if s, ok := sa.(*syscall.SockaddrUnix); ok {
++		return &UnixAddr{s.Name, true};
++	}
++	return nil;
++}
++
++// Network returns the address's network name, "unix" or "unixgram".
++func (a *UnixAddr) Network() string {
++	if a == nil || !a.Datagram {
++		return "unix";
++	}
++	return "unixgram";
++}
++
++func (a *UnixAddr) String() string {
++	if a == nil {
++		return "<nil>"
++	}
++	return a.Name;
++}
++
++func (a *UnixAddr) toAddr() Addr {
++	if a == nil {	// nil *UnixAddr
++		return nil;	// nil interface
++	}
++	return a;
++}
++
++// ResolveUnixAddr parses addr as a Unix domain socket address.
++// The string net gives the network name, "unix" or "unixgram".
++func ResolveUnixAddr(net, addr string) (*UnixAddr, os.Error) {
++	var datagram bool;
++	switch net {
++	case "unix":
++	case "unixgram":
++		datagram = true;
++	default:
++		return nil, UnknownNetworkError(net);
++	}
++	return &UnixAddr{addr, datagram}, nil;
++}
++
++// UnixConn is an implementation of the Conn interface
+ // for connections to Unix domain sockets.
+-type ConnUnix struct {
+-	connBase
++type UnixConn struct {
++	fd *netFD;
++}
++
++func newUnixConn(fd *netFD) *UnixConn {
++	return &UnixConn{fd}
++}
++
++func (c *UnixConn) ok() bool {
++	return c != nil && c.fd != nil;
++}
++
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read reads data from the Unix domain connection.
++//
++// Read can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Read(b);
++}
++
++// Write writes data to the Unix domain connection.
++//
++// Write can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	return c.fd.Write(b);
++}
++
++// Close closes the Unix domain connection.
++func (c *UnixConn) Close() os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	err := c.fd.Close();
++	c.fd = nil;
++	return err;
++}
++
++// LocalAddr returns the local network address, a *UnixAddr.
++// Unlike in other protocols, LocalAddr is usually nil for dialed connections.
++func (c *UnixConn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil;
++	}
++	return c.fd.laddr;
++}
++
++// RemoteAddr returns the remote network address, a *UnixAddr.
++// Unlike in other protocols, RemoteAddr is usually nil for connections
++// accepted by a listener.
++func (c *UnixConn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil;
++	}
++	return c.fd.raddr;
++}
++
++// SetTimeout sets the read and write deadlines associated
++// with the connection.
++func (c *UnixConn) SetTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setTimeout(c.fd, nsec);
++}
++
++// SetReadTimeout sets the time (in nanoseconds) that
++// Read will wait for data before returning os.EAGAIN.
++// Setting nsec == 0 (the default) disables the deadline.
++func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadTimeout(c.fd, nsec);
++}
++
++// SetWriteTimeout sets the time (in nanoseconds) that
++// Write will wait to send its data before returning os.EAGAIN.
++// Setting nsec == 0 (the default) disables the deadline.
++// Even if write times out, it may return n > 0, indicating that
++// some of the data was successfully written.
++func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteTimeout(c.fd, nsec);
+ }
+ 
+-func newConnUnix(fd *netFD, raddr string) *ConnUnix {
+-	c := new(ConnUnix);
+-	c.fd = fd;
+-	c.raddr = raddr;
+-	return c;
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes);
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
++	if !c.ok() {
++		return os.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes);
++}
++
++// ReadFromUnix reads a packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFromUnix can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
++	if errno != 0 {
++		err = os.Errno(errno);
++	}
++	switch sa := sa.(type) {
++	case *syscall.SockaddrUnix:
++		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM};
++	}
++	return;
++}
++
++// ReadFrom reads a packet from c, copying the payload into b.
++// It returns the number of bytes copied into b and the return address
++// that was on the packet.
++//
++// ReadFrom can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetReadTimeout.
++func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
++	if !c.ok() {
++		return 0, nil, os.EINVAL
++	}
++	n, uaddr, err := c.ReadFromUnix(b);
++	return n, uaddr.toAddr(), err;
++}
++
++// WriteToUnix writes a packet to addr via c, copying the payload from b.
++//
++// WriteToUnix can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections such as UDP, write timeouts are rare.
++func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
++		return 0, os.EAFNOSUPPORT;
++	}
++	sa := &syscall.SockaddrUnix{Name: addr.Name};
++	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
++		return 0, os.Errno(errno);
++	}
++	return len(b), nil;
+ }
+ 
+-// DialUnix is like Dial but can only connect to Unix domain sockets
+-// and returns a ConnUnix structure.  The laddr argument must be
+-// the empty string; it is included only to match the signature of
+-// the other dial routines.
+-func DialUnix(net, laddr, raddr string) (c *ConnUnix, err os.Error) {
++// WriteTo writes a packet to addr via c, copying the payload from b.
++//
++// WriteTo can be made to time out and return err == os.EAGAIN
++// after a fixed time limit; see SetTimeout and SetWriteTimeout.
++// On packet-oriented connections such as UDP, write timeouts are rare.
++func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
++	if !c.ok() {
++		return 0, os.EINVAL
++	}
++	a, ok := addr.(*UnixAddr);
++	if !ok {
++		return 0, &OpError{"writeto", "unix", addr, os.EINVAL};
++	}
++	return c.WriteToUnix(b, a);
++}
++
++// DialUDP connects to the remote address raddr on the network net,
++// which must be "unix" or "unixdgram".  If laddr is not nil, it is used
++// as the local address for the connection.
++func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
+ 	fd, e := unixSocket(net, laddr, raddr, "dial");
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	return newConnUnix(fd, raddr), nil;
++	return newUnixConn(fd), nil;
+ }
+ 
+-// ListenerUnix is a Unix domain socket listener.
++// UnixListener is a Unix domain socket listener.
+ // Clients should typically use variables of type Listener
+ // instead of assuming Unix domain sockets.
+-type ListenerUnix struct {
++type UnixListener struct {
+ 	fd *netFD;
+-	laddr string
++	path string;
+ }
+ 
+ // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+-// Net can be either "unix" (stream sockets) or "unix-dgram" (datagram sockets).
+-func ListenUnix(net, laddr string) (l *ListenerUnix, err os.Error) {
+-	fd, e := unixSocket(net, laddr, "", "listen");
++// Net must be "unix" (stream sockets).
++func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
++	if net != "unix" && net != "unixgram" {
++		return nil, UnknownNetworkError(net);
++	}
++	if laddr != nil {
++		laddr = &UnixAddr{laddr.Name, net == "unixgram"};	// make our own copy
++	}
++	fd, e := unixSocket(net, laddr, nil, "listen");
+ 	if e != nil {
+ 		if pe, ok := e.(*os.PathError); ok {
+ 			e = pe.Error;
+ 		}
+-		// Check for socket ``in use'' but ``refusing connections,''
+-		// which means some program created it and exited
+-		// without unlinking it from the file system.
+-		// Clean up on that program's behalf and try again.
+-		// Don't do this for Linux's ``abstract'' sockets, which begin with @.
+-		if e != os.EADDRINUSE || laddr[0] == '@' {
+-			return nil, e;
+-		}
+-		fd1, e1 := unixSocket(net, "", laddr, "dial");
+-		if e1 == nil {
+-			fd1.Close();
+-		}
+-		if pe, ok := e1.(*os.PathError); ok {
+-			e1 = pe.Error;
+-		}
+-		if e1 != os.ECONNREFUSED {
+-			return nil, e;
+-		}
+-		syscall.Unlink(laddr);
+-		fd1, e1 = unixSocket(net, laddr, "", "listen");
+-		if e1 != nil {
+-			return nil, e;
+-		}
+-		fd = fd1;
++		return nil, e;
+ 	}
+ 	e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
+ 	if e1 != 0 {
+ 		syscall.Close(fd.fd);
+ 		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)};
+ 	}
+-	return &ListenerUnix{fd, laddr}, nil;
++	return &UnixListener{fd, laddr.Name}, nil;
+ }
+ 
+ // AcceptUnix accepts the next incoming call and returns the new connection
+ // and the remote address.
+-func (l *ListenerUnix) AcceptUnix() (c *ConnUnix, raddr string, err os.Error) {
++func (l *UnixListener) AcceptUnix() (c *UnixConn, err os.Error) {
+ 	if l == nil || l.fd == nil || l.fd.fd < 0 {
+-		return nil, "", os.EINVAL
++		return nil, os.EINVAL
+ 	}
+-	fd, e := l.fd.accept();
++	fd, e := l.fd.accept(sockaddrToUnix);
+ 	if e != nil {
+-		return nil, "", e
++		return nil, e
+ 	}
+-	return newConnUnix(fd, fd.raddr), raddr, nil
++	c = newUnixConn(fd);
++	return c, nil
+ }
+ 
+ // Accept implements the Accept method in the Listener interface;
+ // it waits for the next call and returns a generic Conn.
+-func (l *ListenerUnix) Accept() (c Conn, raddr string, err os.Error) {
+-	// TODO(rsc): Should return l.AcceptUnix() be okay here?
+-	// There is a type conversion -- the first return arg of
+-	// l.AcceptUnix() is *ConnUnix and it gets converted to Conn
+-	// in the explicit assignment.
+-	c, raddr, err = l.AcceptUnix();
+-	return;
++func (l *UnixListener) Accept() (c Conn, err os.Error) {
++	c1, err := l.AcceptUnix();
++	if err != nil {
++		return nil, err;
++	}
++	return c1, nil;
+ }
+ 
+-
+ // Close stops listening on the Unix address.
+ // Already accepted connections are not closed.
+-func (l *ListenerUnix) Close() os.Error {
++func (l *UnixListener) Close() os.Error {
+ 	if l == nil || l.fd == nil {
+ 		return os.EINVAL
+ 	}
+@@ -176,8 +391,8 @@ func (l *ListenerUnix) Close() os.Error {
+ 	// is at least compatible with the auto-remove
+ 	// sequence in ListenUnix.  It's only non-Go
+ 	// programs that can mess us up.
+-	if l.laddr[0] != '@' {
+-		syscall.Unlink(l.laddr);
++	if l.path[0] != '@' {
++		syscall.Unlink(l.path);
+ 	}
+ 	err := l.fd.Close();
+ 	l.fd = nil;
+@@ -185,6 +400,26 @@ func (l *ListenerUnix) Close() os.Error {
+ }
+ 
+ // Addr returns the listener's network address.
+-func (l *ListenerUnix) Addr() string {
+-	return l.fd.addr();
++func (l *UnixListener) Addr() Addr {
++	return l.fd.laddr;
++}
++
++// ListenUnixgram listens for incoming Unix datagram packets addressed to the
++// local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send UDP
++// packets with per-packet addressing.  The network net must be "unixgram".
++func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err os.Error) {
++	switch net {
++	case "unixgram":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress}
++	}
++	fd, e := unixSocket(net, laddr, nil, "listen");
++	if e != nil {
++		return nil, e
++	}
++	return newUDPConn(fd), nil
+ }
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 963cca3558..89c06d59dd 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -74,6 +74,7 @@ var (
+ 	EADDRINUSE	Error	= Errno(syscall.EADDRINUSE);
+ 	ECONNREFUSED	Error	= Errno(syscall.ECONNREFUSED);
+ 	ENAMETOOLONG	Error	= Errno(syscall.ENAMETOOLONG);
++	EAFNOSUPPORT	Error = Errno(syscall.EAFNOSUPPORT);
+ )
+ 
+ // PathError records an error and the operation and file path that caused it.
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 216ea5d5c8..9b7eb5e409 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -129,7 +129,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
+ 		err = os.ErrorString("unexpected HTTP response: " + resp.Status);
+ 	}
+ 	conn.Close();
+-	return nil, &net.OpError{"dial-http", network, address, err};
++	return nil, &net.OpError{"dial-http", network+" "+address, nil, err};
+ }
+ 
+ // Dial connects to an RPC server at the specified network address.
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index d4d4687d8f..c0fd9373b0 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -355,7 +355,7 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
+ 
+ func (server *serverType) accept(lis net.Listener) {
+ 	for {
+-		conn, _, err := lis.Accept();
++		conn, err := lis.Accept();
+ 		if err != nil {
+ 			log.Exit("rpc.Serve: accept:", err.String());	// TODO(r): exit?
+ 		}
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index ce8e13e2e1..00b348dbc0 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -59,7 +59,7 @@ func startServer() {
+ 	if e != nil {
+ 		log.Exitf("net.Listen tcp :0: %v", e);
+ 	}
+-	serverAddr = l.Addr();
++	serverAddr = l.Addr().String();
+ 	log.Stderr("Test RPC server listening on ", serverAddr);
+ 	go Accept(l);
+ 
+@@ -69,7 +69,7 @@ func startServer() {
+ 		log.Stderrf("net.Listen tcp :0: %v", e);
+ 		os.Exit(1);
+ 	}
+-	httpServerAddr = l.Addr();
++	httpServerAddr = l.Addr().String();
+ 	log.Stderr("Test HTTP RPC server listening on ", httpServerAddr);
+ 	go http.Serve(l, nil);
+ }

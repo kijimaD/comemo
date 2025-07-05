@@ -11,9 +11,126 @@ Date:   Mon Mar 14 10:45:16 2022 -0700
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/fixedbugs/issue51658.go2       | 39 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/typeset.go         |  2 +-
  src/go/types/testdata/fixedbugs/issue51658.go2     | 39 ++++++++++++++++++++++
  src/go/types/typeset.go                            |  2 +-
  4 files changed, 80 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go2
+new file mode 100644
+index 0000000000..c437c92d29
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51658.go2
+@@ -0,0 +1,39 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type F { // ERROR syntax error
++	float64
++} // ERROR syntax error
++
++func _[T F | int](x T) {
++	_ = x == 0 // don't crash when recording type of 0
++}
++
++// test case from issue
++
++type FloatType { // ERROR syntax error
++	float32 | float64
++} // ERROR syntax error
++
++type IntegerType interface {
++	int8 | int16 | int32 | int64 | int |
++		uint8 | uint16 | uint32 | uint64 | uint
++}
++
++type ComplexType interface {
++	complex64 | complex128
++}
++
++type Number interface {
++	FloatType | IntegerType | ComplexType
++}
++
++func GetDefaultNumber[T Number](value, defaultValue T) T {
++	if value == 0 {
++		return defaultValue
++	}
++	return value
++}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 8df8949435..646b436685 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -406,7 +406,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos syn
+ 			// For now we don't permit type parameters as constraints.
+ 			assert(!isTypeParam(t.typ))
+ 			terms = computeInterfaceTypeSet(check, pos, ui).terms
+-		} else if t.typ == Typ[Invalid] {
++		} else if u == Typ[Invalid] {
+ 			continue
+ 		} else {
+ 			if t.tilde && !Identical(t.typ, u) {
+diff --git a/src/go/types/testdata/fixedbugs/issue51658.go2 b/src/go/types/testdata/fixedbugs/issue51658.go2
+new file mode 100644
+index 0000000000..04ce6a9760
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51658.go2
+@@ -0,0 +1,39 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type F { // ERROR expected type
++	float64
++} // ERROR expected declaration
++
++func _[T F | int](x T) {
++	_ = x == 0 // don't crash when recording type of 0
++}
++
++// test case from issue
++
++type FloatType { // ERROR expected type
++	float32 | float64
++} // ERROR expected declaration
++
++type IntegerType interface {
++	int8 | int16 | int32 | int64 | int |
++		uint8 | uint16 | uint32 | uint64 | uint
++}
++
++type ComplexType interface {
++	complex64 | complex128
++}
++
++type Number interface {
++	FloatType | IntegerType | ComplexType
++}
++
++func GetDefaultNumber[T Number](value, defaultValue T) T {
++	if value == 0 {
++		return defaultValue
++	}
++	return value
++}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 6603383ea3..b33141ec32 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -406,7 +406,7 @@ func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos tok
+ 			// For now we don't permit type parameters as constraints.
+ 			assert(!isTypeParam(t.typ))
+ 			terms = computeInterfaceTypeSet(check, pos, ui).terms
+-		} else if t.typ == Typ[Invalid] {
++		} else if u == Typ[Invalid] {
+ 			continue
+ 		} else {
+ 			if t.tilde && !Identical(t.typ, u) {

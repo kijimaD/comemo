@@ -16,7 +16,34 @@ Date:   Thu Jun 4 23:11:56 2020 +0300
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sigtab_linux_generic.go | 2 +-
  src/runtime/sigtab_linux_mipsx.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sigtab_linux_generic.go b/src/runtime/sigtab_linux_generic.go
+index b26040b803..38d686544f 100644
+--- a/src/runtime/sigtab_linux_generic.go
++++ b/src/runtime/sigtab_linux_generic.go
+@@ -45,7 +45,7 @@ var sigtable = [...]sigTabT{
+ 	/* 31 */ {_SigThrow, "SIGSYS: bad system call"},
+ 	/* 32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
+ 	/* 33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
+-	/* 34 */ {_SigNotify, "signal 34"},
++	/* 34 */ {_SigSetStack + _SigUnblock, "signal 34"}, /* musl SIGSYNCCALL; see issue 39343 */
+ 	/* 35 */ {_SigNotify, "signal 35"},
+ 	/* 36 */ {_SigNotify, "signal 36"},
+ 	/* 37 */ {_SigNotify, "signal 37"},
+diff --git a/src/runtime/sigtab_linux_mipsx.go b/src/runtime/sigtab_linux_mipsx.go
+index 81dd2314c5..51ef470ce7 100644
+--- a/src/runtime/sigtab_linux_mipsx.go
++++ b/src/runtime/sigtab_linux_mipsx.go
+@@ -42,7 +42,7 @@ var sigtable = [...]sigTabT{
+ 	/*  31 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
+ 	/*  32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
+ 	/*  33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
+-	/*  34 */ {_SigNotify, "signal 34"},
++	/*  34 */ {_SigSetStack + _SigUnblock, "signal 34"}, /* musl SIGSYNCCALL; see issue 39343 */
+ 	/*  35 */ {_SigNotify, "signal 35"},
+ 	/*  36 */ {_SigNotify, "signal 36"},
+ 	/*  37 */ {_SigNotify, "signal 37"},

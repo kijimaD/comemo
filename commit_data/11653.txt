@@ -7,9 +7,61 @@ Date:   Mon Feb 6 12:45:23 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5629055
-
+---
  include/plan9/libc.h | 3 ---
  include/plan9/mach.h | 2 --
  src/cmd/cc/cc.h      | 2 --
  src/cmd/gc/go.h      | 2 --
  4 files changed, 9 deletions(-)
+
+diff --git a/include/plan9/libc.h b/include/plan9/libc.h
+index aaf5dd052a..d13ddbcb7f 100644
+--- a/include/plan9/libc.h
++++ b/include/plan9/libc.h
+@@ -10,9 +10,6 @@ enum
+ 	Runemax = 0x10FFFF, /* maximum rune value */
+ };
+ 
+-#pragma src "/sys/src/go/src/lib9"
+-#pragma lib "/sys/src/go/lib/$M/lib9.a"
+-
+ char*	getgoos(void);
+ char*	getgoarch(void);
+ char*	getgoroot(void);
+diff --git a/include/plan9/mach.h b/include/plan9/mach.h
+index a354204bff..636f44fe84 100644
+--- a/include/plan9/mach.h
++++ b/include/plan9/mach.h
+@@ -2,6 +2,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#pragma src "/sys/src/go/src/libmach"
+-#pragma lib "/sys/src/go/lib/$M/libmach.a"
+ #include "../mach.h"
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index a38e658ce0..566494e752 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -31,8 +31,6 @@
+ #include <libc.h>
+ #include <bio.h>
+ 
+-#pragma	lib	"../cc/cc.a$O"
+-
+ #ifndef	EXTERN
+ #define EXTERN	extern
+ #endif
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4b47dddc11..66becb0f3f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -4,8 +4,6 @@
+ 
+ #include	<bio.h>
+ 
+-#pragma	lib	"../gc/gc.a$O"
+-
+ #undef OAPPEND
+ 
+ // avoid <ctype.h>

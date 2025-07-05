@@ -9,7 +9,7 @@ Date:   Wed Aug 5 17:25:38 2009 -0700
     DELTA=149  (138 added, 1 deleted, 10 changed)
     OCL=32804
     CL=32807
-
+---
  test/bench/regex-dna.go      | 20 +++++-----
  test/bench/spectral-norm.c   | 82 ++++++++++++++++++++++++++++++++++++++
  test/bench/spectral-norm.go  | 95 ++++++++++++++++++++++++++++++++++++++++++++
@@ -17,3 +17,295 @@ Date:   Wed Aug 5 17:25:38 2009 -0700
  test/bench/timing.log        |  8 ++++
  test/bench/timing.sh         | 10 ++++-
  6 files changed, 205 insertions(+), 11 deletions(-)
+
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index c0ade94e7a..ee4ddfd500 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -40,6 +40,7 @@ import (
+ 	"io";
+ 	"os";
+ 	"regexp";
++	"strings";
+ )
+ 
+ func compile(s string) *regexp.Regexp {
+@@ -81,17 +82,17 @@ var substs = [] Subst {
+ 	Subst {"Y", "(c|t)"},
+ }
+ 
+-func countMatches(pat, str string) int {
++func countMatches(pat string, bytes []byte) int {
+ 	re := compile(pat);
+ 	n := 0;
+ 	pos := 0;
+ 	for {
+-		e := re.Execute(str);
++		e := re.Execute(bytes);
+ 		if len(e) == 0 {
+ 			break;
+ 		}
+ 		n++;
+-		str = str[e[1]:len(str)];
++		bytes = bytes[e[1]:len(bytes)];
+ 	}
+ 	return n;
+ }
+@@ -102,16 +103,15 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err);
+ 		os.Exit(2);
+ 	}
+-	str := string(bytes);
+-	ilen := len(str);
++	ilen := len(bytes);
+ 	// Delete the comment lines and newlines
+-	str = compile("(>[^\n]+)?\n").ReplaceAll(str, "");
+-	clen := len(str);
++	bytes = compile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
++	clen := len(bytes);
+ 	for i, s := range variants {
+-		fmt.Printf("%s %d\n", s, countMatches(s, str));
++		fmt.Printf("%s %d\n", s, countMatches(s, bytes));
+ 	}
+ 	for i, sub := range substs {
+-		str = compile(sub.pat).ReplaceAll(str, sub.repl);
++		bytes = compile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
+ 	}
+-	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(str));
++	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));
+ }
+diff --git a/test/bench/spectral-norm.c b/test/bench/spectral-norm.c
+new file mode 100644
+index 0000000000..832eb3d217
+--- /dev/null
++++ b/test/bench/spectral-norm.c
+@@ -0,0 +1,82 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* -*- mode: c -*-
++ *
++ * The Great Computer Language Shootout
++ * http://shootout.alioth.debian.org/
++ *
++ * Contributed by Sebastien Loisel
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <math.h>
++
++double eval_A(int i, int j) { return 1.0/((i+j)*(i+j+1)/2+i+1); }
++
++void eval_A_times_u(int N, const double u[], double Au[])
++{
++  int i,j;
++  for(i=0;i<N;i++)
++    {
++      Au[i]=0;
++      for(j=0;j<N;j++) Au[i]+=eval_A(i,j)*u[j];
++    }
++}
++
++void eval_At_times_u(int N, const double u[], double Au[])
++{
++  int i,j;
++  for(i=0;i<N;i++)
++    {
++      Au[i]=0;
++      for(j=0;j<N;j++) Au[i]+=eval_A(j,i)*u[j];
++    }
++}
++
++void eval_AtA_times_u(int N, const double u[], double AtAu[])
++{ double v[N]; eval_A_times_u(N,u,v); eval_At_times_u(N,v,AtAu); }
++
++int main(int argc, char *argv[])
++{
++  int i;
++  int N = ((argc == 2) ? atoi(argv[1]) : 2000);
++  double u[N],v[N],vBv,vv;
++  for(i=0;i<N;i++) u[i]=1;
++  for(i=0;i<10;i++)
++    {
++      eval_AtA_times_u(N,u,v);
++      eval_AtA_times_u(N,v,u);
++    }
++  vBv=vv=0;
++  for(i=0;i<N;i++) { vBv+=u[i]*v[i]; vv+=v[i]*v[i]; }
++  printf("%0.9f\n",sqrt(vBv/vv));
++  return 0;
++}
+diff --git a/test/bench/spectral-norm.go b/test/bench/spectral-norm.go
+new file mode 100644
+index 0000000000..420d24d6bd
+--- /dev/null
++++ b/test/bench/spectral-norm.go
+@@ -0,0 +1,95 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * Based on spectral-norm.c by Sebastien Loisel
++ */
++
++package main
++
++import (
++	"flag";
++	"fmt";
++	"math";
++)
++
++var n = flag.Int("n", 2000, "count")
++
++func evalA(i, j int) float64 {
++	return 1 / float64(((i + j)*(i + j + 1)/2+ i + 1));
++}
++
++type Vec []float64
++
++func (v Vec) Times(u Vec) {
++	for i := 0; i < len(v); i++ {
++		v[i] = 0;
++		for j := 0; j < len(u); j++ {
++			v[i] += evalA(i, j)*u[j];
++		}
++	}
++}
++
++func (v Vec) TimesTransp(u Vec) {
++	for i := 0; i < len(v); i++ {
++		v[i] = 0;
++		for j := 0; j < len(u); j++ {
++			v[i] += evalA(j, i)*u[j];
++		}
++	}
++}
++
++func (v Vec) ATimesTransp(u Vec) {
++	x := make(Vec, len(u));
++	x.Times(u);
++	v.TimesTransp(x);
++}
++
++func main() {
++	flag.Parse();
++	N := *n;
++	u := make(Vec, N);
++	for i := 0; i < N; i++ {
++		u[i] = 1;
++	}
++	v := make(Vec, N);
++	for i := 0; i < 10; i++ {
++		v.ATimesTransp(u);
++		u.ATimesTransp(v);
++	}
++	var vBv, vv float64;
++	for i := 0; i < N; i++ {
++		vBv += u[i]*v[i];
++		vv += v[i]*v[i];
++	}
++	fmt.Printf("%0.9f\n", math.Sqrt(vBv/vv));
++}
+diff --git a/test/bench/spectral-norm.txt b/test/bench/spectral-norm.txt
+new file mode 100644
+index 0000000000..b9885983ee
+--- /dev/null
++++ b/test/bench/spectral-norm.txt
+@@ -0,0 +1 @@
++1.274224152
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index 20e22b0215..8070493d56 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -58,3 +58,11 @@ regex-dna 100000
+ 	gcc -O2 regex-dna.c -lpcre	0.92u 0.00s 0.99r
+ 	gc regexp-dna	26.94u 0.18s 28.75r
+ 	gc_B regexp-dna	26.51u 0.09s 26.75r
++
++spectral-norm 5500
++	gcc -O2 spectral-norm.c -lm	11.54u 0.00s 11.55r
++	gccgo -O2 spectral-norm.go	12.20u 0.00s 12.23r
++	gc spectral-norm	50.23u 0.00s 50.36r
++	gc_B spectral-norm	49.69u 0.01s 49.83r
++	[using >>1 instead of /2 : gc gives 24.33u 0.00s 24.33r]
++
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index f481b0ac4e..87fd005236 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -76,9 +76,17 @@ regexdna() {
+ 	rm x
+ }
+ 
++spectralnorm() {
++	echo 'spectral-norm 5500'
++	run 'gcc -O2 spectral-norm.c -lm' a.out 5500
++	run 'gccgo -O2 spectral-norm.go' a.out -n 5500
++	run 'gc spectral-norm' $O.out -n 5500
++	run 'gc_B spectral-norm' $O.out -n 5500
++}
++
+ case $# in
+ 0)
+-	run="fasta revcom nbody binarytree fannkuch regexdna"
++	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm"
+ 	;;
+ *)
+ 	run=$*

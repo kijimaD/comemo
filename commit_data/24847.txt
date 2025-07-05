@@ -11,7 +11,43 @@ Date:   Tue Sep 1 14:03:38 2015 +1200
     Change-Id: Ide8f9bbe50fecb5d11cd579915ee98d4c7efe403
     Reviewed-on: https://go-review.googlesource.com/14142
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 4 +++-
  src/cmd/go/build.go                | 5 +----
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 09a44b28e6..8e762d0ed3 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -237,9 +237,11 @@ func Main() {
+ 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
+ 	var flag_shared int
+ 	var flag_dynlink bool
++	if Thearch.Thechar == '6' || Thearch.Thechar == '5' {
++		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
++	}
+ 	if Thearch.Thechar == '6' {
+ 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
+-		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	}
+ 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0b147252ec..df74338593 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -344,12 +344,9 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/amd64":
++			case "linux/amd64", "linux/arm", "android/arm":
+ 				codegenArg = "-shared"
+-			case "linux/arm":
+-				buildAsmflags = append(buildAsmflags, "-shared")
+ 			case "darwin/amd64":
+-			case "android/arm":
+ 			default:
+ 				fatalf("-buildmode=c-shared not supported on %s\n", platform)
+ 			}

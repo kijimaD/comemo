@@ -56,7 +56,70 @@ Date:   Wed Nov 30 10:50:40 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/33710
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/issue7978.go | 11 +++++++++++
  src/runtime/cgocall.go     | 20 +++++++++++++++++++-
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+index e4cbf1d926..7fb62e807b 100644
+--- a/misc/cgo/test/issue7978.go
++++ b/misc/cgo/test/issue7978.go
+@@ -88,9 +88,20 @@ func issue7978wait(store uint32, wait uint32) {
+ 
+ //export issue7978cb
+ func issue7978cb() {
++	// Force a stack growth from the callback to put extra
++	// pressure on the runtime. See issue #17785.
++	growStack(64)
+ 	issue7978wait(3, 4)
+ }
+ 
++func growStack(n int) int {
++	var buf [128]int
++	if n == 0 {
++		return 0
++	}
++	return buf[growStack(n-1)]
++}
++
+ func issue7978go() {
+ 	C.issue7978c((*C.uint32_t)(&issue7978sync))
+ 	issue7978wait(7, 8)
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index dc4a9a9820..007406b426 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -120,13 +120,31 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
+ 	// foreign code.
+ 	//
+ 	// The call to asmcgocall is guaranteed not to
+-	// split the stack and does not allocate memory,
++	// grow the stack and does not allocate memory,
+ 	// so it is safe to call while "in a system call", outside
+ 	// the $GOMAXPROCS accounting.
++	//
++	// fn may call back into Go code, in which case we'll exit the
++	// "system call", run the Go code (which may grow the stack),
++	// and then re-enter the "system call" reusing the PC and SP
++	// saved by entersyscall here.
+ 	entersyscall(0)
+ 	errno := asmcgocall(fn, arg)
+ 	exitsyscall(0)
+ 
++	// From the garbage collector's perspective, time can move
++	// backwards in the sequence above. If there's a callback into
++	// Go code, GC will see this function at the call to
++	// asmcgocall. When the Go call later returns to C, the
++	// syscall PC/SP is rolled back and the GC sees this function
++	// back at the call to entersyscall. Normally, fn and arg
++	// would be live at entersyscall and dead at asmcgocall, so if
++	// time moved backwards, GC would see these arguments as dead
++	// and then live. Prevent these undead arguments from crashing
++	// GC by forcing them to stay live across this time warp.
++	KeepAlive(fn)
++	KeepAlive(arg)
++
+ 	endcgo(mp)
+ 	return errno
+ }

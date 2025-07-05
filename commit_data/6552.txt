@@ -9,6 +9,43 @@ Date:   Mon Oct 18 14:09:20 2010 -0400
     R=rsc
     CC=golang-dev, gri
     https://golang.org/cl/2315045
-
+---
  src/pkg/big/int.go | 18 ++++++++++++++++--
  1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index c78532011e..46e0087343 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -6,8 +6,10 @@
+ 
+ package big
+ 
+-import "fmt"
+-
++import (
++	"fmt"
++	"rand"
++)
+ 
+ // An Int represents a signed multi-precision integer.
+ // The zero value for an Int represents the value 0.
+@@ -545,6 +547,18 @@ func ProbablyPrime(z *Int, n int) bool {
+ }
+ 
+ 
++// Rand sets z to a pseudo-random number in [0, n) and returns z. 
++func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
++	z.neg = false
++	if n.neg == true || len(n.abs) == 0 {
++		z.abs = nil
++		return z
++	}
++	z.abs = z.abs.random(rnd, n.abs, n.abs.bitLen())
++	return z
++}
++
++
+ // ModInverse sets z to the multiplicative inverse of g in the group ℤ/pℤ (where
+ // p is a prime) and returns z.
+ func (z *Int) ModInverse(g, p *Int) *Int {

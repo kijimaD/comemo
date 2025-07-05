@@ -12,7 +12,74 @@ Date:   Mon Dec 9 11:53:32 2024 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/634696
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/html/template/js.go      | 11 +++++++----
  src/html/template/js_test.go |  4 ++--
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index d1463dee14..b3bf94801b 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"reflect"
++	"regexp"
+ 	"strings"
+ 	"unicode/utf8"
+ )
+@@ -144,6 +145,8 @@ func indirectToJSONMarshaler(a any) any {
+ 	return v.Interface()
+ }
+ 
++var scriptTagRe = regexp.MustCompile("(?i)<(/?)script")
++
+ // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
+ // neither side-effects nor free variables outside (NaN, Infinity).
+ func jsValEscaper(args ...any) string {
+@@ -181,9 +184,9 @@ func jsValEscaper(args ...any) string {
+ 		// In particular we:
+ 		//   * replace "*/" comment end tokens with "* /", which does not
+ 		//     terminate the comment
+-		//   * replace "</script" with "\x3C/script", and "<!--" with
+-		//     "\x3C!--", which prevents confusing script block termination
+-		//     semantics
++		//   * replace "<script" and "</script" with "\x3Cscript" and "\x3C/script"
++		//     (case insensitively), and "<!--" with "\x3C!--", which prevents
++		//     confusing script block termination semantics
+ 		//
+ 		// We also put a space before the comment so that if it is flush against
+ 		// a division operator it is not turned into a line comment:
+@@ -192,8 +195,8 @@ func jsValEscaper(args ...any) string {
+ 		//     x//* error marshaling y:
+ 		//          second line of error message */null
+ 		errStr := err.Error()
++		errStr = string(scriptTagRe.ReplaceAll([]byte(errStr), []byte(`\x3C${1}script`)))
+ 		errStr = strings.ReplaceAll(errStr, "*/", "* /")
+-		errStr = strings.ReplaceAll(errStr, "</script", `\x3C/script`)
+ 		errStr = strings.ReplaceAll(errStr, "<!--", `\x3C!--`)
+ 		return fmt.Sprintf(" /* %s */null ", errStr)
+ 	}
+diff --git a/src/html/template/js_test.go b/src/html/template/js_test.go
+index 17cedcec05..015d97e6b5 100644
+--- a/src/html/template/js_test.go
++++ b/src/html/template/js_test.go
+@@ -107,7 +107,7 @@ func TestNextJsCtx(t *testing.T) {
+ type jsonErrType struct{}
+ 
+ func (e *jsonErrType) MarshalJSON() ([]byte, error) {
+-	return nil, errors.New("beep */ boop </script blip <!--")
++	return nil, errors.New("a */ b <script c </script d <!-- e <sCrIpT f </sCrIpT")
+ }
+ 
+ func TestJSValEscaper(t *testing.T) {
+@@ -160,7 +160,7 @@ func TestJSValEscaper(t *testing.T) {
+ 		{"</script", `"\u003c/script"`, false},
+ 		{"\U0001D11E", "\"\U0001D11E\"", false}, // or "\uD834\uDD1E"
+ 		{nil, " null ", false},
+-		{&jsonErrType{}, " /* json: error calling MarshalJSON for type *template.jsonErrType: beep * / boop \\x3C/script blip \\x3C!-- */null ", true},
++		{&jsonErrType{}, " /* json: error calling MarshalJSON for type *template.jsonErrType: a * / b \\x3Cscript c \\x3C/script d \\x3C!-- e \\x3Cscript f \\x3C/script */null ", true},
+ 	}
+ 
+ 	for _, test := range tests {

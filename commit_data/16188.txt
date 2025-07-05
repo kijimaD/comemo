@@ -8,7 +8,34 @@ Date:   Tue Apr 16 14:20:06 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8695047
-
+---
  doc/gccgo_contribute.html | 2 +-
  doc/install.html          | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 4d268e02c5..b2a0b651cc 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -84,7 +84,7 @@ To run the gccgo test suite, run <code>make check-go</code> in your
+ build directory.  This will run various tests
+ under <code>gcc/testsuite/go.*</code> and will also run
+ the <code>libgo</code> testsuite.  This copy of the tests from the
+-main Go repository is run using the DejaGNU script found in
++main Go repository is run using the DejaGNU script found
+ in <code>gcc/testsuite/go.test/go-test.exp</code>.
+ </p>
+ 
+diff --git a/doc/install.html b/doc/install.html
+index f2e21b4416..b667819429 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -166,7 +166,7 @@ the <code>GOROOT</code> environment variable to your chosen path.
+ </p>
+ 
+ <p>
+-Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
++Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to your <code>PATH</code> environment variable.
+ </p>
+ 
+ <h4 id="windows_msi">MSI installer (experimental)</h4>

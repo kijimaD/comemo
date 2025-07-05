@@ -13,9 +13,282 @@ Date:   Wed Feb 8 01:57:44 2012 -0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5645050
-
+---
  src/pkg/encoding/xml/marshal.go      | 36 ++++++++++++---
  src/pkg/encoding/xml/marshal_test.go | 86 +++++++++++++++++++++++++++++++++---
  src/pkg/encoding/xml/read_test.go    |  4 +-
  src/pkg/encoding/xml/typeinfo.go     | 17 ++++---
  4 files changed, 124 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index 7a05a1bb10..a2e47cf9b8 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -52,6 +52,10 @@ const (
+ //     - a field with tag ",comment" is written as an XML comment, not
+ //       subject to the usual marshalling procedure. It must not contain
+ //       the "--" string within it.
++//     - a field with a tag including the "omitempty" option is omitted
++//       if the field value is empty. The empty values are false, 0, any
++//       nil pointer or interface value, and any array, slice, map, or
++//       string of length zero.
+ //
+ // If a field uses a tag "a>b>c", then the element c will be nested inside
+ // parent elements a and b.  Fields that appear next to each other that name
+@@ -63,6 +67,8 @@ const (
+ //		FirstName string   `xml:"person>name>first"`
+ //		LastName  string   `xml:"person>name>last"`
+ //		Age       int      `xml:"person>age"`
++//		Height    float    `xml:"person>height,omitempty"`
++//		Married   bool     `xml:"person>married"`
+ //	}
+ //
+ //	xml.Marshal(&Result{Id: 13, FirstName: "John", LastName: "Doe", Age: 42})
+@@ -76,6 +82,7 @@ const (
+ //				<last>Doe</last>
+ //			</name>
+ //			<age>42</age>
++//			<married>false</married>
+ //		</person>
+ //	</result>
+ //
+@@ -116,6 +123,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 	if !val.IsValid() {
+ 		return nil
+ 	}
++	if finfo != nil && finfo.flags&fOmitEmpty != 0 && isEmptyValue(val) {
++		return nil
++	}
+ 
+ 	kind := val.Kind()
+ 	typ := val.Type()
+@@ -183,12 +193,8 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 			continue
+ 		}
+ 		fv := val.FieldByIndex(finfo.idx)
+-		switch fv.Kind() {
+-		case reflect.String, reflect.Array, reflect.Slice:
+-			// TODO: Should we really do this once ,omitempty is in?
+-			if fv.Len() == 0 {
+-				continue
+-			}
++		if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
++			continue
+ 		}
+ 		p.WriteByte(' ')
+ 		p.WriteString(finfo.name)
+@@ -378,3 +384,21 @@ type UnsupportedTypeError struct {
+ func (e *UnsupportedTypeError) Error() string {
+ 	return "xml: unsupported type: " + e.Type.String()
+ }
++
++func isEmptyValue(v reflect.Value) bool {
++	switch v.Kind() {
++	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
++		return v.Len() == 0
++	case reflect.Bool:
++		return !v.Bool()
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		return v.Int() == 0
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		return v.Uint() == 0
++	case reflect.Float32, reflect.Float64:
++		return v.Float() == 0
++	case reflect.Interface, reflect.Ptr:
++		return v.IsNil()
++	}
++	return false
++}
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 0f6c0f0795..ce51ea82b9 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -38,14 +38,14 @@ type NamedType string
+ 
+ type Port struct {
+ 	XMLName struct{} `xml:"port"`
+-	Type    string   `xml:"type,attr"`
++	Type    string   `xml:"type,attr,omitempty"`
+ 	Comment string   `xml:",comment"`
+ 	Number  string   `xml:",chardata"`
+ }
+ 
+ type Domain struct {
+ 	XMLName struct{} `xml:"domain"`
+-	Country string   `xml:",attr"`
++	Country string   `xml:",attr,omitempty"`
+ 	Name    []byte   `xml:",chardata"`
+ 	Comment []byte   `xml:",comment"`
+ }
+@@ -149,11 +149,33 @@ type NameInField struct {
+ 
+ type AttrTest struct {
+ 	Int   int     `xml:",attr"`
+-	Lower int     `xml:"int,attr"`
++	Named int     `xml:"int,attr"`
+ 	Float float64 `xml:",attr"`
+ 	Uint8 uint8   `xml:",attr"`
+ 	Bool  bool    `xml:",attr"`
+ 	Str   string  `xml:",attr"`
++	Bytes []byte  `xml:",attr"`
++}
++
++type OmitAttrTest struct {
++	Int   int     `xml:",attr,omitempty"`
++	Named int     `xml:"int,attr,omitempty"`
++	Float float64 `xml:",attr,omitempty"`
++	Uint8 uint8   `xml:",attr,omitempty"`
++	Bool  bool    `xml:",attr,omitempty"`
++	Str   string  `xml:",attr,omitempty"`
++	Bytes []byte  `xml:",attr,omitempty"`
++}
++
++type OmitFieldTest struct {
++	Int   int           `xml:",omitempty"`
++	Named int           `xml:"int,omitempty"`
++	Float float64       `xml:",omitempty"`
++	Uint8 uint8         `xml:",omitempty"`
++	Bool  bool          `xml:",omitempty"`
++	Str   string        `xml:",omitempty"`
++	Bytes []byte        `xml:",omitempty"`
++	Ptr   *PresenceTest `xml:",omitempty"`
+ }
+ 
+ type AnyTest struct {
+@@ -549,13 +571,65 @@ var marshalTests = []struct {
+ 	{
+ 		Value: &AttrTest{
+ 			Int:   8,
+-			Lower: 9,
++			Named: 9,
++			Float: 23.5,
++			Uint8: 255,
++			Bool:  true,
++			Str:   "str",
++			Bytes: []byte("byt"),
++		},
++		ExpectXML: `<AttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
++			` Bool="true" Str="str" Bytes="byt"></AttrTest>`,
++	},
++	{
++		Value: &AttrTest{Bytes: []byte{}},
++		ExpectXML: `<AttrTest Int="0" int="0" Float="0" Uint8="0"` +
++			` Bool="false" Str="" Bytes=""></AttrTest>`,
++	},
++	{
++		Value: &OmitAttrTest{
++			Int:   8,
++			Named: 9,
++			Float: 23.5,
++			Uint8: 255,
++			Bool:  true,
++			Str:   "str",
++			Bytes: []byte("byt"),
++		},
++		ExpectXML: `<OmitAttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
++			` Bool="true" Str="str" Bytes="byt"></OmitAttrTest>`,
++	},
++	{
++		Value:     &OmitAttrTest{},
++		ExpectXML: `<OmitAttrTest></OmitAttrTest>`,
++	},
++
++	// omitempty on fields
++	{
++		Value: &OmitFieldTest{
++			Int:   8,
++			Named: 9,
+ 			Float: 23.5,
+ 			Uint8: 255,
+ 			Bool:  true,
+-			Str:   "s",
++			Str:   "str",
++			Bytes: []byte("byt"),
++			Ptr:   &PresenceTest{},
+ 		},
+-		ExpectXML: `<AttrTest Int="8" int="9" Float="23.5" Uint8="255" Bool="true" Str="s"></AttrTest>`,
++		ExpectXML: `<OmitFieldTest>` +
++			`<Int>8</Int>` +
++			`<int>9</int>` +
++			`<Float>23.5</Float>` +
++			`<Uint8>255</Uint8>` +
++			`<Bool>true</Bool>` +
++			`<Str>str</Str>` +
++			`<Bytes>byt</Bytes>` +
++			`<Ptr></Ptr>` +
++			`</OmitFieldTest>`,
++	},
++	{
++		Value:     &OmitFieldTest{},
++		ExpectXML: `<OmitFieldTest></OmitFieldTest>`,
+ 	},
+ 
+ 	// Test ",any"
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index 833eafc9a5..a3b0b1d594 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -97,7 +97,7 @@ type Entry struct {
+ }
+ 
+ type Link struct {
+-	Rel  string `xml:"rel,attr"`
++	Rel  string `xml:"rel,attr,omitempty"`
+ 	Href string `xml:"href,attr"`
+ }
+ 
+@@ -109,7 +109,7 @@ type Person struct {
+ }
+ 
+ type Text struct {
+-	Type string `xml:"type,attr"`
++	Type string `xml:"type,attr,omitempty"`
+ 	Body string `xml:",chardata"`
+ }
+ 
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index 5475f290d1..8e2e4508b1 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -36,8 +36,7 @@ const (
+ 	fComment
+ 	fAny
+ 
+-	// TODO:
+-	//fOmitEmpty
++	fOmitEmpty
+ 
+ 	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
+ )
+@@ -133,20 +132,28 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 				finfo.flags |= fComment
+ 			case "any":
+ 				finfo.flags |= fAny
++			case "omitempty":
++				finfo.flags |= fOmitEmpty
+ 			}
+ 		}
+ 
+ 		// Validate the flags used.
++		valid := true
+ 		switch mode := finfo.flags & fMode; mode {
+ 		case 0:
+ 			finfo.flags |= fElement
+ 		case fAttr, fCharData, fInnerXml, fComment, fAny:
+-			if f.Name != "XMLName" && (tag == "" || mode == fAttr) {
+-				break
++			if f.Name == "XMLName" || tag != "" && mode != fAttr {
++				valid = false
+ 			}
+-			fallthrough
+ 		default:
+ 			// This will also catch multiple modes in a single field.
++			valid = false
++		}
++		if finfo.flags&fOmitEmpty != 0 && finfo.flags&(fElement|fAttr) == 0 {
++			valid = false
++		}
++		if !valid {
+ 			return nil, fmt.Errorf("xml: invalid tag in field %s of type %s: %q",
+ 				f.Name, typ, f.Tag.Get("xml"))
+ 		}

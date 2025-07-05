@@ -23,10 +23,224 @@ Date:   Wed Aug 14 00:30:55 2013 +0400
     R=golang-dev, raggi, rsc
     CC=golang-dev
     https://golang.org/cl/11435044
-
+---
  src/pkg/runtime/extern.go | 16 ++++++---
  src/pkg/runtime/panic.c   |  2 ++
  src/pkg/runtime/proc.c    | 90 +++++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/runtime/runtime.c |  2 ++
  src/pkg/runtime/runtime.h |  4 +++
  5 files changed, 108 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 3dc0671fce..92e63b257e 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -23,10 +23,18 @@ percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
+ 
+ The GODEBUG variable controls debug output from the runtime. GODEBUG value is
+ a comma-separated list of name=val pairs. Supported names are:
+-gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
+-error at each collection, summarizing the amount of memory collected and the
+-length of the pause. Setting gctrace=2 emits the same summary but also
+-repeats each collection.
++
++	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
++	error at each collection, summarizing the amount of memory collected and the
++	length of the pause. Setting gctrace=2 emits the same summary but also
++	repeats each collection.
++
++	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
++	error every X milliseconds, summarizing the scheduler state.
++
++	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
++	detailed multiline info every X milliseconds, describing state of the scheduler,
++	processors, threads and goroutines.
+ 
+ The GOMAXPROCS variable limits the number of operating system threads that
+ can execute user-level Go code simultaneously. There is no limit to the number of threads
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index abfa1d4d32..61afbf6e73 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -420,6 +420,8 @@ runtime·startpanic(void)
+ 		g->writebuf = nil;
+ 	runtime·xadd(&runtime·panicking, 1);
+ 	runtime·lock(&paniclk);
++	if(runtime·debug.schedtrace > 0 || runtime·debug.scheddetail > 0)
++		runtime·schedtrace(true);
+ 	runtime·freezetheworld();
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3b907e7fd1..f2590969b4 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2092,6 +2092,7 @@ procresize(int32 new)
+ 		p = runtime·allp[i];
+ 		if(p == nil) {
+ 			p = (P*)runtime·mallocgc(sizeof(*p), 0, FlagNoInvokeGC);
++			p->id = i;
+ 			p->status = Pgcstop;
+ 			runtime·atomicstorep(&runtime·allp[i], p);
+ 		}
+@@ -2235,9 +2236,10 @@ static void
+ sysmon(void)
+ {
+ 	uint32 idle, delay;
+-	int64 now, lastpoll;
++	int64 now, lastpoll, lasttrace;
+ 	G *gp;
+ 
++	lasttrace = 0;
+ 	idle = 0;  // how many cycles in succession we had not wokeup somebody
+ 	delay = 0;
+ 	for(;;) {
+@@ -2248,7 +2250,8 @@ sysmon(void)
+ 		if(delay > 10*1000)  // up to 10ms
+ 			delay = 10*1000;
+ 		runtime·usleep(delay);
+-		if(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {  // TODO: fast atomic
++		if(runtime·debug.schedtrace <= 0 &&
++			(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
+ 			runtime·lock(&runtime·sched);
+ 			if(runtime·atomicload(&runtime·gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
+ 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
+@@ -2285,6 +2288,11 @@ sysmon(void)
+ 			idle = 0;
+ 		else
+ 			idle++;
++
++		if(runtime·debug.schedtrace > 0 && lasttrace + runtime·debug.schedtrace*1000000ll <= now) {
++			lasttrace = now;
++			runtime·schedtrace(runtime·debug.scheddetail);
++		}
+ 	}
+ }
+ 
+@@ -2397,6 +2405,84 @@ preemptone(P *p)
+ 	return true;
+ }
+ 
++void
++runtime·schedtrace(bool detailed)
++{
++	static int64 starttime;
++	int64 now;
++	int32 i, q, t, h, s;
++	int8 *fmt;
++	M *mp, *lockedm;
++	G *gp, *lockedg;
++	P *p;
++
++	now = runtime·nanotime();
++	if(starttime == 0)
++		starttime = now;
++
++	runtime·lock(&runtime·sched);
++	runtime·printf("SCHED %Dms: gomaxprocs=%d idleprocs=%d threads=%d idlethreads=%d runqueue=%d",
++		(now-starttime)/1000000, runtime·gomaxprocs, runtime·sched.npidle, runtime·sched.mcount,
++		runtime·sched.nmidle, runtime·sched.runqsize);
++	if(detailed) {
++		runtime·printf(" gcwaiting=%d nmidlelocked=%d nmspinning=%d stopwait=%d sysmonwait=%d\n",
++			runtime·gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
++			runtime·sched.stopwait, runtime·sched.sysmonwait);
++	}
++	// We must be careful while reading data from P's, M's and G's.
++	// Even if we hold schedlock, most data can be changed concurrently.
++	// E.g. (p->m ? p->m->id : -1) can crash if p->m changes from non-nil to nil.
++	for(i = 0; i < runtime·gomaxprocs; i++) {
++		p = runtime·allp[i];
++		if(p == nil)
++			continue;
++		mp = p->m;
++		t = p->runqtail;
++		h = p->runqhead;
++		s = p->runqsize;
++		q = t - h;
++		if(q < 0)
++			q += s;
++		if(detailed)
++			runtime·printf("  P%d: status=%d schedtick=%d syscalltick=%d m=%d runqsize=%d/%d gfreecnt=%d\n",
++				i, p->status, p->schedtick, p->syscalltick, mp ? mp->id : -1, q, s, p->gfreecnt);
++		else {
++			// In non-detailed mode format lengths of per-P run queues as:
++			// [len1 len2 len3 len4]
++			fmt = " %d";
++			if(runtime·gomaxprocs == 1)
++				fmt = " [%d]\n";
++			else if(i == 0)
++				fmt = " [%d";
++			else if(i == runtime·gomaxprocs-1)
++				fmt = " %d]\n";
++			runtime·printf(fmt, q);
++		}
++	}
++	if(!detailed) {
++		runtime·unlock(&runtime·sched);
++		return;
++	}
++	for(mp = runtime·allm; mp; mp = mp->alllink) {
++		p = mp->p;
++		gp = mp->curg;
++		lockedg = mp->lockedg;
++		runtime·printf("  M%d: p=%d curg=%D mallocing=%d throwing=%d gcing=%d"
++			" locks=%d dying=%d helpgc=%d spinning=%d lockedg=%D\n",
++			mp->id, p ? p->id : -1, gp ? gp->goid : (int64)-1,
++			mp->mallocing, mp->throwing, mp->gcing, mp->locks, mp->dying, mp->helpgc,
++			mp->spinning, lockedg ? lockedg->goid : (int64)-1);
++	}
++	for(gp = runtime·allg; gp; gp = gp->alllink) {
++		mp = gp->m;
++		lockedm = gp->lockedm;
++		runtime·printf("  G%D: status=%d(%s) m=%d lockedm=%d\n",
++			gp->goid, gp->status, gp->waitreason, mp ? mp->id : -1,
++			lockedm ? lockedm->id : -1);
++	}
++	runtime·unlock(&runtime·sched);
++}
++
+ // Put mp on midle list.
+ // Sched must be locked.
+ static void
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 39bd9332e1..ab9fed805f 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -388,6 +388,8 @@ static struct {
+ 	int32*	value;
+ } dbgvar[] = {
+ 	{"gctrace", &runtime·debug.gctrace},
++	{"schedtrace", &runtime·debug.schedtrace},
++	{"scheddetail", &runtime·debug.scheddetail},
+ };
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 89a42bbca4..c93a139a6c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -361,6 +361,7 @@ struct P
+ {
+ 	Lock;
+ 
++	int32	id;
+ 	uint32	status;	// one of Pidle/Prunning/...
+ 	P*	link;
+ 	uint32	schedtick;	// incremented on every scheduler call
+@@ -532,6 +533,8 @@ struct CgoMal
+ struct DebugVars
+ {
+ 	int32	gctrace;
++	int32	schedtrace;
++	int32	scheddetail;
+ };
+ 
+ /*
+@@ -823,6 +826,7 @@ void	runtime·exit(int32);
+ void	runtime·breakpoint(void);
+ void	runtime·gosched(void);
+ void	runtime·gosched0(G*);
++void	runtime·schedtrace(bool);
+ void	runtime·park(void(*)(Lock*), Lock*, int8*);
+ void	runtime·tsleep(int64, int8*);
+ M*	runtime·newm(void);

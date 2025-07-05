@@ -21,7 +21,58 @@ Date:   Tue Oct 25 11:16:35 2022 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/vcstest/hg/hgrepo1.txt  | 26 ++++++++++++++++++++------
  src/cmd/go/testdata/vcstest/hg/vgotest1.txt |  2 +-
  2 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt b/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt
+index ab10875a83..1e4b83aae6 100644
+--- a/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt
++++ b/src/cmd/go/testdata/vcstest/hg/hgrepo1.txt
+@@ -115,12 +115,26 @@ cmp stdout .hg-tags
+ 	# that commit lands on the 'default' branch and is not tagged as 'tip', so it
+ 	# seems to be mostly harmless. However, because it is nondeterministic we
+ 	# should avoid listing it here.
+-hg branches -r 6 -r 7 -r 9
+-cmp stdout .hg-branches
+-
+-	# Likewise, omit bookmark v3, which ends up on the nondeterministic commit.
+-hg bookmarks -l master v2 v2.3.4
+-cmp stdout .hg-bookmarks
++	#
++	# Unfortunately, some of our builders are still running Debian 9 “Stretch”,
++	# which shipped with a version of 'hg' that does not support 'hg branch -r'
++	# to list branches for specific versions. Although Stretch is past its
++	# end-of-life date, we need to keep the builders happy until they can be
++	# turned down (https://go.dev/issue/56414).
++hg branches
++? cmp stdout .hg-branches
++stdout 'v2\s+6:9a4f43d231ec'
++stdout 'v2.3.4\s+9:18518c07eb8e'
++stdout 'v3\s+7:a2cad8a2b1bb'
++stdout 'default\s+5:'
++
++# Likewise, bookmark v3 ends up on the nondeterministic commit.
++hg bookmarks
++? cmp stdout .hg-bookmarks
++stdout 'master\s+0:41964ddce118'
++stdout 'v2\s+3:8f49ee7a6ddc'
++stdout 'v2.3.4\s+1:88fde824ec8b'
++stdout 'v3\s+5:.*'
+ 
+ -- .hg-branches --
+ v2.3.4                         9:18518c07eb8e
+diff --git a/src/cmd/go/testdata/vcstest/hg/vgotest1.txt b/src/cmd/go/testdata/vcstest/hg/vgotest1.txt
+index ec5d5f4357..e53c5e04c9 100644
+--- a/src/cmd/go/testdata/vcstest/hg/vgotest1.txt
++++ b/src/cmd/go/testdata/vcstest/hg/vgotest1.txt
+@@ -224,7 +224,7 @@ hg tags
+ cmp stdout .hg-tags
+ hg branches
+ cmp stdout .hg-branches
+-hg bookmarks -l master mybranch
++hg bookmarks
+ cmp stdout .hg-bookmarks
+ 
+ -- .hg-tags --

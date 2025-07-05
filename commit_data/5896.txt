@@ -9,10 +9,103 @@ Date:   Tue Jul 27 17:22:22 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/1848049
-
+---
  src/pkg/net/dnsclient.go | 3 +++
  src/pkg/net/iprawsock.go | 7 ++++++-
  src/pkg/net/net.go       | 6 ++++++
  src/pkg/net/tcpsock.go   | 7 ++++++-
  src/pkg/net/udpsock.go   | 7 ++++++-
  5 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index ea21117e3c..fe54f6b12a 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -30,6 +30,9 @@ type DNSError struct {
+ }
+ 
+ func (e *DNSError) String() string {
++	if e == nil {
++		return "<nil>"
++	}
+ 	s := "lookup " + e.Name
+ 	if e.Server != "" {
+ 		s += " on " + e.Server
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index bd8f8080ad..6b48512e00 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -30,7 +30,12 @@ type IPAddr struct {
+ // Network returns the address's network name, "ip".
+ func (a *IPAddr) Network() string { return "ip" }
+ 
+-func (a *IPAddr) String() string { return a.IP.String() }
++func (a *IPAddr) String() string {
++	if a == nil {
++		return "<nil>"
++	}
++	return a.IP.String()
++}
+ 
+ func (a *IPAddr) family() int {
+ 	if a == nil || len(a.IP) <= 4 {
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 0474478700..c0c1c3b8ab 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -129,6 +129,9 @@ type OpError struct {
+ }
+ 
+ func (e *OpError) String() string {
++	if e == nil {
++		return "<nil>"
++	}
+ 	s := e.Op
+ 	if e.Net != "" {
+ 		s += " " + e.Net
+@@ -164,6 +167,9 @@ type AddrError struct {
+ }
+ 
+ func (e *AddrError) String() string {
++	if e == nil {
++		return "<nil>"
++	}
+ 	s := e.Error
+ 	if e.Addr != "" {
+ 		s += " " + e.Addr
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index 7a60cd2e7d..eb846694ba 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -30,7 +30,12 @@ type TCPAddr struct {
+ // Network returns the address's network name, "tcp".
+ func (a *TCPAddr) Network() string { return "tcp" }
+ 
+-func (a *TCPAddr) String() string { return joinHostPort(a.IP.String(), itoa(a.Port)) }
++func (a *TCPAddr) String() string {
++	if a == nil {
++		return "<nil>"
++	}
++	return joinHostPort(a.IP.String(), itoa(a.Port))
++}
+ 
+ func (a *TCPAddr) family() int {
+ 	if a == nil || len(a.IP) <= 4 {
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 6ea0f27531..89a074755b 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -30,7 +30,12 @@ type UDPAddr struct {
+ // Network returns the address's network name, "udp".
+ func (a *UDPAddr) Network() string { return "udp" }
+ 
+-func (a *UDPAddr) String() string { return joinHostPort(a.IP.String(), itoa(a.Port)) }
++func (a *UDPAddr) String() string {
++	if a == nil {
++		return "<nil>"
++	}
++	return joinHostPort(a.IP.String(), itoa(a.Port))
++}
+ 
+ func (a *UDPAddr) family() int {
+ 	if a == nil || len(a.IP) <= 4 {

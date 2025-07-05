@@ -9,7 +9,47 @@ Date:   Fri Sep 4 17:33:56 2015 -0700
     Change-Id: I07e2482a30862e2091707f260a2c43d6e9a85d97
     Reviewed-on: https://go-review.googlesource.com/14333
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 7 ++++---
  src/cmd/compile/internal/ssa/html.go    | 4 ++++
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index a9365e91e1..1c2b7ac2a8 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -57,15 +57,16 @@ func Compile(f *Func) {
+ 		if logMemStats {
+ 			var mEnd runtime.MemStats
+ 			runtime.ReadMemStats(&mEnd)
+-			nAllocs := mEnd.TotalAlloc - mStart.TotalAlloc
+-			stats = fmt.Sprintf("[%d ns %d bytes]", time, nAllocs)
++			nBytes := mEnd.TotalAlloc - mStart.TotalAlloc
++			nAllocs := mEnd.Mallocs - mStart.Mallocs
++			stats = fmt.Sprintf("[%d ns %d allocs %d bytes]", time, nAllocs, nBytes)
+ 		} else {
+ 			stats = fmt.Sprintf("[%d ns]", time)
+ 		}
+ 
+ 		f.Logf("  pass %s end %s\n", p.name, stats)
+ 		printFunc(f)
+-		f.Config.HTML.WriteFunc(fmt.Sprintf("after %s %s", phaseName, stats), f)
++		f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
+ 		checkFunc(f)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 44e4e19b77..c84dccf793 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -45,6 +45,10 @@ func (w *HTMLWriter) start(name string) {
+     display: none;
+ }
+ 
++.stats {
++	font-size: 60%;
++}
++
+ table {
+     border: 1px solid black;
+     table-layout: fixed;

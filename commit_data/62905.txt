@@ -12,6 +12,20 @@ Date:   Wed Apr 23 22:58:05 2025 -0400
     Reviewed-by: Damien Neil <dneil@google.com>
     Commit-Queue: Alan Donovan <adonovan@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/sync/waitgroup.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 811857bb23..c850f58ed1 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -163,6 +163,8 @@ func (wg *WaitGroup) Wait() {
+ // Go calls f in a new goroutine and adds that task to the [WaitGroup].
+ // When f returns, the task is removed from the WaitGroup.
+ //
++// The function f must not panic.
++//
+ // If the WaitGroup is empty, Go must happen before a [WaitGroup.Wait].
+ // Typically, this simply means Go is called to start tasks before Wait is called.
+ // If the WaitGroup is not empty, Go may happen at any time.

@@ -8,6 +8,20 @@ Date:   Wed Mar 25 13:58:44 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=26738
     CL=26753
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 1f08a551c5..ad98b8355a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1991,7 +1991,7 @@ It consists of a specification of the function type and a function body.
+ </p>
+ 
+ <pre class="grammar">
+-FunctionLit   = "func" Signature Block .
++FunctionLit   = FunctionType Block .
+ Block         = "{" StatementList "}" .
+ </pre>
+ 

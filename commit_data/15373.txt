@@ -16,7 +16,7 @@ Date:   Fri Feb 22 10:47:54 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7395050
-
+---
  src/cmd/6g/ggen.c           |  2 +-
  src/cmd/8g/ggen.c           |  2 +-
  src/cmd/8l/pass.c           |  4 ++--
@@ -26,3 +26,263 @@ Date:   Fri Feb 22 10:47:54 2013 -0500
  src/pkg/runtime/runtime.h   |  2 +-
  src/pkg/runtime/stack.c     |  2 +-
  8 files changed, 39 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index c9a60c2fa2..2f93acdfcb 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -77,7 +77,7 @@ ginscall(Node *f, int proc)
+ 				gins(AUNDEF, N, N);
+ 			break;
+ 		}
+-		nodreg(&reg, types[tptr], D_AX);
++		nodreg(&reg, types[tptr], D_DX);
+ 		nodreg(&r1, types[tptr], D_BX);
+ 		gmove(f, &reg);
+ 		reg.op = OINDREG;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 1738c881a7..b0a1624e5e 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -120,7 +120,7 @@ ginscall(Node *f, int proc)
+ 				gins(AUNDEF, N, N);
+ 			break;
+ 		}
+-		nodreg(&reg, types[tptr], D_AX);
++		nodreg(&reg, types[tptr], D_DX);
+ 		nodreg(&r1, types[tptr], D_BX);
+ 		gmove(f, &reg);
+ 		reg.op = OINDREG;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 03292a5b3f..14dd3e0dc1 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -539,9 +539,9 @@ dostkoff(void)
+ 				q = p;
+ 			}
+ 
+-			p = appendp(p);	// save frame size in DX
++			p = appendp(p);	// save frame size in DI
+ 			p->as = AMOVL;
+-			p->to.type = D_DX;
++			p->to.type = D_DI;
+ 			p->from.type = D_CONST;
+ 
+ 			// If we ask for more stack, we'll get a minimum of StackMin bytes.
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 4d8cb1a966..1e47274278 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -134,16 +134,17 @@ TEXT runtime·gogo(SB), 7, $0
+ 	MOVL	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void gogocall(Gobuf*, void (*fn)(void))
++// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
+ // restore state from Gobuf but then call fn.
+ // (call fn, returning to state in Gobuf)
+ TEXT runtime·gogocall(SB), 7, $0
++	MOVL	12(SP), DX	// context
+ 	MOVL	8(SP), AX		// fn
+ 	MOVL	4(SP), BX		// gobuf
+-	MOVL	gobuf_g(BX), DX
++	MOVL	gobuf_g(BX), DI
+ 	get_tls(CX)
+-	MOVL	DX, g(CX)
+-	MOVL	0(DX), CX		// make sure g != nil
++	MOVL	DI, g(CX)
++	MOVL	0(DI), CX		// make sure g != nil
+ 	MOVL	gobuf_sp(BX), SP	// restore SP
+ 	MOVL	gobuf_pc(BX), BX
+ 	PUSHL	BX
+@@ -154,16 +155,16 @@ TEXT runtime·gogocall(SB), 7, $0
+ // restore state from Gobuf but then call fn.
+ // (call fn, returning to state in Gobuf)
+ TEXT runtime·gogocallfn(SB), 7, $0
+-	MOVL	8(SP), AX		// fn
++	MOVL	8(SP), DX		// fn
+ 	MOVL	4(SP), BX		// gobuf
+-	MOVL	gobuf_g(BX), DX
++	MOVL	gobuf_g(BX), DI
+ 	get_tls(CX)
+-	MOVL	DX, g(CX)
+-	MOVL	0(DX), CX		// make sure g != nil
++	MOVL	DI, g(CX)
++	MOVL	0(DI), CX		// make sure g != nil
+ 	MOVL	gobuf_sp(BX), SP	// restore SP
+ 	MOVL	gobuf_pc(BX), BX
+ 	PUSHL	BX
+-	MOVL	0(AX), BX
++	MOVL	0(DX), BX
+ 	JMP	BX
+ 	POPL	BX	// not reached
+ 
+@@ -209,11 +210,13 @@ TEXT runtime·morestack(SB),7,$0
+ 	CMPL	g(CX), SI
+ 	JNE	2(PC)
+ 	INT	$3
++	
++	MOVL	DX, m_cret(BX)
+ 
+-	// frame size in DX
++	// frame size in DI
+ 	// arg size in AX
+ 	// Save in m.
+-	MOVL	DX, m_moreframesize(BX)
++	MOVL	DI, m_moreframesize(BX)
+ 	MOVL	AX, m_moreargsize(BX)
+ 
+ 	// Called from f.
+@@ -441,11 +444,11 @@ TEXT runtime·atomicstore64(SB), 7, $0
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+ TEXT runtime·jmpdefer(SB), 7, $0
+-	MOVL	4(SP), AX	// fn
++	MOVL	4(SP), DX	// fn
+ 	MOVL	8(SP), BX	// caller sp
+ 	LEAL	-4(BX), SP	// caller sp after CALL
+ 	SUBL	$5, (SP)	// return to CALL again
+-	MOVL	0(AX), BX
++	MOVL	0(DX), BX
+ 	JMP	BX	// but first run the deferred function
+ 
+ // Dummy function to use in saved gobuf.PC,
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index ea944e1dea..ae8470708b 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -121,16 +121,17 @@ TEXT runtime·gogo(SB), 7, $0
+ 	MOVQ	gobuf_pc(BX), BX
+ 	JMP	BX
+ 
+-// void gogocall(Gobuf*, void (*fn)(void))
++// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
+ // restore state from Gobuf but then call fn.
+ // (call fn, returning to state in Gobuf)
+ TEXT runtime·gogocall(SB), 7, $0
++	MOVQ	24(SP), DX	// context
+ 	MOVQ	16(SP), AX		// fn
+ 	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	gobuf_g(BX), DX
++	MOVQ	gobuf_g(BX), DI
+ 	get_tls(CX)
+-	MOVQ	DX, g(CX)
+-	MOVQ	0(DX), CX	// make sure g != nil
++	MOVQ	DI, g(CX)
++	MOVQ	0(DI), CX	// make sure g != nil
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
+ 	MOVQ	gobuf_pc(BX), BX
+ 	PUSHQ	BX
+@@ -141,16 +142,16 @@ TEXT runtime·gogocall(SB), 7, $0
+ // restore state from Gobuf but then call fn.
+ // (call fn, returning to state in Gobuf)
+ TEXT runtime·gogocallfn(SB), 7, $0
+-	MOVQ	16(SP), AX		// fn
++	MOVQ	16(SP), DX		// fn
+ 	MOVQ	8(SP), BX		// gobuf
+-	MOVQ	gobuf_g(BX), DX
++	MOVQ	gobuf_g(BX), AX
+ 	get_tls(CX)
+-	MOVQ	DX, g(CX)
+-	MOVQ	0(DX), CX	// make sure g != nil
++	MOVQ	AX, g(CX)
++	MOVQ	0(AX), CX	// make sure g != nil
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
+ 	MOVQ	gobuf_pc(BX), BX
+ 	PUSHQ	BX
+-	MOVQ	0(AX), BX
++	MOVQ	0(DX), BX
+ 	JMP	BX
+ 	POPQ	BX	// not reached
+ 
+@@ -195,6 +196,8 @@ TEXT runtime·morestack(SB),7,$0
+ 	CMPQ	g(CX), SI
+ 	JNE	2(PC)
+ 	INT	$3
++	
++	MOVQ	DX, m_cret(BX)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -471,11 +474,11 @@ TEXT runtime·atomicstore64(SB), 7, $0
+ // 2. sub 5 bytes from the callers return
+ // 3. jmp to the argument
+ TEXT runtime·jmpdefer(SB), 7, $0
+-	MOVQ	8(SP), AX	// fn
++	MOVQ	8(SP), DX	// fn
+ 	MOVQ	16(SP), BX	// caller sp
+ 	LEAQ	-8(BX), SP	// caller sp after CALL
+ 	SUBQ	$5, (SP)	// return to CALL again
+-	MOVQ	0(AX), BX
++	MOVQ	0(DX), BX
+ 	JMP	BX	// but first run the deferred function
+ 
+ // Dummy function to use in saved gobuf.PC,
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 0f6026cd1d..dc2438cc04 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -112,19 +112,19 @@ TEXT runtime·gogo(SB), 7, $-4
+ 	MOVW	gobuf_sp(R1), SP	// restore SP
+ 	MOVW	gobuf_pc(R1), PC
+ 
+-// void gogocall(Gobuf*, void (*fn)(void))
++// void gogocall(Gobuf*, void (*fn)(void), uintptr r0)
+ // restore state from Gobuf but then call fn.
+ // (call fn, returning to state in Gobuf)
+ // using frame size $-4 means do not save LR on stack.
+ TEXT runtime·gogocall(SB), 7, $-4
+ 	MOVW	0(FP), R3		// gobuf
+ 	MOVW	4(FP), R1		// fn
+-	MOVW	8(FP), R2		// fp offset
+ 	MOVW	gobuf_g(R3), g
+ 	MOVW	0(g), R0		// make sure g != nil
+ 	MOVW	cgo_save_gm(SB), R0
+ 	CMP 	$0, R0 // if in Cgo, we have to save g and m
+ 	BL.NE	(R0) // this call will clobber R0
++	MOVW	8(FP), R0	// context
+ 	MOVW	gobuf_sp(R3), SP	// restore SP
+ 	MOVW	gobuf_pc(R3), LR
+ 	MOVW	R1, PC
+@@ -136,7 +136,6 @@ TEXT runtime·gogocall(SB), 7, $-4
+ TEXT runtime·gogocallfn(SB), 7, $-4
+ 	MOVW	0(FP), R3		// gobuf
+ 	MOVW	4(FP), R1		// fn
+-	MOVW	8(FP), R2		// fp offset
+ 	MOVW	gobuf_g(R3), g
+ 	MOVW	0(g), R0		// make sure g != nil
+ 	MOVW	cgo_save_gm(SB), R0
+@@ -189,6 +188,7 @@ TEXT runtime·morestack(SB),7,$-4
+ 	BL.EQ	runtime·abort(SB)
+ 
+ 	// Save in m.
++	MOVW	R0, m_cret(m) // function context
+ 	MOVW	R1, m_moreframesize(m)
+ 	MOVW	R2, m_moreargsize(m)
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e98f13b889..24591995c8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -615,7 +615,7 @@ int32	runtime·charntorune(int32*, uint8*, int32);
+ #define FLUSH(x)	USED(x)
+ 
+ void	runtime·gogo(Gobuf*, uintptr);
+-void	runtime·gogocall(Gobuf*, void(*)(void));
++void	runtime·gogocall(Gobuf*, void(*)(void), uintptr);
+ void	runtime·gogocallfn(Gobuf*, FuncVal*);
+ void	runtime·gosave(Gobuf*);
+ void	runtime·lessstack(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index d1d5c8f3f9..d5cc3a7329 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -276,7 +276,7 @@ runtime·newstack(void)
+ 	if(reflectcall)
+ 		runtime·gogocallfn(&label, (FuncVal*)m->morepc);
+ 	else
+-		runtime·gogocall(&label, m->morepc);
++		runtime·gogocall(&label, m->morepc, m->cret);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }

@@ -10,7 +10,7 @@ Date:   Wed Jan 1 00:17:54 2025 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/test.go                            |  8 ++------
  src/cmd/go/internal/modindex/build.go           | 20 +++-----------------
  src/crypto/tls/handshake_server_tls13.go        |  7 +------
@@ -21,3 +21,245 @@ Date:   Wed Jan 1 00:17:54 2025 +0800
  src/os/user/user_windows_test.go                |  3 ++-
  src/syscall/syscall_linux.go                    |  8 ++------
  9 files changed, 18 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 58e87f16c0..ba273d7923 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -18,6 +18,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -280,12 +281,7 @@ func (t *tester) shouldRunTest(name string) bool {
+ 	if len(t.runNames) == 0 {
+ 		return true
+ 	}
+-	for _, runName := range t.runNames {
+-		if runName == name {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(t.runNames, name)
+ }
+ 
+ func (t *tester) maybeLogMetadata() error {
+diff --git a/src/cmd/go/internal/modindex/build.go b/src/cmd/go/internal/modindex/build.go
+index 542d6fbbbb..d7e09fed25 100644
+--- a/src/cmd/go/internal/modindex/build.go
++++ b/src/cmd/go/internal/modindex/build.go
+@@ -21,6 +21,7 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"path/filepath"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"unicode"
+@@ -887,23 +888,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	}
+ 
+ 	// other tags
+-	for _, tag := range ctxt.BuildTags {
+-		if tag == name {
+-			return true
+-		}
+-	}
+-	for _, tag := range ctxt.ToolTags {
+-		if tag == name {
+-			return true
+-		}
+-	}
+-	for _, tag := range ctxt.ReleaseTags {
+-		if tag == name {
+-			return true
+-		}
+-	}
+-
+-	return false
++	return slices.Contains(ctxt.BuildTags, name) || slices.Contains(ctxt.ToolTags, name) ||
++		slices.Contains(ctxt.ReleaseTags, name)
+ }
+ 
+ // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 76fff6974e..b6d455cd39 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -949,12 +949,7 @@ func (hs *serverHandshakeStateTLS13) shouldSendSessionTickets() bool {
+ 	}
+ 
+ 	// Don't send tickets the client wouldn't use. See RFC 8446, Section 4.2.9.
+-	for _, pskMode := range hs.clientHello.pskModes {
+-		if pskMode == pskModeDHE {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(hs.clientHello.pskModes, pskModeDHE)
+ }
+ 
+ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 9ffffda08a..0e5c7e512d 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1985,23 +1985,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	}
+ 
+ 	// other tags
+-	for _, tag := range ctxt.BuildTags {
+-		if tag == name {
+-			return true
+-		}
+-	}
+-	for _, tag := range ctxt.ToolTags {
+-		if tag == name {
+-			return true
+-		}
+-	}
+-	for _, tag := range ctxt.ReleaseTags {
+-		if tag == name {
+-			return true
+-		}
+-	}
+-
+-	return false
++	return slices.Contains(ctxt.BuildTags, name) || slices.Contains(ctxt.ToolTags, name) ||
++		slices.Contains(ctxt.ReleaseTags, name)
+ }
+ 
+ // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
+diff --git a/src/internal/reflectlite/reflect_mirror_test.go b/src/internal/reflectlite/reflect_mirror_test.go
+index c875739034..8d13641516 100644
+--- a/src/internal/reflectlite/reflect_mirror_test.go
++++ b/src/internal/reflectlite/reflect_mirror_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -40,12 +41,7 @@ func newVisitor() visitor {
+ 	return v
+ }
+ func (v visitor) filter(name string) bool {
+-	for _, typeName := range typeNames {
+-		if typeName == name {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(typeNames, name)
+ }
+ 
+ func (v visitor) Visit(n ast.Node) ast.Visitor {
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index d0818a500c..8a12613301 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -6,6 +6,7 @@ package trace
+ 
+ import (
+ 	"fmt"
++	"slices"
+ 	"strings"
+ 
+ 	"internal/trace/event"
+@@ -1254,12 +1255,7 @@ func (s *rangeState) activeRange(typ rangeType, isInitialGen bool) error {
+ 
+ // hasRange returns true if a special time range on the goroutine as in progress.
+ func (s *rangeState) hasRange(typ rangeType) bool {
+-	for _, ftyp := range s.inFlight {
+-		if ftyp == typ {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(s.inFlight, typ)
+ }
+ 
+ // endRange ends a special range in time on the goroutine.
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 31486aed03..0e06369bf5 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -6,6 +6,7 @@ package user
+ 
+ import (
+ 	"os"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -178,16 +179,7 @@ func TestGroupIds(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("%+v.GroupIds(): %v", user, err)
+ 	}
+-	if !containsID(gids, user.Gid) {
++	if !slices.Contains(gids, user.Gid) {
+ 		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
+ 	}
+ }
+-
+-func containsID(ids []string, id string) bool {
+-	for _, x := range ids {
+-		if x == id {
+-			return true
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/os/user/user_windows_test.go b/src/os/user/user_windows_test.go
+index c71503372e..7dca2fc5f9 100644
+--- a/src/os/user/user_windows_test.go
++++ b/src/os/user/user_windows_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"syscall"
+ 	"testing"
+@@ -205,7 +206,7 @@ func TestGroupIdsTestUser(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("%+v.GroupIds(): %v", user, err)
+ 	}
+-	if !containsID(gids, user.Gid) {
++	if !slices.Contains(gids, user.Gid) {
+ 		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
+ 	}
+ }
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 003f7a538c..57d84748fe 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -15,6 +15,7 @@ import (
+ 	"internal/itoa"
+ 	runtimesyscall "internal/runtime/syscall"
+ 	"runtime"
++	"slices"
+ 	"unsafe"
+ )
+ 
+@@ -134,12 +135,7 @@ func isGroupMember(gid int) bool {
+ 		return false
+ 	}
+ 
+-	for _, g := range groups {
+-		if g == gid {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(groups, gid)
+ }
+ 
+ func isCapDacOverrideSet() bool {

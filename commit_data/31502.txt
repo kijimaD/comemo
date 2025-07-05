@@ -25,6 +25,20 @@ Date:   Fri Feb 24 21:40:57 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b0e4f2fbc0..76c4f640b9 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -122,7 +122,7 @@ func (ats *asmTests) compileToAsm(t *testing.T, dir string) string {
+ 	for _, i := range ats.imports {
+ 		out := filepath.Join(testDir, i+".a")
+ 
+-		if s := ats.runGo(t, "build", "-o", out, "-gcflags=-dolinkobj", i); s != "" {
++		if s := ats.runGo(t, "build", "-o", out, "-gcflags=-dolinkobj=false", i); s != "" {
+ 			t.Fatalf("Stdout = %s\nWant empty", s)
+ 		}
+ 	}

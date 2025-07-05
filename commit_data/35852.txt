@@ -10,7 +10,66 @@ Date:   Tue Mar 13 12:59:41 2018 -0700
     Change-Id: I7f555f8b941969791db7eb598c0b49f6dc0820aa
     Reviewed-on: https://go-review.googlesource.com/100456
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 16 +---------------
  test/inline_variadic.go            |  4 ++--
  2 files changed, 3 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 3e5b576f82..32981c0f2c 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -13,7 +13,7 @@
+ //      0: disabled
+ //      1: 80-nodes leaf functions, oneliners, lazy typechecking (default)
+ //      2: (unassigned)
+-//      3: allow variadic functions
++//      3: (unassigned)
+ //      4: allow non-leaf functions
+ //
+ // At some point this may get another default and become switch-offable with -N.
+@@ -23,9 +23,6 @@
+ //
+ // The debug['m'] flag enables diagnostic output.  a single -m is useful for verifying
+ // which calls get inlined or not, more is for debugging, and may go away at any point.
+-//
+-// TODO:
+-//   - inline functions with ... args
+ 
+ package gc
+ 
+@@ -141,17 +138,6 @@ func caninl(fn *Node) {
+ 		Fatalf("caninl on non-typechecked function %v", fn)
+ 	}
+ 
+-	// can't handle ... args yet
+-	if Debug['l'] < 3 {
+-		f := fn.Type.Params().Fields()
+-		if len := f.Len(); len > 0 {
+-			if t := f.Index(len - 1); t.Isddd() {
+-				reason = "has ... args"
+-				return
+-			}
+-		}
+-	}
+-
+ 	// Runtime package must not be instrumented.
+ 	// Instrument skips runtime package. However, some runtime code can be
+ 	// inlined into other packages and instrumented there. To avoid this,
+diff --git a/test/inline_variadic.go b/test/inline_variadic.go
+index 6466c2b093..fcc1cff1e8 100644
+--- a/test/inline_variadic.go
++++ b/test/inline_variadic.go
+@@ -1,10 +1,10 @@
+-// errorcheck -0 -m -l=3
++// errorcheck -0 -m
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test more aggressive inlining (-l=3 allows variadic functions)
++// Test inlining of variadic functions.
+ // See issue #18116.
+ 
+ package foo

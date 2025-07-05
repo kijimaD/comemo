@@ -12,6 +12,21 @@ Date:   Mon Apr 30 00:27:13 2018 -0700
     Change-Id: I81a2935e192b6d0df358c59b7e785eb03c504c23
     Reviewed-on: https://go-review.googlesource.com/110123
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/os_darwin_raw.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_darwin_raw.go b/src/runtime/os_darwin_raw.go
+index f0c49bdb04..9fc0b7ec03 100644
+--- a/src/runtime/os_darwin_raw.go
++++ b/src/runtime/os_darwin_raw.go
+@@ -137,7 +137,8 @@ func goenvs() {
+ 
+ // May run with m.p==nil, so write barriers are not allowed.
+ //go:nowritebarrier
+-func newosproc(mp *m, stk unsafe.Pointer) {
++func newosproc(mp *m) {
++	stk := unsafe.Pointer(mp.g0.stack.hi)
+ 	if false {
+ 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+ 	}

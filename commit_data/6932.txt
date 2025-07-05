@@ -14,7 +14,7 @@ Date:   Mon Dec 13 13:20:04 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3608042
-
+---
  misc/cgo/stdio/Makefile |  1 +
  misc/cgo/stdio/test.go  | 33 ++++++++++++++++++++++++++++++++-
  misc/cgo/stdio/test1.go | 29 +++++++++++++++++++++++++++++
@@ -22,3 +22,192 @@ Date:   Mon Dec 13 13:20:04 2010 -0500
  src/cmd/cgo/main.go     |  3 +++
  src/cmd/cgo/out.go      |  6 +++---
  6 files changed, 72 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index ba49d9402a..fc925e607b 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -9,6 +9,7 @@ CGOFILES=\
+ 	align.go\
+ 	file.go\
+ 	test.go\
++	test1.go\
+ 
+ CLEANFILES+=hello fib chain run.out
+ 
+diff --git a/misc/cgo/stdio/test.go b/misc/cgo/stdio/test.go
+index 639d77b854..8f21603ca3 100644
+--- a/misc/cgo/stdio/test.go
++++ b/misc/cgo/stdio/test.go
+@@ -15,7 +15,7 @@ package stdio
+ #define SHIFT(x, y)  ((x)<<(y))
+ #define KILO SHIFT(1, 10)
+ 
+-enum {
++enum E {
+ 	Enum1 = 1,
+ 	Enum2 = 2,
+ };
+@@ -26,6 +26,28 @@ void uuid_generate(uuid_t x) {
+ 	x[0] = 0;
+ }
+ 
++struct S {
++	int x;
++};
++
++extern enum E myConstFunc(struct S* const ctx, int const id, struct S **const filter);
++
++enum E myConstFunc(struct S *const ctx, int const id, struct S **const filter) { return 0; }
++
++// issue 1222
++typedef union {
++	long align;
++} xxpthread_mutex_t;
++
++struct ibv_async_event {
++	union {
++		int x;
++	} element;
++};
++
++struct ibv_context {
++	xxpthread_mutex_t mutex;
++};
+ */
+ import "C"
+ import (
+@@ -67,6 +89,10 @@ func Atol(s string) int {
+ 	return int(n)
+ }
+ 
++func TestConst() {
++	C.myConstFunc(nil, 0, nil)
++}
++
+ func TestEnum() {
+ 	if C.Enum1 != 1 || C.Enum2 != 2 {
+ 		println("bad enum", C.Enum1, C.Enum2)
+@@ -105,9 +131,14 @@ var (
+ 	char  C.char
+ )
+ 
++type Context struct {
++	ctx *C.struct_ibv_context
++}
++
+ func Test() {
+ 	TestAlign()
+ 	TestAtol()
+ 	TestEnum()
+ 	TestErrno()
++	TestConst()
+ }
+diff --git a/misc/cgo/stdio/test1.go b/misc/cgo/stdio/test1.go
+new file mode 100644
+index 0000000000..dce2ef83c5
+--- /dev/null
++++ b/misc/cgo/stdio/test1.go
+@@ -0,0 +1,29 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains test cases for cgo.
++
++package stdio
++
++/*
++// issue 1222
++typedef union {
++	long align;
++} xxpthread_mutex_t;
++
++struct ibv_async_event {
++	union {
++		int x;
++	} element;
++};
++
++struct ibv_context {
++	xxpthread_mutex_t mutex;
++};
++*/
++import "C"
++
++type AsyncEvent struct {
++	event C.struct_ibv_async_event
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index f10229d46a..6fad336354 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -593,10 +593,10 @@ type typeConv struct {
+ 	string                                 ast.Expr
+ 
+ 	ptrSize int64
+-
+-	tagGen int
+ }
+ 
++var tagGen int
++
+ func (c *typeConv) Init(ptrSize int64) {
+ 	c.ptrSize = ptrSize
+ 	c.m = make(map[dwarf.Type]*Type)
+@@ -799,8 +799,8 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 		// Have to give it a name to simulate C "struct foo" references.
+ 		tag := dt.StructName
+ 		if tag == "" {
+-			tag = "__" + strconv.Itoa(c.tagGen)
+-			c.tagGen++
++			tag = "__" + strconv.Itoa(tagGen)
++			tagGen++
+ 		} else if t.C == "" {
+ 			t.C = dt.Kind + " " + tag
+ 		}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index cbc9d16da5..c50ecfb059 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -219,6 +219,9 @@ func main() {
+ 	}
+ 
+ 	p.writeDefs()
++	if nerrors > 0 {
++		os.Exit(2)
++	}
+ }
+ 
+ // Record what needs to be recorded about f.
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d6b25d5c19..8926cb22cc 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -34,7 +34,7 @@ func (p *Package) writeDefs() {
+ 	// Write second Go output: definitions of _C_xxx.
+ 	// In a separate file so that the import of "unsafe" does not
+ 	// pollute the original file.
+-	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n")
++	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n\n")
+ 	fmt.Fprintf(fgo2, "package %s\n\n", p.PackageName)
+ 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n")
+ 	fmt.Fprintf(fgo2, "import \"os\"\n\n")
+@@ -259,7 +259,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
+ 
+ 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+-	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n")
++	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n\n")
+ 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile)
+ 	printer.Fprint(fgo1, fset, f.AST)
+ 
+@@ -602,7 +602,7 @@ func (p *Package) cgoType(e ast.Expr) *Type {
+ 			return r
+ 		}
+ 	}
+-	error(e.Pos(), "unrecognized Go type %v", e)
++	error(e.Pos(), "unrecognized Go type %T", e)
+ 	return &Type{Size: 4, Align: 4, C: "int"}
+ }
+ 

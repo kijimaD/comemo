@@ -15,6 +15,19 @@ Date:   Sat Aug 19 18:59:04 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c8f1dae728..f38438b7b3 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -19,7 +19,6 @@ import (
+ 	"cmd/compile/internal/noder"
+ 	"cmd/compile/internal/pgo"
+ 	"cmd/compile/internal/pkginit"
+-	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/staticinit"

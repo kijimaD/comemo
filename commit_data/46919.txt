@@ -15,6 +15,31 @@ Date:   Tue Feb 16 18:29:18 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/abi/abi_amd64.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/abi/abi_amd64.go b/src/internal/abi/abi_amd64.go
+index 6574d4216d..70e2ed1feb 100644
+--- a/src/internal/abi/abi_amd64.go
++++ b/src/internal/abi/abi_amd64.go
+@@ -9,12 +9,16 @@ package abi
+ const (
+ 	// See abi_generic.go.
+ 
++	// Currently these values are zero because whatever uses
++	// them will expect the register ABI, which isn't ready
++	// yet.
++
+ 	// RAX, RBX, RCX, RDI, RSI, R8, R9, R10, R11.
+-	IntArgRegs = 9
++	IntArgRegs = 0 // 9
+ 
+ 	// X0 -> X14.
+-	FloatArgRegs = 15
++	FloatArgRegs = 0 // 15
+ 
+ 	// We use SSE2 registers which support 64-bit float operations.
+-	EffectiveFloatRegSize = 8
++	EffectiveFloatRegSize = 0 // 8
+ )

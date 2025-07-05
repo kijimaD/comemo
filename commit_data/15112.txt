@@ -12,7 +12,69 @@ Date:   Sun Feb 3 13:08:23 2013 -0500
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7229081
-
+---
  src/cmd/go/doc.go | 8 ++++----
  src/cmd/go/get.go | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index d54b4b26f0..5f402624ef 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -224,14 +224,11 @@ Download and install packages and dependencies
+ 
+ Usage:
+ 
+-	go get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]
++	go get [-d] [-fix] [-u] [build flags] [packages]
+ 
+ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+-The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
+-and 'go install'.  See 'go help build'.
+-
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+ 
+@@ -242,6 +239,9 @@ The -u flag instructs get to use the network to update the named packages
+ and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
++Get also accepts all the flags in the 'go build' and 'go install' commands,
++to control the installation. See 'go help build'.
++
+ When checking out or updating a package, get looks for a branch or tag
+ that matches the locally installed version of Go. The most important
+ rule is that if the local installation is running version "go1", get
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 4741d5c124..8c08ab2616 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -18,15 +18,12 @@ import (
+ )
+ 
+ var cmdGet = &Command{
+-	UsageLine: "get [-a] [-d] [-fix] [-n] [-p n] [-u] [-v] [-x] [packages]",
++	UsageLine: "get [-d] [-fix] [-u] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+ 
+-The -a, -n, -v, -x, and -p flags have the same meaning as in 'go build'
+-and 'go install'.  See 'go help build'.
+-
+ The -d flag instructs get to stop after downloading the packages; that is,
+ it instructs get not to install the packages.
+ 
+@@ -37,6 +34,9 @@ The -u flag instructs get to use the network to update the named packages
+ and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
++Get also accepts all the flags in the 'go build' and 'go install' commands,
++to control the installation. See 'go help build'.
++
+ When checking out or updating a package, get looks for a branch or tag
+ that matches the locally installed version of Go. The most important
+ rule is that if the local installation is running version "go1", get

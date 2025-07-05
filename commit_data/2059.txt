@@ -9,6 +9,23 @@ Date:   Mon Apr 20 00:43:10 2009 -0700
     DELTA=3  (1 added, 0 deleted, 2 changed)
     OCL=27624
     CL=27626
-
+---
  src/lib/container/iterable.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/container/iterable.go b/src/lib/container/iterable.go
+index 61c744c01a..bdcce11d0a 100644
+--- a/src/lib/container/iterable.go
++++ b/src/lib/container/iterable.go
+@@ -79,8 +79,9 @@ func Find(iter Iterable, f func(interface {}) bool) interface {} {
+ 	return nil
+ }
+ 
+-// An injector function takes two arguments, an accumulated value and an
+-// element, and returns the next accumulated value. See the Inject function.
++// Injector is a type representing a function that takes two arguments,
++// an accumulated value and an element, and returns the next accumulated value.
++// See the Inject function.
+ type Injector func(interface {}, interface {}) interface{};
+ 
+ // Inject combines the elements of iter by repeatedly calling f with an

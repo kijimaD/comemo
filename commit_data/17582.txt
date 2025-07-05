@@ -9,7 +9,32 @@ Date:   Thu Sep 12 22:03:53 2013 +1000
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/13474043
-
+---
  src/pkg/net/rpc/client.go | 1 +
  src/pkg/net/rpc/server.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index 4b0c9c3bba..608894fb0d 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -58,6 +58,7 @@ type Client struct {
+ // argument to force the body of the response to be read and then
+ // discarded.
+ type ClientCodec interface {
++	// WriteRequest must be safe for concurrent use by multiple goroutines.
+ 	WriteRequest(*Request, interface{}) error
+ 	ReadResponseHeader(*Response) error
+ 	ReadResponseBody(interface{}) error
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index fe1cdde1ad..9ccd703b12 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -616,6 +616,7 @@ func RegisterName(name string, rcvr interface{}) error {
+ type ServerCodec interface {
+ 	ReadRequestHeader(*Request) error
+ 	ReadRequestBody(interface{}) error
++	// WriteResponse must be safe for concurrent use by multiple goroutines.
+ 	WriteResponse(*Response, interface{}) error
+ 
+ 	Close() error

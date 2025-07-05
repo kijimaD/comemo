@@ -8,8 +8,118 @@ Date:   Thu Aug 7 12:33:20 2014 -0700
     R=dvyukov, khr
     CC=golang-codereviews
     https://golang.org/cl/121030043
-
+---
  src/pkg/runtime/alg.go         | 10 +++++++
  src/pkg/runtime/export_test.go |  2 ++
  src/pkg/runtime/hash_test.go   | 60 ++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 72 insertions(+)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index f2bb202c68..ea4156f1ed 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -163,3 +163,13 @@ func int32Hash(i uint32, seed uintptr) uintptr {
+ func int64Hash(i uint64, seed uintptr) uintptr {
+ 	return goalg(&algarray[alg_MEM64]).hash(noescape(unsafe.Pointer(&i)), 8, seed)
+ }
++
++func efaceHash(i interface{}, seed uintptr) uintptr {
++	return goalg(&algarray[alg_NILINTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
++}
++
++func ifaceHash(i interface {
++	F()
++}, seed uintptr) uintptr {
++	return goalg(&algarray[alg_INTER]).hash(noescape(unsafe.Pointer(&i)), unsafe.Sizeof(i), seed)
++}
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 01b47e17af..32c34aade6 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -76,6 +76,8 @@ var StringHash = stringHash
+ var BytesHash = bytesHash
+ var Int32Hash = int32Hash
+ var Int64Hash = int64Hash
++var EfaceHash = efaceHash
++var IfaceHash = ifaceHash
+ 
+ var HashLoad = &hashLoad
+ 
+diff --git a/src/pkg/runtime/hash_test.go b/src/pkg/runtime/hash_test.go
+index 1c11e0538d..41fff98eb0 100644
+--- a/src/pkg/runtime/hash_test.go
++++ b/src/pkg/runtime/hash_test.go
+@@ -344,6 +344,64 @@ func (k *Int64Key) name() string {
+ 	return "int64"
+ }
+ 
++type EfaceKey struct {
++	i interface{}
++}
++
++func (k *EfaceKey) clear() {
++	k.i = nil
++}
++func (k *EfaceKey) random(r *rand.Rand) {
++	k.i = uint64(r.Int63())
++}
++func (k *EfaceKey) bits() int {
++	// use 64 bits.  This tests inlined interfaces
++	// on 64-bit targets and indirect interfaces on
++	// 32-bit targets.
++	return 64
++}
++func (k *EfaceKey) flipBit(i int) {
++	k.i = k.i.(uint64) ^ uint64(1)<<uint(i)
++}
++func (k *EfaceKey) hash() uintptr {
++	return EfaceHash(k.i, 0)
++}
++func (k *EfaceKey) name() string {
++	return "Eface"
++}
++
++type IfaceKey struct {
++	i interface {
++		F()
++	}
++}
++type fInter uint64
++
++func (x fInter) F() {
++}
++
++func (k *IfaceKey) clear() {
++	k.i = nil
++}
++func (k *IfaceKey) random(r *rand.Rand) {
++	k.i = fInter(r.Int63())
++}
++func (k *IfaceKey) bits() int {
++	// use 64 bits.  This tests inlined interfaces
++	// on 64-bit targets and indirect interfaces on
++	// 32-bit targets.
++	return 64
++}
++func (k *IfaceKey) flipBit(i int) {
++	k.i = k.i.(fInter) ^ fInter(1)<<uint(i)
++}
++func (k *IfaceKey) hash() uintptr {
++	return IfaceHash(k.i, 0)
++}
++func (k *IfaceKey) name() string {
++	return "Iface"
++}
++
+ // Flipping a single bit of a key should flip each output bit with 50% probability.
+ func TestSmhasherAvalanche(t *testing.T) {
+ 	if !HaveGoodHash() {
+@@ -360,6 +418,8 @@ func TestSmhasherAvalanche(t *testing.T) {
+ 	avalancheTest1(t, &BytesKey{make([]byte, 200)})
+ 	avalancheTest1(t, &Int32Key{})
+ 	avalancheTest1(t, &Int64Key{})
++	avalancheTest1(t, &EfaceKey{})
++	avalancheTest1(t, &IfaceKey{})
+ }
+ func avalancheTest1(t *testing.T, k Key) {
+ 	const REP = 100000

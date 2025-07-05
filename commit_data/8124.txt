@@ -7,6 +7,28 @@ Date:   Fri Apr 15 08:31:32 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4433042
-
+---
  src/cmd/6l/asm.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 03bc411f82..bc76ce3442 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -681,7 +681,7 @@ asmb(void)
+ {
+ 	int32 magic;
+ 	int a, dynsym;
+-	vlong vl, startva, fo, symo, elfsymo, elfstro, elfsymsize, machlink;
++	vlong vl, startva, symo, elfsymo, elfstro, elfsymsize, machlink;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -846,7 +846,6 @@ asmb(void)
+ 		/* elf amd-64 */
+ 
+ 		eh = getElfEhdr();
+-		fo = HEADR;
+ 		startva = INITTEXT - HEADR;
+ 
+ 		/* This null SHdr must appear before all others */

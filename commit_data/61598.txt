@@ -13,10 +13,298 @@ Date:   Sat Nov 9 11:09:19 2024 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/cipher/gcm_test.go                  | 72 +++++++++++++++++++++++++
  src/crypto/internal/fips/aes/aes.go            |  3 ++
  src/crypto/internal/fips/aes/gcm/gcm.go        |  7 +++
  src/crypto/internal/fips/aes/gcm/gcm_nonces.go | 75 ++++++++++++++++++++++++--
  src/crypto/internal/fips/aes/gcm/ghash.go      |  3 +-
  5 files changed, 155 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index d48e2a4620..a1deff3d9b 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -9,6 +9,9 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/internal/cryptotest"
++	"crypto/internal/fips"
++	fipsaes "crypto/internal/fips/aes"
++	"crypto/internal/fips/aes/gcm"
+ 	"crypto/rand"
+ 	"encoding/hex"
+ 	"errors"
+@@ -723,3 +726,72 @@ func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
+ 		})
+ 	}
+ }
++
++func TestFIPSServiceIndicator(t *testing.T) {
++	newGCM := func() cipher.AEAD {
++		key := make([]byte, 16)
++		block, _ := fipsaes.New(key)
++		aead, _ := gcm.NewGCMWithCounterNonce(block)
++		return aead
++	}
++	tryNonce := func(aead cipher.AEAD, nonce []byte) bool {
++		fips.ResetServiceIndicator()
++		aead.Seal(nil, nonce, []byte("x"), nil)
++		return fips.ServiceIndicator()
++	}
++	expectTrue := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
++		t.Helper()
++		if !tryNonce(aead, nonce) {
++			t.Errorf("expected service indicator true for %x", nonce)
++		}
++	}
++	expectPanic := func(t *testing.T, aead cipher.AEAD, nonce []byte) {
++		t.Helper()
++		defer func() {
++			t.Helper()
++			if recover() == nil {
++				t.Errorf("expected panic for %x", nonce)
++			}
++		}()
++		tryNonce(aead, nonce)
++	}
++
++	g := newGCM()
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0})
++	expectTrue(t, g, []byte{0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0})
++	// Changed name.
++	expectPanic(t, g, []byte{0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0})
++
++	g = newGCM()
++	expectTrue(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1})
++	// Went down.
++	expectPanic(t, g, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
++
++	g = newGCM()
++	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})
++	expectTrue(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
++	// Did not increment.
++	expectPanic(t, g, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13})
++
++	g = newGCM()
++	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00})
++	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
++	// Wrap is ok as long as we don't run out of values.
++	expectTrue(t, g, []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0})
++	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xfe})
++	// Run out of counters.
++	expectPanic(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0xff})
++
++	g = newGCM()
++	expectTrue(t, g, []byte{1, 2, 3, 4, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
++	// Wrap with overflow.
++	expectPanic(t, g, []byte{1, 2, 3, 5, 0, 0, 0, 0, 0, 0, 0, 0})
++}
+diff --git a/src/crypto/internal/fips/aes/aes.go b/src/crypto/internal/fips/aes/aes.go
+index 6ad63ea880..06eff26d0c 100644
+--- a/src/crypto/internal/fips/aes/aes.go
++++ b/src/crypto/internal/fips/aes/aes.go
+@@ -5,6 +5,7 @@
+ package aes
+ 
+ import (
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/alias"
+ 	"strconv"
+ )
+@@ -102,6 +103,7 @@ func (c *Block) Encrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
++	fips.RecordApproved()
+ 	encryptBlock(c, dst, src)
+ }
+ 
+@@ -115,5 +117,6 @@ func (c *Block) Decrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
++	fips.RecordApproved()
+ 	decryptBlock(c, dst, src)
+ }
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm.go b/src/crypto/internal/fips/aes/gcm/gcm.go
+index b9732585b8..a88f633b09 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm.go
+@@ -5,6 +5,7 @@
+ package gcm
+ 
+ import (
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/alias"
+ 	"errors"
+@@ -60,6 +61,11 @@ func (g *GCM) Overhead() int {
+ }
+ 
+ func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
++	fips.RecordNonApproved()
++	return g.sealAfterIndicator(dst, nonce, plaintext, data)
++}
++
++func (g *GCM) sealAfterIndicator(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+@@ -109,6 +115,7 @@ func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
+ 	}
+ 
++	fips.RecordApproved()
+ 	if err := open(out, g, nonce, ciphertext, data); err != nil {
+ 		// We sometimes decrypt and authenticate concurrently, so we overwrite
+ 		// dst in the event of a tag mismatch. To be consistent across platforms
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+index 2d3164033a..9bee05fe35 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+@@ -5,6 +5,7 @@
+ package gcm
+ 
+ import (
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/alias"
+ 	"crypto/internal/fips/drbg"
+@@ -17,7 +18,7 @@ import (
+ // out and plaintext may overlap exactly or not at all. additionalData and out
+ // must not overlap.
+ //
+-// This complies with FIPS 140-3 IG C.H Resolution 2.
++// This complies with FIPS 140-3 IG C.H Scenario 2.
+ //
+ // Note that this is NOT a [cipher.AEAD].Seal method.
+ func SealWithRandomNonce(g *GCM, nonce, out, plaintext, additionalData []byte) {
+@@ -36,15 +37,77 @@ func SealWithRandomNonce(g *GCM, nonce, out, plaintext, additionalData []byte) {
+ 	if alias.AnyOverlap(out, additionalData) {
+ 		panic("crypto/cipher: invalid buffer overlap of output and additional data")
+ 	}
++	fips.RecordApproved()
+ 	drbg.Read(nonce)
+ 	seal(out, g, nonce, plaintext, additionalData)
+ }
+ 
++// NewGCMWithCounterNonce returns a new AEAD that works like GCM, but enforces
++// the construction of deterministic nonces. The nonce must be 96 bits, the
++// first 32 bits must be an encoding of the module name, and the last 64 bits
++// must be a counter.
++//
++// This complies with FIPS 140-3 IG C.H Scenario 3.
++func NewGCMWithCounterNonce(cipher *aes.Block) (*GCMWithCounterNonce, error) {
++	g, err := newGCM(&GCM{}, cipher, gcmStandardNonceSize, gcmTagSize)
++	if err != nil {
++		return nil, err
++	}
++	return &GCMWithCounterNonce{g: *g}, nil
++}
++
++type GCMWithCounterNonce struct {
++	g         GCM
++	ready     bool
++	fixedName uint32
++	start     uint64
++	next      uint64
++}
++
++func (g *GCMWithCounterNonce) NonceSize() int { return gcmStandardNonceSize }
++
++func (g *GCMWithCounterNonce) Overhead() int { return gcmTagSize }
++
++func (g *GCMWithCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte {
++	if len(nonce) != gcmStandardNonceSize {
++		panic("crypto/cipher: incorrect nonce length given to GCM")
++	}
++
++	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
++	if !g.ready {
++		// The first invocation sets the fixed name encoding and start counter.
++		g.ready = true
++		g.start = counter
++		g.fixedName = byteorder.BeUint32(nonce[:4])
++	}
++	if g.fixedName != byteorder.BeUint32(nonce[:4]) {
++		panic("crypto/cipher: incorrect module name given to GCMWithCounterNonce")
++	}
++	counter -= g.start
++
++	// Ensure the counter is monotonically increasing.
++	if counter == math.MaxUint64 {
++		panic("crypto/cipher: counter wrapped")
++	}
++	if counter < g.next {
++		panic("crypto/cipher: counter decreased")
++	}
++	g.next = counter + 1
++
++	fips.RecordApproved()
++	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
++}
++
++func (g *GCMWithCounterNonce) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++	fips.RecordApproved()
++	return g.g.Open(dst, nonce, ciphertext, data)
++}
++
+ // NewGCMForTLS12 returns a new AEAD that works like GCM, but enforces the
+ // construction of nonces as specified in RFC 5288, Section 3 and RFC 9325,
+ // Section 7.2.1.
+ //
+-// This complies with FIPS 140-3 IG C.H Resolution 1.a.
++// This complies with FIPS 140-3 IG C.H Scenario 1.a.
+ func NewGCMForTLS12(cipher *aes.Block) (*GCMForTLS12, error) {
+ 	g, err := newGCM(&GCM{}, cipher, gcmStandardNonceSize, gcmTagSize)
+ 	if err != nil {
+@@ -78,10 +141,12 @@ func (g *GCMForTLS12) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	}
+ 	g.next = counter + 1
+ 
+-	return g.g.Seal(dst, nonce, plaintext, data)
++	fips.RecordApproved()
++	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
+ }
+ 
+ func (g *GCMForTLS12) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++	fips.RecordApproved()
+ 	return g.g.Open(dst, nonce, ciphertext, data)
+ }
+ 
+@@ -128,9 +193,11 @@ func (g *GCMForTLS13) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	}
+ 	g.next = counter + 1
+ 
+-	return g.g.Seal(dst, nonce, plaintext, data)
++	fips.RecordApproved()
++	return g.g.sealAfterIndicator(dst, nonce, plaintext, data)
+ }
+ 
+ func (g *GCMForTLS13) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++	fips.RecordApproved()
+ 	return g.g.Open(dst, nonce, ciphertext, data)
+ }
+diff --git a/src/crypto/internal/fips/aes/gcm/ghash.go b/src/crypto/internal/fips/aes/gcm/ghash.go
+index 5e51e3879f..1d7db5828e 100644
+--- a/src/crypto/internal/fips/aes/gcm/ghash.go
++++ b/src/crypto/internal/fips/aes/gcm/ghash.go
+@@ -22,7 +22,8 @@ type gcmFieldElement struct {
+ }
+ 
+ // GHASH is exposed to allow crypto/cipher to implement non-AES GCM modes.
+-// It is not allowed in FIPS mode.
++// It is not allowed as a stand-alone operation in FIPS mode because it
++// is not ACVP tested.
+ func GHASH(key *[16]byte, inputs ...[]byte) []byte {
+ 	fips.RecordNonApproved()
+ 	var out [gcmBlockSize]byte

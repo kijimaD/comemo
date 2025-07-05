@@ -27,8 +27,71 @@ Date:   Tue Jan 9 15:06:15 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go   |  1 +
  src/cmd/compile/internal/base/flag.go    |  1 +
  src/cmd/compile/internal/noder/reader.go | 13 ++++++++++++-
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index aadd950a0a..420ad1305e 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -40,6 +40,7 @@ type DebugFlags struct {
+ 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+ 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+ 	LocationLists         int    `help:"print information about DWARF location list creation"`
++	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
+ 	Nil                   int    `help:"print information about nil checks"`
+ 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
+ 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index e2e15c3c9c..a3144f8fb4 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -176,6 +176,7 @@ func ParseFlags() {
+ 	Flag.WB = true
+ 
+ 	Debug.ConcurrentOk = true
++	Debug.MaxShapeLen = 500
+ 	Debug.InlFuncsWithClosures = 1
+ 	Debug.InlStaticInit = 1
+ 	Debug.PGOInline = 1
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 99e778fd70..f5d1fce50c 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -5,6 +5,7 @@
+ package noder
+ 
+ import (
++	"encoding/hex"
+ 	"fmt"
+ 	"go/constant"
+ 	"internal/buildcfg"
+@@ -22,6 +23,7 @@ import (
+ 	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/notsha256"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -883,7 +885,16 @@ func shapify(targ *types.Type, basic bool) *types.Type {
+ 		under = types.NewPtr(types.Types[types.TUINT8])
+ 	}
+ 
+-	sym := types.ShapePkg.Lookup(under.LinkString())
++	// Hash long type names to bound symbol name length seen by users,
++	// particularly for large protobuf structs (#65030).
++	uls := under.LinkString()
++	if base.Debug.MaxShapeLen != 0 &&
++		len(uls) > base.Debug.MaxShapeLen {
++		h := notsha256.Sum256([]byte(uls))
++		uls = hex.EncodeToString(h[:])
++	}
++
++	sym := types.ShapePkg.Lookup(uls)
+ 	if sym.Def == nil {
+ 		name := ir.NewDeclNameAt(under.Pos(), ir.OTYPE, sym)
+ 		typ := types.NewNamed(name)

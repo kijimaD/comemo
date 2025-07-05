@@ -7,6 +7,19 @@ Date:   Thu Jan 3 10:05:28 2013 -0800
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/7049043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5486b99a20..e47e417f40 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -250,6 +250,7 @@ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
+ Matt Jibson <matt.jibson@gmail.com>
+ Matt Jones <mrjones@google.com>
++Matthew Dempsky <mdempsky@google.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
+ Maxim Pimenov <mpimenov@google.com>
+ Maxim Ushakov <ushakov@google.com>

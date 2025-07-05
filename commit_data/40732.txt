@@ -12,6 +12,29 @@ Date:   Thu Jun 13 10:12:06 2019 +0200
     Run-TryBot: Clément Chigot <clement.chigot@atos.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/gccgo.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 67065950b2..36726d369b 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -207,9 +207,16 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
+ 	}
+ 	absAfile := mkAbs(objdir, afile)
+ 	// Try with D modifier first, then without if that fails.
+-	if b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rcD", absAfile, absOfiles) != nil {
++	output, err := b.runOut(a, p.Dir, nil, tools.ar(), arArgs, "rcD", absAfile, absOfiles)
++	if err != nil {
+ 		return b.run(a, p.Dir, p.ImportPath, nil, tools.ar(), arArgs, "rc", absAfile, absOfiles)
+ 	}
++
++	if len(output) > 0 {
++		// Show the output if there is any even without errors.
++		b.showOutput(a, p.Dir, p.ImportPath, b.processOutput(output))
++	}
++
+ 	return nil
+ }
+ 

@@ -7,7 +7,7 @@ Date:   Wed Oct 29 13:09:39 2008 -0700
     R=r
     OCL=18024
     CL=18024
-
+---
  src/lib/flag.go                  |  2 +-
  src/lib/fmt/format.go            | 36 ++++++++++++++++++------------------
  src/lib/math/pow.go              |  6 +++---
@@ -16,3 +16,266 @@ Date:   Wed Oct 29 13:09:39 2008 -0700
  src/lib/strings.go               |  1 +
  src/lib/syscall/socket_darwin.go | 10 +++++-----
  7 files changed, 32 insertions(+), 31 deletions(-)
+
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index e26a905a2f..79edbec6bc 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -353,7 +353,7 @@ export func Arg(i int) string {
+ 	return sys.argv(i)
+ }
+ 
+-export func NArg() int32 {
++export func NArg() int {
+ 	return sys.argc() - flags.first_arg
+ }
+ 
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index da8f917329..6c72a9a4f5 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -20,7 +20,7 @@ const NPows10 = 160;
+ 
+ var ldigits string = "0123456789abcdef"  // var not const because we take its address
+ var udigits string = "0123456789ABCDEF"
+-var pows10 [NPows10] double;
++var pows10 [NPows10] float64;
+ 
+ func init() {
+ 	pows10[0] = 1.0e0;
+@@ -311,8 +311,8 @@ func (f *Fmt) s(s string) *Fmt {
+ 	return f;
+ }
+ 
+-func pow10(n int) double {
+-	var d double;
++func pow10(n int) float64 {
++	var d float64;
+ 
+ 	neg := false;
+ 	if n < 0 {
+@@ -344,7 +344,7 @@ func pow10(n int) double {
+ 	return d;
+ }
+ 
+-func unpack(a double) (negative bool, exp int, num double) {
++func unpack(a float64) (negative bool, exp int, num float64) {
+ 	if a == 0 {
+ 		return false, 0, 0.0
+ 	}
+@@ -355,7 +355,7 @@ func unpack(a double) (negative bool, exp int, num double) {
+ 	// find g,e such that a = g*10^e.
+ 	// guess 10-exponent using 2-exponent, then fine tune.
+ 	g, e2 := sys.frexp(a);
+-	e := int(double(e2) * .301029995663981);
++	e := int(float64(e2) * .301029995663981);
+ 	g = a * pow10(-e);
+ 	for g < 1 {
+ 		e--;
+@@ -369,7 +369,7 @@ func unpack(a double) (negative bool, exp int, num double) {
+ }
+ 
+ // check for Inf, NaN
+-func(f *Fmt) InfOrNan(a double) bool {
++func(f *Fmt) InfOrNan(a float64) bool {
+ 	if sys.isInf(a, 0) {
+ 		if sys.isInf(a, 1) {
+ 			f.pad("Inf");
+@@ -387,10 +387,10 @@ func(f *Fmt) InfOrNan(a double) bool {
+ 	return false;
+ }
+ 
+-// double
+-func (f *Fmt) E(a double) *Fmt {
++// float64
++func (f *Fmt) E(a float64) *Fmt {
+ 	var negative bool;
+-	var g double;
++	var g float64;
+ 	var exp int;
+ 	if f.InfOrNan(a) {
+ 		return f;
+@@ -430,10 +430,10 @@ func (f *Fmt) E(a double) *Fmt {
+ 	return f;
+ }
+ 
+-// double
+-func (f *Fmt) F(a double) *Fmt {
++// float64
++func (f *Fmt) F(a float64) *Fmt {
+ 	var negative bool;
+-	var g double;
++	var g float64;
+ 	var exp int;
+ 	if f.InfOrNan(a) {
+ 		return f;
+@@ -453,7 +453,7 @@ func (f *Fmt) F(a double) *Fmt {
+ 		gi := int64(g);
+ 		s = New().integer(gi, 10, true, &ldigits);
+ 		s = s + ".";
+-		g -= double(gi);
++		g -= float64(gi);
+ 		s = s + New().p(prec).integer(int64(g*pow10(prec) + .5), 10, true, &ldigits);
+ 	} else {
+ 		g *= pow10(prec + exp);
+@@ -467,8 +467,8 @@ func (f *Fmt) F(a double) *Fmt {
+ 	return f;
+ }
+ 
+-// double
+-func (f *Fmt) G(a double) *Fmt {
++// float64
++func (f *Fmt) G(a float64) *Fmt {
+ 	if f.InfOrNan(a) {
+ 		return f;
+ 	}
+@@ -511,15 +511,15 @@ func (f *Fmt) G(a double) *Fmt {
+ 
+ // float
+ func (x *Fmt) f(a float) *Fmt {
+-	return x.F(double(a))
++	return x.F(float64(a))
+ }
+ 
+ // float
+ func (x *Fmt) e(a float) *Fmt {
+-	return x.E(double(a))
++	return x.E(float64(a))
+ }
+ 
+ // float
+ func (x *Fmt) g(a float) *Fmt {
+-	return x.G(double(a))
++	return x.G(float64(a))
+ }
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index 590b0114b8..2a6b19023d 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -14,7 +14,7 @@ export func
+ pow(arg1,arg2 float64) float64
+ {
+ 	var temp float64;
+-	var l long;
++	var l int32;
+ 
+ 	if arg2 < 0 {
+ 		return 1/pow(arg1, -arg2);
+@@ -32,7 +32,7 @@ pow(arg1,arg2 float64) float64
+ 			panic(sys.NaN());
+ 		}
+ 
+-		l = long(temp);
++		l = int32(temp);
+ 		if l&1 != 0 {
+ 			return -pow(-arg1, arg2);
+ 		}
+@@ -50,7 +50,7 @@ pow(arg1,arg2 float64) float64
+ 		return exp(arg2 * log(arg1));
+ 	}
+ 
+-	l = long(temp);
++	l = int32(temp);
+ 	temp = 1;
+ 	for {
+ 		if l&1 != 0 {
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index d482a25573..cc8e39fbcb 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -22,7 +22,7 @@ func
+ sinus(arg float64, quad int) float64
+ {
+ 	var e, f, ysq, x, y, temp1, temp2 float64;
+-	var k long;
++	var k int32;
+ 
+ 	x = arg;
+ 	if(x < 0) {
+@@ -36,7 +36,7 @@ sinus(arg float64, quad int) float64
+ 		temp1,f = sys.modf(0.25*e);
+ 		quad = int(e - 4*f);
+ 	} else {
+-		k = long(x);
++		k = int32(x);
+ 		y = x - float64(k);
+ 		quad = (quad + int(k)) & 3;
+ 	}
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+index 9def4d9cf3..ffcf7f661a 100644
+--- a/src/lib/math/tan.go
++++ b/src/lib/math/tan.go
+@@ -26,7 +26,7 @@ export func
+ tan(arg float64) float64
+ {
+ 	var temp, e, x, xsq float64;
+-	var i long;
++	var i int32;
+ 	var flag, sign bool;
+ 
+ 	flag = false;
+@@ -38,7 +38,7 @@ tan(arg float64) float64
+ 	}
+ 	x = x * piu4;   /* overflow? */
+ 	e,x = sys.modf(x);
+-	i = long(e);
++	i = int32(e);
+ 
+ 	switch i & 3 {
+ 	case 1:
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index 5f27d42acd..42e05b6ca4 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -9,6 +9,7 @@ package strings
+ export func utflen(s string) int {
+ 	n := 0;
+ 	for i := 0; i < len(s); i++ {
++		return int(s[i]);
+ 		if s[i]&0xC0 != 0x80 {
+ 			n++
+ 		}
+diff --git a/src/lib/syscall/socket_darwin.go b/src/lib/syscall/socket_darwin.go
+index 9995595c38..6ea30986a2 100644
+--- a/src/lib/syscall/socket_darwin.go
++++ b/src/lib/syscall/socket_darwin.go
+@@ -35,7 +35,7 @@ export func listen(fd, n int64) (ret int64, err int64) {
+ }
+ 
+ export func accept(fd int64, sa *Sockaddr) (ret int64, err int64) {
+-	n := SizeofSockaddr;
++	var n int32 = SizeofSockaddr;
+ 	r1, r2, e := Syscall(SYS_ACCEPT, fd, SockaddrPtr(sa), Int32Ptr(&n));
+ 	return r1, e
+ }
+@@ -49,7 +49,7 @@ export func setsockopt(fd, level, opt, valueptr, length int64) (ret int64, err i
+ }
+ 
+ export func setsockopt_int(fd, level, opt int64, value int) int64 {
+-	n := int(opt);
++	var n int32 = int32(opt);
+ 	r1, e := setsockopt(fd, level, opt, Int32Ptr(&n), 4);
+ 	return e
+ }
+@@ -58,7 +58,7 @@ export func setsockopt_tv(fd, level, opt, nsec int64) int64 {
+ 	var tv Timeval;
+ 	nsec += 999;
+ 	tv.sec = int64(nsec/1000000000);
+-	tv.usec = uint(nsec%1000000000);
++	tv.usec = uint32(nsec%1000000000);
+ 	r1, e := setsockopt(fd, level, opt, TimevalPtr(&tv), 4);
+ 	return e
+ }
+@@ -67,10 +67,10 @@ export func setsockopt_linger(fd, level, opt int64, sec int) int64 {
+ 	var l Linger;
+ 	if sec != 0 {
+ 		l.yes = 1;
+-		l.sec = sec
++		l.sec = int32(sec);
+ 	} else {
+ 		l.yes = 0;
+-		l.sec = 0
++		l.sec = 0;
+ 	}
+ 	r1, err := setsockopt(fd, level, opt, LingerPtr(&l), 8);
+ 	return err

@@ -10,7 +10,7 @@ Date:   Thu Feb 13 20:06:41 2014 +0100
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/60840049
-
+---
  .hgignore                |  1 +
  include/plan9/errno.h    |  7 ++++++
  include/plan9/fmt.h      | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
@@ -56,3 +56,576 @@ Date:   Thu Feb 13 20:06:41 2014 +0100
  src/libbio/bprint.c      |  2 --
  src/make.rc              |  3 +++
  44 files changed, 170 insertions(+), 18 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 2f11d9c233..72d82910d9 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -25,6 +25,7 @@ build.out
+ test.out
+ doc/tmpltohtml
+ doc/articles/wiki/*.bin
++include/plan9/libc_plan9.h
+ misc/cgo/life/run.out
+ misc/cgo/stdio/run.out
+ misc/cgo/testso/main
+diff --git a/include/plan9/errno.h b/include/plan9/errno.h
+new file mode 100644
+index 0000000000..1ed572aced
+--- /dev/null
++++ b/include/plan9/errno.h
+@@ -0,0 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++int errno;
++
++#define ERANGE 1001
+diff --git a/include/plan9/fmt.h b/include/plan9/fmt.h
+new file mode 100644
+index 0000000000..b4a4fe7915
+--- /dev/null
++++ b/include/plan9/fmt.h
+@@ -0,0 +1,64 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../fmt.h"
++
++#pragma	varargck	argpos	fmtprint	2
++#pragma	varargck	argpos	fprint		2
++#pragma	varargck	argpos	print		1
++#pragma	varargck	argpos	runeseprint	3
++#pragma	varargck	argpos	runesmprint	1
++#pragma	varargck	argpos	runesnprint	3
++#pragma	varargck	argpos	runesprint	2
++#pragma	varargck	argpos	seprint		3
++#pragma	varargck	argpos	smprint		1
++#pragma	varargck	argpos	snprint		3
++#pragma	varargck	argpos	sprint		2
++
++#pragma	varargck	type	"lld"	vlong
++#pragma	varargck	type	"llo"	vlong
++#pragma	varargck	type	"llx"	vlong
++#pragma	varargck	type	"llb"	vlong
++#pragma	varargck	type	"lld"	uvlong
++#pragma	varargck	type	"llo"	uvlong
++#pragma	varargck	type	"llx"	uvlong
++#pragma	varargck	type	"llb"	uvlong
++#pragma	varargck	type	"ld"	long
++#pragma	varargck	type	"lo"	long
++#pragma	varargck	type	"lx"	long
++#pragma	varargck	type	"lb"	long
++#pragma	varargck	type	"ld"	ulong
++#pragma	varargck	type	"lo"	ulong
++#pragma	varargck	type	"lx"	ulong
++#pragma	varargck	type	"lb"	ulong
++#pragma	varargck	type	"d"	int
++#pragma	varargck	type	"o"	int
++#pragma	varargck	type	"x"	int
++#pragma	varargck	type	"c"	int
++#pragma	varargck	type	"C"	int
++#pragma	varargck	type	"b"	int
++#pragma	varargck	type	"d"	uint
++#pragma	varargck	type	"x"	uint
++#pragma	varargck	type	"c"	uint
++#pragma	varargck	type	"C"	uint
++#pragma	varargck	type	"b"	uint
++#pragma	varargck	type	"f"	double
++#pragma	varargck	type	"e"	double
++#pragma	varargck	type	"g"	double
++#pragma	varargck	type	"s"	char*
++#pragma	varargck	type	"q"	char*
++#pragma	varargck	type	"S"	Rune*
++#pragma	varargck	type	"Q"	Rune*
++#pragma	varargck	type	"r"	void
++#pragma	varargck	type	"%"	void
++#pragma	varargck	type	"n"	int*
++#pragma	varargck	type	"p"	uintptr
++#pragma	varargck	type	"p"	void*
++#pragma	varargck	flag	','
++#pragma	varargck	flag	' '
++#pragma	varargck	flag	'h'
++#pragma	varargck	type	"<"	void*
++#pragma	varargck	type	"["	void*
++#pragma	varargck	type	"H"	void*
++#pragma	varargck	type	"lH"	void*
+diff --git a/include/plan9/libc.h b/include/plan9/libc.h
+index 798e47095c..773edeee3f 100644
+--- a/include/plan9/libc.h
++++ b/include/plan9/libc.h
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "/sys/include/libc.h"
+ #include "/sys/include/ctype.h"
++#include "fmt.h"
++#include "utf.h"
++#include "libc_plan9.h"
+ 
+ char*	getgoos(void);
+ char*	getgoarch(void);
+@@ -26,3 +28,6 @@ void	flagprint(int);
+ // The libraries use size_t to avoid -Wconversion warnings from GCC
+ // when calling standard library functions like memcpy.
+ typedef unsigned long size_t;
++
++// math.h
++#define HUGE_VAL 1.79769313486231e+308
+diff --git a/include/plan9/mklibc.rc b/include/plan9/mklibc.rc
+new file mode 100755
+index 0000000000..460ef1ce4b
+--- /dev/null
++++ b/include/plan9/mklibc.rc
+@@ -0,0 +1,13 @@
++#!/bin/rc
++
++pattern='/umuldiv/d
++	/UTFmax/d
++	/Runesync/d
++	/Runeself/d
++	/Runeerror/d
++	/Runemax/d
++	/rune routines/,/^\/\*/d
++	/print routines/,/^\/\*/d
++	/error string for/,/^\/\*/d'
++
++sed -e $pattern /sys/include/libc.h
+diff --git a/include/plan9/stdarg.h b/include/plan9/stdarg.h
+new file mode 100644
+index 0000000000..b562a3a6e8
+--- /dev/null
++++ b/include/plan9/stdarg.h
+@@ -0,0 +1,3 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+diff --git a/include/plan9/utf.h b/include/plan9/utf.h
+new file mode 100644
+index 0000000000..03c26d69d0
+--- /dev/null
++++ b/include/plan9/utf.h
+@@ -0,0 +1,5 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../utf.h"
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 0546249226..661daf23de 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -968,13 +968,15 @@ install(char *dir)
+ 					vadd(&compile, "-m64");
+ 				else if(streq(gohostarch, "386"))
+ 					vadd(&compile, "-m32");
+-				if(streq(dir, "lib9"))
+-					vadd(&compile, "-DPLAN9PORT");
+ 	
+ 				vadd(&compile, "-I");
+ 				vadd(&compile, bpathf(&b, "%s/include", goroot));
+ 			}
+ 
++			if(streq(dir, "lib9"))
++				vadd(&compile, "-DPLAN9PORT");
++
++
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, bstr(&path));
+ 
+@@ -1159,19 +1161,6 @@ shouldbuild(char *file, char *dir)
+ 	int i, j, ret;
+ 	Buf b;
+ 	Vec lines, fields;
+-
+-	// On Plan 9, most of the libraries are already present.
+-	// The main exception is libmach which has been modified
+-	// in various places to support Go object files.
+-	if(streq(gohostos, "plan9")) {
+-		if(streq(dir, "lib9")) {
+-			name = lastelem(file);
+-			if(streq(name, "goos.c") || streq(name, "flag.c"))
+-				return 1;
+-			if(!contains(name, "plan9"))
+-				return 0;
+-		}
+-	}
+ 	
+ 	// Check file name for GOOS or GOARCH.
+ 	name = lastelem(file);
+diff --git a/src/lib9/_exits.c b/src/lib9/_exits.c
+index ea8ea74e28..af55181b90 100644
+--- a/src/lib9/_exits.c
++++ b/src/lib9/_exits.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/_exits.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/_exits.c
+diff --git a/src/lib9/_p9dir.c b/src/lib9/_p9dir.c
+index d65edcfbfb..6b5a04eadd 100644
+--- a/src/lib9/_p9dir.c
++++ b/src/lib9/_p9dir.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/_p9dir.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/_p9dir.c
+diff --git a/src/lib9/atoi.c b/src/lib9/atoi.c
+index 3162b01177..5b002df75e 100644
+--- a/src/lib9/atoi.c
++++ b/src/lib9/atoi.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/ato*.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/atoi.c
+diff --git a/src/lib9/await.c b/src/lib9/await.c
+index 690a61e5c6..dfb155b243 100644
+--- a/src/lib9/await.c
++++ b/src/lib9/await.c
+@@ -1,3 +1,4 @@
++// +build !plan9
+ // +build !windows
+ 
+ /*
+diff --git a/src/lib9/cleanname.c b/src/lib9/cleanname.c
+index fee40388f9..cb8fce6a5f 100644
+--- a/src/lib9/cleanname.c
++++ b/src/lib9/cleanname.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Inferno libkern/cleanname.c
+ http://code.google.com/p/inferno-os/source/browse/libkern/cleanname.c
+diff --git a/src/lib9/create.c b/src/lib9/create.c
+index d7023aea02..4ac7f7d619 100644
+--- a/src/lib9/create.c
++++ b/src/lib9/create.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/create.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/create.c
+diff --git a/src/lib9/ctime.c b/src/lib9/ctime.c
+index 6317b594bb..e16ad4a5e5 100644
+--- a/src/lib9/ctime.c
++++ b/src/lib9/ctime.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9
++
+ #define NOPLAN9DEFINES
+ #include <u.h>
+ #include <libc.h>
+diff --git a/src/lib9/dirfstat.c b/src/lib9/dirfstat.c
+index 8cc3384093..c092a2a072 100644
+--- a/src/lib9/dirfstat.c
++++ b/src/lib9/dirfstat.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/dirfstat.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/dirfstat.c
+diff --git a/src/lib9/dirfwstat.c b/src/lib9/dirfwstat.c
+index e32ddeaea2..4666e21079 100644
+--- a/src/lib9/dirfwstat.c
++++ b/src/lib9/dirfwstat.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/dirfwstat.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/dirfwstat.c
+diff --git a/src/lib9/dirstat.c b/src/lib9/dirstat.c
+index df2f85bd0c..33f0d7cf26 100644
+--- a/src/lib9/dirstat.c
++++ b/src/lib9/dirstat.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/dirstat.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/dirstat.c
+diff --git a/src/lib9/dirwstat.c b/src/lib9/dirwstat.c
+index 9bf348af60..22e25fff7b 100644
+--- a/src/lib9/dirwstat.c
++++ b/src/lib9/dirwstat.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/dirwstat.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/dirwstat.c
+diff --git a/src/lib9/dup.c b/src/lib9/dup.c
+index 9fdfdb8d15..5cac831d68 100644
+--- a/src/lib9/dup.c
++++ b/src/lib9/dup.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/dup.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/dup.c
+diff --git a/src/lib9/exec.c b/src/lib9/exec.c
+index f2ad0f9b3b..8e5fc57848 100644
+--- a/src/lib9/exec.c
++++ b/src/lib9/exec.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/exec.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/exec.c
+diff --git a/src/lib9/execl.c b/src/lib9/execl.c
+index 81d3158836..fd4d23daaf 100644
+--- a/src/lib9/execl.c
++++ b/src/lib9/execl.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/execl.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/execl.c
+diff --git a/src/lib9/exitcode.c b/src/lib9/exitcode.c
+index a952b2da29..fc863445f5 100644
+--- a/src/lib9/exitcode.c
++++ b/src/lib9/exitcode.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/exitcode.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/exitcode.c
+diff --git a/src/lib9/exits.c b/src/lib9/exits.c
+index 5caef83092..0be7cb9f10 100644
+--- a/src/lib9/exits.c
++++ b/src/lib9/exits.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/_exits.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/_exits.c
+diff --git a/src/lib9/fmtlock2.c b/src/lib9/fmtlock2.c
+index 75406b5d16..a0e2636ec8 100644
+--- a/src/lib9/fmtlock2.c
++++ b/src/lib9/fmtlock2.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/fmtlock2.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/fmtlock2.c
+diff --git a/src/lib9/getenv.c b/src/lib9/getenv.c
+index 9d805b5167..2454b6b416 100644
+--- a/src/lib9/getenv.c
++++ b/src/lib9/getenv.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/getenv.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/getenv.c
+diff --git a/src/lib9/getwd.c b/src/lib9/getwd.c
+index cbfd9d643b..03a8ff1a2f 100644
+--- a/src/lib9/getwd.c
++++ b/src/lib9/getwd.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/getwd.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/getwd.c
+diff --git a/src/lib9/jmp.c b/src/lib9/jmp.c
+index c44e040d21..733ed70e96 100644
+--- a/src/lib9/jmp.c
++++ b/src/lib9/jmp.c
+@@ -1,3 +1,4 @@
++// +build !plan9
+ // +build !windows
+ 
+ /*
+diff --git a/src/lib9/main.c b/src/lib9/main.c
+index 816494af03..6de53c10ab 100644
+--- a/src/lib9/main.c
++++ b/src/lib9/main.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/main.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/main.c
+diff --git a/src/lib9/nan.c b/src/lib9/nan.c
+index fa2277f72f..f17b441aae 100644
+--- a/src/lib9/nan.c
++++ b/src/lib9/nan.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/nan.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/nan.c
+diff --git a/src/lib9/notify.c b/src/lib9/notify.c
+index c424aed54a..7843d34713 100644
+--- a/src/lib9/notify.c
++++ b/src/lib9/notify.c
+@@ -1,3 +1,4 @@
++// +build !plan9
+ // +build !windows
+ 
+ /*
+diff --git a/src/lib9/nulldir.c b/src/lib9/nulldir.c
+index aa1a1232ea..2157ff313d 100644
+--- a/src/lib9/nulldir.c
++++ b/src/lib9/nulldir.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Inferno lib9/nulldir.c
+ http://code.google.com/p/inferno-os/source/browse/lib9/nulldir.c
+diff --git a/src/lib9/open.c b/src/lib9/open.c
+index 4ac81ba5fa..7f53c8ea64 100644
+--- a/src/lib9/open.c
++++ b/src/lib9/open.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/open.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/open.c
+diff --git a/src/lib9/readn.c b/src/lib9/readn.c
+index 3c80a4fc04..7dfe9e515d 100644
+--- a/src/lib9/readn.c
++++ b/src/lib9/readn.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Inferno lib9/readn.c
+ http://code.google.com/p/inferno-os/source/browse/lib9/readn.c
+diff --git a/src/lib9/rfork.c b/src/lib9/rfork.c
+index c4ae90f97d..23b3ee6719 100644
+--- a/src/lib9/rfork.c
++++ b/src/lib9/rfork.c
+@@ -1,3 +1,4 @@
++// +build !plan9
+ // +build !windows
+ 
+ /*
+diff --git a/src/lib9/run_plan9.c b/src/lib9/run_plan9.c
+index cd85652f79..29932626dc 100644
+--- a/src/lib9/run_plan9.c
++++ b/src/lib9/run_plan9.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build plan9
++
+ #include <u.h>
+ #include <libc.h>
+ 
+diff --git a/src/lib9/seek.c b/src/lib9/seek.c
+index 917003808d..0a0706cbee 100644
+--- a/src/lib9/seek.c
++++ b/src/lib9/seek.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/seek.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/seek.c
+diff --git a/src/lib9/strecpy.c b/src/lib9/strecpy.c
+index 03dc6ea502..4b2b92b43d 100644
+--- a/src/lib9/strecpy.c
++++ b/src/lib9/strecpy.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Inferno lib9/strecpy.c
+ http://code.google.com/p/inferno-os/source/browse/lib9/strecpy.c
+diff --git a/src/lib9/sysfatal.c b/src/lib9/sysfatal.c
+index a5af3e1b48..9789061a88 100644
+--- a/src/lib9/sysfatal.c
++++ b/src/lib9/sysfatal.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/sysfatal.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/sysfatal.c
+diff --git a/src/lib9/tempdir_plan9.c b/src/lib9/tempdir_plan9.c
+index 092d00d167..80d7ddbe4b 100644
+--- a/src/lib9/tempdir_plan9.c
++++ b/src/lib9/tempdir_plan9.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build plan9
++
+ #include <u.h>
+ #include <libc.h>
+ 
+diff --git a/src/lib9/time.c b/src/lib9/time.c
+index 7394e9e603..e1b87a7740 100644
+--- a/src/lib9/time.c
++++ b/src/lib9/time.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/time.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/time.c
+diff --git a/src/lib9/tokenize.c b/src/lib9/tokenize.c
+index a9b5935670..a095fcda9c 100644
+--- a/src/lib9/tokenize.c
++++ b/src/lib9/tokenize.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Inferno lib9/tokenize.c
+ http://code.google.com/p/inferno-os/source/browse/lib9/tokenize.c
+diff --git a/src/libbio/bprint.c b/src/libbio/bprint.c
+index 06748e7ac3..301dc0c7f3 100644
+--- a/src/libbio/bprint.c
++++ b/src/libbio/bprint.c
+@@ -67,9 +67,7 @@ Bvprint(Biobuf *bp, char *fmt, va_list arg)
+ 	Fmt f;
+ 	
+ 	memset(&f, 0, sizeof f);
+-#ifndef PLAN9
+ 	fmtlocaleinit(&f, nil, nil, nil);
+-#endif
+ 	f.stop = bp->ebuf;
+ 	f.to = (char*)f.stop + bp->ocount;
+ 	f.flush = bflush;
+diff --git a/src/make.rc b/src/make.rc
+index 222bb8a186..ab152c0db1 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -36,6 +36,9 @@ if(! test -f run.rc){
+ 	exit wrongdir
+ }
+ 
++# Generate libc_plan9.h.
++../include/plan9/mklibc.rc > ../include/plan9/libc_plan9.h
++
+ # Clean old generated file that will cause problems in the build.
+ rm -f ./pkg/runtime/runtime_defs.go
+ 

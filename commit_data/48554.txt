@@ -11,6 +11,23 @@ Date:   Thu May 27 17:25:43 2021 -0700
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 9d775e169a..3395c4e670 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -619,6 +619,11 @@ Do not send CLs removing the interior tags from such phrases.
+       a list of additional handles to be inherited by the new child
+       process. <code>ParentProcess</code> permits specifying the
+       parent process of the new process.
++
++    <p><!-- CL 311570 -->
++      The constant <code>MSG_CMSG_CLOEXEC</code> is now defined on
++      DragonFly and all OpenBSD systems (it was already defined on
++      some OpenBSD systems and all FreeBSD, NetBSD, and Linux systems).
+     </p>
+   </dd>
+ </dl><!-- syscall -->

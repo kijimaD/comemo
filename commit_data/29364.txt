@@ -9,6 +9,30 @@ Date:   Tue Sep 6 09:16:48 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7073992e6e..a3c565967f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -422,6 +422,18 @@ func (t *tester) registerTests() {
+ 		})
+ 	}
+ 
++	// Test internal linking of PIE binaries where it is supported.
++	if t.goos == "linux" && t.goarch == "amd64" {
++		t.tests = append(t.tests, distTest{
++			name:    "pie_internal",
++			heading: "internal linking of -buildmode=pie",
++			fn: func(dt *distTest) error {
++				t.addCmd(dt, "src", "go", "test", "reflect", "-short", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60), t.tags(), t.runFlag(""))
++				return nil
++			},
++		})
++	}
++
+ 	// sync tests
+ 	t.tests = append(t.tests, distTest{
+ 		name:    "sync_cpu",

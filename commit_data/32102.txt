@@ -18,6 +18,23 @@ Date:   Tue Apr 4 08:34:55 2017 -0400
     Change-Id: I8abb96b93bea90070ce461da16dc7bcf7b4b29c1
     Reviewed-on: https://go-review.googlesource.com/39450
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/syscall/syscall.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index e8560a036d..7db994bf08 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -22,7 +22,10 @@
+ // Go repository should be migrated to use the corresponding
+ // package in the golang.org/x/sys repository. That is also where updates
+ // required by new systems or versions should be applied.
+-// See https://golang.org/s/go1.4-syscall for more information.
++// Signal, Errno and SysProcAttr are not yet available in
++// golang.org/x/sys and must still be referenced from the
++// syscall package. See https://golang.org/s/go1.4-syscall
++// for more information.
+ //
+ package syscall
+ 

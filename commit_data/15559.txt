@@ -7,6 +7,33 @@ Date:   Sat Mar 2 21:11:05 2013 +0100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7420051
-
+---
  src/pkg/runtime/append_test.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/append_test.go b/src/pkg/runtime/append_test.go
+index 6eb901699b..36390181e8 100644
+--- a/src/pkg/runtime/append_test.go
++++ b/src/pkg/runtime/append_test.go
+@@ -26,9 +26,7 @@ func benchmarkAppendBytes(b *testing.B, length int) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		x = x[0:0]
+-		for j := 0; j < N; j++ {
+-			x = append(x, y...)
+-		}
++		x = append(x, y...)
+ 	}
+ }
+ 
+@@ -58,9 +56,7 @@ func benchmarkAppendStr(b *testing.B, str string) {
+ 	b.StartTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		x = x[0:0]
+-		for j := 0; j < N; j++ {
+-			x = append(x, str...)
+-		}
++		x = append(x, str...)
+ 	}
+ }
+ 

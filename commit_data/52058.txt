@@ -17,7 +17,44 @@ Date:   Thu Mar 31 07:47:19 2022 -0400
     Trust: Than McIntosh <thanm@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/dwarf/entry.go      |  2 +-
  src/debug/dwarf/entry_test.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 3bc6a5454e..98c17dc08a 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -974,7 +974,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
+ 		u := &r.d.unit[unit]
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+ 		e, err := r.Next()
+-		if err != nil {
++		if err != nil || e == nil || e.Tag == 0 {
+ 			return nil, err
+ 		}
+ 		ranges, err := r.d.Ranges(e)
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index 393ad89f52..4e96dbfc1d 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -427,3 +427,18 @@ func TestIssue51758(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue52045(t *testing.T) {
++	var abbrev, aranges, frame, line, pubnames, ranges, str []byte
++	info := []byte{0x7, 0x0, 0x0, 0x0, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}
++
++	// A hand-crafted input corresponding to a minimal-size
++	// .debug_info (header only, no DIEs) and an empty abbrev table.
++	data0, _ := New(abbrev, aranges, frame, info, line, pubnames, ranges, str)
++	reader0 := data0.Reader()
++	entry0, _ := reader0.SeekPC(0x0)
++	// main goal is to make sure we can get here without crashing
++	if entry0 != nil {
++		t.Errorf("got non-nil entry0, wanted nil")
++	}
++}

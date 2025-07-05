@@ -9,8 +9,57 @@ Date:   Tue Mar 27 11:42:01 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5919044
-
+---
  doc/debugging_with_gdb.html | 2 +-
  doc/docs.html               | 1 +
  doc/reference.html          | 6 +-----
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/doc/debugging_with_gdb.html b/doc/debugging_with_gdb.html
+index 1ac1c1fd8a..b2683913fc 100644
+--- a/doc/debugging_with_gdb.html
++++ b/doc/debugging_with_gdb.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "Debugging Go Code with GDB",
+-	"Path": "/ref/gdb"
++	"Path": "/doc/gdb"
+ }-->
+ 
+ <p><i>
+diff --git a/doc/docs.html b/doc/docs.html
+index 709c081528..d94962845b 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -124,6 +124,7 @@ Guided tours of Go programs.
+ <ul>
+ <li><a href="/doc/articles/go_command.html">About the Go command</a> - why we wrote it, what it is, what it's not, and how to use it.</li>
+ <li><a href="/doc/articles/c_go_cgo.html">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
++<li><a href="/doc/gdb">Debugging Go Code with GDB</a></li>
+ <li><a href="/doc/articles/godoc_documenting_go_code.html">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
+ <li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
+ </ul>
+diff --git a/doc/reference.html b/doc/reference.html
+index 0eddc2352e..628289f7be 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -37,11 +37,6 @@ one goroutine can be guaranteed to observe values produced by writes to the
+ same variable in a different goroutine.
+ </p>
+ 
+-<h3 id="debugging_with_gdb"><a href="/ref/gdb">Debugging Go Code with GDB</a></h3>
+-<p>
+-Using GDB to debug Go programs.
+-</p>
+-
+ <h4 id="subrepos">Sub-repositories</h4>
+ 
+ <p>
+@@ -62,6 +57,7 @@ Install them with "<code><a href="/cmd/go/#Download_and_install_packages_and_dep
+ 
+ <ul>
+ <li><a href="/doc/articles/c_go_cgo.html">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
++<li><a href="/doc/gdb">Debugging Go Code with GDB</a></li>
+ <li><a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a></li>
+ <li><a href="/doc/articles/slices_usage_and_internals.html">Go Slices: usage and internals</a></li>
+ <li><a href="/doc/articles/godoc_documenting_go_code.html">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>

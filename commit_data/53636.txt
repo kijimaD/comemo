@@ -12,6 +12,23 @@ Date:   Thu Aug 25 09:34:49 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/425042
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/trace/goroutines.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/trace/goroutines.go b/src/cmd/trace/goroutines.go
+index 74d1b0a11d..7850fc0ff1 100644
+--- a/src/cmd/trace/goroutines.go
++++ b/src/cmd/trace/goroutines.go
+@@ -64,6 +64,11 @@ func httpGoroutines(w http.ResponseWriter, r *http.Request) {
+ 	var glist []gtype
+ 	for k, v := range gss {
+ 		v.ID = k
++		// If goroutine didn't run during the trace (no sampled PC),
++		// the v.ID and v.Name will be zero value.
++		if v.ID == 0 && v.Name == "" {
++			v.Name = "(Inactive, no stack trace sampled)"
++		}
+ 		glist = append(glist, v)
+ 	}
+ 	sort.Slice(glist, func(i, j int) bool { return glist[i].ExecTime > glist[j].ExecTime })

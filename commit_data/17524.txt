@@ -9,7 +9,79 @@ Date:   Mon Sep 9 19:11:05 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13400044
-
+---
  src/pkg/encoding/json/decode.go      |  4 +---
  src/pkg/encoding/json/decode_test.go | 41 ++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index b6c23cc77a..458fb39ec0 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -38,9 +38,7 @@ import (
+ // keys to the keys used by Marshal (either the struct field name or its tag),
+ // preferring an exact match but also accepting a case-insensitive match.
+ //
+-// To unmarshal JSON into an interface value, Unmarshal unmarshals
+-// the JSON into the concrete value contained in the interface value.
+-// If the interface value is nil, that is, has no concrete value stored in it,
++// To unmarshal JSON into an interface value,
+ // Unmarshal stores one of these in the interface value:
+ //
+ //	bool, for JSON booleans
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 6635ba6ec6..22c5f89f79 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -210,6 +210,12 @@ type Ambig struct {
+ 	Second int `json:"Hello"`
+ }
+ 
++type XYZ struct {
++	X interface{}
++	Y interface{}
++	Z interface{}
++}
++
+ var unmarshalTests = []unmarshalTest{
+ 	// basic types
+ 	{in: `true`, ptr: new(bool), out: true},
+@@ -1275,3 +1281,38 @@ func TestSkipArrayObjects(t *testing.T) {
+ 		t.Errorf("got error %q, want nil", err)
+ 	}
+ }
++
++// Test semantics of pre-filled struct fields and pre-filled map fields.
++// Issue 4900.
++func TestPrefilled(t *testing.T) {
++	ptrToMap := func(m map[string]interface{}) *map[string]interface{} { return &m }
++
++	// Values here change, cannot reuse table across runs.
++	var prefillTests = []struct {
++		in  string
++		ptr interface{}
++		out interface{}
++	}{
++		{
++			in:  `{"X": 1, "Y": 2}`,
++			ptr: &XYZ{X: float32(3), Y: int16(4), Z: 1.5},
++			out: &XYZ{X: float64(1), Y: float64(2), Z: 1.5},
++		},
++		{
++			in:  `{"X": 1, "Y": 2}`,
++			ptr: ptrToMap(map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5}),
++			out: ptrToMap(map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5}),
++		},
++	}
++
++	for _, tt := range prefillTests {
++		ptrstr := fmt.Sprintf("%v", tt.ptr)
++		err := Unmarshal([]byte(tt.in), tt.ptr) // tt.ptr edited here
++		if err != nil {
++			t.Errorf("Unmarshal: %v", err)
++		}
++		if !reflect.DeepEqual(tt.ptr, tt.out) {
++			t.Errorf("Unmarshal(%#q, %s): have %v, want %v", tt.in, ptrstr, tt.ptr, tt.out)
++		}
++	}
++}

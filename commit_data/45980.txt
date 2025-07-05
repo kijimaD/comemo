@@ -21,8 +21,53 @@ Date:   Sun Nov 22 11:43:29 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/outbuf.go           | 1 +
  src/cmd/link/internal/ld/outbuf_darwin.go    | 9 +++++++++
  src/cmd/link/internal/ld/outbuf_notdarwin.go | 9 +++++++++
  3 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 6cae064679..530836ef7c 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -113,6 +113,7 @@ func (out *OutBuf) Close() error {
+ 	}
+ 	if out.isMmapped() {
+ 		out.copyHeap()
++		out.purgeSignatureCache()
+ 		out.munmap()
+ 	}
+ 	if out.f == nil {
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index d7e3372230..9444b6567e 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -36,3 +36,12 @@ func (out *OutBuf) fallocate(size uint64) error {
+ 
+ 	return nil
+ }
++
++func (out *OutBuf) purgeSignatureCache() {
++	// Apparently, the Darwin kernel may cache the code signature at mmap.
++	// When we mmap the output buffer, it doesn't have a code signature
++	// (as we haven't generated one). Invalidate the kernel cache now that
++	// we have generated the signature. See issue #42684.
++	syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(len(out.buf)), syscall.MS_INVALIDATE)
++	// Best effort. Ignore error.
++}
+diff --git a/src/cmd/link/internal/ld/outbuf_notdarwin.go b/src/cmd/link/internal/ld/outbuf_notdarwin.go
+new file mode 100644
+index 0000000000..8c5666f216
+--- /dev/null
++++ b/src/cmd/link/internal/ld/outbuf_notdarwin.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin
++
++package ld
++
++func (out *OutBuf) purgeSignatureCache() {}

@@ -11,6 +11,20 @@ Date:   Wed Dec 28 16:15:35 2016 -0800
     Change-Id: I46aa60322226ecc3a0d30fa1ef108e504171957a
     Reviewed-on: https://go-review.googlesource.com/34720
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 7867505708..79c8fe2770 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -30,6 +30,8 @@ type ReverseProxy struct {
+ 	// the request into a new request to be sent
+ 	// using Transport. Its response is then copied
+ 	// back to the original client unmodified.
++	// Director must not access the provided Request
++	// after returning.
+ 	Director func(*http.Request)
+ 
+ 	// The transport used to perform proxy requests.

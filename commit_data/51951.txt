@@ -14,8 +14,75 @@ Date:   Sat Mar 26 02:10:29 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  api/next/51414.txt    |  1 +
  src/time/time.go      | 13 +++++++++++++
  src/time/time_test.go | 24 ++++++++++++++++++++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/api/next/51414.txt b/api/next/51414.txt
+new file mode 100644
+index 0000000000..7491285bb8
+--- /dev/null
++++ b/api/next/51414.txt
+@@ -0,0 +1 @@
++pkg time, method (Duration) Abs() Duration #51414
+diff --git a/src/time/time.go b/src/time/time.go
+index 8046ff508b..d77074c5c2 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -815,6 +815,19 @@ func (d Duration) Round(m Duration) Duration {
+ 	return maxDuration // overflow
+ }
+ 
++// Abs returns the absolute value of d.
++// As a special case, math.MinInt64 is converted to math.MaxInt64.
++func (d Duration) Abs() Duration {
++	switch {
++	case d >= 0:
++		return d
++	case d == minDuration:
++		return maxDuration
++	default:
++		return -d
++	}
++}
++
+ // Add returns the time t+d.
+ func (t Time) Add(d Duration) Time {
+ 	dsec := int64(d / 1e9)
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index ea13ffe3c9..1701401ab4 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1240,6 +1240,30 @@ func TestDurationRound(t *testing.T) {
+ 	}
+ }
+ 
++var durationAbsTests = []struct {
++	d    Duration
++	want Duration
++}{
++	{0, 0},
++	{1, 1},
++	{-1, 1},
++	{1 * Minute, 1 * Minute},
++	{-1 * Minute, 1 * Minute},
++	{minDuration, maxDuration},
++	{minDuration + 1, maxDuration},
++	{minDuration + 2, maxDuration - 1},
++	{maxDuration, maxDuration},
++	{maxDuration - 1, maxDuration - 1},
++}
++
++func TestDurationAbs(t *testing.T) {
++	for _, tt := range durationAbsTests {
++		if got := tt.d.Abs(); got != tt.want {
++			t.Errorf("Duration(%s).Abs() = %s; want: %s", tt.d, got, tt.want)
++		}
++	}
++}
++
+ var defaultLocTests = []struct {
+ 	name string
+ 	f    func(t1, t2 Time) bool

@@ -14,6 +14,20 @@ Date:   Sat Sep 18 10:24:31 2021 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 449f3bbb3c..6bc02c1c8c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2473,7 +2473,7 @@ func (v Value) Uint() uint64 {
+ // which ensures cmd/compile can recognize unsafe.Pointer(v.UnsafeAddr())
+ // and make an exception.
+ 
+-// UnsafeAddr returns a pointer to v's data.
++// UnsafeAddr returns a pointer to v's data, as a uintptr.
+ // It is for advanced clients that also import the "unsafe" package.
+ // It panics if v is not addressable.
+ func (v Value) UnsafeAddr() uintptr {

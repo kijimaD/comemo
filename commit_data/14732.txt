@@ -9,6 +9,71 @@ Date:   Sat Dec 22 16:42:22 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7001052
-
+---
  src/pkg/runtime/malloc.goc | 41 +++++++++++++++++++++++++++++------------
  1 file changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index f58045e63e..e37f8927ba 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -697,14 +697,22 @@ runtime·new(Type *typ, uint8 *ret)
+ 
+ 	if(raceenabled)
+ 		m->racepc = runtime·getcallerpc(&typ);
+-	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+-	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+ 
+-	if(UseSpanType && !flag) {
+-		if(false) {
+-			runtime·printf("new %S: %p\n", *typ->string, ret);
++	if(typ->size == 0) {
++		// All 0-length allocations use this pointer.
++		// The language does not require the allocations to
++		// have distinct values.
++		ret = (uint8*)&runtime·zerobase;
++	} else {
++		flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
++		ret = runtime·mallocgc(typ->size, flag, 1, 1);
++
++		if(UseSpanType && !flag) {
++			if(false) {
++				runtime·printf("new %S: %p\n", *typ->string, ret);
++			}
++			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+ 		}
+-		runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+ 	}
+ 
+ 	FLUSH(&ret);
+@@ -719,15 +727,24 @@ runtime·cnew(Type *typ)
+ 
+ 	if(raceenabled)
+ 		m->racepc = runtime·getcallerpc(&typ);
+-	flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
+-	ret = runtime·mallocgc(typ->size, flag, 1, 1);
+ 
+-	if(UseSpanType && !flag) {
+-		if(false) {
+-			runtime·printf("new %S: %p\n", *typ->string, ret);
++	if(typ->size == 0) {
++		// All 0-length allocations use this pointer.
++		// The language does not require the allocations to
++		// have distinct values.
++		ret = (uint8*)&runtime·zerobase;
++	} else {
++		flag = typ->kind&KindNoPointers ? FlagNoPointers : 0;
++		ret = runtime·mallocgc(typ->size, flag, 1, 1);
++
++		if(UseSpanType && !flag) {
++			if(false) {
++				runtime·printf("new %S: %p\n", *typ->string, ret);
++			}
++			runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+ 		}
+-		runtime·settype(ret, (uintptr)typ | TypeInfo_SingleObject);
+ 	}
++
+ 	return ret;
+ }
+ 

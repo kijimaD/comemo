@@ -12,7 +12,7 @@ Date:   Tue Dec 1 01:42:47 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274434
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/fmtmap_test.go           |  1 +
  src/cmd/compile/internal/gc/align.go     |  6 ++--
  src/cmd/compile/internal/gc/export.go    |  4 +--
@@ -25,3 +25,343 @@ Date:   Tue Dec 1 01:42:47 2020 -0800
  src/cmd/compile/internal/ir/type.go      | 29 +++++-------------
  src/cmd/compile/internal/types/type.go   | 51 ++++++++++++++++++++++++++++----
  11 files changed, 75 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 09b06c4d93..ca31705f72 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -130,6 +130,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/types.EType %d":             "",
+ 	"cmd/compile/internal/types.EType %s":             "",
+ 	"cmd/compile/internal/types.EType %v":             "",
++	"cmd/compile/internal/types.IRNode %v":            "",
+ 	"cmd/internal/obj.ABI %v":                         "",
+ 	"error %v":                                        "",
+ 	"float64 %.2f":                                    "",
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index ffae8dc27b..5171983af0 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -205,7 +205,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		}
+ 
+ 		*path = append(*path, t)
+-		if findTypeLoop(ir.AsNode(t.Nod).Name().Ntype.Type(), path) {
++		if findTypeLoop(t.Obj().(*ir.Name).Ntype.Type(), path) {
+ 			return true
+ 		}
+ 		*path = (*path)[:len(*path)-1]
+@@ -314,8 +314,8 @@ func dowidth(t *types.Type) {
+ 	defercheckwidth()
+ 
+ 	lno := base.Pos
+-	if ir.AsNode(t.Nod) != nil {
+-		base.Pos = ir.AsNode(t.Nod).Pos()
++	if pos := t.Pos(); pos.IsKnown() {
++		base.Pos = pos
+ 	}
+ 
+ 	t.Width = -2
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5cd379a7d3..f803a17c60 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -101,9 +101,7 @@ func importsym(ipkg *types.Pkg, s *types.Sym, op ir.Op) ir.Node {
+ func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *types.Type {
+ 	n := importsym(ipkg, s, ir.OTYPE)
+ 	if n.Op() != ir.OTYPE {
+-		t := types.New(types.TFORW)
+-		t.Sym = s
+-		t.Nod = n
++		t := types.NewNamed(n)
+ 
+ 		n.SetOp(ir.OTYPE)
+ 		n.SetPos(pos)
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index d6c50c7285..2dfce26596 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -640,7 +640,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		}
+ 
+ 		w.startType(definedType)
+-		w.qualifiedIdent(ir.TypeNode(t))
++		w.qualifiedIdent(t.Obj().(*ir.Name))
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 0696d05c11..15f1b646f7 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -316,7 +316,7 @@ func (r *importReader) doDecl(n ir.Node) {
+ 		// after the underlying type has been assigned.
+ 		defercheckwidth()
+ 		underlying := r.typ()
+-		types.SetUnderlying(t, underlying)
++		t.SetUnderlying(underlying)
+ 		resumecheckwidth()
+ 
+ 		if underlying.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0163653d3b..04c8c537bd 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1490,9 +1490,9 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
+ // typePos returns the position associated with t.
+ // This is where t was declared or where it appeared as a type expression.
+ func typePos(t *types.Type) src.XPos {
+-	n := ir.AsNode(t.Nod)
+-	if n == nil || !n.Pos().IsKnown() {
+-		base.Fatalf("bad type: %v", t)
++	if pos := t.Pos(); pos.IsKnown() {
++		return pos
+ 	}
+-	return n.Pos()
++	base.Fatalf("bad type: %v", t)
++	panic("unreachable")
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 6858b51699..dccb5ecdce 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3432,10 +3432,8 @@ func typecheckdeftype(n *ir.Name) {
+ 		defer tracePrint("typecheckdeftype", n)(nil)
+ 	}
+ 
+-	t := types.New(types.TFORW)
+-	t.Sym = n.Sym()
++	t := types.NewNamed(n)
+ 	t.Vargen = n.Vargen
+-	t.Nod = n
+ 	if n.Pragma()&ir.NotInHeap != 0 {
+ 		t.SetNotInHeap(true)
+ 	}
+@@ -3448,7 +3446,7 @@ func typecheckdeftype(n *ir.Name) {
+ 	errorsBefore := base.Errors()
+ 	n.Ntype = typecheckNtype(n.Ntype)
+ 	if underlying := n.Ntype.Type(); underlying != nil {
+-		types.SetUnderlying(t, underlying)
++		t.SetUnderlying(underlying)
+ 	} else {
+ 		n.SetDiag(true)
+ 		n.SetType(nil)
+@@ -3895,14 +3893,6 @@ func deadcodeexpr(n ir.Node) ir.Node {
+ 	return n
+ }
+ 
+-func toTypeNode(orig ir.Node, t *types.Type) ir.Node {
+-	n := ir.Nod(ir.OTYPE, nil, nil)
+-	n.SetPos(orig.Pos())
+-	n.SetType(t)
+-	t.Nod = n
+-	return n
+-}
+-
+ // getIotaValue returns the current value for "iota",
+ // or -1 if not within a ConstSpec.
+ func getIotaValue() int64 {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index c3c2c0492a..31b49e05a5 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -337,11 +337,12 @@ func makeErrorInterface() *types.Type {
+ 
+ func lexinit1() {
+ 	// error type
+-	s := ir.BuiltinPkg.Lookup("error")
+-	types.Errortype = makeErrorInterface()
+-	types.Errortype.Sym = s
+-	types.Errortype.Orig = makeErrorInterface()
+-	s.Def = ir.TypeNode(types.Errortype)
++	n := ir.NewNameAt(src.NoXPos, ir.BuiltinPkg.Lookup("error"))
++	types.Errortype = types.NewNamed(n)
++	types.Errortype.SetUnderlying(makeErrorInterface())
++	n.SetOp(ir.OTYPE)
++	n.SetType(types.Errortype)
++	n.Sym().Def = n
+ 	dowidth(types.Errortype)
+ 
+ 	// We create separate byte and rune types for better error messages
+@@ -353,7 +354,7 @@ func lexinit1() {
+ 	// type aliases, albeit at the cost of having to deal with it everywhere).
+ 
+ 	// byte alias
+-	s = ir.BuiltinPkg.Lookup("byte")
++	s := ir.BuiltinPkg.Lookup("byte")
+ 	types.Bytetype = types.New(types.TUINT8)
+ 	types.Bytetype.Sym = s
+ 	s.Def = ir.TypeNode(types.Bytetype)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 87593520a1..2a7211cfda 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -545,9 +545,7 @@ func (*ParenExpr) CanBeNtype() {}
+ func (n *ParenExpr) SetOTYPE(t *types.Type) {
+ 	n.op = OTYPE
+ 	n.typ = t
+-	if t.Nod == nil {
+-		t.Nod = n
+-	}
++	t.SetNod(n)
+ }
+ 
+ // A ResultExpr represents a direct access to a result slot on the stack frame.
+@@ -762,9 +760,7 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
+ 	n.op = OTYPE
+ 	n.X = nil
+ 	n.typ = t
+-	if t.Nod == nil {
+-		t.Nod = n
+-	}
++	t.SetNod(n)
+ }
+ 
+ func (n *StarExpr) DeepCopy(pos src.XPos) Node {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index af8db15e84..446145b24c 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -5,6 +5,7 @@
+ package ir
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -51,12 +52,7 @@ func (n *miniType) setOTYPE(t *types.Type, self Node) {
+ 	}
+ 	n.op = OTYPE
+ 	n.typ = t
+-
+-	// t.Nod can be non-nil already
+-	// in the case of shared *type.Types, like []byte or interface{}.
+-	if t.Nod == nil {
+-		t.Nod = self
+-	}
++	t.SetNod(self)
+ }
+ 
+ func (n *miniType) Sym() *types.Sym { return nil }   // for Format OTYPE
+@@ -362,20 +358,11 @@ func (n *typeNode) CanBeNtype()                   {}
+ 
+ // TypeNode returns the Node representing the type t.
+ func TypeNode(t *types.Type) Ntype {
+-	return TypeNodeAt(src.NoXPos, t)
+-}
+-
+-// TypeNodeAt returns the Node representing the type t.
+-// If the node must be created, TypeNodeAt uses the position pos.
+-// TODO(rsc): Does anyone actually use position on these type nodes?
+-func TypeNodeAt(pos src.XPos, t *types.Type) Ntype {
+-	// If we copied another type with *t = *u,
+-	// then t.Nod might be out of date, so check t.Nod.Type() too.
+-	n := AsNode(t.Nod)
+-	if n == nil || n.Type() != t {
+-		n := newTypeNode(pos, t) // t.Sym may be nil
+-		t.Nod = n
+-		return n
++	if n := t.Obj(); n != nil {
++		if n.Type() != t {
++			base.Fatalf("type skew: %v has type %v, but expected %v", n, n.Type(), t)
++		}
++		return n.(Ntype)
+ 	}
+-	return n.(Ntype)
++	return newTypeNode(src.NoXPos, t)
+ }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 2a65b713be..d6d56426a5 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -14,7 +14,11 @@ import (
+ // IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+ // which would cause an import cycle. The uses in other packages must type assert
+ // values of type IRNode to ir.Node or a more specific type.
+-type IRNode interface{ Type() *Type }
++type IRNode interface {
++	Pos() src.XPos
++	Sym() *Sym
++	Type() *Type
++}
+ 
+ //go:generate stringer -type EType -trimprefix T
+ 
+@@ -142,7 +146,7 @@ type Type struct {
+ 	methods    Fields
+ 	allMethods Fields
+ 
+-	Nod  IRNode // canonical OTYPE node
++	nod  IRNode // canonical OTYPE node
+ 	Orig *Type  // original type (type literal or predefined type)
+ 
+ 	// Cache of composite types, with this type being the element type.
+@@ -180,6 +184,24 @@ func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
+ func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
+ func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+ 
++// SetNod associates t with syntax node n.
++func (t *Type) SetNod(n IRNode) {
++	// t.nod can be non-nil already
++	// in the case of shared *Types, like []byte or interface{}.
++	if t.nod == nil {
++		t.nod = n
++	}
++}
++
++// Pos returns a position associated with t, if any.
++// This should only be used for diagnostics.
++func (t *Type) Pos() src.XPos {
++	if t.nod != nil {
++		return t.nod.Pos()
++	}
++	return src.NoXPos
++}
++
+ // Pkg returns the package that t appeared in.
+ //
+ // Pkg is only defined for function, struct, and interface types
+@@ -1519,7 +1541,24 @@ var (
+ 	TypeInt128  = newSSA("int128")
+ )
+ 
+-func SetUnderlying(t, underlying *Type) {
++// NewNamed returns a new named type for the given type name.
++func NewNamed(obj IRNode) *Type {
++	t := New(TFORW)
++	t.Sym = obj.Sym()
++	t.nod = obj
++	return t
++}
++
++// Obj returns the type name for the named type t.
++func (t *Type) Obj() IRNode {
++	if t.Sym != nil {
++		return t.nod
++	}
++	return nil
++}
++
++// SetUnderlying sets the underlying type.
++func (t *Type) SetUnderlying(underlying *Type) {
+ 	if underlying.Etype == TFORW {
+ 		// This type isn't computed yet; when it is, update n.
+ 		underlying.ForwardType().Copyto = append(underlying.ForwardType().Copyto, t)
+@@ -1546,13 +1585,13 @@ func SetUnderlying(t, underlying *Type) {
+ 	// to the existing type, but the method set of an interface
+ 	// type [...] remains unchanged."
+ 	if t.IsInterface() {
+-		*t.Methods() = *underlying.Methods()
+-		*t.AllMethods() = *underlying.AllMethods()
++		t.methods = underlying.methods
++		t.allMethods = underlying.allMethods
+ 	}
+ 
+ 	// Update types waiting on this type.
+ 	for _, w := range ft.Copyto {
+-		SetUnderlying(w, t)
++		w.SetUnderlying(t)
+ 	}
+ 
+ 	// Double-check use of type as embedded type.

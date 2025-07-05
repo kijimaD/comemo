@@ -15,7 +15,7 @@ Date:   Wed Jan 28 11:38:05 2015 +0900
     Change-Id: I871119a9746fc6a2b997b69cfd733463558f5816
     Reviewed-on: https://go-review.googlesource.com/3404
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/fd_plan9.go        |   4 --
  src/net/fd_unix.go         |   7 --
  src/net/fd_windows.go      |  19 -----
@@ -24,3 +24,504 @@ Date:   Wed Jan 28 11:38:05 2015 +0900
  src/net/packetconn_test.go |  26 ++-----
  src/net/protoconn_test.go  |  35 +++------
  7 files changed, 21 insertions(+), 360 deletions(-)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 5fe8effc29..ddadb6e5bc 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -226,7 +226,3 @@ func setReadBuffer(fd *netFD, bytes int) error {
+ func setWriteBuffer(fd *netFD, bytes int) error {
+ 	return syscall.EPLAN9
+ }
+-
+-func skipRawSocketTests() (skip bool, skipmsg string, err error) {
+-	return true, "skipping test on plan9", nil
+-}
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 4e3269b6bd..16fe61085f 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -502,10 +502,3 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ func closesocket(s int) error {
+ 	return syscall.Close(s)
+ }
+-
+-func skipRawSocketTests() (skip bool, skipmsg string, err error) {
+-	if os.Getuid() != 0 {
+-		return true, "skipping test; must be root", nil
+-	}
+-	return false, "", nil
+-}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index a185975377..995bc4a7f5 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -617,25 +617,6 @@ func (fd *netFD) accept() (*netFD, error) {
+ 	return netfd, nil
+ }
+ 
+-func skipRawSocketTests() (skip bool, skipmsg string, err error) {
+-	// From http://msdn.microsoft.com/en-us/library/windows/desktop/ms740548.aspx:
+-	// Note: To use a socket of type SOCK_RAW requires administrative privileges.
+-	// Users running Winsock applications that use raw sockets must be a member of
+-	// the Administrators group on the local computer, otherwise raw socket calls
+-	// will fail with an error code of WSAEACCES. On Windows Vista and later, access
+-	// for raw sockets is enforced at socket creation. In earlier versions of Windows,
+-	// access for raw sockets is enforced during other socket operations.
+-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, 0)
+-	if err == syscall.WSAEACCES {
+-		return true, "skipping test; no access to raw socket allowed", nil
+-	}
+-	if err != nil {
+-		return true, "", err
+-	}
+-	defer syscall.Closesocket(s)
+-	return false, "", nil
+-}
+-
+ // Unimplemented functions.
+ 
+ func (fd *netFD) dup() (*os.File, error) {
+diff --git a/src/net/ipraw_test.go b/src/net/ipraw_test.go
+index 92dc8dc569..7bf95e1213 100644
+--- a/src/net/ipraw_test.go
++++ b/src/net/ipraw_test.go
+@@ -5,15 +5,19 @@
+ package net
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+-	"time"
+ )
+ 
++// The full stack test cases for IPConn have been moved to the
++// following:
++//	golang.org/x/net/ipv4
++//	golang.org/x/net/ipv6
++//	golang.org/x/net/icmp
++
+ type resolveIPAddrTest struct {
+ 	net           string
+ 	litAddrOrName string
+@@ -59,14 +63,6 @@ func init() {
+ 	}
+ }
+ 
+-func skipRawSocketTest(t *testing.T) (skip bool, skipmsg string) {
+-	skip, skipmsg, err := skipRawSocketTests()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return skip, skipmsg
+-}
+-
+ func TestResolveIPAddr(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl":
+@@ -83,164 +79,6 @@ func TestResolveIPAddr(t *testing.T) {
+ 	}
+ }
+ 
+-var icmpEchoTests = []struct {
+-	net   string
+-	laddr string
+-	raddr string
+-}{
+-	{"ip4:icmp", "0.0.0.0", "127.0.0.1"},
+-	{"ip6:ipv6-icmp", "::", "::1"},
+-}
+-
+-func TestConnICMPEcho(t *testing.T) {
+-	if skip, skipmsg := skipRawSocketTest(t); skip {
+-		t.Skip(skipmsg)
+-	}
+-
+-	for i, tt := range icmpEchoTests {
+-		net, _, err := parseNetwork(tt.net)
+-		if err != nil {
+-			t.Fatalf("parseNetwork failed: %v", err)
+-		}
+-		if net == "ip6" && !supportsIPv6 {
+-			continue
+-		}
+-
+-		c, err := Dial(tt.net, tt.raddr)
+-		if err != nil {
+-			t.Fatalf("Dial failed: %v", err)
+-		}
+-		c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-		defer c.Close()
+-
+-		typ := icmpv4EchoRequest
+-		if net == "ip6" {
+-			typ = icmpv6EchoRequest
+-		}
+-		xid, xseq := os.Getpid()&0xffff, i+1
+-		wb, err := (&icmpMessage{
+-			Type: typ, Code: 0,
+-			Body: &icmpEcho{
+-				ID: xid, Seq: xseq,
+-				Data: bytes.Repeat([]byte("Go Go Gadget Ping!!!"), 3),
+-			},
+-		}).Marshal()
+-		if err != nil {
+-			t.Fatalf("icmpMessage.Marshal failed: %v", err)
+-		}
+-		if _, err := c.Write(wb); err != nil {
+-			t.Fatalf("Conn.Write failed: %v", err)
+-		}
+-		var m *icmpMessage
+-		rb := make([]byte, 20+len(wb))
+-		for {
+-			if _, err := c.Read(rb); err != nil {
+-				t.Fatalf("Conn.Read failed: %v", err)
+-			}
+-			if net == "ip4" {
+-				rb = ipv4Payload(rb)
+-			}
+-			if m, err = parseICMPMessage(rb); err != nil {
+-				t.Fatalf("parseICMPMessage failed: %v", err)
+-			}
+-			switch m.Type {
+-			case icmpv4EchoRequest, icmpv6EchoRequest:
+-				continue
+-			}
+-			break
+-		}
+-		switch p := m.Body.(type) {
+-		case *icmpEcho:
+-			if p.ID != xid || p.Seq != xseq {
+-				t.Fatalf("got id=%v, seqnum=%v; expected id=%v, seqnum=%v", p.ID, p.Seq, xid, xseq)
+-			}
+-		default:
+-			t.Fatalf("got type=%v, code=%v; expected type=%v, code=%v", m.Type, m.Code, typ, 0)
+-		}
+-	}
+-}
+-
+-func TestPacketConnICMPEcho(t *testing.T) {
+-	if skip, skipmsg := skipRawSocketTest(t); skip {
+-		t.Skip(skipmsg)
+-	}
+-
+-	for i, tt := range icmpEchoTests {
+-		net, _, err := parseNetwork(tt.net)
+-		if err != nil {
+-			t.Fatalf("parseNetwork failed: %v", err)
+-		}
+-		if net == "ip6" && !supportsIPv6 {
+-			continue
+-		}
+-
+-		c, err := ListenPacket(tt.net, tt.laddr)
+-		if err != nil {
+-			t.Fatalf("ListenPacket failed: %v", err)
+-		}
+-		c.SetDeadline(time.Now().Add(100 * time.Millisecond))
+-		defer c.Close()
+-
+-		ra, err := ResolveIPAddr(tt.net, tt.raddr)
+-		if err != nil {
+-			t.Fatalf("ResolveIPAddr failed: %v", err)
+-		}
+-		typ := icmpv4EchoRequest
+-		if net == "ip6" {
+-			typ = icmpv6EchoRequest
+-		}
+-		xid, xseq := os.Getpid()&0xffff, i+1
+-		wb, err := (&icmpMessage{
+-			Type: typ, Code: 0,
+-			Body: &icmpEcho{
+-				ID: xid, Seq: xseq,
+-				Data: bytes.Repeat([]byte("Go Go Gadget Ping!!!"), 3),
+-			},
+-		}).Marshal()
+-		if err != nil {
+-			t.Fatalf("icmpMessage.Marshal failed: %v", err)
+-		}
+-		if _, err := c.WriteTo(wb, ra); err != nil {
+-			t.Fatalf("PacketConn.WriteTo failed: %v", err)
+-		}
+-		var m *icmpMessage
+-		rb := make([]byte, 20+len(wb))
+-		for {
+-			if _, _, err := c.ReadFrom(rb); err != nil {
+-				t.Fatalf("PacketConn.ReadFrom failed: %v", err)
+-			}
+-			// See BUG section.
+-			//if net == "ip4" {
+-			//	rb = ipv4Payload(rb)
+-			//}
+-			if m, err = parseICMPMessage(rb); err != nil {
+-				t.Fatalf("parseICMPMessage failed: %v", err)
+-			}
+-			switch m.Type {
+-			case icmpv4EchoRequest, icmpv6EchoRequest:
+-				continue
+-			}
+-			break
+-		}
+-		switch p := m.Body.(type) {
+-		case *icmpEcho:
+-			if p.ID != xid || p.Seq != xseq {
+-				t.Fatalf("got id=%v, seqnum=%v; expected id=%v, seqnum=%v", p.ID, p.Seq, xid, xseq)
+-			}
+-		default:
+-			t.Fatalf("got type=%v, code=%v; expected type=%v, code=%v", m.Type, m.Code, typ, 0)
+-		}
+-	}
+-}
+-
+-func ipv4Payload(b []byte) []byte {
+-	if len(b) < 20 {
+-		return b
+-	}
+-	hdrlen := int(b[0]&0x0f) << 2
+-	return b[hdrlen:]
+-}
+-
+ var ipConnLocalNameTests = []struct {
+ 	net   string
+ 	laddr *IPAddr
+diff --git a/src/net/mockicmp_test.go b/src/net/mockicmp_test.go
+deleted file mode 100644
+index e742365ea0..0000000000
+--- a/src/net/mockicmp_test.go
++++ /dev/null
+@@ -1,116 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package net
+-
+-import "errors"
+-
+-const (
+-	icmpv4EchoRequest = 8
+-	icmpv4EchoReply   = 0
+-	icmpv6EchoRequest = 128
+-	icmpv6EchoReply   = 129
+-)
+-
+-// icmpMessage represents an ICMP message.
+-type icmpMessage struct {
+-	Type     int             // type
+-	Code     int             // code
+-	Checksum int             // checksum
+-	Body     icmpMessageBody // body
+-}
+-
+-// icmpMessageBody represents an ICMP message body.
+-type icmpMessageBody interface {
+-	Len() int
+-	Marshal() ([]byte, error)
+-}
+-
+-// Marshal returns the binary enconding of the ICMP echo request or
+-// reply message m.
+-func (m *icmpMessage) Marshal() ([]byte, error) {
+-	b := []byte{byte(m.Type), byte(m.Code), 0, 0}
+-	if m.Body != nil && m.Body.Len() != 0 {
+-		mb, err := m.Body.Marshal()
+-		if err != nil {
+-			return nil, err
+-		}
+-		b = append(b, mb...)
+-	}
+-	switch m.Type {
+-	case icmpv6EchoRequest, icmpv6EchoReply:
+-		return b, nil
+-	}
+-	csumcv := len(b) - 1 // checksum coverage
+-	s := uint32(0)
+-	for i := 0; i < csumcv; i += 2 {
+-		s += uint32(b[i+1])<<8 | uint32(b[i])
+-	}
+-	if csumcv&1 == 0 {
+-		s += uint32(b[csumcv])
+-	}
+-	s = s>>16 + s&0xffff
+-	s = s + s>>16
+-	// Place checksum back in header; using ^= avoids the
+-	// assumption the checksum bytes are zero.
+-	b[2] ^= byte(^s)
+-	b[3] ^= byte(^s >> 8)
+-	return b, nil
+-}
+-
+-// parseICMPMessage parses b as an ICMP message.
+-func parseICMPMessage(b []byte) (*icmpMessage, error) {
+-	msglen := len(b)
+-	if msglen < 4 {
+-		return nil, errors.New("message too short")
+-	}
+-	m := &icmpMessage{Type: int(b[0]), Code: int(b[1]), Checksum: int(b[2])<<8 | int(b[3])}
+-	if msglen > 4 {
+-		var err error
+-		switch m.Type {
+-		case icmpv4EchoRequest, icmpv4EchoReply, icmpv6EchoRequest, icmpv6EchoReply:
+-			m.Body, err = parseICMPEcho(b[4:])
+-			if err != nil {
+-				return nil, err
+-			}
+-		}
+-	}
+-	return m, nil
+-}
+-
+-// imcpEcho represenets an ICMP echo request or reply message body.
+-type icmpEcho struct {
+-	ID   int    // identifier
+-	Seq  int    // sequence number
+-	Data []byte // data
+-}
+-
+-func (p *icmpEcho) Len() int {
+-	if p == nil {
+-		return 0
+-	}
+-	return 4 + len(p.Data)
+-}
+-
+-// Marshal returns the binary enconding of the ICMP echo request or
+-// reply message body p.
+-func (p *icmpEcho) Marshal() ([]byte, error) {
+-	b := make([]byte, 4+len(p.Data))
+-	b[0], b[1] = byte(p.ID>>8), byte(p.ID)
+-	b[2], b[3] = byte(p.Seq>>8), byte(p.Seq)
+-	copy(b[4:], p.Data)
+-	return b, nil
+-}
+-
+-// parseICMPEcho parses b as an ICMP echo request or reply message
+-// body.
+-func parseICMPEcho(b []byte) (*icmpEcho, error) {
+-	bodylen := len(b)
+-	p := &icmpEcho{ID: int(b[0])<<8 | int(b[1]), Seq: int(b[2])<<8 | int(b[3])}
+-	if bodylen > 4 {
+-		p.Data = make([]byte, bodylen-4)
+-		copy(p.Data, b[4:])
+-	}
+-	return p, nil
+-}
+diff --git a/src/net/packetconn_test.go b/src/net/packetconn_test.go
+index b6e4e76f93..f00eacaf36 100644
+--- a/src/net/packetconn_test.go
++++ b/src/net/packetconn_test.go
+@@ -15,29 +15,16 @@ import (
+ 	"time"
+ )
+ 
++// The full stack test cases for IPConn have been moved to the
++// following:
++//	golang.org/x/net/ipv4
++//	golang.org/x/net/ipv6
++//	golang.org/x/net/icmp
++
+ func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
+ 	switch net {
+ 	case "udp":
+ 		return []byte("UDP PACKETCONN TEST"), nil
+-	case "ip":
+-		if skip, skipmsg := skipRawSocketTest(t); skip {
+-			return nil, func() {
+-				t.Logf(skipmsg)
+-			}
+-		}
+-		b, err := (&icmpMessage{
+-			Type: icmpv4EchoRequest, Code: 0,
+-			Body: &icmpEcho{
+-				ID: os.Getpid() & 0xffff, Seq: i + 1,
+-				Data: []byte("IP PACKETCONN TEST"),
+-			},
+-		}).Marshal()
+-		if err != nil {
+-			return nil, func() {
+-				t.Fatalf("icmpMessage.Marshal failed: %v", err)
+-			}
+-		}
+-		return b, nil
+ 	case "unixgram":
+ 		switch runtime.GOOS {
+ 		case "nacl", "plan9", "windows":
+@@ -60,7 +47,6 @@ var packetConnTests = []struct {
+ 	addr2 string
+ }{
+ 	{"udp", "127.0.0.1:0", "127.0.0.1:0"},
+-	{"ip:icmp", "127.0.0.1", "127.0.0.1"},
+ 	{"unixgram", testUnixAddr(), testUnixAddr()},
+ }
+ 
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 12856b6c31..61c35dfc70 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -15,6 +15,12 @@ import (
+ 	"time"
+ )
+ 
++// The full stack test cases for IPConn have been moved to the
++// following:
++//	golang.org/x/net/ipv4
++//	golang.org/x/net/ipv6
++//	golang.org/x/net/icmp
++
+ // testUnixAddr uses ioutil.TempFile to get a name that is unique. It
+ // also uses /tmp directory in case it is prohibited to create UNIX
+ // sockets in TMPDIR.
+@@ -173,8 +179,8 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ }
+ 
+ func TestIPConnSpecificMethods(t *testing.T) {
+-	if skip, skipmsg := skipRawSocketTest(t); skip {
+-		t.Skip(skipmsg)
++	if os.Getuid() != 0 {
++		t.Skip("must be root")
+ 	}
+ 
+ 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
+@@ -194,30 +200,6 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	c.SetReadBuffer(2048)
+ 	c.SetWriteBuffer(2048)
+ 
+-	wb, err := (&icmpMessage{
+-		Type: icmpv4EchoRequest, Code: 0,
+-		Body: &icmpEcho{
+-			ID: os.Getpid() & 0xffff, Seq: 1,
+-			Data: []byte("IPCONN TEST "),
+-		},
+-	}).Marshal()
+-	if err != nil {
+-		t.Fatalf("icmpMessage.Marshal failed: %v", err)
+-	}
+-	rb := make([]byte, 20+len(wb))
+-	if _, err := c.WriteToIP(wb, c.LocalAddr().(*IPAddr)); err != nil {
+-		t.Fatalf("IPConn.WriteToIP failed: %v", err)
+-	}
+-	if _, _, err := c.ReadFromIP(rb); err != nil {
+-		t.Fatalf("IPConn.ReadFromIP failed: %v", err)
+-	}
+-	if _, _, err := c.WriteMsgIP(wb, nil, c.LocalAddr().(*IPAddr)); err != nil {
+-		condFatalf(t, "IPConn.WriteMsgIP failed: %v", err)
+-	}
+-	if _, _, _, _, err := c.ReadMsgIP(rb, nil); err != nil {
+-		condFatalf(t, "IPConn.ReadMsgIP failed: %v", err)
+-	}
+-
+ 	if f, err := c.File(); err != nil {
+ 		condFatalf(t, "IPConn.File failed: %v", err)
+ 	} else {
+@@ -230,6 +212,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 		}
+ 	}()
+ 
++	wb := []byte("IPCONN TEST")
+ 	c.WriteToIP(wb, nil)
+ 	c.WriteMsgIP(wb, nil, nil)
+ }

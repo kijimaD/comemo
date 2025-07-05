@@ -7,7 +7,46 @@ Date:   Tue Dec 20 14:32:33 2011 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5505048
-
+---
  src/pkg/net/fd.go  | 8 --------
  src/pkg/net/net.go | 8 ++++++++
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 5318c51c9a..bcd04a0ad8 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -377,14 +377,6 @@ func (fd *netFD) CloseWrite() error {
+ 	return fd.shutdown(syscall.SHUT_WR)
+ }
+ 
+-type timeoutError struct{}
+-
+-func (e *timeoutError) Error() string   { return "i/o timeout" }
+-func (e *timeoutError) Timeout() bool   { return true }
+-func (e *timeoutError) Temporary() bool { return true }
+-
+-var errTimeout error = &timeoutError{}
+-
+ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 	if fd == nil {
+ 		return 0, os.EINVAL
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 48f0ae791c..b236dfdb1d 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -157,6 +157,14 @@ func (e *OpError) Timeout() bool {
+ 	return ok && t.Timeout()
+ }
+ 
++type timeoutError struct{}
++
++func (e *timeoutError) Error() string   { return "i/o timeout" }
++func (e *timeoutError) Timeout() bool   { return true }
++func (e *timeoutError) Temporary() bool { return true }
++
++var errTimeout error = &timeoutError{}
++
+ type AddrError struct {
+ 	Err  string
+ 	Addr string

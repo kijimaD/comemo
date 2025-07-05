@@ -11,8 +11,96 @@ Date:   Mon Sep 20 07:37:06 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2246041
-
+---
  src/pkg/gob/decode.go       |  9 +++++++--
  src/pkg/gob/encoder_test.go | 28 ++++++++++++++++++++++++++++
  src/pkg/gob/type.go         | 14 ++++++++++++--
  3 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index a70799e9a7..5ca9b89cd6 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -843,12 +843,17 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
+ 		return dec.compileSingle(remoteId, rt)
+ 	}
+ 	var wireStruct *structType
+-	// Builtin types can come from global pool; the rest must be defined by the decoder
++	// Builtin types can come from global pool; the rest must be defined by the decoder.
++	// Also we know we're decoding a struct now, so the client must have sent one.
+ 	if t, ok := builtinIdToType[remoteId]; ok {
+-		wireStruct = t.(*structType)
++		wireStruct, _ = t.(*structType)
+ 	} else {
+ 		wireStruct = dec.wireType[remoteId].structT
+ 	}
++	if wireStruct == nil {
++		return nil, os.ErrorString("gob: type mismatch in decoder: want struct type " +
++			rt.String() + "; got non-struct")
++	}
+ 	engine = new(decEngine)
+ 	engine.instr = make([]decInstr, len(wireStruct.field))
+ 	// Loop over the fields of the wire type.
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index f5b68113ee..87627fa283 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -327,3 +327,31 @@ func TestSingletons(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStructNonStruct(t *testing.T) {
++	type Struct struct {
++		a string
++	}
++	type NonStruct string
++	s := Struct{"hello"}
++	var sp Struct
++	if err := encAndDec(s, &sp); err != nil {
++		t.Error(err)
++	}
++	var ns NonStruct
++	if err := encAndDec(s, &ns); err == nil {
++		t.Error("should get error for struct/non-struct")
++	} else if strings.Index(err.String(), "type") < 0 {
++		t.Error("for struct/non-struct expected type error; got", err)
++	}
++	// Now try the other way
++	var nsp NonStruct
++	if err := encAndDec(ns, &nsp); err != nil {
++		t.Error(err)
++	}
++	if err := encAndDec(ns, &s); err == nil {
++		t.Error("should get error for non-struct/struct")
++	} else if strings.Index(err.String(), "type") < 0 {
++		t.Error("for non-struct/struct expected type error; got", err)
++	}
++}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 0b01b74dc9..e6ae499f49 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -52,10 +52,20 @@ func (t typeId) gobType() gobType {
+ }
+ 
+ // string returns the string representation of the type associated with the typeId.
+-func (t typeId) string() string { return t.gobType().string() }
++func (t typeId) string() string {
++	if t.gobType() == nil {
++		return "<nil>"
++	}
++	return t.gobType().string()
++}
+ 
+ // Name returns the name of the type associated with the typeId.
+-func (t typeId) Name() string { return t.gobType().Name() }
++func (t typeId) Name() string {
++	if t.gobType() == nil {
++		return "<nil>"
++	}
++	return t.gobType().Name()
++}
+ 
+ // Common elements of all types.
+ type commonType struct {

@@ -10,6 +10,23 @@ Date:   Thu Jan 11 17:37:16 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/87496
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a45c15a44e..e0925dc7f2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1974,6 +1974,11 @@ func addinit(n *Node, init []*Node) *Node {
+ 	return n
+ }
+ 
++// The linker uses the magic symbol prefixes "go." and "type."
++// Avoid potential confusion between import paths and symbols
++// by rejecting these reserved imports for now. Also, people
++// "can do weird things in GOPATH and we'd prefer they didn't
++// do _that_ weird thing" (per rsc). See also #4257.
+ var reservedimports = []string{
+ 	"go",
+ 	"type",

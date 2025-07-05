@@ -16,9 +16,209 @@ Date:   Mon Jul 16 14:39:40 2018 -0700
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_solaris.go | 28 +++++++++++++++++++++-------
  src/runtime/os_windows.go |  9 ++++++---
  src/runtime/sys_darwin.go | 20 +++++++++++++++++++-
  src/runtime/traceback.go  |  7 +++++++
  4 files changed, 53 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 703a2e5430..4575b5e641 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -37,12 +37,14 @@ func sysvicall0(fn *libcFunc) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil // See comment in sys_darwin.go:libcCall
+ 	}
+ 
+ 	var libcall libcall
+@@ -64,12 +66,14 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil
+ 	}
+ 
+ 	var libcall libcall
+@@ -92,12 +96,14 @@ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil
+ 	}
+ 
+ 	var libcall libcall
+@@ -119,12 +125,14 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil
+ 	}
+ 
+ 	var libcall libcall
+@@ -146,12 +154,14 @@ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil
+ 	}
+ 
+ 	var libcall libcall
+@@ -173,12 +183,14 @@ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil
+ 	}
+ 
+ 	var libcall libcall
+@@ -200,12 +212,14 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		mp = nil
+ 	}
+ 
+ 	var libcall libcall
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 6180dd3a60..5607bf95c1 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -734,17 +734,20 @@ func stdcall(fn stdFunction) uintptr {
+ 	gp := getg()
+ 	mp := gp.m
+ 	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
+-
+-	if mp.profilehz != 0 {
++	resetLibcall := false
++	if mp.profilehz != 0 && mp.libcallsp == 0 {
+ 		// leave pc/sp for cpu profiler
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++		resetLibcall = true // See comment in sys_darwin.go:libcCall
+ 	}
+ 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+-	mp.libcallsp = 0
++	if resetLibcall {
++		mp.libcallsp = 0
++	}
+ 	return mp.libcall.r1
+ }
+ 
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index f0d0815903..7efbef746c 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -18,12 +18,30 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
+ 	if gp != nil {
+ 		mp = gp.m
+ 	}
+-	if mp != nil {
++	if mp != nil && mp.libcallsp == 0 {
+ 		mp.libcallg.set(gp)
+ 		mp.libcallpc = getcallerpc()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+ 		mp.libcallsp = getcallersp()
++	} else {
++		// Make sure we don't reset libcallsp. This makes
++		// libcCall reentrant; We remember the g/pc/sp for the
++		// first call on an M, until that libcCall instance
++		// returns.  Reentrance only matters for signals, as
++		// libc never calls back into Go.  The tricky case is
++		// where we call libcX from an M and record g/pc/sp.
++		// Before that call returns, a signal arrives on the
++		// same M and the signal handling code calls another
++		// libc function.  We don't want that second libcCall
++		// from within the handler to be recorded, and we
++		// don't want that call's completion to zero
++		// libcallsp.
++		// We don't need to set libcall* while we're in a sighandler
++		// (even if we're not currently in libc) because we block all
++		// signals while we're handling a signal. That includes the
++		// profile signal, which is the one that uses the libcall* info.
++		mp = nil
+ 	}
+ 	res := asmcgocall(fn, arg)
+ 	if mp != nil {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 4953653900..d8c225d975 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -679,7 +679,14 @@ func traceback(pc, sp, lr uintptr, gp *g) {
+ // the initial PC must not be rewound to the previous instruction.
+ // (All the saved pairs record a PC that is a return address, so we
+ // rewind it into the CALL instruction.)
++// If gp.m.libcall{g,pc,sp} information is available, it uses that information in preference to
++// the pc/sp/lr passed in.
+ func tracebacktrap(pc, sp, lr uintptr, gp *g) {
++	if gp.m.libcallsp != 0 {
++		// We're in C code somewhere, traceback from the saved position.
++		traceback1(gp.m.libcallpc, gp.m.libcallsp, 0, gp.m.libcallg.ptr(), 0)
++		return
++	}
+ 	traceback1(pc, sp, lr, gp, _TraceTrap)
+ }
+ 

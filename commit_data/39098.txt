@@ -16,6 +16,20 @@ Date:   Tue Dec 11 13:59:18 2018 +0100
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/lock_js.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index b04ccdb107..f58c915b63 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -127,7 +127,7 @@ func notetsleepg(n *note, ns int64) bool {
+ func checkTimeouts() {
+ 	now := nanotime()
+ 	for n, nt := range notesWithTimeout {
+-		if n.key == note_cleared && now > nt.deadline {
++		if n.key == note_cleared && now >= nt.deadline {
+ 			n.key = note_timeout
+ 			goready(nt.gp, 1)
+ 		}

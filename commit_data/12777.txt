@@ -7,7 +7,37 @@ Date:   Tue Mar 27 15:09:13 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5916046
-
+---
  LICENSE              | 2 +-
  lib/godoc/godoc.html | 8 +++++---
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/LICENSE b/LICENSE
+index 6a66aea5ea..7448756763 100644
+--- a/LICENSE
++++ b/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright (c) 2012 The Go Authors. All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 5e18193523..fd60329273 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -53,9 +53,11 @@
+ <div id="footer">
+ Build version {{html .Version}}.<br>
+ Except as <a href="http://code.google.com/policies.html#restrictions">noted</a>,
+-the content of this page is licensed under the Creative Commons Attribution 3.0 License,<br>
+-and code samples are licensed under a <a href="/LICENSE">BSD-style license</a>.<br>
+-<a href="/doc/tos.html">Terms of Service</a>
++the content of this page is licensed under the
++Creative Commons Attribution 3.0 License,
++and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
++<a href="/doc/tos.html">Terms of Service</a> | 
++<a href="http://www.google.com/intl/en/privacy/privacy-policy.html">Privacy Policy</a>
+ </div>
+ 
+ </body>

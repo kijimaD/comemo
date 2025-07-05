@@ -21,7 +21,7 @@ Date:   Fri Jul 2 16:59:01 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go   |  5 +--
  test/fixedbugs/issue30862.dir/{ => a}/a.go |  0
  test/fixedbugs/issue30862.dir/{ => b}/b.go |  2 +-
@@ -30,3 +30,170 @@ Date:   Fri Jul 2 16:59:01 2021 -0700
  test/run.go                                |  6 ++-
  test/typeparam/mdempsky/15.go              | 69 ++++++++++++++++++++++++++++++
  7 files changed, 78 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 44d1c4f28b..516bf8f1f7 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -750,13 +750,12 @@ func (r *reader) method() *types.Field {
+ 	name.Func = ir.NewFunc(r.pos())
+ 	name.Func.Nname = name
+ 
+-	// TODO(mdempsky): Make sure we're handling //go:nointerface
+-	// correctly. I don't think this is exercised within the Go repo.
+-
+ 	r.ext.funcExt(name)
+ 
+ 	meth := types.NewField(name.Func.Pos(), sym, typ)
+ 	meth.Nname = name
++	meth.SetNointerface(name.Func.Pragma&ir.Nointerface != 0)
++
+ 	return meth
+ }
+ 
+diff --git a/test/fixedbugs/issue30862.dir/a.go b/test/fixedbugs/issue30862.dir/a/a.go
+similarity index 100%
+rename from test/fixedbugs/issue30862.dir/a.go
+rename to test/fixedbugs/issue30862.dir/a/a.go
+diff --git a/test/fixedbugs/issue30862.dir/b.go b/test/fixedbugs/issue30862.dir/b/b.go
+similarity index 95%
+rename from test/fixedbugs/issue30862.dir/b.go
+rename to test/fixedbugs/issue30862.dir/b/b.go
+index 3e501bb8dc..230221d503 100644
+--- a/test/fixedbugs/issue30862.dir/b.go
++++ b/test/fixedbugs/issue30862.dir/b/b.go
+@@ -4,7 +4,7 @@
+ 
+ package b
+ 
+-import "./a"
++import "issue30862.dir/a"
+ 
+ type EmbedImported struct {
+ 	a.NoitfStruct
+diff --git a/test/fixedbugs/issue30862.dir/main.go b/test/fixedbugs/issue30862.dir/main.go
+index 80db0e13a8..1489c5a342 100644
+--- a/test/fixedbugs/issue30862.dir/main.go
++++ b/test/fixedbugs/issue30862.dir/main.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 
+-	"./b"
++	"issue30862.dir/b"
+ )
+ 
+ // Test case for issue 30862.
+diff --git a/test/fixedbugs/issue30862.go b/test/fixedbugs/issue30862.go
+index ba122cc3c8..acac71e2cc 100644
+--- a/test/fixedbugs/issue30862.go
++++ b/test/fixedbugs/issue30862.go
+@@ -1,4 +1,4 @@
+-// rundir
++// runindir -goexperiment fieldtrack
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,6 +9,4 @@
+ // is set when building it, whereas gccgo has field tracking
+ // enabled by default (hence the build tag below).
+ 
+-// +build gccgo
+-
+ package ignored
+diff --git a/test/run.go b/test/run.go
+index 1e7fab4359..2e72d55b76 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2180,12 +2180,14 @@ var types2Failures32Bit = setOf(
+ var g3Failures = setOf(
+ 	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
+ 
++	"fixedbugs/issue30862.go", // -G=3 doesn't handle //go:nointerface
++
++	"typeparam/cons.go",   // causes an unreachable method
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+ 	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
+ 	"typeparam/mdempsky/13.go", // problem with interface as as a type arg.
+-
+-	"typeparam/cons.go", // causes an unreachable method
++	"typeparam/mdempsky/15.go", // ICE in (*irgen).buildClosure
+ )
+ 
+ var unifiedFailures = setOf(
+diff --git a/test/typeparam/mdempsky/15.go b/test/typeparam/mdempsky/15.go
+new file mode 100644
+index 0000000000..4899fc75ee
+--- /dev/null
++++ b/test/typeparam/mdempsky/15.go
+@@ -0,0 +1,69 @@
++// run -goexperiment fieldtrack -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that generics, promoted methods, and //go:nointerface
++// interoperate as expected.
++
++package main
++
++import (
++	"reflect"
++)
++
++func TypeString[T any]() string {
++	return reflect.TypeOf(new(T)).Elem().String()
++}
++
++func Test[T, Bad, Good any]() {
++	switch interface{}(new(T)).(type) {
++	case Bad:
++		println("FAIL:", TypeString[T](), "matched", TypeString[Bad]())
++	case Good:
++		// ok
++	default:
++		println("FAIL:", TypeString[T](), "did not match", TypeString[Good]())
++	}
++}
++
++func TestE[T any]() { Test[T, interface{ EBad() }, interface{ EGood() }]() }
++func TestX[T any]() { Test[T, interface{ XBad() }, interface{ XGood() }]() }
++
++type E struct{}
++
++//go:nointerface
++func (E) EBad()  {}
++func (E) EGood() {}
++
++type X[T any] struct{ E }
++
++//go:nointerface
++func (X[T]) XBad()  {}
++func (X[T]) XGood() {}
++
++type W struct{ X[int] }
++
++func main() {
++	_ = E.EGood
++	_ = E.EBad
++
++	TestE[E]()
++
++	_ = X[int].EGood
++	_ = X[int].EBad
++	_ = X[int].XGood
++	_ = X[int].XBad
++
++	TestE[X[int]]()
++	TestX[X[int]]()
++
++	_ = W.EGood
++	_ = W.EBad
++	_ = W.XGood
++	_ = W.XBad
++
++	TestE[W]()
++	TestX[W]()
++}

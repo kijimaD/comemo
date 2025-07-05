@@ -26,7 +26,68 @@ Date:   Mon Sep 26 00:42:38 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5085050
-
+---
  src/pkg/exp/template/html/escape.go      | 18 ++++++++++++++++++
  src/pkg/exp/template/html/escape_test.go | 20 ++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 650a6acd28..aa5427c098 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -626,6 +626,24 @@ func contextAfterText(c context, s []byte) (context, int) {
+ 
+ 	i := bytes.IndexAny(s, delimEnds[c.delim])
+ 	if i == -1 {
++		i = len(s)
++	}
++	if c.delim == delimSpaceOrTagEnd {
++		// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state
++		// lists the runes below as error characters.
++		// Error out because HTML parsers may differ on whether
++		// "<a id= onclick=f("     ends inside id's or onchange's value,
++		// "<a class=`foo "        ends inside a value,
++		// "<a style=font:'Arial'" needs open-quote fixup.
++		// IE treats '`' as a quotation character.
++		if j := bytes.IndexAny(s[:i], "\"'<=`"); j >= 0 {
++			return context{
++				state: stateError,
++				err:   errorf(ErrBadHTML, 0, "%q in unquoted attr: %q", s[j:j+1], s[:i]),
++			}, len(s)
++		}
++	}
++	if i == len(s) {
+ 		// Remain inside the attribute.
+ 		// Decode the value so non-HTML rules can easily handle
+ 		//     <button onclick="alert(&quot;Hi!&quot;)">
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 1ce66c5fb1..a3dab4cc85 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -884,6 +884,26 @@ func TestErrors(t *testing.T) {
+ 				`{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}{{.Head}}",{{end}}`,
+ 			`: cannot compute output context for template t$htmltemplate_stateJS_elementScript`,
+ 		},
++		{
++			`<input type=button value=onclick=>`,
++			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
++		},
++		{
++			`<input type=button value= onclick=>`,
++			`exp/template/html:z: "=" in unquoted attr: "onclick="`,
++		},
++		{
++			`<input type=button value= 1+1=2>`,
++			`exp/template/html:z: "=" in unquoted attr: "1+1=2"`,
++		},
++		{
++			"<a class=`foo>",
++			"exp/template/html:z: \"`\" in unquoted attr: \"`foo\"",
++		},
++		{
++			`<a style=font:'Arial'>`,
++			`exp/template/html:z: "'" in unquoted attr: "font:'Arial'"`,
++		},
+ 	}
+ 
+ 	for _, test := range tests {

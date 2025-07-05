@@ -13,9 +13,156 @@ Date:   Wed Mar 29 13:56:31 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go | 22 +++++++---------------
  src/cmd/compile/internal/types2/expr.go | 10 +++++++---
  src/go/types/call.go                    | 22 +++++++---------------
  src/go/types/expr.go                    | 10 +++++++---
  4 files changed, 28 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ec814995a9..a47deb9a22 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -15,24 +15,18 @@ import (
+ )
+ 
+ // funcInst type-checks a function instantiation and returns the result in x.
+-// The incoming x must be an uninstantiated generic function. If inst != 0,
++// The incoming x must be an uninstantiated generic function. If inst != nil,
+ // it provides (some or all of) the type arguments (inst.Index) for the
+-// instantiation. If the target type T != nil and is a (non-generic) function
+-// signature, the signature's parameter types are used to infer additional
+-// missing type arguments of x, if any.
+-// At least one of inst or T must be provided.
+-func (check *Checker) funcInst(T Type, pos syntax.Pos, x *operand, inst *syntax.IndexExpr) {
++// instantiation. If the target type tsig != nil, the signature's parameter
++// types are used to infer additional missing type arguments of x, if any.
++// At least one of tsig or inst must be provided.
++func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst *syntax.IndexExpr) {
++	assert(tsig != nil || inst != nil)
++
+ 	if !check.allowVersion(check.pkg, 1, 18) {
+ 		check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
+ 	}
+ 
+-	// tsig is the (assignment) target function signature, or nil.
+-	// TODO(gri) refactor and pass in tsig to funcInst instead
+-	var tsig *Signature
+-	if check.conf.EnableReverseTypeInference && T != nil {
+-		tsig, _ = under(T).(*Signature)
+-	}
+-
+ 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
+ 	var targs []Type
+ 	var xlist []syntax.Expr
+@@ -47,8 +41,6 @@ func (check *Checker) funcInst(T Type, pos syntax.Pos, x *operand, inst *syntax.
+ 		assert(len(targs) == len(xlist))
+ 	}
+ 
+-	assert(tsig != nil || targs != nil)
+-
+ 	// Check the number of type arguments (got) vs number of type parameters (want).
+ 	// Note that x is a function value, not a type expression, so we don't need to
+ 	// call under below.
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index bab52b253b..1424e43876 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1293,8 +1293,8 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ 	case *Signature:
+ 		if t.tparams != nil {
+ 			if check.conf.EnableReverseTypeInference && T != nil {
+-				if _, ok := under(T).(*Signature); ok {
+-					check.funcInst(T, x.Pos(), x, nil)
++				if tsig, _ := under(T).(*Signature); tsig != nil {
++					check.funcInst(tsig, x.Pos(), x, nil)
+ 					return
+ 				}
+ 			}
+@@ -1617,7 +1617,11 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
+ 
+ 	case *syntax.IndexExpr:
+ 		if check.indexExpr(x, e) {
+-			check.funcInst(T, e.Pos(), x, e)
++			var tsig *Signature
++			if check.conf.EnableReverseTypeInference && T != nil {
++				tsig, _ = under(T).(*Signature)
++			}
++			check.funcInst(tsig, e.Pos(), x, e)
+ 		}
+ 		if x.mode == invalid {
+ 			goto Error
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index bdcfd9d56b..fb0a6cea3c 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -17,24 +17,18 @@ import (
+ )
+ 
+ // funcInst type-checks a function instantiation and returns the result in x.
+-// The incoming x must be an uninstantiated generic function. If ix != 0,
++// The incoming x must be an uninstantiated generic function. If ix != nil,
+ // it provides (some or all of) the type arguments (ix.Indices) for the
+-// instantiation. If the target type T != nil and is a (non-generic) function
+-// signature, the signature's parameter types are used to infer additional
+-// missing type arguments of x, if any.
+-// At least one of inst or T must be provided.
+-func (check *Checker) funcInst(T Type, pos token.Pos, x *operand, ix *typeparams.IndexExpr) {
++// instantiation. If the target type tsig != nil, the signature's parameter
++// types are used to infer additional missing type arguments of x, if any.
++// At least one of tsig or ix must be provided.
++func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *typeparams.IndexExpr) {
++	assert(tsig != nil || ix != nil)
++
+ 	if !check.allowVersion(check.pkg, 1, 18) {
+ 		check.softErrorf(inNode(ix.Orig, ix.Lbrack), UnsupportedFeature, "function instantiation requires go1.18 or later")
+ 	}
+ 
+-	// tsig is the (assignment) target function signature, or nil.
+-	// TODO(gri) refactor and pass in tsig to funcInst instead
+-	var tsig *Signature
+-	if check.conf._EnableReverseTypeInference && T != nil {
+-		tsig, _ = under(T).(*Signature)
+-	}
+-
+ 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
+ 	var targs []Type
+ 	var xlist []ast.Expr
+@@ -49,8 +43,6 @@ func (check *Checker) funcInst(T Type, pos token.Pos, x *operand, ix *typeparams
+ 		assert(len(targs) == len(xlist))
+ 	}
+ 
+-	assert(tsig != nil || targs != nil)
+-
+ 	// Check the number of type arguments (got) vs number of type parameters (want).
+ 	// Note that x is a function value, not a type expression, so we don't need to
+ 	// call under below.
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 219a392b88..04e6f6d9f7 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1278,8 +1278,8 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
+ 	case *Signature:
+ 		if t.tparams != nil {
+ 			if check.conf._EnableReverseTypeInference && T != nil {
+-				if _, ok := under(T).(*Signature); ok {
+-					check.funcInst(T, x.Pos(), x, nil)
++				if tsig, _ := under(T).(*Signature); tsig != nil {
++					check.funcInst(tsig, x.Pos(), x, nil)
+ 					return
+ 				}
+ 			}
+@@ -1600,7 +1600,11 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
+ 	case *ast.IndexExpr, *ast.IndexListExpr:
+ 		ix := typeparams.UnpackIndexExpr(e)
+ 		if check.indexExpr(x, ix) {
+-			check.funcInst(T, e.Pos(), x, ix)
++			var tsig *Signature
++			if check.conf._EnableReverseTypeInference && T != nil {
++				tsig, _ = under(T).(*Signature)
++			}
++			check.funcInst(tsig, e.Pos(), x, ix)
+ 		}
+ 		if x.mode == invalid {
+ 			goto Error

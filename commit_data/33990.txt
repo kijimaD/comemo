@@ -22,6 +22,31 @@ Date:   Sat Sep 23 12:22:10 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index cbcd96a7b9..a0f466580a 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -29,6 +29,10 @@ func TestIntendedInlining(t *testing.T) {
+ 	// be inlined.
+ 	want := map[string][]string{
+ 		"runtime": {
++			// TODO(mvdan): enable these once mid-stack
++			// inlining is available
++			// "adjustctxt",
++
+ 			"add",
+ 			"addb",
+ 			"adjustpanics",
+@@ -58,8 +62,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"(*bmap).keys",
+ 			"(*bmap).overflow",
+ 			"(*waitq).enqueue",
+-
+-			//"adjustctxt", TODO(mvdan): fix and re-enable
+ 		},
+ 		"runtime/internal/sys": {},
+ 		"unicode/utf8": {

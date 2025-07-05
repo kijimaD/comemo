@@ -7,6 +7,21 @@ Date:   Thu Feb 2 14:43:55 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5615050
-
+---
  src/pkg/math/big/arith.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/big/arith.go b/src/pkg/math/big/arith.go
+index 5a30d3cf3a..f316806d7c 100644
+--- a/src/pkg/math/big/arith.go
++++ b/src/pkg/math/big/arith.go
+@@ -8,8 +8,7 @@
+ 
+ package big
+ 
+-// TODO(gri) Decide if Word needs to remain exported.
+-
++// A Word represents a single digit of a multi-precision unsigned integer.
+ type Word uintptr
+ 
+ const (

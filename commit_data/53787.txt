@@ -18,7 +18,7 @@ Date:   Mon Aug 29 13:29:43 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/runtime/defs1_netbsd_386.go     | 3 ++-
  src/runtime/defs1_netbsd_amd64.go   | 3 ++-
  src/runtime/defs1_netbsd_arm.go     | 3 ++-
@@ -42,3 +42,317 @@ Date:   Mon Aug 29 13:29:43 2022 +0200
  src/runtime/extern.go               | 5 ++++-
  src/runtime/mem_bsd.go              | 6 +++++-
  22 files changed, 49 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+index b6e47a008d..33ce63cd37 100644
+--- a/src/runtime/defs1_netbsd_386.go
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -20,7 +20,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+index b8292fa3cc..b87833be65 100644
+--- a/src/runtime/defs1_netbsd_amd64.go
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -20,7 +20,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs1_netbsd_arm.go b/src/runtime/defs1_netbsd_arm.go
+index d2cb4865b6..9cb680e360 100644
+--- a/src/runtime/defs1_netbsd_arm.go
++++ b/src/runtime/defs1_netbsd_arm.go
+@@ -20,7 +20,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs1_netbsd_arm64.go b/src/runtime/defs1_netbsd_arm64.go
+index 7776fe1d99..1c05ce6ad8 100644
+--- a/src/runtime/defs1_netbsd_arm64.go
++++ b/src/runtime/defs1_netbsd_arm64.go
+@@ -20,7 +20,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+index 3c13f33331..003cd1c42c 100644
+--- a/src/runtime/defs1_solaris_amd64.go
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -23,7 +23,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x5
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
+ 
+ 	_SA_SIGINFO = 0x8
+ 	_SA_RESTART = 0x4
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index 952163b555..f67835692c 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -44,7 +44,8 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_FREE = C.MADV_FREE
++	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_FREE     = C.MADV_FREE
+ 
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index 4358c1e0c2..7ab5fecb90 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -23,7 +23,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x5
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index 3fbd580ac5..c4204ae0e7 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -62,7 +62,8 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_FREE = C.MADV_FREE
++	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_FREE     = C.MADV_FREE
+ 
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index ff4dcfa5fe..35af133bdd 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -31,7 +31,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x5
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index f537c898e4..791c4d1d03 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -31,7 +31,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x5
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index 2e20ae7d78..9ab49c276a 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -31,7 +31,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x5
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_freebsd_arm64.go b/src/runtime/defs_freebsd_arm64.go
+index 1838108fdb..9d8e243074 100644
+--- a/src/runtime/defs_freebsd_arm64.go
++++ b/src/runtime/defs_freebsd_arm64.go
+@@ -31,7 +31,8 @@ const (
+ 	_MAP_PRIVATE = 0x2
+ 	_MAP_FIXED   = 0x10
+ 
+-	_MADV_FREE = 0x5
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x5
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_netbsd.go b/src/runtime/defs_netbsd.go
+index 6b084c06b5..865b946000 100644
+--- a/src/runtime/defs_netbsd.go
++++ b/src/runtime/defs_netbsd.go
+@@ -46,7 +46,8 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_FREE = C.MADV_FREE
++	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_FREE     = C.MADV_FREE
+ 
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index cbf53eb9ef..4161e216db 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -48,7 +48,8 @@ const (
+ 	MAP_FIXED   = C.MAP_FIXED
+ 	MAP_STACK   = C.MAP_STACK
+ 
+-	MADV_FREE = C.MADV_FREE
++	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_FREE     = C.MADV_FREE
+ 
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index 35c559bb45..72a66ae084 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -23,7 +23,8 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 	_MAP_STACK   = 0x4000
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index d7432daedd..b1e8dca359 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -23,7 +23,8 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 	_MAP_STACK   = 0x4000
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index 471b3063fb..ba6b2c17bf 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -23,7 +23,8 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 	_MAP_STACK   = 0x4000
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_openbsd_arm64.go b/src/runtime/defs_openbsd_arm64.go
+index 5300ab087c..13d2e95a86 100644
+--- a/src/runtime/defs_openbsd_arm64.go
++++ b/src/runtime/defs_openbsd_arm64.go
+@@ -24,7 +24,8 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 	_MAP_STACK   = 0x4000
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_openbsd_mips64.go b/src/runtime/defs_openbsd_mips64.go
+index a8789ef451..c0bc766d8f 100644
+--- a/src/runtime/defs_openbsd_mips64.go
++++ b/src/runtime/defs_openbsd_mips64.go
+@@ -30,7 +30,8 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 	_MAP_STACK   = 0x4000
+ 
+-	_MADV_FREE = 0x6
++	_MADV_DONTNEED = 0x4
++	_MADV_FREE     = 0x6
+ 
+ 	_SA_SIGINFO = 0x40
+ 	_SA_RESTART = 0x2
+diff --git a/src/runtime/defs_solaris.go b/src/runtime/defs_solaris.go
+index f626498525..bb89eec1bf 100644
+--- a/src/runtime/defs_solaris.go
++++ b/src/runtime/defs_solaris.go
+@@ -53,7 +53,8 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_FREE = C.MADV_FREE
++	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_FREE     = C.MADV_FREE
+ 
+ 	SA_SIGINFO = C.SA_SIGINFO
+ 	SA_RESTART = C.SA_RESTART
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 531c07cf3d..3a48588aec 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -118,7 +118,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	madvdontneed: setting madvdontneed=0 will use MADV_FREE
+ 	instead of MADV_DONTNEED on Linux when returning memory to the
+ 	kernel. This is more efficient, but means RSS numbers will
+-	drop only when the OS is under memory pressure.
++	drop only when the OS is under memory pressure. On the BSDs and
++	Illumos/Solaris, setting madvdontneed=1 will use MADV_DONTNEED instead
++	of MADV_FREE. This is less efficient, but causes RSS numbers to drop
++	more quickly.
+ 
+ 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+ 	When set to 0 memory profiling is disabled.  Refer to the description of
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 782465ae26..6c5edb17c2 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -23,7 +23,11 @@ func sysAllocOS(n uintptr) unsafe.Pointer {
+ }
+ 
+ func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+-	madvise(v, n, _MADV_FREE)
++	if debug.madvdontneed != 0 {
++		madvise(v, n, _MADV_DONTNEED)
++	} else {
++		madvise(v, n, _MADV_FREE)
++	}
+ }
+ 
+ func sysUsedOS(v unsafe.Pointer, n uintptr) {

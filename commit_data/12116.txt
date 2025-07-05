@@ -7,6 +7,24 @@ Date:   Wed Feb 22 09:37:38 2012 +1100
     R=ajstarks, r
     CC=golang-dev
     https://golang.org/cl/5687070
-
+---
  misc/goplay/goplay.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 82523e3fd1..c113abb6f2 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -39,12 +39,6 @@ func main() {
+ 		}
+ 	}()
+ 
+-	// go to TempDir
+-	err := os.Chdir(os.TempDir())
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+ 	http.HandleFunc("/", FrontPage)
+ 	http.HandleFunc("/compile", Compile)
+ 	log.Fatal(http.ListenAndServe(*httpListen, nil))

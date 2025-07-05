@@ -18,7 +18,7 @@ Date:   Mon Oct 30 15:28:11 2017 -0400
     Change-Id: Ib860a253539f402f8a96a3c00ec34f0bbf137c9a
     Reviewed-on: https://go-review.googlesource.com/74470
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go                 |  7 ++++++-
  src/cmd/go/go_test.go                |  7 +++++++
  src/cmd/internal/goobj/goobj_test.go |  2 +-
@@ -26,3 +26,175 @@ Date:   Mon Oct 30 15:28:11 2017 -0400
  src/runtime/crash_test.go            |  4 ++--
  test/run.go                          | 20 ++++++++++++++------
  6 files changed, 40 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 3bbeb76e4d..3cf88eb0c6 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -578,7 +578,12 @@ func (t *tester) registerTests() {
+ 	if t.hasBash() && t.cgoEnabled && goos != "android" && goos != "darwin" {
+ 		t.registerTest("testgodefs", "../misc/cgo/testgodefs", "./test.bash")
+ 	}
+-	if t.cgoEnabled {
++
++	// Don't run these tests with $GO_GCFLAGS because most of them
++	// assume that they can run "go install" with no -gcflags and not
++	// recompile the entire standard library. If make.bash ran with
++	// special -gcflags, that's not true.
++	if t.cgoEnabled && gogcflags == "" {
+ 		if t.cgoTestSOSupported() {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "testso",
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a51d58a968..14ee51c906 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -86,6 +86,13 @@ var testCC string
+ // The TestMain function creates a go command for testing purposes and
+ // deletes it after the tests have been run.
+ func TestMain(m *testing.M) {
++	if os.Getenv("GO_GCFLAGS") != "" {
++		fmt.Fprintf(os.Stderr, "testing: warning: no tests to run\n") // magic string for cmd/go
++		fmt.Printf("cmd/go test is not compatible with $GO_GCFLAGS being set\n")
++		fmt.Printf("SKIP\n")
++		return
++	}
++
+ 	if canRun {
+ 		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
+ 		if race.Enabled {
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index e5f4dd9385..92c2bf9819 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -133,7 +133,7 @@ func buildGoobj() error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		cmd := exec.Command(gotool, "install", "mycgo")
++		cmd := exec.Command(gotool, "install", "-gcflags="+os.Getenv("GO_GCFLAGS"), "mycgo")
+ 		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 		out, err = cmd.CombinedOutput()
+ 		if err != nil {
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 88c93bfe70..83f0e8347a 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -33,6 +33,13 @@ func Builder() string {
+ // HasGoBuild reports whether the current system can build programs with ``go build''
+ // and then run them with os.StartProcess or exec.Command.
+ func HasGoBuild() bool {
++	if os.Getenv("GO_GCFLAGS") != "" {
++		// It's too much work to require every caller of the go command
++		// to pass along "-gcflags="+os.Getenv("GO_GCFLAGS").
++		// For now, if $GO_GCFLAGS is set, report that we simply can't
++		// run go build.
++		return false
++	}
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+ 		return false
+@@ -48,6 +55,9 @@ func HasGoBuild() bool {
+ // and then run them with os.StartProcess or exec.Command.
+ // If not, MustHaveGoBuild calls t.Skip with an explanation.
+ func MustHaveGoBuild(t testing.TB) {
++	if os.Getenv("GO_GCFLAGS") != "" {
++		t.Skipf("skipping test: 'go build' not compatible with setting $GO_GCFLAGS")
++	}
+ 	if !HasGoBuild() {
+ 		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 0f11150f18..80ae4fa63e 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -140,14 +140,14 @@ var (
+ func checkStaleRuntime(t *testing.T) {
+ 	staleRuntimeOnce.Do(func() {
+ 		// 'go run' uses the installed copy of runtime.a, which may be out of date.
+-		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
++		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+ 		if err != nil {
+ 			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
+ 			return
+ 		}
+ 		if string(out) != "false\n" {
+ 			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
+-			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
++			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
+ 			if err != nil {
+ 				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
+ 			}
+diff --git a/test/run.go b/test/run.go
+index 2fa206746b..921a8ee332 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -417,6 +417,14 @@ func (ctxt *context) match(name string) bool {
+ 
+ func init() { checkShouldTest() }
+ 
++// goGcflags returns the -gcflags argument to use with go build / go run.
++// This must match the flags used for building the standard libary,
++// or else the commands will rebuild any needed packages (like runtime)
++// over and over.
++func goGcflags() string {
++	return "-gcflags=" + os.Getenv("GO_GCFLAGS")
++}
++
+ // run runs a test.
+ func (t *test) run() {
+ 	start := time.Now()
+@@ -701,7 +709,7 @@ func (t *test) run() {
+ 		}
+ 
+ 	case "build":
+-		_, err := runcmd("go", "build", "-o", "a.exe", long)
++		_, err := runcmd("go", "build", goGcflags(), "-o", "a.exe", long)
+ 		if err != nil {
+ 			t.err = err
+ 		}
+@@ -766,7 +774,7 @@ func (t *test) run() {
+ 	case "buildrun": // build binary, then run binary, instead of go run. Useful for timeout tests where failure mode is infinite loop.
+ 		// TODO: not supported on NaCl
+ 		useTmp = true
+-		cmd := []string{"go", "build", "-o", "a.exe"}
++		cmd := []string{"go", "build", goGcflags(), "-o", "a.exe"}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+ 		}
+@@ -791,7 +799,7 @@ func (t *test) run() {
+ 
+ 	case "run":
+ 		useTmp = false
+-		cmd := []string{"go", "run"}
++		cmd := []string{"go", "run", goGcflags()}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+ 		}
+@@ -812,7 +820,7 @@ func (t *test) run() {
+ 			<-rungatec
+ 		}()
+ 		useTmp = false
+-		cmd := []string{"go", "run"}
++		cmd := []string{"go", "run", goGcflags()}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+ 		}
+@@ -827,7 +835,7 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("write tempfile:%s", err)
+ 			return
+ 		}
+-		cmd = []string{"go", "run"}
++		cmd = []string{"go", "run", goGcflags()}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+ 		}
+@@ -843,7 +851,7 @@ func (t *test) run() {
+ 
+ 	case "errorcheckoutput":
+ 		useTmp = false
+-		cmd := []string{"go", "run"}
++		cmd := []string{"go", "run", goGcflags()}
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+ 		}

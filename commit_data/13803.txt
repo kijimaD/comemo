@@ -9,9 +9,193 @@ Date:   Wed Sep 12 12:04:45 2012 +1000
     R=golang-dev, bsiegert, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6488044
-
+---
  src/pkg/os/file_windows.go                | 45 +++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go        |  2 ++
  src/pkg/syscall/zsyscall_windows_386.go   | 26 ++++++++++++++++++
  src/pkg/syscall/zsyscall_windows_amd64.go | 26 ++++++++++++++++++
  4 files changed, 99 insertions(+)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 32aa41f580..9e0da5ae81 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -10,6 +10,7 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"unicode/utf16"
++	"unicode/utf8"
+ )
+ 
+ // File represents an open file descriptor.
+@@ -26,6 +27,10 @@ type file struct {
+ 	name    string
+ 	dirinfo *dirInfo   // nil unless directory being read
+ 	l       sync.Mutex // used to implement windows pread/pwrite
++
++	// only for console io
++	isConsole bool
++	lastbits  []byte // first few bytes of the last incomplete rune in last write
+ }
+ 
+ // Fd returns the Windows handle referencing the open file.
+@@ -43,6 +48,10 @@ func NewFile(fd uintptr, name string) *File {
+ 		return nil
+ 	}
+ 	f := &File{&file{fd: h, name: name}}
++	var m uint32
++	if syscall.GetConsoleMode(f.fd, &m) == nil {
++		f.isConsole = true
++	}
+ 	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+@@ -230,11 +239,47 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
+ 	return int(done), nil
+ }
+ 
++// writeConsole writes len(b) bytes to the console File.
++// It returns the number of bytes written and an error, if any.
++func (f *File) writeConsole(b []byte) (n int, err error) {
++	n = len(b)
++	runes := make([]rune, 0, 256)
++	if len(f.lastbits) > 0 {
++		b = append(f.lastbits, b...)
++		f.lastbits = nil
++
++	}
++	for len(b) >= utf8.UTFMax || utf8.FullRune(b) {
++		r, l := utf8.DecodeRune(b)
++		runes = append(runes, r)
++		b = b[l:]
++	}
++	if len(b) > 0 {
++		f.lastbits = make([]byte, len(b))
++		copy(f.lastbits, b)
++	}
++	if len(runes) > 0 {
++		uint16s := utf16.Encode(runes)
++		for len(uint16s) > 0 {
++			var written uint32
++			err = syscall.WriteConsole(f.fd, &uint16s[0], uint32(len(uint16s)), &written, nil)
++			if err != nil {
++				return 0, nil
++			}
++			uint16s = uint16s[written:]
++		}
++	}
++	return n, nil
++}
++
+ // write writes len(b) bytes to the File.
+ // It returns the number of bytes written and an error, if any.
+ func (f *File) write(b []byte) (n int, err error) {
+ 	f.l.Lock()
+ 	defer f.l.Unlock()
++	if f.isConsole {
++		return f.writeConsole(b)
++	}
+ 	return syscall.Write(f.fd, b)
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 6408879c16..e21415ea9c 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -196,6 +196,8 @@ func NewCallback(fn interface{}) uintptr
+ //sys	RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, classLen *uint32, lastWriteTime *Filetime) (regerrno error) = advapi32.RegEnumKeyExW
+ //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
+ //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
++//sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
++//sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
+ 
+ // syscall interface implementation for other packages
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index eca2dd909a..af8569924d 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -104,6 +104,8 @@ var (
+ 	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
+ 	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
+ 	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
++	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
++	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
+ 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
+@@ -1197,6 +1199,30 @@ func getCurrentProcessId() (pid uint32) {
+ 	return
+ }
+ 
++func GetConsoleMode(console Handle, mode *uint32) (err error) {
++	r1, _, e1 := Syscall(procGetConsoleMode.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(mode)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) {
++	r1, _, e1 := Syscall6(procWriteConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(towrite), uintptr(unsafe.Pointer(written)), uintptr(unsafe.Pointer(reserved)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 1e8abe9d59..74f9bf6fc4 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -104,6 +104,8 @@ var (
+ 	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
+ 	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
+ 	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
++	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
++	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
+ 	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
+ 	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
+ 	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
+@@ -1197,6 +1199,30 @@ func getCurrentProcessId() (pid uint32) {
+ 	return
+ }
+ 
++func GetConsoleMode(console Handle, mode *uint32) (err error) {
++	r1, _, e1 := Syscall(procGetConsoleMode.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(mode)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) {
++	r1, _, e1 := Syscall6(procWriteConsoleW.Addr(), 5, uintptr(console), uintptr(unsafe.Pointer(buf)), uintptr(towrite), uintptr(unsafe.Pointer(written)), uintptr(unsafe.Pointer(reserved)), 0)
++	if int(r1) == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
+ 	r0, _, _ := Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	if r0 != 0 {

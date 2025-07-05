@@ -7,10 +7,215 @@ Date:   Thu Sep 1 15:17:25 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4985041
-
+---
  src/pkg/sync/atomic/asm_386.s       |  6 +++
  src/pkg/sync/atomic/asm_amd64.s     |  8 ++++
  src/pkg/sync/atomic/asm_linux_arm.s |  6 +++
  src/pkg/sync/atomic/atomic_test.go  | 89 ++++++++++++++++++++++++++++++++++---
  src/pkg/sync/atomic/doc.go          | 10 +++++
  5 files changed, 113 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 914d2feeb4..99e8b1fd80 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -94,3 +94,9 @@ TEXT ·LoadUint32(SB),7,$0
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
++
++TEXT ·LoadUintptr(SB),7,$0
++	JMP	·LoadUint32(SB)
++
++TEXT ·LoadPointer(SB),7,$0
++	JMP	·LoadUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index 4282950632..d21ade1cb6 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -67,3 +67,11 @@ TEXT ·LoadUint32(SB),7,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
++TEXT ·LoadUintptr(SB),7,$0
++	JMP	·LoadPointer(SB)
++
++TEXT ·LoadPointer(SB),7,$0
++	MOVQ	addrptr+0(FP), AX
++	MOVQ	0(AX), AX
++	MOVQ	AX, ret+8(FP)
++	RET
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 9ac411944c..20a45243f2 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -96,3 +96,9 @@ loadloop1:
+ 	BCC	loadloop1
+ 	MOVW	R1, val+4(FP)
+ 	RET
++
++TEXT ·LoadUintptr(SB),7,$0
++	B	·LoadUint32(SB)
++
++TEXT ·LoadPointer(SB),7,$0
++	B	·LoadUint32(SB)
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 2229e58d0c..5f44bd04b9 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -348,6 +348,50 @@ func TestLoadUint32(t *testing.T) {
+ 	}
+ }
+ 
++func TestLoadUintptr(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      uintptr
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	for delta := uintptr(1); delta+delta > delta; delta += delta {
++		k := LoadUintptr(&x.i)
++		if k != x.i {
++			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
++		}
++		x.i += delta
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
++func TestLoadPointer(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      unsafe.Pointer
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	for delta := uintptr(1); delta+delta > delta; delta += delta {
++		k := LoadPointer(&x.i)
++		if k != x.i {
++			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
++		}
++		x.i = unsafe.Pointer(uintptr(x.i) + delta)
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
+ // Tests of correct behavior, with contention.
+ // (Is the function atomic?)
+ //
+@@ -578,8 +622,8 @@ func TestHammer64(t *testing.T) {
+ 	}
+ }
+ 
+-func hammerLoadInt32(t *testing.T, uval *uint32) {
+-	val := (*int32)(unsafe.Pointer(uval))
++func hammerLoadInt32(t *testing.T, valp unsafe.Pointer) {
++	val := (*int32)(valp)
+ 	for {
+ 		v := LoadInt32(val)
+ 		vlo := v & ((1 << 16) - 1)
+@@ -597,7 +641,8 @@ func hammerLoadInt32(t *testing.T, uval *uint32) {
+ 	}
+ }
+ 
+-func hammerLoadUint32(t *testing.T, val *uint32) {
++func hammerLoadUint32(t *testing.T, valp unsafe.Pointer) {
++	val := (*uint32)(valp)
+ 	for {
+ 		v := LoadUint32(val)
+ 		vlo := v & ((1 << 16) - 1)
+@@ -615,8 +660,40 @@ func hammerLoadUint32(t *testing.T, val *uint32) {
+ 	}
+ }
+ 
++func hammerLoadUintptr(t *testing.T, valp unsafe.Pointer) {
++	val := (*uintptr)(valp)
++	var test64 uint64 = 1 << 50
++	arch32 := uintptr(test64) == 0
++	for {
++		v := LoadUintptr(val)
++		new := v
++		if arch32 {
++			vlo := v & ((1 << 16) - 1)
++			vhi := v >> 16
++			if vlo != vhi {
++				t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
++			}
++			new = v + 1 + 1<<16
++			if vlo == 1e4 {
++				new = 0
++			}
++		} else {
++			vlo := v & ((1 << 32) - 1)
++			vhi := v >> 32
++			if vlo != vhi {
++				t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
++			}
++			inc := uint64(1 + 1<<32)
++			new = v + uintptr(inc)
++		}
++		if CompareAndSwapUintptr(val, v, new) {
++			break
++		}
++	}
++}
++
+ func TestHammerLoad(t *testing.T) {
+-	tests := [...]func(*testing.T, *uint32){hammerLoadInt32, hammerLoadUint32}
++	tests := [...]func(*testing.T, unsafe.Pointer){hammerLoadInt32, hammerLoadUint32, hammerLoadUintptr}
+ 	n := 100000
+ 	if testing.Short() {
+ 		n = 10000
+@@ -625,11 +702,11 @@ func TestHammerLoad(t *testing.T) {
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))
+ 	for _, tt := range tests {
+ 		c := make(chan int)
+-		var val uint32
++		var val uint64
+ 		for p := 0; p < procs; p++ {
+ 			go func() {
+ 				for i := 0; i < n; i++ {
+-					tt(t, &val)
++					tt(t, unsafe.Pointer(&val))
+ 				}
+ 				c <- 1
+ 			}()
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index b35eb539c0..0f38886601 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -22,6 +22,10 @@
+ //
+ package atomic
+ 
++import (
++	"unsafe"
++)
++
+ // BUG(rsc): On ARM, the 64-bit functions use instructions unavailable before ARM 11.
+ //
+ // On x86-32, the 64-bit functions use instructions unavailable before the Pentium.
+@@ -62,6 +66,12 @@ func LoadInt32(addr *int32) (val int32)
+ // LoadUint32 atomically loads *addr.
+ func LoadUint32(addr *uint32) (val uint32)
+ 
++// LoadUintptr atomically loads *addr.
++func LoadUintptr(addr *uintptr) (val uintptr)
++
++// LoadPointer atomically loads *addr.
++func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
++
+ // Helper for ARM.  Linker will discard on other systems
+ func panic64() {
+ 	panic("sync/atomic: broken 64-bit atomic operations (buggy QEMU)")

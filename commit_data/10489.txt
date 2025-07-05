@@ -7,6 +7,47 @@ Date:   Wed Nov 23 09:35:01 2011 -0500
     R=agl, rsc
     CC=golang-dev
     https://golang.org/cl/5436056
-
+---
  src/pkg/exp/ssh/server.go | 16 +++-------------
  1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/server.go b/src/pkg/exp/ssh/server.go
+index 428a747e1e..11d77235c6 100644
+--- a/src/pkg/exp/ssh/server.go
++++ b/src/pkg/exp/ssh/server.go
+@@ -636,15 +636,15 @@ func (s *ServerConn) Accept() (Channel, error) {
+ 
+ // A Listener implements a network listener (net.Listener) for SSH connections.
+ type Listener struct {
+-	listener net.Listener
+-	config   *ServerConfig
++	net.Listener
++	config *ServerConfig
+ }
+ 
+ // Accept waits for and returns the next incoming SSH connection.
+ // The receiver should call Handshake() in another goroutine 
+ // to avoid blocking the accepter.
+ func (l *Listener) Accept() (*ServerConn, error) {
+-	c, err := l.listener.Accept()
++	c, err := l.Listener.Accept()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -652,16 +652,6 @@ func (l *Listener) Accept() (*ServerConn, error) {
+ 	return conn, nil
+ }
+ 
+-// Addr returns the listener's network address.
+-func (l *Listener) Addr() net.Addr {
+-	return l.listener.Addr()
+-}
+-
+-// Close closes the listener.
+-func (l *Listener) Close() error {
+-	return l.listener.Close()
+-}
+-
+ // Listen creates an SSH listener accepting connections on
+ // the given network address using net.Listen.
+ func Listen(network, addr string, config *ServerConfig) (*Listener, error) {

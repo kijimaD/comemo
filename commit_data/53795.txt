@@ -14,8 +14,396 @@ Date:   Wed Aug 17 13:09:12 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Martin Möhrmann <martin@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  11 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 288 +++++++++++++++++++++++++
  test/codegen/shift.go                          |   9 +
  3 files changed, 308 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 16253a8d7a..668164949f 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -443,6 +443,17 @@
+ (Rsh32Ux64 (Rsh32x64 x _) (Const64 <t> [31])) => (Rsh32Ux64 x (Const64 <t> [31]))
+ (Rsh64Ux64 (Rsh64x64 x _) (Const64 <t> [63])) => (Rsh64Ux64 x (Const64 <t> [63]))
+ 
++// Convert x>>c<<c to x&^(1<<c-1)
++(Lsh64x64 i:(Rsh(64|64U)x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 64 && i.Uses == 1 => (And64 x (Const64 <v.Type> [int64(-1) << c]))
++(Lsh32x64 i:(Rsh(32|32U)x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 32 && i.Uses == 1 => (And32 x (Const32 <v.Type> [int32(-1) << c]))
++(Lsh16x64 i:(Rsh(16|16U)x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 16 && i.Uses == 1 => (And16 x (Const16 <v.Type> [int16(-1) << c]))
++(Lsh8x64  i:(Rsh(8|8U)x64    x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 8  && i.Uses == 1 => (And8  x (Const8  <v.Type> [int8(-1)  << c]))
++// similarly for x<<c>>c
++(Rsh64Ux64 i:(Lsh64x64 x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 64 && i.Uses == 1 => (And64 x (Const64 <v.Type> [int64(^uint64(0)>>c)]))
++(Rsh32Ux64 i:(Lsh32x64 x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 32 && i.Uses == 1 => (And32 x (Const32 <v.Type> [int32(^uint32(0)>>c)]))
++(Rsh16Ux64 i:(Lsh16x64 x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 16 && i.Uses == 1 => (And16 x (Const16 <v.Type> [int16(^uint16(0)>>c)]))
++(Rsh8Ux64  i:(Lsh8x64  x (Const64 [c])) (Const64 [c])) && c >= 0 && c < 8  && i.Uses == 1 => (And8  x (Const8  <v.Type> [int8 (^uint8 (0)>>c)]))
++
+ // ((x >> c1) << c2) >> c3
+ (Rsh(64|32|16|8)Ux64 (Lsh(64|32|16|8)x64 (Rsh(64|32|16|8)Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+   && uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index fe452a4451..080a0b7030 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -12792,6 +12792,54 @@ func rewriteValuegeneric_OpLsh16x64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Lsh16x64 i:(Rsh16x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 16 && i.Uses == 1
++	// result: (And16 x (Const16 <v.Type> [int16(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh16x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 16 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd16)
++		v0 := b.NewValue0(v.Pos, OpConst16, v.Type)
++		v0.AuxInt = int16ToAuxInt(int16(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (Lsh16x64 i:(Rsh16Ux64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 16 && i.Uses == 1
++	// result: (And16 x (Const16 <v.Type> [int16(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh16Ux64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 16 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd16)
++		v0 := b.NewValue0(v.Pos, OpConst16, v.Type)
++		v0.AuxInt = int16ToAuxInt(int16(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Lsh16x64 (Rsh16Ux64 (Lsh16x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Lsh16x64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -13007,6 +13055,54 @@ func rewriteValuegeneric_OpLsh32x64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Lsh32x64 i:(Rsh32x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 32 && i.Uses == 1
++	// result: (And32 x (Const32 <v.Type> [int32(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh32x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 32 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd32)
++		v0 := b.NewValue0(v.Pos, OpConst32, v.Type)
++		v0.AuxInt = int32ToAuxInt(int32(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (Lsh32x64 i:(Rsh32Ux64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 32 && i.Uses == 1
++	// result: (And32 x (Const32 <v.Type> [int32(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh32Ux64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 32 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd32)
++		v0 := b.NewValue0(v.Pos, OpConst32, v.Type)
++		v0.AuxInt = int32ToAuxInt(int32(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Lsh32x64 (Rsh32Ux64 (Lsh32x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Lsh32x64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -13222,6 +13318,54 @@ func rewriteValuegeneric_OpLsh64x64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Lsh64x64 i:(Rsh64x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 64 && i.Uses == 1
++	// result: (And64 x (Const64 <v.Type> [int64(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh64x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 64 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd64)
++		v0 := b.NewValue0(v.Pos, OpConst64, v.Type)
++		v0.AuxInt = int64ToAuxInt(int64(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (Lsh64x64 i:(Rsh64Ux64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 64 && i.Uses == 1
++	// result: (And64 x (Const64 <v.Type> [int64(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh64Ux64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 64 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd64)
++		v0 := b.NewValue0(v.Pos, OpConst64, v.Type)
++		v0.AuxInt = int64ToAuxInt(int64(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Lsh64x64 (Rsh64Ux64 (Lsh64x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Lsh64x64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -13437,6 +13581,54 @@ func rewriteValuegeneric_OpLsh8x64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Lsh8x64 i:(Rsh8x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 8 && i.Uses == 1
++	// result: (And8 x (Const8 <v.Type> [int8(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh8x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 8 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd8)
++		v0 := b.NewValue0(v.Pos, OpConst8, v.Type)
++		v0.AuxInt = int8ToAuxInt(int8(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
++	// match: (Lsh8x64 i:(Rsh8Ux64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 8 && i.Uses == 1
++	// result: (And8 x (Const8 <v.Type> [int8(-1) << c]))
++	for {
++		i := v_0
++		if i.Op != OpRsh8Ux64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 8 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd8)
++		v0 := b.NewValue0(v.Pos, OpConst8, v.Type)
++		v0.AuxInt = int8ToAuxInt(int8(-1) << c)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Lsh8x64 (Rsh8Ux64 (Lsh8x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Lsh8x64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -24225,6 +24417,30 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Rsh16Ux64 i:(Lsh16x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 16 && i.Uses == 1
++	// result: (And16 x (Const16 <v.Type> [int16(^uint16(0)>>c)]))
++	for {
++		i := v_0
++		if i.Op != OpLsh16x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 16 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd16)
++		v0 := b.NewValue0(v.Pos, OpConst16, v.Type)
++		v0.AuxInt = int16ToAuxInt(int16(^uint16(0) >> c))
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Rsh16Ux64 (Lsh16x64 (Rsh16Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Rsh16Ux64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -24659,6 +24875,30 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Rsh32Ux64 i:(Lsh32x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 32 && i.Uses == 1
++	// result: (And32 x (Const32 <v.Type> [int32(^uint32(0)>>c)]))
++	for {
++		i := v_0
++		if i.Op != OpLsh32x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 32 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd32)
++		v0 := b.NewValue0(v.Pos, OpConst32, v.Type)
++		v0.AuxInt = int32ToAuxInt(int32(^uint32(0) >> c))
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Rsh32Ux64 (Lsh32x64 (Rsh32Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Rsh32Ux64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -25129,6 +25369,30 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Rsh64Ux64 i:(Lsh64x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 64 && i.Uses == 1
++	// result: (And64 x (Const64 <v.Type> [int64(^uint64(0)>>c)]))
++	for {
++		i := v_0
++		if i.Op != OpLsh64x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 64 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd64)
++		v0 := b.NewValue0(v.Pos, OpConst64, v.Type)
++		v0.AuxInt = int64ToAuxInt(int64(^uint64(0) >> c))
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Rsh64Ux64 (Lsh64x64 (Rsh64Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Rsh64Ux64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+@@ -25635,6 +25899,30 @@ func rewriteValuegeneric_OpRsh8Ux64(v *Value) bool {
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
++	// match: (Rsh8Ux64 i:(Lsh8x64 x (Const64 [c])) (Const64 [c]))
++	// cond: c >= 0 && c < 8 && i.Uses == 1
++	// result: (And8 x (Const8 <v.Type> [int8 (^uint8 (0)>>c)]))
++	for {
++		i := v_0
++		if i.Op != OpLsh8x64 {
++			break
++		}
++		_ = i.Args[1]
++		x := i.Args[0]
++		i_1 := i.Args[1]
++		if i_1.Op != OpConst64 {
++			break
++		}
++		c := auxIntToInt64(i_1.AuxInt)
++		if v_1.Op != OpConst64 || auxIntToInt64(v_1.AuxInt) != c || !(c >= 0 && c < 8 && i.Uses == 1) {
++			break
++		}
++		v.reset(OpAnd8)
++		v0 := b.NewValue0(v.Pos, OpConst8, v.Type)
++		v0.AuxInt = int8ToAuxInt(int8(^uint8(0) >> c))
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (Rsh8Ux64 (Lsh8x64 (Rsh8Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
+ 	// cond: uint64(c1) >= uint64(c2) && uint64(c3) >= uint64(c2) && !uaddOvf(c1-c2, c3)
+ 	// result: (Rsh8Ux64 x (Const64 <typ.UInt64> [c1-c2+c3]))
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index f4cfea3f82..f09a531dcb 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -392,3 +392,12 @@ func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
+ 	shl := x<<s | y>>ŝ
+ 	return shr, shl
+ }
++
++func checkShiftToMask(u []uint64, s []int64) {
++	// amd64:-"SHR",-"SHL","ANDQ"
++	u[0] = u[0] >> 5 << 5
++	// amd64:-"SAR",-"SHL","ANDQ"
++	s[0] = s[0] >> 5 << 5
++	// amd64:-"SHR",-"SHL","ANDQ"
++	u[1] = u[1] << 5 >> 5
++}

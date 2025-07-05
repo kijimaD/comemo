@@ -23,7 +23,7 @@ Date:   Tue Jun 11 09:41:49 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/10057044
-
+---
  src/cmd/5g/ggen.c      |  14 +++++--
  src/cmd/5g/gobj.c      |  82 -------------------------------------
  src/cmd/5l/noop.c      |  24 +++++++++--
@@ -44,3 +44,746 @@ Date:   Tue Jun 11 09:41:49 2013 -0400
  src/cmd/gc/typecheck.c |   5 +++
  src/cmd/gc/walk.c      |   3 ++
  19 files changed, 108 insertions(+), 342 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index de1671bb6f..d9935ca25a 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -365,11 +365,19 @@ cgen_aret(Node *n, Node *res)
+ void
+ cgen_ret(Node *n)
+ {
++	Prog *p;
++
+ 	genlist(n->list);		// copy out args
+-	if(hasdefer || curfn->exit)
++	if(hasdefer || curfn->exit) {
+ 		gjmp(retpc);
+-	else
+-		gins(ARET, N, N);
++		return;
++	}
++	p = gins(ARET, N, N);
++	if(n->op == ORETJMP) {
++		p->to.name = D_EXTERN;
++		p->to.type = D_CONST;
++		p->to.sym = n->left->sym;
++	}
+ }
+ 
+ /*
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 3bdb3268a4..ef48a39a06 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -518,88 +518,6 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 	return off;
+ }
+ 
+-
+-void
+-genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+-{
+-	// TODO(kaib): re-implement genembedtramp
+-	genwrapper(rcvr, method, newnam, iface);
+-/*
+-	Sym *e;
+-	int c, d, o;
+-	Prog *p;
+-	Type *f;
+-
+-	e = method->sym;
+-	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(e, rcvr, d, nil, 0);
+-		if(c == 1)
+-			goto out;
+-	}
+-	fatal("genembedtramp %T.%S", rcvr, method->sym);
+-
+-out:
+-	newplist()->name = newname(newnam);
+-
+-	//TEXT	main·S_test2(SB),7,$0
+-	p = pc;
+-	gins(ATEXT, N, N);
+-	p->from.type = D_OREG;
+-	p->from.name = D_EXTERN;
+-	p->from.sym = newnam;
+-	p->to.type = D_CONST2;
+-	p->to.offset = 0;  // stack size
+-	p->to.offset2 = rnd(method->type->argwid, widthptr);  // argument size
+-	p->reg = 7;  // textflag
+-	p->to.reg = NREG;
+-//print("1. %P\n", p);
+-
+-	o = 0;
+-	for(c=d-1; c>=0; c--) {
+-		f = dotlist[c].field;
+-		o += f->width;
+-		if(!isptr[f->type->etype])
+-			continue;
+-
+-		//MOVW	o(R0), R0
+-		p = pc;
+-		gins(AMOVW, N, N);
+-		p->from.type = D_OREG;
+-		p->from.reg = REGARG;
+-		p->from.offset = o;
+-		p->to.type = D_REG;
+-		p->to.reg = REGARG;
+-//print("2. %P\n", p);
+-		o = 0;
+-	}
+-	if(o != 0) {
+-		//MOVW	$XX(R0), R0
+-		p = pc;
+-		gins(AMOVW, N, N);
+-		p->from.type = D_CONST;
+-		p->from.reg = REGARG;
+-		p->from.offset = o;
+-		p->to.type = D_REG;
+-		p->to.reg = REGARG;
+-//print("3. %P\n", p);
+-	}
+-
+-	f = dotlist[0].field;
+-	//B	main·*Sub_test2(SB)
+-	if(isptr[f->type->etype])
+-		f = f->type;
+-	p = pc;
+-	gins(AB, N, N);
+-	p->to.type = D_OREG;
+-	p->to.reg = NREG;
+-	p->to.name = D_EXTERN;
+-	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
+-//print("4. %P\n", p);
+-
+-	pc->as = ARET;	// overwrite AEND
+-*/
+-}
+-
+ void
+ nopout(Prog *p)
+ {
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 99a096a31f..63a0d9b833 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -62,7 +62,7 @@ linkcase(Prog *casep)
+ void
+ noops(void)
+ {
+-	Prog *p, *q, *q1;
++	Prog *p, *q, *q1, *q2;
+ 	int o;
+ 	Prog *pmorestack;
+ 	Sym *symmorestack;
+@@ -343,9 +343,14 @@ noops(void)
+ 					if(!autosize) {
+ 						p->as = AB;
+ 						p->from = zprg.from;
+-						p->to.type = D_OREG;
+-						p->to.offset = 0;
+-						p->to.reg = REGLINK;
++						if(p->to.sym) { // retjmp
++							p->to.type = D_BRANCH;
++							p->cond = p->to.sym->text;
++						} else {
++							p->to.type = D_OREG;
++							p->to.offset = 0;
++							p->to.reg = REGLINK;
++						}
+ 						break;
+ 					}
+ 				}
+@@ -359,6 +364,17 @@ noops(void)
+ 				// If there are instructions following
+ 				// this ARET, they come from a branch
+ 				// with the same stackframe, so no spadj.
++				
++				if(p->to.sym) { // retjmp
++					p->to.reg = REGLINK;
++					q2 = appendp(p);
++					q2->as = AB;
++					q2->to.type = D_BRANCH;
++					q2->to.sym = p->to.sym;
++					q2->cond = p->to.sym->text;
++					p->to.sym = nil;
++					p = q2;
++				}
+ 				break;
+ 	
+ 			case AADD:
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 5e426753c5..e7c4c7ebfb 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -325,11 +325,18 @@ cgen_aret(Node *n, Node *res)
+ void
+ cgen_ret(Node *n)
+ {
++	Prog *p;
++
+ 	genlist(n->list);		// copy out args
+-	if(hasdefer || curfn->exit)
++	if(hasdefer || curfn->exit) {
+ 		gjmp(retpc);
+-	else
+-		gins(ARET, N, N);
++		return;
++	}
++	p = gins(ARET, N, N);
++	if(n->op == ORETJMP) {
++		p->to.type = D_EXTERN;
++		p->to.sym = n->left->sym;
++	}
+ }
+ 
+ /*
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index c7e87f1c81..28c4ed6faf 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -497,115 +497,6 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 	return off;
+ }
+ 
+-void
+-genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+-{
+-	Sym *e;
+-	int c, d, mov, add, loaded;
+-	int64 o;
+-	Prog *p;
+-	Type *f;
+-	
+-	USED(iface);
+-
+-	if(0 && debug['r'])
+-		print("genembedtramp %T %T %S\n", rcvr, method, newnam);
+-
+-	e = method->sym;
+-	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(e, rcvr, d, nil, 0);
+-		if(c == 1)
+-			goto out;
+-	}
+-	fatal("genembedtramp %T.%S", rcvr, method->sym);
+-
+-out:
+-	newplist()->name = newname(newnam);
+-
+-	//TEXT	main·S_test2(SB),7,$0
+-	p = pc;
+-	gins(ATEXT, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.sym = newnam;
+-	p->to.type = D_CONST;
+-	p->to.offset = 0; // stack size
+-	p->to.offset |= rnd(method->type->argwid, widthptr) << 32;  // argument size
+-	p->from.scale = 7;  // textflag
+-//print("1. %P\n", p);
+-
+-	mov = AMOVQ;
+-	add = AADDQ;
+-	loaded = 0;
+-	o = 0;
+-	for(c=d-1; c>=0; c--) {
+-		f = dotlist[c].field;
+-		o += f->width;
+-		if(!isptr[f->type->etype])
+-			continue;
+-		if(!loaded) {
+-			loaded = 1;
+-			//MOVQ	8(SP), AX
+-			p = pc;
+-			gins(mov, N, N);
+-			p->from.type = D_INDIR+D_SP;
+-			p->from.offset = widthptr;
+-			p->to.type = D_AX;
+-//print("2. %P\n", p);
+-		}
+-
+-		//MOVQ	o(AX), AX
+-		p = pc;
+-		gins(mov, N, N);
+-		p->from.type = D_INDIR+D_AX;
+-		p->from.offset = o;
+-		p->to.type = D_AX;
+-//print("3. %P\n", p);
+-		o = 0;
+-	}
+-	if(o != 0) {
+-		//ADDQ	$XX, AX
+-		p = pc;
+-		gins(add, N, N);
+-		p->from.type = D_CONST;
+-		p->from.offset = o;
+-		if(loaded)
+-			p->to.type = D_AX;
+-		else {
+-			p->to.type = D_INDIR+D_SP;
+-			p->to.offset = widthptr;
+-		}
+-//print("4. %P\n", p);
+-	}
+-
+-	//MOVQ	AX, 8(SP)
+-	if(loaded) {
+-		p = pc;
+-		gins(mov, N, N);
+-		p->from.type = D_AX;
+-		p->to.type = D_INDIR+D_SP;
+-		p->to.offset = widthptr;
+-//print("5. %P\n", p);
+-	} else {
+-		// TODO(rsc): obviously this is unnecessary,
+-		// but 6l has a bug, and it can't handle
+-		// JMP instructions too close to the top of
+-		// a new function.
+-		gins(ANOP, N, N);
+-	}
+-
+-	f = dotlist[0].field;
+-	//JMP	main·*Sub_test2(SB)
+-	if(isptr[f->type->etype])
+-		f = f->type;
+-	p = pc;
+-	gins(AJMP, N, N);
+-	p->to.type = D_EXTERN;
+-	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
+-//print("6. %P\n", p);
+-
+-	pc->as = ARET;	// overwrite AEND
+-}
+-
+ void
+ nopout(Prog *p)
+ {
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 0054b329f4..7de0fddf29 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -318,7 +318,7 @@ patch(void)
+ 			if(p->to.type == D_INDIR+D_GS)
+ 				p->to.type = D_INDIR+D_FS;
+ 		}
+-		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
++		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH) || (p->as == ARET && p->to.sym != nil)) {
+ 			s = p->to.sym;
+ 			if(s) {
+ 				if(debug['c'])
+@@ -747,6 +747,8 @@ dostkoff(void)
+ 				// the cleanup.
+ 				p->spadj = +autoffset;
+ 			}
++			if(p->to.sym) // retjmp
++				p->as = AJMP;
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 70148106c4..d7d58d917f 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -360,11 +360,18 @@ cgen_aret(Node *n, Node *res)
+ void
+ cgen_ret(Node *n)
+ {
++	Prog *p;
++
+ 	genlist(n->list);		// copy out args
+-	if(retpc)
++	if(retpc) {
+ 		gjmp(retpc);
+-	else
+-		gins(ARET, N, N);
++		return;
++	}
++	p = gins(ARET, N, N);
++	if(n->op == ORETJMP) {
++		p->to.type = D_EXTERN;
++		p->to.sym = n->left->sym;
++	}
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index f695468cdf..4ed3c96e9d 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -507,112 +507,6 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 	return off;
+ }
+ 
+-void
+-genembedtramp(Type *rcvr, Type *method, Sym *newnam, int iface)
+-{
+-	Sym *e;
+-	int c, d, o, mov, add, loaded;
+-	Prog *p;
+-	Type *f;
+-
+-	USED(iface);
+-
+-	e = method->sym;
+-	for(d=0; d<nelem(dotlist); d++) {
+-		c = adddot1(e, rcvr, d, nil, 0);
+-		if(c == 1)
+-			goto out;
+-	}
+-	fatal("genembedtramp %T.%S", rcvr, method->sym);
+-
+-out:
+-	newplist()->name = newname(newnam);
+-
+-	//TEXT	main·S_test2(SB),7,$0
+-	p = pc;
+-	gins(ATEXT, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.sym = newnam;
+-	p->to.type = D_CONST;
+-	p->to.offset = 0;  // stack skize
+-	p->to.offset2 = rnd(method->type->argwid, widthptr);  // argument size
+-	p->from.scale = 7;  // textflag
+-//print("1. %P\n", p);
+-
+-	mov = AMOVL;
+-	add = AADDL;
+-
+-	loaded = 0;
+-	o = 0;
+-	for(c=d-1; c>=0; c--) {
+-		f = dotlist[c].field;
+-		o += f->width;
+-		if(!isptr[f->type->etype])
+-			continue;
+-		if(!loaded) {
+-			loaded = 1;
+-			//MOVL	4(SP), AX
+-			p = pc;
+-			gins(mov, N, N);
+-			p->from.type = D_INDIR+D_SP;
+-			p->from.offset = widthptr;
+-			p->to.type = D_AX;
+-//print("2. %P\n", p);
+-		}
+-
+-		//MOVL	o(AX), AX
+-		p = pc;
+-		gins(mov, N, N);
+-		p->from.type = D_INDIR+D_AX;
+-		p->from.offset = o;
+-		p->to.type = D_AX;
+-//print("3. %P\n", p);
+-		o = 0;
+-	}
+-	if(o != 0) {
+-		//ADDL	$XX, AX
+-		p = pc;
+-		gins(add, N, N);
+-		p->from.type = D_CONST;
+-		p->from.offset = o;
+-		if(loaded)
+-			p->to.type = D_AX;
+-		else {
+-			p->to.type = D_INDIR+D_SP;
+-			p->to.offset = widthptr;
+-		}
+-//print("4. %P\n", p);
+-	}
+-
+-	//MOVL	AX, 4(SP)
+-	if(loaded) {
+-		p = pc;
+-		gins(mov, N, N);
+-		p->from.type = D_AX;
+-		p->to.type = D_INDIR+D_SP;
+-		p->to.offset = widthptr;
+-//print("5. %P\n", p);
+-	} else {
+-		// TODO(rsc): obviously this is unnecessary,
+-		// but 6l has a bug, and it can't handle
+-		// JMP instructions too close to the top of
+-		// a new function.
+-		gins(ANOP, N, N);
+-	}
+-
+-	f = dotlist[0].field;
+-	//JMP	main·*Sub_test2(SB)
+-	if(isptr[f->type->etype])
+-		f = f->type;
+-	p = pc;
+-	gins(AJMP, N, N);
+-	p->to.type = D_EXTERN;
+-	p->to.sym = methodsym(method->sym, ptrto(f->type), 0);
+-//print("6. %P\n", p);
+-
+-	pc->as = ARET;	// overwrite AEND
+-}
+-
+ void
+ nopout(Prog *p)
+ {
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 4871761ff5..f668ca8cf1 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -329,7 +329,7 @@ patch(void)
+ 					p->from.offset = 0;
+ 				}
+ 			}
+-			if((p->as == ACALL && p->to.type != D_BRANCH) || (p->as == AJMP && p->to.type != D_BRANCH)) {
++			if((p->as == ACALL && p->to.type != D_BRANCH) || (p->as == AJMP && p->to.type != D_BRANCH) || (p->as == ARET && p->to.sym != nil)) {
+ 				s = p->to.sym;
+ 				if(p->to.type == D_INDIR+D_ADDR) {
+ 					 /* skip check if this is an indirect call (CALL *symbol(SB)) */
+@@ -692,6 +692,8 @@ dostkoff(void)
+ 				// the cleanup.
+ 				p->spadj = +autoffset;
+ 			}
++			if(p->to.sym) // retjmp
++				p->as = AJMP;
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 35f01a5c26..d541c967af 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -870,6 +870,10 @@ stmtfmt(Fmt *f, Node *n)
+ 		fmtprint(f, "return %,H", n->list);
+ 		break;
+ 
++	case ORETJMP:
++		fmtprint(f, "retjmp %S", n->sym);
++		break;
++	
+ 	case OPROC:
+ 		fmtprint(f, "go %N", n->left);
+ 		break;
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 955ec2c5bb..c0cf99cf63 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -489,6 +489,7 @@ gen(Node *n)
+ 		break;
+ 
+ 	case ORETURN:
++	case ORETJMP:
+ 		cgen_ret(n);
+ 		break;
+ 	
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6a3a7d8cf6..eb5e523b57 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -581,6 +581,7 @@ enum
+ 	OHMUL, // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+ 	OLROT,	// left rotate: AROL.
+ 	ORROTC, // right rotate-carry: ARCR.
++	ORETJMP,	// return to other function
+ 
+ 	OEND,
+ };
+@@ -1461,7 +1462,6 @@ void	fixautoused(Prog*);
+ void	gdata(Node*, Node*, int);
+ void	gdatacomplex(Node*, Mpcplx*);
+ void	gdatastring(Node*, Strlit*);
+-void	genembedtramp(Type*, Type*, Sym*, int iface);
+ void	ggloblnod(Node *nam);
+ void	ggloblsym(Sym *s, int32 width, int dupok, int rodata);
+ Prog*	gjmp(Prog*);
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index f77b51d707..bbb887be23 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -197,6 +197,7 @@ ishairy(Node *n, int *budget)
+ 	case ODEFER:
+ 	case ODCLTYPE:  // can't print yet
+ 	case ODCLCONST:  // can't print yet
++	case ORETJMP:
+ 		return 1;
+ 
+ 		break;
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 499a4e746e..7552510e90 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -218,6 +218,7 @@ orderstmt(Node *n, NodeList **out)
+ 	case_OFALL:
+ 	case OGOTO:
+ 	case OLABEL:
++	case ORETJMP:
+ 		// Special: n->left is not an expression; save as is.
+ 		*out = list(*out, n);
+ 		break;
+@@ -263,7 +264,7 @@ orderstmt(Node *n, NodeList **out)
+ 		ordercallargs(&n->list, out);
+ 		*out = list(*out, n);
+ 		break;
+-		
++	
+ 	case OSELECT:
+ 		for(l=n->list; l; l=l->next) {
+ 			if(l->n->op != OXCASE)
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 790c7efd7c..8b644e7a45 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -364,6 +364,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OIF:
+ 	case OCALLMETH:
+ 	case ORETURN:
++	case ORETJMP:
+ 	case OSWITCH:
+ 	case OSELECT:
+ 	case OEMPTY:
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index d9906d9cc9..ccbed50302 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -208,16 +208,8 @@ methods(Type *t)
+ 		if(!(a->isym->flags & SymSiggen)) {
+ 			a->isym->flags |= SymSiggen;
+ 			if(!eqtype(this, it) || this->width < types[tptr]->width) {
+-				// Is okay to call genwrapper here always,
+-				// but we can generate more efficient code
+-				// using genembedtramp if all that is necessary
+-				// is a pointer adjustment and a JMP.
+ 				compiling_wrappers = 1;
+-				if(isptr[it->etype] && isptr[this->etype]
+-				&& f->embedded && !isifacemethod(f->type))
+-					genembedtramp(it, f, a->isym, 1);
+-				else
+-					genwrapper(it, f, a->isym, 1);
++				genwrapper(it, f, a->isym, 1);
+ 				compiling_wrappers = 0;
+ 			}
+ 		}
+@@ -226,11 +218,7 @@ methods(Type *t)
+ 			a->tsym->flags |= SymSiggen;
+ 			if(!eqtype(this, t)) {
+ 				compiling_wrappers = 1;
+-				if(isptr[t->etype] && isptr[this->etype]
+-				&& f->embedded && !isifacemethod(f->type))
+-					genembedtramp(t, f, a->tsym, 0);
+-				else
+-					genwrapper(t, f, a->tsym, 0);
++				genwrapper(t, f, a->tsym, 0);
+ 				compiling_wrappers = 0;
+ 			}
+ 		}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 20a15bc715..a3fd0f4a8e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2495,13 +2495,13 @@ structargs(Type **tl, int mustname)
+ void
+ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ {
+-	Node *this, *fn, *call, *n, *t, *pad;
++	Node *this, *fn, *call, *n, *t, *pad, *dot, *as;
+ 	NodeList *l, *args, *in, *out;
+-	Type *tpad;
++	Type *tpad, *methodrcvr;
+ 	int isddd;
+ 	Val v;
+ 
+-	if(debug['r'])
++	if(0 && debug['r'])
+ 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
+ 			rcvr, method, newnam);
+ 
+@@ -2547,8 +2547,10 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		isddd = l->n->left->isddd;
+ 	}
+ 	
++	methodrcvr = getthisx(method->type)->type->type;
++
+ 	// generate nil pointer check for better error
+-	if(isptr[rcvr->etype] && rcvr->type == getthisx(method->type)->type->type) {
++	if(isptr[rcvr->etype] && rcvr->type == methodrcvr) {
+ 		// generating wrapper from *T to T.
+ 		n = nod(OIF, N, N);
+ 		n->ntest = nod(OEQ, this->left, nodnil());
+@@ -2567,17 +2569,32 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		n->nbody = list1(call);
+ 		fn->nbody = list(fn->nbody, n);
+ 	}
+-
++	
++	dot = adddot(nod(OXDOT, this->left, newname(method->sym)));
++	
+ 	// generate call
+-	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
+-	call->list = args;
+-	call->isddd = isddd;
+-	if(method->type->outtuple > 0) {
+-		n = nod(ORETURN, N, N);
+-		n->list = list1(call);
+-		call = n;
+-	}
+-	fn->nbody = list(fn->nbody, call);
++	if(isptr[rcvr->etype] && isptr[methodrcvr->etype] && method->embedded && !isifacemethod(method->type)) {
++		// skip final .M
++		dot = dot->left;
++		if(!isptr[dotlist[0].field->type->etype])
++			dot = nod(OADDR, dot, N);
++		as = nod(OAS, this->left, nod(OCONVNOP, dot, N));
++		as->right->type = rcvr;
++		fn->nbody = list(fn->nbody, as);
++		n = nod(ORETJMP, N, N);
++		n->left = newname(methodsym(method->sym, methodrcvr, 0));
++		fn->nbody = list(fn->nbody, n);
++	} else {
++		call = nod(OCALL, dot, N);
++		call->list = args;
++		call->isddd = isddd;
++		if(method->type->outtuple > 0) {
++			n = nod(ORETURN, N, N);
++			n->list = list1(call);
++			call = n;
++		}
++		fn->nbody = list(fn->nbody, call);
++	}
+ 
+ 	if(0 && debug['r'])
+ 		dumplist("genwrapper body", fn->nbody);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 550021de69..29fc430cbd 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1651,6 +1651,10 @@ reswitch:
+ 			goto ret;
+ 		typecheckaste(ORETURN, nil, 0, getoutargx(curfn->type), n->list, "return argument");
+ 		goto ret;
++	
++	case ORETJMP:
++		ok |= Etop;
++		goto ret;
+ 
+ 	case OSELECT:
+ 		ok |= Etop;
+@@ -3282,6 +3286,7 @@ isterminating(NodeList *l, int top)
+ 
+ 	case OGOTO:
+ 	case ORETURN:
++	case ORETJMP:
+ 	case OPANIC:
+ 	case OXFALL:
+ 		return 1;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a4e20e046c..893c77e4d2 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -282,6 +282,9 @@ walkstmt(Node **np)
+ 		n->list = ll;
+ 		break;
+ 
++	case ORETJMP:
++		break;
++
+ 	case OSELECT:
+ 		walkselect(n);
+ 		break;

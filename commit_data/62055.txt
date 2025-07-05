@@ -15,9 +15,78 @@ Date:   Wed Jan 22 02:23:08 2025 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/tar/writer.go      | 3 +++
  src/archive/tar/writer_test.go | 6 +++++-
  src/archive/zip/writer.go      | 3 +++
  src/archive/zip/writer_test.go | 5 ++++-
  4 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 059669767f..f966c5b4c6 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -424,6 +424,9 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 			return err
+ 		}
+ 		h.Name = name
++		if d.IsDir() {
++			h.Name += "/"
++		}
+ 		if err := tw.WriteHeader(h); err != nil {
+ 			return err
+ 		}
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 2a01915d36..7b10bf6a70 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -1382,7 +1382,11 @@ func TestWriterAddFS(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 
+-		if hdr.Name != name {
++		tmpName := name
++		if entryInfo.IsDir() {
++			tmpName += "/"
++		}
++		if hdr.Name != tmpName {
+ 			t.Errorf("test fs has filename %v; archive header has %v",
+ 				name, hdr.Name)
+ 		}
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index cbe5ba2627..0a310054e3 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -520,6 +520,9 @@ func (w *Writer) AddFS(fsys fs.FS) error {
+ 			return err
+ 		}
+ 		h.Name = name
++		if d.IsDir() {
++			h.Name += "/"
++		}
+ 		h.Method = Deflate
+ 		fw, err := w.CreateHeader(h)
+ 		if err != nil {
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 27a99b6b3a..44592ce831 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -633,7 +633,7 @@ func TestWriterAddFS(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	// Add subfolder into fsys to match what we'll read from the tar.
++	// Add subfolder into fsys to match what we'll read from the zip.
+ 	tests = append(tests[:2:2], WriteTest{Name: "subfolder", Mode: 0o555 | os.ModeDir}, tests[2])
+ 
+ 	// read it back
+@@ -642,6 +642,9 @@ func TestWriterAddFS(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	for i, wt := range tests {
++		if wt.Mode.IsDir() {
++			wt.Name += "/"
++		}
+ 		testReadFile(t, r.File[i], &wt)
+ 	}
+ }

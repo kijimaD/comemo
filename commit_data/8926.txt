@@ -7,7 +7,33 @@ Date:   Fri Jul 1 11:13:38 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4668049
-
+---
  src/cmd/5c/gc.h | 2 +-
  src/cmd/6c/gc.h | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 549e0c88a2..ff6d51916a 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -28,7 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-
++#include	<u.h>
+ #include	"../cc/cc.h"
+ #include	"../5l/5.out.h"
+ 
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index 735cd89098..775d97281c 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
+ #include	"../cc/cc.h"
+ #include	"../6l/6.out.h"
+ 

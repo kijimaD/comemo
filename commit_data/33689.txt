@@ -15,6 +15,27 @@ Date:   Tue Aug 29 09:59:27 2017 -0700
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index dbe4ff8830..c807786310 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1014,9 +1014,14 @@ func TestStartProcess(t *testing.T) {
+ 		dir = Getenv("SystemRoot")
+ 		args = []string{"/c", "cd"}
+ 	default:
+-		cmd = "/bin/pwd"
++		var err error
++		cmd, err = osexec.LookPath("pwd")
++		if err != nil {
++			t.Fatalf("Can't find pwd: %v", err)
++		}
+ 		dir = "/"
+ 		args = []string{}
++		t.Logf("Testing with %v", cmd)
+ 	}
+ 	cmddir, cmdbase := filepath.Split(cmd)
+ 	args = append([]string{cmdbase}, args...)

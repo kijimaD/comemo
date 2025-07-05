@@ -15,10 +15,95 @@ Date:   Thu Oct 31 11:19:28 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go              | 8 ++++++--
  src/cmd/compile/internal/syntax/testdata/issue68589.go | 7 +++++++
  test/fixedbugs/issue11610.go                           | 2 +-
  test/switch2.go                                        | 4 ++--
  test/syntax/semi7.go                                   | 2 +-
  5 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 77abdda867..14a737c414 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -300,7 +300,11 @@ func tokstring(tok token) string {
+ 	case _Semi:
+ 		return "semicolon or newline"
+ 	}
+-	return tok.String()
++	s := tok.String()
++	if _Break <= tok && tok <= _Var {
++		return "keyword " + s
++	}
++	return s
+ }
+ 
+ // Convenience methods using the current token position.
+@@ -2337,7 +2341,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 	if p.tok != _Semi {
+ 		// accept potential varDecl but complain
+ 		if p.got(_Var) {
+-			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", tokstring(keyword)))
++			p.syntaxError(fmt.Sprintf("var declaration not allowed in %s initializer", keyword.String()))
+ 		}
+ 		init = p.simpleStmt(nil, keyword)
+ 		// If we have a range clause, we are done (can only happen for keyword == _For).
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue68589.go b/src/cmd/compile/internal/syntax/testdata/issue68589.go
+new file mode 100644
+index 0000000000..701815a472
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue68589.go
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ (/* ERROR unexpected keyword type */ type T)
+diff --git a/test/fixedbugs/issue11610.go b/test/fixedbugs/issue11610.go
+index 8d68c98f2d..ec4d8e84c1 100644
+--- a/test/fixedbugs/issue11610.go
++++ b/test/fixedbugs/issue11610.go
+@@ -10,7 +10,7 @@
+ package a
+ var?      // ERROR "invalid character U\+003F '\?'|invalid character 0x3f in input file"
+ 
+-var x int // ERROR "unexpected var|expected identifier|expected type"
++var x int // ERROR "unexpected keyword var|expected identifier|expected type"
+ 
+ func main() {
+ }
+diff --git a/test/switch2.go b/test/switch2.go
+index 66e89fda19..113d81be85 100644
+--- a/test/switch2.go
++++ b/test/switch2.go
+@@ -25,12 +25,12 @@ func f() {
+ 
+ 	switch {
+ 	case 0: f(); case 0:
+-	case 0: f() case 0: // ERROR "unexpected case at end of statement"
++	case 0: f() case 0: // ERROR "unexpected keyword case at end of statement"
+ 	}
+ 
+ 	switch {
+ 	case 0: f(); default:
+-	case 0: f() default: // ERROR "unexpected default at end of statement"
++	case 0: f() default: // ERROR "unexpected keyword default at end of statement"
+ 	}
+ 
+ 	switch {
+diff --git a/test/syntax/semi7.go b/test/syntax/semi7.go
+index a1948b0f7d..acd2f83597 100644
+--- a/test/syntax/semi7.go
++++ b/test/syntax/semi7.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	if x { }	// GCCGO_ERROR "undefined"
+-	else { }	// ERROR "unexpected semicolon or newline before .?else.?|unexpected else"
++	else { }	// ERROR "unexpected semicolon or newline before .?else.?|unexpected keyword else"
+ }
+ 
+ 

@@ -8,6 +8,19 @@ Date:   Tue Feb 25 11:05:35 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220900
     Run-TryBot: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/contrib.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index bc19daf14e..f0a01c5f0f 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -34,6 +34,7 @@ We encourage all Go users to subscribe to
+ <p>A <a href="/doc/devel/release.html">summary</a> of the changes between Go releases. Notes for the major releases:</p>
+ 
+ <ul>
++	<li><a href="/doc/go1.14">Go 1.14</a> <small>(February 2020)</small></li>
+ 	<li><a href="/doc/go1.13">Go 1.13</a> <small>(September 2019)</small></li>
+ 	<li><a href="/doc/go1.12">Go 1.12</a> <small>(February 2019)</small></li>
+ 	<li><a href="/doc/go1.11">Go 1.11</a> <small>(August 2018)</small></li>

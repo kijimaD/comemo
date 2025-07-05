@@ -11,6 +11,22 @@ Date:   Tue May 10 09:24:57 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/crypto/sha1/sha1block_amd64.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/sha1/sha1block_amd64.go b/src/crypto/sha1/sha1block_amd64.go
+index 84f8a52019..a36f334b11 100644
+--- a/src/crypto/sha1/sha1block_amd64.go
++++ b/src/crypto/sha1/sha1block_amd64.go
+@@ -12,7 +12,9 @@ func blockAVX2(dig *digest, p []byte)
+ func blockAMD64(dig *digest, p []byte)
+ func checkAVX2() bool
+ 
+-var hasAVX2 = checkAVX2()
++// TODO(TocarIP): fix AVX2 crash (golang.org/issue/15617) and
++// then re-enable this:
++var hasAVX2 = false // checkAVX2()
+ 
+ func block(dig *digest, p []byte) {
+ 	if hasAVX2 && len(p) >= 256 {

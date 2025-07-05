@@ -10,6 +10,20 @@ Date:   Tue Apr 9 22:47:38 2019 +0800
     Change-Id: I2d3da055d55b459b908714c542dff99ab5c6cf99
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171102
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/internal/arch/mips.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/mips.go b/src/cmd/asm/internal/arch/mips.go
+index 22c9ebd2da..79fb7cf02e 100644
+--- a/src/cmd/asm/internal/arch/mips.go
++++ b/src/cmd/asm/internal/arch/mips.go
+@@ -33,7 +33,7 @@ func IsMIPSCMP(op obj.As) bool {
+ }
+ 
+ // IsMIPSMUL reports whether the op (as defined by an mips.A* constant) is
+-// one of the MUL/DIV/REM instructions that require special handling.
++// one of the MUL/DIV/REM/MADD/MSUB instructions that require special handling.
+ func IsMIPSMUL(op obj.As) bool {
+ 	switch op {
+ 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,

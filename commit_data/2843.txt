@@ -16,7 +16,7 @@ Date:   Thu Jul 30 18:13:55 2009 -0700
     DELTA=130  (68 added, 24 deleted, 38 changed)
     OCL=32549
     CL=32552
-
+---
  lib/godoc/package.html             | 13 +++++--
  src/cmd/godoc/godoc.go             |  8 ++---
  src/cmd/gofmt/gofmt.go             |  4 +--
@@ -24,3 +24,358 @@ Date:   Thu Jul 30 18:13:55 2009 -0700
  src/pkg/go/doc/doc.go              | 74 +++++++++++++++++++++++++-------------
  src/pkg/go/printer/printer_test.go |  2 +-
  6 files changed, 102 insertions(+), 58 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 0f1b0457d8..4931035df1 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -1,15 +1,24 @@
+ {.section Dirs}
+ 	<h2>Subdirectories</h2>
+ 	{.repeated section @}
+-		<a href="{Name|html}/">{Name|html}</a><br />
++		<a href="{Name|html}">{Name|html}</a><br />
+ 	{.end}
+ 	<hr />
+ {.end}
+ {.section PDoc}
+ 	<h1>package {PackageName|html}</h1>
+ 	<p><code>import "{ImportPath|html}"</code></p>
+-
+ 	{Doc|html-comment}
++	{.section Filenames}
++		<p>
++		<h4>Package files</h4>
++		<font size=-1>
++		{.repeated section @}
++			<a href="/{FilePath|html}/{@|html}">{@|html}</a>
++		{.end}
++		</font>
++		</p>
++	{.end}
+ 	{.section Consts}
+ 		<h2>Constants</h2>
+ 		{.repeated section @}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index d1c1f155e0..4fe628fb50 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -444,12 +444,8 @@ func getPageInfo(path string) PageInfo {
+ 	// compute package documentation
+ 	var pdoc *doc.PackageDoc;
+ 	if pkg != nil {
+-		// TODO(gri) Simplify DocReader interface: no need anymore to add
+-		//           more than one file because of ast.PackageInterface.
+-		var r doc.DocReader;
+-		r.Init(pkg.Name, pathutil.Clean(path));  // no trailing '/' in importpath
+-		r.AddFile(ast.PackageExports(pkg));
+-		pdoc = r.Doc();
++		ast.PackageExports(pkg);
++		pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(path));  // no trailing '/' in importpath
+ 	}
+ 
+ 	return PageInfo{pdoc, subdirs};
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 91045830ee..9d27386dfe 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -146,8 +146,8 @@ func main() {
+ 	if !*silent {
+ 		w := makeTabwriter(os.Stdout);
+ 		if *exports {
+-			src := ast.PackageExports(pkg);
+-			printer.Fprint(w, src, printerMode());  // ignore errors
++			ast.PackageExports(pkg);
++			printer.Fprint(w, ast.MergePackageFiles(pkg), printerMode());  // ignore errors
+ 		} else {
+ 			for _, src := range pkg.Files {
+ 				printer.Fprint(w, src, printerMode());  // ignore errors
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 28277af761..94cd28ea90 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -168,16 +168,17 @@ func filterDecl(decl Decl) bool {
+ }
+ 
+ 
+-// FilterExports trims an AST in place such that only exported nodes remain:
+-// all top-level identifiers which are not exported and their associated
+-// information (such as type, initial value, or function body) are removed.
+-// Non-exported fields and methods of exported types are stripped, and the
+-// function bodies of exported functions are set to nil.
++// FileExports trims the AST for a Go source file in place such that only
++// exported nodes remain: all top-level identifiers which are not exported
++// and their associated information (such as type, initial value, or function
++// body) are removed. Non-exported fields and methods of exported types are
++// stripped, and the function bodies of exported functions are set to nil.
++// The File.comments list is not changed.
+ //
+-// FilterExports returns true if there is an exported declaration; it returns
++// FileExports returns true if there is an exported declaration; it returns
+ // false otherwise.
+ //
+-func FilterExports(src *File) bool {
++func FileExports(src *File) bool {
+ 	j := 0;
+ 	for _, d := range src.Decls {
+ 		if filterDecl(d) {
+@@ -190,33 +191,44 @@ func FilterExports(src *File) bool {
+ }
+ 
+ 
++// PackageExports trims the AST for a Go package in place such that only
++// exported nodes remain. The pkg.Files list is not changed, so that file
++// names and top-level package comments don't get lost.
++//
++// PackageExports returns true if there is an exported declaration; it
++// returns false otherwise.
++//
++func PackageExports(pkg *Package) bool {
++	hasExports := false;
++	for _, f := range pkg.Files {
++		if FileExports(f) {
++			hasExports = true;
++		}
++	}
++	return hasExports;
++}
++
++
+ // separator is an empty //-style comment that is interspersed between
+ // different comment groups when they are concatenated into a single group
+ //
+ var separator = &Comment{noPos, []byte{'/', '/'}};
+ 
+ 
+-// PackageExports returns an AST containing only the exported declarations
+-// of the package pkg. PackageExports modifies the pkg AST.
++// MergePackageFiles creates a file AST by merging the ASTs of the
++// files belonging to a package.
+ //
+-func PackageExports(pkg *Package) *File {
+-	// Collect all source files with exported declarations and count
+-	// the number of package comments and declarations in all files.
+-	files := make([]*File, len(pkg.Files));
++func MergePackageFiles(pkg *Package) *File {
++	// Count the number of package comments and declarations across
++	// all package files.
+ 	ncomments := 0;
+ 	ndecls := 0;
+-	i := 0;
+ 	for _, f := range pkg.Files {
+ 		if f.Doc != nil {
+ 			ncomments += len(f.Doc.List) + 1;  // +1 for separator
+ 		}
+-		if FilterExports(f) {
+-			ndecls += len(f.Decls);
+-			files[i] = f;
+-			i++;
+-		}
++		ndecls += len(f.Decls);
+ 	}
+-	files = files[0 : i];
+ 
+ 	// Collect package comments from all package files into a single
+ 	// CommentGroup - the collected package documentation. The order
+@@ -243,12 +255,12 @@ func PackageExports(pkg *Package) *File {
+ 		doc = &CommentGroup{list, nil};
+ 	}
+ 
+-	// Collect exported declarations from all package files.
++	// Collect declarations from all package files.
+ 	var decls []Decl;
+ 	if ndecls > 0 {
+ 		decls = make([]Decl, ndecls);
+ 		i := 0;
+-		for _, f := range files {
++		for _, f := range pkg.Files {
+ 			for _, d := range f.Decls {
+ 				decls[i] = d;
+ 				i++;
+@@ -256,5 +268,8 @@ func PackageExports(pkg *Package) *File {
+ 		}
+ 	}
+ 
++	// TODO(gri) Should collect comments as well. For that the comment
++	//           list should be changed back into a []*CommentGroup,
++	//           otherwise need to modify the existing linked list.
+ 	return &File{doc, noPos, &Ident{noPos, pkg.Name}, decls, nil};
+ }
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 1675353232..287677aa00 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -26,16 +26,14 @@ type typeDoc struct {
+ }
+ 
+ 
+-// DocReader accumulates documentation for a single package.
++// docReader accumulates documentation for a single package.
+ // It modifies the AST: Comments (declaration documentation)
+ // that have been collected by the DocReader are set to nil
+ // in the respective AST nodes so that they are not printed
+ // twice (once when printing the documentation and once when
+ // printing the corresponding AST node).
+ //
+-type DocReader struct {
+-	name string;  // package name
+-	path string;  // import path
++type docReader struct {
+ 	doc *ast.CommentGroup;  // package documentation, if any
+ 	consts *vector.Vector;  // list of *ast.GenDecl
+ 	types map[string] *typeDoc;
+@@ -45,12 +43,7 @@ type DocReader struct {
+ }
+ 
+ 
+-// Init initializes a DocReader to collect package documentation
+-// for the package with the given package name and import path.
+-//
+-func (doc *DocReader) Init(pkg, imp string) {
+-	doc.name = pkg;
+-	doc.path = imp;
++func (doc *docReader) init() {
+ 	doc.consts = vector.New(0);
+ 	doc.types = make(map[string] *typeDoc);
+ 	doc.vars = vector.New(0);
+@@ -70,7 +63,7 @@ func baseTypeName(typ ast.Expr) string {
+ }
+ 
+ 
+-func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
++func (doc *docReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ 	tdoc, found := doc.types[baseTypeName(typ)];
+ 	if found {
+ 		return tdoc;
+@@ -79,7 +72,7 @@ func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ }
+ 
+ 
+-func (doc *DocReader) addType(decl *ast.GenDecl) {
++func (doc *docReader) addType(decl *ast.GenDecl) {
+ 	typ := decl.Specs[0].(*ast.TypeSpec);
+ 	name := typ.Name.Value;
+ 	if _, found := doc.types[name]; !found {
+@@ -91,7 +84,7 @@ func (doc *DocReader) addType(decl *ast.GenDecl) {
+ }
+ 
+ 
+-func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
++func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+ 	name := fun.Name.Value;
+ 
+ 	// determine if it should be associated with a type
+@@ -131,7 +124,7 @@ func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
+ }
+ 
+ 
+-func (doc *DocReader) addDecl(decl ast.Decl) {
++func (doc *docReader) addDecl(decl ast.Decl) {
+ 	switch d := decl.(type) {
+ 	case *ast.GenDecl:
+ 		if len(d.Specs) > 0 {
+@@ -186,22 +179,22 @@ var (
+ )
+ 
+ 
+-// AddFile adds the AST for a source file to the DocReader.
++// addFile adds the AST for a source file to the docReader.
+ // Adding the same AST multiple times is a no-op.
+ //
+-func (doc *DocReader) AddFile(src *ast.File) {
++func (doc *docReader) addFile(src *ast.File) {
+ 	if bug_markers == nil {
+ 		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");  // BUG(uid):
+ 		bug_content = makeRex("[^ \n\r\t]+");  // at least one non-whitespace char
+ 	}
+ 
+-	if doc.name != src.Name.Value {
+-		panic("package names don't match");
+-	}
+-
+ 	// add package documentation
+-	// TODO(gri) what to do if there are multiple files?
+ 	if src.Doc != nil {
++		// TODO(gri) This won't do the right thing if there is more
++		//           than one file with package comments. Consider
++		//           using ast.MergePackageFiles which handles these
++		//           comments correctly (but currently looses BUG(...)
++		//           comments).
+ 		doc.doc = src.Doc;
+ 		src.Doc = nil;  // doc consumed - remove from ast.File node
+ 	}
+@@ -228,6 +221,32 @@ func (doc *DocReader) AddFile(src *ast.File) {
+ 	src.Comments = nil;  // consumed unassociated comments - remove from ast.File node
+ }
+ 
++
++type PackageDoc struct
++func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []string) *PackageDoc
++
++func NewFileDoc(file *ast.File) *PackageDoc {
++	var r docReader;
++	r.init();
++	r.addFile(file);
++	return r.newDoc(file.Name.Value, "", "", nil);
++}
++
++
++func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
++	var r docReader;
++	r.init();
++	filenames := make([]string, len(pkg.Files));
++	i := 0;
++	for filename, f := range pkg.Files {
++		r.addFile(f);
++		filenames[i] = filename;
++		i++;
++	}
++	return r.newDoc(pkg.Name, importpath, pkg.Path, filenames);
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Conversion to external representation
+ 
+@@ -402,6 +421,8 @@ func makeBugDocs(v *vector.Vector) []string {
+ type PackageDoc struct {
+ 	PackageName string;
+ 	ImportPath string;
++	FilePath string;
++	Filenames []string;
+ 	Doc string;
+ 	Consts []*ValueDoc;
+ 	Types []*TypeDoc;
+@@ -411,12 +432,15 @@ type PackageDoc struct {
+ }
+ 
+ 
+-// Doc returns the accumulated documentation for the package.
++// newDoc returns the accumulated documentation for the package.
+ //
+-func (doc *DocReader) Doc() *PackageDoc {
++func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []string) *PackageDoc {
+ 	p := new(PackageDoc);
+-	p.PackageName = doc.name;
+-	p.ImportPath = doc.path;
++	p.PackageName = pkgname;
++	p.ImportPath = importpath;
++	p.FilePath = filepath;
++	sort.SortStrings(filenames);
++	p.Filenames = filenames;
+ 	p.Doc = astComment(doc.doc);
+ 	p.Consts = makeValueDocs(doc.consts);
+ 	p.Vars = makeValueDocs(doc.vars);
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 42996dc94e..8f047c992f 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -48,7 +48,7 @@ func check(t *testing.T, source, golden string, exports bool) {
+ 
+ 	// filter exports if necessary
+ 	if exports {
+-		ast.FilterExports(prog);  // ignore result
++		ast.FileExports(prog);  // ignore result
+ 		prog.Comments = nil;  // don't print comments that are not in AST
+ 	}
+ 

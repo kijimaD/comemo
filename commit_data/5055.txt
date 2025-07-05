@@ -7,6 +7,35 @@ Date:   Tue Mar 16 13:26:34 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/582041
-
+---
  misc/bbedit/Go.plist | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/bbedit/Go.plist b/misc/bbedit/Go.plist
+index d7b05ca21c..71bb9bc5e8 100755
+--- a/misc/bbedit/Go.plist
++++ b/misc/bbedit/Go.plist
+@@ -12,6 +12,7 @@
+ 		cap,
+ 		case,         
+ 		chan,
++		cmplx,
+ 		const,
+ 		continue,
+ 		default,      
+@@ -28,6 +29,7 @@
+ 		goto,
+ 		if,
+ 		iota,
++		imag,
+ 		import,
+ 		int,
+ 		int16,
+@@ -42,6 +44,7 @@
+ 		nil,
+ 		package,
+ 		range,
++		real,
+ 		return,
+ 		select,
+ 		string,

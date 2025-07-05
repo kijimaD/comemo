@@ -12,8 +12,201 @@ Date:   Thu Jul 15 20:21:33 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1863042
-
+---
  src/cmd/gc/lex.c         | 61 +++++++++++++++++++++++++++++++++++++++++++++++-
  src/cmd/gc/subr.c        | 34 ++++++++++++++++++---------
  src/cmd/goyacc/goyacc.go |  7 ++++--
  3 files changed, 88 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 4399e28bd6..88f53b48c5 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -25,6 +25,7 @@ static void	ungetc(int);
+ static int32	getr(void);
+ static int	escchar(int, int*, vlong*);
+ static void	addidir(char*);
++static int	getlinepragma(void);
+ 
+ static char *goos, *goarch, *goroot;
+ 
+@@ -658,8 +659,8 @@ l0:
+ 			}
+ 		}
+ 		if(c1 == '/') {
++			c = getlinepragma();
+ 			for(;;) {
+-				c = getr();
+ 				if(c == '\n') {
+ 					ungetc(c);
+ 					goto l0;
+@@ -668,6 +669,7 @@ l0:
+ 					yyerror("eof in comment");
+ 					errorexit();
+ 				}
++				c = getr();
+ 			}
+ 		}
+ 		if(c1 == '=') {
+@@ -1106,6 +1108,63 @@ caseout:
+ 	return LLITERAL;
+ }
+ 
++/*
++ * read and interpret syntax that looks like
++ * //line 15 parse.y
++ * as a discontenuity in sequential line numbers.
++ * the next line of input comes from parse.y:15
++ */
++static int
++getlinepragma(void)
++{
++	int i, c, n;
++	char *cp, *ep;
++	Hist *h;
++
++	for(i=0; i<5; i++) {
++		c = getr();
++		if(c != "line "[i])
++			return c;
++	}
++
++	n = 0;
++	for(;;) {
++		c = getr();
++		if(!isdigit(c))
++			break;
++		n = n*10 + (c-'0');
++	}
++
++	if(c != ' ' || n == 0)
++		return c;
++
++	cp = lexbuf;
++	ep = lexbuf+sizeof(lexbuf)-5;
++	for(;;) {
++		c = getr();
++		if(c == ' ')
++			continue;
++		if(c == '\n')
++			break;
++		*cp++ = c;
++		if(cp >= ep)
++			break;
++	}
++	*cp = 0;
++//	n--;	// weve already seen the newline
++	if(n > 0) {
++		// try to avoid allocating file name over and over
++		for(h=hist; h!=H; h=h->link) {
++			if(h->name != nil && strcmp(h->name, lexbuf) == 0) {
++				linehist(h->name, n, 0);
++				return c;
++			}
++		}
++		linehist(strdup(lexbuf), n, 0);
++	}
++	return c;
++}
++
+ int32
+ yylex(void)
+ {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 65b56dee62..6af406be86 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -228,11 +228,14 @@ linehist(char *file, int32 off, int relative)
+ 	if(debug['i']) {
+ 		if(file != nil) {
+ 			if(off < 0)
+-				print("pragma %s at line %L\n", file, lineno);
++				print("pragma %s at line %L\n", file, lexlineno);
+ 			else
+-				print("import %s at line %L\n", file, lineno);
++			if(off > 0)
++				print("line %s at line %L\n", file, lexlineno);
++			else
++				print("import %s at line %L\n", file, lexlineno);
+ 		} else
+-			print("end of import at line %L\n", lineno);
++			print("end of import at line %L\n", lexlineno);
+ 	}
+ 
+ 	if(off < 0 && file[0] != '/' && !relative) {
+@@ -894,12 +897,21 @@ Lconv(Fmt *fp)
+ 		if(lno < h->line)
+ 			break;
+ 		if(h->name) {
+-			if(n < HISTSZ) {	/* beginning of file */
+-				a[n].incl = h;
+-				a[n].idel = h->line;
+-				a[n].line = 0;
++			if(h->offset > 0) {
++				// #line directive
++				if(n > 0 && n < HISTSZ) {
++					a[n-1].line = h;
++					a[n-1].ldel = h->line - h->offset + 1;
++				}
++			} else {
++				// beginning of file
++				if(n < HISTSZ) {
++					a[n].incl = h;
++					a[n].idel = h->line;
++					a[n].line = 0;
++				}
++				n++;
+ 			}
+-			n++;
+ 			continue;
+ 		}
+ 		n--;
+@@ -921,12 +933,12 @@ Lconv(Fmt *fp)
+ 		}
+ 		if(a[i].line)
+ 			fmtprint(fp, "%s:%ld[%s:%ld]",
+-				a[i].line->name, lno-a[i].ldel+1,
+-				a[i].incl->name, lno-a[i].idel+1);
++				a[i].line->name, lno-a[i].ldel,
++				a[i].incl->name, lno-a[i].idel);
+ 		else
+ 			fmtprint(fp, "%s:%ld",
+ 				a[i].incl->name, lno-a[i].idel+1);
+-		lno = a[i].incl->line - 1;	/* now print out start of this file */
++		lno = a[i].incl->line - 1;	// now print out start of this file
+ 	}
+ 	if(n == 0)
+ 		fmtprint(fp, "<epoch>");
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index a5da5f0a1d..bc867fccf3 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -675,7 +675,7 @@ outer:
+ 	//
+ 	if t == MARK {
+ 		if !lflag {
+-			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
++			fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
+ 		}
+ 		for {
+ 			c := getrune(finput)
+@@ -2066,6 +2066,7 @@ nextk:
+ func output() {
+ 	var c, u, v int
+ 
++	fmt.Fprintf(ftable, "\n//line 1 yacctab\n")
+ 	fmt.Fprintf(ftable, "var\tyyExca = []int {\n")
+ 
+ 	noset := mkset()
+@@ -2825,8 +2826,10 @@ func others() {
+ 		c = getrune(finput)
+ 	}
+ 
+-	parts := strings.Split(yaccpar, "yyrun()", 2)
+ 	// copy yaccpar
++	fmt.Fprintf(ftable, "\n//line 1 yaccpar\n")
++
++	parts := strings.Split(yaccpar, "yyrun()", 2)
+ 	fmt.Fprintf(ftable, "%v", parts[0])
+ 	ftable.Write(fcode.Bytes())
+ 	fmt.Fprintf(ftable, "%v", parts[1])

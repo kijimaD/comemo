@@ -22,9 +22,138 @@ Date:   Thu Oct 6 18:10:14 2011 +0300
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5191044
-
+---
  src/pkg/runtime/malloc.h |  2 +-
  src/pkg/runtime/mgc0.c   |  6 +++---
  src/pkg/runtime/proc.c   | 19 ++++++++++++-------
  test/fixedbugs/bug370.go | 18 ++++++++++++++++++
  4 files changed, 34 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index f22cae4b05..eb3bba3431 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -407,7 +407,7 @@ enum
+ 
+ void	runtime·MProf_Malloc(void*, uintptr);
+ void	runtime·MProf_Free(void*, uintptr);
+-int32	runtime·helpgc(void);
++int32	runtime·helpgc(bool*);
+ void	runtime·gchelper(void);
+ 
+ // Malloc profiling settings.
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index a2ae8a4109..37a495dd2c 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -916,10 +916,11 @@ runtime·gc(int32 force)
+ 	runtime·lock(&work.markgate);
+ 	runtime·lock(&work.sweepgate);
+ 
++	extra = false;
+ 	work.nproc = 1;
+ 	if(runtime·gomaxprocs > 1 && runtime·ncpu > 1) {
+ 		runtime·noteclear(&work.alldone);
+-		work.nproc += runtime·helpgc();
++		work.nproc += runtime·helpgc(&extra);
+ 	}
+ 	work.nwait = 0;
+ 	work.ndone = 0;
+@@ -984,7 +985,6 @@ runtime·gc(int32 force)
+ 	// coordinate.  This lazy approach works out in practice:
+ 	// we don't mind if the first couple gc rounds don't have quite
+ 	// the maximum number of procs.
+-	extra = work.nproc < runtime·gomaxprocs && work.nproc < runtime·ncpu && work.nproc < MaxGcproc;
+ 	runtime·starttheworld(extra);
+ 
+ 	// give the queued finalizers, if any, a chance to run
+@@ -1008,7 +1008,7 @@ runtime·UpdateMemStats(void)
+ 	cachestats();
+ 	m->gcing = 0;
+ 	runtime·semrelease(&gcsema);
+-	runtime·starttheworld(0);
++	runtime·starttheworld(false);
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3655412005..5a9d477bc7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -602,9 +602,9 @@ top:
+ }
+ 
+ int32
+-runtime·helpgc(void)
++runtime·helpgc(bool *extra)
+ {
+-	M *m;
++	M *mp;
+ 	int32 n, max;
+ 
+ 	// Figure out how many CPUs to use.
+@@ -621,13 +621,15 @@ runtime·helpgc(void)
+ 
+ 	runtime·lock(&runtime·sched);
+ 	n = 0;
+-	while(n < max && (m = mget(nil)) != nil) {
++	while(n < max && (mp = mget(nil)) != nil) {
+ 		n++;
+-		m->helpgc = 1;
+-		m->waitnextg = 0;
+-		runtime·notewakeup(&m->havenextg);
++		mp->helpgc = 1;
++		mp->waitnextg = 0;
++		runtime·notewakeup(&mp->havenextg);
+ 	}
+ 	runtime·unlock(&runtime·sched);
++	if(extra)
++		*extra = n != max;
+ 	return n;
+ }
+ 
+@@ -685,9 +687,10 @@ runtime·starttheworld(bool extra)
+ 		// initialization work so is definitely running),
+ 		// but m is not running a specific goroutine,
+ 		// so set the helpgc flag as a signal to m's
+-		// first schedule(nil) to mcpu--.
++		// first schedule(nil) to mcpu-- and grunning--.
+ 		m = startm();
+ 		m->helpgc = 1;
++		runtime·sched.grunning++;
+ 	}
+ 	schedunlock();
+ }
+@@ -833,6 +836,8 @@ schedule(G *gp)
+ 		v = runtime·xadd(&runtime·sched.atomic, -1<<mcpuShift);
+ 		if(atomic_mcpu(v) > maxgomaxprocs)
+ 			runtime·throw("negative mcpu in scheduler");
++		// Compensate for increment in starttheworld().
++		runtime·sched.grunning--;
+ 		m->helpgc = 0;
+ 	}
+ 
+diff --git a/test/fixedbugs/bug370.go b/test/fixedbugs/bug370.go
+new file mode 100644
+index 0000000000..9cb45f6e0d
+--- /dev/null
++++ b/test/fixedbugs/bug370.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// issue 2337
++// The program deadlocked.
++
++import "runtime"
++
++func main() {
++	runtime.GOMAXPROCS(2)
++	runtime.GC()
++	runtime.GOMAXPROCS(1)
++}

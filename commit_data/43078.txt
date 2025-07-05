@@ -14,6 +14,31 @@ Date:   Fri Mar 6 08:21:26 2020 +0000
     GitHub-Pull-Request: golang/go#37661
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222037
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 6e7c5dc9b6..eb35fa8cae 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -759,6 +759,19 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- net/textproto -->
+ 
++<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
++  <dd>
++    <p><!-- CL 185117 -->
++      When parsing of a URL fails
++      (for example by <a href="/pkg/net/url/#Parse"><code>Parse</code></a>
++      or <a href="/pkg/net/url/#ParseRequestURI"><code>ParseRequestURI</code></a>),
++      the resulting <a href="/pkg/net/url/#Error.Error"><code>Error</code></a> message
++      will now quote the unparsable URL.
++      This provides clearer structure and consistency with other parsing errors.
++    </p>
++  </dd>
++</dl><!-- net/url -->
++
+ <dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+   <dd>
+     <p><!-- CL 187739 -->

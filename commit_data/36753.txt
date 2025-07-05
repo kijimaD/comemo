@@ -39,7 +39,7 @@ Date:   Fri Mar 9 00:14:58 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  logs.txt                                    |  0
  src/cmd/compile/internal/gc/ssa.go          |  3 +
  src/cmd/compile/internal/ssa/regalloc.go    | 72 ++++++++++++++++++++++-
@@ -48,3 +48,428 @@ Date:   Fri Mar 9 00:14:58 2018 +0100
  src/cmd/compile/internal/ssa/value.go       |  4 ++
  src/cmd/compile/internal/wasm/ssa.go        | 90 +++++++++++++++++++----------
  7 files changed, 137 insertions(+), 36 deletions(-)
+
+diff --git a/logs.txt b/logs.txt
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b280fb7397..a64d212233 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4701,6 +4701,9 @@ type SSAGenState struct {
+ 	// within a single block sharing the same line number
+ 	// Used to move statement marks to the beginning of such runs.
+ 	lineRunStart *obj.Prog
++
++	// wasm: The number of values on the WebAssembly stack. This is only used as a safeguard.
++	OnWasmStackSkipped int
+ }
+ 
+ // Prog appends a new Prog.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c598377e47..080ad0fda1 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -117,6 +117,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"cmd/internal/sys"
+ 	"fmt"
+ 	"unsafe"
+ )
+@@ -372,6 +373,10 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
+ // If there is no unused register, a Value will be kicked out of
+ // a register to make room.
+ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
++	if v.OnWasmStack {
++		return noRegister
++	}
++
+ 	mask &= s.allocatable
+ 	mask &^= s.nospill
+ 	if mask == 0 {
+@@ -411,6 +416,14 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ 		s.f.Fatalf("couldn't find register to spill")
+ 	}
+ 
++	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
++		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
++		// So if there is still a free register, the allocation should have picked that one in the first place insead of
++		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
++		s.freeReg(r)
++		return r
++	}
++
+ 	// Try to move it around before kicking out, if there is a free register.
+ 	// We generate a Copy and record it. It will be deleted if never used.
+ 	v2 := s.regs[r].v
+@@ -458,6 +471,16 @@ func (s *regAllocState) makeSpill(v *Value, b *Block) *Value {
+ // undone until the caller allows it by clearing nospill. Returns a
+ // *Value which is either v or a copy of v allocated to the chosen register.
+ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos src.XPos) *Value {
++	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm && v.rematerializeable() {
++		c := v.copyIntoWithXPos(s.curBlock, pos)
++		c.OnWasmStack = true
++		s.setOrig(c, v)
++		return c
++	}
++	if v.OnWasmStack {
++		return v
++	}
++
+ 	vi := &s.values[v.ID]
+ 	pos = pos.WithNotStmt()
+ 	// Check if v is already in a requested register.
+@@ -472,8 +495,13 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos
+ 		return s.regs[r].c
+ 	}
+ 
+-	// Allocate a register.
+-	r := s.allocReg(mask, v)
++	var r register
++	// If nospill is set, the value is used immedately, so it can live on the WebAssembly stack.
++	onWasmStack := nospill && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm
++	if !onWasmStack {
++		// Allocate a register.
++		r = s.allocReg(mask, v)
++	}
+ 
+ 	// Allocate v to the new register.
+ 	var c *Value
+@@ -495,7 +523,14 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos
+ 		}
+ 		c = s.curBlock.NewValue1(pos, OpLoadReg, v.Type, spill)
+ 	}
++
+ 	s.setOrig(c, v)
++
++	if onWasmStack {
++		c.OnWasmStack = true
++		return c
++	}
++
+ 	s.assignReg(r, v, c)
+ 	if nospill {
+ 		s.nospill |= regMask(1) << r
+@@ -656,6 +691,39 @@ func (s *regAllocState) init(f *Func) {
+ 	s.startRegs = make([][]startReg, f.NumBlocks())
+ 	s.spillLive = make([][]ID, f.NumBlocks())
+ 	s.sdom = f.sdom()
++
++	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
++	if f.Config.ctxt.Arch.Arch == sys.ArchWasm {
++		canLiveOnStack := f.newSparseSet(f.NumValues())
++		defer f.retSparseSet(canLiveOnStack)
++		for _, b := range f.Blocks {
++			// New block. Clear candidate set.
++			canLiveOnStack.clear()
++			if b.Control != nil && b.Control.Uses == 1 && !opcodeTable[b.Control.Op].generic {
++				canLiveOnStack.add(b.Control.ID)
++			}
++			// Walking backwards.
++			for i := len(b.Values) - 1; i >= 0; i-- {
++				v := b.Values[i]
++				if canLiveOnStack.contains(v.ID) {
++					v.OnWasmStack = true
++				} else {
++					// Value can not live on stack. Values are not allowed to be reordered, so clear candidate set.
++					canLiveOnStack.clear()
++				}
++				for _, arg := range v.Args {
++					// Value can live on the stack if:
++					// - it is only used once
++					// - it is used in the same basic block
++					// - it is not a "mem" value
++					// - it is a WebAssembly op
++					if arg.Uses == 1 && arg.Block == v.Block && !arg.Type.IsMemory() && !opcodeTable[arg.Op].generic {
++						canLiveOnStack.add(arg.ID)
++					}
++				}
++			}
++		}
++	}
+ }
+ 
+ // Adds a use record for id at distance dist from the start of the block.
+diff --git a/src/cmd/compile/internal/ssa/sizeof_test.go b/src/cmd/compile/internal/ssa/sizeof_test.go
+index f8bbed91b4..449788d32a 100644
+--- a/src/cmd/compile/internal/ssa/sizeof_test.go
++++ b/src/cmd/compile/internal/ssa/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Value{}, 68, 112},
++		{Value{}, 72, 112},
+ 		{Block{}, 152, 288},
+ 		{LocalSlot{}, 32, 48},
+ 		{valState{}, 28, 40},
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index aadc6c4cfe..8d0ab93c64 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -110,7 +110,7 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			s.values[v.ID].typ = v.Type
+-			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable()
++			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable() && !v.OnWasmStack
+ 			s.values[v.ID].isArg = v.Op == OpArg
+ 			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
+ 				fmt.Printf("%s needs a stack slot\n", v)
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index ca7cd6bc10..a1ab0e54e7 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -50,6 +50,10 @@ type Value struct {
+ 	// Use count. Each appearance in Value.Args and Block.Control counts once.
+ 	Uses int32
+ 
++	// wasm: Value stays on the WebAssembly stack. This value will not get a "register" (WebAssembly variable)
++	// nor a slot on Go stack, and the generation of this value is delayed to its use time.
++	OnWasmStack bool
++
+ 	// Storage for the first three args
+ 	argstorage [3]*Value
+ }
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index d4bd7fbdec..8daf749a12 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -78,7 +78,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		goToBlock(b.Succs[0].Block(), true)
+ 
+ 	case ssa.BlockIf:
+-		getReg32(s, b.Control)
++		getValue32(s, b.Control)
+ 		s.Prog(wasm.AI32Eqz)
+ 		s.Prog(wasm.AIf)
+ 		goToBlock(b.Succs[1].Block(), false)
+@@ -113,6 +113,10 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 
+ 	// Entry point for the next block. Used by the JMP in goToBlock.
+ 	s.Prog(wasm.ARESUMEPOINT)
++
++	if s.OnWasmStackSkipped != 0 {
++		panic("wasm: bad stack")
++	}
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+@@ -124,33 +128,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			s.Prog(wasm.ARESUMEPOINT)
+ 		}
+ 		if v.Op == ssa.OpWasmLoweredClosureCall {
+-			getReg64(s, v.Args[1])
++			getValue64(s, v.Args[1])
+ 			setReg(s, wasm.REG_CTXT)
+ 		}
+ 		if sym, ok := v.Aux.(*obj.LSym); ok {
+ 			p := s.Prog(obj.ACALL)
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
+ 		} else {
+-			getReg64(s, v.Args[0])
++			getValue64(s, v.Args[0])
+ 			p := s.Prog(obj.ACALL)
+ 			p.To = obj.Addr{Type: obj.TYPE_NONE}
+ 		}
+ 
+ 	case ssa.OpWasmLoweredMove:
+-		getReg32(s, v.Args[0])
+-		getReg32(s, v.Args[1])
++		getValue32(s, v.Args[0])
++		getValue32(s, v.Args[1])
+ 		i32Const(s, int32(v.AuxInt))
+ 		p := s.Prog(wasm.ACall)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmMove}
+ 
+ 	case ssa.OpWasmLoweredZero:
+-		getReg32(s, v.Args[0])
++		getValue32(s, v.Args[0])
+ 		i32Const(s, int32(v.AuxInt))
+ 		p := s.Prog(wasm.ACall)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmZero}
+ 
+ 	case ssa.OpWasmLoweredNilCheck:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		s.Prog(wasm.AI64Eqz)
+ 		s.Prog(wasm.AIf)
+ 		p := s.Prog(wasm.ACALLNORESUME)
+@@ -161,14 +165,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpWasmLoweredWB:
+-		getReg64(s, v.Args[0])
+-		getReg64(s, v.Args[1])
++		getValue64(s, v.Args[0])
++		getValue64(s, v.Args[1])
+ 		p := s.Prog(wasm.ACALLNORESUME) // TODO(neelance): If possible, turn this into a simple wasm.ACall).
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: v.Aux.(*obj.LSym)}
+ 
+ 	case ssa.OpWasmI64Store8, ssa.OpWasmI64Store16, ssa.OpWasmI64Store32, ssa.OpWasmI64Store, ssa.OpWasmF32Store, ssa.OpWasmF64Store:
+-		getReg32(s, v.Args[0])
+-		getReg64(s, v.Args[1])
++		getValue32(s, v.Args[0])
++		getValue64(s, v.Args[1])
+ 		if v.Op == ssa.OpWasmF32Store {
+ 			s.Prog(wasm.AF32DemoteF64)
+ 		}
+@@ -177,7 +181,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpStoreReg:
+ 		getReg(s, wasm.REG_SP)
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		if v.Type.Etype == types.TFLOAT32 {
+ 			s.Prog(wasm.AF32DemoteF64)
+ 		}
+@@ -188,7 +192,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
++		if v.OnWasmStack {
++			s.OnWasmStackSkipped++
++			// If a Value is marked OnWasmStack, we don't generate the value and store it to a register now.
++			// Instead, we delay the generation to when the value is used and then directly generate it on the WebAssembly stack.
++			return
++		}
+ 		ssaGenValueOnStack(s, v)
++		if s.OnWasmStackSkipped != 0 {
++			panic("wasm: bad stack")
++		}
+ 		setReg(s, v.Reg())
+ 	}
+ }
+@@ -237,22 +250,22 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpWasmLoweredRound32F:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		s.Prog(wasm.AF32DemoteF64)
+ 		s.Prog(wasm.AF64PromoteF32)
+ 
+ 	case ssa.OpWasmLoweredConvert:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 
+ 	case ssa.OpWasmSelect:
+-		getReg64(s, v.Args[0])
+-		getReg64(s, v.Args[1])
+-		getReg64(s, v.Args[2])
++		getValue64(s, v.Args[0])
++		getValue64(s, v.Args[1])
++		getValue64(s, v.Args[2])
+ 		s.Prog(wasm.AI32WrapI64)
+ 		s.Prog(v.Op.Asm())
+ 
+ 	case ssa.OpWasmI64AddConst:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		i64Const(s, v.AuxInt)
+ 		s.Prog(v.Op.Asm())
+ 
+@@ -263,7 +276,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		f64Const(s, v.AuxFloat())
+ 
+ 	case ssa.OpWasmI64Load8U, ssa.OpWasmI64Load8S, ssa.OpWasmI64Load16U, ssa.OpWasmI64Load16S, ssa.OpWasmI64Load32U, ssa.OpWasmI64Load32S, ssa.OpWasmI64Load, ssa.OpWasmF32Load, ssa.OpWasmF64Load:
+-		getReg32(s, v.Args[0])
++		getValue32(s, v.Args[0])
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
+ 		if v.Op == ssa.OpWasmF32Load {
+@@ -271,24 +284,24 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpWasmI64Eqz:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		s.Prog(v.Op.Asm())
+ 		s.Prog(wasm.AI64ExtendUI32)
+ 
+ 	case ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU, ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
+-		getReg64(s, v.Args[0])
+-		getReg64(s, v.Args[1])
++		getValue64(s, v.Args[0])
++		getValue64(s, v.Args[1])
+ 		s.Prog(v.Op.Asm())
+ 		s.Prog(wasm.AI64ExtendUI32)
+ 
+ 	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div:
+-		getReg64(s, v.Args[0])
+-		getReg64(s, v.Args[1])
++		getValue64(s, v.Args[0])
++		getValue64(s, v.Args[1])
+ 		s.Prog(v.Op.Asm())
+ 
+ 	case ssa.OpWasmI64DivS:
+-		getReg64(s, v.Args[0])
+-		getReg64(s, v.Args[1])
++		getValue64(s, v.Args[0])
++		getValue64(s, v.Args[1])
+ 		if v.Type.Size() == 8 {
+ 			// Division of int64 needs helper function wasmDiv to handle the MinInt64 / -1 case.
+ 			p := s.Prog(wasm.ACall)
+@@ -298,17 +311,17 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		s.Prog(wasm.AI64DivS)
+ 
+ 	case ssa.OpWasmI64TruncSF64:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		p := s.Prog(wasm.ACall)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+ 
+ 	case ssa.OpWasmI64TruncUF64:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		p := s.Prog(wasm.ACall)
+ 		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+ 
+ 	case ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertSI64, ssa.OpWasmF64ConvertUI64:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 		s.Prog(v.Op.Asm())
+ 
+ 	case ssa.OpLoadReg:
+@@ -319,7 +332,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpCopy:
+-		getReg64(s, v.Args[0])
++		getValue64(s, v.Args[0])
+ 
+ 	default:
+ 		v.Fatalf("unexpected op: %s", v.Op)
+@@ -327,7 +340,14 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value) {
+ 	}
+ }
+ 
+-func getReg32(s *gc.SSAGenState, v *ssa.Value) {
++func getValue32(s *gc.SSAGenState, v *ssa.Value) {
++	if v.OnWasmStack {
++		s.OnWasmStackSkipped--
++		ssaGenValueOnStack(s, v)
++		s.Prog(wasm.AI32WrapI64)
++		return
++	}
++
+ 	reg := v.Reg()
+ 	getReg(s, reg)
+ 	if reg != wasm.REG_SP {
+@@ -335,7 +355,13 @@ func getReg32(s *gc.SSAGenState, v *ssa.Value) {
+ 	}
+ }
+ 
+-func getReg64(s *gc.SSAGenState, v *ssa.Value) {
++func getValue64(s *gc.SSAGenState, v *ssa.Value) {
++	if v.OnWasmStack {
++		s.OnWasmStackSkipped--
++		ssaGenValueOnStack(s, v)
++		return
++	}
++
+ 	reg := v.Reg()
+ 	getReg(s, reg)
+ 	if reg == wasm.REG_SP {

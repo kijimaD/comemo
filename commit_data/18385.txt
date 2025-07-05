@@ -27,7 +27,92 @@ Date:   Thu Jan 30 09:25:47 2014 -0800
     R=golang-codereviews, dvyukov, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/58410043
-
+---
  misc/cgo/test/issue7234_test.go | 21 +++++++++++++++++++++
  src/cmd/ld/lib.c                | 23 +++++++++++++----------
  2 files changed, 34 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/test/issue7234_test.go b/misc/cgo/test/issue7234_test.go
+new file mode 100644
+index 0000000000..713dade4c8
+--- /dev/null
++++ b/misc/cgo/test/issue7234_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++// This test actually doesn't have anything to do with cgo.  It is a
++// test of http://golang.org/issue/7234, a compiler/linker bug in
++// handling string constants when using -linkmode=external.  The test
++// is in this directory because we routinely test -linkmode=external
++// here.
++
++var v7234 = [...]string{"runtime/cgo"}
++
++func TestIssue7234(t *testing.T) {
++	if v7234[0] != "runtime/cgo" {
++		t.Errorf("bad string constant %q", v7234[0])
++	}
++}
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 609fe8aa92..e092b005bc 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -164,6 +164,7 @@ loadlib(void)
+ {
+ 	int i, w, x;
+ 	LSym *s, *gmsym;
++	char* cgostrsym;
+ 
+ 	if(flag_shared) {
+ 		s = linklookup(ctxt, "runtime.islibrary", 0);
+@@ -176,7 +177,15 @@ loadlib(void)
+ 		loadinternal("math");
+ 	if(flag_race)
+ 		loadinternal("runtime/race");
+-	if(linkmode == LinkExternal) {
++
++	for(i=0; i<ctxt->libraryp; i++) {
++		if(debug['v'] > 1)
++			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), ctxt->library[i].file, ctxt->library[i].objref);
++		iscgo |= strcmp(ctxt->library[i].pkg, "runtime/cgo") == 0;
++		objfile(ctxt->library[i].file, ctxt->library[i].pkg);
++	}
++	
++	if(linkmode == LinkExternal && !iscgo) {
+ 		// This indicates a user requested -linkmode=external.
+ 		// The startup code uses an import of runtime/cgo to decide
+ 		// whether to initialize the TLS.  So give it one.  This could
+@@ -184,7 +193,6 @@ loadlib(void)
+ 		loadinternal("runtime/cgo");
+ 
+ 		// Pretend that we really imported the package.
+-		// This will do no harm if we did in fact import it.
+ 		s = linklookup(ctxt, "go.importpath.runtime/cgo.", 0);
+ 		s->type = SDATA;
+ 		s->dupok = 1;
+@@ -192,16 +200,11 @@ loadlib(void)
+ 
+ 		// Provided by the code that imports the package.
+ 		// Since we are simulating the import, we have to provide this string.
+-		addstrdata("go.string.\"runtime/cgo\"", "runtime/cgo");
++		cgostrsym = "go.string.\"runtime/cgo\"";
++		if(linkrlookup(ctxt, cgostrsym, 0) == nil)
++			addstrdata(cgostrsym, "runtime/cgo");
+ 	}
+ 
+-	for(i=0; i<ctxt->libraryp; i++) {
+-		if(debug['v'] > 1)
+-			Bprint(&bso, "%5.2f autolib: %s (from %s)\n", cputime(), ctxt->library[i].file, ctxt->library[i].objref);
+-		iscgo |= strcmp(ctxt->library[i].pkg, "runtime/cgo") == 0;
+-		objfile(ctxt->library[i].file, ctxt->library[i].pkg);
+-	}
+-	
+ 	if(linkmode == LinkAuto) {
+ 		if(iscgo && externalobj)
+ 			linkmode = LinkExternal;

@@ -25,7 +25,36 @@ Date:   Fri Apr 20 01:22:30 2018 +0200
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/asn1/asn1.go      | 2 +-
  src/encoding/asn1/asn1_test.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 2e320897e3..f743cd6f69 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -365,7 +365,7 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
+ // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
+ // and returns the resulting time.
+ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
+-	const formatStr = "20060102150405Z0700"
++	const formatStr = "20060102150405.999999999Z0700"
+ 	s := string(bytes)
+ 
+ 	if ret, err = time.Parse(formatStr, s); err != nil {
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 90bdfcddf9..0e67dbf396 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -323,6 +323,10 @@ func TestUTCTime(t *testing.T) {
+ var generalizedTimeTestData = []timeTest{
+ 	{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC)},
+ 	{"20100102030405", false, time.Time{}},
++	{"20100102030405.123456Z", true, time.Date(2010, 01, 02, 03, 04, 05, 123456e3, time.UTC)},
++	{"20100102030405.123456", false, time.Time{}},
++	{"20100102030405.Z", false, time.Time{}},
++	{"20100102030405.", false, time.Time{}},
+ 	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
+ 	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
+ 	/* These are invalid times. However, the time package normalises times

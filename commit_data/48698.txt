@@ -14,8 +14,89 @@ Date:   Fri Jun 4 17:18:09 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcmark.go   |  7 ++-----
  src/runtime/stack.go     |  5 -----
  src/runtime/traceback.go | 32 --------------------------------
  3 files changed, 2 insertions(+), 42 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1fd0732d62..eb70ae9f49 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -750,14 +750,11 @@ func scanstack(gp *g, gcw *gcWork) {
+ 	// Find additional pointers that point into the stack from the heap.
+ 	// Currently this includes defers and panics. See also function copystack.
+ 
+-	// Find and trace all defer arguments.
+-	tracebackdefers(gp, scanframe, nil)
+-
+ 	// Find and trace other pointers in defer records.
+ 	for d := gp._defer; d != nil; d = d.link {
+ 		if d.fn != nil {
+-			// tracebackdefers above does not scan the func value, which could
+-			// be a stack allocated closure. See issue 30453.
++			// Scan the func value, which could be a stack allocated closure.
++			// See issue 30453.
+ 			scanblock(uintptr(unsafe.Pointer(&d.fn)), sys.PtrSize, &oneptrmask[0], gcw, &state)
+ 		}
+ 		if d.link != nil {
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index a1182b00bd..b5545ac796 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -753,11 +753,6 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
+ 		adjustpointer(adjinfo, unsafe.Pointer(&d.varp))
+ 		adjustpointer(adjinfo, unsafe.Pointer(&d.fd))
+ 	}
+-
+-	// Adjust defer argument blocks the same way we adjust active stack frames.
+-	// Note: this code is after the loop above, so that if a defer record is
+-	// stack allocated, we work on the copy in the new stack.
+-	tracebackdefers(gp, adjustframe, noescape(unsafe.Pointer(adjinfo)))
+ }
+ 
+ func adjustpanics(gp *g, adjinfo *adjustinfo) {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2564273a53..3fc9d07fc5 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -21,38 +21,6 @@ import (
+ 
+ const usesLR = sys.MinFrameSize > 0
+ 
+-// Traceback over the deferred function calls.
+-// Report them like calls that have been invoked but not started executing yet.
+-func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
+-	var frame stkframe
+-	for d := gp._defer; d != nil; d = d.link {
+-		fn := d.fn
+-		if fn == nil {
+-			// Defer of nil function. Args don't matter.
+-			frame.pc = 0
+-			frame.fn = funcInfo{}
+-			frame.argp = 0
+-			frame.arglen = 0
+-			frame.argmap = nil
+-		} else {
+-			frame.pc = fn.fn
+-			f := findfunc(frame.pc)
+-			if !f.valid() {
+-				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
+-				throw("unknown pc")
+-			}
+-			frame.fn = f
+-			frame.argp = 0
+-			frame.arglen = 0
+-			frame.argmap = nil
+-		}
+-		frame.continpc = frame.pc
+-		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
+-			return
+-		}
+-	}
+-}
+-
+ const sizeofSkipFunction = 256
+ 
+ // Generic traceback. Handles runtime stack prints (pcbuf == nil),

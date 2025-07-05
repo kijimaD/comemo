@@ -13,6 +13,20 @@ Date:   Wed Aug 7 06:14:11 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/crypto/tls/quic.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/quic.go b/src/crypto/tls/quic.go
+index 9dd6168b62..ba8a235d84 100644
+--- a/src/crypto/tls/quic.go
++++ b/src/crypto/tls/quic.go
+@@ -206,7 +206,7 @@ func (q *QUICConn) Start(ctx context.Context) error {
+ 	}
+ 	q.conn.quic.started = true
+ 	if q.conn.config.MinVersion < VersionTLS13 {
+-		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.13"))
++		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.3"))
+ 	}
+ 	go q.conn.HandshakeContext(ctx)
+ 	if _, ok := <-q.conn.quic.blockedc; !ok {

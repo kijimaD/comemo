@@ -12,6 +12,19 @@ Date:   Mon Aug 9 00:52:21 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/go_spec.html | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0e14a1f3b6..fd5fee46eb 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -4329,6 +4329,7 @@ a <a href="#Run_time_panics">run-time panic</a> occurs.
+ <pre>
+ s := make([]byte, 2, 4)
+ s0 := (*[0]byte)(s)      // s0 != nil
++s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
+ s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
+ s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
+ 

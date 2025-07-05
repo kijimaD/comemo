@@ -18,7 +18,7 @@ Date:   Tue Apr 5 14:25:34 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go | 59 +++++++++++++++++++++++++--------------------------
  src/cmd/dist/test.go  |  4 ++--
  src/make.bash         |  8 +------
@@ -28,3 +28,328 @@ Date:   Tue Apr 5 14:25:34 2022 -0400
  src/run.bat           | 11 +++-------
  src/run.rc            |  6 +-----
  8 files changed, 41 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index db2ac1f2a6..565efc91c6 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -26,7 +26,7 @@ import (
+ // The usual variables.
+ var (
+ 	goarch           string
+-	gobin            string
++	gorootBin        string
+ 	gohostarch       string
+ 	gohostos         string
+ 	goos             string
+@@ -112,6 +112,7 @@ func xinit() {
+ 		fatalf("$GOROOT must be set")
+ 	}
+ 	goroot = filepath.Clean(b)
++	gorootBin = pathf("%s/bin", goroot)
+ 
+ 	b = os.Getenv("GOROOT_FINAL")
+ 	if b == "" {
+@@ -119,12 +120,6 @@ func xinit() {
+ 	}
+ 	goroot_final = b
+ 
+-	b = os.Getenv("GOBIN")
+-	if b == "" {
+-		b = pathf("%s/bin", goroot)
+-	}
+-	gobin = b
+-
+ 	b = os.Getenv("GOOS")
+ 	if b == "" {
+ 		b = gohostos
+@@ -241,9 +236,19 @@ func xinit() {
+ 	// make.bash really does start from a clean slate.
+ 	os.Setenv("GOCACHE", pathf("%s/pkg/obj/go-build", goroot))
+ 
++	// Set GOBIN to GOROOT/bin. The meaning of GOBIN has drifted over time
++	// (see https://go.dev/issue/3269, https://go.dev/cl/183058,
++	// https://go.dev/issue/31576). Since we want binaries installed by 'dist' to
++	// always go to GOROOT/bin anyway.
++	os.Setenv("GOBIN", gorootBin)
++
+ 	// Make the environment more predictable.
+ 	os.Setenv("LANG", "C")
+ 	os.Setenv("LANGUAGE", "en_US.UTF8")
++	os.Unsetenv("GO111MODULE")
++	os.Setenv("GOENV", "off")
++	os.Unsetenv("GOFLAGS")
++	os.Setenv("GOWORK", "off")
+ 
+ 	workdir = xworkdir()
+ 	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+@@ -490,16 +495,6 @@ func setup() {
+ 		xremove(pathf("%s/bin/%s", goroot, old))
+ 	}
+ 
+-	// If $GOBIN is set and has a Go compiler, it must be cleaned.
+-	for _, char := range "56789" {
+-		if isfile(pathf("%s/%c%s", gobin, char, "g")) {
+-			for _, old := range oldtool {
+-				xremove(pathf("%s/%s", gobin, old))
+-			}
+-			break
+-		}
+-	}
+-
+ 	// For release, make sure excluded things are excluded.
+ 	goversion := findgoversion()
+ 	if strings.HasPrefix(goversion, "release.") || (strings.HasPrefix(goversion, "go") && !strings.Contains(goversion, "beta")) {
+@@ -1126,8 +1121,8 @@ func clean() {
+ // The env command prints the default environment.
+ func cmdenv() {
+ 	path := flag.Bool("p", false, "emit updated PATH")
+-	plan9 := flag.Bool("9", false, "emit plan 9 syntax")
+-	windows := flag.Bool("w", false, "emit windows syntax")
++	plan9 := flag.Bool("9", gohostos == "plan9", "emit plan 9 syntax")
++	windows := flag.Bool("w", gohostos == "windows", "emit windows syntax")
+ 	xflagparse(0)
+ 
+ 	format := "%s=\"%s\"\n"
+@@ -1138,10 +1133,13 @@ func cmdenv() {
+ 		format = "set %s=%s\r\n"
+ 	}
+ 
++	xprintf(format, "GO111MODULE", "")
+ 	xprintf(format, "GOARCH", goarch)
+-	xprintf(format, "GOBIN", gobin)
++	xprintf(format, "GOBIN", gorootBin)
+ 	xprintf(format, "GOCACHE", os.Getenv("GOCACHE"))
+ 	xprintf(format, "GODEBUG", os.Getenv("GODEBUG"))
++	xprintf(format, "GOENV", "off")
++	xprintf(format, "GOFLAGS", "")
+ 	xprintf(format, "GOHOSTARCH", gohostarch)
+ 	xprintf(format, "GOHOSTOS", gohostos)
+ 	xprintf(format, "GOOS", goos)
+@@ -1167,13 +1165,14 @@ func cmdenv() {
+ 	if goarch == "ppc64" || goarch == "ppc64le" {
+ 		xprintf(format, "GOPPC64", goppc64)
+ 	}
++	xprintf(format, "GOWORK", "off")
+ 
+ 	if *path {
+ 		sep := ":"
+ 		if gohostos == "windows" {
+ 			sep = ";"
+ 		}
+-		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gobin, sep, os.Getenv("PATH")))
++		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gorootBin, sep, os.Getenv("PATH")))
+ 	}
+ }
+ 
+@@ -1318,7 +1317,7 @@ func cmdbootstrap() {
+ 	gogcflags = os.Getenv("GO_GCFLAGS") // we were using $BOOT_GO_GCFLAGS until now
+ 	goldflags = os.Getenv("GO_LDFLAGS") // we were using $BOOT_GO_LDFLAGS until now
+ 	goBootstrap := pathf("%s/go_bootstrap", tooldir)
+-	cmdGo := pathf("%s/go", gobin)
++	cmdGo := pathf("%s/go", gorootBin)
+ 	if debug {
+ 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+ 		copyfile(pathf("%s/compile1", tooldir), pathf("%s/compile", tooldir), writeExec)
+@@ -1457,7 +1456,7 @@ func cmdbootstrap() {
+ 		os.Setenv("GOOS", gohostos)
+ 		os.Setenv("GOARCH", gohostarch)
+ 		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
+-		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
++		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gorootBin, goos, goarch, exe), wrapperPath)
+ 		// Restore environment.
+ 		// TODO(elias.naur): support environment variables in goCmd?
+ 		os.Setenv("GOOS", goos)
+@@ -1681,26 +1680,26 @@ func banner() {
+ 	}
+ 	xprintf("---\n")
+ 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot)
+-	xprintf("Installed commands in %s\n", gobin)
++	xprintf("Installed commands in %s\n", gorootBin)
+ 
+ 	if !xsamefile(goroot_final, goroot) {
+ 		// If the files are to be moved, don't check that gobin
+ 		// is on PATH; assume they know what they are doing.
+ 	} else if gohostos == "plan9" {
+-		// Check that gobin is bound before /bin.
++		// Check that GOROOT/bin is bound before /bin.
+ 		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
+ 		ns := fmt.Sprintf("/proc/%s/ns", pid)
+-		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gobin)) {
+-			xprintf("*** You need to bind %s before /bin.\n", gobin)
++		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gorootBin)) {
++			xprintf("*** You need to bind %s before /bin.\n", gorootBin)
+ 		}
+ 	} else {
+-		// Check that gobin appears in $PATH.
++		// Check that GOROOT/bin appears in $PATH.
+ 		pathsep := ":"
+ 		if gohostos == "windows" {
+ 			pathsep = ";"
+ 		}
+-		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gobin+pathsep) {
+-			xprintf("*** You need to add %s to your PATH.\n", gobin)
++		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gorootBin+pathsep) {
++			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9118c133e5..ee521f81ba 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -100,8 +100,8 @@ func (t *tester) run() {
+ 	if goos == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
+-	if _, err := os.Stat(filepath.Join(gobin, "go"+exeSuffix)); err == nil {
+-		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gobin, os.PathListSeparator, os.Getenv("PATH")))
++	if _, err := os.Stat(filepath.Join(gorootBin, "go"+exeSuffix)); err == nil {
++		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
+ 	}
+ 
+ 	cmd := exec.Command("go", "env", "CGO_ENABLED")
+diff --git a/src/make.bash b/src/make.bash
+index e517a1bda9..ab2ce19f4e 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -73,12 +73,6 @@
+ 
+ set -e
+ 
+-export GOENV=off
+-export GOWORK=off # Issue 51558
+-unset GOBIN # Issue 14340
+-unset GOFLAGS
+-unset GO111MODULE
+-
+ if [ ! -f run.bash ]; then
+ 	echo 'make.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+@@ -204,7 +198,7 @@ if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
+ 	exit 1
+ fi
+ rm -f cmd/dist/dist
+-GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
++GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" GO111MODULE=off GOEXPERIMENT="" GOENV=off GOFLAGS="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+ 
+ # -e doesn't propagate out of eval, so check success by hand.
+ eval $(./cmd/dist/dist env -p || echo FAIL=true)
+diff --git a/src/make.bat b/src/make.bat
+index c2f87ace75..0ba2dd57c5 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -46,11 +46,7 @@ if x%4==x--no-local goto nolocal
+ setlocal
+ :nolocal
+ 
+-set GOENV=off
+-set GOWORK=off
+ set GOBUILDFAIL=0
+-set GOFLAGS=
+-set GO111MODULE=
+ 
+ if exist make.bat goto ok
+ echo Must run make.bat from Go src directory.
+@@ -102,6 +98,8 @@ set GOARCH=
+ set GOBIN=
+ set GOEXPERIMENT=
+ set GO111MODULE=off
++set GOENV=off
++set GOFLAGS=
+ "%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
+ endlocal
+ if errorlevel 1 goto fail
+diff --git a/src/make.rc b/src/make.rc
+index 273d151190..4597403a04 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -47,10 +47,6 @@ if(~ $1 -v) {
+ 	shift
+ }
+ 
+-GOENV=off
+-GOWORK=off
+-GOFLAGS=()
+-GO111MODULE=()
+ GOROOT = `{cd .. && pwd}
+ goroot_bootstrap_set = 'true'
+ if(! ~ $#GOROOT_BOOTSTRAP 1){
+@@ -88,7 +84,7 @@ if(~ $GOROOT_BOOTSTRAP $GOROOT){
+ echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
+ if(~ $#vflag 1)
+ 	echo cmd/dist
+-GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
++GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GOEXPERIMENT='' GO111MODULE=off GOENV=off GOFLAGS='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+ 
+ eval `{./cmd/dist/dist env -9}
+ if(~ $#vflag 1)
+diff --git a/src/run.bash b/src/run.bash
+index 2123c509f8..99b09fcbde 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -21,14 +21,10 @@ if [ ! -f ../bin/go ]; then
+ 	exit 1
+ fi
+ 
+-eval $(../bin/go env)
++eval $(../bin/go tool dist env)
+ export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
+-export GOPATH=/nonexist-gopath
+ 
+ unset CDPATH	# in case user has it set
+-export GOBIN=$GOROOT/bin  # Issue 14340
+-unset GOFLAGS
+-unset GO111MODULE
+ 
+ export GOHOSTOS
+ export CC
+@@ -53,4 +49,5 @@ if ulimit -T &> /dev/null; then
+ 	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+ fi
+ 
++export GOPATH=/nonexist-gopath
+ exec ../bin/go tool dist test -rebuild "$@"
+diff --git a/src/run.bat b/src/run.bat
+index 1f16c493bb..b4bab85a93 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -18,18 +18,13 @@ setlocal
+ 
+ set GOBUILDFAIL=0
+ 
+-set GOPATH=c:\nonexist-gopath
+-:: Issue 14340: ignore GOBIN during all.bat.
+-set GOBIN=
+-set GOFLAGS=
+-set GO111MODULE=
+-
+-:: get CGO_ENABLED
+-..\bin\go env > env.bat
++..\bin\go tool dist env > env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+ 
++set GOPATH=c:\nonexist-gopath
++
+ if x%1==x--no-rebuild goto norebuild
+ ..\bin\go tool dist test --rebuild
+ if errorlevel 1 goto fail
+diff --git a/src/run.rc b/src/run.rc
+index a7b4801207..2a0bb7f7a1 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -10,11 +10,7 @@ if(! test -f ../bin/go){
+ 	exit wrongdir
+ }
+ 
+-eval `{../bin/go env}
++eval `{../bin/go tool dist env}
+ 
+ GOPATH=/nonexist-gopath
+-GOBIN=() # Issue 14340
+-GOFLAGS=()
+-GO111MODULE=()
+-
+ exec ../bin/go tool dist test -rebuild $*

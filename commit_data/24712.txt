@@ -7,7 +7,7 @@ Date:   Thu Aug 20 15:14:20 2015 -0400
     Change-Id: I8c17f706a3e0f1fa2d754bfb4ccd1f7a027cb3db
     Reviewed-on: https://go-review.googlesource.com/13744
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 195 ++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/testdata/fp_ssa.go | 140 ++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  13 ++
@@ -16,3 +16,862 @@ Date:   Thu Aug 20 15:14:20 2015 -0400
  src/cmd/compile/internal/ssa/opGen.go          | 180 +++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 160 ++++++++++++++++++++
  7 files changed, 708 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0f0610e139..8e44ede318 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1217,6 +1217,84 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			}
+ 			return s.newValue1(op, n.Type, x)
+ 		}
++
++		var op1, op2 ssa.Op
++		if ft.IsInteger() && tt.IsFloat() {
++			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
++			signedSize := ft.Size()
++			it := TINT32 // intermediate type in conversion, int32 or int64
++			if !ft.IsSigned() {
++				signedSize += 5
++			}
++			switch signedSize {
++			case 1:
++				op1 = ssa.OpSignExt8to32
++			case 2:
++				op1 = ssa.OpSignExt16to32
++			case 4:
++				op1 = ssa.OpCopy
++			case 8:
++				op1 = ssa.OpCopy
++				it = TINT64
++			case 6:
++				op1 = ssa.OpZeroExt8to32
++			case 7:
++				op1 = ssa.OpZeroExt16to32
++			case 9:
++				// Go wide to dodge the unsignedness correction
++				op1 = ssa.OpZeroExt32to64
++				it = TINT64
++			case 13:
++				// unsigned 64, there is branchy correction code
++				// because there is only signed-integer to FP
++				// conversion in the (AMD64) instructions set.
++				// Branchy correction code *may* be amenable to
++				// optimization, and it can be cleanly expressed
++				// in SSA, so do it here.
++				if tt.Size() == 4 {
++					return s.uint64Tofloat32(n, x, ft, tt)
++				}
++				if tt.Size() == 8 {
++					return s.uint64Tofloat64(n, x, ft, tt)
++				}
++
++			default:
++				s.Fatalf("weird integer to float sign extension %s -> %s", ft, tt)
++
++			}
++			if tt.Size() == 4 {
++				if it == TINT64 {
++					op2 = ssa.OpCvt64to32F
++				} else {
++					op2 = ssa.OpCvt32to32F
++				}
++			} else {
++				if it == TINT64 {
++					op2 = ssa.OpCvt64to64F
++				} else {
++					op2 = ssa.OpCvt32to64F
++				}
++			}
++			if op1 == ssa.OpCopy {
++				return s.newValue1(op2, n.Type, x)
++			}
++			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
++		}
++		if ft.IsFloat() && tt.IsFloat() {
++			var op ssa.Op
++			if ft.Size() == tt.Size() {
++				op = ssa.OpCopy
++			} else if ft.Size() == 4 && tt.Size() == 8 {
++				op = ssa.OpCvt32Fto64F
++			} else if ft.Size() == 8 && tt.Size() == 4 {
++				op = ssa.OpCvt64Fto32F
++			} else {
++				s.Fatalf("weird float conversion %s -> %s", ft, tt)
++			}
++			return s.newValue1(op, n.Type, x)
++		}
++		// TODO: Still lack float-to-int
++
+ 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
+ 		return nil
+ 
+@@ -1709,6 +1787,112 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 	s.startBlock(bNext)
+ }
+ 
++type u2fcvtTab struct {
++	geq, cvt2F, and, rsh, or, add ssa.Op
++	one                           func(*state, ssa.Type, int64) *ssa.Value
++}
++
++var u64_f64 u2fcvtTab = u2fcvtTab{
++	geq:   ssa.OpGeq64,
++	cvt2F: ssa.OpCvt64to64F,
++	and:   ssa.OpAnd64,
++	rsh:   ssa.OpRsh64Ux64,
++	or:    ssa.OpOr64,
++	add:   ssa.OpAdd64F,
++	one:   (*state).constInt64,
++}
++
++var u64_f32 u2fcvtTab = u2fcvtTab{
++	geq:   ssa.OpGeq64,
++	cvt2F: ssa.OpCvt64to32F,
++	and:   ssa.OpAnd64,
++	rsh:   ssa.OpRsh64Ux64,
++	or:    ssa.OpOr64,
++	add:   ssa.OpAdd32F,
++	one:   (*state).constInt64,
++}
++
++// Excess generality on a machine with 64-bit integer registers.
++// Not used on AMD64.
++var u32_f32 u2fcvtTab = u2fcvtTab{
++	geq:   ssa.OpGeq32,
++	cvt2F: ssa.OpCvt32to32F,
++	and:   ssa.OpAnd32,
++	rsh:   ssa.OpRsh32Ux32,
++	or:    ssa.OpOr32,
++	add:   ssa.OpAdd32F,
++	one: func(s *state, t ssa.Type, x int64) *ssa.Value {
++		return s.constInt32(t, int32(x))
++	},
++}
++
++func (s *state) uint64Tofloat64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
++	return s.uintTofloat(&u64_f64, n, x, ft, tt)
++}
++
++func (s *state) uint64Tofloat32(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
++	return s.uintTofloat(&u64_f32, n, x, ft, tt)
++}
++
++func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
++	// if x >= 0 {
++	//    result = (floatY) x
++	// } else {
++	// 	  y = uintX(x) ; y = x & 1
++	// 	  z = uintX(x) ; z = z >> 1
++	// 	  z = z >> 1
++	// 	  z = z | y
++	// 	  result = (floatY) z
++	// 	  z = z + z
++	// }
++	//
++	// Code borrowed from old code generator.
++	// What's going on: large 64-bit "unsigned" looks like
++	// negative number to hardware's integer-to-float
++	// conversion.  However, because the mantissa is only
++	// 63 bits, we don't need the LSB, so instead we do an
++	// unsigned right shift (divide by two), convert, and
++	// double.  However, before we do that, we need to be
++	// sure that we do not lose a "1" if that made the
++	// difference in the resulting rounding.  Therefore, we
++	// preserve it, and OR (not ADD) it back in.  The case
++	// that matters is when the eleven discarded bits are
++	// equal to 10000000001; that rounds up, and the 1 cannot
++	// be lost else it would round down if the LSB of the
++	// candidate mantissa is 0.
++	cmp := s.newValue2(cvttab.geq, Types[TBOOL], x, s.zeroVal(ft))
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Control = cmp
++	b.Likely = ssa.BranchLikely
++
++	bThen := s.f.NewBlock(ssa.BlockPlain)
++	bElse := s.f.NewBlock(ssa.BlockPlain)
++	bAfter := s.f.NewBlock(ssa.BlockPlain)
++
++	addEdge(b, bThen)
++	s.startBlock(bThen)
++	a0 := s.newValue1(cvttab.cvt2F, tt, x)
++	s.vars[n] = a0
++	s.endBlock()
++	addEdge(bThen, bAfter)
++
++	addEdge(b, bElse)
++	s.startBlock(bElse)
++	one := cvttab.one(s, ft, 1)
++	y := s.newValue2(cvttab.and, ft, x, one)
++	z := s.newValue2(cvttab.rsh, ft, x, one)
++	z = s.newValue2(cvttab.or, ft, z, y)
++	a := s.newValue1(cvttab.cvt2F, tt, z)
++	a1 := s.newValue2(cvttab.add, tt, a, a)
++	s.vars[n] = a1
++	s.endBlock()
++	addEdge(bElse, bAfter)
++
++	s.startBlock(bAfter)
++	return s.variable(n, n.Type)
++}
++
+ // checkgoto checks that a goto from from to to does not
+ // jump into a block or jump over variable declarations.
+ // It is a copy of checkgoto in the pre-SSA backend,
+@@ -2425,12 +2609,11 @@ func genValue(v *ssa.Value) {
+ 		p.To.Scale = 4
+ 		p.To.Index = regnum(v.Args[1])
+ 		addAux(&p.To, v)
+-	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX:
+-		p := Prog(v.Op.Asm())
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = regnum(v.Args[0])
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v)
++	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
++		ssa.OpAMD64CVTSL2SS, ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSQ2SD,
++		ssa.OpAMD64CVTSS2SL, ssa.OpAMD64CVTSD2SL, ssa.OpAMD64CVTSS2SQ, ssa.OpAMD64CVTSD2SQ,
++		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
++		opregreg(v.Op.Asm(), regnum(v), regnum(v.Args[0]))
+ 	case ssa.OpAMD64MOVXzero:
+ 		nb := v.AuxInt
+ 		offset := int64(0)
+diff --git a/src/cmd/compile/internal/gc/testdata/fp_ssa.go b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+index 73366cdfa8..1a52100d6b 100644
+--- a/src/cmd/compile/internal/gc/testdata/fp_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+@@ -31,10 +31,43 @@ func fail32(s string, f func(a, b float32) float32, a, b, e float32) int {
+ func expect64(s string, x, expected float64) int {
+ 	if x != expected {
+ 		println("Expected", expected, "for", s, ", got", x)
++		return 1
+ 	}
+ 	return 0
+ }
+ 
++func expect32(s string, x, expected float32) int {
++	if x != expected {
++		println("Expected", expected, "for", s, ", got", x)
++		return 1
++	}
++	return 0
++}
++
++func expectAll64(s string, expected, a, b, c, d, e, f, g, h, i float64) int {
++	fails := 0
++	fails += expect64(s+":a", a, expected)
++	fails += expect64(s+":b", b, expected)
++	fails += expect64(s+":c", c, expected)
++	fails += expect64(s+":d", d, expected)
++	fails += expect64(s+":e", e, expected)
++	fails += expect64(s+":f", f, expected)
++	fails += expect64(s+":g", g, expected)
++	return fails
++}
++
++func expectAll32(s string, expected, a, b, c, d, e, f, g, h, i float32) int {
++	fails := 0
++	fails += expect32(s+":a", a, expected)
++	fails += expect32(s+":b", b, expected)
++	fails += expect32(s+":c", c, expected)
++	fails += expect32(s+":d", d, expected)
++	fails += expect32(s+":e", e, expected)
++	fails += expect32(s+":f", f, expected)
++	fails += expect32(s+":g", g, expected)
++	return fails
++}
++
+ // manysub_ssa is designed to tickle bugs that depend on register
+ // pressure or unfriendly operand ordering in registers (and at
+ // least once it succeeded in this).
+@@ -107,6 +140,111 @@ func div32_ssa(a, b float32) float32 {
+ 	return a / b
+ }
+ 
++func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
++	e int32, f uint32, g int64, h uint64, i float32) (aa, bb, cc, dd, ee, ff, gg, hh, ii float64) {
++	switch {
++	}
++	aa = float64(a)
++	bb = float64(b)
++	cc = float64(c)
++	hh = float64(h)
++	dd = float64(d)
++	ee = float64(e)
++	ff = float64(f)
++	gg = float64(g)
++	ii = float64(i)
++	return
++}
++
++func conv2Float32_ssa(a int8, b uint8, c int16, d uint16,
++	e int32, f uint32, g int64, h uint64, i float64) (aa, bb, cc, dd, ee, ff, gg, hh, ii float32) {
++	switch {
++	}
++	aa = float32(a)
++	bb = float32(b)
++	cc = float32(c)
++	dd = float32(d)
++	ee = float32(e)
++	ff = float32(f)
++	gg = float32(g)
++	hh = float32(h)
++	ii = float32(i)
++	return
++}
++
++func integer2floatConversions() int {
++	fails := 0
++	{
++		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(0, 0, 0, 0, 0, 0, 0, 0, 0)
++		fails += expectAll64("zero64", 0, a, b, c, d, e, f, g, h, i)
++	}
++	{
++		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(1, 1, 1, 1, 1, 1, 1, 1, 1)
++		fails += expectAll64("one64", 1, a, b, c, d, e, f, g, h, i)
++	}
++	{
++		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(0, 0, 0, 0, 0, 0, 0, 0, 0)
++		fails += expectAll32("zero32", 0, a, b, c, d, e, f, g, h, i)
++	}
++	{
++		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(1, 1, 1, 1, 1, 1, 1, 1, 1)
++		fails += expectAll32("one32", 1, a, b, c, d, e, f, g, h, i)
++	}
++	{
++		// Check maximum values
++		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
++		fails += expect64("a", a, 127)
++		fails += expect64("b", b, 255)
++		fails += expect64("c", c, 32767)
++		fails += expect64("d", d, 65535)
++		fails += expect64("e", e, float64(int32(0x7fffffff)))
++		fails += expect64("f", f, float64(uint32(0xffffffff)))
++		fails += expect64("g", g, float64(int64(0x7fffffffffffffff)))
++		fails += expect64("h", h, float64(uint64(0xffffffffffffffff)))
++		fails += expect64("i", i, float64(float32(3.402823E38)))
++	}
++	{
++		// Check minimum values (and tweaks for unsigned)
++		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
++		fails += expect64("a", a, -128)
++		fails += expect64("b", b, 254)
++		fails += expect64("c", c, -32768)
++		fails += expect64("d", d, 65534)
++		fails += expect64("e", e, float64(^int32(0x7fffffff)))
++		fails += expect64("f", f, float64(uint32(0xfffffffe)))
++		fails += expect64("g", g, float64(^int64(0x7fffffffffffffff)))
++		fails += expect64("h", h, float64(uint64(0xfffffffffffff401)))
++		fails += expect64("i", i, float64(float32(1.5E-45)))
++	}
++	{
++		// Check maximum values
++		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
++		fails += expect32("a", a, 127)
++		fails += expect32("b", b, 255)
++		fails += expect32("c", c, 32767)
++		fails += expect32("d", d, 65535)
++		fails += expect32("e", e, float32(int32(0x7fffffff)))
++		fails += expect32("f", f, float32(uint32(0xffffffff)))
++		fails += expect32("g", g, float32(int64(0x7fffffffffffffff)))
++		fails += expect32("h", h, float32(uint64(0xffffffffffffffff)))
++		fails += expect32("i", i, float32(float64(3.402823E38)))
++	}
++	{
++		// Check minimum values (and tweaks for unsigned)
++		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
++		fails += expect32("a", a, -128)
++		fails += expect32("b", b, 254)
++		fails += expect32("c", c, -32768)
++		fails += expect32("d", d, 65534)
++		fails += expect32("e", e, float32(^int32(0x7fffffff)))
++		fails += expect32("f", f, float32(uint32(0xfffffffe)))
++		fails += expect32("g", g, float32(^int64(0x7fffffffffffffff)))
++		fails += expect32("h", h, float32(uint64(0xfffffffffffff401)))
++		fails += expect32("i", i, float32(float64(1.5E-45)))
++	}
++	return fails
++}
++
+ func main() {
+ 
+ 	a := 3.0
+@@ -157,6 +295,8 @@ func main() {
+ 	fails += expect64("dc", dc, -9.0)
+ 	fails += expect64("dd", dd, 44.0)
+ 
++	fails += integer2floatConversions()
++
+ 	if fails > 0 {
+ 		fmt.Printf("Saw %v failures\n", fails)
+ 		panic("Failed.")
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index c59da55dbf..86b443c10d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -101,6 +101,19 @@
+ (ZeroExt16to64 x) -> (MOVWQZX x)
+ (ZeroExt32to64 x) -> (MOVLQZX x)
+ 
++(Cvt32to32F x) -> (CVTSL2SS x)
++(Cvt32to64F x) -> (CVTSL2SD x)
++(Cvt64to32F x) -> (CVTSQ2SS x)
++(Cvt64to64F x) -> (CVTSQ2SD x)
++
++(Cvt32Fto32 x) -> (CVTSS2SL x)
++(Cvt32Fto64 x) -> (CVTSS2SQ x)
++(Cvt64Fto32 x) -> (CVTSD2SL x)
++(Cvt64Fto64 x) -> (CVTSD2SQ x)
++
++(Cvt32Fto64F x) -> (CVTSS2SD x)
++(Cvt64Fto32F x) -> (CVTSD2SS x)
++
+ // Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8 x) -> x
+ (Trunc32to8 x) -> x
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 3ee802ec9f..8b8da225d1 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -120,13 +120,14 @@ func init() {
+ 		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
+ 		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+ 
+-		// fp11     = regInfo{inputs: fponly, outputs: fponly}
+ 		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
+ 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+ 		fp21x15 = regInfo{inputs: []regMask{fp &^ x15, fp &^ x15},
+ 			clobbers: x15, outputs: []regMask{fp &^ x15}}
+-		// fp2flags = regInfo{inputs: []regMask{fp, fp}, outputs: flagsonly}
+-		// fp1flags = regInfo{inputs: fponly, outputs: flagsonly}
++
++		fpgp = regInfo{inputs: fponly, outputs: gponly}
++		gpfp = regInfo{inputs: gponly, outputs: fponly}
++		fp11 = regInfo{inputs: fponly, outputs: fponly}
+ 
+ 		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
+ 		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
+@@ -328,6 +329,17 @@ func init() {
+ 		{name: "MOVLconst", reg: gp01, asm: "MOVL"}, // 32 low bits of auxint
+ 		{name: "MOVQconst", reg: gp01, asm: "MOVQ"}, // auxint
+ 
++		{name: "CVTSD2SL", reg: fpgp, asm: "CVTSD2SL"}, // convert float64 to int32
++		{name: "CVTSD2SQ", reg: fpgp, asm: "CVTSD2SQ"}, // convert float64 to int64
++		{name: "CVTSS2SL", reg: fpgp, asm: "CVTSS2SL"}, // convert float32 to int32
++		{name: "CVTSS2SQ", reg: fpgp, asm: "CVTSS2SQ"}, // convert float32 to int64
++		{name: "CVTSL2SS", reg: gpfp, asm: "CVTSL2SS"}, // convert int32 to float32
++		{name: "CVTSL2SD", reg: gpfp, asm: "CVTSL2SD"}, // convert int32 to float64
++		{name: "CVTSQ2SS", reg: gpfp, asm: "CVTSQ2SS"}, // convert int64 to float32
++		{name: "CVTSQ2SD", reg: gpfp, asm: "CVTSQ2SD"}, // convert int64 to float64
++		{name: "CVTSD2SS", reg: fp11, asm: "CVTSD2SS"}, // convert float64 to float32
++		{name: "CVTSS2SD", reg: fp11, asm: "CVTSS2SD"}, // convert float32 to float64
++
+ 		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
+ 		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
+ 		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 78524a5e6b..4a65a87ea8 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -287,6 +287,17 @@ var genericOps = []opData{
+ 	{name: "Trunc64to16"},
+ 	{name: "Trunc64to32"},
+ 
++	{name: "Cvt32to32F"},
++	{name: "Cvt32to64F"},
++	{name: "Cvt64to32F"},
++	{name: "Cvt64to64F"},
++	{name: "Cvt32Fto32"},
++	{name: "Cvt32Fto64"},
++	{name: "Cvt64Fto32"},
++	{name: "Cvt64Fto64"},
++	{name: "Cvt32Fto64F"},
++	{name: "Cvt64Fto32F"},
++
+ 	// Automatically inserted safety checks
+ 	{name: "IsNonNil"},   // arg0 != nil
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5346f757fb..aa51cbc301 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -209,6 +209,16 @@ const (
+ 	OpAMD64MOVWconst
+ 	OpAMD64MOVLconst
+ 	OpAMD64MOVQconst
++	OpAMD64CVTSD2SL
++	OpAMD64CVTSD2SQ
++	OpAMD64CVTSS2SL
++	OpAMD64CVTSS2SQ
++	OpAMD64CVTSL2SS
++	OpAMD64CVTSL2SD
++	OpAMD64CVTSQ2SS
++	OpAMD64CVTSQ2SD
++	OpAMD64CVTSD2SS
++	OpAMD64CVTSS2SD
+ 	OpAMD64LEAQ
+ 	OpAMD64LEAQ1
+ 	OpAMD64LEAQ2
+@@ -441,6 +451,16 @@ const (
+ 	OpTrunc64to8
+ 	OpTrunc64to16
+ 	OpTrunc64to32
++	OpCvt32to32F
++	OpCvt32to64F
++	OpCvt64to32F
++	OpCvt64to64F
++	OpCvt32Fto32
++	OpCvt32Fto64
++	OpCvt64Fto32
++	OpCvt64Fto64
++	OpCvt32Fto64F
++	OpCvt64Fto32F
+ 	OpIsNonNil
+ 	OpIsInBounds
+ 	OpPanicNilCheck
+@@ -2521,6 +2541,126 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "CVTSD2SL",
++		asm:  x86.ACVTSD2SL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "CVTSD2SQ",
++		asm:  x86.ACVTSD2SQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "CVTSS2SL",
++		asm:  x86.ACVTSS2SL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "CVTSS2SQ",
++		asm:  x86.ACVTSS2SQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "CVTSL2SS",
++		asm:  x86.ACVTSL2SS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
++	{
++		name: "CVTSL2SD",
++		asm:  x86.ACVTSL2SD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
++	{
++		name: "CVTSQ2SS",
++		asm:  x86.ACVTSQ2SS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
++	{
++		name: "CVTSQ2SD",
++		asm:  x86.ACVTSQ2SD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
++	{
++		name: "CVTSD2SS",
++		asm:  x86.ACVTSD2SS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
++	{
++		name: "CVTSS2SD",
++		asm:  x86.ACVTSS2SD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
+ 	{
+ 		name: "LEAQ",
+ 		reg: regInfo{
+@@ -3606,6 +3746,46 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Trunc64to32",
+ 		generic: true,
+ 	},
++	{
++		name:    "Cvt32to32F",
++		generic: true,
++	},
++	{
++		name:    "Cvt32to64F",
++		generic: true,
++	},
++	{
++		name:    "Cvt64to32F",
++		generic: true,
++	},
++	{
++		name:    "Cvt64to64F",
++		generic: true,
++	},
++	{
++		name:    "Cvt32Fto32",
++		generic: true,
++	},
++	{
++		name:    "Cvt32Fto64",
++		generic: true,
++	},
++	{
++		name:    "Cvt64Fto32",
++		generic: true,
++	},
++	{
++		name:    "Cvt64Fto64",
++		generic: true,
++	},
++	{
++		name:    "Cvt32Fto64F",
++		generic: true,
++	},
++	{
++		name:    "Cvt64Fto32F",
++		generic: true,
++	},
+ 	{
+ 		name:    "IsNonNil",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f9690a37db..b50fecda2e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1688,6 +1688,166 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endc395c0a53eeccf597e225a07b53047d1
+ 	endc395c0a53eeccf597e225a07b53047d1:
+ 		;
++	case OpCvt32Fto32:
++		// match: (Cvt32Fto32 x)
++		// cond:
++		// result: (CVTSS2SL x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSS2SL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endad55e2986dea26975574ee27f4976d5e
++	endad55e2986dea26975574ee27f4976d5e:
++		;
++	case OpCvt32Fto64:
++		// match: (Cvt32Fto64 x)
++		// cond:
++		// result: (CVTSS2SQ x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSS2SQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end227800dc831e0b4ef80fa315133c0991
++	end227800dc831e0b4ef80fa315133c0991:
++		;
++	case OpCvt32Fto64F:
++		// match: (Cvt32Fto64F x)
++		// cond:
++		// result: (CVTSS2SD x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSS2SD
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end0bf5d6f8d182ee2b3ab7d7c2f8ff7790
++	end0bf5d6f8d182ee2b3ab7d7c2f8ff7790:
++		;
++	case OpCvt32to32F:
++		// match: (Cvt32to32F x)
++		// cond:
++		// result: (CVTSL2SS x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSL2SS
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto ende0bdea2b21aecdb8399d6fd80ddc97d6
++	ende0bdea2b21aecdb8399d6fd80ddc97d6:
++		;
++	case OpCvt32to64F:
++		// match: (Cvt32to64F x)
++		// cond:
++		// result: (CVTSL2SD x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSL2SD
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto ende06cbe745112bcf0e6612788ef71c958
++	ende06cbe745112bcf0e6612788ef71c958:
++		;
++	case OpCvt64Fto32:
++		// match: (Cvt64Fto32 x)
++		// cond:
++		// result: (CVTSD2SL x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSD2SL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end1ce5fd52f29d5a42d1aa08d7ac53e49e
++	end1ce5fd52f29d5a42d1aa08d7ac53e49e:
++		;
++	case OpCvt64Fto32F:
++		// match: (Cvt64Fto32F x)
++		// cond:
++		// result: (CVTSD2SS x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSD2SS
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endfd70158a96824ced99712d606c607d94
++	endfd70158a96824ced99712d606c607d94:
++		;
++	case OpCvt64Fto64:
++		// match: (Cvt64Fto64 x)
++		// cond:
++		// result: (CVTSD2SQ x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSD2SQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end8239c11ce860dc3b5417d4d2ae59386a
++	end8239c11ce860dc3b5417d4d2ae59386a:
++		;
++	case OpCvt64to32F:
++		// match: (Cvt64to32F x)
++		// cond:
++		// result: (CVTSQ2SS x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSQ2SS
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endfecc08b8a8cbd2bf3be21a077c4d0d40
++	endfecc08b8a8cbd2bf3be21a077c4d0d40:
++		;
++	case OpCvt64to64F:
++		// match: (Cvt64to64F x)
++		// cond:
++		// result: (CVTSQ2SD x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64CVTSQ2SD
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endf74ce5df659f385f75c61187b515a5d0
++	endf74ce5df659f385f75c61187b515a5d0:
++		;
+ 	case OpDiv16:
+ 		// match: (Div16 x y)
+ 		// cond:

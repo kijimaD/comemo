@@ -7,6 +7,30 @@ Date:   Thu Aug 25 13:48:21 2011 +1000
     R=mikesamuel
     CC=golang-dev
     https://golang.org/cl/4956042
-
+---
  src/pkg/exp/template/html/escape_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index ee36da2257..6bab507874 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -292,6 +292,18 @@ func TestEscapeText(t *testing.T) {
+ 			`<a href="'`,
+ 			context{state: stateURL, delim: delimDoubleQuote},
+ 		},
++		{
++			`<img alt="1">`,
++			context{state: stateText},
++		},
++		{
++			`<img alt="1>"`,
++			context{state: stateTag},
++		},
++		{
++			`<img alt="1>">`,
++			context{state: stateText},
++		},
+ 		{
+ 			`<input checked type="checkbox"`,
+ 			context{state: stateTag},

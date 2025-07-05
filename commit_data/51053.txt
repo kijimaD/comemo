@@ -18,7 +18,34 @@ Date:   Tue Nov 30 17:30:57 2021 -0500
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Changkun Ou <mail@changkun.de>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/net/sendfile_stub.go     | 2 +-
  src/net/sendfile_unix_alt.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index 4ddae852e1..7428da3127 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || (js && wasm) || netbsd || openbsd
++//go:build aix || (js && wasm) || netbsd || openbsd || ios
+ 
+ package net
+ 
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 8845a981f5..f99af92bc8 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || solaris
++//go:build (darwin && !ios) || dragonfly || freebsd || solaris
+ 
+ package net
+ 

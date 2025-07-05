@@ -17,7 +17,48 @@ Date:   Fri Jan 30 11:23:22 2015 +0300
     Change-Id: If037883cba53d85028fb97b1328696091b3b7ddd
     Reviewed-on: https://go-review.googlesource.com/3600
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/swt.c            |  2 ++
  test/fixedbugs/issue9731.go | 21 +++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index e1d8af8786..ca5455d479 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -939,6 +939,8 @@ typecheckswitch(Node *n)
+ 					// multiple entry type switch or default
+ 					nvar->ntype = typenod(n->type);
+ 				}
++				typecheck(&nvar, Erv | Easgn);
++				ncase->nname = nvar;
+ 			}
+ 		}
+ 		typechecklist(ncase->nbody, Etop);
+diff --git a/test/fixedbugs/issue9731.go b/test/fixedbugs/issue9731.go
+new file mode 100644
+index 0000000000..286cebd7b6
+--- /dev/null
++++ b/test/fixedbugs/issue9731.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x interface{}) {
++	switch x := x.(type) {
++	case int:
++		func() {
++			_ = x
++		}()
++	case map[int]int:
++		func() {
++			for range x {
++			}
++		}()
++	}
++}

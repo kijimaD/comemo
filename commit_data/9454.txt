@@ -71,7 +71,7 @@ Date:   Mon Aug 22 23:26:39 2011 -0400
     R=golang-dev, qyzhai, n13m3y3r, r
     CC=golang-dev
     https://golang.org/cl/4907048
-
+---
  src/pkg/runtime/amd64/traceback.c | 53 +++++++++++++++++++++------------------
  src/pkg/runtime/arm/traceback.c   | 51 +++++++++++++++++++------------------
  src/pkg/runtime/chan.c            |  8 ++++++
@@ -83,3 +83,492 @@ Date:   Mon Aug 22 23:26:39 2011 -0400
  src/pkg/runtime/symtab.c          | 37 +++++++++++++++++++++++++++
  test/golden.out                   |  8 ------
  10 files changed, 163 insertions(+), 65 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 3e85d36bd7..6b758c270d 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -123,27 +123,30 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		else if(pcbuf != nil)
+ 			pcbuf[n++] = pc;
+ 		else {
+-			// Print during crash.
+-			//	main+0xf /home/rsc/go/src/runtime/x.go:23
+-			//		main(0x1, 0x2, 0x3)
+-			runtime·printf("%S", f->name);
+-			if(pc > f->entry)
+-				runtime·printf("+%p", (uintptr)(pc - f->entry));
+-			tracepc = pc;	// back up to CALL instruction for funcline.
+-			if(n > 0 && pc > f->entry && !waspanic)
+-				tracepc--;
+-			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+-			runtime·printf("\t%S(", f->name);
+-			for(i = 0; i < f->args; i++) {
+-				if(i != 0)
+-					runtime·prints(", ");
+-				runtime·printhex(((uintptr*)fp)[i]);
+-				if(i >= 4) {
+-					runtime·prints(", ...");
+-					break;
++			if(showframe(f)) {
++				// Print during crash.
++				//	main(0x1, 0x2, 0x3)
++				//		/home/rsc/go/src/runtime/x.go:23 +0xf
++				//		
++				tracepc = pc;	// back up to CALL instruction for funcline.
++				if(n > 0 && pc > f->entry && !waspanic)
++					tracepc--;
++				runtime·printf("%S(", f->name);
++				for(i = 0; i < f->args; i++) {
++					if(i != 0)
++						runtime·prints(", ");
++					runtime·printhex(((uintptr*)fp)[i]);
++					if(i >= 4) {
++						runtime·prints(", ...");
++						break;
++					}
+ 				}
++				runtime·prints(")\n");
++				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
++				if(pc > f->entry)
++					runtime·printf(" +%p", (uintptr)(pc - f->entry));
++				runtime·printf("\n");
+ 			}
+-			runtime·prints(")\n");
+ 			n++;
+ 		}
+ 		
+@@ -189,14 +192,16 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		fp = nil;
+ 	}
+ 	
+-	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil) {
+-		runtime·printf("----- goroutine created by -----\n%S", f->name);
+-		if(pc > f->entry)
+-			runtime·printf("+%p", (uintptr)(pc - f->entry));
++	// Show what created goroutine, except main goroutine (goid 1).
++	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && g->goid != 1) {
++		runtime·printf("created by %S\n", f->name);
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(n > 0 && pc > f->entry)
+ 			tracepc--;
+-		runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
++		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
++		if(pc > f->entry)
++			runtime·printf(" +%p", (uintptr)(pc - f->entry));
++		runtime·printf("\n");
+ 	}
+ 		
+ 	return n;
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index 5628b8349e..f99d738a93 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -117,27 +117,29 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		else if(pcbuf != nil)
+ 			pcbuf[n++] = pc;
+ 		else {
+-			// Print during crash.
+-			//	main+0xf /home/rsc/go/src/runtime/x.go:23
+-			//		main(0x1, 0x2, 0x3)
+-			runtime·printf("[%p] %S", fp, f->name);
+-			if(pc > f->entry)
+-				runtime·printf("+%p", (uintptr)(pc - f->entry));
+-			tracepc = pc;	// back up to CALL instruction for funcline.
+-			if(n > 0 && pc > f->entry && !waspanic)
+-				tracepc -= sizeof(uintptr);
+-			runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
+-			runtime·printf("\t%S(", f->name);
+-			for(i = 0; i < f->args; i++) {
+-				if(i != 0)
+-					runtime·prints(", ");
+-				runtime·printhex(((uintptr*)fp)[1+i]);
+-				if(i >= 4) {
+-					runtime·prints(", ...");
+-					break;
++			if(showframe(f)) {
++				// Print during crash.
++				//	main(0x1, 0x2, 0x3)
++				//		/home/rsc/go/src/runtime/x.go:23 +0xf
++				tracepc = pc;	// back up to CALL instruction for funcline.
++				if(n > 0 && pc > f->entry && !waspanic)
++					tracepc -= sizeof(uintptr);
++				runtime·printf("%S(", f->name);
++				for(i = 0; i < f->args; i++) {
++					if(i != 0)
++						runtime·prints(", ");
++					runtime·printhex(((uintptr*)fp)[1+i]);
++					if(i >= 4) {
++						runtime·prints(", ...");
++						break;
++					}
+ 				}
++				runtime·prints(")\n");
++				runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
++				if(pc > f->entry)
++					runtime·printf(" +%p", (uintptr)(pc - f->entry));
++				runtime·printf("\n");
+ 			}
+-			runtime·prints(")\n");
+ 			n++;
+ 		}
+ 		
+@@ -181,14 +183,15 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 			sp += 12;
+ 	}
+ 	
+-	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil) {
+-		runtime·printf("----- goroutine created by -----\n%S", f->name);
+-		if(pc > f->entry)
+-			runtime·printf("+%p", (uintptr)(pc - f->entry));
++	if(pcbuf == nil && (pc = g->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && g->goid != 1) {
++		runtime·printf("created by %S\n", f->name);
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(n > 0 && pc > f->entry)
+ 			tracepc -= sizeof(uintptr);
+-		runtime·printf(" %S:%d\n", f->src, runtime·funcline(f, tracepc));
++		runtime·printf("\t%S:%d", f->src, runtime·funcline(f, tracepc));
++		if(pc > f->entry)
++			runtime·printf(" +%p", (uintptr)(pc - f->entry));
++		runtime·printf("\n");
+ 	}
+ 
+ 	return n;		
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index ef53423538..92a6c288bf 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -171,6 +171,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 			return;
+ 		}
+ 		g->status = Gwaiting;
++		g->waitreason = "chan send (nil chan)";
+ 		runtime·gosched();
+ 		return;  // not reached
+ 	}
+@@ -217,6 +218,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres)
+ 	mysg.selgen = NOSELGEN;
+ 	g->param = nil;
+ 	g->status = Gwaiting;
++	g->waitreason = "chan send";
+ 	enqueue(&c->sendq, &mysg);
+ 	runtime·unlock(c);
+ 	runtime·gosched();
+@@ -244,6 +246,7 @@ asynch:
+ 		mysg.elem = nil;
+ 		mysg.selgen = NOSELGEN;
+ 		g->status = Gwaiting;
++		g->waitreason = "chan send";
+ 		enqueue(&c->sendq, &mysg);
+ 		runtime·unlock(c);
+ 		runtime·gosched();
+@@ -293,6 +296,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 			return;
+ 		}
+ 		g->status = Gwaiting;
++		g->waitreason = "chan receive (nil chan)";
+ 		runtime·gosched();
+ 		return;  // not reached
+ 	}
+@@ -332,6 +336,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 	mysg.selgen = NOSELGEN;
+ 	g->param = nil;
+ 	g->status = Gwaiting;
++	g->waitreason = "chan receive";
+ 	enqueue(&c->recvq, &mysg);
+ 	runtime·unlock(c);
+ 	runtime·gosched();
+@@ -363,6 +368,7 @@ asynch:
+ 		mysg.elem = nil;
+ 		mysg.selgen = NOSELGEN;
+ 		g->status = Gwaiting;
++		g->waitreason = "chan receive";
+ 		enqueue(&c->recvq, &mysg);
+ 		runtime·unlock(c);
+ 		runtime·gosched();
+@@ -780,6 +786,7 @@ void
+ runtime·block(void)
+ {
+ 	g->status = Gwaiting;	// forever
++	g->waitreason = "select (no cases)";
+ 	runtime·gosched();
+ }
+ 
+@@ -912,6 +919,7 @@ loop:
+ 
+ 	g->param = nil;
+ 	g->status = Gwaiting;
++	g->waitreason = "select";
+ 	selunlock(sel);
+ 	runtime·gosched();
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 78ea2aa2b9..e79317bf6f 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -697,6 +697,7 @@ runfinq(void)
+ 		if(f == nil) {
+ 			fingwait = 1;
+ 			g->status = Gwaiting;
++			g->waitreason = "finalizer wait";
+ 			runtime·gosched();
+ 			continue;
+ 		}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index dd42675c2a..3a431ef35e 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -249,6 +249,40 @@ runtime·goexit(void)
+ 	runtime·gosched();
+ }
+ 
++void
++runtime·goroutineheader(G *g)
++{
++	int8 *status;
++
++	switch(g->status) {
++	case Gidle:
++		status = "idle";
++		break;
++	case Grunnable:
++		status = "runnable";
++		break;
++	case Grunning:
++		status = "running";
++		break;
++	case Gsyscall:
++		status = "syscall";
++		break;
++	case Gwaiting:
++		if(g->waitreason)
++			status = g->waitreason;
++		else
++			status = "waiting";
++		break;
++	case Gmoribund:
++		status = "moribund";
++		break;
++	default:
++		status = "???";
++		break;
++	}
++	runtime·printf("goroutine %d [%s]:\n", g->goid, status);
++}
++
+ void
+ runtime·tracebackothers(G *me)
+ {
+@@ -257,7 +291,8 @@ runtime·tracebackothers(G *me)
+ 	for(g = runtime·allg; g != nil; g = g->alllink) {
+ 		if(g == me || g->status == Gdead)
+ 			continue;
+-		runtime·printf("\ngoroutine %d [%d]:\n", g->goid, g->status);
++		runtime·printf("\n");
++		runtime·goroutineheader(g);
+ 		runtime·traceback(g->sched.pc, g->sched.sp, 0, g);
+ 	}
+ }
+@@ -1073,15 +1108,18 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	schedlock();
+ 
+ 	if((newg = gfget()) != nil){
+-		newg->status = Gwaiting;
+ 		if(newg->stackguard - StackGuard != newg->stack0)
+ 			runtime·throw("invalid stack in newg");
+ 	} else {
+ 		newg = runtime·malg(StackMin);
+-		newg->status = Gwaiting;
+-		newg->alllink = runtime·allg;
+-		runtime·allg = newg;
++		if(runtime·lastg == nil)
++			runtime·allg = newg;
++		else
++			runtime·lastg->alllink = newg;
++		runtime·lastg = newg;
+ 	}
++	newg->status = Gwaiting;
++	newg->waitreason = "new goroutine";
+ 
+ 	sp = newg->stackbase;
+ 	sp -= siz;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 49aba7da01..c4bd408829 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -51,12 +51,15 @@ runtime·dopanic(int32 unused)
+ 	static bool didothers;
+ 
+ 	if(g->sig != 0)
+-		runtime·printf("\n[signal %x code=%p addr=%p pc=%p]\n",
++		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
+ 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
+ 
+-	runtime·printf("\n");
+ 	if(runtime·gotraceback()){
+-		runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
++		if(g != m->g0) {
++			runtime·printf("\n");
++			runtime·goroutineheader(g);
++			runtime·traceback(runtime·getcallerpc(&unused), runtime·getcallersp(&unused), 0, g);
++		}
+ 		if(!didothers) {
+ 			didothers = true;
+ 			runtime·tracebackothers(g);
+@@ -703,7 +706,13 @@ runtime·Caller(int32 skip, uintptr retpc, String retfile, int32 retline, bool r
+ void
+ runtime·Callers(int32 skip, Slice pc, int32 retn)
+ {
+-	retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
++	// runtime.callers uses pc.array==nil as a signal
++	// to print a stack trace.  Pick off 0-length pc here
++	// so that we don't let a nil pc slice get to it.
++	if(pc.len == 0)
++		retn = 0;
++	else
++		retn = runtime·callers(skip, (uintptr*)pc.array, pc.len);
+ 	FLUSH(&retn);
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index bea8636a9f..1e52d76ad0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -199,6 +199,7 @@ struct	G
+ 	int16	status;
+ 	int32	goid;
+ 	uint32	selgen;		// valid sudog pointer
++	int8*	waitreason;	// if status==Gwaiting
+ 	G*	schedlink;
+ 	bool	readyonstop;
+ 	bool	ispanic;
+@@ -384,6 +385,7 @@ struct Panic
+ extern	Alg	runtime·algarray[Amax];
+ extern	String	runtime·emptystring;
+ G*	runtime·allg;
++G*	runtime·lastg;
+ M*	runtime·allm;
+ extern	int32	runtime·gomaxprocs;
+ extern	bool	runtime·singleproc;
+@@ -434,6 +436,7 @@ String	runtime·gostringnocopy(byte*);
+ String	runtime·gostringw(uint16*);
+ void	runtime·initsig(int32);
+ int32	runtime·gotraceback(void);
++void	runtime·goroutineheader(G*);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+ void	runtime·tracebackothers(G*);
+ int32	runtime·write(int32, void*, int32);
+@@ -631,6 +634,7 @@ void	runtime·chansend(ChanType*, Hchan*, void*, bool*);
+ void	runtime·chanrecv(ChanType*, Hchan*, void*, bool*, bool*);
+ int32	runtime·chanlen(Hchan*);
+ int32	runtime·chancap(Hchan*);
++bool	runtime·showframe(Func*);
+ 
+ void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+ 
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index ae84351edf..d202a9d0a5 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -129,6 +129,7 @@ runtime·semacquire(uint32 volatile *addr)
+ 		// (we set nwait above), so go to sleep.
+ 		semqueue(root, addr, &s);
+ 		g->status = Gwaiting;
++		g->waitreason = "semacquire";
+ 		runtime·unlock(root);
+ 		runtime·gosched();
+ 		if(cansemacquire(addr))
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index d2ebf9b400..b9035119fe 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -464,3 +464,40 @@ runtime·findfunc(uintptr addr)
+ 	runtime·prints("findfunc unreachable\n");
+ 	return nil;
+ }
++
++static bool
++hasprefix(String s, int8 *p)
++{
++	int32 i;
++	
++	for(i=0; i<s.len; i++) {
++		if(p[i] == 0)
++			return 1;
++		if(p[i] != s.str[i])
++			return 0;
++	}
++	return p[i] == 0;
++}
++
++static bool
++contains(String s, int8 *p)
++{
++	int32 i;
++	
++	if(p[0] == 0)
++		return 1;
++	for(i=0; i<s.len; i++) {
++		if(s.str[i] != p[0])
++			continue;
++		if(hasprefix((String){s.str + i, s.len - i}, p))
++			return 1;
++	}
++	return 0;
++}
++
++bool
++showframe(Func *f)
++{
++	// return 1;  // for debugging - show all frames
++	return contains(f->name, ".") && !hasprefix(f->name, "runtime.");
++}
+diff --git a/test/golden.out b/test/golden.out
+index 655ceda565..d2a104b798 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -4,19 +4,15 @@
+ =========== ./cmp2.go
+ panic: runtime error: comparing uncomparable type []int
+ 
+-
+ =========== ./cmp3.go
+ panic: runtime error: comparing uncomparable type []int
+ 
+-
+ =========== ./cmp4.go
+ panic: runtime error: hash of unhashable type []int
+ 
+-
+ =========== ./cmp5.go
+ panic: runtime error: hash of unhashable type []int
+ 
+-
+ =========== ./deferprint.go
+ printing: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+ 42 true false true +1.500000e+000 world 0x0 [0/0]0x0 0x0 0x0 255
+@@ -115,11 +111,9 @@ PASS
+ =========== interface/fail.go
+ panic: interface conversion: *main.S is not main.I: missing method Foo
+ 
+-
+ =========== interface/returntype.go
+ panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+-
+ == nilptr/
+ 
+ == syntax/
+@@ -154,12 +148,10 @@ M
+ =========== fixedbugs/bug113.go
+ panic: interface conversion: interface is int, not int32
+ 
+-
+ =========== fixedbugs/bug148.go
+ 2 3
+ panic: interface conversion: interface is main.T, not main.T
+ 
+-
+ =========== fixedbugs/bug328.go
+ 0x0
+ 

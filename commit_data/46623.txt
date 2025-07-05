@@ -14,8 +14,68 @@ Date:   Fri Jan 15 22:21:33 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go    | 8 +++-----
  src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
  src/cmd/compile/internal/walk/expr.go  | 5 -----
  3 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 39659c45c0..5b1be7fc0f 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -615,11 +615,9 @@ type TypeAssertExpr struct {
+ 	X     Node
+ 	Ntype Ntype
+ 
+-	// Runtime type information provided by walkDotType.
+-	// Caution: These aren't always populated; see walkDotType.
+-	SrcType *AddrExpr `mknode:"-"` // *runtime._type for X's type
+-	DstType *AddrExpr `mknode:"-"` // *runtime._type for Type
+-	Itab    *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
++	// Runtime type information provided by walkDotType for
++	// assertions from non-empty interface to concrete type.
++	Itab *AddrExpr `mknode:"-"` // *runtime.itab for Type implementing X's type
+ }
+ 
+ func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c48ac22d2a..48942e01d6 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6110,8 +6110,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
+ // commaok indicates whether to panic or return a bool.
+ // If commaok is false, resok will be nil.
+ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
+-	iface := s.expr(n.X)        // input interface
+-	target := s.expr(n.DstType) // target type
++	iface := s.expr(n.X)              // input interface
++	target := s.reflectType(n.Type()) // target type
+ 	byteptr := s.f.Config.Types.BytePtr
+ 
+ 	if n.Type().IsInterface() {
+@@ -6245,7 +6245,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	if !commaok {
+ 		// on failure, panic by calling panicdottype
+ 		s.startBlock(bFail)
+-		taddr := s.expr(n.SrcType)
++		taddr := s.reflectType(n.X.Type())
+ 		if n.X.Type().IsEmptyInterface() {
+ 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
+ 		} else {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 449f8ea3ec..c9b7c0704e 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -619,11 +619,6 @@ func walkDot(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+ 	// Set up interface type addresses for back end.
+-
+-	n.DstType = reflectdata.TypePtr(n.Type())
+-	if n.Op() == ir.ODOTTYPE {
+-		n.SrcType = reflectdata.TypePtr(n.X.Type())
+-	}
+ 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
+ 		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
+ 	}

@@ -11,6 +11,19 @@ Date:   Thu Apr 11 16:18:29 2019 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/example_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 8b6566e149..822886f70c 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -28,6 +28,7 @@ func ExampleOpenFile_append() {
+ 		log.Fatal(err)
+ 	}
+ 	if _, err := f.Write([]byte("appended some data\n")); err != nil {
++		f.Close() // ignore error; Write error takes precedence
+ 		log.Fatal(err)
+ 	}
+ 	if err := f.Close(); err != nil {

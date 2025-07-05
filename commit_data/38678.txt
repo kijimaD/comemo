@@ -161,3 +161,74 @@ Date:   Wed Nov 14 13:48:01 2018 -0500
  test/nosplit.go                                    |   2 +-
  test/notinheap.go                                  |   8 +
  153 files changed, 4666 insertions(+), 1657 deletions(-)
+
+diff --cc src/crypto/tls/cipher_suites.go
+index 2475906ae1,d948fac8cd..20e45e5050
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@@ -223,11 -238,10 +243,14 @@@ func (f *xorNonceAEAD) Open(out, nonce
+  	return result, err
+  }
+  
+ +type gcmtls interface {
+ +	NewGCMTLS() (cipher.AEAD, error)
+ +}
+ +
+- func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
++ func aeadAESGCM(key, noncePrefix []byte) aead {
++ 	if len(noncePrefix) != noncePrefixLength {
++ 		panic("tls: internal error: wrong nonce length")
++ 	}
+  	aes, err := aes.NewCipher(key)
+  	if err != nil {
+  		panic(err)
+diff --cc src/crypto/tls/common.go
+index 98d13b038d,4808c01f9c..a3cfe05bc0
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@@ -935,18 -966,17 +979,18 @@@ func initDefaultCipherSuites() 
+  	var topCipherSuites []uint16
+  
+  	// Check the cpu flags for each platform that has optimized GCM implementations.
+- 	// Worst case, these variables will just all be false
+- 	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
++ 	// Worst case, these variables will just all be false.
++ 	var (
++ 		hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
++ 		hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
++ 		// Keep in sync with crypto/aes/cipher_s390x.go.
++ 		hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+  
+- 	hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+- 
+- 	// Keep in sync with crypto/aes/cipher_s390x.go.
+- 	hasGCMAsmS390X := cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+- 
+- 	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
++ 		hasGCMAsm = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
++ 	)
+  
+ -	if hasGCMAsm {
+ +	if hasGCMAsm || boring.Enabled {
+ +		// If BoringCrypto is enabled, always prioritize AES-GCM.
+  		// If AES-GCM hardware is provided then prioritise AES-GCM
+  		// cipher suites.
+  		topCipherSuites = []uint16{
+diff --cc src/crypto/tls/handshake_messages_test.go
+index 08622eac05,d32f33f378..fdf096b473
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@@ -143,8 -144,11 +144,11 @@@ func (*clientHelloMsg) Generate(rand *r
+  		}
+  	}
+  	if rand.Intn(10) > 5 {
+ -		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+ +		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+  	}
++ 	if rand.Intn(10) > 5 {
+ -		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+++		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
++ 	}
+  	for i := 0; i < rand.Intn(5); i++ {
+  		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
+  	}

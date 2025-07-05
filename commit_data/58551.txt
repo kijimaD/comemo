@@ -32,7 +32,7 @@ Date:   Tue Sep 12 15:44:48 2023 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Rhys Hiltner <rhys@justin.tv>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/debug.go        |  11 ++
  src/runtime/export_test.go  |  21 +++
  src/runtime/extern.go       |   8 ++
@@ -45,3 +45,865 @@ Date:   Tue Sep 12 15:44:48 2023 -0700
  src/runtime/runtime1.go     |  42 +++---
  src/runtime/runtime2.go     |   8 ++
  11 files changed, 627 insertions(+), 23 deletions(-)
+
+diff --git a/src/runtime/debug.go b/src/runtime/debug.go
+index 0e61692f3d..3233ce8ee7 100644
+--- a/src/runtime/debug.go
++++ b/src/runtime/debug.go
+@@ -52,6 +52,17 @@ func NumCgoCall() int64 {
+ 	return n
+ }
+ 
++func totalMutexWaitTimeNanos() int64 {
++	total := sched.totalMutexWaitTime.Load()
++
++	total += sched.totalRuntimeLockWaitTime.Load()
++	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
++		total += mp.mLockProfile.waitTime.Load()
++	}
++
++	return total
++}
++
+ // NumGoroutine returns the number of goroutines that currently exist.
+ func NumGoroutine() int {
+ 	return int(gcount())
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d2f3563956..5f0e24d4f1 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1340,6 +1340,27 @@ func PageCachePagesLeaked() (leaked uintptr) {
+ 	return
+ }
+ 
++type Mutex = mutex
++
++var Lock = lock
++var Unlock = unlock
++
++func MutexContended(l *mutex) bool {
++	switch atomic.Loaduintptr(&l.key) {
++	case 0: // unlocked
++		return false
++	case 1: // locked
++		return false
++	default: // an M is sleeping
++		return true
++	}
++}
++
++func SemRootLock(addr *uint32) *mutex {
++	root := semtable.rootFor(addr)
++	return &root.lock
++}
++
+ var Semacquire = semacquire
+ var Semrelease1 = semrelease1
+ 
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index f8db296e6b..d199720b9b 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -145,6 +145,14 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
+ 	option for some applications can produce large traces, so use with care.
+ 
++	profileruntimelocks: setting profileruntimelocks=1 includes call stacks related to
++	contention on runtime-internal locks in the "mutex" profile, subject to the
++	MutexProfileFraction setting. The call stacks will correspond to the unlock call that
++	released the lock. But instead of the value corresponding to the amount of contention that
++	call stack caused, it corresponds to the amount of time the caller of unlock had to wait
++	in its original call to lock. A future release is expected to align those and remove this
++	setting.
++
+ 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
+ 	copier to crash the program if an invalid pointer value (for example, 1)
+ 	is found in a pointer-typed location. Setting invalidptr=0 disables this check.
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index cc7d465ef1..b4f57d5259 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -71,6 +71,8 @@ func lock2(l *mutex) {
+ 	// its wakeup call.
+ 	wait := v
+ 
++	timer := &lockTimer{lock: l}
++	timer.begin()
+ 	// On uniprocessors, no point spinning.
+ 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+ 	spin := 0
+@@ -82,6 +84,7 @@ func lock2(l *mutex) {
+ 		for i := 0; i < spin; i++ {
+ 			for l.key == mutex_unlocked {
+ 				if atomic.Cas(key32(&l.key), mutex_unlocked, wait) {
++					timer.end()
+ 					return
+ 				}
+ 			}
+@@ -92,6 +95,7 @@ func lock2(l *mutex) {
+ 		for i := 0; i < passive_spin; i++ {
+ 			for l.key == mutex_unlocked {
+ 				if atomic.Cas(key32(&l.key), mutex_unlocked, wait) {
++					timer.end()
+ 					return
+ 				}
+ 			}
+@@ -101,6 +105,7 @@ func lock2(l *mutex) {
+ 		// Sleep.
+ 		v = atomic.Xchg(key32(&l.key), mutex_sleeping)
+ 		if v == mutex_unlocked {
++			timer.end()
+ 			return
+ 		}
+ 		wait = mutex_sleeping
+@@ -122,6 +127,7 @@ func unlock2(l *mutex) {
+ 	}
+ 
+ 	gp := getg()
++	gp.m.mLockProfile.recordUnlock(l)
+ 	gp.m.locks--
+ 	if gp.m.locks < 0 {
+ 		throw("runtime·unlock: lock count")
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 9afba08b0b..84cd344db8 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -48,6 +48,8 @@ func lock2(l *mutex) {
+ 	}
+ 	semacreate(gp.m)
+ 
++	timer := &lockTimer{lock: l}
++	timer.begin()
+ 	// On uniprocessor's, no point spinning.
+ 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+ 	spin := 0
+@@ -60,6 +62,7 @@ Loop:
+ 		if v&locked == 0 {
+ 			// Unlocked. Try to lock.
+ 			if atomic.Casuintptr(&l.key, v, v|locked) {
++				timer.end()
+ 				return
+ 			}
+ 			i = 0
+@@ -119,6 +122,7 @@ func unlock2(l *mutex) {
+ 			}
+ 		}
+ 	}
++	gp.m.mLockProfile.recordUnlock(l)
+ 	gp.m.locks--
+ 	if gp.m.locks < 0 {
+ 		throw("runtime·unlock: lock count")
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 4bd167135d..f97a3804ab 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -470,7 +470,7 @@ func initMetrics() {
+ 		"/sync/mutex/wait/total:seconds": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+ 				out.kind = metricKindFloat64
+-				out.scalar = float64bits(nsToSec(sched.totalMutexWaitTime.Load()))
++				out.scalar = float64bits(nsToSec(totalMutexWaitTimeNanos()))
+ 			},
+ 		},
+ 	}
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 1e82897381..56f3340b16 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -6,15 +6,21 @@ package runtime_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
++	"internal/goexperiment"
++	"internal/profile"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"runtime/metrics"
++	"runtime/pprof"
+ 	"runtime/trace"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"time"
+ 	"unsafe"
+@@ -939,3 +945,305 @@ func TestSchedPauseMetrics(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestRuntimeLockMetricsAndProfile(t *testing.T) {
++	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
++	defer runtime.SetMutexProfileFraction(old)
++	if old != 0 {
++		t.Fatalf("need MutexProfileRate 0, got %d", old)
++	}
++
++	{
++		before := os.Getenv("GODEBUG")
++		for _, s := range strings.Split(before, ",") {
++			if strings.HasPrefix(s, "profileruntimelocks=") {
++				t.Logf("GODEBUG includes explicit setting %q", s)
++			}
++		}
++		defer func() { os.Setenv("GODEBUG", before) }()
++		os.Setenv("GODEBUG", fmt.Sprintf("%s,profileruntimelocks=1", before))
++	}
++
++	loadProfile := func(t *testing.T) *profile.Profile {
++		var w bytes.Buffer
++		pprof.Lookup("mutex").WriteTo(&w, 0)
++		p, err := profile.Parse(&w)
++		if err != nil {
++			t.Fatalf("failed to parse profile: %v", err)
++		}
++		if err := p.CheckValid(); err != nil {
++			t.Fatalf("invalid profile: %v", err)
++		}
++		return p
++	}
++
++	measureDelta := func(t *testing.T, fn func()) (metricGrowth, profileGrowth float64, p *profile.Profile) {
++		beforeProfile := loadProfile(t)
++		beforeMetrics := []metrics.Sample{{Name: "/sync/mutex/wait/total:seconds"}}
++		metrics.Read(beforeMetrics)
++
++		fn()
++
++		afterProfile := loadProfile(t)
++		afterMetrics := []metrics.Sample{{Name: "/sync/mutex/wait/total:seconds"}}
++		metrics.Read(afterMetrics)
++
++		sumSamples := func(p *profile.Profile, i int) int64 {
++			var sum int64
++			for _, s := range p.Sample {
++				sum += s.Value[i]
++			}
++			return sum
++		}
++
++		metricGrowth = afterMetrics[0].Value.Float64() - beforeMetrics[0].Value.Float64()
++		profileGrowth = float64(sumSamples(afterProfile, 1)-sumSamples(beforeProfile, 1)) * time.Nanosecond.Seconds()
++
++		// The internal/profile package does not support compaction; this delta
++		// profile will include separate positive and negative entries.
++		p = afterProfile.Copy()
++		if len(beforeProfile.Sample) > 0 {
++			err := p.Merge(beforeProfile, -1)
++			if err != nil {
++				t.Fatalf("Merge profiles: %v", err)
++			}
++		}
++
++		return metricGrowth, profileGrowth, p
++	}
++
++	testcase := func(stk []string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
++		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
++			metricGrowth, profileGrowth, p := measureDelta(t, func() {
++				var started, stopped sync.WaitGroup
++				started.Add(workers)
++				stopped.Add(workers)
++				for i := 0; i < workers; i++ {
++					w := &contentionWorker{
++						before: func() {
++							started.Done()
++							started.Wait()
++						},
++						after: func() {
++							stopped.Done()
++						},
++						fn: fn,
++					}
++					go w.run()
++				}
++				stopped.Wait()
++			})
++
++			if profileGrowth == 0 {
++				t.Errorf("no increase in mutex profile")
++			}
++			if metricGrowth == 0 {
++				t.Errorf("no increase in /sync/mutex/wait/total:seconds metric")
++			}
++			// This comparison is possible because the time measurements in support of
++			// runtime/pprof and runtime/metrics for runtime-internal locks are so close
++			// together. It doesn't work as well for user-space contention, where the
++			// involved goroutines are not _Grunnable the whole time and so need to pass
++			// through the scheduler.
++			t.Logf("lock contention growth in runtime/pprof's view  (%fs)", profileGrowth)
++			t.Logf("lock contention growth in runtime/metrics' view (%fs)", metricGrowth)
++
++			if goexperiment.StaticLockRanking {
++				if !slices.ContainsFunc(stk, func(s string) bool {
++					return s == "runtime.systemstack" || s == "runtime.mcall" || s == "runtime.mstart"
++				}) {
++					// stk is a call stack that is still on the user stack when
++					// it calls runtime.unlock. Add the extra function that
++					// we'll see, when the static lock ranking implementation of
++					// runtime.unlockWithRank switches to the system stack.
++					stk = append([]string{"runtime.unlockWithRank"}, stk...)
++				}
++			}
++
++			var stks [][]string
++			for _, s := range p.Sample {
++				var have []string
++				for _, loc := range s.Location {
++					for _, line := range loc.Line {
++						have = append(have, line.Function.Name)
++					}
++				}
++				stks = append(stks, have)
++				if slices.Equal(have, stk) {
++					n += s.Value[0]
++					value += s.Value[1]
++				}
++			}
++			t.Logf("stack %v has samples totaling n=%d value=%d", stk, n, value)
++			if n == 0 && value == 0 {
++				t.Logf("profile:\n%s", p)
++				for _, have := range stks {
++					t.Logf("have stack %v", have)
++				}
++				t.Errorf("want stack %v", stk)
++			}
++
++			return metricGrowth, profileGrowth, n, value
++		}
++	}
++
++	name := t.Name()
++
++	t.Run("runtime.lock", func(t *testing.T) {
++		mus := make([]runtime.Mutex, 100)
++		var needContention atomic.Int64
++		delay := 10 * time.Microsecond
++		delayMicros := delay.Microseconds()
++
++		// The goroutine that acquires the lock will only proceed when it
++		// detects that its partner is contended for the lock. That will lead to
++		// live-lock if anything (such as a STW) prevents the partner goroutine
++		// from running. Allowing the contention workers to pause and restart
++		// (to allow a STW to proceed) makes it harder to confirm that we're
++		// counting the correct number of contention events, since some locks
++		// will end up contended twice. Instead, disable the GC.
++		defer debug.SetGCPercent(debug.SetGCPercent(-1))
++
++		const workers = 2
++		if runtime.GOMAXPROCS(0) < workers {
++			t.Skipf("contention on runtime-internal locks requires GOMAXPROCS >= %d", workers)
++		}
++
++		fn := func() bool {
++			n := int(needContention.Load())
++			if n < 0 {
++				return false
++			}
++			mu := &mus[n]
++
++			runtime.Lock(mu)
++			for int(needContention.Load()) == n {
++				if runtime.MutexContended(mu) {
++					// make them wait a little while
++					for start := runtime.Nanotime(); (runtime.Nanotime()-start)/1000 < delayMicros; {
++						runtime.Usleep(uint32(delayMicros))
++					}
++					break
++				}
++			}
++			runtime.Unlock(mu)
++			needContention.Store(int64(n - 1))
++
++			return true
++		}
++
++		stk := []string{
++			"runtime.unlock",
++			"runtime_test." + name + ".func5.1",
++			"runtime_test.(*contentionWorker).run",
++		}
++
++		t.Run("sample-1", func(t *testing.T) {
++			old := runtime.SetMutexProfileFraction(1)
++			defer runtime.SetMutexProfileFraction(old)
++
++			needContention.Store(int64(len(mus) - 1))
++			metricGrowth, profileGrowth, n, _ := testcase(stk, workers, fn)(t)
++
++			if have, want := metricGrowth, delay.Seconds()*float64(len(mus)); have < want {
++				// The test imposes a delay with usleep, verified with calls to
++				// nanotime. Compare against the runtime/metrics package's view
++				// (based on nanotime) rather than runtime/pprof's view (based
++				// on cputicks).
++				t.Errorf("runtime/metrics reported less than the known minimum contention duration (%fs < %fs)", have, want)
++			}
++			if have, want := n, int64(len(mus)); have != want {
++				t.Errorf("mutex profile reported contention count different from the known true count (%d != %d)", have, want)
++			}
++
++			const slop = 1.5 // account for nanotime vs cputicks
++			if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
++				t.Errorf("views differ by more than %fx", slop)
++			}
++		})
++
++		t.Run("sample-2", func(t *testing.T) {
++			old := runtime.SetMutexProfileFraction(2)
++			defer runtime.SetMutexProfileFraction(old)
++
++			needContention.Store(int64(len(mus) - 1))
++			metricGrowth, profileGrowth, n, _ := testcase(stk, workers, fn)(t)
++
++			// With 100 trials and profile fraction of 2, we expect to capture
++			// 50 samples. Allow the test to pass if we get at least 20 samples;
++			// the CDF of the binomial distribution says there's less than a
++			// 1e-9 chance of that, which is an acceptably low flakiness rate.
++			const samplingSlop = 2.5
++
++			if have, want := metricGrowth, delay.Seconds()*float64(len(mus)); samplingSlop*have < want {
++				// The test imposes a delay with usleep, verified with calls to
++				// nanotime. Compare against the runtime/metrics package's view
++				// (based on nanotime) rather than runtime/pprof's view (based
++				// on cputicks).
++				t.Errorf("runtime/metrics reported less than the known minimum contention duration (%f * %fs < %fs)", samplingSlop, have, want)
++			}
++			if have, want := n, int64(len(mus)); float64(have) > float64(want)*samplingSlop || float64(want) > float64(have)*samplingSlop {
++				t.Errorf("mutex profile reported contention count too different from the expected count (%d far from %d)", have, want)
++			}
++
++			const timerSlop = 1.5 * samplingSlop // account for nanotime vs cputicks, plus the two views' independent sampling
++			if profileGrowth > timerSlop*metricGrowth || metricGrowth > timerSlop*profileGrowth {
++				t.Errorf("views differ by more than %fx", timerSlop)
++			}
++		})
++	})
++
++	t.Run("runtime.semrelease", func(t *testing.T) {
++		old := runtime.SetMutexProfileFraction(1)
++		defer runtime.SetMutexProfileFraction(old)
++
++		const workers = 3
++		if runtime.GOMAXPROCS(0) < workers {
++			t.Skipf("creating and observing contention on runtime-internal semaphores requires GOMAXPROCS >= %d", workers)
++		}
++
++		var sem uint32 = 1
++		var sawContention atomic.Int32
++		var need int32 = 1000 // counteract low timer resolution by requiring more samples
++		fn := func() bool {
++			if sawContention.Load() >= need {
++				return false
++			}
++			runtime.Semacquire(&sem)
++			runtime.Semrelease1(&sem, false, 0)
++			if runtime.MutexContended(runtime.SemRootLock(&sem)) {
++				sawContention.Add(1)
++			}
++			return true
++		}
++
++		stk := []string{
++			"runtime.unlock",
++			"runtime.semrelease1",
++			"runtime_test.TestRuntimeLockMetricsAndProfile.func6.1",
++			"runtime_test.(*contentionWorker).run",
++		}
++
++		// Verify that we get call stack we expect, with anything more than zero
++		// nanoseconds / zero samples. The duration of each contention event is
++		// too small relative to the expected overhead for us to verify its
++		// value more directly. Leave that to the explicit lock/unlock test.
++
++		testcase(stk, workers, fn)(t)
++	})
++}
++
++// contentionWorker provides cleaner call stacks for lock contention profile tests
++type contentionWorker struct {
++	before func()
++	fn     func() bool
++	after  func()
++}
++
++func (w *contentionWorker) run() {
++	defer w.after()
++	w.before()
++
++	for w.fn() {
++	}
++}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index af461eef1a..b1930b3020 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -234,6 +234,10 @@ func newBucket(typ bucketType, nstk int) *bucket {
+ // stk returns the slice in b holding the stack.
+ func (b *bucket) stk() []uintptr {
+ 	stk := (*[maxStack]uintptr)(add(unsafe.Pointer(b), unsafe.Sizeof(*b)))
++	if b.nstk > maxStack {
++		// prove that slicing works; otherwise a failure requires a P
++		throw("bad profile stack count")
++	}
+ 	return stk[:b.nstk:b.nstk]
+ }
+ 
+@@ -509,7 +513,237 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
+ 	} else {
+ 		nstk = gcallers(gp.m.curg, skip, stk[:])
+ 	}
+-	b := stkbucket(which, 0, stk[:nstk], true)
++
++	saveBlockEventStack(cycles, rate, stk[:nstk], which)
++}
++
++// lockTimer assists with profiling contention on runtime-internal locks.
++//
++// There are several steps between the time that an M experiences contention and
++// when that contention may be added to the profile. This comes from our
++// constraints: We need to keep the critical section of each lock small,
++// especially when those locks are contended. The reporting code cannot acquire
++// new locks until the M has released all other locks, which means no memory
++// allocations and encourages use of (temporary) M-local storage.
++//
++// The M will have space for storing one call stack that caused contention, and
++// for the magnitude of that contention. It will also have space to store the
++// magnitude of additional contention the M caused, since it only has space to
++// remember one call stack and might encounter several contention events before
++// it releases all of its locks and is thus able to transfer the local buffer
++// into the profile.
++//
++// The M will collect the call stack when it unlocks the contended lock. That
++// minimizes the impact on the critical section of the contended lock, and
++// matches the mutex profile's behavior for contention in sync.Mutex: measured
++// at the Unlock method.
++//
++// The profile for contention on sync.Mutex blames the caller of Unlock for the
++// amount of contention experienced by the callers of Lock which had to wait.
++// When there are several critical sections, this allows identifying which of
++// them is responsible.
++//
++// Matching that behavior for runtime-internal locks will require identifying
++// which Ms are blocked on the mutex. The semaphore-based implementation is
++// ready to allow that, but the futex-based implementation will require a bit
++// more work. Until then, we report contention on runtime-internal locks with a
++// call stack taken from the unlock call (like the rest of the user-space
++// "mutex" profile), but assign it a duration value based on how long the
++// previous lock call took (like the user-space "block" profile).
++//
++// Thus, reporting the call stacks of runtime-internal lock contention is
++// guarded by GODEBUG for now. Set GODEBUG=profileruntimelocks=1 to enable.
++//
++// TODO(rhysh): plumb through the delay duration, remove GODEBUG, update comment
++//
++// The M will track this by storing a pointer to the lock; lock/unlock pairs for
++// runtime-internal locks are always on the same M.
++//
++// Together, that demands several steps for recording contention. First, when
++// finally acquiring a contended lock, the M decides whether it should plan to
++// profile that event by storing a pointer to the lock in its "to be profiled
++// upon unlock" field. If that field is already set, it uses the relative
++// magnitudes to weight a random choice between itself and the other lock, with
++// the loser's time being added to the "additional contention" field. Otherwise
++// if the M's call stack buffer is occupied, it does the comparison against that
++// sample's magnitude.
++//
++// Second, having unlocked a mutex the M checks to see if it should capture the
++// call stack into its local buffer. Finally, when the M unlocks its last mutex,
++// it transfers the local buffer into the profile. As part of that step, it also
++// transfers any "additional contention" time to the profile. Any lock
++// contention that it experiences while adding samples to the profile will be
++// recorded later as "additional contention" and not include a call stack, to
++// avoid an echo.
++type lockTimer struct {
++	lock      *mutex
++	timeRate  int64
++	timeStart int64
++	tickStart int64
++}
++
++func (lt *lockTimer) begin() {
++	rate := int64(atomic.Load64(&mutexprofilerate))
++
++	lt.timeRate = gTrackingPeriod
++	if rate != 0 && rate < lt.timeRate {
++		lt.timeRate = rate
++	}
++	if int64(fastrand())%lt.timeRate == 0 {
++		lt.timeStart = nanotime()
++	}
++
++	if rate > 0 && int64(fastrand())%rate == 0 {
++		lt.tickStart = cputicks()
++	}
++}
++
++func (lt *lockTimer) end() {
++	gp := getg()
++
++	if lt.timeStart != 0 {
++		nowTime := nanotime()
++		gp.m.mLockProfile.waitTime.Add((nowTime - lt.timeStart) * lt.timeRate)
++	}
++
++	if lt.tickStart != 0 {
++		nowTick := cputicks()
++		gp.m.mLockProfile.recordLock(nowTick-lt.tickStart, lt.lock)
++	}
++}
++
++type mLockProfile struct {
++	waitTime   atomic.Int64      // total nanoseconds spent waiting in runtime.lockWithRank
++	stack      [maxStack]uintptr // stack that experienced contention in runtime.lockWithRank
++	pending    uintptr           // *mutex that experienced contention (to be traceback-ed)
++	cycles     int64             // cycles attributable to "pending" (if set), otherwise to "stack"
++	cyclesLost int64             // contention for which we weren't able to record a call stack
++	disabled   bool              // attribute all time to "lost"
++}
++
++func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
++	if cycles <= 0 {
++		return
++	}
++
++	if prof.disabled {
++		// We're experiencing contention while attempting to report contention.
++		// Make a note of its magnitude, but don't allow it to be the sole cause
++		// of another contention report.
++		prof.cyclesLost += cycles
++		return
++	}
++
++	if uintptr(unsafe.Pointer(l)) == prof.pending {
++		// Optimization: we'd already planned to profile this same lock (though
++		// possibly from a different unlock site).
++		prof.cycles += cycles
++		return
++	}
++
++	if prev := prof.cycles; prev > 0 {
++		// We can only store one call stack for runtime-internal lock contention
++		// on this M, and we've already got one. Decide which should stay, and
++		// add the other to the report for runtime._LostContendedLock.
++		prevScore := fastrand64() % uint64(prev)
++		thisScore := fastrand64() % uint64(cycles)
++		if prevScore > thisScore {
++			prof.cyclesLost += cycles
++			return
++		} else {
++			prof.cyclesLost += prev
++		}
++	}
++	// Saving the *mutex as a uintptr is safe because:
++	//  - lockrank_on.go does this too, which gives it regular exercise
++	//  - the lock would only move if it's stack allocated, which means it
++	//      cannot experience multi-M contention
++	prof.pending = uintptr(unsafe.Pointer(l))
++	prof.cycles = cycles
++}
++
++// From unlock2, we might not be holding a p in this code.
++//
++//go:nowritebarrierrec
++func (prof *mLockProfile) recordUnlock(l *mutex) {
++	if uintptr(unsafe.Pointer(l)) == prof.pending {
++		prof.captureStack()
++	}
++	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.cycles != 0 {
++		prof.store()
++	}
++}
++
++func (prof *mLockProfile) captureStack() {
++	skip := 3 // runtime.(*mLockProfile).recordUnlock runtime.unlock2 runtime.unlockWithRank
++	if staticLockRanking {
++		// When static lock ranking is enabled, we'll always be on the system
++		// stack at this point. There will be a runtime.unlockWithRank.func1
++		// frame, and if the call to runtime.unlock took place on a user stack
++		// then there'll also be a runtime.systemstack frame. To keep stack
++		// traces somewhat consistent whether or not static lock ranking is
++		// enabled, we'd like to skip those. But it's hard to tell how long
++		// we've been on the system stack so accept an extra frame in that case,
++		// with a leaf of "runtime.unlockWithRank runtime.unlock" instead of
++		// "runtime.unlock".
++		skip += 1 // runtime.unlockWithRank.func1
++	}
++	prof.pending = 0
++
++	if debug.profileruntimelocks.Load() == 0 {
++		prof.stack[0] = abi.FuncPCABIInternal(_LostContendedLock) + sys.PCQuantum
++		prof.stack[1] = 0
++		return
++	}
++
++	var nstk int
++	gp := getg()
++	sp := getcallersp()
++	pc := getcallerpc()
++	systemstack(func() {
++		var u unwinder
++		u.initAt(pc, sp, 0, gp, unwindSilentErrors|unwindJumpStack)
++		nstk = tracebackPCs(&u, skip, prof.stack[:])
++	})
++	if nstk < len(prof.stack) {
++		prof.stack[nstk] = 0
++	}
++}
++
++func (prof *mLockProfile) store() {
++	// Report any contention we experience within this function as "lost"; it's
++	// important that the act of reporting a contention event not lead to a
++	// reportable contention event. This also means we can use prof.stack
++	// without copying, since it won't change during this function.
++	mp := acquirem()
++	prof.disabled = true
++
++	nstk := maxStack
++	for i := 0; i < nstk; i++ {
++		if pc := prof.stack[i]; pc == 0 {
++			nstk = i
++			break
++		}
++	}
++
++	cycles, lost := prof.cycles, prof.cyclesLost
++	prof.cycles, prof.cyclesLost = 0, 0
++
++	rate := int64(atomic.Load64(&mutexprofilerate))
++	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
++	if lost > 0 {
++		lostStk := [...]uintptr{
++			abi.FuncPCABIInternal(_LostContendedLock) + sys.PCQuantum,
++		}
++		saveBlockEventStack(lost, rate, lostStk[:], mutexProfile)
++	}
++
++	prof.disabled = false
++	releasem(mp)
++}
++
++func saveBlockEventStack(cycles, rate int64, stk []uintptr, which bucketType) {
++	b := stkbucket(which, 0, stk, true)
+ 	bp := b.bp()
+ 
+ 	lock(&profBlockLock)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 824b0fa009..6b13d3b2f6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -919,7 +919,7 @@ func mcommoninit(mp *m, id int64) {
+ 	// when it is just in a register or thread-local storage.
+ 	mp.alllink = allm
+ 
+-	// NumCgoCall() iterates over allm w/o schedlock,
++	// NumCgoCall() and others iterate over allm w/o schedlock,
+ 	// so we need to publish it safely.
+ 	atomicstorep(unsafe.Pointer(&allm), unsafe.Pointer(mp))
+ 	unlock(&sched.lock)
+@@ -1852,6 +1852,7 @@ found:
+ 	unlock(&sched.lock)
+ 
+ 	atomic.Xadd64(&ncgocall, int64(mp.ncgocall))
++	sched.totalRuntimeLockWaitTime.Add(mp.mLockProfile.waitTime.Load())
+ 
+ 	// Release the P.
+ 	handoffp(releasep())
+@@ -5270,6 +5271,7 @@ func _ExternalCode()              { _ExternalCode() }
+ func _LostExternalCode()          { _LostExternalCode() }
+ func _GC()                        { _GC() }
+ func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
++func _LostContendedLock()         { _LostContendedLock() }
+ func _VDSO()                      { _VDSO() }
+ 
+ // Called if we receive a SIGPROF signal.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 489dcdd79c..877d94eef2 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -307,26 +307,27 @@ type dbgVar struct {
+ // existing int var for that value, which may
+ // already have an initial value.
+ var debug struct {
+-	cgocheck           int32
+-	clobberfree        int32
+-	dontfreezetheworld int32
+-	efence             int32
+-	gccheckmark        int32
+-	gcpacertrace       int32
+-	gcshrinkstackoff   int32
+-	gcstoptheworld     int32
+-	gctrace            int32
+-	invalidptr         int32
+-	madvdontneed       int32 // for Linux; issue 28466
+-	scavtrace          int32
+-	scheddetail        int32
+-	schedtrace         int32
+-	tracebackancestors int32
+-	asyncpreemptoff    int32
+-	harddecommit       int32
+-	adaptivestackstart int32
+-	tracefpunwindoff   int32
+-	traceadvanceperiod int32
++	cgocheck            int32
++	clobberfree         int32
++	dontfreezetheworld  int32
++	efence              int32
++	gccheckmark         int32
++	gcpacertrace        int32
++	gcshrinkstackoff    int32
++	gcstoptheworld      int32
++	gctrace             int32
++	invalidptr          int32
++	madvdontneed        int32 // for Linux; issue 28466
++	profileruntimelocks atomic.Int32
++	scavtrace           int32
++	scheddetail         int32
++	schedtrace          int32
++	tracebackancestors  int32
++	asyncpreemptoff     int32
++	harddecommit        int32
++	adaptivestackstart  int32
++	tracefpunwindoff    int32
++	traceadvanceperiod  int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -352,6 +353,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "gctrace", value: &debug.gctrace},
+ 	{name: "invalidptr", value: &debug.invalidptr},
+ 	{name: "madvdontneed", value: &debug.madvdontneed},
++	{name: "profileruntimelocks", atomic: &debug.profileruntimelocks},
+ 	{name: "sbrk", value: &debug.sbrk},
+ 	{name: "scavtrace", value: &debug.scavtrace},
+ 	{name: "scheddetail", value: &debug.scheddetail},
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e64c3c5695..6bdd66766d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -593,6 +593,8 @@ type m struct {
+ 	lockedInt     uint32      // tracking for internal lockOSThread
+ 	nextwaitm     muintptr    // next m waiting for lock
+ 
++	mLockProfile mLockProfile // fields relating to runtime.lock contention
++
+ 	// wait* are used to carry arguments from gopark into park_m, because
+ 	// there's no stack to put them on. That is their sole purpose.
+ 	waitunlockf          func(*g, unsafe.Pointer) bool
+@@ -900,6 +902,12 @@ type schedt struct {
+ 	// stwTotalTimeOther covers the others.
+ 	stwTotalTimeGC    timeHistogram
+ 	stwTotalTimeOther timeHistogram
++
++	// totalRuntimeLockWaitTime (plus the value of lockWaitTime on each M in
++	// allm) is the sum of time goroutines have spent in _Grunnable and with an
++	// M, but waiting for locks within the runtime. This field stores the value
++	// for Ms that have exited.
++	totalRuntimeLockWaitTime atomic.Int64
+ }
+ 
+ // Values for the flags field of a sigTabT.

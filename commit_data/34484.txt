@@ -19,7 +19,38 @@ Date:   Sun Oct 22 18:10:08 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbarrier.go | 2 ++
  src/runtime/panic.go    | 6 ++++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index acc4d14e80..fbead6d378 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -182,6 +182,8 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ func writebarrierptr_prewrite1(dst *uintptr, src uintptr) {
+ 	mp := acquirem()
+ 	if mp.inwb || mp.dying > 0 {
++		// We explicitly allow write barriers in startpanic_m,
++		// since we're going down anyway. Ignore them here.
+ 		releasem(mp)
+ 		return
+ 	}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 90a1c0bdd1..11cb05e976 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -654,6 +654,12 @@ func recovery(gp *g) {
+ 	gogo(&gp.sched)
+ }
+ 
++// startpanic_m implements unrecoverable panic.
++//
++// It can have write barriers because the write barrier explicitly
++// ignores writes once dying > 0.
++//
++//go:yeswritebarrierrec
+ func startpanic_m() {
+ 	_g_ := getg()
+ 	if mheap_.cachealloc.size == 0 { // very early

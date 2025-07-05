@@ -15,6 +15,30 @@ Date:   Mon May 19 09:20:04 2025 -0400
     Reviewed-by: Chressie Himpel <chressie@google.com>
     Reviewed-by: Sean Liao <sean@liao.dev>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/server.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 921b42b59e..ca7383f5e6 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -836,6 +836,7 @@ var copyBufPool = sync.Pool{New: func() any { return new([copyBufPoolSize]byte)
+ func getCopyBuf() []byte {
+ 	return copyBufPool.Get().(*[copyBufPoolSize]byte)[:]
+ }
++
+ func putCopyBuf(b []byte) {
+ 	if len(b) != copyBufPoolSize {
+ 		panic("trying to put back buffer of the wrong size in the copyBufPool")
+@@ -2674,6 +2675,10 @@ func stripHostPort(h string) string {
+ //
+ // If there is no registered handler that applies to the request,
+ // Handler returns a “page not found” handler and an empty pattern.
++//
++// Handler does not modify its argument. In particular, it does not
++// populate named path wildcards, so r.PathValue will always return
++// the empty string.
+ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+ 	if use121 {
+ 		return mux.mux121.findHandler(r)

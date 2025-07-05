@@ -7,7 +7,44 @@ Date:   Mon Nov 2 20:35:52 2009 -0800
     
     R=gri
     http://go/go-review/1016030
-
+---
  src/cmd/godoc/godoc.go       | 4 ++--
  src/pkg/template/template.go | 3 ++-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 8b28082a19..cd438a9b2c 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -446,8 +446,8 @@ func readTemplate(name string) *template.Template {
+ 	if err != nil {
+ 		log.Exitf("ReadFile %s: %v", path, err);
+ 	}
+-	t, err1 := template.Parse(string(data), fmap);
+-	if err1 != nil {
++	t, err := template.Parse(string(data), fmap);
++	if err != nil {
+ 		log.Exitf("%s: %v", name, err);
+ 	}
+ 	return t;
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 9af8577deb..cd0514ba22 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -275,6 +275,7 @@ Loop:
+ 		// consume trailing white space
+ 		for ; i < len(t.buf) && white(t.buf[i]); i++ {
+ 			if t.buf[i] == '\n' {
++				t.linenum++;
+ 				i++;
+ 				break	// stop after newline
+ 			}
+@@ -850,7 +851,7 @@ func (t *Template) Parse(s string) os.Error {
+ 	}
+ 	t.buf = strings.Bytes(s);
+ 	t.p = 0;
+-	t.linenum = 0;
++	t.linenum = 1;
+ 	t.parse();
+ 	return t.error;
+ }

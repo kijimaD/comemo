@@ -24,7 +24,61 @@ Date:   Wed Feb 21 18:50:11 2024 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 15 +++++++++++----
  test/fixedbugs/issue65593.go             | 21 +++++++++++++++++++++
  2 files changed, 32 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 641374e03c..87c54b9769 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1217,10 +1217,17 @@ func (w *writer) stmt(stmt syntax.Stmt) {
+ func (w *writer) stmts(stmts []syntax.Stmt) {
+ 	dead := false
+ 	w.Sync(pkgbits.SyncStmts)
+-	for _, stmt := range stmts {
+-		if dead {
+-			// Any statements after a terminating statement are safe to
+-			// omit, at least until the next labeled statement.
++	var lastLabel = -1
++	for i, stmt := range stmts {
++		if _, ok := stmt.(*syntax.LabeledStmt); ok {
++			lastLabel = i
++		}
++	}
++	for i, stmt := range stmts {
++		if dead && i > lastLabel {
++			// Any statements after a terminating and last label statement are safe to omit.
++			// Otherwise, code after label statement may refer to dead stmts between terminating
++			// and label statement, see issue #65593.
+ 			if _, ok := stmt.(*syntax.LabeledStmt); !ok {
+ 				continue
+ 			}
+diff --git a/test/fixedbugs/issue65593.go b/test/fixedbugs/issue65593.go
+new file mode 100644
+index 0000000000..892a78122e
+--- /dev/null
++++ b/test/fixedbugs/issue65593.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++const run = false
++
++func f() {
++	if !run {
++		return
++	}
++
++	messages := make(chan struct{}, 1)
++main:
++	for range messages {
++		break main
++	}
++}

@@ -12,10 +12,31 @@ Date:   Wed Apr 21 18:24:15 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/312570
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue23203a.src | 0
  src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue23203b.src | 0
  src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue26390.src  | 0
  src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue28251.src  | 0
  src/cmd/compile/internal/types2/{testdata => fixedbugs}/issue6977.src   | 0
  5 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/issue23203a.src b/src/cmd/compile/internal/types2/fixedbugs/issue23203a.src
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/issue23203a.src
+rename to src/cmd/compile/internal/types2/fixedbugs/issue23203a.src
+diff --git a/src/cmd/compile/internal/types2/testdata/issue23203b.src b/src/cmd/compile/internal/types2/fixedbugs/issue23203b.src
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/issue23203b.src
+rename to src/cmd/compile/internal/types2/fixedbugs/issue23203b.src
+diff --git a/src/cmd/compile/internal/types2/testdata/issue26390.src b/src/cmd/compile/internal/types2/fixedbugs/issue26390.src
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/issue26390.src
+rename to src/cmd/compile/internal/types2/fixedbugs/issue26390.src
+diff --git a/src/cmd/compile/internal/types2/testdata/issue28251.src b/src/cmd/compile/internal/types2/fixedbugs/issue28251.src
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/issue28251.src
+rename to src/cmd/compile/internal/types2/fixedbugs/issue28251.src
+diff --git a/src/cmd/compile/internal/types2/testdata/issue6977.src b/src/cmd/compile/internal/types2/fixedbugs/issue6977.src
+similarity index 100%
+rename from src/cmd/compile/internal/types2/testdata/issue6977.src
+rename to src/cmd/compile/internal/types2/fixedbugs/issue6977.src

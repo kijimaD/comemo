@@ -14,6 +14,26 @@ Date:   Thu Dec 7 10:56:45 2017 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index e3129edbf1..49ef415e66 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -867,10 +867,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL:
+ 		if v.Args[0].Reg() != v.Reg() {
+ 			// POPCNT on Intel has a false dependency on the destination register.
+-			// Zero the destination to break the dependency.
+-			p := s.Prog(x86.AMOVQ)
+-			p.From.Type = obj.TYPE_CONST
+-			p.From.Offset = 0
++			// Xor register with itself to break the dependency.
++			p := s.Prog(x86.AXORQ)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = v.Reg()
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = v.Reg()
+ 		}

@@ -11,6 +11,19 @@ Date:   Thu Oct 4 15:37:49 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/fmt_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 65f88dfff9..6dfdea1a34 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -583,7 +583,6 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/ssa.sparseTreeMapEntry %v": "",
+ 	"*cmd/compile/internal/types.Field %p":            "",
+ 	"*cmd/compile/internal/types.Field %v":            "",
+-	"*cmd/compile/internal/types.Sym %+v":             "",
+ 	"*cmd/compile/internal/types.Sym %0S":             "",
+ 	"*cmd/compile/internal/types.Sym %S":              "",
+ 	"*cmd/compile/internal/types.Sym %p":              "",

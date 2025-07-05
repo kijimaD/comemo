@@ -12,7 +12,7 @@ Date:   Tue Jun 6 13:23:59 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/go.go    |  3 +++
  src/cmd/compile/internal/gc/main.go  |  1 +
  src/cmd/compile/internal/gc/noder.go | 15 +++++++++++++++
@@ -20,3 +20,121 @@ Date:   Tue Jun 6 13:23:59 2017 -0700
  src/go/types/stdlib_test.go          |  6 +++---
  test/fixedbugs/issue18331.go         | 20 ++++++++++++++++++++
  6 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 44dd305830..65d8946849 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -198,6 +198,9 @@ var typecheckok bool
+ 
+ var compiling_runtime bool
+ 
++// Compiling the standard library
++var compiling_std bool
++
+ var compiling_wrappers int
+ 
+ var use_writebarrier bool
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8c3878e354..87d8440d1c 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -174,6 +174,7 @@ func Main(archInit func(*Arch)) {
+ 	Nacl = objabi.GOOS == "nacl"
+ 
+ 	flag.BoolVar(&compiling_runtime, "+", false, "compiling runtime")
++	flag.BoolVar(&compiling_std, "std", false, "compiling standard library")
+ 	objabi.Flagcount("%", "debug non-static initializers", &Debug['%'])
+ 	objabi.Flagcount("B", "disable bounds checking", &Debug['B'])
+ 	objabi.Flagcount("C", "disable printing of columns in error messages", &Debug['C']) // TODO(gri) remove eventually
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index f00095c866..3977be1d73 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1153,6 +1153,18 @@ func (p *noder) error(err error) {
+ 	p.err <- err.(syntax.Error)
+ }
+ 
++// pragmas that are allowed in the std lib, but don't have
++// a syntax.Pragma value (see lex.go) associated with them.
++var allowedStdPragmas = map[string]bool{
++	"go:cgo_export_static":  true,
++	"go:cgo_export_dynamic": true,
++	"go:cgo_import_static":  true,
++	"go:cgo_import_dynamic": true,
++	"go:cgo_ldflag":         true,
++	"go:cgo_dynamic_linker": true,
++	"go:generate":           true,
++}
++
+ // pragma is called concurrently if files are parsed concurrently.
+ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 	switch {
+@@ -1181,6 +1193,9 @@ func (p *noder) pragma(pos src.Pos, text string) syntax.Pragma {
+ 		if !compiling_runtime && prag&runtimePragmas != 0 {
+ 			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s only allowed in runtime", verb)})
+ 		}
++		if prag == 0 && !allowedStdPragmas[verb] && compiling_std {
++			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("//%s is not allowed in the standard library", verb)})
++		}
+ 		return prag
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index c6dd6799a2..25d9b36cc6 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2195,6 +2195,9 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
+ 	if p.Name == "main" {
+ 		gcargs[1] = "main"
+ 	}
++	if p.Standard {
++		gcargs = append(gcargs, "-std")
++	}
+ 	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
+ 	if compilingRuntime {
+ 		// runtime compiles with a special gc flag to emit
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 345c7897f3..34029b8681 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -104,10 +104,10 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 			case "errorcheck":
+ 				expectErrors = true
+ 				for _, arg := range fields[1:] {
+-					if arg == "-0" || arg == "-+" {
++					if arg == "-0" || arg == "-+" || arg == "-std" {
+ 						// Marked explicitly as not expected errors (-0),
+-						// or marked as compiling_runtime, which is only done
+-						// to trigger runtime-only error output.
++						// or marked as compiling runtime/stdlib, which is only done
++						// to trigger runtime/stdlib-only error output.
+ 						// In both cases, the code should typecheck.
+ 						expectErrors = false
+ 						break
+diff --git a/test/fixedbugs/issue18331.go b/test/fixedbugs/issue18331.go
+new file mode 100644
+index 0000000000..a527bcef63
+--- /dev/null
++++ b/test/fixedbugs/issue18331.go
+@@ -0,0 +1,20 @@
++// errorcheck -std
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++// Issue 18331: We should catch invalid pragma verbs
++// for code that resides in the standard library.
++package issue18331
++
++//go:unknown // ERROR "//go:unknown is not allowed in the standard library"
++func foo()
++
++//go:nowritebarrierc // ERROR "//go:nowritebarrierc is not allowed in the standard library"
++func bar()
++
++//go:noesape // ERROR "//go:noesape is not allowed in the standard library"
++func groot()
++
++//go:noescape
++func hey() { // ERROR "can only use //go:noescape with external func implementations"
++}

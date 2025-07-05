@@ -9,6 +9,24 @@ Date:   Wed Jun 3 16:41:00 2015 -0400
     Change-Id: Iee173861fb4dc7cafa64ba5f601f4664b6e8da4e
     Reviewed-on: https://go-review.googlesource.com/10681
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/buildgo.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index 9cc650840d..437e9dd9a0 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -30,10 +30,10 @@ func mkzdefaultcc(dir, file string) {
+ 			"const defaultCXX = `%s`\n",
+ 		defaultcctarget, defaultcxxtarget)
+ 
+-	writefile(out, file, 0)
++	writefile(out, file, writeSkipSame)
+ 
+ 	// Convert file name to replace: turn go into cgo.
+ 	i := len(file) - len("go/zdefaultcc.go")
+ 	file = file[:i] + "c" + file[i:]
+-	writefile(out, file, 0)
++	writefile(out, file, writeSkipSame)
+ }

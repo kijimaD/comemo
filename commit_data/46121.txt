@@ -30,7 +30,7 @@ Date:   Fri Dec 4 12:39:38 2020 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
-
+---
  src/go/internal/gccgoimporter/importer_test.go |   2 +-
  src/go/types/check.go                          |   1 +
  src/go/types/decl.go                           |  57 +--
@@ -42,3 +42,1338 @@ Date:   Fri Dec 4 12:39:38 2020 -0500
  src/go/types/typestring_test.go                |   4 +
  src/go/types/typexpr.go                        |  99 ++++-
  10 files changed, 785 insertions(+), 104 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index e4236a5867..e42684d107 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -95,7 +95,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "nointerface", name: "I", want: "type I int"},
+ 	{pkgpath: "issue29198", name: "FooServer", gccgoVersion: 7, want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
+ 	{pkgpath: "issue30628", name: "Apple", want: "type Apple struct{hey sync.RWMutex; x int; RQ [517]struct{Count uintptr; NumBytes uintptr; Last uintptr}}"},
+-	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; map[Y]Z}"},
++	{pkgpath: "issue31540", name: "S", gccgoVersion: 7, want: "type S struct{b int; A2 /* = map[Y]Z */}"},
+ 	{pkgpath: "issue34182", name: "T1", want: "type T1 struct{f *T2}"},
+ 	{pkgpath: "notinheap", name: "S", want: "type S struct{}"},
+ }
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 5e7bd92076..8d9e9a217e 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -77,6 +77,7 @@ type Checker struct {
+ 	fset *token.FileSet
+ 	pkg  *Package
+ 	*Info
++	nextId uint64                     // unique Id for type parameters (first valid Id is 1)
+ 	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
+ 	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
+ 	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 17b66ca387..cd610036b8 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -544,36 +544,35 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 	check.initVars(lhs, []ast.Expr{init}, token.NoPos)
+ }
+ 
+-// underlying returns the underlying type of typ; possibly by following
+-// forward chains of named types. Such chains only exist while named types
+-// are incomplete. If an underlying type is found, resolve the chain by
+-// setting the underlying type for each defined type in the chain before
+-// returning it.
+-//
+-// If no underlying type is found, a cycle error is reported and Typ[Invalid]
+-// is used as underlying type for each defined type in the chain and returned
+-// as result.
+-func (check *Checker) underlying(typ Type) Type {
+-	// If typ is not a defined type, its underlying type is itself.
+-	n0, _ := typ.(*Named)
+-	if n0 == nil {
+-		return typ // nothing to do
++// under returns the expanded underlying type of n0; possibly by following
++// forward chains of named types. If an underlying type is found, resolve
++// the chain by setting the underlying type for each defined type in the
++// chain before returning it. If no underlying type is found or a cycle
++// is detected, the result is Typ[Invalid]. If a cycle is detected and
++// n0.check != nil, the cycle is reported.
++func (n0 *Named) under() Type {
++	u := n0.underlying
++	if u == nil {
++		return Typ[Invalid]
+ 	}
+ 
+ 	// If the underlying type of a defined type is not a defined
+ 	// type, then that is the desired underlying type.
+-	typ = n0.underlying
+-	n, _ := typ.(*Named)
++	n := asNamed(u)
+ 	if n == nil {
+-		return typ // common case
++		return u // common case
+ 	}
+ 
+ 	// Otherwise, follow the forward chain.
+ 	seen := map[*Named]int{n0: 0}
+ 	path := []Object{n0.obj}
+ 	for {
+-		typ = n.underlying
+-		n1, _ := typ.(*Named)
++		u = n.underlying
++		if u == nil {
++			u = Typ[Invalid]
++			break
++		}
++		n1 := asNamed(u)
+ 		if n1 == nil {
+ 			break // end of chain
+ 		}
+@@ -584,8 +583,12 @@ func (check *Checker) underlying(typ Type) Type {
+ 
+ 		if i, ok := seen[n]; ok {
+ 			// cycle
+-			check.cycleError(path[i:])
+-			typ = Typ[Invalid]
++			// TODO(rFindley) revert this to a method on Checker. Having a possibly
++			// nil Checker on Named and TypeParam is too subtle.
++			if n0.check != nil {
++				n0.check.cycleError(path[i:])
++			}
++			u = Typ[Invalid]
+ 			break
+ 		}
+ 	}
+@@ -594,13 +597,14 @@ func (check *Checker) underlying(typ Type) Type {
+ 		// We should never have to update the underlying type of an imported type;
+ 		// those underlying types should have been resolved during the import.
+ 		// Also, doing so would lead to a race condition (was issue #31749).
+-		if n.obj.pkg != check.pkg {
++		// Do this check always, not just in debug more (it's cheap).
++		if n0.check != nil && n.obj.pkg != n0.check.pkg {
+ 			panic("internal error: imported type with unresolved underlying type")
+ 		}
+-		n.underlying = typ
++		n.underlying = u
+ 	}
+ 
+-	return typ
++	return u
+ }
+ 
+ func (n *Named) setUnderlying(typ Type) {
+@@ -623,7 +627,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bo
+ 
+ 	} else {
+ 
+-		named := &Named{obj: obj}
++		named := &Named{check: check, obj: obj}
+ 		def.setUnderlying(named)
+ 		obj.typ = named // make sure recursive type declarations terminate
+ 
+@@ -643,8 +647,7 @@ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, alias bo
+ 		// and which has as its underlying type the named type B.
+ 		// Determine the (final, unnamed) underlying type by resolving
+ 		// any forward chain.
+-		named.underlying = check.underlying(named)
+-
++		named.underlying = under(named)
+ 	}
+ 
+ 	check.addMethodDecls(obj)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index eb2056125a..51714790cb 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -591,7 +591,7 @@ func (check *Checker) implicitType(x *operand, target Type) Type {
+ 			return Typ[UntypedNil]
+ 		}
+ 		// cannot assign untyped values to non-empty interfaces
+-		check.completeInterface(t)
++		check.completeInterface(token.NoPos, t)
+ 		if !t.Empty() {
+ 			return nil
+ 		}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 3c9ff182ec..2497843b21 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -6,6 +6,8 @@
+ 
+ package types
+ 
++import "go/token"
++
+ // LookupFieldOrMethod looks up a field or method with given package and name
+ // in T and returns the corresponding *Var or *Func, an index sequence, and a
+ // bool indicating if there were any pointer indirections on the path to the
+@@ -175,7 +177,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 			case *Interface:
+ 				// look for a matching method
+ 				// TODO(gri) t.allMethods is sorted - use binary search
+-				check.completeInterface(t)
++				check.completeInterface(token.NoPos, t)
+ 				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
+ 					assert(m.typ != nil)
+ 					index = concat(e.index, i)
+@@ -276,7 +278,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ // To improve error messages, also report the wrong signature
+ // when the method exists on *V instead of V.
+ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
+-	check.completeInterface(T)
++	check.completeInterface(token.NoPos, T)
+ 
+ 	// fast path for common case
+ 	if T.Empty() {
+@@ -284,7 +286,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	}
+ 
+ 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
+-		check.completeInterface(ityp)
++		check.completeInterface(token.NoPos, ityp)
+ 		// TODO(gri) allMethods is sorted - can do this more efficiently
+ 		for _, m := range T.allMethods {
+ 			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 057908eacd..a139a4eb09 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -6,7 +6,10 @@
+ 
+ package types
+ 
+-import "sort"
++import (
++	"go/token"
++	"sort"
++)
+ 
+ func isNamed(typ Type) bool {
+ 	if _, ok := typ.(*Basic); ok {
+@@ -225,8 +228,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 			// that case, interfaces are expected to be complete and lazy completion
+ 			// here is not needed.
+ 			if check != nil {
+-				check.completeInterface(x)
+-				check.completeInterface(y)
++				check.completeInterface(token.NoPos, x)
++				check.completeInterface(token.NoPos, y)
+ 			}
+ 			a := x.allMethods
+ 			b := y.allMethods
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 087cda429d..e0cff1b976 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -4,12 +4,18 @@
+ 
+ package types
+ 
+-import "sort"
++import (
++	"fmt"
++	"go/token"
++	"sort"
++)
+ 
+ // A Type represents a type of Go.
+ // All types implement the Type interface.
+ type Type interface {
+-	// Underlying returns the underlying type of a type.
++	// Underlying returns the underlying type of a type
++	// w/o following forwarding chains. Only used by
++	// client packages (here for backward-compatibility).
+ 	Underlying() Type
+ 
+ 	// String returns a string representation of a type.
+@@ -98,7 +104,7 @@ type Array struct {
+ 
+ // NewArray returns a new array type for the given element type and length.
+ // A negative length indicates an unknown length.
+-func NewArray(elem Type, len int64) *Array { return &Array{len, elem} }
++func NewArray(elem Type, len int64) *Array { return &Array{len: len, elem: elem} }
+ 
+ // Len returns the length of array a.
+ // A negative result indicates an unknown length.
+@@ -113,7 +119,7 @@ type Slice struct {
+ }
+ 
+ // NewSlice returns a new slice type for the given element type.
+-func NewSlice(elem Type) *Slice { return &Slice{elem} }
++func NewSlice(elem Type) *Slice { return &Slice{elem: elem} }
+ 
+ // Elem returns the element type of slice s.
+ func (s *Slice) Elem() Type { return s.elem }
+@@ -176,8 +182,10 @@ type Tuple struct {
+ // NewTuple returns a new tuple for the given variables.
+ func NewTuple(x ...*Var) *Tuple {
+ 	if len(x) > 0 {
+-		return &Tuple{x}
++		return &Tuple{vars: x}
+ 	}
++	// TODO(gri) Don't represent empty tuples with a (*Tuple)(nil) pointer;
++	//           it's too subtle and causes problems.
+ 	return nil
+ }
+ 
+@@ -199,11 +207,13 @@ type Signature struct {
+ 	// and store it in the Func Object) because when type-checking a function
+ 	// literal we call the general type checker which returns a general Type.
+ 	// We then unpack the *Signature and use the scope for the literal body.
+-	scope    *Scope // function scope, present for package-local signatures
+-	recv     *Var   // nil if not a method
+-	params   *Tuple // (incoming) parameters from left to right; or nil
+-	results  *Tuple // (outgoing) results from left to right; or nil
+-	variadic bool   // true if the last parameter's type is of the form ...T (or string, for append built-in only)
++	rparams  []*TypeName // receiver type parameters from left to right, or nil
++	tparams  []*TypeName // type parameters from left to right, or nil
++	scope    *Scope      // function scope, present for package-local signatures
++	recv     *Var        // nil if not a method
++	params   *Tuple      // (incoming) parameters from left to right; or nil
++	results  *Tuple      // (outgoing) results from left to right; or nil
++	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+ }
+ 
+ // NewSignature returns a new function type for the given receiver, parameters,
+@@ -220,7 +230,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
+ 		}
+ 	}
+-	return &Signature{nil, recv, params, results, variadic}
++	return &Signature{recv: recv, params: params, results: results, variadic: variadic}
+ }
+ 
+ // Recv returns the receiver of signature s (if a method), or nil if a
+@@ -231,6 +241,12 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ // contain methods whose receiver type is a different interface.
+ func (s *Signature) Recv() *Var { return s.recv }
+ 
++// TParams returns the type parameters of signature s, or nil.
++func (s *Signature) TParams() []*TypeName { return s.tparams }
++
++// SetTParams sets the type parameters of signature s.
++func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
++
+ // Params returns the parameters of signature s, or nil.
+ func (s *Signature) Params() *Tuple { return s.params }
+ 
+@@ -240,12 +256,89 @@ func (s *Signature) Results() *Tuple { return s.results }
+ // Variadic reports whether the signature s is variadic.
+ func (s *Signature) Variadic() bool { return s.variadic }
+ 
++// A Sum represents a set of possible types.
++// Sums are currently used to represent type lists of interfaces
++// and thus the underlying types of type parameters; they are not
++// first class types of Go.
++type Sum struct {
++	types []Type // types are unique
++}
++
++// NewSum returns a new Sum type consisting of the provided
++// types if there are more than one. If there is exactly one
++// type, it returns that type. If the list of types is empty
++// the result is nil.
++func NewSum(types []Type) Type {
++	if len(types) == 0 {
++		return nil
++	}
++
++	// What should happen if types contains a sum type?
++	// Do we flatten the types list? For now we check
++	// and panic. This should not be possible for the
++	// current use case of type lists.
++	// TODO(gri) Come up with the rules for sum types.
++	for _, t := range types {
++		if _, ok := t.(*Sum); ok {
++			panic("sum type contains sum type - unimplemented")
++		}
++	}
++
++	if len(types) == 1 {
++		return types[0]
++	}
++	return &Sum{types: types}
++}
++
++// is reports whether all types in t satisfy pred.
++func (s *Sum) is(pred func(Type) bool) bool {
++	if s == nil {
++		return false
++	}
++	for _, t := range s.types {
++		if !pred(t) {
++			return false
++		}
++	}
++	return true
++}
++
+ // An Interface represents an interface type.
+ type Interface struct {
+ 	methods   []*Func // ordered list of explicitly declared methods
++	types     Type    // (possibly a Sum) type declared with a type list (TODO(gri) need better field name)
+ 	embeddeds []Type  // ordered list of explicitly embedded types
+ 
+ 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
++	allTypes   Type    // intersection of all embedded and locally declared types  (TODO(gri) need better field name)
++
++	obj Object // type declaration defining this interface; or nil (for better error messages)
++
++}
++
++// unpack unpacks a type into a list of types.
++// TODO(gri) Try to eliminate the need for this function.
++func unpackType(typ Type) []Type {
++	if typ == nil {
++		return nil
++	}
++	if sum := asSum(typ); sum != nil {
++		return sum.types
++	}
++	return []Type{typ}
++}
++
++// is reports whether interface t represents types that all satisfy pred.
++func (t *Interface) is(pred func(Type) bool) bool {
++	if t.allTypes == nil {
++		return false // we must have at least one type! (was bug)
++	}
++	for _, t := range unpackType(t.allTypes) {
++		if !pred(t) {
++			return false
++		}
++	}
++	return true
+ }
+ 
+ // emptyInterface represents the empty (completed) interface
+@@ -344,8 +437,101 @@ func (t *Interface) assertCompleteness() {
+ func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
+ 
+ // Empty reports whether t is the empty interface.
+-// The interface must have been completed.
+-func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
++func (t *Interface) Empty() bool {
++	if t.allMethods != nil {
++		// interface is complete - quick test
++		// A non-nil allTypes may still be empty and represents the bottom type.
++		return len(t.allMethods) == 0 && t.allTypes == nil
++	}
++	return !t.iterate(func(t *Interface) bool {
++		return len(t.methods) > 0 || t.types != nil
++	}, nil)
++}
++
++// HasTypeList reports whether interface t has a type list, possibly from an embedded type.
++func (t *Interface) HasTypeList() bool {
++	if t.allMethods != nil {
++		// interface is complete - quick test
++		return t.allTypes != nil
++	}
++
++	return t.iterate(func(t *Interface) bool {
++		return t.types != nil
++	}, nil)
++}
++
++// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
++func (t *Interface) IsComparable() bool {
++	if t.allMethods != nil {
++		// interface is complete - quick test
++		_, m := lookupMethod(t.allMethods, nil, "==")
++		return m != nil
++	}
++
++	return t.iterate(func(t *Interface) bool {
++		_, m := lookupMethod(t.methods, nil, "==")
++		return m != nil
++	}, nil)
++}
++
++// IsConstraint reports t.HasTypeList() || t.IsComparable().
++func (t *Interface) IsConstraint() bool {
++	if t.allMethods != nil {
++		// interface is complete - quick test
++		if t.allTypes != nil {
++			return true
++		}
++		_, m := lookupMethod(t.allMethods, nil, "==")
++		return m != nil
++	}
++
++	return t.iterate(func(t *Interface) bool {
++		if t.types != nil {
++			return true
++		}
++		_, m := lookupMethod(t.methods, nil, "==")
++		return m != nil
++	}, nil)
++}
++
++// iterate calls f with t and then with any embedded interface of t, recursively, until f returns true.
++// iterate reports whether any call to f returned true.
++func (t *Interface) iterate(f func(*Interface) bool, seen map[*Interface]bool) bool {
++	if f(t) {
++		return true
++	}
++	for _, e := range t.embeddeds {
++		// e should be an interface but be careful (it may be invalid)
++		if e := asInterface(e); e != nil {
++			// Cyclic interfaces such as "type E interface { E }" are not permitted
++			// but they are still constructed and we need to detect such cycles.
++			if seen[e] {
++				continue
++			}
++			if seen == nil {
++				seen = make(map[*Interface]bool)
++			}
++			seen[e] = true
++			if e.iterate(f, seen) {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++// isSatisfiedBy reports whether interface t's type list is satisfied by the type typ.
++// If the the type list is empty (absent), typ trivially satisfies the interface.
++// TODO(gri) This is not a great name. Eventually, we should have a more comprehensive
++//           "implements" predicate.
++func (t *Interface) isSatisfiedBy(typ Type) bool {
++	t.Complete()
++	if t.allTypes == nil {
++		return true
++	}
++	types := unpackType(t.allTypes)
++	return includes(types, typ) || includes(types, under(typ))
++}
+ 
+ // Complete computes the interface's method set. It must be called by users of
+ // NewInterfaceType and NewInterface after the interface's embedded types are
+@@ -379,12 +565,22 @@ func (t *Interface) Complete() *Interface {
+ 		addMethod(m, true)
+ 	}
+ 
++	allTypes := t.types
++
+ 	for _, typ := range t.embeddeds {
+-		typ := typ.Underlying().(*Interface)
+-		typ.Complete()
+-		for _, m := range typ.allMethods {
++		utyp := under(typ)
++		etyp := asInterface(utyp)
++		if etyp == nil {
++			if utyp != Typ[Invalid] {
++				panic(fmt.Sprintf("%s is not an interface", typ))
++			}
++			continue
++		}
++		etyp.Complete()
++		for _, m := range etyp.allMethods {
+ 			addMethod(m, false)
+ 		}
++		allTypes = intersect(allTypes, etyp.allTypes)
+ 	}
+ 
+ 	for i := 0; i < len(todo); i += 2 {
+@@ -399,6 +595,7 @@ func (t *Interface) Complete() *Interface {
+ 		sort.Sort(byUniqueMethodName(methods))
+ 		t.allMethods = methods
+ 	}
++	t.allTypes = allTypes
+ 
+ 	return t
+ }
+@@ -410,7 +607,7 @@ type Map struct {
+ 
+ // NewMap returns a new map for the given key and element types.
+ func NewMap(key, elem Type) *Map {
+-	return &Map{key, elem}
++	return &Map{key: key, elem: elem}
+ }
+ 
+ // Key returns the key type of map m.
+@@ -437,7 +634,7 @@ const (
+ 
+ // NewChan returns a new channel type for the given direction and element type.
+ func NewChan(dir ChanDir, elem Type) *Chan {
+-	return &Chan{dir, elem}
++	return &Chan{dir: dir, elem: elem}
+ }
+ 
+ // Dir returns the direction of channel c.
+@@ -446,13 +643,16 @@ func (c *Chan) Dir() ChanDir { return c.dir }
+ // Elem returns the element type of channel c.
+ func (c *Chan) Elem() Type { return c.elem }
+ 
+-// A Named represents a named type.
++// A Named represents a named (defined) type.
+ type Named struct {
+-	info       typeInfo  // for cycle detection
+-	obj        *TypeName // corresponding declared object
+-	orig       Type      // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+-	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
+-	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
++	check      *Checker    // for Named.under implementation
++	info       typeInfo    // for cycle detection
++	obj        *TypeName   // corresponding declared object
++	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
++	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
++	tparams    []*TypeName // type parameters, or nil
++	targs      []Type      // type arguments (after instantiation), or nil
++	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ }
+ 
+ // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
+@@ -472,6 +672,19 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ // Obj returns the type name for the named type t.
+ func (t *Named) Obj() *TypeName { return t.obj }
+ 
++// TODO(gri) Come up with a better representation and API to distinguish
++//           between parameterized instantiated and non-instantiated types.
++
++// TParams returns the type parameters of the named type t, or nil.
++// The result is non-nil for an (originally) parameterized type even if it is instantiated.
++func (t *Named) TParams() []*TypeName { return t.tparams }
++
++// TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
++func (t *Named) TArgs() []Type { return t.targs }
++
++// SetTArgs sets the type arguments of Named.
++func (t *Named) SetTArgs(args []Type) { t.targs = args }
++
+ // NumMethods returns the number of explicit methods whose receiver is named type t.
+ func (t *Named) NumMethods() int { return len(t.methods) }
+ 
+@@ -496,28 +709,251 @@ func (t *Named) AddMethod(m *Func) {
+ 	}
+ }
+ 
+-// Implementations for Type methods.
++// A TypeParam represents a type parameter type.
++type TypeParam struct {
++	check *Checker  // for lazy type bound completion
++	id    uint64    // unique id
++	ptr   bool      // pointer designation
++	obj   *TypeName // corresponding type name
++	index int       // parameter index
++	bound Type      // *Named or *Interface; underlying type is always *Interface
++}
++
++// NewTypeParam returns a new TypeParam.
++func (check *Checker) NewTypeParam(ptr bool, obj *TypeName, index int, bound Type) *TypeParam {
++	assert(bound != nil)
++	typ := &TypeParam{check: check, id: check.nextId, ptr: ptr, obj: obj, index: index, bound: bound}
++	check.nextId++
++	if obj.typ == nil {
++		obj.typ = typ
++	}
++	return typ
++}
++
++func (t *TypeParam) Bound() *Interface {
++	iface := asInterface(t.bound)
++	// use the type bound position if we have one
++	pos := token.NoPos
++	if n, _ := t.bound.(*Named); n != nil {
++		pos = n.obj.pos
++	}
++	// TODO(rFindley) switch this to an unexported method on Checker.
++	t.check.completeInterface(pos, iface)
++	return iface
++}
+ 
+-func (b *Basic) Underlying() Type     { return b }
+-func (a *Array) Underlying() Type     { return a }
+-func (s *Slice) Underlying() Type     { return s }
+-func (s *Struct) Underlying() Type    { return s }
+-func (p *Pointer) Underlying() Type   { return p }
++// optype returns a type's operational type. Except for
++// type parameters, the operational type is the same
++// as the underlying type (as returned by under). For
++// Type parameters, the operational type is determined
++// by the corresponding type bound's type list. The
++// result may be the bottom or top type, but it is never
++// the incoming type parameter.
++func optype(typ Type) Type {
++	if t := asTypeParam(typ); t != nil {
++		// If the optype is typ, return the top type as we have
++		// no information. It also prevents infinite recursion
++		// via the asTypeParam converter function. This can happen
++		// for a type parameter list of the form:
++		// (type T interface { type T }).
++		// See also issue #39680.
++		if u := t.Bound().allTypes; u != nil && u != typ {
++			// u != typ and u is a type parameter => under(u) != typ, so this is ok
++			return under(u)
++		}
++		return theTop
++	}
++	return under(typ)
++}
++
++// An instance represents an instantiated generic type syntactically
++// (without expanding the instantiation). Type instances appear only
++// during type-checking and are replaced by their fully instantiated
++// (expanded) types before the end of type-checking.
++type instance struct {
++	check   *Checker    // for lazy instantiation
++	pos     token.Pos   // position of type instantiation; for error reporting only
++	base    *Named      // parameterized type to be instantiated
++	targs   []Type      // type arguments
++	poslist []token.Pos // position of each targ; for error reporting only
++	value   Type        // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
++}
++
++// expand returns the instantiated (= expanded) type of t.
++// The result is either an instantiated *Named type, or
++// Typ[Invalid] if there was an error.
++func (t *instance) expand() Type {
++	// TODO(rFindley) add this in a follow-up CL.
++	panic("not implemented")
++}
++
++// expand expands a type instance into its instantiated
++// type and leaves all other types alone. expand does
++// not recurse.
++func expand(typ Type) Type {
++	if t, _ := typ.(*instance); t != nil {
++		return t.expand()
++	}
++	return typ
++}
++
++// expandf is set to expand.
++// Call expandf when calling expand causes compile-time cycle error.
++var expandf func(Type) Type
++
++func init() { expandf = expand }
++
++// bottom represents the bottom of the type lattice.
++// It is the underlying type of a type parameter that
++// cannot be satisfied by any type, usually because
++// the intersection of type constraints left nothing).
++type bottom struct{}
++
++// theBottom is the singleton bottom type.
++var theBottom = &bottom{}
++
++// top represents the top of the type lattice.
++// It is the underlying type of a type parameter that
++// can be satisfied by any type (ignoring methods),
++// usually because the type constraint has no type
++// list.
++type top struct{}
++
++// theTop is the singleton top type.
++var theTop = &top{}
++
++// Type-specific implementations of Underlying.
++func (t *Basic) Underlying() Type     { return t }
++func (t *Array) Underlying() Type     { return t }
++func (t *Slice) Underlying() Type     { return t }
++func (t *Struct) Underlying() Type    { return t }
++func (t *Pointer) Underlying() Type   { return t }
+ func (t *Tuple) Underlying() Type     { return t }
+-func (s *Signature) Underlying() Type { return s }
++func (t *Signature) Underlying() Type { return t }
++func (t *Sum) Underlying() Type       { return t }
+ func (t *Interface) Underlying() Type { return t }
+-func (m *Map) Underlying() Type       { return m }
+-func (c *Chan) Underlying() Type      { return c }
++func (t *Map) Underlying() Type       { return t }
++func (t *Chan) Underlying() Type      { return t }
+ func (t *Named) Underlying() Type     { return t.underlying }
+-
+-func (b *Basic) String() string     { return TypeString(b, nil) }
+-func (a *Array) String() string     { return TypeString(a, nil) }
+-func (s *Slice) String() string     { return TypeString(s, nil) }
+-func (s *Struct) String() string    { return TypeString(s, nil) }
+-func (p *Pointer) String() string   { return TypeString(p, nil) }
++func (t *TypeParam) Underlying() Type { return t }
++func (t *instance) Underlying() Type  { return t }
++func (t *bottom) Underlying() Type    { return t }
++func (t *top) Underlying() Type       { return t }
++
++// Type-specific implementations of String.
++func (t *Basic) String() string     { return TypeString(t, nil) }
++func (t *Array) String() string     { return TypeString(t, nil) }
++func (t *Slice) String() string     { return TypeString(t, nil) }
++func (t *Struct) String() string    { return TypeString(t, nil) }
++func (t *Pointer) String() string   { return TypeString(t, nil) }
+ func (t *Tuple) String() string     { return TypeString(t, nil) }
+-func (s *Signature) String() string { return TypeString(s, nil) }
++func (t *Signature) String() string { return TypeString(t, nil) }
++func (t *Sum) String() string       { return TypeString(t, nil) }
+ func (t *Interface) String() string { return TypeString(t, nil) }
+-func (m *Map) String() string       { return TypeString(m, nil) }
+-func (c *Chan) String() string      { return TypeString(c, nil) }
++func (t *Map) String() string       { return TypeString(t, nil) }
++func (t *Chan) String() string      { return TypeString(t, nil) }
+ func (t *Named) String() string     { return TypeString(t, nil) }
++func (t *TypeParam) String() string { return TypeString(t, nil) }
++func (t *instance) String() string  { return TypeString(t, nil) }
++func (t *bottom) String() string    { return TypeString(t, nil) }
++func (t *top) String() string       { return TypeString(t, nil) }
++
++// under returns the true expanded underlying type.
++// If it doesn't exist, the result is Typ[Invalid].
++// under must only be called when a type is known
++// to be fully set up.
++func under(t Type) Type {
++	// TODO(gri) is this correct for *Sum?
++	if n := asNamed(t); n != nil {
++		return n.under()
++	}
++	return t
++}
++
++// Converters
++//
++// A converter must only be called when a type is
++// known to be fully set up. A converter returns
++// a type's operational type (see comment for optype)
++// or nil if the type argument is not of the
++// respective type.
++
++func asBasic(t Type) *Basic {
++	op, _ := optype(t).(*Basic)
++	return op
++}
++
++func asArray(t Type) *Array {
++	op, _ := optype(t).(*Array)
++	return op
++}
++
++func asSlice(t Type) *Slice {
++	op, _ := optype(t).(*Slice)
++	return op
++}
++
++// TODO (rFindley) delete this on the dev.typeparams branch. This is only
++// exported in the prototype for legacy compatibility.
++func AsStruct(t Type) *Struct {
++	return asStruct(t)
++}
++
++func asStruct(t Type) *Struct {
++	op, _ := optype(t).(*Struct)
++	return op
++}
++
++// TODO(rFindley) delete this on the dev.typeparams branch (see ToStruct).
++func AsPointer(t Type) *Pointer {
++	return asPointer(t)
++}
++
++func asPointer(t Type) *Pointer {
++	op, _ := optype(t).(*Pointer)
++	return op
++}
++
++func asTuple(t Type) *Tuple {
++	op, _ := optype(t).(*Tuple)
++	return op
++}
++
++func asSignature(t Type) *Signature {
++	op, _ := optype(t).(*Signature)
++	return op
++}
++
++func asSum(t Type) *Sum {
++	op, _ := optype(t).(*Sum)
++	return op
++}
++
++func asInterface(t Type) *Interface {
++	op, _ := optype(t).(*Interface)
++	return op
++}
++
++func asMap(t Type) *Map {
++	op, _ := optype(t).(*Map)
++	return op
++}
++
++func asChan(t Type) *Chan {
++	op, _ := optype(t).(*Chan)
++	return op
++}
++
++// If the argument to asNamed and asTypeParam is of the respective types
++// (possibly after expanding an instance type), these methods return that type.
++// Otherwise the result is nil.
++
++func asNamed(t Type) *Named {
++	e, _ := expand(t).(*Named)
++	return e
++}
++
++func asTypeParam(t Type) *TypeParam {
++	u, _ := under(t).(*TypeParam)
++	return u
++}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 31c572f83b..c82fa3395b 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -9,6 +9,7 @@ package types
+ import (
+ 	"bytes"
+ 	"fmt"
++	"unicode/utf8"
+ )
+ 
+ // A Qualifier controls how named package-level objects are printed in
+@@ -75,6 +76,10 @@ func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
+ 	writeType(buf, typ, qf, make([]Type, 0, 8))
+ }
+ 
++// instanceMarker is the prefix for an instantiated type
++// in "non-evaluated" instance form.
++const instanceMarker = '#'
++
+ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	// Theoretically, this is a quadratic lookup algorithm, but in
+ 	// practice deeply nested composite types with unnamed component
+@@ -82,7 +87,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	// using a map.
+ 	for _, t := range visited {
+ 		if t == typ {
+-			fmt.Fprintf(buf, "○%T", typ) // cycle to typ
++			fmt.Fprintf(buf, "○%T", goTypeName(typ)) // cycle to typ
+ 			return
+ 		}
+ 	}
+@@ -121,11 +126,19 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			if i > 0 {
+ 				buf.WriteString("; ")
+ 			}
+-			if !f.embedded {
+-				buf.WriteString(f.name)
++			buf.WriteString(f.name)
++			if f.embedded {
++				// emphasize that the embedded field's name
++				// doesn't match the field's type name
++				if f.name != embeddedFieldName(f.typ) {
++					buf.WriteString(" /* = ")
++					writeType(buf, f.typ, qf, visited)
++					buf.WriteString(" */")
++				}
++			} else {
+ 				buf.WriteByte(' ')
++				writeType(buf, f.typ, qf, visited)
+ 			}
+-			writeType(buf, f.typ, qf, visited)
+ 			if tag := t.Tag(i); tag != "" {
+ 				fmt.Fprintf(buf, " %q", tag)
+ 			}
+@@ -143,6 +156,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		buf.WriteString("func")
+ 		writeSignature(buf, t, qf, visited)
+ 
++	case *Sum:
++		for i, t := range t.types {
++			if i > 0 {
++				buf.WriteString(", ")
++			}
++			writeType(buf, t, qf, visited)
++		}
++
+ 	case *Interface:
+ 		// We write the source-level methods and embedded types rather
+ 		// than the actual method set since resolved method signatures
+@@ -168,6 +189,13 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 				empty = false
+ 			}
++			if !empty && t.allTypes != nil {
++				buf.WriteString("; ")
++			}
++			if t.allTypes != nil {
++				buf.WriteString("type ")
++				writeType(buf, t.allTypes, qf, visited)
++			}
+ 		} else {
+ 			// print explicit interface methods and embedded types
+ 			for i, m := range t.methods {
+@@ -178,8 +206,19 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 				empty = false
+ 			}
++			if !empty && t.types != nil {
++				buf.WriteString("; ")
++			}
++			if t.types != nil {
++				buf.WriteString("type ")
++				writeType(buf, t.types, qf, visited)
++				empty = false
++			}
++			if !empty && len(t.embeddeds) > 0 {
++				buf.WriteString("; ")
++			}
+ 			for i, typ := range t.embeddeds {
+-				if i > 0 || len(t.methods) > 0 {
++				if i > 0 {
+ 					buf.WriteString("; ")
+ 				}
+ 				writeType(buf, typ, qf, visited)
+@@ -227,17 +266,36 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		}
+ 
+ 	case *Named:
+-		s := "<Named w/o object>"
+-		if obj := t.obj; obj != nil {
+-			if obj.pkg != nil {
+-				writePackage(buf, obj.pkg, qf)
+-			}
+-			// TODO(gri): function-local named types should be displayed
+-			// differently from named types at package level to avoid
+-			// ambiguity.
+-			s = obj.name
++		writeTypeName(buf, t.obj, qf)
++		if t.targs != nil {
++			// instantiated type
++			buf.WriteByte('[')
++			writeTypeList(buf, t.targs, qf, visited)
++			buf.WriteByte(']')
++		} else if t.tparams != nil {
++			// parameterized type
++			writeTParamList(buf, t.tparams, qf, visited)
+ 		}
+-		buf.WriteString(s)
++
++	case *TypeParam:
++		s := "?"
++		if t.obj != nil {
++			s = t.obj.name
++		}
++		buf.WriteString(s + subscript(t.id))
++
++	case *instance:
++		buf.WriteByte(instanceMarker) // indicate "non-evaluated" syntactic instance
++		writeTypeName(buf, t.base.obj, qf)
++		buf.WriteByte('[')
++		writeTypeList(buf, t.targs, qf, visited)
++		buf.WriteByte(']')
++
++	case *bottom:
++		buf.WriteString("⊥")
++
++	case *top:
++		buf.WriteString("⊤")
+ 
+ 	default:
+ 		// For externally defined implementations of Type.
+@@ -245,6 +303,64 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	}
+ }
+ 
++func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type) {
++	for i, typ := range list {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		writeType(buf, typ, qf, visited)
++	}
++}
++
++func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
++	buf.WriteString("[")
++	var prev Type
++	for i, p := range list {
++		// TODO(rFindley) support 'any' sugar here.
++		var b Type = &emptyInterface
++		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
++			b = t.bound
++		}
++		if i > 0 {
++			if b != prev {
++				// type bound changed - write previous one before advancing
++				buf.WriteByte(' ')
++				writeType(buf, prev, qf, visited)
++			}
++			buf.WriteString(", ")
++		}
++		prev = b
++
++		if t, _ := p.typ.(*TypeParam); t != nil {
++			if t.ptr {
++				buf.WriteByte('*')
++			}
++			writeType(buf, t, qf, visited)
++		} else {
++			buf.WriteString(p.name)
++		}
++	}
++	if prev != nil {
++		buf.WriteByte(' ')
++		writeType(buf, prev, qf, visited)
++	}
++	buf.WriteByte(']')
++}
++
++func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
++	s := "<Named w/o object>"
++	if obj != nil {
++		if obj.pkg != nil {
++			writePackage(buf, obj.pkg, qf)
++		}
++		// TODO(gri): function-local named types should be displayed
++		// differently from named types at package level to avoid
++		// ambiguity.
++		s = obj.name
++	}
++	buf.WriteString(s)
++}
++
+ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visited []Type) {
+ 	buf.WriteByte('(')
+ 	if tup != nil {
+@@ -264,7 +380,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
+ 				} else {
+ 					// special case:
+ 					// append(s, "foo"...) leads to signature func([]byte, string...)
+-					if t, ok := typ.Underlying().(*Basic); !ok || t.kind != String {
++					if t := asBasic(typ); t == nil || t.kind != String {
+ 						panic("internal error: string type expected")
+ 					}
+ 					writeType(buf, typ, qf, visited)
+@@ -287,6 +403,10 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+ }
+ 
+ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
++	if sig.tparams != nil {
++		writeTParamList(buf, sig.tparams, qf, visited)
++	}
++
+ 	writeTuple(buf, sig.params, sig.variadic, qf, visited)
+ 
+ 	n := sig.results.Len()
+@@ -305,3 +425,38 @@ func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []T
+ 	// multiple or named result(s)
+ 	writeTuple(buf, sig.results, false, qf, visited)
+ }
++
++// embeddedFieldName returns an embedded field's name given its type.
++// The result is "" if the type doesn't have an embedded field name.
++func embeddedFieldName(typ Type) string {
++	switch t := typ.(type) {
++	case *Basic:
++		return t.name
++	case *Named:
++		return t.obj.name
++	case *Pointer:
++		// *T is ok, but **T is not
++		if _, ok := t.base.(*Pointer); !ok {
++			return embeddedFieldName(t.base)
++		}
++	case *instance:
++		return t.base.obj.name
++	}
++	return "" // not a (pointer to) a defined type
++}
++
++// subscript returns the decimal (utf8) representation of x using subscript digits.
++func subscript(x uint64) string {
++	const w = len("₀") // all digits 0...9 have the same utf8 width
++	var buf [32 * w]byte
++	i := len(buf)
++	for {
++		i -= w
++		utf8.EncodeRune(buf[i:], '₀'+rune(x%10)) // '₀' == U+2080
++		x /= 10
++		if x == 0 {
++			break
++		}
++	}
++	return string(buf[i:])
++}
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 5d9db39bfc..b16529dc64 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -96,6 +96,10 @@ var independentTestTypes = []testEntry{
+ 	dup("interface{m()}"),
+ 	dup(`interface{String() string; m(int) float32}`),
+ 
++	// TODO(rFindley) uncomment this once this AST is accepted, and add more test
++	// cases.
++	// dup(`interface{type int, float32, complex128}`),
++
+ 	// maps
+ 	dup("map[string]int"),
+ 	{"map[struct{x, y int}][]byte", "map[struct{x int; y int}][]byte"},
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 2b398010f4..41ba7e9bca 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -7,11 +7,13 @@
+ package types
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+ 	"go/token"
+ 	"sort"
+ 	"strconv"
++	"strings"
+ )
+ 
+ // ident type-checks identifier e and initializes x with the value or type of e.
+@@ -207,6 +209,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 	sig.variadic = variadic
+ }
+ 
++// goTypeName returns the Go type name for typ and
++// removes any occurences of "types." from that name.
++func goTypeName(typ Type) string {
++	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
++}
++
+ // typInternal drives type checking of types.
+ // Must only be called by definedType.
+ //
+@@ -498,7 +506,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 			// it if it's a valid interface.
+ 			typ := check.typ(f.Type)
+ 
+-			utyp := check.underlying(typ)
++			utyp := under(typ)
+ 			if _, ok := utyp.(*Interface); !ok {
+ 				if utyp != Typ[Invalid] {
+ 					check.errorf(f.Type, _InvalidIfaceEmbed, "%s is not an interface", typ)
+@@ -521,10 +529,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	sort.Sort(byUniqueMethodName(ityp.methods))
+ 	sort.Stable(byUniqueTypeName(ityp.embeddeds))
+ 
+-	check.later(func() { check.completeInterface(ityp) })
++	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
+ }
+ 
+-func (check *Checker) completeInterface(ityp *Interface) {
++func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 	if ityp.allMethods != nil {
+ 		return
+ 	}
+@@ -538,11 +546,18 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 	}
+ 
+ 	if trace {
+-		check.trace(token.NoPos, "complete %s", ityp)
++		// Types don't generally have position information.
++		// If we don't have a valid pos provided, try to use
++		// one close enough.
++		if !pos.IsValid() && len(ityp.methods) > 0 {
++			pos = ityp.methods[0].pos
++		}
++
++		check.trace(pos, "complete %s", ityp)
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+-			check.trace(token.NoPos, "=> %s", ityp)
++			check.trace(pos, "=> %s (methods = %v, types = %v)", ityp, ityp.allMethods, ityp.allTypes)
+ 		}()
+ 	}
+ 
+@@ -592,25 +607,77 @@ func (check *Checker) completeInterface(ityp *Interface) {
+ 		addMethod(m.pos, m, true)
+ 	}
+ 
++	// collect types
++	allTypes := ityp.types
++
+ 	posList := check.posMap[ityp]
+ 	for i, typ := range ityp.embeddeds {
+ 		pos := posList[i] // embedding position
+-		typ, ok := check.underlying(typ).(*Interface)
+-		if !ok {
+-			// An error was reported when collecting the embedded types.
+-			// Ignore it.
++		utyp := under(typ)
++		etyp := asInterface(utyp)
++		if etyp == nil {
++			if utyp != Typ[Invalid] {
++				var format string
++				if _, ok := utyp.(*TypeParam); ok {
++					format = "%s is a type parameter, not an interface"
++				} else {
++					format = "%s is not an interface"
++				}
++				// TODO: correct error code.
++				check.errorf(atPos(pos), 0, format, typ)
++			}
+ 			continue
+ 		}
+-		check.completeInterface(typ)
+-		for _, m := range typ.allMethods {
++		check.completeInterface(pos, etyp)
++		for _, m := range etyp.allMethods {
+ 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 		}
++		allTypes = intersect(allTypes, etyp.allTypes)
+ 	}
+ 
+ 	if methods != nil {
+ 		sort.Sort(byUniqueMethodName(methods))
+ 		ityp.allMethods = methods
+ 	}
++	ityp.allTypes = allTypes
++}
++
++// intersect computes the intersection of the types x and y.
++// Note: A incomming nil type stands for the top type. A top
++// type result is returned as nil.
++func intersect(x, y Type) (r Type) {
++	defer func() {
++		if r == theTop {
++			r = nil
++		}
++	}()
++
++	switch {
++	case x == theBottom || y == theBottom:
++		return theBottom
++	case x == nil || x == theTop:
++		return y
++	case y == nil || x == theTop:
++		return x
++	}
++
++	xtypes := unpackType(x)
++	ytypes := unpackType(y)
++	// Compute the list rtypes which includes only
++	// types that are in both xtypes and ytypes.
++	// Quadratic algorithm, but good enough for now.
++	// TODO(gri) fix this
++	var rtypes []Type
++	for _, x := range xtypes {
++		if includes(ytypes, x) {
++			rtypes = append(rtypes, x)
++		}
++	}
++
++	if rtypes == nil {
++		return theBottom
++	}
++	return NewSum(rtypes)
+ }
+ 
+ // byUniqueTypeName named type lists can be sorted by their unique type names.
+@@ -762,3 +829,13 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+ 	}
+ 	return nil // invalid embedded field
+ }
++
++// includes reports whether typ is in list.
++func includes(list []Type, typ Type) bool {
++	for _, e := range list {
++		if Identical(typ, e) {
++			return true
++		}
++	}
++	return false
++}

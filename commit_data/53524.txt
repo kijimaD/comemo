@@ -78,7 +78,86 @@ Date:   Tue Aug 16 16:06:23 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Joedian Reid <joedian@golang.org>
-
+---
  src/strings/strings.go      | 28 ++++++++++++++++++++++++----
  src/strings/strings_test.go |  2 ++
  2 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 4ab78c326b..7921a20e8a 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -568,14 +568,24 @@ func ToUpper(s string) string {
+ 		if !hasLower {
+ 			return s
+ 		}
+-		var b Builder
++		var (
++			b   Builder
++			pos int
++		)
+ 		b.Grow(len(s))
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+ 			if 'a' <= c && c <= 'z' {
+ 				c -= 'a' - 'A'
++				if pos < i {
++					b.WriteString(s[pos:i])
++				}
++				b.WriteByte(c)
++				pos = i + 1
+ 			}
+-			b.WriteByte(c)
++		}
++		if pos < len(s) {
++			b.WriteString(s[pos:])
+ 		}
+ 		return b.String()
+ 	}
+@@ -598,14 +608,24 @@ func ToLower(s string) string {
+ 		if !hasUpper {
+ 			return s
+ 		}
+-		var b Builder
++		var (
++			b   Builder
++			pos int
++		)
+ 		b.Grow(len(s))
+ 		for i := 0; i < len(s); i++ {
+ 			c := s[i]
+ 			if 'A' <= c && c <= 'Z' {
+ 				c += 'a' - 'A'
++				if pos < i {
++					b.WriteString(s[pos:i])
++				}
++				b.WriteByte(c)
++				pos = i + 1
+ 			}
+-			b.WriteByte(c)
++		}
++		if pos < len(s) {
++			b.WriteString(s[pos:])
+ 		}
+ 		return b.String()
+ 	}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index d6153aa226..6d394f47be 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -549,6 +549,7 @@ var upperTests = []StringTest{
+ 	{"AbC123", "ABC123"},
+ 	{"azAZ09_", "AZAZ09_"},
+ 	{"longStrinGwitHmixofsmaLLandcAps", "LONGSTRINGWITHMIXOFSMALLANDCAPS"},
++	{"RENAN BASTOS 93 AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO", "RENAN BASTOS 93 AOSDAJDJAIDJAIDAJIAIDSJJAIDIJADSJIADJIOOKKO"},
+ 	{"long\u0250string\u0250with\u0250nonascii\u2C6Fchars", "LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS"},
+ 	{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
+ 	{"a\u0080\U0010FFFF", "A\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune
+@@ -560,6 +561,7 @@ var lowerTests = []StringTest{
+ 	{"AbC123", "abc123"},
+ 	{"azAZ09_", "azaz09_"},
+ 	{"longStrinGwitHmixofsmaLLandcAps", "longstringwithmixofsmallandcaps"},
++	{"renan bastos 93 AOSDAJDJAIDJAIDAJIaidsjjaidijadsjiadjiOOKKO", "renan bastos 93 aosdajdjaidjaidajiaidsjjaidijadsjiadjiookko"},
+ 	{"LONG\u2C6FSTRING\u2C6FWITH\u2C6FNONASCII\u2C6FCHARS", "long\u0250string\u0250with\u0250nonascii\u0250chars"},
+ 	{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
+ 	{"A\u0080\U0010FFFF", "a\u0080\U0010FFFF"},                           // test utf8.RuneSelf and utf8.MaxRune

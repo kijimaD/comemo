@@ -14,7 +14,49 @@ Date:   Thu Aug 1 15:52:56 2013 -0700
     R=golang-dev, bradfitz, rsc, 0xjnml
     CC=golang-dev
     https://golang.org/cl/11698045
-
+---
  src/pkg/net/url/url.go      |  3 +++
  src/pkg/net/url/url_test.go | 16 ++++++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 459dc473ce..043fd48539 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -459,6 +459,9 @@ func (u *URL) String() string {
+ 				buf.WriteString(h)
+ 			}
+ 		}
++		if u.Path != "" && u.Path[0] != '/' {
++			buf.WriteByte('/')
++		}
+ 		buf.WriteString(escape(u.Path, encodePath))
+ 	}
+ 	if u.RawQuery != "" {
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index 9d81289ceb..24f84e58ff 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -372,6 +372,22 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
+ 
+ func TestURLString(t *testing.T) {
+ 	DoTestString(t, Parse, "Parse", urltests)
++
++	// no leading slash on path should prepend
++	// slash on String() call
++	noslash := URLTest{
++		"http://www.google.com/search",
++		&URL{
++			Scheme: "http",
++			Host:   "www.google.com",
++			Path:   "search",
++		},
++		"",
++	}
++	s := noslash.out.String()
++	if s != noslash.in {
++		t.Errorf("Expected %s; go %s", noslash.in, s)
++	}
+ }
+ 
+ type EscapeTest struct {

@@ -12,7 +12,7 @@ Date:   Sat Feb 11 08:47:19 2012 +1100
     R=golang-dev, mattn.jp, alex.brainman, rsc
     CC=golang-dev
     https://golang.org/cl/5653055
-
+---
  src/pkg/net/sendfile_windows.go | 2 +-
  src/pkg/os/exec/exec_test.go    | 5 ++---
  src/pkg/os/exec_posix.go        | 2 +-
@@ -22,3 +22,147 @@ Date:   Sat Feb 11 08:47:19 2012 +1100
  src/pkg/syscall/exec_unix.go    | 6 +++---
  src/pkg/syscall/exec_windows.go | 2 +-
  8 files changed, 19 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/net/sendfile_windows.go b/src/pkg/net/sendfile_windows.go
+index ee7ff8b98c..c247477d5a 100644
+--- a/src/pkg/net/sendfile_windows.go
++++ b/src/pkg/net/sendfile_windows.go
+@@ -56,7 +56,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	var o sendfileOp
+ 	o.Init(c, 'w')
+ 	o.n = uint32(n)
+-	o.src = f.Fd()
++	o.src = syscall.Handle(f.Fd())
+ 	done, err := iosrv.ExecIO(&o, 0)
+ 	if err != nil {
+ 		return 0, err, false
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index 2e4bef5119..52f4bce3ae 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -17,7 +17,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -153,8 +152,8 @@ func TestExtraFiles(t *testing.T) {
+ 
+ 	// Ensure that file descriptors have not already been leaked into
+ 	// our environment.
+-	for fd := int(os.Stderr.Fd()) + 1; fd <= 101; fd++ {
+-		err := syscall.Close(fd)
++	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
++		err := os.NewFile(fd, "").Close()
+ 		if err == nil {
+ 			t.Logf("Something already leaked - closed fd %d", fd)
+ 		}
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index df283f1c02..d5429849bf 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -38,7 +38,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		sysattr.Env = Environ()
+ 	}
+ 	for _, f := range attr.Files {
+-		sysattr.Files = append(sysattr.Files, int(f.Fd()))
++		sysattr.Files = append(sysattr.Files, f.Fd())
+ 	}
+ 
+ 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 7f263c80cd..350d2a72cf 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -70,7 +70,7 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 		syscall.CloseOnExec(r)
+ 	}
+ 
+-	return NewFile(r, name), nil
++	return NewFile(uintptr(r), name), nil
+ }
+ 
+ func openDir(name string) (file *File, err error) {
+@@ -79,7 +79,7 @@ func openDir(name string) (file *File, err error) {
+ 	if e != nil {
+ 		return nil, &PathError{"open", name, e}
+ 	}
+-	f := NewFile(r, name)
++	f := NewFile(uintptr(r), name)
+ 	f.dirinfo = d
+ 	return f, nil
+ }
+@@ -313,7 +313,7 @@ func Pipe() (r *File, w *File, err error) {
+ 	syscall.CloseOnExec(p[1])
+ 	syscall.ForkLock.RUnlock()
+ 
+-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
++	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
+ }
+ 
+ // TempDir returns the default directory to use for temporary files.
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index fc72c9af8c..9c3af5ec95 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -39,8 +39,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		i      int
+ 	)
+ 
+-	// guard against side effects of shuffling fds below.
+-	fd := append([]int(nil), attr.Files...)
++	fd := make([]int, len(attr.Files))
++	for i, ufd := range attr.Files {
++		fd[i] = int(ufd)
++	}
+ 
+ 	darwin := runtime.GOOS == "darwin"
+ 
+diff --git a/src/pkg/syscall/exec_linux.go b/src/pkg/syscall/exec_linux.go
+index 38b8f9e357..b9ce3676e4 100644
+--- a/src/pkg/syscall/exec_linux.go
++++ b/src/pkg/syscall/exec_linux.go
+@@ -40,7 +40,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	)
+ 
+ 	// guard against side effects of shuffling fds below.
+-	fd := append([]int(nil), attr.Files...)
++	fd := make([]int, len(attr.Files))
++	for i, ufd := range attr.Files {
++		fd[i] = int(ufd)
++	}
+ 
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index b70e1880b9..dfaa0374a5 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -101,9 +101,9 @@ type Credential struct {
+ // ProcAttr holds attributes that will be applied to a new process started
+ // by StartProcess.
+ type ProcAttr struct {
+-	Dir   string   // Current working directory.
+-	Env   []string // Environment.
+-	Files []int    // File descriptors.
++	Dir   string    // Current working directory.
++	Env   []string  // Environment.
++	Files []uintptr // File descriptors.
+ 	Sys   *SysProcAttr
+ }
+ 
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index 6cb25a7d00..4dc4d059d7 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -220,7 +220,7 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
+ type ProcAttr struct {
+ 	Dir   string
+ 	Env   []string
+-	Files []Handle
++	Files []uintptr
+ 	Sys   *SysProcAttr
+ }
+ 

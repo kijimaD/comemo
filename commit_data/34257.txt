@@ -10,10 +10,302 @@ Date:   Wed Oct 11 21:34:02 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/70211
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/internal/clean/clean.go |  6 +++---
  src/cmd/go/internal/load/pkg.go    | 37 +++++++++++++++++--------------------
  src/cmd/go/internal/run/run.go     |  2 +-
  src/cmd/go/internal/test/test.go   |  4 ++--
  src/cmd/go/internal/work/build.go  | 30 +++++++++++++++---------------
  5 files changed, 38 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 454cac1f47..b0688e6221 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -213,12 +213,12 @@ func clean(p *load.Package) {
+ 		}
+ 	}
+ 
+-	if cleanI && p.Internal.Target != "" {
++	if cleanI && p.Target != "" {
+ 		if cfg.BuildN || cfg.BuildX {
+-			b.Showcmd("", "rm -f %s", p.Internal.Target)
++			b.Showcmd("", "rm -f %s", p.Target)
+ 		}
+ 		if !cfg.BuildN {
+-			removeFile(p.Internal.Target)
++			removeFile(p.Target)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ca74c50fa9..9b44687e8f 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -42,7 +42,7 @@ type PackagePublic struct {
+ 	ImportComment string `json:",omitempty"` // path in import comment on package statement
+ 	Name          string `json:",omitempty"` // package name
+ 	Doc           string `json:",omitempty"` // package documentation string
+-	Target        string `json:",omitempty"` // install path
++	Target        string `json:",omitempty"` // installed target for this package (may be executable)
+ 	Shlib         string `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
+ 	Goroot        bool   `json:",omitempty"` // is this package found in the Go root?
+ 	Standard      bool   `json:",omitempty"` // is this package part of the standard Go library?
+@@ -94,7 +94,6 @@ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build        *build.Package
+ 	Imports      []*Package           // this package's direct imports
+-	Target       string               // installed file for this package (may be executable)
+ 	ForceLibrary bool                 // this package is a library (even if named "main")
+ 	Cmdline      bool                 // defined by files listed on command line
+ 	Local        bool                 // imported via local path (./ or ../)
+@@ -877,29 +876,29 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		}
+ 		if p.Internal.Build.BinDir != "" {
+ 			// Install to GOBIN or bin of GOPATH entry.
+-			p.Internal.Target = filepath.Join(p.Internal.Build.BinDir, elem)
++			p.Target = filepath.Join(p.Internal.Build.BinDir, elem)
+ 			if !p.Goroot && strings.Contains(elem, "/") && cfg.GOBIN != "" {
+ 				// Do not create $GOBIN/goos_goarch/elem.
+-				p.Internal.Target = ""
++				p.Target = ""
+ 				p.Internal.GobinSubdir = true
+ 			}
+ 		}
+ 		if InstallTargetDir(p) == ToTool {
+ 			// This is for 'go tool'.
+ 			// Override all the usual logic and force it into the tool directory.
+-			p.Internal.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
++			p.Target = filepath.Join(cfg.GOROOTpkg, "tool", full)
+ 		}
+-		if p.Internal.Target != "" && cfg.BuildContext.GOOS == "windows" {
+-			p.Internal.Target += ".exe"
++		if p.Target != "" && cfg.BuildContext.GOOS == "windows" {
++			p.Target += ".exe"
+ 		}
+ 	} else if p.Internal.Local {
+ 		// Local import turned into absolute path.
+ 		// No permanent install target.
+-		p.Internal.Target = ""
++		p.Target = ""
+ 	} else {
+-		p.Internal.Target = p.Internal.Build.PkgObj
++		p.Target = p.Internal.Build.PkgObj
+ 		if cfg.BuildLinkshared {
+-			shlibnamefile := p.Internal.Target[:len(p.Internal.Target)-2] + ".shlibname"
++			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
+ 			shlib, err := ioutil.ReadFile(shlibnamefile)
+ 			if err != nil && !os.IsNotExist(err) {
+ 				base.Fatalf("reading shlibname: %v", err)
+@@ -1059,9 +1058,8 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 
+ 	// unsafe is a fake package.
+ 	if p.Standard && (p.ImportPath == "unsafe" || cfg.BuildContext.Compiler == "gccgo") {
+-		p.Internal.Target = ""
++		p.Target = ""
+ 	}
+-	p.Target = p.Internal.Target
+ 
+ 	// If cgo is not enabled, ignore cgo supporting sources
+ 	// just as we ignore go files containing import "C".
+@@ -1514,11 +1512,11 @@ func isStale(p *Package) (bool, string) {
+ 	// if a rebuild is needed, that rebuild attempt will produce a useful error.
+ 	// (Some commands, such as 'go list', do not attempt to rebuild.)
+ 	if p.BinaryOnly {
+-		if p.Internal.Target == "" {
++		if p.Target == "" {
+ 			// Fail if a build is attempted.
+ 			return true, "no source code for package, but no install target"
+ 		}
+-		if _, err := os.Stat(p.Internal.Target); err != nil {
++		if _, err := os.Stat(p.Target); err != nil {
+ 			// Fail if a build is attempted.
+ 			return true, "no source code for package, but cannot access install target: " + err.Error()
+ 		}
+@@ -1531,12 +1529,12 @@ func isStale(p *Package) (bool, string) {
+ 	}
+ 
+ 	// If there's no install target, we have to rebuild.
+-	if p.Internal.Target == "" {
++	if p.Target == "" {
+ 		return true, "no install target"
+ 	}
+ 
+ 	// Package is stale if completely unbuilt.
+-	fi, err := os.Stat(p.Internal.Target)
++	fi, err := os.Stat(p.Target)
+ 	if err != nil {
+ 		return true, "cannot stat install target"
+ 	}
+@@ -1600,7 +1598,7 @@ func isStale(p *Package) (bool, string) {
+ 
+ 	// Package is stale if a dependency is, or if a dependency is newer.
+ 	for _, p1 := range p.Internal.Imports {
+-		if p1.Internal.Target != "" && olderThan(p1.Internal.Target) {
++		if p1.Target != "" && olderThan(p1.Target) {
+ 			return true, "newer dependency"
+ 		}
+ 	}
+@@ -1989,7 +1987,7 @@ func GoFilesPackage(gofiles []string) *Package {
+ 	stk.Pop()
+ 	pkg.Internal.LocalPrefix = dirToImportPath(dir)
+ 	pkg.ImportPath = "command-line-arguments"
+-	pkg.Internal.Target = ""
++	pkg.Target = ""
+ 
+ 	if pkg.Name == "main" {
+ 		_, elem := filepath.Split(gofiles[0])
+@@ -1998,11 +1996,10 @@ func GoFilesPackage(gofiles []string) *Package {
+ 			cfg.BuildO = exe
+ 		}
+ 		if cfg.GOBIN != "" {
+-			pkg.Internal.Target = filepath.Join(cfg.GOBIN, exe)
++			pkg.Target = filepath.Join(cfg.GOBIN, exe)
+ 		}
+ 	}
+ 
+-	pkg.Target = pkg.Internal.Target
+ 	pkg.Stale = true
+ 	pkg.StaleReason = "files named on command line"
+ 
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 41067a686f..d67f02ad10 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -94,7 +94,7 @@ func runRun(cmd *base.Command, args []string) {
+ 	if p.Name != "main" {
+ 		base.Fatalf("go run: cannot run non-main package")
+ 	}
+-	p.Internal.Target = "" // must build - not up to date
++	p.Target = "" // must build - not up to date
+ 	var src string
+ 	if len(p.GoFiles) > 0 {
+ 		src = p.GoFiles[0]
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 11d29f9819..581395d281 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -737,7 +737,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		ptest.GoFiles = nil
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+ 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+-		ptest.Internal.Target = ""
++		ptest.Target = ""
+ 		ptest.Imports = str.StringList(p.Imports, p.TestImports)
+ 		ptest.Internal.Imports = append(append([]*load.Package{}, p.Internal.Imports...), imports...)
+ 		ptest.Internal.ForceLibrary = true
+@@ -1017,7 +1017,7 @@ func recompileForTest(pmain, preal, ptest *load.Package) {
+ 			p1.Internal.Imports = make([]*load.Package, len(p.Internal.Imports))
+ 			copy(p1.Internal.Imports, p.Internal.Imports)
+ 			p = p1
+-			p.Internal.Target = ""
++			p.Target = ""
+ 			p.Stale = true
+ 			p.StaleReason = "depends on package being tested"
+ 		}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index a8752f9128..50e3cc1d7d 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -461,7 +461,7 @@ func runBuild(cmd *base.Command, args []string) {
+ 			base.Fatalf("no packages to build")
+ 		}
+ 		p := pkgs[0]
+-		p.Internal.Target = cfg.BuildO
++		p.Target = cfg.BuildO
+ 		p.Stale = true // must build - not up to date
+ 		p.StaleReason = "build -o flag in use"
+ 		a := b.AutoAction(ModeInstall, depMode, p)
+@@ -885,7 +885,7 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
+ // depMode is the action (build or install) to use when building dependencies.
+ // To turn package main into an executable, call b.Link instead.
+ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
+-	if mode == ModeInstall && p.Internal.Local && p.Internal.Target == "" {
++	if mode == ModeInstall && p.Internal.Local && p.Target == "" {
+ 		// Imported via local path. No permanent target.
+ 		mode = ModeBuild
+ 	}
+@@ -922,17 +922,17 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 			if cfg.BuildToolchainName == "gccgo" {
+ 				// the target name is needed for cgo.
+ 				a.Mode = "gccgo stdlib"
+-				a.Target = p.Internal.Target
++				a.Target = p.Target
+ 				a.Func = nil
+ 				return a
+ 			}
+ 		}
+ 
+-		if !p.Stale && p.Internal.Target != "" && p.Name != "main" {
+-			// p.Stale==false implies that p.Internal.Target is up-to-date.
++		if !p.Stale && p.Target != "" && p.Name != "main" {
++			// p.Stale==false implies that p.Target is up-to-date.
+ 			// Record target name for use by actions depending on this one.
+ 			a.Mode = "use installed"
+-			a.Target = p.Internal.Target
++			a.Target = p.Target
+ 			a.Func = nil
+ 			a.built = a.Target
+ 			return a
+@@ -959,12 +959,12 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 			Package: p,
+ 		}
+ 
+-		if !p.Stale && p.Internal.Target != "" {
+-			// p.Stale==false implies that p.Internal.Target is up-to-date.
++		if !p.Stale && p.Target != "" {
++			// p.Stale==false implies that p.Target is up-to-date.
+ 			// Record target name for use by actions depending on this one.
+ 			a.Mode = "use installed"
+ 			a.Func = nil
+-			a.Target = p.Internal.Target
++			a.Target = p.Target
+ 			a.built = a.Target
+ 			return a
+ 		}
+@@ -984,7 +984,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 		name := "a.out"
+ 		if p.Internal.ExeName != "" {
+ 			name = p.Internal.ExeName
+-		} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Internal.Target != "" {
++		} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Target != "" {
+ 			// On OS X, the linker output name gets recorded in the
+ 			// shared library's LC_ID_DYLIB load command.
+ 			// The code invoking the linker knows to pass only the final
+@@ -992,7 +992,7 @@ func (b *Builder) LinkAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 			// we'll install it as; otherwise the library is only loadable as "a.out".
+ 			// On Windows, DLL file name is recorded in PE file
+ 			// export section, so do like on OS X.
+-			_, name = filepath.Split(p.Internal.Target)
++			_, name = filepath.Split(p.Target)
+ 		}
+ 		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
+ 		a.built = a.Target
+@@ -1024,8 +1024,8 @@ func (b *Builder) installAction(a1 *Action) *Action {
+ 			Package: p,
+ 			Objdir:  a1.Objdir,
+ 			Deps:    []*Action{a1},
+-			Target:  p.Internal.Target,
+-			built:   p.Internal.Target,
++			Target:  p.Target,
++			built:   p.Target,
+ 		}
+ 		b.addInstallHeaderAction(a)
+ 		return a
+@@ -1273,14 +1273,14 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 			}
+ 			for _, a2 := range buildAction.Deps[0].Deps {
+ 				p := a2.Package
+-				if p.Internal.Target == "" {
++				if p.Target == "" {
+ 					continue
+ 				}
+ 				a.Deps = append(a.Deps, &Action{
+ 					Mode:    "shlibname",
+ 					Package: p,
+ 					Func:    (*Builder).installShlibname,
+-					Target:  strings.TrimSuffix(p.Internal.Target, ".a") + ".shlibname",
++					Target:  strings.TrimSuffix(p.Target, ".a") + ".shlibname",
+ 					Deps:    []*Action{a.Deps[0]},
+ 				})
+ 			}

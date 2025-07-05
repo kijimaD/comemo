@@ -14,7 +14,40 @@ Date:   Fri Mar 8 19:29:27 2024 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/test/test.go                 | 2 ++
  src/cmd/go/testdata/script/test_cache_inputs.txt | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 08fac5f395..f1555fd5d4 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1859,6 +1859,8 @@ var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/
+ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error) {
+ 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
+ 	h := cache.NewHash("testInputs")
++	// The runtime always looks at GODEBUG, without telling us in the testlog.
++	fmt.Fprintf(h, "env GODEBUG %x\n", hashGetenv("GODEBUG"))
+ 	pwd := a.Package.Dir
+ 	for _, line := range bytes.Split(testlog, []byte("\n")) {
+ 		if len(line) == 0 {
+diff --git a/src/cmd/go/testdata/script/test_cache_inputs.txt b/src/cmd/go/testdata/script/test_cache_inputs.txt
+index 1868da9842..68a700b116 100644
+--- a/src/cmd/go/testdata/script/test_cache_inputs.txt
++++ b/src/cmd/go/testdata/script/test_cache_inputs.txt
+@@ -23,6 +23,14 @@ go test testcache -run=TestLookupEnv
+ go test testcache -run=TestLookupEnv
+ stdout '\(cached\)'
+ 
++# GODEBUG is always read
++env GODEBUG=asdf=1
++go test testcache -run=TestLookupEnv
++! stdout '\(cached\)'
++go test testcache -run=TestLookupEnv
++stdout '\(cached\)'
++env GODEBUG=
++
+ env TESTKEY=y
+ go test testcache -run=TestLookupEnv
+ ! stdout '\(cached\)'

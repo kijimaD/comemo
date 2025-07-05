@@ -7,7 +7,44 @@ Date:   Mon Jan 30 16:32:48 2012 -0200
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5569090
-
+---
  src/pkg/encoding/xml/marshal_test.go | 5 +++++
  src/pkg/encoding/xml/read.go         | 5 +++--
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index e0be332008..0f6c0f0795 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -532,6 +532,11 @@ var marshalTests = []struct {
+ 		Value:     &NameInField{Name{Space: "ns", Local: "foo"}},
+ 		ExpectXML: `<NameInField><foo xmlns="ns"></foo></NameInField>`,
+ 	},
++	{
++		Value:         &NameInField{Name{Space: "ns", Local: "foo"}},
++		ExpectXML:     `<NameInField><foo xmlns="ns"><ignore></ignore></foo></NameInField>`,
++		UnmarshalOnly: true,
++	},
+ 
+ 	// Marshaling zero xml.Name uses the tag or field name.
+ 	{
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 871fe059cf..3193cda792 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -265,12 +265,13 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 		saveData = v
+ 
+ 	case reflect.Struct:
+-		sv = v
+-		typ := sv.Type()
++		typ := v.Type()
+ 		if typ == nameType {
+ 			v.Set(reflect.ValueOf(start.Name))
+ 			break
+ 		}
++
++		sv = v
+ 		tinfo, err = getTypeInfo(typ)
+ 		if err != nil {
+ 			return err

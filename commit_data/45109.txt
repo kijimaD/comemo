@@ -22,10 +22,159 @@ Date:   Thu Oct 1 12:03:27 2020 +0200
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go  |  1 -
  src/cmd/compile/internal/gc/esc.go    | 31 +++++++++++++++++++++----------
  src/cmd/compile/internal/gc/escape.go |  6 +-----
  src/cmd/compile/internal/gc/walk.go   | 17 ++---------------
  test/fixedbugs/issue41635.go          | 11 +++++------
  5 files changed, 29 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c0ed8192d9..d881be485e 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1134,7 +1134,6 @@ func strlit(n *Node) string {
+ 	return n.Val().U.(string)
+ }
+ 
+-// TODO(gri) smallintconst is only used in one place - can we used indexconst?
+ func smallintconst(n *Node) bool {
+ 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
+ 		switch simtype[n.Type.Etype] {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 375331d1f5..d7aa72b450 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -169,36 +169,47 @@ func mayAffectMemory(n *Node) bool {
+ 	}
+ }
+ 
+-func mustHeapAlloc(n *Node) bool {
++// heapAllocReason returns the reason the given Node must be heap
++// allocated, or the empty string if it doesn't.
++func heapAllocReason(n *Node) string {
+ 	if n.Type == nil {
+-		return false
++		return ""
+ 	}
+ 
+ 	// Parameters are always passed via the stack.
+ 	if n.Op == ONAME && (n.Class() == PPARAM || n.Class() == PPARAMOUT) {
+-		return false
++		return ""
+ 	}
+ 
+ 	if n.Type.Width > maxStackVarSize {
+-		return true
++		return "too large for stack"
+ 	}
+ 
+ 	if (n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= maxImplicitStackVarSize {
+-		return true
++		return "too large for stack"
+ 	}
+ 
+ 	if n.Op == OCLOSURE && closureType(n).Size() >= maxImplicitStackVarSize {
+-		return true
++		return "too large for stack"
+ 	}
+ 	if n.Op == OCALLPART && partialCallType(n).Size() >= maxImplicitStackVarSize {
+-		return true
++		return "too large for stack"
+ 	}
+ 
+-	if n.Op == OMAKESLICE && !isSmallMakeSlice(n) {
+-		return true
++	if n.Op == OMAKESLICE {
++		r := n.Right
++		if r == nil {
++			r = n.Left
++		}
++		if !smallintconst(r) {
++			return "non-constant size"
++		}
++		if t := n.Type; t.Elem().Width != 0 && r.Int64() >= maxImplicitStackVarSize/t.Elem().Width {
++			return "too large for stack"
++		}
+ 	}
+ 
+-	return false
++	return ""
+ }
+ 
+ // addrescapes tags node n as having had its address taken
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index d79d32ec48..79df584ab1 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1051,11 +1051,7 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
+ 		}
+ 		n.SetOpt(loc)
+ 
+-		if mustHeapAlloc(n) {
+-			why := "too large for stack"
+-			if n.Op == OMAKESLICE && (!Isconst(n.Left, CTINT) || (n.Right != nil && !Isconst(n.Right, CTINT))) {
+-				why = "non-constant size"
+-			}
++		if why := heapAllocReason(n); why != "" {
+ 			e.flow(e.heapHole().addr(n, why), loc)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8e45059eab..3fe7c3e089 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -336,19 +336,6 @@ func walkstmt(n *Node) *Node {
+ 	return n
+ }
+ 
+-func isSmallMakeSlice(n *Node) bool {
+-	if n.Op != OMAKESLICE {
+-		return false
+-	}
+-	r := n.Right
+-	if r == nil {
+-		r = n.Left
+-	}
+-	t := n.Type
+-
+-	return smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
+-}
+-
+ // walk the whole tree of the body of an
+ // expression or simple statement.
+ // the types expressions are calculated.
+@@ -1339,8 +1326,8 @@ opswitch:
+ 			yyerror("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
+ 		}
+ 		if n.Esc == EscNone {
+-			if !isSmallMakeSlice(n) {
+-				Fatalf("non-small OMAKESLICE with EscNone: %v", n)
++			if why := heapAllocReason(n); why != "" {
++				Fatalf("%v has EscNone, but %v", n, why)
+ 			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+diff --git a/test/fixedbugs/issue41635.go b/test/fixedbugs/issue41635.go
+index b33c1a07e7..35c0034cdd 100644
+--- a/test/fixedbugs/issue41635.go
++++ b/test/fixedbugs/issue41635.go
+@@ -7,12 +7,11 @@
+ package p
+ 
+ func f() { // ERROR ""
+-	b1 := make([]byte, 1<<17)      // ERROR "too large for stack" ""
+-	b2 := make([]byte, 100, 1<<17) // ERROR "too large for stack" ""
+-
+ 	n, m := 100, 200
+-	b1 = make([]byte, n)      // ERROR "non-constant size" ""
+-	b2 = make([]byte, 100, m) // ERROR "non-constant size" ""
++	_ = make([]byte, 1<<17)      // ERROR "too large for stack" ""
++	_ = make([]byte, 100, 1<<17) // ERROR "too large for stack" ""
++	_ = make([]byte, n, 1<<17)   // ERROR "too large for stack" ""
+ 
+-	_, _ = b1, b2
++	_ = make([]byte, n)      // ERROR "non-constant size" ""
++	_ = make([]byte, 100, m) // ERROR "non-constant size" ""
+ }

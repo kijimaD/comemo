@@ -21,6 +21,25 @@ Date:   Wed Jun 25 12:04:36 2014 +1000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/110140044
-
+---
  src/cmd/go/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ac32181118..5935c98db9 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1177,12 +1177,12 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 	ex := doc.Examples(f)
+ 	sort.Sort(byOrder(ex))
+ 	for _, e := range ex {
+-		*seen = true // Build the file even if the example is not runnable.
+ 		if e.Output == "" && !e.EmptyOutput {
+ 			// Don't run examples with no output.
+ 			continue
+ 		}
+ 		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
++		*seen = true
+ 	}
+ 	return nil
+ }

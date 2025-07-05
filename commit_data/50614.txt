@@ -24,7 +24,286 @@ Date:   Tue Jun 9 08:58:08 2020 +0100
     Reviewed-by: Tamás Gulácsi <tgulacsi78@gmail.com>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go      | 86 +++++++++++++++++++++++++++++--------------
  src/database/sql/sql_test.go | 87 ++++++++++++++++++++++++++++++++++++--------
  2 files changed, 130 insertions(+), 43 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index b40b5c8fe4..e4a5a225b0 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -464,8 +464,8 @@ type DB struct {
+ 	// connections in Stmt.css.
+ 	numClosed uint64
+ 
+-	mu           sync.Mutex // protects following fields
+-	freeConn     []*driverConn
++	mu           sync.Mutex    // protects following fields
++	freeConn     []*driverConn // free connections ordered by returnedAt oldest to newest
+ 	connRequests map[uint64]chan connRequest
+ 	nextRequest  uint64 // Next key to use in connRequests.
+ 	numOpen      int    // number of opened and pending open connections
+@@ -1079,7 +1079,7 @@ func (db *DB) connectionCleaner(d time.Duration) {
+ 			return
+ 		}
+ 
+-		closing := db.connectionCleanerRunLocked()
++		d, closing := db.connectionCleanerRunLocked(d)
+ 		db.mu.Unlock()
+ 		for _, c := range closing {
+ 			c.Close()
+@@ -1088,45 +1088,74 @@ func (db *DB) connectionCleaner(d time.Duration) {
+ 		if d < minInterval {
+ 			d = minInterval
+ 		}
++
++		if !t.Stop() {
++			select {
++			case <-t.C:
++			default:
++			}
++		}
+ 		t.Reset(d)
+ 	}
+ }
+ 
+-func (db *DB) connectionCleanerRunLocked() (closing []*driverConn) {
+-	if db.maxLifetime > 0 {
+-		expiredSince := nowFunc().Add(-db.maxLifetime)
+-		for i := 0; i < len(db.freeConn); i++ {
++// connectionCleanerRunLocked removes connections that should be closed from
++// freeConn and returns them along side an updated duration to the next check
++// if a quicker check is required to ensure connections are checked appropriately.
++func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*driverConn) {
++	var idleClosing int64
++	var closing []*driverConn
++	if db.maxIdleTime > 0 {
++		// As freeConn is ordered by returnedAt process
++		// in reverse order to minimise the work needed.
++		idleSince := nowFunc().Add(-db.maxIdleTime)
++		last := len(db.freeConn) - 1
++		for i := last; i >= 0; i-- {
+ 			c := db.freeConn[i]
+-			if c.createdAt.Before(expiredSince) {
+-				closing = append(closing, c)
+-				last := len(db.freeConn) - 1
+-				db.freeConn[i] = db.freeConn[last]
+-				db.freeConn[last] = nil
+-				db.freeConn = db.freeConn[:last]
+-				i--
++			if c.returnedAt.Before(idleSince) {
++				i++
++				closing = db.freeConn[:i]
++				db.freeConn = db.freeConn[i:]
++				idleClosing = int64(len(closing))
++				db.maxIdleTimeClosed += idleClosing
++				break
++			}
++		}
++
++		if len(db.freeConn) > 0 {
++			c := db.freeConn[0]
++			if d2 := c.returnedAt.Sub(idleSince); d2 < d {
++				// Ensure idle connections are cleaned up as soon as
++				// possible.
++				d = d2
+ 			}
+ 		}
+-		db.maxLifetimeClosed += int64(len(closing))
+ 	}
+ 
+-	if db.maxIdleTime > 0 {
+-		expiredSince := nowFunc().Add(-db.maxIdleTime)
+-		var expiredCount int64
++	if db.maxLifetime > 0 {
++		expiredSince := nowFunc().Add(-db.maxLifetime)
+ 		for i := 0; i < len(db.freeConn); i++ {
+ 			c := db.freeConn[i]
+-			if db.maxIdleTime > 0 && c.returnedAt.Before(expiredSince) {
++			if c.createdAt.Before(expiredSince) {
+ 				closing = append(closing, c)
+-				expiredCount++
++
+ 				last := len(db.freeConn) - 1
+-				db.freeConn[i] = db.freeConn[last]
++				// Use slow delete as order is required to ensure
++				// connections are reused least idle time first.
++				copy(db.freeConn[i:], db.freeConn[i+1:])
+ 				db.freeConn[last] = nil
+ 				db.freeConn = db.freeConn[:last]
+ 				i--
++			} else if d2 := c.createdAt.Sub(expiredSince); d2 < d {
++				// Prevent connections sitting the freeConn when they
++				// have expired by updating our next deadline d.
++				d = d2
+ 			}
+ 		}
+-		db.maxIdleTimeClosed += expiredCount
++		db.maxLifetimeClosed += int64(len(closing)) - idleClosing
+ 	}
+-	return
++
++	return d, closing
+ }
+ 
+ // DBStats contains database statistics.
+@@ -1272,11 +1301,12 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
+ 	lifetime := db.maxLifetime
+ 
+ 	// Prefer a free connection, if possible.
+-	numFree := len(db.freeConn)
+-	if strategy == cachedOrNewConn && numFree > 0 {
+-		conn := db.freeConn[0]
+-		copy(db.freeConn, db.freeConn[1:])
+-		db.freeConn = db.freeConn[:numFree-1]
++	last := len(db.freeConn) - 1
++	if strategy == cachedOrNewConn && last >= 0 {
++		// Reuse the lowest idle time connection so we can close
++		// connections which remain idle as soon as possible.
++		conn := db.freeConn[last]
++		db.freeConn = db.freeConn[:last]
+ 		conn.inUse = true
+ 		if conn.expired(lifetime) {
+ 			db.maxLifetimeClosed++
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index f771dee4a9..15c30e0d00 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2399,10 +2399,14 @@ func TestConnMaxLifetime(t *testing.T) {
+ 	tx.Commit()
+ 	tx2.Commit()
+ 
+-	driver.mu.Lock()
+-	opens = driver.openCount - opens0
+-	closes = driver.closeCount - closes0
+-	driver.mu.Unlock()
++	// Give connectionCleaner chance to run.
++	for i := 0; i < 100 && closes != 1; i++ {
++		time.Sleep(time.Millisecond)
++		driver.mu.Lock()
++		opens = driver.openCount - opens0
++		closes = driver.closeCount - closes0
++		driver.mu.Unlock()
++	}
+ 
+ 	if opens != 3 {
+ 		t.Errorf("opens = %d; want 3", opens)
+@@ -2410,6 +2414,10 @@ func TestConnMaxLifetime(t *testing.T) {
+ 	if closes != 1 {
+ 		t.Errorf("closes = %d; want 1", closes)
+ 	}
++
++	if s := db.Stats(); s.MaxLifetimeClosed != 1 {
++		t.Errorf("MaxLifetimeClosed = %d; want 1 %#v", s.MaxLifetimeClosed, s)
++	}
+ }
+ 
+ // golang.org/issue/5323
+@@ -3896,14 +3904,48 @@ func TestStatsMaxIdleClosedTen(t *testing.T) {
+ 	}
+ }
+ 
++// testUseConns uses count concurrent connections with 1 nanosecond apart.
++// Returns the returnedAt time of the final connection.
++func testUseConns(t *testing.T, count int, tm time.Time, db *DB) time.Time {
++	conns := make([]*Conn, count)
++	ctx := context.Background()
++	for i := range conns {
++		c, err := db.Conn(ctx)
++		if err != nil {
++			t.Error(err)
++		}
++		conns[i] = c
++	}
++
++	for _, c := range conns {
++		tm = tm.Add(time.Nanosecond)
++		nowFunc = func() time.Time {
++			return tm
++		}
++		if err := c.Close(); err != nil {
++			t.Error(err)
++		}
++	}
++
++	return tm
++}
++
+ func TestMaxIdleTime(t *testing.T) {
++	usedConns := 5
++	reusedConns := 2
+ 	list := []struct {
+ 		wantMaxIdleTime time.Duration
++		wantNextCheck   time.Duration
+ 		wantIdleClosed  int64
+ 		timeOffset      time.Duration
+ 	}{
+-		{time.Nanosecond, 1, 10 * time.Millisecond},
+-		{time.Hour, 0, 10 * time.Millisecond},
++		{
++			time.Millisecond,
++			time.Millisecond - time.Nanosecond,
++			int64(usedConns - reusedConns),
++			10 * time.Millisecond,
++		},
++		{time.Hour, time.Second, 0, 10 * time.Millisecond},
+ 	}
+ 	baseTime := time.Unix(0, 0)
+ 	defer func() {
+@@ -3917,23 +3959,38 @@ func TestMaxIdleTime(t *testing.T) {
+ 			db := newTestDB(t, "people")
+ 			defer closeDB(t, db)
+ 
+-			db.SetMaxOpenConns(1)
+-			db.SetMaxIdleConns(1)
++			db.SetMaxOpenConns(usedConns)
++			db.SetMaxIdleConns(usedConns)
+ 			db.SetConnMaxIdleTime(item.wantMaxIdleTime)
+ 			db.SetConnMaxLifetime(0)
+ 
+ 			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
+ 
+-			if err := db.Ping(); err != nil {
+-				t.Fatal(err)
++			// Busy usedConns.
++			tm := testUseConns(t, usedConns, baseTime, db)
++
++			tm = baseTime.Add(item.timeOffset)
++
++			// Reuse connections which should never be considered idle
++			// and exercises the sorting for issue 39471.
++			testUseConns(t, reusedConns, tm, db)
++
++			db.mu.Lock()
++			nc, closing := db.connectionCleanerRunLocked(time.Second)
++			if nc != item.wantNextCheck {
++				t.Errorf("got %v; want %v next check duration", nc, item.wantNextCheck)
+ 			}
+ 
+-			nowFunc = func() time.Time {
+-				return baseTime.Add(item.timeOffset)
++			// Validate freeConn order.
++			var last time.Time
++			for _, c := range db.freeConn {
++				if last.After(c.returnedAt) {
++					t.Error("freeConn is not ordered by returnedAt")
++					break
++				}
++				last = c.returnedAt
+ 			}
+ 
+-			db.mu.Lock()
+-			closing := db.connectionCleanerRunLocked()
+ 			db.mu.Unlock()
+ 			for _, c := range closing {
+ 				c.Close()
+@@ -3945,7 +4002,7 @@ func TestMaxIdleTime(t *testing.T) {
+ 			st := db.Stats()
+ 			maxIdleClosed := st.MaxIdleTimeClosed - preMaxIdleClosed
+ 			if g, w := maxIdleClosed, item.wantIdleClosed; g != w {
+-				t.Errorf(" got: %d; want %d max idle closed conns", g, w)
++				t.Errorf("got: %d; want %d max idle closed conns", g, w)
+ 			}
+ 		})
+ 	}

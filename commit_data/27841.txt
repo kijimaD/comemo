@@ -12,6 +12,57 @@ Date:   Thu Apr 14 12:12:11 2016 +1000
     Change-Id: I96e876283060ffbc9f3eabaf55d6b880685453e1
     Reviewed-on: https://go-review.googlesource.com/22055
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/install-source.html | 15 +++++++++++----
  1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index fc4d66fd2a..d9157c2b17 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -194,14 +194,19 @@ To build without <code>cgo</code>, set the environment variable
+ <p>Go will install to a directory named <code>go</code>.
+ Change to the directory that will be its parent
+ and make sure the <code>go</code> directory does not exist.
+-Then clone the repository and check out the latest release tag:</p>
++Then clone the repository and check out the latest release tag
++(<code class="versionTag">go1.6</code>, for example):</p>
+ 
+ <pre>
+ $ git clone https://go.googlesource.com/go
+ $ cd go
+-$ git checkout go1.6
++$ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
+ </pre>
+ 
++<p class="whereTag">
++Where <code>&lt;tag&gt;</code> is the version string of the release.
++</p>
++
+ <h2 id="head">(Optional) Switch to the master branch</h2>
+ 
+ <p>If you intend to modify the go source code, and
+@@ -378,7 +383,7 @@ New releases are announced on the
+ <a href="//groups.google.com/group/golang-announce">golang-announce</a>
+ mailing list.
+ Each announcement mentions the latest release tag, for instance,
+-<code>go1.6</code>.
++<code class="versionTag">go1.6</code>.
+ </p>
+ 
+ <p>
+@@ -388,11 +393,13 @@ To update an existing tree to the latest release, you can run:
+ <pre>
+ $ cd go/src
+ $ git fetch
+-$ git checkout <i>&lt;tag&gt;</i>
++$ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></psan>
+ $ ./all.bash
+ </pre>
+ 
++<p class="whereTag">
+ Where <code>&lt;tag&gt;</code> is the version string of the release.
++</p>
+ 
+ 
+ <h2 id="environment">Optional environment variables</h2>

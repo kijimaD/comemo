@@ -7,8 +7,54 @@ Date:   Thu Aug 1 13:49:00 2013 +1000
     R=golang-dev, dave, dsymonds
     CC=golang-dev
     https://golang.org/cl/12225043
-
+---
  src/run.bash | 4 ++--
  src/run.bat  | 4 ++--
  src/run.rc   | 4 ++--
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 24bcd3f228..83ef65bf0b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -156,8 +156,8 @@ time ./run || exit 1
+ ) || exit $?
+ 
+ echo
+-echo '#' ../misc/dashboard/builder ../misc/goplay
+-go build ../misc/dashboard/builder ../misc/goplay
++echo '#' ../misc/goplay
++go build ../misc/goplay
+ 
+ [ "$GOARCH" == arm ] ||
+ (xcd ../test/bench/shootout
+diff --git a/src/run.bat b/src/run.bat
+index a60de185dd..724ae2d9f5 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -61,8 +61,8 @@ if errorlevel 1 goto fail
+ echo.
+ :norace
+ 
+-echo # ..\misc\dashboard\builder ..\misc\goplay
+-go build ..\misc\dashboard\builder ..\misc\goplay
++echo # ..\misc\goplay
++go build ..\misc\goplay
+ if errorlevel 1 goto fail
+ echo.
+ 
+diff --git a/src/run.rc b/src/run.rc
+index e493eae36b..765b331aae 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -47,8 +47,8 @@ fn xcd {
+ }
+ 
+ echo
+-echo '#' ../misc/dashboard/builder ../misc/goplay
+-go build ../misc/dashboard/builder ../misc/gplay
++echo '#' ../misc/goplay
++go build ../misc/gplay
+ 
+ echo
+ echo '#' ../test/bench/go1

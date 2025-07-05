@@ -26,6 +26,24 @@ Date:   Fri Mar 24 13:30:19 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4dca20ef3b..32e5be1be2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1614,9 +1614,10 @@ opswitch:
+ 	// walk of y%1 may have replaced it by 0.
+ 	// Check whether n with its updated args is itself now a constant.
+ 	t := n.Type
+-
+ 	evconst(n)
+-	n.Type = t
++	if n.Type != t {
++		Fatalf("evconst changed Type: %v had type %v, now %v", n, t, n.Type)
++	}
+ 	if n.Op == OLITERAL {
+ 		n = typecheck(n, Erv)
+ 	}

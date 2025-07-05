@@ -34,6 +34,16 @@ Date:   Tue Oct 27 11:26:54 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/265678
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/initorder.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/initorder.go b/src/cmd/compile/internal/types2/initorder.go
+index 3bb92d9622..4ef24764a6 100644
+--- a/src/cmd/compile/internal/types2/initorder.go
++++ b/src/cmd/compile/internal/types2/initorder.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

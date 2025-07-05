@@ -12,7 +12,7 @@ Date:   Thu Jul 18 16:53:45 2013 -0400
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/11533043
-
+---
  src/pkg/runtime/asm_386.s       | 12 ++++++++++--
  src/pkg/runtime/asm_amd64.s     | 12 ++++++++++--
  src/pkg/runtime/asm_arm.s       | 16 ++++++++++++----
@@ -20,3 +20,229 @@ Date:   Thu Jul 18 16:53:45 2013 -0400
  src/pkg/runtime/traceback_arm.c | 11 +++++++----
  src/pkg/runtime/traceback_x86.c | 13 ++++++++-----
  6 files changed, 49 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 67c8854c3b..5238e59437 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -195,7 +195,12 @@ TEXT runtime·mcall(SB), 7, $0-4
+  */
+ 
+ // Called during function prolog when more stack is needed.
+-TEXT runtime·morestack(SB),7,$0
++//
++// The traceback routines see morestack on a g0 as being
++// the top of a stack (for example, morestack calling newstack
++// calling the scheduler calling newm calling gc), so we must
++// record an argument size. For that purpose, it has no arguments.
++TEXT runtime·morestack(SB),7,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	get_tls(CX)
+ 	MOVL	m(CX), BX
+@@ -288,7 +293,10 @@ TEXT reflect·call(SB), 7, $0-12
+ 
+ 
+ // Return point when leaving stack.
+-TEXT runtime·lessstack(SB), 7, $0
++//
++// Lessstack can appear in stack traces for the same reason
++// as morestack; in that context, it has 0 arguments.
++TEXT runtime·lessstack(SB), 7, $0-0
+ 	// Save return value in m->cret
+ 	get_tls(CX)
+ 	MOVL	m(CX), BX
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 228a421737..f8f77124d9 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -186,7 +186,12 @@ TEXT runtime·mcall(SB), 7, $0-8
+ 
+ // Called during function prolog when more stack is needed.
+ // Caller has already done get_tls(CX); MOVQ m(CX), BX.
+-TEXT runtime·morestack(SB),7,$0
++//
++// The traceback routines see morestack on a g0 as being
++// the top of a stack (for example, morestack calling newstack
++// calling the scheduler calling newm calling gc), so we must
++// record an argument size. For that purpose, it has no arguments.
++TEXT runtime·morestack(SB),7,$0-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVQ	m_g0(BX), SI
+ 	CMPQ	g(CX), SI
+@@ -268,7 +273,10 @@ TEXT reflect·call(SB), 7, $0-20
+ 	RET
+ 
+ // Return point when leaving stack.
+-TEXT runtime·lessstack(SB), 7, $0
++//
++// Lessstack can appear in stack traces for the same reason
++// as morestack; in that context, it has 0 arguments.
++TEXT runtime·lessstack(SB), 7, $0-0
+ 	// Save return value in m->cret
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BX
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 3367cb9fbd..be6d29b567 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -170,7 +170,12 @@ TEXT runtime·mcall(SB), 7, $-4-4
+ // NB. we do not save R0 because we've forced 5c to pass all arguments
+ // on the stack.
+ // using frame size $-4 means do not save LR on stack.
+-TEXT runtime·morestack(SB),7,$-4
++//
++// The traceback routines see morestack on a g0 as being
++// the top of a stack (for example, morestack calling newstack
++// calling the scheduler calling newm calling gc), so we must
++// record an argument size. For that purpose, it has no arguments.
++TEXT runtime·morestack(SB),7,$-4-0
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVW	m_g0(m), R4
+ 	CMP	g, R4
+@@ -197,7 +202,7 @@ TEXT runtime·morestack(SB),7,$-4
+ 	// Call newstack on m->g0's stack.
+ 	MOVW	m_g0(m), g
+ 	MOVW	(g_sched+gobuf_sp)(g), SP
+-	B	runtime·newstack(SB)
++	BL	runtime·newstack(SB)
+ 
+ // Called from reflection library.  Mimics morestack,
+ // reuses stack growth code to create a frame
+@@ -241,14 +246,17 @@ TEXT reflect·call(SB), 7, $-4-12
+ 
+ // Return point when leaving stack.
+ // using frame size $-4 means do not save LR on stack.
+-TEXT runtime·lessstack(SB), 7, $-4
++//
++// Lessstack can appear in stack traces for the same reason
++// as morestack; in that context, it has 0 arguments.
++TEXT runtime·lessstack(SB), 7, $-4-0
+ 	// Save return value in m->cret
+ 	MOVW	R0, m_cret(m)
+ 
+ 	// Call oldstack on m->g0's stack.
+ 	MOVW	m_g0(m), g
+ 	MOVW	(g_sched+gobuf_sp)(g), SP
+-	B	runtime·oldstack(SB)
++	BL	runtime·oldstack(SB)
+ 
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3ce281fc77..331d382476 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2499,17 +2499,6 @@ runtime·testSchedLocalQueueSteal(void)
+ 
+ extern void runtime·morestack(void);
+ 
+-bool
+-runtime·haszeroargs(uintptr pc)
+-{
+-	return pc == (uintptr)runtime·goexit ||
+-		pc == (uintptr)runtime·mcall ||
+-		pc == (uintptr)runtime·mstart ||
+-		pc == (uintptr)runtime·lessstack ||
+-		pc == (uintptr)runtime·morestack ||
+-		pc == (uintptr)_rt0_go;
+-}
+-
+ // Does f mark the top of a goroutine stack?
+ bool
+ runtime·topofstack(Func *f)
+@@ -2517,5 +2506,7 @@ runtime·topofstack(Func *f)
+ 	return f->entry == (uintptr)runtime·goexit ||
+ 		f->entry == (uintptr)runtime·mstart ||
+ 		f->entry == (uintptr)runtime·mcall ||
++		f->entry == (uintptr)runtime·morestack ||
++		f->entry == (uintptr)runtime·lessstack ||
+ 		f->entry == (uintptr)_rt0_go;
+ }
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 43dcd1cf8c..73ae2225bb 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -69,7 +69,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			f = runtime·findfunc(frame.pc);
+ 			if(f == nil) {
+ 				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
+-				runtime·throw("unknown pc");
++				if(callback != nil)
++					runtime·throw("unknown pc");
+ 			}
+ 			frame.fn = f;
+ 			continue;
+@@ -89,7 +90,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {
+ 				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+-				runtime·throw("unknown caller pc");
++				if(callback != nil)
++					runtime·throw("unknown caller pc");
+ 			}
+ 		}
+ 			
+@@ -112,7 +114,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			else {
+ 				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
+ 					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
+-				if(!printing)
++				if(callback != nil)
+ 					runtime·throw("invalid stack");
+ 				frame.arglen = 0;
+ 			}
+@@ -131,7 +133,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		} else {
+ 			if(f->locals > frame.fp - frame.sp) {
+ 				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
+-				runtime·throw("invalid stack");
++				if(callback != nil)
++					runtime·throw("invalid stack");
+ 			}
+ 			frame.varp = (byte*)frame.fp - f->locals;
+ 			frame.varlen = f->locals;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index e99adf5756..10f69c47ec 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -83,7 +83,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			f = runtime·findfunc(frame.pc);
+ 			if(f == nil) {
+ 				runtime·printf("runtime: unknown pc %p after stack split\n", frame.pc);
+-				runtime·throw("unknown pc");
++				if(callback != nil)
++					runtime·throw("unknown pc");
+ 			}
+ 			frame.fn = f;
+ 			continue;
+@@ -104,8 +105,9 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				frame.lr = ((uintptr*)frame.fp)[-1];
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {
+-				runtime·printf("runtime: unexpected return pc for %s called from %p", runtime·funcname(f), frame.lr);
+-				runtime·throw("unknown caller pc");
++				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
++				if(callback != nil)
++					runtime·throw("unknown caller pc");
+ 			}
+ 		}
+ 
+@@ -128,7 +130,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			else {
+ 				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
+ 					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
+-				if(!printing)
++				if(callback != nil)
+ 					runtime·throw("invalid stack");
+ 				frame.arglen = 0;
+ 			}
+@@ -147,7 +149,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		} else {
+ 			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
+ 				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
+-				runtime·throw("invalid stack");
++				if(callback != nil)
++					runtime·throw("invalid stack");
+ 			}
+ 			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
+ 			frame.varlen = f->locals;

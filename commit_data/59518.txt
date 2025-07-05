@@ -12,6 +12,29 @@ Date:   Tue Mar 19 19:27:22 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/sync/map.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/map.go b/src/sync/map.go
+index 7ae97bce1d..504410bc4b 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -393,7 +393,7 @@ func (m *Map) Swap(key, value any) (previous any, loaded bool) {
+ // CompareAndSwap swaps the old and new values for key
+ // if the value stored in the map is equal to old.
+ // The old value must be of a comparable type.
+-func (m *Map) CompareAndSwap(key, old, new any) bool {
++func (m *Map) CompareAndSwap(key, old, new any) (swapped bool) {
+ 	read := m.loadReadOnly()
+ 	if e, ok := read.m[key]; ok {
+ 		return e.tryCompareAndSwap(old, new)
+@@ -404,7 +404,7 @@ func (m *Map) CompareAndSwap(key, old, new any) bool {
+ 	m.mu.Lock()
+ 	defer m.mu.Unlock()
+ 	read = m.loadReadOnly()
+-	swapped := false
++	swapped = false
+ 	if e, ok := read.m[key]; ok {
+ 		swapped = e.tryCompareAndSwap(old, new)
+ 	} else if e, ok := m.dirty[key]; ok {

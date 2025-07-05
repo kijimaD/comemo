@@ -11,9 +11,122 @@ Date:   Mon Aug 5 15:43:45 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/12476043
-
+---
  src/pkg/net/fd_unix.go                   | 40 ++++++++++++++++++++++++++++----
  src/pkg/net/file_unix.go                 |  7 ++----
  src/pkg/syscall/zerrors_freebsd_386.go   |  2 ++
  src/pkg/syscall/zerrors_freebsd_amd64.go |  2 ++
  4 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 5f8a6705df..feced2f761 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ )
+@@ -405,15 +406,46 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 	return netfd, nil
+ }
+ 
+-func (fd *netFD) dup() (f *os.File, err error) {
++// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
++// If the kernel doesn't support it, this is set to 0.
++var tryDupCloexec = int32(1)
++
++func dupCloseOnExec(fd int) (newfd int, err error) {
++	if atomic.LoadInt32(&tryDupCloexec) == 1 {
++		r0, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_DUPFD_CLOEXEC, 0)
++		switch e1 {
++		case 0:
++			return int(r0), nil
++		case syscall.EINVAL:
++			// Old kernel. Fall back to the portable way
++			// from now on.
++			atomic.StoreInt32(&tryDupCloexec, 0)
++		default:
++			return -1, e1
++		}
++	}
++	return dupCloseOnExecOld(fd)
++}
++
++// dupCloseOnExecUnixOld is the traditional way to dup an fd and
++// set its O_CLOEXEC bit, using two system calls.
++func dupCloseOnExecOld(fd int) (newfd int, err error) {
+ 	syscall.ForkLock.RLock()
+-	ns, err := syscall.Dup(fd.sysfd)
++	defer syscall.ForkLock.RUnlock()
++	newfd, err = syscall.Dup(fd)
++	if err != nil {
++		return -1, err
++	}
++	syscall.CloseOnExec(newfd)
++	return
++}
++
++func (fd *netFD) dup() (f *os.File, err error) {
++	ns, err := dupCloseOnExec(fd.sysfd)
+ 	if err != nil {
+ 		syscall.ForkLock.RUnlock()
+ 		return nil, &OpError{"dup", fd.net, fd.laddr, err}
+ 	}
+-	syscall.CloseOnExec(ns)
+-	syscall.ForkLock.RUnlock()
+ 
+ 	// We want blocking mode for the new fd, hence the double negative.
+ 	// This also puts the old fd into blocking mode, meaning that
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index 4c8403e406..1e7420cf77 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -12,14 +12,11 @@ import (
+ )
+ 
+ func newFileFD(f *os.File) (*netFD, error) {
+-	syscall.ForkLock.RLock()
+-	fd, err := syscall.Dup(int(f.Fd()))
++	fd, err := dupCloseOnExec(int(f.Fd()))
+ 	if err != nil {
+-		syscall.ForkLock.RUnlock()
+ 		return nil, os.NewSyscallError("dup", err)
+ 	}
+-	syscall.CloseOnExec(fd)
+-	syscall.ForkLock.RUnlock()
++
+ 	if err = syscall.SetNonblock(fd, true); err != nil {
+ 		closesocket(fd)
+ 		return nil, err
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index 24af6ab09b..43d7c5969d 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -438,7 +438,9 @@ const (
+ 	FLUSHO                            = 0x800000
+ 	F_CANCEL                          = 0x5
+ 	F_DUP2FD                          = 0xa
++	F_DUP2FD_CLOEXEC                  = 0x12
+ 	F_DUPFD                           = 0x0
++	F_DUPFD_CLOEXEC                   = 0x11
+ 	F_GETFD                           = 0x1
+ 	F_GETFL                           = 0x3
+ 	F_GETLK                           = 0xb
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index d766cd13a0..8e03f45e2f 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -438,7 +438,9 @@ const (
+ 	FLUSHO                            = 0x800000
+ 	F_CANCEL                          = 0x5
+ 	F_DUP2FD                          = 0xa
++	F_DUP2FD_CLOEXEC                  = 0x12
+ 	F_DUPFD                           = 0x0
++	F_DUPFD_CLOEXEC                   = 0x11
+ 	F_GETFD                           = 0x1
+ 	F_GETFL                           = 0x3
+ 	F_GETLK                           = 0xb

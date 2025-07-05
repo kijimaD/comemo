@@ -7,7 +7,43 @@ Date:   Tue Oct 8 14:36:20 2013 -0400
     R=r, gri
     CC=golang-dev
     https://golang.org/cl/14552044
-
+---
  test/blank.go   | 3 +--
  test/nilptr2.go | 3 ---
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/test/blank.go b/test/blank.go
+index 46b61559d7..0539debb1f 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -111,8 +111,7 @@ func main() {
+ 		panic(sum)
+ 	}
+ 
+-	// exp/ssa/interp doesn't yet skip blank fields in struct
+-	// equivalence.  It also cannot support unsafe.Pointer.
++	// go.tools/ssa/interp cannot support unsafe.Pointer.
+ 	if os.Getenv("GOSSAINTERP") == "" {
+ 		type T1 struct{ x, y, z int }
+ 		t1 := *(*T)(unsafe.Pointer(&T1{1, 2, 3}))
+diff --git a/test/nilptr2.go b/test/nilptr2.go
+index 250a0ee6a9..57a5f8068f 100644
+--- a/test/nilptr2.go
++++ b/test/nilptr2.go
+@@ -6,8 +6,6 @@
+ 
+ package main
+ 
+-import "os"
+-
+ func main() {
+ 	ok := true
+ 	for _, tt := range tests {
+@@ -23,7 +21,6 @@ func main() {
+ 	}
+ 	if !ok {
+ 		println("BUG")
+-		os.Exit(1)
+ 	}
+ }
+ 

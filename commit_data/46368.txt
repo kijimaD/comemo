@@ -12,7 +12,7 @@ Date:   Wed Dec 23 06:06:31 2020 -0800
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go     |  7 ++-
  src/cmd/compile/internal/ir/expr.go           | 63 +++------------------------
  src/cmd/compile/internal/ir/fmt.go            | 13 +++---
@@ -29,3 +29,508 @@ Date:   Wed Dec 23 06:06:31 2020 -0800
  src/cmd/compile/internal/walk/expr.go         | 24 +++++-----
  src/cmd/compile/internal/walk/order.go        | 11 ++---
  15 files changed, 72 insertions(+), 151 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index b7cb56b997..338b2e0680 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -559,10 +559,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR:
+ 		n := n.(*ir.SliceExpr)
+ 		e.expr(k.note(n, "slice"), n.X)
+-		low, high, max := n.SliceBounds()
+-		e.discard(low)
+-		e.discard(high)
+-		e.discard(max)
++		e.discard(n.Low)
++		e.discard(n.High)
++		e.discard(n.Max)
+ 
+ 	case ir.OCONV, ir.OCONVNOP:
+ 		n := n.(*ir.ConvExpr)
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index d862a645d0..4675966090 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -605,11 +605,13 @@ func (*SelectorExpr) CanBeNtype() {}
+ type SliceExpr struct {
+ 	miniExpr
+ 	X    Node
+-	List Nodes // TODO(rsc): Use separate Nodes
++	Low  Node
++	High Node
++	Max  Node
+ }
+ 
+-func NewSliceExpr(pos src.XPos, op Op, x Node) *SliceExpr {
+-	n := &SliceExpr{X: x}
++func NewSliceExpr(pos src.XPos, op Op, x, low, high, max Node) *SliceExpr {
++	n := &SliceExpr{X: x, Low: low, High: high, Max: max}
+ 	n.pos = pos
+ 	n.op = op
+ 	return n
+@@ -624,61 +626,6 @@ func (n *SliceExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+-// n must be a slice expression. max is nil if n is a simple slice expression.
+-func (n *SliceExpr) SliceBounds() (low, high, max Node) {
+-	if len(n.List) == 0 {
+-		return nil, nil, nil
+-	}
+-
+-	switch n.Op() {
+-	case OSLICE, OSLICEARR, OSLICESTR:
+-		s := n.List
+-		return s[0], s[1], nil
+-	case OSLICE3, OSLICE3ARR:
+-		s := n.List
+-		return s[0], s[1], s[2]
+-	}
+-	base.Fatalf("SliceBounds op %v: %v", n.Op(), n)
+-	return nil, nil, nil
+-}
+-
+-// SetSliceBounds sets n's slice bounds, where n is a slice expression.
+-// n must be a slice expression. If max is non-nil, n must be a full slice expression.
+-func (n *SliceExpr) SetSliceBounds(low, high, max Node) {
+-	switch n.Op() {
+-	case OSLICE, OSLICEARR, OSLICESTR:
+-		if max != nil {
+-			base.Fatalf("SetSliceBounds %v given three bounds", n.Op())
+-		}
+-		s := n.List
+-		if s == nil {
+-			if low == nil && high == nil {
+-				return
+-			}
+-			n.List = []Node{low, high}
+-			return
+-		}
+-		s[0] = low
+-		s[1] = high
+-		return
+-	case OSLICE3, OSLICE3ARR:
+-		s := n.List
+-		if s == nil {
+-			if low == nil && high == nil && max == nil {
+-				return
+-			}
+-			n.List = []Node{low, high, max}
+-			return
+-		}
+-		s[0] = low
+-		s[1] = high
+-		s[2] = max
+-		return
+-	}
+-	base.Fatalf("SetSliceBounds op %v: %v", n.Op(), n)
+-}
+-
+ // IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
+ // o must be a slicing op.
+ func (o Op) IsSlice3() bool {
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 8cfc38a9ae..b882979aa4 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -782,18 +782,17 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		n := n.(*SliceExpr)
+ 		exprFmt(n.X, s, nprec)
+ 		fmt.Fprint(s, "[")
+-		low, high, max := n.SliceBounds()
+-		if low != nil {
+-			fmt.Fprint(s, low)
++		if n.Low != nil {
++			fmt.Fprint(s, n.Low)
+ 		}
+ 		fmt.Fprint(s, ":")
+-		if high != nil {
+-			fmt.Fprint(s, high)
++		if n.High != nil {
++			fmt.Fprint(s, n.High)
+ 		}
+ 		if n.Op().IsSlice3() {
+ 			fmt.Fprint(s, ":")
+-			if max != nil {
+-				fmt.Fprint(s, max)
++			if n.Max != nil {
++				fmt.Fprint(s, n.Max)
+ 			}
+ 		}
+ 		fmt.Fprint(s, "]")
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index d11e7bf918..23205b61fe 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -838,20 +838,23 @@ func (n *SliceExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *SliceExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.List = c.List.Copy()
+ 	return &c
+ }
+ func (n *SliceExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.X, err, do)
+-	err = maybeDoList(n.List, err, do)
++	err = maybeDo(n.Low, err, do)
++	err = maybeDo(n.High, err, do)
++	err = maybeDo(n.Max, err, do)
+ 	return err
+ }
+ func (n *SliceExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.X = maybeEdit(n.X, edit)
+-	editList(n.List, edit)
++	n.Low = maybeEdit(n.Low, edit)
++	n.High = maybeEdit(n.High, edit)
++	n.Max = maybeEdit(n.Max, edit)
+ }
+ 
+ func (n *SliceHeaderExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index c73e2d7fc5..4789740bd1 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -682,15 +682,14 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 		if expr.Full {
+ 			op = ir.OSLICE3
+ 		}
+-		n := ir.NewSliceExpr(p.pos(expr), op, p.expr(expr.X))
++		x := p.expr(expr.X)
+ 		var index [3]ir.Node
+-		for i, x := range &expr.Index {
+-			if x != nil {
+-				index[i] = p.expr(x)
++		for i, n := range &expr.Index {
++			if n != nil {
++				index[i] = p.expr(n)
+ 			}
+ 		}
+-		n.SetSliceBounds(index[0], index[1], index[2])
+-		return n
++		return ir.NewSliceExpr(p.pos(expr), op, x, index[0], index[1], index[2])
+ 	case *syntax.AssertExpr:
+ 		return ir.NewTypeAssertExpr(p.pos(expr), p.expr(expr.X), p.typeExpr(expr.Type))
+ 	case *syntax.Operation:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6b2ba5a781..cf683e578d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1367,7 +1367,7 @@ func (s *state) stmt(n ir.Node) {
+ 			// We're assigning a slicing operation back to its source.
+ 			// Don't write back fields we aren't changing. See issue #14855.
+ 			rhs := rhs.(*ir.SliceExpr)
+-			i, j, k := rhs.SliceBounds()
++			i, j, k := rhs.Low, rhs.High, rhs.Max
+ 			if i != nil && (i.Op() == ir.OLITERAL && i.Val().Kind() == constant.Int && ir.Int64Val(i) == 0) {
+ 				// [0:...] is the same as [:...]
+ 				i = nil
+@@ -2852,15 +2852,14 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		n := n.(*ir.SliceExpr)
+ 		v := s.expr(n.X)
+ 		var i, j, k *ssa.Value
+-		low, high, max := n.SliceBounds()
+-		if low != nil {
+-			i = s.expr(low)
++		if n.Low != nil {
++			i = s.expr(n.Low)
+ 		}
+-		if high != nil {
+-			j = s.expr(high)
++		if n.High != nil {
++			j = s.expr(n.High)
+ 		}
+-		if max != nil {
+-			k = s.expr(max)
++		if n.Max != nil {
++			k = s.expr(n.Max)
+ 		}
+ 		p, l, c := s.slice(v, i, j, k, n.Bounded())
+ 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+@@ -2869,12 +2868,11 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		n := n.(*ir.SliceExpr)
+ 		v := s.expr(n.X)
+ 		var i, j *ssa.Value
+-		low, high, _ := n.SliceBounds()
+-		if low != nil {
+-			i = s.expr(low)
++		if n.Low != nil {
++			i = s.expr(n.Low)
+ 		}
+-		if high != nil {
+-			j = s.expr(high)
++		if n.High != nil {
++			j = s.expr(n.High)
+ 		}
+ 		p, l, _ := s.slice(v, i, j, nil, n.Bounded())
+ 		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 00615c506c..6bbb68550e 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -831,17 +831,11 @@ func tcSPtr(n *ir.UnaryExpr) ir.Node {
+ 
+ // tcSlice typechecks an OSLICE or OSLICE3 node.
+ func tcSlice(n *ir.SliceExpr) ir.Node {
+-	n.X = Expr(n.X)
+-	low, high, max := n.SliceBounds()
++	n.X = DefaultLit(Expr(n.X), nil)
++	n.Low = indexlit(Expr(n.Low))
++	n.High = indexlit(Expr(n.High))
++	n.Max = indexlit(Expr(n.Max))
+ 	hasmax := n.Op().IsSlice3()
+-	low = Expr(low)
+-	high = Expr(high)
+-	max = Expr(max)
+-	n.X = DefaultLit(n.X, nil)
+-	low = indexlit(low)
+-	high = indexlit(high)
+-	max = indexlit(max)
+-	n.SetSliceBounds(low, high, max)
+ 	l := n.X
+ 	if l.Type() == nil {
+ 		n.SetType(nil)
+@@ -886,19 +880,19 @@ func tcSlice(n *ir.SliceExpr) ir.Node {
+ 		return n
+ 	}
+ 
+-	if low != nil && !checksliceindex(l, low, tp) {
++	if n.Low != nil && !checksliceindex(l, n.Low, tp) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+-	if high != nil && !checksliceindex(l, high, tp) {
++	if n.High != nil && !checksliceindex(l, n.High, tp) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+-	if max != nil && !checksliceindex(l, max, tp) {
++	if n.Max != nil && !checksliceindex(l, n.Max, tp) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+-	if !checksliceconst(low, high) || !checksliceconst(low, max) || !checksliceconst(high, max) {
++	if !checksliceconst(n.Low, n.High) || !checksliceconst(n.Low, n.Max) || !checksliceconst(n.High, n.Max) {
+ 		n.SetType(nil)
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 8ac791c036..365e4315bc 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1370,17 +1370,15 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.op(ir.OSLICE)
+ 		w.pos(n.Pos())
+ 		w.expr(n.X)
+-		low, high, _ := n.SliceBounds()
+-		w.exprsOrNil(low, high)
++		w.exprsOrNil(n.Low, n.High)
+ 
+ 	case ir.OSLICE3, ir.OSLICE3ARR:
+ 		n := n.(*ir.SliceExpr)
+ 		w.op(ir.OSLICE3)
+ 		w.pos(n.Pos())
+ 		w.expr(n.X)
+-		low, high, max := n.SliceBounds()
+-		w.exprsOrNil(low, high)
+-		w.expr(max)
++		w.exprsOrNil(n.Low, n.High)
++		w.expr(n.Max)
+ 
+ 	case ir.OCOPY, ir.OCOMPLEX:
+ 		// treated like other builtin calls (see e.g., OREAL)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index c4d840d2ac..cc8646977d 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -902,14 +902,13 @@ func (r *importReader) node() ir.Node {
+ 		return ir.NewIndexExpr(r.pos(), r.expr(), r.expr())
+ 
+ 	case ir.OSLICE, ir.OSLICE3:
+-		n := ir.NewSliceExpr(r.pos(), op, r.expr())
++		pos, x := r.pos(), r.expr()
+ 		low, high := r.exprsOrNil()
+ 		var max ir.Node
+-		if n.Op().IsSlice3() {
++		if op.IsSlice3() {
+ 			max = r.expr()
+ 		}
+-		n.SetSliceBounds(low, high, max)
+-		return n
++		return ir.NewSliceExpr(pos, op, x, low, high, max)
+ 
+ 	// case OCONV, OCONVIFACE, OCONVNOP, OBYTES2STR, ORUNES2STR, OSTR2BYTES, OSTR2RUNES, ORUNESTR:
+ 	// 	unreachable - mapped to OCONV case below by exporter
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 6b0e2b272c..99c1abd73f 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -700,17 +700,15 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	nodes.Append(nif)
+ 
+ 	// s = s[:n]
+-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
+-	nt.SetSliceBounds(nil, nn, nil)
++	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
+ 	nt.SetBounded(true)
+ 	nodes.Append(ir.NewAssignStmt(base.Pos, s, nt))
+ 
+ 	var ncopy ir.Node
+ 	if elemtype.HasPointers() {
+ 		// copy(s[len(l1):], l2)
+-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
++		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
+ 		slice.SetType(s.Type())
+-		slice.SetSliceBounds(ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
+ 
+ 		ir.CurFunc.SetWBPos(n.Pos())
+ 
+@@ -724,9 +722,8 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		// rely on runtime to instrument:
+ 		//  copy(s[len(l1):], l2)
+ 		// l2 can be a slice or string.
+-		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
++		slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
+ 		slice.SetType(s.Type())
+-		slice.SetSliceBounds(ir.NewUnaryExpr(base.Pos, ir.OLEN, l1), nil, nil)
+ 
+ 		ptr1, len1 := backingArrayPtrLen(cheapExpr(slice, &nodes))
+ 		ptr2, len2 := backingArrayPtrLen(l2)
+@@ -870,8 +867,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	nodes = append(nodes, nif)
+ 
+ 	// s = s[:n]
+-	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s)
+-	nt.SetSliceBounds(nil, nn, nil)
++	nt := ir.NewSliceExpr(base.Pos, ir.OSLICE, s, nil, nn, nil)
+ 	nt.SetBounded(true)
+ 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, nt))
+ 
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 63f7925863..fe6045cbbd 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -95,8 +95,7 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
+ 	nn := typecheck.Temp(types.Types[types.TINT])
+ 	l = append(l, ir.NewAssignStmt(base.Pos, nn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ns))) // n = len(s)
+ 
+-	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns) // ...s[:n+argc]
+-	slice.SetSliceBounds(nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil)
++	slice := ir.NewSliceExpr(base.Pos, ir.OSLICE, ns, nil, ir.NewBinaryExpr(base.Pos, ir.OADD, nn, na), nil) // ...s[:n+argc]
+ 	slice.SetBounded(true)
+ 	l = append(l, ir.NewAssignStmt(base.Pos, ns, slice)) // s = s[:n+argc]
+ 
+@@ -407,9 +406,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 
+ 		t = types.NewArray(t.Elem(), i) // [r]T
+ 		var_ := typecheck.Temp(t)
+-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil)) // zero temp
+-		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_)             // arr[:l]
+-		r.SetSliceBounds(nil, l, nil)
++		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
++		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
+ 		// The conv is necessary in case n.Type is named.
+ 		return walkExpr(typecheck.Expr(typecheck.Conv(r, n.Type())), init)
+ 	}
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 6fbbee9284..b53fe2e935 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -425,7 +425,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 	}
+ 
+ 	// make slice out of heap (6)
+-	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto))
++	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
+ 
+ 	a = typecheck.Stmt(a)
+ 	a = orderStmtInPlace(a, map[string][]*ir.Name{})
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 21426c9817..fd954d6113 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -260,7 +260,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 
+ 		// Slice the [n]byte to a []byte.
+-		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p)
++		slice := ir.NewSliceExpr(n.Pos(), ir.OSLICEARR, p, nil, nil, nil)
+ 		slice.SetType(n.Type())
+ 		slice.SetTypecheck(1)
+ 		return walkExpr(slice, init)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 4f57962205..658a579fda 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -786,21 +786,19 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
+ 		n.X = walkExpr(n.X, init)
+ 	}
+ 
+-	low, high, max := n.SliceBounds()
+-	low = walkExpr(low, init)
+-	if low != nil && ir.IsZero(low) {
++	n.Low = walkExpr(n.Low, init)
++	if n.Low != nil && ir.IsZero(n.Low) {
+ 		// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
+-		low = nil
++		n.Low = nil
+ 	}
+-	high = walkExpr(high, init)
+-	max = walkExpr(max, init)
+-	n.SetSliceBounds(low, high, max)
++	n.High = walkExpr(n.High, init)
++	n.Max = walkExpr(n.Max, init)
+ 	if checkSlice {
+-		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, max)
++		n.X = walkCheckPtrAlignment(n.X.(*ir.ConvExpr), init, n.Max)
+ 	}
+ 
+ 	if n.Op().IsSlice3() {
+-		if max != nil && max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, max.(*ir.UnaryExpr).X) {
++		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
+ 			// Reduce x[i:j:cap(x)] to x[i:j].
+ 			if n.Op() == ir.OSLICE3 {
+ 				n.SetOp(ir.OSLICE)
+@@ -824,13 +822,11 @@ func walkSliceHeader(n *ir.SliceHeaderExpr, init *ir.Nodes) ir.Node {
+ 
+ // TODO(josharian): combine this with its caller and simplify
+ func reduceSlice(n *ir.SliceExpr) ir.Node {
+-	low, high, max := n.SliceBounds()
+-	if high != nil && high.Op() == ir.OLEN && ir.SameSafeExpr(n.X, high.(*ir.UnaryExpr).X) {
++	if n.High != nil && n.High.Op() == ir.OLEN && ir.SameSafeExpr(n.X, n.High.(*ir.UnaryExpr).X) {
+ 		// Reduce x[i:len(x)] to x[i:].
+-		high = nil
++		n.High = nil
+ 	}
+-	n.SetSliceBounds(low, high, max)
+-	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && low == nil && high == nil {
++	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
+ 		// Reduce x[:] to x.
+ 		if base.Debug.Slice > 0 {
+ 			base.Warn("slice: omit slice operation")
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 03310a50c6..de6a3807e6 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1296,14 +1296,9 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICESTR, ir.OSLICE3, ir.OSLICE3ARR:
+ 		n := n.(*ir.SliceExpr)
+ 		n.X = o.expr(n.X, nil)
+-		low, high, max := n.SliceBounds()
+-		low = o.expr(low, nil)
+-		low = o.cheapExpr(low)
+-		high = o.expr(high, nil)
+-		high = o.cheapExpr(high)
+-		max = o.expr(max, nil)
+-		max = o.cheapExpr(max)
+-		n.SetSliceBounds(low, high, max)
++		n.Low = o.cheapExpr(o.expr(n.Low, nil))
++		n.High = o.cheapExpr(o.expr(n.High, nil))
++		n.Max = o.cheapExpr(o.expr(n.Max, nil))
+ 		if lhs == nil || lhs.Op() != ir.ONAME && !ir.SameSafeExpr(lhs, n.X) {
+ 			return o.copyExpr(n)
+ 		}

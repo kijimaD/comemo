@@ -9,8 +9,163 @@ Date:   Wed Nov 1 19:37:07 2017 -0400
     Change-Id: I0b6dd2945d54611be89ed68fe2fd99110b9a25f6
     Reviewed-on: https://go-review.googlesource.com/75293
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/deps.go                 | 19 ++++----
  src/cmd/go/internal/cache/default.go | 85 ++++++++++++++++++++----------------
  src/cmd/go/internal/envcmd/env.go    |  2 +
  3 files changed, 59 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index eef21c9a86..a12cea5f93 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -137,15 +137,16 @@ var builddeps = map[string][]string{
+ 	},
+ 
+ 	"cmd/go/internal/envcmd": {
+-		"cmd/go/internal/base", // cmd/go/internal/envcmd
+-		"cmd/go/internal/cfg",  // cmd/go/internal/envcmd
+-		"cmd/go/internal/load", // cmd/go/internal/envcmd
+-		"cmd/go/internal/work", // cmd/go/internal/envcmd
+-		"encoding/json",        // cmd/go/internal/envcmd
+-		"fmt",                  // cmd/go/internal/envcmd
+-		"os",                   // cmd/go/internal/envcmd
+-		"runtime",              // cmd/go/internal/envcmd
+-		"strings",              // cmd/go/internal/envcmd
++		"cmd/go/internal/base",  // cmd/go/internal/envcmd
++		"cmd/go/internal/cache", // cmd/go/internal/envcmd
++		"cmd/go/internal/cfg",   // cmd/go/internal/envcmd
++		"cmd/go/internal/load",  // cmd/go/internal/envcmd
++		"cmd/go/internal/work",  // cmd/go/internal/envcmd
++		"encoding/json",         // cmd/go/internal/envcmd
++		"fmt",                   // cmd/go/internal/envcmd
++		"os",                    // cmd/go/internal/envcmd
++		"runtime",               // cmd/go/internal/envcmd
++		"strings",               // cmd/go/internal/envcmd
+ 	},
+ 
+ 	"cmd/go/internal/fix": {
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 65b95a32e7..478069904d 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -26,52 +26,61 @@ var (
+ // initDefaultCache does the work of finding the default cache
+ // the first time Default is called.
+ func initDefaultCache() {
+-	dir := os.Getenv("GOCACHE")
++	dir := DefaultDir()
+ 	if dir == "off" {
+ 		return
+ 	}
+-	if dir == "" {
+-		// Compute default location.
+-		// TODO(rsc): This code belongs somewhere else,
+-		// like maybe ioutil.CacheDir or os.CacheDir.
+-		switch runtime.GOOS {
+-		case "windows":
+-			dir = os.Getenv("LocalAppData")
++	if err := os.MkdirAll(dir, 0777); err != nil {
++		base.Fatalf("initializing cache in $GOCACHE: %s", err)
++	}
++	c, err := Open(dir)
++	if err != nil {
++		base.Fatalf("initializing cache in $GOCACHE: %s", err)
++	}
++	defaultCache = c
++}
+ 
+-		case "darwin":
+-			dir = os.Getenv("HOME")
+-			if dir == "" {
+-				return
+-			}
+-			dir += "/Library/Caches"
++// DefaultDir returns the effective GOCACHE setting.
++// It returns "off" if the cache is disabled.
++func DefaultDir() string {
++	dir := os.Getenv("GOCACHE")
++	if dir != "" {
++		return dir
++	}
+ 
+-		case "plan9":
+-			dir = os.Getenv("home")
+-			if dir == "" {
+-				return
+-			}
+-			dir += "/lib/cache"
++	// Compute default location.
++	// TODO(rsc): This code belongs somewhere else,
++	// like maybe ioutil.CacheDir or os.CacheDir.
++	switch runtime.GOOS {
++	case "windows":
++		dir = os.Getenv("LocalAppData")
+ 
+-		default: // Unix
+-			// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+-			dir = os.Getenv("XDG_CACHE_HOME")
+-			if dir == "" {
+-				dir = os.Getenv("HOME")
+-				if dir == "" {
+-					return
+-				}
+-				dir += "/.cache"
+-			}
++	case "darwin":
++		dir = os.Getenv("HOME")
++		if dir == "" {
++			return "off"
+ 		}
+-		dir = filepath.Join(dir, "go-build")
+-		if err := os.MkdirAll(dir, 0777); err != nil {
+-			return
++		dir += "/Library/Caches"
++
++	case "plan9":
++		dir = os.Getenv("home")
++		if dir == "" {
++			return "off"
+ 		}
+-	}
++		// Plan 9 has no established per-user cache directory,
++		// but $home/lib/xyz is the usual equivalent of $HOME/.xyz on Unix.
++		dir += "/lib/cache"
+ 
+-	c, err := Open(dir)
+-	if err != nil {
+-		base.Fatalf("initializing cache in $GOCACHE: %s", err)
++	default: // Unix
++		// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
++		dir = os.Getenv("XDG_CACHE_HOME")
++		if dir == "" {
++			dir = os.Getenv("HOME")
++			if dir == "" {
++				return "off"
++			}
++			dir += "/.cache"
++		}
+ 	}
+-	defaultCache = c
++	return filepath.Join(dir, "go-build")
+ }
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 2e3e9d3973..cd3f9000c2 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -13,6 +13,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/work"
+@@ -55,6 +56,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GORACE", Value: os.Getenv("GORACE")},
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
+ 		{Name: "GOTOOLDIR", Value: base.ToolDir},
++		{Name: "GOCACHE", Value: cache.DefaultDir()},
+ 
+ 		// disable escape codes in clang errors
+ 		{Name: "TERM", Value: "dumb"},

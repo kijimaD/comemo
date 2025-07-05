@@ -12,7 +12,7 @@ Date:   Mon Jul 31 14:08:42 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |   3 +-
  src/cmd/compile/internal/arm64/ssa.go           |   4 +
  src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  14 +++
@@ -25,3 +25,493 @@ Date:   Mon Jul 31 14:08:42 2023 -0700
  src/cmd/compile/internal/ssa/rewriteARM64.go    |  12 +++
  src/cmd/compile/internal/ssagen/ssa.go          |  23 +++-
  11 files changed, 298 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 9bcca32eb4..d32ea7ec16 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -252,7 +252,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpAMD64RORQ, ssa.OpAMD64RORL, ssa.OpAMD64RORW, ssa.OpAMD64RORB,
+ 		ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD, ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD,
+ 		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD,
+-		ssa.OpAMD64PXOR,
++		ssa.OpAMD64MINSS, ssa.OpAMD64MINSD,
++		ssa.OpAMD64POR, ssa.OpAMD64PXOR,
+ 		ssa.OpAMD64BTSL, ssa.OpAMD64BTSQ,
+ 		ssa.OpAMD64BTCL, ssa.OpAMD64BTCQ,
+ 		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ:
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index a0b432bd97..27b4e881c0 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -215,6 +215,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpARM64FNMULD,
+ 		ssa.OpARM64FDIVS,
+ 		ssa.OpARM64FDIVD,
++		ssa.OpARM64FMINS,
++		ssa.OpARM64FMIND,
++		ssa.OpARM64FMAXS,
++		ssa.OpARM64FMAXD,
+ 		ssa.OpARM64ROR,
+ 		ssa.OpARM64RORW:
+ 		r := v.Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 5db5deb4bb..b6937de800 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -172,6 +172,20 @@
+ 
+ (Round(32|64)F ...) => (Copy ...)
+ 
++// Floating-point min is tricky, as the hardware op isn't right for various special
++// cases (-0 and NaN). We use two hardware ops organized just right to make the
++// result come out how we want it. See https://github.com/golang/go/issues/59488#issuecomment-1553493207
++// (although that comment isn't exactly right, as the value overwritten is not simulated correctly).
++//    t1 = MINSD x, y   => incorrect if x==NaN or x==-0,y==+0
++//    t2 = MINSD t1, x  => fixes x==NaN case
++//   res = POR t1, t2   => fixes x==-0,y==+0 case
++// Note that this trick depends on the special property that (NaN OR x) produces a NaN (although
++// it might not produce the same NaN as the input).
++(Min(64|32)F <t> x y) => (POR (MINS(D|S) <t> (MINS(D|S) <t> x y) x) (MINS(D|S) <t> x y))
++// Floating-point max is even trickier. Punt to using min instead.
++// max(x,y) == -min(-x,-y)
++(Max(64|32)F <t> x y) => (Neg(64|32)F <t> (Min(64|32)F <t> (Neg(64|32)F <t> x) (Neg(64|32)F <t> y)))
++
+ (CvtBoolToUint8 ...) => (Copy ...)
+ 
+ // Lowering shifts
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 1a5bc44ca6..e9205d56c6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -681,6 +681,12 @@ func init() {
+ 		// Any use must be preceded by a successful check of runtime.support_fma.
+ 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
+ 
++		// Note that these operations don't exactly match the semantics of Go's
++		// builtin min. In particular, these aren't commutative, because on various
++		// special cases the 2nd argument is preferred.
++		{name: "MINSD", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSD"}, // min(arg0,arg1)
++		{name: "MINSS", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSS"}, // min(arg0,arg1)
++
+ 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+ 		// Note: SBBW and SBBB are subsumed by SBBL
+@@ -757,7 +763,8 @@ func init() {
+ 		{name: "MOVLi2f", argLength: 1, reg: gpfp, typ: "Float32"}, // move 32 bits from int to float reg
+ 		{name: "MOVLf2i", argLength: 1, reg: fpgp, typ: "UInt32"},  // move 32 bits from float to int reg, zero extend
+ 
+-		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
++		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs (for float negation).
++		{name: "POR", argLength: 2, reg: fp21, asm: "POR", commutative: true, resultInArg0: true},   // inclusive or, applied to X regs (for float min/max).
+ 
+ 		{name: "LEAQ", argLength: 1, reg: gp11sb, asm: "LEAQ", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
+ 		{name: "LEAL", argLength: 1, reg: gp11sb, asm: "LEAL", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index bb9ad1006d..76fc9ed256 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -61,6 +61,9 @@
+ 
+ (Sqrt32 ...) => (FSQRTS ...)
+ 
++(Min(64|32)F ...) => (FMIN(D|S) ...)
++(Max(64|32)F ...) => (FMAX(D|S) ...)
++
+ // lowering rotates
+ // we do rotate detection in generic rules, if the following rules need to be changed, check generic rules first.
+ (RotateLeft8  <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index ca8e52e210..3ded6e7a55 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -235,6 +235,10 @@ func init() {
+ 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
+ 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
+ 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
++		{name: "FMIND", argLength: 2, reg: fp21, asm: "FMIND"},                                // min(arg0, arg1)
++		{name: "FMINS", argLength: 2, reg: fp21, asm: "FMINS"},                                // min(arg0, arg1)
++		{name: "FMAXD", argLength: 2, reg: fp21, asm: "FMAXD"},                                // max(arg0, arg1)
++		{name: "FMAXS", argLength: 2, reg: fp21, asm: "FMAXS"},                                // max(arg0, arg1)
+ 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
+ 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
+ 		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16"},                                // byte reverse in each 16-bit halfword, 64-bit
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 53ff57f6b1..fb18319263 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -285,6 +285,12 @@ var genericOps = []opData{
+ 	{name: "Abs", argLength: 1},      // absolute value arg0
+ 	{name: "Copysign", argLength: 2}, // copy sign from arg0 to arg1
+ 
++	// Float min/max implementation, if hardware is available.
++	{name: "Min64F", argLength: 2}, // min(arg0,arg1)
++	{name: "Min32F", argLength: 2}, // min(arg0,arg1)
++	{name: "Max64F", argLength: 2}, // max(arg0,arg1)
++	{name: "Max32F", argLength: 2}, // max(arg0,arg1)
++
+ 	// 3-input opcode.
+ 	// Fused-multiply-add, float64 only.
+ 	// When a*b+c is exactly zero (before rounding), then the result is +0 or -0.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index a495a04752..64aea38afe 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -912,6 +912,8 @@ const (
+ 	OpAMD64SQRTSS
+ 	OpAMD64ROUNDSD
+ 	OpAMD64VFMADD231SD
++	OpAMD64MINSD
++	OpAMD64MINSS
+ 	OpAMD64SBBQcarrymask
+ 	OpAMD64SBBLcarrymask
+ 	OpAMD64SETEQ
+@@ -974,6 +976,7 @@ const (
+ 	OpAMD64MOVLi2f
+ 	OpAMD64MOVLf2i
+ 	OpAMD64PXOR
++	OpAMD64POR
+ 	OpAMD64LEAQ
+ 	OpAMD64LEAL
+ 	OpAMD64LEAW
+@@ -1451,6 +1454,10 @@ const (
+ 	OpARM64FNEGD
+ 	OpARM64FSQRTD
+ 	OpARM64FSQRTS
++	OpARM64FMIND
++	OpARM64FMINS
++	OpARM64FMAXD
++	OpARM64FMAXS
+ 	OpARM64REV
+ 	OpARM64REVW
+ 	OpARM64REV16
+@@ -3016,6 +3023,10 @@ const (
+ 	OpRoundToEven
+ 	OpAbs
+ 	OpCopysign
++	OpMin64F
++	OpMin32F
++	OpMax64F
++	OpMax32F
+ 	OpFMA
+ 	OpPhi
+ 	OpCopy
+@@ -11900,6 +11911,36 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "MINSD",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.AMINSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
++	{
++		name:         "MINSS",
++		argLen:       2,
++		resultInArg0: true,
++		asm:          x86.AMINSS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:   "SBBQcarrymask",
+ 		argLen: 1,
+@@ -12670,6 +12711,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "POR",
++		argLen:       2,
++		commutative:  true,
++		resultInArg0: true,
++		asm:          x86.APOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:              "LEAQ",
+ 		auxType:           auxSymOff,
+@@ -19437,6 +19494,62 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FMIND",
++		argLen: 2,
++		asm:    arm64.AFMIND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMINS",
++		argLen: 2,
++		asm:    arm64.AFMINS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMAXD",
++		argLen: 2,
++		asm:    arm64.AFMAXD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FMAXS",
++		argLen: 2,
++		asm:    arm64.AFMAXS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "REV",
+ 		argLen: 1,
+@@ -39082,6 +39195,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "Min64F",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Min32F",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Max64F",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Max32F",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "FMA",
+ 		argLen:  3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2d4a886ea5..afe9ed257a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -871,6 +871,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpLsh8x64(v)
+ 	case OpLsh8x8:
+ 		return rewriteValueAMD64_OpLsh8x8(v)
++	case OpMax32F:
++		return rewriteValueAMD64_OpMax32F(v)
++	case OpMax64F:
++		return rewriteValueAMD64_OpMax64F(v)
++	case OpMin32F:
++		return rewriteValueAMD64_OpMin32F(v)
++	case OpMin64F:
++		return rewriteValueAMD64_OpMin64F(v)
+ 	case OpMod16:
+ 		return rewriteValueAMD64_OpMod16(v)
+ 	case OpMod16u:
+@@ -27352,6 +27360,88 @@ func rewriteValueAMD64_OpLsh8x8(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpMax32F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Max32F <t> x y)
++	// result: (Neg32F <t> (Min32F <t> (Neg32F <t> x) (Neg32F <t> y)))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		v.reset(OpNeg32F)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpMin32F, t)
++		v1 := b.NewValue0(v.Pos, OpNeg32F, t)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Pos, OpNeg32F, t)
++		v2.AddArg(y)
++		v0.AddArg2(v1, v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64_OpMax64F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Max64F <t> x y)
++	// result: (Neg64F <t> (Min64F <t> (Neg64F <t> x) (Neg64F <t> y)))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		v.reset(OpNeg64F)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpMin64F, t)
++		v1 := b.NewValue0(v.Pos, OpNeg64F, t)
++		v1.AddArg(x)
++		v2 := b.NewValue0(v.Pos, OpNeg64F, t)
++		v2.AddArg(y)
++		v0.AddArg2(v1, v2)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64_OpMin32F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Min32F <t> x y)
++	// result: (POR (MINSS <t> (MINSS <t> x y) x) (MINSS <t> x y))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64POR)
++		v0 := b.NewValue0(v.Pos, OpAMD64MINSS, t)
++		v1 := b.NewValue0(v.Pos, OpAMD64MINSS, t)
++		v1.AddArg2(x, y)
++		v0.AddArg2(v1, x)
++		v.AddArg2(v0, v1)
++		return true
++	}
++}
++func rewriteValueAMD64_OpMin64F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (Min64F <t> x y)
++	// result: (POR (MINSD <t> (MINSD <t> x y) x) (MINSD <t> x y))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64POR)
++		v0 := b.NewValue0(v.Pos, OpAMD64MINSD, t)
++		v1 := b.NewValue0(v.Pos, OpAMD64MINSD, t)
++		v1.AddArg2(x, y)
++		v0.AddArg2(v1, x)
++		v.AddArg2(v0, v1)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpMod16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index b655c62720..e9b4749fbc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -816,6 +816,18 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpLsh8x64(v)
+ 	case OpLsh8x8:
+ 		return rewriteValueARM64_OpLsh8x8(v)
++	case OpMax32F:
++		v.Op = OpARM64FMAXS
++		return true
++	case OpMax64F:
++		v.Op = OpARM64FMAXD
++		return true
++	case OpMin32F:
++		v.Op = OpARM64FMINS
++		return true
++	case OpMin64F:
++		v.Op = OpARM64FMIND
++		return true
+ 	case OpMod16:
+ 		return rewriteValueARM64_OpMod16(v)
+ 	case OpMod16u:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 03f9958098..9796978f4a 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3567,11 +3567,32 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+ 
+ 	if typ.IsFloat() || typ.IsString() {
+ 		// min/max semantics for floats are tricky because of NaNs and
+-		// negative zero, so we let the runtime handle this instead.
++		// negative zero. Some architectures have instructions which
++		// we can use to generate the right result. For others we must
++		// call into the runtime instead.
+ 		//
+ 		// Strings are conceptually simpler, but we currently desugar
+ 		// string comparisons during walk, not ssagen.
+ 
++		if typ.IsFloat() {
++			switch Arch.LinkArch.Family {
++			case sys.AMD64, sys.ARM64:
++				var op ssa.Op
++				switch {
++				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
++					op = ssa.OpMin64F
++				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMAX:
++					op = ssa.OpMax64F
++				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMIN:
++					op = ssa.OpMin32F
++				case typ.Kind() == types.TFLOAT32 && n.Op() == ir.OMAX:
++					op = ssa.OpMax32F
++				}
++				return fold(func(x, a *ssa.Value) *ssa.Value {
++					return s.newValue2(op, typ, x, a)
++				})
++			}
++		}
+ 		var name string
+ 		switch typ.Kind() {
+ 		case types.TFLOAT32:

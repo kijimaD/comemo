@@ -18,7 +18,53 @@ Date:   Mon Jun 21 02:11:25 2021 +0000
     Run-TryBot: eric fang <eric.fang@arm.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 3 ++-
  src/cmd/internal/obj/arm64/asm7.go        | 4 +++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 5f1e68545b..d8a20edfc1 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -89,7 +89,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	CMP	R1<<33, R2
+ 	CMP	R22.SXTX, RSP                    // ffe336eb
+ 	CMP	$0x22220000, RSP                 // CMP $572653568, RSP   // 5b44a4d2ff633beb
+-	CMPW	$0x22220000, RSP                 // CMPW $572653568, RSP  // 5b44a452ff633b6b
++	CMPW	$0x22220000, RSP                 // CMPW $572653568, RSP  // 5b44a452ff433b6b
+ 	CCMN	MI, ZR, R1, $4	                 // e44341ba
+ 	// MADD Rn,Rm,Ra,Rd
+ 	MADD	R1, R2, R3, R4                   // 6408019b
+@@ -377,6 +377,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVD	$0x1000100010001000, RSP      // MOVD	$1152939097061330944, RSP   // ff8304b2
+ 	MOVW	$0x10001000, RSP              // MOVW	$268439552, RSP             // ff830432
+ 	ADDW	$0x10001000, R1               // ADDW	$268439552, R1              // fb83043221001b0b
++	ADDW	$0x22220000, RSP, R3          // ADDW	$572653568, RSP, R3         // 5b44a452e3433b0b
+ 
+ // move a large constant to a Vd.
+ 	VMOVS	$0x80402010, V11                                      // VMOVS	$2151686160, V11
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index b8c3cd97c7..d99afa3d27 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -4333,8 +4333,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
+ 			c.ctxt.Diag("illegal destination register: %v\n", p)
+ 		}
++		lsl0 := LSL0_64
+ 		if isADDWop(p.As) || isANDWop(p.As) {
+ 			o1 = c.omovconst(AMOVW, p, &p.From, REGTMP)
++			lsl0 = LSL0_32
+ 		} else {
+ 			o1 = c.omovconst(AMOVD, p, &p.From, REGTMP)
+ 		}
+@@ -4350,7 +4352,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.To.Reg == REGSP || r == REGSP {
+ 			o2 = c.opxrrr(p, p.As, false)
+ 			o2 |= REGTMP & 31 << 16
+-			o2 |= LSL0_64
++			o2 |= uint32(lsl0)
+ 		} else {
+ 			o2 = c.oprrr(p, p.As)
+ 			o2 |= REGTMP & 31 << 16 /* shift is 0 */

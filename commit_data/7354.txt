@@ -17,7 +17,79 @@ Date:   Thu Feb 3 13:51:47 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4121048
-
+---
  src/cmd/cgo/doc.go |  5 ++++-
  src/cmd/cgo/gcc.go | 25 +++++++++++++++++++++++--
  2 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index c4868345ca..b3aa9aded2 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -25,9 +25,12 @@ the package.  For example:
+ 
+ CFLAGS and LDFLAGS may be defined with pseudo #cgo directives
+ within these comments to tweak the behavior of gcc.  Values defined
+-in multiple directives are concatenated together.  For example:
++in multiple directives are concatenated together.  Options prefixed
++by $GOOS, $GOARCH, or $GOOS/$GOARCH are only defined in matching
++systems.  For example:
+ 
+ 	// #cgo CFLAGS: -DPNG_DEBUG=1
++	// #cgo linux CFLAGS: -DLINUX=1
+ 	// #cgo LDFLAGS: -lpng
+ 	// #include <png.h>
+ 	import "C"
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 9754c1d565..7a022055cf 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -19,6 +19,7 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"os"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"unicode"
+@@ -66,6 +67,8 @@ func cname(s string) string {
+ func (p *Package) ParseFlags(f *File, srcfile string) {
+ 	linesIn := strings.Split(f.Preamble, "\n", -1)
+ 	linesOut := make([]string, 0, len(linesIn))
++
++NextLine:
+ 	for _, line := range linesIn {
+ 		l := strings.TrimSpace(line)
+ 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(int(l[4])) {
+@@ -79,11 +82,29 @@ func (p *Package) ParseFlags(f *File, srcfile string) {
+ 			fatal("%s: bad #cgo line: %s", srcfile, line)
+ 		}
+ 
+-		k := fields[0]
+-		v := strings.TrimSpace(fields[1])
++		var k string
++		kf := strings.Fields(fields[0])
++		switch len(kf) {
++		case 1:
++			k = kf[0]
++		case 2:
++			k = kf[1]
++			switch kf[0] {
++			case runtime.GOOS:
++			case runtime.GOARCH:
++			case runtime.GOOS + "/" + runtime.GOARCH:
++			default:
++				continue NextLine
++			}
++		default:
++			fatal("%s: bad #cgo option: %s", srcfile, fields[0])
++		}
++
+ 		if k != "CFLAGS" && k != "LDFLAGS" {
+ 			fatal("%s: unsupported #cgo option %s", srcfile, k)
+ 		}
++
++		v := strings.TrimSpace(fields[1])
+ 		args, err := splitQuoted(v)
+ 		if err != nil {
+ 			fatal("%s: bad #cgo option %s: %s", srcfile, k, err.String())

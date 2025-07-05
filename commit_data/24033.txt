@@ -10,9 +10,105 @@ Date:   Mon Jun 29 13:03:11 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11694
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 14 ++++++++++++++
  src/cmd/link/internal/ld/pobj.go |  1 +
  test/linkx.go                    |  3 +++
  test/linkx_run.go                | 18 ++++++++++++++++++
  4 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 52c6f4cd14..60b0be5ceb 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -917,6 +917,8 @@ func strnput(s string, n int) {
+ 	}
+ }
+ 
++var strdata []*LSym
++
+ func addstrdata1(arg string) {
+ 	i := strings.Index(arg, "=")
+ 	if i < 0 {
+@@ -944,9 +946,21 @@ func addstrdata(name string, value string) {
+ 	// we know before entering this function.
+ 	s.Reachable = reachable
+ 
++	strdata = append(strdata, s)
++
+ 	sp.Reachable = reachable
+ }
+ 
++func checkstrdata() {
++	for _, s := range strdata {
++		if s.Type == obj.STEXT {
++			Diag("cannot use -X with text symbol %s", s.Name)
++		} else if s.Gotype != nil && s.Gotype.Name != "type.string" {
++			Diag("cannot use -X with non-string symbol %s", s.Name)
++		}
++	}
++}
++
+ func Addstring(s *LSym, str string) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = obj.SNOPTRDATA
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index fd541fbb3b..5ce197725b 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -220,6 +220,7 @@ func Ldmain() {
+ 	}
+ 
+ 	checkgo()
++	checkstrdata()
+ 	deadcode()
+ 	callgraph()
+ 
+diff --git a/test/linkx.go b/test/linkx.go
+index 40ec1b99f6..ac2033400f 100644
+--- a/test/linkx.go
++++ b/test/linkx.go
+@@ -14,6 +14,9 @@ import "fmt"
+ var tbd string
+ var overwrite string = "dibs"
+ 
++var b bool
++var x int
++
+ func main() {
+ 	fmt.Println(tbd)
+ 	fmt.Println(overwrite)
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index cc0f55cf92..a6c7c67014 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
++	"strings"
+ )
+ 
+ func main() {
+@@ -49,4 +50,21 @@ func test(sep string) {
+ 		fmt.Println("-X linker flag should not accept keys without values")
+ 		os.Exit(1)
+ 	}
++
++	// Issue 9621
++	cmd = exec.Command("go", "run", "-ldflags=-X main.b=false -X main.x=42", "linkx.go")
++	outx, err := cmd.CombinedOutput()
++	if err == nil {
++		fmt.Println("-X linker flag should not overwrite non-strings")
++		os.Exit(1)
++	}
++	outstr := string(outx)
++	if !strings.Contains(outstr, "main.b") {
++		fmt.Printf("-X linker flag did not diagnose overwrite of main.b\n")
++		os.Exit(1)
++	}
++	if !strings.Contains(outstr, "main.x") {
++		fmt.Printf("-X linker flag did not diagnose overwrite of main.x\n")
++		os.Exit(1)
++	}
+ }

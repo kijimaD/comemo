@@ -13,10 +13,229 @@ Date:   Mon Jul 23 03:16:53 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s      | 72 ++++++++++++++++++++++++++
  src/cmd/asm/internal/asm/testdata/arm64error.s |  3 ++
  src/cmd/internal/obj/arm64/a.out.go            |  4 ++
  src/cmd/internal/obj/arm64/anames.go           |  4 ++
  src/cmd/internal/obj/arm64/asm7.go             | 34 ++++++++++--
  5 files changed, 113 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 38616bd837..2d55b4b2ad 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -741,6 +741,78 @@ again:
+ 	UBFIZ	$0, R1, $1, R2      // 220040d3
+ 	UBFIZW	$0, R1, $1, R2      // 22000053
+ 
++// FSTPD/FSTPS/FLDPD/FLDPS
++	FLDPD	(R0), (F1, F2)      // 0108406d
++	FLDPD	8(R0), (F1, F2)     // 0188406d
++	FLDPD	-8(R0), (F1, F2)    // 01887f6d
++	FLDPD	11(R0), (F1, F2)    // 1b2c0091610b406d
++	FLDPD	1024(R0), (F1, F2)  // 1b001091610b406d
++	FLDPD.W	8(R0), (F1, F2)     // 0188c06d
++	FLDPD.P	8(R0), (F1, F2)     // 0188c06c
++	FLDPD	(RSP), (F1, F2)     // e10b406d
++	FLDPD	8(RSP), (F1, F2)    // e18b406d
++	FLDPD	-8(RSP), (F1, F2)   // e18b7f6d
++	FLDPD	11(RSP), (F1, F2)   // fb2f0091610b406d
++	FLDPD	1024(RSP), (F1, F2) // fb031091610b406d
++	FLDPD.W	8(RSP), (F1, F2)    // e18bc06d
++	FLDPD.P	8(RSP), (F1, F2)    // e18bc06c
++	FLDPD	-31(R0), (F1, F2)   // 1b7c00d1610b406d
++	FLDPD	-4(R0), (F1, F2)    // 1b1000d1610b406d
++	FLDPD	-8(R0), (F1, F2)    // 01887f6d
++	FLDPD	x(SB), (F1, F2)
++	FLDPD	x+8(SB), (F1, F2)
++	FLDPS	-5(R0), (F1, F2)    // 1b1400d1610b402d
++	FLDPS	(R0), (F1, F2)      // 0108402d
++	FLDPS	4(R0), (F1, F2)     // 0188402d
++	FLDPS	-4(R0), (F1, F2)    // 01887f2d
++	FLDPS.W	4(R0), (F1, F2)     // 0188c02d
++	FLDPS.P	4(R0), (F1, F2)     // 0188c02c
++	FLDPS	11(R0), (F1, F2)    // 1b2c0091610b402d
++	FLDPS	1024(R0), (F1, F2)  // 1b001091610b402d
++	FLDPS	(RSP), (F1, F2)     // e10b402d
++	FLDPS	4(RSP), (F1, F2)    // e18b402d
++	FLDPS	-4(RSP), (F1, F2)   // e18b7f2d
++	FLDPS.W	4(RSP), (F1, F2)    // e18bc02d
++	FLDPS.P	4(RSP), (F1, F2)    // e18bc02c
++	FLDPS	11(RSP), (F1, F2)   // fb2f0091610b402d
++	FLDPS	1024(RSP), (F1, F2) // fb031091610b402d
++	FLDPS	x(SB), (F1, F2)
++	FLDPS	x+8(SB), (F1, F2)
++	FSTPD	(F3, F4), (R5)      // a310006d
++	FSTPD	(F3, F4), 8(R5)     // a390006d
++	FSTPD.W	(F3, F4), 8(R5)     // a390806d
++	FSTPD.P	(F3, F4), 8(R5)     // a390806c
++	FSTPD	(F3, F4), -8(R5)    // a3903f6d
++	FSTPD	(F3, F4), -4(R5)    // bb1000d16313006d
++	FSTPD	(F3, F4), 11(R0)    // 1b2c00916313006d
++	FSTPD	(F3, F4), 1024(R0)  // 1b0010916313006d
++	FSTPD	(F3, F4), (RSP)     // e313006d
++	FSTPD	(F3, F4), 8(RSP)    // e393006d
++	FSTPD.W	(F3, F4), 8(RSP)    // e393806d
++	FSTPD.P	(F3, F4), 8(RSP)    // e393806c
++	FSTPD	(F3, F4), -8(RSP)   // e3933f6d
++	FSTPD	(F3, F4), 11(RSP)   // fb2f00916313006d
++	FSTPD	(F3, F4), 1024(RSP) // fb0310916313006d
++	FSTPD	(F3, F4), x(SB)
++	FSTPD	(F3, F4), x+8(SB)
++	FSTPS	(F3, F4), (R5)      // a310002d
++	FSTPS	(F3, F4), 4(R5)     // a390002d
++	FSTPS.W	(F3, F4), 4(R5)     // a390802d
++	FSTPS.P	(F3, F4), 4(R5)     // a390802c
++	FSTPS	(F3, F4), -4(R5)    // a3903f2d
++	FSTPS	(F3, F4), -5(R5)    // bb1400d16313002d
++	FSTPS	(F3, F4), 11(R0)    // 1b2c00916313002d
++	FSTPS	(F3, F4), 1024(R0)  // 1b0010916313002d
++	FSTPS	(F3, F4), (RSP)     // e313002d
++	FSTPS	(F3, F4), 4(RSP)    // e393002d
++	FSTPS.W	(F3, F4), 4(RSP)    // e393802d
++	FSTPS.P	(F3, F4), 4(RSP)    // e393802c
++	FSTPS	(F3, F4), -4(RSP)   // e3933f2d
++	FSTPS	(F3, F4), 11(RSP)   // fb2f00916313002d
++	FSTPS	(F3, F4), 1024(RSP) // fb0310916313002d
++	FSTPS	(F3, F4), x(SB)
++	FSTPS	(F3, F4), x+8(SB)
++
+ // END
+ //
+ //	LTYPEE comma
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 01d23eb527..b2ec0cc425 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -90,5 +90,8 @@ TEXT errors(SB),$0
+ 	AND	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+ 	ANDS	$0x22220000, R2, RSP                             // ERROR "illegal combination"
+ 	LDP	(R0), (F0, F1)                                   // ERROR "invalid register pair"
++	LDP	(R0), (R3, ZR)                                   // ERROR "invalid register pair"
+ 	STP	(F2, F3), (R0)                                   // ERROR "invalid register pair"
++	FLDPD	(R0), (R1, R2)                                   // ERROR "invalid register pair"
++	FSTPD	(R1, R2), (R0)                                   // ERROR "invalid register pair"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 2575940f19..a32f973fa2 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -821,6 +821,8 @@ const (
+ 	AFCVTZUSW
+ 	AFDIVD
+ 	AFDIVS
++	AFLDPD
++	AFLDPS
+ 	AFMOVD
+ 	AFMOVS
+ 	AFMULD
+@@ -829,6 +831,8 @@ const (
+ 	AFNEGS
+ 	AFSQRTD
+ 	AFSQRTS
++	AFSTPD
++	AFSTPS
+ 	AFSUBD
+ 	AFSUBS
+ 	ASCVTFD
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index f4b3c28897..d9783caff9 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -322,6 +322,8 @@ var Anames = []string{
+ 	"FCVTZUSW",
+ 	"FDIVD",
+ 	"FDIVS",
++	"FLDPD",
++	"FLDPS",
+ 	"FMOVD",
+ 	"FMOVS",
+ 	"FMULD",
+@@ -330,6 +332,8 @@ var Anames = []string{
+ 	"FNEGS",
+ 	"FSQRTD",
+ 	"FSQRTS",
++	"FSTPD",
++	"FSTPS",
+ 	"FSUBD",
+ 	"FSUBS",
+ 	"SCVTFD",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 1acf9799c6..ad4f172544 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2193,14 +2193,21 @@ func buildop(ctxt *obj.Link) {
+ 			AWORD,
+ 			ADWORD,
+ 			obj.ARET,
+-			obj.ATEXT,
+-			ASTP,
+-			ASTPW,
+-			ALDP:
++			obj.ATEXT:
+ 			break
+ 
++		case ALDP:
++			oprangeset(AFLDPD, t)
++
++		case ASTP:
++			oprangeset(AFSTPD, t)
++
++		case ASTPW:
++			oprangeset(AFSTPS, t)
++
+ 		case ALDPW:
+ 			oprangeset(ALDPSW, t)
++			oprangeset(AFLDPS, t)
+ 
+ 		case AERET:
+ 			oprangeset(AWFE, t)
+@@ -6164,13 +6171,26 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) u
+ /* genrate instruction encoding for LDP/LDPW/LDPSW/STP/STPW */
+ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
+ 	var ret uint32
++	// check offset
+ 	switch p.As {
++	case AFLDPD, AFSTPD:
++		if vo < -512 || vo > 504 || vo%8 != 0 {
++			c.ctxt.Diag("invalid offset %v\n", p)
++		}
++		vo /= 8
++		ret = 1<<30 | 1<<26
+ 	case ALDP, ASTP:
+ 		if vo < -512 || vo > 504 || vo%8 != 0 {
+ 			c.ctxt.Diag("invalid offset %v\n", p)
+ 		}
+ 		vo /= 8
+ 		ret = 2 << 30
++	case AFLDPS, AFSTPS:
++		if vo < -256 || vo > 252 || vo%4 != 0 {
++			c.ctxt.Diag("invalid offset %v\n", p)
++		}
++		vo /= 4
++		ret = 1 << 26
+ 	case ALDPW, ASTPW:
+ 		if vo < -256 || vo > 252 || vo%4 != 0 {
+ 			c.ctxt.Diag("invalid offset %v\n", p)
+@@ -6186,7 +6206,12 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
+ 	default:
+ 		c.ctxt.Diag("invalid instruction %v\n", p)
+ 	}
++	// check register pair
+ 	switch p.As {
++	case AFLDPD, AFLDPS, AFSTPD, AFSTPS:
++		if rl < REG_F0 || REG_F31 < rl || rh < REG_F0 || REG_F31 < rh {
++			c.ctxt.Diag("invalid register pair %v\n", p)
++		}
+ 	case ALDP, ALDPW, ALDPSW:
+ 		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
+ 			c.ctxt.Diag("invalid register pair %v\n", p)
+@@ -6196,6 +6221,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
+ 			c.ctxt.Diag("invalid register pair %v\n", p)
+ 		}
+ 	}
++	// other conditional flag bits
+ 	switch o.scond {
+ 	case C_XPOST:
+ 		ret |= 1 << 23

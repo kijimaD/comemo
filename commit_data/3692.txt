@@ -6,7 +6,7 @@ Date:   Sun Nov 1 09:25:55 2009 -0800
     
     R=r
     http://go/go-review/1016017
-
+---
  src/clean.bash                      |  1 -
  src/cmd/gc/dcl.c                    |  2 +-
  src/pkg/encoding/ascii85/ascii85.go |  3 --
@@ -16,3 +16,268 @@ Date:   Sun Nov 1 09:25:55 2009 -0800
  src/pkg/strconv/ftoa.go             |  4 +-
  src/pkg/strconv/quote.go            | 79 ++++++++++++++++++-------------------
  8 files changed, 43 insertions(+), 53 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 8acdb87224..b9012ea04d 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -7,7 +7,6 @@ rm -rf $GOROOT/pkg/${GOOS}_$GOARCH
+ rm -f $GOROOT/lib/*.a
+ for i in lib9 libbio libcgo libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+-	../usr/r/rpc \
+ 	../test/bench
+ do(
+ 	cd $i || exit 1
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 131d688928..3493e37dee 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -465,7 +465,7 @@ oldname(Sym *s)
+ 	}
+ 	if(n->oldref < 100)
+ 		n->oldref++;
+-	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
++	if(curfn != nil && n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
+ 		// inner func is referring to var in outer func.
+ 		//
+ 		// TODO(rsc): If there is an outer variable x and we
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 27256eeca3..20cdccfd03 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -123,7 +123,6 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 			return;
+ 		}
+ 		nout := Encode(&e.buf, &e.out);
+-		var _ int;
+ 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 			return n, e.err;
+ 		}
+@@ -139,7 +138,6 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		nn -= nn%4;
+ 		if nn > 0 {
+ 			nout := Encode(p[0:nn], &e.out);
+-			var _ int;
+ 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 				return n, e.err;
+ 			}
+@@ -164,7 +162,6 @@ func (e *encoder) Close() os.Error {
+ 	if e.err == nil && e.nbuf > 0 {
+ 		nout := Encode(e.buf[0:e.nbuf], &e.out);
+ 		e.nbuf = 0;
+-		var _ int;
+ 		_, e.err = e.w.Write(e.out[0:nout]);
+ 	}
+ 	return e.err;
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index 9a90c22f44..c7d754fe7d 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -192,7 +192,6 @@ func (p *parser) parseField() expr {
+ 	var ruleName string;
+ 	if p.tok == token.COLON {
+ 		p.next();
+-		var _ bool;
+ 		ruleName, _ = p.parseRuleName();
+ 	}
+ 
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 66e7d49368..1cfeba7b4f 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1330,7 +1330,7 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 	// All values have same memory layout;
+ 	// build once and convert.
+ 	v := &struct{value}{value{typ, addr, canSet}};
+-	switch t := typ.(type) {	// TODO(rsc): s/t := // ?
++	switch typ.(type) {
+ 	case *ArrayType:
+ 		// TODO(rsc): Something must prevent
+ 		// clients of the package from doing
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 6772c09615..72165ea025 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -269,10 +269,6 @@ func leftShift(a *decimal, k uint) {
+ 		n = quo;
+ 	}
+ 
+-	if w != 0 {
+-		// TODO: Remove - has no business panicking.
+-		panicln("strconv: bad leftShift", w);
+-	}
+ 	a.nd += delta;
+ 	a.dp += delta;
+ 	trim(a);
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 0f3f50fe79..f10d071632 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -174,8 +174,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 		return;
+ 	}
+ 
+-	// TODO: Unless exp == minexp, if the number of digits in d
+-	// is less than 17, it seems unlikely that it could not be
++	// TODO(rsc): Unless exp == minexp, if the number of digits in d
++	// is less than 17, it seems likely that it would be
+ 	// the shortest possible number already.  So maybe we can
+ 	// bail out without doing the extra multiprecision math here.
+ 
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 9db6b2dc36..807b25ace3 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -5,7 +5,9 @@
+ package strconv
+ 
+ import (
++	"bytes";
+ 	"os";
++	"strings";
+ 	"unicode";
+ 	"utf8";
+ )
+@@ -17,61 +19,58 @@ const lowerhex = "0123456789abcdef"
+ // sequences (\t, \n, \xFF, \u0100) for control characters
+ // and non-ASCII characters.
+ func Quote(s string) string {
+-	// TODO(rsc): String accumulation could be more efficient.
+-	t := `"`;
++	var buf bytes.Buffer;
++	buf.WriteByte('"');
+ 	for ; len(s) > 0; s = s[1:len(s)] {
+ 		switch c := s[0]; {
+ 		case c == '"':
+-			t += `\"`;
++			buf.WriteString(`\"`);
+ 		case c == '\\':
+-			t += `\\`;
++			buf.WriteString(`\\`);
+ 		case ' ' <= c && c <= '~':
+-			t += string(c);
++			buf.WriteString(string(c));
+ 		case c == '\a':
+-			t += `\a`;
++			buf.WriteString(`\a`);
+ 		case c == '\b':
+-			t += `\b`;
++			buf.WriteString(`\b`);
+ 		case c == '\f':
+-			t += `\f`;
++			buf.WriteString(`\f`);
+ 		case c == '\n':
+-			t += `\n`;
++			buf.WriteString(`\n`);
+ 		case c == '\r':
+-			t += `\r`;
++			buf.WriteString(`\r`);
+ 		case c == '\t':
+-			t += `\t`;
++			buf.WriteString(`\t`);
+ 		case c == '\v':
+-			t += `\v`;
++			buf.WriteString(`\v`);
+ 
+-		case c < utf8.RuneSelf:
+-			t += `\x`+string(lowerhex[c>>4])+string(lowerhex[c&0xF]);
+-
+-		case utf8.FullRuneInString(s):
++		case c >= utf8.RuneSelf && utf8.FullRuneInString(s):
+ 			r, size := utf8.DecodeRuneInString(s);
+ 			if r == utf8.RuneError && size == 1 {
+ 				goto EscX;
+ 			}
+ 			s = s[size-1 : len(s)];	// next iteration will slice off 1 more
+ 			if r < 0x10000 {
+-				t += `\u`;
++				buf.WriteString(`\u`);
+ 				for j := uint(0); j < 4; j++ {
+-					t += string(lowerhex[(r>>(12 - 4*j))&0xF]);
++					buf.WriteByte(lowerhex[(r>>(12 - 4*j))&0xF]);
+ 				}
+ 			} else {
+-				t += `\U`;
++				buf.WriteString(`\U`);
+ 				for j := uint(0); j < 8; j++ {
+-					t += string(lowerhex[(r>>(28 - 4*j))&0xF]);
++					buf.WriteByte(lowerhex[(r>>(28 - 4*j))&0xF]);
+ 				}
+ 			}
+ 
+ 		default:
+ 		EscX:
+-			t += `\x`;
+-			t += string(lowerhex[c>>4]);
+-			t += string(lowerhex[c&0xF]);
++			buf.WriteString(`\x`);
++			buf.WriteByte(lowerhex[c>>4]);
++			buf.WriteByte(lowerhex[c&0xF]);
+ 		}
+ 	}
+-	t += `"`;
+-	return t;
++	buf.WriteByte('"');
++	return buf.String();
+ }
+ 
+ // CanBackquote returns whether the string s would be
+@@ -223,42 +222,42 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string,
+ // character literal; Unquote returns the corresponding
+ // one-character string.)
+ func Unquote(s string) (t string, err os.Error) {
+-	err = os.EINVAL;	// assume error for easy return
+ 	n := len(s);
+ 	if n < 2 {
+-		return;
++		return "", os.EINVAL;
+ 	}
+ 	quote := s[0];
+ 	if quote != s[n-1] {
+-		return;
++		return "", os.EINVAL;
+ 	}
+ 	s = s[1 : n-1];
+ 
+ 	if quote == '`' {
++		if strings.Index(s, "`") >= 0 {
++			return "", os.EINVAL;
++		}
+ 		return s, nil;
+ 	}
+ 	if quote != '"' && quote != '\'' {
+-		return;
++		return "", err;
+ 	}
+ 
+-	// TODO(rsc): String accumulation could be more efficient.
+-	var tt string;
++	var buf bytes.Buffer;
+ 	for len(s) > 0 {
+-		c, multibyte, ss, err1 := UnquoteChar(s, quote);
+-		if err1 != nil {
+-			err = err1;
+-			return;
++		c, multibyte, ss, err := UnquoteChar(s, quote);
++		if err != nil {
++			return "", err;
+ 		}
+ 		s = ss;
+-		if multibyte || c < utf8.RuneSelf {
+-			tt += string(c);
++		if c < utf8.RuneSelf || !multibyte {
++			buf.WriteByte(byte(c));
+ 		} else {
+-			tt += string([]byte{byte(c)});
++			buf.WriteString(string(c));
+ 		}
+ 		if quote == '\'' && len(s) != 0 {
+ 			// single-quoted must be single character
+-			return;
++			return "", os.EINVAL;
+ 		}
+ 	}
+-	return tt, nil;
++	return buf.String(), nil;
+ }

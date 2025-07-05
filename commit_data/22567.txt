@@ -7,6 +7,19 @@ Date:   Fri Mar 13 22:36:51 2015 -0400
     Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e33
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/7537
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 551e022d0c..07f3464822 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -41,6 +41,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
+ 
+ Tools:
+ 
++build: external linking support for windows (https://golang.org/cl/7163, 7282, 7283, 7284, 7534, 7535)
+ cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.org/cl/1756)
+ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
+ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later

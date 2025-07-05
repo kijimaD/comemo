@@ -21,7 +21,126 @@ Date:   Wed Jul 1 08:45:16 2020 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/symtab.go     | 22 +++++++++++-------
  src/cmd/link/internal/loader/loader.go | 41 ++++++++++++++++++++++++----------
  2 files changed, 43 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index a2aabbb108..b5f4288b6c 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -515,10 +515,14 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			}
+ 			if ctxt.UseRelro() {
+ 				symGroupType[s] = sym.STYPERELRO
+-				ldr.SetOuterSym(s, symtyperel)
++				if symtyperel != 0 {
++					ldr.SetCarrierSym(s, symtyperel)
++				}
+ 			} else {
+ 				symGroupType[s] = sym.STYPE
+-				ldr.SetOuterSym(s, symtype)
++				if symtyperel != 0 {
++					ldr.SetCarrierSym(s, symtype)
++				}
+ 			}
+ 
+ 		case strings.HasPrefix(name, "go.importpath.") && ctxt.UseRelro():
+@@ -530,17 +534,17 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			nitablinks++
+ 			symGroupType[s] = sym.SITABLINK
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+-			ldr.SetOuterSym(s, symitablink.Sym())
++			ldr.SetCarrierSym(s, symitablink.Sym())
+ 
+ 		case strings.HasPrefix(name, "go.string."):
+ 			symGroupType[s] = sym.SGOSTRING
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+-			ldr.SetOuterSym(s, symgostring)
++			ldr.SetCarrierSym(s, symgostring)
+ 
+ 		case strings.HasPrefix(name, "runtime.gcbits."):
+ 			symGroupType[s] = sym.SGCBITS
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+-			ldr.SetOuterSym(s, symgcbits)
++			ldr.SetCarrierSym(s, symgcbits)
+ 
+ 		case strings.HasSuffix(name, "·f"):
+ 			if !ctxt.DynlinkingGo() {
+@@ -548,10 +552,12 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			}
+ 			if ctxt.UseRelro() {
+ 				symGroupType[s] = sym.SGOFUNCRELRO
+-				ldr.SetOuterSym(s, symgofuncrel)
++				if symgofuncrel != 0 {
++					ldr.SetCarrierSym(s, symgofuncrel)
++				}
+ 			} else {
+ 				symGroupType[s] = sym.SGOFUNC
+-				ldr.SetOuterSym(s, symgofunc)
++				ldr.SetCarrierSym(s, symgofunc)
+ 			}
+ 
+ 		case strings.HasPrefix(name, "gcargs."),
+@@ -561,7 +567,7 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			strings.HasSuffix(name, ".opendefer"):
+ 			symGroupType[s] = sym.SGOFUNC
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+-			ldr.SetOuterSym(s, symgofunc)
++			ldr.SetCarrierSym(s, symgofunc)
+ 			const align = 4
+ 			ldr.SetSymAlign(s, align)
+ 			liveness += (ldr.SymSize(s) + int64(align) - 1) &^ (int64(align) - 1)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 918d381282..3de0ab34b4 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1661,18 +1661,35 @@ func (l *Loader) SubSym(i Sym) Sym {
+ 	return l.sub[i]
+ }
+ 
+-// SetOuterSym sets the outer symbol of i to o (without setting
+-// sub symbols).
+-func (l *Loader) SetOuterSym(i Sym, o Sym) {
+-	if o != 0 {
+-		l.outer[i] = o
+-		// relocsym's foldSubSymbolOffset requires that we only
+-		// have a single level of containment-- enforce here.
+-		if l.outer[o] != 0 {
+-			panic("multiply nested outer sym")
+-		}
+-	} else {
+-		delete(l.outer, i)
++// SetCarrierSym declares that 'c' is the carrier or container symbol
++// for 's'. Carrier symbols are used in the linker to as a container
++// for a collection of sub-symbols where the content of the
++// sub-symbols is effectively concatenated to form the content of the
++// carrier. The carrier is given a name in the output symbol table
++// while the sub-symbol names are not. For example, the Go compiler
++// emits named string symbols (type SGOSTRING) when compiling a
++// package; after being deduplicated, these symbols are collected into
++// a single unit by assigning them a new carrier symbol named
++// "go.string.*" (which appears in the final symbol table for the
++// output load module).
++func (l *Loader) SetCarrierSym(s Sym, c Sym) {
++	if c == 0 {
++		panic("invalid carrier in SetCarrierSym")
++	}
++	if s == 0 {
++		panic("invalid sub-symbol in SetCarrierSym")
++	}
++	// Carrier symbols are not expected to have content/data. It is
++	// ok for them to have non-zero size (to allow for use of generator
++	// symbols).
++	if len(l.Data(c)) != 0 {
++		panic("unexpected non-empty carrier symbol")
++	}
++	l.outer[s] = c
++	// relocsym's foldSubSymbolOffset requires that we only
++	// have a single level of containment-- enforce here.
++	if l.outer[c] != 0 {
++		panic("invalid nested carrier sym")
+ 	}
+ }
+ 

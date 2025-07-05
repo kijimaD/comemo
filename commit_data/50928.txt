@@ -12,6 +12,20 @@ Date:   Wed Nov 17 10:42:13 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/typeparam.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 084130fc74..f000d8f108 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -13,7 +13,7 @@ import (
+ // is the underlying type of its type constraint, i.e.,
+ // an interface. With that, a type parameter satisfies
+ // isInterface.
+-const tparamIsIface = false
++const tparamIsIface = true
+ 
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available

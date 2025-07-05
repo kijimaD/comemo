@@ -14,7 +14,7 @@ Date:   Fri Mar 11 19:36:54 2016 -0600
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go          |  12 +-
  src/cmd/compile/internal/ssa/func.go           |   2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  12 +-
@@ -26,3 +26,566 @@ Date:   Fri Mar 11 19:36:54 2016 -0600
  src/cmd/compile/internal/ssa/rewritegeneric.go | 224 +++++++++++++++++++------
  src/cmd/compile/internal/ssa/value.go          |   4 +-
  10 files changed, 232 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 83aae3af33..8f8227722c 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -171,8 +171,13 @@ func checkFunc(f *Func) {
+ 			canHaveAuxInt := false
+ 			switch opcodeTable[v.Op].auxType {
+ 			case auxNone:
+-			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat:
++			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat64:
+ 				canHaveAuxInt = true
++			case auxFloat32:
++				canHaveAuxInt = true
++				if !isExactFloat32(v) {
++					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
++				}
+ 			case auxString, auxSym:
+ 				canHaveAux = true
+ 			case auxSymOff, auxSymValAndOff:
+@@ -299,3 +304,8 @@ func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
+ 	}
+ 	return sdom.isAncestorEq(x, y)
+ }
++
++// isExactFloat32 reoprts whether v has an AuxInt that can be exactly represented as a float32.
++func isExactFloat32(v *Value) bool {
++	return v.AuxFloat() == float64(float32(v.AuxFloat()))
++}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 19b825a120..ba8a823c59 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -341,7 +341,7 @@ func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
+ 	return f.constVal(line, OpConst64, t, c, true)
+ }
+ func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
+-	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(c)), true)
++	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+ }
+ func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
+ 	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)), true)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 04b9d61727..f23a5896a4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -153,12 +153,12 @@ func init() {
+ 		{name: "DIVSS", argLength: 2, reg: fp21x15, asm: "DIVSS", resultInArg0: true},                 // fp32 div
+ 		{name: "DIVSD", argLength: 2, reg: fp21x15, asm: "DIVSD", resultInArg0: true},                 // fp64 div
+ 
+-		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},          // fp32 load
+-		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},          // fp64 load
+-		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float", rematerializeable: true}, // fp32 constant
+-		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float", rematerializeable: true}, // fp64 constant
+-		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},   // fp32 load
+-		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},   // fp64 load
++		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},            // fp32 load
++		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},            // fp64 load
++		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float32", rematerializeable: true}, // fp32 constant
++		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float64", rematerializeable: true}, // fp64 constant
++		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},     // fp32 load
++		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},     // fp64 load
+ 
+ 		{name: "MOVSSstore", argLength: 3, reg: fpstore, asm: "MOVSS", aux: "SymOff"},        // fp32 store
+ 		{name: "MOVSDstore", argLength: 3, reg: fpstore, asm: "MOVSD", aux: "SymOff"},        // fp64 store
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index f9799d6633..cc24269418 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -30,26 +30,40 @@
+ (Trunc64to8 (Const64 [c])) -> (Const8 [int64(int8(c))])
+ (Trunc64to16 (Const64 [c])) -> (Const16 [int64(int16(c))])
+ (Trunc64to32 (Const64 [c])) -> (Const32 [int64(int32(c))])
++(Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
++(Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
+ 
+-(Neg8 (Const8 [c])) -> (Const8 [-c])
+-(Neg16 (Const16 [c])) -> (Const16 [-c])
+-(Neg32 (Const32 [c])) -> (Const32 [-c])
+-(Neg64 (Const64 [c])) -> (Const64 [-c])
++// const negation is currently handled by frontend
++//(Neg8 (Const8 [c])) -> (Const8 [-c])
++//(Neg16 (Const16 [c])) -> (Const16 [-c])
++//(Neg32 (Const32 [c])) -> (Const32 [-c])
++//(Neg64 (Const64 [c])) -> (Const64 [-c])
++//(Neg32F (Const32F [c])) -> (Const32F [f2i(-i2f(c))])
++//(Neg64F (Const64F [c])) -> (Const64F [f2i(-i2f(c))])
+ 
+ (Add8 (Const8 [c]) (Const8 [d])) -> (Const8 [c+d])
+ (Add16 (Const16 [c]) (Const16 [d])) -> (Const16 [c+d])
+ (Add32 (Const32 [c]) (Const32 [d])) -> (Const32 [c+d])
+ (Add64 (Const64 [c]) (Const64 [d])) -> (Const64 [c+d])
++(Add32F (Const32F [c]) (Const32F [d])) -> 
++        (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
++(Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
+ 
+ (Sub8 (Const8 [c]) (Const8 [d])) -> (Const8 [c-d])
+ (Sub16 (Const16 [c]) (Const16 [d])) -> (Const16 [c-d])
+ (Sub32 (Const32 [c]) (Const32 [d])) -> (Const32 [c-d])
+ (Sub64 (Const64 [c]) (Const64 [d])) -> (Const64 [c-d])
++(Sub32F (Const32F [c]) (Const32F [d])) -> 
++        (Const32F [f2i(float64(i2f32(c) - i2f32(d)))])
++(Sub64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) - i2f(d))])
+ 
+ (Mul8 (Const8 [c]) (Const8 [d])) -> (Const8 [c*d])
+ (Mul16 (Const16 [c]) (Const16 [d])) -> (Const16 [c*d])
+ (Mul32 (Const32 [c]) (Const32 [d])) -> (Const32 [c*d])
+ (Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
++(Mul32F (Const32F [c]) (Const32F [d])) -> 
++        (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
++(Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
+ 
+ (Lsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c << uint64(d)])
+ (Rsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c >> uint64(d)])
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 6a49cb7afc..d901c1c7c3 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -259,8 +259,8 @@ var genericOps = []opData{
+ 	{name: "Const16", aux: "Int16"},      // value is low 16 bits of auxint
+ 	{name: "Const32", aux: "Int32"},      // value is low 32 bits of auxint
+ 	{name: "Const64", aux: "Int64"},      // value is auxint
+-	{name: "Const32F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
+-	{name: "Const64F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
++	{name: "Const32F", aux: "Float32"},   // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
++	{name: "Const64F", aux: "Float64"},   // value is math.Float64frombits(uint64(auxint))
+ 	{name: "ConstInterface"},             // nil interface
+ 	{name: "ConstSlice"},                 // nil slice
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index b2ee82c41e..ecffb5aff9 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -49,7 +49,8 @@ const (
+ 	auxInt16                // auxInt is a 16-bit integer
+ 	auxInt32                // auxInt is a 32-bit integer
+ 	auxInt64                // auxInt is a 64-bit integer
+-	auxFloat                // auxInt is a float64 (encoded with math.Float64bits)
++	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
++	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+ 	auxString               // auxInt is a string
+ 	auxSym                  // aux is a symbol
+ 	auxSymOff               // aux is a symbol, auxInt is an offset
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7454e51aeb..99c851d52e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -748,7 +748,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "MOVSSconst",
+-		auxType:           auxFloat,
++		auxType:           auxFloat32,
+ 		argLen:            0,
+ 		rematerializeable: true,
+ 		asm:               x86.AMOVSS,
+@@ -760,7 +760,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:              "MOVSDconst",
+-		auxType:           auxFloat,
++		auxType:           auxFloat64,
+ 		argLen:            0,
+ 		rematerializeable: true,
+ 		asm:               x86.AMOVSD,
+@@ -4957,13 +4957,13 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "Const32F",
+-		auxType: auxFloat,
++		auxType: auxFloat32,
+ 		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+ 		name:    "Const64F",
+-		auxType: auxFloat,
++		auxType: auxFloat64,
+ 		argLen:  0,
+ 		generic: true,
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 356b375657..8581b7d55c 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -192,6 +192,16 @@ func b2i(b bool) int64 {
+ 	return 0
+ }
+ 
++// i2f is used in rules for converting from an AuxInt to a float.
++func i2f(i int64) float64 {
++	return math.Float64frombits(uint64(i))
++}
++
++// i2f32 is used in rules for converting from an AuxInt to a float32.
++func i2f32(i int64) float32 {
++	return float32(math.Float64frombits(uint64(i)))
++}
++
+ // f2i is used in the rules for storing a float in AuxInt.
+ func f2i(f float64) int64 {
+ 	return int64(math.Float64bits(f))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index bf1930063e..116d11e3d6 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -12,8 +12,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpAdd16(v, config)
+ 	case OpAdd32:
+ 		return rewriteValuegeneric_OpAdd32(v, config)
++	case OpAdd32F:
++		return rewriteValuegeneric_OpAdd32F(v, config)
+ 	case OpAdd64:
+ 		return rewriteValuegeneric_OpAdd64(v, config)
++	case OpAdd64F:
++		return rewriteValuegeneric_OpAdd64F(v, config)
+ 	case OpAdd8:
+ 		return rewriteValuegeneric_OpAdd8(v, config)
+ 	case OpAnd16:
+@@ -48,6 +52,10 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpConstString(v, config)
+ 	case OpConvert:
+ 		return rewriteValuegeneric_OpConvert(v, config)
++	case OpCvt32Fto64F:
++		return rewriteValuegeneric_OpCvt32Fto64F(v, config)
++	case OpCvt64Fto32F:
++		return rewriteValuegeneric_OpCvt64Fto32F(v, config)
+ 	case OpDiv64:
+ 		return rewriteValuegeneric_OpDiv64(v, config)
+ 	case OpDiv64u:
+@@ -180,8 +188,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpMul16(v, config)
+ 	case OpMul32:
+ 		return rewriteValuegeneric_OpMul32(v, config)
++	case OpMul32F:
++		return rewriteValuegeneric_OpMul32F(v, config)
+ 	case OpMul64:
+ 		return rewriteValuegeneric_OpMul64(v, config)
++	case OpMul64F:
++		return rewriteValuegeneric_OpMul64F(v, config)
+ 	case OpMul8:
+ 		return rewriteValuegeneric_OpMul8(v, config)
+ 	case OpNeg16:
+@@ -304,8 +316,12 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpSub16(v, config)
+ 	case OpSub32:
+ 		return rewriteValuegeneric_OpSub32(v, config)
++	case OpSub32F:
++		return rewriteValuegeneric_OpSub32F(v, config)
+ 	case OpSub64:
+ 		return rewriteValuegeneric_OpSub64(v, config)
++	case OpSub64F:
++		return rewriteValuegeneric_OpSub64F(v, config)
+ 	case OpSub8:
+ 		return rewriteValuegeneric_OpSub8(v, config)
+ 	case OpTrunc16to8:
+@@ -445,6 +461,27 @@ func rewriteValuegeneric_OpAdd32(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpAdd32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32F (Const32F [c]) (Const32F [d]))
++	// cond:
++	// result: (Const32F [f2i(float64(i2f32(c) + i2f32(d)))])
++	for {
++		if v.Args[0].Op != OpConst32F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst32F {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConst32F)
++		v.AuxInt = f2i(float64(i2f32(c) + i2f32(d)))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -502,6 +539,27 @@ func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpAdd64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64F (Const64F [c]) (Const64F [d]))
++	// cond:
++	// result: (Const64F [f2i(i2f(c) + i2f(d))])
++	for {
++		if v.Args[0].Op != OpConst64F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst64F {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConst64F)
++		v.AuxInt = f2i(i2f(c) + i2f(d))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpAdd8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1423,6 +1481,40 @@ func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpCvt32Fto64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt32Fto64F (Const32F [c]))
++	// cond:
++	// result: (Const64F [c])
++	for {
++		if v.Args[0].Op != OpConst32F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst64F)
++		v.AuxInt = c
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpCvt64Fto32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Cvt64Fto32F (Const64F [c]))
++	// cond:
++	// result: (Const32F [f2i(float64(i2f32(c)))])
++	for {
++		if v.Args[0].Op != OpConst64F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		v.reset(OpConst32F)
++		v.AuxInt = f2i(float64(i2f32(c)))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -4248,6 +4340,27 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpMul32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32F (Const32F [c]) (Const32F [d]))
++	// cond:
++	// result: (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
++	for {
++		if v.Args[0].Op != OpConst32F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst32F {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConst32F)
++		v.AuxInt = f2i(float64(i2f32(c) * i2f32(d)))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -4338,6 +4451,27 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpMul64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul64F (Const64F [c]) (Const64F [d]))
++	// cond:
++	// result: (Const64F [f2i(i2f(c) * i2f(d))])
++	for {
++		if v.Args[0].Op != OpConst64F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst64F {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConst64F)
++		v.AuxInt = f2i(i2f(c) * i2f(d))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -4396,18 +4530,6 @@ func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpNeg16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg16 (Const16 [c]))
+-	// cond:
+-	// result: (Const16 [-c])
+-	for {
+-		if v.Args[0].Op != OpConst16 {
+-			break
+-		}
+-		c := v.Args[0].AuxInt
+-		v.reset(OpConst16)
+-		v.AuxInt = -c
+-		return true
+-	}
+ 	// match: (Neg16 (Sub16 x y))
+ 	// cond:
+ 	// result: (Sub16 y x)
+@@ -4427,18 +4549,6 @@ func rewriteValuegeneric_OpNeg16(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpNeg32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg32 (Const32 [c]))
+-	// cond:
+-	// result: (Const32 [-c])
+-	for {
+-		if v.Args[0].Op != OpConst32 {
+-			break
+-		}
+-		c := v.Args[0].AuxInt
+-		v.reset(OpConst32)
+-		v.AuxInt = -c
+-		return true
+-	}
+ 	// match: (Neg32 (Sub32 x y))
+ 	// cond:
+ 	// result: (Sub32 y x)
+@@ -4458,18 +4568,6 @@ func rewriteValuegeneric_OpNeg32(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpNeg64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg64 (Const64 [c]))
+-	// cond:
+-	// result: (Const64 [-c])
+-	for {
+-		if v.Args[0].Op != OpConst64 {
+-			break
+-		}
+-		c := v.Args[0].AuxInt
+-		v.reset(OpConst64)
+-		v.AuxInt = -c
+-		return true
+-	}
+ 	// match: (Neg64 (Sub64 x y))
+ 	// cond:
+ 	// result: (Sub64 y x)
+@@ -4489,18 +4587,6 @@ func rewriteValuegeneric_OpNeg64(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpNeg8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Neg8 (Const8 [c]))
+-	// cond:
+-	// result: (Const8 [-c])
+-	for {
+-		if v.Args[0].Op != OpConst8 {
+-			break
+-		}
+-		c := v.Args[0].AuxInt
+-		v.reset(OpConst8)
+-		v.AuxInt = -c
+-		return true
+-	}
+ 	// match: (Neg8 (Sub8 x y))
+ 	// cond:
+ 	// result: (Sub8 y x)
+@@ -7632,6 +7718,27 @@ func rewriteValuegeneric_OpSub32(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpSub32F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32F (Const32F [c]) (Const32F [d]))
++	// cond:
++	// result: (Const32F [f2i(float64(i2f32(c) - i2f32(d)))])
++	for {
++		if v.Args[0].Op != OpConst32F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst32F {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConst32F)
++		v.AuxInt = f2i(float64(i2f32(c) - i2f32(d)))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -7719,6 +7826,27 @@ func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpSub64F(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64F (Const64F [c]) (Const64F [d]))
++	// cond:
++	// result: (Const64F [f2i(i2f(c) - i2f(d))])
++	for {
++		if v.Args[0].Op != OpConst64F {
++			break
++		}
++		c := v.Args[0].AuxInt
++		if v.Args[1].Op != OpConst64F {
++			break
++		}
++		d := v.Args[1].AuxInt
++		v.reset(OpConst64F)
++		v.AuxInt = f2i(i2f(c) - i2f(d))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index a245d26f98..e3510b135e 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -97,7 +97,7 @@ func (v *Value) AuxInt2Int64() int64 {
+ }
+ 
+ func (v *Value) AuxFloat() float64 {
+-	if opcodeTable[v.Op].auxType != auxFloat {
++	if opcodeTable[v.Op].auxType != auxFloat32 && opcodeTable[v.Op].auxType != auxFloat64 {
+ 		v.Fatalf("op %s doesn't have a float aux field", v.Op)
+ 	}
+ 	return math.Float64frombits(uint64(v.AuxInt))
+@@ -128,7 +128,7 @@ func (v *Value) LongString() string {
+ 		s += fmt.Sprintf(" [%d]", v.AuxInt32())
+ 	case auxInt64:
+ 		s += fmt.Sprintf(" [%d]", v.AuxInt)
+-	case auxFloat:
++	case auxFloat32, auxFloat64:
+ 		s += fmt.Sprintf(" [%g]", v.AuxFloat())
+ 	case auxString:
+ 		s += fmt.Sprintf(" {%s}", v.Aux)

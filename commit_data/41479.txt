@@ -9,6 +9,19 @@ Date:   Sat Oct 5 16:12:13 2019 +0300
     Change-Id: I7fd6dcc5c34496776439ff0295f18b5fb5cb538a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/199141
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/unicode/utf8/utf8.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index eae4ead0da..b722a03923 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -4,6 +4,7 @@
+ 
+ // Package utf8 implements functions and constants to support text encoded in
+ // UTF-8. It includes functions to translate between runes and UTF-8 byte sequences.
++// See https://en.wikipedia.org/wiki/UTF-8
+ package utf8
+ 
+ // The conditions RuneError==unicode.ReplacementChar and

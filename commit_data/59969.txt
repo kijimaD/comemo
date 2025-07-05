@@ -10,6 +10,27 @@ Date:   Mon May 13 17:59:12 2024 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/netip/netip.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 1c06efac1e..a6a8fcd423 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -14,13 +14,12 @@ package netip
+ import (
+ 	"cmp"
+ 	"errors"
++	"internal/bytealg"
+ 	"internal/byteorder"
++	"internal/itoa"
+ 	"math"
+ 	"strconv"
+ 	"unique"
+-
+-	"internal/bytealg"
+-	"internal/itoa"
+ )
+ 
+ // Sizes: (64-bit)

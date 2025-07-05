@@ -9,7 +9,7 @@ Date:   Wed Oct 8 09:34:50 2008 -0700
     DELTA=50  (4 added, 0 deleted, 46 changed)
     OCL=16707
     CL=16725
-
+---
  src/lib/http/Makefile   |  4 ++++
  src/lib/http/conn.go    |  4 ++--
  src/lib/http/request.go | 38 +++++++++++++++++++-------------------
@@ -17,3 +17,348 @@ Date:   Wed Oct 8 09:34:50 2008 -0700
  src/lib/http/triv.go    |  2 +-
  src/lib/http/url.go     | 36 ++++++++++++++++++------------------
  6 files changed, 50 insertions(+), 46 deletions(-)
+
+diff --git a/src/lib/http/Makefile b/src/lib/http/Makefile
+index 12153c40e3..1007a1bb3f 100644
+--- a/src/lib/http/Makefile
++++ b/src/lib/http/Makefile
+@@ -45,12 +45,16 @@ O4=\
+ $(PKG): a1 a2 a3 a4
+ a1:	$(O1)
+ 	$(AR) grc $(PKG) $(O1)
++	rm -f $(O1)
+ a2:	$(O2)
+ 	$(AR) grc $(PKG) $(O2)
++	rm -f $(O2)
+ a3:	$(O3)
+ 	$(AR) grc $(PKG) $(O3)
++	rm -f $(O3)
+ a4:	$(O4)
+ 	$(AR) grc $(PKG) $(O4)
++	rm -f $(O4)
+ 
+ $(O1): nuke
+ $(O2): a1
+diff --git a/src/lib/http/conn.go b/src/lib/http/conn.go
+index ad1b7cc866..e7024ed606 100644
+--- a/src/lib/http/conn.go
++++ b/src/lib/http/conn.go
+@@ -15,7 +15,7 @@ import (
+ type RWC interface {
+ 	Read(p *[]byte) (n int, err *os.Error);
+ 	Write(p *[]byte) (n int, err *os.Error);
+-	Close() *os.Error
++	Close() *os.Error;
+ }
+ 
+ // Active HTTP connection (server side).
+@@ -48,7 +48,7 @@ func (c *Conn) ReadRequest() (req *Request, err *os.Error) {
+ 
+ 	// TODO: Proper handling of (lack of) Connection: close,
+ 	// and chunked transfer encoding on output.
+-	c.close = true
++	c.close = true;
+ 	return req, nil
+ }
+ 
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index bed911eb4c..eea1b3e49d 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -58,7 +58,7 @@ func ReadLineBytes(b *bufio.BufRead) (p *[]byte, err *os.Error) {
+ 	}
+ 
+ 	// Chop off trailing white space.
+-	var i int
++	var i int;
+ 	for i = len(p); i > 0; i-- {
+ 		if c := p[i-1]; c != ' ' && c != '\r' && c != '\t' && c != '\n' {
+ 			break
+@@ -69,7 +69,7 @@ func ReadLineBytes(b *bufio.BufRead) (p *[]byte, err *os.Error) {
+ 
+ // ReadLineByte, but convert the bytes into a string.
+ func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
+-	p, e := ReadLineBytes(b)
++	p, e := ReadLineBytes(b);
+ 	if e != nil {
+ 		return "", e
+ 	}
+@@ -81,7 +81,7 @@ func ReadLine(b *bufio.BufRead) (s string, err *os.Error) {
+ // and the Value can continue on multiple lines if each continuation line
+ // starts with a space.
+ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+-	line, e := ReadLineBytes(b)
++	line, e := ReadLineBytes(b);
+ 	if e != nil {
+ 		return "", "", e
+ 	}
+@@ -94,7 +94,7 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ 		switch line[i] {
+ 		case ' ':
+ 			// Key field has space - no good.
+-			return "", "", BadHeader
++			return "", "", BadHeader;
+ 		case ':':
+ 			key = string(line[0:i]);
+ 			// Skip initial space before value.
+@@ -103,7 +103,7 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ 					break
+ 				}
+ 			}
+-			value = string(line[i:len(line)])
++			value = string(line[i:len(line)]);
+ 
+ 			// Look for extension lines, which must begin with space.
+ 			for {
+@@ -114,7 +114,7 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ 				}
+ 				if c != ' ' {
+ 					// Not leading space; stop.
+-					b.UnreadByte()
++					b.UnreadByte();
+ 					break
+ 				}
+ 
+@@ -124,13 +124,13 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ 						return "", "", e
+ 					}
+ 				}
+-				b.UnreadByte()
++				b.UnreadByte();
+ 
+ 				// Read the rest of the line and add to value.
+ 				if line, e = ReadLineBytes(b); e != nil {
+ 					return "", "", e
+ 				}
+-				value += " " + string(line)
++				value += " " + string(line);
+ 
+ 				if len(value) >= MaxValueLength {
+ 					return "", "", ValueTooLong
+@@ -148,13 +148,13 @@ func ReadKeyValue(b *bufio.BufRead) (key, value string, err *os.Error) {
+ // returning value, string position where the digits stopped,
+ // and whether there was a valid number (digits, not too big).
+ func atoi(s string, i int) (n, i1 int, ok bool) {
+-	const Big = 1000000
++	const Big = 1000000;
+ 	if i >= len(s) || s[i] < '0' || s[i] > '9' {
+ 		return 0, 0, false
+ 	}
+-	n = 0
++	n = 0;
+ 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		n = n*10 + int(s[i]-'0')
++		n = n*10 + int(s[i]-'0');
+ 		if n > Big {
+ 			return 0, 0, false
+ 		}
+@@ -167,12 +167,12 @@ func ParseHTTPVersion(vers string) (int, int, bool) {
+ 	if vers[0:5] != "HTTP/" {
+ 		return 0, 0, false
+ 	}
+-	major, i, ok := atoi(vers, 5)
++	major, i, ok := atoi(vers, 5);
+ 	if !ok || i >= len(vers) || vers[i] != '.' {
+ 		return 0, 0, false
+ 	}
+ 	var minor int;
+-	minor, i, ok = atoi(vers, i+1)
++	minor, i, ok = atoi(vers, i+1);
+ 	if !ok || i != len(vers) {
+ 		return 0, 0, false
+ 	}
+@@ -184,16 +184,16 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 	req = new(Request);
+ 
+ 	// First line: GET /index.html HTTP/1.0
+-	var s string
++	var s string;
+ 	if s, err = ReadLine(b); err != nil {
+ 		return nil, err
+ 	}
+ 
+-	var f *[]string
++	var f *[]string;
+ 	if f = strings.split(s, " "); len(f) != 3 {
+ 		return nil, BadRequest
+ 	}
+-	req.method, req.rawurl, req.proto = f[0], f[1], f[2]
++	req.method, req.rawurl, req.proto = f[0], f[1], f[2];
+ 	var ok bool;
+ 	if req.pmajor, req.pminor, ok = ParseHTTPVersion(req.proto); !ok {
+ 		return nil, BadHTTPVersion
+@@ -205,9 +205,9 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 
+ 	// Subsequent lines: Key: value.
+ 	nheader := 0;
+-	req.header = new(map[string] string)
++	req.header = new(map[string] string);
+ 	for {
+-		var key, value string
++		var key, value string;
+ 		if key, value, err = ReadKeyValue(b); err != nil {
+ 			return nil, err
+ 		}
+@@ -221,7 +221,7 @@ export func ReadRequest(b *bufio.BufRead) (req *Request, err *os.Error) {
+ 		// RFC 2616 says that if you send the same header key
+ 		// multiple times, it has to be semantically equivalent
+ 		// to concatenating the values separated by commas.
+-		oldvalue, present := req.header[key]
++		oldvalue, present := req.header[key];
+ 		if present {
+ 			req.header[key] = oldvalue+","+value
+ 		} else {
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 0c9af6c0a4..43b4fb1fd5 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -18,16 +18,16 @@ import (
+ 
+ // Serve a new connection.
+ func ServeConnection(fd net.Conn, raddr string, f *(*Conn, *Request)) {
+-	c, err := NewConn(fd)
++	c, err := NewConn(fd);
+ 	if err != nil {
+ 		return
+ 	}
+ 	for {
+-		req, err := c.ReadRequest()
++		req, err := c.ReadRequest();
+ 		if err != nil {
+ 			break
+ 		}
+-		f(c, req)
++		f(c, req);
+ 		if c.close {
+ 			break
+ 		}
+@@ -44,7 +44,7 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
+ 	}
+ 
+ 	for {
+-		rw, raddr, e := l.Accept()
++		rw, raddr, e := l.Accept();
+ 		if e != nil {
+ 			return e
+ 		}
+@@ -55,11 +55,11 @@ export func Serve(l net.Listener, f *(*Conn, *Request)) *os.Error {
+ 
+ // Web server: listen on address, call f for each request.
+ export func ListenAndServe(addr string, f *(*Conn, *Request)) *os.Error {
+-	l, e := net.Listen("tcp", addr)
++	l, e := net.Listen("tcp", addr);
+ 	if e != nil {
+ 		return e
+ 	}
+ 	e = Serve(l, f);
+-	l.Close()
++	l.Close();
+ 	return e
+ }
+diff --git a/src/lib/http/triv.go b/src/lib/http/triv.go
+index 19485f9359..a7eb35aa2b 100644
+--- a/src/lib/http/triv.go
++++ b/src/lib/http/triv.go
+@@ -22,7 +22,7 @@ func Echo(conn *http.Conn, req *http.Request) {
+ }
+ 
+ func main() {
+-	err := http.ListenAndServe("0.0.0.0:12345", &Echo)
++	err := http.ListenAndServe("0.0.0.0:12345", &Echo);
+ 	if err != nil {
+ 		panic("ListenAndServe: ", err.String())
+ 	}
+diff --git a/src/lib/http/url.go b/src/lib/http/url.go
+index 07470e68ca..741ee0b136 100644
+--- a/src/lib/http/url.go
++++ b/src/lib/http/url.go
+@@ -17,11 +17,11 @@ export var (
+ func IsHex(c byte) bool {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+-		return true
++		return true;
+ 	case 'a' <= c && c <= 'f':
+-		return true
++		return true;
+ 	case 'A' <= c && c <= 'F':
+-		return true
++		return true;
+ 	}
+ 	return false
+ }
+@@ -29,11 +29,11 @@ func IsHex(c byte) bool {
+ func UnHex(c byte) byte {
+ 	switch {
+ 	case '0' <= c && c <= '9':
+-		return c - '0'
++		return c - '0';
+ 	case 'a' <= c && c <= 'f':
+-		return c - 'a' + 10
++		return c - 'a' + 10;
+ 	case 'A' <= c && c <= 'F':
+-		return c - 'A' + 10
++		return c - 'A' + 10;
+ 	}
+ 	return 0
+ }
+@@ -41,12 +41,12 @@ func UnHex(c byte) byte {
+ // Unescape %xx into hex.
+ export func URLUnescape(s string) (string, *os.Error) {
+ 	// Count %, check that they're well-formed.
+-	n := 0
++	n := 0;
+ 	for i := 0; i < len(s); {
+ 		if s[i] == '%' {
+-			n++
++			n++;
+ 			if !IsHex(s[i+1]) || !IsHex(s[i+2]) {
+-				return "", BadURL
++				return "", BadURL;
+ 			}
+ 			i += 3
+ 		} else {
+@@ -59,19 +59,19 @@ export func URLUnescape(s string) (string, *os.Error) {
+ 	}
+ 
+ 	t := new([]byte, len(s)-2*n);
+-	j := 0
++	j := 0;
+ 	for i := 0; i < len(s); {
+ 		if s[i] == '%' {
+ 			t[j] = UnHex(s[i+1]) << 4 | UnHex(s[i+2]);
+-			j++
+-			i += 3
++			j++;
++			i += 3;
+ 		} else {
+ 			t[j] = s[i];
+-			j++
+-			i++
++			j++;
++			i++;
+ 		}
+ 	}
+-	return string(t), nil
++	return string(t), nil;
+ }
+ 
+ export type URL struct {
+@@ -130,14 +130,14 @@ export func ParseURL(rawurl string) (url *URL, err *os.Error) {
+ 		return nil, BadURL
+ 	}
+ 	url = new(URL);
+-	url.raw = rawurl
++	url.raw = rawurl;
+ 
+ 	// Split off possible leading "http:", "mailto:", etc.
+-	var path string
++	var path string;
+ 	if url.scheme, path, err = GetScheme(rawurl); err != nil {
+ 		return nil, err
+ 	}
+-	url.rawpath = path
++	url.rawpath = path;
+ 
+ 	// RFC 2396: a relative URI (no scheme) has a ?query,
+ 	// but absolute URIs only have query if path begins with /

@@ -9,7 +9,7 @@ Date:   Tue Dec 7 13:40:14 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2331044
-
+---
  src/pkg/net/fd.go                       | 71 +++++++++++++++++++++++++++++++++
  src/pkg/net/fd_windows.go               |  8 ++++
  src/pkg/net/unixsock.go                 | 26 ++++++++++++
@@ -22,3 +22,515 @@ Date:   Tue Dec 7 13:40:14 2010 -0500
  src/pkg/syscall/zerrors_linux_amd64.go  | 45 +++++++++++++++++++++
  src/pkg/syscall/zsyscall_linux_amd64.go | 17 ++++++++
  11 files changed, 326 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index d300e4bda5..b2e24f5986 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -401,6 +401,42 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+ 	return
+ }
+ 
++func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err os.Error) {
++	if fd == nil || fd.sysfile == nil {
++		return 0, 0, 0, nil, os.EINVAL
++	}
++	fd.rio.Lock()
++	defer fd.rio.Unlock()
++	fd.incref()
++	defer fd.decref()
++	if fd.rdeadline_delta > 0 {
++		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
++	} else {
++		fd.rdeadline = 0
++	}
++	var oserr os.Error
++	for {
++		var errno int
++		n, oobn, flags, errno = syscall.Recvmsg(fd.sysfd, p, oob, sa, 0)
++		if errno == syscall.EAGAIN && fd.rdeadline >= 0 {
++			pollserver.WaitRead(fd)
++			continue
++		}
++		if errno != 0 {
++			oserr = os.Errno(errno)
++		}
++		if n == 0 {
++			oserr = os.EOF
++		}
++		break
++	}
++	if oserr != nil {
++		err = &OpError{"read", fd.net, fd.laddr, oserr}
++		return
++	}
++	return
++}
++
+ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	if fd == nil {
+ 		return 0, os.EINVAL
+@@ -481,6 +517,41 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+ 	return
+ }
+ 
++func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err os.Error) {
++	if fd == nil || fd.sysfile == nil {
++		return 0, 0, os.EINVAL
++	}
++	fd.wio.Lock()
++	defer fd.wio.Unlock()
++	fd.incref()
++	defer fd.decref()
++	if fd.wdeadline_delta > 0 {
++		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
++	} else {
++		fd.wdeadline = 0
++	}
++	var oserr os.Error
++	for {
++		var errno int
++		errno = syscall.Sendmsg(fd.sysfd, p, oob, sa, 0)
++		if errno == syscall.EAGAIN && fd.wdeadline >= 0 {
++			pollserver.WaitWrite(fd)
++			continue
++		}
++		if errno != 0 {
++			oserr = os.Errno(errno)
++		}
++		break
++	}
++	if oserr == nil {
++		n = len(p)
++		oobn = len(oob)
++	} else {
++		err = &OpError{"write", fd.net, fd.raddr, oserr}
++	}
++	return
++}
++
+ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
+ 	if fd == nil || fd.sysfile == nil {
+ 		return nil, os.EINVAL
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 75e2e4f2d1..64eed4ab97 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -445,3 +445,11 @@ func (fd *netFD) dup() (f *os.File, err os.Error) {
+ 	// TODO: Implement this
+ 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
+ }
++
++func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err os.Error) {
++	return 0, 0, 0, nil, os.EAFNOSUPPORT
++}
++
++func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err os.Error) {
++	return 0, 0, os.EAFNOSUPPORT
++}
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 82c0b6d05b..1c15e5e97f 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -277,6 +277,32 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ 	return c.WriteToUnix(b, a)
+ }
+ 
++func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err os.Error) {
++	if !c.ok() {
++		return 0, 0, 0, nil, os.EINVAL
++	}
++	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
++	switch sa := sa.(type) {
++	case *syscall.SockaddrUnix:
++		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM}
++	}
++	return
++}
++
++func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err os.Error) {
++	if !c.ok() {
++		return 0, 0, os.EINVAL
++	}
++	if addr != nil {
++		if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
++			return 0, 0, os.EAFNOSUPPORT
++		}
++		sa := &syscall.SockaddrUnix{Name: addr.Name}
++		return c.fd.WriteMsg(b, oob, sa)
++	}
++	return c.fd.WriteMsg(b, oob, nil)
++}
++
+ // File returns a copy of the underlying os.File, set to blocking mode.
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index f7b4adb14f..f3fb942700 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -25,6 +25,8 @@ includes_Linux='
+ #include <sys/epoll.h>
+ #include <sys/inotify.h>
+ #include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <sys/stat.h>
+ #include <linux/ptrace.h>
+ #include <linux/wait.h>
+ #include <netpacket/packet.h>
+@@ -84,11 +86,13 @@ done
+ 		
+ 		$2 ~ /^E([ABCD]X|[BIS]P|[SD]I|S|FL)$/ {next}  # 386 registers
+ 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
++		$2 ~ /^(SCM_SRCRT)$/ {next}
++		$2 ~ /^(MAP_FAILED)$/ {next}
+ 
+ 		$2 ~ /^E[A-Z0-9_]+$/ ||
+ 		$2 ~ /^SIG[^_]/ ||
+ 		$2 ~ /^IN_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM)_/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 767537093e..ff99fd9e6d 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -485,6 +485,13 @@ func Futimes(fd int, tv []Timeval) (errno int) {
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ 
++func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
++	return 0, 0, 0, EAFNOSUPPORT
++}
++
++func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
++	return EAFNOSUPPORT
++}
+ 
+ // TODO: wrap
+ //	Acct(name nil-string) (errno int)
+@@ -495,5 +502,3 @@ func Futimes(fd int, tv []Timeval) (errno int) {
+ //	Msync(addr *byte, len int, flags int) (errno int)
+ //	Munmap(addr *byte, len int) (errno int)
+ //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
+-//	Recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+-//	Sendmsg(s int, msg *Msghdr, flags int) (n int, errno int)
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index d34956c31d..710ab74fa5 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -447,6 +447,72 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+ 	return sendto(fd, p, flags, ptr, n)
+ }
+ 
++func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
++	var msg Msghdr
++	var rsa RawSockaddrAny
++	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Namelen = uint32(SizeofSockaddrAny)
++	var iov Iovec
++	if len(p) > 0 {
++		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.SetLen(len(p))
++	}
++	var dummy byte
++	if len(oob) > 0 {
++		// receive at least one normal byte
++		if len(p) == 0 {
++			iov.Base = &dummy
++			iov.SetLen(1)
++		}
++		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.SetControllen(len(oob))
++	}
++	msg.Iov = &iov
++	msg.Iovlen = 1
++	if n, errno = recvmsg(fd, &msg, flags); errno != 0 {
++		return
++	}
++	oobn = int(msg.Controllen)
++	recvflags = int(msg.Flags)
++	return
++}
++
++func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
++	var ptr uintptr
++	var nsock _Socklen
++	if to != nil {
++		var err int
++		ptr, nsock, err = to.sockaddr()
++		if err != 0 {
++			return err
++		}
++	}
++	var msg Msghdr
++	msg.Name = (*byte)(unsafe.Pointer(ptr))
++	msg.Namelen = uint32(nsock)
++	var iov Iovec
++	if len(p) > 0 {
++		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.SetLen(len(p))
++	}
++	var dummy byte
++	if len(oob) > 0 {
++		// send at least one normal byte
++		if len(p) == 0 {
++			iov.Base = &dummy
++			iov.SetLen(1)
++		}
++		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.SetControllen(len(oob))
++	}
++	msg.Iov = &iov
++	msg.Iovlen = 1
++	if errno = sendmsg(fd, &msg, flags); errno != 0 {
++		return
++	}
++	return
++}
++
+ // BindToDevice binds the socket associated with fd to device.
+ func BindToDevice(fd int, device string) (errno int) {
+ 	return SetsockoptString(fd, SOL_SOCKET, SO_BINDTODEVICE, device)
+@@ -592,8 +658,6 @@ func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0)
+ 
+ // Sendto
+ // Recvfrom
+-// Sendmsg
+-// Recvmsg
+ // Socketpair
+ // Getsockopt
+ 
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 88b3034346..bf5dd47d1e 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -151,6 +151,16 @@ func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int
+ 	return
+ }
+ 
++func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
++	n, errno = socketcall(_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
++	return
++}
++
++func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
++	_, errno = socketcall(_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags), 0, 0, 0)
++	return
++}
++
+ func Listen(s int, n int) (errno int) {
+ 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0)
+ 	return
+@@ -176,3 +186,15 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
+ func (r *PtraceRegs) PC() uint64 { return uint64(uint32(r.Eip)) }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Eip = int32(pc) }
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint32(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index fda8260689..0b8ccb0d5d 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -46,6 +46,8 @@ package syscall
+ //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+ //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
++//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
++//sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
+ 
+ func Getpagesize() int { return 4096 }
+ 
+@@ -72,3 +74,15 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ func (r *PtraceRegs) PC() uint64 { return r.Rip }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Rip = pc }
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint64(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint64(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint64(length)
++}
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index c6b31a19bd..f685367603 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -385,6 +385,40 @@ const (
+ 	IP_TOS                           = 0x1
+ 	IP_TTL                           = 0x2
+ 	IP_UNBLOCK_SOURCE                = 0x25
++	MAP_32BIT                        = 0x40
++	MAP_ANON                         = 0x20
++	MAP_ANONYMOUS                    = 0x20
++	MAP_DENYWRITE                    = 0x800
++	MAP_EXECUTABLE                   = 0x1000
++	MAP_FILE                         = 0
++	MAP_FIXED                        = 0x10
++	MAP_GROWSDOWN                    = 0x100
++	MAP_LOCKED                       = 0x2000
++	MAP_NONBLOCK                     = 0x10000
++	MAP_NORESERVE                    = 0x4000
++	MAP_POPULATE                     = 0x8000
++	MAP_PRIVATE                      = 0x2
++	MAP_SHARED                       = 0x1
++	MAP_STACK                        = 0x20000
++	MAP_TYPE                         = 0xf
++	MSG_CMSG_CLOEXEC                 = 0x40000000
++	MSG_CONFIRM                      = 0x800
++	MSG_CTRUNC                       = 0x8
++	MSG_DONTROUTE                    = 0x4
++	MSG_DONTWAIT                     = 0x40
++	MSG_EOR                          = 0x80
++	MSG_ERRQUEUE                     = 0x2000
++	MSG_FIN                          = 0x200
++	MSG_MORE                         = 0x8000
++	MSG_NOSIGNAL                     = 0x4000
++	MSG_OOB                          = 0x1
++	MSG_PEEK                         = 0x2
++	MSG_PROXY                        = 0x10
++	MSG_RST                          = 0x1000
++	MSG_SYN                          = 0x400
++	MSG_TRUNC                        = 0x20
++	MSG_TRYHARD                      = 0x4
++	MSG_WAITALL                      = 0x100
+ 	NAME_MAX                         = 0xff
+ 	O_ACCMODE                        = 0x3
+ 	O_APPEND                         = 0x400
+@@ -423,6 +457,12 @@ const (
+ 	PACKET_RECV_OUTPUT               = 0x3
+ 	PACKET_RX_RING                   = 0x5
+ 	PACKET_STATISTICS                = 0x6
++	PROT_EXEC                        = 0x4
++	PROT_GROWSDOWN                   = 0x1000000
++	PROT_GROWSUP                     = 0x2000000
++	PROT_NONE                        = 0
++	PROT_READ                        = 0x1
++	PROT_WRITE                       = 0x2
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_BTS_CLEAR                 = 0x2c
+ 	PTRACE_BTS_CONFIG                = 0x28
+@@ -476,6 +516,11 @@ const (
+ 	PTRACE_SYSEMU                    = 0x1f
+ 	PTRACE_SYSEMU_SINGLESTEP         = 0x20
+ 	PTRACE_TRACEME                   = 0
++	SCM_CREDENTIALS                  = 0x2
++	SCM_RIGHTS                       = 0x1
++	SCM_TIMESTAMP                    = 0x1d
++	SCM_TIMESTAMPING                 = 0x25
++	SCM_TIMESTAMPNS                  = 0x23
+ 	SHUT_RD                          = 0
+ 	SHUT_RDWR                        = 0x2
+ 	SHUT_WR                          = 0x1
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index 9a5f035fd6..bfe86bbe44 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -385,6 +385,40 @@ const (
+ 	IP_TOS                           = 0x1
+ 	IP_TTL                           = 0x2
+ 	IP_UNBLOCK_SOURCE                = 0x25
++	MAP_32BIT                        = 0x40
++	MAP_ANON                         = 0x20
++	MAP_ANONYMOUS                    = 0x20
++	MAP_DENYWRITE                    = 0x800
++	MAP_EXECUTABLE                   = 0x1000
++	MAP_FILE                         = 0
++	MAP_FIXED                        = 0x10
++	MAP_GROWSDOWN                    = 0x100
++	MAP_LOCKED                       = 0x2000
++	MAP_NONBLOCK                     = 0x10000
++	MAP_NORESERVE                    = 0x4000
++	MAP_POPULATE                     = 0x8000
++	MAP_PRIVATE                      = 0x2
++	MAP_SHARED                       = 0x1
++	MAP_STACK                        = 0x20000
++	MAP_TYPE                         = 0xf
++	MSG_CMSG_CLOEXEC                 = 0x40000000
++	MSG_CONFIRM                      = 0x800
++	MSG_CTRUNC                       = 0x8
++	MSG_DONTROUTE                    = 0x4
++	MSG_DONTWAIT                     = 0x40
++	MSG_EOR                          = 0x80
++	MSG_ERRQUEUE                     = 0x2000
++	MSG_FIN                          = 0x200
++	MSG_MORE                         = 0x8000
++	MSG_NOSIGNAL                     = 0x4000
++	MSG_OOB                          = 0x1
++	MSG_PEEK                         = 0x2
++	MSG_PROXY                        = 0x10
++	MSG_RST                          = 0x1000
++	MSG_SYN                          = 0x400
++	MSG_TRUNC                        = 0x20
++	MSG_TRYHARD                      = 0x4
++	MSG_WAITALL                      = 0x100
+ 	NAME_MAX                         = 0xff
+ 	O_ACCMODE                        = 0x3
+ 	O_APPEND                         = 0x400
+@@ -423,6 +457,12 @@ const (
+ 	PACKET_RECV_OUTPUT               = 0x3
+ 	PACKET_RX_RING                   = 0x5
+ 	PACKET_STATISTICS                = 0x6
++	PROT_EXEC                        = 0x4
++	PROT_GROWSDOWN                   = 0x1000000
++	PROT_GROWSUP                     = 0x2000000
++	PROT_NONE                        = 0
++	PROT_READ                        = 0x1
++	PROT_WRITE                       = 0x2
+ 	PTRACE_ARCH_PRCTL                = 0x1e
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_BTS_CLEAR                 = 0x2c
+@@ -477,6 +517,11 @@ const (
+ 	PTRACE_SYSEMU                    = 0x1f
+ 	PTRACE_SYSEMU_SINGLESTEP         = 0x20
+ 	PTRACE_TRACEME                   = 0
++	SCM_CREDENTIALS                  = 0x2
++	SCM_RIGHTS                       = 0x1
++	SCM_TIMESTAMP                    = 0x1d
++	SCM_TIMESTAMPING                 = 0x25
++	SCM_TIMESTAMPNS                  = 0x23
+ 	SHUT_RD                          = 0
+ 	SHUT_RDWR                        = 0x2
+ 	SHUT_WR                          = 0x1
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index e08525be4d..94cdc023c2 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -1089,3 +1089,20 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 	errno = int(e1)
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	errno = int(e1)
++	return
++}

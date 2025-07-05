@@ -9,9 +9,118 @@ Date:   Wed Jan 14 15:19:34 2009 -0800
     R=r
     OCL=22762
     CL=22762
-
+---
  usr/gri/pretty/compilation.go | 19 +++++++++++--------
  usr/gri/pretty/parser.go      | 20 +++++++++++---------
  usr/gri/pretty/scanner.go     |  5 ++++-
  usr/gri/pretty/selftest2.go   |  6 ++++++
  4 files changed, 32 insertions(+), 18 deletions(-)
+
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 491b41c33c..06172dc66d 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -4,13 +4,16 @@
+ 
+ package Compilation
+ 
+-import "array"
+-import OS "os"
+-import Platform "platform"
+-import Scanner "scanner"
+-import Parser "parser"
+-import AST "ast"
+-import TypeChecker "typechecker"
++import (
++	"array";
++	"utf8";
++	OS "os";
++	Platform "platform";
++	Scanner "scanner";
++	Parser "parser";
++	AST "ast";
++	TypeChecker "typechecker";
++)
+ 
+ 
+ func assert(b bool) {
+@@ -67,7 +70,7 @@ func (h *ErrorHandler) LineCol(pos int) (line, col int) {
+ 		}
+ 	}
+ 
+-	return line, pos - lpos;
++	return line, utf8.RuneCountInString(src, lpos, pos - lpos);
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index eaadf105a3..4ae58504c0 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -167,15 +167,17 @@ func (P *Parser) DeclareInScope(scope *AST.Scope, x *AST.Expr, kind int) {
+ 	if P.scope_lev < 0 {
+ 		panic("cannot declare objects in other packages");
+ 	}
+-	obj := x.obj;
+-	assert(x.tok == Scanner.IDENT && obj.kind == AST.NONE);
+-	obj.kind = kind;
+-	obj.pnolev = P.scope_lev;
+-	if scope.LookupLocal(obj.ident) != nil {
+-		P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
+-		return;  // don't insert it into the scope
+-	}
+-	scope.Insert(obj);
++	if x.tok != Scanner.ILLEGAL {  // ignore bad exprs
++		obj := x.obj;
++		assert(x.tok == Scanner.IDENT && obj.kind == AST.NONE);
++		obj.kind = kind;
++		obj.pnolev = P.scope_lev;
++		if scope.LookupLocal(obj.ident) != nil {
++			P.Error(obj.pos, `"` + obj.ident + `" is declared already`);
++			return;  // don't insert it into the scope
++		}
++		scope.Insert(obj);
++	}
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 9b56e329b1..681bbec459 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -5,6 +5,7 @@
+ package Scanner
+ 
+ import "utf8"
++import "unicode"
+ import Utils "utils"
+ 
+ 
+@@ -254,7 +255,9 @@ func init() {
+ 
+ 
+ func is_letter(ch int) bool {
+-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 128 ;
++	return
++		'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' ||  // common case
++		ch == '_' || unicode.IsLetter(ch);
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 9f488f2dbd..f41fbc7439 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -52,6 +52,12 @@ var (
+ )
+ 
+ 
++var (
++	// Unicode identifiers
++	ä, ö, ü, Á, Ø, Å, ƒ, ß int;
++)
++
++
+ func d0() {
+ 	var (
+ 		a string;

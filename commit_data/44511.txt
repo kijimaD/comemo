@@ -17,6 +17,21 @@ Date:   Tue Jul 28 20:02:57 2020 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ed1aa1c194..035822216d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5225,7 +5225,9 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
+ 
+ 	atomic.StoreRel(&pp.runqtail, t)
+ 	if !q.empty() {
++		lock(&sched.lock)
+ 		globrunqputbatch(q, int32(qsize))
++		unlock(&sched.lock)
+ 	}
+ }
+ 

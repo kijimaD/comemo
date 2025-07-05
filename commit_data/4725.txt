@@ -7,6 +7,23 @@ Date:   Thu Jan 28 17:14:29 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194133
-
+---
  src/pkg/reflect/value.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 14596ad315..881d44fb2a 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -282,6 +282,11 @@ func (v *Int64Value) Set(x int64) {
+ func (v *Int64Value) SetValue(x Value) { v.Set(x.(*Int64Value).Get()) }
+ 
+ // StringValue represents a string value.
++// runtime representation of slice
++type StringHeader struct {
++	Data uintptr
++	Len  int
++}
+ type StringValue struct {
+ 	value
+ }

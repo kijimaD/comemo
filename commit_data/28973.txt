@@ -25,7 +25,7 @@ Date:   Mon Jun 6 17:59:05 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go       | 148 +++++++++++++++---------
  src/cmd/compile/internal/syntax/scanner.go      |  54 ++++++---
  src/cmd/compile/internal/syntax/scanner_test.go |  24 ++--
@@ -36,3 +36,672 @@ Date:   Mon Jun 6 17:59:05 2016 -0700
  test/syntax/chan1.go                            |   6 +-
  test/syntax/semi4.go                            |   9 +-
  9 files changed, 172 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 40253224f0..9544001a2e 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -13,6 +13,11 @@ import (
+ const debug = false
+ const trace = false
+ 
++// The old gc parser assigned line numbers very inconsistently depending
++// on when it happened to construct AST nodes. To make transitioning to the
++// new AST easier, we try to mimick the behavior as much as possible.
++const gcCompat = true
++
+ type parser struct {
+ 	scanner
+ 
+@@ -60,6 +65,11 @@ func (p *parser) want(tok token) {
+ 
+ // syntax_error reports a syntax error at the current line.
+ func (p *parser) syntax_error(msg string) {
++	p.syntax_error_at(p.pos, p.line, msg)
++}
++
++// Like syntax_error, but reports error at given line rather than current lexer line.
++func (p *parser) syntax_error_at(pos, line int, msg string) {
+ 	if trace {
+ 		defer p.trace("syntax_error (" + msg + ")")()
+ 	}
+@@ -78,15 +88,17 @@ func (p *parser) syntax_error(msg string) {
+ 		msg = ", " + msg
+ 	default:
+ 		// plain error - we don't care about current token
+-		p.error("syntax error: " + msg)
++		p.error_at(pos, line, "syntax error: "+msg)
+ 		return
+ 	}
+ 
+ 	// determine token string
+ 	var tok string
+ 	switch p.tok {
+-	case _Name, _Literal:
++	case _Name:
+ 		tok = p.lit
++	case _Literal:
++		tok = "literal " + p.lit
+ 	case _Operator:
+ 		tok = p.op.String()
+ 	case _AssignOp:
+@@ -98,17 +110,7 @@ func (p *parser) syntax_error(msg string) {
+ 		tok = tokstring(p.tok)
+ 	}
+ 
+-	p.error("syntax error: unexpected " + tok + msg)
+-}
+-
+-// Like syntax_error, but reports error at given line rather than current lexer line.
+-func (p *parser) syntax_error_at(lineno uint32, msg string) {
+-	// TODO(gri) fix this
+-	// defer func(lineno int32) {
+-	// 	lexlineno = lineno
+-	// }(lexlineno)
+-	// lexlineno = lineno
+-	p.syntax_error(msg)
++	p.error_at(pos, line, "syntax error: unexpected "+tok+msg)
+ }
+ 
+ // The stopset contains keywords that start a statement.
+@@ -195,7 +197,10 @@ func (p *parser) file() *File {
+ 	f.init(p)
+ 
+ 	// PackageClause
+-	p.want(_Package)
++	if !p.got(_Package) {
++		p.syntax_error("package statement must be first")
++		return nil
++	}
+ 	f.PkgName = p.name()
+ 	p.want(_Semi)
+ 
+@@ -296,7 +301,7 @@ func (p *parser) importDecl(group *Group) Decl {
+ 		d.LocalPkgName = n
+ 		p.next()
+ 	}
+-	if p.tok == _Literal && p.kind == StringLit {
++	if p.tok == _Literal && (gcCompat || p.kind == StringLit) {
+ 		d.Path = p.oliteral()
+ 	} else {
+ 		p.syntax_error("missing import path; require quoted string")
+@@ -384,17 +389,18 @@ func (p *parser) funcDecl() *FuncDecl {
+ 	f := new(FuncDecl)
+ 	f.init(p)
+ 
++	badRecv := false
+ 	if p.tok == _Lparen {
+ 		rcvr := p.paramList()
+ 		switch len(rcvr) {
+ 		case 0:
+ 			p.error("method has no receiver")
+-			return nil // TODO(gri) better solution
++			badRecv = true
+ 		case 1:
+ 			f.Recv = rcvr[0]
+ 		default:
+ 			p.error("method has multiple receivers")
+-			return nil // TODO(gri) better solution
++			badRecv = true
+ 		}
+ 	}
+ 
+@@ -429,6 +435,9 @@ func (p *parser) funcDecl() *FuncDecl {
+ 	// 	p.error("can only use //go:noescape with external func implementations")
+ 	// }
+ 
++	if badRecv {
++		return nil // TODO(gri) better solution
++	}
+ 	return f
+ }
+ 
+@@ -510,25 +519,29 @@ func (p *parser) unaryExpr() Expr {
+ 		//   <-(chan E)   =>  (<-chan E)
+ 		//   <-(chan<-E)  =>  (<-chan (<-E))
+ 
+-		if x, ok := x.(*ChanType); ok {
++		if _, ok := x.(*ChanType); ok {
+ 			// x is a channel type => re-associate <-
+ 			dir := SendOnly
+ 			t := x
+-			for ok && dir == SendOnly {
+-				dir = t.Dir
++			for dir == SendOnly {
++				c, ok := t.(*ChanType)
++				if !ok {
++					break
++				}
++				dir = c.Dir
+ 				if dir == RecvOnly {
+ 					// t is type <-chan E but <-<-chan E is not permitted
+ 					// (report same error as for "type _ <-<-chan E")
+ 					p.syntax_error("unexpected <-, expecting chan")
+ 					// already progressed, no need to advance
+ 				}
+-				t.Dir = RecvOnly
+-				t, ok = t.Elem.(*ChanType)
++				c.Dir = RecvOnly
++				t = c.Elem
+ 			}
+ 			if dir == SendOnly {
+ 				// channel dir is <- but channel element E is not a channel
+ 				// (report same error as for "type _ <-chan<-E")
+-				p.syntax_error(fmt.Sprintf("unexpected %v, expecting chan", t))
++				p.syntax_error(fmt.Sprintf("unexpected %s, expecting chan", String(t)))
+ 				// already progressed, no need to advance
+ 			}
+ 			return x
+@@ -538,7 +551,10 @@ func (p *parser) unaryExpr() Expr {
+ 		return &Operation{Op: Recv, X: x}
+ 	}
+ 
+-	return p.pexpr(false)
++	// TODO(mdempsky): We need parens here so we can report an
++	// error for "(x) := true". It should be possible to detect
++	// and reject that more efficiently though.
++	return p.pexpr(true)
+ }
+ 
+ // callStmt parses call-like statements that can be preceded by 'defer' and 'go'.
+@@ -556,6 +572,9 @@ func (p *parser) callStmt() *CallStmt {
+ 	switch x := x.(type) {
+ 	case *CallExpr:
+ 		s.Call = x
++		if gcCompat {
++			s.node = x.node
++		}
+ 	case *ParenExpr:
+ 		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
+ 		// already progressed, no need to advance
+@@ -760,13 +779,7 @@ loop:
+ 			p.xnest--
+ 
+ 		case _Lparen:
+-			// call or conversion
+-			// convtype '(' expr ocomma ')'
+-			c := new(CallExpr)
+-			c.init(p)
+-			c.Fun = x
+-			c.ArgList, c.HasDots = p.argList()
+-			x = c
++			x = p.call(x)
+ 
+ 		case _Lbrace:
+ 			// operand may have returned a parenthesized complit
+@@ -1032,6 +1045,9 @@ func (p *parser) structType() *StructType {
+ 			break
+ 		}
+ 	}
++	if gcCompat {
++		typ.init(p)
++	}
+ 	p.want(_Rbrace)
+ 
+ 	return typ
+@@ -1056,6 +1072,9 @@ func (p *parser) interfaceType() *InterfaceType {
+ 			break
+ 		}
+ 	}
++	if gcCompat {
++		typ.init(p)
++	}
+ 	p.want(_Rbrace)
+ 
+ 	return typ
+@@ -1446,7 +1465,8 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+ 		return p.newAssignStmt(0, lhs, p.exprList())
+ 
+ 	case _Define:
+-		//lno := lineno
++		var n node
++		n.init(p)
+ 		p.next()
+ 
+ 		if rangeOk && p.got(_Range) {
+@@ -1470,7 +1490,11 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
+ 			return &ExprStmt{X: x}
+ 		}
+ 
+-		return p.newAssignStmt(Def, lhs, rhs)
++		as := p.newAssignStmt(Def, lhs, rhs)
++		if gcCompat {
++			as.node = n
++		}
++		return as
+ 
+ 	default:
+ 		p.syntax_error("expecting := or = or comma")
+@@ -1502,21 +1526,22 @@ func (p *parser) labeledStmt(label *Name) Stmt {
+ 		defer p.trace("labeledStmt")()
+ 	}
+ 
+-	var ls Stmt // labeled statement
++	s := new(LabeledStmt)
++	s.init(p)
++	s.Label = label
++
++	p.want(_Colon)
++
+ 	if p.tok != _Rbrace && p.tok != _EOF {
+-		ls = p.stmt()
+-		if ls == missing_stmt {
++		s.Stmt = p.stmt()
++		if s.Stmt == missing_stmt {
+ 			// report error at line of ':' token
+-			p.syntax_error_at(label.line, "missing statement after label")
++			p.syntax_error_at(int(label.pos), int(label.line), "missing statement after label")
+ 			// we are already at the end of the labeled statement - no need to advance
+ 			return missing_stmt
+ 		}
+ 	}
+ 
+-	s := new(LabeledStmt)
+-	s.init(p)
+-	s.Label = label
+-	s.Stmt = ls
+ 	return s
+ }
+ 
+@@ -1590,8 +1615,8 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
+ 
+ 	if p.tok != _Semi {
+ 		// accept potential varDecl but complain
+-		if p.got(_Var) {
+-			p.error("var declaration not allowed in initializer")
++		if forStmt && p.got(_Var) {
++			p.error("var declaration not allowed in for initializer")
+ 		}
+ 		init = p.simpleStmt(nil, forStmt)
+ 		// If we have a range clause, we are done.
+@@ -1650,10 +1675,14 @@ func (p *parser) ifStmt() *IfStmt {
+ 	s.Then = p.stmtBody("if clause")
+ 
+ 	if p.got(_Else) {
+-		if p.tok == _If {
++		switch p.tok {
++		case _If:
+ 			s.Else = p.ifStmt()
+-		} else {
++		case _Lbrace:
+ 			s.Else = p.blockStmt()
++		default:
++			p.error("else must be followed by if or statement block")
++			p.advance(_Name, _Rbrace)
+ 		}
+ 	}
+ 
+@@ -1725,6 +1754,9 @@ func (p *parser) caseClause() *CaseClause {
+ 		p.advance(_Case, _Default, _Rbrace)
+ 	}
+ 
++	if gcCompat {
++		c.init(p)
++	}
+ 	p.want(_Colon)
+ 	c.Body = p.stmtList()
+ 
+@@ -1769,6 +1801,9 @@ func (p *parser) commClause() *CommClause {
+ 		p.advance(_Case, _Default, _Rbrace)
+ 	}
+ 
++	if gcCompat {
++		c.init(p)
++	}
+ 	p.want(_Colon)
+ 	c.Body = p.stmtList()
+ 
+@@ -1794,7 +1829,7 @@ func (p *parser) stmt() Stmt {
+ 	// look for it first before doing anything more expensive.
+ 	if p.tok == _Name {
+ 		lhs := p.exprList()
+-		if label, ok := lhs.(*Name); ok && p.got(_Colon) {
++		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
+ 			return p.labeledStmt(label)
+ 		}
+ 		return p.simpleStmt(lhs, false)
+@@ -1916,26 +1951,35 @@ func (p *parser) stmtList() (l []Stmt) {
+ }
+ 
+ // Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
+-func (p *parser) argList() (list []Expr, hasDots bool) {
++func (p *parser) call(fun Expr) *CallExpr {
+ 	if trace {
+-		defer p.trace("argList")()
++		defer p.trace("call")()
+ 	}
+ 
++	// call or conversion
++	// convtype '(' expr ocomma ')'
++	c := new(CallExpr)
++	c.init(p)
++	c.Fun = fun
++
+ 	p.want(_Lparen)
+ 	p.xnest++
+ 
+ 	for p.tok != _EOF && p.tok != _Rparen {
+-		list = append(list, p.expr()) // expr_or_type
+-		hasDots = p.got(_DotDotDot)
+-		if !p.ocomma(_Rparen) || hasDots {
++		c.ArgList = append(c.ArgList, p.expr()) // expr_or_type
++		c.HasDots = p.got(_DotDotDot)
++		if !p.ocomma(_Rparen) || c.HasDots {
+ 			break
+ 		}
+ 	}
+ 
+ 	p.xnest--
++	if gcCompat {
++		c.init(p)
++	}
+ 	p.want(_Rparen)
+ 
+-	return
++	return c
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 0f0f1ead9a..d02bb6d11b 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -46,7 +46,7 @@ redo:
+ 	// token start
+ 	s.pos, s.line = s.source.pos0(), s.source.line0
+ 
+-	if isLetter(c) || c >= utf8.RuneSelf && unicode.IsLetter(c) {
++	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
+ 		s.ident()
+ 		return
+ 	}
+@@ -271,7 +271,7 @@ redo:
+ 
+ 	default:
+ 		s.tok = 0
+-		s.error(fmt.Sprintf("invalid rune %q", c))
++		s.error(fmt.Sprintf("illegal character %#U", c))
+ 		goto redo
+ 	}
+ 
+@@ -305,7 +305,7 @@ func (s *scanner) ident() {
+ 
+ 	// general case
+ 	if c >= utf8.RuneSelf {
+-		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) {
++		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || s.isCompatRune(c, false) {
+ 			c = s.getr()
+ 		}
+ 	}
+@@ -327,6 +327,18 @@ func (s *scanner) ident() {
+ 	s.tok = _Name
+ }
+ 
++func (s *scanner) isCompatRune(c rune, start bool) bool {
++	if !gcCompat || c < utf8.RuneSelf {
++		return false
++	}
++	if start && unicode.IsNumber(c) {
++		s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
++	} else {
++		s.error(fmt.Sprintf("invalid identifier character %#U", c))
++	}
++	return true
++}
++
+ // hash is a perfect hash function for keywords.
+ // It assumes that s has at least length 2.
+ func hash(s []byte) uint {
+@@ -496,24 +508,26 @@ func (s *scanner) rune() {
+ 	s.startLit()
+ 
+ 	r := s.getr()
++	ok := false
+ 	if r == '\'' {
+-		s.error("empty character literal")
++		s.error("empty character literal or unescaped ' in character literal")
+ 	} else if r == '\n' {
+ 		s.ungetr() // assume newline is not part of literal
+ 		s.error("newline in character literal")
+ 	} else {
+-		ok := true
++		ok = true
+ 		if r == '\\' {
+ 			ok = s.escape('\'')
+ 		}
+-		r = s.getr()
+-		if r != '\'' {
+-			// only report error if we're ok so far
+-			if ok {
+-				s.error("missing '")
+-			}
+-			s.ungetr()
++	}
++
++	r = s.getr()
++	if r != '\'' {
++		// only report error if we're ok so far
++		if ok {
++			s.error("missing '")
+ 		}
++		s.ungetr()
+ 	}
+ 
+ 	s.nlsemi = true
+@@ -623,10 +637,18 @@ func (s *scanner) escape(quote rune) bool {
+ 			if c < 0 {
+ 				return true // complain in caller about EOF
+ 			}
+-			if c != quote {
+-				s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
++			if gcCompat {
++				name := "hex"
++				if base == 8 {
++					name = "octal"
++				}
++				s.error(fmt.Sprintf("non-%s character in escape sequence: %c", name, c))
+ 			} else {
+-				s.error("escape sequence incomplete")
++				if c != quote {
++					s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
++				} else {
++					s.error("escape sequence incomplete")
++				}
+ 			}
+ 			s.ungetr()
+ 			return false
+@@ -637,7 +659,7 @@ func (s *scanner) escape(quote rune) bool {
+ 	}
+ 	s.ungetr()
+ 
+-	if x > max && n == 3 {
++	if x > max && base == 8 {
+ 		s.error(fmt.Sprintf("octal escape value > 255: %d", x))
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 69e81aceca..4b582ccfdf 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -269,7 +269,7 @@ func TestScanErrors(t *testing.T) {
+ 
+ 		// token-level errors
+ 		{"x + ~y", "bitwise complement operator is ^", 4, 1},
+-		{"foo$bar = 0", "invalid rune '$'", 3, 1},
++		{"foo$bar = 0", "illegal character U+0024 '$'", 3, 1},
+ 		{"const x = 0xyz", "malformed hex constant", 12, 1},
+ 		{"0123456789", "malformed octal constant", 10, 1},
+ 		{"0123456789. /* foobar", "comment not terminated", 12, 1},   // valid float constant
+@@ -277,17 +277,17 @@ func TestScanErrors(t *testing.T) {
+ 		{"var a, b = 08, 07\n", "malformed octal constant", 13, 1},
+ 		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
+ 
+-		{`''`, "empty character literal", 1, 1},
++		{`''`, "empty character literal or unescaped ' in character literal", 1, 1},
+ 		{"'\n", "newline in character literal", 1, 1},
+ 		{`'\`, "missing '", 2, 1},
+ 		{`'\'`, "missing '", 3, 1},
+ 		{`'\x`, "missing '", 3, 1},
+-		{`'\x'`, "escape sequence incomplete", 3, 1},
++		{`'\x'`, "non-hex character in escape sequence: '", 3, 1},
+ 		{`'\y'`, "unknown escape sequence", 2, 1},
+-		{`'\x0'`, "escape sequence incomplete", 4, 1},
+-		{`'\00'`, "escape sequence incomplete", 4, 1},
++		{`'\x0'`, "non-hex character in escape sequence: '", 4, 1},
++		{`'\00'`, "non-octal character in escape sequence: '", 4, 1},
+ 		{`'\377' /*`, "comment not terminated", 7, 1}, // valid octal escape
+-		{`'\378`, "illegal character U+0038 '8' in escape sequence", 4, 1},
++		{`'\378`, "non-octal character in escape sequence: 8", 4, 1},
+ 		{`'\400'`, "octal escape value > 255: 256", 5, 1},
+ 		{`'xx`, "missing '", 2, 1},
+ 
+@@ -302,19 +302,19 @@ func TestScanErrors(t *testing.T) {
+ 		{`"\`, "string not terminated", 0, 1},
+ 		{`"\"`, "string not terminated", 0, 1},
+ 		{`"\x`, "string not terminated", 0, 1},
+-		{`"\x"`, "escape sequence incomplete", 3, 1},
++		{`"\x"`, "non-hex character in escape sequence: \"", 3, 1},
+ 		{`"\y"`, "unknown escape sequence", 2, 1},
+-		{`"\x0"`, "escape sequence incomplete", 4, 1},
+-		{`"\00"`, "escape sequence incomplete", 4, 1},
++		{`"\x0"`, "non-hex character in escape sequence: \"", 4, 1},
++		{`"\00"`, "non-octal character in escape sequence: \"", 4, 1},
+ 		{`"\377" /*`, "comment not terminated", 7, 1}, // valid octal escape
+-		{`"\378"`, "illegal character U+0038 '8' in escape sequence", 4, 1},
++		{`"\378"`, "non-octal character in escape sequence: 8", 4, 1},
+ 		{`"\400"`, "octal escape value > 255: 256", 5, 1},
+ 
+ 		{`s := "foo\z"`, "unknown escape sequence", 10, 1},
+ 		{`s := "foo\z00\nbar"`, "unknown escape sequence", 10, 1},
+ 		{`"\x`, "string not terminated", 0, 1},
+-		{`"\x"`, "escape sequence incomplete", 3, 1},
+-		{`var s string = "\x"`, "escape sequence incomplete", 18, 1},
++		{`"\x"`, "non-hex character in escape sequence: \"", 3, 1},
++		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 18, 1},
+ 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 18, 1},
+ 
+ 		// former problem cases
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 1c6d7b5299..be2b58ad82 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -100,7 +100,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 			switch cmd {
+ 			case "skip", "compiledir":
+ 				continue // ignore this file
+-			case "errorcheck":
++			// TODO(mdempsky): Remove -newparser=0 case once
++			// test/fixedbugs/issue11610.go is updated.
++			case "errorcheck", "errorcheck -newparser=0":
+ 				expectErrors = true
+ 			}
+ 		}
+diff --git a/test/fixedbugs/issue11610.go b/test/fixedbugs/issue11610.go
+index f32d480482..cb5ced6d7c 100644
+--- a/test/fixedbugs/issue11610.go
++++ b/test/fixedbugs/issue11610.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -newparser=0
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,6 +7,10 @@
+ // Test an internal compiler error on ? symbol in declaration
+ // following an empty import.
+ 
++// TODO(mdempsky): Update for new parser. New parser recovers more
++// gracefully and doesn't trigger the "cannot declare name" error.
++// Also remove "errorcheck -newparser=0" case in go/types.TestStdFixed.
++
+ package a
+ import""  // ERROR "import path is empty"
+ var?      // ERROR "illegal character U\+003F '\?'"
+diff --git a/test/nul1.go b/test/nul1.go
+index 20426b4fa0..624101b621 100644
+--- a/test/nul1.go
++++ b/test/nul1.go
+@@ -1,4 +1,4 @@
+-// errorcheckoutput
++// errorcheckoutput -newparser=0
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,6 +6,10 @@
+ 
+ // Test source files and strings containing NUL and invalid UTF-8.
+ 
++// TODO(mdempsky): Update error expectations for -newparser=1. The new
++// lexer skips over NUL and invalid UTF-8 sequences, so they don't emit
++// "illegal character" or "invalid identifier character" errors.
++
+ package main
+ 
+ import (
+@@ -53,4 +57,3 @@ var z` + "\xc1\x81" + ` int // ERROR "UTF-8" "invalid identifier character"
+ 
+ `)
+ }
+-
+diff --git a/test/switch2.go b/test/switch2.go
+index 11ff5c5d9b..11b85d3692 100644
+--- a/test/switch2.go
++++ b/test/switch2.go
+@@ -11,11 +11,11 @@ package main
+ 
+ func f() {
+ 	switch {
+-	case 0; // ERROR "expecting := or = or : or comma"
++	case 0; // ERROR "expecting := or = or : or comma|expecting :"
+ 	}
+ 
+ 	switch {
+-	case 0; // ERROR "expecting := or = or : or comma"
++	case 0; // ERROR "expecting := or = or : or comma|expecting :"
+ 	default:
+ 	}
+ 
+diff --git a/test/syntax/chan1.go b/test/syntax/chan1.go
+index 2e9929b665..22724fd297 100644
+--- a/test/syntax/chan1.go
++++ b/test/syntax/chan1.go
+@@ -1,9 +1,13 @@
+-// errorcheck
++// errorcheck -newparser=0
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(mdempsky): Update for new parser or delete.
++// Like go/parser, the new parser doesn't specially recognize
++// send statements misused in an expression context.
++
+ package main
+ 
+ var c chan int
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index 6315f34eaf..262926a01e 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -1,14 +1,17 @@
+-// errorcheck
++// errorcheck -newparser=0
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO(mdempsky): Update error expectations for new parser.
++// The new parser emits an extra "missing { after for clause" error.
++// The old parser is supposed to emit this too, but it panics first
++// due to a nil pointer dereference.
++
+ package main
+ 
+ func main() {
+ 	for x		// GCCGO_ERROR "undefined"
+ 	{		// ERROR "missing .*{.* after for clause|missing operand"
+ 		z	// GCCGO_ERROR "undefined"
+-
+-

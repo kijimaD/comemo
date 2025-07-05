@@ -15,8 +15,64 @@ Date:   Mon Dec 16 17:18:06 2019 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go             | 10 +++-------
  src/cmd/go/testdata/script/mod_find.txt         |  5 +++++
  src/cmd/go/testdata/script/mod_invalid_path.txt | 12 ++++++++++++
  3 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 7f493104b1..af23647cd4 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -368,13 +368,9 @@ func InitMod(ctx context.Context) {
+ 	modFile = f
+ 	index = indexModFile(data, f, fixed)
+ 
+-	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
+-		// Empty mod file. Must add module path.
+-		path, err := findModulePath(modRoot)
+-		if err != nil {
+-			base.Fatalf("go: %v", err)
+-		}
+-		f.AddModuleStmt(path)
++	if f.Module == nil {
++		// No module declaration. Must add module path.
++		base.Fatalf("go: no module declaration in go.mod.\n\tRun 'go mod edit -module=example.com/mod' to specify the module path.")
+ 	}
+ 
+ 	if len(f.Syntax.Stmt) == 1 && f.Module != nil {
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 7fbe9fb7fe..9468acfd33 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -19,6 +19,11 @@ go mod init
+ stderr 'module example.com/x/y$'
+ rm go.mod
+ 
++# go mod init rejects a zero-length go.mod file
++cp $devnull go.mod # can't use touch to create it because Windows
++! go mod init
++stderr 'go.mod already exists'
++
+ # Module path from Godeps/Godeps.json overrides GOPATH.
+ cd $GOPATH/src/example.com/x/y/z
+ go mod init
+diff --git a/src/cmd/go/testdata/script/mod_invalid_path.txt b/src/cmd/go/testdata/script/mod_invalid_path.txt
+new file mode 100644
+index 0000000000..1ab418a075
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_invalid_path.txt
+@@ -0,0 +1,12 @@
++# Test that mod files with missing paths produce an error.
++
++# Test that go list fails on a go.mod with no module declaration.
++cd $WORK/gopath/src/mod
++! go list .
++stderr '^go: no module declaration in go.mod.\n\tRun ''go mod edit -module=example.com/mod'' to specify the module path.$'
++
++-- mod/go.mod --
++
++-- mod/foo.go --
++package foo
++

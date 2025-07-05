@@ -16,6 +16,54 @@ Date:   Wed Feb 21 16:33:31 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/composite.go | 28 ++++++++++------------------
  1 file changed, 10 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/vet/composite.go b/src/cmd/vet/composite.go
+index fc48033182..965d73753a 100644
+--- a/src/cmd/vet/composite.go
++++ b/src/cmd/vet/composite.go
+@@ -50,7 +50,7 @@ func checkUnkeyedLiteral(f *File, node ast.Node) {
+ 		// skip non-struct composite literals
+ 		return
+ 	}
+-	if isLocalType(f, typeName) {
++	if isLocalType(f, typ) {
+ 		// allow unkeyed locally defined composite literal
+ 		return
+ 	}
+@@ -71,24 +71,16 @@ func checkUnkeyedLiteral(f *File, node ast.Node) {
+ 	f.Badf(cl.Pos(), "%s composite literal uses unkeyed fields", typeName)
+ }
+ 
+-func isLocalType(f *File, typeName string) bool {
+-	if strings.HasPrefix(typeName, "struct{") {
++func isLocalType(f *File, typ types.Type) bool {
++	switch x := typ.(type) {
++	case *types.Struct:
+ 		// struct literals are local types
+ 		return true
++	case *types.Pointer:
++		return isLocalType(f, x.Elem())
++	case *types.Named:
++		// names in package foo are local to foo_test too
++		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(f.pkg.path, "_test")
+ 	}
+-
+-	// make *foo.bar, **foo.bar, etc match with the "foo." prefix
+-	// below
+-	typeName = strings.TrimLeft(typeName, "*")
+-
+-	pkgname := f.pkg.path
+-	if strings.HasPrefix(typeName, pkgname+".") {
+-		return true
+-	}
+-
+-	// treat types as local inside test packages with _test name suffix
+-	if strings.HasSuffix(pkgname, "_test") {
+-		pkgname = pkgname[:len(pkgname)-len("_test")]
+-	}
+-	return strings.HasPrefix(typeName, pkgname+".")
++	return false
+ }

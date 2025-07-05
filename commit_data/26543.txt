@@ -13,6 +13,56 @@ Date:   Wed Feb 3 21:06:21 2016 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go | 19 ++++++-------------
  1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 220877242c..796d899f7c 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -253,6 +253,7 @@ func checkFunc(f *Func) {
+ 		// Note: regalloc introduces non-dominating args.
+ 		// See TODO in regalloc.go.
+ 		idom := dominators(f)
++		sdom := newSparseTree(f, idom)
+ 		for _, b := range f.Blocks {
+ 			for _, v := range b.Values {
+ 				for i, arg := range v.Args {
+@@ -261,12 +262,12 @@ func checkFunc(f *Func) {
+ 					if v.Op == OpPhi {
+ 						y = b.Preds[i]
+ 					}
+-					if !domCheck(f, idom, x, y) {
++					if !domCheck(f, sdom, x, y) {
+ 						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
+ 					}
+ 				}
+ 			}
+-			if b.Control != nil && !domCheck(f, idom, b.Control.Block, b) {
++			if b.Control != nil && !domCheck(f, sdom, b.Control.Block, b) {
+ 				f.Fatalf("control value %s for %s doesn't dominate", b.Control, b)
+ 			}
+ 		}
+@@ -274,18 +275,10 @@ func checkFunc(f *Func) {
+ }
+ 
+ // domCheck reports whether x dominates y (including x==y).
+-func domCheck(f *Func, idom []*Block, x, y *Block) bool {
+-	if y != f.Entry && idom[y.ID] == nil {
++func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
++	if !sdom.isAncestorEq(y, f.Entry) {
+ 		// unreachable - ignore
+ 		return true
+ 	}
+-	for {
+-		if x == y {
+-			return true
+-		}
+-		y = idom[y.ID]
+-		if y == nil {
+-			return false
+-		}
+-	}
++	return sdom.isAncestorEq(x, y)
+ }

@@ -9,6 +9,58 @@ Date:   Mon Oct 9 15:25:51 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 30 ++++++++++++++++--------------
  1 file changed, 16 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index ede1141a3e..18cc4e6fff 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -243,7 +243,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
+ 				fmt.Fprintf(tw, "  %s:%d\t%#x\t", base(file), line, pc)
+ 			}
+ 
+-			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" {
++			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" || d.goarch == "amd64p32" {
+ 				// Print instruction as bytes.
+ 				fmt.Fprintf(tw, "%x", code[i:i+size])
+ 			} else {
+@@ -374,22 +374,24 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
+ }
+ 
+ var disasms = map[string]disasmFunc{
+-	"386":     disasm_386,
+-	"amd64":   disasm_amd64,
+-	"arm":     disasm_arm,
+-	"arm64":   disasm_arm64,
+-	"ppc64":   disasm_ppc64,
+-	"ppc64le": disasm_ppc64,
++	"386":      disasm_386,
++	"amd64":    disasm_amd64,
++	"amd64p32": disasm_amd64,
++	"arm":      disasm_arm,
++	"arm64":    disasm_arm64,
++	"ppc64":    disasm_ppc64,
++	"ppc64le":  disasm_ppc64,
+ }
+ 
+ var byteOrders = map[string]binary.ByteOrder{
+-	"386":     binary.LittleEndian,
+-	"amd64":   binary.LittleEndian,
+-	"arm":     binary.LittleEndian,
+-	"arm64":   binary.LittleEndian,
+-	"ppc64":   binary.BigEndian,
+-	"ppc64le": binary.LittleEndian,
+-	"s390x":   binary.BigEndian,
++	"386":      binary.LittleEndian,
++	"amd64":    binary.LittleEndian,
++	"amd64p32": binary.LittleEndian,
++	"arm":      binary.LittleEndian,
++	"arm64":    binary.LittleEndian,
++	"ppc64":    binary.BigEndian,
++	"ppc64le":  binary.LittleEndian,
++	"s390x":    binary.BigEndian,
+ }
+ 
+ type Liner interface {

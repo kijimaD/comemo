@@ -7,6 +7,25 @@ Date:   Mon Aug 15 12:57:13 2016 -0700
     Change-Id: Ieae5831b35768a625bf735a38f3d938f23f0b77b
     Reviewed-on: https://go-review.googlesource.com/27057
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index fcb8c19003..2d4f41f029 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -30,6 +30,13 @@ to fix critical security problems in both Go 1.4 and Go 1.5 as they arise.
+ See the <a href="/security">security policy</a> for more details.
+ </p>
+ 
++<h2 id="go1.7">go1.7 (released 2016/08/15)</h2>
++
++<p>
++Go 1.7 is a major release of Go.
++Read the <a href="/doc/go1.7">Go 1.7 Release Notes</a> for more information.
++</p>
++
+ <h2 id="go1.6">go1.6 (released 2016/02/17)</h2>
+ 
+ <p>

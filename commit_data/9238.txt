@@ -8,6 +8,75 @@ Date:   Thu Jul 28 09:59:20 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4823056
-
+---
  src/pkg/exp/template/helper.go | 30 ++++++++++++++++++++++--------
  1 file changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index 97917fddfc..cf50a3082f 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -35,6 +35,17 @@ func (t *Template) ParseFile(filename string) os.Error {
+ 	return t.Parse(string(b))
+ }
+ 
++// ParseFileInSet is the same as ParseFile except that function bindings
++// are checked against those in the set and the template is added
++// to the set.
++func (t *Template) ParseFileInSet(filename string, set *Set) os.Error {
++	b, err := ioutil.ReadFile(filename)
++	if err != nil {
++		return err
++	}
++	return t.ParseInSet(string(b), set)
++}
++
+ // MustParseFile reads the template definition from a file and parses it to
+ // construct an internal representation of the template for execution.
+ // It panics if the file cannot be read or the template cannot be parsed.
+@@ -52,6 +63,15 @@ func ParseFile(filename string) (*Template, os.Error) {
+ 	return t, t.ParseFile(filename)
+ }
+ 
++// ParseFileInSet creates a new Template and parses the template
++// definition from the named file. The template name is the base name
++// of the file. It also adds the template to the set. Function bindings are
++//checked against those in the set.
++func ParseFileInSet(filename string, set *Set) (*Template, os.Error) {
++	t := New(filepath.Base(filename))
++	return t, t.ParseFileInSet(filename, set)
++}
++
+ // MustParseFile creates a new Template and parses the template definition
+ // from the named file.  The template name is the base name of the file.
+ // It panics if the file cannot be read or the template cannot be parsed.
+@@ -179,13 +199,10 @@ func MustParseSetFiles(pattern string) *Set {
+ // encountered.
+ func (s *Set) ParseTemplateFile(filenames ...string) os.Error {
+ 	for _, filename := range filenames {
+-		t, err := ParseFile(filename)
++		_, err := ParseFileInSet(filename, s)
+ 		if err != nil {
+ 			return err
+ 		}
+-		if err := s.add(t); err != nil {
+-			return err
+-		}
+ 	}
+ 	return nil
+ }
+@@ -216,13 +233,10 @@ func (s *Set) ParseTemplateFiles(pattern string) os.Error {
+ 		return err
+ 	}
+ 	for _, filename := range filenames {
+-		t, err := ParseFile(filename)
++		_, err := ParseFileInSet(filename, s)
+ 		if err != nil {
+ 			return err
+ 		}
+-		if err := s.add(t); err != nil {
+-			return err
+-		}
+ 	}
+ 	return nil
+ }

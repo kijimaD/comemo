@@ -12,7 +12,7 @@ Date:   Wed Dec 30 01:24:30 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go     | 2 +-
  src/cmd/compile/internal/ir/node_gen.go       | 8 ++++++--
  src/cmd/compile/internal/ir/stmt.go           | 2 +-
@@ -20,3 +20,103 @@ Date:   Wed Dec 30 01:24:30 2020 +0700
  src/cmd/compile/internal/typecheck/stmt.go    | 2 +-
  src/cmd/compile/internal/walk/switch.go       | 4 ++--
  6 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index b953666ce6..ec99c86c06 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -374,7 +374,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		var ks []hole
+ 		for _, cas := range n.Cases { // cases
+ 			if typesw && n.Tag.(*ir.TypeSwitchGuard).Tag != nil {
+-				cv := cas.Var.(*ir.Name)
++				cv := cas.Var
+ 				k := e.dcl(cv) // type switch variables have no ODCL.
+ 				if cv.Type().HasPointers() {
+ 					ks = append(ks, k.dotType(cv.Type(), cas, "switch case"))
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index d8bb4200ef..6c1a28022f 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -230,14 +230,18 @@ func (n *CaseClause) copy() Node {
+ func (n *CaseClause) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+-	err = maybeDo(n.Var, err, do)
++	if n.Var != nil {
++		err = maybeDo(n.Var, err, do)
++	}
+ 	err = maybeDoList(n.List, err, do)
+ 	err = maybeDoList(n.Body, err, do)
+ 	return err
+ }
+ func (n *CaseClause) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+-	n.Var = maybeEdit(n.Var, edit)
++	if n.Var != nil {
++		n.Var = edit(n.Var).(*Name)
++	}
+ 	editList(n.List, edit)
+ 	editList(n.Body, edit)
+ }
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index d88280dda7..a1f5e5933f 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -172,7 +172,7 @@ func (n *BranchStmt) Sym() *types.Sym { return n.Label }
+ // A CaseClause is a case statement in a switch or select: case List: Body.
+ type CaseClause struct {
+ 	miniStmt
+-	Var  Node  // declared variable for this case in type switch
++	Var  *Name // declared variable for this case in type switch
+ 	List Nodes // list of expressions for switch, early select
+ 	Body Nodes
+ }
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index c287d76c43..489879b3b4 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1187,7 +1187,7 @@ func (w *exportWriter) caseList(cases []*ir.CaseClause, namedTypeSwitch bool) {
+ 		w.pos(cas.Pos())
+ 		w.stmtList(cas.List)
+ 		if namedTypeSwitch {
+-			w.localName(cas.Var.(*ir.Name))
++			w.localName(cas.Var)
+ 		}
+ 		w.stmtList(cas.Body)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index f5d36a663d..d90d13b44c 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -631,7 +631,7 @@ func tcSwitchType(n *ir.SwitchStmt) {
+ 			nvar := ncase.Var
+ 			nvar.SetType(vt)
+ 			if vt != nil {
+-				nvar = AssignExpr(nvar)
++				nvar = AssignExpr(nvar).(*ir.Name)
+ 			} else {
+ 				// Clause variable is broken; prevent typechecking.
+ 				nvar.SetTypecheck(1)
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index de0b471b34..b03bc3eba7 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -440,7 +440,7 @@ type typeClause struct {
+ 	body ir.Nodes
+ }
+ 
+-func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
++func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar *ir.Name, jmp ir.Node) {
+ 	var body ir.Nodes
+ 	if caseVar != nil {
+ 		l := []ir.Node{
+@@ -450,7 +450,7 @@ func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp ir.Node) {
+ 		typecheck.Stmts(l)
+ 		body.Append(l...)
+ 	} else {
+-		caseVar = ir.BlankNode
++		caseVar = ir.BlankNode.(*ir.Name)
+ 	}
+ 
+ 	// cv, ok = iface.(type)

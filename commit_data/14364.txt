@@ -10,6 +10,34 @@ Date:   Thu Nov 8 15:43:28 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6822099
-
+---
  test/index.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/test/index.go b/test/index.go
+index 528d7add47..daab45f7a1 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -13,7 +13,7 @@ import (
+ 	"bufio"
+ 	"fmt"
+ 	"os"
+-	"runtime"
++	"unsafe"
+ )
+ 
+ const prolog = `
+@@ -214,9 +214,10 @@ func main() {
+ 				// the next pass from running.
+ 				// So run it as a separate check.
+ 				thisPass = 1
+-			} else if a == "s" && n == "" && (i == "i64big" || i == "i64bigger") && runtime.GOARCH == "amd64" {
+-				// On amd64, these huge numbers do fit in an int, so they are not
+-				// rejected at compile time.
++			} else if a == "s" && n == "" && (i == "i64big" || i == "i64bigger") && unsafe.Sizeof(int(0)) > 4 {
++				// If int is 64 bits, these huge
++				// numbers do fit in an int, so they
++				// are not rejected at compile time.
+ 				thisPass = 0
+ 			} else {
+ 				thisPass = 2

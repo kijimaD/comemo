@@ -7,8 +7,136 @@ Date:   Mon May 2 08:14:31 2011 -0700
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/4426074
-
+---
  src/pkg/mime/multipart/formdata.go       |  5 +----
  src/pkg/mime/multipart/multipart.go      | 33 ++++++++++++++++++++++--------
  src/pkg/mime/multipart/multipart_test.go | 35 ++++++++++++++++----------------
  3 files changed, 43 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/mime/multipart/formdata.go b/src/pkg/mime/multipart/formdata.go
+index 198ab515b8..5f32865659 100644
+--- a/src/pkg/mime/multipart/formdata.go
++++ b/src/pkg/mime/multipart/formdata.go
+@@ -41,10 +41,7 @@ func (r *multiReader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
+ 		if name == "" {
+ 			continue
+ 		}
+-		var filename string
+-		if p.dispositionParams != nil {
+-			filename = p.dispositionParams["filename"]
+-		}
++		filename := p.FileName()
+ 
+ 		var b bytes.Buffer
+ 
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 839a72f9c3..9affa11261 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -26,6 +26,8 @@ import (
+ 
+ var headerRegexp *regexp.Regexp = regexp.MustCompile("^([a-zA-Z0-9\\-]+): *([^\r\n]+)")
+ 
++var emptyParams = make(map[string]string)
++
+ // Reader is an iterator over parts in a MIME multipart body.
+ // Reader's underlying parser consumes its input as needed.  Seeking
+ // isn't supported.
+@@ -51,6 +53,7 @@ type Part struct {
+ 	buffer *bytes.Buffer
+ 	mr     *multiReader
+ 
++	disposition       string
+ 	dispositionParams map[string]string
+ }
+ 
+@@ -59,21 +62,33 @@ type Part struct {
+ func (p *Part) FormName() string {
+ 	// See http://tools.ietf.org/html/rfc2183 section 2 for EBNF
+ 	// of Content-Disposition value format.
+-	if p.dispositionParams != nil {
+-		return p.dispositionParams["name"]
+-	}
+-	v := p.Header.Get("Content-Disposition")
+-	if v == "" {
+-		return ""
++	if p.dispositionParams == nil {
++		p.parseContentDisposition()
+ 	}
+-	if d, params := mime.ParseMediaType(v); d != "form-data" {
++	if p.disposition != "form-data" {
+ 		return ""
+-	} else {
+-		p.dispositionParams = params
+ 	}
+ 	return p.dispositionParams["name"]
+ }
+ 
++
++// FileName returns the filename parameter of the Part's
++// Content-Disposition header.
++func (p *Part) FileName() string {
++	if p.dispositionParams == nil {
++		p.parseContentDisposition()
++	}
++	return p.dispositionParams["filename"]
++}
++
++func (p *Part) parseContentDisposition() {
++	v := p.Header.Get("Content-Disposition")
++	p.disposition, p.dispositionParams = mime.ParseMediaType(v)
++	if p.dispositionParams == nil {
++		p.dispositionParams = emptyParams
++	}
++}
++
+ // NewReader creates a new multipart Reader reading from r using the
+ // given MIME boundary.
+ func NewReader(reader io.Reader, boundary string) Reader {
+diff --git a/src/pkg/mime/multipart/multipart_test.go b/src/pkg/mime/multipart/multipart_test.go
+index 05f4871472..8222fbd8a4 100644
+--- a/src/pkg/mime/multipart/multipart_test.go
++++ b/src/pkg/mime/multipart/multipart_test.go
+@@ -56,24 +56,25 @@ func expectEq(t *testing.T, expected, actual, what string) {
+ 		what, escapeString(actual), len(actual), escapeString(expected), len(expected))
+ }
+ 
+-func TestFormName(t *testing.T) {
+-	p := new(Part)
+-	p.Header = make(map[string][]string)
+-	tests := [...][2]string{
+-		{`form-data; name="foo"`, "foo"},
+-		{` form-data ; name=foo`, "foo"},
+-		{`FORM-DATA;name="foo"`, "foo"},
+-		{` FORM-DATA ; name="foo"`, "foo"},
+-		{` FORM-DATA ; name="foo"`, "foo"},
+-		{` FORM-DATA ; name=foo`, "foo"},
+-		{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo"},
+-	}
+-	for _, test := range tests {
++func TestNameAccessors(t *testing.T) {
++	tests := [...][3]string{
++		{`form-data; name="foo"`, "foo", ""},
++		{` form-data ; name=foo`, "foo", ""},
++		{`FORM-DATA;name="foo"`, "foo", ""},
++		{` FORM-DATA ; name="foo"`, "foo", ""},
++		{` FORM-DATA ; name="foo"`, "foo", ""},
++		{` FORM-DATA ; name=foo`, "foo", ""},
++		{` FORM-DATA ; filename="foo.txt"; name=foo; baz=quux`, "foo", "foo.txt"},
++		{` not-form-data ; filename="bar.txt"; name=foo; baz=quux`, "", "bar.txt"},
++	}
++	for i, test := range tests {
++		p := &Part{Header: make(map[string][]string)}
+ 		p.Header.Set("Content-Disposition", test[0])
+-		expected := test[1]
+-		actual := p.FormName()
+-		if actual != expected {
+-			t.Errorf("expected \"%s\"; got: \"%s\"", expected, actual)
++		if g, e := p.FormName(), test[1]; g != e {
++			t.Errorf("test %d: FormName() = %q; want %q", i, g, e)
++		}
++		if g, e := p.FileName(), test[2]; g != e {
++			t.Errorf("test %d: FileName() = %q; want %q", i, g, e)
+ 		}
+ 	}
+ }

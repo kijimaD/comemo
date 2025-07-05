@@ -15,6 +15,22 @@ Date:   Thu Sep 5 15:14:02 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 6d39417ba5..c5b8d816c6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1173,7 +1173,9 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 	switch ctype {
+ 	default:
+ 		if t != nil {
+-			return convlit(n, t)
++			n = convlit(n, t)
++			lineno = lno
++			return n
+ 		}
+ 
+ 		switch n.Val().Ctype() {

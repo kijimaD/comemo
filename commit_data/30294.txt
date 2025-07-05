@@ -16,10 +16,203 @@ Date:   Sun Oct 16 23:11:55 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/ctxutil.go        | 12 ++++++++++-
  src/database/sql/driver/driver.go  | 35 +++++++++++++++++++++++++++---
  src/database/sql/internal/types.go | 11 ++++++++++
  src/database/sql/sql.go            | 44 ++++++++++++++++++++++++++++++++++----
  src/go/build/deps_test.go          |  4 ++--
  5 files changed, 96 insertions(+), 10 deletions(-)
+
+diff --git a/src/database/sql/ctxutil.go b/src/database/sql/ctxutil.go
+index 173f6a9d2b..ddc4b7228f 100644
+--- a/src/database/sql/ctxutil.go
++++ b/src/database/sql/ctxutil.go
+@@ -232,12 +232,22 @@ func ctxDriverBegin(ctx context.Context, ci driver.Conn) (driver.Tx, error) {
+ 	if ciCtx, is := ci.(driver.ConnBeginContext); is {
+ 		return ciCtx.BeginContext(ctx)
+ 	}
++
+ 	if ctx.Done() == context.Background().Done() {
+ 		return ci.Begin()
+ 	}
+ 
+-	// TODO(kardianos): check the transaction level in ctx. If set and non-default
++	// Check the transaction level in ctx. If set and non-default
+ 	// then return an error here as the BeginContext driver value is not supported.
++	if level, ok := driver.IsolationFromContext(ctx); ok && level != driver.IsolationLevel(LevelDefault) {
++		return nil, errors.New("sql: driver does not support non-default isolation level")
++	}
++
++	// Check for a read-only parameter in ctx. If a read-only transaction is
++	// requested return an error as the BeginContext driver value is not supported.
++	if ro := driver.ReadOnlyFromContext(ctx); ro {
++		return nil, errors.New("sql: driver does not support read-only transactions")
++	}
+ 
+ 	type R struct {
+ 		err   error
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index ad988cc785..bc6aa3b26e 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -10,6 +10,7 @@ package driver
+ 
+ import (
+ 	"context"
++	"database/sql/internal"
+ 	"errors"
+ 	"reflect"
+ )
+@@ -132,12 +133,40 @@ type ConnPrepareContext interface {
+ 	PrepareContext(ctx context.Context, query string) (Stmt, error)
+ }
+ 
++// IsolationLevel is the transaction isolation level stored in Context.
++//
++// This type should be considered identical to sql.IsolationLevel along
++// with any values defined on it.
++type IsolationLevel int
++
++// IsolationFromContext extracts the isolation level from a Context.
++func IsolationFromContext(ctx context.Context) (level IsolationLevel, ok bool) {
++	level, ok = ctx.Value(internal.IsolationLevelKey{}).(IsolationLevel)
++	return level, ok
++}
++
++// ReadOnlyFromContext extracts the read-only property from a Context.
++// When readonly is true the transaction must be set to read-only
++// or return an error.
++func ReadOnlyFromContext(ctx context.Context) (readonly bool) {
++	readonly, _ = ctx.Value(internal.ReadOnlyKey{}).(bool)
++	return readonly
++}
++
+ // ConnBeginContext enhances the Conn interface with context.
+ type ConnBeginContext interface {
+ 	// BeginContext starts and returns a new transaction.
+-	// the provided context should be used to roll the transaction back
+-	// if it is cancelled. If there is an isolation level in context
+-	// that is not supported by the driver an error must be returned.
++	// The provided context should be used to roll the transaction back
++	// if it is cancelled.
++	//
++	// This must call IsolationFromContext to determine if there is a set
++	// isolation level. If the driver does not support setting the isolation
++	// level and one is set or if there is a set isolation level
++	// but the set level is not supported, an error must be returned.
++	//
++	// This must also call ReadOnlyFromContext to determine if the read-only
++	// value is true to either set the read-only transaction property if supported
++	// or return an error if it is not supported.
+ 	BeginContext(ctx context.Context) (Tx, error)
+ }
+ 
+diff --git a/src/database/sql/internal/types.go b/src/database/sql/internal/types.go
+new file mode 100644
+index 0000000000..1895144cb2
+--- /dev/null
++++ b/src/database/sql/internal/types.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package internal
++
++// Context keys that set transaction properties for sql.BeginContext.
++type (
++	IsolationLevelKey struct{} // context value is driver.IsolationLevel
++	ReadOnlyKey       struct{} // context value is bool
++)
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index d363008993..3cef4b6404 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -15,6 +15,7 @@ package sql
+ import (
+ 	"context"
+ 	"database/sql/driver"
++	"database/sql/internal"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -89,6 +90,38 @@ func Param(name string, value interface{}) NamedParam {
+ 	return NamedParam{Name: name, Value: value}
+ }
+ 
++// IsolationLevel is the transaction isolation level stored in Context.
++// The IsolationLevel is set with IsolationContext and the context
++// should be passed to BeginContext.
++type IsolationLevel int
++
++// Various isolation levels that drivers may support in BeginContext.
++// If a driver does not support a given isolation level an error may be returned.
++const (
++	LevelDefault IsolationLevel = iota
++	LevelReadUncommited
++	LevelReadCommited
++	LevelWriteCommited
++	LevelRepeatableRead
++	LevelSnapshot
++	LevelSerializable
++	LevelLinearizable
++)
++
++// IsolationContext returns a new Context that carries the provided isolation level.
++// The context must contain the isolation level before beginning the transaction
++// with BeginContext.
++func IsolationContext(ctx context.Context, level IsolationLevel) context.Context {
++	return context.WithValue(ctx, internal.IsolationLevelKey{}, driver.IsolationLevel(level))
++}
++
++// ReadOnlyWithContext returns a new Context that carries the provided
++// read-only transaction property. The context must contain the read-only property
++// before beginning the transaction with BeginContext.
++func ReadOnlyContext(ctx context.Context) context.Context {
++	return context.WithValue(ctx, internal.ReadOnlyKey{}, true)
++}
++
+ // RawBytes is a byte slice that holds a reference to memory owned by
+ // the database itself. After a Scan into a RawBytes, the slice is only
+ // valid until the next call to Next, Scan, or Close.
+@@ -1224,7 +1257,10 @@ func (db *DB) QueryRow(query string, args ...interface{}) *Row {
+ 	return db.QueryRowContext(context.Background(), query, args...)
+ }
+ 
+-// BeginContext starts a transaction. If a non-default isolation level is used
++// BeginContext starts a transaction.
++//
++// An isolation level may be set by setting the value in the context
++// before calling this. If a non-default isolation level is used
+ // that the driver doesn't support an error will be returned. Different drivers
+ // may have slightly different meanings for the same isolation level.
+ func (db *DB) BeginContext(ctx context.Context) (*Tx, error) {
+@@ -2212,9 +2248,9 @@ func (rs *Rows) isClosed() bool {
+ 	return atomic.LoadInt32(&rs.closed) != 0
+ }
+ 
+-// Close closes the Rows, preventing further enumeration. If Next and
+-// NextResultSet both return
+-// false, the Rows are closed automatically and it will suffice to check the
++// Close closes the Rows, preventing further enumeration. If Next is called
++// and returns false and there are no further result sets,
++// the Rows are closed automatically and it will suffice to check the
+ // result of Err. Close is idempotent and does not affect the result of Err.
+ func (rs *Rows) Close() error {
+ 	if !atomic.CompareAndSwapInt32(&rs.closed, 0, 1) {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index de62953267..df9d7b2159 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -231,8 +231,8 @@ var pkgDeps = map[string][]string{
+ 	"compress/lzw":             {"L4"},
+ 	"compress/zlib":            {"L4", "compress/flate"},
+ 	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
+-	"database/sql":             {"L4", "container/list", "context", "database/sql/driver"},
+-	"database/sql/driver":      {"L4", "context", "time"},
++	"database/sql":             {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
++	"database/sql/driver":      {"L4", "context", "time", "database/sql/internal"},
+ 	"debug/dwarf":              {"L4"},
+ 	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
+ 	"debug/gosym":              {"L4"},

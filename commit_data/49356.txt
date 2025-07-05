@@ -15,6 +15,20 @@ Date:   Sat May 29 04:06:56 2021 +1000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_mips64x.s | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index b2e2384c36..940a38a0d6 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -426,6 +426,8 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
+ 	// We get called to create new OS threads too, and those
+ 	// come in on the m->g0 stack already.
+ 	MOVV	g_m(g), R5
++	MOVV	m_gsignal(R5), R6
++	BEQ	R6, g, g0
+ 	MOVV	m_g0(R5), R6
+ 	BEQ	R6, g, g0
+ 

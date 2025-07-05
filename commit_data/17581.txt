@@ -9,7 +9,49 @@ Date:   Thu Sep 12 11:20:16 2013 +0100
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/13457047
-
+---
  src/pkg/net/http/example_test.go | 18 ++++++++++++++++++
  src/pkg/net/http/server.go       |  4 ++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/pkg/net/http/example_test.go b/src/pkg/net/http/example_test.go
+index bc60df7f2b..88b97d9e3d 100644
+--- a/src/pkg/net/http/example_test.go
++++ b/src/pkg/net/http/example_test.go
+@@ -68,3 +68,21 @@ func ExampleStripPrefix() {
+ 	// URL's path before the FileServer sees it:
+ 	http.Handle("/tmpfiles/", http.StripPrefix("/tmpfiles/", http.FileServer(http.Dir("/tmp"))))
+ }
++
++type apiHandler struct{}
++
++func (apiHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
++
++func ExampleServeMux_Handle() {
++	mux := http.NewServeMux()
++	mux.Handle("/api/", apiHandler{})
++	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
++		// The "/" pattern matches everything, so we need to check
++		// that we're at the root here.
++		if req.URL.Path != "/" {
++			http.NotFound(w, req)
++			return
++		}
++		fmt.Fprintf(w, "Welcome to the home page!")
++	})
++}
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 0c1a140867..67f175fd6e 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1358,6 +1358,10 @@ func RedirectHandler(url string, code int) Handler {
+ // former will receive requests for any other paths in the
+ // "/images/" subtree.
+ //
++// Note that since a pattern ending in a slash names a rooted subtree,
++// the pattern "/" matches all paths not matched by other registered
++// patterns, not just the URL with Path == "/".
++//
+ // Patterns may optionally begin with a host name, restricting matches to
+ // URLs on that host only.  Host-specific patterns take precedence over
+ // general patterns, so that a handler might register for the two patterns

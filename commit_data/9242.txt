@@ -9,8 +9,274 @@ Date:   Thu Jul 28 14:18:22 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4798062
-
+---
  src/cmd/6g/ggen.c | 59 +++++++++++++++++++++++++++++++++++++++++--------
  src/cmd/8g/ggen.c | 66 +++++++++++++++++++++++++++++++++++++++++++++++--------
  test/divide.go    | 54 +++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 161 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 9e7fbab0d6..a5f2783845 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -436,9 +436,6 @@ samereg(Node *a, Node *b)
+ 
+ /*
+  * generate division.
+- * caller must set:
+- *	ax = allocated AX register
+- *	dx = allocated DX register
+  * generates one of:
+  *	res = nl / nr
+  *	res = nl % nr
+@@ -447,17 +444,35 @@ samereg(Node *a, Node *b)
+ void
+ dodiv(int op, Node *nl, Node *nr, Node *res)
+ {
+-	int a;
+-	Node n3, n4;
++	int a, check;
++	Node n3, n4, n5;
+ 	Type *t;
+ 	Node ax, dx, oldax, olddx;
+-
++	Prog *p1, *p2, *p3;
++
++	// Have to be careful about handling
++	// most negative int divided by -1 correctly.
++	// The hardware will trap.
++	// Also the byte divide instruction needs AH,
++	// which we otherwise don't have to deal with.
++	// Easiest way to avoid for int8, int16: use int32.
++	// For int32 and int64, use explicit test.
++	// Could use int64 hw for int32.
+ 	t = nl->type;
+-	if(t->width == 1) {
++	check = 0;
++	if(issigned[t->etype]) {
++		check = 1;
++		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -1LL<<(t->width*8-1))
++			check = 0;
++		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
++			check = 0;
++	}
++	if(t->width < 4) {
+ 		if(issigned[t->etype])
+ 			t = types[TINT32];
+ 		else
+ 			t = types[TUINT32];
++		check = 0;
+ 	}
+ 	a = optoas(op, t);
+ 
+@@ -473,6 +488,31 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 		savex(D_AX, &ax, &oldax, res, t);
+ 		cgen(nl, &ax);
+ 	}
++	p3 = P;
++	if(check) {
++		nodconst(&n4, t, -1);
++		gins(optoas(OCMP, t), &n3, &n4);
++		p1 = gbranch(optoas(ONE, t), T);
++		nodconst(&n4, t, -1LL<<(t->width*8-1));
++		if(t->width == 8) {
++			n5 = n4;
++			regalloc(&n4, t, N);
++			gins(AMOVQ, &n5, &n4);
++		}
++		gins(optoas(OCMP, t), &ax, &n4);
++		p2 = gbranch(optoas(ONE, t), T);
++		if(op == ODIV)
++			gmove(&n4, res);
++		if(t->width == 8)
++			regfree(&n4);
++		if(op == OMOD) {
++			nodconst(&n4, t, 0);
++			gmove(&n4, res);
++		}
++		p3 = gbranch(AJMP, T);
++		patch(p1, pc);
++		patch(p2, pc);
++	}
+ 	savex(D_DX, &dx, &olddx, res, t);
+ 	if(!issigned[t->etype]) {
+ 		nodconst(&n4, t, 0);
+@@ -481,13 +521,14 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 		gins(optoas(OEXTEND, t), N, N);
+ 	gins(a, &n3, N);
+ 	regfree(&n3);
+-
+ 	if(op == ODIV)
+ 		gmove(&ax, res);
+ 	else
+ 		gmove(&dx, res);
+-	restx(&ax, &oldax);
+ 	restx(&dx, &olddx);
++	if(check)
++		patch(p3, pc);
++	restx(&ax, &oldax);
+ }
+ 
+ /*
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 6db0474c99..eaf3c01cc2 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -480,12 +480,40 @@ samereg(Node *a, Node *b)
+  * according to op.
+  */
+ void
+-dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
++dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ {
+-	Node n1, t1, t2, nz;
++	int check;
++	Node n1, t1, t2, n4, nz;
++	Type *t;
++	Prog *p1, *p2, *p3;
++
++	// Have to be careful about handling
++	// most negative int divided by -1 correctly.
++	// The hardware will trap.
++	// Also the byte divide instruction needs AH,
++	// which we otherwise don't have to deal with.
++	// Easiest way to avoid for int8, int16: use int32.
++	// For int32 and int64, use explicit test.
++	// Could use int64 hw for int32.
++	t = nl->type;
++	check = 0;
++	if(issigned[t->etype]) {
++		check = 1;
++		if(isconst(nl, CTINT) && mpgetfix(nl->val.u.xval) != -1LL<<(t->width*8-1))
++			check = 0;
++		else if(isconst(nr, CTINT) && mpgetfix(nr->val.u.xval) != -1)
++			check = 0;
++	}
++	if(t->width < 4) {
++		if(issigned[t->etype])
++			t = types[TINT32];
++		else
++			t = types[TUINT32];
++		check = 0;
++	}
+ 
+-	tempname(&t1, nl->type);
+-	tempname(&t2, nr->type);
++	tempname(&t1, t);
++	tempname(&t2, t);
+ 	cgen(nl, &t1);
+ 	cgen(nr, &t2);
+ 
+@@ -495,6 +523,24 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 		regalloc(&n1, t, N);
+ 	gmove(&t2, &n1);
+ 	gmove(&t1, ax);
++	p3 = P;
++	if(check) {
++		nodconst(&n4, t, -1);
++		gins(optoas(OCMP, t), &n1, &n4);
++		p1 = gbranch(optoas(ONE, t), T);
++		nodconst(&n4, t, -1LL<<(t->width*8-1));
++		gins(optoas(OCMP, t), ax, &n4);
++		p2 = gbranch(optoas(ONE, t), T);
++		if(op == ODIV)
++			gmove(&n4, res);
++		if(op == OMOD) {
++			nodconst(&n4, t, 0);
++			gmove(&n4, res);
++		}
++		p3 = gbranch(AJMP, T);
++		patch(p1, pc);
++		patch(p2, pc);
++	}
+ 	if(!issigned[t->etype]) {
+ 		nodconst(&nz, t, 0);
+ 		gmove(&nz, dx);
+@@ -507,6 +553,8 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 		gmove(ax, res);
+ 	else
+ 		gmove(dx, res);
++	if(check)
++		patch(p3, pc);
+ }
+ 
+ static void
+@@ -553,13 +601,13 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 	if(is64(nl->type))
+ 		fatal("cgen_div %T", nl->type);
+ 
+-	t = nl->type;
+-	if(t->width == 1)
+-		t = types[t->etype+2];	// int8 -> int16, uint8 -> uint16
+-
++	if(issigned[nl->type->etype])
++		t = types[TINT32];
++	else
++		t = types[TUINT32];
+ 	savex(D_AX, &ax, &oldax, res, t);
+ 	savex(D_DX, &dx, &olddx, res, t);
+-	dodiv(op, t, nl, nr, res, &ax, &dx);
++	dodiv(op, nl, nr, res, &ax, &dx);
+ 	restx(&dx, &olddx);
+ 	restx(&ax, &oldax);
+ }
+diff --git a/test/divide.go b/test/divide.go
+new file mode 100644
+index 0000000000..5c0f45059a
+--- /dev/null
++++ b/test/divide.go
+@@ -0,0 +1,54 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// divide corner cases
++
++package main
++
++import "fmt"
++
++func f8(x, y, q, r int8) {
++	if t := x / y; t != q {
++		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
++	}
++	if t := x % y; t != r {
++		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
++	}
++}
++
++func f16(x, y, q, r int16) {
++	if t := x / y; t != q {
++		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
++	}
++	if t := x % y; t != r {
++		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
++	}
++}
++
++func f32(x, y, q, r int32) {
++	if t := x / y; t != q {
++		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
++	}
++	if t := x % y; t != r {
++		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
++	}
++}
++
++func f64(x, y, q, r int64) {
++	if t := x / y; t != q {
++		fmt.Printf("%d/%d = %d, want %d\n", x, y, t, q)
++	}
++	if t := x % y; t != r {
++		fmt.Printf("%d%%%d = %d, want %d\n", x, y, t, r)
++	}
++}
++
++func main() {
++	f8(-1<<7, -1, -1<<7, 0)
++	f16(-1<<15, -1, -1<<15, 0)
++	f32(-1<<31, -1, -1<<31, 0)
++	f64(-1<<63, -1, -1<<63, 0)
++}

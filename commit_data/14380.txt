@@ -7,7 +7,32 @@ Date:   Mon Nov 12 15:34:09 2012 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6821110
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 75bbea50e3..c4abf46cf4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -205,6 +205,7 @@ Quan Yong Zhai <qyzhai@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>
+ Rémy Oudompheng <oudomphe@phare.normalesup.org>
+ Richard Eric Gavaletz <gavaletz@gmail.com>
++Rick Arnold <rickarnoldjr@gmail.com>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a4e115b0c7..8929edb0d3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -298,6 +298,7 @@ Raif S. Naffah <go@naffah-raif.name>
+ Raph Levien <raph@google.com>
+ Rémy Oudompheng <oudomphe@phare.normalesup.org> <remyoudompheng@gmail.com>
+ Richard Eric Gavaletz <gavaletz@gmail.com>
++Rick Arnold <rickarnoldjr@gmail.com>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Pike <r@golang.org>
+ Robert Figueiredo <robfig@gmail.com>

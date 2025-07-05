@@ -13,7 +13,42 @@ Date:   Wed Feb 3 21:35:03 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/19184
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 1 +
  src/net/http/httputil/reverseproxy_test.go | 4 ++++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 38987d7a74..54411caeca 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -106,6 +106,7 @@ func copyHeader(dst, src http.Header) {
+ // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+ var hopHeaders = []string{
+ 	"Connection",
++	"Proxy-Connection", // non-standard but still sent by libcurl and rejected by e.g. google
+ 	"Keep-Alive",
+ 	"Proxy-Authenticate",
+ 	"Proxy-Authorization",
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 72662ccdc5..0849427b85 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -45,6 +45,9 @@ func TestReverseProxy(t *testing.T) {
+ 		if c := r.Header.Get("Upgrade"); c != "" {
+ 			t.Errorf("handler got Upgrade header value %q", c)
+ 		}
++		if c := r.Header.Get("Proxy-Connection"); c != "" {
++			t.Errorf("handler got Proxy-Connection header value %q", c)
++		}
+ 		if g, e := r.Host, "some-name"; g != e {
+ 			t.Errorf("backend got Host header %q, want %q", g, e)
+ 		}
+@@ -72,6 +75,7 @@ func TestReverseProxy(t *testing.T) {
+ 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+ 	getReq.Host = "some-name"
+ 	getReq.Header.Set("Connection", "close")
++	getReq.Header.Set("Proxy-Connection", "should be deleted")
+ 	getReq.Header.Set("Upgrade", "foo")
+ 	getReq.Close = true
+ 	res, err := http.DefaultClient.Do(getReq)

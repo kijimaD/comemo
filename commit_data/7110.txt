@@ -7,7 +7,63 @@ Date:   Thu Jan 13 14:34:31 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3939042
-
+---
  src/pkg/http/fs.go     |  4 +++-
  src/pkg/http/server.go | 14 ++++++++------
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 143a839a80..b3cae19a50 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -174,7 +174,9 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 
+ 	w.WriteHeader(code)
+ 
+-	io.Copyn(w, f, size)
++	if r.Method != "HEAD" {
++		io.Copyn(w, f, size)
++	}
+ }
+ 
+ // ServeFile replies to the request with the contents of the named file or directory.
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index b8783da283..2ecdd5ee25 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -181,7 +181,9 @@ func (c *conn) readRequest() (w *response, err os.Error) {
+ 	w.SetHeader("Content-Type", "text/html; charset=utf-8")
+ 	w.SetHeader("Date", time.UTC().Format(TimeFormat))
+ 
+-	if req.ProtoAtLeast(1, 1) {
++	if req.Method == "HEAD" {
++		// do nothing
++	} else if req.ProtoAtLeast(1, 1) {
+ 		// HTTP/1.1 or greater: use chunked transfer encoding
+ 		// to avoid closing the connection at EOF.
+ 		w.chunking = true
+@@ -268,7 +270,7 @@ func (w *response) Write(data []byte) (n int, err os.Error) {
+ 		return 0, nil
+ 	}
+ 
+-	if w.status == StatusNotModified {
++	if w.status == StatusNotModified || w.req.Method == "HEAD" {
+ 		// Must not have body.
+ 		return 0, ErrBodyNotAllowed
+ 	}
+@@ -495,11 +497,11 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 
+ 	// RFC2616 recommends that a short note "SHOULD" be included in the
+ 	// response because older user agents may not understand 301/307.
+-	note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
+-	if r.Method == "POST" {
+-		note = ""
++	// Shouldn't send the response for POST or HEAD; that leaves GET.
++	if r.Method == "GET" {
++		note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
++		fmt.Fprintln(w, note)
+ 	}
+-	fmt.Fprintln(w, note)
+ }
+ 
+ func htmlEscape(s string) string {

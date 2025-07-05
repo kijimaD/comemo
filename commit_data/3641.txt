@@ -11,10 +11,152 @@ Date:   Fri Oct 23 11:00:59 2009 -0700
     DELTA=90  (83 added, 3 deleted, 4 changed)
     OCL=36011
     CL=36023
-
+---
  src/cmd/gc/walk.c                    |  4 +--
  src/make-arm.bash                    |  7 ++---
  src/pkg/big/arith_arm.s              | 21 ++++++++++++++
  src/pkg/debug/proc/regs_linux_arm.go | 56 ++++++++++++++++++++++++++++++++++++
  src/pkg/syscall/syscall_linux_arm.go |  6 ++++
  5 files changed, 87 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4b6b4ae9ac..c2d54d251d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -714,11 +714,11 @@ walkexpr(Node **np, NodeList **init)
+ 	case OCONV:
+ 	case OCONVNOP:
+ 		if(thechar == '5') {
+-			if(isfloat[n->left->type->etype] && (n->type->etype == TINT64)) {
++			if(isfloat[n->left->type->etype] && (n->type->etype == TINT64 || n->type->etype == TUINT64)) {
+ 				n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
+ 				goto ret;
+ 			}
+-			if((n->left->type->etype == TINT64) && isfloat[n->type->etype]) {
++			if((n->left->type->etype == TINT64 || n->left->type->etype == TUINT64) && isfloat[n->type->etype]) {
+ 				n = mkcall("int64tofloat64", n->type, init, conv(n->left, types[TINT64]));
+ 				goto ret;
+ 			}
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index db0f201350..40e9dbcde8 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -20,11 +20,8 @@ cp quietgcc.bash $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+-#for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/sort pkg/io pkg/malloc pkg/time pkg/math pkg/strconv pkg/reflect pkg/fmt pkg/bufio
+-#for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
+-# pkg/hash
+-# pkg/math
++#for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach libregexp cmd pkg cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.
+diff --git a/src/pkg/big/arith_arm.s b/src/pkg/big/arith_arm.s
+new file mode 100644
+index 0000000000..885b152737
+--- /dev/null
++++ b/src/pkg/big/arith_arm.s
+@@ -0,0 +1,21 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides fast assembly versions for the elementary
++// arithmetic operations on vectors implemented in arith.go.
++
++TEXT big·useAsm(SB),7,$0
++	MOVB $0, 4(SP)	// assembly routines disabled
++	RET
++
++
++// TODO(gri) Implement these routines and enable them.
++TEXT big·addVV_s(SB),7,$0
++TEXT big·subVV_s(SB),7,$0
++TEXT big·addVW_s(SB),7,$0
++TEXT big·subVW_s(SB),7,$0
++TEXT big·mulAddVWW_s(SB),7,$0
++TEXT big·addMulVVW_s(SB),7,$0
++TEXT big·divWVW_s(SB),7,$0
++	RET
+diff --git a/src/pkg/debug/proc/regs_linux_arm.go b/src/pkg/debug/proc/regs_linux_arm.go
+new file mode 100644
+index 0000000000..2b0de5e138
+--- /dev/null
++++ b/src/pkg/debug/proc/regs_linux_arm.go
+@@ -0,0 +1,56 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package proc
++
++import (
++	"os";
++	"syscall";
++)
++
++// TODO(kaib): add support
++
++type armRegs struct {
++}
++
++func (r *armRegs) PC() Word {
++	return Word(0);
++}
++
++func (r *armRegs) SetPC(val Word) os.Error {
++	return nil;
++}
++
++func (r * armRegs) Link() Word {
++	return Word(0);
++}
++
++func (r* armRegs) SetLink(val Word) (os.Error) {
++	return nil;
++}
++
++func (r* armRegs) SP() Word {
++	return Word(0);
++}
++
++func (r* armRegs) SetSP(val Word) os.Error {
++	return nil;
++}
++
++func (r* armRegs) Names() []string {
++	return nil;
++}
++
++func (r* armRegs) Get(i int) Word {
++	return Word(0);
++}
++
++func (r* armRegs) Set(i int, val Word) os.Error {
++	return nil;
++}
++
++func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
++	res := armRegs{};
++	return &res;
++}
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 91153f51c1..dec43c5f31 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -59,5 +59,11 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+ //sys	Statfs(path string, buf *Statfs_t) (errno int)
+ 
++// TODO(kaib): add support for tracing
++func (r *PtraceRegs) PC() uint64 {
++        return 0;
++}
+ 
++func (r *PtraceRegs) SetPC(pc uint64) {
++}
+ 

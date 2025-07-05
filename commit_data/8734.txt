@@ -7,7 +7,34 @@ Date:   Wed Jun 15 21:07:21 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4572066
-
+---
  src/cmd/gofix/httpfinalurl.go | 2 +-
  src/cmd/gofix/osopen.go       | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gofix/httpfinalurl.go b/src/cmd/gofix/httpfinalurl.go
+index 53642b22f1..9e6cbf6bc5 100644
+--- a/src/cmd/gofix/httpfinalurl.go
++++ b/src/cmd/gofix/httpfinalurl.go
+@@ -13,7 +13,7 @@ var httpFinalURLFix = fix{
+ 	httpfinalurl,
+ 	`Adapt http Get calls to not have a finalURL result parameter.
+ 
+-	http://codereview.appspot.com/4535056/
++http://codereview.appspot.com/4535056/
+ `,
+ }
+ 
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+index 8eb5d06551..56147c390e 100644
+--- a/src/cmd/gofix/osopen.go
++++ b/src/cmd/gofix/osopen.go
+@@ -13,7 +13,7 @@ var osopenFix = fix{
+ 	osopen,
+ 	`Adapt os.Open calls to new, easier API and rename O_CREAT O_CREATE.
+ 
+-	http://codereview.appspot.com/4357052
++http://codereview.appspot.com/4357052
+ `,
+ }
+ 

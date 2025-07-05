@@ -11,6 +11,20 @@ Date:   Mon Feb 13 15:33:03 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 33df876e9b..a40ae47158 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -624,7 +624,7 @@ func (fd *FD) writeConsole(b []byte) (n int, err error) {
+ 			var written uint32
+ 			err = syscall.WriteConsole(fd.Sysfd, &uint16s[0], uint32(len(uint16s)), &written, nil)
+ 			if err != nil {
+-				return 0, nil
++				return 0, err
+ 			}
+ 			uint16s = uint16s[written:]
+ 		}

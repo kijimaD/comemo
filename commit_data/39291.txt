@@ -11,6 +11,38 @@ Date:   Tue Feb 19 14:43:52 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/vet/vet_test.go | 16 +++++++++++-----
  1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index d106c5c29c..6e8cc70440 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -21,15 +21,21 @@ import (
+ 	"testing"
+ )
+ 
+-const (
+-	dataDir = "testdata"
+-	binary  = "./testvet.exe"
+-)
++const dataDir = "testdata"
++
++var binary string
+ 
+ // We implement TestMain so remove the test binary when all is done.
+ func TestMain(m *testing.M) {
++	dir, err := ioutil.TempDir("", "vet_test")
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	defer os.RemoveAll(dir)
++	binary = filepath.Join(dir, "testvet.exe")
++
+ 	result := m.Run()
+-	os.Remove(binary)
+ 	os.Exit(result)
+ }
+ 

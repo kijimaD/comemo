@@ -7,6 +7,20 @@ Date:   Sat Jul 15 12:16:56 2017 -0600
     Change-Id: I3a83c63f4db2e46fd96f373378a429896e93f9d1
     Reviewed-on: https://go-review.googlesource.com/48861
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/example_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/context/example_test.go b/src/context/example_test.go
+index b2c2aa921d..2b28b57704 100644
+--- a/src/context/example_test.go
++++ b/src/context/example_test.go
+@@ -93,6 +93,8 @@ func ExampleWithTimeout() {
+ 	// context deadline exceeded
+ }
+ 
++// This example demonstrates how a value can be passed to the context
++// and also how to retrieve it if it exists.
+ func ExampleWithValue() {
+ 	type favContextKey string
+ 

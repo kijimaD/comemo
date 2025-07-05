@@ -7,7 +7,7 @@ Date:   Tue Jun 28 12:04:50 2011 -0400
     R=rsc, iant, dvyukov
     CC=golang-dev
     https://golang.org/cl/4643057
-
+---
  src/libmach/darwin.c                | 13 +++++++++++--
  src/pkg/runtime/cgo/darwin_386.c    |  7 ++++++-
  src/pkg/runtime/cgo/darwin_amd64.c  |  7 ++++++-
@@ -16,3 +16,167 @@ Date:   Tue Jun 28 12:04:50 2011 -0400
  src/pkg/runtime/cgo/linux_386.c     |  7 ++++++-
  src/pkg/runtime/cgo/linux_amd64.c   |  7 ++++++-
  7 files changed, 47 insertions(+), 8 deletions(-)
+
+diff --git a/src/libmach/darwin.c b/src/libmach/darwin.c
+index c443a4fbab..63abde3136 100644
+--- a/src/libmach/darwin.c
++++ b/src/libmach/darwin.c
+@@ -222,12 +222,21 @@ addpid(int pid, int force)
+ 		// The excthread reads that port and signals
+ 		// us if we are waiting on that thread.
+ 		pthread_t p;
++		int err;
+ 
+ 		excport = mach_reply_port();
+ 		pthread_mutex_init(&mu, nil);
+ 		pthread_cond_init(&cond, nil);
+-		pthread_create(&p, nil, excthread, nil);
+-		pthread_create(&p, nil, waitthread, (void*)(uintptr)pid);
++		err = pthread_create(&p, nil, excthread, nil);
++		if (err != 0) {
++			fprint(2, "pthread_create failed: %s\n", strerror(err));
++			abort();
++		}
++		err = pthread_create(&p, nil, waitthread, (void*)(uintptr)pid);
++		if (err != 0) {
++			fprint(2, "pthread_create failed: %s\n", strerror(err));
++			abort();
++		}
+ 		first = 0;
+ 	}
+ 
+diff --git a/src/pkg/runtime/cgo/darwin_386.c b/src/pkg/runtime/cgo/darwin_386.c
+index 13184f3217..21c1365759 100644
+--- a/src/pkg/runtime/cgo/darwin_386.c
++++ b/src/pkg/runtime/cgo/darwin_386.c
+@@ -113,11 +113,16 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+ 	size_t size;
++	int err;
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(error));
++		abort();
++	}
+ }
+ 
+ static void*
+diff --git a/src/pkg/runtime/cgo/darwin_amd64.c b/src/pkg/runtime/cgo/darwin_amd64.c
+index 38cd80a6f9..3471044c01 100644
+--- a/src/pkg/runtime/cgo/darwin_amd64.c
++++ b/src/pkg/runtime/cgo/darwin_amd64.c
+@@ -83,11 +83,16 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+ 	size_t size;
++	int err;
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
+ }
+ 
+ static void*
+diff --git a/src/pkg/runtime/cgo/freebsd_386.c b/src/pkg/runtime/cgo/freebsd_386.c
+index d08e1dee8c..ae53201b41 100644
+--- a/src/pkg/runtime/cgo/freebsd_386.c
++++ b/src/pkg/runtime/cgo/freebsd_386.c
+@@ -20,11 +20,16 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+ 	size_t size;
++	int err;
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
+ }
+ 
+ static void*
+diff --git a/src/pkg/runtime/cgo/freebsd_amd64.c b/src/pkg/runtime/cgo/freebsd_amd64.c
+index fe6ce391f3..5afc1dfeaf 100644
+--- a/src/pkg/runtime/cgo/freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/freebsd_amd64.c
+@@ -20,11 +20,16 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+ 	size_t size;
++	int err;
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
+ }
+ 
+ static void*
+diff --git a/src/pkg/runtime/cgo/linux_386.c b/src/pkg/runtime/cgo/linux_386.c
+index 00322d4b7e..e9df5ffdcc 100644
+--- a/src/pkg/runtime/cgo/linux_386.c
++++ b/src/pkg/runtime/cgo/linux_386.c
+@@ -21,6 +21,7 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+ 	size_t size;
++	int err;
+ 
+ 	// Not sure why the memset is necessary here,
+ 	// but without it, we get a bogus stack size
+@@ -30,7 +31,11 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
+ }
+ 
+ static void*
+diff --git a/src/pkg/runtime/cgo/linux_amd64.c b/src/pkg/runtime/cgo/linux_amd64.c
+index e77c5ddfed..d9b8b37061 100644
+--- a/src/pkg/runtime/cgo/linux_amd64.c
++++ b/src/pkg/runtime/cgo/linux_amd64.c
+@@ -20,11 +20,16 @@ libcgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+ 	size_t size;
++	int err;
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+-	pthread_create(&p, &attr, threadentry, ts);
++	err = pthread_create(&p, &attr, threadentry, ts);
++	if (err != 0) {
++		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
++		abort();
++	}
+ }
+ 
+ static void*

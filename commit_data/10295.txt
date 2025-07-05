@@ -7,7 +7,73 @@ Date:   Wed Nov 9 10:57:09 2011 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5344055
-
+---
  .hgtags               |  1 -
  doc/devel/weekly.html | 38 +++++++++++++++++++++++++++++++++++++-
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/.hgtags b/.hgtags
+index 3112497496..1123f7ef18 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -93,4 +93,3 @@ acaddf1cea75c059d19b20dbef35b20fb3f38954 release.r58.2
+ e69e528f2afc25a8334cfb9359fa4fcdf2a934b6 weekly.2011-11-01
+ 780c85032b174c9d4b42adf75d82bc85af7d78d1 weekly.2011-11-02
+ f4397ad6e87c7ce5feac9b01686f1ebd6cbaac4e weekly.2011-11-08
+-f4397ad6e87c7ce5feac9b01686f1ebd6cbaac4e weekly
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 1c1ea1b55b..acfefc6798 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -14,6 +14,42 @@ hg pull
+ hg update weekly.<i>YYYY-MM-DD</i>
+ </pre>
+ 
++<h2 id="2011-11-08">2011-11-09</h2>
++
++<pre>
++This weekly snapshot renames various Go packages as described in the Go 1 plan.
++Import statements in client code can be updated automatically with gofix.
++
++The changes are:
++	asn1              -> encoding/asn1
++	big               -> math/big
++	cmath             -> math/cmplx
++	csv               -> encoding/csv
++	exec              -> os/exec
++	exp/template/html -> html/template
++	gob               -> encoding/gob
++	http              -> net/http
++	http/cgi          -> net/http/cgi
++	http/fcgi         -> net/http/fcgi
++	http/httptest     -> net/http/httptest
++	http/pprof        -> net/http/pprof
++	json              -> encoding/json
++	mail              -> net/mail
++	rpc               -> net/rpc
++	rpc/jsonrpc       -> net/rpc/jsonrpc
++	scanner           -> text/scanner
++	smtp              -> net/smtp
++	syslog            -> log/syslog
++	tabwriter         -> text/tabwriter
++	template          -> text/template
++	template/parse    -> text/template/parse
++	rand              -> math/rand
++	url               -> net/url
++	utf16             -> unicode/utf16
++	utf8              -> unicode/utf8
++	xml               -> encoding/xml
++</pre>
++
+ <h2 id="2011-11-08">2011-11-08</h2>
+ 
+ <pre>
+@@ -80,7 +116,7 @@ Other changes:
+ 	make closedchan.go exit with failure if something fails.
+ * time: faster Nanoseconds call.
+ * websocket: return an error HTTP response for bad websocket request.
+-* xml: allow parsing of <_> </_>. (thanks David Crawshaw).
++* xml: allow parsing of &lt;_&gt; &lt;/_&gt;. (thanks David Crawshaw).
+ </pre>
+ 
+ <h2 id="2011-11-02">2011-11-02 (new error type)</h2>

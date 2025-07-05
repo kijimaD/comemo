@@ -18,10 +18,279 @@ Date:   Thu Nov 10 13:31:41 2016 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/deps_test.go                          |  2 +-
  .../pprof/internal/protopprof/protopprof.go        |  1 -
  .../pprof/internal/protopprof/protopprof_test.go   | 38 -------------
  src/runtime/pprof/pprof.go                         | 55 +++++++------------
  src/runtime/pprof/pprof_test.go                    | 63 +++++++++++-----------
  5 files changed, 49 insertions(+), 110 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9177daa8ad..39ed9de039 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -176,7 +176,7 @@ var pkgDeps = map[string][]string{
+ 	"runtime/debug":                     {"L2", "fmt", "io/ioutil", "os", "time"},
+ 	"runtime/pprof/internal/gzip0":      {"L2"},
+ 	"runtime/pprof/internal/protopprof": {"L2", "fmt", "internal/pprof/profile", "os", "time"},
+-	"runtime/pprof":                     {"L2", "fmt", "os", "text/tabwriter"},
++	"runtime/pprof":                     {"L2", "fmt", "os", "runtime/pprof/internal/protopprof", "text/tabwriter", "time"},
+ 	"runtime/trace":                     {"L0"},
+ 	"text/tabwriter":                    {"L2"},
+ 
+diff --git a/src/runtime/pprof/internal/protopprof/protopprof.go b/src/runtime/pprof/internal/protopprof/protopprof.go
+index 6d799d921f..5d269c4f65 100644
+--- a/src/runtime/pprof/internal/protopprof/protopprof.go
++++ b/src/runtime/pprof/internal/protopprof/protopprof.go
+@@ -49,7 +49,6 @@ func TranslateCPUProfile(b []byte, startTime time.Time) (*profile.Profile, error
+ 		}
+ 		count := data[0]
+ 		nstk := data[1]
+-		fmt.Printf("count:%v nstk: %v\n", count, nstk)
+ 		if uintptr(len(data)) < 2+nstk {
+ 			return nil, fmt.Errorf("truncated profile")
+ 		}
+diff --git a/src/runtime/pprof/internal/protopprof/protopprof_test.go b/src/runtime/pprof/internal/protopprof/protopprof_test.go
+index beecefe04c..ad8b04bd37 100644
+--- a/src/runtime/pprof/internal/protopprof/protopprof_test.go
++++ b/src/runtime/pprof/internal/protopprof/protopprof_test.go
+@@ -8,37 +8,14 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/pprof/profile"
+-	"io"
+ 	"io/ioutil"
+ 	"reflect"
+ 	"runtime"
+-	"runtime/pprof"
+ 	"testing"
+ 	"time"
+ 	"unsafe"
+ )
+ 
+-// Profile collects a CPU utilization profile and
+-// writes it to w as a compressed profile.proto. It's used by
+-// TestProfileParse.
+-func Profile(w io.Writer, seconds int) error {
+-	var buf bytes.Buffer
+-	// Collect the CPU profile in legacy format in buf.
+-	startTime := time.Now()
+-	if err := pprof.StartCPUProfile(&buf); err != nil {
+-		return fmt.Errorf("Could not enable CPU profiling: %s\n", err)
+-	}
+-	time.Sleep(time.Duration(seconds) * time.Second)
+-	pprof.StopCPUProfile()
+-
+-	const untagged = false
+-	p, err := TranslateCPUProfile(buf.Bytes(), startTime)
+-	if err != nil {
+-		return err
+-	}
+-	return p.Write(w)
+-}
+-
+ // Helper function to initialize empty cpu profile with sampling period provided.
+ func createEmptyProfileWithPeriod(t *testing.T, periodMs uint64) bytes.Buffer {
+ 	// Mock the sample header produced by cpu profiler. Write a sample
+@@ -85,21 +62,6 @@ func createProfileWithTwoSamples(t *testing.T, periodMs uintptr, count1 uintptr,
+ 	return *buf
+ }
+ 
+-// Tests that server creates a cpu profile handler that outputs a parsable Profile profile.
+-func TestCPUProfileParse(t *testing.T) {
+-	var before, after runtime.MemStats
+-	runtime.ReadMemStats(&before)
+-	var buf bytes.Buffer
+-	if err := Profile(&buf, 30); err != nil {
+-		t.Fatalf("Profile failed: %v", err)
+-	}
+-	runtime.ReadMemStats(&after)
+-	_, err := profile.Parse(&buf)
+-	if err != nil {
+-		t.Fatalf("Could not parse Profile profile: %v", err)
+-	}
+-}
+-
+ // Tests TranslateCPUProfile parses correct sampling period in an otherwise empty cpu profile.
+ func TestTranlateCPUProfileSamplingPeriod(t *testing.T) {
+ 	// A test server with mock cpu profile data.
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 20ccb51b00..70544acde1 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -74,12 +74,13 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"os"
+ 	"runtime"
++	"runtime/pprof/internal/protopprof"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+ 	"text/tabwriter"
++	"time"
+ )
+ 
+ // BUG(rsc): Profiles are only as good as the kernel support used to generate them.
+@@ -670,49 +671,29 @@ func StartCPUProfile(w io.Writer) error {
+ }
+ 
+ func profileWriter(w io.Writer) {
++	startTime := time.Now()
++	// This will buffer the entire profile into buf and then
++	// translate it into a profile.Profile structure. This will
++	// create two copies of all the data in the profile in memory.
++	// TODO(matloob): Convert each chunk of the proto output and
++	// stream it out instead of converting the entire profile.
++	var buf bytes.Buffer
+ 	for {
+ 		data := runtime.CPUProfile()
+ 		if data == nil {
+ 			break
+ 		}
+-		w.Write(data)
+-	}
+-
+-	// We are emitting the legacy profiling format, which permits
+-	// a memory map following the CPU samples. The memory map is
+-	// simply a copy of the GNU/Linux /proc/self/maps file. The
+-	// profiler uses the memory map to map PC values in shared
+-	// libraries to a shared library in the filesystem, in order
+-	// to report the correct function and, if the shared library
+-	// has debug info, file/line. This is particularly useful for
+-	// PIE (position independent executables) as on ELF systems a
+-	// PIE is simply an executable shared library.
+-	//
+-	// Because the profiling format expects the memory map in
+-	// GNU/Linux format, we only do this on GNU/Linux for now. To
+-	// add support for profiling PIE on other ELF-based systems,
+-	// it may be necessary to map the system-specific mapping
+-	// information to the GNU/Linux format. For a reasonably
+-	// portable C++ version, see the FillProcSelfMaps function in
+-	// https://github.com/gperftools/gperftools/blob/master/src/base/sysinfo.cc
+-	//
+-	// The code that parses this mapping for the pprof tool is
+-	// ParseMemoryMap in cmd/internal/pprof/legacy_profile.go, but
+-	// don't change that code, as similar code exists in other
+-	// (non-Go) pprof readers. Change this code so that that code works.
+-	//
+-	// We ignore errors reading or copying the memory map; the
+-	// profile is likely usable without it, and we have no good way
+-	// to report errors.
+-	if runtime.GOOS == "linux" {
+-		f, err := os.Open("/proc/self/maps")
+-		if err == nil {
+-			io.WriteString(w, "\nMAPPED_LIBRARIES:\n")
+-			io.Copy(w, f)
+-			f.Close()
+-		}
++		buf.Write(data)
++	}
++
++	profile, err := protopprof.TranslateCPUProfile(buf.Bytes(), startTime)
++	if err != nil {
++		// The runtime should never produce an invalid or truncated profile.
++		// It drops records that can't fit into its log buffers.
++		panic(fmt.Errorf("could not translate binary profile to proto format: %v", err))
+ 	}
+ 
++	profile.Write(w)
+ 	cpu.done <- true
+ }
+ 
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index a683a03211..c19ea3507d 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -9,6 +9,7 @@ package pprof_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/pprof/profile"
+ 	"internal/testenv"
+ 	"math/big"
+ 	"os"
+@@ -20,7 +21,6 @@ import (
+ 	"sync"
+ 	"testing"
+ 	"time"
+-	"unsafe"
+ )
+ 
+ func cpuHogger(f func(), dur time.Duration) {
+@@ -87,40 +87,17 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ }
+ 
+ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
+-	// Convert []byte to []uintptr.
+-	l := len(valBytes)
+-	if i := bytes.Index(valBytes, []byte("\nMAPPED_LIBRARIES:\n")); i >= 0 {
+-		l = i
+-	}
+-	l /= int(unsafe.Sizeof(uintptr(0)))
+-	val := *(*[]uintptr)(unsafe.Pointer(&valBytes))
+-	val = val[:l]
+-
+-	// 5 for the header, 3 for the trailer.
+-	if l < 5+3 {
+-		t.Logf("profile too short: %#x", val)
+-		if badOS[runtime.GOOS] {
+-			t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
+-			return
+-		}
+-		t.FailNow()
+-	}
+-
+-	hd, val, tl := val[:5], val[5:l-3], val[l-3:]
+-	if hd[0] != 0 || hd[1] != 3 || hd[2] != 0 || hd[3] != 1e6/100 || hd[4] != 0 {
+-		t.Fatalf("unexpected header %#x", hd)
+-	}
+-
+-	if tl[0] != 0 || tl[1] != 1 || tl[2] != 0 {
+-		t.Fatalf("malformed end-of-data marker %#x", tl)
++	p, err := profile.Parse(bytes.NewReader(valBytes))
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-
+-	for len(val) > 0 {
+-		if len(val) < 2 || val[0] < 1 || val[1] < 1 || uintptr(len(val)) < 2+val[1] {
+-			t.Fatalf("malformed profile.  leftover: %#x", val)
++	for _, sample := range p.Sample {
++		count := uintptr(sample.Value[0])
++		stk := make([]uintptr, len(sample.Location))
++		for i := range sample.Location {
++			stk[i] = uintptr(sample.Location[i].Address)
+ 		}
+-		f(val[0], val[2:2+val[1]])
+-		val = val[2+val[1]:]
++		f(count, stk)
+ 	}
+ }
+ 
+@@ -674,3 +651,23 @@ func containsInOrder(s string, all ...string) bool {
+ 	}
+ 	return true
+ }
++
++// Tests that the profiler outputs a parsable protobuf Profile profile.
++func TestCPUProfileParse(t *testing.T) {
++
++	var before, after runtime.MemStats
++	runtime.ReadMemStats(&before)
++	var buf bytes.Buffer
++
++	if err := StartCPUProfile(&buf); err != nil {
++		t.Fatalf("Profile failed: Could not enable CPU profiling: %s\n", err)
++	}
++	time.Sleep(5 * time.Second)
++	StopCPUProfile()
++
++	runtime.ReadMemStats(&after)
++	_, err := profile.Parse(&buf)
++	if err != nil {
++		t.Fatalf("Could not parse Profile profile: %v", err)
++	}
++}

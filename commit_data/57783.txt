@@ -19,7 +19,32 @@ Date:   Tue Aug 29 12:39:58 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/addmod.go  | 1 +
  src/cmd/go/testdata/savedir.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index 0045d50a3b..7ef68b3edc 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -20,6 +20,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/str"
+ 	"flag"
+ 	"fmt"
+ 	"internal/txtar"
+diff --git a/src/cmd/go/testdata/savedir.go b/src/cmd/go/testdata/savedir.go
+index 9a3ed506b1..bd42c3e485 100644
+--- a/src/cmd/go/testdata/savedir.go
++++ b/src/cmd/go/testdata/savedir.go
+@@ -15,6 +15,7 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/str"
+ 	"flag"
+ 	"fmt"
+ 	"internal/txtar"

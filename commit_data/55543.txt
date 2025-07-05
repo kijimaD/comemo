@@ -15,6 +15,27 @@ Date:   Mon Feb 20 00:38:44 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/strconv/atoi_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/strconv/atoi_test.go b/src/strconv/atoi_test.go
+index 867fa66a14..d7f8f25a29 100644
+--- a/src/strconv/atoi_test.go
++++ b/src/strconv/atoi_test.go
+@@ -164,6 +164,7 @@ var parseInt64Tests = []parseInt64Test{
+ 	{"_12345", 0, ErrSyntax},
+ 	{"1__2345", 0, ErrSyntax},
+ 	{"12345_", 0, ErrSyntax},
++	{"123%45", 0, ErrSyntax},
+ }
+ 
+ type parseInt64BaseTest struct {
+@@ -302,6 +303,7 @@ var parseInt32Tests = []parseInt32Test{
+ 	{"_12345", 0, ErrSyntax},
+ 	{"1__2345", 0, ErrSyntax},
+ 	{"12345_", 0, ErrSyntax},
++	{"123%45", 0, ErrSyntax},
+ }
+ 
+ type numErrorTest struct {

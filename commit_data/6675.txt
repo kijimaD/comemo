@@ -9,7 +9,60 @@ Date:   Mon Nov 1 12:50:21 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2804041
-
+---
  src/pkg/go/scanner/scanner.go      | 10 +++++++---
  src/pkg/go/scanner/scanner_test.go | 14 ++++++++++++--
  2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index f38c0252c3..663636c46e 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -368,15 +368,19 @@ func (S *Scanner) scanEscape(quote int) {
+ 	}
+ 
+ 	var x uint32
+-	for ; i > 0; i-- {
++	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
+ 		d := uint32(digitVal(S.ch))
+-		if d > base {
++		if d >= base {
+ 			S.error(S.pos, "illegal character in escape sequence")
+-			return
++			break
+ 		}
+ 		x = x*base + d
+ 		S.next()
+ 	}
++	// in case of an error, consume remaining chars
++	for ; i > 0 && S.ch != quote && S.ch >= 0; i-- {
++		S.next()
++	}
+ 	if x > max || 0xd800 <= x && x < 0xe000 {
+ 		S.error(pos, "escape sequence is invalid Unicode code point")
+ 	}
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 480502e3fb..794b191e83 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -610,8 +610,18 @@ var errors = []struct {
+ 	pos int
+ 	err string
+ }{
+-	{"\"\"", token.STRING, 0, ""},
+-	{"\"", token.STRING, 0, "string not terminated"},
++	{`#`, token.ILLEGAL, 0, "illegal character '#' (U+23)"},
++	{`' '`, token.CHAR, 0, ""},
++	{`''`, token.CHAR, 0, "illegal character literal"},
++	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},
++	{`'\08'`, token.CHAR, 3, "illegal character in escape sequence"},
++	{`'\x0g'`, token.CHAR, 4, "illegal character in escape sequence"},
++	{`'\Uffffffff'`, token.CHAR, 2, "escape sequence is invalid Unicode code point"},
++	{`'`, token.CHAR, 0, "character literal not terminated"},
++	{`""`, token.STRING, 0, ""},
++	{`"`, token.STRING, 0, "string not terminated"},
++	{"``", token.STRING, 0, ""},
++	{"`", token.STRING, 0, "string not terminated"},
+ 	{"/**/", token.COMMENT, 0, ""},
+ 	{"/*", token.COMMENT, 0, "comment not terminated"},
+ 	{"//\n", token.COMMENT, 0, ""},

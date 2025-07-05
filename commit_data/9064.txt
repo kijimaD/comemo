@@ -12,8 +12,45 @@ Date:   Wed Jul 13 16:01:29 2011 -0700
     R=bsiegert, rsc
     CC=golang-dev
     https://golang.org/cl/4648078
-
+---
  src/cmd/cc/dpchk.c | 1 -
  src/cmd/cc/lex.c   | 1 -
  src/cmd/cc/mac.c   | 1 -
  3 files changed, 3 deletions(-)
+
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 42c245b566..084aa04846 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -29,7 +29,6 @@
+ // THE SOFTWARE.
+ 
+ #include	<u.h>
+-#include	<ctype.h>
+ #include	"cc.h"
+ #include	"y.tab.h"
+ 
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 15f2d374d1..9fb2f9e4d5 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -29,7 +29,6 @@
+ // THE SOFTWARE.
+ 
+ #include	<u.h>
+-#include	<ctype.h>
+ #include	"cc.h"
+ #include	"y.tab.h"
+ 
+diff --git a/src/cmd/cc/mac.c b/src/cmd/cc/mac.c
+index 43ae214d7e..b969662ae7 100644
+--- a/src/cmd/cc/mac.c
++++ b/src/cmd/cc/mac.c
+@@ -29,7 +29,6 @@
+ // THE SOFTWARE.
+ 
+ #include	<u.h>
+-#include	<ctype.h>
+ #include	"cc.h"
+ 
+ #include	"macbody"

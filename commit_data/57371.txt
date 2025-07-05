@@ -17,6 +17,32 @@ Date:   Wed Aug 2 00:37:49 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/type.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 6c05aceccf..4254c657d2 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -172,6 +172,9 @@ type Type interface {
+ 
+ 	// FieldByName returns the struct field with the given name
+ 	// and a boolean indicating if the field was found.
++	// If the returned field is promoted from an embedded struct,
++	// then Offset in the returned StructField is the offset in
++	// the embedded struct.
+ 	FieldByName(name string) (StructField, bool)
+ 
+ 	// FieldByNameFunc returns the struct field with a name
+@@ -186,6 +189,10 @@ type Type interface {
+ 	// and FieldByNameFunc returns no match.
+ 	// This behavior mirrors Go's handling of name lookup in
+ 	// structs containing embedded fields.
++	//
++	// If the returned field is promoted from an embedded struct,
++	// then Offset in the returned StructField is the offset in
++	// the embedded struct.
+ 	FieldByNameFunc(match func(string) bool) (StructField, bool)
+ 
+ 	// In returns the type of a function type's i'th input parameter.

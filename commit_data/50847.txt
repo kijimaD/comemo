@@ -16,7 +16,77 @@ Date:   Wed Oct 27 14:03:24 2021 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/clientserver_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/net/http/server.go            |  7 ++++---
  2 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 5e227181ac..125d63566b 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1582,3 +1582,37 @@ func TestH12_WebSocketUpgrade(t *testing.T) {
+ 		},
+ 	}.run(t)
+ }
++
++func TestIdentityTransferEncoding_h1(t *testing.T) { testIdentityTransferEncoding(t, h1Mode) }
++func TestIdentityTransferEncoding_h2(t *testing.T) { testIdentityTransferEncoding(t, h2Mode) }
++
++func testIdentityTransferEncoding(t *testing.T, h2 bool) {
++	setParallel(t)
++	defer afterTest(t)
++
++	const body = "body"
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		gotBody, _ := io.ReadAll(r.Body)
++		if got, want := string(gotBody), body; got != want {
++			t.Errorf("got request body = %q; want %q", got, want)
++		}
++		w.Header().Set("Transfer-Encoding", "identity")
++		w.WriteHeader(StatusOK)
++		w.(Flusher).Flush()
++		io.WriteString(w, body)
++	}))
++	defer cst.close()
++	req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader(body))
++	res, err := cst.c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	gotBody, err := io.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got, want := string(gotBody), body; got != want {
++		t.Errorf("got response body = %q; want %q", got, want)
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c4a2d57dd4..f0b0e86e91 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1426,11 +1426,11 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		hasCL = false
+ 	}
+ 
+-	if w.req.Method == "HEAD" || !bodyAllowedForStatus(code) {
+-		// do nothing
+-	} else if code == StatusNoContent {
++	if w.req.Method == "HEAD" || !bodyAllowedForStatus(code) || code == StatusNoContent {
++		// Response has no body.
+ 		delHeader("Transfer-Encoding")
+ 	} else if hasCL {
++		// Content-Length has been provided, so no chunking is to be done.
+ 		delHeader("Transfer-Encoding")
+ 	} else if w.req.ProtoAtLeast(1, 1) {
+ 		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity, and no
+@@ -1441,6 +1441,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		if hasTE && te == "identity" {
+ 			cw.chunking = false
+ 			w.closeAfterReply = true
++			delHeader("Transfer-Encoding")
+ 		} else {
+ 			// HTTP/1.1 or greater: use chunked transfer encoding
+ 			// to avoid closing the connection at EOF.

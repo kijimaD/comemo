@@ -34,6 +34,49 @@ Date:   Fri Apr 23 01:13:50 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 0c9006e040..b13c41aaef 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -890,7 +890,6 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		work:         par.NewQueue(runtime.GOMAXPROCS(0)),
+ 	}
+ 
+-	addedModuleFor := make(map[string]bool)
+ 	for {
+ 		ld.reset()
+ 
+@@ -931,7 +930,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			// We've loaded as much as we can without resolving missing imports.
+ 			break
+ 		}
+-		modAddedBy := ld.resolveMissingImports(ctx, addedModuleFor)
++		modAddedBy := ld.resolveMissingImports(ctx)
+ 		if len(modAddedBy) == 0 {
+ 			break
+ 		}
+@@ -1057,7 +1056,7 @@ func (ld *loader) updateRequirements(ctx context.Context, add []module.Version)
+ // The newly-resolved packages are added to the addedModuleFor map, and
+ // resolveMissingImports returns a map from each new module version to
+ // the first missing package that module would resolve.
+-func (ld *loader) resolveMissingImports(ctx context.Context, addedModuleFor map[string]bool) (modAddedBy map[module.Version]*loadPkg) {
++func (ld *loader) resolveMissingImports(ctx context.Context) (modAddedBy map[module.Version]*loadPkg) {
+ 	var needPkgs []*loadPkg
+ 	for _, pkg := range ld.pkgs {
+ 		if pkg.err == nil {
+@@ -1089,11 +1088,6 @@ func (ld *loader) resolveMissingImports(ctx context.Context, addedModuleFor map[
+ 		}
+ 
+ 		fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, pkg.mod.Path, pkg.mod.Version)
+-		if addedModuleFor[pkg.path] {
+-			// TODO(bcmills): This should only be an error if pkg.mod is the same
+-			// version we already tried to add previously.
+-			base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
+-		}
+ 		if modAddedBy[pkg.mod] == nil {
+ 			modAddedBy[pkg.mod] = pkg
+ 		}

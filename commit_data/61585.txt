@@ -19,7 +19,95 @@ Date:   Sun Nov 3 22:30:43 2024 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/internal/fips/aes/gcm/ctrkdf_test.go | 25 ++++++++++++++++
  src/crypto/internal/fips/aes/gcm/gcm_nonces.go  | 38 +++++++++++++++++++++++++
  2 files changed, 63 insertions(+)
+
+diff --git a/src/crypto/internal/fips/aes/gcm/ctrkdf_test.go b/src/crypto/internal/fips/aes/gcm/ctrkdf_test.go
+index 2dcd9c7f64..9ed46c3b0b 100644
+--- a/src/crypto/internal/fips/aes/gcm/ctrkdf_test.go
++++ b/src/crypto/internal/fips/aes/gcm/ctrkdf_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"crypto/internal/cryptotest"
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/aes/gcm"
++	"crypto/internal/fips/drbg"
+ 	"crypto/internal/fips/sha3"
+ 	"encoding/hex"
+ 	"testing"
+@@ -31,6 +32,30 @@ func TestAllocations(t *testing.T) {
+ 	}
+ }
+ 
++func TestXAES(t *testing.T) {
++	key := bytes.Repeat([]byte{0x01}, 32)
++	plaintext := []byte("XAES-256-GCM")
++	additionalData := []byte("c2sp.org/XAES-256-GCM")
++
++	nonce := make([]byte, 24)
++	ciphertext := make([]byte, len(plaintext)+16)
++
++	drbg.Read(nonce[:12])
++	c, _ := aes.New(key)
++	k := gcm.NewCounterKDF(c).DeriveKey(0x58, [12]byte(nonce))
++	a, _ := aes.New(k[:])
++	g, _ := gcm.New(a, 12, 16)
++	gcm.SealWithRandomNonce(g, nonce[12:], ciphertext, plaintext, additionalData)
++
++	got, err := xaesOpen(nil, key, nonce, ciphertext, additionalData)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(plaintext, got) {
++		t.Errorf("plaintext and got are not equal")
++	}
++}
++
+ // ACVP tests consider fixed data part of the output, not part of the input, and
+ // all the pre-generated vectors at
+ // https://github.com/usnistgov/ACVP-Server/blob/3a7333f6/gen-val/json-files/KDF-1.0/expectedResults.json
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+new file mode 100644
+index 0000000000..3dc02ac07a
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+@@ -0,0 +1,38 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm
++
++import (
++	"crypto/internal/fips/alias"
++	"crypto/internal/fips/drbg"
++)
++
++// SealWithRandomNonce encrypts plaintext to out, and writes a random nonce to
++// nonce. nonce must be 12 bytes, and out must be 16 bytes longer than plaintext.
++// out and plaintext may overlap exactly or not at all. additionalData and out
++// must not overlap.
++//
++// This complies with FIPS 140-3 IG C.H Resolution 2.
++//
++// Note that this is NOT a [cipher.AEAD].Seal method.
++func SealWithRandomNonce(g *GCM, nonce, out, plaintext, additionalData []byte) {
++	if uint64(len(plaintext)) > uint64((1<<32)-2)*gcmBlockSize {
++		panic("crypto/cipher: message too large for GCM")
++	}
++	if len(nonce) != gcmStandardNonceSize {
++		panic("crypto/cipher: incorrect nonce length given to GCMWithRandomNonce")
++	}
++	if len(out) != len(plaintext)+gcmTagSize {
++		panic("crypto/cipher: incorrect output length given to GCMWithRandomNonce")
++	}
++	if alias.InexactOverlap(out, plaintext) {
++		panic("crypto/cipher: invalid buffer overlap of output and input")
++	}
++	if alias.AnyOverlap(out, additionalData) {
++		panic("crypto/cipher: invalid buffer overlap of output and additional data")
++	}
++	drbg.Read(nonce)
++	seal(out, g, nonce, plaintext, additionalData)
++}

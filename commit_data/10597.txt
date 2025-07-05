@@ -7,6 +7,20 @@ Date:   Fri Dec 2 10:30:35 2011 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5449068
-
+---
  src/cmd/goinstall/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 88428261d6..072588457e 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -169,7 +169,7 @@ func printDeps(pkg string) {
+ }
+ 
+ // readPackageList reads the list of installed packages from the
+-// goinstall.log files in GOROOT and the GOPATHs and initalizes
++// goinstall.log files in GOROOT and the GOPATHs and initializes
+ // the installedPkgs variable.
+ func readPackageList() {
+ 	for _, t := range build.Path {

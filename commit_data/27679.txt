@@ -11,6 +11,27 @@ Date:   Thu Apr 7 14:27:15 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index db8961676c..4741020a6d 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -509,6 +509,7 @@ func newdie(parent *DWDie, abbrev int, name string, version int) *DWDie {
+ 	if name != "" && (abbrev <= DW_ABRV_VARIABLE || abbrev >= DW_ABRV_NULLTYPE) {
+ 		if abbrev != DW_ABRV_VARIABLE || version == 0 {
+ 			die.sym = Linklookup(Ctxt, infoprefix+name, version)
++			die.sym.Attr |= AttrHidden
+ 			die.sym.Type = obj.SDWARFINFO
+ 		}
+ 	}
+@@ -814,6 +815,7 @@ func dotypedef(parent *DWDie, name string, def *DWDie) {
+ 	}
+ 
+ 	def.sym = Linklookup(Ctxt, def.sym.Name+".def", 0)
++	def.sym.Attr |= AttrHidden
+ 	def.sym.Type = obj.SDWARFINFO
+ 
+ 	// The typedef entry must be created after the def,

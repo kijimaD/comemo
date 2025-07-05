@@ -9,6 +9,20 @@ Date:   Fri May 24 11:19:15 2024 -0400
     Auto-Submit: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/telemetrystats/version_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/telemetrystats/version_unix.go b/src/cmd/go/internal/telemetrystats/version_unix.go
+index fbf4292312..08259b7c89 100644
+--- a/src/cmd/go/internal/telemetrystats/version_unix.go
++++ b/src/cmd/go/internal/telemetrystats/version_unix.go
+@@ -34,7 +34,7 @@ func incrementVersionCounters() {
+ 	}
+ 	major, minor, ok := majorMinor(convert(v.Release[:]))
+ 	if runtime.GOOS == "aix" {
+-		major, minor, ok = convert(v.Version[:]), convert(v.Release[:]), ok
++		major, minor, ok = convert(v.Version[:]), convert(v.Release[:]), true
+ 	}
+ 	if !ok {
+ 		telemetry.Inc(fmt.Sprintf("go/platform/host/%s/version:unknown-bad-format", runtime.GOOS))

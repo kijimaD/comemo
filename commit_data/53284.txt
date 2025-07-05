@@ -14,6 +14,34 @@ Date:   Tue Aug 9 00:25:32 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/test/issue53888_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/test/issue53888_test.go b/src/cmd/compile/internal/test/issue53888_test.go
+index 9f50a82a3c..032412afcf 100644
+--- a/src/cmd/compile/internal/test/issue53888_test.go
++++ b/src/cmd/compile/internal/test/issue53888_test.go
+@@ -2,15 +2,21 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !race
++//go:build !race && !goexperiment.unified
+ 
+ package test
+ 
+ import (
++	"internal/testenv"
++	"strings"
+ 	"testing"
+ )
+ 
++// TODO(cuonglm,mdempsky): figure out why Unifed IR failed?
+ func TestAppendOfMake(t *testing.T) {
++	if strings.HasSuffix(testenv.Builder(), "-noopt") {
++		t.Skip("append of make optimization is disabled on noopt builder")
++	}
+ 	for n := 32; n < 33; n++ { // avoid stack allocation of make()
+ 		b := make([]byte, n)
+ 		f := func() {

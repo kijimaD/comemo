@@ -23,8 +23,59 @@ Date:   Tue Aug 14 17:08:27 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 2 --
  src/runtime/mgcmark.go | 5 -----
  src/runtime/mwbbuf.go  | 5 -----
  3 files changed, 12 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 69fd8df662..83d9a49a46 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1931,7 +1931,6 @@ func gcMark(start_time int64) {
+ 	} else {
+ 		gcDrain(gcw, gcDrainNoBlock)
+ 	}
+-	gcw.dispose()
+ 
+ 	if debug.gccheckmark > 0 {
+ 		// This is expensive when there's a large number of
+@@ -2130,7 +2129,6 @@ func gchelper() {
+ 		} else {
+ 			gcDrain(gcw, gcDrainNoBlock)
+ 		}
+-		gcw.dispose()
+ 	}
+ 
+ 	nproc := atomic.Load(&work.nproc) // work.nproc can change right after we increment work.ndone
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 6c641e3fbf..b86b2d012e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1149,11 +1149,6 @@ func shade(b uintptr) {
+ 	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
+ 		gcw := &getg().m.p.ptr().gcw
+ 		greyobject(obj, 0, 0, span, gcw, objIndex)
+-		if gcphase == _GCmarktermination {
+-			// Ps aren't allowed to cache work during mark
+-			// termination.
+-			gcw.dispose()
+-		}
+ 	}
+ }
+ 
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 335b10f5b7..f35f7286ac 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -275,9 +275,4 @@ func wbBufFlush1(_p_ *p) {
+ 
+ 	// Enqueue the greyed objects.
+ 	gcw.putBatch(ptrs[:pos])
+-	if gcphase == _GCmarktermination {
+-		// Ps aren't allowed to cache work during mark
+-		// termination.
+-		gcw.dispose()
+-	}
+ }

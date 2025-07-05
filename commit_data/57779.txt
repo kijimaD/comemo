@@ -15,7 +15,7 @@ Date:   Thu Aug 24 09:07:03 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/alias.go      | 17 +++++++++++++++++
  src/cmd/compile/internal/types2/builtins.go   |  2 +-
  src/cmd/compile/internal/types2/decl.go       |  6 +++---
@@ -48,3 +48,643 @@ Date:   Thu Aug 24 09:07:03 2023 -0700
  src/go/types/unify.go                         | 10 +++++-----
  src/go/types/universe.go                      |  2 +-
  31 files changed, 92 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+new file mode 100644
+index 0000000000..375046b983
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++// This file will eventually define an Alias type.
++// For now it declares asNamed. Once Alias types
++// exist, asNamed will need to indirect through
++// them as needed.
++
++// asNamed returns t as *Named if that is t's
++// actual type. It returns nil otherwise.
++func asNamed(t Type) *Named {
++	n, _ := t.(*Named)
++	return n
++}
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 53be480f54..41e60f118d 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -923,7 +923,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ 	// Cycles are only possible through *Named types.
+ 	// The seen map is used to detect cycles and track
+ 	// the results of previously seen types.
+-	if named, _ := t.(*Named); named != nil {
++	if named := asNamed(t); named != nil {
+ 		if v, ok := seen[named]; ok {
+ 			return v
+ 		}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 2914b496f4..8c6fb45ac0 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -475,7 +475,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
+ 
+ // isImportedConstraint reports whether typ is an imported type constraint.
+ func (check *Checker) isImportedConstraint(typ Type) bool {
+-	named, _ := typ.(*Named)
++	named := asNamed(typ)
+ 	if named == nil || named.obj.pkg == check.pkg || named.obj.pkg == nil {
+ 		return false
+ 	}
+@@ -488,7 +488,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	var rhs Type
+ 	check.later(func() {
+-		if t, _ := obj.typ.(*Named); t != nil { // type may be invalid
++		if t := asNamed(obj.typ); t != nil { // type may be invalid
+ 			check.validType(t)
+ 		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+@@ -638,7 +638,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 
+ 	// spec: "If the base type is a struct type, the non-blank method
+ 	// and field names must be distinct."
+-	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
++	base := asNamed(obj.typ) // shouldn't fail but be conservative
+ 	if base != nil {
+ 		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
+ 
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index b7370ca38d..620ad1a70c 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -54,7 +54,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// Thus, if we have a named pointer type, proceed with the underlying
+ 	// pointer type but discard the result if it is a method since we would
+ 	// not have found it for T (see also go.dev/issue/8590).
+-	if t, _ := T.(*Named); t != nil {
++	if t := asNamed(T); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+ 			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
+ 			if _, ok := obj.(*Func); ok {
+@@ -138,7 +138,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
+ 
+ 			// If we have a named type, we may have associated methods.
+ 			// Look for those first.
+-			if named, _ := typ.(*Named); named != nil {
++			if named := asNamed(typ); named != nil {
+ 				if alt := seen.lookup(named); alt != nil {
+ 					// We have seen this type before, at a more shallow depth
+ 					// (note that multiples of this type at the current depth
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 7c9a46f231..82c2cb3a5b 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -141,7 +141,7 @@ const (
+ // If the given type name obj doesn't have a type yet, its type is set to the returned named type.
+ // The underlying type must not be a *Named.
+ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+-	if _, ok := underlying.(*Named); ok {
++	if asNamed(underlying) != nil {
+ 		panic("underlying type must not be *Named")
+ 	}
+ 	return (*Checker)(nil).newNamed(obj, underlying, methods)
+@@ -434,7 +434,7 @@ func (t *Named) SetUnderlying(underlying Type) {
+ 	if underlying == nil {
+ 		panic("underlying type must not be nil")
+ 	}
+-	if _, ok := underlying.(*Named); ok {
++	if asNamed(underlying) != nil {
+ 		panic("underlying type must not be *Named")
+ 	}
+ 	t.resolve().underlying = underlying
+@@ -598,7 +598,7 @@ func (n *Named) expandUnderlying() Type {
+ 	orig := n.inst.orig
+ 	targs := n.inst.targs
+ 
+-	if _, unexpanded := orig.underlying.(*Named); unexpanded {
++	if asNamed(orig.underlying) != nil {
+ 		// We should only get a Named underlying type here during type checking
+ 		// (for example, in recursive type declarations).
+ 		assert(check != nil)
+@@ -656,7 +656,7 @@ func (n *Named) expandUnderlying() Type {
+ //
+ // TODO(rfindley): eliminate this function or give it a better name.
+ func safeUnderlying(typ Type) Type {
+-	if t, _ := typ.(*Named); t != nil {
++	if t := asNamed(typ); t != nil {
+ 		return t.underlying
+ 	}
+ 	return typ.Underlying()
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 075bd97d0f..872b874ecb 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -124,7 +124,7 @@ func hasEmptyTypeset(t Type) bool {
+ // TODO(gri) should we include signatures or assert that they are not present?
+ func isGeneric(t Type) bool {
+ 	// A parameterized type is only generic if it doesn't have an instantiation already.
+-	named, _ := t.(*Named)
++	named := asNamed(t)
+ 	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
+ }
+ 
+@@ -435,7 +435,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration; if they are instantiated they
+ 		// must have identical type argument lists.
+-		if y, ok := y.(*Named); ok {
++		if y := asNamed(y); y != nil {
+ 			// check type arguments before origins to match unifier
+ 			// (for correct source code we need to do all checks so
+ 			// order doesn't matter)
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 8e0dfe2881..7eeb7340f8 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -136,7 +136,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 				// Also: Don't report an error via genericType since it will be reported
+ 				//       again when we type-check the signature.
+ 				// TODO(gri) maybe the receiver should be marked as invalid instead?
+-				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
++				if recv := asNamed(check.genericType(rname, nil)); recv != nil {
+ 					recvTParams = recv.TypeParams().list()
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index cc0288da4d..64da072fbf 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -112,8 +112,8 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
+ }
+ 
+ func IsSyncAtomicAlign64(T Type) bool {
+-	named, ok := T.(*Named)
+-	if !ok {
++	named := asNamed(T)
++	if named == nil {
+ 		return false
+ 	}
+ 	obj := named.Obj()
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index aebbec27a8..46c2101c47 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -132,7 +132,7 @@ func (t *TypeParam) iface() *Interface {
+ 		// pos is used for tracing output; start with the type parameter position.
+ 		pos := t.obj.pos
+ 		// use the (original or possibly instantiated) type bound position if we have one
+-		if n, _ := bound.(*Named); n != nil {
++		if n := asNamed(bound); n != nil {
+ 			pos = n.obj.pos
+ 		}
+ 		computeInterfaceTypeSet(t.check, pos, ityp)
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 2f4fb5220d..dfa929476c 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -218,7 +218,7 @@ func (w *typeWriter) typ(typ Type) {
+ 				w.string("any")
+ 				break
+ 			}
+-			if t == universeComparable.Type().(*Named).underlying {
++			if t == asNamed(universeComparable.Type()).underlying {
+ 				w.string("interface{comparable}")
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 5a59db023a..bf353427ab 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -420,7 +420,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 		return gtyp // error already reported
+ 	}
+ 
+-	orig, _ := gtyp.(*Named)
++	orig := asNamed(gtyp)
+ 	if orig == nil {
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
+ 	}
+@@ -433,7 +433,7 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	}
+ 
+ 	// create the instance
+-	inst := check.instance(x.Pos(), orig, targs, nil, check.context()).(*Named)
++	inst := asNamed(check.instance(x.Pos(), orig, targs, nil, check.context()))
+ 	def.setUnderlying(inst)
+ 
+ 	// orig.tparams may not be set up, so we need to do expansion later.
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index 887f7816ba..6b24399de4 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -9,7 +9,7 @@ package types2
+ // under must only be called when a type is known
+ // to be fully set up.
+ func under(t Type) Type {
+-	if t, _ := t.(*Named); t != nil {
++	if t := asNamed(t); t != nil {
+ 		return t.under()
+ 	}
+ 	return t.Underlying()
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 5d58e2da13..e0340a5907 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -311,7 +311,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// Ensure that if we have at least one
+ 	// - defined type, make sure one is in y
+ 	// - type parameter recorded with u, make sure one is in x
+-	if _, ok := x.(*Named); ok || u.asTypeParam(y) != nil {
++	if asNamed(x) != nil || u.asTypeParam(y) != nil {
+ 		if traceInference {
+ 			u.tracef("%s ≡ %s\t// swap", y, x)
+ 		}
+@@ -335,7 +335,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// we will fail at function instantiation or argument assignment time.
+ 	//
+ 	// If we have at least one defined type, there is one in y.
+-	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(u.enableInterfaceInference && IsInterface(x)) {
++	if ny := asNamed(y); mode&exact == 0 && ny != nil && isTypeLit(x) && !(u.enableInterfaceInference && IsInterface(x)) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+@@ -372,8 +372,8 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 				// We have a match, possibly through underlying types.
+ 				xi := asInterface(x)
+ 				yi := asInterface(y)
+-				_, xn := x.(*Named)
+-				_, yn := y.(*Named)
++				xn := asNamed(x) != nil
++				yn := asNamed(y) != nil
+ 				// If we have two interfaces, what to do depends on
+ 				// whether they are named and their method sets.
+ 				if xi != nil && yi != nil {
+@@ -728,7 +728,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	case *Named:
+ 		// Two named types unify if their type names originate in the same type declaration.
+ 		// If they are instantiated, their type argument lists must unify.
+-		if y, ok := y.(*Named); ok {
++		if y := asNamed(y); y != nil {
+ 			// Check type arguments before origins so they unify
+ 			// even if the origins don't match; for better error
+ 			// messages (see go.dev/issue/53692).
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 79cd8cbf0a..c8be81b9eb 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -265,7 +265,7 @@ func def(obj Object) {
+ 		return // nothing to do
+ 	}
+ 	// fix Obj link for named types
+-	if typ, _ := obj.Type().(*Named); typ != nil {
++	if typ := asNamed(obj.Type()); typ != nil {
+ 		typ.obj = obj.(*TypeName)
+ 	}
+ 	// exported identifiers go into package unsafe
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+new file mode 100644
+index 0000000000..7dc7fe9e59
+--- /dev/null
++++ b/src/go/types/alias.go
+@@ -0,0 +1,19 @@
++// Code generated by "go test -run=Generate -write=all"; DO NOT EDIT.
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++// This file will eventually define an Alias type.
++// For now it declares asNamed. Once Alias types
++// exist, asNamed will need to indirect through
++// them as needed.
++
++// asNamed returns t as *Named if that is t's
++// actual type. It returns nil otherwise.
++func asNamed(t Type) *Named {
++	n, _ := t.(*Named)
++	return n
++}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 35b8755a91..0f054e35ae 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -922,7 +922,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ 	// Cycles are only possible through *Named types.
+ 	// The seen map is used to detect cycles and track
+ 	// the results of previously seen types.
+-	if named, _ := t.(*Named); named != nil {
++	if named := asNamed(t); named != nil {
+ 		if v, ok := seen[named]; ok {
+ 			return v
+ 		}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index af8ec8435e..642d2604f9 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -544,7 +544,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 
+ // isImportedConstraint reports whether typ is an imported type constraint.
+ func (check *Checker) isImportedConstraint(typ Type) bool {
+-	named, _ := typ.(*Named)
++	named := asNamed(typ)
+ 	if named == nil || named.obj.pkg == check.pkg || named.obj.pkg == nil {
+ 		return false
+ 	}
+@@ -557,7 +557,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 
+ 	var rhs Type
+ 	check.later(func() {
+-		if t, _ := obj.typ.(*Named); t != nil { // type may be invalid
++		if t := asNamed(obj.typ); t != nil { // type may be invalid
+ 			check.validType(t)
+ 		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+@@ -726,7 +726,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 
+ 	// spec: "If the base type is a struct type, the non-blank method
+ 	// and field names must be distinct."
+-	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
++	base := asNamed(obj.typ) // shouldn't fail but be conservative
+ 	if base != nil {
+ 		assert(base.TypeArgs().Len() == 0) // collectMethods should not be called on an instantiated type
+ 
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index f38206a496..6af3715f87 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -95,6 +95,7 @@ func generate(t *testing.T, filename string, write bool) {
+ type action func(in *ast.File)
+ 
+ var filemap = map[string]action{
++	"alias.go":        nil,
+ 	"array.go":        nil,
+ 	"basic.go":        nil,
+ 	"chan.go":         nil,
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 5fe9b57c3f..74562d8a89 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -104,7 +104,7 @@ func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
+ // The result is nil if the i'th embedded type is not a defined type.
+ //
+ // Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
+-func (t *Interface) Embedded(i int) *Named { tname, _ := t.embeddeds[i].(*Named); return tname }
++func (t *Interface) Embedded(i int) *Named { return asNamed(t.embeddeds[i]) }
+ 
+ // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
+ func (t *Interface) EmbeddedType(i int) Type { return t.embeddeds[i] }
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index d96dd86e5e..4fcae994f9 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -56,7 +56,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 	// Thus, if we have a named pointer type, proceed with the underlying
+ 	// pointer type but discard the result if it is a method since we would
+ 	// not have found it for T (see also go.dev/issue/8590).
+-	if t, _ := T.(*Named); t != nil {
++	if t := asNamed(T); t != nil {
+ 		if p, _ := t.Underlying().(*Pointer); p != nil {
+ 			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
+ 			if _, ok := obj.(*Func); ok {
+@@ -140,7 +140,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
+ 
+ 			// If we have a named type, we may have associated methods.
+ 			// Look for those first.
+-			if named, _ := typ.(*Named); named != nil {
++			if named := asNamed(typ); named != nil {
+ 				if alt := seen.lookup(named); alt != nil {
+ 					// We have seen this type before, at a more shallow depth
+ 					// (note that multiples of this type at the current depth
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 0d9d9b4817..7d272df5f3 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -80,7 +80,7 @@ func NewMethodSet(T Type) *MethodSet {
+ 	// (spec: "The type denoted by T is called the receiver base type;
+ 	// it must not be a pointer or interface type and it must be declared
+ 	// in the same package as the method.").
+-	if t, _ := T.(*Named); t != nil && isPointer(t) {
++	if t := asNamed(T); t != nil && isPointer(t) {
+ 		return &emptyMethodSet
+ 	}
+ 
+@@ -117,7 +117,7 @@ func NewMethodSet(T Type) *MethodSet {
+ 
+ 			// If we have a named type, we may have associated methods.
+ 			// Look for those first.
+-			if named, _ := typ.(*Named); named != nil {
++			if named := asNamed(typ); named != nil {
+ 				if alt := seen.lookup(named); alt != nil {
+ 					// We have seen this type before, at a more shallow depth
+ 					// (note that multiples of this type at the current depth
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index fae7341234..e57cbbaa61 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -143,7 +143,7 @@ const (
+ // If the given type name obj doesn't have a type yet, its type is set to the returned named type.
+ // The underlying type must not be a *Named.
+ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+-	if _, ok := underlying.(*Named); ok {
++	if asNamed(underlying) != nil {
+ 		panic("underlying type must not be *Named")
+ 	}
+ 	return (*Checker)(nil).newNamed(obj, underlying, methods)
+@@ -436,7 +436,7 @@ func (t *Named) SetUnderlying(underlying Type) {
+ 	if underlying == nil {
+ 		panic("underlying type must not be nil")
+ 	}
+-	if _, ok := underlying.(*Named); ok {
++	if asNamed(underlying) != nil {
+ 		panic("underlying type must not be *Named")
+ 	}
+ 	t.resolve().underlying = underlying
+@@ -600,7 +600,7 @@ func (n *Named) expandUnderlying() Type {
+ 	orig := n.inst.orig
+ 	targs := n.inst.targs
+ 
+-	if _, unexpanded := orig.underlying.(*Named); unexpanded {
++	if asNamed(orig.underlying) != nil {
+ 		// We should only get a Named underlying type here during type checking
+ 		// (for example, in recursive type declarations).
+ 		assert(check != nil)
+@@ -658,7 +658,7 @@ func (n *Named) expandUnderlying() Type {
+ //
+ // TODO(rfindley): eliminate this function or give it a better name.
+ func safeUnderlying(typ Type) Type {
+-	if t, _ := typ.(*Named); t != nil {
++	if t := asNamed(typ); t != nil {
+ 		return t.underlying
+ 	}
+ 	return typ.Underlying()
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 752d1a76c2..dcbf30a556 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -126,7 +126,7 @@ func hasEmptyTypeset(t Type) bool {
+ // TODO(gri) should we include signatures or assert that they are not present?
+ func isGeneric(t Type) bool {
+ 	// A parameterized type is only generic if it doesn't have an instantiation already.
+-	named, _ := t.(*Named)
++	named := asNamed(t)
+ 	return named != nil && named.obj != nil && named.inst == nil && named.TypeParams().Len() > 0
+ }
+ 
+@@ -437,7 +437,7 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
+ 		// Two named types are identical if their type names originate
+ 		// in the same type declaration; if they are instantiated they
+ 		// must have identical type argument lists.
+-		if y, ok := y.(*Named); ok {
++		if y := asNamed(y); y != nil {
+ 			// check type arguments before origins to match unifier
+ 			// (for correct source code we need to do all checks so
+ 			// order doesn't matter)
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 8285f1b3d4..a366b9dd0d 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -140,7 +140,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				// Also: Don't report an error via genericType since it will be reported
+ 				//       again when we type-check the signature.
+ 				// TODO(gri) maybe the receiver should be marked as invalid instead?
+-				if recv, _ := check.genericType(rname, nil).(*Named); recv != nil {
++				if recv := asNamed(check.genericType(rname, nil)); recv != nil {
+ 					recvTParams = recv.TypeParams().list()
+ 				}
+ 			}
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index c329752b3a..5e40614f39 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -114,8 +114,8 @@ func (s *StdSizes) Alignof(T Type) (result int64) {
+ }
+ 
+ func _IsSyncAtomicAlign64(T Type) bool {
+-	named, ok := T.(*Named)
+-	if !ok {
++	named := asNamed(T)
++	if named == nil {
+ 		return false
+ 	}
+ 	obj := named.Obj()
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 763fcc61f0..787926a367 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -134,7 +134,7 @@ func (t *TypeParam) iface() *Interface {
+ 		// pos is used for tracing output; start with the type parameter position.
+ 		pos := t.obj.pos
+ 		// use the (original or possibly instantiated) type bound position if we have one
+-		if n, _ := bound.(*Named); n != nil {
++		if n := asNamed(bound); n != nil {
+ 			pos = n.obj.pos
+ 		}
+ 		computeInterfaceTypeSet(t.check, pos, ityp)
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 9615e24157..cb735f2b49 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -219,7 +219,7 @@ func (w *typeWriter) typ(typ Type) {
+ 				w.string("any")
+ 				break
+ 			}
+-			if t == universeComparable.Type().(*Named).underlying {
++			if t == asNamed(universeComparable.Type()).underlying {
+ 				w.string("interface{comparable}")
+ 				break
+ 			}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index ca390ab922..d92ac9cabd 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -411,7 +411,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 		return gtyp // error already reported
+ 	}
+ 
+-	orig, _ := gtyp.(*Named)
++	orig := asNamed(gtyp)
+ 	if orig == nil {
+ 		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
+ 	}
+@@ -424,7 +424,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 	}
+ 
+ 	// create the instance
+-	inst := check.instance(ix.Pos(), orig, targs, nil, check.context()).(*Named)
++	inst := asNamed(check.instance(ix.Pos(), orig, targs, nil, check.context()))
+ 	def.setUnderlying(inst)
+ 
+ 	// orig.tparams may not be set up, so we need to do expansion later.
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index f17d3bcda4..3838528b53 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -11,7 +11,7 @@ package types
+ // under must only be called when a type is known
+ // to be fully set up.
+ func under(t Type) Type {
+-	if t, _ := t.(*Named); t != nil {
++	if t := asNamed(t); t != nil {
+ 		return t.under()
+ 	}
+ 	return t.Underlying()
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index d8d5cd6f1a..3c7b782b5a 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -313,7 +313,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// Ensure that if we have at least one
+ 	// - defined type, make sure one is in y
+ 	// - type parameter recorded with u, make sure one is in x
+-	if _, ok := x.(*Named); ok || u.asTypeParam(y) != nil {
++	if asNamed(x) != nil || u.asTypeParam(y) != nil {
+ 		if traceInference {
+ 			u.tracef("%s ≡ %s\t// swap", y, x)
+ 		}
+@@ -337,7 +337,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	// we will fail at function instantiation or argument assignment time.
+ 	//
+ 	// If we have at least one defined type, there is one in y.
+-	if ny, _ := y.(*Named); mode&exact == 0 && ny != nil && isTypeLit(x) && !(u.enableInterfaceInference && IsInterface(x)) {
++	if ny := asNamed(y); mode&exact == 0 && ny != nil && isTypeLit(x) && !(u.enableInterfaceInference && IsInterface(x)) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+@@ -374,8 +374,8 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 				// We have a match, possibly through underlying types.
+ 				xi := asInterface(x)
+ 				yi := asInterface(y)
+-				_, xn := x.(*Named)
+-				_, yn := y.(*Named)
++				xn := asNamed(x) != nil
++				yn := asNamed(y) != nil
+ 				// If we have two interfaces, what to do depends on
+ 				// whether they are named and their method sets.
+ 				if xi != nil && yi != nil {
+@@ -730,7 +730,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 	case *Named:
+ 		// Two named types unify if their type names originate in the same type declaration.
+ 		// If they are instantiated, their type argument lists must unify.
+-		if y, ok := y.(*Named); ok {
++		if y := asNamed(y); y != nil {
+ 			// Check type arguments before origins so they unify
+ 			// even if the origins don't match; for better error
+ 			// messages (see go.dev/issue/53692).
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index cc4d42d98c..bde0293527 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -267,7 +267,7 @@ func def(obj Object) {
+ 		return // nothing to do
+ 	}
+ 	// fix Obj link for named types
+-	if typ, _ := obj.Type().(*Named); typ != nil {
++	if typ := asNamed(obj.Type()); typ != nil {
+ 		typ.obj = obj.(*TypeName)
+ 	}
+ 	// exported identifiers go into package unsafe

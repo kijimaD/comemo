@@ -16,6 +16,35 @@ Date:   Sat Apr 9 21:00:59 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/stat_solaris.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/os/stat_solaris.go b/src/os/stat_solaris.go
+index 316c26c7ca..4e00ecb075 100644
+--- a/src/os/stat_solaris.go
++++ b/src/os/stat_solaris.go
+@@ -9,6 +9,14 @@ import (
+ 	"time"
+ )
+ 
++// These constants aren't in the syscall package, which is frozen.
++// Values taken from golang.org/x/sys/unix.
++const (
++	_S_IFNAM  = 0x5000
++	_S_IFDOOR = 0xd000
++	_S_IFPORT = 0xe000
++)
++
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = basename(name)
+ 	fs.size = fs.sys.Size
+@@ -29,6 +37,8 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 		// nothing to do
+ 	case syscall.S_IFSOCK:
+ 		fs.mode |= ModeSocket
++	case _S_IFNAM, _S_IFDOOR, _S_IFPORT:
++		fs.mode |= ModeIrregular
+ 	}
+ 	if fs.sys.Mode&syscall.S_ISGID != 0 {
+ 		fs.mode |= ModeSetgid

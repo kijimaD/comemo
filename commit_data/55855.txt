@@ -9,7 +9,7 @@ Date:   Mon Mar 20 13:01:14 2023 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go |  6 +++---
  src/internal/godebug/godebug.go          | 10 +++++++---
  src/runtime/cgocheck.go                  |  1 +
@@ -18,3 +18,136 @@ Date:   Mon Mar 20 13:01:14 2023 -0700
  src/runtime/metrics/description_test.go  |  1 +
  src/runtime/start_line_test.go           |  2 +-
  7 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 26dcda2c62..2e121df3cc 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -474,8 +474,8 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ 	// If the evicted register isn't used between the start of the block
+ 	// and now then there is no reason to even request it on entry. We can
+ 	// drop from startRegs in that case.
+-	if s.usedSinceBlockStart&(regMask(1) << r) == 0 {
+-		if s.startRegsMask&(regMask(1) << r) == 1 {
++	if s.usedSinceBlockStart&(regMask(1)<<r) == 0 {
++		if s.startRegsMask&(regMask(1)<<r) == 1 {
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("dropped from startRegs: %s\n", &s.registers[r])
+ 			}
+@@ -1918,7 +1918,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		if c := countRegs(s.startRegsMask); c != len(s.startRegs[b.ID]) {
+ 			regs := make([]startReg, 0, c)
+ 			for _, sr := range s.startRegs[b.ID] {
+-				if s.startRegsMask&(regMask(1) << sr.r) == 0 {
++				if s.startRegsMask&(regMask(1)<<sr.r) == 0 {
+ 					continue
+ 				}
+ 				regs = append(regs, sr)
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index fc6fcb92e2..679e3df8d6 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -73,9 +73,9 @@ func (s *Setting) String() string {
+ // Any GODEBUG setting that can call IncNonDefault must be listed
+ // in three more places:
+ //
+-//	- the table in ../runtime/metrics.go (search for non-default-behavior)
+-//	- the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
+-//	- the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
++//   - the table in ../runtime/metrics.go (search for non-default-behavior)
++//   - the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
++//   - the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
+ func (s *Setting) IncNonDefault() {
+ 	s.nonDefaultOnce.Do(s.register)
+ 	s.nonDefault.Add(1)
+@@ -149,9 +149,13 @@ func registerMetric(name string, read func() uint64)
+ 
+ // setNewNonDefaultInc is provided by package runtime.
+ // The runtime can do
++//
+ //	inc := newNonDefaultInc(name)
++//
+ // instead of
++//
+ //	inc := godebug.New(name).IncNonDefault
++//
+ // since it cannot import godebug.
+ //
+ //go:linkname setNewIncNonDefault
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index af75b5c0b4..ee8537e2a6 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -78,6 +78,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
+ // size is the number of bytes to copy.
+ // It throws if the program is copying a block that contains a Go pointer
+ // into non-Go memory.
++//
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+diff --git a/src/runtime/internal/atomic/types.go b/src/runtime/internal/atomic/types.go
+index 0d75226b19..287742fee5 100644
+--- a/src/runtime/internal/atomic/types.go
++++ b/src/runtime/internal/atomic/types.go
+@@ -485,6 +485,7 @@ func (u *UnsafePointer) Store(value unsafe.Pointer) {
+ }
+ 
+ // provided by runtime
++//
+ //go:linkname storePointer
+ func storePointer(ptr *unsafe.Pointer, new unsafe.Pointer)
+ 
+@@ -539,6 +540,7 @@ func (p *Pointer[T]) StoreNoWB(value *T) {
+ }
+ 
+ // Store updates the value atomically.
++//
+ //go:nosplit
+ func (p *Pointer[T]) Store(value *T) {
+ 	p.u.Store(unsafe.Pointer(value))
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index c9e06d443d..6d2ff22930 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -178,6 +178,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ // wbZero performs the write barrier operations necessary before
+ // zeroing a region of memory at address dst of type typ.
+ // Does not actually do the zeroing.
++//
+ //go:nowritebarrierrec
+ //go:nosplit
+ func wbZero(typ *_type, dst unsafe.Pointer) {
+@@ -187,6 +188,7 @@ func wbZero(typ *_type, dst unsafe.Pointer) {
+ // wbMove performs the write barrier operations necessary before
+ // copying a region of memory from src to dst of type typ.
+ // Does not actually do the copying.
++//
+ //go:nowritebarrierrec
+ //go:nosplit
+ func wbMove(typ *_type, dst, src unsafe.Pointer) {
+diff --git a/src/runtime/metrics/description_test.go b/src/runtime/metrics/description_test.go
+index 3df3acf8b0..4fc652362e 100644
+--- a/src/runtime/metrics/description_test.go
++++ b/src/runtime/metrics/description_test.go
+@@ -25,6 +25,7 @@ import (
+ )
+ 
+ // Implemented in the runtime.
++//
+ //go:linkname runtime_readMetricNames
+ func runtime_readMetricNames() []string
+ 
+diff --git a/src/runtime/start_line_test.go b/src/runtime/start_line_test.go
+index 6c4faa87a8..0762351b0c 100644
+--- a/src/runtime/start_line_test.go
++++ b/src/runtime/start_line_test.go
+@@ -71,7 +71,7 @@ func TestStartLine(t *testing.T) {
+ 	// optimizations are disabled.
+ 	testenv.SkipIfOptimizationOff(t)
+ 
+-	testCases := []struct{
++	testCases := []struct {
+ 		name string
+ 		fn   func() int
+ 		want int

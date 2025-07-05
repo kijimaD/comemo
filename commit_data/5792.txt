@@ -7,7 +7,7 @@ Date:   Mon Jul 12 17:22:21 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1814043
-
+---
  src/pkg/container/vector/Makefile             | 4 ++--
  src/pkg/container/vector/intvector.go         | 4 ++--
  src/pkg/container/vector/intvector_test.go    | 6 +++---
@@ -18,3 +18,168 @@ Date:   Mon Jul 12 17:22:21 2010 -0700
  src/pkg/exp/iterable/iterable.go              | 6 +++---
  src/pkg/exp/iterable/iterable_test.go         | 2 +-
  9 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/container/vector/Makefile b/src/pkg/container/vector/Makefile
+index f664b43f94..1eb310c6d8 100644
+--- a/src/pkg/container/vector/Makefile
++++ b/src/pkg/container/vector/Makefile
+@@ -42,7 +42,7 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='make_vector -> make_vectorInt'\
+ 	| gofmt -r='TestInsertVector -> TestIntInsertVector'\
+ 	| gofmt -r='TestDo -> TestIntDo'\
+-	| gofmt -r='TestVectorData -> TestIntVectorData'\
++	| gofmt -r='TestVectorCopy -> TestIntVectorCopy'\
+ 	| gofmt -r='interface{} -> int'\
+ 	> intvector_test.go\
+ 	
+@@ -64,6 +64,6 @@ generate: vector.go vector_test.go
+ 	| gofmt -r='make_vector -> make_vectorStr'\
+ 	| gofmt -r='TestInsertVector -> TestStrInsertVector'\
+ 	| gofmt -r='TestDo -> TestStrDo'\
+-	| gofmt -r='TestVectorData -> TestStrVectorData'\
++	| gofmt -r='TestVectorCopy -> TestStrVectorCopy'\
+ 	| gofmt -r='interface{} -> string'\
+ 	> stringvector_test.go
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index 5f4d6fa3d7..5ad9e294b7 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -104,8 +104,8 @@ func (p *IntVector) Set(i int, x int) { (*p)[i] = x }
+ func (p *IntVector) Last() int { return (*p)[len(*p)-1] }
+ 
+ 
+-// Data returns all the elements as a slice.
+-func (p *IntVector) Data() []int {
++// Copy makes a copy of the vector and returns it.
++func (p *IntVector) Copy() IntVector {
+ 	arr := make(IntVector, len(*p))
+ 	copy(arr, *p)
+ 	return arr
+diff --git a/src/pkg/container/vector/intvector_test.go b/src/pkg/container/vector/intvector_test.go
+index 2f853ebfac..fcc7403b36 100644
+--- a/src/pkg/container/vector/intvector_test.go
++++ b/src/pkg/container/vector/intvector_test.go
+@@ -326,14 +326,14 @@ func TestIntDo(t *testing.T) {
+ }
+ 
+ 
+-func TestIntVectorData(t *testing.T) {
+-	// verify Data() returns a slice of a copy, not a slice of the original vector
++func TestIntVectorCopy(t *testing.T) {
++	// verify Copy() returns a copy, not simply a slice of the original vector
+ 	const Len = 10
+ 	var src IntVector
+ 	for i := 0; i < Len; i++ {
+ 		src.Push(int2IntValue(i * i))
+ 	}
+-	dest := src.Data()
++	dest := src.Copy()
+ 	for i := 0; i < Len; i++ {
+ 		src[i] = int2IntValue(-1)
+ 		v := elem2IntValue(dest[i])
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index a9b727a908..852685f5a1 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -104,8 +104,8 @@ func (p *StringVector) Set(i int, x string) { (*p)[i] = x }
+ func (p *StringVector) Last() string { return (*p)[len(*p)-1] }
+ 
+ 
+-// Data returns all the elements as a slice.
+-func (p *StringVector) Data() []string {
++// Copy makes a copy of the vector and returns it.
++func (p *StringVector) Copy() StringVector {
+ 	arr := make(StringVector, len(*p))
+ 	copy(arr, *p)
+ 	return arr
+diff --git a/src/pkg/container/vector/stringvector_test.go b/src/pkg/container/vector/stringvector_test.go
+index 1c05145a24..2f3f082bdc 100644
+--- a/src/pkg/container/vector/stringvector_test.go
++++ b/src/pkg/container/vector/stringvector_test.go
+@@ -326,14 +326,14 @@ func TestStrDo(t *testing.T) {
+ }
+ 
+ 
+-func TestStrVectorData(t *testing.T) {
+-	// verify Data() returns a slice of a copy, not a slice of the original vector
++func TestStrVectorCopy(t *testing.T) {
++	// verify Copy() returns a copy, not simply a slice of the original vector
+ 	const Len = 10
+ 	var src StringVector
+ 	for i := 0; i < Len; i++ {
+ 		src.Push(int2StrValue(i * i))
+ 	}
+-	dest := src.Data()
++	dest := src.Copy()
+ 	for i := 0; i < Len; i++ {
+ 		src[i] = int2StrValue(-1)
+ 		v := elem2StrValue(dest[i])
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index f219cdcaaf..f43e4d23ca 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -104,8 +104,8 @@ func (p *Vector) Set(i int, x interface{}) { (*p)[i] = x }
+ func (p *Vector) Last() interface{} { return (*p)[len(*p)-1] }
+ 
+ 
+-// Data returns all the elements as a slice.
+-func (p *Vector) Data() []interface{} {
++// Copy makes a copy of the vector and returns it.
++func (p *Vector) Copy() Vector {
+ 	arr := make(Vector, len(*p))
+ 	copy(arr, *p)
+ 	return arr
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index ba15398c28..986dff2da7 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -326,14 +326,14 @@ func TestDo(t *testing.T) {
+ }
+ 
+ 
+-func TestVectorData(t *testing.T) {
+-	// verify Data() returns a slice of a copy, not a slice of the original vector
++func TestVectorCopy(t *testing.T) {
++	// verify Copy() returns a copy, not simply a slice of the original vector
+ 	const Len = 10
+ 	var src Vector
+ 	for i := 0; i < Len; i++ {
+ 		src.Push(int2Value(i * i))
+ 	}
+-	dest := src.Data()
++	dest := src.Copy()
+ 	for i := 0; i < Len; i++ {
+ 		src[i] = int2Value(-1)
+ 		v := elem2Value(dest[i])
+diff --git a/src/pkg/exp/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+index aefff94272..85e5f38b0e 100644
+--- a/src/pkg/exp/iterable/iterable.go
++++ b/src/pkg/exp/iterable/iterable.go
+@@ -39,11 +39,11 @@ func Any(iter Iterable, f func(interface{}) bool) bool {
+ 
+ // Data returns a slice containing the elements of iter.
+ func Data(iter Iterable) []interface{} {
+-	vec := new(vector.Vector)
++	var v vector.Vector
+ 	for e := range iter.Iter() {
+-		vec.Push(e)
++		v.Push(e)
+ 	}
+-	return vec.Data()
++	return v
+ }
+ 
+ // filteredIterable is a struct that implements Iterable with each element
+diff --git a/src/pkg/exp/iterable/iterable_test.go b/src/pkg/exp/iterable/iterable_test.go
+index 1d60d4b910..26a2eecc45 100644
+--- a/src/pkg/exp/iterable/iterable_test.go
++++ b/src/pkg/exp/iterable/iterable_test.go
+@@ -371,7 +371,7 @@ func TestGroupBy(t *testing.T) {
+ 	for x := range GroupBy(elevenToTwenty, intkey{}).Iter() {
+ 		out.Push(x.(Group).Key)
+ 	}
+-	assertArraysAreEqual(t, out.Data(), elevenToTwenty)
++	assertArraysAreEqual(t, out, elevenToTwenty)
+ }
+ 
+ func TestUnique(t *testing.T) {

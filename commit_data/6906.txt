@@ -9,7 +9,51 @@ Date:   Thu Dec 9 13:41:24 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3515041
-
+---
  src/cmd/gc/go.errors |  9 +++++++++
  test/syntax/chan.go  | 17 +++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/cmd/gc/go.errors b/src/cmd/gc/go.errors
+index cdd7578d41..b5af4678c9 100644
+--- a/src/cmd/gc/go.errors
++++ b/src/cmd/gc/go.errors
+@@ -35,6 +35,15 @@ static struct {
+ 	% loadsys package imports LTYPE LNAME ';'
+ 	"unexpected semicolon or newline in type declaration",
+ 
++	% loadsys package imports LCHAN '}'
++	"unexpected } in channel type",
++	
++	% loadsys package imports LCHAN ')'
++	"unexpected ) in channel type",
++	
++	% loadsys package imports LCHAN ','
++	"unexpected comma in channel type",
++
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE
+ 	"unexpected semicolon or newline before else",
+ 
+diff --git a/test/syntax/chan.go b/test/syntax/chan.go
+new file mode 100644
+index 0000000000..48beb1e709
+--- /dev/null
++++ b/test/syntax/chan.go
+@@ -0,0 +1,17 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type xyz struct {
++    ch chan
++} // ERROR "unexpected } in channel type"
++
++func Foo(y chan) { // ERROR "unexpected \) in channel type"
++}
++
++func Bar(x chan, y int) { // ERROR "unexpected comma in channel type"
++}

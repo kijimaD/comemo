@@ -10,6 +10,47 @@ Date:   Fri Aug 25 15:24:14 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/59610
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/gen.go | 16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 6b1598e06c..f9b4584cf6 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -39,7 +39,7 @@ func autotmpname(n int) string {
+ }
+ 
+ // make a new Node off the books
+-func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
++func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
+ 	if curfn == nil {
+ 		Fatalf("no curfn for tempname")
+ 	}
+@@ -61,23 +61,15 @@ func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *types.Type) {
+ 	n.SetClass(PAUTO)
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = curfn
++	n.Name.SetUsed(true)
+ 	n.Name.SetAutoTemp(true)
+ 	curfn.Func.Dcl = append(curfn.Func.Dcl, n)
+ 
+ 	dowidth(t)
+-	*nn = *n
+-}
+ 
+-func temp(t *types.Type) *Node {
+-	var n Node
+-	tempnamel(lineno, Curfn, &n, t)
+-	asNode(n.Sym.Def).Name.SetUsed(true)
+ 	return n.Orig
+ }
+ 
+-func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
+-	var n Node
+-	tempnamel(pos, curfn, &n, t)
+-	asNode(n.Sym.Def).Name.SetUsed(true)
+-	return n.Orig
++func temp(t *types.Type) *Node {
++	return tempAt(lineno, Curfn, t)
+ }

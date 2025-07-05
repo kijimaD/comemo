@@ -16,7 +16,37 @@ Date:   Mon Nov 28 11:41:48 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/arch/s390x.go        | 2 ++
  src/cmd/asm/internal/asm/testdata/s390x.s | 5 ++++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/s390x.go b/src/cmd/asm/internal/arch/s390x.go
+index 7e0e8b9e0f..1836f87b57 100644
+--- a/src/cmd/asm/internal/arch/s390x.go
++++ b/src/cmd/asm/internal/arch/s390x.go
+@@ -110,6 +110,8 @@ func IsS390xWithIndex(op obj.As) bool {
+ 		return true
+ 	case s390x.AVLEG, s390x.AVLEF, s390x.AVLEH, s390x.AVLEB:
+ 		return true
++	case s390x.AVSTEG, s390x.AVSTEF, s390x.AVSTEH, s390x.AVSTEB:
++		return true
+ 	case s390x.AVPDI:
+ 		return true
+ 	}
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index f6278e9dbd..badedc1534 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -333,7 +333,10 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	VLEF	$2, (R0), V31           // VLEF    (R0), $2, V31           // e7f000002803
+ 	VLEH	$3, (R12), V16          // VLEH    (R12), $3, V16          // e700c0003801
+ 	VLEB	$15, 4095(R9), V15      // VLEB    4095(R9), $15, V15      // e7f09ffff000
+-
++	VSTEG	$1, V30, (R1)(R2*1)     // VSTEG   V30, $1, (R1)(R2*1)     // e7e21000180a
++	VSTEF	$3, V2, (R9)            // VSTEF   V2, $3, (R9)            // e7209000300b
++	VSTEH	$7, V31, (R2)           // VSTEH   V31, $7, (R2)           // e7f020007809
++	VSTEB	$15, V29, 4094(R12)     // VSTEB   V29, $15, 4094(R12)     // e7d0cffef808
+ 
+ 	RET
+ 

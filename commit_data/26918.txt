@@ -7,6 +7,19 @@ Date:   Wed Mar 2 17:40:18 2016 -0800
     Change-Id: I59ce1b40bc3472cc92a9a0a9fbd32342e0b945ad
     Reviewed-on: https://go-review.googlesource.com/20152
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 893fb6bf69..11ce49f369 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -388,6 +388,7 @@ func oldname(s *Sym) *Node {
+ 		n = newname(s)
+ 		n.Op = ONONAME
+ 		n.Name.Iota = iota_ // save current iota value in const declarations
++		return n
+ 	}
+ 
+ 	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {

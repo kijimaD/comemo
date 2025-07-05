@@ -18,6 +18,23 @@ Date:   Tue Aug 1 16:01:13 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  src/runtime/internal/wasitest/tcpecho_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/internal/wasitest/tcpecho_test.go b/src/runtime/internal/wasitest/tcpecho_test.go
+index c56af2cc85..c15da86f35 100644
+--- a/src/runtime/internal/wasitest/tcpecho_test.go
++++ b/src/runtime/internal/wasitest/tcpecho_test.go
+@@ -44,9 +44,9 @@ func TestTCPEcho(t *testing.T) {
+ 	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
+ 
+ 	switch os.Getenv("GOWASIRUNTIME") {
+-	case "wazero", "":
++	case "wazero":
+ 		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--listen="+host)
+-	case "wasmtime":
++	case "wasmtime", "":
+ 		subProcess.Env = append(subProcess.Env, "GOWASIRUNTIMEARGS=--tcplisten="+host)
+ 	default:
+ 		t.Skip("WASI runtime does not support sockets")

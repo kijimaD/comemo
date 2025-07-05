@@ -15,6 +15,20 @@ Date:   Thu Aug 24 15:20:18 2017 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6c0dc8bbd5..a2ad56b4f9 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -6158,7 +6158,7 @@ of <code>make</code>,
+ and no explicit initialization is provided, the variable or value is
+ given a default value.  Each element of such a variable or value is
+ set to the <i>zero value</i> for its type: <code>false</code> for booleans,
+-<code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
++<code>0</code> for numeric types, <code>""</code>
+ for strings, and <code>nil</code> for pointers, functions, interfaces, slices, channels, and maps.
+ This initialization is done recursively, so for instance each element of an
+ array of structs will have its fields zeroed if no value is specified.

@@ -19,7 +19,7 @@ Date:   Mon May 22 11:39:22 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/gover/mod.go                   |  17 ++-
  src/cmd/go/internal/gover/mod_test.go              |   5 +-
  src/cmd/go/internal/modfetch/cache.go              |  34 +++++
@@ -30,3 +30,421 @@ Date:   Mon May 22 11:39:22 2023 -0400
  src/cmd/go/internal/modload/query.go               |   4 +-
  src/cmd/go/testdata/script/gotoolchain_version.txt |  13 ++
  9 files changed, 230 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/mod.go b/src/cmd/go/internal/gover/mod.go
+index 4635b558a5..c47841164a 100644
+--- a/src/cmd/go/internal/gover/mod.go
++++ b/src/cmd/go/internal/gover/mod.go
+@@ -32,9 +32,12 @@ func IsToolchain(path string) bool {
+ // use a different version syntax and semantics (gover, this package)
+ // than most modules (semver).
+ func ModCompare(path string, x, y string) int {
+-	if IsToolchain(path) {
++	if path == "go" {
+ 		return Compare(x, y)
+ 	}
++	if path == "toolchain" {
++		return Compare(untoolchain(x), untoolchain(y))
++	}
+ 	return semver.Compare(x, y)
+ }
+ 
+@@ -73,3 +76,15 @@ func ModIsValid(path, vers string) bool {
+ 	}
+ 	return semver.IsValid(vers)
+ }
++
++// untoolchain converts a toolchain name like "go1.2.3" to a Go version like "1.2.3".
++// It also converts "anything-go1.2.3" (for example, "gccgo-go1.2.3") to "1.2.3".
++func untoolchain(x string) string {
++	if strings.HasPrefix(x, "go1") {
++		return x[len("go"):]
++	}
++	if i := strings.Index(x, "-go1"); i >= 0 {
++		return x[i+len("-go"):]
++	}
++	return x
++}
+diff --git a/src/cmd/go/internal/gover/mod_test.go b/src/cmd/go/internal/gover/mod_test.go
+index 2de7f63e2e..20dd8ca2d0 100644
+--- a/src/cmd/go/internal/gover/mod_test.go
++++ b/src/cmd/go/internal/gover/mod_test.go
+@@ -27,8 +27,9 @@ var modCompareTests = []testCase3[string, string, string, int]{
+ 	{"go", "1.2", "1.3", -1},
+ 	{"go", "v1.2", "v1.3", 0}, // equal because invalid
+ 	{"go", "1.2", "1.2", 0},
+-	{"toolchain", "1.2", "1.3", -1},
+-	{"toolchain", "1.2", "1.2", 0},
++	{"toolchain", "go1.2", "go1.3", -1},
++	{"toolchain", "go1.2", "go1.2", 0},
++	{"toolchain", "1.2", "1.3", -1},  // accepted but non-standard
+ 	{"toolchain", "v1.2", "v1.3", 0}, // equal because invalid
+ 	{"rsc.io/quote", "v1.2", "v1.3", -1},
+ 	{"rsc.io/quote", "1.2", "1.3", 0}, // equal because invalid
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 62e1110a6f..fab30f2944 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -21,6 +21,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/par"
+@@ -42,6 +43,9 @@ func cacheDir(ctx context.Context, path string) (string, error) {
+ }
+ 
+ func CachePath(ctx context.Context, m module.Version, suffix string) (string, error) {
++	if gover.IsToolchain(m.Path) {
++		return "", ErrToolchain
++	}
+ 	dir, err := cacheDir(ctx, m.Path)
+ 	if err != nil {
+ 		return "", err
+@@ -65,6 +69,9 @@ func CachePath(ctx context.Context, m module.Version, suffix string) (string, er
+ // along with the directory if the directory does not exist or if the directory
+ // is not completely populated.
+ func DownloadDir(ctx context.Context, m module.Version) (string, error) {
++	if gover.IsToolchain(m.Path) {
++		return "", ErrToolchain
++	}
+ 	if err := checkCacheDir(ctx); err != nil {
+ 		return "", err
+ 	}
+@@ -227,6 +234,10 @@ type cachedInfo struct {
+ }
+ 
+ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
++	if gover.IsToolchain(r.path) {
++		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
++		return r.repo(ctx).Stat(ctx, rev)
++	}
+ 	info, err := r.statCache.Do(rev, func() (*RevInfo, error) {
+ 		file, info, err := readDiskStat(ctx, r.path, rev)
+ 		if err == nil {
+@@ -258,6 +269,10 @@ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ }
+ 
+ func (r *cachingRepo) Latest(ctx context.Context) (*RevInfo, error) {
++	if gover.IsToolchain(r.path) {
++		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
++		return r.repo(ctx).Latest(ctx)
++	}
+ 	info, err := r.latestCache.Do(struct{}{}, func() (*RevInfo, error) {
+ 		info, err := r.repo(ctx).Latest(ctx)
+ 
+@@ -281,6 +296,10 @@ func (r *cachingRepo) Latest(ctx context.Context) (*RevInfo, error) {
+ }
+ 
+ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error) {
++	if gover.IsToolchain(r.path) {
++		// Skip disk cache; the underlying golang.org/toolchain repo is cached instead.
++		return r.repo(ctx).GoMod(ctx, version)
++	}
+ 	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
+ 		file, text, err := readDiskGoMod(ctx, r.path, version)
+ 		if err == nil {
+@@ -306,6 +325,9 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
+ }
+ 
+ func (r *cachingRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
++	if gover.IsToolchain(r.path) {
++		return ErrToolchain
++	}
+ 	return r.repo(ctx).Zip(ctx, dst, version)
+ }
+ 
+@@ -425,6 +447,9 @@ var errNotCached = fmt.Errorf("not in cache")
+ // If the read fails, the caller can use
+ // writeDiskStat(file, info) to write a new cache entry.
+ func readDiskStat(ctx context.Context, path, rev string) (file string, info *RevInfo, err error) {
++	if gover.IsToolchain(path) {
++		return "", nil, errNotCached
++	}
+ 	file, data, err := readDiskCache(ctx, path, rev, "info")
+ 	if err != nil {
+ 		// If the cache already contains a pseudo-version with the given hash, we
+@@ -477,6 +502,9 @@ func readDiskStat(ctx context.Context, path, rev string) (file string, info *Rev
+ // just to find out about a commit we already know about
+ // (and have cached under its pseudo-version).
+ func readDiskStatByHash(ctx context.Context, path, rev string) (file string, info *RevInfo, err error) {
++	if gover.IsToolchain(path) {
++		return "", nil, errNotCached
++	}
+ 	if cfg.GOMODCACHE == "" {
+ 		// Do not download to current directory.
+ 		return "", nil, errNotCached
+@@ -530,6 +558,9 @@ var oldVgoPrefix = []byte("//vgo 0.0.")
+ // If the read fails, the caller can use
+ // writeDiskGoMod(file, data) to write a new cache entry.
+ func readDiskGoMod(ctx context.Context, path, rev string) (file string, data []byte, err error) {
++	if gover.IsToolchain(path) {
++		return "", nil, errNotCached
++	}
+ 	file, data, err = readDiskCache(ctx, path, rev, "mod")
+ 
+ 	// If the file has an old auto-conversion prefix, pretend it's not there.
+@@ -553,6 +584,9 @@ func readDiskGoMod(ctx context.Context, path, rev string) (file string, data []b
+ // If the read fails, the caller can use
+ // writeDiskCache(file, data) to write a new cache entry.
+ func readDiskCache(ctx context.Context, path, rev, suffix string) (file string, data []byte, err error) {
++	if gover.IsToolchain(path) {
++		return "", nil, errNotCached
++	}
+ 	file, err = CachePath(ctx, module.Version{Path: path, Version: rev}, suffix)
+ 	if err != nil {
+ 		return "", nil, errNotCached
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index e6b5eec9b3..b872c9320f 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -23,6 +23,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
+@@ -36,10 +37,15 @@ import (
+ 
+ var downloadCache par.ErrCache[module.Version, string] // version → directory
+ 
++var ErrToolchain = errors.New("internal error: invalid operation on toolchain module")
++
+ // Download downloads the specific module version to the
+ // local download cache and returns the name of the directory
+ // corresponding to the root of the module's file tree.
+ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
++	if gover.IsToolchain(mod.Path) {
++		return "", ErrToolchain
++	}
+ 	if err := checkCacheDir(ctx); err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 4868b4a22b..25fb02de35 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -226,6 +226,11 @@ func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
+ 		return nil, errLookupDisabled
+ 	}
+ 
++	switch path {
++	case "go", "toolchain":
++		return &toolchainRepo{path, Lookup(ctx, proxy, "golang.org/toolchain")}, nil
++	}
++
+ 	if module.MatchPrefixPatterns(cfg.GONOPROXY, path) {
+ 		switch proxy {
+ 		case "noproxy", "direct":
+diff --git a/src/cmd/go/internal/modfetch/toolchain.go b/src/cmd/go/internal/modfetch/toolchain.go
+new file mode 100644
+index 0000000000..0c8fd3b039
+--- /dev/null
++++ b/src/cmd/go/internal/modfetch/toolchain.go
+@@ -0,0 +1,144 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package modfetch
++
++import (
++	"context"
++	"fmt"
++	"io"
++	"strings"
++
++	"cmd/go/internal/gover"
++	"cmd/go/internal/modfetch/codehost"
++)
++
++// A toolchainRepo is a synthesized repository reporting Go toolchain versions.
++// It has path "go" or "toolchain". The "go" repo reports versions like "1.2".
++// The "toolchain" repo reports versions like "go1.2".
++//
++// Note that the repo ONLY reports versions. It does not actually support
++// downloading of the actual toolchains. Instead, that is done using
++// the regular repo code with "golang.org/toolchain".
++// The naming conflict is unfortunate: "golang.org/toolchain"
++// should perhaps have been "go.dev/dl", but it's too late.
++//
++// For clarity, this file refers to golang.org/toolchain as the "DL" repo,
++// the one you can actually download.
++type toolchainRepo struct {
++	path string // either "go" or "toolchain"
++	repo Repo   // underlying DL repo
++}
++
++func (r *toolchainRepo) ModulePath() string {
++	return r.path
++}
++
++func (r *toolchainRepo) Versions(ctx context.Context, prefix string) (*Versions, error) {
++	// Read DL repo list and convert to "go" or "toolchain" version list.
++	versions, err := r.repo.Versions(ctx, "")
++	if err != nil {
++		return nil, err
++	}
++	versions.Origin = nil
++	var list []string
++	have := make(map[string]bool)
++	goPrefix := ""
++	if r.path == "toolchain" {
++		goPrefix = "go"
++	}
++	for _, v := range versions.List {
++		v, ok := dlToGo(v)
++		if !ok {
++			continue
++		}
++		if !have[v] {
++			have[v] = true
++			list = append(list, goPrefix+v)
++		}
++	}
++	versions.List = list
++	return versions, nil
++}
++
++func (r *toolchainRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
++	// If we're asking about "go" (not "toolchain"), pretend to have
++	// all earlier Go versions available without network access:
++	// we will provide those ourselves, at least in GOTOOLCHAIN=auto mode.
++	if r.path == "go" && gover.Compare(rev, gover.Local()) <= 0 {
++		return &RevInfo{Version: rev}, nil
++	}
++
++	// Convert rev to DL version and stat that to make sure it exists.
++	prefix := ""
++	v := rev
++	if r.path == "toolchain" {
++		prefix = "go"
++		v = strings.TrimPrefix(v, "go")
++	}
++	if gover.IsLang(v) {
++		return nil, fmt.Errorf("go language version %s is not a toolchain version", rev)
++	}
++
++	// Check that the underlying toolchain exists.
++	// We always ask about linux-amd64 because that one
++	// has always existed and is likely to always exist in the future.
++	// This avoids different behavior validating go versions on different
++	// architectures. The eventual download uses the right GOOS-GOARCH.
++	info, err := r.repo.Stat(ctx, goToDL(v, "linux", "amd64"))
++	if err != nil {
++		return nil, err
++	}
++
++	// Return the info using the canonicalized rev
++	// (toolchain 1.2 => toolchain go1.2).
++	return &RevInfo{Version: prefix + v, Time: info.Time}, nil
++}
++
++func (r *toolchainRepo) Latest(ctx context.Context) (*RevInfo, error) {
++	versions, err := r.Versions(ctx, "")
++	if err != nil {
++		return nil, err
++	}
++	var max string
++	for _, v := range versions.List {
++		if max == "" || gover.ModCompare(r.path, v, max) > 0 {
++			max = v
++		}
++	}
++	return r.Stat(ctx, max)
++}
++
++func (r *toolchainRepo) GoMod(ctx context.Context, version string) (data []byte, err error) {
++	return []byte("module " + r.path + "\n"), nil
++}
++
++func (r *toolchainRepo) Zip(ctx context.Context, dst io.Writer, version string) error {
++	return fmt.Errorf("invalid use of toolchainRepo: Zip")
++}
++
++func (r *toolchainRepo) CheckReuse(ctx context.Context, old *codehost.Origin) error {
++	return fmt.Errorf("invalid use of toolchainRepo: CheckReuse")
++}
++
++// goToDL converts a Go version like "1.2" to a DL module version like "v0.0.1-go1.2.linux-amd64".
++func goToDL(v, goos, goarch string) string {
++	return "v0.0.1-go" + v + ".linux-amd64"
++}
++
++// dlToGo converts a DL module version like "v0.0.1-go1.2.linux-amd64" to a Go version like "1.2".
++func dlToGo(v string) (string, bool) {
++	// v0.0.1-go1.19.7.windows-amd64
++	// cut v0.0.1-
++	_, v, ok := strings.Cut(v, "-")
++	if !ok {
++		return "", false
++	}
++	// cut .windows-amd64
++	i := strings.LastIndex(v, ".")
++	if i < 0 || !strings.Contains(v[i+1:], "-") {
++		return "", false
++	}
++	return strings.TrimPrefix(v[:i], "go"), true
++}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 60e1f6498f..0757821035 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -577,6 +577,9 @@ type retraction struct {
+ //
+ // The caller must not modify the returned summary.
+ func goModSummary(m module.Version) (*modFileSummary, error) {
++	if m.Path == "go" || m.Path == "toolchain" {
++		return &modFileSummary{module: m}, nil
++	}
+ 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+ 		panic("internal error: goModSummary called on a main module")
+ 	}
+@@ -674,6 +677,9 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ //
+ // rawGoModSummary cannot be used on the main module outside of workspace mode.
+ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
++	if gover.IsToolchain(m.Path) {
++		return &modFileSummary{module: m}, nil
++	}
+ 	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+ 		// Calling rawGoModSummary implies that we are treating m as a module whose
+ 		// requirements aren't the roots of the module graph and can't be modified.
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index c4ae84d37f..773ca3b8e4 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -1050,7 +1050,9 @@ type versionRepo interface {
+ var _ versionRepo = modfetch.Repo(nil)
+ 
+ func lookupRepo(ctx context.Context, proxy, path string) (repo versionRepo, err error) {
+-	err = module.CheckPath(path)
++	if path != "go" && path != "toolchain" {
++		err = module.CheckPath(path)
++	}
+ 	if err == nil {
+ 		repo = modfetch.Lookup(ctx, proxy, path)
+ 	} else {
+diff --git a/src/cmd/go/testdata/script/gotoolchain_version.txt b/src/cmd/go/testdata/script/gotoolchain_version.txt
+new file mode 100644
+index 0000000000..ba1bde6671
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain_version.txt
+@@ -0,0 +1,13 @@
++[!net:golang.org] skip
++
++env GOPROXY=
++
++go list -m -versions go
++stdout 1.20.1 # among others
++stdout 1.19rc2
++! stdout go1.20.1 # no go prefixes
++! stdout go1.19rc2
++
++go list -m -versions toolchain
++stdout go1.20.1 # among others
++stdout go1.19rc2

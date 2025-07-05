@@ -16,7 +16,61 @@ Date:   Sun Apr 5 16:12:05 2020 -0600
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go |  5 +++++
  src/cmd/compile/internal/ssa/html.go    | 22 ++++++++++++++++++----
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 3da3b8985f..2dbe9cf405 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -136,6 +136,11 @@ func Compile(f *Func) {
+ 		}
+ 	}
+ 
++	if f.HTMLWriter != nil {
++		// Ensure we write any pending phases to the html
++		f.HTMLWriter.flushPhases()
++	}
++
+ 	if f.ruleMatches != nil {
+ 		var keys []string
+ 		for key := range f.ruleMatches {
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 1b083917dc..f39106f450 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -774,14 +774,28 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
+ 	w.pendingPhases = append(w.pendingPhases, phase)
+ 	w.pendingTitles = append(w.pendingTitles, title)
+ 	if !bytes.Equal(hash, w.prevHash) {
+-		phases := strings.Join(w.pendingPhases, "  +  ")
+-		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), w.Func.HTML(phase, w.dot))
+-		w.pendingPhases = w.pendingPhases[:0]
+-		w.pendingTitles = w.pendingTitles[:0]
++		w.flushPhases()
+ 	}
+ 	w.prevHash = hash
+ }
+ 
++// flushPhases collects any pending phases and titles, writes them to the html, and resets the pending slices.
++func (w *HTMLWriter) flushPhases() {
++	phaseLen := len(w.pendingPhases)
++	if phaseLen == 0 {
++		return
++	}
++	phases := strings.Join(w.pendingPhases, "  +  ")
++	w.WriteMultiTitleColumn(
++		phases,
++		w.pendingTitles,
++		fmt.Sprintf("hash-%x", w.prevHash),
++		w.Func.HTML(w.pendingPhases[phaseLen-1], w.dot),
++	)
++	w.pendingPhases = w.pendingPhases[:0]
++	w.pendingTitles = w.pendingTitles[:0]
++}
++
+ // FuncLines contains source code for a function to be displayed
+ // in sources column.
+ type FuncLines struct {

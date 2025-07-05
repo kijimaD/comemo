@@ -12,7 +12,40 @@ Date:   Wed Aug 14 15:21:53 2013 -0700
     R=golang-dev, dave, rsc, elias.naur, cshapiro
     CC=golang-dev
     https://golang.org/cl/12954043
-
+---
  src/cmd/go/build.go           | 2 +-
  src/pkg/runtime/cgo/gcc_arm.S | 8 ++------
  2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c4b4f6ca55..9c3693abb3 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1837,7 +1837,7 @@ func (b *builder) gccArchArgs() []string {
+ 	case "6":
+ 		return []string{"-m64"}
+ 	case "5":
+-		return []string{"-marm"} // not thumb
++		return []string{"-marm", "-march=armv5t"} // not thumb
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/runtime/cgo/gcc_arm.S b/src/pkg/runtime/cgo/gcc_arm.S
+index be50408825..cfe899b1d2 100644
+--- a/src/pkg/runtime/cgo/gcc_arm.S
++++ b/src/pkg/runtime/cgo/gcc_arm.S
+@@ -25,12 +25,8 @@ EXT(crosscall_arm2):
+ 	mov r5, r1
+ 	mov r0, r2
+ 	mov r1, r3
+-	// setmg(m, g)
+-	mov lr, pc
+-	mov pc, r5
+-	// fn()
+-	mov lr, pc
+-	mov pc, r4
++	blx r5 // setmg(m, g) 
++	blx r4 // fn() 
+ 	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, pc}
+ 
+ .globl EXT(__stack_chk_fail_local)

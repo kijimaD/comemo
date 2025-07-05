@@ -31,7 +31,32 @@ Date:   Thu Sep 15 16:51:35 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go     | 1 +
  src/cmd/compile/internal/ssa/config.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9b67fe99ad..6d727a5f6e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -65,6 +65,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 	s.f.Name = name
+ 	s.exitCode = fn.Func.Exit
+ 	s.panics = map[funcLine]*ssa.Block{}
++	s.config.DebugTest = s.config.DebugHashMatch("GOSSAHASH", name)
+ 
+ 	if name == os.Getenv("GOSSAFUNC") {
+ 		// TODO: tempfile? it is handy to have the location
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 6c891a55db..bd59bb36ab 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -33,6 +33,7 @@ type Config struct {
+ 	nacl            bool                       // GOOS=nacl
+ 	use387          bool                       // GO386=387
+ 	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
++	DebugTest       bool                       // as a debugging aid for binary search using GOSSAHASH, make buggy new code conditional on this
+ 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
+ 	curFunc         *Func
+ 

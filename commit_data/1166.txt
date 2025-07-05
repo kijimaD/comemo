@@ -7,6 +7,18 @@ Date:   Tue Nov 18 17:22:31 2008 -0800
     R=r
     OCL=19526
     CL=19528
-
+---
  src/cmd/gotest/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index d227997983..dbfa321145 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -10,5 +10,5 @@ clean:
+ 	@true
+ 
+ install: $(TARG)
+-	test -f $(BIN)/$(TARG) && chmod u+w $(BIN)/$(TARG)
++	! test -f $(BIN)/$(TARG) || chmod u+w $(BIN)/$(TARG)
+ 	cp $(TARG) $(BIN)/$(TARG)

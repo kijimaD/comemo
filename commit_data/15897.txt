@@ -7,7 +7,7 @@ Date:   Fri Mar 22 12:57:55 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7834046
-
+---
  src/pkg/bytes/asm_386.s               | 12 ++++++------
  src/pkg/bytes/asm_amd64.s             | 16 ++++++++--------
  src/pkg/bytes/asm_arm.s               | 14 +++++++-------
@@ -57,3 +57,1367 @@ Date:   Fri Mar 22 12:57:55 2013 -0400
  src/pkg/runtime/asm_amd64.s           |  2 +-
  src/pkg/sync/atomic/asm_386.s         | 16 ++++++++--------
  48 files changed, 180 insertions(+), 178 deletions(-)
+
+diff --git a/src/pkg/bytes/asm_386.s b/src/pkg/bytes/asm_386.s
+index c444b55e18..997738fe29 100644
+--- a/src/pkg/bytes/asm_386.s
++++ b/src/pkg/bytes/asm_386.s
+@@ -4,21 +4,21 @@
+ 
+ TEXT ·IndexByte(SB),7,$0
+ 	MOVL	s+0(FP), SI
+-	MOVL	s+4(FP), CX
++	MOVL	s_len+4(FP), CX
+ 	MOVB	c+12(FP), AL
+ 	MOVL	SI, DI
+ 	CLD; REPN; SCASB
+ 	JZ 3(PC)
+-	MOVL	$-1, r+16(FP)
++	MOVL	$-1, ret+16(FP)
+ 	RET
+ 	SUBL	SI, DI
+ 	SUBL	$1, DI
+-	MOVL	DI, r+16(FP)
++	MOVL	DI, ret+16(FP)
+ 	RET
+ 
+ TEXT ·Equal(SB),7,$0
+-	MOVL	a+4(FP), BX
+-	MOVL	b+16(FP), CX
++	MOVL	a_len+4(FP), BX
++	MOVL	b_len+16(FP), CX
+ 	MOVL	$0, AX
+ 	CMPL	BX, CX
+ 	JNE	eqret
+@@ -29,5 +29,5 @@ TEXT ·Equal(SB),7,$0
+ 	JNE eqret
+ 	MOVL	$1, AX
+ eqret:
+-	MOVB	AX, r+24(FP)
++	MOVB	AX, ret+24(FP)
+ 	RET
+diff --git a/src/pkg/bytes/asm_amd64.s b/src/pkg/bytes/asm_amd64.s
+index 482422642e..b8f9f1b818 100644
+--- a/src/pkg/bytes/asm_amd64.s
++++ b/src/pkg/bytes/asm_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ TEXT ·IndexByte(SB),7,$0
+ 	MOVQ s+0(FP), SI
+-	MOVQ s+8(FP), BX
++	MOVQ s_len+8(FP), BX
+ 	MOVB c+24(FP), AL
+ 	MOVQ SI, DI
+ 
+@@ -63,7 +63,7 @@ condition:
+ 	JZ success
+ 
+ failure:
+-	MOVQ $-1, r+32(FP)
++	MOVQ $-1, ret+32(FP)
+ 	RET
+ 
+ // handle for lengths < 16
+@@ -71,7 +71,7 @@ small:
+ 	MOVQ BX, CX
+ 	REPN; SCASB
+ 	JZ success
+-	MOVQ $-1, r+32(FP)
++	MOVQ $-1, ret+32(FP)
+ 	RET
+ 
+ // we've found the chunk containing the byte
+@@ -81,18 +81,18 @@ ssesuccess:
+ 	BSFW DX, DX
+ 	SUBQ SI, DI
+ 	ADDQ DI, DX
+-	MOVQ DX, r+32(FP)
++	MOVQ DX, ret+32(FP)
+ 	RET
+ 
+ success:
+ 	SUBQ SI, DI
+ 	SUBL $1, DI
+-	MOVQ DI, r+32(FP)
++	MOVQ DI, ret+32(FP)
+ 	RET
+ 
+ TEXT ·Equal(SB),7,$0
+-	MOVQ	a+8(FP), BX
+-	MOVQ	b+32(FP), CX
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_len+32(FP), CX
+ 	MOVL	$0, AX
+ 	CMPQ	BX, CX
+ 	JNE	eqret
+@@ -103,6 +103,6 @@ TEXT ·Equal(SB),7,$0
+ 	MOVL	$1, DX
+ 	CMOVLEQ	DX, AX
+ eqret:
+-	MOVB	AX, r+48(FP)
++	MOVB	AX, ret+48(FP)
+ 	RET
+ 
+diff --git a/src/pkg/bytes/asm_arm.s b/src/pkg/bytes/asm_arm.s
+index c7685f041f..2e9f805a43 100644
+--- a/src/pkg/bytes/asm_arm.s
++++ b/src/pkg/bytes/asm_arm.s
+@@ -4,7 +4,7 @@
+ 
+ TEXT ·IndexByte(SB),7,$0
+ 	MOVW	s+0(FP), R0
+-	MOVW	s+4(FP), R1
++	MOVW	s_len+4(FP), R1
+ 	MOVBU	c+12(FP), R2	// byte to find
+ 	MOVW	R0, R4		// store base for later
+ 	ADD	R0, R1		// end 
+@@ -18,17 +18,17 @@ _loop:
+ 
+ 	SUB	$1, R0		// R0 will be one beyond the position we want
+ 	SUB	R4, R0		// remove base
+-	MOVW    R0, r+16(FP) 
++	MOVW    R0, ret+16(FP) 
+ 	RET
+ 
+ _notfound:
+ 	MOVW	$-1, R0
+-	MOVW	R0, r+16(FP)
++	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+ TEXT ·Equal(SB),7,$0
+-	MOVW	a+4(FP), R1
+-	MOVW	b+16(FP), R3
++	MOVW	a_len+4(FP), R1
++	MOVW	b_len+16(FP), R3
+ 	
+ 	CMP	R1, R3		// unequal lengths are not equal
+ 	B.NE	_notequal
+@@ -47,10 +47,10 @@ _next:
+ 
+ _notequal:
+ 	MOVW	$0, R0
+-	MOVBU	R0, r+24(FP)
++	MOVBU	R0, ret+24(FP)
+ 	RET
+ 
+ _equal:
+ 	MOVW	$1, R0
+-	MOVBU	R0, r+24(FP)
++	MOVBU	R0, ret+24(FP)
+ 	RET
+diff --git a/src/pkg/crypto/md5/md5block_386.s b/src/pkg/crypto/md5/md5block_386.s
+index 1083d83f35..3ce15e37f6 100644
+--- a/src/pkg/crypto/md5/md5block_386.s
++++ b/src/pkg/crypto/md5/md5block_386.s
+@@ -60,7 +60,7 @@
+ TEXT	·block(SB),7,$24-16
+ 	MOVL	dig+0(FP),	BP
+ 	MOVL	p+4(FP),	SI
+-	MOVL	n+8(FP), DX
++	MOVL	p_len+8(FP), DX
+ 	SHRL	$6,		DX
+ 	SHLL	$6,		DX
+ 
+diff --git a/src/pkg/crypto/md5/md5block_amd64.s b/src/pkg/crypto/md5/md5block_amd64.s
+index 74a361e775..e6420a28a0 100644
+--- a/src/pkg/crypto/md5/md5block_amd64.s
++++ b/src/pkg/crypto/md5/md5block_amd64.s
+@@ -14,7 +14,7 @@
+ TEXT	·block(SB),7,$0-32
+ 	MOVQ	dig+0(FP),	BP
+ 	MOVQ	p+8(FP),	SI
+-	MOVQ	n+16(FP), DX
++	MOVQ	p_len+16(FP), DX
+ 	SHRQ	$6,		DX
+ 	SHLQ	$6,		DX
+ 
+diff --git a/src/pkg/crypto/rc4/rc4_386.s b/src/pkg/crypto/rc4/rc4_386.s
+index 6e12c208af..c80ef2a3a2 100644
+--- a/src/pkg/crypto/rc4/rc4_386.s
++++ b/src/pkg/crypto/rc4/rc4_386.s
+@@ -8,9 +8,9 @@ TEXT ·xorKeyStream(SB),7,$0
+ 	MOVL src+4(FP), SI
+ 	MOVL state+12(FP), BP
+ 
+-	MOVL xPtr+16(FP), AX
++	MOVL i+16(FP), AX
+ 	MOVBLZX (AX), AX
+-	MOVL yPtr+20(FP), BX
++	MOVL j+20(FP), BX
+ 	MOVBLZX (BX), BX
+ 	CMPL n+8(FP), $0
+ 	JEQ done
+@@ -43,9 +43,9 @@ loop:
+ 	JNE loop
+ 
+ done:
+-	MOVL xPtr+16(FP), CX
++	MOVL i+16(FP), CX
+ 	MOVB AX, (CX)
+-	MOVL yPtr+20(FP), CX
++	MOVL j+20(FP), CX
+ 	MOVB BX, (CX)
+ 
+ 	RET
+diff --git a/src/pkg/crypto/rc4/rc4_amd64.s b/src/pkg/crypto/rc4/rc4_amd64.s
+index f0962a4c17..353fe37200 100644
+--- a/src/pkg/crypto/rc4/rc4_amd64.s
++++ b/src/pkg/crypto/rc4/rc4_amd64.s
+@@ -37,13 +37,13 @@
+ */
+ 
+ TEXT ·xorKeyStream(SB),7,$0
+-	MOVQ	len+16(FP),	BX		// rbx = ARG(len)
+-	MOVQ	in+8(FP),	SI		// in = ARG(in)
+-	MOVQ	out+0(FP),	DI		// out = ARG(out)
+-	MOVQ	d+24(FP),	BP		// d = ARG(data)
+-	MOVQ	xp+32(FP),	AX
++	MOVQ	n+16(FP),	BX		// rbx = ARG(len)
++	MOVQ	src+8(FP),	SI		// in = ARG(in)
++	MOVQ	dst+0(FP),	DI		// out = ARG(out)
++	MOVQ	state+24(FP),	BP		// d = ARG(data)
++	MOVQ	i+32(FP),	AX
+ 	MOVBQZX	0(AX),		CX		// x = *xp
+-	MOVQ	yp+40(FP),	AX
++	MOVQ	j+40(FP),	AX
+ 	MOVBQZX	0(AX),		DX		// y = *yp
+ 
+ 	LEAQ	(SI)(BX*1),	R9		// limit = in+len
+@@ -170,8 +170,8 @@ l2:	CMPQ	SI,		R9		// cmp in with in+len
+ 	JMP l2
+ 
+ finished:
+-	MOVQ	yp+40(FP),	BX
++	MOVQ	j+40(FP),	BX
+ 	MOVB	DX, 0(BX)
+-	MOVQ	xp+32(FP),	AX
++	MOVQ	i+32(FP),	AX
+ 	MOVB	CX, 0(AX)
+ 	RET
+diff --git a/src/pkg/crypto/sha1/sha1block_386.s b/src/pkg/crypto/sha1/sha1block_386.s
+index fbf237b3fe..e60a7b9b09 100644
+--- a/src/pkg/crypto/sha1/sha1block_386.s
++++ b/src/pkg/crypto/sha1/sha1block_386.s
+@@ -102,7 +102,7 @@
+ TEXT ·block(SB),7,$92-16
+ 	MOVL	dig+0(FP),	BP
+ 	MOVL	p+4(FP),	SI
+-	MOVL	n+8(FP),	DX
++	MOVL	p_len+8(FP),	DX
+ 	SHRL	$6,		DX
+ 	SHLL	$6,		DX
+ 	
+diff --git a/src/pkg/crypto/sha1/sha1block_amd64.s b/src/pkg/crypto/sha1/sha1block_amd64.s
+index e2b286a91c..452578aa44 100644
+--- a/src/pkg/crypto/sha1/sha1block_amd64.s
++++ b/src/pkg/crypto/sha1/sha1block_amd64.s
+@@ -89,8 +89,8 @@
+ 
+ TEXT ·block(SB),7,$64-32
+ 	MOVQ	dig+0(FP),	BP
+-	MOVQ	p+8(FP),	SI
+-	MOVQ	n+16(FP),	DX
++	MOVQ	p_base+8(FP),	SI
++	MOVQ	p_len+16(FP),	DX
+ 	SHRQ	$6,		DX
+ 	SHLQ	$6,		DX
+ 	
+diff --git a/src/pkg/crypto/sha1/sha1block_decl.go b/src/pkg/crypto/sha1/sha1block_decl.go
+index 348a6aaaa3..3512a58299 100644
+--- a/src/pkg/crypto/sha1/sha1block_decl.go
++++ b/src/pkg/crypto/sha1/sha1block_decl.go
+@@ -6,4 +6,4 @@
+ 
+ package sha1
+ 
+-func block(*digest, []byte)
++func block(dig *digest, p []byte)
+diff --git a/src/pkg/hash/crc32/crc32_amd64.s b/src/pkg/hash/crc32/crc32_amd64.s
+index 6e6a364ee8..826306a3e8 100644
+--- a/src/pkg/hash/crc32/crc32_amd64.s
++++ b/src/pkg/hash/crc32/crc32_amd64.s
+@@ -6,7 +6,7 @@
+ TEXT ·castagnoliSSE42(SB),7,$0
+ 	MOVL crc+0(FP), AX  // CRC value
+ 	MOVQ p+8(FP), SI  // data pointer
+-	MOVQ p+16(FP), CX  // len(p)
++	MOVQ p_len+16(FP), CX  // len(p)
+ 
+ 	NOTL AX
+ 
+@@ -47,7 +47,7 @@ cleanup:
+ 
+ done:
+ 	NOTL AX
+-	MOVL AX, r+32(FP)
++	MOVL AX, ret+32(FP)
+ 	RET
+ 
+ // func haveSSE42() bool
+@@ -57,6 +57,6 @@ TEXT ·haveSSE42(SB),7,$0
+ 	CPUID
+ 	SHRQ $20, CX
+ 	ANDQ $1, CX
+-	MOVB CX, r+0(FP)
++	MOVB CX, ret+0(FP)
+ 	RET
+ 
+diff --git a/src/pkg/math/abs_386.s b/src/pkg/math/abs_386.s
+index 889e801818..5746764756 100644
+--- a/src/pkg/math/abs_386.s
++++ b/src/pkg/math/abs_386.s
+@@ -6,5 +6,5 @@
+ TEXT ·Abs(SB),7,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+ 	FABS                 // F0=|x|
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/abs_amd64.s b/src/pkg/math/abs_amd64.s
+index 32b78539a8..1193460458 100644
+--- a/src/pkg/math/abs_amd64.s
++++ b/src/pkg/math/abs_amd64.s
+@@ -8,5 +8,5 @@ TEXT ·Abs(SB),7,$0
+ 	MOVQ   BX, X0 // movsd $(-0.0), x0
+ 	MOVSD  x+0(FP), X1
+ 	ANDNPD X1, X0
+-	MOVSD  X0, r+8(FP)
++	MOVSD  X0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/abs_arm.s b/src/pkg/math/abs_arm.s
+index 37a1459fe6..929e1ce675 100644
+--- a/src/pkg/math/abs_arm.s
++++ b/src/pkg/math/abs_arm.s
+@@ -3,9 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT ·Abs(SB),7,$0
+-	MOVW	x+0(FP), R0
+-	MOVW	x+4(FP), R1
++	MOVW	x_lo+0(FP), R0
++	MOVW	x_hi+4(FP), R1
+ 	AND 	$((1<<31)-1), R1
+-	MOVW	R0, r+8(FP)
+-	MOVW	R1, r+12(FP)
++	MOVW	R0, ret_lo+8(FP)
++	MOVW	R1, ret_hi+12(FP)
+ 	RET
+diff --git a/src/pkg/math/asin_386.s b/src/pkg/math/asin_386.s
+index 93df552dc9..cd3f9cd9bd 100644
+--- a/src/pkg/math/asin_386.s
++++ b/src/pkg/math/asin_386.s
+@@ -11,7 +11,7 @@ TEXT ·Asin(SB),7,$0
+ 	FSUBRDP F0, F1       // F0=1-sin(x)*sin(x) (=cos(x)*cos(x)), F1=sin(x)
+ 	FSQRT                // F0=cos(x), F1=sin(x)
+ 	FPATAN               // F0=arcsin(sin(x))=x
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+ // func Acos(x float64) float64
+@@ -24,5 +24,5 @@ TEXT ·Acos(SB),7,$0
+ 	FSQRT                // F0=sin(x), F1=cos(x)
+ 	FXCHD   F0, F1       // F0=cos(x), F1=sin(x)
+ 	FPATAN               // F0=arccos(cos(x))=x
+-	FMOVDP	F0, r+8(FP)
++	FMOVDP	F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/atan2_386.s b/src/pkg/math/atan2_386.s
+index 9a664926ab..1bf301c4c0 100644
+--- a/src/pkg/math/atan2_386.s
++++ b/src/pkg/math/atan2_386.s
+@@ -7,5 +7,5 @@ TEXT ·Atan2(SB),7,$0
+ 	FMOVD   y+0(FP), F0  // F0=y
+ 	FMOVD   x+8(FP), F0  // F0=x, F1=y
+ 	FPATAN               // F0=atan(F1/F0)
+-	FMOVDP  F0, r+16(FP)
++	FMOVDP  F0, ret+16(FP)
+ 	RET
+diff --git a/src/pkg/math/atan_386.s b/src/pkg/math/atan_386.s
+index 245437a786..c988705bee 100644
+--- a/src/pkg/math/atan_386.s
++++ b/src/pkg/math/atan_386.s
+@@ -7,5 +7,5 @@ TEXT ·Atan(SB),7,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+ 	FLD1                 // F0=1, F1=x
+ 	FPATAN               // F0=atan(F1/F0)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/big/arith_386.s b/src/pkg/math/big/arith_386.s
+index c62483317a..f0118ec0db 100644
+--- a/src/pkg/math/big/arith_386.s
++++ b/src/pkg/math/big/arith_386.s
+@@ -29,7 +29,7 @@ TEXT ·addVV(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), CX
+-	MOVL z+4(FP), BP
++	MOVL z_len+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	MOVL $0, DX		// c = 0
+ 	JMP E1
+@@ -54,7 +54,7 @@ TEXT ·subVV(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), CX
+-	MOVL z+4(FP), BP
++	MOVL z_len+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	MOVL $0, DX		// c = 0
+ 	JMP E2
+@@ -78,7 +78,7 @@ TEXT ·addVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), AX	// c = y
+-	MOVL z+4(FP), BP
++	MOVL z_len+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	JMP E3
+ 
+@@ -100,7 +100,7 @@ TEXT ·subVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), AX	// c = y
+-	MOVL z+4(FP), BP
++	MOVL z_len+4(FP), BP
+ 	MOVL $0, BX		// i = 0
+ 	JMP E4
+ 
+@@ -120,7 +120,7 @@ E4:	CMPL BX, BP		// i < n
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+ TEXT ·shlVU(SB),7,$0
+-	MOVL z+4(FP), BX	// i = z
++	MOVL z_len+4(FP), BX	// i = z
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+ 
+@@ -155,7 +155,7 @@ X8b:	MOVL $0, c+28(FP)
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+ TEXT ·shrVU(SB),7,$0
+-	MOVL z+4(FP), BP
++	MOVL z_len+4(FP), BP
+ 	SUBL $1, BP		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+ 
+@@ -196,7 +196,7 @@ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), BP
+ 	MOVL r+28(FP), CX	// c = r
+-	MOVL z+4(FP), BX
++	MOVL z_len+4(FP), BX
+ 	LEAL (DI)(BX*4), DI
+ 	LEAL (SI)(BX*4), SI
+ 	NEGL BX			// i = -n
+@@ -222,7 +222,7 @@ TEXT ·addMulVVW(SB),7,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+ 	MOVL y+24(FP), BP
+-	MOVL z+4(FP), BX
++	MOVL z_len+4(FP), BX
+ 	LEAL (DI)(BX*4), DI
+ 	LEAL (SI)(BX*4), SI
+ 	NEGL BX			// i = -n
+@@ -251,7 +251,7 @@ TEXT ·divWVW(SB),7,$0
+ 	MOVL xn+12(FP), DX	// r = xn
+ 	MOVL x+16(FP), SI
+ 	MOVL y+28(FP), CX
+-	MOVL z+4(FP), BX	// i = z
++	MOVL z_len+4(FP), BX	// i = z
+ 	JMP E7
+ 
+ L7:	MOVL (SI)(BX*4), AX
+diff --git a/src/pkg/math/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+index d859645029..62da650308 100644
+--- a/src/pkg/math/big/arith_amd64.s
++++ b/src/pkg/math/big/arith_amd64.s
+@@ -36,7 +36,7 @@ TEXT ·divWW(SB),7,$0
+ 
+ // func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),7,$0
+-	MOVQ z+8(FP), DI
++	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+ 	MOVQ z+0(FP), R10
+@@ -90,7 +90,7 @@ E1:	MOVQ CX, c+72(FP)	// return c
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SBBQ instead of ADCQ and label names)
+ TEXT ·subVV(SB),7,$0
+-	MOVQ z+8(FP), DI
++	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+ 	MOVQ z+0(FP), R10
+@@ -143,7 +143,7 @@ E2:	MOVQ CX, c+72(FP)	// return c
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
+ TEXT ·addVW(SB),7,$0
+-	MOVQ z+8(FP), DI
++	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), CX	// c = y
+ 	MOVQ z+0(FP), R10
+@@ -195,7 +195,7 @@ E3:	MOVQ CX, c+56(FP)	// return c
+ // func subVW(z, x []Word, y Word) (c Word)
+ // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
+ TEXT ·subVW(SB),7,$0
+-	MOVQ z+8(FP), DI
++	MOVQ z_len+8(FP), DI
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), CX	// c = y
+ 	MOVQ z+0(FP), R10
+@@ -247,7 +247,7 @@ E4:	MOVQ CX, c+56(FP)	// return c
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+ TEXT ·shlVU(SB),7,$0
+-	MOVQ z+8(FP), BX	// i = z
++	MOVQ z_len+8(FP), BX	// i = z
+ 	SUBQ $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+ 
+@@ -282,7 +282,7 @@ X8b:	MOVQ $0, c+56(FP)
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+ TEXT ·shrVU(SB),7,$0
+-	MOVQ z+8(FP), R11
++	MOVQ z_len+8(FP), R11
+ 	SUBQ $1, R11		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+ 
+@@ -323,7 +323,7 @@ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+ 	MOVQ r+56(FP), CX	// c = r
+-	MOVQ z+8(FP), R11
++	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E5
+ 
+@@ -347,7 +347,7 @@ TEXT ·addMulVVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+24(FP), R8
+ 	MOVQ y+48(FP), R9
+-	MOVQ z+8(FP), R11
++	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	MOVQ $0, CX		// c = 0
+ 	JMP E6
+@@ -374,7 +374,7 @@ TEXT ·divWVW(SB),7,$0
+ 	MOVQ xn+24(FP), DX	// r = xn
+ 	MOVQ x+32(FP), R8
+ 	MOVQ y+56(FP), R9
+-	MOVQ z+8(FP), BX	// i = z
++	MOVQ z_len+8(FP), BX	// i = z
+ 	JMP E7
+ 
+ L7:	MOVQ (R8)(BX*8), AX
+diff --git a/src/pkg/math/big/arith_arm.s b/src/pkg/math/big/arith_arm.s
+index 64610f915e..6e2d23d332 100644
+--- a/src/pkg/math/big/arith_arm.s
++++ b/src/pkg/math/big/arith_arm.s
+@@ -13,7 +13,7 @@ TEXT ·addVV(SB),7,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+-	MOVW	z+4(FP), R4
++	MOVW	z_len+4(FP), R4
+ 	MOVW	R4<<2, R4
+ 	ADD	R1, R4
+ 	B E1
+@@ -41,7 +41,7 @@ TEXT ·subVV(SB),7,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+-	MOVW	z+4(FP), R4
++	MOVW	z_len+4(FP), R4
+ 	MOVW	R4<<2, R4
+ 	ADD	R1, R4
+ 	B E2
+@@ -68,7 +68,7 @@ TEXT ·addVW(SB),7,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+-	MOVW	z+4(FP), R4
++	MOVW	z_len+4(FP), R4
+ 	MOVW	R4<<2, R4
+ 	ADD	R1, R4
+ 	CMP	R1, R4
+@@ -102,7 +102,7 @@ TEXT ·subVW(SB),7,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+-	MOVW	z+4(FP), R4
++	MOVW	z_len+4(FP), R4
+ 	MOVW	R4<<2, R4
+ 	ADD	R1, R4
+ 	CMP	R1, R4
+@@ -134,7 +134,7 @@ E4:
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+ TEXT ·shlVU(SB),7,$0
+-	MOVW	z+4(FP), R5
++	MOVW	z_len+4(FP), R5
+ 	CMP	$0, R5
+ 	BEQ	X7
+ 	
+@@ -183,7 +183,7 @@ X7:
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+ TEXT ·shrVU(SB),7,$0
+-	MOVW	z+4(FP), R5
++	MOVW	z_len+4(FP), R5
+ 	CMP	$0, R5
+ 	BEQ	X6
+ 
+@@ -238,7 +238,7 @@ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+ 	MOVW	r+28(FP), R4
+-	MOVW	z+4(FP), R5
++	MOVW	z_len+4(FP), R5
+ 	MOVW	R5<<2, R5
+ 	ADD	R1, R5
+ 	B E8
+@@ -265,7 +265,7 @@ TEXT ·addMulVVW(SB),7,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+ 	MOVW	y+24(FP), R3
+-	MOVW	z+4(FP), R5
++	MOVW	z_len+4(FP), R5
+ 	MOVW	R5<<2, R5
+ 	ADD	R1, R5
+ 	MOVW	$0, R4
+diff --git a/src/pkg/math/dim_amd64.s b/src/pkg/math/dim_amd64.s
+index a1505ce44c..0ae8ad1962 100644
+--- a/src/pkg/math/dim_amd64.s
++++ b/src/pkg/math/dim_amd64.s
+@@ -36,12 +36,12 @@ dim3:	// (NaN, x) or (x, NaN)
+ 	SUBSD y+8(FP), X0
+ 	MOVSD $(0.0), X1
+ 	MAXSD X1, X0
+-	MOVSD X0, r+16(FP)
++	MOVSD X0, ret+16(FP)
+ 	RET
+ bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
+ 	MOVQ    $NaN, AX
+ isDimNaN:
+-	MOVQ    AX, r+16(FP)
++	MOVQ    AX, ret+16(FP)
+ 	RET
+ 
+ // func ·Max(x, y float64) float64
+@@ -72,28 +72,28 @@ TEXT ·Max(SB),7,$0
+ 	MOVQ    R8, X0
+ 	MOVQ    R9, X1
+ 	MAXSD   X1, X0
+-	MOVSD   X0, r+16(FP)
++	MOVSD   X0, ret+16(FP)
+ 	RET
+ isMaxNaN: // return NaN
+ isPosInf: // return +Inf
+-	MOVQ    AX, r+16(FP)
++	MOVQ    AX, ret+16(FP)
+ 	RET
+ isMaxZero:
+ 	MOVQ    $(1<<63), AX // -0.0
+ 	CMPQ    AX, R8
+ 	JEQ     +3(PC)
+-	MOVQ    R8, r+16(FP) // return 0
++	MOVQ    R8, ret+16(FP) // return 0
+ 	RET
+-	MOVQ    R9, r+16(FP) // return other 0
++	MOVQ    R9, ret+16(FP) // return other 0
+ 	RET
+ 
+ /*
+ 	MOVQ    $0, AX
+ 	CMPQ    AX, R8
+ 	JNE     +3(PC)
+-	MOVQ    R8, r+16(FP) // return 0
++	MOVQ    R8, ret+16(FP) // return 0
+ 	RET
+-	MOVQ    R9, r+16(FP) // return other 0
++	MOVQ    R9, ret+16(FP) // return other 0
+ 	RET
+ */
+ 
+@@ -125,18 +125,18 @@ TEXT ·Min(SB),7,$0
+ 	MOVQ    R8, X0
+ 	MOVQ    R9, X1
+ 	MINSD   X1, X0
+-	MOVSD X0, r+16(FP)
++	MOVSD X0, ret+16(FP)
+ 	RET
+ isMinNaN: // return NaN
+ isNegInf: // return -Inf
+-	MOVQ    AX, r+16(FP)
++	MOVQ    AX, ret+16(FP)
+ 	RET
+ isMinZero:
+ 	MOVQ    $(1<<63), AX // -0.0
+ 	CMPQ    AX, R8
+ 	JEQ     +3(PC)
+-	MOVQ    R9, r+16(FP) // return other 0
++	MOVQ    R9, ret+16(FP) // return other 0
+ 	RET
+-	MOVQ    R8, r+16(FP) // return -0
++	MOVQ    R8, ret+16(FP) // return -0
+ 	RET
+ 
+diff --git a/src/pkg/math/exp2_386.s b/src/pkg/math/exp2_386.s
+index ed82a4dd32..1537626319 100644
+--- a/src/pkg/math/exp2_386.s
++++ b/src/pkg/math/exp2_386.s
+@@ -5,7 +5,7 @@
+ // func Exp2(x float64) float64
+ TEXT ·Exp2(SB),7,$0
+ // test bits for not-finite
+-	MOVL    x+4(FP), AX
++	MOVL    x_hi+4(FP), AX
+ 	ANDL    $0x7ff00000, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     not_finite
+@@ -19,20 +19,20 @@ TEXT ·Exp2(SB),7,$0
+ 	FADDDP  F0, F1        // F0=2**(x-int(x)), F1=int(x)
+ 	FSCALE                // F0=2**x, F1=int(x)
+ 	FMOVDP  F0, F1        // F0=2**x
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ not_finite:
+ // test bits for -Inf
+-	MOVL    x+4(FP), BX
+-	MOVL    x+0(FP), CX
++	MOVL    x_hi+4(FP), BX
++	MOVL    x_lo+0(FP), CX
+ 	CMPL    BX, $0xfff00000
+ 	JNE     not_neginf
+ 	CMPL    CX, $0
+ 	JNE     not_neginf
+-	MOVL    $0, r+8(FP)
+-	MOVL    $0, r+12(FP)
++	MOVL    $0, ret_lo+8(FP)
++	MOVL    $0, ret_hi+12(FP)
+ 	RET
+ not_neginf:
+-	MOVL    CX, r+8(FP)
+-	MOVL    BX, r+12(FP)
++	MOVL    CX, ret_lo+8(FP)
++	MOVL    BX, ret_hi+12(FP)
+ 	RET
+diff --git a/src/pkg/math/exp_386.s b/src/pkg/math/exp_386.s
+index e0743e72a2..aeceb3cadc 100644
+--- a/src/pkg/math/exp_386.s
++++ b/src/pkg/math/exp_386.s
+@@ -5,7 +5,7 @@
+ // func Exp(x float64) float64
+ TEXT ·Exp(SB),7,$0
+ // test bits for not-finite
+-	MOVL    x+4(FP), AX
++	MOVL    x_hi+4(FP), AX
+ 	ANDL    $0x7ff00000, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     not_finite
+@@ -20,20 +20,20 @@ TEXT ·Exp(SB),7,$0
+ 	FADDDP  F0, F1        // F0=2**(x*log2(e)-int(x*log2(e))), F1=int(x*log2(e))
+ 	FSCALE                // F0=e**x, F1=int(x*log2(e))
+ 	FMOVDP  F0, F1        // F0=e**x
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ not_finite:
+ // test bits for -Inf
+-	MOVL    x+4(FP), BX
+-	MOVL    x+0(FP), CX
++	MOVL    x_hi+4(FP), BX
++	MOVL    x_lo+0(FP), CX
+ 	CMPL    BX, $0xfff00000
+ 	JNE     not_neginf
+ 	CMPL    CX, $0
+ 	JNE     not_neginf
+ 	FLDZ                  // F0=0
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ not_neginf:
+-	MOVL    CX, r+8(FP)
+-	MOVL    BX, r+12(FP)
++	MOVL    CX, ret_lo+8(FP)
++	MOVL    BX, ret_hi+12(FP)
+ 	RET
+diff --git a/src/pkg/math/exp_amd64.s b/src/pkg/math/exp_amd64.s
+index 74c9c876af..eb6fb04323 100644
+--- a/src/pkg/math/exp_amd64.s
++++ b/src/pkg/math/exp_amd64.s
+@@ -93,7 +93,7 @@ TEXT ·Exp(SB),7,$0
+ 	SHLQ    CX, BX
+ 	MOVQ    BX, X1
+ 	MULSD   X1, X0
+-	MOVSD   X0, r+8(FP)
++	MOVSD   X0, ret+8(FP)
+ 	RET
+ notFinite:
+ 	// test bits for -Inf
+@@ -103,10 +103,10 @@ notFinite:
+ 	// -Inf, return 0
+ underflow: // return 0
+ 	MOVQ    $0, AX
+-	MOVQ    AX, r+8(FP)
++	MOVQ    AX, ret+8(FP)
+ 	RET
+ overflow: // return +Inf
+ 	MOVQ    $PosInf, BX
+ notNegInf: // NaN or +Inf, return x
+-	MOVQ    BX, r+8(FP)
++	MOVQ    BX, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/expm1_386.s b/src/pkg/math/expm1_386.s
+index 8185f49a41..0ff9c4ab04 100644
+--- a/src/pkg/math/expm1_386.s
++++ b/src/pkg/math/expm1_386.s
+@@ -14,11 +14,11 @@ TEXT ·Expm1(SB),7,$0
+ 	FLDL2E                // F0=log2(e)
+ 	FMULD   x+0(FP), F0   // F0=x*log2(e) (-1<F0<1)
+ 	F2XM1                 // F0=e**x-1 = 2**(x*log2(e))-1
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ use_exp:
+ // test bits for not-finite
+-	MOVL    x+4(FP), AX
++	MOVL    x_hi+4(FP), AX
+ 	ANDL    $0x7ff00000, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     not_finite
+@@ -35,21 +35,21 @@ use_exp:
+ 	FMOVDP  F0, F1        // F0=e**x
+ 	FLD1                  // F0=1, F1=e**x
+ 	FSUBDP  F0, F1        // F0=e**x-1 
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ not_finite:
+ // test bits for -Inf
+-	MOVL    x+4(FP), BX
+-	MOVL    x+0(FP), CX
++	MOVL    x_hi+4(FP), BX
++	MOVL    x_lo+0(FP), CX
+ 	CMPL    BX, $0xfff00000
+ 	JNE     not_neginf
+ 	CMPL    CX, $0
+ 	JNE     not_neginf
+ 	FLD1                 // F0=1
+ 	FCHS                 // F0=-1
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ not_neginf:
+-	MOVL    CX, r+8(FP)
+-	MOVL    BX, r+12(FP)
++	MOVL    CX, ret_lo+8(FP)
++	MOVL    BX, ret_hi+12(FP)
+ 	RET
+diff --git a/src/pkg/math/floor_386.s b/src/pkg/math/floor_386.s
+index a4ae9d2eba..9aa71c043f 100644
+--- a/src/pkg/math/floor_386.s
++++ b/src/pkg/math/floor_386.s
+@@ -13,7 +13,7 @@ TEXT ·Ceil(SB),7,$0
+ 	FLDCW   -4(SP)       // load new Control Word
+ 	FRNDINT              // F0=Ceil(x)
+ 	FLDCW   -2(SP)       // load old Control Word
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+ // func Floor(x float64) float64
+@@ -27,7 +27,7 @@ TEXT ·Floor(SB),7,$0
+ 	FLDCW   -4(SP)       // load new Control Word
+ 	FRNDINT              // F0=Floor(x)
+ 	FLDCW   -2(SP)       // load old Control Word
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+ // func Trunc(x float64) float64
+@@ -40,5 +40,5 @@ TEXT ·Trunc(SB),7,$0
+ 	FLDCW   -4(SP)       // load new Control Word
+ 	FRNDINT              // F0=Trunc(x)
+ 	FLDCW   -2(SP)       // load old Control Word
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/floor_amd64.s b/src/pkg/math/floor_amd64.s
+index e72cc3cf9c..bb1a2fd22a 100644
+--- a/src/pkg/math/floor_amd64.s
++++ b/src/pkg/math/floor_amd64.s
+@@ -20,10 +20,10 @@ TEXT ·Floor(SB),7,$0
+ 	MOVSD	$(-1.0), X2
+ 	ANDPD	X2, X0 // if x < float(int(x)) {X0 = -1} else {X0 = 0}
+ 	ADDSD	X1, X0
+-	MOVSD	X0, r+8(FP)
++	MOVSD	X0, ret+8(FP)
+ 	RET
+ isBig_floor:
+-	MOVQ    AX, r+8(FP) // return x
++	MOVQ    AX, ret+8(FP) // return x
+ 	RET
+ 
+ // func Ceil(x float64) float64
+@@ -46,10 +46,10 @@ TEXT ·Ceil(SB),7,$0
+ 	ANDNPD	X3, X0
+ 	ORPD	X2, X0 // if float(int(x)) <= x {X0 = 1} else {X0 = -0}
+ 	ADDSD	X1, X0
+-	MOVSD	X0, r+8(FP)
++	MOVSD	X0, ret+8(FP)
+ 	RET
+ isBig_ceil:
+-	MOVQ	AX, r+8(FP)
++	MOVQ	AX, ret+8(FP)
+ 	RET
+ 
+ // func Trunc(x float64) float64
+@@ -67,8 +67,8 @@ TEXT ·Trunc(SB),7,$0
+ 	ANDNPD	X0, X2 // X2 = sign
+ 	CVTSQ2SD	AX, X0 // X0 = float(int(x))
+ 	ORPD	X2, X0 // if X0 = 0.0, incorporate sign
+-	MOVSD	X0, r+8(FP)
++	MOVSD	X0, ret+8(FP)
+ 	RET
+ isBig_trunc:
+-	MOVQ    AX, r+8(FP) // return x
++	MOVQ    AX, ret+8(FP) // return x
+ 	RET
+diff --git a/src/pkg/math/hypot_386.s b/src/pkg/math/hypot_386.s
+index 51cd904194..8edfe064f7 100644
+--- a/src/pkg/math/hypot_386.s
++++ b/src/pkg/math/hypot_386.s
+@@ -5,11 +5,11 @@
+ // func Hypot(p, q float64) float64
+ TEXT ·Hypot(SB),7,$0
+ // test bits for not-finite
+-	MOVL    p+4(FP), AX   // high word p
++	MOVL    p_hi+4(FP), AX   // high word p
+ 	ANDL    $0x7ff00000, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     not_finite
+-	MOVL    q+12(FP), AX   // high word q
++	MOVL    q_hi+12(FP), AX   // high word q
+ 	ANDL    $0x7ff00000, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     not_finite
+@@ -31,27 +31,27 @@ TEXT ·Hypot(SB),7,$0
+ 	FADDDP  F0, F1       // F0=1+q*q, F1=p
+ 	FSQRT                // F0=sqrt(1+q*q), F1=p
+ 	FMULDP  F0, F1       // F0=p*sqrt(1+q*q)
+-	FMOVDP  F0, r+16(FP)
++	FMOVDP  F0, ret+16(FP)
+ 	RET
+ 	FMOVDP  F0, F1       // F0=0
+-	FMOVDP  F0, r+16(FP)
++	FMOVDP  F0, ret+16(FP)
+ 	RET
+ not_finite:
+ // test bits for -Inf or +Inf
+-	MOVL    p+4(FP), AX  // high word p
+-	ORL     p+0(FP), AX  // low word p
++	MOVL    p_hi+4(FP), AX  // high word p
++	ORL     p_lo+0(FP), AX  // low word p
+ 	ANDL    $0x7fffffff, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     is_inf
+-	MOVL    q+12(FP), AX  // high word q
+-	ORL     q+8(FP), AX   // low word q
++	MOVL    q_hi+12(FP), AX  // high word q
++	ORL     q_lo+8(FP), AX   // low word q
+ 	ANDL    $0x7fffffff, AX
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     is_inf
+-	MOVL    $0x7ff80000, r+20(FP)  // return NaN = 0x7FF8000000000001
+-	MOVL    $0x00000001, r+16(FP)
++	MOVL    $0x7ff80000, ret_hi+20(FP)  // return NaN = 0x7FF8000000000001
++	MOVL    $0x00000001, ret_lo+16(FP)
+ 	RET
+ is_inf:
+-	MOVL    AX, r+20(FP)  // return +Inf = 0x7FF0000000000000
+-	MOVL    $0x00000000, r+16(FP)
++	MOVL    AX, ret_hi+20(FP)  // return +Inf = 0x7FF0000000000000
++	MOVL    $0x00000000, ret_lo+16(FP)
+ 	RET
+diff --git a/src/pkg/math/hypot_amd64.s b/src/pkg/math/hypot_amd64.s
+index 02fff5b925..40ba6f41dd 100644
+--- a/src/pkg/math/hypot_amd64.s
++++ b/src/pkg/math/hypot_amd64.s
+@@ -31,7 +31,7 @@ TEXT ·Hypot(SB),7,$0
+ 	ADDSD   $1.0, X1
+ 	SQRTSD  X1, X1
+ 	MULSD   X1, X0
+-	MOVSD   X0, r+16(FP)
++	MOVSD   X0, ret+16(FP)
+ 	RET
+ isInfOrNaN:
+ 	CMPQ    AX, BX
+@@ -39,12 +39,12 @@ isInfOrNaN:
+ 	CMPQ    AX, CX
+ 	JEQ     isInf
+ 	MOVQ    $NaN, AX
+-	MOVQ    AX, r+16(FP) // return NaN
++	MOVQ    AX, ret+16(FP) // return NaN
+ 	RET
+ isInf:
+-	MOVQ    AX, r+16(FP) // return +Inf
++	MOVQ    AX, ret+16(FP) // return +Inf
+ 	RET
+ isZero:
+ 	MOVQ    $0, AX
+-	MOVQ    AX, r+16(FP) // return 0
++	MOVQ    AX, ret+16(FP) // return 0
+ 	RET
+diff --git a/src/pkg/math/ldexp_386.s b/src/pkg/math/ldexp_386.s
+index 3a65629d22..566245dc2e 100644
+--- a/src/pkg/math/ldexp_386.s
++++ b/src/pkg/math/ldexp_386.s
+@@ -8,5 +8,5 @@ TEXT ·Ldexp(SB),7,$0
+ 	FMOVD   frac+0(FP), F0   // F0=frac, F1=e
+ 	FSCALE                // F0=x*2**e, F1=e
+ 	FMOVDP  F0, F1        // F0=x*2**e
+-	FMOVDP  F0, r+12(FP)
++	FMOVDP  F0, ret+12(FP)
+ 	RET
+diff --git a/src/pkg/math/log10_386.s b/src/pkg/math/log10_386.s
+index cc473b424f..d4f94235e1 100644
+--- a/src/pkg/math/log10_386.s
++++ b/src/pkg/math/log10_386.s
+@@ -7,7 +7,7 @@ TEXT ·Log10(SB),7,$0
+ 	FLDLG2               // F0=log10(2)
+ 	FMOVD   x+0(FP), F0  // F0=x, F1=log10(2)
+ 	FYL2X                // F0=log10(x)=log2(x)*log10(2)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+ // func Log2(x float64) float64
+@@ -15,5 +15,5 @@ TEXT ·Log2(SB),7,$0
+ 	FLD1                 // F0=1
+ 	FMOVD   x+0(FP), F0  // F0=x, F1=1
+ 	FYL2X                // F0=log2(x)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/log1p_386.s b/src/pkg/math/log1p_386.s
+index 30df88e1fb..30dc8033d2 100644
+--- a/src/pkg/math/log1p_386.s
++++ b/src/pkg/math/log1p_386.s
+@@ -14,12 +14,12 @@ TEXT ·Log1p(SB),7,$0
+ 	JEQ     use_fyl2x    // jump if F0 >= F1
+ 	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
+ 	FYL2XP1              // F0=log(1+x)=log2(1+x)*log(2)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ use_fyl2x:
+ 	FLD1                 // F0=1, F2=log(2)
+ 	FADDD   x+0(FP), F0  // F0=1+x, F1=log(2)
+ 	FYL2X                // F0=log(1+x)=log2(1+x)*log(2)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 
+diff --git a/src/pkg/math/log_386.s b/src/pkg/math/log_386.s
+index 6cfbc7605b..7a6f2c0525 100644
+--- a/src/pkg/math/log_386.s
++++ b/src/pkg/math/log_386.s
+@@ -7,5 +7,5 @@ TEXT ·Log(SB),7,$0
+ 	FLDLN2               // F0=log(2)
+ 	FMOVD   x+0(FP), F0  // F0=x, F1=log(2)
+ 	FYL2X                // F0=log(x)=log2(x)*log(2)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/log_amd64.s b/src/pkg/math/log_amd64.s
+index 75bc55764d..6ae5fbc95e 100644
+--- a/src/pkg/math/log_amd64.s
++++ b/src/pkg/math/log_amd64.s
+@@ -94,16 +94,16 @@ TEXT ·Log(SB),7,$0
+ 	SUBSD   X2, X0 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k
+ 	MULSD   $Ln2Hi, X1 // x0= (hfsq-(s*(hfsq+R)+k*Ln2Lo))-f, x1= k*Ln2Hi
+ 	SUBSD   X0, X1 // x1= k*Ln2Hi-((hfsq-(s*(hfsq+R)+k*Ln2Lo))-f)
+-  	MOVSD   X1, r+8(FP)
++  	MOVSD   X1, ret+8(FP)
+ 	RET
+ isInfOrNaN:
+-	MOVQ    BX, r+8(FP) // +Inf or NaN, return x
++	MOVQ    BX, ret+8(FP) // +Inf or NaN, return x
+ 	RET
+ isNegative:
+ 	MOVQ    $NaN, AX
+-	MOVQ    AX, r+8(FP) // return NaN
++	MOVQ    AX, ret+8(FP) // return NaN
+ 	RET
+ isZero:
+ 	MOVQ    $NegInf, AX
+-	MOVQ    AX, r+8(FP) // return -Inf
++	MOVQ    AX, ret+8(FP) // return -Inf
+ 	RET
+diff --git a/src/pkg/math/mod_386.s b/src/pkg/math/mod_386.s
+index 6b9c28d4fe..bcb451b5dd 100644
+--- a/src/pkg/math/mod_386.s
++++ b/src/pkg/math/mod_386.s
+@@ -11,5 +11,5 @@ TEXT ·Mod(SB),7,$0
+ 	ANDW    $0x0400, AX
+ 	JNE     -3(PC)       // jump if reduction incomplete
+ 	FMOVDP  F0, F1       // F0=x-q*y
+-	FMOVDP  F0, r+16(FP)
++	FMOVDP  F0, ret+16(FP)
+ 	RET
+diff --git a/src/pkg/math/remainder_386.s b/src/pkg/math/remainder_386.s
+index 4cb98233a6..2238aba49f 100644
+--- a/src/pkg/math/remainder_386.s
++++ b/src/pkg/math/remainder_386.s
+@@ -11,5 +11,5 @@ TEXT ·Remainder(SB),7,$0
+ 	ANDW    $0x0400, AX
+ 	JNE     -3(PC)       // jump if reduction incomplete
+ 	FMOVDP  F0, F1       // F0=x-q*y
+-	FMOVDP  F0, r+16(FP)
++	FMOVDP  F0, ret+16(FP)
+ 	RET
+diff --git a/src/pkg/math/sin_386.s b/src/pkg/math/sin_386.s
+index 9d00bd92b2..b2a836eb12 100644
+--- a/src/pkg/math/sin_386.s
++++ b/src/pkg/math/sin_386.s
+@@ -9,7 +9,7 @@ TEXT ·Cos(SB),7,$0
+ 	FSTSW   AX           // AX=status word
+ 	ANDW    $0x0400, AX
+ 	JNE     3(PC)        // jump if x outside range
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 	FLDPI                // F0=Pi, F1=x
+ 	FADDD   F0, F0       // F0=2*Pi, F1=x
+@@ -20,7 +20,7 @@ TEXT ·Cos(SB),7,$0
+ 	JNE     -3(PC)       // jump if reduction incomplete
+ 	FMOVDP  F0, F1       // F0=reduced_x
+ 	FCOS                 // F0=cos(reduced_x)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 	
+ // func Sin(x float64) float64
+@@ -30,7 +30,7 @@ TEXT ·Sin(SB),7,$0
+ 	FSTSW   AX           // AX=status word
+ 	ANDW    $0x0400, AX
+ 	JNE     3(PC)        // jump if x outside range
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 	FLDPI                // F0=Pi, F1=x
+ 	FADDD   F0, F0       // F0=2*Pi, F1=x
+@@ -41,5 +41,5 @@ TEXT ·Sin(SB),7,$0
+ 	JNE     -3(PC)       // jump if reduction incomplete
+ 	FMOVDP  F0, F1       // F0=reduced_x
+ 	FSIN                 // F0=sin(reduced_x)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/sqrt_386.s b/src/pkg/math/sqrt_386.s
+index d0a428d52e..824fa634c5 100644
+--- a/src/pkg/math/sqrt_386.s
++++ b/src/pkg/math/sqrt_386.s
+@@ -6,5 +6,5 @@
+ TEXT ·Sqrt(SB),7,$0
+ 	FMOVD   x+0(FP),F0
+ 	FSQRT
+-	FMOVDP  F0,r+8(FP)
++	FMOVDP  F0,ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/sqrt_amd64.s b/src/pkg/math/sqrt_amd64.s
+index f5b329e70a..553c4e01b6 100644
+--- a/src/pkg/math/sqrt_amd64.s
++++ b/src/pkg/math/sqrt_amd64.s
+@@ -5,5 +5,5 @@
+ // func Sqrt(x float64) float64
+ TEXT ·Sqrt(SB),7,$0
+ 	SQRTSD x+0(FP), X0
+-	MOVSD X0, r+8(FP)
++	MOVSD X0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/sqrt_arm.s b/src/pkg/math/sqrt_arm.s
+index befbb8a898..b965b4845c 100644
+--- a/src/pkg/math/sqrt_arm.s
++++ b/src/pkg/math/sqrt_arm.s
+@@ -6,5 +6,5 @@
+ TEXT ·Sqrt(SB),7,$0
+ 	MOVD   x+0(FP),F0
+ 	SQRTD  F0,F0
+-	MOVD  F0,r+8(FP)
++	MOVD  F0,ret+8(FP)
+ 	RET
+diff --git a/src/pkg/math/tan_386.s b/src/pkg/math/tan_386.s
+index ebb9e798b0..f3ad339073 100644
+--- a/src/pkg/math/tan_386.s
++++ b/src/pkg/math/tan_386.s
+@@ -10,7 +10,7 @@ TEXT ·Tan(SB),7,$0
+ 	ANDW    $0x0400, AX
+ 	JNE     4(PC)        // jump if x outside range
+ 	FMOVDP  F0, F0       // F0=tan(x)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+ 	FLDPI                // F0=Pi, F1=x
+ 	FADDD   F0, F0       // F0=2*Pi, F1=x
+@@ -22,5 +22,5 @@ TEXT ·Tan(SB),7,$0
+ 	FMOVDP  F0, F1       // F0=reduced_x
+ 	FPTAN                // F0=1, F1=tan(reduced_x)
+ 	FMOVDP  F0, F0       // F0=tan(reduced_x)
+-	FMOVDP  F0, r+8(FP)
++	FMOVDP  F0, ret+8(FP)
+ 	RET
+diff --git a/src/pkg/os/signal/sig.s b/src/pkg/os/signal/sig.s
+index 7d0c92b195..df4855de8d 100644
+--- a/src/pkg/os/signal/sig.s
++++ b/src/pkg/os/signal/sig.s
+@@ -4,6 +4,8 @@
+ 
+ // Assembly to get into package runtime without using exported symbols.
+ 
++// +build amd64 arm 386
++
+ #ifdef GOARCH_arm
+ #define JMP B
+ #endif
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index 068ab64a62..bbd068d98e 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -7,7 +7,7 @@
+ // for more details.
+ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVL	DX, 0(SP)
+-	LEAL	arg+0(FP), CX
++	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),7,$8
+ // for more details.
+ TEXT ·methodValueCall(SB),7,$8
+ 	MOVL	DX, 0(SP)
+-	LEAL	arg+0(FP), CX
++	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 06a593a65f..2e7fce55d6 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -7,7 +7,7 @@
+ // for more details.
+ TEXT ·makeFuncStub(SB),7,$16
+ 	MOVQ	DX, 0(SP)
+-	LEAQ	arg+0(FP), CX
++	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),7,$16
+ // for more details.
+ TEXT ·methodValueCall(SB),7,$16
+ 	MOVQ	DX, 0(SP)
+-	LEAQ	arg+0(FP), CX
++	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index 4add1e3211..fb1dddebe9 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -7,7 +7,7 @@
+ // for more details.
+ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVW	R7, 4(R13)
+-	MOVW	$arg+0(FP), R1
++	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+ 	BL	·callReflect(SB)
+ 	RET
+@@ -17,7 +17,7 @@ TEXT ·makeFuncStub(SB),7,$8
+ // for more details.
+ TEXT ·methodValueCall(SB),7,$8
+ 	MOVW	R7, 4(R13)
+-	MOVW	$arg+0(FP), R1
++	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index e4b841cfa5..6bcacf4cc0 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -717,7 +717,7 @@ TEXT runtime·stackguard(SB),7,$0
+ 	get_tls(CX)
+ 	MOVL	g(CX), BX
+ 	MOVL	g_stackguard(BX), DX
+-	MOVL	DX, guard+4(FP)
++	MOVL	DX, limit+4(FP)
+ 	RET
+ 
+ GLOBL runtime·tls0(SB), $32
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 709bc48d8d..f4cfa576eb 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -737,7 +737,7 @@ TEXT runtime·stackguard(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	g_stackguard(BX), DX
+-	MOVQ	DX, guard+8(FP)
++	MOVQ	DX, limit+8(FP)
+ 	RET
+ 
+ GLOBL runtime·tls0(SB), $64
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 19d129bcb7..8c02f106f5 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -31,10 +31,10 @@ TEXT ·CompareAndSwapUint64(SB),7,$0
+ 	TESTL	$7, BP
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+-	MOVL	old+4(FP), AX
+-	MOVL	old+8(FP), DX
+-	MOVL	new+12(FP), BX
+-	MOVL	new+16(FP), CX
++	MOVL	old_lo+4(FP), AX
++	MOVL	old_hi+8(FP), DX
++	MOVL	new_lo+12(FP), BX
++	MOVL	new_hi+16(FP), CX
+ 	// CMPXCHG8B was introduced on the Pentium.
+ 	LOCK
+ 	CMPXCHG8B	0(BP)
+@@ -68,8 +68,8 @@ TEXT ·AddUint64(SB),7,$0
+ 	JZ	2(PC)
+ 	MOVL	0, AX // crash with nil ptr deref
+ 	// DI:SI = delta
+-	MOVL	delta+4(FP), SI
+-	MOVL	delta+8(FP), DI
++	MOVL	delta_lo+4(FP), SI
++	MOVL	delta_hi+8(FP), DI
+ 	// DX:AX = *addr
+ 	MOVL	0(BP), AX
+ 	MOVL	4(BP), DX
+@@ -93,8 +93,8 @@ addloop:
+ 
+ 	// success
+ 	// return CX:BX
+-	MOVL	BX, new+12(FP)
+-	MOVL	CX, new+16(FP)
++	MOVL	BX, new_lo+12(FP)
++	MOVL	CX, new_hi+16(FP)
+ 	RET
+ 
+ TEXT ·LoadInt32(SB),7,$0

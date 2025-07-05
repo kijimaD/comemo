@@ -11,6 +11,19 @@ Date:   Tue Apr 18 06:09:15 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gen.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index ef4c8537f3..176611de92 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -192,7 +192,6 @@ func autotmpname(n int) string {
+ 	// Start with a buffer big enough to hold a large n.
+ 	b := []byte(prefix + "      ")[:len(prefix)]
+ 	b = strconv.AppendInt(b, int64(n), 10)
+-	_ = b
+ 	return types.InternString(b)
+ }
+ 

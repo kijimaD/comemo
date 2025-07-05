@@ -8,6 +8,20 @@ Date:   Fri May 19 15:12:49 2017 +1000
     Reviewed-on: https://go-review.googlesource.com/43691
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index a444f93e50..0e5d37ab09 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -170,7 +170,7 @@ func (c *conn) writeBuffers(v *Buffers) (int64, error) {
+ 	}
+ 	n, err := c.fd.writeBuffers(v)
+ 	if err != nil {
+-		return n, &OpError{Op: "WSASend", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		return n, &OpError{Op: "wsasend", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 	}
+ 	return n, nil
+ }

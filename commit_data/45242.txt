@@ -20,10 +20,417 @@ Date:   Wed Oct 14 17:18:27 2020 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/inl_test.go |   2 +-
  src/runtime/mgc.go                      | 121 +++++++-------------------------
  src/runtime/mgcwork.go                  |  74 -------------------
  src/runtime/mwbbuf.go                   |  32 +--------
  src/runtime/panic.go                    |   9 ---
  5 files changed, 27 insertions(+), 211 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 9d3b8c59fd..547a602ee0 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -83,7 +83,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"puintptr.ptr",
+ 			"spanOf",
+ 			"spanOfUnchecked",
+-			//"(*gcWork).putFast", // TODO(austin): For debugging #27993
++			"(*gcWork).putFast",
+ 			"(*gcWork).tryGetFast",
+ 			"(*guintptr).set",
+ 			"(*markBits).advance",
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bd87144355..0a4d5616a5 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1407,19 +1407,6 @@ func gcStart(trigger gcTrigger) {
+ // This is protected by markDoneSema.
+ var gcMarkDoneFlushed uint32
+ 
+-// debugCachedWork enables extra checks for debugging premature mark
+-// termination.
+-//
+-// For debugging issue #27993.
+-const debugCachedWork = false
+-
+-// gcWorkPauseGen is for debugging the mark completion algorithm.
+-// gcWork put operations spin while gcWork.pauseGen == gcWorkPauseGen.
+-// Only used if debugCachedWork is true.
+-//
+-// For debugging issue #27993.
+-var gcWorkPauseGen uint32 = 1
+-
+ // gcMarkDone transitions the GC from mark to mark termination if all
+ // reachable objects have been marked (that is, there are no grey
+ // objects and can be no more in the future). Otherwise, it flushes
+@@ -1475,15 +1462,7 @@ top:
+ 			// Flush the write barrier buffer, since this may add
+ 			// work to the gcWork.
+ 			wbBufFlush1(_p_)
+-			// For debugging, shrink the write barrier
+-			// buffer so it flushes immediately.
+-			// wbBuf.reset will keep it at this size as
+-			// long as throwOnGCWork is set.
+-			if debugCachedWork {
+-				b := &_p_.wbBuf
+-				b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
+-				b.debugGen = gcWorkPauseGen
+-			}
++
+ 			// Flush the gcWork, since this may create global work
+ 			// and set the flushedWork flag.
+ 			//
+@@ -1494,29 +1473,12 @@ top:
+ 			if _p_.gcw.flushedWork {
+ 				atomic.Xadd(&gcMarkDoneFlushed, 1)
+ 				_p_.gcw.flushedWork = false
+-			} else if debugCachedWork {
+-				// For debugging, freeze the gcWork
+-				// until we know whether we've reached
+-				// completion or not. If we think
+-				// we've reached completion, but
+-				// there's a paused gcWork, then
+-				// that's a bug.
+-				_p_.gcw.pauseGen = gcWorkPauseGen
+-				// Capture the G's stack.
+-				for i := range _p_.gcw.pauseStack {
+-					_p_.gcw.pauseStack[i] = 0
+-				}
+-				callers(1, _p_.gcw.pauseStack[:])
+ 			}
+ 		})
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+ 
+ 	if gcMarkDoneFlushed != 0 {
+-		if debugCachedWork {
+-			// Release paused gcWorks.
+-			atomic.Xadd(&gcWorkPauseGen, 1)
+-		}
+ 		// More grey objects were discovered since the
+ 		// previous termination check, so there may be more
+ 		// work to do. Keep going. It's possible the
+@@ -1526,13 +1488,6 @@ top:
+ 		goto top
+ 	}
+ 
+-	if debugCachedWork {
+-		throwOnGCWork = true
+-		// Release paused gcWorks. If there are any, they
+-		// should now observe throwOnGCWork and panic.
+-		atomic.Xadd(&gcWorkPauseGen, 1)
+-	}
+-
+ 	// There was no global work, no local work, and no Ps
+ 	// communicated work since we took markDoneSema. Therefore
+ 	// there are no grey objects and no more objects can be
+@@ -1549,59 +1504,33 @@ top:
+ 	// below. The important thing is that the wb remains active until
+ 	// all marking is complete. This includes writes made by the GC.
+ 
+-	if debugCachedWork {
+-		// For debugging, double check that no work was added after we
+-		// went around above and disable write barrier buffering.
++	// There is sometimes work left over when we enter mark termination due
++	// to write barriers performed after the completion barrier above.
++	// Detect this and resume concurrent mark. This is obviously
++	// unfortunate.
++	//
++	// See issue #27993 for details.
++	//
++	// Switch to the system stack to call wbBufFlush1, though in this case
++	// it doesn't matter because we're non-preemptible anyway.
++	restart := false
++	systemstack(func() {
+ 		for _, p := range allp {
+-			gcw := &p.gcw
+-			if !gcw.empty() {
+-				printlock()
+-				print("runtime: P ", p.id, " flushedWork ", gcw.flushedWork)
+-				if gcw.wbuf1 == nil {
+-					print(" wbuf1=<nil>")
+-				} else {
+-					print(" wbuf1.n=", gcw.wbuf1.nobj)
+-				}
+-				if gcw.wbuf2 == nil {
+-					print(" wbuf2=<nil>")
+-				} else {
+-					print(" wbuf2.n=", gcw.wbuf2.nobj)
+-				}
+-				print("\n")
+-				if gcw.pauseGen == gcw.putGen {
+-					println("runtime: checkPut already failed at this generation")
+-				}
+-				throw("throwOnGCWork")
++			wbBufFlush1(p)
++			if !p.gcw.empty() {
++				restart = true
++				break
+ 			}
+ 		}
+-	} else {
+-		// For unknown reasons (see issue #27993), there is
+-		// sometimes work left over when we enter mark
+-		// termination. Detect this and resume concurrent
+-		// mark. This is obviously unfortunate.
+-		//
+-		// Switch to the system stack to call wbBufFlush1,
+-		// though in this case it doesn't matter because we're
+-		// non-preemptible anyway.
+-		restart := false
++	})
++	if restart {
++		getg().m.preemptoff = ""
+ 		systemstack(func() {
+-			for _, p := range allp {
+-				wbBufFlush1(p)
+-				if !p.gcw.empty() {
+-					restart = true
+-					break
+-				}
+-			}
++			now := startTheWorldWithSema(true)
++			work.pauseNS += now - work.pauseStart
+ 		})
+-		if restart {
+-			getg().m.preemptoff = ""
+-			systemstack(func() {
+-				now := startTheWorldWithSema(true)
+-				work.pauseNS += now - work.pauseStart
+-			})
+-			semrelease(&worldsema)
+-			goto top
+-		}
++		semrelease(&worldsema)
++		goto top
+ 	}
+ 
+ 	// Disable assists and background workers. We must do
+@@ -2085,7 +2014,7 @@ func gcMark(start_time int64) {
+ 		// ensured all reachable objects were marked, all of
+ 		// these must be pointers to black objects. Hence we
+ 		// can just discard the write barrier buffer.
+-		if debug.gccheckmark > 0 || throwOnGCWork {
++		if debug.gccheckmark > 0 {
+ 			// For debugging, flush the buffer and make
+ 			// sure it really was all marked.
+ 			wbBufFlush1(p)
+@@ -2117,8 +2046,6 @@ func gcMark(start_time int64) {
+ 		gcw.dispose()
+ 	}
+ 
+-	throwOnGCWork = false
+-
+ 	cachestats()
+ 
+ 	// Update the marked heap stat.
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 46101657d5..51e0fe9219 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -22,13 +22,6 @@ const (
+ 	workbufAlloc = 32 << 10
+ )
+ 
+-// throwOnGCWork causes any operations that add pointers to a gcWork
+-// buffer to throw.
+-//
+-// TODO(austin): This is a temporary debugging measure for issue
+-// #27993. To be removed before release.
+-var throwOnGCWork bool
+-
+ func init() {
+ 	if workbufAlloc%pageSize != 0 || workbufAlloc%_WorkbufSize != 0 {
+ 		throw("bad workbufAlloc")
+@@ -93,17 +86,6 @@ type gcWork struct {
+ 	// termination check. Specifically, this indicates that this
+ 	// gcWork may have communicated work to another gcWork.
+ 	flushedWork bool
+-
+-	// pauseGen causes put operations to spin while pauseGen ==
+-	// gcWorkPauseGen if debugCachedWork is true.
+-	pauseGen uint32
+-
+-	// putGen is the pauseGen of the last putGen.
+-	putGen uint32
+-
+-	// pauseStack is the stack at which this P was paused if
+-	// debugCachedWork is true.
+-	pauseStack [16]uintptr
+ }
+ 
+ // Most of the methods of gcWork are go:nowritebarrierrec because the
+@@ -122,60 +104,10 @@ func (w *gcWork) init() {
+ 	w.wbuf2 = wbuf2
+ }
+ 
+-func (w *gcWork) checkPut(ptr uintptr, ptrs []uintptr) {
+-	if debugCachedWork {
+-		alreadyFailed := w.putGen == w.pauseGen
+-		w.putGen = w.pauseGen
+-		if !canPreemptM(getg().m) {
+-			// If we were to spin, the runtime may
+-			// deadlock. Since we can't be preempted, the
+-			// spin could prevent gcMarkDone from
+-			// finishing the ragged barrier, which is what
+-			// releases us from the spin.
+-			return
+-		}
+-		for atomic.Load(&gcWorkPauseGen) == w.pauseGen {
+-		}
+-		if throwOnGCWork {
+-			printlock()
+-			if alreadyFailed {
+-				println("runtime: checkPut already failed at this generation")
+-			}
+-			println("runtime: late gcWork put")
+-			if ptr != 0 {
+-				gcDumpObject("ptr", ptr, ^uintptr(0))
+-			}
+-			for _, ptr := range ptrs {
+-				gcDumpObject("ptrs", ptr, ^uintptr(0))
+-			}
+-			println("runtime: paused at")
+-			for _, pc := range w.pauseStack {
+-				if pc == 0 {
+-					break
+-				}
+-				f := findfunc(pc)
+-				if f.valid() {
+-					// Obviously this doesn't
+-					// relate to ancestor
+-					// tracebacks, but this
+-					// function prints what we
+-					// want.
+-					printAncestorTracebackFuncInfo(f, pc)
+-				} else {
+-					println("\tunknown PC ", hex(pc), "\n")
+-				}
+-			}
+-			throw("throwOnGCWork")
+-		}
+-	}
+-}
+-
+ // put enqueues a pointer for the garbage collector to trace.
+ // obj must point to the beginning of a heap object or an oblet.
+ //go:nowritebarrierrec
+ func (w *gcWork) put(obj uintptr) {
+-	w.checkPut(obj, nil)
+-
+ 	flushed := false
+ 	wbuf := w.wbuf1
+ 	// Record that this may acquire the wbufSpans or heap lock to
+@@ -214,8 +146,6 @@ func (w *gcWork) put(obj uintptr) {
+ // otherwise it returns false and the caller needs to call put.
+ //go:nowritebarrierrec
+ func (w *gcWork) putFast(obj uintptr) bool {
+-	w.checkPut(obj, nil)
+-
+ 	wbuf := w.wbuf1
+ 	if wbuf == nil {
+ 		return false
+@@ -237,8 +167,6 @@ func (w *gcWork) putBatch(obj []uintptr) {
+ 		return
+ 	}
+ 
+-	w.checkPut(0, obj)
+-
+ 	flushed := false
+ 	wbuf := w.wbuf1
+ 	if wbuf == nil {
+@@ -360,12 +288,10 @@ func (w *gcWork) balance() {
+ 		return
+ 	}
+ 	if wbuf := w.wbuf2; wbuf.nobj != 0 {
+-		w.checkPut(0, wbuf.obj[:wbuf.nobj])
+ 		putfull(wbuf)
+ 		w.flushedWork = true
+ 		w.wbuf2 = getempty()
+ 	} else if wbuf := w.wbuf1; wbuf.nobj > 4 {
+-		w.checkPut(0, wbuf.obj[:wbuf.nobj])
+ 		w.wbuf1 = handoff(wbuf)
+ 		w.flushedWork = true // handoff did putfull
+ 	} else {
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 632769c114..6efc00007d 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -57,12 +57,6 @@ type wbBuf struct {
+ 	// on. This must be a multiple of wbBufEntryPointers because
+ 	// the write barrier only checks for overflow once per entry.
+ 	buf [wbBufEntryPointers * wbBufEntries]uintptr
+-
+-	// debugGen causes the write barrier buffer to flush after
+-	// every write barrier if equal to gcWorkPauseGen. This is for
+-	// debugging #27993. This is only set if debugCachedWork is
+-	// set.
+-	debugGen uint32
+ }
+ 
+ const (
+@@ -86,7 +80,7 @@ const (
+ func (b *wbBuf) reset() {
+ 	start := uintptr(unsafe.Pointer(&b.buf[0]))
+ 	b.next = start
+-	if writeBarrier.cgo || (debugCachedWork && (throwOnGCWork || b.debugGen == atomic.Load(&gcWorkPauseGen))) {
++	if writeBarrier.cgo {
+ 		// Effectively disable the buffer by forcing a flush
+ 		// on every barrier.
+ 		b.end = uintptr(unsafe.Pointer(&b.buf[wbBufEntryPointers]))
+@@ -204,32 +198,10 @@ func wbBufFlush(dst *uintptr, src uintptr) {
+ 	// Switch to the system stack so we don't have to worry about
+ 	// the untyped stack slots or safe points.
+ 	systemstack(func() {
+-		if debugCachedWork {
+-			// For debugging, include the old value of the
+-			// slot and some other data in the traceback.
+-			wbBuf := &getg().m.p.ptr().wbBuf
+-			var old uintptr
+-			if dst != nil {
+-				// dst may be nil in direct calls to wbBufFlush.
+-				old = *dst
+-			}
+-			wbBufFlush1Debug(old, wbBuf.buf[0], wbBuf.buf[1], &wbBuf.buf[0], wbBuf.next)
+-		} else {
+-			wbBufFlush1(getg().m.p.ptr())
+-		}
++		wbBufFlush1(getg().m.p.ptr())
+ 	})
+ }
+ 
+-// wbBufFlush1Debug is a temporary function for debugging issue
+-// #27993. It exists solely to add some context to the traceback.
+-//
+-//go:nowritebarrierrec
+-//go:systemstack
+-//go:noinline
+-func wbBufFlush1Debug(old, buf1, buf2 uintptr, start *uintptr, next uintptr) {
+-	wbBufFlush1(getg().m.p.ptr())
+-}
+-
+ // wbBufFlush1 flushes p's write barrier buffer to the GC work queue.
+ //
+ // This must not have write barriers because it is part of the write
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 6050a34d29..aed17d6fc6 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -421,15 +421,6 @@ func newdefer(siz int32) *_defer {
+ 			total := roundupsize(totaldefersize(uintptr(siz)))
+ 			d = (*_defer)(mallocgc(total, deferType, true))
+ 		})
+-		if debugCachedWork {
+-			// Duplicate the tail below so if there's a
+-			// crash in checkPut we can tell if d was just
+-			// allocated or came from the pool.
+-			d.siz = siz
+-			d.link = gp._defer
+-			gp._defer = d
+-			return d
+-		}
+ 	}
+ 	d.siz = siz
+ 	d.heap = true

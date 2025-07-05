@@ -7,7 +7,32 @@ Date:   Mon Mar 5 15:36:20 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5746043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 93386c628f..11ebeb03be 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -185,6 +185,7 @@ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
++Ugorji Nwoke <ugorji@gmail.com>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9e5accd50e..5d2301f323 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -269,6 +269,7 @@ Timo Savola <timo.savola@gmail.com>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
++Ugorji Nwoke <ugorji@gmail.com>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>

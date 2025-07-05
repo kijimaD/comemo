@@ -9,6 +9,22 @@ Date:   Fri Apr 8 15:43:19 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4382044
-
+---
  src/pkg/big/int.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index ecd70e03ef..f1ea7b1c2e 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -337,6 +337,10 @@ func fmtbase(ch int) int {
+ // 'x' (hexadecimal).
+ //
+ func (x *Int) Format(s fmt.State, ch int) {
++	if x == nil {
++		fmt.Fprint(s, "<nil>")
++		return
++	}
+ 	if x.neg {
+ 		fmt.Fprint(s, "-")
+ 	}

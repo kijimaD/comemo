@@ -9,6 +9,32 @@ Date:   Mon Feb 11 07:46:39 2013 -0500
     R=golang-dev, remyoudompheng, r
     CC=golang-dev
     https://golang.org/cl/7307082
-
+---
  doc/go_spec.html | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f18585a2e9..aa4330d420 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 9, 2013",
++	"Subtitle": "Version of February 11, 2013",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -5472,8 +5472,10 @@ func init()
+ </pre>
+ <p>
+ defined in its source.
+-A package may contain multiple
+-<code>init</code> functions, even
++A package-scope or file-scope identifier
++with name <code>init</code> may only be
++declared to be a function with this signature.
++Multiple such functions may be defined, even
+ within a single source file; they execute
+ in unspecified order.
+ </p>

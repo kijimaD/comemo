@@ -11,6 +11,20 @@ Date:   Wed May 31 18:56:47 2023 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.21.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index f0fe16bb18..b7686d3fb8 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -933,7 +933,7 @@ Do not send CLs removing the interior tags from such phrases.
+       The <a href="/pkg/syscall#UTF16ToString"><code>UTF16ToString</code></a>
+       and <a href="/pkg/syscall#UTF16FromString"><code>UTF16FromString</code></a>
+       functions now convert between UTF-16 data and
+-      <a href=http://simonsapin.github.io/wtf-8/"">WTF-8</a> strings.
++      <a href="https://simonsapin.github.io/wtf-8/">WTF-8</a> strings.
+       This is backward compatible as WTF-8 is a superset of the UTF-8
+       format that was used in earlier releases.
+     </p>

@@ -11,6 +11,37 @@ Date:   Tue Sep 6 07:43:15 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index cdb69f549e..9c7b9573d0 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -17,6 +17,7 @@
+ // 	clean       remove object files
+ // 	doc         show documentation for package or symbol
+ // 	env         print Go environment information
++// 	bug         print information for bug reports
+ // 	fix         run go tool fix on packages
+ // 	fmt         run gofmt on package sources
+ // 	generate    generate Go files by processing source
+@@ -323,6 +324,17 @@
+ // each named variable on its own line.
+ //
+ //
++// Print information for bug reports
++//
++// Usage:
++//
++// 	go bug
++//
++// Bug prints information that helps file effective bug reports.
++//
++// Bugs may be reported at https://golang.org/issue/new.
++//
++//
+ // Run go tool fix on packages
+ //
+ // Usage:

@@ -7,7 +7,41 @@ Date:   Tue Feb 1 12:48:18 2011 -0500
     R=r, gri1
     CC=golang-dev
     https://golang.org/cl/4092045
-
+---
  src/pkg/strconv/atof_test.go | 5 +++++
  src/pkg/strconv/ftoa_test.go | 6 ++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 6cc60e549d..6d8396ee73 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -103,6 +103,11 @@ var atoftests = []atofTest{
+ 	{"1e", "0", os.EINVAL},
+ 	{"1e-", "0", os.EINVAL},
+ 	{".e-1", "0", os.EINVAL},
++
++	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
++	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},
+ }
+ 
+ func init() {
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 3a862a2bee..bc327600e1 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -118,6 +118,12 @@ var ftoatests = []ftoaTest{
+ 	{0.5, 'f', 1, "0.5"},
+ 	{0.5, 'f', 0, "0"},
+ 	{1.5, 'f', 0, "2"},
++
++	// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
++	{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
++	// TODO: uncomment after fixing issue 1463.
++	// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
++	// {2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+ }
+ 
+ func TestFtoa(t *testing.T) {

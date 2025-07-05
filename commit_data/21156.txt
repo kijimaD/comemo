@@ -8,6 +8,20 @@ Date:   Thu Nov 20 14:24:01 2014 -0500
     R=golang-codereviews
     CC=golang-codereviews, rsc
     https://golang.org/cl/180040043
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0bf618d064..5b0c9b9905 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1335,7 +1335,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 				end.ptr().next = gclinkptr(p)
+ 			}
+ 			end = gclinkptr(p)
+-			end.ptr().next = gclinkptr(0xbaddadae5)
++			end.ptr().next = gclinkptr(0x0bade5)
+ 			nfree++
+ 		}
+ 	}

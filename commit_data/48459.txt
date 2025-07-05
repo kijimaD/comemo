@@ -22,7 +22,7 @@ Date:   Mon May 10 18:10:18 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/318629
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.17.html                                    | 11 +++++++
  src/cmd/go/internal/modcmd/download.go             | 29 ++++++++++++++---
  src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt  |  2 +-
@@ -31,3 +31,228 @@ Date:   Mon May 10 18:10:18 2021 -0400
  src/cmd/go/testdata/script/mod_query.txt           |  5 +--
  src/cmd/go/testdata/script/mod_retract.txt         |  8 +++--
  7 files changed, 85 insertions(+), 17 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 3534f7be04..f00c649e04 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -186,6 +186,17 @@ Do not send CLs removing the interior tags from such phrases.
+   password-protected SSH keys.
+ </p>
+ 
++<h4 id="go-mod-download"><code>go</code> <code>mod</code> <code>download</code></h4>
++
++<p><!-- golang.org/issue/45332 -->
++  When <code>go</code> <code>mod</code> <code>download</code> is invoked without
++  arguments, it will no longer save sums for downloaded module content to
++  <code>go.sum</code>. It may still make changes to <code>go.mod</code> and
++  <code>go.sum</code> needed to load the build list. This is the same as the
++  behavior in Go 1.15. To save sums for all modules, use <code>go</code>
++  <code>mod</code> <code>download</code> <code>all</code>.
++</p>
++
+ <p><!-- CL 249759 -->
+   TODO: <a href="https://golang.org/cl/249759">https://golang.org/cl/249759</a>: cmd/cover: replace code using optimized golang.org/x/tools/cover
+ </p>
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index a6c6d914e1..42b06dbc95 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -86,9 +86,11 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	if !modload.HasModRoot() && len(args) == 0 {
+ 		base.Fatalf("go mod download: no modules specified (see 'go help mod download')")
+ 	}
+-	if len(args) == 0 {
++	haveExplicitArgs := len(args) > 0
++	if !haveExplicitArgs {
+ 		args = []string{"all"}
+-	} else if modload.HasModRoot() {
++	}
++	if modload.HasModRoot() {
+ 		modload.LoadModFile(ctx) // to fill Target
+ 		targetAtUpgrade := modload.Target.Path + "@upgrade"
+ 		targetAtPatch := modload.Target.Path + "@patch"
+@@ -135,6 +137,18 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	type token struct{}
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 	infos, infosErr := modload.ListModules(ctx, args, 0)
++	if !haveExplicitArgs {
++		// 'go mod download' is sometimes run without arguments to pre-populate
++		// the module cache. It may fetch modules that aren't needed to build
++		// packages in the main mdoule. This is usually not intended, so don't save
++		// sums for downloaded modules (golang.org/issue/45332).
++		// TODO(golang.org/issue/45551): For now, save sums needed to load the
++		// build list (same as 1.15 behavior). In the future, report an error if
++		// go.mod or go.sum need to be updated after loading the build list.
++		modload.WriteGoMod(ctx)
++		modload.DisallowWriteGoMod()
++	}
++
+ 	for _, info := range infos {
+ 		if info.Replace != nil {
+ 			info = info.Replace
+@@ -185,8 +199,15 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.ExitIfErrors()
+ 	}
+ 
+-	// Update go.mod and especially go.sum if needed.
+-	modload.WriteGoMod(ctx)
++	// If there were explicit arguments, update go.mod and especially go.sum.
++	// 'go mod download mod@version' is a useful way to add a sum without using
++	// 'go get mod@version', which may have other side effects. We print this in
++	// some error message hints.
++	//
++	// Don't save sums for 'go mod download' without arguments; see comment above.
++	if haveExplicitArgs {
++		modload.WriteGoMod(ctx)
++	}
+ 
+ 	// If there was an error matching some of the requested packages, emit it now
+ 	// (after we've written the checksums for the modules that were downloaded
+diff --git a/src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt b/src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt
+index 00b71bf0d5..7982cccea1 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_sampler_v1.2.1.txt
+@@ -5,7 +5,7 @@ module "rsc.io/sampler"
+ 
+ require "golang.org/x/text" v0.0.0-20170915032832-14c0d48ead0c
+ -- .info --
+-{"Version":"v1.2.1","Name":"cac3af4f8a0ab40054fa6f8d423108a63a1255bb","Short":"cac3af4f8a0a","Time":"2018-02-13T18:16:22Z"}EOF
++{"Version":"v1.2.1","Name":"cac3af4f8a0ab40054fa6f8d423108a63a1255bb","Short":"cac3af4f8a0a","Time":"2018-02-13T18:16:22Z"}
+ -- hello.go --
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 8a9faffe4e..ad640b45de 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -107,13 +107,28 @@ stderr '^go mod download: skipping argument m that resolves to the main module\n
+ ! go mod download m@latest
+ stderr '^go mod download: m@latest: malformed module path "m": missing dot in first path element$'
+ 
+-# download updates go.mod and populates go.sum
++# download without arguments updates go.mod and go.sum after loading the
++# build list, but does not save sums for downloaded zips.
+ cd update
++cp go.mod.orig go.mod
+ ! exists go.sum
+ go mod download
++cmp go.mod.update go.mod
++cmp go.sum.update go.sum
++cp go.mod.orig go.mod
++rm go.sum
++
++# download with arguments (even "all") does update go.mod and go.sum.
++go mod download rsc.io/sampler
++cmp go.mod.update go.mod
+ grep '^rsc.io/sampler v1.3.0 ' go.sum
+-go list -m rsc.io/sampler
+-stdout '^rsc.io/sampler v1.3.0$'
++cp go.mod.orig go.mod
++rm go.sum
++
++go mod download all
++cmp go.mod.update go.mod
++grep '^rsc.io/sampler v1.3.0 ' go.sum
++cd ..
+ 
+ # allow go mod download without go.mod
+ env GO111MODULE=auto
+@@ -131,7 +146,7 @@ stderr 'get '$GOPROXY
+ -- go.mod --
+ module m
+ 
+--- update/go.mod --
++-- update/go.mod.orig --
+ module m
+ 
+ go 1.16
+@@ -140,3 +155,17 @@ require (
+ 	rsc.io/quote v1.5.2
+ 	rsc.io/sampler v1.2.1 // older version than in build list
+ )
++-- update/go.mod.update --
++module m
++
++go 1.16
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/sampler v1.3.0 // older version than in build list
++)
++-- update/go.sum.update --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.2.1/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+diff --git a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+index 3b38d8ba7d..c536693537 100644
+--- a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
++++ b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+@@ -1,6 +1,3 @@
+-# Populate go.sum
+-go mod download
+-
+ # go list should succeed to load a package ending with ".go" if the path does
+ # not correspond to an existing local file. Listing a pattern ending with
+ # ".go/" should try to list a package regardless of whether a file exists at the
+@@ -31,3 +28,10 @@ module m
+ go 1.13
+ 
+ require example.com/dotgo.go v1.0.0
++-- go.sum --
++example.com/dotgo.go v1.0.0 h1:XKJfs0V8x2PvY2tX8bJBCEbCDLnt15ma2onwhVpew/I=
++example.com/dotgo.go v1.0.0/go.mod h1:Qi6z/X3AC5vHiuMt6HF2ICx3KhIBGrMdrA7YoPDKqR0=
++-- use.go --
++package use
++
++import _ "example.com/dotgo.go"
+diff --git a/src/cmd/go/testdata/script/mod_query.txt b/src/cmd/go/testdata/script/mod_query.txt
+index e10185709d..a75f86ed7c 100644
+--- a/src/cmd/go/testdata/script/mod_query.txt
++++ b/src/cmd/go/testdata/script/mod_query.txt
+@@ -1,9 +1,7 @@
+ env GO111MODULE=on
+ 
+-# Populate go.sum.
+ # TODO(golang.org/issue/41297): we shouldn't need go.sum. None of the commands
+ # below depend on the build list.
+-go mod download
+ 
+ go list -m -versions rsc.io/quote
+ stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
+@@ -36,6 +34,9 @@ stdout 'no matching versions for query ">v1.5.3"'
+ module x
+ require rsc.io/quote v1.0.0
+ 
++-- go.sum --
++rsc.io/quote v1.0.0 h1:kQ3IZQzPTiDJxSZI98YaWgxFEhlNdYASHvh+MplbViw=
++rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
+ -- use.go --
+ package use
+ 
+diff --git a/src/cmd/go/testdata/script/mod_retract.txt b/src/cmd/go/testdata/script/mod_retract.txt
+index a52e05bc72..4f95ece8d7 100644
+--- a/src/cmd/go/testdata/script/mod_retract.txt
++++ b/src/cmd/go/testdata/script/mod_retract.txt
+@@ -1,8 +1,5 @@
+ cp go.mod go.mod.orig
+ 
+-# Populate go.sum.
+-go mod download
+-
+ # 'go list pkg' does not report an error when a retracted version is used.
+ go list -e -f '{{if .Error}}{{.Error}}{{end}}' ./use
+ ! stdout .
+@@ -32,6 +29,11 @@ go 1.15
+ 
+ require example.com/retract v1.0.0-bad
+ 
++-- go.sum --
++example.com/retract v1.0.0-bad h1:liAW69rbtjY67x2CcNzat668L/w+YGgNX3lhJsWIJis=
++example.com/retract v1.0.0-bad/go.mod h1:0DvGGofJ9hr1q63cBrOY/jSY52OwhRGA0K47NE80I5Y=
++example.com/retract/self/prev v1.1.0 h1:0/8I/GTG+1eJTFeDQ/fUbgrMsVHHyKhh3Z8DSZp1fuA=
++example.com/retract/self/prev v1.1.0/go.mod h1:xl2EcklWuZZHVtHWcpzfSJQmnzAGpKZYpA/Wto7SZN4=
+ -- use/use.go --
+ package use
+ 

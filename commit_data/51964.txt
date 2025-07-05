@@ -20,6 +20,19 @@ Date:   Mon Mar 28 12:46:46 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index e7bc45ccdf..7bae31f343 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -173,6 +173,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	h.Offsets[goobj.BlkReloc] = w.Offset()
+ 	for _, list := range lists {
+ 		for _, s := range list {
++			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
+ 			for i := range s.R {
+ 				w.Reloc(&s.R[i])
+ 			}

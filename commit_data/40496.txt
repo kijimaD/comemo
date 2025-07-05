@@ -22,6 +22,20 @@ Date:   Fri May 17 13:31:12 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Caleb Spare <cespare@gmail.com>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 753de9f27c..339df13f43 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -771,7 +771,7 @@ func (c *common) Helper() {
+ // for the caller after skip frames (where 0 means the current function).
+ func callerName(skip int) string {
+ 	// Make room for the skip PC.
+-	var pc [2]uintptr
++	var pc [1]uintptr
+ 	n := runtime.Callers(skip+2, pc[:]) // skip + runtime.Callers + callerName
+ 	if n == 0 {
+ 		panic("testing: zero callers found")

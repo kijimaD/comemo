@@ -7,6 +7,20 @@ Date:   Mon Feb 2 11:33:06 2015 +0000
     Change-Id: Iea4221186325783db2029b07af1409015ddeda99
     Reviewed-on: https://go-review.googlesource.com/3695
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/net/server_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index 6a2bb92432..bf7feab8f5 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -441,7 +441,7 @@ func runDatagramPacketConnClient(t *testing.T, net, laddr, taddr string, isEmpty
+ 	}
+ 	c, err := ListenPacket(net, laddr)
+ 	if err != nil {
+-		t.Fatalf("ListenPacket(%q, %q) faild: %v", net, laddr, err)
++		t.Fatalf("ListenPacket(%q, %q) failed: %v", net, laddr, err)
+ 	}
+ 	defer c.Close()
+ 	c.SetReadDeadline(time.Now().Add(1 * time.Second))

@@ -21,7 +21,7 @@ Date:   Tue Jun 15 12:05:01 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                  |  1 +
  src/cmd/go/internal/modload/buildlist.go           | 12 +++++---
  src/cmd/go/internal/modload/init.go                |  2 +-
@@ -29,3 +29,279 @@ Date:   Tue Jun 15 12:05:01 2021 -0400
  .../go/testdata/script/mod_get_lazy_indirect.txt   | 26 +++++++++-------
  src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 36 +++++++++++++++++++---
  6 files changed, 79 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 8eee723f89..ea5c4e229a 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -1153,6 +1153,7 @@ func (r *resolver) loadPackages(ctx context.Context, patterns []string, findPack
+ 		Tags:                     imports.AnyTags(),
+ 		VendorModulesInGOROOTSrc: true,
+ 		LoadTests:                *getT,
++		AssumeRootsImported:      true, // After 'go get foo', imports of foo should build.
+ 		SilencePackageErrors:     true, // May be fixed by subsequent upgrades or downgrades.
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index e5db41c748..64eaa16e8b 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -443,7 +443,7 @@ func expandGraph(ctx context.Context, rs *Requirements) (*Requirements, *ModuleG
+ 		// roots — but in a lazy module it may pull in previously-irrelevant
+ 		// transitive dependencies.
+ 
+-		newRS, rsErr := updateRoots(ctx, rs.direct, rs, nil, nil)
++		newRS, rsErr := updateRoots(ctx, rs.direct, rs, nil, nil, false)
+ 		if rsErr != nil {
+ 			// Failed to update roots, perhaps because of an error in a transitive
+ 			// dependency needed for the update. Return the original Requirements
+@@ -517,11 +517,11 @@ func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Require
+ 	return tidyLazyRoots(ctx, rs.direct, pkgs)
+ }
+ 
+-func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version) (*Requirements, error) {
++func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
+ 	if rs.depth == eager {
+ 		return updateEagerRoots(ctx, direct, rs, add)
+ 	}
+-	return updateLazyRoots(ctx, direct, rs, pkgs, add)
++	return updateLazyRoots(ctx, direct, rs, pkgs, add, rootsImported)
+ }
+ 
+ // tidyLazyRoots returns a minimal set of root requirements that maintains the
+@@ -661,7 +661,7 @@ func tidyLazyRoots(ctx context.Context, direct map[string]bool, pkgs []*loadPkg)
+ //
+ // (See https://golang.org/design/36460-lazy-module-loading#invariants for more
+ // detail.)
+-func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version) (*Requirements, error) {
++func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
+ 	roots := rs.rootModules
+ 	rootsUpgraded := false
+ 
+@@ -688,6 +688,10 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 			//
+ 			// (This is the “import invariant” that makes lazy loading possible.)
+ 
++		case rootsImported && pkg.flags.has(pkgFromRoot):
++			// pkg is a transitive dependency of some root, and we are treating the
++			// roots as if they are imported by the main module (as in 'go get').
++
+ 		case pkg.flags.has(pkgIsRoot):
+ 			// pkg is a root of the package-import graph. (Generally this means that
+ 			// it matches a command-line argument.) We want future invocations of the
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index eb9cfe629b..cbc7289afa 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -661,7 +661,7 @@ func requirementsFromModFile(ctx context.Context) *Requirements {
+ 	for _, n := range mPathCount {
+ 		if n > 1 {
+ 			var err error
+-			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil)
++			rs, err = updateRoots(ctx, rs.direct, rs, nil, nil, false)
+ 			if err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index a9d1777125..a3a8021c04 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -171,6 +171,11 @@ type PackageOpts struct {
+ 	// if the flag is set to "readonly" (the default) or "vendor".
+ 	ResolveMissingImports bool
+ 
++	// AssumeRootsImported indicates that the transitive dependencies of the root
++	// packages should be treated as if those roots will be imported by the main
++	// module.
++	AssumeRootsImported bool
++
+ 	// AllowPackage, if non-nil, is called after identifying the module providing
+ 	// each package. If AllowPackage returns a non-nil error, that error is set
+ 	// for the package, and the imports and test of that package will not be
+@@ -875,6 +880,11 @@ const (
+ 	// are also roots (and must be marked pkgIsRoot).
+ 	pkgIsRoot
+ 
++	// pkgFromRoot indicates that the package is in the transitive closure of
++	// imports starting at the roots. (Note that every package marked as pkgIsRoot
++	// is also trivially marked pkgFromRoot.)
++	pkgFromRoot
++
+ 	// pkgImportsLoaded indicates that the imports and testImports fields of a
+ 	// loadPkg have been populated.
+ 	pkgImportsLoaded
+@@ -1068,7 +1078,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		// iteration so we don't need to also update it here. (That would waste time
+ 		// computing a "direct" map that we'll have to recompute later anyway.)
+ 		direct := ld.requirements.direct
+-		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd)
++		rs, err := updateRoots(ctx, direct, ld.requirements, noPkgs, toAdd, ld.AssumeRootsImported)
+ 		if err != nil {
+ 			// If an error was found in a newly added module, report the package
+ 			// import stack instead of the module requirement stack. Packages
+@@ -1274,7 +1284,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 		addRoots = tidy.rootModules
+ 	}
+ 
+-	rs, err = updateRoots(ctx, direct, rs, ld.pkgs, addRoots)
++	rs, err = updateRoots(ctx, direct, rs, ld.pkgs, addRoots, ld.AssumeRootsImported)
+ 	if err != nil {
+ 		// We don't actually know what even the root requirements are supposed to be,
+ 		// so we can't proceed with loading. Return the error to the caller
+@@ -1433,6 +1443,9 @@ func (ld *loader) applyPkgFlags(ctx context.Context, pkg *loadPkg, flags loadPkg
+ 		// This package matches a root pattern by virtue of being in "all".
+ 		flags |= pkgIsRoot
+ 	}
++	if flags.has(pkgIsRoot) {
++		flags |= pkgFromRoot
++	}
+ 
+ 	old := pkg.flags.update(flags)
+ 	new := old | flags
+@@ -1487,6 +1500,12 @@ func (ld *loader) applyPkgFlags(ctx context.Context, pkg *loadPkg, flags loadPkg
+ 			ld.applyPkgFlags(ctx, dep, pkgInAll)
+ 		}
+ 	}
++
++	if new.has(pkgFromRoot) && !old.has(pkgFromRoot|pkgImportsLoaded) {
++		for _, dep := range pkg.imports {
++			ld.applyPkgFlags(ctx, dep, pkgFromRoot)
++		}
++	}
+ }
+ 
+ // preloadRootModules loads the module requirements needed to identify the
+@@ -1549,7 +1568,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 	}
+ 	module.Sort(toAdd)
+ 
+-	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd)
++	rs, err := updateRoots(ctx, ld.requirements.direct, ld.requirements, nil, toAdd, ld.AssumeRootsImported)
+ 	if err != nil {
+ 		// We are missing some root dependency, and for some reason we can't load
+ 		// enough of the module dependency graph to add the missing root. Package
+diff --git a/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt b/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
+index 60548e8429..13640cbc23 100644
+--- a/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_lazy_indirect.txt
+@@ -9,23 +9,27 @@
+ stderr '^m.go:3:8: no required module provides package rsc\.io/quote; to add it:\n\tgo get rsc.io/quote$'
+ 
+ 
+-# Unfortunately, the suggested 'go get' command leaves us with another problem.
++# When we run the suggested 'go get' command, the new dependency can be used
++# immediately, even though 'go get' marks it as 'indirect'.
+ #
+-# TODO(#45979): After 'go get', the 'go list' command from above should succeed.
++# TODO(#45979): Should we swap this default state, so that new dependencies
++# are added as direct unless otherwise noted?
+ 
+ go get rsc.io/quote
++grep 'rsc.io/quote v\d+\.\d+\.\d+ // indirect$' go.mod
++! grep 'rsc.io/quote v\d+\.\d+\.\d+$' go.mod
+ 
+-! go list -deps .
+-stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
+-[!short] ! go build .
+-stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
+-
+-
+-# After running the suggested 'go mod tidy' command, the build
+-# should succeed.
+-go mod tidy
+ go list -deps .
++! stderr .
+ [!short] go build .
++[!short] ! stderr .
++
++
++# 'go get .' (or 'go mod tidy') removes the indirect mark.
++
++go get .
++grep 'rsc.io/quote v\d+\.\d+\.\d+$' go.mod
++! grep 'rsc.io/quote v\d+\.\d+\.\d+ // indirect$' go.mod
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index cc0b0da474..becd88b52e 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -10,45 +10,73 @@ go env GOSUMDB
+ stdout '^sum.golang.org$'
+ 
+ # Download direct from github.
++
+ [!net] skip
+ [!exec:git] skip
+ env GOSUMDB=sum.golang.org
+ env GOPROXY=direct
++
+ go get -d rsc.io/quote@v1.5.2
+ cp go.sum saved.sum
+ 
++
+ # Download from proxy.golang.org with go.sum entry already.
+ # Use 'go list' instead of 'go get' since the latter may download extra go.mod
+ # files not listed in go.sum.
++
+ go clean -modcache
+ env GOSUMDB=
+ env GOPROXY=
+-go list -x -deps rsc.io/quote
++
++go list -x -m all  # Download go.mod files.
+ ! stderr github
+ stderr proxy.golang.org/rsc.io/quote
+ ! stderr sum.golang.org/tile
+ ! stderr sum.golang.org/lookup/rsc.io/quote
++
++go list -x -deps rsc.io/quote  # Download module source.
++! stderr github
++stderr proxy.golang.org/rsc.io/quote
++! stderr sum.golang.org/tile
++! stderr sum.golang.org/lookup/rsc.io/quote
++
+ cmp go.sum saved.sum
+ 
++
+ # Download again.
+ # Should use the checksum database to validate new go.sum lines,
+ # but not need to fetch any new data from the proxy.
++
+ rm go.sum
+-go list -mod=mod -x rsc.io/quote
++
++go list -mod=mod -x -m all  # Add checksums for go.mod files.
++stderr sum.golang.org/tile
+ ! stderr github
+ ! stderr proxy.golang.org/rsc.io/quote
+-stderr sum.golang.org/tile
+ stderr sum.golang.org/lookup/rsc.io/quote
++
++go list -mod=mod -x rsc.io/quote  # Add checksums for module source.
++! stderr .  # Adds checksums, but for entities already in the module cache.
++
+ cmp go.sum saved.sum
+ 
++
+ # test fallback to direct
++
+ env TESTGOPROXY404=1
+ go clean -modcache
+ rm go.sum
+-go list -mod=mod -x rsc.io/quote
++
++go list -mod=mod -x -m all  # Download go.mod files
++stderr 'proxy.golang.org.*404 testing'
++stderr github.com/rsc
++
++go list -mod=mod -x rsc.io/quote  # Download module source.
+ stderr 'proxy.golang.org.*404 testing'
+ stderr github.com/rsc
++
+ cmp go.sum saved.sum
+ 
++
+ -- go.mod --
+ module m

@@ -9,6 +9,46 @@ Date:   Wed Dec 21 20:48:09 2016 +0000
     Change-Id: Ifd7342fa8de1d2cac47b9279c1f14ac127ac193c
     Reviewed-on: https://go-review.googlesource.com/34666
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  doc/install.html | 16 +++++-----------
  1 file changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index d8e04b78c2..2143d591cb 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -246,12 +246,12 @@ Then build it with the <code>go</code> tool:
+ </p>
+ 
+ <pre class="testUnix">
+-$ <b>cd $HOME/go/src/hello
++$ <b>cd $HOME/go/src/hello</b>
+ $ <b>go build</b>
+ </pre>
+ 
+ <pre class="testWindows" style="display: none">
+-C:\&gt; <b>cd %USERPROFILE%\go\src\hello<b>
++C:\&gt; <b>cd %USERPROFILE%\go\src\hello</b>
+ C:\Users\Gopher\go\src\hello&gt; <b>go build</b>
+ </pre>
+ 
+@@ -313,16 +313,10 @@ environment variables under Windows</a>.
+ <h2 id="help">Getting help</h2>
+ 
+ <p>
+-For real-time help, ask the helpful gophers in <code>#go-nuts</code> on the
+-<a href="http://freenode.net/">Freenode</a> IRC server.
++  For help, see the <a href="/help/">list of Go mailing lists, forums, and places to chat</a>.
+ </p>
+ 
+ <p>
+-The official mailing list for discussion of the Go language is
+-<a href="//groups.google.com/group/golang-nuts">Go Nuts</a>.
+-</p>
+-
+-<p>
+-Report bugs using the
+-<a href="//golang.org/issue">Go issue tracker</a>.
++  Report bugs either by running “<b><code>go</code> <code>bug</code></b>”, or
++  manually at the <a href="https://golang.org/issue">Go issue tracker</a>.
+ </p>

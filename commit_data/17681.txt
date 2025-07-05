@@ -9,7 +9,34 @@ Date:   Mon Sep 23 16:05:23 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13740047
-
+---
  src/pkg/crypto/tls/common.go | 2 +-
  src/pkg/crypto/tls/tls.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 5fe177e3ce..a9b25545df 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -248,7 +248,7 @@ type Config struct {
+ 
+ 	// MaxVersion contains the maximum SSL/TLS version that is acceptable.
+ 	// If zero, then the maximum version supported by this package is used,
+-	// which is currently TLS 1.1.
++	// which is currently TLS 1.2.
+ 	MaxVersion uint16
+ 
+ 	serverInitOnce sync.Once // guards calling (*Config).serverInit
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 054e477618..7c6bd6977f 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package tls partially implements TLS 1.1, as specified in RFC 4346.
++// Package tls partially implements TLS 1.2, as specified in RFC 4346.
+ package tls
+ 
+ import (

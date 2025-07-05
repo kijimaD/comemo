@@ -7,6 +7,27 @@ Date:   Tue Sep 24 16:32:23 2013 -0700
     R=golang-dev, iant, gri
     CC=golang-dev
     https://golang.org/cl/13869043
-
+---
  src/pkg/math/big/int.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index 23c8bfeb23..7bbb152d79 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -563,13 +563,13 @@ func (z *Int) SetBytes(buf []byte) *Int {
+ 	return z
+ }
+ 
+-// Bytes returns the absolute value of z as a big-endian byte slice.
++// Bytes returns the absolute value of x as a big-endian byte slice.
+ func (x *Int) Bytes() []byte {
+ 	buf := make([]byte, len(x.abs)*_S)
+ 	return buf[x.abs.bytes(buf):]
+ }
+ 
+-// BitLen returns the length of the absolute value of z in bits.
++// BitLen returns the length of the absolute value of x in bits.
+ // The bit length of 0 is 0.
+ func (x *Int) BitLen() int {
+ 	return x.abs.bitLen()

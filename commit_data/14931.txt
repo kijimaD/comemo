@@ -43,7 +43,7 @@ Date:   Fri Jan 18 17:29:53 2013 -0500
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/7069056
-
+---
  src/cmd/6c/cgen.c | 12 ++++++++++++
  src/cmd/6c/txt.c  | 10 ++++++++++
  src/cmd/8c/cgen.c | 12 ++++++++++++
@@ -51,3 +51,114 @@ Date:   Fri Jan 18 17:29:53 2013 -0500
  src/cmd/cc/cc.h   |  1 +
  src/cmd/cc/sub.c  |  1 +
  6 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 1fe0156c64..95400c4453 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -265,6 +265,18 @@ cgen(Node *n, Node *nn)
+ 				break;
+ 			}
+ 		}
++		if(n->op == OOR && l->op == OASHL && r->op == OLSHR
++		&& l->right->op == OCONST && r->right->op == OCONST
++		&& l->left->op == ONAME && r->left->op == ONAME
++		&& l->left->sym == r->left->sym
++		&& l->right->vconst + r->right->vconst == 8 * l->left->type->width) {
++			regalloc(&nod, l->left, nn);
++			cgen(l->left, &nod);
++			gopcode(OROTL, n->type, l->right, &nod);
++			gmove(&nod, nn);
++			regfree(&nod);
++			break;
++		}
+ 		if(n->op == OADD && l->op == OASHL && l->right->op == OCONST
+ 		&& (r->op != OCONST || r->vconst < -128 || r->vconst > 127)) {
+ 			c = l->right->vconst;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index fcc97ee6ec..364b189f27 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -1360,6 +1360,16 @@ gopcode(int o, Type *ty, Node *f, Node *t)
+ 			a = ASALQ;
+ 		break;
+ 
++	case OROTL:
++		a = AROLL;
++		if(et == TCHAR || et == TUCHAR)
++			a = AROLB;
++		if(et == TSHORT || et == TUSHORT)
++			a = AROLW;
++		if(et == TVLONG || et == TUVLONG || et == TIND)
++			a = AROLQ;
++		break;
++
+ 	case OFUNC:
+ 		a = ACALL;
+ 		break;
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index 7a49b671ca..78eb7ecedb 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -277,6 +277,18 @@ cgen(Node *n, Node *nn)
+ 				break;
+ 			}
+ 		}
++		if(n->op == OOR && l->op == OASHL && r->op == OLSHR
++		&& l->right->op == OCONST && r->right->op == OCONST
++		&& l->left->op == ONAME && r->left->op == ONAME
++		&& l->left->sym == r->left->sym
++		&& l->right->vconst + r->right->vconst == 8 * l->left->type->width) {
++			regalloc(&nod, l->left, nn);
++			cgen(l->left, &nod);
++			gopcode(OROTL, n->type, l->right, &nod);
++			gmove(&nod, nn);
++			regfree(&nod);
++			break;
++		}
+ 		if(n->op == OADD && l->op == OASHL && l->right->op == OCONST
+ 		&& (r->op != OCONST || r->vconst < -128 || r->vconst > 127)) {
+ 			c = l->right->vconst;
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index d229462da3..d7873e3855 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -1253,6 +1253,14 @@ gopcode(int o, Type *ty, Node *f, Node *t)
+ 			a = ASALW;
+ 		break;
+ 
++	case OROTL:
++		a = AROLL;
++		if(et == TCHAR || et == TUCHAR)
++			a = AROLB;
++		if(et == TSHORT || et == TUSHORT)
++			a = AROLW;
++		break;
++
+ 	case OFUNC:
+ 		a = ACALL;
+ 		break;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 6153bf9f75..f9e1546ca3 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -325,6 +325,7 @@ enum
+ 	OINDEX,
+ 	OFAS,
+ 	OREGPAIR,
++	OROTL,
+ 
+ 	OEND
+ };
+diff --git a/src/cmd/cc/sub.c b/src/cmd/cc/sub.c
+index 9f124cb820..3a55763859 100644
+--- a/src/cmd/cc/sub.c
++++ b/src/cmd/cc/sub.c
+@@ -1515,6 +1515,7 @@ Init	onamesinit[] =
+ 	OINDEX,		0,	"INDEX",
+ 	OFAS,		0,	"FAS",
+ 	OREGPAIR,	0,	"REGPAIR",
++	OROTL,		0,	"ROTL",
+ 	OEND,		0,	"END",
+ 	-1,		0,	0,
+ };

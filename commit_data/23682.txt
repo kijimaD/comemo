@@ -10,7 +10,7 @@ Date:   Wed May 27 14:52:22 2015 -0700
     Change-Id: I6f0f7419d641b119b613ed44561cd308a466051c
     Reviewed-on: https://go-review.googlesource.com/10449
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go                |   2 +-
  src/cmd/compile/internal/gc/ssa.go                 |  50 ++++--
  src/cmd/compile/internal/gc/type.go                |   4 +
@@ -24,3 +24,629 @@ Date:   Wed May 27 14:52:22 2015 -0700
  src/cmd/compile/internal/ssa/rulegen/rulegen.go    |   5 +-
  src/cmd/compile/internal/ssa/type.go               |   4 +
  12 files changed, 251 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index c170060896..50cf0d1db1 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -469,11 +469,11 @@ func compile(fn *Node) {
+ 		}
+ 	}
+ 
+-	Genlist(Curfn.Func.Enter)
+ 	if ssafn != nil {
+ 		genssa(ssafn, ptxt, gcargs, gclocals)
+ 		return
+ 	}
++	Genlist(Curfn.Func.Enter)
+ 	Genlist(Curfn.Nbody)
+ 	gclean()
+ 	checklabels()
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7f78fce17e..3c95266bdc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -13,12 +13,13 @@ import (
+ )
+ 
+ func buildssa(fn *Node) *ssa.Func {
+-	dumplist("buildssa", Curfn.Nbody)
++	dumplist("buildssa-enter", fn.Func.Enter)
++	dumplist("buildssa-body", fn.Nbody)
+ 
+ 	var s state
+ 
+ 	// TODO(khr): build config just once at the start of the compiler binary
+-	s.config = ssa.NewConfig(Thearch.Thestring)
++	s.config = ssa.NewConfig(Thearch.Thestring, ssaExport{})
+ 	s.f = s.config.NewFunc()
+ 	s.f.Name = fn.Nname.Sym.Name
+ 
+@@ -44,6 +45,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+ 	s.startBlock(s.f.Entry)
++	s.stmtList(fn.Func.Enter)
+ 	s.stmtList(fn.Nbody)
+ 
+ 	// fallthrough to exit
+@@ -159,7 +161,23 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OAS:
+ 		// TODO(khr): colas?
+-		val := s.expr(n.Right)
++		var val *ssa.Value
++		if n.Right == nil {
++			// n.Right == nil means use the zero value of the assigned type.
++			t := n.Left.Type
++			switch {
++			case t.IsString():
++				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, "")
++			case t.IsInteger():
++				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, int64(0))
++			case t.IsBoolean():
++				val = s.f.Entry.NewValue(ssa.OpConst, n.Left.Type, false)
++			default:
++				log.Fatalf("zero for type %v not implemented", t)
++			}
++		} else {
++			val = s.expr(n.Right)
++		}
+ 		if n.Left.Op == ONAME && !n.Left.Addrtaken && n.Left.Class&PHEAP == 0 && n.Left.Class != PEXTERN && n.Left.Class != PPARAMOUT {
+ 			// ssa-able variable.
+ 			s.vars[n.Left.Sym.Name] = val
+@@ -250,10 +268,6 @@ func (s *state) stmt(n *Node) {
+ 
+ // expr converts the expression n to ssa, adds it to s and returns the ssa result.
+ func (s *state) expr(n *Node) *ssa.Value {
+-	if n == nil {
+-		// TODO(khr): is this nil???
+-		return s.f.Entry.NewValue(ssa.OpConst, n.Type, nil)
+-	}
+ 	switch n.Op {
+ 	case ONAME:
+ 		// TODO: remember offsets for PPARAM names
+@@ -268,6 +282,8 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		switch n.Val.Ctype {
+ 		case CTINT:
+ 			return s.f.ConstInt(n.Type, Mpgetfix(n.Val.U.(*Mpint)))
++		case CTSTR:
++			return s.f.Entry.NewValue(ssa.OpConst, n.Type, n.Val.U)
+ 		default:
+ 			log.Fatalf("unhandled OLITERAL %v", n.Val.Ctype)
+ 			return nil
+@@ -573,7 +589,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	// TODO: dump frame if -f
+ 
+ 	// Emit garbage collection symbols.  TODO: put something in them
+-	liveness(Curfn, ptxt, gcargs, gclocals)
++	//liveness(Curfn, ptxt, gcargs, gclocals)
++	duint32(gcargs, 0, 0)
++	ggloblsym(gcargs, 4, obj.RODATA|obj.DUPOK)
++	duint32(gclocals, 0, 0)
++	ggloblsym(gclocals, 4, obj.RODATA|obj.DUPOK)
+ }
+ 
+ func genValue(v *ssa.Value) {
+@@ -703,7 +723,10 @@ func genValue(v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = regnum(v.Args[0])
+ 		p.To.Offset = v.Aux.(int64)
+-	case ssa.OpCopy:
++	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
++		if v.Type.IsMemory() {
++			return
++		}
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v)
+ 		if x != y {
+@@ -907,3 +930,12 @@ func regnum(v *ssa.Value) int16 {
+ func localOffset(v *ssa.Value) int64 {
+ 	return v.Block.Func.RegAlloc[v.ID].(*ssa.LocalSlot).Idx
+ }
++
++// ssaExport exports a bunch of compiler services for the ssa backend.
++type ssaExport struct{}
++
++// StringSym returns a symbol (a *Sym wrapped in an interface) which
++// is a global string constant containing s.
++func (serv ssaExport) StringSym(s string) interface{} {
++	return stringsym(s)
++}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index cf1589eb03..0ed07ee90a 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -47,6 +47,10 @@ func (t *Type) IsPtr() bool {
+ 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
+ }
+ 
++func (t *Type) IsString() bool {
++	return t.Etype == TSTRING
++}
++
+ func (t *Type) Elem() ssa.Type {
+ 	return t.Type
+ }
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 2436554cb5..7c5e07e12a 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -7,18 +7,26 @@ package ssa
+ import "log"
+ 
+ type Config struct {
+-	arch       string            // "amd64", etc.
+-	ptrSize    int64             // 4 or 8
+-	Uintptr    Type              // pointer arithmetic type
+-	lowerBlock func(*Block) bool // lowering function
+-	lowerValue func(*Value) bool // lowering function
++	arch       string                     // "amd64", etc.
++	ptrSize    int64                      // 4 or 8
++	Uintptr    Type                       // pointer arithmetic type
++	lowerBlock func(*Block) bool          // lowering function
++	lowerValue func(*Value, *Config) bool // lowering function
++	fe         Frontend                   // callbacks into compiler frontend
+ 
+ 	// TODO: more stuff.  Compiler flags of interest, ...
+ }
+ 
++type Frontend interface {
++	// StringSym returns a symbol pointing to the given string.
++	// Strings are laid out in read-only memory with one word of pointer,
++	// one word of length, then the contents of the string.
++	StringSym(string) interface{} // returns *gc.Sym
++}
++
+ // NewConfig returns a new configuration object for the given architecture.
+-func NewConfig(arch string) *Config {
+-	c := &Config{arch: arch}
++func NewConfig(arch string, fe Frontend) *Config {
++	c := &Config{arch: arch, fe: fe}
+ 	switch arch {
+ 	case "amd64":
+ 		c.ptrSize = 8
+diff --git a/src/cmd/compile/internal/ssa/generic.go b/src/cmd/compile/internal/ssa/generic.go
+index dc0323e0c1..b6f1e8614d 100644
+--- a/src/cmd/compile/internal/ssa/generic.go
++++ b/src/cmd/compile/internal/ssa/generic.go
+@@ -2,7 +2,7 @@
+ // generated with: go run rulegen/rulegen.go rulegen/generic.rules genericBlockRules genericValueRules generic.go
+ package ssa
+ 
+-func genericValueRules(v *Value) bool {
++func genericValueRules(v *Value, config *Config) bool {
+ 	switch v.Op {
+ 	case OpAdd:
+ 		// match: (Add <t> (Const [c]) (Const [d]))
+@@ -55,6 +55,36 @@ func genericValueRules(v *Value) bool {
+ 		goto end3809f4c52270a76313e4ea26e6f0b753
+ 	end3809f4c52270a76313e4ea26e6f0b753:
+ 		;
++	case OpConst:
++		// match: (Const <t> [s])
++		// cond: t.IsString()
++		// result: (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> [config.fe.StringSym(s.(string))])) (Const <config.Uintptr> [int64(len(s.(string)))]))
++		{
++			t := v.Type
++			s := v.Aux
++			if !(t.IsString()) {
++				goto end8442aa5b3f4e5b840055475883110372
++			}
++			v.Op = OpStringMake
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpOffPtr, TypeInvalid, nil)
++			v0.Type = TypeBytePtr
++			v0.Aux = 2 * config.ptrSize
++			v1 := v.Block.NewValue(OpGlobal, TypeInvalid, nil)
++			v1.Type = TypeBytePtr
++			v1.Aux = config.fe.StringSym(s.(string))
++			v0.AddArg(v1)
++			v.AddArg(v0)
++			v2 := v.Block.NewValue(OpConst, TypeInvalid, nil)
++			v2.Type = config.Uintptr
++			v2.Aux = int64(len(s.(string)))
++			v.AddArg(v2)
++			return true
++		}
++		goto end8442aa5b3f4e5b840055475883110372
++	end8442aa5b3f4e5b840055475883110372:
++		;
+ 	case OpIsInBounds:
+ 		// match: (IsInBounds (Const [c]) (Const [d]))
+ 		// cond:
+@@ -77,6 +107,39 @@ func genericValueRules(v *Value) bool {
+ 		goto enddbd1a394d9b71ee64335361b8384865c
+ 	enddbd1a394d9b71ee64335361b8384865c:
+ 		;
++	case OpLoad:
++		// match: (Load <t> ptr mem)
++		// cond: t.IsString()
++		// result: (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.ptrSize] ptr) mem))
++		{
++			t := v.Type
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(t.IsString()) {
++				goto endd0afd003b70d726a1c5bbaf51fe06182
++			}
++			v.Op = OpStringMake
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpLoad, TypeInvalid, nil)
++			v0.Type = TypeBytePtr
++			v0.AddArg(ptr)
++			v0.AddArg(mem)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue(OpLoad, TypeInvalid, nil)
++			v1.Type = config.Uintptr
++			v2 := v.Block.NewValue(OpOffPtr, TypeInvalid, nil)
++			v2.Type = TypeBytePtr
++			v2.Aux = config.ptrSize
++			v2.AddArg(ptr)
++			v1.AddArg(v2)
++			v1.AddArg(mem)
++			v.AddArg(v1)
++			return true
++		}
++		goto endd0afd003b70d726a1c5bbaf51fe06182
++	endd0afd003b70d726a1c5bbaf51fe06182:
++		;
+ 	case OpMul:
+ 		// match: (Mul <t> (Const [c]) (Const [d]))
+ 		// cond: is64BitInt(t)
+@@ -106,7 +169,7 @@ func genericValueRules(v *Value) bool {
+ 	case OpPtrIndex:
+ 		// match: (PtrIndex <t> ptr idx)
+ 		// cond:
+-		// result: (Add ptr (Mul <v.Block.Func.Config.Uintptr> idx (Const <v.Block.Func.Config.Uintptr> [t.Elem().Size()])))
++		// result: (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
+ 		{
+ 			t := v.Type
+ 			ptr := v.Args[0]
+@@ -116,25 +179,25 @@ func genericValueRules(v *Value) bool {
+ 			v.resetArgs()
+ 			v.AddArg(ptr)
+ 			v0 := v.Block.NewValue(OpMul, TypeInvalid, nil)
+-			v0.Type = v.Block.Func.Config.Uintptr
++			v0.Type = config.Uintptr
+ 			v0.AddArg(idx)
+ 			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+-			v1.Type = v.Block.Func.Config.Uintptr
++			v1.Type = config.Uintptr
+ 			v1.Aux = t.Elem().Size()
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-		goto end383c68c41e72d22ef00c4b7b0fddcbb8
+-	end383c68c41e72d22ef00c4b7b0fddcbb8:
++		goto end88c7c383675420d1581daeb899039fa8
++	end88c7c383675420d1581daeb899039fa8:
+ 		;
+ 	case OpSliceCap:
+ 		// match: (SliceCap (Load ptr mem))
+ 		// cond:
+-		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.Uintptr> [int64(v.Block.Func.Config.ptrSize*2)])) mem)
++		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize*2)])) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto endbf1d4db93c4664ed43be3f73afb4dfa3
++				goto endc871dcd9a720b4290c9cae78fe147c8a
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+@@ -145,23 +208,23 @@ func genericValueRules(v *Value) bool {
+ 			v0.Type = ptr.Type
+ 			v0.AddArg(ptr)
+ 			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+-			v1.Type = v.Block.Func.Config.Uintptr
+-			v1.Aux = int64(v.Block.Func.Config.ptrSize * 2)
++			v1.Type = config.Uintptr
++			v1.Aux = int64(config.ptrSize * 2)
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto endbf1d4db93c4664ed43be3f73afb4dfa3
+-	endbf1d4db93c4664ed43be3f73afb4dfa3:
++		goto endc871dcd9a720b4290c9cae78fe147c8a
++	endc871dcd9a720b4290c9cae78fe147c8a:
+ 		;
+ 	case OpSliceLen:
+ 		// match: (SliceLen (Load ptr mem))
+ 		// cond:
+-		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.Uintptr> [int64(v.Block.Func.Config.ptrSize)])) mem)
++		// result: (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize)])) mem)
+ 		{
+ 			if v.Args[0].Op != OpLoad {
+-				goto end9190b1ecbda4c5dd6d3e05d2495fb297
++				goto end1eec05e44f5fc8944e7c176f98a74d92
+ 			}
+ 			ptr := v.Args[0].Args[0]
+ 			mem := v.Args[0].Args[1]
+@@ -172,15 +235,15 @@ func genericValueRules(v *Value) bool {
+ 			v0.Type = ptr.Type
+ 			v0.AddArg(ptr)
+ 			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
+-			v1.Type = v.Block.Func.Config.Uintptr
+-			v1.Aux = int64(v.Block.Func.Config.ptrSize)
++			v1.Type = config.Uintptr
++			v1.Aux = int64(config.ptrSize)
+ 			v0.AddArg(v1)
+ 			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-		goto end9190b1ecbda4c5dd6d3e05d2495fb297
+-	end9190b1ecbda4c5dd6d3e05d2495fb297:
++		goto end1eec05e44f5fc8944e7c176f98a74d92
++	end1eec05e44f5fc8944e7c176f98a74d92:
+ 		;
+ 	case OpSlicePtr:
+ 		// match: (SlicePtr (Load ptr mem))
+@@ -231,6 +294,78 @@ func genericValueRules(v *Value) bool {
+ 		}
+ 		goto end324ffb6d2771808da4267f62c854e9c8
+ 	end324ffb6d2771808da4267f62c854e9c8:
++		;
++		// match: (Store dst str mem)
++		// cond: str.Type.IsString()
++		// result: (Store (OffPtr <TypeBytePtr> [config.ptrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
++		{
++			dst := v.Args[0]
++			str := v.Args[1]
++			mem := v.Args[2]
++			if !(str.Type.IsString()) {
++				goto end410559d97aed8018f820cd88723de442
++			}
++			v.Op = OpStore
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpOffPtr, TypeInvalid, nil)
++			v0.Type = TypeBytePtr
++			v0.Aux = config.ptrSize
++			v0.AddArg(dst)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue(OpStringLen, TypeInvalid, nil)
++			v1.Type = config.Uintptr
++			v1.AddArg(str)
++			v.AddArg(v1)
++			v2 := v.Block.NewValue(OpStore, TypeInvalid, nil)
++			v2.Type = TypeMem
++			v2.AddArg(dst)
++			v3 := v.Block.NewValue(OpStringPtr, TypeInvalid, nil)
++			v3.Type = TypeBytePtr
++			v3.AddArg(str)
++			v2.AddArg(v3)
++			v2.AddArg(mem)
++			v.AddArg(v2)
++			return true
++		}
++		goto end410559d97aed8018f820cd88723de442
++	end410559d97aed8018f820cd88723de442:
++		;
++	case OpStringLen:
++		// match: (StringLen (StringMake _ len))
++		// cond:
++		// result: len
++		{
++			if v.Args[0].Op != OpStringMake {
++				goto end0d922460b7e5ca88324034f4bd6c027c
++			}
++			len := v.Args[0].Args[1]
++			v.Op = len.Op
++			v.Aux = len.Aux
++			v.resetArgs()
++			v.AddArgs(len.Args...)
++			return true
++		}
++		goto end0d922460b7e5ca88324034f4bd6c027c
++	end0d922460b7e5ca88324034f4bd6c027c:
++		;
++	case OpStringPtr:
++		// match: (StringPtr (StringMake ptr _))
++		// cond:
++		// result: ptr
++		{
++			if v.Args[0].Op != OpStringMake {
++				goto end061edc5d85c73ad909089af2556d9380
++			}
++			ptr := v.Args[0].Args[0]
++			v.Op = ptr.Op
++			v.Aux = ptr.Aux
++			v.resetArgs()
++			v.AddArgs(ptr.Args...)
++			return true
++		}
++		goto end061edc5d85c73ad909089af2556d9380
++	end061edc5d85c73ad909089af2556d9380:
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/lowerAmd64.go b/src/cmd/compile/internal/ssa/lowerAmd64.go
+index a233d42370..6b5ff3e39f 100644
+--- a/src/cmd/compile/internal/ssa/lowerAmd64.go
++++ b/src/cmd/compile/internal/ssa/lowerAmd64.go
+@@ -2,7 +2,7 @@
+ // generated with: go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerBlockAMD64 lowerValueAMD64 lowerAmd64.go
+ package ssa
+ 
+-func lowerValueAMD64(v *Value) bool {
++func lowerValueAMD64(v *Value, config *Config) bool {
+ 	switch v.Op {
+ 	case OpADDQ:
+ 		// match: (ADDQ x (MOVQconst [c]))
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index a894e9e16f..5f6b2ca6a6 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "fmt"
++import (
++	"fmt"
++	"log"
++)
+ 
+ // An Op encodes the specific operation that a Value performs.
+ // Opcodes' semantics can be modified by the type and aux fields of the Value.
+@@ -106,7 +109,12 @@ type GlobalOffset struct {
+ 
+ // offset adds x to the location specified by g and returns it.
+ func (g GlobalOffset) offset(x int64) GlobalOffset {
+-	return GlobalOffset{g.Global, g.Offset + x}
++	y := g.Offset
++	z := x + y
++	if x^y >= 0 && x^z < 0 {
++		log.Panicf("offset overflow %d %d\n", x, y)
++	}
++	return GlobalOffset{g.Global, z}
+ }
+ 
+ func (g GlobalOffset) String() string {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c798d2e936..23a46d66b4 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -158,6 +158,10 @@ func regalloc(f *Func) {
+ 				b.Values = append(b.Values, v)
+ 				continue
+ 			}
++			if v.Op == OpCopy && v.Type.IsMemory() {
++				b.Values = append(b.Values, v)
++				continue
++			}
+ 
+ 			// Compute a good input ordering.  Start with the most constrained input.
+ 			order := make([]intPair, len(inputs))
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 08fad454a9..6b76e55e2a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -6,7 +6,7 @@ package ssa
+ 
+ import "log"
+ 
+-func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
++func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
+ 	// repeat rewrites until we find no more rewrites
+ 	var curb *Block
+ 	var curv *Value
+@@ -16,9 +16,11 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
+ 		}
+ 		if curv != nil {
+ 			log.Printf("panic during rewrite of %s\n", curv.LongString())
++			panic("rewrite failed")
+ 			// TODO(khr): print source location also
+ 		}
+ 	}()
++	config := f.Config
+ 	for {
+ 		change := false
+ 		for _, b := range f.Blocks {
+@@ -46,7 +48,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
+ 
+ 				// apply rewrite function
+ 				curv = v
+-				if rv(v) {
++				if rv(v, config) {
+ 					change = true
+ 				}
+ 				curv = nil
+diff --git a/src/cmd/compile/internal/ssa/rulegen/generic.rules b/src/cmd/compile/internal/ssa/rulegen/generic.rules
+index afc22838dd..21e5f72d09 100644
+--- a/src/cmd/compile/internal/ssa/rulegen/generic.rules
++++ b/src/cmd/compile/internal/ssa/rulegen/generic.rules
+@@ -26,14 +26,13 @@
+ // tear apart slices
+ // TODO: anything that generates a slice needs to go in here.
+ (SlicePtr (Load ptr mem)) -> (Load ptr mem)
+-(SliceLen (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.Uintptr> [int64(v.Block.Func.Config.ptrSize)])) mem)
+-(SliceCap (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.Uintptr> [int64(v.Block.Func.Config.ptrSize*2)])) mem)
++(SliceLen (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize)])) mem)
++(SliceCap (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <config.Uintptr> [int64(config.ptrSize*2)])) mem)
+ 
+ // indexing operations
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <ptr.Type.Elem().Elem().PtrTo()> ptr idx) mem)
+-(PtrIndex <t> ptr idx) -> (Add ptr (Mul <v.Block.Func.Config.Uintptr> idx (Const <v.Block.Func.Config.Uintptr> [t.Elem().Size()])))
+-// TODO: hopefully this will get rid of all full-width array copies.
++(PtrIndex <t> ptr idx) -> (Add ptr (Mul <config.Uintptr> idx (Const <config.Uintptr> [t.Elem().Size()])))
+ 
+ // big-object moves
+ // TODO: fix size
+@@ -41,3 +40,10 @@
+ 
+ (BlockIf (Const [c]) yes no) && c.(bool) -> (BlockPlain nil yes)
+ (BlockIf (Const [c]) yes no) && !c.(bool) -> (BlockPlain nil no)
++
++// string ops
++(Const <t> [s]) && t.IsString() -> (StringMake (OffPtr <TypeBytePtr> [2*config.ptrSize] (Global <TypeBytePtr> [config.fe.StringSym(s.(string))])) (Const <config.Uintptr> [int64(len(s.(string)))])) // TODO: ptr
++(Load <t> ptr mem) && t.IsString() -> (StringMake (Load <TypeBytePtr> ptr mem) (Load <config.Uintptr> (OffPtr <TypeBytePtr> [config.ptrSize] ptr) mem))
++(StringPtr (StringMake ptr _)) -> ptr
++(StringLen (StringMake _ len)) -> len
++(Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <TypeBytePtr> [config.ptrSize] dst) (StringLen <config.Uintptr> str) (Store <TypeMem> dst (StringPtr <TypeBytePtr> str) mem))
+diff --git a/src/cmd/compile/internal/ssa/rulegen/rulegen.go b/src/cmd/compile/internal/ssa/rulegen/rulegen.go
+index dd99513d96..b0916fa4d2 100644
+--- a/src/cmd/compile/internal/ssa/rulegen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/rulegen/rulegen.go
+@@ -94,7 +94,7 @@ func main() {
+ 	fmt.Fprintf(w, "// autogenerated from %s: do not edit!\n", rulefile)
+ 	fmt.Fprintf(w, "// generated with: go run rulegen/rulegen.go %s\n", strings.Join(os.Args[1:], " "))
+ 	fmt.Fprintln(w, "package ssa")
+-	fmt.Fprintf(w, "func %s(v *Value) bool {\n", valuefn)
++	fmt.Fprintf(w, "func %s(v *Value, config *Config) bool {\n", valuefn)
+ 
+ 	// generate code for each rule
+ 	fmt.Fprintf(w, "switch v.Op {\n")
+@@ -289,6 +289,9 @@ func genMatch0(w io.Writer, match, v, fail string, m map[string]string, top bool
+ 			return
+ 		}
+ 		// remember that this variable references the given value
++		if match == "_" {
++			return
++		}
+ 		m[match] = v
+ 		fmt.Fprintf(w, "%s := %s\n", match, v)
+ 		return
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 611c85834a..1a61c75afa 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -16,6 +16,7 @@ type Type interface {
+ 	IsSigned() bool
+ 	IsFloat() bool
+ 	IsPtr() bool
++	IsString() bool
+ 
+ 	IsMemory() bool // special ssa-package-only types
+ 	IsFlags() bool
+@@ -34,6 +35,7 @@ type TypeImpl struct {
+ 	Signed  bool
+ 	Float   bool
+ 	Ptr     bool
++	string  bool
+ 
+ 	Memory bool
+ 	Flags  bool
+@@ -47,6 +49,7 @@ func (t *TypeImpl) IsInteger() bool { return t.Integer }
+ func (t *TypeImpl) IsSigned() bool  { return t.Signed }
+ func (t *TypeImpl) IsFloat() bool   { return t.Float }
+ func (t *TypeImpl) IsPtr() bool     { return t.Ptr }
++func (t *TypeImpl) IsString() bool  { return t.string }
+ func (t *TypeImpl) IsMemory() bool  { return t.Memory }
+ func (t *TypeImpl) IsFlags() bool   { return t.Flags }
+ func (t *TypeImpl) String() string  { return t.Name }
+@@ -65,6 +68,7 @@ var (
+ 	TypeUInt64 = &TypeImpl{Size_: 8, Integer: true, Name: "uint64"}
+ 	TypeBool   = &TypeImpl{Size_: 1, Boolean: true, Name: "bool"}
+ 	//TypeString = types.Typ[types.String]
++	TypeBytePtr = &TypeImpl{Size_: 8, Ptr: true, Name: "*byte"}
+ 
+ 	TypeInvalid = &TypeImpl{Name: "invalid"}
+ 

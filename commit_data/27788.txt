@@ -13,7 +13,7 @@ Date:   Wed Apr 13 04:35:37 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go     |  5 ++---
  src/archive/zip/reader.go     |  2 +-
  src/bytes/reader_test.go      | 21 ++++++++++-----------
@@ -26,3 +26,311 @@ Date:   Wed Apr 13 04:35:37 2016 +0000
  src/os/exec/exec_test.go      |  2 +-
  src/strings/reader_test.go    | 21 ++++++++++-----------
  11 files changed, 40 insertions(+), 43 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index c8cb69a178..741fe0152b 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -13,7 +13,6 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"math"
+-	"os"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -523,10 +522,10 @@ func (tr *Reader) skipUnread() error {
+ 		// io.Seeker, but calling Seek always returns an error and performs
+ 		// no action. Thus, we try an innocent seek to the current position
+ 		// to see if Seek is really supported.
+-		pos1, err := sr.Seek(0, os.SEEK_CUR)
++		pos1, err := sr.Seek(0, io.SeekCurrent)
+ 		if err == nil {
+ 			// Seek seems supported, so perform the real Seek.
+-			pos2, err := sr.Seek(dataSkip-1, os.SEEK_CUR)
++			pos2, err := sr.Seek(dataSkip-1, io.SeekCurrent)
+ 			if err != nil {
+ 				tr.err = err
+ 				return tr.err
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index d741d105dc..f6c3ead3be 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -87,7 +87,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 	z.File = make([]*File, 0, end.directoryRecords)
+ 	z.Comment = end.comment
+ 	rs := io.NewSectionReader(r, 0, size)
+-	if _, err = rs.Seek(int64(end.directoryOffset), os.SEEK_SET); err != nil {
++	if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
+ 		return err
+ 	}
+ 	buf := bufio.NewReader(rs)
+diff --git a/src/bytes/reader_test.go b/src/bytes/reader_test.go
+index add985d57e..9341cd5b45 100644
+--- a/src/bytes/reader_test.go
++++ b/src/bytes/reader_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"os"
+ 	"sync"
+ 	"testing"
+ )
+@@ -24,15 +23,15 @@ func TestReader(t *testing.T) {
+ 		wantpos int64
+ 		seekerr string
+ 	}{
+-		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
+-		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
+-		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
+-		{seek: os.SEEK_SET, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
+-		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
+-		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
+-		{seek: os.SEEK_SET, n: 5, want: "01234"},
+-		{seek: os.SEEK_CUR, n: 5, want: "56789"},
+-		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
++		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
++		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
++		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
++		{seek: io.SeekStart, off: -1, seekerr: "bytes.Reader.Seek: negative position"},
++		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33},
++		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1},
++		{seek: io.SeekStart, n: 5, want: "01234"},
++		{seek: io.SeekCurrent, n: 5, want: "56789"},
++		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
+ 	}
+ 
+ 	for i, tt := range tests {
+@@ -63,7 +62,7 @@ func TestReader(t *testing.T) {
+ 
+ func TestReadAfterBigSeek(t *testing.T) {
+ 	r := NewReader([]byte("0123456789"))
+-	if _, err := r.Seek(1<<31+5, os.SEEK_SET); err != nil {
++	if _, err := r.Seek(1<<31+5, io.SeekStart); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if n, err := r.Read(make([]byte, 10)); n != 0 || err != io.EOF {
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index c28a964b73..8fbf23fe5a 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -269,7 +269,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	switch f.Class {
+ 	case ELFCLASS32:
+ 		hdr := new(Header32)
+-		sr.Seek(0, os.SEEK_SET)
++		sr.Seek(0, io.SeekStart)
+ 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
+ 			return nil, err
+ 		}
+@@ -288,7 +288,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		shstrndx = int(hdr.Shstrndx)
+ 	case ELFCLASS64:
+ 		hdr := new(Header64)
+-		sr.Seek(0, os.SEEK_SET)
++		sr.Seek(0, io.SeekStart)
+ 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
+ 			return nil, err
+ 		}
+@@ -315,7 +315,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	f.Progs = make([]*Prog, phnum)
+ 	for i := 0; i < phnum; i++ {
+ 		off := phoff + int64(i)*int64(phentsize)
+-		sr.Seek(off, os.SEEK_SET)
++		sr.Seek(off, io.SeekStart)
+ 		p := new(Prog)
+ 		switch f.Class {
+ 		case ELFCLASS32:
+@@ -359,7 +359,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	names := make([]uint32, shnum)
+ 	for i := 0; i < shnum; i++ {
+ 		off := shoff + int64(i)*int64(shentsize)
+-		sr.Seek(off, os.SEEK_SET)
++		sr.Seek(off, io.SeekStart)
+ 		s := new(Section)
+ 		switch f.Class {
+ 		case ELFCLASS32:
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 1acc368e1b..c68ff1bdce 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -150,7 +150,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	} else {
+ 		base = int64(0)
+ 	}
+-	sr.Seek(base, os.SEEK_SET)
++	sr.Seek(base, io.SeekStart)
+ 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
+ 		return nil, err
+ 	}
+@@ -161,7 +161,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	var ss []byte
+ 	if f.FileHeader.NumberOfSymbols > 0 {
+ 		// Get COFF string table, which is located at the end of the COFF symbol table.
+-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
++		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), io.SeekStart)
+ 		var l uint32
+ 		if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
+ 			return nil, err
+@@ -172,7 +172,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 		}
+ 
+ 		// Process COFF symbol table.
+-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
++		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), io.SeekStart)
+ 		aux := uint8(0)
+ 		for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
+ 			cs := new(COFFSymbol)
+@@ -203,7 +203,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	}
+ 
+ 	// Read optional header.
+-	sr.Seek(base, os.SEEK_SET)
++	sr.Seek(base, io.SeekStart)
+ 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 5546d37516..c7a58a61df 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -121,11 +121,11 @@ func dirList(w ResponseWriter, f File) {
+ // Note that *os.File implements the io.ReadSeeker interface.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+ 	sizeFunc := func() (int64, error) {
+-		size, err := content.Seek(0, os.SEEK_END)
++		size, err := content.Seek(0, io.SeekEnd)
+ 		if err != nil {
+ 			return 0, errSeeker
+ 		}
+-		_, err = content.Seek(0, os.SEEK_SET)
++		_, err = content.Seek(0, io.SeekStart)
+ 		if err != nil {
+ 			return 0, errSeeker
+ 		}
+@@ -166,7 +166,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			var buf [sniffLen]byte
+ 			n, _ := io.ReadFull(content, buf[:])
+ 			ctype = DetectContentType(buf[:n])
+-			_, err := content.Seek(0, os.SEEK_SET) // rewind to output whole file
++			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
+ 			if err != nil {
+ 				Error(w, "seeker can't seek", StatusInternalServerError)
+ 				return
+@@ -213,7 +213,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			// A response to a request for a single range MUST NOT
+ 			// be sent using the multipart/byteranges media type."
+ 			ra := ranges[0]
+-			if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
++			if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
+ 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 				return
+ 			}
+@@ -236,7 +236,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 						pw.CloseWithError(err)
+ 						return
+ 					}
+-					if _, err := content.Seek(ra.start, os.SEEK_SET); err != nil {
++					if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
+ 						pw.CloseWithError(err)
+ 						return
+ 					}
+diff --git a/src/net/sendfile_dragonfly.go b/src/net/sendfile_dragonfly.go
+index 17021c3801..d4b825c370 100644
+--- a/src/net/sendfile_dragonfly.go
++++ b/src/net/sendfile_dragonfly.go
+@@ -53,7 +53,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	// use the current position of the file -- if you pass it offset 0, it starts
+ 	// from offset 0. There's no way to tell it "start from current position", so
+ 	// we have to manage that explicitly.
+-	pos, err := f.Seek(0, os.SEEK_CUR)
++	pos, err := f.Seek(0, io.SeekCurrent)
+ 	if err != nil {
+ 		return 0, err, false
+ 	}
+diff --git a/src/net/sendfile_freebsd.go b/src/net/sendfile_freebsd.go
+index f7a8529560..18cbb27b53 100644
+--- a/src/net/sendfile_freebsd.go
++++ b/src/net/sendfile_freebsd.go
+@@ -53,7 +53,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	// use the current position of the file -- if you pass it offset 0, it starts
+ 	// from offset 0. There's no way to tell it "start from current position", so
+ 	// we have to manage that explicitly.
+-	pos, err := f.Seek(0, os.SEEK_CUR)
++	pos, err := f.Seek(0, io.SeekCurrent)
+ 	if err != nil {
+ 		return 0, err, false
+ 	}
+diff --git a/src/net/sendfile_solaris.go b/src/net/sendfile_solaris.go
+index 20d2cddeea..add70c3147 100644
+--- a/src/net/sendfile_solaris.go
++++ b/src/net/sendfile_solaris.go
+@@ -57,7 +57,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	// use the current position of the file -- if you pass it offset 0, it starts
+ 	// from offset 0. There's no way to tell it "start from current position", so
+ 	// we have to manage that explicitly.
+-	pos, err := f.Seek(0, os.SEEK_CUR)
++	pos, err := f.Seek(0, io.SeekCurrent)
+ 	if err != nil {
+ 		return 0, err, false
+ 	}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 1f2fd12add..ed2721bb5e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -479,7 +479,7 @@ func TestExtraFiles(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Write: %v", err)
+ 	}
+-	_, err = tf.Seek(0, os.SEEK_SET)
++	_, err = tf.Seek(0, io.SeekStart)
+ 	if err != nil {
+ 		t.Fatalf("Seek: %v", err)
+ 	}
+diff --git a/src/strings/reader_test.go b/src/strings/reader_test.go
+index 7bca2e89a1..6e9d904b9d 100644
+--- a/src/strings/reader_test.go
++++ b/src/strings/reader_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+-	"os"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -25,15 +24,15 @@ func TestReader(t *testing.T) {
+ 		wantpos int64
+ 		seekerr string
+ 	}{
+-		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
+-		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
+-		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
+-		{seek: os.SEEK_SET, off: -1, seekerr: "strings.Reader.Seek: negative position"},
+-		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
+-		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
+-		{seek: os.SEEK_SET, n: 5, want: "01234"},
+-		{seek: os.SEEK_CUR, n: 5, want: "56789"},
+-		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
++		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
++		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
++		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
++		{seek: io.SeekStart, off: -1, seekerr: "strings.Reader.Seek: negative position"},
++		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33},
++		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1},
++		{seek: io.SeekStart, n: 5, want: "01234"},
++		{seek: io.SeekCurrent, n: 5, want: "56789"},
++		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
+ 	}
+ 
+ 	for i, tt := range tests {
+@@ -64,7 +63,7 @@ func TestReader(t *testing.T) {
+ 
+ func TestReadAfterBigSeek(t *testing.T) {
+ 	r := strings.NewReader("0123456789")
+-	if _, err := r.Seek(1<<31+5, os.SEEK_SET); err != nil {
++	if _, err := r.Seek(1<<31+5, io.SeekStart); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if n, err := r.Read(make([]byte, 10)); n != 0 || err != io.EOF {

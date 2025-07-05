@@ -9,6 +9,23 @@ Date:   Wed Oct 3 02:08:58 2018 +0000
     GitHub-Pull-Request: golang/go#27977
     Reviewed-on: https://go-review.googlesource.com/c/139100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cookie.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 382398756b..289c3c37b1 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -36,9 +36,9 @@ type Cookie struct {
+ 	Unparsed []string // Raw text of unparsed attribute-value pairs
+ }
+ 
+-// SameSite allows a server define a cookie attribute making it impossible for
++// SameSite allows a server to define a cookie attribute making it impossible for
+ // the browser to send this cookie along with cross-site requests. The main
+-// goal is mitigate the risk of cross-origin information leakage, and provides
++// goal is to mitigate the risk of cross-origin information leakage, and provides
+ // some protection against cross-site request forgery attacks.
+ //
+ // See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.

@@ -8,7 +8,55 @@ Date:   Mon Jan 25 12:03:53 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/193091
-
+---
  src/pkg/go/parser/parser.go      | 17 +++++++++++++++--
  src/pkg/go/parser/parser_test.go |  2 ++
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index f5e8f839eb..a680d862e5 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1221,14 +1221,27 @@ func (p *parser) parseUnaryExpr() ast.Expr {
+ 	}
+ 
+ 	switch p.tok {
+-	case token.ADD, token.SUB, token.NOT, token.XOR, token.ARROW, token.AND, token.RANGE:
++	case token.ADD, token.SUB, token.NOT, token.XOR, token.AND, token.RANGE:
+ 		pos, op := p.pos, p.tok
+ 		p.next()
+ 		x := p.parseUnaryExpr()
+ 		return &ast.UnaryExpr{pos, op, p.checkExpr(x)}
+ 
++	case token.ARROW:
++		// channel type or receive expression
++		pos := p.pos
++		p.next()
++		if p.tok == token.CHAN {
++			p.next()
++			value := p.parseType()
++			return &ast.ChanType{pos, ast.RECV, value}
++		}
++
++		x := p.parseUnaryExpr()
++		return &ast.UnaryExpr{pos, token.ARROW, p.checkExpr(x)}
++
+ 	case token.MUL:
+-		// unary "*" expression or pointer type
++		// pointer type or unary "*" expression
+ 		pos := p.pos
+ 		p.next()
+ 		x := p.parseUnaryExpr()
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 2f7bace6ff..9e37551623 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -32,6 +32,8 @@ var validPrograms = []interface{}{
+ 	`package main;`,
+ 	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") }` + "\n",
+ 	`package main; func main() { if f(T{}) {} }` + "\n",
++	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
++	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
+ }
+ 
+ 

@@ -19,7 +19,7 @@ Date:   Fri Sep 11 16:40:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14650
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go               |   2 +-
  src/cmd/compile/internal/gc/ssa.go                 |  56 +++++-
  src/cmd/compile/internal/gc/ssa_test.go            |   2 +
@@ -34,3 +34,634 @@ Date:   Fri Sep 11 16:40:05 2015 -0400
  src/cmd/compile/internal/ssa/rewriteAMD64.go       |  14 ++
  src/cmd/compile/internal/ssa/schedule.go           |  37 +++-
  13 files changed, 339 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 2ac639629c..c7414d0c9b 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1383,7 +1383,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n = lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
++							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 51cf01a9ed..f4d5946c03 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -24,7 +24,7 @@ import (
+ // it will never return nil, and the bool can be removed.
+ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	name := fn.Func.Nname.Sym.Name
+-	usessa = strings.HasSuffix(name, "_ssa") || name == os.Getenv("GOSSAFUNC")
++	usessa = strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
+ 
+ 	if usessa {
+ 		fmt.Println("generating SSA for", name)
+@@ -76,22 +76,30 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
+ 
+ 	// Allocate starting values
+-	s.vars = map[*Node]*ssa.Value{}
+ 	s.labels = map[string]*ssaLabel{}
+ 	s.labeledNodes = map[*Node]*ssaLabel{}
+ 	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
+ 	s.sp = s.entryNewValue0(ssa.OpSP, Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
+ 	s.sb = s.entryNewValue0(ssa.OpSB, Types[TUINTPTR])
+ 
++	s.startBlock(s.f.Entry)
++	s.vars[&memVar] = s.startmem
++
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*Node]*ssa.Value{}
+ 	for d := fn.Func.Dcl; d != nil; d = d.Next {
+ 		n := d.N
+ 		switch n.Class {
+-		case PPARAM, PPARAMOUT:
++		case PPARAM:
+ 			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
+ 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+-		case PAUTO:
++		case PAUTO | PHEAP:
++			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
++			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
++			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		case PPARAM | PHEAP: // PPARAMOUT | PHEAP seems to not occur
++			// This ends up wrong, have to do it at the PARAM node instead.
++		case PAUTO, PPARAMOUT:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
+ 		case PFUNC:
+@@ -109,7 +117,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, Types[TUINTPTR], aux, s.sp)
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+-	s.startBlock(s.f.Entry)
+ 	s.stmtList(fn.Func.Enter)
+ 	s.stmtList(fn.Nbody)
+ 
+@@ -1231,6 +1238,23 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	case OCFUNC:
+ 		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
++	case OPARAM:
++		// Reach through param to expected ONAME w/ PHEAP|PARAM class
++		// to reference the incoming parameter.  Used in initialization
++		// of heap storage allocated for escaping params, where it appears
++		// as the RHS of an OAS node.  No point doing SSA for this variable,
++		// this is the only use.
++		p := n.Left
++		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
++			s.Fatalf("OPARAM not of ONAME,{PPARAM,PPARAMOUT}|PHEAP, instead %s", nodedump(p, 0))
++		}
++
++		// Recover original offset to address passed-in param value.
++		original_p := *p
++		original_p.Xoffset = n.Xoffset
++		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
++		addr := s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		return s.newValue2(ssa.OpLoad, p.Type, addr, s.mem())
+ 	case ONAME:
+ 		if n.Class == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+@@ -1243,6 +1267,9 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 		addr := s.addr(n)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
++	case OCLOSUREVAR:
++		addr := s.addr(n)
++		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 	case OLITERAL:
+ 		switch n.Val().Ctype() {
+ 		case CTINT:
+@@ -2138,8 +2165,8 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
+ 			}
+ 			return v
+-		case PPARAM, PPARAMOUT:
+-			// parameter/result slot or local variable
++		case PPARAM:
++			// parameter slot
+ 			v := s.decladdrs[n]
+ 			if v == nil {
+ 				if flag_race != 0 && n.String() == ".fp" {
+@@ -2159,7 +2186,10 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			// between vardef and addr ops.
+ 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+ 			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+-		case PAUTO | PHEAP, PPARAMREF:
++		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
++			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
++			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+ 			s.Unimplementedf("variable address class %v not implemented", n.Class)
+@@ -2205,6 +2235,10 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 		p := s.expr(n.Left)
+ 		s.nilCheck(p)
+ 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
++	case OCLOSUREVAR:
++		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
++			s.entryNewValue0(ssa.OpGetClosurePtr, Types[TUINTPTR]),
++			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+ 	default:
+ 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
+ 		return nil
+@@ -3688,6 +3722,12 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		q.From.Reg = x86.REG_AX
+ 		q.To.Type = obj.TYPE_MEM
+ 		q.To.Reg = r
++	case ssa.OpAMD64LoweredGetClosurePtr:
++		// Output is hardwired to DX only,
++		// and DX contains the closure pointer on
++		// closure entry, and this "instruction"
++		// is scheduled to the very beginning
++		// of the entry block.
+ 	case ssa.OpAMD64LoweredGetG:
+ 		r := regnum(v)
+ 		// See the comments in cmd/internal/obj/x86/obj6.go
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index dafbcf2166..1e06fd0d3d 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -89,3 +89,5 @@ func TestArray(t *testing.T) { runTest(t, "array_ssa.go") }
+ func TestAppend(t *testing.T) { runTest(t, "append_ssa.go") }
+ 
+ func TestZero(t *testing.T) { runTest(t, "zero_ssa.go") }
++
++func TestAddressed(t *testing.T) { runTest(t, "addressed_ssa.go") }
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5081ea0cb9..b71a1e7b0d 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -148,7 +148,7 @@ type Param struct {
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+ 	Shortname  *Node
+-	Enter      *NodeList
++	Enter      *NodeList // for example, allocate and initialize memory for escaping parameters
+ 	Exit       *NodeList
+ 	Cvars      *NodeList // closure params
+ 	Dcl        *NodeList // autodcl for this func/closure
+diff --git a/src/cmd/compile/internal/gc/testdata/addressed_ssa.go b/src/cmd/compile/internal/gc/testdata/addressed_ssa.go
+new file mode 100644
+index 0000000000..f9f459360b
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/addressed_ssa.go
+@@ -0,0 +1,216 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++var output string
++
++func mypanic(s string) {
++	fmt.Printf(output)
++	panic(s)
++}
++
++func assertEqual(x, y int) {
++	if x != y {
++		mypanic("assertEqual failed")
++	}
++}
++
++func main() {
++	x := f1_ssa(2, 3)
++	output += fmt.Sprintln("*x is", *x)
++	output += fmt.Sprintln("Gratuitously use some stack")
++	output += fmt.Sprintln("*x is", *x)
++	assertEqual(*x, 9)
++
++	w := f3a_ssa(6)
++	output += fmt.Sprintln("*w is", *w)
++	output += fmt.Sprintln("Gratuitously use some stack")
++	output += fmt.Sprintln("*w is", *w)
++	assertEqual(*w, 6)
++
++	y := f3b_ssa(12)
++	output += fmt.Sprintln("*y.(*int) is", *y.(*int))
++	output += fmt.Sprintln("Gratuitously use some stack")
++	output += fmt.Sprintln("*y.(*int) is", *y.(*int))
++	assertEqual(*y.(*int), 12)
++
++	z := f3c_ssa(8)
++	output += fmt.Sprintln("*z.(*int) is", *z.(*int))
++	output += fmt.Sprintln("Gratuitously use some stack")
++	output += fmt.Sprintln("*z.(*int) is", *z.(*int))
++	assertEqual(*z.(*int), 8)
++
++	args()
++	test_autos()
++}
++
++func f1_ssa(x, y int) *int {
++	switch {
++	} //go:noinline
++	x = x*y + y
++	return &x
++}
++
++func f3a_ssa(x int) *int {
++	switch {
++	} //go:noinline
++	return &x
++}
++
++func f3b_ssa(x int) interface{} { // ./foo.go:15: internal error: f3b_ssa ~r1 (type interface {}) recorded as live on entry
++	switch {
++	} //go:noinline
++	return &x
++}
++
++func f3c_ssa(y int) interface{} {
++	switch {
++	} //go:noinline
++	x := y
++	return &x
++}
++
++type V struct {
++	p    *V
++	w, x int64
++}
++
++func args() {
++	v := V{p: nil, w: 1, x: 1}
++	a := V{p: &v, w: 2, x: 2}
++	b := V{p: &v, w: 0, x: 0}
++	i := v.args_ssa(a, b)
++	output += fmt.Sprintln("i=", i)
++	assertEqual(int(i), 2)
++}
++
++func (v V) args_ssa(a, b V) int64 {
++	switch {
++	} //go:noinline
++	if v.w == 0 {
++		return v.x
++	}
++	if v.w == 1 {
++		return a.x
++	}
++	if v.w == 2 {
++		return b.x
++	}
++	b.p.p = &a // v.p in caller = &a
++
++	return -1
++}
++
++func test_autos() {
++	test(11)
++	test(12)
++	test(13)
++	test(21)
++	test(22)
++	test(23)
++	test(31)
++	test(32)
++}
++
++func test(which int64) {
++	output += fmt.Sprintln("test", which)
++	v1 := V{w: 30, x: 3, p: nil}
++	v2, v3 := v1.autos_ssa(which, 10, 1, 20, 2)
++	if which != v2.val() {
++		output += fmt.Sprintln("Expected which=", which, "got v2.val()=", v2.val())
++		mypanic("Failure of expected V value")
++	}
++	if v2.p.val() != v3.val() {
++		output += fmt.Sprintln("Expected v2.p.val()=", v2.p.val(), "got v3.val()=", v3.val())
++		mypanic("Failure of expected V.p value")
++	}
++	if which != v3.p.p.p.p.p.p.p.val() {
++		output += fmt.Sprintln("Expected which=", which, "got v3.p.p.p.p.p.p.p.val()=", v3.p.p.p.p.p.p.p.val())
++		mypanic("Failure of expected V.p value")
++	}
++}
++
++func (v V) val() int64 {
++	return v.w + v.x
++}
++
++// autos_ssa uses contents of v and parameters w1, w2, x1, x2
++// to initialize a bunch of locals, all of which have their
++// address taken to force heap allocation, and then based on
++// the value of which a pair of those locals are copied in
++// various ways to the two results y, and z, which are also
++// addressed.  Which is expected to be one of 11-13, 21-23, 31, 32,
++// and y.val() should be equal to which and y.p.val() should
++// be equal to z.val().  Also, x(.p)**8 == x; that is, the
++// autos are all linked into a ring.
++func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
++	switch {
++	} //go:noinline
++	fill_ssa(v.w, v.x, &v, v.p) // gratuitous no-op to force addressing
++	var a, b, c, d, e, f, g, h V
++	fill_ssa(w1, x1, &a, &b)
++	fill_ssa(w1, x2, &b, &c)
++	fill_ssa(w1, v.x, &c, &d)
++	fill_ssa(w2, x1, &d, &e)
++	fill_ssa(w2, x2, &e, &f)
++	fill_ssa(w2, v.x, &f, &g)
++	fill_ssa(v.w, x1, &g, &h)
++	fill_ssa(v.w, x2, &h, &a)
++	switch which {
++	case 11:
++		y = a
++		z.getsI(&b)
++	case 12:
++		y.gets(&b)
++		z = c
++	case 13:
++		y.gets(&c)
++		z = d
++	case 21:
++		y.getsI(&d)
++		z.gets(&e)
++	case 22:
++		y = e
++		z = f
++	case 23:
++		y.gets(&f)
++		z.getsI(&g)
++	case 31:
++		y = g
++		z.gets(&h)
++	case 32:
++		y.getsI(&h)
++		z = a
++	default:
++
++		panic("")
++	}
++	return
++}
++
++// gets is an address-mentioning way of implementing
++// structure assignment.
++func (to *V) gets(from *V) {
++	switch {
++	} //go:noinline
++	*to = *from
++}
++
++// gets is an address-and-interface-mentioning way of
++// implementing structure assignment.
++func (to *V) getsI(from interface{}) {
++	switch {
++	} //go:noinline
++	*to = *from.(*V)
++}
++
++// fill_ssa initializes r with V{w:w, x:x, p:p}
++func fill_ssa(w, x int64, r, p *V) {
++	switch {
++	} //go:noinline
++	*r = V{w: w, x: x, p: p}
++}
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 44ce4a3c71..6c45957fdc 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -231,7 +231,7 @@ func checkFunc(f *Func) {
+ 						y = b.Preds[i]
+ 					}
+ 					if !domCheck(f, idom, x, y) {
+-						f.Fatalf("arg %d of value %s does not dominate", i, v.LongString())
++						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3d308d7ef8..b02af9413e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -288,6 +288,7 @@
+ 
+ (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
+ (GetG) -> (LoweredGetG)
++(GetClosurePtr) -> (LoweredGetClosurePtr)
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 6f318d3589..5d171dc87a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -424,6 +424,10 @@ func init() {
+ 		// Pseudo-ops
+ 		{name: "LoweredPanicNilCheck", reg: gp10},
+ 		{name: "LoweredGetG", reg: gp01},
++		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
++		// and sorts it to the very beginning of the block to prevent other
++		// use of DX (the closure pointer)
++		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ff63fa880c..1ee38103ac 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -327,6 +327,7 @@ var genericOps = []opData{
+ 	// Pseudo-ops
+ 	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
+ 	{name: "GetG"},          // runtime.getg() (read g pointer)
++	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
+ 
+ 	// Indexing operations
+ 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0da7946365..c52ef2d352 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -271,6 +271,7 @@ const (
+ 	OpAMD64InvertFlags
+ 	OpAMD64LoweredPanicNilCheck
+ 	OpAMD64LoweredGetG
++	OpAMD64LoweredGetClosurePtr
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -512,6 +513,7 @@ const (
+ 	OpIsSliceInBounds
+ 	OpPanicNilCheck
+ 	OpGetG
++	OpGetClosurePtr
+ 	OpArrayIndex
+ 	OpPtrIndex
+ 	OpOffPtr
+@@ -3122,6 +3124,14 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "LoweredGetClosurePtr",
++		reg: regInfo{
++			outputs: []regMask{
++				4, // .DX
++			},
++		},
++	},
+ 
+ 	{
+ 		name:    "Add8",
+@@ -4083,6 +4093,10 @@ var opcodeTable = [...]opInfo{
+ 		name:    "GetG",
+ 		generic: true,
+ 	},
++	{
++		name:    "GetClosurePtr",
++		generic: true,
++	},
+ 	{
+ 		name:    "ArrayIndex",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index f529b42fe0..9d0aab64cc 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -333,7 +333,11 @@ func (s *regAllocState) allocReg(mask regMask) register {
+ 	// farthest-in-the-future use.
+ 	// TODO: Prefer registers with already spilled Values?
+ 	// TODO: Modify preference using affinity graph.
+-	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
++
++	// SP and SB are allocated specially.  No regular value should
++	// be allocated to them.
++	mask &^= 1<<4 | 1<<32
++
+ 	maxuse := int32(-1)
+ 	for t := register(0); t < numRegs; t++ {
+ 		if mask>>t&1 == 0 {
+@@ -381,9 +385,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
+ 		return s.regs[r].c
+ 	}
+ 
+-	// SP and SB are allocated specially.  No regular value should
+-	// be allocated to them.
+-	mask &^= 1<<4 | 1<<32
++	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
+ 
+ 	// Allocate a register.
+ 	r := s.allocReg(mask)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 590efdb2eb..71cbb8171b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2397,6 +2397,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto enda617119faaccc0f0c2d23548116cf331
+ 	enda617119faaccc0f0c2d23548116cf331:
+ 		;
++	case OpGetClosurePtr:
++		// match: (GetClosurePtr)
++		// cond:
++		// result: (LoweredGetClosurePtr)
++		{
++			v.Op = OpAMD64LoweredGetClosurePtr
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			return true
++		}
++		goto end6fd0b53f0acb4d35e7d7fa78d2ca1392
++	end6fd0b53f0acb4d35e7d7fa78d2ca1392:
++		;
+ 	case OpGetG:
+ 		// match: (GetG)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index e551a6375c..949de31afc 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -4,6 +4,17 @@
+ 
+ package ssa
+ 
++const (
++	ScorePhi = iota // towards top of block
++	ScoreVarDef
++	ScoreMemory
++	ScoreDefault
++	ScoreFlags
++	ScoreControl // towards bottom of block
++
++	ScoreCount // not a real score
++)
++
+ // Schedule the Values in each Block.  After this phase returns, the
+ // order of b.Values matters and is the order in which those values
+ // will appear in the assembly output.  For now it generates a
+@@ -21,7 +32,7 @@ func schedule(f *Func) {
+ 	var order []*Value
+ 
+ 	// priority queue of legally schedulable (0 unscheduled uses) values
+-	var priq [5][]*Value
++	var priq [ScoreCount][]*Value
+ 
+ 	// maps mem values to the next live memory value
+ 	nextMem := make([]*Value, f.NumValues())
+@@ -69,27 +80,39 @@ func schedule(f *Func) {
+ 		// Compute score.  Larger numbers are scheduled closer to the end of the block.
+ 		for _, v := range b.Values {
+ 			switch {
++			case v.Op == OpAMD64LoweredGetClosurePtr:
++				// We also score GetLoweredClosurePtr as early as possible to ensure that the
++				// context register is not stomped.  GetLoweredClosurePtr should only appear
++				// in the entry block where there are no phi functions, so there is no
++				// conflict or ambiguity here.
++				if b != f.Entry {
++					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block.")
++				}
++				score[v.ID] = ScorePhi
+ 			case v.Op == OpPhi:
+ 				// We want all the phis first.
+-				score[v.ID] = 0
++				score[v.ID] = ScorePhi
++			case v.Op == OpVarDef:
++				// We want all the vardefs next.
++				score[v.ID] = ScoreVarDef
+ 			case v.Type.IsMemory():
+ 				// Schedule stores as early as possible.  This tends to
+ 				// reduce register pressure.  It also helps make sure
+ 				// VARDEF ops are scheduled before the corresponding LEA.
+-				score[v.ID] = 1
++				score[v.ID] = ScoreMemory
+ 			case v.Type.IsFlags():
+ 				// Schedule flag register generation as late as possible.
+ 				// This makes sure that we only have one live flags
+ 				// value at a time.
+-				score[v.ID] = 3
++				score[v.ID] = ScoreFlags
+ 			default:
+-				score[v.ID] = 2
++				score[v.ID] = ScoreDefault
+ 			}
+ 		}
+ 		if b.Control != nil && b.Control.Op != OpPhi {
+ 			// Force the control value to be scheduled at the end,
+ 			// unless it is a phi value (which must be first).
+-			score[b.Control.ID] = 4
++			score[b.Control.ID] = ScoreControl
+ 
+ 			// Schedule values dependent on the control value at the end.
+ 			// This reduces the number of register spills. We don't find
+@@ -100,7 +123,7 @@ func schedule(f *Func) {
+ 				if v.Op != OpPhi {
+ 					for _, a := range v.Args {
+ 						if a == b.Control {
+-							score[v.ID] = 4
++							score[v.ID] = ScoreControl
+ 						}
+ 					}
+ 				}

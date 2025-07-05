@@ -7,6 +7,20 @@ Date:   Mon May 7 10:14:50 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6202046
-
+---
  test/bench/shootout/timing.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/bench/shootout/timing.sh b/test/bench/shootout/timing.sh
+index dd3e664f4c..e1c5cf2925 100755
+--- a/test/bench/shootout/timing.sh
++++ b/test/bench/shootout/timing.sh
+@@ -107,7 +107,7 @@ binarytree() {
+ 	runonly echo 'binary-tree 15 # too slow to use 20'
+ 	run 'gcc -O2 binary-tree.c -lm' a.out 15
+ 	run 'gccgo -O2 binary-tree.go' a.out -n 15
+-	run 'gccgo -O2 binary-tree-freelist.go' $O.out -n 15
++	run 'gccgo -O2 binary-tree-freelist.go' a.out -n 15
+ 	run 'gc binary-tree' $O.out -n 15
+ 	run 'gc binary-tree-freelist' $O.out -n 15
+ }

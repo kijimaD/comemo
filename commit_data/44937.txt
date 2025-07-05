@@ -49,7 +49,7 @@ Date:   Mon Aug 31 09:43:40 2020 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64enc.s |   4 +
  src/cmd/compile/internal/ppc64/ssa.go        |  36 ++
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  63 ++-
@@ -62,3 +62,1355 @@ Date:   Mon Aug 31 09:43:40 2020 -0400
  src/cmd/internal/obj/ppc64/asm9.go           |  74 ++-
  test/codegen/shift.go                        |  55 ++
  11 files changed, 1087 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64enc.s b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+index 10a05ec402..e26f6f8933 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64enc.s
+@@ -284,6 +284,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	RLDICLCC $0, R4, $15, R6        // 788603c1
+ 	RLDICR $0, R4, $15, R6          // 788603c4
+ 	RLDICRCC $0, R4, $15, R6        // 788603c5
++	RLDIC $0, R4, $15, R6           // 788603c8
++	RLDICCC $0, R4, $15, R6         // 788603c9
++	CLRLSLWI $16, R5, $8, R4        // 54a4861e
++	CLRLSLDI $2, R4, $24, R3        // 78831588
+ 
+ 	BEQ 0(PC)                       // 41820000
+ 	BGE 0(PC)                       // 40800000
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index f8d9ac2379..4a83a0bdd7 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -565,6 +565,42 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p = s.Prog(obj.ANOP)
+ 		gc.Patch(pbover, p)
+ 
++	case ssa.OpPPC64CLRLSLWI:
++		r := v.Reg()
++		r1 := v.Args[0].Reg()
++		shifts := v.AuxInt
++		p := s.Prog(v.Op.Asm())
++		// clrlslwi ra,rs,sh,mb will become rlwinm ra,rs,sh,mb-sh,31-n as described in ISA
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
++	case ssa.OpPPC64CLRLSLDI:
++		r := v.Reg()
++		r1 := v.Args[0].Reg()
++		shifts := v.AuxInt
++		p := s.Prog(v.Op.Asm())
++		// clrlsldi ra,rs,sh,mb will become rldic ra,rs,sh,mb-sh
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
++		// Mask has been set as sh
++	case ssa.OpPPC64RLDICL:
++		r := v.Reg()
++		r1 := v.Args[0].Reg()
++		shifts := v.AuxInt
++		p := s.Prog(v.Op.Asm())
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)})
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
+ 	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS,
+ 		ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64DIVDU, ssa.OpPPC64DIVWU,
+ 		ssa.OpPPC64SRAD, ssa.OpPPC64SRAW, ssa.OpPPC64SRD, ssa.OpPPC64SRW, ssa.OpPPC64SLD, ssa.OpPPC64SLW,
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index e5fb1e98c2..774d5096de 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -79,6 +79,23 @@
+ (Abs ...) => (FABS ...)
+ (FMA ...) => (FMADD ...)
+ 
++// Lowering extension
++// Note: we always extend to 64 bits even though some ops don't need that many result bits.
++(SignExt8to(16|32|64) ...) => (MOVBreg ...)
++(SignExt16to(32|64) ...) => (MOVHreg ...)
++(SignExt32to64 ...) => (MOVWreg ...)
++
++(ZeroExt8to(16|32|64) ...) => (MOVBZreg ...)
++(ZeroExt16to(32|64) ...) => (MOVHZreg ...)
++(ZeroExt32to64 ...) => (MOVWZreg ...)
++
++(Trunc(16|32|64)to8 <t> x) && isSigned(t) => (MOVBreg x)
++(Trunc(16|32|64)to8  x) => (MOVBZreg x)
++(Trunc(32|64)to16 <t> x) && isSigned(t) => (MOVHreg x)
++(Trunc(32|64)to16 x) => (MOVHZreg x)
++(Trunc64to32 <t> x) && isSigned(t) => (MOVWreg x)
++(Trunc64to32 x) => (MOVWZreg x)
++
+ // Lowering constants
+ (Const(64|32|16|8) [val]) => (MOVDconst [int64(val)])
+ (Const(32|64)F ...) => (FMOV(S|D)const ...)
+@@ -780,6 +797,21 @@
+ (MOVWreg y:(MOVWZreg x)) => (MOVWreg x)
+ (MOVWZreg y:(MOVWreg x)) => (MOVWZreg x)
+ 
++// Truncate then logical then truncate: omit first, lesser or equal truncate
++(MOVWZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVWZreg ((OR|XOR|AND) <t> x y))
++(MOVHZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVHZreg ((OR|XOR|AND) <t> x y))
++(MOVHZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVHZreg ((OR|XOR|AND) <t> x y))
++(MOVBZreg ((OR|XOR|AND) <t> x (MOVWZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
++(MOVBZreg ((OR|XOR|AND) <t> x (MOVHZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
++(MOVBZreg ((OR|XOR|AND) <t> x (MOVBZreg y))) => (MOVBZreg ((OR|XOR|AND) <t> x y))
++
++(MOV(B|H|W)Zreg z:(ANDconst [c] (MOVBZload ptr x))) => z
++(MOVBZreg z:(AND y (MOVBZload ptr x))) => z
++(MOV(H|W)Zreg z:(ANDconst [c] (MOVHZload ptr x))) => z
++(MOVHZreg z:(AND y (MOVHZload ptr x))) => z
++(MOVWZreg z:(ANDconst [c] (MOVWZload ptr x))) => z
++(MOVWZreg z:(AND y (MOVWZload ptr x))) => z
++
+ // Arithmetic constant ops
+ 
+ (ADD x (MOVDconst [c])) && is32Bit(c) => (ADDconst [c] x)
+@@ -949,23 +981,6 @@
+ (AtomicAnd8 ...) => (LoweredAtomicAnd8 ...)
+ (AtomicOr8  ...) => (LoweredAtomicOr8  ...)
+ 
+-// Lowering extension
+-// Note: we always extend to 64 bits even though some ops don't need that many result bits.
+-(SignExt8to(16|32|64) ...) => (MOVBreg ...)
+-(SignExt16to(32|64) ...) => (MOVHreg ...)
+-(SignExt32to64 ...) => (MOVWreg ...)
+-
+-(ZeroExt8to(16|32|64) ...) => (MOVBZreg ...)
+-(ZeroExt16to(32|64) ...) => (MOVHZreg ...)
+-(ZeroExt32to64 ...) => (MOVWZreg ...)
+-
+-(Trunc(16|32|64)to8 <t> x) && isSigned(t) => (MOVBreg x)
+-(Trunc(16|32|64)to8  x) => (MOVBZreg x)
+-(Trunc(32|64)to16 <t> x) && isSigned(t) => (MOVHreg x)
+-(Trunc(32|64)to16 x) => (MOVHZreg x)
+-(Trunc64to32 <t> x) && isSigned(t) => (MOVWreg x)
+-(Trunc64to32 x) => (MOVWZreg x)
+-
+ (Slicemask <t> x) => (SRADconst (NEG <t> x) [63])
+ 
+ // Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
+@@ -996,6 +1011,20 @@
+ (MOVWreg (MOVDconst [c])) => (MOVDconst [int64(int32(c))])
+ (MOVWZreg (MOVDconst [c])) => (MOVDconst [int64(uint32(c))])
+ 
++// Implement clrsldi and clrslwi extended mnemonics as described in
++// ISA 3.0 section C.8. AuxInt field contains values needed for
++// the instructions, packed together since there is only one available.
++(SLDconst [c] z:(MOVBZreg x)) && c < 8 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,56,63,64)] x)
++(SLDconst [c] z:(MOVHZreg x)) && c < 16 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
++(SLDconst [c] z:(MOVWZreg x)) && c < 32 && z.Uses == 1 => (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
++
++(SLDconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
++(SLDconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
++(SLWconst [c] z:(MOVBZreg x)) && z.Uses == 1 && c < 8 => (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
++(SLWconst [c] z:(MOVHZreg x)) && z.Uses == 1 && c < 16 => (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
++(SLWconst [c] z:(MOVWZreg x)) && z.Uses == 1 && c < 24 => (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
++(SLWconst [c] z:(ANDconst [d] x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
++(SLWconst [c] z:(AND (MOVDconst [d]) x)) && z.Uses == 1 && isPPC64ValidShiftMask(d) => (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
+ 
+ // Lose widening ops fed to stores
+ (MOVBstore [off] {sym} ptr (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) => (MOVBstore [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 37706b2dd9..ed99c40cd2 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -206,6 +206,11 @@ func init() {
+ 
+ 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
+ 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
++		// The following are ops to implement the extended mnemonics for shifts as described in section C.8 of the ISA.
++		// The constant shift values are packed into the aux int32.
++		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int32"},     // arg0 extract bits identified by shift params"
++		{name: "CLRLSLWI", argLength: 1, reg: gp11, asm: "CLRLSLWI", aux: "Int32"}, //
++		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
+ 
+ 		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true}, // arg0 + arg1 + carry, returns (sum, carry)
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d95943231a..f00dc3f7f5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1853,6 +1853,9 @@ const (
+ 	OpPPC64SLW
+ 	OpPPC64ROTL
+ 	OpPPC64ROTLW
++	OpPPC64RLDICL
++	OpPPC64CLRLSLWI
++	OpPPC64CLRLSLDI
+ 	OpPPC64LoweredAdd64Carry
+ 	OpPPC64SRADconst
+ 	OpPPC64SRAWconst
+@@ -24672,6 +24675,48 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "RLDICL",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.ARLDICL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "CLRLSLWI",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.ACLRLSLWI,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "CLRLSLDI",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.ACLRLSLDI,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:            "LoweredAdd64Carry",
+ 		argLen:          3,
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 2ab310ad85..d9c3e455a0 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1325,6 +1325,44 @@ func hasSmallRotate(c *Config) bool {
+ 	}
+ }
+ 
++func newPPC64ShiftAuxInt(sh, mb, me, sz int64) int32 {
++	if sh < 0 || sh >= sz {
++		panic("PPC64 shift arg sh out of range")
++	}
++	if mb < 0 || mb >= sz {
++		panic("PPC64 shift arg mb out of range")
++	}
++	if me < 0 || me >= sz {
++		panic("PPC64 shift arg me out of range")
++	}
++	return int32(sh<<16 | mb<<8 | me)
++}
++
++func GetPPC64Shiftsh(auxint int64) int64 {
++	return int64(int8(auxint >> 16))
++}
++
++func GetPPC64Shiftmb(auxint int64) int64 {
++	return int64(int8(auxint >> 8))
++}
++
++func GetPPC64Shiftme(auxint int64) int64 {
++	return int64(int8(auxint))
++}
++
++// Catch the simple ones first
++// TODO: Later catch more cases
++func isPPC64ValidShiftMask(v int64) bool {
++	if ((v + 1) & v) == 0 {
++		return true
++	}
++	return false
++}
++
++func getPPC64ShiftMaskLength(v int64) int64 {
++	return int64(bits.Len64(uint64(v)))
++}
++
+ // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
+ func armBFAuxInt(lsb, width int64) arm64BitField {
+ 	if lsb < 0 || lsb > 63 {
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 152cdfdf4d..12b08824b5 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -586,8 +586,12 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64ROTLW(v)
+ 	case OpPPC64SLD:
+ 		return rewriteValuePPC64_OpPPC64SLD(v)
++	case OpPPC64SLDconst:
++		return rewriteValuePPC64_OpPPC64SLDconst(v)
+ 	case OpPPC64SLW:
+ 		return rewriteValuePPC64_OpPPC64SLW(v)
++	case OpPPC64SLWconst:
++		return rewriteValuePPC64_OpPPC64SLWconst(v)
+ 	case OpPPC64SRAD:
+ 		return rewriteValuePPC64_OpPPC64SRAD(v)
+ 	case OpPPC64SRAW:
+@@ -6565,6 +6569,255 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBZreg (OR <t> x (MOVWZreg y)))
++	// result: (MOVBZreg (OR <t> x y))
++	for {
++		if v_0.Op != OpPPC64OR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (XOR <t> x (MOVWZreg y)))
++	// result: (MOVBZreg (XOR <t> x y))
++	for {
++		if v_0.Op != OpPPC64XOR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (AND <t> x (MOVWZreg y)))
++	// result: (MOVBZreg (AND <t> x y))
++	for {
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (OR <t> x (MOVHZreg y)))
++	// result: (MOVBZreg (OR <t> x y))
++	for {
++		if v_0.Op != OpPPC64OR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVHZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (XOR <t> x (MOVHZreg y)))
++	// result: (MOVBZreg (XOR <t> x y))
++	for {
++		if v_0.Op != OpPPC64XOR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVHZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (AND <t> x (MOVHZreg y)))
++	// result: (MOVBZreg (AND <t> x y))
++	for {
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVHZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (OR <t> x (MOVBZreg y)))
++	// result: (MOVBZreg (OR <t> x y))
++	for {
++		if v_0.Op != OpPPC64OR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVBZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (XOR <t> x (MOVBZreg y)))
++	// result: (MOVBZreg (XOR <t> x y))
++	for {
++		if v_0.Op != OpPPC64XOR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVBZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg (AND <t> x (MOVBZreg y)))
++	// result: (MOVBZreg (AND <t> x y))
++	for {
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVBZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVBZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVBZreg z:(ANDconst [c] (MOVBZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		z_0 := z.Args[0]
++		if z_0.Op != OpPPC64MOVBZload {
++			break
++		}
++		v.copyOf(z)
++		return true
++	}
++	// match: (MOVBZreg z:(AND y (MOVBZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64AND {
++			break
++		}
++		_ = z.Args[1]
++		z_0 := z.Args[0]
++		z_1 := z.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
++			if z_1.Op != OpPPC64MOVBZload {
++				continue
++			}
++			v.copyOf(z)
++			return true
++		}
++		break
++	}
+ 	// match: (MOVBZreg x:(MOVBZload _ _))
+ 	// result: x
+ 	for {
+@@ -8507,6 +8760,197 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHZreg (OR <t> x (MOVWZreg y)))
++	// result: (MOVHZreg (OR <t> x y))
++	for {
++		if v_0.Op != OpPPC64OR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVHZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVHZreg (XOR <t> x (MOVWZreg y)))
++	// result: (MOVHZreg (XOR <t> x y))
++	for {
++		if v_0.Op != OpPPC64XOR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVHZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVHZreg (AND <t> x (MOVWZreg y)))
++	// result: (MOVHZreg (AND <t> x y))
++	for {
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVHZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVHZreg (OR <t> x (MOVHZreg y)))
++	// result: (MOVHZreg (OR <t> x y))
++	for {
++		if v_0.Op != OpPPC64OR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVHZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVHZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVHZreg (XOR <t> x (MOVHZreg y)))
++	// result: (MOVHZreg (XOR <t> x y))
++	for {
++		if v_0.Op != OpPPC64XOR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVHZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVHZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVHZreg (AND <t> x (MOVHZreg y)))
++	// result: (MOVHZreg (AND <t> x y))
++	for {
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVHZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVHZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVHZreg z:(ANDconst [c] (MOVBZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		z_0 := z.Args[0]
++		if z_0.Op != OpPPC64MOVBZload {
++			break
++		}
++		v.copyOf(z)
++		return true
++	}
++	// match: (MOVHZreg z:(ANDconst [c] (MOVHZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		z_0 := z.Args[0]
++		if z_0.Op != OpPPC64MOVHZload {
++			break
++		}
++		v.copyOf(z)
++		return true
++	}
++	// match: (MOVHZreg z:(AND y (MOVHZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64AND {
++			break
++		}
++		_ = z.Args[1]
++		z_0 := z.Args[0]
++		z_1 := z.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
++			if z_1.Op != OpPPC64MOVHZload {
++				continue
++			}
++			v.copyOf(z)
++			return true
++		}
++		break
++	}
+ 	// match: (MOVHZreg x:(MOVBZload _ _))
+ 	// result: x
+ 	for {
+@@ -9657,6 +10101,139 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWZreg (OR <t> x (MOVWZreg y)))
++	// result: (MOVWZreg (OR <t> x y))
++	for {
++		if v_0.Op != OpPPC64OR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVWZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64OR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVWZreg (XOR <t> x (MOVWZreg y)))
++	// result: (MOVWZreg (XOR <t> x y))
++	for {
++		if v_0.Op != OpPPC64XOR {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVWZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64XOR, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVWZreg (AND <t> x (MOVWZreg y)))
++	// result: (MOVWZreg (AND <t> x y))
++	for {
++		if v_0.Op != OpPPC64AND {
++			break
++		}
++		t := v_0.Type
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			if v_0_1.Op != OpPPC64MOVWZreg {
++				continue
++			}
++			y := v_0_1.Args[0]
++			v.reset(OpPPC64MOVWZreg)
++			v0 := b.NewValue0(v.Pos, OpPPC64AND, t)
++			v0.AddArg2(x, y)
++			v.AddArg(v0)
++			return true
++		}
++		break
++	}
++	// match: (MOVWZreg z:(ANDconst [c] (MOVBZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		z_0 := z.Args[0]
++		if z_0.Op != OpPPC64MOVBZload {
++			break
++		}
++		v.copyOf(z)
++		return true
++	}
++	// match: (MOVWZreg z:(ANDconst [c] (MOVHZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		z_0 := z.Args[0]
++		if z_0.Op != OpPPC64MOVHZload {
++			break
++		}
++		v.copyOf(z)
++		return true
++	}
++	// match: (MOVWZreg z:(ANDconst [c] (MOVWZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		z_0 := z.Args[0]
++		if z_0.Op != OpPPC64MOVWZload {
++			break
++		}
++		v.copyOf(z)
++		return true
++	}
++	// match: (MOVWZreg z:(AND y (MOVWZload ptr x)))
++	// result: z
++	for {
++		z := v_0
++		if z.Op != OpPPC64AND {
++			break
++		}
++		_ = z.Args[1]
++		z_0 := z.Args[0]
++		z_1 := z.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
++			if z_1.Op != OpPPC64MOVWZload {
++				continue
++			}
++			v.copyOf(z)
++			return true
++		}
++		break
++	}
+ 	// match: (MOVWZreg x:(MOVBZload _ _))
+ 	// result: x
+ 	for {
+@@ -12197,6 +12774,111 @@ func rewriteValuePPC64_OpPPC64SLD(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (SLDconst [c] z:(MOVBZreg x))
++	// cond: c < 8 && z.Uses == 1
++	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,56,63,64)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVBZreg {
++			break
++		}
++		x := z.Args[0]
++		if !(c < 8 && z.Uses == 1) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLDI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 56, 63, 64))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLDconst [c] z:(MOVHZreg x))
++	// cond: c < 16 && z.Uses == 1
++	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,48,63,64)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVHZreg {
++			break
++		}
++		x := z.Args[0]
++		if !(c < 16 && z.Uses == 1) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLDI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 48, 63, 64))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLDconst [c] z:(MOVWZreg x))
++	// cond: c < 32 && z.Uses == 1
++	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,32,63,64)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVWZreg {
++			break
++		}
++		x := z.Args[0]
++		if !(c < 32 && z.Uses == 1) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLDI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 32, 63, 64))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLDconst [c] z:(ANDconst [d] x))
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		d := auxIntToInt64(z.AuxInt)
++		x := z.Args[0]
++		if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLDI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 64-getPPC64ShiftMaskLength(d), 63, 64))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLDconst [c] z:(AND (MOVDconst [d]) x))
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,64-getPPC64ShiftMaskLength(d),63,64)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64AND {
++			break
++		}
++		_ = z.Args[1]
++		z_0 := z.Args[0]
++		z_1 := z.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
++			if z_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			d := auxIntToInt64(z_0.AuxInt)
++			x := z_1
++			if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++				continue
++			}
++			v.reset(OpPPC64CLRLSLDI)
++			v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 64-getPPC64ShiftMaskLength(d), 63, 64))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -12215,6 +12897,111 @@ func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (SLWconst [c] z:(MOVBZreg x))
++	// cond: z.Uses == 1 && c < 8
++	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVBZreg {
++			break
++		}
++		x := z.Args[0]
++		if !(z.Uses == 1 && c < 8) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLWI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 24, 31, 32))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLWconst [c] z:(MOVHZreg x))
++	// cond: z.Uses == 1 && c < 16
++	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,16,31,32)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVHZreg {
++			break
++		}
++		x := z.Args[0]
++		if !(z.Uses == 1 && c < 16) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLWI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 16, 31, 32))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLWconst [c] z:(MOVWZreg x))
++	// cond: z.Uses == 1 && c < 24
++	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,8,31,32)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64MOVWZreg {
++			break
++		}
++		x := z.Args[0]
++		if !(z.Uses == 1 && c < 24) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLWI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 8, 31, 32))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLWconst [c] z:(ANDconst [d] x))
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64ANDconst {
++			break
++		}
++		d := auxIntToInt64(z.AuxInt)
++		x := z.Args[0]
++		if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++			break
++		}
++		v.reset(OpPPC64CLRLSLWI)
++		v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 32-getPPC64ShiftMaskLength(d), 31, 32))
++		v.AddArg(x)
++		return true
++	}
++	// match: (SLWconst [c] z:(AND (MOVDconst [d]) x))
++	// cond: z.Uses == 1 && isPPC64ValidShiftMask(d)
++	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,32-getPPC64ShiftMaskLength(d),31,32)] x)
++	for {
++		c := auxIntToInt64(v.AuxInt)
++		z := v_0
++		if z.Op != OpPPC64AND {
++			break
++		}
++		_ = z.Args[1]
++		z_0 := z.Args[0]
++		z_1 := z.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, z_0, z_1 = _i0+1, z_1, z_0 {
++			if z_0.Op != OpPPC64MOVDconst {
++				continue
++			}
++			d := auxIntToInt64(z_0.AuxInt)
++			x := z_1
++			if !(z.Uses == 1 && isPPC64ValidShiftMask(d)) {
++				continue
++			}
++			v.reset(OpPPC64CLRLSLWI)
++			v.AuxInt = int32ToAuxInt(newPPC64ShiftAuxInt(c, 32-getPPC64ShiftMaskLength(d), 31, 32))
++			v.AddArg(x)
++			return true
++		}
++		break
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64SRAD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 8b32692778..f438803fb5 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -575,6 +575,7 @@ const (
+ 	ARLWMICC
+ 	ARLWNM
+ 	ARLWNMCC
++	ACLRLSLWI
+ 	ASLW
+ 	ASLWCC
+ 	ASRW
+@@ -716,6 +717,9 @@ const (
+ 	ARLDCLCC
+ 	ARLDICL
+ 	ARLDICLCC
++	ARLDIC
++	ARLDICCC
++	ACLRLSLDI
+ 	AROTL
+ 	AROTLW
+ 	ASLBIA
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 287011877c..accd87fe00 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -180,6 +180,7 @@ var Anames = []string{
+ 	"RLWMICC",
+ 	"RLWNM",
+ 	"RLWNMCC",
++	"CLRLSLWI",
+ 	"SLW",
+ 	"SLWCC",
+ 	"SRW",
+@@ -312,6 +313,9 @@ var Anames = []string{
+ 	"RLDCLCC",
+ 	"RLDICL",
+ 	"RLDICLCC",
++	"RLDIC",
++	"RLDICCC",
++	"CLRLSLDI",
+ 	"ROTL",
+ 	"ROTLW",
+ 	"SLBIA",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 98b453de6c..60dda72507 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1904,6 +1904,7 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ARLWMICC, r0)
+ 			opset(ARLWNM, r0)
+ 			opset(ARLWNMCC, r0)
++			opset(ACLRLSLWI, r0)
+ 
+ 		case ARLDMI:
+ 			opset(ARLDMICC, r0)
+@@ -1922,6 +1923,9 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ARLDICLCC, r0)
+ 			opset(ARLDICR, r0)
+ 			opset(ARLDICRCC, r0)
++			opset(ARLDIC, r0)
++			opset(ARLDICCC, r0)
++			opset(ACLRLSLDI, r0)
+ 
+ 		case AFMOVD:
+ 			opset(AFMOVDCC, r0)
+@@ -2734,13 +2738,31 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		case ARLDICR, ARLDICRCC:
+ 			me := int(d)
+ 			sh := c.regoff(&p.From)
++			if me < 0 || me > 63 || sh > 63 {
++				c.ctxt.Diag("Invalid me or sh for RLDICR: %x %x\n%v", int(d), sh)
++			}
+ 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(me))
+ 
+-		case ARLDICL, ARLDICLCC:
++		case ARLDICL, ARLDICLCC, ARLDIC, ARLDICCC:
+ 			mb := int(d)
+ 			sh := c.regoff(&p.From)
++			if mb < 0 || mb > 63 || sh > 63 {
++				c.ctxt.Diag("Invalid mb or sh for RLDIC, RLDICL: %x %x\n%v", mb, sh)
++			}
+ 			o1 = AOP_RLDIC(c.oprrr(p.As), uint32(p.To.Reg), uint32(r), uint32(sh), uint32(mb))
+ 
++		case ACLRLSLDI:
++			// This is an extended mnemonic defined in the ISA section C.8.1
++			// clrlsldi ra,rs,n,b --> rldic ra,rs,n,b-n
++			// It maps onto RLDIC so is directly generated here based on the operands from
++			// the clrlsldi.
++			b := int(d)
++			n := c.regoff(&p.From)
++			if n > int32(b) || b > 63 {
++				c.ctxt.Diag("Invalid n or b for CLRLSLDI: %x %x\n%v", n, b)
++			}
++			o1 = AOP_RLDIC(OP_RLDIC, uint32(p.To.Reg), uint32(r), uint32(n), uint32(b)-uint32(n))
++
+ 		default:
+ 			c.ctxt.Diag("unexpected op in rldc case\n%v", p)
+ 			a = 0
+@@ -3354,18 +3376,43 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 62: /* rlwmi $sh,s,$mask,a */
+ 		v := c.regoff(&p.From)
+-
+-		var mask [2]uint8
+-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
++		switch p.As {
++		case ACLRLSLWI:
++			b := c.regoff(p.GetFrom3())
++			// This is an extended mnemonic described in the ISA C.8.2
++			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
++			// It maps onto rlwinm which is directly generated here.
++			if v < 0 || v > 32 || b > 32 {
++				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
++			}
++			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
++		default:
++			var mask [2]uint8
++			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
++			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
++			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
++		}
+ 
+ 	case 63: /* rlwmi b,s,$mask,a */
+-		var mask [2]uint8
+-		c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
+-
+-		o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
+-		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
++		v := c.regoff(&p.From)
++		switch p.As {
++		case ACLRLSLWI:
++			b := c.regoff(p.GetFrom3())
++			if v > b || b > 32 {
++				// Message will match operands from the ISA even though in the
++				// code it uses 'v'
++				c.ctxt.Diag("Invalid n or b for CLRLSLWI: %x %x\n%v", v, b)
++			}
++			// This is an extended mnemonic described in the ISA C.8.2
++			// clrlslwi ra,rs,n,b -> rlwinm ra,rs,n,b-n,31-n
++			// It generates the rlwinm directly here.
++			o1 = OP_RLW(OP_RLWINM, uint32(p.To.Reg), uint32(p.Reg), uint32(v), uint32(b-v), uint32(31-v))
++		default:
++			var mask [2]uint8
++			c.maskgen(p, mask[:], uint32(c.regoff(p.GetFrom3())))
++			o1 = AOP_RRR(c.opirr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
++			o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
++		}
+ 
+ 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
+ 		var v int32
+@@ -4277,6 +4324,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 	case ARLDICRCC:
+ 		return OPVCC(30, 0, 0, 1) | 2<<1 // rldicr.
+ 
++	case ARLDIC:
++		return OPVCC(30, 0, 0, 0) | 4<<1 // rldic
++	case ARLDICCC:
++		return OPVCC(30, 0, 0, 1) | 4<<1 // rldic.
++
+ 	case ASYSCALL:
+ 		return OPVCC(17, 1, 0, 0)
+ 
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 5e50ea6bff..32214851b5 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -150,6 +150,61 @@ func lshGuarded64(v int64, s uint) int64 {
+ 	panic("shift too large")
+ }
+ 
++func checkUnneededTrunc(tab *[100000]uint32, d uint64, v uint32, h uint16, b byte) (uint32, uint64) {
++
++	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	// ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	f := tab[byte(v)^b]
++	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	f += tab[byte(v)&b]
++	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	f += tab[byte(v)|b]
++	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	f += tab[uint16(v)&h]
++	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	f += tab[uint16(v)^h]
++	// ppc64le:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++        // ppc64:-".*RLWINM",-".*RLDICR",".*CLRLSLDI"
++	f += tab[uint16(v)|h]
++	// ppc64le:-".*AND",-"RLDICR",".*CLRLSLDI"
++	// ppc64:-".*AND",-"RLDICR",".*CLRLSLDI"
++	f += tab[v&0xff]
++	// ppc64le:-".*AND",".*CLRLSLWI"
++        // ppc64:-".*AND",".*CLRLSLWI"
++        f += 2*uint32(uint16(d))
++	// ppc64le:-".*AND",-"RLDICR",".*CLRLSLDI"
++	// ppc64:-".*AND",-"RLDICR",".*CLRLSLDI"
++	g := 2*uint64(uint32(d))
++	return f, g
++}
++
++func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, v64 uint64) (uint8, uint16, uint32, uint64) {
++
++	// ppc64le:-"AND","CLRLSLWI"
++	// ppc64:-"AND","CLRLSLWI"
++	f := (v8 &0xF) << 2
++	// ppc64le:-"AND","CLRLSLWI"
++        // ppc64:-"AND","CLRLSLWI"
++	f += byte(v16)<<3
++	// ppc64le:-"AND","CLRLSLWI"
++	// ppc64:-"AND","CLRLSLWI"
++	g := (v16 & 0xFF) << 3
++	// ppc64le:-"AND","CLRLSLWI"
++	// ppc64:-"AND","CLRLSLWI"
++	h := (v32 & 0xFFFFF) << 2
++	// ppc64le:-"AND","CLRLSLWI"
++        // ppc64:-"AND","CLRLSLWI"
++	h += uint32(v64)<<4
++	// ppc64le:-"AND","CLRLSLDI"
++	// ppc64:-"AND","CLRLSLDI"
++	i := (v64 & 0xFFFFFFFF) << 5
++	return f, g, h, i
++}
++
+ func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
+ 
+ 	// ppc64le:-".*MOVW"

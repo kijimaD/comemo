@@ -15,7 +15,7 @@ Date:   Fri Apr 23 09:31:19 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |  3 +-
  src/cmd/go.sum                                     | 21 +++---
  .../x/sys/unix/{asm_darwin_386.s => asm_bsd_386.s} | 10 +--
@@ -63,3 +63,1512 @@ Date:   Fri Apr 23 09:31:19 2021 +0700
  .../golang.org/x/net/dns/dnsmessage/message.go     | 83 +++++++++++++++++++++-
  src/vendor/modules.txt                             |  4 +-
  46 files changed, 383 insertions(+), 438 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index ad899ab4bd..c5f3271a9d 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,6 @@ require (
+ 	golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+ 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
+ 	golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24
+-	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
+ 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+-	golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a
++	golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 84f42376a3..0f13c366d0 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -5,40 +5,39 @@ github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5 h1:zIaiqGYDQwa4HVx5wG
+ github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+-github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
++github.com/yuin/goldmark v1.3.3/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
+ golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72 h1:CdaLHkic8S6xdhpWgHmtWij2rv2DTGwPuJZjjEDGk2w=
+ golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
+-golang.org/x/mod v0.4.1/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24 h1:XWBCOnD7qf8cYkORdr1AfVspwadsirSDgThkrje7nWs=
+ golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+-golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
++golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4/go.mod h1:p54w0d4576C0XHj96bSt6lcn1PtDYWL6XObtHCRCNQM=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+-golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 h1:46ULzRKLh1CwgRq2dC5SlBzEqqNCi8rreOZnNrbqcIY=
+-golang.org/x/sys v0.0.0-20210309074719-68d13333faf2/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 h1:F5Gozwx4I1xtr/sr/8CFbb57iKi3297KFs0QDbGN60A=
++golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/term v0.0.0-20201117132131-f5c789dd3221/go.mod h1:Nr5EML6q2oocZ2LXRh80K7BxOlk5/8JxuGnuhpl+muw=
++golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d h1:SZxvLBoTP5yHO3Frd4z4vrF+DBX9vMVanchswa69toE=
+ golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a h1:dM42cKDDlU6VAcfE6/ANedIkHqAPncj3GWNGqjv0f0Q=
+-golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a/go.mod h1:9bzcO0MWcOuT0tm1iBGzDVPshzfwoVvREIui8C+MHqU=
++golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe h1:HNJiwGJfGFN64PAg8ZAP2gPPqlFQb/RLlE4lNoozcrw=
++golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe/go.mod h1:q7cPXv+8VGj9Sx5ckHx2nzMtCSaZFrowzWpjN/cwVb8=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_386.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_386.s
+similarity index 70%
+rename from src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_386.s
+rename to src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_386.s
+index 8a06b87d71..7f29275fa0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_386.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_386.s
+@@ -1,14 +1,14 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build (darwin || freebsd || netbsd || openbsd) && gc
++// +build darwin freebsd netbsd openbsd
+ // +build gc
+ 
+ #include "textflag.h"
+ 
+-//
+-// System call support for 386, Darwin
+-//
++// System call support for 386 BSD
+ 
+ // Just jump to package syscall's implementation for all these functions.
+ // The runtime may know about them.
+@@ -22,7 +22,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	JMP	syscall·Syscall9(SB)
+ 
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
++TEXT	·RawSyscall(SB),NOSPLIT,$0-28
+ 	JMP	syscall·RawSyscall(SB)
+ 
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_amd64.s
+similarity index 72%
+rename from src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_amd64.s
+rename to src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_amd64.s
+index f2397fde55..2b99c349a2 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_amd64.s
+@@ -1,14 +1,14 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build (darwin || dragonfly || freebsd || netbsd || openbsd) && gc
++// +build darwin dragonfly freebsd netbsd openbsd
+ // +build gc
+ 
+ #include "textflag.h"
+ 
+-//
+-// System call support for AMD64, Darwin
+-//
++// System call support for AMD64 BSD
+ 
+ // Just jump to package syscall's implementation for all these functions.
+ // The runtime may know about them.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_arm.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_arm.s
+similarity index 74%
+rename from src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_arm.s
+rename to src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_arm.s
+index d7da175e1a..98ebfad9d5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_arm.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_arm.s
+@@ -1,14 +1,14 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build (darwin || freebsd || netbsd || openbsd) && gc
++// +build darwin freebsd netbsd openbsd
+ // +build gc
+ 
+ #include "textflag.h"
+ 
+-//
+-// System call support for ARM, NetBSD
+-//
++// System call support for ARM BSD
+ 
+ // Just jump to package syscall's implementation for all these functions.
+ // The runtime may know about them.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_arm64.s
+similarity index 75%
+rename from src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_amd64.s
+rename to src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_arm64.s
+index e57367c17a..fe36a7391a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/asm_bsd_arm64.s
+@@ -1,14 +1,14 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build (darwin || freebsd || netbsd || openbsd) && gc
++// +build darwin freebsd netbsd openbsd
+ // +build gc
+ 
+ #include "textflag.h"
+ 
+-//
+-// System call support for AMD64, NetBSD
+-//
++// System call support for ARM64 BSD
+ 
+ // Just jump to package syscall's implementation for all these functions.
+ // The runtime may know about them.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_arm.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_arm.s
+deleted file mode 100644
+index c9e6b6fc8b..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_arm.s
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-// +build arm,darwin
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for ARM, Darwin
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-28
+-	B	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-40
+-	B	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-52
+-	B	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-28
+-	B	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	B	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_arm64.s
+deleted file mode 100644
+index 89843f8f4b..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_darwin_arm64.s
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-// +build arm64,darwin
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for AMD64, Darwin
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	B	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	B	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	B	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+-	B	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	B	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_dragonfly_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_dragonfly_amd64.s
+deleted file mode 100644
+index 27674e1caf..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_dragonfly_amd64.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for AMD64, DragonFly
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_386.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_386.s
+deleted file mode 100644
+index 49f0ac2364..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_386.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for 386, FreeBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-28
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-40
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-52
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_amd64.s
+deleted file mode 100644
+index f2dfc57b83..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_amd64.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for AMD64, FreeBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_arm.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_arm.s
+deleted file mode 100644
+index 6d740db2c0..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_arm.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for ARM, FreeBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-28
+-	B	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-40
+-	B	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-52
+-	B	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-28
+-	B	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	B	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_arm64.s
+deleted file mode 100644
+index a8f5a29b35..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_freebsd_arm64.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for ARM64, FreeBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_386.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_386.s
+deleted file mode 100644
+index ae7b498d50..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_386.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for 386, NetBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-28
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-40
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-52
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_arm64.s
+deleted file mode 100644
+index e7cbe1904c..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_netbsd_arm64.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for ARM64, NetBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	B	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	B	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	B	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+-	B	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	B	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_386.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_386.s
+deleted file mode 100644
+index 2f00b0310f..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_386.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for 386, OpenBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-28
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-40
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-52
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_amd64.s
+deleted file mode 100644
+index 07632c99ce..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_amd64.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for AMD64, OpenBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_arm.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_arm.s
+deleted file mode 100644
+index 73e997320f..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_arm.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for ARM, OpenBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-28
+-	B	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-40
+-	B	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-52
+-	B	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-28
+-	B	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+-	B	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_arm64.s
+deleted file mode 100644
+index c47302aa46..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/asm_openbsd_arm64.s
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build gc
+-
+-#include "textflag.h"
+-
+-//
+-// System call support for arm64, OpenBSD
+-//
+-
+-// Just jump to package syscall's implementation for all these functions.
+-// The runtime may know about them.
+-
+-TEXT	·Syscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·Syscall(SB)
+-
+-TEXT	·Syscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·Syscall6(SB)
+-
+-TEXT	·Syscall9(SB),NOSPLIT,$0-104
+-	JMP	syscall·Syscall9(SB)
+-
+-TEXT	·RawSyscall(SB),NOSPLIT,$0-56
+-	JMP	syscall·RawSyscall(SB)
+-
+-TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
+-	JMP	syscall·RawSyscall6(SB)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
+index d257fac505..d727cad19c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkall.sh
+@@ -199,7 +199,7 @@ illumos_amd64)
+         mksyscall="go run mksyscall_solaris.go"
+ 	mkerrors=
+ 	mksysnum=
+-	mktypes=
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 87f9d1e351..007358af8f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -56,6 +56,7 @@ includes_Darwin='
+ #define _DARWIN_C_SOURCE
+ #define KERNEL
+ #define _DARWIN_USE_64_BIT_INODE
++#define __APPLE_USE_RFC_3542
+ #include <stdint.h>
+ #include <sys/attr.h>
+ #include <sys/clonefile.h>
+@@ -216,6 +217,7 @@ struct ltchars {
+ #include <linux/genetlink.h>
+ #include <linux/hdreg.h>
+ #include <linux/hidraw.h>
++#include <linux/icmp.h>
+ #include <linux/icmpv6.h>
+ #include <linux/if.h>
+ #include <linux/if_addr.h>
+@@ -403,10 +405,11 @@ includes_SunOS='
+ #include <net/if_arp.h>
+ #include <net/if_types.h>
+ #include <net/route.h>
++#include <netinet/icmp6.h>
+ #include <netinet/in.h>
+-#include <termios.h>
+ #include <netinet/ip.h>
+ #include <netinet/ip_mroute.h>
++#include <termios.h>
+ '
+ 
+ 
+@@ -497,10 +500,10 @@ ccflags="$@"
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+ 		$2 ~ /^LO_(KEY|NAME)_SIZE$/ ||
+ 		$2 ~ /^LOOP_(CLR|CTL|GET|SET)_/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|ICMP6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|MCAST|EVFILT|NOTE|SHUT|PROT|MAP|MFD|T?PACKET|MSG|SCM|MCL|DT|MADV|PR|LOCAL)_/ ||
+ 		$2 ~ /^TP_STATUS_/ ||
+ 		$2 ~ /^FALLOC_/ ||
+-		$2 == "ICMPV6_FILTER" ||
++		$2 ~ /^ICMPV?6?_(FILTER|SEC)/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 == "IFNAMSIZ" ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index d2723225ec..d8efb715ff 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -252,7 +252,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
+ 			}
+ 		}
+ 
+-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+ 		sa.Name = string(bytes)
+ 		return sa, nil
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go
+index bc442e3bac..c5c58806ca 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_illumos.go
+@@ -9,7 +9,9 @@
+ 
+ package unix
+ 
+-import "unsafe"
++import (
++	"unsafe"
++)
+ 
+ func bytes2iovec(bs [][]byte) []Iovec {
+ 	iovecs := make([]Iovec, len(bs))
+@@ -76,3 +78,52 @@ func Accept4(fd int, flags int) (nfd int, sa Sockaddr, err error) {
+ 	}
+ 	return
+ }
++
++//sys	putmsg(fd int, clptr *strbuf, dataptr *strbuf, flags int) (err error)
++
++func Putmsg(fd int, cl []byte, data []byte, flags int) (err error) {
++	var clp, datap *strbuf
++	if len(cl) > 0 {
++		clp = &strbuf{
++			Len: int32(len(cl)),
++			Buf: (*int8)(unsafe.Pointer(&cl[0])),
++		}
++	}
++	if len(data) > 0 {
++		datap = &strbuf{
++			Len: int32(len(data)),
++			Buf: (*int8)(unsafe.Pointer(&data[0])),
++		}
++	}
++	return putmsg(fd, clp, datap, flags)
++}
++
++//sys	getmsg(fd int, clptr *strbuf, dataptr *strbuf, flags *int) (err error)
++
++func Getmsg(fd int, cl []byte, data []byte) (retCl []byte, retData []byte, flags int, err error) {
++	var clp, datap *strbuf
++	if len(cl) > 0 {
++		clp = &strbuf{
++			Maxlen: int32(len(cl)),
++			Buf:    (*int8)(unsafe.Pointer(&cl[0])),
++		}
++	}
++	if len(data) > 0 {
++		datap = &strbuf{
++			Maxlen: int32(len(data)),
++			Buf:    (*int8)(unsafe.Pointer(&data[0])),
++		}
++	}
++
++	if err = getmsg(fd, clp, datap, &flags); err != nil {
++		return nil, nil, 0, err
++	}
++
++	if len(cl) > 0 {
++		retCl = cl[:clp.Len]
++	}
++	if len(data) > 0 {
++		retData = data[:datap.Len]
++	}
++	return retCl, retData, flags, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 0a48548e80..44ea96e39c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1877,6 +1877,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	ClockGettime(clockid int32, time *Timespec) (err error)
+ //sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
+ //sys	Close(fd int) (err error)
++//sys	CloseRange(first uint, last uint, flags uint) (err error)
+ //sys	CopyFileRange(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
+ //sys	DeleteModule(name string, flags int) (err error)
+ //sys	Dup(oldfd int) (fd int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go
+index a941d88815..a1e45694b4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go
+@@ -250,7 +250,7 @@ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen
+ }
+ 
+ func setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) error {
+-	args := [4]uintptr{uintptr(s), uintptr(level), uintptr(name), uintptr(val)}
++	args := [5]uintptr{uintptr(s), uintptr(level), uintptr(name), uintptr(val), vallen}
+ 	_, _, err := Syscall(SYS_SOCKETCALL, netSetSockOpt, uintptr(unsafe.Pointer(&args)), 0)
+ 	if err != 0 {
+ 		return err
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
+index 169497f062..77fcde7c18 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
+@@ -565,7 +565,12 @@ func Minor(dev uint64) uint32 {
+  * Expose the ioctl function
+  */
+ 
+-//sys	ioctl(fd int, req uint, arg uintptr) (err error)
++//sys	ioctlRet(fd int, req uint, arg uintptr) (ret int, err error) = libc.ioctl
++
++func ioctl(fd int, req uint, arg uintptr) (err error) {
++	_, err = ioctlRet(fd, req, arg)
++	return err
++}
+ 
+ func IoctlSetTermio(fd int, req uint, value *Termio) error {
+ 	err := ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
+index 0100cb12f1..991996b609 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
+@@ -776,15 +776,24 @@ const (
+ 	IPV6_2292PKTINFO                  = 0x13
+ 	IPV6_2292PKTOPTIONS               = 0x19
+ 	IPV6_2292RTHDR                    = 0x18
++	IPV6_3542DSTOPTS                  = 0x32
++	IPV6_3542HOPLIMIT                 = 0x2f
++	IPV6_3542HOPOPTS                  = 0x31
++	IPV6_3542NEXTHOP                  = 0x30
++	IPV6_3542PKTINFO                  = 0x2e
++	IPV6_3542RTHDR                    = 0x33
+ 	IPV6_ADDR_MC_FLAGS_PREFIX         = 0x20
+ 	IPV6_ADDR_MC_FLAGS_TRANSIENT      = 0x10
+ 	IPV6_ADDR_MC_FLAGS_UNICAST_BASED  = 0x30
++	IPV6_AUTOFLOWLABEL                = 0x3b
+ 	IPV6_BINDV6ONLY                   = 0x1b
+ 	IPV6_BOUND_IF                     = 0x7d
+ 	IPV6_CHECKSUM                     = 0x1a
+ 	IPV6_DEFAULT_MULTICAST_HOPS       = 0x1
+ 	IPV6_DEFAULT_MULTICAST_LOOP       = 0x1
+ 	IPV6_DEFHLIM                      = 0x40
++	IPV6_DONTFRAG                     = 0x3e
++	IPV6_DSTOPTS                      = 0x32
+ 	IPV6_FAITH                        = 0x1d
+ 	IPV6_FLOWINFO_MASK                = 0xffffff0f
+ 	IPV6_FLOWLABEL_MASK               = 0xffff0f00
+@@ -796,6 +805,8 @@ const (
+ 	IPV6_FW_GET                       = 0x22
+ 	IPV6_FW_ZERO                      = 0x21
+ 	IPV6_HLIMDEC                      = 0x1
++	IPV6_HOPLIMIT                     = 0x2f
++	IPV6_HOPOPTS                      = 0x31
+ 	IPV6_IPSEC_POLICY                 = 0x1c
+ 	IPV6_JOIN_GROUP                   = 0xc
+ 	IPV6_LEAVE_GROUP                  = 0xd
+@@ -807,20 +818,34 @@ const (
+ 	IPV6_MAX_SOCK_SRC_FILTER          = 0x80
+ 	IPV6_MIN_MEMBERSHIPS              = 0x1f
+ 	IPV6_MMTU                         = 0x500
++	IPV6_MSFILTER                     = 0x4a
+ 	IPV6_MULTICAST_HOPS               = 0xa
+ 	IPV6_MULTICAST_IF                 = 0x9
+ 	IPV6_MULTICAST_LOOP               = 0xb
++	IPV6_NEXTHOP                      = 0x30
++	IPV6_PATHMTU                      = 0x2c
++	IPV6_PKTINFO                      = 0x2e
+ 	IPV6_PORTRANGE                    = 0xe
+ 	IPV6_PORTRANGE_DEFAULT            = 0x0
+ 	IPV6_PORTRANGE_HIGH               = 0x1
+ 	IPV6_PORTRANGE_LOW                = 0x2
++	IPV6_PREFER_TEMPADDR              = 0x3f
++	IPV6_RECVDSTOPTS                  = 0x28
++	IPV6_RECVHOPLIMIT                 = 0x25
++	IPV6_RECVHOPOPTS                  = 0x27
++	IPV6_RECVPATHMTU                  = 0x2b
++	IPV6_RECVPKTINFO                  = 0x3d
++	IPV6_RECVRTHDR                    = 0x26
+ 	IPV6_RECVTCLASS                   = 0x23
++	IPV6_RTHDR                        = 0x33
++	IPV6_RTHDRDSTOPTS                 = 0x39
+ 	IPV6_RTHDR_LOOSE                  = 0x0
+ 	IPV6_RTHDR_STRICT                 = 0x1
+ 	IPV6_RTHDR_TYPE_0                 = 0x0
+ 	IPV6_SOCKOPT_RESERVED1            = 0x3
+ 	IPV6_TCLASS                       = 0x24
+ 	IPV6_UNICAST_HOPS                 = 0x4
++	IPV6_USE_MIN_MTU                  = 0x2a
+ 	IPV6_V6ONLY                       = 0x1b
+ 	IPV6_VERSION                      = 0x60
+ 	IPV6_VERSION_MASK                 = 0xf0
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
+index df26a19681..e644eaf5e7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
+@@ -776,15 +776,24 @@ const (
+ 	IPV6_2292PKTINFO                  = 0x13
+ 	IPV6_2292PKTOPTIONS               = 0x19
+ 	IPV6_2292RTHDR                    = 0x18
++	IPV6_3542DSTOPTS                  = 0x32
++	IPV6_3542HOPLIMIT                 = 0x2f
++	IPV6_3542HOPOPTS                  = 0x31
++	IPV6_3542NEXTHOP                  = 0x30
++	IPV6_3542PKTINFO                  = 0x2e
++	IPV6_3542RTHDR                    = 0x33
+ 	IPV6_ADDR_MC_FLAGS_PREFIX         = 0x20
+ 	IPV6_ADDR_MC_FLAGS_TRANSIENT      = 0x10
+ 	IPV6_ADDR_MC_FLAGS_UNICAST_BASED  = 0x30
++	IPV6_AUTOFLOWLABEL                = 0x3b
+ 	IPV6_BINDV6ONLY                   = 0x1b
+ 	IPV6_BOUND_IF                     = 0x7d
+ 	IPV6_CHECKSUM                     = 0x1a
+ 	IPV6_DEFAULT_MULTICAST_HOPS       = 0x1
+ 	IPV6_DEFAULT_MULTICAST_LOOP       = 0x1
+ 	IPV6_DEFHLIM                      = 0x40
++	IPV6_DONTFRAG                     = 0x3e
++	IPV6_DSTOPTS                      = 0x32
+ 	IPV6_FAITH                        = 0x1d
+ 	IPV6_FLOWINFO_MASK                = 0xffffff0f
+ 	IPV6_FLOWLABEL_MASK               = 0xffff0f00
+@@ -796,6 +805,8 @@ const (
+ 	IPV6_FW_GET                       = 0x22
+ 	IPV6_FW_ZERO                      = 0x21
+ 	IPV6_HLIMDEC                      = 0x1
++	IPV6_HOPLIMIT                     = 0x2f
++	IPV6_HOPOPTS                      = 0x31
+ 	IPV6_IPSEC_POLICY                 = 0x1c
+ 	IPV6_JOIN_GROUP                   = 0xc
+ 	IPV6_LEAVE_GROUP                  = 0xd
+@@ -807,20 +818,34 @@ const (
+ 	IPV6_MAX_SOCK_SRC_FILTER          = 0x80
+ 	IPV6_MIN_MEMBERSHIPS              = 0x1f
+ 	IPV6_MMTU                         = 0x500
++	IPV6_MSFILTER                     = 0x4a
+ 	IPV6_MULTICAST_HOPS               = 0xa
+ 	IPV6_MULTICAST_IF                 = 0x9
+ 	IPV6_MULTICAST_LOOP               = 0xb
++	IPV6_NEXTHOP                      = 0x30
++	IPV6_PATHMTU                      = 0x2c
++	IPV6_PKTINFO                      = 0x2e
+ 	IPV6_PORTRANGE                    = 0xe
+ 	IPV6_PORTRANGE_DEFAULT            = 0x0
+ 	IPV6_PORTRANGE_HIGH               = 0x1
+ 	IPV6_PORTRANGE_LOW                = 0x2
++	IPV6_PREFER_TEMPADDR              = 0x3f
++	IPV6_RECVDSTOPTS                  = 0x28
++	IPV6_RECVHOPLIMIT                 = 0x25
++	IPV6_RECVHOPOPTS                  = 0x27
++	IPV6_RECVPATHMTU                  = 0x2b
++	IPV6_RECVPKTINFO                  = 0x3d
++	IPV6_RECVRTHDR                    = 0x26
+ 	IPV6_RECVTCLASS                   = 0x23
++	IPV6_RTHDR                        = 0x33
++	IPV6_RTHDRDSTOPTS                 = 0x39
+ 	IPV6_RTHDR_LOOSE                  = 0x0
+ 	IPV6_RTHDR_STRICT                 = 0x1
+ 	IPV6_RTHDR_TYPE_0                 = 0x0
+ 	IPV6_SOCKOPT_RESERVED1            = 0x3
+ 	IPV6_TCLASS                       = 0x24
+ 	IPV6_UNICAST_HOPS                 = 0x4
++	IPV6_USE_MIN_MTU                  = 0x2a
+ 	IPV6_V6ONLY                       = 0x1b
+ 	IPV6_VERSION                      = 0x60
+ 	IPV6_VERSION_MASK                 = 0xf0
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_freebsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_freebsd_arm.go
+index 0326a6b3af..3df99f285f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_freebsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_freebsd_arm.go
+@@ -1022,6 +1022,15 @@ const (
+ 	MAP_RESERVED0100               = 0x100
+ 	MAP_SHARED                     = 0x1
+ 	MAP_STACK                      = 0x400
++	MCAST_BLOCK_SOURCE             = 0x54
++	MCAST_EXCLUDE                  = 0x2
++	MCAST_INCLUDE                  = 0x1
++	MCAST_JOIN_GROUP               = 0x50
++	MCAST_JOIN_SOURCE_GROUP        = 0x52
++	MCAST_LEAVE_GROUP              = 0x51
++	MCAST_LEAVE_SOURCE_GROUP       = 0x53
++	MCAST_UNBLOCK_SOURCE           = 0x55
++	MCAST_UNDEFINED                = 0x0
+ 	MCL_CURRENT                    = 0x1
+ 	MCL_FUTURE                     = 0x2
+ 	MNT_ACLS                       = 0x8000000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 504dd6cd2d..35de419c6d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -974,6 +974,11 @@ const (
+ 	HUGETLBFS_MAGIC                             = 0x958458f6
+ 	IBSHIFT                                     = 0x10
+ 	ICMPV6_FILTER                               = 0x1
++	ICMPV6_FILTER_BLOCK                         = 0x1
++	ICMPV6_FILTER_BLOCKOTHERS                   = 0x3
++	ICMPV6_FILTER_PASS                          = 0x2
++	ICMPV6_FILTER_PASSONLY                      = 0x4
++	ICMP_FILTER                                 = 0x1
+ 	ICRNL                                       = 0x100
+ 	IFA_F_DADFAILED                             = 0x8
+ 	IFA_F_DEPRECATED                            = 0x20
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_solaris_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_solaris_amd64.go
+index 65fb2c5cd8..1afee6a089 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_solaris_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_solaris_amd64.go
+@@ -366,6 +366,7 @@ const (
+ 	HUPCL                         = 0x400
+ 	IBSHIFT                       = 0x10
+ 	ICANON                        = 0x2
++	ICMP6_FILTER                  = 0x1
+ 	ICRNL                         = 0x100
+ 	IEXTEN                        = 0x8000
+ 	IFF_ADDRCONF                  = 0x80000
+@@ -612,6 +613,7 @@ const (
+ 	IP_RECVPKTINFO                = 0x1a
+ 	IP_RECVRETOPTS                = 0x6
+ 	IP_RECVSLLA                   = 0xa
++	IP_RECVTOS                    = 0xc
+ 	IP_RECVTTL                    = 0xb
+ 	IP_RETOPTS                    = 0x8
+ 	IP_REUSEADDR                  = 0x104
+@@ -704,6 +706,7 @@ const (
+ 	O_APPEND                      = 0x8
+ 	O_CLOEXEC                     = 0x800000
+ 	O_CREAT                       = 0x100
++	O_DIRECT                      = 0x2000000
+ 	O_DIRECTORY                   = 0x1000000
+ 	O_DSYNC                       = 0x40
+ 	O_EXCL                        = 0x400
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go
+index 4117ce08a5..c8c7909038 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go
+@@ -137,6 +137,7 @@ const (
+ 	IP_TTL                          = 3
+ 	IP_UNBLOCK_SOURCE               = 11
+ 	ICANON                          = 0x0010
++	ICMP6_FILTER                    = 0x26
+ 	ICRNL                           = 0x0002
+ 	IEXTEN                          = 0x0020
+ 	IGNBRK                          = 0x0004
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go
+index b57c7050d7..af5cb064ec 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_illumos_amd64.go
+@@ -15,19 +15,25 @@ import (
+ //go:cgo_import_dynamic libc_writev writev "libc.so"
+ //go:cgo_import_dynamic libc_pwritev pwritev "libc.so"
+ //go:cgo_import_dynamic libc_accept4 accept4 "libsocket.so"
++//go:cgo_import_dynamic libc_putmsg putmsg "libc.so"
++//go:cgo_import_dynamic libc_getmsg getmsg "libc.so"
+ 
+ //go:linkname procreadv libc_readv
+ //go:linkname procpreadv libc_preadv
+ //go:linkname procwritev libc_writev
+ //go:linkname procpwritev libc_pwritev
+ //go:linkname procaccept4 libc_accept4
++//go:linkname procputmsg libc_putmsg
++//go:linkname procgetmsg libc_getmsg
+ 
+ var (
+ 	procreadv,
+ 	procpreadv,
+ 	procwritev,
+ 	procpwritev,
+-	procaccept4 syscallFunc
++	procaccept4,
++	procputmsg,
++	procgetmsg syscallFunc
+ )
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+@@ -100,3 +106,23 @@ func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int,
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func putmsg(fd int, clptr *strbuf, dataptr *strbuf, flags int) (err error) {
++	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procputmsg)), 4, uintptr(fd), uintptr(unsafe.Pointer(clptr)), uintptr(unsafe.Pointer(dataptr)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func getmsg(fd int, clptr *strbuf, dataptr *strbuf, flags *int) (err error) {
++	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procgetmsg)), 4, uintptr(fd), uintptr(unsafe.Pointer(clptr)), uintptr(unsafe.Pointer(dataptr)), uintptr(unsafe.Pointer(flags)), 0, 0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index 3ee26f4ad1..7305cc915b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -532,6 +532,16 @@ func Close(fd int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func CloseRange(first uint, last uint, flags uint) (err error) {
++	_, _, e1 := Syscall(SYS_CLOSE_RANGE, uintptr(first), uintptr(last), uintptr(flags))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func CopyFileRange(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_COPY_FILE_RANGE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags))
+ 	n = int(r0)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_solaris_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_solaris_amd64.go
+index 7099f555aa..4e18d5c99f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_solaris_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_solaris_amd64.go
+@@ -619,8 +619,9 @@ func __minor(version int, dev uint64) (val uint) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func ioctl(fd int, req uint, arg uintptr) (err error) {
+-	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procioctl)), 3, uintptr(fd), uintptr(req), uintptr(arg), 0, 0, 0)
++func ioctlRet(fd int, req uint, arg uintptr) (ret int, err error) {
++	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procioctl)), 3, uintptr(fd), uintptr(req), uintptr(arg), 0, 0, 0)
++	ret = int(r0)
+ 	if e1 != 0 {
+ 		err = e1
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_illumos_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_illumos_amd64.go
+new file mode 100644
+index 0000000000..1137a5a1f4
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_illumos_amd64.go
+@@ -0,0 +1,40 @@
++// cgo -godefs types_illumos.go | go run mkpost.go
++// Code generated by the command above; see README.md. DO NOT EDIT.
++
++//go:build amd64 && illumos
++// +build amd64,illumos
++
++package unix
++
++const (
++	TUNNEWPPA = 0x540001
++	TUNSETPPA = 0x540002
++
++	I_STR     = 0x5308
++	I_POP     = 0x5303
++	I_PUSH    = 0x5302
++	I_PLINK   = 0x5316
++	I_PUNLINK = 0x5317
++
++	IF_UNITSEL = -0x7ffb8cca
++)
++
++type strbuf struct {
++	Maxlen int32
++	Len    int32
++	Buf    *int8
++}
++
++type strioctl struct {
++	Cmd    int32
++	Timout int32
++	Len    int32
++	Dp     *int8
++}
++
++type lifreq struct {
++	Name   [32]int8
++	Lifru1 [4]byte
++	Type   uint32
++	Lifru  [336]byte
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index d3a18713bb..c769e73cd6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -3709,3 +3709,14 @@ type (
+ 		Product int16
+ 	}
+ )
++
++const (
++	CLOSE_RANGE_UNSHARE = 0x2
++	CLOSE_RANGE_CLOEXEC = 0x4
++)
++
++const (
++	NLMSGERR_ATTR_MSG    = 0x1
++	NLMSGERR_ATTR_OFFS   = 0x2
++	NLMSGERR_ATTR_COOKIE = 0x3
++)
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+index 0e428ecbbd..111c10d3a7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+@@ -1334,7 +1334,11 @@ func (absoluteSD *SECURITY_DESCRIPTOR) ToSelfRelative() (selfRelativeSD *SECURIT
+ }
+ 
+ func (selfRelativeSD *SECURITY_DESCRIPTOR) copySelfRelativeSecurityDescriptor() *SECURITY_DESCRIPTOR {
+-	sdLen := (int)(selfRelativeSD.Length())
++	sdLen := int(selfRelativeSD.Length())
++	const min = int(unsafe.Sizeof(SECURITY_DESCRIPTOR{}))
++	if sdLen < min {
++		sdLen = min
++	}
+ 
+ 	var src []byte
+ 	h := (*unsafeheader.Slice)(unsafe.Pointer(&src))
+@@ -1342,7 +1346,15 @@ func (selfRelativeSD *SECURITY_DESCRIPTOR) copySelfRelativeSecurityDescriptor()
+ 	h.Len = sdLen
+ 	h.Cap = sdLen
+ 
+-	dst := make([]byte, sdLen)
++	const psize = int(unsafe.Sizeof(uintptr(0)))
++
++	var dst []byte
++	h = (*unsafeheader.Slice)(unsafe.Pointer(&dst))
++	alloc := make([]uintptr, (sdLen+psize-1)/psize)
++	h.Data = (*unsafeheader.Slice)(unsafe.Pointer(&alloc)).Data
++	h.Len = sdLen
++	h.Cap = sdLen
++
+ 	copy(dst, src)
+ 	return (*SECURITY_DESCRIPTOR)(unsafe.Pointer(&dst[0]))
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 369cc91da7..23fe18ecef 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -1020,6 +1020,7 @@ const (
+ 
+ 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+ 
++	IP_HDRINCL         = 0x2
+ 	IP_TOS             = 0x3
+ 	IP_TTL             = 0x4
+ 	IP_MULTICAST_IF    = 0x9
+@@ -1027,6 +1028,7 @@ const (
+ 	IP_MULTICAST_LOOP  = 0xb
+ 	IP_ADD_MEMBERSHIP  = 0xc
+ 	IP_DROP_MEMBERSHIP = 0xd
++	IP_PKTINFO         = 0x13
+ 
+ 	IPV6_V6ONLY         = 0x1b
+ 	IPV6_UNICAST_HOPS   = 0x4
+@@ -1035,6 +1037,7 @@ const (
+ 	IPV6_MULTICAST_LOOP = 0xb
+ 	IPV6_JOIN_GROUP     = 0xc
+ 	IPV6_LEAVE_GROUP    = 0xd
++	IPV6_PKTINFO        = 0x13
+ 
+ 	MSG_OOB       = 0x1
+ 	MSG_PEEK      = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+index 2856df137c..4bb652a726 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/inspect/inspect.go
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package inspect defines an Analyzer that provides an AST inspector
+-// (golang.org/x/tools/go/ast/inspect.Inspect) for the syntax trees of a
+-// package. It is only a building block for other analyzers.
++// (golang.org/x/tools/go/ast/inspector.Inspector) for the syntax trees
++// of a package. It is only a building block for other analyzers.
+ //
+ // Example of use in another analysis:
+ //
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+index 3d89061d17..b00aa7e144 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/sigchanyzer/sigchanyzer.go
+@@ -49,6 +49,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 				chanDecl = decl
+ 			}
+ 		case *ast.CallExpr:
++			// Only signal.Notify(make(chan os.Signal), os.Interrupt) is safe,
++			// conservatively treate others as not safe, see golang/go#45043
++			if isBuiltinMake(pass.TypesInfo, arg) {
++				return
++			}
+ 			chanDecl = arg
+ 		}
+ 		if chanDecl == nil || len(chanDecl.Args) != 1 {
+@@ -127,3 +132,16 @@ func findDecl(arg *ast.Ident) ast.Node {
+ 	}
+ 	return nil
+ }
++
++func isBuiltinMake(info *types.Info, call *ast.CallExpr) bool {
++	typVal := info.Types[call.Fun]
++	if !typVal.IsBuiltin() {
++		return false
++	}
++	switch fun := call.Fun.(type) {
++	case *ast.Ident:
++		return info.ObjectOf(fun).Name() == "make"
++	default:
++		return false
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 80ccb2bf24..9229d2dc8b 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -38,8 +38,7 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
+-## explicit
++# golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+@@ -47,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+ ## explicit
+ golang.org/x/term
+-# golang.org/x/tools v0.1.1-0.20210312185553-8e4f4c86593a
++# golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe
+ ## explicit
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+diff --git a/src/go.mod b/src/go.mod
+index 2ddab18077..89ad19d288 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.17
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
+-	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
++	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
++	golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 // indirect
+ 	golang.org/x/text v0.3.6-0.20210227105805-e3aa4adf54f6 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 85c7dd9268..034d8506f4 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,13 +2,14 @@ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACk
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
+ golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+-golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 h1:qWPm9rbaAMKs8Bq/9LRpbMqxWRVUAQwMI9fVrssnTfw=
+-golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
++golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 h1:4nGaVu0QrbjT/AK2PRLuQfQuh6DJve+pELhqTdAj3x0=
++golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4/go.mod h1:p54w0d4576C0XHj96bSt6lcn1PtDYWL6XObtHCRCNQM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 h1:46ULzRKLh1CwgRq2dC5SlBzEqqNCi8rreOZnNrbqcIY=
+-golang.org/x/sys v0.0.0-20210309074719-68d13333faf2/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 h1:F5Gozwx4I1xtr/sr/8CFbb57iKi3297KFs0QDbGN60A=
++golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/term v0.0.0-20201117132131-f5c789dd3221/go.mod h1:Nr5EML6q2oocZ2LXRh80K7BxOlk5/8JxuGnuhpl+muw=
+ golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 654f191f8a..1736fc5d12 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -1023,6 +1023,24 @@ func (p *Parser) OPTResource() (OPTResource, error) {
+ 	return r, nil
+ }
+ 
++// UnknownResource parses a single UnknownResource.
++//
++// One of the XXXHeader methods must have been called before calling this
++// method.
++func (p *Parser) UnknownResource() (UnknownResource, error) {
++	if !p.resHeaderValid {
++		return UnknownResource{}, ErrNotStarted
++	}
++	r, err := unpackUnknownResource(p.resHeader.Type, p.msg, p.off, p.resHeader.Length)
++	if err != nil {
++		return UnknownResource{}, err
++	}
++	p.off += int(p.resHeader.Length)
++	p.resHeaderValid = false
++	p.index++
++	return r, nil
++}
++
+ // Unpack parses a full Message.
+ func (m *Message) Unpack(msg []byte) error {
+ 	var p Parser
+@@ -1557,6 +1575,30 @@ func (b *Builder) OPTResource(h ResourceHeader, r OPTResource) error {
+ 	return nil
+ }
+ 
++// UnknownResource adds a single UnknownResource.
++func (b *Builder) UnknownResource(h ResourceHeader, r UnknownResource) error {
++	if err := b.checkResourceSection(); err != nil {
++		return err
++	}
++	h.Type = r.realType()
++	msg, lenOff, err := h.pack(b.msg, b.compression, b.start)
++	if err != nil {
++		return &nestedError{"ResourceHeader", err}
++	}
++	preLen := len(msg)
++	if msg, err = r.pack(msg, b.compression, b.start); err != nil {
++		return &nestedError{"UnknownResource body", err}
++	}
++	if err := h.fixLen(msg, lenOff, preLen); err != nil {
++		return err
++	}
++	if err := b.incrementSectionCount(); err != nil {
++		return err
++	}
++	b.msg = msg
++	return nil
++}
++
+ // Finish ends message building and generates a binary message.
+ func (b *Builder) Finish() ([]byte, error) {
+ 	if b.section < sectionHeader {
+@@ -2135,13 +2177,15 @@ func unpackResourceBody(msg []byte, off int, hdr ResourceHeader) (ResourceBody,
+ 		rb, err = unpackOPTResource(msg, off, hdr.Length)
+ 		r = &rb
+ 		name = "OPT"
++	default:
++		var rb UnknownResource
++		rb, err = unpackUnknownResource(hdr.Type, msg, off, hdr.Length)
++		r = &rb
++		name = "Unknown"
+ 	}
+ 	if err != nil {
+ 		return nil, off, &nestedError{name + " record", err}
+ 	}
+-	if r == nil {
+-		return nil, off, errors.New("invalid resource type: " + hdr.Type.String())
+-	}
+ 	return r, off + int(hdr.Length), nil
+ }
+ 
+@@ -2585,3 +2629,36 @@ func unpackOPTResource(msg []byte, off int, length uint16) (OPTResource, error)
+ 	}
+ 	return OPTResource{opts}, nil
+ }
++
++// An UnknownResource is a catch-all container for unknown record types.
++type UnknownResource struct {
++	Type Type
++	Data []byte
++}
++
++func (r *UnknownResource) realType() Type {
++	return r.Type
++}
++
++// pack appends the wire format of the UnknownResource to msg.
++func (r *UnknownResource) pack(msg []byte, compression map[string]int, compressionOff int) ([]byte, error) {
++	return packBytes(msg, r.Data[:]), nil
++}
++
++// GoString implements fmt.GoStringer.GoString.
++func (r *UnknownResource) GoString() string {
++	return "dnsmessage.UnknownResource{" +
++		"Type: " + r.Type.GoString() + ", " +
++		"Data: []byte{" + printByteSlice(r.Data) + "}}"
++}
++
++func unpackUnknownResource(recordType Type, msg []byte, off int, length uint16) (UnknownResource, error) {
++	parsed := UnknownResource{
++		Type: recordType,
++		Data: make([]byte, length),
++	}
++	if _, err := unpackBytes(msg, off, parsed.Data); err != nil {
++		return UnknownResource{}, err
++	}
++	return parsed, nil
++}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 15a3aef4f8..499e6fc3fa 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
++# golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+ ## explicit
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -18,7 +18,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.0.0-20210309074719-68d13333faf2
++# golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57
+ ## explicit
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.6-0.20210227105805-e3aa4adf54f6

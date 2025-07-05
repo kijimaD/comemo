@@ -15,6 +15,43 @@ Date:   Mon Mar 20 14:29:05 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index f87ef11b98..3e5c9cb6cd 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -446,26 +446,23 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.assignment(&val, uch.elem, "send")
+ 
+ 	case *syntax.AssignStmt:
+-		lhs := unpackExpr(s.Lhs)
+ 		if s.Rhs == nil {
+ 			// x++ or x--
+-			if len(lhs) != 1 {
+-				check.errorf(s, InvalidSyntaxTree, "%s%s requires one operand", s.Op, s.Op)
+-				return
+-			}
++			// (no need to call unpackExpr as s.Lhs must be single-valued)
+ 			var x operand
+-			check.expr(&x, lhs[0])
++			check.expr(&x, s.Lhs)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+ 			if !allNumeric(x.typ) {
+-				check.errorf(lhs[0], NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
++				check.errorf(s.Lhs, NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", s.Lhs, s.Op, s.Op, x.typ)
+ 				return
+ 			}
+-			check.assignVar(lhs[0], &x)
++			check.assignVar(s.Lhs, &x)
+ 			return
+ 		}
+ 
++		lhs := unpackExpr(s.Lhs)
+ 		rhs := unpackExpr(s.Rhs)
+ 		switch s.Op {
+ 		case 0:

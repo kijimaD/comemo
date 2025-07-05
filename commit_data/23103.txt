@@ -9,7 +9,29 @@ Date:   Fri Apr 24 09:10:44 2015 -0700
     Change-Id: Ief3673c22d45624e173fc65ee279cea324da03b5
     Reviewed-on: https://go-review.googlesource.com/9226
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/{doc.go => alldocs.go}     | 0
  src/cmd/go/{mkdoc.sh => mkalldocs.sh} | 4 ++--
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/alldocs.go
+similarity index 100%
+rename from src/cmd/go/doc.go
+rename to src/cmd/go/alldocs.go
+diff --git a/src/cmd/go/mkdoc.sh b/src/cmd/go/mkalldocs.sh
+similarity index 71%
+rename from src/cmd/go/mkdoc.sh
+rename to src/cmd/go/mkalldocs.sh
+index 507a8aeddc..74e3125e65 100755
+--- a/src/cmd/go/mkdoc.sh
++++ b/src/cmd/go/mkalldocs.sh
+@@ -6,7 +6,7 @@
+ set -e
+ 
+ go build -o go.latest
+-./go.latest help documentation | sed 's; \*/; * /;' >doc.go
+-gofmt -w doc.go
++./go.latest help documentation | sed 's; \*/; * /;' >alldocs.go
++gofmt -w alldocs.go
+ rm go.latest
+ 

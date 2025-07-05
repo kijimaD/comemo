@@ -21,7 +21,7 @@ Date:   Thu Sep 24 23:21:18 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/14956
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   |   9 +-
  src/cmd/compile/internal/amd64/gsubr.go  | 613 ++++++++++++++++---------------
  src/cmd/compile/internal/arm/cgen64.go   |   6 +-
@@ -59,3 +59,6511 @@ Date:   Thu Sep 24 23:21:18 2015 +0200
  src/cmd/compile/internal/x86/ggen.go     |  40 +-
  src/cmd/compile/internal/x86/gsubr.go    | 515 ++++++++++++++------------
  36 files changed, 1927 insertions(+), 1729 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index a4f1ec9315..0cd3473e29 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -192,7 +192,7 @@ var panicdiv *gc.Node
+  *	res = nl % nr
+  * according to op.
+  */
+-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+ 	// The hardware will trap.
+@@ -335,7 +335,8 @@ func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
+ 		x.Type = gc.Types[gc.TINT64]
+ 		gmove(x, oldx)
+ 		x.Type = t
+-		oldx.Etype = r // squirrel away old r value
++		// TODO(marvin): Fix Node.EType type union.
++		oldx.Etype = gc.EType(r) // squirrel away old r value
+ 		gc.SetReg(dr, 1)
+ 	}
+ }
+@@ -389,7 +390,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl << nr
+  *	res = nl >> nr
+  */
+-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	a := optoas(op, nl.Type)
+ 
+ 	if nr.Op == gc.OLITERAL {
+@@ -508,7 +509,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  * there is no 2-operand byte multiply instruction so
+  * we do a full-width multiplication and truncate afterwards.
+  */
+-func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
++func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+ 	if optoas(op, nl.Type) != x86.AIMULB {
+ 		return false
+ 	}
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 7b57902c96..4cc946f2b6 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -100,7 +100,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
+ 	gins(as, &n1, n2)
+ }
+ 
+-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+@@ -673,514 +673,547 @@ func ginsnop() {
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+-func optoas(op int, t *gc.Type) int {
++func optoas(op gc.Op, t *gc.Type) int {
+ 	if t == nil {
+ 		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_  = uint32(gc.OMINUS) << 16
++		OLSH_    = uint32(gc.OLSH) << 16
++		ORSH_    = uint32(gc.ORSH) << 16
++		OADD_    = uint32(gc.OADD) << 16
++		OSUB_    = uint32(gc.OSUB) << 16
++		OMUL_    = uint32(gc.OMUL) << 16
++		ODIV_    = uint32(gc.ODIV) << 16
++		OMOD_    = uint32(gc.OMOD) << 16
++		OOR_     = uint32(gc.OOR) << 16
++		OAND_    = uint32(gc.OAND) << 16
++		OXOR_    = uint32(gc.OXOR) << 16
++		OEQ_     = uint32(gc.OEQ) << 16
++		ONE_     = uint32(gc.ONE) << 16
++		OLT_     = uint32(gc.OLT) << 16
++		OLE_     = uint32(gc.OLE) << 16
++		OGE_     = uint32(gc.OGE) << 16
++		OGT_     = uint32(gc.OGT) << 16
++		OCMP_    = uint32(gc.OCMP) << 16
++		OPS_     = uint32(gc.OPS) << 16
++		OPC_     = uint32(gc.OPC) << 16
++		OAS_     = uint32(gc.OAS) << 16
++		OHMUL_   = uint32(gc.OHMUL) << 16
++		OSQRT_   = uint32(gc.OSQRT) << 16
++		OADDR_   = uint32(gc.OADDR) << 16
++		OINC_    = uint32(gc.OINC) << 16
++		ODEC_    = uint32(gc.ODEC) << 16
++		OLROT_   = uint32(gc.OLROT) << 16
++		ORROTC_  = uint32(gc.ORROTC) << 16
++		OEXTEND_ = uint32(gc.OEXTEND) << 16
++	)
++
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+ 		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+ 
+-	case gc.OADDR<<16 | gc.TPTR32:
++	case OADDR_ | gc.TPTR32:
+ 		a = x86.ALEAL
+ 
+-	case gc.OADDR<<16 | gc.TPTR64:
++	case OADDR_ | gc.TPTR64:
+ 		a = x86.ALEAQ
+ 
+-	case gc.OEQ<<16 | gc.TBOOL,
+-		gc.OEQ<<16 | gc.TINT8,
+-		gc.OEQ<<16 | gc.TUINT8,
+-		gc.OEQ<<16 | gc.TINT16,
+-		gc.OEQ<<16 | gc.TUINT16,
+-		gc.OEQ<<16 | gc.TINT32,
+-		gc.OEQ<<16 | gc.TUINT32,
+-		gc.OEQ<<16 | gc.TINT64,
+-		gc.OEQ<<16 | gc.TUINT64,
+-		gc.OEQ<<16 | gc.TPTR32,
+-		gc.OEQ<<16 | gc.TPTR64,
+-		gc.OEQ<<16 | gc.TFLOAT32,
+-		gc.OEQ<<16 | gc.TFLOAT64:
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
+ 		a = x86.AJEQ
+ 
+-	case gc.ONE<<16 | gc.TBOOL,
+-		gc.ONE<<16 | gc.TINT8,
+-		gc.ONE<<16 | gc.TUINT8,
+-		gc.ONE<<16 | gc.TINT16,
+-		gc.ONE<<16 | gc.TUINT16,
+-		gc.ONE<<16 | gc.TINT32,
+-		gc.ONE<<16 | gc.TUINT32,
+-		gc.ONE<<16 | gc.TINT64,
+-		gc.ONE<<16 | gc.TUINT64,
+-		gc.ONE<<16 | gc.TPTR32,
+-		gc.ONE<<16 | gc.TPTR64,
+-		gc.ONE<<16 | gc.TFLOAT32,
+-		gc.ONE<<16 | gc.TFLOAT64:
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
+ 		a = x86.AJNE
+ 
+-	case gc.OPS<<16 | gc.TBOOL,
+-		gc.OPS<<16 | gc.TINT8,
+-		gc.OPS<<16 | gc.TUINT8,
+-		gc.OPS<<16 | gc.TINT16,
+-		gc.OPS<<16 | gc.TUINT16,
+-		gc.OPS<<16 | gc.TINT32,
+-		gc.OPS<<16 | gc.TUINT32,
+-		gc.OPS<<16 | gc.TINT64,
+-		gc.OPS<<16 | gc.TUINT64,
+-		gc.OPS<<16 | gc.TPTR32,
+-		gc.OPS<<16 | gc.TPTR64,
+-		gc.OPS<<16 | gc.TFLOAT32,
+-		gc.OPS<<16 | gc.TFLOAT64:
++	case OPS_ | gc.TBOOL,
++		OPS_ | gc.TINT8,
++		OPS_ | gc.TUINT8,
++		OPS_ | gc.TINT16,
++		OPS_ | gc.TUINT16,
++		OPS_ | gc.TINT32,
++		OPS_ | gc.TUINT32,
++		OPS_ | gc.TINT64,
++		OPS_ | gc.TUINT64,
++		OPS_ | gc.TPTR32,
++		OPS_ | gc.TPTR64,
++		OPS_ | gc.TFLOAT32,
++		OPS_ | gc.TFLOAT64:
+ 		a = x86.AJPS
+ 
+-	case gc.OPC<<16 | gc.TBOOL,
+-		gc.OPC<<16 | gc.TINT8,
+-		gc.OPC<<16 | gc.TUINT8,
+-		gc.OPC<<16 | gc.TINT16,
+-		gc.OPC<<16 | gc.TUINT16,
+-		gc.OPC<<16 | gc.TINT32,
+-		gc.OPC<<16 | gc.TUINT32,
+-		gc.OPC<<16 | gc.TINT64,
+-		gc.OPC<<16 | gc.TUINT64,
+-		gc.OPC<<16 | gc.TPTR32,
+-		gc.OPC<<16 | gc.TPTR64,
+-		gc.OPC<<16 | gc.TFLOAT32,
+-		gc.OPC<<16 | gc.TFLOAT64:
++	case OPC_ | gc.TBOOL,
++		OPC_ | gc.TINT8,
++		OPC_ | gc.TUINT8,
++		OPC_ | gc.TINT16,
++		OPC_ | gc.TUINT16,
++		OPC_ | gc.TINT32,
++		OPC_ | gc.TUINT32,
++		OPC_ | gc.TINT64,
++		OPC_ | gc.TUINT64,
++		OPC_ | gc.TPTR32,
++		OPC_ | gc.TPTR64,
++		OPC_ | gc.TFLOAT32,
++		OPC_ | gc.TFLOAT64:
+ 		a = x86.AJPC
+ 
+-	case gc.OLT<<16 | gc.TINT8,
+-		gc.OLT<<16 | gc.TINT16,
+-		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64:
++	case OLT_ | gc.TINT8,
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64:
+ 		a = x86.AJLT
+ 
+-	case gc.OLT<<16 | gc.TUINT8,
+-		gc.OLT<<16 | gc.TUINT16,
+-		gc.OLT<<16 | gc.TUINT32,
+-		gc.OLT<<16 | gc.TUINT64:
++	case OLT_ | gc.TUINT8,
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64:
+ 		a = x86.AJCS
+ 
+-	case gc.OLE<<16 | gc.TINT8,
+-		gc.OLE<<16 | gc.TINT16,
+-		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64:
++	case OLE_ | gc.TINT8,
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64:
+ 		a = x86.AJLE
+ 
+-	case gc.OLE<<16 | gc.TUINT8,
+-		gc.OLE<<16 | gc.TUINT16,
+-		gc.OLE<<16 | gc.TUINT32,
+-		gc.OLE<<16 | gc.TUINT64:
++	case OLE_ | gc.TUINT8,
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64:
+ 		a = x86.AJLS
+ 
+-	case gc.OGT<<16 | gc.TINT8,
+-		gc.OGT<<16 | gc.TINT16,
+-		gc.OGT<<16 | gc.TINT32,
+-		gc.OGT<<16 | gc.TINT64:
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64:
+ 		a = x86.AJGT
+ 
+-	case gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64,
+-		gc.OLT<<16 | gc.TFLOAT32,
+-		gc.OLT<<16 | gc.TFLOAT64:
++	case OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64,
++		OLT_ | gc.TFLOAT32,
++		OLT_ | gc.TFLOAT64:
+ 		a = x86.AJHI
+ 
+-	case gc.OGE<<16 | gc.TINT8,
+-		gc.OGE<<16 | gc.TINT16,
+-		gc.OGE<<16 | gc.TINT32,
+-		gc.OGE<<16 | gc.TINT64:
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64:
+ 		a = x86.AJGE
+ 
+-	case gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64,
+-		gc.OLE<<16 | gc.TFLOAT32,
+-		gc.OLE<<16 | gc.TFLOAT64:
++	case OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64,
++		OLE_ | gc.TFLOAT32,
++		OLE_ | gc.TFLOAT64:
+ 		a = x86.AJCC
+ 
+-	case gc.OCMP<<16 | gc.TBOOL,
+-		gc.OCMP<<16 | gc.TINT8,
+-		gc.OCMP<<16 | gc.TUINT8:
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TUINT8:
+ 		a = x86.ACMPB
+ 
+-	case gc.OCMP<<16 | gc.TINT16,
+-		gc.OCMP<<16 | gc.TUINT16:
++	case OCMP_ | gc.TINT16,
++		OCMP_ | gc.TUINT16:
+ 		a = x86.ACMPW
+ 
+-	case gc.OCMP<<16 | gc.TINT32,
+-		gc.OCMP<<16 | gc.TUINT32,
+-		gc.OCMP<<16 | gc.TPTR32:
++	case OCMP_ | gc.TINT32,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TPTR32:
+ 		a = x86.ACMPL
+ 
+-	case gc.OCMP<<16 | gc.TINT64,
+-		gc.OCMP<<16 | gc.TUINT64,
+-		gc.OCMP<<16 | gc.TPTR64:
++	case OCMP_ | gc.TINT64,
++		OCMP_ | gc.TUINT64,
++		OCMP_ | gc.TPTR64:
+ 		a = x86.ACMPQ
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT32:
++	case OCMP_ | gc.TFLOAT32:
+ 		a = x86.AUCOMISS
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT64:
++	case OCMP_ | gc.TFLOAT64:
+ 		a = x86.AUCOMISD
+ 
+-	case gc.OAS<<16 | gc.TBOOL,
+-		gc.OAS<<16 | gc.TINT8,
+-		gc.OAS<<16 | gc.TUINT8:
++	case OAS_ | gc.TBOOL,
++		OAS_ | gc.TINT8,
++		OAS_ | gc.TUINT8:
+ 		a = x86.AMOVB
+ 
+-	case gc.OAS<<16 | gc.TINT16,
+-		gc.OAS<<16 | gc.TUINT16:
++	case OAS_ | gc.TINT16,
++		OAS_ | gc.TUINT16:
+ 		a = x86.AMOVW
+ 
+-	case gc.OAS<<16 | gc.TINT32,
+-		gc.OAS<<16 | gc.TUINT32,
+-		gc.OAS<<16 | gc.TPTR32:
++	case OAS_ | gc.TINT32,
++		OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
+ 		a = x86.AMOVL
+ 
+-	case gc.OAS<<16 | gc.TINT64,
+-		gc.OAS<<16 | gc.TUINT64,
+-		gc.OAS<<16 | gc.TPTR64:
++	case OAS_ | gc.TINT64,
++		OAS_ | gc.TUINT64,
++		OAS_ | gc.TPTR64:
+ 		a = x86.AMOVQ
+ 
+-	case gc.OAS<<16 | gc.TFLOAT32:
++	case OAS_ | gc.TFLOAT32:
+ 		a = x86.AMOVSS
+ 
+-	case gc.OAS<<16 | gc.TFLOAT64:
++	case OAS_ | gc.TFLOAT64:
+ 		a = x86.AMOVSD
+ 
+-	case gc.OADD<<16 | gc.TINT8,
+-		gc.OADD<<16 | gc.TUINT8:
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8:
+ 		a = x86.AADDB
+ 
+-	case gc.OADD<<16 | gc.TINT16,
+-		gc.OADD<<16 | gc.TUINT16:
++	case OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16:
+ 		a = x86.AADDW
+ 
+-	case gc.OADD<<16 | gc.TINT32,
+-		gc.OADD<<16 | gc.TUINT32,
+-		gc.OADD<<16 | gc.TPTR32:
++	case OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32:
+ 		a = x86.AADDL
+ 
+-	case gc.OADD<<16 | gc.TINT64,
+-		gc.OADD<<16 | gc.TUINT64,
+-		gc.OADD<<16 | gc.TPTR64:
++	case OADD_ | gc.TINT64,
++		OADD_ | gc.TUINT64,
++		OADD_ | gc.TPTR64:
+ 		a = x86.AADDQ
+ 
+-	case gc.OADD<<16 | gc.TFLOAT32:
++	case OADD_ | gc.TFLOAT32:
+ 		a = x86.AADDSS
+ 
+-	case gc.OADD<<16 | gc.TFLOAT64:
++	case OADD_ | gc.TFLOAT64:
+ 		a = x86.AADDSD
+ 
+-	case gc.OSUB<<16 | gc.TINT8,
+-		gc.OSUB<<16 | gc.TUINT8:
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8:
+ 		a = x86.ASUBB
+ 
+-	case gc.OSUB<<16 | gc.TINT16,
+-		gc.OSUB<<16 | gc.TUINT16:
++	case OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16:
+ 		a = x86.ASUBW
+ 
+-	case gc.OSUB<<16 | gc.TINT32,
+-		gc.OSUB<<16 | gc.TUINT32,
+-		gc.OSUB<<16 | gc.TPTR32:
++	case OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32:
+ 		a = x86.ASUBL
+ 
+-	case gc.OSUB<<16 | gc.TINT64,
+-		gc.OSUB<<16 | gc.TUINT64,
+-		gc.OSUB<<16 | gc.TPTR64:
++	case OSUB_ | gc.TINT64,
++		OSUB_ | gc.TUINT64,
++		OSUB_ | gc.TPTR64:
+ 		a = x86.ASUBQ
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT32:
++	case OSUB_ | gc.TFLOAT32:
+ 		a = x86.ASUBSS
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT64:
++	case OSUB_ | gc.TFLOAT64:
+ 		a = x86.ASUBSD
+ 
+-	case gc.OINC<<16 | gc.TINT8,
+-		gc.OINC<<16 | gc.TUINT8:
++	case OINC_ | gc.TINT8,
++		OINC_ | gc.TUINT8:
+ 		a = x86.AINCB
+ 
+-	case gc.OINC<<16 | gc.TINT16,
+-		gc.OINC<<16 | gc.TUINT16:
++	case OINC_ | gc.TINT16,
++		OINC_ | gc.TUINT16:
+ 		a = x86.AINCW
+ 
+-	case gc.OINC<<16 | gc.TINT32,
+-		gc.OINC<<16 | gc.TUINT32,
+-		gc.OINC<<16 | gc.TPTR32:
++	case OINC_ | gc.TINT32,
++		OINC_ | gc.TUINT32,
++		OINC_ | gc.TPTR32:
+ 		a = x86.AINCL
+ 
+-	case gc.OINC<<16 | gc.TINT64,
+-		gc.OINC<<16 | gc.TUINT64,
+-		gc.OINC<<16 | gc.TPTR64:
++	case OINC_ | gc.TINT64,
++		OINC_ | gc.TUINT64,
++		OINC_ | gc.TPTR64:
+ 		a = x86.AINCQ
+ 
+-	case gc.ODEC<<16 | gc.TINT8,
+-		gc.ODEC<<16 | gc.TUINT8:
++	case ODEC_ | gc.TINT8,
++		ODEC_ | gc.TUINT8:
+ 		a = x86.ADECB
+ 
+-	case gc.ODEC<<16 | gc.TINT16,
+-		gc.ODEC<<16 | gc.TUINT16:
++	case ODEC_ | gc.TINT16,
++		ODEC_ | gc.TUINT16:
+ 		a = x86.ADECW
+ 
+-	case gc.ODEC<<16 | gc.TINT32,
+-		gc.ODEC<<16 | gc.TUINT32,
+-		gc.ODEC<<16 | gc.TPTR32:
++	case ODEC_ | gc.TINT32,
++		ODEC_ | gc.TUINT32,
++		ODEC_ | gc.TPTR32:
+ 		a = x86.ADECL
+ 
+-	case gc.ODEC<<16 | gc.TINT64,
+-		gc.ODEC<<16 | gc.TUINT64,
+-		gc.ODEC<<16 | gc.TPTR64:
++	case ODEC_ | gc.TINT64,
++		ODEC_ | gc.TUINT64,
++		ODEC_ | gc.TPTR64:
+ 		a = x86.ADECQ
+ 
+-	case gc.OMINUS<<16 | gc.TINT8,
+-		gc.OMINUS<<16 | gc.TUINT8:
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8:
+ 		a = x86.ANEGB
+ 
+-	case gc.OMINUS<<16 | gc.TINT16,
+-		gc.OMINUS<<16 | gc.TUINT16:
++	case OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16:
+ 		a = x86.ANEGW
+ 
+-	case gc.OMINUS<<16 | gc.TINT32,
+-		gc.OMINUS<<16 | gc.TUINT32,
+-		gc.OMINUS<<16 | gc.TPTR32:
++	case OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32:
+ 		a = x86.ANEGL
+ 
+-	case gc.OMINUS<<16 | gc.TINT64,
+-		gc.OMINUS<<16 | gc.TUINT64,
+-		gc.OMINUS<<16 | gc.TPTR64:
++	case OMINUS_ | gc.TINT64,
++		OMINUS_ | gc.TUINT64,
++		OMINUS_ | gc.TPTR64:
+ 		a = x86.ANEGQ
+ 
+-	case gc.OAND<<16 | gc.TBOOL,
+-		gc.OAND<<16 | gc.TINT8,
+-		gc.OAND<<16 | gc.TUINT8:
++	case OAND_ | gc.TBOOL,
++		OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8:
+ 		a = x86.AANDB
+ 
+-	case gc.OAND<<16 | gc.TINT16,
+-		gc.OAND<<16 | gc.TUINT16:
++	case OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16:
+ 		a = x86.AANDW
+ 
+-	case gc.OAND<<16 | gc.TINT32,
+-		gc.OAND<<16 | gc.TUINT32,
+-		gc.OAND<<16 | gc.TPTR32:
++	case OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32:
+ 		a = x86.AANDL
+ 
+-	case gc.OAND<<16 | gc.TINT64,
+-		gc.OAND<<16 | gc.TUINT64,
+-		gc.OAND<<16 | gc.TPTR64:
++	case OAND_ | gc.TINT64,
++		OAND_ | gc.TUINT64,
++		OAND_ | gc.TPTR64:
+ 		a = x86.AANDQ
+ 
+-	case gc.OOR<<16 | gc.TBOOL,
+-		gc.OOR<<16 | gc.TINT8,
+-		gc.OOR<<16 | gc.TUINT8:
++	case OOR_ | gc.TBOOL,
++		OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8:
+ 		a = x86.AORB
+ 
+-	case gc.OOR<<16 | gc.TINT16,
+-		gc.OOR<<16 | gc.TUINT16:
++	case OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16:
+ 		a = x86.AORW
+ 
+-	case gc.OOR<<16 | gc.TINT32,
+-		gc.OOR<<16 | gc.TUINT32,
+-		gc.OOR<<16 | gc.TPTR32:
++	case OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32:
+ 		a = x86.AORL
+ 
+-	case gc.OOR<<16 | gc.TINT64,
+-		gc.OOR<<16 | gc.TUINT64,
+-		gc.OOR<<16 | gc.TPTR64:
++	case OOR_ | gc.TINT64,
++		OOR_ | gc.TUINT64,
++		OOR_ | gc.TPTR64:
+ 		a = x86.AORQ
+ 
+-	case gc.OXOR<<16 | gc.TINT8,
+-		gc.OXOR<<16 | gc.TUINT8:
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8:
+ 		a = x86.AXORB
+ 
+-	case gc.OXOR<<16 | gc.TINT16,
+-		gc.OXOR<<16 | gc.TUINT16:
++	case OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16:
+ 		a = x86.AXORW
+ 
+-	case gc.OXOR<<16 | gc.TINT32,
+-		gc.OXOR<<16 | gc.TUINT32,
+-		gc.OXOR<<16 | gc.TPTR32:
++	case OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32:
+ 		a = x86.AXORL
+ 
+-	case gc.OXOR<<16 | gc.TINT64,
+-		gc.OXOR<<16 | gc.TUINT64,
+-		gc.OXOR<<16 | gc.TPTR64:
++	case OXOR_ | gc.TINT64,
++		OXOR_ | gc.TUINT64,
++		OXOR_ | gc.TPTR64:
+ 		a = x86.AXORQ
+ 
+-	case gc.OLROT<<16 | gc.TINT8,
+-		gc.OLROT<<16 | gc.TUINT8:
++	case OLROT_ | gc.TINT8,
++		OLROT_ | gc.TUINT8:
+ 		a = x86.AROLB
+ 
+-	case gc.OLROT<<16 | gc.TINT16,
+-		gc.OLROT<<16 | gc.TUINT16:
++	case OLROT_ | gc.TINT16,
++		OLROT_ | gc.TUINT16:
+ 		a = x86.AROLW
+ 
+-	case gc.OLROT<<16 | gc.TINT32,
+-		gc.OLROT<<16 | gc.TUINT32,
+-		gc.OLROT<<16 | gc.TPTR32:
++	case OLROT_ | gc.TINT32,
++		OLROT_ | gc.TUINT32,
++		OLROT_ | gc.TPTR32:
+ 		a = x86.AROLL
+ 
+-	case gc.OLROT<<16 | gc.TINT64,
+-		gc.OLROT<<16 | gc.TUINT64,
+-		gc.OLROT<<16 | gc.TPTR64:
++	case OLROT_ | gc.TINT64,
++		OLROT_ | gc.TUINT64,
++		OLROT_ | gc.TPTR64:
+ 		a = x86.AROLQ
+ 
+-	case gc.OLSH<<16 | gc.TINT8,
+-		gc.OLSH<<16 | gc.TUINT8:
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8:
+ 		a = x86.ASHLB
+ 
+-	case gc.OLSH<<16 | gc.TINT16,
+-		gc.OLSH<<16 | gc.TUINT16:
++	case OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16:
+ 		a = x86.ASHLW
+ 
+-	case gc.OLSH<<16 | gc.TINT32,
+-		gc.OLSH<<16 | gc.TUINT32,
+-		gc.OLSH<<16 | gc.TPTR32:
++	case OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32:
+ 		a = x86.ASHLL
+ 
+-	case gc.OLSH<<16 | gc.TINT64,
+-		gc.OLSH<<16 | gc.TUINT64,
+-		gc.OLSH<<16 | gc.TPTR64:
++	case OLSH_ | gc.TINT64,
++		OLSH_ | gc.TUINT64,
++		OLSH_ | gc.TPTR64:
+ 		a = x86.ASHLQ
+ 
+-	case gc.ORSH<<16 | gc.TUINT8:
++	case ORSH_ | gc.TUINT8:
+ 		a = x86.ASHRB
+ 
+-	case gc.ORSH<<16 | gc.TUINT16:
++	case ORSH_ | gc.TUINT16:
+ 		a = x86.ASHRW
+ 
+-	case gc.ORSH<<16 | gc.TUINT32,
+-		gc.ORSH<<16 | gc.TPTR32:
++	case ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32:
+ 		a = x86.ASHRL
+ 
+-	case gc.ORSH<<16 | gc.TUINT64,
+-		gc.ORSH<<16 | gc.TPTR64:
++	case ORSH_ | gc.TUINT64,
++		ORSH_ | gc.TPTR64:
+ 		a = x86.ASHRQ
+ 
+-	case gc.ORSH<<16 | gc.TINT8:
++	case ORSH_ | gc.TINT8:
+ 		a = x86.ASARB
+ 
+-	case gc.ORSH<<16 | gc.TINT16:
++	case ORSH_ | gc.TINT16:
+ 		a = x86.ASARW
+ 
+-	case gc.ORSH<<16 | gc.TINT32:
++	case ORSH_ | gc.TINT32:
+ 		a = x86.ASARL
+ 
+-	case gc.ORSH<<16 | gc.TINT64:
++	case ORSH_ | gc.TINT64:
+ 		a = x86.ASARQ
+ 
+-	case gc.ORROTC<<16 | gc.TINT8,
+-		gc.ORROTC<<16 | gc.TUINT8:
++	case ORROTC_ | gc.TINT8,
++		ORROTC_ | gc.TUINT8:
+ 		a = x86.ARCRB
+ 
+-	case gc.ORROTC<<16 | gc.TINT16,
+-		gc.ORROTC<<16 | gc.TUINT16:
++	case ORROTC_ | gc.TINT16,
++		ORROTC_ | gc.TUINT16:
+ 		a = x86.ARCRW
+ 
+-	case gc.ORROTC<<16 | gc.TINT32,
+-		gc.ORROTC<<16 | gc.TUINT32:
++	case ORROTC_ | gc.TINT32,
++		ORROTC_ | gc.TUINT32:
+ 		a = x86.ARCRL
+ 
+-	case gc.ORROTC<<16 | gc.TINT64,
+-		gc.ORROTC<<16 | gc.TUINT64:
++	case ORROTC_ | gc.TINT64,
++		ORROTC_ | gc.TUINT64:
+ 		a = x86.ARCRQ
+ 
+-	case gc.OHMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TUINT8:
++	case OHMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT8,
++		OMUL_ | gc.TUINT8:
+ 		a = x86.AIMULB
+ 
+-	case gc.OHMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TUINT16:
++	case OHMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TUINT16:
+ 		a = x86.AIMULW
+ 
+-	case gc.OHMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32:
++	case OHMUL_ | gc.TINT32,
++		OMUL_ | gc.TINT32,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32:
+ 		a = x86.AIMULL
+ 
+-	case gc.OHMUL<<16 | gc.TINT64,
+-		gc.OMUL<<16 | gc.TINT64,
+-		gc.OMUL<<16 | gc.TUINT64,
+-		gc.OMUL<<16 | gc.TPTR64:
++	case OHMUL_ | gc.TINT64,
++		OMUL_ | gc.TINT64,
++		OMUL_ | gc.TUINT64,
++		OMUL_ | gc.TPTR64:
+ 		a = x86.AIMULQ
+ 
+-	case gc.OHMUL<<16 | gc.TUINT8:
++	case OHMUL_ | gc.TUINT8:
+ 		a = x86.AMULB
+ 
+-	case gc.OHMUL<<16 | gc.TUINT16:
++	case OHMUL_ | gc.TUINT16:
+ 		a = x86.AMULW
+ 
+-	case gc.OHMUL<<16 | gc.TUINT32,
+-		gc.OHMUL<<16 | gc.TPTR32:
++	case OHMUL_ | gc.TUINT32,
++		OHMUL_ | gc.TPTR32:
+ 		a = x86.AMULL
+ 
+-	case gc.OHMUL<<16 | gc.TUINT64,
+-		gc.OHMUL<<16 | gc.TPTR64:
++	case OHMUL_ | gc.TUINT64,
++		OHMUL_ | gc.TPTR64:
+ 		a = x86.AMULQ
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT32:
++	case OMUL_ | gc.TFLOAT32:
+ 		a = x86.AMULSS
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT64:
++	case OMUL_ | gc.TFLOAT64:
+ 		a = x86.AMULSD
+ 
+-	case gc.ODIV<<16 | gc.TINT8,
+-		gc.OMOD<<16 | gc.TINT8:
++	case ODIV_ | gc.TINT8,
++		OMOD_ | gc.TINT8:
+ 		a = x86.AIDIVB
+ 
+-	case gc.ODIV<<16 | gc.TUINT8,
+-		gc.OMOD<<16 | gc.TUINT8:
++	case ODIV_ | gc.TUINT8,
++		OMOD_ | gc.TUINT8:
+ 		a = x86.ADIVB
+ 
+-	case gc.ODIV<<16 | gc.TINT16,
+-		gc.OMOD<<16 | gc.TINT16:
++	case ODIV_ | gc.TINT16,
++		OMOD_ | gc.TINT16:
+ 		a = x86.AIDIVW
+ 
+-	case gc.ODIV<<16 | gc.TUINT16,
+-		gc.OMOD<<16 | gc.TUINT16:
++	case ODIV_ | gc.TUINT16,
++		OMOD_ | gc.TUINT16:
+ 		a = x86.ADIVW
+ 
+-	case gc.ODIV<<16 | gc.TINT32,
+-		gc.OMOD<<16 | gc.TINT32:
++	case ODIV_ | gc.TINT32,
++		OMOD_ | gc.TINT32:
+ 		a = x86.AIDIVL
+ 
+-	case gc.ODIV<<16 | gc.TUINT32,
+-		gc.ODIV<<16 | gc.TPTR32,
+-		gc.OMOD<<16 | gc.TUINT32,
+-		gc.OMOD<<16 | gc.TPTR32:
++	case ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32,
++		OMOD_ | gc.TUINT32,
++		OMOD_ | gc.TPTR32:
+ 		a = x86.ADIVL
+ 
+-	case gc.ODIV<<16 | gc.TINT64,
+-		gc.OMOD<<16 | gc.TINT64:
++	case ODIV_ | gc.TINT64,
++		OMOD_ | gc.TINT64:
+ 		a = x86.AIDIVQ
+ 
+-	case gc.ODIV<<16 | gc.TUINT64,
+-		gc.ODIV<<16 | gc.TPTR64,
+-		gc.OMOD<<16 | gc.TUINT64,
+-		gc.OMOD<<16 | gc.TPTR64:
++	case ODIV_ | gc.TUINT64,
++		ODIV_ | gc.TPTR64,
++		OMOD_ | gc.TUINT64,
++		OMOD_ | gc.TPTR64:
+ 		a = x86.ADIVQ
+ 
+-	case gc.OEXTEND<<16 | gc.TINT16:
++	case OEXTEND_ | gc.TINT16:
+ 		a = x86.ACWD
+ 
+-	case gc.OEXTEND<<16 | gc.TINT32:
++	case OEXTEND_ | gc.TINT32:
+ 		a = x86.ACDQ
+ 
+-	case gc.OEXTEND<<16 | gc.TINT64:
++	case OEXTEND_ | gc.TINT64:
+ 		a = x86.ACQO
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT32:
++	case ODIV_ | gc.TFLOAT32:
+ 		a = x86.ADIVSS
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT64:
++	case ODIV_ | gc.TFLOAT64:
+ 		a = x86.ADIVSD
+ 
+-	case gc.OSQRT<<16 | gc.TFLOAT64:
++	case OSQRT_ | gc.TFLOAT64:
+ 		a = x86.ASQRTSD
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/arm/cgen64.go b/src/cmd/compile/internal/arm/cgen64.go
+index a9fe77b84a..d46d5a8660 100644
+--- a/src/cmd/compile/internal/arm/cgen64.go
++++ b/src/cmd/compile/internal/arm/cgen64.go
+@@ -741,9 +741,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 		gins(arm.AMOVW, &lo1, &al)
+ 		gins(arm.AMOVW, &hi1, &ah)
+ 		gins(arm.AMOVW, &lo2, &n1)
+-		gins(optoas(int(n.Op), lo1.Type), &n1, &al)
++		gins(optoas(n.Op, lo1.Type), &n1, &al)
+ 		gins(arm.AMOVW, &hi2, &n1)
+-		gins(optoas(int(n.Op), lo1.Type), &n1, &ah)
++		gins(optoas(n.Op, lo1.Type), &n1, &ah)
+ 		gc.Regfree(&n1)
+ 	}
+ 
+@@ -767,7 +767,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+  * generate comparison of nl, nr, both 64-bit.
+  * nl is memory; nr is constant or memory.
+  */
+-func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
++func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
+ 	var lo1 gc.Node
+ 	var hi1 gc.Node
+ 	var lo2 gc.Node
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 193d4af27d..517b4f4c8e 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -173,7 +173,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl << nr
+  *	res = nl >> nr
+  */
+-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if nl.Type.Width > 4 {
+ 		gc.Fatalf("cgen_shift %v", nl.Type)
+ 	}
+@@ -477,7 +477,7 @@ func ginscon(as int, c int64, n *gc.Node) {
+ 	gc.Regfree(&n2)
+ }
+ 
+-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n1.Int() == 0 && n2.Op != gc.OLITERAL {
+ 		op = gc.Brrev(op)
+ 		n1, n2 = n2, n1
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index acc67657ae..108d78ac04 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -757,11 +757,36 @@ func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *o
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+-func optoas(op int, t *gc.Type) int {
++func optoas(op gc.Op, t *gc.Type) int {
+ 	if t == nil {
+ 		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_ = uint32(gc.OMINUS) << 16
++		OLSH_   = uint32(gc.OLSH) << 16
++		ORSH_   = uint32(gc.ORSH) << 16
++		OADD_   = uint32(gc.OADD) << 16
++		OSUB_   = uint32(gc.OSUB) << 16
++		OMUL_   = uint32(gc.OMUL) << 16
++		ODIV_   = uint32(gc.ODIV) << 16
++		OMOD_   = uint32(gc.OMOD) << 16
++		OOR_    = uint32(gc.OOR) << 16
++		OAND_   = uint32(gc.OAND) << 16
++		OXOR_   = uint32(gc.OXOR) << 16
++		OEQ_    = uint32(gc.OEQ) << 16
++		ONE_    = uint32(gc.ONE) << 16
++		OLT_    = uint32(gc.OLT) << 16
++		OLE_    = uint32(gc.OLE) << 16
++		OGE_    = uint32(gc.OGE) << 16
++		OGT_    = uint32(gc.OGT) << 16
++		OCMP_   = uint32(gc.OCMP) << 16
++		OPS_    = uint32(gc.OPS) << 16
++		OAS_    = uint32(gc.OAS) << 16
++		OSQRT_  = uint32(gc.OSQRT) << 16
++	)
++
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+@@ -776,261 +801,261 @@ func optoas(op int, t *gc.Type) int {
+ 				break;
+ 		*/
+ 	// TODO(kaib): make sure the conditional branches work on all edge cases
+-	case gc.OEQ<<16 | gc.TBOOL,
+-		gc.OEQ<<16 | gc.TINT8,
+-		gc.OEQ<<16 | gc.TUINT8,
+-		gc.OEQ<<16 | gc.TINT16,
+-		gc.OEQ<<16 | gc.TUINT16,
+-		gc.OEQ<<16 | gc.TINT32,
+-		gc.OEQ<<16 | gc.TUINT32,
+-		gc.OEQ<<16 | gc.TINT64,
+-		gc.OEQ<<16 | gc.TUINT64,
+-		gc.OEQ<<16 | gc.TPTR32,
+-		gc.OEQ<<16 | gc.TPTR64,
+-		gc.OEQ<<16 | gc.TFLOAT32,
+-		gc.OEQ<<16 | gc.TFLOAT64:
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
+ 		a = arm.ABEQ
+ 
+-	case gc.ONE<<16 | gc.TBOOL,
+-		gc.ONE<<16 | gc.TINT8,
+-		gc.ONE<<16 | gc.TUINT8,
+-		gc.ONE<<16 | gc.TINT16,
+-		gc.ONE<<16 | gc.TUINT16,
+-		gc.ONE<<16 | gc.TINT32,
+-		gc.ONE<<16 | gc.TUINT32,
+-		gc.ONE<<16 | gc.TINT64,
+-		gc.ONE<<16 | gc.TUINT64,
+-		gc.ONE<<16 | gc.TPTR32,
+-		gc.ONE<<16 | gc.TPTR64,
+-		gc.ONE<<16 | gc.TFLOAT32,
+-		gc.ONE<<16 | gc.TFLOAT64:
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
+ 		a = arm.ABNE
+ 
+-	case gc.OLT<<16 | gc.TINT8,
+-		gc.OLT<<16 | gc.TINT16,
+-		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64,
+-		gc.OLT<<16 | gc.TFLOAT32,
+-		gc.OLT<<16 | gc.TFLOAT64:
++	case OLT_ | gc.TINT8,
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64,
++		OLT_ | gc.TFLOAT32,
++		OLT_ | gc.TFLOAT64:
+ 		a = arm.ABLT
+ 
+-	case gc.OLT<<16 | gc.TUINT8,
+-		gc.OLT<<16 | gc.TUINT16,
+-		gc.OLT<<16 | gc.TUINT32,
+-		gc.OLT<<16 | gc.TUINT64:
++	case OLT_ | gc.TUINT8,
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64:
+ 		a = arm.ABLO
+ 
+-	case gc.OLE<<16 | gc.TINT8,
+-		gc.OLE<<16 | gc.TINT16,
+-		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64,
+-		gc.OLE<<16 | gc.TFLOAT32,
+-		gc.OLE<<16 | gc.TFLOAT64:
++	case OLE_ | gc.TINT8,
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64,
++		OLE_ | gc.TFLOAT32,
++		OLE_ | gc.TFLOAT64:
+ 		a = arm.ABLE
+ 
+-	case gc.OLE<<16 | gc.TUINT8,
+-		gc.OLE<<16 | gc.TUINT16,
+-		gc.OLE<<16 | gc.TUINT32,
+-		gc.OLE<<16 | gc.TUINT64:
++	case OLE_ | gc.TUINT8,
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64:
+ 		a = arm.ABLS
+ 
+-	case gc.OGT<<16 | gc.TINT8,
+-		gc.OGT<<16 | gc.TINT16,
+-		gc.OGT<<16 | gc.TINT32,
+-		gc.OGT<<16 | gc.TINT64,
+-		gc.OGT<<16 | gc.TFLOAT32,
+-		gc.OGT<<16 | gc.TFLOAT64:
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64,
++		OGT_ | gc.TFLOAT32,
++		OGT_ | gc.TFLOAT64:
+ 		a = arm.ABGT
+ 
+-	case gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64:
++	case OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64:
+ 		a = arm.ABHI
+ 
+-	case gc.OGE<<16 | gc.TINT8,
+-		gc.OGE<<16 | gc.TINT16,
+-		gc.OGE<<16 | gc.TINT32,
+-		gc.OGE<<16 | gc.TINT64,
+-		gc.OGE<<16 | gc.TFLOAT32,
+-		gc.OGE<<16 | gc.TFLOAT64:
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64,
++		OGE_ | gc.TFLOAT32,
++		OGE_ | gc.TFLOAT64:
+ 		a = arm.ABGE
+ 
+-	case gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64:
++	case OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64:
+ 		a = arm.ABHS
+ 
+-	case gc.OCMP<<16 | gc.TBOOL,
+-		gc.OCMP<<16 | gc.TINT8,
+-		gc.OCMP<<16 | gc.TUINT8,
+-		gc.OCMP<<16 | gc.TINT16,
+-		gc.OCMP<<16 | gc.TUINT16,
+-		gc.OCMP<<16 | gc.TINT32,
+-		gc.OCMP<<16 | gc.TUINT32,
+-		gc.OCMP<<16 | gc.TPTR32:
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TUINT8,
++		OCMP_ | gc.TINT16,
++		OCMP_ | gc.TUINT16,
++		OCMP_ | gc.TINT32,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TPTR32:
+ 		a = arm.ACMP
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT32:
++	case OCMP_ | gc.TFLOAT32:
+ 		a = arm.ACMPF
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT64:
++	case OCMP_ | gc.TFLOAT64:
+ 		a = arm.ACMPD
+ 
+-	case gc.OPS<<16 | gc.TFLOAT32,
+-		gc.OPS<<16 | gc.TFLOAT64:
++	case OPS_ | gc.TFLOAT32,
++		OPS_ | gc.TFLOAT64:
+ 		a = arm.ABVS
+ 
+-	case gc.OAS<<16 | gc.TBOOL:
++	case OAS_ | gc.TBOOL:
+ 		a = arm.AMOVB
+ 
+-	case gc.OAS<<16 | gc.TINT8:
++	case OAS_ | gc.TINT8:
+ 		a = arm.AMOVBS
+ 
+-	case gc.OAS<<16 | gc.TUINT8:
++	case OAS_ | gc.TUINT8:
+ 		a = arm.AMOVBU
+ 
+-	case gc.OAS<<16 | gc.TINT16:
++	case OAS_ | gc.TINT16:
+ 		a = arm.AMOVHS
+ 
+-	case gc.OAS<<16 | gc.TUINT16:
++	case OAS_ | gc.TUINT16:
+ 		a = arm.AMOVHU
+ 
+-	case gc.OAS<<16 | gc.TINT32,
+-		gc.OAS<<16 | gc.TUINT32,
+-		gc.OAS<<16 | gc.TPTR32:
++	case OAS_ | gc.TINT32,
++		OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
+ 		a = arm.AMOVW
+ 
+-	case gc.OAS<<16 | gc.TFLOAT32:
++	case OAS_ | gc.TFLOAT32:
+ 		a = arm.AMOVF
+ 
+-	case gc.OAS<<16 | gc.TFLOAT64:
++	case OAS_ | gc.TFLOAT64:
+ 		a = arm.AMOVD
+ 
+-	case gc.OADD<<16 | gc.TINT8,
+-		gc.OADD<<16 | gc.TUINT8,
+-		gc.OADD<<16 | gc.TINT16,
+-		gc.OADD<<16 | gc.TUINT16,
+-		gc.OADD<<16 | gc.TINT32,
+-		gc.OADD<<16 | gc.TUINT32,
+-		gc.OADD<<16 | gc.TPTR32:
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8,
++		OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16,
++		OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32:
+ 		a = arm.AADD
+ 
+-	case gc.OADD<<16 | gc.TFLOAT32:
++	case OADD_ | gc.TFLOAT32:
+ 		a = arm.AADDF
+ 
+-	case gc.OADD<<16 | gc.TFLOAT64:
++	case OADD_ | gc.TFLOAT64:
+ 		a = arm.AADDD
+ 
+-	case gc.OSUB<<16 | gc.TINT8,
+-		gc.OSUB<<16 | gc.TUINT8,
+-		gc.OSUB<<16 | gc.TINT16,
+-		gc.OSUB<<16 | gc.TUINT16,
+-		gc.OSUB<<16 | gc.TINT32,
+-		gc.OSUB<<16 | gc.TUINT32,
+-		gc.OSUB<<16 | gc.TPTR32:
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8,
++		OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16,
++		OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32:
+ 		a = arm.ASUB
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT32:
++	case OSUB_ | gc.TFLOAT32:
+ 		a = arm.ASUBF
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT64:
++	case OSUB_ | gc.TFLOAT64:
+ 		a = arm.ASUBD
+ 
+-	case gc.OMINUS<<16 | gc.TINT8,
+-		gc.OMINUS<<16 | gc.TUINT8,
+-		gc.OMINUS<<16 | gc.TINT16,
+-		gc.OMINUS<<16 | gc.TUINT16,
+-		gc.OMINUS<<16 | gc.TINT32,
+-		gc.OMINUS<<16 | gc.TUINT32,
+-		gc.OMINUS<<16 | gc.TPTR32:
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8,
++		OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16,
++		OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32:
+ 		a = arm.ARSB
+ 
+-	case gc.OAND<<16 | gc.TINT8,
+-		gc.OAND<<16 | gc.TUINT8,
+-		gc.OAND<<16 | gc.TINT16,
+-		gc.OAND<<16 | gc.TUINT16,
+-		gc.OAND<<16 | gc.TINT32,
+-		gc.OAND<<16 | gc.TUINT32,
+-		gc.OAND<<16 | gc.TPTR32:
++	case OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8,
++		OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16,
++		OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32:
+ 		a = arm.AAND
+ 
+-	case gc.OOR<<16 | gc.TINT8,
+-		gc.OOR<<16 | gc.TUINT8,
+-		gc.OOR<<16 | gc.TINT16,
+-		gc.OOR<<16 | gc.TUINT16,
+-		gc.OOR<<16 | gc.TINT32,
+-		gc.OOR<<16 | gc.TUINT32,
+-		gc.OOR<<16 | gc.TPTR32:
++	case OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8,
++		OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16,
++		OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32:
+ 		a = arm.AORR
+ 
+-	case gc.OXOR<<16 | gc.TINT8,
+-		gc.OXOR<<16 | gc.TUINT8,
+-		gc.OXOR<<16 | gc.TINT16,
+-		gc.OXOR<<16 | gc.TUINT16,
+-		gc.OXOR<<16 | gc.TINT32,
+-		gc.OXOR<<16 | gc.TUINT32,
+-		gc.OXOR<<16 | gc.TPTR32:
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8,
++		OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16,
++		OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32:
+ 		a = arm.AEOR
+ 
+-	case gc.OLSH<<16 | gc.TINT8,
+-		gc.OLSH<<16 | gc.TUINT8,
+-		gc.OLSH<<16 | gc.TINT16,
+-		gc.OLSH<<16 | gc.TUINT16,
+-		gc.OLSH<<16 | gc.TINT32,
+-		gc.OLSH<<16 | gc.TUINT32,
+-		gc.OLSH<<16 | gc.TPTR32:
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8,
++		OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16,
++		OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32:
+ 		a = arm.ASLL
+ 
+-	case gc.ORSH<<16 | gc.TUINT8,
+-		gc.ORSH<<16 | gc.TUINT16,
+-		gc.ORSH<<16 | gc.TUINT32,
+-		gc.ORSH<<16 | gc.TPTR32:
++	case ORSH_ | gc.TUINT8,
++		ORSH_ | gc.TUINT16,
++		ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32:
+ 		a = arm.ASRL
+ 
+-	case gc.ORSH<<16 | gc.TINT8,
+-		gc.ORSH<<16 | gc.TINT16,
+-		gc.ORSH<<16 | gc.TINT32:
++	case ORSH_ | gc.TINT8,
++		ORSH_ | gc.TINT16,
++		ORSH_ | gc.TINT32:
+ 		a = arm.ASRA
+ 
+-	case gc.OMUL<<16 | gc.TUINT8,
+-		gc.OMUL<<16 | gc.TUINT16,
+-		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32:
++	case OMUL_ | gc.TUINT8,
++		OMUL_ | gc.TUINT16,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32:
+ 		a = arm.AMULU
+ 
+-	case gc.OMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT32:
++	case OMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT32:
+ 		a = arm.AMUL
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT32:
++	case OMUL_ | gc.TFLOAT32:
+ 		a = arm.AMULF
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT64:
++	case OMUL_ | gc.TFLOAT64:
+ 		a = arm.AMULD
+ 
+-	case gc.ODIV<<16 | gc.TUINT8,
+-		gc.ODIV<<16 | gc.TUINT16,
+-		gc.ODIV<<16 | gc.TUINT32,
+-		gc.ODIV<<16 | gc.TPTR32:
++	case ODIV_ | gc.TUINT8,
++		ODIV_ | gc.TUINT16,
++		ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32:
+ 		a = arm.ADIVU
+ 
+-	case gc.ODIV<<16 | gc.TINT8,
+-		gc.ODIV<<16 | gc.TINT16,
+-		gc.ODIV<<16 | gc.TINT32:
++	case ODIV_ | gc.TINT8,
++		ODIV_ | gc.TINT16,
++		ODIV_ | gc.TINT32:
+ 		a = arm.ADIV
+ 
+-	case gc.OMOD<<16 | gc.TUINT8,
+-		gc.OMOD<<16 | gc.TUINT16,
+-		gc.OMOD<<16 | gc.TUINT32,
+-		gc.OMOD<<16 | gc.TPTR32:
++	case OMOD_ | gc.TUINT8,
++		OMOD_ | gc.TUINT16,
++		OMOD_ | gc.TUINT32,
++		OMOD_ | gc.TPTR32:
+ 		a = arm.AMODU
+ 
+-	case gc.OMOD<<16 | gc.TINT8,
+-		gc.OMOD<<16 | gc.TINT16,
+-		gc.OMOD<<16 | gc.TINT32:
++	case OMOD_ | gc.TINT8,
++		OMOD_ | gc.TINT16,
++		OMOD_ | gc.TINT32:
+ 		a = arm.AMOD
+ 
+ 		//	case CASE(OEXTEND, TINT16):
+@@ -1045,13 +1070,13 @@ func optoas(op int, t *gc.Type) int {
+ 	//		a = ACQO;
+ 	//		break;
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT32:
++	case ODIV_ | gc.TFLOAT32:
+ 		a = arm.ADIVF
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT64:
++	case ODIV_ | gc.TFLOAT64:
+ 		a = arm.ADIVD
+ 
+-	case gc.OSQRT<<16 | gc.TFLOAT64:
++	case OSQRT_ | gc.TFLOAT64:
+ 		a = arm.ASQRTD
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 2cbd6637d3..c495bbc77f 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -140,7 +140,7 @@ var panicdiv *gc.Node
+  *	res = nl % nr
+  * according to op.
+  */
+-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+ 	// The hardware will generate undefined result.
+@@ -310,7 +310,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl << nr
+  *	res = nl >> nr
+  */
+-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	a := int(optoas(op, nl.Type))
+ 
+ 	if nr.Op == gc.OLITERAL {
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 50ff29bf8f..c0aa45e7c1 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -102,7 +102,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	gc.Regfree(&ntmp)
+ }
+ 
+-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+@@ -590,240 +590,264 @@ func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+-func optoas(op int, t *gc.Type) int {
++func optoas(op gc.Op, t *gc.Type) int {
+ 	if t == nil {
+ 		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_ = uint32(gc.OMINUS) << 16
++		OLSH_   = uint32(gc.OLSH) << 16
++		ORSH_   = uint32(gc.ORSH) << 16
++		OADD_   = uint32(gc.OADD) << 16
++		OSUB_   = uint32(gc.OSUB) << 16
++		OMUL_   = uint32(gc.OMUL) << 16
++		ODIV_   = uint32(gc.ODIV) << 16
++		OOR_    = uint32(gc.OOR) << 16
++		OAND_   = uint32(gc.OAND) << 16
++		OXOR_   = uint32(gc.OXOR) << 16
++		OEQ_    = uint32(gc.OEQ) << 16
++		ONE_    = uint32(gc.ONE) << 16
++		OLT_    = uint32(gc.OLT) << 16
++		OLE_    = uint32(gc.OLE) << 16
++		OGE_    = uint32(gc.OGE) << 16
++		OGT_    = uint32(gc.OGT) << 16
++		OCMP_   = uint32(gc.OCMP) << 16
++		OAS_    = uint32(gc.OAS) << 16
++		OHMUL_  = uint32(gc.OHMUL) << 16
++		OSQRT_  = uint32(gc.OSQRT) << 16
++	)
++
+ 	a := int(obj.AXXX)
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+ 		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+ 
+-	case gc.OEQ<<16 | gc.TBOOL,
+-		gc.OEQ<<16 | gc.TINT8,
+-		gc.OEQ<<16 | gc.TUINT8,
+-		gc.OEQ<<16 | gc.TINT16,
+-		gc.OEQ<<16 | gc.TUINT16,
+-		gc.OEQ<<16 | gc.TINT32,
+-		gc.OEQ<<16 | gc.TUINT32,
+-		gc.OEQ<<16 | gc.TINT64,
+-		gc.OEQ<<16 | gc.TUINT64,
+-		gc.OEQ<<16 | gc.TPTR32,
+-		gc.OEQ<<16 | gc.TPTR64,
+-		gc.OEQ<<16 | gc.TFLOAT32,
+-		gc.OEQ<<16 | gc.TFLOAT64:
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
+ 		a = arm64.ABEQ
+ 
+-	case gc.ONE<<16 | gc.TBOOL,
+-		gc.ONE<<16 | gc.TINT8,
+-		gc.ONE<<16 | gc.TUINT8,
+-		gc.ONE<<16 | gc.TINT16,
+-		gc.ONE<<16 | gc.TUINT16,
+-		gc.ONE<<16 | gc.TINT32,
+-		gc.ONE<<16 | gc.TUINT32,
+-		gc.ONE<<16 | gc.TINT64,
+-		gc.ONE<<16 | gc.TUINT64,
+-		gc.ONE<<16 | gc.TPTR32,
+-		gc.ONE<<16 | gc.TPTR64,
+-		gc.ONE<<16 | gc.TFLOAT32,
+-		gc.ONE<<16 | gc.TFLOAT64:
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
+ 		a = arm64.ABNE
+ 
+-	case gc.OLT<<16 | gc.TINT8,
+-		gc.OLT<<16 | gc.TINT16,
+-		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64:
++	case OLT_ | gc.TINT8,
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64:
+ 		a = arm64.ABLT
+ 
+-	case gc.OLT<<16 | gc.TUINT8,
+-		gc.OLT<<16 | gc.TUINT16,
+-		gc.OLT<<16 | gc.TUINT32,
+-		gc.OLT<<16 | gc.TUINT64,
+-		gc.OLT<<16 | gc.TFLOAT32,
+-		gc.OLT<<16 | gc.TFLOAT64:
++	case OLT_ | gc.TUINT8,
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64,
++		OLT_ | gc.TFLOAT32,
++		OLT_ | gc.TFLOAT64:
+ 		a = arm64.ABLO
+ 
+-	case gc.OLE<<16 | gc.TINT8,
+-		gc.OLE<<16 | gc.TINT16,
+-		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64:
++	case OLE_ | gc.TINT8,
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64:
+ 		a = arm64.ABLE
+ 
+-	case gc.OLE<<16 | gc.TUINT8,
+-		gc.OLE<<16 | gc.TUINT16,
+-		gc.OLE<<16 | gc.TUINT32,
+-		gc.OLE<<16 | gc.TUINT64,
+-		gc.OLE<<16 | gc.TFLOAT32,
+-		gc.OLE<<16 | gc.TFLOAT64:
++	case OLE_ | gc.TUINT8,
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64,
++		OLE_ | gc.TFLOAT32,
++		OLE_ | gc.TFLOAT64:
+ 		a = arm64.ABLS
+ 
+-	case gc.OGT<<16 | gc.TINT8,
+-		gc.OGT<<16 | gc.TINT16,
+-		gc.OGT<<16 | gc.TINT32,
+-		gc.OGT<<16 | gc.TINT64,
+-		gc.OGT<<16 | gc.TFLOAT32,
+-		gc.OGT<<16 | gc.TFLOAT64:
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64,
++		OGT_ | gc.TFLOAT32,
++		OGT_ | gc.TFLOAT64:
+ 		a = arm64.ABGT
+ 
+-	case gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64:
++	case OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64:
+ 		a = arm64.ABHI
+ 
+-	case gc.OGE<<16 | gc.TINT8,
+-		gc.OGE<<16 | gc.TINT16,
+-		gc.OGE<<16 | gc.TINT32,
+-		gc.OGE<<16 | gc.TINT64,
+-		gc.OGE<<16 | gc.TFLOAT32,
+-		gc.OGE<<16 | gc.TFLOAT64:
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64,
++		OGE_ | gc.TFLOAT32,
++		OGE_ | gc.TFLOAT64:
+ 		a = arm64.ABGE
+ 
+-	case gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64:
++	case OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64:
+ 		a = arm64.ABHS
+ 
+-	case gc.OCMP<<16 | gc.TBOOL,
+-		gc.OCMP<<16 | gc.TINT8,
+-		gc.OCMP<<16 | gc.TINT16,
+-		gc.OCMP<<16 | gc.TINT32,
+-		gc.OCMP<<16 | gc.TPTR32,
+-		gc.OCMP<<16 | gc.TINT64,
+-		gc.OCMP<<16 | gc.TUINT8,
+-		gc.OCMP<<16 | gc.TUINT16,
+-		gc.OCMP<<16 | gc.TUINT32,
+-		gc.OCMP<<16 | gc.TUINT64,
+-		gc.OCMP<<16 | gc.TPTR64:
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TINT16,
++		OCMP_ | gc.TINT32,
++		OCMP_ | gc.TPTR32,
++		OCMP_ | gc.TINT64,
++		OCMP_ | gc.TUINT8,
++		OCMP_ | gc.TUINT16,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TUINT64,
++		OCMP_ | gc.TPTR64:
+ 		a = arm64.ACMP
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT32:
++	case OCMP_ | gc.TFLOAT32:
+ 		a = arm64.AFCMPS
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT64:
++	case OCMP_ | gc.TFLOAT64:
+ 		a = arm64.AFCMPD
+ 
+-	case gc.OAS<<16 | gc.TBOOL,
+-		gc.OAS<<16 | gc.TINT8:
++	case OAS_ | gc.TBOOL,
++		OAS_ | gc.TINT8:
+ 		a = arm64.AMOVB
+ 
+-	case gc.OAS<<16 | gc.TUINT8:
++	case OAS_ | gc.TUINT8:
+ 		a = arm64.AMOVBU
+ 
+-	case gc.OAS<<16 | gc.TINT16:
++	case OAS_ | gc.TINT16:
+ 		a = arm64.AMOVH
+ 
+-	case gc.OAS<<16 | gc.TUINT16:
++	case OAS_ | gc.TUINT16:
+ 		a = arm64.AMOVHU
+ 
+-	case gc.OAS<<16 | gc.TINT32:
++	case OAS_ | gc.TINT32:
+ 		a = arm64.AMOVW
+ 
+-	case gc.OAS<<16 | gc.TUINT32,
+-		gc.OAS<<16 | gc.TPTR32:
++	case OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
+ 		a = arm64.AMOVWU
+ 
+-	case gc.OAS<<16 | gc.TINT64,
+-		gc.OAS<<16 | gc.TUINT64,
+-		gc.OAS<<16 | gc.TPTR64:
++	case OAS_ | gc.TINT64,
++		OAS_ | gc.TUINT64,
++		OAS_ | gc.TPTR64:
+ 		a = arm64.AMOVD
+ 
+-	case gc.OAS<<16 | gc.TFLOAT32:
++	case OAS_ | gc.TFLOAT32:
+ 		a = arm64.AFMOVS
+ 
+-	case gc.OAS<<16 | gc.TFLOAT64:
++	case OAS_ | gc.TFLOAT64:
+ 		a = arm64.AFMOVD
+ 
+-	case gc.OADD<<16 | gc.TINT8,
+-		gc.OADD<<16 | gc.TUINT8,
+-		gc.OADD<<16 | gc.TINT16,
+-		gc.OADD<<16 | gc.TUINT16,
+-		gc.OADD<<16 | gc.TINT32,
+-		gc.OADD<<16 | gc.TUINT32,
+-		gc.OADD<<16 | gc.TPTR32,
+-		gc.OADD<<16 | gc.TINT64,
+-		gc.OADD<<16 | gc.TUINT64,
+-		gc.OADD<<16 | gc.TPTR64:
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8,
++		OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16,
++		OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32,
++		OADD_ | gc.TINT64,
++		OADD_ | gc.TUINT64,
++		OADD_ | gc.TPTR64:
+ 		a = arm64.AADD
+ 
+-	case gc.OADD<<16 | gc.TFLOAT32:
++	case OADD_ | gc.TFLOAT32:
+ 		a = arm64.AFADDS
+ 
+-	case gc.OADD<<16 | gc.TFLOAT64:
++	case OADD_ | gc.TFLOAT64:
+ 		a = arm64.AFADDD
+ 
+-	case gc.OSUB<<16 | gc.TINT8,
+-		gc.OSUB<<16 | gc.TUINT8,
+-		gc.OSUB<<16 | gc.TINT16,
+-		gc.OSUB<<16 | gc.TUINT16,
+-		gc.OSUB<<16 | gc.TINT32,
+-		gc.OSUB<<16 | gc.TUINT32,
+-		gc.OSUB<<16 | gc.TPTR32,
+-		gc.OSUB<<16 | gc.TINT64,
+-		gc.OSUB<<16 | gc.TUINT64,
+-		gc.OSUB<<16 | gc.TPTR64:
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8,
++		OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16,
++		OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32,
++		OSUB_ | gc.TINT64,
++		OSUB_ | gc.TUINT64,
++		OSUB_ | gc.TPTR64:
+ 		a = arm64.ASUB
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT32:
++	case OSUB_ | gc.TFLOAT32:
+ 		a = arm64.AFSUBS
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT64:
++	case OSUB_ | gc.TFLOAT64:
+ 		a = arm64.AFSUBD
+ 
+-	case gc.OMINUS<<16 | gc.TINT8,
+-		gc.OMINUS<<16 | gc.TUINT8,
+-		gc.OMINUS<<16 | gc.TINT16,
+-		gc.OMINUS<<16 | gc.TUINT16,
+-		gc.OMINUS<<16 | gc.TINT32,
+-		gc.OMINUS<<16 | gc.TUINT32,
+-		gc.OMINUS<<16 | gc.TPTR32,
+-		gc.OMINUS<<16 | gc.TINT64,
+-		gc.OMINUS<<16 | gc.TUINT64,
+-		gc.OMINUS<<16 | gc.TPTR64:
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8,
++		OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16,
++		OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32,
++		OMINUS_ | gc.TINT64,
++		OMINUS_ | gc.TUINT64,
++		OMINUS_ | gc.TPTR64:
+ 		a = arm64.ANEG
+ 
+-	case gc.OMINUS<<16 | gc.TFLOAT32:
++	case OMINUS_ | gc.TFLOAT32:
+ 		a = arm64.AFNEGS
+ 
+-	case gc.OMINUS<<16 | gc.TFLOAT64:
++	case OMINUS_ | gc.TFLOAT64:
+ 		a = arm64.AFNEGD
+ 
+-	case gc.OAND<<16 | gc.TINT8,
+-		gc.OAND<<16 | gc.TUINT8,
+-		gc.OAND<<16 | gc.TINT16,
+-		gc.OAND<<16 | gc.TUINT16,
+-		gc.OAND<<16 | gc.TINT32,
+-		gc.OAND<<16 | gc.TUINT32,
+-		gc.OAND<<16 | gc.TPTR32,
+-		gc.OAND<<16 | gc.TINT64,
+-		gc.OAND<<16 | gc.TUINT64,
+-		gc.OAND<<16 | gc.TPTR64:
++	case OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8,
++		OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16,
++		OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32,
++		OAND_ | gc.TINT64,
++		OAND_ | gc.TUINT64,
++		OAND_ | gc.TPTR64:
+ 		a = arm64.AAND
+ 
+-	case gc.OOR<<16 | gc.TINT8,
+-		gc.OOR<<16 | gc.TUINT8,
+-		gc.OOR<<16 | gc.TINT16,
+-		gc.OOR<<16 | gc.TUINT16,
+-		gc.OOR<<16 | gc.TINT32,
+-		gc.OOR<<16 | gc.TUINT32,
+-		gc.OOR<<16 | gc.TPTR32,
+-		gc.OOR<<16 | gc.TINT64,
+-		gc.OOR<<16 | gc.TUINT64,
+-		gc.OOR<<16 | gc.TPTR64:
++	case OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8,
++		OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16,
++		OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32,
++		OOR_ | gc.TINT64,
++		OOR_ | gc.TUINT64,
++		OOR_ | gc.TPTR64:
+ 		a = arm64.AORR
+ 
+-	case gc.OXOR<<16 | gc.TINT8,
+-		gc.OXOR<<16 | gc.TUINT8,
+-		gc.OXOR<<16 | gc.TINT16,
+-		gc.OXOR<<16 | gc.TUINT16,
+-		gc.OXOR<<16 | gc.TINT32,
+-		gc.OXOR<<16 | gc.TUINT32,
+-		gc.OXOR<<16 | gc.TPTR32,
+-		gc.OXOR<<16 | gc.TINT64,
+-		gc.OXOR<<16 | gc.TUINT64,
+-		gc.OXOR<<16 | gc.TPTR64:
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8,
++		OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16,
++		OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32,
++		OXOR_ | gc.TINT64,
++		OXOR_ | gc.TUINT64,
++		OXOR_ | gc.TPTR64:
+ 		a = arm64.AEOR
+ 
+ 		// TODO(minux): handle rotates
+@@ -840,30 +864,30 @@ func optoas(op int, t *gc.Type) int {
+ 	//	a = 0//???; RLDC?
+ 	//	break;
+ 
+-	case gc.OLSH<<16 | gc.TINT8,
+-		gc.OLSH<<16 | gc.TUINT8,
+-		gc.OLSH<<16 | gc.TINT16,
+-		gc.OLSH<<16 | gc.TUINT16,
+-		gc.OLSH<<16 | gc.TINT32,
+-		gc.OLSH<<16 | gc.TUINT32,
+-		gc.OLSH<<16 | gc.TPTR32,
+-		gc.OLSH<<16 | gc.TINT64,
+-		gc.OLSH<<16 | gc.TUINT64,
+-		gc.OLSH<<16 | gc.TPTR64:
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8,
++		OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16,
++		OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32,
++		OLSH_ | gc.TINT64,
++		OLSH_ | gc.TUINT64,
++		OLSH_ | gc.TPTR64:
+ 		a = arm64.ALSL
+ 
+-	case gc.ORSH<<16 | gc.TUINT8,
+-		gc.ORSH<<16 | gc.TUINT16,
+-		gc.ORSH<<16 | gc.TUINT32,
+-		gc.ORSH<<16 | gc.TPTR32,
+-		gc.ORSH<<16 | gc.TUINT64,
+-		gc.ORSH<<16 | gc.TPTR64:
++	case ORSH_ | gc.TUINT8,
++		ORSH_ | gc.TUINT16,
++		ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32,
++		ORSH_ | gc.TUINT64,
++		ORSH_ | gc.TPTR64:
+ 		a = arm64.ALSR
+ 
+-	case gc.ORSH<<16 | gc.TINT8,
+-		gc.ORSH<<16 | gc.TINT16,
+-		gc.ORSH<<16 | gc.TINT32,
+-		gc.ORSH<<16 | gc.TINT64:
++	case ORSH_ | gc.TINT8,
++		ORSH_ | gc.TINT16,
++		ORSH_ | gc.TINT32,
++		ORSH_ | gc.TINT64:
+ 		a = arm64.AASR
+ 
+ 		// TODO(minux): handle rotates
+@@ -878,59 +902,59 @@ func optoas(op int, t *gc.Type) int {
+ 	//	a = 0//??? RLDC??
+ 	//	break;
+ 
+-	case gc.OHMUL<<16 | gc.TINT64:
++	case OHMUL_ | gc.TINT64:
+ 		a = arm64.ASMULH
+ 
+-	case gc.OHMUL<<16 | gc.TUINT64,
+-		gc.OHMUL<<16 | gc.TPTR64:
++	case OHMUL_ | gc.TUINT64,
++		OHMUL_ | gc.TPTR64:
+ 		a = arm64.AUMULH
+ 
+-	case gc.OMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT32:
++	case OMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT32:
+ 		a = arm64.ASMULL
+ 
+-	case gc.OMUL<<16 | gc.TINT64:
++	case OMUL_ | gc.TINT64:
+ 		a = arm64.AMUL
+ 
+-	case gc.OMUL<<16 | gc.TUINT8,
+-		gc.OMUL<<16 | gc.TUINT16,
+-		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32:
++	case OMUL_ | gc.TUINT8,
++		OMUL_ | gc.TUINT16,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32:
+ 		// don't use word multiply, the high 32-bit are undefined.
+ 		a = arm64.AUMULL
+ 
+-	case gc.OMUL<<16 | gc.TUINT64,
+-		gc.OMUL<<16 | gc.TPTR64:
++	case OMUL_ | gc.TUINT64,
++		OMUL_ | gc.TPTR64:
+ 		a = arm64.AMUL // for 64-bit multiplies, signedness doesn't matter.
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT32:
++	case OMUL_ | gc.TFLOAT32:
+ 		a = arm64.AFMULS
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT64:
++	case OMUL_ | gc.TFLOAT64:
+ 		a = arm64.AFMULD
+ 
+-	case gc.ODIV<<16 | gc.TINT8,
+-		gc.ODIV<<16 | gc.TINT16,
+-		gc.ODIV<<16 | gc.TINT32,
+-		gc.ODIV<<16 | gc.TINT64:
++	case ODIV_ | gc.TINT8,
++		ODIV_ | gc.TINT16,
++		ODIV_ | gc.TINT32,
++		ODIV_ | gc.TINT64:
+ 		a = arm64.ASDIV
+ 
+-	case gc.ODIV<<16 | gc.TUINT8,
+-		gc.ODIV<<16 | gc.TUINT16,
+-		gc.ODIV<<16 | gc.TUINT32,
+-		gc.ODIV<<16 | gc.TPTR32,
+-		gc.ODIV<<16 | gc.TUINT64,
+-		gc.ODIV<<16 | gc.TPTR64:
++	case ODIV_ | gc.TUINT8,
++		ODIV_ | gc.TUINT16,
++		ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32,
++		ODIV_ | gc.TUINT64,
++		ODIV_ | gc.TPTR64:
+ 		a = arm64.AUDIV
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT32:
++	case ODIV_ | gc.TFLOAT32:
+ 		a = arm64.AFDIVS
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT64:
++	case ODIV_ | gc.TFLOAT64:
+ 		a = arm64.AFDIVD
+ 
+-	case gc.OSQRT<<16 | gc.TFLOAT64:
++	case OSQRT_ | gc.TFLOAT64:
+ 		a = arm64.AFSQRTD
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 5e14047ea7..812a8cb150 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -149,7 +149,7 @@ func dowidth(t *Type) {
+ 	t.Width = -2
+ 	t.Align = 0
+ 
+-	et := int32(t.Etype)
++	et := t.Etype
+ 	switch et {
+ 	case TFUNC, TCHAN, TMAP, TSTRING:
+ 		break
+@@ -157,7 +157,7 @@ func dowidth(t *Type) {
+ 	// simtype == 0 during bootstrap
+ 	default:
+ 		if Simtype[t.Etype] != 0 {
+-			et = int32(Simtype[t.Etype])
++			et = Simtype[t.Etype]
+ 		}
+ 	}
+ 
+@@ -416,8 +416,8 @@ func typeinit() {
+ 		Fatalf("typeinit before betypeinit")
+ 	}
+ 
+-	for i := 0; i < NTYPE; i++ {
+-		Simtype[i] = uint8(i)
++	for et := EType(0); et < NTYPE; et++ {
++		Simtype[et] = et
+ 	}
+ 
+ 	Types[TPTR32] = typ(TPTR32)
+@@ -439,8 +439,8 @@ func typeinit() {
+ 		Tptr = TPTR64
+ 	}
+ 
+-	for i := TINT8; i <= TUINT64; i++ {
+-		Isint[i] = true
++	for et := TINT8; et <= TUINT64; et++ {
++		Isint[et] = true
+ 	}
+ 	Isint[TINT] = true
+ 	Isint[TUINT] = true
+@@ -464,36 +464,36 @@ func typeinit() {
+ 	Issigned[TINT64] = true
+ 
+ 	// initialize okfor
+-	for i := 0; i < NTYPE; i++ {
+-		if Isint[i] || i == TIDEAL {
+-			okforeq[i] = true
+-			okforcmp[i] = true
+-			okforarith[i] = true
+-			okforadd[i] = true
+-			okforand[i] = true
+-			okforconst[i] = true
+-			issimple[i] = true
+-			Minintval[i] = new(Mpint)
+-			Maxintval[i] = new(Mpint)
++	for et := EType(0); et < NTYPE; et++ {
++		if Isint[et] || et == TIDEAL {
++			okforeq[et] = true
++			okforcmp[et] = true
++			okforarith[et] = true
++			okforadd[et] = true
++			okforand[et] = true
++			okforconst[et] = true
++			issimple[et] = true
++			Minintval[et] = new(Mpint)
++			Maxintval[et] = new(Mpint)
+ 		}
+ 
+-		if Isfloat[i] {
+-			okforeq[i] = true
+-			okforcmp[i] = true
+-			okforadd[i] = true
+-			okforarith[i] = true
+-			okforconst[i] = true
+-			issimple[i] = true
+-			minfltval[i] = newMpflt()
+-			maxfltval[i] = newMpflt()
++		if Isfloat[et] {
++			okforeq[et] = true
++			okforcmp[et] = true
++			okforadd[et] = true
++			okforarith[et] = true
++			okforconst[et] = true
++			issimple[et] = true
++			minfltval[et] = newMpflt()
++			maxfltval[et] = newMpflt()
+ 		}
+ 
+-		if Iscomplex[i] {
+-			okforeq[i] = true
+-			okforadd[i] = true
+-			okforarith[i] = true
+-			okforconst[i] = true
+-			issimple[i] = true
++		if Iscomplex[et] {
++			okforeq[et] = true
++			okforadd[et] = true
++			okforarith[et] = true
++			okforconst[et] = true
++			issimple[et] = true
+ 		}
+ 	}
+ 
+@@ -612,30 +612,26 @@ func typeinit() {
+ 	Types[TINTER] = typ(TINTER)
+ 
+ 	// simple aliases
+-	Simtype[TMAP] = uint8(Tptr)
++	Simtype[TMAP] = Tptr
+ 
+-	Simtype[TCHAN] = uint8(Tptr)
+-	Simtype[TFUNC] = uint8(Tptr)
+-	Simtype[TUNSAFEPTR] = uint8(Tptr)
++	Simtype[TCHAN] = Tptr
++	Simtype[TFUNC] = Tptr
++	Simtype[TUNSAFEPTR] = Tptr
+ 
+ 	// pick up the backend thearch.typedefs
+-	var s1 *Sym
+-	var etype int
+-	var sameas int
+-	var s *Sym
+ 	for i = range Thearch.Typedefs {
+-		s = Lookup(Thearch.Typedefs[i].Name)
+-		s1 = Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
++		s := Lookup(Thearch.Typedefs[i].Name)
++		s1 := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
+ 
+-		etype = Thearch.Typedefs[i].Etype
+-		if etype < 0 || etype >= len(Types) {
++		etype := Thearch.Typedefs[i].Etype
++		if int(etype) >= len(Types) {
+ 			Fatalf("typeinit: %s bad etype", s.Name)
+ 		}
+-		sameas = Thearch.Typedefs[i].Sameas
+-		if sameas < 0 || sameas >= len(Types) {
++		sameas := Thearch.Typedefs[i].Sameas
++		if int(sameas) >= len(Types) {
+ 			Fatalf("typeinit: %s bad sameas", s.Name)
+ 		}
+-		Simtype[etype] = uint8(sameas)
++		Simtype[etype] = sameas
+ 		minfltval[etype] = minfltval[sameas]
+ 		maxfltval[etype] = maxfltval[sameas]
+ 		Minintval[etype] = Minintval[sameas]
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 08e5dd7e16..731f31ba52 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -182,7 +182,7 @@ func (p *importer) localname() *Sym {
+ 	return importpkg.Lookup(name)
+ }
+ 
+-func (p *importer) newtyp(etype int) *Type {
++func (p *importer) newtyp(etype EType) *Type {
+ 	t := typ(etype)
+ 	p.typList = append(p.typList, t)
+ 	return t
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 9504a0f0f6..8cbdd18c29 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -188,7 +188,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	}
+ 
+ 	if wb {
+-		if int(Simtype[res.Type.Etype]) != Tptr {
++		if Simtype[res.Type.Etype] != Tptr {
+ 			Fatalf("cgen_wb of type %v", res.Type)
+ 		}
+ 		if n.Ullman >= UINF {
+@@ -395,7 +395,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			goto sbop
+ 		}
+ 
+-		a := Thearch.Optoas(int(n.Op), nl.Type)
++		a := Thearch.Optoas(n.Op, nl.Type)
+ 		// unary
+ 		var n1 Node
+ 		Regalloc(&n1, nl.Type, res)
+@@ -432,15 +432,15 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		OXOR,
+ 		OADD,
+ 		OMUL:
+-		if n.Op == OMUL && Thearch.Cgen_bmul != nil && Thearch.Cgen_bmul(int(n.Op), nl, nr, res) {
++		if n.Op == OMUL && Thearch.Cgen_bmul != nil && Thearch.Cgen_bmul(n.Op, nl, nr, res) {
+ 			break
+ 		}
+-		a = Thearch.Optoas(int(n.Op), nl.Type)
++		a = Thearch.Optoas(n.Op, nl.Type)
+ 		goto sbop
+ 
+ 		// asymmetric binary
+ 	case OSUB:
+-		a = Thearch.Optoas(int(n.Op), nl.Type)
++		a = Thearch.Optoas(n.Op, nl.Type)
+ 		goto abop
+ 
+ 	case OHMUL:
+@@ -654,7 +654,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 	case OMOD, ODIV:
+ 		if Isfloat[n.Type.Etype] || Thearch.Dodiv == nil {
+-			a = Thearch.Optoas(int(n.Op), nl.Type)
++			a = Thearch.Optoas(n.Op, nl.Type)
+ 			goto abop
+ 		}
+ 
+@@ -662,7 +662,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			var n1 Node
+ 			Regalloc(&n1, nl.Type, res)
+ 			Cgen(nl, &n1)
+-			cgen_div(int(n.Op), &n1, nr, res)
++			cgen_div(n.Op, &n1, nr, res)
+ 			Regfree(&n1)
+ 		} else {
+ 			var n2 Node
+@@ -673,14 +673,14 @@ func cgen_wb(n, res *Node, wb bool) {
+ 				n2 = *nr
+ 			}
+ 
+-			cgen_div(int(n.Op), nl, &n2, res)
++			cgen_div(n.Op, nl, &n2, res)
+ 			if n2.Op != OLITERAL {
+ 				Regfree(&n2)
+ 			}
+ 		}
+ 
+ 	case OLSH, ORSH, OLROT:
+-		Thearch.Cgen_shift(int(n.Op), n.Bounded, nl, nr, res)
++		Thearch.Cgen_shift(n.Op, n.Bounded, nl, nr, res)
+ 	}
+ 
+ 	return
+@@ -1902,7 +1902,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	// n.Op is one of OEQ, ONE, OLT, OGT, OLE, OGE
+ 	nl := n.Left
+ 	nr := n.Right
+-	a := int(n.Op)
++	op := n.Op
+ 
+ 	if !wantTrue {
+ 		if Isfloat[nr.Type.Etype] {
+@@ -1925,19 +1925,19 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			return
+ 		}
+ 
+-		a = Brcom(a)
++		op = Brcom(op)
+ 	}
+ 	wantTrue = true
+ 
+ 	// make simplest on right
+ 	if nl.Op == OLITERAL || (nl.Ullman < nr.Ullman && nl.Ullman < UINF) {
+-		a = Brrev(a)
++		op = Brrev(op)
+ 		nl, nr = nr, nl
+ 	}
+ 
+ 	if Isslice(nl.Type) || Isinter(nl.Type) {
+ 		// front end should only leave cmp to literal nil
+-		if (a != OEQ && a != ONE) || nr.Op != OLITERAL {
++		if (op != OEQ && op != ONE) || nr.Op != OLITERAL {
+ 			if Isslice(nl.Type) {
+ 				Yyerror("illegal slice comparison")
+ 			} else {
+@@ -1956,13 +1956,13 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		Regalloc(&tmp, ptr.Type, &ptr)
+ 		Cgen(&ptr, &tmp)
+ 		Regfree(&ptr)
+-		bgenNonZero(&tmp, res, a == OEQ != wantTrue, likely, to)
++		bgenNonZero(&tmp, res, op == OEQ != wantTrue, likely, to)
+ 		Regfree(&tmp)
+ 		return
+ 	}
+ 
+ 	if Iscomplex[nl.Type.Etype] {
+-		complexbool(a, nl, nr, res, wantTrue, likely, to)
++		complexbool(op, nl, nr, res, wantTrue, likely, to)
+ 		return
+ 	}
+ 
+@@ -1978,7 +1978,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		if !nr.Addable {
+ 			nr = CgenTemp(nr)
+ 		}
+-		Thearch.Cmp64(nl, nr, a, likely, to)
++		Thearch.Cmp64(nl, nr, op, likely, to)
+ 		return
+ 	}
+ 
+@@ -2015,7 +2015,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 
+ 		if Smallintconst(nr) && Ctxt.Arch.Thechar != '9' {
+ 			Thearch.Gins(Thearch.Optoas(OCMP, nr.Type), nl, nr)
+-			bins(nr.Type, res, a, likely, to)
++			bins(nr.Type, res, op, likely, to)
+ 			return
+ 		}
+ 
+@@ -2033,9 +2033,9 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	l, r := nl, nr
+ 
+ 	// On x86, only < and <= work right with NaN; reverse if needed
+-	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (a == OGT || a == OGE) {
++	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (op == OGT || op == OGE) {
+ 		l, r = r, l
+-		a = Brrev(a)
++		op = Brrev(op)
+ 	}
+ 
+ 	// Do the comparison.
+@@ -2052,10 +2052,10 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			switch n.Op {
+ 			case ONE:
+ 				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, likely), to)
+-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++				Patch(Gbranch(Thearch.Optoas(op, nr.Type), nr.Type, likely), to)
+ 			default:
+ 				p := Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, -likely)
+-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++				Patch(Gbranch(Thearch.Optoas(op, nr.Type), nr.Type, likely), to)
+ 				Patch(p, Pc)
+ 			}
+ 			return
+@@ -2101,12 +2101,12 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			// On arm64 and ppc64, <= and >= mishandle NaN. Must decompose into < or > and =.
+ 			// TODO(josh): Convert a <= b to b > a instead?
+ 			case OLE, OGE:
+-				if a == OLE {
+-					a = OLT
++				if op == OLE {
++					op = OLT
+ 				} else {
+-					a = OGT
++					op = OGT
+ 				}
+-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
++				Patch(Gbranch(Thearch.Optoas(op, nr.Type), nr.Type, likely), to)
+ 				Patch(Gbranch(Thearch.Optoas(OEQ, nr.Type), nr.Type, likely), to)
+ 				return
+ 			}
+@@ -2114,26 +2114,26 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	}
+ 
+ 	// Not a special case. Insert the conditional jump or value gen.
+-	bins(nr.Type, res, a, likely, to)
++	bins(nr.Type, res, op, likely, to)
+ }
+ 
+ func bgenNonZero(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	// TODO: Optimize on systems that can compare to zero easily.
+-	a := ONE
++	var op Op = ONE
+ 	if !wantTrue {
+-		a = OEQ
++		op = OEQ
+ 	}
+ 	var zero Node
+ 	Nodconst(&zero, n.Type, 0)
+ 	Thearch.Gins(Thearch.Optoas(OCMP, n.Type), n, &zero)
+-	bins(n.Type, res, a, likely, to)
++	bins(n.Type, res, op, likely, to)
+ }
+ 
+ // bins inserts an instruction to handle the result of a compare.
+ // If res is non-nil, it inserts appropriate value generation instructions.
+ // If res is nil, it inserts a branch to to.
+-func bins(typ *Type, res *Node, a, likely int, to *obj.Prog) {
+-	a = Thearch.Optoas(a, typ)
++func bins(typ *Type, res *Node, op Op, likely int, to *obj.Prog) {
++	a := Thearch.Optoas(op, typ)
+ 	if res != nil {
+ 		// value gen
+ 		Thearch.Ginsboolval(a, res)
+@@ -2580,7 +2580,7 @@ func cgen_ret(n *Node) {
+ // generate division according to op, one of:
+ //	res = nl / nr
+ //	res = nl % nr
+-func cgen_div(op int, nl *Node, nr *Node, res *Node) {
++func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
+ 	var w int
+ 
+ 	// TODO(rsc): arm64 needs to support the relevant instructions
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 7b1c020fa8..6fe249f171 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -590,13 +590,38 @@ func evconst(n *Node) {
+ 
+ 	// avoid constant conversions in switches below
+ 	const (
+-		CTINT_  = uint32(CTINT)
+-		CTRUNE_ = uint32(CTRUNE)
+-		CTFLT_  = uint32(CTFLT)
+-		CTCPLX_ = uint32(CTCPLX)
+-		CTSTR_  = uint32(CTSTR)
+-		CTBOOL_ = uint32(CTBOOL)
+-		CTNIL_  = uint32(CTNIL)
++		CTINT_         = uint32(CTINT)
++		CTRUNE_        = uint32(CTRUNE)
++		CTFLT_         = uint32(CTFLT)
++		CTCPLX_        = uint32(CTCPLX)
++		CTSTR_         = uint32(CTSTR)
++		CTBOOL_        = uint32(CTBOOL)
++		CTNIL_         = uint32(CTNIL)
++		OCONV_         = uint32(OCONV) << 16
++		OARRAYBYTESTR_ = uint32(OARRAYBYTESTR) << 16
++		OPLUS_         = uint32(OPLUS) << 16
++		OMINUS_        = uint32(OMINUS) << 16
++		OCOM_          = uint32(OCOM) << 16
++		ONOT_          = uint32(ONOT) << 16
++		OLSH_          = uint32(OLSH) << 16
++		ORSH_          = uint32(ORSH) << 16
++		OADD_          = uint32(OADD) << 16
++		OSUB_          = uint32(OSUB) << 16
++		OMUL_          = uint32(OMUL) << 16
++		ODIV_          = uint32(ODIV) << 16
++		OMOD_          = uint32(OMOD) << 16
++		OOR_           = uint32(OOR) << 16
++		OAND_          = uint32(OAND) << 16
++		OANDNOT_       = uint32(OANDNOT) << 16
++		OXOR_          = uint32(OXOR) << 16
++		OEQ_           = uint32(OEQ) << 16
++		ONE_           = uint32(ONE) << 16
++		OLT_           = uint32(OLT) << 16
++		OLE_           = uint32(OLE) << 16
++		OGE_           = uint32(OGE) << 16
++		OGT_           = uint32(OGT) << 16
++		OOROR_         = uint32(OOROR) << 16
++		OANDAND_       = uint32(OANDAND) << 16
+ 	)
+ 
+ 	nr := n.Right
+@@ -622,8 +647,8 @@ func evconst(n *Node) {
+ 			}
+ 			return
+ 
+-		case OCONV<<16 | CTNIL_,
+-			OARRAYBYTESTR<<16 | CTNIL_:
++		case OCONV_ | CTNIL_,
++			OARRAYBYTESTR_ | CTNIL_:
+ 			if n.Type.Etype == TSTRING {
+ 				v = tostr(v)
+ 				nl.Type = n.Type
+@@ -632,24 +657,24 @@ func evconst(n *Node) {
+ 			fallthrough
+ 
+ 			// fall through
+-		case OCONV<<16 | CTINT_,
+-			OCONV<<16 | CTRUNE_,
+-			OCONV<<16 | CTFLT_,
+-			OCONV<<16 | CTSTR_:
++		case OCONV_ | CTINT_,
++			OCONV_ | CTRUNE_,
++			OCONV_ | CTFLT_,
++			OCONV_ | CTSTR_:
+ 			convlit1(&nl, n.Type, true)
+ 
+ 			v = nl.Val()
+ 
+-		case OPLUS<<16 | CTINT_,
+-			OPLUS<<16 | CTRUNE_:
++		case OPLUS_ | CTINT_,
++			OPLUS_ | CTRUNE_:
+ 			break
+ 
+-		case OMINUS<<16 | CTINT_,
+-			OMINUS<<16 | CTRUNE_:
++		case OMINUS_ | CTINT_,
++			OMINUS_ | CTRUNE_:
+ 			mpnegfix(v.U.(*Mpint))
+ 
+-		case OCOM<<16 | CTINT_,
+-			OCOM<<16 | CTRUNE_:
++		case OCOM_ | CTINT_,
++			OCOM_ | CTRUNE_:
+ 			et := Txxx
+ 			if nl.Type != nil {
+ 				et = int(nl.Type.Etype)
+@@ -675,20 +700,20 @@ func evconst(n *Node) {
+ 
+ 			mpxorfixfix(v.U.(*Mpint), &b)
+ 
+-		case OPLUS<<16 | CTFLT_:
++		case OPLUS_ | CTFLT_:
+ 			break
+ 
+-		case OMINUS<<16 | CTFLT_:
++		case OMINUS_ | CTFLT_:
+ 			mpnegflt(v.U.(*Mpflt))
+ 
+-		case OPLUS<<16 | CTCPLX_:
++		case OPLUS_ | CTCPLX_:
+ 			break
+ 
+-		case OMINUS<<16 | CTCPLX_:
++		case OMINUS_ | CTCPLX_:
+ 			mpnegflt(&v.U.(*Mpcplx).Real)
+ 			mpnegflt(&v.U.(*Mpcplx).Imag)
+ 
+-		case ONOT<<16 | CTBOOL_:
++		case ONOT_ | CTBOOL_:
+ 			if !v.U.(bool) {
+ 				goto settrue
+ 			}
+@@ -799,20 +824,20 @@ func evconst(n *Node) {
+ 	default:
+ 		goto illegal
+ 
+-	case OADD<<16 | CTINT_,
+-		OADD<<16 | CTRUNE_:
++	case OADD_ | CTINT_,
++		OADD_ | CTRUNE_:
+ 		mpaddfixfix(v.U.(*Mpint), rv.U.(*Mpint), 0)
+ 
+-	case OSUB<<16 | CTINT_,
+-		OSUB<<16 | CTRUNE_:
++	case OSUB_ | CTINT_,
++		OSUB_ | CTRUNE_:
+ 		mpsubfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OMUL<<16 | CTINT_,
+-		OMUL<<16 | CTRUNE_:
++	case OMUL_ | CTINT_,
++		OMUL_ | CTRUNE_:
+ 		mpmulfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case ODIV<<16 | CTINT_,
+-		ODIV<<16 | CTRUNE_:
++	case ODIV_ | CTINT_,
++		ODIV_ | CTRUNE_:
+ 		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
+ 			Yyerror("division by zero")
+ 			mpsetovf(v.U.(*Mpint))
+@@ -821,8 +846,8 @@ func evconst(n *Node) {
+ 
+ 		mpdivfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OMOD<<16 | CTINT_,
+-		OMOD<<16 | CTRUNE_:
++	case OMOD_ | CTINT_,
++		OMOD_ | CTRUNE_:
+ 		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
+ 			Yyerror("division by zero")
+ 			mpsetovf(v.U.(*Mpint))
+@@ -831,40 +856,40 @@ func evconst(n *Node) {
+ 
+ 		mpmodfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OLSH<<16 | CTINT_,
+-		OLSH<<16 | CTRUNE_:
++	case OLSH_ | CTINT_,
++		OLSH_ | CTRUNE_:
+ 		mplshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case ORSH<<16 | CTINT_,
+-		ORSH<<16 | CTRUNE_:
++	case ORSH_ | CTINT_,
++		ORSH_ | CTRUNE_:
+ 		mprshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OOR<<16 | CTINT_,
+-		OOR<<16 | CTRUNE_:
++	case OOR_ | CTINT_,
++		OOR_ | CTRUNE_:
+ 		mporfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OAND<<16 | CTINT_,
+-		OAND<<16 | CTRUNE_:
++	case OAND_ | CTINT_,
++		OAND_ | CTRUNE_:
+ 		mpandfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OANDNOT<<16 | CTINT_,
+-		OANDNOT<<16 | CTRUNE_:
++	case OANDNOT_ | CTINT_,
++		OANDNOT_ | CTRUNE_:
+ 		mpandnotfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OXOR<<16 | CTINT_,
+-		OXOR<<16 | CTRUNE_:
++	case OXOR_ | CTINT_,
++		OXOR_ | CTRUNE_:
+ 		mpxorfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+-	case OADD<<16 | CTFLT_:
++	case OADD_ | CTFLT_:
+ 		mpaddfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+-	case OSUB<<16 | CTFLT_:
++	case OSUB_ | CTFLT_:
+ 		mpsubfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+-	case OMUL<<16 | CTFLT_:
++	case OMUL_ | CTFLT_:
+ 		mpmulfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+-	case ODIV<<16 | CTFLT_:
++	case ODIV_ | CTFLT_:
+ 		if mpcmpfltc(rv.U.(*Mpflt), 0) == 0 {
+ 			Yyerror("division by zero")
+ 			Mpmovecflt(v.U.(*Mpflt), 1.0)
+@@ -875,7 +900,7 @@ func evconst(n *Node) {
+ 
+ 		// The default case above would print 'ideal % ideal',
+ 	// which is not quite an ideal error.
+-	case OMOD<<16 | CTFLT_:
++	case OMOD_ | CTFLT_:
+ 		if n.Diag == 0 {
+ 			Yyerror("illegal constant expression: floating-point %% operation")
+ 			n.Diag = 1
+@@ -883,18 +908,18 @@ func evconst(n *Node) {
+ 
+ 		return
+ 
+-	case OADD<<16 | CTCPLX_:
++	case OADD_ | CTCPLX_:
+ 		mpaddfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
+ 		mpaddfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
+ 
+-	case OSUB<<16 | CTCPLX_:
++	case OSUB_ | CTCPLX_:
+ 		mpsubfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
+ 		mpsubfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
+ 
+-	case OMUL<<16 | CTCPLX_:
++	case OMUL_ | CTCPLX_:
+ 		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+ 
+-	case ODIV<<16 | CTCPLX_:
++	case ODIV_ | CTCPLX_:
+ 		if mpcmpfltc(&rv.U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&rv.U.(*Mpcplx).Imag, 0) == 0 {
+ 			Yyerror("complex division by zero")
+ 			Mpmovecflt(&rv.U.(*Mpcplx).Real, 1.0)
+@@ -904,157 +929,157 @@ func evconst(n *Node) {
+ 
+ 		cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+ 
+-	case OEQ<<16 | CTNIL_:
++	case OEQ_ | CTNIL_:
+ 		goto settrue
+ 
+-	case ONE<<16 | CTNIL_:
++	case ONE_ | CTNIL_:
+ 		goto setfalse
+ 
+-	case OEQ<<16 | CTINT_,
+-		OEQ<<16 | CTRUNE_:
++	case OEQ_ | CTINT_,
++		OEQ_ | CTRUNE_:
+ 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) == 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case ONE<<16 | CTINT_,
+-		ONE<<16 | CTRUNE_:
++	case ONE_ | CTINT_,
++		ONE_ | CTRUNE_:
+ 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) != 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OLT<<16 | CTINT_,
+-		OLT<<16 | CTRUNE_:
++	case OLT_ | CTINT_,
++		OLT_ | CTRUNE_:
+ 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) < 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OLE<<16 | CTINT_,
+-		OLE<<16 | CTRUNE_:
++	case OLE_ | CTINT_,
++		OLE_ | CTRUNE_:
+ 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) <= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OGE<<16 | CTINT_,
+-		OGE<<16 | CTRUNE_:
++	case OGE_ | CTINT_,
++		OGE_ | CTRUNE_:
+ 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) >= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OGT<<16 | CTINT_,
+-		OGT<<16 | CTRUNE_:
++	case OGT_ | CTINT_,
++		OGT_ | CTRUNE_:
+ 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) > 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OEQ<<16 | CTFLT_:
++	case OEQ_ | CTFLT_:
+ 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) == 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case ONE<<16 | CTFLT_:
++	case ONE_ | CTFLT_:
+ 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) != 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OLT<<16 | CTFLT_:
++	case OLT_ | CTFLT_:
+ 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) < 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OLE<<16 | CTFLT_:
++	case OLE_ | CTFLT_:
+ 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) <= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OGE<<16 | CTFLT_:
++	case OGE_ | CTFLT_:
+ 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) >= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OGT<<16 | CTFLT_:
++	case OGT_ | CTFLT_:
+ 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) > 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OEQ<<16 | CTCPLX_:
++	case OEQ_ | CTCPLX_:
+ 		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) == 0 && mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) == 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case ONE<<16 | CTCPLX_:
++	case ONE_ | CTCPLX_:
+ 		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) != 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) != 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OEQ<<16 | CTSTR_:
++	case OEQ_ | CTSTR_:
+ 		if strlit(nl) == strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case ONE<<16 | CTSTR_:
++	case ONE_ | CTSTR_:
+ 		if strlit(nl) != strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OLT<<16 | CTSTR_:
++	case OLT_ | CTSTR_:
+ 		if strlit(nl) < strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OLE<<16 | CTSTR_:
++	case OLE_ | CTSTR_:
+ 		if strlit(nl) <= strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OGE<<16 | CTSTR_:
++	case OGE_ | CTSTR_:
+ 		if strlit(nl) >= strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OGT<<16 | CTSTR_:
++	case OGT_ | CTSTR_:
+ 		if strlit(nl) > strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OOROR<<16 | CTBOOL_:
++	case OOROR_ | CTBOOL_:
+ 		if v.U.(bool) || rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OANDAND<<16 | CTBOOL_:
++	case OANDAND_ | CTBOOL_:
+ 		if v.U.(bool) && rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case OEQ<<16 | CTBOOL_:
++	case OEQ_ | CTBOOL_:
+ 		if v.U.(bool) == rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+-	case ONE<<16 | CTBOOL_:
++	case ONE_ | CTBOOL_:
+ 		if v.U.(bool) != rv.U.(bool) {
+ 			goto settrue
+ 		}
+@@ -1406,7 +1431,7 @@ func nonnegconst(n *Node) int {
+ 
+ // convert x to type et and back to int64
+ // for sign extension and truncation.
+-func iconv(x int64, et int) int64 {
++func iconv(x int64, et EType) int64 {
+ 	switch et {
+ 	case TINT8:
+ 		x = int64(int8(x))
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index 9f11b96659..b692456cfd 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -14,7 +14,7 @@ func overlap_cplx(f *Node, t *Node) bool {
+ 	return f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset
+ }
+ 
+-func complexbool(op int, nl, nr, res *Node, wantTrue bool, likely int, to *obj.Prog) {
++func complexbool(op Op, nl, nr, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	// make both sides addable in ullman order
+ 	if nr != nil {
+ 		if nl.Ullman > nr.Ullman && !nl.Addable {
+@@ -130,7 +130,7 @@ func complexminus(nl *Node, res *Node) {
+ // build and execute tree
+ //	real(res) = real(nl) op real(nr)
+ //	imag(res) = imag(nl) op imag(nr)
+-func complexadd(op int, nl *Node, nr *Node, res *Node) {
++func complexadd(op Op, nl *Node, nr *Node, res *Node) {
+ 	var n1 Node
+ 	var n2 Node
+ 	var n3 Node
+@@ -143,14 +143,14 @@ func complexadd(op int, nl *Node, nr *Node, res *Node) {
+ 	subnode(&n5, &n6, res)
+ 
+ 	var ra Node
+-	ra.Op = uint8(op)
++	ra.Op = op
+ 	ra.Left = &n1
+ 	ra.Right = &n3
+ 	ra.Type = n1.Type
+ 	Cgen(&ra, &n5)
+ 
+ 	ra = Node{}
+-	ra.Op = uint8(op)
++	ra.Op = op
+ 	ra.Left = &n2
+ 	ra.Right = &n4
+ 	ra.Type = n2.Type
+@@ -293,17 +293,10 @@ func Complexmove(f *Node, t *Node) {
+ 
+ 	ft := Simsimtype(f.Type)
+ 	tt := Simsimtype(t.Type)
+-	switch uint32(ft)<<16 | uint32(tt) {
+-	default:
+-		Fatalf("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
+-
+-		// complex to complex move/convert.
++	// complex to complex move/convert.
+ 	// make f addable.
+ 	// also use temporary if possible stack overlap.
+-	case TCOMPLEX64<<16 | TCOMPLEX64,
+-		TCOMPLEX64<<16 | TCOMPLEX128,
+-		TCOMPLEX128<<16 | TCOMPLEX64,
+-		TCOMPLEX128<<16 | TCOMPLEX128:
++	if (ft == TCOMPLEX64 || ft == TCOMPLEX128) && (tt == TCOMPLEX64 || tt == TCOMPLEX128) {
+ 		if !f.Addable || overlap_cplx(f, t) {
+ 			var tmp Node
+ 			Tempname(&tmp, f.Type)
+@@ -320,6 +313,8 @@ func Complexmove(f *Node, t *Node) {
+ 
+ 		Cgen(&n1, &n3)
+ 		Cgen(&n2, &n4)
++	} else {
++		Fatalf("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
+ 	}
+ }
+ 
+@@ -471,7 +466,7 @@ func Complexgen(n *Node, res *Node) {
+ 		complexminus(nl, res)
+ 
+ 	case OADD, OSUB:
+-		complexadd(int(n.Op), nl, nr, res)
++		complexadd(n.Op, nl, nr, res)
+ 
+ 	case OMUL:
+ 		complexmul(nl, nr, res)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a7a8522ecd..b4182aea62 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -434,8 +434,8 @@ func dumpexport() {
+ // import
+ 
+ // return the sym for ss, which should match lexical
+-func importsym(s *Sym, op int) *Sym {
+-	if s.Def != nil && int(s.Def.Op) != op {
++func importsym(s *Sym, op Op) *Sym {
++	if s.Def != nil && s.Def.Op != op {
+ 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
+ 		redeclare(s, pkgstr)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 221e4a648b..2525921c8b 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -400,8 +400,8 @@ var etnames = []string{
+ }
+ 
+ // Fmt "%E": etype
+-func Econv(et int, flag int) string {
+-	if et >= 0 && et < len(etnames) && etnames[et] != "" {
++func Econv(et EType) string {
++	if int(et) < len(etnames) && etnames[et] != "" {
+ 		return etnames[et]
+ 	}
+ 	return fmt.Sprintf("E-%d", et)
+@@ -536,7 +536,7 @@ func typefmt(t *Type, flag int) string {
+ 
+ 	if fmtmode == FDbg {
+ 		fmtmode = 0
+-		str := Econv(int(t.Etype), 0) + "-" + typefmt(t, flag)
++		str := Econv(t.Etype) + "-" + typefmt(t, flag)
+ 		fmtmode = FDbg
+ 		return str
+ 	}
+@@ -755,15 +755,15 @@ func typefmt(t *Type, flag int) string {
+ 	}
+ 
+ 	if fmtmode == FExp {
+-		Fatalf("missing %v case during export", Econv(int(t.Etype), 0))
++		Fatalf("missing %v case during export", Econv(t.Etype))
+ 	}
+ 
+ 	// Don't know how to handle - fall back to detailed prints.
+-	return fmt.Sprintf("%v <%v> %v", Econv(int(t.Etype), 0), t.Sym, t.Type)
++	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Type)
+ }
+ 
+ // Statements which may be rendered with a simplestmt as init.
+-func stmtwithinit(op int) bool {
++func stmtwithinit(op Op) bool {
+ 	switch op {
+ 	case OIF, OFOR, OSWITCH:
+ 		return true
+@@ -781,13 +781,13 @@ func stmtfmt(n *Node) string {
+ 	// block starting with the init statements.
+ 
+ 	// if we can just say "for" n->ninit; ... then do so
+-	simpleinit := n.Ninit != nil && n.Ninit.Next == nil && n.Ninit.N.Ninit == nil && stmtwithinit(int(n.Op))
++	simpleinit := n.Ninit != nil && n.Ninit.Next == nil && n.Ninit.N.Ninit == nil && stmtwithinit(n.Op)
+ 
+ 	// otherwise, print the inits as separate statements
+ 	complexinit := n.Ninit != nil && !simpleinit && (fmtmode != FErr)
+ 
+ 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
+-	extrablock := complexinit && stmtwithinit(int(n.Op))
++	extrablock := complexinit && stmtwithinit(n.Op)
+ 
+ 	if extrablock {
+ 		f += "{"
+@@ -832,7 +832,7 @@ func stmtfmt(n *Node) string {
+ 
+ 	case OASOP:
+ 		if n.Implicit {
+-			if n.Etype == OADD {
++			if Op(n.Etype) == OADD {
+ 				f += fmt.Sprintf("%v++", n.Left)
+ 			} else {
+ 				f += fmt.Sprintf("%v--", n.Left)
+@@ -1442,6 +1442,7 @@ func exprfmt(n *Node, prec int) string {
+ 	case OCMPSTR, OCMPIFACE:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
++		// TODO(marvin): Fix Node.EType type union.
+ 		f += fmt.Sprintf(" %v ", Oconv(int(n.Etype), obj.FmtSharp))
+ 		f += exprfmt(n.Right, nprec+1)
+ 		return f
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index a2221854de..27737b7b7a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -1012,7 +1012,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 	numPtr := 0
+ 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+ 		n++
+-		if int(Simtype[t.Etype]) == Tptr && t != itable {
++		if Simtype[t.Etype] == Tptr && t != itable {
+ 			numPtr++
+ 		}
+ 		return n <= maxMoves && (!wb || numPtr <= 1)
+@@ -1129,7 +1129,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 		ptrOffset int64
+ 	)
+ 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+-		if wb && int(Simtype[t.Etype]) == Tptr && t != itable {
++		if wb && Simtype[t.Etype] == Tptr && t != itable {
+ 			if ptrType != nil {
+ 				Fatalf("componentgen_wb %v", Tconv(nl.Type, 0))
+ 			}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 84f11e69d0..4ccf3607b8 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -151,7 +151,7 @@ type Sym struct {
+ }
+ 
+ type Type struct {
+-	Etype       uint8
++	Etype       EType
+ 	Nointerface bool
+ 	Noalg       bool
+ 	Chan        uint8
+@@ -258,6 +258,8 @@ type Iter struct {
+ 	T     *Type
+ }
+ 
++type EType uint8
++
+ const (
+ 	Txxx = iota
+ 
+@@ -369,8 +371,8 @@ const (
+ 
+ type Typedef struct {
+ 	Name   string
+-	Etype  int
+-	Sameas int
++	Etype  EType
++	Sameas EType
+ }
+ 
+ type Sig struct {
+@@ -522,7 +524,7 @@ var unsafepkg *Pkg // package unsafe
+ 
+ var trackpkg *Pkg // fake package for field tracking
+ 
+-var Tptr int // either TPTR32 or TPTR64
++var Tptr EType // either TPTR32 or TPTR64
+ 
+ var myimportpath string
+ 
+@@ -544,7 +546,7 @@ var runetype *Type
+ 
+ var errortype *Type
+ 
+-var Simtype [NTYPE]uint8
++var Simtype [NTYPE]EType
+ 
+ var (
+ 	Isptr     [NTYPE]bool
+@@ -792,14 +794,14 @@ type Arch struct {
+ 	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
+ 	Cgen64       func(*Node, *Node)                // only on 32-bit systems
+ 	Cgenindex    func(*Node, *Node, bool) *obj.Prog
+-	Cgen_bmul    func(int, *Node, *Node, *Node) bool
++	Cgen_bmul    func(Op, *Node, *Node, *Node) bool
+ 	Cgen_float   func(*Node, *Node) // optional
+ 	Cgen_hmul    func(*Node, *Node, *Node)
+-	Cgen_shift   func(int, bool, *Node, *Node, *Node)
++	Cgen_shift   func(Op, bool, *Node, *Node, *Node)
+ 	Clearfat     func(*Node)
+-	Cmp64        func(*Node, *Node, int, int, *obj.Prog) // only on 32-bit systems
++	Cmp64        func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
+ 	Defframe     func(*obj.Prog)
+-	Dodiv        func(int, *Node, *Node, *Node)
++	Dodiv        func(Op, *Node, *Node, *Node)
+ 	Excise       func(*Flow)
+ 	Expandchecks func(*obj.Prog)
+ 	Getg         func(*Node)
+@@ -815,7 +817,7 @@ type Arch struct {
+ 	// function calls needed during the evaluation, and on 32-bit systems
+ 	// the values are guaranteed not to be 64-bit values, so no in-memory
+ 	// temporaries are necessary.
+-	Ginscmp func(op int, t *Type, n1, n2 *Node, likely int) *obj.Prog
++	Ginscmp func(op Op, t *Type, n1, n2 *Node, likely int) *obj.Prog
+ 
+ 	// Ginsboolval inserts instructions to convert the result
+ 	// of a just-completed comparison to a boolean value.
+@@ -844,7 +846,7 @@ type Arch struct {
+ 	FtoB         func(int) uint64
+ 	BtoR         func(uint64) int
+ 	BtoF         func(uint64) int
+-	Optoas       func(int, *Type) int
++	Optoas       func(Op, *Type) int
+ 	Doregbits    func(int) uint64
+ 	Regnames     func(*int) []string
+ 	Use387       bool // should 8g use 387 FP instructions instead of sse2.
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index fc3af69568..5e56763d67 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -488,7 +488,7 @@ simple_stmt:
+ |	expr LASOP expr
+ 	{
+ 		$$ = Nod(OASOP, $1, $3);
+-		$$.Etype = uint8($2);			// rathole to pass opcode
++		$$.Etype = EType($2);			// rathole to pass opcode
+ 	}
+ |	expr_list '=' expr_list
+ 	{
+@@ -524,13 +524,15 @@ simple_stmt:
+ 	{
+ 		$$ = Nod(OASOP, $1, Nodintconst(1));
+ 		$$.Implicit = true;
+-		$$.Etype = OADD;
++		// TODO(marvin): Fix Node.EType type union.
++		$$.Etype = EType(OADD);
+ 	}
+ |	expr LDEC
+ 	{
+ 		$$ = Nod(OASOP, $1, Nodintconst(1));
+ 		$$.Implicit = true;
+-		$$.Etype = OSUB;
++		// TODO(marvin): Fix Node.EType type union.
++		$$.Etype = EType(OSUB);
+ 	}
+ 
+ case:
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 2547cb39f6..6b11ed2be8 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -335,7 +335,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		// n->left is PHEAP ONAME for stack parameter.
+ 	// compute address of actual parameter on stack.
+ 	case OPARAM:
+-		a.Etype = Simtype[n.Left.Type.Etype]
++		a.Etype = uint8(Simtype[n.Left.Type.Etype])
+ 
+ 		a.Width = n.Left.Type.Width
+ 		a.Offset = n.Xoffset
+@@ -360,7 +360,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 	case ONAME:
+ 		a.Etype = 0
+ 		if n.Type != nil {
+-			a.Etype = Simtype[n.Type.Etype]
++			a.Etype = uint8(Simtype[n.Type.Etype])
+ 		}
+ 		a.Offset = n.Xoffset
+ 		s := n.Sym
+@@ -464,7 +464,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // ptr(nil)
+ 		}
+-		a.Etype = Simtype[Tptr]
++		a.Etype = uint8(Simtype[Tptr])
+ 		a.Offset += int64(Array_array)
+ 		a.Width = int64(Widthptr)
+ 
+@@ -475,7 +475,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // len(nil)
+ 		}
+-		a.Etype = Simtype[TUINT]
++		a.Etype = uint8(Simtype[TUINT])
+ 		a.Offset += int64(Array_nel)
+ 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+ 			a.Width = int64(Widthint)
+@@ -488,7 +488,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // cap(nil)
+ 		}
+-		a.Etype = Simtype[TUINT]
++		a.Etype = uint8(Simtype[TUINT])
+ 		a.Offset += int64(Array_cap)
+ 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+ 			a.Width = int64(Widthint)
+@@ -667,7 +667,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
+ 	if t == nil {
+ 		Fatalf("regalloc: t nil")
+ 	}
+-	et := int(Simtype[t.Etype])
++	et := Simtype[t.Etype]
+ 	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
+ 		Fatalf("regalloc 64bit")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 66d5b74307..64afd67438 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -350,7 +350,8 @@ func inlnode(np **Node) {
+ 	case ODEFER, OPROC:
+ 		switch n.Left.Op {
+ 		case OCALLFUNC, OCALLMETH:
+-			n.Left.Etype = n.Op
++			// TODO(marvin): Fix Node.EType type union.
++			n.Left.Etype = EType(n.Op)
+ 		}
+ 		fallthrough
+ 
+@@ -450,7 +451,8 @@ func inlnode(np **Node) {
+ 	// switch at the top of this function.
+ 	switch n.Op {
+ 	case OCALLFUNC, OCALLMETH:
+-		if n.Etype == OPROC || n.Etype == ODEFER {
++		// TODO(marvin): Fix Node.EType type union.
++		if n.Etype == EType(OPROC) || n.Etype == EType(ODEFER) {
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index cd964ff19b..c7a16e89cd 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -1187,14 +1187,14 @@ l0:
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = ODIV
++			c = int(ODIV)
+ 			goto asop
+ 		}
+ 
+ 	case ':':
+ 		c1 = getc()
+ 		if c1 == '=' {
+-			c = LCOLAS
++			c = int(LCOLAS)
+ 			yylval.i = int(lexlineno)
+ 			goto lx
+ 		}
+@@ -1202,48 +1202,48 @@ l0:
+ 	case '*':
+ 		c1 = getc()
+ 		if c1 == '=' {
+-			c = OMUL
++			c = int(OMUL)
+ 			goto asop
+ 		}
+ 
+ 	case '%':
+ 		c1 = getc()
+ 		if c1 == '=' {
+-			c = OMOD
++			c = int(OMOD)
+ 			goto asop
+ 		}
+ 
+ 	case '+':
+ 		c1 = getc()
+ 		if c1 == '+' {
+-			c = LINC
++			c = int(LINC)
+ 			goto lx
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = OADD
++			c = int(OADD)
+ 			goto asop
+ 		}
+ 
+ 	case '-':
+ 		c1 = getc()
+ 		if c1 == '-' {
+-			c = LDEC
++			c = int(LDEC)
+ 			goto lx
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = OSUB
++			c = int(OSUB)
+ 			goto asop
+ 		}
+ 
+ 	case '>':
+ 		c1 = getc()
+ 		if c1 == '>' {
+-			c = LRSH
++			c = int(LRSH)
+ 			c1 = getc()
+ 			if c1 == '=' {
+-				c = ORSH
++				c = int(ORSH)
+ 				goto asop
+ 			}
+ 
+@@ -1251,19 +1251,19 @@ l0:
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = LGE
++			c = int(LGE)
+ 			goto lx
+ 		}
+ 
+-		c = LGT
++		c = int(LGT)
+ 
+ 	case '<':
+ 		c1 = getc()
+ 		if c1 == '<' {
+-			c = LLSH
++			c = int(LLSH)
+ 			c1 = getc()
+ 			if c1 == '=' {
+-				c = OLSH
++				c = int(OLSH)
+ 				goto asop
+ 			}
+ 
+@@ -1271,43 +1271,43 @@ l0:
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = LLE
++			c = int(LLE)
+ 			goto lx
+ 		}
+ 
+ 		if c1 == '-' {
+-			c = LCOMM
++			c = int(LCOMM)
+ 			goto lx
+ 		}
+ 
+-		c = LLT
++		c = int(LLT)
+ 
+ 	case '=':
+ 		c1 = getc()
+ 		if c1 == '=' {
+-			c = LEQ
++			c = int(LEQ)
+ 			goto lx
+ 		}
+ 
+ 	case '!':
+ 		c1 = getc()
+ 		if c1 == '=' {
+-			c = LNE
++			c = int(LNE)
+ 			goto lx
+ 		}
+ 
+ 	case '&':
+ 		c1 = getc()
+ 		if c1 == '&' {
+-			c = LANDAND
++			c = int(LANDAND)
+ 			goto lx
+ 		}
+ 
+ 		if c1 == '^' {
+-			c = LANDNOT
++			c = int(LANDNOT)
+ 			c1 = getc()
+ 			if c1 == '=' {
+-				c = OANDNOT
++				c = int(OANDNOT)
+ 				goto asop
+ 			}
+ 
+@@ -1315,26 +1315,26 @@ l0:
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = OAND
++			c = int(OAND)
+ 			goto asop
+ 		}
+ 
+ 	case '|':
+ 		c1 = getc()
+ 		if c1 == '|' {
+-			c = LOROR
++			c = int(LOROR)
+ 			goto lx
+ 		}
+ 
+ 		if c1 == '=' {
+-			c = OOR
++			c = int(OOR)
+ 			goto asop
+ 		}
+ 
+ 	case '^':
+ 		c1 = getc()
+ 		if c1 == '=' {
+-			c = OXOR
++			c = int(OXOR)
+ 			goto asop
+ 		}
+ 
+@@ -2159,8 +2159,8 @@ hex:
+ var syms = []struct {
+ 	name    string
+ 	lexical int
+-	etype   int
+-	op      int
++	etype   EType
++	op      Op
+ }{
+ 	// basic types
+ 	{"int8", LNAME, TINT8, OXXX},
+@@ -2233,7 +2233,7 @@ func lexinit() {
+ 		s1.Lexical = uint16(lex)
+ 
+ 		if etype := s.etype; etype != Txxx {
+-			if etype < 0 || etype >= len(Types) {
++			if int(etype) >= len(Types) {
+ 				Fatalf("lexinit: %s bad etype", s.name)
+ 			}
+ 			s2 := Pkglookup(s.name, builtinpkg)
+@@ -2254,12 +2254,13 @@ func lexinit() {
+ 			continue
+ 		}
+ 
++		// TODO(marvin): Fix Node.EType type union.
+ 		if etype := s.op; etype != OXXX {
+ 			s2 := Pkglookup(s.name, builtinpkg)
+ 			s2.Lexical = LNAME
+ 			s2.Def = Nod(ONAME, nil, nil)
+ 			s2.Def.Sym = s2
+-			s2.Def.Etype = uint8(etype)
++			s2.Def.Etype = EType(etype)
+ 		}
+ 	}
+ 
+@@ -2368,38 +2369,34 @@ func lexinit1() {
+ }
+ 
+ func lexfini() {
+-	var s *Sym
+-	var lex int
+-	var etype int
+-	var i int
+-
+-	for i = 0; i < len(syms); i++ {
+-		lex = syms[i].lexical
++	for i := range syms {
++		lex := syms[i].lexical
+ 		if lex != LNAME {
+ 			continue
+ 		}
+-		s = Lookup(syms[i].name)
++		s := Lookup(syms[i].name)
+ 		s.Lexical = uint16(lex)
+ 
+-		etype = syms[i].etype
++		etype := syms[i].etype
+ 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
+ 			s.Def = typenod(Types[etype])
+ 			s.Def.Name = new(Name)
+ 			s.Origpkg = builtinpkg
+ 		}
+ 
+-		etype = syms[i].op
+-		if etype != OXXX && s.Def == nil {
++		// TODO(marvin): Fix Node.EType type union.
++		etype = EType(syms[i].op)
++		if etype != EType(OXXX) && s.Def == nil {
+ 			s.Def = Nod(ONAME, nil, nil)
+ 			s.Def.Sym = s
+-			s.Def.Etype = uint8(etype)
++			s.Def.Etype = etype
+ 			s.Origpkg = builtinpkg
+ 		}
+ 	}
+ 
+ 	// backend-specific builtin types (e.g. int).
+-	for i = range Thearch.Typedefs {
+-		s = Lookup(Thearch.Typedefs[i].Name)
++	for i := range Thearch.Typedefs {
++		s := Lookup(Thearch.Typedefs[i].Name)
+ 		if s.Def == nil {
+ 			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
+ 			s.Def.Name = new(Name)
+@@ -2409,30 +2406,25 @@ func lexfini() {
+ 
+ 	// there's only so much table-driven we can handle.
+ 	// these are special cases.
+-	s = Lookup("byte")
+-
+-	if s.Def == nil {
++	if s := Lookup("byte"); s.Def == nil {
+ 		s.Def = typenod(bytetype)
+ 		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+-	s = Lookup("error")
+-	if s.Def == nil {
++	if s := Lookup("error"); s.Def == nil {
+ 		s.Def = typenod(errortype)
+ 		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+-	s = Lookup("rune")
+-	if s.Def == nil {
++	if s := Lookup("rune"); s.Def == nil {
+ 		s.Def = typenod(runetype)
+ 		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+-	s = Lookup("nil")
+-	if s.Def == nil {
++	if s := Lookup("nil"); s.Def == nil {
+ 		var v Val
+ 		v.U = new(NilVal)
+ 		s.Def = nodlit(v)
+@@ -2441,23 +2433,20 @@ func lexfini() {
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+-	s = Lookup("iota")
+-	if s.Def == nil {
++	if s := Lookup("iota"); s.Def == nil {
+ 		s.Def = Nod(OIOTA, nil, nil)
+ 		s.Def.Sym = s
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+-	s = Lookup("true")
+-	if s.Def == nil {
++	if s := Lookup("true"); s.Def == nil {
+ 		s.Def = Nodbool(true)
+ 		s.Def.Sym = s
+ 		s.Def.Name = new(Name)
+ 		s.Origpkg = builtinpkg
+ 	}
+ 
+-	s = Lookup("false")
+-	if s.Def == nil {
++	if s := Lookup("false"); s.Def == nil {
+ 		s.Def = Nodbool(false)
+ 		s.Def.Sym = s
+ 		s.Def.Name = new(Name)
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index d65e3ba615..66549be5c4 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -277,7 +277,7 @@ func Datastring(s string, a *obj.Addr) {
+ 	a.Sym = Linksym(symdata)
+ 	a.Node = symdata.Def
+ 	a.Offset = 0
+-	a.Etype = Simtype[TINT]
++	a.Etype = uint8(Simtype[TINT])
+ }
+ 
+ func datagostring(sval string, a *obj.Addr) {
+@@ -287,7 +287,7 @@ func datagostring(sval string, a *obj.Addr) {
+ 	a.Sym = Linksym(symhdr)
+ 	a.Node = symhdr.Def
+ 	a.Offset = 0
+-	a.Etype = TSTRING
++	a.Etype = uint8(TSTRING)
+ }
+ 
+ func dgostringptr(s *Sym, off int, str string) int {
+@@ -312,7 +312,7 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
+ 	p.From3.Offset = int64(Widthptr)
+ 	datagostring(*lit, &p.To)
+ 	p.To.Type = obj.TYPE_ADDR
+-	p.To.Etype = Simtype[TINT]
++	p.To.Etype = uint8(Simtype[TINT])
+ 	off += Widthptr
+ 
+ 	return off
+@@ -373,8 +373,8 @@ func gdata(nam *Node, nr *Node, wid int) {
+ }
+ 
+ func gdatacomplex(nam *Node, cval *Mpcplx) {
+-	w := cplxsubtype(int(nam.Type.Etype))
+-	w = int(Types[w].Width)
++	cst := cplxsubtype(nam.Type.Etype)
++	w := int(Types[cst].Width)
+ 
+ 	p := Thearch.Gins(obj.ADATA, nam, nil)
+ 	p.From3 = new(obj.Addr)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7e052c10b2..d01539ec29 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -509,7 +509,8 @@ func orderstmt(n *Node, order *Order) {
+ 			tmp1.Etype = 0 // now an rvalue not an lvalue
+ 		}
+ 		tmp1 = ordercopyexpr(tmp1, n.Left.Type, order, 0)
+-		n.Right = Nod(int(n.Etype), tmp1, n.Right)
++		// TODO(marvin): Fix Node.EType type union.
++		n.Right = Nod(Op(n.Etype), tmp1, n.Right)
+ 		typecheck(&n.Right, Erv)
+ 		orderexpr(&n.Right, order, nil)
+ 		n.Etype = 0
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index d1b18ff939..308d0dedb6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1267,7 +1267,7 @@ func dumptypestructs() {
+ 	// another possible choice would be package main,
+ 	// but using runtime means fewer copies in .6 files.
+ 	if compiling_runtime != 0 {
+-		for i := 1; i <= TBOOL; i++ {
++		for i := EType(1); i <= TBOOL; i++ {
+ 			dtypesym(Ptrto(Types[i]))
+ 		}
+ 		dtypesym(Ptrto(Types[TSTRING]))
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 8ae4633092..b4ef993173 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -48,7 +48,7 @@ type Var struct {
+ 	width      int
+ 	id         int // index in vars
+ 	name       int8
+-	etype      int8
++	etype      EType
+ 	addr       int8
+ }
+ 
+@@ -352,7 +352,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	if node.Sym == nil || node.Sym.Name[0] == '.' {
+ 		return zbits
+ 	}
+-	et := int(a.Etype)
++	et := EType(a.Etype)
+ 	o := a.Offset
+ 	w := a.Width
+ 	if w < 0 {
+@@ -365,7 +365,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 		v = &vars[i]
+ 		if v.node == node && int(v.name) == n {
+ 			if v.offset == o {
+-				if int(v.etype) == et {
++				if v.etype == et {
+ 					if int64(v.width) == w {
+ 						// TODO(rsc): Remove special case for arm here.
+ 						if flag == 0 || Thearch.Thechar != '5' {
+@@ -419,7 +419,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	v.id = i
+ 	v.offset = o
+ 	v.name = int8(n)
+-	v.etype = int8(et)
++	v.etype = et
+ 	v.width = int(w)
+ 	v.addr = int8(flag) // funny punning
+ 	v.node = node
+@@ -487,7 +487,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	}
+ 
+ 	if Debug['R'] != 0 {
+-		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(int(et), 0), o, w, Nconv(node, obj.FmtSharp), Ctxt.Dconv(a), v.addr)
++		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, obj.FmtSharp), Ctxt.Dconv(a), v.addr)
+ 	}
+ 	Ostats.Nvar++
+ 
+@@ -651,7 +651,7 @@ func allreg(b uint64, r *Rgn) uint64 {
+ 	r.regno = 0
+ 	switch v.etype {
+ 	default:
+-		Fatalf("unknown etype %d/%v", Bitno(b), Econv(int(v.etype), 0))
++		Fatalf("unknown etype %d/%v", Bitno(b), Econv(v.etype))
+ 
+ 	case TINT8,
+ 		TUINT8,
+@@ -1143,7 +1143,7 @@ func regopt(firstp *obj.Prog) {
+ 		}
+ 
+ 		if Debug['R'] != 0 && Debug['v'] != 0 {
+-			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, Econv(int(v.etype), 0), v.width, v.node, v.offset)
++			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, Econv(v.etype), v.width, v.node, v.offset)
+ 		}
+ 	}
+ 
+@@ -1357,7 +1357,7 @@ loop2:
+ 		if rgp.regno != 0 {
+ 			if Debug['R'] != 0 && Debug['v'] != 0 {
+ 				v := &vars[rgp.varno]
+-				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, Econv(int(v.etype), 0), obj.Rconv(int(rgp.regno)), usedreg, vreg)
++				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, Econv(v.etype), obj.Rconv(int(rgp.regno)), usedreg, vreg)
+ 			}
+ 
+ 			paint3(rgp.enter, int(rgp.varno), vreg, int(rgp.regno))
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ca8a89c549..6bc4bc8d01 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -347,9 +347,9 @@ func importdot(opkg *Pkg, pack *Node) {
+ 	}
+ }
+ 
+-func Nod(op int, nleft *Node, nright *Node) *Node {
++func Nod(op Op, nleft *Node, nright *Node) *Node {
+ 	n := new(Node)
+-	n.Op = uint8(op)
++	n.Op = op
+ 	n.Left = nleft
+ 	n.Right = nright
+ 	n.Lineno = int32(parserline())
+@@ -382,7 +382,7 @@ func saveorignode(n *Node) {
+ 	if n.Orig != nil {
+ 		return
+ 	}
+-	norig := Nod(int(n.Op), nil, nil)
++	norig := Nod(n.Op, nil, nil)
+ 	*norig = *n
+ 	n.Orig = norig
+ }
+@@ -546,11 +546,11 @@ func maptype(key *Type, val *Type) *Type {
+ 	if key != nil {
+ 		var bad *Type
+ 		atype := algtype1(key, &bad)
+-		var mtype int
++		var mtype EType
+ 		if bad == nil {
+-			mtype = int(key.Etype)
++			mtype = key.Etype
+ 		} else {
+-			mtype = int(bad.Etype)
++			mtype = bad.Etype
+ 		}
+ 		switch mtype {
+ 		default:
+@@ -581,9 +581,9 @@ func maptype(key *Type, val *Type) *Type {
+ 	return t
+ }
+ 
+-func typ(et int) *Type {
++func typ(et EType) *Type {
+ 	t := new(Type)
+-	t.Etype = uint8(et)
++	t.Etype = et
+ 	t.Width = BADWIDTH
+ 	t.Lineno = int(lineno)
+ 	t.Orig = t
+@@ -777,7 +777,7 @@ func isnil(n *Node) bool {
+ 	return true
+ }
+ 
+-func isptrto(t *Type, et int) bool {
++func isptrto(t *Type, et EType) bool {
+ 	if t == nil {
+ 		return false
+ 	}
+@@ -788,14 +788,14 @@ func isptrto(t *Type, et int) bool {
+ 	if t == nil {
+ 		return false
+ 	}
+-	if int(t.Etype) != et {
++	if t.Etype != et {
+ 		return false
+ 	}
+ 	return true
+ }
+ 
+-func Istype(t *Type, et int) bool {
+-	return t != nil && int(t.Etype) == et
++func Istype(t *Type, et EType) bool {
++	return t != nil && t.Etype == et
+ }
+ 
+ func Isfixedarray(t *Type) bool {
+@@ -888,7 +888,7 @@ func methtype(t *Type, mustname int) *Type {
+ 	return t
+ }
+ 
+-func cplxsubtype(et int) int {
++func cplxsubtype(et EType) EType {
+ 	switch et {
+ 	case TCOMPLEX64:
+ 		return TFLOAT32
+@@ -897,7 +897,7 @@ func cplxsubtype(et int) int {
+ 		return TFLOAT64
+ 	}
+ 
+-	Fatalf("cplxsubtype: %v\n", Econv(int(et), 0))
++	Fatalf("cplxsubtype: %v\n", Econv(et))
+ 	return 0
+ }
+ 
+@@ -1054,7 +1054,7 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
+ // Is type src assignment compatible to type dst?
+ // If so, return op code to use in conversion.
+ // If not, return 0.
+-func assignop(src *Type, dst *Type, why *string) int {
++func assignop(src *Type, dst *Type, why *string) Op {
+ 	if why != nil {
+ 		*why = ""
+ 	}
+@@ -1178,7 +1178,7 @@ func assignop(src *Type, dst *Type, why *string) int {
+ // Can we convert a value of type src to a value of type dst?
+ // If so, return op code to use in conversion (maybe OCONVNOP).
+ // If not, return 0.
+-func convertop(src *Type, dst *Type, why *string) int {
++func convertop(src *Type, dst *Type, why *string) Op {
+ 	if why != nil {
+ 		*why = ""
+ 	}
+@@ -1396,8 +1396,8 @@ func Is64(t *Type) bool {
+ 
+ // Is a conversion between t1 and t2 a no-op?
+ func Noconv(t1 *Type, t2 *Type) bool {
+-	e1 := int(Simtype[t1.Etype])
+-	e2 := int(Simtype[t2.Etype])
++	e1 := Simtype[t1.Etype]
++	e2 := Simtype[t2.Etype]
+ 
+ 	switch e1 {
+ 	case TINT8, TUINT8:
+@@ -1663,7 +1663,7 @@ out:
+ 	n.Ullman = uint8(ul)
+ }
+ 
+-func badtype(o int, tl *Type, tr *Type) {
++func badtype(op Op, tl *Type, tr *Type) {
+ 	fmt_ := ""
+ 	if tl != nil {
+ 		fmt_ += fmt.Sprintf("\n\t%v", tl)
+@@ -1682,7 +1682,7 @@ func badtype(o int, tl *Type, tr *Type) {
+ 	}
+ 
+ 	s := fmt_
+-	Yyerror("illegal types for operand: %v%s", Oconv(int(o), 0), s)
++	Yyerror("illegal types for operand: %v%s", Oconv(int(op), 0), s)
+ }
+ 
+ // iterator to walk a structure declaration
+@@ -1809,8 +1809,8 @@ func getinargx(t *Type) *Type {
+ 
+ // Brcom returns !(op).
+ // For example, Brcom(==) is !=.
+-func Brcom(a int) int {
+-	switch a {
++func Brcom(op Op) Op {
++	switch op {
+ 	case OEQ:
+ 		return ONE
+ 	case ONE:
+@@ -1824,14 +1824,14 @@ func Brcom(a int) int {
+ 	case OGE:
+ 		return OLT
+ 	}
+-	Fatalf("brcom: no com for %v\n", Oconv(a, 0))
+-	return a
++	Fatalf("brcom: no com for %v\n", Oconv(int(op), 0))
++	return op
+ }
+ 
+ // Brrev returns reverse(op).
+ // For example, Brrev(<) is >.
+-func Brrev(a int) int {
+-	switch a {
++func Brrev(op Op) Op {
++	switch op {
+ 	case OEQ:
+ 		return OEQ
+ 	case ONE:
+@@ -1845,8 +1845,8 @@ func Brrev(a int) int {
+ 	case OGE:
+ 		return OLE
+ 	}
+-	Fatalf("brrev: no rev for %v\n", Oconv(a, 0))
+-	return a
++	Fatalf("brrev: no rev for %v\n", Oconv(int(op), 0))
++	return op
+ }
+ 
+ // return side effect-free n, appending side effects to init.
+@@ -2991,12 +2991,12 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ // even simpler simtype; get rid of ptr, bool.
+ // assuming that the front end has rejected
+ // all the invalid conversions (like ptr -> bool)
+-func Simsimtype(t *Type) int {
++func Simsimtype(t *Type) EType {
+ 	if t == nil {
+ 		return 0
+ 	}
+ 
+-	et := int(Simtype[t.Etype])
++	et := Simtype[t.Etype]
+ 	switch et {
+ 	case TPTR32:
+ 		et = TUINT32
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 87480044ff..e48f69229c 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -42,11 +42,11 @@ type Node struct {
+ 
+ 	Esc uint16 // EscXXX
+ 
+-	Op          uint8
++	Op          Op
+ 	Nointerface bool
+ 	Ullman      uint8 // sethi/ullman number
+ 	Addable     bool  // addressable
+-	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
++	Etype       EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+ 	Bounded     bool  // bounds check unnecessary
+ 	Class       Class // PPARAM, PAUTO, PEXTERN, etc
+ 	Embedded    uint8 // ODCLFIELD embedded type
+@@ -179,9 +179,11 @@ type Func struct {
+ 	Systemstack    bool // must run on system stack
+ }
+ 
++type Op uint8
++
+ // Node ops.
+ const (
+-	OXXX = iota
++	OXXX = Op(iota)
+ 
+ 	// names
+ 	ONAME    // var, const or func name
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1d9ad55574..354a2fadd2 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -75,8 +75,8 @@ func typekind(t *Type) string {
+ 	if Isslice(t) {
+ 		return "slice"
+ 	}
+-	et := int(t.Etype)
+-	if 0 <= et && et < len(_typekind) {
++	et := t.Etype
++	if int(et) < len(_typekind) {
+ 		s := _typekind[et]
+ 		if s != "" {
+ 			return s
+@@ -410,7 +410,8 @@ OpSwitch:
+ 		}
+ 		t := typ(TCHAN)
+ 		t.Type = l.Type
+-		t.Chan = n.Etype
++		// TODO(marvin): Fix Node.EType type union.
++		t.Chan = uint8(n.Etype)
+ 		n.Op = OTYPE
+ 		n.Type = t
+ 		n.Left = nil
+@@ -503,7 +504,7 @@ OpSwitch:
+ 		OSUB,
+ 		OXOR:
+ 		var l *Node
+-		var op int
++		var op Op
+ 		var r *Node
+ 		if n.Op == OASOP {
+ 			ok |= Etop
+@@ -514,7 +515,8 @@ OpSwitch:
+ 				n.Type = nil
+ 				return
+ 			}
+-			op = int(n.Etype)
++			// TODO(marvin): Fix Node.EType type union.
++			op = Op(n.Etype)
+ 		} else {
+ 			ok |= Erv
+ 			l = typecheck(&n.Left, Erv|top&Eiota)
+@@ -523,7 +525,7 @@ OpSwitch:
+ 				n.Type = nil
+ 				return
+ 			}
+-			op = int(n.Op)
++			op = n.Op
+ 		}
+ 		if op == OLSH || op == ORSH {
+ 			defaultlit(&r, Types[TUINT])
+@@ -562,11 +564,11 @@ OpSwitch:
+ 		if t.Etype == TIDEAL {
+ 			t = r.Type
+ 		}
+-		et := int(t.Etype)
++		et := t.Etype
+ 		if et == TIDEAL {
+ 			et = TINT
+ 		}
+-		aop := 0
++		var aop Op = OXXX
+ 		if iscmp[n.Op] && t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+ 			// comparison is okay as long as one side is
+ 			// assignable to the other.  convert so they have
+@@ -619,7 +621,7 @@ OpSwitch:
+ 			}
+ 
+ 		converted:
+-			et = int(t.Etype)
++			et = t.Etype
+ 		}
+ 
+ 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+@@ -701,7 +703,8 @@ OpSwitch:
+ 
+ 		if et == TSTRING {
+ 			if iscmp[n.Op] {
+-				n.Etype = n.Op
++				// TODO(marvin): Fix Node.EType type union.
++				n.Etype = EType(n.Op)
+ 				n.Op = OCMPSTR
+ 			} else if n.Op == OADD {
+ 				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
+@@ -731,7 +734,8 @@ OpSwitch:
+ 			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
+ 			} else // leave alone for back end
+ 			if Isinter(r.Type) == Isinter(l.Type) {
+-				n.Etype = n.Op
++				// TODO(marvin): Fix Node.EType type union.
++				n.Etype = EType(n.Op)
+ 				n.Op = OCMPIFACE
+ 			}
+ 		}
+@@ -1251,12 +1255,14 @@ OpSwitch:
+ 		n.Diag |= n.Left.Diag
+ 		l = n.Left
+ 		if l.Op == ONAME && l.Etype != 0 {
+-			if n.Isddd && l.Etype != OAPPEND {
++			// TODO(marvin): Fix Node.EType type union.
++			if n.Isddd && Op(l.Etype) != OAPPEND {
+ 				Yyerror("invalid use of ... with builtin %v", l)
+ 			}
+ 
+ 			// builtin: OLEN, OCAP, etc.
+-			n.Op = l.Etype
++			// TODO(marvin): Fix Node.EType type union.
++			n.Op = Op(l.Etype)
+ 
+ 			n.Left = n.Right
+ 			n.Right = nil
+@@ -1408,7 +1414,7 @@ OpSwitch:
+ 				n.Orig = r
+ 			}
+ 
+-			n.Type = Types[cplxsubtype(int(t.Etype))]
++			n.Type = Types[cplxsubtype(t.Etype)]
+ 			break OpSwitch
+ 		}
+ 
+@@ -1733,8 +1739,8 @@ OpSwitch:
+ 			return
+ 		}
+ 		var why string
+-		n.Op = uint8(convertop(t, n.Type, &why))
+-		if (n.Op) == 0 {
++		n.Op = convertop(t, n.Type, &why)
++		if n.Op == 0 {
+ 			if n.Diag == 0 && !n.Type.Broke {
+ 				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
+ 				n.Diag = 1
+@@ -2442,7 +2448,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ }
+ 
+ func derefall(t *Type) *Type {
+-	for t != nil && int(t.Etype) == Tptr {
++	for t != nil && t.Etype == Tptr {
+ 		t = t.Type
+ 	}
+ 	return t
+@@ -2514,20 +2520,20 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 		dowidth(tt)
+ 		rcvr := getthisx(f2.Type).Type.Type
+ 		if !Eqtype(rcvr, tt) {
+-			if int(rcvr.Etype) == Tptr && Eqtype(rcvr.Type, tt) {
++			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
+ 				checklvalue(n.Left, "call pointer method on")
+ 				n.Left = Nod(OADDR, n.Left, nil)
+ 				n.Left.Implicit = true
+ 				typecheck(&n.Left, Etype|Erv)
+-			} else if int(tt.Etype) == Tptr && int(rcvr.Etype) != Tptr && Eqtype(tt.Type, rcvr) {
++			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Type, rcvr) {
+ 				n.Left = Nod(OIND, n.Left, nil)
+ 				n.Left.Implicit = true
+ 				typecheck(&n.Left, Etype|Erv)
+-			} else if int(tt.Etype) == Tptr && int(tt.Type.Etype) == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
++			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+ 				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Right, Nconv(n.Left, obj.FmtLong))
+-				for int(tt.Etype) == Tptr {
++				for tt.Etype == Tptr {
+ 					// Stop one level early for method with pointer receiver.
+-					if int(rcvr.Etype) == Tptr && int(tt.Type.Etype) != Tptr {
++					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
+ 						break
+ 					}
+ 					n.Left = Nod(OIND, n.Left, nil)
+@@ -2597,7 +2603,7 @@ func downcount(t *Type) int {
+ }
+ 
+ // typecheck assignment: type list = expression list
+-func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
++func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
+ 	var t *Type
+ 	var n *Node
+ 	var n1 int
+@@ -2915,7 +2921,7 @@ func typecheckcomplit(np **Node) {
+ 	}
+ 
+ 	// Save original node (including n->right)
+-	norig := Nod(int(n.Op), nil, nil)
++	norig := Nod(n.Op, nil, nil)
+ 
+ 	*norig = *n
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 875b7aba13..a2bdbdc1ce 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -313,19 +313,19 @@ func walkstmt(np **Node) {
+ 				if f.Op != OCALLFUNC && f.Op != OCALLMETH && f.Op != OCALLINTER {
+ 					Fatalf("expected return of call, have %v", f)
+ 				}
+-				n.List = concat(list1(f), ascompatet(int(n.Op), rl, &f.Type, 0, &n.Ninit))
++				n.List = concat(list1(f), ascompatet(n.Op, rl, &f.Type, 0, &n.Ninit))
+ 				break
+ 			}
+ 
+ 			// move function calls out, to make reorder3's job easier.
+ 			walkexprlistsafe(n.List, &n.Ninit)
+ 
+-			ll := ascompatee(int(n.Op), rl, n.List, &n.Ninit)
++			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
+ 			n.List = reorder3(ll)
+ 			break
+ 		}
+ 
+-		ll := ascompatte(int(n.Op), nil, false, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
++		ll := ascompatte(n.Op, nil, false, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
+ 		n.List = ll
+ 
+ 	case ORETJMP:
+@@ -579,7 +579,7 @@ opswitch:
+ 		}
+ 		walkexpr(&n.Left, init)
+ 		walkexprlist(n.List, init)
+-		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
++		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
+ 		n.List = reorder1(ll)
+ 
+ 	case OCALLFUNC:
+@@ -626,7 +626,7 @@ opswitch:
+ 			}
+ 		}
+ 
+-		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
++		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
+ 		n.List = reorder1(ll)
+ 
+ 	case OCALLMETH:
+@@ -636,8 +636,8 @@ opswitch:
+ 		}
+ 		walkexpr(&n.Left, init)
+ 		walkexprlist(n.List, init)
+-		ll := ascompatte(int(n.Op), n, false, getthis(t), list1(n.Left.Left), 0, init)
+-		lr := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
++		ll := ascompatte(n.Op, n, false, getthis(t), list1(n.Left.Left), 0, init)
++		lr := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
+ 		ll = concat(ll, lr)
+ 		n.Left.Left = nil
+ 		ullmancalc(n.Left)
+@@ -748,7 +748,7 @@ opswitch:
+ 		walkexprlistsafe(n.List, init)
+ 		walkexpr(&r, init)
+ 
+-		ll := ascompatet(int(n.Op), n.List, &r.Type, 0, init)
++		ll := ascompatet(n.Op, n.List, &r.Type, 0, init)
+ 		for lr := ll; lr != nil; lr = lr.Next {
+ 			lr.N = applywritebarrier(lr.N, init)
+ 		}
+@@ -1103,7 +1103,7 @@ opswitch:
+ 		walkexpr(&n.Right, init)
+ 
+ 		// rewrite complex div into function call.
+-		et := int(n.Left.Type.Etype)
++		et := n.Left.Type.Etype
+ 
+ 		if Iscomplex[et] && n.Op == ODIV {
+ 			t := n.Type
+@@ -1291,7 +1291,8 @@ opswitch:
+ 	// without the function call.
+ 	case OCMPSTR:
+ 		if (Isconst(n.Left, CTSTR) && len(n.Left.Val().U.(string)) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val().U.(string)) == 0) {
+-			r := Nod(int(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
++			// TODO(marvin): Fix Node.EType type union.
++			r := Nod(Op(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
+ 			typecheck(&r, Erv)
+ 			walkexpr(&r, init)
+ 			r.Type = n.Type
+@@ -1300,8 +1301,9 @@ opswitch:
+ 		}
+ 
+ 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+-		if (n.Etype == OEQ || n.Etype == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && strlit(n.Right) == strlit(n.Left.List.Next.N) {
+-			r := Nod(int(n.Etype), Nod(OLEN, n.Left.List.N, nil), Nodintconst(0))
++		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && strlit(n.Right) == strlit(n.Left.List.Next.N) {
++			// TODO(marvin): Fix Node.EType type union.
++			r := Nod(Op(n.Etype), Nod(OLEN, n.Left.List.N, nil), Nodintconst(0))
+ 			typecheck(&r, Erv)
+ 			walkexpr(&r, init)
+ 			r.Type = n.Type
+@@ -1310,7 +1312,8 @@ opswitch:
+ 		}
+ 
+ 		var r *Node
+-		if n.Etype == OEQ || n.Etype == ONE {
++		// TODO(marvin): Fix Node.EType type union.
++		if Op(n.Etype) == OEQ || Op(n.Etype) == ONE {
+ 			// prepare for rewrite below
+ 			n.Left = cheapexpr(n.Left, init)
+ 
+@@ -1320,7 +1323,8 @@ opswitch:
+ 
+ 			// quick check of len before full compare for == or !=
+ 			// eqstring assumes that the lengths are equal
+-			if n.Etype == OEQ {
++			// TODO(marvin): Fix Node.EType type union.
++			if Op(n.Etype) == OEQ {
+ 				// len(left) == len(right) && eqstring(left, right)
+ 				r = Nod(OANDAND, Nod(OEQ, Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil)), r)
+ 			} else {
+@@ -1336,7 +1340,8 @@ opswitch:
+ 			// sys_cmpstring(s1, s2) :: 0
+ 			r = mkcall("cmpstring", Types[TINT], init, conv(n.Left, Types[TSTRING]), conv(n.Right, Types[TSTRING]))
+ 
+-			r = Nod(int(n.Etype), r, Nodintconst(0))
++			// TODO(marvin): Fix Node.EType type union.
++			r = Nod(Op(n.Etype), r, Nodintconst(0))
+ 		}
+ 
+ 		typecheck(&r, Erv)
+@@ -1514,12 +1519,14 @@ opswitch:
+ 		n.Left = cheapexpr(n.Left, init)
+ 		substArgTypes(fn, n.Right.Type, n.Left.Type)
+ 		r := mkcall1(fn, n.Type, init, n.Left, n.Right)
+-		if n.Etype == ONE {
++		// TODO(marvin): Fix Node.EType type union.
++		if Op(n.Etype) == ONE {
+ 			r = Nod(ONOT, r, nil)
+ 		}
+ 
+ 		// check itable/type before full compare.
+-		if n.Etype == OEQ {
++		// TODO(marvin): Fix Node.EType type union.
++		if Op(n.Etype) == OEQ {
+ 			r = Nod(OANDAND, Nod(OEQ, Nod(OITAB, n.Left, nil), Nod(OITAB, n.Right, nil)), r)
+ 		} else {
+ 			r = Nod(OOROR, Nod(ONE, Nod(OITAB, n.Left, nil), Nod(OITAB, n.Right, nil)), r)
+@@ -1587,7 +1594,7 @@ func reduceSlice(n *Node) *Node {
+ 	return n
+ }
+ 
+-func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
++func ascompatee1(op Op, l *Node, r *Node, init **NodeList) *Node {
+ 	// convas will turn map assigns into function calls,
+ 	// making it impossible for reorder3 to work.
+ 	n := Nod(OAS, l, r)
+@@ -1599,7 +1606,7 @@ func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
+ 	return convas(n, init)
+ }
+ 
+-func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
++func ascompatee(op Op, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
+ 	// check assign expression list to
+ 	// a expression list. called in
+ 	//	expr-list = expr-list
+@@ -1648,7 +1655,7 @@ func fncall(l *Node, rt *Type) bool {
+ 	return true
+ }
+ 
+-func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeList {
++func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeList {
+ 	var l *Node
+ 	var tmp *Node
+ 	var a *Node
+@@ -1789,7 +1796,7 @@ func dumpnodetypes(l *NodeList, what string) string {
+ // a type list. called in
+ //	return expr-list
+ //	func(expr-list)
+-func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
++func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
+ 	var savel Iter
+ 
+ 	lr0 := lr
+@@ -1902,9 +1909,9 @@ func walkprint(nn *Node, init **NodeList) *Node {
+ 	var n *Node
+ 	var on *Node
+ 	var t *Type
+-	var et int
++	var et EType
+ 
+-	op := int(nn.Op)
++	op := nn.Op
+ 	all := nn.List
+ 	var calls *NodeList
+ 	notfirst := false
+@@ -1945,7 +1952,7 @@ func walkprint(nn *Node, init **NodeList) *Node {
+ 		}
+ 
+ 		t = n.Type
+-		et = int(n.Type.Etype)
++		et = n.Type.Etype
+ 		if Isinter(n.Type) {
+ 			if isnilinter(n.Type) {
+ 				on = syslook("printeface", 1)
+@@ -3162,7 +3169,7 @@ func walkcompare(np **Node, init **NodeList) {
+ 	typecheck(&a, Etop)
+ 	*init = list(*init, a)
+ 
+-	andor := OANDAND
++	var andor Op = OANDAND
+ 	if n.Op == ONE {
+ 		andor = OOROR
+ 	}
+@@ -3176,7 +3183,7 @@ func walkcompare(np **Node, init **NodeList) {
+ 		for i := 0; int64(i) < t.Bound; i++ {
+ 			li = Nod(OINDEX, l, Nodintconst(int64(i)))
+ 			ri = Nod(OINDEX, r, Nodintconst(int64(i)))
+-			a = Nod(int(n.Op), li, ri)
++			a = Nod(n.Op, li, ri)
+ 			if expr == nil {
+ 				expr = a
+ 			} else {
+@@ -3202,7 +3209,7 @@ func walkcompare(np **Node, init **NodeList) {
+ 			}
+ 			li = Nod(OXDOT, l, newname(t1.Sym))
+ 			ri = Nod(OXDOT, r, newname(t1.Sym))
+-			a = Nod(int(n.Op), li, ri)
++			a = Nod(n.Op, li, ri)
+ 			if expr == nil {
+ 				expr = a
+ 			} else {
+@@ -3917,7 +3924,7 @@ func walkprintfunc(np **Node, init **NodeList) {
+ 	Curfn = nil
+ 	funchdr(fn)
+ 
+-	a = Nod(int(n.Op), nil, nil)
++	a = Nod(n.Op, nil, nil)
+ 	a.List = printargs
+ 	typecheck(&a, Etop)
+ 	walkstmt(&a)
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 7e6ae02c7f..2bc3e408a1 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1560,7 +1560,7 @@ yydefault:
+ 		//line go.y:489
+ 		{
+ 			yyVAL.node = Nod(OASOP, yyDollar[1].node, yyDollar[3].node)
+-			yyVAL.node.Etype = uint8(yyDollar[2].i) // rathole to pass opcode
++			yyVAL.node.Etype = EType(yyDollar[2].i) // rathole to pass opcode
+ 		}
+ 	case 51:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+@@ -1602,7 +1602,7 @@ yydefault:
+ 		{
+ 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
+ 			yyVAL.node.Implicit = true
+-			yyVAL.node.Etype = OADD
++			yyVAL.node.Etype = EType(OADD)
+ 		}
+ 	case 54:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+@@ -1610,7 +1610,7 @@ yydefault:
+ 		{
+ 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
+ 			yyVAL.node.Implicit = true
+-			yyVAL.node.Etype = OSUB
++			yyVAL.node.Etype = EType(OSUB)
+ 		}
+ 	case 55:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 2779140ca0..0322e85f53 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -130,7 +130,7 @@ var panicdiv *gc.Node
+  *	res = nl % nr
+  * according to op.
+  */
+-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+ 	// The hardware will generate undefined result.
+@@ -304,7 +304,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl << nr
+  *	res = nl >> nr
+  */
+-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	a := int(optoas(op, nl.Type))
+ 
+ 	if nr.Op == gc.OLITERAL {
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index dde05c4a51..f0cf2e16c9 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -117,7 +117,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	gc.Regfree(&ntmp)
+ }
+ 
+-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+@@ -655,229 +655,252 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+-func optoas(op int, t *gc.Type) int {
++func optoas(op gc.Op, t *gc.Type) int {
+ 	if t == nil {
+ 		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_ = uint32(gc.OMINUS) << 16
++		OLSH_   = uint32(gc.OLSH) << 16
++		ORSH_   = uint32(gc.ORSH) << 16
++		OADD_   = uint32(gc.OADD) << 16
++		OSUB_   = uint32(gc.OSUB) << 16
++		OMUL_   = uint32(gc.OMUL) << 16
++		ODIV_   = uint32(gc.ODIV) << 16
++		OOR_    = uint32(gc.OOR) << 16
++		OAND_   = uint32(gc.OAND) << 16
++		OXOR_   = uint32(gc.OXOR) << 16
++		OEQ_    = uint32(gc.OEQ) << 16
++		ONE_    = uint32(gc.ONE) << 16
++		OLT_    = uint32(gc.OLT) << 16
++		OLE_    = uint32(gc.OLE) << 16
++		OGE_    = uint32(gc.OGE) << 16
++		OGT_    = uint32(gc.OGT) << 16
++		OCMP_   = uint32(gc.OCMP) << 16
++		OAS_    = uint32(gc.OAS) << 16
++		OHMUL_  = uint32(gc.OHMUL) << 16
++	)
++
+ 	a := int(obj.AXXX)
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+ 		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+ 
+-	case gc.OEQ<<16 | gc.TBOOL,
+-		gc.OEQ<<16 | gc.TINT8,
+-		gc.OEQ<<16 | gc.TUINT8,
+-		gc.OEQ<<16 | gc.TINT16,
+-		gc.OEQ<<16 | gc.TUINT16,
+-		gc.OEQ<<16 | gc.TINT32,
+-		gc.OEQ<<16 | gc.TUINT32,
+-		gc.OEQ<<16 | gc.TINT64,
+-		gc.OEQ<<16 | gc.TUINT64,
+-		gc.OEQ<<16 | gc.TPTR32,
+-		gc.OEQ<<16 | gc.TPTR64,
+-		gc.OEQ<<16 | gc.TFLOAT32,
+-		gc.OEQ<<16 | gc.TFLOAT64:
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
+ 		a = ppc64.ABEQ
+ 
+-	case gc.ONE<<16 | gc.TBOOL,
+-		gc.ONE<<16 | gc.TINT8,
+-		gc.ONE<<16 | gc.TUINT8,
+-		gc.ONE<<16 | gc.TINT16,
+-		gc.ONE<<16 | gc.TUINT16,
+-		gc.ONE<<16 | gc.TINT32,
+-		gc.ONE<<16 | gc.TUINT32,
+-		gc.ONE<<16 | gc.TINT64,
+-		gc.ONE<<16 | gc.TUINT64,
+-		gc.ONE<<16 | gc.TPTR32,
+-		gc.ONE<<16 | gc.TPTR64,
+-		gc.ONE<<16 | gc.TFLOAT32,
+-		gc.ONE<<16 | gc.TFLOAT64:
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
+ 		a = ppc64.ABNE
+ 
+-	case gc.OLT<<16 | gc.TINT8, // ACMP
+-		gc.OLT<<16 | gc.TINT16,
+-		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64,
+-		gc.OLT<<16 | gc.TUINT8,
++	case OLT_ | gc.TINT8, // ACMP
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64,
++		OLT_ | gc.TUINT8,
+ 		// ACMPU
+-		gc.OLT<<16 | gc.TUINT16,
+-		gc.OLT<<16 | gc.TUINT32,
+-		gc.OLT<<16 | gc.TUINT64,
+-		gc.OLT<<16 | gc.TFLOAT32,
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64,
++		OLT_ | gc.TFLOAT32,
+ 		// AFCMPU
+-		gc.OLT<<16 | gc.TFLOAT64:
++		OLT_ | gc.TFLOAT64:
+ 		a = ppc64.ABLT
+ 
+-	case gc.OLE<<16 | gc.TINT8, // ACMP
+-		gc.OLE<<16 | gc.TINT16,
+-		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64,
+-		gc.OLE<<16 | gc.TUINT8,
++	case OLE_ | gc.TINT8, // ACMP
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64,
++		OLE_ | gc.TUINT8,
+ 		// ACMPU
+-		gc.OLE<<16 | gc.TUINT16,
+-		gc.OLE<<16 | gc.TUINT32,
+-		gc.OLE<<16 | gc.TUINT64:
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64:
+ 		// No OLE for floats, because it mishandles NaN.
+ 		// Front end must reverse comparison or use OLT and OEQ together.
+ 		a = ppc64.ABLE
+ 
+-	case gc.OGT<<16 | gc.TINT8,
+-		gc.OGT<<16 | gc.TINT16,
+-		gc.OGT<<16 | gc.TINT32,
+-		gc.OGT<<16 | gc.TINT64,
+-		gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64,
+-		gc.OGT<<16 | gc.TFLOAT32,
+-		gc.OGT<<16 | gc.TFLOAT64:
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64,
++		OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64,
++		OGT_ | gc.TFLOAT32,
++		OGT_ | gc.TFLOAT64:
+ 		a = ppc64.ABGT
+ 
+-	case gc.OGE<<16 | gc.TINT8,
+-		gc.OGE<<16 | gc.TINT16,
+-		gc.OGE<<16 | gc.TINT32,
+-		gc.OGE<<16 | gc.TINT64,
+-		gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64:
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64,
++		OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64:
+ 		// No OGE for floats, because it mishandles NaN.
+ 		// Front end must reverse comparison or use OLT and OEQ together.
+ 		a = ppc64.ABGE
+ 
+-	case gc.OCMP<<16 | gc.TBOOL,
+-		gc.OCMP<<16 | gc.TINT8,
+-		gc.OCMP<<16 | gc.TINT16,
+-		gc.OCMP<<16 | gc.TINT32,
+-		gc.OCMP<<16 | gc.TPTR32,
+-		gc.OCMP<<16 | gc.TINT64:
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TINT16,
++		OCMP_ | gc.TINT32,
++		OCMP_ | gc.TPTR32,
++		OCMP_ | gc.TINT64:
+ 		a = ppc64.ACMP
+ 
+-	case gc.OCMP<<16 | gc.TUINT8,
+-		gc.OCMP<<16 | gc.TUINT16,
+-		gc.OCMP<<16 | gc.TUINT32,
+-		gc.OCMP<<16 | gc.TUINT64,
+-		gc.OCMP<<16 | gc.TPTR64:
++	case OCMP_ | gc.TUINT8,
++		OCMP_ | gc.TUINT16,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TUINT64,
++		OCMP_ | gc.TPTR64:
+ 		a = ppc64.ACMPU
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT32,
+-		gc.OCMP<<16 | gc.TFLOAT64:
++	case OCMP_ | gc.TFLOAT32,
++		OCMP_ | gc.TFLOAT64:
+ 		a = ppc64.AFCMPU
+ 
+-	case gc.OAS<<16 | gc.TBOOL,
+-		gc.OAS<<16 | gc.TINT8:
++	case OAS_ | gc.TBOOL,
++		OAS_ | gc.TINT8:
+ 		a = ppc64.AMOVB
+ 
+-	case gc.OAS<<16 | gc.TUINT8:
++	case OAS_ | gc.TUINT8:
+ 		a = ppc64.AMOVBZ
+ 
+-	case gc.OAS<<16 | gc.TINT16:
++	case OAS_ | gc.TINT16:
+ 		a = ppc64.AMOVH
+ 
+-	case gc.OAS<<16 | gc.TUINT16:
++	case OAS_ | gc.TUINT16:
+ 		a = ppc64.AMOVHZ
+ 
+-	case gc.OAS<<16 | gc.TINT32:
++	case OAS_ | gc.TINT32:
+ 		a = ppc64.AMOVW
+ 
+-	case gc.OAS<<16 | gc.TUINT32,
+-		gc.OAS<<16 | gc.TPTR32:
++	case OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
+ 		a = ppc64.AMOVWZ
+ 
+-	case gc.OAS<<16 | gc.TINT64,
+-		gc.OAS<<16 | gc.TUINT64,
+-		gc.OAS<<16 | gc.TPTR64:
++	case OAS_ | gc.TINT64,
++		OAS_ | gc.TUINT64,
++		OAS_ | gc.TPTR64:
+ 		a = ppc64.AMOVD
+ 
+-	case gc.OAS<<16 | gc.TFLOAT32:
++	case OAS_ | gc.TFLOAT32:
+ 		a = ppc64.AFMOVS
+ 
+-	case gc.OAS<<16 | gc.TFLOAT64:
++	case OAS_ | gc.TFLOAT64:
+ 		a = ppc64.AFMOVD
+ 
+-	case gc.OADD<<16 | gc.TINT8,
+-		gc.OADD<<16 | gc.TUINT8,
+-		gc.OADD<<16 | gc.TINT16,
+-		gc.OADD<<16 | gc.TUINT16,
+-		gc.OADD<<16 | gc.TINT32,
+-		gc.OADD<<16 | gc.TUINT32,
+-		gc.OADD<<16 | gc.TPTR32,
+-		gc.OADD<<16 | gc.TINT64,
+-		gc.OADD<<16 | gc.TUINT64,
+-		gc.OADD<<16 | gc.TPTR64:
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8,
++		OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16,
++		OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32,
++		OADD_ | gc.TINT64,
++		OADD_ | gc.TUINT64,
++		OADD_ | gc.TPTR64:
+ 		a = ppc64.AADD
+ 
+-	case gc.OADD<<16 | gc.TFLOAT32:
++	case OADD_ | gc.TFLOAT32:
+ 		a = ppc64.AFADDS
+ 
+-	case gc.OADD<<16 | gc.TFLOAT64:
++	case OADD_ | gc.TFLOAT64:
+ 		a = ppc64.AFADD
+ 
+-	case gc.OSUB<<16 | gc.TINT8,
+-		gc.OSUB<<16 | gc.TUINT8,
+-		gc.OSUB<<16 | gc.TINT16,
+-		gc.OSUB<<16 | gc.TUINT16,
+-		gc.OSUB<<16 | gc.TINT32,
+-		gc.OSUB<<16 | gc.TUINT32,
+-		gc.OSUB<<16 | gc.TPTR32,
+-		gc.OSUB<<16 | gc.TINT64,
+-		gc.OSUB<<16 | gc.TUINT64,
+-		gc.OSUB<<16 | gc.TPTR64:
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8,
++		OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16,
++		OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32,
++		OSUB_ | gc.TINT64,
++		OSUB_ | gc.TUINT64,
++		OSUB_ | gc.TPTR64:
+ 		a = ppc64.ASUB
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT32:
++	case OSUB_ | gc.TFLOAT32:
+ 		a = ppc64.AFSUBS
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT64:
++	case OSUB_ | gc.TFLOAT64:
+ 		a = ppc64.AFSUB
+ 
+-	case gc.OMINUS<<16 | gc.TINT8,
+-		gc.OMINUS<<16 | gc.TUINT8,
+-		gc.OMINUS<<16 | gc.TINT16,
+-		gc.OMINUS<<16 | gc.TUINT16,
+-		gc.OMINUS<<16 | gc.TINT32,
+-		gc.OMINUS<<16 | gc.TUINT32,
+-		gc.OMINUS<<16 | gc.TPTR32,
+-		gc.OMINUS<<16 | gc.TINT64,
+-		gc.OMINUS<<16 | gc.TUINT64,
+-		gc.OMINUS<<16 | gc.TPTR64:
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8,
++		OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16,
++		OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32,
++		OMINUS_ | gc.TINT64,
++		OMINUS_ | gc.TUINT64,
++		OMINUS_ | gc.TPTR64:
+ 		a = ppc64.ANEG
+ 
+-	case gc.OAND<<16 | gc.TINT8,
+-		gc.OAND<<16 | gc.TUINT8,
+-		gc.OAND<<16 | gc.TINT16,
+-		gc.OAND<<16 | gc.TUINT16,
+-		gc.OAND<<16 | gc.TINT32,
+-		gc.OAND<<16 | gc.TUINT32,
+-		gc.OAND<<16 | gc.TPTR32,
+-		gc.OAND<<16 | gc.TINT64,
+-		gc.OAND<<16 | gc.TUINT64,
+-		gc.OAND<<16 | gc.TPTR64:
++	case OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8,
++		OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16,
++		OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32,
++		OAND_ | gc.TINT64,
++		OAND_ | gc.TUINT64,
++		OAND_ | gc.TPTR64:
+ 		a = ppc64.AAND
+ 
+-	case gc.OOR<<16 | gc.TINT8,
+-		gc.OOR<<16 | gc.TUINT8,
+-		gc.OOR<<16 | gc.TINT16,
+-		gc.OOR<<16 | gc.TUINT16,
+-		gc.OOR<<16 | gc.TINT32,
+-		gc.OOR<<16 | gc.TUINT32,
+-		gc.OOR<<16 | gc.TPTR32,
+-		gc.OOR<<16 | gc.TINT64,
+-		gc.OOR<<16 | gc.TUINT64,
+-		gc.OOR<<16 | gc.TPTR64:
++	case OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8,
++		OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16,
++		OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32,
++		OOR_ | gc.TINT64,
++		OOR_ | gc.TUINT64,
++		OOR_ | gc.TPTR64:
+ 		a = ppc64.AOR
+ 
+-	case gc.OXOR<<16 | gc.TINT8,
+-		gc.OXOR<<16 | gc.TUINT8,
+-		gc.OXOR<<16 | gc.TINT16,
+-		gc.OXOR<<16 | gc.TUINT16,
+-		gc.OXOR<<16 | gc.TINT32,
+-		gc.OXOR<<16 | gc.TUINT32,
+-		gc.OXOR<<16 | gc.TPTR32,
+-		gc.OXOR<<16 | gc.TINT64,
+-		gc.OXOR<<16 | gc.TUINT64,
+-		gc.OXOR<<16 | gc.TPTR64:
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8,
++		OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16,
++		OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32,
++		OXOR_ | gc.TINT64,
++		OXOR_ | gc.TUINT64,
++		OXOR_ | gc.TPTR64:
+ 		a = ppc64.AXOR
+ 
+ 		// TODO(minux): handle rotates
+@@ -894,30 +917,30 @@ func optoas(op int, t *gc.Type) int {
+ 	//	a = 0//???; RLDC?
+ 	//	break;
+ 
+-	case gc.OLSH<<16 | gc.TINT8,
+-		gc.OLSH<<16 | gc.TUINT8,
+-		gc.OLSH<<16 | gc.TINT16,
+-		gc.OLSH<<16 | gc.TUINT16,
+-		gc.OLSH<<16 | gc.TINT32,
+-		gc.OLSH<<16 | gc.TUINT32,
+-		gc.OLSH<<16 | gc.TPTR32,
+-		gc.OLSH<<16 | gc.TINT64,
+-		gc.OLSH<<16 | gc.TUINT64,
+-		gc.OLSH<<16 | gc.TPTR64:
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8,
++		OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16,
++		OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32,
++		OLSH_ | gc.TINT64,
++		OLSH_ | gc.TUINT64,
++		OLSH_ | gc.TPTR64:
+ 		a = ppc64.ASLD
+ 
+-	case gc.ORSH<<16 | gc.TUINT8,
+-		gc.ORSH<<16 | gc.TUINT16,
+-		gc.ORSH<<16 | gc.TUINT32,
+-		gc.ORSH<<16 | gc.TPTR32,
+-		gc.ORSH<<16 | gc.TUINT64,
+-		gc.ORSH<<16 | gc.TPTR64:
++	case ORSH_ | gc.TUINT8,
++		ORSH_ | gc.TUINT16,
++		ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32,
++		ORSH_ | gc.TUINT64,
++		ORSH_ | gc.TPTR64:
+ 		a = ppc64.ASRD
+ 
+-	case gc.ORSH<<16 | gc.TINT8,
+-		gc.ORSH<<16 | gc.TINT16,
+-		gc.ORSH<<16 | gc.TINT32,
+-		gc.ORSH<<16 | gc.TINT64:
++	case ORSH_ | gc.TINT8,
++		ORSH_ | gc.TINT16,
++		ORSH_ | gc.TINT32,
++		ORSH_ | gc.TINT64:
+ 		a = ppc64.ASRAD
+ 
+ 		// TODO(minux): handle rotates
+@@ -932,53 +955,53 @@ func optoas(op int, t *gc.Type) int {
+ 	//	a = 0//??? RLDC??
+ 	//	break;
+ 
+-	case gc.OHMUL<<16 | gc.TINT64:
++	case OHMUL_ | gc.TINT64:
+ 		a = ppc64.AMULHD
+ 
+-	case gc.OHMUL<<16 | gc.TUINT64,
+-		gc.OHMUL<<16 | gc.TPTR64:
++	case OHMUL_ | gc.TUINT64,
++		OHMUL_ | gc.TPTR64:
+ 		a = ppc64.AMULHDU
+ 
+-	case gc.OMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TINT64:
++	case OMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT32,
++		OMUL_ | gc.TINT64:
+ 		a = ppc64.AMULLD
+ 
+-	case gc.OMUL<<16 | gc.TUINT8,
+-		gc.OMUL<<16 | gc.TUINT16,
+-		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32,
++	case OMUL_ | gc.TUINT8,
++		OMUL_ | gc.TUINT16,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32,
+ 		// don't use word multiply, the high 32-bit are undefined.
+-		gc.OMUL<<16 | gc.TUINT64,
+-		gc.OMUL<<16 | gc.TPTR64:
++		OMUL_ | gc.TUINT64,
++		OMUL_ | gc.TPTR64:
+ 		// for 64-bit multiplies, signedness doesn't matter.
+ 		a = ppc64.AMULLD
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT32:
++	case OMUL_ | gc.TFLOAT32:
+ 		a = ppc64.AFMULS
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT64:
++	case OMUL_ | gc.TFLOAT64:
+ 		a = ppc64.AFMUL
+ 
+-	case gc.ODIV<<16 | gc.TINT8,
+-		gc.ODIV<<16 | gc.TINT16,
+-		gc.ODIV<<16 | gc.TINT32,
+-		gc.ODIV<<16 | gc.TINT64:
++	case ODIV_ | gc.TINT8,
++		ODIV_ | gc.TINT16,
++		ODIV_ | gc.TINT32,
++		ODIV_ | gc.TINT64:
+ 		a = ppc64.ADIVD
+ 
+-	case gc.ODIV<<16 | gc.TUINT8,
+-		gc.ODIV<<16 | gc.TUINT16,
+-		gc.ODIV<<16 | gc.TUINT32,
+-		gc.ODIV<<16 | gc.TPTR32,
+-		gc.ODIV<<16 | gc.TUINT64,
+-		gc.ODIV<<16 | gc.TPTR64:
++	case ODIV_ | gc.TUINT8,
++		ODIV_ | gc.TUINT16,
++		ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32,
++		ODIV_ | gc.TUINT64,
++		ODIV_ | gc.TPTR64:
+ 		a = ppc64.ADIVDU
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT32:
++	case ODIV_ | gc.TFLOAT32:
+ 		a = ppc64.AFDIVS
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT64:
++	case ODIV_ | gc.TFLOAT64:
+ 		a = ppc64.AFDIV
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index d0bdebb2c8..28fcecf8f4 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -127,7 +127,7 @@ var panicdiv *gc.Node
+  *	res = nl % nr
+  * according to op.
+  */
+-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+ 	// The hardware will generate undefined result.
+@@ -299,7 +299,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl << nr
+  *	res = nl >> nr
+  */
+-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	a := int(optoas(op, nl.Type))
+ 
+ 	if nr.Op == gc.OLITERAL {
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 9e99a31220..8504964e4f 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -117,7 +117,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 	gc.Regfree(&ntmp)
+ }
+ 
+-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+ 		// Reverse comparison to place constant last.
+ 		op = gc.Brrev(op)
+@@ -667,229 +667,252 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+-func optoas(op int, t *gc.Type) int {
++func optoas(op gc.Op, t *gc.Type) int {
+ 	if t == nil {
+ 		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_ = uint32(gc.OMINUS) << 16
++		OLSH_   = uint32(gc.OLSH) << 16
++		ORSH_   = uint32(gc.ORSH) << 16
++		OADD_   = uint32(gc.OADD) << 16
++		OSUB_   = uint32(gc.OSUB) << 16
++		OMUL_   = uint32(gc.OMUL) << 16
++		ODIV_   = uint32(gc.ODIV) << 16
++		OOR_    = uint32(gc.OOR) << 16
++		OAND_   = uint32(gc.OAND) << 16
++		OXOR_   = uint32(gc.OXOR) << 16
++		OEQ_    = uint32(gc.OEQ) << 16
++		ONE_    = uint32(gc.ONE) << 16
++		OLT_    = uint32(gc.OLT) << 16
++		OLE_    = uint32(gc.OLE) << 16
++		OGE_    = uint32(gc.OGE) << 16
++		OGT_    = uint32(gc.OGT) << 16
++		OCMP_   = uint32(gc.OCMP) << 16
++		OAS_    = uint32(gc.OAS) << 16
++		OHMUL_  = uint32(gc.OHMUL) << 16
++	)
++
+ 	a := int(obj.AXXX)
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+ 		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+ 
+-	case gc.OEQ<<16 | gc.TBOOL,
+-		gc.OEQ<<16 | gc.TINT8,
+-		gc.OEQ<<16 | gc.TUINT8,
+-		gc.OEQ<<16 | gc.TINT16,
+-		gc.OEQ<<16 | gc.TUINT16,
+-		gc.OEQ<<16 | gc.TINT32,
+-		gc.OEQ<<16 | gc.TUINT32,
+-		gc.OEQ<<16 | gc.TINT64,
+-		gc.OEQ<<16 | gc.TUINT64,
+-		gc.OEQ<<16 | gc.TPTR32,
+-		gc.OEQ<<16 | gc.TPTR64,
+-		gc.OEQ<<16 | gc.TFLOAT32,
+-		gc.OEQ<<16 | gc.TFLOAT64:
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
+ 		a = ppc64.ABEQ
+ 
+-	case gc.ONE<<16 | gc.TBOOL,
+-		gc.ONE<<16 | gc.TINT8,
+-		gc.ONE<<16 | gc.TUINT8,
+-		gc.ONE<<16 | gc.TINT16,
+-		gc.ONE<<16 | gc.TUINT16,
+-		gc.ONE<<16 | gc.TINT32,
+-		gc.ONE<<16 | gc.TUINT32,
+-		gc.ONE<<16 | gc.TINT64,
+-		gc.ONE<<16 | gc.TUINT64,
+-		gc.ONE<<16 | gc.TPTR32,
+-		gc.ONE<<16 | gc.TPTR64,
+-		gc.ONE<<16 | gc.TFLOAT32,
+-		gc.ONE<<16 | gc.TFLOAT64:
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
+ 		a = ppc64.ABNE
+ 
+-	case gc.OLT<<16 | gc.TINT8, // ACMP
+-		gc.OLT<<16 | gc.TINT16,
+-		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64,
+-		gc.OLT<<16 | gc.TUINT8,
++	case OLT_ | gc.TINT8, // ACMP
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64,
++		OLT_ | gc.TUINT8,
+ 		// ACMPU
+-		gc.OLT<<16 | gc.TUINT16,
+-		gc.OLT<<16 | gc.TUINT32,
+-		gc.OLT<<16 | gc.TUINT64,
+-		gc.OLT<<16 | gc.TFLOAT32,
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64,
++		OLT_ | gc.TFLOAT32,
+ 		// AFCMPU
+-		gc.OLT<<16 | gc.TFLOAT64:
++		OLT_ | gc.TFLOAT64:
+ 		a = ppc64.ABLT
+ 
+-	case gc.OLE<<16 | gc.TINT8, // ACMP
+-		gc.OLE<<16 | gc.TINT16,
+-		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64,
+-		gc.OLE<<16 | gc.TUINT8,
++	case OLE_ | gc.TINT8, // ACMP
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64,
++		OLE_ | gc.TUINT8,
+ 		// ACMPU
+-		gc.OLE<<16 | gc.TUINT16,
+-		gc.OLE<<16 | gc.TUINT32,
+-		gc.OLE<<16 | gc.TUINT64:
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64:
+ 		// No OLE for floats, because it mishandles NaN.
+ 		// Front end must reverse comparison or use OLT and OEQ together.
+ 		a = ppc64.ABLE
+ 
+-	case gc.OGT<<16 | gc.TINT8,
+-		gc.OGT<<16 | gc.TINT16,
+-		gc.OGT<<16 | gc.TINT32,
+-		gc.OGT<<16 | gc.TINT64,
+-		gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64,
+-		gc.OGT<<16 | gc.TFLOAT32,
+-		gc.OGT<<16 | gc.TFLOAT64:
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64,
++		OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64,
++		OGT_ | gc.TFLOAT32,
++		OGT_ | gc.TFLOAT64:
+ 		a = ppc64.ABGT
+ 
+-	case gc.OGE<<16 | gc.TINT8,
+-		gc.OGE<<16 | gc.TINT16,
+-		gc.OGE<<16 | gc.TINT32,
+-		gc.OGE<<16 | gc.TINT64,
+-		gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64:
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64,
++		OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64:
+ 		// No OGE for floats, because it mishandles NaN.
+ 		// Front end must reverse comparison or use OLT and OEQ together.
+ 		a = ppc64.ABGE
+ 
+-	case gc.OCMP<<16 | gc.TBOOL,
+-		gc.OCMP<<16 | gc.TINT8,
+-		gc.OCMP<<16 | gc.TINT16,
+-		gc.OCMP<<16 | gc.TINT32,
+-		gc.OCMP<<16 | gc.TPTR32,
+-		gc.OCMP<<16 | gc.TINT64:
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TINT16,
++		OCMP_ | gc.TINT32,
++		OCMP_ | gc.TPTR32,
++		OCMP_ | gc.TINT64:
+ 		a = ppc64.ACMP
+ 
+-	case gc.OCMP<<16 | gc.TUINT8,
+-		gc.OCMP<<16 | gc.TUINT16,
+-		gc.OCMP<<16 | gc.TUINT32,
+-		gc.OCMP<<16 | gc.TUINT64,
+-		gc.OCMP<<16 | gc.TPTR64:
++	case OCMP_ | gc.TUINT8,
++		OCMP_ | gc.TUINT16,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TUINT64,
++		OCMP_ | gc.TPTR64:
+ 		a = ppc64.ACMPU
+ 
+-	case gc.OCMP<<16 | gc.TFLOAT32,
+-		gc.OCMP<<16 | gc.TFLOAT64:
++	case OCMP_ | gc.TFLOAT32,
++		OCMP_ | gc.TFLOAT64:
+ 		a = ppc64.AFCMPU
+ 
+-	case gc.OAS<<16 | gc.TBOOL,
+-		gc.OAS<<16 | gc.TINT8:
++	case OAS_ | gc.TBOOL,
++		OAS_ | gc.TINT8:
+ 		a = ppc64.AMOVB
+ 
+-	case gc.OAS<<16 | gc.TUINT8:
++	case OAS_ | gc.TUINT8:
+ 		a = ppc64.AMOVBZ
+ 
+-	case gc.OAS<<16 | gc.TINT16:
++	case OAS_ | gc.TINT16:
+ 		a = ppc64.AMOVH
+ 
+-	case gc.OAS<<16 | gc.TUINT16:
++	case OAS_ | gc.TUINT16:
+ 		a = ppc64.AMOVHZ
+ 
+-	case gc.OAS<<16 | gc.TINT32:
++	case OAS_ | gc.TINT32:
+ 		a = ppc64.AMOVW
+ 
+-	case gc.OAS<<16 | gc.TUINT32,
+-		gc.OAS<<16 | gc.TPTR32:
++	case OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
+ 		a = ppc64.AMOVWZ
+ 
+-	case gc.OAS<<16 | gc.TINT64,
+-		gc.OAS<<16 | gc.TUINT64,
+-		gc.OAS<<16 | gc.TPTR64:
++	case OAS_ | gc.TINT64,
++		OAS_ | gc.TUINT64,
++		OAS_ | gc.TPTR64:
+ 		a = ppc64.AMOVD
+ 
+-	case gc.OAS<<16 | gc.TFLOAT32:
++	case OAS_ | gc.TFLOAT32:
+ 		a = ppc64.AFMOVS
+ 
+-	case gc.OAS<<16 | gc.TFLOAT64:
++	case OAS_ | gc.TFLOAT64:
+ 		a = ppc64.AFMOVD
+ 
+-	case gc.OADD<<16 | gc.TINT8,
+-		gc.OADD<<16 | gc.TUINT8,
+-		gc.OADD<<16 | gc.TINT16,
+-		gc.OADD<<16 | gc.TUINT16,
+-		gc.OADD<<16 | gc.TINT32,
+-		gc.OADD<<16 | gc.TUINT32,
+-		gc.OADD<<16 | gc.TPTR32,
+-		gc.OADD<<16 | gc.TINT64,
+-		gc.OADD<<16 | gc.TUINT64,
+-		gc.OADD<<16 | gc.TPTR64:
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8,
++		OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16,
++		OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32,
++		OADD_ | gc.TINT64,
++		OADD_ | gc.TUINT64,
++		OADD_ | gc.TPTR64:
+ 		a = ppc64.AADD
+ 
+-	case gc.OADD<<16 | gc.TFLOAT32:
++	case OADD_ | gc.TFLOAT32:
+ 		a = ppc64.AFADDS
+ 
+-	case gc.OADD<<16 | gc.TFLOAT64:
++	case OADD_ | gc.TFLOAT64:
+ 		a = ppc64.AFADD
+ 
+-	case gc.OSUB<<16 | gc.TINT8,
+-		gc.OSUB<<16 | gc.TUINT8,
+-		gc.OSUB<<16 | gc.TINT16,
+-		gc.OSUB<<16 | gc.TUINT16,
+-		gc.OSUB<<16 | gc.TINT32,
+-		gc.OSUB<<16 | gc.TUINT32,
+-		gc.OSUB<<16 | gc.TPTR32,
+-		gc.OSUB<<16 | gc.TINT64,
+-		gc.OSUB<<16 | gc.TUINT64,
+-		gc.OSUB<<16 | gc.TPTR64:
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8,
++		OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16,
++		OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32,
++		OSUB_ | gc.TINT64,
++		OSUB_ | gc.TUINT64,
++		OSUB_ | gc.TPTR64:
+ 		a = ppc64.ASUB
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT32:
++	case OSUB_ | gc.TFLOAT32:
+ 		a = ppc64.AFSUBS
+ 
+-	case gc.OSUB<<16 | gc.TFLOAT64:
++	case OSUB_ | gc.TFLOAT64:
+ 		a = ppc64.AFSUB
+ 
+-	case gc.OMINUS<<16 | gc.TINT8,
+-		gc.OMINUS<<16 | gc.TUINT8,
+-		gc.OMINUS<<16 | gc.TINT16,
+-		gc.OMINUS<<16 | gc.TUINT16,
+-		gc.OMINUS<<16 | gc.TINT32,
+-		gc.OMINUS<<16 | gc.TUINT32,
+-		gc.OMINUS<<16 | gc.TPTR32,
+-		gc.OMINUS<<16 | gc.TINT64,
+-		gc.OMINUS<<16 | gc.TUINT64,
+-		gc.OMINUS<<16 | gc.TPTR64:
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8,
++		OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16,
++		OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32,
++		OMINUS_ | gc.TINT64,
++		OMINUS_ | gc.TUINT64,
++		OMINUS_ | gc.TPTR64:
+ 		a = ppc64.ANEG
+ 
+-	case gc.OAND<<16 | gc.TINT8,
+-		gc.OAND<<16 | gc.TUINT8,
+-		gc.OAND<<16 | gc.TINT16,
+-		gc.OAND<<16 | gc.TUINT16,
+-		gc.OAND<<16 | gc.TINT32,
+-		gc.OAND<<16 | gc.TUINT32,
+-		gc.OAND<<16 | gc.TPTR32,
+-		gc.OAND<<16 | gc.TINT64,
+-		gc.OAND<<16 | gc.TUINT64,
+-		gc.OAND<<16 | gc.TPTR64:
++	case OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8,
++		OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16,
++		OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32,
++		OAND_ | gc.TINT64,
++		OAND_ | gc.TUINT64,
++		OAND_ | gc.TPTR64:
+ 		a = ppc64.AAND
+ 
+-	case gc.OOR<<16 | gc.TINT8,
+-		gc.OOR<<16 | gc.TUINT8,
+-		gc.OOR<<16 | gc.TINT16,
+-		gc.OOR<<16 | gc.TUINT16,
+-		gc.OOR<<16 | gc.TINT32,
+-		gc.OOR<<16 | gc.TUINT32,
+-		gc.OOR<<16 | gc.TPTR32,
+-		gc.OOR<<16 | gc.TINT64,
+-		gc.OOR<<16 | gc.TUINT64,
+-		gc.OOR<<16 | gc.TPTR64:
++	case OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8,
++		OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16,
++		OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32,
++		OOR_ | gc.TINT64,
++		OOR_ | gc.TUINT64,
++		OOR_ | gc.TPTR64:
+ 		a = ppc64.AOR
+ 
+-	case gc.OXOR<<16 | gc.TINT8,
+-		gc.OXOR<<16 | gc.TUINT8,
+-		gc.OXOR<<16 | gc.TINT16,
+-		gc.OXOR<<16 | gc.TUINT16,
+-		gc.OXOR<<16 | gc.TINT32,
+-		gc.OXOR<<16 | gc.TUINT32,
+-		gc.OXOR<<16 | gc.TPTR32,
+-		gc.OXOR<<16 | gc.TINT64,
+-		gc.OXOR<<16 | gc.TUINT64,
+-		gc.OXOR<<16 | gc.TPTR64:
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8,
++		OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16,
++		OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32,
++		OXOR_ | gc.TINT64,
++		OXOR_ | gc.TUINT64,
++		OXOR_ | gc.TPTR64:
+ 		a = ppc64.AXOR
+ 
+ 		// TODO(minux): handle rotates
+@@ -906,30 +929,30 @@ func optoas(op int, t *gc.Type) int {
+ 	//	a = 0//???; RLDC?
+ 	//	break;
+ 
+-	case gc.OLSH<<16 | gc.TINT8,
+-		gc.OLSH<<16 | gc.TUINT8,
+-		gc.OLSH<<16 | gc.TINT16,
+-		gc.OLSH<<16 | gc.TUINT16,
+-		gc.OLSH<<16 | gc.TINT32,
+-		gc.OLSH<<16 | gc.TUINT32,
+-		gc.OLSH<<16 | gc.TPTR32,
+-		gc.OLSH<<16 | gc.TINT64,
+-		gc.OLSH<<16 | gc.TUINT64,
+-		gc.OLSH<<16 | gc.TPTR64:
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8,
++		OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16,
++		OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32,
++		OLSH_ | gc.TINT64,
++		OLSH_ | gc.TUINT64,
++		OLSH_ | gc.TPTR64:
+ 		a = ppc64.ASLD
+ 
+-	case gc.ORSH<<16 | gc.TUINT8,
+-		gc.ORSH<<16 | gc.TUINT16,
+-		gc.ORSH<<16 | gc.TUINT32,
+-		gc.ORSH<<16 | gc.TPTR32,
+-		gc.ORSH<<16 | gc.TUINT64,
+-		gc.ORSH<<16 | gc.TPTR64:
++	case ORSH_ | gc.TUINT8,
++		ORSH_ | gc.TUINT16,
++		ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32,
++		ORSH_ | gc.TUINT64,
++		ORSH_ | gc.TPTR64:
+ 		a = ppc64.ASRD
+ 
+-	case gc.ORSH<<16 | gc.TINT8,
+-		gc.ORSH<<16 | gc.TINT16,
+-		gc.ORSH<<16 | gc.TINT32,
+-		gc.ORSH<<16 | gc.TINT64:
++	case ORSH_ | gc.TINT8,
++		ORSH_ | gc.TINT16,
++		ORSH_ | gc.TINT32,
++		ORSH_ | gc.TINT64:
+ 		a = ppc64.ASRAD
+ 
+ 		// TODO(minux): handle rotates
+@@ -944,53 +967,53 @@ func optoas(op int, t *gc.Type) int {
+ 	//	a = 0//??? RLDC??
+ 	//	break;
+ 
+-	case gc.OHMUL<<16 | gc.TINT64:
++	case OHMUL_ | gc.TINT64:
+ 		a = ppc64.AMULHD
+ 
+-	case gc.OHMUL<<16 | gc.TUINT64,
+-		gc.OHMUL<<16 | gc.TPTR64:
++	case OHMUL_ | gc.TUINT64,
++		OHMUL_ | gc.TPTR64:
+ 		a = ppc64.AMULHDU
+ 
+-	case gc.OMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TINT64:
++	case OMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT32,
++		OMUL_ | gc.TINT64:
+ 		a = ppc64.AMULLD
+ 
+-	case gc.OMUL<<16 | gc.TUINT8,
+-		gc.OMUL<<16 | gc.TUINT16,
+-		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32,
++	case OMUL_ | gc.TUINT8,
++		OMUL_ | gc.TUINT16,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32,
+ 		// don't use word multiply, the high 32-bit are undefined.
+-		gc.OMUL<<16 | gc.TUINT64,
+-		gc.OMUL<<16 | gc.TPTR64:
++		OMUL_ | gc.TUINT64,
++		OMUL_ | gc.TPTR64:
+ 		// for 64-bit multiplies, signedness doesn't matter.
+ 		a = ppc64.AMULLD
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT32:
++	case OMUL_ | gc.TFLOAT32:
+ 		a = ppc64.AFMULS
+ 
+-	case gc.OMUL<<16 | gc.TFLOAT64:
++	case OMUL_ | gc.TFLOAT64:
+ 		a = ppc64.AFMUL
+ 
+-	case gc.ODIV<<16 | gc.TINT8,
+-		gc.ODIV<<16 | gc.TINT16,
+-		gc.ODIV<<16 | gc.TINT32,
+-		gc.ODIV<<16 | gc.TINT64:
++	case ODIV_ | gc.TINT8,
++		ODIV_ | gc.TINT16,
++		ODIV_ | gc.TINT32,
++		ODIV_ | gc.TINT64:
+ 		a = ppc64.ADIVD
+ 
+-	case gc.ODIV<<16 | gc.TUINT8,
+-		gc.ODIV<<16 | gc.TUINT16,
+-		gc.ODIV<<16 | gc.TUINT32,
+-		gc.ODIV<<16 | gc.TPTR32,
+-		gc.ODIV<<16 | gc.TUINT64,
+-		gc.ODIV<<16 | gc.TPTR64:
++	case ODIV_ | gc.TUINT8,
++		ODIV_ | gc.TUINT16,
++		ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32,
++		ODIV_ | gc.TUINT64,
++		ODIV_ | gc.TPTR64:
+ 		a = ppc64.ADIVDU
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT32:
++	case ODIV_ | gc.TFLOAT32:
+ 		a = ppc64.AFDIVS
+ 
+-	case gc.ODIV<<16 | gc.TFLOAT64:
++	case ODIV_ | gc.TFLOAT64:
+ 		a = ppc64.AFDIV
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/x86/cgen64.go b/src/cmd/compile/internal/x86/cgen64.go
+index f1e570d10b..9dffa61814 100644
+--- a/src/cmd/compile/internal/x86/cgen64.go
++++ b/src/cmd/compile/internal/x86/cgen64.go
+@@ -486,8 +486,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 
+ 		gins(x86.AMOVL, &lo1, &ax)
+ 		gins(x86.AMOVL, &hi1, &dx)
+-		gins(optoas(int(n.Op), lo1.Type), &lo2, &ax)
+-		gins(optoas(int(n.Op), lo1.Type), &hi2, &dx)
++		gins(optoas(n.Op, lo1.Type), &lo2, &ax)
++		gins(optoas(n.Op, lo1.Type), &hi2, &dx)
+ 	}
+ 
+ 	if gc.Is64(r.Type) {
+@@ -505,7 +505,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+  * generate comparison of nl, nr, both 64-bit.
+  * nl is memory; nr is constant or memory.
+  */
+-func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
++func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
+ 	var lo1 gc.Node
+ 	var hi1 gc.Node
+ 	var lo2 gc.Node
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 85ae808c31..4e72dcb1e9 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -191,7 +191,7 @@ var panicdiv *gc.Node
+  *	res = nl % nr
+  * according to op.
+  */
+-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.Node) {
++func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.Node) {
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+ 	// The hardware will trap.
+@@ -338,7 +338,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
+  *	res = nl / nr
+  *	res = nl % nr
+  */
+-func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_div(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if gc.Is64(nl.Type) {
+ 		gc.Fatalf("cgen_div %v", nl.Type)
+ 	}
+@@ -365,7 +365,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  *	res = nl << nr
+  *	res = nl >> nr
+  */
+-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
++func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if nl.Type.Width > 4 {
+ 		gc.Fatalf("cgen_shift %v", nl.Type)
+ 	}
+@@ -489,7 +489,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  * there is no 2-operand byte multiply instruction so
+  * we do a full-width multiplication and truncate afterwards.
+  */
+-func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
++func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+ 	if optoas(op, nl.Type) != x86.AIMULB {
+ 		return false
+ 	}
+@@ -628,18 +628,18 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
+ 		if nl.Ullman >= nr.Ullman {
+ 			gc.Cgen(nl, &f0)
+ 			if nr.Addable {
+-				gins(foptoas(int(n.Op), n.Type, 0), nr, &f0)
++				gins(foptoas(n.Op, n.Type, 0), nr, &f0)
+ 			} else {
+ 				gc.Cgen(nr, &f0)
+-				gins(foptoas(int(n.Op), n.Type, Fpop), &f0, &f1)
++				gins(foptoas(n.Op, n.Type, Fpop), &f0, &f1)
+ 			}
+ 		} else {
+ 			gc.Cgen(nr, &f0)
+ 			if nl.Addable {
+-				gins(foptoas(int(n.Op), n.Type, Frev), nl, &f0)
++				gins(foptoas(n.Op, n.Type, Frev), nl, &f0)
+ 			} else {
+ 				gc.Cgen(nl, &f0)
+-				gins(foptoas(int(n.Op), n.Type, Frev|Fpop), &f0, &f1)
++				gins(foptoas(n.Op, n.Type, Frev|Fpop), &f0, &f1)
+ 			}
+ 		}
+ 
+@@ -651,7 +651,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
+ 	gc.Cgen(nl, &f0)
+ 
+ 	if n.Op != gc.OCONV && n.Op != gc.OPLUS {
+-		gins(foptoas(int(n.Op), n.Type, 0), nil, nil)
++		gins(foptoas(n.Op, n.Type, 0), nil, nil)
+ 	}
+ 	gmove(&f0, res)
+ 	return
+@@ -678,7 +678,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
+ 		// symmetric binary
+ 	case gc.OADD,
+ 		gc.OMUL:
+-		a = foptoas(int(n.Op), nl.Type, 0)
++		a = foptoas(n.Op, nl.Type, 0)
+ 
+ 		goto sbop
+ 
+@@ -686,7 +686,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
+ 	case gc.OSUB,
+ 		gc.OMOD,
+ 		gc.ODIV:
+-		a = foptoas(int(n.Op), nl.Type, 0)
++		a = foptoas(n.Op, nl.Type, 0)
+ 
+ 		goto abop
+ 	}
+@@ -729,7 +729,7 @@ abop: // asymmetric binary
+ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	nl := n.Left
+ 	nr := n.Right
+-	a := int(n.Op)
++	op := n.Op
+ 	if !wantTrue {
+ 		// brcom is not valid on floats when NaN is involved.
+ 		p1 := gc.Gbranch(obj.AJMP, nil, 0)
+@@ -745,11 +745,11 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	}
+ 
+ 	if gc.Thearch.Use387 {
+-		a = gc.Brrev(a) // because the args are stacked
+-		if a == gc.OGE || a == gc.OGT {
++		op = gc.Brrev(op) // because the args are stacked
++		if op == gc.OGE || op == gc.OGT {
+ 			// only < and <= work right with NaN; reverse if needed
+ 			nl, nr = nr, nl
+-			a = gc.Brrev(a)
++			op = gc.Brrev(op)
+ 		}
+ 
+ 		var ax, n2, tmp gc.Node
+@@ -808,10 +808,10 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			nl = &n3
+ 		}
+ 
+-		if a == gc.OGE || a == gc.OGT {
+-			// only < and <= work right with NaN; reverse if needed
++		if op == gc.OGE || op == gc.OGT {
++			// only < and <= work right with NopN; reverse if needed
+ 			nl, nr = nr, nl
+-			a = gc.Brrev(a)
++			op = gc.Brrev(op)
+ 		}
+ 
+ 		gins(foptoas(gc.OCMP, nr.Type, 0), nl, nr)
+@@ -821,7 +821,7 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		gc.Regfree(nr)
+ 	}
+ 
+-	switch a {
++	switch op {
+ 	case gc.OEQ:
+ 		// neither NE nor P
+ 		p1 := gc.Gbranch(x86.AJNE, nil, -likely)
+@@ -834,7 +834,7 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
+ 		gc.Patch(gc.Gbranch(x86.AJPS, nil, likely), to)
+ 	default:
+-		gc.Patch(gc.Gbranch(optoas(a, nr.Type), nil, likely), to)
++		gc.Patch(gc.Gbranch(optoas(op, nr.Type), nil, likely), to)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index f57bbcb62a..698f92df7d 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -53,402 +53,443 @@ const (
+ /*
+  * return Axxx for Oxxx on type t.
+  */
+-func optoas(op int, t *gc.Type) int {
++func optoas(op gc.Op, t *gc.Type) int {
+ 	if t == nil {
+ 		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
++	// avoid constant conversions in switches below
++	const (
++		OMINUS_  = uint32(gc.OMINUS) << 16
++		OLSH_    = uint32(gc.OLSH) << 16
++		ORSH_    = uint32(gc.ORSH) << 16
++		OADD_    = uint32(gc.OADD) << 16
++		OSUB_    = uint32(gc.OSUB) << 16
++		OMUL_    = uint32(gc.OMUL) << 16
++		ODIV_    = uint32(gc.ODIV) << 16
++		OMOD_    = uint32(gc.OMOD) << 16
++		OOR_     = uint32(gc.OOR) << 16
++		OAND_    = uint32(gc.OAND) << 16
++		OXOR_    = uint32(gc.OXOR) << 16
++		OEQ_     = uint32(gc.OEQ) << 16
++		ONE_     = uint32(gc.ONE) << 16
++		OLT_     = uint32(gc.OLT) << 16
++		OLE_     = uint32(gc.OLE) << 16
++		OGE_     = uint32(gc.OGE) << 16
++		OGT_     = uint32(gc.OGT) << 16
++		OCMP_    = uint32(gc.OCMP) << 16
++		OAS_     = uint32(gc.OAS) << 16
++		OHMUL_   = uint32(gc.OHMUL) << 16
++		OADDR_   = uint32(gc.OADDR) << 16
++		OINC_    = uint32(gc.OINC) << 16
++		ODEC_    = uint32(gc.ODEC) << 16
++		OLROT_   = uint32(gc.OLROT) << 16
++		OEXTEND_ = uint32(gc.OEXTEND) << 16
++		OCOM_    = uint32(gc.OCOM) << 16
++	)
++
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+ 		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+ 
+-	case gc.OADDR<<16 | gc.TPTR32:
++	case OADDR_ | gc.TPTR32:
+ 		a = x86.ALEAL
+ 
+-	case gc.OEQ<<16 | gc.TBOOL,
+-		gc.OEQ<<16 | gc.TINT8,
+-		gc.OEQ<<16 | gc.TUINT8,
+-		gc.OEQ<<16 | gc.TINT16,
+-		gc.OEQ<<16 | gc.TUINT16,
+-		gc.OEQ<<16 | gc.TINT32,
+-		gc.OEQ<<16 | gc.TUINT32,
+-		gc.OEQ<<16 | gc.TINT64,
+-		gc.OEQ<<16 | gc.TUINT64,
+-		gc.OEQ<<16 | gc.TPTR32,
+-		gc.OEQ<<16 | gc.TPTR64,
+-		gc.OEQ<<16 | gc.TFLOAT32,
+-		gc.OEQ<<16 | gc.TFLOAT64:
++	case OEQ_ | gc.TBOOL,
++		OEQ_ | gc.TINT8,
++		OEQ_ | gc.TUINT8,
++		OEQ_ | gc.TINT16,
++		OEQ_ | gc.TUINT16,
++		OEQ_ | gc.TINT32,
++		OEQ_ | gc.TUINT32,
++		OEQ_ | gc.TINT64,
++		OEQ_ | gc.TUINT64,
++		OEQ_ | gc.TPTR32,
++		OEQ_ | gc.TPTR64,
++		OEQ_ | gc.TFLOAT32,
++		OEQ_ | gc.TFLOAT64:
+ 		a = x86.AJEQ
+ 
+-	case gc.ONE<<16 | gc.TBOOL,
+-		gc.ONE<<16 | gc.TINT8,
+-		gc.ONE<<16 | gc.TUINT8,
+-		gc.ONE<<16 | gc.TINT16,
+-		gc.ONE<<16 | gc.TUINT16,
+-		gc.ONE<<16 | gc.TINT32,
+-		gc.ONE<<16 | gc.TUINT32,
+-		gc.ONE<<16 | gc.TINT64,
+-		gc.ONE<<16 | gc.TUINT64,
+-		gc.ONE<<16 | gc.TPTR32,
+-		gc.ONE<<16 | gc.TPTR64,
+-		gc.ONE<<16 | gc.TFLOAT32,
+-		gc.ONE<<16 | gc.TFLOAT64:
++	case ONE_ | gc.TBOOL,
++		ONE_ | gc.TINT8,
++		ONE_ | gc.TUINT8,
++		ONE_ | gc.TINT16,
++		ONE_ | gc.TUINT16,
++		ONE_ | gc.TINT32,
++		ONE_ | gc.TUINT32,
++		ONE_ | gc.TINT64,
++		ONE_ | gc.TUINT64,
++		ONE_ | gc.TPTR32,
++		ONE_ | gc.TPTR64,
++		ONE_ | gc.TFLOAT32,
++		ONE_ | gc.TFLOAT64:
+ 		a = x86.AJNE
+ 
+-	case gc.OLT<<16 | gc.TINT8,
+-		gc.OLT<<16 | gc.TINT16,
+-		gc.OLT<<16 | gc.TINT32,
+-		gc.OLT<<16 | gc.TINT64:
++	case OLT_ | gc.TINT8,
++		OLT_ | gc.TINT16,
++		OLT_ | gc.TINT32,
++		OLT_ | gc.TINT64:
+ 		a = x86.AJLT
+ 
+-	case gc.OLT<<16 | gc.TUINT8,
+-		gc.OLT<<16 | gc.TUINT16,
+-		gc.OLT<<16 | gc.TUINT32,
+-		gc.OLT<<16 | gc.TUINT64:
++	case OLT_ | gc.TUINT8,
++		OLT_ | gc.TUINT16,
++		OLT_ | gc.TUINT32,
++		OLT_ | gc.TUINT64:
+ 		a = x86.AJCS
+ 
+-	case gc.OLE<<16 | gc.TINT8,
+-		gc.OLE<<16 | gc.TINT16,
+-		gc.OLE<<16 | gc.TINT32,
+-		gc.OLE<<16 | gc.TINT64:
++	case OLE_ | gc.TINT8,
++		OLE_ | gc.TINT16,
++		OLE_ | gc.TINT32,
++		OLE_ | gc.TINT64:
+ 		a = x86.AJLE
+ 
+-	case gc.OLE<<16 | gc.TUINT8,
+-		gc.OLE<<16 | gc.TUINT16,
+-		gc.OLE<<16 | gc.TUINT32,
+-		gc.OLE<<16 | gc.TUINT64:
++	case OLE_ | gc.TUINT8,
++		OLE_ | gc.TUINT16,
++		OLE_ | gc.TUINT32,
++		OLE_ | gc.TUINT64:
+ 		a = x86.AJLS
+ 
+-	case gc.OGT<<16 | gc.TINT8,
+-		gc.OGT<<16 | gc.TINT16,
+-		gc.OGT<<16 | gc.TINT32,
+-		gc.OGT<<16 | gc.TINT64:
++	case OGT_ | gc.TINT8,
++		OGT_ | gc.TINT16,
++		OGT_ | gc.TINT32,
++		OGT_ | gc.TINT64:
+ 		a = x86.AJGT
+ 
+-	case gc.OGT<<16 | gc.TUINT8,
+-		gc.OGT<<16 | gc.TUINT16,
+-		gc.OGT<<16 | gc.TUINT32,
+-		gc.OGT<<16 | gc.TUINT64,
+-		gc.OLT<<16 | gc.TFLOAT32,
+-		gc.OLT<<16 | gc.TFLOAT64:
++	case OGT_ | gc.TUINT8,
++		OGT_ | gc.TUINT16,
++		OGT_ | gc.TUINT32,
++		OGT_ | gc.TUINT64,
++		OLT_ | gc.TFLOAT32,
++		OLT_ | gc.TFLOAT64:
+ 		a = x86.AJHI
+ 
+-	case gc.OGE<<16 | gc.TINT8,
+-		gc.OGE<<16 | gc.TINT16,
+-		gc.OGE<<16 | gc.TINT32,
+-		gc.OGE<<16 | gc.TINT64:
++	case OGE_ | gc.TINT8,
++		OGE_ | gc.TINT16,
++		OGE_ | gc.TINT32,
++		OGE_ | gc.TINT64:
+ 		a = x86.AJGE
+ 
+-	case gc.OGE<<16 | gc.TUINT8,
+-		gc.OGE<<16 | gc.TUINT16,
+-		gc.OGE<<16 | gc.TUINT32,
+-		gc.OGE<<16 | gc.TUINT64,
+-		gc.OLE<<16 | gc.TFLOAT32,
+-		gc.OLE<<16 | gc.TFLOAT64:
++	case OGE_ | gc.TUINT8,
++		OGE_ | gc.TUINT16,
++		OGE_ | gc.TUINT32,
++		OGE_ | gc.TUINT64,
++		OLE_ | gc.TFLOAT32,
++		OLE_ | gc.TFLOAT64:
+ 		a = x86.AJCC
+ 
+-	case gc.OCMP<<16 | gc.TBOOL,
+-		gc.OCMP<<16 | gc.TINT8,
+-		gc.OCMP<<16 | gc.TUINT8:
++	case OCMP_ | gc.TBOOL,
++		OCMP_ | gc.TINT8,
++		OCMP_ | gc.TUINT8:
+ 		a = x86.ACMPB
+ 
+-	case gc.OCMP<<16 | gc.TINT16,
+-		gc.OCMP<<16 | gc.TUINT16:
++	case OCMP_ | gc.TINT16,
++		OCMP_ | gc.TUINT16:
+ 		a = x86.ACMPW
+ 
+-	case gc.OCMP<<16 | gc.TINT32,
+-		gc.OCMP<<16 | gc.TUINT32,
+-		gc.OCMP<<16 | gc.TPTR32:
++	case OCMP_ | gc.TINT32,
++		OCMP_ | gc.TUINT32,
++		OCMP_ | gc.TPTR32:
+ 		a = x86.ACMPL
+ 
+-	case gc.OAS<<16 | gc.TBOOL,
+-		gc.OAS<<16 | gc.TINT8,
+-		gc.OAS<<16 | gc.TUINT8:
++	case OAS_ | gc.TBOOL,
++		OAS_ | gc.TINT8,
++		OAS_ | gc.TUINT8:
+ 		a = x86.AMOVB
+ 
+-	case gc.OAS<<16 | gc.TINT16,
+-		gc.OAS<<16 | gc.TUINT16:
++	case OAS_ | gc.TINT16,
++		OAS_ | gc.TUINT16:
+ 		a = x86.AMOVW
+ 
+-	case gc.OAS<<16 | gc.TINT32,
+-		gc.OAS<<16 | gc.TUINT32,
+-		gc.OAS<<16 | gc.TPTR32:
++	case OAS_ | gc.TINT32,
++		OAS_ | gc.TUINT32,
++		OAS_ | gc.TPTR32:
+ 		a = x86.AMOVL
+ 
+-	case gc.OAS<<16 | gc.TFLOAT32:
++	case OAS_ | gc.TFLOAT32:
+ 		a = x86.AMOVSS
+ 
+-	case gc.OAS<<16 | gc.TFLOAT64:
++	case OAS_ | gc.TFLOAT64:
+ 		a = x86.AMOVSD
+ 
+-	case gc.OADD<<16 | gc.TINT8,
+-		gc.OADD<<16 | gc.TUINT8:
++	case OADD_ | gc.TINT8,
++		OADD_ | gc.TUINT8:
+ 		a = x86.AADDB
+ 
+-	case gc.OADD<<16 | gc.TINT16,
+-		gc.OADD<<16 | gc.TUINT16:
++	case OADD_ | gc.TINT16,
++		OADD_ | gc.TUINT16:
+ 		a = x86.AADDW
+ 
+-	case gc.OADD<<16 | gc.TINT32,
+-		gc.OADD<<16 | gc.TUINT32,
+-		gc.OADD<<16 | gc.TPTR32:
++	case OADD_ | gc.TINT32,
++		OADD_ | gc.TUINT32,
++		OADD_ | gc.TPTR32:
+ 		a = x86.AADDL
+ 
+-	case gc.OSUB<<16 | gc.TINT8,
+-		gc.OSUB<<16 | gc.TUINT8:
++	case OSUB_ | gc.TINT8,
++		OSUB_ | gc.TUINT8:
+ 		a = x86.ASUBB
+ 
+-	case gc.OSUB<<16 | gc.TINT16,
+-		gc.OSUB<<16 | gc.TUINT16:
++	case OSUB_ | gc.TINT16,
++		OSUB_ | gc.TUINT16:
+ 		a = x86.ASUBW
+ 
+-	case gc.OSUB<<16 | gc.TINT32,
+-		gc.OSUB<<16 | gc.TUINT32,
+-		gc.OSUB<<16 | gc.TPTR32:
++	case OSUB_ | gc.TINT32,
++		OSUB_ | gc.TUINT32,
++		OSUB_ | gc.TPTR32:
+ 		a = x86.ASUBL
+ 
+-	case gc.OINC<<16 | gc.TINT8,
+-		gc.OINC<<16 | gc.TUINT8:
++	case OINC_ | gc.TINT8,
++		OINC_ | gc.TUINT8:
+ 		a = x86.AINCB
+ 
+-	case gc.OINC<<16 | gc.TINT16,
+-		gc.OINC<<16 | gc.TUINT16:
++	case OINC_ | gc.TINT16,
++		OINC_ | gc.TUINT16:
+ 		a = x86.AINCW
+ 
+-	case gc.OINC<<16 | gc.TINT32,
+-		gc.OINC<<16 | gc.TUINT32,
+-		gc.OINC<<16 | gc.TPTR32:
++	case OINC_ | gc.TINT32,
++		OINC_ | gc.TUINT32,
++		OINC_ | gc.TPTR32:
+ 		a = x86.AINCL
+ 
+-	case gc.ODEC<<16 | gc.TINT8,
+-		gc.ODEC<<16 | gc.TUINT8:
++	case ODEC_ | gc.TINT8,
++		ODEC_ | gc.TUINT8:
+ 		a = x86.ADECB
+ 
+-	case gc.ODEC<<16 | gc.TINT16,
+-		gc.ODEC<<16 | gc.TUINT16:
++	case ODEC_ | gc.TINT16,
++		ODEC_ | gc.TUINT16:
+ 		a = x86.ADECW
+ 
+-	case gc.ODEC<<16 | gc.TINT32,
+-		gc.ODEC<<16 | gc.TUINT32,
+-		gc.ODEC<<16 | gc.TPTR32:
++	case ODEC_ | gc.TINT32,
++		ODEC_ | gc.TUINT32,
++		ODEC_ | gc.TPTR32:
+ 		a = x86.ADECL
+ 
+-	case gc.OCOM<<16 | gc.TINT8,
+-		gc.OCOM<<16 | gc.TUINT8:
++	case OCOM_ | gc.TINT8,
++		OCOM_ | gc.TUINT8:
+ 		a = x86.ANOTB
+ 
+-	case gc.OCOM<<16 | gc.TINT16,
+-		gc.OCOM<<16 | gc.TUINT16:
++	case OCOM_ | gc.TINT16,
++		OCOM_ | gc.TUINT16:
+ 		a = x86.ANOTW
+ 
+-	case gc.OCOM<<16 | gc.TINT32,
+-		gc.OCOM<<16 | gc.TUINT32,
+-		gc.OCOM<<16 | gc.TPTR32:
++	case OCOM_ | gc.TINT32,
++		OCOM_ | gc.TUINT32,
++		OCOM_ | gc.TPTR32:
+ 		a = x86.ANOTL
+ 
+-	case gc.OMINUS<<16 | gc.TINT8,
+-		gc.OMINUS<<16 | gc.TUINT8:
++	case OMINUS_ | gc.TINT8,
++		OMINUS_ | gc.TUINT8:
+ 		a = x86.ANEGB
+ 
+-	case gc.OMINUS<<16 | gc.TINT16,
+-		gc.OMINUS<<16 | gc.TUINT16:
++	case OMINUS_ | gc.TINT16,
++		OMINUS_ | gc.TUINT16:
+ 		a = x86.ANEGW
+ 
+-	case gc.OMINUS<<16 | gc.TINT32,
+-		gc.OMINUS<<16 | gc.TUINT32,
+-		gc.OMINUS<<16 | gc.TPTR32:
++	case OMINUS_ | gc.TINT32,
++		OMINUS_ | gc.TUINT32,
++		OMINUS_ | gc.TPTR32:
+ 		a = x86.ANEGL
+ 
+-	case gc.OAND<<16 | gc.TINT8,
+-		gc.OAND<<16 | gc.TUINT8:
++	case OAND_ | gc.TINT8,
++		OAND_ | gc.TUINT8:
+ 		a = x86.AANDB
+ 
+-	case gc.OAND<<16 | gc.TINT16,
+-		gc.OAND<<16 | gc.TUINT16:
++	case OAND_ | gc.TINT16,
++		OAND_ | gc.TUINT16:
+ 		a = x86.AANDW
+ 
+-	case gc.OAND<<16 | gc.TINT32,
+-		gc.OAND<<16 | gc.TUINT32,
+-		gc.OAND<<16 | gc.TPTR32:
++	case OAND_ | gc.TINT32,
++		OAND_ | gc.TUINT32,
++		OAND_ | gc.TPTR32:
+ 		a = x86.AANDL
+ 
+-	case gc.OOR<<16 | gc.TINT8,
+-		gc.OOR<<16 | gc.TUINT8:
++	case OOR_ | gc.TINT8,
++		OOR_ | gc.TUINT8:
+ 		a = x86.AORB
+ 
+-	case gc.OOR<<16 | gc.TINT16,
+-		gc.OOR<<16 | gc.TUINT16:
++	case OOR_ | gc.TINT16,
++		OOR_ | gc.TUINT16:
+ 		a = x86.AORW
+ 
+-	case gc.OOR<<16 | gc.TINT32,
+-		gc.OOR<<16 | gc.TUINT32,
+-		gc.OOR<<16 | gc.TPTR32:
++	case OOR_ | gc.TINT32,
++		OOR_ | gc.TUINT32,
++		OOR_ | gc.TPTR32:
+ 		a = x86.AORL
+ 
+-	case gc.OXOR<<16 | gc.TINT8,
+-		gc.OXOR<<16 | gc.TUINT8:
++	case OXOR_ | gc.TINT8,
++		OXOR_ | gc.TUINT8:
+ 		a = x86.AXORB
+ 
+-	case gc.OXOR<<16 | gc.TINT16,
+-		gc.OXOR<<16 | gc.TUINT16:
++	case OXOR_ | gc.TINT16,
++		OXOR_ | gc.TUINT16:
+ 		a = x86.AXORW
+ 
+-	case gc.OXOR<<16 | gc.TINT32,
+-		gc.OXOR<<16 | gc.TUINT32,
+-		gc.OXOR<<16 | gc.TPTR32:
++	case OXOR_ | gc.TINT32,
++		OXOR_ | gc.TUINT32,
++		OXOR_ | gc.TPTR32:
+ 		a = x86.AXORL
+ 
+-	case gc.OLROT<<16 | gc.TINT8,
+-		gc.OLROT<<16 | gc.TUINT8:
++	case OLROT_ | gc.TINT8,
++		OLROT_ | gc.TUINT8:
+ 		a = x86.AROLB
+ 
+-	case gc.OLROT<<16 | gc.TINT16,
+-		gc.OLROT<<16 | gc.TUINT16:
++	case OLROT_ | gc.TINT16,
++		OLROT_ | gc.TUINT16:
+ 		a = x86.AROLW
+ 
+-	case gc.OLROT<<16 | gc.TINT32,
+-		gc.OLROT<<16 | gc.TUINT32,
+-		gc.OLROT<<16 | gc.TPTR32:
++	case OLROT_ | gc.TINT32,
++		OLROT_ | gc.TUINT32,
++		OLROT_ | gc.TPTR32:
+ 		a = x86.AROLL
+ 
+-	case gc.OLSH<<16 | gc.TINT8,
+-		gc.OLSH<<16 | gc.TUINT8:
++	case OLSH_ | gc.TINT8,
++		OLSH_ | gc.TUINT8:
+ 		a = x86.ASHLB
+ 
+-	case gc.OLSH<<16 | gc.TINT16,
+-		gc.OLSH<<16 | gc.TUINT16:
++	case OLSH_ | gc.TINT16,
++		OLSH_ | gc.TUINT16:
+ 		a = x86.ASHLW
+ 
+-	case gc.OLSH<<16 | gc.TINT32,
+-		gc.OLSH<<16 | gc.TUINT32,
+-		gc.OLSH<<16 | gc.TPTR32:
++	case OLSH_ | gc.TINT32,
++		OLSH_ | gc.TUINT32,
++		OLSH_ | gc.TPTR32:
+ 		a = x86.ASHLL
+ 
+-	case gc.ORSH<<16 | gc.TUINT8:
++	case ORSH_ | gc.TUINT8:
+ 		a = x86.ASHRB
+ 
+-	case gc.ORSH<<16 | gc.TUINT16:
++	case ORSH_ | gc.TUINT16:
+ 		a = x86.ASHRW
+ 
+-	case gc.ORSH<<16 | gc.TUINT32,
+-		gc.ORSH<<16 | gc.TPTR32:
++	case ORSH_ | gc.TUINT32,
++		ORSH_ | gc.TPTR32:
+ 		a = x86.ASHRL
+ 
+-	case gc.ORSH<<16 | gc.TINT8:
++	case ORSH_ | gc.TINT8:
+ 		a = x86.ASARB
+ 
+-	case gc.ORSH<<16 | gc.TINT16:
++	case ORSH_ | gc.TINT16:
+ 		a = x86.ASARW
+ 
+-	case gc.ORSH<<16 | gc.TINT32:
++	case ORSH_ | gc.TINT32:
+ 		a = x86.ASARL
+ 
+-	case gc.OHMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TINT8,
+-		gc.OMUL<<16 | gc.TUINT8:
++	case OHMUL_ | gc.TINT8,
++		OMUL_ | gc.TINT8,
++		OMUL_ | gc.TUINT8:
+ 		a = x86.AIMULB
+ 
+-	case gc.OHMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TINT16,
+-		gc.OMUL<<16 | gc.TUINT16:
++	case OHMUL_ | gc.TINT16,
++		OMUL_ | gc.TINT16,
++		OMUL_ | gc.TUINT16:
+ 		a = x86.AIMULW
+ 
+-	case gc.OHMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TINT32,
+-		gc.OMUL<<16 | gc.TUINT32,
+-		gc.OMUL<<16 | gc.TPTR32:
++	case OHMUL_ | gc.TINT32,
++		OMUL_ | gc.TINT32,
++		OMUL_ | gc.TUINT32,
++		OMUL_ | gc.TPTR32:
+ 		a = x86.AIMULL
+ 
+-	case gc.OHMUL<<16 | gc.TUINT8:
++	case OHMUL_ | gc.TUINT8:
+ 		a = x86.AMULB
+ 
+-	case gc.OHMUL<<16 | gc.TUINT16:
++	case OHMUL_ | gc.TUINT16:
+ 		a = x86.AMULW
+ 
+-	case gc.OHMUL<<16 | gc.TUINT32,
+-		gc.OHMUL<<16 | gc.TPTR32:
++	case OHMUL_ | gc.TUINT32,
++		OHMUL_ | gc.TPTR32:
+ 		a = x86.AMULL
+ 
+-	case gc.ODIV<<16 | gc.TINT8,
+-		gc.OMOD<<16 | gc.TINT8:
++	case ODIV_ | gc.TINT8,
++		OMOD_ | gc.TINT8:
+ 		a = x86.AIDIVB
+ 
+-	case gc.ODIV<<16 | gc.TUINT8,
+-		gc.OMOD<<16 | gc.TUINT8:
++	case ODIV_ | gc.TUINT8,
++		OMOD_ | gc.TUINT8:
+ 		a = x86.ADIVB
+ 
+-	case gc.ODIV<<16 | gc.TINT16,
+-		gc.OMOD<<16 | gc.TINT16:
++	case ODIV_ | gc.TINT16,
++		OMOD_ | gc.TINT16:
+ 		a = x86.AIDIVW
+ 
+-	case gc.ODIV<<16 | gc.TUINT16,
+-		gc.OMOD<<16 | gc.TUINT16:
++	case ODIV_ | gc.TUINT16,
++		OMOD_ | gc.TUINT16:
+ 		a = x86.ADIVW
+ 
+-	case gc.ODIV<<16 | gc.TINT32,
+-		gc.OMOD<<16 | gc.TINT32:
++	case ODIV_ | gc.TINT32,
++		OMOD_ | gc.TINT32:
+ 		a = x86.AIDIVL
+ 
+-	case gc.ODIV<<16 | gc.TUINT32,
+-		gc.ODIV<<16 | gc.TPTR32,
+-		gc.OMOD<<16 | gc.TUINT32,
+-		gc.OMOD<<16 | gc.TPTR32:
++	case ODIV_ | gc.TUINT32,
++		ODIV_ | gc.TPTR32,
++		OMOD_ | gc.TUINT32,
++		OMOD_ | gc.TPTR32:
+ 		a = x86.ADIVL
+ 
+-	case gc.OEXTEND<<16 | gc.TINT16:
++	case OEXTEND_ | gc.TINT16:
+ 		a = x86.ACWD
+ 
+-	case gc.OEXTEND<<16 | gc.TINT32:
++	case OEXTEND_ | gc.TINT32:
+ 		a = x86.ACDQ
+ 	}
+ 
+ 	return a
+ }
+ 
+-func foptoas(op int, t *gc.Type, flg int) int {
++func foptoas(op gc.Op, t *gc.Type, flg int) int {
+ 	a := obj.AXXX
+-	et := int(gc.Simtype[t.Etype])
++	et := gc.Simtype[t.Etype]
++
++	// avoid constant conversions in switches below
++	const (
++		OCMP_   = uint32(gc.OCMP) << 16
++		OAS_    = uint32(gc.OAS) << 16
++		OADD_   = uint32(gc.OADD) << 16
++		OSUB_   = uint32(gc.OSUB) << 16
++		OMUL_   = uint32(gc.OMUL) << 16
++		ODIV_   = uint32(gc.ODIV) << 16
++		OMINUS_ = uint32(gc.OMINUS) << 16
++	)
+ 
+ 	if !gc.Thearch.Use387 {
+ 		switch uint32(op)<<16 | uint32(et) {
+ 		default:
+ 			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
+ 
+-		case gc.OCMP<<16 | gc.TFLOAT32:
++		case OCMP_ | gc.TFLOAT32:
+ 			a = x86.AUCOMISS
+ 
+-		case gc.OCMP<<16 | gc.TFLOAT64:
++		case OCMP_ | gc.TFLOAT64:
+ 			a = x86.AUCOMISD
+ 
+-		case gc.OAS<<16 | gc.TFLOAT32:
++		case OAS_ | gc.TFLOAT32:
+ 			a = x86.AMOVSS
+ 
+-		case gc.OAS<<16 | gc.TFLOAT64:
++		case OAS_ | gc.TFLOAT64:
+ 			a = x86.AMOVSD
+ 
+-		case gc.OADD<<16 | gc.TFLOAT32:
++		case OADD_ | gc.TFLOAT32:
+ 			a = x86.AADDSS
+ 
+-		case gc.OADD<<16 | gc.TFLOAT64:
++		case OADD_ | gc.TFLOAT64:
+ 			a = x86.AADDSD
+ 
+-		case gc.OSUB<<16 | gc.TFLOAT32:
++		case OSUB_ | gc.TFLOAT32:
+ 			a = x86.ASUBSS
+ 
+-		case gc.OSUB<<16 | gc.TFLOAT64:
++		case OSUB_ | gc.TFLOAT64:
+ 			a = x86.ASUBSD
+ 
+-		case gc.OMUL<<16 | gc.TFLOAT32:
++		case OMUL_ | gc.TFLOAT32:
+ 			a = x86.AMULSS
+ 
+-		case gc.OMUL<<16 | gc.TFLOAT64:
++		case OMUL_ | gc.TFLOAT64:
+ 			a = x86.AMULSD
+ 
+-		case gc.ODIV<<16 | gc.TFLOAT32:
++		case ODIV_ | gc.TFLOAT32:
+ 			a = x86.ADIVSS
+ 
+-		case gc.ODIV<<16 | gc.TFLOAT64:
++		case ODIV_ | gc.TFLOAT64:
+ 			a = x86.ADIVSD
+ 		}
+ 
+@@ -470,79 +511,79 @@ func foptoas(op int, t *gc.Type, flg int) int {
+ 	}
+ 
+ 	switch uint32(op)<<16 | (uint32(et)<<8 | uint32(flg)) {
+-	case gc.OADD<<16 | (gc.TFLOAT32<<8 | 0):
++	case OADD_ | (gc.TFLOAT32<<8 | 0):
+ 		return x86.AFADDF
+ 
+-	case gc.OADD<<16 | (gc.TFLOAT64<<8 | 0):
++	case OADD_ | (gc.TFLOAT64<<8 | 0):
+ 		return x86.AFADDD
+ 
+-	case gc.OADD<<16 | (gc.TFLOAT64<<8 | Fpop):
++	case OADD_ | (gc.TFLOAT64<<8 | Fpop):
+ 		return x86.AFADDDP
+ 
+-	case gc.OSUB<<16 | (gc.TFLOAT32<<8 | 0):
++	case OSUB_ | (gc.TFLOAT32<<8 | 0):
+ 		return x86.AFSUBF
+ 
+-	case gc.OSUB<<16 | (gc.TFLOAT32<<8 | Frev):
++	case OSUB_ | (gc.TFLOAT32<<8 | Frev):
+ 		return x86.AFSUBRF
+ 
+-	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | 0):
++	case OSUB_ | (gc.TFLOAT64<<8 | 0):
+ 		return x86.AFSUBD
+ 
+-	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | Frev):
++	case OSUB_ | (gc.TFLOAT64<<8 | Frev):
+ 		return x86.AFSUBRD
+ 
+-	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | Fpop):
++	case OSUB_ | (gc.TFLOAT64<<8 | Fpop):
+ 		return x86.AFSUBDP
+ 
+-	case gc.OSUB<<16 | (gc.TFLOAT64<<8 | (Fpop | Frev)):
++	case OSUB_ | (gc.TFLOAT64<<8 | (Fpop | Frev)):
+ 		return x86.AFSUBRDP
+ 
+-	case gc.OMUL<<16 | (gc.TFLOAT32<<8 | 0):
++	case OMUL_ | (gc.TFLOAT32<<8 | 0):
+ 		return x86.AFMULF
+ 
+-	case gc.OMUL<<16 | (gc.TFLOAT64<<8 | 0):
++	case OMUL_ | (gc.TFLOAT64<<8 | 0):
+ 		return x86.AFMULD
+ 
+-	case gc.OMUL<<16 | (gc.TFLOAT64<<8 | Fpop):
++	case OMUL_ | (gc.TFLOAT64<<8 | Fpop):
+ 		return x86.AFMULDP
+ 
+-	case gc.ODIV<<16 | (gc.TFLOAT32<<8 | 0):
++	case ODIV_ | (gc.TFLOAT32<<8 | 0):
+ 		return x86.AFDIVF
+ 
+-	case gc.ODIV<<16 | (gc.TFLOAT32<<8 | Frev):
++	case ODIV_ | (gc.TFLOAT32<<8 | Frev):
+ 		return x86.AFDIVRF
+ 
+-	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | 0):
++	case ODIV_ | (gc.TFLOAT64<<8 | 0):
+ 		return x86.AFDIVD
+ 
+-	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | Frev):
++	case ODIV_ | (gc.TFLOAT64<<8 | Frev):
+ 		return x86.AFDIVRD
+ 
+-	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | Fpop):
++	case ODIV_ | (gc.TFLOAT64<<8 | Fpop):
+ 		return x86.AFDIVDP
+ 
+-	case gc.ODIV<<16 | (gc.TFLOAT64<<8 | (Fpop | Frev)):
++	case ODIV_ | (gc.TFLOAT64<<8 | (Fpop | Frev)):
+ 		return x86.AFDIVRDP
+ 
+-	case gc.OCMP<<16 | (gc.TFLOAT32<<8 | 0):
++	case OCMP_ | (gc.TFLOAT32<<8 | 0):
+ 		return x86.AFCOMF
+ 
+-	case gc.OCMP<<16 | (gc.TFLOAT32<<8 | Fpop):
++	case OCMP_ | (gc.TFLOAT32<<8 | Fpop):
+ 		return x86.AFCOMFP
+ 
+-	case gc.OCMP<<16 | (gc.TFLOAT64<<8 | 0):
++	case OCMP_ | (gc.TFLOAT64<<8 | 0):
+ 		return x86.AFCOMD
+ 
+-	case gc.OCMP<<16 | (gc.TFLOAT64<<8 | Fpop):
++	case OCMP_ | (gc.TFLOAT64<<8 | Fpop):
+ 		return x86.AFCOMDP
+ 
+-	case gc.OCMP<<16 | (gc.TFLOAT64<<8 | Fpop2):
++	case OCMP_ | (gc.TFLOAT64<<8 | Fpop2):
+ 		return x86.AFCOMDPP
+ 
+-	case gc.OMINUS<<16 | (gc.TFLOAT32<<8 | 0):
++	case OMINUS_ | (gc.TFLOAT32<<8 | 0):
+ 		return x86.AFCHS
+ 
+-	case gc.OMINUS<<16 | (gc.TFLOAT64<<8 | 0):
++	case OMINUS_ | (gc.TFLOAT64<<8 | 0):
+ 		return x86.AFCHS
+ 	}
+ 
+@@ -583,8 +624,8 @@ func ginscon(as int, c int64, n2 *gc.Node) {
+ 	gins(as, &n1, n2)
+ }
+ 
+-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+-	if gc.Isint[t.Etype] || int(t.Etype) == gc.Tptr {
++func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
++	if gc.Isint[t.Etype] || t.Etype == gc.Tptr {
+ 		if (n1.Op == gc.OLITERAL || n1.Op == gc.OADDR && n1.Left.Op == gc.ONAME) && n2.Op != gc.OLITERAL {
+ 			// Reverse comparison to place constant (including address constant) last.
+ 			op = gc.Brrev(op)

@@ -14,7 +14,7 @@ Date:   Sun Aug 28 03:38:00 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go          |  5 +--
  src/cmd/cgo/main.go                                |  3 +-
  src/cmd/cgo/util.go                                |  5 +--
@@ -83,3 +83,2542 @@ Date:   Sun Aug 28 03:38:00 2022 +0800
  src/internal/fuzz/worker.go                        |  3 +-
  src/internal/txtar/archive.go                      |  4 +-
  67 files changed, 252 insertions(+), 287 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index d3f17358a8..a234b2f1fe 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/buildcfg"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -51,7 +50,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	output := strings.Split(testOut.String(), "\n")
+ 
+ 	// Reconstruct expected output by independently "parsing" the input.
+-	data, err := ioutil.ReadFile(input)
++	data, err := os.ReadFile(input)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+@@ -324,7 +323,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 	}
+ 
+ 	// Reconstruct expected errors by independently "parsing" the input.
+-	data, err := ioutil.ReadFile(input)
++	data, err := os.ReadFile(input)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 55515a677f..b71923a433 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -18,7 +18,6 @@ import (
+ 	"go/token"
+ 	"internal/buildcfg"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -345,7 +344,7 @@ func main() {
+ 			input = aname
+ 		}
+ 
+-		b, err := ioutil.ReadFile(input)
++		b, err := os.ReadFile(input)
+ 		if err != nil {
+ 			fatalf("%s", err)
+ 		}
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 779f7be225..f2a5cd2b9d 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/token"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ )
+@@ -21,13 +20,13 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
+ 		// Some compilers have trouble with standard input.
+ 		// Others have trouble with -xc.
+ 		// Avoid both problems by writing a file with a .c extension.
+-		f, err := ioutil.TempFile("", "cgo-gcc-input-")
++		f, err := os.CreateTemp("", "cgo-gcc-input-")
+ 		if err != nil {
+ 			fatalf("%s", err)
+ 		}
+ 		name := f.Name()
+ 		f.Close()
+-		if err := ioutil.WriteFile(name+".c", stdin, 0666); err != nil {
++		if err := os.WriteFile(name+".c", stdin, 0666); err != nil {
+ 			os.Remove(name)
+ 			fatalf("%s", err)
+ 		}
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index f2728d972f..a005d2cdf2 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -9,7 +9,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/buildcfg"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"reflect"
+@@ -392,7 +391,7 @@ func readImportCfg(file string) {
+ 		Flag.Cfg.ImportMap = make(map[string]string)
+ 	}
+ 	Flag.Cfg.PackageFile = map[string]string{}
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		log.Fatalf("-importcfg: %v", err)
+ 	}
+@@ -432,7 +431,7 @@ func readImportCfg(file string) {
+ }
+ 
+ func readEmbedCfg(file string) {
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		log.Fatalf("-embedcfg: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index 3df4c345c3..03567227b7 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"debug/dwarf"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -221,7 +220,7 @@ func TestScopeRanges(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "TestScopeRanges")
++	dir, err := os.MkdirTemp("", "TestScopeRanges")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -498,7 +497,7 @@ func TestEmptyDwarfRanges(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
++	dir, err := os.MkdirTemp("", "TestEmptyDwarfRanges")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index bcf0480cfc..f6ec6554a8 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -7,15 +7,15 @@ package importer
+ 
+ import (
+ 	"bufio"
+-	"cmd/compile/internal/types2"
+ 	"fmt"
+ 	"go/build"
+ 	"internal/pkgbits"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++
++	"cmd/compile/internal/types2"
+ )
+ 
+ // debugging/development support
+@@ -149,7 +149,7 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 		if size >= 0 {
+ 			r = io.LimitReader(r, int64(size))
+ 		}
+-		data, err = ioutil.ReadAll(r)
++		data, err = io.ReadAll(r)
+ 		if err != nil {
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ir/mknode.go b/src/cmd/compile/internal/ir/mknode.go
+index d815195721..4630a7a5b8 100644
+--- a/src/cmd/compile/internal/ir/mknode.go
++++ b/src/cmd/compile/internal/ir/mknode.go
+@@ -18,7 +18,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"log"
+ 	"sort"
+ 	"strings"
+@@ -160,7 +159,7 @@ func main() {
+ 		// write out mangled source so we can see the bug.
+ 		out = buf.Bytes()
+ 	}
+-	err = ioutil.WriteFile("node_gen.go", out, 0666)
++	err = os.WriteFile("node_gen.go", out, 0666)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 411319f9e9..b44cf4be66 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -6,7 +6,6 @@ package logopt
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -88,7 +87,7 @@ func TestLogOpt(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "TestLogOpt")
++	dir, err := os.MkdirTemp("", "TestLogOpt")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -96,7 +95,7 @@ func TestLogOpt(t *testing.T) {
+ 
+ 	dir = fixSlash(dir) // Normalize the directory name as much as possible, for Windows testing
+ 	src := filepath.Join(dir, "file.go")
+-	if err := ioutil.WriteFile(src, []byte(srcCode), 0644); err != nil {
++	if err := os.WriteFile(src, []byte(srcCode), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -146,7 +145,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ }
+ `
+ 		copy := filepath.Join(dir, "copy.go")
+-		if err := ioutil.WriteFile(copy, []byte(copyCode), 0644); err != nil {
++		if err := os.WriteFile(copy, []byte(copyCode), 0644); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		outcopy := filepath.Join(dir, "copy.o")
+@@ -169,7 +168,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ 				if err != nil {
+ 					t.Error("-json=0,file://log/opt should have succeeded")
+ 				}
+-				logged, err := ioutil.ReadFile(filepath.Join(dir, "log", "opt", "x", "copy.json"))
++				logged, err := os.ReadFile(filepath.Join(dir, "log", "opt", "x", "copy.json"))
+ 				if err != nil {
+ 					t.Error("-json=0,file://log/opt missing expected log file")
+ 				}
+@@ -196,7 +195,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ 		if err != nil {
+ 			t.Error("-json=0,file://log/opt should have succeeded")
+ 		}
+-		logged, err := ioutil.ReadFile(filepath.Join(dir, "log", "opt", "x", "file.json"))
++		logged, err := os.ReadFile(filepath.Join(dir, "log", "opt", "x", "file.json"))
+ 		if err != nil {
+ 			t.Error("-json=0,file://log/opt missing expected log file")
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/debug_lines_test.go b/src/cmd/compile/internal/ssa/debug_lines_test.go
+index 23b511ddb2..cde1015b4b 100644
+--- a/src/cmd/compile/internal/ssa/debug_lines_test.go
++++ b/src/cmd/compile/internal/ssa/debug_lines_test.go
+@@ -8,20 +8,18 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"flag"
+-	"internal/buildcfg"
+-	"runtime"
+-	"sort"
+-	"strings"
+-
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
++	"runtime"
++	"sort"
+ 	"strconv"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -129,7 +127,7 @@ func TestDebugLines_53456(t *testing.T) {
+ func compileAndDump(t *testing.T, file, function, moreGCFlags string) []byte {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	tmpdir, err := ioutil.TempDir("", "debug_lines_test")
++	tmpdir, err := os.MkdirTemp("", "debug_lines_test")
+ 	if err != nil {
+ 		panic(fmt.Sprintf("Problem creating TempDir, error %v", err))
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index f3f8eeeb41..f96c5b131c 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -223,7 +222,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
+ 
+ 	// Use a temporary directory unless -f is specified
+ 	if !*force {
+-		tmpdir, err := ioutil.TempDir("", "debug_test")
++		tmpdir, err := os.MkdirTemp("", "debug_test")
+ 		if err != nil {
+ 			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
+ 		}
+@@ -366,7 +365,7 @@ func (h *nextHist) write(filename string) {
+ 
+ func (h *nextHist) read(filename string) {
+ 	h.f2i = make(map[string]uint8)
+-	bytes, err := ioutil.ReadFile(filename)
++	bytes, err := os.ReadFile(filename)
+ 	if err != nil {
+ 		panic(fmt.Sprintf("Problem reading %s, error %v\n", filename, err))
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index b1a7cf9f6f..81740dcf1c 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -14,7 +14,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
+@@ -500,7 +499,7 @@ func genOp() {
+ 		panic(err)
+ 	}
+ 
+-	if err := ioutil.WriteFile("../opGen.go", b, 0666); err != nil {
++	if err := os.WriteFile("../opGen.go", b, 0666); err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+ 
+@@ -521,7 +520,7 @@ func genOp() {
+ 			log.Fatalf("bad opcode regexp %s: %v", pattern, err)
+ 		}
+ 
+-		src, err := ioutil.ReadFile(a.genfile)
++		src, err := os.ReadFile(a.genfile)
+ 		if err != nil {
+ 			log.Fatalf("can't read %s: %v", a.genfile, err)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 0f7e970372..fc9b4c9b3e 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -23,7 +23,6 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
+@@ -280,7 +279,7 @@ func genRulesSuffix(arch arch, suff string) {
+ 	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments)
+ 	if err != nil {
+ 		filename := fmt.Sprintf("%s_broken.go", arch.name)
+-		if err := ioutil.WriteFile(filename, buf.Bytes(), 0644); err != nil {
++		if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
+ 			log.Printf("failed to dump broken code to %s: %v", filename, err)
+ 		} else {
+ 			log.Printf("dumped broken code to %s", filename)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 50ea86d8fc..c6ac66f3b0 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -7,7 +7,6 @@ package ssagen
+ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"strings"
+@@ -59,7 +58,7 @@ func (s *SymABIs) canonicalize(linksym string) string {
+ // the symbol name and the third field is the ABI name, as one of the
+ // named cmd/internal/obj.ABI constants.
+ func (s *SymABIs) ReadSymABIs(file string) {
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		log.Fatalf("-symabis: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index da0db5a573..662580f8e2 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"sort"
+ 	"strconv"
+@@ -124,7 +123,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 	}
+ 	size := info.Size()
+ 	if size <= 1*1024 {
+-		data, err := ioutil.ReadAll(f)
++		data, err := io.ReadAll(f)
+ 		if err != nil {
+ 			return nil, 0, err
+ 		}
+diff --git a/src/cmd/compile/internal/syntax/error_test.go b/src/cmd/compile/internal/syntax/error_test.go
+index 2f70b5278e..55ea6345b9 100644
+--- a/src/cmd/compile/internal/syntax/error_test.go
++++ b/src/cmd/compile/internal/syntax/error_test.go
+@@ -32,7 +32,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -178,7 +177,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ func TestSyntaxErrors(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // we need access to source (testdata)
+ 
+-	list, err := ioutil.ReadDir(testdata)
++	list, err := os.ReadDir(testdata)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index b3d4573935..74583ca903 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
++	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -112,21 +112,21 @@ func TestStdLib(t *testing.T) {
+ }
+ 
+ func walkDirs(t *testing.T, dir string, action func(string)) {
+-	fis, err := ioutil.ReadDir(dir)
++	entries, err := os.ReadDir(dir)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+ 	}
+ 
+ 	var files, dirs []string
+-	for _, fi := range fis {
+-		if fi.Mode().IsRegular() {
+-			if strings.HasSuffix(fi.Name(), ".go") {
+-				path := filepath.Join(dir, fi.Name())
++	for _, entry := range entries {
++		if entry.Type().IsRegular() {
++			if strings.HasSuffix(entry.Name(), ".go") {
++				path := filepath.Join(dir, entry.Name())
+ 				files = append(files, path)
+ 			}
+-		} else if fi.IsDir() && fi.Name() != "testdata" {
+-			path := filepath.Join(dir, fi.Name())
++		} else if entry.IsDir() && entry.Name() != "testdata" {
++			path := filepath.Join(dir, entry.Name())
+ 			if !strings.HasSuffix(path, string(filepath.Separator)+"test") {
+ 				dirs = append(dirs, path)
+ 			}
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 863713c12d..ceb512ef89 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -7,7 +7,6 @@ package syntax
+ import (
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -155,7 +154,7 @@ func testOut() io.Writer {
+ 	if testing.Verbose() {
+ 		return os.Stdout
+ 	}
+-	return ioutil.Discard
++	return io.Discard
+ }
+ 
+ func dup(s string) [2]string { return [2]string{s, s} }
+diff --git a/src/cmd/compile/internal/test/clobberdead_test.go b/src/cmd/compile/internal/test/clobberdead_test.go
+index 88b7d34623..e7910b865c 100644
+--- a/src/cmd/compile/internal/test/clobberdead_test.go
++++ b/src/cmd/compile/internal/test/clobberdead_test.go
+@@ -6,7 +6,7 @@ package test
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+@@ -39,7 +39,7 @@ func runHello(t *testing.T, flag string) {
+ 
+ 	tmpdir := t.TempDir()
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err := ioutil.WriteFile(src, []byte(helloSrc), 0644)
++	err := os.WriteFile(src, []byte(helloSrc), 0644)
+ 	if err != nil {
+ 		t.Fatalf("write file failed: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/fixedbugs_test.go b/src/cmd/compile/internal/test/fixedbugs_test.go
+index cd0d5fc353..5978b44a7d 100644
+--- a/src/cmd/compile/internal/test/fixedbugs_test.go
++++ b/src/cmd/compile/internal/test/fixedbugs_test.go
+@@ -6,7 +6,6 @@ package test
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -60,14 +59,14 @@ func TestIssue15854b(t *testing.T) {
+ // Test that the generated assembly has line numbers (Issue #16214).
+ func TestIssue16214(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	dir, err := ioutil.TempDir("", "TestLineNumber")
++	dir, err := os.MkdirTemp("", "TestLineNumber")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+ 	src := filepath.Join(dir, "x.go")
+-	err = ioutil.WriteFile(src, []byte(issue16214src), 0644)
++	err = os.WriteFile(src, []byte(issue16214src), 0644)
+ 	if err != nil {
+ 		t.Fatalf("could not write file: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/global_test.go b/src/cmd/compile/internal/test/global_test.go
+index 93de894f37..4862b90d44 100644
+--- a/src/cmd/compile/internal/test/global_test.go
++++ b/src/cmd/compile/internal/test/global_test.go
+@@ -7,7 +7,6 @@ package test
+ import (
+ 	"bytes"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -22,7 +21,7 @@ func TestScanfRemoval(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	// Make a directory to work in.
+-	dir, err := ioutil.TempDir("", "issue6853a-")
++	dir, err := os.MkdirTemp("", "issue6853a-")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -70,7 +69,7 @@ func TestDashS(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	// Make a directory to work in.
+-	dir, err := ioutil.TempDir("", "issue14515-")
++	dir, err := os.MkdirTemp("", "issue14515-")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/inst_test.go b/src/cmd/compile/internal/test/inst_test.go
+index d171bd5111..65d3a6c37e 100644
+--- a/src/cmd/compile/internal/test/inst_test.go
++++ b/src/cmd/compile/internal/test/inst_test.go
+@@ -6,7 +6,6 @@ package test
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -22,7 +21,7 @@ func TestInst(t *testing.T) {
+ 
+ 	var tmpdir string
+ 	var err error
+-	tmpdir, err = ioutil.TempDir("", "TestDict")
++	tmpdir, err = os.MkdirTemp("", "TestDict")
+ 	if err != nil {
+ 		t.Fatalf("Failed to create temporary directory: %v", err)
+ 	}
+@@ -59,7 +58,7 @@ func TestInst(t *testing.T) {
+ 	if output, err = cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("Failed: %v:\nOut: %s\n", err, output)
+ 	}
+-	out, err := ioutil.ReadFile(filepath.Join("testdata", outname))
++	out, err := os.ReadFile(filepath.Join("testdata", outname))
+ 	if err != nil {
+ 		t.Fatalf("Could not find %s\n", outname)
+ 	}
+diff --git a/src/cmd/compile/internal/test/lang_test.go b/src/cmd/compile/internal/test/lang_test.go
+index 66ab8401c6..5cb4695b68 100644
+--- a/src/cmd/compile/internal/test/lang_test.go
++++ b/src/cmd/compile/internal/test/lang_test.go
+@@ -6,7 +6,6 @@ package test
+ 
+ import (
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -24,14 +23,14 @@ func TestInvalidLang(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "TestInvalidLang")
++	dir, err := os.MkdirTemp("", "TestInvalidLang")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+ 	src := filepath.Join(dir, "alias.go")
+-	if err := ioutil.WriteFile(src, []byte(aliasSrc), 0644); err != nil {
++	if err := os.WriteFile(src, []byte(aliasSrc), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/test/reproduciblebuilds_test.go b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+index 10913ae32f..7eca7f6c89 100644
+--- a/src/cmd/compile/internal/test/reproduciblebuilds_test.go
++++ b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+@@ -7,7 +7,6 @@ package test
+ import (
+ 	"bytes"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -32,7 +31,7 @@ func TestReproducibleBuilds(t *testing.T) {
+ 		t.Run(test, func(t *testing.T) {
+ 			t.Parallel()
+ 			var want []byte
+-			tmp, err := ioutil.TempFile("", "")
++			tmp, err := os.CreateTemp("", "")
+ 			if err != nil {
+ 				t.Fatalf("temp file creation failed: %v", err)
+ 			}
+@@ -45,7 +44,7 @@ func TestReproducibleBuilds(t *testing.T) {
+ 				if err != nil {
+ 					t.Fatalf("failed to compile: %v\n%s", err, out)
+ 				}
+-				obj, err := ioutil.ReadFile(tmp.Name())
++				obj, err := os.ReadFile(tmp.Name())
+ 				if err != nil {
+ 					t.Fatalf("failed to read object file: %v", err)
+ 				}
+@@ -78,7 +77,7 @@ func TestIssue38068(t *testing.T) {
+ 		{tag: "serial", args: "-c=1"},
+ 		{tag: "concurrent", args: "-c=2"}}
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue38068")
++	tmpdir, err := os.MkdirTemp("", "TestIssue38068")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -97,7 +96,7 @@ func TestIssue38068(t *testing.T) {
+ 	}
+ 
+ 	readBytes := func(fn string) []byte {
+-		payload, err := ioutil.ReadFile(fn)
++		payload, err := os.ReadFile(fn)
+ 		if err != nil {
+ 			t.Fatalf("failed to read executable '%s': %v", fn, err)
+ 		}
+diff --git a/src/cmd/compile/internal/test/ssa_test.go b/src/cmd/compile/internal/test/ssa_test.go
+index af7d9626f9..56cd1285ec 100644
+--- a/src/cmd/compile/internal/test/ssa_test.go
++++ b/src/cmd/compile/internal/test/ssa_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -35,14 +34,14 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+ 	}
+ 	// Write stdout into a temporary file
+-	tmpdir, ok := ioutil.TempDir("", tmpname)
++	tmpdir, ok := os.MkdirTemp("", tmpname)
+ 	if ok != nil {
+ 		t.Fatalf("Failed to create temporary directory")
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+ 	rungo := filepath.Join(tmpdir, "run.go")
+-	ok = ioutil.WriteFile(rungo, stdout.Bytes(), 0600)
++	ok = os.WriteFile(rungo, stdout.Bytes(), 0600)
+ 	if ok != nil {
+ 		t.Fatalf("Failed to create temporary file " + rungo)
+ 	}
+@@ -81,7 +80,7 @@ func TestCode(t *testing.T) {
+ 	gotool := testenv.GoToolPath(t)
+ 
+ 	// Make a temporary directory to work in.
+-	tmpdir, err := ioutil.TempDir("", "TestCode")
++	tmpdir, err := os.MkdirTemp("", "TestCode")
+ 	if err != nil {
+ 		t.Fatalf("Failed to create temporary directory: %v", err)
+ 	}
+@@ -94,7 +93,7 @@ func TestCode(t *testing.T) {
+ 		usesFloat bool   // might use float operations
+ 	}
+ 	var tests []test
+-	files, err := ioutil.ReadDir("testdata")
++	files, err := os.ReadDir("testdata")
+ 	if err != nil {
+ 		t.Fatalf("can't read testdata directory: %v", err)
+ 	}
+@@ -102,7 +101,7 @@ func TestCode(t *testing.T) {
+ 		if !strings.HasSuffix(f.Name(), "_test.go") {
+ 			continue
+ 		}
+-		text, err := ioutil.ReadFile(filepath.Join("testdata", f.Name()))
++		text, err := os.ReadFile(filepath.Join("testdata", f.Name()))
+ 		if err != nil {
+ 			t.Fatalf("can't read testdata/%s: %v", f.Name(), err)
+ 		}
+diff --git a/src/cmd/compile/internal/test/testdata/gen/arithBoundaryGen.go b/src/cmd/compile/internal/test/testdata/gen/arithBoundaryGen.go
+index 21ad27e880..b03c105d5f 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/arithBoundaryGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/arithBoundaryGen.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
+ 	"text/template"
+ )
+@@ -202,7 +201,7 @@ func main() {
+ 	}
+ 
+ 	// write to file
+-	err = ioutil.WriteFile("../arithBoundary_test.go", src, 0666)
++	err = os.WriteFile("../arithBoundary_test.go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go b/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go
+index 41b2946480..1649f46557 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
+ 	"strings"
+ 	"text/template"
+@@ -339,7 +338,7 @@ func TestArithmeticConst(t *testing.T) {
+ 	}
+ 
+ 	// write to file
+-	err = ioutil.WriteFile("../arithConst_test.go", src, 0666)
++	err = os.WriteFile("../arithConst_test.go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/testdata/gen/cmpConstGen.go b/src/cmd/compile/internal/test/testdata/gen/cmpConstGen.go
+index 5508e76be5..dcdafc0322 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/cmpConstGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/cmpConstGen.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
+ 	"math/big"
+ 	"sort"
+@@ -240,7 +239,7 @@ func main() {
+ 	}
+ 
+ 	// write to file
+-	err = ioutil.WriteFile("../cmpConst_test.go", src, 0666)
++	err = os.WriteFile("../cmpConst_test.go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/testdata/gen/constFoldGen.go b/src/cmd/compile/internal/test/testdata/gen/constFoldGen.go
+index 2b8a331c8d..70794222a6 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/constFoldGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/constFoldGen.go
+@@ -14,8 +14,8 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
++	"os"
+ )
+ 
+ type op struct {
+@@ -300,7 +300,7 @@ func main() {
+ 	}
+ 
+ 	// write to file
+-	err = ioutil.WriteFile("../../constFold_test.go", src, 0666)
++	err = os.WriteFile("../../constFold_test.go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/testdata/gen/copyGen.go b/src/cmd/compile/internal/test/testdata/gen/copyGen.go
+index 4567f2f97e..dd09b3bdbc 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/copyGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/copyGen.go
+@@ -8,8 +8,8 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
++	"os"
+ )
+ 
+ // This program generates tests to verify that copying operations
+@@ -114,7 +114,7 @@ func main() {
+ 	}
+ 
+ 	// write to file
+-	err = ioutil.WriteFile("../copy_test.go", src, 0666)
++	err = os.WriteFile("../copy_test.go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/testdata/gen/zeroGen.go b/src/cmd/compile/internal/test/testdata/gen/zeroGen.go
+index 7056730cb9..f3dcaa19d7 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/zeroGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/zeroGen.go
+@@ -8,8 +8,8 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/format"
+-	"io/ioutil"
+ 	"log"
++	"os"
+ )
+ 
+ // This program generates tests to verify that zeroing operations
+@@ -136,7 +136,7 @@ func main() {
+ 	}
+ 
+ 	// write to file
+-	err = ioutil.WriteFile("../zero_test.go", src, 0666)
++	err = os.WriteFile("../zero_test.go", src, 0666)
+ 	if err != nil {
+ 		log.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/builtin_test.go b/src/cmd/compile/internal/typecheck/builtin_test.go
+index fb9d3e393f..a46ec107ae 100644
+--- a/src/cmd/compile/internal/typecheck/builtin_test.go
++++ b/src/cmd/compile/internal/typecheck/builtin_test.go
+@@ -7,7 +7,7 @@ package typecheck
+ import (
+ 	"bytes"
+ 	"internal/testenv"
+-	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"testing"
+ )
+@@ -16,7 +16,7 @@ func TestBuiltin(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 	t.Parallel()
+ 
+-	old, err := ioutil.ReadFile("builtin.go")
++	old, err := os.ReadFile("builtin.go")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index 9b27557956..692d78df89 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -18,7 +18,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -50,7 +49,7 @@ func main() {
+ 	if *stdout {
+ 		_, err = os.Stdout.Write(out)
+ 	} else {
+-		err = ioutil.WriteFile("builtin.go", out, 0666)
++		err = os.WriteFile("builtin.go", out, 0666)
+ 	}
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/compile/internal/types2/hilbert_test.go b/src/cmd/compile/internal/types2/hilbert_test.go
+index 03fea4fe7c..391a498268 100644
+--- a/src/cmd/compile/internal/types2/hilbert_test.go
++++ b/src/cmd/compile/internal/types2/hilbert_test.go
+@@ -6,12 +6,12 @@ package types2_test
+ 
+ import (
+ 	"bytes"
+-	"cmd/compile/internal/syntax"
+ 	"flag"
+ 	"fmt"
+-	"io/ioutil"
++	"os"
+ 	"testing"
+ 
++	"cmd/compile/internal/syntax"
+ 	. "cmd/compile/internal/types2"
+ )
+ 
+@@ -24,7 +24,7 @@ func TestHilbert(t *testing.T) {
+ 	// generate source
+ 	src := program(*H, *out)
+ 	if *out != "" {
+-		ioutil.WriteFile(*out, src, 0666)
++		os.WriteFile(*out, src, 0666)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 05676035ba..5d60ba153e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -9,7 +9,6 @@ import (
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -260,7 +259,7 @@ func xinit() {
+ 	os.Setenv("GOWORK", "off")
+ 
+ 	workdir = xworkdir()
+-	if err := ioutil.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
++	if err := os.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
+ 		fatalf("cannot write stub go.mod: %s", err)
+ 	}
+ 	xatexit(rmworkdir)
+@@ -833,7 +832,7 @@ func runInstall(pkg string, ch chan struct{}) {
+ 		var wg sync.WaitGroup
+ 		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
+ 		asmabis = append(asmabis, sfiles...)
+-		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
++		if err := os.WriteFile(goasmh, nil, 0666); err != nil {
+ 			fatalf("cannot write empty go_asm.h: %s", err)
+ 		}
+ 		bgrun(&wg, dir, asmabis...)
+@@ -853,7 +852,7 @@ func runInstall(pkg string, ch chan struct{}) {
+ 		fmt.Fprintf(buf, "packagefile %s=%s\n", dep, packagefile(dep))
+ 	}
+ 	importcfg := pathf("%s/importcfg", workdir)
+-	if err := ioutil.WriteFile(importcfg, buf.Bytes(), 0666); err != nil {
++	if err := os.WriteFile(importcfg, buf.Bytes(), 0666); err != nil {
+ 		fatalf("cannot write importcfg file: %v", err)
+ 	}
+ 
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 37fc5eaae0..5bc9c9ca89 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -1180,7 +1179,7 @@ func (t *tester) runHostTest(dir, pkg string) error {
+ 	GOEXE := strings.TrimSpace(parts[0])
+ 	GOTMPDIR := strings.TrimSpace(parts[1])
+ 
+-	f, err := ioutil.TempFile(GOTMPDIR, "test.test-*"+GOEXE)
++	f, err := os.CreateTemp(GOTMPDIR, "test.test-*"+GOEXE)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -1531,7 +1530,7 @@ var runtest struct {
+ 
+ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
+ 	runtest.Do(func() {
+-		f, err := ioutil.TempFile("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
++		f, err := os.CreateTemp("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
+ 		if err != nil {
+ 			runtest.err = err
+ 			return
+@@ -1591,7 +1590,7 @@ func (t *tester) packageHasBenchmarks(pkg string) bool {
+ 		if !strings.HasSuffix(name, "_test.go") {
+ 			continue
+ 		}
+-		slurp, err := ioutil.ReadFile(filepath.Join(pkgDir, name))
++		slurp, err := os.ReadFile(filepath.Join(pkgDir, name))
+ 		if err != nil {
+ 			return true // conservatively
+ 		}
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index ee8ba910c7..fc1bfcf9b8 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -9,7 +9,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -228,7 +227,7 @@ func mtime(p string) time.Time {
+ 
+ // readfile returns the content of the named file.
+ func readfile(file string) string {
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		fatalf("%v", err)
+ 	}
+@@ -247,7 +246,7 @@ const (
+ func writefile(text, file string, flag int) {
+ 	new := []byte(text)
+ 	if flag&writeSkipSame != 0 {
+-		old, err := ioutil.ReadFile(file)
++		old, err := os.ReadFile(file)
+ 		if err == nil && bytes.Equal(old, new) {
+ 			return
+ 		}
+@@ -257,7 +256,7 @@ func writefile(text, file string, flag int) {
+ 		mode = 0777
+ 	}
+ 	xremove(file) // in case of symlink tricks by misc/reboot test
+-	err := ioutil.WriteFile(file, new, mode)
++	err := os.WriteFile(file, new, mode)
+ 	if err != nil {
+ 		fatalf("%v", err)
+ 	}
+@@ -334,7 +333,7 @@ func xreaddirfiles(dir string) []string {
+ // xworkdir creates a new temporary directory to hold object files
+ // and returns the name of that directory.
+ func xworkdir() string {
+-	name, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-tool-dist-")
++	name, err := os.MkdirTemp(os.Getenv("GOTMPDIR"), "go-tool-dist-")
+ 	if err != nil {
+ 		fatalf("%v", err)
+ 	}
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 0d7bef9112..f6abec42ff 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"internal/godebug"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	pathpkg "path"
+@@ -291,21 +290,29 @@ func parentIsOverlayFile(name string) (string, bool) {
+ var errNotDir = errors.New("not a directory")
+ 
+ // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
+-// Unfortunately, the error returned by ioutil.ReadDir if dir is not a directory
++// Unfortunately, the error returned by os.ReadDir if dir is not a directory
+ // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
+ func readDir(dir string) ([]fs.FileInfo, error) {
+-	fis, err := ioutil.ReadDir(dir)
+-	if err == nil {
+-		return fis, nil
+-	}
+-
+-	if os.IsNotExist(err) {
++	entries, err := os.ReadDir(dir)
++	if err != nil {
++		if os.IsNotExist(err) {
++			return nil, err
++		}
++		if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
++			return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
++		}
+ 		return nil, err
+ 	}
+-	if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
++
++	fis := make([]fs.FileInfo, 0, len(entries))
++	for _, entry := range entries {
++		info, err := entry.Info()
++		if err != nil {
++			continue
++		}
++		fis = append(fis, info)
+ 	}
+-	return nil, err
++	return fis, nil
+ }
+ 
+ // ReadDir provides a slice of fs.FileInfo entries corresponding
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 69a3bc8bfe..8c610a0033 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -12,7 +12,6 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/lazyregexp"
+-	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+@@ -592,7 +591,7 @@ func loadWorkFile(path string) (goVersion string, modRoots []string, replaces []
+ 
+ // ReadWorkFile reads and parses the go.work file at the given path.
+ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+-	workData, err := ioutil.ReadFile(path)
++	workData, err := os.ReadFile(path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -606,7 +605,7 @@ func WriteWorkFile(path string, wf *modfile.WorkFile) error {
+ 	wf.Cleanup()
+ 	out := modfile.Format(wf.Syntax)
+ 
+-	return ioutil.WriteFile(path, out, 0666)
++	return os.WriteFile(path, out, 0666)
+ }
+ 
+ // UpdateWorkFile updates comments on directory directives in the go.work
+diff --git a/src/cmd/internal/archive/archive_test.go b/src/cmd/internal/archive/archive_test.go
+index bbaa72cbf8..cca65af8ed 100644
+--- a/src/cmd/internal/archive/archive_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"internal/testenv"
+ 	"internal/xcoff"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -43,12 +42,12 @@ func copyDir(dst, src string) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	fis, err := ioutil.ReadDir(src)
++	entries, err := os.ReadDir(src)
+ 	if err != nil {
+ 		return err
+ 	}
+-	for _, fi := range fis {
+-		err = copyFile(filepath.Join(dst, fi.Name()), filepath.Join(src, fi.Name()))
++	for _, entry := range entries {
++		err = copyFile(filepath.Join(dst, entry.Name()), filepath.Join(src, entry.Name()))
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -96,7 +95,7 @@ type goobjPaths struct {
+ func buildGoobj(t *testing.T) goobjPaths {
+ 	buildOnce.Do(func() {
+ 		buildErr = func() (err error) {
+-			buildDir, err = ioutil.TempDir("", "TestGoobj")
++			buildDir, err = os.MkdirTemp("", "TestGoobj")
+ 			if err != nil {
+ 				return err
+ 			}
+@@ -132,7 +131,7 @@ func buildGoobj(t *testing.T) goobjPaths {
+ 				gopath := filepath.Join(buildDir, "gopath")
+ 				err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
+ 				if err == nil {
+-					err = ioutil.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
++					err = os.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
+ 				}
+ 				if err != nil {
+ 					return err
+diff --git a/src/cmd/internal/buildid/buildid_test.go b/src/cmd/internal/buildid/buildid_test.go
+index f04e328046..55835bf8ac 100644
+--- a/src/cmd/internal/buildid/buildid_test.go
++++ b/src/cmd/internal/buildid/buildid_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"crypto/sha256"
+ 	"internal/obscuretestdata"
+-	"io/ioutil"
+ 	"os"
+ 	"reflect"
+ 	"strings"
+@@ -21,7 +20,7 @@ const (
+ )
+ 
+ func TestReadFile(t *testing.T) {
+-	f, err := ioutil.TempFile("", "buildid-test-")
++	f, err := os.CreateTemp("", "buildid-test-")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -59,7 +58,7 @@ func TestReadFile(t *testing.T) {
+ 			t.Errorf("ReadFile(%s) [readSize=2k] = %q, %v, want %q, nil", f, id, err, expectedID)
+ 		}
+ 
+-		data, err := ioutil.ReadFile(f)
++		data, err := os.ReadFile(f)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -68,7 +67,7 @@ func TestReadFile(t *testing.T) {
+ 			t.Errorf("FindAndHash(%s): %v", f, err)
+ 			continue
+ 		}
+-		if err := ioutil.WriteFile(tmp, data, 0666); err != nil {
++		if err := os.WriteFile(tmp, data, 0666); err != nil {
+ 			t.Error(err)
+ 			continue
+ 		}
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index d9db63ad44..d96ac41c1a 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -18,7 +18,6 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -44,7 +43,7 @@ func main() {
+ 	if *stdout {
+ 		_, err = os.Stdout.Write(out)
+ 	} else {
+-		err = ioutil.WriteFile("builtinlist.go", out, 0666)
++		err = os.WriteFile("builtinlist.go", out, 0666)
+ 	}
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/internal/goobj/objfile_test.go b/src/cmd/internal/goobj/objfile_test.go
+index ed942aa934..d7eb0b194b 100644
+--- a/src/cmd/internal/goobj/objfile_test.go
++++ b/src/cmd/internal/goobj/objfile_test.go
+@@ -7,15 +7,15 @@ package goobj
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"cmd/internal/bio"
+-	"cmd/internal/objabi"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"testing"
++
++	"cmd/internal/bio"
++	"cmd/internal/objabi"
+ )
+ 
+ func dummyWriter(buf *bytes.Buffer) *Writer {
+@@ -97,7 +97,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	tmpdir, err := ioutil.TempDir("", "lotsofrelocs")
++	tmpdir, err := os.MkdirTemp("", "lotsofrelocs")
+ 	if err != nil {
+ 		t.Fatalf("can't create temp directory: %v\n", err)
+ 	}
+@@ -110,7 +110,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 		fmt.Fprintf(&w, "\t\"%d\",\n", i)
+ 	}
+ 	fmt.Fprintf(&w, issue41621epilog)
+-	err = ioutil.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
++	err = os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+@@ -118,7 +118,7 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 	// Emit go.mod
+ 	w.Reset()
+ 	fmt.Fprintf(&w, "module issue41621\n\ngo 1.12\n")
+-	err = ioutil.WriteFile(tmpdir+"/go.mod", w.Bytes(), 0666)
++	err = os.WriteFile(tmpdir+"/go.mod", w.Bytes(), 0666)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 053cb8f548..26673937a0 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/fs"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -361,7 +360,7 @@ func TestDependencyVersionsConsistent(t *testing.T) {
+ 		// It's ok if there are undetected differences in modules that do not
+ 		// provide imported packages: we will not have to pull in any backports of
+ 		// fixes to those modules anyway.
+-		vendor, err := ioutil.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
++		vendor, err := os.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+diff --git a/src/cmd/internal/obj/arm64/asm_arm64_test.go b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+index f468b6b0fe..b1db336a33 100644
+--- a/src/cmd/internal/obj/arm64/asm_arm64_test.go
++++ b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -27,7 +26,7 @@ func TestLarge(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "testlarge")
++	dir, err := os.MkdirTemp("", "testlarge")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -38,7 +37,7 @@ func TestLarge(t *testing.T) {
+ 	gen(buf)
+ 
+ 	tmpfile := filepath.Join(dir, "x.s")
+-	err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
++	err = os.WriteFile(tmpfile, buf.Bytes(), 0644)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+@@ -86,13 +85,13 @@ func gen(buf *bytes.Buffer) {
+ 
+ // Issue 20348.
+ func TestNoRet(t *testing.T) {
+-	dir, err := ioutil.TempDir("", "testnoret")
++	dir, err := os.MkdirTemp("", "testnoret")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 	tmpfile := filepath.Join(dir, "x.s")
+-	if err := ioutil.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
++	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+@@ -106,7 +105,7 @@ func TestNoRet(t *testing.T) {
+ // code can be aligned to the alignment value.
+ func TestPCALIGN(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	dir, err := ioutil.TempDir("", "testpcalign")
++	dir, err := os.MkdirTemp("", "testpcalign")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -130,7 +129,7 @@ func TestPCALIGN(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range testCases {
+-		if err := ioutil.WriteFile(tmpfile, test.code, 0644); err != nil {
++		if err := os.WriteFile(tmpfile, test.code, 0644); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index 91e96e435d..79204c1858 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -6,15 +6,15 @@ package obj
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/goobj"
+-	"cmd/internal/sys"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ 	"unsafe"
++
++	"cmd/internal/goobj"
++	"cmd/internal/sys"
+ )
+ 
+ var dummyArch = LinkArch{Arch: sys.ArchAMD64}
+@@ -99,14 +99,14 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
+ 		t.Skip("skip on 32-bit architectures")
+ 	}
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestSymbolTooLarge")
++	tmpdir, err := os.MkdirTemp("", "TestSymbolTooLarge")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+ 	src := filepath.Join(tmpdir, "p.go")
+-	err = ioutil.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
++	err = os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v\n", err)
+ 	}
+@@ -129,7 +129,7 @@ func TestNoRefName(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err := ioutil.WriteFile(src, []byte("package main; import \"fmt\"; func main() { fmt.Println(123) }\n"), 0666)
++	err := os.WriteFile(src, []byte("package main; import \"fmt\"; func main() { fmt.Println(123) }\n"), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v\n", err)
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index c96f991293..aef442e485 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -6,11 +6,8 @@ package ppc64
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/obj"
+-	"cmd/internal/objabi"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"math"
+ 	"os"
+ 	"os/exec"
+@@ -18,6 +15,9 @@ import (
+ 	"regexp"
+ 	"strings"
+ 	"testing"
++
++	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ )
+ 
+ var platformEnvs = [][]string{
+@@ -167,7 +167,7 @@ PNOP
+ func TestPfxAlign(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "testpfxalign")
++	dir, err := os.MkdirTemp("", "testpfxalign")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -188,7 +188,7 @@ func TestPfxAlign(t *testing.T) {
+ 
+ 	for _, pgm := range pgms {
+ 		tmpfile := filepath.Join(dir, "x.s")
+-		err = ioutil.WriteFile(tmpfile, pgm.text, 0644)
++		err = os.WriteFile(tmpfile, pgm.text, 0644)
+ 		if err != nil {
+ 			t.Fatalf("can't write output: %v\n", err)
+ 		}
+@@ -217,7 +217,7 @@ func TestLarge(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "testlarge")
++	dir, err := os.MkdirTemp("", "testlarge")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -281,7 +281,7 @@ func TestLarge(t *testing.T) {
+ 		gen(buf, test.jmpinsn)
+ 
+ 		tmpfile := filepath.Join(dir, "x.s")
+-		err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
++		err = os.WriteFile(tmpfile, buf.Bytes(), 0644)
+ 		if err != nil {
+ 			t.Fatalf("can't write output: %v\n", err)
+ 		}
+@@ -336,7 +336,7 @@ func TestPCalign(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "testpcalign")
++	dir, err := os.MkdirTemp("", "testpcalign")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -345,7 +345,7 @@ func TestPCalign(t *testing.T) {
+ 	// generate a test with valid uses of PCALIGN
+ 
+ 	tmpfile := filepath.Join(dir, "x.s")
+-	err = ioutil.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
++	err = os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+@@ -385,7 +385,7 @@ func TestPCalign(t *testing.T) {
+ 	// generate a test with invalid use of PCALIGN
+ 
+ 	tmpfile = filepath.Join(dir, "xi.s")
+-	err = ioutil.WriteFile(tmpfile, []byte(invalidPCAlignSrc), 0644)
++	err = os.WriteFile(tmpfile, []byte(invalidPCAlignSrc), 0644)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/cmd/internal/obj/riscv/asm_test.go b/src/cmd/internal/obj/riscv/asm_test.go
+index b23142dbe8..c798e98873 100644
+--- a/src/cmd/internal/obj/riscv/asm_test.go
++++ b/src/cmd/internal/obj/riscv/asm_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -24,7 +23,7 @@ func TestLargeBranch(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "testlargebranch")
++	dir, err := os.MkdirTemp("", "testlargebranch")
+ 	if err != nil {
+ 		t.Fatalf("Could not create directory: %v", err)
+ 	}
+@@ -35,7 +34,7 @@ func TestLargeBranch(t *testing.T) {
+ 	genLargeBranch(buf)
+ 
+ 	tmpfile := filepath.Join(dir, "x.s")
+-	if err := ioutil.WriteFile(tmpfile, buf.Bytes(), 0644); err != nil {
++	if err := os.WriteFile(tmpfile, buf.Bytes(), 0644); err != nil {
+ 		t.Fatalf("Failed to write file: %v", err)
+ 	}
+ 
+@@ -67,13 +66,13 @@ func TestLargeCall(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "testlargecall")
++	dir, err := os.MkdirTemp("", "testlargecall")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module largecall"), 0644); err != nil {
++	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module largecall"), 0644); err != nil {
+ 		t.Fatalf("Failed to write file: %v\n", err)
+ 	}
+ 	main := `package main
+@@ -84,7 +83,7 @@ func main() {
+ func x()
+ func y()
+ `
+-	if err := ioutil.WriteFile(filepath.Join(dir, "x.go"), []byte(main), 0644); err != nil {
++	if err := os.WriteFile(filepath.Join(dir, "x.go"), []byte(main), 0644); err != nil {
+ 		t.Fatalf("failed to write main: %v\n", err)
+ 	}
+ 
+@@ -92,7 +91,7 @@ func y()
+ 	buf := bytes.NewBuffer(make([]byte, 0, 7000000))
+ 	genLargeCall(buf)
+ 
+-	if err := ioutil.WriteFile(filepath.Join(dir, "x.s"), buf.Bytes(), 0644); err != nil {
++	if err := os.WriteFile(filepath.Join(dir, "x.s"), buf.Bytes(), 0644); err != nil {
+ 		t.Fatalf("Failed to write file: %v\n", err)
+ 	}
+ 
+@@ -130,13 +129,13 @@ func genLargeCall(buf *bytes.Buffer) {
+ 
+ // Issue 20348.
+ func TestNoRet(t *testing.T) {
+-	dir, err := ioutil.TempDir("", "testnoret")
++	dir, err := os.MkdirTemp("", "testnoret")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 	tmpfile := filepath.Join(dir, "x.s")
+-	if err := ioutil.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
++	if err := os.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+@@ -147,7 +146,7 @@ func TestNoRet(t *testing.T) {
+ }
+ 
+ func TestImmediateSplitting(t *testing.T) {
+-	dir, err := ioutil.TempDir("", "testimmsplit")
++	dir, err := os.MkdirTemp("", "testimmsplit")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -190,7 +189,7 @@ TEXT _stub(SB),$0-0
+ 	MOVF	F6, 4096(X5)
+ 	MOVD	F6, 4096(X5)
+ `
+-	if err := ioutil.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
++	if err := os.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index f9dd584569..6384fa07d8 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -5,7 +5,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -81,7 +80,7 @@ func normalize(s string) string {
+ }
+ 
+ func asmOutput(t *testing.T, s string) []byte {
+-	tmpdir, err := ioutil.TempDir("", "progedittest")
++	tmpdir, err := os.MkdirTemp("", "progedittest")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/internal/obj/x86/pcrelative_test.go b/src/cmd/internal/obj/x86/pcrelative_test.go
+index 487a65d8dc..a600006634 100644
+--- a/src/cmd/internal/obj/x86/pcrelative_test.go
++++ b/src/cmd/internal/obj/x86/pcrelative_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -33,12 +32,12 @@ func main() {
+ `
+ 
+ func objdumpOutput(t *testing.T, mname, source string) []byte {
+-	tmpdir, err := ioutil.TempDir("", mname)
++	tmpdir, err := os.MkdirTemp("", mname)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+-	err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
++	err = os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 747207965e..858976e645 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"reflect"
+@@ -57,7 +56,7 @@ func expandArgs(in []string) (out []string) {
+ 				out = make([]string, 0, len(in)*2)
+ 				out = append(out, in[:i]...)
+ 			}
+-			slurp, err := ioutil.ReadFile(s[1:])
++			slurp, err := os.ReadFile(s[1:])
+ 			if err != nil {
+ 				log.Fatal(err)
+ 			}
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index b5f1cd1632..c298d7e1a9 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -7,13 +7,11 @@ package objfile
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"cmd/internal/src"
+ 	"container/list"
+ 	"debug/gosym"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -21,6 +19,8 @@ import (
+ 	"strings"
+ 	"text/tabwriter"
+ 
++	"cmd/internal/src"
++
+ 	"golang.org/x/arch/arm/armasm"
+ 	"golang.org/x/arch/arm64/arm64asm"
+ 	"golang.org/x/arch/ppc64/ppc64asm"
+@@ -157,7 +157,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
+ 	}
+ 
+ 	if e == nil {
+-		content, err := ioutil.ReadFile(filename)
++		content, err := os.ReadFile(filename)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/cmd/internal/pkgpath/pkgpath.go b/src/cmd/internal/pkgpath/pkgpath.go
+index e3c76dced4..0bec137a70 100644
+--- a/src/cmd/internal/pkgpath/pkgpath.go
++++ b/src/cmd/internal/pkgpath/pkgpath.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"strings"
+@@ -19,7 +18,7 @@ import (
+ // ToSymbolFunc returns a function that may be used to convert a
+ // package path into a string suitable for use as a symbol.
+ // cmd is the gccgo/GoLLVM compiler in use, and tmpdir is a temporary
+-// directory to pass to ioutil.TempFile.
++// directory to pass to os.CreateTemp().
+ // For example, this returns a function that converts "net/http"
+ // into a string like "net..z2fhttp". The actual string varies for
+ // different gccgo/GoLLVM versions, which is why this returns a function
+@@ -32,7 +31,7 @@ func ToSymbolFunc(cmd, tmpdir string) (func(string) string, error) {
+ 	// the same string. More recent versions use a new mangler
+ 	// that avoids these collisions.
+ 	const filepat = "*_gccgo_manglechck.go"
+-	f, err := ioutil.TempFile(tmpdir, filepat)
++	f, err := os.CreateTemp(tmpdir, filepat)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -40,7 +39,7 @@ func ToSymbolFunc(cmd, tmpdir string) (func(string) string, error) {
+ 	f.Close()
+ 	defer os.Remove(gofilename)
+ 
+-	if err := ioutil.WriteFile(gofilename, []byte(mangleCheckCode), 0644); err != nil {
++	if err := os.WriteFile(gofilename, []byte(mangleCheckCode), 0644); err != nil {
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/cmd/internal/test2json/test2json_test.go b/src/cmd/internal/test2json/test2json_test.go
+index e69739d3fe..dee3920511 100644
+--- a/src/cmd/internal/test2json/test2json_test.go
++++ b/src/cmd/internal/test2json/test2json_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
++	"os"
+ 	"path/filepath"
+ 	"reflect"
+ 	"strings"
+@@ -28,7 +28,7 @@ func TestGolden(t *testing.T) {
+ 	for _, file := range files {
+ 		name := strings.TrimSuffix(filepath.Base(file), ".test")
+ 		t.Run(name, func(t *testing.T) {
+-			orig, err := ioutil.ReadFile(file)
++			orig, err := os.ReadFile(file)
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+@@ -46,13 +46,13 @@ func TestGolden(t *testing.T) {
+ 			if *update {
+ 				js := strings.TrimSuffix(file, ".test") + ".json"
+ 				t.Logf("rewriting %s", js)
+-				if err := ioutil.WriteFile(js, buf.Bytes(), 0666); err != nil {
++				if err := os.WriteFile(js, buf.Bytes(), 0666); err != nil {
+ 					t.Fatal(err)
+ 				}
+ 				return
+ 			}
+ 
+-			want, err := ioutil.ReadFile(strings.TrimSuffix(file, ".test") + ".json")
++			want, err := os.ReadFile(strings.TrimSuffix(file, ".test") + ".json")
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 5b7b95757b..5037f5b6c0 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -8,11 +8,9 @@
+ package main
+ 
+ import (
+-	"cmd/internal/sys"
+ 	"debug/elf"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -21,6 +19,8 @@ import (
+ 	"sync"
+ 	"testing"
+ 	"text/template"
++
++	"cmd/internal/sys"
+ )
+ 
+ func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
+@@ -75,12 +75,12 @@ func TestSectionsWithSameName(t *testing.T) {
+ 	gopath := filepath.Join(dir, "GOPATH")
+ 	env := append(os.Environ(), "GOPATH="+gopath)
+ 
+-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
++	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+ 	asmFile := filepath.Join(dir, "x.s")
+-	if err := ioutil.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
++	if err := os.WriteFile(asmFile, []byte(asmSource), 0444); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -108,7 +108,7 @@ func TestSectionsWithSameName(t *testing.T) {
+ 	}
+ 
+ 	goFile := filepath.Join(dir, "main.go")
+-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
++	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -145,7 +145,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
+ 	gopath := filepath.Join(dir, "GOPATH")
+ 	env := append(os.Environ(), "GOPATH="+gopath)
+ 
+-	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
++	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module elf_test\n"), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -157,7 +157,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
+ 	for i, content := range cSources35779 {
+ 		csrcFile := filepath.Join(dir, fmt.Sprintf("x%d.c", i))
+ 		csrcs = append(csrcs, csrcFile)
+-		if err := ioutil.WriteFile(csrcFile, []byte(content), 0444); err != nil {
++		if err := os.WriteFile(csrcFile, []byte(content), 0444); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 
+@@ -187,7 +187,7 @@ func TestMinusRSymsWithSameName(t *testing.T) {
+ 	}
+ 
+ 	goFile := filepath.Join(dir, "main.go")
+-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
++	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -216,7 +216,7 @@ func TestMergeNoteSections(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	goFile := filepath.Join(t.TempDir(), "notes.go")
+-	if err := ioutil.WriteFile(goFile, []byte(goSource), 0444); err != nil {
++	if err := os.WriteFile(goFile, []byte(goSource), 0444); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	outFile := filepath.Join(t.TempDir(), "notes.exe")
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 4b50371161..65f82d9d78 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -5,15 +5,11 @@
+ package ld
+ 
+ import (
+-	intdwarf "cmd/internal/dwarf"
+-	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+-	"cmd/link/internal/dwtest"
+ 	"debug/dwarf"
+ 	"debug/pe"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -23,6 +19,10 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++
++	intdwarf "cmd/internal/dwarf"
++	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
++	"cmd/link/internal/dwtest"
+ )
+ 
+ const (
+@@ -96,7 +96,7 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
+ 	src := filepath.Join(dir, "test.go")
+ 	dst := filepath.Join(dir, "out.exe")
+ 
+-	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
++	if err := os.WriteFile(src, []byte(testfile), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -1394,7 +1394,7 @@ func TestIssue42484(t *testing.T) {
+ 
+ 	t.Parallel()
+ 
+-	tmpdir, err := ioutil.TempDir("", "TestIssue42484")
++	tmpdir, err := os.MkdirTemp("", "TestIssue42484")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index 7d59249f3a..9f5a0ed9e2 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -10,7 +10,6 @@ package ld
+ import (
+ 	"debug/elf"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -34,7 +33,7 @@ func main() {
+ }
+ `
+ 	src := filepath.Join(dir, "issue33358.go")
+-	if err := ioutil.WriteFile(src, []byte(prog), 0666); err != nil {
++	if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/go_test.go b/src/cmd/link/internal/ld/go_test.go
+index 230f85a0e5..7dc9b57112 100644
+--- a/src/cmd/link/internal/ld/go_test.go
++++ b/src/cmd/link/internal/ld/go_test.go
+@@ -5,14 +5,15 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/objabi"
+ 	"internal/testenv"
+-	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
++
++	"cmd/internal/objabi"
+ )
+ 
+ func TestDedupLibraries(t *testing.T) {
+@@ -99,7 +100,7 @@ import (
+ //go:cgo_import_dynamic _ _ "libc.so"
+ 
+ func main() {}`
+-	if err := ioutil.WriteFile(srcFile, []byte(src), 0644); err != nil {
++	if err := os.WriteFile(srcFile, []byte(src), 0644); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 709a6d0be6..d416571653 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -32,22 +32,22 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/goobj"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path"
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
++
++	"cmd/internal/goobj"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
+ )
+ 
+ func (ctxt *Link) readImportCfg(file string) {
+ 	ctxt.PackageFile = make(map[string]string)
+ 	ctxt.PackageShlib = make(map[string]string)
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		log.Fatalf("-importcfg: %v", err)
+ 	}
+@@ -196,7 +196,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
+ 	l.Fingerprint = fingerprint
+ 	if shlib != "" {
+ 		if strings.HasSuffix(shlib, ".shlibname") {
+-			data, err := ioutil.ReadFile(shlib)
++			data, err := os.ReadFile(shlib)
+ 			if err != nil {
+ 				Errorf(nil, "cannot read %s: %v", shlib, err)
+ 			}
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 2d5a7add9d..e1149d3e56 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"debug/pe"
+ 	"fmt"
+ 	"internal/testenv"
+-	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+@@ -107,7 +107,7 @@ func TestArchiveBuildInvokeWithExec(t *testing.T) {
+ 
+ 	srcfile := filepath.Join(dir, "test.go")
+ 	arfile := filepath.Join(dir, "test.a")
+-	if err := ioutil.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
++	if err := os.WriteFile(srcfile, []byte(carchiveSrcText), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -202,7 +202,7 @@ func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
+ 
+ 	srcfile := filepath.Join(dir, "test.go")
+ 	objfile := filepath.Join(dir, "test.dll")
+-	if err := ioutil.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
++	if err := os.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	argv := []string{"build", "-buildmode=c-shared"}
+@@ -327,7 +327,7 @@ func main() {
+ 			t.Parallel()
+ 			tempDir := t.TempDir()
+ 			src := filepath.Join(tempDir, "x.go")
+-			if err := ioutil.WriteFile(src, []byte(tt.prog), 0644); err != nil {
++			if err := os.WriteFile(src, []byte(tt.prog), 0644); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			cmd := exec.Command(testenv.GoToolPath(t), "run", src)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f4a1f1800f..fa2ee676a9 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -32,17 +32,6 @@ package ld
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/bio"
+-	"cmd/internal/goobj"
+-	"cmd/internal/notsha256"
+-	"cmd/internal/objabi"
+-	"cmd/internal/sys"
+-	"cmd/link/internal/loadelf"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/loadmacho"
+-	"cmd/link/internal/loadpe"
+-	"cmd/link/internal/loadxcoff"
+-	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"encoding/base64"
+@@ -50,7 +39,6 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -58,6 +46,18 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"sync"
++
++	"cmd/internal/bio"
++	"cmd/internal/goobj"
++	"cmd/internal/notsha256"
++	"cmd/internal/objabi"
++	"cmd/internal/sys"
++	"cmd/link/internal/loadelf"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/loadmacho"
++	"cmd/link/internal/loadpe"
++	"cmd/link/internal/loadxcoff"
++	"cmd/link/internal/sym"
+ )
+ 
+ // Data layout and relocation.
+@@ -1157,7 +1157,7 @@ func hostlinksetup(ctxt *Link) {
+ 
+ 	// create temporary directory and arrange cleanup
+ 	if *flagTmpdir == "" {
+-		dir, err := ioutil.TempDir("", "go-link-")
++		dir, err := os.MkdirTemp("", "go-link-")
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+@@ -1238,7 +1238,7 @@ func writeGDBLinkerScript() string {
+ }
+ INSERT AFTER .debug_types;
+ `
+-	err := ioutil.WriteFile(path, []byte(src), 0666)
++	err := os.WriteFile(path, []byte(src), 0666)
+ 	if err != nil {
+ 		Errorf(nil, "WriteFile %s failed: %v", name, err)
+ 	}
+@@ -1849,7 +1849,7 @@ var createTrivialCOnce sync.Once
+ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 	createTrivialCOnce.Do(func() {
+ 		src := filepath.Join(*flagTmpdir, "trivial.c")
+-		if err := ioutil.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
++		if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+ 			Errorf(nil, "WriteFile trivial.c failed: %v", err)
+ 		}
+ 	})
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 3fac071a04..7b4d506a00 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -6,17 +6,18 @@ package ld
+ 
+ import (
+ 	"bytes"
+-	"cmd/internal/objabi"
+-	"cmd/link/internal/loader"
+-	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"fmt"
+-	"io/ioutil"
+ 	"math/bits"
++	"os"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+ 	"sync"
++
++	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
+ )
+ 
+ // This file handles all algorithms related to XCOFF files generation.
+@@ -1805,7 +1806,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
+ 		buf.Write([]byte(name + "\n"))
+ 	}
+ 
+-	err := ioutil.WriteFile(fname, buf.Bytes(), 0666)
++	err := os.WriteFile(fname, buf.Bytes(), 0666)
+ 	if err != nil {
+ 		Errorf(nil, "WriteFile %s failed: %v", fname, err)
+ 	}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 45dc6b322d..c1a30363cb 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -7,11 +7,9 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"cmd/internal/sys"
+ 	"debug/macho"
+ 	"internal/buildcfg"
+ 	"internal/testenv"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -19,6 +17,8 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"testing"
++
++	"cmd/internal/sys"
+ )
+ 
+ var AuthorPaidByTheColumnInch struct {
+@@ -51,7 +51,7 @@ func main() {}
+ 
+ 	tmpdir := t.TempDir()
+ 
+-	err := ioutil.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
++	err := os.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write main.go: %v\n", err)
+ 	}
+@@ -83,7 +83,7 @@ func TestIssue28429(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	write := func(name, content string) {
+-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
++		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -122,7 +122,7 @@ func TestUnresolved(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	write := func(name, content string) {
+-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
++		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -190,7 +190,7 @@ func TestIssue33979(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	write := func(name, content string) {
+-		err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
++		err := os.WriteFile(filepath.Join(tmpdir, name), []byte(content), 0666)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -328,7 +328,7 @@ func TestXFlag(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err := ioutil.WriteFile(src, []byte(testXFlagSrc), 0666)
++	err := os.WriteFile(src, []byte(testXFlagSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -352,7 +352,7 @@ func TestMachOBuildVersion(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err := ioutil.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
++	err := os.WriteFile(src, []byte(testMachOBuildVersionSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -428,7 +428,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "blah.go")
+-	err := ioutil.WriteFile(src, []byte(Issue34788src), 0666)
++	err := os.WriteFile(src, []byte(Issue34788src), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -504,19 +504,19 @@ func TestStrictDup(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err := ioutil.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
++	err := os.WriteFile(src, []byte(testStrictDupGoSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	for _, af := range asmfiles {
+ 		src = filepath.Join(tmpdir, af.fname+".s")
+-		err = ioutil.WriteFile(src, []byte(af.payload), 0666)
++		err = os.WriteFile(src, []byte(af.payload), 0666)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}
+ 	src = filepath.Join(tmpdir, "go.mod")
+-	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
++	err = os.WriteFile(src, []byte("module teststrictdup\n"), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -589,17 +589,17 @@ func TestFuncAlign(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "go.mod")
+-	err := ioutil.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
++	err := os.WriteFile(src, []byte("module cmd/link/TestFuncAlign/falign"), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	src = filepath.Join(tmpdir, "falign.go")
+-	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
++	err = os.WriteFile(src, []byte(testFuncAlignSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	src = filepath.Join(tmpdir, "falign.s")
+-	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
++	err = os.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -662,7 +662,7 @@ func TestTrampoline(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "hello.go")
+-	err := ioutil.WriteFile(src, []byte(testTrampSrc), 0666)
++	err := os.WriteFile(src, []byte(testTrampSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -720,7 +720,7 @@ func TestTrampolineCgo(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "hello.go")
+-	err := ioutil.WriteFile(src, []byte(testTrampCgoSrc), 0666)
++	err := os.WriteFile(src, []byte(testTrampCgoSrc), 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -842,7 +842,7 @@ func TestPErsrcBinutils(t *testing.T) {
+ 	}
+ 
+ 	// Check that the binary contains the rsrc data
+-	b, err := ioutil.ReadFile(exe)
++	b, err := os.ReadFile(exe)
+ 	if err != nil {
+ 		t.Fatalf("reading output failed: %v", err)
+ 	}
+@@ -874,7 +874,7 @@ func TestPErsrcLLVM(t *testing.T) {
+ 	}
+ 
+ 	// Check that the binary contains the rsrc data
+-	b, err := ioutil.ReadFile(exe)
++	b, err := os.ReadFile(exe)
+ 	if err != nil {
+ 		t.Fatalf("reading output failed: %v", err)
+ 	}
+@@ -935,7 +935,7 @@ func TestIssue38554(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err := ioutil.WriteFile(src, []byte(testIssue38554Src), 0666)
++	err := os.WriteFile(src, []byte(testIssue38554Src), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+@@ -985,7 +985,7 @@ func TestIssue42396(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "main.go")
+-	err := ioutil.WriteFile(src, []byte(testIssue42396src), 0666)
++	err := os.WriteFile(src, []byte(testIssue42396src), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+@@ -1056,7 +1056,7 @@ func TestLargeReloc(t *testing.T) {
+ 	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "x.go")
+-	err := ioutil.WriteFile(src, []byte(testLargeRelocSrc), 0666)
++	err := os.WriteFile(src, []byte(testLargeRelocSrc), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+@@ -1091,11 +1091,11 @@ func TestUnlinkableObj(t *testing.T) {
+ 	xObj := filepath.Join(tmpdir, "x.o")
+ 	pObj := filepath.Join(tmpdir, "p.o")
+ 	exe := filepath.Join(tmpdir, "x.exe")
+-	err := ioutil.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
++	err := os.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+-	err = ioutil.WriteFile(pSrc, []byte("package p\n"), 0666)
++	err = os.WriteFile(pSrc, []byte("package p\n"), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index 2551afc8cb..796adfd422 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/testenv"
+-	"io/ioutil"
++	"os"
+ 	"os/exec"
+ 	"testing"
+ )
+@@ -28,7 +28,7 @@ func TestLargeText(t *testing.T) {
+ 	const FN = 4
+ 	tmpdir := t.TempDir()
+ 
+-	if err := ioutil.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
++	if err := os.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+@@ -50,7 +50,7 @@ func TestLargeText(t *testing.T) {
+ 			fmt.Fprintf(&w, inst)
+ 		}
+ 		fmt.Fprintf(&w, "\tRET\n")
+-		err := ioutil.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
++		err := os.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
+ 		if err != nil {
+ 			t.Fatalf("can't write output: %v\n", err)
+ 		}
+@@ -77,7 +77,7 @@ func TestLargeText(t *testing.T) {
+ 	fmt.Fprintf(&w, "\t}\n")
+ 	fmt.Fprintf(&w, "\tfmt.Printf(\"PASS\\n\")\n")
+ 	fmt.Fprintf(&w, "}")
+-	err := ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
++	err := os.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+ 	}
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 3ccf74745f..9ce39cbcf0 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -14,7 +14,6 @@ import (
+ 	"fmt"
+ 	"internal/godebug"
+ 	"io"
+-	"io/ioutil"
+ 	"math/bits"
+ 	"os"
+ 	"path/filepath"
+@@ -963,7 +962,7 @@ func (e *MalformedCorpusError) Error() string {
+ // be saved in a MalformedCorpusError and returned, along with the most recent
+ // error.
+ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
+-	files, err := ioutil.ReadDir(dir)
++	files, err := os.ReadDir(dir)
+ 	if os.IsNotExist(err) {
+ 		return nil, nil // No corpus to read
+ 	} else if err != nil {
+@@ -981,7 +980,7 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
+ 			continue
+ 		}
+ 		filename := filepath.Join(dir, file.Name())
+-		data, err := ioutil.ReadFile(filename)
++		data, err := os.ReadFile(filename)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("failed to read corpus file: %v", err)
+ 		}
+@@ -1038,7 +1037,7 @@ func writeToCorpus(entry *CorpusEntry, dir string) (err error) {
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+ 		return err
+ 	}
+-	if err := ioutil.WriteFile(entry.Path, entry.Data, 0666); err != nil {
++	if err := os.WriteFile(entry.Path, entry.Data, 0666); err != nil {
+ 		os.Remove(entry.Path) // remove partially written file
+ 		return err
+ 	}
+diff --git a/src/internal/fuzz/mem.go b/src/internal/fuzz/mem.go
+index a5c3b02242..ea29b60607 100644
+--- a/src/internal/fuzz/mem.go
++++ b/src/internal/fuzz/mem.go
+@@ -6,7 +6,6 @@ package fuzz
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
+ 	"os"
+ 	"unsafe"
+ )
+@@ -65,7 +64,7 @@ func sharedMemSize(valueSize int) int {
+ // it into memory. The file will be removed when the Close method is called.
+ func sharedMemTempFile(size int) (m *sharedMem, err error) {
+ 	// Create a temporary file.
+-	f, err := ioutil.TempFile("", "fuzz-*")
++	f, err := os.CreateTemp("", "fuzz-*")
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 6e4c4e2d0f..fca3aea578 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -12,7 +12,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"reflect"
+@@ -958,7 +957,7 @@ func (wc *workerClient) Close() error {
+ 
+ 	// Drain fuzzOut and close it. When the server exits, the kernel will close
+ 	// its end of fuzzOut, and we'll get EOF.
+-	if _, err := io.Copy(ioutil.Discard, wc.fuzzOut); err != nil {
++	if _, err := io.Copy(io.Discard, wc.fuzzOut); err != nil {
+ 		wc.fuzzOut.Close()
+ 		return err
+ 	}
+diff --git a/src/internal/txtar/archive.go b/src/internal/txtar/archive.go
+index 81b3145451..fd95f1e64a 100644
+--- a/src/internal/txtar/archive.go
++++ b/src/internal/txtar/archive.go
+@@ -34,7 +34,7 @@ package txtar
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"io/ioutil"
++	"os"
+ 	"strings"
+ )
+ 
+@@ -66,7 +66,7 @@ func Format(a *Archive) []byte {
+ 
+ // ParseFile parses the named file as an archive.
+ func ParseFile(file string) (*Archive, error) {
+-	data, err := ioutil.ReadFile(file)
++	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		return nil, err
+ 	}

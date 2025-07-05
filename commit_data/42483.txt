@@ -11,7 +11,34 @@ Date:   Sun Jan 5 20:16:26 2020 -0600
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/utf8.go      | 2 +-
  src/unicode/utf8/utf8.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/utf8.go b/src/runtime/utf8.go
+index 6bf596581d..52b757662d 100644
+--- a/src/runtime/utf8.go
++++ b/src/runtime/utf8.go
+@@ -7,7 +7,7 @@ package runtime
+ // Numbers fundamental to the encoding.
+ const (
+ 	runeError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
+-	runeSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
++	runeSelf  = 0x80         // characters below runeSelf are represented as themselves in a single byte.
+ 	maxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
+ )
+ 
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index b722a03923..b8368fce41 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -14,7 +14,7 @@ package utf8
+ // Numbers fundamental to the encoding.
+ const (
+ 	RuneError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
+-	RuneSelf  = 0x80         // characters below Runeself are represented as themselves in a single byte.
++	RuneSelf  = 0x80         // characters below RuneSelf are represented as themselves in a single byte.
+ 	MaxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
+ 	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
+ )

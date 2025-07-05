@@ -42,7 +42,7 @@ Date:   Wed Sep 14 14:47:12 2016 -0400
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go     |   4 +-
  src/cmd/internal/obj/link.go         |  14 ++++
  src/cmd/link/internal/amd64/asm.go   |   2 +-
@@ -60,3 +60,951 @@ Date:   Wed Sep 14 14:47:12 2016 -0400
  src/runtime/proc.go                  |   6 +-
  src/runtime/vlop_arm.s               |  15 ++--
  16 files changed, 353 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index f9bdf03d91..78082ebe8b 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -565,7 +565,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			p.To.Reg = REGTMP
+ 			p.To.Offset = 8 * 4 // offset of m.divmod
+ 
+-			/* MOV b,REGTMP */
++			/* MOV b, R8 */
+ 			p = obj.Appendp(ctxt, p)
+ 			p.As = AMOVW
+ 			p.Lineno = q1.Lineno
+@@ -575,7 +575,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				p.From.Reg = q1.To.Reg
+ 			}
+ 			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REGTMP
++			p.To.Reg = REG_R8
+ 			p.To.Offset = 0
+ 
+ 			/* CALL appropriate */
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 43d5f98100..68ee26a324 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -622,6 +622,20 @@ const (
+ 	R_ADDRMIPSTLS
+ )
+ 
++// IsDirectJump returns whether r is a relocation for a direct jump.
++// A direct jump is a CALL or JMP instruction that takes the target address
++// as immediate. The address is embedded into the instruction, possibly
++// with limited width.
++// An indirect jump is a CALL or JMP instruction that takes the target address
++// in register or memory.
++func (r RelocType) IsDirectJump() bool {
++	switch r {
++	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER, R_CALLMIPS, R_JMPMIPS:
++		return true
++	}
++	return false
++}
++
+ type Auto struct {
+ 	Asym    *LSym
+ 	Link    *Auto
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 5bbbf84dcf..60bd45cd30 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -85,10 +85,10 @@ func gentext(ctxt *ld.Link) {
+ 	Addcall(ctxt, initfunc, addmoduledata)
+ 	//    c:	c3                   	retq
+ 	o(0xc3)
+-	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	if ld.Buildmode == ld.BuildmodePlugin {
+ 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+ 	}
++	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 7163af2382..e1f3ed52aa 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -95,10 +95,10 @@ func gentext(ctxt *ld.Link) {
+ 	rel.Type = obj.R_PCREL
+ 	rel.Add = 4
+ 
+-	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	if ld.Buildmode == ld.BuildmodePlugin {
+ 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+ 	}
++	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+@@ -411,6 +411,62 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	return 0
+ }
+ 
++// sign extend a 24-bit integer
++func signext24(x int64) int32 {
++	return (int32(x) << 8) >> 8
++}
++
++// Convert the direct jump relocation r to refer to a trampoline if the target is too far
++func trampoline(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol) {
++	switch r.Type {
++	case obj.R_CALLARM:
++		// r.Add is the instruction
++		// low 24-bit encodes the target address
++		t := (ld.Symaddr(r.Sym) + int64(signext24(r.Add&0xffffff)*4) - (s.Value + int64(r.Off))) / 4
++		if t > 0x7fffff || t < -0x800000 || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
++			// direct call too far, need to insert trampoline
++			offset := (signext24(r.Add&0xffffff) + 2) * 4
++			var tramp *ld.Symbol
++			for i := 0; ; i++ {
++				name := r.Sym.Name + fmt.Sprintf("%+d-tramp%d", offset, i)
++				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
++				if tramp.Value == 0 {
++					// either the trampoline does not exist -- we need to create one,
++					// or found one the address which is not assigned -- this will be
++					// laid down immediately after the current function. use this one.
++					break
++				}
++
++				t = (ld.Symaddr(tramp) - 8 - (s.Value + int64(r.Off))) / 4
++				if t >= -0x800000 && t < 0x7fffff {
++					// found an existing trampoline that is not too far
++					// we can just use it
++					break
++				}
++			}
++			if tramp.Type == 0 {
++				// trampoline does not exist, create one
++				ctxt.AddTramp(tramp)
++				tramp.Size = 12 // 3 instructions
++				tramp.P = make([]byte, tramp.Size)
++				t = ld.Symaddr(r.Sym) + int64(offset)
++				o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
++				o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
++				o3 := uint32(t)                            // WORD $target
++				ld.SysArch.ByteOrder.PutUint32(tramp.P, o1)
++				ld.SysArch.ByteOrder.PutUint32(tramp.P[4:], o2)
++				ld.SysArch.ByteOrder.PutUint32(tramp.P[8:], o3)
++			}
++			// modify reloc to point to tramp, which will be resolved later
++			r.Sym = tramp
++			r.Add = r.Add&0xff000000 | 0xfffffe // clear the offset embedded in the instruction
++			r.Done = 0
++		}
++	default:
++		ld.Errorf(s, "trampoline called with non-jump reloc: %v", r.Type)
++	}
++}
++
+ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 	if ld.Linkmode == ld.LinkExternal {
+ 		switch r.Type {
+@@ -420,10 +476,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 			// set up addend for eventual relocation via outer symbol.
+ 			rs := r.Sym
+ 
+-			r.Xadd = r.Add
+-			if r.Xadd&0x800000 != 0 {
+-				r.Xadd |= ^0xffffff
+-			}
++			r.Xadd = int64(signext24(r.Add & 0xffffff))
+ 			r.Xadd *= 4
+ 			for rs.Outer != nil {
+ 				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+@@ -444,6 +497,10 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
+ 			}
+ 
++			if r.Xadd/4 > 0x7fffff || r.Xadd/4 < -0x800000 {
++				ld.Errorf(s, "direct call too far %d", r.Xadd/4)
++			}
++
+ 			*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32(r.Xadd/4))))
+ 			return 0
+ 		}
+@@ -480,7 +537,13 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
+ 		return 0
+ 
+ 	case obj.R_CALLARM: // bl XXXXXX or b YYYYYY
+-		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&uint32((ld.Symaddr(r.Sym)+int64((uint32(r.Add))*4)-(s.Value+int64(r.Off)))/4))))
++		// r.Add is the instruction
++		// low 24-bit encodes the target address
++		t := (ld.Symaddr(r.Sym) + int64(signext24(r.Add&0xffffff)*4) - (s.Value + int64(r.Off))) / 4
++		if t > 0x7fffff || t < -0x800000 {
++			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
++		}
++		*val = int64(braddoff(int32(0xff000000&uint32(r.Add)), int32(0xffffff&t)))
+ 
+ 		return 0
+ 	}
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 1e0a49752e..775203d4eb 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -50,6 +50,7 @@ func Init() {
+ 	ld.Thearch.Archinit = archinit
+ 	ld.Thearch.Archreloc = archreloc
+ 	ld.Thearch.Archrelocvariant = archrelocvariant
++	ld.Thearch.Trampoline = trampoline
+ 	ld.Thearch.Asmb = asmb
+ 	ld.Thearch.Elfreloc1 = elfreloc1
+ 	ld.Thearch.Elfsetupplt = elfsetupplt
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index c6391729af..6db672f7a1 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -118,7 +118,8 @@ func hostArchive(ctxt *Link, name string) {
+ 			pname := fmt.Sprintf("%s(%s)", name, arhdr.name)
+ 			l = atolwhex(arhdr.size)
+ 
+-			h := ldobj(ctxt, f, "libgcc", l, pname, name, ArchiveObj)
++			libgcc := Library{Pkg: "libgcc"}
++			h := ldobj(ctxt, f, &libgcc, l, pname, name, ArchiveObj)
+ 			f.Seek(h.off, 0)
+ 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+ 		}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8825554c1b..3b4ca5b6a7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -314,6 +314,48 @@ func listsort(l *Symbol) *Symbol {
+ 	return l
+ }
+ 
++// isRuntimeDepPkg returns whether pkg is the runtime package or its dependency
++func isRuntimeDepPkg(pkg string) bool {
++	switch pkg {
++	case "runtime",
++		"sync/atomic": // runtime may call to sync/atomic, due to go:linkname
++		return true
++	}
++	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
++}
++
++// detect too-far jumps in function s, and add trampolines if necessary
++// (currently only ARM supports trampoline insertion)
++func trampoline(ctxt *Link, s *Symbol) {
++	if Thearch.Trampoline == nil {
++		return // no need or no support of trampolines on this arch
++	}
++	if Linkmode == LinkExternal {
++		return // currently only support internal linking
++	}
++
++	for ri := range s.R {
++		r := &s.R[ri]
++		if !r.Type.IsDirectJump() {
++			continue
++		}
++		if Symaddr(r.Sym) == 0 && r.Sym.Type != obj.SDYNIMPORT {
++			if r.Sym.File != s.File {
++				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
++					Errorf(s, "unresolved inter-package jump to %s(%s)", r.Sym, r.Sym.File)
++				}
++				// runtime and its dependent packages may call to each other.
++				// they are fine, as they will be laid down together.
++			}
++			continue
++		}
++
++		Thearch.Trampoline(ctxt, r, s)
++	}
++
++}
++
++// resolve relocations in s.
+ func relocsym(ctxt *Link, s *Symbol) {
+ 	var r *Reloc
+ 	var rs *Symbol
+@@ -325,6 +367,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 
+ 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
+ 		r = &s.R[ri]
++
+ 		r.Done = 1
+ 		off = r.Off
+ 		siz = int32(r.Siz)
+@@ -1978,52 +2021,86 @@ func (ctxt *Link) textaddress() {
+ 	va := uint64(*FlagTextAddr)
+ 	n := 1
+ 	sect.Vaddr = va
++	ntramps := 0
+ 	for _, sym := range ctxt.Textp {
+-		sym.Sect = sect
+-		if sym.Type&obj.SSUB != 0 {
+-			continue
+-		}
+-		if sym.Align != 0 {
+-			va = uint64(Rnd(int64(va), int64(sym.Align)))
+-		} else {
+-			va = uint64(Rnd(int64(va), int64(Funcalign)))
+-		}
+-		sym.Value = 0
+-		for sub := sym; sub != nil; sub = sub.Sub {
+-			sub.Value += int64(va)
++		sect, n, va = assignAddress(ctxt, sect, n, sym, va)
++
++		trampoline(ctxt, sym) // resolve jumps, may add trampolines if jump too far
++
++		// lay down trampolines after each function
++		for ; ntramps < len(ctxt.tramps); ntramps++ {
++			tramp := ctxt.tramps[ntramps]
++			sect, n, va = assignAddress(ctxt, sect, n, tramp, va)
+ 		}
+-		funcsize := uint64(MINFUNC) // spacing required for findfunctab
+-		if sym.Size > MINFUNC {
+-			funcsize = uint64(sym.Size)
++	}
++
++	sect.Length = va - sect.Vaddr
++	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
++
++	// merge tramps into Textp, keeping Textp in address order
++	if ntramps != 0 {
++		newtextp := make([]*Symbol, 0, len(ctxt.Textp)+ntramps)
++		i := 0
++		for _, sym := range ctxt.Textp {
++			for ; i < ntramps && ctxt.tramps[i].Value < sym.Value; i++ {
++				newtextp = append(newtextp, ctxt.tramps[i])
++			}
++			newtextp = append(newtextp, sym)
+ 		}
++		newtextp = append(newtextp, ctxt.tramps[i:ntramps]...)
++
++		ctxt.Textp = newtextp
++	}
++}
++
++// assigns address for a text symbol, returns (possibly new) section, its number, and the address
++// Note: once we have trampoline insertion support for external linking, this function
++// will not need to create new text sections, and so no need to return sect and n.
++func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*Section, int, uint64) {
++	sym.Sect = sect
++	if sym.Type&obj.SSUB != 0 {
++		return sect, n, va
++	}
++	if sym.Align != 0 {
++		va = uint64(Rnd(int64(va), int64(sym.Align)))
++	} else {
++		va = uint64(Rnd(int64(va), int64(Funcalign)))
++	}
++	sym.Value = 0
++	for sub := sym; sub != nil; sub = sub.Sub {
++		sub.Value += int64(va)
++	}
++
++	funcsize := uint64(MINFUNC) // spacing required for findfunctab
++	if sym.Size > MINFUNC {
++		funcsize = uint64(sym.Size)
++	}
+ 
+-		// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
+-		// call target offset field in the bl instruction.  Splitting into smaller text
+-		// sections smaller than this limit allows the GNU linker to modify the long calls
+-		// appropriately.  The limit allows for the space needed for tables inserted by the linker.
++	// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
++	// call target offset field in the bl instruction.  Splitting into smaller text
++	// sections smaller than this limit allows the GNU linker to modify the long calls
++	// appropriately.  The limit allows for the space needed for tables inserted by the linker.
+ 
+-		// If this function doesn't fit in the current text section, then create a new one.
++	// If this function doesn't fit in the current text section, then create a new one.
+ 
+-		// Only break at outermost syms.
++	// Only break at outermost syms.
+ 
+-		if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
++	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
+ 
+-			// Set the length for the previous text section
+-			sect.Length = va - sect.Vaddr
++		// Set the length for the previous text section
++		sect.Length = va - sect.Vaddr
+ 
+-			// Create new section, set the starting Vaddr
+-			sect = addsection(&Segtext, ".text", 05)
+-			sect.Vaddr = va
++		// Create new section, set the starting Vaddr
++		sect = addsection(&Segtext, ".text", 05)
++		sect.Vaddr = va
+ 
+-			// Create a symbol for the start of the secondary text sections
+-			ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect
+-			n++
+-		}
+-		va += funcsize
++		// Create a symbol for the start of the secondary text sections
++		ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect
++		n++
+ 	}
++	va += funcsize
+ 
+-	sect.Length = va - sect.Vaddr
+-	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
++	return sect, n, va
+ }
+ 
+ // assign addresses
+@@ -2246,3 +2323,14 @@ func (ctxt *Link) address() {
+ 	ctxt.xdefine("runtime.enoptrbss", obj.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
+ 	ctxt.xdefine("runtime.end", obj.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+ }
++
++// add a trampoline with symbol s (to be laid down after the current function)
++func (ctxt *Link) AddTramp(s *Symbol) {
++	s.Type = obj.STEXT
++	s.Attr |= AttrReachable
++	s.Attr |= AttrOnList
++	ctxt.tramps = append(ctxt.tramps, s)
++	if *FlagDebugTramp > 0 && ctxt.Debugvlog > 0 {
++		ctxt.Logf("trampoline %s inserted\n", s)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 7cf47a3c09..696a55849c 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -7,7 +7,9 @@ package ld
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
++	"flag"
+ 	"fmt"
++	"path/filepath"
+ 	"strings"
+ 	"unicode"
+ )
+@@ -244,7 +246,8 @@ func (d *deadcodepass) init() {
+ 		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+ 			names = append(names, "main.main", "main.init")
+ 		} else if Buildmode == BuildmodePlugin {
+-			pluginInit := d.ctxt.Library[0].Pkg + ".init"
++			pluginName := strings.TrimSuffix(filepath.Base(flag.Arg(0)), ".a")
++			pluginInit := pluginName + ".init"
+ 			names = append(names, pluginInit, "go.plugin.tabs")
+ 
+ 			// We don't keep the go.plugin.exports symbol,
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index bc0b2cfbde..4750e828bf 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -41,7 +41,7 @@ import (
+ 	"strings"
+ )
+ 
+-func addlib(ctxt *Link, src string, obj string, pathname string) {
++func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
+ 	name := path.Clean(pathname)
+ 
+ 	// runtime.a -> runtime, runtime.6 -> runtime
+@@ -53,7 +53,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
+ 	// already loaded?
+ 	for i := 0; i < len(ctxt.Library); i++ {
+ 		if ctxt.Library[i].Pkg == pkg {
+-			return
++			return ctxt.Library[i]
+ 		}
+ 	}
+ 
+@@ -85,23 +85,22 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
+ 	}
+ 
+ 	if isshlib {
+-		addlibpath(ctxt, src, obj, "", pkg, pname)
+-	} else {
+-		addlibpath(ctxt, src, obj, pname, pkg, "")
++		return addlibpath(ctxt, src, obj, "", pkg, pname)
+ 	}
++	return addlibpath(ctxt, src, obj, pname, pkg, "")
+ }
+ 
+ /*
+- * add library to library list.
++ * add library to library list, return added library.
+  *	srcref: src file referring to package
+  *	objref: object file referring to package
+  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
+  *	pkg: package import path, e.g. container/vector
+  */
+-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) {
++func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) *Library {
+ 	for i := 0; i < len(ctxt.Library); i++ {
+ 		if pkg == ctxt.Library[i].Pkg {
+-			return
++			return ctxt.Library[i]
+ 		}
+ 	}
+ 
+@@ -122,6 +121,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
+ 		}
+ 		l.Shlib = strings.TrimSpace(string(shlibbytes))
+ 	}
++	return l
+ }
+ 
+ func atolwhex(s string) int64 {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0c0b1ec2b6..735408cd47 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -99,6 +99,7 @@ type Arch struct {
+ 	Archinit         func(*Link)
+ 	Archreloc        func(*Link, *Reloc, *Symbol, *int64) int
+ 	Archrelocvariant func(*Link, *Reloc, *Symbol, int64) int64
++	Trampoline       func(*Link, *Reloc, *Symbol)
+ 	Asmb             func(*Link)
+ 	Elfreloc1        func(*Link, *Reloc, int64) int
+ 	Elfsetupplt      func(*Link)
+@@ -331,8 +332,7 @@ func errorexit() {
+ 	Exit(0)
+ }
+ 
+-func loadinternal(ctxt *Link, name string) {
+-	found := 0
++func loadinternal(ctxt *Link, name string) *Library {
+ 	for i := 0; i < len(ctxt.Libdir); i++ {
+ 		if *FlagLinkshared {
+ 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
+@@ -340,9 +340,7 @@ func loadinternal(ctxt *Link, name string) {
+ 				ctxt.Logf("searching for %s.a in %s\n", name, shlibname)
+ 			}
+ 			if _, err := os.Stat(shlibname); err == nil {
+-				addlibpath(ctxt, "internal", "internal", "", name, shlibname)
+-				found = 1
+-				break
++				return addlibpath(ctxt, "internal", "internal", "", name, shlibname)
+ 			}
+ 		}
+ 		pname := filepath.Join(ctxt.Libdir[i], name+".a")
+@@ -350,15 +348,12 @@ func loadinternal(ctxt *Link, name string) {
+ 			ctxt.Logf("searching for %s.a in %s\n", name, pname)
+ 		}
+ 		if _, err := os.Stat(pname); err == nil {
+-			addlibpath(ctxt, "internal", "internal", pname, name, "")
+-			found = 1
+-			break
++			return addlibpath(ctxt, "internal", "internal", pname, name, "")
+ 		}
+ 	}
+ 
+-	if found == 0 {
+-		ctxt.Logf("warning: unable to find %s.a\n", name)
+-	}
++	ctxt.Logf("warning: unable to find %s.a\n", name)
++	return nil
+ }
+ 
+ // findLibPathCmd uses cmd command to find gcc library libname.
+@@ -617,6 +612,38 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	importcycles()
++
++	// put symbols into Textp
++	// do it in postorder so that packages are laid down in dependency order
++	// internal first, then everything else
++	ctxt.Library = postorder(ctxt.Library)
++	for _, doInternal := range [2]bool{true, false} {
++		for _, lib := range ctxt.Library {
++			if isRuntimeDepPkg(lib.Pkg) != doInternal {
++				continue
++			}
++			ctxt.Textp = append(ctxt.Textp, lib.textp...)
++			for _, s := range lib.dupTextSyms {
++				if !s.Attr.OnList() {
++					ctxt.Textp = append(ctxt.Textp, s)
++					s.Attr |= AttrOnList
++				}
++			}
++		}
++	}
++
++	if len(ctxt.Shlibs) > 0 {
++		// We might have overwritten some functions above (this tends to happen for the
++		// autogenerated type equality/hashing functions) and we don't want to generated
++		// pcln table entries for these any more so remove them from Textp.
++		textp := make([]*Symbol, 0, len(ctxt.Textp))
++		for _, s := range ctxt.Textp {
++			if s.Type != obj.SDYNIMPORT {
++				textp = append(textp, s)
++			}
++		}
++		ctxt.Textp = textp
++	}
+ }
+ 
+ /*
+@@ -671,7 +698,7 @@ func objfile(ctxt *Link, lib *Library) {
+ 		l := f.Seek(0, 2)
+ 
+ 		f.Seek(0, 0)
+-		ldobj(ctxt, f, pkg, l, lib.File, lib.File, FileObj)
++		ldobj(ctxt, f, lib, l, lib.File, lib.File, FileObj)
+ 		f.Close()
+ 
+ 		return
+@@ -733,7 +760,7 @@ func objfile(ctxt *Link, lib *Library) {
+ 
+ 		pname = fmt.Sprintf("%s(%s)", lib.File, arhdr.name)
+ 		l = atolwhex(arhdr.size)
+-		ldobj(ctxt, f, pkg, l, pname, lib.File, ArchiveObj)
++		ldobj(ctxt, f, lib, l, pname, lib.File, ArchiveObj)
+ 	}
+ 
+ out:
+@@ -1219,9 +1246,10 @@ func hostlinkArchArgs() []string {
+ // ldobj loads an input object. If it is a host object (an object
+ // compiled by a non-Go compiler) it returns the Hostobj pointer. If
+ // it is a Go object, it returns nil.
+-func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file string, whence int) *Hostobj {
+-	eof := f.Offset() + length
++func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, file string, whence int) *Hostobj {
++	pkg := pathtoprefix(lib.Pkg)
+ 
++	eof := f.Offset() + length
+ 	start := f.Offset()
+ 	c1 := bgetc(f)
+ 	c2 := bgetc(f)
+@@ -1308,7 +1336,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
+ 	f.Seek(import1, 0)
+ 
+-	LoadObjFile(ctxt, f, pkg, eof-f.Offset(), pn)
++	LoadObjFile(ctxt, f, lib, eof-f.Offset(), pn)
+ 	return nil
+ }
+ 
+@@ -1476,17 +1504,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		}
+ 	}
+ 
+-	// We might have overwritten some functions above (this tends to happen for the
+-	// autogenerated type equality/hashing functions) and we don't want to generated
+-	// pcln table entries for these any more so remove them from Textp.
+-	textp := make([]*Symbol, 0, len(ctxt.Textp))
+-	for _, s := range ctxt.Textp {
+-		if s.Type != obj.SDYNIMPORT {
+-			textp = append(textp, s)
+-		}
+-	}
+-	ctxt.Textp = textp
+-
+ 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
+ }
+ 
+@@ -2084,3 +2101,34 @@ func bgetc(r *bio.Reader) int {
+ 	}
+ 	return int(c)
+ }
++
++type markKind uint8 // for postorder traversal
++const (
++	unvisited markKind = iota
++	visiting
++	visited
++)
++
++func postorder(libs []*Library) []*Library {
++	order := make([]*Library, 0, len(libs)) // hold the result
++	mark := make(map[*Library]markKind, len(libs))
++	for _, lib := range libs {
++		dfs(lib, mark, &order)
++	}
++	return order
++}
++
++func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
++	if mark[lib] == visited {
++		return
++	}
++	if mark[lib] == visiting {
++		panic("found import cycle while visiting " + lib.Pkg)
++	}
++	mark[lib] = visiting
++	for _, i := range lib.imports {
++		dfs(i, mark, order)
++	}
++	mark[lib] = visited
++	*order = append(*order, lib)
++}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 0bec88e082..b6bde4cdfb 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -189,6 +189,8 @@ type Link struct {
+ 	Textp      []*Symbol
+ 	Filesyms   []*Symbol
+ 	Moduledata *Symbol
++
++	tramps []*Symbol // trampolines
+ }
+ 
+ // The smallest possible offset from the hardware stack pointer to a local
+@@ -214,12 +216,19 @@ func (l *Link) Logf(format string, args ...interface{}) {
+ }
+ 
+ type Library struct {
+-	Objref string
+-	Srcref string
+-	File   string
+-	Pkg    string
+-	Shlib  string
+-	hash   []byte
++	Objref      string
++	Srcref      string
++	File        string
++	Pkg         string
++	Shlib       string
++	hash        []byte
++	imports     []*Library
++	textp       []*Symbol // text symbols defined in this library
++	dupTextSyms []*Symbol // dupok text symbols defined in this library
++}
++
++func (l Library) String() string {
++	return l.Pkg
+ }
+ 
+ type FuncInfo struct {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 522fcfb9c7..40adf96f71 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -86,6 +86,7 @@ var (
+ 	FlagW           = flag.Bool("w", false, "disable DWARF generation")
+ 	Flag8           bool // use 64-bit addresses in symbol table
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
++	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 6b942083ef..ce666dc57b 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -132,7 +132,7 @@ var emptyPkg = []byte(`"".`)
+ type objReader struct {
+ 	rd              *bufio.Reader
+ 	ctxt            *Link
+-	pkg             string
++	lib             *Library
+ 	pn              string
+ 	dupSym          *Symbol
+ 	localSymVersion int
+@@ -151,11 +151,12 @@ type objReader struct {
+ 	file        []*Symbol
+ }
+ 
+-func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
++func LoadObjFile(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string) {
++
+ 	start := f.Offset()
+ 	r := &objReader{
+ 		rd:              f.Reader,
+-		pkg:             pkg,
++		lib:             lib,
+ 		ctxt:            ctxt,
+ 		pn:              pn,
+ 		dupSym:          &Symbol{Name: ".dup"},
+@@ -168,6 +169,7 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string)
+ }
+ 
+ func (r *objReader) loadObjFile() {
++	pkg := pathtoprefix(r.lib.Pkg)
+ 
+ 	// Magic header
+ 	var buf [8]uint8
+@@ -188,7 +190,10 @@ func (r *objReader) loadObjFile() {
+ 		if lib == "" {
+ 			break
+ 		}
+-		addlib(r.ctxt, r.pkg, r.pn, lib)
++		l := addlib(r.ctxt, pkg, r.pn, lib)
++		if l != nil {
++			r.lib.imports = append(r.lib.imports, l)
++		}
+ 	}
+ 
+ 	// Symbol references
+@@ -263,6 +268,7 @@ func (r *objReader) readSym() {
+ 	typ := r.readSymIndex()
+ 	data := r.readData()
+ 	nreloc := r.readInt()
++	pkg := pathtoprefix(r.lib.Pkg)
+ 	isdup := false
+ 
+ 	var dup *Symbol
+@@ -291,7 +297,7 @@ func (r *objReader) readSym() {
+ 	}
+ 
+ overwrite:
+-	s.File = r.pkg
++	s.File = pkg
+ 	if dupok {
+ 		s.Attr |= AttrDuplicateOK
+ 	}
+@@ -394,12 +400,20 @@ overwrite:
+ 			pc.File[i] = r.readSymIndex()
+ 		}
+ 
+-		if !isdup {
++		if !dupok {
+ 			if s.Attr.OnList() {
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+ 			s.Attr |= AttrOnList
+-			r.ctxt.Textp = append(r.ctxt.Textp, s)
++			r.lib.textp = append(r.lib.textp, s)
++		} else {
++			// there may ba a dup in another package
++			// put into a temp list and add to text later
++			if !isdup {
++				r.lib.dupTextSyms = append(r.lib.dupTextSyms, s)
++			} else {
++				r.lib.dupTextSyms = append(r.lib.dupTextSyms, dup)
++			}
+ 		}
+ 	}
+ 	if s.Type == obj.SDWARFINFO {
+@@ -421,7 +435,7 @@ func (r *objReader) patchDWARFName(s *Symbol) {
+ 	if p == -1 {
+ 		return
+ 	}
+-	pkgprefix := []byte(r.pkg + ".")
++	pkgprefix := []byte(pathtoprefix(r.lib.Pkg) + ".")
+ 	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
+ 
+ 	s.P = append(patched, s.P[e:]...)
+@@ -554,7 +568,7 @@ func (r *objReader) readData() []byte {
+ 
+ // readSymName reads a symbol name, replacing all "". with pkg.
+ func (r *objReader) readSymName() string {
+-	pkg := r.pkg
++	pkg := pathtoprefix(r.lib.Pkg)
+ 	n := r.readInt()
+ 	if n == 0 {
+ 		r.readInt64()
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index a1fe808f05..af702c29d0 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -66,6 +66,7 @@ func gentext(ctxt *ld.Link) {
+ 	}
+ 
+ 	// Generate little thunks that load the PC of the next instruction into a register.
++	thunks := make([]*ld.Symbol, 0, 7+len(ctxt.Textp))
+ 	for _, r := range [...]struct {
+ 		name string
+ 		num  uint8
+@@ -94,8 +95,9 @@ func gentext(ctxt *ld.Link) {
+ 		// c3		ret
+ 		o(0xc3)
+ 
+-		ctxt.Textp = append(ctxt.Textp, thunkfunc)
++		thunks = append(thunks, thunkfunc)
+ 	}
++	ctxt.Textp = append(thunks, ctxt.Textp...) // keep Textp in dependency order
+ 
+ 	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+@@ -151,10 +153,10 @@ func gentext(ctxt *ld.Link) {
+ 
+ 	o(0xc3)
+ 
+-	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	if ld.Buildmode == ld.BuildmodePlugin {
+ 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+ 	}
++	ctxt.Textp = append(ctxt.Textp, initfunc)
+ 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b74cb88506..1b5c1d3f5b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -169,7 +169,8 @@ func main() {
+ 		cgocall(_cgo_notify_runtime_init_done, nil)
+ 	}
+ 
+-	main_init()
++	fn := main_init // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
++	fn()
+ 	close(main_init_done)
+ 
+ 	needUnlock = false
+@@ -180,7 +181,8 @@ func main() {
+ 		// has a main, but it is not executed.
+ 		return
+ 	}
+-	main_main()
++	fn = main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
++	fn()
+ 	if raceenabled {
+ 		racefini()
+ 	}
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index f371601e29..d4c411cda2 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -203,8 +203,9 @@ DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
+ DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
+ GLOBL fast_udiv_tab<>(SB), RODATA, $64
+ 
+-// The linker will pass numerator in RTMP, and it also
+-// expects the result in RTMP
++// The linker will pass numerator in R8
++#define Rn R8
++// The linker expects the result in RTMP
+ #define RTMP R11
+ 
+ TEXT _divu(SB), NOSPLIT, $16-0
+@@ -225,7 +226,7 @@ TEXT _divu(SB), NOSPLIT, $16-0
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 
+-	MOVW	RTMP, Rr		/* numerator */
++	MOVW	Rn, Rr			/* numerator */
+ 	MOVW	g_m(g), Rq
+ 	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	BL  	udiv(SB)
+@@ -243,7 +244,7 @@ TEXT _modu(SB), NOSPLIT, $16-0
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 
+-	MOVW	RTMP, Rr		/* numerator */
++	MOVW	Rn, Rr			/* numerator */
+ 	MOVW	g_m(g), Rq
+ 	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	BL  	udiv(SB)
+@@ -260,7 +261,7 @@ TEXT _div(SB),NOSPLIT,$16-0
+ 	MOVW	Rr, 8(R13)
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+-	MOVW	RTMP, Rr		/* numerator */
++	MOVW	Rn, Rr			/* numerator */
+ 	MOVW	g_m(g), Rq
+ 	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	CMP 	$0, Rr
+@@ -272,7 +273,7 @@ TEXT _div(SB),NOSPLIT,$16-0
+ d0:
+ 	BL  	udiv(SB)  		/* none/both neg */
+ 	MOVW	Rq, RTMP
+-	B		out1
++	B	out1
+ d1:
+ 	CMP 	$0, Rq
+ 	BGE 	d0
+@@ -293,7 +294,7 @@ TEXT _mod(SB),NOSPLIT,$16-0
+ 	MOVW	Rr, 8(R13)
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+-	MOVW	RTMP, Rr		/* numerator */
++	MOVW	Rn, Rr			/* numerator */
+ 	MOVW	g_m(g), Rq
+ 	MOVW	m_divmod(Rq), Rq	/* denominator */
+ 	CMP 	$0, Rq

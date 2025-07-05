@@ -9,6 +9,20 @@ Date:   Fri May 17 04:26:16 2019 +0000
     GitHub-Pull-Request: golang/go#32052
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177277
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d2f9831f20..bc5b48222b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -736,7 +736,7 @@ type itab struct {
+ }
+ 
+ // Lock-free stack node.
+-// // Also known to export_test.go.
++// Also known to export_test.go.
+ type lfnode struct {
+ 	next    uint64
+ 	pushcnt uintptr

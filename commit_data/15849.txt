@@ -7,6 +7,30 @@ Date:   Wed Mar 20 08:06:58 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7786046
-
+---
  misc/swig/stdio/Makefile | 17 -----------------
  1 file changed, 17 deletions(-)
+
+diff --git a/misc/swig/stdio/Makefile b/misc/swig/stdio/Makefile
+deleted file mode 100644
+index 0f23345e4d..0000000000
+--- a/misc/swig/stdio/Makefile
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# Copyright 2011 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-TARG=swig/file
+-SWIGFILES=\
+-	file.swig
+-
+-CLEANFILES+=hello
+-
+-include ../../../src/Make.pkg
+-
+-%: install %.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
+-	$(LD) $(SWIG_RPATH) -o $@ $*.$O

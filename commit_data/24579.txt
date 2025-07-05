@@ -7,6 +7,32 @@ Date:   Wed Aug 5 11:01:59 2015 -0700
     Change-Id: I035708f5d0659b3deef00808d35e1cc8a80215e0
     Reviewed-on: https://go-review.googlesource.com/13243
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 9056531634..b8a2f24c33 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -394,11 +394,16 @@ func regalloc(f *Func) {
+ // immediately preceding the phi's block.
+ func addPhiCopies(f *Func) {
+ 	for _, b := range f.Blocks {
++		phis := true // all phis should appear first; confirm that as we go
+ 		for _, v := range b.Values {
+-			if v.Op != OpPhi {
+-				break // all phis should appear first
+-			}
+-			if v.Type.IsMemory() { // TODO: only "regallocable" types
++			switch {
++			case v.Op == OpPhi && !phis:
++				f.Fatalf("phi var %v not at beginning of block %v:\n%s\n", v, v.Block, f)
++				break
++			case v.Op != OpPhi:
++				phis = false
++				continue
++			case v.Type.IsMemory(): // TODO: only "regallocable" types
+ 				continue
+ 			}
+ 			for i, w := range v.Args {

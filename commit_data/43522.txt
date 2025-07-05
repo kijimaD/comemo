@@ -14,8 +14,126 @@ Date:   Mon Jul 29 03:15:36 2019 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/regexp/all_test.go     | 42 ++++++++++++++++++++++++++++--------------
  src/regexp/example_test.go | 13 +++++++++++++
  src/regexp/regexp.go       | 18 ++++++++++++++++++
  3 files changed, 59 insertions(+), 14 deletions(-)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 626a69142f..be7a2e7111 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -418,24 +418,32 @@ func TestLiteralPrefix(t *testing.T) {
+ 	}
+ }
+ 
++type subexpIndex struct {
++	name  string
++	index int
++}
++
+ type subexpCase struct {
+-	input string
+-	num   int
+-	names []string
++	input   string
++	num     int
++	names   []string
++	indices []subexpIndex
+ }
+ 
++var emptySubexpIndices = []subexpIndex{{"", -1}, {"missing", -1}}
++
+ var subexpCases = []subexpCase{
+-	{``, 0, nil},
+-	{`.*`, 0, nil},
+-	{`abba`, 0, nil},
+-	{`ab(b)a`, 1, []string{"", ""}},
+-	{`ab(.*)a`, 1, []string{"", ""}},
+-	{`(.*)ab(.*)a`, 2, []string{"", "", ""}},
+-	{`(.*)(ab)(.*)a`, 3, []string{"", "", "", ""}},
+-	{`(.*)((a)b)(.*)a`, 4, []string{"", "", "", "", ""}},
+-	{`(.*)(\(ab)(.*)a`, 3, []string{"", "", "", ""}},
+-	{`(.*)(\(a\)b)(.*)a`, 3, []string{"", "", "", ""}},
+-	{`(?P<foo>.*)(?P<bar>(a)b)(?P<foo>.*)a`, 4, []string{"", "foo", "bar", "", "foo"}},
++	{``, 0, nil, emptySubexpIndices},
++	{`.*`, 0, nil, emptySubexpIndices},
++	{`abba`, 0, nil, emptySubexpIndices},
++	{`ab(b)a`, 1, []string{"", ""}, emptySubexpIndices},
++	{`ab(.*)a`, 1, []string{"", ""}, emptySubexpIndices},
++	{`(.*)ab(.*)a`, 2, []string{"", "", ""}, emptySubexpIndices},
++	{`(.*)(ab)(.*)a`, 3, []string{"", "", "", ""}, emptySubexpIndices},
++	{`(.*)((a)b)(.*)a`, 4, []string{"", "", "", "", ""}, emptySubexpIndices},
++	{`(.*)(\(ab)(.*)a`, 3, []string{"", "", "", ""}, emptySubexpIndices},
++	{`(.*)(\(a\)b)(.*)a`, 3, []string{"", "", "", ""}, emptySubexpIndices},
++	{`(?P<foo>.*)(?P<bar>(a)b)(?P<foo>.*)a`, 4, []string{"", "foo", "bar", "", "foo"}, []subexpIndex{{"", -1}, {"missing", -1}, {"foo", 1}, {"bar", 2}}},
+ }
+ 
+ func TestSubexp(t *testing.T) {
+@@ -458,6 +466,12 @@ func TestSubexp(t *testing.T) {
+ 				}
+ 			}
+ 		}
++		for _, subexp := range c.indices {
++			index := re.SubexpIndex(subexp.name)
++			if index != subexp.index {
++				t.Errorf("%q: SubexpIndex(%q) = %d, want %d", c.input, subexp.name, index, subexp.index)
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/regexp/example_test.go b/src/regexp/example_test.go
+index ea35a2e591..466b38b0fa 100644
+--- a/src/regexp/example_test.go
++++ b/src/regexp/example_test.go
+@@ -280,6 +280,19 @@ func ExampleRegexp_SubexpNames() {
+ 	// Turing Alan
+ }
+ 
++func ExampleRegexp_SubexpIndex() {
++	re := regexp.MustCompile(`(?P<first>[a-zA-Z]+) (?P<last>[a-zA-Z]+)`)
++	fmt.Println(re.MatchString("Alan Turing"))
++	matches := re.FindStringSubmatch("Alan Turing")
++	lastIndex := re.SubexpIndex("last")
++	fmt.Printf("last => %d\n", lastIndex)
++	fmt.Println(matches[lastIndex])
++	// Output:
++	// true
++	// last => 2
++	// Turing
++}
++
+ func ExampleRegexp_Split() {
+ 	a := regexp.MustCompile(`a`)
+ 	fmt.Println(a.Split("banana", -1))
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 19ca6f2223..b547a2ab97 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -345,6 +345,24 @@ func (re *Regexp) SubexpNames() []string {
+ 	return re.subexpNames
+ }
+ 
++// SubexpIndex returns the index of the first subexpression with the given name,
++// or -1 if there is no subexpression with that name.
++//
++// Note that multiple subexpressions can be written using the same name, as in
++// (?P<bob>a+)(?P<bob>b+), which declares two subexpressions named "bob".
++// In this case, SubexpIndex returns the index of the leftmost such subexpression
++// in the regular expression.
++func (re *Regexp) SubexpIndex(name string) int {
++	if name != "" {
++		for i, s := range re.subexpNames {
++			if name == s {
++				return i
++			}
++		}
++	}
++	return -1
++}
++
+ const endOfText rune = -1
+ 
+ // input abstracts different representations of the input text. It provides

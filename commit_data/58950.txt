@@ -14,8 +14,103 @@ Date:   Sat Dec 2 15:04:52 2023 +0000
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/asm.s       |  2 ++
  src/runtime/asm_s390x.s | 39 +++++++++++++++++++++++++++++++--------
  src/runtime/proc.go     |  2 +-
  3 files changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 24cd0c95db..74ae8789ab 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -20,6 +20,7 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ #ifndef GOARCH_ppc64
+ #ifndef GOARCH_ppc64le
+ #ifndef GOARCH_riscv64
++#ifndef GOARCH_s390x
+ #ifndef GOARCH_wasm
+ // stub to appease shared build mode.
+ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+@@ -32,3 +33,4 @@ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+ #endif
+ #endif
+ #endif
++#endif
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index a8e1424bf1..f2354a6d53 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -292,6 +292,29 @@ noswitch:
+ 	ADD	$8, R15
+ 	BR	(R3)
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
++	MOVD	fn+0(FP), R12	// context
++	MOVD	g_m(g), R4	// curm
++
++	// set g to gcrash
++	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
++	BL	runtime·save_g(SB)
++	MOVD	R4, g_m(g)	// g.m = curm
++	MOVD	g, m_g0(R4)	// curm.g0 = g
++
++	// switch to crashstack
++	MOVD	(g_stack+stack_hi)(g), R4
++	ADD	$(-4*8), R4, R15
++
++	// call target function
++	MOVD	0(R12), R3	// code pointer
++	BL	(R3)
++
++	// should never return
++	BL	runtime·abort(SB)
++	UNDEF
++
+ /*
+  * support for morestack
+  */
+@@ -305,6 +328,14 @@ noswitch:
+ // calling the scheduler calling newm calling gc), so we must
+ // record an argument size. For that purpose, it has no arguments.
+ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
++	// Called from f.
++	// Set g->sched to context in f.
++	MOVD	R15, (g_sched+gobuf_sp)(g)
++	MOVD	LR, R8
++	MOVD	R8, (g_sched+gobuf_pc)(g)
++	MOVD	R5, (g_sched+gobuf_lr)(g)
++	MOVD	R12, (g_sched+gobuf_ctxt)(g)
++
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVD	g_m(g), R7
+ 	MOVD	m_g0(R7), R8
+@@ -319,14 +350,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	BL	runtime·badmorestackgsignal(SB)
+ 	BL	runtime·abort(SB)
+ 
+-	// Called from f.
+-	// Set g->sched to context in f.
+-	MOVD	R15, (g_sched+gobuf_sp)(g)
+-	MOVD	LR, R8
+-	MOVD	R8, (g_sched+gobuf_pc)(g)
+-	MOVD	R5, (g_sched+gobuf_lr)(g)
+-	MOVD	R12, (g_sched+gobuf_ctxt)(g)
+-
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVD	R5, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c2676c43b2..b3caeb9a7c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -579,7 +579,7 @@ func switchToCrashStack(fn func()) {
+ // Disable crash stack on Windows for now. Apparently, throwing an exception
+ // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
+ // hangs the process (see issue 63938).
+-const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm") && GOOS != "windows"
++const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
+ 
+ //go:noescape
+ func switchToCrashStack0(fn func()) // in assembly

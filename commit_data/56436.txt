@@ -16,7 +16,7 @@ Date:   Thu May 4 10:38:58 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go             |  5 ++
  src/cmd/compile/internal/types2/check_test.go      |  1 +
  src/cmd/compile/internal/types2/infer.go           | 83 +++++++++++++++-------
@@ -26,3 +26,293 @@ Date:   Thu May 4 10:38:58 2023 -0700
  src/go/types/infer.go                              | 83 +++++++++++++++-------
  .../types/testdata/fixedbugs/issue58671.go         | 22 ++++++
  8 files changed, 157 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index b798f2c888..5860c3a92c 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -169,6 +169,11 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
++
++	// If InferMaxDefaultType is set, the minimum (smallest) default
++	// type that fits all untyped constant arguments for the same type
++	// parameter is selected in type inference. (go.dev/issue/58671)
++	InferMaxDefaultType bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 26bb1aed9e..357ca7cf50 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -133,6 +133,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
++	flags.BoolVar(&conf.InferMaxDefaultType, "inferMaxDefaultType", false, "")
+ 	if err := parseFlags(filenames[0], nil, flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index fed85c3d9e..0f4fc6d4b4 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -277,30 +277,65 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		u.tracef("== untyped arguments: %v", untyped)
+ 	}
+ 
+-	// Some generic parameters with untyped arguments may have been given a type by now.
+-	// Collect all remaining parameters that don't have a type yet and unify them with
+-	// the default types of the untyped arguments.
+-	// We need to collect them all before unifying them with their untyped arguments;
+-	// otherwise a parameter type that appears multiple times will have a type after
+-	// the first unification and will be skipped later on, leading to incorrect results.
+-	j := 0
+-	for _, i := range untyped {
+-		tpar := params.At(i).typ.(*TypeParam) // is type parameter by construction of untyped
+-		if u.at(tpar) == nil {
+-			untyped[j] = i
+-			j++
+-		}
+-	}
+-	// untyped[:j] are the indices of parameters without a type yet.
+-	// The respective default types are typed (not untyped) by construction.
+-	for _, i := range untyped[:j] {
+-		tpar := params.At(i).typ.(*TypeParam)
+-		arg := args[i]
+-		typ := Default(arg.typ)
+-		assert(isTyped(typ))
+-		if !u.unify(tpar, typ) {
+-			errorf("default type", tpar, typ, arg)
+-			return nil
++	if check.conf.InferMaxDefaultType {
++		// Some generic parameters with untyped arguments may have been given a type by now.
++		// Collect all remaining parameters that don't have a type yet and determine the
++		// maximum untyped type for each of those parameters, if possible.
++		var maxUntyped map[*TypeParam]Type // lazily allocated (we may not need it)
++		for _, index := range untyped {
++			tpar := params.At(index).typ.(*TypeParam) // is type parameter by construction of untyped
++			if u.at(tpar) == nil {
++				arg := args[index] // arg corresponding to tpar
++				if maxUntyped == nil {
++					maxUntyped = make(map[*TypeParam]Type)
++				}
++				max := maxUntyped[tpar]
++				if max == nil {
++					max = arg.typ
++				} else {
++					m := maxType(max, arg.typ)
++					if m == nil {
++						check.errorf(arg, CannotInferTypeArgs, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
++						return nil
++					}
++					max = m
++				}
++				maxUntyped[tpar] = max
++			}
++		}
++		// maxUntyped contains the maximum untyped type for each type parameter
++		// which doesn't have a type yet. Set the respective default types.
++		for tpar, typ := range maxUntyped {
++			d := Default(typ)
++			assert(isTyped(d))
++			u.set(tpar, d)
++		}
++	} else {
++		// Some generic parameters with untyped arguments may have been given a type by now.
++		// Collect all remaining parameters that don't have a type yet and unify them with
++		// the default types of the untyped arguments.
++		// We need to collect them all before unifying them with their untyped arguments;
++		// otherwise a parameter type that appears multiple times will have a type after
++		// the first unification and will be skipped later on, leading to incorrect results.
++		j := 0
++		for _, i := range untyped {
++			tpar := params.At(i).typ.(*TypeParam) // is type parameter by construction of untyped
++			if u.at(tpar) == nil {
++				untyped[j] = i
++				j++
++			}
++		}
++		// untyped[:j] are the indices of parameters without a type yet.
++		// The respective default types are typed (not untyped) by construction.
++		for _, i := range untyped[:j] {
++			tpar := params.At(i).typ.(*TypeParam)
++			arg := args[i]
++			typ := Default(arg.typ)
++			assert(isTyped(typ))
++			if !u.unify(tpar, typ) {
++				errorf("default type", tpar, typ, arg)
++				return nil
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 05773d134a..14cd9cdcdb 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -170,6 +170,11 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
++
++	// If _InferMaxDefaultType is set, the minimum (smallest) default
++	// type that fits all untyped constant arguments for the same type
++	// parameter is selected in type inference. (go.dev/issue/58671)
++	_InferMaxDefaultType bool
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index d53aaeadc5..9dbcb326cf 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -146,6 +146,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	flags := flag.NewFlagSet("", flag.PanicOnError)
+ 	flags.StringVar(&conf.GoVersion, "lang", "", "")
+ 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
++	flags.BoolVar(boolFieldAddr(&conf, "_InferMaxDefaultType"), "inferMaxDefaultType", false, "")
+ 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index c5e114aaec..73ad2c5b89 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -103,7 +103,11 @@ var filemap = map[string]action{
+ 	"context_test.go": nil,
+ 	"gccgosizes.go":   nil,
+ 	"hilbert_test.go": nil,
+-	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
++	"infer.go": func(f *ast.File) {
++		fixTokenPos(f)
++		fixInferSig(f)
++		renameIdent(f, "InferMaxDefaultType", "_InferMaxDefaultType")
++	},
+ 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
+ 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
+ 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 9ecef1e448..e40b9921a4 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -279,30 +279,65 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		u.tracef("== untyped arguments: %v", untyped)
+ 	}
+ 
+-	// Some generic parameters with untyped arguments may have been given a type by now.
+-	// Collect all remaining parameters that don't have a type yet and unify them with
+-	// the default types of the untyped arguments.
+-	// We need to collect them all before unifying them with their untyped arguments;
+-	// otherwise a parameter type that appears multiple times will have a type after
+-	// the first unification and will be skipped later on, leading to incorrect results.
+-	j := 0
+-	for _, i := range untyped {
+-		tpar := params.At(i).typ.(*TypeParam) // is type parameter by construction of untyped
+-		if u.at(tpar) == nil {
+-			untyped[j] = i
+-			j++
+-		}
+-	}
+-	// untyped[:j] are the indices of parameters without a type yet.
+-	// The respective default types are typed (not untyped) by construction.
+-	for _, i := range untyped[:j] {
+-		tpar := params.At(i).typ.(*TypeParam)
+-		arg := args[i]
+-		typ := Default(arg.typ)
+-		assert(isTyped(typ))
+-		if !u.unify(tpar, typ) {
+-			errorf("default type", tpar, typ, arg)
+-			return nil
++	if check.conf._InferMaxDefaultType {
++		// Some generic parameters with untyped arguments may have been given a type by now.
++		// Collect all remaining parameters that don't have a type yet and determine the
++		// maximum untyped type for each of those parameters, if possible.
++		var maxUntyped map[*TypeParam]Type // lazily allocated (we may not need it)
++		for _, index := range untyped {
++			tpar := params.At(index).typ.(*TypeParam) // is type parameter by construction of untyped
++			if u.at(tpar) == nil {
++				arg := args[index] // arg corresponding to tpar
++				if maxUntyped == nil {
++					maxUntyped = make(map[*TypeParam]Type)
++				}
++				max := maxUntyped[tpar]
++				if max == nil {
++					max = arg.typ
++				} else {
++					m := maxType(max, arg.typ)
++					if m == nil {
++						check.errorf(arg, CannotInferTypeArgs, "mismatched types %s and %s (cannot infer %s)", max, arg.typ, tpar)
++						return nil
++					}
++					max = m
++				}
++				maxUntyped[tpar] = max
++			}
++		}
++		// maxUntyped contains the maximum untyped type for each type parameter
++		// which doesn't have a type yet. Set the respective default types.
++		for tpar, typ := range maxUntyped {
++			d := Default(typ)
++			assert(isTyped(d))
++			u.set(tpar, d)
++		}
++	} else {
++		// Some generic parameters with untyped arguments may have been given a type by now.
++		// Collect all remaining parameters that don't have a type yet and unify them with
++		// the default types of the untyped arguments.
++		// We need to collect them all before unifying them with their untyped arguments;
++		// otherwise a parameter type that appears multiple times will have a type after
++		// the first unification and will be skipped later on, leading to incorrect results.
++		j := 0
++		for _, i := range untyped {
++			tpar := params.At(i).typ.(*TypeParam) // is type parameter by construction of untyped
++			if u.at(tpar) == nil {
++				untyped[j] = i
++				j++
++			}
++		}
++		// untyped[:j] are the indices of parameters without a type yet.
++		// The respective default types are typed (not untyped) by construction.
++		for _, i := range untyped[:j] {
++			tpar := params.At(i).typ.(*TypeParam)
++			arg := args[i]
++			typ := Default(arg.typ)
++			assert(isTyped(typ))
++			if !u.unify(tpar, typ) {
++				errorf("default type", tpar, typ, arg)
++				return nil
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue58671.go b/src/internal/types/testdata/fixedbugs/issue58671.go
+new file mode 100644
+index 0000000000..166ffda3d9
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue58671.go
+@@ -0,0 +1,22 @@
++// -inferMaxDefaultType
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func g[P any](...P) P { var x P; return x }
++
++func _() {
++	var (
++		_ int        = g(1, 2)
++		_ rune       = g(1, 'a')
++		_ float64    = g(1, 'a', 2.3)
++		_ float64    = g('a', 2.3)
++		_ complex128 = g(2.3, 'a', 1i)
++	)
++	g(true, 'a' /* ERROR "mismatched types untyped bool and untyped rune (cannot infer P)" */)
++	g(1, "foo" /* ERROR "mismatched types untyped int and untyped string (cannot infer P)" */)
++	g(1, 2.3, "bar" /* ERROR "mismatched types untyped float and untyped string (cannot infer P)" */)
++}

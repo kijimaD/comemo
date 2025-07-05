@@ -11,6 +11,24 @@ Date:   Tue Apr 11 12:28:31 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/link.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 59a32d9894..ae67867e4b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -727,12 +727,8 @@ type Link struct {
+ 	InlTree       InlTree // global inlining tree used by gc/inl.go
+ 	Imports       []string
+ 	Plan9privates *LSym
+-	Instoffset    int64
+-	Autosize      int32
+-	Pc            int64
+ 	DiagFunc      func(string, ...interface{})
+ 	DebugInfo     func(fn *LSym, curfn interface{}) []*dwarf.Var // if non-nil, curfn is a *gc.Node
+-	Cursym        *LSym
+ 	Version       int
+ 	Errors        int
+ 

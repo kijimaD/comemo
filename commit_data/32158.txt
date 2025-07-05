@@ -11,7 +11,165 @@ Date:   Fri Apr 7 15:41:19 2017 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/error.go         | 32 +++++++++++++-
  test/fixedbugs/issue19658.go | 99 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 129 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index f5b015c091..eafcc9b173 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -74,8 +74,6 @@ func typestring(x interface{}) string {
+ 
+ // For calling from C.
+ // Prints an argument passed to panic.
+-// There's room for arbitrary complexity here, but we keep it
+-// simple and handle just a few important cases: int, string, and Stringer.
+ func printany(i interface{}) {
+ 	switch v := i.(type) {
+ 	case nil:
+@@ -84,8 +82,38 @@ func printany(i interface{}) {
+ 		print(v.String())
+ 	case error:
+ 		print(v.Error())
++	case bool:
++		print(v)
+ 	case int:
+ 		print(v)
++	case int8:
++		print(v)
++	case int16:
++		print(v)
++	case int32:
++		print(v)
++	case int64:
++		print(v)
++	case uint:
++		print(v)
++	case uint8:
++		print(v)
++	case uint16:
++		print(v)
++	case uint32:
++		print(v)
++	case uint64:
++		print(v)
++	case uintptr:
++		print(v)
++	case float32:
++		print(v)
++	case float64:
++		print(v)
++	case complex64:
++		print(v)
++	case complex128:
++		print(v)
+ 	case string:
+ 		print(v)
+ 	default:
+diff --git a/test/fixedbugs/issue19658.go b/test/fixedbugs/issue19658.go
+new file mode 100644
+index 0000000000..91cb88658e
+--- /dev/null
++++ b/test/fixedbugs/issue19658.go
+@@ -0,0 +1,99 @@
++// +build !nacl
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// ensure that panic(x) where x is a numeric type displays a readable number
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++const fn = `
++package main
++
++import  "errors"
++type S struct {
++
++}
++func (s S) String() string {
++	return "s-stringer"
++}
++func main() {
++ 	_ = errors.New
++  panic(%s(%s))
++}
++`
++
++func main() {
++	tempDir, err := ioutil.TempDir("", "")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.RemoveAll(tempDir)
++	tmpFile := filepath.Join(tempDir, "tmp.go")
++
++	for _, tc := range []struct {
++		Type   string
++		Input  string
++		Expect string
++	}{{"", "nil", "panic: nil"},
++		{"errors.New", `"test"`, "panic: test"},
++		{"S", "S{}", "panic: s-stringer"},
++		{"byte", "8", "panic: 8"},
++		{"rune", "8", "panic: 8"},
++		{"int", "8", "panic: 8"},
++		{"int8", "8", "panic: 8"},
++		{"int16", "8", "panic: 8"},
++		{"int32", "8", "panic: 8"},
++		{"int64", "8", "panic: 8"},
++		{"uint", "8", "panic: 8"},
++		{"uint8", "8", "panic: 8"},
++		{"uint16", "8", "panic: 8"},
++		{"uint32", "8", "panic: 8"},
++		{"uint64", "8", "panic: 8"},
++		{"uintptr", "8", "panic: 8"},
++		{"bool", "true", "panic: true"},
++		{"complex64", "8 + 16i", "panic: (+8.000000e+000+1.600000e+001i)"},
++		{"complex128", "8+16i", "panic: (+8.000000e+000+1.600000e+001i)"},
++		{"string", `"test"`, "panic: test"}} {
++
++		b := bytes.Buffer{}
++		fmt.Fprintf(&b, fn, tc.Type, tc.Input)
++
++		err = ioutil.WriteFile(tmpFile, b.Bytes(), 0644)
++		if err != nil {
++			log.Fatal(err)
++		}
++
++		cmd := exec.Command("go", "run", tmpFile)
++		var buf bytes.Buffer
++		cmd.Stdout = &buf
++		cmd.Stderr = &buf
++		cmd.Env = os.Environ()
++		cmd.Run() // ignore err as we expect a panic
++
++		out := buf.Bytes()
++		panicIdx := bytes.Index(out, []byte("panic: "))
++		if panicIdx == -1 {
++			log.Fatalf("expected a panic in output for %s, got: %s", tc.Type, out)
++		}
++		eolIdx := bytes.IndexByte(out[panicIdx:], '\n') + panicIdx
++		if panicIdx == -1 {
++			log.Fatalf("expected a newline in output for %s after the panic, got: %s", tc.Type, out)
++		}
++		out = out[0:eolIdx]
++		if string(out) != tc.Expect {
++			log.Fatalf("expected '%s' for panic(%s(%s)), got %s", tc.Expect, tc.Type, tc.Input, out)
++		}
++	}
++}

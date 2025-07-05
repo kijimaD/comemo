@@ -76,8 +76,90 @@ Date:   Mon May 23 22:14:53 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 8 ++------
  src/runtime/proc.go    | 4 ++--
  src/runtime/stack.go   | 8 +++++++-
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index b0e7477d50..2d0cbd203c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -231,7 +231,7 @@ func markroot(gcw *gcWork, i uint32) {
+ 			// we scan the stacks we can and ask running
+ 			// goroutines to scan themselves; and the
+ 			// second blocks.
+-			scang(gp)
++			scang(gp, gcw)
+ 
+ 			if selfScan {
+ 				casgstatus(userG, _Gwaiting, _Grunning)
+@@ -653,7 +653,7 @@ func gcFlushBgCredit(scanWork int64) {
+ //
+ //go:nowritebarrier
+ //go:systemstack
+-func scanstack(gp *g) {
++func scanstack(gp *g, gcw *gcWork) {
+ 	if gp.gcscanvalid {
+ 		return
+ 	}
+@@ -742,7 +742,6 @@ func scanstack(gp *g) {
+ 
+ 	// Scan the stack.
+ 	var cache pcvalueCache
+-	gcw := &getg().m.p.ptr().gcw
+ 	n := 0
+ 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
+ 		scanframeworker(frame, &cache, gcw)
+@@ -770,9 +769,6 @@ func scanstack(gp *g) {
+ 	}
+ 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
+ 	tracebackdefers(gp, scanframe, nil)
+-	if gcphase == _GCmarktermination {
+-		gcw.dispose()
+-	}
+ 	gcUnlockStackBarriers(gp)
+ 	if gcphase == _GCmark {
+ 		// gp may have added itself to the rescan list between
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3a37fa947b..8f98cfa8a4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -792,7 +792,7 @@ func casgcopystack(gp *g) uint32 {
+ // scang blocks until gp's stack has been scanned.
+ // It might be scanned by scang or it might be scanned by the goroutine itself.
+ // Either way, the stack scan has completed when scang returns.
+-func scang(gp *g) {
++func scang(gp *g, gcw *gcWork) {
+ 	// Invariant; we (the caller, markroot for a specific goroutine) own gp.gcscandone.
+ 	// Nothing is racing with us now, but gcscandone might be set to true left over
+ 	// from an earlier round of stack scanning (we scan twice per GC).
+@@ -833,7 +833,7 @@ loop:
+ 			// the goroutine until we're done.
+ 			if castogscanstatus(gp, s, s|_Gscan) {
+ 				if !gp.gcscandone {
+-					scanstack(gp)
++					scanstack(gp, gcw)
+ 					gp.gcscandone = true
+ 				}
+ 				restartg(gp)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index f68c513fd6..33d29f19a8 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1010,7 +1010,13 @@ func newstack() {
+ 				// return.
+ 			}
+ 			if !gp.gcscandone {
+-				scanstack(gp)
++				// gcw is safe because we're on the
++				// system stack.
++				gcw := &gp.m.p.ptr().gcw
++				scanstack(gp, gcw)
++				if gcBlackenPromptly {
++					gcw.dispose()
++				}
+ 				gp.gcscandone = true
+ 			}
+ 			gp.preemptscan = false

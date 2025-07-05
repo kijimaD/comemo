@@ -7,6 +7,23 @@ Date:   Wed Oct 28 18:17:24 2009 -0700
     R=rsc
     CC=go-dev
     http://go/go-review/1018002
-
+---
  doc/go_spec.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index c743f6d04d..c1ab22b7ae 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2528,8 +2528,9 @@ For operations involving constants only, see the section on
+ </p>
+ 
+ <p>
+-In a channel send, the first operand is always a channel and the
+-second is a value of the channel's element type.
++In a channel send, the first operand is always a channel and the second
++must be a value <a href="#Assignment_compatibility">assignment compatible</a>
++with the channel's element type.
+ </p>
+ 
+ <p>

@@ -9,6 +9,29 @@ Date:   Mon Aug 28 15:07:19 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 8f7b60dab7..cf49c3faba 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -188,8 +188,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 				remote, q = remote[:i], remote[i+1:]
+ 			}
+ 			s = ctxt.Syms.Lookup(local, 0)
+-			if local != f[1] {
+-			}
+ 			if s.Type == 0 || s.Type == SXREF || s.Type == SHOSTOBJ {
+ 				s.Dynimplib = lib
+ 				s.Extname = remote
+@@ -257,8 +255,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			} else {
+ 				s.Attr |= AttrCgoExportDynamic
+ 			}
+-			if local != f[1] {
+-			}
+ 			continue
+ 		}
+ 

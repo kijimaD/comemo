@@ -16,9 +16,110 @@ Date:   Thu Jan 9 09:34:04 2014 -0800
     R=golang-codereviews, iant, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/47540043
-
+---
  misc/cgo/test/cgo_linux_test.go  |  1 +
  misc/cgo/test/issue6997_linux.c  | 26 ++++++++++++++++++++++++++
  misc/cgo/test/issue6997_linux.go | 40 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/signals_linux.h  |  2 +-
  4 files changed, 68 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 056d67c96a..0a405c7a3b 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -7,3 +7,4 @@ package cgotest
+ import "testing"
+ 
+ func TestSetgid(t *testing.T) { testSetgid(t) }
++func Test6997(t *testing.T)   { test6997(t) }
+diff --git a/misc/cgo/test/issue6997_linux.c b/misc/cgo/test/issue6997_linux.c
+new file mode 100644
+index 0000000000..897cdd081c
+--- /dev/null
++++ b/misc/cgo/test/issue6997_linux.c
+@@ -0,0 +1,26 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include <stdio.h>
++#include <unistd.h>
++
++static pthread_t thread;
++
++static void* threadfunc(void* dummy) {
++	while(1) {
++		sleep(1);
++	}
++}
++
++int StartThread() {
++	return pthread_create(&thread, NULL, &threadfunc, NULL);
++}
++
++int CancelThread() {
++	void *r;
++	pthread_cancel(thread);
++	pthread_join(thread, &r);
++	return (r == PTHREAD_CANCELED);
++}
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+new file mode 100644
+index 0000000000..871bd517a7
+--- /dev/null
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -0,0 +1,40 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that pthread_cancel works as expected
++// (NPTL uses SIGRTMIN to implement thread cancellation)
++// See http://golang.org/issue/6997
++package cgotest
++
++/*
++#cgo CFLAGS: -pthread
++#cgo LDFLAGS: -pthread
++extern int StartThread();
++extern int CancelThread();
++*/
++import "C"
++
++import "testing"
++import "time"
++
++func test6997(t *testing.T) {
++	r := C.StartThread()
++	if r != 0 {
++		t.Error("pthread_create failed")
++	}
++	c := make(chan C.int)
++	go func() {
++		time.Sleep(500 * time.Millisecond)
++		c <- C.CancelThread()
++	}()
++
++	select {
++	case r = <-c:
++		if r == 0 {
++			t.Error("pthread finished but wasn't cancelled??")
++		}
++	case <-time.After(5 * time.Second):
++		t.Error("hung in pthread_cancel/pthread_join")
++	}
++}
+diff --git a/src/pkg/runtime/signals_linux.h b/src/pkg/runtime/signals_linux.h
+index 9c35670075..368afc1c84 100644
+--- a/src/pkg/runtime/signals_linux.h
++++ b/src/pkg/runtime/signals_linux.h
+@@ -41,7 +41,7 @@ SigTab runtime·sigtab[] = {
+ 	/* 29 */	N, "SIGIO: i/o now possible",
+ 	/* 30 */	N, "SIGPWR: power failure restart",
+ 	/* 31 */	N, "SIGSYS: bad system call",
+-	/* 32 */	N, "signal 32",
++	/* 32 */	0, "signal 32", /* SIGCANCEL; see issue 6997 */
+ 	/* 33 */	0, "signal 33", /* SIGSETXID; see issue 3871 */
+ 	/* 34 */	N, "signal 34",
+ 	/* 35 */	N, "signal 35",

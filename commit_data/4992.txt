@@ -7,7 +7,7 @@ Date:   Thu Mar 4 17:04:50 2010 -0800
     R=adg, r
     CC=cw, golang-dev
     https://golang.org/cl/224043
-
+---
  misc/dashboard/godashboard/app.yaml   |   3 +
  misc/dashboard/godashboard/package.py | 132 +++++++++++++++++++++
  src/cmd/clean.bash                    |   2 +-
@@ -20,3 +20,837 @@ Date:   Thu Mar 4 17:04:50 2010 -0800
  src/cmd/make.bash                     |   5 +-
  src/make.bash                         |   2 +-
  11 files changed, 745 insertions(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/godashboard/app.yaml b/misc/dashboard/godashboard/app.yaml
+index ec4d8d9c10..1c786a6c1c 100644
+--- a/misc/dashboard/godashboard/app.yaml
++++ b/misc/dashboard/godashboard/app.yaml
+@@ -4,5 +4,8 @@ runtime: python
+ api_version: 1
+ 
+ handlers:
++- url: /package.*
++  script: package.py
++
+ - url: /.*
+   script: gobuild.py
+diff --git a/misc/dashboard/godashboard/package.py b/misc/dashboard/godashboard/package.py
+new file mode 100644
+index 0000000000..351a1fadc8
+--- /dev/null
++++ b/misc/dashboard/godashboard/package.py
+@@ -0,0 +1,132 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This is the server part of the package dashboard.
++# It must be run by App Engine.
++
++from google.appengine.api import memcache
++from google.appengine.runtime import DeadlineExceededError
++from google.appengine.ext import db
++from google.appengine.ext import webapp
++from google.appengine.ext.webapp import template
++from google.appengine.ext.webapp.util import run_wsgi_app
++import binascii
++import datetime
++import hashlib
++import hmac
++import logging
++import os
++import re
++import struct
++import time
++import urllib2
++
++# Storage model for package info recorded on server.
++# Just path, count, and time of last install.
++class Package(db.Model):
++    path = db.StringProperty()
++    web_url = db.StringProperty()  # derived from path
++    count = db.IntegerProperty()
++    last_install = db.DateTimeProperty()
++
++re_bitbucket = re.compile(r'^bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
++re_googlecode = re.compile(r'^[a-z0-9\-]+\.googlecode\.com/(svn|hg)$')
++re_github = re.compile(r'^github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+$')
++
++MaxPathLength = 100
++
++class PackagePage(webapp.RequestHandler):
++    def get(self):
++        if self.request.get('fmt') == 'json':
++            return self.json()
++
++        q = Package.all()
++        q.order('-last_install')
++        by_time = q.fetch(100)
++
++        q = Package.all()
++        q.order('-count')
++        by_count = q.fetch(100)
++
++        self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
++        path = os.path.join(os.path.dirname(__file__), 'package.html')
++        self.response.out.write(template.render(path, {"by_time": by_time, "by_count": by_count}))
++
++    def json(self):
++        self.response.set_status(200)
++        self.response.headers['Content-Type'] = 'text/plain; charset=utf-8'
++        q = Package.all()
++        s = '{"packages": ['
++        sep = ''
++        for r in q.fetch(1000):
++            s += '%s\n\t{"path": "%s", "last_install": "%s", "count": "%s"}' % (sep, r.path, r.last_install, r.count)
++            sep = ','
++        s += '\n]}\n'
++        self.response.out.write(s)
++
++    def can_get_url(self, url):
++        try:
++            req = urllib2.Request(url)
++            response = urllib2.urlopen(req)
++            return True
++        except:
++            return False
++
++    def is_valid_package_path(self, path):
++        return (re_bitbucket.match(path) or
++            re_googlecode.match(path) or
++            re_github.match(path))
++
++    def record_pkg(self, path):
++        # sanity check string
++        if not path or len(path) > MaxPathLength or not self.is_valid_package_path(path):
++            return False
++
++        # look in datastore
++        key = 'pkg-' + path
++        p = Package.get_by_key_name(key)
++        if p is None:
++            # not in datastore - verify URL before creating
++            if re_bitbucket.match(path):
++                check_url = 'http://' + path + '/?cmd=heads'
++                web = 'http://' + path + '/'
++            elif re_github.match(path):
++                # github doesn't let you fetch the .git directory anymore.
++                # fetch .git/info/refs instead, like git clone would.
++                check_url = 'http://'+path+'.git/info/refs'
++                web = 'http://' + path
++            elif re_googlecode.match(path):
++                check_url = 'http://'+path
++                web = 'http://code.google.com/p/' + path[:path.index('.')]
++            else:
++                logging.error('unrecognized path: %s', path)
++                return False
++            if not self.can_get_url(check_url):
++                logging.error('cannot get %s', check_url)
++                return False
++            p = Package(key_name = key, path = path, count = 0, web_url = web)
++
++        # update package object
++        p.count += 1
++        p.last_install = datetime.datetime.utcnow()
++        p.put()
++        return True
++
++    def post(self):
++        path = self.request.get('path')
++        ok = self.record_pkg(path)
++        if ok:
++            self.response.set_status(200)
++            self.response.out.write('ok')
++        else:
++            logging.error('invalid path in post: %s', path)
++            self.response.set_status(500)
++            self.response.out.write('not ok')
++
++def main():
++    app = webapp.WSGIApplication([('/package', PackagePage)], debug=True)
++    run_wsgi_app(app)
++
++if __name__ == '__main__':
++    main()
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 9429057a02..9317b8ae5b 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -5,7 +5,7 @@
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt gotest goyacc hgpatch prof
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt goinstall gotest goyacc hgpatch prof
+ do
+ 	cd $i
+ 	"$GOBIN"/gomake clean
+diff --git a/src/cmd/goinstall/Makefile b/src/cmd/goinstall/Makefile
+new file mode 100644
+index 0000000000..cf4728401a
+--- /dev/null
++++ b/src/cmd/goinstall/Makefile
+@@ -0,0 +1,14 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.$(GOARCH)
++
++TARG=goinstall
++GOFILES=\
++	download.go\
++	main.go\
++	make.go\
++	parse.go\
++
++include ../../Make.cmd
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+new file mode 100644
+index 0000000000..d21446c67a
+--- /dev/null
++++ b/src/cmd/goinstall/doc.go
+@@ -0,0 +1,75 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++Goinstall is an experiment in automatic package installation.
++It installs packages, possibly downloading them from the internet.
++It maintains a list of public Go packages at http://godashboard.appspot.com/packages.
++
++Usage:
++	goinstall [flags] importpath...
++
++Flags and default settings:
++	-dashboard=true   tally public packages on godashboard.appspot.com
++	-update=false     update already-downloaded packages
++	-v=false          verbose operation
++
++Goinstall installs each of the packages identified on the command line.
++It installs a package's prerequisites before trying to install the package itself.
++
++The source code for a package with import path foo/bar is expected
++to be in the directory $GOROOT/src/pkg/foo/bar/.  If the import
++path refers to a code hosting site, goinstall will download the code
++if necessary.  The recognized code hosting sites are:
++
++	BitBucket (Mercurial)
++
++		import "bitbucket.org/user/project"
++		import "bitbucket.org/user/project/sub/directory"
++
++	GitHub (Git)
++
++		import "github.com/user/project.git"
++		import "github.com/user/project.git/sub/directory"
++
++	Google Code Project Hosting (Mercurial, Subversion)
++
++		import "project.googlecode.com/hg"
++		import "project.googlecode.com/hg/sub/directory"
++
++		import "project.googlecode.com/svn/trunk"
++		import "project.googlecode.com/svn/trunk/sub/directory"
++
++
++If the destination directory (e.g., $GOROOT/src/pkg/bitbucket.org/user/project)
++already exists and contains an appropriate checkout, goinstall will not
++attempt to fetch updates.  The -update flag changes this behavior,
++causing goinstall to update all remote packages encountered during
++the installation.
++
++When downloading or updating, goinstall first looks for a tag or branch
++named "release".  If there is one, it uses that version of the code.
++Otherwise it uses the default version selected by the version control
++system, typically HEAD for git, tip for Mercurial.
++
++After a successful download and installation of a publicly accessible
++remote package, goinstall reports the installation to godashboard.appspot.com,
++which increments a count associated with the package and the time
++of its most recent installation.  This mechanism powers the package list
++at http://godashboard.appspot.com/packages, allowing Go programmers
++to learn about popular packages that might be worth looking at.
++The -dashboard=false flag disables this reporting.
++
++By default, goinstall prints output only when it encounters an error.
++The -v flag causes goinstall to print information about packages
++being considered and installed.
++
++Goinstall does not attempt to be a replacement for make.
++Instead, it invokes "make install" after locating the package sources.
++For local packages without a Makefile and all remote packages,
++goinstall creates and uses a temporary Makefile constructed from
++the import path and the list of Go files in the package.
++*/
++package documentation
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+new file mode 100644
+index 0000000000..67f389abac
+--- /dev/null
++++ b/src/cmd/goinstall/download.go
+@@ -0,0 +1,163 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Download remote packages.
++
++package main
++
++import (
++	"http"
++	"os"
++	"regexp"
++	"strings"
++)
++
++const dashboardURL = "http://godashboard.appspot.com/package"
++
++// maybeReportToDashboard reports path to dashboard unless
++// -dashboard=false is on command line.  It ignores errors.
++func maybeReportToDashboard(path string) {
++	// if -dashboard=false was on command line, do nothing
++	if !*reportToDashboard {
++		return
++	}
++
++	// otherwise lob url to dashboard
++	r, _ := http.Post(dashboardURL, "application/x-www-form-urlencoded", strings.NewReader("path="+path))
++	if r != nil && r.Body != nil {
++		r.Body.Close()
++	}
++}
++
++var googlecode = regexp.MustCompile(`^([a-z0-9\-]+\.googlecode\.com/(svn|hg))(/[a-z0-9A-Z_.\-/]*)?$`)
++var github = regexp.MustCompile(`^(github\.com/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`)
++var bitbucket = regexp.MustCompile(`^(bitbucket\.org/[a-z0-9A-Z_.\-]+/[a-z0-9A-Z_.\-]+)(/[a-z0-9A-Z_.\-/]*)?$`)
++
++// download checks out or updates pkg from the remote server.
++func download(pkg string) (string, os.Error) {
++	if strings.Index(pkg, "..") >= 0 {
++		return "", os.ErrorString("invalid path (contains ..)")
++	}
++	if m := bitbucket.MatchStrings(pkg); m != nil {
++		if err := vcsCheckout(&hg, root+m[1], "http://"+m[1], m[1]); err != nil {
++			return "", err
++		}
++		return root + pkg, nil
++	}
++	if m := googlecode.MatchStrings(pkg); m != nil {
++		var v *vcs
++		switch m[2] {
++		case "hg":
++			v = &hg
++		case "svn":
++			v = &svn
++		default:
++			// regexp only allows hg, svn to get through
++			panic("missing case in download: ", pkg)
++		}
++		if err := vcsCheckout(v, root+m[1], "http://"+m[1], m[1]); err != nil {
++			return "", err
++		}
++		return root + pkg, nil
++	}
++	if m := github.MatchStrings(pkg); m != nil {
++		if strings.HasSuffix(m[1], ".git") {
++			return "", os.ErrorString("repository " + pkg + " should not have .git suffix")
++		}
++		if err := vcsCheckout(&git, root+m[1], "http://"+m[1]+".git", m[1]); err != nil {
++			return "", err
++		}
++		return root + pkg, nil
++	}
++	return "", os.ErrorString("unknown repository: " + pkg)
++}
++
++// a vcs represents a version control system
++// like Mercurial, Git, or Subversion.
++type vcs struct {
++	cmd            string
++	metadir        string
++	clone          string
++	update         string
++	pull           string
++	log            string
++	logLimitFlag   string
++	logReleaseFlag string
++}
++
++var hg = vcs{
++	cmd:            "hg",
++	metadir:        ".hg",
++	clone:          "clone",
++	update:         "update",
++	pull:           "pull",
++	log:            "log",
++	logLimitFlag:   "-l1",
++	logReleaseFlag: "-rrelease",
++}
++
++var git = vcs{
++	cmd:            "git",
++	metadir:        ".git",
++	clone:          "clone",
++	update:         "checkout",
++	pull:           "fetch",
++	log:            "log",
++	logLimitFlag:   "-n1",
++	logReleaseFlag: "release",
++}
++
++var svn = vcs{
++	cmd:            "svn",
++	metadir:        ".svn",
++	clone:          "checkout",
++	update:         "update",
++	pull:           "",
++	log:            "log",
++	logLimitFlag:   "-l1",
++	logReleaseFlag: "release",
++}
++
++// vcsCheckout checks out repo into dst using vcs.
++// It tries to check out (or update, if the dst already
++// exists and -u was specified on the command line)
++// the repository at tag/branch "release".  If there is no
++// such tag or branch, it falls back to the repository tip.
++func vcsCheckout(vcs *vcs, dst, repo, dashpath string) os.Error {
++	dir, err := os.Stat(dst + "/" + vcs.metadir)
++	if err == nil && !dir.IsDirectory() {
++		return os.ErrorString("not a directory: " + dst)
++	}
++	if err != nil {
++		if err := os.MkdirAll(dst, 0777); err != nil {
++			return err
++		}
++		if err := run("/", nil, vcs.cmd, vcs.clone, repo, dst); err != nil {
++			return err
++		}
++		quietRun(dst, nil, vcs.cmd, vcs.update, "release")
++
++		// success on first installation - report
++		maybeReportToDashboard(dashpath)
++	} else if *update {
++		if vcs.pull != "" {
++			if err := run(dst, nil, vcs.cmd, vcs.pull); err != nil {
++				return err
++			}
++		}
++		// check for release with hg log -l 1 -r release
++		// if success, hg update release
++		// else hg update
++		if err := quietRun(dst, nil, vcs.cmd, vcs.log, vcs.logLimitFlag, vcs.logReleaseFlag); err == nil {
++			if err := run(dst, nil, vcs.cmd, vcs.update, "release"); err != nil {
++				return err
++			}
++		} else {
++			if err := run(dst, nil, vcs.cmd, vcs.update); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+new file mode 100644
+index 0000000000..1be2bd600a
+--- /dev/null
++++ b/src/cmd/goinstall/main.go
+@@ -0,0 +1,213 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Experimental Go package installer; see doc.go.
++
++package main
++
++import (
++	"bytes"
++	"exec"
++	"flag"
++	"fmt"
++	"io"
++	"os"
++	"path"
++	"strings"
++)
++
++func usage() {
++	fmt.Fprint(os.Stderr, "usage: goinstall importpath...\n")
++	flag.PrintDefaults()
++	os.Exit(2)
++}
++
++var (
++	argv0   = os.Args[0]
++	errors  = false
++	gobin   = os.Getenv("GOBIN")
++	parents = make(map[string]string)
++	root    = os.Getenv("GOROOT")
++	visit   = make(map[string]status)
++
++	reportToDashboard = flag.Bool("dashboard", true, "report public packages at "+dashboardURL)
++	update            = flag.Bool("u", false, "update already-downloaded packages")
++	verbose           = flag.Bool("v", false, "verbose")
++)
++
++type status int // status for visited map
++const (
++	unvisited status = iota
++	visiting
++	done
++)
++
++func main() {
++	flag.Usage = usage
++	flag.Parse()
++	if root == "" {
++		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
++		os.Exit(1)
++	}
++	root += "/src/pkg/"
++	if gobin == "" {
++		gobin = os.Getenv("HOME") + "/bin"
++	}
++
++	// special case - "unsafe" is already installed
++	visit["unsafe"] = done
++
++	// install command line arguments
++	args := flag.Args()
++	if len(args) == 0 {
++		usage()
++	}
++	for _, path := range args {
++		install(path, "")
++	}
++	if errors {
++		os.Exit(1)
++	}
++}
++
++// printDeps prints the dependency path that leads to pkg.
++func printDeps(pkg string) {
++	if pkg == "" {
++		return
++	}
++	if visit[pkg] != done {
++		printDeps(parents[pkg])
++	}
++	fmt.Fprintf(os.Stderr, "\t%s ->\n", pkg)
++}
++
++// install installs the package named by path, which is needed by parent.
++func install(pkg, parent string) {
++	// Make sure we're not already trying to install pkg.
++	switch v, _ := visit[pkg]; v {
++	case done:
++		return
++	case visiting:
++		fmt.Fprintf(os.Stderr, "%s: package dependency cycle\n", argv0)
++		printDeps(parent)
++		fmt.Fprintf(os.Stderr, "\t%s\n", pkg)
++		os.Exit(2)
++	}
++	visit[pkg] = visiting
++	parents[pkg] = parent
++	if *verbose {
++		fmt.Println(pkg)
++	}
++
++	// Check whether package is local or remote.
++	// If remote, download or update it.
++	var dir string
++	local := false
++	if isLocalPath(pkg) {
++		dir = pkg
++		local = true
++	} else if isStandardPath(pkg) {
++		dir = path.Join(root, pkg)
++		local = true
++	} else {
++		var err os.Error
++		dir, err = download(pkg)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
++			errors = true
++			visit[pkg] = done
++			return
++		}
++	}
++
++	// Install prerequisites.
++	files, m, err := goFiles(dir)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
++		errors = true
++		visit[pkg] = done
++		return
++	}
++	if len(files) == 0 {
++		fmt.Fprintf(os.Stderr, "%s: %s: package has no files\n", argv0, pkg)
++		errors = true
++		visit[pkg] = done
++		return
++	}
++	for p := range m {
++		install(p, pkg)
++	}
++
++	// Install this package.
++	if !errors {
++		if err := domake(dir, pkg, local); err != nil {
++			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
++			errors = true
++		}
++	}
++
++	visit[pkg] = done
++}
++
++// Is this a local path?  /foo ./foo ../foo . ..
++func isLocalPath(s string) bool {
++	return strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") || s == "." || s == ".."
++}
++
++// Is this a standard package path?  strings container/vector etc.
++// Assume that if the first element has a dot, it's a domain name
++// and is not the standard package path.
++func isStandardPath(s string) bool {
++	dot := strings.Index(s, ".")
++	slash := strings.Index(s, "/")
++	return dot < 0 || 0 < slash && slash < dot
++}
++
++// run runs the command cmd in directory dir with standard input stdin.
++// If the command fails, run prints the command and output on standard error
++// in addition to returning a non-nil os.Error.
++func run(dir string, stdin []byte, cmd ...string) os.Error {
++	return genRun(dir, stdin, cmd, false)
++}
++
++// quietRun is like run but prints nothing on failure unless -v is used.
++func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
++	return genRun(dir, stdin, cmd, true)
++}
++
++// genRun implements run and tryRun.
++func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
++	bin, err := exec.LookPath(cmd[0])
++	if err != nil {
++		return err
++	}
++	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
++	if *verbose {
++		fmt.Fprintf(os.Stderr, "%s: %s; %s %s\n", argv0, dir, bin, strings.Join(cmd[1:], " "))
++	}
++	if err != nil {
++		return err
++	}
++	go func() {
++		p.Stdin.Write(stdin)
++		p.Stdin.Close()
++	}()
++	var buf bytes.Buffer
++	io.Copy(&buf, p.Stdout)
++	io.Copy(&buf, p.Stdout)
++	w, err := p.Wait(0)
++	p.Close()
++	if !w.Exited() || w.ExitStatus() != 0 {
++		if !quiet || *verbose {
++			if dir != "" {
++				dir = "cd " + dir + "; "
++			}
++			fmt.Fprintf(os.Stderr, "%s: === %s%s\n", argv0, dir, strings.Join(cmd, " "))
++			os.Stderr.Write(buf.Bytes())
++			fmt.Fprintf(os.Stderr, "--- %s\n", w)
++		}
++		return os.ErrorString("running " + cmd[0] + ": " + w.String())
++	}
++	return nil
++}
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+new file mode 100644
+index 0000000000..59fc332b61
+--- /dev/null
++++ b/src/cmd/goinstall/make.go
+@@ -0,0 +1,67 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Run "make install" to build package.
++
++package main
++
++import (
++	"bytes"
++	"os"
++	"template"
++)
++
++// domake builds the package in dir.
++// If local is false, the package was copied from an external system.
++// For non-local packages or packages without Makefiles,
++// domake generates a standard Makefile and passes it
++// to make on standard input.
++func domake(dir, pkg string, local bool) os.Error {
++	if local {
++		_, err := os.Stat(dir + "/Makefile")
++		if err == nil {
++			return run(dir, nil, gobin+"/gomake", "install")
++		}
++	}
++	makefile, err := makeMakefile(dir, pkg)
++	if err != nil {
++		return err
++	}
++	return run(dir, makefile, gobin+"/gomake", "-f-", "install")
++}
++
++// makeMakefile computes the standard Makefile for the directory dir
++// installing as package pkg.  It includes all *.go files in the directory
++// except those in package main and those ending in _test.go.
++func makeMakefile(dir, pkg string) ([]byte, os.Error) {
++	files, _, err := goFiles(dir)
++	if err != nil {
++		return nil, err
++	}
++
++	var buf bytes.Buffer
++	if err := makefileTemplate.Execute(&makedata{pkg, files}, &buf); err != nil {
++		return nil, err
++	}
++	return buf.Bytes(), nil
++}
++
++// makedata is the data type for the makefileTemplate.
++type makedata struct {
++	pkg   string   // package import path
++	files []string // list of .go files
++}
++
++var makefileTemplate = template.MustParse(`
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG={pkg}
++GOFILES=\
++{.repeated section files}
++	{@}\
++{.end}
++
++include $(GOROOT)/src/Make.pkg
++`,
++	nil)
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+new file mode 100644
+index 0000000000..066c47ff5f
+--- /dev/null
++++ b/src/cmd/goinstall/parse.go
+@@ -0,0 +1,72 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Wrappers for Go parser.
++
++package main
++
++import (
++	"path"
++	"os"
++	"log"
++	"strings"
++	"strconv"
++	"go/ast"
++	"go/parser"
++)
++
++// goFiles returns a list of the *.go source files in dir,
++// excluding those in package main or ending in _test.go.
++// It also returns a map giving the packages imported
++// by those files.  The map keys are the imported paths.
++// The key's value is one file that imports that path.
++func goFiles(dir string) (files []string, imports map[string]string, err os.Error) {
++	f, err := os.Open(dir, os.O_RDONLY, 0)
++	if err != nil {
++		return nil, nil, err
++	}
++	dirs, err := f.Readdir(-1)
++	f.Close()
++	if err != nil {
++		return nil, nil, err
++	}
++
++	files = make([]string, 0, len(dirs))
++	imports = make(map[string]string)
++	pkgName := ""
++	for i := range dirs {
++		d := &dirs[i]
++		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
++			continue
++		}
++		filename := path.Join(dir, d.Name)
++		pf, err := parser.ParseFile(filename, nil, nil, parser.ImportsOnly)
++		if err != nil {
++			return nil, nil, err
++		}
++		s := string(pf.Name.Name())
++		if s == "main" {
++			continue
++		}
++		if pkgName == "" {
++			pkgName = s
++		} else if pkgName != s {
++			return nil, nil, os.ErrorString("multiple package names in " + dir)
++		}
++		n := len(files)
++		files = files[0 : n+1]
++		files[n] = filename
++		for _, decl := range pf.Decls {
++			for _, spec := range decl.(*ast.GenDecl).Specs {
++				quoted := string(spec.(*ast.ImportSpec).Path.Value)
++				unquoted, err := strconv.Unquote(quoted)
++				if err != nil {
++					log.Crashf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
++				}
++				imports[unquoted] = filename
++			}
++		}
++	}
++	return files, imports, nil
++}
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index db96c94a8a..d0fda7d183 100755
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -20,7 +20,10 @@ bash mkenam
+ "$GOBIN"/gomake enam.o
+ cd ..
+ 
+-for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
++# Note: commands written in Go are not listed here.
++# They are in ../make.bash so that they can be built
++# after the Go libraries on which they depend.
++for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+diff --git a/src/make.bash b/src/make.bash
+index 6b18fd3a3b..c2a350af7f 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -81,7 +81,7 @@ fi
+ )
+ bash "$GOROOT"/src/clean.bash
+ 
+-for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
++for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goinstall cmd/goyacc cmd/hgpatch
+ do
+ 	case "$i-$GOOS-$GOARCH" in
+ 	libcgo-nacl-* | cmd/*-nacl-* | libcgo-linux-arm)

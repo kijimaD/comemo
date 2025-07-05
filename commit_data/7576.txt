@@ -7,7 +7,32 @@ Date:   Fri Feb 25 14:05:44 2011 -0500
     R=r, r2, gri
     CC=ehog.hedge, golang-dev
     https://golang.org/cl/4240043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5d683a7586..925c515c83 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -30,6 +30,7 @@ Charles L. Dorian <cldorian@gmail.com>
+ Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
++Chris Dollin <ehog.hedge@gmail.com>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Clement Skau <clementskau@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 3131a35e16..5cad64721a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -64,6 +64,7 @@ Charles L. Dorian <cldorian@gmail.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
++Chris Dollin <ehog.hedge@gmail.com>
+ Christopher Nielsen <m4dh4tt3r@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Clement Skau <clementskau@gmail.com>

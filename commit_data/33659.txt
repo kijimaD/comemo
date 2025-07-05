@@ -11,7 +11,7 @@ Date:   Tue May 2 09:16:22 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  2 +-
  src/cmd/compile/internal/gc/esc.go       |  2 +-
  src/cmd/compile/internal/gc/fmt.go       |  2 +-
@@ -24,3 +24,247 @@ Date:   Tue May 2 09:16:22 2017 -0700
  src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
  src/cmd/compile/internal/types/type.go   |  4 ++++
  11 files changed, 28 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index c6e94cc4b3..afb6805337 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -645,7 +645,7 @@ func makepartialcall(fn *Node, t0 *types.Type, meth *types.Sym) *Node {
+ 	call := nod(OCALL, nodSym(OXDOT, ptr, meth), nil)
+ 	call.List.Set(callargs)
+ 	call.SetIsddd(ddd)
+-	if t0.Results().NumFields() == 0 {
++	if t0.NumResults() == 0 {
+ 		body = append(body, call)
+ 	} else {
+ 		n := nod(OAS2, nil, nil)
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index afe1e5a7e5..0160c61357 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -848,7 +848,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 
+ 	case ORETURN:
+ 		retList := n.List
+-		if retList.Len() == 1 && Curfn.Type.Results().NumFields() > 1 {
++		if retList.Len() == 1 && Curfn.Type.NumResults() > 1 {
+ 			// OAS2FUNC in disguise
+ 			// esccall already done on n.List.First()
+ 			// tie e.nodeEscState(n.List.First()).Retval to Curfn.Func.Dcl PPARAMOUT's
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 8cd67ec203..21f5e9d9b9 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -814,7 +814,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 		}
+ 		buf = append(buf, tmodeString(t.Params(), mode, depth)...)
+ 
+-		switch t.Results().NumFields() {
++		switch t.NumResults() {
+ 		case 0:
+ 			// nothing to do
+ 
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index fcdec06ae7..180cbcfda2 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -208,8 +208,7 @@ func fninit(n []*Node) {
+ }
+ 
+ func (n *Node) checkInitFuncSignature() {
+-	ft := n.Type.FuncType()
+-	if ft.Receiver.Fields().Len()+ft.Params.Fields().Len()+ft.Results.Fields().Len() > 0 {
++	if n.Type.NumRecvs()+n.Type.NumParams()+n.Type.NumResults() > 0 {
+ 		Fatalf("init function cannot have receiver, params, or results: %v (%v)", n, n.Type)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index cdda2f3486..297db50333 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -346,14 +346,14 @@ func ismulticall(l Nodes) bool {
+ 	}
+ 
+ 	// call must return multiple values
+-	return n.Left.Type.Results().NumFields() > 1
++	return n.Left.Type.NumResults() > 1
+ }
+ 
+ // Copyret emits t1, t2, ... = n, where n is a function call,
+ // and then returns the list t1, t2, ....
+ func copyret(n *Node, order *Order) []*Node {
+ 	if !n.Type.IsFuncArgStruct() {
+-		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
++		Fatalf("copyret %v %d", n.Type, n.Left.Type.NumResults())
+ 	}
+ 
+ 	var l1 []*Node
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5029b479b2..25bb0ae683 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -37,7 +37,7 @@ func emitptrargsmap() {
+ 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
+ 	bv := bvalloc(int32(nptr) * 2)
+ 	nbitmap := 1
+-	if Curfn.Type.Results().NumFields() > 0 {
++	if Curfn.Type.NumResults() > 0 {
+ 		nbitmap = 2
+ 	}
+ 	off := duint32(lsym, 0, uint32(nbitmap))
+@@ -48,13 +48,13 @@ func emitptrargsmap() {
+ 		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
+ 	}
+ 
+-	if Curfn.Type.Params().NumFields() > 0 {
++	if Curfn.Type.NumParams() > 0 {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
+ 	}
+ 
+ 	off = dbvec(lsym, off, bv)
+-	if Curfn.Type.Results().NumFields() > 0 {
++	if Curfn.Type.NumResults() > 0 {
+ 		xoffset = 0
+ 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
+ 		off = dbvec(lsym, off, bv)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 68083b7fe9..845f7a6e31 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1187,8 +1187,8 @@ ok:
+ 		}
+ 
+ 		ot = dcommontype(lsym, ot, t)
+-		inCount := t.Recvs().NumFields() + t.Params().NumFields()
+-		outCount := t.Results().NumFields()
++		inCount := t.NumRecvs() + t.NumParams()
++		outCount := t.NumResults()
+ 		if isddd {
+ 			outCount |= 1 << 15
+ 		}
+@@ -1198,7 +1198,7 @@ ok:
+ 			ot += 4 // align for *rtype
+ 		}
+ 
+-		dataAdd := (inCount + t.Results().NumFields()) * Widthptr
++		dataAdd := (inCount + t.NumResults()) * Widthptr
+ 		ot = dextratype(lsym, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b7b27d64d8..647694d68a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1756,7 +1756,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 		call := nod(OCALL, dot, nil)
+ 		call.List.Set(args)
+ 		call.SetIsddd(isddd)
+-		if method.Type.Results().NumFields() > 0 {
++		if method.Type.NumResults() > 0 {
+ 			n := nod(ORETURN, nil, nil)
+ 			n.List.Set1(call)
+ 			call = n
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0bef396da2..465f317b5e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1294,11 +1294,11 @@ OpSwitch:
+ 
+ 		typecheckaste(OCALL, n.Left, n.Isddd(), t.Params(), n.List, func() string { return fmt.Sprintf("argument to %v", n.Left) })
+ 		ok |= Etop
+-		if t.Results().NumFields() == 0 {
++		if t.NumResults() == 0 {
+ 			break OpSwitch
+ 		}
+ 		ok |= Erv
+-		if t.Results().NumFields() == 1 {
++		if t.NumResults() == 1 {
+ 			n.Type = l.Type.Results().Field(0).Type
+ 
+ 			if n.Op == OCALLFUNC && n.Left.Op == ONAME && isRuntimePkg(n.Left.Sym.Pkg) && n.Left.Sym.Name == "getg" {
+@@ -1476,8 +1476,8 @@ OpSwitch:
+ 				// Bail. This error will be reported elsewhere.
+ 				return n
+ 			}
+-			if t.Results().NumFields() != 2 {
+-				yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
++			if t.NumResults() != 2 {
++				yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.NumResults())
+ 				n.Type = nil
+ 				return n
+ 			}
+@@ -4001,7 +4001,7 @@ func (n *Node) isterminating() bool {
+ 
+ // checkreturn makes sure that fn terminates appropriately.
+ func checkreturn(fn *Node) {
+-	if fn.Type.Results().NumFields() != 0 && fn.Nbody.Len() != 0 {
++	if fn.Type.NumResults() != 0 && fn.Nbody.Len() != 0 {
+ 		markbreaklist(fn.Nbody, nil)
+ 		if !fn.Nbody.isterminating() {
+ 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 971a670e9d..e85e4ba8f5 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -647,7 +647,7 @@ opswitch:
+ 
+ 			// Update type of OCALLFUNC node.
+ 			// Output arguments had not changed, but their offsets could.
+-			if n.Left.Type.Results().NumFields() == 1 {
++			if n.Left.Type.NumResults() == 1 {
+ 				n.Type = n.Left.Type.Results().Field(0).Type
+ 			} else {
+ 				n.Type = n.Left.Type.Results()
+@@ -2778,14 +2778,14 @@ func vmkcall(fn *Node, t *types.Type, init *Nodes, va []*Node) *Node {
+ 		Fatalf("mkcall %v %v", fn, fn.Type)
+ 	}
+ 
+-	n := fn.Type.Params().NumFields()
++	n := fn.Type.NumParams()
+ 	if n != len(va) {
+ 		Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
+ 	}
+ 
+ 	r := nod(OCALL, fn, nil)
+ 	r.List.Set(va)
+-	if fn.Type.Results().NumFields() > 0 {
++	if fn.Type.NumResults() > 0 {
+ 		r = typecheck(r, Erv|Efnstruct)
+ 	} else {
+ 		r = typecheck(r, Etop)
+@@ -3706,16 +3706,16 @@ func usemethod(n *Node) {
+ 	//
+ 	// TODO(crawshaw): improve precision of match by working out
+ 	//                 how to check the method name.
+-	if n := t.Params().NumFields(); n != 1 {
++	if n := t.NumParams(); n != 1 {
+ 		return
+ 	}
+-	if n := t.Results().NumFields(); n != 1 && n != 2 {
++	if n := t.NumResults(); n != 1 && n != 2 {
+ 		return
+ 	}
+ 	p0 := t.Params().Field(0)
+ 	res0 := t.Results().Field(0)
+ 	var res1 *types.Field
+-	if t.Results().NumFields() == 2 {
++	if t.NumResults() == 2 {
+ 		res1 = t.Results().Field(1)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 3e12cc026c..d485e9cab1 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -707,6 +707,10 @@ func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
+ func (t *Type) Params() *Type  { return t.FuncType().Params }
+ func (t *Type) Results() *Type { return t.FuncType().Results }
+ 
++func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
++func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
++func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
++
+ // Recv returns the receiver of function type t, if any.
+ func (t *Type) Recv() *Field {
+ 	s := t.Recvs()

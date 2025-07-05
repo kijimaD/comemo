@@ -14,6 +14,36 @@ Date:   Fri Feb 19 13:47:14 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 278e64fc61..e7d4e81672 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1612,6 +1612,10 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 		return
+ 	}
+ 
++	defer n.SetType(nil)
++	if n.Diag() {
++		return
++	}
+ 	switch {
+ 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
+ 		base.Errorf("cannot assign to struct field %v in map", n)
+@@ -1622,13 +1626,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 	default:
+ 		base.Errorf("cannot assign to %v", n)
+ 	}
+-	n.SetType(nil)
+-}
+-
+-func checkassignlist(stmt ir.Node, l ir.Nodes) {
+-	for _, n := range l {
+-		checkassign(stmt, n)
+-	}
+ }
+ 
+ func checkassignto(src *types.Type, dst ir.Node) {

@@ -7,6 +7,34 @@ Date:   Thu Dec 7 20:08:21 2017 +0000
     Change-Id: I65209b90ed7c56d4c751b3e4b3ce1de52dae368c
     Reviewed-on: https://go-review.googlesource.com/82635
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/server.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 3fa6660164..e1698ccfa3 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -132,12 +132,20 @@ type ResponseWriter interface {
+ 	// possible to maximize compatibility.
+ 	Write([]byte) (int, error)
+ 
+-	// WriteHeader sends an HTTP response header with status code.
++	// WriteHeader sends an HTTP response header with the provided
++	// status code.
++	//
+ 	// If WriteHeader is not called explicitly, the first call to Write
+ 	// will trigger an implicit WriteHeader(http.StatusOK).
+ 	// Thus explicit calls to WriteHeader are mainly used to
+ 	// send error codes.
+-	WriteHeader(int)
++	//
++	// The provided code must be a valid HTTP 1xx-5xx status code.
++	// Only one header may be written. Go does not currently
++	// support sending user-defined 1xx informational headers,
++	// with the exception of 100-continue response header that the
++	// Server sends automatically when the Request.Body is read.
++	WriteHeader(statusCode int)
+ }
+ 
+ // The Flusher interface is implemented by ResponseWriters that allow

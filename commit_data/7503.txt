@@ -7,6 +7,21 @@ Date:   Thu Feb 17 17:22:16 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4184053
-
+---
  src/pkg/go/scanner/scanner.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 8c3205230e..2ae296b3f1 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -8,7 +8,8 @@
+ //
+ //	var s Scanner
+ //	fset := token.NewFileSet()  // position information is relative to fset
+-//	s.Init(fset, filename, src, nil /* no error handler */, 0)
++//      file := fset.AddFile(filename, fset.Base(), len(src))  // register file
++//	s.Init(file, src, nil /* no error handler */, 0)
+ //	for {
+ //		pos, tok, lit := s.Scan()
+ //		if tok == token.EOF {

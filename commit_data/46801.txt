@@ -14,9 +14,174 @@ Date:   Sat Jan 30 08:43:58 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 11 +++++-
  src/cmd/compile/internal/noder/helpers.go | 62 ++++++++++++++++++++++++++-----
  src/cmd/compile/internal/noder/irgen.go   |  1 +
  src/cmd/compile/internal/noder/types.go   | 18 ++++++++-
  4 files changed, 80 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 9212c67213..79b94638e8 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -93,9 +93,16 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 	case *syntax.AssertExpr:
+ 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
+ 	case *syntax.CallExpr:
+-		return Call(pos, g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
++		def := g.info.Inferred[expr]
++		if len(def.Targs) > 0 {
++			panic("Inferred type arguments not handled yet")
++		}
++		return Call(pos, g.typ(typ), g.expr(expr.Fun), g.exprs(expr.ArgList), expr.HasDots)
+ 	case *syntax.IndexExpr:
+-		return Index(pos, g.expr(expr.X), g.expr(expr.Index))
++		if _, ok := expr.Index.(*syntax.ListExpr); ok {
++			panic("more than one type argument")
++		}
++		return Index(pos, g.typ(typ), g.expr(expr.X), g.expr(expr.Index))
+ 	case *syntax.ParenExpr:
+ 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
+ 	case *syntax.SelectorExpr:
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index a851844ded..2a6f30e026 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -79,18 +79,18 @@ func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
+ 	}
+ }
+ 
+-func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
++func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+ 	// TODO(mdempsky): This should not be so difficult.
+-
+-	n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
+-	n.IsDDD = dots
+-
+-	// Actually a type conversion.
+ 	if fun.Op() == ir.OTYPE {
++		// Actually a type conversion, not a function call.
++		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
+ 		return typecheck.Expr(n)
+ 	}
+ 
+ 	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
++		// Call to a builtin function.
++		n := ir.NewCallExpr(pos, ir.OCALL, fun, nil, args)
++		n.IsDDD = dots
+ 		switch fun.BuiltinOp {
+ 		case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
+ 			return typecheck.Stmt(n)
+@@ -116,7 +116,46 @@ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+ 		}
+ 	}
+ 
+-	typecheck.Call(n)
++	var targs []ir.Node
++	if indexExpr, ok := fun.(*ir.IndexExpr); ok {
++		if indexExpr.Index.Op() == ir.OTYPE {
++			// Called function is an instantiated generic function
++			// TODO this handles just one type argument for now
++			fun = indexExpr.X
++			targs = make([]ir.Node, 1, 1)
++			targs[0] = indexExpr.Index
++		}
++	}
++
++	n := ir.NewCallExpr(pos, ir.OCALL, fun, targs, args)
++	n.IsDDD = dots
++
++	if targs == nil {
++		// If no type params, still do normal typechecking, since we're
++		// still missing some things done by tcCall below (mainly
++		// typecheckargs and typecheckaste).
++		typecheck.Call(n)
++		return n
++	}
++
++	n.Use = ir.CallUseExpr
++	if fun.Type().NumResults() == 0 {
++		n.Use = ir.CallUseStmt
++	}
++
++	// Rewrite call node depending on use.
++	switch fun.Op() {
++	case ir.ODOTINTER:
++		n.SetOp(ir.OCALLINTER)
++
++	case ir.ODOTMETH:
++		n.SetOp(ir.OCALLMETH)
++
++	default:
++		n.SetOp(ir.OCALLFUNC)
++	}
++
++	typed(typ, n)
+ 	return n
+ }
+ 
+@@ -195,8 +234,13 @@ func method(typ *types.Type, index int) *types.Field {
+ 	return types.ReceiverBaseType(typ).Methods().Index(index)
+ }
+ 
+-func Index(pos src.XPos, x, index ir.Node) ir.Node {
+-	// TODO(mdempsky): Avoid typecheck.Expr.
++func Index(pos src.XPos, typ *types.Type, x, index ir.Node) ir.Node {
++	if index.Op() == ir.OTYPE {
++		n := ir.NewIndexExpr(pos, x, index)
++		typed(typ, n)
++		return n
++	}
++	// TODO(mdempsky): Avoid typecheck.Expr (which will call tcIndex)
+ 	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 5456005598..1cef98742d 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -62,6 +62,7 @@ func check2(noders []*noder) {
+ 		Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
+ 		Implicits:  make(map[syntax.Node]types2.Object),
+ 		Scopes:     make(map[syntax.Node]*types2.Scope),
++		Inferred:   make(map[syntax.Expr]types2.Inferred),
+ 		// expand as needed
+ 	}
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index b4ad9cfc5b..1e71969858 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -39,7 +39,7 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
+ 		// Ensure we calculate the size for all concrete types seen by
+ 		// the frontend. This is another heavy hammer for something that
+ 		// should really be the backend's responsibility instead.
+-		if !res.IsUntyped() {
++		if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() {
+ 			types.CheckSize(res)
+ 		}
+ 	}
+@@ -106,6 +106,22 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 		tp.SetSym(g.sym(typ.Obj()))
+ 		return tp
+ 
++	case *types2.Tuple:
++		// Tuples are used for the type of a function call (i.e. the
++		// return value of the function).
++		if typ == nil {
++			return (*types.Type)(nil)
++		}
++		fields := make([]*types.Field, typ.Len())
++		for i := range fields {
++			fields[i] = g.param(typ.At(i))
++		}
++		t := types.NewStruct(types.LocalPkg, fields)
++		types.CheckSize(t)
++		// Can only set after doing the types.CheckSize()
++		t.StructType().Funarg = types.FunargResults
++		return t
++
+ 	default:
+ 		base.FatalfAt(src.NoXPos, "unhandled type: %v (%T)", typ, typ)
+ 		panic("unreachable")

@@ -12,6 +12,19 @@ Date:   Thu Oct 6 02:19:01 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/30430
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/asm/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 92428fc811..13e5302301 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -80,6 +80,7 @@ func main() {
+ 		} else {
+ 			log.Print("assembly failed")
+ 		}
++		out.Close()
+ 		os.Remove(*flags.OutputFile)
+ 		os.Exit(1)
+ 	}

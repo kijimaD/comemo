@@ -12,6 +12,26 @@ Date:   Fri Nov 3 20:36:12 2017 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 1507f3f175..bab129db3c 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -569,3 +569,14 @@ func ExampleTime_Sub() {
+ 	// Output:
+ 	// difference = 12h0m0s
+ }
++
++func ExampleTime_AppendFormat() {
++	t := time.Date(2017, time.November, 4, 11, 0, 0, 0, time.UTC)
++	text := []byte("Time: ")
++
++	text = t.AppendFormat(text, time.Kitchen)
++	fmt.Println(string(text))
++
++	// Output:
++	// Time: 11:00AM
++}

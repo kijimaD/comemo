@@ -8,7 +8,7 @@ Date:   Sun Apr 19 21:02:29 2009 -0700
     DELTA=15  (0 added, 0 deleted, 15 changed)
     OCL=27619
     CL=27619
-
+---
  src/lib/exec_test.go           |  4 ++--
  src/lib/http/fs.go             |  2 +-
  src/lib/io/io.go               | 12 ++++++------
@@ -17,3 +17,137 @@ Date:   Sun Apr 19 21:02:29 2009 -0700
  src/lib/time/zoneinfo.go       |  2 +-
  usr/gri/pretty/platform.go     |  2 +-
  7 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib/exec_test.go b/src/lib/exec_test.go
+index e67c75da3a..a1bb1f50e2 100644
+--- a/src/lib/exec_test.go
++++ b/src/lib/exec_test.go
+@@ -19,7 +19,7 @@ func TestRunCat(t *testing.T) {
+ 	io.WriteString(cmd.Stdin, "hello, world\n");
+ 	cmd.Stdin.Close();
+ 	var buf [64]byte;
+-	n, err1 := io.Readn(cmd.Stdout, &buf);
++	n, err1 := io.FullRead(cmd.Stdout, &buf);
+ 	if err1 != nil && err1 != io.ErrEOF {
+ 		t.Fatalf("reading from /bin/cat: %v", err1);
+ 	}
+@@ -38,7 +38,7 @@ func TestRunEcho(t *testing.T) {
+ 		t.Fatalf("opencmd /bin/echo: %v", err);
+ 	}
+ 	var buf [64]byte;
+-	n, err1 := io.Readn(cmd.Stdout, &buf);
++	n, err1 := io.FullRead(cmd.Stdout, &buf);
+ 	if err1 != nil && err1 != io.ErrEOF {
+ 		t.Fatalf("reading from /bin/echo: %v", err1);
+ 	}
+diff --git a/src/lib/http/fs.go b/src/lib/http/fs.go
+index 23a994aa0d..c1e0ee6999 100644
+--- a/src/lib/http/fs.go
++++ b/src/lib/http/fs.go
+@@ -142,7 +142,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	} else {
+ 		// read first chunk to decide between utf-8 text and binary
+ 		var buf [1024]byte;
+-		n, err := io.Readn(f, &buf);
++		n, err := io.FullRead(f, &buf);
+ 		b := buf[0:n];
+ 		if isText(b) {
+ 			c.SetHeader("Content-Type", "text-plain; charset=utf-8");
+diff --git a/src/lib/io/io.go b/src/lib/io/io.go
+index 2c116687b9..5036e326a6 100644
+--- a/src/lib/io/io.go
++++ b/src/lib/io/io.go
+@@ -13,7 +13,7 @@ import (
+ 	"os";
+ )
+ 
+-// ErrEOF is the error returned by Readn and Copyn when they encounter EOF.
++// ErrEOF is the error returned by FullRead and Copyn when they encounter EOF.
+ var ErrEOF = os.NewError("EOF")
+ 
+ // Read is the interface that wraps the basic Read method.
+@@ -70,8 +70,8 @@ func WriteString(w Write, s string) (n int, err os.Error) {
+ 	return w.Write(StringBytes(s))
+ }
+ 
+-// Readn reads r until the buffer buf is full, or until EOF or error.
+-func Readn(r Read, buf []byte) (n int, err os.Error) {
++// FullRead reads r until the buffer buf is full, or until EOF or error.
++func FullRead(r Read, buf []byte) (n int, err os.Error) {
+ 	n = 0;
+ 	for n < len(buf) {
+ 		nn, e := r.Read(buf[n:len(buf)]);
+@@ -89,18 +89,18 @@ func Readn(r Read, buf []byte) (n int, err os.Error) {
+ }
+ 
+ // Convert something that implements Read into something
+-// whose Reads are always Readn
++// whose Reads are always FullReads
+ type fullRead struct {
+ 	r	Read;
+ }
+ 
+ func (fr *fullRead) Read(p []byte) (n int, err os.Error) {
+-	n, err = Readn(fr.r, p);
++	n, err = FullRead(fr.r, p);
+ 	return n, err
+ }
+ 
+ // MakeFullReader takes r, an implementation of Read, and returns an object
+-// that still implements Read but always calls Readn underneath.
++// that still implements Read but always calls FullRead underneath.
+ func MakeFullReader(r Read) Read {
+ 	if fr, ok := r.(*fullRead); ok {
+ 		// already a fullRead
+diff --git a/src/lib/net/dialgoogle_test.go b/src/lib/net/dialgoogle_test.go
+index f3fdb9a1d2..690ba572d7 100644
+--- a/src/lib/net/dialgoogle_test.go
++++ b/src/lib/net/dialgoogle_test.go
+@@ -23,7 +23,7 @@ func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+ 	n, err := fd.Write(req);
+ 
+ 	buf := make([]byte, 1000);
+-	n, err = io.Readn(fd, buf);
++	n, err = io.FullRead(fd, buf);
+ 
+ 	if n < 1000 {
+ 		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);
+diff --git a/src/lib/net/parse.go b/src/lib/net/parse.go
+index 72aeff072b..78eff5f471 100644
+--- a/src/lib/net/parse.go
++++ b/src/lib/net/parse.go
+@@ -46,7 +46,7 @@ func (f *file) readLine() (s string, ok bool) {
+ 	}
+ 	if len(f.data) < cap(f.data) {
+ 		ln := len(f.data);
+-		n, err := io.Readn(f.file, f.data[ln:cap(f.data)]);
++		n, err := io.FullRead(f.file, f.data[ln:cap(f.data)]);
+ 		if n >= 0 {
+ 			f.data = f.data[0:ln+n];
+ 		}
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index cab38af34a..124ae0df49 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -212,7 +212,7 @@ func readfile(name string, max int) (p []byte, err os.Error) {
+ 		return nil, e;
+ 	}
+ 	p = make([]byte, max);
+-	n, err1 := io.Readn(f, p);
++	n, err1 := io.FullRead(f, p);
+ 	f.Close();
+ 	if err1 == nil {	// too long
+ 		return nil, TimeZoneError{ "time: zone file too long: " + name };
+diff --git a/usr/gri/pretty/platform.go b/usr/gri/pretty/platform.go
+index 25f7a7bba8..cbd4678e33 100644
+--- a/usr/gri/pretty/platform.go
++++ b/usr/gri/pretty/platform.go
+@@ -43,7 +43,7 @@ func readfile(filename string) ([]byte, OS.Error) {
+ 		return []byte{}, err;
+ 	}
+ 	var buf [1<<20]byte;
+-	n, err1 := IO.Readn(f, &buf);
++	n, err1 := IO.FullRead(f, &buf);
+ 	f.Close();
+ 	if err1 == IO.ErrEOF {
+ 		err1 = nil;

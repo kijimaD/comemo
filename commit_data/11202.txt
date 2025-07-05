@@ -9,7 +9,7 @@ Date:   Tue Jan 17 10:00:57 2012 +0100
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5523047
-
+---
  src/cmd/gc/dcl.c                | 13 +++++++++++--
  src/cmd/gc/export.c             | 11 +++++++++--
  src/cmd/gc/fmt.c                | 18 ++++++++++++++++--
@@ -17,3 +17,245 @@ Date:   Tue Jan 17 10:00:57 2012 +0100
  src/pkg/exp/types/gcimporter.go | 31 +++++++++++++++++--------------
  test/fixedbugs/bug395.go        | 15 +++++++++++++++
  6 files changed, 73 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 87dab3eeca..94258a0c59 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -940,12 +940,20 @@ interfacefield(Node *n)
+ Type*
+ tointerface(NodeList *l)
+ {
+-	Type *t, *f, **tp, *t1;
++	Type *t, *f, **tp, **otp, *t1;
+ 
+ 	t = typ(TINTER);
++	t->orig = typ(TINTER);
+ 
+-	for(tp = &t->type; l; l=l->next) {
++	tp = &t->type;
++	otp = &t->orig->type;
++
++	for(; l; l=l->next) {
+ 		f = interfacefield(l->n);
++		*otp = typ(TFIELD);
++		**otp = *f;
++		otp = &(*otp)->down;
++
+ 		if (l->n->left == N && f->type->etype == TINTER) {
+ 			// embedded interface, inline methods
+ 			for(t1=f->type->type; t1; t1=t1->down) {
+@@ -953,6 +961,7 @@ tointerface(NodeList *l)
+ 				f->type = t1->type;
+ 				f->broke = t1->broke;
+ 				f->sym = t1->sym;
++				f->embedded = 1;
+ 				if(f->sym)
+ 					f->nname = newname(f->sym);
+ 				*tp = f;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index e1f289200c..965b745a80 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -241,6 +241,13 @@ dumpexporttype(Type *t)
+ 	if(t->sym != S && t->etype != TFIELD)
+ 		dumppkg(t->sym->pkg);
+ 
++	// fmt will print the ->orig of an interface, which has the original embedded interfaces.
++	// be sure to dump them here
++	if(t->etype == TINTER)
++		for(f=t->orig->type; f; f=f->down)
++			if(f->sym == S)
++				dumpexporttype(f->type);
++
+ 	dumpexporttype(t->type);
+ 	dumpexporttype(t->down);
+ 
+@@ -470,8 +477,8 @@ importtype(Type *pt, Type *t)
+ 		pt->sym->lastlineno = parserline();
+ 		declare(n, PEXTERN);
+ 		checkwidth(pt);
+-	} else if(!eqtype(pt->orig, t))
+-		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
++	} else if(!eqtype(pt->orig, t->orig))
++		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
+ 
+ 	if(debug['E'])
+ 		print("import type %T %lT\n", pt, t);
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 4afd6c42bf..09e73c7b92 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -195,6 +195,7 @@ goopnames[] =
+ 	[OCONTINUE]	= "continue",
+ 	[OCOPY]		= "copy",
+ 	[ODEC]		= "--",
++	[ODELETE]	= "delete",
+ 	[ODEFER]	= "defer",
+ 	[ODIV]		= "/",
+ 	[OEQ]		= "==",
+@@ -639,9 +640,15 @@ typefmt(Fmt *fp, Type *t)
+ 		return fmtprint(fp, "map[%T]%T", t->down, t->type);
+ 
+ 	case TINTER:
++		t = t->orig;
+ 		fmtstrcpy(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down)
+-			if(exportname(t1->sym->name)) {
++			if(!t1->sym) {
++				if(t1->down)
++					fmtprint(fp, " %T;", t1->type);
++				else
++					fmtprint(fp, " %T ", t1->type);
++			} else if(exportname(t1->sym->name)) {
+ 				if(t1->down)
+ 					fmtprint(fp, " %hS%hT;", t1->sym, t1->type);
+ 				else
+@@ -946,6 +953,7 @@ static int opprec[] = {
+ 	[OCONVNOP] = 8,
+ 	[OCONV] = 8,
+ 	[OCOPY] = 8,
++	[ODELETE] = 8,
+ 	[OLEN] = 8,
+ 	[OLITERAL] = 8,
+ 	[OMAKESLICE] = 8,
+@@ -1010,6 +1018,7 @@ static int opprec[] = {
+ 	[OGT] = 4,
+ 	[ONE] = 4,
+ 	[OCMPSTR] = 4,
++	[OCMPIFACE] = 4,
+ 
+ 	[OSEND] = 3,
+ 	[OANDAND] = 2,
+@@ -1218,6 +1227,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OAPPEND:
+ 	case OCAP:
+ 	case OCLOSE:
++	case ODELETE:
+ 	case OLEN:
+ 	case OMAKE:
+ 	case ONEW:
+@@ -1288,6 +1298,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		return 0;
+ 
+ 	case OCMPSTR:
++	case OCMPIFACE:
+ 		exprfmt(f, n->left, nprec);
+ 		fmtprint(f, " %#O ", n->etype);
+ 		exprfmt(f, n->right, nprec+1);
+@@ -1303,8 +1314,10 @@ nodefmt(Fmt *f, Node *n)
+ 	Type *t;
+ 
+ 	t = n->type;
+-	if(n->orig == N)
++	if(n->orig == N) {
++		n->orig = n;
+ 		fatal("node with no orig %N", n);
++	}
+ 
+ 	// we almost always want the original, except in export mode for literals
+ 	// this saves the importer some work, and avoids us having to redo some
+@@ -1359,6 +1372,7 @@ nodedump(Fmt *fp, Node *n)
+ 			indent(fp);
+ 		}
+ 	}
++		fmtprint(fp, "[%p]", n);
+ 
+ 	switch(n->op) {
+ 	default:
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 6a99a275ca..de07354250 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1620,7 +1620,7 @@ non_dcl_stmt:
+ 		$$->list = $2;
+ 		if($$->list == nil && curfn != N) {
+ 			NodeList *l;
+-			
++
+ 			for(l=curfn->dcl; l; l=l->next) {
+ 				if(l->n->class == PPARAM)
+ 					continue;
+@@ -1953,6 +1953,10 @@ hidden_interfacedcl:
+ 	{
+ 		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+ 	}
++|	hidden_type
++	{
++		$$ = nod(ODCLFIELD, N, typenod($1));
++	}
+ 
+ ohidden_funres:
+ 	{
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 10c56db21f..a573fbb246 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -460,29 +460,32 @@ func (p *gcParser) parseSignature() *Func {
+ 	return &Func{Params: params, Results: results, IsVariadic: isVariadic}
+ }
+ 
+-// MethodSpec = ( identifier | ExportedName )  Signature .
++// MethodOrEmbedSpec = Name [ Signature ] .
+ //
+-func (p *gcParser) parseMethodSpec() *ast.Object {
+-	if p.tok == scanner.Ident {
+-		p.expect(scanner.Ident)
+-	} else {
+-		p.parseExportedName()
++func (p *gcParser) parseMethodOrEmbedSpec() *ast.Object {
++	p.parseName()
++	if p.tok == '(' {
++		p.parseSignature()
++		// TODO(gri) compute method object
++		return ast.NewObj(ast.Fun, "_")
+ 	}
+-	p.parseSignature()
+-
+-	// TODO(gri) compute method object
+-	return ast.NewObj(ast.Fun, "_")
++	// TODO lookup name and return that type
++	return ast.NewObj(ast.Typ, "_")
+ }
+ 
+-// InterfaceType = "interface" "{" [ MethodList ] "}" .
+-// MethodList    = MethodSpec { ";" MethodSpec } .
++// InterfaceType = "interface" "{" [ MethodOrEmbedList ] "}" .
++// MethodOrEmbedList = MethodOrEmbedSpec { ";" MethodOrEmbedSpec } .
+ //
+ func (p *gcParser) parseInterfaceType() Type {
+ 	var methods ObjList
+ 
+ 	parseMethod := func() {
+-		meth := p.parseMethodSpec()
+-		methods = append(methods, meth)
++		switch m := p.parseMethodOrEmbedSpec(); m.Kind {
++		case ast.Typ:
++			// TODO expand embedded methods
++		case ast.Fun:
++			methods = append(methods, m)
++		}
+ 	}
+ 
+ 	p.expectKeyword("interface")
+diff --git a/test/fixedbugs/bug395.go b/test/fixedbugs/bug395.go
+new file mode 100644
+index 0000000000..d0af3f9fce
+--- /dev/null
++++ b/test/fixedbugs/bug395.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go || echo "Bug395"
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1909
++// Would OOM due to exponential recursion on Foo's expanded methodset in nodefmt
++package test
++
++type Foo interface {
++       Bar() interface{Foo}
++       Baz() interface{Foo}
++       Bug() interface{Foo}
++}

@@ -13,7 +13,7 @@ Date:   Thu Mar 23 08:12:30 2023 +0000
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/bytes.go              |  2 +-
  src/crypto/elliptic/elliptic.go |  6 +++---
  src/encoding/gob/doc.go         |  2 +-
@@ -27,3 +27,252 @@ Date:   Thu Mar 23 08:12:30 2023 +0000
  src/sync/atomic/doc.go          |  2 +-
  src/text/template/doc.go        |  2 +-
  12 files changed, 31 insertions(+), 33 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 1b2dbd4c33..c54e52e4fc 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package bytes implements functions for the manipulation of byte slices.
+-// It is analogous to the facilities of the strings package.
++// It is analogous to the facilities of the [strings] package.
+ package bytes
+ 
+ import (
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 344825da62..96555ada39 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -5,9 +5,9 @@
+ // Package elliptic implements the standard NIST P-224, P-256, P-384, and P-521
+ // elliptic curves over prime fields.
+ //
+-// Direct use of this package is deprecated, beyond the P224(), P256(), P384(),
+-// and P521() values necessary to use the crypto/ecdsa package. Most other uses
+-// should migrate to the more efficient and safer crypto/ecdh package, or to
++// Direct use of this package is deprecated, beyond the [P224], [P256], [P384],
++// and [P521] values necessary to use [crypto/ecdsa]. Most other uses
++// should migrate to the more efficient and safer [crypto/ecdh], or to
+ // third-party modules for lower-level functionality.
+ package elliptic
+ 
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 15473f18b2..53c47e7d00 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -6,7 +6,7 @@
+ Package gob manages streams of gobs - binary values exchanged between an
+ Encoder (transmitter) and a Decoder (receiver). A typical use is transporting
+ arguments and results of remote procedure calls (RPCs) such as those provided by
+-package "net/rpc".
++[net/rpc].
+ 
+ The implementation compiles a custom codec for each data type in the stream and
+ is most efficient when a single Encoder is used to transmit a stream of values,
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index 5d1631b266..57990e8a38 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -5,16 +5,16 @@
+ /*
+ Package template (html/template) implements data-driven templates for
+ generating HTML output safe against code injection. It provides the
+-same interface as package text/template and should be used instead of
+-text/template whenever the output is HTML.
++same interface as [text/template] and should be used instead of
++[text/template] whenever the output is HTML.
+ 
+ The documentation here focuses on the security features of the package.
+ For information about how to program the templates themselves, see the
+-documentation for text/template.
++documentation for [text/template].
+ 
+ # Introduction
+ 
+-This package wraps package text/template so you can share its template API
++This package wraps [text/template] so you can share its template API
+ to parse and execute HTML templates safely.
+ 
+ 	tmpl, err := template.New("name").Parse(...)
+diff --git a/src/math/big/doc.go b/src/math/big/doc.go
+index 65ed019b74..fee5a65c7b 100644
+--- a/src/math/big/doc.go
++++ b/src/math/big/doc.go
+@@ -92,8 +92,7 @@ the Stringer interface for a (default) string representation of the value,
+ but also provide SetString methods to initialize a value from a string in
+ a variety of supported formats (see the respective SetString documentation).
+ 
+-Finally, *Int, *Rat, and *Float satisfy the fmt package's Scanner interface
+-for scanning and (except for *Rat) the Formatter interface for formatted
+-printing.
++Finally, *Int, *Rat, and *Float satisfy [fmt.Scanner] for scanning
++and (except for *Rat) the Formatter interface for formatted printing.
+ */
+ package big
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index aa700f46a7..a44b094955 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -3,13 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package netip defines an IP address type that's a small value type.
+-// Building on that Addr type, the package also defines AddrPort (an
+-// IP address and a port), and Prefix (an IP address and a bit length
++// Building on that [Addr] type, the package also defines [AddrPort] (an
++// IP address and a port) and [Prefix] (an IP address and a bit length
+ // prefix).
+ //
+-// Compared to the net.IP type, this package's Addr type takes less
+-// memory, is immutable, and is comparable (supports == and being a
+-// map key).
++// Compared to the [net.IP] type, [Addr] type takes less memory, is immutable,
++// and is comparable (supports == and being a map key).
+ package netip
+ 
+ import (
+@@ -28,9 +27,9 @@ import (
+ //   netip.Addr: 24 bytes (zone is per-name singleton, shared across all users)
+ 
+ // Addr represents an IPv4 or IPv6 address (with or without a scoped
+-// addressing zone), similar to net.IP or net.IPAddr.
++// addressing zone), similar to [net.IP] or [net.IPAddr].
+ //
+-// Unlike net.IP or net.IPAddr, Addr is a comparable value
++// Unlike [net.IP] or [net.IPAddr], Addr is a comparable value
+ // type (it supports == and can be a map key) and is immutable.
+ //
+ // The zero Addr is not a valid IP address.
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 1b9f40d9a8..a2a7525ef0 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -16,7 +16,7 @@ therefore cannot be affected by this package.
+ Synchronous signals are signals triggered by errors in program
+ execution: SIGBUS, SIGFPE, and SIGSEGV. These are only considered
+ synchronous when caused by program execution, not when sent using
+-os.Process.Kill or the kill program or some similar mechanism. In
++[os.Process.Kill] or the kill program or some similar mechanism. In
+ general, except as discussed below, Go programs will convert a
+ synchronous signal into a run-time panic.
+ 
+@@ -52,7 +52,7 @@ generally be honored. However, some signals are explicitly unblocked:
+ the synchronous signals, SIGILL, SIGTRAP, SIGSTKFLT, SIGCHLD, SIGPROF,
+ and, on Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
+ (SIGCANCEL and SIGSETXID are used internally by glibc). Subprocesses
+-started by os.Exec, or by the os/exec package, will inherit the
++started by [os.Exec], or by [os/exec], will inherit the
+ modified signal mask.
+ 
+ # Changing the behavior of signals in Go programs
+@@ -210,8 +210,8 @@ before raising the signal.
+ # Windows
+ 
+ On Windows a ^C (Control-C) or ^BREAK (Control-Break) normally cause
+-the program to exit. If Notify is called for os.Interrupt, ^C or ^BREAK
+-will cause os.Interrupt to be sent on the channel, and the program will
++the program to exit. If Notify is called for [os.Interrupt], ^C or ^BREAK
++will cause [os.Interrupt] to be sent on the channel, and the program will
+ not exit. If Reset is called, or Stop is called on all channels passed
+ to Notify, then the default behavior will be restored.
+ 
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 5200208117..8382ad5f3b 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -8,7 +8,7 @@
+ // The filepath package uses either forward slashes or backslashes,
+ // depending on the operating system. To process paths such as URLs
+ // that always use forward slashes regardless of the operating
+-// system, see the path package.
++// system, see the [path] package.
+ package filepath
+ 
+ import (
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 6bf7451fb1..7493943474 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -8,7 +8,7 @@
+ /*
+ Package metrics provides a stable interface to access implementation-defined
+ metrics exported by the Go runtime. This package is similar to existing functions
+-like runtime.ReadMemStats and debug.ReadGCStats, but significantly more general.
++like [runtime.ReadMemStats] and [debug.ReadGCStats], but significantly more general.
+ 
+ The set of metrics defined by this package may evolve as the runtime itself
+ evolves, and also enables variation across Go implementations, whose relevant
+diff --git a/src/strconv/doc.go b/src/strconv/doc.go
+index 769ecd9a21..fa20f902d0 100644
+--- a/src/strconv/doc.go
++++ b/src/strconv/doc.go
+@@ -14,7 +14,7 @@
+ //
+ // These assume decimal and the Go int type.
+ //
+-// ParseBool, ParseFloat, ParseInt, and ParseUint convert strings to values:
++// [ParseBool], [ParseFloat], [ParseInt], and [ParseUint] convert strings to values:
+ //
+ //	b, err := strconv.ParseBool("true")
+ //	f, err := strconv.ParseFloat("3.1415", 64)
+@@ -30,27 +30,27 @@
+ //	...
+ //	i := int32(i64)
+ //
+-// FormatBool, FormatFloat, FormatInt, and FormatUint convert values to strings:
++// [FormatBool], [FormatFloat], [FormatInt], and [FormatUint] convert values to strings:
+ //
+ //	s := strconv.FormatBool(true)
+ //	s := strconv.FormatFloat(3.1415, 'E', -1, 64)
+ //	s := strconv.FormatInt(-42, 16)
+ //	s := strconv.FormatUint(42, 16)
+ //
+-// AppendBool, AppendFloat, AppendInt, and AppendUint are similar but
++// [AppendBool], [AppendFloat], [AppendInt], and [AppendUint] are similar but
+ // append the formatted value to a destination slice.
+ //
+ // # String Conversions
+ //
+-// Quote and QuoteToASCII convert strings to quoted Go string literals.
++// [Quote] and [QuoteToASCII] convert strings to quoted Go string literals.
+ // The latter guarantees that the result is an ASCII string, by escaping
+ // any non-ASCII Unicode with \u:
+ //
+ //	q := strconv.Quote("Hello, 世界")
+ //	q := strconv.QuoteToASCII("Hello, 世界")
+ //
+-// QuoteRune and QuoteRuneToASCII are similar but accept runes and
++// [QuoteRune] and [QuoteRuneToASCII] are similar but accept runes and
+ // return quoted Go rune literals.
+ //
+-// Unquote and UnquoteChar unquote Go string and rune literals.
++// [Unquote] and [UnquoteChar] unquote Go string and rune literals.
+ package strconv
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index 472ab9df04..c22d1159af 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -7,7 +7,7 @@
+ //
+ // These functions require great care to be used correctly.
+ // Except for special, low-level applications, synchronization is better
+-// done with channels or the facilities of the sync package.
++// done with channels or the facilities of the [sync] package.
+ // Share memory by communicating;
+ // don't communicate by sharing memory.
+ //
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 7817a17b96..4c01b05ebf 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -5,7 +5,7 @@
+ /*
+ Package template implements data-driven templates for generating textual output.
+ 
+-To generate HTML output, see package html/template, which has the same interface
++To generate HTML output, see [html/template], which has the same interface
+ as this package but automatically secures HTML output against certain attacks.
+ 
+ Templates are executed by applying them to a data structure. Annotations in the

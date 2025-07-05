@@ -23,7 +23,7 @@ Date:   Thu Aug 8 18:45:18 2024 -0400
     Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/dist/test.go                 |  3 ++-
  src/cmd/go/internal/load/pkg.go      |  7 ++++++-
  src/cmd/internal/obj/wasm/wasmobj.go |  4 +++-
@@ -39,3 +39,273 @@ Date:   Thu Aug 8 18:45:18 2024 -0400
  src/runtime/stubs_nonwasm.go         | 10 ++++++++++
  src/runtime/stubs_wasm.go            | 16 ++++++++++++++++
  14 files changed, 85 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0ffcabe416..0facfb579c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1625,7 +1625,8 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",
+-			"windows/amd64", "windows/386", "windows/arm64":
++			"windows/amd64", "windows/386", "windows/arm64",
++			"wasip1/wasm":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 43429a1d93..433e951388 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2577,7 +2577,12 @@ func externalLinkingReason(p *Package) (what string) {
+ 
+ 	// Some build modes always require external linking.
+ 	switch cfg.BuildBuildmode {
+-	case "c-shared", "plugin":
++	case "c-shared":
++		if cfg.BuildContext.GOARCH == "wasm" {
++			break
++		}
++		fallthrough
++	case "plugin":
+ 		return "-buildmode=" + cfg.BuildBuildmode
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 20ed142812..0189ffe6f5 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -1025,6 +1025,7 @@ func regAddr(reg int16) obj.Addr {
+ var notUsePC_B = map[string]bool{
+ 	"_rt0_wasm_js":            true,
+ 	"_rt0_wasm_wasip1":        true,
++	"_rt0_wasm_wasip1_lib":    true,
+ 	"wasm_export_run":         true,
+ 	"wasm_export_resume":      true,
+ 	"wasm_export_getsp":       true,
+@@ -1080,7 +1081,8 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	// Function starts with declaration of locals: numbers and types.
+ 	// Some functions use a special calling convention.
+ 	switch s.Name {
+-	case "_rt0_wasm_js", "_rt0_wasm_wasip1", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp",
++	case "_rt0_wasm_js", "_rt0_wasm_wasip1", "_rt0_wasm_wasip1_lib",
++		"wasm_export_run", "wasm_export_resume", "wasm_export_getsp",
+ 		"wasm_pc_f_loop", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+ 		varDecls = []*varDecl{}
+ 		useAssemblyRegMap()
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 3a186b47f7..b2d4ad7cb0 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -145,6 +145,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	case BuildModeCArchive:
+ 		return true, "buildmode=c-archive"
+ 	case BuildModeCShared:
++		if buildcfg.GOARCH == "wasm" {
++			break
++		}
+ 		return true, "buildmode=c-shared"
+ 	case BuildModePIE:
+ 		if !platform.InternalLinkPIESupported(buildcfg.GOOS, buildcfg.GOARCH) {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 01f9780d8b..92e856a766 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -432,7 +432,7 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
+ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	ldr := ctxt.loader
+ 
+-	if !ctxt.IsAIX() {
++	if !ctxt.IsAIX() && !ctxt.IsWasm() {
+ 		switch ctxt.BuildMode {
+ 		case BuildModeCArchive, BuildModeCShared:
+ 			s := ldr.Lookup(*flagEntrySymbol, sym.SymVerABI0)
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 5b36ea0fbc..87a67754cc 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -68,6 +68,7 @@ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
+ var wasmFuncTypes = map[string]*wasmFuncType{
+ 	"_rt0_wasm_js":            {Params: []byte{}},                                         //
+ 	"_rt0_wasm_wasip1":        {Params: []byte{}},                                         //
++	"_rt0_wasm_wasip1_lib":    {Params: []byte{}},                                         //
+ 	"wasm_export__start":      {},                                                         //
+ 	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
+ 	"wasm_export_resume":      {Params: []byte{}},                                         //
+@@ -418,9 +419,21 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 	switch buildcfg.GOOS {
+ 	case "wasip1":
+ 		writeUleb128(ctxt.Out, uint64(2+len(ldr.WasmExports))) // number of exports
+-		s := ldr.Lookup("_rt0_wasm_wasip1", 0)
++		var entry, entryExpName string
++		switch ctxt.BuildMode {
++		case ld.BuildModeExe:
++			entry = "_rt0_wasm_wasip1"
++			entryExpName = "_start"
++		case ld.BuildModeCShared:
++			entry = "_rt0_wasm_wasip1_lib"
++			entryExpName = "_initialize"
++		}
++		s := ldr.Lookup(entry, 0)
++		if s == 0 {
++			ld.Errorf(nil, "export symbol %s not defined", entry)
++		}
+ 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+-		writeName(ctxt.Out, "_start")       // the wasi entrypoint
++		writeName(ctxt.Out, entryExpName)   // the wasi entrypoint
+ 		ctxt.Out.WriteByte(0x00)            // func export
+ 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+ 		for _, s := range ldr.WasmExports {
+@@ -436,6 +449,9 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 		writeUleb128(ctxt.Out, 4) // number of exports
+ 		for _, name := range []string{"run", "resume", "getsp"} {
+ 			s := ldr.Lookup("wasm_export_"+name, 0)
++			if s == 0 {
++				ld.Errorf(nil, "export symbol %s not defined", "wasm_export_"+name)
++			}
+ 			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+ 			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+ 			ctxt.Out.WriteByte(0x00)            // func export
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index a774247e6b..193658f878 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -173,7 +173,8 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"android/amd64", "android/arm", "android/arm64", "android/386",
+ 			"freebsd/amd64",
+ 			"darwin/amd64", "darwin/arm64",
+-			"windows/amd64", "windows/386", "windows/arm64":
++			"windows/amd64", "windows/386", "windows/arm64",
++			"wasip1/wasm":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 419640be2d..016d2d3825 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -608,3 +608,9 @@ outer:
+ 
+ TEXT wasm_export_lib(SB),NOSPLIT,$0
+ 	UNDEF
++
++TEXT runtime·pause(SB), NOSPLIT, $0-8
++	MOVD newsp+0(FP), SP
++	I32Const $1
++	Set PAUSE
++	RETUNWIND
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index fcb813df81..f19e20a4c3 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -253,9 +253,6 @@ func clearIdleTimeout() {
+ 	idleTimeout = nil
+ }
+ 
+-// pause sets SP to newsp and pauses the execution of Go's WebAssembly code until an event is triggered.
+-func pause(newsp uintptr)
+-
+ // scheduleTimeoutEvent tells the WebAssembly environment to trigger an event after ms milliseconds.
+ // It returns a timer id that can be used with clearTimeoutEvent.
+ //
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2cf8a31971..c086c26237 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -266,6 +266,17 @@ func main() {
+ 	if isarchive || islibrary {
+ 		// A program compiled with -buildmode=c-archive or c-shared
+ 		// has a main, but it is not executed.
++		if GOARCH == "wasm" {
++			// On Wasm, pause makes it return to the host.
++			// Unlike cgo callbacks where Ms are created on demand,
++			// on Wasm we have only one M. So we keep this M (and this
++			// G) for callbacks.
++			// Using the caller's SP unwinds this frame and backs to
++			// goexit. The -16 is: 8 for goexit's (fake) return PC,
++			// and pause's epilogue pops 8.
++			pause(getcallersp() - 16) // should not return
++			panic("unreachable")
++		}
+ 		return
+ 	}
+ 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
+@@ -5913,7 +5924,9 @@ func checkdead() {
+ 	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
+ 	// there are no running goroutines. The calling program is
+ 	// assumed to be running.
+-	if islibrary || isarchive {
++	// One exception is Wasm, which is single-threaded. If we are
++	// in Go and all goroutines are blocked, it deadlocks.
++	if (islibrary || isarchive) && GOARCH != "wasm" {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/rt0_js_wasm.s b/src/runtime/rt0_js_wasm.s
+index 34a60474f7..c7a0a2636d 100644
+--- a/src/runtime/rt0_js_wasm.s
++++ b/src/runtime/rt0_js_wasm.s
+@@ -53,12 +53,6 @@ TEXT wasm_export_getsp(SB),NOSPLIT,$0
+ 	Get SP
+ 	Return
+ 
+-TEXT runtime·pause(SB), NOSPLIT, $0-8
+-	MOVD newsp+0(FP), SP
+-	I32Const $1
+-	Set PAUSE
+-	RETUNWIND
+-
+ TEXT runtime·exit(SB), NOSPLIT, $0-4
+ 	I32Const $0
+ 	Call runtime·wasmExit(SB)
+diff --git a/src/runtime/rt0_wasip1_wasm.s b/src/runtime/rt0_wasip1_wasm.s
+index 6dc239306b..a60566fe06 100644
+--- a/src/runtime/rt0_wasip1_wasm.s
++++ b/src/runtime/rt0_wasip1_wasm.s
+@@ -14,3 +14,7 @@ TEXT _rt0_wasm_wasip1(SB),NOSPLIT,$0
+ 	Call wasm_pc_f_loop(SB)
+ 
+ 	Return
++
++TEXT _rt0_wasm_wasip1_lib(SB),NOSPLIT,$0
++	Call _rt0_wasm_wasip1(SB)
++	Return
+diff --git a/src/runtime/stubs_nonwasm.go b/src/runtime/stubs_nonwasm.go
+new file mode 100644
+index 0000000000..fa4058bccc
+--- /dev/null
++++ b/src/runtime/stubs_nonwasm.go
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !wasm
++
++package runtime
++
++// pause is only used on wasm.
++func pause(newsp uintptr) { panic("unreachable") }
+diff --git a/src/runtime/stubs_wasm.go b/src/runtime/stubs_wasm.go
+new file mode 100644
+index 0000000000..75078b53eb
+--- /dev/null
++++ b/src/runtime/stubs_wasm.go
+@@ -0,0 +1,16 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// pause sets SP to newsp and pauses the execution of Go's WebAssembly
++// code until an event is triggered, or call back into Go.
++//
++// Note: the epilogue of pause pops 8 bytes from the stack, so when
++// returning to the host, the SP is newsp+8.
++// If we want to set the SP such that when it calls back into Go, the
++// Go function appears to be called from pause's caller's caller, then
++// call pause with newsp = getcallersp()-16 (another 8 is the return
++// PC pushed to the stack).
++func pause(newsp uintptr)

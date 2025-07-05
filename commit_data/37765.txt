@@ -69,7 +69,49 @@ Date:   Thu Aug 23 02:08:15 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/x86/387.go | 5 +++++
  test/codegen/floats.go              | 7 +++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+index ab3d30e76c..18838fb4ca 100644
+--- a/src/cmd/compile/internal/x86/387.go
++++ b/src/cmd/compile/internal/x86/387.go
+@@ -33,6 +33,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
+ 		} else if iv == 0xbff0000000000000 { // -1.0
+ 			s.Prog(x86.AFLD1)
+ 			s.Prog(x86.AFCHS)
++		} else if iv == 0x400921fb54442d18 { // +pi
++			s.Prog(x86.AFLDPI)
++		} else if iv == 0xc00921fb54442d18 { // -pi
++			s.Prog(x86.AFLDPI)
++			s.Prog(x86.AFCHS)
+ 		} else { // others
+ 			p := s.Prog(loadPush(v.Type))
+ 			p.From.Type = obj.TYPE_FCONST
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index e0e4d973a3..b046de8fcd 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -6,6 +6,8 @@
+ 
+ package codegen
+ 
++import "math"
++
+ // This file contains codegen tests related to arithmetic
+ // simplifications and optimizations on float types.
+ // For codegen tests on integer types, see arithmetic.go.
+@@ -48,6 +50,11 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	return x, y, z
+ }
+ 
++func getPi() float64 {
++	// 386/387:"FLDPI"
++	return math.Pi
++}
++
+ // ----------- //
+ //    Fused    //
+ // ----------- //

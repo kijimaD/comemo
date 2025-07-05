@@ -13,6 +13,21 @@ Date:   Wed Aug 3 17:45:02 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
-
+---
  src/cmd/internal/obj/loong64/asm.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 982ddd8103..02e44ee0a1 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -435,9 +435,6 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.Pos = p.Pos
+ 					q.To.Type = obj.TYPE_BRANCH
+ 					q.To.SetTarget(q.Link.Link)
+-
+-					c.addnop(p.Link)
+-					c.addnop(p)
+ 					bflag = 1
+ 				}
+ 			}

@@ -8,6 +8,38 @@ Date:   Wed Jul 23 10:35:04 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/117060043
-
+---
  misc/pprof | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/misc/pprof b/misc/pprof
+index ad3f1ebe16..f83e6fb659 100755
+--- a/misc/pprof
++++ b/misc/pprof
+@@ -724,18 +724,24 @@ sub RunWeb {
+   my $fname = shift;
+   print STDERR "Loading web page file:///$fname\n";
+ 
+-  if (`uname` =~ /Darwin/) {
++  my $uname = `uname`;
++  if ($uname =~ /Darwin/) {
+     # OS X: open will use standard preference for SVG files.
+     system("/usr/bin/open", $fname);
+     return;
+   }
+ 
+-  if (`uname` =~ /CYGWIN/) {
++  if ($uname =~ /CYGWIN/) {
+     # Windows(cygwin): open will use standard preference for SVG files.
+     my $winname = `cygpath -wa $fname`;
+     system("explorer.exe", $winname);
+     return;
+   }
++  if ($uname =~ /MINGW/) {
++    # Windows(MinGW): open will use standard preference for SVG files.
++    system("cmd", "/c", "start", $fname);
++    return;
++  }
+ 
+   # Some kind of Unix; try generic symlinks, then specific browsers.
+   # (Stop once we find one.)

@@ -14,6 +14,25 @@ Date:   Mon Aug 28 00:13:34 2023 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: M Zhuo <mzh@golangcn.org>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index f60abe4197..7b5621f650 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1722,10 +1722,10 @@ func (ins *instruction) encode() (uint32, error) {
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	if enc.length > 0 {
+-		return enc.encode(ins), nil
++	if enc.length <= 0 {
++		return 0, fmt.Errorf("%v: encoding called for a pseudo instruction", ins.as)
+ 	}
+-	return 0, fmt.Errorf("fixme")
++	return enc.encode(ins), nil
+ }
+ 
+ func (ins *instruction) length() int {

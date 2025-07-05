@@ -11,7 +11,7 @@ Date:   Wed Dec 9 15:58:18 2015 -0800
     Change-Id: Ia1c3d9e6eff678861193093c0b48a00f90e4156b
     Reviewed-on: https://go-review.googlesource.com/17694
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go       |  11 ++-
  src/cmd/compile/internal/ssa/flagalloc.go     | 123 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/func_test.go     |   5 ++
@@ -19,3 +19,345 @@ Date:   Wed Dec 9 15:58:18 2015 -0800
  src/cmd/compile/internal/ssa/regalloc_test.go |   9 +-
  src/cmd/compile/internal/ssa/value.go         |   9 ++
  6 files changed, 162 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 01238f24ca..767b774ab0 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -97,9 +97,10 @@ var passes = [...]pass{
+ 	{"lowered cse", cse},
+ 	{"lowered deadcode", deadcode},
+ 	{"checkLower", checkLower},
+-	{"critical", critical}, // remove critical edges
+-	{"layout", layout},     // schedule blocks
+-	{"schedule", schedule}, // schedule values
++	{"critical", critical},   // remove critical edges
++	{"layout", layout},       // schedule blocks
++	{"schedule", schedule},   // schedule values
++	{"flagalloc", flagalloc}, // allocate flags register
+ 	{"regalloc", regalloc},
+ 	{"stackalloc", stackalloc},
+ }
+@@ -142,6 +143,10 @@ var passOrder = [...]constraint{
+ 	// checkLower must run after lowering & subsequent dead code elim
+ 	{"lower", "checkLower"},
+ 	{"lowered deadcode", "checkLower"},
++	// flagalloc needs instructions to be scheduled.
++	{"schedule", "flagalloc"},
++	// regalloc needs flags to be allocated first.
++	{"flagalloc", "regalloc"},
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+new file mode 100644
+index 0000000000..c088158057
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -0,0 +1,123 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++const flagRegMask = regMask(1) << 33 // TODO: arch-specific
++
++// flagalloc allocates the flag register among all the flag-generating
++// instructions.  Flag values are recomputed if they need to be
++// spilled/restored.
++func flagalloc(f *Func) {
++	// Compute the in-register flag value we want at the end of
++	// each block.  This is basically a best-effort live variable
++	// analysis, so it can be much simpler than a full analysis.
++	// TODO: do we really need to keep flag values live across blocks?
++	// Could we force the flags register to be unused at basic block
++	// boundaries?  Then we wouldn't need this computation.
++	end := make([]*Value, f.NumBlocks())
++	for n := 0; n < 2; n++ {
++		// Walk blocks backwards.  Poor-man's postorder traversal.
++		for i := len(f.Blocks) - 1; i >= 0; i-- {
++			b := f.Blocks[i]
++			// Walk values backwards to figure out what flag
++			// value we want in the flag register at the start
++			// of the block.
++			flag := end[b.ID]
++			if b.Control != nil && b.Control.Type.IsFlags() {
++				flag = b.Control
++			}
++			for j := len(b.Values) - 1; j >= 0; j-- {
++				v := b.Values[j]
++				if v == flag {
++					flag = nil
++				}
++				if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
++					flag = nil
++				}
++				for _, a := range v.Args {
++					if a.Type.IsFlags() {
++						flag = a
++					}
++				}
++			}
++			for _, p := range b.Preds {
++				end[p.ID] = flag
++			}
++		}
++	}
++	// For blocks which have a flags control value, that's the only value
++	// we can leave in the flags register at the end of the block. (There
++	// is no place to put a flag regeneration instruction.)
++	for _, b := range f.Blocks {
++		v := b.Control
++		if v != nil && v.Type.IsFlags() && end[b.ID] != v {
++			end[b.ID] = nil
++		}
++	}
++
++	// Add flag recomputations where they are needed.
++	// TODO: Remove original instructions if they are never used.
++	var oldSched []*Value
++	for _, b := range f.Blocks {
++		oldSched = append(oldSched[:0], b.Values...)
++		b.Values = b.Values[:0]
++		// The current live flag value.
++		var flag *Value
++		if len(b.Preds) > 0 {
++			flag = end[b.Preds[0].ID]
++			// Note: the following condition depends on the lack of critical edges.
++			for _, p := range b.Preds[1:] {
++				if end[p.ID] != flag {
++					f.Fatalf("live flag in %s's predecessors not consistent", b)
++				}
++			}
++		}
++		for _, v := range oldSched {
++			if v.Op == OpPhi && v.Type.IsFlags() {
++				f.Fatalf("phi of flags not supported: %s", v.LongString())
++			}
++			// Make sure any flag arg of v is in the flags register.
++			// If not, recompute it.
++			for i, a := range v.Args {
++				if !a.Type.IsFlags() {
++					continue
++				}
++				if a == flag {
++					continue
++				}
++				// Recalculate a
++				c := a.copyInto(b)
++				// Update v.
++				v.SetArg(i, c)
++				// Remember the most-recently computed flag value.
++				flag = c
++			}
++			// Issue v.
++			b.Values = append(b.Values, v)
++			if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
++				flag = nil
++			}
++			if v.Type.IsFlags() {
++				flag = v
++			}
++		}
++		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
++			// Recalculate control value.
++			c := v.copyInto(b)
++			b.Control = c
++			flag = c
++		}
++		if v := end[b.ID]; v != nil && v != flag {
++			// Need to reissue flag generator for use by
++			// subsequent blocks.
++			_ = v.copyInto(b)
++			// Note: this flag generator is not properly linked up
++			// with the flag users.  This breaks the SSA representation.
++			// We could fix up the users with another pass, but for now
++			// we'll just leave it.  (Regalloc has the same issue for
++			// standard regs, and it runs next.)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/func_test.go b/src/cmd/compile/internal/ssa/func_test.go
+index d35690a30c..1dc134d8a8 100644
+--- a/src/cmd/compile/internal/ssa/func_test.go
++++ b/src/cmd/compile/internal/ssa/func_test.go
+@@ -232,6 +232,11 @@ func Exit(arg string) ctrl {
+ 	return ctrl{BlockExit, arg, []string{}}
+ }
+ 
++// Eq specifies a BlockAMD64EQ.
++func Eq(cond, sub, alt string) ctrl {
++	return ctrl{BlockAMD64EQ, cond, []string{sub, alt}}
++}
++
+ // bloc, ctrl, and valu are internal structures used by Bloc, Valu, Goto,
+ // If, and Exit to help define blocks.
+ 
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 535885a9a7..2690b6188e 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -38,12 +38,6 @@
+ // x3 can then be used wherever x is referenced again.
+ // If the spill (x2) is never used, it will be removed at the end of regalloc.
+ //
+-// Flags values are special. Instead of attempting to spill and restore the flags
+-// register, we recalculate it if needed.
+-// There are more efficient schemes (see the discussion in CL 13844),
+-// but flag restoration is empirically rare, and this approach is simple
+-// and architecture-independent.
+-//
+ // Phi values are special, as always.  We define two kinds of phis, those
+ // where the merge happens in a register (a "register" phi) and those where
+ // the merge happens in a stack location (a "stack" phi).
+@@ -173,7 +167,6 @@ var registers = [...]Register{
+ 	Register{30, "X14"},
+ 	Register{31, "X15"},
+ 	Register{32, "SB"}, // pseudo-register for global base pointer (aka %rip)
+-	Register{33, "FLAGS"},
+ 
+ 	// TODO: make arch-dependent
+ }
+@@ -226,7 +219,7 @@ type regAllocState struct {
+ 	f *Func
+ 
+ 	// For each value, whether it needs a register or not.
+-	// Cached value of !v.Type.IsMemory() && !v.Type.IsVoid().
++	// Cached value of !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags().
+ 	needReg []bool
+ 
+ 	// for each block, its primary predecessor.
+@@ -435,40 +428,9 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
+ 		c = s.curBlock.NewValue1(v.Line, OpCopy, v.Type, s.regs[r2].c)
+ 	} else if v.rematerializeable() {
+ 		// Rematerialize instead of loading from the spill location.
+-		c = s.curBlock.NewValue0(v.Line, v.Op, v.Type)
+-		c.Aux = v.Aux
+-		c.AuxInt = v.AuxInt
+-		c.AddArgs(v.Args...)
++		c = v.copyInto(s.curBlock)
+ 	} else {
+ 		switch {
+-		// It is difficult to spill and reload flags on many architectures.
+-		// Instead, we regenerate the flags register by issuing the same instruction again.
+-		// This requires (possibly) spilling and reloading that instruction's args.
+-		case v.Type.IsFlags():
+-			if logSpills {
+-				fmt.Println("regalloc: regenerating flags")
+-			}
+-			ns := s.nospill
+-			// Place v's arguments in registers, spilling and loading as needed
+-			args := make([]*Value, 0, len(v.Args))
+-			regspec := opcodeTable[v.Op].reg
+-			for _, i := range regspec.inputs {
+-				// Extract the original arguments to v
+-				a := s.orig[v.Args[i.idx].ID]
+-				if a.Type.IsFlags() {
+-					s.f.Fatalf("cannot load flags value with flags arg: %v has unwrapped arg %v", v.LongString(), a.LongString())
+-				}
+-				cc := s.allocValToReg(a, i.regs, true)
+-				args = append(args, cc)
+-			}
+-			s.nospill = ns
+-			// Recalculate v
+-			c = s.curBlock.NewValue0(v.Line, v.Op, v.Type)
+-			c.Aux = v.Aux
+-			c.AuxInt = v.AuxInt
+-			c.resetArgs()
+-			c.AddArgs(args...)
+-
+ 		// Load v from its spill location.
+ 		case vi.spill2 != nil:
+ 			if logSpills {
+@@ -506,7 +468,7 @@ func (s *regAllocState) init(f *Func) {
+ 	s.orig = make([]*Value, f.NumValues())
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			if v.Type.IsMemory() || v.Type.IsVoid() {
++			if v.Type.IsMemory() || v.Type.IsVoid() || v.Type.IsFlags() {
+ 				continue
+ 			}
+ 			s.needReg[v.ID] = true
+@@ -818,6 +780,10 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// by the register specification (most constrained first).
+ 			args = append(args[:0], v.Args...)
+ 			for _, i := range regspec.inputs {
++				if i.regs == flagRegMask {
++					// TODO: remove flag input from regspec.inputs.
++					continue
++				}
+ 				args[i.idx] = s.allocValToReg(v.Args[i.idx], i.regs, true)
+ 			}
+ 
+@@ -834,8 +800,11 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// Pick register for output.
+ 			var r register
+ 			var mask regMask
+-			if len(regspec.outputs) > 0 {
++			if s.needReg[v.ID] {
+ 				mask = regspec.outputs[0] &^ s.reserved()
++				if mask>>33&1 != 0 {
++					s.f.Fatalf("bad mask %s\n", v.LongString())
++				}
+ 			}
+ 			if mask != 0 {
+ 				r = s.allocReg(mask)
+@@ -858,7 +827,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			//     f()
+ 			// }
+ 			// It would be good to have both spill and restore inside the IF.
+-			if !v.Type.IsFlags() {
++			if s.needReg[v.ID] {
+ 				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+ 				s.setOrig(spill, v)
+ 				s.values[v.ID].spill = spill
+diff --git a/src/cmd/compile/internal/ssa/regalloc_test.go b/src/cmd/compile/internal/ssa/regalloc_test.go
+index 08260fbbbb..596a920858 100644
+--- a/src/cmd/compile/internal/ssa/regalloc_test.go
++++ b/src/cmd/compile/internal/ssa/regalloc_test.go
+@@ -13,12 +13,12 @@ func TestLiveControlOps(t *testing.T) {
+ 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+ 			Valu("x", OpAMD64MOVBconst, TypeInt8, 0, 1),
+ 			Valu("y", OpAMD64MOVBconst, TypeInt8, 0, 2),
+-			Valu("a", OpAMD64TESTB, TypeBool, 0, nil, "x", "y"),
+-			Valu("b", OpAMD64TESTB, TypeBool, 0, nil, "y", "x"),
+-			If("a", "if", "exit"),
++			Valu("a", OpAMD64TESTB, TypeFlags, 0, nil, "x", "y"),
++			Valu("b", OpAMD64TESTB, TypeFlags, 0, nil, "y", "x"),
++			Eq("a", "if", "exit"),
+ 		),
+ 		Bloc("if",
+-			If("b", "plain", "exit"),
++			Eq("b", "plain", "exit"),
+ 		),
+ 		Bloc("plain",
+ 			Goto("exit"),
+@@ -27,6 +27,7 @@ func TestLiveControlOps(t *testing.T) {
+ 			Exit("mem"),
+ 		),
+ 	)
++	flagalloc(f.f)
+ 	regalloc(f.f)
+ 	checkFunc(f.f)
+ }
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 661a05989a..fc318638ad 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -126,6 +126,15 @@ func (v *Value) resetArgs() {
+ 	v.Args = v.argstorage[:0]
+ }
+ 
++// copyInto makes a new value identical to v and adds it to the end of b.
++func (v *Value) copyInto(b *Block) *Value {
++	c := b.NewValue0(v.Line, v.Op, v.Type)
++	c.Aux = v.Aux
++	c.AuxInt = v.AuxInt
++	c.AddArgs(v.Args...)
++	return c
++}
++
+ func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
+ func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
+ func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }

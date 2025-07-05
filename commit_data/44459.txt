@@ -16,7 +16,72 @@ Date:   Tue Jul 7 22:18:17 2020 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/readfrom_linux.go      |  5 +++++
  src/os/readfrom_linux_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/os/readfrom_linux.go b/src/os/readfrom_linux.go
+index ed275e1ba6..63ea45cf65 100644
+--- a/src/os/readfrom_linux.go
++++ b/src/os/readfrom_linux.go
+@@ -32,6 +32,11 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 	if !ok {
+ 		return 0, false, nil
+ 	}
++	if src.checkValid("ReadFrom") != nil {
++		// Avoid returning the error as we report handled as false,
++		// leave further error handling as the responsibility of the caller.
++		return 0, false, nil
++	}
+ 
+ 	written, handled, err = pollCopyFileRange(&f.pfd, &src.pfd, remain)
+ 	if lr != nil {
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index b6f5cb7034..00faf39fe5 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"internal/poll"
+ 	"io"
++	"io/ioutil"
+ 	"math/rand"
+ 	. "os"
+ 	"path/filepath"
+@@ -170,6 +171,35 @@ func TestCopyFileRange(t *testing.T) {
+ 			mustContainData(t, dst, data)
+ 		})
+ 	})
++	t.Run("Nil", func(t *testing.T) {
++		var nilFile *File
++		anyFile, err := ioutil.TempFile("", "")
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer Remove(anyFile.Name())
++		defer anyFile.Close()
++
++		if _, err := io.Copy(nilFile, nilFile); err != ErrInvalid {
++			t.Errorf("io.Copy(nilFile, nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := io.Copy(anyFile, nilFile); err != ErrInvalid {
++			t.Errorf("io.Copy(anyFile, nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := io.Copy(nilFile, anyFile); err != ErrInvalid {
++			t.Errorf("io.Copy(nilFile, anyFile) = %v, want %v", err, ErrInvalid)
++		}
++
++		if _, err := nilFile.ReadFrom(nilFile); err != ErrInvalid {
++			t.Errorf("nilFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := anyFile.ReadFrom(nilFile); err != ErrInvalid {
++			t.Errorf("anyFile.ReadFrom(nilFile) = %v, want %v", err, ErrInvalid)
++		}
++		if _, err := nilFile.ReadFrom(anyFile); err != ErrInvalid {
++			t.Errorf("nilFile.ReadFrom(anyFile) = %v, want %v", err, ErrInvalid)
++		}
++	})
+ }
+ 
+ func testCopyFileRange(t *testing.T, size int64, limit int64) {

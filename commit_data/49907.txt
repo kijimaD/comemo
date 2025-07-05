@@ -12,7 +12,89 @@ Date:   Mon Sep 20 17:56:35 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/instantiate_test.go |  4 ++--
  src/go/types/named.go            | 22 ++++++++++++++--------
  2 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/instantiate_test.go b/src/go/types/instantiate_test.go
+index 0c66acb875..cf6d2a9198 100644
+--- a/src/go/types/instantiate_test.go
++++ b/src/go/types/instantiate_test.go
+@@ -86,7 +86,7 @@ var X T[int]
+ 	}{
+ 		{"func (r T[P]) m() P", "func (T[int]).m() int"},
+ 		{"func (r T[P]) m(P)", "func (T[int]).m(int)"},
+-		{"func (r T[P]) m() func() P", "func (T[int]).m() func() int"},
++		{"func (r *T[P]) m(P)", "func (*T[int]).m(int)"},
+ 		{"func (r T[P]) m() T[P]", "func (T[int]).m() T[int]"},
+ 		{"func (r T[P]) m(T[P])", "func (T[int]).m(T[int])"},
+ 		{"func (r T[P]) m(T[P], P, string)", "func (T[int]).m(T[int], int, string)"},
+@@ -99,7 +99,7 @@ var X T[int]
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		typ := pkg.Scope().Lookup("X").Type().(*Named)
++		typ := NewPointer(pkg.Scope().Lookup("X").Type())
+ 		obj, _, _ := LookupFieldOrMethod(typ, false, pkg, "m")
+ 		m, _ := obj.(*Func)
+ 		if m == nil {
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 302e43174e..1815aad014 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -257,7 +257,7 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
+ 			// During type checking origm may not have a fully set up type, so defer
+ 			// instantiation of its signature until later.
+ 			m := NewFunc(origm.pos, origm.pkg, origm.name, nil)
+-			m.hasPtrRecv = origm.hasPtrRecv
++			m.hasPtrRecv = ptrRecv(origm)
+ 			// Setting instRecv here allows us to complete later (we need the
+ 			// instRecv to get targs and the original method).
+ 			m.instRecv = n
+@@ -289,32 +289,38 @@ func expandNamed(env *Environment, n *Named, instPos token.Pos) (tparams *TypePa
+ 
+ func (check *Checker) completeMethod(env *Environment, m *Func) {
+ 	assert(m.instRecv != nil)
+-	rtyp := m.instRecv
++	rbase := m.instRecv
+ 	m.instRecv = nil
+ 	m.setColor(black)
+ 
+-	assert(rtyp.TypeArgs().Len() > 0)
++	assert(rbase.TypeArgs().Len() > 0)
+ 
+ 	// Look up the original method.
+-	_, orig := lookupMethod(rtyp.orig.methods, rtyp.obj.pkg, m.name)
++	_, orig := lookupMethod(rbase.orig.methods, rbase.obj.pkg, m.name)
+ 	assert(orig != nil)
+ 	if check != nil {
+ 		check.objDecl(orig, nil)
+ 	}
+ 	origSig := orig.typ.(*Signature)
+-	if origSig.RecvTypeParams().Len() != rtyp.targs.Len() {
++	if origSig.RecvTypeParams().Len() != rbase.targs.Len() {
+ 		m.typ = origSig // or new(Signature), but we can't use Typ[Invalid]: Funcs must have Signature type
+ 		return          // error reported elsewhere
+ 	}
+ 
+-	smap := makeSubstMap(origSig.RecvTypeParams().list(), rtyp.targs.list())
++	smap := makeSubstMap(origSig.RecvTypeParams().list(), rbase.targs.list())
+ 	sig := check.subst(orig.pos, origSig, smap, env).(*Signature)
+ 	if sig == origSig {
+-		// No substitution occurred, but we still need to create a copy to hold the
+-		// instantiated receiver.
++		// No substitution occurred, but we still need to create a new signature to
++		// hold the instantiated receiver.
+ 		copy := *origSig
+ 		sig = &copy
+ 	}
++	var rtyp Type
++	if ptrRecv(m) {
++		rtyp = NewPointer(rbase)
++	} else {
++		rtyp = rbase
++	}
+ 	sig.recv = NewParam(origSig.recv.pos, origSig.recv.pkg, origSig.recv.name, rtyp)
+ 
+ 	m.typ = sig

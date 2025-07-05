@@ -24,8 +24,315 @@ Date:   Tue Jul 30 21:39:57 2013 -0700
     R=golang-dev, bradfitz, khr, rsc
     CC=golang-dev
     https://golang.org/cl/12128044
-
+---
  src/pkg/runtime/hashmap.c        |  57 ++++++++++++-------
  src/pkg/runtime/hashmap_fast.c   | 120 +++++++++++++++++++++++++--------------
  src/pkg/runtime/mapspeed_test.go |  14 +++++
  3 files changed, 128 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index b4f940e335..7e0c9572dd 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -533,48 +533,65 @@ static uint8 empty_value[MAXVALUESIZE];
+ #define HASH_LOOKUP2 runtime·mapaccess2_fast32
+ #define KEYTYPE uint32
+ #define HASHFUNC runtime·algarray[AMEM32].hash
+-#define EQFUNC(x,y) ((x) == (y))
+-#define EQMAYBE(x,y) ((x) == (y))
+-#define HASMAYBE false
+-#define QUICKEQ(x) true
++#define FASTKEY(x) true
++#define QUICK_NE(x,y) ((x) != (y))
++#define QUICK_EQ(x,y) true
++#define SLOW_EQ(x,y) true
++#define MAYBE_EQ(x,y) true
+ #include "hashmap_fast.c"
+ 
+ #undef HASH_LOOKUP1
+ #undef HASH_LOOKUP2
+ #undef KEYTYPE
+ #undef HASHFUNC
+-#undef EQFUNC
+-#undef EQMAYBE
+-#undef HASMAYBE
+-#undef QUICKEQ
++#undef FASTKEY
++#undef QUICK_NE
++#undef QUICK_EQ
++#undef SLOW_EQ
++#undef MAYBE_EQ
+ 
+ #define HASH_LOOKUP1 runtime·mapaccess1_fast64
+ #define HASH_LOOKUP2 runtime·mapaccess2_fast64
+ #define KEYTYPE uint64
+ #define HASHFUNC runtime·algarray[AMEM64].hash
+-#define EQFUNC(x,y) ((x) == (y))
+-#define EQMAYBE(x,y) ((x) == (y))
+-#define HASMAYBE false
+-#define QUICKEQ(x) true
++#define FASTKEY(x) true
++#define QUICK_NE(x,y) ((x) != (y))
++#define QUICK_EQ(x,y) true
++#define SLOW_EQ(x,y) true
++#define MAYBE_EQ(x,y) true
+ #include "hashmap_fast.c"
+ 
+ #undef HASH_LOOKUP1
+ #undef HASH_LOOKUP2
+ #undef KEYTYPE
+ #undef HASHFUNC
+-#undef EQFUNC
+-#undef EQMAYBE
+-#undef HASMAYBE
+-#undef QUICKEQ
++#undef FASTKEY
++#undef QUICK_NE
++#undef QUICK_EQ
++#undef SLOW_EQ
++#undef MAYBE_EQ
++
++#ifdef GOARCH_amd64
++#define CHECKTYPE uint64
++#endif
++#ifdef GOARCH_386
++#define CHECKTYPE uint32
++#endif
++#ifdef GOARCH_arm
++// can't use uint32 on arm because our loads aren't aligned.
++// TODO: use uint32 for arm v6+?
++#define CHECKTYPE uint8
++#endif
+ 
+ #define HASH_LOOKUP1 runtime·mapaccess1_faststr
+ #define HASH_LOOKUP2 runtime·mapaccess2_faststr
+ #define KEYTYPE String
+ #define HASHFUNC runtime·algarray[ASTRING].hash
+-#define EQFUNC(x,y) ((x).len == (y).len && ((x).str == (y).str || runtime·memeq((x).str, (y).str, (x).len)))
+-#define EQMAYBE(x,y) ((x).len == (y).len)
+-#define HASMAYBE true
+-#define QUICKEQ(x) ((x).len < 32)
++#define FASTKEY(x) ((x).len < 32)
++#define QUICK_NE(x,y) ((x).len != (y).len)
++#define QUICK_EQ(x,y) ((x).str == (y).str)
++#define SLOW_EQ(x,y) runtime·memeq((x).str, (y).str, (x).len)
++#define MAYBE_EQ(x,y) (*(CHECKTYPE*)(x).str == *(CHECKTYPE*)(y).str && *(CHECKTYPE*)((x).str + (x).len - sizeof(CHECKTYPE)) == *(CHECKTYPE*)((y).str + (x).len - sizeof(CHECKTYPE)))
+ #include "hashmap_fast.c"
+ 
+ static void
+diff --git a/src/pkg/runtime/hashmap_fast.c b/src/pkg/runtime/hashmap_fast.c
+index fccd49ccb5..45a062d9cf 100644
+--- a/src/pkg/runtime/hashmap_fast.c
++++ b/src/pkg/runtime/hashmap_fast.c
+@@ -22,7 +22,6 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 	byte *v;
+ 	uint8 top;
+ 	int8 keymaybe;
+-	bool quickkey;
+ 
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess1_fastXXX: map=");
+@@ -43,37 +42,50 @@ HASH_LOOKUP1(MapType *t, Hmap *h, KEYTYPE key, byte *value)
+ 
+ 	if(h->B == 0) {
+ 		// One-bucket table. Don't hash, just check each bucket entry.
+-		if(HASMAYBE) {
+-			keymaybe = -1;
+-		}
+-		quickkey = QUICKEQ(key);
+ 		b = (Bucket*)h->buckets;
+-		for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-			if(b->tophash[i] != 0) {
+-				if(quickkey && EQFUNC(key, *k)) {
++		if(FASTKEY(key)) {
++			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++				if(b->tophash[i] == 0)
++					continue;
++				if(QUICK_NE(key, *k))
++					continue;
++				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
++					value = v;
++					FLUSH(&value);
++					return;
++				}
++			}
++		} else {
++			keymaybe = -1;
++			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++				if(b->tophash[i] == 0)
++					continue;
++				if(QUICK_NE(key, *k))
++					continue;
++				if(QUICK_EQ(key, *k)) {
+ 					value = v;
+ 					FLUSH(&value);
+ 					return;
+ 				}
+-				if(HASMAYBE && EQMAYBE(key, *k)) {
+-					// TODO: check if key.str matches. Add EQFUNCFAST?
++				if(MAYBE_EQ(key, *k)) {
+ 					if(keymaybe >= 0) {
+ 						// Two same-length strings in this bucket.
+ 						// use slow path.
+-						// TODO: keep track of more than just 1. Especially
+-						// if doing the TODO above.
++						// TODO: keep track of more than just 1.  We could
++						// afford about 3 equals calls before it would be more
++						// expensive than 1 hash + 1 equals.
+ 						goto dohash;
+ 					}
+ 					keymaybe = i;
+ 				}
+ 			}
+-		}
+-		if(HASMAYBE && keymaybe >= 0) {
+-			k = (KEYTYPE*)b->data + keymaybe;
+-			if(EQFUNC(key, *k)) {
+-				value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+-				FLUSH(&value);
+-				return;
++			if(keymaybe >= 0) {
++				k = (KEYTYPE*)b->data + keymaybe;
++				if(SLOW_EQ(key, *k)) {
++					value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
++					FLUSH(&value);
++					return;
++				}
+ 			}
+ 		}
+ 	} else {
+@@ -95,7 +107,11 @@ dohash:
+ 		}
+ 		do {
+ 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] == top && EQFUNC(key, *k)) {
++				if(b->tophash[i] != top)
++					continue;
++				if(QUICK_NE(key, *k))
++					continue;
++				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+ 					value = v;
+ 					FLUSH(&value);
+ 					return;
+@@ -118,7 +134,6 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 	byte *v;
+ 	uint8 top;
+ 	int8 keymaybe;
+-	bool quickkey;
+ 
+ 	if(debug) {
+ 		runtime·prints("runtime.mapaccess2_fastXXX: map=");
+@@ -140,42 +155,57 @@ HASH_LOOKUP2(MapType *t, Hmap *h, KEYTYPE key, byte *value, bool res)
+ 		check(t, h);
+ 
+ 	if(h->B == 0) {
+-		// One-bucket table.  Don't hash, just check each bucket entry.
+-		if(HASMAYBE) {
+-			keymaybe = -1;
+-		}
+-		quickkey = QUICKEQ(key);
++		// One-bucket table. Don't hash, just check each bucket entry.
+ 		b = (Bucket*)h->buckets;
+-		for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-			if(b->tophash[i] != 0) {
+-				if(quickkey && EQFUNC(key, *k)) {
++		if(FASTKEY(key)) {
++			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++				if(b->tophash[i] == 0)
++					continue;
++				if(QUICK_NE(key, *k))
++					continue;
++				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+ 					value = v;
+ 					res = true;
+ 					FLUSH(&value);
+ 					FLUSH(&res);
+ 					return;
+ 				}
+-				if(HASMAYBE && EQMAYBE(key, *k)) {
+-					// TODO: check if key.str matches. Add EQFUNCFAST?
++			}
++		} else {
++			keymaybe = -1;
++			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
++				if(b->tophash[i] == 0)
++					continue;
++				if(QUICK_NE(key, *k))
++					continue;
++				if(QUICK_EQ(key, *k)) {
++					value = v;
++					res = true;
++					FLUSH(&value);
++					FLUSH(&res);
++					return;
++				}
++				if(MAYBE_EQ(key, *k)) {
+ 					if(keymaybe >= 0) {
+ 						// Two same-length strings in this bucket.
+ 						// use slow path.
+-						// TODO: keep track of more than just 1. Especially
+-						// if doing the TODO above.
++						// TODO: keep track of more than just 1.  We could
++						// afford about 3 equals calls before it would be more
++						// expensive than 1 hash + 1 equals.
+ 						goto dohash;
+ 					}
+ 					keymaybe = i;
+ 				}
+ 			}
+-		}
+-		if(HASMAYBE && keymaybe >= 0) {
+-			k = (KEYTYPE*)b->data + keymaybe;
+-			if(EQFUNC(key, *k)) {
+-				value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
+-				res = true;
+-				FLUSH(&value);
+-				FLUSH(&res);
+-				return;
++			if(keymaybe >= 0) {
++				k = (KEYTYPE*)b->data + keymaybe;
++				if(SLOW_EQ(key, *k)) {
++					value = (byte*)((KEYTYPE*)b->data + BUCKETSIZE) + keymaybe * h->valuesize;
++					res = true;
++					FLUSH(&value);
++					FLUSH(&res);
++					return;
++				}
+ 			}
+ 		}
+ 	} else {
+@@ -197,7 +227,11 @@ dohash:
+ 		}
+ 		do {
+ 			for(i = 0, k = (KEYTYPE*)b->data, v = (byte*)(k + BUCKETSIZE); i < BUCKETSIZE; i++, k++, v += h->valuesize) {
+-				if(b->tophash[i] == top && EQFUNC(key, *k)) {
++				if(b->tophash[i] != top)
++					continue;
++				if(QUICK_NE(key, *k))
++					continue;
++				if(QUICK_EQ(key, *k) || SLOW_EQ(key, *k)) {
+ 					value = v;
+ 					res = true;
+ 					FLUSH(&value);
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index 13b57621d4..d643d98985 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -254,3 +254,17 @@ func BenchmarkMapIterEmpty(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func BenchmarkSameLengthMap(b *testing.B) {
++	// long strings, same length, differ in first few
++	// and last few bytes.
++	m := make(map[string]bool)
++	s1 := "foo" + strings.Repeat("-", 100) + "bar"
++	s2 := "goo" + strings.Repeat("-", 100) + "ber"
++	m[s1] = true
++	m[s2] = true
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_ = m[s1]
++	}
++}

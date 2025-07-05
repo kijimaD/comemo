@@ -12,7 +12,34 @@ Date:   Tue Nov 2 20:23:34 2021 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/go/testdata/script/mod_go_version_missing.txt | 2 +-
  src/go/build/build.go                                 | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_go_version_missing.txt b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+index d704816729..2159a1e4c0 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_missing.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_missing.txt
+@@ -27,7 +27,7 @@ cmp go.mod go.mod.orig
+ 
+ ! go list -mod=vendor all
+ ! stderr '^go: inconsistent vendoring'
+-stderr 'cannot find package "\." in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
++stderr 'cannot find package "vendor/example.com/badedit" in:\n\t.*[/\\]vendor[/\\]example.com[/\\]badedit$'
+ 
+ # When we set -mod=mod, the go version should be updated immediately,
+ # to the current version, converting the requirements from eager to lazy.
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 6f7260b78f..dce0304ba4 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -789,7 +789,7 @@ Found:
+ 		}
+ 
+ 		// package was not found
+-		return p, fmt.Errorf("cannot find package %q in:\n\t%s", path, p.Dir)
++		return p, fmt.Errorf("cannot find package %q in:\n\t%s", p.ImportPath, p.Dir)
+ 	}
+ 
+ 	if mode&FindOnly != 0 {

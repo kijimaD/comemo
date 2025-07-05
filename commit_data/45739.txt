@@ -19,6 +19,29 @@ Date:   Mon Nov 9 09:25:05 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/268417
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/io/fs/walk.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index e50c1bb15c..dfc73767bc 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -9,7 +9,7 @@ import (
+ 	"path"
+ )
+ 
+-// SkipDir is used as a return value from WalkFuncs to indicate that
++// SkipDir is used as a return value from WalkDirFuncs to indicate that
+ // the directory named in the call is to be skipped. It is not returned
+ // as an error by any function.
+ var SkipDir = errors.New("skip this directory")
+@@ -56,7 +56,7 @@ var SkipDir = errors.New("skip this directory")
+ // after a failed ReadDir and reports the error from ReadDir.
+ // (If ReadDir succeeds, there is no second call.)
+ //
+-// The differences between WalkDirFunc compared to WalkFunc are:
++// The differences between WalkDirFunc compared to filepath.WalkFunc are:
+ //
+ //   - The second argument has type fs.DirEntry instead of fs.FileInfo.
+ //   - The function is called before reading a directory, to allow SkipDir

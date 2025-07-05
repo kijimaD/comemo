@@ -16,9 +16,151 @@ Date:   Mon May 20 16:54:23 2024 -0400
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                 |  2 +-
  src/cmd/go.sum                                 |  4 ++--
  src/cmd/vendor/golang.org/x/telemetry/start.go | 31 ++++++++++++++------------
  src/cmd/vendor/modules.txt                     |  2 +-
  4 files changed, 21 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 05d9a1b62b..482c85e4ea 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68
++	golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 41c50d7a2b..6892b70f4d 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68 h1:UpbHwFpoVYf6i5cMzwsNuPGNsZzfJXFr8R4uUv2HVgk=
+-golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9 h1:YjhQ60ZAs9YrTY7Fz05TnZ8jS7kN+w50q4dihOdsqGM=
++golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 414c9fc5c9..426a18bb02 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -110,11 +110,15 @@ func Start(config Config) *StartResult {
+ 	}
+ 
+ 	// Crash monitoring and uploading both require a sidecar process.
+-	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
++	var (
++		reportCrashes = config.ReportCrashes && crashmonitor.Supported()
++		upload        = config.Upload && mode != "off"
++	)
++	if reportCrashes || upload {
+ 		switch v := os.Getenv(telemetryChildVar); v {
+ 		case "":
+ 			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
+-			parent(config, result)
++			parent(reportCrashes, result)
+ 		case "1":
+ 			// golang/go#67211: be sure to set telemetryChildVar before running the
+ 			// child, because the child itself invokes the go command to download the
+@@ -126,7 +130,7 @@ func Start(config Config) *StartResult {
+ 			// delegated go commands would fork themselves recursively. Short-circuit
+ 			// this recursion.
+ 			os.Setenv(telemetryChildVar, "2")
+-			child(config)
++			child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
+ 			os.Exit(0)
+ 		case "2":
+ 			// Do nothing: see note above.
+@@ -161,7 +165,7 @@ var daemonize = func(cmd *exec.Cmd) {}
+ // further forking should occur.
+ const telemetryChildVar = "X_TELEMETRY_CHILD"
+ 
+-func parent(config Config, result *StartResult) {
++func parent(reportCrashes bool, result *StartResult) {
+ 	// This process is the application (parent).
+ 	// Fork+exec the telemetry child.
+ 	exe, err := os.Executable()
+@@ -184,10 +188,9 @@ func parent(config Config, result *StartResult) {
+ 	// to gather the output of the parent.
+ 	//
+ 	// By default, we discard the child process's stderr,
+-	// but in line with the uploader, log to a file in local/debug
++	// but in line with the uploader, log to a file in debug
+ 	// only if that directory was created by the user.
+-	localDebug := filepath.Join(telemetry.Default.LocalDir(), "debug")
+-	fd, err := os.Stat(localDebug)
++	fd, err := os.Stat(telemetry.Default.DebugDir())
+ 	if err != nil {
+ 		if !os.IsNotExist(err) {
+ 			log.Fatalf("failed to stat debug directory: %v", err)
+@@ -195,7 +198,7 @@ func parent(config Config, result *StartResult) {
+ 	} else if fd.IsDir() {
+ 		// local/debug exists and is a directory. Set stderr to a log file path
+ 		// in local/debug.
+-		childLogPath := filepath.Join(localDebug, "sidecar.log")
++		childLogPath := filepath.Join(telemetry.Default.DebugDir(), "sidecar.log")
+ 		childLog, err := os.OpenFile(childLogPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+ 		if err != nil {
+ 			log.Fatalf("opening sidecar log file for child: %v", err)
+@@ -204,7 +207,7 @@ func parent(config Config, result *StartResult) {
+ 		cmd.Stderr = childLog
+ 	}
+ 
+-	if config.ReportCrashes {
++	if reportCrashes {
+ 		pipe, err := cmd.StdinPipe()
+ 		if err != nil {
+ 			log.Fatalf("StdinPipe: %v", err)
+@@ -223,7 +226,7 @@ func parent(config Config, result *StartResult) {
+ 	}()
+ }
+ 
+-func child(config Config) {
++func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL string) {
+ 	log.SetPrefix(fmt.Sprintf("telemetry-sidecar (pid %v): ", os.Getpid()))
+ 
+ 	// Start crashmonitoring and uploading depending on what's requested
+@@ -232,15 +235,15 @@ func child(config Config) {
+ 	// upload to finish before exiting
+ 	var g errgroup.Group
+ 
+-	if config.Upload {
++	if reportCrashes {
+ 		g.Go(func() error {
+-			uploaderChild(config.UploadStartTime, config.UploadURL)
++			crashmonitor.Child()
+ 			return nil
+ 		})
+ 	}
+-	if config.ReportCrashes {
++	if upload {
+ 		g.Go(func() error {
+-			crashmonitor.Child()
++			uploaderChild(uploadStartTime, uploadURL)
+ 			return nil
+ 		})
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 5c691b1fe6..d24a0f5e6a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240515213752-9ff3ad9b3e68
++# golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

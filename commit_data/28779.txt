@@ -14,6 +14,23 @@ Date:   Tue Jul 19 20:27:55 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/smtp/smtp.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index b4e4867a9e..9e04dd7c82 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -8,6 +8,11 @@
+ //	AUTH      RFC 2554
+ //	STARTTLS  RFC 3207
+ // Additional extensions may be handled by clients.
++//
++// The smtp package is frozen and not accepting new features.
++// Some external packages provide more functionality. See:
++//
++//   https://godoc.org/?q=smtp
+ package smtp
+ 
+ import (

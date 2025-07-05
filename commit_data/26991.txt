@@ -9,6 +9,28 @@ Date:   Mon Mar 7 10:44:05 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/ar.go | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ar.go b/src/cmd/internal/obj/ar.go
+deleted file mode 100644
+index 56bb959067..0000000000
+--- a/src/cmd/internal/obj/ar.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package obj
+-
+-type ar_hdr struct {
+-	name string
+-	date string
+-	uid  string
+-	gid  string
+-	mode string
+-	size string
+-	fmag string
+-}

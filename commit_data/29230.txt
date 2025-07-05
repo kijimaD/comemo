@@ -15,7 +15,59 @@ Date:   Thu Sep 1 16:00:25 2016 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go | 7 +++++++
  src/crypto/cipher/gcm.go  | 8 ++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index a894a68293..5e2de02710 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -99,6 +99,9 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
++	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
++		panic("cipher: message too large for GCM")
++	}
+ 
+ 	var counter, tagMask [gcmBlockSize]byte
+ 
+@@ -137,6 +140,10 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(ciphertext) < gcmTagSize {
+ 		return nil, errOpen
+ 	}
++	if uint64(len(ciphertext)) > ((1<<32)-2)*BlockSize+gcmTagSize {
++		return nil, errOpen
++	}
++
+ 	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+ 	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
+ 
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 3868d7123a..cfc5769a80 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -135,6 +135,10 @@ func (g *gcm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
++	if uint64(len(plaintext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize()) {
++		panic("cipher: message too large for GCM")
++	}
++
+ 	ret, out := sliceForAppend(dst, len(plaintext)+gcmTagSize)
+ 
+ 	var counter, tagMask [gcmBlockSize]byte
+@@ -159,6 +163,10 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(ciphertext) < gcmTagSize {
+ 		return nil, errOpen
+ 	}
++	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(g.cipher.BlockSize())+gcmTagSize {
++		return nil, errOpen
++	}
++
+ 	tag := ciphertext[len(ciphertext)-gcmTagSize:]
+ 	ciphertext = ciphertext[:len(ciphertext)-gcmTagSize]
+ 

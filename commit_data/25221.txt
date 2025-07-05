@@ -7,6 +7,20 @@ Date:   Sun Oct 4 21:34:27 2015 -0400
     Change-Id: I312e56e95d8ef8ae036d16444ab1e2df1285845d
     Reviewed-on: https://go-review.googlesource.com/15403
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcmark.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index cdcca5797c..261788c9d8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -202,7 +202,7 @@ func markrootSpans(gcw *gcWork, shard int) {
+ // allowAssist is true, may assist GC scanning in proportion to the
+ // allocations performed by this mutator since the last assist.
+ //
+-// It should only be called if gcAssistAlloc != 0.
++// It should only be called if gcBlackenEnabled != 0.
+ //
+ // This must be called with preemption disabled.
+ //go:nowritebarrier

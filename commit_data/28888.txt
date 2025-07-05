@@ -14,9 +14,95 @@ Date:   Thu Jul 7 15:32:49 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/decimal_test.go | 4 +++-
  src/net/dnsmsg_test.go       | 4 ++--
  src/net/ip_test.go           | 6 ++++--
  src/time/time_test.go        | 2 +-
  4 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/math/big/decimal_test.go b/src/math/big/decimal_test.go
+index 15bdb181e7..13452f8343 100644
+--- a/src/math/big/decimal_test.go
++++ b/src/math/big/decimal_test.go
+@@ -105,12 +105,14 @@ func TestDecimalRounding(t *testing.T) {
+ 	}
+ }
+ 
++var sink string
++
+ func BenchmarkDecimalConversion(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		for shift := -100; shift <= +100; shift++ {
+ 			var d decimal
+ 			d.init(natOne, shift)
+-			d.String()
++			sink = d.String()
+ 		}
+ 	}
+ }
+diff --git a/src/net/dnsmsg_test.go b/src/net/dnsmsg_test.go
+index 25bd98cff7..26e9485b20 100644
+--- a/src/net/dnsmsg_test.go
++++ b/src/net/dnsmsg_test.go
+@@ -117,7 +117,7 @@ func TestDNSParseSRVReply(t *testing.T) {
+ 	if !ok {
+ 		t.Fatal("unpacking packet failed")
+ 	}
+-	msg.String() // exercise this code path
++	_ = msg.String() // exercise this code path
+ 	if g, e := len(msg.answer), 5; g != e {
+ 		t.Errorf("len(msg.answer) = %d; want %d", g, e)
+ 	}
+@@ -165,7 +165,7 @@ func TestDNSParseCorruptSRVReply(t *testing.T) {
+ 	if !ok {
+ 		t.Fatal("unpacking packet failed")
+ 	}
+-	msg.String() // exercise this code path
++	_ = msg.String() // exercise this code path
+ 	if g, e := len(msg.answer), 5; g != e {
+ 		t.Errorf("len(msg.answer) = %d; want %d", g, e)
+ 	}
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index b6ac26da05..0ef46ee334 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -242,13 +242,15 @@ func TestIPString(t *testing.T) {
+ 	}
+ }
+ 
++var sink string
++
+ func BenchmarkIPString(b *testing.B) {
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range ipStringTests {
+ 			if tt.in != nil {
+-				tt.in.String()
++				sink = tt.in.String()
+ 			}
+ 		}
+ 	}
+@@ -299,7 +301,7 @@ func BenchmarkIPMaskString(b *testing.B) {
+ 
+ 	for i := 0; i < b.N; i++ {
+ 		for _, tt := range ipMaskStringTests {
+-			tt.in.String()
++			sink = tt.in.String()
+ 		}
+ 	}
+ }
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index b7ebb37296..fcc28ee99c 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -891,7 +891,7 @@ func TestLocationRace(t *testing.T) {
+ 	go func() {
+ 		c <- Now().String()
+ 	}()
+-	Now().String()
++	_ = Now().String()
+ 	<-c
+ 	Sleep(100 * Millisecond)
+ 

@@ -23,9 +23,142 @@ Date:   Wed Apr 8 14:16:26 2015 -0400
     Change-Id: Id97901ddd4d46970996f222bd79731dabff66a3d
     Reviewed-on: https://go-review.googlesource.com/8652
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os1_darwin.go      | 32 +++++++++++++++++++++++++++++++-
  src/runtime/os_darwin.go       |  2 +-
  src/runtime/rt0_darwin_amd64.s | 34 ++++++++++++++++++++++++++++++++++
  src/runtime/sys_darwin_amd64.s |  8 ++++----
  4 files changed, 70 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 6c79bbb204..9de6de9ff1 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -81,7 +81,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	var oset uint32
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	errno := bsdthread_create(stk, mp, mp.g0, funcPC(mstart))
++	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+ 	if errno < 0 {
+@@ -90,6 +90,36 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 	}
+ }
+ 
++// newosproc0 is a version of newosproc that can be called before the runtime
++// is initialized.
++//
++// As Go uses bsdthread_register when running without cgo, this function is
++// not safe to use after initialization as it does not pass an M as fnarg.
++//
++//go:nosplit
++func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
++	var dummy uint64
++	stack := sysAlloc(stacksize, &dummy)
++	if stack == nil {
++		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
++		exit(1)
++	}
++	stk := unsafe.Pointer(uintptr(stack) + stacksize)
++
++	var oset uint32
++	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
++	errno := bsdthread_create(stk, fn, fnarg)
++	sigprocmask(_SIG_SETMASK, &oset, nil)
++
++	if errno < 0 {
++		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
++		exit(1)
++	}
++}
++
++var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
++var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+ func mpreinit(mp *m) {
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 15f8f44935..573eb13531 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
++func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+ func bsdthread_register() int32
+ 
+ //go:noescape
+diff --git a/src/runtime/rt0_darwin_amd64.s b/src/runtime/rt0_darwin_amd64.s
+index 452d854558..8d50e96ee1 100644
+--- a/src/runtime/rt0_darwin_amd64.s
++++ b/src/runtime/rt0_darwin_amd64.s
+@@ -10,6 +10,40 @@ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
+ 	MOVQ	$main(SB), AX
+ 	JMP	AX
+ 
++// When linking with -shared, this symbol is called when the shared library
++// is loaded.
++TEXT _rt0_amd64_darwin_lib(SB),NOSPLIT,$40
++	MOVQ	DI, _rt0_amd64_darwin_lib_argc<>(SB)
++	MOVQ	SI, _rt0_amd64_darwin_lib_argv<>(SB)
++
++	// Create a new thread to do the runtime initialization and return.
++	MOVQ	_cgo_sys_thread_create(SB), AX
++	TESTQ	AX, AX
++	JZ	nocgo
++	MOVQ	$_rt0_amd64_darwin_lib_go(SB), DI
++	MOVQ	$0, SI
++	CALL	AX
++	RET
++nocgo:
++	MOVQ	$8388608, 0(SP)                    // stacksize
++	MOVQ	$_rt0_amd64_darwin_lib_go(SB), AX
++	MOVQ	AX, 8(SP)                          // fn
++	MOVQ	$0, 16(SP)                         // fnarg
++	MOVQ	$runtime·newosproc0(SB), AX
++	CALL	AX
++	RET
++
++TEXT _rt0_amd64_darwin_lib_go(SB),NOSPLIT,$0
++	MOVQ	_rt0_amd64_darwin_lib_argc<>(SB), DI
++	MOVQ	_rt0_amd64_darwin_lib_argv<>(SB), SI
++	MOVQ	$runtime·rt0_go(SB), AX
++	JMP	AX
++
++DATA _rt0_amd64_darwin_lib_argc<>(SB)/8, $0
++GLOBL _rt0_amd64_darwin_lib_argc<>(SB),NOPTR, $8
++DATA _rt0_amd64_darwin_lib_argv<>(SB)/8, $0
++GLOBL _rt0_amd64_darwin_lib_argv<>(SB),NOPTR, $8
++
+ TEXT main(SB),NOSPLIT,$-8
+ 	MOVQ	$runtime·rt0_go(SB), AX
+ 	JMP	AX
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 6ecd447edc..d28ac856ec 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -303,15 +303,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
+-// func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
++// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	// Set up arguments to bsdthread_create system call.
+ 	// The ones in quotes pass through to the thread callback
+ 	// uninterpreted, so we can put whatever we want there.
+-	MOVQ	fn+32(SP), DI	// "func"
+-	MOVQ	mm+16(SP), SI	// "arg"
++	MOVQ	fn+24(SP), DI	// "func"
++	MOVQ	arg+16(SP), SI	// "arg"
+ 	MOVQ	stk+8(SP), DX	// stack
+-	MOVQ	gg+24(SP), R10	// "pthread"
++	MOVQ	$0, R10		// "pthread", paranoia
+ 	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
+ 	MOVQ	$0, R9	// paranoia
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create

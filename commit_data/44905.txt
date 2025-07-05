@@ -29,8 +29,103 @@ Date:   Mon Sep 14 10:38:45 2020 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Keith Randall <khr@golang.org>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/alg.go  |  4 ++--
  src/cmd/compile/internal/gc/obj.go  | 26 +++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/subr.go |  2 +-
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index c9d71ea00b..6302b88f59 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -392,7 +392,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	}
+ 
+ 	fn.Func.SetNilCheckDisabled(true)
+-	funccompile(fn)
++	xtop = append(xtop, fn)
+ 
+ 	// Build closure. It doesn't close over any variables, so
+ 	// it contains just the function pointer.
+@@ -754,7 +754,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+ 	fn.Func.SetNilCheckDisabled(true)
+-	funccompile(fn)
++	xtop = append(xtop, fn)
+ 
+ 	// Generate a closure which points at the function we just generated.
+ 	dsymptr(closure, 0, sym.Linksym(), 0)
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index af5037c5a8..b55331a948 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -113,12 +113,16 @@ func dumpCompilerObj(bout *bio.Writer) {
+ 
+ func dumpdata() {
+ 	externs := len(externdcl)
++	xtops := len(xtop)
+ 
+ 	dumpglobls()
+ 	addptabs()
++	exportlistLen := len(exportlist)
+ 	addsignats(externdcl)
+ 	dumpsignats()
+ 	dumptabs()
++	ptabsLen := len(ptabs)
++	itabsLen := len(itabs)
+ 	dumpimportstrings()
+ 	dumpbasictypes()
+ 
+@@ -129,9 +133,19 @@ func dumpdata() {
+ 	// number of types in a finite amount of code.
+ 	// In the typical case, we loop 0 or 1 times.
+ 	// It was not until issue 24761 that we found any code that required a loop at all.
+-	for len(compilequeue) > 0 {
++	for {
++		for i := xtops; i < len(xtop); i++ {
++			n := xtop[i]
++			if n.Op == ODCLFUNC {
++				funccompile(n)
++			}
++		}
++		xtops = len(xtop)
+ 		compileFunctions()
+ 		dumpsignats()
++		if xtops == len(xtop) {
++			break
++		}
+ 	}
+ 
+ 	// Dump extra globals.
+@@ -149,6 +163,16 @@ func dumpdata() {
+ 	}
+ 
+ 	addGCLocals()
++
++	if exportlistLen != len(exportlist) {
++		Fatalf("exportlist changed after compile functions loop")
++	}
++	if ptabsLen != len(ptabs) {
++		Fatalf("ptabs changed after compile functions loop")
++	}
++	if itabsLen != len(itabs) {
++		Fatalf("itabs changed after compile functions loop")
++	}
+ }
+ 
+ func dumpLinkerObj(bout *bio.Writer) {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d3ba53ff0c..5a5833d19f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1615,7 +1615,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	escapeFuncs([]*Node{fn}, false)
+ 
+ 	Curfn = nil
+-	funccompile(fn)
++	xtop = append(xtop, fn)
+ }
+ 
+ func paramNnames(ft *types.Type) []*Node {

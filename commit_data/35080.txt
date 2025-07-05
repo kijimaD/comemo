@@ -10,6 +10,19 @@ Date:   Mon Dec 11 12:11:19 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/83257
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 74e2d8da81..732628ccd8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5150,6 +5150,7 @@ func TestTestCacheInputs(t *testing.T) {
+ 	tg.setenv("GOCACHE", tg.path("cache"))
+ 
+ 	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"))
++	defer os.Remove(filepath.Join(tg.pwd(), "testdata/src/testcache/script.sh"))
+ 	tg.must(ioutil.WriteFile(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), []byte("x"), 0644))
+ 	old := time.Now().Add(-1 * time.Minute)
+ 	tg.must(os.Chtimes(filepath.Join(tg.pwd(), "testdata/src/testcache/file.txt"), old, old))

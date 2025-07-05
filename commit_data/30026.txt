@@ -13,8 +13,114 @@ Date:   Fri Oct 21 11:43:12 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/http.go       | 25 +++++++++++++++++++++++++
  src/net/http/serve_test.go | 27 +++++++++------------------
  src/net/http/server.go     |  2 +-
  3 files changed, 35 insertions(+), 19 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index b2130b11a8..7e0b77506b 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -5,6 +5,7 @@
+ package http
+ 
+ import (
++	"strconv"
+ 	"strings"
+ 	"time"
+ 	"unicode/utf8"
+@@ -56,3 +57,27 @@ func isASCII(s string) bool {
+ 	}
+ 	return true
+ }
++
++func hexEscapeNonASCII(s string) string {
++	newLen := 0
++	for i := 0; i < len(s); i++ {
++		if s[i] >= utf8.RuneSelf {
++			newLen += 3
++		} else {
++			newLen++
++		}
++	}
++	if newLen == len(s) {
++		return s
++	}
++	b := make([]byte, 0, newLen)
++	for i := 0; i < len(s); i++ {
++		if s[i] >= utf8.RuneSelf {
++			b = append(b, '%')
++			b = strconv.AppendInt(b, int64(s[i]), 16)
++		} else {
++			b = append(b, s[i])
++		}
++	}
++	return string(b)
++}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5e12902ba7..2bdef9080a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2050,23 +2050,6 @@ func TestTimeoutHandlerEmptyResponse(t *testing.T) {
+ 	}
+ }
+ 
+-// Verifies we don't path.Clean() on the wrong parts in redirects.
+-func TestRedirectMunging(t *testing.T) {
+-	req, _ := NewRequest("GET", "http://example.com/", nil)
+-
+-	resp := httptest.NewRecorder()
+-	Redirect(resp, req, "/foo?next=http://bar.com/", 302)
+-	if g, e := resp.Header().Get("Location"), "/foo?next=http://bar.com/"; g != e {
+-		t.Errorf("Location header was %q; want %q", g, e)
+-	}
+-
+-	resp = httptest.NewRecorder()
+-	Redirect(resp, req, "http://localhost:8080/_ah/login?continue=http://localhost:8080/", 302)
+-	if g, e := resp.Header().Get("Location"), "http://localhost:8080/_ah/login?continue=http://localhost:8080/"; g != e {
+-		t.Errorf("Location header was %q; want %q", g, e)
+-	}
+-}
+-
+ func TestRedirectBadPath(t *testing.T) {
+ 	// This used to crash. It's not valid input (bad path), but it
+ 	// shouldn't crash.
+@@ -2085,7 +2068,7 @@ func TestRedirectBadPath(t *testing.T) {
+ }
+ 
+ // Test different URL formats and schemes
+-func TestRedirectURLFormat(t *testing.T) {
++func TestRedirect(t *testing.T) {
+ 	req, _ := NewRequest("GET", "http://example.com/qux/", nil)
+ 
+ 	var tests = []struct {
+@@ -2108,6 +2091,14 @@ func TestRedirectURLFormat(t *testing.T) {
+ 		{"../quux/foobar.com/baz", "/quux/foobar.com/baz"},
+ 		// incorrect number of slashes
+ 		{"///foobar.com/baz", "/foobar.com/baz"},
++
++		// Verifies we don't path.Clean() on the wrong parts in redirects:
++		{"/foo?next=http://bar.com/", "/foo?next=http://bar.com/"},
++		{"http://localhost:8080/_ah/login?continue=http://localhost:8080/",
++			"http://localhost:8080/_ah/login?continue=http://localhost:8080/"},
++
++		{"/фубар", "/%d1%84%d1%83%d0%b1%d0%b0%d1%80"},
++		{"http://foo.com/фубар", "http://foo.com/%d1%84%d1%83%d0%b1%d0%b0%d1%80"},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 3c6b96c5be..ad89d0cfbe 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1890,7 +1890,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+ 		}
+ 	}
+ 
+-	w.Header().Set("Location", urlStr)
++	w.Header().Set("Location", hexEscapeNonASCII(urlStr))
+ 	w.WriteHeader(code)
+ 
+ 	// RFC 2616 recommends that a short note "SHOULD" be included in the

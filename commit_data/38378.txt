@@ -9,7 +9,63 @@ Date:   Tue Oct 23 16:01:43 2018 -0700
     Change-Id: I16263ac6c0b8903b8a16f02e8db0e1a16d1c95b4
     Reviewed-on: https://go-review.googlesource.com/c/144261
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 11 ++++++++---
  test/fixedbugs/issue27938.go         | 23 +++++++++++++++++++++++
  2 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8a42fcefd1..135377c9e2 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -819,13 +819,18 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
+ 		return name
+ 	case *syntax.SelectorExpr:
+ 		name := p.name(expr.X.(*syntax.Name))
++		def := asNode(name.Def)
++		if def == nil {
++			yyerror("undefined: %v", name)
++			return name
++		}
+ 		var pkg *types.Pkg
+-		if asNode(name.Def) == nil || asNode(name.Def).Op != OPACK {
++		if def.Op != OPACK {
+ 			yyerror("%v is not a package", name)
+ 			pkg = localpkg
+ 		} else {
+-			asNode(name.Def).Name.SetUsed(true)
+-			pkg = asNode(name.Def).Name.Pkg
++			def.Name.SetUsed(true)
++			pkg = def.Name.Pkg
+ 		}
+ 		return restrictlookup(expr.Sel.Value, pkg)
+ 	}
+diff --git a/test/fixedbugs/issue27938.go b/test/fixedbugs/issue27938.go
+new file mode 100644
+index 0000000000..b0007be928
+--- /dev/null
++++ b/test/fixedbugs/issue27938.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we get a single non-confusing error
++// message for embedded fields/interfaces that use
++// a qualified identifier with non-existing package.
++
++package p
++
++type _ struct {
++	F sync.Mutex // ERROR "undefined: sync"
++}
++
++type _ struct {
++	sync.Mutex // ERROR "undefined: sync"
++}
++
++type _ interface {
++	sync.Mutex // ERROR "undefined: sync"
++}

@@ -7,6 +7,19 @@ Date:   Thu Jan 20 12:56:32 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3999046
-
+---
  src/pkg/net/fd_windows.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index f3e5761c87..9b91eb398c 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -11,7 +11,6 @@ import (
+ 	"syscall"
+ 	"time"
+ 	"unsafe"
+-	"runtime"
+ )
+ 
+ // IO completion result parameters.

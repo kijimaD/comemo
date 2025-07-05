@@ -13,7 +13,38 @@ Date:   Thu Dec 29 14:16:10 2022 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  api/next/56921.txt    | 2 ++
  src/crypto/rsa/rsa.go | 4 ++--
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/56921.txt b/api/next/56921.txt
+new file mode 100644
+index 0000000000..8faea42557
+--- /dev/null
++++ b/api/next/56921.txt
+@@ -0,0 +1,2 @@
++pkg crypto/rsa, func GenerateMultiPrimeKey //deprecated #56921
++pkg crypto/rsa, type PrecomputedValues struct, CRTValues //deprecated #56921
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 11f87e8e49..adb76b6ce5 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -204,7 +204,7 @@ type PrecomputedValues struct {
+ 	// differently in PKCS #1 and interoperability is sufficiently
+ 	// important that we mirror this.
+ 	//
+-	// Note: these values are still filled in by Precompute for
++	// Deprecated: These values are still filled in by Precompute for
+ 	// backwards compatibility but are not used. Multi-prime RSA is very rare,
+ 	// and is implemented by this package without CRT optimizations to limit
+ 	// complexity.
+@@ -278,7 +278,7 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ // This package does not implement CRT optimizations for multi-prime RSA, so the
+ // keys with more than two primes will have worse performance.
+ //
+-// Note: The use of this function with a number of primes different from
++// Deprecated: The use of this function with a number of primes different from
+ // two is not recommended for the above security, compatibility, and performance
+ // reasons. Use GenerateKey instead.
+ //

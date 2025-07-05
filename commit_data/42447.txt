@@ -11,6 +11,20 @@ Date:   Tue Dec 24 10:03:33 2019 +0000
     GitHub-Pull-Request: golang/go#36270
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212410
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 31cb6f721a..2ad40dfe02 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -173,7 +173,7 @@ func TestAvoidDNSName(t *testing.T) {
+ 
+ 		// Without stuff before onion/local, they're fine to
+ 		// use DNS. With a search path,
+-		// "onion.vegegtables.com" can use DNS. Without a
++		// "onion.vegetables.com" can use DNS. Without a
+ 		// search path (or with a trailing dot), the queries
+ 		// are just kinda useless, but don't reveal anything
+ 		// private.

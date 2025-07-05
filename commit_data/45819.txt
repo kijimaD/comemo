@@ -14,7 +14,50 @@ Date:   Fri Nov 20 14:09:01 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
  test/fixedbugs/issue42727.go                 | 23 +++++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 3681af6599..180afab33b 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -247,7 +247,7 @@ func expandCalls(f *Func) {
+ 			// i.e., the struct select is generated and remains in because it is not applied to an actual structure.
+ 			// The OpLoad was created to load the single field of the IData
+ 			// This case removes that StructSelect.
+-			if leafType != selector.Type {
++			if leafType != selector.Type && !selector.Type.IsEmptyInterface() { // empty interface for #42727
+ 				f.Fatalf("Unexpected Load as selector, leaf=%s, selector=%s\n", leaf.LongString(), selector.LongString())
+ 			}
+ 			leaf.copyOf(selector)
+diff --git a/test/fixedbugs/issue42727.go b/test/fixedbugs/issue42727.go
+new file mode 100644
+index 0000000000..40081708b1
+--- /dev/null
++++ b/test/fixedbugs/issue42727.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure that late expansion correctly handles an OpLoad with type interface{}
++
++package p
++
++type iface interface {
++	m()
++}
++
++type it interface{}
++
++type makeIface func() iface
++
++func f() {
++	var im makeIface
++	e := im().(it)
++	_ = &e
++}

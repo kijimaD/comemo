@@ -7,7 +7,7 @@ Date:   Mon Jan 26 16:57:24 2009 -0800
     R=ken
     OCL=23528
     CL=23528
-
+---
  src/cmd/gc/dcl.c                            |  2 +-
  src/cmd/gc/go.h                             |  1 +
  src/cmd/gc/go.y                             | 20 ++++++++++++++------
@@ -17,3 +17,125 @@ Date:   Mon Jan 26 16:57:24 2009 -0800
  test/{bugs => fixedbugs}/bug133.go          |  0
  test/golden.out                             |  8 +++++---
  8 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 12123b4a5e..a60637c258 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -517,7 +517,7 @@ loop:
+ 		f->embedded = n->embedded;
+ 		f->sym = f->nname->sym;
+ 		if(pkgimportname != S && !exportname(f->sym->name))
+-			f->sym = pkglookup(f->sym->name, pkgimportname->name);
++			f->sym = pkglookup(f->sym->name, pkgcontext);
+ 	}
+ 
+ 	*t = f;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6dc8393bd7..e1f64b5424 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -504,6 +504,7 @@ EXTERN	Node*	fskel;
+ EXTERN	Node*	addtop;
+ 
+ EXTERN	char*	context;
++EXTERN	char*	pkgcontext;
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
+ EXTERN	char*	hunk;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0a7cd0813b..ac764b94d8 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -80,7 +80,7 @@
+ %type	<node>		hidden_interfacedcl_list ohidden_interfacedcl_list hidden_interfacedcl_list_r
+ %type	<node>		hidden_interfacedcl
+ %type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
+-%type	<node>		hidden_funres ohidden_funres hidden_importsym
++%type	<node>		hidden_funres ohidden_funres hidden_importsym hidden_pkg_importsym
+ 
+ %left			LOROR
+ %left			LANDAND
+@@ -1730,23 +1730,23 @@ oliteral:
+ hidden_import:
+ 	LPACKAGE sym1
+ 	/* variables */
+-|	LVAR hidden_importsym hidden_type
++|	LVAR hidden_pkg_importsym hidden_type
+ 	{
+ 		importvar($2, $3);
+ 	}
+-|	LCONST hidden_importsym '=' hidden_constant
++|	LCONST hidden_pkg_importsym '=' hidden_constant
+ 	{
+ 		importconst($2, T, &$4);
+ 	}
+-|	LCONST hidden_importsym hidden_type '=' hidden_constant
++|	LCONST hidden_pkg_importsym hidden_type '=' hidden_constant
+ 	{
+ 		importconst($2, $3, &$5);
+ 	}
+-|	LTYPE hidden_importsym hidden_type
++|	LTYPE hidden_pkg_importsym hidden_type
+ 	{
+ 		importtype($2, $3);
+ 	}
+-|	LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
++|	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+ 		importvar($2, functype(N, $4, $6));
+ 	}
+@@ -1920,6 +1920,14 @@ hidden_importsym:
+ 		$$->sym = $3;
+ 	}
+ 
++hidden_pkg_importsym:
++	hidden_importsym
++	{
++		$$ = $1;
++		pkgcontext = $$->psym->name;
++	}
++
++
+ /*
+  * helpful error messages.
+  * THIS SECTION MUST BE AT THE END OF THE FILE.
+diff --git a/test/bugs/bug133.dir/bug0.go b/test/fixedbugs/bug133.dir/bug0.go
+similarity index 100%
+rename from test/bugs/bug133.dir/bug0.go
+rename to test/fixedbugs/bug133.dir/bug0.go
+diff --git a/test/bugs/bug133.dir/bug1.go b/test/fixedbugs/bug133.dir/bug1.go
+similarity index 100%
+rename from test/bugs/bug133.dir/bug1.go
+rename to test/fixedbugs/bug133.dir/bug1.go
+diff --git a/test/bugs/bug133.dir/bug2.go b/test/fixedbugs/bug133.dir/bug2.go
+similarity index 100%
+rename from test/bugs/bug133.dir/bug2.go
+rename to test/fixedbugs/bug133.dir/bug2.go
+diff --git a/test/bugs/bug133.go b/test/fixedbugs/bug133.go
+similarity index 100%
+rename from test/bugs/bug133.go
+rename to test/fixedbugs/bug133.go
+diff --git a/test/golden.out b/test/golden.out
+index c52f213823..d70df181d3 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -181,9 +181,6 @@ BUG: should not compile
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug133.go
+-BUG: succeeds incorrectly
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 
+@@ -302,3 +299,8 @@ SIGSEGV: segmentation violation
+ Faulting address: 0x0
+ pc: xxx
+ 
++
++=========== fixedbugs/bug133.go
++fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
++fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
++	int

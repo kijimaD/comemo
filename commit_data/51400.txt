@@ -16,9 +16,66 @@ Date:   Tue Jan 18 22:30:03 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go      | 4 +++-
  src/cmd/compile/internal/types2/validtype.go | 2 +-
  src/go/types/decl.go                         | 4 +++-
  src/go/types/validtype.go                    | 2 +-
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index ab2983c80f..41093cb637 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -477,7 +477,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	var rhs Type
+ 	check.later(func() {
+-		check.validType(obj.typ)
++		if t, _ := obj.typ.(*Named); t != nil { // type may be invalid
++			check.validType(t)
++		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+ 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
+ 			check.versionErrorf(tdecl.Type, "go1.18", "using type constraint %s", rhs)
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index 9cb427b44d..c7f7c13169 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -9,7 +9,7 @@ package types2
+ // defined types.
+ // (Cycles involving alias types, as in "type A = [10]A" are detected
+ // earlier, via the objDecl cycle detection mechanism.)
+-func (check *Checker) validType(typ Type) {
++func (check *Checker) validType(typ *Named) {
+ 	check.validType0(typ, nil)
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index a9e89464f6..043f02491d 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -530,7 +530,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 
+ 	var rhs Type
+ 	check.later(func() {
+-		check.validType(obj.typ)
++		if t, _ := obj.typ.(*Named); t != nil { // type may be invalid
++			check.validType(t)
++		}
+ 		// If typ is local, an error was already reported where typ is specified/defined.
+ 		if check.isImportedConstraint(rhs) && !check.allowVersion(check.pkg, 1, 18) {
+ 			check.errorf(tdecl.Type, _UnsupportedFeature, "using type constraint %s requires go1.18 or later", rhs)
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index d20a2b5bfa..c0e6ee34f6 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -9,7 +9,7 @@ package types
+ // defined types.
+ // (Cycles involving alias types, as in "type A = [10]A" are detected
+ // earlier, via the objDecl cycle detection mechanism.)
+-func (check *Checker) validType(typ Type) {
++func (check *Checker) validType(typ *Named) {
+ 	check.validType0(typ, nil)
+ }
+ 

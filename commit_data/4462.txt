@@ -7,7 +7,36 @@ Date:   Fri Dec 18 10:51:47 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/179099
-
+---
  src/pkg/exp/parser/parser.go | 3 ---
  src/pkg/go/parser/parser.go  | 3 ---
  2 files changed, 6 deletions(-)
+
+diff --git a/src/pkg/exp/parser/parser.go b/src/pkg/exp/parser/parser.go
+index 199334b1bf..70dbb69215 100644
+--- a/src/pkg/exp/parser/parser.go
++++ b/src/pkg/exp/parser/parser.go
+@@ -1284,9 +1284,6 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 		pos, tok := p.pos, p.tok
+ 		p.next()
+ 		y := p.parseExprList()
+-		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
+-			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs")
+-		}
+ 		return &ast.AssignStmt{x, pos, tok, y}
+ 	}
+ 
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index bd7ca158ef..fca46b19a5 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1238,9 +1238,6 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
+ 		pos, tok := p.pos, p.tok
+ 		p.next()
+ 		y := p.parseExprList()
+-		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
+-			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs")
+-		}
+ 		return &ast.AssignStmt{x, pos, tok, y}
+ 	}
+ 

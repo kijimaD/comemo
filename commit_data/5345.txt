@@ -7,8 +7,152 @@ Date:   Mon Apr 26 10:36:05 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1004043
-
+---
  src/pkg/net/Makefile     |  1 +
  src/pkg/net/pipe.go      | 62 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/pipe_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 120 insertions(+)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index f5e78fb84c..95360539b6 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -16,6 +16,7 @@ GOFILES=\
+ 	ipsock.go\
+ 	net.go\
+ 	parse.go\
++	pipe.go\
+ 	port.go\
+ 	sock.go\
+ 	tcpsock.go\
+diff --git a/src/pkg/net/pipe.go b/src/pkg/net/pipe.go
+new file mode 100644
+index 0000000000..c0bbd356b3
+--- /dev/null
++++ b/src/pkg/net/pipe.go
+@@ -0,0 +1,62 @@
++package net
++
++import (
++	"io"
++	"os"
++)
++
++// Pipe creates a synchronous, in-memory, full duplex
++// network connection; both ends implement the Conn interface.
++// Reads on one end are matched with writes on the other,
++// copying data directly between the two; there is no internal
++// buffering.
++func Pipe() (Conn, Conn) {
++	r1, w1 := io.Pipe()
++	r2, w2 := io.Pipe()
++
++	return &pipe{r1, w2}, &pipe{r2, w1}
++}
++
++type pipe struct {
++	*io.PipeReader
++	*io.PipeWriter
++}
++
++type pipeAddr int
++
++func (pipeAddr) Network() string {
++	return "pipe"
++}
++
++func (pipeAddr) String() string {
++	return "pipe"
++}
++
++func (p *pipe) Close() os.Error {
++	err := p.PipeReader.Close()
++	err1 := p.PipeWriter.Close()
++	if err == nil {
++		err = err1
++	}
++	return err
++}
++
++func (p *pipe) LocalAddr() Addr {
++	return pipeAddr(0)
++}
++
++func (p *pipe) RemoteAddr() Addr {
++	return pipeAddr(0)
++}
++
++func (p *pipe) SetTimeout(nsec int64) os.Error {
++	return os.NewError("net.Pipe does not support timeouts")
++}
++
++func (p *pipe) SetReadTimeout(nsec int64) os.Error {
++	return os.NewError("net.Pipe does not support timeouts")
++}
++
++func (p *pipe) SetWriteTimeout(nsec int64) os.Error {
++	return os.NewError("net.Pipe does not support timeouts")
++}
+diff --git a/src/pkg/net/pipe_test.go b/src/pkg/net/pipe_test.go
+new file mode 100644
+index 0000000000..7e4c6db443
+--- /dev/null
++++ b/src/pkg/net/pipe_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"bytes"
++	"io"
++	"os"
++	"testing"
++)
++
++func checkWrite(t *testing.T, w io.Writer, data []byte, c chan int) {
++	n, err := w.Write(data)
++	if err != nil {
++		t.Errorf("write: %v", err)
++	}
++	if n != len(data) {
++		t.Errorf("short write: %d != %d", n, len(data))
++	}
++	c <- 0
++}
++
++func checkRead(t *testing.T, r io.Reader, data []byte, wantErr os.Error) {
++	buf := make([]byte, len(data)+10)
++	n, err := r.Read(buf)
++	if err != wantErr {
++		t.Errorf("read: %v", err)
++		return
++	}
++	if n != len(data) || !bytes.Equal(buf[0:n], data) {
++		t.Errorf("bad read: got %q", buf[0:n])
++		return
++	}
++}
++
++// Test a simple read/write/close sequence.
++// Assumes that the underlying io.Pipe implementation
++// is solid and we're just testing the net wrapping.
++
++func TestPipe(t *testing.T) {
++	c := make(chan int)
++	cli, srv := Pipe()
++	go checkWrite(t, cli, []byte("hello, world"), c)
++	checkRead(t, srv, []byte("hello, world"), nil)
++	<-c
++	go checkWrite(t, srv, []byte("line 2"), c)
++	checkRead(t, cli, []byte("line 2"), nil)
++	<-c
++	go checkWrite(t, cli, []byte("a third line"), c)
++	checkRead(t, srv, []byte("a third line"), nil)
++	<-c
++	go srv.Close()
++	checkRead(t, cli, nil, os.EOF)
++	cli.Close()
++}

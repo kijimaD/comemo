@@ -7,7 +7,34 @@ Date:   Tue Mar 29 14:03:08 2011 -0700
     R=rsc, agl, agl1
     CC=golang-dev
     https://golang.org/cl/4337041
-
+---
  src/cmd/gofix/fix.go               | 2 +-
  src/pkg/crypto/ecdsa/ecdsa_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gofix/fix.go b/src/cmd/gofix/fix.go
+index 93cbc94e21..57c87531eb 100644
+--- a/src/cmd/gofix/fix.go
++++ b/src/cmd/gofix/fix.go
+@@ -39,7 +39,7 @@ func rewrite(x interface{}, visit func(interface{})) {
+ 
+ 	// everything else just recurses
+ 	default:
+-		panic(fmt.Errorf("unexpected type %T in walk", x, visit))
++		panic(fmt.Errorf("unexpected type %T in walk", x))
+ 
+ 	case nil:
+ 
+diff --git a/src/pkg/crypto/ecdsa/ecdsa_test.go b/src/pkg/crypto/ecdsa/ecdsa_test.go
+index 24c1d735bd..d6b4039142 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa_test.go
++++ b/src/pkg/crypto/ecdsa/ecdsa_test.go
+@@ -20,7 +20,7 @@ func testKeyGeneration(t *testing.T, c *elliptic.Curve, tag string) {
+ 		return
+ 	}
+ 	if !c.IsOnCurve(priv.PublicKey.X, priv.PublicKey.Y) {
+-		t.Errorf("%s: public key invalid", tag, err)
++		t.Errorf("%s: public key invalid: %s", tag, err)
+ 	}
+ }
+ 

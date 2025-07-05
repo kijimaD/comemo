@@ -7,6 +7,59 @@ Date:   Tue Apr 12 16:21:01 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4390047
-
+---
  src/cmd/8l/asm.c | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 4f37df5e43..b9bd0dae99 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -307,6 +307,7 @@ elfsetupplt(void)
+ int
+ archreloc(Reloc *r, Sym *s, vlong *val)
+ {
++	USED(s);
+ 	switch(r->type) {
+ 	case D_CONST:
+ 		*val = r->add;
+@@ -644,7 +645,7 @@ asmb(void)
+ {
+ 	int32 v, magic;
+ 	int a, dynsym;
+-	uint32 va, fo, w, symo, startva, machlink;
++	uint32 symo, startva, machlink;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -776,7 +777,6 @@ asmb(void)
+ 		lputb(0L);
+ 		lputb(~0L);			/* gp value ?? */
+ 		break;
+-		lputl(0);			/* x */
+ 	case Hunixcoff:	/* unix coff */
+ 		/*
+ 		 * file header
+@@ -892,13 +892,10 @@ asmb(void)
+ 			debug['d'] = 1;
+ 
+ 		eh = getElfEhdr();
+-		fo = HEADR;
+ 		startva = INITTEXT - HEADR;
+-		va = startva + fo;
+-		w = segtext.filelen;
+ 
+ 		/* This null SHdr must appear before all others */
+-		sh = newElfShdr(elfstr[ElfStrEmpty]);
++		newElfShdr(elfstr[ElfStrEmpty]);
+ 
+ 		/* program header info */
+ 		pph = newElfPhdr();
+@@ -1214,6 +1211,6 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+ 	}
+ 	if(debug['v'] || debug['n'])
+-		Bprint(&bso, "symsize = %ud\n", symsize);
++		Bprint(&bso, "symsize = %uld\n", symsize);
+ 	Bflush(&bso);
+ }

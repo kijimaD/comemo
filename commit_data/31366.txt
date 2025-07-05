@@ -21,8 +21,68 @@ Date:   Tue Feb 14 11:01:04 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/36955
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 11 +++++++++++
  src/cmd/compile/internal/gc/walk.go     |  3 ---
  test/fixedbugs/issue19084.go            | 17 +++++++++++++++++
  3 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 7cffae0e5f..4373cfa6b6 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -314,6 +314,17 @@ func f(t *T) {
+ 		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+ 	},
+ 	// TODO: add a test for *t = T{3,4,5} when we fix that.
++	// Also test struct containing pointers (this was special because of write barriers).
++	{"amd64", "linux", `
++type T struct {
++	a, b, c *int
++}
++func f(t *T) {
++	*t = T{}
++}
++`,
++		[]string{"\tMOVQ\t\\$0, \\(.*\\)", "\tMOVQ\t\\$0, 8\\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
++	},
+ 
+ 	// Rotate tests
+ 	{"amd64", "linux", `
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index bf7f253517..28b430f22d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1539,9 +1539,6 @@ opswitch:
+ 		n = r
+ 
+ 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
+-		if n.Op == OSTRUCTLIT && iszero(n) && !instrumenting { // TODO: SSA doesn't yet handle ARRAYLIT with length > 1
+-			break
+-		}
+ 		if isStaticCompositeLiteral(n) {
+ 			// n can be directly represented in the read-only data section.
+ 			// Make direct reference to the static data. See issue 12841.
+diff --git a/test/fixedbugs/issue19084.go b/test/fixedbugs/issue19084.go
+new file mode 100644
+index 0000000000..ba5306320b
+--- /dev/null
++++ b/test/fixedbugs/issue19084.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 19084: SSA doesn't handle CONVNOP STRUCTLIT
++
++package p
++
++type T struct {
++	a, b, c, d, e, f, g, h int // big, not SSA-able
++}
++
++func f() {
++	_ = T(T{})
++}

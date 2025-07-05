@@ -17,6 +17,29 @@ Date:   Tue Oct 24 21:14:39 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 26ce209f1c..377b4a4df2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1105,10 +1105,13 @@ func (ctxt *Link) hostlink() {
+ 	switch ctxt.BuildMode {
+ 	case BuildModeExe:
+ 		if ctxt.HeadType == objabi.Hdarwin {
+-			// __PAGEZERO segment size determined empirically.
+-			// XCode 9.0.1 successfully uploads an iOS app with this value.
+-			// Also works for macOS apps.
+-			argv = append(argv, "-Wl,-pagezero_size,100000000")
++			if ctxt.Arch.Family == sys.ARM64 {
++				// __PAGEZERO segment size determined empirically.
++				// XCode 9.0.1 successfully uploads an iOS app with this value.
++				argv = append(argv, "-Wl,-pagezero_size,100000000")
++			} else {
++				argv = append(argv, "-Wl,-pagezero_size,4000000")
++			}
+ 		}
+ 	case BuildModePIE:
+ 		// ELF.

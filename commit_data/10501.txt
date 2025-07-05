@@ -9,7 +9,65 @@ Date:   Thu Nov 24 16:07:19 2011 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5436063
-
+---
  src/pkg/text/template/multi_test.go |  9 +++++++++
  src/pkg/text/template/template.go   | 14 +++++++++-----
  2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index 1f6385da49..bf4f3078b3 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -230,6 +230,15 @@ func TestClone(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	// Verify that the clone is self-consistent.
++	for k, v := range clone.tmpl {
++		if k == clone.name && v.tmpl[k] != clone {
++			t.Error("clone does not contain root")
++		}
++		if v != v.tmpl[v.name] {
++			t.Errorf("clone does not contain self for %q", k)
++		}
++	}
+ 	// Execute root.
+ 	var b bytes.Buffer
+ 	err = root.ExecuteTemplate(&b, "a", 0)
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index 26c0c90307..27b8707151 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -73,12 +73,15 @@ func (t *Template) init() {
+ // common templates and use them with variant definitions for other templates by
+ // adding the variants after the clone is made.
+ func (t *Template) Clone() *Template {
+-	nt := t.copy()
++	nt := t.copy(nil)
+ 	nt.init()
++	nt.tmpl[t.name] = nt
+ 	for k, v := range t.tmpl {
++		if k == t.name { // Already installed.
++			continue
++		}
+ 		// The associated templates share nt's common structure.
+-		tmpl := v.copy()
+-		tmpl.common = nt.common
++		tmpl := v.copy(nt.common)
+ 		nt.tmpl[k] = tmpl
+ 	}
+ 	for k, v := range t.parseFuncs {
+@@ -90,10 +93,11 @@ func (t *Template) Clone() *Template {
+ 	return nt
+ }
+ 
+-// copy returns a shallow copy of t, with common set to nil.
+-func (t *Template) copy() *Template {
++// copy returns a shallow copy of t, with common set to the argument.
++func (t *Template) copy(c *common) *Template {
+ 	nt := New(t.name)
+ 	nt.Tree = t.Tree
++	nt.common = c
+ 	nt.leftDelim = t.leftDelim
+ 	nt.rightDelim = t.rightDelim
+ 	return nt

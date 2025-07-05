@@ -15,9 +15,149 @@ Date:   Wed Jan 28 15:49:26 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3395
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/export_test.go |  5 ++---
  src/runtime/mgc.go         |  4 ++--
  src/runtime/parfor.go      |  6 +-----
  src/runtime/parfor_test.go | 21 +++++----------------
  4 files changed, 10 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 3b13b7bb38..51798efe0b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -41,7 +41,6 @@ type ParFor struct {
+ 	Nthr   uint32
+ 	thrseq uint32
+ 	Cnt    uint32
+-	Ctx    *byte
+ 	wait   bool
+ }
+ 
+@@ -53,9 +52,9 @@ func NewParFor(nthrmax uint32) *ParFor {
+ 	return desc
+ }
+ 
+-func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
++func ParForSetup(desc *ParFor, nthr, n uint32, wait bool, body func(*ParFor, uint32)) {
+ 	systemstack(func() {
+-		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, unsafe.Pointer(ctx), wait,
++		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, wait,
+ 			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
+ 	})
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index ef2272a012..2bbe097d0e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1490,7 +1490,7 @@ func gcscan_m() {
+ 	work.ndone = 0
+ 	work.nproc = 1 // For now do not do this in parallel.
+ 	//	ackgcphase is not needed since we are not scanning running goroutines.
+-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), nil, false, markroot)
++	parforsetup(work.markfor, work.nproc, uint32(_RootCount+local_allglen), false, markroot)
+ 	parfordo(work.markfor)
+ 
+ 	lock(&allglock)
+@@ -1588,7 +1588,7 @@ func gc(start_time int64, eagersweep bool) {
+ 		traceGCScanStart()
+ 	}
+ 
+-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), nil, false, markroot)
++	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), false, markroot)
+ 	if work.nproc > 1 {
+ 		noteclear(&work.alldone)
+ 		helpgc(int32(work.nproc))
+diff --git a/src/runtime/parfor.go b/src/runtime/parfor.go
+index fc5ebd887e..31fefeb9d8 100644
+--- a/src/runtime/parfor.go
++++ b/src/runtime/parfor.go
+@@ -15,7 +15,6 @@ type parfor struct {
+ 	nthr   uint32         // total number of threads
+ 	thrseq uint32         // thread id sequencer
+ 	cnt    uint32         // iteration space [0, cnt)
+-	ctx    unsafe.Pointer // arbitrary user context
+ 	wait   bool           // if true, wait while all threads finish processing,
+ 	// otherwise parfor may return while other threads are still working
+ 
+@@ -58,9 +57,7 @@ func parforalloc(nthrmax uint32) *parfor {
+ // If wait is false, parfordo may return when there is a small amount
+ // of work left, under the assumption that another thread has that
+ // work well in hand.
+-// The opaque user context ctx is recorded as desc.ctx and can be used by body.
+-// TODO(austin): Remove ctx in favor of using a closure for body.
+-func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
++func parforsetup(desc *parfor, nthr, n uint32, wait bool, body func(*parfor, uint32)) {
+ 	if desc == nil || nthr == 0 || nthr > uint32(len(desc.thr)) || body == nil {
+ 		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
+ 		throw("parfor: invalid args")
+@@ -71,7 +68,6 @@ func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, bo
+ 	desc.nthr = nthr
+ 	desc.thrseq = 0
+ 	desc.cnt = n
+-	desc.ctx = ctx
+ 	desc.wait = wait
+ 	desc.nsteal = 0
+ 	desc.nstealcnt = 0
+diff --git a/src/runtime/parfor_test.go b/src/runtime/parfor_test.go
+index de64285b8a..5d22aecc9b 100644
+--- a/src/runtime/parfor_test.go
++++ b/src/runtime/parfor_test.go
+@@ -10,11 +10,8 @@ package runtime_test
+ import (
+ 	. "runtime"
+ 	"testing"
+-	"unsafe"
+ )
+ 
+-var gdata []uint64
+-
+ // Simple serial sanity test for parallelfor.
+ func TestParFor(t *testing.T) {
+ 	const P = 1
+@@ -24,12 +21,7 @@ func TestParFor(t *testing.T) {
+ 		data[i] = i
+ 	}
+ 	desc := NewParFor(P)
+-	// Avoid making func a closure: parfor cannot invoke them.
+-	// Since it doesn't happen in the C code, it's not worth doing
+-	// just for the test.
+-	gdata = data
+-	ParForSetup(desc, P, N, nil, true, func(desc *ParFor, i uint32) {
+-		data := gdata
++	ParForSetup(desc, P, N, true, func(desc *ParFor, i uint32) {
+ 		data[i] = data[i]*data[i] + 1
+ 	})
+ 	ParForDo(desc)
+@@ -49,9 +41,8 @@ func TestParFor2(t *testing.T) {
+ 		data[i] = i
+ 	}
+ 	desc := NewParFor(P)
+-	ParForSetup(desc, P, N, (*byte)(unsafe.Pointer(&data)), false, func(desc *ParFor, i uint32) {
+-		d := *(*[]uint64)(unsafe.Pointer(desc.Ctx))
+-		d[i] = d[i]*d[i] + 1
++	ParForSetup(desc, P, N, false, func(desc *ParFor, i uint32) {
++		data[i] = data[i]*data[i] + 1
+ 	})
+ 	for p := 0; p < P; p++ {
+ 		ParForDo(desc)
+@@ -70,7 +61,7 @@ func TestParForSetup(t *testing.T) {
+ 	desc := NewParFor(P)
+ 	for n := uint32(0); n < N; n++ {
+ 		for p := uint32(1); p <= P; p++ {
+-			ParForSetup(desc, p, n, nil, true, func(desc *ParFor, i uint32) {})
++			ParForSetup(desc, p, n, true, func(desc *ParFor, i uint32) {})
+ 			sum := uint32(0)
+ 			size0 := uint32(0)
+ 			end0 := uint32(0)
+@@ -113,9 +104,7 @@ func TestParForParallel(t *testing.T) {
+ 	P := GOMAXPROCS(-1)
+ 	c := make(chan bool, P)
+ 	desc := NewParFor(uint32(P))
+-	gdata = data
+-	ParForSetup(desc, uint32(P), uint32(N), nil, false, func(desc *ParFor, i uint32) {
+-		data := gdata
++	ParForSetup(desc, uint32(P), uint32(N), false, func(desc *ParFor, i uint32) {
+ 		data[i] = data[i]*data[i] + 1
+ 	})
+ 	for p := 1; p < P; p++ {

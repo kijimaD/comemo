@@ -27,10 +27,171 @@ Date:   Tue Nov 21 03:23:05 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/544215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/v2/order.go                     | 11 +++++++
  .../generators/go122-syscall-steal-proc-self.go    | 37 ++++++++++++++++++++++
  .../tests/go122-syscall-steal-proc-self.test       | 17 ++++++++++
  src/runtime/proc.go                                | 19 ++++++++---
  src/runtime/trace2runtime.go                       | 15 +++++----
  5 files changed, 89 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index 531b45eb02..83cccb4722 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -206,6 +206,17 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 
+ 		// Validate that the M we're stealing from is what we expect.
+ 		mid := ThreadID(ev.args[2]) // The M we're stealing from.
++
++		if mid == curCtx.M {
++			// We're stealing from ourselves. This behaves like a ProcStop.
++			if curCtx.P != pid {
++				return curCtx, false, fmt.Errorf("tried to self-steal proc %d (thread %d), but got proc %d instead", pid, mid, curCtx.P)
++			}
++			newCtx.P = NoProc
++			return curCtx, true, nil
++		}
++
++		// We're stealing from some other M.
+ 		mState, ok := o.mStates[mid]
+ 		if !ok {
+ 			return curCtx, false, fmt.Errorf("stole proc from non-existent thread %d", mid)
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-self.go b/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-self.go
+new file mode 100644
+index 0000000000..dd947346c6
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-self.go
+@@ -0,0 +1,37 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests syscall P stealing.
++//
++// Specifically, it tests a scenario where a thread 'steals'
++// a P from itself. It's just a ProcStop with extra steps when
++// it happens on the same P.
++
++package main
++
++import (
++	"internal/trace/v2"
++	"internal/trace/v2/event/go122"
++	testgen "internal/trace/v2/internal/testgen/go122"
++)
++
++func main() {
++	testgen.Main(gen)
++}
++
++func gen(t *testgen.Trace) {
++	t.DisableTimestamps()
++
++	g := t.Generation(1)
++
++	// A goroutine execute a syscall and steals its own P, then starts running
++	// on that P.
++	b0 := g.Batch(trace.ThreadID(0), 0)
++	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
++	b0.Event("GoStatus", trace.GoID(1), trace.ThreadID(0), go122.GoRunning)
++	b0.Event("GoSyscallBegin", testgen.Seq(1), testgen.NoStack)
++	b0.Event("ProcSteal", trace.ProcID(0), testgen.Seq(2), trace.ThreadID(0))
++	b0.Event("ProcStart", trace.ProcID(0), testgen.Seq(3))
++	b0.Event("GoSyscallEndBlocked")
++}
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-self.test b/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-self.test
+new file mode 100644
+index 0000000000..6484eb6d35
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-self.test
+@@ -0,0 +1,17 @@
++-- expect --
++SUCCESS
++-- trace --
++Trace Go1.22
++EventBatch gen=1 m=0 time=0 size=24
++ProcStatus dt=0 p=0 pstatus=1
++GoStatus dt=0 g=1 m=0 gstatus=2
++GoSyscallBegin dt=0 p_seq=1 stack=0
++ProcSteal dt=0 p=0 p_seq=2 m=0
++ProcStart dt=0 p=0 p_seq=3
++GoSyscallEndBlocked dt=0
++EventBatch gen=1 m=18446744073709551615 time=0 size=5
++Frequency freq=15625000
++EventBatch gen=1 m=18446744073709551615 time=0 size=1
++Stacks
++EventBatch gen=1 m=18446744073709551615 time=0 size=1
++Strings
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fd05687301..e760572906 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4407,10 +4407,21 @@ func entersyscall_gcwait() {
+ 	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
+ 		trace := traceAcquire()
+ 		if trace.ok() {
+-			trace.GoSysBlock(pp)
+-			// N.B. ProcSteal not necessary because if we succeed we're
+-			// always stopping the P we just put into the syscall status.
+-			trace.ProcStop(pp)
++			if goexperiment.ExecTracer2 {
++				// This is a steal in the new tracer. While it's very likely
++				// that we were the ones to put this P into _Psyscall, between
++				// then and now it's totally possible it had been stolen and
++				// then put back into _Psyscall for us to acquire here. In such
++				// case ProcStop would be incorrect.
++				//
++				// TODO(mknyszek): Consider emitting a ProcStop instead when
++				// gp.m.syscalltick == pp.syscalltick, since then we know we never
++				// lost the P.
++				trace.ProcSteal(pp, true)
++			} else {
++				trace.GoSysBlock(pp)
++				trace.ProcStop(pp)
++			}
+ 			traceRelease(trace)
+ 		}
+ 		pp.syscalltick++
+diff --git a/src/runtime/trace2runtime.go b/src/runtime/trace2runtime.go
+index b6837d0360..a9c8d8a590 100644
+--- a/src/runtime/trace2runtime.go
++++ b/src/runtime/trace2runtime.go
+@@ -493,10 +493,10 @@ func (tl traceLocker) GoSysExit(lostP bool) {
+ 
+ // ProcSteal indicates that our current M stole a P from another M.
+ //
+-// forMe indicates that the caller is stealing pp to wire it up to itself.
++// inSyscall indicates that we're stealing the P from a syscall context.
+ //
+ // The caller must have ownership of pp.
+-func (tl traceLocker) ProcSteal(pp *p, forMe bool) {
++func (tl traceLocker) ProcSteal(pp *p, inSyscall bool) {
+ 	// Grab the M ID we stole from.
+ 	mStolenFrom := pp.trace.mSyscallID
+ 	pp.trace.mSyscallID = -1
+@@ -506,17 +506,20 @@ func (tl traceLocker) ProcSteal(pp *p, forMe bool) {
+ 	// the P just to get its attention (e.g. STW or sysmon retake) or we're trying to steal a P for
+ 	// ourselves specifically to keep running. The two contexts look different, but can be summarized
+ 	// fairly succinctly. In the former, we're a regular running goroutine and proc, if we have either.
+-	// In the latter, we're a goroutine in a syscall,
++	// In the latter, we're a goroutine in a syscall.
+ 	goStatus := traceGoRunning
+ 	procStatus := traceProcRunning
+-	if forMe {
++	if inSyscall {
+ 		goStatus = traceGoSyscall
+ 		procStatus = traceProcSyscallAbandoned
+ 	}
+ 	w := tl.eventWriter(goStatus, procStatus)
+ 
+-	// Emit the status of the P we're stealing. We may have *just* done this, but we may not have,
+-	// even if forMe is true, depending on whether we wired the P to ourselves already.
++	// Emit the status of the P we're stealing. We may have *just* done this when creating the event
++	// writer but it's not guaranteed, even if inSyscall is true. Although it might seem like from a
++	// syscall context we're always stealing a P for ourselves, we may have not wired it up yet (so
++	// it wouldn't be visible to eventWriter) or we may not even intend to wire it up to ourselves
++	// at all (e.g. entersyscall_gcwait).
+ 	if !pp.trace.statusWasTraced(tl.gen) && pp.trace.acquireStatus(tl.gen) {
+ 		// Careful: don't use the event writer. We never want status or in-progress events
+ 		// to trigger more in-progress events.

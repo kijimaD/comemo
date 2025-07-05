@@ -14,6 +14,19 @@ Date:   Thu May 9 06:07:55 2024 +0000
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/httptest/server.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index 5095b438ec..fa54923179 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -299,6 +299,7 @@ func (s *Server) Certificate() *x509.Certificate {
+ // Client returns an HTTP client configured for making requests to the server.
+ // It is configured to trust the server's TLS test certificate and will
+ // close its idle connections on [Server.Close].
++// Use Server.URL as the base URL to send requests to the server.
+ func (s *Server) Client() *http.Client {
+ 	return s.client
+ }

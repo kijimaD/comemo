@@ -13,8 +13,321 @@ Date:   Wed Jun 13 23:52:00 2012 +0200
     R=rsc
     CC=golang-dev, remy
     https://golang.org/cl/6294071
-
+---
  src/pkg/strconv/atof.go      |  71 +++++++++++++++----------
  src/pkg/strconv/atof_test.go | 120 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/strconv/extfloat.go  |  14 ++---
  3 files changed, 172 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/strconv/atof.go b/src/pkg/strconv/atof.go
+index b43fab4f07..b4fe97d127 100644
+--- a/src/pkg/strconv/atof.go
++++ b/src/pkg/strconv/atof.go
+@@ -411,33 +411,35 @@ func atof64exact(mantissa uint64, exp int, neg bool) (f float64, ok bool) {
+ 	return
+ }
+ 
+-// If possible to convert decimal d to 32-bit float f exactly,
++// If possible to compute mantissa*10^exp to 32-bit float f exactly,
+ // entirely in floating-point math, do so, avoiding the machinery above.
+-func (d *decimal) atof32() (f float32, ok bool) {
+-	// Exact integers are <= 10^7.
+-	// Exact powers of ten are <= 10^10.
+-	if d.nd > 7 {
++func atof32exact(mantissa uint64, exp int, neg bool) (f float32, ok bool) {
++	if mantissa>>float32info.mantbits != 0 {
+ 		return
+ 	}
++	f = float32(mantissa)
++	if neg {
++		f = -f
++	}
+ 	switch {
+-	case d.dp == d.nd: // int
+-		f := d.atof32int()
++	case exp == 0:
+ 		return f, true
+-
+-	case d.dp > d.nd && d.dp <= 7+10: // int * 10^k
+-		f := d.atof32int()
+-		k := d.dp - d.nd
++	// Exact integers are <= 10^7.
++	// Exact powers of ten are <= 10^10.
++	case exp > 0 && exp <= 7+10: // int * 10^k
+ 		// If exponent is big but number of digits is not,
+ 		// can move a few zeros into the integer part.
+-		if k > 10 {
+-			f *= float32pow10[k-10]
+-			k = 10
++		if exp > 10 {
++			f *= float32pow10[exp-10]
++			exp = 10
+ 		}
+-		return f * float32pow10[k], true
+-
+-	case d.dp < d.nd && d.nd-d.dp <= 10: // int / 10^k
+-		f := d.atof32int()
+-		return f / float32pow10[d.nd-d.dp], true
++		if f > 1e7 || f < -1e7 {
++			// the exponent was really too large.
++			return
++		}
++		return f * float32pow10[exp], true
++	case exp < 0 && exp >= -10: // int / 10^k
++		return f / float32pow10[-exp], true
+ 	}
+ 	return
+ }
+@@ -449,15 +451,32 @@ func atof32(s string) (f float32, err error) {
+ 		return float32(val), nil
+ 	}
+ 
++	if optimize {
++		// Parse mantissa and exponent.
++		mantissa, exp, neg, trunc, ok := readFloat(s)
++		if ok {
++			// Try pure floating-point arithmetic conversion.
++			if !trunc {
++				if f, ok := atof32exact(mantissa, exp, neg); ok {
++					return f, nil
++				}
++			}
++			// Try another fast path.
++			ext := new(extFloat)
++			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float32info); ok {
++				b, ovf := ext.floatBits(&float32info)
++				f = math.Float32frombits(uint32(b))
++				if ovf {
++					err = rangeError(fnParseFloat, s)
++				}
++				return f, err
++			}
++		}
++	}
+ 	var d decimal
+ 	if !d.set(s) {
+ 		return 0, syntaxError(fnParseFloat, s)
+ 	}
+-	if optimize {
+-		if f, ok := d.atof32(); ok {
+-			return f, nil
+-		}
+-	}
+ 	b, ovf := d.floatBits(&float32info)
+ 	f = math.Float32frombits(uint32(b))
+ 	if ovf {
+@@ -483,8 +502,8 @@ func atof64(s string) (f float64, err error) {
+ 			}
+ 			// Try another fast path.
+ 			ext := new(extFloat)
+-			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc); ok {
+-				b, ovf := ext.floatBits()
++			if ok := ext.AssignDecimal(mantissa, exp, neg, trunc, &float64info); ok {
++				b, ovf := ext.floatBits(&float64info)
+ 				f = math.Float64frombits(b)
+ 				if ovf {
+ 					err = rangeError(fnParseFloat, s)
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index 5995023823..c05ae8306b 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -134,6 +134,46 @@ var atoftests = []atofTest{
+ 	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},
+ }
+ 
++var atof32tests = []atofTest{
++	// Exactly halfway between 1 and the next float32.
++	// Round to even (down).
++	{"1.000000059604644775390625", "1", nil},
++	// Slightly lower.
++	{"1.000000059604644775390624", "1", nil},
++	// Slightly higher.
++	{"1.000000059604644775390626", "1.0000001", nil},
++	// Slightly higher, but you have to read all the way to the end.
++	{"1.000000059604644775390625" + strings.Repeat("0", 10000) + "1", "1.0000001", nil},
++
++	// largest float32: (1<<128) * (1 - 2^-24)
++	{"340282346638528859811704183484516925440", "3.4028235e+38", nil},
++	{"-340282346638528859811704183484516925440", "-3.4028235e+38", nil},
++	// next float32 - too large
++	{"3.4028236e38", "+Inf", ErrRange},
++	{"-3.4028236e38", "-Inf", ErrRange},
++	// the border is 3.40282356779...e+38
++	// borderline - okay
++	{"3.402823567e38", "3.4028235e+38", nil},
++	{"-3.402823567e38", "-3.4028235e+38", nil},
++	// borderline - too large
++	{"3.4028235678e38", "+Inf", ErrRange},
++	{"-3.4028235678e38", "-Inf", ErrRange},
++
++	// Denormals: less than 2^-126
++	{"1e-38", "1e-38", nil},
++	{"1e-39", "1e-39", nil},
++	{"1e-40", "1e-40", nil},
++	{"1e-41", "1e-41", nil},
++	{"1e-42", "1e-42", nil},
++	{"1e-43", "1e-43", nil},
++	{"1e-44", "1e-44", nil},
++	{"6e-45", "6e-45", nil}, // 4p-149 = 5.6e-45
++	{"5e-45", "6e-45", nil},
++	// Smallest denormal
++	{"1e-45", "1e-45", nil}, // 1p-149 = 1.4e-45
++	{"2e-45", "1e-45", nil},
++}
++
+ type atofSimpleTest struct {
+ 	x float64
+ 	s string
+@@ -154,6 +194,12 @@ func init() {
+ 			test.err = &NumError{"ParseFloat", test.in, test.err}
+ 		}
+ 	}
++	for i := range atof32tests {
++		test := &atof32tests[i]
++		if test.err != nil {
++			test.err = &NumError{"ParseFloat", test.in, test.err}
++		}
++	}
+ 
+ 	// Generate random inputs for tests and benchmarks
+ 	rand.Seed(time.Now().UnixNano())
+@@ -206,6 +252,19 @@ func testAtof(t *testing.T, opt bool) {
+ 			}
+ 		}
+ 	}
++	for _, test := range atof32tests {
++		out, err := ParseFloat(test.in, 32)
++		out32 := float32(out)
++		if float64(out32) != out {
++			t.Errorf("ParseFloat(%v, 32) = %v, not a float32 (closest is %v)", test.in, out, float64(out32))
++			continue
++		}
++		outs := FormatFloat(float64(out32), 'g', -1, 32)
++		if outs != test.out || !reflect.DeepEqual(err, test.err) {
++			t.Errorf("ParseFloat(%v, 32) = %v, %v want %v, %v  # %v",
++				test.in, out32, err, test.out, test.err, out)
++		}
++	}
+ 	SetOptimize(oldopt)
+ }
+ 
+@@ -264,6 +323,35 @@ func TestRoundTrip(t *testing.T) {
+ 	}
+ }
+ 
++// TestRoundTrip32 tries a fraction of all finite positive float32 values.
++func TestRoundTrip32(t *testing.T) {
++	step := uint32(997)
++	if testing.Short() {
++		step = 99991
++	}
++	count := 0
++	for i := uint32(0); i < 0xff<<23; i += step {
++		f := math.Float32frombits(i)
++		if i&1 == 1 {
++			f = -f // negative
++		}
++		s := FormatFloat(float64(f), 'g', -1, 32)
++
++		parsed, err := ParseFloat(s, 32)
++		parsed32 := float32(parsed)
++		switch {
++		case err != nil:
++			t.Errorf("ParseFloat(%q, 32) gave error %s", s, err)
++		case float64(parsed32) != parsed:
++			t.Errorf("ParseFloat(%q, 32) = %v, not a float32 (nearest is %v)", s, parsed, parsed32)
++		case parsed32 != f:
++			t.Errorf("ParseFloat(%q, 32) = %b (expected %b)", s, parsed32, f)
++		}
++		count++
++	}
++	t.Logf("tested %d float32's", count)
++}
++
+ func BenchmarkAtof64Decimal(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		ParseFloat("33909", 64)
+@@ -299,3 +387,35 @@ func BenchmarkAtof64RandomFloats(b *testing.B) {
+ 		ParseFloat(benchmarksRandomNormal[i%1024], 64)
+ 	}
+ }
++
++func BenchmarkAtof32Decimal(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ParseFloat("33909", 32)
++	}
++}
++
++func BenchmarkAtof32Float(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ParseFloat("339.778", 32)
++	}
++}
++
++func BenchmarkAtof32FloatExp(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		ParseFloat("12.3456e32", 32)
++	}
++}
++
++var float32strings [4096]string
++
++func BenchmarkAtof32Random(b *testing.B) {
++	n := uint32(997)
++	for i := range float32strings {
++		n = (99991*n + 42) % (0xff << 23)
++		float32strings[i] = FormatFloat(float64(math.Float32frombits(n)), 'g', -1, 32)
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		ParseFloat(float32strings[i%4096], 32)
++	}
++}
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index 7ba4785bd3..05e13bf967 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -127,8 +127,7 @@ var powersOfTen = [...]extFloat{
+ // floatBits returns the bits of the float64 that best approximates
+ // the extFloat passed as receiver. Overflow is set to true if
+ // the resulting float64 is ±Inf.
+-func (f *extFloat) floatBits() (bits uint64, overflow bool) {
+-	flt := &float64info
++func (f *extFloat) floatBits(flt *floatInfo) (bits uint64, overflow bool) {
+ 	f.Normalize()
+ 
+ 	exp := f.exp + 63
+@@ -140,7 +139,7 @@ func (f *extFloat) floatBits() (bits uint64, overflow bool) {
+ 		exp += n
+ 	}
+ 
+-	// Extract 1+flt.mantbits bits.
++	// Extract 1+flt.mantbits bits from the 64-bit mantissa.
+ 	mant := f.mant >> (63 - flt.mantbits)
+ 	if f.mant&(1<<(62-flt.mantbits)) != 0 {
+ 		// Round up.
+@@ -266,8 +265,9 @@ var uint64pow10 = [...]uint64{
+ 
+ // AssignDecimal sets f to an approximate value mantissa*10^exp. It
+ // returns true if the value represented by f is guaranteed to be the
+-// best approximation of d after being rounded to a float64. 
+-func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool) (ok bool) {
++// best approximation of d after being rounded to a float64 or
++// float32 depending on flt.
++func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
+ 	const uint64digits = 19
+ 	const errorscale = 8
+ 	errors := 0 // An upper bound for error, computed in errorscale*ulp.
+@@ -315,10 +315,10 @@ func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc boo
+ 	// The 64 bits mantissa is 1 + 52 bits for float64 + 11 extra bits.
+ 	//
+ 	// In many cases the approximation will be good enough.
+-	const denormalExp = -1023 - 63
+-	flt := &float64info
++	denormalExp := flt.bias - 63
+ 	var extrabits uint
+ 	if f.exp <= denormalExp {
++		// f.mant * 2^f.exp is smaller than 2^(flt.bias+1).
+ 		extrabits = uint(63 - flt.mantbits + 1 + uint(denormalExp-f.exp))
+ 	} else {
+ 		extrabits = uint(63 - flt.mantbits)

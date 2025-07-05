@@ -9,7 +9,47 @@ Date:   Mon Mar 5 16:40:27 2012 -0500
     R=golang-dev, dvyukov, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5732057
-
+---
  src/pkg/runtime/proc.c | 6 +++++-
  src/run.bash           | 4 ++--
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index de7090c527..88e2b61388 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -200,7 +200,9 @@ runtime·schedinit(void)
+ 			n = maxgomaxprocs;
+ 		runtime·gomaxprocs = n;
+ 	}
+-	setmcpumax(runtime·gomaxprocs);
++	// wait for the main goroutine to start before taking
++	// GOMAXPROCS into account.
++	setmcpumax(1);
+ 	runtime·singleproc = runtime·gomaxprocs == 1;
+ 
+ 	canaddmcpu();	// mcpu++ to account for bootstrap m
+@@ -225,6 +227,8 @@ runtime·main(void)
+ 	// by calling runtime.LockOSThread during initialization
+ 	// to preserve the lock.
+ 	runtime·LockOSThread();
++	// From now on, newgoroutines may use non-main threads.
++	setmcpumax(runtime·gomaxprocs);
+ 	runtime·sched.init = true;
+ 	scvg = runtime·newproc1((byte*)runtime·MHeap_Scavenger, nil, 0, 0, runtime·main);
+ 	main·init();
+diff --git a/src/run.bash b/src/run.bash
+index fd3b1f27b7..fdbf47663b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -26,8 +26,8 @@ echo '# Testing packages.'
+ time go test std -short -timeout=120s
+ echo
+ 
+-echo '# runtime -cpu=1,2,4'
+-go test runtime -short -timeout=120s -cpu=1,2,4
++echo '# GOMAXPROCS=2 runtime -cpu=1,2,4'
++GOMAXPROCS=2 go test runtime -short -timeout=120s -cpu=1,2,4
+ echo
+ 
+ echo '# sync -cpu=10'

@@ -7,8 +7,112 @@ Date:   Mon Jul 20 15:21:49 2015 -0700
     Change-Id: I591f2c0465263dcdeef46920aabf1bbb8e7ac5c0
     Reviewed-on: https://go-review.googlesource.com/12436
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  7 +++++++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 14 +++++++-------
  src/cmd/compile/internal/ssa/opGen.go        |  7 +++++++
  3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e133076bce..4700b2939c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1376,6 +1376,13 @@ func genValue(v *ssa.Value) {
+ 		p.To.Reg = regnum(v.Args[0])
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
++	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
++		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
++		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
++		ssa.OpAMD64SETB:
++		p := Prog(v.Op.Asm())
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
+ 	default:
+ 		v.Unimplementedf("value %s not implemented", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 602949eac9..1c7b817610 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -121,13 +121,13 @@ func init() {
+ 
+ 		{name: "SBBQcarrymask", reg: flagsgp1, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 
+-		{name: "SETEQ", reg: flagsgp}, // extract == condition from arg0
+-		{name: "SETNE", reg: flagsgp}, // extract != condition from arg0
+-		{name: "SETL", reg: flagsgp},  // extract signed < condition from arg0
+-		{name: "SETLE", reg: flagsgp}, // extract signed <= condition from arg0
+-		{name: "SETG", reg: flagsgp},  // extract signed > condition from arg0
+-		{name: "SETGE", reg: flagsgp}, // extract signed >= condition from arg0
+-		{name: "SETB", reg: flagsgp},  // extract unsigned < condition from arg0
++		{name: "SETEQ", reg: flagsgp, asm: "SETEQ"}, // extract == condition from arg0
++		{name: "SETNE", reg: flagsgp, asm: "SETNE"}, // extract != condition from arg0
++		{name: "SETL", reg: flagsgp, asm: "SETLT"},  // extract signed < condition from arg0
++		{name: "SETLE", reg: flagsgp, asm: "SETLE"}, // extract signed <= condition from arg0
++		{name: "SETG", reg: flagsgp, asm: "SETGT"},  // extract signed > condition from arg0
++		{name: "SETGE", reg: flagsgp, asm: "SETGE"}, // extract signed >= condition from arg0
++		{name: "SETB", reg: flagsgp, asm: "SETCS"},  // extract unsigned < condition from arg0
+ 
+ 		{name: "CMOVQCC", reg: cmov}, // carry clear
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 95e2ef798a..a57f2cfe7f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -506,6 +506,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETEQ",
++		asm:  x86.ASETEQ,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -518,6 +519,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETNE",
++		asm:  x86.ASETNE,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -530,6 +532,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETL",
++		asm:  x86.ASETLT,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -542,6 +545,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETLE",
++		asm:  x86.ASETLE,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -554,6 +558,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETG",
++		asm:  x86.ASETGT,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -566,6 +571,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETGE",
++		asm:  x86.ASETGE,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -578,6 +584,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "SETB",
++		asm:  x86.ASETCS,
+ 		reg: regInfo{
+ 			inputs: []regMask{
+ 				8589934592, // .FLAGS

@@ -12,6 +12,45 @@ Date:   Tue May 9 15:03:48 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/internal/bisect/bisect.go | 17 ++++++++++++++---
  1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/bisect/bisect.go b/src/internal/bisect/bisect.go
+index 1a3658a238..21e825eab9 100644
+--- a/src/internal/bisect/bisect.go
++++ b/src/internal/bisect/bisect.go
+@@ -412,11 +412,18 @@ func (m *Matcher) Stack(w Writer) bool {
+ func (m *Matcher) stack(w Writer) bool {
+ 	const maxStack = 16
+ 	var stk [maxStack]uintptr
+-	n := runtime.Callers(3, stk[:])
+-	if n == 0 {
++	n := runtime.Callers(2, stk[:])
++	// caller #2 is not for printing; need it to normalize PCs if ASLR.
++	if n <= 1 {
+ 		return false
+ 	}
+ 
++	base := stk[0]
++	// normalize PCs
++	for i := range stk[:n] {
++		stk[i] -= base
++	}
++
+ 	h := Hash(stk[:n])
+ 	if m.ShouldPrint(h) {
+ 		var d *dedup
+@@ -437,7 +444,11 @@ func (m *Matcher) stack(w Writer) bool {
+ 			}
+ 		} else {
+ 			if !d.seen(h) {
+-				printStack(w, h, stk[:n])
++				// Restore PCs in stack for printing
++				for i := range stk[:n] {
++					stk[i] += base
++				}
++				printStack(w, h, stk[1:n])
+ 			}
+ 		}
+ 	}

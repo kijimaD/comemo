@@ -21,7 +21,7 @@ Date:   Sun Nov 6 17:03:00 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Dan Peterson <danp@danp.net>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_bsd.go          | 2 +-
  src/net/cgo_darwin.go       | 9 +++++++++
  src/net/cgo_stub.go         | 2 +-
@@ -31,3 +31,113 @@ Date:   Sun Nov 6 17:03:00 2022 -0400
  src/net/netgo.go            | 4 ++--
  src/net/netgo_unix_test.go  | 2 +-
  8 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/cgo_bsd.go b/src/net/cgo_bsd.go
+index 1456289b06..082e91faa8 100644
+--- a/src/net/cgo_bsd.go
++++ b/src/net/cgo_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !netgo && (darwin || dragonfly || freebsd)
++//go:build cgo && !netgo && (dragonfly || freebsd)
+ 
+ package net
+ 
+diff --git a/src/net/cgo_darwin.go b/src/net/cgo_darwin.go
+new file mode 100644
+index 0000000000..129dd937fe
+--- /dev/null
++++ b/src/net/cgo_darwin.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "internal/syscall/unix"
++
++const cgoAddrInfoFlags = (unix.AI_CANONNAME | unix.AI_V4MAPPED | unix.AI_ALL) & unix.AI_MASK
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index 298d829f6f..c901d4bb80 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !cgo || netgo
++//go:build (!cgo && !darwin) || netgo
+ 
+ package net
+ 
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index a944727338..4ca0fbee73 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -7,7 +7,7 @@
+ // Instead of C.foo it uses _C_foo, which is defined in either
+ // cgo_unix_cgo.go or cgo_unix_syscall.go
+ 
+-//go:build cgo && !netgo && unix
++//go:build !netgo && ((cgo && unix) || darwin)
+ 
+ package net
+ 
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index 7170f14c46..c5c27967b1 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !netgo && darwin
++//go:build !netgo && darwin
+ 
+ package net
+ 
+diff --git a/src/net/cgo_unix_test.go b/src/net/cgo_unix_test.go
+index af9f9dc3f2..86726dd7e5 100644
+--- a/src/net/cgo_unix_test.go
++++ b/src/net/cgo_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !netgo && unix
++//go:build (cgo || darwin) && !netgo && unix
+ 
+ package net
+ 
+diff --git a/src/net/netgo.go b/src/net/netgo.go
+index 75baa88035..e478c88b30 100644
+--- a/src/net/netgo.go
++++ b/src/net/netgo.go
+@@ -4,9 +4,9 @@
+ 
+ // Default netGo to true if the netgo build tag is being used, or the
+ // C library DNS routines are not available. Note that the C library
+-// routines are always available on Windows.
++// routines are always available on Darwin and Windows.
+ 
+-//go:build netgo || (!cgo && !windows)
++//go:build netgo || (!cgo && !darwin && !windows)
+ 
+ package net
+ 
+diff --git a/src/net/netgo_unix_test.go b/src/net/netgo_unix_test.go
+index 019772aa6a..5ddebab143 100644
+--- a/src/net/netgo_unix_test.go
++++ b/src/net/netgo_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!cgo || netgo) && (darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris)
++//go:build (!cgo || netgo) && (dragonfly || freebsd || linux || netbsd || openbsd || solaris)
+ 
+ package net
+ 

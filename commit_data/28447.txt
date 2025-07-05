@@ -11,6 +11,29 @@ Date:   Mon May 23 22:05:51 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index cbdf2b8375..b0e7477d50 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -642,7 +642,17 @@ func gcFlushBgCredit(scanWork int64) {
+ 	unlock(&work.assistQueue.lock)
+ }
+ 
++// scanstack scans gp's stack, greying all pointers found on the stack.
++//
++// During mark phase, it also installs stack barriers while traversing
++// gp's stack. During mark termination, it stops scanning when it
++// reaches an unhit stack barrier.
++//
++// scanstack is marked go:systemstack because it must not be preempted
++// while using a workbuf.
++//
+ //go:nowritebarrier
++//go:systemstack
+ func scanstack(gp *g) {
+ 	if gp.gcscanvalid {
+ 		return

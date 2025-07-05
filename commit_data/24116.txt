@@ -14,7 +14,7 @@ Date:   Fri Jul 10 17:17:11 2015 -0600
     Change-Id: Ia2753576ab5d64826a167d259f48a2f50508792d
     Reviewed-on: https://go-review.googlesource.com/12048
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/gccgo_install.html                     |   2 +-
  doc/go1.5.html                             |   2 +-
  misc/cgo/test/cflags.go                    |   2 +-
@@ -123,3 +123,1663 @@ Date:   Fri Jul 10 17:17:11 2015 -0600
  test/fixedbugs/bug427.go                   |   2 +-
  test/fixedbugs/issue4365.go                |   2 +-
  107 files changed, 141 insertions(+), 141 deletions(-)
+
+diff --git a/doc/gccgo_install.html b/doc/gccgo_install.html
+index 8f744a6216..ef27fd1818 100644
+--- a/doc/gccgo_install.html
++++ b/doc/gccgo_install.html
+@@ -183,7 +183,7 @@ export LIBRARY_PATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH
+ The gccgo compiler works like other gcc frontends.  As of GCC 5 the gccgo
+ installation also includes a version of the <code>go</code> command,
+ which may be used to build Go programs as described at
+-<a href="http://golang.org/cmd/go">http://golang.org/cmd/go</a>.
++<a href="https://golang.org/cmd/go">https://golang.org/cmd/go</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 782e839565..493209df1d 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -38,7 +38,7 @@ number of cores available; in prior releases it defaulted to 1.
+ </li>
+ 
+ <li>
+-Support for <a href="http://golang.org/s/go14internal">internal packages</a>
++Support for <a href="https://golang.org/s/go14internal">internal packages</a>
+ is now provided for all repositories, not just the Go core.
+ </li>
+ 
+diff --git a/misc/cgo/test/cflags.go b/misc/cgo/test/cflags.go
+index 313824a10e..6571fe02dc 100644
+--- a/misc/cgo/test/cflags.go
++++ b/misc/cgo/test/cflags.go
+@@ -4,7 +4,7 @@
+ 
+ // Test that the #cgo CFLAGS directive works,
+ // with and without platform filters.
+-// See http://golang.org/issue/5224 for details.
++// See https://golang.org/issue/5224 for details.
+ package cgotest
+ 
+ /*
+diff --git a/misc/cgo/test/issue3945.go b/misc/cgo/test/issue3945.go
+index 331cd0baf5..7e6863f7b6 100644
+--- a/misc/cgo/test/issue3945.go
++++ b/misc/cgo/test/issue3945.go
+@@ -5,7 +5,7 @@
+ package cgotest
+ 
+ // Test that cgo reserves enough stack space during cgo call.
+-// See http://golang.org/issue/3945 for details.
++// See https://golang.org/issue/3945 for details.
+ 
+ // #include <stdio.h>
+ //
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index 5455f0c536..07fd58e399 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -4,7 +4,7 @@
+ 
+ // Test that pthread_cancel works as expected
+ // (NPTL uses SIGRTMIN to implement thread cancellation)
+-// See http://golang.org/issue/6997
++// See https://golang.org/issue/6997
+ package cgotest
+ 
+ /*
+diff --git a/misc/cgo/test/issue7234_test.go b/misc/cgo/test/issue7234_test.go
+index 604dfad4ba..a020b6a724 100644
+--- a/misc/cgo/test/issue7234_test.go
++++ b/misc/cgo/test/issue7234_test.go
+@@ -7,7 +7,7 @@ package cgotest
+ import "testing"
+ 
+ // This test actually doesn't have anything to do with cgo.  It is a
+-// test of http://golang.org/issue/7234, a compiler/linker bug in
++// test of https://golang.org/issue/7234, a compiler/linker bug in
+ // handling string constants when using -linkmode=external.  The test
+ // is in this directory because we routinely test -linkmode=external
+ // here.
+diff --git a/misc/cgo/test/setgid_linux.go b/misc/cgo/test/setgid_linux.go
+index 4da0d300e9..197f01fb7e 100644
+--- a/misc/cgo/test/setgid_linux.go
++++ b/misc/cgo/test/setgid_linux.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test that setgid does not hang on GNU/Linux.
+-// See http://golang.org/issue/3871 for details.
++// See https://golang.org/issue/3871 for details.
+ 
+ package cgotest
+ 
+diff --git a/misc/chrome/gophertool/gopher.js b/misc/chrome/gophertool/gopher.js
+index c09c4ef10c..09edb2957b 100644
+--- a/misc/chrome/gophertool/gopher.js
++++ b/misc/chrome/gophertool/gopher.js
+@@ -23,7 +23,7 @@ function urlForInput(t) {
+     }
+ 
+     if (gerritChangeIdRE.test(t)) {
+-        return "http://golang.org/cl/" + t;
++        return "https://golang.org/cl/" + t;
+     }
+ 
+     var match = commitRE.exec(t);
+@@ -34,7 +34,7 @@ function urlForInput(t) {
+     if (pkgRE.test(t)) {
+         // TODO: make this smarter, using a list of packages + substring matches.
+         // Get the list from godoc itself in JSON format?
+-        return "http://golang.org/pkg/" + t;
++        return "https://golang.org/pkg/" + t;
+     }
+ 
+     return null;
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index 054cf6f788..8f3a45e171 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -51,7 +51,7 @@ var (
+ 	uploadURL       = flag.String("upload_url", defaultUploadURL, "Upload URL")
+ 
+ 	defaultCacheFile = filepath.Join(os.Getenv("HOME"), ".makerelease-request-token")
+-	defaultUploadURL = "http://golang.org/dl/upload"
++	defaultUploadURL = "https://golang.org/dl/upload"
+ )
+ 
+ const (
+diff --git a/misc/makerelease/windows/installer.wxs b/misc/makerelease/windows/installer.wxs
+index 01178e2651..29fe403d09 100644
+--- a/misc/makerelease/windows/installer.wxs
++++ b/misc/makerelease/windows/installer.wxs
+@@ -22,7 +22,7 @@
+     Language="1033"
+     Codepage="1252"
+     Version="$(var.WixGoVersion)"
+-    Manufacturer="http://golang.org"
++    Manufacturer="https://golang.org"
+     UpgradeCode="$(var.UpgradeCode)" >
+ 
+ <Package
+diff --git a/misc/nacl/README b/misc/nacl/README
+index b7163d3d73..99b94dc90a 100644
+--- a/misc/nacl/README
++++ b/misc/nacl/README
+@@ -11,7 +11,7 @@ Go 1.3 supports three architectures
+    limited to a 4gb window.
+  * nacl/arm which is 32-bit ARMv7A architecture with 1GB address space.
+ 
+-For background it is recommended that you read http://golang.org/s/go13nacl.
++For background it is recommended that you read https://golang.org/s/go13nacl.
+ 
+ Prerequisites
+ -------------
+diff --git a/src/archive/zip/testdata/readme.notzip b/src/archive/zip/testdata/readme.notzip
+index 06668c4c1c..81737275c6 100644
+Binary files a/src/archive/zip/testdata/readme.notzip and b/src/archive/zip/testdata/readme.notzip differ
+diff --git a/src/archive/zip/testdata/readme.zip b/src/archive/zip/testdata/readme.zip
+index db3bb900e4..5642a67e77 100644
+Binary files a/src/archive/zip/testdata/readme.zip and b/src/archive/zip/testdata/readme.zip differ
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 6184e14477..1d2cc9ac82 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -115,7 +115,7 @@ func TestCompareAPI(t *testing.T) {
+ 			out:       "",
+ 		},
+ 		{
+-			// http://golang.org/issue/4303
++			// https://golang.org/issue/4303
+ 			name: "contexts reconverging",
+ 			required: []string{
+ 				"A",
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 6e6f3c7708..99cd4cd134 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -29,14 +29,14 @@ not be referenced from Go code; static functions are permitted.
+ 
+ See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
+ "C? Go? Cgo!" for an introduction to using cgo:
+-http://golang.org/doc/articles/c_go_cgo.html.
++https://golang.org/doc/articles/c_go_cgo.html.
+ 
+ CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo
+ directives within these comments to tweak the behavior of the C or C++
+ compiler.  Values defined in multiple directives are concatenated
+ together.  The directive can include a list of build constraints limiting its
+ effect to systems satisfying one of the constraints
+-(see http://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
++(see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
+ For example:
+ 
+ 	// #cgo CFLAGS: -DPNG_DEBUG=1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 1624d980ff..84f4978f63 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -781,7 +781,7 @@ func (p *Package) gccCmd() []string {
+ 			// incorrectly typed unsigned long. We work around that
+ 			// by disabling the builtin functions (this is safe as
+ 			// it won't affect the actual compilation of the C code).
+-			// See: http://golang.org/issue/6506.
++			// See: https://golang.org/issue/6506.
+ 			"-fno-builtin",
+ 		)
+ 	}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 3edb70345d..3b24ef1365 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -656,7 +656,7 @@ func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+ // used to match gc's struct layout. For example, on 386 Windows,
+ // gcc wants to 8-align int64s, but gc does not.
+ // Use __gcc_struct__ to work around http://gcc.gnu.org/PR52991 on x86,
+-// and http://golang.org/issue/5603.
++// and https://golang.org/issue/5603.
+ func (p *Package) packedAttribute() string {
+ 	s := "__attribute__((__packed__"
+ 	if !p.GccIsClang && (goarch == "amd64" || goarch == "386") {
+diff --git a/src/cmd/compile/internal/big/int_test.go b/src/cmd/compile/internal/big/int_test.go
+index c19e88addb..16eed9a770 100644
+--- a/src/cmd/compile/internal/big/int_test.go
++++ b/src/cmd/compile/internal/big/int_test.go
+@@ -693,7 +693,7 @@ var primes = []string{
+ 	"10953742525620032441",
+ 	"17908251027575790097",
+ 
+-	// http://golang.org/issue/638
++	// https://golang.org/issue/638
+ 	"18699199384836356663",
+ 
+ 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 5da0b90e48..f557238e59 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1012,7 +1012,7 @@ func cmdbootstrap() {
+ 			"*** %s still exists. ***\n"+
+ 			"It probably contains stale files that may confuse the build.\n"+
+ 			"Please (check what's there and) remove it and try again.\n"+
+-			"See http://golang.org/s/go14nopkg\n",
++			"See https://golang.org/s/go14nopkg\n",
+ 			pathf("%s/src/pkg", goroot))
+ 	}
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e678367ff8..0e78328829 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1433,7 +1433,7 @@ func (b *builder) build(a *action) (err error) {
+ 	// NOTE(rsc): On Windows, it is critically important that the
+ 	// gcc-compiled objects (cgoObjects) be listed after the ordinary
+ 	// objects in the archive.  I do not know why this is.
+-	// http://golang.org/issue/2601
++	// https://golang.org/issue/2601
+ 	objects = append(objects, cgoObjects...)
+ 
+ 	// Add system object files.
+@@ -1937,7 +1937,7 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
+ 		// Sleeping when we observe the race seems to be the most reliable
+ 		// option we have.
+ 		//
+-		// http://golang.org/issue/3001
++		// https://golang.org/issue/3001
+ 		//
+ 		if err != nil && nbusy < 3 && strings.Contains(err.Error(), "text file busy") {
+ 			time.Sleep(100 * time.Millisecond << uint(nbusy))
+@@ -2838,7 +2838,7 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+ 
+ 	// On OS X, some of the compilers behave as if -fno-common
+ 	// is always set, and the Mach-O linker in 6l/8l assumes this.
+-	// See http://golang.org/issue/3253.
++	// See https://golang.org/issue/3253.
+ 	if goos == "darwin" {
+ 		a = append(a, "-fno-common")
+ 	}
+@@ -3111,7 +3111,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 
+ 	// NOTE(rsc): The importObj is a 5c/6c/8c object and on Windows
+ 	// must be processed before the gcc-generated objects.
+-	// Put it first.  http://golang.org/issue/2601
++	// Put it first.  https://golang.org/issue/2601
+ 	outObj = stringList(nonGccObjs, ofile)
+ 
+ 	return outGo, outObj, nil
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 5e7619d1da..ea7dd1c1df 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -317,7 +317,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 	_, err := exec.LookPath(v.cmd)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr,
+-			"go: missing %s command. See http://golang.org/s/gogetcmd\n",
++			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
+ 			v.name)
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ab92b9430f..33f250da48 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -487,7 +487,7 @@ func relocsym(s *LSym) {
+ 
+ 			// On amd64, 4-byte offsets will be sign-extended, so it is impossible to
+ 			// access more than 2GB of static data; fail at link time is better than
+-			// fail at runtime. See http://golang.org/issue/7980.
++			// fail at runtime. See https://golang.org/issue/7980.
+ 			// Instead of special casing only amd64, we treat this as an error on all
+ 			// 64-bit architectures so as to be future-proof.
+ 			if int32(o) < 0 && Thearch.Ptrsize > 4 && siz == 4 {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 7864d1a68f..cf52f2e1e9 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1668,7 +1668,7 @@ func doelf() {
+ 	// generate .tbss section (except for OpenBSD where it's not supported)
+ 	// for dynamic internal linker or external linking, so that various
+ 	// binutils could correctly calculate PT_TLS size.
+-	// see http://golang.org/issue/5200.
++	// see https://golang.org/issue/5200.
+ 	if HEADTYPE != obj.Hopenbsd {
+ 		if Debug['d'] == 0 || Linkmode == LinkExternal {
+ 			Addstring(shstrtab, ".tbss")
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 68531069c3..ccc84915c0 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -645,7 +645,7 @@ func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ func machosymorder() {
+ 	// On Mac OS X Mountain Lion, we must sort exported symbols
+ 	// So we sort them here and pre-allocate dynid for them
+-	// See http://golang.org/issue/4029
++	// See https://golang.org/issue/4029
+ 	for i := 0; i < len(dynexp); i++ {
+ 		dynexp[i].Reachable = true
+ 	}
+diff --git a/src/cmd/newlink/pclntab.go b/src/cmd/newlink/pclntab.go
+index 7f8bf52a9b..0a4cfc9c46 100644
+--- a/src/cmd/newlink/pclntab.go
++++ b/src/cmd/newlink/pclntab.go
+@@ -22,7 +22,7 @@ var zerofunc goobj.Func
+ // information during garbage collection. The symbol created is named
+ // "pclntab" for historical reasons; the scope of the table has grown to
+ // include more than just PC/line number correspondences.
+-// The table format is documented at http://golang.org/s/go12symtab.
++// The table format is documented at https://golang.org/s/go12symtab.
+ func (p *Prog) pclntab() {
+ 	// Count number of functions going into the binary,
+ 	// so that we can size the initial index correctly.
+diff --git a/src/cmd/vet/rangeloop.go b/src/cmd/vet/rangeloop.go
+index 96e2ca8062..11eef59d90 100644
+--- a/src/cmd/vet/rangeloop.go
++++ b/src/cmd/vet/rangeloop.go
+@@ -16,7 +16,7 @@ For example:
+ 		}()
+ 	}
+ 
+-See: http://golang.org/doc/go_faq.html#closures_and_goroutines
++See: https://golang.org/doc/go_faq.html#closures_and_goroutines
+ */
+ 
+ package main
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index 53bfd26438..d5d6e732cf 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -407,7 +407,7 @@ func TestWriterDict(t *testing.T) {
+ 	}
+ }
+ 
+-// See http://golang.org/issue/2508
++// See https://golang.org/issue/2508
+ func TestRegression2508(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Logf("test disabled with -short")
+diff --git a/src/crypto/rand/util_test.go b/src/crypto/rand/util_test.go
+index 1e2a4dd84b..2f7cba8364 100644
+--- a/src/crypto/rand/util_test.go
++++ b/src/crypto/rand/util_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-// http://golang.org/issue/6849.
++// https://golang.org/issue/6849.
+ func TestPrimeSmall(t *testing.T) {
+ 	for n := 2; n < 10; n++ {
+ 		p, err := rand.Prime(rand.Reader, n)
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index cad471859f..b5df3dbf2d 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -923,7 +923,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
+ 		// tried to reuse the HTTP connection for a new
+ 		// request.
+ 		// See https://codereview.appspot.com/76400046
+-		// and http://golang.org/issue/3514
++		// and https://golang.org/issue/3514
+ 		if ri := c.rawInput; ri != nil &&
+ 			n != 0 && err == nil &&
+ 			c.input == nil && len(ri.data) > 0 && recordType(ri.data[0]) == recordTypeAlert {
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index e82579eee9..eb709644a1 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -40,7 +40,7 @@ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
+ `
+ 
+ // keyPEM is the same as rsaKeyPEM, but declares itself as just
+-// "PRIVATE KEY", not "RSA PRIVATE KEY".  http://golang.org/issue/4477
++// "PRIVATE KEY", not "RSA PRIVATE KEY".  https://golang.org/issue/4477
+ var keyPEM = `-----BEGIN PRIVATE KEY-----
+ MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
+ k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index aeb5c0e382..17afa4966b 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -6,10 +6,10 @@
+ // databases.
+ //
+ // The sql package must be used in conjunction with a database driver.
+-// See http://golang.org/s/sqldrivers for a list of drivers.
++// See https://golang.org/s/sqldrivers for a list of drivers.
+ //
+ // For more usage examples, see the wiki page at
+-// http://golang.org/s/sqlwiki.
++// https://golang.org/s/sqlwiki.
+ package sql
+ 
+ import (
+@@ -454,7 +454,7 @@ var connectionRequestQueueSize = 1000000
+ //
+ // Most users will open a database via a driver-specific connection
+ // helper function that returns a *DB. No database drivers are included
+-// in the Go standard library. See http://golang.org/s/sqldrivers for
++// in the Go standard library. See https://golang.org/s/sqldrivers for
+ // a list of third-party drivers.
+ //
+ // Open may just validate its arguments without creating a connection
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 1c3a6855b4..432a641b85 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -497,7 +497,7 @@ func TestTxStmt(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue: http://golang.org/issue/2784
++// Issue: https://golang.org/issue/2784
+ // This test didn't fail before because we got lucky with the fakedb driver.
+ // It was failing, and now not, in github.com/bradfitz/go-sql-test
+ func TestTxQuery(t *testing.T) {
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 7789bb5141..08bb67134e 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -7,7 +7,7 @@
+ // in the documentation for the Marshal and Unmarshal functions.
+ //
+ // See "JSON and Go" for an introduction to this package:
+-// http://golang.org/doc/articles/json_and_go.html
++// https://golang.org/doc/articles/json_and_go.html
+ package json
+ 
+ import (
+diff --git a/src/encoding/json/tagkey_test.go b/src/encoding/json/tagkey_test.go
+index 23e71c7525..85bb4ba837 100644
+--- a/src/encoding/json/tagkey_test.go
++++ b/src/encoding/json/tagkey_test.go
+@@ -37,11 +37,11 @@ type miscPlaneTag struct {
+ }
+ 
+ type percentSlashTag struct {
+-	V string `json:"text/html%"` // http://golang.org/issue/2718
++	V string `json:"text/html%"` // https://golang.org/issue/2718
+ }
+ 
+ type punctuationTag struct {
+-	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // http://golang.org/issue/3546
++	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // https://golang.org/issue/3546
+ }
+ 
+ type emptyTag struct {
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index ad9baa9527..a916ee04a8 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -259,7 +259,7 @@ func (tv TypeAndValue) IsNil() bool {
+ }
+ 
+ // Addressable reports whether the corresponding expression
+-// is addressable (http://golang.org/ref/spec#Address_operators).
++// is addressable (https://golang.org/ref/spec#Address_operators).
+ func (tv TypeAndValue) Addressable() bool {
+ 	return tv.mode == variable
+ }
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index 5de3bc0eef..c89d22a6f9 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -142,7 +142,7 @@ func TestTemplates(t *testing.T) {
+ 	}
+ }
+ 
+-// This used to crash; http://golang.org/issue/3281
++// This used to crash; https://golang.org/issue/3281
+ func TestCloneCrash(t *testing.T) {
+ 	t1 := New("all")
+ 	Must(t1.New("t1").Parse(`{{define "foo"}}foo{{end}}`))
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 3087c07ff5..9419d5e72a 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -5,7 +5,7 @@
+ // Package draw provides image composition functions.
+ //
+ // See "The Go image/draw package" for an introduction to this package:
+-// http://golang.org/doc/articles/image_draw.html
++// https://golang.org/doc/articles/image_draw.html
+ package draw
+ 
+ import (
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index a1da69780c..6a133124ad 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -212,7 +212,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
+ 			// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
+ 			// before the LZW decoder saw an explict end code), provided that
+ 			// the io.ReadFull call above successfully read len(m.Pix) bytes.
+-			// See http://golang.org/issue/9856 for an example GIF.
++			// See https://golang.org/issue/9856 for an example GIF.
+ 			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {
+ 				if err != nil {
+ 					return err
+diff --git a/src/image/image.go b/src/image/image.go
+index a5993d217a..20b64d78e1 100644
+--- a/src/image/image.go
++++ b/src/image/image.go
+@@ -18,7 +18,7 @@
+ // initialization side effects.
+ //
+ // See "The Go image package" for more details:
+-// http://golang.org/doc/articles/image_package.html
++// https://golang.org/doc/articles/image_package.html
+ package image
+ 
+ import (
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 6286584e0c..0037b4a64c 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2643,7 +2643,7 @@ func TestLargeTan(t *testing.T) {
+ 
+ // Check that math constants are accepted by compiler
+ // and have right value (assumes strconv.ParseFloat works).
+-// http://golang.org/issue/201
++// https://golang.org/issue/201
+ 
+ type floatTest struct {
+ 	val  interface{}
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 28369bd0e6..88c8c2bb64 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -708,7 +708,7 @@ var primes = []string{
+ 	"10953742525620032441",
+ 	"17908251027575790097",
+ 
+-	// http://golang.org/issue/638
++	// https://golang.org/issue/638
+ 	"18699199384836356663",
+ 
+ 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
+diff --git a/src/mime/multipart/multipart_test.go b/src/mime/multipart/multipart_test.go
+index d730888490..30452d1d45 100644
+--- a/src/mime/multipart/multipart_test.go
++++ b/src/mime/multipart/multipart_test.go
+@@ -351,7 +351,7 @@ func TestLineContinuation(t *testing.T) {
+ }
+ 
+ func TestQuotedPrintableEncoding(t *testing.T) {
+-	// From http://golang.org/issue/4411
++	// From https://golang.org/issue/4411
+ 	body := "--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=text\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words words words words wor=\r\nds words words words words words words words words words words words words =\r\nwords words words words words words words words words\r\n--0016e68ee29c5d515f04cedf6733\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Disposition: form-data; name=submit\r\n\r\nSubmit\r\n--0016e68ee29c5d515f04cedf6733--"
+ 	r := NewReader(strings.NewReader(body), "0016e68ee29c5d515f04cedf6733")
+ 	part, err := r.NextPart()
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index f2d7b348bf..6463b0df43 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -87,7 +87,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		// already been accepted and closed by the server.
+ 		// Treat this as a successful connection--writes to
+ 		// the socket will see EOF.  For details and a test
+-		// case in C see http://golang.org/issue/6828.
++		// case in C see https://golang.org/issue/6828.
+ 		if runtime.GOOS == "solaris" {
+ 			return nil
+ 		}
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 02ac85a1d7..7f2fbb4678 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -423,7 +423,7 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
+ 	if redirectFailed {
+ 		// Special case for Go 1 compatibility: return both the response
+ 		// and an error if the CheckRedirect function failed.
+-		// See http://golang.org/issue/3795
++		// See https://golang.org/issue/3795
+ 		return resp, urlErr
+ 	}
+ 
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 10829a7790..7b524d381b 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -258,7 +258,7 @@ func TestClientRedirects(t *testing.T) {
+ 		t.Errorf("with redirects forbidden, expected a *url.Error with our 'no redirects allowed' error inside; got %#v (%q)", err, err)
+ 	}
+ 	if res == nil {
+-		t.Fatalf("Expected a non-nil Response on CheckRedirect failure (http://golang.org/issue/3795)")
++		t.Fatalf("Expected a non-nil Response on CheckRedirect failure (https://golang.org/issue/3795)")
+ 	}
+ 	res.Body.Close()
+ 	if res.Header.Get("Location") == "" {
+@@ -739,7 +739,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
+ 	}
+ }
+ 
+-// Verify Response.ContentLength is populated. http://golang.org/issue/4126
++// Verify Response.ContentLength is populated. https://golang.org/issue/4126
+ func TestClientHeadContentLength(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index cf7a3dbe5b..648709dd99 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -304,7 +304,7 @@ func sanitizeCookieName(n string) string {
+ // We loosen this as spaces and commas are common in cookie values
+ // but we produce a quoted cookie-value in when value starts or ends
+ // with a comma or space.
+-// See http://golang.org/issue/7243 for the discussion.
++// See https://golang.org/issue/7243 for the discussion.
+ func sanitizeCookieValue(v string) string {
+ 	v = sanitizeOrWarn("Cookie.Value", validCookieValueByte, v)
+ 	if len(v) == 0 {
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 758f184962..25947e6a8a 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -226,7 +226,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
+ 
+ func TestReverseProxyCancellation(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/9554")
++		t.Skip("skipping test; see https://golang.org/issue/9554")
+ 	}
+ 	const backendResponse = "I am the backend"
+ 
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6c3c65641d..b28e4063c4 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -421,7 +421,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
+ 	}
+ }
+ 
+-// Tests for http://golang.org/issue/900
++// Tests for https://golang.org/issue/900
+ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
+ 	for _, path := range paths {
+@@ -448,7 +448,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 
+ func TestServerTimeouts(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	reqNum := 0
+@@ -527,7 +527,7 @@ func TestServerTimeouts(t *testing.T) {
+ // request) that will never happen.
+ func TestOnlyWriteTimeout(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	var conn net.Conn
+@@ -882,7 +882,7 @@ func TestHeadResponses(t *testing.T) {
+ 
+ func TestTLSHandshakeTimeout(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+@@ -1744,7 +1744,7 @@ func TestRequestBodyLimit(t *testing.T) {
+ // side of their TCP connection, the server doesn't send a 400 Bad Request.
+ func TestClientWriteShutdown(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+@@ -1799,7 +1799,7 @@ func TestServerBufferedChunking(t *testing.T) {
+ // Tests that the server flushes its response headers out when it's
+ // ignoring the response body and waits a bit before forcefully
+ // closing the TCP connection, causing the client to get a RST.
+-// See http://golang.org/issue/3595
++// See https://golang.org/issue/3595
+ func TestServerGracefulClose(t *testing.T) {
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -2291,7 +2291,7 @@ func TestDoubleHijack(t *testing.T) {
+ 	<-conn.closec
+ }
+ 
+-// http://golang.org/issue/5955
++// https://golang.org/issue/5955
+ // Note that this does not test the "request too large"
+ // exit path from the http server. This is intentional;
+ // not sending Connection: close is just a minor wire
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index bac3e04647..882c352144 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1183,7 +1183,7 @@ var _ closeWriter = (*net.TCPConn)(nil)
+ // pause for a bit, hoping the client processes it before any
+ // subsequent RST.
+ //
+-// See http://golang.org/issue/3595
++// See https://golang.org/issue/3595
+ func (c *conn) closeWriteAndWait() {
+ 	c.finalFlush()
+ 	if tcp, ok := c.rwc.(closeWriter); ok {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 8544fe378d..41fc6d0e62 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1134,11 +1134,11 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 		// Note that we don't request this for HEAD requests,
+ 		// due to a bug in nginx:
+ 		//   http://trac.nginx.org/nginx/ticket/358
+-		//   http://golang.org/issue/5522
++		//   https://golang.org/issue/5522
+ 		//
+ 		// We don't request gzip if the request is for a range, since
+ 		// auto-decoding a portion of a gzipped document will just fail
+-		// anyway. See http://golang.org/issue/8923
++		// anyway. See https://golang.org/issue/8923
+ 		requestedGzip = true
+ 		req.extraHeaders().Set("Accept-Encoding", "gzip")
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 0eaf70da5d..d399552e47 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -486,7 +486,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 	}
+ }
+ 
+-// Test for http://golang.org/issue/2616 (appropriate issue number)
++// Test for https://golang.org/issue/2616 (appropriate issue number)
+ // This fails pretty reliably with GOMAXPROCS=100 or something high.
+ func TestStressSurpriseServerCloses(t *testing.T) {
+ 	defer afterTest(t)
+@@ -876,7 +876,7 @@ func TestTransportGzipShort(t *testing.T) {
+ // tests that persistent goroutine connections shut down when no longer desired.
+ func TestTransportPersistConnLeak(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	gotReqCh := make(chan bool)
+@@ -945,7 +945,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
+ // request.ContentLength is explicitly short
+ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+@@ -984,7 +984,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
+ 	}
+ }
+ 
+-// This used to crash; http://golang.org/issue/3266
++// This used to crash; https://golang.org/issue/3266
+ func TestTransportIdleConnCrash(t *testing.T) {
+ 	defer afterTest(t)
+ 	tr := &Transport{}
+@@ -1066,7 +1066,7 @@ func TestIssue3595(t *testing.T) {
+ 	}
+ }
+ 
+-// From http://golang.org/issue/4454 ,
++// From https://golang.org/issue/4454 ,
+ // "client fails to handle requests with no body and chunked encoding"
+ func TestChunkedNoContent(t *testing.T) {
+ 	defer afterTest(t)
+@@ -1153,7 +1153,7 @@ func TestTransportConcurrency(t *testing.T) {
+ 
+ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	const debug = false
+@@ -1217,7 +1217,7 @@ func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+ 
+ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/7237")
+ 	}
+ 	defer afterTest(t)
+ 	const debug = false
+@@ -1533,7 +1533,7 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+ 	defer close(unblockc)
+ 
+ 	// Don't interfere with the next test on plan9.
+-	// Cf. http://golang.org/issues/11476
++	// Cf. https://golang.org/issues/11476
+ 	if runtime.GOOS == "plan9" {
+ 		defer time.Sleep(500 * time.Millisecond)
+ 	}
+@@ -2257,7 +2257,7 @@ func (f closerFunc) Close() error { return f() }
+ // Issue 6981
+ func TestTransportClosesBodyOnError(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7782")
++		t.Skip("skipping test; see https://golang.org/issue/7782")
+ 	}
+ 	defer afterTest(t)
+ 	readBody := make(chan error, 1)
+diff --git a/src/net/rpc/client_test.go b/src/net/rpc/client_test.go
+index 5dd111b299..ba11ff8586 100644
+--- a/src/net/rpc/client_test.go
++++ b/src/net/rpc/client_test.go
+@@ -54,7 +54,7 @@ func (s *S) Recv(nul *struct{}, reply *R) error {
+ 
+ func TestGobError(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/8908")
++		t.Skip("skipping test; see https://golang.org/issue/8908")
+ 	}
+ 	defer func() {
+ 		err := recover()
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index eff7763900..f3d5add689 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -185,7 +185,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
+ 	// see this happen, rather than expose the buggy effect to users, we
+ 	// close the fd and try again.  If it happens twice more, we relent and
+ 	// use the result.  See also:
+-	//	http://golang.org/issue/2690
++	//	https://golang.org/issue/2690
+ 	//	http://stackoverflow.com/questions/4949858/
+ 	//
+ 	// The opposite can also happen: if we ask the kernel to pick an appropriate
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index c515bfc841..a263795814 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -84,7 +84,7 @@ type Cmd struct {
+ 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
+ 	//
+ 	// BUG(rsc): On OS X 10.6, child processes may sometimes inherit unwanted fds.
+-	// http://golang.org/issue/2603
++	// https://golang.org/issue/2603
+ 	ExtraFiles []*os.File
+ 
+ 	// SysProcAttr holds optional, operating system-specific attributes.
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 3773963cb0..96d41cbc8e 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -318,15 +318,15 @@ func closeUnexpectedFds(t *testing.T, m string) {
+ }
+ 
+ func TestExtraFilesFDShuffle(t *testing.T) {
+-	t.Skip("flaky test; see http://golang.org/issue/5780")
++	t.Skip("flaky test; see https://golang.org/issue/5780")
+ 	switch runtime.GOOS {
+ 	case "darwin":
+-		// TODO(cnicolaou): http://golang.org/issue/2603
++		// TODO(cnicolaou): https://golang.org/issue/2603
+ 		// leads to leaked file descriptors in this test when it's
+ 		// run from a builder.
+ 		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
+ 	case "netbsd":
+-		// http://golang.org/issue/3955
++		// https://golang.org/issue/3955
+ 		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
+ 	case "windows":
+ 		t.Skip("no operating system support; skipping")
+@@ -652,21 +652,21 @@ func TestHelperProcess(*testing.T) {
+ 			// file descriptors...
+ 		case "darwin":
+ 			// TODO(bradfitz): broken? Sometimes.
+-			// http://golang.org/issue/2603
++			// https://golang.org/issue/2603
+ 			// Skip this additional part of the test for now.
+ 		case "netbsd":
+ 			// TODO(jsing): This currently fails on NetBSD due to
+ 			// the cloned file descriptors that result from opening
+ 			// /dev/urandom.
+-			// http://golang.org/issue/3955
++			// https://golang.org/issue/3955
+ 		case "plan9":
+ 			// TODO(0intro): Determine why Plan 9 is leaking
+ 			// file descriptors.
+-			// http://golang.org/issue/7118
++			// https://golang.org/issue/7118
+ 		case "solaris":
+ 			// TODO(aram): This fails on Solaris because libc opens
+ 			// its own files, as it sees fit. Darwin does the same,
+-			// see: http://golang.org/issue/2603
++			// see: https://golang.org/issue/2603
+ 		default:
+ 			// Now verify that there are no other open fds.
+ 			var files []*os.File
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 640200e970..635842693a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1122,7 +1122,7 @@ func TestSeek(t *testing.T) {
+ 		if off != tt.out || err != nil {
+ 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
+ 				// Reiserfs rejects the big seeks.
+-				// http://golang.org/issue/91
++				// https://golang.org/issue/91
+ 				break
+ 			}
+ 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 91b6493c51..1c32e27a54 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1064,7 +1064,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBug3486(t *testing.T) { // http://golang.org/issue/3486
++func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+ 	if runtime.GOOS == "darwin" {
+ 		switch runtime.GOARCH {
+ 		case "arm", "arm64":
+diff --git a/src/race.bash b/src/race.bash
+index f1543c403a..e0917369f3 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -4,7 +4,7 @@
+ # license that can be found in the LICENSE file.
+ 
+ # race.bash tests the standard library under the race detector.
+-# http://golang.org/doc/articles/race_detector.html
++# https://golang.org/doc/articles/race_detector.html
+ 
+ set -e
+ 
+diff --git a/src/race.bat b/src/race.bat
+index 83e62839ba..33db692878 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -3,7 +3,7 @@
+ :: license that can be found in the LICENSE file.
+ 
+ :: race.bash tests the standard library under the race detector.
+-:: http://golang.org/doc/articles/race_detector.html
++:: https://golang.org/doc/articles/race_detector.html
+ 
+ @echo off
+ 
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index 4471805248..032057d2a1 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -51,7 +51,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 
+ 	// Indirect Go func value (dummy) to obtain
+ 	// actual code address. (A Go func value is a pointer
+-	// to a C function pointer. http://golang.org/s/go11func.)
++	// to a C function pointer. https://golang.org/s/go11func.)
+ 	dummy := makeFuncStub
+ 	code := **(**uintptr)(unsafe.Pointer(&dummy))
+ 
+@@ -99,7 +99,7 @@ func makeMethodValue(op string, v Value) Value {
+ 
+ 	// Indirect Go func value (dummy) to obtain
+ 	// actual code address. (A Go func value is a pointer
+-	// to a C function pointer. http://golang.org/s/go11func.)
++	// to a C function pointer. https://golang.org/s/go11func.)
+ 	dummy := methodValueCall
+ 	code := **(**uintptr)(unsafe.Pointer(&dummy))
+ 
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index bc1a1a09dc..f74aecfee9 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -12,7 +12,7 @@
+ // for that type.
+ //
+ // See "The Laws of Reflection" for an introduction to reflection in Go:
+-// http://golang.org/doc/articles/laws_of_reflection.html
++// https://golang.org/doc/articles/laws_of_reflection.html
+ package reflect
+ 
+ import (
+@@ -389,7 +389,7 @@ type Method struct {
+ 	// method name.  It is empty for upper case (exported) method names.
+ 	// The combination of PkgPath and Name uniquely identifies a method
+ 	// in a method set.
+-	// See http://golang.org/ref/spec#Uniqueness_of_identifiers
++	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
+ 	Name    string
+ 	PkgPath string
+ 
+@@ -737,7 +737,7 @@ type StructField struct {
+ 	// Name is the field name.
+ 	// PkgPath is the package path that qualifies a lower case (unexported)
+ 	// field name.  It is empty for upper case (exported) field names.
+-	// See http://golang.org/ref/spec#Uniqueness_of_identifiers
++	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
+ 	Name    string
+ 	PkgPath string
+ 
+@@ -1188,7 +1188,7 @@ func implements(T, V *rtype) bool {
+ 
+ // directlyAssignable reports whether a value x of type V can be directly
+ // assigned (using memmove) to a value of type T.
+-// http://golang.org/doc/go_spec.html#Assignability
++// https://golang.org/doc/go_spec.html#Assignability
+ // Ignoring the interface rules (implemented elsewhere)
+ // and the ideal constant rules (no ideal constants at run time).
+ func directlyAssignable(T, V *rtype) bool {
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 6c6576ab90..9ff95e6f44 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -273,7 +273,7 @@ import (
+ func main() {
+ 	// This test intends to test that sending SIGPROF to foreign threads
+ 	// before we make any cgo call will not abort the whole process, so
+-	// we cannot make any cgo call here. See http://golang.org/issue/9456.
++	// we cannot make any cgo call here. See https://golang.org/issue/9456.
+ 	atomic.StoreInt32((*int32)(unsafe.Pointer(&C.spinlock)), 1)
+ 	for atomic.LoadInt32((*int32)(unsafe.Pointer(&C.spinlock))) == 1 {
+ 		runtime.Gosched()
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 4a77dcfcd6..41202f9e3b 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -155,5 +155,5 @@ func SetPanicOnFault(enabled bool) bool {
+ 
+ // WriteHeapDump writes a description of the heap and the objects in
+ // it to the given file descriptor.
+-// The heap dump format is defined at http://golang.org/s/go13heapdump.
++// The heap dump format is defined at https://golang.org/s/go13heapdump.
+ func WriteHeapDump(fd uintptr)
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 3882229370..43bdec05c7 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -19,7 +19,7 @@ A collection is triggered when the ratio of freshly allocated data to live data
+ remaining after the previous collection reaches this percentage. The default
+ is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
+ The runtime/debug package's SetGCPercent function allows changing this
+-percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
++percentage at run time. See https://golang.org/pkg/runtime/debug/#SetGCPercent.
+ 
+ The GODEBUG variable controls debugging variables within the runtime.
+ It is a comma-separated list of name=val pairs setting these named variables:
+@@ -99,7 +99,7 @@ core dump.
+ 
+ The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
+ the set of Go environment variables. They influence the building of Go programs
+-(see http://golang.org/cmd/go and http://golang.org/pkg/go/build).
++(see https://golang.org/cmd/go and https://golang.org/pkg/go/build).
+ GOARCH, GOOS, and GOROOT are recorded at compile time and made available by
+ constants or functions in this package, but they do not influence the execution
+ of the run-time system.
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index c0fff3f1ce..492ea92e93 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -7,7 +7,7 @@
+ // finalizers, etc.) to a file.
+ 
+ // The format of the dumped file is described at
+-// http://golang.org/s/go14heapdump.
++// https://golang.org/s/go14heapdump.
+ 
+ package runtime
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f6608309e8..bea807caef 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -152,7 +152,7 @@ const (
+ 	// On Windows 64-bit we limit the arena to 32GB or 35 bits.
+ 	// Windows counts memory used by page table into committed memory
+ 	// of the process, so we can't reserve too much memory.
+-	// See http://golang.org/issue/5402 and http://golang.org/issue/5236.
++	// See https://golang.org/issue/5402 and https://golang.org/issue/5236.
+ 	// On other 64-bit platforms, we limit the arena to 512GB, or 39 bits.
+ 	// On 32-bit, we don't bother limiting anything, so we use the full 32-bit address.
+ 	// On Darwin/arm64, we cannot reserve more than ~5GB of virtual memory,
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0f137856a3..5b6765b664 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -293,7 +293,7 @@ const (
+ // This algorithm optimizes for heap growth to match GOGC and for CPU
+ // utilization between assist and background marking to be 25% of
+ // GOMAXPROCS. The high-level design of this algorithm is documented
+-// at http://golang.org/s/go15gcpacing.
++// at https://golang.org/s/go15gcpacing.
+ var gcController = gcControllerState{
+ 	// Initial trigger ratio guess.
+ 	triggerRatio: 7 / 8.0,
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 4290edb7be..43fe6e85a1 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ // BUG(rsc): Profiles are incomplete and inaccurate on NetBSD and OS X.
+-// See http://golang.org/issue/6047 for details.
++// See https://golang.org/issue/6047 for details.
+ 
+ // A Profile is a collection of stack traces showing the call sequences
+ // that led to instances of a particular event, such as allocation.
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index b2b745bcf6..ec88516cc1 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -20,7 +20,7 @@ import (
+ func skipTraceTestsIfNeeded(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "solaris":
+-		t.Skip("skipping: solaris timer can go backwards (http://golang.org/issue/8976)")
++		t.Skip("skipping: solaris timer can go backwards (https://golang.org/issue/8976)")
+ 	case "darwin":
+ 		switch runtime.GOARCH {
+ 		case "arm", "arm64":
+@@ -32,7 +32,7 @@ func skipTraceTestsIfNeeded(t *testing.T) {
+ 
+ 	switch runtime.GOARCH {
+ 	case "arm":
+-		t.Skip("skipping: arm tests fail with 'failed to parse trace' (http://golang.org/issue/9725)")
++		t.Skip("skipping: arm tests fail with 'failed to parse trace' (https://golang.org/issue/9725)")
+ 	}
+ }
+ 
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index a048ded94c..909f655eaf 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -21,7 +21,7 @@ var (
+ //     M must have an associated P to execute Go code, however it can be
+ //     blocked or in a syscall w/o an associated P.
+ //
+-// Design doc at http://golang.org/s/go11sched.
++// Design doc at https://golang.org/s/go11sched.
+ 
+ const (
+ 	// Number of goroutine ids to grab from sched.goidgen to local per-P cache at once.
+diff --git a/src/runtime/race/doc.go b/src/runtime/race/doc.go
+index aef805dad7..9e93f66042 100644
+--- a/src/runtime/race/doc.go
++++ b/src/runtime/race/doc.go
+@@ -5,5 +5,5 @@
+ // Package race implements data race detection logic.
+ // No public interface is provided.
+ // For details about the race detector see
+-// http://golang.org/doc/articles/race_detector.html
++// https://golang.org/doc/articles/race_detector.html
+ package race
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 64b2d03a92..0132766dd0 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -496,7 +496,7 @@ const (
+ )
+ 
+ // Layout of in-memory per-function information prepared by linker
+-// See http://golang.org/s/go12symtab.
++// See https://golang.org/s/go12symtab.
+ // Keep in sync with linker
+ // and with package debug/gosym and with symtab.go in package runtime.
+ type _func struct {
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 48058b95cb..fa073f19ad 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -60,7 +60,7 @@ func TestStackMem(t *testing.T) {
+ 	if consumed > estimate {
+ 		t.Fatalf("Stack mem: want %v, got %v", estimate, consumed)
+ 	}
+-	// Due to broken stack memory accounting (http://golang.org/issue/7468),
++	// Due to broken stack memory accounting (https://golang.org/issue/7468),
+ 	// StackInuse can decrease during function execution, so we cast the values to int64.
+ 	inuse := int64(s1.StackInuse) - int64(s0.StackInuse)
+ 	t.Logf("Inuse %vMB for stack mem", inuse>>20)
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index 30ddbfb5a7..3f0771fe0c 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -45,7 +45,7 @@ func rewindmorestack(buf *gobuf) {
+ 		// buf.pc, so that when we return we will execute
+ 		// the jump instruction and carry on.  This means that
+ 		// stack unwinding may not work entirely correctly
+-		// (http://golang.org/issue/5723) but the user is
++		// (https://golang.org/issue/5723) but the user is
+ 		// running under gdb anyhow.
+ 		return
+ 	}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 7ba9e15ef7..25fcfe13c2 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -8,7 +8,7 @@
+ // changes of heap size, processor start/stop, etc and writes them to a buffer
+ // in a compact form. A precise nanosecond-precision timestamp and a stack
+ // trace is captured for most events.
+-// See http://golang.org/s/go15trace for more info.
++// See https://golang.org/s/go15trace for more info.
+ 
+ package runtime
+ 
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 6895458165..c7b4560b76 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -217,7 +217,7 @@ func passFDChild() {
+ 	defer os.Exit(0)
+ 
+ 	// Look for our fd. It should be fd 3, but we work around an fd leak
+-	// bug here (http://golang.org/issue/2603) to let it be elsewhere.
++	// bug here (https://golang.org/issue/2603) to let it be elsewhere.
+ 	var uc *net.UnixConn
+ 	for fd := uintptr(3); fd <= 10; fd++ {
+ 		f := os.NewFile(fd, "unix-conn")
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index fb22e3a559..8381917478 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -34,7 +34,7 @@
+ // its -bench flag is provided. Benchmarks are run sequentially.
+ //
+ // For a description of the testing flags, see
+-// http://golang.org/cmd/go/#hdr-Description_of_testing_flags.
++// https://golang.org/cmd/go/#hdr-Description_of_testing_flags.
+ //
+ // A sample benchmark function looks like this:
+ //     func BenchmarkHello(b *testing.B) {
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 757474a30b..2d16ea59ae 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -830,7 +830,7 @@ var parseDurationTests = []struct {
+ 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
+ 	// large value
+ 	{"52763797000ns", true, 52763797000 * Nanosecond},
+-	// more than 9 digits after decimal point, see http://golang.org/issue/6617
++	// more than 9 digits after decimal point, see https://golang.org/issue/6617
+ 	{"0.3333333333333333333h", true, 20 * Minute},
+ 	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
+ 	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},
+diff --git a/test/const4.go b/test/const4.go
+index 2fb2d0664e..785e1ec04d 100644
+--- a/test/const4.go
++++ b/test/const4.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test len constants and non-constants, http://golang.org/issue/3244.
++// Test len constants and non-constants, https://golang.org/issue/3244.
+ 
+ package main
+ 
+diff --git a/test/const5.go b/test/const5.go
+index 60b4d0d12c..51e46cbb2f 100644
+--- a/test/const5.go
++++ b/test/const5.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test that len non-constants are not constants, http://golang.org/issue/3244.
++// Test that len non-constants are not constants, https://golang.org/issue/3244.
+ 
+ package p
+ 
+diff --git a/test/fixedbugs/bug214.go b/test/fixedbugs/bug214.go
+index 5f68246031..f3c25e727f 100644
+--- a/test/fixedbugs/bug214.go
++++ b/test/fixedbugs/bug214.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash the compiler.
+-// http://golang.org/issue/88
++// https://golang.org/issue/88
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug215.go b/test/fixedbugs/bug215.go
+index 0bfd678da7..b27cc7db1a 100644
+--- a/test/fixedbugs/bug215.go
++++ b/test/fixedbugs/bug215.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash the compiler.
+-// http://golang.org/issue/158
++// https://golang.org/issue/158
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug216.go b/test/fixedbugs/bug216.go
+index b2a1a70c98..470369a6a8 100644
+--- a/test/fixedbugs/bug216.go
++++ b/test/fixedbugs/bug216.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to be rejected
+-// http://golang.org/issue/188
++// https://golang.org/issue/188
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug217.go b/test/fixedbugs/bug217.go
+index bb741b9309..aafc260463 100644
+--- a/test/fixedbugs/bug217.go
++++ b/test/fixedbugs/bug217.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash
+-// http://golang.org/issue/204
++// https://golang.org/issue/204
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug218.go b/test/fixedbugs/bug218.go
+index db7abe292d..f159f05fa8 100644
+--- a/test/fixedbugs/bug218.go
++++ b/test/fixedbugs/bug218.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Crashes 6g, 8g
+-// http://golang.org/issue/238
++// https://golang.org/issue/238
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug221.go b/test/fixedbugs/bug221.go
+index bc5a1fa6a0..4275474a97 100644
+--- a/test/fixedbugs/bug221.go
++++ b/test/fixedbugs/bug221.go
+@@ -7,7 +7,7 @@
+ // function call arg reordering was picking out 1 call that
+ // didn't need to be in a temporary, but it was picking
+ // out the first call instead of the last call.
+-// http://golang.org/issue/370
++// https://golang.org/issue/370
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug264.go b/test/fixedbugs/bug264.go
+index 9d7397c937..2f320def26 100644
+--- a/test/fixedbugs/bug264.go
++++ b/test/fixedbugs/bug264.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test case for http://golang.org/issue/692
++// Test case for https://golang.org/issue/692
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug265.go b/test/fixedbugs/bug265.go
+index e5cad584aa..5e0516691a 100644
+--- a/test/fixedbugs/bug265.go
++++ b/test/fixedbugs/bug265.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test case for http://golang.org/issue/700
++// Test case for https://golang.org/issue/700
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug269.go b/test/fixedbugs/bug269.go
+index d39f0d45e5..60ee7ee3f3 100644
+--- a/test/fixedbugs/bug269.go
++++ b/test/fixedbugs/bug269.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/749
++// https://golang.org/issue/749
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug271.go b/test/fixedbugs/bug271.go
+index 47d267d63d..30d9bb1cc7 100644
+--- a/test/fixedbugs/bug271.go
++++ b/test/fixedbugs/bug271.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/662
++// https://golang.org/issue/662
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug272.go b/test/fixedbugs/bug272.go
+index 68840c538a..f943d68a07 100644
+--- a/test/fixedbugs/bug272.go
++++ b/test/fixedbugs/bug272.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/589
++// https://golang.org/issue/589
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug273.go b/test/fixedbugs/bug273.go
+index fc9c19a172..b4e3f65cb8 100644
+--- a/test/fixedbugs/bug273.go
++++ b/test/fixedbugs/bug273.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/589
++// https://golang.org/issue/589
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug274.go b/test/fixedbugs/bug274.go
+index 832ebe3e8d..e57d147a60 100644
+--- a/test/fixedbugs/bug274.go
++++ b/test/fixedbugs/bug274.go
+@@ -13,7 +13,7 @@
+ // Both gccgo and gofmt correctly refuse this program as is and accept it
+ // when the semicolons are present.
+ 
+-// This is a test case for issue 777 ( http://golang.org/issue/777 ).
++// This is a test case for issue 777 ( https://golang.org/issue/777 ).
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug279.go b/test/fixedbugs/bug279.go
+index 3921e84057..726ba603ee 100644
+--- a/test/fixedbugs/bug279.go
++++ b/test/fixedbugs/bug279.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/799
++// https://golang.org/issue/799
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug280.go b/test/fixedbugs/bug280.go
+index 15d0bc55bf..3925b9a4b5 100644
+--- a/test/fixedbugs/bug280.go
++++ b/test/fixedbugs/bug280.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/808
++// https://golang.org/issue/808
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug281.go b/test/fixedbugs/bug281.go
+index a47f8f7b54..92c8d860e3 100644
+--- a/test/fixedbugs/bug281.go
++++ b/test/fixedbugs/bug281.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/807
++// https://golang.org/issue/807
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug283.go b/test/fixedbugs/bug283.go
+index f8d2d92481..1f7f6e0410 100644
+--- a/test/fixedbugs/bug283.go
++++ b/test/fixedbugs/bug283.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/806
++// https://golang.org/issue/806
+ // triggered out of registers on 8g
+ 
+ package bug283
+diff --git a/test/fixedbugs/bug285.go b/test/fixedbugs/bug285.go
+index 0a8a0f09e6..e0b3766bb3 100644
+--- a/test/fixedbugs/bug285.go
++++ b/test/fixedbugs/bug285.go
+@@ -6,7 +6,7 @@
+ 
+ // Test for issue 778: Map key values that are assignment
+ // compatible with the map key type must be accepted according
+-// to the spec: http://golang.org/doc/go_spec.html#Indexes .
++// to the spec: https://golang.org/doc/go_spec.html#Indexes .
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug290.go b/test/fixedbugs/bug290.go
+index b2eab2e5de..46ebc1ff00 100644
+--- a/test/fixedbugs/bug290.go
++++ b/test/fixedbugs/bug290.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/920
++// https://golang.org/issue/920
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug291.go b/test/fixedbugs/bug291.go
+index 19b9ece899..d627a9df67 100644
+--- a/test/fixedbugs/bug291.go
++++ b/test/fixedbugs/bug291.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/915
++// https://golang.org/issue/915
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug292.go b/test/fixedbugs/bug292.go
+index 8d46bcf317..0c24912572 100644
+--- a/test/fixedbugs/bug292.go
++++ b/test/fixedbugs/bug292.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/843
++// https://golang.org/issue/843
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug293.go b/test/fixedbugs/bug293.go
+index 0190c6a5f4..c985305668 100644
+--- a/test/fixedbugs/bug293.go
++++ b/test/fixedbugs/bug293.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/846
++// https://golang.org/issue/846
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug294.go b/test/fixedbugs/bug294.go
+index 622f2bf08d..ec41fe8d3c 100644
+--- a/test/fixedbugs/bug294.go
++++ b/test/fixedbugs/bug294.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/800
++// https://golang.org/issue/800
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug301.go b/test/fixedbugs/bug301.go
+index fadc80bd79..fc52503932 100644
+--- a/test/fixedbugs/bug301.go
++++ b/test/fixedbugs/bug301.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/990
++// https://golang.org/issue/990
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug425.go b/test/fixedbugs/bug425.go
+index 36a5eee583..c3035f6a91 100644
+--- a/test/fixedbugs/bug425.go
++++ b/test/fixedbugs/bug425.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/3119
++// https://golang.org/issue/3119
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug427.go b/test/fixedbugs/bug427.go
+index 8488d1876b..c13bb815ca 100644
+--- a/test/fixedbugs/bug427.go
++++ b/test/fixedbugs/bug427.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://golang.org/issue/3351
++// https://golang.org/issue/3351
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue4365.go b/test/fixedbugs/issue4365.go
+index 8fcbd3cf2f..04d31f71ad 100644
+--- a/test/fixedbugs/issue4365.go
++++ b/test/fixedbugs/issue4365.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test that fields hide promoted methods.
+-// http://golang.org/issue/4365
++// https://golang.org/issue/4365
+ 
+ package main
+ 

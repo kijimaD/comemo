@@ -8,7 +8,40 @@ Date:   Sat Jan 30 12:21:51 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194146
-
+---
  src/pkg/compress/gzip/gunzip.go | 2 +-
  src/pkg/compress/gzip/gzip.go   | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 6a1b9fac37..ea1d210344 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -104,7 +104,7 @@ func (z *Inflater) readString() (string, os.Error) {
+ 			return "", err
+ 		}
+ 		if z.buf[i] == 0 {
+-			// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
++			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+ 			// TODO(nigeltao): Convert from ISO 8859-1 (Latin-1) to UTF-8.
+ 			return string(z.buf[0:i]), nil
+ 		}
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+index c17e6e7e0e..7ce0e8cd2f 100644
+--- a/src/pkg/compress/gzip/gzip.go
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -85,11 +85,11 @@ func (z *Deflater) writeBytes(b []byte) os.Error {
+ 
+ // writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
+ func (z *Deflater) writeString(s string) os.Error {
+-	// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
++	// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+ 	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
+ 	for _, v := range s {
+-		if v > 0x7f {
+-			return os.NewError("gzip.Write: Comment/Name character code was outside the 0x00-0x7f range")
++		if v == 0 || v > 0x7f {
++			return os.NewError("gzip.Write: non-ASCII header string")
+ 		}
+ 	}
+ 	_, err := io.WriteString(z.w, s)

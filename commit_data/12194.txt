@@ -7,10 +7,155 @@ Date:   Thu Feb 23 23:09:53 2012 -0500
     R=ken2
     CC=golang-dev, lvd
     https://golang.org/cl/5693056
-
+---
  src/cmd/gc/esc.c |  9 +++++----
  src/cmd/gc/go.h  |  2 +-
  src/cmd/gc/lex.c | 15 +++++++++------
  test/escape2.go  |  2 +-
  test/escape4.go  | 33 +++++++++++++++++++++++++++++++++
  5 files changed, 49 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 7e20457d9a..2614b5f356 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -59,7 +59,7 @@ static int	dstcount, edgecount;	// diagnostic
+ static NodeList*	noesc;	// list of possible non-escaping nodes, for printing
+ 
+ void
+-escapes(void)
++escapes(NodeList *all)
+ {
+ 	NodeList *l;
+ 
+@@ -70,9 +70,10 @@ escapes(void)
+ 	theSink.escloopdepth = -1;
+ 
+ 	safetag = strlit("noescape");
++	noesc = nil;
+ 
+-	// flow-analyze top level functions
+-	for(l=xtop; l; l=l->next)
++	// flow-analyze functions
++	for(l=all; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE)
+ 			escfunc(l->n);
+ 
+@@ -84,7 +85,7 @@ escapes(void)
+ 		escflood(l->n);
+ 
+ 	// for all top level functions, tag the typenodes corresponding to the param nodes
+-	for(l=xtop; l; l=l->next)
++	for(l=all; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			esctag(l->n);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fcbea2cd90..81be4d25b1 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -955,7 +955,7 @@ NodeList*	variter(NodeList *vl, Node *t, NodeList *el);
+ /*
+  *	esc.c
+  */
+-void	escapes(void);
++void	escapes(NodeList*);
+ 
+ /*
+  *	export.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e880b2f34c..924865b939 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -186,7 +186,7 @@ int
+ main(int argc, char *argv[])
+ {
+ 	int i, c;
+-	NodeList *l;
++	NodeList *l, *batch;
+ 	char *p;
+ 
+ #ifdef	SIGBUS	
+@@ -390,7 +390,7 @@ main(int argc, char *argv[])
+ 
+ 	// Phase 5: escape analysis.
+ 	if(!debug['N'])
+-		escapes();
++		escapes(xtop);
+ 
+ 	// Phase 6: Compile top level functions.
+ 	for(l=xtop; l; l=l->next)
+@@ -401,14 +401,17 @@ main(int argc, char *argv[])
+ 		fninit(xtop);
+ 
+ 	// Phase 6b: Compile all closures.
++	// Can generate more closures, so run in batches.
+ 	while(closures) {
+-		l = closures;
++		batch = closures;
+ 		closures = nil;
+-		for(; l; l=l->next) {
+-			if (debug['l'])
++		if(debug['l'])
++			for(l=batch; l; l=l->next)
+ 				inlcalls(l->n);
++		if(!debug['N'])
++			escapes(batch);
++		for(l=batch; l; l=l->next)
+ 			funccompile(l->n, 1);
+-		}
+ 	}
+ 
+ 	// Phase 7: check external declarations.
+diff --git a/test/escape2.go b/test/escape2.go
+index dde96bcc1e..624ea80b55 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test, using compiler diagnostic flags, that the escape analysis is working.
+-// Compiles but does not run.
++// Compiles but does not run.  Inlining is disabled.
+ 
+ package foo
+ 
+diff --git a/test/escape4.go b/test/escape4.go
+new file mode 100644
+index 0000000000..ab3aee2244
+--- /dev/null
++++ b/test/escape4.go
+@@ -0,0 +1,33 @@
++// errchk -0 $G -m $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test, using compiler diagnostic flags, that the escape analysis is working.
++// Compiles but does not run.  Inlining is enabled.
++
++package foo
++
++var p *int
++
++func alloc(x int) *int {  // ERROR "can inline alloc" "moved to heap: x"
++	return &x  // ERROR "&x escapes to heap"
++}
++
++var f func()
++
++func f1() {
++	p = alloc(2) // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
++
++	// Escape analysis used to miss inlined code in closures.
++
++	func() {  // ERROR "func literal does not escape"
++		p = alloc(3)  // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
++	}()
++	
++	f = func() {  // ERROR "func literal escapes to heap"
++		p = alloc(3)  // ERROR "inlining call to alloc" "&x escapes to heap" "moved to heap: x"
++	}
++	f()
++}

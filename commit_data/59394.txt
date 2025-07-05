@@ -11,8 +11,48 @@ Date:   Fri Mar 8 16:35:16 2024 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/map_fast32.go  | 2 +-
  src/runtime/map_fast64.go  | 2 +-
  src/runtime/map_faststr.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 01a81439e3..7e52240e77 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -307,7 +307,7 @@ search:
+ 				// 32 bits wide and the key is 32 bits wide also.
+ 				*(*unsafe.Pointer)(k) = nil
+ 			}
+-      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*4+i*uintptr(t.ValueSize))
++			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*4+i*uintptr(t.ValueSize))
+ 			if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index f47bc96f70..2c365183cb 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -309,7 +309,7 @@ search:
+ 					memclrHasPointers(k, 8)
+ 				}
+ 			}
+-      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*8+i*uintptr(t.ValueSize))
++			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*8+i*uintptr(t.ValueSize))
+ 			if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index a9898ba1ca..d989190f71 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -335,7 +335,7 @@ search:
+ 			}
+ 			// Clear key's pointer.
+ 			k.str = nil
+-      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*2*goarch.PtrSize+i*uintptr(t.ValueSize))
++			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*2*goarch.PtrSize+i*uintptr(t.ValueSize))
+ 			if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {

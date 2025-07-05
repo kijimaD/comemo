@@ -7,6 +7,23 @@ Date:   Fri Aug 16 22:42:54 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13067043
-
+---
  doc/articles/race_detector.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+index 2d36f616e1..282db8ba40 100644
+--- a/doc/articles/race_detector.html
++++ b/doc/articles/race_detector.html
+@@ -128,6 +128,11 @@ access history is <code>32K * 2**history_size elements</code>.
+ Increasing this value can avoid a "failed to restore the stack" error in reports, at the
+ cost of increased memory usage.
+ </li>
++
++<li>
++<code>halt_on_error</code> (default <code>0</code>): Controls whether the program
++exits after reporting first data race.
++</li>
+ </ul>
+ 
+ <p>

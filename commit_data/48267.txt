@@ -20,6 +20,33 @@ Date:   Wed Apr 28 16:47:41 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/os/signal/signal_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 4c19281e91..cea68742d2 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"runtime"
+ 	"runtime/trace"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 	"syscall"
+ 	"testing"
+@@ -47,6 +48,13 @@ func init() {
+ 		//
+ 		// See https://golang.org/issue/33174.
+ 		settleTime = 11 * time.Second
++	} else if runtime.GOOS == "linux" && strings.HasPrefix(runtime.GOARCH, "ppc64") {
++		// Older linux kernels seem to have some hiccups delivering the signal
++		// in a timely manner on ppc64 and ppc64le. When running on a
++		// ppc64le/ubuntu 16.04/linux 4.4 host the time can vary quite
++		// substantially even on a idle system. 5 seconds is twice any value
++		// observed when running 10000 tests on such a system.
++		settleTime = 5 * time.Second
+ 	} else if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
+ 		if scale, err := strconv.Atoi(s); err == nil {
+ 			settleTime *= time.Duration(scale)

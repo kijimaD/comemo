@@ -12,6 +12,19 @@ Date:   Fri Jul 17 16:33:51 2015 +0200
     Change-Id: I7bfe8b0267f6c4a57dd6b26cba44928714711724
     Reviewed-on: https://go-review.googlesource.com/12353
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index f332bc8346..f1366110cc 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -259,6 +259,7 @@ func Create(name string) (file *File, err error) {
+ var lstat = Lstat
+ 
+ // Rename renames (moves) a file. OS-specific restrictions might apply.
++// If there is an error, it will be of type *LinkError.
+ func Rename(oldpath, newpath string) error {
+ 	return rename(oldpath, newpath)
+ }

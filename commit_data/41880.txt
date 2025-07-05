@@ -14,9 +14,88 @@ Date:   Tue Oct 29 15:39:42 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204059
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/export_aix_test.go        |  7 +++++++
  src/runtime/nbpipe_fcntl_aix_test.go  | 17 +++++++++++++++++
  src/runtime/nbpipe_fcntl_unix_test.go | 14 ++++++++++++++
  src/runtime/nbpipe_test.go            |  4 ++--
  4 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_aix_test.go b/src/runtime/export_aix_test.go
+new file mode 100644
+index 0000000000..162552d04c
+--- /dev/null
++++ b/src/runtime/export_aix_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++var Fcntl = syscall_fcntl1
+diff --git a/src/runtime/nbpipe_fcntl_aix_test.go b/src/runtime/nbpipe_fcntl_aix_test.go
+new file mode 100644
+index 0000000000..4276ed5b53
+--- /dev/null
++++ b/src/runtime/nbpipe_fcntl_aix_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"syscall"
++)
++
++// We can't call syscall.Syscall on AIX. Therefore, fcntl is exported from the
++// runtime in export_aix_test.go.
++func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
++	res, errno := runtime.Fcntl(fd, uintptr(cmd), arg)
++	return res, syscall.Errno(errno)
++}
+diff --git a/src/runtime/nbpipe_fcntl_unix_test.go b/src/runtime/nbpipe_fcntl_unix_test.go
+new file mode 100644
+index 0000000000..06b3275f06
+--- /dev/null
++++ b/src/runtime/nbpipe_fcntl_unix_test.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package runtime_test
++
++import "syscall"
++
++func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
++	res, _, err := syscall.Syscall(syscall.SYS_FCNTL, fd, uintptr(cmd), arg)
++	return res, err
++}
+diff --git a/src/runtime/nbpipe_test.go b/src/runtime/nbpipe_test.go
+index bd0d578234..00dc11e937 100644
+--- a/src/runtime/nbpipe_test.go
++++ b/src/runtime/nbpipe_test.go
+@@ -49,7 +49,7 @@ func checkIsPipe(t *testing.T, r, w int32) {
+ 
+ func checkNonblocking(t *testing.T, fd int32, name string) {
+ 	t.Helper()
+-	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_GETFL, 0)
++	flags, errno := fcntl(uintptr(fd), syscall.F_GETFL, 0)
+ 	if errno != 0 {
+ 		t.Errorf("fcntl(%s, F_GETFL) failed: %v", name, syscall.Errno(errno))
+ 	} else if flags&syscall.O_NONBLOCK == 0 {
+@@ -59,7 +59,7 @@ func checkNonblocking(t *testing.T, fd int32, name string) {
+ 
+ func checkCloseonexec(t *testing.T, fd int32, name string) {
+ 	t.Helper()
+-	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), syscall.F_GETFD, 0)
++	flags, errno := fcntl(uintptr(fd), syscall.F_GETFD, 0)
+ 	if errno != 0 {
+ 		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(errno))
+ 	} else if flags&syscall.FD_CLOEXEC == 0 {

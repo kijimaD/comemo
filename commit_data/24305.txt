@@ -10,7 +10,35 @@ Date:   Wed Jul 22 12:33:21 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12507
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/math/big/ratconv.go      | 3 ++-
  src/math/big/ratconv_test.go | 2 ++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 778077b96e..961ff649a5 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -205,7 +205,8 @@ func (x *Rat) RatString() string {
+ }
+ 
+ // FloatString returns a string representation of x in decimal form with prec
+-// digits of precision after the decimal point and the last digit rounded.
++// digits of precision after the decimal point. The last digit is rounded to
++// nearest, with halves rounded away from zero.
+ func (x *Rat) FloatString(prec int) string {
+ 	if x.IsInt() {
+ 		s := x.a.String()
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 16b3a19418..da2fdab4ca 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -113,6 +113,8 @@ var floatStringTests = []struct {
+ 	{"1", 0, "1"},
+ 	{"1", 2, "1.00"},
+ 	{"-1", 0, "-1"},
++	{"0.05", 1, "0.1"},
++	{"-0.05", 1, "-0.1"},
+ 	{".25", 2, "0.25"},
+ 	{".25", 1, "0.3"},
+ 	{".25", 3, "0.250"},

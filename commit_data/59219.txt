@@ -13,6 +13,20 @@ Date:   Sun Feb 25 10:15:17 2024 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/gofmt/gofmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index f4fb6bff84..341c79ab8e 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -555,7 +555,7 @@ func backupFile(filename string, data []byte, perm fs.FileMode) (string, error)
+ 		if err == nil {
+ 			break
+ 		}
+-		if err != nil && !os.IsExist(err) {
++		if !os.IsExist(err) {
+ 			return "", err
+ 		}
+ 	}

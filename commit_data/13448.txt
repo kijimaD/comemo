@@ -7,7 +7,32 @@ Date:   Sun Jul 8 11:56:26 2012 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6349082
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 706115912e..397faf7195 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -146,6 +146,7 @@ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
++Matthew William Jibson <matt.jibson@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Chaten <mchaten@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 435f6ba6cd..5806c7c501 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -216,6 +216,7 @@ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
+ Matt Jones <mrjones@google.com>
+ Matthew Horsnell <matthew.horsnell@gmail.com>
++Matthew William Jibson <matt.jibson@gmail.com>
+ Maxim Pimenov <mpimenov@google.com>
+ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>

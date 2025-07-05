@@ -15,6 +15,20 @@ Date:   Sat Aug 17 13:22:22 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/fuzz.go b/src/encoding/json/fuzz.go
+index 4872b6f7ee..be03f0d7ff 100644
+--- a/src/encoding/json/fuzz.go
++++ b/src/encoding/json/fuzz.go
+@@ -33,7 +33,7 @@ func Fuzz(data []byte) (score int) {
+ 		err = Unmarshal(m, u)
+ 		if err != nil {
+ 			fmt.Printf("v=%#v\n", v)
+-			fmt.Println("m=%s\n", string(m))
++			fmt.Printf("m=%s\n", m)
+ 			panic(err)
+ 		}
+ 	}

@@ -14,7 +14,7 @@ Date:   Fri Sep 30 03:41:42 2022 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_bsd.go       |  4 ++--
  src/syscall/exec_freebsd.go   |  4 ++--
  src/syscall/exec_libc.go      |  4 ++--
@@ -25,3 +25,239 @@ Date:   Fri Sep 30 03:41:42 2022 +0000
  src/syscall/syscall_bsd.go    | 10 +++++-----
  src/syscall/syscall_darwin.go |  2 +-
  9 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 3e4c6f9d62..32c3ebdd9b 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -200,7 +200,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		nextfd++
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
++		if fd[i] >= 0 && fd[i] < i {
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+@@ -229,7 +229,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+ 			continue
+ 		}
+-		if fd[i] == int(i) {
++		if fd[i] == i {
+ 			// dup2(i, i) won't clear close-on-exec flag on Linux,
+ 			// probably not elsewhere either.
+ 			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0)
+diff --git a/src/syscall/exec_freebsd.go b/src/syscall/exec_freebsd.go
+index 851b8fbd06..b85bcd93a8 100644
+--- a/src/syscall/exec_freebsd.go
++++ b/src/syscall/exec_freebsd.go
+@@ -223,7 +223,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		nextfd++
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
++		if fd[i] >= 0 && fd[i] < i {
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+@@ -242,7 +242,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+ 			continue
+ 		}
+-		if fd[i] == int(i) {
++		if fd[i] == i {
+ 			// dup2(i, i) won't clear close-on-exec flag on Linux,
+ 			// probably not elsewhere either.
+ 			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0)
+diff --git a/src/syscall/exec_libc.go b/src/syscall/exec_libc.go
+index 9e14197dcf..ef0c87e03c 100644
+--- a/src/syscall/exec_libc.go
++++ b/src/syscall/exec_libc.go
+@@ -215,7 +215,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		nextfd++
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
++		if fd[i] >= 0 && fd[i] < i {
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+@@ -243,7 +243,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			closeFD(uintptr(i))
+ 			continue
+ 		}
+-		if fd[i] == int(i) {
++		if fd[i] == i {
+ 			// dup2(i, i) won't clear close-on-exec flag on Linux,
+ 			// probably not elsewhere either.
+ 			_, err1 = fcntl1(uintptr(fd[i]), F_SETFD, 0)
+diff --git a/src/syscall/exec_libc2.go b/src/syscall/exec_libc2.go
+index 9eb61a5d35..41bc79a721 100644
+--- a/src/syscall/exec_libc2.go
++++ b/src/syscall/exec_libc2.go
+@@ -198,7 +198,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		nextfd++
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
++		if fd[i] >= 0 && fd[i] < i {
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+@@ -225,7 +225,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			rawSyscall(abi.FuncPCABI0(libc_close_trampoline), uintptr(i), 0, 0)
+ 			continue
+ 		}
+-		if fd[i] == int(i) {
++		if fd[i] == i {
+ 			// dup2(i, i) won't clear close-on-exec flag on Linux,
+ 			// probably not elsewhere either.
+ 			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(fd[i]), F_SETFD, 0)
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 72b56f484a..b61b51dff1 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -532,7 +532,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		nextfd++
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
++		if fd[i] >= 0 && fd[i] < i {
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+@@ -551,7 +551,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+ 			continue
+ 		}
+-		if fd[i] == int(i) {
++		if fd[i] == i {
+ 			// dup2(i, i) won't clear close-on-exec flag on Linux,
+ 			// probably not elsewhere either.
+ 			_, _, err1 = RawSyscall(fcntl64Syscall, uintptr(fd[i]), F_SETFD, 0)
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index 6680e6f2ef..d6b7890f55 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -245,7 +245,7 @@ dirloop:
+ 		nextfd++
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
++		if fd[i] >= 0 && fd[i] < i {
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+@@ -265,7 +265,7 @@ dirloop:
+ 			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+ 			continue
+ 		}
+-		if fd[i] == int(i) {
++		if fd[i] == i {
+ 			continue
+ 		}
+ 		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index dbcb7bb717..45a4060f56 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -343,7 +343,7 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn
+ 	msg.Namelen = uint32(SizeofSockaddrAny)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.Base = &p[0]
+ 		iov.SetLen(len(p))
+ 	}
+ 	var dummy byte
+@@ -358,7 +358,7 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn
+ 			iov.Base = &dummy
+ 			iov.SetLen(1)
+ 		}
+-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.Control = &oob[0]
+ 		msg.SetControllen(len(oob))
+ 	}
+ 	msg.Iov = &iov
+@@ -373,11 +373,11 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn
+ 
+ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+ 	var msg Msghdr
+-	msg.Name = (*byte)(unsafe.Pointer(ptr))
++	msg.Name = (*byte)(ptr)
+ 	msg.Namelen = uint32(salen)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.Base = &p[0]
+ 		iov.SetLen(len(p))
+ 	}
+ 	var dummy byte
+@@ -392,7 +392,7 @@ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags i
+ 			iov.Base = &dummy
+ 			iov.SetLen(1)
+ 		}
+-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.Control = &oob[0]
+ 		msg.SetControllen(len(oob))
+ 	}
+ 	msg.Iov = &iov
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 5e636d5258..c7a7d786dc 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -364,7 +364,7 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn
+ 	msg.Namelen = uint32(SizeofSockaddrAny)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.Base = &p[0]
+ 		iov.SetLen(len(p))
+ 	}
+ 	var dummy byte
+@@ -374,7 +374,7 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn
+ 			iov.Base = &dummy
+ 			iov.SetLen(1)
+ 		}
+-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.Control = &oob[0]
+ 		msg.SetControllen(len(oob))
+ 	}
+ 	msg.Iov = &iov
+@@ -391,11 +391,11 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn
+ 
+ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+ 	var msg Msghdr
+-	msg.Name = (*byte)(unsafe.Pointer(ptr))
++	msg.Name = (*byte)(ptr)
+ 	msg.Namelen = uint32(salen)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+-		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.Base = &p[0]
+ 		iov.SetLen(len(p))
+ 	}
+ 	var dummy byte
+@@ -405,7 +405,7 @@ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags i
+ 			iov.Base = &dummy
+ 			iov.SetLen(1)
+ 		}
+-		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.Control = &oob[0]
+ 		msg.SetControllen(len(oob))
+ 	}
+ 	msg.Iov = &iov
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index cf9b0e9809..a39e99dc63 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -227,7 +227,7 @@ func init() {
+ 
+ func fdopendir(fd int) (dir uintptr, err error) {
+ 	r0, _, e1 := syscallPtr(abi.FuncPCABI0(libc_fdopendir_trampoline), uintptr(fd), 0, 0)
+-	dir = uintptr(r0)
++	dir = r0
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+ 	}

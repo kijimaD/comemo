@@ -9,7 +9,65 @@ Date:   Sun Aug 4 08:41:19 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12387043
-
+---
  src/pkg/html/template/content.go      |  6 ++++++
  src/pkg/html/template/content_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index 9d1f74f6f0..41b1116a66 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -74,6 +74,9 @@ const (
+ // indirect returns the value, after dereferencing as many times
+ // as necessary to reach the base type (or nil).
+ func indirect(a interface{}) interface{} {
++	if a == nil {
++		return nil
++	}
+ 	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
+ 		// Avoid creating a reflect.Value if it's not a pointer.
+ 		return a
+@@ -94,6 +97,9 @@ var (
+ // as necessary to reach the base type (or nil) or an implementation of fmt.Stringer
+ // or error,
+ func indirectToStringerOrError(a interface{}) interface{} {
++	if a == nil {
++		return nil
++	}
+ 	v := reflect.ValueOf(a)
+ 	for !v.Type().Implements(fmtStringerType) && !v.Type().Implements(errorType) && v.Kind() == reflect.Ptr && !v.IsNil() {
+ 		v = v.Elem()
+diff --git a/src/pkg/html/template/content_test.go b/src/pkg/html/template/content_test.go
+index 3c32e5e89c..da1eb5c376 100644
+--- a/src/pkg/html/template/content_test.go
++++ b/src/pkg/html/template/content_test.go
+@@ -259,3 +259,28 @@ func TestStringer(t *testing.T) {
+ 		t.Errorf("expected %q got %q", expect, b.String())
+ 	}
+ }
++
++// https://code.google.com/p/go/issues/detail?id=5982
++func TestEscapingNilNonemptyInterfaces(t *testing.T) {
++	tmpl := Must(New("x").Parse("{{.E}}"))
++
++	defer func() {
++		if r := recover(); r != nil {
++			t.Errorf("panic during template execution: %v", r)
++		}
++	}()
++
++	got := new(bytes.Buffer)
++	testData := struct{ E error }{} // any non-empty interface here will do; error is just ready at hand
++	tmpl.Execute(got, testData)
++
++	// Use this data instead of just hard-coding "&lt;nil&gt;" to avoid
++	// dependencies on the html escaper and the behavior of fmt w.r.t. nil.
++	want := new(bytes.Buffer)
++	data := struct{ E string }{E: fmt.Sprint(nil)}
++	tmpl.Execute(want, data)
++
++	if !bytes.Equal(want.Bytes(), got.Bytes()) {
++		t.Errorf("expected %q got %q", string(want.Bytes()), string(got.Bytes()))
++	}
++}

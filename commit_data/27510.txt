@@ -14,10 +14,197 @@ Date:   Tue Mar 29 21:25:33 2016 -0700
     Change-Id: I946b28b87880c08e5eed1ce2945016466c89db66
     Reviewed-on: https://go-review.googlesource.com/21300
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/runtime/asm_386.s       | 10 ++++++++++
  src/runtime/asm_amd64.s     | 21 ++++++++++++++-------
  src/runtime/memmove_386.s   | 19 ++++++++++++-------
  src/runtime/memmove_amd64.s | 24 ++++++++++++++----------
  src/runtime/runtime2.go     |  1 +
  5 files changed, 51 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 2d16f4940a..dec79189bc 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -54,6 +54,7 @@ bad_proc: // show that the program requires MMX.
+ has_cpuid:
+ 	MOVL	$0, AX
+ 	CPUID
++	MOVL	AX, SI
+ 	CMPL	AX, $0
+ 	JE	nocpuinfo
+ 
+@@ -69,6 +70,7 @@ has_cpuid:
+ 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
+ 
++	// Load EAX=1 cpuid flags
+ 	MOVL	$1, AX
+ 	CPUID
+ 	MOVL	CX, AX // Move to global variable clobbers CX when generating PIC
+@@ -79,6 +81,14 @@ notintel:
+ 	TESTL	$(1<<23), DX	// MMX
+ 	JZ 	bad_proc
+ 
++	// Load EAX=7/ECX=0 cpuid flags
++	CMPL	SI, $7
++	JLT	nocpuinfo
++	MOVL	$7, AX
++	MOVL	$0, CX
++	CPUID
++	MOVL	BX, runtime·cpuid_ebx7(SB)
++
+ nocpuinfo:	
+ 
+ 	// if there is an _cgo_init, call it to let it
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index b4df1d80d7..83db4d3e81 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -28,6 +28,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// find out information about the processor we're on
+ 	MOVQ	$0, AX
+ 	CPUID
++	MOVQ	AX, SI
+ 	CMPQ	AX, $0
+ 	JE	nocpuinfo
+ 
+@@ -42,15 +43,25 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	JNE	notintel
+ 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
+-	// Do nothing.
+ 
++	// Load EAX=1 cpuid flags
+ 	MOVQ	$1, AX
+ 	CPUID
+ 	MOVL	CX, runtime·cpuid_ecx(SB)
+ 	MOVL	DX, runtime·cpuid_edx(SB)
++
++	// Load EAX=7/ECX=0 cpuid flags
++	CMPQ	SI, $7
++	JLT	no7
++	MOVL	$7, AX
++	MOVL	$0, CX
++	CPUID
++	MOVL	BX, runtime·cpuid_ebx7(SB)
++no7:
+ 	// Detect AVX and AVX2 as per 14.7.1  Detection of AVX2 chapter of [1]
+ 	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
+ 	// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
++	MOVL	runtime·cpuid_ecx(SB), CX
+ 	ANDL    $0x18000000, CX // check for OSXSAVE and AVX bits
+ 	CMPL    CX, $0x18000000
+ 	JNE     noavx
+@@ -61,12 +72,8 @@ notintel:
+ 	CMPL    AX, $6 // Check for OS support of YMM registers
+ 	JNE     noavx
+ 	MOVB    $1, runtime·support_avx(SB)
+-	MOVL    $7, AX
+-	MOVL    $0, CX
+-	CPUID
+-	ANDL    $0x20, BX // check for AVX2 bit
+-	CMPL    BX, $0x20
+-	JNE     noavx2
++	TESTL   $(1<<5), runtime·cpuid_ebx7(SB) // check for AVX2 bit
++	JEQ     noavx2
+ 	MOVB    $1, runtime·support_avx2(SB)
+ 	JMP     nocpuinfo
+ noavx:
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index d4baf2280a..52b35a6ac7 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -70,24 +70,29 @@ nosse2:
+  * forward copy loop
+  */
+ forward:
++	// If REP MOVSB isn't fast, don't use it
++	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
++	JEQ	fwdBy4
++
+ 	// Check alignment
+ 	MOVL	SI, AX
+ 	ORL	DI, AX
+ 	TESTL	$3, AX
+-	JNE	unaligned_fwd
++	JEQ	fwdBy4
++
++	// Do 1 byte at a time
++	MOVL	BX, CX
++	REP;	MOVSB
++	RET
+ 
++fwdBy4:
++	// Do 4 bytes at a time
+ 	MOVL	BX, CX
+ 	SHRL	$2, CX
+ 	ANDL	$3, BX
+-
+ 	REP;	MOVSL
+ 	JMP	tail
+ 
+-unaligned_fwd:
+-	MOVL	BX, CX
+-	REP;	MOVSB
+-	RET
+-
+ /*
+  * check overlap
+  */
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 514eb169f1..39b4c3a2bb 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -77,25 +77,29 @@ forward:
+ 	CMPQ	BX, $2048
+ 	JLS	move_256through2048
+ 
++	// If REP MOVSB isn't fast, don't use it
++	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
++	JEQ	fwdBy8
++
+ 	// Check alignment
+-	MOVQ	SI, AX
+-	ORQ	DI, AX
++	MOVL	SI, AX
++	ORL	DI, AX
+ 	TESTL	$7, AX
+-	JNE	unaligned_fwd
++	JEQ	fwdBy8
++
++	// Do 1 byte at a time
++	MOVQ	BX, CX
++	REP;	MOVSB
++	RET
+ 
+-	// Aligned - do 8 bytes at a time
++fwdBy8:
++	// Do 8 bytes at a time
+ 	MOVQ	BX, CX
+ 	SHRQ	$3, CX
+ 	ANDQ	$7, BX
+ 	REP;	MOVSQ
+ 	JMP	tail
+ 
+-unaligned_fwd:
+-	// Unaligned - do 1 byte at a time
+-	MOVQ	BX, CX
+-	REP;	MOVSB
+-	RET
+-
+ back:
+ /*
+  * check overlap
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e1b1c83453..457927c804 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -701,6 +701,7 @@ var (
+ 	// Set on startup in asm_{x86,amd64}.s.
+ 	cpuid_ecx         uint32
+ 	cpuid_edx         uint32
++	cpuid_ebx7        uint32
+ 	lfenceBeforeRdtsc bool
+ 	support_avx       bool
+ 	support_avx2      bool

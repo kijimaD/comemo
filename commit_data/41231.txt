@@ -12,6 +12,48 @@ Date:   Mon Sep 16 14:59:32 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue29612.dir/main.go | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/test/fixedbugs/issue29612.dir/main.go b/test/fixedbugs/issue29612.dir/main.go
+index 9dbc4c4cd9..d860eaac7e 100644
+--- a/test/fixedbugs/issue29612.dir/main.go
++++ b/test/fixedbugs/issue29612.dir/main.go
+@@ -10,6 +10,8 @@
+ package main
+ 
+ import (
++	"fmt"
++
+ 	ssa1 "./p1/ssa"
+ 	ssa2 "./p2/ssa"
+ )
+@@ -21,4 +23,27 @@ func main() {
+ 	v2 := &ssa2.T{}
+ 	ssa2.Works(v2)
+ 	ssa2.Panics(v2) // This call must not panic
++
++	swt(v1, 1)
++	swt(v2, 2)
++}
++
++//go:noinline
++func swt(i interface{}, want int) {
++	var got int
++	switch i.(type) {
++	case *ssa1.T:
++		got = 1
++	case *ssa2.T:
++		got = 2
++
++	case int8, int16, int32, int64:
++		got = 3
++	case uint8, uint16, uint32, uint64:
++		got = 4
++	}
++
++	if got != want {
++		panic(fmt.Sprintf("switch %v: got %d, want %d", i, got, want))
++	}
+ }

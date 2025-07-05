@@ -13,7 +13,123 @@ Date:   Mon May 9 12:51:28 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/listen_test.go     | 31 ++-----------------------------
  src/net/mockserver_test.go | 31 +++++++++++++++++++++++++++----
  2 files changed, 29 insertions(+), 33 deletions(-)
+
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 59c0112122..df3cadfa1a 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"context"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+@@ -735,17 +734,7 @@ func TestListenConfigControl(t *testing.T) {
+ 			if !testableNetwork(network) {
+ 				continue
+ 			}
+-			ln := newLocalListener(t, network)
+-			address := ln.Addr().String()
+-			// TODO: This is racy. The selected address could be reused in between
+-			// this Close and the subsequent Listen.
+-			ln.Close()
+-			lc := ListenConfig{Control: controlOnConnSetup}
+-			ln, err := lc.Listen(context.Background(), network, address)
+-			if err != nil {
+-				t.Error(err)
+-				continue
+-			}
++			ln := newLocalListener(t, network, &ListenConfig{Control: controlOnConnSetup})
+ 			ln.Close()
+ 		}
+ 	})
+@@ -754,24 +743,8 @@ func TestListenConfigControl(t *testing.T) {
+ 			if !testableNetwork(network) {
+ 				continue
+ 			}
+-			c := newLocalPacketListener(t, network)
+-			address := c.LocalAddr().String()
+-			// TODO: This is racy. The selected address could be reused in between
+-			// this Close and the subsequent ListenPacket.
+-			c.Close()
+-			if network == "unixgram" {
+-				os.Remove(address)
+-			}
+-			lc := ListenConfig{Control: controlOnConnSetup}
+-			c, err := lc.ListenPacket(context.Background(), network, address)
+-			if err != nil {
+-				t.Error(err)
+-				continue
+-			}
++			c := newLocalPacketListener(t, network, &ListenConfig{Control: controlOnConnSetup})
+ 			c.Close()
+-			if network == "unixgram" {
+-				os.Remove(address)
+-			}
+ 		}
+ 	})
+ }
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 186bd330b2..61c17530c2 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+@@ -33,9 +34,20 @@ func testUnixAddr(t testing.TB) string {
+ 	return filepath.Join(d, "sock")
+ }
+ 
+-func newLocalListener(t testing.TB, network string) Listener {
++func newLocalListener(t testing.TB, network string, lcOpt ...*ListenConfig) Listener {
++	var lc *ListenConfig
++	switch len(lcOpt) {
++	case 0:
++		lc = new(ListenConfig)
++	case 1:
++		lc = lcOpt[0]
++	default:
++		t.Helper()
++		t.Fatal("too many ListenConfigs passed to newLocalListener: want 0 or 1")
++	}
++
+ 	listen := func(net, addr string) Listener {
+-		ln, err := Listen(net, addr)
++		ln, err := lc.Listen(context.Background(), net, addr)
+ 		if err != nil {
+ 			t.Helper()
+ 			t.Fatal(err)
+@@ -306,9 +318,20 @@ func transceiver(c Conn, wb []byte, ch chan<- error) {
+ 	}
+ }
+ 
+-func newLocalPacketListener(t testing.TB, network string) PacketConn {
++func newLocalPacketListener(t testing.TB, network string, lcOpt ...*ListenConfig) PacketConn {
++	var lc *ListenConfig
++	switch len(lcOpt) {
++	case 0:
++		lc = new(ListenConfig)
++	case 1:
++		lc = lcOpt[0]
++	default:
++		t.Helper()
++		t.Fatal("too many ListenConfigs passed to newLocalListener: want 0 or 1")
++	}
++
+ 	listenPacket := func(net, addr string) PacketConn {
+-		c, err := ListenPacket(net, addr)
++		c, err := lc.ListenPacket(context.Background(), net, addr)
+ 		if err != nil {
+ 			t.Helper()
+ 			t.Fatal(err)

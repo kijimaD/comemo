@@ -7,8 +7,107 @@ Date:   Fri Feb 17 12:45:55 2012 +1100
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5674067
-
+---
  doc/go1.html     | 20 ++++++++++++++++----
  doc/go1.tmpl     |  6 ++----
  doc/progs/go1.go | 21 +++++++++++++++++++++
  3 files changed, 39 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 13d74012bc..60f71075e3 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1540,12 +1540,24 @@ instead of a <code>Visitor</code> interface value.
+ The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
+ in such cases the error argument will describe the failure.
+ If a directory's contents are to be skipped,
+-the function should return the value <code>SkipDir</code>.
++the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
+ </p>
+ 
+-<p>
+-<font color="red">TODO: add an example?</font>
+-</p>
++<pre><!--{{code "progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
++-->    markFn := func(path string, info os.FileInfo, err error) error {
++        if path == &#34;pictures&#34; { // Will skip walking of directory pictures and its contents.
++            return filepath.SkipDir
++        }
++        if err != nil {
++            return err
++        }
++        log.Println(path)
++        return nil
++    }
++    err := filepath.Walk(&#34;.&#34;, markFn)
++    if err != nil {
++        log.Fatal(err)
++    }</pre>
+ 
+ <p>
+ <em>Updating</em>:
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index a963b14984..c31fa7f2cf 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1439,12 +1439,10 @@ instead of a <code>Visitor</code> interface value.
+ The <code>WalkFunc</code> function will be called even for files or directories that could not be opened;
+ in such cases the error argument will describe the failure.
+ If a directory's contents are to be skipped,
+-the function should return the value <code>SkipDir</code>.
++the function should return the value <a href="/pkg/path/filepath/#variables"><code>filepath.SkipDir</code></a>
+ </p>
+ 
+-<p>
+-<font color="red">TODO: add an example?</font>
+-</p>
++{{code "progs/go1.go" `/STARTWALK/` `/ENDWALK/`}}
+ 
+ <p>
+ <em>Updating</em>:
+diff --git a/doc/progs/go1.go b/doc/progs/go1.go
+index 653c97fbf5..1507d5b33b 100644
+--- a/doc/progs/go1.go
++++ b/doc/progs/go1.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"os"
++	"path/filepath"
+ 	"testing"
+ 	"time"
+ 	"unicode"
+@@ -28,6 +29,7 @@ func main() {
+ 	runeType()
+ 	errorExample()
+ 	timePackage()
++	walkExample()
+ 	osIsExist()
+ }
+ 
+@@ -183,6 +185,25 @@ func timePackage() {
+ 	sleepUntil(time.Now().Add(123 * time.Millisecond))
+ }
+ 
++func walkExample() {
++	// STARTWALK OMIT
++	markFn := func(path string, info os.FileInfo, err error) error {
++		if path == "pictures" { // Will skip walking of directory pictures and its contents.
++			return filepath.SkipDir
++		}
++		if err != nil {
++			return err
++		}
++		log.Println(path)
++		return nil
++	}
++	err := filepath.Walk(".", markFn)
++	if err != nil {
++		log.Fatal(err)
++	}
++	// ENDWALK OMIT
++}
++
+ func initializationFunction(c chan int) {
+ 	c <- 1
+ }

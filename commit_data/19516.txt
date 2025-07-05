@@ -8,8 +8,90 @@ Date:   Wed Jun 11 14:24:16 2014 -0700
     R=rsc, adonovan
     CC=golang-codereviews
     https://golang.org/cl/104050045
-
+---
  src/pkg/math/all_test.go     |  6 +++---
  src/pkg/math/big/rat_test.go |  6 +++---
  src/pkg/math/nextafter.go    | 10 ++--------
  3 files changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 8b00ef1d6c..763efb2e64 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -2356,12 +2356,12 @@ func TestNextafter32(t *testing.T) {
+ 
+ func TestNextafter64(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Nextafter64(vf[i], 10); nextafter64[i] != f {
++		if f := Nextafter(vf[i], 10); nextafter64[i] != f {
+ 			t.Errorf("Nextafter64(%g, %g) = %g want %g", vf[i], 10.0, f, nextafter64[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vfnextafter64SC); i++ {
+-		if f := Nextafter64(vfnextafter64SC[i][0], vfnextafter64SC[i][1]); !alike(nextafter64SC[i], f) {
++		if f := Nextafter(vfnextafter64SC[i][0], vfnextafter64SC[i][1]); !alike(nextafter64SC[i], f) {
+ 			t.Errorf("Nextafter64(%g, %g) = %g want %g", vfnextafter64SC[i][0], vfnextafter64SC[i][1], f, nextafter64SC[i])
+ 		}
+ 	}
+@@ -2886,7 +2886,7 @@ func BenchmarkNextafter32(b *testing.B) {
+ 
+ func BenchmarkNextafter64(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Nextafter64(.5, 1)
++		Nextafter(.5, 1)
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/big/rat_test.go b/src/pkg/math/big/rat_test.go
+index 4b8cdab94c..598eac8cc7 100644
+--- a/src/pkg/math/big/rat_test.go
++++ b/src/pkg/math/big/rat_test.go
+@@ -760,7 +760,7 @@ var float64inputs = []string{
+ 	"22.222222222222222",
+ 	"long:2." + strings.Repeat("2", 4000) + "e+1",
+ 
+-	// Exactly halfway between 1 and math.Nextafter64(1, 2).
++	// Exactly halfway between 1 and math.Nextafter(1, 2).
+ 	// Round to even (down).
+ 	"1.00000000000000011102230246251565404236316680908203125",
+ 	// Slightly lower; still round down.
+@@ -1103,8 +1103,8 @@ func checkIsBestApprox64(t *testing.T, f float64, r *Rat) bool {
+ 	}
+ 
+ 	// r must be strictly between f0 and f1, the floats bracketing f.
+-	f0 := math.Nextafter64(f, math.Inf(-1))
+-	f1 := math.Nextafter64(f, math.Inf(+1))
++	f0 := math.Nextafter(f, math.Inf(-1))
++	f1 := math.Nextafter(f, math.Inf(+1))
+ 
+ 	// For f to be correct, r must be closer to f than to f0 or f1.
+ 	df := delta(r, f)
+diff --git a/src/pkg/math/nextafter.go b/src/pkg/math/nextafter.go
+index fab1ad267e..bbb139986a 100644
+--- a/src/pkg/math/nextafter.go
++++ b/src/pkg/math/nextafter.go
+@@ -25,12 +25,12 @@ func Nextafter32(x, y float32) (r float32) {
+ 	return
+ }
+ 
+-// Nextafter64 returns the next representable float64 value after x towards y.
++// Nextafter returns the next representable float64 value after x towards y.
+ // Special cases:
+ //	Nextafter64(x, x)   = x
+ //      Nextafter64(NaN, y) = NaN
+ //      Nextafter64(x, NaN) = NaN
+-func Nextafter64(x, y float64) (r float64) {
++func Nextafter(x, y float64) (r float64) {
+ 	switch {
+ 	case IsNaN(x) || IsNaN(y): // special case
+ 		r = NaN()
+@@ -45,9 +45,3 @@ func Nextafter64(x, y float64) (r float64) {
+ 	}
+ 	return
+ }
+-
+-// Nextafter is the same as Nextafter64.
+-// It is provided for backward-compatibility only.
+-func Nextafter(x, y float64) float64 {
+-	return Nextafter64(x, y)
+-}

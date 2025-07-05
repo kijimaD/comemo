@@ -17,7 +17,38 @@ Date:   Fri May 8 12:09:00 2020 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/outbuf_linux.go | 2 +-
  src/cmd/link/internal/ld/outbuf_mmap.go  | 8 ++++++--
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf_linux.go b/src/cmd/link/internal/ld/outbuf_linux.go
+index 93e621a70f..bd9a0c6761 100644
+--- a/src/cmd/link/internal/ld/outbuf_linux.go
++++ b/src/cmd/link/internal/ld/outbuf_linux.go
+@@ -7,5 +7,5 @@ package ld
+ import "syscall"
+ 
+ func (out *OutBuf) fallocate(size uint64) error {
+-	return syscall.Fallocate(int(out.f.Fd()), outbufMode, 0, int64(size))
++	return syscall.Fallocate(int(out.f.Fd()), 0, 0, int64(size))
+ }
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index e6ee041abb..e2e50cc84f 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -10,8 +10,12 @@ import (
+ 	"syscall"
+ )
+ 
+-func (out *OutBuf) Mmap(filesize uint64) error {
+-	err := out.fallocate(filesize)
++func (out *OutBuf) Mmap(filesize uint64) (err error) {
++	for {
++		if err = out.fallocate(filesize); err != syscall.EINTR {
++			break
++		}
++	}
+ 	if err != nil {
+ 		// Some file systems do not support fallocate. We ignore that error as linking
+ 		// can still take place, but you might SIGBUS when you write to the mmapped

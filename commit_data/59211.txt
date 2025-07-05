@@ -12,7 +12,52 @@ Date:   Fri Nov 3 19:41:55 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/regexp/regexp.go      | 2 +-
  src/regexp/syntax/prog.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 462f235b1b..d1218ad0e8 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -1074,7 +1074,7 @@ func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
+ 
+ const startSize = 10 // The size at which to start a slice in the 'All' routines.
+ 
+-// FindAll is the 'All' version of Find; it returns a slice of all successive
++// FindAll is the 'All' version of [Regexp.Find]; it returns a slice of all successive
+ // matches of the expression, as defined by the 'All' description in the
+ // package comment.
+ // A return value of nil indicates no match.
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index d69ae1a12d..6a3705ec8f 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -191,7 +191,7 @@ Loop:
+ const noMatch = -1
+ 
+ // MatchRune reports whether the instruction matches (and consumes) r.
+-// It should only be called when i.Op == InstRune.
++// It should only be called when i.Op == [InstRune].
+ func (i *Inst) MatchRune(r rune) bool {
+ 	return i.MatchRunePos(r) != noMatch
+ }
+@@ -200,7 +200,7 @@ func (i *Inst) MatchRune(r rune) bool {
+ // If so, MatchRunePos returns the index of the matching rune pair
+ // (or, when len(i.Rune) == 1, rune singleton).
+ // If not, MatchRunePos returns -1.
+-// MatchRunePos should only be called when i.Op == InstRune.
++// MatchRunePos should only be called when i.Op == [InstRune].
+ func (i *Inst) MatchRunePos(r rune) int {
+ 	rune := i.Rune
+ 
+@@ -262,7 +262,7 @@ func (i *Inst) MatchRunePos(r rune) int {
+ 
+ // MatchEmptyWidth reports whether the instruction matches
+ // an empty string between the runes before and after.
+-// It should only be called when i.Op == InstEmptyWidth.
++// It should only be called when i.Op == [InstEmptyWidth].
+ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
+ 	switch EmptyOp(i.Arg) {
+ 	case EmptyBeginLine:

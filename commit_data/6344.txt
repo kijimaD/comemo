@@ -7,6 +7,22 @@ Date:   Wed Sep 22 14:20:15 2010 -0700
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2267042
-
+---
  src/pkg/http/request_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index ea073e13ba..cc9e78a6dc 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -139,8 +139,8 @@ func TestMultipartReader(t *testing.T) {
+ 
+ func TestRedirect(t *testing.T) {
+ 	const (
+-		start = "http://codesearch.google.com/"
+-		end   = "http://www.google.com/codesearch"
++		start = "http://google.com/"
++		end   = "http://www.google.com/"
+ 	)
+ 	r, url, err := Get(start)
+ 	if err != nil {

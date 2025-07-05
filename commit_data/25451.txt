@@ -9,6 +9,19 @@ Date:   Fri Oct 30 11:08:25 2015 -0400
     Change-Id: I0ed1bb9597ac3db3fa35a037c304060d5a7e6d51
     Reviewed-on: https://go-review.googlesource.com/16513
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 3027f5a983..83242e16bf 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -20,6 +20,7 @@ image: add NYCbCrA types (https://golang.org/cl/15671)
+ math/rand: add Read (https://golang.org/cl/14522)
+ net/http: HTTP/2.0 support (many CLs)
+ net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
++runtime: only one goroutine in traceback (https://golang.org/cl/16512) maybe
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
+ text/template: trimming spaces (https://golang.org/cl/14391/)

@@ -20,6 +20,22 @@ Date:   Thu May 17 19:45:49 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/main.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8a812c924a..bfa3f70a9e 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -202,7 +202,9 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	ctxt.dostrdata()
+ 	deadcode(ctxt)
+-	fieldtrack(ctxt)
++	if objabi.Fieldtrack_enabled != 0 {
++		fieldtrack(ctxt)
++	}
+ 	ctxt.callgraph()
+ 
+ 	ctxt.doelf()

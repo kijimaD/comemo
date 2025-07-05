@@ -14,9 +14,126 @@ Date:   Mon Feb 23 23:51:05 2015 -0800
     Change-Id: I72b0983b3a0cabea085598e1bf6c8df629776b57
     Reviewed-on: https://go-review.googlesource.com/5720
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.5.txt                |  1 +
  src/go/ast/ast.go            |  8 ++++++--
  src/go/parser/parser.go      |  7 +++++--
  src/go/parser/parser_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 59 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index f17c7b9a5e..f70359d9d4 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -12,6 +12,7 @@ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream i
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)
+ crypto/tls: change default minimum version to TLS 1.0. (https://golang.org/cl/1791)
+ encoding/base64: add unpadded encodings (https://golang.org/cl/1511)
++go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Semicolon position (https://golang.org/cl/5720)
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 312e3d1b98..d21390ee55 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -562,10 +562,11 @@ type (
+ 
+ 	// An EmptyStmt node represents an empty statement.
+ 	// The "position" of the empty statement is the position
+-	// of the immediately preceding semicolon.
++	// of the immediately following (explicit or implicit) semicolon.
+ 	//
+ 	EmptyStmt struct {
+-		Semicolon token.Pos // position of preceding ";"
++		Semicolon token.Pos // position of following ";"
++		Implicit  bool      // if set, ";" was omitted in the source
+ 	}
+ 
+ 	// A LabeledStmt node represents a labeled statement.
+@@ -734,6 +735,9 @@ func (s *RangeStmt) Pos() token.Pos      { return s.For }
+ func (s *BadStmt) End() token.Pos  { return s.To }
+ func (s *DeclStmt) End() token.Pos { return s.Decl.End() }
+ func (s *EmptyStmt) End() token.Pos {
++	if s.Implicit {
++		return s.Semicolon
++	}
+ 	return s.Semicolon + 1 /* len(";") */
+ }
+ func (s *LabeledStmt) End() token.Pos { return s.Stmt.End() }
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 0409122c81..d1b766cfbb 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2152,11 +2152,14 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 	case token.FOR:
+ 		s = p.parseForStmt()
+ 	case token.SEMICOLON:
+-		s = &ast.EmptyStmt{Semicolon: p.pos}
++		// Is it ever possible to have an implicit semicolon
++		// producing an empty statement in a valid program?
++		// (handle correctly anyway)
++		s = &ast.EmptyStmt{Semicolon: p.pos, Implicit: p.lit == "\n"}
+ 		p.next()
+ 	case token.RBRACE:
+ 		// a semicolon may be omitted before a closing "}"
+-		s = &ast.EmptyStmt{Semicolon: p.pos}
++		s = &ast.EmptyStmt{Semicolon: p.pos, Implicit: true}
+ 	default:
+ 		// no statement found
+ 		pos := p.pos
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 51ce1a9337..4b960d9e57 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -445,3 +445,50 @@ type T struct {
+ 		t.Error("not expected to find T.f3")
+ 	}
+ }
++
++// TestIssue9979 verifies that empty statements are contained within their enclosing blocks.
++func TestIssue9979(t *testing.T) {
++	for _, src := range []string{
++		"package p; func f() {;}",
++		"package p; func f() {L:}",
++		"package p; func f() {L:;}",
++		"package p; func f() {L:\n}",
++		"package p; func f() {L:\n;}",
++		"package p; func f() { ; }",
++		"package p; func f() { L: }",
++		"package p; func f() { L: ; }",
++		"package p; func f() { L: \n}",
++		"package p; func f() { L: \n; }",
++	} {
++		fset := token.NewFileSet()
++		f, err := ParseFile(fset, "", src, 0)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		var pos, end token.Pos
++		ast.Inspect(f, func(x ast.Node) bool {
++			switch s := x.(type) {
++			case *ast.BlockStmt:
++				pos, end = s.Pos()+1, s.End()-1 // exclude "{", "}"
++			case *ast.LabeledStmt:
++				pos, end = s.Pos()+2, s.End() // exclude "L:"
++			case *ast.EmptyStmt:
++				// check containment
++				if s.Pos() < pos || s.End() > end {
++					t.Errorf("%s: %T[%d, %d] not inside [%d, %d]", src, s, s.Pos(), s.End(), pos, end)
++				}
++				// check semicolon
++				offs := fset.Position(s.Pos()).Offset
++				if ch := src[offs]; ch != ';' != s.Implicit {
++					want := "want ';'"
++					if s.Implicit {
++						want = "but ';' is implicit"
++					}
++					t.Errorf("%s: found %q at offset %d; %s", src, ch, offs, want)
++				}
++			}
++			return true
++		})
++	}
++}

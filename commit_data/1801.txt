@@ -9,9 +9,200 @@ Date:   Tue Mar 10 18:20:08 2009 -0700
     R=r
     OCL=26082
     CL=26082
-
+---
  usr/gri/pretty/ast.go        |  2 +-
  usr/gri/pretty/parser.go     | 38 +++++++++++---------------------------
  usr/gri/pretty/printer.go    | 28 ++++++++++++++++++++++------
  usr/gri/pretty/template.html |  8 +++++++-
  4 files changed, 41 insertions(+), 35 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index e854054887..ec5af4b8c5 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -469,7 +469,7 @@ type (
+ 	};
+ 
+ 	FuncDecl struct {
+-		Pos_ int;  // position of "func"
++		Pos int;  // position of "func"
+ 		Recv *Field;
+ 		Ident *Ident;
+ 		Sig *Signature;
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 4712996d97..4d37c87adf 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -8,8 +8,7 @@
+ //
+ // A client may parse the entire program (ParseProgram), only the package
+ // clause (ParsePackageClause), or the package clause and the import
+-// declarations (ParseImportDecls). The resulting AST represents the part
+-// of the program that is parsed.
++// declarations (ParseImportDecls).
+ //
+ package Parser
+ 
+@@ -70,23 +69,11 @@ type Parser struct {
+ // ----------------------------------------------------------------------------
+ // Helper functions
+ 
+-func unimplemented() {
+-	panic("unimplemented");
+-}
+-
+-
+ func unreachable() {
+ 	panic("unreachable");
+ }
+ 
+ 
+-func assert(pred bool) {
+-	if !pred {
+-		panic("assertion failed");
+-	}
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Parsing support
+ 
+@@ -178,13 +165,6 @@ func (P *Parser) expect(tok int) {
+ }
+ 
+ 
+-func (P *Parser) OptSemicolon() {
+-	if P.tok == token.SEMICOLON {
+-		P.next();
+-	}
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+@@ -194,7 +174,6 @@ func (P *Parser) parseStatement() ast.Stat;
+ func (P *Parser) parseDeclaration() ast.Decl;
+ 
+ 
+-// If scope != nil, lookup identifier in scope. Otherwise create one.
+ func (P *Parser) parseIdent() *ast.Ident {
+ 	if P.trace {
+ 		defer un(trace(P, "Ident"));
+@@ -662,7 +641,9 @@ func (P *Parser) parseStructType() ast.Expr {
+ 				break;
+ 			}
+ 		}
+-		P.OptSemicolon();
++		if P.tok == token.SEMICOLON {
++			P.next();
++		}
+ 
+ 		end = P.pos;
+ 		P.expect(token.RBRACE);
+@@ -812,9 +793,8 @@ func (P *Parser) parseStringLit() ast.Expr {
+ 		defer un(trace(P, "StringLit"));
+ 	}
+ 
+-	assert(P.tok == token.STRING);
+ 	var x ast.Expr = &ast.BasicLit{P.pos, P.tok, P.val};
+-	P.next();
++	P.expect(token.STRING);  // always satisfied
+ 	
+ 	for P.tok == token.STRING {
+ 		y := &ast.BasicLit{P.pos, P.tok, P.val};
+@@ -1605,7 +1585,9 @@ func (P *Parser) parseImportDecls() *vector.Vector {
+ 	list := vector.New(0);
+ 	for P.tok == token.IMPORT {
+ 		list.Push(P.parseDecl(token.IMPORT));
+-		P.OptSemicolon();
++		if P.tok == token.SEMICOLON {
++			P.next();
++		}
+ 	}
+ 
+ 	return list;
+@@ -1651,7 +1633,9 @@ func (P *Parser) ParseProgram() *ast.Program {
+ 	list := P.parseImportDecls();
+ 	for P.tok != token.EOF {
+ 		list.Push(P.parseDeclaration());
+-		P.OptSemicolon();
++		if P.tok == token.SEMICOLON {
++			P.next();
++		}
+ 	}
+ 
+ 	// convert list
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 7bb0d1c6cc..54580f90ab 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -16,6 +16,8 @@ import (
+ 	"token";
+ 	"ast";
+ 	"template";
++	"utf8";
++	"unicode";
+ 	SymbolTable "symboltable";
+ )
+ 
+@@ -1017,7 +1019,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 
+ 
+ func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
+-	P.Token(d.Pos_, token.FUNC);
++	P.Token(d.Pos, token.FUNC);
+ 	P.separator = blank;
+ 	if recv := d.Recv; recv != nil {
+ 		// method: print receiver
+@@ -1079,14 +1081,28 @@ func (P *Printer) Decl(d ast.Decl) {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Interface
++// Package interface
++
++// TODO this should be an AST method
++func isExported(name *ast.Ident) bool {
++	ch, len := utf8.DecodeRuneInString(name.Str, 0);
++	return unicode.IsUpper(ch);
++}
++
+ 
+ func (P *Printer) Interface(p *ast.Program) {
+ 	for i := 0; i < len(p.Decls); i++ {
+-		decl := p.Decls[i];
+-		// TODO use type switch
+-		if fun, is_fun := decl.(*ast.FuncDecl); is_fun {
+-			P.funcDecl(fun, false);
++		switch d := p.Decls[i].(type) {
++		case *ast.FuncDecl:
++			if isExported(d.Ident) {
++				P.Printf("<h2>%s</h2>\n", d.Ident.Str);
++				/*
++				P.Printf("<p><code>");
++				P.funcDecl(d, false);
++				P.String(0, "");
++				P.Printf("</code></p>");
++				*/
++			}
+ 		}
+ 	}
+ }
+diff --git a/usr/gri/pretty/template.html b/usr/gri/pretty/template.html
+index 71126499b6..05adcd1e2f 100644
+--- a/usr/gri/pretty/template.html
++++ b/usr/gri/pretty/template.html
+@@ -1,5 +1,11 @@
+ 
+-<h1><!--PACKAGE--></h1>
++<h1>package <!--PACKAGE--></h1>
++
++<!--INTERFACE-->
++
++<hr />
++
++<h1>package <!--PACKAGE--></h1>
+ 
+ <pre>
+ <!--BODY-->

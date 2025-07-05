@@ -8,9 +8,348 @@ Date:   Fri Aug 22 08:41:32 2014 -0700
     R=khr, dvyukov, dave
     CC=golang-codereviews, rsc
     https://golang.org/cl/124300044
-
+---
  src/pkg/runtime/extern.go                |  31 -------
  src/pkg/runtime/runtime.h                |   2 +-
  src/pkg/runtime/{symtab.goc => symtab.c} |  53 +++++------
  src/pkg/runtime/symtab.go                | 153 +++++++++++++++++++++++++++++++
  4 files changed, 176 insertions(+), 63 deletions(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 533cb431b9..a5bea7e46d 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -97,37 +97,6 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool)
+ // It returns the number of entries written to pc.
+ func Callers(skip int, pc []uintptr) int
+ 
+-type Func struct {
+-	opaque struct{} // unexported field to disallow conversions
+-}
+-
+-// FuncForPC returns a *Func describing the function that contains the
+-// given program counter address, or else nil.
+-func FuncForPC(pc uintptr) *Func
+-
+-// Name returns the name of the function.
+-func (f *Func) Name() string {
+-	return funcname_go(f)
+-}
+-
+-// Entry returns the entry address of the function.
+-func (f *Func) Entry() uintptr {
+-	return funcentry_go(f)
+-}
+-
+-// FileLine returns the file name and line number of the
+-// source code corresponding to the program counter pc.
+-// The result will not be accurate if pc is not a program
+-// counter within f.
+-func (f *Func) FileLine(pc uintptr) (file string, line int) {
+-	return funcline_go(f, pc)
+-}
+-
+-// implemented in symtab.c
+-func funcline_go(*Func, uintptr) (string, int)
+-func funcname_go(*Func) string
+-func funcentry_go(*Func) uintptr
+-
+ func getgoroot() string
+ 
+ // GOROOT returns the root of the Go tree.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2c004b4eab..d38eb454b7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -447,7 +447,7 @@ enum
+ // Layout of in-memory per-function information prepared by linker
+ // See http://golang.org/s/go12symtab.
+ // Keep in sync with linker and with ../../libmach/sym.c
+-// and with package debug/gosym.
++// and with package debug/gosym and with symtab.go in package runtime.
+ struct	Func
+ {
+ 	uintptr	entry;	// start pc
+diff --git a/src/pkg/runtime/symtab.goc b/src/pkg/runtime/symtab.c
+similarity index 87%
+rename from src/pkg/runtime/symtab.goc
+rename to src/pkg/runtime/symtab.c
+index 961b78d5fc..fd0d3c1928 100644
+--- a/src/pkg/runtime/symtab.goc
++++ b/src/pkg/runtime/symtab.c
+@@ -5,7 +5,6 @@
+ // Runtime symbol table parsing.
+ // See http://golang.org/s/go12symtab for an overview.
+ 
+-package runtime
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+@@ -23,9 +22,14 @@ struct Ftab
+ extern byte pclntab[];
+ 
+ static Ftab *ftab;
+-static uintptr nftab;
++extern uintptr runtime·nftab;
+ static uint32 *filetab;
+-static uint32 nfiletab;
++extern uint32 runtime·nfiletab;
++
++extern uintptr runtime·pclntab;
++extern uintptr runtime·ftab0;
++extern uintptr runtime·filetab0;
++extern uint32 runtime·pcquantum;
+ 
+ static String end = { (uint8*)"end", 3 };
+ 
+@@ -43,22 +47,27 @@ runtime·symtabinit(void)
+ 		runtime·throw("invalid function symbol table\n");
+ 	}
+ 
+-	nftab = *(uintptr*)(pclntab+8);
++	runtime·nftab = *(uintptr*)(pclntab+8);
+ 	ftab = (Ftab*)(pclntab+8+sizeof(void*));
+-	for(i=0; i<nftab; i++) {
+-		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
++	for(i=0; i<runtime·nftab; i++) {
++		// NOTE: ftab[runtime·nftab].entry is legal; it is the address beyond the final function.
+ 		if(ftab[i].entry > ftab[i+1].entry) {
+ 			f1 = (Func*)(pclntab + ftab[i].funcoff);
+ 			f2 = (Func*)(pclntab + ftab[i+1].funcoff);
+-			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == nftab ? "end" : runtime·funcname(f2));
++			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == runtime·nftab ? "end" : runtime·funcname(f2));
+ 			for(j=0; j<=i; j++)
+ 				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(pclntab + ftab[j].funcoff)));
+ 			runtime·throw("invalid runtime symbol table");
+ 		}
+ 	}
+ 	
+-	filetab = (uint32*)(pclntab + *(uint32*)&ftab[nftab].funcoff);
+-	nfiletab = filetab[0];
++	filetab = (uint32*)(pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
++	runtime·nfiletab = filetab[0];
++
++	runtime·pcquantum = PCQuantum;
++	runtime·pclntab = (uintptr)pclntab;
++	runtime·ftab0 = (uintptr)ftab;
++	runtime·filetab0 = (uintptr)filetab;
+ }
+ 
+ static uint32
+@@ -187,7 +196,7 @@ funcline(Func *f, uintptr targetpc, String *file, bool strict)
+ 	*file = unknown;
+ 	fileno = pcvalue(f, f->pcfile, targetpc, strict);
+ 	line = pcvalue(f, f->pcln, targetpc, strict);
+-	if(fileno == -1 || line == -1 || fileno >= nfiletab) {
++	if(fileno == -1 || line == -1 || fileno >= runtime·nfiletab) {
+ 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
+ 		return 0;
+ 	}
+@@ -228,34 +237,20 @@ runtime·funcarglen(Func *f, uintptr targetpc)
+ 	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
+ }
+ 
+-func funcline_go(f *Func, targetpc uintptr) (retfile String, retline int) {
+-	// Pass strict=false here, because anyone can call this function,
+-	// and they might just be wrong about targetpc belonging to f.
+-	retline = funcline(f, targetpc, &retfile, false);
+-}
+-
+-func funcname_go(f *Func) (ret String) {
+-	ret = runtime·gostringnocopy((uint8*)runtime·funcname(f));
+-}
+-
+-func funcentry_go(f *Func) (ret uintptr) {
+-	ret = f->entry;
+-}
+-
+ Func*
+ runtime·findfunc(uintptr addr)
+ {
+ 	Ftab *f;
+ 	int32 nf, n;
+ 
+-	if(nftab == 0)
++	if(runtime·nftab == 0)
+ 		return nil;
+-	if(addr < ftab[0].entry || addr >= ftab[nftab].entry)
++	if(addr < ftab[0].entry || addr >= ftab[runtime·nftab].entry)
+ 		return nil;
+ 
+ 	// binary search to find func with entry <= addr.
+ 	f = ftab;
+-	nf = nftab;
++	nf = runtime·nftab;
+ 	while(nf > 0) {
+ 		n = nf/2;
+ 		if(f[n].entry <= addr && addr < f[n+1].entry)
+@@ -276,10 +271,6 @@ runtime·findfunc(uintptr addr)
+ 	return nil;
+ }
+ 
+-func FuncForPC(pc uintptr) (ret *Func) {
+-	ret = runtime·findfunc(pc);
+-}
+-
+ static bool
+ hasprefix(String s, int8 *p)
+ {
+diff --git a/src/pkg/runtime/symtab.go b/src/pkg/runtime/symtab.go
+new file mode 100644
+index 0000000000..1d2033f10f
+--- /dev/null
++++ b/src/pkg/runtime/symtab.go
+@@ -0,0 +1,153 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// FuncForPC returns a *Func describing the function that contains the
++// given program counter address, or else nil.
++func FuncForPC(pc uintptr) *Func {
++	if nftab == 0 {
++		return nil
++	}
++
++	if pc < ftabi(0).entry || pc >= ftabi(nftab).entry {
++		return nil
++	}
++
++	// binary search to find func with entry <= pc.
++	lo := uintptr(0)
++	nf := nftab
++	for nf > 0 {
++		n := nf / 2
++		f := ftabi(lo + n)
++		if f.entry <= pc && pc < ftabi(lo+n+1).entry {
++			return (*Func)(unsafe.Pointer(pclntab + f.funcoff))
++		} else if pc < f.entry {
++			nf = n
++		} else {
++			lo += n + 1
++			nf -= n + 1
++		}
++	}
++
++	gothrow("FuncForPC: binary search failed")
++	return nil
++}
++
++// Name returns the name of the function.
++func (f *Func) Name() string {
++	return cstringToGo(pclntab + uintptr(f.nameoff))
++}
++
++// Entry returns the entry address of the function.
++func (f *Func) Entry() uintptr {
++	return f.entry
++}
++
++// FileLine returns the file name and line number of the
++// source code corresponding to the program counter pc.
++// The result will not be accurate if pc is not a program
++// counter within f.
++func (f *Func) FileLine(pc uintptr) (file string, line int) {
++	fileno := f.pcvalue(f.pcfile, pc)
++	if fileno == -1 || fileno >= int32(nfiletab) {
++		return "?", 0
++	}
++	line = int(f.pcvalue(f.pcln, pc))
++	if line == -1 {
++		return "?", 0
++	}
++	file = cstringToGo(pclntab + uintptr(filetabi(uintptr(fileno))))
++	return file, line
++}
++
++// Return associated data value for targetpc in func f.
++func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
++	if off == 0 {
++		return -1
++	}
++	p := pclntab + uintptr(off)
++	pc := f.entry
++	val := int32(-1)
++	for step(&p, &pc, &val, pc == f.entry) {
++		if targetpc < pc {
++			return val
++		}
++	}
++	return -1
++}
++
++// step advances to the next pc, value pair in the encoded table.
++func step(p *uintptr, pc *uintptr, val *int32, first bool) bool {
++	uvdelta := readvarint(p)
++	if uvdelta == 0 && !first {
++		return false
++	}
++	if uvdelta&1 != 0 {
++		uvdelta = ^(uvdelta >> 1)
++	} else {
++		uvdelta >>= 1
++	}
++	vdelta := int32(uvdelta)
++	pcdelta := readvarint(p) * pcquantum
++	*pc += uintptr(pcdelta)
++	*val += vdelta
++	return true
++}
++
++// readvarint reads a varint from *p and advances *p.
++func readvarint(pp *uintptr) uint32 {
++	var v, shift uint32
++	p := *pp
++	for {
++		b := *(*byte)(unsafe.Pointer(p))
++		p++
++		v |= (uint32(b) & 0x7F) << shift
++		if b&0x80 == 0 {
++			break
++		}
++		shift += 7
++	}
++	*pp = p
++	return v
++}
++
++// Populated by runtime·symtabinit during bootstrapping. Treat as immutable.
++var (
++	pclntab   uintptr // address of pclntab
++	ftab0     uintptr // address of first ftab entry
++	nftab     uintptr
++	filetab0  uintptr // address of first filetab entry
++	nfiletab  uint32
++	pcquantum uint32
++)
++
++type Func struct {
++	entry   uintptr // start pc
++	nameoff int32   // function name
++
++	args  int32 // in/out args size
++	frame int32 // legacy frame size; use pcsp if possible
++
++	pcsp      int32
++	pcfile    int32
++	pcln      int32
++	npcdata   int32
++	nfuncdata int32
++}
++
++type ftab struct {
++	entry   uintptr
++	funcoff uintptr
++}
++
++func ftabi(i uintptr) (f ftab) {
++	return *(*ftab)(unsafe.Pointer(ftab0 + i*unsafe.Sizeof(f)))
++}
++
++func filetabi(i uintptr) (f uint32) {
++	return *(*uint32)(unsafe.Pointer(filetab0 + i*unsafe.Sizeof(f)))
++}

@@ -7,7 +7,7 @@ Date:   Fri Oct 3 16:12:21 2008 -0700
     R=r
     OCL=16462
     CL=16462
-
+---
  src/cmd/6g/align.c  |  2 +-
  src/cmd/6g/gg.h     |  2 --
  src/cmd/6g/obj.c    | 84 ++++++++++++++++++++++++++++++-----------------------
@@ -15,3 +15,337 @@ Date:   Fri Oct 3 16:12:21 2008 -0700
  src/cmd/gc/subr.c   | 40 +++++++++----------------
  src/runtime/iface.c | 30 ++++++++++---------
  6 files changed, 80 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 31f06b0f7c..1a1f2c88b8 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -170,7 +170,7 @@ dowidth(Type *t)
+ 
+ 	case TFUNC:
+ 		// function is 3 cated structures
+-		w = widstruct(*getthis(t), 0, 0);
++		w = widstruct(*getthis(t), 0, 1);
+ 		w = widstruct(*getinarg(t), w, 0);
+ 		w = widstruct(*getoutarg(t), w, 1);
+ 		t->argwid = w;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index a6b9bcaf22..c1d244d992 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -60,8 +60,6 @@ struct Sig
+ 	uint32	hash;
+ 	int32	perm;
+ 	int32	offset;
+-	int32	width;
+-	int32	elemalg;
+ 	Sig*	link;
+ };
+ 
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index a44ebdf362..b33dcc3288 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -485,6 +485,7 @@ dumpsignatures(void)
+ 		x->dtype = d->dtype;
+ 		x->forw = signatlist;
+ 		signatlist = x;
++//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
+ 	}
+ 
+ 	/*
+@@ -585,8 +586,6 @@ dumpsignatures(void)
+ 				at.sym->name+5, f->sym->name);
+ 			a->sym = lookup(namebuf);
+ 			a->offset = 0;
+-			a->elemalg = 0;
+-			a->width = 0;
+ 
+ 			o++;
+ 		}
+@@ -594,25 +593,38 @@ dumpsignatures(void)
+ 		a = lsort(a, sigcmp);
+ 		ot = 0;
+ 
+-		// first field of an interface signature
+-		// contains the count and is not a real entry
++		// sigi[0].name = ""
++		ot = rnd(ot, maxround);	// array of structures
++		p = pc;
++		gins(ADATA, N, N);
++		p->from = at;
++		p->from.offset = ot;
++		p->from.scale = widthptr;
++		p->to = ao;
++		p->to.offset = stringo;
++		ot += widthptr;
++
++		datastring("", 1);
++
+ 		if(et == TINTER) {
++			// first field of an interface signature
++			// contains the count and is not a real entry
+ 			o = 0;
+ 			for(b=a; b!=nil; b=b->link)
+ 				o++;
+ 
+-			// sigi[0].name = ""
+-			ot = rnd(ot, maxround);	// array of structures
++			// sigi[0].hash = 0
++			ot = rnd(ot, wi);
+ 			p = pc;
+ 			gins(ADATA, N, N);
+ 			p->from = at;
+ 			p->from.offset = ot;
+-			p->from.scale = widthptr;
+-			p->to = ao;
+-			p->to.offset = stringo;
+-			ot += widthptr;
++			p->from.scale = wi;
++			p->to = ac;
++			p->to.offset = 0;
++			ot += wi;
+ 
+-			// sigi[0].hash = 0
++			// sigi[0].offset = count
+ 			ot = rnd(ot, wi);
+ 			p = pc;
+ 			gins(ADATA, N, N);
+@@ -620,10 +632,18 @@ dumpsignatures(void)
+ 			p->from.offset = ot;
+ 			p->from.scale = wi;
+ 			p->to = ac;
+-			p->to.offset = 0;
++			p->to.offset = o;
+ 			ot += wi;
+ 
+-			// sigi[0].offset = count
++		} else {
++			// first field of an type signature contains
++			// the element parameters and is not a real entry
++
++			t = d->dtype;
++			if(t->methptr & 2)
++				t = types[tptr];
++
++			// sigi[0].hash = elemalg
+ 			ot = rnd(ot, wi);
+ 			p = pc;
+ 			gins(ADATA, N, N);
+@@ -631,11 +651,23 @@ dumpsignatures(void)
+ 			p->from.offset = ot;
+ 			p->from.scale = wi;
+ 			p->to = ac;
+-			p->to.offset = o;
++			p->to.offset = algtype(t);
+ 			ot += wi;
+ 
+-			datastring("", 1);
++			// sigi[0].offset = width
++			ot = rnd(ot, wi);
++			p = pc;
++			gins(ADATA, N, N);
++			p->from = at;
++			p->from.offset = ot;
++			p->from.scale = wi;
++			p->to = ac;
++			p->to.offset = t->width;
++			ot += wi;
+ 
++			// skip the function
++			ot = rnd(ot, widthptr);
++			ot += widthptr;
+ 		}
+ 
+ 		for(b=a; b!=nil; b=b->link) {
+@@ -685,28 +717,6 @@ dumpsignatures(void)
+ 				p->to.offset = b->offset;
+ 				ot += wi;
+ 
+-				// sigt[++].width = type size
+-				ot = rnd(ot, wi);
+-				p = pc;
+-				gins(ADATA, N, N);
+-				p->from = at;
+-				p->from.offset = ot;
+-				p->from.scale = wi;
+-				p->to = ac;
+-				p->to.offset = b->width;
+-				ot += wi;
+-
+-				// sigt[++].elemalg = type algorithm
+-				ot = rnd(ot, wi);
+-				p = pc;
+-				gins(ADATA, N, N);
+-				p->from = at;
+-				p->from.offset = ot;
+-				p->from.scale = wi;
+-				p->to = ac;
+-				p->to.offset = b->elemalg;
+-				ot += wi;
+-
+ 				// sigt[++].fun = &method
+ 				ot = rnd(ot, widthptr);
+ 				p = pc;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 28a2a626da..ca2f44a324 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -122,7 +122,7 @@ struct	Type
+ 	uchar	chan;
+ 	uchar	recur;		// to detect loops
+ 	uchar	trecur;		// to detect loops
+-	uchar	methptr;	// all methods are pointers to this type
++	uchar	methptr;	// 1=direct 2=pointer
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d2c6a13ce6..90f11af5e7 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1418,37 +1418,25 @@ signame(Type *t)
+ 	Sym *s, *ss;
+ 	char *e;
+ 
+-loop:
+-	if(t == T) {
+-//		print("signame: nil type\n");
++	if(t == T)
+ 		goto bad;
+-	}
+-
+-	switch(t->etype) {
+-	default:
+-		e = "sigs";
+-		break;
+-
+-	case TPTR32:
+-	case TPTR64:
+-		t = t->type;
+-		goto loop;
+-
+-	case TINTER:
+-		e = "sigi";
+-		break;
+-	}
+ 
+ 	s = t->sym;
+-	if(s == S) {
+-//		print("signame: no type name\n");
+-		goto bad;
+-	}
+-	if(s->name[0] == '_') {
+-//		print("signame: temp type name %S\n", s);
+-		goto bad;
++	if(s == S || s->name[0] == '_') {
++		if(isptr[t->etype]) {
++			t = t->type;
++			if(t == T)
++				goto bad;
++		}
++		s = t->sym;
++		if(s == S || s->name[0] == '_')
++			goto bad;
+ 	}
+ 
++	e = "sigt";
++	if(t->etype == TINTER)
++		e = "sigi";
++
+ 	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
+ 	ss = pkglookup(namebuf, s->opackage);
+ 	if(ss->oname == N) {
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 9aa80a4220..e8c4cd6939 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -15,8 +15,6 @@ struct	Sigt
+ 	byte*	name;
+ 	uint32	hash;
+ 	uint32	offset;		// offset of substruct
+-	uint32	width;		// width of type
+-	uint32	elemalg;	// algorithm of type
+ 	void	(*fun)(void);
+ };
+ 
+@@ -47,13 +45,10 @@ printsigi(Sigi *si)
+ 
+ 	sys·printpointer(si);
+ 	prints("{");
+-	n = si[0].perm;		// first entry has size
+-	for(i=1; i<n; i++) {
++	for(i=1;; i++) {
+ 		name = si[i].name;
+-		if(name == nil) {
+-			prints("<nil>");
++		if(name == nil)
+ 			break;
+-		}
+ 		prints("[");
+ 		sys·printint(i);
+ 		prints("]\"");
+@@ -74,7 +69,10 @@ printsigt(Sigt *st)
+ 
+ 	sys·printpointer(st);
+ 	prints("{");
+-	for(i=0;; i++) {
++	sys·printint(st[0].hash);	// first element has alg
++	prints(",");
++	sys·printint(st[0].offset);	// first element has width
++	for(i=1;; i++) {
+ 		name = st[i].name;
+ 		if(name == nil)
+ 			break;
+@@ -86,10 +84,6 @@ printsigt(Sigt *st)
+ 		sys·printint(st[i].hash%999);
+ 		prints("/");
+ 		sys·printint(st[i].offset);
+-		prints(",");
+-		sys·printint(st[i].width);
+-		prints(",");
+-		sys·printint(st[i].elemalg);
+ 		prints("/");
+ 		sys·printpointer(st[i].fun);
+ 	}
+@@ -165,6 +159,7 @@ hashmap(Sigi *si, Sigt *st)
+ void
+ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
+ {
++//	int32 alg, wid;
+ 
+ 	if(debug) {
+ 		prints("T2I sigi=");
+@@ -177,7 +172,11 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
+ 	}
+ 
+ 	retim = hashmap(si, st);
+-	retit = elem;
++
++//	alg = st->hash;
++//	wid = st->offset;
++//	algarray[alg].copy(wid, &retit, &elem);
++	retit = elem;		// for speed could do this
+ 
+ 	if(debug) {
+ 		prints("T2I ret=");
+@@ -193,6 +192,7 @@ sys·ifaceT2I(Sigi *si, Sigt *st, void *elem, Map *retim, void *retit)
+ void
+ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
+ {
++//	int32 alg, wid;
+ 
+ 	if(debug) {
+ 		prints("I2T sigt=");
+@@ -208,7 +208,11 @@ sys·ifaceI2T(Sigt *st, Map *im, void *it, void *ret)
+ 	if(im->sigt != st)
+ 		throw("ifaceI2T: wrong type");
+ 
++//	alg = st->hash;
++//	wid = st->offset;
++//	algarray[alg].copy(wid, &ret, &it);
+ 	ret = it;
++
+ 	if(debug) {
+ 		prints("I2T ret=");
+ 		sys·printpointer(ret);

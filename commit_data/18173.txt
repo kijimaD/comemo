@@ -7,6 +7,36 @@ Date:   Mon Jan 6 10:32:07 2014 -0800
     R=golang-codereviews, gobot, r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/37660044
-
+---
  src/pkg/time/tick_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index d8a086ceb2..32f4740ad9 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -48,6 +48,24 @@ func TestTeardown(t *testing.T) {
+ 	}
+ }
+ 
++// Test the Tick convenience wrapper.
++func TestTick(t *testing.T) {
++	// Test that giving a negative duration returns nil.
++	if got := Tick(-1); got != nil {
++		t.Errorf("Tick(-1) = %v; want nil", got)
++	}
++}
++
++// Test that NewTicker panics when given a duration less than zero.
++func TestNewTickerLtZeroDuration(t *testing.T) {
++	defer func() {
++		if err := recover(); err == nil {
++			t.Errorf("NewTicker(-1) should have panicked")
++		}
++	}()
++	NewTicker(-1)
++}
++
+ func BenchmarkTicker(b *testing.B) {
+ 	ticker := NewTicker(1)
+ 	b.ResetTimer()

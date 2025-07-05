@@ -18,8 +18,91 @@ Date:   Tue Mar 17 10:22:39 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/run.bash | 11 ++++++++---
  src/run.bat  |  9 +++++++--
  src/run.rc   |  9 +++++++--
  3 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index e18540c990..706b4b60ee 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -16,8 +16,13 @@
+ 
+ set -e
+ 
+-eval $(go env)
+-export GOROOT   # the api test requires GOROOT to be set.
++if [ ! -f ../bin/go ]; then
++	echo 'run.bash must be run from $GOROOT/src after installing cmd/go' 1>&2
++	exit 1
++fi
++
++eval $(../bin/go env)
++export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
+ 
+ # We disallow local import for non-local packages, if $GOROOT happens
+ # to be under $GOPATH, then some tests below will fail.  $GOPATH needs
+@@ -56,4 +61,4 @@ if ulimit -T &> /dev/null; then
+ 	[ "$(ulimit -H -T)" = "unlimited" ] || ulimit -S -T $(ulimit -H -T)
+ fi
+ 
+-exec go tool dist test -rebuild "$@"
++exec ../bin/go tool dist test -rebuild "$@"
+diff --git a/src/run.bat b/src/run.bat
+index 25ee58001e..46858f8fa0 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -4,6 +4,11 @@
+ 
+ @echo off
+ 
++if exist ..\bin\go goto ok
++echo Must run run.bat from Go src directory after installing cmd/go.
++goto fail
++:ok
++
+ :: Keep environment variables within this script
+ :: unless invoked with --no-local.
+ if x%1==x--no-local goto nolocal
+@@ -36,13 +41,13 @@ echo.
+ set GOROOT_FINAL=
+ 
+ :: get CGO_ENABLED
+-go env > env.bat
++..\bin\go env > env.bat
+ if errorlevel 1 goto fail
+ call env.bat
+ del env.bat
+ echo.
+ 
+-go tool dist test
++..\bin\go tool dist test
+ if errorlevel 1 goto fail
+ echo.
+ 
+diff --git a/src/run.rc b/src/run.rc
+index c346f5cf5c..ab7abfa991 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -5,7 +5,12 @@
+ 
+ rfork e
+ 
+-eval `{go env}
++if(! test -f ../bin/go){
++	echo 'run.rc must be run from $GOROOT/src after installing cmd/go' >[1=2]
++	exit wrongdir
++}
++
++eval `{../bin/go env}
+ 
+ GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
+             # to be under $GOPATH, then some tests below will fail
+@@ -13,4 +18,4 @@ GOBIN = () # Issue 14340
+ GOFLAGS = ()
+ GO111MODULE = ()
+ 
+-exec go tool dist test -rebuild $*
++exec ../bin/go tool dist test -rebuild $*

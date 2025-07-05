@@ -7,6 +7,21 @@ Date:   Mon Oct 15 20:30:41 2012 -0700
     R=golang-dev, adg, dave, rsc, minux.ma, dvyukov
     CC=golang-dev
     https://golang.org/cl/6648043
-
+---
  misc/dashboard/app/build/ui.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 1a7b67de93..cc3629a5ae 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -211,6 +211,9 @@ func builderArch(s string) string {
+ 
+ // builderArchShort returns a short arch tag for a builder string
+ func builderArchShort(s string) string {
++	if s == "linux-amd64-race" {
++		return "race"
++	}
+ 	arch := builderArch(s)
+ 	switch arch {
+ 	case "amd64":

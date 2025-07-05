@@ -7,6 +7,19 @@ Date:   Mon Jul 29 23:26:11 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/11985043
-
+---
  src/pkg/net/unixsock_posix.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 497b5beea9..00f69d1201 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -103,7 +103,6 @@ func (a *UnixAddr) family() int {
+ 	return syscall.AF_UNIX
+ }
+ 
+-// isWildcard reports whether a is a wildcard address.
+ func (a *UnixAddr) isWildcard() bool {
+ 	return a == nil || a.Name == ""
+ }

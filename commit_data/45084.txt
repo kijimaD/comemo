@@ -15,6 +15,22 @@ Date:   Thu Oct 1 10:25:20 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/syscall/sockcmsg_unix_other.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/syscall/sockcmsg_unix_other.go b/src/syscall/sockcmsg_unix_other.go
+index 3aaf7c3616..40f03142a6 100644
+--- a/src/syscall/sockcmsg_unix_other.go
++++ b/src/syscall/sockcmsg_unix_other.go
+@@ -32,6 +32,10 @@ func cmsgAlignOf(salen int) int {
+ 		if runtime.GOARCH == "arm" {
+ 			salign = 8
+ 		}
++		// NetBSD aarch64 requires 128-bit alignment.
++		if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
++			salign = 16
++		}
+ 	}
+ 
+ 	return (salen + salign - 1) & ^(salign - 1)

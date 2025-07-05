@@ -7,7 +7,7 @@ Date:   Fri Dec 16 11:31:39 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5489065
-
+---
  doc/codelab/wiki/Makefile     | 2 +-
  misc/cgo/gmp/Makefile         | 4 ++--
  misc/cgo/life/Makefile        | 4 ++--
@@ -22,3 +22,180 @@ Date:   Fri Dec 16 11:31:39 2011 -0500
  src/pkg/unicode/Makefile      | 2 +-
  test/bench/garbage/Makefile   | 2 +-
  13 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index 55210116d9..233917f2c6 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -21,5 +21,5 @@ test: get.bin
+ 	$(LD) -o $@ $<
+ 
+ %.$O: %.go
+-	$(GC) $*.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
+ 
+diff --git a/misc/cgo/gmp/Makefile b/misc/cgo/gmp/Makefile
+index fc6209f279..d9390c146b 100644
+--- a/misc/cgo/gmp/Makefile
++++ b/misc/cgo/gmp/Makefile
+@@ -28,11 +28,11 @@ include ../../../src/Make.pkg
+ 
+ # Computes 1000 digits of pi; single-threaded.
+ pi: install pi.go
+-	$(GC) pi.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) pi.go
+ 	$(LD) -o $@ pi.$O
+ 
+ # Computes 200 Fibonacci numbers; multi-threaded.
+ fib: install fib.go
+-	$(GC) fib.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) fib.go
+ 	$(LD) -o $@ fib.$O
+ 
+diff --git a/misc/cgo/life/Makefile b/misc/cgo/life/Makefile
+index 39ec13be28..1568a67f6d 100644
+--- a/misc/cgo/life/Makefile
++++ b/misc/cgo/life/Makefile
+@@ -11,7 +11,7 @@ CGOFILES=\
+ 
+ CGO_OFILES=\
+ 	c-life.o\
+-	
++
+ ifeq ($(GOOS),windows)
+ ifeq ($(GOARCH),amd64)
+ CGO_OFILES+=\
+@@ -31,5 +31,5 @@ CLEANFILES+=life
+ include ../../../src/Make.pkg
+ 
+ life: install main.go
+-	$(GC) main.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
+ 	$(LD) -o $@ main.$O
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index 3f7a4c01c3..586132b3cf 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -13,5 +13,5 @@ CLEANFILES+=hello fib chain run.out
+ include ../../../src/Make.pkg
+ 
+ %: install %.go
+-	$(GC) $*.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
+ 	$(LD) -o $@ $*.$O
+diff --git a/misc/cgo/testso/Makefile b/misc/cgo/testso/Makefile
+index bee80af564..e472cf2124 100644
+--- a/misc/cgo/testso/Makefile
++++ b/misc/cgo/testso/Makefile
+@@ -18,5 +18,5 @@ libcgoso.so: cgoso_c.c
+ 	gcc cgoso_c.c -fPIC -o $@ $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS))
+ 
+ out: install main.go
+-	$(GC) main.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
+ 	$(LD) -o $@ main.$O
+diff --git a/misc/swig/callback/Makefile b/misc/swig/callback/Makefile
+index fde0d107bb..0ca33ef604 100644
+--- a/misc/swig/callback/Makefile
++++ b/misc/swig/callback/Makefile
+@@ -13,5 +13,5 @@ CLEANFILES+=run
+ include ../../../src/Make.pkg
+ 
+ %: install %.go
+-	$(GC) $*.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
+ 	$(LD) $(SWIG_RPATH) -o $@ $*.$O
+diff --git a/misc/swig/stdio/Makefile b/misc/swig/stdio/Makefile
+index e7d330587c..0f23345e4d 100644
+--- a/misc/swig/stdio/Makefile
++++ b/misc/swig/stdio/Makefile
+@@ -13,5 +13,5 @@ CLEANFILES+=hello
+ include ../../../src/Make.pkg
+ 
+ %: install %.go
+-	$(GC) $*.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
+ 	$(LD) $(SWIG_RPATH) -o $@ $*.$O
+diff --git a/src/cmd/goyacc/Makefile b/src/cmd/goyacc/Makefile
+index 87b3470c6a..a616e85348 100644
+--- a/src/cmd/goyacc/Makefile
++++ b/src/cmd/goyacc/Makefile
+@@ -12,7 +12,7 @@ include ../../Make.cmd
+ 
+ units: goyacc units.y
+ 	./goyacc -p units_ units.y
+-	$(GC) y.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) y.go
+ 	$(LD) -o units y.$O
+ 
+ CLEANFILES += units y.go y.output
+diff --git a/src/pkg/encoding/gob/Makefile b/src/pkg/encoding/gob/Makefile
+index 6c7693cba3..3847edb20b 100644
+--- a/src/pkg/encoding/gob/Makefile
++++ b/src/pkg/encoding/gob/Makefile
+@@ -22,4 +22,4 @@ dump:	dump.$O
+ 	$(LD) -o dump $<
+ 
+ dump.$O:	dump.go
+-	$(GC) $<
++	$(GC) $(GCFLAGS) $(GCIMPORTS) $<
+diff --git a/src/pkg/exp/norm/Makefile b/src/pkg/exp/norm/Makefile
+index b3eca1064c..b4faa249ac 100644
+--- a/src/pkg/exp/norm/Makefile
++++ b/src/pkg/exp/norm/Makefile
+@@ -19,15 +19,15 @@ include ../../../Make.pkg
+ CLEANFILES+=maketables maketesttables
+ 
+ maketables: maketables.go triegen.go
+-	$(GC) maketables.go triegen.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) maketables.go triegen.go
+ 	$(LD) -o maketables maketables.$O
+ 
+ maketesttables: maketesttables.go triegen.go
+-	$(GC) maketesttables.go triegen.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) maketesttables.go triegen.go
+ 	$(LD) -o maketesttables maketesttables.$O
+ 
+ normregtest: normregtest.go
+-	$(GC) normregtest.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) normregtest.go
+ 	$(LD) -o normregtest normregtest.$O
+ 
+ tables:	maketables
+diff --git a/src/pkg/go/doc/Makefile b/src/pkg/go/doc/Makefile
+index 0330757661..2a421c3e6b 100644
+--- a/src/pkg/go/doc/Makefile
++++ b/src/pkg/go/doc/Makefile
+@@ -15,5 +15,5 @@ include ../../../Make.pkg
+ # Script to test heading detection heuristic
+ CLEANFILES+=headscan
+ headscan: headscan.go
+-	$(GC) headscan.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) headscan.go
+ 	$(LD) -o headscan headscan.$(O)
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index 55ed5b2d95..4472a6c67e 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -17,7 +17,7 @@ include ../../Make.pkg
+ CLEANFILES+=maketables
+ 
+ maketables: maketables.go
+-	$(GC) maketables.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) maketables.go
+ 	$(LD) -o maketables maketables.$O
+ 
+ tables:	maketables
+diff --git a/test/bench/garbage/Makefile b/test/bench/garbage/Makefile
+index 916add7795..cf6568f9ee 100644
+--- a/test/bench/garbage/Makefile
++++ b/test/bench/garbage/Makefile
+@@ -12,7 +12,7 @@ ALL=\
+ all: $(addsuffix .out, $(ALL))
+ 
+ %.$O: %.go stats.go
+-	$(GC) $*.go stats.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go stats.go
+ 
+ %.out: %.$O
+ 	$(LD) -o $@ $*.$O

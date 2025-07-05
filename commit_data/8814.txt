@@ -66,7 +66,7 @@ Date:   Tue Jun 21 12:14:32 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4633043
-
+---
  src/cmd/8l/asm.c     |  2 +-
  src/cmd/8l/list.c    |  2 +-
  src/cmd/8l/obj.c     |  2 --
@@ -80,3 +80,340 @@ Date:   Tue Jun 21 12:14:32 2011 -0400
  src/cmd/ld/pe.c      |  6 ++----
  src/cmd/ld/symtab.c  | 11 ++++++++---
  12 files changed, 37 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index aa44b07dbd..a9a720af14 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -1272,6 +1272,6 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+ 	}
+ 	if(debug['v'] || debug['n'])
+-		Bprint(&bso, "symsize = %uld\n", symsize);
++		Bprint(&bso, "symsize = %d\n", symsize);
+ 	Bflush(&bso);
+ }
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 4e199d7675..31ae023468 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -176,7 +176,7 @@ Dconv(Fmt *fp)
+ 	}
+ brk:
+ 	if(a->index != D_NONE) {
+-		sprint(s, "(%R*%d)", a->index, a->scale);
++		sprint(s, "(%R*%d)", (int)a->index, a->scale);
+ 		strcat(str, s);
+ 	}
+ conv:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 7fd0dafaed..ce7b595182 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -473,7 +473,6 @@ loop:
+ 		s = lookup(x, r);
+ 		if(x != name)
+ 			free(x);
+-		name = nil;
+ 
+ 		if(debug['S'] && r == 0)
+ 			sig = 1729;
+@@ -703,7 +702,6 @@ loop:
+ 		lastp = p;
+ 		goto loop;
+ 	}
+-	goto loop;
+ 
+ eof:
+ 	diag("truncated object file: %s", pn);
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 72ae043d64..2e0990c5a8 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -414,7 +414,6 @@ dostkoff(void)
+ 			autoffset = 0;
+ 
+ 		q = P;
+-		q1 = P;
+ 		if(pmorestack != P)
+ 		if(!(p->from.scale & NOSPLIT)) {
+ 			p = appendp(p);	// load g into CX
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 66a843b235..a4cba12576 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -89,7 +89,7 @@ span1(Sym *s)
+ 					*bp++ = v;
+ 					*bp++ = v>>8;
+ 					*bp++ = v>>16;
+-					*bp++ = v>>24;
++					*bp = v>>24;
+ 				}	
+ 			}
+ 			p->comefrom = P;
+@@ -1319,7 +1319,7 @@ asmins(Prog *p)
+ 	andptr = and;
+ 	doasm(p);
+ 	if(andptr > and+sizeof and) {
+-		print("and[] is too short - %d byte instruction\n", andptr - and);
++		print("and[] is too short - %ld byte instruction\n", andptr - and);
+ 		errorexit();
+ 	}
+ }
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 140712b298..9d9cd109b8 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -482,13 +482,13 @@ codeblk(int32 addr, int32 size)
+ 			q = sym->p;
+ 			
+ 			while(n >= 16) {
+-				Bprint(&bso, "%.6ux\t%-20.16I\n",  addr, q);
++				Bprint(&bso, "%.6ux\t%-20.16I\n", addr, q);
+ 				addr += 16;
+ 				q += 16;
+ 				n -= 16;
+ 			}
+ 			if(n > 0)
+-				Bprint(&bso, "%.6ux\t%-20.*I\n", addr, n, q);
++				Bprint(&bso, "%.6ux\t%-20.*I\n", addr, (int)n, q);
+ 			addr += n;
+ 			continue;
+ 		}
+@@ -502,7 +502,7 @@ codeblk(int32 addr, int32 size)
+ 			Bprint(&bso, "%.6ux\t", p->pc);
+ 			q = sym->p + p->pc - sym->value;
+ 			n = epc - p->pc;
+-			Bprint(&bso, "%-20.*I | %P\n", n, q, p);
++			Bprint(&bso, "%-20.*I | %P\n", (int)n, q, p);
+ 			addr += n;
+ 		}
+ 	}
+@@ -543,7 +543,7 @@ datblk(int32 addr, int32 size)
+ 			Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(pre-pad)", addr);
+ 			addr = sym->value;
+ 		}
+-		Bprint(&bso, "%-20s %.8ux|", sym->name, addr);
++		Bprint(&bso, "%-20s %.8ux|", sym->name, (uint)addr);
+ 		p = sym->p;
+ 		ep = p + sym->np;
+ 		while(p < ep)
+@@ -555,8 +555,8 @@ datblk(int32 addr, int32 size)
+ 	}
+ 
+ 	if(addr < eaddr)
+-		Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(post-pad)", addr);
+-	Bprint(&bso, "%-20s %.8ux|\n", "", eaddr);
++		Bprint(&bso, "%-20s %.8ux| 00 ...\n", "(post-pad)", (uint)addr);
++	Bprint(&bso, "%-20s %.8ux|\n", "", (uint)eaddr);
+ }
+ 
+ void
+@@ -808,9 +808,9 @@ dodata(void)
+ 			t = rnd(t, PtrSize);
+ 		else if(t > 2)
+ 			t = rnd(t, 4);
+-		if(t & 1)
++		if(t & 1) {
+ 			;
+-		else if(t & 2)
++		} else if(t & 2)
+ 			datsize = rnd(datsize, 2);
+ 		else if(t & 4)
+ 			datsize = rnd(datsize, 4);
+@@ -834,9 +834,9 @@ dodata(void)
+ 			t = rnd(t, PtrSize);
+ 		else if(t > 2)
+ 			t = rnd(t, 4);
+-		if(t & 1)
++		if(t & 1) {
+ 			;
+-		else if(t & 2)
++		} else if(t & 2)
+ 			datsize = rnd(datsize, 2);
+ 		else if(t & 4)
+ 			datsize = rnd(datsize, 4);
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 50b42183e8..1c10dc7967 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1822,7 +1822,7 @@ flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
+ 		seek(cout, unitstart, 0);
+ 		LPUT(here - unitstart - sizeof(int32));	 // unit_length
+ 		WPUT(3);  // dwarf version
+-		LPUT(header_length); // header lenght starting here
++		LPUT(header_length); // header length starting here
+ 		cflush();
+ 		seek(cout, here, 0);
+ 	}
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index d61020e499..8334e988e4 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -328,15 +328,16 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	Reloc *r, *rp;
+ 	Sym *s;
+ 
++	USED(pkg);
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f ldelf %s\n", cputime(), pn);
+ 
+ 	version++;
+ 	base = Boffset(f);
+ 
+-	if(Bread(f, &hdrbuf, sizeof hdrbuf) != sizeof hdrbuf)
++	if(Bread(f, hdrbuf, sizeof hdrbuf) != sizeof hdrbuf)
+ 		goto bad;
+-	hdr = (ElfHdrBytes*)&hdrbuf;
++	hdr = (ElfHdrBytes*)hdrbuf;
+ 	if(memcmp(hdr->ident, ElfMagic, 4) != 0)
+ 		goto bad;
+ 	switch(hdr->ident[5]) {
+@@ -518,7 +519,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		name = smprint("%s(%s)", pn, sect->name);
+ 		s = lookup(name, version);
+ 		free(name);
+-		switch(sect->flags&(ElfSectFlagAlloc|ElfSectFlagWrite|ElfSectFlagExec)) {
++		switch((int)sect->flags&(ElfSectFlagAlloc|ElfSectFlagWrite|ElfSectFlagExec)) {
+ 		default:
+ 			werrstr("unexpected flags for ELF section %s", sect->name);
+ 			goto bad;
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index bbb21d51ae..abbc3b3cdb 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -440,6 +440,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	Reloc *r, *rp;
+ 	char *name;
+ 
++	USED(pkg);
+ 	version++;
+ 	base = Boffset(f);
+ 	if(Bread(f, hdr, sizeof hdr) != sizeof hdr)
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 288186e88c..98c866feeb 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -125,10 +125,13 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	Sym *s;
+ 	Reloc *r, *rp;
+ 	PeSym *sym;
+-	
++
++	USED(len);
++	USED(pkg);
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f ldpe %s\n", cputime(), pn);
+ 	
++	sect = nil;
+ 	version++;
+ 	base = Boffset(f);
+ 	
+@@ -304,6 +307,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			diag("%s: %s sectnum <0!", pn, s->name, sym->sectnum);
+ 		}
+ 
++		if(sect == nil) 
++			return;
+ 		s->sub = sect->sym->sub;
+ 		sect->sym->sub = s;
+ 		s->type = sect->sym->type | SSUB;
+@@ -366,7 +371,6 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 
+ 	sym = &obj->pesym[i];
+ 	*y = sym;
+-	s = nil;
+ 	
+ 	name = sym->name;
+ 	if(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0) // section
+@@ -403,7 +407,7 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 
+ 	if(s != nil && s->type == 0 && !(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0))
+ 		s->type = SXREF;
+-	if(strncmp(sym->name, "__imp__", 6) == 0)
++	if(strncmp(sym->name, "__imp__", 7) == 0)
+ 		s->got = -2; // flag for __imp__
+ 	sym->sym = s;
+ 
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 91e15d343c..9ac0a50d89 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -5,8 +5,6 @@
+ // PE (Portable Executable) file writing
+ // http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+ 
+-#include <time.h>
+-
+ #include "l.h"
+ #include "../ld/lib.h"
+ #include "../ld/pe.h"
+@@ -150,7 +148,7 @@ pewrite(void)
+ 		ewrite(cout, &oh64, sizeof oh64);
+ 	else
+ 		ewrite(cout, &oh, sizeof oh);
+-	ewrite(cout, &sh, nsect * sizeof sh[0]);
++	ewrite(cout, sh, nsect * sizeof sh[0]);
+ }
+ 
+ static void
+@@ -175,7 +173,7 @@ initdynimport(void)
+ 	Sym *s, *dynamic;
+ 
+ 	dr = nil;
+-	
++	m = nil;
+ 	for(s = allsym; s != S; s = s->allsym) {
+ 		if(!s->reachable || !s->dynimpname || s->dynexport)
+ 			continue;
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index e3093b2aac..c66eca1485 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -90,6 +90,7 @@ putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+ {
+ 	int bind, type, shndx, off;
+ 
++	USED(go);
+ 	switch(t) {
+ 	default:
+ 		return;
+@@ -127,6 +128,10 @@ putplan9sym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+ {
+ 	int i;
+ 
++	USED(go);
++	USED(ver);
++	USED(size);
++	USED(x);
+ 	switch(t) {
+ 	case 'T':
+ 	case 'L':
+@@ -252,6 +257,7 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ 	int i, f, l;
+ 	Reloc *rel;
+ 
++	USED(size);
+ 	if(t == 'f')
+ 		name++;
+ 	l = 4;
+@@ -280,7 +286,6 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ 		}
+ 		scput(0);
+ 		scput(0);
+-		i++;
+ 	}
+ 	else {
+ 		for(i=0; name[i]; i++)
+@@ -311,9 +316,9 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ 			return;
+ 		}
+ 		if(ver)
+-			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s, ver, typ ? typ->name : "");
++			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s->name, ver, typ ? typ->name : "");
+ 		else
+-			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s, typ ? typ->name : "");
++			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s->name, typ ? typ->name : "");
+ 	}
+ }
+ 

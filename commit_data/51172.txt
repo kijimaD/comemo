@@ -12,7 +12,34 @@ Date:   Fri Dec 10 21:09:16 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/371015
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file_plan9.go | 2 +-
  src/os/file_posix.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 604aea607b..887e1c8892 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -139,7 +139,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 
+ // Close closes the File, rendering it unusable for I/O.
+ // On files that support SetDeadline, any pending I/O operations will
+-// be canceled and return immediately with an error.
++// be canceled and return immediately with an ErrClosed error.
+ // Close will return an error if it has already been called.
+ func (f *File) Close() error {
+ 	if err := f.checkValid("close"); err != nil {
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 0dc6da0908..f34571d68d 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -16,7 +16,7 @@ func sigpipe() // implemented in package runtime
+ 
+ // Close closes the File, rendering it unusable for I/O.
+ // On files that support SetDeadline, any pending I/O operations will
+-// be canceled and return immediately with an error.
++// be canceled and return immediately with an ErrClosed error.
+ // Close will return an error if it has already been called.
+ func (f *File) Close() error {
+ 	if f == nil {

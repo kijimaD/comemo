@@ -13,7 +13,78 @@ Date:   Sun Dec 4 21:41:47 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go |  9 ++++++++
  test/prove.go                         | 39 +++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 908fb5af46..89098e411b 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -859,6 +859,15 @@ func prove(f *Func) {
+ 			case OpOr64, OpOr32, OpOr16, OpOr8:
+ 				ft.update(b, v, v.Args[1], unsigned, gt|eq)
+ 				ft.update(b, v, v.Args[0], unsigned, gt|eq)
++			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
++				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
++				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
++				OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
++				OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
++				ft.update(b, v, v.Args[0], unsigned, lt|eq)
++			case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
++				ft.update(b, v, v.Args[0], unsigned, lt|eq)
++				ft.update(b, v, v.Args[1], unsigned, lt)
+ 			case OpPhi:
+ 				// Determine the min and max value of OpPhi composed entirely of integer constants.
+ 				//
+diff --git a/test/prove.go b/test/prove.go
+index 7792b432f9..ab893099bf 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1046,6 +1046,45 @@ func and(p []byte) ([]byte, []byte) { // issue #52563
+ 	return blk, rem
+ }
+ 
++func rshu(x, y uint) int {
++	z := x >> y
++	if z <= x { // ERROR "Proved Leq64U$"
++		return 1
++	}
++	return 0
++}
++
++func divu(x, y uint) int {
++	z := x / y
++	if z <= x { // ERROR "Proved Leq64U$"
++		return 1
++	}
++	return 0
++}
++
++func modu1(x, y uint) int {
++	z := x % y
++	if z < y { // ERROR "Proved Less64U$"
++		return 1
++	}
++	return 0
++}
++
++func modu2(x, y uint) int {
++	z := x % y
++	if z <= x { // ERROR "Proved Leq64U$"
++		return 1
++	}
++	return 0
++}
++
++func issue57077(s []int) (left, right []int) {
++	middle := len(s) / 2
++	left = s[:middle] // ERROR "Proved IsSliceInBounds$"
++	right = s[middle:] // ERROR "Proved IsSliceInBounds$"
++	return
++}
++
+ func issue51622(b []byte) int {
+ 	if len(b) >= 3 && b[len(b)-3] == '#' { // ERROR "Proved IsInBounds$"
+ 		return len(b)

@@ -22,9 +22,171 @@ Date:   Wed Apr 4 21:49:49 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go       | 14 +++-----------
  src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
  src/cmd/compile/internal/gc/subr.go      | 18 +++---------------
  src/cmd/compile/internal/gc/typecheck.go |  6 +++---
  4 files changed, 16 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 39f7cd45c6..d2ea5a602e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -829,7 +829,7 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
+ 
+ var methodsym_toppkg *types.Pkg
+ 
+-func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
++func methodsym(nsym *types.Sym, t0 *types.Type) *types.Sym {
+ 	if t0 == nil {
+ 		Fatalf("methodsym: nil receiver type")
+ 	}
+@@ -850,14 +850,6 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
+ 		t0 = types.NewPtr(t)
+ 	}
+ 
+-	suffix := ""
+-	if iface {
+-		dowidth(t0)
+-		if t0.Width < int64(Widthptr) {
+-			suffix = "·i"
+-		}
+-	}
+-
+ 	var spkg *types.Pkg
+ 	if s != nil {
+ 		spkg = s.Pkg
+@@ -868,9 +860,9 @@ func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
+ 	}
+ 	var p string
+ 	if t0.Sym == nil && t0.IsPtr() {
+-		p = fmt.Sprintf("(%-S)%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
++		p = fmt.Sprintf("(%-S)%s.%s", t0, pkgprefix, nsym.Name)
+ 	} else {
+-		p = fmt.Sprintf("%-S%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
++		p = fmt.Sprintf("%-S%s.%s", t0, pkgprefix, nsym.Name)
+ 	}
+ 
+ 	if spkg == nil {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 579e10f985..6375a996fe 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -427,16 +427,16 @@ func methods(t *types.Type) []*Sig {
+ 			sig.pkg = method.Pkg
+ 		}
+ 
+-		sig.isym = methodsym(method, it, true)
+-		sig.tsym = methodsym(method, t, false)
++		sig.isym = methodsym(method, it)
++		sig.tsym = methodsym(method, t)
+ 		sig.type_ = methodfunc(f.Type, t)
+ 		sig.mtype = methodfunc(f.Type, nil)
+ 
+ 		if !sig.isym.Siggen() {
+ 			sig.isym.SetSiggen(true)
+-			if !eqtype(this, it) || this.Width < int64(Widthptr) {
++			if !eqtype(this, it) {
+ 				compiling_wrappers = true
+-				genwrapper(it, f, sig.isym, true)
++				genwrapper(it, f, sig.isym)
+ 				compiling_wrappers = false
+ 			}
+ 		}
+@@ -445,7 +445,7 @@ func methods(t *types.Type) []*Sig {
+ 			sig.tsym.SetSiggen(true)
+ 			if !eqtype(this, t) {
+ 				compiling_wrappers = true
+-				genwrapper(t, f, sig.tsym, false)
++				genwrapper(t, f, sig.tsym)
+ 				compiling_wrappers = false
+ 			}
+ 		}
+@@ -493,10 +493,10 @@ func imethods(t *types.Type) []*Sig {
+ 		// IfaceType.Method is not in the reflect data.
+ 		// Generate the method body, so that compiled
+ 		// code can refer to it.
+-		isym := methodsym(method, t, false)
++		isym := methodsym(method, t)
+ 		if !isym.Siggen() {
+ 			isym.SetSiggen(true)
+-			genwrapper(t, f, isym, false)
++			genwrapper(t, f, isym)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index ef68d677e6..9b8103f22e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1654,7 +1654,7 @@ func structargs(tl *types.Type, mustname bool) []*Node {
+ //	rcvr - U
+ //	method - M func (t T)(), a TFIELD type struct
+ //	newnam - the eventual mangled name of this function
+-func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface bool) {
++func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	if false && Debug['r'] != 0 {
+ 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
+ 	}
+@@ -1676,19 +1676,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 	out := structargs(method.Type.Results(), false)
+ 
+ 	t := nod(OTFUNC, nil, nil)
+-	l := []*Node{this}
+-	if iface && rcvr.Width < int64(Widthptr) {
+-		// Building method for interface table and receiver
+-		// is smaller than the single pointer-sized word
+-		// that the interface call will pass in.
+-		// Add a dummy padding argument after the
+-		// receiver to make up the difference.
+-		tpad := types.NewArray(types.Types[TUINT8], int64(Widthptr)-rcvr.Width)
+-		pad := namedfield(".pad", tpad)
+-		l = append(l, pad)
+-	}
+-
+-	t.List.Set(append(l, in...))
++	t.List.Set(append([]*Node{this}, in...))
+ 	t.Rlist.Set(out)
+ 
+ 	newnam.SetOnExportList(true) // prevent export; see closure.go
+@@ -1735,7 +1723,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym, iface
+ 		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
+ 		as.Right.Type = rcvr
+ 		fn.Nbody.Append(as)
+-		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr, false)))
++		fn.Nbody.Append(nodSym(ORETJMP, nil, methodsym(method.Sym, methodrcvr)))
+ 	} else {
+ 		fn.Func.SetWrapper(true) // ignore frame for panic+recover matching
+ 		call := nod(OCALL, dot, nil)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0b01d803ea..867979c2fe 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2352,7 +2352,7 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
+ 			return false
+ 		}
+ 
+-		n.Sym = methodsym(n.Sym, t, false)
++		n.Sym = methodsym(n.Sym, t)
+ 		n.Xoffset = f1.Offset
+ 		n.Type = f1.Type
+ 		n.Op = ODOTINTER
+@@ -2378,7 +2378,7 @@ func looktypedot(n *Node, t *types.Type, dostrcmp int) bool {
+ 		return false
+ 	}
+ 
+-	n.Sym = methodsym(n.Sym, t, false)
++	n.Sym = methodsym(n.Sym, t)
+ 	n.Xoffset = f2.Offset
+ 	n.Type = f2.Type
+ 	n.Op = ODOTMETH
+@@ -2495,7 +2495,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 			return nil
+ 		}
+ 
+-		n.Sym = methodsym(n.Sym, n.Left.Type, false)
++		n.Sym = methodsym(n.Sym, n.Left.Type)
+ 		n.Xoffset = f2.Offset
+ 		n.Type = f2.Type
+ 

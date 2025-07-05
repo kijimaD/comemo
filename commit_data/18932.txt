@@ -9,6 +9,22 @@ Date:   Tue Mar 25 11:19:25 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/77990044
-
+---
  src/pkg/regexp/syntax/doc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/regexp/syntax/doc.go b/src/pkg/regexp/syntax/doc.go
+index e52632ef72..8e72c90d3e 100644
+--- a/src/pkg/regexp/syntax/doc.go
++++ b/src/pkg/regexp/syntax/doc.go
+@@ -46,6 +46,10 @@ Repetitions:
+   x{n,}?         n or more x, prefer fewer
+   x{n}?          exactly n x
+ 
++Implementation restriction: The counting forms x{n} etc. (but not the other
++forms x* etc.) have an upper limit of n=1000. Negative or higher explicit
++counts yield the parse error ErrInvalidRepeatSize.
++
+ Grouping:
+   (re)           numbered capturing group (submatch)
+   (?P<name>re)   named & numbered capturing group (submatch)

@@ -8,6 +8,20 @@ Date:   Sun May 1 15:18:13 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/22680
     Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 0f11676de6..c8bb34fa48 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2009,7 +2009,7 @@ type connLRU struct {
+ 	m  map[*persistConn]*list.Element
+ }
+ 
+-// addO adds pc to the head of the linked list.
++// add adds pc to the head of the linked list.
+ func (cl *connLRU) add(pc *persistConn) {
+ 	if cl.ll == nil {
+ 		cl.ll = list.New()

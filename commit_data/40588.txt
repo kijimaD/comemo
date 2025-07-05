@@ -16,8 +16,90 @@ Date:   Fri May 31 15:24:49 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modconv/convert_test.go   | 10 +++++-----
  src/cmd/go/internal/modfetch/coderepo.go      |  7 ++++++-
  src/cmd/go/testdata/script/mod_init_glide.txt |  8 +++++---
  3 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index dd3aedf349..32727e79eb 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -106,11 +106,11 @@ func TestConvertLegacyConfig(t *testing.T) {
+ 				github.com/AdRoll/goamz v0.0.0-20150130162828-d3664b76d905
+ 				github.com/MSOpenTech/azure-sdk-for-go v0.0.0-20150323223030-d90753bcad2e
+ 				github.com/Sirupsen/logrus v0.7.3
+-				github.com/bugsnag/bugsnag-go v0.0.0-20141110184014-b1d153021fcd
++				github.com/bugsnag/bugsnag-go v1.0.3-0.20141110184014-b1d153021fcd
+ 				github.com/bugsnag/osext v0.0.0-20130617224835-0dd3f918b21b
+ 				github.com/bugsnag/panicwrap v0.0.0-20141110184334-e5f9854865b9
+-				github.com/codegangsta/cli v0.0.0-20150131031259-6086d7927ec3
+-				github.com/docker/docker v0.0.0-20150204013315-165ea5c158cf
++				github.com/codegangsta/cli v1.4.2-0.20150131031259-6086d7927ec3
++				github.com/docker/docker v1.4.2-0.20150204013315-165ea5c158cf
+ 				github.com/docker/libtrust v0.0.0-20150114040149-fa567046d9b1
+ 				github.com/garyburd/redigo v0.0.0-20150301180006-535138d7bcd7
+ 				github.com/gorilla/context v0.0.0-20140604161150-14f550f51af5
+@@ -118,7 +118,7 @@ func TestConvertLegacyConfig(t *testing.T) {
+ 				github.com/gorilla/mux v0.0.0-20140926153814-e444e69cbd2e
+ 				github.com/jlhawn/go-crypto v0.0.0-20150401213827-cd738dde20f0
+ 				github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43
+-				github.com/yvasiyarov/gorelic v0.0.0-20141212073537-a9bba5b9ab50
++				github.com/yvasiyarov/gorelic v0.0.7-0.20141212073537-a9bba5b9ab50
+ 				github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f
+ 				golang.org/x/net v0.0.0-20150202051010-1dfe7915deaf
+ 				gopkg.in/check.v1 v1.0.0-20141024133853-64131543e789
+@@ -138,7 +138,7 @@ func TestConvertLegacyConfig(t *testing.T) {
+ 				github.com/googleapis/gax-go v2.0.0+incompatible
+ 				golang.org/x/net v0.0.0-20180216171745-136a25c244d3
+ 				golang.org/x/oauth2 v0.0.0-20180207181906-543e37812f10
+-				golang.org/x/text v0.0.0-20180208041248-4e4a3210bb54
++				golang.org/x/text v0.3.1-0.20180208041248-4e4a3210bb54
+ 				google.golang.org/api v0.0.0-20180217000815-c7a403bb5fe1
+ 				google.golang.org/appengine v1.0.0
+ 				google.golang.org/genproto v0.0.0-20180206005123-2b5a72b8730b
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 3581f93fe7..59f2cc70b5 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -208,6 +208,11 @@ func (r *codeRepo) Latest() (*RevInfo, error) {
+ 	return r.convert(info, "")
+ }
+ 
++// convert converts a version as reported by the code host to a version as
++// interpreted by the module system.
++//
++// If statVers is a valid module version, it is used for the Version field.
++// Otherwise, the Version is derived from the passed-in info and recent tags.
+ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, error) {
+ 	info2 := &RevInfo{
+ 		Name:  info.Name,
+@@ -268,7 +273,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 			}
+ 			// Otherwise make a pseudo-version.
+ 			if info2.Version == "" {
+-				tag, _ := r.code.RecentTag(statVers, p)
++				tag, _ := r.code.RecentTag(info.Name, p)
+ 				v = tagToVersion(tag)
+ 				// TODO: Check that v is OK for r.pseudoMajor or else is OK for incompatible.
+ 				info2.Version = PseudoVersion(r.pseudoMajor, v, info.Time, info.Short)
+diff --git a/src/cmd/go/testdata/script/mod_init_glide.txt b/src/cmd/go/testdata/script/mod_init_glide.txt
+index cd80d77b26..a351a6ae4b 100644
+--- a/src/cmd/go/testdata/script/mod_init_glide.txt
++++ b/src/cmd/go/testdata/script/mod_init_glide.txt
+@@ -1,9 +1,11 @@
+-env GO111MODULE=on
+-
+ [!net] skip
+ [!exec:git] skip
+ 
+-# test glide replacement
++env GO111MODULE=on
++env GOPROXY=direct
++
++# Regression test for golang.org/issue/32161:
++# 'go mod init' did not locate tags when resolving a commit to a pseudo-version.
+ go mod init x
+ cmpenv go.mod go.mod.out
+ 

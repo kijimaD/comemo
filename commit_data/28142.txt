@@ -7,9 +7,72 @@ Date:   Wed Apr 27 22:17:44 2016 -0400
     Change-Id: I724ce0a48c1aeed14267c049fa415a6fa2fffbcf
     Reviewed-on: https://go-review.googlesource.com/19864
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go        | 3 +++
  src/cmd/asm/internal/asm/operand_test.go | 2 +-
  src/cmd/internal/obj/mips/a.out.go       | 2 +-
  src/cmd/internal/obj/mips/list0.go       | 4 ++++
  4 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index bd9658301c..4b5b46a78c 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -393,6 +393,9 @@ func archMips64() *Arch {
+ 	// Avoid unintentionally clobbering g using R30.
+ 	delete(register, "R30")
+ 	register["g"] = mips.REG_R30
++	// Avoid unintentionally clobbering RSB using R28.
++	delete(register, "R28")
++	register["RSB"] = mips.REG_R28
+ 	registerPrefix := map[string]bool{
+ 		"F":   true,
+ 		"FCR": true,
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 066d55a394..eafc8a361e 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -512,7 +512,6 @@ var mips64OperandTests = []operandTest{
+ 	{"R25", "R25"},
+ 	{"R26", "R26"},
+ 	{"R27", "R27"},
+-	{"R28", "R28"},
+ 	{"R29", "R29"},
+ 	{"R3", "R3"},
+ 	{"R31", "R31"},
+@@ -525,6 +524,7 @@ var mips64OperandTests = []operandTest{
+ 	{"LO", "LO"},
+ 	{"a(FP)", "a(FP)"},
+ 	{"g", "g"},
++	{"RSB", "RSB"},
+ 	{"ret+8(FP)", "ret+8(FP)"},
+ 	{"runtime·abort(SB)", "runtime.abort(SB)"},
+ 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index da0d2616f7..44add12e86 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -187,7 +187,7 @@ const (
+ 
+ 	REGZERO  = REG_R0 /* set to zero */
+ 	REGSP    = REG_R29
+-	REGSB    = REG_R30
++	REGSB    = REG_R28
+ 	REGLINK  = REG_R31
+ 	REGRET   = REG_R1
+ 	REGARG   = -1      /* -1 disables passing the first argument in register */
+diff --git a/src/cmd/internal/obj/mips/list0.go b/src/cmd/internal/obj/mips/list0.go
+index 40dc4605c9..ca80e8b96d 100644
+--- a/src/cmd/internal/obj/mips/list0.go
++++ b/src/cmd/internal/obj/mips/list0.go
+@@ -47,6 +47,10 @@ func Rconv(r int) string {
+ 		// Special case.
+ 		return "g"
+ 	}
++	if r == REGSB {
++		// Special case.
++		return "RSB"
++	}
+ 	if REG_R0 <= r && r <= REG_R31 {
+ 		return fmt.Sprintf("R%d", r-REG_R0)
+ 	}

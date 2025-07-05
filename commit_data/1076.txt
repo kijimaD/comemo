@@ -9,9 +9,117 @@ Date:   Thu Nov 6 13:31:13 2008 -0800
     R=ken
     OCL=18698
     CL=18698
-
+---
  src/cmd/gc/go.h   |  2 ++
  src/cmd/gc/go.y   |  6 ++++++
  src/cmd/gc/subr.c | 11 +++++++----
  src/cmd/gc/walk.c |  6 +++++-
  4 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7e4e22c87b..acb311b4e7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -478,6 +478,8 @@ EXTERN	ushort	block;			// current block number
+ EXTERN	Node*	retnil;
+ EXTERN	Node*	fskel;
+ 
++EXTERN	Node*	addtop;
++
+ EXTERN	char*	context;
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0fbe0c1739..861f4fb29d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -303,6 +303,9 @@ Bvardcl:
+ 	}
+ |	new_name_list_r type '=' expr_list
+ 	{
++		if(addtop != N)
++			fatal("new_name_list_r type '=' expr_list");
++
+ 		$$ = rev($1);
+ 		dodclvar($$, $2);
+ 
+@@ -423,6 +426,9 @@ simple_stmt:
+ 	}
+ |	exprsym3_list_r LCOLAS expr_list
+ 	{
++		if(addtop != N)
++			fatal("exprsym3_list_r LCOLAS expr_list");
++
+ 		$$ = rev($1);
+ 		$$ = colas($$, $3);
+ 		$$ = nod(OAS, $$, $3);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index d5ef43c28e..ddf0560c38 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2417,20 +2417,20 @@ adddot(Node *n)
+ 	walktype(n->left, Erv);
+ 	t = n->left->type;
+ 	if(t == T)
+-		return n;
++		goto ret;
+ 
+ 	if(n->right->op != ONAME)
+-		return n;
++		goto ret;
+ 	s = n->right->sym;
+ 	if(s == S)
+-		return n;
++		goto ret;
+ 
+ 	for(d=0; d<nelem(dotlist); d++) {
+ 		c = adddot1(s, t, d);
+ 		if(c > 0)
+ 			goto out;
+ 	}
+-	return n;
++	goto ret;
+ 
+ out:
+ 	if(c > 1)
+@@ -2441,6 +2441,9 @@ out:
+ 		n = nod(ODOT, n, n->right);
+ 		n->left->right = newname(dotlist[c].field->sym);
+ 	}
++ret:
++	n->ninit = list(addtop, n->ninit);
++	addtop = N;
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 130a5ece27..42eb037e74 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -8,7 +8,6 @@ static	Type*	sw1(Node*, Type*);
+ static	Type*	sw2(Node*, Type*);
+ static	Type*	sw3(Node*, Type*);
+ static	Node*	curfn;
+-static	Node*	addtop;
+ 
+ enum
+ {
+@@ -65,6 +64,8 @@ walk(Node *fn)
+ 	if(curfn->type->outtuple)
+ 		if(walkret(curfn->nbody))
+ 			yyerror("function ends without a return statement");
++	if(addtop != N)
++		fatal("addtop in walk");
+ 	walkstate(curfn->nbody);
+ 	if(debug['W']) {
+ 		snprint(s, sizeof(s), "after %S", curfn->nname->sym);
+@@ -1544,6 +1545,9 @@ walkdot(Node *n)
+ {
+ 	Type *t;
+ 
++	addtop = list(addtop, n->ninit);
++	n->ninit = N;
++
+ 	if(n->left == N || n->right == N)
+ 		return;
+ 	switch(n->op) {

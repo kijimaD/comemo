@@ -13,6 +13,33 @@ Date:   Wed Jul 31 20:09:03 2013 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12176043
-
+---
  src/pkg/runtime/proc.c | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c4b8c02517..c3af1efaf3 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1536,6 +1536,10 @@ exitsyscallfast(void)
+ 	if(runtime·sched.pidle) {
+ 		runtime·lock(&runtime·sched);
+ 		p = pidleget();
++		if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
++			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
++			runtime·notewakeup(&runtime·sched.sysmonnote);
++		}
+ 		runtime·unlock(&runtime·sched);
+ 		if(p) {
+ 			acquirep(p);
+@@ -1559,6 +1563,10 @@ exitsyscall0(G *gp)
+ 	p = pidleget();
+ 	if(p == nil)
+ 		globrunqput(gp);
++	else if(runtime·atomicload(&runtime·sched.sysmonwait)) {
++		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
++		runtime·notewakeup(&runtime·sched.sysmonnote);
++	}
+ 	runtime·unlock(&runtime·sched);
+ 	if(p) {
+ 		acquirep(p);

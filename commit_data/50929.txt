@@ -12,6 +12,17 @@ Date:   Wed Nov 17 13:03:13 2021 -0800
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+index 3764dcb915..5b1e26be24 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator_repeat.txt
+@@ -1,3 +1,5 @@
++skip  # https://golang.org/issue/49047
++
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 

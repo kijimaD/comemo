@@ -24,7 +24,55 @@ Date:   Tue May 20 20:26:56 2025 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/674655
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/malloc.go                            |  5 ++++-
  src/runtime/testdata/testprog/checkfinalizers.go | 11 +++++++++--
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 25caf0625b..abd94fda08 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1672,7 +1672,10 @@ func postMallocgcDebug(x unsafe.Pointer, elemsize uintptr, typ *_type) {
+ 	}
+ 
+ 	// N.B. elemsize == 0 indicates a tiny allocation, since no new slot was
+-	// allocated to fulfill this call to mallocgc.
++	// allocated to fulfill this call to mallocgc. This means checkfinalizer
++	// will only flag an error if there is actually any risk. If an allocation
++	// has the tiny block to itself, it will not get flagged, because we won't
++	// mark the block as a tiny block.
+ 	if debug.checkfinalizers != 0 && elemsize == 0 {
+ 		setTinyBlockContext(unsafe.Pointer(alignDown(uintptr(x), maxTinySize)))
+ 	}
+diff --git a/src/runtime/testdata/testprog/checkfinalizers.go b/src/runtime/testdata/testprog/checkfinalizers.go
+index b542f575fe..a2fe104462 100644
+--- a/src/runtime/testdata/testprog/checkfinalizers.go
++++ b/src/runtime/testdata/testprog/checkfinalizers.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"runtime"
+ 	"runtime/debug"
++	"unsafe"
+ )
+ 
+ func init() {
+@@ -40,10 +41,16 @@ func DetectFinalizerAndCleanupLeaks() {
+ 
+ 	// Ensure we create an allocation into a tiny block that shares space among several values.
+ 	var ctLeak *tiny
+-	for i := 0; i < 18; i++ {
++	for {
+ 		tinySink = ctLeak
+ 		ctLeak = new(tiny)
+-		*ctLeak = tiny(i)
++		*ctLeak = tiny(55)
++		// Make sure the address is an odd value. This is sufficient to
++		// be certain that we're sharing a block with another value and
++		// trip the detector.
++		if uintptr(unsafe.Pointer(ctLeak))%2 != 0 {
++			break
++		}
+ 	}
+ 	runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
+ 

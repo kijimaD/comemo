@@ -13,7 +13,40 @@ Date:   Tue Mar 7 15:20:40 2017 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mbitmap.go | 1 +
  src/runtime/mgcmark.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 3e782f50da..4e1a3e29f9 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -425,6 +425,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
+ 				print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
+ 				gcDumpObject("object", refBase, refOff)
+ 			}
++			getg().m.traceback = 2
+ 			throw("found bad pointer in Go heap (incorrect use of unsafe or cgo?)")
+ 		}
+ 		return
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 2b45881976..dd7a2bd8eb 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1230,6 +1230,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 			// Dump the object
+ 			gcDumpObject("obj", obj, ^uintptr(0))
+ 
++			getg().m.traceback = 2
+ 			throw("checkmark found unmarked object")
+ 		}
+ 		if hbits.isCheckmarked(span.elemsize) {
+@@ -1244,6 +1245,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 			print("runtime: marking free object ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
+ 			gcDumpObject("base", base, off)
+ 			gcDumpObject("obj", obj, ^uintptr(0))
++			getg().m.traceback = 2
+ 			throw("marking free object")
+ 		}
+ 

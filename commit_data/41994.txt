@@ -11,9 +11,64 @@ Date:   Fri Nov 1 16:42:43 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go.mod                                  | 2 +-
  src/cmd/go.sum                                  | 4 ++--
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 2 ++
  src/cmd/vendor/modules.txt                      | 2 +-
  4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 4de382e0be..de81b9ac76 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20180524225900-fc6590592b44 // indirect
+ 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+-	golang.org/x/mod v0.1.1-0.20191029194233-18c3998b6452
++	golang.org/x/mod v0.1.1-0.20191101203923-a222b9651630
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+ 	golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 85b5317b7f..e93b9a98eb 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,8 +7,8 @@ golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1/go.mod h1:flIaEI6LNU6xOCD5P
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 h1:ObdrDkeb4kJdCP557AjRjq69pTHfNouLtWZG7j9rPN8=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/mod v0.1.1-0.20191029194233-18c3998b6452 h1:ES2W0A+AqNBCkgWga22gheu9IUDjq3TDmeCdY1A7jhk=
+-golang.org/x/mod v0.1.1-0.20191029194233-18c3998b6452/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
++golang.org/x/mod v0.1.1-0.20191101203923-a222b9651630 h1:QsMqsRXZFQT+jRZnwpEDIwGHWg0UY9ZrpWiplCOEK5I=
++golang.org/x/mod v0.1.1-0.20191101203923-a222b9651630/go.mod h1:QqPTAvyqsEbceGzBzNggFXnrqF1CaUcvgkdR5Ot7KZg=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 95fefecb6a..66b08d9723 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -555,6 +555,8 @@ func (f *File) SetRequire(req []*Require) {
+ 		if v, ok := need[r.Mod.Path]; ok {
+ 			r.Mod.Version = v
+ 			r.Indirect = indirect[r.Mod.Path]
++		} else {
++			*r = Require{}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 7bca3d0d3d..10e142568f 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -29,7 +29,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.1.1-0.20191029194233-18c3998b6452
++# golang.org/x/mod v0.1.1-0.20191101203923-a222b9651630
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

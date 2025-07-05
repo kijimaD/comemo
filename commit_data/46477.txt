@@ -19,6 +19,24 @@ Date:   Sat Jan 2 23:56:20 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/walk/assign.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 04bd576b69..84ba7f0dc5 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -253,10 +253,9 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
+ 
+ 	// Common case: Assignment order doesn't matter. Simply assign to
+ 	// each result parameter in order.
+-	walkExprList(n.Results, n.PtrInit())
+-	res := make([]ir.Node, len(results))
++	var res ir.Nodes
+ 	for i, v := range n.Results {
+-		res[i] = convas(ir.NewAssignStmt(base.Pos, dsts[i], v), n.PtrInit())
++		appendWalkStmt(&res, convas(ir.NewAssignStmt(base.Pos, dsts[i], v), &res))
+ 	}
+ 	n.Results = res
+ 	return n

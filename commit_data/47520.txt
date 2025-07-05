@@ -36,6 +36,17 @@ Date:   Wed Mar 24 21:51:44 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/issue36705.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue36705.go b/test/fixedbugs/issue36705.go
+index d5a0e7fade..b0485c6335 100644
+--- a/test/fixedbugs/issue36705.go
++++ b/test/fixedbugs/issue36705.go
+@@ -1,4 +1,4 @@
+-// +build cgo
++// +build cgo,!windows
+ // run fake-arg-to-force-use-of-go-run
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.

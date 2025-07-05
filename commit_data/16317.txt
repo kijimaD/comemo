@@ -14,8 +14,151 @@ Date:   Wed May 15 09:40:14 2013 -0700
     R=iant, khr
     CC=gobot, golang-dev, google
     https://golang.org/cl/9123046
-
+---
  src/pkg/runtime/asm_386.s        | 24 ++++++++++++++++--------
  src/pkg/runtime/asm_amd64.s      | 24 ++++++++++++++++--------
  src/pkg/runtime/mapspeed_test.go | 27 +++++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 2a854a8144..58fa6d69ac 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -755,31 +755,39 @@ TEXT runtime·aeshashbody(SB),7,$0
+ 	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
+ 	MOVO	runtime·aeskeysched+0(SB), X2
+ 	MOVO	runtime·aeskeysched+16(SB), X3
++	CMPL	CX, $16
++	JB	aessmall
+ aesloop:
+ 	CMPL	CX, $16
+-	JB	aesloopend
++	JBE	aesloopend
+ 	MOVOU	(AX), X1
+ 	AESENC	X2, X0
+ 	AESENC	X1, X0
+ 	SUBL	$16, CX
+ 	ADDL	$16, AX
+ 	JMP	aesloop
++// 1-16 bytes remaining
+ aesloopend:
++	// This load may overlap with the previous load above.
++	// We'll hash some bytes twice, but that's ok.
++	MOVOU	-16(AX)(CX*1), X1
++	JMP	partial
++// 0-15 bytes
++aessmall:
+ 	TESTL	CX, CX
+-	JE	finalize	// no partial block
++	JE	finalize	// 0 bytes
+ 
+-	TESTL	$16, AX
+-	JNE	highpartial
++	CMPB	AX, $0xf0
++	JA	highpartial
+ 
+-	// address ends in 0xxxx.  16 bytes loaded
+-	// at this address won't cross a page boundary, so
+-	// we can load it directly.
++	// 16 bytes loaded at this address won't cross
++	// a page boundary, so we can load it directly.
+ 	MOVOU	(AX), X1
+ 	ADDL	CX, CX
+ 	PAND	masks(SB)(CX*8), X1
+ 	JMP	partial
+ highpartial:
+-	// address ends in 1xxxx.  Might be up against
++	// address ends in 1111xxxx.  Might be up against
+ 	// a page boundary, so load ending at last byte.
+ 	// Then shift bytes down using pshufb.
+ 	MOVOU	-16(AX)(CX*1), X1
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 4b18e103fd..f779b94517 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -772,31 +772,39 @@ TEXT runtime·aeshashbody(SB),7,$0
+ 	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
+ 	MOVO	runtime·aeskeysched+0(SB), X2
+ 	MOVO	runtime·aeskeysched+16(SB), X3
++	CMPQ	CX, $16
++	JB	aessmall
+ aesloop:
+ 	CMPQ	CX, $16
+-	JB	aesloopend
++	JBE	aesloopend
+ 	MOVOU	(AX), X1
+ 	AESENC	X2, X0
+ 	AESENC	X1, X0
+ 	SUBQ	$16, CX
+ 	ADDQ	$16, AX
+ 	JMP	aesloop
++// 1-16 bytes remaining
+ aesloopend:
++	// This load may overlap with the previous load above.
++	// We'll hash some bytes twice, but that's ok.
++	MOVOU	-16(AX)(CX*1), X1
++	JMP	partial
++// 0-15 bytes
++aessmall:
+ 	TESTQ	CX, CX
+-	JE	finalize	// no partial block
++	JE	finalize	// 0 bytes
+ 
+-	TESTQ	$16, AX
+-	JNE	highpartial
++	CMPB	AX, $0xf0
++	JA	highpartial
+ 
+-	// address ends in 0xxxx.  16 bytes loaded
+-	// at this address won't cross a page boundary, so
+-	// we can load it directly.
++	// 16 bytes loaded at this address won't cross
++	// a page boundary, so we can load it directly.
+ 	MOVOU	(AX), X1
+ 	ADDQ	CX, CX
+ 	PAND	masks(SB)(CX*8), X1
+ 	JMP	partial
+ highpartial:
+-	// address ends in 1xxxx.  Might be up against
++	// address ends in 1111xxxx.  Might be up against
+ 	// a page boundary, so load ending at last byte.
+ 	// Then shift bytes down using pshufb.
+ 	MOVOU	-16(AX)(CX*1), X1
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index 3b7fbfd638..a737c65dc6 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -32,6 +32,33 @@ func BenchmarkHashStringSpeed(b *testing.B) {
+ 	}
+ }
+ 
++type chunk [17]byte
++
++func BenchmarkHashBytesSpeed(b *testing.B) {
++	// a bunch of chunks, each with a different alignment mod 16
++	var chunks [size]chunk
++	// initialize each to a different value
++	for i := 0; i < size; i++ {
++		chunks[i][0] = byte(i)
++	}
++	// put into a map
++	m := make(map[chunk]int, size)
++	for i, c := range chunks {
++		m[c] = i
++	}
++	idx := 0
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		if m[chunks[idx]] != idx {
++			b.Error("bad map entry for chunk")
++		}
++		idx++
++		if idx == size {
++			idx = 0
++		}
++	}
++}
++
+ func BenchmarkHashInt32Speed(b *testing.B) {
+ 	ints := make([]int32, size)
+ 	for i := 0; i < size; i++ {

@@ -11,6 +11,23 @@ Date:   Thu Sep 29 20:59:41 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index b625845c09..9faaba3759 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3951,10 +3951,7 @@ func isax(a *obj.Addr) bool {
+ 		return true
+ 	}
+ 
+-	if a.Index == REG_AX {
+-		return true
+-	}
+-	return false
++	return a.Index == REG_AX
+ }
+ 
+ func subreg(p *obj.Prog, from int, to int) {

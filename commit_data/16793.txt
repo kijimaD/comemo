@@ -12,7 +12,47 @@ Date:   Wed Jul 17 11:04:34 2013 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/11383043
-
+---
  src/cmd/8g/ggen.c           |  2 +-
  test/fixedbugs/issue5820.go | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 1095d5e441..5570e12855 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -78,9 +78,9 @@ clearfat(Node *nl)
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 
+-	gconreg(AMOVL, 0, D_AX);
+ 	nodreg(&n1, types[tptr], D_DI);
+ 	agen(nl, &n1);
++	gconreg(AMOVL, 0, D_AX);
+ 
+ 	if(q >= 4) {
+ 		gconreg(AMOVL, q, D_CX);
+diff --git a/test/fixedbugs/issue5820.go b/test/fixedbugs/issue5820.go
+new file mode 100644
+index 0000000000..94de06d57d
+--- /dev/null
++++ b/test/fixedbugs/issue5820.go
+@@ -0,0 +1,18 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 5820: register clobber when clearfat and 64 bit arithmetic is interleaved.
++
++package main
++
++func main() {
++	array := make([][]int, 2)
++	index := uint64(1)
++	array[index] = nil
++	if array[1] != nil {
++		panic("array[1] != nil")
++	}
++}

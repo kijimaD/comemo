@@ -13,7 +13,7 @@ Date:   Fri Dec 16 16:28:30 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go            |  4 ++
  src/cmd/compile/internal/syntax/nodes.go        |  1 +
  src/cmd/compile/internal/syntax/parser.go       |  3 +-
@@ -21,3 +21,158 @@ Date:   Fri Dec 16 16:28:30 2016 -0800
  src/cmd/compile/internal/syntax/printer_test.go | 17 ++++++++
  test/alias2.go                                  | 58 +++++++++++++++++++++++++
  6 files changed, 87 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a501cb67b6..3f6fe20b6b 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -185,6 +185,10 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
+ }
+ 
+ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
++	if decl.Alias {
++		yyerror("type alias declarations unimplemented")
++	}
++
+ 	name := typedcl0(p.name(decl.Name))
+ 	name.Name.Param.Pragma = Pragma(decl.Pragma)
+ 
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index fadba84bce..34524e5c09 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -74,6 +74,7 @@ type (
+ 	// Name Type
+ 	TypeDecl struct {
+ 		Name   *Name
++		Alias  bool
+ 		Type   Expr
+ 		Group  *Group // nil means not part of a group
+ 		Pragma Pragma
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 121dfb75e5..1185507238 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -325,7 +325,7 @@ func (p *parser) constDecl(group *Group) Decl {
+ 	return d
+ }
+ 
+-// TypeSpec = identifier Type .
++// TypeSpec = identifier [ "=" ] Type .
+ func (p *parser) typeDecl(group *Group) Decl {
+ 	if trace {
+ 		defer p.trace("typeDecl")()
+@@ -335,6 +335,7 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	d.init(p)
+ 
+ 	d.Name = p.name()
++	d.Alias = p.got(_Assign)
+ 	d.Type = p.tryType()
+ 	if d.Type == nil {
+ 		p.syntax_error("in type declaration")
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 0cacf1e5d4..43876a25c2 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -619,7 +619,11 @@ func (p *printer) printRawNode(n Node) {
+ 		if n.Group == nil {
+ 			p.print(_Type, blank)
+ 		}
+-		p.print(n.Name, blank, n.Type)
++		p.print(n.Name, blank)
++		if n.Alias {
++			p.print(_Assign, blank)
++		}
++		p.print(n.Type)
+ 
+ 	case *VarDecl:
+ 		if n.Group == nil {
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 5c0fc776a1..a9969e610a 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -22,3 +22,20 @@ func TestPrint(t *testing.T) {
+ 	Fprint(os.Stdout, ast, true)
+ 	fmt.Println()
+ }
++
++func TestPrintString(t *testing.T) {
++	for _, want := range []string{
++		"package p",
++		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
++		// TODO(gri) expand
++	} {
++		ast, err := ParseBytes([]byte(want), nil, nil, 0)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		if got := String(ast); got != want {
++			t.Errorf("%q: got %q", want, got)
++		}
++	}
++}
+diff --git a/test/alias2.go b/test/alias2.go
+new file mode 100644
+index 0000000000..25df7c287d
+--- /dev/null
++++ b/test/alias2.go
+@@ -0,0 +1,58 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test basic restrictions on type aliases.
++
++// The compiler doesn't implement type aliases yet,
++// so for now we get the same error (unimplemented)
++// everywhere, OR-ed into the ERROR checks.
++// TODO(gri) remove the need for "unimplemented"
++
++package p
++
++import (
++	"reflect"
++	. "reflect"
++)
++
++// Valid type alias declarations.
++
++type _ = int           // ERROR "unimplemented"
++type _ = struct{}      // ERROR "unimplemented"
++type _ = reflect.Value // ERROR "unimplemented"
++type _ = Value         // ERROR "unimplemented"
++
++type (
++	a1 = int           // ERROR "unimplemented"
++	a2 = struct{}      // ERROR "unimplemented"
++	a3 = reflect.Value // ERROR "unimplemented"
++	a4 = Value         // ERROR "unimplemented"
++)
++
++func _() {
++	type _ = int           // ERROR "unimplemented"
++	type _ = struct{}      // ERROR "unimplemented"
++	type _ = reflect.Value // ERROR "unimplemented"
++	type _ = Value         // ERROR "unimplemented"
++
++	type (
++		a1 = int           // ERROR "unimplemented"
++		a2 = struct{}      // ERROR "unimplemented"
++		a3 = reflect.Value // ERROR "unimplemented"
++		a4 = Value         // ERROR "unimplemented"
++	)
++}
++
++// Invalid type alias declarations.
++
++type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|unimplemented"
++
++type b1 = struct{} // ERROR "unimplemented"
++func (b1) m()      {} // disabled ERROR "invalid receiver type"
++
++// TODO(gri) expand
++// It appears that type-checking exits after some more severe errors, so we may
++// need more test files.

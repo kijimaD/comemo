@@ -19,7 +19,70 @@ Date:   Wed Sep 11 16:03:59 2019 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  1 +
  src/cmd/compile/internal/gc/obj.go  | 32 +++++++++++++++++---------------
  2 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f75e35c3be..eec5ece0db 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -723,6 +723,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	// Write object data to disk.
+ 	timings.Start("be", "dumpobj")
++	dumpdata()
+ 	dumpobj()
+ 	if asmhdr != "" {
+ 		dumpasmhdr()
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index be13b27892..e703e8a302 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -111,21 +111,7 @@ func dumpCompilerObj(bout *bio.Writer) {
+ 	dumpexport(bout)
+ }
+ 
+-func dumpLinkerObj(bout *bio.Writer) {
+-	printObjHeader(bout)
+-
+-	if len(pragcgobuf) != 0 {
+-		// write empty export section; must be before cgo section
+-		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+-		fmt.Fprintf(bout, "\n$$  // cgo\n")
+-		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+-			Fatalf("serializing pragcgobuf: %v", err)
+-		}
+-		fmt.Fprintf(bout, "\n$$\n\n")
+-	}
+-
+-	fmt.Fprintf(bout, "\n!\n")
+-
++func dumpdata() {
+ 	externs := len(externdcl)
+ 
+ 	dumpglobls()
+@@ -163,6 +149,22 @@ func dumpLinkerObj(bout *bio.Writer) {
+ 	}
+ 
+ 	addGCLocals()
++}
++
++func dumpLinkerObj(bout *bio.Writer) {
++	printObjHeader(bout)
++
++	if len(pragcgobuf) != 0 {
++		// write empty export section; must be before cgo section
++		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
++		fmt.Fprintf(bout, "\n$$  // cgo\n")
++		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
++			Fatalf("serializing pragcgobuf: %v", err)
++		}
++		fmt.Fprintf(bout, "\n$$\n\n")
++	}
++
++	fmt.Fprintf(bout, "\n!\n")
+ 
+ 	obj.WriteObjFile(Ctxt, bout.Writer, myimportpath)
+ }

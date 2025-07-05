@@ -10,7 +10,7 @@ Date:   Sun Oct 7 18:01:43 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6594054
-
+---
  src/pkg/exp/types/staging/conversions.go           |  39 +
  src/pkg/exp/types/staging/expr.go                  | 793 +++++++++++++++++++++
  src/pkg/exp/types/staging/stmt.go                  | 465 ++++++++++++
@@ -27,3 +27,2283 @@ Date:   Sun Oct 7 18:01:43 2012 -0700
  src/pkg/exp/types/staging/testdata/expr3.src       |  43 ++
  src/pkg/exp/types/staging/testdata/stmt0.src       |  42 ++
  15 files changed, 2130 insertions(+), 55 deletions(-)
+
+diff --git a/src/pkg/exp/types/staging/conversions.go b/src/pkg/exp/types/staging/conversions.go
+new file mode 100644
+index 0000000000..ac4d59fde7
+--- /dev/null
++++ b/src/pkg/exp/types/staging/conversions.go
+@@ -0,0 +1,39 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements typechecking of conversions.
++
++package types
++
++import (
++	"go/ast"
++)
++
++// conversion typechecks the type conversion conv to type typ. iota is the current
++// value of iota or -1 if iota doesn't have a value in the current context. The result
++// of the conversion is returned via x. If the conversion has type errors, the returned
++// x is marked as invalid (x.mode == invalid).
++//
++func (check *checker) conversion(x *operand, conv *ast.CallExpr, typ Type, iota int) {
++	// all conversions have one argument
++	if len(conv.Args) != 1 {
++		check.invalidOp(conv.Pos(), "%s conversion requires exactly one argument", conv)
++		goto Error
++	}
++
++	// evaluate argument
++	check.expr(x, conv.Args[0], nil, iota)
++	if x.mode == invalid {
++		goto Error
++	}
++
++	// TODO(gri) fix this - implement all checks and constant evaluation
++	x.mode = value
++	x.expr = conv
++	x.typ = typ
++	return
++
++Error:
++	x.mode = invalid
++}
+diff --git a/src/pkg/exp/types/staging/expr.go b/src/pkg/exp/types/staging/expr.go
+new file mode 100644
+index 0000000000..7c7445b236
+--- /dev/null
++++ b/src/pkg/exp/types/staging/expr.go
+@@ -0,0 +1,793 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements typechecking of expressions.
++
++package types
++
++import (
++	"go/ast"
++	"go/token"
++	"strconv"
++)
++
++// TODO(gri)
++// - don't print error messages referring to invalid types (they are likely spurious errors)
++// - simplify invalid handling: maybe just use Typ[Invalid] as marker, get rid of invalid Mode for values?
++
++func (check *checker) tag(field *ast.Field) string {
++	if t := field.Tag; t != nil {
++		assert(t.Kind == token.STRING)
++		if tag, err := strconv.Unquote(t.Value); err == nil {
++			return tag
++		}
++		check.invalidAST(t.Pos(), "incorrect tag syntax: %q", t.Value)
++	}
++	return ""
++}
++
++// collectFields collects interface methods (tok = token.INTERFACE), and function arguments/results (tok = token.FUNC).
++func (check *checker) collectFields(tok token.Token, list *ast.FieldList, cycleOk bool) (fields ObjList, tags []string, isVariadic bool) {
++	if list != nil {
++		for _, field := range list.List {
++			ftype := field.Type
++			if t, ok := ftype.(*ast.Ellipsis); ok {
++				ftype = t.Elt
++				isVariadic = true
++			}
++			typ := check.typ(ftype, cycleOk)
++			tag := check.tag(field)
++			if len(field.Names) > 0 {
++				// named fields
++				for _, name := range field.Names {
++					obj := name.Obj
++					obj.Type = typ
++					fields = append(fields, obj)
++					if tok == token.STRUCT {
++						tags = append(tags, tag)
++					}
++				}
++			} else {
++				// anonymous field
++				switch tok {
++				case token.FUNC:
++					obj := ast.NewObj(ast.Var, "")
++					obj.Type = typ
++					fields = append(fields, obj)
++				case token.INTERFACE:
++					utyp := underlying(typ)
++					if typ, ok := utyp.(*Interface); ok {
++						// TODO(gri) This is not good enough. Check for double declarations!
++						fields = append(fields, typ.Methods...)
++					} else if utyp != Typ[Invalid] {
++						// if utyp is invalid, don't complain (the root cause was reported before)
++						check.errorf(ftype.Pos(), "interface contains embedded non-interface type")
++					}
++				default:
++					panic("unreachable")
++				}
++			}
++		}
++	}
++	return
++}
++
++func (check *checker) collectStructFields(list *ast.FieldList, cycleOk bool) (fields []*StructField) {
++	if list == nil {
++		return
++	}
++	for _, f := range list.List {
++		typ := check.typ(f.Type, cycleOk)
++		tag := check.tag(f)
++		if len(f.Names) > 0 {
++			// named fields
++			for _, name := range f.Names {
++				fields = append(fields, &StructField{name.Name, typ, tag, false})
++			}
++		} else {
++			// anonymous field
++			switch t := deref(typ).(type) {
++			case *Basic:
++				fields = append(fields, &StructField{t.Name, t, tag, true})
++			case *NamedType:
++				fields = append(fields, &StructField{t.Obj.Name, t, tag, true})
++			default:
++				if typ != Typ[Invalid] {
++					check.errorf(f.Type.Pos(), "invalid anonymous field type %s", typ)
++				}
++			}
++		}
++	}
++	return
++}
++
++type opPredicates map[token.Token]func(Type) bool
++
++var unaryOpPredicates = opPredicates{
++	token.ADD:   isNumeric,
++	token.SUB:   isNumeric,
++	token.XOR:   isInteger,
++	token.NOT:   isBoolean,
++	token.ARROW: func(typ Type) bool { t, ok := underlying(typ).(*Chan); return ok && t.Dir&ast.RECV != 0 },
++}
++
++func (check *checker) op(m opPredicates, x *operand, op token.Token) bool {
++	if pred := m[op]; pred != nil {
++		if !pred(x.typ) {
++			// TODO(gri) better error message for <-x where x is a send-only channel
++			//           (<- is defined but not permitted). Special-case here or
++			//           handle higher up.
++			check.invalidOp(x.pos(), "operator %s not defined for %s", op, x)
++			return false
++		}
++	} else {
++		check.invalidAST(x.pos(), "unknown operator %s", op)
++		return false
++	}
++	return true
++}
++
++func (check *checker) unary(x *operand, op token.Token) {
++	if op == token.AND {
++		// TODO(gri) need to check for composite literals, somehow (they are not variables, in general)
++		if x.mode != variable {
++			check.invalidOp(x.pos(), "cannot take address of %s", x)
++			x.mode = invalid
++			return
++		}
++		x.typ = &Pointer{Base: x.typ}
++		return
++	}
++
++	if !check.op(unaryOpPredicates, x, op) {
++		x.mode = invalid
++		return
++	}
++
++	if x.mode == constant {
++		switch op {
++		case token.ADD:
++			// nothing to do
++		case token.SUB:
++			x.val = binaryOpConst(zeroConst, x.val, token.SUB, false)
++		case token.XOR:
++			x.val = binaryOpConst(minusOneConst, x.val, token.XOR, false)
++		case token.NOT:
++			x.val = !x.val.(bool)
++		default:
++			unreachable()
++		}
++		// Typed constants must be representable in
++		// their type after each constant operation.
++		check.isRepresentable(x, x.typ.(*Basic))
++		return
++	}
++
++	x.mode = value
++}
++
++func isShift(op token.Token) bool {
++	return op == token.SHL || op == token.SHR
++}
++
++func isComparison(op token.Token) bool {
++	// Note: tokens are not ordered well to make this much easier
++	switch op {
++	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
++		return true
++	}
++	return false
++}
++
++// isRepresentable checks that a constant operand is representable in the given type.
++func (check *checker) isRepresentable(x *operand, typ *Basic) {
++	if x.mode != constant || isUntyped(typ) {
++		return
++	}
++
++	if !isRepresentableConst(x.val, typ.Kind) {
++		var msg string
++		if isNumeric(x.typ) && isNumeric(typ) {
++			msg = "%s overflows %s"
++		} else {
++			msg = "cannot convert %s to %s"
++		}
++		check.errorf(x.pos(), msg, x, typ)
++		x.mode = invalid
++	}
++}
++
++// convertUntyped attempts to set the type of an untyped value to the target type.
++func (check *checker) convertUntyped(x *operand, target Type) {
++	if x.mode == invalid || !isUntyped(x.typ) {
++		return
++	}
++
++	// TODO(gri) Sloppy code - clean up. This function is central
++	//           to assignment and expression checking.
++
++	if isUntyped(target) {
++		// both x and target are untyped
++		xkind := x.typ.(*Basic).Kind
++		tkind := target.(*Basic).Kind
++		if isNumeric(x.typ) && isNumeric(target) {
++			if xkind < tkind {
++				x.typ = target
++			}
++		} else if xkind != tkind {
++			check.errorf(x.pos(), "cannot convert %s to %s", x, target)
++			x.mode = invalid // avoid spurious errors
++		}
++		return
++	}
++
++	// typed target
++	switch t := underlying(target).(type) {
++	case *Basic:
++		check.isRepresentable(x, t)
++
++	case *Pointer, *Signature, *Interface, *Slice, *Map, *Chan:
++		if x.typ != Typ[UntypedNil] {
++			check.errorf(x.pos(), "cannot convert %s to %s", x, target)
++			x.mode = invalid
++		}
++	}
++
++	x.typ = target
++}
++
++func (check *checker) comparison(x, y *operand, op token.Token) {
++	// TODO(gri) deal with interface vs non-interface comparison
++
++	valid := false
++	if x.isAssignable(y.typ) || y.isAssignable(x.typ) {
++		switch op {
++		case token.EQL, token.NEQ:
++			valid = isComparable(x.typ)
++		case token.LSS, token.LEQ, token.GTR, token.GEQ:
++			valid = isOrdered(y.typ)
++		default:
++			unreachable()
++		}
++	}
++
++	if !valid {
++		check.invalidOp(x.pos(), "cannot compare %s and %s", x, y)
++		x.mode = invalid
++		return
++	}
++
++	if x.mode == constant && y.mode == constant {
++		x.val = compareConst(x.val, y.val, op)
++	} else {
++		x.mode = value
++	}
++
++	x.typ = Typ[UntypedBool]
++}
++
++// untyped lhs shift operands convert to the hint type
++// TODO(gri) shift hinting is not correct
++func (check *checker) shift(x, y *operand, op token.Token, hint Type) {
++	// The right operand in a shift expression must have unsigned integer type
++	// or be an untyped constant that can be converted to unsigned integer type.
++	if y.mode == constant && isUntyped(y.typ) {
++		if isRepresentableConst(y.val, UntypedInt) {
++			y.typ = Typ[UntypedInt]
++		}
++	}
++	if !isInteger(y.typ) || !isUnsigned(y.typ) && !isUntyped(y.typ) {
++		check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
++		x.mode = invalid
++		return
++	}
++
++	// If the left operand of a non-constant shift expression is an untyped
++	// constant, the type of the constant is what it would be if the shift
++	// expression were replaced by its left operand alone; the type is int
++	// if it cannot be determined from the context (for instance, if the
++	// shift expression is an operand in a comparison against an untyped
++	// constant)
++	if x.mode == constant && isUntyped(x.typ) {
++		if y.mode == constant {
++			// constant shift - accept values of any (untyped) type
++			// as long as the value is representable as an integer
++			if isRepresentableConst(x.val, UntypedInt) {
++				x.typ = Typ[UntypedInt]
++			}
++		} else {
++			// non-constant shift
++			if hint != nil {
++				check.convertUntyped(x, hint)
++				if x.mode == invalid {
++					return
++				}
++			}
++		}
++	}
++
++	if !isInteger(x.typ) {
++		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
++		x.mode = invalid
++		return
++	}
++
++	if y.mode == constant {
++		const stupidShift = 1024
++		s, ok := y.val.(int64)
++		if !ok || s < 0 || s >= stupidShift {
++			check.invalidOp(y.pos(), "%s: stupid shift", y)
++			x.mode = invalid
++			return
++		}
++		if x.mode == constant {
++			x.val = shiftConst(x.val, uint(s), op)
++			return
++		}
++		x.mode = value
++	}
++
++	// x.mode, x.Typ are unchanged
++}
++
++var binaryOpPredicates = opPredicates{
++	token.ADD: func(typ Type) bool { return isNumeric(typ) || isString(typ) },
++	token.SUB: isNumeric,
++	token.MUL: isNumeric,
++	token.QUO: isNumeric,
++	token.REM: isInteger,
++
++	token.AND:     isInteger,
++	token.OR:      isInteger,
++	token.XOR:     isInteger,
++	token.AND_NOT: isInteger,
++
++	token.LAND: isBoolean,
++	token.LOR:  isBoolean,
++}
++
++func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
++	if isShift(op) {
++		check.shift(x, y, op, hint)
++		return
++	}
++
++	check.convertUntyped(x, y.typ)
++	if x.mode == invalid {
++		return
++	}
++	check.convertUntyped(y, x.typ)
++	if y.mode == invalid {
++		x.mode = invalid
++		return
++	}
++
++	if isComparison(op) {
++		check.comparison(x, y, op)
++		return
++	}
++
++	if !isIdentical(x.typ, y.typ) {
++		check.invalidOp(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
++		x.mode = invalid
++		return
++	}
++
++	if !check.op(binaryOpPredicates, x, op) {
++		x.mode = invalid
++		return
++	}
++
++	if (op == token.QUO || op == token.REM) && y.mode == constant && isZeroConst(y.val) {
++		check.invalidOp(y.pos(), "division by zero")
++		x.mode = invalid
++		return
++	}
++
++	if x.mode == constant && y.mode == constant {
++		x.val = binaryOpConst(x.val, y.val, op, isInteger(x.typ))
++		// Typed constants must be representable in
++		// their type after each constant operation.
++		check.isRepresentable(x, x.typ.(*Basic))
++		return
++	}
++
++	x.mode = value
++	// x.typ is unchanged
++}
++
++func (check *checker) index(x *operand, e ast.Expr, iota int) {
++	check.expr(x, e, nil, iota)
++	if !isInteger(x.typ) {
++		check.errorf(x.pos(), "array index %s must be integer", x)
++	}
++}
++
++func (check *checker) callRecord(x *operand) {
++	if x.mode != invalid {
++		check.mapf(x.expr, x.typ)
++	}
++}
++
++// expr typechecks expression e and initializes x with the expression
++// value or type. If an error occured, x.mode is set to invalid.
++// A hint != nil is used as operand type for untyped shifted operands;
++// iota >= 0 indicates that the expression is part of a constant declaration.
++// cycleOk indicates whether it is ok for a type expression to refer to itself.
++//
++func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cycleOk bool) {
++	if check.mapf != nil {
++		defer check.callRecord(x)
++	}
++
++	switch e := e.(type) {
++	case *ast.BadExpr:
++		x.mode = invalid
++
++	case *ast.Ident:
++		if e.Name == "_" {
++			check.invalidOp(e.Pos(), "cannot use _ as value or type")
++			goto Error
++		}
++		obj := e.Obj
++		if obj == nil {
++			// unresolved identifier (error has been reported before)
++			goto Error
++		}
++		check.ident(e, cycleOk)
++		switch obj.Kind {
++		case ast.Bad:
++			goto Error
++		case ast.Pkg:
++			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
++			goto Error
++		case ast.Con:
++			if obj.Data == nil {
++				goto Error // cycle detected
++			}
++			x.mode = constant
++			if obj == universeIota {
++				if iota < 0 {
++					check.invalidAST(e.Pos(), "cannot use iota outside constant declaration")
++					goto Error
++				}
++				x.val = int64(iota)
++			} else {
++				x.val = obj.Data
++			}
++		case ast.Typ:
++			x.mode = typexpr
++			if !cycleOk && underlying(obj.Type.(Type)) == nil {
++				check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
++				x.expr = e
++				x.typ = Typ[Invalid]
++				return // don't goto Error - need x.mode == typexpr
++			}
++		case ast.Var:
++			x.mode = variable
++		case ast.Fun:
++			x.mode = value
++		default:
++			unreachable()
++		}
++		x.typ = obj.Type.(Type)
++
++	case *ast.BasicLit:
++		x.setConst(e.Kind, e.Value)
++		if x.mode == invalid {
++			check.invalidAST(e.Pos(), "invalid literal %v", e.Value)
++			goto Error
++		}
++
++	case *ast.FuncLit:
++		x.mode = value
++		x.typ = check.typ(e.Type, false)
++		check.stmt(e.Body)
++
++	case *ast.CompositeLit:
++		// TODO(gri)
++		//	- determine element type if nil
++		//	- deal with map elements
++		for _, e := range e.Elts {
++			var x operand
++			check.expr(&x, e, hint, iota)
++			// TODO(gri) check assignment compatibility to element type
++		}
++		x.mode = value // TODO(gri) composite literals are addressable
++
++	case *ast.ParenExpr:
++		check.exprOrType(x, e.X, hint, iota, cycleOk)
++
++	case *ast.SelectorExpr:
++		// If the identifier refers to a package, handle everything here
++		// so we don't need a "package" mode for operands: package names
++		// can only appear in qualified identifiers which are mapped to
++		// selector expressions.
++		if ident, ok := e.X.(*ast.Ident); ok {
++			if obj := ident.Obj; obj != nil && obj.Kind == ast.Pkg {
++				exp := obj.Data.(*ast.Scope).Lookup(e.Sel.Name)
++				if exp == nil {
++					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", e.Sel.Name)
++					goto Error
++				}
++				// simplified version of the code for *ast.Idents:
++				// imported objects are always fully initialized
++				switch exp.Kind {
++				case ast.Con:
++					assert(exp.Data != nil)
++					x.mode = constant
++					x.val = exp.Data
++				case ast.Typ:
++					x.mode = typexpr
++				case ast.Var:
++					x.mode = variable
++				case ast.Fun:
++					x.mode = value
++				default:
++					unreachable()
++				}
++				x.expr = e
++				x.typ = exp.Type.(Type)
++				return
++			}
++		}
++
++		// TODO(gri) lots of checks missing below - just raw outline
++		check.expr(x, e.X, hint, iota)
++		switch typ := x.typ.(type) {
++		case *Struct:
++			if fld := lookupField(typ, e.Sel.Name); fld != nil {
++				// TODO(gri) only variable if struct is variable 
++				x.mode = variable
++				x.expr = e
++				x.typ = fld.Type
++				return
++			}
++		case *Interface:
++			unimplemented()
++		case *NamedType:
++			unimplemented()
++		}
++		check.invalidOp(e.Pos(), "%s has no field or method %s", x.typ, e.Sel.Name)
++		goto Error
++
++	case *ast.IndexExpr:
++		var index operand
++		check.expr(x, e.X, hint, iota)
++		switch typ := underlying(x.typ).(type) {
++		case *Array:
++			check.index(&index, e.Index, iota)
++			if x.mode == constant {
++				// TODO(gri) range check
++			}
++			// TODO(gri) only variable if array is variable
++			x.mode = variable
++			x.typ = typ.Elt
++
++		case *Slice:
++			check.index(&index, e.Index, iota)
++			x.mode = variable
++			x.typ = typ.Elt
++
++		case *Map:
++			// TODO(gri) check index type
++			x.mode = variable
++			x.typ = typ.Elt
++
++		default:
++			check.invalidOp(e.Pos(), "cannot index %s", x.typ)
++			goto Error
++		}
++
++	case *ast.SliceExpr:
++		var lo, hi operand
++		check.expr(x, e.X, hint, iota)
++		if e.Low != nil {
++			check.index(&lo, e.Low, iota)
++		} else {
++			lo.mode = constant
++			lo.expr = nil // TODO(gri) should not use nil here
++			lo.typ = Typ[UntypedInt]
++			lo.val = zeroConst
++		}
++		if e.High != nil {
++			check.index(&hi, e.High, iota)
++		} else {
++			unimplemented()
++		}
++		switch typ := x.typ.(type) {
++		case *Array:
++			unimplemented()
++		case *Slice:
++			assert(x.mode == variable)
++			// x.typ does not change
++		case *Pointer:
++			if typ, ok := underlying(typ.Base).(*Array); ok {
++				// TODO(gri) array slice
++				_ = typ
++			}
++			unimplemented()
++		default:
++			check.invalidOp(e.Pos(), "cannot slice %s", x.typ)
++			goto Error
++		}
++
++	case *ast.TypeAssertExpr:
++		check.expr(x, e.X, hint, iota)
++		if _, ok := x.typ.(*Interface); !ok {
++			check.invalidOp(e.X.Pos(), "non-interface type %s in type assertion", x.typ)
++			// ok to continue
++		}
++		// TODO(gri) some type asserts are compile-time decidable
++		x.mode = valueok
++		x.expr = e
++		x.typ = check.typ(e.Type, false)
++
++	case *ast.CallExpr:
++		check.exprOrType(x, e.Fun, nil, iota, false)
++		if x.mode == typexpr {
++			check.conversion(x, e, x.typ, iota)
++
++		} else if sig, ok := underlying(x.typ).(*Signature); ok {
++			// check parameters
++			// TODO(gri) complete this
++			// - deal with various forms of calls
++			// - handle variadic calls
++			if len(sig.Params) == len(e.Args) {
++				var z, x operand
++				z.mode = variable
++				for i, arg := range e.Args {
++					z.expr = nil                      // TODO(gri) can we do better here?
++					z.typ = sig.Params[i].Type.(Type) // TODO(gri) should become something like checkObj(&z, ...) eventually
++					check.expr(&x, arg, z.typ, iota)
++					if x.mode == invalid {
++						goto Error
++					}
++					check.assignOperand(&z, &x)
++				}
++			}
++
++			// determine result
++			x.mode = value
++			if len(sig.Results) == 1 {
++				x.typ = sig.Results[0].Type.(Type)
++			} else {
++				// TODO(gri) change Signature representation to use tuples,
++				//           then this conversion is not required
++				list := make([]Type, len(sig.Results))
++				for i, obj := range sig.Results {
++					list[i] = obj.Type.(Type)
++				}
++				x.typ = &tuple{list: list}
++			}
++
++		} else if bin, ok := x.typ.(*builtin); ok {
++			check.builtin(x, e, bin, iota)
++
++		} else {
++			check.invalidOp(x.pos(), "cannot call non-function %s", x)
++			goto Error
++		}
++
++	case *ast.StarExpr:
++		check.exprOrType(x, e.X, hint, iota, true)
++		switch x.mode {
++		case novalue:
++			check.errorf(x.pos(), "%s used as value or type", x)
++			goto Error
++		case typexpr:
++			x.typ = &Pointer{Base: x.typ}
++		default:
++			if typ, ok := x.typ.(*Pointer); ok {
++				x.mode = variable
++				x.typ = typ.Base
++			} else {
++				check.invalidOp(x.pos(), "cannot indirect %s", x)
++				goto Error
++			}
++		}
++
++	case *ast.UnaryExpr:
++		check.expr(x, e.X, hint, iota)
++		check.unary(x, e.Op)
++
++	case *ast.BinaryExpr:
++		var y operand
++		check.expr(x, e.X, hint, iota)
++		check.expr(&y, e.Y, hint, iota)
++		check.binary(x, &y, e.Op, hint)
++
++	case *ast.KeyValueExpr:
++		unimplemented()
++
++	case *ast.ArrayType:
++		if e.Len != nil {
++			check.expr(x, e.Len, nil, 0)
++			if x.mode == invalid {
++				goto Error
++			}
++			var n int64 = -1
++			if x.mode == constant {
++				if i, ok := x.val.(int64); ok && i == int64(int(i)) {
++					n = i
++				}
++			}
++			if n < 0 {
++				check.errorf(e.Len.Pos(), "invalid array bound %s", e.Len)
++				// ok to continue
++				n = 0
++			}
++			x.typ = &Array{Len: n, Elt: check.typ(e.Elt, cycleOk)}
++		} else {
++			x.typ = &Slice{Elt: check.typ(e.Elt, true)}
++		}
++		x.mode = typexpr
++
++	case *ast.StructType:
++		x.mode = typexpr
++		x.typ = &Struct{Fields: check.collectStructFields(e.Fields, cycleOk)}
++
++	case *ast.FuncType:
++		params, _, isVariadic := check.collectFields(token.FUNC, e.Params, true)
++		results, _, _ := check.collectFields(token.FUNC, e.Results, true)
++		x.mode = typexpr
++		x.typ = &Signature{Recv: nil, Params: params, Results: results, IsVariadic: isVariadic}
++
++	case *ast.InterfaceType:
++		methods, _, _ := check.collectFields(token.INTERFACE, e.Methods, cycleOk)
++		methods.Sort()
++		x.mode = typexpr
++		x.typ = &Interface{Methods: methods}
++
++	case *ast.MapType:
++		x.mode = typexpr
++		x.typ = &Map{Key: check.typ(e.Key, true), Elt: check.typ(e.Value, true)}
++
++	case *ast.ChanType:
++		x.mode = typexpr
++		x.typ = &Chan{Dir: e.Dir, Elt: check.typ(e.Value, true)}
++
++	default:
++		check.dump("e = %s", e)
++		unreachable()
++	}
++
++	// everything went well
++	x.expr = e
++	return
++
++Error:
++	x.mode = invalid
++	x.expr = e
++}
++
++// expr is like exprOrType but also checks that e represents a value (rather than a type).
++func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
++	check.exprOrType(x, e, hint, iota, false)
++	switch x.mode {
++	case novalue:
++		check.errorf(x.pos(), "%s used as value", x)
++		x.mode = invalid
++	case typexpr:
++		check.errorf(x.pos(), "%s is not an expression", x)
++		x.mode = invalid
++	}
++}
++
++// typ is like exprOrType but also checks that e represents a type (rather than a value).
++// If an error occured, the result is Typ[Invalid].
++//
++func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
++	var x operand
++	check.exprOrType(&x, e, nil, -1, cycleOk)
++	switch {
++	case x.mode == novalue:
++		check.errorf(x.pos(), "%s used as type", &x)
++		x.typ = Typ[Invalid]
++	case x.mode != typexpr:
++		check.errorf(x.pos(), "%s is not a type", &x)
++		x.typ = Typ[Invalid]
++	}
++	return x.typ
++}
+diff --git a/src/pkg/exp/types/staging/stmt.go b/src/pkg/exp/types/staging/stmt.go
+new file mode 100644
+index 0000000000..9a2ea74895
+--- /dev/null
++++ b/src/pkg/exp/types/staging/stmt.go
+@@ -0,0 +1,465 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements typechecking of statements.
++
++package types
++
++import (
++	"go/ast"
++	"go/token"
++)
++
++func (check *checker) assignOperand(z, x *operand) {
++	if t, ok := x.typ.(*tuple); ok {
++		// TODO(gri) elsewhere we use "assignment count mismatch" (consolidate)
++		check.errorf(x.pos(), "%d-valued expression %s used as single value", len(t.list), x)
++		x.mode = invalid
++		return
++	}
++
++	check.convertUntyped(x, z.typ)
++
++	if !x.isAssignable(z.typ) {
++		check.errorf(x.pos(), "cannot assign %s to %s", x, z)
++		x.mode = invalid
++	}
++}
++
++// assignment typechecks a single assignment of the form lhs := x. If decl is set,
++// the lhs operand must be an identifier. If its type is not set, it is deduced
++// from the type or value of x.
++//
++func (check *checker) assignment(lhs ast.Expr, x *operand, decl bool) {
++	if decl {
++		ident, ok := lhs.(*ast.Ident)
++		if !ok {
++			check.errorf(lhs.Pos(), "cannot declare %s", lhs)
++			return
++		}
++
++		obj := ident.Obj
++		if obj.Type == nil {
++			// determine type from rhs expression
++			var typ Type = Typ[Invalid]
++			if x.mode != invalid {
++				typ = x.typ
++				// determine the default type for variables
++				if obj.Kind == ast.Var && isUntyped(typ) {
++					typ = defaultType(typ)
++				}
++			}
++			obj.Type = typ
++		}
++
++		var z operand
++		switch obj.Kind {
++		case ast.Con:
++			z.mode = constant
++		case ast.Var:
++			z.mode = variable
++		default:
++			unreachable()
++		}
++		z.expr = ident
++		z.typ = obj.Type.(Type)
++
++		check.assignOperand(&z, x)
++
++		// for constants, set the constant value
++		if obj.Kind == ast.Con {
++			assert(obj.Data == nil)
++			if x.mode != invalid && x.mode != constant {
++				check.errorf(x.pos(), "%s is not constant", x) // TODO(gri) better error position
++				x.mode = invalid
++			}
++			if x.mode == constant {
++				obj.Data = x.val
++			} else {
++				// set the constant to the type's zero value to reduce spurious errors
++				// TODO(gri) factor this out - useful elsewhere
++				switch typ := underlying(obj.Type.(Type)); {
++				case typ == Typ[Invalid]:
++					// ignore
++				case isBoolean(typ):
++					obj.Data = false
++				case isNumeric(typ):
++					obj.Data = int64(0)
++				case isString(typ):
++					obj.Data = ""
++				default:
++					check.dump("%s: typ(%s) = %s", obj.Pos(), obj.Name, typ)
++					unreachable()
++				}
++			}
++		}
++
++		return
++	}
++
++	// regular assignment
++	var z operand
++	check.expr(&z, lhs, nil, -1)
++	check.assignOperand(&z, x)
++	if x.mode != invalid && z.mode == constant {
++		check.errorf(x.pos(), "cannot assign %s to %s", x, z)
++	}
++}
++
++func (check *checker) assign1to1(lhs, rhs ast.Expr, decl bool, iota int) {
++	if !decl {
++		// regular assignment - start with lhs[0] to obtain a type hint
++		var z operand
++		check.expr(&z, lhs, nil, -1)
++		if z.mode == invalid {
++			z.typ = nil // so we can proceed with rhs
++		}
++
++		var x operand
++		check.expr(&x, rhs, z.typ, -1)
++		if x.mode == invalid {
++			return
++		}
++
++		check.assignOperand(&z, &x)
++		return
++	}
++
++	// declaration - rhs may or may not be typed yet
++	ident, ok := lhs.(*ast.Ident)
++	if !ok {
++		check.errorf(lhs.Pos(), "cannot declare %s", lhs)
++		return
++	}
++
++	obj := ident.Obj
++	var typ Type
++	if obj.Type != nil {
++		typ = obj.Type.(Type)
++	}
++
++	var x operand
++	check.expr(&x, rhs, typ, iota)
++	if x.mode == invalid {
++		return
++	}
++
++	if typ == nil {
++		// determine lhs type from rhs expression;
++		// for variables, convert untyped types to
++		// default types
++		typ = x.typ
++		if obj.Kind == ast.Var && isUntyped(typ) {
++			// TODO(gri) factor this out
++			var k BasicKind
++			switch typ.(*Basic).Kind {
++			case UntypedBool:
++				k = Bool
++			case UntypedRune:
++				k = Rune
++			case UntypedInt:
++				k = Int
++			case UntypedFloat:
++				k = Float64
++			case UntypedComplex:
++				k = Complex128
++			case UntypedString:
++				k = String
++			default:
++				unreachable()
++			}
++			typ = Typ[k]
++		}
++		obj.Type = typ
++	}
++
++	var z operand
++	switch obj.Kind {
++	case ast.Con:
++		z.mode = constant
++	case ast.Var:
++		z.mode = variable
++	default:
++		unreachable()
++	}
++	z.expr = ident
++	z.typ = typ
++
++	check.assignOperand(&z, &x)
++
++	// for constants, set their value
++	if obj.Kind == ast.Con {
++		assert(obj.Data == nil)
++		if x.mode != constant {
++			check.errorf(x.pos(), "%s is not constant", x)
++			// set the constant to the type's zero value to reduce spurious errors
++			// TODO(gri) factor this out - useful elsewhere
++			switch typ := underlying(typ); {
++			case typ == Typ[Invalid]:
++				// ignore
++			case isBoolean(typ):
++				obj.Data = false
++			case isNumeric(typ):
++				obj.Data = int64(0)
++			case isString(typ):
++				obj.Data = ""
++			default:
++				unreachable()
++			}
++			return
++		}
++		obj.Data = x.val
++	}
++}
++
++// assignNtoM typechecks a general assignment. If decl is set, the lhs operands
++// must be identifiers. If their types are not set, they are deduced from the
++// types of the corresponding rhs expressions. iota >= 0 indicates that the
++// "assignment" is part of a constant declaration.
++// Precondition: len(lhs) > 0 .
++//
++func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
++	assert(len(lhs) >= 1)
++
++	if len(lhs) == len(rhs) {
++		for i, e := range rhs {
++			check.assign1to1(lhs[i], e, decl, iota)
++		}
++		return
++	}
++
++	if len(rhs) == 1 {
++		// len(lhs) >= 2; therefore a correct rhs expression
++		// cannot be a shift and we don't need a type hint -
++		// ok to evaluate rhs first
++		var x operand
++		check.expr(&x, rhs[0], nil, iota)
++		if x.mode == invalid {
++			return
++		}
++
++		if t, ok := x.typ.(*tuple); ok && len(lhs) == len(t.list) {
++			// function result
++			x.mode = value
++			for i, typ := range t.list {
++				x.expr = nil // TODO(gri) should do better here
++				x.typ = typ
++				check.assignment(lhs[i], &x, decl)
++			}
++			return
++		}
++
++		if x.mode == valueok && len(lhs) == 2 {
++			// comma-ok expression
++			x.mode = value
++			check.assignment(lhs[0], &x, decl)
++
++			x.mode = value
++			x.typ = Typ[UntypedBool]
++			check.assignment(lhs[1], &x, decl)
++			return
++		}
++	}
++
++	check.errorf(lhs[0].Pos(), "assignment count mismatch: %d = %d", len(lhs), len(rhs))
++
++	// avoid checking the same declaration over and over
++	// again for each lhs identifier that has no type yet
++	if iota >= 0 {
++		// declaration
++		for _, e := range lhs {
++			if ident, ok := e.(*ast.Ident); ok {
++				ident.Obj.Type = Typ[Invalid]
++			}
++		}
++	}
++}
++
++func (check *checker) optionalStmt(s ast.Stmt) {
++	if s != nil {
++		check.stmt(s)
++	}
++}
++
++func (check *checker) stmtList(list []ast.Stmt) {
++	for _, s := range list {
++		check.stmt(s)
++	}
++}
++
++// stmt typechecks statement s.
++func (check *checker) stmt(s ast.Stmt) {
++	switch s := s.(type) {
++	case *ast.BadStmt, *ast.EmptyStmt:
++		// ignore
++
++	case *ast.DeclStmt:
++		unimplemented()
++
++	case *ast.LabeledStmt:
++		unimplemented()
++
++	case *ast.ExprStmt:
++		var x operand
++		used := false
++		switch e := unparen(s.X).(type) {
++		case *ast.CallExpr:
++			// function calls are permitted
++			used = true
++			// but some builtins are excluded
++			check.expr(&x, e.Fun, nil, -1)
++			if x.mode != invalid {
++				if b, ok := x.typ.(*builtin); ok && !b.isStatement {
++					used = false
++				}
++			}
++		case *ast.UnaryExpr:
++			// receive operations are permitted
++			if e.Op == token.ARROW {
++				used = true
++			}
++		}
++		if !used {
++			check.errorf(s.Pos(), "%s not used", s.X)
++			// ok to continue
++		}
++		check.exprOrType(&x, s.X, nil, -1, false)
++		if x.mode == typexpr {
++			check.errorf(x.pos(), "%s is not an expression", x)
++		}
++
++	case *ast.SendStmt:
++		var ch, x operand
++		check.expr(&ch, s.Chan, nil, -1)
++		check.expr(&x, s.Value, nil, -1)
++		if ch.mode == invalid || x.mode == invalid {
++			return
++		}
++		if tch, ok := underlying(ch.typ).(*Chan); !ok || tch.Dir&ast.SEND == 0 || !x.isAssignable(tch.Elt) {
++			check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
++		}
++
++	case *ast.IncDecStmt:
++		unimplemented()
++
++	case *ast.AssignStmt:
++		switch s.Tok {
++		case token.ASSIGN, token.DEFINE:
++			if len(s.Lhs) == 0 {
++				check.invalidAST(s.Pos(), "missing lhs in assignment")
++				return
++			}
++			check.assignNtoM(s.Lhs, s.Rhs, s.Tok == token.DEFINE, -1)
++		default:
++			// assignment operations
++			if len(s.Lhs) != 1 || len(s.Rhs) != 1 {
++				check.errorf(s.TokPos, "assignment operation %s requires single-valued expressions", s.Tok)
++				return
++			}
++			// TODO(gri) make this conversion more efficient
++			var op token.Token
++			switch s.Tok {
++			case token.ADD_ASSIGN:
++				op = token.ADD
++			case token.SUB_ASSIGN:
++				op = token.SUB
++			case token.MUL_ASSIGN:
++				op = token.MUL
++			case token.QUO_ASSIGN:
++				op = token.QUO
++			case token.REM_ASSIGN:
++				op = token.REM
++			case token.AND_ASSIGN:
++				op = token.AND
++			case token.OR_ASSIGN:
++				op = token.OR
++			case token.XOR_ASSIGN:
++				op = token.XOR
++			case token.SHL_ASSIGN:
++				op = token.SHL
++			case token.SHR_ASSIGN:
++				op = token.SHR
++			case token.AND_NOT_ASSIGN:
++				op = token.AND_NOT
++			}
++			var x, y operand
++			check.expr(&x, s.Lhs[0], nil, -1)
++			check.expr(&y, s.Rhs[0], nil, -1)
++			check.binary(&x, &y, op, nil)
++			check.assignment(s.Lhs[0], &x, false)
++		}
++
++	case *ast.GoStmt:
++		unimplemented()
++
++	case *ast.DeferStmt:
++		unimplemented()
++
++	case *ast.ReturnStmt:
++		unimplemented()
++
++	case *ast.BranchStmt:
++		unimplemented()
++
++	case *ast.BlockStmt:
++		check.stmtList(s.List)
++
++	case *ast.IfStmt:
++		check.optionalStmt(s.Init)
++		var x operand
++		check.expr(&x, s.Cond, nil, -1)
++		if !isBoolean(x.typ) {
++			check.errorf(s.Cond.Pos(), "non-boolean condition in if statement")
++		}
++		check.stmt(s.Body)
++		check.optionalStmt(s.Else)
++
++	case *ast.SwitchStmt:
++		check.optionalStmt(s.Init)
++		var x operand
++		if s.Tag != nil {
++			check.expr(&x, s.Tag, nil, -1)
++		} else {
++			x.mode = constant
++			x.typ = Typ[UntypedBool]
++			x.val = true
++		}
++		for _, s := range s.Body.List {
++			if clause, ok := s.(*ast.CaseClause); ok {
++				for _, expr := range clause.List {
++					var y operand
++					check.expr(&y, expr, nil, -1)
++					// TODO(gri) x and y must be comparable
++				}
++				check.stmtList(clause.Body)
++			} else {
++				check.errorf(s.Pos(), "invalid AST: case clause expected")
++			}
++		}
++
++	case *ast.TypeSwitchStmt:
++		unimplemented()
++
++	case *ast.SelectStmt:
++		unimplemented()
++
++	case *ast.ForStmt:
++		check.optionalStmt(s.Init)
++		if s.Cond != nil {
++			var x operand
++			check.expr(&x, s.Cond, nil, -1)
++			if !isBoolean(x.typ) {
++				check.errorf(s.Cond.Pos(), "non-boolean condition in for statement")
++			}
++		}
++		check.optionalStmt(s.Post)
++		check.stmt(s.Body)
++
++	case *ast.RangeStmt:
++		unimplemented()
++
++	default:
++		check.errorf(s.Pos(), "invalid statement")
++	}
++}
+diff --git a/src/pkg/exp/types/staging/stubs.go b/src/pkg/exp/types/staging/stubs.go
+deleted file mode 100644
+index 224d71afb9..0000000000
+--- a/src/pkg/exp/types/staging/stubs.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains unimplemented stubs so that the
+-// code in exp/types/staging compiles.
+-
+-package types
+-
+-import "go/ast"
+-
+-// expr typechecks expression e and initializes x with the expression
+-// value or type. If an error occured, x.mode is set to invalid.
+-// A hint != nil is used as operand type for untyped shifted operands;
+-// iota >= 0 indicates that the expression is part of a constant declaration.
+-// cycleOk indicates whether it is ok for a type expression to refer to itself.
+-//
+-func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cycleOk bool) {
+-	unimplemented()
+-}
+-
+-// expr is like exprOrType but also checks that e represents a value (rather than a type).
+-func (check *checker) expr(x *operand, e ast.Expr, hint Type, iota int) {
+-	unimplemented()
+-}
+-
+-// typ is like exprOrType but also checks that e represents a type (rather than a value).
+-// If an error occured, the result is Typ[Invalid].
+-//
+-func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
+-	unimplemented()
+-	return nil
+-}
+-
+-// assignNtoM typechecks a general assignment. If decl is set, the lhs operands
+-// must be identifiers. If their types are not set, they are deduced from the
+-// types of the corresponding rhs expressions. iota >= 0 indicates that the
+-// "assignment" is part of a constant declaration.
+-//
+-func (check *checker) assignNtoM(lhs, rhs []ast.Expr, decl bool, iota int) {
+-	unimplemented()
+-}
+-
+-// assignment typechecks a single assignment of the form lhs := x. If decl is set,
+-// the lhs operand must be an identifier. If its type is not set, it is deduced
+-// from the type or value of x.
+-//
+-func (check *checker) assignment(lhs ast.Expr, x *operand, decl bool) {
+-	unimplemented()
+-}
+-
+-// stmt typechecks statement s.
+-func (check *checker) stmt(s ast.Stmt) {
+-	unimplemented()
+-}
+diff --git a/src/pkg/exp/types/staging/testdata/const0.src b/src/pkg/exp/types/staging/testdata/const0.src
+new file mode 100644
+index 0000000000..4599397c7a
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/const0.src
+@@ -0,0 +1,209 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// constant declarations
++
++package const0
++
++// constants declarations must be initialized by constants
++var x = 0
++const c0 = x /* ERROR "not constant" */
++
++// untyped constants
++const (
++	// boolean values
++	ub0 = false
++	ub1 = true
++	ub2 = 2 < 1
++	ub3 = ui1 == uf1
++	ub4 = true /* ERROR "cannot convert" */ == 0
++
++	// integer values
++	ui0 = 0
++	ui1 = 1
++	ui2 = 42
++	ui3 = 3141592653589793238462643383279502884197169399375105820974944592307816406286
++	ui4 = -10
++
++	ui5 = ui0 + ui1
++	ui6 = ui1 - ui1
++	ui7 = ui2 * ui1
++	ui8 = ui3 / ui3
++	ui9 = ui3 % ui3
++
++	ui10 = 1 / 0 /* ERROR "division by zero" */
++	ui11 = ui1 / 0 /* ERROR "division by zero" */
++	ui12 = ui3 / ui0 /* ERROR "division by zero" */
++	ui13 = 1 % 0 /* ERROR "division by zero" */
++	ui14 = ui1 % 0 /* ERROR "division by zero" */
++	ui15 = ui3 % ui0 /* ERROR "division by zero" */
++
++	ui16 = ui2 & ui3
++	ui17 = ui2 | ui3
++	ui18 = ui2 ^ ui3
++
++	// floating point values
++	uf0 = 0.
++	uf1 = 1.
++	uf2 = 4.2e1
++	uf3 = 3.141592653589793238462643383279502884197169399375105820974944592307816406286
++	uf4 = 1e-1
++
++	uf5 = uf0 + uf1
++	uf6 = uf1 - uf1
++	uf7 = uf2 * uf1
++	uf8 = uf3 / uf3
++	uf9 = uf3 /* ERROR "not defined" */ % uf3
++
++	uf10 = 1 / 0 /* ERROR "division by zero" */
++	uf11 = uf1 / 0 /* ERROR "division by zero" */
++	uf12 = uf3 / uf0 /* ERROR "division by zero" */
++
++	uf16 = uf2 /* ERROR "not defined" */ & uf3
++	uf17 = uf2 /* ERROR "not defined" */ | uf3
++	uf18 = uf2 /* ERROR "not defined" */ ^ uf3
++
++	// complex values
++	uc0 = 0.i
++	uc1 = 1.i
++	uc2 = 4.2e1i
++	uc3 = 3.141592653589793238462643383279502884197169399375105820974944592307816406286i
++	uc4 = 1e-1i
++
++	uc5 = uc0 + uc1
++	uc6 = uc1 - uc1
++	uc7 = uc2 * uc1
++	uc8 = uc3 / uc3
++	uc9 = uc3 /* ERROR "not defined" */ % uc3
++
++	uc10 = 1 / 0 /* ERROR "division by zero" */
++	uc11 = uc1 / 0 /* ERROR "division by zero" */
++	uc12 = uc3 / uc0 /* ERROR "division by zero" */
++
++	uc16 = uc2 /* ERROR "not defined" */ & uc3
++	uc17 = uc2 /* ERROR "not defined" */ | uc3
++	uc18 = uc2 /* ERROR "not defined" */ ^ uc3
++)
++
++type (
++	mybool bool
++	myint int
++	myfloat float64
++	mycomplex complex128
++)
++
++// typed constants
++const (
++	// boolean values
++	tb0 bool = false
++	tb1 bool = true
++	tb2 mybool = 2 < 1
++	tb3 mybool = ti1 /* ERROR "cannot compare" */ == tf1
++
++	// integer values
++	ti0 int8 = ui0
++	ti1 int32 = ui1
++	ti2 int64 = ui2
++	ti3 myint = ui3 /* ERROR "overflows" */
++	ti4 myint = ui4
++
++	ti5 = ti0 /* ERROR "mismatched types" */ + ti1
++	ti6 = ti1 - ti1
++	ti7 = ti2 /* ERROR "mismatched types" */ * ti1
++	//ti8 = ti3 / ti3 // TODO(gri) enable this
++	//ti9 = ti3 % ti3 // TODO(gri) enable this
++
++	ti10 = 1 / 0 /* ERROR "division by zero" */
++	ti11 = ti1 / 0 /* ERROR "division by zero" */
++	ti12 = ti3 /* ERROR "mismatched types" */ / ti0
++	ti13 = 1 % 0 /* ERROR "division by zero" */
++	ti14 = ti1 % 0 /* ERROR "division by zero" */
++	ti15 = ti3 /* ERROR "mismatched types" */ % ti0
++
++	ti16 = ti2 /* ERROR "mismatched types" */ & ti3
++	ti17 = ti2 /* ERROR "mismatched types" */ | ti4
++	ti18 = ti2 ^ ti5 // no mismatched types error because the type of ti5 is unknown
++
++	// floating point values
++	tf0 float32 = 0.
++	tf1 float32 = 1.
++	tf2 float64 = 4.2e1
++	tf3 myfloat = 3.141592653589793238462643383279502884197169399375105820974944592307816406286
++	tf4 myfloat = 1e-1
++
++	tf5 = tf0 + tf1
++	tf6 = tf1 - tf1
++	tf7 = tf2 /* ERROR "mismatched types" */ * tf1
++	// tf8 = tf3 / tf3 // TODO(gri) enable this
++	tf9 = tf3 /* ERROR "not defined" */ % tf3
++
++	tf10 = 1 / 0 /* ERROR "division by zero" */
++	tf11 = tf1 / 0 /* ERROR "division by zero" */
++	tf12 = tf3 /* ERROR "mismatched types" */ / tf0
++
++	tf16 = tf2 /* ERROR "mismatched types" */ & tf3
++	tf17 = tf2 /* ERROR "mismatched types" */ | tf3
++	tf18 = tf2 /* ERROR "mismatched types" */ ^ tf3
++
++	// complex values
++	tc0 = 0.i
++	tc1 = 1.i
++	tc2 = 4.2e1i
++	tc3 = 3.141592653589793238462643383279502884197169399375105820974944592307816406286i
++	tc4 = 1e-1i
++
++	tc5 = tc0 + tc1
++	tc6 = tc1 - tc1
++	tc7 = tc2 * tc1
++	tc8 = tc3 / tc3
++	tc9 = tc3 /* ERROR "not defined" */ % tc3
++
++	tc10 = 1 / 0 /* ERROR "division by zero" */
++	tc11 = tc1 / 0 /* ERROR "division by zero" */
++	tc12 = tc3 / tc0 /* ERROR "division by zero" */
++
++	tc16 = tc2 /* ERROR "not defined" */ & tc3
++	tc17 = tc2 /* ERROR "not defined" */ | tc3
++	tc18 = tc2 /* ERROR "not defined" */ ^ tc3
++)
++
++// initialization cycles
++const (
++	a /* ERROR "cycle" */ = a
++	b /* ERROR "cycle" */ , c /* ERROR "cycle" */, d, e = e, d, c, b // TODO(gri) should only have one cycle error
++	f float64 = d
++)
++
++// multiple initialization
++const (
++	a1, a2, a3 = 7, 3.1415926, "foo"
++	b1, b2, b3 = b3, b1, 42
++	_p0 = assert(a1 == 7)
++	_p1 = assert(a2 == 3.1415926)
++	_p2 = assert(a3 == "foo")
++	_p3 = assert(b1 == 42)
++	_p4 = assert(b2 == 42)
++	_p5 = assert(b3 == 42)
++)
++
++// iota
++const (
++	iota0 = iota
++	iota1 = iota
++	iota2 = iota*2
++	_a0 = assert(iota0 == 0)
++	_a1 = assert(iota1 == 1)
++	_a2 = assert(iota2 == 4)
++	iota6 = iota*3
++
++	iota7
++	iota8
++	_a3 = assert(iota7 == 21)
++	_a4 = assert(iota8 == 24)
++)
++
++const (
++	_b0 = iota
++	_b1 = assert(iota + iota2 == 5)
++)
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/staging/testdata/conversions.src b/src/pkg/exp/types/staging/testdata/conversions.src
+new file mode 100644
+index 0000000000..1b1518366f
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/conversions.src
+@@ -0,0 +1,18 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// conversions
++
++package conversions
++
++// argument count
++var (
++	_v0 = int /* ERROR "one argument" */ ()
++	_v1 = int /* ERROR "one argument" */ (1, 2)
++)
++
++//
++var (
++	_v2 = int8(0)
++)
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/staging/testdata/decls0.src b/src/pkg/exp/types/staging/testdata/decls0.src
+new file mode 100644
+index 0000000000..e8ae53b220
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/decls0.src
+@@ -0,0 +1,168 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// type declarations
++
++package decls0
++
++import (
++	"unsafe"
++	// we can have multiple blank imports (was bug)
++	_ "math"
++	_ "net/rpc"
++)
++
++const pi = 3.1415
++
++type (
++	N undeclared /* ERROR "undeclared" */ /* ERROR "not a type" */
++	B bool
++	I int32
++	A [10]P
++	T struct {
++		x, y P
++	}
++	P *T
++	R (*R)
++	F func(A) I
++	Y interface {
++		f(A) I
++	}
++	S [](((P)))
++	M map[I]F
++	C chan<- I
++
++	// blank types must be typechecked
++	_ pi /* ERROR "not a type" */
++	_ struct{}
++	_ struct{ pi /* ERROR "not a type" */ }
++)
++
++
++type (
++	p1 pi /* ERROR "no field or method foo" */ /* ERROR "not a type" */ .foo
++	p2 unsafe.Pointer
++)
++
++
++type (
++	Pi pi /* ERROR "not a type" */
++
++	a /* ERROR "illegal cycle" */ a
++	a /* ERROR "redeclared" */ int
++
++	// where the cycle error appears depends on the
++	// order in which declarations are processed
++	// (which depends on the order in which a map
++	// is iterated through)
++	b /* ERROR "illegal cycle" */ c
++	c d
++	d e
++	e b
++
++	t *t
++
++	U V
++	V *W
++	W U
++
++	P1 *S2
++	P2 P1
++
++	S0 struct {
++	}
++	S1 struct {
++		a, b, c int
++		u, v, a /* ERROR "redeclared" */ float32
++	}
++	S2 struct {
++		U // anonymous field
++		// TODO(gri) recognize double-declaration below
++		// U /* ERROR "redeclared" */ int
++	}
++	S3 struct {
++		x S2
++	}
++	S4/* ERROR "illegal cycle" */ struct {
++		S4
++	}
++	S5 /* ERROR "illegal cycle" */ struct {
++		S6
++	}
++	S6 struct {
++		field S7
++	}
++	S7 struct {
++		S5
++	}
++
++	L1 []L1
++	L2 []int
++
++	A1 [10.0]int
++	A2 /* ERROR "illegal cycle" */ [10]A2
++	A3 /* ERROR "illegal cycle" */ [10]struct {
++		x A4
++	}
++	A4 [10]A3
++
++	F1 func()
++	F2 func(x, y, z float32)
++	F3 func(x, y, x /* ERROR "redeclared" */ float32)
++	F4 func() (x, y, x /* ERROR "redeclared" */ float32)
++	F5 func(x int) (x /* ERROR "redeclared" */ float32)
++	F6 func(x ...int)
++
++	I1 interface{}
++	I2 interface {
++		m1()
++	}
++	I3 interface {
++		m1()
++		m1 /* ERROR "redeclared" */ ()
++	}
++	I4 interface {
++		m1(x, y, x /* ERROR "redeclared" */ float32)
++		m2() (x, y, x /* ERROR "redeclared" */ float32)
++		m3(x int) (x /* ERROR "redeclared" */ float32)
++	}
++	I5 interface {
++		m1(I5)
++	}
++	I6 interface {
++		S0 /* ERROR "non-interface" */
++	}
++	I7 interface {
++		I1
++		I1
++	}
++	I8 /* ERROR "illegal cycle" */ interface {
++		I8
++	}
++	// Use I09 (rather than I9) because it appears lexically before
++	// I10 so that we get the illegal cycle here rather then in the
++	// declaration of I10. If the implementation sorts by position
++	// rather than name, the error message will still be here.
++	I09 /* ERROR "illegal cycle" */ interface {
++		I10
++	}
++	I10 interface {
++		I11
++	}
++	I11 interface {
++		I09
++	}
++
++	C1 chan int
++	C2 <-chan int
++	C3 chan<- C3
++	C4 chan C5
++	C5 chan C6
++	C6 chan C4
++
++	M1 map[Last]string
++	M2 map[string]M2
++
++	Last int
++)
+diff --git a/src/pkg/exp/types/staging/testdata/decls1.src b/src/pkg/exp/types/staging/testdata/decls1.src
+new file mode 100644
+index 0000000000..6accee61ed
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/decls1.src
+@@ -0,0 +1,123 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// variable declarations
++
++package decls1
++
++import (
++	"math"
++)
++
++// Global variables without initialization
++var (
++	a, b bool
++	c byte
++	d uint8
++	r rune
++	i int
++	j, k, l int
++	x, y float32
++	xx, yy float64
++	u, v complex64
++	uu, vv complex128
++	s, t string
++	array []byte
++	iface interface{}
++	
++	blank _ /* ERROR "cannot use _" */ /* ERROR "not a type" */
++)
++
++// Global variables with initialization
++var (
++	s1 = i + j
++	s2 = i /* ERROR "mismatched types" */ + x
++	s3 = c + d
++	s4 = s + t
++	s5 = s /* ERROR "invalid operation" */ / t
++	s6 = array[t1]
++	s7 = array[x /* ERROR "array index" */]
++	s8 = &a
++	s10 = &42 /* ERROR "cannot take address" */
++	s11 = &v
++	s12 = -(u + *t11) / *&v
++	s13 = a /* ERROR "shifted operand" */ << d
++	s14 = i << j /* ERROR "must be unsigned" */ 
++	s18 = math.Pi * 10.0
++	s19 = s1 /* ERROR "cannot call" */ ()
++ 	s20 = f0 /* ERROR "used as single value" */ ()
++	s21 = f6(1, s1, i)
++	s22 = f6(1, s1, uu /* ERROR "cannot assign" */ )
++	
++	t1 int = i + j
++	t2 int = i /* ERROR "mismatched types" */ + x
++	t3 int = c /* ERROR "cannot assign" */ + d
++	t4 string = s + t
++	t5 string = s /* ERROR "invalid operation" */ / t
++	t6 byte = array[t1]
++	t7 byte = array[x /* ERROR "array index" */]
++	t8 *int = & /* ERROR "cannot assign" */ a
++	t10 *int = &42 /* ERROR "cannot take address" */
++	t11 *complex64 = &v
++	t12 complex64 = -(u + *t11) / *&v
++	t13 int = a /* ERROR "shifted operand" */ << d
++	t14 int = i << j /* ERROR "must be unsigned" */ 
++	t15 math /* ERROR "not in selector" */ /* ERROR "not a type" */
++	t16 math /* ERROR "not a type" */ .xxx /* ERROR "unexported" */
++	t17 math /* ERROR "not a type" */ .Pi
++	t18 float64 = math.Pi * 10.0
++	t19 int = t1 /* ERROR "cannot call" */ ()
++	t20 int = f0 /* ERROR "used as single value" */ ()
++)
++
++// Various more complex expressions
++var (
++	u1 = x /* ERROR "non-interface type" */ .(int)
++	u2 = iface.([]int)
++	u3 = iface.(a /* ERROR "not a type" */ )
++	u4, ok = iface.(int)
++	u5 /* ERROR "assignment count mismatch" */ , ok2, ok3 = iface.(int)
++)
++
++// Constant expression initializations
++var (
++	v1 = 1 /* ERROR "cannot convert" */ + "foo"
++	v2 = c + 255
++	v3 = c + 256 /* ERROR "overflows" */
++	v4 = r + 2147483647
++	v5 = r + 2147483648 /* ERROR "overflows" */
++	v6 = 42
++	v7 = v6 + 2147483647
++	v8 = v6 + 2147483648 /* ERROR "overflows" */
++	v9 = i + 1 << 10
++	v10 byte = 1024 /* ERROR "overflows" */
++	v11 = xx/yy*yy - xx
++	v12 = true && false
++)
++
++// Multiple assignment expressions
++var (
++	m1a, m1b = 1, 2
++	m2a /* ERROR "assignment count mismatch" */ , m2b, m2c = 1, 2
++	m3a /* ERROR "assignment count mismatch" */ , m3b = 1, 2, 3
++)
++
++// Declaration of parameters and results
++func f0() {}
++func f1(a /* ERROR "not a type" */) {}
++func f2(a, b, c d /* ERROR "not a type" */) {}
++
++func f3() int {}
++func f4() a /* ERROR "not a type" */ {}
++func f5() (a, b, c d /* ERROR "not a type" */) {}
++
++func f6(a, b, c int) complex128 { return 0 }
++
++// Declaration of receivers
++type T struct{}
++
++func (T) m0() {}
++func (*T) m1() {}
++func (x T) m2() {}
++func (x *T) m3() {}
+diff --git a/src/pkg/exp/types/staging/testdata/decls2a.src b/src/pkg/exp/types/staging/testdata/decls2a.src
+new file mode 100644
+index 0000000000..738bcb76ae
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/decls2a.src
+@@ -0,0 +1,66 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// method declarations
++
++package decls2
++
++import "time"
++
++// T1 declared before its methods.
++type T1 struct{
++	f int
++}
++
++func (T1) m() {}
++func (T1) m /* ERROR "redeclared" */ () {}
++func (x *T1) f /* ERROR "field and method" */ () {}
++
++// T2's method declared before the type.
++func (*T2) f /* ERROR "field and method" */ () {}
++
++type T2 struct {
++	f int
++}
++
++// Methods declared without a declared type.
++func (undeclared /* ERROR "undeclared" */) m() {}
++func (x *undeclared /* ERROR "undeclared" */) m() {}
++
++func (pi /* ERROR "not a type" */) m1() {}
++func (x pi /* ERROR "not a type" */) m2() {}
++func (x *pi /* ERROR "not a type" */) m3() {}
++
++// Blank types.
++type _ struct { m int }
++type _ struct { m int }
++
++// TODO(gri) blank idents not fully checked - disabled for now
++// func (_ /* ERROR "cannot use _" */) m() {}
++// func (_ /* ERROR "cannot use _" */) m() {}
++
++// Methods with receiver base type declared in another file.
++func (T3) m1() {}
++func (*T3) m2() {}
++func (x T3) m3() {}
++func (x *T3) f /* ERROR "field and method" */ () {}
++
++// Methods of non-struct type.
++type T4 func()
++
++func (self T4) m() func() { return self }
++
++// Methods associated with an interface.
++type T5 interface {
++	m() int
++}
++
++func (T5 /* ERROR "invalid receiver" */) m1() {}
++func (T5 /* ERROR "invalid receiver" */) m2() {}
++
++// Methods associated with non-local or unnamed types.
++// func (int) m() {} TODO(gri) check for methods associated with external (not package-local) types
++func ([ /* ERROR "expected" */ ]int) m() {}
++func (time /* ERROR "expected" */ .Time) m() {}
++func (x interface /* ERROR "expected" */ {}) m() {}
+diff --git a/src/pkg/exp/types/staging/testdata/decls2b.src b/src/pkg/exp/types/staging/testdata/decls2b.src
+new file mode 100644
+index 0000000000..9537c081e9
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/decls2b.src
+@@ -0,0 +1,15 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// method declarations
++
++package decls2
++
++const pi = 3.1415
++
++func (T1) m /* ERROR "redeclared" */ () {}
++
++type T3 struct {
++	f *T3
++}
+diff --git a/src/pkg/exp/types/staging/testdata/expr0.src b/src/pkg/exp/types/staging/testdata/expr0.src
+new file mode 100644
+index 0000000000..c54d42b881
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/expr0.src
+@@ -0,0 +1,135 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// unary expressions
++
++package expr0 
++
++var (
++	// bool
++	b0 = true
++	b1 bool = b0
++	b2 = !true
++	b3 = !b1
++	b4 bool = !true
++	b5 bool = !b4
++	b6 = +b0 /* ERROR "not defined" */
++	b7 = -b0 /* ERROR "not defined" */
++	b8 = ^b0 /* ERROR "not defined" */
++	b9 = *b0 /* ERROR "cannot indirect" */
++	b10 = &true /* ERROR "cannot take address" */
++	b11 = &b0
++	b12 = <-b0 /* ERROR "not defined" */
++
++	// int
++	i0 = 1
++	i1 int = i0
++	i2 = +1
++	i3 = +i0
++	i4 int = +1
++	i5 int = +i4
++	i6 = -1
++	i7 = -i0
++	i8 int = -1
++	i9 int = -i4
++	i10 = !i0 /* ERROR "not defined" */
++	i11 = ^1
++	i12 = ^i0
++	i13 int = ^1
++	i14 int = ^i4
++	i15 = *i0 /* ERROR "cannot indirect" */
++	i16 = &i0
++	i17 = *i16
++	i18 = <-i16 /* ERROR "not defined" */
++
++	// uint
++	u0 = uint(1)
++	u1 uint = u0
++	u2 = +1
++	u3 = +u0
++	u4 uint = +1
++	u5 uint = +u4
++	u6 = -1
++	u7 = -u0
++	u8 uint = - /* ERROR "overflows" */ 1
++	u9 uint = -u4
++	u10 = !u0 /* ERROR "not defined" */
++	u11 = ^1
++	u12 = ^i0
++	u13 uint = ^ /* ERROR "overflows" */ 1
++	u14 uint = ^u4
++	u15 = *u0 /* ERROR "cannot indirect" */
++	u16 = &u0
++	u17 = *u16
++	u18 = <-u16 /* ERROR "not defined" */
++
++	// float64
++	f0 = float64(1)
++	f1 float64 = f0
++	f2 = +1
++	f3 = +f0
++	f4 float64 = +1
++	f5 float64 = +f4 /* ERROR not defined */
++	f6 = -1
++	f7 = -f0
++	f8 float64 = -1
++	f9 float64 = -f4
++	f10 = !f0 /* ERROR "not defined" */
++	f11 = ^1
++	f12 = ^i0
++	f13 float64 = ^1
++	f14 float64 = ^f4 /* ERROR "not defined" */
++	f15 = *f0 /* ERROR "cannot indirect" */
++	f16 = &f0
++	f17 = *u16
++	f18 = <-u16 /* ERROR "not defined" */
++
++	// complex128
++	c0 = complex128(1)
++	c1 complex128 = c0
++	c2 = +1
++	c3 = +c0
++	c4 complex128 = +1
++	c5 complex128 = +c4 /* ERROR not defined */
++	c6 = -1
++	c7 = -c0
++	c8 complex128 = -1
++	c9 complex128 = -c4
++	c10 = !c0 /* ERROR "not defined" */
++	c11 = ^1
++	c12 = ^i0
++	c13 complex128 = ^1
++	c14 complex128 = ^c4 /* ERROR "not defined" */
++	c15 = *c0 /* ERROR "cannot indirect" */
++	c16 = &c0
++	c17 = *u16
++	c18 = <-u16 /* ERROR "not defined" */
++
++	// string
++	s0 = "foo"
++	s1 = +"foo" /* ERROR "not defined" */
++	s2 = -s0 /* ERROR "not defined" */
++	s3 = !s0 /* ERROR "not defined" */
++	s4 = ^s0 /* ERROR "not defined" */
++	s5 = *s4 /* ERROR "cannot indirect" */
++	s6 = &s4
++	s7 = *s6
++	s8 = <-s7  /* ERROR "not defined" */
++
++	// channel
++	ch chan int
++	rc <-chan float64
++	sc chan <- string
++	ch0 = +ch /* ERROR "not defined" */
++	ch1 = -ch /* ERROR "not defined" */
++	ch2 = !ch /* ERROR "not defined" */
++	ch3 = ^ch /* ERROR "not defined" */
++	ch4 = *ch /* ERROR "cannot indirect" */
++	ch5 = &ch
++	ch6 = *ch5
++	ch7 = <-ch
++	ch8 = <-rc
++	ch9 = <-sc /* ERROR "not defined" */
++
++)
+\ No newline at end of file
+diff --git a/src/pkg/exp/types/staging/testdata/expr1.src b/src/pkg/exp/types/staging/testdata/expr1.src
+new file mode 100644
+index 0000000000..8ef0aed6d2
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/expr1.src
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// binary expressions
++
++package expr1
+diff --git a/src/pkg/exp/types/staging/testdata/expr2.src b/src/pkg/exp/types/staging/testdata/expr2.src
+new file mode 100644
+index 0000000000..a3167f4505
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/expr2.src
+@@ -0,0 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// comparisons
++
++package expr2
+diff --git a/src/pkg/exp/types/staging/testdata/expr3.src b/src/pkg/exp/types/staging/testdata/expr3.src
+new file mode 100644
+index 0000000000..ecdb54f4bc
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/expr3.src
+@@ -0,0 +1,43 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// shifts
++
++package expr3
++
++var (
++	i0 int
++	u0 uint
++)
++
++var (
++	v0 = 1<<0
++	v1 = 1<<i0 /* ERROR "must be unsigned" */
++	v2 = 1<<u0
++	v3 = 1<<"foo" /* ERROR "must be unsigned" */
++	v4 = 1<<- /* ERROR "stupid shift" */ 1
++	v5 = 1<<1025 /* ERROR "stupid shift" */
++	v6 = 1 /* ERROR "overflows" */ <<100
++
++	v10 uint = 1 << 0
++	v11 uint = 1 << u0
++	v12 float32 = 1 /* ERROR "must be integer" */ << u0
++)
++
++// TODO(gri) enable commented out tests below.
++
++// from the spec
++var (
++	s uint = 33
++	i = 1<<s           // 1 has type int
++	j int32 = 1<<s     // 1 has type int32; j == 0
++	k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
++	m int = 1.0<<s     // 1.0 has type int
++//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
++	o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
++//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
++	u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
++	v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
++	w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
++)
+diff --git a/src/pkg/exp/types/staging/testdata/stmt0.src b/src/pkg/exp/types/staging/testdata/stmt0.src
+new file mode 100644
+index 0000000000..a98c930454
+--- /dev/null
++++ b/src/pkg/exp/types/staging/testdata/stmt0.src
+@@ -0,0 +1,42 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// statements
++
++package stmt0
++
++func _() {
++	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
++	b = i /* ERROR "cannot assign" */
++	i = f /* ERROR "cannot assign" */
++	f = c /* ERROR "cannot assign" */
++	c = s /* ERROR "cannot assign" */
++	s = b /* ERROR "cannot assign" */
++
++	v0 /* ERROR "mismatch" */, v1, v2 := 1, 2, 3, 4
++
++	b = true
++
++	i += 1
++	i += "foo" /* ERROR "cannot convert.*int" */
++
++	f -= 1
++	f -= "foo" /* ERROR "cannot convert.*float64" */
++
++	c *= 1
++	c /= 0 /* ERROR "division by zero" */
++
++	s += "bar"
++	s += 1 /* ERROR "cannot convert.*string" */
++}
++
++func _sends() {
++	var ch chan int
++	var rch <-chan int
++	var x int
++	x /* ERROR "cannot send" */ <- x
++	rch /* ERROR "cannot send" */ <- x
++	ch /* ERROR "cannot send" */ <- "foo"
++	ch <- x
++}
+\ No newline at end of file

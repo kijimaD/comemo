@@ -13,7 +13,7 @@ Date:   Thu Feb 12 20:24:47 2015 -0800
     Change-Id: Ifea891654f586f15b76988464f82e04a42ccff6d
     Reviewed-on: https://go-review.googlesource.com/5851
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/cgo_stub.go       |   2 +-
  src/net/cgo_unix.go       |  10 +++--
  src/net/dnsclient_unix.go |  16 ++++++--
@@ -25,3 +25,619 @@ Date:   Thu Feb 12 20:24:47 2015 -0800
  src/net/lookup_unix.go    |   2 +-
  src/net/lookup_windows.go |  21 +++++-----
  10 files changed, 132 insertions(+), 119 deletions(-)
+
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index f533c14212..d2d40da74f 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -16,7 +16,7 @@ func cgoLookupPort(network, service string) (port int, err error, completed bool
+ 	return 0, nil, false
+ }
+ 
+-func cgoLookupIP(name string) (addrs []IP, err error, completed bool) {
++func cgoLookupIP(name string) (addrs []IPAddr, err error, completed bool) {
+ 	return nil, nil, false
+ }
+ 
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 1f366ee5c6..eba5777347 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -81,7 +81,7 @@ func cgoLookupPort(net, service string) (port int, err error, completed bool) {
+ 	return 0, &AddrError{"unknown port", net + "/" + service}, true
+ }
+ 
+-func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, completed bool) {
++func cgoLookupIPCNAME(name string) (addrs []IPAddr, cname string, err error, completed bool) {
+ 	acquireThread()
+ 	defer releaseThread()
+ 
+@@ -135,16 +135,18 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
+ 			continue
+ 		case C.AF_INET:
+ 			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(r.ai_addr))
+-			addrs = append(addrs, copyIP(sa.Addr[:]))
++			addr := IPAddr{IP: copyIP(sa.Addr[:])}
++			addrs = append(addrs, addr)
+ 		case C.AF_INET6:
+ 			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
+-			addrs = append(addrs, copyIP(sa.Addr[:]))
++			addr := IPAddr{IP: copyIP(sa.Addr[:]), Zone: zoneToString(int(sa.Scope_id))}
++			addrs = append(addrs, addr)
+ 		}
+ 	}
+ 	return addrs, cname, nil, true
+ }
+ 
+-func cgoLookupIP(name string) (addrs []IP, err error, completed bool) {
++func cgoLookupIP(name string) (addrs []IPAddr, err error, completed bool) {
+ 	addrs, _, err, completed = cgoLookupIPCNAME(name)
+ 	return
+ }
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 7511083f79..30c7ada5ba 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -361,13 +361,15 @@ func goLookupHost(name string) (addrs []string, err error) {
+ // Normally we let cgo use the C library resolver instead of
+ // depending on our lookup code, so that Go and C get the same
+ // answers.
+-func goLookupIP(name string) (addrs []IP, err error) {
++func goLookupIP(name string) (addrs []IPAddr, err error) {
+ 	// Use entries from /etc/hosts if possible.
+ 	haddrs := lookupStaticHost(name)
+ 	if len(haddrs) > 0 {
+ 		for _, haddr := range haddrs {
++			haddr, zone := splitHostZone(haddr)
+ 			if ip := ParseIP(haddr); ip != nil {
+-				addrs = append(addrs, ip)
++				addr := IPAddr{IP: ip, Zone: zone}
++				addrs = append(addrs, addr)
+ 			}
+ 		}
+ 		if len(addrs) > 0 {
+@@ -396,9 +398,15 @@ func goLookupIP(name string) (addrs []IP, err error) {
+ 		}
+ 		switch racer.qtype {
+ 		case dnsTypeA:
+-			addrs = append(addrs, convertRR_A(racer.rrs)...)
++			for _, ip := range convertRR_A(racer.rrs) {
++				addr := IPAddr{IP: ip}
++				addrs = append(addrs, addr)
++			}
+ 		case dnsTypeAAAA:
+-			addrs = append(addrs, convertRR_AAAA(racer.rrs)...)
++			for _, ip := range convertRR_AAAA(racer.rrs) {
++				addr := IPAddr{IP: ip}
++				addrs = append(addrs, addr)
++			}
+ 		}
+ 	}
+ 	if len(addrs) == 0 && lastErr != nil {
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 858c6ef12c..98d2dbffb7 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -64,7 +64,7 @@ var errNoSuitableAddress = errors.New("no suitable address found")
+ // implement the netaddr interface. Known filters are nil, ipv4only
+ // and ipv6only. It returns any address when filter is nil. The result
+ // contains at least one address when error is nil.
+-func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
++func firstFavoriteAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
+ 	if filter != nil {
+ 		return firstSupportedAddr(filter, ips, inetaddr)
+ 	}
+@@ -79,14 +79,14 @@ func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr)
+ 		// possible. This is especially relevant if localhost
+ 		// resolves to [ipv6-localhost, ipv4-localhost]. Too
+ 		// much code assumes localhost == ipv4-localhost.
+-		if ip4 := ipv4only(ip); ip4 != nil && !ipv4 {
+-			list = append(list, inetaddr(ip4))
++		if ipv4only(ip) && !ipv4 {
++			list = append(list, inetaddr(ip))
+ 			ipv4 = true
+ 			if ipv6 {
+ 				swap = true
+ 			}
+-		} else if ip6 := ipv6only(ip); ip6 != nil && !ipv6 {
+-			list = append(list, inetaddr(ip6))
++		} else if ipv6only(ip) && !ipv6 {
++			list = append(list, inetaddr(ip))
+ 			ipv6 = true
+ 		}
+ 		if ipv4 && ipv6 {
+@@ -106,33 +106,25 @@ func firstFavoriteAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr)
+ 	}
+ }
+ 
+-func firstSupportedAddr(filter func(IP) IP, ips []IP, inetaddr func(IP) netaddr) (netaddr, error) {
++func firstSupportedAddr(filter func(IPAddr) bool, ips []IPAddr, inetaddr func(IPAddr) netaddr) (netaddr, error) {
+ 	for _, ip := range ips {
+-		if ip := filter(ip); ip != nil {
++		if filter(ip) {
+ 			return inetaddr(ip), nil
+ 		}
+ 	}
+ 	return nil, errNoSuitableAddress
+ }
+ 
+-// ipv4only returns IPv4 addresses that we can use with the kernel's
+-// IPv4 addressing modes. If ip is an IPv4 address, ipv4only returns ip.
+-// Otherwise it returns nil.
+-func ipv4only(ip IP) IP {
+-	if supportsIPv4 && ip.To4() != nil {
+-		return ip
+-	}
+-	return nil
++// ipv4only reports whether the kernel supports IPv4 addressing mode
++// and addr is an IPv4 address.
++func ipv4only(addr IPAddr) bool {
++	return supportsIPv4 && addr.IP.To4() != nil
+ }
+ 
+-// ipv6only returns IPv6 addresses that we can use with the kernel's
+-// IPv6 addressing modes.  It returns IPv4-mapped IPv6 addresses as
+-// nils and returns other IPv6 address types as IPv6 addresses.
+-func ipv6only(ip IP) IP {
+-	if supportsIPv6 && len(ip) == IPv6len && ip.To4() == nil {
+-		return ip
+-	}
+-	return nil
++// ipv6only reports whether the kernel supports IPv6 addressing mode
++// and addr is an IPv6 address except IPv4-mapped IPv6 address.
++func ipv6only(addr IPAddr) bool {
++	return supportsIPv6 && len(addr.IP) == IPv6len && addr.IP.To4() == nil
+ }
+ 
+ // SplitHostPort splits a network address of the form "host:port",
+@@ -236,9 +228,9 @@ func JoinHostPort(host, port string) string {
+ // address when error is nil.
+ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error) {
+ 	var (
+-		err              error
+-		host, port, zone string
+-		portnum          int
++		err        error
++		host, port string
++		portnum    int
+ 	)
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
+@@ -257,40 +249,40 @@ func resolveInternetAddr(net, addr string, deadline time.Time) (netaddr, error)
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}
+-	inetaddr := func(ip IP) netaddr {
++	inetaddr := func(ip IPAddr) netaddr {
+ 		switch net {
+ 		case "tcp", "tcp4", "tcp6":
+-			return &TCPAddr{IP: ip, Port: portnum, Zone: zone}
++			return &TCPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
+ 		case "udp", "udp4", "udp6":
+-			return &UDPAddr{IP: ip, Port: portnum, Zone: zone}
++			return &UDPAddr{IP: ip.IP, Port: portnum, Zone: ip.Zone}
+ 		case "ip", "ip4", "ip6":
+-			return &IPAddr{IP: ip, Zone: zone}
++			return &IPAddr{IP: ip.IP, Zone: ip.Zone}
+ 		default:
+ 			panic("unexpected network: " + net)
+ 		}
+ 	}
+ 	if host == "" {
+-		return inetaddr(nil), nil
++		return inetaddr(IPAddr{}), nil
+ 	}
+ 	// Try as a literal IP address.
+ 	var ip IP
+ 	if ip = parseIPv4(host); ip != nil {
+-		return inetaddr(ip), nil
++		return inetaddr(IPAddr{IP: ip}), nil
+ 	}
++	var zone string
+ 	if ip, zone = parseIPv6(host, true); ip != nil {
+-		return inetaddr(ip), nil
++		return inetaddr(IPAddr{IP: ip, Zone: zone}), nil
+ 	}
+ 	// Try as a DNS name.
+-	host, zone = splitHostZone(host)
+ 	ips, err := lookupIPDeadline(host, deadline)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	var filter func(IP) IP
++	var filter func(IPAddr) bool
+ 	if net != "" && net[len(net)-1] == '4' {
+ 		filter = ipv4only
+ 	}
+-	if net != "" && net[len(net)-1] == '6' || zone != "" {
++	if net != "" && net[len(net)-1] == '6' {
+ 		filter = ipv6only
+ 	}
+ 	return firstFavoriteAddr(filter, ips, inetaddr)
+diff --git a/src/net/ipsock_test.go b/src/net/ipsock_test.go
+index 9ecaaec69f..7567dad523 100644
+--- a/src/net/ipsock_test.go
++++ b/src/net/ipsock_test.go
+@@ -9,20 +9,20 @@ import (
+ 	"testing"
+ )
+ 
+-var testInetaddr = func(ip IP) netaddr { return &TCPAddr{IP: ip, Port: 5682} }
++var testInetaddr = func(ip IPAddr) netaddr { return &TCPAddr{IP: ip.IP, Port: 5682, Zone: ip.Zone} }
+ 
+ var firstFavoriteAddrTests = []struct {
+-	filter   func(IP) IP
+-	ips      []IP
+-	inetaddr func(IP) netaddr
++	filter   func(IPAddr) bool
++	ips      []IPAddr
++	inetaddr func(IPAddr) netaddr
+ 	addr     netaddr
+ 	err      error
+ }{
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv4(127, 0, 0, 1),
+-			IPv6loopback,
++		[]IPAddr{
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv6loopback},
+ 		},
+ 		testInetaddr,
+ 		addrList{
+@@ -33,9 +33,9 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv6loopback,
+-			IPv4(127, 0, 0, 1),
++		[]IPAddr{
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
+ 		},
+ 		testInetaddr,
+ 		addrList{
+@@ -46,9 +46,9 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv4(127, 0, 0, 1),
+-			IPv4(192, 168, 0, 1),
++		[]IPAddr{
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv4(192, 168, 0, 1)},
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+@@ -56,9 +56,9 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv6loopback,
+-			ParseIP("fe80::1"),
++		[]IPAddr{
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv6loopback, Port: 5682},
+@@ -66,11 +66,11 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv4(127, 0, 0, 1),
+-			IPv4(192, 168, 0, 1),
+-			IPv6loopback,
+-			ParseIP("fe80::1"),
++		[]IPAddr{
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv4(192, 168, 0, 1)},
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+ 		},
+ 		testInetaddr,
+ 		addrList{
+@@ -81,11 +81,11 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv6loopback,
+-			ParseIP("fe80::1"),
+-			IPv4(127, 0, 0, 1),
+-			IPv4(192, 168, 0, 1),
++		[]IPAddr{
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv4(192, 168, 0, 1)},
+ 		},
+ 		testInetaddr,
+ 		addrList{
+@@ -96,11 +96,11 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv4(127, 0, 0, 1),
+-			IPv6loopback,
+-			IPv4(192, 168, 0, 1),
+-			ParseIP("fe80::1"),
++		[]IPAddr{
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: IPv4(192, 168, 0, 1)},
++			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
+ 		},
+ 		testInetaddr,
+ 		addrList{
+@@ -111,11 +111,11 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		nil,
+-		[]IP{
+-			IPv6loopback,
+-			IPv4(127, 0, 0, 1),
+-			ParseIP("fe80::1"),
+-			IPv4(192, 168, 0, 1),
++		[]IPAddr{
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: ParseIP("fe80::1"), Zone: "eth0"},
++			IPAddr{IP: IPv4(192, 168, 0, 1)},
+ 		},
+ 		testInetaddr,
+ 		addrList{
+@@ -127,9 +127,9 @@ var firstFavoriteAddrTests = []struct {
+ 
+ 	{
+ 		ipv4only,
+-		[]IP{
+-			IPv4(127, 0, 0, 1),
+-			IPv6loopback,
++		[]IPAddr{
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv6loopback},
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+@@ -137,9 +137,9 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		ipv4only,
+-		[]IP{
+-			IPv6loopback,
+-			IPv4(127, 0, 0, 1),
++		[]IPAddr{
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: 5682},
+@@ -148,9 +148,9 @@ var firstFavoriteAddrTests = []struct {
+ 
+ 	{
+ 		ipv6only,
+-		[]IP{
+-			IPv4(127, 0, 0, 1),
+-			IPv6loopback,
++		[]IPAddr{
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
++			IPAddr{IP: IPv6loopback},
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv6loopback, Port: 5682},
+@@ -158,9 +158,9 @@ var firstFavoriteAddrTests = []struct {
+ 	},
+ 	{
+ 		ipv6only,
+-		[]IP{
+-			IPv6loopback,
+-			IPv4(127, 0, 0, 1),
++		[]IPAddr{
++			IPAddr{IP: IPv6loopback},
++			IPAddr{IP: IPv4(127, 0, 0, 1)},
+ 		},
+ 		testInetaddr,
+ 		&TCPAddr{IP: IPv6loopback, Port: 5682},
+@@ -170,10 +170,10 @@ var firstFavoriteAddrTests = []struct {
+ 	{nil, nil, testInetaddr, nil, errNoSuitableAddress},
+ 
+ 	{ipv4only, nil, testInetaddr, nil, errNoSuitableAddress},
+-	{ipv4only, []IP{IPv6loopback}, testInetaddr, nil, errNoSuitableAddress},
++	{ipv4only, []IPAddr{IPAddr{IP: IPv6loopback}}, testInetaddr, nil, errNoSuitableAddress},
+ 
+ 	{ipv6only, nil, testInetaddr, nil, errNoSuitableAddress},
+-	{ipv6only, []IP{IPv4(127, 0, 0, 1)}, testInetaddr, nil, errNoSuitableAddress},
++	{ipv6only, []IPAddr{IPAddr{IP: IPv4(127, 0, 0, 1)}}, testInetaddr, nil, errNoSuitableAddress},
+ }
+ 
+ func TestFirstFavoriteAddr(t *testing.T) {
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index aeffe6c9b7..65abc81309 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -27,8 +27,16 @@ func LookupHost(host string) (addrs []string, err error) {
+ 
+ // LookupIP looks up host using the local resolver.
+ // It returns an array of that host's IPv4 and IPv6 addresses.
+-func LookupIP(host string) (addrs []IP, err error) {
+-	return lookupIPMerge(host)
++func LookupIP(host string) (ips []IP, err error) {
++	addrs, err := lookupIPMerge(host)
++	if err != nil {
++		return
++	}
++	ips = make([]IP, len(addrs))
++	for i, addr := range addrs {
++		ips[i] = addr.IP
++	}
++	return
+ }
+ 
+ var lookupGroup singleflight
+@@ -36,7 +44,7 @@ var lookupGroup singleflight
+ // lookupIPMerge wraps lookupIP, but makes sure that for any given
+ // host, only one lookup is in-flight at a time. The returned memory
+ // is always owned by the caller.
+-func lookupIPMerge(host string) (addrs []IP, err error) {
++func lookupIPMerge(host string) (addrs []IPAddr, err error) {
+ 	addrsi, err, shared := lookupGroup.Do(host, func() (interface{}, error) {
+ 		return lookupIP(host)
+ 	})
+@@ -45,13 +53,13 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
+ 
+ // lookupIPReturn turns the return values from singleflight.Do into
+ // the return values from LookupIP.
+-func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IP, error) {
++func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	addrs := addrsi.([]IP)
++	addrs := addrsi.([]IPAddr)
+ 	if shared {
+-		clone := make([]IP, len(addrs))
++		clone := make([]IPAddr, len(addrs))
+ 		copy(clone, addrs)
+ 		addrs = clone
+ 	}
+@@ -59,7 +67,7 @@ func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IP, error) {
+ }
+ 
+ // lookupIPDeadline looks up a hostname with a deadline.
+-func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
++func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err error) {
+ 	if deadline.IsZero() {
+ 		return lookupIPMerge(host)
+ 	}
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index b80ac10e0d..73abbad93b 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -147,14 +147,16 @@ loop:
+ 	return
+ }
+ 
+-func lookupIP(host string) (ips []IP, err error) {
+-	addrs, err := LookupHost(host)
++func lookupIP(host string) (addrs []IPAddr, err error) {
++	lits, err := LookupHost(host)
+ 	if err != nil {
+ 		return
+ 	}
+-	for _, addr := range addrs {
+-		if ip := ParseIP(addr); ip != nil {
+-			ips = append(ips, ip)
++	for _, lit := range lits {
++		host, zone := splitHostZone(lit)
++		if ip := ParseIP(host); ip != nil {
++			addr := IPAddr{IP: ip, Zone: zone}
++			addrs = append(addrs, addr)
+ 		}
+ 	}
+ 	return
+diff --git a/src/net/lookup_stub.go b/src/net/lookup_stub.go
+index 502aafb270..5636198f88 100644
+--- a/src/net/lookup_stub.go
++++ b/src/net/lookup_stub.go
+@@ -16,7 +16,7 @@ func lookupHost(host string) (addrs []string, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+-func lookupIP(host string) (ips []IP, err error) {
++func lookupIP(host string) (addrs []IPAddr, err error) {
+ 	return nil, syscall.ENOPROTOOPT
+ }
+ 
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index a54578456d..473adf87f6 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -60,7 +60,7 @@ func lookupHost(host string) (addrs []string, err error) {
+ 	return
+ }
+ 
+-func lookupIP(host string) (addrs []IP, err error) {
++func lookupIP(host string) (addrs []IPAddr, err error) {
+ 	addrs, err, ok := cgoLookupIP(host)
+ 	if !ok {
+ 		addrs, err = goLookupIP(host)
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 6a925b0a7a..6a8d9181ba 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -62,7 +62,7 @@ func lookupHost(name string) (addrs []string, err error) {
+ 	return
+ }
+ 
+-func gethostbyname(name string) (addrs []IP, err error) {
++func gethostbyname(name string) (addrs []IPAddr, err error) {
+ 	// caller already acquired thread
+ 	h, err := syscall.GetHostByName(name)
+ 	if err != nil {
+@@ -71,9 +71,9 @@ func gethostbyname(name string) (addrs []IP, err error) {
+ 	switch h.AddrType {
+ 	case syscall.AF_INET:
+ 		i := 0
+-		addrs = make([]IP, 100) // plenty of room to grow
++		addrs = make([]IPAddr, 100) // plenty of room to grow
+ 		for p := (*[100](*[4]byte))(unsafe.Pointer(h.AddrList)); i < cap(addrs) && p[i] != nil; i++ {
+-			addrs[i] = IPv4(p[i][0], p[i][1], p[i][2], p[i][3])
++			addrs[i] = IPAddr{IP: IPv4(p[i][0], p[i][1], p[i][2], p[i][3])}
+ 		}
+ 		addrs = addrs[0:i]
+ 	default: // TODO(vcc): Implement non IPv4 address lookups.
+@@ -82,11 +82,11 @@ func gethostbyname(name string) (addrs []IP, err error) {
+ 	return addrs, nil
+ }
+ 
+-func oldLookupIP(name string) (addrs []IP, err error) {
++func oldLookupIP(name string) (addrs []IPAddr, err error) {
+ 	// GetHostByName return value is stored in thread local storage.
+ 	// Start new os thread before the call to prevent races.
+ 	type result struct {
+-		addrs []IP
++		addrs []IPAddr
+ 		err   error
+ 	}
+ 	ch := make(chan result)
+@@ -99,10 +99,10 @@ func oldLookupIP(name string) (addrs []IP, err error) {
+ 		ch <- result{addrs: addrs, err: err}
+ 	}()
+ 	r := <-ch
+-	return r.addrs, r.err
++	return addrs, r.err
+ }
+ 
+-func newLookupIP(name string) (addrs []IP, err error) {
++func newLookupIP(name string) (addrs []IPAddr, err error) {
+ 	acquireThread()
+ 	defer releaseThread()
+ 	hints := syscall.AddrinfoW{
+@@ -116,16 +116,17 @@ func newLookupIP(name string) (addrs []IP, err error) {
+ 		return nil, os.NewSyscallError("GetAddrInfoW", e)
+ 	}
+ 	defer syscall.FreeAddrInfoW(result)
+-	addrs = make([]IP, 0, 5)
++	addrs = make([]IPAddr, 0, 5)
+ 	for ; result != nil; result = result.Next {
+ 		addr := unsafe.Pointer(result.Addr)
+ 		switch result.Family {
+ 		case syscall.AF_INET:
+ 			a := (*syscall.RawSockaddrInet4)(addr).Addr
+-			addrs = append(addrs, IPv4(a[0], a[1], a[2], a[3]))
++			addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
+ 		case syscall.AF_INET6:
+ 			a := (*syscall.RawSockaddrInet6)(addr).Addr
+-			addrs = append(addrs, IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]})
++			zone := zoneToString(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
++			addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
+ 		default:
+ 			return nil, os.NewSyscallError("LookupIP", syscall.EWINDOWS)
+ 		}

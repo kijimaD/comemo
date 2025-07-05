@@ -23,7 +23,114 @@ Date:   Wed Jun 24 07:48:35 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/11405
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 12 +++++++++++-
  src/fmt/print.go    | 28 +++++++++++++++++++++++++---
  2 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 059d09e1bf..28b7e0551a 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -832,6 +832,10 @@ var reorderTests = []struct {
+ 	{"%[5]d %[2]d %d", SE{1, 2, 3}, "%!d(BADINDEX) 2 3"},
+ 	{"%d %[3]d %d", SE{1, 2}, "1 %!d(BADINDEX) 2"}, // Erroneous index does not affect sequence.
+ 	{"%.[]", SE{}, "%!](BADINDEX)"},                // Issue 10675
++	{"%.-3d", SE{42}, "%!-(int=42)3d"},             // TODO: Should this set return better error messages?
++	{"%2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
++	{"%-2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
++	{"%.2147483648d", SE{42}, "%!(NOVERB)%!(EXTRA int=42)"},
+ }
+ 
+ func TestReorder(t *testing.T) {
+@@ -1158,14 +1162,20 @@ var startests = []struct {
+ 	out string
+ }{
+ 	{"%*d", args(4, 42), "  42"},
++	{"%-*d", args(4, 42), "42  "},
++	{"%*d", args(-4, 42), "42  "},
++	{"%-*d", args(-4, 42), "42  "},
+ 	{"%.*d", args(4, 42), "0042"},
+ 	{"%*.*d", args(8, 4, 42), "    0042"},
+ 	{"%0*d", args(4, 42), "0042"},
+-	{"%-*d", args(4, 42), "42  "},
+ 
+ 	// erroneous
+ 	{"%*d", args(nil, 42), "%!(BADWIDTH)42"},
++	{"%*d", args(int(1e7), 42), "%!(BADWIDTH)42"},
++	{"%*d", args(int(-1e7), 42), "%!(BADWIDTH)42"},
+ 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
++	{"%.*d", args(-1, 42), "%!(BADPREC)42"},
++	{"%.*d", args(int(1e7), 42), "%!(BADPREC)42"},
+ 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
+ 	{"%*% %d", args(20, 5), "% 5"},
+ 	{"%*", args(4), "%!(NOVERB)"},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index d07835da49..8d3e97c3ab 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -285,15 +285,20 @@ func getField(v reflect.Value, i int) reflect.Value {
+ 	return val
+ }
+ 
++// tooLarge reports whether the magnitude of the integer is
++// too large to be used as a formatting width or precision.
++func tooLarge(x int) bool {
++	const max int = 1e6
++	return x > max || x < -max
++}
++
+ // parsenum converts ASCII to integer.  num is 0 (and isnum is false) if no number present.
+ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
+ 	if start >= end {
+ 		return 0, false, end
+ 	}
+ 	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
+-		const maxInt32 = 1<<31 - 1 // 31 bits is plenty for a width.
+-		max := maxInt32/10 - 1
+-		if num > max {
++		if tooLarge(num) {
+ 			return 0, false, end // Overflow; crazy long number most likely.
+ 		}
+ 		num = num*10 + int(s[newi]-'0')
+@@ -1025,6 +1030,10 @@ func intFromArg(a []interface{}, argNum int) (num int, isInt bool, newArgNum int
+ 	if argNum < len(a) {
+ 		num, isInt = a[argNum].(int)
+ 		newArgNum = argNum + 1
++		if tooLarge(num) {
++			num = 0
++			isInt = false
++		}
+ 	}
+ 	return
+ }
+@@ -1119,9 +1128,17 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 		if i < end && format[i] == '*' {
+ 			i++
+ 			p.fmt.wid, p.fmt.widPresent, argNum = intFromArg(a, argNum)
++
+ 			if !p.fmt.widPresent {
+ 				p.buf.Write(badWidthBytes)
+ 			}
++
++			// We have a negative width, so take its value and ensure
++			// that the minus flag is set
++			if p.fmt.wid < 0 {
++				p.fmt.wid = -p.fmt.wid
++				p.fmt.minus = true
++			}
+ 			afterIndex = false
+ 		} else {
+ 			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
+@@ -1140,6 +1157,11 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			if i < end && format[i] == '*' {
+ 				i++
+ 				p.fmt.prec, p.fmt.precPresent, argNum = intFromArg(a, argNum)
++				// Negative precision arguments don't make sense
++				if p.fmt.prec < 0 {
++					p.fmt.prec = 0
++					p.fmt.precPresent = false
++				}
+ 				if !p.fmt.precPresent {
+ 					p.buf.Write(badPrecBytes)
+ 				}

@@ -16,6 +16,19 @@ Date:   Wed Aug 4 16:07:47 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 5729942cee..ce7bed920f 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -591,6 +591,7 @@ func TestSegv(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range []string{"Segv", "SegvInCgo"} {
++		test := test
+ 		t.Run(test, func(t *testing.T) {
+ 			t.Parallel()
+ 			got := runTestProg(t, "testprogcgo", test)

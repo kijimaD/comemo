@@ -16,6 +16,23 @@ Date:   Tue Sep 1 19:58:31 2015 -0400
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index d5f7e62989..4a7d710856 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1107,6 +1107,11 @@ func Asmbpe() {
+ 
+ 	t := addpesection(".text", int(Segtext.Length), int(Segtext.Length))
+ 	t.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
++	if Linkmode == LinkExternal {
++		// some data symbols (e.g. masks) end up in the .text section, and they normally
++		// expect larger alignment requirement than the default text section alignment.
++		t.Characteristics |= IMAGE_SCN_ALIGN_32BYTES
++	}
+ 	chksectseg(t, &Segtext)
+ 	textsect = pensect
+ 

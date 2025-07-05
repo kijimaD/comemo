@@ -13,6 +13,23 @@ Date:   Mon Nov 30 14:16:39 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274132
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f021ea48b1..874594d764 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1315,11 +1315,6 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 				old := n
+ 				n = ir.NodAt(n.Pos(), l.SubOp(), arg, nil)
+ 				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
+-				if l.SubOp() == ir.ONEW {
+-					// Bug-compatibility with earlier version.
+-					// This extra node is unnecessary but raises the inlining cost by 1.
+-					n.SetList(old.List())
+-				}
+ 
+ 			case ir.OCOMPLEX, ir.OCOPY:
+ 				typecheckargs(n)

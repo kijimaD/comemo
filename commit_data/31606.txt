@@ -15,7 +15,66 @@ Date:   Thu Dec 22 18:00:18 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbitmap.go  | 8 ++++----
  src/runtime/mgcsweep.go | 8 +++-----
  2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 57225ab322..7bead96904 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -823,10 +823,10 @@ var oneBitCount = [256]uint8{
+ 	4, 5, 5, 6, 5, 6, 6, 7,
+ 	5, 6, 6, 7, 6, 7, 7, 8}
+ 
+-// countFree runs through the mark bits in a span and counts the number of free objects
+-// in the span.
++// countAlloc returns the number of objects allocated in span s by
++// scanning the allocation bitmap.
+ // TODO:(rlh) Use popcount intrinsic.
+-func (s *mspan) countFree() int {
++func (s *mspan) countAlloc() int {
+ 	count := 0
+ 	maxIndex := s.nelems / 8
+ 	for i := uintptr(0); i < maxIndex; i++ {
+@@ -839,7 +839,7 @@ func (s *mspan) countFree() int {
+ 		bits := mrkBits & mask
+ 		count += int(oneBitCount[bits])
+ 	}
+-	return int(s.nelems) - count
++	return count
+ }
+ 
+ // heapBitsSetType records that the new allocation [x, x+size)
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index fb5c488ffc..63c7fb782f 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -186,7 +186,6 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	cl := s.sizeclass
+ 	size := s.elemsize
+ 	res := false
+-	nfree := 0
+ 
+ 	c := _g_.m.mcache
+ 	freeToHeap := false
+@@ -276,15 +275,14 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	}
+ 
+ 	// Count the number of free objects in this span.
+-	nfree = s.countFree()
+-	if cl == 0 && nfree != 0 {
++	nalloc := uint16(s.countAlloc())
++	if cl == 0 && nalloc == 0 {
+ 		s.needzero = 1
+ 		freeToHeap = true
+ 	}
+-	nalloc := uint16(s.nelems) - uint16(nfree)
+ 	nfreed := s.allocCount - nalloc
+ 	if nalloc > s.allocCount {
+-		print("runtime: nelems=", s.nelems, " nfree=", nfree, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
++		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
+ 		throw("sweep increased allocation count")
+ 	}
+ 

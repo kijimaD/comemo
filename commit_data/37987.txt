@@ -7,7 +7,45 @@ Date:   Tue Sep 18 21:15:19 2018 -0700
     Change-Id: I863eb8ef491e1d51b83d8dd3061bf11cbdc74a3e
     Reviewed-on: https://go-review.googlesource.com/136196
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go   | 4 ++--
  src/cmd/compile/internal/gc/mpint.go | 9 +++------
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index be8a7ef6f5..0fecb5d595 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -514,10 +514,10 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
+ 	case *Mpint:
+ 		if !u.Rune {
+ 			if flag&FmtSharp != 0 {
+-				fmt.Fprint(s, bconv(u, FmtSharp))
++				fmt.Fprint(s, bconv(u))
+ 				return
+ 			}
+-			fmt.Fprint(s, bconv(u, 0))
++			fmt.Fprint(s, u.String())
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index de47205435..4f49e1505d 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -300,12 +300,9 @@ func (a *Mpint) SetString(as string) {
+ }
+ 
+ func (a *Mpint) String() string {
+-	return bconv(a, 0)
++	return a.Val.String()
+ }
+ 
+-func bconv(xval *Mpint, flag FmtFlag) string {
+-	if flag&FmtSharp != 0 {
+-		return fmt.Sprintf("%#x", &xval.Val)
+-	}
+-	return xval.Val.String()
++func bconv(a *Mpint) string {
++	return fmt.Sprintf("%#x", &a.Val)
+ }

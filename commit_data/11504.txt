@@ -7,6 +7,20 @@ Date:   Tue Jan 31 10:32:24 2012 -0500
     R=golang-dev, lvd
     CC=golang-dev
     https://golang.org/cl/5601058
-
+---
  src/cmd/ld/dwarf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index d0ecabf8ac..dfd8797ae3 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1601,7 +1601,7 @@ finddebugruntimepath(void)
+ 	char *c;
+ 
+ 	for (i = 1; i < histfilesize; i++) {
+-		if ((c = strstr(histfile[i], "runtime/runtime_defs.go")) != nil) {
++		if ((c = strstr(histfile[i], "runtime/zruntime_defs")) != nil) {
+ 			l = c - histfile[i];
+ 			memmove(gdbscript, histfile[i], l);
+ 			memmove(gdbscript + l, "runtime/runtime-gdb.py", strlen("runtime/runtime-gdb.py") + 1);

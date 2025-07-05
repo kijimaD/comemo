@@ -24,7 +24,7 @@ Date:   Thu Dec 26 16:06:49 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212620
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 32 +---------------------
  src/cmd/go/testdata/script/README                  |  2 +-
  .../script/list_wildcard_skip_nonmatching.txt      | 13 +++++++++
@@ -36,3 +36,193 @@ Date:   Thu Dec 26 16:06:49 2019 -0500
  src/cmd/go/testdata/src/bench/x_test.go            |  6 ----
  src/cmd/go/testdata/src/benchfatal/x_test.go       |  7 -----
  10 files changed, 49 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5494fd1adc..6a47c09bde 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -638,7 +638,7 @@ func (tg *testgoData) grepStderrNot(match, msg string) {
+ }
+ 
+ // grepBothNot looks for a regular expression in the test run's
+-// standard output or stand error and fails, logging msg, if it is
++// standard output or standard error and fails, logging msg, if it is
+ // found.
+ func (tg *testgoData) grepBothNot(match, msg string) {
+ 	tg.t.Helper()
+@@ -1196,15 +1196,6 @@ func TestAccidentalGitCheckout(t *testing.T) {
+ 	}
+ }
+ 
+-func TestWildcardsDoNotLookInUselessDirectories(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("list", "...")
+-	tg.grepBoth("badpkg", "go list ... failure does not mention badpkg")
+-	tg.run("list", "m...")
+-}
+-
+ func TestRelativeImportsGoTest(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3525,15 +3516,6 @@ func TestIssue17119(t *testing.T) {
+ 	tg.grepBothNot("duplicate load|internal error", "internal error")
+ }
+ 
+-func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.runFail("test", "-run", "^$", "-bench", ".", "./testdata/src/benchfatal")
+-	tg.grepBothNot("^ok", "test passed unexpectedly")
+-	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
+-}
+-
+ func TestBinaryOnlyPackages(t *testing.T) {
+ 	tooSlow(t)
+ 
+@@ -3726,18 +3708,6 @@ func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
+ 	tg.grepBoth(okPattern, "go test did not say ok")
+ }
+ 
+-func TestBenchmarkLabels(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "-run", "^$", "-bench", ".", "bench")
+-	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
+-	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
+-	tg.grepStdout(`(?m)^pkg: bench`, "go test did not say pkg: bench")
+-	tg.grepBothNot(`(?s)pkg:.*pkg:`, "go test said pkg multiple times")
+-}
+-
+ func TestBenchmarkLabelsOutsideGOPATH(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 2782a09707..7dba6b394c 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -40,7 +40,7 @@ Scripts also have access to these other environment variables:
+ 	goversion=<current Go version; for example, 1.12>
+ 	:=<OS-specific path list separator>
+ 
+-The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
++The scripts' supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+ and then the script begins execution in that directory as well. Thus the example above runs
+ in $WORK/gopath/src with GOPATH=$WORK/gopath and $WORK/gopath/src/hello.go
+ containing the listed contents.
+diff --git a/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt b/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
+new file mode 100644
+index 0000000000..02159d09fd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt
+@@ -0,0 +1,13 @@
++# Test that wildcards don't look in useless directories.
++
++# First make sure that badpkg fails the list of '...'.
++! go list ...
++stderr badpkg 
++
++# Check that the list of 'm...' succeeds. That implies badpkg was skipped.
++go list m...
++
++-- m/x.go --
++package m
++-- badpkg/x.go --
++pkg badpkg
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_benchmark_fatal.txt b/src/cmd/go/testdata/script/test_benchmark_fatal.txt
+new file mode 100644
+index 0000000000..1e20c4eb61
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_benchmark_fatal.txt
+@@ -0,0 +1,15 @@
++# Test that calling t.Fatal in a benchmark causes a non-zero exit status.
++
++! go test -run '^$' -bench . benchfatal
++! stdout ^ok
++! stderr ^ok
++stdout FAIL.*benchfatal
++
++-- benchfatal/x_test.go --
++package benchfatal
++
++import "testing"
++
++func BenchmarkThatCallsFatal(b *testing.B) {
++	b.Fatal("called by benchmark")
++}
+diff --git a/src/cmd/go/testdata/script/test_benchmark_labels.txt b/src/cmd/go/testdata/script/test_benchmark_labels.txt
+new file mode 100644
+index 0000000000..affab6b806
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_benchmark_labels.txt
+@@ -0,0 +1,19 @@
++# Tests that go test -bench prints out goos, goarch, and pkg.
++
++# Check for goos, goarch, and pkg.
++go test -run ^$ -bench . bench
++stdout '^goos: '$GOOS
++stdout '^goarch: '$GOARCH
++stdout '^pkg: bench'
++
++# Check go test does not print pkg multiple times
++! stdout 'pkg:.*pkg: '
++! stderr 'pkg:.*pkg:'
++
++-- bench/x_test.go --
++package bench
++
++import "testing"
++
++func Benchmark(b *testing.B) {
++}
+diff --git a/src/cmd/go/testdata/src/badc/x.c b/src/cmd/go/testdata/src/badc/x.c
+deleted file mode 100644
+index f6cbf6924d..0000000000
+--- a/src/cmd/go/testdata/src/badc/x.c
++++ /dev/null
+@@ -1 +0,0 @@
+-// C code!
+diff --git a/src/cmd/go/testdata/src/badc/x.go b/src/cmd/go/testdata/src/badc/x.go
+deleted file mode 100644
+index bfa1de28bd..0000000000
+--- a/src/cmd/go/testdata/src/badc/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package badc
+diff --git a/src/cmd/go/testdata/src/badpkg/x.go b/src/cmd/go/testdata/src/badpkg/x.go
+deleted file mode 100644
+index dda35e8ed3..0000000000
+--- a/src/cmd/go/testdata/src/badpkg/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg badpkg
+diff --git a/src/cmd/go/testdata/src/bench/x_test.go b/src/cmd/go/testdata/src/bench/x_test.go
+deleted file mode 100644
+index 32cabf8a7b..0000000000
+--- a/src/cmd/go/testdata/src/bench/x_test.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package bench
+-
+-import "testing"
+-
+-func Benchmark(b *testing.B) {
+-}
+diff --git a/src/cmd/go/testdata/src/benchfatal/x_test.go b/src/cmd/go/testdata/src/benchfatal/x_test.go
+deleted file mode 100644
+index 8d3a5deced..0000000000
+--- a/src/cmd/go/testdata/src/benchfatal/x_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package benchfatal
+-
+-import "testing"
+-
+-func BenchmarkThatCallsFatal(b *testing.B) {
+-	b.Fatal("called by benchmark")
+-}

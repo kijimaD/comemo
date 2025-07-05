@@ -17,8 +17,236 @@ Date:   Mon Jun 27 14:58:58 2022 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go        | 93 +++++++++++++++++++++++++++-------
  src/cmd/link/internal/loader/loader.go |  8 +++
  src/cmd/link/link_test.go              | 45 ++++++++++++++++
  3 files changed, 129 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 22c764ada5..d364e090e8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1605,7 +1605,13 @@ func (ctxt *Link) hostlink() {
+ 
+ 	// Force global symbols to be exported for dlopen, etc.
+ 	if ctxt.IsELF {
+-		argv = append(argv, "-rdynamic")
++		if ctxt.DynlinkingGo() || ctxt.BuildMode == BuildModeCShared || !linkerFlagSupported(ctxt.Arch, argv[0], altLinker, "-Wl,--export-dynamic-symbol=main") {
++			argv = append(argv, "-rdynamic")
++		} else {
++			ctxt.loader.ForAllCgoExportDynamic(func(s loader.Sym) {
++				argv = append(argv, "-Wl,--export-dynamic-symbol="+ctxt.loader.SymExtname(s))
++			})
++		}
+ 	}
+ 	if ctxt.HeadType == objabi.Haix {
+ 		fileName := xcoffCreateExportFile(ctxt)
+@@ -1748,7 +1754,7 @@ func (ctxt *Link) hostlink() {
+ 		// case used has specified "-fuse-ld=...".
+ 		extld := ctxt.extld()
+ 		name, args := extld[0], extld[1:]
+-		args = append(args, flagExtldflags...)
++		args = append(args, trimLinkerArgv(flagExtldflags)...)
+ 		args = append(args, "-Wl,--version")
+ 		cmd := exec.Command(name, args...)
+ 		usingLLD := false
+@@ -1775,6 +1781,8 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, peimporteddlls()...)
+ 	}
+ 
++	argv = ctxt.passLongArgsInResponseFile(argv, altLinker)
++
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("host link:")
+ 		for _, v := range argv {
+@@ -1885,6 +1893,47 @@ func (ctxt *Link) hostlink() {
+ 	}
+ }
+ 
++// passLongArgsInResponseFile writes the arguments into a file if they
++// are very long.
++func (ctxt *Link) passLongArgsInResponseFile(argv []string, altLinker string) []string {
++	c := 0
++	for _, arg := range argv {
++		c += len(arg)
++	}
++
++	if c < sys.ExecArgLengthLimit {
++		return argv
++	}
++
++	// Only use response files if they are supported.
++	response := filepath.Join(*flagTmpdir, "response")
++	if err := os.WriteFile(response, nil, 0644); err != nil {
++		log.Fatalf("failed while testing response file: %v", err)
++	}
++	if !linkerFlagSupported(ctxt.Arch, argv[0], altLinker, "@"+response) {
++		if ctxt.Debugvlog != 0 {
++			ctxt.Logf("not using response file because linker does not support one")
++		}
++		return argv
++	}
++
++	var buf bytes.Buffer
++	for _, arg := range argv[1:] {
++		// The external linker response file supports quoted strings.
++		fmt.Fprintf(&buf, "%q\n", arg)
++	}
++	if err := os.WriteFile(response, buf.Bytes(), 0644); err != nil {
++		log.Fatalf("failed while writing response file: %v", err)
++	}
++	if ctxt.Debugvlog != 0 {
++		ctxt.Logf("response file %s contents:\n%s", response, buf.Bytes())
++	}
++	return []string{
++		argv[0],
++		"@" + response,
++	}
++}
++
+ var createTrivialCOnce sync.Once
+ 
+ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+@@ -1895,6 +1944,28 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 		}
+ 	})
+ 
++	flags := hostlinkArchArgs(arch)
++
++	moreFlags := trimLinkerArgv(append(flagExtldflags, ldflag...))
++	flags = append(flags, moreFlags...)
++
++	if altLinker != "" {
++		flags = append(flags, "-fuse-ld="+altLinker)
++	}
++	flags = append(flags, flag, "trivial.c")
++
++	cmd := exec.Command(linker, flags...)
++	cmd.Dir = *flagTmpdir
++	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
++	out, err := cmd.CombinedOutput()
++	// GCC says "unrecognized command line option ‘-no-pie’"
++	// clang says "unknown argument: '-no-pie'"
++	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
++}
++
++// trimLinkerArgv returns a new copy of argv that does not include flags
++// that are not relevant for testing whether some linker option works.
++func trimLinkerArgv(argv []string) []string {
+ 	flagsWithNextArgSkip := []string{
+ 		"-F",
+ 		"-l",
+@@ -1921,10 +1992,10 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 		"-target",
+ 	}
+ 
+-	flags := hostlinkArchArgs(arch)
++	var flags []string
+ 	keep := false
+ 	skip := false
+-	for _, f := range append(flagExtldflags, ldflag...) {
++	for _, f := range argv {
+ 		if keep {
+ 			flags = append(flags, f)
+ 			keep = false
+@@ -1945,19 +2016,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 			}
+ 		}
+ 	}
+-
+-	if altLinker != "" {
+-		flags = append(flags, "-fuse-ld="+altLinker)
+-	}
+-	flags = append(flags, flag, "trivial.c")
+-
+-	cmd := exec.Command(linker, flags...)
+-	cmd.Dir = *flagTmpdir
+-	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+-	out, err := cmd.CombinedOutput()
+-	// GCC says "unrecognized command line option ‘-no-pie’"
+-	// clang says "unknown argument: '-no-pie'"
+-	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
++	return flags
+ }
+ 
+ // hostlinkArchArgs returns arguments to pass to the external linker
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 8e1575a5a2..808b218062 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1041,6 +1041,14 @@ func (l *Loader) SetAttrCgoExportDynamic(i Sym, v bool) {
+ 	}
+ }
+ 
++// ForAllAttrCgoExportDynamic calls f for every symbol that has been
++// marked with the "cgo_export_dynamic" compiler directive.
++func (l *Loader) ForAllCgoExportDynamic(f func(Sym)) {
++	for s := range l.attrCgoExportDynamic {
++		f(s)
++	}
++}
++
+ // AttrCgoExportStatic returns true for a symbol that has been
+ // specially marked via the "cgo_export_static" directive
+ // written by cgo.
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index a770c91936..7d0033f1d1 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -17,6 +17,8 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"testing"
++
++	"cmd/internal/sys"
+ )
+ 
+ var AuthorPaidByTheColumnInch struct {
+@@ -1150,3 +1152,46 @@ func TestUnlinkableObj(t *testing.T) {
+ 		t.Errorf("link failed: %v. output:\n%s", err, out)
+ 	}
+ }
++
++// TestResponseFile tests that creating a response file to pass to the
++// external linker works correctly.
++func TestResponseFile(t *testing.T) {
++	t.Parallel()
++
++	testenv.MustHaveGoBuild(t)
++
++	// This test requires -linkmode=external. Currently all
++	// systems that support cgo support -linkmode=external.
++	testenv.MustHaveCGO(t)
++
++	tmpdir := t.TempDir()
++
++	src := filepath.Join(tmpdir, "x.go")
++	if err := os.WriteFile(src, []byte(`package main; import "C"; func main() {}`), 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "output", "x.go")
++	cmd.Dir = tmpdir
++
++	// Add enough arguments to push cmd/link into creating a response file.
++	var sb strings.Builder
++	sb.WriteString(`'-ldflags=all="-extldflags=`)
++	for i := 0; i < sys.ExecArgLengthLimit/len("-g"); i++ {
++		if i > 0 {
++			sb.WriteString(" ")
++		}
++		sb.WriteString("-g")
++	}
++	sb.WriteString(`"'`)
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GOFLAGS="+sb.String())
++
++	out, err := cmd.CombinedOutput()
++	if len(out) > 0 {
++		t.Logf("%s", out)
++	}
++	if err != nil {
++		t.Error(err)
++	}
++}

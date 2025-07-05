@@ -7,6 +7,20 @@ Date:   Wed Nov 5 15:55:51 2008 -0800
     R=r
     OCL=18602
     CL=18602
-
+---
  usr/gri/pretty/test.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 141193cf2a..7e4de44a4f 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -22,7 +22,7 @@ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+ 	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+-	bug068.go | bug088.go | bug083.go | bug106.go ) ;;  # skip - files contain syntax errors
++	bug068.go | bug088.go | bug083.go | bug106.go | bug118.go ) ;;  # skip - files contain syntax errors
+ 	* ) $1 $2; count ;;
+ 	esac
+ }

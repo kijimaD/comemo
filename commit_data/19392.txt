@@ -10,7 +10,65 @@ Date:   Mon May 19 09:36:47 2014 -0400
     R=khr, bradfitz, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/91450048
-
+---
  src/pkg/reflect/all_test.go | 22 ++++++++++++++++++++++
  src/pkg/runtime/hashmap.goc | 12 ++++++++----
  2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 1e6341bd0b..9c5eb4e554 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -973,6 +973,28 @@ func TestMap(t *testing.T) {
+ 	}
+ }
+ 
++func TestNilMap(t *testing.T) {
++	var m map[string]int
++	mv := ValueOf(m)
++	keys := mv.MapKeys()
++	if len(keys) != 0 {
++		t.Errorf(">0 keys for nil map: %v", keys)
++	}
++
++	// Check that value for missing key is zero.
++	x := mv.MapIndex(ValueOf("hello"))
++	if x.Kind() != Invalid {
++		t.Errorf("m.MapIndex(\"hello\") for nil map = %v, want Invalid Value", x)
++	}
++
++	// Check big value too.
++	var mbig map[string][10 << 20]byte
++	x = ValueOf(mbig).MapIndex(ValueOf("hello"))
++	if x.Kind() != Invalid {
++		t.Errorf("mbig.MapIndex(\"hello\") for nil map = %v, want Invalid Value", x)
++	}
++}
++
+ func TestChan(t *testing.T) {
+ 	for loop := 0; loop < 2; loop++ {
+ 		var c chan int
+diff --git a/src/pkg/runtime/hashmap.goc b/src/pkg/runtime/hashmap.goc
+index 4f5e78897b..36707c6ede 100644
+--- a/src/pkg/runtime/hashmap.goc
++++ b/src/pkg/runtime/hashmap.goc
+@@ -908,11 +908,15 @@ func mapaccess2(t *MapType, h *Hmap, key *byte) (val *byte, pres bool) {
+ 
+ #pragma textflag NOSPLIT
+ func reflect·mapaccess(t *MapType, h *Hmap, key *byte) (val *byte) {
+-	if(raceenabled && h != nil) {
+-		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+-		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
++	if(h == nil)
++		val = nil;
++	else {
++		if(raceenabled) {
++			runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
++			runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
++		}
++		val = hash_lookup(t, h, &key);
+ 	}
+-	val = hash_lookup(t, h, &key);
+ }
+ 
+ #pragma textflag NOSPLIT

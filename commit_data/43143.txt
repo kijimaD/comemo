@@ -11,7 +11,40 @@ Date:   Thu Mar 12 09:16:11 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/exec.go           | 3 +++
  src/cmd/go/testdata/script/mod_edit_go.txt | 7 +++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 70f3c7b27e..c71149baa3 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -213,6 +213,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	} else if cfg.BuildTrimpath && p.Module != nil {
+ 		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+ 	}
++	if p.Module != nil {
++		fmt.Fprintf(h, "go %s", p.Module.GoVersion)
++	}
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+ 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+diff --git a/src/cmd/go/testdata/script/mod_edit_go.txt b/src/cmd/go/testdata/script/mod_edit_go.txt
+index 3ec8137e2d..38321d071f 100644
+--- a/src/cmd/go/testdata/script/mod_edit_go.txt
++++ b/src/cmd/go/testdata/script/mod_edit_go.txt
+@@ -7,6 +7,13 @@ go mod edit -go=1.9
+ grep 'go 1.9' go.mod
+ go build
+ 
++# Reverting the version should force a rebuild and error instead of using
++# the cached 1.9 build. (https://golang.org/issue/37804)
++go mod edit -go=1.8
++! go build
++stderr 'type aliases only supported as of'
++
++
+ -- go.mod --
+ module m
+ go 1.8

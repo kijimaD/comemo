@@ -26,10 +26,346 @@ Date:   Wed Mar 30 22:10:49 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgcmark.go     |   2 +-
  src/runtime/mgcpacer.go    |   2 +-
  src/runtime/mgcscavenge.go | 107 ++++++++++++++++++++++++++++++++++++---------
  src/runtime/mheap.go       |  82 ++++++++++++++++++++++------------
  src/runtime/mpagealloc.go  |   7 +++
  5 files changed, 151 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 63c90010ec..8e5b940941 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -596,7 +596,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	if _p_.gcAssistTime > gcAssistTimeSlack {
+ 		assistTime := gcController.assistTime.Add(_p_.gcAssistTime)
+ 		_p_.gcAssistTime = 0
+-		gcCPULimiter.update(assistTime, now)
++		gcCPULimiter.update(assistTime+mheap_.pages.scav.assistTime.Load(), now)
+ 	}
+ }
+ 
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index d04b5b9352..24a5695b6d 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1553,5 +1553,5 @@ func gcControllerCommit() {
+ 
+ 	trigger, heapGoal := gcController.trigger()
+ 	gcPaceSweeper(trigger)
+-	gcPaceScavenger(heapGoal, gcController.lastHeapGoal)
++	gcPaceScavenger(gcController.memoryLimit.Load(), heapGoal, gcController.lastHeapGoal)
+ }
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 4f44e0fa61..9423db271b 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -17,7 +17,10 @@
+ // scavenger's primary goal is to bring the estimated heap RSS of the
+ // application down to a goal.
+ //
+-// That goal is defined as:
++// Before we consider what this looks like, we need to split the world into two
++// halves. One in which a memory limit is not set, and one in which it is.
++//
++// For the former, the goal is defined as:
+ //   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * lastHeapInUse
+ //
+ // Essentially, we wish to have the application's RSS track the heap goal, but
+@@ -41,11 +44,22 @@
+ // that there's more unscavenged memory to allocate out of, since each allocation
+ // out of scavenged memory incurs a potentially expensive page fault.
+ //
+-// The goal is updated after each GC and the scavenger's pacing parameters
+-// (which live in mheap_) are updated to match. The pacing parameters work much
+-// like the background sweeping parameters. The parameters define a line whose
+-// horizontal axis is time and vertical axis is estimated heap RSS, and the
+-// scavenger attempts to stay below that line at all times.
++// If a memory limit is set, then we wish to pick a scavenge goal that maintains
++// that memory limit. For that, we look at total memory that has been committed
++// (memstats.mappedReady) and try to bring that down below the limit. In this case,
++// we want to give buffer space in the *opposite* direction. When the application
++// is close to the limit, we want to make sure we push harder to keep it under, so
++// if we target below the memory limit, we ensure that the background scavenger is
++// giving the situation the urgency it deserves.
++//
++// In this case, the goal is defined as:
++//    (100-reduceExtraPercent) / 100 * memoryLimit
++//
++// We compute both of these goals, and check whether either of them have been met.
++// The background scavenger continues operating as long as either one of the goals
++// has not been met.
++//
++// The goals are updated after each GC.
+ //
+ // The synchronous heap-growth scavenging happens whenever the heap grows in
+ // size, for some definition of heap-growth. The intuition behind this is that
+@@ -71,6 +85,7 @@ const (
+ 
+ 	// retainExtraPercent represents the amount of memory over the heap goal
+ 	// that the scavenger should keep as a buffer space for the allocator.
++	// This constant is used when we do not have a memory limit set.
+ 	//
+ 	// The purpose of maintaining this overhead is to have a greater pool of
+ 	// unscavenged memory available for allocation (since using scavenged memory
+@@ -78,6 +93,17 @@ const (
+ 	// the ever-changing layout of the heap.
+ 	retainExtraPercent = 10
+ 
++	// reduceExtraPercent represents the amount of memory under the limit
++	// that the scavenger should target. For example, 5 means we target 95%
++	// of the limit.
++	//
++	// The purpose of shooting lower than the limit is to ensure that, once
++	// close to the limit, the scavenger is working hard to maintain it. If
++	// we have a memory limit set but are far away from it, there's no harm
++	// in leaving up to 100-retainExtraPercent live, and it's more efficient
++	// anyway, for the same reasons that retainExtraPercent exists.
++	reduceExtraPercent = 5
++
+ 	// maxPagesPerPhysPage is the maximum number of supported runtime pages per
+ 	// physical page, based on maxPhysPageSize.
+ 	maxPagesPerPhysPage = maxPhysPageSize / pageSize
+@@ -117,28 +143,51 @@ func heapRetained() uint64 {
+ // Must be called whenever GC pacing is updated.
+ //
+ // mheap_.lock must be held or the world must be stopped.
+-func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
++func gcPaceScavenger(memoryLimit int64, heapGoal, lastHeapGoal uint64) {
+ 	assertWorldStoppedOrLockHeld(&mheap_.lock)
+ 
++	// As described at the top of this file, there are two scavenge goals here: one
++	// for gcPercent and one for memoryLimit. Let's handle the latter first because
++	// it's simpler.
++
++	// We want to target retaining (100-reduceExtraPercent)% of the heap.
++	memoryLimitGoal := uint64(float64(memoryLimit) * (100.0 - reduceExtraPercent))
++
++	// mappedReady is comparable to memoryLimit, and represents how much total memory
++	// the Go runtime has committed now (estimated).
++	mappedReady := gcController.mappedReady.Load()
++
++	// If we're below the goal already indicate that we don't need the background
++	// scavenger for the memory limit. This may seems worrisome at first, but note
++	// that the allocator will assist the background scavenger in the face of a memory
++	// limit, so we'll be safe even if we stop the scavenger when we shouldn't have.
++	if mappedReady <= memoryLimitGoal {
++		scavenge.memoryLimitGoal.Store(^uint64(0))
++	} else {
++		scavenge.memoryLimitGoal.Store(memoryLimitGoal)
++	}
++
++	// Now handle the gcPercent goal.
++
+ 	// If we're called before the first GC completed, disable scavenging.
+ 	// We never scavenge before the 2nd GC cycle anyway (we don't have enough
+ 	// information about the heap yet) so this is fine, and avoids a fault
+ 	// or garbage data later.
+ 	if lastHeapGoal == 0 {
+-		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
++		scavenge.gcPercentGoal.Store(^uint64(0))
+ 		return
+ 	}
+ 	// Compute our scavenging goal.
+ 	goalRatio := float64(heapGoal) / float64(lastHeapGoal)
+-	retainedGoal := uint64(float64(memstats.lastHeapInUse) * goalRatio)
++	gcPercentGoal := uint64(float64(memstats.lastHeapInUse) * goalRatio)
+ 	// Add retainExtraPercent overhead to retainedGoal. This calculation
+ 	// looks strange but the purpose is to arrive at an integer division
+ 	// (e.g. if retainExtraPercent = 12.5, then we get a divisor of 8)
+ 	// that also avoids the overflow from a multiplication.
+-	retainedGoal += retainedGoal / (1.0 / (retainExtraPercent / 100.0))
++	gcPercentGoal += gcPercentGoal / (1.0 / (retainExtraPercent / 100.0))
+ 	// Align it to a physical page boundary to make the following calculations
+ 	// a bit more exact.
+-	retainedGoal = (retainedGoal + uint64(physPageSize) - 1) &^ (uint64(physPageSize) - 1)
++	gcPercentGoal = (gcPercentGoal + uint64(physPageSize) - 1) &^ (uint64(physPageSize) - 1)
+ 
+ 	// Represents where we are now in the heap's contribution to RSS in bytes.
+ 	//
+@@ -151,16 +200,32 @@ func gcPaceScavenger(heapGoal, lastHeapGoal uint64) {
+ 	// where physPageSize > pageSize the calculations below will not be exact.
+ 	// Generally this is OK since we'll be off by at most one regular
+ 	// physical page.
+-	retainedNow := heapRetained()
++	heapRetainedNow := heapRetained()
+ 
+-	// If we're already below our goal, or within one page of our goal, then disable
+-	// the background scavenger. We disable the background scavenger if there's
+-	// less than one physical page of work to do because it's not worth it.
+-	if retainedNow <= retainedGoal || retainedNow-retainedGoal < uint64(physPageSize) {
+-		atomic.Store64(&mheap_.scavengeGoal, ^uint64(0))
+-		return
++	// If we're already below our goal, or within one page of our goal, then indicate
++	// that we don't need the background scavenger for maintaining a memory overhead
++	// proportional to the heap goal.
++	if heapRetainedNow <= gcPercentGoal || heapRetainedNow-gcPercentGoal < uint64(physPageSize) {
++		scavenge.gcPercentGoal.Store(^uint64(0))
++	} else {
++		scavenge.gcPercentGoal.Store(gcPercentGoal)
+ 	}
+-	atomic.Store64(&mheap_.scavengeGoal, retainedGoal)
++}
++
++var scavenge struct {
++	// gcPercentGoal is the amount of retained heap memory (measured by
++	// heapRetained) that the runtime will try to maintain by returning
++	// memory to the OS. This goal is derived from gcController.gcPercent
++	// by choosing to retain enough memory to allocate heap memory up to
++	// the heap goal.
++	gcPercentGoal atomic.Uint64
++
++	// memoryLimitGoal is the amount of memory retained by the runtime (
++	// measured by gcController.mappedReady) that the runtime will try to
++	// maintain by returning memory to the OS. This goal is derived from
++	// gcController.memoryLimit by choosing to target the memory limit or
++	// some lower target to keep the scavenger working.
++	memoryLimitGoal atomic.Uint64
+ }
+ 
+ const (
+@@ -307,7 +372,9 @@ func (s *scavengerState) init() {
+ 	if s.shouldStop == nil {
+ 		s.shouldStop = func() bool {
+ 			// If background scavenging is disabled or if there's no work to do just stop.
+-			return heapRetained() <= atomic.Load64(&mheap_.scavengeGoal)
++			return heapRetained() <= scavenge.gcPercentGoal.Load() &&
++				(!go119MemoryLimitSupport ||
++					gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load())
+ 		}
+ 	}
+ 	if s.gomaxprocs == nil {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a54d268b35..ac4f99b57d 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -80,7 +80,7 @@ type mheap struct {
+ 	// access (since that may free the backing store).
+ 	allspans []*mspan // all spans out there
+ 
+-	_ uint32 // align uint64 fields on 32-bit for atomics
++	// _ uint32 // align uint64 fields on 32-bit for atomics
+ 
+ 	// Proportional sweep
+ 	//
+@@ -108,13 +108,6 @@ type mheap struct {
+ 	// TODO(austin): pagesInUse should be a uintptr, but the 386
+ 	// compiler can't 8-byte align fields.
+ 
+-	// scavengeGoal is the amount of total retained heap memory (measured by
+-	// heapRetained) that the runtime will try to maintain by returning memory
+-	// to the OS.
+-	//
+-	// Accessed atomically.
+-	scavengeGoal uint64
+-
+ 	// Page reclaimer state
+ 
+ 	// reclaimIndex is the page index in allArenas of next page to
+@@ -1204,25 +1197,6 @@ func (h *mheap) allocSpan(npages uintptr, typ spanAllocType, spanclass spanClass
+ 
+ 	unlock(&h.lock)
+ 
+-	if growth > 0 {
+-		// We just caused a heap growth, so scavenge down what will soon be used.
+-		// By scavenging inline we deal with the failure to allocate out of
+-		// memory fragments by scavenging the memory fragments that are least
+-		// likely to be re-used.
+-		scavengeGoal := atomic.Load64(&h.scavengeGoal)
+-		if retained := heapRetained(); retained+uint64(growth) > scavengeGoal {
+-			// The scavenging algorithm requires the heap lock to be dropped so it
+-			// can acquire it only sparingly. This is a potentially expensive operation
+-			// so it frees up other goroutines to allocate in the meanwhile. In fact,
+-			// they can make use of the growth we just created.
+-			todo := growth
+-			if overage := uintptr(retained + uint64(growth) - scavengeGoal); todo > overage {
+-				todo = overage
+-			}
+-			h.pages.scavenge(todo)
+-		}
+-	}
+-
+ HaveSpan:
+ 	// At this point, both s != nil and base != 0, and the heap
+ 	// lock is no longer held. Initialize the span.
+@@ -1274,6 +1248,60 @@ HaveSpan:
+ 		s.state.set(mSpanInUse)
+ 	}
+ 
++	// Decide if we need to scavenge in response to what we just allocated.
++	// Specifically, we track the maximum amount of memory to scavenge of all
++	// the alternatives below, assuming that the maximum satisfies *all*
++	// conditions we check (e.g. if we need to scavenge X to satisfy the
++	// memory limit and Y to satisfy heap-growth scavenging, and Y > X, then
++	// it's fine to pick Y, because the memory limit is still satisfied).
++	//
++	// It's fine to do this after allocating because we expect any scavenged
++	// pages not to get touched until we return. Simultaneously, it's important
++	// to do this before calling sysUsed because that may commit address space.
++	bytesToScavenge := uintptr(0)
++	if limit := gcController.memoryLimit.Load(); go119MemoryLimitSupport && !gcCPULimiter.limiting() {
++		// Assist with scavenging to maintain the memory limit by the amount
++		// that we expect to page in.
++		inuse := gcController.mappedReady.Load()
++		// Be careful about overflow, especially with uintptrs. Even on 32-bit platforms
++		// someone can set a really big memory limit that isn't maxInt64.
++		if uint64(scav)+inuse > uint64(limit) {
++			bytesToScavenge = uintptr(uint64(scav) + inuse - uint64(limit))
++		}
++	}
++	if goal := scavenge.gcPercentGoal.Load(); goal != ^uint64(0) && growth > 0 {
++		// We just caused a heap growth, so scavenge down what will soon be used.
++		// By scavenging inline we deal with the failure to allocate out of
++		// memory fragments by scavenging the memory fragments that are least
++		// likely to be re-used.
++		//
++		// Only bother with this because we're not using a memory limit. We don't
++		// care about heap growths as long as we're under the memory limit, and the
++		// previous check for scaving already handles that.
++		if retained := heapRetained(); retained+uint64(growth) > goal {
++			// The scavenging algorithm requires the heap lock to be dropped so it
++			// can acquire it only sparingly. This is a potentially expensive operation
++			// so it frees up other goroutines to allocate in the meanwhile. In fact,
++			// they can make use of the growth we just created.
++			todo := growth
++			if overage := uintptr(retained + uint64(growth) - goal); todo > overage {
++				todo = overage
++			}
++			if todo > bytesToScavenge {
++				bytesToScavenge = todo
++			}
++		}
++	}
++	if bytesToScavenge > 0 {
++		// Measure how long we spent scavenging and add that measurement to the assist
++		// time so we can track it for the GC CPU limiter.
++		start := nanotime()
++		h.pages.scavenge(bytesToScavenge)
++		now := nanotime()
++		assistTime := h.pages.scav.assistTime.Add(now - start)
++		gcCPULimiter.update(gcController.assistTime.Load()+assistTime, now)
++	}
++
+ 	// Commit and account for any scavenged memory that the span now owns.
+ 	if scav != 0 {
+ 		// sysUsed all the pages that are actually available
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index c4ca2a5d61..3881974742 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -299,6 +299,13 @@ type pageAlloc struct {
+ 		//
+ 		// Protected by mheapLock.
+ 		freeHWM offAddr
++
++		_ uint32 // Align assistTime for atomics.
++
++		// scavengeAssistTime is the time spent scavenging in the last GC cycle.
++		//
++		// This is reset once a GC cycle ends.
++		assistTime atomic.Int64
+ 	}
+ 
+ 	// mheap_.lock. This level of indirection makes it possible

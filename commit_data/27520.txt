@@ -15,7 +15,7 @@ Date:   Wed Mar 30 16:59:53 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21341
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |  4 ++--
  src/cmd/compile/internal/gc/bimport.go   |  2 +-
  src/cmd/compile/internal/gc/dcl.go       |  3 +--
@@ -27,3 +27,236 @@ Date:   Wed Mar 30 16:59:53 2016 -0700
  src/cmd/compile/internal/gc/type.go      | 20 +++++++++++++++++++-
  src/cmd/compile/internal/gc/typecheck.go |  4 ++--
  10 files changed, 40 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 22de0a64bf..95762caec8 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -481,14 +481,14 @@ func (p *exporter) typ(t *Type) {
+ 			}
+ 			p.string(m.Sym.Name)
+ 			sig := m.Type
+-			inlineable := p.isInlineable(sig.Nname)
++			inlineable := p.isInlineable(sig.Nname())
+ 			p.paramList(sig.Recvs(), inlineable)
+ 			p.paramList(sig.Params(), inlineable)
+ 			p.paramList(sig.Results(), inlineable)
+ 			index := -1
+ 			if inlineable {
+ 				index = len(p.inlined)
+-				p.inlined = append(p.inlined, sig.Nname.Func)
++				p.inlined = append(p.inlined, sig.Nname().Func)
+ 			}
+ 			p.int(index)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 65eec96c69..52b9b44a69 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -261,7 +261,7 @@ func (p *importer) typ() *Type {
+ 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
+ 			// out by typecheck's lookdot as this $$.ttype. So by providing
+ 			// this back link here we avoid special casing there.
+-			n.Type.Nname = n
++			n.Type.SetNname(n)
+ 
+ 			// parser.go:hidden_import
+ 			n.Func.Inl.Set(nil)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6e45231c1a..a1a481f243 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -875,8 +875,7 @@ func interfacefield(n *Node) *Field {
+ 			// right now all we need is the name list.
+ 			// avoids cycles for recursive interface types.
+ 			n.Type = typ(TINTERMETH)
+-
+-			n.Type.Nname = n.Right
++			n.Type.SetNname(n.Right)
+ 			n.Left.Type = n.Type
+ 			queuemethod(n)
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index ce86fa097d..09f048b758 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -323,15 +323,15 @@ func dumpexporttype(t *Type) {
+ 		if f.Nointerface {
+ 			exportf("\t//go:nointerface\n")
+ 		}
+-		if f.Type.Nname != nil && len(f.Type.Nname.Func.Inl.Slice()) != 0 { // nname was set by caninl
++		if f.Type.Nname() != nil && len(f.Type.Nname().Func.Inl.Slice()) != 0 { // nname was set by caninl
+ 
+ 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+ 			if Debug['l'] < 2 {
+-				typecheckinl(f.Type.Nname)
++				typecheckinl(f.Type.Nname())
+ 			}
+-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp|FmtBody))
+-			reexportdeplist(f.Type.Nname.Func.Inl)
++			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname().Func.Inl, FmtSharp|FmtBody))
++			reexportdeplist(f.Type.Nname().Func.Inl)
+ 		} else {
+ 			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 292113a631..c21af77f04 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -144,7 +144,7 @@ func caninl(fn *Node) {
+ 
+ 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
+ 	// this is so export can find the body of a method
+-	fn.Type.Nname = fn.Func.Nname
++	fn.Type.SetNname(fn.Func.Nname)
+ 
+ 	if Debug['m'] > 1 {
+ 		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, FmtSharp), Tconv(fn.Type, FmtSharp), Hconv(fn.Func.Nname.Func.Inl, FmtSharp))
+@@ -192,11 +192,11 @@ func ishairy(n *Node, budget *int) bool {
+ 		if n.Left.Type == nil {
+ 			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
+ 		}
+-		if n.Left.Type.Nname == nil {
++		if n.Left.Type.Nname() == nil {
+ 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+ 		}
+-		if len(n.Left.Type.Nname.Func.Inl.Slice()) != 0 {
+-			*budget -= int(n.Left.Type.Nname.Func.InlCost)
++		if len(n.Left.Type.Nname().Func.Inl.Slice()) != 0 {
++			*budget -= int(n.Left.Type.Nname().Func.InlCost)
+ 			break
+ 		}
+ 		if Debug['l'] < 4 {
+@@ -471,11 +471,11 @@ func inlnode(n *Node) *Node {
+ 			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
+ 		}
+ 
+-		if n.Left.Type.Nname == nil {
++		if n.Left.Type.Nname() == nil {
+ 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+ 		}
+ 
+-		n = mkinlcall(n, n.Left.Type.Nname, n.Isddd)
++		n = mkinlcall(n, n.Left.Type.Nname(), n.Isddd)
+ 	}
+ 
+ 	lineno = lno
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index ba30061041..3627461099 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2018,7 +2018,7 @@ func (p *parser) hidden_fndcl() *Node {
+ 		// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
+ 		// out by typecheck's lookdot as this $$.ttype. So by providing
+ 		// this back link here we avoid special casing there.
+-		ss.Type.Nname = ss
++		ss.Type.SetNname(ss)
+ 		return ss
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 636ef9cf3f..da7bd56afe 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -255,9 +255,9 @@ func methodfunc(f *Type, receiver *Type) *Type {
+ 	}
+ 
+ 	t := functype(nil, in, out)
+-	if f.Nname != nil {
++	if f.Nname() != nil {
+ 		// Link to name of original method function.
+-		t.Nname = f.Nname
++		t.SetNname(f.Nname())
+ 	}
+ 
+ 	return t
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 2901e59d71..e3bc46ac06 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -45,7 +45,7 @@ func init1(n *Node, out *[]*Node) {
+ 	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
+ 		// Methods called as Type.Method(receiver, ...).
+ 		// Definitions for method expressions are stored in type->nname.
+-		init1(n.Type.Nname, out)
++		init1(n.Type.Nname(), out)
+ 	}
+ 
+ 	if n.Op != ONAME {
+@@ -216,7 +216,7 @@ func init2(n *Node, out *[]*Node) {
+ 		init2list(n.Func.Closure.Nbody, out)
+ 	}
+ 	if n.Op == ODOTMETH || n.Op == OCALLPART {
+-		init2(n.Type.Nname, out)
++		init2(n.Type.Nname(), out)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index a910b105ef..765b2059a3 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -128,7 +128,7 @@ type Type struct {
+ 	Vargen int32 // unique name for OTYPE/ONAME
+ 	Lineno int32
+ 
+-	Nname  *Node
++	nname  *Node
+ 	Argwid int64
+ 
+ 	// most nodes
+@@ -454,6 +454,12 @@ func (t *Type) wantEtype(et EType) {
+ 	}
+ }
+ 
++func (t *Type) wantEtype2(et1, et2 EType) {
++	if t.Etype != et1 && t.Etype != et2 {
++		Fatalf("want %v or %v, but have %v", et1, et2, t)
++	}
++}
++
+ func (t *Type) RecvsP() **Type {
+ 	t.wantEtype(TFUNC)
+ 	return &t.Type
+@@ -527,6 +533,18 @@ func (t *Type) Wrapped() *Type {
+ 	return t.Type
+ }
+ 
++// Nname returns the associated function's nname.
++func (t *Type) Nname() *Node {
++	t.wantEtype2(TFUNC, TINTERMETH)
++	return t.nname
++}
++
++// Nname sets the associated function's nname.
++func (t *Type) SetNname(n *Node) {
++	t.wantEtype2(TFUNC, TINTERMETH)
++	t.nname = n
++}
++
+ func (t *Type) Methods() *Fields {
+ 	// TODO(mdempsky): Validate t?
+ 	return &t.methods
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9102f5b39b..260f410275 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3418,7 +3418,7 @@ func typecheckfunc(n *Node) {
+ 		return
+ 	}
+ 	n.Type = t
+-	t.Nname = n.Func.Nname
++	t.SetNname(n.Func.Nname)
+ 	rcvr := t.Recv()
+ 	if rcvr != nil && n.Func.Shortname != nil {
+ 		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Nname.Nointerface)
+@@ -3465,7 +3465,7 @@ var ntypecheckdeftype int
+ var methodqueue []*Node
+ 
+ func domethod(n *Node) {
+-	nt := n.Type.Nname
++	nt := n.Type.Nname()
+ 	nt = typecheck(nt, Etype)
+ 	if nt.Type == nil {
+ 		// type check failed; leave empty func

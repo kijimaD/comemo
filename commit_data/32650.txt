@@ -9,6 +9,20 @@ Date:   Wed May 10 12:57:55 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/pipe_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 3b1c099319..7c4cbb17ae 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -87,7 +87,7 @@ func TestStdPipe(t *testing.T) {
+ 					t.Errorf("unexpected SIGPIPE signal for descriptor %d sig %t", dest, sig)
+ 				}
+ 			} else {
+-				t.Errorf("unexpected exit status %v for descriptor %ds sig %t", err, dest, sig)
++				t.Errorf("unexpected exit status %v for descriptor %d sig %t", err, dest, sig)
+ 			}
+ 		}
+ 	}

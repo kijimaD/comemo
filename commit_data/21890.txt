@@ -10,7 +10,113 @@ Date:   Tue Feb 10 11:49:54 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/4480
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 13 ++++++-------
  src/math/big/float_test.go | 33 +++++++++++++++++++++++++++++----
  2 files changed, 35 insertions(+), 11 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index d911143864..a5c0549948 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -567,15 +567,15 @@ func fnorm(m nat) uint {
+ }
+ 
+ // SetInt sets z to the (possibly rounded) value of x and returns z.
+-// If z's precision is 0, it is changed to x.BitLen() (and rounding will have
+-// no effect).
++// If z's precision is 0, it is changed to the larger of x.BitLen()
++// or 64 (and rounding will have no effect).
+ func (z *Float) SetInt(x *Int) *Float {
+ 	// TODO(gri) can be more efficient if z.prec > 0
+ 	// but small compared to the size of x, or if there
+ 	// are many trailing 0's.
+ 	bits := uint(x.BitLen())
+ 	if z.prec == 0 {
+-		z.prec = bits
++		z.prec = umax(bits, 64)
+ 	}
+ 	z.acc = Exact
+ 	z.neg = x.neg
+@@ -595,9 +595,8 @@ func (z *Float) SetInt(x *Int) *Float {
+ }
+ 
+ // SetRat sets z to the (possibly rounded) value of x and returns z.
+-// If z's precision is 0, it is changed to the larger of a.BitLen()
+-// and b.BitLen(), where a and b are the numerator and denominator
+-// of x, respectively (x = a/b).
++// If z's precision is 0, it is changed to the largest of a.BitLen(),
++// b.BitLen(), or 64; with x = a/b.
+ func (z *Float) SetRat(x *Rat) *Float {
+ 	// TODO(gri) can be more efficient if x is an integer
+ 	var a, b Float
+@@ -1110,6 +1109,7 @@ func (z *Float) Rsh(x *Float, s uint, mode RoundingMode) *Float {
+ //    0 if x == y (incl. -0 == 0)
+ //   +1 if x >  y
+ //
++// Infinities with matching sign are equal.
+ func (x *Float) Cmp(y *Float) int {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1118,7 +1118,6 @@ func (x *Float) Cmp(y *Float) int {
+ 
+ 	mx := x.mag()
+ 	my := y.mag()
+-
+ 	switch {
+ 	case mx < my:
+ 		return -1
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index e4c2e1ad99..c00aa9d97e 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -490,8 +490,20 @@ func TestFloatSetInt(t *testing.T) {
+ 			t.Errorf("invalid integer %s", want)
+ 			continue
+ 		}
++		n := x.BitLen()
++
+ 		var f Float
+ 		f.SetInt(&x)
++
++		// check precision
++		if n < 64 {
++			n = 64
++		}
++		if prec := f.Precision(); prec != uint(n) {
++			t.Errorf("got prec = %d; want %d", prec, n)
++		}
++
++		// check value
+ 		got := f.Format('g', 100)
+ 		if got != want {
+ 			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
+@@ -519,11 +531,24 @@ func TestFloatSetRat(t *testing.T) {
+ 			t.Errorf("invalid fraction %s", want)
+ 			continue
+ 		}
+-		f := NewFloat(0, 1000, 0) // set a high precision - TODO(gri) find a cleaner way
+-		f.SetRat(&x)
+-		got := f.Format('g', 100)
++		n := max(x.Num().BitLen(), x.Denom().BitLen())
++
++		var f1 Float
++		var f2 = NewFloat(0, 1000, 0) // set a high precision - TODO(gri) find a cleaner way
++		f1.SetRat(&x)
++		f2.SetRat(&x)
++
++		// check precision when set automatically
++		if n < 64 {
++			n = 64
++		}
++		if prec := f1.Precision(); prec != uint(n) {
++			t.Errorf("got prec = %d; want %d", prec, n)
++		}
++
++		got := f2.Format('g', 100)
+ 		if got != want {
+-			t.Errorf("got %s (%s); want %s", got, f.Format('p', 0), want)
++			t.Errorf("got %s (%s); want %s", got, f2.Format('p', 0), want)
+ 		}
+ 	}
+ }

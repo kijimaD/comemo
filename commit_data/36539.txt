@@ -15,6 +15,66 @@ Date:   Fri May 4 11:25:24 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index ab7306194f..469901e448 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -68,6 +68,10 @@ func TestLookupGoogleSRV(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skip("no resolv.conf on iOS")
++	}
++
+ 	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -115,6 +119,10 @@ func TestLookupGmailMX(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skip("no resolv.conf on iOS")
++	}
++
+ 	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -159,6 +167,10 @@ func TestLookupGmailNS(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skip("no resolv.conf on iOS")
++	}
++
+ 	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -203,6 +215,10 @@ func TestLookupGmailTXT(t *testing.T) {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+ 
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skip("no resolv.conf on iOS")
++	}
++
+ 	if !supportsIPv4() || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+@@ -601,6 +617,10 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skip("no resolv.conf on iOS")
++	}
++
+ 	defer dnsWaitGroup.Wait()
+ 
+ 	if fixup := forceGoDNS(); fixup != nil {

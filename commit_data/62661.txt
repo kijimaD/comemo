@@ -17,7 +17,7 @@ Date:   Mon Feb 10 10:50:59 2025 +0000
     Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  5 +++--
  src/cmd/internal/obj/s390x/a.out.go       |  1 +
  src/cmd/internal/obj/s390x/anames.go      |  1 +
@@ -34,3 +34,328 @@ Date:   Mon Feb 10 10:50:59 2025 +0000
  src/math/pow_s390x.s                      |  6 +++---
  src/math/tan_s390x.s                      |  4 ++--
  15 files changed, 34 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index db2ee199cf..95a8c50dab 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -401,6 +401,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	FMADDS	F1, F2, F3             // b30e3012
+ 	FMSUB	F4, F5, F5             // b31f5045
+ 	FMSUBS	F6, F6, F7             // b30f7066
++	LCDBR	F0, F2                 // b3130020
+ 	LPDFR	F1, F2                 // b3700021
+ 	LNDFR	F3, F4                 // b3710043
+ 	CPSDR	F5, F6, F7             // b3725076
+@@ -420,8 +421,8 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	KLMD	R2, R8                 // b93f0028
+ 	KIMD	R0, R4                 // b93e0004
+ 	KDSA	R0, R8                 // b93a0008
+-	KMA	R2, R6, R4              // b9296024
+-	KMCTR   R2, R6, R4              // b92d6024
++	KMA	R2, R6, R4             // b9296024
++	KMCTR   R2, R6, R4             // b92d6024
+ 
+ 	// vector add and sub instructions
+ 	VAB	V3, V4, V4              // e743400000f3
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 08ade51924..3eed4624b1 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -329,6 +329,7 @@ const (
+ 	AFNABS
+ 	AFNEG
+ 	AFNEGS
++	ALCDBR
+ 	ALEDBR
+ 	ALDEBR
+ 	ALPDFR
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index fa23984332..ae86d2092b 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -96,6 +96,7 @@ var Anames = []string{
+ 	"FNABS",
+ 	"FNEG",
+ 	"FNEGS",
++	"LCDBR",
+ 	"LEDBR",
+ 	"LDEBR",
+ 	"LPDFR",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 98dbc7c834..6511549eeb 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -969,6 +969,7 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ALNDFR, r)
+ 			opset(AFNEG, r)
+ 			opset(AFNEGS, r)
++			opset(ALCDBR, r)
+ 			opset(ALEDBR, r)
+ 			opset(ALDEBR, r)
+ 			opset(AFSQRT, r)
+@@ -3373,6 +3374,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			opcode = op_LCDFR
+ 		case AFNEGS:
+ 			opcode = op_LCEBR
++		case ALCDBR:
++			opcode = op_LCDBR
+ 		case ALEDBR:
+ 			opcode = op_LEDBR
+ 		case ALDEBR:
+diff --git a/src/math/acos_s390x.s b/src/math/acos_s390x.s
+index d2288b8cd8..4431b99e1c 100644
+--- a/src/math/acos_s390x.s
++++ b/src/math/acos_s390x.s
+@@ -121,7 +121,7 @@ L4:
+ L12:
+ 	FMOVD	24(R9), F0
+ 	FMADD	F10, F10, F0
+-	WORD	$0xB3130080	//lcdbr	%f8,%f0
++	LCDBR	F0, F8
+ 	WORD	$0xED009008	//cdb	%f0,.L37-.L13(%r9)
+ 	BYTE	$0x00
+ 	BYTE	$0x19
+@@ -129,7 +129,7 @@ L12:
+ L5:
+ 	MOVW	R12, R4
+ 	CMPBLE	R4, $0, L7
+-	WORD	$0xB31300AA	//lcdbr	%f10,%f10
++	LCDBR	F10, F10
+ 	FMOVD	$0, F1
+ 	BR	L3
+ L9:
+diff --git a/src/math/asin_s390x.s b/src/math/asin_s390x.s
+index dc54d053f1..e5887c9bea 100644
+--- a/src/math/asin_s390x.s
++++ b/src/math/asin_s390x.s
+@@ -139,7 +139,7 @@ L4:
+ L14:
+ 	FMOVD	200(R9), F0
+ 	FMADD	F8, F8, F0
+-	WORD	$0xB31300A0	//lcdbr	%f10,%f0
++	LCDBR	F0, F10
+ 	WORD	$0xED009020	//cdb	%f0,.L39-.L15(%r9)
+ 	BYTE	$0x00
+ 	BYTE	$0x19
+@@ -147,7 +147,7 @@ L14:
+ L6:
+ 	MOVW	R7, R6
+ 	CMPBLE	R6, $0, L8
+-	WORD	$0xB3130088	//lcdbr	%f8,%f8
++	LCDBR	F8, F8
+ 	FMOVD	24(R9), F1
+ 	BR	L4
+ L10:
+diff --git a/src/math/asinh_s390x.s b/src/math/asinh_s390x.s
+index 1bcf2954c4..94081d3b15 100644
+--- a/src/math/asinh_s390x.s
++++ b/src/math/asinh_s390x.s
+@@ -174,7 +174,7 @@ L6:
+ 	MOVD	R12, R6
+ 	CMPBGT	R6, $0, L1
+ 
+-	WORD	$0xB3130000	//lcdbr	%f0,%f0
++	LCDBR	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ L16:
+@@ -206,8 +206,8 @@ L16:
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ L17:
+-	WORD	$0xB31300A0	//lcdbr	%f10,%f0
++	LCDBR	F0, F10
+ 	BR	L4
+ L15:
+-	WORD	$0xB31300A0	//lcdbr	%f10,%f0
++	LCDBR	F0, F10
+ 	BR	L9
+diff --git a/src/math/atan2_s390x.s b/src/math/atan2_s390x.s
+index 587b89e9b5..13ff31977b 100644
+--- a/src/math/atan2_s390x.s
++++ b/src/math/atan2_s390x.s
+@@ -244,16 +244,16 @@ L17:
+ 	WFDDB	V0, V2, V4
+ 	BYTE	$0x18	//lr	%r2,%r5
+ 	BYTE	$0x25
+-	WORD	$0xB3130034	//lcdbr	%f3,%f4
++	LCDBR	F4, F3
+ 	BR	L3
+ L23:
+-	WORD	$0xB3130062	//lcdbr	%f6,%f2
++	LCDBR   F2, F6
+ 	BR	L4
+ L22:
+ 	VLR	V20, V0
+ 	BR	L9
+ L21:
+-	WORD	$0xB3130022	//lcdbr	%f2,%f2
++	LCDBR   F2, F2
+ 	BR	L8
+ L24:
+ 	VLR	V20, V4
+diff --git a/src/math/erfc_s390x.s b/src/math/erfc_s390x.s
+index 7e9d469cc6..e03a7749ff 100644
+--- a/src/math/erfc_s390x.s
++++ b/src/math/erfc_s390x.s
+@@ -355,7 +355,7 @@ L10:
+ 	WFMADB	V0, V5, V3, V5
+ 	BR	L11
+ L35:
+-	WORD	$0xB3130010	//lcdbr	%f1,%f0
++	LCDBR	F0, F1
+ 	BR	L9
+ L36:
+ 	FMOVD	304(R9), F3
+@@ -436,7 +436,7 @@ L30:
+ L20:
+ 	FMOVD	88(R9), F0
+ 	WFMADB	V7, V2, V0, V2
+-	WORD	$0xB3130022	//lcdbr	%f2,%f2
++	LCDBR	F2, F2
+ 	FMOVD	F2, ret+8(FP)
+ 	RET
+ L13:
+diff --git a/src/math/exp_s390x.s b/src/math/exp_s390x.s
+index e0ec823073..baf0e985a1 100644
+--- a/src/math/exp_s390x.s
++++ b/src/math/exp_s390x.s
+@@ -116,7 +116,7 @@ L16:
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ L20:
+-	WORD	$0xB3130020	//lcdbr	%f2,%f0
++	LCDBR	F0, F2
+ 	BR	L2
+ L6:
+ 	MOVD	$·expxaddexp<>+0(SB), R1
+diff --git a/src/math/expm1_s390x.s b/src/math/expm1_s390x.s
+index 16c861bb18..c193edc7cb 100644
+--- a/src/math/expm1_s390x.s
++++ b/src/math/expm1_s390x.s
+@@ -100,14 +100,14 @@ L2:
+ 	FMOVD	16(R5), F6
+ 	WFMADB	V0, V2, V6, V2
+ 	RISBGZ	$57, $60, $3, R1, R3
+-	WORD	$0xB3130022	//lcdbr	%f2,%f2
++	LCDBR	F2, F2
+ 	MOVD	$·expm1tab<>+0(SB), R2
+ 	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
+ 	FMADD	F4, F0, F0
+ 	SLD	$48, R1, R2
+ 	WFMSDB	V2, V0, V4, V0
+ 	LDGR	R2, F4
+-	WORD	$0xB3130000	//lcdbr	%f0,%f0
++	LCDBR   F0, F0
+ 	FSUB	F4, F6
+ 	WFMSDB	V0, V4, V6, V0
+ 	FMOVD	F0, ret+8(FP)
+@@ -126,7 +126,7 @@ L16:
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ L20:
+-	WORD	$0xB3130020	//lcdbr	%f2,%f0
++	LCDBR   F0, F2
+ 	BR	L2
+ L6:
+ 	MOVD	$·expm1xaddexp<>+0(SB), R1
+@@ -154,13 +154,13 @@ L6:
+ 	FMOVD	16(R5), F6
+ 	FMADD	F4, F1, F6
+ 	LGDR	F5, R1
+-	WORD	$0xB3130066	//lcdbr	%f6,%f6
++	LCDBR   F6, F6
+ 	RISBGZ	$57, $60, $3, R1, R3
+ 	WORD	$0x68432000	//ld	%f4,0(%r3,%r2)
+ 	FMADD	F4, F1, F1
+ 	MOVD	$0x4086000000000000, R2
+ 	FMSUB	F1, F6, F4
+-	WORD	$0xB3130044	//lcdbr	%f4,%f4
++	LCDBR   F4, F4
+ 	WFCHDBS	V2, V0, V0
+ 	BEQ	L21
+ 	ADDW	$0xF000, R1
+diff --git a/src/math/log1p_s390x.s b/src/math/log1p_s390x.s
+index 00eb374996..98fe82c9c3 100644
+--- a/src/math/log1p_s390x.s
++++ b/src/math/log1p_s390x.s
+@@ -114,7 +114,7 @@ TEXT	·log1pAsm(SB), NOSPLIT, $0-16
+ 	MOVD	$·log1pxzero<>+0(SB), R1
+ 	FMOVD	0(R1), F2
+ 	BVS	LEXITTAGlog1p
+-	WORD	$0xB3130044	// lcdbr %f4,%f4
++	LCDBR	F4, F4
+ 	WFCEDBS	V2, V4, V6
+ 	BEQ	L9
+ 	WFCHDBS	V4, V2, V2
+@@ -129,7 +129,7 @@ L8:
+ 	FSUB	F4, F3
+ 	FMADD	F2, F4, F1
+ 	MOVD	$·log1pc4<>+0(SB), R2
+-	WORD	$0xB3130041	// lcdbr %f4,%f1
++	LCDBR	F1, F4
+ 	FMOVD	0(R2), F7
+ 	FSUB	F3, F0
+ 	MOVD	$·log1pc3<>+0(SB), R2
+diff --git a/src/math/log_s390x.s b/src/math/log_s390x.s
+index 4b514f3dd4..215d7a03a7 100644
+--- a/src/math/log_s390x.s
++++ b/src/math/log_s390x.s
+@@ -142,7 +142,7 @@ L2:
+ 	BYTE	$0x10
+ 	BYTE	$0x1F
+ 	MOVD	·logxl2<>+0(SB), R1
+-	WORD	$0xB3130001	//lcdbr	%f0,%f1
++	LCDBR	F1, F0
+ 	LDGR	R1, F4
+ 	WFMADB	V0, V4, V2, V0
+ L1:
+diff --git a/src/math/pow_s390x.s b/src/math/pow_s390x.s
+index c8758fc5f8..97cd48d96e 100644
+--- a/src/math/pow_s390x.s
++++ b/src/math/pow_s390x.s
+@@ -492,10 +492,10 @@ L9:
+ 	FMOVD	F2, F1
+ 	BR	L1
+ L46:
+-	WORD	$0xB3130040	//lcdbr	%f4,%f0
++	LCDBR	F0, F4
+ 	BR	L3
+ L44:
+-	WORD	$0xB3130030	//lcdbr	%f3,%f0
++	LCDBR   F0, F3
+ 	BR	L7
+ L35:
+ 	FMOVD	F0, F1
+@@ -590,7 +590,7 @@ L32:
+ 	FMOVD	8(R9), F4
+ 	BR	L17
+ L50:
+-	WORD	$0xB3130042	//lcdbr	%f4,%f2
++	LCDBR   F2, F4
+ 	BR	L14
+ xIsOne:			// Pow(1, y) = 1 for any y
+ yIsOne:			// Pow(x, 1) = x for any x
+diff --git a/src/math/tan_s390x.s b/src/math/tan_s390x.s
+index 6a4c449b0d..48cd2841e8 100644
+--- a/src/math/tan_s390x.s
++++ b/src/math/tan_s390x.s
+@@ -87,7 +87,7 @@ L2:
+ 	WFDDB	V0, V1, V0
+ 	WFMDB	V2, V16, V2
+ 	WFMADB	V2, V0, V4, V0
+-	WORD	$0xB3130000	//lcdbr	%f0,%f0
++	LCDBR	F0, F0
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ L12:
+@@ -102,7 +102,7 @@ L11:
+ 	FMOVD	F0, ret+8(FP)
+ 	RET
+ L10:
+-	WORD	$0xB3130020	//lcdbr	%f2,%f0
++	LCDBR	F0, F2
+ 	BR	L2
+ L9:
+ 	BR	·tan(SB)

@@ -10,6 +10,24 @@ Date:   Thu Nov 23 11:21:06 2017 +0100
     Change-Id: Ibea2103c2f5e139139d850df3aac9b5a9c4ac9ab
     Reviewed-on: https://go-review.googlesource.com/79675
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/mkall.sh | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index a7549ac166..4e68fb26fc 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -131,12 +131,6 @@ darwin_arm64)
+ 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+-dragonfly_386)
+-	mkerrors="$mkerrors -m32"
+-	mksyscall="./mksyscall.pl -l32 -dragonfly"
+-	mksysnum="curl -s 'http://gitweb.dragonflybsd.org/dragonfly.git/blob_plain/HEAD:/sys/kern/syscalls.master' | ./mksysnum_dragonfly.pl"
+-	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+-	;;
+ dragonfly_amd64)
+ 	mkerrors="$mkerrors -m64"
+ 	mksyscall="./mksyscall.pl -dragonfly"

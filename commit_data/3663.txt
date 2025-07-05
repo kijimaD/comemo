@@ -6,10 +6,169 @@ Date:   Tue Oct 27 22:38:45 2009 -0700
     
     R=rsc
     http://go/go-review/1015017
-
+---
  src/cmd/5g/cgen.c  |  7 +++--
  src/cmd/5g/gg.h    |  1 +
  src/cmd/5g/ggen.c  | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/5g/gsubr.c |  1 +
  src/cmd/8g/ggen.c  |  2 +-
  5 files changed, 97 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index e213ddf17f..bcbc979245 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -244,11 +244,14 @@ cgen(Node *n, Node *res)
+ 
+ 	// asymmetric binary
+ 	case OSUB:
+-	case OLSH:
+-	case ORSH:
+ 		a = optoas(n->op, nl->type);
+ 		goto abop;
+ 
++	case OLSH:
++	case ORSH:
++		cgen_shift(n->op, nl, nr, res);
++		break;
++
+ 	case OCONV:
+ 		if(eqtype(n->type, nl->type) || noconv(n->type, nl->type)) {
+ 			cgen(nl, res);
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 04b16d2c11..98e52788f1 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -102,6 +102,7 @@ Prog*	gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs);
+ Prog *	gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs);
+ void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
++void	cgen_shift(int, Node*, Node*, Node*);
+ 
+ /*
+  * cgen64.c
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index ddd693605e..a22432009a 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -536,6 +536,95 @@ samereg(Node *a, Node *b)
+ 	return 1;
+ }
+ 
++/*
++ * generate shift according to op, one of:
++ *	res = nl << nr
++ *	res = nl >> nr
++ */
++void
++cgen_shift(int op, Node *nl, Node *nr, Node *res)
++{
++	Node n1, n2, n3, t;
++	int w;
++	Prog *p1, *p2, *p3;
++	uvlong sc;
++
++	if(nl->type->width > 4)
++		fatal("cgen_shift %T", nl->type);
++
++	w = nl->type->width * 8;
++
++	if(nr->op == OLITERAL) {
++		regalloc(&n1, nl->type, res);
++		cgen(nl, &n1);
++		sc = mpgetfix(nr->val.u.xval);
++		if(sc == 0) {
++			return;
++		} else if(sc >= nl->type->width*8) {
++			if(op == ORSH && issigned[nl->type->etype])
++				gshift(AMOVW, &n1, SHIFT_AR, w, &n1);
++			else
++				gins(AEOR, &n1, &n1);
++		} else {
++			if(op == ORSH && issigned[nl->type->etype])
++				gshift(AMOVW, &n1, SHIFT_AR, sc, &n1);
++			else if(op == ORSH)
++				gshift(AMOVW, &n1, SHIFT_LR, sc, &n1);
++			else // OLSH
++				gshift(AMOVW, &n1, SHIFT_LL, sc, &n1);
++		}
++		gmove(&n1, res);
++		regfree(&n1);
++		return;
++	}
++
++	if(nl->ullman >= nr->ullman) {
++		regalloc(&n2, nl->type, res);
++		cgen(nl, &n2);
++		regalloc(&n1, nr->type, N);
++		cgen(nr, &n1);
++	} else {
++		regalloc(&n1, nr->type, N);
++		cgen(nr, &n1);
++		regalloc(&n2, nl->type, res);
++		cgen(nl, &n2);
++	}
++
++	// test for shift being 0
++	p1 = gins(AMOVW, &n1, &n1);
++	p1->scond |= C_SBIT;
++	p3 = gbranch(ABEQ, T);
++
++	// test and fix up large shifts
++	regalloc(&n3, nr->type, N);
++	nodconst(&t, types[TUINT32], w);
++	gmove(&t, &n3);
++	gcmp(ACMP, &n1, &n3);
++	if(op == ORSH) {
++		if(issigned[nl->type->etype]) {
++			p1 = gshift(AMOVW, &n2, SHIFT_AR, w-1, &n2);
++			p2 = gregshift(AMOVW, &n2, SHIFT_AR, &n1, &n2);
++		} else {
++			p1 = gins(AEOR, &n2, &n2);
++			p2 = gregshift(AMOVW, &n2, SHIFT_LR, &n1, &n2);
++		}
++		p1->scond = C_SCOND_HS;
++		p2->scond = C_SCOND_LO;
++	} else {
++		p1 = gins(AEOR, &n2, &n2);
++		p2 = gregshift(AMOVW, &n2, SHIFT_LL, &n1, &n2);
++		p1->scond = C_SCOND_HS;
++		p2->scond = C_SCOND_LO;
++	}
++	regfree(&n3);
++
++	patch(p3, pc);
++	gmove(&n2, res);
++
++	regfree(&n1);
++	regfree(&n2);
++}
++
+ void
+ clearfat(Node *nl)
+ {
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index bd5f0de0dd..b14c7d2f34 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -923,6 +923,7 @@ raddr(Node *n, Prog *p)
+ }
+ 
+ /* generate a comparison
++TODO(kaib): one of the args can actually be a small constant. relax the constraint and fix call sites.
+  */
+ Prog*
+ gcmp(int as, Node *lhs, Node *rhs)
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 3f535cfa05..99c8b786dc 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -627,7 +627,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	uvlong sc;
+ 
+ 	if(nl->type->width > 4)
+-		fatal("cgen_shift %T", nl->type->width);
++		fatal("cgen_shift %T", nl->type);
+ 
+ 	w = nl->type->width * 8;
+ 

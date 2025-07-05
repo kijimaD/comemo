@@ -34,8 +34,73 @@ Date:   Sat May 7 21:34:04 2016 +0200
     Run-TryBot: Quentin Smith <quentin@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go  | 12 +++++++++++-
  src/cmd/compile/internal/gc/walk.go |  2 +-
  test/fixedbugs/issue13262.go        | 21 +++++++++++++++++++++
  3 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index e4851b6f99..cab0a3d219 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -449,8 +449,18 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		}
+ 		stat = append(stat, n.Nbody.Slice()...)
+ 
++		// Search backwards for the index of the fallthrough
++		// statement. Do not assume it'll be in the last
++		// position, since in some cases (e.g. when the statement
++		// list contains autotmp_ variables), one or more OVARKILL
++		// nodes will be at the end of the list.
++		fallIndex := len(stat) - 1
++		for stat[fallIndex].Op == OVARKILL {
++			fallIndex--
++		}
++		last := stat[fallIndex]
++
+ 		// botch - shouldn't fall through declaration
+-		last := stat[len(stat)-1]
+ 		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
+ 			if typeswvar != nil {
+ 				setlineno(last)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index db167507df..dc0b0fb00d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
+ 			n.Op = OEMPTY // don't leave plain values as statements.
+ 		}
+ 
+-		// special case for a receive where we throw away
++	// special case for a receive where we throw away
+ 	// the value received.
+ 	case ORECV:
+ 		if n.Typecheck == 0 {
+diff --git a/test/fixedbugs/issue13262.go b/test/fixedbugs/issue13262.go
+new file mode 100644
+index 0000000000..8837c00798
+--- /dev/null
++++ b/test/fixedbugs/issue13262.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 13262: cmd/compile: bogus "fallthrough
++// statement out of place" error
++
++package p
++
++func f() int {
++	var a int
++	switch a {
++	case 0:
++		return func() int { return 1 }()
++		fallthrough
++	default:
++	}
++	return 0
++}

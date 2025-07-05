@@ -8,6 +8,22 @@ Date:   Sun Mar 20 21:56:12 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20877
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/unix/getrandom_linux_s390x.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/internal/syscall/unix/getrandom_linux_s390x.go b/src/internal/syscall/unix/getrandom_linux_s390x.go
+new file mode 100644
+index 0000000000..e3bc4ee355
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_linux_s390x.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
++const randomTrap uintptr = 349

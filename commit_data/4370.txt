@@ -6,7 +6,7 @@ Date:   Wed Dec 9 19:27:08 2009 -0800
     
     R=rsc, r
     https://golang.org/cl/171051
-
+---
  test/blank.go        |  2 +-
  test/chan/powser1.go | 36 ++++++++++++++++++++++++------------
  test/cmp1.go         |  3 +--
@@ -20,3 +20,277 @@ Date:   Wed Dec 9 19:27:08 2009 -0800
  test/indirect1.go    |  3 +--
  test/intcvt.go       |  3 +--
  12 files changed, 39 insertions(+), 42 deletions(-)
+
+diff --git a/test/blank.go b/test/blank.go
+index 7b9d64257e..7175964f7e 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -31,7 +31,7 @@ const (
+ var ints = []string {
+ 	"1",
+ 	"2",
+-	"3"
++	"3",
+ }
+ 
+ func f() (int, int) {
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index fc82833068..bb36b15941 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -20,8 +20,11 @@ type rat struct  {
+ }
+ 
+ func (u rat) pr() {
+-	if u.den==1 { print(u.num) }
+-	else { print(u.num, "/", u.den) }
++	if u.den==1 {
++		print(u.num)
++	} else {
++		print(u.num, "/", u.den)
++	}
+ 	print(" ")
+ }
+ 
+@@ -264,8 +267,7 @@ func inv(u rat) rat {	// invert a rat
+ }
+ 
+ // print eval in floating point of PS at x=c to n terms
+-func evaln(c rat, U PS, n int)
+-{
++func evaln(c rat, U PS, n int) {
+ 	xn := float64(1);
+ 	x := float64(c.num)/float64(c.den);
+ 	val := float64(0);
+@@ -285,8 +287,11 @@ func printn(U PS, n int) {
+ 	done := false;
+ 	for ; !done && n>0; n-- {
+ 		u := get(U);
+-		if end(u) != 0 { done = true }
+-		else { u.pr() }
++		if end(u) != 0 {
++			done = true
++		} else {
++			u.pr()
++		}
+ 	}
+ 	print(("\n"));
+ }
+@@ -344,8 +349,11 @@ func Cmul(c rat,U PS) PS {
+ 		for !done {
+ 			<-Z.req;
+ 			u := get(U);
+-			if end(u) != 0 { done = true }
+-			else { Z.dat <- mul(c,u) }
++			if end(u) != 0 {
++				done = true
++			} else {
++				Z.dat <- mul(c,u)
++			}
+ 		}
+ 		Z.dat <- finis;
+ 	}();
+@@ -461,8 +469,9 @@ func Diff(U PS) PS {
+ 			done:=false;
+ 			for i:=1; !done; i++ {
+ 				u = get(U);
+-				if end(u) != 0 { done=true }
+-				else {
++				if end(u) != 0 {
++					done = true
++				} else {
+ 					Z.dat <- mul(itor(int64(i)),u);
+ 					<-Z.req;
+ 				}
+@@ -556,8 +565,11 @@ func Subst(U, V PS) PS {
+ 		u := get(U);
+ 		Z.dat <- u;
+ 		if end(u) == 0 {
+-			if end(get(VV[0])) != 0 { put(finis,Z); }
+-			else { copy(Mul(VV[0],Subst(U,VV[1])),Z); }
++			if end(get(VV[0])) != 0 {
++				put(finis,Z);
++			} else {
++				copy(Mul(VV[0],Subst(U,VV[1])),Z);
++			}
+ 		}
+ 	}();
+ 	return Z;
+diff --git a/test/cmp1.go b/test/cmp1.go
+index 67bde32779..a119f8746d 100644
+--- a/test/cmp1.go
++++ b/test/cmp1.go
+@@ -22,8 +22,7 @@ func istrue(b bool) {
+ 	if !b { panicln("wanted true, got false") } // stack will explain where
+ }
+ 
+-func main()
+-{
++func main() {
+ 	var a []int;
+ 	var b map[string]int;
+ 
+diff --git a/test/cmp2.go b/test/cmp2.go
+index d43cfcd107..5442fa17ac 100644
+--- a/test/cmp2.go
++++ b/test/cmp2.go
+@@ -8,8 +8,7 @@ package main
+ 
+ func use(bool) { }
+ 
+-func main()
+-{
++func main() {
+ 	var a []int;
+ 	var ia interface{} = a;
+ 	use(ia == ia);
+diff --git a/test/cmp3.go b/test/cmp3.go
+index 1f53c07a14..f34542aded 100644
+--- a/test/cmp3.go
++++ b/test/cmp3.go
+@@ -8,8 +8,7 @@ package main
+ 
+ func use(bool) { }
+ 
+-func main()
+-{
++func main() {
+ 	var b []int;
+ 	var ib interface{} = b;
+ 	use(ib == ib);
+diff --git a/test/cmp4.go b/test/cmp4.go
+index 61787b07c4..ca1ad2ad35 100644
+--- a/test/cmp4.go
++++ b/test/cmp4.go
+@@ -6,8 +6,7 @@
+ 
+ package main
+ 
+-func main()
+-{
++func main() {
+ 	var a []int;
+ 	var ia interface{} = a;
+ 	var m = make(map[interface{}] int);
+diff --git a/test/cmp5.go b/test/cmp5.go
+index 2a55f7b8f4..9c339a43a3 100644
+--- a/test/cmp5.go
++++ b/test/cmp5.go
+@@ -6,8 +6,7 @@
+ 
+ package main
+ 
+-func main()
+-{
++func main() {
+ 	var b []int;
+ 	var ib interface{} = b;
+ 	var m = make(map[interface{}] int);
+diff --git a/test/convert.go b/test/convert.go
+index 3790bf17ed..6a50b39002 100644
+--- a/test/convert.go
++++ b/test/convert.go
+@@ -22,9 +22,7 @@ func g() int {
+ 
+ type T func() int
+ 
+-var m = map[string] T {
+-	"f": f
+-}
++var m = map[string] T { "f": f }
+ 
+ type A int
+ type B int
+diff --git a/test/float_lit.go b/test/float_lit.go
+index be4460e43e..58bd4dac01 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -7,16 +7,14 @@
+ package main
+ 
+ func
+-pow10(pow int) float64
+-{
++pow10(pow int) float64 {
+ 	if pow < 0 { return 1/pow10(-pow); }
+ 	if pow > 0 { return pow10(pow-1)*10; }
+ 	return 1;
+ }
+ 
+ func
+-close(da float64, ia, ib int64, pow int) bool
+-{
++close(da float64, ia, ib int64, pow int) bool {
+ 	db := float64(ia) / float64(ib);
+ 	db *= pow10(pow);
+ 
+@@ -39,8 +37,7 @@ close(da float64, ia, ib int64, pow int) bool
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 
+ 	if !close(0., 0, 1, 0) { print("0. is ", 0., "\n"); }
+ 	if !close(+10., 10, 1, 0) { print("+10. is ", +10., "\n"); }
+diff --git a/test/indirect.go b/test/indirect.go
+index cbe3e0df2a..06c1dcce7b 100644
+--- a/test/indirect.go
++++ b/test/indirect.go
+@@ -28,16 +28,14 @@ var b2 *[]int = &b0
+ var b3 []int = []int{1, 2, 3}
+ var b4 *[]int = &b3
+ 
+-func crash()
+-{
++func crash() {
+ 	// these uses of nil pointers
+ 	// would crash but should type check
+ 	println("crash",
+ 		len(a1) + cap(a1));
+ }
+ 
+-func nocrash()
+-{
++func nocrash() {
+ 	// this is spaced funny so that
+ 	// the compiler will print a different
+ 	// line number for each len call if
+@@ -79,7 +77,6 @@ func nocrash()
+ 	}
+ }
+ 
+-func main()
+-{
++func main() {
+ 	nocrash();
+ }
+diff --git a/test/indirect1.go b/test/indirect1.go
+index b87eb144cc..7cd476a01b 100644
+--- a/test/indirect1.go
++++ b/test/indirect1.go
+@@ -28,8 +28,7 @@ var b2 *[]int = &b0
+ var b3 []int = []int{1, 2, 3}
+ var b4 *[]int = &b3
+ 
+-func f()
+-{
++func f() {
+ 	// this is spaced funny so that
+ 	// the compiler will print a different
+ 	// line number for each len call when
+diff --git a/test/intcvt.go b/test/intcvt.go
+index a108cffa1b..a54d276e6b 100644
+--- a/test/intcvt.go
++++ b/test/intcvt.go
+@@ -47,8 +47,7 @@ func chku64(i, v uint64) { if i != v { panicln(i, "!=", v) } }
+ //func chkf32(f, v float32) { if f != v { panicln(f, "!=", v) } }
+ //func chkf64(f, v float64) { if f != v { panicln(f, "!=", v) } }
+ 
+-func main()
+-{
++func main() {
+ 	chki8(int8(i8), ci8 & 0xff - 1<<8);
+ 	chki8(int8(i16), ci16 & 0xff);
+ 	chki8(int8(i32), ci32 & 0xff - 1<<8);

@@ -22,7 +22,7 @@ Date:   Mon Nov 18 14:56:43 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  doc/godebug.md                                 |  8 ++++++++
  doc/next/3-tools.md                            | 10 +++++++---
  src/cmd/go/internal/test/testflag.go           | 12 +++++++++---
@@ -30,3 +30,153 @@ Date:   Mon Nov 18 14:56:43 2024 -0500
  src/internal/godebugs/table.go                 |  1 +
  src/runtime/metrics/doc.go                     |  5 +++++
  6 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 7b5fd3e48b..540babf05a 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -168,6 +168,14 @@ For Go 1.24, it now defaults to multipathtcp="2", thus
+ enabled by default on listerners. Using multipathtcp="0" reverts to the
+ pre-Go 1.24 behavior.
+ 
++Go 1.24 changed the behavior of `go test -json` to emit build errors as JSON
++instead of text.
++These new JSON events are distinguished by new `Action` values,
++but can still cause problems with CI systems that aren't robust to these events.
++This behavior can be controlled with the `gotestjsonbuildtext` setting.
++Using `gotestjsonbuildtext=1` restores the 1.23 behavior.
++This setting will be removed in a future release, Go 1.28 at the earliest.
++
+ ### Go 1.23
+ 
+ Go 1.23 changed the channels created by package time to be unbuffered
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 04e670c2f5..5e450c66ce 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -4,9 +4,13 @@
+ 
+ The `go build` and `go install` commands now accept a `-json` flag that reports
+ build output and failures as structured JSON output on standard output.
+-Furthermore, passing `-json` to `go test` now reports build output and failures
+-in addition to test results in JSON. For details of the reporting format, see
+-`go help buildjson`.
++For details of the reporting format, see `go help buildjson`.
++
++Furthermore, `go test -json` now reports build output and failures in JSON,
++interleaved with test result JSON.
++These are distinguished by new `Action` types, but if they cause problems in
++a test integration system, you can revert to the text build output by setting
++`GODEBUG=gotestjsonbuildtext=1`.
+ 
+ ### Cgo {#cgo}
+ 
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index f91e4e6705..09e41533b6 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -6,11 +6,13 @@ package test
+ 
+ import (
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/cmdflag"
+ 	"cmd/go/internal/work"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"internal/godebug"
+ 	"os"
+ 	"path/filepath"
+ 	"strconv"
+@@ -25,6 +27,8 @@ import (
+ // our command line are for us, and some are for the test binary, and
+ // some are for both.
+ 
++var gotestjsonbuildtext = godebug.New("gotestjsonbuildtext")
++
+ func init() {
+ 	work.AddBuildFlags(CmdTest, work.OmitVFlag|work.OmitJSONFlag)
+ 
+@@ -33,7 +37,6 @@ func init() {
+ 	cf.StringVar(&testO, "o", "", "")
+ 	work.AddCoverFlags(CmdTest, &testCoverProfile)
+ 	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+-	// TODO(austin): Make test -json imply build -json.
+ 	cf.BoolVar(&testJSON, "json", false, "")
+ 	cf.Var(&testVet, "vet", "")
+ 
+@@ -354,8 +357,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		delete(addFromGOFLAGS, "v")
+ 		delete(addFromGOFLAGS, "test.v")
+ 
+-		// TODO(austin,#70402): Re-enable this once LUCI can handle build JSON in the test stream.
+-		//cfg.BuildJSON = true
++		if gotestjsonbuildtext.Value() == "1" {
++			gotestjsonbuildtext.IncNonDefault()
++		} else {
++			cfg.BuildJSON = true
++		}
+ 	}
+ 
+ 	// Inject flags from GOFLAGS before the explicit command-line arguments.
+diff --git a/src/cmd/go/testdata/script/test_json_build.txt b/src/cmd/go/testdata/script/test_json_build.txt
+index 9587ebca95..a3f0c37923 100644
+--- a/src/cmd/go/testdata/script/test_json_build.txt
++++ b/src/cmd/go/testdata/script/test_json_build.txt
+@@ -1,8 +1,7 @@
+-# TODO(austin,#70402)
+-skip
+-
+ [short] skip
+ 
++env GODEBUG=gotestjsonbuildtext=0
++
+ # There are several places where paths appear in JSON in regexps here.
+ # For the path separator we use (/|\\\\).
+ # Unfortunately, we can't just use ${/} because, while script test automatically
+@@ -52,6 +51,16 @@ stdout '"Action":"output","Package":"m/veterror","Output":"FAIL\\tm/veterror \[b
+ stdout '"Action":"fail","Package":"m/veterror","Elapsed":.*,"FailedBuild":"m/veterror \[m/veterror.test\]"'
+ ! stderr '.'
+ 
++# Test that the GODEBUG fallback works.
++env GODEBUG=gotestjsonbuildtext=1
++! go test -json -o=$devnull ./builderror
++stderr '# m/builderror \[m/builderror.test\]\n'
++stderr 'builderror'${/}'main_test.go:3:11: undefined: y\n'
++stdout '"Action":"start","Package":"m/builderror"'
++stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
++stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
++
++
+ -- go.mod --
+ module m
+ go 1.21
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 59d4fa7d5b..d00014eaae 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -30,6 +30,7 @@ var All = []Info{
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+ 	{Name: "gocacheverify", Package: "cmd/go"},
++	{Name: "gotestjsonbuildtext", Package: "cmd/go", Changed: 24, Old: "1"},
+ 	{Name: "gotypesalias", Package: "go/types", Changed: 23, Old: "0"},
+ 	{Name: "http2client", Package: "net/http"},
+ 	{Name: "http2debug", Package: "net/http", Opaque: true},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 906abb4102..cda2c6fc5e 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -250,6 +250,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the cmd/go
+ 		package due to a non-default GODEBUG=gocacheverify=... setting.
+ 
++	/godebug/non-default-behavior/gotestjsonbuildtext:events
++		The number of non-default behaviors executed by the cmd/go
++		package due to a non-default GODEBUG=gotestjsonbuildtext=...
++		setting.
++
+ 	/godebug/non-default-behavior/gotypesalias:events
+ 		The number of non-default behaviors executed by the go/types
+ 		package due to a non-default GODEBUG=gotypesalias=... setting.

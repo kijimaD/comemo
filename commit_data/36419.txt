@@ -22,6 +22,20 @@ Date:   Wed Apr 25 20:57:19 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/lp_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index d1c9046174..64d7dca2e8 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -117,7 +117,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
+ 		dirs[i] = filepath.Join(dir, dirs[i])
+ 	}
+ 	path := strings.Join(dirs, ";")
+-	env = updateEnv(env, "PATH", path)
++	env = updateEnv(env, "PATH", os.Getenv("SystemRoot") + "/System32;" + path)
+ 	return env
+ }
+ 

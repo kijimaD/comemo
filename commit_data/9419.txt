@@ -15,9 +15,185 @@ Date:   Thu Aug 18 12:51:23 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4867054
-
+---
  src/pkg/http/request.go             | 18 ++++++++++++------
  src/pkg/mime/mediatype.go           | 32 ++++++++++++++++++--------------
  src/pkg/mime/mediatype_test.go      | 19 +++++++++++++------
  src/pkg/mime/multipart/multipart.go |  5 +++--
  4 files changed, 46 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index ed41fa45c1..d45de8e2e4 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -234,8 +234,8 @@ func (r *Request) multipartReader() (*multipart.Reader, os.Error) {
+ 	if v == "" {
+ 		return nil, ErrNotMultipart
+ 	}
+-	d, params := mime.ParseMediaType(v)
+-	if d != "multipart/form-data" {
++	d, params, err := mime.ParseMediaType(v)
++	if err != nil || d != "multipart/form-data" {
+ 		return nil, ErrNotMultipart
+ 	}
+ 	boundary, ok := params["boundary"]
+@@ -625,8 +625,9 @@ func (r *Request) ParseForm() (err os.Error) {
+ 			return os.NewError("missing form body")
+ 		}
+ 		ct := r.Header.Get("Content-Type")
+-		switch strings.SplitN(ct, ";", 2)[0] {
+-		case "text/plain", "application/x-www-form-urlencoded", "":
++		ct, _, err := mime.ParseMediaType(ct)
++		switch {
++		case ct == "text/plain" || ct == "application/x-www-form-urlencoded" || ct == "":
+ 			const maxFormSize = int64(10 << 20) // 10 MB is a lot of text.
+ 			b, e := ioutil.ReadAll(io.LimitReader(r.Body, maxFormSize+1))
+ 			if e != nil {
+@@ -652,8 +653,13 @@ func (r *Request) ParseForm() (err os.Error) {
+ 					r.Form.Add(k, value)
+ 				}
+ 			}
+-		case "multipart/form-data":
+-			// handled by ParseMultipartForm
++		case ct == "multipart/form-data":
++			// handled by ParseMultipartForm (which is calling us, or should be)
++			// TODO(bradfitz): there are too many possible
++			// orders to call too many functions here.
++			// Clean this up and write more tests.
++			// request_test.go contains the start of this,
++			// in TestRequestMultipartCallOrder.
+ 		default:
+ 			return &badStringError{"unknown Content-Type", ct}
+ 		}
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 40c735c5ba..9c25b9eff4 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -12,40 +12,44 @@ import (
+ 	"unicode"
+ )
+ 
+-func validMediaTypeOrDisposition(s string) bool {
++func checkMediaTypeDisposition(s string) os.Error {
+ 	typ, rest := consumeToken(s)
+ 	if typ == "" {
+-		return false
++		return os.NewError("mime: no media type")
+ 	}
+ 	if rest == "" {
+-		return true
++		return nil
+ 	}
+ 	if !strings.HasPrefix(rest, "/") {
+-		return false
++		return os.NewError("mime: expected slash after first token")
+ 	}
+ 	subtype, rest := consumeToken(rest[1:])
+ 	if subtype == "" {
+-		return false
++		return os.NewError("mime: expected token after slash")
++	}
++	if rest != "" {
++		return os.NewError("mime: unexpected content after media subtype")
+ 	}
+-	return rest == ""
++	return nil
+ }
+ 
+ // ParseMediaType parses a media type value and any optional
+ // parameters, per RFC 1521.  Media types are the values in
+ // Content-Type and Content-Disposition headers (RFC 2183).
+ // On success, ParseMediaType returns the media type converted
+-// to lowercase and trimmed of white space. The returned params
+-// is always a non-nil map. Params maps from the lowercase
++// to lowercase and trimmed of white space and a non-nil map.
++// The returned map, params, maps from the lowercase
+ // attribute to the attribute value with its case preserved.
+-// On error, it returns an empty string and a nil params.
+-func ParseMediaType(v string) (mediatype string, params map[string]string) {
++func ParseMediaType(v string) (mediatype string, params map[string]string, err os.Error) {
+ 	i := strings.Index(v, ";")
+ 	if i == -1 {
+ 		i = len(v)
+ 	}
+ 	mediatype = strings.TrimSpace(strings.ToLower(v[0:i]))
+-	if !validMediaTypeOrDisposition(mediatype) {
+-		return "", nil
++
++	err = checkMediaTypeDisposition(mediatype)
++	if err != nil {
++		return
+ 	}
+ 
+ 	params = make(map[string]string)
+@@ -69,7 +73,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
+ 				return
+ 			}
+ 			// Parse error.
+-			return "", nil
++			return "", nil, os.NewError("mime: invalid media parameter")
+ 		}
+ 
+ 		pmap := params
+@@ -86,7 +90,7 @@ func ParseMediaType(v string) (mediatype string, params map[string]string) {
+ 		}
+ 		if _, exists := pmap[key]; exists {
+ 			// Duplicate parameter name is bogus.
+-			return "", nil
++			return "", nil, os.NewError("mime: duplicate parameter name")
+ 		}
+ 		pmap[key] = value
+ 		v = rest
+diff --git a/src/pkg/mime/mediatype_test.go b/src/pkg/mime/mediatype_test.go
+index 93264bd09a..884573e0bb 100644
+--- a/src/pkg/mime/mediatype_test.go
++++ b/src/pkg/mime/mediatype_test.go
+@@ -219,7 +219,14 @@ func TestParseMediaType(t *testing.T) {
+ 			m("firstname", "Брэд", "lastname", "Фицпатрик")},
+ 	}
+ 	for _, test := range tests {
+-		mt, params := ParseMediaType(test.in)
++		mt, params, err := ParseMediaType(test.in)
++		if err != nil {
++			if test.t != "" {
++				t.Errorf("for input %q, unexpected error: %v", test.in, err)
++				continue
++			}
++			continue
++		}
+ 		if g, e := mt, test.t; g != e {
+ 			t.Errorf("for input %q, expected type %q, got %q",
+ 				test.in, e, g)
+@@ -238,11 +245,11 @@ func TestParseMediaType(t *testing.T) {
+ }
+ 
+ func TestParseMediaTypeBogus(t *testing.T) {
+-	mt, params := ParseMediaType("bogus ;=========")
+-	if mt != "" {
+-		t.Error("expected empty type")
++	mt, params, err := ParseMediaType("bogus ;=========")
++	if err == nil {
++		t.Fatalf("expected an error parsing invalid media type; got type %q, params %#v", mt, params)
+ 	}
+-	if params != nil {
+-		t.Error("expected nil params")
++	if err.String() != "mime: invalid media parameter" {
++		t.Errorf("expected invalid media parameter; got error %q", err)
+ 	}
+ }
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 2533bd337d..f2b507220c 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -69,8 +69,9 @@ func (p *Part) FileName() string {
+ 
+ func (p *Part) parseContentDisposition() {
+ 	v := p.Header.Get("Content-Disposition")
+-	p.disposition, p.dispositionParams = mime.ParseMediaType(v)
+-	if p.dispositionParams == nil {
++	var err os.Error
++	p.disposition, p.dispositionParams, err = mime.ParseMediaType(v)
++	if err != nil {
+ 		p.dispositionParams = emptyParams
+ 	}
+ }

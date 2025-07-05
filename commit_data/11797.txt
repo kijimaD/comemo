@@ -9,7 +9,48 @@ Date:   Fri Feb 10 23:10:45 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5655057
-
+---
  src/cmd/gc/sinit.c       |  4 ++--
  test/fixedbugs/bug413.go | 11 +++++++++++
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 0cf21e2bbe..c8796f8b76 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -65,7 +65,7 @@ init1(Node *n, NodeList **out)
+ 		if(nerrors > 0)
+ 			errorexit();
+ 
+-		print("initialization loop:\n");
++		print("%L: initialization loop:\n", n->lineno);
+ 		for(l=initlist;; l=l->next) {
+ 			if(l->next == nil)
+ 				break;
+@@ -106,7 +106,7 @@ init1(Node *n, NodeList **out)
+ 			break;
+ 		*/
+ 			if(1) {
+-				init1(n->defn->right, out);
++				init2(n->defn->right, out);
+ 				if(debug['j'])
+ 					print("%S\n", n->sym);
+ 				if(!staticinit(n, out)) {
+diff --git a/test/fixedbugs/bug413.go b/test/fixedbugs/bug413.go
+new file mode 100644
+index 0000000000..32b7efc76d
+--- /dev/null
++++ b/test/fixedbugs/bug413.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(i int) int { return i }
++
++var i = func() int {a := f(i); return a}()  // ERROR "initialization loop"
+\ No newline at end of file

@@ -25,9 +25,319 @@ Date:   Mon Aug 3 12:33:03 2015 -0700
     Change-Id: I44164c10bb92ae8ab8f76d7a5180cbafab826ea1
     Reviewed-on: https://go-review.googlesource.com/13069
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arith_ssa.go |  28 +++-
  src/cmd/compile/internal/ssa/func.go              |   2 +
  src/cmd/compile/internal/ssa/print.go             |  12 +-
  src/cmd/compile/internal/ssa/schedule.go          | 176 +++++++++++-----------
  4 files changed, 122 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 032cc8e1cf..e69212e9ad 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -68,7 +68,7 @@ func testBitwiseLogic() {
+ 		failed = true
+ 	}
+ 	if want, got := int32(832), testBitwiseLsh_ssa(13, 4, 2); want != got {
+-		println("testBitwiseXor failed, wanted", want, "got", got)
++		println("testBitwiseLsh failed, wanted", want, "got", got)
+ 		failed = true
+ 	}
+ 	if want, got := int32(0), testBitwiseLsh_ssa(13, 25, 15); want != got {
+@@ -79,16 +79,28 @@ func testBitwiseLogic() {
+ 		println("testBitwiseLsh failed, wanted", want, "got", got)
+ 		failed = true
+ 	}
+-	if want, got := int32(0), testBitwiseRsh_ssa(-13, 25, 15); want != got {
+-		println("testBitwiseLsh failed, wanted", want, "got", got)
++	if want, got := int32(-13), testBitwiseRsh_ssa(-832, 4, 2); want != got {
++		println("testBitwiseRsh failed, wanted", want, "got", got)
+ 		failed = true
+ 	}
+ 	if want, got := int32(0), testBitwiseRsh_ssa(13, 25, 15); want != got {
+-		println("testBitwiseLsh failed, wanted", want, "got", got)
++		println("testBitwiseRsh failed, wanted", want, "got", got)
+ 		failed = true
+ 	}
+ 	if want, got := int32(-1), testBitwiseRsh_ssa(-13, 25, 15); want != got {
+-		println("testBitwiseLsh failed, wanted", want, "got", got)
++		println("testBitwiseRsh failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint32(0x3ffffff), testBitwiseRshU_ssa(0xffffffff, 4, 2); want != got {
++		println("testBitwiseRshU failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint32(0), testBitwiseRshU_ssa(13, 25, 15); want != got {
++		println("testBitwiseRshU failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint32(0), testBitwiseRshU_ssa(0x8aaaaaaa, 25, 15); want != got {
++		println("testBitwiseRshU failed, wanted", want, "got", got)
+ 		failed = true
+ 	}
+ }
+@@ -123,6 +135,12 @@ func testBitwiseRsh_ssa(a int32, b, c uint32) int32 {
+ 	return a >> b >> c
+ }
+ 
++func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
++	switch { // prevent inlining
++	}
++	return a >> b >> c
++}
++
+ // testSubqToNegq ensures that the SUBQ -> NEGQ translation works correctly.
+ func testSubqToNegq() {
+ 	want := int64(-318294940372190156)
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ce13075f19..9b6eb7f831 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -18,6 +18,8 @@ type Func struct {
+ 	bid        idAlloc     // block ID allocator
+ 	vid        idAlloc     // value ID allocator
+ 
++	scheduled bool // Values in Blocks are in final order
++
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
+ 	// when stackalloc is done, the size of the stack frame
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index c8b90c6f93..54d6f542b3 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -34,9 +34,19 @@ func fprintFunc(w io.Writer, f *Func) {
+ 			}
+ 		}
+ 		io.WriteString(w, "\n")
+-		n := 0
++
++		if f.scheduled {
++			// Order of Values has been decided - print in that order.
++			for _, v := range b.Values {
++				fmt.Fprint(w, "    ")
++				fmt.Fprintln(w, v.LongString())
++				printed[v.ID] = true
++			}
++			continue
++		}
+ 
+ 		// print phis first since all value cycles contain a phi
++		n := 0
+ 		for _, v := range b.Values {
+ 			if v.Op != OpPhi {
+ 				continue
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 15e8ace391..d1596f25e8 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -6,121 +6,117 @@ package ssa
+ 
+ // Schedule the Values in each Block.  After this phase returns, the
+ // order of b.Values matters and is the order in which those values
+-// will appear in the assembly output.  For now it generates an
+-// arbitrary valid schedule using a topological sort.  TODO(khr):
++// will appear in the assembly output.  For now it generates a
++// reasonable valid schedule using a priority queue.  TODO(khr):
+ // schedule smarter.
+ func schedule(f *Func) {
+-	const (
+-		unmarked = 0
+-		found    = 1
+-		expanded = 2
+-		done     = 3
+-	)
+-	state := make([]byte, f.NumValues())
+-	var queue []*Value //stack-like worklist.  Contains found and expanded nodes.
++	// For each value, the number of times it is used in the block
++	// by values that have not been scheduled yet.
++	uses := make([]int, f.NumValues())
++
++	// "priority" for a value
++	score := make([]int, f.NumValues())
++
++	// scheduling order.  We queue values in this list in reverse order.
+ 	var order []*Value
+ 
+-	nextMem := make([]*Value, f.NumValues()) // maps mem values to the next live value
+-	additionalEdges := make([][]*Value, f.NumValues())
++	// priority queue of legally schedulable (0 unscheduled uses) values
++	var priq [4][]*Value
++
+ 	for _, b := range f.Blocks {
+-		// Set the nextMem values for this block.  If the previous
+-		// write is from a different block, then its nextMem entry
+-		// might have already been set during processing of an earlier
+-		// block.  This loop resets the nextMem entries to be correct
+-		// for this block.
++		// Compute uses.
+ 		for _, v := range b.Values {
+-			if v.Type.IsMemory() {
++			if v.Op != OpPhi {
++				// Note: if a value is used by a phi, it does not induce
++				// a scheduling edge because that use is from the
++				// previous iteration.
+ 				for _, w := range v.Args {
+-					if w.Type.IsMemory() {
+-						nextMem[w.ID] = v
++					if w.Block == b {
++						uses[w.ID]++
+ 					}
+ 				}
+ 			}
+ 		}
+-		// Add a anti-dependency between each load v and the memory value n
+-		// following the memory value that v loads from.
+-		// This will enforce the single-live-mem restriction.
++		// Compute score.  Larger numbers are scheduled closer to the end of the block.
+ 		for _, v := range b.Values {
+-			if v.Type.IsMemory() {
+-				continue
+-			}
+-			for _, w := range v.Args {
+-				if w.Type.IsMemory() && nextMem[w.ID] != nil {
+-					// Filter for intra-block edges.
+-					if n := nextMem[w.ID]; n.Block == b {
+-						additionalEdges[n.ID] = append(additionalEdges[n.ID], v)
+-					}
+-				}
++			switch {
++			case v.Op == OpPhi:
++				// We want all the phis first.
++				score[v.ID] = 0
++			case v.Type.IsMemory():
++				// Schedule stores as late as possible.
++				// This makes sure that loads do not get scheduled
++				// after a following store (1-live-memory requirement).
++				score[v.ID] = 2
++			case v.Type.IsFlags():
++				// Schedule flag register generation as late as possible.
++				// This makes sure that we only have one live flags
++				// value at a time.
++				score[v.ID] = 2
++			default:
++				score[v.ID] = 1
+ 			}
+ 		}
++		if b.Control != nil {
++			// Force the control value to be scheduled at the end.
++			score[b.Control.ID] = 3
++			// TODO: some times control values are used by other values
++			// in the block.  So the control value will not appear at
++			// the very end.  Decide if this is a problem or not.
++		}
+ 
+-		order = order[:0]
+-
+-		// Schedule phis first
++		// Initialize priority queue with schedulable values.
++		for i := range priq {
++			priq[i] = priq[i][:0]
++		}
+ 		for _, v := range b.Values {
+-			if v.Op == OpPhi {
+-				// TODO: what if a phi is also a control op?  It happens for
+-				// mem ops all the time, which shouldn't matter.  But for
+-				// regular ops we might be violating invariants about where
+-				// control ops live.
+-				if v == b.Control && !v.Type.IsMemory() {
+-					f.Unimplementedf("phi is a control op %s %s", v, b)
+-				}
+-				order = append(order, v)
++			if uses[v.ID] == 0 {
++				s := score[v.ID]
++				priq[s] = append(priq[s], v)
+ 			}
+ 		}
+ 
+-		// Topologically sort the non-phi values in b.
+-		for _, v := range b.Values {
+-			if v.Op == OpPhi {
+-				continue
++		// Schedule highest priority value, update use counts, repeat.
++		order = order[:0]
++		for {
++			// Find highest priority schedulable value.
++			var v *Value
++			for i := len(priq) - 1; i >= 0; i-- {
++				n := len(priq[i])
++				if n == 0 {
++					continue
++				}
++				v = priq[i][n-1]
++				priq[i] = priq[i][:n-1]
++				break
+ 			}
+-			if v == b.Control {
+-				continue
++			if v == nil {
++				break
+ 			}
+-			if state[v.ID] != unmarked {
+-				if state[v.ID] != done {
+-					panic("bad state")
++
++			// Add it to the schedule.
++			order = append(order, v)
++
++			// Update use counts of arguments.
++			for _, w := range v.Args {
++				if w.Block != b {
++					continue
+ 				}
+-				continue
+-			}
+-			state[v.ID] = found
+-			queue = append(queue, v)
+-			for len(queue) > 0 {
+-				v = queue[len(queue)-1]
+-				switch state[v.ID] {
+-				case found:
+-					state[v.ID] = expanded
+-					// Note that v is not popped.  We leave it in place
+-					// until all its children have been explored.
+-					for _, w := range v.Args {
+-						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
+-							state[w.ID] = found
+-							queue = append(queue, w)
+-						}
+-					}
+-					for _, w := range additionalEdges[v.ID] {
+-						if w.Block == b && w.Op != OpPhi && w != b.Control && state[w.ID] == unmarked {
+-							state[w.ID] = found
+-							queue = append(queue, w)
+-						}
+-					}
+-				case expanded:
+-					queue = queue[:len(queue)-1]
+-					state[v.ID] = done
+-					order = append(order, v)
+-				default:
+-					panic("bad state")
++				uses[w.ID]--
++				if uses[w.ID] == 0 {
++					// All uses scheduled, w is now schedulable.
++					s := score[w.ID]
++					priq[s] = append(priq[s], w)
+ 				}
+ 			}
+ 		}
+-		if b.Control != nil {
+-			order = append(order, b.Control)
++		if len(order) != len(b.Values) {
++			f.Fatalf("schedule does not include all values")
++		}
++		for i := 0; i < len(b.Values); i++ {
++			b.Values[i] = order[len(b.Values)-1-i]
+ 		}
+-		copy(b.Values, order)
+ 	}
+-	// TODO: only allow one live flags type (x86)
+-	// This restriction will force and any flag uses to appear before
+-	// the next flag update.  This "anti-dependence" is not recorded
+-	// explicitly in ssa form.
++
++	f.scheduled = true
+ }

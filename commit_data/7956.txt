@@ -7,6 +7,21 @@ Date:   Fri Apr 1 20:51:55 2011 -0700
     R=r, r2, rsc1
     CC=golang-dev
     https://golang.org/cl/4343045
-
+---
  src/pkg/go/parser/parser.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index fd9ad0f1b5..84a0da6ae7 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2209,6 +2209,9 @@ func (p *parser) parseFile() *ast.File {
+ 	// Go spec: The package clause is not a declaration;
+ 	// the package name does not appear in any scope.
+ 	ident := p.parseIdent()
++	if ident.Name == "_" {
++		p.error(p.pos, "invalid package name _")
++	}
+ 	p.expectSemi()
+ 
+ 	var decls []ast.Decl

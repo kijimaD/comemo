@@ -30,7 +30,53 @@ Date:   Wed Aug 24 23:02:16 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/http/http.go      | 10 ++++++++--
  src/net/http/http_test.go | 10 ++++++++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 101799f574..9b81654fcc 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -86,14 +86,20 @@ func hexEscapeNonASCII(s string) string {
+ 		return s
+ 	}
+ 	b := make([]byte, 0, newLen)
++	var pos int
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] >= utf8.RuneSelf {
++			if pos < i {
++				b = append(b, s[pos:i]...)
++			}
+ 			b = append(b, '%')
+ 			b = strconv.AppendInt(b, int64(s[i]), 16)
+-		} else {
+-			b = append(b, s[i])
++			pos = i + 1
+ 		}
+ 	}
++	if pos < len(s) {
++		b = append(b, s[pos:]...)
++	}
+ 	return string(b)
+ }
+ 
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index 0d92fe5f96..1c9fb33b69 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -218,3 +218,13 @@ func TestNoUnicodeStrings(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++const redirectURL = "/thisaredirect细雪withasciilettersのけぶabcdefghijk.html"
++
++func BenchmarkHexEscapeNonASCII(b *testing.B) {
++	b.ReportAllocs()
++
++	for i := 0; i < b.N; i++ {
++		hexEscapeNonASCII(redirectURL)
++	}
++}

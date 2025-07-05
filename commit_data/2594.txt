@@ -9,6 +9,31 @@ Date:   Mon Jul 6 09:23:41 2009 -0700
     DELTA=7  (0 added, 1 deleted, 6 changed)
     OCL=31189
     CL=31191
-
+---
  src/cmd/5g/gsubr.c | 13 ++++++-------
  1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 2f5158a680..3a20fecf12 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1801,13 +1801,12 @@ odot:
+ 		n1.xoffset = -(oary[0]+1);
+ 	}
+ 
+-	fatal("sudoaddable odot not implemented");
+-//	for(i=1; i<o; i++) {
+-//		if(oary[i] >= 0)
+-//			fatal("cant happen");
+-//		gins(AMOVQ, &n1, reg);
+-//		n1.xoffset = -(oary[i]+1);
+-//	}
++	for(i=1; i<o; i++) {
++		if(oary[i] >= 0)
++			fatal("cant happen");
++		gins(AMOVW, &n1, reg);
++		n1.xoffset = -(oary[i]+1);
++	}
+ 
+ 	a->type = D_NONE;
+ 	a->name = D_NONE;

@@ -35,7 +35,7 @@ Date:   Sat Jan 2 01:27:29 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/deadcode/deadcode.go   |  4 ++--
  src/cmd/compile/internal/inline/inl.go          | 16 ++++++++--------
  src/cmd/compile/internal/ir/expr.go             | 10 +++++-----
@@ -58,3 +58,689 @@ Date:   Sat Jan 2 01:27:29 2021 -0800
  src/cmd/compile/internal/walk/select.go         |  8 ++++----
  src/cmd/compile/internal/walk/stmt.go           |  4 ++--
  21 files changed, 74 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/deadcode/deadcode.go b/src/cmd/compile/internal/deadcode/deadcode.go
+index 474532bc17..c409320fc4 100644
+--- a/src/cmd/compile/internal/deadcode/deadcode.go
++++ b/src/cmd/compile/internal/deadcode/deadcode.go
+@@ -38,7 +38,7 @@ func Func(fn *ir.Func) {
+ 		}
+ 	}
+ 
+-	fn.Body.Set([]ir.Node{ir.NewBlockStmt(base.Pos, nil)})
++	fn.Body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
+ }
+ 
+ func stmts(nn *ir.Nodes) {
+@@ -114,7 +114,7 @@ func stmts(nn *ir.Nodes) {
+ 		}
+ 
+ 		if cut {
+-			nn.Set((*nn)[:i+1])
++			*nn = (*nn)[:i+1]
+ 			break
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 24fbe3dac0..2887abb061 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -544,7 +544,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 	if as := n; as.Op() == ir.OAS2FUNC {
+ 		as := as.(*ir.AssignListStmt)
+ 		if as.Rhs[0].Op() == ir.OINLCALL {
+-			as.Rhs.Set(inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr)))
++			as.Rhs = inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr))
+ 			as.SetOp(ir.OAS2)
+ 			as.SetTypecheck(0)
+ 			n = typecheck.Stmt(as)
+@@ -867,7 +867,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 			vas.Y.SetType(param.Type)
+ 		} else {
+ 			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
+-			lit.List.Set(varargs)
++			lit.List = varargs
+ 			vas.Y = lit
+ 		}
+ 	}
+@@ -944,9 +944,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 	//dumplist("ninit post", ninit);
+ 
+ 	call := ir.NewInlinedCallExpr(base.Pos, nil, nil)
+-	call.PtrInit().Set(ninit)
+-	call.Body.Set(body)
+-	call.ReturnVars.Set(retvars)
++	*call.PtrInit() = ninit
++	call.Body = body
++	call.ReturnVars = retvars
+ 	call.SetType(n.Type())
+ 	call.SetTypecheck(1)
+ 
+@@ -1120,7 +1120,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 			for _, n := range subst.retvars {
+ 				as.Lhs.Append(n)
+ 			}
+-			as.Rhs.Set(subst.list(n.Results))
++			as.Rhs = subst.list(n.Results)
+ 
+ 			if subst.delayretvars {
+ 				for _, n := range as.Lhs {
+@@ -1139,7 +1139,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		n := n.(*ir.BranchStmt)
+ 		m := ir.Copy(n).(*ir.BranchStmt)
+ 		m.SetPos(subst.updatedPos(m.Pos()))
+-		m.PtrInit().Set(nil)
++		*m.PtrInit() = nil
+ 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
+ 		m.Label = typecheck.Lookup(p)
+ 		return m
+@@ -1148,7 +1148,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 		n := n.(*ir.LabelStmt)
+ 		m := ir.Copy(n).(*ir.LabelStmt)
+ 		m.SetPos(subst.updatedPos(m.Pos()))
+-		m.PtrInit().Set(nil)
++		*m.PtrInit() = nil
+ 		p := fmt.Sprintf("%s·%d", n.Label.Name, inlgen)
+ 		m.Label = typecheck.Lookup(p)
+ 		return m
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 88fbdff1e0..1b88427146 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -67,7 +67,7 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
+ 	n := &AddStringExpr{}
+ 	n.pos = pos
+ 	n.op = OADDSTR
+-	n.List.Set(list)
++	n.List = list
+ 	return n
+ }
+ 
+@@ -173,7 +173,7 @@ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+ 	n.pos = pos
+ 	n.orig = n
+ 	n.SetOp(op)
+-	n.Args.Set(args)
++	n.Args = args
+ 	return n
+ }
+ 
+@@ -231,7 +231,7 @@ func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {
+ 	n := &CompLitExpr{Ntype: typ}
+ 	n.pos = pos
+ 	n.SetOp(op)
+-	n.List.Set(list)
++	n.List = list
+ 	n.orig = n
+ 	return n
+ }
+@@ -364,8 +364,8 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
+ 	n := &InlinedCallExpr{}
+ 	n.pos = pos
+ 	n.op = OINLCALL
+-	n.Body.Set(body)
+-	n.ReturnVars.Set(retvars)
++	n.Body = body
++	n.ReturnVars = retvars
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 9945cc987a..9d1ee17aa8 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -323,10 +323,6 @@ const (
+ // a slice to save space.
+ type Nodes []Node
+ 
+-// Set sets n to a slice.
+-// This takes ownership of the slice.
+-func (n *Nodes) Set(s []Node) { *n = s }
+-
+ // Append appends entries to Nodes.
+ func (n *Nodes) Append(a ...Node) {
+ 	if len(a) == 0 {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 9c2cba9a08..b13c6b7795 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -70,8 +70,8 @@ func NewAssignListStmt(pos src.XPos, op Op, lhs, rhs []Node) *AssignListStmt {
+ 	n := &AssignListStmt{}
+ 	n.pos = pos
+ 	n.SetOp(op)
+-	n.Lhs.Set(lhs)
+-	n.Rhs.Set(rhs)
++	n.Lhs = lhs
++	n.Rhs = rhs
+ 	return n
+ }
+ 
+@@ -141,7 +141,7 @@ func NewBlockStmt(pos src.XPos, list []Node) *BlockStmt {
+ 		}
+ 	}
+ 	n.op = OBLOCK
+-	n.List.Set(list)
++	n.List = list
+ 	return n
+ }
+ 
+@@ -216,7 +216,7 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt
+ 	if init != nil {
+ 		n.init = []Node{init}
+ 	}
+-	n.Body.Set(body)
++	n.Body = body
+ 	return n
+ }
+ 
+@@ -262,8 +262,8 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
+ 	n := &IfStmt{Cond: cond}
+ 	n.pos = pos
+ 	n.op = OIF
+-	n.Body.Set(body)
+-	n.Else.Set(els)
++	n.Body = body
++	n.Else = els
+ 	return n
+ }
+ 
+@@ -315,7 +315,7 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
+ 	n := &RangeStmt{X: x, Key: key, Value: value}
+ 	n.pos = pos
+ 	n.op = ORANGE
+-	n.Body.Set(body)
++	n.Body = body
+ 	return n
+ }
+ 
+@@ -331,7 +331,7 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
+ 	n.pos = pos
+ 	n.op = ORETURN
+ 	n.orig = n
+-	n.Results.Set(results)
++	n.Results = results
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 948833f46e..678e378291 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -245,7 +245,7 @@ func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
+ 		if body == nil {
+ 			body = []ir.Node{ir.NewBlockStmt(base.Pos, nil)}
+ 		}
+-		fn.Body.Set(body)
++		fn.Body = body
+ 
+ 		base.Pos = p.makeXPos(block.Rbrace)
+ 		fn.Endlineno = base.Pos
+@@ -772,7 +772,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 		for i, e := range l {
+ 			l[i] = p.wrapname(expr.ElemList[i], e)
+ 		}
+-		n.List.Set(l)
++		n.List = l
+ 		base.Pos = p.makeXPos(expr.Rbrace)
+ 		return n
+ 	case *syntax.KeyValueExpr:
+@@ -1128,8 +1128,8 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
+ 		if list, ok := stmt.Lhs.(*syntax.ListExpr); ok && len(list.ElemList) != 1 || len(rhs) != 1 {
+ 			n := ir.NewAssignListStmt(p.pos(stmt), ir.OAS2, nil, nil)
+ 			n.Def = stmt.Op == syntax.Def
+-			n.Lhs.Set(p.assignList(stmt.Lhs, n, n.Def))
+-			n.Rhs.Set(rhs)
++			n.Lhs = p.assignList(stmt.Lhs, n, n.Def)
++			n.Rhs = rhs
+ 			return n
+ 		}
+ 
+@@ -1276,7 +1276,7 @@ func (p *noder) ifStmt(stmt *syntax.IfStmt) ir.Node {
+ 		e := p.stmt(stmt.Else)
+ 		if e.Op() == ir.OBLOCK {
+ 			e := e.(*ir.BlockStmt)
+-			n.Else.Set(e.List)
++			n.Else = e.List
+ 		} else {
+ 			n.Else = []ir.Node{e}
+ 		}
+@@ -1301,7 +1301,7 @@ func (p *noder) forStmt(stmt *syntax.ForStmt) ir.Node {
+ 				n.Value = lhs[1]
+ 			}
+ 		}
+-		n.Body.Set(p.blockStmt(stmt.Body))
++		n.Body = p.blockStmt(stmt.Body)
+ 		p.closeAnotherScope()
+ 		return n
+ 	}
+@@ -1359,7 +1359,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch *ir.TypeSwitch
+ 			body = body[:len(body)-1]
+ 		}
+ 
+-		n.Body.Set(p.stmtsFall(body, true))
++		n.Body = p.stmtsFall(body, true)
+ 		if l := len(n.Body); l > 0 && n.Body[l-1].Op() == ir.OFALL {
+ 			if tswitch != nil {
+ 				base.Errorf("cannot fallthrough in type switch")
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 24fe1a7628..a32e09879c 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -49,7 +49,7 @@ func Task() *ir.Name {
+ 		fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
+ 		typecheck.InitTodoFunc.Dcl = nil
+ 
+-		fn.Body.Set(nf)
++		fn.Body = nf
+ 		typecheck.FinishFuncBody()
+ 
+ 		typecheck.Func(fn)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 5f88262ddf..f926765326 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1798,7 +1798,7 @@ func methodWrapper(rcvr *types.Type, method *types.Field) *obj.LSym {
+ 	} else {
+ 		fn.SetWrapper(true) // ignore frame for panic+recover matching
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, dot, nil)
+-		call.Args.Set(ir.ParamNames(tfn.Type()))
++		call.Args = ir.ParamNames(tfn.Type())
+ 		call.IsDDD = tfn.Type().IsVariadic()
+ 		if method.Type.NumResults() > 0 {
+ 			ret := ir.NewReturnStmt(base.Pos, nil)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index cd5d962b91..1c013dd2d8 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -303,7 +303,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
+ 	} else {
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+-		call.Args.Set(ir.ParamNames(tfn.Type()))
++		call.Args = ir.ParamNames(tfn.Type())
+ 		call.IsDDD = tfn.Type().IsVariadic()
+ 		tail = call
+ 		if tfn.Type().NumResults() > 0 {
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 5259218ef9..d6bf101974 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -509,7 +509,7 @@ func EvalConst(n ir.Node) ir.Node {
+ 				}
+ 
+ 				nl := ir.Copy(n).(*ir.AddStringExpr)
+-				nl.List.Set(s[i:i2])
++				nl.List = s[i:i2]
+ 				newList = append(newList, OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
+ 				i = i2 - 1
+ 			} else {
+@@ -518,7 +518,7 @@ func EvalConst(n ir.Node) ir.Node {
+ 		}
+ 
+ 		nn := ir.Copy(n).(*ir.AddStringExpr)
+-		nn.List.Set(newList)
++		nn.List = newList
+ 		return nn
+ 
+ 	case ir.OCAP, ir.OLEN:
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 296755028d..8592397004 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -52,7 +52,7 @@ func FixVariadicCall(call *ir.CallExpr) {
+ 		extra[i] = nil // allow GC
+ 	}
+ 
+-	call.Args.Set(append(args[:vi], slice))
++	call.Args = append(args[:vi], slice)
+ 	call.IsDDD = true
+ }
+ 
+@@ -313,7 +313,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+ 	}
+ 
+ 	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
+-	call.Args.Set(ir.ParamNames(tfn.Type()))
++	call.Args = ir.ParamNames(tfn.Type())
+ 	call.IsDDD = tfn.Type().IsVariadic()
+ 	if t0.NumResults() != 0 {
+ 		ret := ir.NewReturnStmt(base.Pos, nil)
+@@ -323,7 +323,7 @@ func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
+ 		body = append(body, call)
+ 	}
+ 
+-	fn.Body.Set(body)
++	fn.Body = body
+ 	FinishFuncBody()
+ 
+ 	Func(fn)
+@@ -798,7 +798,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
+ 		return n
+ 	}
+ 
+-	n.Args.Set(nil)
++	n.Args = nil
+ 	l := args[0]
+ 	l = typecheck(l, ctxType)
+ 	t := l.Type()
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 00ecd9b819..0caac362e3 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -779,7 +779,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
+ 	cases := make([]*ir.CaseClause, r.uint64())
+ 	for i := range cases {
+ 		cas := ir.NewCaseStmt(r.pos(), nil, nil)
+-		cas.List.Set(r.stmtList())
++		cas.List = r.stmtList()
+ 		if namedTypeSwitch {
+ 			// Note: per-case variables will have distinct, dotted
+ 			// names after import. That's okay: swt.go only needs
+@@ -789,7 +789,7 @@ func (r *importReader) caseList(switchExpr ir.Node) []*ir.CaseClause {
+ 			cas.Var = caseVar
+ 			caseVar.Defn = switchExpr
+ 		}
+-		cas.Body.Set(r.stmtList())
++		cas.Body = r.stmtList()
+ 		cases[i] = cas
+ 	}
+ 	return cases
+@@ -932,7 +932,7 @@ func (r *importReader) node() ir.Node {
+ 
+ 	case ir.OCOPY, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCAP, ir.OCLOSE, ir.ODELETE, ir.OLEN, ir.OMAKE, ir.ONEW, ir.OPANIC, ir.ORECOVER, ir.OPRINT, ir.OPRINTN:
+ 		n := builtinCall(r.pos(), op)
+-		n.Args.Set(r.exprList())
++		n.Args = r.exprList()
+ 		if op == ir.OAPPEND {
+ 			n.IsDDD = r.bool()
+ 		}
+@@ -945,7 +945,7 @@ func (r *importReader) node() ir.Node {
+ 		pos := r.pos()
+ 		init := r.stmtList()
+ 		n := ir.NewCallExpr(pos, ir.OCALL, r.expr(), r.exprList())
+-		n.PtrInit().Set(init)
++		*n.PtrInit() = init
+ 		n.IsDDD = r.bool()
+ 		return n
+ 
+@@ -1033,14 +1033,14 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OIF:
+ 		pos, init := r.pos(), r.stmtList()
+ 		n := ir.NewIfStmt(pos, r.expr(), r.stmtList(), r.stmtList())
+-		n.PtrInit().Set(init)
++		*n.PtrInit() = init
+ 		return n
+ 
+ 	case ir.OFOR:
+ 		pos, init := r.pos(), r.stmtList()
+ 		cond, post := r.exprsOrNil()
+ 		n := ir.NewForStmt(pos, nil, cond, post, r.stmtList())
+-		n.PtrInit().Set(init)
++		*n.PtrInit() = init
+ 		return n
+ 
+ 	case ir.ORANGE:
+@@ -1052,7 +1052,7 @@ func (r *importReader) node() ir.Node {
+ 		pos := r.pos()
+ 		init := r.stmtList()
+ 		n := ir.NewSelectStmt(pos, r.commList())
+-		n.PtrInit().Set(init)
++		*n.PtrInit() = init
+ 		return n
+ 
+ 	case ir.OSWITCH:
+@@ -1060,7 +1060,7 @@ func (r *importReader) node() ir.Node {
+ 		init := r.stmtList()
+ 		x, _ := r.exprsOrNil()
+ 		n := ir.NewSwitchStmt(pos, x, r.caseList(x))
+-		n.PtrInit().Set(init)
++		*n.PtrInit() = init
+ 		return n
+ 
+ 	// case OCASE:
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 0ee66df2cf..d0922e8508 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -64,7 +64,7 @@ func FuncBody(n *ir.Func) {
+ 	CheckUnused(n)
+ 	CheckReturn(n)
+ 	if base.Errors() > errorsBefore {
+-		n.Body.Set(nil) // type errors; do not compile
++		n.Body = nil // type errors; do not compile
+ 	}
+ }
+ 
+@@ -971,9 +971,9 @@ func typecheckargs(n ir.InitNode) {
+ 
+ 	switch n := n.(type) {
+ 	case *ir.CallExpr:
+-		n.Args.Set(list)
++		n.Args = list
+ 	case *ir.ReturnStmt:
+-		n.Results.Set(list)
++		n.Results = list
+ 	}
+ 
+ 	n.PtrInit().Append(Stmt(as))
+@@ -1687,7 +1687,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+ 	}
+ 
+ 	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
+-	nn.List.Set(l)
++	nn.List = l
+ 	return Expr(nn)
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 762baa0dd9..7f3e4cc995 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -264,7 +264,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
+ 		// move function calls out, to make ascompatee's job easier.
+ 		walkExprListSafe(n.Results, n.PtrInit())
+ 
+-		n.Results.Set(ascompatee(n.Op(), rl, n.Results, n.PtrInit()))
++		n.Results = ascompatee(n.Op(), rl, n.Results, n.PtrInit())
+ 		return n
+ 	}
+ 	walkExprList(n.Results, n.PtrInit())
+@@ -281,7 +281,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
+ 		a := ir.NewAssignStmt(base.Pos, nname, rhs[i])
+ 		res[i] = convas(a, n.PtrInit())
+ 	}
+-	n.Results.Set(res)
++	n.Results = res
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 13837eeffc..a061181e2f 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -531,7 +531,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			t = append(t, n)
+ 		}
+ 		t = append(t, ir.NewString("\n"))
+-		nn.Args.Set(t)
++		nn.Args = t
+ 	}
+ 
+ 	// Collapse runs of constant strings.
+@@ -551,7 +551,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			i++
+ 		}
+ 	}
+-	nn.Args.Set(t)
++	nn.Args = t
+ 
+ 	calls := []ir.Node{mkcall("printlock", nil, init)}
+ 	for i, n := range nn.Args {
+@@ -653,7 +653,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	walkExprList(calls, init)
+ 
+ 	r := ir.NewBlockStmt(base.Pos, nil)
+-	r.List.Set(calls)
++	r.List = calls
+ 	return walkStmt(typecheck.Stmt(r))
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 62d2a362b1..fcdb43f113 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -107,7 +107,7 @@ func Closure(fn *ir.Func) {
+ 
+ 		if len(body) > 0 {
+ 			typecheck.Stmts(body)
+-			fn.Enter.Set(body)
++			fn.Enter = body
+ 			fn.SetNeedctxt(true)
+ 		}
+ 	}
+@@ -131,7 +131,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 
+ 	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+ 	clos.SetEsc(clo.Esc())
+-	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...))
++	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...)
+ 
+ 	addr := typecheck.NodAddr(clos)
+ 	addr.SetEsc(clo.Esc())
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 7dfac30094..8a56526a36 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -477,7 +477,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 
+ 	cat := typecheck.LookupRuntime(fn)
+ 	r := ir.NewCallExpr(base.Pos, ir.OCALL, cat, nil)
+-	r.Args.Set(args)
++	r.Args = args
+ 	r1 := typecheck.Expr(r)
+ 	r1 = walkExpr(r1, init)
+ 	r1.SetType(n.Type())
+@@ -562,8 +562,8 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 		}
+ 	}
+ 
+-	n.Args.Set(tempAssigns)
+-	n.Rargs.Set(args)
++	n.Args = tempAssigns
++	n.Rargs = args
+ }
+ 
+ // walkDivMod walks an ODIV or OMOD node.
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 679b795270..767af07414 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -423,7 +423,7 @@ func orderBlock(n *ir.Nodes, free map[string][]*ir.Name) {
+ 	order.edge()
+ 	order.stmtList(*n)
+ 	order.cleanTemp(mark)
+-	n.Set(order.out)
++	*n = order.out
+ }
+ 
+ // exprInPlace orders the side effects in *np and
+@@ -1233,9 +1233,9 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 		// If left-hand side doesn't cause a short-circuit, issue right-hand side.
+ 		nif := ir.NewIfStmt(base.Pos, r, nil, nil)
+ 		if n.Op() == ir.OANDAND {
+-			nif.Body.Set(gen)
++			nif.Body = gen
+ 		} else {
+-			nif.Else.Set(gen)
++			nif.Else = gen
+ 		}
+ 		o.out = append(o.out, nif)
+ 		return r
+@@ -1401,7 +1401,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 
+ 			statics = append(statics, r)
+ 		}
+-		n.List.Set(statics)
++		n.List = statics
+ 
+ 		if len(dynamics) == 0 {
+ 			return n
+@@ -1448,8 +1448,8 @@ func (o *orderState) as2(n *ir.AssignListStmt) {
+ 	o.out = append(o.out, n)
+ 
+ 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, nil)
+-	as.Lhs.Set(left)
+-	as.Rhs.Set(tmplist)
++	as.Lhs = left
++	as.Rhs = tmplist
+ 	o.stmt(typecheck.Stmt(as))
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 3092b71d72..9225c429f0 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -429,7 +429,7 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 	// 	i = len(a) - 1
+ 	// }
+ 	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-	n.Body.Set(nil)
++	n.Body = nil
+ 	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0))
+ 
+ 	// hp = &a[0]
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index c6e9b71384..776b020155 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -22,7 +22,7 @@ func walkSelect(sel *ir.SelectStmt) {
+ 	init = append(init, walkSelectCases(sel.Cases)...)
+ 	sel.Cases = nil
+ 
+-	sel.Compiled.Set(init)
++	sel.Compiled = init
+ 	walkStmtList(sel.Compiled)
+ 
+ 	base.Pos = lno
+@@ -104,7 +104,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 		n := cas.Comm
+ 		ir.SetPos(n)
+ 		r := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-		r.PtrInit().Set(cas.Init())
++		*r.PtrInit() = cas.Init()
+ 		var call ir.Node
+ 		switch n.Op() {
+ 		default:
+@@ -136,8 +136,8 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 		}
+ 
+ 		r.Cond = typecheck.Expr(call)
+-		r.Body.Set(cas.Body)
+-		r.Else.Set(append(dflt.Init(), dflt.Body...))
++		r.Body = cas.Body
++		r.Else = append(dflt.Init(), dflt.Body...)
+ 		return []ir.Node{r, ir.NewBranchStmt(base.Pos, ir.OBREAK, nil)}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 3440c66506..460c0a7c10 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -61,7 +61,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 			// copy rewrote to a statement list and a temp for the length.
+ 			// Throw away the temp to avoid plain values as statements.
+ 			n = ir.NewBlockStmt(n.Pos(), init)
+-			init.Set(nil)
++			init = nil
+ 		}
+ 		if len(init) > 0 {
+ 			switch n.Op() {
+@@ -265,7 +265,7 @@ func wrapCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		last := len(n.Args) - 1
+ 		if va := n.Args[last]; va.Op() == ir.OSLICELIT {
+ 			va := va.(*ir.CompLitExpr)
+-			n.Args.Set(append(n.Args[:last], va.List...))
++			n.Args = append(n.Args[:last], va.List...)
+ 			n.IsDDD = false
+ 		}
+ 	}

@@ -7,6 +7,20 @@ Date:   Thu Mar 3 13:29:31 2011 -0800
     R=golang-dev, rsc, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4259048
-
+---
  src/pkg/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index c172c6c42d..42fe3e5e4d 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -353,7 +353,7 @@ func TestServerTimeouts(t *testing.T) {
+ 
+ // TestIdentityResponse verifies that a handler can unset 
+ func TestIdentityResponse(t *testing.T) {
+-	l, err := net.Listen("tcp", ":0")
++	l, err := net.Listen("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatalf("failed to listen on a port: %v", err)
+ 	}

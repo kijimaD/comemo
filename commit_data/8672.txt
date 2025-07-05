@@ -11,7 +11,7 @@ Date:   Thu Jun 9 17:19:08 2011 -0400
     R=rsc, dave, m
     CC=golang-dev
     https://golang.org/cl/4551082
-
+---
  src/cmd/5a/lex.c                |  2 ++
  src/cmd/5l/5.out.h              |  2 ++
  src/cmd/5l/asm.c                |  4 +++-
@@ -23,3 +23,152 @@ Date:   Thu Jun 9 17:19:08 2011 -0400
  src/pkg/math/sqrt_port.go       |  4 ++++
  src/pkg/runtime/arm/softfloat.c |  9 +++++++++
  10 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index a04cda2201..3978f1a6c1 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -338,6 +338,8 @@ struct
+ 	"NRMD",		LTYPEI,	ANRMD,
+ */
+ 
++	"SQRTF",	LTYPEI, ASQRTF,
++	"SQRTD",	LTYPEI, ASQRTD,
+ 	"CMPF",		LTYPEL, ACMPF,
+ 	"CMPD",		LTYPEL, ACMPD,
+ 	"ADDF",		LTYPEK,	AADDF,
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index 002b46d451..bdc2c956f8 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -126,6 +126,8 @@ enum	as
+ 	AMULD,
+ 	ADIVF,
+ 	ADIVD,
++	ASQRTF,
++	ASQRTD,
+ 
+ 	ASRL,
+ 	ASRA,
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 011e7f8424..8dfcd94610 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1186,7 +1186,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->na
+ 		r = p->reg;
+ 		if(r == NREG) {
+ 			r = rt;
+-			if(p->as == AMOVF || p->as == AMOVD)
++			if(p->as == AMOVF || p->as == AMOVD || p->as == ASQRTF || p->as == ASQRTD)
+ 				r = 0;
+ 		}
+ 		o1 |= rf | (r<<16) | (rt<<12);
+@@ -1620,6 +1620,8 @@ oprrr(int a, int sc)
+ 	case AMULF:	return o | (0xe<<24) | (0x2<<20) | (0xa<<8) | (0<<4);
+ 	case ADIVD:	return o | (0xe<<24) | (0x8<<20) | (0xb<<8) | (0<<4);
+ 	case ADIVF:	return o | (0xe<<24) | (0x8<<20) | (0xa<<8) | (0<<4);
++	case ASQRTD:	return o | (0xe<<24) | (0xb<<20) | (1<<16) | (0xb<<8) | (0xc<<4);
++	case ASQRTF:	return o | (0xe<<24) | (0xb<<20) | (1<<16) | (0xa<<8) | (0xc<<4);
+ 	case ACMPD:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xb<<8) | (0xc<<4);
+ 	case ACMPF:	return o | (0xe<<24) | (0xb<<20) | (4<<16) | (0xa<<8) | (0xc<<4);
+ 
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 96ba0010fa..2089e8f0bd 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -67,6 +67,7 @@ static char*
+ linkername[] =
+ {
+ 	"runtime.softfloat",
++	"math.sqrtGoC",
+ };
+ 
+ void
+diff --git a/src/cmd/5l/softfloat.c b/src/cmd/5l/softfloat.c
+index 03d8c6d262..4f799d17ee 100644
+--- a/src/cmd/5l/softfloat.c
++++ b/src/cmd/5l/softfloat.c
+@@ -54,6 +54,8 @@ softfloat(void)
+ 			case AMULD:
+ 			case ADIVF:
+ 			case ADIVD:
++			case ASQRTF:
++			case ASQRTD:
+ 				goto soft;
+ 
+ 			default:
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 4067f1a327..0fe3105976 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -1023,6 +1023,8 @@ buildop(void)
+ 			oprange[AMULD] = oprange[r];
+ 			oprange[ADIVF] = oprange[r];
+ 			oprange[ADIVD] = oprange[r];
++			oprange[ASQRTF] = oprange[r];
++			oprange[ASQRTD] = oprange[r];
+ 			oprange[AMOVFD] = oprange[r];
+ 			oprange[AMOVDF] = oprange[r];
+ 			break;
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index 71347b7fa1..8e8e74ae4c 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -6,6 +6,9 @@ include ../../Make.inc
+ 
+ TARG=math
+ 
++OFILES_arm=\
++	sqrt_arm.$O\
++
+ OFILES_amd64=\
+ 	exp_amd64.$O\
+ 	fabs_amd64.$O\
+diff --git a/src/pkg/math/sqrt_arm.s b/src/pkg/math/sqrt_arm.s
+new file mode 100644
+index 0000000000..befbb8a898
+--- /dev/null
++++ b/src/pkg/math/sqrt_arm.s
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Sqrt(x float64) float64	
++TEXT ·Sqrt(SB),7,$0
++	MOVD   x+0(FP),F0
++	SQRTD  F0,F0
++	MOVD  F0,r+8(FP)
++	RET
+diff --git a/src/pkg/math/sqrt_port.go b/src/pkg/math/sqrt_port.go
+index 83af255bf1..148239bcff 100644
+--- a/src/pkg/math/sqrt_port.go
++++ b/src/pkg/math/sqrt_port.go
+@@ -141,3 +141,7 @@ func sqrtGo(x float64) float64 {
+ 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+ 	return Float64frombits(ix)
+ }
++
++func sqrtGoC(f float64, r *float64) {
++	*r = sqrtGo(f)
++}
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index f91a6fc09b..c5da888743 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -357,6 +357,15 @@ stage3:	// regd, regm are 4bit variables
+ 				regd, regm, m->freghi[regd], m->freglo[regd]);
+ 		break;
+ 
++	case 0xeeb10bc0:	// D[regd] = sqrt D[regm]
++		math·sqrtGoC(getd(regm), &uval);
++		putd(regd, uval);
++
++		if(trace)
++			runtime·printf("*** D[%d] = sqrt D[%d] %x-%x\n",
++				regd, regm, m->freghi[regd], m->freglo[regd]);
++		break;
++
+ 	case 0xeeb40bc0:	// D[regd] :: D[regm] (CMPD)
+ 		runtime·fcmp64c(getd(regd), getd(regm), &cmp, &nan);
+ 		m->fflag = fstatus(nan, cmp);

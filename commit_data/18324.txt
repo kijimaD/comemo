@@ -8,7 +8,303 @@ Date:   Wed Jan 22 10:36:17 2014 +0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/54220043
-
+---
  src/pkg/runtime/chan.c                     |  55 +++++++++-----
  src/pkg/runtime/race/testdata/chan_test.go | 113 +++++++++++++++++++++++++++++
  2 files changed, 149 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 81a56488ae..bb3388548d 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -41,7 +41,7 @@ struct	Hchan
+ 	uint16	elemsize;
+ 	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
+ 	bool	closed;
+-	Alg*	elemalg;		// interface for element type
++	Type*	elemtype;		// element type
+ 	uintgo	sendx;			// send index
+ 	uintgo	recvx;			// receive index
+ 	WaitQ	recvq;			// list of recv waiters
+@@ -110,7 +110,7 @@ runtime·makechan_c(ChanType *t, int64 hint)
+ 	// allocate memory in one call
+ 	c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, (uintptr)t | TypeInfo_Chan, 0);
+ 	c->elemsize = elem->size;
+-	c->elemalg = elem->alg;
++	c->elemtype = elem;
+ 	c->dataqsiz = hint;
+ 
+ 	if(debug)
+@@ -174,7 +174,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ 
+ 	if(debug) {
+ 		runtime·printf("chansend: chan=%p; elem=", c);
+-		c->elemalg->print(c->elemsize, ep);
++		c->elemtype->alg->print(c->elemsize, ep);
+ 		runtime·prints("\n");
+ 	}
+ 
+@@ -203,7 +203,7 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ 		gp = sg->g;
+ 		gp->param = sg;
+ 		if(sg->elem != nil)
+-			c->elemalg->copy(c->elemsize, sg->elem, ep);
++			c->elemtype->alg->copy(c->elemsize, sg->elem, ep);
+ 		if(sg->releasetime)
+ 			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+@@ -261,7 +261,7 @@ asynch:
+ 	if(raceenabled)
+ 		runtime·racerelease(chanbuf(c, c->sendx));
+ 
+-	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
++	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), ep);
+ 	if(++c->sendx == c->dataqsiz)
+ 		c->sendx = 0;
+ 	c->qcount++;
+@@ -331,7 +331,7 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 		runtime·unlock(c);
+ 
+ 		if(ep != nil)
+-			c->elemalg->copy(c->elemsize, ep, sg->elem);
++			c->elemtype->alg->copy(c->elemsize, ep, sg->elem);
+ 		gp = sg->g;
+ 		gp->param = sg;
+ 		if(sg->releasetime)
+@@ -397,8 +397,8 @@ asynch:
+ 		runtime·raceacquire(chanbuf(c, c->recvx));
+ 
+ 	if(ep != nil)
+-		c->elemalg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
+-	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
++		c->elemtype->alg->copy(c->elemsize, ep, chanbuf(c, c->recvx));
++	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+ 	if(++c->recvx == c->dataqsiz)
+ 		c->recvx = 0;
+ 	c->qcount--;
+@@ -423,7 +423,7 @@ asynch:
+ 
+ closed:
+ 	if(ep != nil)
+-		c->elemalg->copy(c->elemsize, ep, nil);
++		c->elemtype->alg->copy(c->elemsize, ep, nil);
+ 	if(selected != nil)
+ 		*selected = true;
+ 	if(received != nil)
+@@ -1007,18 +1007,28 @@ loop:
+ 			*cas->receivedp = true;
+ 	}
+ 
++	if(raceenabled) {
++		if(cas->kind == CaseRecv && cas->sg.elem != nil)
++			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
++		else if(cas->kind == CaseSend)
++			runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
++	}
++
+ 	selunlock(sel);
+ 	goto retc;
+ 
+ asyncrecv:
+ 	// can receive from buffer
+-	if(raceenabled)
++	if(raceenabled) {
++		if(cas->sg.elem != nil)
++			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
+ 		runtime·raceacquire(chanbuf(c, c->recvx));
++	}
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = true;
+ 	if(cas->sg.elem != nil)
+-		c->elemalg->copy(c->elemsize, cas->sg.elem, chanbuf(c, c->recvx));
+-	c->elemalg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
++		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, chanbuf(c, c->recvx));
++	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->recvx), nil);
+ 	if(++c->recvx == c->dataqsiz)
+ 		c->recvx = 0;
+ 	c->qcount--;
+@@ -1036,9 +1046,11 @@ asyncrecv:
+ 
+ asyncsend:
+ 	// can send to buffer
+-	if(raceenabled)
++	if(raceenabled) {
+ 		runtime·racerelease(chanbuf(c, c->sendx));
+-	c->elemalg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
++		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
++	}
++	c->elemtype->alg->copy(c->elemsize, chanbuf(c, c->sendx), cas->sg.elem);
+ 	if(++c->sendx == c->dataqsiz)
+ 		c->sendx = 0;
+ 	c->qcount++;
+@@ -1056,15 +1068,18 @@ asyncsend:
+ 
+ syncrecv:
+ 	// can receive from sleeping sender (sg)
+-	if(raceenabled)
++	if(raceenabled) {
++		if(cas->sg.elem != nil)
++			runtime·racewriteobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chanrecv);
+ 		racesync(c, sg);
++	}
+ 	selunlock(sel);
+ 	if(debug)
+ 		runtime·printf("syncrecv: sel=%p c=%p o=%d\n", sel, c, o);
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = true;
+ 	if(cas->sg.elem != nil)
+-		c->elemalg->copy(c->elemsize, cas->sg.elem, sg->elem);
++		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, sg->elem);
+ 	gp = sg->g;
+ 	gp->param = sg;
+ 	if(sg->releasetime)
+@@ -1078,20 +1093,22 @@ rclose:
+ 	if(cas->receivedp != nil)
+ 		*cas->receivedp = false;
+ 	if(cas->sg.elem != nil)
+-		c->elemalg->copy(c->elemsize, cas->sg.elem, nil);
++		c->elemtype->alg->copy(c->elemsize, cas->sg.elem, nil);
+ 	if(raceenabled)
+ 		runtime·raceacquire(c);
+ 	goto retc;
+ 
+ syncsend:
+ 	// can send to sleeping receiver (sg)
+-	if(raceenabled)
++	if(raceenabled) {
++		runtime·racereadobjectpc(cas->sg.elem, c->elemtype, cas->pc, runtime·chansend);
+ 		racesync(c, sg);
++	}
+ 	selunlock(sel);
+ 	if(debug)
+ 		runtime·printf("syncsend: sel=%p c=%p o=%d\n", sel, c, o);
+ 	if(sg->elem != nil)
+-		c->elemalg->copy(c->elemsize, sg->elem, cas->sg.elem);
++		c->elemtype->alg->copy(c->elemsize, sg->elem, cas->sg.elem);
+ 	gp = sg->g;
+ 	gp->param = sg;
+ 	if(sg->releasetime)
+diff --git a/src/pkg/runtime/race/testdata/chan_test.go b/src/pkg/runtime/race/testdata/chan_test.go
+index 614ba4a4e2..d6a1f14db1 100644
+--- a/src/pkg/runtime/race/testdata/chan_test.go
++++ b/src/pkg/runtime/race/testdata/chan_test.go
+@@ -347,6 +347,119 @@ func TestRaceChanSendSelectClose(t *testing.T) {
+ 	<-compl
+ }
+ 
++func TestRaceSelectReadWriteAsync(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	c1 := make(chan int, 10)
++	c2 := make(chan int, 10)
++	c3 := make(chan int)
++	c2 <- 1
++	go func() {
++		select {
++		case c1 <- x: // read of x races with...
++		case c3 <- 1:
++		}
++		done <- true
++	}()
++	select {
++	case x = <-c2: // ... write to x here
++	case c3 <- 1:
++	}
++	<-done
++}
++
++func TestRaceSelectReadWriteSync(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	c1 := make(chan int)
++	c2 := make(chan int)
++	c3 := make(chan int)
++	// make c1 and c2 ready for communication
++	go func() {
++		<-c1
++	}()
++	go func() {
++		c2 <- 1
++	}()
++	go func() {
++		select {
++		case c1 <- x: // read of x races with...
++		case c3 <- 1:
++		}
++		done <- true
++	}()
++	select {
++	case x = <-c2: // ... write to x here
++	case c3 <- 1:
++	}
++	<-done
++}
++
++func TestNoRaceSelectReadWriteAsync(t *testing.T) {
++	done := make(chan bool)
++	x := 0
++	c1 := make(chan int)
++	c2 := make(chan int)
++	go func() {
++		select {
++		case c1 <- x: // read of x does not race with...
++		case c2 <- 1:
++		}
++		done <- true
++	}()
++	select {
++	case x = <-c1: // ... write to x here
++	case c2 <- 1:
++	}
++	<-done
++}
++
++func TestRaceChanReadWriteAsync(t *testing.T) {
++	done := make(chan bool)
++	c1 := make(chan int, 10)
++	c2 := make(chan int, 10)
++	c2 <- 10
++	x := 0
++	go func() {
++		c1 <- x // read of x races with...
++		done <- true
++	}()
++	x = <-c2 // ... write to x here
++	<-done
++}
++
++func TestRaceChanReadWriteSync(t *testing.T) {
++	done := make(chan bool)
++	c1 := make(chan int)
++	c2 := make(chan int)
++	// make c1 and c2 ready for communication
++	go func() {
++		<-c1
++	}()
++	go func() {
++		c2 <- 10
++	}()
++	x := 0
++	go func() {
++		c1 <- x // read of x races with...
++		done <- true
++	}()
++	x = <-c2 // ... write to x here
++	<-done
++}
++
++func TestNoRaceChanReadWriteAsync(t *testing.T) {
++	done := make(chan bool)
++	c1 := make(chan int, 10)
++	x := 0
++	go func() {
++		c1 <- x // read of x does not race with...
++		done <- true
++	}()
++	x = <-c1 // ... write to x here
++	<-done
++}
++
+ func TestNoRaceProducerConsumerUnbuffered(t *testing.T) {
+ 	type Task struct {
+ 		f    func()

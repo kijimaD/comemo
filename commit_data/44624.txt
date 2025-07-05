@@ -29,7 +29,36 @@ Date:   Wed Aug 12 20:27:57 2020 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go | 3 +++
  src/runtime/sys_darwin.go      | 6 ------
  2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index bf5c9ca1ba..b3541c46c0 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -183,6 +183,9 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
+ 					hostObjSyms[s] = struct{}{}
+ 				}
+ 				havedynamic = 1
++				if lib != "" && ctxt.IsDarwin() {
++					machoadddynlib(lib, ctxt.LinkMode)
++				}
+ 			}
+ 
+ 			continue
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 06474434c9..e4f19bbf41 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -489,9 +489,3 @@ func setNonblock(fd int32) {
+ //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+-
+-// Magic incantation to get libSystem and friends actually dynamically linked.
+-// TODO: Why does the code require this?  See cmd/link/internal/ld/go.go
+-//go:cgo_import_dynamic _ _ "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+-//go:cgo_import_dynamic _ _ "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"

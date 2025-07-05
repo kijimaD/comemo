@@ -17,7 +17,7 @@ Date:   Thu Apr 5 14:29:32 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  4 +++-
  src/cmd/compile/internal/gc/bimport.go | 21 +++++++++++++++++++--
  src/cmd/compile/internal/gc/main.go    | 13 +++++++++++++
@@ -25,3 +25,201 @@ Date:   Thu Apr 5 14:29:32 2018 -0700
  src/cmd/compile/internal/types/pkg.go  | 24 +++++++++++++++++-------
  src/go/internal/gcimporter/bimport.go  |  7 +++++--
  6 files changed, 59 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f37ab3e819..8ec1e36e84 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -135,13 +135,14 @@ import (
+ const debugFormat = false // default: false
+ 
+ // Current export format version. Increase with each format change.
++// 6: package height (CL 105038)
+ // 5: improved position encoding efficiency (issue 20080, CL 41619)
+ // 4: type name objects support type aliases, uses aliasTag
+ // 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
+ // 2: removed unused bool in ODCL export (compiler only)
+ // 1: header format change (more regular), export package for _ struct fields
+ // 0: Go1.7 encoding
+-const exportVersion = 5
++const exportVersion = 6
+ 
+ // exportInlined enables the export of inlined function bodies and related
+ // dependencies. The compiler should work w/o any loss of functionality with
+@@ -428,6 +429,7 @@ func (p *exporter) pkg(pkg *types.Pkg) {
+ 	p.tag(packageTag)
+ 	p.string(pkg.Name)
+ 	p.path(pkg.Path)
++	p.int(pkg.Height)
+ }
+ 
+ func unidealType(typ *types.Type, val Val) *types.Type {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index ca0f523a79..41a9ce41bd 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -96,10 +96,10 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 6:
++	// case 7:
+ 	// 	...
+ 	//	fallthrough
+-	case 5, 4, 3, 2, 1:
++	case 6, 5, 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.bool()
+ 		p.posInfoFormat = p.bool()
+@@ -281,6 +281,10 @@ func (p *importer) pkg() *types.Pkg {
+ 	} else {
+ 		path = p.string()
+ 	}
++	var height int
++	if p.version >= 6 {
++		height = p.int()
++	}
+ 
+ 	// we should never see an empty package name
+ 	if name == "" {
+@@ -298,6 +302,18 @@ func (p *importer) pkg() *types.Pkg {
+ 		p.formatErrorf("package path %q for pkg index %d", path, len(p.pkgList))
+ 	}
+ 
++	if p.version >= 6 {
++		if height < 0 || height >= types.MaxPkgHeight {
++			p.formatErrorf("bad package height %v for package %s", height, name)
++		}
++
++		// reexported packages should always have a lower height than
++		// the main package
++		if len(p.pkgList) != 0 && height >= p.imp.Height {
++			p.formatErrorf("package %q (height %d) reexports package %q (height %d)", p.imp.Path, p.imp.Height, path, height)
++		}
++	}
++
+ 	// add package to pkgList
+ 	pkg := p.imp
+ 	if path != "" {
+@@ -313,6 +329,7 @@ func (p *importer) pkg() *types.Pkg {
+ 		yyerror("import %q: package depends on %q (import cycle)", p.imp.Path, path)
+ 		errorexit()
+ 	}
++	pkg.Height = height
+ 	p.pkgList = append(p.pkgList, pkg)
+ 
+ 	return pkg
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 52485b088c..9496fc9a94 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -141,6 +141,11 @@ func Main(archInit func(*Arch)) {
+ 	localpkg = types.NewPkg("", "")
+ 	localpkg.Prefix = "\"\""
+ 
++	// We won't know localpkg's height until after import
++	// processing. In the mean time, set to MaxPkgHeight to ensure
++	// height comparisons at least work until then.
++	localpkg.Height = types.MaxPkgHeight
++
+ 	// pseudo-package, for scoping
+ 	builtinpkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+ 	builtinpkg.Prefix = "go.builtin"            // not go%2ebuiltin
+@@ -925,6 +930,10 @@ func loadsys() {
+ 	inimport = false
+ }
+ 
++// myheight tracks the local package's height based on packages
++// imported so far.
++var myheight int
++
+ func importfile(f *Val) *types.Pkg {
+ 	path_, ok := f.U.(string)
+ 	if !ok {
+@@ -1117,6 +1126,10 @@ func importfile(f *Val) *types.Pkg {
+ 		errorexit()
+ 	}
+ 
++	if importpkg.Height >= myheight {
++		myheight = importpkg.Height + 1
++	}
++
+ 	return importpkg
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 03d412bfbb..96b2584074 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -65,6 +65,8 @@ func parseFiles(filenames []string) uint {
+ 		testdclstack()
+ 	}
+ 
++	localpkg.Height = myheight
++
+ 	return lines
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 81bf72e972..e27c1fdba3 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -15,14 +15,24 @@ import (
+ // pkgMap maps a package path to a package.
+ var pkgMap = make(map[string]*Pkg)
+ 
++// MaxPkgHeight is a height greater than any likely package height.
++const MaxPkgHeight = 1e9
++
+ type Pkg struct {
+-	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
+-	Name     string // package name, e.g. "sys"
+-	Pathsym  *obj.LSym
+-	Prefix   string // escaped path for use in symbol table
+-	Imported bool   // export data of this package was parsed
+-	Direct   bool   // imported directly
+-	Syms     map[string]*Sym
++	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
++	Name    string // package name, e.g. "sys"
++	Prefix  string // escaped path for use in symbol table
++	Syms    map[string]*Sym
++	Pathsym *obj.LSym
++
++	// Height is the package's height in the import graph. Leaf
++	// packages (i.e., packages with no imports) have height 0,
++	// and all other packages have height 1 plus the maximum
++	// height of their imported packages.
++	Height int
++
++	Imported bool // export data of this package was parsed
++	Direct   bool // imported directly
+ }
+ 
+ // NewPkg returns a new Pkg for the given package path and name.
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index b8d9e318ed..5c98da4304 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -102,10 +102,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 6:
++	// case 7:
+ 	// 	...
+ 	//	fallthrough
+-	case 5, 4, 3, 2, 1:
++	case 6, 5, 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.int() != 0
+ 		p.posInfoFormat = p.int() != 0
+@@ -182,6 +182,9 @@ func (p *importer) pkg() *types.Package {
+ 	} else {
+ 		path = p.string()
+ 	}
++	if p.version >= 6 {
++		p.int() // package height; unused by go/types
++	}
+ 
+ 	// we should never see an empty package name
+ 	if name == "" {

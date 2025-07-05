@@ -14,6 +14,33 @@ Date:   Sat Feb 7 03:51:13 2015 +0000
     Change-Id: I4d214b228883d0a6e892c0d6eb00dfe2da84c116
     Reviewed-on: https://go-review.googlesource.com/4160
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/xml.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 5690b20256..e9535d7b55 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -723,7 +723,7 @@ func (d *Decoder) rawToken() (Token, error) {
+ 		return nil, d.err
+ 	}
+ 
+-	attr = make([]Attr, 0, 4)
++	attr = []Attr{}
+ 	for {
+ 		d.space()
+ 		if b, ok = d.mustgetc(); !ok {
+@@ -747,7 +747,11 @@ func (d *Decoder) rawToken() (Token, error) {
+ 
+ 		n := len(attr)
+ 		if n >= cap(attr) {
+-			nattr := make([]Attr, n, 2*cap(attr))
++			nCap := 2 * cap(attr)
++			if nCap == 0 {
++				nCap = 4
++			}
++			nattr := make([]Attr, n, nCap)
+ 			copy(nattr, attr)
+ 			attr = nattr
+ 		}

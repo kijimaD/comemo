@@ -12,6 +12,21 @@ Date:   Wed Sep 14 11:51:59 2022 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  doc/go_spec.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index e2163b466d..c188cd4c1f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3934,6 +3934,9 @@ var a [10]int
+ s1 := a[3:7]   // underlying array of s1 is array a; &amp;s1[2] == &amp;a[5]
+ s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &amp;s2[1] == &amp;a[5]
+ s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
++
++var s []int
++s3 := s[:0]    // s3 == nil
+ </pre>
+ 
+ 

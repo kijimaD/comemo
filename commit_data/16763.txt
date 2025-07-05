@@ -7,6 +7,20 @@ Date:   Sun Jul 14 12:56:11 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11220044
-
+---
  src/pkg/log/syslog/syslog.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index e04a2eb553..e3df9ac629 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -203,7 +203,7 @@ func (w *Writer) Err(m string) (err error) {
+ 	return err
+ }
+ 
+-// Wanring logs a message with severity LOG_WARNING, ignoring the
++// Warning logs a message with severity LOG_WARNING, ignoring the
+ // severity passed to New.
+ func (w *Writer) Warning(m string) (err error) {
+ 	_, err = w.writeAndRetry(LOG_WARNING, m)

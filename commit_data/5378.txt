@@ -9,6 +9,20 @@ Date:   Tue Apr 27 18:48:11 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/988043
-
+---
  src/pkg/net/ipsock.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index fcbd5079f7..3453aaab16 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -78,7 +78,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
+ 		}
+ 	}
+ 	fd, oserr = socket(net, family, proto, 0, la, ra, toAddr)
+-	if err != nil {
++	if oserr != nil {
+ 		goto Error
+ 	}
+ 	return fd, nil

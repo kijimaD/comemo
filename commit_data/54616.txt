@@ -14,6 +14,21 @@ Date:   Mon Jul 4 10:16:12 2022 +0800
     Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/loong64/ssa.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index e004c6f7fb..68a2d8ac1b 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -101,9 +101,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = y
+ 	case ssa.OpLOONG64MOVVnop:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {

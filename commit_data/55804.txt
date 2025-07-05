@@ -16,7 +16,88 @@ Date:   Wed Mar 15 15:17:11 2023 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/iprawsock_test.go | 19 ++++++++++++++-----
  src/net/protoconn_test.go | 10 +++++-----
  2 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/iprawsock_test.go b/src/net/iprawsock_test.go
+index ca5ab480c0..a6db77480f 100644
+--- a/src/net/iprawsock_test.go
++++ b/src/net/iprawsock_test.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"internal/testenv"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -94,7 +95,11 @@ func TestIPConnLocalName(t *testing.T) {
+ 			continue
+ 		}
+ 		c, err := ListenIP(tt.net, tt.laddr)
+-		if err != nil {
++		if testenv.SyscallIsNotSupported(err) {
++			// May be inside a container that disallows creating a socket.
++			t.Logf("skipping %s test: %v", tt.net, err)
++			continue
++		} else if err != nil {
+ 			t.Fatal(err)
+ 		}
+ 		defer c.Close()
+@@ -105,13 +110,17 @@ func TestIPConnLocalName(t *testing.T) {
+ }
+ 
+ func TestIPConnRemoteName(t *testing.T) {
+-	if !testableNetwork("ip:tcp") {
+-		t.Skip("ip:tcp test")
++	network := "ip:tcp"
++	if !testableNetwork(network) {
++		t.Skipf("skipping %s test", network)
+ 	}
+ 
+ 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}
+-	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
+-	if err != nil {
++	c, err := DialIP(network, &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
++	if testenv.SyscallIsNotSupported(err) {
++		// May be inside a container that disallows creating a socket.
++		t.Skipf("skipping %s test: %v", network, err)
++	} else if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer c.Close()
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index e4198a3a05..52cb508155 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -10,6 +10,7 @@
+ package net
+ 
+ import (
++	"internal/testenv"
+ 	"os"
+ 	"runtime"
+ 	"testing"
+@@ -161,16 +162,15 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ }
+ 
+ func TestIPConnSpecificMethods(t *testing.T) {
+-	if os.Getuid() != 0 {
+-		t.Skip("must be root")
+-	}
+-
+ 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	c, err := ListenIP("ip4:icmp", la)
+-	if err != nil {
++	if testenv.SyscallIsNotSupported(err) {
++		// May be inside a container that disallows creating a socket.
++		t.Skipf("skipping: %v", err)
++	} else if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer c.Close()

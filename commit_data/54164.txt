@@ -11,8 +11,76 @@ Date:   Wed Sep 28 00:29:48 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/internal/coverage/encodemeta/encode.go | 4 ++--
  src/internal/fuzz/fuzz.go                  | 4 ++--
  src/internal/fuzz/mem.go                   | 5 ++---
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/coverage/encodemeta/encode.go b/src/internal/coverage/encodemeta/encode.go
+index a01e6fc9ea..1bc950637f 100644
+--- a/src/internal/coverage/encodemeta/encode.go
++++ b/src/internal/coverage/encodemeta/encode.go
+@@ -9,6 +9,7 @@ package encodemeta
+ // instrumentation is turned on.
+ 
+ import (
++	"bytes"
+ 	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -82,8 +83,7 @@ func (b *CoverageMetaDataBuilder) AddFunc(f coverage.FuncDesc) uint {
+ 		lit = 1
+ 	}
+ 	b.tmp = uleb128.AppendUleb128(b.tmp, lit)
+-	fd.encoded = make([]byte, len(b.tmp))
+-	copy(fd.encoded, b.tmp)
++	fd.encoded = bytes.Clone(b.tmp)
+ 	rv := uint(len(b.funcs))
+ 	b.funcs = append(b.funcs, fd)
+ 	return rv
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 9ce39cbcf0..f3f0d95469 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -8,6 +8,7 @@
+ package fuzz
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"crypto/sha256"
+ 	"errors"
+@@ -775,8 +776,7 @@ func (c *coordinator) peekInput() (fuzzInput, bool) {
+ 		warmup:  c.warmupRun(),
+ 	}
+ 	if c.coverageMask != nil {
+-		input.coverageData = make([]byte, len(c.coverageMask))
+-		copy(input.coverageData, c.coverageMask)
++		input.coverageData = bytes.Clone(c.coverageMask)
+ 	}
+ 	if input.warmup {
+ 		// No fuzzing will occur, but it should count toward the limit set by
+diff --git a/src/internal/fuzz/mem.go b/src/internal/fuzz/mem.go
+index ea29b60607..4155e4e83e 100644
+--- a/src/internal/fuzz/mem.go
++++ b/src/internal/fuzz/mem.go
+@@ -5,6 +5,7 @@
+ package fuzz
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"os"
+ 	"unsafe"
+@@ -102,9 +103,7 @@ func (m *sharedMem) valueRef() []byte {
+ // valueCopy returns a copy of the value stored in shared memory.
+ func (m *sharedMem) valueCopy() []byte {
+ 	ref := m.valueRef()
+-	b := make([]byte, len(ref))
+-	copy(b, ref)
+-	return b
++	return bytes.Clone(ref)
+ }
+ 
+ // setValue copies the data in b into the shared memory buffer and sets

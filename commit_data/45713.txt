@@ -18,6 +18,30 @@ Date:   Thu Nov 5 15:11:09 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/mod_get_fossil.txt | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_fossil.txt b/src/cmd/go/testdata/script/mod_get_fossil.txt
+index 3482e68da1..baad544557 100644
+--- a/src/cmd/go/testdata/script/mod_get_fossil.txt
++++ b/src/cmd/go/testdata/script/mod_get_fossil.txt
+@@ -13,14 +13,17 @@ env GOSUMDB=off
+ 
+ # 'go get' for the fossil repo will fail if fossil
+ # is unable to determine your fossil user. Easiest
+-# way to set it for use by 'go get' is specifying 
++# way to set it for use by 'go get' is specifying
+ # a any non-empty $USER; the value doesn't otherwise matter.
+ env USER=fossiluser
++env FOSSIL_HOME=$WORK/home
+ 
+ # Attempting to get the latest version of a fossil repo.
+ go get vcs-test.golang.org/fossil/hello.fossil
+ ! stderr 'unexpected response from fossil info'
+ grep 'vcs-test.golang.org/fossil/hello.fossil' go.mod
++exists $GOPATH/bin/hello.fossil$GOEXE
+ 
+ -- go.mod --
+ module x
++-- $WORK/home/.fossil --

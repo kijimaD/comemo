@@ -14,6 +14,48 @@ Date:   Fri Nov 11 19:24:07 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/pprof/internal/fetch/fetch.go | 20 ++++++++++++++++++--
  1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pprof/internal/fetch/fetch.go b/src/cmd/pprof/internal/fetch/fetch.go
+index 2e2de575f8..d3ccb65473 100644
+--- a/src/cmd/pprof/internal/fetch/fetch.go
++++ b/src/cmd/pprof/internal/fetch/fetch.go
+@@ -7,6 +7,7 @@
+ package fetch
+ 
+ import (
++	"crypto/tls"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -72,11 +73,26 @@ func PostURL(source, post string) ([]byte, error) {
+ 
+ // httpGet is a wrapper around http.Get; it is defined as a variable
+ // so it can be redefined during for testing.
+-var httpGet = func(url string, timeout time.Duration) (*http.Response, error) {
++var httpGet = func(source string, timeout time.Duration) (*http.Response, error) {
++	url, err := url.Parse(source)
++	if err != nil {
++		return nil, err
++	}
++
++	var tlsConfig *tls.Config
++	if url.Scheme == "https+insecure" {
++		tlsConfig = &tls.Config{
++			InsecureSkipVerify: true,
++		}
++		url.Scheme = "https"
++		source = url.String()
++	}
++
+ 	client := &http.Client{
+ 		Transport: &http.Transport{
+ 			ResponseHeaderTimeout: timeout + 5*time.Second,
++			TLSClientConfig:       tlsConfig,
+ 		},
+ 	}
+-	return client.Get(url)
++	return client.Get(source)
+ }

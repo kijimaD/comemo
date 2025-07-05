@@ -10,6 +10,19 @@ Date:   Fri Mar 11 08:20:55 2022 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/pprof/pprof_rusage.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_rusage.go b/src/runtime/pprof/pprof_rusage.go
+index 7df81eca23..984a32e79d 100644
+--- a/src/runtime/pprof/pprof_rusage.go
++++ b/src/runtime/pprof/pprof_rusage.go
+@@ -28,6 +28,6 @@ func addMaxRSS(w io.Writer) {
+ 	}
+ 
+ 	var rusage syscall.Rusage
+-	syscall.Getrusage(0, &rusage)
++	syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+ 	fmt.Fprintf(w, "# MaxRSS = %d\n", uintptr(rusage.Maxrss)*rssToBytes)
+ }

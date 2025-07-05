@@ -9,6 +9,23 @@ Date:   Tue Nov 10 19:56:32 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/154043
-
+---
  src/cmd/gotest/gotest | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 4f6c6c2783..956a67965a 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -8,6 +8,11 @@
+ # tests.
+ # If files are named on the command line, use them instead of test*.go.
+ 
++# Makes egrep,grep work better with · if we put them
++# in ordinary C mode instead of what the current language is.
++unset LANG
++export LC_CTYPE=C
++
+ _GC=$GC	# Make.$GOARCH will overwrite this
+ 
+ . $GOROOT/src/Make.$GOARCH

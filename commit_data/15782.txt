@@ -20,6 +20,22 @@ Date:   Thu Mar 14 23:59:49 2013 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7826043
-
+---
  src/pkg/go/build/build.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index d0e420f433..d5f181d7c1 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -212,8 +212,8 @@ func (ctxt *Context) gopath() []string {
+ 			// Do not get confused by this common mistake.
+ 			continue
+ 		}
+-		if strings.Contains(p, "~") && runtime.GOOS != "windows" {
+-			// Path segments containing ~ on Unix are almost always
++		if strings.HasPrefix(p, "~") {
++			// Path segments starting with ~ on Unix are almost always
+ 			// users who have incorrectly quoted ~ while setting GOPATH,
+ 			// preventing it from expanding to $HOME.
+ 			// The situation is made more confusing by the fact that

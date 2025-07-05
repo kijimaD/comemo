@@ -15,6 +15,24 @@ Date:   Tue Jul 30 19:01:10 2024 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/printer/printer.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 32be3d67dd..5a6127c6b4 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -45,9 +45,9 @@ const (
+ )
+ 
+ type commentInfo struct {
+-	cindex         int               // current comment index
+-	comment        *ast.CommentGroup // = printer.comments[cindex]; or nil
+-	commentOffset  int               // = printer.posFor(printer.comments[cindex].List[0].Pos()).Offset; or infinity
++	cindex         int               // index of the next comment
++	comment        *ast.CommentGroup // = printer.comments[cindex-1]; or nil
++	commentOffset  int               // = printer.posFor(printer.comments[cindex-1].List[0].Pos()).Offset; or infinity
+ 	commentNewline bool              // true if the comment group contains newlines
+ }
+ 

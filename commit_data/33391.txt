@@ -18,7 +18,41 @@ Date:   Wed Jun 14 06:24:18 2017 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go           | 3 ++-
  src/cmd/asm/internal/asm/testdata/arm64enc.s | 8 ++++----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index dd04719451..b46ae9d5f8 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -67,7 +67,8 @@ func IsARM64CMP(op obj.As) bool {
+ // handling.
+ func IsARM64STLXR(op obj.As) bool {
+ 	switch op {
+-	case arm64.ASTLXRB, arm64.ASTLXRH, arm64.ASTLXRW, arm64.ASTLXR:
++	case arm64.ASTLXRB, arm64.ASTLXRH, arm64.ASTLXRW, arm64.ASTLXR,
++		arm64.ASTXRB, arm64.ASTXRH, arm64.ASTXRW, arm64.ASTXR:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index ec89474990..52663e2b52 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -345,10 +345,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    //TODO STTRH 9(R10), R18                   // 52990078
+    //TODO STXP (R20), R18, R5, ZR             // 854a3f88
+    //TODO STXP (R22), R9, R17, R0             // d12620c8
+-   // STXRW R2, (R19), R18                    // 627e1288
+-   // STXR R15, (R21), R13                    // af7e0dc8
+-   // STXRB R7, (R9), R24                     // 277d1808
+-   // STXRH R12, (R3), R8                     // 6c7c0848
++   STXRW R2, (R19), R18                       // 627e1288
++   STXR R15, (R21), R13                       // af7e0dc8
++   STXRB R7, (R9), R24                        // 277d1808
++   STXRH R12, (R3), R8                        // 6c7c0848
+    //TODO SUBW R20.UXTW<<7, R23, R18          // f25e344b
+    //TODO SUB R5.SXTW<<2, R1, R26             // 3ac825cb
+    SUB $(1923<<12), R4, R27                   // SUB $7876608, R4, R27         // 9b0c5ed1

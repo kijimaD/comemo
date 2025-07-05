@@ -23,7 +23,187 @@ Date:   Tue Nov 14 04:46:03 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/mail/message.go      | 44 +++++++++++++++++++++++++++---
  src/net/mail/message_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++--
  2 files changed, 103 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 23431823c0..0a9847183a 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -303,7 +303,17 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
+ 	// TODO(dsymonds): Is this really correct?
+ 	spec, err := p.consumeAddrSpec()
+ 	if err == nil {
++		var displayName string
++		p.skipSpace()
++		if !p.empty() && p.peek() == '(' {
++			displayName, err = p.consumeDisplayNameComment()
++			if err != nil {
++				return nil, err
++			}
++		}
++
+ 		return []*Address{{
++			Name:    displayName,
+ 			Address: spec,
+ 		}}, err
+ 	}
+@@ -570,6 +580,30 @@ Loop:
+ 	return atom, nil
+ }
+ 
++func (p *addrParser) consumeDisplayNameComment() (string, error) {
++	if !p.consume('(') {
++		return "", errors.New("mail: comment does not start with (")
++	}
++	comment, ok := p.consumeComment()
++	if !ok {
++		return "", errors.New("mail: misformatted parenthetical comment")
++	}
++
++	// TODO(stapelberg): parse quoted-string within comment
++	words := strings.FieldsFunc(comment, func(r rune) bool { return r == ' ' || r == '\t' })
++	for idx, word := range words {
++		decoded, isEncoded, err := p.decodeRFC2047Word(word)
++		if err != nil {
++			return "", err
++		}
++		if isEncoded {
++			words[idx] = decoded
++		}
++	}
++
++	return strings.Join(words, " "), nil
++}
++
+ func (p *addrParser) consume(c byte) bool {
+ 	if p.empty() || p.peek() != c {
+ 		return false
+@@ -604,7 +638,7 @@ func (p *addrParser) skipCFWS() bool {
+ 			break
+ 		}
+ 
+-		if !p.skipComment() {
++		if _, ok := p.consumeComment(); !ok {
+ 			return false
+ 		}
+ 
+@@ -614,10 +648,11 @@ func (p *addrParser) skipCFWS() bool {
+ 	return true
+ }
+ 
+-func (p *addrParser) skipComment() bool {
++func (p *addrParser) consumeComment() (string, bool) {
+ 	// '(' already consumed.
+ 	depth := 1
+ 
++	var comment string
+ 	for {
+ 		if p.empty() || depth == 0 {
+ 			break
+@@ -630,10 +665,13 @@ func (p *addrParser) skipComment() bool {
+ 		} else if p.peek() == ')' {
+ 			depth--
+ 		}
++		if depth > 0 {
++			comment += p.s[:1]
++		}
+ 		p.s = p.s[1:]
+ 	}
+ 
+-	return depth == 0
++	return comment, depth == 0
+ }
+ 
+ func (p *addrParser) decodeRFC2047Word(s string) (word string, isEncoded bool, err error) {
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index b1bb31e982..b37393a345 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -426,7 +426,7 @@ func TestAddressParsing(t *testing.T) {
+ 		},
+ 		// CFWS
+ 		{
+-			`cfws@example.com (CFWS (cfws))  (another comment)`,
++			`<cfws@example.com> (CFWS (cfws))  (another comment)`,
+ 			[]*Address{
+ 				{
+ 					Name:    "",
+@@ -435,7 +435,7 @@ func TestAddressParsing(t *testing.T) {
+ 			},
+ 		},
+ 		{
+-			`cfws@example.com ()  (another comment), cfws2@example.com (another)`,
++			`<cfws@example.com> ()  (another comment), <cfws2@example.com> (another)`,
+ 			[]*Address{
+ 				{
+ 					Name:    "",
+@@ -447,6 +447,66 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// Comment as display name
++		{
++			`john@example.com (John Doe)`,
++			[]*Address{
++				{
++					Name:    "John Doe",
++					Address: "john@example.com",
++				},
++			},
++		},
++		// Comment and display name
++		{
++			`John Doe <john@example.com> (Joey)`,
++			[]*Address{
++				{
++					Name:    "John Doe",
++					Address: "john@example.com",
++				},
++			},
++		},
++		// Comment as display name, no space
++		{
++			`john@example.com(John Doe)`,
++			[]*Address{
++				{
++					Name:    "John Doe",
++					Address: "john@example.com",
++				},
++			},
++		},
++		// Comment as display name, Q-encoded
++		{
++			`asjo@example.com (Adam =?utf-8?Q?Sj=C3=B8gren?=)`,
++			[]*Address{
++				{
++					Name:    "Adam Sjøgren",
++					Address: "asjo@example.com",
++				},
++			},
++		},
++		// Comment as display name, Q-encoded and tab-separated
++		{
++			`asjo@example.com (Adam	=?utf-8?Q?Sj=C3=B8gren?=)`,
++			[]*Address{
++				{
++					Name:    "Adam Sjøgren",
++					Address: "asjo@example.com",
++				},
++			},
++		},
++		// Nested comment as display name, Q-encoded
++		{
++			`asjo@example.com (Adam =?utf-8?Q?Sj=C3=B8gren?= (Debian))`,
++			[]*Address{
++				{
++					Name:    "Adam Sjøgren (Debian)",
++					Address: "asjo@example.com",
++				},
++			},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		if len(test.exp) == 1 {

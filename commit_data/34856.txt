@@ -15,6 +15,30 @@ Date:   Tue Nov 14 13:56:18 2017 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/check.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index fad57970d0..d0d1a7b912 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -456,11 +456,16 @@ func memCheck(f *Func) {
+ 		for _, b := range f.Blocks {
+ 			seenNonPhi := false
+ 			for _, v := range b.Values {
+-				if v.Op == OpPhi {
++				switch v.Op {
++				case OpPhi:
+ 					if seenNonPhi {
+ 						f.Fatalf("phi after non-phi @ %s: %s", b, v)
+ 					}
+-				} else {
++				case OpRegKill:
++					if f.RegAlloc == nil {
++						f.Fatalf("RegKill seen before register allocation @ %s: %s", b, v)
++					}
++				default:
+ 					seenNonPhi = true
+ 				}
+ 			}

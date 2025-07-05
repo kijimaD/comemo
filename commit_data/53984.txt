@@ -17,6 +17,19 @@ Date:   Thu Aug 25 14:55:00 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/go/testdata/script/work_prune.txt | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/work_prune.txt b/src/cmd/go/testdata/script/work_prune.txt
+index 7e2ae4e6ce..b1f569e8ae 100644
+--- a/src/cmd/go/testdata/script/work_prune.txt
++++ b/src/cmd/go/testdata/script/work_prune.txt
+@@ -11,7 +11,6 @@
+ # If we didn't load the whole graph and didn't load the dependencies of b
+ # when loading p, we would end up loading q v1.0.0, rather than v1.1.0,
+ # which is selected by MVS.
+-# TODO(#48331): We currently load the wrong version of q. Fix this.
+ 
+ go list -m -f '{{.Version}}' example.com/q
+ stdout '^v1.1.0$'

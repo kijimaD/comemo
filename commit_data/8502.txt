@@ -7,6 +7,19 @@ Date:   Thu May 26 09:53:28 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4552066
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ae77a71a5c..0fd2b9fe59 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -207,6 +207,7 @@ Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vish Subramanian <vish@google.com>
+ Wei Guangjing <vcc.163@gmail.com>
++William Chan <willchan@chromium.org>
+ William Josephson <wjosephson@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>

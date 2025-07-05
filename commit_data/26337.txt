@@ -22,7 +22,76 @@ Date:   Wed Sep 2 13:40:34 2015 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 35 +++++++++++++++++++++++++++++++++++
  src/net/http/server.go     | 11 ++++++-----
  2 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 00220b471c..86f4b66389 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1906,6 +1906,41 @@ func TestRedirectBadPath(t *testing.T) {
+ 	}
+ }
+ 
++// Test different URL formats and schemes
++func TestRedirectURLFormat(t *testing.T) {
++	req, _ := NewRequest("GET", "http://example.com/qux/", nil)
++
++	var tests = []struct {
++		in   string
++		want string
++	}{
++		// normal http
++		{"http://foobar.com/baz", "http://foobar.com/baz"},
++		// normal https
++		{"https://foobar.com/baz", "https://foobar.com/baz"},
++		// custom scheme
++		{"test://foobar.com/baz", "test://foobar.com/baz"},
++		// schemeless
++		{"//foobar.com/baz", "//foobar.com/baz"},
++		// relative to the root
++		{"/foobar.com/baz", "/foobar.com/baz"},
++		// relative to the current path
++		{"foobar.com/baz", "/qux/foobar.com/baz"},
++		// relative to the current path (+ going upwards)
++		{"../quux/foobar.com/baz", "/quux/foobar.com/baz"},
++		// incorrect number of slashes
++		{"///foobar.com/baz", "/foobar.com/baz"},
++	}
++
++	for _, tt := range tests {
++		rec := httptest.NewRecorder()
++		Redirect(rec, req, tt.in, 302)
++		if got := rec.Header().Get("Location"); got != tt.want {
++			t.Errorf("Redirect(%q) generated Location header %q; want %q", tt.in, got, tt.want)
++		}
++	}
++}
++
+ // TestZeroLengthPostAndResponse exercises an optimization done by the Transport:
+ // when there is no body (either because the method doesn't permit a body, or an
+ // explicit Content-Length of zero is present), then the transport can re-use the
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 19324d02c4..bbaf5d2cc6 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1665,11 +1665,12 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+ 		// Because of this problem, no one pays attention
+ 		// to the RFC; they all send back just a new path.
+ 		// So do we.
+-		oldpath := r.URL.Path
+-		if oldpath == "" { // should not happen, but avoid a crash if it does
+-			oldpath = "/"
+-		}
+-		if u.Scheme == "" {
++		if u.Scheme == "" && u.Host == "" {
++			oldpath := r.URL.Path
++			if oldpath == "" { // should not happen, but avoid a crash if it does
++				oldpath = "/"
++			}
++
+ 			// no leading http://server
+ 			if urlStr == "" || urlStr[0] != '/' {
+ 				// make relative path absolute

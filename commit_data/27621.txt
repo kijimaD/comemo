@@ -7,7 +7,81 @@ Date:   Tue Apr 5 20:40:40 2016 +0000
     Change-Id: Ia6ed49d5ef3a256a55e6d4eaa1b4d9f0fc447013
     Reviewed-on: https://go-review.googlesource.com/21560
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 11 ++++++++---
  src/crypto/rsa/rsa.go     |  5 ++++-
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 42ec92b6f9..e63bd8669e 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -23,6 +23,7 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/sha512"
+ 	"encoding/asn1"
++	"errors"
+ 	"io"
+ 	"math/big"
+ )
+@@ -140,6 +141,8 @@ func fermatInverse(k, N *big.Int) *big.Int {
+ 	return new(big.Int).Exp(k, nMinus2, N)
+ }
+ 
++var errZeroParam = errors.New("zero parameter")
++
+ // Sign signs an arbitrary length hash (which should be the result of hashing a
+ // larger message) using the private key, priv. It returns the signature as a
+ // pair of integers. The security of the private key depends on the entropy of
+@@ -180,7 +183,9 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 	// See [NSA] 3.4.1
+ 	c := priv.PublicKey.Curve
+ 	N := c.Params().N
+-
++	if N.Sign() == 0 {
++		return nil, nil, errZeroParam
++	}
+ 	var k, kInv *big.Int
+ 	for {
+ 		for {
+@@ -193,7 +198,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 			if in, ok := priv.Curve.(invertible); ok {
+ 				kInv = in.Inverse(k)
+ 			} else {
+-				kInv = fermatInverse(k, N)
++				kInv = fermatInverse(k, N) // N != 0
+ 			}
+ 
+ 			r, _ = priv.Curve.ScalarBaseMult(k.Bytes())
+@@ -207,7 +212,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 		s = new(big.Int).Mul(priv.D, r)
+ 		s.Add(s, e)
+ 		s.Mul(s, kInv)
+-		s.Mod(s, N)
++		s.Mod(s, N) // N != 0
+ 		if s.Sign() != 0 {
+ 			break
+ 		}
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 3f353f891f..594305631b 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -465,6 +465,9 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
+ 		err = ErrDecryption
+ 		return
+ 	}
++	if priv.N.Sign() == 0 {
++		return nil, ErrDecryption
++	}
+ 
+ 	var ir *big.Int
+ 	if random != nil {
+@@ -490,7 +493,7 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
+ 			}
+ 		}
+ 		bigE := big.NewInt(int64(priv.E))
+-		rpowe := new(big.Int).Exp(r, bigE, priv.N)
++		rpowe := new(big.Int).Exp(r, bigE, priv.N) // N != 0
+ 		cCopy := new(big.Int).Set(c)
+ 		cCopy.Mul(cCopy, rpowe)
+ 		cCopy.Mod(cCopy, priv.N)

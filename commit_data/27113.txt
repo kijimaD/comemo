@@ -86,7 +86,7 @@ Date:   Tue Mar 8 15:54:50 2016 +0100
     Reviewed-by: Joe Tsai <joetsai@digital-static.net>
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/nacl/testzip.proto                            |   2 +
  src/compress/flate/huffman_bit_writer.go           | 442 ++++++++++++++-------
  src/compress/flate/huffman_bit_writer_test.go      | 366 +++++++++++++++++
@@ -144,3 +144,1447 @@ Date:   Tue Mar 8 15:54:50 2016 +0100
  .../testdata/null-long-match.dyn.expect-noinput    | Bin 0 -> 206 bytes
  .../testdata/null-long-match.wb.expect-noinput     | Bin 0 -> 206 bytes
  56 files changed, 777 insertions(+), 180 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 4e82ac9b4b..42db92f327 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -56,6 +56,8 @@ go	src=..
+ 				testdata
+ 					+
+ 			flate
++				testdata
++					+
+ 			gzip
+ 				testdata
+ 					+
+diff --git a/src/compress/flate/huffman_bit_writer.go b/src/compress/flate/huffman_bit_writer.go
+index abbb63464c..b99f86ea13 100644
+--- a/src/compress/flate/huffman_bit_writer.go
++++ b/src/compress/flate/huffman_bit_writer.go
+@@ -22,6 +22,17 @@ const (
+ 	// The number of codegen codes.
+ 	codegenCodeCount = 19
+ 	badCode          = 255
++
++	// bufferFlushSize indicates the buffer size
++	// after which bytes are flushed to the writer.
++	// Should preferably be a multiple of 6, since
++	// we accumulate 6 bytes between writes to the buffer.
++	bufferFlushSize = 240
++
++	// bufferSize is the actual output byte buffer size.
++	// It must have additional headroom for a flush
++	// which can contain up to 8 bytes.
++	bufferSize = bufferFlushSize + 8
+ )
+ 
+ // The number of extra bits needed by length code X - LENGTH_CODES_START.
+@@ -70,9 +81,9 @@ type huffmanBitWriter struct {
+ 	w io.Writer
+ 	// Data waiting to be written is bytes[0:nbytes]
+ 	// and then the low nbits of bits.
+-	bits            uint32
+-	nbits           uint32
+-	bytes           [64]byte
++	bits            uint64
++	nbits           uint
++	bytes           [bufferSize]byte
+ 	nbytes          int
+ 	literalFreq     []int32
+ 	offsetFreq      []int32
+@@ -92,52 +103,15 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
+ 		codegen:         make([]uint8, maxNumLit+offsetCodeCount+1),
+ 		codegenFreq:     make([]int32, codegenCodeCount),
+ 		literalEncoding: newHuffmanEncoder(maxNumLit),
+-		offsetEncoding:  newHuffmanEncoder(offsetCodeCount),
+ 		codegenEncoding: newHuffmanEncoder(codegenCodeCount),
++		offsetEncoding:  newHuffmanEncoder(offsetCodeCount),
+ 	}
+ }
+ 
+ func (w *huffmanBitWriter) reset(writer io.Writer) {
+ 	w.w = writer
+ 	w.bits, w.nbits, w.nbytes, w.err = 0, 0, 0, nil
+-	w.bytes = [64]byte{}
+-	for i := range w.codegen {
+-		w.codegen[i] = 0
+-	}
+-	for _, s := range [...][]int32{w.literalFreq, w.offsetFreq, w.codegenFreq} {
+-		for i := range s {
+-			s[i] = 0
+-		}
+-	}
+-	for _, enc := range [...]*huffmanEncoder{
+-		w.literalEncoding,
+-		w.offsetEncoding,
+-		w.codegenEncoding} {
+-		for i := range enc.code {
+-			enc.code[i] = 0
+-		}
+-		for i := range enc.codeBits {
+-			enc.codeBits[i] = 0
+-		}
+-	}
+-}
+-
+-func (w *huffmanBitWriter) flushBits() {
+-	if w.err != nil {
+-		w.nbits = 0
+-		return
+-	}
+-	bits := w.bits
+-	w.bits >>= 16
+-	w.nbits -= 16
+-	n := w.nbytes
+-	w.bytes[n] = byte(bits)
+-	w.bytes[n+1] = byte(bits >> 8)
+-	if n += 2; n >= len(w.bytes) {
+-		_, w.err = w.w.Write(w.bytes[0:])
+-		n = 0
+-	}
+-	w.nbytes = n
++	w.bytes = [bufferSize]byte{}
+ }
+ 
+ func (w *huffmanBitWriter) flush() {
+@@ -146,26 +120,41 @@ func (w *huffmanBitWriter) flush() {
+ 		return
+ 	}
+ 	n := w.nbytes
+-	if w.nbits > 8 {
++	for w.nbits != 0 {
+ 		w.bytes[n] = byte(w.bits)
+ 		w.bits >>= 8
+-		w.nbits -= 8
+-		n++
+-	}
+-	if w.nbits > 0 {
+-		w.bytes[n] = byte(w.bits)
+-		w.nbits = 0
++		if w.nbits > 8 { // Avoid underflow
++			w.nbits -= 8
++		} else {
++			w.nbits = 0
++		}
+ 		n++
+ 	}
+ 	w.bits = 0
+-	_, w.err = w.w.Write(w.bytes[0:n])
++	_, w.err = w.w.Write(w.bytes[:n])
+ 	w.nbytes = 0
+ }
+ 
+-func (w *huffmanBitWriter) writeBits(b, nb int32) {
+-	w.bits |= uint32(b) << w.nbits
+-	if w.nbits += uint32(nb); w.nbits >= 16 {
+-		w.flushBits()
++func (w *huffmanBitWriter) writeBits(b int32, nb uint) {
++	w.bits |= uint64(b) << w.nbits
++	w.nbits += nb
++	if w.nbits >= 48 {
++		bits := w.bits
++		w.bits >>= 48
++		w.nbits -= 48
++		n := w.nbytes
++		w.bytes[n+0] = byte(bits)
++		w.bytes[n+1] = byte(bits >> 8)
++		w.bytes[n+2] = byte(bits >> 16)
++		w.bytes[n+3] = byte(bits >> 24)
++		w.bytes[n+4] = byte(bits >> 32)
++		w.bytes[n+5] = byte(bits >> 40)
++		n += 6
++		if n >= bufferFlushSize {
++			_, w.err = w.w.Write(w.bytes[:n])
++			n = 0
++		}
++		w.nbytes = n
+ 	}
+ }
+ 
+@@ -174,17 +163,18 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
+ 		return
+ 	}
+ 	n := w.nbytes
+-	if w.nbits == 8 {
+-		w.bytes[n] = byte(w.bits)
+-		w.nbits = 0
+-		n++
+-	}
+-	if w.nbits != 0 {
++	if w.nbits&7 != 0 {
+ 		w.err = InternalError("writeBytes with unfinished bits")
+ 		return
+ 	}
++	for w.nbits != 0 {
++		w.bytes[n] = byte(w.bits)
++		w.bits >>= 8
++		w.nbits -= 8
++		n++
++	}
+ 	if n != 0 {
+-		_, w.err = w.w.Write(w.bytes[0:n])
++		_, w.err = w.w.Write(w.bytes[:n])
+ 		if w.err != nil {
+ 			return
+ 		}
+@@ -204,7 +194,8 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
+ //
+ //  numLiterals      The number of literals in literalEncoding
+ //  numOffsets       The number of offsets in offsetEncoding
+-func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
++//  litenc, offenc   The literal and offset encoder to use
++func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litEnc, offEnc *huffmanEncoder) {
+ 	for i := range w.codegenFreq {
+ 		w.codegenFreq[i] = 0
+ 	}
+@@ -214,8 +205,15 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
+ 	// so far.
+ 	codegen := w.codegen // cache
+ 	// Copy the concatenated code sizes to codegen. Put a marker at the end.
+-	copy(codegen[0:numLiterals], w.literalEncoding.codeBits)
+-	copy(codegen[numLiterals:numLiterals+numOffsets], w.offsetEncoding.codeBits)
++	cgnl := codegen[:numLiterals]
++	for i := range cgnl {
++		cgnl[i] = uint8(litEnc.codes[i].len)
++	}
++
++	cgnl = codegen[numLiterals : numLiterals+numOffsets]
++	for i := range cgnl {
++		cgnl[i] = uint8(offEnc.codes[i].len)
++	}
+ 	codegen[numLiterals+numOffsets] = badCode
+ 
+ 	size := codegen[0]
+@@ -284,11 +282,30 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
+ 	codegen[outIndex] = badCode
+ }
+ 
+-func (w *huffmanBitWriter) writeCode(code *huffmanEncoder, literal uint32) {
++func (w *huffmanBitWriter) writeCode(c hcode) {
+ 	if w.err != nil {
+ 		return
+ 	}
+-	w.writeBits(int32(code.code[literal]), int32(code.codeBits[literal]))
++	w.bits |= uint64(c.code) << w.nbits
++	w.nbits += uint(c.len)
++	if w.nbits >= 48 {
++		bits := w.bits
++		w.bits >>= 48
++		w.nbits -= 48
++		n := w.nbytes
++		w.bytes[n+0] = byte(bits)
++		w.bytes[n+1] = byte(bits >> 8)
++		w.bytes[n+2] = byte(bits >> 16)
++		w.bytes[n+3] = byte(bits >> 24)
++		w.bytes[n+4] = byte(bits >> 32)
++		w.bytes[n+5] = byte(bits >> 40)
++		n += 6
++		if n >= bufferFlushSize {
++			_, w.err = w.w.Write(w.bytes[:n])
++			n = 0
++		}
++		w.nbytes = n
++	}
+ }
+ 
+ // Write the header of a dynamic Huffman block to the output stream.
+@@ -310,7 +327,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
+ 	w.writeBits(int32(numCodegens-4), 4)
+ 
+ 	for i := 0; i < numCodegens; i++ {
+-		value := w.codegenEncoding.codeBits[codegenOrder[i]]
++		value := uint(w.codegenEncoding.codes[codegenOrder[i]].len)
+ 		w.writeBits(int32(value), 3)
+ 	}
+ 
+@@ -321,8 +338,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
+ 		if codeWord == badCode {
+ 			break
+ 		}
+-		// The low byte contains the actual code to generate.
+-		w.writeCode(w.codegenEncoding, uint32(codeWord))
++		w.writeCode(w.codegenEncoding.codes[uint32(codeWord)])
+ 
+ 		switch codeWord {
+ 		case 16:
+@@ -371,48 +387,9 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
+ 	if w.err != nil {
+ 		return
+ 	}
+-	for i := range w.literalFreq {
+-		w.literalFreq[i] = 0
+-	}
+-	for i := range w.offsetFreq {
+-		w.offsetFreq[i] = 0
+-	}
+-
+-	n := len(tokens)
+-	tokens = tokens[0 : n+1]
+-	tokens[n] = endBlockMarker
+-
+-	for _, t := range tokens {
+-		switch t.typ() {
+-		case literalType:
+-			w.literalFreq[t.literal()]++
+-		case matchType:
+-			length := t.length()
+-			offset := t.offset()
+-			w.literalFreq[lengthCodesStart+lengthCode(length)]++
+-			w.offsetFreq[offsetCode(offset)]++
+-		}
+-	}
+ 
+-	// get the number of literals
+-	numLiterals := len(w.literalFreq)
+-	for w.literalFreq[numLiterals-1] == 0 {
+-		numLiterals--
+-	}
+-	// get the number of offsets
+-	numOffsets := len(w.offsetFreq)
+-	for numOffsets > 0 && w.offsetFreq[numOffsets-1] == 0 {
+-		numOffsets--
+-	}
+-	if numOffsets == 0 {
+-		// We haven't found a single match. If we want to go with the dynamic encoding,
+-		// we should count at least one offset to be sure that the offset huffman tree could be encoded.
+-		w.offsetFreq[0] = 1
+-		numOffsets = 1
+-	}
+-
+-	w.literalEncoding.generate(w.literalFreq, 15)
+-	w.offsetEncoding.generate(w.offsetFreq, 15)
++	tokens = append(tokens, endBlockMarker)
++	numLiterals, numOffsets := w.indexTokens(tokens)
+ 
+ 	storedBytes := 0
+ 	if input != nil {
+@@ -450,7 +427,7 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
+ 
+ 	// Generate codegen and codegenFrequencies, which indicates how to encode
+ 	// the literalEncoding and the offsetEncoding.
+-	w.generateCodegen(numLiterals, numOffsets)
++	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
+ 	w.codegenEncoding.generate(w.codegenFreq, 7)
+ 	numCodegens = len(w.codegenFreq)
+ 	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
+@@ -475,7 +452,7 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
+ 	// Stored bytes?
+ 	if storedSize < size {
+ 		w.writeStoredHeader(storedBytes, eof)
+-		w.writeBytes(input[0:storedBytes])
++		w.writeBytes(input[:storedBytes])
+ 		return
+ 	}
+ 
+@@ -485,33 +462,222 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
+ 	} else {
+ 		w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
+ 	}
++
++	// Write the tokens.
++	w.writeTokens(tokens, literalEncoding.codes, offsetEncoding.codes)
++
++}
++
++// writeBlockDynamic encodes a block using a dynamic Huffman table.
++// This should be used if the symbols used have a disproportionate
++// histogram distribution.
++func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []byte) {
++	if w.err != nil {
++		return
++	}
++
++	tokens = append(tokens, endBlockMarker)
++	numLiterals, numOffsets := w.indexTokens(tokens)
++
++	// Generate codegen and codegenFrequencies, which indicates how to encode
++	// the literalEncoding and the offsetEncoding.
++	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
++	w.codegenEncoding.generate(w.codegenFreq, 7)
++	numCodegens := len(w.codegenFreq)
++	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
++		numCodegens--
++	}
++
++	// Write Huffman table.
++	w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
++
++	// Write the tokens.
++	w.writeTokens(tokens, w.literalEncoding.codes, w.offsetEncoding.codes)
++}
++
++// indexTokens indexes a slice of tokens, and updates
++// literalFreq and offsetFreq, and generates literalEncoding
++// and offsetEncoding.
++// The number of literal and offset tokens is returned.
++func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets int) {
++	for i := range w.literalFreq {
++		w.literalFreq[i] = 0
++	}
++	for i := range w.offsetFreq {
++		w.offsetFreq[i] = 0
++	}
++
+ 	for _, t := range tokens {
+-		switch t.typ() {
+-		case literalType:
+-			w.writeCode(literalEncoding, t.literal())
+-			break
+-		case matchType:
+-			// Write the length
+-			length := t.length()
+-			lengthCode := lengthCode(length)
+-			w.writeCode(literalEncoding, lengthCode+lengthCodesStart)
+-			extraLengthBits := int32(lengthExtraBits[lengthCode])
+-			if extraLengthBits > 0 {
+-				extraLength := int32(length - lengthBase[lengthCode])
+-				w.writeBits(extraLength, extraLengthBits)
+-			}
+-			// Write the offset
+-			offset := t.offset()
+-			offsetCode := offsetCode(offset)
+-			w.writeCode(offsetEncoding, offsetCode)
+-			extraOffsetBits := int32(offsetExtraBits[offsetCode])
+-			if extraOffsetBits > 0 {
+-				extraOffset := int32(offset - offsetBase[offsetCode])
+-				w.writeBits(extraOffset, extraOffsetBits)
+-			}
+-			break
+-		default:
+-			panic("unknown token type: " + string(t))
++		if t < matchType {
++			w.literalFreq[t.literal()]++
++			continue
++		}
++		length := t.length()
++		offset := t.offset()
++		w.literalFreq[lengthCodesStart+lengthCode(length)]++
++		w.offsetFreq[offsetCode(offset)]++
++	}
++
++	// get the number of literals
++	numLiterals = len(w.literalFreq)
++	for w.literalFreq[numLiterals-1] == 0 {
++		numLiterals--
++	}
++	// get the number of offsets
++	numOffsets = len(w.offsetFreq)
++	for numOffsets > 0 && w.offsetFreq[numOffsets-1] == 0 {
++		numOffsets--
++	}
++	if numOffsets == 0 {
++		// We haven't found a single match. If we want to go with the dynamic encoding,
++		// we should count at least one offset to be sure that the offset huffman tree could be encoded.
++		w.offsetFreq[0] = 1
++		numOffsets = 1
++	}
++	w.literalEncoding.generate(w.literalFreq, 15)
++	w.offsetEncoding.generate(w.offsetFreq, 15)
++	return
++}
++
++// writeTokens writes a slice of tokens to the output.
++// codes for literal and offset encoding must be supplied.
++func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode) {
++	for _, t := range tokens {
++		if t < matchType {
++			w.writeCode(leCodes[t.literal()])
++			continue
++		}
++		// Write the length
++		length := t.length()
++		lengthCode := lengthCode(length)
++		w.writeCode(leCodes[lengthCode+lengthCodesStart])
++		extraLengthBits := uint(lengthExtraBits[lengthCode])
++		if extraLengthBits > 0 {
++			extraLength := int32(length - lengthBase[lengthCode])
++			w.writeBits(extraLength, extraLengthBits)
++		}
++		// Write the offset
++		offset := t.offset()
++		offsetCode := offsetCode(offset)
++		w.writeCode(oeCodes[offsetCode])
++		extraOffsetBits := uint(offsetExtraBits[offsetCode])
++		if extraOffsetBits > 0 {
++			extraOffset := int32(offset - offsetBase[offsetCode])
++			w.writeBits(extraOffset, extraOffsetBits)
++		}
++	}
++}
++
++// huffOffset is a static offset encoder used for huffman only encoding.
++// It can be reused since we will not be encoding offset values.
++var huffOffset *huffmanEncoder
++
++func init() {
++	w := newHuffmanBitWriter(nil)
++	w.offsetFreq[0] = 1
++	huffOffset = newHuffmanEncoder(offsetCodeCount)
++	huffOffset.generate(w.offsetFreq, 15)
++}
++
++// writeBlockHuff encodes a block of bytes as either
++// Huffman encoded literals or uncompressed bytes if the
++// results only gains very little from compression.
++func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
++	if w.err != nil {
++		return
++	}
++
++	// Clear histogram
++	for i := range w.literalFreq {
++		w.literalFreq[i] = 0
++	}
++
++	// Add everything as literals
++	histogram(input, w.literalFreq)
++
++	w.literalFreq[endBlockMarker] = 1
++
++	const numLiterals = endBlockMarker + 1
++	const numOffsets = 1
++
++	w.literalEncoding.generate(w.literalFreq, 15)
++
++	// Figure out smallest code.
++	// Always use dynamic Huffman or Store
++	var numCodegens int
++
++	// Generate codegen and codegenFrequencies, which indicates how to encode
++	// the literalEncoding and the offsetEncoding.
++	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, huffOffset)
++	w.codegenEncoding.generate(w.codegenFreq, 7)
++	numCodegens = len(w.codegenFreq)
++	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
++		numCodegens--
++	}
++	headerSize := int64(3+5+5+4+(3*numCodegens)) +
++		w.codegenEncoding.bitLength(w.codegenFreq) +
++		int64(w.codegenFreq[16]*2) +
++		int64(w.codegenFreq[17]*3) +
++		int64(w.codegenFreq[18]*7)
++
++	// Includes EOB marker
++	size := headerSize + w.literalEncoding.bitLength(w.literalFreq)
++
++	// Calculate stored size
++	var storedSize int64 = math.MaxInt64
++	var storedBytes = len(input)
++	if storedBytes <= maxStoreBlockSize {
++		storedSize = int64(storedBytes+5) * 8
++	}
++
++	// Store bytes, if we don't get a reasonable improvement.
++	if storedSize < (size + size>>4) {
++		w.writeStoredHeader(storedBytes, eof)
++		w.writeBytes(input)
++		return
++	}
++
++	// Huffman.
++	w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
++	encoding := w.literalEncoding.codes
++	n := w.nbytes
++	for _, t := range input {
++		// Bitwriting inlined, ~30% speedup
++		c := encoding[t]
++		w.bits |= uint64(c.code) << w.nbits
++		w.nbits += uint(c.len)
++		if w.nbits < 48 {
++			continue
+ 		}
++		// Store 6 bytes
++		bits := w.bits
++		w.bits >>= 48
++		w.nbits -= 48
++		w.bytes[n+0] = byte(bits)
++		w.bytes[n+1] = byte(bits >> 8)
++		w.bytes[n+2] = byte(bits >> 16)
++		w.bytes[n+3] = byte(bits >> 24)
++		w.bytes[n+4] = byte(bits >> 32)
++		w.bytes[n+5] = byte(bits >> 40)
++		n += 6
++		if n < bufferFlushSize {
++			continue
++		}
++		_, w.err = w.w.Write(w.bytes[:n])
++		if w.err != nil {
++			return
++		}
++		n = 0
++	}
++	w.nbytes = n
++	w.writeCode(encoding[endBlockMarker])
++}
++
++// histogram accumulates a histogram of b in h.
++//
++// len(h) must be >= 256, and h's elements must be all zeroes.
++func histogram(b []byte, h []int32) {
++	for _, t := range b {
++		h[t]++
+ 	}
+ }
+diff --git a/src/compress/flate/huffman_bit_writer_test.go b/src/compress/flate/huffman_bit_writer_test.go
+new file mode 100644
+index 0000000000..882d3abec1
+--- /dev/null
++++ b/src/compress/flate/huffman_bit_writer_test.go
+@@ -0,0 +1,366 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flate
++
++import (
++	"bytes"
++	"flag"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++var update = flag.Bool("update", false, "update reference files")
++
++// TestBlockHuff tests huffman encoding against reference files
++// to detect possible regressions.
++// If encoding/bit allocation changes you can regenerate these files
++// by using the -update flag.
++func TestBlockHuff(t *testing.T) {
++	// determine input files
++	match, err := filepath.Glob("testdata/huffman-*.in")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, in := range match {
++		out := in // for files where input and output are identical
++		if strings.HasSuffix(in, ".in") {
++			out = in[:len(in)-len(".in")] + ".golden"
++		}
++		testBlockHuff(t, in, out)
++	}
++}
++
++func testBlockHuff(t *testing.T, in, out string) {
++	all, err := ioutil.ReadFile(in)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	var buf bytes.Buffer
++	bw := newHuffmanBitWriter(&buf)
++	bw.writeBlockHuff(false, all)
++	bw.flush()
++	got := buf.Bytes()
++
++	want, err := ioutil.ReadFile(out)
++	if err != nil && !*update {
++		t.Error(err)
++		return
++	}
++
++	t.Logf("Testing %q", in)
++	if !bytes.Equal(got, want) {
++		if *update {
++			if in != out {
++				t.Logf("Updating %q", out)
++				if err := ioutil.WriteFile(out, got, 0666); err != nil {
++					t.Error(err)
++				}
++				return
++			}
++			// in == out: don't accidentally destroy input
++			t.Errorf("WARNING: -update did not rewrite input file %s", in)
++		}
++
++		t.Errorf("%q != %q (see %q)", in, out, in+".got")
++		if err := ioutil.WriteFile(in+".got", got, 0666); err != nil {
++			t.Error(err)
++		}
++		return
++	}
++	t.Log("Output ok")
++
++	// Test if the writer produces the same output after reset.
++	buf.Reset()
++	bw.reset(&buf)
++	bw.writeBlockHuff(false, all)
++	bw.flush()
++	got = buf.Bytes()
++	if !bytes.Equal(got, want) {
++		t.Errorf("after reset %q != %q (see %q)", in, out, in+".reset.got")
++		if err := ioutil.WriteFile(in+".reset.got", got, 0666); err != nil {
++			t.Error(err)
++		}
++		return
++	}
++	t.Log("Reset ok")
++	testWriterEOF(t, "huff", huffTest{input: in}, true)
++}
++
++type huffTest struct {
++	tokens      []token
++	input       string // File name of input data matching the tokens.
++	want        string // File name of data with the expected output with input available.
++	wantNoInput string // File name of the expected output when no input is available.
++}
++
++const ml = 0x7fc00000 // Maximum length token. Used to reduce the size of writeBlockTests
++
++var writeBlockTests = []huffTest{
++	{
++		input:       "testdata/huffman-null-max.in",
++		want:        "testdata/huffman-null-max.%s.expect",
++		wantNoInput: "testdata/huffman-null-max.%s.expect-noinput",
++		tokens:      []token{0x0, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, 0x0, 0x0},
++	},
++	{
++		input:       "testdata/huffman-pi.in",
++		want:        "testdata/huffman-pi.%s.expect",
++		wantNoInput: "testdata/huffman-pi.%s.expect-noinput",
++		tokens:      []token{0x33, 0x2e, 0x31, 0x34, 0x31, 0x35, 0x39, 0x32, 0x36, 0x35, 0x33, 0x35, 0x38, 0x39, 0x37, 0x39, 0x33, 0x32, 0x33, 0x38, 0x34, 0x36, 0x32, 0x36, 0x34, 0x33, 0x33, 0x38, 0x33, 0x32, 0x37, 0x39, 0x35, 0x30, 0x32, 0x38, 0x38, 0x34, 0x31, 0x39, 0x37, 0x31, 0x36, 0x39, 0x33, 0x39, 0x39, 0x33, 0x37, 0x35, 0x31, 0x30, 0x35, 0x38, 0x32, 0x30, 0x39, 0x37, 0x34, 0x39, 0x34, 0x34, 0x35, 0x39, 0x32, 0x33, 0x30, 0x37, 0x38, 0x31, 0x36, 0x34, 0x30, 0x36, 0x32, 0x38, 0x36, 0x32, 0x30, 0x38, 0x39, 0x39, 0x38, 0x36, 0x32, 0x38, 0x30, 0x33, 0x34, 0x38, 0x32, 0x35, 0x33, 0x34, 0x32, 0x31, 0x31, 0x37, 0x30, 0x36, 0x37, 0x39, 0x38, 0x32, 0x31, 0x34, 0x38, 0x30, 0x38, 0x36, 0x35, 0x31, 0x33, 0x32, 0x38, 0x32, 0x33, 0x30, 0x36, 0x36, 0x34, 0x37, 0x30, 0x39, 0x33, 0x38, 0x34, 0x34, 0x36, 0x30, 0x39, 0x35, 0x35, 0x30, 0x35, 0x38, 0x32, 0x32, 0x33, 0x31, 0x37, 0x32, 0x35, 0x33, 0x35, 0x39, 0x34, 0x30, 0x38, 0x31, 0x32, 0x38, 0x34, 0x38, 0x31, 0x31, 0x31, 0x37, 0x34, 0x4040007e, 0x34, 0x31, 0x30, 0x32, 0x37, 0x30, 0x31, 0x39, 0x33, 0x38, 0x35, 0x32, 0x31, 0x31, 0x30, 0x35, 0x35, 0x35, 0x39, 0x36, 0x34, 0x34, 0x36, 0x32, 0x32, 0x39, 0x34, 0x38, 0x39, 0x35, 0x34, 0x39, 0x33, 0x30, 0x33, 0x38, 0x31, 0x40400012, 0x32, 0x38, 0x38, 0x31, 0x30, 0x39, 0x37, 0x35, 0x36, 0x36, 0x35, 0x39, 0x33, 0x33, 0x34, 0x34, 0x36, 0x40400047, 0x37, 0x35, 0x36, 0x34, 0x38, 0x32, 0x33, 0x33, 0x37, 0x38, 0x36, 0x37, 0x38, 0x33, 0x31, 0x36, 0x35, 0x32, 0x37, 0x31, 0x32, 0x30, 0x31, 0x39, 0x30, 0x39, 0x31, 0x34, 0x4040001a, 0x35, 0x36, 0x36, 0x39, 0x32, 0x33, 0x34, 0x36, 0x404000b2, 0x36, 0x31, 0x30, 0x34, 0x35, 0x34, 0x33, 0x32, 0x36, 0x40400032, 0x31, 0x33, 0x33, 0x39, 0x33, 0x36, 0x30, 0x37, 0x32, 0x36, 0x30, 0x32, 0x34, 0x39, 0x31, 0x34, 0x31, 0x32, 0x37, 0x33, 0x37, 0x32, 0x34, 0x35, 0x38, 0x37, 0x30, 0x30, 0x36, 0x36, 0x30, 0x36, 0x33, 0x31, 0x35, 0x35, 0x38, 0x38, 0x31, 0x37, 0x34, 0x38, 0x38, 0x31, 0x35, 0x32, 0x30, 0x39, 0x32, 0x30, 0x39, 0x36, 0x32, 0x38, 0x32, 0x39, 0x32, 0x35, 0x34, 0x30, 0x39, 0x31, 0x37, 0x31, 0x35, 0x33, 0x36, 0x34, 0x33, 0x36, 0x37, 0x38, 0x39, 0x32, 0x35, 0x39, 0x30, 0x33, 0x36, 0x30, 0x30, 0x31, 0x31, 0x33, 0x33, 0x30, 0x35, 0x33, 0x30, 0x35, 0x34, 0x38, 0x38, 0x32, 0x30, 0x34, 0x36, 0x36, 0x35, 0x32, 0x31, 0x33, 0x38, 0x34, 0x31, 0x34, 0x36, 0x39, 0x35, 0x31, 0x39, 0x34, 0x31, 0x35, 0x31, 0x31, 0x36, 0x30, 0x39, 0x34, 0x33, 0x33, 0x30, 0x35, 0x37, 0x32, 0x37, 0x30, 0x33, 0x36, 0x35, 0x37, 0x35, 0x39, 0x35, 0x39, 0x31, 0x39, 0x35, 0x33, 0x30, 0x39, 0x32, 0x31, 0x38, 0x36, 0x31, 0x31, 0x37, 0x404000e9, 0x33, 0x32, 0x40400009, 0x39, 0x33, 0x31, 0x30, 0x35, 0x31, 0x31, 0x38, 0x35, 0x34, 0x38, 0x30, 0x37, 0x4040010e, 0x33, 0x37, 0x39, 0x39, 0x36, 0x32, 0x37, 0x34, 0x39, 0x35, 0x36, 0x37, 0x33, 0x35, 0x31, 0x38, 0x38, 0x35, 0x37, 0x35, 0x32, 0x37, 0x32, 0x34, 0x38, 0x39, 0x31, 0x32, 0x32, 0x37, 0x39, 0x33, 0x38, 0x31, 0x38, 0x33, 0x30, 0x31, 0x31, 0x39, 0x34, 0x39, 0x31, 0x32, 0x39, 0x38, 0x33, 0x33, 0x36, 0x37, 0x33, 0x33, 0x36, 0x32, 0x34, 0x34, 0x30, 0x36, 0x35, 0x36, 0x36, 0x34, 0x33, 0x30, 0x38, 0x36, 0x30, 0x32, 0x31, 0x33, 0x39, 0x34, 0x39, 0x34, 0x36, 0x33, 0x39, 0x35, 0x32, 0x32, 0x34, 0x37, 0x33, 0x37, 0x31, 0x39, 0x30, 0x37, 0x30, 0x32, 0x31, 0x37, 0x39, 0x38, 0x40800099, 0x37, 0x30, 0x32, 0x37, 0x37, 0x30, 0x35, 0x33, 0x39, 0x32, 0x31, 0x37, 0x31, 0x37, 0x36, 0x32, 0x39, 0x33, 0x31, 0x37, 0x36, 0x37, 0x35, 0x40800232, 0x37, 0x34, 0x38, 0x31, 0x40400006, 0x36, 0x36, 0x39, 0x34, 0x30, 0x404001e7, 0x30, 0x30, 0x30, 0x35, 0x36, 0x38, 0x31, 0x32, 0x37, 0x31, 0x34, 0x35, 0x32, 0x36, 0x33, 0x35, 0x36, 0x30, 0x38, 0x32, 0x37, 0x37, 0x38, 0x35, 0x37, 0x37, 0x31, 0x33, 0x34, 0x32, 0x37, 0x35, 0x37, 0x37, 0x38, 0x39, 0x36, 0x40400129, 0x33, 0x36, 0x33, 0x37, 0x31, 0x37, 0x38, 0x37, 0x32, 0x31, 0x34, 0x36, 0x38, 0x34, 0x34, 0x30, 0x39, 0x30, 0x31, 0x32, 0x32, 0x34, 0x39, 0x35, 0x33, 0x34, 0x33, 0x30, 0x31, 0x34, 0x36, 0x35, 0x34, 0x39, 0x35, 0x38, 0x35, 0x33, 0x37, 0x31, 0x30, 0x35, 0x30, 0x37, 0x39, 0x404000ca, 0x36, 0x40400153, 0x38, 0x39, 0x32, 0x33, 0x35, 0x34, 0x404001c9, 0x39, 0x35, 0x36, 0x31, 0x31, 0x32, 0x31, 0x32, 0x39, 0x30, 0x32, 0x31, 0x39, 0x36, 0x30, 0x38, 0x36, 0x34, 0x30, 0x33, 0x34, 0x34, 0x31, 0x38, 0x31, 0x35, 0x39, 0x38, 0x31, 0x33, 0x36, 0x32, 0x39, 0x37, 0x37, 0x34, 0x40400074, 0x30, 0x39, 0x39, 0x36, 0x30, 0x35, 0x31, 0x38, 0x37, 0x30, 0x37, 0x32, 0x31, 0x31, 0x33, 0x34, 0x39, 0x40800000, 0x38, 0x33, 0x37, 0x32, 0x39, 0x37, 0x38, 0x30, 0x34, 0x39, 0x39, 0x404002da, 0x39, 0x37, 0x33, 0x31, 0x37, 0x33, 0x32, 0x38, 0x4040018a, 0x36, 0x33, 0x31, 0x38, 0x35, 0x40400301, 0x404002e8, 0x34, 0x35, 0x35, 0x33, 0x34, 0x36, 0x39, 0x30, 0x38, 0x33, 0x30, 0x32, 0x36, 0x34, 0x32, 0x35, 0x32, 0x32, 0x33, 0x30, 0x404002e3, 0x40400267, 0x38, 0x35, 0x30, 0x33, 0x35, 0x32, 0x36, 0x31, 0x39, 0x33, 0x31, 0x31, 0x40400212, 0x31, 0x30, 0x31, 0x30, 0x30, 0x30, 0x33, 0x31, 0x33, 0x37, 0x38, 0x33, 0x38, 0x37, 0x35, 0x32, 0x38, 0x38, 0x36, 0x35, 0x38, 0x37, 0x35, 0x33, 0x33, 0x32, 0x30, 0x38, 0x33, 0x38, 0x31, 0x34, 0x32, 0x30, 0x36, 0x40400140, 0x4040012b, 0x31, 0x34, 0x37, 0x33, 0x30, 0x33, 0x35, 0x39, 0x4080032e, 0x39, 0x30, 0x34, 0x32, 0x38, 0x37, 0x35, 0x35, 0x34, 0x36, 0x38, 0x37, 0x33, 0x31, 0x31, 0x35, 0x39, 0x35, 0x40400355, 0x33, 0x38, 0x38, 0x32, 0x33, 0x35, 0x33, 0x37, 0x38, 0x37, 0x35, 0x4080037f, 0x39, 0x4040013a, 0x31, 0x40400148, 0x38, 0x30, 0x35, 0x33, 0x4040018a, 0x32, 0x32, 0x36, 0x38, 0x30, 0x36, 0x36, 0x31, 0x33, 0x30, 0x30, 0x31, 0x39, 0x32, 0x37, 0x38, 0x37, 0x36, 0x36, 0x31, 0x31, 0x31, 0x39, 0x35, 0x39, 0x40400237, 0x36, 0x40800124, 0x38, 0x39, 0x33, 0x38, 0x30, 0x39, 0x35, 0x32, 0x35, 0x37, 0x32, 0x30, 0x31, 0x30, 0x36, 0x35, 0x34, 0x38, 0x35, 0x38, 0x36, 0x33, 0x32, 0x37, 0x4040009a, 0x39, 0x33, 0x36, 0x31, 0x35, 0x33, 0x40400220, 0x4080015c, 0x32, 0x33, 0x30, 0x33, 0x30, 0x31, 0x39, 0x35, 0x32, 0x30, 0x33, 0x35, 0x33, 0x30, 0x31, 0x38, 0x35, 0x32, 0x40400171, 0x40400075, 0x33, 0x36, 0x32, 0x32, 0x35, 0x39, 0x39, 0x34, 0x31, 0x33, 0x40400254, 0x34, 0x39, 0x37, 0x32, 0x31, 0x37, 0x404000de, 0x33, 0x34, 0x37, 0x39, 0x31, 0x33, 0x31, 0x35, 0x31, 0x35, 0x35, 0x37, 0x34, 0x38, 0x35, 0x37, 0x32, 0x34, 0x32, 0x34, 0x35, 0x34, 0x31, 0x35, 0x30, 0x36, 0x39, 0x4040013f, 0x38, 0x32, 0x39, 0x35, 0x33, 0x33, 0x31, 0x31, 0x36, 0x38, 0x36, 0x31, 0x37, 0x32, 0x37, 0x38, 0x40400337, 0x39, 0x30, 0x37, 0x35, 0x30, 0x39, 0x4040010d, 0x37, 0x35, 0x34, 0x36, 0x33, 0x37, 0x34, 0x36, 0x34, 0x39, 0x33, 0x39, 0x33, 0x31, 0x39, 0x32, 0x35, 0x35, 0x30, 0x36, 0x30, 0x34, 0x30, 0x30, 0x39, 0x4040026b, 0x31, 0x36, 0x37, 0x31, 0x31, 0x33, 0x39, 0x30, 0x30, 0x39, 0x38, 0x40400335, 0x34, 0x30, 0x31, 0x32, 0x38, 0x35, 0x38, 0x33, 0x36, 0x31, 0x36, 0x30, 0x33, 0x35, 0x36, 0x33, 0x37, 0x30, 0x37, 0x36, 0x36, 0x30, 0x31, 0x30, 0x34, 0x40400172, 0x38, 0x31, 0x39, 0x34, 0x32, 0x39, 0x4080041e, 0x404000ef, 0x4040028b, 0x37, 0x38, 0x33, 0x37, 0x34, 0x404004a8, 0x38, 0x32, 0x35, 0x35, 0x33, 0x37, 0x40800209, 0x32, 0x36, 0x38, 0x4040002e, 0x34, 0x30, 0x34, 0x37, 0x404001d1, 0x34, 0x404004b5, 0x4040038d, 0x38, 0x34, 0x404003a8, 0x36, 0x40c0031f, 0x33, 0x33, 0x31, 0x33, 0x36, 0x37, 0x37, 0x30, 0x32, 0x38, 0x39, 0x38, 0x39, 0x31, 0x35, 0x32, 0x40400062, 0x35, 0x32, 0x31, 0x36, 0x32, 0x30, 0x35, 0x36, 0x39, 0x36, 0x40400411, 0x30, 0x35, 0x38, 0x40400477, 0x35, 0x40400498, 0x35, 0x31, 0x31, 0x40400209, 0x38, 0x32, 0x34, 0x33, 0x30, 0x30, 0x33, 0x35, 0x35, 0x38, 0x37, 0x36, 0x34, 0x30, 0x32, 0x34, 0x37, 0x34, 0x39, 0x36, 0x34, 0x37, 0x33, 0x32, 0x36, 0x33, 0x4040043e, 0x39, 0x39, 0x32, 0x4040044b, 0x34, 0x32, 0x36, 0x39, 0x40c002c5, 0x37, 0x404001d6, 0x34, 0x4040053d, 0x4040041d, 0x39, 0x33, 0x34, 0x31, 0x37, 0x404001ad, 0x31, 0x32, 0x4040002a, 0x34, 0x4040019e, 0x31, 0x35, 0x30, 0x33, 0x30, 0x32, 0x38, 0x36, 0x31, 0x38, 0x32, 0x39, 0x37, 0x34, 0x35, 0x35, 0x35, 0x37, 0x30, 0x36, 0x37, 0x34, 0x40400135, 0x35, 0x30, 0x35, 0x34, 0x39, 0x34, 0x35, 0x38, 0x404001c5, 0x39, 0x40400051, 0x35, 0x36, 0x404001ec, 0x37, 0x32, 0x31, 0x30, 0x37, 0x39, 0x40400159, 0x33, 0x30, 0x4040010a, 0x33, 0x32, 0x31, 0x31, 0x36, 0x35, 0x33, 0x34, 0x34, 0x39, 0x38, 0x37, 0x32, 0x30, 0x32, 0x37, 0x4040011b, 0x30, 0x32, 0x33, 0x36, 0x34, 0x4040022e, 0x35, 0x34, 0x39, 0x39, 0x31, 0x31, 0x39, 0x38, 0x40400418, 0x34, 0x4040011b, 0x35, 0x33, 0x35, 0x36, 0x36, 0x33, 0x36, 0x39, 0x40400450, 0x32, 0x36, 0x35, 0x404002e4, 0x37, 0x38, 0x36, 0x32, 0x35, 0x35, 0x31, 0x404003da, 0x31, 0x37, 0x35, 0x37, 0x34, 0x36, 0x37, 0x32, 0x38, 0x39, 0x30, 0x39, 0x37, 0x37, 0x37, 0x37, 0x40800453, 0x30, 0x30, 0x30, 0x404005fd, 0x37, 0x30, 0x404004df, 0x36, 0x404003e9, 0x34, 0x39, 0x31, 0x4040041e, 0x40400297, 0x32, 0x31, 0x34, 0x37, 0x37, 0x32, 0x33, 0x35, 0x30, 0x31, 0x34, 0x31, 0x34, 0x40400643, 0x33, 0x35, 0x36, 0x404004af, 0x31, 0x36, 0x31, 0x33, 0x36, 0x31, 0x31, 0x35, 0x37, 0x33, 0x35, 0x32, 0x35, 0x40400504, 0x33, 0x34, 0x4040005b, 0x31, 0x38, 0x4040047b, 0x38, 0x34, 0x404005e7, 0x33, 0x33, 0x32, 0x33, 0x39, 0x30, 0x37, 0x33, 0x39, 0x34, 0x31, 0x34, 0x33, 0x33, 0x33, 0x34, 0x35, 0x34, 0x37, 0x37, 0x36, 0x32, 0x34, 0x40400242, 0x32, 0x35, 0x31, 0x38, 0x39, 0x38, 0x33, 0x35, 0x36, 0x39, 0x34, 0x38, 0x35, 0x35, 0x36, 0x32, 0x30, 0x39, 0x39, 0x32, 0x31, 0x39, 0x32, 0x32, 0x32, 0x31, 0x38, 0x34, 0x32, 0x37, 0x4040023e, 0x32, 0x404000ba, 0x36, 0x38, 0x38, 0x37, 0x36, 0x37, 0x31, 0x37, 0x39, 0x30, 0x40400055, 0x30, 0x40800106, 0x36, 0x36, 0x404003e7, 0x38, 0x38, 0x36, 0x32, 0x37, 0x32, 0x404006dc, 0x31, 0x37, 0x38, 0x36, 0x30, 0x38, 0x35, 0x37, 0x40400073, 0x33, 0x408002fc, 0x37, 0x39, 0x37, 0x36, 0x36, 0x38, 0x31, 0x404002bd, 0x30, 0x30, 0x39, 0x35, 0x33, 0x38, 0x38, 0x40400638, 0x33, 0x404006a5, 0x30, 0x36, 0x38, 0x30, 0x30, 0x36, 0x34, 0x32, 0x32, 0x35, 0x31, 0x32, 0x35, 0x32, 0x4040057b, 0x37, 0x33, 0x39, 0x32, 0x40400297, 0x40400474, 0x34, 0x408006b3, 0x38, 0x36, 0x32, 0x36, 0x39, 0x34, 0x35, 0x404001e5, 0x34, 0x31, 0x39, 0x36, 0x35, 0x32, 0x38, 0x35, 0x30, 0x40400099, 0x4040039c, 0x31, 0x38, 0x36, 0x33, 0x404001be, 0x34, 0x40800154, 0x32, 0x30, 0x33, 0x39, 0x4040058b, 0x34, 0x35, 0x404002bc, 0x32, 0x33, 0x37, 0x4040042c, 0x36, 0x40400510, 0x35, 0x36, 0x40400638, 0x37, 0x31, 0x39, 0x31, 0x37, 0x32, 0x38, 0x40400171, 0x37, 0x36, 0x34, 0x36, 0x35, 0x37, 0x35, 0x37, 0x33, 0x39, 0x40400101, 0x33, 0x38, 0x39, 0x40400748, 0x38, 0x33, 0x32, 0x36, 0x34, 0x35, 0x39, 0x39, 0x35, 0x38, 0x404006a7, 0x30, 0x34, 0x37, 0x38, 0x404001de, 0x40400328, 0x39, 0x4040002d, 0x36, 0x34, 0x30, 0x37, 0x38, 0x39, 0x35, 0x31, 0x4040008e, 0x36, 0x38, 0x33, 0x4040012f, 0x32, 0x35, 0x39, 0x35, 0x37, 0x30, 0x40400468, 0x38, 0x32, 0x32, 0x404002c8, 0x32, 0x4040061b, 0x34, 0x30, 0x37, 0x37, 0x32, 0x36, 0x37, 0x31, 0x39, 0x34, 0x37, 0x38, 0x40400319, 0x38, 0x32, 0x36, 0x30, 0x31, 0x34, 0x37, 0x36, 0x39, 0x39, 0x30, 0x39, 0x404004e8, 0x30, 0x31, 0x33, 0x36, 0x33, 0x39, 0x34, 0x34, 0x33, 0x4040027f, 0x33, 0x30, 0x40400105, 0x32, 0x30, 0x33, 0x34, 0x39, 0x36, 0x32, 0x35, 0x32, 0x34, 0x35, 0x31, 0x37, 0x404003b5, 0x39, 0x36, 0x35, 0x31, 0x34, 0x33, 0x31, 0x34, 0x32, 0x39, 0x38, 0x30, 0x39, 0x31, 0x39, 0x30, 0x36, 0x35, 0x39, 0x32, 0x40400282, 0x37, 0x32, 0x32, 0x31, 0x36, 0x39, 0x36, 0x34, 0x36, 0x40400419, 0x4040007a, 0x35, 0x4040050e, 0x34, 0x40800565, 0x38, 0x40400559, 0x39, 0x37, 0x4040057b, 0x35, 0x34, 0x4040049d, 0x4040023e, 0x37, 0x4040065a, 0x38, 0x34, 0x36, 0x38, 0x31, 0x33, 0x4040008c, 0x36, 0x38, 0x33, 0x38, 0x36, 0x38, 0x39, 0x34, 0x32, 0x37, 0x37, 0x34, 0x31, 0x35, 0x35, 0x39, 0x39, 0x31, 0x38, 0x35, 0x4040005a, 0x32, 0x34, 0x35, 0x39, 0x35, 0x33, 0x39, 0x35, 0x39, 0x34, 0x33, 0x31, 0x404005b7, 0x37, 0x40400012, 0x36, 0x38, 0x30, 0x38, 0x34, 0x35, 0x404002e7, 0x37, 0x33, 0x4040081e, 0x39, 0x35, 0x38, 0x34, 0x38, 0x36, 0x35, 0x33, 0x38, 0x404006e8, 0x36, 0x32, 0x404000f2, 0x36, 0x30, 0x39, 0x404004b6, 0x36, 0x30, 0x38, 0x30, 0x35, 0x31, 0x32, 0x34, 0x33, 0x38, 0x38, 0x34, 0x4040013a, 0x4040000b, 0x34, 0x31, 0x33, 0x4040030f, 0x37, 0x36, 0x32, 0x37, 0x38, 0x40400341, 0x37, 0x31, 0x35, 0x4040059b, 0x33, 0x35, 0x39, 0x39, 0x37, 0x37, 0x30, 0x30, 0x31, 0x32, 0x39, 0x40400472, 0x38, 0x39, 0x34, 0x34, 0x31, 0x40400277, 0x36, 0x38, 0x35, 0x35, 0x4040005f, 0x34, 0x30, 0x36, 0x33, 0x404008e6, 0x32, 0x30, 0x37, 0x32, 0x32, 0x40400158, 0x40800203, 0x34, 0x38, 0x31, 0x35, 0x38, 0x40400205, 0x404001fe, 0x4040027a, 0x40400298, 0x33, 0x39, 0x34, 0x35, 0x32, 0x32, 0x36, 0x37, 0x40c00496, 0x38, 0x4040058a, 0x32, 0x31, 0x404002ea, 0x32, 0x40400387, 0x35, 0x34, 0x36, 0x36, 0x36, 0x4040051b, 0x32, 0x33, 0x39, 0x38, 0x36, 0x34, 0x35, 0x36, 0x404004c4, 0x31, 0x36, 0x33, 0x35, 0x40800253, 0x40400811, 0x37, 0x404008ad, 0x39, 0x38, 0x4040045e, 0x39, 0x33, 0x36, 0x33, 0x34, 0x4040075b, 0x37, 0x34, 0x33, 0x32, 0x34, 0x4040047b, 0x31, 0x35, 0x30, 0x37, 0x36, 0x404004bb, 0x37, 0x39, 0x34, 0x35, 0x31, 0x30, 0x39, 0x4040003e, 0x30, 0x39, 0x34, 0x30, 0x404006a6, 0x38, 0x38, 0x37, 0x39, 0x37, 0x31, 0x30, 0x38, 0x39, 0x33, 0x404008f0, 0x36, 0x39, 0x31, 0x33, 0x36, 0x38, 0x36, 0x37, 0x32, 0x4040025b, 0x404001fe, 0x35, 0x4040053f, 0x40400468, 0x40400801, 0x31, 0x37, 0x39, 0x32, 0x38, 0x36, 0x38, 0x404008cc, 0x38, 0x37, 0x34, 0x37, 0x4080079e, 0x38, 0x32, 0x34, 0x4040097a, 0x38, 0x4040025b, 0x37, 0x31, 0x34, 0x39, 0x30, 0x39, 0x36, 0x37, 0x35, 0x39, 0x38, 0x404006ef, 0x33, 0x36, 0x35, 0x40400134, 0x38, 0x31, 0x4040005c, 0x40400745, 0x40400936, 0x36, 0x38, 0x32, 0x39, 0x4040057e, 0x38, 0x37, 0x32, 0x32, 0x36, 0x35, 0x38, 0x38, 0x30, 0x40400611, 0x35, 0x40400249, 0x34, 0x32, 0x37, 0x30, 0x34, 0x37, 0x37, 0x35, 0x35, 0x4040081e, 0x33, 0x37, 0x39, 0x36, 0x34, 0x31, 0x34, 0x35, 0x31, 0x35, 0x32, 0x404005fd, 0x32, 0x33, 0x34, 0x33, 0x36, 0x34, 0x35, 0x34, 0x404005de, 0x34, 0x34, 0x34, 0x37, 0x39, 0x35, 0x4040003c, 0x40400523, 0x408008e6, 0x34, 0x31, 0x4040052a, 0x33, 0x40400304, 0x35, 0x32, 0x33, 0x31, 0x40800841, 0x31, 0x36, 0x36, 0x31, 0x404008b2, 0x35, 0x39, 0x36, 0x39, 0x35, 0x33, 0x36, 0x32, 0x33, 0x31, 0x34, 0x404005ff, 0x32, 0x34, 0x38, 0x34, 0x39, 0x33, 0x37, 0x31, 0x38, 0x37, 0x31, 0x31, 0x30, 0x31, 0x34, 0x35, 0x37, 0x36, 0x35, 0x34, 0x40400761, 0x30, 0x32, 0x37, 0x39, 0x39, 0x33, 0x34, 0x34, 0x30, 0x33, 0x37, 0x34, 0x32, 0x30, 0x30, 0x37, 0x4040093f, 0x37, 0x38, 0x35, 0x33, 0x39, 0x30, 0x36, 0x32, 0x31, 0x39, 0x40800299, 0x40400345, 0x38, 0x34, 0x37, 0x408003d2, 0x38, 0x33, 0x33, 0x32, 0x31, 0x34, 0x34, 0x35, 0x37, 0x31, 0x40400284, 0x40400776, 0x34, 0x33, 0x35, 0x30, 0x40400928, 0x40400468, 0x35, 0x33, 0x31, 0x39, 0x31, 0x30, 0x34, 0x38, 0x34, 0x38, 0x31, 0x30, 0x30, 0x35, 0x33, 0x37, 0x30, 0x36, 0x404008bc, 0x4080059d, 0x40800781, 0x31, 0x40400559, 0x37, 0x4040031b, 0x35, 0x404007ec, 0x4040040c, 0x36, 0x33, 0x408007dc, 0x34, 0x40400971, 0x4080034e, 0x408003f5, 0x38, 0x4080052d, 0x40800887, 0x39, 0x40400187, 0x39, 0x31, 0x404008ce, 0x38, 0x31, 0x34, 0x36, 0x37, 0x35, 0x31, 0x4040062b, 0x31, 0x32, 0x33, 0x39, 0x40c001a9, 0x39, 0x30, 0x37, 0x31, 0x38, 0x36, 0x34, 0x39, 0x34, 0x32, 0x33, 0x31, 0x39, 0x36, 0x31, 0x35, 0x36, 0x404001ec, 0x404006bc, 0x39, 0x35, 0x40400926, 0x40400469, 0x4040011b, 0x36, 0x30, 0x33, 0x38, 0x40400a25, 0x4040016f, 0x40400384, 0x36, 0x32, 0x4040045a, 0x35, 0x4040084c, 0x36, 0x33, 0x38, 0x39, 0x33, 0x37, 0x37, 0x38, 0x37, 0x404008c5, 0x404000f8, 0x39, 0x37, 0x39, 0x32, 0x30, 0x37, 0x37, 0x33, 0x404005d7, 0x32, 0x31, 0x38, 0x32, 0x35, 0x36, 0x404007df, 0x36, 0x36, 0x404006d6, 0x34, 0x32, 0x4080067e, 0x36, 0x404006e6, 0x34, 0x34, 0x40400024, 0x35, 0x34, 0x39, 0x32, 0x30, 0x32, 0x36, 0x30, 0x35, 0x40400ab3, 0x408003e4, 0x32, 0x30, 0x31, 0x34, 0x39, 0x404004d2, 0x38, 0x35, 0x30, 0x37, 0x33, 0x40400599, 0x36, 0x36, 0x36, 0x30, 0x40400194, 0x32, 0x34, 0x33, 0x34, 0x30, 0x40400087, 0x30, 0x4040076b, 0x38, 0x36, 0x33, 0x40400956, 0x404007e4, 0x4040042b, 0x40400174, 0x35, 0x37, 0x39, 0x36, 0x32, 0x36, 0x38, 0x35, 0x36, 0x40400140, 0x35, 0x30, 0x38, 0x40400523, 0x35, 0x38, 0x37, 0x39, 0x36, 0x39, 0x39, 0x40400711, 0x35, 0x37, 0x34, 0x40400a18, 0x38, 0x34, 0x30, 0x404008b3, 0x31, 0x34, 0x35, 0x39, 0x31, 0x4040078c, 0x37, 0x30, 0x40400234, 0x30, 0x31, 0x40400be7, 0x31, 0x32, 0x40400c74, 0x30, 0x404003c3, 0x33, 0x39, 0x40400b2a, 0x40400112, 0x37, 0x31, 0x35, 0x404003b0, 0x34, 0x32, 0x30, 0x40800bf2, 0x39, 0x40400bc2, 0x30, 0x37, 0x40400341, 0x40400795, 0x40400aaf, 0x40400c62, 0x32, 0x31, 0x40400960, 0x32, 0x35, 0x31, 0x4040057b, 0x40400944, 0x39, 0x32, 0x404001b2, 0x38, 0x32, 0x36, 0x40400b66, 0x32, 0x40400278, 0x33, 0x32, 0x31, 0x35, 0x37, 0x39, 0x31, 0x39, 0x38, 0x34, 0x31, 0x34, 0x4080087b, 0x39, 0x31, 0x36, 0x34, 0x408006e8, 0x39, 0x40800b58, 0x404008db, 0x37, 0x32, 0x32, 0x40400321, 0x35, 0x404008a4, 0x40400141, 0x39, 0x31, 0x30, 0x404000bc, 0x40400c5b, 0x35, 0x32, 0x38, 0x30, 0x31, 0x37, 0x40400231, 0x37, 0x31, 0x32, 0x40400914, 0x38, 0x33, 0x32, 0x40400373, 0x31, 0x40400589, 0x30, 0x39, 0x33, 0x35, 0x33, 0x39, 0x36, 0x35, 0x37, 0x4040064b, 0x31, 0x30, 0x38, 0x33, 0x40400069, 0x35, 0x31, 0x4040077a, 0x40400d5a, 0x31, 0x34, 0x34, 0x34, 0x32, 0x31, 0x30, 0x30, 0x40400202, 0x30, 0x33, 0x4040019c, 0x31, 0x31, 0x30, 0x33, 0x40400c81, 0x40400009, 0x40400026, 0x40c00602, 0x35, 0x31, 0x36, 0x404005d9, 0x40800883, 0x4040092a, 0x35, 0x40800c42, 0x38, 0x35, 0x31, 0x37, 0x31, 0x34, 0x33, 0x37, 0x40400605, 0x4040006d, 0x31, 0x35, 0x35, 0x36, 0x35, 0x30, 0x38, 0x38, 0x404003b9, 0x39, 0x38, 0x39, 0x38, 0x35, 0x39, 0x39, 0x38, 0x32, 0x33, 0x38, 0x404001cf, 0x404009ba, 0x33, 0x4040016c, 0x4040043e, 0x404009c3, 0x38, 0x40800e05, 0x33, 0x32, 0x40400107, 0x35, 0x40400305, 0x33, 0x404001ca, 0x39, 0x4040041b, 0x39, 0x38, 0x4040087d, 0x34, 0x40400cb8, 0x37, 0x4040064b, 0x30, 0x37, 0x404000e5, 0x34, 0x38, 0x31, 0x34, 0x31, 0x40400539, 0x38, 0x35, 0x39, 0x34, 0x36, 0x31, 0x40400bc9, 0x38, 0x30},
++	},
++	{
++		input:       "testdata/huffman-rand-1k.in",
++		want:        "testdata/huffman-rand-1k.%s.expect",
++		wantNoInput: "testdata/huffman-rand-1k.%s.expect-noinput",
++		tokens:      []token{0xf8, 0x8b, 0x96, 0x76, 0x48, 0xd, 0x85, 0x94, 0x25, 0x80, 0xaf, 0xc2, 0xfe, 0x8d, 0xe8, 0x20, 0xeb, 0x17, 0x86, 0xc9, 0xb7, 0xc5, 0xde, 0x6, 0xea, 0x7d, 0x18, 0x8b, 0xe7, 0x3e, 0x7, 0xda, 0xdf, 0xff, 0x6c, 0x73, 0xde, 0xcc, 0xe7, 0x6d, 0x8d, 0x4, 0x19, 0x49, 0x7f, 0x47, 0x1f, 0x48, 0x15, 0xb0, 0xe8, 0x9e, 0xf2, 0x31, 0x59, 0xde, 0x34, 0xb4, 0x5b, 0xe5, 0xe0, 0x9, 0x11, 0x30, 0xc2, 0x88, 0x5b, 0x7c, 0x5d, 0x14, 0x13, 0x6f, 0x23, 0xa9, 0xd, 0xbc, 0x2d, 0x23, 0xbe, 0xd9, 0xed, 0x75, 0x4, 0x6c, 0x99, 0xdf, 0xfd, 0x70, 0x66, 0xe6, 0xee, 0xd9, 0xb1, 0x9e, 0x6e, 0x83, 0x59, 0xd5, 0xd4, 0x80, 0x59, 0x98, 0x77, 0x89, 0x43, 0x38, 0xc9, 0xaf, 0x30, 0x32, 0x9a, 0x20, 0x1b, 0x46, 0x3d, 0x67, 0x6e, 0xd7, 0x72, 0x9e, 0x4e, 0x21, 0x4f, 0xc6, 0xe0, 0xd4, 0x7b, 0x4, 0x8d, 0xa5, 0x3, 0xf6, 0x5, 0x9b, 0x6b, 0xdc, 0x2a, 0x93, 0x77, 0x28, 0xfd, 0xb4, 0x62, 0xda, 0x20, 0xe7, 0x1f, 0xab, 0x6b, 0x51, 0x43, 0x39, 0x2f, 0xa0, 0x92, 0x1, 0x6c, 0x75, 0x3e, 0xf4, 0x35, 0xfd, 0x43, 0x2e, 0xf7, 0xa4, 0x75, 0xda, 0xea, 0x9b, 0xa, 0x64, 0xb, 0xe0, 0x23, 0x29, 0xbd, 0xf7, 0xe7, 0x83, 0x3c, 0xfb, 0xdf, 0xb3, 0xae, 0x4f, 0xa4, 0x47, 0x55, 0x99, 0xde, 0x2f, 0x96, 0x6e, 0x1c, 0x43, 0x4c, 0x87, 0xe2, 0x7c, 0xd9, 0x5f, 0x4c, 0x7c, 0xe8, 0x90, 0x3, 0xdb, 0x30, 0x95, 0xd6, 0x22, 0xc, 0x47, 0xb8, 0x4d, 0x6b, 0xbd, 0x24, 0x11, 0xab, 0x2c, 0xd7, 0xbe, 0x6e, 0x7a, 0xd6, 0x8, 0xa3, 0x98, 0xd8, 0xdd, 0x15, 0x6a, 0xfa, 0x93, 0x30, 0x1, 0x25, 0x1d, 0xa2, 0x74, 0x86, 0x4b, 0x6a, 0x95, 0xe8, 0xe1, 0x4e, 0xe, 0x76, 0xb9, 0x49, 0xa9, 0x5f, 0xa0, 0xa6, 0x63, 0x3c, 0x7e, 0x7e, 0x20, 0x13, 0x4f, 0xbb, 0x66, 0x92, 0xb8, 0x2e, 0xa4, 0xfa, 0x48, 0xcb, 0xae, 0xb9, 0x3c, 0xaf, 0xd3, 0x1f, 0xe1, 0xd5, 0x8d, 0x42, 0x6d, 0xf0, 0xfc, 0x8c, 0xc, 0x0, 0xde, 0x40, 0xab, 0x8b, 0x47, 0x97, 0x4e, 0xa8, 0xcf, 0x8e, 0xdb, 0xa6, 0x8b, 0x20, 0x9, 0x84, 0x7a, 0x66, 0xe5, 0x98, 0x29, 0x2, 0x95, 0xe6, 0x38, 0x32, 0x60, 0x3, 0xe3, 0x9a, 0x1e, 0x54, 0xe8, 0x63, 0x80, 0x48, 0x9c, 0xe7, 0x63, 0x33, 0x6e, 0xa0, 0x65, 0x83, 0xfa, 0xc6, 0xba, 0x7a, 0x43, 0x71, 0x5, 0xf5, 0x68, 0x69, 0x85, 0x9c, 0xba, 0x45, 0xcd, 0x6b, 0xb, 0x19, 0xd1, 0xbb, 0x7f, 0x70, 0x85, 0x92, 0xd1, 0xb4, 0x64, 0x82, 0xb1, 0xe4, 0x62, 0xc5, 0x3c, 0x46, 0x1f, 0x92, 0x31, 0x1c, 0x4e, 0x41, 0x77, 0xf7, 0xe7, 0x87, 0xa2, 0xf, 0x6e, 0xe8, 0x92, 0x3, 0x6b, 0xa, 0xe7, 0xa9, 0x3b, 0x11, 0xda, 0x66, 0x8a, 0x29, 0xda, 0x79, 0xe1, 0x64, 0x8d, 0xe3, 0x54, 0xd4, 0xf5, 0xef, 0x64, 0x87, 0x3b, 0xf4, 0xc2, 0xf4, 0x71, 0x13, 0xa9, 0xe9, 0xe0, 0xa2, 0x6, 0x14, 0xab, 0x5d, 0xa7, 0x96, 0x0, 0xd6, 0xc3, 0xcc, 0x57, 0xed, 0x39, 0x6a, 0x25, 0xcd, 0x76, 0xea, 0xba, 0x3a, 0xf2, 0xa1, 0x95, 0x5d, 0xe5, 0x71, 0xcf, 0x9c, 0x62, 0x9e, 0x6a, 0xfa, 0xd5, 0x31, 0xd1, 0xa8, 0x66, 0x30, 0x33, 0xaa, 0x51, 0x17, 0x13, 0x82, 0x99, 0xc8, 0x14, 0x60, 0x9f, 0x4d, 0x32, 0x6d, 0xda, 0x19, 0x26, 0x21, 0xdc, 0x7e, 0x2e, 0x25, 0x67, 0x72, 0xca, 0xf, 0x92, 0xcd, 0xf6, 0xd6, 0xcb, 0x97, 0x8a, 0x33, 0x58, 0x73, 0x70, 0x91, 0x1d, 0xbf, 0x28, 0x23, 0xa3, 0xc, 0xf1, 0x83, 0xc3, 0xc8, 0x56, 0x77, 0x68, 0xe3, 0x82, 0xba, 0xb9, 0x57, 0x56, 0x57, 0x9c, 0xc3, 0xd6, 0x14, 0x5, 0x3c, 0xb1, 0xaf, 0x93, 0xc8, 0x8a, 0x57, 0x7f, 0x53, 0xfa, 0x2f, 0xaa, 0x6e, 0x66, 0x83, 0xfa, 0x33, 0xd1, 0x21, 0xab, 0x1b, 0x71, 0xb4, 0x7c, 0xda, 0xfd, 0xfb, 0x7f, 0x20, 0xab, 0x5e, 0xd5, 0xca, 0xfd, 0xdd, 0xe0, 0xee, 0xda, 0xba, 0xa8, 0x27, 0x99, 0x97, 0x69, 0xc1, 0x3c, 0x82, 0x8c, 0xa, 0x5c, 0x2d, 0x5b, 0x88, 0x3e, 0x34, 0x35, 0x86, 0x37, 0x46, 0x79, 0xe1, 0xaa, 0x19, 0xfb, 0xaa, 0xde, 0x15, 0x9, 0xd, 0x1a, 0x57, 0xff, 0xb5, 0xf, 0xf3, 0x2b, 0x5a, 0x6a, 0x4d, 0x19, 0x77, 0x71, 0x45, 0xdf, 0x4f, 0xb3, 0xec, 0xf1, 0xeb, 0x18, 0x53, 0x3e, 0x3b, 0x47, 0x8, 0x9a, 0x73, 0xa0, 0x5c, 0x8c, 0x5f, 0xeb, 0xf, 0x3a, 0xc2, 0x43, 0x67, 0xb4, 0x66, 0x67, 0x80, 0x58, 0xe, 0xc1, 0xec, 0x40, 0xd4, 0x22, 0x94, 0xca, 0xf9, 0xe8, 0x92, 0xe4, 0x69, 0x38, 0xbe, 0x67, 0x64, 0xca, 0x50, 0xc7, 0x6, 0x67, 0x42, 0x6e, 0xa3, 0xf0, 0xb7, 0x6c, 0xf2, 0xe8, 0x5f, 0xb1, 0xaf, 0xe7, 0xdb, 0xbb, 0x77, 0xb5, 0xf8, 0xcb, 0x8, 0xc4, 0x75, 0x7e, 0xc0, 0xf9, 0x1c, 0x7f, 0x3c, 0x89, 0x2f, 0xd2, 0x58, 0x3a, 0xe2, 0xf8, 0x91, 0xb6, 0x7b, 0x24, 0x27, 0xe9, 0xae, 0x84, 0x8b, 0xde, 0x74, 0xac, 0xfd, 0xd9, 0xb7, 0x69, 0x2a, 0xec, 0x32, 0x6f, 0xf0, 0x92, 0x84, 0xf1, 0x40, 0xc, 0x8a, 0xbc, 0x39, 0x6e, 0x2e, 0x73, 0xd4, 0x6e, 0x8a, 0x74, 0x2a, 0xdc, 0x60, 0x1f, 0xa3, 0x7, 0xde, 0x75, 0x8b, 0x74, 0xc8, 0xfe, 0x63, 0x75, 0xf6, 0x3d, 0x63, 0xac, 0x33, 0x89, 0xc3, 0xf0, 0xf8, 0x2d, 0x6b, 0xb4, 0x9e, 0x74, 0x8b, 0x5c, 0x33, 0xb4, 0xca, 0xa8, 0xe4, 0x99, 0xb6, 0x90, 0xa1, 0xef, 0xf, 0xd3, 0x61, 0xb2, 0xc6, 0x1a, 0x94, 0x7c, 0x44, 0x55, 0xf4, 0x45, 0xff, 0x9e, 0xa5, 0x5a, 0xc6, 0xa0, 0xe8, 0x2a, 0xc1, 0x8d, 0x6f, 0x34, 0x11, 0xb9, 0xbe, 0x4e, 0xd9, 0x87, 0x97, 0x73, 0xcf, 0x3d, 0x23, 0xae, 0xd5, 0x1a, 0x5e, 0xae, 0x5d, 0x6a, 0x3, 0xf9, 0x22, 0xd, 0x10, 0xd9, 0x47, 0x69, 0x15, 0x3f, 0xee, 0x52, 0xa3, 0x8, 0xd2, 0x3c, 0x51, 0xf4, 0xf8, 0x9d, 0xe4, 0x98, 0x89, 0xc8, 0x67, 0x39, 0xd5, 0x5e, 0x35, 0x78, 0x27, 0xe8, 0x3c, 0x80, 0xae, 0x79, 0x71, 0xd2, 0x93, 0xf4, 0xaa, 0x51, 0x12, 0x1c, 0x4b, 0x1b, 0xe5, 0x6e, 0x15, 0x6f, 0xe4, 0xbb, 0x51, 0x9b, 0x45, 0x9f, 0xf9, 0xc4, 0x8c, 0x2a, 0xfb, 0x1a, 0xdf, 0x55, 0xd3, 0x48, 0x93, 0x27, 0x1, 0x26, 0xc2, 0x6b, 0x55, 0x6d, 0xa2, 0xfb, 0x84, 0x8b, 0xc9, 0x9e, 0x28, 0xc2, 0xef, 0x1a, 0x24, 0xec, 0x9b, 0xae, 0xbd, 0x60, 0xe9, 0x15, 0x35, 0xee, 0x42, 0xa4, 0x33, 0x5b, 0xfa, 0xf, 0xb6, 0xf7, 0x1, 0xa6, 0x2, 0x4c, 0xca, 0x90, 0x58, 0x3a, 0x96, 0x41, 0xe7, 0xcb, 0x9, 0x8c, 0xdb, 0x85, 0x4d, 0xa8, 0x89, 0xf3, 0xb5, 0x8e, 0xfd, 0x75, 0x5b, 0x4f, 0xed, 0xde, 0x3f, 0xeb, 0x38, 0xa3, 0xbe, 0xb0, 0x73, 0xfc, 0xb8, 0x54, 0xf7, 0x4c, 0x30, 0x67, 0x2e, 0x38, 0xa2, 0x54, 0x18, 0xba, 0x8, 0xbf, 0xf2, 0x39, 0xd5, 0xfe, 0xa5, 0x41, 0xc6, 0x66, 0x66, 0xba, 0x81, 0xef, 0x67, 0xe4, 0xe6, 0x3c, 0xc, 0xca, 0xa4, 0xa, 0x79, 0xb3, 0x57, 0x8b, 0x8a, 0x75, 0x98, 0x18, 0x42, 0x2f, 0x29, 0xa3, 0x82, 0xef, 0x9f, 0x86, 0x6, 0x23, 0xe1, 0x75, 0xfa, 0x8, 0xb1, 0xde, 0x17, 0x4a},
++	},
++	{
++		input:       "testdata/huffman-rand-limit.in",
++		want:        "testdata/huffman-rand-limit.%s.expect",
++		wantNoInput: "testdata/huffman-rand-limit.%s.expect-noinput",
++		tokens:      []token{0x61, 0x51c00000, 0xa, 0xf8, 0x8b, 0x96, 0x76, 0x48, 0xa, 0x85, 0x94, 0x25, 0x80, 0xaf, 0xc2, 0xfe, 0x8d, 0xe8, 0x20, 0xeb, 0x17, 0x86, 0xc9, 0xb7, 0xc5, 0xde, 0x6, 0xea, 0x7d, 0x18, 0x8b, 0xe7, 0x3e, 0x7, 0xda, 0xdf, 0xff, 0x6c, 0x73, 0xde, 0xcc, 0xe7, 0x6d, 0x8d, 0x4, 0x19, 0x49, 0x7f, 0x47, 0x1f, 0x48, 0x15, 0xb0, 0xe8, 0x9e, 0xf2, 0x31, 0x59, 0xde, 0x34, 0xb4, 0x5b, 0xe5, 0xe0, 0x9, 0x11, 0x30, 0xc2, 0x88, 0x5b, 0x7c, 0x5d, 0x14, 0x13, 0x6f, 0x23, 0xa9, 0xa, 0xbc, 0x2d, 0x23, 0xbe, 0xd9, 0xed, 0x75, 0x4, 0x6c, 0x99, 0xdf, 0xfd, 0x70, 0x66, 0xe6, 0xee, 0xd9, 0xb1, 0x9e, 0x6e, 0x83, 0x59, 0xd5, 0xd4, 0x80, 0x59, 0x98, 0x77, 0x89, 0x43, 0x38, 0xc9, 0xaf, 0x30, 0x32, 0x9a, 0x20, 0x1b, 0x46, 0x3d, 0x67, 0x6e, 0xd7, 0x72, 0x9e, 0x4e, 0x21, 0x4f, 0xc6, 0xe0, 0xd4, 0x7b, 0x4, 0x8d, 0xa5, 0x3, 0xf6, 0x5, 0x9b, 0x6b, 0xdc, 0x2a, 0x93, 0x77, 0x28, 0xfd, 0xb4, 0x62, 0xda, 0x20, 0xe7, 0x1f, 0xab, 0x6b, 0x51, 0x43, 0x39, 0x2f, 0xa0, 0x92, 0x1, 0x6c, 0x75, 0x3e, 0xf4, 0x35, 0xfd, 0x43, 0x2e, 0xf7, 0xa4, 0x75, 0xda, 0xea, 0x9b, 0xa},
++	},
++	{
++		input:       "testdata/huffman-shifts.in",
++		want:        "testdata/huffman-shifts.%s.expect",
++		wantNoInput: "testdata/huffman-shifts.%s.expect-noinput",
++		tokens:      []token{0x31, 0x30, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x52400001, 0xd, 0xa, 0x32, 0x33, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7fc00001, 0x7f400001},
++	},
++	{
++		input:       "testdata/huffman-text-shift.in",
++		want:        "testdata/huffman-text-shift.%s.expect",
++		wantNoInput: "testdata/huffman-text-shift.%s.expect-noinput",
++		tokens:      []token{0x2f, 0x2f, 0x43, 0x6f, 0x70, 0x79, 0x72, 0x69, 0x67, 0x68, 0x74, 0x32, 0x30, 0x30, 0x39, 0x54, 0x68, 0x47, 0x6f, 0x41, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x2e, 0x41, 0x6c, 0x6c, 0x40800016, 0x72, 0x72, 0x76, 0x64, 0x2e, 0xd, 0xa, 0x2f, 0x2f, 0x55, 0x6f, 0x66, 0x74, 0x68, 0x69, 0x6f, 0x75, 0x72, 0x63, 0x63, 0x6f, 0x64, 0x69, 0x67, 0x6f, 0x76, 0x72, 0x6e, 0x64, 0x62, 0x79, 0x42, 0x53, 0x44, 0x2d, 0x74, 0x79, 0x6c, 0x40400020, 0x6c, 0x69, 0x63, 0x6e, 0x74, 0x68, 0x74, 0x63, 0x6e, 0x62, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x69, 0x6e, 0x74, 0x68, 0x4c, 0x49, 0x43, 0x45, 0x4e, 0x53, 0x45, 0x66, 0x69, 0x6c, 0x2e, 0xd, 0xa, 0xd, 0xa, 0x70, 0x63, 0x6b, 0x67, 0x6d, 0x69, 0x6e, 0x4040000a, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74, 0x22, 0x6f, 0x22, 0x4040000c, 0x66, 0x75, 0x6e, 0x63, 0x6d, 0x69, 0x6e, 0x28, 0x29, 0x7b, 0xd, 0xa, 0x9, 0x76, 0x72, 0x62, 0x3d, 0x6d, 0x6b, 0x28, 0x5b, 0x5d, 0x62, 0x79, 0x74, 0x2c, 0x36, 0x35, 0x35, 0x33, 0x35, 0x29, 0xd, 0xa, 0x9, 0x66, 0x2c, 0x5f, 0x3a, 0x3d, 0x6f, 0x2e, 0x43, 0x72, 0x74, 0x28, 0x22, 0x68, 0x75, 0x66, 0x66, 0x6d, 0x6e, 0x2d, 0x6e, 0x75, 0x6c, 0x6c, 0x2d, 0x6d, 0x78, 0x2e, 0x69, 0x6e, 0x22, 0x40800021, 0x2e, 0x57, 0x72, 0x69, 0x74, 0x28, 0x62, 0x29, 0xd, 0xa, 0x7d, 0xd, 0xa, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x58, 0x78, 0x79, 0x7a, 0x21, 0x22, 0x23, 0xc2, 0xa4, 0x25, 0x26, 0x2f, 0x3f, 0x22},
++	},
++	{
++		input:       "testdata/huffman-text.in",
++		want:        "testdata/huffman-text.%s.expect",
++		wantNoInput: "testdata/huffman-text.%s.expect-noinput",
++		tokens:      []token{0x2f, 0x2f, 0x20, 0x43, 0x6f, 0x70, 0x79, 0x72, 0x69, 0x67, 0x68, 0x74, 0x20, 0x32, 0x30, 0x30, 0x39, 0x20, 0x54, 0x68, 0x65, 0x20, 0x47, 0x6f, 0x20, 0x41, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x73, 0x2e, 0x20, 0x41, 0x6c, 0x6c, 0x20, 0x4080001e, 0x73, 0x20, 0x72, 0x65, 0x73, 0x65, 0x72, 0x76, 0x65, 0x64, 0x2e, 0xd, 0xa, 0x2f, 0x2f, 0x20, 0x55, 0x73, 0x65, 0x20, 0x6f, 0x66, 0x20, 0x74, 0x68, 0x69, 0x73, 0x20, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x20, 0x63, 0x6f, 0x64, 0x65, 0x20, 0x69, 0x73, 0x20, 0x67, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x65, 0x64, 0x20, 0x62, 0x79, 0x20, 0x61, 0x20, 0x42, 0x53, 0x44, 0x2d, 0x73, 0x74, 0x79, 0x6c, 0x65, 0x40800036, 0x6c, 0x69, 0x63, 0x65, 0x6e, 0x73, 0x65, 0x20, 0x74, 0x68, 0x61, 0x74, 0x20, 0x63, 0x61, 0x6e, 0x20, 0x62, 0x65, 0x20, 0x66, 0x6f, 0x75, 0x6e, 0x64, 0x20, 0x69, 0x6e, 0x20, 0x74, 0x68, 0x65, 0x20, 0x4c, 0x49, 0x43, 0x45, 0x4e, 0x53, 0x45, 0x20, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0xd, 0xa, 0xd, 0xa, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x20, 0x6d, 0x61, 0x69, 0x6e, 0x4040000f, 0x69, 0x6d, 0x70, 0x6f, 0x72, 0x74, 0x20, 0x22, 0x6f, 0x73, 0x22, 0x4040000e, 0x66, 0x75, 0x6e, 0x63, 0x4080001b, 0x28, 0x29, 0x20, 0x7b, 0xd, 0xa, 0x9, 0x76, 0x61, 0x72, 0x20, 0x62, 0x20, 0x3d, 0x20, 0x6d, 0x61, 0x6b, 0x65, 0x28, 0x5b, 0x5d, 0x62, 0x79, 0x74, 0x65, 0x2c, 0x20, 0x36, 0x35, 0x35, 0x33, 0x35, 0x29, 0xd, 0xa, 0x9, 0x66, 0x2c, 0x20, 0x5f, 0x20, 0x3a, 0x3d, 0x20, 0x6f, 0x73, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x28, 0x22, 0x68, 0x75, 0x66, 0x66, 0x6d, 0x61, 0x6e, 0x2d, 0x6e, 0x75, 0x6c, 0x6c, 0x2d, 0x6d, 0x61, 0x78, 0x2e, 0x69, 0x6e, 0x22, 0x4080002a, 0x2e, 0x57, 0x72, 0x69, 0x74, 0x65, 0x28, 0x62, 0x29, 0xd, 0xa, 0x7d, 0xd, 0xa},
++	},
++	{
++		input:       "testdata/huffman-zero.in",
++		want:        "testdata/huffman-zero.%s.expect",
++		wantNoInput: "testdata/huffman-zero.%s.expect-noinput",
++		tokens:      []token{0x30, ml, 0x4b800000},
++	},
++	{
++		input:       "",
++		want:        "",
++		wantNoInput: "testdata/null-long-match.%s.expect-noinput",
++		tokens:      []token{0x0, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, ml, 0x41400000},
++	},
++}
++
++// TestWriteBlock tests if the writeBlock encoding has changed.
++// To update the reference files use the "-update" flag on the test.
++func TestWriteBlock(t *testing.T) {
++	for _, test := range writeBlockTests {
++		testBlock(t, test, "wb")
++	}
++}
++
++// TestWriteBlockDynamic tests if the writeBlockDynamic encoding has changed.
++// To update the reference files use the "-update" flag on the test.
++func TestWriteBlockDynamic(t *testing.T) {
++	for _, test := range writeBlockTests {
++		testBlock(t, test, "dyn")
++	}
++}
++
++// testBlock tests a block against its references,
++// or regenerate the references, if "-update" flag is set.
++func testBlock(t *testing.T, test huffTest, ttype string) {
++	if test.want != "" {
++		test.want = fmt.Sprintf(test.want, ttype)
++	}
++	test.wantNoInput = fmt.Sprintf(test.wantNoInput, ttype)
++	if *update {
++		if test.input != "" {
++			t.Logf("Updating %q", test.want)
++			input, err := ioutil.ReadFile(test.input)
++			if err != nil {
++				t.Error(err)
++				return
++			}
++
++			f, err := os.Create(test.want)
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			defer f.Close()
++			bw := newHuffmanBitWriter(f)
++			writeToType(t, ttype, bw, test.tokens, input)
++		}
++
++		t.Logf("Updating %q", test.wantNoInput)
++		f, err := os.Create(test.wantNoInput)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		defer f.Close()
++		bw := newHuffmanBitWriter(f)
++		writeToType(t, ttype, bw, test.tokens, nil)
++		return
++	}
++
++	if test.input != "" {
++		t.Logf("Testing %q", test.want)
++		input, err := ioutil.ReadFile(test.input)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		want, err := ioutil.ReadFile(test.want)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		var buf bytes.Buffer
++		bw := newHuffmanBitWriter(&buf)
++		writeToType(t, ttype, bw, test.tokens, input)
++
++		got := buf.Bytes()
++		if !bytes.Equal(got, want) {
++			t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".got")
++			if err := ioutil.WriteFile(test.want+".got", got, 0666); err != nil {
++				t.Error(err)
++			}
++		}
++		t.Log("Output ok")
++
++		// Test if the writer produces the same output after reset.
++		buf.Reset()
++		bw.reset(&buf)
++		writeToType(t, ttype, bw, test.tokens, input)
++		bw.flush()
++		got = buf.Bytes()
++		if !bytes.Equal(got, want) {
++			t.Errorf("reset: writeBlock did not yield expected result for file %q with input. See %q", test.want, test.want+".reset.got")
++			if err := ioutil.WriteFile(test.want+".reset.got", got, 0666); err != nil {
++				t.Error(err)
++			}
++			return
++		}
++		t.Log("Reset ok")
++		testWriterEOF(t, "wb", test, true)
++	}
++	t.Logf("Testing %q", test.wantNoInput)
++	wantNI, err := ioutil.ReadFile(test.wantNoInput)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	var buf bytes.Buffer
++	bw := newHuffmanBitWriter(&buf)
++	writeToType(t, ttype, bw, test.tokens, nil)
++
++	got := buf.Bytes()
++	if !bytes.Equal(got, wantNI) {
++		t.Errorf("writeBlock did not yield expected result for file %q with input. See %q", test.wantNoInput, test.wantNoInput+".got")
++		if err := ioutil.WriteFile(test.want+".got", got, 0666); err != nil {
++			t.Error(err)
++		}
++	} else if got[0]&1 == 1 {
++		t.Error("got unexpected EOF")
++		return
++	}
++
++	t.Log("Output ok")
++
++	// Test if the writer produces the same output after reset.
++	buf.Reset()
++	bw.reset(&buf)
++	writeToType(t, ttype, bw, test.tokens, nil)
++	bw.flush()
++	got = buf.Bytes()
++	if !bytes.Equal(got, wantNI) {
++		t.Errorf("reset: writeBlock did not yield expected result for file %q without input. See %q", test.want, test.want+".reset.got")
++		if err := ioutil.WriteFile(test.want+".reset.got", got, 0666); err != nil {
++			t.Error(err)
++		}
++		return
++	}
++	t.Log("Reset ok")
++	testWriterEOF(t, "wb", test, false)
++}
++
++func writeToType(t *testing.T, ttype string, bw *huffmanBitWriter, tok []token, input []byte) {
++	switch ttype {
++	case "wb":
++		bw.writeBlock(tok, false, input)
++	case "dyn":
++		bw.writeBlockDynamic(tok, false, input)
++	default:
++		panic("unknown test type")
++	}
++
++	if bw.err != nil {
++		t.Error(bw.err)
++		return
++	}
++
++	bw.flush()
++	if bw.err != nil {
++		t.Error(bw.err)
++		return
++	}
++}
++
++// testWriterEOF tests if the written block contains an EOF marker.
++func testWriterEOF(t *testing.T, ttype string, test huffTest, useInput bool) {
++	if useInput && test.input == "" {
++		return
++	}
++	var input []byte
++	if useInput {
++		var err error
++		input, err = ioutil.ReadFile(test.input)
++		if err != nil {
++			t.Error(err)
++			return
++		}
++	}
++	var buf bytes.Buffer
++	bw := newHuffmanBitWriter(&buf)
++	switch ttype {
++	case "wb":
++		bw.writeBlock(test.tokens, true, input)
++	case "dyn":
++		bw.writeBlockDynamic(test.tokens, true, input)
++	case "huff":
++		bw.writeBlockHuff(true, input)
++	default:
++		panic("unknown test type")
++	}
++	if bw.err != nil {
++		t.Error(bw.err)
++		return
++	}
++
++	bw.flush()
++	if bw.err != nil {
++		t.Error(bw.err)
++		return
++	}
++	b := buf.Bytes()
++	if len(b) == 0 {
++		t.Error("no output received")
++		return
++	}
++	if b[0]&1 != 1 {
++		t.Errorf("block not marked with EOF for input %q", test.input)
++		return
++	}
++	t.Log("EOF ok")
++}
+diff --git a/src/compress/flate/huffman_code.go b/src/compress/flate/huffman_code.go
+index 1a4de12dd6..b0328c6e08 100644
+--- a/src/compress/flate/huffman_code.go
++++ b/src/compress/flate/huffman_code.go
+@@ -9,9 +9,17 @@ import (
+ 	"sort"
+ )
+ 
++// hcode is a huffman code with a bit code and bit length.
++type hcode struct {
++	code, len uint16
++}
++
+ type huffmanEncoder struct {
+-	codeBits []uint8
+-	code     []uint16
++	codes     []hcode
++	freqcache []literalNode
++	bitCount  [17]int32
++	lns       byLiteral // stored to avoid repeated allocation in generate
++	lfs       byFreq    // stored to avoid repeated allocation in generate
+ }
+ 
+ type literalNode struct {
+@@ -39,21 +47,26 @@ type levelInfo struct {
+ 	needed int32
+ }
+ 
++// set sets the code and length of an hcode.
++func (h *hcode) set(code uint16, length uint16) {
++	h.len = length
++	h.code = code
++}
++
+ func maxNode() literalNode { return literalNode{math.MaxUint16, math.MaxInt32} }
+ 
+ func newHuffmanEncoder(size int) *huffmanEncoder {
+-	return &huffmanEncoder{make([]uint8, size), make([]uint16, size)}
++	return &huffmanEncoder{codes: make([]hcode, size)}
+ }
+ 
+ // Generates a HuffmanCode corresponding to the fixed literal table
+ func generateFixedLiteralEncoding() *huffmanEncoder {
+ 	h := newHuffmanEncoder(maxNumLit)
+-	codeBits := h.codeBits
+-	code := h.code
++	codes := h.codes
+ 	var ch uint16
+ 	for ch = 0; ch < maxNumLit; ch++ {
+ 		var bits uint16
+-		var size uint8
++		var size uint16
+ 		switch {
+ 		case ch < 144:
+ 			// size 8, 000110000  .. 10111111
+@@ -75,19 +88,16 @@ func generateFixedLiteralEncoding() *huffmanEncoder {
+ 			bits = ch + 192 - 280
+ 			size = 8
+ 		}
+-		codeBits[ch] = size
+-		code[ch] = reverseBits(bits, size)
++		codes[ch] = hcode{code: reverseBits(bits, byte(size)), len: size}
+ 	}
+ 	return h
+ }
+ 
+ func generateFixedOffsetEncoding() *huffmanEncoder {
+ 	h := newHuffmanEncoder(30)
+-	codeBits := h.codeBits
+-	code := h.code
++	codes := h.codes
+ 	for ch := uint16(0); ch < 30; ch++ {
+-		codeBits[ch] = 5
+-		code[ch] = reverseBits(ch, 5)
++		codes[ch] = hcode{code: reverseBits(ch, 5), len: 5}
+ 	}
+ 	return h
+ }
+@@ -99,7 +109,7 @@ func (h *huffmanEncoder) bitLength(freq []int32) int64 {
+ 	var total int64
+ 	for i, f := range freq {
+ 		if f != 0 {
+-			total += int64(f) * int64(h.codeBits[i])
++			total += int64(f) * int64(h.codes[i].len)
+ 		}
+ 	}
+ 	return total
+@@ -220,7 +230,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
+ 		panic("leafCounts[maxBits][maxBits] != n")
+ 	}
+ 
+-	bitCount := make([]int32, maxBits+1)
++	bitCount := h.bitCount[:maxBits+1]
+ 	bits := 1
+ 	counts := &leafCounts[maxBits]
+ 	for level := maxBits; level > 0; level-- {
+@@ -246,10 +256,10 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
+ 		// code, code + 1, ....  The code values are
+ 		// assigned in literal order (not frequency order).
+ 		chunk := list[len(list)-int(bits):]
+-		sortByLiteral(chunk)
++
++		h.lns.sort(chunk)
+ 		for _, node := range chunk {
+-			h.codeBits[node.literal] = uint8(n)
+-			h.code[node.literal] = reverseBits(code, uint8(n))
++			h.codes[node.literal] = hcode{code: reverseBits(code, uint8(n)), len: uint16(n)}
+ 			code++
+ 		}
+ 		list = list[0 : len(list)-int(bits)]
+@@ -261,7 +271,13 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
+ // freq  An array of frequencies, in which frequency[i] gives the frequency of literal i.
+ // maxBits  The maximum number of bits to use for any literal.
+ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
+-	list := make([]literalNode, len(freq)+1)
++	if h.freqcache == nil {
++		// Allocate a reusable buffer with the longest possible frequency table.
++		// Possible lengths are codegenCodeCount, offsetCodeCount and maxNumLit.
++		// The largest of these is maxNumLit, so we allocate for that case.
++		h.freqcache = make([]literalNode, maxNumLit+1)
++	}
++	list := h.freqcache[:len(freq)+1]
+ 	// Number of non-zero literals
+ 	count := 0
+ 	// Set list to be the set of all non-zero literals and their frequencies
+@@ -270,23 +286,23 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
+ 			list[count] = literalNode{uint16(i), f}
+ 			count++
+ 		} else {
+-			h.codeBits[i] = 0
++			list[count] = literalNode{}
++			h.codes[i].len = 0
+ 		}
+ 	}
+-	// If freq[] is shorter than codeBits[], fill rest of codeBits[] with zeros
+-	h.codeBits = h.codeBits[0:len(freq)]
+-	list = list[0:count]
++	list[len(freq)] = literalNode{}
++
++	list = list[:count]
+ 	if count <= 2 {
+ 		// Handle the small cases here, because they are awkward for the general case code. With
+ 		// two or fewer literals, everything has bit length 1.
+ 		for i, node := range list {
+ 			// "list" is in order of increasing literal value.
+-			h.codeBits[node.literal] = 1
+-			h.code[node.literal] = uint16(i)
++			h.codes[node.literal].set(uint16(i), 1)
+ 		}
+ 		return
+ 	}
+-	sortByFreq(list)
++	h.lfs.sort(list)
+ 
+ 	// Get the number of literals for each bit count
+ 	bitCount := h.bitCounts(list, maxBits)
+@@ -294,30 +310,35 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
+ 	h.assignEncodingAndSize(bitCount, list)
+ }
+ 
+-type literalNodeSorter struct {
+-	a    []literalNode
+-	less func(i, j int) bool
++type byLiteral []literalNode
++
++func (s *byLiteral) sort(a []literalNode) {
++	*s = byLiteral(a)
++	sort.Sort(s)
+ }
+ 
+-func (s literalNodeSorter) Len() int { return len(s.a) }
++func (s byLiteral) Len() int { return len(s) }
+ 
+-func (s literalNodeSorter) Less(i, j int) bool {
+-	return s.less(i, j)
++func (s byLiteral) Less(i, j int) bool {
++	return s[i].literal < s[j].literal
+ }
+ 
+-func (s literalNodeSorter) Swap(i, j int) { s.a[i], s.a[j] = s.a[j], s.a[i] }
++func (s byLiteral) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+ 
+-func sortByFreq(a []literalNode) {
+-	s := &literalNodeSorter{a, func(i, j int) bool {
+-		if a[i].freq == a[j].freq {
+-			return a[i].literal < a[j].literal
+-		}
+-		return a[i].freq < a[j].freq
+-	}}
++type byFreq []literalNode
++
++func (s *byFreq) sort(a []literalNode) {
++	*s = byFreq(a)
+ 	sort.Sort(s)
+ }
+ 
+-func sortByLiteral(a []literalNode) {
+-	s := &literalNodeSorter{a, func(i, j int) bool { return a[i].literal < a[j].literal }}
+-	sort.Sort(s)
++func (s byFreq) Len() int { return len(s) }
++
++func (s byFreq) Less(i, j int) bool {
++	if s[i].freq == s[j].freq {
++		return s[i].literal < s[j].literal
++	}
++	return s[i].freq < s[j].freq
+ }
++
++func (s byFreq) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+diff --git a/src/compress/flate/testdata/huffman-null-max.dyn.expect b/src/compress/flate/testdata/huffman-null-max.dyn.expect
+new file mode 100644
+index 0000000000..c08165143f
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-null-max.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-null-max.dyn.expect-noinput b/src/compress/flate/testdata/huffman-null-max.dyn.expect-noinput
+new file mode 100644
+index 0000000000..c08165143f
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-null-max.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-null-max.golden b/src/compress/flate/testdata/huffman-null-max.golden
+new file mode 100644
+index 0000000000..db422ca398
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-null-max.golden differ
+diff --git a/src/compress/flate/testdata/huffman-null-max.in b/src/compress/flate/testdata/huffman-null-max.in
+new file mode 100644
+index 0000000000..5dfddf075b
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-null-max.in differ
+diff --git a/src/compress/flate/testdata/huffman-null-max.wb.expect b/src/compress/flate/testdata/huffman-null-max.wb.expect
+new file mode 100644
+index 0000000000..c08165143f
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-null-max.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-null-max.wb.expect-noinput b/src/compress/flate/testdata/huffman-null-max.wb.expect-noinput
+new file mode 100644
+index 0000000000..c08165143f
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-null-max.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-pi.dyn.expect b/src/compress/flate/testdata/huffman-pi.dyn.expect
+new file mode 100644
+index 0000000000..e4396ac6fe
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-pi.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-pi.dyn.expect-noinput b/src/compress/flate/testdata/huffman-pi.dyn.expect-noinput
+new file mode 100644
+index 0000000000..e4396ac6fe
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-pi.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-pi.golden b/src/compress/flate/testdata/huffman-pi.golden
+new file mode 100644
+index 0000000000..23d8f7f98b
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-pi.golden differ
+diff --git a/src/compress/flate/testdata/huffman-pi.in b/src/compress/flate/testdata/huffman-pi.in
+new file mode 100644
+index 0000000000..efaed43431
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-pi.in
+@@ -0,0 +1 @@
++3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462379962749567351885752724891227938183011949129833673362440656643086021394946395224737190702179860943702770539217176293176752384674818467669405132000568127145263560827785771342757789609173637178721468440901224953430146549585371050792279689258923542019956112129021960864034418159813629774771309960518707211349999998372978049951059731732816096318595024459455346908302642522308253344685035261931188171010003137838752886587533208381420617177669147303598253490428755468731159562863882353787593751957781857780532171226806613001927876611195909216420198938095257201065485863278865936153381827968230301952035301852968995773622599413891249721775283479131515574857242454150695950829533116861727855889075098381754637464939319255060400927701671139009848824012858361603563707660104710181942955596198946767837449448255379774726847104047534646208046684259069491293313677028989152104752162056966024058038150193511253382430035587640247496473263914199272604269922796782354781636009341721641219924586315030286182974555706749838505494588586926995690927210797509302955321165344987202755960236480665499119881834797753566369807426542527862551818417574672890977772793800081647060016145249192173217214772350141441973568548161361157352552133475741849468438523323907394143334547762416862518983569485562099219222184272550254256887671790494601653466804988627232791786085784383827967976681454100953883786360950680064225125205117392984896084128488626945604241965285022210661186306744278622039194945047123713786960956364371917287467764657573962413890865832645995813390478027590099465764078951269468398352595709825822620522489407726719478268482601476990902640136394437455305068203496252451749399651431429809190659250937221696461515709858387410597885959772975498930161753928468138268683868942774155991855925245953959431049972524680845987273644695848653836736222626099124608051243884390451244136549762780797715691435997700129616089441694868555848406353422072225828488648158456028506016842739452267467678895252138522549954666727823986456596116354886230577456498035593634568174324112515076069479451096596094025228879710893145669136867228748940560101503308617928680920874760917824938589009714909675985261365549781893129784821682998948722658804857564014270477555132379641451523746234364542858444795265867821051141354735739523113427166102135969536231442952484937187110145765403590279934403742007310578539062198387447808478489683321445713868751943506430218453191048481005370614680674919278191197939952061419663428754440643745123718192179998391015919561814675142691239748940907186494231961567945208095146550225231603881930142093762137855956638937787083039069792077346722182562599661501421503068038447734549202605414665925201497442850732518666002132434088190710486331734649651453905796268561005508106658796998163574736384052571459102897064140110971206280439039759515677157700420337869936007230558763176359421873125147120532928191826186125867321579198414848829164470609575270695722091756711672291098169091528017350671274858322287183520935396572512108357915136988209144421006751033467110314126711136990865851639831501970165151168517143765761835155650884909989859982387345528331635507647918535893226185489632132933089857064204675259070915481416549859461637180
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-pi.wb.expect b/src/compress/flate/testdata/huffman-pi.wb.expect
+new file mode 100644
+index 0000000000..e4396ac6fe
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-pi.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-pi.wb.expect-noinput b/src/compress/flate/testdata/huffman-pi.wb.expect-noinput
+new file mode 100644
+index 0000000000..e4396ac6fe
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-pi.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-rand-1k.dyn.expect b/src/compress/flate/testdata/huffman-rand-1k.dyn.expect
+new file mode 100644
+index 0000000000..0c24742fde
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-1k.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-rand-1k.dyn.expect-noinput b/src/compress/flate/testdata/huffman-rand-1k.dyn.expect-noinput
+new file mode 100644
+index 0000000000..0c24742fde
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-1k.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-rand-1k.golden b/src/compress/flate/testdata/huffman-rand-1k.golden
+new file mode 100644
+index 0000000000..09dc798ee3
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-1k.golden differ
+diff --git a/src/compress/flate/testdata/huffman-rand-1k.in b/src/compress/flate/testdata/huffman-rand-1k.in
+new file mode 100644
+index 0000000000..ce038ebb5b
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-1k.in differ
+diff --git a/src/compress/flate/testdata/huffman-rand-1k.wb.expect b/src/compress/flate/testdata/huffman-rand-1k.wb.expect
+new file mode 100644
+index 0000000000..09dc798ee3
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-1k.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-rand-1k.wb.expect-noinput b/src/compress/flate/testdata/huffman-rand-1k.wb.expect-noinput
+new file mode 100644
+index 0000000000..0c24742fde
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-1k.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-rand-limit.dyn.expect b/src/compress/flate/testdata/huffman-rand-limit.dyn.expect
+new file mode 100644
+index 0000000000..2d6527934e
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-limit.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-rand-limit.dyn.expect-noinput b/src/compress/flate/testdata/huffman-rand-limit.dyn.expect-noinput
+new file mode 100644
+index 0000000000..2d6527934e
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-limit.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-rand-limit.golden b/src/compress/flate/testdata/huffman-rand-limit.golden
+new file mode 100644
+index 0000000000..57e59322e9
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-limit.golden differ
+diff --git a/src/compress/flate/testdata/huffman-rand-limit.in b/src/compress/flate/testdata/huffman-rand-limit.in
+new file mode 100644
+index 0000000000..fb5b1be619
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-rand-limit.in
+@@ -0,0 +1,4 @@
++aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
++¯ãñvH
++Öî%ÄØ¬˛çË ÎÜ…∑≈ﬁÍ}ãÁ>⁄ﬂˇlsﬁÃÁmçIGH∞ËûÚ1Yﬁ4¥[Â‡	0¬à[|]o#©
++º-#æŸÌulôﬂ˝pfÊÓŸ±ûnÉY’‘ÄYòwâC8…Ø02ö F=gn◊rûN!O∆‡‘{ç•ˆõk‹*ìw(˝¥b⁄ Á´kQC9/†ílu>Ù5˝C.˜§u⁄Íõ
+diff --git a/src/compress/flate/testdata/huffman-rand-limit.wb.expect b/src/compress/flate/testdata/huffman-rand-limit.wb.expect
+new file mode 100644
+index 0000000000..881e59c9ab
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-limit.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-rand-limit.wb.expect-noinput b/src/compress/flate/testdata/huffman-rand-limit.wb.expect-noinput
+new file mode 100644
+index 0000000000..881e59c9ab
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-limit.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-rand-max.golden b/src/compress/flate/testdata/huffman-rand-max.golden
+new file mode 100644
+index 0000000000..47d53c89c0
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-max.golden differ
+diff --git a/src/compress/flate/testdata/huffman-rand-max.in b/src/compress/flate/testdata/huffman-rand-max.in
+new file mode 100644
+index 0000000000..8418633d2a
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-rand-max.in differ
+diff --git a/src/compress/flate/testdata/huffman-shifts.dyn.expect b/src/compress/flate/testdata/huffman-shifts.dyn.expect
+new file mode 100644
+index 0000000000..7812c1c62d
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-shifts.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-shifts.dyn.expect-noinput b/src/compress/flate/testdata/huffman-shifts.dyn.expect-noinput
+new file mode 100644
+index 0000000000..7812c1c62d
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-shifts.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-shifts.golden b/src/compress/flate/testdata/huffman-shifts.golden
+new file mode 100644
+index 0000000000..f5133778e1
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-shifts.golden differ
+diff --git a/src/compress/flate/testdata/huffman-shifts.in b/src/compress/flate/testdata/huffman-shifts.in
+new file mode 100644
+index 0000000000..7c7a50d158
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-shifts.in
+@@ -0,0 +1,2 @@
++101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010
++232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-shifts.wb.expect b/src/compress/flate/testdata/huffman-shifts.wb.expect
+new file mode 100644
+index 0000000000..7812c1c62d
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-shifts.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-shifts.wb.expect-noinput b/src/compress/flate/testdata/huffman-shifts.wb.expect-noinput
+new file mode 100644
+index 0000000000..7812c1c62d
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-shifts.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-text-shift.dyn.expect b/src/compress/flate/testdata/huffman-text-shift.dyn.expect
+new file mode 100644
+index 0000000000..71ce3aeb75
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-text-shift.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-text-shift.dyn.expect-noinput b/src/compress/flate/testdata/huffman-text-shift.dyn.expect-noinput
+new file mode 100644
+index 0000000000..71ce3aeb75
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-text-shift.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-text-shift.golden b/src/compress/flate/testdata/huffman-text-shift.golden
+new file mode 100644
+index 0000000000..ff023114bb
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-text-shift.golden differ
+diff --git a/src/compress/flate/testdata/huffman-text-shift.in b/src/compress/flate/testdata/huffman-text-shift.in
+new file mode 100644
+index 0000000000..cc5c3ad69d
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text-shift.in
+@@ -0,0 +1,14 @@
++//Copyright2009ThGoAuthor.Allrightrrvd.
++//UofthiourccodigovrndbyBSD-tyl
++//licnthtcnbfoundinthLICENSEfil.
++
++pckgmin
++
++import"o"
++
++funcmin(){
++	vrb=mk([]byt,65535)
++	f,_:=o.Crt("huffmn-null-mx.in")
++	f.Writ(b)
++}
++ABCDEFGHIJKLMNOPQRSTUVXxyz!"#¬§%&/?"
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-text-shift.wb.expect b/src/compress/flate/testdata/huffman-text-shift.wb.expect
+new file mode 100644
+index 0000000000..71ce3aeb75
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-text-shift.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-text-shift.wb.expect-noinput b/src/compress/flate/testdata/huffman-text-shift.wb.expect-noinput
+new file mode 100644
+index 0000000000..71ce3aeb75
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-text-shift.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-text.dyn.expect b/src/compress/flate/testdata/huffman-text.dyn.expect
+new file mode 100644
+index 0000000000..d448727c32
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text.dyn.expect
+@@ -0,0 +1 @@
++À_KÛ0≈ÒÎÚΩÍ`K«Û0Aasƒõ)^àHö˛≤Ñ•I…übﬂª¨ó_>Á4aò¢=õåõÕ-^·1`_≤	1	Ïù√Ã	ë≈ë:¡Y”‡-ÇF66!ÖAÖé`Œa§Ë©C;A‚˛Ù∞Nyr4ﬂúU‰!ô°§GK–°¯÷#¬Û”·¯r:B[GÇ3Œ©.ÚLË•ı◊∂˝bFRuM]ºö≠^‚á≥≈(#ZÏ–À’üÌîiÖõÌˆˇv…ŸBØÖªBáH2S]ô¢u/˝⁄Á÷Ω¸÷WÛTºGõ©nóú˝rˆ
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-text.dyn.expect-noinput b/src/compress/flate/testdata/huffman-text.dyn.expect-noinput
+new file mode 100644
+index 0000000000..d448727c32
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text.dyn.expect-noinput
+@@ -0,0 +1 @@
++À_KÛ0≈ÒÎÚΩÍ`K«Û0Aasƒõ)^àHö˛≤Ñ•I…übﬂª¨ó_>Á4aò¢=õåõÕ-^·1`_≤	1	Ïù√Ã	ë≈ë:¡Y”‡-ÇF66!ÖAÖé`Œa§Ë©C;A‚˛Ù∞Nyr4ﬂúU‰!ô°§GK–°¯÷#¬Û”·¯r:B[GÇ3Œ©.ÚLË•ı◊∂˝bFRuM]ºö≠^‚á≥≈(#ZÏ–À’üÌîiÖõÌˆˇv…ŸBØÖªBáH2S]ô¢u/˝⁄Á÷Ω¸÷WÛTºGõ©nóú˝rˆ
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-text.golden b/src/compress/flate/testdata/huffman-text.golden
+new file mode 100644
+index 0000000000..6d34c61fe0
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text.golden
+@@ -0,0 +1,3 @@
++¿AKÛ0Ûxæ√üûZÿ⁄ÒæLPÿaŒ!Çxô‚AD“ˆIñ&#IãE¸Ó˛ö«p]¢L∆øÌˆØFpò≤	1’88áhì¢$â≥Ù5S”‡-	ÇF66!Ö)vÇ.Ùõ0ÑY¢óÌÖ˚Û√&Â≈	S”¿ŸN|d£2:Â—
++tò|Îëç‡˘Èxz9ü†≠ìöâÈ™∫ã£≤ûâ…é◊3äê
++&&=˘£≤æ¨√¥öUDã=FuëÚ„≥]≤¨q≥€˝ﬂUL+Ω∆Óˆ©>FQY ¬LZè o¸‰‹fTﬂµıE≈¥“ı{¥Y ∂b˙e˙
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-text.in b/src/compress/flate/testdata/huffman-text.in
+new file mode 100644
+index 0000000000..73398b98b5
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text.in
+@@ -0,0 +1,13 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++func main() {
++	var b = make([]byte, 65535)
++	f, _ := os.Create("huffman-null-max.in")
++	f.Write(b)
++}
+diff --git a/src/compress/flate/testdata/huffman-text.wb.expect b/src/compress/flate/testdata/huffman-text.wb.expect
+new file mode 100644
+index 0000000000..d448727c32
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text.wb.expect
+@@ -0,0 +1 @@
++À_KÛ0≈ÒÎÚΩÍ`K«Û0Aasƒõ)^àHö˛≤Ñ•I…übﬂª¨ó_>Á4aò¢=õåõÕ-^·1`_≤	1	Ïù√Ã	ë≈ë:¡Y”‡-ÇF66!ÖAÖé`Œa§Ë©C;A‚˛Ù∞Nyr4ﬂúU‰!ô°§GK–°¯÷#¬Û”·¯r:B[GÇ3Œ©.ÚLË•ı◊∂˝bFRuM]ºö≠^‚á≥≈(#ZÏ–À’üÌîiÖõÌˆˇv…ŸBØÖªBáH2S]ô¢u/˝⁄Á÷Ω¸÷WÛTºGõ©nóú˝rˆ
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-text.wb.expect-noinput b/src/compress/flate/testdata/huffman-text.wb.expect-noinput
+new file mode 100644
+index 0000000000..d448727c32
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-text.wb.expect-noinput
+@@ -0,0 +1 @@
++À_KÛ0≈ÒÎÚΩÍ`K«Û0Aasƒõ)^àHö˛≤Ñ•I…übﬂª¨ó_>Á4aò¢=õåõÕ-^·1`_≤	1	Ïù√Ã	ë≈ë:¡Y”‡-ÇF66!ÖAÖé`Œa§Ë©C;A‚˛Ù∞Nyr4ﬂúU‰!ô°§GK–°¯÷#¬Û”·¯r:B[GÇ3Œ©.ÚLË•ı◊∂˝bFRuM]ºö≠^‚á≥≈(#ZÏ–À’üÌîiÖõÌˆˇv…ŸBØÖªBáH2S]ô¢u/˝⁄Á÷Ω¸÷WÛTºGõ©nóú˝rˆ
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-zero.dyn.expect b/src/compress/flate/testdata/huffman-zero.dyn.expect
+new file mode 100644
+index 0000000000..830348a79a
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-zero.dyn.expect differ
+diff --git a/src/compress/flate/testdata/huffman-zero.dyn.expect-noinput b/src/compress/flate/testdata/huffman-zero.dyn.expect-noinput
+new file mode 100644
+index 0000000000..830348a79a
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-zero.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/huffman-zero.golden b/src/compress/flate/testdata/huffman-zero.golden
+new file mode 100644
+index 0000000000..5abdbaff9a
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-zero.golden differ
+diff --git a/src/compress/flate/testdata/huffman-zero.in b/src/compress/flate/testdata/huffman-zero.in
+new file mode 100644
+index 0000000000..349be0e6ec
+--- /dev/null
++++ b/src/compress/flate/testdata/huffman-zero.in
+@@ -0,0 +1 @@
++00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+\ No newline at end of file
+diff --git a/src/compress/flate/testdata/huffman-zero.wb.expect b/src/compress/flate/testdata/huffman-zero.wb.expect
+new file mode 100644
+index 0000000000..dbe401c54c
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-zero.wb.expect differ
+diff --git a/src/compress/flate/testdata/huffman-zero.wb.expect-noinput b/src/compress/flate/testdata/huffman-zero.wb.expect-noinput
+new file mode 100644
+index 0000000000..dbe401c54c
+Binary files /dev/null and b/src/compress/flate/testdata/huffman-zero.wb.expect-noinput differ
+diff --git a/src/compress/flate/testdata/null-long-match.dyn.expect-noinput b/src/compress/flate/testdata/null-long-match.dyn.expect-noinput
+new file mode 100644
+index 0000000000..8b92d9fc20
+Binary files /dev/null and b/src/compress/flate/testdata/null-long-match.dyn.expect-noinput differ
+diff --git a/src/compress/flate/testdata/null-long-match.wb.expect-noinput b/src/compress/flate/testdata/null-long-match.wb.expect-noinput
+new file mode 100644
+index 0000000000..8b92d9fc20
+Binary files /dev/null and b/src/compress/flate/testdata/null-long-match.wb.expect-noinput differ

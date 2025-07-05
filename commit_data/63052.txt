@@ -24,7 +24,7 @@ Date:   Wed Jan 22 14:13:33 2025 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/asan_amd64.s                           |  7 +++-
  src/runtime/asan_arm64.s                           | 12 ++++--
  src/runtime/asan_loong64.s                         | 11 ++++--
@@ -41,3 +41,404 @@ Date:   Wed Jan 22 14:13:33 2025 -0500
  src/runtime/testdata/testprogcgo/tracebackctxt.go  | 43 ++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/tracebackctxt_c.c |  5 +++
  15 files changed, 155 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/asan_amd64.s b/src/runtime/asan_amd64.s
+index 30dd477c07..12f14ecf88 100644
+--- a/src/runtime/asan_amd64.s
++++ b/src/runtime/asan_amd64.s
+@@ -100,7 +100,12 @@ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	JE	call	// no g; still on a system stack
+ 
+ 	MOVQ	g_m(R14), R13
+-	// Switch to g0 stack.
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVQ	m_gsignal(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on gsignal
++
+ 	MOVQ	m_g0(R13), R10
+ 	CMPQ	R10, R14
+ 	JE	call	// already on g0
+diff --git a/src/runtime/asan_arm64.s b/src/runtime/asan_arm64.s
+index 1f089d78d3..64417552a9 100644
+--- a/src/runtime/asan_arm64.s
++++ b/src/runtime/asan_arm64.s
+@@ -83,16 +83,22 @@ TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOVD	RSP, R19                  // callee-saved
+-	CBZ	g, g0stack                // no g, still on a system stack
++	CBZ	g, call                   // no g, still on a system stack
+ 	MOVD	g_m(g), R10
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVD	m_gsignal(R10), R11
++	CMP	R11, g
++	BEQ	call
++
+ 	MOVD	m_g0(R10), R11
+ 	CMP	R11, g
+-	BEQ	g0stack
++	BEQ	call
+ 
+ 	MOVD	(g_sched+gobuf_sp)(R11), R5
+ 	MOVD	R5, RSP
+ 
+-g0stack:
++call:
+ 	BL	(FARG)
+ 	MOVD	R19, RSP
+ 	RET
+diff --git a/src/runtime/asan_loong64.s b/src/runtime/asan_loong64.s
+index 224d16ce2e..13e4a99ac8 100644
+--- a/src/runtime/asan_loong64.s
++++ b/src/runtime/asan_loong64.s
+@@ -83,15 +83,20 @@ TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOVV	R3, R23         // callee-saved
+-	BEQ	g, g0stack      // no g, still on a system stack
++	BEQ	g, call         // no g, still on a system stack
+ 	MOVV	g_m(g), R14
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVV	m_gsignal(R14), R15
++	BEQ	R15, g, call
++
+ 	MOVV	m_g0(R14), R15
+-	BEQ	R15, g, g0stack
++	BEQ	R15, g, call
+ 
+ 	MOVV	(g_sched+gobuf_sp)(R15), R9
+ 	MOVV	R9, R3
+ 
+-g0stack:
++call:
+ 	JAL	(FARG)
+ 	MOVV	R23, R3
+ 	RET
+diff --git a/src/runtime/asan_ppc64le.s b/src/runtime/asan_ppc64le.s
+index 0c56a81991..b8a38ea47e 100644
+--- a/src/runtime/asan_ppc64le.s
++++ b/src/runtime/asan_ppc64le.s
+@@ -88,10 +88,18 @@ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOVD	0(R10), g
+ 	MOVD	g_m(g), R7		// m for g
+ 	MOVD	R1, R16			// callee-saved, preserved across C call
+-	MOVD	m_g0(R7), R10		// g0 for m
+-	CMP	R10, g			// same g0?
+-	BEQ	call			// already on g0
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVD	m_gsignal(R7), R10
++	CMP	R10, g
++	BEQ	call
++
++	MOVD	m_g0(R7), R10
++	CMP	R10, g
++	BEQ	call
++
+ 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
++
+ call:
+ 	// prepare frame for C ABI
+ 	SUB	$32, R1			// create frame for callee saving LR, CR, R2 etc.
+diff --git a/src/runtime/asan_riscv64.s b/src/runtime/asan_riscv64.s
+index 6c77f66348..eb76e61ffb 100644
+--- a/src/runtime/asan_riscv64.s
++++ b/src/runtime/asan_riscv64.s
+@@ -77,14 +77,19 @@ TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
+ // Switches SP to g0 stack and calls (X14). Arguments already set.
+ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	MOV	X2, X8		// callee-saved
+-	BEQZ	g, g0stack	// no g, still on a system stack
++	BEQZ	g, call		// no g, still on a system stack
+ 	MOV	g_m(g), X21
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOV	m_gsignal(X21), X21
++	BEQ	X21, g, call
++
+ 	MOV	m_g0(X21), X21
+-	BEQ	X21, g, g0stack
++	BEQ	X21, g, call
+ 
+ 	MOV	(g_sched+gobuf_sp)(X21), X2
+ 
+-g0stack:
++call:
+ 	JALR	RA, X14
+ 	MOV	X8, X2
+ 	RET
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 4c642383f5..3bd523de1a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -310,6 +310,15 @@ func TestCgoTracebackContextPreemption(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoTracebackContextProfile(t *testing.T) {
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "TracebackContextProfile")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
++
+ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 	t.Parallel()
+ 	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64" && runtime.GOARCH != "loong64") {
+diff --git a/src/runtime/msan_amd64.s b/src/runtime/msan_amd64.s
+index aac67c695b..0c3845890d 100644
+--- a/src/runtime/msan_amd64.s
++++ b/src/runtime/msan_amd64.s
+@@ -76,7 +76,12 @@ TEXT	msancall<>(SB), NOSPLIT, $0-0
+ 	JE	call	// no g; still on a system stack
+ 
+ 	MOVQ	g_m(R14), R13
+-	// Switch to g0 stack.
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVQ	m_gsignal(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on gsignal
++
+ 	MOVQ	m_g0(R13), R10
+ 	CMPQ	R10, R14
+ 	JE	call	// already on g0
+diff --git a/src/runtime/msan_arm64.s b/src/runtime/msan_arm64.s
+index 044a68e1c7..fe8723ea60 100644
+--- a/src/runtime/msan_arm64.s
++++ b/src/runtime/msan_arm64.s
+@@ -58,16 +58,22 @@ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	msancall<>(SB), NOSPLIT, $0-0
+ 	MOVD	RSP, R19                  // callee-saved
+-	CBZ	g, g0stack                // no g, still on a system stack
++	CBZ	g, call                   // no g, still on a system stack
+ 	MOVD	g_m(g), R10
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVD	m_gsignal(R10), R11
++	CMP	R11, g
++	BEQ	call
++
+ 	MOVD	m_g0(R10), R11
+ 	CMP	R11, g
+-	BEQ	g0stack
++	BEQ	call
+ 
+ 	MOVD	(g_sched+gobuf_sp)(R11), R4
+ 	MOVD	R4, RSP
+ 
+-g0stack:
++call:
+ 	BL	(FARG)
+ 	MOVD	R19, RSP
+ 	RET
+diff --git a/src/runtime/msan_loong64.s b/src/runtime/msan_loong64.s
+index 71332e2935..713201716a 100644
+--- a/src/runtime/msan_loong64.s
++++ b/src/runtime/msan_loong64.s
+@@ -58,10 +58,15 @@ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
+ // Switches SP to g0 stack and calls (FARG). Arguments already set.
+ TEXT	msancall<>(SB), NOSPLIT, $0-0
+ 	MOVV	R3, R23         // callee-saved
+-	BEQ	g, g0stack      // no g, still on a system stack
++	BEQ	g, call         // no g, still on a system stack
+ 	MOVV	g_m(g), R14
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVV	m_gsignal(R14), R15
++	BEQ	R15, g, call
++
+ 	MOVV	m_g0(R14), R15
+-	BEQ	R15, g, g0stack
++	BEQ	R15, g, call
+ 
+ 	MOVV	(g_sched+gobuf_sp)(R15), R9
+ 	MOVV	R9, R3
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 9c56389232..e19118bd54 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -438,9 +438,16 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	MOVQ	g_m(R14), R13
+ 	// Switch to g0 stack.
+ 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVQ	m_gsignal(R13), R10
++	CMPQ	R10, R14
++	JE	call	// already on gsignal
++
+ 	MOVQ	m_g0(R13), R10
+ 	CMPQ	R10, R14
+ 	JE	call	// already on g0
++
+ 	MOVQ	(g_sched+gobuf_sp)(R10), SP
+ call:
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 83dfdef2e5..5df650105b 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -463,9 +463,16 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
+ 	// Switch to g0 stack.
+ 	MOVD	RSP, R19	// callee-saved, preserved across the CALL
+ 	MOVD	R30, R20	// callee-saved, preserved across the CALL
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVD	m_gsignal(R10), R11
++	CMP	R11, g
++	BEQ	call
++
+ 	MOVD	m_g0(R10), R11
+ 	CMP	R11, g
+-	BEQ	call	// already on g0
++	BEQ	call
++
+ 	MOVD	(g_sched+gobuf_sp)(R11), R12
+ 	MOVD	R12, RSP
+ call:
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index d3cac03ff4..b327e49a2f 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -484,9 +484,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
+ 	MOVD    0(R10), g
+ 	MOVD	g_m(g), R7		// m for g
+ 	MOVD	R1, R16			// callee-saved, preserved across C call
+-	MOVD	m_g0(R7), R10		// g0 for m
+-	CMP	R10, g			// same g0?
+-	BEQ	call			// already on g0
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVD	m_gsignal(R7), R10
++	CMP	R10, g
++	BEQ	call
++
++	MOVD	m_g0(R7), R10
++	CMP	R10, g
++	BEQ	call
++
+ 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
+ call:
+ 	// prepare frame for C ABI
+diff --git a/src/runtime/race_s390x.s b/src/runtime/race_s390x.s
+index 8e6a5d576a..a12bf8416b 100644
+--- a/src/runtime/race_s390x.s
++++ b/src/runtime/race_s390x.s
+@@ -410,9 +410,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
+ 	BL	runtime·save_g(SB)		// Save g for callbacks.
+ 	MOVD	R15, R7				// Save SP.
+ 	MOVD	g_m(g), R8			// R8 = thread.
+-	MOVD	m_g0(R8), R8			// R8 = g0.
+-	CMPBEQ	R8, g, call			// Already on g0?
++
++	// Switch to g0 stack if we aren't already on g0 or gsignal.
++	MOVD	m_gsignal(R8), R8
++	CMPBEQ	R8, g, call
++
++	MOVD	m_g0(R8), R8
++	CMPBEQ	R8, g, call
++
+ 	MOVD	(g_sched+gobuf_sp)(R8), R15	// Switch SP to g0.
++
+ call:	SUB	$160, R15			// Allocate C frame.
+ 	BL	R1				// Call C code.
+ 	MOVD	R7, R15				// Restore SP.
+diff --git a/src/runtime/testdata/testprogcgo/tracebackctxt.go b/src/runtime/testdata/testprogcgo/tracebackctxt.go
+index 62ff8eccd6..5b622c38a6 100644
+--- a/src/runtime/testdata/testprogcgo/tracebackctxt.go
++++ b/src/runtime/testdata/testprogcgo/tracebackctxt.go
+@@ -17,19 +17,24 @@ extern void tcTraceback(void*);
+ extern void tcSymbolizer(void*);
+ extern int getContextCount(void);
+ extern void TracebackContextPreemptionCallGo(int);
++extern void TracebackContextProfileCallGo(void);
+ */
+ import "C"
+ 
+ import (
+ 	"fmt"
++	"io"
+ 	"runtime"
++	"runtime/pprof"
+ 	"sync"
++	"sync/atomic"
+ 	"unsafe"
+ )
+ 
+ func init() {
+ 	register("TracebackContext", TracebackContext)
+ 	register("TracebackContextPreemption", TracebackContextPreemption)
++	register("TracebackContextProfile", TracebackContextProfile)
+ }
+ 
+ var tracebackOK bool
+@@ -134,3 +139,41 @@ func TracebackContextPreemptionGoFunction(i C.int) {
+ 	// Do some busy work.
+ 	fmt.Sprintf("%d\n", i)
+ }
++
++// Regression test for issue 71395.
++//
++// The SIGPROF handler can call the SetCgoTraceback traceback function if the
++// context function is also provided. Ensure that call is safe.
++func TracebackContextProfile() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcTraceback), unsafe.Pointer(C.tcContextSimple), unsafe.Pointer(C.tcSymbolizer))
++
++	if err := pprof.StartCPUProfile(io.Discard); err != nil {
++		panic(fmt.Sprintf("error starting CPU profile: %v", err))
++	}
++	defer pprof.StopCPUProfile()
++
++	const calls = 1e5
++	var wg sync.WaitGroup
++	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for j := 0; j < calls; j++ {
++				C.TracebackContextProfileCallGo()
++			}
++		}()
++	}
++	wg.Wait()
++
++	fmt.Println("OK")
++}
++
++var sink atomic.Pointer[byte]
++
++//export TracebackContextProfileGoFunction
++func TracebackContextProfileGoFunction() {
++	// Issue 71395 occurs when SIGPROF lands on code running on the system
++	// stack in a cgo callback. The allocator uses the system stack.
++	b := make([]byte, 128)
++	sink.Store(&b[0])
++}
+diff --git a/src/runtime/testdata/testprogcgo/tracebackctxt_c.c b/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
+index 910cb7b899..98b43038c5 100644
+--- a/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
++++ b/src/runtime/testdata/testprogcgo/tracebackctxt_c.c
+@@ -12,6 +12,7 @@
+ extern void G1(void);
+ extern void G2(void);
+ extern void TracebackContextPreemptionGoFunction(int);
++extern void TracebackContextProfileGoFunction(void);
+ 
+ void C1() {
+ 	G1();
+@@ -101,3 +102,7 @@ void tcSymbolizer(void *parg) {
+ void TracebackContextPreemptionCallGo(int i) {
+ 	TracebackContextPreemptionGoFunction(i);
+ }
++
++void TracebackContextProfileCallGo(void) {
++	TracebackContextProfileGoFunction();
++}

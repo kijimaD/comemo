@@ -10,7 +10,45 @@ Date:   Thu Sep 18 21:19:18 2014 -0400
     R=adonovan, r
     CC=golang-codereviews
     https://golang.org/cl/136710043
-
+---
  src/reflect/all_test.go | 16 ++++++++++++++++
  src/reflect/value.go    |  2 +-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 4be0e353df..b72c4b176d 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3923,3 +3923,19 @@ func useStack(n int) {
+ 	var b [1024]byte // makes frame about 1KB
+ 	useStack(n - 1 + int(b[99]))
+ }
++
++type Impl struct{}
++
++func (Impl) f() {}
++
++func TestValueString(t *testing.T) {
++	rv := ValueOf(Impl{})
++	if rv.String() != "<reflect_test.Impl Value>" {
++		t.Errorf("ValueOf(Impl{}).String() = %q, want %q", rv.String(), "<reflect_test.Impl Value>")
++	}
++
++	method := rv.Method(0)
++	if method.String() != "<func() Value>" {
++		t.Errorf("ValueOf(Impl{}).Method(0).String() = %q, want %q", method.String(), "<func() Value>")
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index b0dfe840b6..12d423f3c3 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1771,7 +1771,7 @@ func (v Value) String() string {
+ 	}
+ 	// If you call String on a reflect.Value of other type, it's better to
+ 	// print something than to panic. Useful in debugging.
+-	return "<" + v.typ.String() + " Value>"
++	return "<" + v.Type().String() + " Value>"
+ }
+ 
+ // TryRecv attempts to receive a value from the channel v but will not block.

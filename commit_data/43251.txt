@@ -9,6 +9,20 @@ Date:   Sat Mar 21 20:40:01 2020 +0900
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index ec24516833..638ff500a4 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -216,7 +216,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
+ 
+ 	if req.RequestURI != "" {
+ 		req.closeBody()
+-		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests.")
++		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests")
+ 	}
+ 
+ 	// forkReq forks req into a shallow clone of ireq the first

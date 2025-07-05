@@ -8,7 +8,7 @@ Date:   Tue Feb 24 22:22:32 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6332
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  include/ar.h           |   17 +-
  include/link.h         |    5 +-
  include/plan9/ar.h     |   54 ++
@@ -36,3 +36,6306 @@ Date:   Tue Feb 24 22:22:32 2015 -0500
  src/cmd/ld/symtab.c    |   20 +-
  src/liblink/objfile.c  |    8 +-
  26 files changed, 1774 insertions(+), 1735 deletions(-)
+
+diff --git a/include/ar.h b/include/ar.h
+index d5636b3623..350941738c 100644
+--- a/include/ar.h
++++ b/include/ar.h
+@@ -28,13 +28,21 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#define	ARMAG	"!<arch>\n"
+-#define	SARMAG	8
++enum {
++	SARMAG = 8,
++	SARNAME = 16,
++	SAR_HDR = 16+44,
++};
+ 
++#define	ARMAG	"!<arch>\n"
+ #define	ARFMAG	"`\n"
+-#define	SARNAME	16
++/*c2go
++char ARMAG[] = "!<arch>\n";
++char ARFMAG[] = "`\n";
++*/
+ 
+-struct	ar_hdr
++typedef struct ArHdr ArHdr;
++struct	ArHdr
+ {
+ 	char	name[SARNAME];
+ 	char	date[12];
+@@ -44,4 +52,3 @@ struct	ar_hdr
+ 	char	size[10];
+ 	char	fmag[2];
+ };
+-#define	SAR_HDR	(SARNAME+44)
+diff --git a/include/link.h b/include/link.h
+index c511a95cf1..3df9b102c0 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -52,9 +52,6 @@ struct	Reloc
+ 	LSym*	xsym;
+ };
+ 
+-// prevent incompatible type signatures between liblink and 8l on Plan 9
+-#pragma incomplete struct Section
+-
+ struct	LSym
+ {
+ 	char*	name;
+@@ -94,7 +91,7 @@ struct	LSym
+ 	char*	file;
+ 	char*	dynimplib;
+ 	char*	dynimpvers;
+-	struct Section*	sect;
++	void*	sect;
+ 	
+ 	// STEXT
+ 	Auto*	autom;
+diff --git a/include/plan9/ar.h b/include/plan9/ar.h
+new file mode 100644
+index 0000000000..350941738c
+--- /dev/null
++++ b/include/plan9/ar.h
+@@ -0,0 +1,54 @@
++// Inferno utils/include/ar.h
++// http://code.google.com/p/inferno-os/source/browse/utils/include/ar.h
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++enum {
++	SARMAG = 8,
++	SARNAME = 16,
++	SAR_HDR = 16+44,
++};
++
++#define	ARMAG	"!<arch>\n"
++#define	ARFMAG	"`\n"
++/*c2go
++char ARMAG[] = "!<arch>\n";
++char ARFMAG[] = "`\n";
++*/
++
++typedef struct ArHdr ArHdr;
++struct	ArHdr
++{
++	char	name[SARNAME];
++	char	date[12];
++	char	uid[6];
++	char	gid[6];
++	char	mode[8];
++	char	size[10];
++	char	fmag[2];
++};
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index ed4d68a1fb..079c973da4 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -305,9 +305,9 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		v = rs->dynid;
+ 		v |= 1<<27; // external relocation
+ 	} else {
+-		v = rs->sect->extnum;
++		v = ((Section*)rs->sect)->extnum;
+ 		if(v == 0) {
+-			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
++			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, ((Section*)rs->sect)->name, rs->type);
+ 			return -1;
+ 		}
+ 	}
+@@ -610,10 +610,10 @@ asmb(void)
+ 
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-	codeblk(sect->vaddr, sect->len);
++	codeblk(sect->vaddr, sect->length);
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-		datblk(sect->vaddr, sect->len);
++		datblk(sect->vaddr, sect->length);
+ 	}
+ 
+ 	if(segrodata.filelen > 0) {
+@@ -638,7 +638,7 @@ asmb(void)
+ 			Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 
+ 		if(!debug['w']) { // TODO(minux): enable DWARF Support
+-			dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
++			dwarfoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND);
+ 			cseek(dwarfoff);
+ 
+ 			segdwarf.fileoff = cpos();
+@@ -659,18 +659,17 @@ asmb(void)
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
+ 		default:
+-			if(iself)
+-				goto ElfSym;
++			if(iself) {
++				symo = segdata.fileoff+segdata.filelen;
++				symo = rnd(symo, INITRND);
++			}
++			break;
+ 		case Hplan9:
+ 			symo = segdata.fileoff+segdata.filelen;
+ 			break;
+ 		case Hdarwin:
+ 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+-		ElfSym:
+-			symo = segdata.fileoff+segdata.filelen;
+-			symo = rnd(symo, INITRND);
+-			break;
+ 		}
+ 		cseek(symo);
+ 		switch(HEADTYPE) {
+@@ -721,7 +720,7 @@ asmb(void)
+ 		thearch.lput(0x647);			/* magic */
+ 		thearch.lput(segtext.filelen);			/* sizes */
+ 		thearch.lput(segdata.filelen);
+-		thearch.lput(segdata.len - segdata.filelen);
++		thearch.lput(segdata.length - segdata.filelen);
+ 		thearch.lput(symsize);			/* nsyms */
+ 		thearch.lput(entryvalue());		/* va of entry */
+ 		thearch.lput(0L);
+@@ -742,9 +741,9 @@ asmb(void)
+ 	if(debug['c']){
+ 		print("textsize=%ulld\n", segtext.filelen);
+ 		print("datsize=%ulld\n", segdata.filelen);
+-		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
++		print("bsssize=%ulld\n", segdata.length - segdata.filelen);
+ 		print("symsize=%d\n", symsize);
+ 		print("lcsize=%d\n", lcsize);
+-		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
++		print("total=%lld\n", segtext.filelen+segdata.length+symsize+lcsize);
+ 	}
+ }
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index a983373fa0..b817cf5ce5 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -37,7 +37,11 @@
+ #include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+ 
+-#define PADDR(a)	((uint32)(a) & ~0x80000000)
++uint32
++PADDR(uint32 x)
++{
++	return x & ~0x80000000;
++}
+ 
+ char	zeroes[32];
+ 
+@@ -333,9 +337,9 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		v = rs->dynid;			
+ 		v |= 1<<27; // external relocation
+ 	} else {
+-		v = rs->sect->extnum;
++		v = ((Section*)rs->sect)->extnum;
+ 		if(v == 0) {
+-			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
++			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, ((Section*)rs->sect)->name, rs->type);
+ 			return -1;
+ 		}
+ 	}
+@@ -615,10 +619,10 @@ asmb(void)
+ 
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-	codeblk(sect->vaddr, sect->len);
++	codeblk(sect->vaddr, sect->length);
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-		datblk(sect->vaddr, sect->len);
++		datblk(sect->vaddr, sect->length);
+ 	}
+ 
+ 	if(segrodata.filelen > 0) {
+@@ -642,7 +646,7 @@ asmb(void)
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 
+-		dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
++		dwarfoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND);
+ 		cseek(dwarfoff);
+ 
+ 		segdwarf.fileoff = cpos();
+@@ -763,7 +767,7 @@ asmb(void)
+ 		lputb(magic);			/* magic */
+ 		lputb(segtext.filelen);			/* sizes */
+ 		lputb(segdata.filelen);
+-		lputb(segdata.len - segdata.filelen);
++		lputb(segdata.length - segdata.filelen);
+ 		lputb(symsize);			/* nsyms */
+ 		vl = entryvalue();
+ 		lputb(PADDR(vl));		/* va of entry */
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 2da1651c8b..d7622f7f97 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -296,9 +296,9 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		v = rs->dynid;			
+ 		v |= 1<<27; // external relocation
+ 	} else {
+-		v = rs->sect->extnum;
++		v = ((Section*)rs->sect)->extnum;
+ 		if(v == 0) {
+-			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, rs->sect->name, rs->type);
++			diag("reloc %d to symbol %s in non-macho section %s type=%d", r->type, rs->name, ((Section*)rs->sect)->name, rs->type);
+ 			return -1;
+ 		}
+ 	}
+@@ -565,10 +565,10 @@ asmb(void)
+ 
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-	codeblk(sect->vaddr, sect->len);
++	codeblk(sect->vaddr, sect->length);
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-		datblk(sect->vaddr, sect->len);
++		datblk(sect->vaddr, sect->length);
+ 	}
+ 	
+ 	if(segrodata.filelen > 0) {
+@@ -592,7 +592,7 @@ asmb(void)
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 
+-		dwarfoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
++		dwarfoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND);
+ 		cseek(dwarfoff);
+ 
+ 		segdwarf.fileoff = cpos();
+@@ -613,18 +613,17 @@ asmb(void)
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
+ 		default:
+-			if(iself)
+-				goto Elfsym;
++			if(iself) {
++				symo = segdata.fileoff+segdata.filelen;
++				symo = rnd(symo, INITRND);
++			}
++			break;
+ 		case Hplan9:
+ 			symo = segdata.fileoff+segdata.filelen;
+ 			break;
+ 		case Hdarwin:
+ 			symo = segdata.fileoff+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+-		Elfsym:
+-			symo = segdata.fileoff+segdata.filelen;
+-			symo = rnd(symo, INITRND);
+-			break;
+ 		case Hwindows:
+ 			symo = segdata.fileoff+segdata.filelen;
+ 			symo = rnd(symo, PEFILEALIGN);
+@@ -683,7 +682,7 @@ asmb(void)
+ 		lputb(magic);		/* magic */
+ 		lputb(segtext.filelen);			/* sizes */
+ 		lputb(segdata.filelen);
+-		lputb(segdata.len - segdata.filelen);
++		lputb(segdata.length - segdata.filelen);
+ 		lputb(symsize);			/* nsyms */
+ 		lputb(entryvalue());		/* va of entry */
+ 		lputb(spsize);			/* sp offsets */
+diff --git a/src/cmd/9l/asm.c b/src/cmd/9l/asm.c
+index 01e17aaa09..3dbadf77b6 100644
+--- a/src/cmd/9l/asm.c
++++ b/src/cmd/9l/asm.c
+@@ -701,10 +701,10 @@ asmb(void)
+ 
+ 	sect = segtext.sect;
+ 	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-	codeblk(sect->vaddr, sect->len);
++	codeblk(sect->vaddr, sect->length);
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+ 		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+-		datblk(sect->vaddr, sect->len);
++		datblk(sect->vaddr, sect->length);
+ 	}
+ 
+ 	if(segrodata.filelen > 0) {
+@@ -734,14 +734,13 @@ asmb(void)
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
+ 		default:
+-			if(iself)
+-				goto ElfSym;
+-		case Hplan9:
+-			symo = segdata.fileoff+segdata.filelen;
++			if(iself) {
++				symo = segdata.fileoff+segdata.filelen;
++				symo = rnd(symo, INITRND);
++			}
+ 			break;
+-		ElfSym:
++		case Hplan9:
+ 			symo = segdata.fileoff+segdata.filelen;
+-			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+ 		cseek(symo);
+@@ -789,7 +788,7 @@ asmb(void)
+ 		thearch.lput(0x647);			/* magic */
+ 		thearch.lput(segtext.filelen);			/* sizes */
+ 		thearch.lput(segdata.filelen);
+-		thearch.lput(segdata.len - segdata.filelen);
++		thearch.lput(segdata.length - segdata.filelen);
+ 		thearch.lput(symsize);			/* nsyms */
+ 		thearch.lput(entryvalue());		/* va of entry */
+ 		thearch.lput(0L);
+@@ -807,9 +806,9 @@ asmb(void)
+ 	if(debug['c']){
+ 		print("textsize=%ulld\n", segtext.filelen);
+ 		print("datsize=%ulld\n", segdata.filelen);
+-		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
++		print("bsssize=%ulld\n", segdata.length - segdata.filelen);
+ 		print("symsize=%d\n", symsize);
+ 		print("lcsize=%d\n", lcsize);
+-		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
++		print("total=%lld\n", segtext.filelen+segdata.length+symsize+lcsize);
+ 	}
+ }
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 580d36f7e2..c03946318c 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -64,74 +64,83 @@ datcmp(LSym *s1, LSym *s2)
+ 	return strcmp(s1->name, s2->name);
+ }
+ 
++LSym**
++listnextp(LSym *s)
++{
++	return &s->next;
++}
++
++LSym**
++listsubp(LSym *s)
++{
++	return &s->sub;
++}
++
+ LSym*
+-listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off)
++listsort(LSym *l, int (*cmp)(LSym*, LSym*), LSym **(*nextp)(LSym*))
+ {
+ 	LSym *l1, *l2, *le;
+-	#define NEXT(l) (*(LSym**)((char*)(l)+off))
+ 
+-	if(l == 0 || NEXT(l) == 0)
++	if(l == 0 || *nextp(l) == 0)
+ 		return l;
+ 
+ 	l1 = l;
+ 	l2 = l;
+ 	for(;;) {
+-		l2 = NEXT(l2);
++		l2 = *nextp(l2);
+ 		if(l2 == 0)
+ 			break;
+-		l2 = NEXT(l2);
++		l2 = *nextp(l2);
+ 		if(l2 == 0)
+ 			break;
+-		l1 = NEXT(l1);
++		l1 = *nextp(l1);
+ 	}
+ 
+-	l2 = NEXT(l1);
+-	NEXT(l1) = 0;
+-	l1 = listsort(l, cmp, off);
+-	l2 = listsort(l2, cmp, off);
++	l2 = *nextp(l1);
++	*nextp(l1) = 0;
++	l1 = listsort(l, cmp, nextp);
++	l2 = listsort(l2, cmp, nextp);
+ 
+ 	/* set up lead element */
+ 	if(cmp(l1, l2) < 0) {
+ 		l = l1;
+-		l1 = NEXT(l1);
++		l1 = *nextp(l1);
+ 	} else {
+ 		l = l2;
+-		l2 = NEXT(l2);
++		l2 = *nextp(l2);
+ 	}
+ 	le = l;
+ 
+ 	for(;;) {
+ 		if(l1 == 0) {
+ 			while(l2) {
+-				NEXT(le) = l2;
++				*nextp(le) = l2;
+ 				le = l2;
+-				l2 = NEXT(l2);
++				l2 = *nextp(l2);
+ 			}
+-			NEXT(le) = 0;
++			*nextp(le) = 0;
+ 			break;
+ 		}
+ 		if(l2 == 0) {
+ 			while(l1) {
+-				NEXT(le) = l1;
++				*nextp(le) = l1;
+ 				le = l1;
+-				l1 = NEXT(l1);
++				l1 = *nextp(l1);
+ 			}
+ 			break;
+ 		}
+ 		if(cmp(l1, l2) < 0) {
+-			NEXT(le) = l1;
++			*nextp(le) = l1;
+ 			le = l1;
+-			l1 = NEXT(l1);
++			l1 = *nextp(l1);
+ 		} else {
+-			NEXT(le) = l2;
++			*nextp(le) = l2;
+ 			le = l2;
+-			l2 = NEXT(l2);
++			l2 = *nextp(l2);
+ 		}
+ 	}
+-	NEXT(le) = 0;
++	*nextp(le) = 0;
+ 	return l;
+-	
+-	#undef NEXT
+ }
+ 
+ void
+@@ -140,12 +149,13 @@ relocsym(LSym *s)
+ 	Reloc *r;
+ 	LSym *rs;
+ 	int16 i16;
+-	int32 i, off, siz, fl;
++	int32 i, ri, off, siz, fl;
+ 	vlong o;
+ 	uchar *cast;
+ 
+ 	ctxt->cursym = s;
+-	for(r=s->r; r<s->r+s->nr; r++) {
++	for(ri=0; ri<s->nr; ri++) {
++		r = &s->r[ri];
+ 		r->done = 1;
+ 		off = r->off;
+ 		siz = r->siz;
+@@ -291,7 +301,7 @@ relocsym(LSym *s)
+ 				} else if(HEADTYPE == Hdarwin) {
+ 					if(r->type == R_CALL) {
+ 						if(rs->type != SHOSTOBJ)
+-							o += symaddr(rs) - rs->sect->vaddr;
++							o += symaddr(rs) - ((Section*)rs->sect)->vaddr;
+ 						o -= r->off; // relative to section offset, not symbol
+ 					} else {
+ 						o += r->siz;
+@@ -375,6 +385,7 @@ reloc(void)
+ void
+ dynrelocsym(LSym *s)
+ {
++	int ri;
+ 	Reloc *r;
+ 
+ 	if(HEADTYPE == Hwindows) {
+@@ -383,7 +394,8 @@ dynrelocsym(LSym *s)
+ 		rel = linklookup(ctxt, ".rel", 0);
+ 		if(s == rel)
+ 			return;
+-		for(r=s->r; r<s->r+s->nr; r++) {
++		for(ri=0; ri<s->nr; ri++) {
++			r = &s->r[ri];
+ 			targ = r->sym;
+ 			if(targ == nil)
+ 				continue;
+@@ -416,7 +428,8 @@ dynrelocsym(LSym *s)
+ 		return;
+ 	}
+ 
+-	for(r=s->r; r<s->r+s->nr; r++) {
++	for(ri=0; ri<s->nr; ri++) {
++		r = &s->r[ri];
+ 		if(r->sym != nil && r->sym->type == SDYNIMPORT || r->type >= 256) {
+ 			if(r->sym != nil && !r->sym->reachable)
+ 				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
+@@ -799,14 +812,14 @@ proggenskip(ProgGen *g, vlong off, vlong v)
+ 
+ // Emit insArray instruction.
+ static void
+-proggenarray(ProgGen *g, vlong len)
++proggenarray(ProgGen *g, vlong length)
+ {
+ 	int32 i;
+ 
+ 	proggendataflush(g);
+ 	proggenemit(g, insArray);
+-	for(i = 0; i < thearch.ptrsize; i++, len >>= 8)
+-		proggenemit(g, len);
++	for(i = 0; i < thearch.ptrsize; i++, length >>= 8)
++		proggenemit(g, length);
+ }
+ 
+ static void
+@@ -982,7 +995,7 @@ dodata(void)
+ 	}
+ 	*l = nil;
+ 
+-	datap = listsort(datap, datcmp, offsetof(LSym, next));
++	datap = listsort(datap, datcmp, listnextp);
+ 
+ 	/*
+ 	 * allocate sections.  list is sorted by type,
+@@ -1010,7 +1023,7 @@ dodata(void)
+ 		s->type = SDATA;
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+-		sect->len = datsize - sect->vaddr;
++		sect->length = datsize - sect->vaddr;
+ 	}
+ 
+ 	/* .got (and .toc on ppc64) */
+@@ -1037,7 +1050,7 @@ dodata(void)
+ 			}
+ 			growdatsize(&datsize, s);
+ 		}
+-		sect->len = datsize - sect->vaddr;
++		sect->length = datsize - sect->vaddr;
+ 	}
+ 
+ 	/* pointer-free data */
+@@ -1054,7 +1067,7 @@ dodata(void)
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
++	sect->length = datsize - sect->vaddr;
+ 
+ 	/* shared library initializer */
+ 	if(flag_shared) {
+@@ -1068,7 +1081,7 @@ dodata(void)
+ 			s->value = datsize - sect->vaddr;
+ 			growdatsize(&datsize, s);
+ 		}
+-		sect->len = datsize - sect->vaddr;
++		sect->length = datsize - sect->vaddr;
+ 	}
+ 
+ 	/* data */
+@@ -1092,8 +1105,8 @@ dodata(void)
+ 		proggenaddsym(&gen, s);  // gc
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
+-	proggenfini(&gen, sect->len);  // gc
++	sect->length = datsize - sect->vaddr;
++	proggenfini(&gen, sect->length);  // gc
+ 
+ 	/* bss */
+ 	sect = addsection(&segdata, ".bss", 06);
+@@ -1111,8 +1124,8 @@ dodata(void)
+ 		proggenaddsym(&gen, s);  // gc
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
+-	proggenfini(&gen, sect->len);  // gc
++	sect->length = datsize - sect->vaddr;
++	proggenfini(&gen, sect->length);  // gc
+ 
+ 	/* pointer-free bss */
+ 	sect = addsection(&segdata, ".noptrbss", 06);
+@@ -1127,7 +1140,7 @@ dodata(void)
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
++	sect->length = datsize - sect->vaddr;
+ 	linklookup(ctxt, "runtime.end", 0)->sect = sect;
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+@@ -1146,7 +1159,7 @@ dodata(void)
+ 			s->value = datsize - sect->vaddr;
+ 			growdatsize(&datsize, s);
+ 		}
+-		sect->len = datsize;
++		sect->length = datsize;
+ 	} else {
+ 		// Might be internal linking but still using cgo.
+ 		// In that case, the only possible STLSBSS symbol is runtime.tlsg.
+@@ -1191,7 +1204,7 @@ dodata(void)
+ 		s->type = SRODATA;
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+-		sect->len = datsize - sect->vaddr;
++		sect->length = datsize - sect->vaddr;
+ 	}
+ 
+ 	/* read-only data */
+@@ -1208,7 +1221,7 @@ dodata(void)
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
++	sect->length = datsize - sect->vaddr;
+ 
+ 	/* typelink */
+ 	sect = addsection(segro, ".typelink", 04);
+@@ -1224,7 +1237,7 @@ dodata(void)
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
++	sect->length = datsize - sect->vaddr;
+ 
+ 	/* gosymtab */
+ 	sect = addsection(segro, ".gosymtab", 04);
+@@ -1240,7 +1253,7 @@ dodata(void)
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
++	sect->length = datsize - sect->vaddr;
+ 
+ 	/* gopclntab */
+ 	sect = addsection(segro, ".gopclntab", 04);
+@@ -1256,7 +1269,7 @@ dodata(void)
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+ 	}
+-	sect->len = datsize - sect->vaddr;
++	sect->length = datsize - sect->vaddr;
+ 
+ 	/* read-only ELF, Mach-O sections */
+ 	for(; s != nil && s->type < SELFSECT; s = s->next) {
+@@ -1268,7 +1281,7 @@ dodata(void)
+ 		s->type = SRODATA;
+ 		s->value = datsize - sect->vaddr;
+ 		growdatsize(&datsize, s);
+-		sect->len = datsize - sect->vaddr;
++		sect->length = datsize - sect->vaddr;
+ 	}
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+@@ -1323,7 +1336,7 @@ textaddress(void)
+ 		else
+ 			va += sym->size;
+ 	}
+-	sect->len = va - sect->vaddr;
++	sect->length = va - sect->vaddr;
+ }
+ 
+ // assign addresses
+@@ -1343,10 +1356,10 @@ address(void)
+ 	for(s=segtext.sect; s != nil; s=s->next) {
+ 		va = rnd(va, s->align);
+ 		s->vaddr = va;
+-		va += s->len;
++		va += s->length;
+ 	}
+-	segtext.len = va - INITTEXT;
+-	segtext.filelen = segtext.len;
++	segtext.length = va - INITTEXT;
++	segtext.filelen = segtext.length;
+ 	if(HEADTYPE == Hnacl)
+ 		va += 32; // room for the "halt sled"
+ 
+@@ -1362,10 +1375,10 @@ address(void)
+ 		for(s=segrodata.sect; s != nil; s=s->next) {
+ 			va = rnd(va, s->align);
+ 			s->vaddr = va;
+-			va += s->len;
++			va += s->length;
+ 		}
+-		segrodata.len = va - segrodata.vaddr;
+-		segrodata.filelen = segrodata.len;
++		segrodata.length = va - segrodata.vaddr;
++		segrodata.filelen = segrodata.length;
+ 	}
+ 
+ 	va = rnd(va, INITRND);
+@@ -1374,7 +1387,7 @@ address(void)
+ 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+ 	segdata.filelen = 0;
+ 	if(HEADTYPE == Hwindows)
+-		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
++		segdata.fileoff = segtext.fileoff + rnd(segtext.length, PEFILEALIGN);
+ 	if(HEADTYPE == Hplan9)
+ 		segdata.fileoff = segtext.fileoff + segtext.filelen;
+ 	data = nil;
+@@ -1382,12 +1395,12 @@ address(void)
+ 	bss = nil;
+ 	noptrbss = nil;
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+-		vlen = s->len;
++		vlen = s->length;
+ 		if(s->next)
+ 			vlen = s->next->vaddr - s->vaddr;
+ 		s->vaddr = va;
+ 		va += vlen;
+-		segdata.len = va - segdata.vaddr;
++		segdata.length = va - segdata.vaddr;
+ 		if(strcmp(s->name, ".data") == 0)
+ 			data = s;
+ 		if(strcmp(s->name, ".noptrdata") == 0)
+@@ -1411,17 +1424,17 @@ address(void)
+ 	for(sym = datap; sym != nil; sym = sym->next) {
+ 		ctxt->cursym = sym;
+ 		if(sym->sect != nil)
+-			sym->value += sym->sect->vaddr;
++			sym->value += ((Section*)sym->sect)->vaddr;
+ 		for(sub = sym->sub; sub != nil; sub = sub->sub)
+ 			sub->value += sym->value;
+ 	}
+ 
+ 	xdefine("runtime.text", STEXT, text->vaddr);
+-	xdefine("runtime.etext", STEXT, text->vaddr + text->len);
++	xdefine("runtime.etext", STEXT, text->vaddr + text->length);
+ 	xdefine("runtime.rodata", SRODATA, rodata->vaddr);
+-	xdefine("runtime.erodata", SRODATA, rodata->vaddr + rodata->len);
++	xdefine("runtime.erodata", SRODATA, rodata->vaddr + rodata->length);
+ 	xdefine("runtime.typelink", SRODATA, typelink->vaddr);
+-	xdefine("runtime.etypelink", SRODATA, typelink->vaddr + typelink->len);
++	xdefine("runtime.etypelink", SRODATA, typelink->vaddr + typelink->length);
+ 
+ 	sym = linklookup(ctxt, "runtime.gcdata", 0);
+ 	xdefine("runtime.egcdata", SRODATA, symaddr(sym) + sym->size);
+@@ -1432,16 +1445,16 @@ address(void)
+ 	linklookup(ctxt, "runtime.egcbss", 0)->sect = sym->sect;
+ 
+ 	xdefine("runtime.symtab", SRODATA, symtab->vaddr);
+-	xdefine("runtime.esymtab", SRODATA, symtab->vaddr + symtab->len);
++	xdefine("runtime.esymtab", SRODATA, symtab->vaddr + symtab->length);
+ 	xdefine("runtime.pclntab", SRODATA, pclntab->vaddr);
+-	xdefine("runtime.epclntab", SRODATA, pclntab->vaddr + pclntab->len);
++	xdefine("runtime.epclntab", SRODATA, pclntab->vaddr + pclntab->length);
+ 	xdefine("runtime.noptrdata", SNOPTRDATA, noptr->vaddr);
+-	xdefine("runtime.enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->len);
++	xdefine("runtime.enoptrdata", SNOPTRDATA, noptr->vaddr + noptr->length);
+ 	xdefine("runtime.bss", SBSS, bss->vaddr);
+-	xdefine("runtime.ebss", SBSS, bss->vaddr + bss->len);
++	xdefine("runtime.ebss", SBSS, bss->vaddr + bss->length);
+ 	xdefine("runtime.data", SDATA, data->vaddr);
+-	xdefine("runtime.edata", SDATA, data->vaddr + data->len);
++	xdefine("runtime.edata", SDATA, data->vaddr + data->length);
+ 	xdefine("runtime.noptrbss", SNOPTRBSS, noptrbss->vaddr);
+-	xdefine("runtime.enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->len);
+-	xdefine("runtime.end", SBSS, segdata.vaddr + segdata.len);
++	xdefine("runtime.enoptrbss", SNOPTRBSS, noptrbss->vaddr + noptrbss->length);
++	xdefine("runtime.end", SBSS, segdata.vaddr + segdata.length);
+ }
+diff --git a/src/cmd/ld/decodesym.c b/src/cmd/ld/decodesym.c
+index c194a1f767..e320e0fff8 100644
+--- a/src/cmd/ld/decodesym.c
++++ b/src/cmd/ld/decodesym.c
+@@ -167,7 +167,7 @@ decodetype_funcdotdotdot(LSym *s)
+ 	return s->p[commonsize()];
+ }
+ 
+-// Type.FuncType.in.len
++// Type.FuncType.in.length
+ int
+ decodetype_funcincount(LSym *s)
+ {
+@@ -202,7 +202,7 @@ decodetype_funcouttype(LSym *s, int i)
+ 	return decode_reloc_sym(r->sym, r->add + i * thearch.ptrsize);
+ }
+ 
+-// Type.StructType.fields.Slice::len
++// Type.StructType.fields.Slice::length
+ int
+ decodetype_structfieldcount(LSym *s)
+ {
+@@ -243,7 +243,7 @@ decodetype_structfieldoffs(LSym *s, int i)
+ 	return decode_inuxi(s->p + commonsize() + thearch.ptrsize + 2*thearch.intsize + i*structfieldsize() + 4*thearch.ptrsize, thearch.intsize);
+ }
+ 
+-// InterfaceTYpe.methods.len
++// InterfaceTYpe.methods.length
+ vlong
+ decodetype_ifacemethodcount(LSym *s)
+ {
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index bd94d11d9c..d3be4097af 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -91,9 +91,9 @@ addrput(vlong addr)
+ static int
+ uleb128enc(uvlong v, char* dst)
+ {
+-	uint8 c, len;
++	uint8 c, length;
+ 
+-	len = 0;
++	length = 0;
+ 	do {
+ 		c = v & 0x7f;
+ 		v >>= 7;
+@@ -101,17 +101,17 @@ uleb128enc(uvlong v, char* dst)
+ 			c |= 0x80;
+ 		if (dst)
+ 			*dst++ = c;
+-		len++;
++		length++;
+ 	} while (c & 0x80);
+-	return len;
++	return length;
+ }
+ 
+ static int
+ sleb128enc(vlong v, char *dst)
+ {
+-	uint8 c, s, len;
++	uint8 c, s, length;
+ 
+-	len = 0;
++	length = 0;
+ 	do {
+ 		c = v & 0x7f;
+ 		s = v & 0x40;
+@@ -120,9 +120,9 @@ sleb128enc(vlong v, char *dst)
+ 			c |= 0x80;
+ 		if (dst)
+ 			*dst++ = c;
+-		len++;
++		length++;
+ 	} while(c & 0x80);
+-	return len;
++	return length;
+ }
+ 
+ static void
+@@ -202,192 +202,192 @@ static struct DWAbbrev {
+ 	/* COMPUNIT */
+ 	{
+ 		DW_TAG_compile_unit, DW_CHILDREN_yes,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_language,	 DW_FORM_data1,
+-		DW_AT_low_pc,	 DW_FORM_addr,
+-		DW_AT_high_pc,	 DW_FORM_addr,
+-		DW_AT_stmt_list, DW_FORM_data4,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_language,	 DW_FORM_data1},
++		{DW_AT_low_pc,	 DW_FORM_addr},
++		{DW_AT_high_pc,	 DW_FORM_addr},
++		{DW_AT_stmt_list, DW_FORM_data4},
++		{0, 0}}
+ 	},
+ 	/* FUNCTION */
+ 	{
+ 		DW_TAG_subprogram, DW_CHILDREN_yes,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_low_pc,	 DW_FORM_addr,
+-		DW_AT_high_pc,	 DW_FORM_addr,
+-		DW_AT_external,	 DW_FORM_flag,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_low_pc,	 DW_FORM_addr},
++		{DW_AT_high_pc,	 DW_FORM_addr},
++		{DW_AT_external,	 DW_FORM_flag},
++		{0, 0}}
+ 	},
+ 	/* VARIABLE */
+ 	{
+ 		DW_TAG_variable, DW_CHILDREN_no,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_location,	 DW_FORM_block1,
+-		DW_AT_type,	 DW_FORM_ref_addr,
+-		DW_AT_external,	 DW_FORM_flag,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_location,	 DW_FORM_block1},
++		{DW_AT_type,	 DW_FORM_ref_addr},
++		{DW_AT_external,	 DW_FORM_flag},
++		{0, 0}}
+ 	},
+ 	/* AUTO */
+ 	{
+ 		DW_TAG_variable, DW_CHILDREN_no,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_location,	 DW_FORM_block1,
+-		DW_AT_type,	 DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_location,	 DW_FORM_block1},
++		{DW_AT_type,	 DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 	/* PARAM */
+ 	{
+ 		DW_TAG_formal_parameter, DW_CHILDREN_no,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_location,	 DW_FORM_block1,
+-		DW_AT_type,	 DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_location,	 DW_FORM_block1},
++		{DW_AT_type,	 DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 	/* STRUCTFIELD */
+ 	{
+ 		DW_TAG_member,	DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_data_member_location, DW_FORM_block1,
+-		DW_AT_type,	 DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_data_member_location, DW_FORM_block1},
++		{DW_AT_type,	 DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 	/* FUNCTYPEPARAM */
+ 	{
+ 		DW_TAG_formal_parameter, DW_CHILDREN_no,
+ 		// No name!
+-		DW_AT_type,	 DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_type,	 DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 
+ 	/* DOTDOTDOT */
+ 	{
+ 		DW_TAG_unspecified_parameters, DW_CHILDREN_no,
+-		0, 0
++		{{0, 0}}
+ 	},
+ 	/* ARRAYRANGE */
+ 	{
+ 		DW_TAG_subrange_type, DW_CHILDREN_no,
+ 		// No name!
+-		DW_AT_type,	 DW_FORM_ref_addr,
+-		DW_AT_count, DW_FORM_udata,
+-		0, 0
++		{{DW_AT_type,	 DW_FORM_ref_addr},
++		{DW_AT_count, DW_FORM_udata},
++		{0, 0}}
+ 	},
+ 
+ 	// Below here are the types considered public by ispubtype
+ 	/* NULLTYPE */
+ 	{
+ 		DW_TAG_unspecified_type, DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{0, 0}}
+ 	},
+ 	/* BASETYPE */
+ 	{
+ 		DW_TAG_base_type, DW_CHILDREN_no,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_encoding,	 DW_FORM_data1,
+-		DW_AT_byte_size, DW_FORM_data1,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_encoding,	 DW_FORM_data1},
++		{DW_AT_byte_size, DW_FORM_data1},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 	/* ARRAYTYPE */
+ 	// child is subrange with upper bound
+ 	{
+ 		DW_TAG_array_type, DW_CHILDREN_yes,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_type,	DW_FORM_ref_addr,
+-		DW_AT_byte_size, DW_FORM_udata,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_type,	DW_FORM_ref_addr},
++		{DW_AT_byte_size, DW_FORM_udata},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 
+ 	/* CHANTYPE */
+ 	{
+ 		DW_TAG_typedef, DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_type,	DW_FORM_ref_addr,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		DW_AT_go_elem, DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_type,	DW_FORM_ref_addr},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{DW_AT_go_elem, DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 
+ 	/* FUNCTYPE */
+ 	{
+ 		DW_TAG_subroutine_type, DW_CHILDREN_yes,
+-		DW_AT_name,	DW_FORM_string,
+-//		DW_AT_type,	DW_FORM_ref_addr,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++//		{DW_AT_type,	DW_FORM_ref_addr},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 
+ 	/* IFACETYPE */
+ 	{
+ 		DW_TAG_typedef, DW_CHILDREN_yes,
+-		DW_AT_name,	 DW_FORM_string,
+-		DW_AT_type,	DW_FORM_ref_addr,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	 DW_FORM_string},
++		{DW_AT_type,	DW_FORM_ref_addr},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 
+ 	/* MAPTYPE */
+ 	{
+ 		DW_TAG_typedef, DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_type,	DW_FORM_ref_addr,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		DW_AT_go_key, DW_FORM_ref_addr,
+-		DW_AT_go_elem, DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_type,	DW_FORM_ref_addr},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{DW_AT_go_key, DW_FORM_ref_addr},
++		{DW_AT_go_elem, DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 
+ 	/* PTRTYPE */
+ 	{
+ 		DW_TAG_pointer_type, DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_type,	DW_FORM_ref_addr,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_type,	DW_FORM_ref_addr},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 	/* BARE_PTRTYPE */
+ 	{
+ 		DW_TAG_pointer_type, DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{0, 0}}
+ 	},
+ 
+ 	/* SLICETYPE */
+ 	{
+ 		DW_TAG_structure_type, DW_CHILDREN_yes,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_byte_size, DW_FORM_udata,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		DW_AT_go_elem, DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_byte_size, DW_FORM_udata},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{DW_AT_go_elem, DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ 
+ 	/* STRINGTYPE */
+ 	{
+ 		DW_TAG_structure_type, DW_CHILDREN_yes,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_byte_size, DW_FORM_udata,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_byte_size, DW_FORM_udata},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 
+ 	/* STRUCTTYPE */
+ 	{
+ 		DW_TAG_structure_type, DW_CHILDREN_yes,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_byte_size, DW_FORM_udata,
+-		DW_AT_go_kind, DW_FORM_data1,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_byte_size, DW_FORM_udata},
++		{DW_AT_go_kind, DW_FORM_data1},
++		{0, 0}}
+ 	},
+ 
+ 	/* TYPEDECL */
+ 	{
+ 		DW_TAG_typedef, DW_CHILDREN_no,
+-		DW_AT_name,	DW_FORM_string,
+-		DW_AT_type,	DW_FORM_ref_addr,
+-		0, 0
++		{{DW_AT_name,	DW_FORM_string},
++		{DW_AT_type,	DW_FORM_ref_addr},
++		{0, 0}}
+ 	},
+ };
+ 
+@@ -425,7 +425,7 @@ enum
+ };
+ 
+ static uint32
+-hashstr(char* s)
++dwarfhashstr(char* s)
+ {
+ 	uint32 h;
+ 
+@@ -446,7 +446,7 @@ struct DWAttr {
+ 	uint16 atr;  // DW_AT_
+ 	uint8 cls;  // DW_CLS_
+ 	vlong value;
+-	char *data;
++	void *data;
+ };
+ 
+ typedef struct DWDie DWDie;
+@@ -471,7 +471,7 @@ static DWDie dwtypes;
+ static DWDie dwglobals;
+ 
+ static DWAttr*
+-newattr(DWDie *die, uint16 attr, int cls, vlong value, char *data)
++newattr(DWDie *die, uint16 attr, int cls, vlong value, void *data)
+ {
+ 	DWAttr *a;
+ 
+@@ -528,7 +528,7 @@ newdie(DWDie *parent, int abbrev, char *name)
+ 	newattr(die, DW_AT_name, DW_CLS_STRING, strlen(name), name);
+ 
+ 	if (parent->hash) {
+-		h = hashstr(name);
++		h = dwarfhashstr(name);
+ 		die->hlink = parent->hash[h];
+ 		parent->hash[h] = die;
+ 	}
+@@ -574,7 +574,7 @@ top:
+ 		goto notfound;
+ 	}
+ 
+-	h = hashstr(name);
++	h = dwarfhashstr(name);
+ 	a = die->hash[h];
+ 
+ 	if (a == nil)
+@@ -652,15 +652,17 @@ newrefattr(DWDie *die, uint16 attr, DWDie* ref)
+ {
+ 	if (ref == nil)
+ 		return nil;
+-	return newattr(die, attr, DW_CLS_REFERENCE, 0, (char*)ref);
++	return newattr(die, attr, DW_CLS_REFERENCE, 0, ref);
+ }
+ 
+ static int fwdcount;
+ 
+ static void
+-putattr(int abbrev, int form, int cls, vlong value, char *data)
++putattr(int abbrev, int form, int cls, vlong value, void *data)
+ {
+ 	vlong off;
++	uchar *p;
++	int i;
+ 
+ 	switch(form) {
+ 	case DW_FORM_addr:	// address
+@@ -686,28 +688,32 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 		}
+ 		value &= 0xff;
+ 		cput(value);
+-		while(value--)
+-			cput(*data++);
++		p = data;
++		for(i=0; i<value; i++)
++			cput(p[i]);
+ 		break;
+ 
+ 	case DW_FORM_block2:	// block
+ 		value &= 0xffff;
+ 		thearch.wput(value);
+-		while(value--)
+-			cput(*data++);
++		p = data;
++		for(i=0; i<value; i++)
++			cput(p[i]);
+ 		break;
+ 
+ 	case DW_FORM_block4:	// block
+ 		value &= 0xffffffff;
+ 		thearch.lput(value);
+-		while(value--)
+-			cput(*data++);
++		p = data;
++		for(i=0; i<value; i++)
++			cput(p[i]);
+ 		break;
+ 
+ 	case DW_FORM_block:	// block
+ 		uleb128put(value);
+-		while(value--)
+-			cput(*data++);
++		p = data;
++		for(i=0; i<value; i++)
++			cput(p[i]);
+ 		break;
+ 
+ 	case DW_FORM_data1:	// constant
+@@ -743,7 +749,11 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 		break;
+ 
+ 	case DW_FORM_flag:	// flag
+-		cput(value?1:0);
++		if(value) {
++			cput(1);
++		}else{
++			cput(0);
++		}
+ 		break;
+ 
+ 	case DW_FORM_ref_addr:	// reference to a DIE in the .info section
+@@ -872,7 +882,7 @@ newmemberoffsetattr(DWDie *die, int32 offs)
+ static void
+ newabslocexprattr(DWDie *die, vlong addr, LSym *sym)
+ {
+-	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, (char*)sym);
++	newattr(die, DW_AT_location, DW_CLS_ADDRESS, addr, sym);
+ }
+ 
+ static DWDie* defptrto(DWDie *dwtype);	// below
+@@ -1154,7 +1164,7 @@ substitutetype(DWDie *structdie, char *field, DWDie* dwtype)
+ 
+ 	a = getattr(child, DW_AT_type);
+ 	if (a != nil)
+-		a->data = (char*) dwtype;
++		a->data = dwtype;
+ 	else
+ 		newrefattr(child, DW_AT_type, dwtype);
+ }
+@@ -1219,7 +1229,7 @@ static void
+ synthesizemaptypes(DWDie *die)
+ {
+ 
+-	DWDie *hash, *bucket, *dwh, *dwhk, *dwhv, *dwhb, *keytype, *valtype, *fld;
++	DWDie *hash, *bucket, *dwh, *dwhk, *dwhv, *dwhb, *keytype, *valtype, *fld, *t;
+ 	int indirect_key, indirect_val;
+ 	int keysize, valsize;
+ 	DWAttr *a;
+@@ -1239,9 +1249,15 @@ synthesizemaptypes(DWDie *die)
+ 
+ 		// compute size info like hashmap.c does.
+ 		a = getattr(keytype, DW_AT_byte_size);
+-		keysize = a ? a->value : thearch.ptrsize;  // We don't store size with Pointers
++		if(a)
++			keysize = a->value;
++		else
++			keysize = thearch.ptrsize;
+ 		a = getattr(valtype, DW_AT_byte_size);
+-		valsize = a ? a->value : thearch.ptrsize;
++		if(a)
++			valsize = a->value;
++		else
++			valsize = thearch.ptrsize;
+ 		indirect_key = 0;
+ 		indirect_val = 0;
+ 		if(keysize > MaxKeySize) {
+@@ -1258,7 +1274,10 @@ synthesizemaptypes(DWDie *die)
+ 			      mkinternaltypename("[]key",
+ 						 getattr(keytype, DW_AT_name)->data, nil));
+ 		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * keysize, 0);
+-		newrefattr(dwhk, DW_AT_type, indirect_key ? defptrto(keytype) : keytype);
++		t = keytype;
++		if(indirect_key)
++			t = defptrto(keytype);
++		newrefattr(dwhk, DW_AT_type, t);
+ 		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size");
+ 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
+ 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+@@ -1268,7 +1287,10 @@ synthesizemaptypes(DWDie *die)
+ 			      mkinternaltypename("[]val",
+ 						 getattr(valtype, DW_AT_name)->data, nil));
+ 		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize * valsize, 0);
+-		newrefattr(dwhv, DW_AT_type, indirect_val ? defptrto(valtype) : valtype);
++		t = valtype;
++		if(indirect_val)
++			t = defptrto(valtype);
++		newrefattr(dwhv, DW_AT_type, t);
+ 		fld = newdie(dwhv, DW_ABRV_ARRAYRANGE, "size");
+ 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0);
+ 		newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+@@ -1335,7 +1357,10 @@ synthesizechantypes(DWDie *die)
+ 			continue;
+ 		elemtype = (DWDie*) getattr(die, DW_AT_go_elem)->data;
+ 		a = getattr(elemtype, DW_AT_byte_size);
+-		elemsize = a ? a->value : thearch.ptrsize;
++		if(a)	
++			elemsize = a->value;
++		else
++			elemsize = thearch.ptrsize;
+ 
+ 		// sudog<T>
+ 		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+@@ -1343,8 +1368,11 @@ synthesizechantypes(DWDie *die)
+ 				getattr(elemtype, DW_AT_name)->data, nil));
+ 		copychildren(dws, sudog);
+ 		substitutetype(dws, "elem", elemtype);
+-		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT,
+-			sudogsize + (elemsize > 8 ? elemsize - 8 : 0), nil);
++		if(elemsize > 8)
++			elemsize -= 8;
++		else
++			elemsize = 0;
++		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, sudogsize + elemsize, nil);
+ 
+ 		// waitq<T>
+ 		dww = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+@@ -1425,13 +1453,13 @@ finddebugruntimepath(LSym *s)
+ 	char *p;
+ 	LSym *f;
+ 	
+-	if(gdbscript[0] != '\0')
++	if(gdbscript[0] != '\x00')
+ 		return;
+ 
+ 	for(i=0; i<s->pcln->nfile; i++) {
+ 		f = s->pcln->file[i];
+ 		if((p = strstr(f->name, "runtime/runtime.go")) != nil) {
+-			*p = '\0';
++			*p = '\x00';
+ 			snprint(gdbscript, sizeof gdbscript, "%sruntime/runtime-gdb.py", f->name);
+ 			*p = 'r';
+ 			break;
+@@ -1512,7 +1540,7 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
+ 	vlong here;
+ 
+ 	if (dwinfo != nil && pc != 0) {
+-		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, (char*)pcsym);
++		newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc+1, pcsym);
+ 	}
+ 
+ 	if (unitstart >= 0) {
+@@ -1522,7 +1550,7 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
+ 
+ 		here = cpos();
+ 		cseek(unitstart);
+-		thearch.lput(here - unitstart - sizeof(int32));	 // unit_length
++		thearch.lput(here - unitstart - 4);	 // unit_length
+ 		thearch.wput(2);  // dwarf version
+ 		thearch.lput(header_length); // header length starting here
+ 		cseek(here);
+@@ -1564,7 +1592,7 @@ writelines(void)
+ 	dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, estrdup("go"));
+ 	newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT,lang, 0);
+ 	newattr(dwinfo, DW_AT_stmt_list, DW_CLS_PTR, unitstart - lineo, 0);
+-	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
++	newattr(dwinfo, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, s);
+ 
+ 	// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 	// Fields marked with (*) must be changed for 64-bit dwarf
+@@ -1616,10 +1644,10 @@ writelines(void)
+ 		s = ctxt->cursym;
+ 
+ 		dwfunc = newdie(dwinfo, DW_ABRV_FUNCTION, s->name);
+-		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, (char*)s);
++		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s->value, s);
+ 		epc = s->value + s->size;
+ 		epcs = s;
+-		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, (char*)s);
++		newattr(dwfunc, DW_AT_high_pc, DW_CLS_ADDRESS, epc, s);
+ 		if (s->version == 0)
+ 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
+ 
+@@ -2012,12 +2040,13 @@ align(vlong size)
+ static vlong
+ writedwarfreloc(LSym* s)
+ {
+-	int i;
++	int i, ri;
+ 	vlong start;
+ 	Reloc *r;
+ 	
+ 	start = cpos();
+-	for(r = s->r; r < s->r+s->nr; r++) {
++	for(ri=0; ri<s->nr; ri++) {
++		r = &s->r[ri];
+ 		if(iself)
+ 			i = thearch.elfreloc1(r, r->off);
+ 		else if(HEADTYPE == Hdarwin)
+@@ -2228,7 +2257,7 @@ dwarfaddshstrings(LSym *shstrtab)
+ // Add section symbols for DWARF debug info.  This is called before
+ // dwarfaddelfheaders.
+ void
+-dwarfaddelfsectionsyms()
++dwarfaddelfsectionsyms(void)
+ {
+ 	if(infosym != nil) {
+ 		infosympos = cpos();
+diff --git a/src/cmd/ld/dwarf.h b/src/cmd/ld/dwarf.h
+index 32db36dcd3..b2218c1476 100644
+--- a/src/cmd/ld/dwarf.h
++++ b/src/cmd/ld/dwarf.h
+@@ -22,3 +22,4 @@ void dwarfaddshstrings(LSym *shstrtab);
+ void dwarfaddelfheaders(void);
+ void dwarfaddmachoheaders(void);
+ void dwarfaddpeheaders(void);
++void dwarfaddelfsectionsyms(void);
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 97ed4bd20d..cd7667be37 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -8,20 +8,23 @@
+ #include	<link.h>
+ #include	"lib.h"
+ #include	"elf.h"
++#include	"dwarf.h"
+ 
+ /*
+  * We use the 64-bit data structures on both 32- and 64-bit machines
+  * in order to write the code just once.  The 64-bit data structure is
+  * written in the 32-bit format on the 32-bit machines.
+  */
+-#define	NSECT	48
++enum {
++	NSECT = 48,
++};
+ 
+ int	iself;
+ 
+ int	nelfsym = 1;
+ 
+ static	int	elf64;
+-static	ElfEhdr	hdr;
++static	ElfEhdr	ehdr;
+ static	ElfPhdr	*phdr[NSECT];
+ static	ElfShdr	*shdr[NSECT];
+ static	char	*interp;
+@@ -36,7 +39,7 @@ struct Elfstring
+ static Elfstring elfstr[100];
+ static int nelfstr;
+ 
+-static char buildinfo[32];
++static uchar buildinfo[32];
+ 
+ /*
+  Initialize the global variable that describes the ELF header. It will be updated as
+@@ -51,31 +54,31 @@ elfinit(void)
+ 	// 64-bit architectures
+ 	case '9':
+ 		if(ctxt->arch->endian == BigEndian)
+-			hdr.flags = 1;		/* Version 1 ABI */
++			ehdr.flags = 1;		/* Version 1 ABI */
+ 		else
+-			hdr.flags = 2;		/* Version 2 ABI */
++			ehdr.flags = 2;		/* Version 2 ABI */
+ 		// fallthrough
+ 	case '6':
+ 		elf64 = 1;
+-		hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+-		hdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
+-		hdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
+-		hdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
+-		hdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
++		ehdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
++		ehdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
++		ehdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
++		ehdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
++		ehdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
+ 		break;
+ 
+ 	// 32-bit architectures
+ 	case '5':
+ 		// we use EABI on both linux/arm and freebsd/arm.
+ 		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd)
+-			hdr.flags = 0x5000002; // has entry point, Version5 EABI
++			ehdr.flags = 0x5000002; // has entry point, Version5 EABI
+ 		// fallthrough
+ 	default:
+-		hdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
+-		hdr.shoff = ELF32HDRSIZE;	/* Will move as we add PHeaders */
+-		hdr.ehsize = ELF32HDRSIZE;	/* Must be ELF32HDRSIZE */
+-		hdr.phentsize = ELF32PHDRSIZE;	/* Must be ELF32PHDRSIZE */
+-		hdr.shentsize = ELF32SHDRSIZE;	/* Must be ELF32SHDRSIZE */
++		ehdr.phoff = ELF32HDRSIZE;	/* Must be be ELF32HDRSIZE: first PHdr must follow ELF header */
++		ehdr.shoff = ELF32HDRSIZE;	/* Will move as we add PHeaders */
++		ehdr.ehsize = ELF32HDRSIZE;	/* Must be ELF32HDRSIZE */
++		ehdr.phentsize = ELF32PHDRSIZE;	/* Must be ELF32PHDRSIZE */
++		ehdr.shentsize = ELF32SHDRSIZE;	/* Must be ELF32SHDRSIZE */
+ 	}
+ }
+ 
+@@ -154,13 +157,13 @@ elfwriteshdrs(void)
+ 	int i;
+ 
+ 	if (elf64) {
+-		for (i = 0; i < hdr.shnum; i++)
++		for (i = 0; i < ehdr.shnum; i++)
+ 			elf64shdr(shdr[i]);
+-		return hdr.shnum * ELF64SHDRSIZE;
++		return ehdr.shnum * ELF64SHDRSIZE;
+ 	}
+-	for (i = 0; i < hdr.shnum; i++)
++	for (i = 0; i < ehdr.shnum; i++)
+ 		elf32shdr(shdr[i]);
+-	return hdr.shnum * ELF32SHDRSIZE;
++	return ehdr.shnum * ELF32SHDRSIZE;
+ }
+ 
+ void
+@@ -181,13 +184,13 @@ elfwritephdrs(void)
+ 	int i;
+ 
+ 	if (elf64) {
+-		for (i = 0; i < hdr.phnum; i++)
++		for (i = 0; i < ehdr.phnum; i++)
+ 			elf64phdr(phdr[i]);
+-		return hdr.phnum * ELF64PHDRSIZE;
++		return ehdr.phnum * ELF64PHDRSIZE;
+ 	}
+-	for (i = 0; i < hdr.phnum; i++)
++	for (i = 0; i < ehdr.phnum; i++)
+ 		elf32phdr(phdr[i]);
+-	return hdr.phnum * ELF32PHDRSIZE;
++	return ehdr.phnum * ELF32PHDRSIZE;
+ }
+ 
+ ElfPhdr*
+@@ -196,14 +199,14 @@ newElfPhdr(void)
+ 	ElfPhdr *e;
+ 
+ 	e = mal(sizeof *e);
+-	if (hdr.phnum >= NSECT)
++	if (ehdr.phnum >= NSECT)
+ 		diag("too many phdrs");
+ 	else
+-		phdr[hdr.phnum++] = e;
++		phdr[ehdr.phnum++] = e;
+ 	if (elf64)
+-		hdr.shoff += ELF64PHDRSIZE;
++		ehdr.shoff += ELF64PHDRSIZE;
+ 	else
+-		hdr.shoff += ELF32PHDRSIZE;
++		ehdr.shoff += ELF32PHDRSIZE;
+ 	return e;
+ }
+ 
+@@ -214,11 +217,11 @@ newElfShdr(vlong name)
+ 
+ 	e = mal(sizeof *e);
+ 	e->name = name;
+-	e->shnum = hdr.shnum;
+-	if (hdr.shnum >= NSECT) {
++	e->shnum = ehdr.shnum;
++	if (ehdr.shnum >= NSECT) {
+ 		diag("too many shdrs");
+ 	} else {
+-		shdr[hdr.shnum++] = e;
++		shdr[ehdr.shnum++] = e;
+ 	}
+ 	return e;
+ }
+@@ -226,7 +229,7 @@ newElfShdr(vlong name)
+ ElfEhdr*
+ getElfEhdr(void)
+ {
+-	return &hdr;
++	return &ehdr;
+ }
+ 
+ uint32
+@@ -235,20 +238,20 @@ elf64writehdr(void)
+ 	int i;
+ 
+ 	for (i = 0; i < EI_NIDENT; i++)
+-		cput(hdr.ident[i]);
+-	thearch.wput(hdr.type);
+-	thearch.wput(hdr.machine);
+-	thearch.lput(hdr.version);
+-	thearch.vput(hdr.entry);
+-	thearch.vput(hdr.phoff);
+-	thearch.vput(hdr.shoff);
+-	thearch.lput(hdr.flags);
+-	thearch.wput(hdr.ehsize);
+-	thearch.wput(hdr.phentsize);
+-	thearch.wput(hdr.phnum);
+-	thearch.wput(hdr.shentsize);
+-	thearch.wput(hdr.shnum);
+-	thearch.wput(hdr.shstrndx);
++		cput(ehdr.ident[i]);
++	thearch.wput(ehdr.type);
++	thearch.wput(ehdr.machine);
++	thearch.lput(ehdr.version);
++	thearch.vput(ehdr.entry);
++	thearch.vput(ehdr.phoff);
++	thearch.vput(ehdr.shoff);
++	thearch.lput(ehdr.flags);
++	thearch.wput(ehdr.ehsize);
++	thearch.wput(ehdr.phentsize);
++	thearch.wput(ehdr.phnum);
++	thearch.wput(ehdr.shentsize);
++	thearch.wput(ehdr.shnum);
++	thearch.wput(ehdr.shstrndx);
+ 	return ELF64HDRSIZE;
+ }
+ 
+@@ -258,20 +261,20 @@ elf32writehdr(void)
+ 	int i;
+ 
+ 	for (i = 0; i < EI_NIDENT; i++)
+-		cput(hdr.ident[i]);
+-	thearch.wput(hdr.type);
+-	thearch.wput(hdr.machine);
+-	thearch.lput(hdr.version);
+-	thearch.lput(hdr.entry);
+-	thearch.lput(hdr.phoff);
+-	thearch.lput(hdr.shoff);
+-	thearch.lput(hdr.flags);
+-	thearch.wput(hdr.ehsize);
+-	thearch.wput(hdr.phentsize);
+-	thearch.wput(hdr.phnum);
+-	thearch.wput(hdr.shentsize);
+-	thearch.wput(hdr.shnum);
+-	thearch.wput(hdr.shstrndx);
++		cput(ehdr.ident[i]);
++	thearch.wput(ehdr.type);
++	thearch.wput(ehdr.machine);
++	thearch.lput(ehdr.version);
++	thearch.lput(ehdr.entry);
++	thearch.lput(ehdr.phoff);
++	thearch.lput(ehdr.shoff);
++	thearch.lput(ehdr.flags);
++	thearch.wput(ehdr.ehsize);
++	thearch.wput(ehdr.phentsize);
++	thearch.wput(ehdr.phnum);
++	thearch.wput(ehdr.shentsize);
++	thearch.wput(ehdr.shnum);
++	thearch.wput(ehdr.shstrndx);
+ 	return ELF32HDRSIZE;
+ }
+ 
+@@ -394,11 +397,14 @@ elfwritenotehdr(char *str, uint32 namesz, uint32 descsz, uint32 tag)
+ }
+ 
+ // NetBSD Signature (as per sys/exec_elf.h)
+-#define ELF_NOTE_NETBSD_NAMESZ		7
+-#define ELF_NOTE_NETBSD_DESCSZ		4
+-#define ELF_NOTE_NETBSD_TAG		1
+-#define ELF_NOTE_NETBSD_NAME		"NetBSD\0\0"
+-#define ELF_NOTE_NETBSD_VERSION		599000000	/* NetBSD 5.99 */
++enum {
++	ELF_NOTE_NETBSD_NAMESZ = 7,
++	ELF_NOTE_NETBSD_DESCSZ = 4,
++	ELF_NOTE_NETBSD_TAG = 1,
++	ELF_NOTE_NETBSD_VERSION = 599000000,	/* NetBSD 5.99 */
++};
++
++char ELF_NOTE_NETBSD_NAME[] = "NetBSD\x00\x00";
+ 
+ int
+ elfnetbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+@@ -427,11 +433,13 @@ elfwritenetbsdsig(void)
+ }
+ 
+ // OpenBSD Signature
+-#define ELF_NOTE_OPENBSD_NAMESZ		8
+-#define ELF_NOTE_OPENBSD_DESCSZ		4
+-#define ELF_NOTE_OPENBSD_TAG		1
+-#define ELF_NOTE_OPENBSD_NAME		"OpenBSD\0"
+-#define ELF_NOTE_OPENBSD_VERSION	0
++enum {
++	ELF_NOTE_OPENBSD_NAMESZ = 8,
++	ELF_NOTE_OPENBSD_DESCSZ = 4,
++	ELF_NOTE_OPENBSD_TAG = 1,
++	ELF_NOTE_OPENBSD_VERSION = 0,
++};
++char ELF_NOTE_OPENBSD_NAME[] = "OpenBSD\x00";
+ 
+ int
+ elfopenbsdsig(ElfShdr *sh, uint64 startva, uint64 resoff)
+@@ -472,8 +480,8 @@ addbuildinfo(char *val)
+ 	ov = val;
+ 	val += 2;
+ 	i = 0;
+-	while(*val != '\0') {
+-		if(val[1] == '\0') {
++	while(*val != '\x00') {
++		if(val[1] == '\x00') {
+ 			fprint(2, "%s: -B argument must have even number of digits: %s\n", argv0, ov);
+ 			exits("usage");
+ 		}
+@@ -501,9 +509,12 @@ addbuildinfo(char *val)
+ }
+ 
+ // Build info note
+-#define ELF_NOTE_BUILDINFO_NAMESZ	4
+-#define ELF_NOTE_BUILDINFO_TAG		3
+-#define ELF_NOTE_BUILDINFO_NAME		"GNU\0"
++enum {
++	ELF_NOTE_BUILDINFO_NAMESZ = 4,
++	ELF_NOTE_BUILDINFO_TAG = 3,
++};
++
++char ELF_NOTE_BUILDINFO_NAME[] = "GNU\x00";
+ 
+ int
+ elfbuildinfo(ElfShdr *sh, uint64 startva, uint64 resoff)
+@@ -525,7 +536,7 @@ elfwritebuildinfo(void)
+ 
+ 	cwrite(ELF_NOTE_BUILDINFO_NAME, ELF_NOTE_BUILDINFO_NAMESZ);
+ 	cwrite(buildinfo, buildinfolen);
+-	cwrite("\0\0\0", rnd(buildinfolen, 4) - buildinfolen);
++	cwrite("\x00\x00\x00", rnd(buildinfolen, 4) - buildinfolen);
+ 
+ 	return sh->size;
+ }
+@@ -728,7 +739,7 @@ elfphload(Segment *seg)
+ 		ph->flags |= PF_X;
+ 	ph->vaddr = seg->vaddr;
+ 	ph->paddr = seg->vaddr;
+-	ph->memsz = seg->len;
++	ph->memsz = seg->length;
+ 	ph->off = seg->fileoff;
+ 	ph->filesz = seg->filelen;
+ 	ph->align = INITRND;
+@@ -753,7 +764,7 @@ elfshname(char *name)
+ 	return nil;
+ 
+ found:
+-	for(i=0; i<hdr.shnum; i++) {
++	for(i=0; i<ehdr.shnum; i++) {
+ 		sh = shdr[i];
+ 		if(sh->name == off)
+ 			return sh;
+@@ -799,7 +810,7 @@ elfshbits(Section *sect)
+ 	if(linkmode != LinkExternal)
+ 		sh->addr = sect->vaddr;
+ 	sh->addralign = sect->align;
+-	sh->size = sect->len;
++	sh->size = sect->length;
+ 	sh->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
+ 
+ 	return sh;
+@@ -833,7 +844,7 @@ elfshreloc(Section *sect)
+ 	sh->type = typ;
+ 	sh->entsize = thearch.regsize*(2+(typ==SHT_RELA));
+ 	sh->link = elfshname(".symtab")->shnum;
+-	sh->info = sect->elfsect->shnum;
++	sh->info = ((ElfShdr*)sect->elfsect)->shnum;
+ 	sh->off = sect->reloff;
+ 	sh->size = sect->rellen;
+ 	sh->addralign = thearch.regsize;
+@@ -843,6 +854,7 @@ elfshreloc(Section *sect)
+ void
+ elfrelocsect(Section *sect, LSym *first)
+ {
++	int ri;
+ 	LSym *sym;
+ 	int32 eaddr;
+ 	Reloc *r;
+@@ -862,7 +874,7 @@ elfrelocsect(Section *sect, LSym *first)
+ 			break;
+ 	}
+ 	
+-	eaddr = sect->vaddr + sect->len;
++	eaddr = sect->vaddr + sect->length;
+ 	for(; sym != nil; sym = sym->next) {
+ 		if(!sym->reachable)
+ 			continue;
+@@ -870,7 +882,8 @@ elfrelocsect(Section *sect, LSym *first)
+ 			break;
+ 		ctxt->cursym = sym;
+ 		
+-		for(r = sym->r; r < sym->r+sym->nr; r++) {
++		for(ri=0; ri<sym->nr; ri++) {
++			r = &sym->r[ri];
+ 			if(r->done)
+ 				continue;
+ 			if(r->xsym == nil) {
+@@ -1217,7 +1230,7 @@ asmbelf(vlong symo)
+ 	if(HEADTYPE != Hnacl) {
+ 		o = segtext.vaddr - pph->vaddr;
+ 		segtext.vaddr -= o;
+-		segtext.len += o;
++		segtext.length += o;
+ 		o = segtext.fileoff - pph->off;
+ 		segtext.fileoff -= o;
+ 		segtext.filelen += o;
+@@ -1586,3 +1599,87 @@ elfobj:
+ 	if(a > ELFRESERVE)	
+ 		diag("ELFRESERVE too small: %lld > %d", a, ELFRESERVE);
+ }
++
++uint32
++ELF32_R_SYM(uint32 info)
++{
++	return info>>8;
++}
++
++uint32
++ELF32_R_TYPE(uint32 info)
++{
++	return (uint8)info;
++}
++
++uint32
++ELF32_R_INFO(uint32 sym, uint32 type)
++{
++	return sym<<8 | type;
++}
++
++uint8
++ELF32_ST_BIND(uint8 info)
++{
++	return info>>4;
++}
++
++uint8
++ELF32_ST_TYPE(uint8 info)
++{
++	return info & 0xf;
++}
++
++uint8
++ELF32_ST_INFO(uint8 bind, uint8 type)
++{
++	return bind<<4 | type&0xf;
++}
++
++uint8
++ELF32_ST_VISIBILITY(uint8 oth)
++{
++	return oth & 3;
++}
++
++uint32
++ELF64_R_SYM(uint64 info)
++{
++	return info>>32;
++}
++
++uint32
++ELF64_R_TYPE(uint64 info)
++{
++	return info;
++}
++
++uint64
++ELF64_R_INFO(uint32 sym, uint32 type)
++{
++	return (uint64)sym<<32 | type;
++}
++
++uint8
++ELF64_ST_BIND(uint8 info)
++{
++	return info>>4;
++}
++
++uint8
++ELF64_ST_TYPE(uint8 info)
++{
++	return info & 0xf;
++}
++
++uint8
++ELF64_ST_INFO(uint8 bind, uint8 type)
++{
++	return bind<<4 | type&0xf;
++}
++
++uint8
++ELF64_ST_VISIBILITY(uint8 oth)
++{
++	return oth & 3;
++}
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 85589bd70f..378d246e1d 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -50,827 +50,689 @@
+  * not include the padding.
+  */
+ 
+-typedef struct {
++typedef struct Elf_Note Elf_Note;
++struct Elf_Note {
+ 	uint32	n_namesz;	/* Length of name. */
+ 	uint32	n_descsz;	/* Length of descriptor. */
+ 	uint32	n_type;		/* Type of this note. */
+-} Elf_Note;
++};
+ 
++enum {
+ /* Indexes into the e_ident array.  Keep synced with
+    http://www.sco.com/developer/gabi/ch4.eheader.html */
+-#define EI_MAG0		0	/* Magic number, byte 0. */
+-#define EI_MAG1		1	/* Magic number, byte 1. */
+-#define EI_MAG2		2	/* Magic number, byte 2. */
+-#define EI_MAG3		3	/* Magic number, byte 3. */
+-#define EI_CLASS	4	/* Class of machine. */
+-#define EI_DATA		5	/* Data format. */
+-#define EI_VERSION	6	/* ELF format version. */
+-#define EI_OSABI	7	/* Operating system / ABI identification */
+-#define EI_ABIVERSION	8	/* ABI version */
+-#define OLD_EI_BRAND	8	/* Start of architecture identification. */
+-#define EI_PAD		9	/* Start of padding (per SVR4 ABI). */
+-#define EI_NIDENT	16	/* Size of e_ident array. */
++	EI_MAG0 = 0, /* Magic number, byte 0. */
++	EI_MAG1 = 1, /* Magic number, byte 1. */
++	EI_MAG2 = 2, /* Magic number, byte 2. */
++	EI_MAG3 = 3, /* Magic number, byte 3. */
++	EI_CLASS = 4, /* Class of machine. */
++	EI_DATA = 5, /* Data format. */
++	EI_VERSION = 6, /* ELF format version. */
++	EI_OSABI = 7, /* Operating system / ABI identification */
++	EI_ABIVERSION = 8, /* ABI version */
++	OLD_EI_BRAND = 8, /* Start of architecture identification. */
++	EI_PAD = 9, /* Start of padding (per SVR4 ABI). */
++	EI_NIDENT = 16, /* Size of e_ident array. */
+ 
+ /* Values for the magic number bytes. */
+-#define ELFMAG0		0x7f
+-#define ELFMAG1		'E'
+-#define ELFMAG2		'L'
+-#define ELFMAG3		'F'
+-#define ELFMAG		"\177ELF"	/* magic string */
+-#define SELFMAG		4		/* magic string size */
++	ELFMAG0 = 0x7f, 
++	ELFMAG1 = 'E', 
++	ELFMAG2 = 'L', 
++	ELFMAG3 = 'F', 
++	SELFMAG = 4, /* magic string size */
+ 
+ /* Values for e_ident[EI_VERSION] and e_version. */
+-#define EV_NONE		0
+-#define EV_CURRENT	1
++	EV_NONE = 0, 
++	EV_CURRENT = 1, 
+ 
+ /* Values for e_ident[EI_CLASS]. */
+-#define ELFCLASSNONE	0	/* Unknown class. */
+-#define ELFCLASS32	1	/* 32-bit architecture. */
+-#define ELFCLASS64	2	/* 64-bit architecture. */
++	ELFCLASSNONE = 0, /* Unknown class. */
++	ELFCLASS32 = 1, /* 32-bit architecture. */
++	ELFCLASS64 = 2, /* 64-bit architecture. */
+ 
+ /* Values for e_ident[EI_DATA]. */
+-#define ELFDATANONE	0	/* Unknown data format. */
+-#define ELFDATA2LSB	1	/* 2's complement little-endian. */
+-#define ELFDATA2MSB	2	/* 2's complement big-endian. */
++	ELFDATANONE = 0, /* Unknown data format. */
++	ELFDATA2LSB = 1, /* 2's complement little-endian. */
++	ELFDATA2MSB = 2, /* 2's complement big-endian. */
+ 
+ /* Values for e_ident[EI_OSABI]. */
+-#define ELFOSABI_NONE		0	/* UNIX System V ABI */
+-#define ELFOSABI_HPUX		1	/* HP-UX operating system */
+-#define ELFOSABI_NETBSD		2	/* NetBSD */
+-#define ELFOSABI_LINUX		3	/* GNU/Linux */
+-#define ELFOSABI_HURD		4	/* GNU/Hurd */
+-#define ELFOSABI_86OPEN		5	/* 86Open common IA32 ABI */
+-#define ELFOSABI_SOLARIS	6	/* Solaris */
+-#define ELFOSABI_AIX		7	/* AIX */
+-#define ELFOSABI_IRIX		8	/* IRIX */
+-#define ELFOSABI_FREEBSD	9	/* FreeBSD */
+-#define ELFOSABI_TRU64		10	/* TRU64 UNIX */
+-#define ELFOSABI_MODESTO	11	/* Novell Modesto */
+-#define ELFOSABI_OPENBSD	12	/* OpenBSD */
+-#define ELFOSABI_OPENVMS	13	/* Open VMS */
+-#define ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
+-#define ELFOSABI_ARM		97	/* ARM */
+-#define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
+-
+-#define ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */
+-#define ELFOSABI_MONTEREY	ELFOSABI_AIX	/* Monterey */
+-
+-/* e_ident */
+-#define IS_ELF(ehdr)	((ehdr).e_ident[EI_MAG0] == ELFMAG0 && \
+-			 (ehdr).e_ident[EI_MAG1] == ELFMAG1 && \
+-			 (ehdr).e_ident[EI_MAG2] == ELFMAG2 && \
+-			 (ehdr).e_ident[EI_MAG3] == ELFMAG3)
++	ELFOSABI_NONE = 0, /* UNIX System V ABI */
++	ELFOSABI_HPUX = 1, /* HP-UX operating system */
++	ELFOSABI_NETBSD = 2, /* NetBSD */
++	ELFOSABI_LINUX = 3, /* GNU/Linux */
++	ELFOSABI_HURD = 4, /* GNU/Hurd */
++	ELFOSABI_86OPEN = 5, /* 86Open common IA32 ABI */
++	ELFOSABI_SOLARIS = 6, /* Solaris */
++	ELFOSABI_AIX = 7, /* AIX */
++	ELFOSABI_IRIX = 8, /* IRIX */
++	ELFOSABI_FREEBSD = 9, /* FreeBSD */
++	ELFOSABI_TRU64 = 10, /* TRU64 UNIX */
++	ELFOSABI_MODESTO = 11, /* Novell Modesto */
++	ELFOSABI_OPENBSD = 12, /* OpenBSD */
++	ELFOSABI_OPENVMS = 13, /* Open VMS */
++	ELFOSABI_NSK = 14, /* HP Non-Stop Kernel */
++	ELFOSABI_ARM = 97, /* ARM */
++	ELFOSABI_STANDALONE = 255, /* Standalone (embedded) application */
++
++	ELFOSABI_SYSV = ELFOSABI_NONE, /* symbol used in old spec */
++	ELFOSABI_MONTEREY = ELFOSABI_AIX, /* Monterey */
+ 
+ /* Values for e_type. */
+-#define ET_NONE		0	/* Unknown type. */
+-#define ET_REL		1	/* Relocatable. */
+-#define ET_EXEC		2	/* Executable. */
+-#define ET_DYN		3	/* Shared object. */
+-#define ET_CORE		4	/* Core file. */
+-#define ET_LOOS		0xfe00	/* First operating system specific. */
+-#define ET_HIOS		0xfeff	/* Last operating system-specific. */
+-#define ET_LOPROC	0xff00	/* First processor-specific. */
+-#define ET_HIPROC	0xffff	/* Last processor-specific. */
++	ET_NONE = 0, /* Unknown type. */
++	ET_REL = 1, /* Relocatable. */
++	ET_EXEC = 2, /* Executable. */
++	ET_DYN = 3, /* Shared object. */
++	ET_CORE = 4, /* Core file. */
++	ET_LOOS = 0xfe00, /* First operating system specific. */
++	ET_HIOS = 0xfeff, /* Last operating system-specific. */
++	ET_LOPROC = 0xff00, /* First processor-specific. */
++	ET_HIPROC = 0xffff, /* Last processor-specific. */
+ 
+ /* Values for e_machine. */
+-#define EM_NONE		0	/* Unknown machine. */
+-#define EM_M32		1	/* AT&T WE32100. */
+-#define EM_SPARC	2	/* Sun SPARC. */
+-#define EM_386		3	/* Intel i386. */
+-#define EM_68K		4	/* Motorola 68000. */
+-#define EM_88K		5	/* Motorola 88000. */
+-#define EM_860		7	/* Intel i860. */
+-#define EM_MIPS		8	/* MIPS R3000 Big-Endian only. */
+-#define EM_S370		9	/* IBM System/370. */
+-#define EM_MIPS_RS3_LE	10	/* MIPS R3000 Little-Endian. */
+-#define EM_PARISC	15	/* HP PA-RISC. */
+-#define EM_VPP500	17	/* Fujitsu VPP500. */
+-#define EM_SPARC32PLUS	18	/* SPARC v8plus. */
+-#define EM_960		19	/* Intel 80960. */
+-#define EM_PPC		20	/* PowerPC 32-bit. */
+-#define EM_PPC64	21	/* PowerPC 64-bit. */
+-#define EM_S390		22	/* IBM System/390. */
+-#define EM_V800		36	/* NEC V800. */
+-#define EM_FR20		37	/* Fujitsu FR20. */
+-#define EM_RH32		38	/* TRW RH-32. */
+-#define EM_RCE		39	/* Motorola RCE. */
+-#define EM_ARM		40	/* ARM. */
+-#define EM_SH		42	/* Hitachi SH. */
+-#define EM_SPARCV9	43	/* SPARC v9 64-bit. */
+-#define EM_TRICORE	44	/* Siemens TriCore embedded processor. */
+-#define EM_ARC		45	/* Argonaut RISC Core. */
+-#define EM_H8_300	46	/* Hitachi H8/300. */
+-#define EM_H8_300H	47	/* Hitachi H8/300H. */
+-#define EM_H8S		48	/* Hitachi H8S. */
+-#define EM_H8_500	49	/* Hitachi H8/500. */
+-#define EM_IA_64	50	/* Intel IA-64 Processor. */
+-#define EM_MIPS_X	51	/* Stanford MIPS-X. */
+-#define EM_COLDFIRE	52	/* Motorola ColdFire. */
+-#define EM_68HC12	53	/* Motorola M68HC12. */
+-#define EM_MMA		54	/* Fujitsu MMA. */
+-#define EM_PCP		55	/* Siemens PCP. */
+-#define EM_NCPU		56	/* Sony nCPU. */
+-#define EM_NDR1		57	/* Denso NDR1 microprocessor. */
+-#define EM_STARCORE	58	/* Motorola Star*Core processor. */
+-#define EM_ME16		59	/* Toyota ME16 processor. */
+-#define EM_ST100	60	/* STMicroelectronics ST100 processor. */
+-#define EM_TINYJ	61	/* Advanced Logic Corp. TinyJ processor. */
+-#define EM_X86_64	62	/* Advanced Micro Devices x86-64 */
++	EM_NONE = 0, /* Unknown machine. */
++	EM_M32 = 1, /* AT&T WE32100. */
++	EM_SPARC = 2, /* Sun SPARC. */
++	EM_386 = 3, /* Intel i386. */
++	EM_68K = 4, /* Motorola 68000. */
++	EM_88K = 5, /* Motorola 88000. */
++	EM_860 = 7, /* Intel i860. */
++	EM_MIPS = 8, /* MIPS R3000 Big-Endian only. */
++	EM_S370 = 9, /* IBM System/370. */
++	EM_MIPS_RS3_LE = 10, /* MIPS R3000 Little-Endian. */
++	EM_PARISC = 15, /* HP PA-RISC. */
++	EM_VPP500 = 17, /* Fujitsu VPP500. */
++	EM_SPARC32PLUS = 18, /* SPARC v8plus. */
++	EM_960 = 19, /* Intel 80960. */
++	EM_PPC = 20, /* PowerPC 32-bit. */
++	EM_PPC64 = 21, /* PowerPC 64-bit. */
++	EM_S390 = 22, /* IBM System/390. */
++	EM_V800 = 36, /* NEC V800. */
++	EM_FR20 = 37, /* Fujitsu FR20. */
++	EM_RH32 = 38, /* TRW RH-32. */
++	EM_RCE = 39, /* Motorola RCE. */
++	EM_ARM = 40, /* ARM. */
++	EM_SH = 42, /* Hitachi SH. */
++	EM_SPARCV9 = 43, /* SPARC v9 64-bit. */
++	EM_TRICORE = 44, /* Siemens TriCore embedded processor. */
++	EM_ARC = 45, /* Argonaut RISC Core. */
++	EM_H8_300 = 46, /* Hitachi H8/300. */
++	EM_H8_300H = 47, /* Hitachi H8/300H. */
++	EM_H8S = 48, /* Hitachi H8S. */
++	EM_H8_500 = 49, /* Hitachi H8/500. */
++	EM_IA_64 = 50, /* Intel IA-64 Processor. */
++	EM_MIPS_X = 51, /* Stanford MIPS-X. */
++	EM_COLDFIRE = 52, /* Motorola ColdFire. */
++	EM_68HC12 = 53, /* Motorola M68HC12. */
++	EM_MMA = 54, /* Fujitsu MMA. */
++	EM_PCP = 55, /* Siemens PCP. */
++	EM_NCPU = 56, /* Sony nCPU. */
++	EM_NDR1 = 57, /* Denso NDR1 microprocessor. */
++	EM_STARCORE = 58, /* Motorola Star*Core processor. */
++	EM_ME16 = 59, /* Toyota ME16 processor. */
++	EM_ST100 = 60, /* STMicroelectronics ST100 processor. */
++	EM_TINYJ = 61, /* Advanced Logic Corp. TinyJ processor. */
++	EM_X86_64 = 62, /* Advanced Micro Devices x86-64 */
+ 
+ /* Non-standard or deprecated. */
+-#define EM_486		6	/* Intel i486. */
+-#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */
+-#define EM_ALPHA_STD	41	/* Digital Alpha (standard value). */
+-#define EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI) */
++	EM_486 = 6, /* Intel i486. */
++	EM_MIPS_RS4_BE = 10, /* MIPS R4000 Big-Endian */
++	EM_ALPHA_STD = 41, /* Digital Alpha (standard value). */
++	EM_ALPHA = 0x9026, /* Alpha (written in the absence of an ABI) */
+ 
+ /* Special section indexes. */
+-#define SHN_UNDEF	     0		/* Undefined, missing, irrelevant. */
+-#define SHN_LORESERVE	0xff00		/* First of reserved range. */
+-#define SHN_LOPROC	0xff00		/* First processor-specific. */
+-#define SHN_HIPROC	0xff1f		/* Last processor-specific. */
+-#define SHN_LOOS	0xff20		/* First operating system-specific. */
+-#define SHN_HIOS	0xff3f		/* Last operating system-specific. */
+-#define SHN_ABS		0xfff1		/* Absolute values. */
+-#define SHN_COMMON	0xfff2		/* Common data. */
+-#define SHN_XINDEX	0xffff		/* Escape -- index stored elsewhere. */
+-#define SHN_HIRESERVE	0xffff		/* Last of reserved range. */
++	SHN_UNDEF = 0, /* Undefined, missing, irrelevant. */
++	SHN_LORESERVE = 0xff00, /* First of reserved range. */
++	SHN_LOPROC = 0xff00, /* First processor-specific. */
++	SHN_HIPROC = 0xff1f, /* Last processor-specific. */
++	SHN_LOOS = 0xff20, /* First operating system-specific. */
++	SHN_HIOS = 0xff3f, /* Last operating system-specific. */
++	SHN_ABS = 0xfff1, /* Absolute values. */
++	SHN_COMMON = 0xfff2, /* Common data. */
++	SHN_XINDEX = 0xffff, /* Escape -- index stored elsewhere. */
++	SHN_HIRESERVE = 0xffff, /* Last of reserved range. */
+ 
+ /* sh_type */
+-#define SHT_NULL		0	/* inactive */
+-#define SHT_PROGBITS		1	/* program defined information */
+-#define SHT_SYMTAB		2	/* symbol table section */
+-#define SHT_STRTAB		3	/* string table section */
+-#define SHT_RELA		4	/* relocation section with addends */
+-#define SHT_HASH		5	/* symbol hash table section */
+-#define SHT_DYNAMIC		6	/* dynamic section */
+-#define SHT_NOTE		7	/* note section */
+-#define SHT_NOBITS		8	/* no space section */
+-#define SHT_REL			9	/* relocation section - no addends */
+-#define SHT_SHLIB		10	/* reserved - purpose unknown */
+-#define SHT_DYNSYM		11	/* dynamic symbol table section */
+-#define SHT_INIT_ARRAY		14	/* Initialization function pointers. */
+-#define SHT_FINI_ARRAY		15	/* Termination function pointers. */
+-#define SHT_PREINIT_ARRAY	16	/* Pre-initialization function ptrs. */
+-#define SHT_GROUP		17	/* Section group. */
+-#define SHT_SYMTAB_SHNDX	18	/* Section indexes (see SHN_XINDEX). */
+-#define SHT_LOOS	0x60000000	/* First of OS specific semantics */
+-#define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
+-#define SHT_GNU_VERDEF	0x6ffffffd
+-#define SHT_GNU_VERNEED	0x6ffffffe
+-#define SHT_GNU_VERSYM	0x6fffffff
+-#define SHT_LOPROC	0x70000000	/* reserved range for processor */
+-#define SHT_HIPROC	0x7fffffff	/* specific section header types */
+-#define SHT_LOUSER	0x80000000	/* reserved range for application */
+-#define SHT_HIUSER	0xffffffff	/* specific indexes */
++	SHT_NULL = 0, /* inactive */
++	SHT_PROGBITS = 1, /* program defined information */
++	SHT_SYMTAB = 2, /* symbol table section */
++	SHT_STRTAB = 3, /* string table section */
++	SHT_RELA = 4, /* relocation section with addends */
++	SHT_HASH = 5, /* symbol hash table section */
++	SHT_DYNAMIC = 6, /* dynamic section */
++	SHT_NOTE = 7, /* note section */
++	SHT_NOBITS = 8, /* no space section */
++	SHT_REL = 9, /* relocation section - no addends */
++	SHT_SHLIB = 10, /* reserved - purpose unknown */
++	SHT_DYNSYM = 11, /* dynamic symbol table section */
++	SHT_INIT_ARRAY = 14, /* Initialization function pointers. */
++	SHT_FINI_ARRAY = 15, /* Termination function pointers. */
++	SHT_PREINIT_ARRAY = 16, /* Pre-initialization function ptrs. */
++	SHT_GROUP = 17, /* Section group. */
++	SHT_SYMTAB_SHNDX = 18, /* Section indexes (see SHN_XINDEX). */
++	SHT_LOOS = 0x60000000, /* First of OS specific semantics */
++	SHT_HIOS = 0x6fffffff, /* Last of OS specific semantics */
++	SHT_GNU_VERDEF = 0x6ffffffd, 
++	SHT_GNU_VERNEED = 0x6ffffffe, 
++	SHT_GNU_VERSYM = 0x6fffffff, 
++	SHT_LOPROC = 0x70000000, /* reserved range for processor */
++	SHT_HIPROC = 0x7fffffff, /* specific section header types */
++	SHT_LOUSER = 0x80000000, /* reserved range for application */
++	SHT_HIUSER = 0xffffffff, /* specific indexes */
+ 
+ /* Flags for sh_flags. */
+-#define SHF_WRITE		0x1	/* Section contains writable data. */
+-#define SHF_ALLOC		0x2	/* Section occupies memory. */
+-#define SHF_EXECINSTR		0x4	/* Section contains instructions. */
+-#define SHF_MERGE		0x10	/* Section may be merged. */
+-#define SHF_STRINGS		0x20	/* Section contains strings. */
+-#define SHF_INFO_LINK		0x40	/* sh_info holds section index. */
+-#define SHF_LINK_ORDER		0x80	/* Special ordering requirements. */
+-#define SHF_OS_NONCONFORMING	0x100	/* OS-specific processing required. */
+-#define SHF_GROUP		0x200	/* Member of section group. */
+-#define SHF_TLS			0x400	/* Section contains TLS data. */
+-#define SHF_MASKOS	0x0ff00000	/* OS-specific semantics. */
+-#define SHF_MASKPROC	0xf0000000	/* Processor-specific semantics. */
++	SHF_WRITE = 0x1, /* Section contains writable data. */
++	SHF_ALLOC = 0x2, /* Section occupies memory. */
++	SHF_EXECINSTR = 0x4, /* Section contains instructions. */
++	SHF_MERGE = 0x10, /* Section may be merged. */
++	SHF_STRINGS = 0x20, /* Section contains strings. */
++	SHF_INFO_LINK = 0x40, /* sh_info holds section index. */
++	SHF_LINK_ORDER = 0x80, /* Special ordering requirements. */
++	SHF_OS_NONCONFORMING = 0x100, /* OS-specific processing required. */
++	SHF_GROUP = 0x200, /* Member of section group. */
++	SHF_TLS = 0x400, /* Section contains TLS data. */
++	SHF_MASKOS = 0x0ff00000, /* OS-specific semantics. */
++	SHF_MASKPROC = 0xf0000000, /* Processor-specific semantics. */
+ 
+ /* Values for p_type. */
+-#define PT_NULL		0	/* Unused entry. */
+-#define PT_LOAD		1	/* Loadable segment. */
+-#define PT_DYNAMIC	2	/* Dynamic linking information segment. */
+-#define PT_INTERP	3	/* Pathname of interpreter. */
+-#define PT_NOTE		4	/* Auxiliary information. */
+-#define PT_SHLIB	5	/* Reserved (not used). */
+-#define PT_PHDR		6	/* Location of program header itself. */
+-#define PT_TLS		7	/* Thread local storage segment */
+-#define PT_LOOS		0x60000000	/* First OS-specific. */
+-#define PT_HIOS		0x6fffffff	/* Last OS-specific. */
+-#define PT_LOPROC	0x70000000	/* First processor-specific type. */
+-#define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
+-#define PT_GNU_STACK	0x6474e551
+-#define PT_PAX_FLAGS	0x65041580
++	PT_NULL = 0, /* Unused entry. */
++	PT_LOAD = 1, /* Loadable segment. */
++	PT_DYNAMIC = 2, /* Dynamic linking information segment. */
++	PT_INTERP = 3, /* Pathname of interpreter. */
++	PT_NOTE = 4, /* Auxiliary information. */
++	PT_SHLIB = 5, /* Reserved (not used). */
++	PT_PHDR = 6, /* Location of program header itself. */
++	PT_TLS = 7, /* Thread local storage segment */
++	PT_LOOS = 0x60000000, /* First OS-specific. */
++	PT_HIOS = 0x6fffffff, /* Last OS-specific. */
++	PT_LOPROC = 0x70000000, /* First processor-specific type. */
++	PT_HIPROC = 0x7fffffff, /* Last processor-specific type. */
++	PT_GNU_STACK = 0x6474e551, 
++	PT_PAX_FLAGS = 0x65041580, 
+ 
+ /* Values for p_flags. */
+-#define PF_X		0x1		/* Executable. */
+-#define PF_W		0x2		/* Writable. */
+-#define PF_R		0x4		/* Readable. */
+-#define PF_MASKOS	0x0ff00000	/* Operating system-specific. */
+-#define PF_MASKPROC	0xf0000000	/* Processor-specific. */
++	PF_X = 0x1, /* Executable. */
++	PF_W = 0x2, /* Writable. */
++	PF_R = 0x4, /* Readable. */
++	PF_MASKOS = 0x0ff00000, /* Operating system-specific. */
++	PF_MASKPROC = 0xf0000000, /* Processor-specific. */
+ 
+ /* Values for d_tag. */
+-#define DT_NULL		0	/* Terminating entry. */
++	DT_NULL = 0, /* Terminating entry. */
+ /* String table offset of a needed shared library. */
+-#define DT_NEEDED	1
+-#define DT_PLTRELSZ	2	/* Total size in bytes of PLT relocations. */
+-#define DT_PLTGOT	3	/* Processor-dependent address. */
+-#define DT_HASH		4	/* Address of symbol hash table. */
+-#define DT_STRTAB	5	/* Address of string table. */
+-#define DT_SYMTAB	6	/* Address of symbol table. */
+-#define DT_RELA		7	/* Address of ElfNN_Rela relocations. */
+-#define DT_RELASZ	8	/* Total size of ElfNN_Rela relocations. */
+-#define DT_RELAENT	9	/* Size of each ElfNN_Rela relocation entry. */
+-#define DT_STRSZ	10	/* Size of string table. */
+-#define DT_SYMENT	11	/* Size of each symbol table entry. */
+-#define DT_INIT		12	/* Address of initialization function. */
+-#define DT_FINI		13	/* Address of finalization function. */
++	DT_NEEDED = 1, 
++	DT_PLTRELSZ = 2, /* Total size in bytes of PLT relocations. */
++	DT_PLTGOT = 3, /* Processor-dependent address. */
++	DT_HASH = 4, /* Address of symbol hash table. */
++	DT_STRTAB = 5, /* Address of string table. */
++	DT_SYMTAB = 6, /* Address of symbol table. */
++	DT_RELA = 7, /* Address of ElfNN_Rela relocations. */
++	DT_RELASZ = 8, /* Total size of ElfNN_Rela relocations. */
++	DT_RELAENT = 9, /* Size of each ElfNN_Rela relocation entry. */
++	DT_STRSZ = 10, /* Size of string table. */
++	DT_SYMENT = 11, /* Size of each symbol table entry. */
++	DT_INIT = 12, /* Address of initialization function. */
++	DT_FINI = 13, /* Address of finalization function. */
+ /* String table offset of shared object name. */
+-#define DT_SONAME	14
+-#define DT_RPATH	15	/* String table offset of library path. [sup] */
+-#define DT_SYMBOLIC	16	/* Indicates "symbolic" linking. [sup] */
+-#define DT_REL		17	/* Address of ElfNN_Rel relocations. */
+-#define DT_RELSZ	18	/* Total size of ElfNN_Rel relocations. */
+-#define DT_RELENT	19	/* Size of each ElfNN_Rel relocation. */
+-#define DT_PLTREL	20	/* Type of relocation used for PLT. */
+-#define DT_DEBUG	21	/* Reserved (not used). */
++	DT_SONAME = 14, 
++	DT_RPATH = 15, /* String table offset of library path. [sup] */
++	DT_SYMBOLIC = 16, /* Indicates "symbolic" linking. [sup] */
++	DT_REL = 17, /* Address of ElfNN_Rel relocations. */
++	DT_RELSZ = 18, /* Total size of ElfNN_Rel relocations. */
++	DT_RELENT = 19, /* Size of each ElfNN_Rel relocation. */
++	DT_PLTREL = 20, /* Type of relocation used for PLT. */
++	DT_DEBUG = 21, /* Reserved (not used). */
+ /* Indicates there may be relocations in non-writable segments. [sup] */
+-#define DT_TEXTREL	22
+-#define DT_JMPREL	23	/* Address of PLT relocations. */
+-#define	DT_BIND_NOW	24	/* [sup] */
++	DT_TEXTREL = 22, 
++	DT_JMPREL = 23, /* Address of PLT relocations. */
++	DT_BIND_NOW = 24, /* [sup] */
+ /* Address of the array of pointers to initialization functions */
+-#define	DT_INIT_ARRAY	25
++	DT_INIT_ARRAY = 25, 
+ /* Address of the array of pointers to termination functions */
+-#define	DT_FINI_ARRAY	26
++	DT_FINI_ARRAY = 26, 
+ /* Size in bytes of the array of initialization functions. */
+-#define	DT_INIT_ARRAYSZ	27
++	DT_INIT_ARRAYSZ = 27, 
+ /* Size in bytes of the array of terminationfunctions. */
+-#define	DT_FINI_ARRAYSZ	28
++	DT_FINI_ARRAYSZ = 28, 
+ /* String table offset of a null-terminated library search path string. */
+-#define	DT_RUNPATH	29
+-#define	DT_FLAGS	30	/* Object specific flag values. */
++	DT_RUNPATH = 29, 
++	DT_FLAGS = 30, /* Object specific flag values. */
+ /*	Values greater than or equal to DT_ENCODING and less than
+ 	DT_LOOS follow the rules for the interpretation of the d_un
+ 	union as follows: even == 'd_ptr', even == 'd_val' or none */
+-#define	DT_ENCODING	32
++	DT_ENCODING = 32, 
+ /* Address of the array of pointers to pre-initialization functions. */
+-#define	DT_PREINIT_ARRAY 32
++	DT_PREINIT_ARRAY = 32, 
+ /* Size in bytes of the array of pre-initialization functions. */
+-#define	DT_PREINIT_ARRAYSZ 33
+-#define	DT_LOOS		0x6000000d	/* First OS-specific */
+-#define	DT_HIOS		0x6ffff000	/* Last OS-specific */
+-#define	DT_LOPROC	0x70000000	/* First processor-specific type. */
+-#define	DT_HIPROC	0x7fffffff	/* Last processor-specific type. */
++	DT_PREINIT_ARRAYSZ = 33, 
++	DT_LOOS = 0x6000000d, /* First OS-specific */
++	DT_HIOS = 0x6ffff000, /* Last OS-specific */
++	DT_LOPROC = 0x70000000, /* First processor-specific type. */
++	DT_HIPROC = 0x7fffffff, /* Last processor-specific type. */
+ 
+-#define	DT_VERNEED	0x6ffffffe
+-#define	DT_VERNEEDNUM	0x6fffffff
+-#define	DT_VERSYM	0x6ffffff0
++	DT_VERNEED = 0x6ffffffe, 
++	DT_VERNEEDNUM = 0x6fffffff, 
++	DT_VERSYM = 0x6ffffff0, 
+ 
+-#define DT_PPC64_GLINK	(DT_LOPROC + 0)
+-#define DT_PPC64_OPT	(DT_LOPROC + 3)
++	DT_PPC64_GLINK = (DT_LOPROC + 0),
++	DT_PPC64_OPT = (DT_LOPROC + 3),
+ 
+ /* Values for DT_FLAGS */
+ /*	Indicates that the object being loaded may make reference to
+ 	the $ORIGIN substitution string */
+-#define	DF_ORIGIN	0x0001
+-#define	DF_SYMBOLIC	0x0002	/* Indicates "symbolic" linking. */
++	DF_ORIGIN = 0x0001, 
++	DF_SYMBOLIC = 0x0002, /* Indicates "symbolic" linking. */
+ /* Indicates there may be relocations in non-writable segments. */
+-#define	DF_TEXTREL	0x0004
++	DF_TEXTREL = 0x0004, 
+ /*	Indicates that the dynamic linker should process all
+ 	relocations for the object containing this entry before
+ 	transferring control to the program.  */
+-#define	DF_BIND_NOW	0x0008
++	DF_BIND_NOW = 0x0008, 
+ /*	Indicates that the shared object or executable contains code
+ 	using a static thread-local storage scheme.  */
+-#define	DF_STATIC_TLS	0x0010
++	DF_STATIC_TLS = 0x0010, 
+ 
+ /* Values for n_type.  Used in core files. */
+-#define NT_PRSTATUS	1	/* Process status. */
+-#define NT_FPREGSET	2	/* Floating point registers. */
+-#define NT_PRPSINFO	3	/* Process state info. */
++	NT_PRSTATUS = 1, /* Process status. */
++	NT_FPREGSET = 2, /* Floating point registers. */
++	NT_PRPSINFO = 3, /* Process state info. */
+ 
+ /* Symbol Binding - ELFNN_ST_BIND - st_info */
+-#define STB_LOCAL	0	/* Local symbol */
+-#define STB_GLOBAL	1	/* Global symbol */
+-#define STB_WEAK	2	/* like global - lower precedence */
+-#define STB_LOOS	10	/* Reserved range for operating system */
+-#define STB_HIOS	12	/*   specific semantics. */
+-#define STB_LOPROC	13	/* reserved range for processor */
+-#define STB_HIPROC	15	/*   specific semantics. */
++	STB_LOCAL = 0, /* Local symbol */
++	STB_GLOBAL = 1, /* Global symbol */
++	STB_WEAK = 2, /* like global - lower precedence */
++	STB_LOOS = 10, /* Reserved range for operating system */
++	STB_HIOS = 12, /*   specific semantics. */
++	STB_LOPROC = 13, /* reserved range for processor */
++	STB_HIPROC = 15, /*   specific semantics. */
+ 
+ /* Symbol type - ELFNN_ST_TYPE - st_info */
+-#define STT_NOTYPE	0	/* Unspecified type. */
+-#define STT_OBJECT	1	/* Data object. */
+-#define STT_FUNC	2	/* Function. */
+-#define STT_SECTION	3	/* Section. */
+-#define STT_FILE	4	/* Source file. */
+-#define STT_COMMON	5	/* Uninitialized common block. */
+-#define STT_TLS		6	/* TLS object. */
+-#define STT_LOOS	10	/* Reserved range for operating system */
+-#define STT_HIOS	12	/*   specific semantics. */
+-#define STT_LOPROC	13	/* reserved range for processor */
+-#define STT_HIPROC	15	/*   specific semantics. */
++	STT_NOTYPE = 0, /* Unspecified type. */
++	STT_OBJECT = 1, /* Data object. */
++	STT_FUNC = 2, /* Function. */
++	STT_SECTION = 3, /* Section. */
++	STT_FILE = 4, /* Source file. */
++	STT_COMMON = 5, /* Uninitialized common block. */
++	STT_TLS = 6, /* TLS object. */
++	STT_LOOS = 10, /* Reserved range for operating system */
++	STT_HIOS = 12, /*   specific semantics. */
++	STT_LOPROC = 13, /* reserved range for processor */
++	STT_HIPROC = 15, /*   specific semantics. */
+ 
+ /* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
+-#define STV_DEFAULT	0x0	/* Default visibility (see binding). */
+-#define STV_INTERNAL	0x1	/* Special meaning in relocatable objects. */
+-#define STV_HIDDEN	0x2	/* Not visible. */
+-#define STV_PROTECTED	0x3	/* Visible but not preemptible. */
++	STV_DEFAULT = 0x0, /* Default visibility (see binding). */
++	STV_INTERNAL = 0x1, /* Special meaning in relocatable objects. */
++	STV_HIDDEN = 0x2, /* Not visible. */
++	STV_PROTECTED = 0x3, /* Visible but not preemptible. */
+ 
+ /* Special symbol table indexes. */
+-#define STN_UNDEF	0	/* Undefined symbol index. */
+-
+-/*
+- * ELF definitions common to all 32-bit architectures.
+- */
+-
+-typedef uint32	Elf32_Addr;
+-typedef uint16	Elf32_Half;
+-typedef uint32	Elf32_Off;
+-typedef int32		Elf32_Sword;
+-typedef uint32	Elf32_Word;
+-
+-typedef Elf32_Word	Elf32_Hashelt;
+-
+-/* Non-standard class-dependent datatype used for abstraction. */
+-typedef Elf32_Word	Elf32_Size;
+-typedef Elf32_Sword	Elf32_Ssize;
+-
+-/*
+- * ELF header.
+- */
+-
+-typedef struct {
+-	unsigned char	ident[EI_NIDENT];	/* File identification. */
+-	Elf32_Half	type;		/* File type. */
+-	Elf32_Half	machine;	/* Machine architecture. */
+-	Elf32_Word	version;	/* ELF format version. */
+-	Elf32_Addr	entry;	/* Entry point. */
+-	Elf32_Off	phoff;	/* Program header file offset. */
+-	Elf32_Off	shoff;	/* Section header file offset. */
+-	Elf32_Word	flags;	/* Architecture-specific flags. */
+-	Elf32_Half	ehsize;	/* Size of ELF header in bytes. */
+-	Elf32_Half	phentsize;	/* Size of program header entry. */
+-	Elf32_Half	phnum;	/* Number of program header entries. */
+-	Elf32_Half	shentsize;	/* Size of section header entry. */
+-	Elf32_Half	shnum;	/* Number of section header entries. */
+-	Elf32_Half	shstrndx;	/* Section name strings section. */
+-} Elf32_Ehdr;
+-
+-/*
+- * Section header.
+- */
+-
+-typedef struct {
+-	Elf32_Word	name;	/* Section name (index into the
+-					   section header string table). */
+-	Elf32_Word	type;	/* Section type. */
+-	Elf32_Word	flags;	/* Section flags. */
+-	Elf32_Addr	vaddr;	/* Address in memory image. */
+-	Elf32_Off	off;	/* Offset in file. */
+-	Elf32_Word	size;	/* Size in bytes. */
+-	Elf32_Word	link;	/* Index of a related section. */
+-	Elf32_Word	info;	/* Depends on section type. */
+-	Elf32_Word	addralign;	/* Alignment in bytes. */
+-	Elf32_Word	entsize;	/* Size of each entry in section. */
+-} Elf32_Shdr;
+-
+-/*
+- * Program header.
+- */
+-
+-typedef struct {
+-	Elf32_Word	type;		/* Entry type. */
+-	Elf32_Off	off;	/* File offset of contents. */
+-	Elf32_Addr	vaddr;	/* Virtual address in memory image. */
+-	Elf32_Addr	paddr;	/* Physical address (not used). */
+-	Elf32_Word	filesz;	/* Size of contents in file. */
+-	Elf32_Word	memsz;	/* Size of contents in memory. */
+-	Elf32_Word	flags;	/* Access permission flags. */
+-	Elf32_Word	align;	/* Alignment in memory and file. */
+-} Elf32_Phdr;
+-
+-/*
+- * Dynamic structure.  The ".dynamic" section contains an array of them.
+- */
+-
+-typedef struct {
+-	Elf32_Sword	d_tag;		/* Entry type. */
+-	union {
+-		Elf32_Word	d_val;	/* Integer value. */
+-		Elf32_Addr	d_ptr;	/* Address value. */
+-	} d_un;
+-} Elf32_Dyn;
+-
+-/*
+- * Relocation entries.
+- */
+-
+-/* Relocations that don't need an addend field. */
+-typedef struct {
+-	Elf32_Addr	off;	/* Location to be relocated. */
+-	Elf32_Word	info;		/* Relocation type and symbol index. */
+-} Elf32_Rel;
++	STN_UNDEF = 0, /* Undefined symbol index. */
++};
+ 
+-/* Relocations that need an addend field. */
+-typedef struct {
+-	Elf32_Addr	off;	/* Location to be relocated. */
+-	Elf32_Word	info;		/* Relocation type and symbol index. */
+-	Elf32_Sword	addend;	/* Addend. */
+-} Elf32_Rela;
+ 
+-/* Macros for accessing the fields of r_info. */
+-#define ELF32_R_SYM(info)	((info) >> 8)
+-#define ELF32_R_TYPE(info)	((unsigned char)(info))
++/* For accessing the fields of r_info. */
++uint32 ELF32_R_SYM(uint32 info);
++uint32 ELF32_R_TYPE(uint32 info);
+ 
+-/* Macro for constructing r_info from field values. */
+-#define ELF32_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
++/* For constructing r_info from field values. */
++uint32 ELF32_R_INFO(uint32 sym, uint32 type);
+ 
+ /*
+  * Relocation types.
+  */
+ 
+-#define	R_X86_64_NONE	0	/* No relocation. */
+-#define	R_X86_64_64	1	/* Add 64 bit symbol value. */
+-#define	R_X86_64_PC32	2	/* PC-relative 32 bit signed sym value. */
+-#define	R_X86_64_GOT32	3	/* PC-relative 32 bit GOT offset. */
+-#define	R_X86_64_PLT32	4	/* PC-relative 32 bit PLT offset. */
+-#define	R_X86_64_COPY	5	/* Copy data from shared object. */
+-#define	R_X86_64_GLOB_DAT 6	/* Set GOT entry to data address. */
+-#define	R_X86_64_JMP_SLOT 7	/* Set GOT entry to code address. */
+-#define	R_X86_64_RELATIVE 8	/* Add load address of shared object. */
+-#define	R_X86_64_GOTPCREL 9	/* Add 32 bit signed pcrel offset to GOT. */
+-#define	R_X86_64_32	10	/* Add 32 bit zero extended symbol value */
+-#define	R_X86_64_32S	11	/* Add 32 bit sign extended symbol value */
+-#define	R_X86_64_16	12	/* Add 16 bit zero extended symbol value */
+-#define	R_X86_64_PC16	13	/* Add 16 bit signed extended pc relative symbol value */
+-#define	R_X86_64_8	14	/* Add 8 bit zero extended symbol value */
+-#define	R_X86_64_PC8	15	/* Add 8 bit signed extended pc relative symbol value */
+-#define	R_X86_64_DTPMOD64 16	/* ID of module containing symbol */
+-#define	R_X86_64_DTPOFF64 17	/* Offset in TLS block */
+-#define	R_X86_64_TPOFF64 18	/* Offset in static TLS block */
+-#define	R_X86_64_TLSGD	19	/* PC relative offset to GD GOT entry */
+-#define	R_X86_64_TLSLD	20	/* PC relative offset to LD GOT entry */
+-#define	R_X86_64_DTPOFF32 21	/* Offset in TLS block */
+-#define	R_X86_64_GOTTPOFF 22	/* PC relative offset to IE GOT entry */
+-#define	R_X86_64_TPOFF32 23	/* Offset in static TLS block */
+-
+-#define	R_X86_64_COUNT	24	/* Count of defined relocation types. */
+-
+-
+-#define	R_ALPHA_NONE		0	/* No reloc */
+-#define	R_ALPHA_REFLONG		1	/* Direct 32 bit */
+-#define	R_ALPHA_REFQUAD		2	/* Direct 64 bit */
+-#define	R_ALPHA_GPREL32		3	/* GP relative 32 bit */
+-#define	R_ALPHA_LITERAL		4	/* GP relative 16 bit w/optimization */
+-#define	R_ALPHA_LITUSE		5	/* Optimization hint for LITERAL */
+-#define	R_ALPHA_GPDISP		6	/* Add displacement to GP */
+-#define	R_ALPHA_BRADDR		7	/* PC+4 relative 23 bit shifted */
+-#define	R_ALPHA_HINT		8	/* PC+4 relative 16 bit shifted */
+-#define	R_ALPHA_SREL16		9	/* PC relative 16 bit */
+-#define	R_ALPHA_SREL32		10	/* PC relative 32 bit */
+-#define	R_ALPHA_SREL64		11	/* PC relative 64 bit */
+-#define	R_ALPHA_OP_PUSH		12	/* OP stack push */
+-#define	R_ALPHA_OP_STORE	13	/* OP stack pop and store */
+-#define	R_ALPHA_OP_PSUB		14	/* OP stack subtract */
+-#define	R_ALPHA_OP_PRSHIFT	15	/* OP stack right shift */
+-#define	R_ALPHA_GPVALUE		16
+-#define	R_ALPHA_GPRELHIGH	17
+-#define	R_ALPHA_GPRELLOW	18
+-#define	R_ALPHA_IMMED_GP_16	19
+-#define	R_ALPHA_IMMED_GP_HI32	20
+-#define	R_ALPHA_IMMED_SCN_HI32	21
+-#define	R_ALPHA_IMMED_BR_HI32	22
+-#define	R_ALPHA_IMMED_LO32	23
+-#define	R_ALPHA_COPY		24	/* Copy symbol at runtime */
+-#define	R_ALPHA_GLOB_DAT	25	/* Create GOT entry */
+-#define	R_ALPHA_JMP_SLOT	26	/* Create PLT entry */
+-#define	R_ALPHA_RELATIVE	27	/* Adjust by program base */
+-
+-#define	R_ALPHA_COUNT		28
+-
+-
+-#define	R_ARM_NONE		0	/* No relocation. */
+-#define	R_ARM_PC24		1
+-#define	R_ARM_ABS32		2
+-#define	R_ARM_REL32		3
+-#define	R_ARM_PC13		4
+-#define	R_ARM_ABS16		5
+-#define	R_ARM_ABS12		6
+-#define	R_ARM_THM_ABS5		7
+-#define	R_ARM_ABS8		8
+-#define	R_ARM_SBREL32		9
+-#define	R_ARM_THM_PC22		10
+-#define	R_ARM_THM_PC8		11
+-#define	R_ARM_AMP_VCALL9	12
+-#define	R_ARM_SWI24		13
+-#define	R_ARM_THM_SWI8		14
+-#define	R_ARM_XPC25		15
+-#define	R_ARM_THM_XPC22		16
+-#define	R_ARM_COPY		20	/* Copy data from shared object. */
+-#define	R_ARM_GLOB_DAT		21	/* Set GOT entry to data address. */
+-#define	R_ARM_JUMP_SLOT		22	/* Set GOT entry to code address. */
+-#define	R_ARM_RELATIVE		23	/* Add load address of shared object. */
+-#define	R_ARM_GOTOFF		24	/* Add GOT-relative symbol address. */
+-#define	R_ARM_GOTPC		25	/* Add PC-relative GOT table address. */
+-#define	R_ARM_GOT32		26	/* Add PC-relative GOT offset. */
+-#define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
+-#define	R_ARM_CALL		28
+-#define	R_ARM_JUMP24	29
+-#define	R_ARM_V4BX		40
+-#define	R_ARM_GOT_PREL		96
+-#define	R_ARM_GNU_VTENTRY	100
+-#define	R_ARM_GNU_VTINHERIT	101
+-#define	R_ARM_TLS_IE32		107
+-#define	R_ARM_TLS_LE32		108
+-#define	R_ARM_RSBREL32		250
+-#define	R_ARM_THM_RPC22		251
+-#define	R_ARM_RREL32		252
+-#define	R_ARM_RABS32		253
+-#define	R_ARM_RPC24		254
+-#define	R_ARM_RBASE		255
+-
+-#define	R_ARM_COUNT		38	/* Count of defined relocation types. */
+-
+-
+-#define	R_386_NONE	0	/* No relocation. */
+-#define	R_386_32	1	/* Add symbol value. */
+-#define	R_386_PC32	2	/* Add PC-relative symbol value. */
+-#define	R_386_GOT32	3	/* Add PC-relative GOT offset. */
+-#define	R_386_PLT32	4	/* Add PC-relative PLT offset. */
+-#define	R_386_COPY	5	/* Copy data from shared object. */
+-#define	R_386_GLOB_DAT	6	/* Set GOT entry to data address. */
+-#define	R_386_JMP_SLOT	7	/* Set GOT entry to code address. */
+-#define	R_386_RELATIVE	8	/* Add load address of shared object. */
+-#define	R_386_GOTOFF	9	/* Add GOT-relative symbol address. */
+-#define	R_386_GOTPC	10	/* Add PC-relative GOT table address. */
+-#define	R_386_TLS_TPOFF	14	/* Negative offset in static TLS block */
+-#define	R_386_TLS_IE	15	/* Absolute address of GOT for -ve static TLS */
+-#define	R_386_TLS_GOTIE	16	/* GOT entry for negative static TLS block */
+-#define	R_386_TLS_LE	17	/* Negative offset relative to static TLS */
+-#define	R_386_TLS_GD	18	/* 32 bit offset to GOT (index,off) pair */
+-#define	R_386_TLS_LDM	19	/* 32 bit offset to GOT (index,zero) pair */
+-#define	R_386_TLS_GD_32	24	/* 32 bit offset to GOT (index,off) pair */
+-#define	R_386_TLS_GD_PUSH 25	/* pushl instruction for Sun ABI GD sequence */
+-#define	R_386_TLS_GD_CALL 26	/* call instruction for Sun ABI GD sequence */
+-#define	R_386_TLS_GD_POP 27	/* popl instruction for Sun ABI GD sequence */
+-#define	R_386_TLS_LDM_32 28	/* 32 bit offset to GOT (index,zero) pair */
+-#define	R_386_TLS_LDM_PUSH 29	/* pushl instruction for Sun ABI LD sequence */
+-#define	R_386_TLS_LDM_CALL 30	/* call instruction for Sun ABI LD sequence */
+-#define	R_386_TLS_LDM_POP 31	/* popl instruction for Sun ABI LD sequence */
+-#define	R_386_TLS_LDO_32 32	/* 32 bit offset from start of TLS block */
+-#define	R_386_TLS_IE_32	33	/* 32 bit offset to GOT static TLS offset entry */
+-#define	R_386_TLS_LE_32	34	/* 32 bit offset within static TLS block */
+-#define	R_386_TLS_DTPMOD32 35	/* GOT entry containing TLS index */
+-#define	R_386_TLS_DTPOFF32 36	/* GOT entry containing TLS offset */
+-#define	R_386_TLS_TPOFF32 37	/* GOT entry of -ve static TLS offset */
+-
+-#define	R_386_COUNT	38	/* Count of defined relocation types. */
+-
+-#define	R_PPC_NONE		0	/* No relocation. */
+-#define	R_PPC_ADDR32		1
+-#define	R_PPC_ADDR24		2
+-#define	R_PPC_ADDR16		3
+-#define	R_PPC_ADDR16_LO		4
+-#define	R_PPC_ADDR16_HI		5
+-#define	R_PPC_ADDR16_HA		6
+-#define	R_PPC_ADDR14		7
+-#define	R_PPC_ADDR14_BRTAKEN	8
+-#define	R_PPC_ADDR14_BRNTAKEN	9
+-#define	R_PPC_REL24		10
+-#define	R_PPC_REL14		11
+-#define	R_PPC_REL14_BRTAKEN	12
+-#define	R_PPC_REL14_BRNTAKEN	13
+-#define	R_PPC_GOT16		14
+-#define	R_PPC_GOT16_LO		15
+-#define	R_PPC_GOT16_HI		16
+-#define	R_PPC_GOT16_HA		17
+-#define	R_PPC_PLTREL24		18
+-#define	R_PPC_COPY		19
+-#define	R_PPC_GLOB_DAT		20
+-#define	R_PPC_JMP_SLOT		21
+-#define	R_PPC_RELATIVE		22
+-#define	R_PPC_LOCAL24PC		23
+-#define	R_PPC_UADDR32		24
+-#define	R_PPC_UADDR16		25
+-#define	R_PPC_REL32		26
+-#define	R_PPC_PLT32		27
+-#define	R_PPC_PLTREL32		28
+-#define	R_PPC_PLT16_LO		29
+-#define	R_PPC_PLT16_HI		30
+-#define	R_PPC_PLT16_HA		31
+-#define	R_PPC_SDAREL16		32
+-#define	R_PPC_SECTOFF		33
+-#define	R_PPC_SECTOFF_LO	34
+-#define	R_PPC_SECTOFF_HI	35
+-#define	R_PPC_SECTOFF_HA	36
+-
+-#define	R_PPC_COUNT		37	/* Count of defined relocation types. */
+-
+-#define R_PPC_TLS		67
+-#define R_PPC_DTPMOD32		68
+-#define R_PPC_TPREL16		69
+-#define R_PPC_TPREL16_LO	70
+-#define R_PPC_TPREL16_HI	71
+-#define R_PPC_TPREL16_HA	72
+-#define R_PPC_TPREL32		73
+-#define R_PPC_DTPREL16		74
+-#define R_PPC_DTPREL16_LO	75
+-#define R_PPC_DTPREL16_HI	76
+-#define R_PPC_DTPREL16_HA	77
+-#define R_PPC_DTPREL32		78
+-#define R_PPC_GOT_TLSGD16	79
+-#define R_PPC_GOT_TLSGD16_LO	80
+-#define R_PPC_GOT_TLSGD16_HI	81
+-#define R_PPC_GOT_TLSGD16_HA	82
+-#define R_PPC_GOT_TLSLD16	83
+-#define R_PPC_GOT_TLSLD16_LO	84
+-#define R_PPC_GOT_TLSLD16_HI	85
+-#define R_PPC_GOT_TLSLD16_HA	86
+-#define R_PPC_GOT_TPREL16	87
+-#define R_PPC_GOT_TPREL16_LO	88
+-#define R_PPC_GOT_TPREL16_HI	89
+-#define R_PPC_GOT_TPREL16_HA	90
+-
+-#define	R_PPC_EMB_NADDR32	101
+-#define	R_PPC_EMB_NADDR16	102
+-#define	R_PPC_EMB_NADDR16_LO	103
+-#define	R_PPC_EMB_NADDR16_HI	104
+-#define	R_PPC_EMB_NADDR16_HA	105
+-#define	R_PPC_EMB_SDAI16	106
+-#define	R_PPC_EMB_SDA2I16	107
+-#define	R_PPC_EMB_SDA2REL	108
+-#define	R_PPC_EMB_SDA21		109
+-#define	R_PPC_EMB_MRKREF	110
+-#define	R_PPC_EMB_RELSEC16	111
+-#define	R_PPC_EMB_RELST_LO	112
+-#define	R_PPC_EMB_RELST_HI	113
+-#define	R_PPC_EMB_RELST_HA	114
+-#define	R_PPC_EMB_BIT_FLD	115
+-#define	R_PPC_EMB_RELSDA	116
++enum {
++	R_X86_64_NONE = 0, /* No relocation. */
++	R_X86_64_64 = 1, /* Add 64 bit symbol value. */
++	R_X86_64_PC32 = 2, /* PC-relative 32 bit signed sym value. */
++	R_X86_64_GOT32 = 3, /* PC-relative 32 bit GOT offset. */
++	R_X86_64_PLT32 = 4, /* PC-relative 32 bit PLT offset. */
++	R_X86_64_COPY = 5, /* Copy data from shared object. */
++	R_X86_64_GLOB_DAT = 6, /* Set GOT entry to data address. */
++	R_X86_64_JMP_SLOT = 7, /* Set GOT entry to code address. */
++	R_X86_64_RELATIVE = 8, /* Add load address of shared object. */
++	R_X86_64_GOTPCREL = 9, /* Add 32 bit signed pcrel offset to GOT. */
++	R_X86_64_32 = 10, /* Add 32 bit zero extended symbol value */
++	R_X86_64_32S = 11, /* Add 32 bit sign extended symbol value */
++	R_X86_64_16 = 12, /* Add 16 bit zero extended symbol value */
++	R_X86_64_PC16 = 13, /* Add 16 bit signed extended pc relative symbol value */
++	R_X86_64_8 = 14, /* Add 8 bit zero extended symbol value */
++	R_X86_64_PC8 = 15, /* Add 8 bit signed extended pc relative symbol value */
++	R_X86_64_DTPMOD64 = 16, /* ID of module containing symbol */
++	R_X86_64_DTPOFF64 = 17, /* Offset in TLS block */
++	R_X86_64_TPOFF64 = 18, /* Offset in static TLS block */
++	R_X86_64_TLSGD = 19, /* PC relative offset to GD GOT entry */
++	R_X86_64_TLSLD = 20, /* PC relative offset to LD GOT entry */
++	R_X86_64_DTPOFF32 = 21, /* Offset in TLS block */
++	R_X86_64_GOTTPOFF = 22, /* PC relative offset to IE GOT entry */
++	R_X86_64_TPOFF32 = 23, /* Offset in static TLS block */
++
++	R_X86_64_COUNT = 24, /* Count of defined relocation types. */
++
++
++	R_ALPHA_NONE = 0, /* No reloc */
++	R_ALPHA_REFLONG = 1, /* Direct 32 bit */
++	R_ALPHA_REFQUAD = 2, /* Direct 64 bit */
++	R_ALPHA_GPREL32 = 3, /* GP relative 32 bit */
++	R_ALPHA_LITERAL = 4, /* GP relative 16 bit w/optimization */
++	R_ALPHA_LITUSE = 5, /* Optimization hint for LITERAL */
++	R_ALPHA_GPDISP = 6, /* Add displacement to GP */
++	R_ALPHA_BRADDR = 7, /* PC+4 relative 23 bit shifted */
++	R_ALPHA_HINT = 8, /* PC+4 relative 16 bit shifted */
++	R_ALPHA_SREL16 = 9, /* PC relative 16 bit */
++	R_ALPHA_SREL32 = 10, /* PC relative 32 bit */
++	R_ALPHA_SREL64 = 11, /* PC relative 64 bit */
++	R_ALPHA_OP_PUSH = 12, /* OP stack push */
++	R_ALPHA_OP_STORE = 13, /* OP stack pop and store */
++	R_ALPHA_OP_PSUB = 14, /* OP stack subtract */
++	R_ALPHA_OP_PRSHIFT = 15, /* OP stack right shift */
++	R_ALPHA_GPVALUE = 16, 
++	R_ALPHA_GPRELHIGH = 17, 
++	R_ALPHA_GPRELLOW = 18, 
++	R_ALPHA_IMMED_GP_16 = 19, 
++	R_ALPHA_IMMED_GP_HI32 = 20, 
++	R_ALPHA_IMMED_SCN_HI32 = 21, 
++	R_ALPHA_IMMED_BR_HI32 = 22, 
++	R_ALPHA_IMMED_LO32 = 23, 
++	R_ALPHA_COPY = 24, /* Copy symbol at runtime */
++	R_ALPHA_GLOB_DAT = 25, /* Create GOT entry */
++	R_ALPHA_JMP_SLOT = 26, /* Create PLT entry */
++	R_ALPHA_RELATIVE = 27, /* Adjust by program base */
++
++	R_ALPHA_COUNT = 28, 
++
++
++	R_ARM_NONE = 0, /* No relocation. */
++	R_ARM_PC24 = 1, 
++	R_ARM_ABS32 = 2, 
++	R_ARM_REL32 = 3, 
++	R_ARM_PC13 = 4, 
++	R_ARM_ABS16 = 5, 
++	R_ARM_ABS12 = 6, 
++	R_ARM_THM_ABS5 = 7, 
++	R_ARM_ABS8 = 8, 
++	R_ARM_SBREL32 = 9, 
++	R_ARM_THM_PC22 = 10, 
++	R_ARM_THM_PC8 = 11, 
++	R_ARM_AMP_VCALL9 = 12, 
++	R_ARM_SWI24 = 13, 
++	R_ARM_THM_SWI8 = 14, 
++	R_ARM_XPC25 = 15, 
++	R_ARM_THM_XPC22 = 16, 
++	R_ARM_COPY = 20, /* Copy data from shared object. */
++	R_ARM_GLOB_DAT = 21, /* Set GOT entry to data address. */
++	R_ARM_JUMP_SLOT = 22, /* Set GOT entry to code address. */
++	R_ARM_RELATIVE = 23, /* Add load address of shared object. */
++	R_ARM_GOTOFF = 24, /* Add GOT-relative symbol address. */
++	R_ARM_GOTPC = 25, /* Add PC-relative GOT table address. */
++	R_ARM_GOT32 = 26, /* Add PC-relative GOT offset. */
++	R_ARM_PLT32 = 27, /* Add PC-relative PLT offset. */
++	R_ARM_CALL = 28, 
++	R_ARM_JUMP24 = 29, 
++	R_ARM_V4BX = 40, 
++	R_ARM_GOT_PREL = 96, 
++	R_ARM_GNU_VTENTRY = 100, 
++	R_ARM_GNU_VTINHERIT = 101, 
++	R_ARM_TLS_IE32 = 107, 
++	R_ARM_TLS_LE32 = 108, 
++	R_ARM_RSBREL32 = 250, 
++	R_ARM_THM_RPC22 = 251, 
++	R_ARM_RREL32 = 252, 
++	R_ARM_RABS32 = 253, 
++	R_ARM_RPC24 = 254, 
++	R_ARM_RBASE = 255, 
++
++	R_ARM_COUNT = 38, /* Count of defined relocation types. */
++
++
++	R_386_NONE = 0, /* No relocation. */
++	R_386_32 = 1, /* Add symbol value. */
++	R_386_PC32 = 2, /* Add PC-relative symbol value. */
++	R_386_GOT32 = 3, /* Add PC-relative GOT offset. */
++	R_386_PLT32 = 4, /* Add PC-relative PLT offset. */
++	R_386_COPY = 5, /* Copy data from shared object. */
++	R_386_GLOB_DAT = 6, /* Set GOT entry to data address. */
++	R_386_JMP_SLOT = 7, /* Set GOT entry to code address. */
++	R_386_RELATIVE = 8, /* Add load address of shared object. */
++	R_386_GOTOFF = 9, /* Add GOT-relative symbol address. */
++	R_386_GOTPC = 10, /* Add PC-relative GOT table address. */
++	R_386_TLS_TPOFF = 14, /* Negative offset in static TLS block */
++	R_386_TLS_IE = 15, /* Absolute address of GOT for -ve static TLS */
++	R_386_TLS_GOTIE = 16, /* GOT entry for negative static TLS block */
++	R_386_TLS_LE = 17, /* Negative offset relative to static TLS */
++	R_386_TLS_GD = 18, /* 32 bit offset to GOT (index,off) pair */
++	R_386_TLS_LDM = 19, /* 32 bit offset to GOT (index,zero) pair */
++	R_386_TLS_GD_32 = 24, /* 32 bit offset to GOT (index,off) pair */
++	R_386_TLS_GD_PUSH = 25, /* pushl instruction for Sun ABI GD sequence */
++	R_386_TLS_GD_CALL = 26, /* call instruction for Sun ABI GD sequence */
++	R_386_TLS_GD_POP = 27, /* popl instruction for Sun ABI GD sequence */
++	R_386_TLS_LDM_32 = 28, /* 32 bit offset to GOT (index,zero) pair */
++	R_386_TLS_LDM_PUSH = 29, /* pushl instruction for Sun ABI LD sequence */
++	R_386_TLS_LDM_CALL = 30, /* call instruction for Sun ABI LD sequence */
++	R_386_TLS_LDM_POP = 31, /* popl instruction for Sun ABI LD sequence */
++	R_386_TLS_LDO_32 = 32, /* 32 bit offset from start of TLS block */
++	R_386_TLS_IE_32 = 33, /* 32 bit offset to GOT static TLS offset entry */
++	R_386_TLS_LE_32 = 34, /* 32 bit offset within static TLS block */
++	R_386_TLS_DTPMOD32 = 35, /* GOT entry containing TLS index */
++	R_386_TLS_DTPOFF32 = 36, /* GOT entry containing TLS offset */
++	R_386_TLS_TPOFF32 = 37, /* GOT entry of -ve static TLS offset */
++
++	R_386_COUNT = 38, /* Count of defined relocation types. */
++
++	R_PPC_NONE = 0, /* No relocation. */
++	R_PPC_ADDR32 = 1, 
++	R_PPC_ADDR24 = 2, 
++	R_PPC_ADDR16 = 3, 
++	R_PPC_ADDR16_LO = 4, 
++	R_PPC_ADDR16_HI = 5, 
++	R_PPC_ADDR16_HA = 6, 
++	R_PPC_ADDR14 = 7, 
++	R_PPC_ADDR14_BRTAKEN = 8, 
++	R_PPC_ADDR14_BRNTAKEN = 9, 
++	R_PPC_REL24 = 10, 
++	R_PPC_REL14 = 11, 
++	R_PPC_REL14_BRTAKEN = 12, 
++	R_PPC_REL14_BRNTAKEN = 13, 
++	R_PPC_GOT16 = 14, 
++	R_PPC_GOT16_LO = 15, 
++	R_PPC_GOT16_HI = 16, 
++	R_PPC_GOT16_HA = 17, 
++	R_PPC_PLTREL24 = 18, 
++	R_PPC_COPY = 19, 
++	R_PPC_GLOB_DAT = 20, 
++	R_PPC_JMP_SLOT = 21, 
++	R_PPC_RELATIVE = 22, 
++	R_PPC_LOCAL24PC = 23, 
++	R_PPC_UADDR32 = 24, 
++	R_PPC_UADDR16 = 25, 
++	R_PPC_REL32 = 26, 
++	R_PPC_PLT32 = 27, 
++	R_PPC_PLTREL32 = 28, 
++	R_PPC_PLT16_LO = 29, 
++	R_PPC_PLT16_HI = 30, 
++	R_PPC_PLT16_HA = 31, 
++	R_PPC_SDAREL16 = 32, 
++	R_PPC_SECTOFF = 33, 
++	R_PPC_SECTOFF_LO = 34, 
++	R_PPC_SECTOFF_HI = 35, 
++	R_PPC_SECTOFF_HA = 36, 
++
++	R_PPC_COUNT = 37, /* Count of defined relocation types. */
++
++	R_PPC_TLS = 67, 
++	R_PPC_DTPMOD32 = 68, 
++	R_PPC_TPREL16 = 69, 
++	R_PPC_TPREL16_LO = 70, 
++	R_PPC_TPREL16_HI = 71, 
++	R_PPC_TPREL16_HA = 72, 
++	R_PPC_TPREL32 = 73, 
++	R_PPC_DTPREL16 = 74, 
++	R_PPC_DTPREL16_LO = 75, 
++	R_PPC_DTPREL16_HI = 76, 
++	R_PPC_DTPREL16_HA = 77, 
++	R_PPC_DTPREL32 = 78, 
++	R_PPC_GOT_TLSGD16 = 79, 
++	R_PPC_GOT_TLSGD16_LO = 80, 
++	R_PPC_GOT_TLSGD16_HI = 81, 
++	R_PPC_GOT_TLSGD16_HA = 82, 
++	R_PPC_GOT_TLSLD16 = 83, 
++	R_PPC_GOT_TLSLD16_LO = 84, 
++	R_PPC_GOT_TLSLD16_HI = 85, 
++	R_PPC_GOT_TLSLD16_HA = 86, 
++	R_PPC_GOT_TPREL16 = 87, 
++	R_PPC_GOT_TPREL16_LO = 88, 
++	R_PPC_GOT_TPREL16_HI = 89, 
++	R_PPC_GOT_TPREL16_HA = 90, 
++
++	R_PPC_EMB_NADDR32 = 101, 
++	R_PPC_EMB_NADDR16 = 102, 
++	R_PPC_EMB_NADDR16_LO = 103, 
++	R_PPC_EMB_NADDR16_HI = 104, 
++	R_PPC_EMB_NADDR16_HA = 105, 
++	R_PPC_EMB_SDAI16 = 106, 
++	R_PPC_EMB_SDA2I16 = 107, 
++	R_PPC_EMB_SDA2REL = 108, 
++	R_PPC_EMB_SDA21 = 109, 
++	R_PPC_EMB_MRKREF = 110, 
++	R_PPC_EMB_RELSEC16 = 111, 
++	R_PPC_EMB_RELST_LO = 112, 
++	R_PPC_EMB_RELST_HI = 113, 
++	R_PPC_EMB_RELST_HA = 114, 
++	R_PPC_EMB_BIT_FLD = 115, 
++	R_PPC_EMB_RELSDA = 116, 
+ 
+ 					/* Count of defined relocation types. */
+-#define	R_PPC_EMB_COUNT		(R_PPC_EMB_RELSDA - R_PPC_EMB_NADDR32 + 1)
+-
+-#define R_PPC64_REL24		R_PPC_REL24
+-#define R_PPC64_JMP_SLOT	R_PPC_JMP_SLOT
+-#define R_PPC64_ADDR64		38
+-#define R_PPC64_TOC16		47
+-#define R_PPC64_TOC16_LO	48
+-#define R_PPC64_TOC16_HI	49
+-#define R_PPC64_TOC16_HA	50
+-#define R_PPC64_TOC16_DS	63
+-#define R_PPC64_TOC16_LO_DS	64
+-#define R_PPC64_REL16_LO	250
+-#define R_PPC64_REL16_HI	251
+-#define R_PPC64_REL16_HA	252
+-
+-#define R_SPARC_NONE		0
+-#define R_SPARC_8		1
+-#define R_SPARC_16		2
+-#define R_SPARC_32		3
+-#define R_SPARC_DISP8		4
+-#define R_SPARC_DISP16		5
+-#define R_SPARC_DISP32		6
+-#define R_SPARC_WDISP30		7
+-#define R_SPARC_WDISP22		8
+-#define R_SPARC_HI22		9
+-#define R_SPARC_22		10
+-#define R_SPARC_13		11
+-#define R_SPARC_LO10		12
+-#define R_SPARC_GOT10		13
+-#define R_SPARC_GOT13		14
+-#define R_SPARC_GOT22		15
+-#define R_SPARC_PC10		16
+-#define R_SPARC_PC22		17
+-#define R_SPARC_WPLT30		18
+-#define R_SPARC_COPY		19
+-#define R_SPARC_GLOB_DAT	20
+-#define R_SPARC_JMP_SLOT	21
+-#define R_SPARC_RELATIVE	22
+-#define R_SPARC_UA32		23
+-#define R_SPARC_PLT32		24
+-#define R_SPARC_HIPLT22		25
+-#define R_SPARC_LOPLT10		26
+-#define R_SPARC_PCPLT32		27
+-#define R_SPARC_PCPLT22		28
+-#define R_SPARC_PCPLT10		29
+-#define R_SPARC_10		30
+-#define R_SPARC_11		31
+-#define R_SPARC_64		32
+-#define R_SPARC_OLO10		33
+-#define R_SPARC_HH22		34
+-#define R_SPARC_HM10		35
+-#define R_SPARC_LM22		36
+-#define R_SPARC_PC_HH22		37
+-#define R_SPARC_PC_HM10		38
+-#define R_SPARC_PC_LM22		39
+-#define R_SPARC_WDISP16		40
+-#define R_SPARC_WDISP19		41
+-#define R_SPARC_GLOB_JMP	42
+-#define R_SPARC_7		43
+-#define R_SPARC_5		44
+-#define R_SPARC_6		45
+-#define	R_SPARC_DISP64		46
+-#define	R_SPARC_PLT64		47
+-#define	R_SPARC_HIX22		48
+-#define	R_SPARC_LOX10		49
+-#define	R_SPARC_H44		50
+-#define	R_SPARC_M44		51
+-#define	R_SPARC_L44		52
+-#define	R_SPARC_REGISTER	53
+-#define	R_SPARC_UA64		54
+-#define	R_SPARC_UA16		55
++	R_PPC_EMB_COUNT = (R_PPC_EMB_RELSDA - R_PPC_EMB_NADDR32 + 1),
++
++	R_PPC64_REL24 = R_PPC_REL24, 
++	R_PPC64_JMP_SLOT = R_PPC_JMP_SLOT, 
++	R_PPC64_ADDR64 = 38, 
++	R_PPC64_TOC16 = 47, 
++	R_PPC64_TOC16_LO = 48, 
++	R_PPC64_TOC16_HI = 49, 
++	R_PPC64_TOC16_HA = 50, 
++	R_PPC64_TOC16_DS = 63, 
++	R_PPC64_TOC16_LO_DS = 64, 
++	R_PPC64_REL16_LO = 250, 
++	R_PPC64_REL16_HI = 251, 
++	R_PPC64_REL16_HA = 252, 
++
++	R_SPARC_NONE = 0, 
++	R_SPARC_8 = 1, 
++	R_SPARC_16 = 2, 
++	R_SPARC_32 = 3, 
++	R_SPARC_DISP8 = 4, 
++	R_SPARC_DISP16 = 5, 
++	R_SPARC_DISP32 = 6, 
++	R_SPARC_WDISP30 = 7, 
++	R_SPARC_WDISP22 = 8, 
++	R_SPARC_HI22 = 9, 
++	R_SPARC_22 = 10, 
++	R_SPARC_13 = 11, 
++	R_SPARC_LO10 = 12, 
++	R_SPARC_GOT10 = 13, 
++	R_SPARC_GOT13 = 14, 
++	R_SPARC_GOT22 = 15, 
++	R_SPARC_PC10 = 16, 
++	R_SPARC_PC22 = 17, 
++	R_SPARC_WPLT30 = 18, 
++	R_SPARC_COPY = 19, 
++	R_SPARC_GLOB_DAT = 20, 
++	R_SPARC_JMP_SLOT = 21, 
++	R_SPARC_RELATIVE = 22, 
++	R_SPARC_UA32 = 23, 
++	R_SPARC_PLT32 = 24, 
++	R_SPARC_HIPLT22 = 25, 
++	R_SPARC_LOPLT10 = 26, 
++	R_SPARC_PCPLT32 = 27, 
++	R_SPARC_PCPLT22 = 28, 
++	R_SPARC_PCPLT10 = 29, 
++	R_SPARC_10 = 30, 
++	R_SPARC_11 = 31, 
++	R_SPARC_64 = 32, 
++	R_SPARC_OLO10 = 33, 
++	R_SPARC_HH22 = 34, 
++	R_SPARC_HM10 = 35, 
++	R_SPARC_LM22 = 36, 
++	R_SPARC_PC_HH22 = 37, 
++	R_SPARC_PC_HM10 = 38, 
++	R_SPARC_PC_LM22 = 39, 
++	R_SPARC_WDISP16 = 40, 
++	R_SPARC_WDISP19 = 41, 
++	R_SPARC_GLOB_JMP = 42, 
++	R_SPARC_7 = 43, 
++	R_SPARC_5 = 44, 
++	R_SPARC_6 = 45, 
++	R_SPARC_DISP64 = 46, 
++	R_SPARC_PLT64 = 47, 
++	R_SPARC_HIX22 = 48, 
++	R_SPARC_LOX10 = 49, 
++	R_SPARC_H44 = 50, 
++	R_SPARC_M44 = 51, 
++	R_SPARC_L44 = 52, 
++	R_SPARC_REGISTER = 53, 
++	R_SPARC_UA64 = 54, 
++	R_SPARC_UA16 = 55, 
+ 
+ 
+ /*
+  * Magic number for the elf trampoline, chosen wisely to be an immediate
+  * value.
+  */
+-#define ARM_MAGIC_TRAMP_NUMBER	0x5c000003
+-
++	ARM_MAGIC_TRAMP_NUMBER = 0x5c000003, 
++};
+ 
+ /*
+  * Symbol table entries.
+  */
+ 
+-typedef struct {
+-	Elf32_Word	name;	/* String table index of name. */
+-	Elf32_Addr	value;	/* Symbol value. */
+-	Elf32_Word	size;	/* Size of associated object. */
+-	unsigned char	info;	/* Type and binding information. */
+-	unsigned char	other;	/* Reserved (not used). */
+-	Elf32_Half	shndx;	/* Section index of symbol. */
+-} Elf32_Sym;
+-
+-/* Macros for accessing the fields of st_info. */
+-#define ELF32_ST_BIND(info)		((info) >> 4)
+-#define ELF32_ST_TYPE(info)		((info) & 0xf)
++/* For accessing the fields of st_info. */
++uint8 ELF32_ST_BIND(uint8);
++uint8 ELF32_ST_TYPE(uint8);
+ 
+-/* Macro for constructing st_info from field values. */
+-#define ELF32_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
+-
+-/* Macro for accessing the fields of st_other. */
+-#define ELF32_ST_VISIBILITY(oth)	((oth) & 0x3)
+-
+-/*
+- * ELF definitions common to all 64-bit architectures.
+- */
++/* For constructing st_info from field values. */
++uint8 ELF32_ST_INFO(uint8 bind, uint8 type);
+ 
+-typedef uint64	Elf64_Addr;
+-typedef uint16	Elf64_Half;
+-typedef uint64	Elf64_Off;
+-typedef int32		Elf64_Sword;
+-typedef int64		Elf64_Sxword;
+-typedef uint32	Elf64_Word;
+-typedef uint64	Elf64_Xword;
+-
+-/*
+- * Types of dynamic symbol hash table bucket and chain elements.
+- *
+- * This is inconsistent among 64 bit architectures, so a machine dependent
+- * typedef is required.
+- */
+-
+-#ifdef __alpha__
+-typedef Elf64_Off	Elf64_Hashelt;
+-#else
+-typedef Elf64_Word	Elf64_Hashelt;
+-#endif
+-
+-/* Non-standard class-dependent datatype used for abstraction. */
+-typedef Elf64_Xword	Elf64_Size;
+-typedef Elf64_Sxword	Elf64_Ssize;
++/* For accessing the fields of st_other. */
++uint8 ELF32_ST_VISIBILITY(uint8);
+ 
+ /*
+  * ELF header.
+  */
+ 
+-typedef struct {
+-	unsigned char	ident[EI_NIDENT];	/* File identification. */
+-	Elf64_Half	type;		/* File type. */
+-	Elf64_Half	machine;	/* Machine architecture. */
+-	Elf64_Word	version;	/* ELF format version. */
+-	Elf64_Addr	entry;	/* Entry point. */
+-	Elf64_Off	phoff;	/* Program header file offset. */
+-	Elf64_Off	shoff;	/* Section header file offset. */
+-	Elf64_Word	flags;	/* Architecture-specific flags. */
+-	Elf64_Half	ehsize;	/* Size of ELF header in bytes. */
+-	Elf64_Half	phentsize;	/* Size of program header entry. */
+-	Elf64_Half	phnum;	/* Number of program header entries. */
+-	Elf64_Half	shentsize;	/* Size of section header entry. */
+-	Elf64_Half	shnum;	/* Number of section header entries. */
+-	Elf64_Half	shstrndx;	/* Section name strings section. */
+-} Elf64_Ehdr;
++typedef struct ElfEhdr ElfEhdr;
++struct ElfEhdr {
++	uint8	ident[EI_NIDENT];	/* File identification. */
++	uint16	type;		/* File type. */
++	uint16	machine;	/* Machine architecture. */
++	uint32	version;	/* ELF format version. */
++	uint64	entry;	/* Entry point. */
++	uint64	phoff;	/* Program header file offset. */
++	uint64	shoff;	/* Section header file offset. */
++	uint32	flags;	/* Architecture-specific flags. */
++	uint16	ehsize;	/* Size of ELF header in bytes. */
++	uint16	phentsize;	/* Size of program header entry. */
++	uint16	phnum;	/* Number of program header entries. */
++	uint16	shentsize;	/* Size of section header entry. */
++	uint16	shnum;	/* Number of section header entries. */
++	uint16	shstrndx;	/* Section name strings section. */
++};
+ 
+ /*
+  * Section header.
+  */
+ 
+-typedef struct Elf64_Shdr Elf64_Shdr;
+-struct Elf64_Shdr {
+-	Elf64_Word	name;	/* Section name (index into the
++typedef struct ElfShdr ElfShdr;
++struct ElfShdr {
++	uint32	name;	/* Section name (index into the
+ 					   section header string table). */
+-	Elf64_Word	type;	/* Section type. */
+-	Elf64_Xword	flags;	/* Section flags. */
+-	Elf64_Addr	addr;	/* Address in memory image. */
+-	Elf64_Off	off;	/* Offset in file. */
+-	Elf64_Xword	size;	/* Size in bytes. */
+-	Elf64_Word	link;	/* Index of a related section. */
+-	Elf64_Word	info;	/* Depends on section type. */
+-	Elf64_Xword	addralign;	/* Alignment in bytes. */
+-	Elf64_Xword	entsize;	/* Size of each entry in section. */
++	uint32	type;	/* Section type. */
++	uint64	flags;	/* Section flags. */
++	uint64	addr;	/* Address in memory image. */
++	uint64	off;	/* Offset in file. */
++	uint64	size;	/* Size in bytes. */
++	uint32	link;	/* Index of a related section. */
++	uint32	info;	/* Depends on section type. */
++	uint64	addralign;	/* Alignment in bytes. */
++	uint64	entsize;	/* Size of each entry in section. */
+ 	
+ 	int	shnum;  /* section number, not stored on disk */
+ 	LSym*	secsym; /* section symbol, if needed; not on disk */
+@@ -880,101 +742,62 @@ struct Elf64_Shdr {
+  * Program header.
+  */
+ 
+-typedef struct {
+-	Elf64_Word	type;		/* Entry type. */
+-	Elf64_Word	flags;	/* Access permission flags. */
+-	Elf64_Off	off;	/* File offset of contents. */
+-	Elf64_Addr	vaddr;	/* Virtual address in memory image. */
+-	Elf64_Addr	paddr;	/* Physical address (not used). */
+-	Elf64_Xword	filesz;	/* Size of contents in file. */
+-	Elf64_Xword	memsz;	/* Size of contents in memory. */
+-	Elf64_Xword	align;	/* Alignment in memory and file. */
+-} Elf64_Phdr;
+-
+-/*
+- * Dynamic structure.  The ".dynamic" section contains an array of them.
+- */
+-
+-typedef struct {
+-	Elf64_Sxword	d_tag;		/* Entry type. */
+-	union {
+-		Elf64_Xword	d_val;	/* Integer value. */
+-		Elf64_Addr	d_ptr;	/* Address value. */
+-	} d_un;
+-} Elf64_Dyn;
+-
+-/*
+- * Relocation entries.
+- */
+-
+-/* Relocations that don't need an addend field. */
+-typedef struct {
+-	Elf64_Addr	off;	/* Location to be relocated. */
+-	Elf64_Xword	info;		/* Relocation type and symbol index. */
+-} Elf64_Rel;
+-
+-/* Relocations that need an addend field. */
+-typedef struct {
+-	Elf64_Addr	off;	/* Location to be relocated. */
+-	Elf64_Xword	info;		/* Relocation type and symbol index. */
+-	Elf64_Sxword	addend;	/* Addend. */
+-} Elf64_Rela;
++typedef struct ElfPhdr ElfPhdr;
++struct ElfPhdr {
++	uint32	type;		/* Entry type. */
++	uint32	flags;	/* Access permission flags. */
++	uint64	off;	/* File offset of contents. */
++	uint64	vaddr;	/* Virtual address in memory image. */
++	uint64	paddr;	/* Physical address (not used). */
++	uint64	filesz;	/* Size of contents in file. */
++	uint64	memsz;	/* Size of contents in memory. */
++	uint64	align;	/* Alignment in memory and file. */
++};
+ 
+-/* Macros for accessing the fields of r_info. */
+-#define ELF64_R_SYM(info)	((info) >> 32)
+-#define ELF64_R_TYPE(info)	((info) & 0xffffffffL)
++/* For accessing the fields of r_info. */
++uint32 ELF64_R_SYM(uint64);
++uint32 ELF64_R_TYPE(uint64);
+ 
+-/* Macro for constructing r_info from field values. */
+-#define ELF64_R_INFO(sym, type)	((((uint64)(sym)) << 32) + (((uint64)(type)) & 0xffffffffULL))
++/* For constructing r_info from field values. */
++uint64 ELF64_R_INFO(uint32, uint32);
+ 
+ /*
+  * Symbol table entries.
+  */
+ 
+-typedef struct {
+-	Elf64_Word	name;	/* String table index of name. */
+-	unsigned char	info;	/* Type and binding information. */
+-	unsigned char	other;	/* Reserved (not used). */
+-	Elf64_Half	shndx;	/* Section index of symbol. */
+-	Elf64_Addr	value;	/* Symbol value. */
+-	Elf64_Xword	size;	/* Size of associated object. */
+-} Elf64_Sym;
++/* For accessing the fields of st_info. */
++uint8 ELF64_ST_BIND(uint8);
++uint8 ELF64_ST_TYPE(uint8);
+ 
+-/* Macros for accessing the fields of st_info. */
+-#define ELF64_ST_BIND(info)		((info) >> 4)
+-#define ELF64_ST_TYPE(info)		((info) & 0xf)
++/* For constructing st_info from field values. */
++uint8 ELF64_ST_INFO(uint8 bind, uint8 type);
+ 
+-/* Macro for constructing st_info from field values. */
+-#define ELF64_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
+-
+-/* Macro for accessing the fields of st_other. */
+-#define ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
++/* For accessing the fields of st_other. */
++uint8 ELF64_ST_VISIBILITY(uint8);
+ 
+ /*
+  * Go linker interface
+  */
+-
+-#define	ELF64HDRSIZE	64
+-#define	ELF64PHDRSIZE	56
+-#define	ELF64SHDRSIZE	64
+-#define	ELF64RELSIZE	16
+-#define	ELF64RELASIZE	24
+-#define	ELF64SYMSIZE	sizeof(Elf64_Sym)
+-
+-#define	ELF32HDRSIZE	sizeof(Elf32_Ehdr)
+-#define	ELF32PHDRSIZE	sizeof(Elf32_Phdr)
+-#define	ELF32SHDRSIZE	sizeof(Elf32_Shdr)
+-#define	ELF32SYMSIZE	sizeof(Elf32_Sym)
+-#define	ELF32RELSIZE	8
++enum {
++	ELF64HDRSIZE = 64, 
++	ELF64PHDRSIZE = 56, 
++	ELF64SHDRSIZE = 64, 
++	ELF64RELSIZE = 16, 
++	ELF64RELASIZE = 24, 
++	ELF64SYMSIZE = 24,
++
++	ELF32HDRSIZE = 52,
++	ELF32PHDRSIZE = 32,
++	ELF32SHDRSIZE = 40,
++	ELF32SYMSIZE = 16,
++	ELF32RELSIZE = 8, 
++};
+ 
+ /*
+  * The interface uses the 64-bit structures always,
+  * to avoid code duplication.  The writers know how to
+  * marshal a 32-bit representation from the 64-bit structure.
+  */
+-typedef Elf64_Ehdr ElfEhdr;
+-typedef Elf64_Shdr ElfShdr;
+-typedef Elf64_Phdr ElfPhdr;
+ 
+ void	elfinit(void);
+ ElfEhdr	*getElfEhdr(void);
+@@ -987,7 +810,7 @@ void	elfwritedynent(LSym*, int, uint64);
+ void	elfwritedynentsym(LSym*, int, LSym*);
+ void	elfwritedynentsymplus(LSym*, int, LSym*, vlong);
+ void	elfwritedynentsymsize(LSym*, int, LSym*);
+-uint32	elfhash(uchar*);
++uint32	elfhash(uint8*);
+ uint64	startelf(void);
+ uint64	endelf(void);
+ extern	int	numelfphdr;
+@@ -1015,13 +838,8 @@ void	elfemitreloc(void);
+ void	shsym(ElfShdr*, LSym*);
+ void	phsh(ElfPhdr*, ElfShdr*);
+ void	doelf(void);
+-void	elfsetupplt(void);
+-void	dwarfaddshstrings(LSym*);
+-void	dwarfaddelfsectionsyms(void);
+-void	dwarfaddelfheaders(void);
+ void	asmbelf(vlong symo);
+ void	asmbelfsetup(void);
+-int	elfreloc1(Reloc*, vlong sectoff);
+ void	putelfsectionsyms(void);
+ 
+ EXTERN	int	elfstrsize;
+@@ -1034,4 +852,6 @@ EXTERN	int	buildinfolen;
+  * May waste some.
+  * On FreeBSD, cannot be larger than a page.
+  */
+-#define	ELFRESERVE	3072
++enum {
++	ELFRESERVE = 3072, 
++};
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 8b1123d3de..3432d3b953 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -74,27 +74,27 @@ static int parsemethod(char**, char*, char**);
+ static int parsepkgdata(char*, char*, char**, char*, char**, char**, char**);
+ 
+ void
+-ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
++ldpkg(Biobuf *f, char *pkg, int64 length, char *filename, int whence)
+ {
+ 	char *data, *p0, *p1, *name;
+ 
+ 	if(debug['g'])
+ 		return;
+ 
+-	if((int)len != len) {
++	if((int)length != length) {
+ 		fprint(2, "%s: too much pkg data in %s\n", argv0, filename);
+ 		if(debug['u'])
+ 			errorexit();
+ 		return;
+ 	}
+-	data = mal(len+1);
+-	if(Bread(f, data, len) != len) {
++	data = mal(length+1);
++	if(Bread(f, data, length) != length) {
+ 		fprint(2, "%s: short pkg read %s\n", argv0, filename);
+ 		if(debug['u'])
+ 			errorexit();
+ 		return;
+ 	}
+-	data[len] = '\0';
++	data[length] = '\x00';
+ 
+ 	// first \n$$ marks beginning of exports - skip rest of line
+ 	p0 = strstr(data, "\n$$");
+@@ -106,7 +106,7 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 		return;
+ 	}
+ 	p0 += 3;
+-	while(*p0 != '\n' && *p0 != '\0')
++	while(*p0 != '\n' && *p0 != '\x00')
+ 		p0++;
+ 
+ 	// second marks end of exports / beginning of local data
+@@ -140,11 +140,11 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ 		}
+ 		if(p0 < p1) {
+ 			if(*p0 == '\n')
+-				*p0++ = '\0';
++				*p0++ = '\x00';
+ 			else {
+-				*p0++ = '\0';
+-				while(p0 < p1 && *p0++ != '\n')
+-					;
++				*p0++ = '\x00';
++				while(p0 < p1 && *p0 != '\n')
++					p0++;
+ 			}
+ 		}
+ 		if(strcmp(pkg, "main") == 0 && strcmp(name, "main") != 0) {
+@@ -183,14 +183,14 @@ ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence)
+ }
+ 
+ static void
+-loadpkgdata(char *file, char *pkg, char *data, int len)
++loadpkgdata(char *file, char *pkg, char *data, int length)
+ {
+ 	char *p, *ep, *prefix, *name, *def;
+ 	Import *x;
+ 
+ 	file = estrdup(file);
+ 	p = data;
+-	ep = data + len;
++	ep = data + length;
+ 	while(parsepkgdata(file, pkg, &p, ep, &prefix, &name, &def) > 0) {
+ 		x = ilookup(name);
+ 		if(x->prefix == nil) {
+@@ -253,7 +253,7 @@ loop:
+ 			nerrors++;
+ 			return -1;
+ 		}
+-		*p++ = '\0';
++		*p++ = '\x00';
+ 		imported(pkg, name);
+ 		goto loop;
+ 	}
+@@ -262,7 +262,7 @@ loop:
+ 		nerrors++;
+ 		return -1;
+ 	}
+-	p[-1] = '\0';
++	p[-1] = '\x00';
+ 
+ 	// name: a.b followed by space
+ 	name = p;
+@@ -281,7 +281,7 @@ loop:
+ 
+ 	if(p >= ep)
+ 		return -1;
+-	*p++ = '\0';
++	*p++ = '\x00';
+ 
+ 	// def: free form to new line
+ 	def = p;
+@@ -290,11 +290,11 @@ loop:
+ 	if(p >= ep)
+ 		return -1;
+ 	edef = p;
+-	*p++ = '\0';
++	*p++ = '\x00';
+ 
+ 	// include methods on successive lines in def of named type
+ 	while(parsemethod(&p, ep, &meth) > 0) {
+-		*edef++ = '\n';	// overwrites '\0'
++		*edef++ = '\n';	// overwrites '\x00'
+ 		if(edef+1 > meth) {
+ 			// We want to indent methods with a single \t.
+ 			// 6g puts at least one char of indent before all method defs,
+@@ -355,7 +355,7 @@ useline:
+ 		*pp = ep;
+ 		return -1;
+ 	}
+-	*p++ = '\0';
++	*p++ = '\x00';
+ 	*pp = p;
+ 	return 1;
+ }
+@@ -376,7 +376,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 		if(next == nil)
+ 			next = "";
+ 		else
+-			*next++ = '\0';
++			*next++ = '\x00';
+ 
+ 		free(p0);
+ 		p0 = estrdup(p); // save for error message
+@@ -411,7 +411,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 			local = expandpkg(local, pkg);
+ 			q = strchr(remote, '#');
+ 			if(q)
+-				*q++ = '\0';
++				*q++ = '\x00';
+ 			s = linklookup(ctxt, local, 0);
+ 			if(local != f[1])
+ 				free(local);
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 7beff337f2..f4ddc2c58f 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -251,6 +251,7 @@ typedef struct ElfSym ElfSym;
+ struct ElfSect
+ {
+ 	char		*name;
++	uint32	nameoff;
+ 	uint32	type;
+ 	uint64	flags;
+ 	uint64	addr;
+@@ -268,7 +269,7 @@ struct ElfObj
+ {
+ 	Biobuf	*f;
+ 	int64	base;	// offset in f where ELF begins
+-	int64	len;		// length of ELF
++	int64	length;		// length of ELF
+ 	int	is64;
+ 	char	*name;
+ 
+@@ -310,8 +311,8 @@ struct ElfSym
+ uchar ElfMagic[4] = { 0x7F, 'E', 'L', 'F' };
+ 
+ static ElfSect*	section(ElfObj*, char*);
+-static int	map(ElfObj*, ElfSect*);
+-static int	readsym(ElfObj*, int i, ElfSym*, int);
++static int	elfmap(ElfObj*, ElfSect*);
++static int	readelfsym(ElfObj*, int i, ElfSym*, int);
+ static int	reltype(char*, int, uchar*);
+ 
+ int
+@@ -325,7 +326,7 @@ valuecmp(LSym *a, LSym *b)
+ }
+ 
+ void
+-ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
++ldelf(Biobuf *f, char *pkg, int64 length, char *pn)
+ {
+ 	int32 base;
+ 	uint64 add, info;
+@@ -334,7 +335,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	uchar hdrbuf[64];
+ 	uchar *p;
+ 	ElfHdrBytes *hdr;
+-	ElfObj *obj;
++	ElfObj *elfobj;
+ 	ElfSect *sect, *rsect;
+ 	ElfSym sym;
+ 	Endian *e;
+@@ -367,12 +368,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 
+ 	// read header
+-	obj = mal(sizeof *obj);
+-	obj->e = e;
+-	obj->f = f;
+-	obj->base = base;
+-	obj->len = len;
+-	obj->name = pn;
++	elfobj = mal(sizeof *elfobj);
++	elfobj->e = e;
++	elfobj->f = f;
++	elfobj->base = base;
++	elfobj->length = length;
++	elfobj->name = pn;
+ 	
+ 	is64 = 0;
+ 	if(hdr->ident[4] == ElfClass64) {
+@@ -380,36 +381,36 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 
+ 		is64 = 1;
+ 		hdr = (ElfHdrBytes64*)hdrbuf;
+-		obj->type = e->e16(hdr->type);
+-		obj->machine = e->e16(hdr->machine);
+-		obj->version = e->e32(hdr->version);
+-		obj->phoff = e->e64(hdr->phoff);
+-		obj->shoff = e->e64(hdr->shoff);
+-		obj->flags = e->e32(hdr->flags);
+-		obj->ehsize = e->e16(hdr->ehsize);
+-		obj->phentsize = e->e16(hdr->phentsize);
+-		obj->phnum = e->e16(hdr->phnum);
+-		obj->shentsize = e->e16(hdr->shentsize);
+-		obj->shnum = e->e16(hdr->shnum);
+-		obj->shstrndx = e->e16(hdr->shstrndx);
++		elfobj->type = e->e16(hdr->type);
++		elfobj->machine = e->e16(hdr->machine);
++		elfobj->version = e->e32(hdr->version);
++		elfobj->phoff = e->e64(hdr->phoff);
++		elfobj->shoff = e->e64(hdr->shoff);
++		elfobj->flags = e->e32(hdr->flags);
++		elfobj->ehsize = e->e16(hdr->ehsize);
++		elfobj->phentsize = e->e16(hdr->phentsize);
++		elfobj->phnum = e->e16(hdr->phnum);
++		elfobj->shentsize = e->e16(hdr->shentsize);
++		elfobj->shnum = e->e16(hdr->shnum);
++		elfobj->shstrndx = e->e16(hdr->shstrndx);
+ 	} else {
+-		obj->type = e->e16(hdr->type);
+-		obj->machine = e->e16(hdr->machine);
+-		obj->version = e->e32(hdr->version);
+-		obj->entry = e->e32(hdr->entry);
+-		obj->phoff = e->e32(hdr->phoff);
+-		obj->shoff = e->e32(hdr->shoff);
+-		obj->flags = e->e32(hdr->flags);
+-		obj->ehsize = e->e16(hdr->ehsize);
+-		obj->phentsize = e->e16(hdr->phentsize);
+-		obj->phnum = e->e16(hdr->phnum);
+-		obj->shentsize = e->e16(hdr->shentsize);
+-		obj->shnum = e->e16(hdr->shnum);
+-		obj->shstrndx = e->e16(hdr->shstrndx);
++		elfobj->type = e->e16(hdr->type);
++		elfobj->machine = e->e16(hdr->machine);
++		elfobj->version = e->e32(hdr->version);
++		elfobj->entry = e->e32(hdr->entry);
++		elfobj->phoff = e->e32(hdr->phoff);
++		elfobj->shoff = e->e32(hdr->shoff);
++		elfobj->flags = e->e32(hdr->flags);
++		elfobj->ehsize = e->e16(hdr->ehsize);
++		elfobj->phentsize = e->e16(hdr->phentsize);
++		elfobj->phnum = e->e16(hdr->phnum);
++		elfobj->shentsize = e->e16(hdr->shentsize);
++		elfobj->shnum = e->e16(hdr->shnum);
++		elfobj->shstrndx = e->e16(hdr->shstrndx);
+ 	}
+-	obj->is64 = is64;
++	elfobj->is64 = is64;
+ 	
+-	if(hdr->ident[6] != obj->version)
++	if(hdr->ident[6] != elfobj->version)
+ 		goto bad;
+ 
+ 	if(e->e16(hdr->type) != ElfTypeRelocatable) {
+@@ -422,25 +423,25 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		diag("%s: elf %s unimplemented", pn, thestring);
+ 		return;
+ 	case '5':
+-		if(e != &le || obj->machine != ElfMachArm || hdr->ident[4] != ElfClass32) {
++		if(e != &le || elfobj->machine != ElfMachArm || hdr->ident[4] != ElfClass32) {
+ 			diag("%s: elf object but not arm", pn);
+ 			return;
+ 		}
+ 		break;
+ 	case '6':
+-		if(e != &le || obj->machine != ElfMachAmd64 || hdr->ident[4] != ElfClass64) {
++		if(e != &le || elfobj->machine != ElfMachAmd64 || hdr->ident[4] != ElfClass64) {
+ 			diag("%s: elf object but not amd64", pn);
+ 			return;
+ 		}
+ 		break;
+ 	case '8':
+-		if(e != &le || obj->machine != ElfMach386 || hdr->ident[4] != ElfClass32) {
++		if(e != &le || elfobj->machine != ElfMach386 || hdr->ident[4] != ElfClass32) {
+ 			diag("%s: elf object but not 386", pn);
+ 			return;
+ 		}
+ 		break;
+ 	case '9':
+-		if(obj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
++		if(elfobj->machine != ElfMachPower64 || hdr->ident[4] != ElfClass64) {
+ 			diag("%s: elf object but not ppc64", pn);
+ 			return;
+ 		}
+@@ -448,12 +449,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 
+ 	// load section list into memory.
+-	obj->sect = mal(obj->shnum*sizeof obj->sect[0]);
+-	obj->nsect = obj->shnum;
+-	for(i=0; i<obj->nsect; i++) {
+-		if(Bseek(f, base+obj->shoff+i*obj->shentsize, 0) < 0)
++	elfobj->sect = mal(elfobj->shnum*sizeof elfobj->sect[0]);
++	elfobj->nsect = elfobj->shnum;
++	for(i=0; i<elfobj->nsect; i++) {
++		if(Bseek(f, base+elfobj->shoff+i*elfobj->shentsize, 0) < 0)
+ 			goto bad;
+-		sect = &obj->sect[i];
++		sect = &elfobj->sect[i];
+ 		if(is64) {
+ 			ElfSectBytes64 b;
+ 
+@@ -461,7 +462,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			if(Bread(f, &b, sizeof b) != sizeof b)
+ 				goto bad;
+ 
+-			sect->name = (char*)(uintptr)e->e32(b.name);
++			sect->nameoff = (uintptr)e->e32(b.name);
+ 			sect->type = e->e32(b.type);
+ 			sect->flags = e->e64(b.flags);
+ 			sect->addr = e->e64(b.addr);
+@@ -478,7 +479,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			if(Bread(f, &b, sizeof b) != sizeof b)
+ 				goto bad;
+ 		
+-			sect->name = (char*)(uintptr)e->e32(b.name);
++			sect->nameoff = (uintptr)e->e32(b.name);
+ 			sect->type = e->e32(b.type);
+ 			sect->flags = e->e32(b.flags);
+ 			sect->addr = e->e32(b.addr);
+@@ -492,36 +493,36 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 
+ 	// read section string table and translate names
+-	if(obj->shstrndx >= obj->nsect) {
+-		werrstr("shstrndx out of range %d >= %d", obj->shstrndx, obj->nsect);
++	if(elfobj->shstrndx >= elfobj->nsect) {
++		werrstr("shstrndx out of range %d >= %d", elfobj->shstrndx, elfobj->nsect);
+ 		goto bad;
+ 	}
+-	sect = &obj->sect[obj->shstrndx];
+-	if(map(obj, sect) < 0)
++	sect = &elfobj->sect[elfobj->shstrndx];
++	if(elfmap(elfobj, sect) < 0)
+ 		goto bad;
+-	for(i=0; i<obj->nsect; i++)
+-		if(obj->sect[i].name != nil)
+-			obj->sect[i].name = (char*)sect->base + (uintptr)obj->sect[i].name;
++	for(i=0; i<elfobj->nsect; i++)
++		if(elfobj->sect[i].nameoff != 0)
++			elfobj->sect[i].name = (char*)sect->base + elfobj->sect[i].nameoff;
+ 	
+ 	// load string table for symbols into memory.
+-	obj->symtab = section(obj, ".symtab");
+-	if(obj->symtab == nil) {
++	elfobj->symtab = section(elfobj, ".symtab");
++	if(elfobj->symtab == nil) {
+ 		// our work is done here - no symbols means nothing can refer to this file
+ 		return;
+ 	}
+-	if(obj->symtab->link <= 0 || obj->symtab->link >= obj->nsect) {
++	if(elfobj->symtab->link <= 0 || elfobj->symtab->link >= elfobj->nsect) {
+ 		diag("%s: elf object has symbol table with invalid string table link", pn);
+ 		return;
+ 	}
+-	obj->symstr = &obj->sect[obj->symtab->link];
++	elfobj->symstr = &elfobj->sect[elfobj->symtab->link];
+ 	if(is64)
+-		obj->nsymtab = obj->symtab->size / sizeof(ElfSymBytes64);
++		elfobj->nsymtab = elfobj->symtab->size / sizeof(ElfSymBytes64);
+ 	else
+-		obj->nsymtab = obj->symtab->size / sizeof(ElfSymBytes);
++		elfobj->nsymtab = elfobj->symtab->size / sizeof(ElfSymBytes);
+ 	
+-	if(map(obj, obj->symtab) < 0)
++	if(elfmap(elfobj, elfobj->symtab) < 0)
+ 		goto bad;
+-	if(map(obj, obj->symstr) < 0)
++	if(elfmap(elfobj, elfobj->symstr) < 0)
+ 		goto bad;
+ 
+ 	// load text and data segments into memory.
+@@ -529,12 +530,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	// the memory anyway for the symbol images, so we might
+ 	// as well use one large chunk.
+ 	
+-	// create symbols for mapped sections
+-	for(i=0; i<obj->nsect; i++) {
+-		sect = &obj->sect[i];
++	// create symbols for elfmapped sections
++	for(i=0; i<elfobj->nsect; i++) {
++		sect = &elfobj->sect[i];
+ 		if((sect->type != ElfSectProgbits && sect->type != ElfSectNobits) || !(sect->flags&ElfSectFlagAlloc))
+ 			continue;
+-		if(sect->type != ElfSectNobits && map(obj, sect) < 0)
++		if(sect->type != ElfSectNobits && elfmap(elfobj, sect) < 0)
+ 			goto bad;
+ 		
+ 		name = smprint("%s(%s)", pkg, sect->name);
+@@ -571,13 +572,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 
+ 	// enter sub-symbols into symbol table.
+ 	// symbol 0 is the null symbol.
+-	symbols = malloc(obj->nsymtab * sizeof(symbols[0]));
++	symbols = malloc(elfobj->nsymtab * sizeof(symbols[0]));
+ 	if(symbols == nil) {
+ 		diag("out of memory");
+ 		errorexit();
+ 	}
+-	for(i=1; i<obj->nsymtab; i++) {
+-		if(readsym(obj, i, &sym, 1) < 0)
++	for(i=1; i<elfobj->nsymtab; i++) {
++		if(readelfsym(elfobj, i, &sym, 1) < 0)
+ 			goto bad;
+ 		symbols[i] = sym.sym;
+ 		if(sym.type != ElfSymTypeFunc && sym.type != ElfSymTypeObject && sym.type != ElfSymTypeNone)
+@@ -590,12 +591,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				s->type = SNOPTRBSS;
+ 			continue;
+ 		}
+-		if(sym.shndx >= obj->nsect || sym.shndx == 0)
++		if(sym.shndx >= elfobj->nsect || sym.shndx == 0)
+ 			continue;
+-		// even when we pass needSym == 1 to readsym, it might still return nil to skip some unwanted symbols
++		// even when we pass needSym == 1 to readelfsym, it might still return nil to skip some unwanted symbols
+ 		if(sym.sym == nil)
+ 			continue;
+-		sect = obj->sect+sym.shndx;
++		sect = elfobj->sect+sym.shndx;
+ 		if(sect->sym == nil) {
+ 			if(strncmp(sym.name, ".Linfo_string", 13) == 0) // clang does this
+ 				continue;
+@@ -622,7 +623,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					diag("%s: duplicate definition of %s", pn, s->name);
+ 			s->external = 1;
+ 		}
+-		if(obj->machine == ElfMachPower64) {
++		if(elfobj->machine == ElfMachPower64) {
+ 			flag = sym.other >> 5;
+ 			if(2 <= flag && flag <= 6)
+ 				s->localentry = 1 << (flag - 2);
+@@ -633,12 +634,12 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	
+ 	// Sort outer lists by address, adding to textp.
+ 	// This keeps textp in increasing address order.
+-	for(i=0; i<obj->nsect; i++) {
+-		s = obj->sect[i].sym;
++	for(i=0; i<elfobj->nsect; i++) {
++		s = elfobj->sect[i].sym;
+ 		if(s == nil)
+ 			continue;
+ 		if(s->sub)
+-			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
++			s->sub = listsort(s->sub, valuecmp, listsubp);
+ 		if(s->type == STEXT) {
+ 			if(s->onlist)
+ 				sysfatal("symbol %s listed multiple times", s->name);
+@@ -659,14 +660,14 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 
+ 	// load relocations
+-	for(i=0; i<obj->nsect; i++) {
+-		rsect = &obj->sect[i];
++	for(i=0; i<elfobj->nsect; i++) {
++		rsect = &elfobj->sect[i];
+ 		if(rsect->type != ElfSectRela && rsect->type != ElfSectRel)
+ 			continue;
+-		if(rsect->info >= obj->nsect || obj->sect[rsect->info].base == nil)
++		if(rsect->info >= elfobj->nsect || elfobj->sect[rsect->info].base == nil)
+ 			continue;
+-		sect = &obj->sect[rsect->info];
+-		if(map(obj, rsect) < 0)
++		sect = &elfobj->sect[rsect->info];
++		if(elfmap(elfobj, rsect) < 0)
+ 			goto bad;
+ 		rela = rsect->type == ElfSectRela;
+ 		n = rsect->size/(4+4*is64)/(2+rela);
+@@ -705,7 +706,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			if((info >> 32) == 0) { // absolute relocation, don't bother reading the null symbol
+ 				rp->sym = nil;
+ 			} else {
+-				if(readsym(obj, info>>32, &sym, 0) < 0)
++				if(readelfsym(elfobj, info>>32, &sym, 0) < 0)
+ 					goto bad;
+ 				sym.sym = symbols[info>>32];
+ 				if(sym.sym == nil) {
+@@ -749,41 +750,41 @@ bad:
+ }
+ 
+ static ElfSect*
+-section(ElfObj *obj, char *name)
++section(ElfObj *elfobj, char *name)
+ {
+ 	int i;
+ 	
+-	for(i=0; i<obj->nsect; i++)
+-		if(obj->sect[i].name && name && strcmp(obj->sect[i].name, name) == 0)
+-			return &obj->sect[i];
++	for(i=0; i<elfobj->nsect; i++)
++		if(elfobj->sect[i].name && name && strcmp(elfobj->sect[i].name, name) == 0)
++			return &elfobj->sect[i];
+ 	return nil;
+ }
+ 
+ static int
+-map(ElfObj *obj, ElfSect *sect)
++elfmap(ElfObj *elfobj, ElfSect *sect)
+ {
+ 	if(sect->base != nil)
+ 		return 0;
+ 
+-	if(sect->off+sect->size > obj->len) {
++	if(sect->off+sect->size > elfobj->length) {
+ 		werrstr("elf section past end of file");
+ 		return -1;
+ 	}
+ 
+ 	sect->base = mal(sect->size);
+ 	werrstr("short read");
+-	if(Bseek(obj->f, obj->base+sect->off, 0) < 0 || Bread(obj->f, sect->base, sect->size) != sect->size)
++	if(Bseek(elfobj->f, elfobj->base+sect->off, 0) < 0 || Bread(elfobj->f, sect->base, sect->size) != sect->size)
+ 		return -1;
+ 	
+ 	return 0;
+ }
+ 
+ static int
+-readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
++readelfsym(ElfObj *elfobj, int i, ElfSym *sym, int needSym)
+ {
+ 	LSym *s;
+ 
+-	if(i >= obj->nsymtab || i < 0) {
++	if(i >= elfobj->nsymtab || i < 0) {
+ 		werrstr("invalid elf symbol index");
+ 		return -1;
+ 	}
+@@ -791,25 +792,25 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 		diag("readym: read null symbol!");
+ 	}
+ 
+-	if(obj->is64) {
++	if(elfobj->is64) {
+ 		ElfSymBytes64 *b;
+ 		
+-		b = (ElfSymBytes64*)(obj->symtab->base + i*sizeof *b);
+-		sym->name = (char*)obj->symstr->base + obj->e->e32(b->name);
+-		sym->value = obj->e->e64(b->value);
+-		sym->size = obj->e->e64(b->size);
+-		sym->shndx = obj->e->e16(b->shndx);
++		b = (ElfSymBytes64*)(elfobj->symtab->base + i*sizeof *b);
++		sym->name = (char*)elfobj->symstr->base + elfobj->e->e32(b->name);
++		sym->value = elfobj->e->e64(b->value);
++		sym->size = elfobj->e->e64(b->size);
++		sym->shndx = elfobj->e->e16(b->shndx);
+ 		sym->bind = b->info>>4;
+ 		sym->type = b->info&0xf;
+ 		sym->other = b->other;
+ 	} else {
+ 		ElfSymBytes *b;
+ 		
+-		b = (ElfSymBytes*)(obj->symtab->base + i*sizeof *b);
+-		sym->name = (char*)obj->symstr->base + obj->e->e32(b->name);
+-		sym->value = obj->e->e32(b->value);
+-		sym->size = obj->e->e32(b->size);
+-		sym->shndx = obj->e->e16(b->shndx);
++		b = (ElfSymBytes*)(elfobj->symtab->base + i*sizeof *b);
++		sym->name = (char*)elfobj->symstr->base + elfobj->e->e32(b->name);
++		sym->value = elfobj->e->e32(b->value);
++		sym->size = elfobj->e->e32(b->size);
++		sym->shndx = elfobj->e->e16(b->shndx);
+ 		sym->bind = b->info>>4;
+ 		sym->type = b->info&0xf;
+ 		sym->other = b->other;
+@@ -824,7 +825,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 		sym->bind = ElfSymBindLocal;
+ 	switch(sym->type) {
+ 	case ElfSymTypeSection:
+-		s = obj->sect[sym->shndx].sym;
++		s = elfobj->sect[sym->shndx].sym;
+ 		break;
+ 	case ElfSymTypeObject:
+ 	case ElfSymTypeFunc:
+@@ -848,7 +849,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 			break;
+ 		case ElfSymBindLocal:
+ 			if(thearch.thechar == '5' && (strncmp(sym->name, "$a", 2) == 0 || strncmp(sym->name, "$d", 2) == 0)) {
+-				// binutils for arm generate these mapping
++				// binutils for arm generate these elfmapping
+ 				// symbols, ignore these
+ 				break;
+ 			}
+@@ -904,6 +905,7 @@ rbyoff(const void *va, const void *vb)
+ }
+ 
+ #define R(x, y) ((x)|((y)<<24))
++/*c2go uint32 R(uint32, uint32); */
+ 
+ static int
+ reltype(char *pn, int elftype, uchar *siz)
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 4cbfa8d1ce..300f18a2eb 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -30,55 +30,54 @@ THE SOFTWARE.
+ #include	<bio.h>
+ #include	<link.h>
+ #include	"lib.h"
++#include	"macho.h"
+ 
+-enum {
+-	MACHO_FAKE_GOTPCREL = 100,	// from macho.h
+-	
++enum {	
+ 	N_EXT = 0x01,
+ 	N_TYPE = 0x1e,
+ 	N_STAB = 0xe0,
+ };
+ 
+-typedef struct MachoObj MachoObj;
+-typedef struct MachoCmd MachoCmd;
+-typedef struct MachoSeg MachoSeg;
+-typedef struct MachoSect MachoSect;
+-typedef struct MachoRel MachoRel;
+-typedef struct MachoSymtab MachoSymtab;
+-typedef struct MachoSym MachoSym;
+-typedef struct MachoDysymtab MachoDysymtab;
++typedef struct LdMachoObj LdMachoObj;
++typedef struct LdMachoCmd LdMachoCmd;
++typedef struct LdMachoSeg LdMachoSeg;
++typedef struct LdMachoSect LdMachoSect;
++typedef struct LdMachoRel LdMachoRel;
++typedef struct LdMachoSymtab LdMachoSymtab;
++typedef struct LdMachoSym LdMachoSym;
++typedef struct LdMachoDysymtab LdMachoDysymtab;
+ 
+ enum
+ {
+-	MachoCpuVax = 1,
+-	MachoCpu68000 = 6,
+-	MachoCpu386 = 7,
+-	MachoCpuAmd64 = 0x1000007,
+-	MachoCpuMips = 8,
+-	MachoCpu98000 = 10,
+-	MachoCpuHppa = 11,
+-	MachoCpuArm = 12,
+-	MachoCpu88000 = 13,
+-	MachoCpuSparc = 14,
+-	MachoCpu860 = 15,
+-	MachoCpuAlpha = 16,
+-	MachoCpuPower = 18,
+-
+-	MachoCmdSegment = 1,
+-	MachoCmdSymtab = 2,
+-	MachoCmdSymseg = 3,
+-	MachoCmdThread = 4,
+-	MachoCmdDysymtab = 11,
+-	MachoCmdSegment64 = 25,
+-
+-	MachoFileObject = 1,
+-	MachoFileExecutable = 2,
+-	MachoFileFvmlib = 3,
+-	MachoFileCore = 4,
+-	MachoFilePreload = 5,
++	LdMachoCpuVax = 1,
++	LdMachoCpu68000 = 6,
++	LdMachoCpu386 = 7,
++	LdMachoCpuAmd64 = 0x1000007,
++	LdMachoCpuMips = 8,
++	LdMachoCpu98000 = 10,
++	LdMachoCpuHppa = 11,
++	LdMachoCpuArm = 12,
++	LdMachoCpu88000 = 13,
++	LdMachoCpuSparc = 14,
++	LdMachoCpu860 = 15,
++	LdMachoCpuAlpha = 16,
++	LdMachoCpuPower = 18,
++
++	LdMachoCmdSegment = 1,
++	LdMachoCmdSymtab = 2,
++	LdMachoCmdSymseg = 3,
++	LdMachoCmdThread = 4,
++	LdMachoCmdDysymtab = 11,
++	LdMachoCmdSegment64 = 25,
++
++	LdMachoFileObject = 1,
++	LdMachoFileExecutable = 2,
++	LdMachoFileFvmlib = 3,
++	LdMachoFileCore = 4,
++	LdMachoFilePreload = 5,
+ };
+ 
+-struct MachoSeg
++struct LdMachoSeg
+ {
+ 	char name[16+1];
+ 	uint64 vmaddr;
+@@ -89,10 +88,10 @@ struct MachoSeg
+ 	uint32 initprot;
+ 	uint32 nsect;
+ 	uint32 flags;
+-	MachoSect *sect;
++	LdMachoSect *sect;
+ };
+ 
+-struct MachoSect
++struct LdMachoSect
+ {
+ 	char	name[16+1];
+ 	char	segname[16+1];
+@@ -107,10 +106,10 @@ struct MachoSect
+ 	uint32 res2;
+ 	LSym *sym;
+ 	
+-	MachoRel *rel;
++	LdMachoRel *rel;
+ };
+ 
+-struct MachoRel
++struct LdMachoRel
+ {
+ 	uint32 addr;
+ 	uint32 symnum;
+@@ -122,7 +121,7 @@ struct MachoRel
+ 	uint32 value;
+ };
+ 
+-struct MachoSymtab
++struct LdMachoSymtab
+ {
+ 	uint32 symoff;
+ 	uint32 nsym;
+@@ -130,10 +129,10 @@ struct MachoSymtab
+ 	uint32 strsize;
+ 	
+ 	char *str;
+-	MachoSym *sym;
++	LdMachoSym *sym;
+ };
+ 
+-struct MachoSym
++struct LdMachoSym
+ {
+ 	char *name;
+ 	uint8 type;
+@@ -144,7 +143,7 @@ struct MachoSym
+ 	LSym *sym;
+ };
+ 
+-struct MachoDysymtab
++struct LdMachoDysymtab
+ {
+ 	uint32 ilocalsym;
+ 	uint32 nlocalsym;
+@@ -167,21 +166,21 @@ struct MachoDysymtab
+ 	uint32 *indir;
+ };
+ 
+-struct MachoCmd
++struct LdMachoCmd
+ {
+ 	int type;
+ 	uint32 off;
+ 	uint32 size;
+-	MachoSeg seg;
+-	MachoSymtab sym;
+-	MachoDysymtab dsym;
++	LdMachoSeg seg;
++	LdMachoSymtab sym;
++	LdMachoDysymtab dsym;
+ };
+ 
+-struct MachoObj
++struct LdMachoObj
+ {
+ 	Biobuf	*f;
+ 	int64	base;	// off in f where Mach-O begins
+-	int64	len;		// length of Mach-O
++	int64	length;		// length of Mach-O
+ 	int is64;
+ 	char	*name;
+ 
+@@ -190,16 +189,16 @@ struct MachoObj
+ 	uint subcputype;
+ 	uint32 filetype;
+ 	uint32 flags;
+-	MachoCmd *cmd;
++	LdMachoCmd *cmd;
+ 	uint ncmd;
+ };
+ 
+ static int
+-unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
++unpackcmd(uchar *p, LdMachoObj *m, LdMachoCmd *c, uint type, uint sz)
+ {
+ 	uint32 (*e4)(uchar*);
+ 	uint64 (*e8)(uchar*);
+-	MachoSect *s;
++	LdMachoSect *s;
+ 	int i;
+ 
+ 	e4 = m->e->e32;
+@@ -210,7 +209,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
+ 	switch(type){
+ 	default:
+ 		return -1;
+-	case MachoCmdSegment:
++	case LdMachoCmdSegment:
+ 		if(sz < 56)
+ 			return -1;
+ 		strecpy(c->seg.name, c->seg.name+sizeof c->seg.name, (char*)p+8);
+@@ -242,7 +241,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
+ 			p += 68;
+ 		}
+ 		break;
+-	case MachoCmdSegment64:
++	case LdMachoCmdSegment64:
+ 		if(sz < 72)
+ 			return -1;
+ 		strecpy(c->seg.name, c->seg.name+sizeof c->seg.name, (char*)p+8);
+@@ -275,7 +274,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
+ 			p += 80;
+ 		}
+ 		break;
+-	case MachoCmdSymtab:
++	case LdMachoCmdSymtab:
+ 		if(sz < 24)
+ 			return -1;
+ 		c->sym.symoff = e4(p+8);
+@@ -283,7 +282,7 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
+ 		c->sym.stroff = e4(p+16);
+ 		c->sym.strsize = e4(p+20);
+ 		break;
+-	case MachoCmdDysymtab:
++	case LdMachoCmdDysymtab:
+ 		if(sz < 80)
+ 			return -1;
+ 		c->dsym.ilocalsym = e4(p+8);
+@@ -310,9 +309,9 @@ unpackcmd(uchar *p, MachoObj *m, MachoCmd *c, uint type, uint sz)
+ }
+ 
+ static int
+-macholoadrel(MachoObj *m, MachoSect *sect)
++macholoadrel(LdMachoObj *m, LdMachoSect *sect)
+ {
+-	MachoRel *rel, *r;
++	LdMachoRel *rel, *r;
+ 	uchar *buf, *p;
+ 	int i, n;
+ 	uint32 v;
+@@ -359,7 +358,7 @@ macholoadrel(MachoObj *m, MachoSect *sect)
+ }
+ 
+ static int
+-macholoaddsym(MachoObj *m, MachoDysymtab *d)
++macholoaddsym(LdMachoObj *m, LdMachoDysymtab *d)
+ {
+ 	uchar *p;
+ 	int i, n;
+@@ -377,12 +376,12 @@ macholoaddsym(MachoObj *m, MachoDysymtab *d)
+ }
+ 
+ static int 
+-macholoadsym(MachoObj *m, MachoSymtab *symtab)
++macholoadsym(LdMachoObj *m, LdMachoSymtab *symtab)
+ {
+ 	char *strbuf;
+ 	uchar *symbuf, *p;
+ 	int i, n, symsize;
+-	MachoSym *sym, *s;
++	LdMachoSym *sym, *s;
+ 	uint32 v;
+ 
+ 	if(symtab->sym != nil)
+@@ -422,7 +421,7 @@ macholoadsym(MachoObj *m, MachoSymtab *symtab)
+ }
+ 
+ void
+-ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
++ldmacho(Biobuf *f, char *pkg, int64 length, char *pn)
+ {
+ 	int i, j, is64;
+ 	uint64 secaddr;
+@@ -430,16 +429,17 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	uchar tmp[4];
+ 	uchar *dat;
+ 	ulong ncmd, cmdsz, ty, sz, off;
+-	MachoObj *m;
++	LdMachoObj *m;
+ 	Endian *e;
+ 	int64 base;
+-	MachoSect *sect;
+-	MachoRel *rel;
++	LdMachoSect *sect;
++	LdMachoRel *rel;
++	int rpi;
+ 	LSym *s, *s1, *outer;
+-	MachoCmd *c;
+-	MachoSymtab *symtab;
+-	MachoDysymtab *dsymtab;
+-	MachoSym *sym;
++	LdMachoCmd *c;
++	LdMachoSymtab *symtab;
++	LdMachoDysymtab *dsymtab;
++	LdMachoSym *sym;
+ 	Reloc *r, *rp;
+ 	char *name;
+ 
+@@ -467,7 +467,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	if(is64)
+ 		Bread(f, tmp, 4);	// skip reserved word in header
+ 
+-	m = mal(sizeof(*m)+ncmd*sizeof(MachoCmd)+cmdsz);
++	m = mal(sizeof(*m)+ncmd*sizeof(LdMachoCmd)+cmdsz);
+ 	m->f = f;
+ 	m->e = e;
+ 	m->cputype = e->e32(hdr+1*4);
+@@ -477,7 +477,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	m->flags = e->e32(hdr+6*4);
+ 	m->is64 = is64;
+ 	m->base = base;
+-	m->len = len;
++	m->length = length;
+ 	m->name = pn;
+ 	
+ 	switch(thearch.thechar) {
+@@ -485,20 +485,20 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		diag("%s: mach-o %s unimplemented", pn, thestring);
+ 		return;
+ 	case '6':
+-		if(e != &le || m->cputype != MachoCpuAmd64) {
++		if(e != &le || m->cputype != LdMachoCpuAmd64) {
+ 			diag("%s: mach-o object but not amd64", pn);
+ 			return;
+ 		}
+ 		break;
+ 	case '8':
+-		if(e != &le || m->cputype != MachoCpu386) {
++		if(e != &le || m->cputype != LdMachoCpu386) {
+ 			diag("%s: mach-o object but not 386", pn);
+ 			return;
+ 		}
+ 		break;
+ 	}
+ 
+-	m->cmd = (MachoCmd*)(m+1);
++	m->cmd = (LdMachoCmd*)(m+1);
+ 	off = sizeof hdr;
+ 	cmdp = (uchar*)(m->cmd+ncmd);
+ 	if(Bread(f, cmdp, cmdsz) != cmdsz){
+@@ -518,7 +518,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		unpackcmd(cmdp, m, &m->cmd[i], ty, sz);
+ 		cmdp += sz;
+ 		off += sz;
+-		if(ty == MachoCmdSymtab) {
++		if(ty == LdMachoCmdSymtab) {
+ 			if(symtab != nil) {
+ 				werrstr("multiple symbol tables");
+ 				goto bad;
+@@ -526,11 +526,11 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			symtab = &m->cmd[i].sym;
+ 			macholoadsym(m, symtab);
+ 		}
+-		if(ty == MachoCmdDysymtab) {
++		if(ty == LdMachoCmdDysymtab) {
+ 			dsymtab = &m->cmd[i].dsym;
+ 			macholoaddsym(m, dsymtab);
+ 		}
+-		if((is64 && ty == MachoCmdSegment64) || (!is64 && ty == MachoCmdSegment)) {
++		if((is64 && ty == LdMachoCmdSegment64) || (!is64 && ty == LdMachoCmdSegment)) {
+ 			if(c != nil) {
+ 				werrstr("multiple load commands");
+ 				goto bad;
+@@ -552,7 +552,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		return;
+ 	}
+ 
+-	if(c->seg.fileoff+c->seg.filesz >= len) {
++	if(c->seg.fileoff+c->seg.filesz >= length) {
+ 		werrstr("load segment out of range");
+ 		goto bad;
+ 	}
+@@ -609,7 +609,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		// TODO: check sym->type against outer->type.
+ 		name = sym->name;
+-		if(name[0] == '_' && name[1] != '\0')
++		if(name[0] == '_' && name[1] != '\x00')
+ 			name++;
+ 		v = 0;
+ 		if(!(sym->type&N_EXT))
+@@ -658,7 +658,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if((s = sect->sym) == nil)
+ 			continue;
+ 		if(s->sub) {
+-			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
++			s->sub = listsort(s->sub, valuecmp, listsubp);
+ 			
+ 			// assign sizes, now that we know symbols in sorted order.
+ 			for(s1 = s->sub; s1 != nil; s1 = s1->sub) {
+@@ -696,12 +696,13 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(sect->rel == nil)
+ 			continue;
+ 		r = mal(sect->nreloc*sizeof r[0]);
+-		rp = r;
+-		rel = sect->rel;
+-		for(j=0; j<sect->nreloc; j++, rel++) {
++		rpi = 0;
++		for(j=0; j<sect->nreloc; j++) {
++			rp = &r[rpi];
++			rel = &sect->rel[j];
+ 			if(rel->scattered) {
+ 				int k;
+-				MachoSect *ks;
++				LdMachoSect *ks;
+ 
+ 				if(thearch.thechar != '8') {
+ 					// mach-o only uses scattered relocation on 32-bit platforms
+@@ -718,10 +719,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					werrstr("unsupported scattered relocation %d", (int)rel->type);
+ 					goto bad;
+ 				}
+-				if(!(rel+1)->scattered || (rel+1)->type != 1 ||
++				if(!sect->rel[j+1].scattered || sect->rel[j+1].type != 1 ||
+ 				   (rel->type != 4 && rel->type != 2) ||
+-				   (rel+1)->value < sect->addr || (rel+1)->value >= sect->addr+sect->size) {
+-					werrstr("unsupported scattered relocation %d/%d", (int)rel->type, (int)(rel+1)->type);
++				   sect->rel[j+1].value < sect->addr || sect->rel[j+1].value >= sect->addr+sect->size) {
++					werrstr("unsupported scattered relocation %d/%d", (int)rel->type, (int)sect->rel[j+1].type);
+ 					goto bad;
+ 				}
+ 
+@@ -738,10 +739,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				rp->add = 0;
+ 				
+ 				// want to make it pc-relative aka relative to rp->off+4
+-				// but the scatter asks for relative to off = (rel+1)->value - sect->addr.
++				// but the scatter asks for relative to off = sect->rel[j+1].value - sect->addr.
+ 				// adjust rp->add accordingly.
+ 				rp->type = R_PCREL;
+-				rp->add += (rp->off+4) - ((rel+1)->value - sect->addr);
++				rp->add += (rp->off+4) - (sect->rel[j+1].value - sect->addr);
+ 				
+ 				// now consider the desired symbol.
+ 				// find the section where it lives.
+@@ -779,9 +780,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 					werrstr("unsupported scattered relocation: reference to %s/%s", ks->segname, ks->name);
+ 					goto bad;
+ 				}
+-				rp++;
++				rpi++;
+ 				// skip #1 of 2 rel; continue skips #2 of 2.
+-				rel++;
+ 				j++;
+ 				continue;
+ 			}
+@@ -840,11 +840,11 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				}
+ 				rp->sym = symtab->sym[rel->symnum].sym;
+ 			}
+-			rp++;
++			rpi++;
+ 		}			
+-		qsort(r, rp - r, sizeof r[0], rbyoff);
++		qsort(r, rpi, sizeof r[0], rbyoff);
+ 		s->r = r;
+-		s->nr = rp - r;
++		s->nr = rpi;
+ 	}
+ 	return;
+ 
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index da11a3ea18..e67ad56707 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -9,90 +9,90 @@
+ #include	"lib.h"
+ #include	"pe.h"
+ 
+-#define IMAGE_SCN_MEM_DISCARDABLE 0x2000000
++enum {
++	IMAGE_SYM_UNDEFINED = 0,
++	IMAGE_SYM_ABSOLUTE = (-1),
++	IMAGE_SYM_DEBUG = (-2),
++	IMAGE_SYM_TYPE_NULL = 0,
++	IMAGE_SYM_TYPE_VOID = 1,
++	IMAGE_SYM_TYPE_CHAR = 2,
++	IMAGE_SYM_TYPE_SHORT = 3,
++	IMAGE_SYM_TYPE_INT = 4,
++	IMAGE_SYM_TYPE_LONG = 5,
++	IMAGE_SYM_TYPE_FLOAT = 6,
++	IMAGE_SYM_TYPE_DOUBLE = 7,
++	IMAGE_SYM_TYPE_STRUCT = 8,
++	IMAGE_SYM_TYPE_UNION = 9,
++	IMAGE_SYM_TYPE_ENUM = 10,
++	IMAGE_SYM_TYPE_MOE = 11,
++	IMAGE_SYM_TYPE_BYTE = 12,
++	IMAGE_SYM_TYPE_WORD = 13,
++	IMAGE_SYM_TYPE_UINT = 14,
++	IMAGE_SYM_TYPE_DWORD = 15,
++	IMAGE_SYM_TYPE_PCODE = 32768,
++	IMAGE_SYM_DTYPE_NULL = 0,
++	IMAGE_SYM_DTYPE_POINTER = 0x10,
++	IMAGE_SYM_DTYPE_FUNCTION = 0x20,
++	IMAGE_SYM_DTYPE_ARRAY = 0x30,
++	IMAGE_SYM_CLASS_END_OF_FUNCTION = (-1),
++	IMAGE_SYM_CLASS_NULL = 0,
++	IMAGE_SYM_CLASS_AUTOMATIC = 1,
++	IMAGE_SYM_CLASS_EXTERNAL = 2,
++	IMAGE_SYM_CLASS_STATIC = 3,
++	IMAGE_SYM_CLASS_REGISTER = 4,
++	IMAGE_SYM_CLASS_EXTERNAL_DEF = 5,
++	IMAGE_SYM_CLASS_LABEL = 6,
++	IMAGE_SYM_CLASS_UNDEFINED_LABEL = 7,
++	IMAGE_SYM_CLASS_MEMBER_OF_STRUCT = 8,
++	IMAGE_SYM_CLASS_ARGUMENT = 9,
++	IMAGE_SYM_CLASS_STRUCT_TAG = 10,
++	IMAGE_SYM_CLASS_MEMBER_OF_UNION = 11,
++	IMAGE_SYM_CLASS_UNION_TAG = 12,
++	IMAGE_SYM_CLASS_TYPE_DEFINITION = 13,
++	IMAGE_SYM_CLASS_UNDEFINED_STATIC = 14,
++	IMAGE_SYM_CLASS_ENUM_TAG = 15,
++	IMAGE_SYM_CLASS_MEMBER_OF_ENUM = 16,
++	IMAGE_SYM_CLASS_REGISTER_PARAM = 17,
++	IMAGE_SYM_CLASS_BIT_FIELD = 18,
++	IMAGE_SYM_CLASS_FAR_EXTERNAL = 68, /* Not in PECOFF v8 spec */
++	IMAGE_SYM_CLASS_BLOCK = 100,
++	IMAGE_SYM_CLASS_FUNCTION = 101,
++	IMAGE_SYM_CLASS_END_OF_STRUCT = 102,
++	IMAGE_SYM_CLASS_FILE = 103,
++	IMAGE_SYM_CLASS_SECTION = 104,
++	IMAGE_SYM_CLASS_WEAK_EXTERNAL = 105,
++	IMAGE_SYM_CLASS_CLR_TOKEN = 107,
+ 
+-#define IMAGE_SYM_UNDEFINED	0
+-#define IMAGE_SYM_ABSOLUTE (-1)
+-#define IMAGE_SYM_DEBUG	(-2)
+-#define IMAGE_SYM_TYPE_NULL 0
+-#define IMAGE_SYM_TYPE_VOID 1
+-#define IMAGE_SYM_TYPE_CHAR 2
+-#define IMAGE_SYM_TYPE_SHORT 3
+-#define IMAGE_SYM_TYPE_INT 4
+-#define IMAGE_SYM_TYPE_LONG 5
+-#define IMAGE_SYM_TYPE_FLOAT 6
+-#define IMAGE_SYM_TYPE_DOUBLE 7
+-#define IMAGE_SYM_TYPE_STRUCT 8
+-#define IMAGE_SYM_TYPE_UNION 9
+-#define IMAGE_SYM_TYPE_ENUM 10
+-#define IMAGE_SYM_TYPE_MOE 11
+-#define IMAGE_SYM_TYPE_BYTE 12
+-#define IMAGE_SYM_TYPE_WORD 13
+-#define IMAGE_SYM_TYPE_UINT 14
+-#define IMAGE_SYM_TYPE_DWORD 15
+-#define IMAGE_SYM_TYPE_PCODE 32768
+-#define IMAGE_SYM_DTYPE_NULL 0
+-#define IMAGE_SYM_DTYPE_POINTER 0x10
+-#define IMAGE_SYM_DTYPE_FUNCTION 0x20
+-#define IMAGE_SYM_DTYPE_ARRAY 0x30
+-#define IMAGE_SYM_CLASS_END_OF_FUNCTION	(-1)
+-#define IMAGE_SYM_CLASS_NULL 0
+-#define IMAGE_SYM_CLASS_AUTOMATIC 1
+-#define IMAGE_SYM_CLASS_EXTERNAL 2
+-#define IMAGE_SYM_CLASS_STATIC 3
+-#define IMAGE_SYM_CLASS_REGISTER 4
+-#define IMAGE_SYM_CLASS_EXTERNAL_DEF 5
+-#define IMAGE_SYM_CLASS_LABEL 6
+-#define IMAGE_SYM_CLASS_UNDEFINED_LABEL 7
+-#define IMAGE_SYM_CLASS_MEMBER_OF_STRUCT 8
+-#define IMAGE_SYM_CLASS_ARGUMENT 9
+-#define IMAGE_SYM_CLASS_STRUCT_TAG 10
+-#define IMAGE_SYM_CLASS_MEMBER_OF_UNION 11
+-#define IMAGE_SYM_CLASS_UNION_TAG 12
+-#define IMAGE_SYM_CLASS_TYPE_DEFINITION 13
+-#define IMAGE_SYM_CLASS_UNDEFINED_STATIC 14
+-#define IMAGE_SYM_CLASS_ENUM_TAG 15
+-#define IMAGE_SYM_CLASS_MEMBER_OF_ENUM 16
+-#define IMAGE_SYM_CLASS_REGISTER_PARAM 17
+-#define IMAGE_SYM_CLASS_BIT_FIELD 18
+-#define IMAGE_SYM_CLASS_FAR_EXTERNAL 68 /* Not in PECOFF v8 spec */
+-#define IMAGE_SYM_CLASS_BLOCK 100
+-#define IMAGE_SYM_CLASS_FUNCTION 101
+-#define IMAGE_SYM_CLASS_END_OF_STRUCT 102
+-#define IMAGE_SYM_CLASS_FILE 103
+-#define IMAGE_SYM_CLASS_SECTION 104
+-#define IMAGE_SYM_CLASS_WEAK_EXTERNAL 105
+-#define IMAGE_SYM_CLASS_CLR_TOKEN 107
++	IMAGE_REL_I386_ABSOLUTE = 0x0000,
++	IMAGE_REL_I386_DIR16 = 0x0001,
++	IMAGE_REL_I386_REL16 = 0x0002,
++	IMAGE_REL_I386_DIR32 = 0x0006,
++	IMAGE_REL_I386_DIR32NB = 0x0007,
++	IMAGE_REL_I386_SEG12 = 0x0009,
++	IMAGE_REL_I386_SECTION = 0x000A,
++	IMAGE_REL_I386_SECREL = 0x000B,
++	IMAGE_REL_I386_TOKEN = 0x000C,
++	IMAGE_REL_I386_SECREL7 = 0x000D,
++	IMAGE_REL_I386_REL32 = 0x0014,
+ 
+-#define IMAGE_REL_I386_ABSOLUTE	0x0000
+-#define IMAGE_REL_I386_DIR16	0x0001
+-#define IMAGE_REL_I386_REL16	0x0002
+-#define IMAGE_REL_I386_DIR32	0x0006
+-#define IMAGE_REL_I386_DIR32NB	0x0007
+-#define IMAGE_REL_I386_SEG12	0x0009
+-#define IMAGE_REL_I386_SECTION	0x000A
+-#define IMAGE_REL_I386_SECREL	0x000B
+-#define IMAGE_REL_I386_TOKEN	0x000C
+-#define IMAGE_REL_I386_SECREL7	0x000D
+-#define IMAGE_REL_I386_REL32	0x0014
+-
+-#define IMAGE_REL_AMD64_ABSOLUTE 0x0000
+-#define IMAGE_REL_AMD64_ADDR64 0x0001 // R_X86_64_64
+-#define IMAGE_REL_AMD64_ADDR32 0x0002 // R_X86_64_PC32
+-#define IMAGE_REL_AMD64_ADDR32NB 0x0003
+-#define IMAGE_REL_AMD64_REL32 0x0004 
+-#define IMAGE_REL_AMD64_REL32_1 0x0005
+-#define IMAGE_REL_AMD64_REL32_2 0x0006
+-#define IMAGE_REL_AMD64_REL32_3 0x0007
+-#define IMAGE_REL_AMD64_REL32_4 0x0008
+-#define IMAGE_REL_AMD64_REL32_5 0x0009
+-#define IMAGE_REL_AMD64_SECTION 0x000A
+-#define IMAGE_REL_AMD64_SECREL 0x000B
+-#define IMAGE_REL_AMD64_SECREL7 0x000C
+-#define IMAGE_REL_AMD64_TOKEN 0x000D
+-#define IMAGE_REL_AMD64_SREL32 0x000E
+-#define IMAGE_REL_AMD64_PAIR 0x000F
+-#define IMAGE_REL_AMD64_SSPAN32 0x0010
++	IMAGE_REL_AMD64_ABSOLUTE = 0x0000,
++	IMAGE_REL_AMD64_ADDR64 = 0x0001, // R_X86_64_64
++	IMAGE_REL_AMD64_ADDR32 = 0x0002, // R_X86_64_PC32
++	IMAGE_REL_AMD64_ADDR32NB = 0x0003,
++	IMAGE_REL_AMD64_REL32 = 0x0004, 
++	IMAGE_REL_AMD64_REL32_1 = 0x0005,
++	IMAGE_REL_AMD64_REL32_2 = 0x0006,
++	IMAGE_REL_AMD64_REL32_3 = 0x0007,
++	IMAGE_REL_AMD64_REL32_4 = 0x0008,
++	IMAGE_REL_AMD64_REL32_5 = 0x0009,
++	IMAGE_REL_AMD64_SECTION = 0x000A,
++	IMAGE_REL_AMD64_SECREL = 0x000B,
++	IMAGE_REL_AMD64_SECREL7 = 0x000C,
++	IMAGE_REL_AMD64_TOKEN = 0x000D,
++	IMAGE_REL_AMD64_SREL32 = 0x000E,
++	IMAGE_REL_AMD64_PAIR = 0x000F,
++	IMAGE_REL_AMD64_SSPAN32 = 0x0010,
++};
+ 
+ typedef struct PeSym PeSym;
+ typedef struct PeSect PeSect;
+@@ -130,18 +130,18 @@ struct PeObj {
+ 	char* snames;
+ };
+ 
+-static int map(PeObj *obj, PeSect *sect);
++static int pemap(PeObj *peobj, PeSect *sect);
+ static int issect(PeSym *s);
+-static int readsym(PeObj *obj, int i, PeSym **sym);
++static int readpesym(PeObj *peobj, int i, PeSym **sym);
+ 
+ void
+-ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
++ldpe(Biobuf *f, char *pkg, int64 length, char *pn)
+ {
+ 	char *name;
+ 	int32 base;
+ 	uint32 l;
+ 	int i, j, numaux;
+-	PeObj *obj;
++	PeObj *peobj;
+ 	PeSect *sect, *rsect;
+ 	IMAGE_SECTION_HEADER sh;
+ 	uchar symbuf[18];
+@@ -149,7 +149,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	Reloc *r, *rp;
+ 	PeSym *sym;
+ 
+-	USED(len);
++	USED(length);
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f ldpe %s\n", cputime(), pn);
+ 	
+@@ -157,71 +157,71 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	ctxt->version++;
+ 	base = Boffset(f);
+ 	
+-	obj = mal(sizeof *obj);
+-	obj->f = f;
+-	obj->base = base;
+-	obj->name = pn;
++	peobj = mal(sizeof *peobj);
++	peobj->f = f;
++	peobj->base = base;
++	peobj->name = pn;
+ 	// read header
+-	if(Bread(f, &obj->fh, sizeof obj->fh) != sizeof obj->fh)
++	if(Bread(f, &peobj->fh, sizeof peobj->fh) != sizeof peobj->fh)
+ 		goto bad;
+ 	// load section list
+-	obj->sect = mal(obj->fh.NumberOfSections*sizeof obj->sect[0]);
+-	obj->nsect = obj->fh.NumberOfSections;
+-	for(i=0; i < obj->fh.NumberOfSections; i++) {
+-		if(Bread(f, &obj->sect[i].sh, sizeof sh) != sizeof sh)
++	peobj->sect = mal(peobj->fh.NumberOfSections*sizeof peobj->sect[0]);
++	peobj->nsect = peobj->fh.NumberOfSections;
++	for(i=0; i < peobj->fh.NumberOfSections; i++) {
++		if(Bread(f, &peobj->sect[i].sh, sizeof sh) != sizeof sh)
+ 			goto bad;
+-		obj->sect[i].size = obj->sect[i].sh.SizeOfRawData;
+-		obj->sect[i].name = (char*)obj->sect[i].sh.Name;
++		peobj->sect[i].size = peobj->sect[i].sh.SizeOfRawData;
++		peobj->sect[i].name = (char*)peobj->sect[i].sh.Name;
+ 		// TODO return error if found .cormeta
+ 	}
+ 	// load string table
+-	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
++	Bseek(f, base+peobj->fh.PointerToSymbolTable+sizeof(symbuf)*peobj->fh.NumberOfSymbols, 0);
+ 	if(Bread(f, symbuf, 4) != 4) 
+ 		goto bad;
+ 	l = le32(symbuf);
+-	obj->snames = mal(l);
+-	Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*obj->fh.NumberOfSymbols, 0);
+-	if(Bread(f, obj->snames, l) != l)
++	peobj->snames = mal(l);
++	Bseek(f, base+peobj->fh.PointerToSymbolTable+sizeof(symbuf)*peobj->fh.NumberOfSymbols, 0);
++	if(Bread(f, peobj->snames, l) != l)
+ 		goto bad;
+ 	// rewrite section names if they start with /
+-	for(i=0; i < obj->fh.NumberOfSections; i++) {
+-		if(obj->sect[i].name == nil)
++	for(i=0; i < peobj->fh.NumberOfSections; i++) {
++		if(peobj->sect[i].name == nil)
+ 			continue;
+-		if(obj->sect[i].name[0] != '/')
++		if(peobj->sect[i].name[0] != '/')
+ 			continue;
+-		l = atoi(obj->sect[i].name + 1);
+-		obj->sect[i].name = (char*)&obj->snames[l];
++		l = atoi(peobj->sect[i].name + 1);
++		peobj->sect[i].name = (char*)&peobj->snames[l];
+ 	}
+ 	// read symbols
+-	obj->pesym = mal(obj->fh.NumberOfSymbols*sizeof obj->pesym[0]);
+-	obj->npesym = obj->fh.NumberOfSymbols;
+-	Bseek(f, base+obj->fh.PointerToSymbolTable, 0);
+-	for(i=0; i<obj->fh.NumberOfSymbols; i+=numaux+1) {
+-		Bseek(f, base+obj->fh.PointerToSymbolTable+sizeof(symbuf)*i, 0);
++	peobj->pesym = mal(peobj->fh.NumberOfSymbols*sizeof peobj->pesym[0]);
++	peobj->npesym = peobj->fh.NumberOfSymbols;
++	Bseek(f, base+peobj->fh.PointerToSymbolTable, 0);
++	for(i=0; i<peobj->fh.NumberOfSymbols; i+=numaux+1) {
++		Bseek(f, base+peobj->fh.PointerToSymbolTable+sizeof(symbuf)*i, 0);
+ 		if(Bread(f, symbuf, sizeof symbuf) != sizeof symbuf)
+ 			goto bad;
+ 		
+ 		if((symbuf[0] == 0) && (symbuf[1] == 0) &&
+ 			 (symbuf[2] == 0) && (symbuf[3] == 0)) {
+ 			l = le32(&symbuf[4]);
+-			obj->pesym[i].name = (char*)&obj->snames[l];
++			peobj->pesym[i].name = (char*)&peobj->snames[l];
+ 		} else { // sym name length <= 8
+-			obj->pesym[i].name = mal(9);
+-			strncpy(obj->pesym[i].name, (char*)symbuf, 8);
+-			obj->pesym[i].name[8] = 0;
++			peobj->pesym[i].name = mal(9);
++			strncpy(peobj->pesym[i].name, (char*)symbuf, 8);
++			peobj->pesym[i].name[8] = 0;
+ 		}
+-		obj->pesym[i].value = le32(&symbuf[8]);
+-		obj->pesym[i].sectnum = le16(&symbuf[12]);
+-		obj->pesym[i].sclass = symbuf[16];
+-		obj->pesym[i].aux = symbuf[17];
+-		obj->pesym[i].type = le16(&symbuf[14]);
+-		numaux = obj->pesym[i].aux; 
++		peobj->pesym[i].value = le32(&symbuf[8]);
++		peobj->pesym[i].sectnum = le16(&symbuf[12]);
++		peobj->pesym[i].sclass = symbuf[16];
++		peobj->pesym[i].aux = symbuf[17];
++		peobj->pesym[i].type = le16(&symbuf[14]);
++		numaux = peobj->pesym[i].aux; 
+ 		if (numaux < 0) 
+ 			numaux = 0;
+ 	}
+ 	// create symbols for mapped sections
+-	for(i=0; i<obj->nsect; i++) {
+-		sect = &obj->sect[i];
++	for(i=0; i<peobj->nsect; i++) {
++		sect = &peobj->sect[i];
+ 		if(sect->sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE)
+ 			continue;
+ 
+@@ -231,7 +231,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		}
+ 
+-		if(map(obj, sect) < 0)
++		if(pemap(peobj, sect) < 0)
+ 			goto bad;
+ 		
+ 		name = smprint("%s(%s)", pkg, sect->name);
+@@ -264,8 +264,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 	
+ 	// load relocations
+-	for(i=0; i<obj->nsect; i++) {
+-		rsect = &obj->sect[i];
++	for(i=0; i<peobj->nsect; i++) {
++		rsect = &peobj->sect[i];
+ 		if(rsect->sym == 0 || rsect->sh.NumberOfRelocations == 0)
+ 			continue;
+ 		if(rsect->sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE)
+@@ -276,7 +276,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		}
+ 		r = mal(rsect->sh.NumberOfRelocations*sizeof r[0]);
+-		Bseek(f, obj->base+rsect->sh.PointerToRelocations, 0);
++		Bseek(f, peobj->base+rsect->sh.PointerToRelocations, 0);
+ 		for(j=0; j<rsect->sh.NumberOfRelocations; j++) {
+ 			rp = &r[j];
+ 			if(Bread(f, symbuf, 10) != 10)
+@@ -287,7 +287,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			rva = le32(&symbuf[0]);
+ 			symindex = le32(&symbuf[4]);
+ 			type = le16(&symbuf[8]);
+-			if(readsym(obj, symindex, &sym) < 0)
++			if(readpesym(peobj, symindex, &sym) < 0)
+ 				goto bad;
+ 			if(sym->sym == nil) {
+ 				werrstr("reloc of invalid sym %s idx=%d type=%d", sym->name, symindex, sym->type);
+@@ -322,8 +322,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			// ld -r could generate multiple section symbols for the
+ 			// same section but with different values, we have to take
+ 			// that into account
+-			if(issect(&obj->pesym[symindex]))
+-				rp->add += obj->pesym[symindex].value;
++			if(issect(&peobj->pesym[symindex]))
++				rp->add += peobj->pesym[symindex].value;
+ 		}
+ 		qsort(r, rsect->sh.NumberOfRelocations, sizeof r[0], rbyoff);
+ 		
+@@ -333,17 +333,19 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	}
+ 
+ 	// enter sub-symbols into symbol table.
+-	for(i=0; i<obj->npesym; i++) {
+-		if(obj->pesym[i].name == 0)
++	for(i=0; i<peobj->npesym; i++) {
++		if(peobj->pesym[i].name == 0)
++			continue;
++		if(issect(&peobj->pesym[i]))
+ 			continue;
+-		if(issect(&obj->pesym[i]))
++		if(peobj->pesym[i].sectnum > peobj->nsect)
+ 			continue;
+-		if(obj->pesym[i].sectnum > 0) {
+-			sect = &obj->sect[obj->pesym[i].sectnum-1];
++		if(peobj->pesym[i].sectnum > 0) {
++			sect = &peobj->sect[peobj->pesym[i].sectnum-1];
+ 			if(sect->sym == 0)
+ 				continue;
+ 		}
+-		if(readsym(obj, i, &sym) < 0)
++		if(readpesym(peobj, i, &sym) < 0)
+ 			goto bad;
+ 	
+ 		s = sym->sym;
+@@ -355,8 +357,8 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				s->size = sym->value;
+ 			}
+ 			continue;
+-		} else if (sym->sectnum > 0) {
+-			sect = &obj->sect[sym->sectnum-1];
++		} else if (sym->sectnum > 0 && sym->sectnum <= peobj->nsect) {
++			sect = &peobj->sect[sym->sectnum-1];
+ 			if(sect->sym == 0)
+ 				diag("%s: %s sym == 0!", pn, s->name);
+ 		} else {
+@@ -387,12 +389,12 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 
+ 	// Sort outer lists by address, adding to textp.
+ 	// This keeps textp in increasing address order.
+-	for(i=0; i<obj->nsect; i++) {
+-		s = obj->sect[i].sym;
++	for(i=0; i<peobj->nsect; i++) {
++		s = peobj->sect[i].sym;
+ 		if(s == nil)
+ 			continue;
+ 		if(s->sub)
+-			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
++			s->sub = listsort(s->sub, valuecmp, listsubp);
+ 		if(s->type == STEXT) {
+ 			if(s->onlist)
+ 				sysfatal("symbol %s listed multiple times", s->name);
+@@ -418,7 +420,7 @@ bad:
+ }
+ 
+ static int
+-map(PeObj *obj, PeSect *sect)
++pemap(PeObj *peobj, PeSect *sect)
+ {
+ 	if(sect->base != nil)
+ 		return 0;
+@@ -427,8 +429,8 @@ map(PeObj *obj, PeSect *sect)
+ 	if(sect->sh.PointerToRawData == 0) // .bss doesn't have data in object file
+ 		return 0;
+ 	werrstr("short read");
+-	if(Bseek(obj->f, obj->base+sect->sh.PointerToRawData, 0) < 0 || 
+-			Bread(obj->f, sect->base, sect->sh.SizeOfRawData) != sect->sh.SizeOfRawData)
++	if(Bseek(peobj->f, peobj->base+sect->sh.PointerToRawData, 0) < 0 || 
++			Bread(peobj->f, sect->base, sect->sh.SizeOfRawData) != sect->sh.SizeOfRawData)
+ 		return -1;
+ 	
+ 	return 0;
+@@ -441,22 +443,22 @@ issect(PeSym *s)
+ }
+ 
+ static int
+-readsym(PeObj *obj, int i, PeSym **y)
++readpesym(PeObj *peobj, int i, PeSym **y)
+ {
+ 	LSym *s;
+ 	PeSym *sym;
+ 	char *name, *p;
+ 
+-	if(i >= obj->npesym || i < 0) {
++	if(i >= peobj->npesym || i < 0) {
+ 		werrstr("invalid pe symbol index");
+ 		return -1;
+ 	}
+ 
+-	sym = &obj->pesym[i];
++	sym = &peobj->pesym[i];
+ 	*y = sym;
+ 	
+ 	if(issect(sym))
+-		name = obj->sect[sym->sectnum-1].sym->name;
++		name = peobj->sect[sym->sectnum-1].sym->name;
+ 	else {
+ 		name = sym->name;
+ 		if(strncmp(name, "__imp_", 6) == 0)
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 200c96da96..612c755d5b 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -53,7 +53,7 @@ enum
+ 
+ int iconv(Fmt*);
+ 
+-char	symname[]	= SYMDEF;
++char	symname[]	= "__.GOSYMDEF";
+ char	pkgname[]	= "__.PKGDEF";
+ static int	cout = -1;
+ 
+@@ -132,6 +132,7 @@ libinit(void)
+ 		diag("cannot create %s: %r", outfile);
+ 		errorexit();
+ 	}
++	Binit(&coutbuf, cout, OWRITE);
+ 
+ 	if(INITENTRY == nil) {
+ 		INITENTRY = mal(strlen(goarch)+strlen(goos)+20);
+@@ -320,7 +321,7 @@ loadlib(void)
+  * adapted from libmach.
+  */
+ static vlong
+-nextar(Biobuf *bp, vlong off, struct ar_hdr *a)
++nextar(Biobuf *bp, vlong off, ArHdr *a)
+ {
+ 	int r;
+ 	int32 arsize;
+@@ -354,7 +355,7 @@ objfile(char *file, char *pkg)
+ 	Biobuf *f;
+ 	char magbuf[SARMAG];
+ 	char pname[150];
+-	struct ar_hdr arhdr;
++	ArHdr arhdr;
+ 
+ 	pkg = smprint("%i", pkg);
+ 
+@@ -463,7 +464,7 @@ struct Hostobj
+ 	char *pn;
+ 	char *file;
+ 	int64 off;
+-	int64 len;
++	int64 length;
+ };
+ 
+ Hostobj *hostobj;
+@@ -481,7 +482,7 @@ const char *internalpkg[] = {
+ };
+ 
+ void
+-ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file)
++ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 length, char *pn, char *file)
+ {
+ 	int i, isinternal;
+ 	Hostobj *h;
+@@ -520,7 +521,7 @@ ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64
+ 	h->pn = estrdup(pn);
+ 	h->file = estrdup(file);
+ 	h->off = Boffset(f);
+-	h->len = len;
++	h->length = length;
+ }
+ 
+ void
+@@ -539,7 +540,7 @@ hostobjs(void)
+ 			errorexit();
+ 		}
+ 		Bseek(f, h->off, 0);
+-		h->ld(f, h->pkg, h->len, h->pn);
++		h->ld(f, h->pkg, h->length, h->pn);
+ 		Bterm(f);
+ 	}
+ }
+@@ -577,6 +578,7 @@ hostlinksetup(void)
+ 		diag("cannot create %s: %r", p);
+ 		errorexit();
+ 	}
++	Binit(&coutbuf, cout, OWRITE);
+ 	free(p);
+ }
+ 
+@@ -584,7 +586,7 @@ void
+ hostlink(void)
+ {
+ 	char *p, **argv;
+-	int c, i, w, n, argc, len;
++	int c, i, w, n, argc, length;
+ 	Hostobj *h;
+ 	Biobuf *f;
+ 	static char buf[64<<10];
+@@ -597,7 +599,7 @@ hostlink(void)
+ 	while(p != nil) {
+ 		while(*p == ' ')
+ 			p++;
+-		if(*p == '\0')
++		if(*p == '\x00')
+ 			break;
+ 		c++;
+ 		p = strchr(p + 1, ' ');
+@@ -669,12 +671,15 @@ hostlink(void)
+ 			diag("cannot create %s: %r", p);
+ 			errorexit();
+ 		}
+-		len = h->len;
+-		while(len > 0 && (n = Bread(f, buf, sizeof buf)) > 0){
+-			if(n > len)
+-				n = len;
++		length = h->length;
++		while(length > 0) {
++			n = Bread(f, buf, sizeof buf);
++			if(n <= 0)
++				break;
++			if(n > length)
++				n = length;
+ 			dowrite(w, buf, n);
+-			len -= n;
++			length -= n;
+ 		}
+ 		if(close(w) < 0) {
+ 			ctxt->cursym = nil;
+@@ -691,8 +696,8 @@ hostlink(void)
+ 	p = extldflags;
+ 	while(p != nil) {
+ 		while(*p == ' ')
+-			*p++ = '\0';
+-		if(*p == '\0')
++			*p++ = '\x00';
++		if(*p == '\x00')
+ 			break;
+ 		argv[argc++] = p;
+ 
+@@ -702,7 +707,7 @@ hostlink(void)
+ 		// we added it.  We do it in this order, rather than
+ 		// only adding -rdynamic later, so that -extldflags
+ 		// can override -rdynamic without using -static.
+-		if(iself && strncmp(p, "-static", 7) == 0 && (p[7]==' ' || p[7]=='\0')) {
++		if(iself && strncmp(p, "-static", 7) == 0 && (p[7]==' ' || p[7]=='\x00')) {
+ 			for(i=0; i<argc; i++) {
+ 				if(strcmp(argv[i], "-rdynamic") == 0)
+ 					argv[i] = "-static";
+@@ -731,38 +736,36 @@ hostlink(void)
+ }
+ 
+ void
+-ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
++ldobj(Biobuf *f, char *pkg, int64 length, char *pn, char *file, int whence)
+ {
+ 	char *line;
+ 	int n, c1, c2, c3, c4;
+ 	uint32 magic;
+-	vlong import0, import1, eof;
++	vlong import0, import1, eof, start;
+ 	char *t;
+ 
+-	eof = Boffset(f) + len;
++	eof = Boffset(f) + length;
+ 
+ 	pn = estrdup(pn);
+ 
++	start = Boffset(f);
+ 	c1 = BGETC(f);
+ 	c2 = BGETC(f);
+ 	c3 = BGETC(f);
+ 	c4 = BGETC(f);
+-	Bungetc(f);
+-	Bungetc(f);
+-	Bungetc(f);
+-	Bungetc(f);
++	Bseek(f, start, 0);
+ 
+ 	magic = c1<<24 | c2<<16 | c3<<8 | c4;
+ 	if(magic == 0x7f454c46) {	// \x7F E L F
+-		ldhostobj(ldelf, f, pkg, len, pn, file);
++		ldhostobj(ldelf, f, pkg, length, pn, file);
+ 		return;
+ 	}
+ 	if((magic&~1) == 0xfeedface || (magic&~0x01000000) == 0xcefaedfe) {
+-		ldhostobj(ldmacho, f, pkg, len, pn, file);
++		ldhostobj(ldmacho, f, pkg, length, pn, file);
+ 		return;
+ 	}
+ 	if(c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86) {
+-		ldhostobj(ldpe, f, pkg, len, pn, file);
++		ldhostobj(ldpe, f, pkg, length, pn, file);
+ 		return;
+ 	}
+ 
+@@ -776,7 +779,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 		goto eof;
+ 	}
+ 	n = Blinelen(f) - 1;
+-	line[n] = '\0';
++	line[n] = '\x00';
+ 	if(strncmp(line, "go object ", 10) != 0) {
+ 		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
+ 			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thearch.thechar, pn, thearch.thechar, thearch.thechar);
+@@ -796,7 +799,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 	t = smprint("%s %s %s ", goos, getgoarch(), getgoversion());
+ 	line[n] = ' ';
+ 	if(strncmp(line+10, t, strlen(t)) != 0 && !debug['f']) {
+-		line[n] = '\0';
++		line[n] = '\x00';
+ 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
+ 		free(t);
+ 		free(pn);
+@@ -806,12 +809,12 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 	// Second, check that longer lines match each other exactly,
+ 	// so that the Go compiler and write additional information
+ 	// that must be the same from run to run.
+-	line[n] = '\0';
++	line[n] = '\x00';
+ 	if(n-10 > strlen(t)) {
+ 		if(theline == nil)
+ 			theline = estrdup(line+10);
+ 		else if(strcmp(theline, line+10) != 0) {
+-			line[n] = '\0';
++			line[n] = '\x00';
+ 			diag("%s: object is [%s] expected [%s]", pn, line+10, theline);
+ 			free(t);
+ 			free(pn);
+@@ -876,7 +879,9 @@ pathchar(void)
+ 
+ static	uchar*	hunk;
+ static	uint32	nhunk;
+-#define	NHUNK	(10UL<<20)
++enum {
++	NHUNK = 10<<20,
++};
+ 
+ void*
+ mal(uint32 n)
+@@ -962,7 +967,7 @@ pathtoprefix(char *s)
+ 		} else
+ 			*w++ = *r;
+ 	}
+-	*w = '\0';
++	*w = '\x00';
+ 	return p;
+ }
+ 
+@@ -1117,7 +1122,8 @@ stkcheck(Chain *up, int depth)
+ 	Chain ch, ch1;
+ 	LSym *s;
+ 	int limit;
+-	Reloc *r, *endr;
++	Reloc *r;
++	int ri, endr;
+ 	Pciter pcsp;
+ 	
+ 	limit = up->limit;
+@@ -1159,8 +1165,8 @@ stkcheck(Chain *up, int depth)
+ 	ch.up = up;
+ 	
+ 	// Walk through sp adjustments in function, consuming relocs.
+-	r = s->r;
+-	endr = r + s->nr;
++	ri = 0;
++	endr = s->nr;
+ 	for(pciterinit(ctxt, &pcsp, &s->pcln->pcsp); !pcsp.done; pciternext(&pcsp)) {
+ 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
+ 
+@@ -1171,7 +1177,8 @@ stkcheck(Chain *up, int depth)
+ 		}
+ 
+ 		// Process calls in this span.
+-		for(; r < endr && r->off < pcsp.nextpc; r++) {
++		for(; ri < endr && s->r[ri].off < pcsp.nextpc; ri++) {
++			r = &s->r[ri];
+ 			switch(r->type) {
+ 			case R_CALL:
+ 			case R_CALLARM:
+@@ -1278,60 +1285,35 @@ Yconv(Fmt *fp)
+ 	return 0;
+ }
+ 
+-vlong coutpos;
+-
+ void
+ cflush(void)
+ {
+-	int n;
+-
+-	if(cbpmax < cbp)
+-		cbpmax = cbp;
+-	n = cbpmax - buf.cbuf;
+-	dowrite(cout, buf.cbuf, n);
+-	coutpos += n;
+-	cbp = buf.cbuf;
+-	cbc = sizeof(buf.cbuf);
+-	cbpmax = cbp;
++	Bflush(&coutbuf);
+ }
+ 
+ vlong
+ cpos(void)
+ {
+-	return coutpos + cbp - buf.cbuf;
++	return Boffset(&coutbuf);
+ }
+ 
+ void
+ cseek(vlong p)
+ {
+-	vlong start;
+-	int delta;
+-
+-	if(cbpmax < cbp)
+-		cbpmax = cbp;
+-	start = coutpos;
+-	if(start <= p && p <= start+(cbpmax - buf.cbuf)) {
+-//print("cseek %lld in [%lld,%lld] (%lld)\n", p, start, start+sizeof(buf.cbuf), cpos());
+-		delta = p - (start + cbp - buf.cbuf);
+-		cbp += delta;
+-		cbc -= delta;
+-//print("now at %lld\n", cpos());
+-		return;
+-	}
+-
+-	cflush();
+-	seek(cout, p, 0);
+-	coutpos = p;
++	Bseek(&coutbuf, p, 0);
+ }
+ 
+ void
+ cwrite(void *buf, int n)
+ {
+-	cflush();
+-	if(n <= 0)
+-		return;
+-	dowrite(cout, buf, n);
+-	coutpos += n;
++	Bflush(&coutbuf); // TODO: Remove if safe.
++	Bwrite(&coutbuf, buf, n);
++}
++
++void
++cput(uint8 c)
++{
++	Bputc(&coutbuf, c);
+ }
+ 
+ void
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 6a36c9ac95..fa4510d127 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -96,14 +96,12 @@ struct Segment
+ {
+ 	uchar	rwx;		// permission as usual unix bits (5 = r-x etc)
+ 	uvlong	vaddr;	// virtual address
+-	uvlong	len;		// length in memory
++	uvlong	length;		// length in memory
+ 	uvlong	fileoff;	// file offset
+ 	uvlong	filelen;	// length on disk
+ 	Section*	sect;
+ };
+ 
+-#pragma incomplete struct Elf64_Shdr
+-
+ struct Section
+ {
+ 	uchar	rwx;
+@@ -111,10 +109,10 @@ struct Section
+ 	int32	align;
+ 	char	*name;
+ 	uvlong	vaddr;
+-	uvlong	len;
++	uvlong	length;
+ 	Section	*next;	// in segment list
+ 	Segment	*seg;
+-	struct Elf64_Shdr *elfsect;
++	void *elfsect;
+ 	uvlong	reloff;
+ 	uvlong	rellen;
+ };
+@@ -191,14 +189,7 @@ enum {
+ 	Pkgdef
+ };
+ 
+-typedef struct Header Header;
+-struct Header {
+-	char *name;
+-	int val;
+-};
+-
+ EXTERN	char*	headstring;
+-extern	Header	headers[];
+ 
+ #pragma	varargck	type	"Y"	LSym*
+ #pragma	varargck	type	"Z"	char*
+@@ -208,19 +199,8 @@ extern	Header	headers[];
+ 
+ EXTERN	Biobuf	bso;
+ 
+-EXTERN struct
+-{
+-	char	cbuf[MAXIO];	/* output buffer */
+-} buf;
+-
+-EXTERN	int	cbc;
+-EXTERN	char*	cbp;
+-EXTERN	char*	cbpmax;
+-
+-#define	cput(c)\
+-	{ *cbp++ = c;\
+-	if(--cbc <= 0)\
+-		cflush(); }
++EXTERN	Biobuf	coutbuf;
++void	cput(uint8);
+ 
+ void	Lflag(char *arg);
+ int	Yconv(Fmt *fp);
+@@ -289,17 +269,19 @@ void	hostobjs(void);
+ int	iconv(Fmt *fp);
+ void	importcycles(void);
+ void	linkarchinit(void);
+-void	ldelf(Biobuf *f, char *pkg, int64 len, char *pn);
+-void	ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 len, char *pn, char *file);
+-void	ldmacho(Biobuf *f, char *pkg, int64 len, char *pn);
+-void	ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence);
+-void	ldpe(Biobuf *f, char *pkg, int64 len, char *pn);
+-void	ldpkg(Biobuf *f, char *pkg, int64 len, char *filename, int whence);
++void	ldelf(Biobuf *f, char *pkg, int64 length, char *pn);
++void	ldhostobj(void (*ld)(Biobuf*, char*, int64, char*), Biobuf *f, char *pkg, int64 length, char *pn, char *file);
++void	ldmacho(Biobuf *f, char *pkg, int64 length, char *pn);
++void	ldobj(Biobuf *f, char *pkg, int64 length, char *pn, char *file, int whence);
++void	ldpe(Biobuf *f, char *pkg, int64 length, char *pn);
++void	ldpkg(Biobuf *f, char *pkg, int64 length, char *filename, int whence);
+ uint16	le16(uchar *b);
+ uint32	le32(uchar *b);
+ uint64	le64(uchar *b);
+ void	libinit(void);
+-LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off);
++LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), LSym** (*nextp)(LSym*));
++LSym**	listnextp(LSym*);
++LSym**	listsubp(LSym*);
+ void	loadinternal(char *name);
+ void	loadlib(void);
+ void	lputb(uint32 l);
+@@ -307,7 +289,6 @@ void	lputl(uint32 l);
+ void*	mal(uint32 n);
+ void	mark(LSym *s);
+ void	mywhatsys(void);
+-struct ar_hdr;
+ void	objfile(char *file, char *pkg);
+ void	patch(void);
+ int	pathchar(void);
+@@ -345,4 +326,3 @@ void	ldmain(int, char**);
+ 
+ #pragma	varargck	argpos	diag	1
+ 
+-#define	SYMDEF	"__.GOSYMDEF"
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index b9b341031b..6ce5c0de37 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -14,7 +14,7 @@
+ #include "macho.h"
+ 
+ static	int	macho64;
+-static	MachoHdr	hdr;
++static	MachoHdr	machohdr;
+ static	MachoLoad	*load;
+ static	MachoSeg	seg[16];
+ static	int	nload, mload, nseg, ndebug, nsect;
+@@ -60,7 +60,7 @@ machoinit(void)
+ MachoHdr*
+ getMachoHdr(void)
+ {
+-	return &hdr;
++	return &machohdr;
+ }
+ 
+ MachoLoad*
+@@ -152,8 +152,8 @@ machowrite(void)
+ 		thearch.lput(0xfeedfacf);
+ 	else
+ 		thearch.lput(0xfeedface);
+-	thearch.lput(hdr.cpu);
+-	thearch.lput(hdr.subcpu);
++	thearch.lput(machohdr.cpu);
++	thearch.lput(machohdr.subcpu);
+ 	if(linkmode == LinkExternal)
+ 		thearch.lput(1);	/* file type - mach object */
+ 	else
+@@ -246,7 +246,7 @@ domacho(void)
+ 	s->type = SMACHOSYMSTR;
+ 	s->reachable = 1;
+ 	adduint8(ctxt, s, ' ');
+-	adduint8(ctxt, s, '\0');
++	adduint8(ctxt, s, '\x00');
+ 	
+ 	s = linklookup(ctxt, ".machosymtab", 0);
+ 	s->type = SMACHOSYMTAB;
+@@ -312,11 +312,11 @@ machoshbits(MachoSeg *mseg, Section *sect, char *segname)
+ 	while(1<<msect->align < sect->align)
+ 		msect->align++;
+ 	msect->addr = sect->vaddr;
+-	msect->size = sect->len;
++	msect->size = sect->length;
+ 	
+ 	if(sect->vaddr < sect->seg->vaddr + sect->seg->filelen) {
+ 		// data in file
+-		if(sect->len > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
++		if(sect->length > sect->seg->vaddr + sect->seg->filelen - sect->vaddr)
+ 			diag("macho cannot represent section %s crossing data and bss", sect->name);
+ 		msect->off = sect->seg->fileoff + sect->vaddr - sect->seg->vaddr;
+ 	} else {
+@@ -389,7 +389,7 @@ asmbmacho(void)
+ 	}
+ 
+ 	/* text */
+-	v = rnd(HEADR+segtext.len, INITRND);
++	v = rnd(HEADR+segtext.length, INITRND);
+ 	if(linkmode != LinkExternal) {
+ 		ms = newMachoSeg("__TEXT", 20);
+ 		ms->vaddr = va;
+@@ -405,7 +405,7 @@ asmbmacho(void)
+ 
+ 	/* data */
+ 	if(linkmode != LinkExternal) {
+-		w = segdata.len;
++		w = segdata.length;
+ 		ms = newMachoSeg("__DATA", 20);
+ 		ms->vaddr = va+v;
+ 		ms->vsize = w;
+@@ -456,7 +456,7 @@ asmbmacho(void)
+ 
+ 		if(linkmode != LinkExternal) {
+ 			ms = newMachoSeg("__LINKEDIT", 0);
+-			ms->vaddr = va+v+rnd(segdata.len, INITRND);
++			ms->vaddr = va+v+rnd(segdata.length, INITRND);
+ 			ms->vsize = s1->size + s2->size + s3->size + s4->size;
+ 			ms->fileoffset = linkoff;
+ 			ms->filesize = ms->vsize;
+@@ -536,7 +536,7 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
+ }
+ 	
+ static int
+-scmp(const void *p1, const void *p2)
++machoscmp(const void *p1, const void *p2)
+ {
+ 	LSym *s1, *s2;
+ 	int k1, k2;
+@@ -578,7 +578,7 @@ machosymorder(void)
+ 	sortsym = mal(nsortsym * sizeof sortsym[0]);
+ 	nsortsym = 0;
+ 	machogenasmsym(addsym);
+-	qsort(sortsym, nsortsym, sizeof sortsym[0], scmp);
++	qsort(sortsym, nsortsym, sizeof sortsym[0], machoscmp);
+ 	for(i=0; i<nsortsym; i++)
+ 		sortsym[i]->dynid = i;
+ }
+@@ -612,7 +612,7 @@ machosymtab(void)
+ 					adduint8(ctxt, symstr, *p);
+ 				}
+ 			}
+-			adduint8(ctxt, symstr, '\0');
++			adduint8(ctxt, symstr, '\x00');
+ 		}
+ 		if(s->type == SDYNIMPORT || s->type == SHOSTOBJ) {
+ 			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
+@@ -631,7 +631,7 @@ machosymtab(void)
+ 				diag("missing section for %s", s->name);
+ 				adduint8(ctxt, symtab, 0);
+ 			} else
+-				adduint8(ctxt, symtab, o->sect->extnum);
++				adduint8(ctxt, symtab, ((Section*)o->sect)->extnum);
+ 			adduint16(ctxt, symtab, 0); // desc
+ 			adduintxx(ctxt, symtab, symaddr(s), thearch.ptrsize);
+ 		}
+@@ -716,7 +716,7 @@ domacholink(void)
+ 	size = s1->size + s2->size + s3->size + s4->size;
+ 
+ 	if(size > 0) {
+-		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND) + rnd(segdwarf.filelen, INITRND);
++		linkoff = rnd(HEADR+segtext.length, INITRND) + rnd(segdata.filelen, INITRND) + rnd(segdwarf.filelen, INITRND);
+ 		cseek(linkoff);
+ 
+ 		cwrite(s1->p, s1->size);
+@@ -734,6 +734,7 @@ machorelocsect(Section *sect, LSym *first)
+ {
+ 	LSym *sym;
+ 	int32 eaddr;
++	int ri;
+ 	Reloc *r;
+ 
+ 	// If main section has no bits, nothing to relocate.
+@@ -748,7 +749,7 @@ machorelocsect(Section *sect, LSym *first)
+ 			break;
+ 	}
+ 	
+-	eaddr = sect->vaddr + sect->len;
++	eaddr = sect->vaddr + sect->length;
+ 	for(; sym != nil; sym = sym->next) {
+ 		if(!sym->reachable)
+ 			continue;
+@@ -756,7 +757,8 @@ machorelocsect(Section *sect, LSym *first)
+ 			break;
+ 		ctxt->cursym = sym;
+ 		
+-		for(r = sym->r; r < sym->r+sym->nr; r++) {
++		for(ri=0; ri<sym->nr; ri++) {
++			r = &sym->r[ri];
+ 			if(r->done)
+ 				continue;
+ 			if(thearch.machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index d21109b38f..32f905a2e9 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -53,14 +53,15 @@ int	machowrite(void);
+ void	machoinit(void);
+ void	machosymorder(void);
+ void	machoemitreloc(void);
+-int	machoreloc1(Reloc*, vlong);
+ 
+ /*
+  * Total amount of space to reserve at the start of the file
+  * for Header, PHeaders, and SHeaders.
+  * May waste some.
+  */
+-#define	INITIAL_MACHO_HEADR	4*1024
++enum {
++	INITIAL_MACHO_HEADR	= 4*1024,
++};
+ 
+ enum {
+ 	MACHO_CPU_AMD64 = (1<<24)|7,
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index cb87778abd..6c43581109 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -15,7 +15,7 @@
+ 
+ // DOS stub that prints out
+ // "This program cannot be run in DOS mode."
+-static char dosstub[] =
++static uchar dosstub[] =
+ {
+ 	0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x04, 0x00,
+ 	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
+@@ -45,7 +45,7 @@ int32 PESECTHEADR;
+ int32 PEFILEHEADR;
+ 
+ static int pe64;
+-static int nsect;
++static int pensect;
+ static int nextsectoff;
+ static int nextfileoff;
+ static int textsect;
+@@ -57,9 +57,6 @@ static PE64_IMAGE_OPTIONAL_HEADER oh64;
+ static IMAGE_SECTION_HEADER sh[16];
+ static IMAGE_DATA_DIRECTORY* dd;
+ 
+-#define	set(n, v)	(pe64 ? (oh64.n = v) : (oh.n = v))
+-#define	put(v)		(pe64 ? vputl(v) : lputl(v))
+-
+ typedef struct Imp Imp;
+ struct Imp {
+ 	LSym* s;
+@@ -98,11 +95,11 @@ addpesection(char *name, int sectsize, int filesize)
+ {
+ 	IMAGE_SECTION_HEADER *h;
+ 
+-	if(nsect == 16) {
++	if(pensect == 16) {
+ 		diag("too many sections");
+ 		errorexit();
+ 	}
+-	h = &sh[nsect++];
++	h = &sh[pensect++];
+ 	strncpy((char*)h->Name, name, sizeof(h->Name));
+ 	h->VirtualSize = sectsize;
+ 	h->VirtualAddress = nextsectoff;
+@@ -181,7 +178,7 @@ pewrite(void)
+ 		cwrite(&oh64, sizeof oh64);
+ 	else
+ 		cwrite(&oh, sizeof oh);
+-	cwrite(sh, nsect * sizeof sh[0]);
++	cwrite(sh, pensect * sizeof sh[0]);
+ }
+ 
+ static void
+@@ -191,11 +188,11 @@ strput(char *s)
+ 
+ 	for(n=0; *s; n++)
+ 		cput(*s++);
+-	cput('\0');
++	cput('\x00');
+ 	n++;
+ 	// string must be padded to even size
+ 	if(n%2)
+-		cput('\0');
++		cput('\x00');
+ }
+ 
+ static Dll* 
+@@ -284,9 +281,16 @@ addimports(IMAGE_SECTION_HEADER *datsect)
+ 	n = cpos();
+ 	for(d = dr; d != nil; d = d->next) {
+ 		d->thunkoff = cpos() - n;
+-		for(m = d->ms; m != nil; m = m->next)
+-			put(m->off);
+-		put(0);
++		for(m = d->ms; m != nil; m = m->next) {
++			if(pe64)
++				vputl(m->off);
++			else
++				lputl(m->off);
++		}
++		if(pe64)
++			vputl(0);
++		else
++			lputl(0);
+ 	}
+ 
+ 	// add pe section and pad it at the end
+@@ -302,9 +306,16 @@ addimports(IMAGE_SECTION_HEADER *datsect)
+ 	ftbase = dynamic->value - datsect->VirtualAddress - PEBASE;
+ 	cseek(datsect->PointerToRawData + ftbase);
+ 	for(d = dr; d != nil; d = d->next) {
+-		for(m = d->ms; m != nil; m = m->next)
+-			put(m->off);
+-		put(0);
++		for(m = d->ms; m != nil; m = m->next) {
++			if(pe64)
++				vputl(m->off);
++			else
++				lputl(m->off);
++		}
++		if(pe64)
++			vputl(0);
++		else
++			lputl(0);
+ 	}
+ 	
+ 	// finally write import descriptor table
+@@ -332,7 +343,7 @@ addimports(IMAGE_SECTION_HEADER *datsect)
+ }
+ 
+ static int
+-scmp(const void *p1, const void *p2)
++pescmp(const void *p1, const void *p2)
+ {
+ 	LSym *s1, *s2;
+ 
+@@ -350,7 +361,7 @@ initdynexport(void)
+ 	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
+ 			continue;
+-		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
++		if(nexport+1 > nelem(dexport)) {
+ 			diag("pe dynexport table is full");
+ 			errorexit();
+ 		}
+@@ -359,7 +370,7 @@ initdynexport(void)
+ 		nexport++;
+ 	}
+ 	
+-	qsort(dexport, nexport, sizeof dexport[0], scmp);
++	qsort(dexport, nexport, sizeof dexport[0], pescmp);
+ }
+ 
+ void
+@@ -469,7 +480,7 @@ newPEDWARFSection(char *name, vlong size)
+ 		return nil;
+ 
+ 	off = strtbladd(name);
+-	sprint(s, "/%d\0", off);
++	sprint(s, "/%d", off);
+ 	h = addpesection(s, size, size);
+ 	h->Characteristics = IMAGE_SCN_MEM_READ|
+ 		IMAGE_SCN_MEM_DISCARDABLE;
+@@ -478,7 +489,7 @@ newPEDWARFSection(char *name, vlong size)
+ }
+ 
+ static void
+-addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
++addpesym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *gotype)
+ {
+ 	COFFSym *cs;
+ 	USED(name);
+@@ -516,24 +527,24 @@ addsym(LSym *s, char *name, int type, vlong addr, vlong size, int ver, LSym *got
+ 		} else {
+ 			cs->value = 0;
+ 			cs->sect = 0;
+-			diag("addsym %#llx", addr);
++			diag("addpesym %#llx", addr);
+ 		}
+ 	}
+ 	ncoffsym++;
+ }
+ 
+ static void
+-addsymtable(void)
++addpesymtable(void)
+ {
+ 	IMAGE_SECTION_HEADER *h;
+ 	int i, size;
+ 	COFFSym *s;
+ 
+ 	if(!debug['s']) {
+-		genasmsym(addsym);
++		genasmsym(addpesym);
+ 		coffsym = mal(ncoffsym * sizeof coffsym[0]);
+ 		ncoffsym = 0;
+-		genasmsym(addsym);
++		genasmsym(addpesym);
+ 	}
+ 
+ 	size = strtblnextoff + 4 + 18*ncoffsym;
+@@ -583,6 +594,7 @@ addpersrc(void)
+ 	uchar *p;
+ 	uint32 val;
+ 	Reloc *r;
++	int ri;
+ 
+ 	if(rsrcsym == nil)
+ 		return;
+@@ -592,7 +604,8 @@ addpersrc(void)
+ 		IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA;
+ 	chksectoff(h, cpos());
+ 	// relocation
+-	for(r=rsrcsym->r; r<rsrcsym->r+rsrcsym->nr; r++) {
++	for(ri=0; ri<rsrcsym->nr; ri++) {
++		r = &rsrcsym->r[ri];
+ 		p = rsrcsym->p + r->off;
+ 		val = h->VirtualAddress + r->add;
+ 		// 32-bit little-endian
+@@ -626,18 +639,18 @@ asmbpe(void)
+ 		break;
+ 	}
+ 
+-	t = addpesection(".text", segtext.len, segtext.len);
++	t = addpesection(".text", segtext.length, segtext.length);
+ 	t->Characteristics = IMAGE_SCN_CNT_CODE|
+ 		IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
+ 	chksectseg(t, &segtext);
+-	textsect = nsect;
++	textsect = pensect;
+ 
+-	d = addpesection(".data", segdata.len, segdata.filelen);
++	d = addpesection(".data", segdata.length, segdata.filelen);
+ 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+ 	chksectseg(d, &segdata);
+-	datasect = nsect;
++	datasect = pensect;
+ 
+ 	if(!debug['s'])
+ 		dwarfaddpeheaders();
+@@ -645,10 +658,10 @@ asmbpe(void)
+ 	cseek(nextfileoff);
+ 	addimports(d);
+ 	addexports();
+-	addsymtable();
++	addpesymtable();
+ 	addpersrc();
+ 
+-	fh.NumberOfSections = nsect;
++	fh.NumberOfSections = pensect;
+ 	// Being able to produce identical output for identical input is
+ 	// much more beneficial than having build timestamp in the header.
+ 	fh.TimeDateStamp = 0;
+@@ -657,35 +670,57 @@ asmbpe(void)
+ 	if (pe64) {
+ 		fh.SizeOfOptionalHeader = sizeof(oh64);
+ 		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
+-		set(Magic, 0x20b);	// PE32+
++		oh64.Magic = 0x20b;	// PE32+
+ 	} else {
+ 		fh.SizeOfOptionalHeader = sizeof(oh);
+ 		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE;
+-		set(Magic, 0x10b);	// PE32
++		oh.Magic = 0x10b;	// PE32
+ 		oh.BaseOfData = d->VirtualAddress;
+ 	}
+-	set(MajorLinkerVersion, 3);
+-	set(MinorLinkerVersion, 0);
+-	set(SizeOfCode, t->SizeOfRawData);
+-	set(SizeOfInitializedData, d->SizeOfRawData);
+-	set(SizeOfUninitializedData, 0);
+-	set(AddressOfEntryPoint, entryvalue()-PEBASE);
+-	set(BaseOfCode, t->VirtualAddress);
+-	set(ImageBase, PEBASE);
+-	set(SectionAlignment, PESECTALIGN);
+-	set(FileAlignment, PEFILEALIGN);
+-	set(MajorOperatingSystemVersion, 4);
+-	set(MinorOperatingSystemVersion, 0);
+-	set(MajorImageVersion, 1);
+-	set(MinorImageVersion, 0);
+-	set(MajorSubsystemVersion, 4);
+-	set(MinorSubsystemVersion, 0);
+-	set(SizeOfImage, nextsectoff);
+-	set(SizeOfHeaders, PEFILEHEADR);
+-	if(strcmp(headstring, "windowsgui") == 0)
+-		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI);
+-	else
+-		set(Subsystem, IMAGE_SUBSYSTEM_WINDOWS_CUI);
++	// Fill out both oh64 and oh. We only use one. Oh well.
++	oh64.MajorLinkerVersion = 3;
++	oh.MajorLinkerVersion = 3;
++	oh64.MinorLinkerVersion = 0;
++	oh.MinorLinkerVersion = 0;
++	oh64.SizeOfCode = t->SizeOfRawData;
++	oh.SizeOfCode = t->SizeOfRawData;
++	oh64.SizeOfInitializedData = d->SizeOfRawData;
++	oh.SizeOfInitializedData = d->SizeOfRawData;
++	oh64.SizeOfUninitializedData = 0;
++	oh.SizeOfUninitializedData = 0;
++	oh64.AddressOfEntryPoint = entryvalue()-PEBASE;
++	oh.AddressOfEntryPoint = entryvalue()-PEBASE;
++	oh64.BaseOfCode = t->VirtualAddress;
++	oh.BaseOfCode = t->VirtualAddress;
++	oh64.ImageBase = PEBASE;
++	oh.ImageBase = PEBASE;
++	oh64.SectionAlignment = PESECTALIGN;
++	oh.SectionAlignment = PESECTALIGN;
++	oh64.FileAlignment = PEFILEALIGN;
++	oh.FileAlignment = PEFILEALIGN;
++	oh64.MajorOperatingSystemVersion = 4;
++	oh.MajorOperatingSystemVersion = 4;
++	oh64.MinorOperatingSystemVersion = 0;
++	oh.MinorOperatingSystemVersion = 0;
++	oh64.MajorImageVersion = 1;
++	oh.MajorImageVersion = 1;
++	oh64.MinorImageVersion = 0;
++	oh.MinorImageVersion = 0;
++	oh64.MajorSubsystemVersion = 4;
++	oh.MajorSubsystemVersion = 4;
++	oh64.MinorSubsystemVersion = 0;
++	oh.MinorSubsystemVersion = 0;
++	oh64.SizeOfImage = nextsectoff;
++	oh.SizeOfImage = nextsectoff;
++	oh64.SizeOfHeaders = PEFILEHEADR;
++	oh.SizeOfHeaders = PEFILEHEADR;
++	if(strcmp(headstring, "windowsgui") == 0) {
++		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI;
++		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI;
++	} else {
++		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI;
++		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI;
++	}
+ 
+ 	// Disable stack growth as we don't want Windows to
+ 	// fiddle with the thread stack limits, which we set
+@@ -702,16 +737,23 @@ asmbpe(void)
+ 	// If you change stack reserve sizes here,
+ 	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
+ 	if(!iscgo) {
+-		set(SizeOfStackReserve, 0x00010000);
+-		set(SizeOfStackCommit, 0x0000ffff);
++		oh64.SizeOfStackReserve = 0x00010000;
++		oh.SizeOfStackReserve = 0x00010000;
++		oh64.SizeOfStackCommit = 0x0000ffff;
++		oh.SizeOfStackCommit = 0x0000ffff;
+ 	} else {
+-		set(SizeOfStackReserve, pe64 ? 0x00200000 : 0x00100000);
++		oh64.SizeOfStackReserve = 0x00200000;
++		oh.SizeOfStackReserve = 0x00100000;
+ 		// account for 2 guard pages
+-		set(SizeOfStackCommit, (pe64 ? 0x00200000 : 0x00100000) - 0x2000);
++		oh64.SizeOfStackCommit = 0x00200000 - 0x2000;
++		oh.SizeOfStackCommit = 0x00100000 - 0x2000;
+ 	}
+-	set(SizeOfHeapReserve, 0x00100000);
+-	set(SizeOfHeapCommit, 0x00001000);
+-	set(NumberOfRvaAndSizes, 16);
++	oh64.SizeOfHeapReserve = 0x00100000;
++	oh.SizeOfHeapReserve = 0x00100000;
++	oh64.SizeOfHeapCommit = 0x00001000;
++	oh.SizeOfHeapCommit = 0x00001000;
++	oh64.NumberOfRvaAndSizes = 16;
++	oh.NumberOfRvaAndSizes = 16;
+ 
+ 	pewrite();
+ }
+diff --git a/src/cmd/ld/pe.h b/src/cmd/ld/pe.h
+index 03ed8d830a..98632b0209 100644
+--- a/src/cmd/ld/pe.h
++++ b/src/cmd/ld/pe.h
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-typedef struct {
++typedef struct IMAGE_FILE_HEADER IMAGE_FILE_HEADER;
++struct IMAGE_FILE_HEADER {
+ 	uint16 Machine;
+ 	uint16 NumberOfSections;
+ 	uint32 TimeDateStamp;
+@@ -10,14 +11,16 @@ typedef struct {
+ 	uint32 NumberOfSymbols;
+ 	uint16 SizeOfOptionalHeader;
+ 	uint16 Characteristics;
+-} IMAGE_FILE_HEADER;
++};
+ 
+-typedef struct {
++typedef struct IMAGE_DATA_DIRECTORY IMAGE_DATA_DIRECTORY;
++struct IMAGE_DATA_DIRECTORY {
+ 	uint32 VirtualAddress;
+ 	uint32 Size;
+-} IMAGE_DATA_DIRECTORY;
++};
+ 
+-typedef struct {
++typedef struct IMAGE_OPTIONAL_HEADER IMAGE_OPTIONAL_HEADER;
++struct IMAGE_OPTIONAL_HEADER {
+ 	uint16 Magic;
+ 	uint8  MajorLinkerVersion;
+ 	uint8  MinorLinkerVersion;
+@@ -49,9 +52,10 @@ typedef struct {
+ 	uint32 LoaderFlags;
+ 	uint32 NumberOfRvaAndSizes;
+ 	IMAGE_DATA_DIRECTORY DataDirectory[16];
+-} IMAGE_OPTIONAL_HEADER;
++};
+ 
+-typedef struct {
++typedef struct IMAGE_SECTION_HEADER IMAGE_SECTION_HEADER;
++struct IMAGE_SECTION_HEADER {
+ 	uint8  Name[8];
+ 	uint32 VirtualSize;
+ 	uint32 VirtualAddress;
+@@ -62,17 +66,19 @@ typedef struct {
+ 	uint16 NumberOfRelocations;
+ 	uint16 NumberOfLineNumbers;
+ 	uint32 Characteristics;
+-} IMAGE_SECTION_HEADER;
++};
+ 
+-typedef struct {
++typedef struct IMAGE_IMPORT_DESCRIPTOR IMAGE_IMPORT_DESCRIPTOR;
++struct IMAGE_IMPORT_DESCRIPTOR {
+ 	uint32 OriginalFirstThunk;
+ 	uint32 TimeDateStamp;
+ 	uint32 ForwarderChain;
+ 	uint32 Name;
+ 	uint32 FirstThunk;
+-} IMAGE_IMPORT_DESCRIPTOR;
++};
+ 
+-typedef struct _IMAGE_EXPORT_DIRECTORY {
++typedef struct IMAGE_EXPORT_DIRECTORY IMAGE_EXPORT_DIRECTORY;
++struct IMAGE_EXPORT_DIRECTORY {
+ 	uint32 Characteristics;
+ 	uint32 TimeDateStamp;
+ 	uint16 MajorVersion;
+@@ -84,16 +90,19 @@ typedef struct _IMAGE_EXPORT_DIRECTORY {
+ 	uint32 AddressOfFunctions;
+ 	uint32 AddressOfNames;
+ 	uint32 AddressOfNameOrdinals;
+-} IMAGE_EXPORT_DIRECTORY;
++};
+ 
+-#define PEBASE		0x00400000
++enum {
++	PEBASE = 0x00400000,
+ // SectionAlignment must be greater than or equal to FileAlignment.
+ // The default is the page size for the architecture.
+-#define PESECTALIGN	0x1000
++	PESECTALIGN = 0x1000,
+ // FileAlignment should be a power of 2 between 512 and 64 K, inclusive.
+ // The default is 512. If the SectionAlignment is less than
+ // the architecture's page size, then FileAlignment must match SectionAlignment.
+-#define PEFILEALIGN	(2<<8)
++	PEFILEALIGN = (2<<8),
++};
++
+ extern	int32	PESECTHEADR;
+ extern	int32	PEFILEHEADR;
+ 
+@@ -143,7 +152,8 @@ void dope(void);
+ IMAGE_SECTION_HEADER* newPEDWARFSection(char *name, vlong size);
+ 
+ // X64
+-typedef struct {
++typedef struct PE64_IMAGE_OPTIONAL_HEADER PE64_IMAGE_OPTIONAL_HEADER;
++struct PE64_IMAGE_OPTIONAL_HEADER {
+ 	uint16 Magic;
+ 	uint8  MajorLinkerVersion;
+ 	uint8  MinorLinkerVersion;
+@@ -174,6 +184,6 @@ typedef struct {
+ 	uint32 LoaderFlags;
+ 	uint32 NumberOfRvaAndSizes;
+ 	IMAGE_DATA_DIRECTORY DataDirectory[16];
+-} PE64_IMAGE_OPTIONAL_HEADER;
++};
+ 
+ void setpersrc(LSym *sym);
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 1e9a12747a..f3bab30a50 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -153,9 +153,6 @@ ldmain(int argc, char **argv)
+ 			HEADTYPE, INITTEXT, INITDAT, INITRND);
+ 	Bflush(&bso);
+ 
+-	cbp = buf.cbuf;
+-	cbc = sizeof(buf.cbuf);
+-
+ 	addlibpath(ctxt, "command line", "command line", argv[0], "main");
+ 	loadlib();
+ 	
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 55ef608c1d..34aa1cc336 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -36,6 +36,7 @@
+ #include	<link.h>
+ #include	"lib.h"
+ #include	"elf.h"
++#include	"dwarf.h"
+ 
+ static int maxelfstr;
+ 
+@@ -62,7 +63,7 @@ putelfstr(char *s)
+ 	p = strstr(s, "·");
+ 	if(p != nil) {
+ 		p = q = elfstrdat+off;
+-		while (*q != '\0') {
++		while (*q != '\x00') {
+ 			if((uchar)*q == 0xc2 && (uchar)*(q+1) == 0xb7) {
+ 				q += 2;
+ 				*p++ = '.';
+@@ -71,7 +72,7 @@ putelfstr(char *s)
+ 				*p++ = *q++;
+ 			}
+ 		}
+-		*p = '\0';
++		*p = '\x00';
+ 	}
+ 	return off;
+ }
+@@ -108,7 +109,7 @@ static int elfbind;
+ static void
+ putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
+ {
+-	int bind, type, off;
++	int bind, type, off, other;
+ 	LSym *xo;
+ 
+ 	USED(go);
+@@ -133,7 +134,7 @@ putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
+ 		diag("missing section in putelfsym");
+ 		return;
+ 	}
+-	if(xo->sect->elfsect == nil) {
++	if(((Section*)xo->sect)->elfsect == nil) {
+ 		ctxt->cursym = x;
+ 		diag("missing ELF section in putelfsym");
+ 		return;
+@@ -157,8 +158,11 @@ putelfsym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
+ 
+ 	off = putelfstr(s);
+ 	if(linkmode == LinkExternal)
+-		addr -= xo->sect->vaddr;
+-	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), xo->sect->elfsect->shnum, (x->type & SHIDDEN) ? 2 : 0);
++		addr -= ((Section*)xo->sect)->vaddr;
++	other = 2;
++	if(x->type&SHIDDEN)
++		other = 0;
++	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), ((ElfShdr*)((Section*)xo->sect)->elfsect)->shnum, other);
+ 	x->elfsym = numelfsym++;
+ }
+ 
+@@ -210,9 +214,9 @@ asmelfsym(void)
+ 		}
+ 		if (strcmp(goos, "android") == 0) {
+ 			// Android emulates runtime.tlsg as a regular variable.
+-			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_OBJECT, s->sect->elfsect->shnum, 0);
++			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_OBJECT, ((ElfShdr*)((Section*)s->sect)->elfsect)->shnum, 0);
+ 		} else {
+-			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_TLS, s->sect->elfsect->shnum, 0);
++			putelfsyment(putelfstr(s->name), 0, s->size, (STB_LOCAL<<4)|STT_TLS, ((ElfShdr*)((Section*)s->sect)->elfsect)->shnum, 0);
+ 		}
+ 		s->elfsym = numelfsym++;
+ 	}
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index ab88c45550..3531c69df4 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -111,13 +111,11 @@ static char *rdstring(Biobuf*);
+ static void rddata(Biobuf*, uchar**, int*);
+ static LSym *rdsym(Link*, Biobuf*, char*);
+ 
+-extern char *outfile;
+-
+ static char startmagic[] = "\x00\x00go13ld";
+ static char endmagic[] = "\xff\xffgo13ld";
+ 
+ void
+-ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
++ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 length, char *pn)
+ {
+ 	int c;
+ 	uchar buf[8];
+@@ -153,8 +151,8 @@ ldobjfile(Link *ctxt, Biobuf *f, char *pkg, int64 len, char *pn)
+ 	if(memcmp(buf, endmagic, sizeof buf) != 0)
+ 		sysfatal("%s: invalid file end", pn);
+ 	
+-	if(Boffset(f) != start+len)
+-		sysfatal("%s: unexpected end at %lld, want %lld", pn, (vlong)Boffset(f), (vlong)(start+len));
++	if(Boffset(f) != start+length)
++		sysfatal("%s: unexpected end at %lld, want %lld", pn, (vlong)Boffset(f), (vlong)(start+length));
+ }
+ 
+ static void

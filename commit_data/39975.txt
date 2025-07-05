@@ -11,6 +11,29 @@ Date:   Sun Apr 7 09:33:36 2019 +1000
     Change-Id: I7469f1c751e91bf76fe1eab07b5772eccb5d6405
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171097
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/geom.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/image/geom.go b/src/image/geom.go
+index ed7dde2c84..8bb249c1e0 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -67,6 +67,8 @@ func (p Point) Eq(q Point) bool {
+ }
+ 
+ // ZP is the zero Point.
++//
++// Deprecated: Use a literal image.Point{} instead.
+ var ZP Point
+ 
+ // Pt is shorthand for Point{X, Y}.
+@@ -254,6 +256,8 @@ func (r Rectangle) ColorModel() color.Model {
+ }
+ 
+ // ZR is the zero Rectangle.
++//
++// Deprecated: Use a literal image.Rectangle{} instead.
+ var ZR Rectangle
+ 
+ // Rect is shorthand for Rectangle{Pt(x0, y0), Pt(x1, y1)}. The returned

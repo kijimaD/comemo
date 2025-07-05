@@ -12,6 +12,24 @@ Date:   Mon Jul 17 11:12:20 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/strconv/atof_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index f6c64789cb..3380b20088 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -221,10 +221,10 @@ var (
+ )
+ 
+ func initAtof() {
+-	atofOnce.Do(initAtof1)
++	atofOnce.Do(initAtofOnce)
+ }
+ 
+-func initAtof1() {
++func initAtofOnce() {
+ 	// The atof routines return NumErrors wrapping
+ 	// the error and the string. Convert the table above.
+ 	for i := range atoftests {

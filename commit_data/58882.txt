@@ -9,8 +9,81 @@ Date:   Fri Jan 12 20:46:14 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/internal/trace/v2/order.go                     | 24 ++++++++++++++++++----
  .../v2/testdata/fuzz/FuzzReader/4d9ddc909984e871   |  2 ++
  .../v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566   |  2 ++
  3 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/v2/order.go
+index 2cc7f26d29..24da41a35e 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/v2/order.go
+@@ -649,7 +649,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		if !ok {
+ 			return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, typ)
+ 		}
+-		if err := o.gStates[curCtx.G].beginRegion(userRegion{tid, name}); err != nil {
++		gState, ok := o.gStates[curCtx.G]
++		if !ok {
++			return curCtx, false, fmt.Errorf("encountered EvUserRegionBegin without known state for current goroutine %d", curCtx.G)
++		}
++		if err := gState.beginRegion(userRegion{tid, name}); err != nil {
+ 			return curCtx, false, err
+ 		}
+ 		return curCtx, true, nil
+@@ -663,7 +667,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		if !ok {
+ 			return curCtx, false, fmt.Errorf("invalid string ID %v for %v event", nameID, typ)
+ 		}
+-		if err := o.gStates[curCtx.G].endRegion(userRegion{tid, name}); err != nil {
++		gState, ok := o.gStates[curCtx.G]
++		if !ok {
++			return curCtx, false, fmt.Errorf("encountered EvUserRegionEnd without known state for current goroutine %d", curCtx.G)
++		}
++		if err := gState.endRegion(userRegion{tid, name}); err != nil {
+ 			return curCtx, false, err
+ 		}
+ 		return curCtx, true, nil
+@@ -792,7 +800,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		if typ == go122.EvSTWBegin {
+ 			desc = stringID(ev.args[0])
+ 		}
+-		if err := o.gStates[curCtx.G].beginRange(makeRangeType(typ, desc)); err != nil {
++		gState, ok := o.gStates[curCtx.G]
++		if !ok {
++			return curCtx, false, fmt.Errorf("encountered event of type %d without known state for current goroutine %d", typ, curCtx.G)
++		}
++		if err := gState.beginRange(makeRangeType(typ, desc)); err != nil {
+ 			return curCtx, false, err
+ 		}
+ 		return curCtx, true, nil
+@@ -813,7 +825,11 @@ func (o *ordering) advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 		if err := validateCtx(curCtx, event.UserGoReqs); err != nil {
+ 			return curCtx, false, err
+ 		}
+-		desc, err := o.gStates[curCtx.G].endRange(typ)
++		gState, ok := o.gStates[curCtx.G]
++		if !ok {
++			return curCtx, false, fmt.Errorf("encountered event of type %d without known state for current goroutine %d", typ, curCtx.G)
++		}
++		desc, err := gState.endRange(typ)
+ 		if err != nil {
+ 			return curCtx, false, err
+ 		}
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/4d9ddc909984e871 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/4d9ddc909984e871
+new file mode 100644
+index 0000000000..040b2a4cae
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/4d9ddc909984e871
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x11\r\xa700\x01\x19000\x02$000000\x01\x0100\x05\b0000\x01\x0110\x11\r\xa700\x01\x19 00\x02\x110 0000")
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566 b/src/internal/trace/v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566
+new file mode 100644
+index 0000000000..5677261155
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566
+@@ -0,0 +1,2 @@
++go test fuzz v1
++[]byte("go 1.22 trace\x00\x00\x00\x01\x0100\x11\r\xa700\x01\x19000\x02#000000\x01\x0100\x05\b0000\x01\x0110\x11\r\xa700\x01\x19 00\x02\x110 0000")

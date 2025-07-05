@@ -12,6 +12,23 @@ Date:   Tue Jul 20 00:05:16 2021 +0800
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/trace/annotations.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 9b45457436..1c0dad56d8 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -407,10 +407,7 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
+ 		return t
+ 	}
+ 
+-	t = &taskDesc{
+-		id:         taskID,
+-		goroutines: make(map[uint64]struct{}),
+-	}
++	t = newTaskDesc(taskID)
+ 	tasks[taskID] = t
+ 	return t
+ }

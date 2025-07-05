@@ -22,7 +22,7 @@ Date:   Tue Sep 19 18:18:09 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/api/goapi.go                          | 14 +++++++++++++-
  src/cmd/api/goapi_test.go                     |  3 ++-
  src/cmd/api/run.go                            | 15 ++++++++++++++-
@@ -34,3 +34,260 @@ Date:   Tue Sep 19 18:18:09 2017 +0900
  src/os/os_windows_test.go                     |  2 +-
  src/runtime/syscall_windows_test.go           |  2 +-
  10 files changed, 78 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 936f9e5511..8cc78c01ed 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -27,6 +27,18 @@ import (
+ 	"strings"
+ )
+ 
++func goCmd() string {
++	var exeSuffix string
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	if _, err := os.Stat(path); err == nil {
++		return path
++	}
++	return "go"
++}
++
+ // Flags
+ var (
+ 	checkFile  = flag.String("c", "", "optional comma-separated filename(s) to check API against")
+@@ -127,7 +139,7 @@ func main() {
+ 	if flag.NArg() > 0 {
+ 		pkgNames = flag.Args()
+ 	} else {
+-		stds, err := exec.Command("go", "list", "std").Output()
++		stds, err := exec.Command(goCmd(), "list", "std").Output()
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 0d00f6a297..3c4e50a21a 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -163,7 +164,7 @@ func TestSkipInternal(t *testing.T) {
+ }
+ 
+ func BenchmarkAll(b *testing.B) {
+-	stds, err := exec.Command("go", "list", "std").Output()
++	stds, err := exec.Command(testenv.GoToolPath(b), "list", "std").Output()
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 20cddb704b..219776cae4 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -14,8 +14,21 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ )
+ 
++func goCmd() string {
++	var exeSuffix string
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	if _, err := os.Stat(path); err == nil {
++		return path
++	}
++	return "go"
++}
++
+ var goroot string
+ 
+ func main() {
+@@ -25,7 +38,7 @@ func main() {
+ 		log.Fatal("No $GOROOT set.")
+ 	}
+ 
+-	out, err := exec.Command("go", "tool", "api",
++	out, err := exec.Command(goCmd(), "tool", "api",
+ 		"-c", file("go1", "go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7", "go1.8", "go1.9"),
+ 		"-next", file("next"),
+ 		"-except", file("except")).CombinedOutput()
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index e9b4ca0fb2..ae7f25cad9 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -85,6 +85,14 @@ type distTest struct {
+ }
+ 
+ func (t *tester) run() {
++	var exeSuffix string
++	if goos == "windows" {
++		exeSuffix = ".exe"
++	}
++	if _, err := os.Stat(filepath.Join(gobin, "go"+exeSuffix)); err == nil {
++		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gobin, os.PathListSeparator, os.Getenv("PATH")))
++	}
++
+ 	slurp, err := exec.Command("go", "env", "CGO_ENABLED").Output()
+ 	if err != nil {
+ 		log.Fatalf("Error running go env CGO_ENABLED: %v", err)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index eaa2d0f68d..1a47b72083 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -91,20 +91,25 @@ func TestMain(m *testing.M) {
+ 		if race.Enabled {
+ 			args = append(args, "-race")
+ 		}
+-		out, err := exec.Command("go", args...).CombinedOutput()
++		gotool, err := testenv.GoTool()
++		if err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			os.Exit(2)
++		}
++		out, err := exec.Command(gotool, args...).CombinedOutput()
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
+ 			os.Exit(2)
+ 		}
+ 
+-		out, err = exec.Command("go", "env", "GOROOT").CombinedOutput()
++		out, err = exec.Command(gotool, "env", "GOROOT").CombinedOutput()
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "could not find testing GOROOT: %v\n%s", err, out)
+ 			os.Exit(2)
+ 		}
+ 		testGOROOT = strings.TrimSpace(string(out))
+ 
+-		out, err = exec.Command("go", "env", "CC").CombinedOutput()
++		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
+ 			os.Exit(2)
+diff --git a/src/cmd/link/internal/ld/nooptcgolink_test.go b/src/cmd/link/internal/ld/nooptcgolink_test.go
+index 1df29652b2..e019a39bf7 100644
+--- a/src/cmd/link/internal/ld/nooptcgolink_test.go
++++ b/src/cmd/link/internal/ld/nooptcgolink_test.go
+@@ -22,7 +22,7 @@ func TestNooptCgoBuild(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+-	cmd := exec.Command("go", "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", filepath.Join(dir, "a.out"))
+ 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src", "runtime", "testdata", "testprogcgo")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index 40803ac5f9..47be2a6d1c 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -15,10 +15,24 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
++	"runtime"
+ 
+ 	"github.com/google/pprof/profile"
+ )
+ 
++func goCmd() string {
++	var exeSuffix string
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	if _, err := os.Stat(path); err == nil {
++		return path
++	}
++	return "go"
++}
++
+ func init() {
+ 	http.HandleFunc("/io", serveSVGProfile(pprofIO))
+ 	http.HandleFunc("/block", serveSVGProfile(pprofBlock))
+@@ -147,7 +161,7 @@ func serveSVGProfile(prof func(w io.Writer) error) http.HandlerFunc {
+ 			return
+ 		}
+ 		svgFilename := blockf.Name() + ".svg"
+-		if output, err := exec.Command("go", "tool", "pprof", "-svg", "-output", svgFilename, blockf.Name()).CombinedOutput(); err != nil {
++		if output, err := exec.Command(goCmd(), "tool", "pprof", "-svg", "-output", svgFilename, blockf.Name()).CombinedOutput(); err != nil {
+ 			http.Error(w, fmt.Sprintf("failed to execute go tool pprof: %v\n%s", err, output), http.StatusInternalServerError)
+ 			return
+ 		}
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 2e145129eb..a774bf14c9 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -12,11 +12,25 @@ import (
+ 	"math/rand"
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	_ "unsafe"
+ )
+ 
++func goCmd() string {
++	var exeSuffix string
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	if _, err := os.Stat(path); err == nil {
++		return path
++	}
++	return "go"
++}
++
+ // Event describes one event in the trace.
+ type Event struct {
+ 	Off   int       // offset in input file (for debugging and error reporting)
+@@ -757,7 +771,7 @@ func symbolize(events []*Event, bin string) error {
+ 	}
+ 
+ 	// Start addr2line.
+-	cmd := exec.Command("go", "tool", "addr2line", bin)
++	cmd := exec.Command(goCmd(), "tool", "addr2line", bin)
+ 	in, err := cmd.StdinPipe()
+ 	if err != nil {
+ 		return fmt.Errorf("failed to pipe addr2line stdin: %v", err)
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 04c4a4af33..228fecedf8 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -811,7 +811,7 @@ func main() {
+ 	}
+ 
+ 	exe := filepath.Join(tmpdir, "main.exe")
+-	cmd := osexec.Command("go", "build", "-o", exe, src)
++	cmd := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
+ 	cmd.Dir = tmpdir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 3da154dfa8..f5b43a8e3e 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1043,7 +1043,7 @@ func BenchmarkRunningGoProgram(b *testing.B) {
+ 	}
+ 
+ 	exe := filepath.Join(tmpdir, "main.exe")
+-	cmd := exec.Command("go", "build", "-o", exe, src)
++	cmd := exec.Command(testenv.GoToolPath(b), "build", "-o", exe, src)
+ 	cmd.Dir = tmpdir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

@@ -17,7 +17,49 @@ Date:   Thu May 5 21:46:51 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  2 +-
  test/typeparam/issue52241.go                  | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index bf721d6495..d6a7eade03 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -2188,7 +2188,7 @@ func (w *exportWriter) localIdent(s *types.Sym) {
+ 		return
+ 	}
+ 
+-	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) {
++	if i := strings.LastIndex(name, "."); i >= 0 && !strings.HasPrefix(name, LocalDictName) && !strings.HasPrefix(name, ".rcvr") {
+ 		base.Fatalf("unexpected dot in identifier: %v", name)
+ 	}
+ 
+diff --git a/test/typeparam/issue52241.go b/test/typeparam/issue52241.go
+new file mode 100644
+index 0000000000..4feb97e013
+--- /dev/null
++++ b/test/typeparam/issue52241.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Collector[T any] struct {
++}
++
++func (c *Collector[T]) Collect() {
++}
++
++func TestInOrderIntTree() {
++	collector := Collector[int]{}
++	_ = collector.Collect
++}
++
++func main() {
++	TestInOrderIntTree()
++}

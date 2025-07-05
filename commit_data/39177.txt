@@ -10,6 +10,20 @@ Date:   Tue Jan 15 18:29:15 2019 +0000
     Change-Id: I376dda4fd18ddbcae4485dd660a79b9f66ad6da4
     Reviewed-on: https://go-review.googlesource.com/c/158037
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 70740aeacd..10bea15fa3 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -252,7 +252,7 @@ func findModule(target, path string) module.Version {
+ func ModInfoProg(info string) []byte {
+ 	// Inject a variable with the debug information as runtime/debug.modinfo,
+ 	// but compile it in package main so that it is specific to the binary.
+-	// No need to populate in an init func, it will still work with go:linkname,
++	// No need to populate it in an init func; it will still work with go:linkname.
+ 	return []byte(fmt.Sprintf(`package main
+ import _ "unsafe"
+ //go:linkname __debug_modinfo__ runtime/debug.modinfo

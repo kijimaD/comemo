@@ -19,7 +19,7 @@ Date:   Wed Apr 27 09:02:52 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/go1.16.txt                                     |   1 -
  misc/boring/release.sh                             |   2 +-
  misc/cgo/testshared/shared_test.go                 |   2 +-
@@ -58,3 +58,663 @@ Date:   Wed Apr 27 09:02:52 2022 -0400
  src/go/build/build.go                              |   3 +--
  src/go/build/deps_test.go                          |   4 ++--
  37 files changed, 153 insertions(+), 43 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index d9fb7e3884..ce015fd6fb 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -1,6 +1,5 @@
+ pkg archive/zip, method (*ReadCloser) Open(string) (fs.File, error)
+ pkg archive/zip, method (*Reader) Open(string) (fs.File, error)
+-pkg crypto/boring, func Enabled() bool
+ pkg crypto/x509, method (SystemRootsError) Unwrap() error
+ pkg debug/elf, const DT_ADDRRNGHI = 1879047935
+ pkg debug/elf, const DT_ADDRRNGHI DynTag
+diff --git a/misc/boring/release.sh b/misc/boring/release.sh
+index 6ab440c91b..6e72a56192 100755
+--- a/misc/boring/release.sh
++++ b/misc/boring/release.sh
+@@ -18,7 +18,7 @@ git fetch
+ git worktree add --track -b "$BRANCH" "$WORKTREE" origin/dev.boringcrypto
+ 
+ cd "$WORKTREE/src"
+-./make.bash
++GOEXPERIMENT=boringcrypto ./make.bash
+ 
+ cd ../misc/boring
+ for branch in "$@"; do
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index b78083bc80..616630979c 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -57,7 +57,7 @@ func runWithEnv(t *testing.T, msg string, env []string, args ...string) {
+ func goCmd(t *testing.T, args ...string) string {
+ 	newargs := []string{args[0]}
+ 	if *testX && args[0] != "env" {
+-		newargs = append(newargs, "-x")
++		newargs = append(newargs, "-x", "-ldflags=-v")
+ 	}
+ 	newargs = append(newargs, args[1:]...)
+ 	c := exec.Command("go", newargs...)
+diff --git a/src/cmd/api/goapi_boring_test.go b/src/cmd/api/goapi_boring_test.go
+new file mode 100644
+index 0000000000..f0e3575637
+--- /dev/null
++++ b/src/cmd/api/goapi_boring_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build boringcrypto
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++func init() {
++	fmt.Printf("SKIP with boringcrypto enabled\n")
++	os.Exit(0)
++}
+diff --git a/src/cmd/go/go_boring_test.go b/src/cmd/go/go_boring_test.go
+index 0000497f06..ed0fbf3d53 100644
+--- a/src/cmd/go/go_boring_test.go
++++ b/src/cmd/go/go_boring_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package main_test
+ 
+ import "testing"
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5103e55e00..680f509ec5 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1060,6 +1060,7 @@ var hostobj []Hostobj
+ // Others trigger external mode.
+ var internalpkg = []string{
+ 	"crypto/internal/boring",
++	"crypto/internal/boring/syso",
+ 	"crypto/x509",
+ 	"net",
+ 	"os/user",
+diff --git a/src/crypto/boring/boring.go b/src/crypto/boring/boring.go
+index 19e2a0876f..097c37e343 100644
+--- a/src/crypto/boring/boring.go
++++ b/src/crypto/boring/boring.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ // Package boring exposes functions that are only available when building with
+ // Go+BoringCrypto. This package is available on all targets as long as the
+ // Go+BoringCrypto toolchain is used. Use the Enabled function to determine
+diff --git a/src/crypto/boring/boring_test.go b/src/crypto/boring/boring_test.go
+index ace50de0c2..9e8fd353b7 100644
+--- a/src/crypto/boring/boring_test.go
++++ b/src/crypto/boring/boring_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package boring_test
+ 
+ import (
+diff --git a/src/crypto/boring/notboring_test.go b/src/crypto/boring/notboring_test.go
+index e69a3a93fd..ffe18e9109 100644
+--- a/src/crypto/boring/notboring_test.go
++++ b/src/crypto/boring/notboring_test.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !boringcrypto
+-// +build !boringcrypto
++//go:build (goexperiment.boringcrypto && !boringcrypto) || (!goexperiment.boringcrypto && boringcrypto)
++// +build goexperiment.boringcrypto,!boringcrypto !goexperiment.boringcrypto,boringcrypto
+ 
+ package boring_test
+ 
+ import "testing"
+ 
+ func TestNotBoring(t *testing.T) {
+-	t.Error("a file tagged !boringcrypto should not build under Go+BoringCrypto")
++	t.Error("goexperiment.boringcrypto and boringcrypto should be equivalent build tags")
+ }
+diff --git a/src/crypto/ecdsa/boring.go b/src/crypto/ecdsa/boring.go
+index fa15ecb850..d7de5c96e5 100644
+--- a/src/crypto/ecdsa/boring.go
++++ b/src/crypto/ecdsa/boring.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package ecdsa
+ 
+ import (
+diff --git a/src/crypto/ecdsa/notboring.go b/src/crypto/ecdsa/notboring.go
+new file mode 100644
+index 0000000000..039bd82ed2
+--- /dev/null
++++ b/src/crypto/ecdsa/notboring.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !boringcrypto
++
++package ecdsa
++
++import "crypto/internal/boring"
++
++func boringPublicKey(*PublicKey) (*boring.PublicKeyECDSA, error) {
++	panic("boringcrypto: not available")
++}
++func boringPrivateKey(*PrivateKey) (*boring.PrivateKeyECDSA, error) {
++	panic("boringcrypto: not available")
++}
+diff --git a/src/crypto/internal/boring/Dockerfile b/src/crypto/internal/boring/Dockerfile
+index dab7c85f7c..5bd7438f69 100644
+--- a/src/crypto/internal/boring/Dockerfile
++++ b/src/crypto/internal/boring/Dockerfile
+@@ -8,8 +8,8 @@
+ #
+ #   $ podman build -t goboring:140sp3678 .
+ #   $ podman run -it --name goboring-140sp3678 goboring:140sp3678
+-#   $ podman cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso .
+-#   $ sha256sum goboringcrypto_linux_amd64.syso # compare to docker output
++#   $ podman cp goboring-140sp3678:/boring/godriver/goboringcrypto_linux_amd64.syso syso
++#   $ sha256sum syso/goboringcrypto_linux_amd64.syso # compare to docker output
+ #
+ # The podman commands may need to run under sudo to work around a subuid/subgid bug.
+ 
+diff --git a/src/crypto/internal/boring/LICENSE b/src/crypto/internal/boring/LICENSE
+index fc103a79d4..38990bdb77 100644
+--- a/src/crypto/internal/boring/LICENSE
++++ b/src/crypto/internal/boring/LICENSE
+@@ -1,6 +1,8 @@
+ The Go source code and supporting files in this directory
+ are covered by the usual Go license (see ../../../../LICENSE).
+ 
++When building with GOEXPERIMENT=boringcrypto, the following applies.
++
+ The goboringcrypto_linux_amd64.syso object file is built
+ from BoringSSL source code by build/build.sh and is covered
+ by the BoringSSL license reproduced below and also at
+@@ -40,7 +42,7 @@ record keeping.)
+  * are met:
+  *
+  * 1. Redistributions of source code must retain the above copyright
+- *    notice, this list of conditions and the following disclaimer. 
++ *    notice, this list of conditions and the following disclaimer.
+  *
+  * 2. Redistributions in binary form must reproduce the above copyright
+  *    notice, this list of conditions and the following disclaimer in
+@@ -95,21 +97,21 @@ record keeping.)
+  * This package is an SSL implementation written
+  * by Eric Young (eay@cryptsoft.com).
+  * The implementation was written so as to conform with Netscapes SSL.
+- * 
++ *
+  * This library is free for commercial and non-commercial use as long as
+  * the following conditions are aheared to.  The following conditions
+  * apply to all code found in this distribution, be it the RC4, RSA,
+  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+  * included with this distribution is covered by the same copyright terms
+  * except that the holder is Tim Hudson (tjh@cryptsoft.com).
+- * 
++ *
+  * Copyright remains Eric Young's, and as such any Copyright notices in
+  * the code are not to be removed.
+  * If this package is used in a product, Eric Young should be given attribution
+  * as the author of the parts of the library used.
+  * This can be in the form of a textual message at program startup or
+  * in documentation (online or textual) provided with the package.
+- * 
++ *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions
+  * are met:
+@@ -124,10 +126,10 @@ record keeping.)
+  *     Eric Young (eay@cryptsoft.com)"
+  *    The word 'cryptographic' can be left out if the rouines from the library
+  *    being used are not cryptographic related :-).
+- * 4. If you include any Windows specific code (or a derivative thereof) from 
++ * 4. If you include any Windows specific code (or a derivative thereof) from
+  *    the apps directory (application code) you must include an acknowledgement:
+  *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
+- * 
++ *
+  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+@@ -139,7 +141,7 @@ record keeping.)
+  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+  * SUCH DAMAGE.
+- * 
++ *
+  * The licence and distribution terms for any publically available version or
+  * derivative of this code cannot be changed.  i.e. this code cannot simply be
+  * copied and put under another distribution licence
+diff --git a/src/crypto/internal/boring/aes.go b/src/crypto/internal/boring/aes.go
+index b5d360151c..515b60bb8a 100644
+--- a/src/crypto/internal/boring/aes.go
++++ b/src/crypto/internal/boring/aes.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index b8804ceb68..29e0baa131 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+@@ -16,6 +16,7 @@ package boring
+ import "C"
+ import (
+ 	"crypto/internal/boring/sig"
++	_ "crypto/internal/boring/syso"
+ 	"math/big"
+ )
+ 
+diff --git a/src/crypto/internal/boring/ecdsa.go b/src/crypto/internal/boring/ecdsa.go
+index b9c68a97af..20612e6a2c 100644
+--- a/src/crypto/internal/boring/ecdsa.go
++++ b/src/crypto/internal/boring/ecdsa.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/fipstls/dummy.s b/src/crypto/internal/boring/fipstls/stub.s
+similarity index 94%
+rename from src/crypto/internal/boring/fipstls/dummy.s
+rename to src/crypto/internal/boring/fipstls/stub.s
+index 53bb7d9430..f2e5a503ea 100644
+--- a/src/crypto/internal/boring/fipstls/dummy.s
++++ b/src/crypto/internal/boring/fipstls/stub.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ // runtime_arg0 is declared in tls.go without a body.
+ // It's provided by package runtime,
+ // but the go command doesn't know that.
+diff --git a/src/crypto/internal/boring/fipstls/tls.go b/src/crypto/internal/boring/fipstls/tls.go
+index 4127533fbd..701700e4e3 100644
+--- a/src/crypto/internal/boring/fipstls/tls.go
++++ b/src/crypto/internal/boring/fipstls/tls.go
+@@ -2,8 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ // Package fipstls allows control over whether crypto/tls requires FIPS-approved settings.
+-// This package's effects are independent of the use of the BoringCrypto implementation.
++// This package only exists with GOEXPERIMENT=boringcrypto, but the effects are independent
++// of the use of BoringCrypto.
+ package fipstls
+ 
+ import "sync/atomic"
+diff --git a/src/crypto/internal/boring/hmac.go b/src/crypto/internal/boring/hmac.go
+index be0670c05a..c36fe6b26c 100644
+--- a/src/crypto/internal/boring/hmac.go
++++ b/src/crypto/internal/boring/hmac.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/notboring.go b/src/crypto/internal/boring/notboring.go
+index 2e2414c73b..be1dd4b8fc 100644
+--- a/src/crypto/internal/boring/notboring.go
++++ b/src/crypto/internal/boring/notboring.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
+-// +build !linux !amd64 !cgo android cmd_go_bootstrap msan
++//go:build !boringcrypto || !linux || !amd64 || !cgo || android || cmd_go_bootstrap || msan
++// +build !boringcrypto !linux !amd64 !cgo android cmd_go_bootstrap msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rand.go b/src/crypto/internal/boring/rand.go
+index 57937eb3c8..d2e432e7b7 100644
+--- a/src/crypto/internal/boring/rand.go
++++ b/src/crypto/internal/boring/rand.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index 327dfa0309..642287709e 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index 4672119df1..ba0cc29034 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && amd64 && !android && !cmd_go_bootstrap && !msan
+-// +build linux,amd64,!android,!cmd_go_bootstrap,!msan
++//go:build boringcrypto && linux && amd64 && !android && !cmd_go_bootstrap && !msan
++// +build boringcrypto,linux,amd64,!android,!cmd_go_bootstrap,!msan
+ 
+ package boring
+ 
+diff --git a/src/crypto/internal/boring/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso
+similarity index 100%
+rename from src/crypto/internal/boring/goboringcrypto_linux_amd64.syso
+rename to src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso
+diff --git a/src/crypto/internal/boring/syso/syso.go b/src/crypto/internal/boring/syso/syso.go
+new file mode 100644
+index 0000000000..b3387545e6
+--- /dev/null
++++ b/src/crypto/internal/boring/syso/syso.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build boringcrypto
++
++// This package only exists with GOEXPERIMENT=boringcrypto.
++// It provides the actual syso file.
++package syso
+diff --git a/src/crypto/rsa/boring.go b/src/crypto/rsa/boring.go
+index 0f362a2f16..49a195f0f4 100644
+--- a/src/crypto/rsa/boring.go
++++ b/src/crypto/rsa/boring.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package rsa
+ 
+ import (
+diff --git a/src/crypto/rsa/boring_test.go b/src/crypto/rsa/boring_test.go
+index 11dcdf88fd..1373da9937 100644
+--- a/src/crypto/rsa/boring_test.go
++++ b/src/crypto/rsa/boring_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ // Note: Can run these tests against the non-BoringCrypto
+ // version of the code by using "CGO_ENABLED=0 go test".
+ 
+diff --git a/src/crypto/rsa/notboring.go b/src/crypto/rsa/notboring.go
+new file mode 100644
+index 0000000000..2abc043640
+--- /dev/null
++++ b/src/crypto/rsa/notboring.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !boringcrypto
++
++package rsa
++
++import "crypto/internal/boring"
++
++func boringPublicKey(*PublicKey) (*boring.PublicKeyRSA, error) {
++	panic("boringcrypto: not available")
++}
++func boringPrivateKey(*PrivateKey) (*boring.PrivateKeyRSA, error) {
++	panic("boringcrypto: not available")
++}
+diff --git a/src/crypto/tls/boring.go b/src/crypto/tls/boring.go
+index dabc67423d..c40d4a0e48 100644
+--- a/src/crypto/tls/boring.go
++++ b/src/crypto/tls/boring.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package tls
+ 
+ import (
+@@ -124,5 +126,3 @@ func supportedSignatureAlgorithms() []SignatureScheme {
+ 	}
+ 	return fipsSupportedSignatureAlgorithms
+ }
+-
+-var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+diff --git a/src/crypto/tls/boring_test.go b/src/crypto/tls/boring_test.go
+index 8dd477a021..12a7d937cb 100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/boring_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package tls
+ 
+ import (
+diff --git a/src/crypto/tls/fipsonly/fipsonly.go b/src/crypto/tls/fipsonly/fipsonly.go
+index 85b3532d26..e5e47835e2 100644
+--- a/src/crypto/tls/fipsonly/fipsonly.go
++++ b/src/crypto/tls/fipsonly/fipsonly.go
+@@ -2,13 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ // Package fipsonly restricts all TLS configuration to FIPS-approved settings.
+ //
+ // The effect is triggered by importing the package anywhere in a program, as in:
+ //
+ //	import _ "crypto/tls/fipsonly"
+ //
+-// This package only exists in the dev.boringcrypto branch of Go.
++// This package only exists when using Go compiled with GOEXPERIMENT=boringcrypto.
+ package fipsonly
+ 
+ // This functionality is provided as a side effect of an import to make
+diff --git a/src/crypto/tls/fipsonly/fipsonly_test.go b/src/crypto/tls/fipsonly/fipsonly_test.go
+index facd24807d..f8485dc3ca 100644
+--- a/src/crypto/tls/fipsonly/fipsonly_test.go
++++ b/src/crypto/tls/fipsonly/fipsonly_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build boringcrypto
++
+ package fipsonly
+ 
+ import (
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 7bf0f84417..de19b7ede5 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -34,6 +34,8 @@ type clientHandshakeState struct {
+ 	session      *ClientSessionState
+ }
+ 
++var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
++
+ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
+ 	config := c.config
+ 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
+@@ -859,13 +861,14 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 
+ 	if !c.config.InsecureSkipVerify {
+ 		opts := x509.VerifyOptions{
+-			IsBoring: isBoringCertificate,
+-
+ 			Roots:         c.config.RootCAs,
+ 			CurrentTime:   c.config.time(),
+ 			DNSName:       c.config.ServerName,
+ 			Intermediates: x509.NewCertPool(),
+ 		}
++		if needFIPS() {
++			opts.IsBoring = isBoringCertificate
++		}
+ 		for _, cert := range certs[1:] {
+ 			opts.Intermediates.AddCert(cert)
+ 		}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 5db605681e..2d71d0869a 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -812,13 +812,14 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 
+ 	if c.config.ClientAuth >= VerifyClientCertIfGiven && len(certs) > 0 {
+ 		opts := x509.VerifyOptions{
+-			IsBoring: isBoringCertificate,
+-
+ 			Roots:         c.config.ClientCAs,
+ 			CurrentTime:   c.config.time(),
+ 			Intermediates: x509.NewCertPool(),
+ 			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+ 		}
++		if needFIPS() {
++			opts.IsBoring = isBoringCertificate
++		}
+ 
+ 		for _, cert := range certs[1:] {
+ 			opts.Intermediates.AddCert(cert)
+diff --git a/src/crypto/tls/notboring.go b/src/crypto/tls/notboring.go
+new file mode 100644
+index 0000000000..d79ea21a0b
+--- /dev/null
++++ b/src/crypto/tls/notboring.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !boringcrypto
++
++package tls
++
++import "crypto/x509"
++
++func needFIPS() bool { return false }
++
++func supportedSignatureAlgorithms() []SignatureScheme {
++	return defaultSupportedSignatureAlgorithms
++}
++
++func fipsMinVersion(c *Config) uint16              { panic("fipsMinVersion") }
++func fipsMaxVersion(c *Config) uint16              { panic("fipsMaxVersion") }
++func fipsCurvePreferences(c *Config) []CurveID     { panic("fipsCurvePreferences") }
++func fipsCipherSuites(c *Config) []uint16          { panic("fipsCipherSuites") }
++func isBoringCertificate(c *x509.Certificate) bool { panic("isBoringCertificate") }
++
++var fipsSupportedSignatureAlgorithms []SignatureScheme
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index f40b486635..b373feab33 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1907,9 +1907,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
+ 	if name == "unix" && unixOS[ctxt.GOOS] {
+ 		return true
+ 	}
+-	// Let applications know that the Go+BoringCrypto toolchain is in use.
+ 	if name == "boringcrypto" {
+-		return true
++		name = "goexperiment.boringcrypto" // boringcrypto is an old name for goexperiment.boringcrypto
+ 	}
+ 
+ 	// other tags
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 651257a357..d955081869 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -397,12 +397,12 @@ var depsRules = `
+ 	NET, log
+ 	< net/mail;
+ 
+-	NONE < crypto/internal/boring/sig;
++	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+ 	sync/atomic < crypto/internal/boring/fipstls;
+ 
+ 	encoding/binary, golang.org/x/sys/cpu, hash,
+ 	FMT, math/big, embed,
+-	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls
++	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls, crypto/internal/boring/syso
+ 	< crypto
+ 	< crypto/subtle
+ 	< crypto/internal/subtle

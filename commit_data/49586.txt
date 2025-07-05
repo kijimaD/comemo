@@ -22,10 +22,218 @@ Date:   Fri Aug 27 20:50:31 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345791
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go |  2 +-
  src/cmd/compile/internal/types2/named.go       |  2 +-
  src/cmd/compile/internal/types2/stmt.go        | 43 +++++++++++++++++++++++++-
  src/cmd/compile/internal/types2/subst.go       | 28 ++++++++++++-----
  src/cmd/compile/internal/types2/typestring.go  | 28 +++++++++--------
  5 files changed, 79 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 4113d248b8..c882699d1d 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -125,7 +125,7 @@ func (check *Checker) instantiate(pos syntax.Pos, typ Type, targs []Type, posLis
+ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type) Type {
+ 	switch t := typ.(type) {
+ 	case *Named:
+-		h := instantiatedHash(t, targs)
++		h := typeHash(t, targs)
+ 		if check != nil {
+ 			// typ may already have been instantiated with identical type arguments.
+ 			// In that case, re-use the existing instance.
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index b4074aa3dc..a76e69fcf1 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -258,7 +258,7 @@ func (n *Named) expand(typMap map[string]*Named) *Named {
+ 					// type-checking pass. In that case we won't have a pre-existing
+ 					// typMap, but don't want to create a duplicate of the current instance
+ 					// in the process of expansion.
+-					h := instantiatedHash(n.orig, n.targs.list())
++					h := typeHash(n.orig, n.targs.list())
+ 					typMap = map[string]*Named{h: n}
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 3e2ac2e29e..2673e98c57 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -295,7 +295,7 @@ L:
+ 				// talk about "case" rather than "type" because of nil case
+ 				Ts := "nil"
+ 				if T != nil {
+-					Ts = T.String()
++					Ts = TypeString(T, check.qualifier)
+ 				}
+ 				var err error_
+ 				err.errorf(e, "duplicate case %s in type switch", Ts)
+@@ -312,6 +312,47 @@ L:
+ 	return
+ }
+ 
++// TODO(gri) Once we are certain that typeHash is correct in all situations, use this version of caseTypes instead.
++//           (Currently it may be possible that different types have identical names and import paths due to ImporterFrom.)
++//
++// func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[string]syntax.Expr) (T Type) {
++// 	var dummy operand
++// L:
++// 	for _, e := range types {
++// 		// The spec allows the value nil instead of a type.
++// 		var hash string
++// 		if check.isNil(e) {
++// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
++// 			T = nil
++// 			hash = "<nil>" // avoid collision with a type named nil
++// 		} else {
++// 			T = check.varType(e)
++// 			if T == Typ[Invalid] {
++// 				continue L
++// 			}
++// 			hash = typeHash(T, nil)
++// 		}
++// 		// look for duplicate types
++// 		if other := seen[hash]; other != nil {
++// 			// talk about "case" rather than "type" because of nil case
++// 			Ts := "nil"
++// 			if T != nil {
++// 				Ts = TypeString(T, check.qualifier)
++// 			}
++// 			var err error_
++// 			err.errorf(e, "duplicate case %s in type switch", Ts)
++// 			err.errorf(other, "previous case")
++// 			check.report(&err)
++// 			continue L
++// 		}
++// 		seen[hash] = e
++// 		if T != nil {
++// 			check.typeAssertion(e.Pos(), x, xtyp, T)
++// 		}
++// 	}
++// 	return
++// }
++
+ // stmt typechecks statement s.
+ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 	// statements must end with the same top scope as they started with
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 9a4db6fddb..18a9e39300 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -214,7 +214,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := instantiatedHash(t, newTArgs)
++		h := typeHash(t, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+ 		if named, found := subst.typMap[h]; found {
+ 			dump(">>> found %s", named)
+@@ -253,17 +253,29 @@ func (subst *subster) typ(typ Type) Type {
+ 	return typ
+ }
+ 
+-var instanceHashing = 0
++var typeHashing = 0
+ 
+-func instantiatedHash(typ *Named, targs []Type) string {
++// typeHash returns a string representation of typ, which can be used as an exact
++// type hash: types that are identical produce identical string representations.
++// If typ is a *Named type and targs is not empty, typ is printed as if it were
++// instantiated with targs.
++func typeHash(typ Type, targs []Type) string {
++	assert(typ != nil)
+ 	var buf bytes.Buffer
+ 
+-	assert(instanceHashing == 0)
+-	instanceHashing++
++	assert(typeHashing == 0)
++	typeHashing++
+ 	w := newTypeWriter(&buf, nil)
+-	w.typeName(typ.obj)
+-	w.typeList(targs)
+-	instanceHashing--
++	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
++		// Don't use WriteType because we need to use the provided targs
++		// and not any targs that might already be with the *Named type.
++		w.typeName(named.obj)
++		w.typeList(targs)
++	} else {
++		assert(targs == nil)
++		w.typ(typ)
++	}
++	typeHashing--
+ 
+ 	if debug {
+ 		// there should be no instance markers in type hashes
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 3b9981089e..2110b46498 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -207,7 +207,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		// types. Write them to aid debugging, but don't write
+ 		// them when we need an instance hash: whether a type
+ 		// is fully expanded or not doesn't matter for identity.
+-		if instanceHashing == 0 && t.instPos != nil {
++		if typeHashing == 0 && t.instPos != nil {
+ 			w.byte(instanceMarker)
+ 		}
+ 		w.typeName(t.obj)
+@@ -291,7 +291,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
+ 
+ func (w *typeWriter) typeName(obj *TypeName) {
+ 	if obj == nil {
+-		assert(instanceHashing == 0) // we need an object for instance hashing
++		assert(typeHashing == 0) // we need an object for type hashing
+ 		w.string("<Named w/o object>")
+ 		return
+ 	}
+@@ -300,17 +300,18 @@ func (w *typeWriter) typeName(obj *TypeName) {
+ 	}
+ 	w.string(obj.name)
+ 
+-	if instanceHashing != 0 {
++	if typeHashing != 0 {
+ 		// For local defined types, use the (original!) TypeName's scope
+ 		// numbers to disambiguate.
+-		typ := obj.typ.(*Named)
+-		// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
+-		//           and whether the loop can iterate more than twice.
+-		//           (It seems somehow connected to instance types.)
+-		for typ.orig != typ {
+-			typ = typ.orig
++		if typ, _ := obj.typ.(*Named); typ != nil {
++			// TODO(gri) Figure out why typ.orig != typ.orig.orig sometimes
++			//           and whether the loop can iterate more than twice.
++			//           (It seems somehow connected to instance types.)
++			for typ.orig != typ {
++				typ = typ.orig
++			}
++			w.writeScopeNumbers(typ.obj.parent)
+ 		}
+-		w.writeScopeNumbers(typ.obj.parent)
+ 	}
+ }
+ 
+@@ -332,7 +333,8 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 			if i > 0 {
+ 				w.string(", ")
+ 			}
+-			if v.name != "" {
++			// parameter names are ignored for type identity and thus type hashes
++			if typeHashing == 0 && v.name != "" {
+ 				w.string(v.name)
+ 				w.byte(' ')
+ 			}
+@@ -380,8 +382,8 @@ func (w *typeWriter) signature(sig *Signature) {
+ 	}
+ 
+ 	w.byte(' ')
+-	if n == 1 && sig.results.vars[0].name == "" {
+-		// single unnamed result
++	if n == 1 && (typeHashing != 0 || sig.results.vars[0].name == "") {
++		// single unnamed result (if typeHashing, name must be ignored)
+ 		w.typ(sig.results.vars[0].typ)
+ 		return
+ 	}

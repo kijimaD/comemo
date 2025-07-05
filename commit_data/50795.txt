@@ -24,10 +24,118 @@ Date:   Wed Nov 10 11:39:18 2021 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  6 +++++-
  src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++-
  test/typeparam/issue49497.dir/a.go            | 26 ++++++++++++++++++++++++++
  test/typeparam/issue49497.dir/main.go         | 11 +++++++++++
  test/typeparam/issue49497.go                  |  7 +++++++
  5 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index f685851e40..bf12ba803b 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1735,6 +1735,8 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		n := n.(*ir.Name)
+ 		if (n.Class == ir.PEXTERN || n.Class == ir.PFUNC) && !ir.IsBlank(n) {
+ 			w.op(ir.ONONAME)
++			// Indicate that this is not an OKEY entry.
++			w.bool(false)
+ 			w.qualifiedIdent(n)
+ 			if go117ExportTypes {
+ 				w.typ(n.Type())
+@@ -1761,7 +1763,9 @@ func (w *exportWriter) expr(n ir.Node) {
+ 
+ 	case ir.ONONAME:
+ 		w.op(ir.ONONAME)
+-		// This should only be for OKEY nodes in generic functions
++		// This can only be for OKEY nodes in generic functions. Mark it
++		// as a key entry.
++		w.bool(true)
+ 		s := n.Sym()
+ 		w.string(s.Name)
+ 		w.pkg(s.Pkg)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 26bc838ed9..09f87df580 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1315,9 +1315,15 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.ONONAME:
++		isKey := r.bool()
+ 		n := r.qualifiedIdent()
+ 		if go117ExportTypes {
+-			n2 := Resolve(n)
++			var n2 ir.Node = n
++			// Key ONONAME entries should not be resolved - they should
++			// stay as identifiers.
++			if !isKey {
++				n2 = Resolve(n)
++			}
+ 			typ := r.typ()
+ 			if n2.Type() == nil {
+ 				n2.SetType(typ)
+diff --git a/test/typeparam/issue49497.dir/a.go b/test/typeparam/issue49497.dir/a.go
+new file mode 100644
+index 0000000000..86062d446f
+--- /dev/null
++++ b/test/typeparam/issue49497.dir/a.go
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F[T any]() A[T] {
++	var x A[T]
++	return x
++}
++
++type A[T any] struct {
++	b B[T]
++}
++
++func (a A[T]) M() C[T] {
++	return C[T]{
++		B: a.b,
++	}
++}
++
++type B[T any] struct{}
++
++type C[T any] struct {
++	B B[T]
++}
+diff --git a/test/typeparam/issue49497.dir/main.go b/test/typeparam/issue49497.dir/main.go
+new file mode 100644
+index 0000000000..3725e5591e
+--- /dev/null
++++ b/test/typeparam/issue49497.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() {
++	a.F[string]()
++}
+diff --git a/test/typeparam/issue49497.go b/test/typeparam/issue49497.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue49497.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

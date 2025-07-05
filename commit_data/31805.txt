@@ -11,6 +11,21 @@ Date:   Fri Mar 17 15:05:53 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/38262
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 7202828f32..7b7836fccd 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -347,6 +347,9 @@ func (init *Initializer) String() string {
+ // file set, and the package path the package is identified with.
+ // The clean path must not be empty or dot (".").
+ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, info *Info) (*Package, error) {
++	if path == "" || path == "." {
++		panic(`path must not be "" or "."`)
++	}
+ 	pkg := NewPackage(path, "")
+ 	return pkg, NewChecker(conf, fset, pkg, info).Files(files)
+ }

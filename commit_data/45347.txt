@@ -30,10 +30,200 @@ Date:   Tue Oct 20 09:56:14 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/263804
     Trust: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/go/build/deps_test.go       |  6 ++++-
  src/internal/cpu/cpu_no_name.go | 19 ++++++++++++++++
  src/internal/cpu/cpu_x86.go     | 49 +++++++++++++++++++++++++++++++++++++++++
  src/internal/sysinfo/sysinfo.go | 31 ++++++++++++++++++++++++++
  src/testing/benchmark.go        |  7 ++++++
  5 files changed, 111 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4d866c87b6..ba7a76318f 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -467,6 +467,10 @@ var depsRules = `
+ 	< net/rpc
+ 	< net/rpc/jsonrpc;
+ 
++	# System Information
++	internal/cpu, sync
++	< internal/sysinfo;
++
+ 	# Test-only
+ 	log
+ 	< testing/iotest
+@@ -475,7 +479,7 @@ var depsRules = `
+ 	FMT, flag, math/rand
+ 	< testing/quick;
+ 
+-	FMT, flag, runtime/debug, runtime/trace
++	FMT, flag, runtime/debug, runtime/trace, internal/sysinfo
+ 	< testing;
+ 
+ 	internal/testlog, runtime/pprof, regexp
+diff --git a/src/internal/cpu/cpu_no_name.go b/src/internal/cpu/cpu_no_name.go
+new file mode 100644
+index 0000000000..ce1c37a3c7
+--- /dev/null
++++ b/src/internal/cpu/cpu_no_name.go
+@@ -0,0 +1,19 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !386
++// +build !amd64
++
++package cpu
++
++// Name returns the CPU name given by the vendor
++// if it can be read directly from memory or by CPU instructions.
++// If the CPU name can not be determined an empty string is returned.
++//
++// Implementations that use the Operating System (e.g. sysctl or /sys/)
++// to gather CPU information for display should be placed in internal/sysinfo.
++func Name() string {
++	// "A CPU has no name".
++	return ""
++}
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index da6cf67258..fb414adaf8 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -38,6 +38,8 @@ const (
+ 	cpuid_ADX  = 1 << 19
+ )
+ 
++var maxExtendedFunctionInformation uint32
++
+ func doinit() {
+ 	options = []option{
+ 		{Name: "adx", Feature: &X86.HasADX},
+@@ -65,6 +67,8 @@ func doinit() {
+ 		return
+ 	}
+ 
++	maxExtendedFunctionInformation, _, _, _ = cpuid(0x80000000, 0)
++
+ 	_, _, ecx1, edx1 := cpuid(1, 0)
+ 	X86.HasSSE2 = isSet(edx1, cpuid_SSE2)
+ 
+@@ -103,3 +107,48 @@ func doinit() {
+ func isSet(hwc uint32, value uint32) bool {
+ 	return hwc&value != 0
+ }
++
++// Name returns the CPU name given by the vendor.
++// If the CPU name can not be determined an
++// empty string is returned.
++func Name() string {
++	if maxExtendedFunctionInformation < 0x80000004 {
++		return ""
++	}
++
++	data := make([]byte, 0, 3*4*4)
++
++	var eax, ebx, ecx, edx uint32
++	eax, ebx, ecx, edx = cpuid(0x80000002, 0)
++	data = appendBytes(data, eax, ebx, ecx, edx)
++	eax, ebx, ecx, edx = cpuid(0x80000003, 0)
++	data = appendBytes(data, eax, ebx, ecx, edx)
++	eax, ebx, ecx, edx = cpuid(0x80000004, 0)
++	data = appendBytes(data, eax, ebx, ecx, edx)
++
++	// Trim leading spaces.
++	for len(data) > 0 && data[0] == ' ' {
++		data = data[1:]
++	}
++
++	// Trim tail after and including the first null byte.
++	for i, c := range data {
++		if c == '\x00' {
++			data = data[:i]
++			break
++		}
++	}
++
++	return string(data)
++}
++
++func appendBytes(b []byte, args ...uint32) []byte {
++	for _, arg := range args {
++		b = append(b,
++			byte((arg >> 0)),
++			byte((arg >> 8)),
++			byte((arg >> 16)),
++			byte((arg >> 24)))
++	}
++	return b
++}
+diff --git a/src/internal/sysinfo/sysinfo.go b/src/internal/sysinfo/sysinfo.go
+new file mode 100644
+index 0000000000..961be7abae
+--- /dev/null
++++ b/src/internal/sysinfo/sysinfo.go
+@@ -0,0 +1,31 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sysinfo implements high level hardware information gathering
++// that can be used for debugging or information purposes.
++package sysinfo
++
++import (
++	internalcpu "internal/cpu"
++	"sync"
++)
++
++type cpuInfo struct {
++	once sync.Once
++	name string
++}
++
++var CPU cpuInfo
++
++func (cpu *cpuInfo) Name() string {
++	cpu.once.Do(func() {
++		// Try to get the information from internal/cpu.
++		if name := internalcpu.Name(); name != "" {
++			cpu.name = name
++			return
++		}
++		// TODO(martisch): use /proc/cpuinfo and /sys/devices/system/cpu/ on Linux as fallback.
++	})
++	return cpu.name
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index e9687bf26d..1b81ec3a2d 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -8,6 +8,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/race"
++	"internal/sysinfo"
+ 	"io"
+ 	"math"
+ 	"os"
+@@ -262,6 +263,9 @@ func (b *B) run() {
+ 		if b.importPath != "" {
+ 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+ 		}
++		if cpu := sysinfo.CPU.Name(); cpu != "" {
++			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
++		}
+ 	})
+ 	if b.context != nil {
+ 		// Running go test --test.bench
+@@ -648,6 +652,9 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 			if b.importPath != "" {
+ 				fmt.Printf("pkg: %s\n", b.importPath)
+ 			}
++			if cpu := sysinfo.CPU.Name(); cpu != "" {
++				fmt.Printf("cpu: %s\n", cpu)
++			}
+ 		})
+ 
+ 		fmt.Println(benchName)

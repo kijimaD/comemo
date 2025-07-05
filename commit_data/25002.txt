@@ -16,8 +16,66 @@ Date:   Sun Sep 13 12:49:05 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14542
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: jcd . <jcd@golang.org>
-
+---
  src/debug/dwarf/entry_test.go      |  36 ++++++++++++++++++++++++++++++++++++
  src/debug/dwarf/testdata/split.c   |   5 +++++
  src/debug/dwarf/testdata/split.elf | Bin 0 -> 9509 bytes
  3 files changed, 41 insertions(+)
+
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+new file mode 100644
+index 0000000000..8bd2d2a8ad
+--- /dev/null
++++ b/src/debug/dwarf/entry_test.go
+@@ -0,0 +1,36 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dwarf_test
++
++import (
++	. "debug/dwarf"
++	"testing"
++)
++
++func TestSplit(t *testing.T) {
++	// debug/dwarf doesn't (currently) support split DWARF, but
++	// the attributes that pointed to the split DWARF used to
++	// cause loading the DWARF data to fail entirely (issue
++	// #12592). Test that we can at least read the DWARF data.
++	d := elfData(t, "testdata/split.elf")
++	r := d.Reader()
++	e, err := r.Next()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if e.Tag != TagCompileUnit {
++		t.Fatalf("bad tag: have %s, want %s", e.Tag, TagCompileUnit)
++	}
++	// Check that we were able to parse the unknown section offset
++	// field, even if we can't figure out its DWARF class.
++	const AttrGNUAddrBase Attr = 0x2133
++	f := e.AttrField(AttrGNUAddrBase)
++	if _, ok := f.Val.(int64); !ok {
++		t.Fatalf("bad attribute value type: have %T, want int64", f.Val)
++	}
++	if f.Class != ClassUnknown {
++		t.Fatalf("bad class: have %s, want %s", f.Class, ClassUnknown)
++	}
++}
+diff --git a/src/debug/dwarf/testdata/split.c b/src/debug/dwarf/testdata/split.c
+new file mode 100644
+index 0000000000..0ef3427d2e
+--- /dev/null
++++ b/src/debug/dwarf/testdata/split.c
+@@ -0,0 +1,5 @@
++// gcc -gsplit-dwarf split.c -o split.elf
++
++int main() 
++{
++}
+diff --git a/src/debug/dwarf/testdata/split.elf b/src/debug/dwarf/testdata/split.elf
+new file mode 100644
+index 0000000000..99ee2c2f0b
+Binary files /dev/null and b/src/debug/dwarf/testdata/split.elf differ

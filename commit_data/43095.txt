@@ -11,6 +11,20 @@ Date:   Mon Mar 9 12:46:45 2020 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/doc.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 5b437d6804..11d48154ad 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -77,8 +77,6 @@ Flags:
+ 	-lang version
+ 		Set language version to compile, as in -lang=go1.12.
+ 		Default is current version.
+-	-largemodel
+-		Generate code that assumes a large memory model.
+ 	-linkobj file
+ 		Write linker-specific object to file and compiler-specific
+ 		object to usual output file (as specified by -o).

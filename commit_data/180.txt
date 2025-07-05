@@ -5,9 +5,119 @@ Date:   Mon Jun 16 17:04:30 2008 -0700
     print pc on faults
     
     SVN=123030
-
+---
  src/runtime/rt0_amd64_darwin.s |  5 +++++
  src/runtime/rt0_amd64_linux.s  |  5 +++++
  src/runtime/runtime.c          | 37 ++++++++++++++++++++++++++-----------
  src/runtime/runtime.h          |  1 +
  4 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/rt0_amd64_darwin.s b/src/runtime/rt0_amd64_darwin.s
+index 0d981b5818..824a602554 100644
+--- a/src/runtime/rt0_amd64_darwin.s
++++ b/src/runtime/rt0_amd64_darwin.s
+@@ -84,3 +84,8 @@ TEXT	sys_memclr(SB),1,$-8
+ 	REP
+ 	STOSQ
+ 	RET
++
++TEXT	sys_getcallerpc+0(SB),0,$0
++	MOVQ	x+0(FP),AX
++	MOVQ	-8(AX),AX
++	RET
+diff --git a/src/runtime/rt0_amd64_linux.s b/src/runtime/rt0_amd64_linux.s
+index 12590bd6c5..6ad8b33d55 100644
+--- a/src/runtime/rt0_amd64_linux.s
++++ b/src/runtime/rt0_amd64_linux.s
+@@ -94,3 +94,8 @@ TEXT	sys_memclr(SB),1,$-8
+ 	REP
+ 	STOSQ
+ 	RET
++
++TEXT	sys_getcallerpc+0(SB),0,$0
++	MOVQ	x+0(FP),AX
++	MOVQ	-8(AX),AX
++	RET
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 724254a116..9a7efc55b7 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -70,15 +70,6 @@ sys_printpointer(void *p)
+ 	sys_write(1, buf+i, nelem(buf)-i);
+ }
+ 
+-void
+-sys_panicl(int32 lno)
+-{
+-	prints("\npanic on line ");
+-	sys_printint(lno);
+-	prints("\n");
+-	*(int32*)0 = 0;
+-}
+-
+ void
+ sys_printstring(string v)
+ {
+@@ -101,6 +92,24 @@ prints(int8 *s)
+ 	sys_write(1, s, strlen(s));
+ }
+ 
++void
++sys_printpc(void *p)
++{
++	prints("PC=0x");
++	sys_printpointer(sys_getcallerpc(p));
++}
++
++void
++sys_panicl(int32 lno)
++{
++	prints("\npanic on line ");
++	sys_printint(lno);
++	prints(" ");
++	sys_printpc(&lno);
++	prints("\n");
++	*(int32*)0 = 0;
++}
++
+ dump(byte *p, int32 n)
+ {
+ 	uint32 v;
+@@ -307,8 +316,11 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
+ 	int32 l;
+ 
+ 	if(lindex < 0 || lindex > si->len ||
+-	   hindex < lindex || hindex > si->len)
++	   hindex < lindex || hindex > si->len) {
++		sys_printpc(&si);
++		prints(" ");
+ 		prbounds("slice", lindex, si->len, hindex);
++	}
+ 
+ 	l = hindex-lindex;
+ 	so = mal(sizeof(so->len)+l);
+@@ -320,8 +332,11 @@ sys_slicestring(string si, int32 lindex, int32 hindex, string so)
+ void
+ sys_indexstring(string s, int32 i, byte b)
+ {
+-	if(i < 0 || i >= s->len)
++	if(i < 0 || i >= s->len) {
++		sys_printpc(&s);
++		prints(" ");
+ 		prbounds("index", 0, i, s->len);
++	}
+ 
+ 	b = s->str[i];
+ 	FLUSH(&b);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index a12ac29f55..d006915730 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -91,6 +91,7 @@ void	sys_write(int32, void*, int32);
+ void	sys_breakpoint(void);
+ uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
+ void	sys_memclr(byte*, uint32);
++void* sys_getcallerpc(void*);
+ 
+ /*
+  * runtime

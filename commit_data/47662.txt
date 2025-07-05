@@ -13,7 +13,33 @@ Date:   Fri Apr 2 21:48:00 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go | 1 +
  src/cmd/compile/internal/ssagen/ssa.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 7590dc1bfa..71712ab1a5 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -39,6 +39,7 @@ type DebugFlags struct {
+ 	Libfuzzer            int    `help:"enable coverage instrumentation for libfuzzer"`
+ 	LocationLists        int    `help:"print information about DWARF location list creation"`
+ 	Nil                  int    `help:"print information about nil checks"`
++	NoOpenDefer          int    `help:"disable open-coded defers"`
+ 	PCTab                string `help:"print named pc-value table"`
+ 	Panic                int    `help:"show all compiler panics"`
+ 	Slice                int    `help:"print information about slice compilation"`
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 67c9e9c198..0a49ca214d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -470,6 +470,8 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 
+ 	s.hasOpenDefers = base.Flag.N == 0 && s.hasdefer && !s.curfn.OpenCodedDeferDisallowed()
+ 	switch {
++	case base.Debug.NoOpenDefer != 0:
++		s.hasOpenDefers = false
+ 	case s.hasOpenDefers && (base.Ctxt.Flag_shared || base.Ctxt.Flag_dynlink) && base.Ctxt.Arch.Name == "386":
+ 		// Don't support open-coded defers for 386 ONLY when using shared
+ 		// libraries, because there is extra code (added by rewriteToUseGot())

@@ -13,7 +13,7 @@ Date:   Tue Jan 7 16:07:20 2020 -0500
     Change-Id: Iea6ba91d37c6f0d4994ae64e629c349c4eae511a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213678
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 129 ---------------------
  src/cmd/go/testdata/script/test_main.txt           |  66 +++++++++++
  .../script/test_match_benchmark_labels.txt         |  18 +++
@@ -36,3 +36,606 @@ Date:   Tue Jan 7 16:07:20 2020 -0500
  src/cmd/go/testdata/standalone_test.go             |   6 -
  .../go/testdata/standalone_testmain_flag_test.go   |  29 -----
  21 files changed, 238 insertions(+), 205 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index eea833ec01..2c952474c5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2386,33 +2386,6 @@ func TestGoBuildTestOnly(t *testing.T) {
+ 	tg.run("install", "./testonly...")
+ }
+ 
+-func TestGoTestFooTestWorks(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/standalone_test.go")
+-}
+-
+-func TestGoTestTestMainSeesTestingFlags(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/standalone_testmain_flag_test.go")
+-}
+-
+-// Issue 22388
+-func TestGoTestMainWithWrongSignature(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.runFail("test", "testdata/standalone_main_wrong_test.go")
+-	tg.grepStderr(`wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)`, "detected wrong error message")
+-}
+-
+-func TestGoTestMainAsNormalTest(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/standalone_main_normal_test.go")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+ func TestGoTestXtestonlyWorks(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -3300,96 +3273,6 @@ const (
+ 	okPattern        = `(?m)^ok`
+ )
+ 
+-func TestMatchesNoTests(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_test.go")
+-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+-}
+-
+-func TestMatchesNoBenchmarksIsOK(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.run("test", "-run", "^$", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+-func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+-func TestBenchmarkLabelsOutsideGOPATH(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
+-	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
+-	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
+-	tg.grepBothNot(`(?m)^pkg:`, "go test did say pkg:")
+-}
+-
+-func TestMatchesOnlyTestIsOK(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// TODO: tg.parallel()
+-	tg.run("test", "-run", "Test", "testdata/standalone_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+-func TestMatchesNoTestsWithSubtests(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_sub_test.go")
+-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+-}
+-
+-func TestMatchesNoSubtestsMatch(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-run", "Test/ThisWillNotMatch", "testdata/standalone_sub_test.go")
+-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+-}
+-
+-func TestMatchesNoSubtestsDoesNotOverrideFailure(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.runFail("test", "-run", "TestThatFails/ThisWillNotMatch", "testdata/standalone_fail_sub_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth("FAIL", "go test did not say FAIL")
+-}
+-
+-func TestMatchesOnlySubtestIsOK(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-run", "Test/Sub", "testdata/standalone_sub_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+-func TestMatchesNoSubtestsParallel(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-run", "Test/Sub/ThisWillNotMatch", "testdata/standalone_parallel_sub_test.go")
+-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+-}
+-
+-func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-run", "Test/Sub/Nested", "testdata/standalone_parallel_sub_test.go")
+-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+-	tg.grepBoth(okPattern, "go test did not say ok")
+-}
+-
+ // Issue 18845
+ func TestBenchTimeout(t *testing.T) {
+ 	tooSlow(t)
+@@ -3889,18 +3772,6 @@ func TestExecBuildX(t *testing.T) {
+ 	tg.must(robustio.RemoveAll(matches[1]))
+ }
+ 
+-func TestParallelNumber(t *testing.T) {
+-	tooSlow(t)
+-	for _, n := range [...]string{"-1", "0"} {
+-		t.Run(n, func(t *testing.T) {
+-			tg := testgo(t)
+-			defer tg.cleanup()
+-			tg.runFail("test", "-parallel", n, "testdata/standalone_parallel_sub_test.go")
+-			tg.grepBoth("-parallel can only be given", "go test -parallel with N<1 did not error")
+-		})
+-	}
+-}
+-
+ func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo assumes cross-compilation is always possible")
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/script/test_main.txt b/src/cmd/go/testdata/script/test_main.txt
+new file mode 100644
+index 0000000000..e255eab7e1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_main.txt
+@@ -0,0 +1,66 @@
++# Test TestMain
++go test standalone_main_normal_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++# Test TestMain sees testing flags
++go test standalone_testmain_flag_test.go
++stdout '^ok.*\[no tests to run\]'
++
++# Test TestMain with wrong signature (Issue #22388)
++! go test standalone_main_wrong_test.go
++stderr 'wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)'
++
++-- standalone_main_normal_test.go --
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_main_normal_test
++
++import "testing"
++
++func TestMain(t *testing.T) {
++}
++-- standalone_main_wrong_test.go --
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_main_wrong_test
++
++import "testing"
++
++func TestMain(m *testing.Main) {
++}
++-- standalone_testmain_flag_test.go --
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_testmain_flag_test
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	// A TestMain should be able to access testing flags if it calls
++	// flag.Parse without needing to use testing.Init.
++	flag.Parse()
++	found := false
++	flag.VisitAll(func(f *flag.Flag) {
++		if f.Name == "test.count" {
++			found = true
++		}
++	})
++	if !found {
++		fmt.Println("testing flags not registered")
++		os.Exit(1)
++	}
++	os.Exit(m.Run())
++}
+diff --git a/src/cmd/go/testdata/script/test_match_benchmark_labels.txt b/src/cmd/go/testdata/script/test_match_benchmark_labels.txt
+new file mode 100644
+index 0000000000..13c4007d7f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_benchmark_labels.txt
+@@ -0,0 +1,18 @@
++# Benchmark labels, file outside gopath
++# TODO(matloob): This test was called TestBenchmarkLabelsOutsideGOPATH
++# why "OutsideGOPATH"? Does the go command need to be run outside GOPATH?
++# Do the files need to exist outside GOPATH?
++cp $GOPATH/src/standalone_benchmark_test.go $WORK/tmp/standalone_benchmark_test.go
++go test -run '^$' -bench . $WORK/tmp/standalone_benchmark_test.go
++stdout '^goos: '$GOOS
++stdout '^goarch: '$GOARCH
++! stdout '^pkg:'
++! stderr '^pkg:'
++
++-- standalone_benchmark_test.go --
++package standalone_benchmark
++
++import "testing"
++
++func Benchmark(b *testing.B) {
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_no_benchmarks.txt b/src/cmd/go/testdata/script/test_match_no_benchmarks.txt
+new file mode 100644
+index 0000000000..30f4be8a84
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_no_benchmarks.txt
+@@ -0,0 +1,13 @@
++# Matches no benchmarks
++go test -run '^$' -bench ThisWillNotMatch standalone_benchmark_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- standalone_benchmark_test.go --
++package standalone_benchmark
++
++import "testing"
++
++func Benchmark(b *testing.B) {
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_no_subtests.txt b/src/cmd/go/testdata/script/test_match_no_subtests.txt
+new file mode 100644
+index 0000000000..7abb1eb9b6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_no_subtests.txt
+@@ -0,0 +1,12 @@
++# The subtests don't match
++go test -run Test/ThisWillNotMatch standalone_sub_test.go
++stdout '^ok.*\[no tests to run\]'
++
++-- standalone_sub_test.go --
++package standalone_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Run("Sub", func(t *testing.T) {})
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_no_subtests_failure.txt b/src/cmd/go/testdata/script/test_match_no_subtests_failure.txt
+new file mode 100644
+index 0000000000..b3c5b92f5e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_no_subtests_failure.txt
+@@ -0,0 +1,15 @@
++# Matches no subtests, but parent test still fails
++! go test -run TestThatFails/ThisWillNotMatch standalone_fail_sub_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout 'FAIL'
++
++-- standalone_fail_sub_test.go --
++package standalone_fail_sub_test
++
++import "testing"
++
++func TestThatFails(t *testing.T) {
++	t.Run("Sub", func(t *testing.T) {})
++	t.Fail()
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/standalone_parallel_sub_test.go b/src/cmd/go/testdata/script/test_match_no_subtests_parallel.txt
+similarity index 62%
+rename from src/cmd/go/testdata/standalone_parallel_sub_test.go
+rename to src/cmd/go/testdata/script/test_match_no_subtests_parallel.txt
+index d326de0a5a..11c734c4c3 100644
+--- a/src/cmd/go/testdata/standalone_parallel_sub_test.go
++++ b/src/cmd/go/testdata/script/test_match_no_subtests_parallel.txt
+@@ -1,3 +1,8 @@
++# Matches no subtests, parallel
++go test -run Test/Sub/ThisWillNotMatch standalone_parallel_sub_test.go
++stdout '^ok.*\[no tests to run\]'
++
++-- standalone_parallel_sub_test.go --
+ package standalone_parallel_sub_test
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/script/test_match_no_tests.txt b/src/cmd/go/testdata/script/test_match_no_tests.txt
+new file mode 100644
+index 0000000000..1ad2097848
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_no_tests.txt
+@@ -0,0 +1,11 @@
++# Matches no tests
++go test -run ThisWillNotMatch standalone_test.go
++stdout '^ok.*\[no tests to run\]'
++
++-- standalone_test.go --
++package standalone_test
++
++import "testing"
++
++func Test(t *testing.T) {
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_no_tests_with_subtests.txt b/src/cmd/go/testdata/script/test_match_no_tests_with_subtests.txt
+new file mode 100644
+index 0000000000..0d9491861e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_no_tests_with_subtests.txt
+@@ -0,0 +1,12 @@
++# Matches no tests with subtests
++go test -run ThisWillNotMatch standalone_sub_test.go
++stdout '^ok.*\[no tests to run\]'
++
++-- standalone_sub_test.go --
++package standalone_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Run("Sub", func(t *testing.T) {})
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_only_benchmarks.txt b/src/cmd/go/testdata/script/test_match_only_benchmarks.txt
+new file mode 100644
+index 0000000000..5dfb96eae2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_only_benchmarks.txt
+@@ -0,0 +1,13 @@
++# Matches only benchmarks
++go test -run '^$' -bench . standalone_benchmark_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- standalone_benchmark_test.go --
++package standalone_benchmark
++
++import "testing"
++
++func Benchmark(b *testing.B) {
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_only_subtests.txt b/src/cmd/go/testdata/script/test_match_only_subtests.txt
+new file mode 100644
+index 0000000000..beea8953ca
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_only_subtests.txt
+@@ -0,0 +1,14 @@
++# Matches only subtests
++go test -run Test/Sub standalone_sub_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- standalone_sub_test.go --
++package standalone_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	t.Run("Sub", func(t *testing.T) {})
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_match_only_subtests_parallel.txt b/src/cmd/go/testdata/script/test_match_only_subtests_parallel.txt
+new file mode 100644
+index 0000000000..11872c28fd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_only_subtests_parallel.txt
+@@ -0,0 +1,21 @@
++# Matches only subtests, parallel
++go test -run Test/Sub/Nested standalone_parallel_sub_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- standalone_parallel_sub_test.go --
++package standalone_parallel_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	ch := make(chan bool, 1)
++	t.Run("Sub", func(t *testing.T) {
++		t.Parallel()
++		<-ch
++		t.Run("Nested", func(t *testing.T) {})
++	})
++	// Ensures that Sub will finish after its t.Run call already returned.
++	ch <- true
++}
+diff --git a/src/cmd/go/testdata/script/test_match_only_tests.txt b/src/cmd/go/testdata/script/test_match_only_tests.txt
+new file mode 100644
+index 0000000000..9185793201
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_match_only_tests.txt
+@@ -0,0 +1,13 @@
++# Matches only tests
++go test -run Test standalone_test.go
++! stdout '^ok.*\[no tests to run\]'
++! stderr '^ok.*\[no tests to run\]'
++stdout '^ok'
++
++-- standalone_test.go --
++package standalone_test
++
++import "testing"
++
++func Test(t *testing.T) {
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_parallel_number.txt b/src/cmd/go/testdata/script/test_parallel_number.txt
+new file mode 100644
+index 0000000000..4eb97945ef
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_parallel_number.txt
+@@ -0,0 +1,25 @@
++[short] skip
++
++# go test -parallel -1 shouldn't work
++! go test -parallel -1 standalone_parallel_sub_test.go
++stdout '-parallel can only be given'
++
++# go test -parallel 0 shouldn't work
++! go test -parallel 0 standalone_parallel_sub_test.go
++stdout '-parallel can only be given'
++
++-- standalone_parallel_sub_test.go --
++package standalone_parallel_sub_test
++
++import "testing"
++
++func Test(t *testing.T) {
++	ch := make(chan bool, 1)
++	t.Run("Sub", func(t *testing.T) {
++		t.Parallel()
++		<-ch
++		t.Run("Nested", func(t *testing.T) {})
++	})
++	// Ensures that Sub will finish after its t.Run call already returned.
++	ch <- true
++}
+diff --git a/src/cmd/go/testdata/standalone_benchmark_test.go b/src/cmd/go/testdata/standalone_benchmark_test.go
+deleted file mode 100644
+index 4850f98d80..0000000000
+--- a/src/cmd/go/testdata/standalone_benchmark_test.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package standalone_benchmark
+-
+-import "testing"
+-
+-func Benchmark(b *testing.B) {
+-}
+diff --git a/src/cmd/go/testdata/standalone_fail_sub_test.go b/src/cmd/go/testdata/standalone_fail_sub_test.go
+deleted file mode 100644
+index ac483f9e0c..0000000000
+--- a/src/cmd/go/testdata/standalone_fail_sub_test.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-package standalone_fail_sub_test
+-
+-import "testing"
+-
+-func TestThatFails(t *testing.T) {
+-	t.Run("Sub", func(t *testing.T) {})
+-	t.Fail()
+-}
+diff --git a/src/cmd/go/testdata/standalone_main_normal_test.go b/src/cmd/go/testdata/standalone_main_normal_test.go
+deleted file mode 100644
+index 018ce75b2e..0000000000
+--- a/src/cmd/go/testdata/standalone_main_normal_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package standalone_main_normal_test
+-
+-import "testing"
+-
+-func TestMain(t *testing.T) {
+-}
+diff --git a/src/cmd/go/testdata/standalone_main_wrong_test.go b/src/cmd/go/testdata/standalone_main_wrong_test.go
+deleted file mode 100644
+index 59998873f9..0000000000
+--- a/src/cmd/go/testdata/standalone_main_wrong_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package standalone_main_wrong_test
+-
+-import "testing"
+-
+-func TestMain(m *testing.Main) {
+-}
+diff --git a/src/cmd/go/testdata/standalone_sub_test.go b/src/cmd/go/testdata/standalone_sub_test.go
+deleted file mode 100644
+index f6c31db9c8..0000000000
+--- a/src/cmd/go/testdata/standalone_sub_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package standalone_sub_test
+-
+-import "testing"
+-
+-func Test(t *testing.T) {
+-	t.Run("Sub", func(t *testing.T) {})
+-}
+diff --git a/src/cmd/go/testdata/standalone_test.go b/src/cmd/go/testdata/standalone_test.go
+deleted file mode 100644
+index 59cf918b9b..0000000000
+--- a/src/cmd/go/testdata/standalone_test.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package standalone_test
+-
+-import "testing"
+-
+-func Test(t *testing.T) {
+-}
+diff --git a/src/cmd/go/testdata/standalone_testmain_flag_test.go b/src/cmd/go/testdata/standalone_testmain_flag_test.go
+deleted file mode 100644
+index a59555bb61..0000000000
+--- a/src/cmd/go/testdata/standalone_testmain_flag_test.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package standalone_testmain_flag_test
+-
+-import (
+-	"flag"
+-	"fmt"
+-	"os"
+-	"testing"
+-)
+-
+-func TestMain(m *testing.M) {
+-	// A TestMain should be able to access testing flags if it calls
+-	// flag.Parse without needing to use testing.Init.
+-	flag.Parse()
+-	found := false
+-	flag.VisitAll(func(f *flag.Flag) {
+-		if f.Name == "test.count" {
+-			found = true
+-		}
+-	})
+-	if !found {
+-		fmt.Println("testing flags not registered")
+-		os.Exit(1)
+-	}
+-	os.Exit(m.Run())
+-}

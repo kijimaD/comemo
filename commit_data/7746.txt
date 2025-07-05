@@ -7,7 +7,90 @@ Date:   Fri Mar 11 14:33:31 2011 -0800
     R=r, rsc1
     CC=golang-dev
     https://golang.org/cl/4291042
-
+---
  src/pkg/go/parser/parser.go      | 18 +++++++++---------
  src/pkg/go/parser/parser_test.go |  1 +
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 5d4814870c..fdf10df6bd 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1864,10 +1864,10 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-type parseSpecFunction func(p *parser, doc *ast.CommentGroup) ast.Spec
++type parseSpecFunction func(p *parser, doc *ast.CommentGroup, iota int) ast.Spec
+ 
+ 
+-func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
++func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	if p.trace {
+ 		defer un(trace(p, "ImportSpec"))
+ 	}
+@@ -1894,7 +1894,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ }
+ 
+ 
+-func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
++func parseConstSpec(p *parser, doc *ast.CommentGroup, iota int) ast.Spec {
+ 	if p.trace {
+ 		defer un(trace(p, "ConstSpec"))
+ 	}
+@@ -1902,7 +1902,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ 	idents := p.parseIdentList()
+ 	typ := p.tryType()
+ 	var values []ast.Expr
+-	if typ != nil || p.tok == token.ASSIGN {
++	if typ != nil || p.tok == token.ASSIGN || iota == 0 {
+ 		p.expect(token.ASSIGN)
+ 		values = p.parseExprList()
+ 	}
+@@ -1919,7 +1919,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ }
+ 
+ 
+-func parseTypeSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
++func parseTypeSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	if p.trace {
+ 		defer un(trace(p, "TypeSpec"))
+ 	}
+@@ -1939,7 +1939,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
+ }
+ 
+ 
+-func parseVarSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
++func parseVarSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	if p.trace {
+ 		defer un(trace(p, "VarSpec"))
+ 	}
+@@ -1976,13 +1976,13 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
+ 	if p.tok == token.LPAREN {
+ 		lparen = p.pos
+ 		p.next()
+-		for p.tok != token.RPAREN && p.tok != token.EOF {
+-			list = append(list, f(p, p.leadComment))
++		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
++			list = append(list, f(p, p.leadComment, iota))
+ 		}
+ 		rparen = p.expect(token.RPAREN)
+ 		p.expectSemi()
+ 	} else {
+-		list = append(list, f(p, nil))
++		list = append(list, f(p, nil, 0))
+ 	}
+ 
+ 	return &ast.GenDecl{doc, pos, keyword, lparen, list, rparen}
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 8e07d9f87c..2f1ee6bfc0 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -21,6 +21,7 @@ var illegalInputs = []interface{}{
+ 	`package p; func f() { if /* should have condition */ {} };`,
+ 	`package p; func f() { if ; /* should have condition */ {} };`,
+ 	`package p; func f() { if f(); /* should have condition */ {} };`,
++	`package p; const c; /* should have constant value */`,
+ }
+ 
+ 

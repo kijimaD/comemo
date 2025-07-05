@@ -7,6 +7,20 @@ Date:   Tue Jun 9 22:51:25 2015 -0700
     Change-Id: Ida4b98aa63e57594fa6fa0b8178106bac9b3cd19
     Reviewed-on: https://go-review.googlesource.com/10837
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8b0e1081da..81555af6af 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -464,7 +464,7 @@ type schedt struct {
+ // The m->locked word holds two pieces of state counting active calls to LockOSThread/lockOSThread.
+ // The low bit (LockExternal) is a boolean reporting whether any LockOSThread call is active.
+ // External locks are not recursive; a second lock is silently ignored.
+-// The upper bits of m->lockedcount record the nesting depth of calls to lockOSThread
++// The upper bits of m->locked record the nesting depth of calls to lockOSThread
+ // (counting up by LockInternal), popped by unlockOSThread (counting down by LockInternal).
+ // Internal locks can be recursive. For instance, a lock for cgo can occur while the main
+ // goroutine is holding the lock during the initialization phase.

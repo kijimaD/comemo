@@ -31,7 +31,122 @@ Date:   Wed Oct 5 14:04:55 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/exec/exec.go      | 22 ++--------------------
  src/os/exec/exec_test.go | 25 +++++++++++++++++++++++--
  2 files changed, 25 insertions(+), 22 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index aa601b6ccc..0d7a86bad4 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -102,7 +102,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+-	"sync"
+ 	"syscall"
+ )
+ 
+@@ -809,25 +808,8 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
+ 	}
+ 	c.Stdin = pr
+ 	c.childIOFiles = append(c.childIOFiles, pr)
+-	wc := &closeOnce{File: pw}
+-	c.parentIOPipes = append(c.parentIOPipes, wc)
+-	return wc, nil
+-}
+-
+-type closeOnce struct {
+-	*os.File
+-
+-	once sync.Once
+-	err  error
+-}
+-
+-func (c *closeOnce) Close() error {
+-	c.once.Do(c.close)
+-	return c.err
+-}
+-
+-func (c *closeOnce) close() {
+-	c.err = c.File.Close()
++	c.parentIOPipes = append(c.parentIOPipes, pw)
++	return pw, nil
+ }
+ 
+ // StdoutPipe returns a pipe that will be connected to the command's
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index dc8aebd9aa..d79befa19a 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"context"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"internal/poll"
+@@ -548,12 +549,22 @@ func TestStdinClose(t *testing.T) {
+ 		t.Error("can't access methods of underlying *os.File")
+ 	}
+ 	check("Start", cmd.Start())
++
++	var wg sync.WaitGroup
++	wg.Add(1)
++	defer wg.Wait()
+ 	go func() {
++		defer wg.Done()
++
+ 		_, err := io.Copy(stdin, strings.NewReader(stdinCloseTestString))
+ 		check("Copy", err)
++
+ 		// Before the fix, this next line would race with cmd.Wait.
+-		check("Close", stdin.Close())
++		if err := stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
++			t.Errorf("Close: %v", err)
++		}
+ 	}()
++
+ 	check("Wait", cmd.Wait())
+ }
+ 
+@@ -573,8 +584,15 @@ func TestStdinCloseRace(t *testing.T) {
+ 	}
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatalf("Start: %v", err)
++
+ 	}
++
++	var wg sync.WaitGroup
++	wg.Add(2)
++	defer wg.Wait()
++
+ 	go func() {
++		defer wg.Done()
+ 		// We don't check the error return of Kill. It is
+ 		// possible that the process has already exited, in
+ 		// which case Kill will return an error "process
+@@ -583,17 +601,20 @@ func TestStdinCloseRace(t *testing.T) {
+ 		// doesn't matter whether this Kill succeeds or not.
+ 		cmd.Process.Kill()
+ 	}()
++
+ 	go func() {
++		defer wg.Done()
+ 		// Send the wrong string, so that the child fails even
+ 		// if the other goroutine doesn't manage to kill it first.
+ 		// This test is to check that the race detector does not
+ 		// falsely report an error, so it doesn't matter how the
+ 		// child process fails.
+ 		io.Copy(stdin, strings.NewReader("unexpected string"))
+-		if err := stdin.Close(); err != nil {
++		if err := stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+ 			t.Errorf("stdin.Close: %v", err)
+ 		}
+ 	}()
++
+ 	if err := cmd.Wait(); err == nil {
+ 		t.Fatalf("Wait: succeeded unexpectedly")
+ 	}

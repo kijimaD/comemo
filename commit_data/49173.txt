@@ -10,6 +10,52 @@ Date:   Fri Jul 23 10:26:07 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/typeparam.go | 32 +++++++++++++++++-----------
  1 file changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index b73b4edf79..0aca227c0a 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -53,20 +53,28 @@ func (t *TypeParam) SetId(id uint64) {
+ 	t.id = id
+ }
+ 
+-func (t *TypeParam) Bound() *Interface {
+-	// we may not have an interface (error reported elsewhere)
+-	iface, _ := under(t.bound).(*Interface)
+-	if iface == nil {
+-		return &emptyInterface
++// Constraint returns the type constraint specified for t.
++func (t *TypeParam) Constraint() Type {
++	// compute the type set if possible (we may not have an interface)
++	if iface, _ := under(t.bound).(*Interface); iface != nil {
++		// use the type bound position if we have one
++		pos := nopos
++		if n, _ := t.bound.(*Named); n != nil {
++			pos = n.obj.pos
++		}
++		computeTypeSet(t.check, pos, iface)
+ 	}
+-	// use the type bound position if we have one
+-	pos := nopos
+-	if n, _ := t.bound.(*Named); n != nil {
+-		pos = n.obj.pos
++	return t.bound
++}
++
++// Bound returns the underlying type of the type parameter's
++// constraint.
++// Deprecated for external use. Use Constraint instead.
++func (t *TypeParam) Bound() *Interface {
++	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
++		return iface
+ 	}
+-	// TODO(gri) switch this to an unexported method on Checker.
+-	computeTypeSet(t.check, pos, iface)
+-	return iface
++	return &emptyInterface
+ }
+ 
+ func (t *TypeParam) SetBound(bound Type) {

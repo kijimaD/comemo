@@ -13,6 +13,20 @@ Date:   Mon Jan 4 11:26:46 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/fstest/testfs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 2602bdf0cc..4da6f04eed 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -121,7 +121,7 @@ func (t *fsTester) openDir(dir string) fs.ReadDirFile {
+ 	d, ok := f.(fs.ReadDirFile)
+ 	if !ok {
+ 		f.Close()
+-		t.errorf("%s: Open returned File type %T, not a io.ReadDirFile", dir, f)
++		t.errorf("%s: Open returned File type %T, not a fs.ReadDirFile", dir, f)
+ 		return nil
+ 	}
+ 	return d

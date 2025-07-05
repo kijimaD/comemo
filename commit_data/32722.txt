@@ -11,6 +11,33 @@ Date:   Fri May 19 19:39:20 2017 +0000
     Change-Id: I6842851444186e19029d040f61fdf4f87a3103a6
     Reviewed-on: https://go-review.googlesource.com/43771
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/cmd.html | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/doc/cmd.html b/doc/cmd.html
+index 992f176014..4d6ac01dc4 100644
+--- a/doc/cmd.html
++++ b/doc/cmd.html
+@@ -22,8 +22,6 @@ using the go <code>tool</code> subcommand, such as <code>go tool vet</code>.
+ This style of invocation allows, for instance, checking a single source file
+ rather than an entire package: <code>go tool vet myprogram.go</code> as
+ compared to <code>go vet mypackage</code>.
+-Some of the commands, such as <code>yacc</code>, are accessible only through
+-the go <code>tool</code> subcommand.
+ </p>
+ 
+ <p>
+@@ -95,12 +93,6 @@ gofmt</a> command with more general options.</td>
+ calls whose arguments do not align with the format string.</td>
+ </tr>
+ 
+-<tr>
+-<td><a href="/cmd/yacc/">yacc</a></td>
+-<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+-<td>Yacc is a version of yacc that generates parsers implemented in Go.</td>
+-</tr>
+-
+ </table>
+ 
+ <p>

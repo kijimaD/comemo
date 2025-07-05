@@ -6,7 +6,7 @@ Date:   Thu Jul 10 18:05:00 2008 -0700
     - adjusted makefiles
     
     SVN=126763
-
+---
  usr/gri/{src => gosrc}/globals.go      | 4 +++-
  usr/gri/{src => gosrc}/object.go       | 0
  usr/gri/{src => gosrc}/parser.go       | 3 +++
@@ -16,3 +16,78 @@ Date:   Thu Jul 10 18:05:00 2008 -0700
  usr/gri/{src => gosrc}/test_scanner.go | 0
  usr/gri/{src => gosrc}/type.go         | 0
  8 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/usr/gri/src/globals.go b/usr/gri/gosrc/globals.go
+similarity index 98%
+rename from usr/gri/src/globals.go
+rename to usr/gri/gosrc/globals.go
+index f8d0c116b0..986fbe82cb 100644
+--- a/usr/gri/src/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package Globals;
++package Globals
+ 
+ 
+ // The following types should really be in their respective files
+@@ -49,6 +49,7 @@ type Scope struct {
+ }
+ 
+ 
++/*
+ func (scope *Scope) Lookup(ident string) *Object {
+ 	panic "UNIMPLEMENTED";
+ 	return nil;
+@@ -64,3 +65,4 @@ func (scope *Scope) InsertImport(obj *Object) *Object {
+ 	panic "UNIMPLEMENTED";
+ 	return nil;
+ }
++*/
+diff --git a/usr/gri/src/object.go b/usr/gri/gosrc/object.go
+similarity index 100%
+rename from usr/gri/src/object.go
+rename to usr/gri/gosrc/object.go
+diff --git a/usr/gri/src/parser.go b/usr/gri/gosrc/parser.go
+similarity index 99%
+rename from usr/gri/src/parser.go
+rename to usr/gri/gosrc/parser.go
+index 49b0f6ab25..0e025f9d39 100644
+--- a/usr/gri/src/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -1046,10 +1046,13 @@ func (P *Parser) ParseProgram() {
+ 	P.Trace("Program");
+ 	P.Expect(Scanner.PACKAGE);
+ 	P.ParseIdent();
++	P.Optional(Scanner.SEMICOLON);
++	
+ 	for P.tok == Scanner.IMPORT {
+ 		P.ParseImportDecl();
+ 		P.Optional(Scanner.SEMICOLON);
+ 	}
++	
+ 	for P.tok != Scanner.EOF {
+ 		P.ParseDeclaration();
+ 		P.Optional(Scanner.SEMICOLON);
+diff --git a/usr/gri/src/scanner.go b/usr/gri/gosrc/scanner.go
+similarity index 100%
+rename from usr/gri/src/scanner.go
+rename to usr/gri/gosrc/scanner.go
+diff --git a/usr/gri/src/scope.go b/usr/gri/gosrc/scope.go
+similarity index 100%
+rename from usr/gri/src/scope.go
+rename to usr/gri/gosrc/scope.go
+diff --git a/usr/gri/src/test_parser.go b/usr/gri/gosrc/test_parser.go
+similarity index 100%
+rename from usr/gri/src/test_parser.go
+rename to usr/gri/gosrc/test_parser.go
+diff --git a/usr/gri/src/test_scanner.go b/usr/gri/gosrc/test_scanner.go
+similarity index 100%
+rename from usr/gri/src/test_scanner.go
+rename to usr/gri/gosrc/test_scanner.go
+diff --git a/usr/gri/src/type.go b/usr/gri/gosrc/type.go
+similarity index 100%
+rename from usr/gri/src/type.go
+rename to usr/gri/gosrc/type.go

@@ -8,10 +8,80 @@ Date:   Wed Nov 11 14:52:08 2009 -0800
     
     R=r
     https://golang.org/cl/154068
-
+---
  src/cmd/5a/a.h  | 4 ++++
  src/cmd/6a/a.h  | 4 ++++
  src/cmd/8a/a.h  | 4 ++++
  src/cmd/cc/cc.h | 1 +
  src/cmd/gc/go.h | 1 +
  5 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 6a40f9c632..37791f8505 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -37,6 +37,10 @@
+ #define	EXTERN	extern
+ #endif
+ 
++#define	getc	aagetc
++#define	ungetc	aaungetc
++#define	BUFSIZ	AABUFSIZ
++
+ typedef	struct	Sym	Sym;
+ typedef	struct	Gen	Gen;
+ typedef	struct	Io	Io;
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index 10ac389ddc..98dcc17d13 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -38,6 +38,10 @@
+ #define	EXTERN	extern
+ #endif
+ 
++#define	getc	aagetc
++#define	ungetc	aaungetc
++#define	BUFSIZ	AABUFSIZ
++
+ typedef	struct	Sym	Sym;
+ typedef	struct	Ref	Ref;
+ typedef	struct	Gen	Gen;
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index dbe4399295..70682e6b56 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -38,6 +38,10 @@
+ #define	EXTERN	extern
+ #endif
+ 
++#define	getc	aagetc
++#define	ungetc	aaungetc
++#define	BUFSIZ	AABUFSIZ
++
+ typedef	struct	Sym	Sym;
+ typedef	struct	Ref	Ref;
+ typedef	struct	Gen	Gen;
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index a6f3384383..51944d92a3 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -41,6 +41,7 @@
+ 
+ #define	getc	ccgetc
+ #define	ungetc	ccungetc
++#define	BUFSIZ	GCBUFSIZ
+ 
+ typedef	struct	Node	Node;
+ typedef	struct	Sym	Sym;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ee863decbb..d92075df6d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -17,6 +17,7 @@
+ 
+ #define	getc	gcgetc
+ #define	ungetc	gcungetc
++#define	BUFSIZ	GCBUFSIZ
+ 
+ enum
+ {

@@ -9,6 +9,15 @@ Date:   Thu Feb 18 14:29:14 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  codereview.cfg | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/codereview.cfg b/codereview.cfg
+index d21d2ff61f..1f58fdbeb2 100644
+--- a/codereview.cfg
++++ b/codereview.cfg
+@@ -1,2 +1,2 @@
+ branch: dev.typeparams
+-parent-branch: dev.regabi
++parent-branch: master

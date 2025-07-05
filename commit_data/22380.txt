@@ -18,10 +18,94 @@ Date:   Mon Mar 9 07:03:00 2015 +1100
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/syscall/exec_linux.go           | 6 +++---
  src/syscall/syscall_linux_386.go    | 2 ++
  src/syscall/syscall_linux_amd64.go  | 2 ++
  src/syscall/syscall_linux_arm.go    | 2 ++
  src/syscall/syscall_linux_ppc64x.go | 2 ++
  5 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 03dd5c53c4..2e0577cecc 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -214,7 +214,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
++		_, _, err1 = RawSyscall(_SYS_dup, uintptr(pipe), uintptr(nextfd), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+@@ -224,7 +224,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	}
+ 	for i = 0; i < len(fd); i++ {
+ 		if fd[i] >= 0 && fd[i] < int(i) {
+-			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
++			_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(nextfd), 0)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+@@ -254,7 +254,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 		}
+ 		// The new fd is created NOT close-on-exec,
+ 		// which is exactly what we want.
+-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0)
++		_, _, err1 = RawSyscall(_SYS_dup, uintptr(fd[i]), uintptr(i), 0)
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 0dcc6be2e9..61ff233ddc 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -9,6 +9,8 @@ package syscall
+ 
+ import "unsafe"
+ 
++const _SYS_dup = SYS_DUP2
++
+ func Getpagesize() int { return 4096 }
+ 
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 8d0777c713..ff00ed549a 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package syscall
+ 
++const _SYS_dup = SYS_DUP2
++
+ //sysnb	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index ebbaa17eab..862c01c24d 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -6,6 +6,8 @@ package syscall
+ 
+ import "unsafe"
+ 
++const _SYS_dup = SYS_DUP2
++
+ func Getpagesize() int { return 4096 }
+ 
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index c266c855e2..fcf1d7b178 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -7,6 +7,8 @@
+ 
+ package syscall
+ 
++const _SYS_dup = SYS_DUP2
++
+ //sysnb	Dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)

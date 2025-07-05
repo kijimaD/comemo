@@ -11,6 +11,20 @@ Date:   Thu Feb 27 17:24:48 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/install_shadow_gopath.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/install_shadow_gopath.txt b/src/cmd/go/testdata/script/install_shadow_gopath.txt
+index e51cb91bce..995162172e 100644
+--- a/src/cmd/go/testdata/script/install_shadow_gopath.txt
++++ b/src/cmd/go/testdata/script/install_shadow_gopath.txt
+@@ -3,7 +3,7 @@
+ 
+ [!net] skip
+ 
+-env GOPATH=$WORK/gopath1:$WORK/gopath2
++env GOPATH=$WORK/gopath1${:}$WORK/gopath2
+ 
+ mkdir $WORK/gopath1/src/test
+ mkdir $WORK/gopath2/src/test

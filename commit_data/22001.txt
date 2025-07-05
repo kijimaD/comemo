@@ -8,6 +8,34 @@ Date:   Fri Feb 6 05:57:42 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/4837
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/dist/buildruntime.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 1f8276468e..317652476b 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -38,6 +38,7 @@ func mkzversion(dir, file string) {
+ //	package obj
+ //
+ //	const defaultGOROOT = <goroot>
++//	const defaultGO386 = <go386>
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOOS = <goos>
+ //	const defaultGOARCH = <goarch>
+@@ -51,12 +52,13 @@ func mkzbootstrap(file string) {
+ 			"package obj\n"+
+ 			"\n"+
+ 			"const defaultGOROOT = `%s`\n"+
++			"const defaultGO386 = `%s`\n"+
+ 			"const defaultGOARM = `%s`\n"+
+ 			"const defaultGOOS = `%s`\n"+
+ 			"const defaultGOARCH = `%s`\n"+
+ 			"const version = `%s`\n"+
+ 			"const goexperiment = `%s`\n",
+-		goroot_final, goarm, gohostos, gohostarch, findgoversion(), os.Getenv("GOEXPERIMENT"))
++		goroot_final, go386, goarm, gohostos, gohostarch, findgoversion(), os.Getenv("GOEXPERIMENT"))
+ 
+ 	writefile(out, file, 0)
+ }

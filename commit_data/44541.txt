@@ -20,7 +20,97 @@ Date:   Tue Aug 4 13:24:37 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go               | 29 +++++++++++++++------------
  src/cmd/go/testdata/script/list_err_stack.txt | 27 +++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index fcc47bd9c5..2b5fbb1c5b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -239,11 +239,25 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
+ 		err = &NoGoError{Package: p}
+ 	}
+ 
++	// Take only the first error from a scanner.ErrorList. PackageError only
++	// has room for one position, so we report the first error with a position
++	// instead of all of the errors without a position.
++	var pos string
++	var isScanErr bool
++	if scanErr, ok := err.(scanner.ErrorList); ok && len(scanErr) > 0 {
++		isScanErr = true // For stack push/pop below.
++
++		scanPos := scanErr[0].Pos
++		scanPos.Filename = base.ShortPath(scanPos.Filename)
++		pos = scanPos.String()
++		err = errors.New(scanErr[0].Msg)
++	}
++
+ 	// Report the error on the importing package if the problem is with the import declaration
+ 	// for example, if the package doesn't exist or if the import path is malformed.
+ 	// On the other hand, don't include a position if the problem is with the imported package,
+ 	// for example there are no Go files (NoGoError), or there's a problem in the imported
+-	// package's source files themselves.
++	// package's source files themselves (scanner errors).
+ 	//
+ 	// TODO(matloob): Perhaps make each of those the errors in the first group
+ 	// (including modload.ImportMissingError, and the corresponding
+@@ -254,22 +268,11 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
+ 	// to make it easier to check for them? That would save us from having to
+ 	// move the modload errors into this package to avoid a package import cycle,
+ 	// and from having to export an error type for the errors produced in build.
+-	if !isMatchErr && nogoErr != nil {
++	if !isMatchErr && (nogoErr != nil || isScanErr) {
+ 		stk.Push(path)
+ 		defer stk.Pop()
+ 	}
+ 
+-	// Take only the first error from a scanner.ErrorList. PackageError only
+-	// has room for one position, so we report the first error with a position
+-	// instead of all of the errors without a position.
+-	var pos string
+-	if scanErr, ok := err.(scanner.ErrorList); ok && len(scanErr) > 0 {
+-		scanPos := scanErr[0].Pos
+-		scanPos.Filename = base.ShortPath(scanPos.Filename)
+-		pos = scanPos.String()
+-		err = errors.New(scanErr[0].Msg)
+-	}
+-
+ 	p.Error = &PackageError{
+ 		ImportStack: stk.Copy(),
+ 		Pos:         pos,
+diff --git a/src/cmd/go/testdata/script/list_err_stack.txt b/src/cmd/go/testdata/script/list_err_stack.txt
+new file mode 100644
+index 0000000000..a7be9fde6d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_err_stack.txt
+@@ -0,0 +1,27 @@
++
++# golang.org/issue/40544: regression in error stacks for parse errors
++
++env GO111MODULE=off
++cd sandbox/foo
++go list -e -json .
++stdout '"sandbox/foo"'
++stdout '"sandbox/bar"'
++stdout '"Pos": "..(/|\\\\)bar(/|\\\\)bar.go:1:1"'
++stdout '"Err": "expected ''package'', found ackage"'
++
++env GO111MODULE=on
++go list -e -json .
++stdout '"sandbox/foo"'
++stdout '"sandbox/bar"'
++stdout '"Pos": "..(/|\\\\)bar(/|\\\\)bar.go:1:1"'
++stdout '"Err": "expected ''package'', found ackage"'
++
++-- sandbox/go.mod --
++module sandbox
++
++-- sandbox/foo/foo.go --
++package pkg
++
++import "sandbox/bar"
++-- sandbox/bar/bar.go --
++ackage bar
+\ No newline at end of file

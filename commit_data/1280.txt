@@ -9,6 +9,20 @@ Date:   Thu Dec 4 14:59:38 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=20497
     CL=20499
-
+---
  src/cmd/ar/ar.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 7c4b7fc504..05f4b6d652 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -670,7 +670,7 @@ scanpkg(Biobuf *b, long size)
+ 			continue;
+ 		goto foundstart;
+ 	}
+-	fprint(2, "ar: warning: no package import section in %s\n", file);
++	// fprint(2, "ar: warning: no package import section in %s\n", file);
+ 	return;
+ 
+ foundstart:

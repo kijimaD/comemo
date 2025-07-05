@@ -12,6 +12,37 @@ Date:   Thu Oct 27 17:52:53 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/mips/obj0.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 402b65eb27..651da23955 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -58,6 +58,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			f32 := float32(p.From.Val.(float64))
+ 			i32 := math.Float32bits(f32)
++			if i32 == 0 {
++				p.As = AMOVV
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REGZERO
++				break
++			}
+ 			literal := fmt.Sprintf("$f32.%08x", i32)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			s.Size = 4
+@@ -70,6 +76,12 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	case AMOVD:
+ 		if p.From.Type == obj.TYPE_FCONST {
+ 			i64 := math.Float64bits(p.From.Val.(float64))
++			if i64 == 0 {
++				p.As = AMOVV
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = REGZERO
++				break
++			}
+ 			literal := fmt.Sprintf("$f64.%016x", i64)
+ 			s := obj.Linklookup(ctxt, literal, 0)
+ 			s.Size = 8

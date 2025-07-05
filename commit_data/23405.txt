@@ -19,7 +19,43 @@ Date:   Mon May 11 18:53:49 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/9923
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/export_test.go | 4 ++--
  src/runtime/proc1.go       | 4 ----
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 817622abd0..2f8df78e13 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -83,10 +83,10 @@ func GCMask(x interface{}) (ret []byte) {
+ }
+ 
+ func RunSchedLocalQueueTest() {
+-	systemstack(testSchedLocalQueue)
++	testSchedLocalQueue()
+ }
+ func RunSchedLocalQueueStealTest() {
+-	systemstack(testSchedLocalQueueSteal)
++	testSchedLocalQueueSteal()
+ }
+ 
+ var StringHash = stringHash
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 01c46a85ec..2fe1551952 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -3539,13 +3539,9 @@ func testSchedLocalQueue() {
+ 	}
+ }
+ 
+-var pSink *p
+-
+ func testSchedLocalQueueSteal() {
+ 	p1 := new(p)
+ 	p2 := new(p)
+-	pSink = p1 // Force to heap, too large to allocate on system stack ("G0 stack")
+-	pSink = p2 // Force to heap, too large to allocate on system stack ("G0 stack")
+ 	gs := make([]g, len(p1.runq))
+ 	for i := 0; i < len(p1.runq); i++ {
+ 		for j := 0; j < i; j++ {

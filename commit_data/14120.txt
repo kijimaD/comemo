@@ -7,6 +7,21 @@ Date:   Thu Oct 11 09:18:23 2012 +1100
     R=golang-dev, skybrian
     CC=golang-dev
     https://golang.org/cl/6643062
-
+---
  doc/style.css | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/style.css b/doc/style.css
+index b9cb1ba613..f4087a7d81 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -136,6 +136,9 @@ div#topbar {
+ body {
+ 	text-align: center;
+ }
++div#page {
++	width: 100%;
++}
+ div#page > .container,
+ div#topbar > .container {
+ 	text-align: left;

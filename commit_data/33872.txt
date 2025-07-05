@@ -12,7 +12,41 @@ Date:   Wed Sep 13 17:21:07 2017 -0400
     Change-Id: I53ab2478427dca790efdcc197f6b8d9fbfbd1847
     Reviewed-on: https://go-review.googlesource.com/63730
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/errors_test.go    |  1 +
  misc/cgo/errors/src/issue13467.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+index e2b91063a6..d2e833c52c 100644
+--- a/misc/cgo/errors/errors_test.go
++++ b/misc/cgo/errors/errors_test.go
+@@ -114,6 +114,7 @@ func TestReportsTypeErrors(t *testing.T) {
+ 		"issue11097b.go",
+ 		"issue13129.go",
+ 		"issue13423.go",
++		"issue13467.go",
+ 		"issue13635.go",
+ 		"issue13830.go",
+ 		"issue16116.go",
+diff --git a/misc/cgo/errors/src/issue13467.go b/misc/cgo/errors/src/issue13467.go
+new file mode 100644
+index 0000000000..e061880dda
+--- /dev/null
++++ b/misc/cgo/errors/src/issue13467.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++/*
++static int transform(int x) { return x; }
++*/
++import "C"
++
++func F() {
++	var x rune = '✈'
++	var _ rune = C.transform(x) // ERROR HERE: C\.int
++}

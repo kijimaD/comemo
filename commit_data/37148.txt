@@ -16,7 +16,7 @@ Date:   Thu Jun 28 16:10:19 2018 -0400
     Change-Id: Id9c74824e78423a215c8cbc105b72665525a1eff
     Reviewed-on: https://go-review.googlesource.com/121916
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go            |  8 ++---
  src/cmd/link/internal/ld/go.go             |  9 +++--
  src/cmd/link/internal/ld/lib.go            |  2 +-
@@ -25,3 +25,201 @@ Date:   Thu Jun 28 16:10:19 2018 -0400
  src/cmd/link/internal/loadmacho/ldmacho.go |  2 +-
  src/cmd/link/internal/sym/symbol.go        | 58 ++++++++++++++++++++++++------
  7 files changed, 61 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 877e4bfd5f..4ecbff86a9 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1030,8 +1030,8 @@ func elfdynhash(ctxt *Link) {
+ 			continue
+ 		}
+ 
+-		if sy.Dynimpvers != "" {
+-			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib, sy.Dynimpvers)
++		if sy.Dynimpvers() != "" {
++			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib(), sy.Dynimpvers())
+ 		}
+ 
+ 		name := sy.Extname
+@@ -2287,8 +2287,8 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
+ 		/* size of object */
+ 		d.AddUint64(ctxt.Arch, uint64(s.Size))
+ 
+-		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
+-			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib)))
++		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
++			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib())))
+ 		}
+ 	} else {
+ 		s.Dynid = int32(Nelfsym)
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index eb6c2ccc83..06ee6968c6 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -155,9 +155,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			}
+ 			s := ctxt.Syms.Lookup(local, 0)
+ 			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
+-				s.Dynimplib = lib
++				s.SetDynimplib(lib)
+ 				s.Extname = remote
+-				s.Dynimpvers = q
++				s.SetDynimpvers(q)
+ 				if s.Type != sym.SHOSTOBJ {
+ 					s.Type = sym.SDYNIMPORT
+ 				}
+@@ -198,10 +198,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 
+ 			// export overrides import, for openbsd/cgo.
+ 			// see issue 4878.
+-			if s.Dynimplib != "" {
+-				s.Dynimplib = ""
++			if s.Dynimplib() != "" {
++				s.ResetDyninfo()
+ 				s.Extname = ""
+-				s.Dynimpvers = ""
+ 				s.Type = 0
+ 			}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0fe0b42014..d3abb7a6cb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -416,7 +416,7 @@ func (ctxt *Link) loadlib() {
+ 				// cgo_import_static and cgo_import_dynamic,
+ 				// then we want to make it cgo_import_dynamic
+ 				// now.
+-				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
++				if s.Extname != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
+ 					s.Type = sym.SDYNIMPORT
+ 				} else {
+ 					s.Type = 0
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index efd971c1cf..c81e3d6af5 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -989,7 +989,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 			continue
+ 		}
+ 		for d = dr; d != nil; d = d.next {
+-			if d.name == s.Dynimplib {
++			if d.name == s.Dynimplib() {
+ 				m = new(Imp)
+ 				break
+ 			}
+@@ -997,7 +997,7 @@ func initdynimport(ctxt *Link) *Dll {
+ 
+ 		if d == nil {
+ 			d = new(Dll)
+-			d.name = s.Dynimplib
++			d.name = s.Dynimplib()
+ 			d.next = dr
+ 			dr = d
+ 			m = new(Imp)
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 301c2ce116..8e32e7dee6 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -805,7 +805,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 		s.Type = sect.sym.Type
+ 		s.Attr |= sym.AttrSubSymbol
+ 		if !s.Attr.CgoExportDynamic() {
+-			s.Dynimplib = "" // satisfy dynimport
++			s.SetDynimplib("") // satisfy dynimport
+ 		}
+ 		s.Value = int64(elfsym.value)
+ 		s.Size = int64(elfsym.size)
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index e6b0f70e38..85aa606ff5 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -644,7 +644,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 		s.Outer = outer
+ 		s.Value = int64(machsym.value - sect.addr)
+ 		if !s.Attr.CgoExportDynamic() {
+-			s.Dynimplib = "" // satisfy dynimport
++			s.SetDynimplib("") // satisfy dynimport
+ 		}
+ 		if outer.Type == sym.STEXT {
+ 			if s.Attr.External() && !s.Attr.DuplicateOK() {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 8893dcf0d6..ea0eb89e2b 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -31,21 +31,25 @@ type Symbol struct {
+ 	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+ 	// is not set for symbols defined by the packages being linked or by symbols
+ 	// read by ldelf (and so is left as elf.STT_NOTYPE).
+-	ElfType    elf.SymType
+-	Sub        *Symbol
+-	Outer      *Symbol
+-	Gotype     *Symbol
+-	File       string
+-	Dynimplib  string
+-	Dynimpvers string
+-	Sect       *Section
+-	FuncInfo   *FuncInfo
+-	Lib        *Library // Package defining this symbol
++	ElfType  elf.SymType
++	Sub      *Symbol
++	Outer    *Symbol
++	Gotype   *Symbol
++	File     string
++	dyninfo  *dynimp
++	Sect     *Section
++	FuncInfo *FuncInfo
++	Lib      *Library // Package defining this symbol
+ 	// P contains the raw symbol data.
+ 	P []byte
+ 	R []Reloc
+ }
+ 
++type dynimp struct {
++	dynimplib  string
++	dynimpvers string
++}
++
+ func (s *Symbol) String() string {
+ 	if s.Version == 0 {
+ 		return s.Name
+@@ -264,6 +268,40 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
+ 	return off + wid
+ }
+ 
++func (s *Symbol) Dynimplib() string {
++	if s.dyninfo == nil {
++		return ""
++	}
++	return s.dyninfo.dynimplib
++}
++
++func (s *Symbol) Dynimpvers() string {
++	if s.dyninfo == nil {
++		return ""
++	}
++	return s.dyninfo.dynimpvers
++}
++
++func (s *Symbol) SetDynimplib(lib string) {
++	if s.dyninfo == nil {
++		s.dyninfo = &dynimp{dynimplib: lib}
++	} else {
++		s.dyninfo.dynimplib = lib
++	}
++}
++
++func (s *Symbol) SetDynimpvers(vers string) {
++	if s.dyninfo == nil {
++		s.dyninfo = &dynimp{dynimpvers: vers}
++	} else {
++		s.dyninfo.dynimpvers = vers
++	}
++}
++
++func (s *Symbol) ResetDyninfo() {
++	s.dyninfo = nil
++}
++
+ // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
+ // Used for sub-symbols when loading host objects (see e.g. ldelf.go).
+ func SortSub(l *Symbol) *Symbol {

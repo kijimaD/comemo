@@ -9,6 +9,20 @@ Date:   Tue Feb 13 01:15:38 2018 +0000
     GitHub-Pull-Request: golang/go#23801
     Reviewed-on: https://go-review.googlesource.com/93475
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index c76a9544fd..c39f839714 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1228,7 +1228,7 @@ func overflowFloat32(x float64) bool {
+ }
+ 
+ // OverflowInt reports whether the int64 x cannot be represented by v's type.
+-// It panics if v's Kind is not Int, Int8, int16, Int32, or Int64.
++// It panics if v's Kind is not Int, Int8, Int16, Int32, or Int64.
+ func (v Value) OverflowInt(x int64) bool {
+ 	k := v.kind()
+ 	switch k {

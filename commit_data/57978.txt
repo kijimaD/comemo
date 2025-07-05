@@ -12,7 +12,7 @@ Date:   Wed Sep 13 22:48:43 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go          |  5 ---
  src/cmd/compile/internal/ir/func.go         |  8 -----
  src/cmd/compile/internal/ir/sizeof_test.go  |  2 +-
@@ -22,3 +22,314 @@ Date:   Wed Sep 13 22:48:43 2023 -0700
  src/cmd/compile/internal/walk/race.go       | 55 ----------------------------
  src/cmd/compile/internal/walk/walk.go       |  4 ---
  8 files changed, 38 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 81a25cd461..35bfbc7a1c 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1129,11 +1129,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 				dumpNode(w, cv, depth+1)
+ 			}
+ 		}
+-		if len(fn.Enter) > 0 {
+-			indent(w, depth)
+-			fmt.Fprintf(w, "%+v-Enter", n.Op())
+-			dumpNodes(w, fn.Enter, depth+1)
+-		}
+ 		if len(fn.Body) > 0 {
+ 			indent(w, depth)
+ 			fmt.Fprintf(w, "%+v-body", n.Op())
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index ded9acced2..ea575a4206 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -56,11 +56,6 @@ type Func struct {
+ 	Nname    *Name        // ONAME node
+ 	OClosure *ClosureExpr // OCLOSURE node
+ 
+-	// Extra entry code for the function. For example, allocate and initialize
+-	// memory for escaping parameters.
+-	Enter Nodes
+-	Exit  Nodes
+-
+ 	// ONAME nodes for all params/locals for this func/closure, does NOT
+ 	// include closurevars until transforming closures during walk.
+ 	// Names must be listed PPARAMs, PPARAMOUTs, then PAUTOs,
+@@ -235,7 +230,6 @@ const (
+ 	funcNilCheckDisabled         // disable nil checks when compiling this function
+ 	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
+ 	funcNeverReturns             // function never returns (in most cases calls panic(), os.Exit(), or equivalent)
+-	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
+ 	funcOpenCodedDeferDisallowed // can't do open-coded defers
+ 	funcClosureResultsLost       // closure is called indirectly and we lost track of its results; used by escape analysis
+ 	funcPackageInit              // compiler emitted .init func for package
+@@ -257,7 +251,6 @@ func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer !=
+ func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
+ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
+ func (f *Func) NeverReturns() bool             { return f.flags&funcNeverReturns != 0 }
+-func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
+ func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
+ func (f *Func) ClosureResultsLost() bool       { return f.flags&funcClosureResultsLost != 0 }
+ func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
+@@ -273,7 +266,6 @@ func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b
+ func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
+ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
+ func (f *Func) SetNeverReturns(b bool)             { f.flags.set(funcNeverReturns, b) }
+-func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
+ func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
+ func (f *Func) SetClosureResultsLost(b bool)       { f.flags.set(funcClosureResultsLost, b) }
+ func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 005ecff314..3b6823895c 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 192, 336},
++		{Func{}, 168, 288},
+ 		{Name{}, 96, 168},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 6ee832e18d..1e2fc8d974 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -40,6 +40,8 @@ var Syms struct {
+ 	PanicdottypeI     *obj.LSym
+ 	Panicnildottype   *obj.LSym
+ 	Panicoverflow     *obj.LSym
++	Racefuncenter     *obj.LSym
++	Racefuncexit      *obj.LSym
+ 	Raceread          *obj.LSym
+ 	Racereadrange     *obj.LSym
+ 	Racewrite         *obj.LSym
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index ecf9401eeb..030fc04c13 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -487,8 +487,6 @@ func rewriteNodes(fn *ir.Func, editNodes func(c ir.Nodes) ir.Nodes) {
+ 		switch x := n.(type) {
+ 		case *ir.Func:
+ 			x.Body = editNodes(x.Body)
+-			x.Enter = editNodes(x.Enter)
+-			x.Exit = editNodes(x.Exit)
+ 		case *ir.InlinedCallExpr:
+ 			x.Body = editNodes(x.Body)
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 4660d050e5..d79c6fdd00 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 
+@@ -130,6 +131,8 @@ func InitConfig() {
+ 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
+ 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
+ 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
++	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
++	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")
+ 	ir.Syms.Raceread = typecheck.LookupRuntimeFunc("raceread")
+ 	ir.Syms.Racereadrange = typecheck.LookupRuntimeFunc("racereadrange")
+ 	ir.Syms.Racewrite = typecheck.LookupRuntimeFunc("racewrite")
+@@ -319,9 +322,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	var astBuf *bytes.Buffer
+ 	if printssa {
+ 		astBuf = &bytes.Buffer{}
+-		ir.FDumpList(astBuf, "buildssa-enter", fn.Enter)
+ 		ir.FDumpList(astBuf, "buildssa-body", fn.Body)
+-		ir.FDumpList(astBuf, "buildssa-exit", fn.Exit)
+ 		if ssaDumpStdout {
+ 			fmt.Println("generating SSA for", name)
+ 			fmt.Print(astBuf.String())
+@@ -338,6 +339,15 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 	s.checkPtrEnabled = ir.ShouldCheckPtr(fn, 1)
+ 
++	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
++		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
++			s.instrumentMemory = true
++		}
++		if base.Flag.Race {
++			s.instrumentEnterExit = true
++		}
++	}
++
+ 	fe := ssafn{
+ 		curfn: fn,
+ 		log:   printssa && ssaDumpStdout,
+@@ -395,10 +405,10 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		// preceding the deferreturn/ret code that we don't track correctly.
+ 		s.hasOpenDefers = false
+ 	}
+-	if s.hasOpenDefers && len(s.curfn.Exit) > 0 {
+-		// Skip doing open defers if there is any extra exit code (likely
+-		// race detection), since we will not generate that code in the
+-		// case of the extra deferreturn/ret segment.
++	if s.hasOpenDefers && s.instrumentEnterExit {
++		// Skip doing open defers if we need to instrument function
++		// returns for the race detector, since we will not generate that
++		// code in the case of the extra deferreturn/ret segment.
+ 		s.hasOpenDefers = false
+ 	}
+ 	if s.hasOpenDefers {
+@@ -541,7 +551,9 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+-	s.stmtList(fn.Enter)
++	if s.instrumentEnterExit {
++		s.rtcall(ir.Syms.Racefuncenter, true, nil, s.newValue0(ssa.OpGetCallerPC, types.Types[types.TUINTPTR]))
++	}
+ 	s.zeroResults()
+ 	s.paramsToHeap()
+ 	s.stmtList(fn.Body)
+@@ -881,11 +893,13 @@ type state struct {
+ 	// Used to deduplicate panic calls.
+ 	panics map[funcLine]*ssa.Block
+ 
+-	cgoUnsafeArgs   bool
+-	hasdefer        bool // whether the function contains a defer statement
+-	softFloat       bool
+-	hasOpenDefers   bool // whether we are doing open-coded defers
+-	checkPtrEnabled bool // whether to insert checkptr instrumentation
++	cgoUnsafeArgs       bool
++	hasdefer            bool // whether the function contains a defer statement
++	softFloat           bool
++	hasOpenDefers       bool // whether we are doing open-coded defers
++	checkPtrEnabled     bool // whether to insert checkptr instrumentation
++	instrumentEnterExit bool // whether to instrument function enter/exit
++	instrumentMemory    bool // whether to instrument memory operations
+ 
+ 	// If doing open-coded defers, list of info about the defer calls in
+ 	// scanning order. Hence, at exit we should run these defers in reverse
+@@ -1262,7 +1276,7 @@ func (s *state) instrumentMove(t *types.Type, dst, src *ssa.Value) {
+ }
+ 
+ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrumentKind) {
+-	if !s.curfn.InstrumentBody() {
++	if !s.instrumentMemory {
+ 		return
+ 	}
+ 
+@@ -2023,13 +2037,10 @@ func (s *state) exit() *ssa.Block {
+ 		}
+ 	}
+ 
+-	var b *ssa.Block
+-	var m *ssa.Value
+ 	// Do actual return.
+ 	// These currently turn into self-copies (in many cases).
+ 	resultFields := s.curfn.Type().Results()
+ 	results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
+-	m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
+ 	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
+ 	for i, f := range resultFields {
+ 		n := f.Nname.(*ir.Name)
+@@ -2055,15 +2066,18 @@ func (s *state) exit() *ssa.Block {
+ 		}
+ 	}
+ 
+-	// Run exit code. Today, this is just racefuncexit, in -race mode.
+-	// TODO(register args) this seems risky here with a register-ABI, but not clear it is right to do it earlier either.
+-	// Spills in register allocation might just fix it.
+-	s.stmtList(s.curfn.Exit)
++	// In -race mode, we need to call racefuncexit.
++	// Note: This has to happen after we load any heap-allocated results,
++	// otherwise races will be attributed to the caller instead.
++	if s.instrumentEnterExit {
++		s.rtcall(ir.Syms.Racefuncexit, true, nil)
++	}
+ 
+ 	results[len(results)-1] = s.mem()
++	m := s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
+ 	m.AddArgs(results...)
+ 
+-	b = s.endBlock()
++	b := s.endBlock()
+ 	b.Kind = ssa.BlockRet
+ 	b.SetControl(m)
+ 	if s.hasdefer && s.hasOpenDefers {
+diff --git a/src/cmd/compile/internal/walk/race.go b/src/cmd/compile/internal/walk/race.go
+deleted file mode 100644
+index 972c878b30..0000000000
+--- a/src/cmd/compile/internal/walk/race.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package walk
+-
+-import (
+-	"cmd/compile/internal/base"
+-	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/types"
+-	"cmd/internal/objabi"
+-	"cmd/internal/src"
+-)
+-
+-// The racewalk pass is currently handled in three parts.
+-//
+-// First, for flag_race, it inserts calls to racefuncenter and
+-// racefuncexit at the start and end (respectively) of each
+-// function. This is handled below.
+-//
+-// Second, during buildssa, it inserts appropriate instrumentation
+-// calls immediately before each memory load or store. This is handled
+-// by the (*state).instrument method in ssa.go, so here we just set
+-// the Func.InstrumentBody flag as needed. For background on why this
+-// is done during SSA construction rather than a separate SSA pass,
+-// see issue #19054.
+-//
+-// Third, we remove calls to racefuncenter and racefuncexit, for leaf
+-// functions without instrumented operations. This is done as part of
+-// ssa opt pass via special rule.
+-
+-// TODO(dvyukov): do not instrument initialization as writes:
+-// a := make([]int, 10)
+-
+-func instrument(fn *ir.Func) {
+-	if fn.Pragma&ir.Norace != 0 || (fn.Linksym() != nil && fn.Linksym().ABIWrapper()) {
+-		return
+-	}
+-
+-	if !base.Flag.Race || !objabi.LookupPkgSpecial(base.Ctxt.Pkgpath).NoRaceFunc {
+-		fn.SetInstrumentBody(true)
+-	}
+-
+-	if base.Flag.Race {
+-		lno := base.Pos
+-		base.Pos = src.NoXPos
+-		var init ir.Nodes
+-		fn.Enter.Prepend(mkcallstmt("racefuncenter", mkcall("getcallerpc", types.Types[types.TUINTPTR], &init)))
+-		if len(init) != 0 {
+-			base.Fatalf("race walk: unexpected init for getcallerpc")
+-		}
+-		fn.Exit.Append(mkcallstmt("racefuncexit"))
+-		base.Pos = lno
+-	}
+-}
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index b09f7f1732..8be5804616 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -45,10 +45,6 @@ func Walk(fn *ir.Func) {
+ 		ir.DumpList(s, ir.CurFunc.Body)
+ 	}
+ 
+-	if base.Flag.Cfg.Instrumenting {
+-		instrument(fn)
+-	}
+-
+ 	// Eagerly compute sizes of all variables for SSA.
+ 	for _, n := range fn.Dcl {
+ 		types.CalcSize(n.Type())

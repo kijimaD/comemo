@@ -19,9 +19,172 @@ Date:   Tue Mar 14 13:06:20 2023 +0000
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/53747.txt            |  2 ++
  src/flag/example_func_test.go | 16 ++++++++++++++
  src/flag/flag.go              | 23 +++++++++++++++++++
  src/flag/flag_test.go         | 51 +++++++++++++++++++++++++++++++++++++++++--
  4 files changed, 90 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/53747.txt b/api/next/53747.txt
+new file mode 100644
+index 0000000000..4a03bdfd70
+--- /dev/null
++++ b/api/next/53747.txt
+@@ -0,0 +1,2 @@
++pkg flag, func BoolFunc(string, string, func(string) error) #53747
++pkg flag, method (*FlagSet) BoolFunc(string, string, func(string) error) #53747
+diff --git a/src/flag/example_func_test.go b/src/flag/example_func_test.go
+index 7c30c5e713..ac9f9858df 100644
+--- a/src/flag/example_func_test.go
++++ b/src/flag/example_func_test.go
+@@ -39,3 +39,19 @@ func ExampleFunc() {
+ 	//     	IP address to parse
+ 	// {ip: <nil>, loopback: false}
+ }
++
++func ExampleBoolFunc() {
++	fs := flag.NewFlagSet("ExampleBoolFunc", flag.ContinueOnError)
++	fs.SetOutput(os.Stdout)
++
++	fs.BoolFunc("log", "logs a dummy message", func(s string) error {
++		fmt.Println("dummy message:", s)
++		return nil
++	})
++	fs.Parse([]string{"-log"})
++	fs.Parse([]string{"-log=0"})
++
++	// Output:
++	// dummy message: true
++	// dummy message: 0
++}
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index ef3cf29c0c..45928b0190 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -337,6 +337,15 @@ func (f funcValue) Set(s string) error { return f(s) }
+ 
+ func (f funcValue) String() string { return "" }
+ 
++// -- boolFunc Value
++type boolFuncValue func(string) error
++
++func (f boolFuncValue) Set(s string) error { return f(s) }
++
++func (f boolFuncValue) String() string { return "" }
++
++func (f boolFuncValue) IsBoolFlag() bool { return true }
++
+ // Value is the interface to the dynamic value stored in a flag.
+ // (The default value is represented as a string.)
+ //
+@@ -955,6 +964,20 @@ func Func(name, usage string, fn func(string) error) {
+ 	CommandLine.Func(name, usage, fn)
+ }
+ 
++// BoolFunc defines a flag with the specified name and usage string without requiring values.
++// Each time the flag is seen, fn is called with the value of the flag.
++// If fn returns a non-nil error, it will be treated as a flag value parsing error.
++func (f *FlagSet) BoolFunc(name, usage string, fn func(string) error) {
++	f.Var(boolFuncValue(fn), name, usage)
++}
++
++// BoolFunc defines a flag with the specified name and usage string without requiring values.
++// Each time the flag is seen, fn is called with the value of the flag.
++// If fn returns a non-nil error, it will be treated as a flag value parsing error.
++func BoolFunc(name, usage string, fn func(string) error) {
++	CommandLine.BoolFunc(name, usage, fn)
++}
++
+ // Var defines a flag with the specified name and usage string. The type and
+ // value of the flag are represented by the first argument, of type Value, which
+ // typically holds a user-defined implementation of Value. For instance, the
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 1755168405..14d199d6e9 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -38,6 +38,7 @@ func TestEverything(t *testing.T) {
+ 	Float64("test_float64", 0, "float64 value")
+ 	Duration("test_duration", 0, "time.Duration value")
+ 	Func("test_func", "func value", func(string) error { return nil })
++	BoolFunc("test_boolfunc", "func", func(string) error { return nil })
+ 
+ 	m := make(map[string]*Flag)
+ 	desired := "0"
+@@ -54,6 +55,8 @@ func TestEverything(t *testing.T) {
+ 				ok = true
+ 			case f.Name == "test_func" && f.Value.String() == "":
+ 				ok = true
++			case f.Name == "test_boolfunc" && f.Value.String() == "":
++				ok = true
+ 			}
+ 			if !ok {
+ 				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
+@@ -61,7 +64,7 @@ func TestEverything(t *testing.T) {
+ 		}
+ 	}
+ 	VisitAll(visitor)
+-	if len(m) != 9 {
++	if len(m) != 10 {
+ 		t.Error("VisitAll misses some flags")
+ 		for k, v := range m {
+ 			t.Log(k, *v)
+@@ -85,9 +88,10 @@ func TestEverything(t *testing.T) {
+ 	Set("test_float64", "1")
+ 	Set("test_duration", "1s")
+ 	Set("test_func", "1")
++	Set("test_boolfunc", "")
+ 	desired = "1"
+ 	Visit(visitor)
+-	if len(m) != 9 {
++	if len(m) != 10 {
+ 		t.Error("Visit fails after set")
+ 		for k, v := range m {
+ 			t.Log(k, *v)
+@@ -797,3 +801,46 @@ func TestRedefinedFlags(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUserDefinedBoolFunc(t *testing.T) {
++	flags := NewFlagSet("test", ContinueOnError)
++	flags.SetOutput(io.Discard)
++	var ss []string
++	flags.BoolFunc("v", "usage", func(s string) error {
++		ss = append(ss, s)
++		return nil
++	})
++	if err := flags.Parse([]string{"-v", "", "-v", "1", "-v=2"}); err != nil {
++		t.Error(err)
++	}
++	if len(ss) != 1 {
++		t.Fatalf("got %d args; want 1 arg", len(ss))
++	}
++	want := "[true]"
++	if got := fmt.Sprint(ss); got != want {
++		t.Errorf("got %q; want %q", got, want)
++	}
++	// test usage
++	var buf strings.Builder
++	flags.SetOutput(&buf)
++	flags.Parse([]string{"-h"})
++	if usage := buf.String(); !strings.Contains(usage, "usage") {
++		t.Errorf("usage string not included: %q", usage)
++	}
++	// test BoolFunc error
++	flags = NewFlagSet("test", ContinueOnError)
++	flags.SetOutput(io.Discard)
++	flags.BoolFunc("v", "usage", func(s string) error {
++		return fmt.Errorf("test error")
++	})
++	// flag not set, so no error
++	if err := flags.Parse(nil); err != nil {
++		t.Error(err)
++	}
++	// flag set, expect error
++	if err := flags.Parse([]string{"-v", ""}); err == nil {
++		t.Error("got err == nil; want err != nil")
++	} else if errMsg := err.Error(); !strings.Contains(errMsg, "test error") {
++		t.Errorf(`got %q; error should contain "test error"`, errMsg)
++	}
++}

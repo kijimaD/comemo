@@ -17,7 +17,106 @@ Date:   Tue Feb 14 13:57:21 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5665049
-
+---
  src/cmd/godoc/doc.go  |  9 ++++++---
  src/cmd/godoc/main.go | 41 +++++++++++++++++++++++++++++++----------
  2 files changed, 37 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 3fad1b0d66..15c393cd76 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -9,12 +9,15 @@ Godoc extracts and generates documentation for Go programs.
+ It has two modes.
+ 
+ Without the -http flag, it runs in command-line mode and prints plain text
+-documentation to standard output and exits. If the -src flag is specified,
+-godoc prints the exported interface of a package in Go source form, or the
+-implementation of a specific exported language entity:
++documentation to standard output and exits. If both a library package and
++a command with the same name exists, using the prefix cmd/ will force
++documentation on the command rather than the library package. If the -src
++flag is specified, godoc prints the exported interface of a package in Go
++source form, or the implementation of a specific exported language entity:
+ 
+ 	godoc fmt                # documentation for package fmt
+ 	godoc fmt Printf         # documentation for fmt.Printf
++	godoc cmd/go             # force documentation for the go command
+ 	godoc -src fmt           # fmt package interface in Go source form
+ 	godoc -src fmt Printf    # implementation of fmt.Printf
+ 
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index f74b6f4047..e5e81c6dfa 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -374,11 +374,16 @@ func main() {
+ 	}
+ 
+ 	// determine paths
++	const cmdPrefix = "cmd/"
+ 	path := flag.Arg(0)
+-	if len(path) > 0 && path[0] == '.' {
++	var forceCmd bool
++	if strings.HasPrefix(path, ".") {
+ 		// assume cwd; don't assume -goroot
+ 		cwd, _ := os.Getwd() // ignore errors
+ 		path = filepath.Join(cwd, path)
++	} else if strings.HasPrefix(path, cmdPrefix) {
++		path = path[len(cmdPrefix):]
++		forceCmd = true
+ 	}
+ 	relpath := path
+ 	abspath := path
+@@ -393,6 +398,7 @@ func main() {
+ 
+ 	var mode PageInfoMode
+ 	if relpath == builtinPkgPath {
++		// the fake built-in package contains unexported identifiers
+ 		mode = noFiltering
+ 	}
+ 	if *srcMode {
+@@ -404,20 +410,35 @@ func main() {
+ 	}
+ 	// TODO(gri): Provide a mechanism (flag?) to select a package
+ 	//            if there are multiple packages in a directory.
+-	info := pkgHandler.getPageInfo(abspath, relpath, "", mode)
+ 
++	// first, try as package unless forced as command
++	var info PageInfo
++	if !forceCmd {
++		info = pkgHandler.getPageInfo(abspath, relpath, "", mode)
++	}
++
++	// second, try as command
++	if !filepath.IsAbs(path) {
++		abspath = absolutePath(path, cmdHandler.fsRoot)
++	}
++	cinfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
++
++	// determine what to use
+ 	if info.IsEmpty() {
+-		// try again, this time assume it's a command
+-		if !filepath.IsAbs(path) {
+-			abspath = absolutePath(path, cmdHandler.fsRoot)
++		if !cinfo.IsEmpty() {
++			// only cinfo exists - switch to cinfo
++			info = cinfo
+ 		}
+-		cmdInfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
+-		// only use the cmdInfo if it actually contains a result
+-		// (don't hide errors reported from looking up a package)
+-		if !cmdInfo.IsEmpty() {
+-			info = cmdInfo
++	} else if !cinfo.IsEmpty() {
++		// both info and cinfo exist - use cinfo if info
++		// contains only subdirectory information
++		if info.PAst == nil && info.PDoc == nil {
++			info = cinfo
++		} else {
++			fmt.Printf("use 'godoc %s%s' for documentation on the %s command \n\n", cmdPrefix, relpath, relpath)
+ 		}
+ 	}
++
+ 	if info.Err != nil {
+ 		log.Fatalf("%v", info.Err)
+ 	}

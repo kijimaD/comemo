@@ -8,6 +8,20 @@ Date:   Wed Feb 26 10:51:00 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/68980044
-
+---
  src/cmd/gc/plive.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 1502d3d1ac..4a72e612e2 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -984,7 +984,7 @@ checkparam(Node *fn, Prog *p, Node *n)
+ 		return;
+ 	for(l = fn->dcl; l != nil; l = l->next) {
+ 		a = l->n;
+-		class = l->n->class & ~PHEAP;
++		class = a->class & ~PHEAP;
+ 		if(a->op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n)
+ 			return;
+ 	}

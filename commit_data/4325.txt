@@ -6,6 +6,22 @@ Date:   Fri Dec 4 13:49:58 2009 -0800
     
     R=rsc
     https://golang.org/cl/165062
-
+---
  src/pkg/syscall/syscall_nacl.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index b8a4ac5051..a3f6740c9a 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -152,6 +152,10 @@ func Readlink(path string, buf []byte) (n int, errno int) {
+ 	return 0, ENACL
+ }
+ 
++func Rename(oldpath, newpath string) (errno int) {
++	return ENACL
++}
++
+ func Fchmod(fd int, mode int) (errno int)	{ return ENACL }
+ 
+ func Chown(path string, uid int, gid int) (errno int) {

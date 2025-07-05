@@ -7,6 +7,40 @@ Date:   Mon Jan 28 16:57:36 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7231051
-
+---
  src/cmd/gc/go.h | 15 ++++++++-------
  1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5e929d3c5b..1afd1ca56e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -645,20 +645,21 @@ enum
+ 	Cboth = Crecv | Csend,
+ };
+ 
++// declaration context
+ enum
+ {
+ 	Pxxx,
+ 
+-	PEXTERN,	// declaration context
+-	PAUTO,
+-	PPARAM,
+-	PPARAMOUT,
+-	PPARAMREF,	// param passed by reference
+-	PFUNC,
++	PEXTERN,	// global variable
++	PAUTO,		// local variables
++	PPARAM,		// input arguments
++	PPARAMOUT,	// output results
++	PPARAMREF,	// closure variable reference
++	PFUNC,		// global function
+ 
+ 	PDISCARD,	// discard during parse of duplicate import
+ 
+-	PHEAP = 1<<7,
++	PHEAP = 1<<7,	// an extra bit to identify an escaped variable
+ };
+ 
+ enum

@@ -25,7 +25,7 @@ Date:   Fri Sep 10 15:12:57 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go |  3 ---
  src/go/types/environment.go                   |  7 -------
  src/go/types/errors.go                        |  2 +-
@@ -36,3 +36,171 @@ Date:   Fri Sep 10 15:12:57 2021 -0400
  src/go/types/subst.go                         |  3 ---
  src/go/types/typestring.go                    | 10 ----------
  9 files changed, 8 insertions(+), 33 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 9f4345d8f9..3a9ed79df6 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -238,9 +238,6 @@ func TestImportTypeparamTests(t *testing.T) {
+ func sanitizeObjectString(s string) string {
+ 	var runes []rune
+ 	for _, r := range s {
+-		if r == '#' {
+-			continue // trim instance markers
+-		}
+ 		if '₀' <= r && r < '₀'+10 {
+ 			continue // trim type parameter subscripts
+ 		}
+diff --git a/src/go/types/environment.go b/src/go/types/environment.go
+index 93383efe1a..61fc3c5348 100644
+--- a/src/go/types/environment.go
++++ b/src/go/types/environment.go
+@@ -50,13 +50,6 @@ func (env *Environment) typeHash(typ Type, targs []Type) string {
+ 		h.typ(typ)
+ 	}
+ 
+-	if debug {
+-		// there should be no instance markers in type hashes
+-		for _, b := range buf.Bytes() {
+-			assert(b != instanceMarker)
+-		}
+-	}
+-
+ 	return buf.String()
+ }
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 933de93d85..2d48fe14da 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -265,7 +265,7 @@ func stripAnnotations(s string) string {
+ 	var b strings.Builder
+ 	for _, r := range s {
+ 		// strip #'s and subscript digits
+-		if r != instanceMarker && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
++		if r < '₀' || '₀'+10 <= r { // '₀' == U+2080
+ 			b.WriteRune(r)
+ 		}
+ 	}
+diff --git a/src/go/types/errors_test.go b/src/go/types/errors_test.go
+index fdbe07cae0..942a9fdd4c 100644
+--- a/src/go/types/errors_test.go
++++ b/src/go/types/errors_test.go
+@@ -15,7 +15,6 @@ func TestStripAnnotations(t *testing.T) {
+ 		{"foo", "foo"},
+ 		{"foo₀", "foo"},
+ 		{"foo(T₀)", "foo(T)"},
+-		{"#foo(T₀)", "foo(T)"},
+ 	} {
+ 		got := stripAnnotations(test.in)
+ 		if got != test.want {
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index b74f0db466..b178d1eb3f 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -118,8 +118,9 @@ func (check *Checker) instance(pos token.Pos, typ Type, targs []Type, env *Envir
+ 		tname := NewTypeName(pos, t.obj.pkg, t.obj.name, nil)
+ 		named := check.newNamed(tname, t, nil, nil, nil) // methods and tparams are set when named is resolved
+ 		named.targs = NewTypeList(targs)
+-		named.instPos = &pos
+-		named.resolver = expandNamed
++		named.resolver = func(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
++			return expandNamed(env, n, pos)
++		}
+ 		if env != nil {
+ 			// It's possible that we've lost a race to add named to the environment.
+ 			// In this case, use whichever instance is recorded in the environment.
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index fd9e1f4461..943d52f0fe 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -17,7 +17,6 @@ type Named struct {
+ 	orig       *Named         // original, uninstantiated type
+ 	fromRHS    Type           // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+ 	underlying Type           // possibly a *Named during setup; never a *Named once set up completely
+-	instPos    *token.Pos     // position information for lazy instantiation, or nil
+ 	tparams    *TypeParamList // type parameters, or nil
+ 	targs      *TypeList      // type arguments (after instantiation), or nil
+ 	methods    []*Func        // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+@@ -222,11 +221,11 @@ func (n *Named) setUnderlying(typ Type) {
+ 
+ // expandNamed ensures that the underlying type of n is instantiated.
+ // The underlying type will be Typ[Invalid] if there was an error.
+-func expandNamed(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
++func expandNamed(env *Environment, n *Named, instPos token.Pos) (*TypeParamList, Type, []*Func) {
+ 	n.orig.resolve(env)
+ 
+ 	var u Type
+-	if n.check.validateTArgLen(*n.instPos, n.orig.tparams.Len(), n.targs.Len()) {
++	if n.check.validateTArgLen(instPos, n.orig.tparams.Len(), n.targs.Len()) {
+ 		// TODO(rfindley): handling an optional Checker and Environment here (and
+ 		// in subst) feels overly complicated. Can we simplify?
+ 		if env == nil {
+@@ -245,11 +244,10 @@ func expandNamed(env *Environment, n *Named) (*TypeParamList, Type, []*Func) {
+ 			// shouldn't return that instance from expand.
+ 			env.typeForHash(h, n)
+ 		}
+-		u = n.check.subst(*n.instPos, n.orig.underlying, makeSubstMap(n.orig.tparams.list(), n.targs.list()), env)
++		u = n.check.subst(instPos, n.orig.underlying, makeSubstMap(n.orig.tparams.list(), n.targs.list()), env)
+ 	} else {
+ 		u = Typ[Invalid]
+ 	}
+-	n.instPos = nil
+ 	return n.orig.tparams, u, n.orig.methods
+ }
+ 
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index f64f732884..f418e037a9 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -30,7 +30,7 @@ func TestSizeof(t *testing.T) {
+ 		{Interface{}, 44, 88},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+-		{Named{}, 72, 136},
++		{Named{}, 68, 128},
+ 		{TypeParam{}, 28, 48},
+ 		{term{}, 12, 24},
+ 		{top{}, 0, 0},
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index d9dab10e00..a063dd0a07 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -8,9 +8,6 @@ package types
+ 
+ import "go/token"
+ 
+-// TODO(rFindley) decide error codes for the errors in this file, and check
+-//                if error spans can be improved
+-
+ type substMap map[*TypeParam]Type
+ 
+ // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 7e971c0325..eadc50a754 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -65,9 +65,6 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
+ 	newTypeWriter(buf, qf).signature(sig)
+ }
+ 
+-// instanceMarker is the prefix for an instantiated type in unexpanded form.
+-const instanceMarker = '#'
+-
+ type typeWriter struct {
+ 	buf  *bytes.Buffer
+ 	seen map[Type]bool
+@@ -226,13 +223,6 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 
+ 	case *Named:
+-		// Instance markers indicate unexpanded instantiated
+-		// types. Write them to aid debugging, but don't write
+-		// them when we need an instance hash: whether a type
+-		// is fully expanded or not doesn't matter for identity.
+-		if w.env == nil && t.instPos != nil {
+-			w.byte(instanceMarker)
+-		}
+ 		w.typePrefix(t)
+ 		w.typeName(t.obj)
+ 		if t.targs != nil {

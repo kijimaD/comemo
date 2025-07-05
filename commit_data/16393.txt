@@ -7,6 +7,20 @@ Date:   Thu May 23 14:13:39 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/9695045
-
+---
  misc/dashboard/codereview/dashboard/front.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index c7b0f0fbf3..ea9fe0ddf0 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -230,7 +230,7 @@ var frontPage = template.Must(template.New("front").Funcs(template.FuncMap{
+       }
+     </style>
+     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+-  <head>
++  </head>
+   <body>
+ 
+ <img id="gopherstamp" src="/static/gopherstamp.jpg" />

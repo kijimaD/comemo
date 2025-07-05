@@ -16,7 +16,51 @@ Date:   Sun Mar 22 12:57:36 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/sys_linux_mips64x.s | 4 ++++
  src/runtime/sys_linux_mipsx.s   | 3 +++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 723cfe43d9..6668a0fd86 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -117,6 +117,8 @@ TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	R0, R5
+ 	MOVV	$SYS_pipe2, R2
+ 	SYSCALL
++	BEQ	R7, 2(PC)
++	SUBVU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, errno+8(FP)
+ 	RET
+ 
+@@ -126,6 +128,8 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+ 	MOVW	flags+0(FP), R5
+ 	MOVV	$SYS_pipe2, R2
+ 	SYSCALL
++	BEQ	R7, 2(PC)
++	SUBVU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, errno+16(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 15893a7a28..fab2ab3892 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -118,6 +118,7 @@ TEXT runtime·pipe(SB),NOSPLIT,$0-12
+ 	MOVW	$-1, R1
+ 	MOVW	R1, r+0(FP)
+ 	MOVW	R1, w+4(FP)
++	SUBU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, errno+8(FP)
+ 	RET
+ pipeok:
+@@ -132,6 +133,8 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+ 	MOVW	flags+0(FP), R5
+ 	MOVW	$SYS_pipe2, R2
+ 	SYSCALL
++	BEQ	R7, 2(PC)
++	SUBU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, errno+12(FP)
+ 	RET
+ 

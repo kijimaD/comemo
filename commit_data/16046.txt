@@ -52,6 +52,49 @@ Date:   Tue Apr 2 21:14:34 2013 +1100
     R=rsc, iant, remyoudompheng
     CC=golang-dev, jcb
     https://golang.org/cl/7944043
-
+---
  src/cmd/gc/walk.c | 31 +++++++++++++++++++++++--------
  1 file changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4e42b182fe..d9c6341b43 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2897,14 +2897,29 @@ hard:
+ static int
+ samecheap(Node *a, Node *b)
+ {
+-	if(a == N || b == N || a->op != b->op)
+-		return 0;
+-	
+-	switch(a->op) {
+-	case ONAME:
+-		return a == b;
+-	// TODO: Could do more here, but maybe this is enough.
+-	// It's all cheapexpr does.
++	Node *ar, *br;
++	while(a != N && b != N && a->op == b->op) {
++		switch(a->op) {
++		default:
++			return 0;
++		case ONAME:
++			return a == b;
++		case ODOT:
++		case ODOTPTR:
++			ar = a->right;
++			br = b->right;
++			if(ar->op != ONAME || br->op != ONAME || ar->sym != br->sym)
++				return 0;
++			break;
++		case OINDEX:
++			ar = a->right;
++			br = b->right;
++			if(!isconst(ar, CTINT) || !isconst(br, CTINT) || mpcmpfixfix(ar->val.u.xval, br->val.u.xval) != 0)
++				return 0;
++			break;
++		}
++		a = a->left;
++		b = b->left;
+ 	}
+ 	return 0;
+ }

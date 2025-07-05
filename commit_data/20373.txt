@@ -20,7 +20,7 @@ Date:   Thu Sep 4 00:54:06 2014 -0400
     R=golang-codereviews, r, iant
     CC=dvyukov, golang-codereviews, khr
     https://golang.org/cl/140930043
-
+---
  src/pkg/runtime/cpuprof.go     |  8 +++-
  src/pkg/runtime/debug.go       |  9 ++++-
  src/pkg/runtime/malloc.c       | 52 --------------------------
@@ -43,3 +43,843 @@ Date:   Thu Sep 4 00:54:06 2014 -0400
  src/pkg/runtime/stubs.go       |  1 -
  src/pkg/runtime/thunk.s        |  3 ++
  21 files changed, 297 insertions(+), 152 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.go b/src/pkg/runtime/cpuprof.go
+index 4325d7e1c3..8b1c1c6327 100644
+--- a/src/pkg/runtime/cpuprof.go
++++ b/src/pkg/runtime/cpuprof.go
+@@ -101,7 +101,13 @@ var (
+ 	eod = [3]uintptr{0, 1, 0}
+ )
+ 
+-func setcpuprofilerate(int32) // proc.c
++func setcpuprofilerate_m() // proc.c
++
++func setcpuprofilerate(hz int32) {
++	g := getg()
++	g.m.scalararg[0] = uintptr(hz)
++	onM(setcpuprofilerate_m)
++}
+ 
+ // lostProfileData is a no-op function used in profiles
+ // to mark the number of profiling stack traces that were
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index ed11fb1b1a..bb4bd60ed4 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -24,10 +24,15 @@ func UnlockOSThread()
+ // The number of logical CPUs on the local machine can be queried with NumCPU.
+ // This call will go away when the scheduler improves.
+ func GOMAXPROCS(n int) int {
+-	return int(gomaxprocsfunc(int32(n)))
++	g := getg()
++	g.m.scalararg[0] = uintptr(n)
++	onM(gomaxprocs_m)
++	n = int(g.m.scalararg[0])
++	g.m.scalararg[0] = 0
++	return n
+ }
+ 
+-func gomaxprocsfunc(int32) int32 // proc.c
++func gomaxprocs_m() // proc.c
+ 
+ // NumCPU returns the number of logical CPUs on the local machine.
+ func NumCPU() int {
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 311cc442c2..c864bc93c0 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -348,58 +348,6 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	return p;
+ }
+ 
+-static struct
+-{
+-	Mutex	lock;
+-	byte*	pos;
+-	byte*	end;
+-} persistent;
+-
+-enum
+-{
+-	PersistentAllocChunk	= 256<<10,
+-	PersistentAllocMaxBlock	= 64<<10,  // VM reservation granularity is 64K on windows
+-};
+-
+-// Wrapper around sysAlloc that can allocate small chunks.
+-// There is no associated free operation.
+-// Intended for things like function/type/debug-related persistent data.
+-// If align is 0, uses default align (currently 8).
+-void*
+-runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
+-{
+-	byte *p;
+-
+-	if(align != 0) {
+-		if(align&(align-1))
+-			runtime·throw("persistentalloc: align is not a power of 2");
+-		if(align > PageSize)
+-			runtime·throw("persistentalloc: align is too large");
+-	} else
+-		align = 8;
+-	if(size >= PersistentAllocMaxBlock)
+-		return runtime·sysAlloc(size, stat);
+-	runtime·lock(&persistent.lock);
+-	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
+-	if(persistent.pos + size > persistent.end) {
+-		persistent.pos = runtime·sysAlloc(PersistentAllocChunk, &mstats.other_sys);
+-		if(persistent.pos == nil) {
+-			runtime·unlock(&persistent.lock);
+-			runtime·throw("runtime: cannot allocate memory");
+-		}
+-		persistent.end = persistent.pos + PersistentAllocChunk;
+-	}
+-	p = persistent.pos;
+-	persistent.pos += size;
+-	runtime·unlock(&persistent.lock);
+-	if(stat != &mstats.other_sys) {
+-		// reaccount the allocation against provided stat
+-		runtime·xadd64(stat, size);
+-		runtime·xadd64(&mstats.other_sys, -(uint64)size);
+-	}
+-	return p;
+-}
+-
+ // Runtime stubs.
+ 
+ static void*
+diff --git a/src/pkg/runtime/malloc.go b/src/pkg/runtime/malloc.go
+index dbe37c8108..883ca0cef7 100644
+--- a/src/pkg/runtime/malloc.go
++++ b/src/pkg/runtime/malloc.go
+@@ -431,7 +431,7 @@ func gogc(force int32) {
+ 	mp = acquirem()
+ 	mp.gcing = 1
+ 	releasem(mp)
+-	stoptheworld()
++	onM(stoptheworld)
+ 	if mp != acquirem() {
+ 		gothrow("gogc: rescheduled")
+ 	}
+@@ -465,7 +465,7 @@ func gogc(force int32) {
+ 	// all done
+ 	mp.gcing = 0
+ 	semrelease(&worldsema)
+-	starttheworld()
++	onM(starttheworld)
+ 	releasem(mp)
+ 	mp = nil
+ 
+@@ -760,3 +760,55 @@ func runfinq() {
+ 		}
+ 	}
+ }
++
++var persistent struct {
++	lock mutex
++	pos  unsafe.Pointer
++	end  unsafe.Pointer
++}
++
++// Wrapper around sysAlloc that can allocate small chunks.
++// There is no associated free operation.
++// Intended for things like function/type/debug-related persistent data.
++// If align is 0, uses default align (currently 8).
++func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer {
++	const (
++		chunk    = 256 << 10
++		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
++	)
++
++	if align != 0 {
++		if align&(align-1) != 0 {
++			gothrow("persistentalloc: align is not a power of 2")
++		}
++		if align > _PageSize {
++			gothrow("persistentalloc: align is too large")
++		}
++	} else {
++		align = 8
++	}
++
++	if size >= maxBlock {
++		return sysAlloc(size, stat)
++	}
++
++	lock(&persistent.lock)
++	persistent.pos = roundup(persistent.pos, align)
++	if uintptr(persistent.pos)+size > uintptr(persistent.end) {
++		persistent.pos = sysAlloc(chunk, &memstats.other_sys)
++		if persistent.pos == nil {
++			unlock(&persistent.lock)
++			gothrow("runtime: cannot allocate memory")
++		}
++		persistent.end = add(persistent.pos, chunk)
++	}
++	p := persistent.pos
++	persistent.pos = add(persistent.pos, size)
++	unlock(&persistent.lock)
++
++	if stat != &memstats.other_sys {
++		xadd64(stat, int64(size))
++		xadd64(&memstats.other_sys, -int64(size))
++	}
++	return p
++}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index d9a2bf84ba..5441691940 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -578,7 +578,7 @@ extern bool	runtime·fingwake;
+ extern FinBlock	*runtime·finq;		// list of finalizers that are to be executed
+ extern FinBlock	*runtime·finc;		// cache of free blocks
+ 
+-void	runtime·setprofilebucket(void *p, Bucket *b);
++void	runtime·setprofilebucket_m(void);
+ 
+ bool	runtime·addfinalizer(void*, FuncVal *fn, uintptr, Type*, PtrType*);
+ void	runtime·removefinalizer(void*);
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 8e98890e8e..bb1fc54032 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -52,24 +52,23 @@ freemcache(MCache *c)
+ }
+ 
+ static void
+-freemcache_m(G *gp)
++freemcache_m(void)
+ {
+ 	MCache *c;
+ 
+ 	c = g->m->ptrarg[0];
+ 	g->m->ptrarg[0] = nil;
+ 	freemcache(c);
+-	runtime·gogo(&gp->sched);
+ }
+ 
+ void
+ runtime·freemcache(MCache *c)
+ {
+-	void (*fn)(G*);
++	void (*fn)(void);
+ 
+ 	g->m->ptrarg[0] = c;
+ 	fn = freemcache_m;
+-	runtime·mcall(&fn);
++	runtime·onM(&fn);
+ }
+ 
+ // Gets a span that has a free object in it and assigns it
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 0050e96556..902a5c71a2 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -834,9 +834,16 @@ runtime·removefinalizer(void *p)
+ 
+ // Set the heap profile bucket associated with addr to b.
+ void
+-runtime·setprofilebucket(void *p, Bucket *b)
+-{
++runtime·setprofilebucket_m(void)
++{	
++	void *p;
++	Bucket *b;
+ 	SpecialProfile *s;
++	
++	p = g->m->ptrarg[0];
++	b = g->m->ptrarg[1];
++	g->m->ptrarg[0] = nil;
++	g->m->ptrarg[1] = nil;
+ 
+ 	runtime·lock(&runtime·mheap.speciallock);
+ 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialprofilealloc);
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index b421c4f98f..7177c84592 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -249,7 +249,14 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
+ 	setprofilebucket(p, b)
+ }
+ 
+-func setprofilebucket(p unsafe.Pointer, b *bucket) // mheap.c
++func setprofilebucket_m() // mheap.c
++
++func setprofilebucket(p unsafe.Pointer, b *bucket) {
++	g := getg()
++	g.m.ptrarg[0] = p
++	g.m.ptrarg[1] = unsafe.Pointer(b)
++	onM(setprofilebucket_m)
++}
+ 
+ // Called when freeing a profiled block.
+ func mProf_Free(b *bucket, size uintptr, freed bool) {
+@@ -288,8 +295,7 @@ func SetBlockProfileRate(rate int) {
+ 	atomicstore64(&blockprofilerate, uint64(r))
+ }
+ 
+-func tickspersecond() int64 // runtime.c
+-func fastrand1() uint32     // runtime.c
++func fastrand1() uint32     // assembly
+ func readgstatus(*g) uint32 // proc.c
+ 
+ func blockevent(cycles int64, skip int) {
+@@ -531,7 +537,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 		gp := getg()
+ 		semacquire(&worldsema, false)
+ 		gp.m.gcing = 1
+-		stoptheworld()
++		onM(stoptheworld)
+ 
+ 		n = NumGoroutine()
+ 		if n <= len(p) {
+@@ -550,7 +556,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 
+ 		gp.m.gcing = 0
+ 		semrelease(&worldsema)
+-		starttheworld()
++		onM(starttheworld)
+ 	}
+ 
+ 	return n, ok
+@@ -576,7 +582,7 @@ func Stack(buf []byte, all bool) int {
+ 		semacquire(&worldsema, false)
+ 		mp.gcing = 1
+ 		releasem(mp)
+-		stoptheworld()
++		onM(stoptheworld)
+ 		if mp != acquirem() {
+ 			gothrow("Stack: rescheduled")
+ 		}
+@@ -597,7 +603,7 @@ func Stack(buf []byte, all bool) int {
+ 	if all {
+ 		mp.gcing = 0
+ 		semrelease(&worldsema)
+-		starttheworld()
++		onM(starttheworld)
+ 	}
+ 	releasem(mp)
+ 	return n
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index bf13cdbafe..19181d60df 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -22,16 +22,31 @@ unimplemented(int8 *name)
+ 	*(int32*)1231 = 1231;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·semawakeup(M *mp)
+ {
+ 	runtime·mach_semrelease(mp->waitsema);
+ }
+ 
++static void
++semacreate(void)
++{
++	g->m->scalararg[0] = runtime·mach_semcreate();
++}
++
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·semacreate(void)
+ {
+-	return runtime·mach_semcreate();
++	uintptr x;
++	void (*fn)(void);
++	
++	fn = semacreate;
++	runtime·onM(&fn);
++	x = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	return x;
+ }
+ 
+ // BSD interface for threading.
+@@ -143,7 +158,6 @@ runtime·unminit(void)
+ // Mach IPC, to get at semaphores
+ // Definitions are in /usr/include/mach on a Mac.
+ 
+-#pragma textflag NOSPLIT
+ static void
+ macherror(int32 r, int8 *fn)
+ {
+@@ -398,38 +412,88 @@ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
+ int32 runtime·mach_semaphore_signal(uint32 sema);
+ int32 runtime·mach_semaphore_signal_all(uint32 sema);
+ 
+-#pragma textflag NOSPLIT
+-int32
+-runtime·semasleep(int64 ns)
++static void
++semasleep(void)
+ {
+ 	int32 r, secs, nsecs;
++	int64 ns;
++	
++	ns = g->m->scalararg[0] | g->m->scalararg[1]<<32;
++	g->m->scalararg[0] = 0;
++	g->m->scalararg[1] = 0;
+ 
+ 	if(ns >= 0) {
+ 		secs = runtime·timediv(ns, 1000000000, &nsecs);
+ 		r = runtime·mach_semaphore_timedwait(g->m->waitsema, secs, nsecs);
+-		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
+-			return -1;
++		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT) {
++			g->m->scalararg[0] = -1;
++			return;
++		}
+ 		if(r != 0)
+ 			macherror(r, "semaphore_wait");
+-		return 0;
++		g->m->scalararg[0] = 0;
++		return;
+ 	}
+ 	while((r = runtime·mach_semaphore_wait(g->m->waitsema)) != 0) {
+ 		if(r == KERN_ABORTED)	// interrupted
+ 			continue;
+ 		macherror(r, "semaphore_wait");
+ 	}
+-	return 0;
++	g->m->scalararg[0] = 0;
++	return;
+ }
+ 
++#pragma textflag NOSPLIT
++int32
++runtime·semasleep(int64 ns)
++{
++	int32 r;
++	void (*fn)(void);
++
++	g->m->scalararg[0] = (uint32)ns;
++	g->m->scalararg[1] = (uint32)(ns>>32);
++	fn = semasleep;
++	runtime·onM(&fn);
++	r = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++	return r;
++}
++
++static int32 mach_semrelease_errno;
++
++static void
++mach_semrelease_fail(void)
++{
++	macherror(mach_semrelease_errno, "semaphore_signal");
++}
++
++#pragma textflag NOSPLIT
+ void
+ runtime·mach_semrelease(uint32 sem)
+ {
+ 	int32 r;
++	void (*fn)(void);
+ 
+ 	while((r = runtime·mach_semaphore_signal(sem)) != 0) {
+ 		if(r == KERN_ABORTED)	// interrupted
+ 			continue;
+-		macherror(r, "semaphore_signal");
++		
++		// mach_semrelease must be completely nosplit,
++		// because it is called from Go code.
++		// If we're going to die, start that process on the m stack
++		// to avoid a Go stack split.
++		// Only do that if we're actually running on the g stack.
++		// We might be on the gsignal stack, and if so, onM will abort.
++		// We use the global variable instead of scalararg because
++		// we might be on the gsignal stack, having interrupted a
++		// normal call to onM. It doesn't quite matter, since the
++		// program is about to die, but better to be clean.
++		mach_semrelease_errno = r;
++		fn = mach_semrelease_fail;
++		if(g == g->m->curg)
++			runtime·onM(&fn);
++		else
++			fn();
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/os_nacl.c b/src/pkg/runtime/os_nacl.c
+index b3e0fc6636..f859dd0d35 100644
+--- a/src/pkg/runtime/os_nacl.c
++++ b/src/pkg/runtime/os_nacl.c
+@@ -196,12 +196,6 @@ runtime·semawakeup(M *mp)
+ 	runtime·nacl_mutex_unlock(mp->waitsemalock);
+ }
+ 
+-void
+-os·sigpipe(void)
+-{
+-	runtime·throw("too many writes on closed pipe");
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+diff --git a/src/pkg/runtime/os_nacl.go b/src/pkg/runtime/os_nacl.go
+index 2ab51b8b1d..12a15aea0d 100644
+--- a/src/pkg/runtime/os_nacl.go
++++ b/src/pkg/runtime/os_nacl.go
+@@ -24,3 +24,7 @@ func nacl_thread_create(fn, stk, tls, xx unsafe.Pointer) int32
+ func nacl_nanosleep(ts, extra unsafe.Pointer) int32
+ 
+ const stackSystem = 0
++
++func os_sigpipe() {
++	gothrow("too many writes on closed pipe")
++}
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 172fd92285..0e53d8a31c 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -588,12 +588,6 @@ runtime·resetcpuprofiler(int32 hz)
+ 	runtime·atomicstore((uint32*)&g->m->profilehz, hz);
+ }
+ 
+-void
+-os·sigpipe(void)
+-{
+-	runtime·throw("too many writes on closed pipe");
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+diff --git a/src/pkg/runtime/os_windows.go b/src/pkg/runtime/os_windows.go
+index 57bd431f78..15957b3290 100644
+--- a/src/pkg/runtime/os_windows.go
++++ b/src/pkg/runtime/os_windows.go
+@@ -23,3 +23,7 @@ func setlasterror(err uint32)
+ func usleep1(usec uint32)
+ 
+ const stackSystem = 512 * ptrSize
++
++func os_sigpipe() {
++	gothrow("too many writes on closed pipe")
++}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index dfbc6142d6..3e7b07c2c5 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -761,10 +761,7 @@ runtime·stoptheworld(void)
+ 	// that is blocked trying to acquire the lock.
+ 	if(g->m->locks > 0)
+ 		runtime·throw("stoptheworld: holding locks");
+-	// There is no evidence that stoptheworld on g0 does not work,
+-	// we just don't do it today.
+-	if(g == g->m->g0)
+-		runtime·throw("stoptheworld: on g0");
++
+ 	runtime·lock(&runtime·sched.lock);
+ 	runtime·sched.stopwait = runtime·gomaxprocs;
+ 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
+@@ -2085,42 +2082,65 @@ exitsyscall0(G *gp)
+ 	schedule();  // Never returns.
+ }
+ 
+-// Called from syscall package before fork.
+-#pragma textflag NOSPLIT
+-void
+-syscall·runtime_BeforeFork(void)
++static void
++beforefork(void)
+ {
++	G *gp;
++	
++	gp = g->m->curg;
+ 	// Fork can hang if preempted with signals frequently enough (see issue 5517).
+ 	// Ensure that we stay on the same M where we disable profiling.
+-	g->m->locks++;
+-	if(g->m->profilehz != 0)
++	gp->m->locks++;
++	if(gp->m->profilehz != 0)
+ 		runtime·resetcpuprofiler(0);
+ 
+ 	// This function is called before fork in syscall package.
+ 	// Code between fork and exec must not allocate memory nor even try to grow stack.
+ 	// Here we spoil g->stackguard to reliably detect any attempts to grow stack.
+ 	// runtime_AfterFork will undo this in parent process, but not in child.
+-	g->m->forkstackguard = g->stackguard;
+-	g->stackguard0 = StackPreempt-1;
+-	g->stackguard = StackPreempt-1;
++	gp->m->forkstackguard = gp->stackguard;
++	gp->stackguard0 = StackPreempt-1;
++	gp->stackguard = StackPreempt-1;
+ }
+ 
+-// Called from syscall package after fork in parent.
++// Called from syscall package before fork.
+ #pragma textflag NOSPLIT
+ void
+-syscall·runtime_AfterFork(void)
++syscall·runtime_BeforeFork(void)
+ {
+-	int32 hz;
++	void (*fn)(void);
++	
++	fn = beforefork;
++	runtime·onM(&fn);
++}
+ 
++static void
++afterfork(void)
++{
++	int32 hz;
++	G *gp;
++	
++	gp = g->m->curg;
+ 	// See the comment in runtime_BeforeFork.
+-	g->stackguard0 = g->m->forkstackguard;
+-	g->stackguard = g->m->forkstackguard;
+-	g->m->forkstackguard = 0;
++	gp->stackguard0 = gp->m->forkstackguard;
++	gp->stackguard = gp->m->forkstackguard;
++	gp->m->forkstackguard = 0;
+ 
+ 	hz = runtime·sched.profilehz;
+ 	if(hz != 0)
+ 		runtime·resetcpuprofiler(hz);
+-	g->m->locks--;
++	gp->m->locks--;
++}
++
++// Called from syscall package after fork in parent.
++#pragma textflag NOSPLIT
++void
++syscall·runtime_AfterFork(void)
++{
++	void (*fn)(void);
++	
++	fn = afterfork;
++	runtime·onM(&fn);
+ }
+ 
+ // Hook used by runtime·malg to call runtime·stackalloc on the
+@@ -2453,10 +2473,13 @@ runtime·Breakpoint(void)
+ 
+ // Implementation of runtime.GOMAXPROCS.
+ // delete when scheduler is even stronger
+-int32
+-runtime·gomaxprocsfunc(int32 n)
++void
++runtime·gomaxprocs_m(void)
+ {
+-	int32 ret;
++	int32 n, ret;
++	
++	n = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
+ 
+ 	if(n > MaxGomaxprocs)
+ 		n = MaxGomaxprocs;
+@@ -2464,7 +2487,8 @@ runtime·gomaxprocsfunc(int32 n)
+ 	ret = runtime·gomaxprocs;
+ 	if(n <= 0 || n == ret) {
+ 		runtime·unlock(&runtime·sched.lock);
+-		return ret;
++		g->m->scalararg[0] = ret;
++		return;
+ 	}
+ 	runtime·unlock(&runtime·sched.lock);
+ 
+@@ -2476,7 +2500,8 @@ runtime·gomaxprocsfunc(int32 n)
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
+ 
+-	return ret;
++	g->m->scalararg[0] = ret;
++	return;
+ }
+ 
+ // lockOSThread is called by runtime.LockOSThread and runtime.lockOSThread below
+@@ -2540,6 +2565,7 @@ runtime·lockedOSThread(void)
+ 	return g->lockedm != nil && g->m->lockedg != nil;
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·gcount(void)
+ {
+@@ -2737,8 +2763,13 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 
+ // Arrange to call fn with a traceback hz times a second.
+ void
+-runtime·setcpuprofilerate(int32 hz)
++runtime·setcpuprofilerate_m(void)
+ {
++	int32 hz;
++	
++	hz = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
++
+ 	// Force sane arguments.
+ 	if(hz < 0)
+ 		hz = 0;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index b0adfb601b..751181274a 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -20,6 +20,7 @@ static uint32 traceback_cache = 2<<1;
+ //	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
+ //	GOTRACEBACK=2   show tracebacks including runtime frames
+ //	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
++#pragma textflag NOSPLIT
+ int32
+ runtime·gotraceback(bool *crash)
+ {
+@@ -266,37 +267,6 @@ runtime·check(void)
+ 		runtime·throw("FixedStack is not power-of-2");
+ }
+ 
+-static Mutex ticksLock;
+-static int64 ticks;
+-
+-// Note: Called by runtime/pprof in addition to runtime code.
+-int64
+-runtime·tickspersecond(void)
+-{
+-	int64 res, t0, t1, c0, c1;
+-
+-	res = (int64)runtime·atomicload64((uint64*)&ticks);
+-	if(res != 0)
+-		return ticks;
+-	runtime·lock(&ticksLock);
+-	res = ticks;
+-	if(res == 0) {
+-		t0 = runtime·nanotime();
+-		c0 = runtime·cputicks();
+-		runtime·usleep(100*1000);
+-		t1 = runtime·nanotime();
+-		c1 = runtime·cputicks();
+-		if(t1 == t0)
+-			t1++;
+-		res = (c1-c0)*1000*1000*1000/(t1-t0);
+-		if(res == 0)
+-			res++;
+-		runtime·atomicstore64((uint64*)&ticks, res);
+-	}
+-	runtime·unlock(&ticksLock);
+-	return res;
+-}
+-
+ #pragma dataflag NOPTR
+ DebugVars	runtime·debug;
+ 
+diff --git a/src/pkg/runtime/runtime.go b/src/pkg/runtime/runtime.go
+new file mode 100644
+index 0000000000..d5b31559a2
+--- /dev/null
++++ b/src/pkg/runtime/runtime.go
+@@ -0,0 +1,37 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++var ticks struct {
++	lock mutex
++	val  uint64
++}
++
++// Note: Called by runtime/pprof in addition to runtime code.
++func tickspersecond() int64 {
++	r := int64(atomicload64(&ticks.val))
++	if r != 0 {
++		return r
++	}
++	lock(&ticks.lock)
++	r = int64(ticks.val)
++	if r == 0 {
++		t0 := nanotime()
++		c0 := cputicks()
++		usleep(100 * 1000)
++		t1 := nanotime()
++		c1 := cputicks()
++		if t1 == t0 {
++			t1++
++		}
++		r = (c1 - c0) * 1000 * 1000 * 1000 / (t1 - t0)
++		if r == 0 {
++			r++
++		}
++		atomicstore64(&ticks.val, uint64(r))
++	}
++	unlock(&ticks.lock)
++	return r
++}
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 4d582d3f8c..0e33ece494 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -93,7 +93,7 @@ runtime·resetcpuprofiler(int32 hz)
+ }
+ 
+ void
+-os·sigpipe(void)
++runtime·sigpipe(void)
+ {
+ 	runtime·setsig(SIGPIPE, SIG_DFL, false);
+ 	runtime·raise(SIGPIPE);
+diff --git a/src/pkg/runtime/signal_unix.go b/src/pkg/runtime/signal_unix.go
+new file mode 100644
+index 0000000000..ba77b6e7be
+--- /dev/null
++++ b/src/pkg/runtime/signal_unix.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package runtime
++
++func sigpipe()
++
++func os_sigpipe() {
++	onM(sigpipe)
++}
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index b3dcbd12a0..a822d73db4 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -341,3 +341,12 @@ func TestStackOutput(t *testing.T) {
+ 		t.Errorf("Stack output should begin with \"goroutine \"")
+ 	}
+ }
++
++func TestStackAllOutput(t *testing.T) {
++	b := make([]byte, 1024)
++	stk := string(b[:Stack(b, true)])
++	if !strings.HasPrefix(stk, "goroutine ") {
++		t.Errorf("Stack (len %d):\n%s", len(stk), stk)
++		t.Errorf("Stack output should begin with \"goroutine \"")
++	}
++}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 287b3df05d..3719c7501c 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -202,7 +202,6 @@ func reflectcall(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+ func procyield(cycles uint32)
+ func osyield()
+ func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+-func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
+ func readgogc() int32
+ func purgecachedstats(c *mcache)
+ func gostringnocopy(b *byte) string
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 048b7a7236..0b5963e70a 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -118,3 +118,6 @@ TEXT reflect·makechan(SB),NOSPLIT,$0-0
+ 
+ TEXT reflect·rselect(SB), NOSPLIT, $0-0
+ 	JMP	runtime·reflect_rselect(SB)
++
++TEXT os·sigpipe(SB), NOSPLIT, $0-0
++	JMP	runtime·os_sigpipe(SB)

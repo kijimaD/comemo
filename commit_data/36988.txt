@@ -19,6 +19,27 @@ Date:   Wed Jun 13 20:48:26 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/proto_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index baa23e9330..4a47111e57 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -240,13 +240,13 @@ func TestMapping(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 	testenv.MustHaveCGO(t)
+ 
+-	prog := "./testdata/mappingtest"
++	prog := "./testdata/mappingtest/main.go"
+ 
+ 	// GoOnly includes only Go symbols that runtime will symbolize.
+ 	// Go+C includes C symbols that runtime will not symbolize.
+ 	for _, traceback := range []string{"GoOnly", "Go+C"} {
+ 		t.Run("traceback"+traceback, func(t *testing.T) {
+-			cmd := exec.Command("go", "run", prog)
++			cmd := exec.Command(testenv.GoToolPath(t), "run", prog)
+ 			if traceback != "GoOnly" {
+ 				cmd.Env = append(os.Environ(), "SETCGOTRACEBACK=1")
+ 			}

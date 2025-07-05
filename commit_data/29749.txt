@@ -13,7 +13,97 @@ Date:   Mon Mar 28 17:15:01 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go      | 39 +++++++++++++++++++++++++++------------
  src/encoding/json/tagkey_test.go |  5 +++++
  2 files changed, 32 insertions(+), 12 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 6e43a9d48b..667df31ce3 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -57,19 +57,26 @@ import (
+ // []byte encodes as a base64-encoded string, and a nil slice
+ // encodes as the null JSON value.
+ //
+-// Struct values encode as JSON objects. Each exported struct field
+-// becomes a member of the object unless
+-//   - the field's tag is "-", or
+-//   - the field is empty and its tag specifies the "omitempty" option.
+-// The empty values are false, 0, any
+-// nil pointer or interface value, and any array, slice, map, or string of
+-// length zero. The object's default key string is the struct field name
+-// but can be specified in the struct field's tag value. The "json" key in
+-// the struct field's tag value is the key name, followed by an optional comma
+-// and options. Examples:
++// Struct values encode as JSON objects.
++// Each exported struct field becomes a member of the object, using the
++// field name as the object key, unless the field is omitted for one of the
++// reasons given below.
+ //
+-//   // Field is ignored by this package.
+-//   Field int `json:"-"`
++// The encoding of each struct field can be customized by the format string
++// stored under the "json" key in the struct field's tag.
++// The format string gives the name of the field, possibly followed by a
++// comma-separated list of options. The name may be empty in order to
++// specify options without overriding the default field name.
++//
++// The "omitempty" option specifies that the field should be omitted
++// from the encoding if the field has an empty value, defined as
++// false, 0, a nil pointer, a nil interface value, and any empty array,
++// slice, map, or string.
++//
++// As a special case, if the field tag is "-", the field is always omitted.
++// Note that a field with name "-" can still be generated using the tag "-,".
++//
++// Examples of struct field tags and their meanings:
+ //
+ //   // Field appears in JSON as key "myName".
+ //   Field int `json:"myName"`
+@@ -84,6 +91,12 @@ import (
+ //   // Note the leading comma.
+ //   Field int `json:",omitempty"`
+ //
++//   // Field is ignored by this package.
++//   Field int `json:"-"`
++//
++//   // Field appears in JSON as key "-".
++//   Field int `json:"-,"`
++//
+ // The "string" option signals that a field is stored as JSON inside a
+ // JSON-encoded string. It applies only to fields of string, floating point,
+ // integer, or boolean types. This extra level of encoding is sometimes used
+@@ -111,7 +124,9 @@ import (
+ //
+ // 1) Of those fields, if any are JSON-tagged, only tagged fields are considered,
+ // even if there are multiple untagged fields that would otherwise conflict.
++//
+ // 2) If there is exactly one field (tagged or not according to the first rule), that is selected.
++//
+ // 3) Otherwise there are multiple fields, and all are ignored; no error occurs.
+ //
+ // Handling of anonymous struct fields is new in Go 1.1.
+diff --git a/src/encoding/json/tagkey_test.go b/src/encoding/json/tagkey_test.go
+index c1739ea97f..f77c49c764 100644
+--- a/src/encoding/json/tagkey_test.go
++++ b/src/encoding/json/tagkey_test.go
+@@ -44,6 +44,10 @@ type punctuationTag struct {
+ 	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // https://golang.org/issue/3546
+ }
+ 
++type dashTag struct {
++	V string `json:"-,"`
++}
++
+ type emptyTag struct {
+ 	W string
+ }
+@@ -80,6 +84,7 @@ var structTagObjectKeyTests = []struct {
+ 	{basicLatin6xTag{"6x"}, "6x", "abcdefghijklmno"},
+ 	{basicLatin7xTag{"7x"}, "7x", "pqrstuvwxyz"},
+ 	{miscPlaneTag{"いろはにほへと"}, "いろはにほへと", "色は匂へど"},
++	{dashTag{"foo"}, "foo", "-"},
+ 	{emptyTag{"Pour Moi"}, "Pour Moi", "W"},
+ 	{misnamedTag{"Animal Kingdom"}, "Animal Kingdom", "X"},
+ 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},

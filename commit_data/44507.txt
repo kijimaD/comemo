@@ -21,7 +21,61 @@ Date:   Mon Jul 27 11:36:41 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 13 +++++++++++++
  src/cmd/link/internal/ld/lib.go    | 11 -----------
  2 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index f8dabbe7a0..5e0893784b 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -462,6 +462,7 @@ func TestTrivialExecutable(t *testing.T) {
+ 	run(t, "trivial executable", "../../bin/trivial")
+ 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
+ 	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
++	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
+ }
+ 
+ // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
+@@ -470,6 +471,18 @@ func TestTrivialExecutablePIE(t *testing.T) {
+ 	run(t, "trivial executable", "./trivial.pie")
+ 	AssertIsLinkedTo(t, "./trivial.pie", soname)
+ 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
++	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
++}
++
++// Check that the file size does not exceed a limit.
++func checkSize(t *testing.T, f string, limit int64) {
++	fi, err := os.Stat(f)
++	if err != nil {
++		t.Fatalf("stat failed: %v", err)
++	}
++	if sz := fi.Size(); sz > limit {
++		t.Errorf("file too large: got %d, want <= %d", sz, limit)
++	}
+ }
+ 
+ // Build a division test program and check it runs.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b0a9613e4f..0366bc7a6f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2191,17 +2191,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
+ 		su.SetSize(int64(elfsym.Size))
+ 		if elfsym.Section != elf.SHN_UNDEF {
+-			// If it's not undefined, mark the symbol as reachable
+-			// so as to protect it from dead code elimination,
+-			// even if there aren't any explicit references to it.
+-			// Under the previous sym.Symbol based regime this
+-			// wasn't necessary, but for the loader-based deadcode
+-			// it is definitely needed.
+-			//
+-			// FIXME: have a more general/flexible mechanism for this?
+-			//
+-			l.SetAttrReachable(s, true)
+-
+ 			// Set .File for the library that actually defines the symbol.
+ 			l.SetSymPkg(s, libpath)
+ 

@@ -13,7 +13,34 @@ Date:   Tue Jun 19 16:55:19 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue9400/gccgo.go | 2 ++
  misc/cgo/test/issue9400/stubs.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/misc/cgo/test/issue9400/gccgo.go b/misc/cgo/test/issue9400/gccgo.go
+index 0ef3a8cacf..a9b62b07a0 100644
+--- a/misc/cgo/test/issue9400/gccgo.go
++++ b/misc/cgo/test/issue9400/gccgo.go
+@@ -16,6 +16,8 @@ import (
+ // without writing more assembly code, which we haven't bothered to
+ // do.  So this is not much of a test.
+ 
++var Baton int32
++
+ func RewindAndSetgid() {
+ 	atomic.StoreInt32(&Baton, 1)
+ 	for atomic.LoadInt32(&Baton) != 0 {
+diff --git a/misc/cgo/test/issue9400/stubs.go b/misc/cgo/test/issue9400/stubs.go
+index 60193dc411..e431c5a28a 100644
+--- a/misc/cgo/test/issue9400/stubs.go
++++ b/misc/cgo/test/issue9400/stubs.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build gc
++
+ package issue9400
+ 
+ var Baton int32

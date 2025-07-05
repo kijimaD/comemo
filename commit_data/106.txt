@@ -8,7 +8,7 @@ Date:   Fri Jun 6 15:53:14 2008 -0700
     - fixed a couple of bugs in go.atg
     
     SVN=121520
-
+---
  doc/go_lang.txt | 14 ++++++++------
  test/func.go    |  4 ++--
  test/func1.go   | 16 ++++++++++++++++
@@ -18,3 +18,185 @@ Date:   Fri Jun 6 15:53:14 2008 -0700
  test/switch.go  |  2 +-
  test/switch1.go | 16 ++++++++++++++++
  8 files changed, 67 insertions(+), 10 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 3b908f1e02..c8597f56dd 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -4,7 +4,7 @@ The Go Programming Language (DRAFT)
+ Robert Griesemer, Rob Pike, Ken Thompson
+ 
+ ----
+-(May 14, 2008)
++(June 6, 2008)
+ 
+ This document is a semi-informal specification/proposal for a new
+ systems programming language.  The document is under active
+@@ -1563,17 +1563,19 @@ If statements
+ 
+ If statements have the traditional form except that the
+ condition need not be parenthesized and the "then" statement
+-must be in brace brackets.
++must be in brace brackets. The condition may be omitted in which
++case it is assumed to have the value "true".
+ 
+-  IfStat = "if" [ SimpleStat ";" ] Expression Block [ "else" Statement ] .
++  IfStat = "if" [ [ SimpleStat ";" ] Expression ] Block [ "else" Statement ] .
+ 
+   if x > 0 {
+     return true;
+   }
+-  
+-An if statement may include the declaration of a single temporary variable.
++
++An "if" statement may include the declaration of a single temporary variable.
+ The scope of the declared variable extends to the end of the if statement, and
+-the variable is initialized once before the statement is entered. 
++the variable is initialized once before the statement is entered. If a variable
++is declared, the condition cannot be omitted.
+ 
+   if x := f(); x < y {
+     return x;
+diff --git a/test/func.go b/test/func.go
+index 0bb551f45b..e5cb1e5512 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -36,12 +36,12 @@ func f6(a int) (r int) {
+ 	return 6;
+ }
+ 
+-func f7(a int) (int, float) {
++func f7(a int) (x int, y float) {
+ 	return 7, 7.0;
+ }
+ 
+ 
+-func f8(a int) (a int, b float) {
++func f8(a int) (x int, y float) {
+ 	return 8, 8.0;
+ }
+ 
+diff --git a/test/func1.go b/test/func1.go
+new file mode 100644
+index 0000000000..2f92c35b75
+--- /dev/null
++++ b/test/func1.go
+@@ -0,0 +1,16 @@
++// errchk $G $F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f1(a int) (int, float) {  // BUG multiple return values must have names
++	return 7, 7.0;
++}
++
++
++func f2(a int) (a int, b float) {  // BUG return value names must be different from parameter names
++	return 8, 8.0;
++}
+diff --git a/test/golden.out b/test/golden.out
+index 56105a57ce..cc611d402b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -23,6 +23,9 @@ main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
+ main_f4: doasm: notfound from=75 to=10 (24)    IDIVL   $2,AX
+ BUG: known to fail incorrectly
+ 
++=========== ./func1.go
++BUG: known to succeed incorrectly
++
+ =========== ./hashmap.go
+ hashmap.go:46: fatal error: optoas: no entry LSH-<uint32>UINT32
+ BUG: known to fail incorrectly
+@@ -32,6 +35,9 @@ hello, world
+ 
+ =========== ./if.go
+ 
++=========== ./if1.go
++BUG: known to succeed incorrectly
++
+ =========== ./int_lit.go
+ int_lit.go:5: syntax error
+ BUG: known to fail incorrectly
+@@ -52,6 +58,9 @@ BUG: known to fail incorrectly
+ 
+ =========== ./switch.go
+ 
++=========== ./switch1.go
++BUG: known to succeed incorrectly
++
+ =========== ./test0.go
+ test0.go:23: addtyp: renaming Point/<Point>{<x><int32>INT32;<y><int32>INT32;} to Point2/<Point2>FORW
+ test0.go:48: illegal types for operand
+diff --git a/test/if.go b/test/if.go
+index 2018f7018c..beb7d6b0fb 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -50,7 +50,7 @@ func main() {
+ 	assertequal(count, 1, "if empty");
+ 
+ 	count = 0;
+-	if one := 1; {
++	if one := 1; true {
+ 		count = count + one;	
+ 	}
+ 	assertequal(count, 1, "if empty one");
+diff --git a/test/if1.go b/test/if1.go
+new file mode 100644
+index 0000000000..67a58cd802
+--- /dev/null
++++ b/test/if1.go
+@@ -0,0 +1,14 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	count := 0;
++	if one := 1; {  // BUG if there is a simple stat, the condition must be present
++		count = count + one;	
++	}
++}
+diff --git a/test/switch.go b/test/switch.go
+index 1184230db2..602265631e 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -35,7 +35,7 @@ func main() {
+ 	case i5 > x: assert(false, ">");
+ 	}
+ 
+-	switch x := 5; {  // BUG?: true should not be necessary but now made mandatory in go_lang.txt
++	switch x := 5; true {
+ 	case i5 < x: assert(false, "<");
+ 	case i5 == x: assert(true, "!");
+ 	case i5 > x: assert(false, ">");
+diff --git a/test/switch1.go b/test/switch1.go
+new file mode 100644
+index 0000000000..f2f006f9b6
+--- /dev/null
++++ b/test/switch1.go
+@@ -0,0 +1,16 @@
++// $G $F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++  i := 0;
++	switch x := 5; {  // BUG if there is a simple stat, the condition must be present
++	case i < x:
++	case i == x:
++	case i > x:
++	}
++}

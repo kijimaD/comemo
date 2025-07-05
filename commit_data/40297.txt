@@ -29,8 +29,144 @@ Date:   Fri Apr 26 20:38:49 2019 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go       | 33 +++++++++++++++++---
  .../script/mod_get_pseudo_other_branch.txt         | 31 +++++++++++++++++++
  .../go/testdata/script/mod_get_pseudo_prefix.txt   | 35 ++++++++++++++++++++++
  3 files changed, 95 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 5273e633b5..55627cb72a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -19,6 +19,7 @@ import (
+ 
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
++	"cmd/go/internal/semver"
+ )
+ 
+ // GitRepo returns the code repository at the given Git remote reference.
+@@ -652,16 +653,40 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 	}
+ 	rev = info.Name // expand hash prefixes
+ 
+-	// describe sets tag and err using 'git describe' and reports whether the
++	// describe sets tag and err using 'git for-each-ref' and reports whether the
+ 	// result is definitive.
+ 	describe := func() (definitive bool) {
+ 		var out []byte
+-		out, err = Run(r.dir, "git", "describe", "--first-parent", "--always", "--abbrev=0", "--match", prefix+"v[0-9]*.[0-9]*.[0-9]*", "--tags", rev)
++		out, err = Run(r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
+ 		if err != nil {
+-			return true // Because we use "--always", describe should never fail.
++			return true
++		}
++
++		// prefixed tags aren't valid semver tags so compare without prefix, but only tags with correct prefix
++		var highest string
++		for _, line := range strings.Split(string(out), "\n") {
++			line = strings.TrimSpace(line)
++			// git do support lstrip in for-each-ref format, but it was added in v2.13.0. Stripping here
++			// instead gives support for git v2.7.0.
++			if !strings.HasPrefix(line, "refs/tags/") {
++				continue
++			}
++			line = line[len("refs/tags/"):]
++
++			if !strings.HasPrefix(line, prefix) {
++				continue
++			}
++
++			semtag := line[len(prefix):]
++			if semver.IsValid(semtag) {
++				highest = semver.Max(highest, semtag)
++			}
++		}
++
++		if highest != "" {
++			tag = prefix + highest
+ 		}
+ 
+-		tag = string(bytes.TrimSpace(out))
+ 		return tag != "" && !AllHex(tag)
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt b/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
+new file mode 100644
+index 0000000000..fa1398e545
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
+@@ -0,0 +1,31 @@
++env GO111MODULE=on
++env GOPROXY=
++
++# TODO(jayconrod): get test repo onto vcs-test.golang.org
++
++# Testing that a pseudo-version is based on the semantically-latest
++# tag that appears in any commit that is a (transitive) parent of the commit
++# supplied to 'go get', regardless of branches
++
++[!net] skip
++[!exec:git] skip
++
++# For this test repository:
++#  tag v0.2.1 is most recent tag on master itself
++#  tag v0.2.2 is on branch2, which was then merged to master
++#  commit 5aaa858 is on master at a later point
++#
++# The pseudo-version hence sorts immediately after v0.2.2 rather
++# than v0.2.1, even though the v0.2.2 tag is not on master.
++go get -m github.com/leitzler/tagtests@5aaa858
++go list -m all
++stdout '^github.com/leitzler/tagtests v0.2.3-0.20190424071028-5aaa858a59e2$'
++
++-- go.mod --
++module x
++
++go 1.12
++-- x.go --
++package x
++
++import _ "github.com/leitzler/tagtests"
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt b/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
+new file mode 100644
+index 0000000000..f46444e836
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
+@@ -0,0 +1,35 @@
++env GO111MODULE=on
++env GOPROXY=
++
++# TODO(jayconrod): get test repo onto vcs-test.golang.org
++
++# Testing that a pseudo-version is based on the semantically-latest
++# prefixed tag in any commit that is a parent of the commit supplied
++# to 'go get', when using a repo with go.mod in a sub directory.
++
++[!net] skip
++[!exec:git] skip
++
++# For this test repository go.mod resides in sub/ (only):
++#  master (372cb6e) is not tagged
++#  tag v0.2.0 is most recent tag before master
++#  tag sub/v0.0.10 is most recent tag before v0.2.0
++#
++# The pseudo-version is based on sub/v0.0.10, since v0.2.0 doesn't
++# contain the prefix.
++go get -m github.com/leitzler/prefixtagtests/sub
++go list -m all
++stdout '^github.com/leitzler/prefixtagtests/sub v0.0.10$'
++
++go get -u -m github.com/leitzler/prefixtagtests/sub@372cb6e
++go list -m all
++stdout '^github.com/leitzler/prefixtagtests/sub v0.0.11-0.20190427183112-372cb6ea3fb5$'
++
++-- go.mod --
++module x
++
++go 1.12
++-- x.go --
++package x
++
++import _ "github.com/leitzler/prefixtagtests/sub"

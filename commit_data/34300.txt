@@ -15,9 +15,78 @@ Date:   Sat Oct 14 08:46:50 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/sys_darwin_arm.s  | 4 ++--
  src/runtime/sys_freebsd_arm.s | 4 ++--
  src/runtime/sys_netbsd_arm.s  | 4 ++--
  src/runtime/sys_openbsd_arm.s | 4 ++--
  4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 02b8d25c39..8a7de43ea3 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -107,10 +107,10 @@ TEXT exit1<>(SB),NOSPLIT,$0
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW	wait+0(FP), R0
+ 	// We're done using the stack.
+-	MOVW	$0, R1
++	MOVW	$0, R2
+ storeloop:
+ 	LDREX	(R0), R4          // loads R4
+-	STREX	R1, (R0), R1      // stores R2
++	STREX	R2, (R0), R1      // stores R2
+ 	CMP	$0, R1
+ 	BNE	storeloop
+ 	JMP	exit1<>(SB)
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 0121e62309..7bc4fea124 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -86,10 +86,10 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW	wait+0(FP), R0
+ 	// We're done using the stack.
+-	MOVW	$0, R1
++	MOVW	$0, R2
+ storeloop:
+ 	LDREX	(R0), R4          // loads R4
+-	STREX	R1, (R0), R1      // stores R2
++	STREX	R2, (R0), R1      // stores R2
+ 	CMP	$0, R1
+ 	BNE	storeloop
+ 	MOVW	$0, R0		// arg 1 long *state
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index aa29a31559..b346a7f9b1 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -22,10 +22,10 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW wait+0(FP), R0
+ 	// We're done using the stack.
+-	MOVW $0, R1
++	MOVW $0, R2
+ storeloop:
+ 	LDREX (R0), R4          // loads R4
+-	STREX R1, (R0), R1      // stores R2
++	STREX R2, (R0), R1      // stores R2
+ 	CMP $0, R1
+ 	BNE storeloop
+ 	SWI $0xa00136	// sys__lwp_exit
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index c6e9e4ec17..0b77d121f4 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -26,10 +26,10 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVW	wait+0(FP), R0
+ 	// We're done using the stack.
+-	MOVW	$0, R1
++	MOVW	$0, R2
+ storeloop:
+ 	LDREX	(R0), R4          // loads R4
+-	STREX	R1, (R0), R1      // stores R2
++	STREX	R2, (R0), R1      // stores R2
+ 	CMP	$0, R1
+ 	BNE	storeloop
+ 	MOVW	$0, R0			// arg 1 - notdead

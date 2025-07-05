@@ -8,6 +8,20 @@ Date:   Thu Feb 28 15:52:58 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7444047
-
+---
  doc/articles/image_package.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/image_package.html b/doc/articles/image_package.html
+index 24601b5749..ebe92a1ca9 100644
+--- a/doc/articles/image_package.html
++++ b/doc/articles/image_package.html
+@@ -194,7 +194,7 @@ way to iterate over an <code>Image</code> m's pixels looks like:
+ <pre>
+ b := m.Bounds()
+ for y := b.Min.Y; y &lt; b.Max.Y; y++ {
+-	for x := b.Min.X; y &lt; b.Max.X; x++ {
++	for x := b.Min.X; x &lt; b.Max.X; x++ {
+ 		doStuffWith(m.At(x, y))
+ 	}
+ }

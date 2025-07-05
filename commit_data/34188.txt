@@ -13,8 +13,96 @@ Date:   Mon Oct 9 10:54:22 2017 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mcache.go   |  3 +--
  src/runtime/mgclarge.go |  4 +---
  src/runtime/proc.go     | 12 +++++-------
  3 files changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 96fb273337..6c24650dac 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -104,7 +104,7 @@ func freemcache(c *mcache) {
+ 
+ // Gets a span that has a free object in it and assigns it
+ // to be the cached span for the given sizeclass. Returns this span.
+-func (c *mcache) refill(spc spanClass) *mspan {
++func (c *mcache) refill(spc spanClass) {
+ 	_g_ := getg()
+ 
+ 	_g_.m.locks++
+@@ -131,7 +131,6 @@ func (c *mcache) refill(spc spanClass) *mspan {
+ 
+ 	c.alloc[spc] = s
+ 	_g_.m.locks--
+-	return s
+ }
+ 
+ func (c *mcache) releaseAll() {
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index 757e88d1d9..fe437bf5e8 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -164,11 +164,10 @@ func (root *mTreap) insert(span *mspan) {
+ 	}
+ }
+ 
+-func (root *mTreap) removeNode(t *treapNode) *mspan {
++func (root *mTreap) removeNode(t *treapNode) {
+ 	if t.spanKey.npages != t.npagesKey {
+ 		throw("span and treap node npages do not match")
+ 	}
+-	result := t.spanKey
+ 
+ 	// Rotate t down to be leaf of tree for removal, respecting priorities.
+ 	for t.right != nil || t.left != nil {
+@@ -192,7 +191,6 @@ func (root *mTreap) removeNode(t *treapNode) *mspan {
+ 	t.spanKey = nil
+ 	t.npagesKey = 0
+ 	mheap_.treapalloc.free(unsafe.Pointer(t))
+-	return result
+ }
+ 
+ // remove searches for, finds, removes from the treap, and returns the smallest
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c24589fd4f..d83177fc1f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2936,15 +2936,14 @@ func newproc(siz int32, fn *funcval) {
+ 	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
+ 	pc := getcallerpc()
+ 	systemstack(func() {
+-		newproc1(fn, (*uint8)(argp), siz, 0, pc)
++		newproc1(fn, (*uint8)(argp), siz, pc)
+ 	})
+ }
+ 
+ // Create a new g running fn with narg bytes of arguments starting
+-// at argp and returning nret bytes of results.  callerpc is the
+-// address of the go statement that created this. The new g is put
+-// on the queue of g's waiting to run.
+-func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr) *g {
++// at argp. callerpc is the address of the go statement that created
++// this. The new g is put on the queue of g's waiting to run.
++func newproc1(fn *funcval, argp *uint8, narg int32, callerpc uintptr) {
+ 	_g_ := getg()
+ 
+ 	if fn == nil {
+@@ -2952,7 +2951,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 		throw("go of nil func value")
+ 	}
+ 	_g_.m.locks++ // disable preemption because it can be holding p in a local var
+-	siz := narg + nret
++	siz := narg
+ 	siz = (siz + 7) &^ 7
+ 
+ 	// We could allocate a larger initial stack if necessary.
+@@ -3047,7 +3046,6 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	if _g_.m.locks == 0 && _g_.preempt { // restore the preemption request in case we've cleared it in newstack
+ 		_g_.stackguard0 = stackPreempt
+ 	}
+-	return newg
+ }
+ 
+ // Put on gfree list.

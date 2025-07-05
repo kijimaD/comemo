@@ -19,7 +19,90 @@ Date:   Sun Sep 11 16:55:34 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 26 +++++---------------------
  src/runtime/mgcmark.go |  5 +++++
  2 files changed, 10 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index ee86c5a4fe..682790587b 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1146,11 +1146,6 @@ top:
+ 		// this before waking blocked assists.
+ 		atomic.Store(&gcBlackenEnabled, 0)
+ 
+-		// Flush the gcWork caches. This must be done before
+-		// endCycle since endCycle depends on statistics kept
+-		// in these caches.
+-		gcFlushGCWork()
+-
+ 		// Wake all blocked assists. These will run when we
+ 		// start the world again.
+ 		gcWakeAllAssists()
+@@ -1160,6 +1155,8 @@ top:
+ 		// world again.
+ 		semrelease(&work.markDoneSema)
+ 
++		// endCycle depends on all gcWork cache stats being
++		// flushed. This is ensured by mark 2.
+ 		gcController.endCycle()
+ 
+ 		// Perform mark termination. This will restart the world.
+@@ -1540,18 +1537,8 @@ func gcMarkWorkAvailable(p *p) bool {
+ 	return false
+ }
+ 
+-// gcFlushGCWork disposes the gcWork caches of all Ps. The world must
+-// be stopped.
+-//go:nowritebarrier
+-func gcFlushGCWork() {
+-	// Gather all cached GC work. All other Ps are stopped, so
+-	// it's safe to manipulate their GC work caches.
+-	for i := 0; i < int(gomaxprocs); i++ {
+-		allp[i].gcw.dispose()
+-	}
+-}
+-
+ // gcMark runs the mark (or, for concurrent GC, mark termination)
++// All gcWork caches must be empty.
+ // STW is in effect at this point.
+ //TODO go:nowritebarrier
+ func gcMark(start_time int64) {
+@@ -1566,11 +1553,6 @@ func gcMark(start_time int64) {
+ 
+ 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
+ 
+-	// Make sure the per-P gcWork caches are empty. During mark
+-	// termination, these caches can still be used temporarily,
+-	// but must be disposed to the global lists immediately.
+-	gcFlushGCWork()
+-
+ 	// Queue root marking jobs.
+ 	gcMarkRootPrepare()
+ 
+@@ -1609,6 +1591,8 @@ func gcMark(start_time int64) {
+ 	// Record that at least one root marking pass has completed.
+ 	work.markrootDone = true
+ 
++	// Double-check that all gcWork caches are empty. This should
++	// be ensured by mark 2 before we enter mark termination.
+ 	for i := 0; i < int(gomaxprocs); i++ {
+ 		gcw := &allp[i].gcw
+ 		if !gcw.empty() {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 5dd7c52b21..0cc87f8509 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1386,6 +1386,11 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
+ 	gcw := &getg().m.p.ptr().gcw
+ 	gcw.bytesMarked += uint64(size)
+ 	gcw.scanWork += int64(scanSize)
++	if gcBlackenPromptly {
++		// There shouldn't be anything in the work queue, but
++		// we still need to flush stats.
++		gcw.dispose()
++	}
+ }
+ 
+ // Checkmarking

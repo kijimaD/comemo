@@ -9,7 +9,32 @@ Date:   Mon Jan 7 09:43:53 2013 +1100
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7070046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c9414f55c5..7ba1e9faed 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -48,6 +48,7 @@ Bobby Powers <bobbypowers@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
++Caleb Spare <cespare@gmail.com>
+ Carlos Castillo <cookieo9@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e47e417f40..3e13bb3ba3 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -88,6 +88,7 @@ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian Ketelsen <bketelsen@gmail.com>
+ Brian Slesinsky <skybrian@google.com>
+ Caine Tighe <arctanofyourface@gmail.com>
++Caleb Spare <cespare@gmail.com>
+ Carl Mastrangelo <notcarl@google.com>
+ Carlos Castillo <cookieo9@gmail.com>
+ Cary Hull <chull@google.com>

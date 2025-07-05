@@ -7,9 +7,258 @@ Date:   Fri Jan 16 15:11:26 2015 -0800
     Change-Id: I4ce5cee63093d917095bf90f4e11123f7ec0f93c
     Reviewed-on: https://go-review.googlesource.com/2964
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/int.go      |  2 +-
  src/math/big/int_test.go | 40 ++++++++++++++++++++++++++++++++
  src/math/big/nat.go      | 18 ++++++++++-----
  src/math/big/nat_test.go | 60 +++++++++++++++++++++++++++++++++---------------
  4 files changed, 94 insertions(+), 26 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 3829770743..62a07d69a0 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -736,7 +736,7 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
+ 
+ // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
+ // If it returns true, x is prime with probability 1 - 1/4^n.
+-// If it returns false, x is not prime. n must be >0.
++// If it returns false, x is not prime. n must be > 0.
+ func (x *Int) ProbablyPrime(n int) bool {
+ 	if n <= 0 {
+ 		panic("non-positive n for ProbablyPrime")
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 520fcb31d5..a698e2de2d 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -621,6 +621,44 @@ func TestDivisionSigns(t *testing.T) {
+ 	}
+ }
+ 
++var bitTests = []nat{
++	nil,
++	{0},
++	{1},
++	{0, 1, 2, 3, 4},
++	{4, 3, 2, 1, 0},
++	{4, 3, 2, 1, 0, 0, 0, 0},
++}
++
++func norm(x nat) nat {
++	i := len(x)
++	for i > 0 && x[i-1] == 0 {
++		i--
++	}
++	return x[:i]
++}
++
++func TestBits(t *testing.T) {
++	for _, test := range bitTests {
++		var z Int
++		z.neg = true
++		got := z.SetBits(test)
++		want := norm(test)
++		if got.abs.cmp(want) != 0 {
++			t.Errorf("SetBits(%v) = %v; want %v", test, got.abs, want)
++		}
++
++		if got.neg {
++			t.Errorf("SetBits(%v): got negative result")
++		}
++
++		bits := nat(z.Bits())
++		if bits.cmp(want) != 0 {
++			t.Errorf("%v.Bits() = %v; want %v", z.abs, bits, want)
++		}
++	}
++}
++
+ func checkSetBytes(b []byte) bool {
+ 	hex1 := hex.EncodeToString(new(Int).SetBytes(b).Bytes())
+ 	hex2 := hex.EncodeToString(b)
+@@ -962,6 +1000,8 @@ var primes = []string{
+ }
+ 
+ var composites = []string{
++	"0",
++	"1",
+ 	"21284175091214687912771199898307297748211672914763848041968395774954376176754",
+ 	"6084766654921918907427900243509372380954290099172559290432744450051395395951",
+ 	"84594350493221918389213352992032324280367711247940675652888030554255915464401",
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 6e65ea1cb4..bf00b8858a 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -610,7 +610,7 @@ func (x nat) bitLen() int {
+ const MaxBase = 'z' - 'a' + 10 + 1 // = hexValue('z') + 1
+ 
+ func hexValue(ch rune) Word {
+-	d := int(MaxBase + 1) // illegal base
++	d := int(MaxBase + 1) // invalid base
+ 	switch {
+ 	case '0' <= ch && ch <= '9':
+ 		d = int(ch - '0')
+@@ -634,9 +634,9 @@ func hexValue(ch rune) Word {
+ // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
+ //
+ func (z nat) scan(r io.RuneScanner, base int) (nat, int, error) {
+-	// reject illegal bases
++	// reject invalid bases
+ 	if base < 0 || base == 1 || MaxBase < base {
+-		return z, 0, errors.New("illegal number base")
++		return z, 0, errors.New("invalid number base")
+ 	}
+ 
+ 	// one char look-ahead
+@@ -728,7 +728,13 @@ const (
+ // decimalString returns a decimal representation of x.
+ // It calls x.string with the charset "0123456789".
+ func (x nat) decimalString() string {
+-	return x.string(lowercaseDigits[0:10])
++	return x.string(lowercaseDigits[:10])
++}
++
++// hexString returns a hexadecimal representation of x.
++// It calls x.string with the charset "0123456789abcdef".
++func (x nat) hexString() string {
++	return x.string(lowercaseDigits[:16])
+ }
+ 
+ // string converts x to a string using digits from a charset; a digit with
+@@ -739,8 +745,8 @@ func (x nat) string(charset string) string {
+ 
+ 	// special cases
+ 	switch {
+-	case b < 2 || MaxBase > 256:
+-		panic("illegal base")
++	case b < 2 || b > 256:
++		panic("invalid character set length")
+ 	case len(x) == 0:
+ 		return string(charset[0])
+ 	}
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index 5d93df735d..acd265bd39 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -243,16 +243,28 @@ var strTests = []struct {
+ 	{nil, "01", "0"},
+ 	{nat{1}, "01", "1"},
+ 	{nat{0xc5}, "01", "11000101"},
+-	{nat{03271}, lowercaseDigits[0:8], "3271"},
+-	{nat{10}, lowercaseDigits[0:10], "10"},
+-	{nat{1234567890}, uppercaseDigits[0:10], "1234567890"},
+-	{nat{0xdeadbeef}, lowercaseDigits[0:16], "deadbeef"},
+-	{nat{0xdeadbeef}, uppercaseDigits[0:16], "DEADBEEF"},
+-	{nat{0x229be7}, lowercaseDigits[0:17], "1a2b3c"},
+-	{nat{0x309663e6}, uppercaseDigits[0:32], "O9COV6"},
++	{nat{03271}, lowercaseDigits[:8], "3271"},
++	{nat{10}, lowercaseDigits[:10], "10"},
++	{nat{1234567890}, uppercaseDigits[:10], "1234567890"},
++	{nat{0xdeadbeef}, lowercaseDigits[:16], "deadbeef"},
++	{nat{0xdeadbeef}, uppercaseDigits[:16], "DEADBEEF"},
++	{nat{0x229be7}, lowercaseDigits[:17], "1a2b3c"},
++	{nat{0x309663e6}, uppercaseDigits[:32], "O9COV6"},
+ }
+ 
+ func TestString(t *testing.T) {
++	// test invalid character set explicitly
++	var panicStr string
++	func() {
++		defer func() {
++			panicStr = recover().(string)
++		}()
++		natOne.string("0")
++	}()
++	if panicStr != "invalid character set length" {
++		t.Errorf("expected panic for invalid character set")
++	}
++
+ 	for _, a := range strTests {
+ 		s := a.x.string(a.c)
+ 		if s != a.s {
+@@ -474,8 +486,8 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
+ 	z = z.expWW(x, y)
+ 
+ 	var s string
+-	s = z.string(lowercaseDigits[0:base])
+-	if t := toString(z, lowercaseDigits[0:base]); t != s {
++	s = z.string(lowercaseDigits[:base])
++	if t := toString(z, lowercaseDigits[:base]); t != s {
+ 		b.Fatalf("scanning: got %s; want %s", s, t)
+ 	}
+ 	b.StartTimer()
+@@ -513,11 +525,11 @@ func StringHelper(b *testing.B, base int, x, y Word) {
+ 	b.StopTimer()
+ 	var z nat
+ 	z = z.expWW(x, y)
+-	z.string(lowercaseDigits[0:base]) // warm divisor cache
++	z.string(lowercaseDigits[:base]) // warm divisor cache
+ 	b.StartTimer()
+ 
+ 	for i := 0; i < b.N; i++ {
+-		_ = z.string(lowercaseDigits[0:base])
++		_ = z.string(lowercaseDigits[:base])
+ 	}
+ }
+ 
+@@ -551,12 +563,12 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
+ 	for d := 1; d <= 10000; d *= 10 {
+ 		b.StopTimer()
+ 		var z nat
+-		z = z.expWW(base, Word(d))            // build target number
+-		_ = z.string(lowercaseDigits[0:base]) // warm divisor cache
++		z = z.expWW(base, Word(d))           // build target number
++		_ = z.string(lowercaseDigits[:base]) // warm divisor cache
+ 		b.StartTimer()
+ 
+ 		for i := 0; i < b.N; i++ {
+-			_ = z.string(lowercaseDigits[0:base])
++			_ = z.string(lowercaseDigits[:base])
+ 		}
+ 	}
+ 
+@@ -581,8 +593,8 @@ func TestStringPowers(t *testing.T) {
+ 	for b = 2; b <= 16; b++ {
+ 		for p = 0; p <= 512; p++ {
+ 			x := nat(nil).expWW(b, p)
+-			xs := x.string(lowercaseDigits[0:b])
+-			xs2 := toString(x, lowercaseDigits[0:b])
++			xs := x.string(lowercaseDigits[:b])
++			xs2 := toString(x, lowercaseDigits[:b])
+ 			if xs != xs2 {
+ 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
+ 			}
+@@ -691,20 +703,30 @@ func TestModW(t *testing.T) {
+ }
+ 
+ func TestTrailingZeroBits(t *testing.T) {
++	// test 0 case explicitly
++	if n := trailingZeroBits(0); n != 0 {
++		t.Errorf("got trailingZeroBits(0) = %d; want 0", n)
++	}
++
+ 	x := Word(1)
+-	for i := uint(0); i <= _W; i++ {
++	for i := uint(0); i < _W; i++ {
+ 		n := trailingZeroBits(x)
+-		if n != i%_W {
++		if n != i {
+ 			t.Errorf("got trailingZeroBits(%#x) = %d; want %d", x, n, i%_W)
+ 		}
+ 		x <<= 1
+ 	}
+ 
++	// test 0 case explicitly
++	if n := nat(nil).trailingZeroBits(); n != 0 {
++		t.Errorf("got nat(nil).trailingZeroBits() = %d; want 0", n)
++	}
++
+ 	y := nat(nil).set(natOne)
+ 	for i := uint(0); i <= 3*_W; i++ {
+ 		n := y.trailingZeroBits()
+ 		if n != i {
+-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.string(lowercaseDigits[0:16]), n, i)
++			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.hexString(), n, i)
+ 		}
+ 		y = y.shl(y, 1)
+ 	}

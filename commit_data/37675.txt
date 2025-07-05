@@ -15,7 +15,7 @@ Date:   Tue Aug 21 07:54:04 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rand/rand.go                            |  2 +-
  src/crypto/rand/rand_batched.go                    | 42 ++++++++++++++++++
  .../{rand_linux_test.go => rand_batched_test.go}   |  2 +
@@ -24,3 +24,215 @@ Date:   Tue Aug 21 07:54:04 2018 +0000
  src/internal/syscall/unix/getrandom_freebsd.go     | 51 ++++++++++++++++++++++
  .../syscall/unix/getrandom_linux_generic.go        |  2 +-
  7 files changed, 106 insertions(+), 36 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index b8df8a3711..952d20aa16 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -11,7 +11,7 @@ import "io"
+ // Reader is a global, shared instance of a cryptographically
+ // secure random number generator.
+ //
+-// On Linux, Reader uses getrandom(2) if available, /dev/urandom otherwise.
++// On Linux and FreeBSD, Reader uses getrandom(2) if available, /dev/urandom otherwise.
+ // On OpenBSD, Reader uses getentropy(2).
+ // On other Unix-like systems, Reader reads from /dev/urandom.
+ // On Windows systems, Reader uses the CryptGenRandom API.
+diff --git a/src/crypto/rand/rand_batched.go b/src/crypto/rand/rand_batched.go
+new file mode 100644
+index 0000000000..60267fd4bc
+--- /dev/null
++++ b/src/crypto/rand/rand_batched.go
+@@ -0,0 +1,42 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux freebsd
++
++package rand
++
++import (
++	"internal/syscall/unix"
++)
++
++// maxGetRandomRead is platform dependent.
++func init() {
++	altGetRandom = batched(getRandomBatch, maxGetRandomRead)
++}
++
++// batched returns a function that calls f to populate a []byte by chunking it
++// into subslices of, at most, readMax bytes.
++func batched(f func([]byte) bool, readMax int) func([]byte) bool {
++	return func(buf []byte) bool {
++		for len(buf) > readMax {
++			if !f(buf[:readMax]) {
++				return false
++			}
++			buf = buf[readMax:]
++		}
++		return len(buf) == 0 || f(buf)
++	}
++}
++
++// If the kernel is too old to support the getrandom syscall(),
++// unix.GetRandom will immediately return ENOSYS and we will then fall back to
++// reading from /dev/urandom in rand_unix.go. unix.GetRandom caches the ENOSYS
++// result so we only suffer the syscall overhead once in this case.
++// If the kernel supports the getrandom() syscall, unix.GetRandom will block
++// until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
++// In this case, unix.GetRandom will not return an error.
++func getRandomBatch(p []byte) (ok bool) {
++	n, err := unix.GetRandom(p, 0)
++	return n == len(p) && err == nil
++}
+diff --git a/src/crypto/rand/rand_linux_test.go b/src/crypto/rand/rand_batched_test.go
+similarity index 97%
+rename from src/crypto/rand/rand_linux_test.go
+rename to src/crypto/rand/rand_batched_test.go
+index 77b7b6ebd7..837db83f77 100644
+--- a/src/crypto/rand/rand_linux_test.go
++++ b/src/crypto/rand/rand_batched_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build linux freebsd
++
+ package rand
+ 
+ import (
+diff --git a/src/crypto/rand/rand_freebsd.go b/src/crypto/rand/rand_freebsd.go
+new file mode 100644
+index 0000000000..b4d6653343
+--- /dev/null
++++ b/src/crypto/rand/rand_freebsd.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++// maxGetRandomRead is the maximum number of bytes to ask for in one call to the
++// getrandom() syscall. In FreeBSD at most 256 bytes will be returned per call.
++const maxGetRandomRead = (1 << 8)
+diff --git a/src/crypto/rand/rand_linux.go b/src/crypto/rand/rand_linux.go
+index dbd038cc58..26b93c54d2 100644
+--- a/src/crypto/rand/rand_linux.go
++++ b/src/crypto/rand/rand_linux.go
+@@ -4,14 +4,6 @@
+ 
+ package rand
+ 
+-import (
+-	"internal/syscall/unix"
+-)
+-
+-func init() {
+-	altGetRandom = batched(getRandomLinux, maxGetRandomRead)
+-}
+-
+ // maxGetRandomRead is the maximum number of bytes to ask for in one call to the
+ // getrandom() syscall. In linux at most 2^25-1 bytes will be returned per call.
+ // From the manpage
+@@ -20,29 +12,3 @@ func init() {
+ //	   is returned by a single call to getrandom() on systems where int
+ //	   has a size of 32 bits.
+ const maxGetRandomRead = (1 << 25) - 1
+-
+-// batched returns a function that calls f to populate a []byte by chunking it
+-// into subslices of, at most, readMax bytes.
+-func batched(f func([]byte) bool, readMax int) func([]byte) bool {
+-	return func(buf []byte) bool {
+-		for len(buf) > readMax {
+-			if !f(buf[:readMax]) {
+-				return false
+-			}
+-			buf = buf[readMax:]
+-		}
+-		return len(buf) == 0 || f(buf)
+-	}
+-}
+-
+-// If the kernel is too old (before 3.17) to support the getrandom syscall(),
+-// unix.GetRandom will immediately return ENOSYS and we will then fall back to
+-// reading from /dev/urandom in rand_unix.go. unix.GetRandom caches the ENOSYS
+-// result so we only suffer the syscall overhead once in this case.
+-// If the kernel supports the getrandom() syscall, unix.GetRandom will block
+-// until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
+-// In this case, unix.GetRandom will not return an error.
+-func getRandomLinux(p []byte) (ok bool) {
+-	n, err := unix.GetRandom(p, 0)
+-	return n == len(p) && err == nil
+-}
+diff --git a/src/internal/syscall/unix/getrandom_freebsd.go b/src/internal/syscall/unix/getrandom_freebsd.go
+new file mode 100644
+index 0000000000..fc241f2345
+--- /dev/null
++++ b/src/internal/syscall/unix/getrandom_freebsd.go
+@@ -0,0 +1,51 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"sync/atomic"
++	"syscall"
++	"unsafe"
++)
++
++var randomUnsupported int32 // atomic
++
++// FreeBSD getrandom system call number.
++const randomTrap uintptr = 563
++
++// GetRandomFlag is a flag supported by the getrandom system call.
++type GetRandomFlag uintptr
++
++const (
++	// GRND_NONBLOCK means return EAGAIN rather than blocking.
++	GRND_NONBLOCK GetRandomFlag = 0x0001
++
++	// GRND_RANDOM is only set for portability purpose, no-op on FreeBSD.
++	GRND_RANDOM GetRandomFlag = 0x0002
++)
++
++// GetRandom calls the FreeBSD getrandom system call.
++func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
++	if randomTrap == 0 {
++		return 0, syscall.ENOSYS
++	}
++	if len(p) == 0 {
++		return 0, nil
++	}
++	if atomic.LoadInt32(&randomUnsupported) != 0 {
++		return 0, syscall.ENOSYS
++	}
++	r1, _, errno := syscall.Syscall(randomTrap,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		uintptr(flags))
++	if errno != 0 {
++		if errno == syscall.ENOSYS {
++			atomic.StoreInt32(&randomUnsupported, 1)
++		}
++		return 0, errno
++	}
++	return int(r1), nil
++}
+diff --git a/src/internal/syscall/unix/getrandom_linux_generic.go b/src/internal/syscall/unix/getrandom_linux_generic.go
+index 8425800b6d..f8490ce978 100644
+--- a/src/internal/syscall/unix/getrandom_linux_generic.go
++++ b/src/internal/syscall/unix/getrandom_linux_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build arm64
++// +build linux,arm64
+ 
+ package unix
+ 

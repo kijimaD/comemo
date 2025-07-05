@@ -7,7 +7,7 @@ Date:   Thu May 28 16:45:33 2015 -0700
     Change-Id: I47e5349e34fc18118c4d35bf433f875b958cc3e5
     Reviewed-on: https://go-review.googlesource.com/10495
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/ssa/TODO                  |   9 +
  src/cmd/compile/internal/ssa/block.go              |  36 +--
  src/cmd/compile/internal/ssa/blockkind_string.go   |  24 +-
@@ -28,3 +28,1309 @@ Date:   Thu May 28 16:45:33 2015 -0700
  .../compile/internal/ssa/rulegen/lower_amd64.rules |  31 +-
  src/cmd/compile/internal/ssa/rulegen/rulegen.go    | 151 ++++++++--
  19 files changed, 658 insertions(+), 206 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index e3ffdd2692..2ffba17612 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -34,13 +34,22 @@ Regalloc
+  - Don't spill everything at every basic block boundary.
+  - Allow args and return values to be ssa-able.
+  - Handle 2-address instructions.
++ - Floating point registers
+ 
+ Rewrites
+  - Strength reduction (both arch-indep and arch-dependent?)
+  - Code sequence for shifts >= wordsize
+  - Start another architecture (arm?)
++ - 64-bit ops on 32-bit machines
++ - <regwidth ops.  For example, x+y on int32s on amd64 needs (MOVLQSX (ADDL x y)).
++   Then add rewrites like (MOVLstore (MOVLQSX x) m) -> (MOVLstore x m)
++   to get rid of most of the MOVLQSX.
+ 
+ Common-Subexpression Elimination
+  - Make better decision about which value in an equivalence class we should
+    choose to replace other values in that class.
+  - Can we move control values out of their basic block?
++
++Other
++ - Make go:generate less painful.  Have a subpackage that just has the
++   generate commands in it?
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index dcf3676bc2..899d69bc32 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -48,27 +48,27 @@ type Block struct {
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+ //     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
+-type BlockKind int8
++type BlockKind int32
+ 
++// block kind ranges
+ const (
+-	BlockExit  BlockKind = iota // no successors.  There should only be 1 of these.
+-	BlockPlain                  // a single successor
+-	BlockIf                     // 2 successors, if control goto Succs[0] else goto Succs[1]
+-	BlockCall                   // 2 successors, normal return and panic
++	blockInvalid     BlockKind = 0
++	blockGenericBase           = 1 + 100*iota
++	blockAMD64Base
++	block386Base
++
++	blockMax // sentinel
++)
++
++// generic block kinds
++const (
++	blockGenericStart BlockKind = blockGenericBase + iota
++
++	BlockExit  // no successors.  There should only be 1 of these.
++	BlockPlain // a single successor
++	BlockIf    // 2 successors, if control goto Succs[0] else goto Succs[1]
++	BlockCall  // 2 successors, normal return and panic
+ 	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
+-	BlockUnknown
+-
+-	// 386/amd64 variants of BlockIf that take the flags register as an arg
+-	BlockEQ
+-	BlockNE
+-	BlockLT
+-	BlockLE
+-	BlockGT
+-	BlockGE
+-	BlockULT
+-	BlockULE
+-	BlockUGT
+-	BlockUGE
+ )
+ 
+ //go:generate stringer -type=BlockKind
+diff --git a/src/cmd/compile/internal/ssa/blockkind_string.go b/src/cmd/compile/internal/ssa/blockkind_string.go
+index 6204f1948f..60c820c871 100644
+--- a/src/cmd/compile/internal/ssa/blockkind_string.go
++++ b/src/cmd/compile/internal/ssa/blockkind_string.go
+@@ -4,13 +4,29 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _BlockKind_name = "BlockExitBlockPlainBlockIfBlockCallBlockUnknownBlockEQBlockNEBlockLTBlockLEBlockGTBlockGEBlockULTBlockULEBlockUGTBlockUGE"
++const (
++	_BlockKind_name_0 = "blockInvalid"
++	_BlockKind_name_1 = "blockGenericStartBlockExitBlockPlainBlockIfBlockCall"
++	_BlockKind_name_2 = "blockAMD64StartBlockEQBlockNEBlockLTBlockLEBlockGTBlockGEBlockULTBlockULEBlockUGTBlockUGE"
++)
+ 
+-var _BlockKind_index = [...]uint8{0, 9, 19, 26, 35, 47, 54, 61, 68, 75, 82, 89, 97, 105, 113, 121}
++var (
++	_BlockKind_index_0 = [...]uint8{0, 12}
++	_BlockKind_index_1 = [...]uint8{0, 17, 26, 36, 43, 52}
++	_BlockKind_index_2 = [...]uint8{0, 15, 22, 29, 36, 43, 50, 57, 65, 73, 81, 89}
++)
+ 
+ func (i BlockKind) String() string {
+-	if i < 0 || i+1 >= BlockKind(len(_BlockKind_index)) {
++	switch {
++	case i == 0:
++		return _BlockKind_name_0
++	case 101 <= i && i <= 105:
++		i -= 101
++		return _BlockKind_name_1[_BlockKind_index_1[i]:_BlockKind_index_1[i+1]]
++	case 201 <= i && i <= 211:
++		i -= 201
++		return _BlockKind_name_2[_BlockKind_index_2[i]:_BlockKind_index_2[i+1]]
++	default:
+ 		return fmt.Sprintf("BlockKind(%d)", i)
+ 	}
+-	return _BlockKind_name[_BlockKind_index[i]:_BlockKind_index[i+1]]
+ }
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 9f1d2a8593..2436554cb5 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -7,10 +7,11 @@ package ssa
+ import "log"
+ 
+ type Config struct {
+-	arch    string            // "amd64", etc.
+-	ptrSize int64             // 4 or 8
+-	Uintptr Type              // pointer arithmetic type
+-	lower   func(*Value) bool // lowering function
++	arch       string            // "amd64", etc.
++	ptrSize    int64             // 4 or 8
++	Uintptr    Type              // pointer arithmetic type
++	lowerBlock func(*Block) bool // lowering function
++	lowerValue func(*Value) bool // lowering function
+ 
+ 	// TODO: more stuff.  Compiler flags of interest, ...
+ }
+@@ -21,10 +22,12 @@ func NewConfig(arch string) *Config {
+ 	switch arch {
+ 	case "amd64":
+ 		c.ptrSize = 8
+-		c.lower = lowerAmd64
++		c.lowerBlock = lowerBlockAMD64
++		c.lowerValue = lowerValueAMD64
+ 	case "386":
+ 		c.ptrSize = 4
+-		c.lower = lowerAmd64 // TODO(khr): full 32-bit support
++		c.lowerBlock = lowerBlockAMD64
++		c.lowerValue = lowerValueAMD64 // TODO(khr): full 32-bit support
+ 	default:
+ 		log.Fatalf("arch %s not implemented", arch)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index a805861489..ba5d8758d9 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -14,30 +14,10 @@ func deadcode(f *Func) {
+ 	reachable[f.Entry.ID] = true
+ 	p := []*Block{f.Entry} // stack-like worklist
+ 	for len(p) > 0 {
+-		// pop a reachable block
++		// Pop a reachable block
+ 		b := p[len(p)-1]
+ 		p = p[:len(p)-1]
+-
+-		// constant-fold conditionals
+-		// TODO: rewrite rules instead?
+-		if b.Kind == BlockIf && b.Control.Op == OpConst {
+-			cond := b.Control.Aux.(bool)
+-			var c *Block
+-			if cond {
+-				// then branch is always taken
+-				c = b.Succs[1]
+-			} else {
+-				// else branch is always taken
+-				c = b.Succs[0]
+-				b.Succs[0] = b.Succs[1]
+-			}
+-			b.Succs[1] = nil // aid GC
+-			b.Succs = b.Succs[:1]
+-			removePredecessor(b, c)
+-			b.Kind = BlockPlain
+-			b.Control = nil
+-		}
+-
++		// Mark successors as reachable
+ 		for _, c := range b.Succs {
+ 			if !reachable[c.ID] {
+ 				reachable[c.ID] = true
+diff --git a/src/cmd/compile/internal/ssa/deadcode_test.go b/src/cmd/compile/internal/ssa/deadcode_test.go
+index f3d5682355..07e017c73a 100644
+--- a/src/cmd/compile/internal/ssa/deadcode_test.go
++++ b/src/cmd/compile/internal/ssa/deadcode_test.go
+@@ -4,9 +4,7 @@
+ 
+ package ssa
+ 
+-import (
+-	"testing"
+-)
++import "testing"
+ 
+ func TestDeadLoop(t *testing.T) {
+ 	c := NewConfig("amd64")
+@@ -76,6 +74,7 @@ func TestNeverTaken(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	Opt(fun.f)
+ 	Deadcode(fun.f)
+ 	CheckFunc(fun.f)
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index ab4ab82345..f2e7b0cd10 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -6,4 +6,5 @@ package ssa
+ 
+ var CheckFunc = checkFunc
+ var PrintFunc = printFunc
++var Opt = opt
+ var Deadcode = deadcode
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index af3e8a8e14..e6bd44d573 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -35,7 +35,7 @@ func fuse(f *Func) {
+ 		}
+ 
+ 		// trash b, just in case
+-		b.Kind = BlockUnknown
++		b.Kind = blockInvalid
+ 		b.Values = nil
+ 		b.Preds = nil
+ 		b.Succs = nil
+diff --git a/src/cmd/compile/internal/ssa/generic.go b/src/cmd/compile/internal/ssa/generic.go
+index 91f9c17d11..dc0323e0c1 100644
+--- a/src/cmd/compile/internal/ssa/generic.go
++++ b/src/cmd/compile/internal/ssa/generic.go
+@@ -1,8 +1,8 @@
+ // autogenerated from rulegen/generic.rules: do not edit!
+-// generated with: go run rulegen/rulegen.go rulegen/generic.rules genericRules generic.go
++// generated with: go run rulegen/rulegen.go rulegen/generic.rules genericBlockRules genericValueRules generic.go
+ package ssa
+ 
+-func genericRules(v *Value) bool {
++func genericValueRules(v *Value) bool {
+ 	switch v.Op {
+ 	case OpAdd:
+ 		// match: (Add <t> (Const [c]) (Const [d]))
+@@ -234,3 +234,56 @@ func genericRules(v *Value) bool {
+ 	}
+ 	return false
+ }
++func genericBlockRules(b *Block) bool {
++	switch b.Kind {
++	case BlockIf:
++		// match: (BlockIf (Const [c]) yes no)
++		// cond: c.(bool)
++		// result: (BlockPlain nil yes)
++		{
++			v := b.Control
++			if v.Op != OpConst {
++				goto endbe39807508a6192b4022c7293eb6e114
++			}
++			c := v.Aux
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			if !(c.(bool)) {
++				goto endbe39807508a6192b4022c7293eb6e114
++			}
++			removePredecessor(b, no)
++			b.Kind = BlockPlain
++			b.Control = nil
++			b.Succs = b.Succs[:1]
++			b.Succs[0] = yes
++			return true
++		}
++		goto endbe39807508a6192b4022c7293eb6e114
++	endbe39807508a6192b4022c7293eb6e114:
++		;
++		// match: (BlockIf (Const [c]) yes no)
++		// cond: !c.(bool)
++		// result: (BlockPlain nil no)
++		{
++			v := b.Control
++			if v.Op != OpConst {
++				goto end69ac35957ebe0a77a5ef5103c1f79fbf
++			}
++			c := v.Aux
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			if !(!c.(bool)) {
++				goto end69ac35957ebe0a77a5ef5103c1f79fbf
++			}
++			removePredecessor(b, yes)
++			b.Kind = BlockPlain
++			b.Control = nil
++			b.Succs = b.Succs[:1]
++			b.Succs[0] = no
++			return true
++		}
++		goto end69ac35957ebe0a77a5ef5103c1f79fbf
++	end69ac35957ebe0a77a5ef5103c1f79fbf:
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index 44f0b83fa8..ebed4f2607 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -6,12 +6,12 @@ package ssa
+ 
+ import "log"
+ 
+-//go:generate go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
++//go:generate go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerBlockAMD64 lowerValueAMD64 lowerAmd64.go
+ 
+ // convert to machine-dependent ops
+ func lower(f *Func) {
+ 	// repeat rewrites until we find no more rewrites
+-	applyRewrite(f, f.Config.lower)
++	applyRewrite(f, f.Config.lowerBlock, f.Config.lowerValue)
+ 
+ 	// Check for unlowered opcodes, fail if we find one.
+ 	for _, b := range f.Blocks {
+@@ -21,92 +21,4 @@ func lower(f *Func) {
+ 			}
+ 		}
+ 	}
+-
+-	// additional pass for 386/amd64, link condition codes directly to blocks
+-	// TODO: do generically somehow?  Special "block" rewrite rules?
+-	for _, b := range f.Blocks {
+-		for {
+-			switch b.Kind {
+-			case BlockIf:
+-				switch b.Control.Op {
+-				case OpSETL:
+-					b.Kind = BlockLT
+-					b.Control = b.Control.Args[0]
+-					continue
+-				case OpSETNE:
+-					b.Kind = BlockNE
+-					b.Control = b.Control.Args[0]
+-					continue
+-				case OpSETB:
+-					b.Kind = BlockULT
+-					b.Control = b.Control.Args[0]
+-					continue
+-				case OpMOVBload:
+-					b.Kind = BlockNE
+-					b.Control = b.NewValue2(OpTESTB, TypeFlags, nil, b.Control, b.Control)
+-					continue
+-					// TODO: others
+-				}
+-			case BlockLT:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockGT
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockGT:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockLT
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockLE:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockGE
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockGE:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockLE
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockULT:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockUGT
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockUGT:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockULT
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockULE:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockUGE
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockUGE:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Kind = BlockULE
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockEQ:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			case BlockNE:
+-				if b.Control.Op == OpInvertFlags {
+-					b.Control = b.Control.Args[0]
+-					continue
+-				}
+-			}
+-			break
+-		}
+-	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/lowerAmd64.go b/src/cmd/compile/internal/ssa/lowerAmd64.go
+index 51cef97b30..a233d42370 100644
+--- a/src/cmd/compile/internal/ssa/lowerAmd64.go
++++ b/src/cmd/compile/internal/ssa/lowerAmd64.go
+@@ -1,8 +1,8 @@
+ // autogenerated from rulegen/lower_amd64.rules: do not edit!
+-// generated with: go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
++// generated with: go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerBlockAMD64 lowerValueAMD64 lowerAmd64.go
+ package ssa
+ 
+-func lowerAmd64(v *Value) bool {
++func lowerValueAMD64(v *Value) bool {
+ 	switch v.Op {
+ 	case OpADDQ:
+ 		// match: (ADDQ x (MOVQconst [c]))
+@@ -644,23 +644,41 @@ func lowerAmd64(v *Value) bool {
+ 		goto end0429f947ee7ac49ff45a243e461a5290
+ 	end0429f947ee7ac49ff45a243e461a5290:
+ 		;
++	case OpSETG:
++		// match: (SETG (InvertFlags x))
++		// cond:
++		// result: (SETL x)
++		{
++			if v.Args[0].Op != OpInvertFlags {
++				goto endf7586738694c9cd0b74ae28bbadb649f
++			}
++			x := v.Args[0].Args[0]
++			v.Op = OpSETL
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto endf7586738694c9cd0b74ae28bbadb649f
++	endf7586738694c9cd0b74ae28bbadb649f:
++		;
+ 	case OpSETL:
+ 		// match: (SETL (InvertFlags x))
+ 		// cond:
+-		// result: (SETGE x)
++		// result: (SETG x)
+ 		{
+ 			if v.Args[0].Op != OpInvertFlags {
+-				goto end456c7681d48305698c1ef462d244bdc6
++				goto ende33160cd86b9d4d3b77e02fb4658d5d3
+ 			}
+ 			x := v.Args[0].Args[0]
+-			v.Op = OpSETGE
++			v.Op = OpSETG
+ 			v.Aux = nil
+ 			v.resetArgs()
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-		goto end456c7681d48305698c1ef462d244bdc6
+-	end456c7681d48305698c1ef462d244bdc6:
++		goto ende33160cd86b9d4d3b77e02fb4658d5d3
++	ende33160cd86b9d4d3b77e02fb4658d5d3:
+ 		;
+ 	case OpSHLQ:
+ 		// match: (SHLQ x (MOVQconst [c]))
+@@ -771,3 +789,302 @@ func lowerAmd64(v *Value) bool {
+ 	}
+ 	return false
+ }
++func lowerBlockAMD64(b *Block) bool {
++	switch b.Kind {
++	case BlockEQ:
++		// match: (BlockEQ (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockEQ cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto endea853c6aba26aace57cc8951d332ebe9
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockEQ
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto endea853c6aba26aace57cc8951d332ebe9
++	endea853c6aba26aace57cc8951d332ebe9:
++		;
++	case BlockGE:
++		// match: (BlockGE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockLE cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto end608065f88da8bcb570f716698fd7c5c7
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockLE
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end608065f88da8bcb570f716698fd7c5c7
++	end608065f88da8bcb570f716698fd7c5c7:
++		;
++	case BlockGT:
++		// match: (BlockGT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockLT cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto ende1758ce91e7231fd66db6bb988856b14
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockLT
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto ende1758ce91e7231fd66db6bb988856b14
++	ende1758ce91e7231fd66db6bb988856b14:
++		;
++	case BlockIf:
++		// match: (BlockIf (SETL cmp) yes no)
++		// cond:
++		// result: (BlockLT cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpSETL {
++				goto endc6a5d98127b4b8aff782f6981348c864
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockLT
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto endc6a5d98127b4b8aff782f6981348c864
++	endc6a5d98127b4b8aff782f6981348c864:
++		;
++		// match: (BlockIf (SETNE cmp) yes no)
++		// cond:
++		// result: (BlockNE cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpSETNE {
++				goto end49bd2f760f561c30c85c3342af06753b
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockNE
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end49bd2f760f561c30c85c3342af06753b
++	end49bd2f760f561c30c85c3342af06753b:
++		;
++		// match: (BlockIf (SETB cmp) yes no)
++		// cond:
++		// result: (BlockULT cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpSETB {
++				goto end4754c856495bfc5769799890d639a627
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockULT
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end4754c856495bfc5769799890d639a627
++	end4754c856495bfc5769799890d639a627:
++		;
++		// match: (BlockIf cond yes no)
++		// cond: cond.Op == OpMOVBload
++		// result: (BlockNE (TESTB <TypeFlags> cond cond) yes no)
++		{
++			v := b.Control
++			cond := v
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			if !(cond.Op == OpMOVBload) {
++				goto end3a3c83af305cf35c49cb10183b4c6425
++			}
++			b.Kind = BlockNE
++			v0 := v.Block.NewValue(OpTESTB, TypeInvalid, nil)
++			v0.Type = TypeFlags
++			v0.AddArg(cond)
++			v0.AddArg(cond)
++			b.Control = v0
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end3a3c83af305cf35c49cb10183b4c6425
++	end3a3c83af305cf35c49cb10183b4c6425:
++		;
++	case BlockLE:
++		// match: (BlockLE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockGE cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto end6e761e611859351c15da0d249c3771f7
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockGE
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end6e761e611859351c15da0d249c3771f7
++	end6e761e611859351c15da0d249c3771f7:
++		;
++	case BlockLT:
++		// match: (BlockLT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockGT cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto endb269f9644dffd5a416ba236545ee2524
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockGT
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto endb269f9644dffd5a416ba236545ee2524
++	endb269f9644dffd5a416ba236545ee2524:
++		;
++	case BlockNE:
++		// match: (BlockNE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockNE cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto endc41d56a60f8ab211baa2bf0360b7b286
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockNE
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto endc41d56a60f8ab211baa2bf0360b7b286
++	endc41d56a60f8ab211baa2bf0360b7b286:
++		;
++	case BlockUGE:
++		// match: (BlockUGE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockULE cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto end9ae511e4f4e81005ae1f3c1e5941ba3c
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockULE
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end9ae511e4f4e81005ae1f3c1e5941ba3c
++	end9ae511e4f4e81005ae1f3c1e5941ba3c:
++		;
++	case BlockUGT:
++		// match: (BlockUGT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockULT cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto end073724a0ca0ec030715dd33049b647e9
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockULT
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end073724a0ca0ec030715dd33049b647e9
++	end073724a0ca0ec030715dd33049b647e9:
++		;
++	case BlockULE:
++		// match: (BlockULE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockUGE cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto end2f53a6da23ace14fb1b9b9896827e62d
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockUGE
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto end2f53a6da23ace14fb1b9b9896827e62d
++	end2f53a6da23ace14fb1b9b9896827e62d:
++		;
++	case BlockULT:
++		// match: (BlockULT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (BlockUGT cmp yes no)
++		{
++			v := b.Control
++			if v.Op != OpInvertFlags {
++				goto endbceb44a1ad6c53fb33710fc88be6a679
++			}
++			cmp := v.Args[0]
++			yes := b.Succs[0]
++			no := b.Succs[1]
++			b.Kind = BlockUGT
++			b.Control = cmp
++			b.Succs[0] = yes
++			b.Succs[1] = no
++			return true
++		}
++		goto endbceb44a1ad6c53fb33710fc88be6a679
++	endbceb44a1ad6c53fb33710fc88be6a679:
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 75c655758d..a894e9e16f 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -19,7 +19,7 @@ type Op int32
+ // Opcode ranges, a generic one and one for each architecture.
+ const (
+ 	opInvalid     Op = 0
+-	opGenericBase Op = 1 + 1000*iota
++	opGenericBase    = 1 + 1000*iota
+ 	opAMD64Base
+ 	op386Base
+ 
+diff --git a/src/cmd/compile/internal/ssa/op_string.go b/src/cmd/compile/internal/ssa/op_string.go
+index c8f27bb2e4..2005d332ab 100644
+--- a/src/cmd/compile/internal/ssa/op_string.go
++++ b/src/cmd/compile/internal/ssa/op_string.go
+@@ -6,18 +6,14 @@ import "fmt"
+ 
+ const (
+ 	_Op_name_0 = "opInvalid"
+-	_Op_name_1 = "opGenericBaseOpAddOpSubOpMulOpLshOpRshOpLessOpConstOpArgOpGlobalOpFuncOpFPOpSPOpCopyOpMoveOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpArrayIndexOpPtrIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpOffPtrOpStoreReg8OpLoadReg8OpFwdRefOpGenericEnd"
+-	_Op_name_2 = "opAMD64BaseOpADDQOpADDQconstOpSUBQOpSUBQconstOpMULQOpMULQconstOpSHLQOpSHLQconstOpNEGQOpADDLOpCMPQOpCMPQconstOpTESTQOpTESTBOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLEAQglobalOpMOVBloadOpMOVBQZXloadOpMOVBQSXloadOpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQconstOpREPMOVSB"
+-	_Op_name_3 = "op386Base"
+-	_Op_name_4 = "opMax"
++	_Op_name_1 = "opGenericStartOpAddOpSubOpMulOpLshOpRshOpLessOpConstOpArgOpGlobalOpFuncOpFPOpSPOpCopyOpMoveOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpLoadOpStoreOpArrayIndexOpPtrIndexOpIsNonNilOpIsInBoundsOpCallOpStaticCallOpConvertOpConvNopOpOffPtrOpStoreReg8OpLoadReg8OpFwdRefOpGenericEnd"
++	_Op_name_2 = "opAMD64startOpADDQOpADDQconstOpSUBQOpSUBQconstOpMULQOpMULQconstOpSHLQOpSHLQconstOpNEGQOpADDLOpCMPQOpCMPQconstOpTESTQOpTESTBOpSETEQOpSETNEOpSETLOpSETGOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLEAQglobalOpMOVBloadOpMOVBQZXloadOpMOVBQSXloadOpMOVQloadOpMOVQstoreOpMOVQloadidx8OpMOVQstoreidx8OpMOVQloadglobalOpMOVQstoreglobalOpMOVQconstOpREPMOVSB"
+ )
+ 
+ var (
+ 	_Op_index_0 = [...]uint8{0, 9}
+-	_Op_index_1 = [...]uint16{0, 13, 18, 23, 28, 33, 38, 44, 51, 56, 64, 70, 74, 78, 84, 90, 95, 106, 116, 126, 136, 148, 159, 170, 176, 183, 195, 205, 215, 227, 233, 245, 254, 263, 271, 282, 292, 300, 312}
+-	_Op_index_2 = [...]uint16{0, 11, 17, 28, 34, 45, 51, 62, 68, 79, 85, 91, 97, 108, 115, 122, 129, 136, 142, 149, 155, 168, 174, 181, 188, 195, 207, 217, 230, 243, 253, 264, 278, 293, 309, 326, 337, 347}
+-	_Op_index_3 = [...]uint8{0, 9}
+-	_Op_index_4 = [...]uint8{0, 5}
++	_Op_index_1 = [...]uint16{0, 14, 19, 24, 29, 34, 39, 45, 52, 57, 65, 71, 75, 79, 85, 91, 96, 107, 117, 127, 137, 149, 160, 171, 177, 184, 196, 206, 216, 228, 234, 246, 255, 264, 272, 283, 293, 301, 313}
++	_Op_index_2 = [...]uint16{0, 12, 18, 29, 35, 46, 52, 63, 69, 80, 86, 92, 98, 109, 116, 123, 130, 137, 143, 149, 156, 162, 175, 181, 188, 195, 202, 214, 224, 237, 250, 260, 271, 285, 300, 316, 333, 344, 354}
+ )
+ 
+ func (i Op) String() string {
+@@ -27,13 +23,9 @@ func (i Op) String() string {
+ 	case 1001 <= i && i <= 1038:
+ 		i -= 1001
+ 		return _Op_name_1[_Op_index_1[i]:_Op_index_1[i+1]]
+-	case 2001 <= i && i <= 2037:
++	case 2001 <= i && i <= 2038:
+ 		i -= 2001
+ 		return _Op_name_2[_Op_index_2[i]:_Op_index_2[i+1]]
+-	case i == 3001:
+-		return _Op_name_3
+-	case i == 4001:
+-		return _Op_name_4
+ 	default:
+ 		return fmt.Sprintf("Op(%d)", i)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/opamd64.go b/src/cmd/compile/internal/ssa/opamd64.go
+index 517090992a..665f087b6e 100644
+--- a/src/cmd/compile/internal/ssa/opamd64.go
++++ b/src/cmd/compile/internal/ssa/opamd64.go
+@@ -6,6 +6,21 @@ package ssa
+ 
+ // amd64-specific opcodes
+ 
++const (
++	blockAMD64Start BlockKind = blockAMD64Base + iota
++
++	BlockEQ
++	BlockNE
++	BlockLT
++	BlockLE
++	BlockGT
++	BlockGE
++	BlockULT
++	BlockULE
++	BlockUGT
++	BlockUGE
++)
++
+ const (
+ 	opAMD64start Op = opAMD64Base + iota
+ 
+@@ -36,12 +51,16 @@ const (
+ 	OpSETEQ // extract == condition from arg0
+ 	OpSETNE // extract != condition from arg0
+ 	OpSETL  // extract signed < condition from arg0
++	OpSETG  // extract signed > condition from arg0
+ 	OpSETGE // extract signed >= condition from arg0
+ 	OpSETB  // extract unsigned < condition from arg0
+ 
+ 	// InvertFlags reverses the direction of a flags type interpretation:
+-	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
+-	// This is a pseudo-op which can't appear in assembly output.
++	// (InvertFlags (CMPQ a b)) == (CMPQ b a)
++	// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
++	// then we do (SETL (InvertFlags (CMPQ b a))) instead.
++	// Rewrites will convert this to (SETG (CMPQ b a)).
++	// InvertFlags is a pseudo-op which can't appear in assembly output.
+ 	OpInvertFlags // reverse direction of arg0
+ 
+ 	OpLEAQ       // arg0 + arg1 + aux.(int64)
+diff --git a/src/cmd/compile/internal/ssa/opt.go b/src/cmd/compile/internal/ssa/opt.go
+index ea2bcf0e98..81c1dfcc02 100644
+--- a/src/cmd/compile/internal/ssa/opt.go
++++ b/src/cmd/compile/internal/ssa/opt.go
+@@ -6,8 +6,8 @@ package ssa
+ 
+ // machine-independent optimization
+ 
+-//go:generate go run rulegen/rulegen.go rulegen/generic.rules genericRules generic.go
++//go:generate go run rulegen/rulegen.go rulegen/generic.rules genericBlockRules genericValueRules generic.go
+ 
+ func opt(f *Func) {
+-	applyRewrite(f, genericRules)
++	applyRewrite(f, genericBlockRules, genericValueRules)
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 671270d7f2..08fad454a9 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -6,10 +6,14 @@ package ssa
+ 
+ import "log"
+ 
+-func applyRewrite(f *Func, r func(*Value) bool) {
++func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value) bool) {
+ 	// repeat rewrites until we find no more rewrites
++	var curb *Block
+ 	var curv *Value
+ 	defer func() {
++		if curb != nil {
++			log.Printf("panic during rewrite of %s\n", curb.LongString())
++		}
+ 		if curv != nil {
+ 			log.Printf("panic during rewrite of %s\n", curv.LongString())
+ 			// TODO(khr): print source location also
+@@ -18,6 +22,16 @@ func applyRewrite(f *Func, r func(*Value) bool) {
+ 	for {
+ 		change := false
+ 		for _, b := range f.Blocks {
++			if b.Control != nil && b.Control.Op == OpCopy {
++				for b.Control.Op == OpCopy {
++					b.Control = b.Control.Args[0]
++				}
++			}
++			curb = b
++			if rb(b) {
++				change = true
++			}
++			curb = nil
+ 			for _, v := range b.Values {
+ 				// elide any copies generated during rewriting
+ 				for i, a := range v.Args {
+@@ -32,13 +46,13 @@ func applyRewrite(f *Func, r func(*Value) bool) {
+ 
+ 				// apply rewrite function
+ 				curv = v
+-				if r(v) {
++				if rv(v) {
+ 					change = true
+ 				}
++				curv = nil
+ 			}
+ 		}
+ 		if !change {
+-			curv = nil
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/rulegen/generic.rules b/src/cmd/compile/internal/ssa/rulegen/generic.rules
+index c49d9d9f2e..afc22838dd 100644
+--- a/src/cmd/compile/internal/ssa/rulegen/generic.rules
++++ b/src/cmd/compile/internal/ssa/rulegen/generic.rules
+@@ -2,6 +2,22 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// values are specified using the following format:
++// (op <type> [aux] arg0 arg1 ...)
++// the type and aux fields are optional
++// on the matching side
++//  - the types and aux fields must match if they are specified.
++// on the generated side
++//  - the type of the top-level expression is the same as the one on the left-hand side.
++//  - the type of any subexpressions must be specified explicitly.
++//  - aux will be nil if not specified.
++
++// blocks are specified using the following format:
++// (kind controlvalue succ0 succ1 ...)
++// controlvalue must be "nil" or a value expression
++// succ* fields must be variables
++// For now, the generated successors must be a permutation of the matched successors.
++
+ // constant folding
+ (Add <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [{c.(int64)+d.(int64)}])
+ (Mul <t> (Const [c]) (Const [d])) && is64BitInt(t) -> (Const [{c.(int64)*d.(int64)}])
+@@ -22,3 +38,6 @@
+ // big-object moves
+ // TODO: fix size
+ (Store dst (Load <t> src mem) mem) && t.Size() > 8 -> (Move [t.Size()] dst src mem)
++
++(BlockIf (Const [c]) yes no) && c.(bool) -> (BlockPlain nil yes)
++(BlockIf (Const [c]) yes no) && !c.(bool) -> (BlockPlain nil no)
+diff --git a/src/cmd/compile/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/compile/internal/ssa/rulegen/lower_amd64.rules
+index dc910b70b1..e86e408525 100644
+--- a/src/cmd/compile/internal/ssa/rulegen/lower_amd64.rules
++++ b/src/cmd/compile/internal/ssa/rulegen/lower_amd64.rules
+@@ -2,16 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// values are specified using the following format:
+-// (op <type> [aux] arg0 arg1 ...)
+-// the type and aux fields are optional
+-// on the matching side
+-//  - the types and aux fields must match if they are specified.
+-// on the generated side
+-//  - the type of the top-level expression is the same as the one on the left-hand side.
+-//  - the type of any subexpressions must be specified explicitly.
+-//  - aux will be nil if not specified.
+-
+ // x86 register conventions:
+ //  - Integer types live in the low portion of registers.
+ //    Upper portions are correctly extended.
+@@ -44,6 +34,12 @@
+ 
+ (Const <t> [val]) && is64BitInt(t) -> (MOVQconst [val])
+ 
++// block rewrites
++(BlockIf (SETL cmp) yes no) -> (BlockLT cmp yes no)
++(BlockIf (SETNE cmp) yes no) -> (BlockNE cmp yes no)
++(BlockIf (SETB cmp) yes no) -> (BlockULT cmp yes no)
++(BlockIf cond yes no) && cond.Op == OpMOVBload -> (BlockNE (TESTB <TypeFlags> cond cond) yes no)
++
+ // Rules below here apply some simple optimizations after lowering.
+ // TODO: Should this be a separate pass?
+ 
+@@ -71,7 +67,8 @@
+ (ADDQconst [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
+ 
+ // reverse ordering of compare instruction
+-(SETL (InvertFlags x)) -> (SETGE x)
++(SETL (InvertFlags x)) -> (SETG x)
++(SETG (InvertFlags x)) -> (SETL x)
+ 
+ // fold constants into memory operations
+ // Note that this is not always a good idea because if not all the uses of
+@@ -89,3 +86,15 @@
+ (MOVQstoreidx8 [off1] (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] ptr idx val mem)
+ 
+ (ADDQconst [off] x) && off.(int64) == 0 -> (Copy x)
++
++// Absorb InvertFlags into branches.
++(BlockLT (InvertFlags cmp) yes no) -> (BlockGT cmp yes no)
++(BlockGT (InvertFlags cmp) yes no) -> (BlockLT cmp yes no)
++(BlockLE (InvertFlags cmp) yes no) -> (BlockGE cmp yes no)
++(BlockGE (InvertFlags cmp) yes no) -> (BlockLE cmp yes no)
++(BlockULT (InvertFlags cmp) yes no) -> (BlockUGT cmp yes no)
++(BlockUGT (InvertFlags cmp) yes no) -> (BlockULT cmp yes no)
++(BlockULE (InvertFlags cmp) yes no) -> (BlockUGE cmp yes no)
++(BlockUGE (InvertFlags cmp) yes no) -> (BlockULE cmp yes no)
++(BlockEQ (InvertFlags cmp) yes no) -> (BlockEQ cmp yes no)
++(BlockNE (InvertFlags cmp) yes no) -> (BlockNE cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/rulegen/rulegen.go b/src/cmd/compile/internal/ssa/rulegen/rulegen.go
+index 4ac930298b..dd99513d96 100644
+--- a/src/cmd/compile/internal/ssa/rulegen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/rulegen/rulegen.go
+@@ -7,7 +7,7 @@
+ // which returns true iff if did something.
+ // Ideas stolen from Swift: http://www.hpl.hp.com/techreports/Compaq-DEC/WRL-2000-2.html
+ 
+-// Run with something like "go run rulegen.go lower_amd64.rules lowerAmd64 lowerAmd64.go"
++// Run with something like "go run rulegen.go lower_amd64.rules lowerBlockAmd64 lowerValueAmd64 lowerAmd64.go"
+ 
+ package main
+ 
+@@ -47,12 +47,13 @@ import (
+ // If multiple rules match, the first one in file order is selected.
+ 
+ func main() {
+-	if len(os.Args) < 3 || len(os.Args) > 4 {
+-		fmt.Printf("usage: go run rulegen.go <rule file> <function name> [<output file>]")
++	if len(os.Args) < 4 || len(os.Args) > 5 {
++		fmt.Printf("usage: go run rulegen.go <rule file> <block function name> <value function name> [<output file>]")
+ 		os.Exit(1)
+ 	}
+ 	rulefile := os.Args[1]
+-	rulefn := os.Args[2]
++	blockfn := os.Args[2]
++	valuefn := os.Args[3]
+ 
+ 	// Open input file.
+ 	text, err := os.Open(rulefile)
+@@ -60,7 +61,8 @@ func main() {
+ 		log.Fatalf("can't read rule file: %v", err)
+ 	}
+ 
+-	// oprules contains a list of rules for each opcode
++	// oprules contains a list of rules for each block and opcode
++	blockrules := map[string][]string{}
+ 	oprules := map[string][]string{}
+ 
+ 	// read rule file
+@@ -77,7 +79,11 @@ func main() {
+ 			continue
+ 		}
+ 		op := strings.Split(line, " ")[0][1:]
+-		oprules[op] = append(oprules[op], line)
++		if strings.HasPrefix(op, "Block") {
++			blockrules[op] = append(blockrules[op], line)
++		} else {
++			oprules[op] = append(oprules[op], line)
++		}
+ 	}
+ 	if err := scanner.Err(); err != nil {
+ 		log.Fatalf("scanner failed: %v\n", err)
+@@ -88,7 +94,7 @@ func main() {
+ 	fmt.Fprintf(w, "// autogenerated from %s: do not edit!\n", rulefile)
+ 	fmt.Fprintf(w, "// generated with: go run rulegen/rulegen.go %s\n", strings.Join(os.Args[1:], " "))
+ 	fmt.Fprintln(w, "package ssa")
+-	fmt.Fprintf(w, "func %s(v *Value) bool {\n", rulefn)
++	fmt.Fprintf(w, "func %s(v *Value) bool {\n", valuefn)
+ 
+ 	// generate code for each rule
+ 	fmt.Fprintf(w, "switch v.Op {\n")
+@@ -111,15 +117,15 @@ func main() {
+ 			if len(s) != 2 {
+ 				log.Fatalf("no arrow in rule %s", rule)
+ 			}
+-			lhs := strings.Trim(s[0], " \t")
+-			result := strings.Trim(s[1], " \t\n")
++			lhs := strings.TrimSpace(s[0])
++			result := strings.TrimSpace(s[1])
+ 
+ 			// split match into matching part and additional condition
+ 			match := lhs
+ 			cond := ""
+ 			if i := strings.Index(match, "&&"); i >= 0 {
+-				cond = strings.Trim(match[i+2:], " \t")
+-				match = strings.Trim(match[:i], " \t")
++				cond = strings.TrimSpace(match[i+2:])
++				match = strings.TrimSpace(match[:i])
+ 			}
+ 
+ 			fmt.Fprintf(w, "// match: %s\n", match)
+@@ -147,6 +153,109 @@ func main() {
+ 	fmt.Fprintf(w, "return false\n")
+ 	fmt.Fprintf(w, "}\n")
+ 
++	// Generate block rewrite function.
++	fmt.Fprintf(w, "func %s(b *Block) bool {\n", blockfn)
++	fmt.Fprintf(w, "switch b.Kind {\n")
++	ops = nil
++	for op := range blockrules {
++		ops = append(ops, op)
++	}
++	sort.Strings(ops)
++	for _, op := range ops {
++		fmt.Fprintf(w, "case %s:\n", op)
++		for _, rule := range blockrules[op] {
++			rulehash := fmt.Sprintf("%02x", md5.Sum([]byte(rule)))
++			// split at ->
++			s := strings.Split(rule, "->")
++			if len(s) != 2 {
++				log.Fatalf("no arrow in rule %s", rule)
++			}
++			lhs := strings.TrimSpace(s[0])
++			result := strings.TrimSpace(s[1])
++
++			// split match into matching part and additional condition
++			match := lhs
++			cond := ""
++			if i := strings.Index(match, "&&"); i >= 0 {
++				cond = strings.TrimSpace(match[i+2:])
++				match = strings.TrimSpace(match[:i])
++			}
++
++			fmt.Fprintf(w, "// match: %s\n", match)
++			fmt.Fprintf(w, "// cond: %s\n", cond)
++			fmt.Fprintf(w, "// result: %s\n", result)
++
++			fail := fmt.Sprintf("{\ngoto end%s\n}\n", rulehash)
++
++			fmt.Fprintf(w, "{\n")
++			s = split(match[1 : len(match)-1]) // remove parens, then split
++
++			// check match of control value
++			if s[1] != "nil" {
++				fmt.Fprintf(w, "v := b.Control\n")
++				genMatch0(w, s[1], "v", fail, map[string]string{}, false)
++			}
++
++			// assign successor names
++			succs := s[2:]
++			for i, a := range succs {
++				if a != "_" {
++					fmt.Fprintf(w, "%s := b.Succs[%d]\n", a, i)
++				}
++			}
++
++			if cond != "" {
++				fmt.Fprintf(w, "if !(%s) %s", cond, fail)
++			}
++
++			// Rule matches.  Generate result.
++			t := split(result[1 : len(result)-1]) // remove parens, then split
++			newsuccs := t[2:]
++
++			// Check if newsuccs is a subset of succs.
++			m := map[string]bool{}
++			for _, succ := range succs {
++				if m[succ] {
++					log.Fatalf("can't have a repeat successor name %s in %s", succ, rule)
++				}
++				m[succ] = true
++			}
++			for _, succ := range newsuccs {
++				if !m[succ] {
++					log.Fatalf("unknown successor %s in %s", succ, rule)
++				}
++				delete(m, succ)
++			}
++
++			// Modify predecessor lists for no-longer-reachable blocks
++			for succ := range m {
++				fmt.Fprintf(w, "removePredecessor(b, %s)\n", succ)
++			}
++
++			fmt.Fprintf(w, "b.Kind = %s\n", t[0])
++			if t[1] == "nil" {
++				fmt.Fprintf(w, "b.Control = nil\n")
++			} else {
++				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, t[1], new(int), false))
++			}
++			if len(newsuccs) < len(succs) {
++				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
++			}
++			for i, a := range newsuccs {
++				fmt.Fprintf(w, "b.Succs[%d] = %s\n", i, a)
++			}
++
++			fmt.Fprintf(w, "return true\n")
++
++			fmt.Fprintf(w, "}\n")
++			fmt.Fprintf(w, "goto end%s\n", rulehash) // use label
++			fmt.Fprintf(w, "end%s:;\n", rulehash)
++		}
++	}
++	fmt.Fprintf(w, "}\n")
++	fmt.Fprintf(w, "return false\n")
++	fmt.Fprintf(w, "}\n")
++
+ 	// gofmt result
+ 	b := w.Bytes()
+ 	b, err = format.Source(b)
+@@ -155,8 +264,8 @@ func main() {
+ 	}
+ 
+ 	// Write to a file if given, otherwise stdout.
+-	if len(os.Args) >= 4 {
+-		err = ioutil.WriteFile(os.Args[3], b, 0666)
++	if len(os.Args) >= 5 {
++		err = ioutil.WriteFile(os.Args[4], b, 0666)
+ 	} else {
+ 		_, err = os.Stdout.Write(b)
+ 	}
+@@ -187,7 +296,7 @@ func genMatch0(w io.Writer, match, v, fail string, m map[string]string, top bool
+ 
+ 	// split body up into regions.  Split by spaces/tabs, except those
+ 	// contained in () or {}.
+-	s := split(match[1 : len(match)-1])
++	s := split(match[1 : len(match)-1]) // remove parens, then split
+ 
+ 	// check op
+ 	if !top {
+@@ -199,7 +308,7 @@ func genMatch0(w io.Writer, match, v, fail string, m map[string]string, top bool
+ 	for _, a := range s[1:] {
+ 		if a[0] == '<' {
+ 			// type restriction
+-			t := a[1 : len(a)-1]
++			t := a[1 : len(a)-1] // remove <>
+ 			if t[0] == '{' {
+ 				// code.  We must match the results of this code.
+ 				fmt.Fprintf(w, "if %s.Type != %s %s", v, t[1:len(t)-1], fail)
+@@ -215,7 +324,7 @@ func genMatch0(w io.Writer, match, v, fail string, m map[string]string, top bool
+ 			}
+ 		} else if a[0] == '[' {
+ 			// aux restriction
+-			x := a[1 : len(a)-1]
++			x := a[1 : len(a)-1] // remove []
+ 			if x[0] == '{' {
+ 				// code
+ 				fmt.Fprintf(w, "if %s.Aux != %s %s", v, x[1:len(x)-1], fail)
+@@ -254,7 +363,7 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
+ 		return result
+ 	}
+ 
+-	s := split(result[1 : len(result)-1])
++	s := split(result[1 : len(result)-1]) // remove parens, then split
+ 	var v string
+ 	var hasType bool
+ 	if top {
+@@ -271,17 +380,17 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
+ 	for _, a := range s[1:] {
+ 		if a[0] == '<' {
+ 			// type restriction
+-			t := a[1 : len(a)-1]
++			t := a[1 : len(a)-1] // remove <>
+ 			if t[0] == '{' {
+-				t = t[1 : len(t)-1]
++				t = t[1 : len(t)-1] // remove {}
+ 			}
+ 			fmt.Fprintf(w, "%s.Type = %s\n", v, t)
+ 			hasType = true
+ 		} else if a[0] == '[' {
+ 			// aux restriction
+-			x := a[1 : len(a)-1]
++			x := a[1 : len(a)-1] // remove []
+ 			if x[0] == '{' {
+-				x = x[1 : len(x)-1]
++				x = x[1 : len(x)-1] // remove {}
+ 			}
+ 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
+ 		} else if a[0] == '{' {

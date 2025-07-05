@@ -15,7 +15,7 @@ Date:   Thu Nov 7 21:04:53 2019 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206077
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs1_solaris_amd64.go                 |  2 ++
  src/runtime/defs_solaris.go                        |  2 ++
  ...xport_nbpipe_test.go => export_solaris_test.go} |  9 ++----
@@ -31,3 +31,324 @@ Date:   Thu Nov 7 21:04:53 2019 -0800
  src/runtime/os_solaris.go                          | 23 +++++++++++++--
  src/runtime/syscall_solaris.go                     |  1 -
  14 files changed, 81 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+index ee6c45e524..19e8a2512e 100644
+--- a/src/runtime/defs1_solaris_amd64.go
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -13,6 +13,7 @@ const (
+ 	_ETIMEDOUT   = 0x91
+ 	_EWOULDBLOCK = 0xb
+ 	_EINPROGRESS = 0x96
++	_ENOSYS      = 0x59
+ 
+ 	_PROT_NONE  = 0x0
+ 	_PROT_READ  = 0x1
+@@ -91,6 +92,7 @@ const (
+ 	_MAXHOSTNAMELEN = 0x100
+ 
+ 	_O_NONBLOCK = 0x80
++	_O_CLOEXEC  = 0x800000
+ 	_FD_CLOEXEC = 0x1
+ 	_F_GETFL    = 0x3
+ 	_F_SETFL    = 0x4
+diff --git a/src/runtime/defs_solaris.go b/src/runtime/defs_solaris.go
+index f42adebee3..22df59094d 100644
+--- a/src/runtime/defs_solaris.go
++++ b/src/runtime/defs_solaris.go
+@@ -43,6 +43,7 @@ const (
+ 	ETIMEDOUT   = C.ETIMEDOUT
+ 	EWOULDBLOCK = C.EWOULDBLOCK
+ 	EINPROGRESS = C.EINPROGRESS
++	ENOSYS      = C.ENOSYS
+ 
+ 	PROT_NONE  = C.PROT_NONE
+ 	PROT_READ  = C.PROT_READ
+@@ -120,6 +121,7 @@ const (
+ 	MAXHOSTNAMELEN = C.MAXHOSTNAMELEN
+ 
+ 	O_NONBLOCK = C.O_NONBLOCK
++	O_CLOEXEC  = C.O_CLOEXEC
+ 	FD_CLOEXEC = C.FD_CLOEXEC
+ 	F_GETFL    = C.F_GETFL
+ 	F_SETFL    = C.F_SETFL
+diff --git a/src/runtime/export_nbpipe_test.go b/src/runtime/export_solaris_test.go
+similarity index 50%
+rename from src/runtime/export_nbpipe_test.go
+rename to src/runtime/export_solaris_test.go
+index cf7863566a..e865c77691 100644
+--- a/src/runtime/export_nbpipe_test.go
++++ b/src/runtime/export_solaris_test.go
+@@ -2,11 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd
+-
+ package runtime
+ 
+-var NonblockingPipe = nonblockingPipe
+-var Pipe = pipe
+-var SetNonblock = setNonblock
+-var Closeonexec = closeonexec
++func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
++	return sysvicall3Err(&libc_fcntl, fd, cmd, arg)
++}
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index 5e59e406c6..375513337e 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -6,6 +6,11 @@
+ 
+ package runtime
+ 
++var NonblockingPipe = nonblockingPipe
++var Pipe = pipe
++var SetNonblock = setNonblock
++var Closeonexec = closeonexec
++
+ func sigismember(mask *sigset, i int) bool {
+ 	clear := *mask
+ 	sigdelset(&clear, i)
+diff --git a/src/runtime/nbpipe_fcntl_aix_test.go b/src/runtime/nbpipe_fcntl_libc_test.go
+similarity index 76%
+rename from src/runtime/nbpipe_fcntl_aix_test.go
+rename to src/runtime/nbpipe_fcntl_libc_test.go
+index 4276ed5b53..70f4b8348b 100644
+--- a/src/runtime/nbpipe_fcntl_aix_test.go
++++ b/src/runtime/nbpipe_fcntl_libc_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build aix solaris
++
+ package runtime_test
+ 
+ import (
+@@ -9,8 +11,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// We can't call syscall.Syscall on AIX. Therefore, fcntl is exported from the
+-// runtime in export_aix_test.go.
++// Call fcntl libc function rather than calling syscall.
+ func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
+ 	res, errno := runtime.Fcntl(fd, uintptr(cmd), arg)
+ 	return res, syscall.Errno(errno)
+diff --git a/src/runtime/nbpipe_pipe2.go b/src/runtime/nbpipe_pipe2.go
+index f4c862cbff..e3639d99b1 100644
+--- a/src/runtime/nbpipe_pipe2.go
++++ b/src/runtime/nbpipe_pipe2.go
+@@ -2,13 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux netbsd openbsd
++// +build freebsd linux netbsd openbsd solaris
+ 
+ package runtime
+ 
+-func pipe() (r, w int32, errno int32)
+-func pipe2(flags int32) (r, w int32, errno int32)
+-
+ func nonblockingPipe() (r, w int32, errno int32) {
+ 	r, w, errno = pipe2(_O_NONBLOCK | _O_CLOEXEC)
+ 	if errno == -_ENOSYS {
+diff --git a/src/runtime/nbpipe_test.go b/src/runtime/nbpipe_test.go
+index 00dc11e937..d739f57864 100644
+--- a/src/runtime/nbpipe_test.go
++++ b/src/runtime/nbpipe_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd
++// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 373c682f05..d6e36fbfbb 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -46,6 +46,8 @@ import (
+ //go:cgo_import_dynamic libc_sysconf sysconf "libc.so"
+ //go:cgo_import_dynamic libc_usleep usleep "libc.so"
+ //go:cgo_import_dynamic libc_write write "libc.so"
++//go:cgo_import_dynamic libc_pipe pipe "libc.so"
++//go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
+ 
+ //go:linkname libc____errno libc____errno
+ //go:linkname libc_clock_gettime libc_clock_gettime
+@@ -80,6 +82,8 @@ import (
+ //go:linkname libc_sysconf libc_sysconf
+ //go:linkname libc_usleep libc_usleep
+ //go:linkname libc_write libc_write
++//go:linkname libc_pipe libc_pipe
++//go:linkname libc_pipe2 libc_pipe2
+ 
+ var (
+ 	libc____errno,
+@@ -114,7 +118,9 @@ var (
+ 	libc_sigprocmask,
+ 	libc_sysconf,
+ 	libc_usleep,
+-	libc_write libcFunc
++	libc_write,
++	libc_pipe,
++	libc_pipe2 libcFunc
+ )
+ 
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+@@ -530,6 +536,31 @@ func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
+ 	return -int32(err)
+ }
+ 
++//go:nosplit
++func pipe() (r, w int32, errno int32) {
++	var p [2]int32
++	_, e := sysvicall1Err(&libc_pipe, uintptr(noescape(unsafe.Pointer(&p))))
++	return p[0], p[1], int32(e)
++}
++
++//go:nosplit
++func pipe2(flags int32) (r, w int32, errno int32) {
++	var p [2]int32
++	_, e := sysvicall2Err(&libc_pipe2, uintptr(noescape(unsafe.Pointer(&p))), uintptr(flags))
++	return p[0], p[1], int32(e)
++}
++
++//go:nosplit
++func closeonexec(fd int32) {
++	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
++}
++
++//go:nosplit
++func setNonblock(fd int32) {
++	flags := fcntl(fd, _F_GETFL, 0)
++	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
++}
++
+ func osyield1()
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 69e05b66a2..730973a202 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -40,6 +40,9 @@ func kqueue() int32
+ 
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++
++func pipe() (r, w int32, errno int32)
++func pipe2(flags int32) (r, w int32, errno int32)
+ func closeonexec(fd int32)
+ func setNonblock(fd int32)
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 20b947f250..27c66f7449 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -374,6 +374,8 @@ func raiseproc(sig uint32)
+ func sched_getaffinity(pid, len uintptr, buf *byte) int32
+ func osyield()
+ 
++func pipe() (r, w int32, errno int32)
++func pipe2(flags int32) (r, w int32, errno int32)
+ func setNonblock(fd int32)
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index b50cf237fb..97106c7b9d 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -71,6 +71,9 @@ func kqueue() int32
+ 
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++
++func pipe() (r, w int32, errno int32)
++func pipe2(flags int32) (r, w int32, errno int32)
+ func closeonexec(fd int32)
+ func setNonblock(fd int32)
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index f26b39575d..b486b83688 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -62,6 +62,9 @@ func kqueue() int32
+ 
+ //go:noescape
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
++
++func pipe() (r, w int32, errno int32)
++func pipe2(flags int32) (r, w int32, errno int32)
+ func closeonexec(fd int32)
+ func setNonblock(fd int32)
+ 
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index d6c09156bd..89129e5f1a 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -63,6 +63,15 @@ func sysvicall0(fn *libcFunc) uintptr {
+ 
+ //go:nosplit
+ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
++	r1, _ := sysvicall1Err(fn, a1)
++	return r1
++}
++
++//go:nosplit
++
++// sysvicall1Err returns both the system call result and the errno value.
++// This is used by sysvicall1 and pipe.
++func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+ 	var mp *m
+@@ -88,11 +97,21 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
+ 	if mp != nil {
+ 		mp.libcallsp = 0
+ 	}
+-	return libcall.r1
++	return libcall.r1, libcall.err
+ }
+ 
+ //go:nosplit
+ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
++	r1, _ := sysvicall2Err(fn, a1, a2)
++	return r1
++}
++
++//go:nosplit
++//go:cgo_unsafe_args
++
++// sysvicall2Err returns both the system call result and the errno value.
++// This is used by sysvicall2 and pipe2.
++func sysvicall2Err(fn *libcFunc, a1, a2 uintptr) (uintptr, uintptr) {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+ 	var mp *m
+@@ -117,7 +136,7 @@ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
+ 	if mp != nil {
+ 		mp.libcallsp = 0
+ 	}
+-	return libcall.r1
++	return libcall.r1, libcall.err
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 35381801c5..76db54d274 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -16,7 +16,6 @@ var (
+ 	libc_gethostname,
+ 	libc_getpid,
+ 	libc_ioctl,
+-	libc_pipe,
+ 	libc_setgid,
+ 	libc_setgroups,
+ 	libc_setsid,

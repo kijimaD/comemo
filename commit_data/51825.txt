@@ -21,7 +21,7 @@ Date:   Mon Jun 7 14:24:45 2021 +0800
     Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Eric Fang <eric.fang@arm.com>
-
+---
  misc/cgo/testsanitizers/asan_test.go               |  3 +++
  .../testsanitizers/testdata/asan_unsafe_fail1.go   | 27 +++++++++++++++++++++
  .../testsanitizers/testdata/asan_unsafe_fail2.go   | 28 ++++++++++++++++++++++
@@ -29,3 +29,146 @@ Date:   Mon Jun 7 14:24:45 2021 +0800
  src/cmd/compile/internal/escape/expr.go            |  6 ++---
  src/cmd/compile/internal/ir/expr.go                |  6 +++++
  6 files changed, 88 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index 22dcf23c3b..ff578ac63e 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -41,6 +41,9 @@ func TestASAN(t *testing.T) {
+ 		{src: "asan4_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan4_fail.go:13"},
+ 		{src: "asan5_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan5_fail.go:18"},
+ 		{src: "asan_useAfterReturn.go"},
++		{src: "asan_unsafe_fail1.go", memoryAccessError: "use-after-poison", errorLocation: "asan_unsafe_fail1.go:25"},
++		{src: "asan_unsafe_fail2.go", memoryAccessError: "use-after-poison", errorLocation: "asan_unsafe_fail2.go:25"},
++		{src: "asan_unsafe_fail3.go", memoryAccessError: "use-after-poison", errorLocation: "asan_unsafe_fail3.go:18"},
+ 	}
+ 	for _, tc := range cases {
+ 		tc := tc
+diff --git a/misc/cgo/testsanitizers/testdata/asan_unsafe_fail1.go b/misc/cgo/testsanitizers/testdata/asan_unsafe_fail1.go
+new file mode 100644
+index 0000000000..ec54a66880
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_unsafe_fail1.go
+@@ -0,0 +1,27 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"unsafe"
++)
++
++func main() {
++	a := 1
++	b := 2
++	c := add(a, b)
++	d := a + b
++	fmt.Println(c, d)
++}
++
++//go:noinline
++func add(a1, b1 int) int {
++	// The arguments.
++	// When -asan is enabled, unsafe.Pointer(&a1) conversion is escaping.
++	var p *int = (*int)(unsafe.Add(unsafe.Pointer(&a1), 1*unsafe.Sizeof(int(1))))
++	*p = 10 // BOOM
++	return a1 + b1
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_unsafe_fail2.go b/misc/cgo/testsanitizers/testdata/asan_unsafe_fail2.go
+new file mode 100644
+index 0000000000..70f21275af
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_unsafe_fail2.go
+@@ -0,0 +1,28 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"unsafe"
++)
++
++func main() {
++	a := 1
++	b := 2
++	c := add(a, b)
++	d := a + b
++	fmt.Println(c, d)
++}
++
++//go:noinline
++func add(a1, b1 int) (ret int) {
++	// The return value
++	// When -asan is enabled, the unsafe.Pointer(&ret) conversion is escaping.
++	var p *int = (*int)(unsafe.Add(unsafe.Pointer(&ret), 1*unsafe.Sizeof(int(1))))
++	*p = 123 // BOOM
++	ret = a1 + b1
++	return
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_unsafe_fail3.go b/misc/cgo/testsanitizers/testdata/asan_unsafe_fail3.go
+new file mode 100644
+index 0000000000..47a8a072ef
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_unsafe_fail3.go
+@@ -0,0 +1,21 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"unsafe"
++)
++
++func main() {
++	a := 1
++	b := 2
++	// The local variables.
++	// When -asan is enabled, the unsafe.Pointer(&a) conversion is escaping.
++	var p *int = (*int)(unsafe.Add(unsafe.Pointer(&a), 1*unsafe.Sizeof(int(1))))
++	*p = 20 // BOOM
++	d := a + b
++	fmt.Println(d)
++}
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index ced90a47bc..9c3e09d10d 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -100,9 +100,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 
+ 	case ir.OCONV, ir.OCONVNOP:
+ 		n := n.(*ir.ConvExpr)
+-		if ir.ShouldCheckPtr(e.curfn, 2) && n.Type().IsUnsafePtr() && n.X.Type().IsPtr() {
+-			// When -d=checkptr=2 is enabled, treat
+-			// conversions to unsafe.Pointer as an
++		if (ir.ShouldCheckPtr(e.curfn, 2) || ir.ShouldAsanCheckPtr(e.curfn)) && n.Type().IsUnsafePtr() && n.X.Type().IsPtr() {
++			// When -d=checkptr=2 or -asan is enabled,
++			// treat conversions to unsafe.Pointer as an
+ 			// escaping operation. This allows better
+ 			// runtime instrumentation, since we can more
+ 			// easily detect object boundaries on the heap
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 8823115612..ff3cc8ed6e 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1036,6 +1036,12 @@ func ShouldCheckPtr(fn *Func, level int) bool {
+ 	return base.Debug.Checkptr >= level && fn.Pragma&NoCheckPtr == 0
+ }
+ 
++// ShouldAsanCheckPtr reports whether pointer checking should be enabled for
++// function fn when -asan is enabled.
++func ShouldAsanCheckPtr(fn *Func) bool {
++	return base.Flag.ASan && fn.Pragma&NoCheckPtr == 0
++}
++
+ // IsReflectHeaderDataField reports whether l is an expression p.Data
+ // where p has type reflect.SliceHeader or reflect.StringHeader.
+ func IsReflectHeaderDataField(l Node) bool {

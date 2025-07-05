@@ -10,8 +10,182 @@ Date:   Fri Mar 18 19:20:34 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgo/asm_s390x.s       | 44 +++++++++++++++++++++++++
  src/runtime/cgo/gcc_linux_s390x.c | 68 +++++++++++++++++++++++++++++++++++++++
  src/runtime/cgo/gcc_s390x.S       | 43 +++++++++++++++++++++++++
  3 files changed, 155 insertions(+)
+
+diff --git a/src/runtime/cgo/asm_s390x.s b/src/runtime/cgo/asm_s390x.s
+new file mode 100644
+index 0000000000..5ed13cfe1e
+--- /dev/null
++++ b/src/runtime/cgo/asm_s390x.s
+@@ -0,0 +1,44 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++/*
++ * void crosscall2(void (*fn)(void*, int32), void*, int32)
++ * Save registers and call fn with two arguments.
++ * crosscall2 obeys the C ABI; fn obeys the Go ABI.
++ */
++TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
++	// Start with standard C stack frame layout and linkage
++
++	// Save R6-R15, F0, F2, F4 and F6 in the
++	// register save area of the calling function
++	STMG	R6, R15, 48(R15)
++	FMOVD	F0, 128(R15)
++	FMOVD	F2, 136(R15)
++	FMOVD	F4, 144(R15)
++	FMOVD	F6, 152(R15)
++
++	// Initialize Go ABI environment
++	XOR	R0, R0
++	BL	runtime·load_g(SB)
++
++	// Allocate 24 bytes on the stack
++	SUB	$24, R15
++
++	MOVD	R3, 8(R15)  // arg1
++	MOVW	R4, 16(R15) // arg2
++	BL	(R2)        // fn(arg1, arg2)
++
++	ADD	$24, R15
++
++	// Restore R6-R15, F0, F2, F4 and F6
++	LMG	48(R15), R6, R15
++	FMOVD	F0, 128(R15)
++	FMOVD	F2, 136(R15)
++	FMOVD	F4, 144(R15)
++	FMOVD	F6, 152(R15)
++
++	RET
++
+diff --git a/src/runtime/cgo/gcc_linux_s390x.c b/src/runtime/cgo/gcc_linux_s390x.c
+new file mode 100644
+index 0000000000..81e3b339b0
+--- /dev/null
++++ b/src/runtime/cgo/gcc_linux_s390x.c
+@@ -0,0 +1,68 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <pthread.h>
++#include <string.h>
++#include <signal.h>
++#include "libcgo.h"
++
++static void *threadentry(void*);
++
++void (*x_cgo_inittls)(void **tlsg, void **tlsbase);
++static void (*setg_gcc)(void*);
++
++void
++x_cgo_init(G *g, void (*setg)(void*), void **tlsbase)
++{
++	pthread_attr_t attr;
++	size_t size;
++
++	setg_gcc = setg;
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	g->stacklo = (uintptr)&attr - size + 4096;
++	pthread_attr_destroy(&attr);
++}
++
++void
++_cgo_sys_thread_start(ThreadStart *ts)
++{
++	pthread_attr_t attr;
++	sigset_t ign, oset;
++	pthread_t p;
++	size_t size;
++	int err;
++
++	sigfillset(&ign);
++	pthread_sigmask(SIG_SETMASK, &ign, &oset);
++
++	pthread_attr_init(&attr);
++	pthread_attr_getstacksize(&attr, &size);
++	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	ts->g->stackhi = size;
++	err = pthread_create(&p, &attr, threadentry, ts);
++
++	pthread_sigmask(SIG_SETMASK, &oset, nil);
++
++	if (err != 0) {
++		fatalf("pthread_create failed: %s", strerror(err));
++	}
++}
++
++extern void crosscall_s390x(void (*fn)(void), void *g);
++
++static void*
++threadentry(void *v)
++{
++	ThreadStart ts;
++
++	ts = *(ThreadStart*)v;
++	free(v);
++
++	// Save g for this thread in C TLS
++	setg_gcc((void*)ts.g);
++
++	crosscall_s390x(ts.fn, (void*)ts.g);
++	return nil;
++}
+diff --git a/src/runtime/cgo/gcc_s390x.S b/src/runtime/cgo/gcc_s390x.S
+new file mode 100644
+index 0000000000..6b163d0d21
+--- /dev/null
++++ b/src/runtime/cgo/gcc_s390x.S
+@@ -0,0 +1,43 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * void crosscall_s390x(void (*fn)(void), void *g)
++ *
++ * Calling into the go tool chain, where all registers are caller save.
++ * Called from standard s390x C ABI, where r6-r13, r15, and f0, f2, f4 and f6 are
++ * callee-save, so they must be saved explicitly.
++ */
++.globl crosscall_s390x
++crosscall_s390x:
++	/*
++	 * save r6-r15, f0, f2, f4 and f6 in the
++	 * register save area of the calling function
++	 */
++	stmg	%r6, %r15, 48(%r15)
++	stdy	%f0, 128(%r15)
++	stdy	%f2, 136(%r15)
++	stdy	%f4, 144(%r15)
++	stdy	%f6, 152(%r15)
++
++	/* assumes this call does not clobber r2 or r15 */
++	xgr	%r0, %r0
++
++	/* grow stack 8 bytes and call fn */
++	agfi    %r15, -8
++	basr    %r14, %r2
++	agfi	%r15, 8
++
++	/* restore registers */
++	lmg	%r6, %r15, 48(%r15)
++	ldy	%f0, 128(%r15)
++	ldy	%f2, 136(%r15)
++	ldy	%f4, 144(%r15)
++	ldy	%f6, 152(%r15)
++
++	br      %r14 /* restored by lmg */
++
++#ifdef __ELF__
++.section .note.GNU-stack,"",%progbits
++#endif

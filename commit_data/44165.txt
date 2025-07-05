@@ -12,7 +12,69 @@ Date:   Mon May 4 17:37:10 2020 +0100
     Change-Id: If8edae10c5136efcbcf6fd632487d198b9e3a868
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231958
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/testing/testing.go      | 10 +++++++++-
  src/testing/testing_test.go |  8 ++++++--
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 216e46ee81..aa1584f2d9 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -372,6 +372,7 @@ type common struct {
+ 	tempDirOnce sync.Once
+ 	tempDir     string
+ 	tempDirErr  error
++	tempDirSeq  int32
+ }
+ 
+ // Short reports whether the -test.short flag is set.
+@@ -827,6 +828,8 @@ var tempDirReplacer struct {
+ // The directory is automatically removed by Cleanup when the test and
+ // all its subtests complete.
+ func (c *common) TempDir() string {
++	// Use a single parent directory for all the temporary directories
++	// created by a test, each numbered sequentially.
+ 	c.tempDirOnce.Do(func() {
+ 		c.Helper()
+ 
+@@ -849,7 +852,12 @@ func (c *common) TempDir() string {
+ 	if c.tempDirErr != nil {
+ 		c.Fatalf("TempDir: %v", c.tempDirErr)
+ 	}
+-	return c.tempDir
++	seq := atomic.AddInt32(&c.tempDirSeq, 1)
++	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
++	if err := os.Mkdir(dir, 0777); err != nil {
++		c.Fatalf("TempDir: %v", err)
++	}
++	return dir
+ }
+ 
+ // panicHanding is an argument to runCleanup.
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 1340dae5c4..dbef7066e0 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -7,6 +7,7 @@ package testing_test
+ import (
+ 	"io/ioutil"
+ 	"os"
++	"path/filepath"
+ 	"testing"
+ )
+ 
+@@ -55,8 +56,11 @@ func testTempDir(t *testing.T) {
+ 		t.Fatal("expected dir")
+ 	}
+ 	dir2 := t.TempDir()
+-	if dir != dir2 {
+-		t.Fatal("directory changed between calls")
++	if dir == dir2 {
++		t.Fatal("subsequent calls to TempDir returned the same directory")
++	}
++	if filepath.Dir(dir) != filepath.Dir(dir2) {
++		t.Fatalf("calls to TempDir do not share a parent; got %q, %q", dir, dir2)
+ 	}
+ 	dirCh <- dir
+ 	fi, err := os.Stat(dir)

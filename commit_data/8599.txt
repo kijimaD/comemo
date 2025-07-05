@@ -7,7 +7,7 @@ Date:   Thu Jun 2 12:58:26 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4529110
-
+---
  src/pkg/big/arith.go      |  4 ++--
  src/pkg/big/arith_386.s   |  8 ++++----
  src/pkg/big/arith_amd64.s | 12 ++++++------
@@ -16,3 +16,316 @@ Date:   Thu Jun 2 12:58:26 2011 -0700
  src/pkg/big/arith_test.go | 19 +++++++++++++++----
  src/pkg/big/nat.go        | 43 ++++++++++++++++++++++---------------------
  7 files changed, 60 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index df3808f5e4..b9aeea9684 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -188,7 +188,7 @@ func subVW_g(z, x []Word, y Word) (c Word) {
+ }
+ 
+ 
+-func shlVW_g(z, x []Word, s Word) (c Word) {
++func shlVU_g(z, x []Word, s uint) (c Word) {
+ 	if n := len(z); n > 0 {
+ 		ŝ := _W - s
+ 		w1 := x[n-1]
+@@ -204,7 +204,7 @@ func shlVW_g(z, x []Word, s Word) (c Word) {
+ }
+ 
+ 
+-func shrVW_g(z, x []Word, s Word) (c Word) {
++func shrVU_g(z, x []Word, s uint) (c Word) {
+ 	if n := len(z); n > 0 {
+ 		ŝ := _W - s
+ 		w1 := x[0]
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+index 21521635b2..07c07b02cc 100644
+--- a/src/pkg/big/arith_386.s
++++ b/src/pkg/big/arith_386.s
+@@ -118,8 +118,8 @@ E4:	CMPL BX, BP		// i < n
+ 	RET
+ 
+ 
+-// func shlVW(z, x []Word, s Word) (c Word)
+-TEXT ·shlVW(SB),7,$0
++// func shlVU(z, x []Word, s uint) (c Word)
++TEXT ·shlVU(SB),7,$0
+ 	MOVL n+4(FP), BX	// i = n
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+@@ -153,8 +153,8 @@ X8b:	MOVL $0, c+28(FP)
+ 	RET
+ 
+ 
+-// func shrVW(z, x []Word, s Word) (c Word)
+-TEXT ·shrVW(SB),7,$0
++// func shrVU(z, x []Word, s uint) (c Word)
++TEXT ·shrVU(SB),7,$0
+ 	MOVL n+4(FP), BP
+ 	SUBL $1, BP		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index c740565a72..89b65f38a1 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -120,8 +120,8 @@ E4:	CMPQ BX, R11		// i < n
+ 	RET
+ 
+ 
+-// func shlVW(z, x []Word, s Word) (c Word)
+-TEXT ·shlVW(SB),7,$0
++// func shlVU(z, x []Word, s uint) (c Word)
++TEXT ·shlVU(SB),7,$0
+ 	MOVL n+8(FP), BX	// i = n
+ 	SUBL $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+@@ -129,7 +129,7 @@ TEXT ·shlVW(SB),7,$0
+ 	// n > 0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+-	MOVQ s+32(FP), CX
++	MOVL s+32(FP), CX
+ 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
+ 	MOVQ $0, DX
+ 	SHLQ CX, DX:AX		// w1>>ŝ
+@@ -155,8 +155,8 @@ X8b:	MOVQ $0, c+40(FP)
+ 	RET
+ 
+ 
+-// func shrVW(z, x []Word, s Word) (c Word)
+-TEXT ·shrVW(SB),7,$0
++// func shrVU(z, x []Word, s uint) (c Word)
++TEXT ·shrVU(SB),7,$0
+ 	MOVL n+8(FP), R11
+ 	SUBL $1, R11		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+@@ -164,7 +164,7 @@ TEXT ·shrVW(SB),7,$0
+ 	// n > 0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+16(FP), R8
+-	MOVQ s+32(FP), CX
++	MOVL s+32(FP), CX
+ 	MOVQ (R8), AX		// w1 = x[0]
+ 	MOVQ $0, DX
+ 	SHRQ CX, DX:AX		// w1<<ŝ
+diff --git a/src/pkg/big/arith_arm.s b/src/pkg/big/arith_arm.s
+index e4a9a962cf..60abe6eaa9 100644
+--- a/src/pkg/big/arith_arm.s
++++ b/src/pkg/big/arith_arm.s
+@@ -97,6 +97,7 @@ E3:
+ 	RET
+ 
+ 
++// func subVW(z, x []Word, y Word) (c Word)
+ TEXT ·subVW(SB),7,$0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	x+12(FP), R2
+@@ -131,8 +132,8 @@ E4:
+ 	RET
+ 
+ 
+-// func shlVW(z, x []Word, s Word) (c Word)
+-TEXT ·shlVW(SB),7,$0
++// func shlVU(z, x []Word, s uint) (c Word)
++TEXT ·shlVU(SB),7,$0
+ 	MOVW	n+4(FP), R5
+ 	CMP	$0, R5
+ 	BEQ	X7
+@@ -180,7 +181,8 @@ X7:
+ 	RET
+ 
+ 
+-TEXT ·shrVW(SB),7,$0
++// func shrVU(z, x []Word, s uint) (c Word)
++TEXT ·shrVU(SB),7,$0
+ 	MOVW	n+4(FP), R5
+ 	CMP	$0, R5
+ 	BEQ	X6
+@@ -229,6 +231,7 @@ X6:
+ 	RET
+ 
+ 
++// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVW	$0, R0
+ 	MOVW	z+0(FP), R1
+@@ -256,6 +259,7 @@ E8:
+ 	RET
+ 
+ 
++// func addMulVVW(z, x []Word, y Word) (c Word)
+ TEXT ·addMulVVW(SB),7,$0
+ 	MOVW	$0, R0
+ 	MOVW	z+0(FP), R1
+@@ -286,11 +290,13 @@ E9:
+ 	RET
+ 
+ 
++// divWVW(z* Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	// ARM has no multiword division, so use portable code.
+ 	B ·divWVW_g(SB)
+ 
+ 
++// func divWW(x1, x0, y Word) (q, r Word)
+ TEXT ·divWW(SB),7,$0
+ 	// ARM has no multiword division, so use portable code.
+ 	B ·divWW_g(SB)
+diff --git a/src/pkg/big/arith_decl.go b/src/pkg/big/arith_decl.go
+index c456d5f67d..95fcd8b94b 100644
+--- a/src/pkg/big/arith_decl.go
++++ b/src/pkg/big/arith_decl.go
+@@ -11,8 +11,8 @@ func addVV(z, x, y []Word) (c Word)
+ func subVV(z, x, y []Word) (c Word)
+ func addVW(z, x []Word, y Word) (c Word)
+ func subVW(z, x []Word, y Word) (c Word)
+-func shlVW(z, x []Word, s Word) (c Word)
+-func shrVW(z, x []Word, s Word) (c Word)
++func shlVU(z, x []Word, s uint) (c Word)
++func shrVU(z, x []Word, s uint) (c Word)
+ func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ func addMulVVW(z, x []Word, y Word) (c Word)
+ func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index 934b302df0..f3e2d4735d 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -185,6 +185,13 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
+ }
+ 
+ 
++func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
++	return func(z, x []Word, s Word) (c Word) {
++		return f(z, x, uint(s))
++	}
++}
++
++
+ func TestFunVW(t *testing.T) {
+ 	for _, a := range sumVW {
+ 		arg := a
+@@ -196,16 +203,20 @@ func TestFunVW(t *testing.T) {
+ 		testFunVW(t, "subVW", subVW, arg)
+ 	}
+ 
++	shlVW_g := makeFunVW(shlVU_g)
++	shlVW := makeFunVW(shlVU)
+ 	for _, a := range lshVW {
+ 		arg := a
+-		testFunVW(t, "shlVW_g", shlVW_g, arg)
+-		testFunVW(t, "shlVW", shlVW, arg)
++		testFunVW(t, "shlVU_g", shlVW_g, arg)
++		testFunVW(t, "shlVU", shlVW, arg)
+ 	}
+ 
++	shrVW_g := makeFunVW(shrVU_g)
++	shrVW := makeFunVW(shrVU)
+ 	for _, a := range rshVW {
+ 		arg := a
+-		testFunVW(t, "shrVW_g", shrVW_g, arg)
+-		testFunVW(t, "shrVW", shrVW, arg)
++		testFunVW(t, "shrVU_g", shrVW_g, arg)
++		testFunVW(t, "shrVU", shrVW, arg)
+ 	}
+ }
+ 
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index db02a43c2e..fa09d65315 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -550,14 +550,14 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	u.clear()
+ 
+ 	// D1.
+-	shift := Word(leadingZeros(v[n-1]))
++	shift := leadingZeros(v[n-1])
+ 	if shift > 0 {
+ 		// do not modify v, it may be used by another goroutine simultaneously
+ 		v1 := make(nat, n)
+-		shlVW(v1, v, shift)
++		shlVU(v1, v, shift)
+ 		v = v1
+ 	}
+-	u[len(uIn)] = shlVW(u[0:len(uIn)], uIn, shift)
++	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
+ 
+ 	// D2.
+ 	for j := m; j >= 0; j-- {
+@@ -596,7 +596,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	}
+ 
+ 	q = q.norm()
+-	shrVW(u, u, shift)
++	shrVU(u, u, shift)
+ 	r = u.norm()
+ 
+ 	return q, r
+@@ -824,7 +824,7 @@ func (z nat) shl(x nat, s uint) nat {
+ 
+ 	n := m + int(s/_W)
+ 	z = z.make(n + 1)
+-	z[n] = shlVW(z[n-m:n], x, Word(s%_W))
++	z[n] = shlVU(z[n-m:n], x, s%_W)
+ 	z[0 : n-m].clear()
+ 
+ 	return z.norm()
+@@ -841,7 +841,7 @@ func (z nat) shr(x nat, s uint) nat {
+ 	// n > 0
+ 
+ 	z = z.make(n)
+-	shrVW(z, x[m-n:], Word(s%_W))
++	shrVU(z, x[m-n:], s%_W)
+ 
+ 	return z.norm()
+ }
+@@ -972,25 +972,26 @@ func (x nat) modW(d Word) (r Word) {
+ }
+ 
+ 
+-// powersOfTwoDecompose finds q and k such that q * 1<<k = n and q is odd.
+-func (n nat) powersOfTwoDecompose() (q nat, k Word) {
+-	if len(n) == 0 {
+-		return n, 0
++// powersOfTwoDecompose finds q and k with x = q * 1<<k and q is odd, or q and k are 0.
++func (x nat) powersOfTwoDecompose() (q nat, k int) {
++	if len(x) == 0 {
++		return x, 0
+ 	}
+ 
+-	zeroWords := 0
+-	for n[zeroWords] == 0 {
+-		zeroWords++
++	// One of the words must be non-zero by definition,
++	// so this loop will terminate with i < len(x), and
++	// i is the number of 0 words.
++	i := 0
++	for x[i] == 0 {
++		i++
+ 	}
+-	// One of the words must be non-zero by invariant, therefore
+-	// zeroWords < len(n).
+-	x := trailingZeroBits(n[zeroWords])
++	n := trailingZeroBits(x[i]) // x[i] != 0
+ 
+-	q = q.make(len(n) - zeroWords)
+-	shrVW(q, n[zeroWords:], Word(x))
+-	q = q.norm()
++	q = make(nat, len(x)-i)
++	shrVU(q, x[i:], uint(n))
+ 
+-	k = Word(_W*zeroWords + x)
++	q = q.norm()
++	k = i*_W + n
+ 	return
+ }
+ 
+@@ -1161,7 +1162,7 @@ NextRandom:
+ 		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
+ 			continue
+ 		}
+-		for j := Word(1); j < k; j++ {
++		for j := 1; j < k; j++ {
+ 			y = y.mul(y, y)
+ 			quotient, y = quotient.div(y, y, n)
+ 			if y.cmp(nm1) == 0 {

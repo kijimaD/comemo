@@ -12,7 +12,7 @@ Date:   Wed May 31 15:17:14 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modcmd/download.go             | 22 +++++++-
  src/cmd/go/internal/modcmd/graph.go                | 17 ++++++-
  src/cmd/go/internal/modcmd/verify.go               |  7 ++-
@@ -23,3 +23,399 @@ Date:   Wed May 31 15:17:14 2023 -0400
  src/cmd/go/internal/workcmd/sync.go                |  8 ++-
  src/cmd/go/testdata/script/gotoolchain_modcmds.txt | 54 ++++++++++++++++++++
  9 files changed, 164 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 26ef1998de..955f33650a 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -150,7 +150,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 				// However, we also need to load the full module graph, to ensure that
+ 				// we have downloaded enough of the module graph to run 'go list all',
+ 				// 'go mod graph', and similar commands.
+-				_ = modload.LoadModGraph(ctx, "")
++				_, err := modload.LoadModGraph(ctx, "")
++				if err != nil {
++					base.Fatalf("go: %v", err)
++				}
+ 
+ 				for _, m := range modFile.Require {
+ 					args = append(args, m.Mod.Path)
+@@ -176,6 +179,23 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	type token struct{}
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
++
++	// There is a bit of a chicken-and-egg problem here: ideally we need to know
++	// which Go version to switch to to download the requested modules, but if we
++	// haven't downloaded the module's go.mod file yet the GoVersion field of its
++	// info struct is not yet populated.
++	//
++	// We also need to be careful to only print the info for each module once
++	// if the -json flag is set.
++	//
++	// In theory we could go through each module in the list, attempt to download
++	// its go.mod file, and record the maximum version (either from the file or
++	// from the resulting TooNewError), all before we try the actual full download
++	// of each module.
++	//
++	// For now, we just let it fail: the user can explicitly set GOTOOLCHAIN
++	// and retry if they want to.
++
+ 	if !haveExplicitArgs && modload.WorkFilePath() == "" {
+ 		// 'go mod download' is sometimes run without arguments to pre-populate the
+ 		// module cache. In modules that aren't at go 1.17 or higher, it may fetch
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 555604dc84..0265a0074c 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -13,7 +13,9 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/toolchain"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -57,7 +59,20 @@ func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	modload.ForceUseModules = true
+ 	modload.RootMode = modload.NeedRoot
+-	mg := modload.LoadModGraph(ctx, graphGo.String())
++
++	goVersion := graphGo.String()
++	if goVersion != "" && gover.Compare(gover.Local(), goVersion) < 0 {
++		toolchain.TryVersion(ctx, goVersion)
++		base.Fatalf("go: %v", &gover.TooNewError{
++			What:      "-go flag",
++			GoVersion: goVersion,
++		})
++	}
++
++	mg, err := modload.LoadModGraph(ctx, goVersion)
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
+ 
+ 	w := bufio.NewWriter(os.Stdout)
+ 	defer w.Flush()
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 0828c4718d..3bc6c5a140 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -57,9 +57,12 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 	type token struct{}
+ 	sem := make(chan token, runtime.GOMAXPROCS(0))
+ 
++	mg, err := modload.LoadModGraph(ctx, "")
++	if err != nil {
++		base.Fatalf("go: %v", err)
++	}
++	mods := mg.BuildList()[modload.MainModules.Len():]
+ 	// Use a slice of result channels, so that the output is deterministic.
+-	const defaultGoVersion = ""
+-	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[modload.MainModules.Len():]
+ 	errsChans := make([]<-chan []error, len(mods))
+ 
+ 	for i, mod := range mods {
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index e1c0e5b4f6..33b9d6b14f 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -384,13 +384,12 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	oldReqs := reqsFromGoMod(modload.ModFile())
+ 
+ 	if err := modload.WriteGoMod(ctx, opts); err != nil {
+-		if tooNew, ok := err.(*gover.TooNewError); ok {
++		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+ 			// This can happen for 'go get go@newversion'
+ 			// when all the required modules are old enough
+ 			// but the command line is not.
+-			// TODO(bcmills): Perhaps LoadModGraph should catch this,
+-			// in which case the tryVersion here should be removed.
+-			tryVersion(ctx, tooNew.GoVersion)
++			// TODO(bcmills): modload.EditBuildList should catch this instead.
++			toolchain.TryVersion(ctx, tooNew.GoVersion)
+ 		}
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -491,8 +490,13 @@ type matchInModuleKey struct {
+ func newResolver(ctx context.Context, queries []*query) *resolver {
+ 	// LoadModGraph also sets modload.Target, which is needed by various resolver
+ 	// methods.
+-	const defaultGoVersion = ""
+-	mg := modload.LoadModGraph(ctx, defaultGoVersion)
++	mg, err := modload.LoadModGraph(ctx, "")
++	if err != nil {
++		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
++			toolchain.TryVersion(ctx, tooNew.GoVersion)
++		}
++		base.Fatalf("go: %v", err)
++	}
+ 
+ 	buildList := mg.BuildList()
+ 	initialVersion := make(map[string]string, len(buildList))
+@@ -1229,13 +1233,13 @@ func (r *resolver) resolveQueries(ctx context.Context, queries []*query) (change
+ 		goVers := ""
+ 		for _, q := range queries {
+ 			for _, cs := range q.candidates {
+-				if e, ok := cs.err.(*gover.TooNewError); ok && gover.Compare(goVers, e.GoVersion) < 0 {
++				if e := (*gover.TooNewError)(nil); errors.As(cs.err, &e) && gover.Compare(goVers, e.GoVersion) < 0 {
+ 					goVers = e.GoVersion
+ 				}
+ 			}
+ 		}
+ 		if goVers != "" {
+-			tryVersion(ctx, goVers)
++			toolchain.TryVersion(ctx, goVers)
+ 		}
+ 
+ 		for _, q := range queries {
+@@ -1831,10 +1835,14 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 
+ 	changed, err := modload.EditBuildList(ctx, additions, resolved)
+ 	if err != nil {
++		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
++			toolchain.TryVersion(ctx, tooNew.GoVersion)
++			base.Fatalf("go: %v", err)
++		}
++
+ 		var constraint *modload.ConstraintError
+ 		if !errors.As(err, &constraint) {
+-			base.Errorf("go: %v", err)
+-			return false
++			base.Fatalf("go: %v", err)
+ 		}
+ 
+ 		if cfg.BuildV {
+@@ -1873,8 +1881,15 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 		return false
+ 	}
+ 
+-	const defaultGoVersion = ""
+-	r.buildList = modload.LoadModGraph(ctx, defaultGoVersion).BuildList()
++	mg, err := modload.LoadModGraph(ctx, "")
++	if err != nil {
++		if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
++			toolchain.TryVersion(ctx, tooNew.GoVersion)
++		}
++		base.Fatalf("go: %v", err)
++	}
++
++	r.buildList = mg.BuildList()
+ 	r.buildListVersion = make(map[string]string, len(r.buildList))
+ 	for _, m := range r.buildList {
+ 		r.buildListVersion[m.Path] = m.Version
+@@ -1912,22 +1927,3 @@ func isNoSuchPackageVersion(err error) bool {
+ 	var noPackage *modload.PackageNotInModuleError
+ 	return isNoSuchModuleVersion(err) || errors.As(err, &noPackage)
+ }
+-
+-// tryVersion tries to switch to a Go toolchain appropriate for version,
+-// which was either found in a go.mod file of a dependency or resolved
+-// on the command line from go@v.
+-func tryVersion(ctx context.Context, version string) {
+-	if !gover.IsValid(version) {
+-		fmt.Fprintf(os.Stderr, "go: misuse of tryVersion: invalid version %q\n", version)
+-		return
+-	}
+-	if (!toolchain.HasAuto() && !toolchain.HasPath()) || gover.Compare(version, gover.Local()) <= 0 {
+-		return
+-	}
+-	tv, err := toolchain.NewerToolchain(ctx, version)
+-	if err != nil {
+-		base.Errorf("go: %v\n", err)
+-	}
+-	fmt.Fprintf(os.Stderr, "go: switching to %v\n", tv)
+-	toolchain.SwitchTo(tv)
+-}
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 70092da92f..0e4c7afb23 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -47,6 +47,9 @@ type Requirements struct {
+ 	// given module path. The root modules of the graph are the set of main
+ 	// modules in workspace mode, and the main module's direct requirements
+ 	// outside workspace mode.
++	//
++	// The roots are always expected to contain an entry for the "go" module,
++	// indicating the Go language version in use.
+ 	rootModules    []module.Version
+ 	maxRootVersion map[string]string
+ 
+@@ -537,10 +540,15 @@ func (mg *ModuleGraph) allRootsSelected() bool {
+ // Modules are loaded automatically (and lazily) in LoadPackages:
+ // LoadModGraph need only be called if LoadPackages is not,
+ // typically in commands that care about modules but no particular package.
+-func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
++func LoadModGraph(ctx context.Context, goVersion string) (*ModuleGraph, error) {
+ 	rs := LoadModFile(ctx)
+ 
+ 	if goVersion != "" {
++		v, _ := rs.rootSelected("go")
++		if gover.Compare(v, GoStrictVersion) >= 0 && gover.Compare(goVersion, v) < 0 {
++			return nil, fmt.Errorf("requested Go version %s cannot load module graph (requires Go >= %s)", goVersion, v)
++		}
++
+ 		pruning := pruningForGoVersion(goVersion)
+ 		if pruning == unpruned && rs.pruning != unpruned {
+ 			// Use newRequirements instead of convertDepth because convertDepth
+@@ -549,21 +557,15 @@ func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
+ 			rs = newRequirements(unpruned, rs.rootModules, rs.direct)
+ 		}
+ 
+-		mg, err := rs.Graph(ctx)
+-		if err != nil {
+-			base.Fatalf("go: %v", err)
+-		}
+-		return mg
++		return rs.Graph(ctx)
+ 	}
+ 
+ 	rs, mg, err := expandGraph(ctx, rs)
+ 	if err != nil {
+-		base.Fatalf("go: %v", err)
++		return nil, err
+ 	}
+-
+ 	requirements = rs
+-
+-	return mg
++	return mg, err
+ }
+ 
+ // expandGraph loads the complete module graph from rs.
+diff --git a/src/cmd/go/internal/mvs/errors.go b/src/cmd/go/internal/mvs/errors.go
+index bf183cea9e..8db65d656f 100644
+--- a/src/cmd/go/internal/mvs/errors.go
++++ b/src/cmd/go/internal/mvs/errors.go
+@@ -101,3 +101,5 @@ func (e *BuildListError) Error() string {
+ 	}
+ 	return b.String()
+ }
++
++func (e *BuildListError) Unwrap() error { return e.Err }
+diff --git a/src/cmd/go/internal/toolchain/toolchain.go b/src/cmd/go/internal/toolchain/toolchain.go
+index 757ab6977d..84907c1419 100644
+--- a/src/cmd/go/internal/toolchain/toolchain.go
++++ b/src/cmd/go/internal/toolchain/toolchain.go
+@@ -579,7 +579,7 @@ func goInstallVersion() (m module.Version, goVers string, found bool) {
+ 	}
+ 	noneSelected := func(path string) (version string) { return "none" }
+ 	_, err := modload.QueryPackages(ctx, m.Path, m.Version, noneSelected, allowed)
+-	if tooNew, ok := err.(*gover.TooNewError); ok {
++	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
+ 		m.Path, m.Version, _ = strings.Cut(tooNew.What, "@")
+ 		return m, tooNew.GoVersion, true
+ 	}
+@@ -591,3 +591,22 @@ func goInstallVersion() (m module.Version, goVers string, found bool) {
+ 	// consulting go.mod.
+ 	return m, "", true
+ }
++
++// TryVersion tries to switch to a Go toolchain appropriate for version,
++// which was either found in a go.mod file of a dependency or resolved
++// on the command line from go@v.
++func TryVersion(ctx context.Context, version string) {
++	if !gover.IsValid(version) {
++		fmt.Fprintf(os.Stderr, "go: misuse of tryVersion: invalid version %q\n", version)
++		return
++	}
++	if (!HasAuto() && !HasPath()) || gover.Compare(version, gover.Local()) <= 0 {
++		return
++	}
++	tv, err := NewerToolchain(ctx, version)
++	if err != nil {
++		base.Errorf("go: %v\n", err)
++	}
++	fmt.Fprintf(os.Stderr, "go: switching to %v\n", tv)
++	SwitchTo(tv)
++}
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index 1ecc3a8339..1d57a36dbc 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -11,7 +11,9 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/toolchain"
+ 	"context"
++	"errors"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -53,7 +55,11 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
+ 	}
+ 
+-	workGraph := modload.LoadModGraph(ctx, "")
++	workGraph, err := modload.LoadModGraph(ctx, "")
++	if tooNew := (*gover.TooNewError)(nil); errors.As(err, &tooNew) {
++		toolchain.TryVersion(ctx, tooNew.GoVersion)
++		base.Fatalf("go: %v", err)
++	}
+ 	_ = workGraph
+ 	mustSelectFor := map[module.Version][]module.Version{}
+ 
+diff --git a/src/cmd/go/testdata/script/gotoolchain_modcmds.txt b/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
+new file mode 100644
+index 0000000000..67917da515
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
+@@ -0,0 +1,54 @@
++env TESTGO_VERSION=go1.21.0
++env TESTGO_VERSION_SWITCH=switch
++
++# If the main module's go.mod file lists a version lower than the version
++# required by its dependencies, the commands that fetch and diagnose the module
++# graph (such as 'go mod download' and 'go mod graph') should fail explicitly:
++# they can't interpret the graph themselves, and they aren't allowed to update
++# the go.mod file to record a specific, stable toolchain version that can.
++
++! go mod download rsc.io/future@v1.0.0
++stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
++
++! go mod download rsc.io/future
++stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
++
++! go mod download
++stderr '^go: rsc.io/future@v1.0.0: rsc.io/future requires go >= 1.999 \(running go 1.21.0\)'
++
++! go mod verify
++stderr '^go: rsc.io/future@v1.0.0: rsc.io/future requires go >= 1.999 \(running go 1.21.0\)'
++
++! go mod graph
++stderr '^go: rsc.io/future@v1.0.0: rsc.io/future requires go >= 1.999 \(running go 1.21.0\)'
++
++
++# 'go get' should update the main module's go.mod file to a version compatible with the
++# go version required for rsc.io/future, not fail.
++go get .
++stderr '^go: switching to go1.999testmod$'
++stderr '^go: upgraded go 1.21 => 1.999$'
++stderr '^go: added toolchain go1.999testmod$'
++
++
++# Now, the various 'go mod' subcommands should succeed.
++
++go mod download rsc.io/future@v1.0.0
++go mod download rsc.io/future
++go mod download
++
++go mod verify
++
++go mod graph
++
++
++-- go.mod --
++module example
++
++go 1.21
++
++require rsc.io/future v1.0.0
++-- example.go --
++package example
++
++import _ "rsc.io/future"

@@ -15,8 +15,142 @@ Date:   Sat Feb 20 22:52:15 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go   | 13 ++-----------
  src/cmd/compile/internal/gc/subr.go | 22 +++++++---------------
  src/runtime/alg.go                  | 20 ++------------------
  3 files changed, 11 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d21b2fb196..3923bc6e31 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -28,30 +28,21 @@ const (
+ 
+ const (
+ 	// These values are known by runtime.
+-	// The MEMx and NOEQx values must run in parallel.  See algtype.
+-	AMEM = iota
++	ANOEQ = iota
+ 	AMEM0
+ 	AMEM8
+ 	AMEM16
+ 	AMEM32
+ 	AMEM64
+ 	AMEM128
+-	ANOEQ
+-	ANOEQ0
+-	ANOEQ8
+-	ANOEQ16
+-	ANOEQ32
+-	ANOEQ64
+-	ANOEQ128
+ 	ASTRING
+ 	AINTER
+ 	ANILINTER
+-	ASLICE
+ 	AFLOAT32
+ 	AFLOAT64
+ 	ACPLX64
+ 	ACPLX128
+-	AUNK = 100
++	AMEM = 100
+ )
+ 
+ const (
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a04c538e26..ba0a257b3b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -509,28 +509,20 @@ func algtype1(t *Type, bad **Type) int {
+ 
+ func algtype(t *Type) int {
+ 	a := algtype1(t, nil)
+-	if a == AMEM || a == ANOEQ {
+-		if Isslice(t) {
+-			return ASLICE
+-		}
++	if a == AMEM {
+ 		switch t.Width {
+ 		case 0:
+-			return a + AMEM0 - AMEM
+-
++			return AMEM0
+ 		case 1:
+-			return a + AMEM8 - AMEM
+-
++			return AMEM8
+ 		case 2:
+-			return a + AMEM16 - AMEM
+-
++			return AMEM16
+ 		case 4:
+-			return a + AMEM32 - AMEM
+-
++			return AMEM32
+ 		case 8:
+-			return a + AMEM64 - AMEM
+-
++			return AMEM64
+ 		case 16:
+-			return a + AMEM128 - AMEM
++			return AMEM128
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 9ea0eb0187..541649c62d 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -16,24 +16,16 @@ const (
+ 
+ // type algorithms - known to compiler
+ const (
+-	alg_MEM = iota
++	alg_NOEQ = iota
+ 	alg_MEM0
+ 	alg_MEM8
+ 	alg_MEM16
+ 	alg_MEM32
+ 	alg_MEM64
+ 	alg_MEM128
+-	alg_NOEQ
+-	alg_NOEQ0
+-	alg_NOEQ8
+-	alg_NOEQ16
+-	alg_NOEQ32
+-	alg_NOEQ64
+-	alg_NOEQ128
+ 	alg_STRING
+ 	alg_INTER
+ 	alg_NILINTER
+-	alg_SLICE
+ 	alg_FLOAT32
+ 	alg_FLOAT64
+ 	alg_CPLX64
+@@ -77,24 +69,16 @@ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
+ func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
+ 
+ var algarray = [alg_max]typeAlg{
+-	alg_MEM:      {nil, nil}, // not used
++	alg_NOEQ:     {nil, nil},
+ 	alg_MEM0:     {memhash0, memequal0},
+ 	alg_MEM8:     {memhash8, memequal8},
+ 	alg_MEM16:    {memhash16, memequal16},
+ 	alg_MEM32:    {memhash32, memequal32},
+ 	alg_MEM64:    {memhash64, memequal64},
+ 	alg_MEM128:   {memhash128, memequal128},
+-	alg_NOEQ:     {nil, nil},
+-	alg_NOEQ0:    {nil, nil},
+-	alg_NOEQ8:    {nil, nil},
+-	alg_NOEQ16:   {nil, nil},
+-	alg_NOEQ32:   {nil, nil},
+-	alg_NOEQ64:   {nil, nil},
+-	alg_NOEQ128:  {nil, nil},
+ 	alg_STRING:   {strhash, strequal},
+ 	alg_INTER:    {interhash, interequal},
+ 	alg_NILINTER: {nilinterhash, nilinterequal},
+-	alg_SLICE:    {nil, nil},
+ 	alg_FLOAT32:  {f32hash, f32equal},
+ 	alg_FLOAT64:  {f64hash, f64equal},
+ 	alg_CPLX64:   {c64hash, c64equal},

@@ -15,6 +15,29 @@ Date:   Fri Feb 2 11:11:32 2018 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/internal/gccgoimporter/gccgoinstallation_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation_test.go b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+index e601411237..da4931ef1e 100644
+--- a/src/go/internal/gccgoimporter/gccgoinstallation_test.go
++++ b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+@@ -62,8 +62,6 @@ var importablePackages = [...]string{
+ 	"encoding/pem",
+ 	"encoding/xml",
+ 	"errors",
+-	"exp/proxy",
+-	"exp/terminal",
+ 	"expvar",
+ 	"flag",
+ 	"fmt",
+@@ -114,8 +112,6 @@ var importablePackages = [...]string{
+ 	"net/smtp",
+ 	"net/textproto",
+ 	"net/url",
+-	"old/regexp",
+-	"old/template",
+ 	"os/exec",
+ 	"os",
+ 	"os/signal",

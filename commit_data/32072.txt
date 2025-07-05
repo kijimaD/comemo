@@ -11,7 +11,7 @@ Date:   Wed Mar 29 14:21:50 2017 +1100
     Reviewed-on: https://go-review.googlesource.com/39110
     Run-TryBot: Dave Cheney <dave@cheney.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/arm/list5.go   | 4 ++--
  src/cmd/internal/obj/arm64/list7.go | 4 ++--
  src/cmd/internal/obj/mips/list0.go  | 4 ++--
@@ -21,3 +21,147 @@ Date:   Wed Mar 29 14:21:50 2017 +1100
  src/cmd/internal/obj/x86/list6.go   | 4 ++--
  src/cmd/internal/obj/x86/obj6.go    | 2 +-
  8 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index c25a8b7f08..169a7f5ad9 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -36,11 +36,11 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBaseARM, MAXREG, Rconv)
++	obj.RegisterRegister(obj.RBaseARM, MAXREG, rconv)
+ 	obj.RegisterOpcode(obj.ABaseARM, Anames)
+ }
+ 
+-func Rconv(r int) string {
++func rconv(r int) string {
+ 	if r == 0 {
+ 		return "NONE"
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/list7.go b/src/cmd/internal/obj/arm64/list7.go
+index ad9ff0965c..65be486cee 100644
+--- a/src/cmd/internal/obj/arm64/list7.go
++++ b/src/cmd/internal/obj/arm64/list7.go
+@@ -55,11 +55,11 @@ var strcond = [16]string{
+ }
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, Rconv)
++	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, rconv)
+ 	obj.RegisterOpcode(obj.ABaseARM64, Anames)
+ }
+ 
+-func Rconv(r int) string {
++func rconv(r int) string {
+ 	if r == REGG {
+ 		return "g"
+ 	}
+diff --git a/src/cmd/internal/obj/mips/list0.go b/src/cmd/internal/obj/mips/list0.go
+index 4dd5e80ba1..bdd9df974a 100644
+--- a/src/cmd/internal/obj/mips/list0.go
++++ b/src/cmd/internal/obj/mips/list0.go
+@@ -35,11 +35,11 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBaseMIPS, REG_LAST+1, Rconv)
++	obj.RegisterRegister(obj.RBaseMIPS, REG_LAST+1, rconv)
+ 	obj.RegisterOpcode(obj.ABaseMIPS, Anames)
+ }
+ 
+-func Rconv(r int) string {
++func rconv(r int) string {
+ 	if r == 0 {
+ 		return "NONE"
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index dfc4896338..461950dc60 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -35,11 +35,11 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, Rconv)
++	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, rconv)
+ 	obj.RegisterOpcode(obj.ABasePPC64, Anames)
+ }
+ 
+-func Rconv(r int) string {
++func rconv(r int) string {
+ 	if r == 0 {
+ 		return "NONE"
+ 	}
+diff --git a/src/cmd/internal/obj/s390x/listz.go b/src/cmd/internal/obj/s390x/listz.go
+index 152a45b168..ee580262b8 100644
+--- a/src/cmd/internal/obj/s390x/listz.go
++++ b/src/cmd/internal/obj/s390x/listz.go
+@@ -35,11 +35,11 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBaseS390X, REG_R0+1024, Rconv)
++	obj.RegisterRegister(obj.RBaseS390X, REG_R0+1024, rconv)
+ 	obj.RegisterOpcode(obj.ABaseS390X, Anames)
+ }
+ 
+-func Rconv(r int) string {
++func rconv(r int) string {
+ 	if r == 0 {
+ 		return "NONE"
+ 	}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 00a5816ddc..38d21628f9 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3207,7 +3207,7 @@ func isax(a *obj.Addr) bool {
+ 
+ func subreg(p *obj.Prog, from int, to int) {
+ 	if false { /* debug['Q'] */
+-		fmt.Printf("\n%v\ts/%v/%v/\n", p, Rconv(from), Rconv(to))
++		fmt.Printf("\n%v\ts/%v/%v/\n", p, rconv(from), rconv(to))
+ 	}
+ 
+ 	if int(p.From.Reg) == from {
+@@ -4084,7 +4084,7 @@ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 								r.Off = int32(p.Pc + int64(asmbuf.Len()))
+ 								r.Type = obj.R_CALL
+ 								r.Siz = 4
+-								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
++								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+ 								asmbuf.PutInt32(0)
+ 
+ 								asmbuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
+diff --git a/src/cmd/internal/obj/x86/list6.go b/src/cmd/internal/obj/x86/list6.go
+index a1a49ed39a..add8788b54 100644
+--- a/src/cmd/internal/obj/x86/list6.go
++++ b/src/cmd/internal/obj/x86/list6.go
+@@ -168,11 +168,11 @@ var Register = []string{
+ }
+ 
+ func init() {
+-	obj.RegisterRegister(REG_AL, REG_AL+len(Register), Rconv)
++	obj.RegisterRegister(REG_AL, REG_AL+len(Register), rconv)
+ 	obj.RegisterOpcode(obj.ABaseAMD64, Anames)
+ }
+ 
+-func Rconv(r int) string {
++func rconv(r int) string {
+ 	if REG_AL <= r && r-REG_AL < len(Register) {
+ 		return Register[r-REG_AL]
+ 	}
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index b419bc92c9..2197bb44d7 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -542,7 +542,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+ 	r := obj.Appendp(ctxt, q)
+ 	r.RegTo2 = 1
+ 	q.As = obj.ACALL
+-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
++	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
+ 	q.To.Type = obj.TYPE_MEM
+ 	q.To.Name = obj.NAME_EXTERN
+ 	q.To.Sym.Set(obj.AttrLocal, true)

@@ -15,6 +15,23 @@ Date:   Mon Nov 28 20:31:18 2016 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 01a289fe97..593b1f3cdd 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -400,9 +400,9 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
+ 	}
+ 
+ 	for _, tt := range serveMuxTests2 {
+-		tries := 1
++		tries := 1 // expect at most 1 redirection if redirOk is true.
+ 		turl := tt.url
+-		for tries > 0 {
++		for {
+ 			u, e := url.Parse(turl)
+ 			if e != nil {
+ 				t.Fatal(e)

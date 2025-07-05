@@ -12,6 +12,20 @@ Date:   Thu Feb 20 07:59:38 2014 +0100
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/65270044
-
+---
  src/pkg/os/file_plan9.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index e6496558ca..a804b81973 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -332,6 +332,8 @@ func rename(oldname, newname string) error {
+ 	dirname := oldname[:lastIndex(oldname, '/')+1]
+ 	if hasPrefix(newname, dirname) {
+ 		newname = newname[len(dirname):]
++	} else {
++		return &LinkError{"rename", oldname, newname, ErrInvalid}
+ 	}
+ 
+ 	// If newname still contains slashes after removing the oldname

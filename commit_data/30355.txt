@@ -11,6 +11,28 @@ Date:   Tue Nov 1 15:15:11 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 3cb12c23d5..0eb9cd5eb3 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -47,7 +47,6 @@ func TestStdLib(t *testing.T) {
+ 		defer close(results)
+ 		for _, dir := range []string{
+ 			runtime.GOROOT(),
+-			//"/Users/gri/src",
+ 		} {
+ 			walkDirs(t, dir, func(filename string) {
+ 				if debug {
+@@ -100,7 +99,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
+ 			}
+ 		} else if fi.IsDir() && fi.Name() != "testdata" {
+ 			path := filepath.Join(dir, fi.Name())
+-			if !strings.Contains(path, "go/test") {
++			if !strings.HasSuffix(path, "/test") {
+ 				dirs = append(dirs, path)
+ 			}
+ 		}

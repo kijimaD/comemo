@@ -18,8 +18,98 @@ Date:   Fri Mar 24 10:36:13 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/phi.go       | 14 ++++++++------
  src/cmd/compile/internal/ssa/deadcode.go |  8 ++++----
  test/fixedbugs/issue19678.go             | 21 +++++++++++++++++++++
  3 files changed, 33 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/phi.go b/src/cmd/compile/internal/gc/phi.go
+index 2f1d70a3ee..0ba2de80e2 100644
+--- a/src/cmd/compile/internal/gc/phi.go
++++ b/src/cmd/compile/internal/gc/phi.go
+@@ -437,6 +437,8 @@ type simplePhiState struct {
+ }
+ 
+ func (s *simplePhiState) insertPhis() {
++	reachable := ssa.ReachableBlocks(s.f)
++
+ 	// Find FwdRef ops.
+ 	for _, b := range s.f.Blocks {
+ 		for _, v := range b.Values {
+@@ -459,12 +461,12 @@ loop:
+ 		s.fwdrefs = s.fwdrefs[:len(s.fwdrefs)-1]
+ 		b := v.Block
+ 		var_ := v.Aux.(*Node)
+-		if len(b.Preds) == 0 {
+-			if b == s.f.Entry {
+-				// No variable should be live at entry.
+-				s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
+-			}
+-			// This block is dead; it has no predecessors and it is not the entry block.
++		if b == s.f.Entry {
++			// No variable should be live at entry.
++			s.s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, var_, v)
++		}
++		if !reachable[b.ID] {
++			// This block is dead.
+ 			// It doesn't matter what we use here as long as it is well-formed.
+ 			v.Op = ssa.OpUnknown
+ 			v.Aux = nil
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index ce786a964b..b24ecaa4c4 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -6,13 +6,13 @@ package ssa
+ 
+ // findlive returns the reachable blocks and live values in f.
+ func findlive(f *Func) (reachable []bool, live []bool) {
+-	reachable = reachableBlocks(f)
++	reachable = ReachableBlocks(f)
+ 	live = liveValues(f, reachable)
+ 	return
+ }
+ 
+-// reachableBlocks returns the reachable blocks in f.
+-func reachableBlocks(f *Func) []bool {
++// ReachableBlocks returns the reachable blocks in f.
++func ReachableBlocks(f *Func) []bool {
+ 	reachable := make([]bool, f.NumBlocks())
+ 	reachable[f.Entry.ID] = true
+ 	p := []*Block{f.Entry} // stack-like worklist
+@@ -106,7 +106,7 @@ func deadcode(f *Func) {
+ 	}
+ 
+ 	// Find reachable blocks.
+-	reachable := reachableBlocks(f)
++	reachable := ReachableBlocks(f)
+ 
+ 	// Get rid of edges from dead to live code.
+ 	for _, b := range f.Blocks {
+diff --git a/test/fixedbugs/issue19678.go b/test/fixedbugs/issue19678.go
+new file mode 100644
+index 0000000000..81ef331ee6
+--- /dev/null
++++ b/test/fixedbugs/issue19678.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash when compiling functions containing
++// forward refs in dead code.
++
++package p
++
++var f func(int)
++
++func g() {
++l1:
++	i := 0
++	goto l1
++l2:
++	f(i)
++	goto l2
++}

@@ -10,9 +10,229 @@ Date:   Mon Jan 11 21:28:02 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/184081
-
+---
  src/pkg/math/all_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/math/exp.go      |  6 ++--
  src/pkg/math/floor.go    | 13 +++++++
  src/pkg/math/log.go      | 11 +++---
  4 files changed, 108 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 9f3948989f..0c65dd787f 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -118,6 +118,18 @@ var log = []float64{
+ 	6.0174879014578053e-01,
+ 	2.1617038728473527e+00,
+ }
++var log10 = []float64{
++	6.9714316642508291e-01,
++	8.8867769017393205e-01,
++	-5.5770832400658930e-01,
++	6.9989004768229943e-01,
++	9.8391002850684232e-01,
++	4.6633031029295153e-01,
++	7.1842557117242328e-01,
++	4.3583479968917772e-01,
++	2.6133617905227037e-01,
++	9.3881606348649405e-01,
++}
+ var pow = []float64{
+ 	9.5282232631648415e+04,
+ 	5.4811599352999900e+07,
+@@ -210,6 +222,28 @@ var atanSC = []float64{
+ 	NaN(),
+ }
+ 
++var vfceilSC = []float64{
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++var ceilSC = []float64{
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++
++var vfexpSC = []float64{
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++var expSC = []float64{
++	0,
++	Inf(1),
++	NaN(),
++}
++
+ var vffmodSC = [][2]float64{
+ 	[2]float64{Inf(-1), Inf(-1)},
+ 	[2]float64{Inf(-1), -Pi},
+@@ -275,6 +309,21 @@ var fmodSC = []float64{
+ 	NaN(),
+ }
+ 
++var vflogSC = []float64{
++	Inf(-1),
++	-Pi,
++	0,
++	Inf(1),
++	NaN(),
++}
++var logSC = []float64{
++	NaN(),
++	NaN(),
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++
+ var vfpowSC = [][2]float64{
+ 	[2]float64{-Pi, Pi},
+ 	[2]float64{-Pi, -Pi},
+@@ -440,6 +489,11 @@ func TestCeil(t *testing.T) {
+ 			t.Errorf("Ceil(%g) = %g, want %g\n", vf[i], f, ceil[i])
+ 		}
+ 	}
++	for i := 0; i < len(vfceilSC); i++ {
++		if f := Ceil(vfceilSC[i]); !alike(ceilSC[i], f) {
++			t.Errorf("Ceil(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
++		}
++	}
+ }
+ 
+ func TestExp(t *testing.T) {
+@@ -448,6 +502,11 @@ func TestExp(t *testing.T) {
+ 			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i])
+ 		}
+ 	}
++	for i := 0; i < len(vfexpSC); i++ {
++		if f := Exp(vfexpSC[i]); !alike(expSC[i], f) {
++			t.Errorf("Exp(%g) = %g, want %g\n", vfexpSC[i], f, expSC[i])
++		}
++	}
+ }
+ 
+ func TestFloor(t *testing.T) {
+@@ -456,6 +515,11 @@ func TestFloor(t *testing.T) {
+ 			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i])
+ 		}
+ 	}
++	for i := 0; i < len(vfceilSC); i++ {
++		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
++			t.Errorf("Floor(%g) = %g, want %g\n", vfceilSC[i], f, ceilSC[i])
++		}
++	}
+ }
+ 
+ func TestFmod(t *testing.T) {
+@@ -479,7 +543,29 @@ func TestLog(t *testing.T) {
+ 		}
+ 	}
+ 	if f := Log(10); f != Ln10 {
+-		t.Errorf("Log(%g) = %g, want %g\n", 10, f, Ln10)
++		t.Errorf("Log(%g) = %g, want %g\n", 10.0, f, Ln10)
++	}
++	for i := 0; i < len(vflogSC); i++ {
++		if f := Log(vflogSC[i]); !alike(logSC[i], f) {
++			t.Errorf("Log(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
++		}
++	}
++}
++
++func TestLog10(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		a := Fabs(vf[i])
++		if f := Log10(a); !veryclose(log10[i], f) {
++			t.Errorf("Log10(%g) = %g, want %g\n", a, f, log10[i])
++		}
++	}
++	if f := Log10(E); f != Log10E {
++		t.Errorf("Log10(%g) = %g, want %g\n", E, f, Log10E)
++	}
++	for i := 0; i < len(vflogSC); i++ {
++		if f := Log10(vflogSC[i]); !alike(logSC[i], f) {
++			t.Errorf("Log10(%g) = %g, want %g\n", vflogSC[i], f, logSC[i])
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/exp.go b/src/pkg/math/exp.go
+index 9ad2b38773..bc02fda10c 100644
+--- a/src/pkg/math/exp.go
++++ b/src/pkg/math/exp.go
+@@ -104,11 +104,13 @@ func Exp(x float64) float64 {
+ 		NearZero  = 1.0 / (1 << 28) // 2^-28
+ 	)
+ 
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case IsNaN(x) || IsInf(x, 1):
++	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
+ 		return x
+-	case IsInf(x, -1):
++	case x < -MaxFloat64: // IsInf(x, -1):
+ 		return 0
+ 	case x > Overflow:
+ 		return Inf(1)
+diff --git a/src/pkg/math/floor.go b/src/pkg/math/floor.go
+index 2acf1e042a..c5e496d8fa 100644
+--- a/src/pkg/math/floor.go
++++ b/src/pkg/math/floor.go
+@@ -6,7 +6,15 @@ package math
+ 
+ 
+ // Floor returns the greatest integer value less than or equal to x.
++//
++// Special cases are:
++//	Floor(+Inf) = +Inf
++//	Floor(-Inf) = -Inf
++//	Floor(NaN) = NaN
+ func Floor(x float64) float64 {
++	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
++		return x
++	}
+ 	if x < 0 {
+ 		d, fract := Modf(-x)
+ 		if fract != 0.0 {
+@@ -19,4 +27,9 @@ func Floor(x float64) float64 {
+ }
+ 
+ // Ceil returns the least integer value greater than or equal to x.
++//
++// Special cases are:
++//	Ceil(+Inf) = +Inf
++//	Ceil(-Inf) = -Inf
++//	Ceil(NaN) = NaN
+ func Ceil(x float64) float64 { return -Floor(-x) }
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index 12b3f64989..f188c8ce7d 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -90,9 +90,11 @@ func Log(x float64) float64 {
+ 		L7    = 1.479819860511658591e-01   /* 3FC2F112 DF3E5244 */
+ 	)
+ 
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case IsNaN(x) || IsInf(x, 1):
++	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
+ 		return x
+ 	case x < 0:
+ 		return NaN()
+@@ -122,9 +124,4 @@ func Log(x float64) float64 {
+ 
+ // Log10 returns the decimal logarithm of x.
+ // The special cases are the same as for Log.
+-func Log10(x float64) float64 {
+-	if x <= 0 {
+-		return NaN()
+-	}
+-	return Log(x) * (1 / Ln10)
+-}
++func Log10(x float64) float64 { return Log(x) * (1 / Ln10) }

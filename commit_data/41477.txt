@@ -9,6 +9,27 @@ Date:   Fri Sep 27 16:42:46 2019 +0700
     Change-Id: Iec9a5d120013aaa287eccf2999b3f2b831be070e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197558
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/type.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 9fb6558a32..af1fa2e1ca 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -14,6 +14,7 @@ import "unsafe"
+ //	cmd/compile/internal/gc/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	reflect/type.go
++//      internal/reflectlite/type.go
+ type tflag uint8
+ 
+ const (
+@@ -26,6 +27,7 @@ const (
+ // Needs to be in sync with ../cmd/link/internal/ld/decodesym.go:/^func.commonsize,
+ // ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
+ // ../reflect/type.go:/^type.rtype.
++// ../internal/reflectlite/type.go:/^type.rtype.
+ type _type struct {
+ 	size       uintptr
+ 	ptrdata    uintptr // size of memory prefix holding all pointers

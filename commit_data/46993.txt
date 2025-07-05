@@ -17,6 +17,35 @@ Date:   Tue Jan 26 21:18:01 2021 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/syscall/types_windows_arm64.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/syscall/types_windows_arm64.go b/src/syscall/types_windows_arm64.go
+new file mode 100644
+index 0000000000..7d45ddbc0b
+--- /dev/null
++++ b/src/syscall/types_windows_arm64.go
+@@ -0,0 +1,22 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++type WSAData struct {
++	Version      uint16
++	HighVersion  uint16
++	MaxSockets   uint16
++	MaxUdpDg     uint16
++	VendorInfo   *byte
++	Description  [WSADESCRIPTION_LEN + 1]byte
++	SystemStatus [WSASYS_STATUS_LEN + 1]byte
++}
++
++type Servent struct {
++	Name    *byte
++	Aliases **byte
++	Proto   *byte
++	Port    uint16
++}

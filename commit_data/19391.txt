@@ -12,8 +12,91 @@ Date:   Mon May 19 12:06:30 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/97550043
-
+---
  src/pkg/runtime/malloc.goc | 11 +----------
  src/pkg/runtime/mgc0.c     |  8 ++++++--
  src/pkg/runtime/mheap.c    |  2 +-
  3 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 6371689a9c..6e1068d93d 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -849,16 +849,7 @@ runtime·cnewarray(Type *typ, intgo n)
+ }
+ 
+ func GC() {
+-	// We assume that the user expects unused memory to have
+-	// been freed when GC returns. To ensure this, run gc(1) twice.
+-	// The first will do a collection, and the second will force the
+-	// first's sweeping to finish before doing a second collection.
+-	// The second collection is overkill, but we assume the user
+-	// has a good reason for calling runtime.GC and can stand the
+-	// expense. At the least, this fixes all the calls to runtime.GC in
+-	// tests that expect finalizers to start running when GC returns.
+-	runtime·gc(1);
+-	runtime·gc(1);
++	runtime·gc(2);  // force GC and do eager sweep
+ }
+ 
+ func SetFinalizer(obj Eface, finalizer Eface) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 7152e3b37c..e51ce24ff6 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2239,6 +2239,7 @@ runtime·updatememstats(GCStats *stats)
+ struct gc_args
+ {
+ 	int64 start_time; // start time of GC in ns (just before stoptheworld)
++	bool  eagersweep;
+ };
+ 
+ static void gc(struct gc_args *args);
+@@ -2257,6 +2258,8 @@ readgogc(void)
+ 	return runtime·atoi(p);
+ }
+ 
++// force = 1 - do GC regardless of current heap usage
++// force = 2 - go GC and eager sweep
+ void
+ runtime·gc(int32 force)
+ {
+@@ -2292,7 +2295,7 @@ runtime·gc(int32 force)
+ 		return;
+ 
+ 	runtime·semacquire(&runtime·worldsema, false);
+-	if(!force && mstats.heap_alloc < mstats.next_gc) {
++	if(force==0 && mstats.heap_alloc < mstats.next_gc) {
+ 		// typically threads which lost the race to grab
+ 		// worldsema exit here when gc is done.
+ 		runtime·semrelease(&runtime·worldsema);
+@@ -2301,6 +2304,7 @@ runtime·gc(int32 force)
+ 
+ 	// Ok, we're doing it!  Stop everybody else
+ 	a.start_time = runtime·nanotime();
++	a.eagersweep = force >= 2;
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+ 	
+@@ -2490,7 +2494,7 @@ gc(struct gc_args *args)
+ 	sweep.spanidx = 0;
+ 
+ 	// Temporary disable concurrent sweep, because we see failures on builders.
+-	if(ConcurrentSweep) {
++	if(ConcurrentSweep && !args->eagersweep) {
+ 		runtime·lock(&gclock);
+ 		if(sweep.g == nil)
+ 			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, runtime·gc);
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 3de6b8bb4e..7e83eb2833 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -555,7 +555,7 @@ runtime·MHeap_Scavenger(void)
+ void
+ runtime∕debug·freeOSMemory(void)
+ {
+-	runtime·gc(1);
++	runtime·gc(2);  // force GC and do eager sweep
+ 	runtime·lock(&runtime·mheap);
+ 	scavenge(-1, ~(uintptr)0, 0);
+ 	runtime·unlock(&runtime·mheap);

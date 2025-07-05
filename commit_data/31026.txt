@@ -17,7 +17,7 @@ Date:   Wed Jan 11 11:24:35 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |  7 ++-
  src/cmd/compile/internal/gc/bimport.go   | 24 ++++-----
  src/cmd/compile/internal/gc/dcl.go       | 18 +++++--
@@ -29,3 +29,494 @@ Date:   Wed Jan 11 11:24:35 2017 -0800
  src/cmd/compile/internal/gc/typecheck.go | 22 ++++++--
  test/alias2.go                           | 93 +++++++++++++++++++++++---------
  10 files changed, 153 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 4125e83b3a..5f14e0152b 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -352,8 +352,8 @@ func export(out *bufio.Writer, trace bool) int {
+ 			p.tracef("\n")
+ 		}
+ 
+-		if sym.Flags&SymAlias != 0 {
+-			Fatalf("exporter: unexpected alias %v in inlined function body", sym)
++		if sym.isAlias() {
++			Fatalf("exporter: unexpected type alias %v in inlined function body", sym)
+ 		}
+ 
+ 		p.obj(sym)
+@@ -486,8 +486,7 @@ func (p *exporter) obj(sym *Sym) {
+ 			Fatalf("exporter: export of incomplete type %v", sym)
+ 		}
+ 
+-		const alias = false // TODO(gri) fix this
+-		if alias {
++		if sym.isAlias() {
+ 			p.tag(aliasTag)
+ 			p.pos(n)
+ 			p.qualifiedName(sym)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 6b34770e08..3c1f7100c3 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -316,10 +316,10 @@ func (p *importer) obj(tag int) {
+ 		importconst(sym, idealType(typ), nodlit(val))
+ 
+ 	case aliasTag:
+-		// TODO(gri) hook up type alias
+ 		p.pos()
+-		p.qualifiedName()
+-		p.typ()
++		sym := p.qualifiedName()
++		typ := p.typ()
++		importalias(sym, typ)
+ 
+ 	case typeTag:
+ 		p.typ()
+@@ -576,7 +576,7 @@ func (p *importer) fieldList() (fields []*Field) {
+ 
+ func (p *importer) field() *Field {
+ 	p.pos()
+-	sym := p.fieldName()
++	sym, alias := p.fieldName()
+ 	typ := p.typ()
+ 	note := p.string()
+ 
+@@ -589,8 +589,8 @@ func (p *importer) field() *Field {
+ 		}
+ 		sym = sym.Pkg.Lookup(s.Name)
+ 		f.Embedded = 1
+-	} else if sym.Flags&SymAlias != 0 {
+-		// anonymous field: we have an explicit name because it's an alias
++	} else if alias {
++		// anonymous field: we have an explicit name because it's a type alias
+ 		f.Embedded = 1
+ 	}
+ 
+@@ -625,15 +625,15 @@ func (p *importer) method() *Field {
+ 	return f
+ }
+ 
+-func (p *importer) fieldName() *Sym {
++func (p *importer) fieldName() (*Sym, bool) {
+ 	name := p.string()
+ 	if p.version == 0 && name == "_" {
+ 		// version 0 didn't export a package for _ field names
+ 		// but used the builtin package instead
+-		return builtinpkg.Lookup(name)
++		return builtinpkg.Lookup(name), false
+ 	}
+ 	pkg := localpkg
+-	var flag SymFlags
++	alias := false
+ 	switch name {
+ 	case "":
+ 		// 1) field name matches base type name and is exported: nothing to do
+@@ -644,16 +644,14 @@ func (p *importer) fieldName() *Sym {
+ 	case "@":
+ 		// 3) field name doesn't match base type name (alias name): need name and possibly package
+ 		name = p.string()
+-		flag = SymAlias
++		alias = true
+ 		fallthrough
+ 	default:
+ 		if !exportname(name) {
+ 			pkg = p.pkg()
+ 		}
+ 	}
+-	sym := pkg.Lookup(name)
+-	sym.Flags |= flag
+-	return sym
++	return pkg.Lookup(name), alias
+ }
+ 
+ func (p *importer) methodName() *Sym {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3cdd71df0d..5a1c5e12a0 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -695,10 +695,20 @@ func typedcl0(s *Sym) *Node {
+ 
+ // node n, which was returned by typedcl0
+ // is being declared to have uncompiled type t.
+-// return the ODCLTYPE node to use.
+-func typedcl1(n *Node, t *Node, local bool) *Node {
+-	n.Name.Param.Ntype = t
+-	n.Local = local
++// returns the ODCLTYPE node to use.
++func typedcl1(n *Node, t *Node, pragma Pragma, alias bool) *Node {
++	if pragma != 0 && alias {
++		yyerror("cannot specify directive with type alias")
++		pragma = 0
++	}
++
++	n.Local = true
++
++	p := n.Name.Param
++	p.Ntype = t
++	p.Pragma = pragma
++	p.Alias = alias
++
+ 	return nod(ODCLTYPE, n, nil)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b4c15e40b1..5556984dcb 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -45,8 +45,8 @@ func exportsym(n *Node) {
+ 		fmt.Printf("export symbol %v\n", n.Sym)
+ 	}
+ 
+-	// Ensure original object is on exportlist before aliases.
+-	if n.Sym.Flags&SymAlias != 0 {
++	// Ensure original types are on exportlist before type aliases.
++	if n.Sym.isAlias() {
+ 		exportlist = append(exportlist, n.Sym.Def)
+ 	}
+ 
+@@ -348,6 +348,27 @@ func importvar(s *Sym, t *Type) {
+ 	}
+ }
+ 
++// importalias declares symbol s as an imported type alias with type t.
++func importalias(s *Sym, t *Type) {
++	importsym(s, OTYPE)
++	if s.Def != nil && s.Def.Op == OTYPE {
++		if eqtype(t, s.Def.Type) {
++			return
++		}
++		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)
++	}
++
++	n := newname(s)
++	n.Op = OTYPE
++	s.Importdef = importpkg
++	n.Type = t
++	declare(n, PEXTERN)
++
++	if Debug['E'] != 0 {
++		fmt.Printf("import type %v = %L\n", s, t)
++	}
++}
++
+ func dumpasmhdr() {
+ 	b, err := bio.Create(asmhdr)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ff33e9c1c4..070fb5f54b 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -63,9 +63,12 @@ const (
+ 	SymSiggen
+ 	SymAsm
+ 	SymAlgGen
+-	SymAlias // alias, original is Sym.Def.Sym
+ )
+ 
++func (sym *Sym) isAlias() bool {
++	return sym.Def != nil && sym.Def.Sym != sym
++}
++
+ // The Class of a variable/function describes the "storage class"
+ // of a variable or function. During parsing, storage classes are
+ // called declaration contexts.
+@@ -87,7 +90,7 @@ const (
+ // of the compilers arrays.
+ //
+ // typedef	struct
+-// {					// must not move anything
++// {				// must not move anything
+ // 	uchar	array[8];	// pointer to data
+ // 	uchar	nel[4];		// number of elements
+ // 	uchar	cap[4];		// allocated number of elements
+@@ -104,7 +107,7 @@ var sizeof_Array int // runtime sizeof(Array)
+ // of the compilers strings.
+ //
+ // typedef	struct
+-// {					// must not move anything
++// {				// must not move anything
+ // 	uchar	array[8];	// pointer to data
+ // 	uchar	nel[4];		// number of elements
+ // } String;
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b0b31dd30d..a861a3556b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -927,7 +927,7 @@ func mkpackage(pkgname string) {
+ 				continue
+ 			}
+ 
+-			if s.Def.Sym != s && s.Flags&SymAlias == 0 {
++			if s.isAlias() {
+ 				// throw away top-level name left over
+ 				// from previous import . "x"
+ 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 8d830ad62d..699015488a 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -177,21 +177,12 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
+ }
+ 
+ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+-	if decl.Alias {
+-		yyerror("type alias declarations unimplemented")
+-	}
+-
+ 	name := typedcl0(p.name(decl.Name))
+-	pragma := Pragma(decl.Pragma)
+-	if pragma != 0 && decl.Alias {
+-		yyerror("cannot specify directive with type alias")
+-		pragma = 0
+-	}
+-	name.Name.Param.Pragma = pragma
+ 
++	// decl.Type may be nil but in that case we got a syntax error during parsing
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+-	return typedcl1(name, typ, true)
++	return typedcl1(name, typ, Pragma(decl.Pragma), decl.Alias)
+ }
+ 
+ func (p *noder) declNames(names []*syntax.Name) []*Node {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 8848bb5955..7a52dc612f 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -27,7 +27,7 @@ type Node struct {
+ 	// func
+ 	Func *Func
+ 
+-	// ONAME
++	// ONAME, OTYPE, OPACK, OLABEL, some OLITERAL
+ 	Name *Name
+ 
+ 	Sym *Sym        // various
+@@ -59,8 +59,8 @@ type Node struct {
+ 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+ 	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
+ 	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
+-	Local     bool
+-	IsStatic  bool // whether this Node will be converted to purely static data
++	Local     bool  // type created in this file (see also Type.Local); TODO(gri): move this into flags
++	IsStatic  bool  // whether this Node will be converted to purely static data
+ 	Initorder uint8
+ 	Used      bool // for variable/label declared and not used error
+ 	Isddd     bool // is the argument variadic
+@@ -180,14 +180,14 @@ func (n *Node) SetIota(x int64) {
+ 	n.Xoffset = x
+ }
+ 
+-// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, some OLITERAL).
++// Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node  // real package for import . names
+ 	Pkg       *Pkg   // pkg for OPACK nodes
+ 	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
+ 	Defn      *Node  // initializing assignment
+ 	Curfn     *Node  // function for local variables
+-	Param     *Param // additional fields for ONAME
++	Param     *Param // additional fields for ONAME, OTYPE
+ 	Decldepth int32  // declaration loop depth, increased for every loop or label
+ 	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+ 	Funcdepth int32
+@@ -280,10 +280,11 @@ type Param struct {
+ 	Innermost *Node
+ 	Outer     *Node
+ 
+-	// OTYPE pragmas
++	// OTYPE
+ 	//
+ 	// TODO: Should Func pragmas also be stored on the Name?
+ 	Pragma Pragma
++	Alias  bool // node is alias for Ntype
+ }
+ 
+ // Func holds Node fields used only with function-like nodes.
+@@ -382,7 +383,7 @@ const (
+ 	ODCLFUNC  // func f() or func (r) f()
+ 	ODCLFIELD // struct field, interface field, or func/method argument/return value.
+ 	ODCLCONST // const pi = 3.14
+-	ODCLTYPE  // type Int int
++	ODCLTYPE  // type Int int or type Int = int
+ 
+ 	ODELETE    // delete(Left, Right)
+ 	ODOT       // Left.Sym (Left is of struct type)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5ec1c9e2f2..46c71d69c4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3578,8 +3578,6 @@ func typecheckdeftype(n *Node) {
+ 
+ 	// copy new type and clear fields
+ 	// that don't come along.
+-	// anything zeroed here must be zeroed in
+-	// typedcl2 too.
+ 	copytype(n, t)
+ 
+ ret:
+@@ -3758,12 +3756,29 @@ func typecheckdef(n *Node) *Node {
+ 		n.Name.Defn = typecheck(n.Name.Defn, Etop) // fills in n->type
+ 
+ 	case OTYPE:
++		if p := n.Name.Param; p.Alias {
++			// Type alias declaration: Simply use the rhs type - no need
++			// to create a new type.
++			// If we have a syntax error, p.Ntype may be nil.
++			if p.Ntype != nil {
++				p.Ntype = typecheck(p.Ntype, Etype)
++				n.Type = p.Ntype.Type
++				if n.Type == nil {
++					n.Diag = true
++					goto ret
++				}
++				n.Sym.Def = p.Ntype
++			}
++			break
++		}
++
++		// regular type declaration
+ 		if Curfn != nil {
+ 			defercheckwidth()
+ 		}
+ 		n.Walkdef = 1
+ 		n.Type = typ(TFORW)
+-		n.Type.Sym = n.Sym
++		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
+ 		nerrors0 := nerrors
+ 		typecheckdeftype(n)
+ 		if n.Type.Etype == TFORW && nerrors > nerrors0 {
+@@ -3771,7 +3786,6 @@ func typecheckdef(n *Node) *Node {
+ 			// but it was reported. Silence future errors.
+ 			n.Type.Broke = true
+ 		}
+-
+ 		if Curfn != nil {
+ 			resumecheckwidth()
+ 		}
+diff --git a/test/alias2.go b/test/alias2.go
+index 25df7c287d..fb0a97feb2 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -6,11 +6,6 @@
+ 
+ // Test basic restrictions on type aliases.
+ 
+-// The compiler doesn't implement type aliases yet,
+-// so for now we get the same error (unimplemented)
+-// everywhere, OR-ed into the ERROR checks.
+-// TODO(gri) remove the need for "unimplemented"
+-
+ package p
+ 
+ import (
+@@ -18,41 +13,87 @@ import (
+ 	. "reflect"
+ )
+ 
++type T0 struct{}
++
+ // Valid type alias declarations.
+ 
+-type _ = int           // ERROR "unimplemented"
+-type _ = struct{}      // ERROR "unimplemented"
+-type _ = reflect.Value // ERROR "unimplemented"
+-type _ = Value         // ERROR "unimplemented"
++type _ = T0
++type _ = int
++type _ = struct{}
++type _ = reflect.Value
++type _ = Value
+ 
+ type (
+-	a1 = int           // ERROR "unimplemented"
+-	a2 = struct{}      // ERROR "unimplemented"
+-	a3 = reflect.Value // ERROR "unimplemented"
+-	a4 = Value         // ERROR "unimplemented"
++	A0 = T0
++	A1 = int
++	A2 = struct{}
++	A3 = reflect.Value
++	A4 = Value
++	A5 = Value
++
++	N0 A0
+ )
+ 
++// Methods can be declared on the original named type and the alias.
++func (T0) m1() {}
++func (A0) m1() {} // TODO(gri) this should be an error
++func (A0) m2() {}
++
++// Type aliases and the original type name can be used interchangeably.
++var _ A0 = T0{}
++var _ T0 = A0{}
++
++// But aliases and original types cannot be used with new types based on them.
++var _ N0 = T0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
++var _ N0 = A0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
++
++var _ A5 = Value{}
++
++var _ interface {
++	m1()
++	m2()
++} = T0{}
++
++var _ interface {
++	m1()
++	m2()
++} = A0{}
++
+ func _() {
+-	type _ = int           // ERROR "unimplemented"
+-	type _ = struct{}      // ERROR "unimplemented"
+-	type _ = reflect.Value // ERROR "unimplemented"
+-	type _ = Value         // ERROR "unimplemented"
++	type _ = T0
++	type _ = int
++	type _ = struct{}
++	type _ = reflect.Value
++	type _ = Value
+ 
+ 	type (
+-		a1 = int           // ERROR "unimplemented"
+-		a2 = struct{}      // ERROR "unimplemented"
+-		a3 = reflect.Value // ERROR "unimplemented"
+-		a4 = Value         // ERROR "unimplemented"
++		A0 = T0
++		A1 = int
++		A2 = struct{}
++		A3 = reflect.Value
++		A4 = Value
++		A5 Value
++
++		N0 A0
+ 	)
++
++	var _ A0 = T0{}
++	var _ T0 = A0{}
++
++	var _ N0 = T0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
++	var _ N0 = A0{} // ERROR "cannot use T0 literal \(type T0\) as type N0 in assignment"
++
++	var _ A5 = Value{} // ERROR "cannot use reflect\.Value literal \(type reflect.Value\) as type A5 in assignment"
+ }
+ 
+ // Invalid type alias declarations.
+ 
+-type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|unimplemented"
++type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type"
++
++func (A1) m() {} // ERROR "cannot define new methods on non-local type int"
++
++type B1 = struct{}
+ 
+-type b1 = struct{} // ERROR "unimplemented"
+-func (b1) m()      {} // disabled ERROR "invalid receiver type"
++func (B1) m() {} // ERROR "invalid receiver type"
+ 
+ // TODO(gri) expand
+-// It appears that type-checking exits after some more severe errors, so we may
+-// need more test files.

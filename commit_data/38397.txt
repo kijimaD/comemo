@@ -14,6 +14,25 @@ Date:   Thu Oct 25 23:14:15 2018 +0000
     GitHub-Pull-Request: golang/go#28399
     Reviewed-on: https://go-review.googlesource.com/c/144757
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/log/log.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 2b7c57fdfe..527f853438 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -254,6 +254,13 @@ func (l *Logger) SetPrefix(prefix string) {
+ 	l.prefix = prefix
+ }
+ 
++// Writer returns the output destination for the logger.
++func (l *Logger) Writer() io.Writer {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	return l.out
++}
++
+ // SetOutput sets the output destination for the standard logger.
+ func SetOutput(w io.Writer) {
+ 	std.mu.Lock()

@@ -17,9 +17,173 @@ Date:   Fri Apr 1 11:05:30 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21470
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 |  11 +++
  src/cmd/compile/internal/gc/ssa_test.go            |   2 +
  .../compile/internal/gc/testdata/namedReturn.go    | 101 +++++++++++++++++++++
  test/live_ssa.go                                   |  13 ++-
  4 files changed, 120 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 359f4b22a2..1c2e528384 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -661,6 +661,17 @@ func (s *state) stmt(n *Node) {
+ 			return
+ 		}
+ 
++		if n.Left == n.Right && n.Left.Op == ONAME {
++			// An x=x assignment. No point in doing anything
++			// here. In addition, skipping this assignment
++			// prevents generating:
++			//   VARDEF x
++			//   COPY x -> x
++			// which is bad because x is incorrectly considered
++			// dead before the vardef. See issue #14904.
++			return
++		}
++
+ 		var t *Type
+ 		if n.Right != nil {
+ 			t = n.Right.Type
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 59a240237b..0fb0f17778 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -99,3 +99,5 @@ func TestUnsafe(t *testing.T) { runTest(t, "unsafe_ssa.go") }
+ func TestPhi(t *testing.T) { runTest(t, "phi_ssa.go") }
+ 
+ func TestSlice(t *testing.T) { runTest(t, "slice.go") }
++
++func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
+diff --git a/src/cmd/compile/internal/gc/testdata/namedReturn.go b/src/cmd/compile/internal/gc/testdata/namedReturn.go
+new file mode 100644
+index 0000000000..dafb5d719f
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/namedReturn.go
+@@ -0,0 +1,101 @@
++// run
++
++// This test makes sure that naming named
++// return variables in a return statement works.
++// See issue #14904.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++// Our heap-allocated object that will be GC'd incorrectly.
++// Note that we always check the second word because that's
++// where 0xdeaddeaddeaddead is written.
++type B [4]int
++
++// small (SSAable) array
++type T1 [3]*B
++
++//go:noinline
++func f1() (t T1) {
++	t[0] = &B{91, 92, 93, 94}
++	runtime.GC()
++	return t
++}
++
++// large (non-SSAable) array
++type T2 [8]*B
++
++//go:noinline
++func f2() (t T2) {
++	t[0] = &B{91, 92, 93, 94}
++	runtime.GC()
++	return t
++}
++
++// small (SSAable) struct
++type T3 struct {
++	a, b, c *B
++}
++
++//go:noinline
++func f3() (t T3) {
++	t.a = &B{91, 92, 93, 94}
++	runtime.GC()
++	return t
++}
++
++// large (non-SSAable) struct
++type T4 struct {
++	a, b, c, d, e, f *B
++}
++
++//go:noinline
++func f4() (t T4) {
++	t.a = &B{91, 92, 93, 94}
++	runtime.GC()
++	return t
++}
++
++var sink *B
++
++func f5() int {
++	b := &B{91, 92, 93, 94}
++	t := T4{b, nil, nil, nil, nil, nil}
++	sink = b   // make sure b is heap allocated ...
++	sink = nil // ... but not live
++	runtime.GC()
++	t = t
++	return t.a[1]
++}
++
++func main() {
++	failed := false
++
++	if v := f1()[0][1]; v != 92 {
++		fmt.Printf("f1()[0][1]=%d, want 92\n", v)
++		failed = true
++	}
++	if v := f2()[0][1]; v != 92 {
++		fmt.Printf("f2()[0][1]=%d, want 92\n", v)
++		failed = true
++	}
++	if v := f3().a[1]; v != 92 {
++		fmt.Printf("f3().a[1]=%d, want 92\n", v)
++		failed = true
++	}
++	if v := f4().a[1]; v != 92 {
++		fmt.Printf("f4().a[1]=%d, want 92\n", v)
++		failed = true
++	}
++	if v := f5(); v != 92 {
++		fmt.Printf("f5()=%d, want 92\n", v)
++		failed = true
++	}
++	if failed {
++		panic("bad")
++	}
++}
+diff --git a/test/live_ssa.go b/test/live_ssa.go
+index fe2541395f..fae0a2b82a 100644
+--- a/test/live_ssa.go
++++ b/test/live_ssa.go
+@@ -606,13 +606,12 @@ func f39a() (x []int) {
+ 	return
+ }
+ 
+-// TODO: Reenable after #14904 is fixed.
+-//func f39b() (x [10]*int) {
+-//	x = [10]*int{}
+-//	x[0] = new(int) // E.R.R.O.R. "live at call to newobject: x$"
+-//	printnl()       // E.R.R.O.R. "live at call to printnl: x$"
+-//	return x
+-//}
++func f39b() (x [10]*int) {
++	x = [10]*int{}
++	x[0] = new(int) // ERROR "live at call to newobject: x$"
++	printnl()       // ERROR "live at call to printnl: x$"
++	return x
++}
+ 
+ func f39c() (x [10]*int) {
+ 	x = [10]*int{}

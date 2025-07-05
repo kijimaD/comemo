@@ -6,6 +6,20 @@ Date:   Tue Dec 1 16:18:27 2009 -0800
     
     TBR=r
     https://golang.org/cl/163064
-
+---
  src/pkg/gob/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index d7b4a21c56..36845b87c8 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -375,7 +375,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
+ 			if err != nil {
+ 				return nil, 0, err
+ 			}
+-			info := getTypeInfoNoError(typ);
++			info := mustGetTypeInfo(typ);
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				state.update(i);
+ 				// indirect through info to delay evaluation for recursive structs

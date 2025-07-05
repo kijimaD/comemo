@@ -10,7 +10,44 @@ Date:   Mon Sep 14 14:28:09 2015 -0400
     Change-Id: I2c18d55c9a673ea396b6424d51ef4997a1a74825
     Reviewed-on: https://go-review.googlesource.com/14548
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 7 ++++---
  src/runtime/mgcmark.go | 3 +--
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 7fdd93b600..848e8f6992 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -126,13 +126,14 @@ const (
+ 	_DebugGC         = 0
+ 	_ConcurrentSweep = true
+ 	_FinBlockSize    = 4 * 1024
++
+ 	_RootData        = 0
+ 	_RootBss         = 1
+ 	_RootFinalizers  = 2
+-	_RootSpans0      = 3
++	_RootFlushCaches = 3
++	_RootSpans0      = 4
+ 	_RootSpansShards = 128
+-	_RootFlushCaches = _RootSpans0 + _RootSpansShards
+-	_RootCount       = _RootFlushCaches + 1
++	_RootCount       = _RootSpans0 + _RootSpansShards
+ 
+ 	// sweepMinHeapDistance is a lower bound on the heap distance
+ 	// (in bytes) reserved for concurrent sweeping between GC
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 128a163297..c8f8a66b45 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -121,8 +121,7 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	sg := mheap_.sweepgen
+ 	startSpan := shard * len(work.spans) / _RootSpansShards
+ 	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
+-	for spanidx := startSpan; spanidx < endSpan; spanidx++ {
+-		s := work.spans[spanidx]
++	for _, s := range work.spans[startSpan:endSpan] {
+ 		if s.state != mSpanInUse {
+ 			continue
+ 		}

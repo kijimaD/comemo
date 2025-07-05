@@ -8,6 +8,29 @@ Date:   Mon Jul 7 07:35:39 2014 -0400
     R=golang-codereviews, minux, iant
     CC=golang-codereviews
     https://golang.org/cl/109470043
-
+---
  src/pkg/runtime/os_android.c | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/pkg/runtime/os_android.c b/src/pkg/runtime/os_android.c
+new file mode 100644
+index 0000000000..58e0dac939
+--- /dev/null
++++ b/src/pkg/runtime/os_android.c
+@@ -0,0 +1,16 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs_GOOS_GOARCH.h"
++#include "os_GOOS.h"
++
++// Export the runtime entry point symbol.
++//
++// Used by the app package to start the Go runtime after loading
++// a shared library via JNI. See code.google.com/p/go.mobile/app.
++
++void _rt0_arm_linux1();
++#pragma cgo_export_static _rt0_arm_linux1
++#pragma cgo_export_dynamic _rt0_arm_linux1

@@ -15,8 +15,101 @@ Date:   Tue Feb 27 14:53:33 2024 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/567537
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/client.go      | 10 ++--------
  src/net/http/client_test.go |  9 +++++++++
  src/net/http/transport.go   | 16 +++++++++-------
  3 files changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index ee6de24fc1..99ed7dc927 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -725,10 +725,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 			// c.send() always closes req.Body
+ 			reqBodyClosed = true
+ 			if !deadline.IsZero() && didTimeout() {
+-				err = &httpError{
+-					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
+-					timeout: true,
+-				}
++				err = &timeoutError{err.Error() + " (Client.Timeout exceeded while awaiting headers)"}
+ 			}
+ 			return nil, uerr(err)
+ 		}
+@@ -968,10 +965,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
+ 		return n, err
+ 	}
+ 	if b.reqDidTimeout() {
+-		err = &httpError{
+-			err:     err.Error() + " (Client.Timeout or context cancellation while reading body)",
+-			timeout: true,
+-		}
++		err = &timeoutError{err.Error() + " (Client.Timeout or context cancellation while reading body)"}
+ 	}
+ 	return n, err
+ }
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 7459b9cb6e..80a6664d3b 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1249,6 +1249,9 @@ func testClientTimeout(t *testing.T, mode testMode) {
+ 		} else if !ne.Timeout() {
+ 			t.Errorf("net.Error.Timeout = false; want true")
+ 		}
++		if !errors.Is(err, context.DeadlineExceeded) {
++			t.Errorf("ReadAll error = %q; expected some context.DeadlineExceeded", err)
++		}
+ 		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
+ 			if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
+ 				testenv.SkipFlaky(t, 43120)
+@@ -1292,6 +1295,9 @@ func testClientTimeout_Headers(t *testing.T, mode testMode) {
+ 	if !ne.Timeout() {
+ 		t.Error("net.Error.Timeout = false; want true")
+ 	}
++	if !errors.Is(err, context.DeadlineExceeded) {
++		t.Errorf("ReadAll error = %q; expected some context.DeadlineExceeded", err)
++	}
+ 	if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+ 		if runtime.GOOS == "windows" && strings.HasPrefix(runtime.GOARCH, "arm") {
+ 			testenv.SkipFlaky(t, 43120)
+@@ -1992,6 +1998,9 @@ func testClientDoCanceledVsTimeout(t *testing.T, mode testMode) {
+ 			if g, w := ue.Err, wantErr; g != w {
+ 				t.Errorf("url.Error.Err = %v; want %v", g, w)
+ 			}
++			if got := errors.Is(err, context.DeadlineExceeded); got != wantIsTimeout {
++				t.Errorf("errors.Is(err, context.DeadlineExceeded) = %v, want %v", got, wantIsTimeout)
++			}
+ 		})
+ 	}
+ }
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 411f6b2912..75934f00de 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2557,16 +2557,18 @@ type writeRequest struct {
+ 	continueCh <-chan struct{}
+ }
+ 
+-type httpError struct {
+-	err     string
+-	timeout bool
++// httpTimeoutError represents a timeout.
++// It implements net.Error and wraps context.DeadlineExceeded.
++type timeoutError struct {
++	err string
+ }
+ 
+-func (e *httpError) Error() string   { return e.err }
+-func (e *httpError) Timeout() bool   { return e.timeout }
+-func (e *httpError) Temporary() bool { return true }
++func (e *timeoutError) Error() string     { return e.err }
++func (e *timeoutError) Timeout() bool     { return true }
++func (e *timeoutError) Temporary() bool   { return true }
++func (e *timeoutError) Is(err error) bool { return err == context.DeadlineExceeded }
+ 
+-var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
++var errTimeout error = &timeoutError{"net/http: timeout awaiting response headers"}
+ 
+ // errRequestCanceled is set to be identical to the one from h2 to facilitate
+ // testing.

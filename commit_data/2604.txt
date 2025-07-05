@@ -7,6 +7,19 @@ Date:   Mon Jul 6 18:05:11 2009 -0700
     R=ken
     OCL=31230
     CL=31230
-
+---
  src/cmd/gc/go.y | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 9c9d6441d0..bb1edbd7ea 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1768,7 +1768,6 @@ hidden_type1:
+ 	}
+ |	'*' hidden_type
+ 	{
+-		checkwidth($2);
+ 		$$ = ptrto($2);
+ 	}
+ |	LCOMM LCHAN hidden_type

@@ -8,6 +8,41 @@ Date:   Wed Feb 20 14:34:03 2013 -0800
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/7363045
-
+---
  src/pkg/mime/type_unix.go | 15 +++++++--------
  1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/mime/type_unix.go b/src/pkg/mime/type_unix.go
+index 88eb83a735..857a0ab676 100644
+--- a/src/pkg/mime/type_unix.go
++++ b/src/pkg/mime/type_unix.go
+@@ -23,15 +23,11 @@ func loadMimeFile(filename string) {
+ 	if err != nil {
+ 		return
+ 	}
++	defer f.Close()
+ 
+-	reader := bufio.NewReader(f)
+-	for {
+-		line, err := reader.ReadString('\n')
+-		if err != nil {
+-			f.Close()
+-			return
+-		}
+-		fields := strings.Fields(line)
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		fields := strings.Fields(scanner.Text())
+ 		if len(fields) <= 1 || fields[0][0] == '#' {
+ 			continue
+ 		}
+@@ -43,6 +39,9 @@ func loadMimeFile(filename string) {
+ 			setExtensionType("."+ext, mimeType)
+ 		}
+ 	}
++	if err := scanner.Err(); err != nil {
++		panic(err)
++	}
+ }
+ 
+ func initMime() {

@@ -7,6 +7,26 @@ Date:   Fri Nov 2 15:28:32 2018 -0400
     Change-Id: Iaff03911f1807d462f1966590626bd486807f53d
     Reviewed-on: https://go-review.googlesource.com/c/147178
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 0448c0d43e..c8dd215220 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -41,6 +41,14 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.1">Go
+ 1.11.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.11.2 (released 2018/11/02) includes fixes to the compiler, linker,
++documentation, go command, and the <code>database/sql</code> and
++<code>go/types</code> packages.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.2">Go
++1.11.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

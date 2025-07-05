@@ -25,7 +25,7 @@ Date:   Mon Jun 8 18:06:11 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/init.go            |  1 +
  src/cmd/go/internal/modcmd/tidy.go            | 38 +-----------
  src/cmd/go/internal/modfetch/fetch.go         | 83 +++++++++++++++++++--------
@@ -33,3 +33,444 @@ Date:   Mon Jun 8 18:06:11 2020 -0400
  src/cmd/go/testdata/script/mod_sum_lookup.txt | 33 +++++++++++
  src/cmd/go/testdata/script/mod_tidy_old.txt   | 46 +++++++++++++++
  6 files changed, 204 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index ddb9aeebe9..95063e62f4 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -52,4 +52,5 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("go mod init: module path must not contain '@'")
+ 	}
+ 	modload.InitMod() // does all the hard work
++	modload.WriteGoMod()
+ }
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index feb41a83b0..769cd11fe8 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -9,12 +9,9 @@ package modcmd
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+ 	"context"
+-
+-	"golang.org/x/mod/module"
+ )
+ 
+ var cmdTidy = &base.Command{
+@@ -45,39 +42,6 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.LoadALL()
+ 	modload.TidyBuildList()
+-	modTidyGoSum() // updates memory copy; WriteGoMod on next line flushes it out
++	modload.TrimGoSum()
+ 	modload.WriteGoMod()
+ }
+-
+-// modTidyGoSum resets the go.sum file content
+-// to be exactly what's needed for the current go.mod.
+-func modTidyGoSum() {
+-	// Assuming go.sum already has at least enough from the successful load,
+-	// we only have to tell modfetch what needs keeping.
+-	reqs := modload.Reqs()
+-	keep := make(map[module.Version]bool)
+-	replaced := make(map[module.Version]bool)
+-	var walk func(module.Version)
+-	walk = func(m module.Version) {
+-		// If we build using a replacement module, keep the sum for the replacement,
+-		// since that's the code we'll actually use during a build.
+-		//
+-		// TODO(golang.org/issue/29182): Perhaps we should keep both sums, and the
+-		// sums for both sets of transitive requirements.
+-		r := modload.Replacement(m)
+-		if r.Path == "" {
+-			keep[m] = true
+-		} else {
+-			keep[r] = true
+-			replaced[m] = true
+-		}
+-		list, _ := reqs.Required(m)
+-		for _, r := range list {
+-			if !keep[r] && !replaced[r] {
+-				walk(r)
+-			}
+-		}
+-	}
+-	walk(modload.Target)
+-	modfetch.TrimGoSum(keep)
+-}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 8df2289097..e40158b535 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -375,12 +375,15 @@ type modSum struct {
+ var goSum struct {
+ 	mu        sync.Mutex
+ 	m         map[module.Version][]string // content of go.sum file
+-	checked   map[modSum]bool             // sums actually checked during execution
+-	dirty     bool                        // whether we added any new sums to m
++	status    map[modSum]modSumStatus     // state of sums in m
+ 	overwrite bool                        // if true, overwrite go.sum without incorporating its contents
+ 	enabled   bool                        // whether to use go.sum at all
+ }
+ 
++type modSumStatus struct {
++	used, dirty bool
++}
++
+ // initGoSum initializes the go.sum data.
+ // The boolean it returns reports whether the
+ // use of go.sum is now enabled.
+@@ -394,7 +397,7 @@ func initGoSum() (bool, error) {
+ 	}
+ 
+ 	goSum.m = make(map[module.Version][]string)
+-	goSum.checked = make(map[modSum]bool)
++	goSum.status = make(map[modSum]modSumStatus)
+ 	data, err := lockedfile.Read(GoSumFile)
+ 	if err != nil && !os.IsNotExist(err) {
+ 		return false, err
+@@ -504,6 +507,11 @@ func checkModSum(mod module.Version, h string) error {
+ 		return err
+ 	}
+ 	done := inited && haveModSumLocked(mod, h)
++	if inited {
++		st := goSum.status[modSum{mod, h}]
++		st.used = true
++		goSum.status[modSum{mod, h}] = st
++	}
+ 	goSum.mu.Unlock()
+ 
+ 	if done {
+@@ -523,6 +531,9 @@ func checkModSum(mod module.Version, h string) error {
+ 	if inited {
+ 		goSum.mu.Lock()
+ 		addModSumLocked(mod, h)
++		st := goSum.status[modSum{mod, h}]
++		st.dirty = true
++		goSum.status[modSum{mod, h}] = st
+ 		goSum.mu.Unlock()
+ 	}
+ 	return nil
+@@ -532,7 +543,6 @@ func checkModSum(mod module.Version, h string) error {
+ // If it finds a conflicting pair instead, it calls base.Fatalf.
+ // goSum.mu must be locked.
+ func haveModSumLocked(mod module.Version, h string) bool {
+-	goSum.checked[modSum{mod, h}] = true
+ 	for _, vh := range goSum.m[mod] {
+ 		if h == vh {
+ 			return true
+@@ -554,7 +564,6 @@ func addModSumLocked(mod module.Version, h string) {
+ 		fmt.Fprintf(os.Stderr, "warning: verifying %s@%s: unknown hashes in go.sum: %v; adding %v"+hashVersionMismatch, mod.Path, mod.Version, strings.Join(goSum.m[mod], ", "), h)
+ 	}
+ 	goSum.m[mod] = append(goSum.m[mod], h)
+-	goSum.dirty = true
+ }
+ 
+ // checkSumDB checks the mod, h pair against the Go checksum database.
+@@ -598,13 +607,35 @@ func Sum(mod module.Version) string {
+ }
+ 
+ // WriteGoSum writes the go.sum file if it needs to be updated.
+-func WriteGoSum() {
++//
++// keep is used to check whether a newly added sum should be saved in go.sum.
++// It should have entries for both module content sums and go.mod sums
++// (version ends with "/go.mod"). Existing sums will be preserved unless they
++// have been marked for deletion with TrimGoSum.
++func WriteGoSum(keep map[module.Version]bool) {
+ 	goSum.mu.Lock()
+ 	defer goSum.mu.Unlock()
+ 
+-	if !goSum.enabled || !goSum.dirty {
+-		// If we haven't read go.sum yet or if we don't have anything to add,
+-		// don't bother opening it.
++	// If we haven't read the go.sum file yet, don't bother writing it.
++	if !goSum.enabled {
++		return
++	}
++
++	// Check whether we need to add sums for which keep[m] is true or remove
++	// unused sums marked with TrimGoSum. If there are no changes to make,
++	// just return without opening go.sum.
++	dirty := false
++Outer:
++	for m, hs := range goSum.m {
++		for _, h := range hs {
++			st := goSum.status[modSum{m, h}]
++			if st.dirty && (!st.used || keep[m]) {
++				dirty = true
++				break Outer
++			}
++		}
++	}
++	if !dirty {
+ 		return
+ 	}
+ 	if cfg.BuildMod == "readonly" {
+@@ -625,9 +656,10 @@ func WriteGoSum() {
+ 			// them without good reason.
+ 			goSum.m = make(map[module.Version][]string, len(goSum.m))
+ 			readGoSum(goSum.m, GoSumFile, data)
+-			for ms := range goSum.checked {
+-				addModSumLocked(ms.mod, ms.sum)
+-				goSum.dirty = true
++			for ms, st := range goSum.status {
++				if st.used {
++					addModSumLocked(ms.mod, ms.sum)
++				}
+ 			}
+ 		}
+ 
+@@ -642,7 +674,10 @@ func WriteGoSum() {
+ 			list := goSum.m[m]
+ 			sort.Strings(list)
+ 			for _, h := range list {
+-				fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
++				st := goSum.status[modSum{m, h}]
++				if !st.dirty || (st.used && keep[m]) {
++					fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
++				}
+ 			}
+ 		}
+ 		return buf.Bytes(), nil
+@@ -652,12 +687,16 @@ func WriteGoSum() {
+ 		base.Fatalf("go: updating go.sum: %v", err)
+ 	}
+ 
+-	goSum.checked = make(map[modSum]bool)
+-	goSum.dirty = false
++	goSum.status = make(map[modSum]modSumStatus)
+ 	goSum.overwrite = false
+ }
+ 
+-// TrimGoSum trims go.sum to contain only the modules for which keep[m] is true.
++// TrimGoSum trims go.sum to contain only the modules needed for reproducible
++// builds.
++//
++// keep is used to check whether a sum should be retained in go.mod. It should
++// have entries for both module content sums and go.mod sums (version ends
++// with "/go.mod").
+ func TrimGoSum(keep map[module.Version]bool) {
+ 	goSum.mu.Lock()
+ 	defer goSum.mu.Unlock()
+@@ -669,13 +708,11 @@ func TrimGoSum(keep map[module.Version]bool) {
+ 		return
+ 	}
+ 
+-	for m := range goSum.m {
+-		// If we're keeping x@v we also keep x@v/go.mod.
+-		// Map x@v/go.mod back to x@v for the keep lookup.
+-		noGoMod := module.Version{Path: m.Path, Version: strings.TrimSuffix(m.Version, "/go.mod")}
+-		if !keep[m] && !keep[noGoMod] {
+-			delete(goSum.m, m)
+-			goSum.dirty = true
++	for m, hs := range goSum.m {
++		if !keep[m] {
++			for _, h := range hs {
++				goSum.status[modSum{m, h}] = modSumStatus{used: false, dirty: true}
++			}
+ 			goSum.overwrite = true
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 664a2a1594..95334211ef 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -331,7 +331,11 @@ func die() {
+ }
+ 
+ // InitMod sets Target and, if there is a main module, parses the initial build
+-// list from its go.mod file, creating and populating that file if needed.
++// list from its go.mod file. If InitMod is called by 'go mod init', InitMod
++// will populate go.mod in memory, possibly importing dependencies from a
++// legacy configuration file. For other commands, InitMod may make other
++// adjustments in memory, like adding a go directive. WriteGoMod should be
++// called later to write changes out to disk.
+ //
+ // As a side-effect, InitMod sets a default for cfg.BuildMod if it does not
+ // already have an explicit value.
+@@ -352,7 +356,6 @@ func InitMod() {
+ 		// Running go mod init: do legacy module conversion
+ 		legacyModInit()
+ 		modFileToBuildList()
+-		WriteGoMod()
+ 		return
+ 	}
+ 
+@@ -391,9 +394,6 @@ func InitMod() {
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+ 		checkVendorConsistency()
+-	} else {
+-		// TODO(golang.org/issue/33326): if cfg.BuildMod != "readonly"?
+-		WriteGoMod()
+ 	}
+ }
+ 
+@@ -797,9 +797,10 @@ func WriteGoMod() {
+ 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
+ 		}
+ 	}
++
+ 	// Always update go.sum, even if we didn't change go.mod: we may have
+ 	// downloaded modules that we didn't have before.
+-	modfetch.WriteGoSum()
++	modfetch.WriteGoSum(keepSums())
+ 
+ 	if !dirty && cfg.CmdName != "mod tidy" {
+ 		// The go.mod file has the same semantic content that it had before
+@@ -849,3 +850,59 @@ func WriteGoMod() {
+ 		base.Fatalf("go: updating go.mod: %v", err)
+ 	}
+ }
++
++// keepSums returns a set of module sums to preserve in go.sum. The set
++// includes entries for all modules used to load packages (according to
++// the last load function like ImportPaths, LoadALL, etc.). It also contains
++// entries for go.mod files needed for MVS (the version of these entries
++// ends with "/go.mod").
++func keepSums() map[module.Version]bool {
++	// Walk the module graph and keep sums needed by MVS.
++	modkey := func(m module.Version) module.Version {
++		return module.Version{Path: m.Path, Version: m.Version + "/go.mod"}
++	}
++	keep := make(map[module.Version]bool)
++	replaced := make(map[module.Version]bool)
++	reqs := Reqs()
++	var walk func(module.Version)
++	walk = func(m module.Version) {
++		// If we build using a replacement module, keep the sum for the replacement,
++		// since that's the code we'll actually use during a build.
++		//
++		// TODO(golang.org/issue/29182): Perhaps we should keep both sums, and the
++		// sums for both sets of transitive requirements.
++		r := Replacement(m)
++		if r.Path == "" {
++			keep[modkey(m)] = true
++		} else {
++			replaced[m] = true
++			keep[modkey(r)] = true
++		}
++		list, _ := reqs.Required(m)
++		for _, r := range list {
++			if !keep[modkey(r)] && !replaced[r] {
++				walk(r)
++			}
++		}
++	}
++	walk(Target)
++
++	// Add entries for modules that provided packages loaded with ImportPaths,
++	// LoadALL, or similar functions.
++	if loaded != nil {
++		for _, pkg := range loaded.pkgs {
++			m := pkg.mod
++			if r := Replacement(m); r.Path != "" {
++				keep[r] = true
++			} else {
++				keep[m] = true
++			}
++		}
++	}
++
++	return keep
++}
++
++func TrimGoSum() {
++	modfetch.TrimGoSum(keepSums())
++}
+diff --git a/src/cmd/go/testdata/script/mod_sum_lookup.txt b/src/cmd/go/testdata/script/mod_sum_lookup.txt
+new file mode 100644
+index 0000000000..ed80a44984
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_sum_lookup.txt
+@@ -0,0 +1,33 @@
++# When we attempt to resolve an import that doesn't exist, we should not save
++# hashes for downloaded modules.
++# Verifies golang.org/issue/36260.
++go list -e -tags=ignore ./noexist
++! exists go.sum
++
++# When an import is resolved successfully, we should only save hashes for
++# the module that provides the package, not for other modules looked up.
++# Verifies golang.org/issue/31580.
++go list ./exist
++grep '^example.com/join v1.1.0 h1:' go.sum
++! grep '^example.com/join/subpkg' go.sum
++cp go.sum go.list.sum
++go mod tidy
++cmp go.sum go.list.sum
++
++-- go.mod --
++module m
++
++go 1.15
++
++-- noexist/use.go --
++// ignore tags prevents errors in 'go mod tidy'
++// +build ignore
++
++package use
++
++import _ "example.com/join/subpkg/noexist"
++
++-- exist/use.go --
++package use
++
++import _ "example.com/join/subpkg"
+diff --git a/src/cmd/go/testdata/script/mod_tidy_old.txt b/src/cmd/go/testdata/script/mod_tidy_old.txt
+new file mode 100644
+index 0000000000..7428f0ce8a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_old.txt
+@@ -0,0 +1,46 @@
++# 'go mod tidy' should remove content sums for module versions that aren't
++# in the build list. It should preserve go.mod sums for module versions that
++# are in the module graph though.
++# Verifies golang.org/issue/33008.
++go mod tidy
++! grep '^rsc.io/quote v1.5.0 h1:' go.sum
++grep '^rsc.io/quote v1.5.0/go.mod h1:' go.sum
++
++-- go.mod --
++module m
++
++go 1.15
++
++require (
++	rsc.io/quote v1.5.2
++	example.com/r v0.0.0
++)
++
++replace example.com/r => ./r
++
++-- go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.0 h1:6fJa6E+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE=
++rsc.io/quote v1.5.0/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=
++
++-- r/go.mod --
++module example.com/r
++
++require rsc.io/quote v1.5.0
++
++-- use.go --
++package use
++
++import _ "example.com/r"
++
++-- r/use.go --
++package use
++
++import _ "rsc.io/quote"

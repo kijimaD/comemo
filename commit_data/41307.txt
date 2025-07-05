@@ -11,6 +11,20 @@ Date:   Tue Sep 24 03:16:52 2019 +0000
     GitHub-Pull-Request: golang/go#34489
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197037
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 16c02cd1ed..2d68721701 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -726,7 +726,7 @@ type funcinl struct {
+ // layout of Itab known to compilers
+ // allocated in non-garbage-collected memory
+ // Needs to be in sync with
+-// ../cmd/compile/internal/gc/reflect.go:/^func.dumptypestructs.
++// ../cmd/compile/internal/gc/reflect.go:/^func.dumptabs.
+ type itab struct {
+ 	inter *interfacetype
+ 	_type *_type

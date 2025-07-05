@@ -7,6 +7,20 @@ Date:   Mon Nov 7 11:18:38 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5339047
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a15b6cf68a..77c514d127 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -85,7 +85,7 @@ Daniel Theophanes <kardianos@gmail.com>
+ Dave Cheney <dave@cheney.net>
+ Dave Grijalva <dgrijalva@ngmoco.com>
+ David Anderson <danderson@google.com>
+-David Crawshaw <david.crawshaw@zentus.com>
++David Crawshaw <david.crawshaw@zentus.com> <crawshaw@google.com>
+ David Forsythe <dforsythe@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Jakob Fritz <david.jakob.fritz@gmail.com>

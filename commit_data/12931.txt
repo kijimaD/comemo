@@ -14,10 +14,164 @@ Date:   Sun Apr 22 16:19:21 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6094045
-
+---
  src/pkg/exp/html/parse.go                          | 59 +++++++++++++++++++---
  .../exp/html/testlogs/pending-spec-changes.dat.log |  2 +-
  src/pkg/exp/html/testlogs/tests19.dat.log          |  4 +-
  src/pkg/exp/html/testlogs/tests25.dat.log          |  6 +--
  src/pkg/exp/html/testlogs/webkit01.dat.log         |  2 +-
  5 files changed, 58 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 1cb65b7dcb..3e5ffa5842 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -643,7 +643,7 @@ func inBodyIM(p *parser) bool {
+ 	case TextToken:
+ 		d := p.tok.Data
+ 		switch n := p.oe.top(); n.Data {
+-		case "pre", "listing", "textarea":
++		case "pre", "listing":
+ 			if len(n.Child) == 0 {
+ 				// Ignore a newline at the start of a <pre> block.
+ 				if d != "" && d[0] == '\r' {
+@@ -779,12 +779,6 @@ func inBodyIM(p *parser) bool {
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.afe = append(p.afe, &scopeMarker)
+ 			p.framesetOK = false
+-		case "area", "br", "embed", "img", "input", "keygen", "wbr":
+-			p.reconstructActiveFormattingElements()
+-			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.oe.pop()
+-			p.acknowledgeSelfClosingTag()
+-			p.framesetOK = false
+ 		case "table":
+ 			if !p.quirks {
+ 				p.popUntil(buttonScope, "p")
+@@ -793,6 +787,26 @@ func inBodyIM(p *parser) bool {
+ 			p.framesetOK = false
+ 			p.im = inTableIM
+ 			return true
++		case "area", "br", "embed", "img", "input", "keygen", "wbr":
++			p.reconstructActiveFormattingElements()
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.oe.pop()
++			p.acknowledgeSelfClosingTag()
++			if p.tok.Data == "input" {
++				for _, a := range p.tok.Attr {
++					if a.Key == "type" {
++						if strings.ToLower(a.Val) == "hidden" {
++							// Skip setting framesetOK = false
++							return true
++						}
++					}
++				}
++			}
++			p.framesetOK = false
++		case "param", "source", "track":
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.oe.pop()
++			p.acknowledgeSelfClosingTag()
+ 		case "hr":
+ 			p.popUntil(buttonScope, "p")
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+@@ -852,11 +866,27 @@ func inBodyIM(p *parser) bool {
+ 			p.oe.pop()
+ 			p.oe.pop()
+ 			p.form = nil
++		case "textarea":
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.setOriginalIM()
++			p.framesetOK = false
++			p.im = textIM
+ 		case "xmp":
+ 			p.popUntil(buttonScope, "p")
+ 			p.reconstructActiveFormattingElements()
+ 			p.framesetOK = false
+ 			p.addElement(p.tok.Data, p.tok.Attr)
++			p.setOriginalIM()
++			p.im = textIM
++		case "iframe":
++			p.framesetOK = false
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.setOriginalIM()
++			p.im = textIM
++		case "noembed", "noscript":
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.setOriginalIM()
++			p.im = textIM
+ 		case "math", "svg":
+ 			p.reconstructActiveFormattingElements()
+ 			if p.tok.Data == "math" {
+@@ -1074,7 +1104,20 @@ func textIM(p *parser) bool {
+ 	case ErrorToken:
+ 		p.oe.pop()
+ 	case TextToken:
+-		p.addText(p.tok.Data)
++		d := p.tok.Data
++		if n := p.oe.top(); n.Data == "textarea" && len(n.Child) == 0 {
++			// Ignore a newline at the start of a <textarea> block.
++			if d != "" && d[0] == '\r' {
++				d = d[1:]
++			}
++			if d != "" && d[0] == '\n' {
++				d = d[1:]
++			}
++		}
++		if d == "" {
++			return true
++		}
++		p.addText(d)
+ 		return true
+ 	case EndTagToken:
+ 		p.oe.pop()
+diff --git a/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log b/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
+index 5852062b0e..3adabe79ee 100644
+--- a/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
++++ b/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
+@@ -1,2 +1,2 @@
+-FAIL "<input type=\"hidden\"><frameset>"
++PASS "<input type=\"hidden\"><frameset>"
+ PASS "<!DOCTYPE html><table><caption><svg>foo</table>bar"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 27ab4f05ef..49180ad9eb 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -66,9 +66,9 @@ PASS "<!doctype html><input><frameset>"
+ PASS "<!doctype html><keygen><frameset>"
+ PASS "<!doctype html><wbr><frameset>"
+ PASS "<!doctype html><hr><frameset>"
+-FAIL "<!doctype html><textarea></textarea><frameset>"
++PASS "<!doctype html><textarea></textarea><frameset>"
+ PASS "<!doctype html><xmp></xmp><frameset>"
+-FAIL "<!doctype html><iframe></iframe><frameset>"
++PASS "<!doctype html><iframe></iframe><frameset>"
+ PASS "<!doctype html><select></select><frameset>"
+ PASS "<!doctype html><svg></svg><frameset><frame>"
+ PASS "<!doctype html><math></math><frameset><frame>"
+diff --git a/src/pkg/exp/html/testlogs/tests25.dat.log b/src/pkg/exp/html/testlogs/tests25.dat.log
+index dbcfe54d59..95f96c304d 100644
+--- a/src/pkg/exp/html/testlogs/tests25.dat.log
++++ b/src/pkg/exp/html/testlogs/tests25.dat.log
+@@ -14,7 +14,7 @@ PASS "<!DOCTYPE html><body><input>A"
+ PASS "<!DOCTYPE html><body><keygen>A"
+ PASS "<!DOCTYPE html><body><link>A"
+ PASS "<!DOCTYPE html><body><meta>A"
+-FAIL "<!DOCTYPE html><body><param>A"
+-FAIL "<!DOCTYPE html><body><source>A"
+-FAIL "<!DOCTYPE html><body><track>A"
++PASS "<!DOCTYPE html><body><param>A"
++PASS "<!DOCTYPE html><body><source>A"
++PASS "<!DOCTYPE html><body><track>A"
+ PASS "<!DOCTYPE html><body><wbr>A"
+diff --git a/src/pkg/exp/html/testlogs/webkit01.dat.log b/src/pkg/exp/html/testlogs/webkit01.dat.log
+index 088684bc0c..3cb8b447c4 100644
+--- a/src/pkg/exp/html/testlogs/webkit01.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit01.dat.log
+@@ -45,5 +45,5 @@ PASS "<svg><em><desc></em>"
+ PASS "<table><tr><td><svg><desc><td></desc><circle>"
+ PASS "<svg><tfoot></mi><td>"
+ PASS "<math><mrow><mrow><mn>1</mn></mrow><mi>a</mi></mrow></math>"
+-FAIL "<!doctype html><input type=\"hidden\"><frameset>"
++PASS "<!doctype html><input type=\"hidden\"><frameset>"
+ PASS "<!doctype html><input type=\"button\"><frameset>"

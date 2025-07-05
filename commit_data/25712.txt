@@ -14,7 +14,60 @@ Date:   Tue Oct 20 00:35:42 2015 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go      |  9 +++++++++
  src/net/http/client_test.go | 14 ++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 7f2fbb4678..47f145a0ca 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -10,6 +10,7 @@
+ package http
+ 
+ import (
++	"crypto/tls"
+ 	"encoding/base64"
+ 	"errors"
+ 	"fmt"
+@@ -222,6 +223,14 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
+ 		if resp != nil {
+ 			log.Printf("RoundTripper returned a response & error; ignoring response")
+ 		}
++		if tlsErr, ok := err.(tls.RecordHeaderError); ok {
++			// If we get a bad TLS record header, check to see if the
++			// response looks like HTTP and give a more helpful error.
++			// See golang.org/issue/11111.
++			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
++				err = errors.New("http: server gave HTTP response to HTTPS client")
++			}
++		}
+ 		return nil, err
+ 	}
+ 	return resp, nil
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 01f8cbaa2d..40d5109862 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -743,6 +743,20 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
+ 	}
+ }
+ 
++// Check that an HTTPS client can interpret a particular TLS error
++// to determine that the server is speaking HTTP.
++// See golang.org/issue/11111.
++func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
++	defer ts.Close()
++
++	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))
++	if got := err.Error(); !strings.Contains(got, "HTTP response to HTTPS client") {
++		t.Fatalf("error = %q; want error indicating HTTP response to HTTPS request", got)
++	}
++}
++
+ // Verify Response.ContentLength is populated. https://golang.org/issue/4126
+ func TestClientHeadContentLength(t *testing.T) {
+ 	defer afterTest(t)

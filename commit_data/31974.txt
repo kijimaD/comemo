@@ -14,6 +14,19 @@ Date:   Mon Mar 27 15:25:44 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/method.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index 8a554e152a..baefa554a4 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -48,7 +48,6 @@ var canonicalMethods = map[string]MethodSig{
+ 	"GobEncode":     {[]string{}, []string{"[]byte", "error"}},                         // gob.GobEncoder
+ 	"MarshalJSON":   {[]string{}, []string{"[]byte", "error"}},                         // json.Marshaler
+ 	"MarshalXML":    {[]string{"*xml.Encoder", "xml.StartElement"}, []string{"error"}}, // xml.Marshaler
+-	"Peek":          {[]string{"=int"}, []string{"[]byte", "error"}},                   // image.reader (matching bufio.Reader)
+ 	"ReadByte":      {[]string{}, []string{"byte", "error"}},                           // io.ByteReader
+ 	"ReadFrom":      {[]string{"=io.Reader"}, []string{"int64", "error"}},              // io.ReaderFrom
+ 	"ReadRune":      {[]string{}, []string{"rune", "int", "error"}},                    // io.RuneReader

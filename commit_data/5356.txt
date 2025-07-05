@@ -7,7 +7,7 @@ Date:   Mon Apr 26 23:17:14 2010 -0700
     R=rsc, rsc1
     CC=golang-dev
     https://golang.org/cl/878046
-
+---
  src/pkg/os/file.go                    |  23 +-----
  src/pkg/os/file_mingw.go              |  38 ++++++++-
  src/pkg/os/file_unix.go               |  20 +++++
@@ -18,3 +18,655 @@ Date:   Mon Apr 26 23:17:14 2010 -0700
  src/pkg/syscall/zsyscall_mingw_386.go | 148 ++++++++++++++++++++++++++++++----
  src/pkg/syscall/ztypes_mingw_386.go   |  17 ++++
  9 files changed, 353 insertions(+), 77 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index f4af42ff0b..ccecf67eda 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -237,17 +237,6 @@ func Stat(name string) (fi *FileInfo, err Error) {
+ 	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
+ }
+ 
+-// Stat returns the FileInfo structure describing file.
+-// It returns the FileInfo and an error, if any.
+-func (file *File) Stat() (fi *FileInfo, err Error) {
+-	var stat syscall.Stat_t
+-	e := syscall.Fstat(file.fd, &stat)
+-	if e != 0 {
+-		return nil, &PathError{"stat", file.name, Errno(e)}
+-	}
+-	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
+-}
+-
+ // Lstat returns the FileInfo structure describing the named file and an
+ // error, if any.  If the file is a symbolic link, the returned FileInfo
+ // describes the symbolic link.  Lstat makes no attempt to follow the link.
+@@ -301,6 +290,9 @@ func Remove(name string) Error {
+ 	// file path, like /etc/passwd/foo, but in that case,
+ 	// both errors will be ENOTDIR, so it's okay to
+ 	// use the error from unlink.
++	// For windows syscall.ENOTDIR is set
++	// to syscall.ERROR_DIRECTORY, hopefully it should
++	// do the trick.
+ 	if e1 != syscall.ENOTDIR {
+ 		e = e1
+ 	}
+@@ -407,15 +399,6 @@ func (f *File) Chown(uid, gid int) Error {
+ 	return nil
+ }
+ 
+-// Truncate changes the size of the named file.
+-// If the file is a symbolic link, it changes the size of the link's target.
+-func Truncate(name string, size int64) Error {
+-	if e := syscall.Truncate(name, size); e != 0 {
+-		return &PathError{"truncate", name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+ // Truncate changes the size of the file.
+ // It does not change the I/O offset.
+ func (f *File) Truncate(size int64) Error {
+diff --git a/src/pkg/os/file_mingw.go b/src/pkg/os/file_mingw.go
+index 41bbe1e2de..4f7acbb08c 100644
+--- a/src/pkg/os/file_mingw.go
++++ b/src/pkg/os/file_mingw.go
+@@ -85,6 +85,27 @@ func (file *File) Close() Error {
+ 	return err
+ }
+ 
++func (file *File) statFile(name string) (fi *FileInfo, err Error) {
++	var stat syscall.ByHandleFileInformation
++	if ok, e := syscall.GetFileInformationByHandle(int32(file.fd), &stat); !ok {
++		return nil, &PathError{"stat", file.name, Errno(e)}
++	}
++	return fileInfoFromByHandleInfo(new(FileInfo), file.name, &stat), nil
++}
++
++// Stat returns the FileInfo structure describing file.
++// It returns the FileInfo and an error, if any.
++func (file *File) Stat() (fi *FileInfo, err Error) {
++	if file == nil || file.fd < 0 {
++		return nil, EINVAL
++	}
++	if file.isdir() {
++		// I don't know any better way to do that for directory
++		return Stat(file.name)
++	}
++	return file.statFile(file.name)
++}
++
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count FileInfo structures, as would be returned
+ // by Stat, in directory order.  Subsequent calls on the same file will yield
+@@ -112,7 +133,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 			}
+ 		}
+ 		var f FileInfo
+-		fileInfoFromStat("", &f, &di.stat, &di.stat)
++		fileInfoFromWin32finddata(&f, &di.stat.Windata)
+ 		if f.Name == "." || f.Name == ".." { // Useless names
+ 			continue
+ 		}
+@@ -129,3 +150,18 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 	}
+ 	return fi, nil
+ }
++
++// Truncate changes the size of the named file.
++// If the file is a symbolic link, it changes the size of the link's target.
++func Truncate(name string, size int64) Error {
++	f, e := Open(name, O_WRONLY|O_CREAT, 0666)
++	if e != nil {
++		return e
++	}
++	defer f.Close()
++	e1 := f.Truncate(size)
++	if e1 != nil {
++		return e1
++	}
++	return nil
++}
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 84ca48064e..6cf2661406 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -53,6 +53,17 @@ func (file *File) Close() Error {
+ 	return err
+ }
+ 
++// Stat returns the FileInfo structure describing file.
++// It returns the FileInfo and an error, if any.
++func (file *File) Stat() (fi *FileInfo, err Error) {
++	var stat syscall.Stat_t
++	e := syscall.Fstat(file.fd, &stat)
++	if e != 0 {
++		return nil, &PathError{"stat", file.name, Errno(e)}
++	}
++	return fileInfoFromStat(file.name, new(FileInfo), &stat, &stat), nil
++}
++
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count FileInfo structures, as would be returned
+ // by Stat, in directory order.  Subsequent calls on the same file will yield
+@@ -80,3 +91,12 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 	}
+ 	return
+ }
++
++// Truncate changes the size of the named file.
++// If the file is a symbolic link, it changes the size of the link's target.
++func Truncate(name string, size int64) Error {
++	if e := syscall.Truncate(name, size); e != 0 {
++		return &PathError{"truncate", name, Errno(e)}
++	}
++	return nil
++}
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+index cfe283d098..2d5bf137c0 100755
+--- a/src/pkg/os/stat_mingw.go
++++ b/src/pkg/os/stat_mingw.go
+@@ -7,21 +7,39 @@ package os
+ import "syscall"
+ 
+ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *FileInfo {
++	return fileInfoFromWin32finddata(fi, &stat.Windata)
++}
++
++func fileInfoFromWin32finddata(fi *FileInfo, d *syscall.Win32finddata) *FileInfo {
++	return setFileInfo(fi, string(syscall.UTF16ToString(d.FileName[0:])), d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
++}
++
++func fileInfoFromByHandleInfo(fi *FileInfo, name string, d *syscall.ByHandleFileInformation) *FileInfo {
++	for i := len(name) - 1; i >= 0; i-- {
++		if name[i] == '/' || name[i] == '\\' {
++			name = name[i+1:]
++			break
++		}
++	}
++	return setFileInfo(fi, name, d.FileAttributes, d.FileSizeHigh, d.FileSizeLow, d.CreationTime, d.LastAccessTime, d.LastWriteTime)
++}
++
++func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, atime, wtime syscall.Filetime) *FileInfo {
+ 	fi.Mode = 0
+-	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_DIRECTORY {
++	if fa == syscall.FILE_ATTRIBUTE_DIRECTORY {
+ 		fi.Mode = fi.Mode | syscall.S_IFDIR
+ 	} else {
+ 		fi.Mode = fi.Mode | syscall.S_IFREG
+ 	}
+-	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_READONLY {
++	if fa == syscall.FILE_ATTRIBUTE_READONLY {
+ 		fi.Mode = fi.Mode | 0444
+ 	} else {
+ 		fi.Mode = fi.Mode | 0666
+ 	}
+-	fi.Size = int64(stat.Windata.FileSizeHigh)<<32 + int64(stat.Windata.FileSizeLow)
+-	fi.Name = string(syscall.UTF16ToString(stat.Windata.FileName[0:]))
++	fi.Size = int64(sizehi)<<32 + int64(sizelo)
++	fi.Name = name
+ 	fi.FollowedSymlink = false
+-	// TODO(brainman): use CreationTime LastAccessTime LastWriteTime to prime following Dir fields
++	// TODO(brainman): use ctime atime wtime to prime following FileInfo fields
+ 	fi.Atime_ns = 0
+ 	fi.Mtime_ns = 0
+ 	fi.Ctime_ns = 0
+diff --git a/src/pkg/os/sys_mingw.go b/src/pkg/os/sys_mingw.go
+index 06e4fb3d34..a787984589 100644
+--- a/src/pkg/os/sys_mingw.go
++++ b/src/pkg/os/sys_mingw.go
+@@ -4,4 +4,12 @@
+ 
+ package os
+ 
+-func Hostname() (name string, err Error) { return "windows", nil }
++import "syscall"
++
++func Hostname() (name string, err Error) {
++	s, e := syscall.ComputerName()
++	if e != 0 {
++		return "", NewSyscallError("ComputerName", e)
++	}
++	return s, nil
++}
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index 99f649e4fc..067a26f201 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -111,6 +111,16 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) [failretval=-1] = FindFirstFileW
+ //sys	FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) = FindNextFileW
+ //sys	FindClose(handle int32) (ok bool, errno int)
++//sys	GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int)
++//sys	GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) = GetCurrentDirectoryW
++//sys	SetCurrentDirectory(path *uint16) (ok bool, errno int) = SetCurrentDirectoryW
++//sys	CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) = CreateDirectoryW
++//sys	RemoveDirectory(path *uint16) (ok bool, errno int) = RemoveDirectoryW
++//sys	DeleteFile(path *uint16) (ok bool, errno int) = DeleteFileW
++//sys	MoveFile(from *uint16, to *uint16) (ok bool, errno int) = MoveFileW
++//sys	GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) = GetComputerNameW
++//sys	SetEndOfFile(handle int32) (ok bool, errno int)
++//sys	GetSystemTimeAsFileTime(time *Filetime)
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -118,7 +128,7 @@ func Errstr(errno int) string {
+ 	if errno == EMINGW {
+ 		return "not supported by windows"
+ 	}
+-	var b = make([]uint16, 300)
++	b := make([]uint16, 300)
+ 	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
+ 	if err != 0 {
+ 		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
+@@ -175,21 +185,18 @@ func Read(fd int, p []byte) (n int, errno int) {
+ // not sure if I should do that
+ 
+ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
+-	var o Overlapped
+-	o.OffsetHigh = uint32(offset >> 32)
+-	o.Offset = uint32(offset)
+ 	curoffset, e := Seek(fd, 0, 1)
+ 	if e != 0 {
+ 		return 0, e
+ 	}
++	defer Seek(fd, curoffset, 0)
++	var o Overlapped
++	o.OffsetHigh = uint32(offset >> 32)
++	o.Offset = uint32(offset)
+ 	var done uint32
+ 	if ok, e := ReadFile(int32(fd), p, &done, &o); !ok {
+ 		return 0, e
+ 	}
+-	_, e = Seek(fd, curoffset, 0)
+-	if e != 0 {
+-		return 0, e
+-	}
+ 	return int(done), 0
+ }
+ 
+@@ -202,21 +209,18 @@ func Write(fd int, p []byte) (n int, errno int) {
+ }
+ 
+ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
+-	var o Overlapped
+-	o.OffsetHigh = uint32(offset >> 32)
+-	o.Offset = uint32(offset)
+ 	curoffset, e := Seek(fd, 0, 1)
+ 	if e != 0 {
+ 		return 0, e
+ 	}
++	defer Seek(fd, curoffset, 0)
++	var o Overlapped
++	o.OffsetHigh = uint32(offset >> 32)
++	o.Offset = uint32(offset)
+ 	var done uint32
+ 	if ok, e := WriteFile(int32(fd), p, &done, &o); !ok {
+ 		return 0, e
+ 	}
+-	_, e = Seek(fd, curoffset, 0)
+-	if e != 0 {
+-		return 0, e
+-	}
+ 	return int(done), 0
+ }
+ 
+@@ -272,6 +276,93 @@ func Lstat(path string, stat *Stat_t) (errno int) {
+ 	return Stat(path, stat)
+ }
+ 
++const ImplementsGetwd = true
++
++func Getwd() (wd string, errno int) {
++	b := make([]uint16, 300)
++	n, e := GetCurrentDirectory(uint32(len(b)), &b[0])
++	if e != 0 {
++		return "", e
++	}
++	return string(utf16.Decode(b[0:n])), 0
++}
++
++func Chdir(path string) (errno int) {
++	if ok, e := SetCurrentDirectory(&StringToUTF16(path)[0]); !ok {
++		return e
++	}
++	return 0
++}
++
++func Mkdir(path string, mode int) (errno int) {
++	if ok, e := CreateDirectory(&StringToUTF16(path)[0], nil); !ok {
++		return e
++	}
++	return 0
++}
++
++func Rmdir(path string) (errno int) {
++	if ok, e := RemoveDirectory(&StringToUTF16(path)[0]); !ok {
++		return e
++	}
++	return 0
++}
++
++func Unlink(path string) (errno int) {
++	if ok, e := DeleteFile(&StringToUTF16(path)[0]); !ok {
++		return e
++	}
++	return 0
++}
++
++func Rename(oldpath, newpath string) (errno int) {
++	from := &StringToUTF16(oldpath)[0]
++	to := &StringToUTF16(newpath)[0]
++	if ok, e := MoveFile(from, to); !ok {
++		return e
++	}
++	return 0
++}
++
++func ComputerName() (name string, errno int) {
++	var n uint32 = MAX_COMPUTERNAME_LENGTH + 1
++	b := make([]uint16, n)
++	if ok, e := GetComputerName(&b[0], &n); !ok {
++		return "", e
++	}
++	return string(utf16.Decode(b[0:n])), 0
++}
++
++func Ftruncate(fd int, length int64) (errno int) {
++	curoffset, e := Seek(fd, 0, 1)
++	if e != 0 {
++		return e
++	}
++	defer Seek(fd, curoffset, 0)
++	if _, e := Seek(fd, length, 0); e != 0 {
++		return e
++	}
++	if _, e := SetEndOfFile(int32(fd)); e != 0 {
++		return e
++	}
++	return 0
++}
++
++func Gettimeofday(tv *Timeval) (errno int) {
++	var ft Filetime
++	// 100-nanosecond intervals since January 1, 1601
++	GetSystemTimeAsFileTime(&ft)
++	t := uint64(ft.HighDateTime)<<32 + uint64(ft.LowDateTime)
++	// convert into microseconds
++	t /= 10
++	// change starting time to the Epoch (00:00:00 UTC, January 1, 1970)
++	t -= 11644473600000000
++	// split into sec / usec
++	tv.Sec = int32(t / 1e6)
++	tv.Usec = int32(t) - tv.Sec
++	return 0
++}
++
+ // TODO(brainman): fix all needed for os
+ 
+ const (
+@@ -281,33 +372,21 @@ const (
+ func Getpid() (pid int)   { return -1 }
+ func Getppid() (ppid int) { return -1 }
+ 
+-func Mkdir(path string, mode int) (errno int)             { return EMINGW }
+-func Fstat(fd int, stat *Stat_t) (errno int)              { return EMINGW }
+-func Chdir(path string) (errno int)                       { return EMINGW }
+ func Fchdir(fd int) (errno int)                           { return EMINGW }
+-func Unlink(path string) (errno int)                      { return EMINGW }
+-func Rmdir(path string) (errno int)                       { return EMINGW }
+ func Link(oldpath, newpath string) (errno int)            { return EMINGW }
+ func Symlink(path, link string) (errno int)               { return EMINGW }
+ func Readlink(path string, buf []byte) (n int, errno int) { return 0, EMINGW }
+-func Rename(oldpath, newpath string) (errno int)          { return EMINGW }
+ func Chmod(path string, mode int) (errno int)             { return EMINGW }
+ func Fchmod(fd int, mode int) (errno int)                 { return EMINGW }
+ func Chown(path string, uid int, gid int) (errno int)     { return EMINGW }
+ func Lchown(path string, uid int, gid int) (errno int)    { return EMINGW }
+ func Fchown(fd int, uid int, gid int) (errno int)         { return EMINGW }
+-func Truncate(name string, size int64) (errno int)        { return EMINGW }
+-func Ftruncate(fd int, length int64) (errno int)          { return EMINGW }
+-
+-const ImplementsGetwd = true
+ 
+-func Getwd() (wd string, errno int)        { return "", EMINGW }
+-func Getuid() (uid int)                    { return -1 }
+-func Geteuid() (euid int)                  { return -1 }
+-func Getgid() (gid int)                    { return -1 }
+-func Getegid() (egid int)                  { return -1 }
+-func Getgroups() (gids []int, errno int)   { return nil, EMINGW }
+-func Gettimeofday(tv *Timeval) (errno int) { return EMINGW }
++func Getuid() (uid int)                  { return -1 }
++func Geteuid() (euid int)                { return -1 }
++func Getgid() (gid int)                  { return -1 }
++func Getegid() (egid int)                { return -1 }
++func Getgroups() (gids []int, errno int) { return nil, EMINGW }
+ 
+ // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
+ 
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_mingw_386.go
+index 707e9b8a75..a9a494373e 100644
+--- a/src/pkg/syscall/zerrors_mingw_386.go
++++ b/src/pkg/syscall/zerrors_mingw_386.go
+@@ -11,6 +11,7 @@ const (
+ 	ERROR_INSUFFICIENT_BUFFER = 122
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
++	ERROR_DIRECTORY           = 267
+ 	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
+ 	EMINGW = 99999 /* otherwise unused */
+ )
+@@ -36,7 +37,7 @@ const (
+ 	EEXIST          = 17
+ 	EXDEV           = 18
+ 	ENODEV          = 19
+-	ENOTDIR         = 20
++	ENOTDIR         = ERROR_DIRECTORY
+ 	EISDIR          = 21
+ 	EINVAL          = 22
+ 	ENFILE          = 23
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_mingw_386.go
+index 185180a86d..ccfb616ef1 100644
+--- a/src/pkg/syscall/zsyscall_mingw_386.go
++++ b/src/pkg/syscall/zsyscall_mingw_386.go
+@@ -6,23 +6,33 @@ package syscall
+ import "unsafe"
+ 
+ var (
+-	modKERNEL32        = loadDll("kernel32.dll")
+-	procGetLastError   = getSysProcAddr(modKERNEL32, "GetLastError")
+-	procLoadLibraryW   = getSysProcAddr(modKERNEL32, "LoadLibraryW")
+-	procFreeLibrary    = getSysProcAddr(modKERNEL32, "FreeLibrary")
+-	procGetProcAddress = getSysProcAddr(modKERNEL32, "GetProcAddress")
+-	procGetVersion     = getSysProcAddr(modKERNEL32, "GetVersion")
+-	procFormatMessageW = getSysProcAddr(modKERNEL32, "FormatMessageW")
+-	procExitProcess    = getSysProcAddr(modKERNEL32, "ExitProcess")
+-	procCreateFileW    = getSysProcAddr(modKERNEL32, "CreateFileW")
+-	procReadFile       = getSysProcAddr(modKERNEL32, "ReadFile")
+-	procWriteFile      = getSysProcAddr(modKERNEL32, "WriteFile")
+-	procSetFilePointer = getSysProcAddr(modKERNEL32, "SetFilePointer")
+-	procCloseHandle    = getSysProcAddr(modKERNEL32, "CloseHandle")
+-	procGetStdHandle   = getSysProcAddr(modKERNEL32, "GetStdHandle")
+-	procFindFirstFileW = getSysProcAddr(modKERNEL32, "FindFirstFileW")
+-	procFindNextFileW  = getSysProcAddr(modKERNEL32, "FindNextFileW")
+-	procFindClose      = getSysProcAddr(modKERNEL32, "FindClose")
++	modKERNEL32                    = loadDll("kernel32.dll")
++	procGetLastError               = getSysProcAddr(modKERNEL32, "GetLastError")
++	procLoadLibraryW               = getSysProcAddr(modKERNEL32, "LoadLibraryW")
++	procFreeLibrary                = getSysProcAddr(modKERNEL32, "FreeLibrary")
++	procGetProcAddress             = getSysProcAddr(modKERNEL32, "GetProcAddress")
++	procGetVersion                 = getSysProcAddr(modKERNEL32, "GetVersion")
++	procFormatMessageW             = getSysProcAddr(modKERNEL32, "FormatMessageW")
++	procExitProcess                = getSysProcAddr(modKERNEL32, "ExitProcess")
++	procCreateFileW                = getSysProcAddr(modKERNEL32, "CreateFileW")
++	procReadFile                   = getSysProcAddr(modKERNEL32, "ReadFile")
++	procWriteFile                  = getSysProcAddr(modKERNEL32, "WriteFile")
++	procSetFilePointer             = getSysProcAddr(modKERNEL32, "SetFilePointer")
++	procCloseHandle                = getSysProcAddr(modKERNEL32, "CloseHandle")
++	procGetStdHandle               = getSysProcAddr(modKERNEL32, "GetStdHandle")
++	procFindFirstFileW             = getSysProcAddr(modKERNEL32, "FindFirstFileW")
++	procFindNextFileW              = getSysProcAddr(modKERNEL32, "FindNextFileW")
++	procFindClose                  = getSysProcAddr(modKERNEL32, "FindClose")
++	procGetFileInformationByHandle = getSysProcAddr(modKERNEL32, "GetFileInformationByHandle")
++	procGetCurrentDirectoryW       = getSysProcAddr(modKERNEL32, "GetCurrentDirectoryW")
++	procSetCurrentDirectoryW       = getSysProcAddr(modKERNEL32, "SetCurrentDirectoryW")
++	procCreateDirectoryW           = getSysProcAddr(modKERNEL32, "CreateDirectoryW")
++	procRemoveDirectoryW           = getSysProcAddr(modKERNEL32, "RemoveDirectoryW")
++	procDeleteFileW                = getSysProcAddr(modKERNEL32, "DeleteFileW")
++	procMoveFileW                  = getSysProcAddr(modKERNEL32, "MoveFileW")
++	procGetComputerNameW           = getSysProcAddr(modKERNEL32, "GetComputerNameW")
++	procSetEndOfFile               = getSysProcAddr(modKERNEL32, "SetEndOfFile")
++	procGetSystemTimeAsFileTime    = getSysProcAddr(modKERNEL32, "GetSystemTimeAsFileTime")
+ )
+ 
+ func GetLastError() (lasterrno int) {
+@@ -201,3 +211,107 @@ func FindClose(handle int32) (ok bool, errno int) {
+ 	}
+ 	return
+ }
++
++func GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procGetFileInformationByHandle, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) {
++	r0, _, e1 := Syscall(procGetCurrentDirectoryW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
++	n = uint32(r0)
++	if n == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procSetCurrentDirectoryW, uintptr(unsafe.Pointer(path)), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procCreateDirectoryW, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func RemoveDirectory(path *uint16) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procRemoveDirectoryW, uintptr(unsafe.Pointer(path)), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func DeleteFile(path *uint16) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procDeleteFileW, uintptr(unsafe.Pointer(path)), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func MoveFile(from *uint16, to *uint16) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procMoveFileW, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procGetComputerNameW, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func SetEndOfFile(handle int32) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procSetEndOfFile, uintptr(handle), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetSystemTimeAsFileTime(time *Filetime) {
++	Syscall(procGetSystemTimeAsFileTime, uintptr(unsafe.Pointer(time)), 0, 0)
++	return
++}
+diff --git a/src/pkg/syscall/ztypes_mingw_386.go b/src/pkg/syscall/ztypes_mingw_386.go
+index c683c6ed59..95ffb4abfe 100644
+--- a/src/pkg/syscall/ztypes_mingw_386.go
++++ b/src/pkg/syscall/ztypes_mingw_386.go
+@@ -80,6 +80,8 @@ const (
+ 	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
+ 
+ 	MAX_PATH = 260
++
++	MAX_COMPUTERNAME_LENGTH = 15
+ )
+ 
+ // Types
+@@ -92,6 +94,7 @@ type _C_long int32
+ 
+ type _C_long_long int64
+ 
++// Invented values to support what package os expects.
+ type Timeval struct {
+ 	Sec  int32
+ 	Usec int32
+@@ -123,6 +126,20 @@ type Win32finddata struct {
+ 	AlternateFileName [13]uint16
+ }
+ 
++type ByHandleFileInformation struct {
++	FileAttributes     uint32
++	CreationTime       Filetime
++	LastAccessTime     Filetime
++	LastWriteTime      Filetime
++	VolumeSerialNumber uint32
++	FileSizeHigh       uint32
++	FileSizeLow        uint32
++	NumberOfLinks      uint32
++	FileIndexHigh      uint32
++	FileIndexLow       uint32
++}
++
++// Invented values to support what package os expects.
+ type Stat_t struct {
+ 	Windata Win32finddata
+ 	Mode    uint32

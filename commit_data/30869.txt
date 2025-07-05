@@ -7,6 +7,24 @@ Date:   Tue Dec 13 19:29:34 2016 +0100
     Change-Id: I15887ee454acfdb36334dd9f0b59cc520b2b0286
     Reviewed-on: https://go-review.googlesource.com/34311
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/bench/go1/fasta_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/bench/go1/fasta_test.go b/test/bench/go1/fasta_test.go
+index 99d8c9754b..af4fbac274 100644
+--- a/test/bench/go1/fasta_test.go
++++ b/test/bench/go1/fasta_test.go
+@@ -12,10 +12,10 @@ var fastabytes = makefasta()
+ 
+ func makefasta() []byte {
+ 	var n int = 25e6
+-	if runtime.GOARCH == "arm" {
++	if runtime.GOARCH == "arm" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {
+ 		// TODO(dfc) remove this limitation after precise gc.
+ 		// A value of 25e6 consumes 465mb of heap on 32bit
+-		// platforms, which is too much for most ARM systems.
++		// platforms, which is too much for some systems.
+ 		// A value of 25e5 produces a memory layout that
+ 		// confuses the gc on 32bit platforms. So 25e4 it is.
+ 		n = 25e4

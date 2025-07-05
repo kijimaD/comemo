@@ -10,6 +10,27 @@ Date:   Mon Jun 25 13:48:59 2018 -0400
     Change-Id: I298fb682945345bb4a34ec83802fd644f75bdd98
     Reviewed-on: https://go-review.googlesource.com/120756
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 5e0a0673bd..9aef342a43 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -53,6 +53,15 @@ Do not send CLs removing the interior tags from such phrases.
+   TODO: PPC64LE race detector support
+ </p>
+ 
++<h3 id="package-versioning">Package Versioning (vgo)</h3>
++<p>
++  <strong>
++    NOTE: This is not present in go1.11beta1 but will be available in future
++    betas and subsequent releases.
++  </strong>
++  Go 1.11 adds experimental, integrated support for package versioning.
++</p>
++
+ <h3 id="wasm">WebAssembly</h3>
+ <p>
+   Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).

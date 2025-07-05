@@ -11,7 +11,98 @@ Date:   Mon Mar 19 12:50:58 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 35 ------------------------------
  test/codegen/maps.go                    | 38 +++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index f208264109..c2b73ea196 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -279,41 +279,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
+ 	},
+-	{
+-		fn: `
+-		func f33(m map[int]int) int {
+-			return m[5]
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\t[$]5,"},
+-	},
+-	// Direct use of constants in fast map access calls. Issue 19015.
+-	{
+-		fn: `
+-		func f34(m map[int]int) bool {
+-			_, ok := m[5]
+-			return ok
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\t[$]5,"},
+-	},
+-	{
+-		fn: `
+-		func f35(m map[string]int) int {
+-			return m["abc"]
+-		}
+-		`,
+-		pos: []string{"\"abc\""},
+-	},
+-	{
+-		fn: `
+-		func f36(m map[string]int) bool {
+-			_, ok := m["abc"]
+-			return ok
+-		}
+-		`,
+-		pos: []string{"\"abc\""},
+-	},
+ 	// Bit test ops on amd64, issue 18943.
+ 	{
+ 		fn: `
+diff --git a/test/codegen/maps.go b/test/codegen/maps.go
+new file mode 100644
+index 0000000000..57e219ca06
+--- /dev/null
++++ b/test/codegen/maps.go
+@@ -0,0 +1,38 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// This file contains code generation tests related to the handling of
++// map types.
++
++// ------------------- //
++//     Access Const    //
++// ------------------- //
++
++// Direct use of constants in fast map access calls (Issue #19015).
++
++func AccessInt1(m map[int]int) int {
++	// amd64:"MOVQ\t[$]5"
++	return m[5]
++}
++
++func AccessInt2(m map[int]int) bool {
++	// amd64:"MOVQ\t[$]5"
++	_, ok := m[5]
++	return ok
++}
++
++func AccessString1(m map[string]int) int {
++	// amd64:`.*"abc"`
++	return m["abc"]
++}
++
++func AccessString2(m map[string]int) bool {
++	// amd64:`.*"abc"`
++	_, ok := m["abc"]
++	return ok
++}

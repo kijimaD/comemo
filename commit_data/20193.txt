@@ -10,7 +10,7 @@ Date:   Sun Aug 24 20:31:16 2014 -0400
     R=golang-codereviews, gobot, rsc, evankroske
     CC=golang-codereviews
     https://golang.org/cl/123040043
-
+---
  src/cmd/link/pclntab_test.go                  |   6 ++++++
  src/cmd/link/testdata/Makefile                |   2 +-
  src/cmd/link/testdata/autosection.6           | Bin 890 -> 850 bytes
@@ -21,3 +21,88 @@ Date:   Sun Aug 24 20:31:16 2014 -0400
  src/cmd/link/testdata/link.hello.darwin.amd64 |  11 ++++-------
  src/cmd/link/testdata/pclntab.6               | Bin 4611 -> 3799 bytes
  9 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/pclntab_test.go b/src/cmd/link/pclntab_test.go
+index 5696a0978d..75d432fc5d 100644
+--- a/src/cmd/link/pclntab_test.go
++++ b/src/cmd/link/pclntab_test.go
+@@ -276,6 +276,12 @@ func checkPCData(t *testing.T, r *SymReader, name string, off, pc, pnum, val int
+ // readPCData reads the PCData table offset off
+ // to obtain and return the value associated with pc.
+ func readPCData(t *testing.T, r *SymReader, name, pcdataname string, pcoff uint32, pc int) (int, bool) {
++	// "If pcsp, pcfile, pcln, or any of the pcdata offsets is zero,
++	// that table is considered missing, and all PCs take value -1."
++	if pcoff == 0 {
++		return -1, true
++	}
++
+ 	var it PCIter
+ 	for it.Init(r.p, r.data[pcoff:]); !it.Done; it.Next() {
+ 		if it.PC <= uint32(pc) && uint32(pc) < it.NextPC {
+diff --git a/src/cmd/link/testdata/Makefile b/src/cmd/link/testdata/Makefile
+index 3b1b15f731..e9651a03f6 100644
+--- a/src/cmd/link/testdata/Makefile
++++ b/src/cmd/link/testdata/Makefile
+@@ -9,7 +9,7 @@ ALL=\
+ all: $(ALL)
+ 
+ %.6: %.s
+-	go tool 6a $*.s
++	GOARCH=amd64 GOOS=darwin go tool 6a -trimpath=$(shell pwd) $*.s
+ 
+ pclntab.s: genpcln.go
+ 	go run genpcln.go >pclntab.s
+diff --git a/src/cmd/link/testdata/autosection.6 b/src/cmd/link/testdata/autosection.6
+index bc9d446e1a..97e8872bd8 100644
+Binary files a/src/cmd/link/testdata/autosection.6 and b/src/cmd/link/testdata/autosection.6 differ
+diff --git a/src/cmd/link/testdata/autoweak.6 b/src/cmd/link/testdata/autoweak.6
+index 636a4d8446..5d74d4e2b5 100644
+Binary files a/src/cmd/link/testdata/autoweak.6 and b/src/cmd/link/testdata/autoweak.6 differ
+diff --git a/src/cmd/link/testdata/dead.6 b/src/cmd/link/testdata/dead.6
+index bb77aafe86..c60b1b6c64 100644
+Binary files a/src/cmd/link/testdata/dead.6 and b/src/cmd/link/testdata/dead.6 differ
+diff --git a/src/cmd/link/testdata/hello.6 b/src/cmd/link/testdata/hello.6
+index b129dc0299..67983f1a9f 100644
+Binary files a/src/cmd/link/testdata/hello.6 and b/src/cmd/link/testdata/hello.6 differ
+diff --git a/src/cmd/link/testdata/layout.6 b/src/cmd/link/testdata/layout.6
+index 8cd5bd2cdf..db24ef3e55 100644
+Binary files a/src/cmd/link/testdata/layout.6 and b/src/cmd/link/testdata/layout.6 differ
+diff --git a/src/cmd/link/testdata/link.hello.darwin.amd64 b/src/cmd/link/testdata/link.hello.darwin.amd64
+index b1f0a93b21..0bd475dd81 100644
+--- a/src/cmd/link/testdata/link.hello.darwin.amd64
++++ b/src/cmd/link/testdata/link.hello.darwin.amd64
+@@ -6,8 +6,8 @@
+ *
+ 00000060  00 00 00 00 00 00 00 00  19 00 00 00 38 01 00 00  |............8...|
+ 00000070  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+-00000080  00 10 00 00 00 00 00 00  d6 10 00 00 00 00 00 00  |................|
+-00000090  00 00 00 00 00 00 00 00  d6 10 00 00 00 00 00 00  |................|
++00000080  00 10 00 00 00 00 00 00  b0 10 00 00 00 00 00 00  |................|
++00000090  00 00 00 00 00 00 00 00  b0 10 00 00 00 00 00 00  |................|
+ 000000a0  07 00 00 00 05 00 00 00  03 00 00 00 00 00 00 00  |................|
+ 000000b0  5f 5f 74 65 78 74 00 00  00 00 00 00 00 00 00 00  |__text..........|
+ 000000c0  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+@@ -21,7 +21,7 @@
+ *
+ 00000150  5f 5f 66 75 6e 63 74 61  62 00 00 00 00 00 00 00  |__functab.......|
+ 00000160  5f 5f 54 45 58 54 00 00  00 00 00 00 00 00 00 00  |__TEXT..........|
+-00000170  20 20 00 00 00 00 00 00  b6 00 00 00 00 00 00 00  |  ..............|
++00000170  20 20 00 00 00 00 00 00  90 00 00 00 00 00 00 00  |  ..............|
+ 00000180  20 10 00 00 00 00 00 00  00 00 00 00 00 00 00 00  | ...............|
+ *
+ 000001a0  19 00 00 00 98 00 00 00  5f 5f 44 41 54 41 00 00  |........__DATA..|
+@@ -48,10 +48,7 @@
+ 00001070  00 00 00 00 00 00 00 00  5f 72 74 30 5f 67 6f 00  |........_rt0_go.|
+ 00001080  02 20 00 04 20 00 06 05  02 05 02 05 02 05 02 02  |. .. ...........|
+ 00001090  02 02 02 05 02 02 02 01  00 00 00 00 00 00 00 00  |................|
+-000010a0  02 00 00 00 88 00 00 00  2f 55 73 65 72 73 2f 72  |......../Users/r|
+-000010b0  73 63 2f 67 2f 67 6f 2f  73 72 63 2f 63 6d 64 2f  |sc/g/go/src/cmd/|
+-000010c0  6c 69 6e 6b 2f 74 65 73  74 64 61 74 61 2f 68 65  |link/testdata/he|
+-000010d0  6c 6c 6f 2e 73 00 00 00  00 00 00 00 00 00 00 00  |llo.s...........|
++000010a0  02 00 00 00 88 00 00 00  68 65 6c 6c 6f 2e 73 00  |........hello.s.|
+ *
+ 00002000  68 65 6c 6c 6f 20 77 6f  72 6c 64 0a              |hello world.|
+ 0000200c
+diff --git a/src/cmd/link/testdata/pclntab.6 b/src/cmd/link/testdata/pclntab.6
+index 918411ca5b..596daa9b57 100644
+Binary files a/src/cmd/link/testdata/pclntab.6 and b/src/cmd/link/testdata/pclntab.6 differ

@@ -7,6 +7,20 @@ Date:   Wed Mar 29 15:18:54 2017 -0700
     Change-Id: I31cfae1e98313b68e3bc8f49079491d2725a662b
     Reviewed-on: https://go-review.googlesource.com/38850
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgclarge.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index cf5bd9a793..3c2b12fe8e 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -24,7 +24,7 @@
+ // removeSpan: which removes a specific span from the treap
+ //
+ // _mheap.lock must be held when manipulating this data structure.
+-//
++
+ package runtime
+ 
+ import (

@@ -12,6 +12,22 @@ Date:   Mon Apr 22 14:35:01 2019 -0700
     Change-Id: I52dc3fd2798ba8c3652d4a967b1c5c48eb69f43b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173319
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index da5ac2c71b..8afe1a7c0c 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -912,6 +912,10 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
+ //
+ // With HTTP Basic Authentication the provided username and password
+ // are not encrypted.
++//
++// Some protocols may impose additional requirements on pre-escaping the
++// username and password. For instance, when used with OAuth2, both arguments
++// must be URL encoded first with url.QueryEscape.
+ func (r *Request) SetBasicAuth(username, password string) {
+ 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+ }

@@ -14,6 +14,21 @@ Date:   Fri Apr 17 15:25:03 2020 -0400
     Change-Id: I17c6fd5fc216954e5f3550cf91f17e25139f1587
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228785
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/runtime/lockrank.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 4b7273aa5f..784f4236f4 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -27,7 +27,8 @@ package runtime
+ type lockRank int
+ 
+ // Constants representing the lock rank of the architecture-independent locks in
+-// the runtime.
++// the runtime. Locks with lower rank must be taken before locks with higher
++// rank.
+ const (
+ 	lockRankDummy lockRank = iota
+ 

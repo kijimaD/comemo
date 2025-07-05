@@ -38,7 +38,51 @@ Date:   Tue Nov 19 13:23:35 2019 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  3 +++
  test/fixedbugs/issue35652.go       | 15 ++++++++++++++-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96fbddb5cd..bda170ec0e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6043,6 +6043,9 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			p.Pos = p.Pos.WithIsStmt()
+ 			if b.Pos == src.NoXPos {
+ 				b.Pos = p.Pos // It needs a file, otherwise a no-file non-zero line causes confusion.  See #35652.
++				if b.Pos == src.NoXPos {
++					b.Pos = pp.Text.Pos // Sometimes p.Pos is empty.  See #35695.
++				}
+ 			}
+ 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
+ 		}
+diff --git a/test/fixedbugs/issue35652.go b/test/fixedbugs/issue35652.go
+index 1ae4069755..178a84d0f8 100644
+--- a/test/fixedbugs/issue35652.go
++++ b/test/fixedbugs/issue35652.go
+@@ -6,10 +6,23 @@
+ 
+ package p
+ 
+-func f() {
++func e() {
+ 	for true {
+ 		if true {
+ 			continue
+ 		}
+ 	}
+ }
++
++func g() {}
++
++func f() {
++	i := 0
++	if true {
++		i++
++	}
++	for true {
++		continue
++		g()
++	}
++}

@@ -10,6 +10,21 @@ Date:   Mon Feb 12 10:34:54 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/563415
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/traceback_system_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/traceback_system_test.go b/src/runtime/traceback_system_test.go
+index 6231586e44..223d78a808 100644
+--- a/src/runtime/traceback_system_test.go
++++ b/src/runtime/traceback_system_test.go
+@@ -62,6 +62,9 @@ func grandchild() {
+ // golang.org/x/telemetry/crashmonitor.
+ func TestTracebackSystem(t *testing.T) {
+ 	testenv.MustHaveExec(t)
++	if runtime.GOOS == "android" {
++		t.Skip("Can't read source code for this file on Android")
++	}
+ 
+ 	// Fork+exec the crashing process.
+ 	exe, err := os.Executable()

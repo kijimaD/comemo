@@ -11,6 +11,20 @@ Date:   Sun Nov 6 18:43:49 2016 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/race/output_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 2a2e3b79e5..587540f5e8 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -184,7 +184,7 @@ func TestFail(t *testing.T) {
+ }
+ `, `
+ ==================
+---- FAIL: TestFail \(0.00s\)
++--- FAIL: TestFail \(0...s\)
+ .*testing.go:.*: race detected during execution of test
+ FAIL`},
+ 

@@ -8,9 +8,333 @@ Date:   Wed Mar 13 13:52:17 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167498
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
-
+---
  test/codegen/arithmetic.go  |   1 +
  test/codegen/comparisons.go |  10 ++--
  test/codegen/noextend.go    | 124 ++++++++++++++++++++++----------------------
  test/codegen/shift.go       |  18 +++----
  4 files changed, 76 insertions(+), 77 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index e5671774ed..16d7d25d3e 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -15,6 +15,7 @@ package codegen
+ // ----------------- //
+ 
+ var ef int
++
+ func SubMem(arr []int, b, c, d int) int {
+ 	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
+ 	// amd64:`SUBQ\s[A-Z]+,\s16\([A-Z]+\)`
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index f14918e9df..62ba184ed4 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -215,30 +215,30 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
+ 
+ 	// ppc64:"ANDCC",-"CMPW"
+ 	// ppc64le:"ANDCC",-"CMPW"
+-	if a & 63 == 0 {
++	if a&63 == 0 {
+ 		return 1
+ 	}
+ 
+ 	// ppc64:"ANDCC",-"CMP"
+ 	// ppc64le:"ANDCC",-"CMP"
+-	if d & 255 == 0 {
++	if d&255 == 0 {
+ 		return 1
+ 	}
+ 
+ 	// ppc64:"ANDCC",-"CMP"
+ 	// ppc64le:"ANDCC",-"CMP"
+-	if d & e == 0 {
++	if d&e == 0 {
+ 		return 1
+ 	}
+ 	// ppc64:"ORCC",-"CMP"
+ 	// ppc64le:"ORCC",-"CMP"
+-	if d | e == 0 {
++	if d|e == 0 {
+ 		return 1
+ 	}
+ 
+ 	// ppc64:"XORCC",-"CMP"
+ 	// ppc64le:"XORCC",-"CMP"
+-	if e ^ d == 0 {
++	if e^d == 0 {
+ 		return 1
+ 	}
+ 	return 0
+diff --git a/test/codegen/noextend.go b/test/codegen/noextend.go
+index 46bfe3f2f9..424fd2008d 100644
+--- a/test/codegen/noextend.go
++++ b/test/codegen/noextend.go
+@@ -31,30 +31,30 @@ func set16(x8 int8, u8 uint8, y8 int8, z8 uint8) {
+ 
+ 	// AND not needed due to size
+ 	// ppc64:-"ANDCC"
+-        // ppc64le:-"ANDCC"
+-        sval16[1] = 255 & int16(x8+y8)
++	// ppc64le:-"ANDCC"
++	sval16[1] = 255 & int16(x8+y8)
+ 
+ 	// ppc64:-"ANDCC"
+-        // ppc64le:-"ANDCC"
+-        val16[1] = 255 & uint16(u8+z8)
++	// ppc64le:-"ANDCC"
++	val16[1] = 255 & uint16(u8+z8)
+ 
+ }
+ func shiftidx(x8 int8, u8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32) {
+ 	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+-        sval16[0] = int16(val16[x8>>1])
++	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
++	sval16[0] = int16(val16[x8>>1])
+ 
+ 	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        val16[0] = uint16(sval16[u8>>2])
++	// ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
++	val16[0] = uint16(sval16[u8>>2])
+ 
+ 	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+-        sval16[1] = int16(val16[x16>>1])
++	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
++	sval16[1] = int16(val16[x16>>1])
+ 
+ 	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+-        val16[1] = uint16(sval16[u16>>2])
++	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
++	val16[1] = uint16(sval16[u16>>2])
+ 
+ }
+ 
+@@ -72,11 +72,11 @@ func setnox(x8 int8, u8 uint8, y8 int8, z8 uint8, x16 int16, u16 uint16, x32 int
+ 	// AND not needed due to size
+ 	// ppc64:-"ANDCC"
+ 	// ppc64le:-"ANDCC"
+-        sval16[1] = 255 & int16(x8+y8)
++	sval16[1] = 255 & int16(x8+y8)
+ 
+ 	// ppc64:-"ANDCC"
+-        // ppc64le:-"ANDCC"
+-        val16[1] = 255 & uint16(u8+z8)
++	// ppc64le:-"ANDCC"
++	val16[1] = 255 & uint16(u8+z8)
+ 
+ 	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+@@ -95,24 +95,24 @@ func setnox(x8 int8, u8 uint8, y8 int8, z8 uint8, x16 int16, u16 uint16, x32 int
+ 	val32[1] = uint32(u16)
+ 
+ 	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+-        sval64[0] = int64(x8)
++	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
++	sval64[0] = int64(x8)
+ 
+ 	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+-        sval64[1] = int64(x16)
++	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
++	sval64[1] = int64(x16)
+ 
+ 	// ppc64:-"MOVW\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVW\tR\\d+,\\sR\\d+"
+ 	sval64[2] = int64(x32)
+ 
+ 	//ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        //ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        val64[0] = uint64(u8)
++	//ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
++	val64[0] = uint64(u8)
+ 
+ 	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+-        val64[1] = uint64(u16)
++	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
++	val64[1] = uint64(u16)
+ 
+ 	// ppc64:-"MOVWZ\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVWZ\tR\\d+,\\sR\\d+"
+@@ -121,15 +121,15 @@ func setnox(x8 int8, u8 uint8, y8 int8, z8 uint8, x16 int16, u16 uint16, x32 int
+ 
+ func cmp16(x8 int8, u8 uint8, x32 int32, u32 uint32, x64 int64, u64 uint64) bool {
+ 	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
++	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+ 	if int16(x8) == sval16[0] {
+ 		return true
+ 	}
+ 
+ 	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        if uint16(u8) == val16[0] {
+-                return true
++	// ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
++	if uint16(u8) == val16[0] {
++		return true
+ 	}
+ 
+ 	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+@@ -174,16 +174,16 @@ func cmp16(x8 int8, u8 uint8, x32 int32, u32 uint32, x64 int64, u64 uint64) bool
+ 
+ func cmp32(x8 int8, u8 uint8, x16 int16, u16 uint16, x64 int64, u64 uint64) bool {
+ 	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+-        if int32(x8) == sval32[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
++	if int32(x8) == sval32[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        if uint32(u8) == val32[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
++	if uint32(u8) == val32[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+ 	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+@@ -213,43 +213,41 @@ func cmp32(x8 int8, u8 uint8, x16 int16, u16 uint16, x64 int64, u64 uint64) bool
+ 	return false
+ }
+ 
+-
+-func cmp64(x8 int8, u8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32)  bool {
++func cmp64(x8 int8, u8 uint8, x16 int16, u16 uint16, x32 int32, u32 uint32) bool {
+ 	// ppc64:-"MOVB\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
+-        if int64(x8) == sval64[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVB\tR\\d+,\\sR\\d+"
++	if int64(x8) == sval64[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
+-        if uint64(u8) == val64[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVBZ\tR\\d+,\\sR\\d+"
++	if uint64(u8) == val64[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVH\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
+-        if int64(x16) == sval64[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVH\tR\\d+,\\sR\\d+"
++	if int64(x16) == sval64[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVHZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
+-        if uint64(u16) == val64[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVHZ\tR\\d+,\\sR\\d+"
++	if uint64(u16) == val64[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVW\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVW\tR\\d+,\\sR\\d+"
+-        if int64(x32) == sval64[0] {
+-                return true
+-        }
++	// ppc64le:-"MOVW\tR\\d+,\\sR\\d+"
++	if int64(x32) == sval64[0] {
++		return true
++	}
+ 
+ 	// ppc64:-"MOVWZ\tR\\d+,\\sR\\d+"
+-        // ppc64le:-"MOVWZ\tR\\d+,\\sR\\d+"
+-        if uint64(u32) == val64[0] {
+-                return true
+-        }
+-        return false
++	// ppc64le:-"MOVWZ\tR\\d+,\\sR\\d+"
++	if uint64(u32) == val64[0] {
++		return true
++	}
++	return false
+ }
+-
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 93fa828868..1e145d3748 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -12,47 +12,47 @@ package codegen
+ 
+ func lshMask64x64(v int64, s uint64) int64 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v << (s&63)
++	return v << (s & 63)
+ }
+ 
+ func rshMask64Ux64(v uint64, s uint64) uint64 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v >> (s&63)
++	return v >> (s & 63)
+ }
+ 
+ func rshMask64x64(v int64, s uint64) int64 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v >> (s&63)
++	return v >> (s & 63)
+ }
+ 
+ func lshMask32x64(v int32, s uint64) int32 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v << (s&63)
++	return v << (s & 63)
+ }
+ 
+ func rshMask32Ux64(v uint32, s uint64) uint32 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v >> (s&63)
++	return v >> (s & 63)
+ }
+ 
+ func rshMask32x64(v int32, s uint64) int32 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v >> (s&63)
++	return v >> (s & 63)
+ }
+ 
+ func lshMask64x32(v int64, s uint32) int64 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v << (s&63)
++	return v << (s & 63)
+ }
+ 
+ func rshMask64Ux32(v uint64, s uint32) uint64 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v >> (s&63)
++	return v >> (s & 63)
+ }
+ 
+ func rshMask64x32(v int64, s uint32) int64 {
+ 	// s390x:-".*AND",-".*MOVDGE"
+-	return v >> (s&63)
++	return v >> (s & 63)
+ }
+ 
+ func lshMask64x32Ext(v int64, s int32) int64 {

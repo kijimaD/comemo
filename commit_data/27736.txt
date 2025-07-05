@@ -13,6 +13,22 @@ Date:   Thu Apr 7 15:26:57 2016 -0700
     Change-Id: I89c501b4c548469f3c878151947d35588057982b
     Reviewed-on: https://go-review.googlesource.com/21636
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/symtab.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index c7c2733507..ae0b17c259 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -198,7 +198,9 @@ func Asmelfsym() {
+ 
+ 	// Some linkers will add a FILE sym if one is not present.
+ 	// Avoid having the working directory inserted into the symbol table.
+-	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
++	// It is added with a name to avoid problems with external linking
++	// encountered on some versions of Solaris. See issue #14957.
++	putelfsyment(putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+ 	numelfsym++
+ 
+ 	elfbind = STB_LOCAL

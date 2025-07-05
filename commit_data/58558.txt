@@ -18,6 +18,29 @@ Date:   Thu Nov 16 15:34:32 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/slices/slices.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 38b0fc14ad..b0f048a656 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -130,14 +130,13 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
+ // Insert panics if i is out of range.
+ // This function is O(len(s) + len(v)).
+ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+-	n := len(s)
++	_ = s[i:] // bounds check
++
+ 	m := len(v)
+ 	if m == 0 {
+-		// Panic if i is not in the range [0:n] inclusive.
+-		// See issue 63913.
+-		_ = s[:n:n][i:]
+ 		return s
+ 	}
++	n := len(s)
+ 	if i == n {
+ 		return append(s, v...)
+ 	}

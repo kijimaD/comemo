@@ -18,7 +18,35 @@ Date:   Thu May 20 21:40:32 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/321953
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os_freebsd.go | 2 +-
  src/runtime/proc.go       | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 41feaecf6b..151a5fd91a 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -237,7 +237,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ 	// However, newosproc0 is currently unreachable because builds
+ 	// utilizing c-shared/c-archive force external linking.
+ 	param := thrparam{
+-		start_func: funcPC(fn),
++		start_func: uintptr(fn),
+ 		arg:        nil,
+ 		stack_base: uintptr(stack), //+stacksize?
+ 		stack_size: stacksize,
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 694f456ac5..6c896cb993 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6487,7 +6487,8 @@ func doInit(t *initTask) {
+ 			// Load stats non-atomically since tracinit is updated only by this init goroutine.
+ 			after := inittrace
+ 
+-			pkg := funcpkgpath(findfunc(funcPC(firstFunc)))
++			f := *(*func())(unsafe.Pointer(&firstFunc))
++			pkg := funcpkgpath(findfunc(funcPC(f)))
+ 
+ 			var sbuf [24]byte
+ 			print("init ", pkg, " @")

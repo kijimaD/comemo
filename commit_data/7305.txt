@@ -12,7 +12,7 @@ Date:   Tue Feb 1 11:49:24 2011 -0500
     R=rsc, brainman, mattn, rog
     CC=golang-dev
     https://golang.org/cl/4058046
-
+---
  src/pkg/exp/wingui/gui.go               |  11 +-
  src/pkg/exp/wingui/zwinapi.go           |  32 +++---
  src/pkg/runtime/cgocall.c               |   9 +-
@@ -31,3 +31,1768 @@ Date:   Tue Feb 1 11:49:24 2011 -0500
  src/pkg/syscall/syscall_windows.go      |  35 ++-----
  src/pkg/syscall/zsyscall_windows_386.go | 150 +++++++++++++--------------
  17 files changed, 319 insertions(+), 415 deletions(-)
+
+diff --git a/src/pkg/exp/wingui/gui.go b/src/pkg/exp/wingui/gui.go
+index cc9dd15ef4..41ee5b7895 100644
+--- a/src/pkg/exp/wingui/gui.go
++++ b/src/pkg/exp/wingui/gui.go
+@@ -30,12 +30,7 @@ var (
+ )
+ 
+ // WinProc called by windows to notify us of all windows events we might be interested in.
+-func WndProc(args *uintptr) uintptr {
+-	p := (*[4]int32)(unsafe.Pointer(args))
+-	hwnd := uint32(p[0])
+-	msg := uint32(p[1])
+-	wparam := int32(p[2])
+-	lparam := int32(p[3])
++func WndProc(hwnd, msg uint32, wparam, lparam int32) uintptr {
+ 	var rc int32
+ 	switch msg {
+ 	case WM_CREATE:
+@@ -95,13 +90,13 @@ func rungui() int {
+ 	}
+ 
+ 	// Create callback
+-	wproc := syscall.NewCallback(WndProc, 4)
++	wproc := syscall.NewCallback(WndProc)
+ 
+ 	// RegisterClassEx
+ 	wcname := syscall.StringToUTF16Ptr("myWindowClass")
+ 	var wc Wndclassex
+ 	wc.Size = uint32(unsafe.Sizeof(wc))
+-	wc.WndProc = wproc.ExtFnEntry()
++	wc.WndProc = wproc
+ 	wc.Instance = mh
+ 	wc.Icon = myicon
+ 	wc.Cursor = mycursor
+diff --git a/src/pkg/exp/wingui/zwinapi.go b/src/pkg/exp/wingui/zwinapi.go
+index dc166c93d1..324bf1773e 100644
+--- a/src/pkg/exp/wingui/zwinapi.go
++++ b/src/pkg/exp/wingui/zwinapi.go
+@@ -29,7 +29,7 @@ var (
+ )
+ 
+ func GetModuleHandle(modname *uint16) (handle uint32, errno int) {
+-	r0, _, e1 := syscall.Syscall(procGetModuleHandleW, uintptr(unsafe.Pointer(modname)), 0, 0)
++	r0, _, e1 := syscall.Syscall(procGetModuleHandleW, 1, uintptr(unsafe.Pointer(modname)), 0, 0)
+ 	handle = uint32(r0)
+ 	if handle == 0 {
+ 		if e1 != 0 {
+@@ -44,7 +44,7 @@ func GetModuleHandle(modname *uint16) (handle uint32, errno int) {
+ }
+ 
+ func RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) {
+-	r0, _, e1 := syscall.Syscall(procRegisterClassExW, uintptr(unsafe.Pointer(wndclass)), 0, 0)
++	r0, _, e1 := syscall.Syscall(procRegisterClassExW, 1, uintptr(unsafe.Pointer(wndclass)), 0, 0)
+ 	atom = uint16(r0)
+ 	if atom == 0 {
+ 		if e1 != 0 {
+@@ -59,7 +59,7 @@ func RegisterClassEx(wndclass *Wndclassex) (atom uint16, errno int) {
+ }
+ 
+ func CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style uint32, x int32, y int32, width int32, height int32, wndparent uint32, menu uint32, instance uint32, param uintptr) (hwnd uint32, errno int) {
+-	r0, _, e1 := syscall.Syscall12(procCreateWindowExW, uintptr(exstyle), uintptr(unsafe.Pointer(classname)), uintptr(unsafe.Pointer(windowname)), uintptr(style), uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(wndparent), uintptr(menu), uintptr(instance), uintptr(param))
++	r0, _, e1 := syscall.Syscall12(procCreateWindowExW, 12, uintptr(exstyle), uintptr(unsafe.Pointer(classname)), uintptr(unsafe.Pointer(windowname)), uintptr(style), uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(wndparent), uintptr(menu), uintptr(instance), uintptr(param))
+ 	hwnd = uint32(r0)
+ 	if hwnd == 0 {
+ 		if e1 != 0 {
+@@ -74,13 +74,13 @@ func CreateWindowEx(exstyle uint32, classname *uint16, windowname *uint16, style
+ }
+ 
+ func DefWindowProc(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) {
+-	r0, _, _ := syscall.Syscall6(procDefWindowProcW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
++	r0, _, _ := syscall.Syscall6(procDefWindowProcW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+ 	lresult = int32(r0)
+ 	return
+ }
+ 
+ func DestroyWindow(hwnd uint32) (ok bool, errno int) {
+-	r0, _, e1 := syscall.Syscall(procDestroyWindow, uintptr(hwnd), 0, 0)
++	r0, _, e1 := syscall.Syscall(procDestroyWindow, 1, uintptr(hwnd), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -95,18 +95,18 @@ func DestroyWindow(hwnd uint32) (ok bool, errno int) {
+ }
+ 
+ func PostQuitMessage(exitcode int32) {
+-	syscall.Syscall(procPostQuitMessage, uintptr(exitcode), 0, 0)
++	syscall.Syscall(procPostQuitMessage, 1, uintptr(exitcode), 0, 0)
+ 	return
+ }
+ 
+ func ShowWindow(hwnd uint32, cmdshow int32) (ok bool) {
+-	r0, _, _ := syscall.Syscall(procShowWindow, uintptr(hwnd), uintptr(cmdshow), 0)
++	r0, _, _ := syscall.Syscall(procShowWindow, 2, uintptr(hwnd), uintptr(cmdshow), 0)
+ 	ok = bool(r0 != 0)
+ 	return
+ }
+ 
+ func UpdateWindow(hwnd uint32) (ok bool, errno int) {
+-	r0, _, e1 := syscall.Syscall(procUpdateWindow, uintptr(hwnd), 0, 0)
++	r0, _, e1 := syscall.Syscall(procUpdateWindow, 1, uintptr(hwnd), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -121,7 +121,7 @@ func UpdateWindow(hwnd uint32) (ok bool, errno int) {
+ }
+ 
+ func GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32) (ret int32, errno int) {
+-	r0, _, e1 := syscall.Syscall6(procGetMessageW, uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(MsgFilterMin), uintptr(MsgFilterMax), 0, 0)
++	r0, _, e1 := syscall.Syscall6(procGetMessageW, 4, uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(MsgFilterMin), uintptr(MsgFilterMax), 0, 0)
+ 	ret = int32(r0)
+ 	if ret == -1 {
+ 		if e1 != 0 {
+@@ -136,19 +136,19 @@ func GetMessage(msg *Msg, hwnd uint32, MsgFilterMin uint32, MsgFilterMax uint32)
+ }
+ 
+ func TranslateMessage(msg *Msg) (ok bool) {
+-	r0, _, _ := syscall.Syscall(procTranslateMessage, uintptr(unsafe.Pointer(msg)), 0, 0)
++	r0, _, _ := syscall.Syscall(procTranslateMessage, 1, uintptr(unsafe.Pointer(msg)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	return
+ }
+ 
+ func DispatchMessage(msg *Msg) (ret int32) {
+-	r0, _, _ := syscall.Syscall(procDispatchMessageW, uintptr(unsafe.Pointer(msg)), 0, 0)
++	r0, _, _ := syscall.Syscall(procDispatchMessageW, 1, uintptr(unsafe.Pointer(msg)), 0, 0)
+ 	ret = int32(r0)
+ 	return
+ }
+ 
+ func LoadIcon(instance uint32, iconname *uint16) (icon uint32, errno int) {
+-	r0, _, e1 := syscall.Syscall(procLoadIconW, uintptr(instance), uintptr(unsafe.Pointer(iconname)), 0)
++	r0, _, e1 := syscall.Syscall(procLoadIconW, 2, uintptr(instance), uintptr(unsafe.Pointer(iconname)), 0)
+ 	icon = uint32(r0)
+ 	if icon == 0 {
+ 		if e1 != 0 {
+@@ -163,7 +163,7 @@ func LoadIcon(instance uint32, iconname *uint16) (icon uint32, errno int) {
+ }
+ 
+ func LoadCursor(instance uint32, cursorname *uint16) (cursor uint32, errno int) {
+-	r0, _, e1 := syscall.Syscall(procLoadCursorW, uintptr(instance), uintptr(unsafe.Pointer(cursorname)), 0)
++	r0, _, e1 := syscall.Syscall(procLoadCursorW, 2, uintptr(instance), uintptr(unsafe.Pointer(cursorname)), 0)
+ 	cursor = uint32(r0)
+ 	if cursor == 0 {
+ 		if e1 != 0 {
+@@ -178,7 +178,7 @@ func LoadCursor(instance uint32, cursorname *uint16) (cursor uint32, errno int)
+ }
+ 
+ func SetCursor(cursor uint32) (precursor uint32, errno int) {
+-	r0, _, e1 := syscall.Syscall(procSetCursor, uintptr(cursor), 0, 0)
++	r0, _, e1 := syscall.Syscall(procSetCursor, 1, uintptr(cursor), 0, 0)
+ 	precursor = uint32(r0)
+ 	if precursor == 0 {
+ 		if e1 != 0 {
+@@ -193,13 +193,13 @@ func SetCursor(cursor uint32) (precursor uint32, errno int) {
+ }
+ 
+ func SendMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (lresult int32) {
+-	r0, _, _ := syscall.Syscall6(procSendMessageW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
++	r0, _, _ := syscall.Syscall6(procSendMessageW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+ 	lresult = int32(r0)
+ 	return
+ }
+ 
+ func PostMessage(hwnd uint32, msg uint32, wparam int32, lparam int32) (ok bool, errno int) {
+-	r0, _, e1 := syscall.Syscall6(procPostMessageW, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
++	r0, _, e1 := syscall.Syscall6(procPostMessageW, 4, uintptr(hwnd), uintptr(msg), uintptr(wparam), uintptr(lparam), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 80ae97e7af..e6ece95422 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -53,12 +53,13 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ // (arg/argsize) on to the stack, calls the function, copies the
+ // arguments back where they came from, and finally returns to the old
+ // stack.
+-void
++uintptr
+ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
+ {
+ 	Gobuf oldsched, oldg1sched;
+ 	G *g1;
+ 	void *sp;
++	uintptr ret;
+ 
+ 	if(g != m->g0)
+ 		runtime·throw("bad g in cgocallback");
+@@ -70,11 +71,11 @@ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
+ 	runtime·startcgocallback(g1);
+ 
+ 	sp = g1->sched.sp - argsize;
+-	if(sp < g1->stackguard)
++	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
+ 		runtime·throw("g stack overflow in cgocallback");
+ 	runtime·mcpy(sp, arg, argsize);
+ 
+-	runtime·runcgocallback(g1, sp, fn);
++	ret = runtime·runcgocallback(g1, sp, fn);
+ 
+ 	runtime·mcpy(arg, sp, argsize);
+ 
+@@ -82,6 +83,8 @@ runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
+ 
+ 	m->sched = oldsched;
+ 	g1->sched = oldg1sched;
++
++	return ret;
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/cgocall.h b/src/pkg/runtime/cgocall.h
+index 1ad954eb12..7c24e167b4 100644
+--- a/src/pkg/runtime/cgocall.h
++++ b/src/pkg/runtime/cgocall.h
+@@ -7,6 +7,6 @@
+  */
+ 
+ void runtime·cgocall(void (*fn)(void*), void*);
+-void runtime·cgocallback(void (*fn)(void), void*, int32);
++uintptr runtime·cgocallback(void (*fn)(void), void*, int32);
+ void *runtime·cmalloc(uintptr);
+ void runtime·cfree(void*);
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index ec4593f5ec..284b1e4585 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -31,7 +31,7 @@ runtime·dopanic(int32 unused)
+ 	runtime·panicking++;
+ 
+ 	if(g->sig != 0)
+-		runtime·printf("\n[signal %d code=%p addr=%p pc=%p]\n",
++		runtime·printf("\n[signal %x code=%p addr=%p pc=%p]\n",
+ 			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
+ 
+ 	runtime·printf("\n");
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 54ae5c0c3e..2c19f851e4 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -235,7 +235,7 @@ struct	M
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags
+ #ifdef __WINDOWS__
+-	void*	gostack;	// bookmark to keep track of go stack during stdcall
++	void*	sehframe;
+ #endif
+ };
+ struct	Stktop
+@@ -443,7 +443,7 @@ void	runtime·breakpoint(void);
+ void	runtime·gosched(void);
+ void	runtime·goexit(void);
+ void	runtime·runcgo(void (*fn)(void*), void*);
+-void	runtime·runcgocallback(G*, void*, void (*fn)());
++uintptr	runtime·runcgocallback(G*, void*, void (*fn)());
+ void	runtime·entersyscall(void);
+ void	runtime·exitsyscall(void);
+ void	runtime·startcgocallback(G*);
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index 33602527c8..69178cdd08 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -57,6 +57,7 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
+ 		gp->sig = info->ExceptionCode;
+ 		gp->sigcode0 = info->ExceptionInformation[0];
+ 		gp->sigcode1 = info->ExceptionInformation[1];
++		gp->sigpc = r->Eip;
+ 
+ 		// Only push runtime·sigpanic if r->eip != 0.
+ 		// If r->eip == 0, probably panicked because of a
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index 098ac9fec2..d1a8a49a9c 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -5,7 +5,7 @@
+ #include "386/asm.h"
+ 
+ // void *stdcall_raw(void *fn, int32 count, uintptr *args)
+-TEXT runtime·stdcall_raw(SB),7,$4
++TEXT runtime·stdcall_raw(SB),7,$0
+ 	// Copy arguments from stack.
+ 	MOVL	fn+0(FP), AX
+ 	MOVL	count+4(FP), CX		// words
+@@ -14,17 +14,18 @@ TEXT runtime·stdcall_raw(SB),7,$4
+ 	// Switch to m->g0 if needed.
+ 	get_tls(DI)
+ 	MOVL	m(DI), DX
+-	MOVL	g(DI), SI
+-	MOVL	SI, 0(SP)		// save g
+-	MOVL	SP, m_gostack(DX)	// save SP
++	MOVL	0(FS), SI
++	MOVL	SI, m_sehframe(DX)
+ 	MOVL	m_g0(DX), SI
+ 	CMPL	g(DI), SI
+-	JEQ 3(PC)
++	MOVL	SP, BX
++	JEQ	2(PC)
+ 	MOVL	(m_sched+gobuf_sp)(DX), SP
++	PUSHL	BX
++	PUSHL	g(DI)
+ 	MOVL	SI, g(DI)
+ 
+ 	// Copy args to new stack.
+-	SUBL	$(10*4), SP		// padding
+ 	MOVL	CX, BX
+ 	SALL	$2, BX
+ 	SUBL	BX, SP			// room for args
+@@ -38,16 +39,24 @@ TEXT runtime·stdcall_raw(SB),7,$4
+ 
+ 	// Restore original SP, g.
+ 	get_tls(DI)
+-	MOVL	m(DI), DX
+-	MOVL	m_gostack(DX), SP	// restore SP
+-	MOVL	0(SP), SI		// restore g
+-	MOVL	SI, g(DI)
++	POPL	g(DI)
++	POPL	SP
+ 
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
+ 	RET
+ 
++// faster get/set last error
++TEXT runtime·getlasterror(SB),7,$0
++	MOVL	0x34(FS), AX
++	RET
++
++TEXT runtime·setlasterror(SB),7,$0
++	MOVL	err+0(FP), AX
++	MOVL	AX, 0x34(FS)
++	RET
++
+ TEXT runtime·sigtramp(SB),7,$0
+ 	PUSHL	BP			// cdecl
+ 	PUSHL	0(FS)
+@@ -92,45 +101,45 @@ sigdone:
+ 
+ // Called from dynamic function created by ../thread.c compilecallback,
+ // running on Windows stack (not Go stack).
+-// Returns straight to DLL.
+-// EBX, EBP, ESI, EDI registers and DF flag are preserved
++// BX, BP, SI, DI registers and DF flag are preserved
+ // as required by windows callback convention.
+-// On entry to the function the stack looks like:
+-//
+-// 0(SP)  - return address to callback
+-// 4(SP)  - address of go func we need to call
+-// 8(SP)  - total size of arguments
+-// 12(SP) - room to save BX register
+-// 16(SP) - room to save BP
+-// 20(SP) - room to save SI
+-// 24(SP) - room to save DI
+-// 28(SP) - return address to DLL
+-// 32(SP) - beginning of arguments
++// AX = address of go func we need to call
++// DX = total size of arguments
+ //
+ TEXT runtime·callbackasm+0(SB),7,$0
+-	MOVL	BX, 12(SP)		// save registers as required for windows callback
+-	MOVL	BP, 16(SP)
+-	MOVL	SI, 20(SP)
+-	MOVL	DI, 24(SP)
+-
+-	LEAL	args+32(SP), AX
+-	MOVL	AX, 0(SP)
++	LEAL	8(SP), CX
+ 
++	// save registers as required for windows callback
++	PUSHL	0(FS)
++	PUSHL	DI
++	PUSHL	SI
++	PUSHL	BP
++	PUSHL	BX
++	PUSHL	DX
++	PUSHL	CX
++	PUSHL	AX
++
++	// reinstall our SEH handler
++	get_tls(CX)
++	MOVL	m(CX), CX
++	MOVL	m_sehframe(CX), CX
++	MOVL	CX, 0(FS)
+ 	CLD
+ 
+-	CALL	runtime·callback(SB)
++	CALL	runtime·cgocallback(SB)
+ 
+-	MOVL	12(SP), BX		// restore registers as required for windows callback
+-	MOVL	16(SP), BP
+-	MOVL	20(SP), SI
+-	MOVL	24(SP), DI
++	// restore registers as required for windows callback
++	POPL	CX
++	POPL	CX
++	POPL	DX
++	POPL	BX
++	POPL	BP
++	POPL	SI
++	POPL	DI
++	POPL	0(FS)
+ 	CLD
+ 
+-	MOVL	ret+28(SP), CX
+-	MOVL	size+8(SP), DX
+-	ADDL	$32, DX
+-	ADDL	DX, SP
+-	JMP	CX
++	RET
+ 
+ // void tstart(M *newm);
+ TEXT runtime·tstart(SB),7,$0
+@@ -144,7 +153,6 @@ TEXT runtime·tstart(SB),7,$0
+ 
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVL	SP, AX
+-	SUBL	$256, AX		// just some space for ourselves
+ 	MOVL	AX, g_stackbase(DX)
+ 	SUBL	$(64*1024), AX		// stack size
+ 	MOVL	AX, g_stackguard(DX)
+@@ -155,9 +163,6 @@ TEXT runtime·tstart(SB),7,$0
+ 	MOVL	CX, m(SI)
+ 	MOVL	DX, g(SI)
+ 
+-	// Use scheduler stack now.
+-	MOVL	g_stackbase(DX), SP
+-
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
+@@ -194,12 +199,3 @@ TEXT runtime·setldt(SB),7,$0
+ 	MOVL	address+4(FP), CX
+ 	MOVL	CX, 0x2c(FS)
+ 	RET
+-
+-// for now, return 0,0.  only used for internal performance monitoring.
+-TEXT runtime·gettime(SB),7,$0
+-	MOVL	sec+0(FP), DI
+-	MOVL	$0, (DI)
+-	MOVL	$0, 4(DI)		// zero extend 32 -> 64 bits
+-	MOVL	usec+4(FP), DI
+-	MOVL	$0, (DI)
+-	RET
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index d3badd9371..19d11ce8d3 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -15,16 +15,6 @@ enum {
+ 	PAGE_EXECUTE_READWRITE = 0x40,
+ };
+ 
+-static void
+-abort(int8 *name)
+-{
+-	uintptr errno;
+-
+-	errno = (uintptr)runtime·stdcall(runtime·GetLastError, 0);
+-	runtime·printf("%s failed with errno=%d\n", name, errno);
+-	runtime·throw(name);
+-}
+-
+ #pragma dynimport runtime·VirtualAlloc VirtualAlloc "kernel32.dll"
+ #pragma dynimport runtime·VirtualFree VirtualFree "kernel32.dll"
+ extern void *runtime·VirtualAlloc;
+@@ -52,7 +42,7 @@ runtime·SysFree(void *v, uintptr n)
+ 	mstats.sys -= n;
+ 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, 0, MEM_RELEASE);
+ 	if(r == 0)
+-		abort("VirtualFree");
++		runtime·throw("runtime: failed to release pages");
+ }
+ 
+ void*
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index d4c28ab133..391eace5a0 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -4,39 +4,23 @@
+ 
+ extern void *runtime·LoadLibraryEx;
+ extern void *runtime·GetProcAddress;
+-extern void *runtime·GetLastError;
+-
+-// Get start address of symbol data in memory.
+-void *runtime·get_symdat_addr(void);
+ 
+ // Call a Windows function with stdcall conventions,
+ // and switch to os stack during the call.
+-void *runtime·stdcall_raw(void *fn, int32 count, uintptr *args);
++void *runtime·stdcall_raw(void *fn, uintptr nargs, void *args);
+ void *runtime·stdcall(void *fn, int32 count, ...);
++uintptr runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err);
++
++uintptr runtime·getlasterror(void);
++void runtime·setlasterror(uintptr err);
+ 
+-// Function to be called by windows CreateTread
++// Function to be called by windows CreateThread
+ // to start new os thread.
+ uint32 runtime·tstart_stdcall(M *newm);
+ 
+-// Call stdcall Windows function StdcallParams.fn
+-// with params StdcallParams.args,
+-// followed immediately by GetLastError call.
+-// Both return values are returned in StdcallParams.r and
+-// StdcallParams.err. Will use os stack during the call.
+-typedef struct StdcallParams StdcallParams;
+-struct StdcallParams
+-{
+-	void	*fn;
+-	uintptr args[12];
+-	int32	n;
+-	uintptr	r;
+-	uintptr	err;
+-};
+-
+-void runtime·syscall(StdcallParams *p);
+ uint32 runtime·issigpanic(uint32);
+ void runtime·sigpanic(void);
+ 
+ // Windows dll function to go callback entry.
+-void runtime·compilecallback(byte *code, void *fn, uint32 argsize);
+-void* runtime·callbackasm(void);
++byte *runtime·compilecallback(Eface fn, bool cleanstack);
++void *runtime·callbackasm(void);
+diff --git a/src/pkg/runtime/windows/syscall.goc b/src/pkg/runtime/windows/syscall.goc
+index f161aeda27..85071e0516 100644
+--- a/src/pkg/runtime/windows/syscall.goc
++++ b/src/pkg/runtime/windows/syscall.goc
+@@ -6,110 +6,62 @@ package syscall
+ #include "runtime.h"
+ #include "os.h"
+ 
+-func loadlibraryex(filename uintptr) (handle uint32) {
+-	StdcallParams p;
+-	p.fn = (void*)runtime·LoadLibraryEx;
+-	p.args[0] = filename;
+-	p.args[1] = 0;
+-	p.args[2] = 0;
+-	p.n = 3;
+-	runtime·syscall(&p);
+-	handle = p.r;
++func loadlibraryex(filename uintptr) (handle uintptr) {
++	uintptr args[3] = { filename };
++	handle = runtime·syscall(runtime·LoadLibraryEx, 3, args, nil);
+ }
+ 
+-func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
+-	StdcallParams p;
+-	p.fn = (void*)runtime·GetProcAddress;
+-	p.args[0] = handle;
+-	p.args[1] = procname;
+-	p.n = 2;
+-	runtime·syscall(&p);
+-	proc = p.r;
++func getprocaddress(handle uintptr, procname uintptr) (proc uintptr) {
++	USED(procname);
++	proc = runtime·syscall(runtime·GetProcAddress, 2, &handle, nil);
+ }
+ 
+-func compileCallback(code *byte, fn uintptr, argsize uint32) {
+-	runtime·compilecallback(code, (void*)fn, argsize);
++func NewCallback(fn Eface) (code uintptr) {
++	code = (uintptr)runtime·compilecallback(fn, true);
+ }
+ 
+-func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	StdcallParams p;
+-	p.fn = (void*)trap;
+-	p.args[0] = a1;
+-	p.args[1] = a2;
+-	p.args[2] = a3;
+-	p.n = 3;
+-	runtime·syscall(&p);
+-	r1 = p.r;
++func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	USED(a2);
++	USED(a3);
++	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+ 	r2 = 0;
+-	err = p.err;
+ }
+ 
+-func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	StdcallParams p;
+-	p.fn = (void*)trap;
+-	p.args[0] = a1;
+-	p.args[1] = a2;
+-	p.args[2] = a3;
+-	p.args[3] = a4;
+-	p.args[4] = a5;
+-	p.args[5] = a6;
+-	p.n = 6;
+-	runtime·syscall(&p);
+-	r1 = p.r;
++func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+ 	r2 = 0;
+-	err = p.err;
+ }
+ 
+-func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
+-	StdcallParams p;
+-	p.fn = (void*)trap;
+-	p.args[0] = a1;
+-	p.args[1] = a2;
+-	p.args[2] = a3;
+-	p.args[3] = a4;
+-	p.args[4] = a5;
+-	p.args[5] = a6;
+-	p.args[6] = a7;
+-	p.args[7] = a8;
+-	p.args[8] = a9;
+-	p.n = 9;
+-	runtime·syscall(&p);
+-	r1 = p.r;
++func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	USED(a7);
++	USED(a8);
++	USED(a9);
++	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+ 	r2 = 0;
+-	lasterr = p.err;
+ }
+ 
+-func Syscall12(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
+-	StdcallParams p;
+-	p.fn = (void*)trap;
+-	p.args[0] = a1;
+-	p.args[1] = a2;
+-	p.args[2] = a3;
+-	p.args[3] = a4;
+-	p.args[4] = a5;
+-	p.args[5] = a6;
+-	p.args[6] = a7;
+-	p.args[7] = a8;
+-	p.args[8] = a9;
+-	p.args[9] = a10;
+-	p.args[10] = a11;
+-	p.args[11] = a12;
+-	p.n = 12;
+-	runtime·syscall(&p);
+-	r1 = p.r;
++func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	USED(a7);
++	USED(a8);
++	USED(a9);
++	USED(a10);
++	USED(a11);
++	USED(a12);
++	r1 = runtime·syscall((void*)fn, nargs, &a1, &err);
+ 	r2 = 0;
+-	lasterr = p.err;
+-}
+-
+-func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	StdcallParams p;
+-	p.fn = (void*)trap;
+-	p.args[0] = a1;
+-	p.args[1] = a2;
+-	p.args[2] = a3;
+-	p.n = 3;
+-	runtime·syscall(&p);
+-	r1 = p.r;
+-	r2 = 0;
+-	err = p.err;
+ }
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 605e28af29..278a5da692 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -3,49 +3,48 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "type.h"
+ #include "defs.h"
+ #include "os.h"
+ 
+-#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+-#pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+ #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
++#pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
++#pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+ #pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
++#pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
++#pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW "kernel32.dll"
++#pragma dynimport runtime·GetProcAddress GetProcAddress "kernel32.dll"
+ #pragma dynimport runtime·GetStdHandle GetStdHandle "kernel32.dll"
++#pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
++#pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
++#pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
+ #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
++#pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+ #pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
+-#pragma dynimport runtime·GetLastError GetLastError "kernel32.dll"
+-#pragma dynimport runtime·SetLastError SetLastError "kernel32.dll"
+ 
+-// Also referenced by external packages
+ extern void *runtime·CloseHandle;
++extern void *runtime·CreateEvent;
++extern void *runtime·CreateThread;
+ extern void *runtime·ExitProcess;
++extern void *runtime·FreeEnvironmentStringsW;
++extern void *runtime·GetEnvironmentStringsW;
++extern void *runtime·GetProcAddress;
+ extern void *runtime·GetStdHandle;
++extern void *runtime·LoadLibraryEx;
++extern void *runtime·QueryPerformanceCounter;
++extern void *runtime·QueryPerformanceFrequency;
+ extern void *runtime·SetEvent;
++extern void *runtime·WaitForSingleObject;
+ extern void *runtime·WriteFile;
+-extern void *runtime·LoadLibraryEx;
+-extern void *runtime·GetProcAddress;
+-extern void *runtime·GetLastError;
+-extern void *runtime·SetLastError;
+ 
+-#pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+-#pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+-#pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+-
+-extern void *runtime·CreateEvent;
+-extern void *runtime·CreateThread;
+-extern void *runtime·WaitForSingleObject;
++static int64 timerfreq;
+ 
+ void
+ runtime·osinit(void)
+ {
++	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+ }
+ 
+-#pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW  "kernel32.dll"
+-#pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW  "kernel32.dll"
+-
+-extern void *runtime·GetEnvironmentStringsW;
+-extern void *runtime·FreeEnvironmentStringsW;
+-
+ void
+ runtime·goenvs(void)
+ {
+@@ -194,6 +193,17 @@ runtime·minit(void)
+ {
+ }
+ 
++void
++runtime·gettime(int64 *sec, int32 *usec)
++{
++	int64 count;
++
++	runtime·stdcall(runtime·QueryPerformanceCounter, 1, &count);
++	*sec = count / timerfreq;
++	count %= timerfreq;
++	*usec = count*1000000 / timerfreq;
++}
++
+ // Calling stdcall on os stack.
+ #pragma textflag 7
+ void *
+@@ -202,11 +212,11 @@ runtime·stdcall(void *fn, int32 count, ...)
+ 	return runtime·stdcall_raw(fn, count, (uintptr*)(&count + 1));
+ }
+ 
+-void
+-runtime·syscall(StdcallParams *p)
++uintptr
++runtime·syscall(void *fn, uintptr nargs, void *args, uintptr *err)
+ {
+ 	G *oldlock;
+-	uintptr a;
++	uintptr ret;
+ 
+ 	/*
+ 	 * Lock g to m to ensure we stay on the same stack if we do a callback.
+@@ -216,17 +226,17 @@ runtime·syscall(StdcallParams *p)
+ 	g->lockedm = m;
+ 
+ 	runtime·entersyscall();
+-	// TODO(brainman): Move calls to SetLastError and GetLastError
+-	// to stdcall_raw to speed up syscall.
+-	a = 0;
+-	runtime·stdcall_raw(runtime·SetLastError, 1, &a);
+-	p->r = (uintptr)runtime·stdcall_raw((void*)p->fn, p->n, p->args);
+-	p->err = (uintptr)runtime·stdcall_raw(runtime·GetLastError, 0, &a);
++	runtime·setlasterror(0);
++	ret = (uintptr)runtime·stdcall_raw(fn, nargs, args);
++	if(err)
++		*err = runtime·getlasterror();
+ 	runtime·exitsyscall();
+ 
+ 	m->lockedg = oldlock;
+ 	if(oldlock == nil)
+ 		g->lockedm = nil;
++
++	return ret;
+ }
+ 
+ uint32
+@@ -270,71 +280,56 @@ runtime·sigpanic(void)
+ }
+ 
+ // Call back from windows dll into go.
+-void
+-runtime·compilecallback(byte *code, void *fn, uint32 argsize)
++byte *
++runtime·compilecallback(Eface fn, bool cleanstack)
+ {
+-	byte *p;
+-
+-	p = code;
+-	// SUBL $16, SP
+-	*p++ = 0x83;
+-	*p++ = 0xec;
+-	*p++ = 0x10;
+-	// PUSH argsize * 4
+-	*p++ = 0x68;
+-	*(uint32*)p = argsize << 2;
+-	p += 4;
+-	// PUSH fn
+-	*p++ = 0x68;
+-	*(uint32*)p = (uint32)fn;
+-	p += 4;
+-	// MOV callbackasm, AX
+-	void* (*x)(void) = runtime·callbackasm;
++	Func *f;
++	int32 argsize, n;
++	byte *ret, *p;
++
++	if(fn.type->kind != KindFunc)
++		runtime·panicstring("not a function");
++	if((f = runtime·findfunc((uintptr)fn.data)) == nil)
++		runtime·throw("cannot find function");
++	argsize = (f->args-2) * 4;
++
++	// compute size of new fn.
++	// must match code laid out below.
++	n = 1+4;		// MOVL fn, AX
++	n += 1+4;		// MOVL argsize, DX
++	n += 1+4;		// MOVL callbackasm, CX
++	n += 2;			// CALL CX
++	n += 1;			// RET
++	if(cleanstack)
++		n += 2;		// ... argsize
++
++	ret = p = runtime·mal(n);
++
++	// MOVL fn, AX
+ 	*p++ = 0xb8;
+-	*(uint32*)p = (uint32)x;
++	*(uint32*)p = (uint32)fn.data;
+ 	p += 4;
+-	// CALL AX
+-	*p++ = 0xff;
+-	*p = 0xd0;
+-}
+ 
+-#pragma textflag 7
+-void*
+-runtime·callback(void *arg, void (*fn)(void), int32 argsize)
+-{
+-	Gobuf msched, g1sched;
+-	G *g1;
+-	void *sp, *gostack;
+-	void **p;
+-
+-	USED(argsize);
+-
+-	if(g != m->g0)
+-		runtime·throw("bad g in callback");
+-
+-	g1 = m->curg;
+-
+-	gostack = m->gostack;		// preserve previous call stack parameters
+-	msched = m->sched;
+-	g1sched = g1->sched;
+-
+-	runtime·startcgocallback(g1);
+-
+-	sp = g1->sched.sp - 4 - 4;	// one input, one output
+-
+-	if(sp < g1->stackguard - StackGuard + 4) // +4 for return address
+-		runtime·throw("g stack overflow in callback");
+-
+-	p = sp;
+-	p[0] = arg;
++	// MOVL argsize, DX
++	*p++ = 0xba;
++	*(uint32*)p = argsize;
++	p += 4;
+ 
+-	runtime·runcgocallback(g1, sp, fn);
++	// MOVL callbackasm, CX
++	*p++ = 0xb9;
++	*(uint32*)p = (uint32)runtime·callbackasm;
++	p += 4;
+ 
+-	runtime·endcgocallback(g1);
++	// CALL CX
++	*p++ = 0xff;
++	*p++ = 0xd1;
+ 
+-	g1->sched = g1sched; 
+-	m->sched = msched;
+-	m->gostack = gostack;		// restore previous call stack parameters
++	// RET argsize?
++	if(cleanstack) {
++		*p++ = 0xc2;
++		*(uint16*)p = argsize;
++	} else
++		*p = 0xc3;
+ 
+-	return p[1];
++	return ret;
+ }
+diff --git a/src/pkg/syscall/mksyscall_windows.sh b/src/pkg/syscall/mksyscall_windows.sh
+index 9695d3f22c..3b1c9df850 100755
+--- a/src/pkg/syscall/mksyscall_windows.sh
++++ b/src/pkg/syscall/mksyscall_windows.sh
+@@ -105,7 +105,7 @@ while(<>) {
+ 
+ 	# Returned value when failed
+ 	if($failcond eq "") {
+-		$failcond = "==0";
++		$failcond = "== 0";
+ 	}
+ 
+ 	# Decide which version of api is used: ascii or unicode.
+@@ -135,8 +135,8 @@ while(<>) {
+ 			# Convert slice into pointer, length.
+ 			# Have to be careful not to take address of &a[0] if len == 0:
+ 			# pass nil in that case.
+-			$text .= "\tvar _p$n *$1;\n";
+-			$text .= "\tif len($name) > 0 { _p$n = \&${name}[0]; }\n";
++			$text .= "\tvar _p$n *$1\n";
++			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&$name\[0]\n\t}\n";
+ 			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
+ 			$n++;
+ 		} elsif($type eq "int64" && $_32bit ne "") {
+@@ -146,14 +146,15 @@ while(<>) {
+ 				push @args, "uintptr($name)", "uintptr($name >> 32)";
+ 			}
+ 		} elsif($type eq "bool") {
+- 			$text .= "\tvar _p$n uint32;\n";
+-			$text .= "\tif $name { _p$n = 1; } else { _p$n = 0;}\n";
++ 			$text .= "\tvar _p$n uint32\n";
++			$text .= "\tif $name {\n\t\t_p$n = 1\n\t} else {\n\t\t_p$n = 0\n\t}\n";
+ 			push @args, "uintptr(_p$n)";
+ 		} else {
+ 			push @args, "uintptr($name)";
+ 		}
+ 		push @pin, sprintf "\"%s=\", %s, ", $name, $name;
+ 	}
++	my $nargs = @args;
+ 
+ 	# Determine which form to use; pad args with zeros.
+ 	my $asm = "Syscall";
+@@ -182,7 +183,7 @@ while(<>) {
+ 
+ 	# Actual call.
+ 	my $args = join(', ', @args);
+-	my $call = "$asm($sysvarname, $args)";
++	my $call = "$asm($sysvarname, $nargs, $args)";
+ 
+ 	# Assign return values.
+ 	my $body = "";
+@@ -235,29 +236,29 @@ while(<>) {
+ 			# Set errno to "last error" only if returned value indicate failure
+ 			$body .= "\tif $failexpr {\n";
+ 			$body .= "\t\tif $reg != 0 {\n";
+-			$body .= "\t\t\t$name = $type($reg);\n";
++			$body .= "\t\t\t$name = $type($reg)\n";
+ 			$body .= "\t\t} else {\n";
+-			$body .= "\t\t\t$name = EINVAL;\n";
++			$body .= "\t\t\t$name = EINVAL\n";
+ 			$body .= "\t\t}\n";
+ 			$body .= "\t} else {\n";
+-			$body .= "\t\t$name = 0;\n";
++			$body .= "\t\t$name = 0\n";
+ 			$body .= "\t}\n";
+ 		} else {
+-			$body .= "\t$name = $rettype($reg);\n";
++			$body .= "\t$name = $rettype($reg)\n";
+ 		}
+ 		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
+ 	}
+ 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
+-		$text .= "\t$call;\n";
++		$text .= "\t$call\n";
+ 	} else {
+-		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
++		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
+ 	}
+ 	$text .= $body;
+ 	if(0) {
+ 		$text .= sprintf 'print("SYSCALL: %s(", %s") (", %s")\n")%s', $func, join('", ", ', @pin), join('", ", ', @pout), "\n";
+ 	}
+ 
+-	$text .= "\treturn;\n";
++	$text .= "\treturn\n";
+ 	$text .= "}\n\n";
+ }
+ 
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index b7761a699e..1647d69e59 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -13,10 +13,6 @@
+ // errno is an operating system error number describing the failure.
+ package syscall
+ 
+-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+-func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+-
+ // StringByteSlice returns a NUL-terminated slice of bytes
+ // containing the text of s.
+ func StringByteSlice(s string) []byte {
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index c547ba5c52..c01eca17ae 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -10,6 +10,10 @@ var (
+ 	Stderr = 2
+ )
+ 
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++
+ func Errstr(errno int) string {
+ 	if errno < 0 || errno >= int(len(errors)) {
+ 		return "error " + str(errno)
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index b3b1d6e05a..762ed53db6 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -44,7 +44,7 @@ func main() {
+ 	if err != 0 {
+ 		abort("GetProcAddress", err)
+ 	}
+-	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0)
++	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0, 0)
+ 	print_version(uint32(r))
+ }
+ 
+@@ -72,9 +72,11 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+ 
+ // dll helpers
+ 
+-// implemented in ../pkg/runtime/windows/syscall.cgo
+-func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, lasterr uintptr)
+-func Syscall12(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, lasterr uintptr)
++// implemented in ../runtime/windows/syscall.cgo
++func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
++func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr)
++func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr)
+ func loadlibraryex(filename uintptr) (handle uint32)
+ func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
+ 
+@@ -94,26 +96,11 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ 	return p
+ }
+ 
+-// callback from windows dll back to go
+-
+-func compileCallback(code *byte, fn CallbackFunc, argsize int)
+-
+-type CallbackFunc func(args *uintptr) (r uintptr)
+-
+-type Callback struct {
+-	code [50]byte // have to be big enough to fit asm written in it by compileCallback
+-}
+-
+-func (cb *Callback) ExtFnEntry() uintptr {
+-	return uintptr(unsafe.Pointer(&cb.code[0]))
+-}
+-
+-// argsize is in words
+-func NewCallback(fn CallbackFunc, argsize int) *Callback {
+-	cb := Callback{}
+-	compileCallback(&cb.code[0], fn, argsize)
+-	return &cb
+-}
++// Converts a Go function to a function pointer conforming
++// to the stdcall calling convention.  This is useful when
++// interoperating with Windows code requiring callbacks.
++// Implemented in ../runtime/windows/syscall.cgo
++func NewCallback(fn interface{}) uintptr
+ 
+ // windows api calls
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 18e36a0226..b71177e428 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -91,13 +91,13 @@ var (
+ )
+ 
+ func GetLastError() (lasterrno int) {
+-	r0, _, _ := Syscall(procGetLastError, 0, 0, 0)
++	r0, _, _ := Syscall(procGetLastError, 0, 0, 0, 0)
+ 	lasterrno = int(r0)
+ 	return
+ }
+ 
+ func LoadLibrary(libname string) (handle uint32, errno int) {
+-	r0, _, e1 := Syscall(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0)
++	r0, _, e1 := Syscall(procLoadLibraryW, 1, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0)
+ 	handle = uint32(r0)
+ 	if handle == 0 {
+ 		if e1 != 0 {
+@@ -112,7 +112,7 @@ func LoadLibrary(libname string) (handle uint32, errno int) {
+ }
+ 
+ func FreeLibrary(handle uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procFreeLibrary, uintptr(handle), 0, 0)
++	r0, _, e1 := Syscall(procFreeLibrary, 1, uintptr(handle), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -127,7 +127,7 @@ func FreeLibrary(handle uint32) (ok bool, errno int) {
+ }
+ 
+ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++	r0, _, e1 := Syscall(procGetProcAddress, 2, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
+ 	proc = uint32(r0)
+ 	if proc == 0 {
+ 		if e1 != 0 {
+@@ -142,7 +142,7 @@ func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
+ }
+ 
+ func GetVersion() (ver uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetVersion, 0, 0, 0)
++	r0, _, e1 := Syscall(procGetVersion, 0, 0, 0, 0)
+ 	ver = uint32(r0)
+ 	if ver == 0 {
+ 		if e1 != 0 {
+@@ -161,7 +161,7 @@ func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf
+ 	if len(buf) > 0 {
+ 		_p0 = &buf[0]
+ 	}
+-	r0, _, e1 := Syscall9(procFormatMessageW, uintptr(flags), uintptr(msgsrc), uintptr(msgid), uintptr(langid), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(args)), 0, 0)
++	r0, _, e1 := Syscall9(procFormatMessageW, 7, uintptr(flags), uintptr(msgsrc), uintptr(msgid), uintptr(langid), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(args)), 0, 0)
+ 	n = uint32(r0)
+ 	if n == 0 {
+ 		if e1 != 0 {
+@@ -176,12 +176,12 @@ func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf
+ }
+ 
+ func ExitProcess(exitcode uint32) {
+-	Syscall(procExitProcess, uintptr(exitcode), 0, 0)
++	Syscall(procExitProcess, 1, uintptr(exitcode), 0, 0)
+ 	return
+ }
+ 
+ func CreateFile(name *uint16, access uint32, mode uint32, sa *byte, createmode uint32, attrs uint32, templatefile int32) (handle int32, errno int) {
+-	r0, _, e1 := Syscall9(procCreateFileW, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
++	r0, _, e1 := Syscall9(procCreateFileW, 7, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
+ 	handle = int32(r0)
+ 	if handle == -1 {
+ 		if e1 != 0 {
+@@ -200,7 +200,7 @@ func ReadFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (o
+ 	if len(buf) > 0 {
+ 		_p0 = &buf[0]
+ 	}
+-	r0, _, e1 := Syscall6(procReadFile, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
++	r0, _, e1 := Syscall6(procReadFile, 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -219,7 +219,7 @@ func WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (
+ 	if len(buf) > 0 {
+ 		_p0 = &buf[0]
+ 	}
+-	r0, _, e1 := Syscall6(procWriteFile, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
++	r0, _, e1 := Syscall6(procWriteFile, 5, uintptr(handle), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(done)), uintptr(unsafe.Pointer(overlapped)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -234,7 +234,7 @@ func WriteFile(handle int32, buf []byte, done *uint32, overlapped *Overlapped) (
+ }
+ 
+ func SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, errno int) {
+-	r0, _, e1 := Syscall6(procSetFilePointer, uintptr(handle), uintptr(lowoffset), uintptr(unsafe.Pointer(highoffsetptr)), uintptr(whence), 0, 0)
++	r0, _, e1 := Syscall6(procSetFilePointer, 4, uintptr(handle), uintptr(lowoffset), uintptr(unsafe.Pointer(highoffsetptr)), uintptr(whence), 0, 0)
+ 	newlowoffset = uint32(r0)
+ 	if newlowoffset == 0xffffffff {
+ 		if e1 != 0 {
+@@ -249,7 +249,7 @@ func SetFilePointer(handle int32, lowoffset int32, highoffsetptr *int32, whence
+ }
+ 
+ func CloseHandle(handle int32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procCloseHandle, uintptr(handle), 0, 0)
++	r0, _, e1 := Syscall(procCloseHandle, 1, uintptr(handle), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -264,7 +264,7 @@ func CloseHandle(handle int32) (ok bool, errno int) {
+ }
+ 
+ func GetStdHandle(stdhandle int32) (handle int32, errno int) {
+-	r0, _, e1 := Syscall(procGetStdHandle, uintptr(stdhandle), 0, 0)
++	r0, _, e1 := Syscall(procGetStdHandle, 1, uintptr(stdhandle), 0, 0)
+ 	handle = int32(r0)
+ 	if handle == -1 {
+ 		if e1 != 0 {
+@@ -279,7 +279,7 @@ func GetStdHandle(stdhandle int32) (handle int32, errno int) {
+ }
+ 
+ func FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int) {
+-	r0, _, e1 := Syscall(procFindFirstFileW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
++	r0, _, e1 := Syscall(procFindFirstFileW, 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(data)), 0)
+ 	handle = int32(r0)
+ 	if handle == -1 {
+ 		if e1 != 0 {
+@@ -294,7 +294,7 @@ func FindFirstFile(name *uint16, data *Win32finddata) (handle int32, errno int)
+ }
+ 
+ func FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procFindNextFileW, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
++	r0, _, e1 := Syscall(procFindNextFileW, 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -309,7 +309,7 @@ func FindNextFile(handle int32, data *Win32finddata) (ok bool, errno int) {
+ }
+ 
+ func FindClose(handle int32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procFindClose, uintptr(handle), 0, 0)
++	r0, _, e1 := Syscall(procFindClose, 1, uintptr(handle), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -324,7 +324,7 @@ func FindClose(handle int32) (ok bool, errno int) {
+ }
+ 
+ func GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procGetFileInformationByHandle, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
++	r0, _, e1 := Syscall(procGetFileInformationByHandle, 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -339,7 +339,7 @@ func GetFileInformationByHandle(handle int32, data *ByHandleFileInformation) (ok
+ }
+ 
+ func GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetCurrentDirectoryW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
++	r0, _, e1 := Syscall(procGetCurrentDirectoryW, 2, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
+ 	n = uint32(r0)
+ 	if n == 0 {
+ 		if e1 != 0 {
+@@ -354,7 +354,7 @@ func GetCurrentDirectory(buflen uint32, buf *uint16) (n uint32, errno int) {
+ }
+ 
+ func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procSetCurrentDirectoryW, uintptr(unsafe.Pointer(path)), 0, 0)
++	r0, _, e1 := Syscall(procSetCurrentDirectoryW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -369,7 +369,7 @@ func SetCurrentDirectory(path *uint16) (ok bool, errno int) {
+ }
+ 
+ func CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procCreateDirectoryW, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
++	r0, _, e1 := Syscall(procCreateDirectoryW, 2, uintptr(unsafe.Pointer(path)), uintptr(unsafe.Pointer(sa)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -384,7 +384,7 @@ func CreateDirectory(path *uint16, sa *byte) (ok bool, errno int) {
+ }
+ 
+ func RemoveDirectory(path *uint16) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procRemoveDirectoryW, uintptr(unsafe.Pointer(path)), 0, 0)
++	r0, _, e1 := Syscall(procRemoveDirectoryW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -399,7 +399,7 @@ func RemoveDirectory(path *uint16) (ok bool, errno int) {
+ }
+ 
+ func DeleteFile(path *uint16) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procDeleteFileW, uintptr(unsafe.Pointer(path)), 0, 0)
++	r0, _, e1 := Syscall(procDeleteFileW, 1, uintptr(unsafe.Pointer(path)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -414,7 +414,7 @@ func DeleteFile(path *uint16) (ok bool, errno int) {
+ }
+ 
+ func MoveFile(from *uint16, to *uint16) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procMoveFileW, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), 0)
++	r0, _, e1 := Syscall(procMoveFileW, 2, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -429,7 +429,7 @@ func MoveFile(from *uint16, to *uint16) (ok bool, errno int) {
+ }
+ 
+ func GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procGetComputerNameW, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
++	r0, _, e1 := Syscall(procGetComputerNameW, 2, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -444,7 +444,7 @@ func GetComputerName(buf *uint16, n *uint32) (ok bool, errno int) {
+ }
+ 
+ func SetEndOfFile(handle int32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procSetEndOfFile, uintptr(handle), 0, 0)
++	r0, _, e1 := Syscall(procSetEndOfFile, 1, uintptr(handle), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -459,17 +459,17 @@ func SetEndOfFile(handle int32) (ok bool, errno int) {
+ }
+ 
+ func GetSystemTimeAsFileTime(time *Filetime) {
+-	Syscall(procGetSystemTimeAsFileTime, uintptr(unsafe.Pointer(time)), 0, 0)
++	Syscall(procGetSystemTimeAsFileTime, 1, uintptr(unsafe.Pointer(time)), 0, 0)
+ 	return
+ }
+ 
+ func sleep(msec uint32) {
+-	Syscall(procSleep, uintptr(msec), 0, 0)
++	Syscall(procSleep, 1, uintptr(msec), 0, 0)
+ 	return
+ }
+ 
+ func GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetTimeZoneInformation, uintptr(unsafe.Pointer(tzi)), 0, 0)
++	r0, _, e1 := Syscall(procGetTimeZoneInformation, 1, uintptr(unsafe.Pointer(tzi)), 0, 0)
+ 	rc = uint32(r0)
+ 	if rc == 0xffffffff {
+ 		if e1 != 0 {
+@@ -484,7 +484,7 @@ func GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, errno int) {
+ }
+ 
+ func CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, threadcnt uint32) (handle int32, errno int) {
+-	r0, _, e1 := Syscall6(procCreateIoCompletionPort, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
++	r0, _, e1 := Syscall6(procCreateIoCompletionPort, 4, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
+ 	handle = int32(r0)
+ 	if handle == 0 {
+ 		if e1 != 0 {
+@@ -499,7 +499,7 @@ func CreateIoCompletionPort(filehandle int32, cphandle int32, key uint32, thread
+ }
+ 
+ func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall6(procGetQueuedCompletionStatus, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
++	r0, _, e1 := Syscall6(procGetQueuedCompletionStatus, 5, uintptr(cphandle), uintptr(unsafe.Pointer(qty)), uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(overlapped)), uintptr(timeout), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -514,7 +514,7 @@ func GetQueuedCompletionStatus(cphandle int32, qty *uint32, key *uint32, overlap
+ }
+ 
+ func CancelIo(s uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procCancelIo, uintptr(s), 0, 0)
++	r0, _, e1 := Syscall(procCancelIo, 1, uintptr(s), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -535,7 +535,7 @@ func CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, thr
+ 	} else {
+ 		_p0 = 0
+ 	}
+-	r0, _, e1 := Syscall12(procCreateProcessW, uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0, 0)
++	r0, _, e1 := Syscall12(procCreateProcessW, 10, uintptr(unsafe.Pointer(appName)), uintptr(unsafe.Pointer(commandLine)), uintptr(unsafe.Pointer(procSecurity)), uintptr(unsafe.Pointer(threadSecurity)), uintptr(_p0), uintptr(creationFlags), uintptr(unsafe.Pointer(env)), uintptr(unsafe.Pointer(currentDir)), uintptr(unsafe.Pointer(startupInfo)), uintptr(unsafe.Pointer(outProcInfo)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -550,7 +550,7 @@ func CreateProcess(appName *int16, commandLine *uint16, procSecurity *int16, thr
+ }
+ 
+ func GetStartupInfo(startupInfo *StartupInfo) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procGetStartupInfoW, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
++	r0, _, e1 := Syscall(procGetStartupInfoW, 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -565,7 +565,7 @@ func GetStartupInfo(startupInfo *StartupInfo) (ok bool, errno int) {
+ }
+ 
+ func GetCurrentProcess() (pseudoHandle int32, errno int) {
+-	r0, _, e1 := Syscall(procGetCurrentProcess, 0, 0, 0)
++	r0, _, e1 := Syscall(procGetCurrentProcess, 0, 0, 0, 0)
+ 	pseudoHandle = int32(r0)
+ 	if pseudoHandle == 0 {
+ 		if e1 != 0 {
+@@ -586,7 +586,7 @@ func DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetPro
+ 	} else {
+ 		_p0 = 0
+ 	}
+-	r0, _, e1 := Syscall9(procDuplicateHandle, uintptr(hSourceProcessHandle), uintptr(hSourceHandle), uintptr(hTargetProcessHandle), uintptr(unsafe.Pointer(lpTargetHandle)), uintptr(dwDesiredAccess), uintptr(_p0), uintptr(dwOptions), 0, 0)
++	r0, _, e1 := Syscall9(procDuplicateHandle, 7, uintptr(hSourceProcessHandle), uintptr(hSourceHandle), uintptr(hTargetProcessHandle), uintptr(unsafe.Pointer(lpTargetHandle)), uintptr(dwDesiredAccess), uintptr(_p0), uintptr(dwOptions), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -601,7 +601,7 @@ func DuplicateHandle(hSourceProcessHandle int32, hSourceHandle int32, hTargetPro
+ }
+ 
+ func WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, errno int) {
+-	r0, _, e1 := Syscall(procWaitForSingleObject, uintptr(handle), uintptr(waitMilliseconds), 0)
++	r0, _, e1 := Syscall(procWaitForSingleObject, 2, uintptr(handle), uintptr(waitMilliseconds), 0)
+ 	event = uint32(r0)
+ 	if event == 0xffffffff {
+ 		if e1 != 0 {
+@@ -616,7 +616,7 @@ func WaitForSingleObject(handle int32, waitMilliseconds uint32) (event uint32, e
+ }
+ 
+ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetTempPathW, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
++	r0, _, e1 := Syscall(procGetTempPathW, 2, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
+ 	n = uint32(r0)
+ 	if n == 0 {
+ 		if e1 != 0 {
+@@ -631,7 +631,7 @@ func GetTempPath(buflen uint32, buf *uint16) (n uint32, errno int) {
+ }
+ 
+ func CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall6(procCreatePipe, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(lpsa)), uintptr(size), 0, 0)
++	r0, _, e1 := Syscall6(procCreatePipe, 4, uintptr(unsafe.Pointer(readhandle)), uintptr(unsafe.Pointer(writehandle)), uintptr(unsafe.Pointer(lpsa)), uintptr(size), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -646,7 +646,7 @@ func CreatePipe(readhandle *uint32, writehandle *uint32, lpsa *byte, size uint32
+ }
+ 
+ func GetFileType(filehandle uint32) (n uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetFileType, uintptr(filehandle), 0, 0)
++	r0, _, e1 := Syscall(procGetFileType, 1, uintptr(filehandle), 0, 0)
+ 	n = uint32(r0)
+ 	if n == 0 {
+ 		if e1 != 0 {
+@@ -661,7 +661,7 @@ func GetFileType(filehandle uint32) (n uint32, errno int) {
+ }
+ 
+ func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall6(procCryptAcquireContextW, uintptr(unsafe.Pointer(provhandle)), uintptr(unsafe.Pointer(container)), uintptr(unsafe.Pointer(provider)), uintptr(provtype), uintptr(flags), 0)
++	r0, _, e1 := Syscall6(procCryptAcquireContextW, 5, uintptr(unsafe.Pointer(provhandle)), uintptr(unsafe.Pointer(container)), uintptr(unsafe.Pointer(provider)), uintptr(provtype), uintptr(flags), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -676,7 +676,7 @@ func CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16
+ }
+ 
+ func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procCryptReleaseContext, uintptr(provhandle), uintptr(flags), 0)
++	r0, _, e1 := Syscall(procCryptReleaseContext, 2, uintptr(provhandle), uintptr(flags), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -691,7 +691,7 @@ func CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) {
+ }
+ 
+ func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procCryptGenRandom, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
++	r0, _, e1 := Syscall(procCryptGenRandom, 3, uintptr(provhandle), uintptr(buflen), uintptr(unsafe.Pointer(buf)))
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -706,7 +706,7 @@ func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno
+ }
+ 
+ func OpenProcess(da uint32, b int, pid uint32) (handle uint32, errno int) {
+-	r0, _, e1 := Syscall(procOpenProcess, uintptr(da), uintptr(b), uintptr(pid))
++	r0, _, e1 := Syscall(procOpenProcess, 3, uintptr(da), uintptr(b), uintptr(pid))
+ 	handle = uint32(r0)
+ 	if handle == 0 {
+ 		if e1 != 0 {
+@@ -721,7 +721,7 @@ func OpenProcess(da uint32, b int, pid uint32) (handle uint32, errno int) {
+ }
+ 
+ func GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procGetExitCodeProcess, uintptr(h), uintptr(unsafe.Pointer(c)), 0)
++	r0, _, e1 := Syscall(procGetExitCodeProcess, 2, uintptr(h), uintptr(unsafe.Pointer(c)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -736,7 +736,7 @@ func GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int) {
+ }
+ 
+ func GetEnvironmentStrings() (envs *uint16, errno int) {
+-	r0, _, e1 := Syscall(procGetEnvironmentStringsW, 0, 0, 0)
++	r0, _, e1 := Syscall(procGetEnvironmentStringsW, 0, 0, 0, 0)
+ 	envs = (*uint16)(unsafe.Pointer(r0))
+ 	if envs == nil {
+ 		if e1 != 0 {
+@@ -751,7 +751,7 @@ func GetEnvironmentStrings() (envs *uint16, errno int) {
+ }
+ 
+ func FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procFreeEnvironmentStringsW, uintptr(unsafe.Pointer(envs)), 0, 0)
++	r0, _, e1 := Syscall(procFreeEnvironmentStringsW, 1, uintptr(unsafe.Pointer(envs)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -766,7 +766,7 @@ func FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) {
+ }
+ 
+ func GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buffer)), uintptr(size))
++	r0, _, e1 := Syscall(procGetEnvironmentVariableW, 3, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buffer)), uintptr(size))
+ 	n = uint32(r0)
+ 	if n == 0 {
+ 		if e1 != 0 {
+@@ -781,7 +781,7 @@ func GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32
+ }
+ 
+ func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
+-	r0, _, e1 := Syscall(procSetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
++	r0, _, e1 := Syscall(procSetEnvironmentVariableW, 2, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -796,7 +796,7 @@ func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
+ }
+ 
+ func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int) {
+-	r0, _, e1 := Syscall6(procSetFileTime, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
++	r0, _, e1 := Syscall6(procSetFileTime, 4, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -811,7 +811,7 @@ func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime
+ }
+ 
+ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
+-	r0, _, e1 := Syscall(procGetFileAttributesW, uintptr(unsafe.Pointer(name)), 0, 0)
++	r0, _, e1 := Syscall(procGetFileAttributesW, 1, uintptr(unsafe.Pointer(name)), 0, 0)
+ 	attrs = uint32(r0)
+ 	if attrs == INVALID_FILE_ATTRIBUTES {
+ 		if e1 != 0 {
+@@ -826,13 +826,13 @@ func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
+ }
+ 
+ func GetCommandLine() (cmd *uint16) {
+-	r0, _, _ := Syscall(procGetCommandLineW, 0, 0, 0)
++	r0, _, _ := Syscall(procGetCommandLineW, 0, 0, 0, 0)
+ 	cmd = (*uint16)(unsafe.Pointer(r0))
+ 	return
+ }
+ 
+ func CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, errno int) {
+-	r0, _, e1 := Syscall(procCommandLineToArgvW, uintptr(unsafe.Pointer(cmd)), uintptr(unsafe.Pointer(argc)), 0)
++	r0, _, e1 := Syscall(procCommandLineToArgvW, 2, uintptr(unsafe.Pointer(cmd)), uintptr(unsafe.Pointer(argc)), 0)
+ 	argv = (*[8192]*[8192]uint16)(unsafe.Pointer(r0))
+ 	if argv == nil {
+ 		if e1 != 0 {
+@@ -847,7 +847,7 @@ func CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err
+ }
+ 
+ func LocalFree(hmem uint32) (handle uint32, errno int) {
+-	r0, _, e1 := Syscall(procLocalFree, uintptr(hmem), 0, 0)
++	r0, _, e1 := Syscall(procLocalFree, 1, uintptr(hmem), 0, 0)
+ 	handle = uint32(r0)
+ 	if handle != 0 {
+ 		if e1 != 0 {
+@@ -862,13 +862,13 @@ func LocalFree(hmem uint32) (handle uint32, errno int) {
+ }
+ 
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+-	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
++	r0, _, _ := Syscall(procWSAStartup, 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)
+ 	return
+ }
+ 
+ func WSACleanup() (errno int) {
+-	r1, _, e1 := Syscall(procWSACleanup, 0, 0, 0)
++	r1, _, e1 := Syscall(procWSACleanup, 0, 0, 0, 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -882,7 +882,7 @@ func WSACleanup() (errno int) {
+ }
+ 
+ func socket(af int32, typ int32, protocol int32) (handle int32, errno int) {
+-	r0, _, e1 := Syscall(procsocket, uintptr(af), uintptr(typ), uintptr(protocol))
++	r0, _, e1 := Syscall(procsocket, 3, uintptr(af), uintptr(typ), uintptr(protocol))
+ 	handle = int32(r0)
+ 	if handle == -1 {
+ 		if e1 != 0 {
+@@ -897,7 +897,7 @@ func socket(af int32, typ int32, protocol int32) (handle int32, errno int) {
+ }
+ 
+ func setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32) (errno int) {
+-	r1, _, e1 := Syscall6(procsetsockopt, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
++	r1, _, e1 := Syscall6(procsetsockopt, 5, uintptr(s), uintptr(level), uintptr(optname), uintptr(unsafe.Pointer(optval)), uintptr(optlen), 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -911,7 +911,7 @@ func setsockopt(s int32, level int32, optname int32, optval *byte, optlen int32)
+ }
+ 
+ func bind(s int32, name uintptr, namelen int32) (errno int) {
+-	r1, _, e1 := Syscall(procbind, uintptr(s), uintptr(name), uintptr(namelen))
++	r1, _, e1 := Syscall(procbind, 3, uintptr(s), uintptr(name), uintptr(namelen))
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -925,7 +925,7 @@ func bind(s int32, name uintptr, namelen int32) (errno int) {
+ }
+ 
+ func connect(s int32, name uintptr, namelen int32) (errno int) {
+-	r1, _, e1 := Syscall(procconnect, uintptr(s), uintptr(name), uintptr(namelen))
++	r1, _, e1 := Syscall(procconnect, 3, uintptr(s), uintptr(name), uintptr(namelen))
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -939,7 +939,7 @@ func connect(s int32, name uintptr, namelen int32) (errno int) {
+ }
+ 
+ func getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) {
+-	r1, _, e1 := Syscall(procgetsockname, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	r1, _, e1 := Syscall(procgetsockname, 3, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -953,7 +953,7 @@ func getsockname(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) {
+ }
+ 
+ func getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) {
+-	r1, _, e1 := Syscall(procgetpeername, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
++	r1, _, e1 := Syscall(procgetpeername, 3, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -967,7 +967,7 @@ func getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) {
+ }
+ 
+ func listen(s int32, backlog int32) (errno int) {
+-	r1, _, e1 := Syscall(proclisten, uintptr(s), uintptr(backlog), 0)
++	r1, _, e1 := Syscall(proclisten, 2, uintptr(s), uintptr(backlog), 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -981,7 +981,7 @@ func listen(s int32, backlog int32) (errno int) {
+ }
+ 
+ func shutdown(s int32, how int32) (errno int) {
+-	r1, _, e1 := Syscall(procshutdown, uintptr(s), uintptr(how), 0)
++	r1, _, e1 := Syscall(procshutdown, 2, uintptr(s), uintptr(how), 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -995,7 +995,7 @@ func shutdown(s int32, how int32) (errno int) {
+ }
+ 
+ func Closesocket(s int32) (errno int) {
+-	r1, _, e1 := Syscall(procclosesocket, uintptr(s), 0, 0)
++	r1, _, e1 := Syscall(procclosesocket, 1, uintptr(s), 0, 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -1009,7 +1009,7 @@ func Closesocket(s int32) (errno int) {
+ }
+ 
+ func AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) {
+-	r0, _, e1 := Syscall9(procAcceptEx, uintptr(ls), uintptr(as), uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(overlapped)), 0)
++	r0, _, e1 := Syscall9(procAcceptEx, 8, uintptr(ls), uintptr(as), uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(overlapped)), 0)
+ 	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+@@ -1024,12 +1024,12 @@ func AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32
+ }
+ 
+ func GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) {
+-	Syscall9(procGetAcceptExSockaddrs, uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(lrsa)), uintptr(unsafe.Pointer(lrsalen)), uintptr(unsafe.Pointer(rrsa)), uintptr(unsafe.Pointer(rrsalen)), 0)
++	Syscall9(procGetAcceptExSockaddrs, 8, uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(lrsa)), uintptr(unsafe.Pointer(lrsalen)), uintptr(unsafe.Pointer(rrsa)), uintptr(unsafe.Pointer(rrsalen)), 0)
+ 	return
+ }
+ 
+ func WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) {
+-	r1, _, e1 := Syscall9(procWSARecv, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
++	r1, _, e1 := Syscall9(procWSARecv, 7, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -1043,7 +1043,7 @@ func WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32
+ }
+ 
+ func WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) {
+-	r1, _, e1 := Syscall9(procWSASend, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
++	r1, _, e1 := Syscall9(procWSASend, 7, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -1057,7 +1057,7 @@ func WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32,
+ }
+ 
+ func WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, from *RawSockaddrAny, fromlen *int32, overlapped *Overlapped, croutine *byte) (errno int) {
+-	r1, _, e1 := Syscall9(procWSARecvFrom, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
++	r1, _, e1 := Syscall9(procWSARecvFrom, 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -1071,7 +1071,7 @@ func WSARecvFrom(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *ui
+ }
+ 
+ func WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *RawSockaddrAny, tolen int32, overlapped *Overlapped, croutine *byte) (errno int) {
+-	r1, _, e1 := Syscall9(procWSASendTo, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(to)), uintptr(tolen), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
++	r1, _, e1 := Syscall9(procWSASendTo, 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(to)), uintptr(tolen), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+ 	if int(r1) == -1 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -1085,7 +1085,7 @@ func WSASendTo(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
+ }
+ 
+ func GetHostByName(name string) (h *Hostent, errno int) {
+-	r0, _, e1 := Syscall(procgethostbyname, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
++	r0, _, e1 := Syscall(procgethostbyname, 1, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
+ 	h = (*Hostent)(unsafe.Pointer(r0))
+ 	if h == nil {
+ 		if e1 != 0 {
+@@ -1100,7 +1100,7 @@ func GetHostByName(name string) (h *Hostent, errno int) {
+ }
+ 
+ func GetServByName(name string, proto string) (s *Servent, errno int) {
+-	r0, _, e1 := Syscall(procgetservbyname, uintptr(unsafe.Pointer(StringBytePtr(name))), uintptr(unsafe.Pointer(StringBytePtr(proto))), 0)
++	r0, _, e1 := Syscall(procgetservbyname, 2, uintptr(unsafe.Pointer(StringBytePtr(name))), uintptr(unsafe.Pointer(StringBytePtr(proto))), 0)
+ 	s = (*Servent)(unsafe.Pointer(r0))
+ 	if s == nil {
+ 		if e1 != 0 {
+@@ -1115,18 +1115,18 @@ func GetServByName(name string, proto string) (s *Servent, errno int) {
+ }
+ 
+ func Ntohs(netshort uint16) (u uint16) {
+-	r0, _, _ := Syscall(procntohs, uintptr(netshort), 0, 0)
++	r0, _, _ := Syscall(procntohs, 1, uintptr(netshort), 0, 0)
+ 	u = uint16(r0)
+ 	return
+ }
+ 
+ func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) {
+-	r0, _, _ := Syscall6(procDnsQuery_W, uintptr(unsafe.Pointer(StringToUTF16Ptr(name))), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
++	r0, _, _ := Syscall6(procDnsQuery_W, 6, uintptr(unsafe.Pointer(StringToUTF16Ptr(name))), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
+ 	status = uint32(r0)
+ 	return
+ }
+ 
+ func DnsRecordListFree(rl *DNSRecord, freetype uint32) {
+-	Syscall(procDnsRecordListFree, uintptr(unsafe.Pointer(rl)), uintptr(freetype), 0)
++	Syscall(procDnsRecordListFree, 2, uintptr(unsafe.Pointer(rl)), uintptr(freetype), 0)
+ 	return
+ }

@@ -9,6 +9,21 @@ Date:   Wed Aug 19 11:31:27 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=33518
     CL=33527
-
+---
  src/make-arm.bash | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index a857a7dd3c..aea443729a 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -21,7 +21,8 @@ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+ #for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
++for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync
++#for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
+ # pkg/hash
+ # pkg/math
+ do

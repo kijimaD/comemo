@@ -20,7 +20,356 @@ Date:   Thu Jan 16 13:35:29 2014 -0800
     R=golang-codereviews, dvyukov, rsc
     CC=golang-codereviews
     https://golang.org/cl/52900043
-
+---
  src/pkg/reflect/value.go | 129 ++++++++++++++++++++++++-----------------------
  src/pkg/runtime/chan.c   |  68 +++++--------------------
  2 files changed, 79 insertions(+), 118 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 916e219158..2490f6d13b 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -212,51 +212,11 @@ func methodName() string {
+ // bigger than a pointer, its word is a pointer to v's data.
+ // Otherwise, its word holds the data stored
+ // in its leading bytes (so is not a pointer).
+-// Because the value sometimes holds a pointer, we use
+-// unsafe.Pointer to represent it, so that if iword appears
+-// in a struct, the garbage collector knows that might be
+-// a pointer.
+-// TODO: get rid of all occurrences of iword (except in the interface decls below?)
+-// We want to get rid of the "feature" that an unsafe.Pointer is sometimes a pointer
+-// and sometimes a uintptr.
++// This type is very dangerous for the garbage collector because
++// it must be treated conservatively.  We try to never expose it
++// to the GC here so that GC remains precise.
+ type iword unsafe.Pointer
+ 
+-// Get an iword that represents this value.
+-// TODO: this function goes away at some point
+-func (v Value) iword() iword {
+-	t := v.typ
+-	if t == nil {
+-		return iword(nil)
+-	}
+-	if v.flag&flagIndir != 0 {
+-		if v.typ.size > ptrSize {
+-			return iword(v.ptr)
+-		}
+-		// Have indirect but want direct word.
+-		if t.pointers() {
+-			return iword(*(*unsafe.Pointer)(v.ptr))
+-		}
+-		return iword(loadScalar(v.ptr, v.typ.size))
+-	}
+-	if t.pointers() {
+-		return iword(v.ptr)
+-	}
+-	return iword(v.scalar)
+-}
+-
+-// Build a Value from a type/iword pair, plus any extra flags.
+-// TODO: this function goes away at some point
+-func fromIword(t *rtype, w iword, fl flag) Value {
+-	fl |= flag(t.Kind()) << flagKindShift
+-	if t.size > ptrSize {
+-		return Value{t, unsafe.Pointer(w), 0, fl | flagIndir}
+-	} else if t.pointers() {
+-		return Value{t, unsafe.Pointer(w), 0, fl}
+-	} else {
+-		return Value{t, nil, uintptr(w), fl}
+-	}
+-}
+-
+ // loadScalar loads n bytes at p from memory into a uintptr
+ // that forms the second word of an interface.  The data
+ // must be non-pointer in nature.
+@@ -1458,9 +1418,21 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
+ 	if ChanDir(tt.dir)&RecvDir == 0 {
+ 		panic("reflect: recv on send-only channel")
+ 	}
+-	word, selected, ok := chanrecv(v.typ, v.pointer(), nb)
+-	if selected {
+-		val = fromIword(tt.elem, word, 0)
++	t := tt.elem
++	val = Value{t, nil, 0, flag(t.Kind()) << flagKindShift}
++	var p unsafe.Pointer
++	if t.size > ptrSize {
++		p = unsafe_New(t)
++		val.ptr = p
++		val.flag |= flagIndir
++	} else if t.pointers() {
++		p = unsafe.Pointer(&val.ptr)
++	} else {
++		p = unsafe.Pointer(&val.scalar)
++	}
++	selected, ok := chanrecv(v.typ, v.pointer(), nb, p)
++	if !selected {
++		val = Value{}
+ 	}
+ 	return
+ }
+@@ -1483,7 +1455,15 @@ func (v Value) send(x Value, nb bool) (selected bool) {
+ 	}
+ 	x.mustBeExported()
+ 	x = x.assignTo("reflect.Value.Send", tt.elem, nil)
+-	return chansend(v.typ, v.pointer(), x.iword(), nb)
++	var p unsafe.Pointer
++	if x.flag&flagIndir != 0 {
++		p = x.ptr
++	} else if x.typ.pointers() {
++		p = unsafe.Pointer(&x.ptr)
++	} else {
++		p = unsafe.Pointer(&x.scalar)
++	}
++	return chansend(v.typ, v.pointer(), p, nb)
+ }
+ 
+ // Set assigns x to the value v.
+@@ -2049,17 +2029,18 @@ func Copy(dst, src Value) int {
+ // A runtimeSelect is a single case passed to rselect.
+ // This must match ../runtime/chan.c:/runtimeSelect
+ type runtimeSelect struct {
+-	dir uintptr // 0, SendDir, or RecvDir
+-	typ *rtype  // channel type
+-	ch  iword   // interface word for channel
+-	val iword   // interface word for value (for SendDir)
++	dir uintptr        // 0, SendDir, or RecvDir
++	typ *rtype         // channel type
++	ch  unsafe.Pointer // channel
++	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
+ }
+ 
+-// rselect runs a select. It returns the index of the chosen case,
+-// and if the case was a receive, the interface word of the received
+-// value and the conventional OK bool to indicate whether the receive
+-// corresponds to a sent value.
+-func rselect([]runtimeSelect) (chosen int, recv iword, recvOK bool)
++// rselect runs a select.  It returns the index of the chosen case.
++// If the case was a receive, val is filled in with the received value.
++// The conventional OK bool indicates whether the receive corresponds
++// to a sent value.
++//go:noescape
++func rselect([]runtimeSelect) (chosen int, recvOK bool)
+ 
+ // A SelectDir describes the communication direction of a select case.
+ type SelectDir int
+@@ -2139,7 +2120,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 			if ChanDir(tt.dir)&SendDir == 0 {
+ 				panic("reflect.Select: SendDir case using recv-only channel")
+ 			}
+-			rc.ch = ch.iword()
++			rc.ch = ch.pointer()
+ 			rc.typ = &tt.rtype
+ 			v := c.Send
+ 			if !v.IsValid() {
+@@ -2147,7 +2128,13 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 			}
+ 			v.mustBeExported()
+ 			v = v.assignTo("reflect.Select", tt.elem, nil)
+-			rc.val = v.iword()
++			if v.flag&flagIndir != 0 {
++				rc.val = v.ptr
++			} else if v.typ.pointers() {
++				rc.val = unsafe.Pointer(&v.ptr)
++			} else {
++				rc.val = unsafe.Pointer(&v.scalar)
++			}
+ 
+ 		case SelectRecv:
+ 			if c.Send.IsValid() {
+@@ -2160,18 +2147,28 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 			ch.mustBe(Chan)
+ 			ch.mustBeExported()
+ 			tt := (*chanType)(unsafe.Pointer(ch.typ))
+-			rc.typ = &tt.rtype
+ 			if ChanDir(tt.dir)&RecvDir == 0 {
+ 				panic("reflect.Select: RecvDir case using send-only channel")
+ 			}
+-			rc.ch = ch.iword()
++			rc.ch = ch.pointer()
++			rc.typ = &tt.rtype
++			rc.val = unsafe_New(tt.elem)
+ 		}
+ 	}
+ 
+-	chosen, word, recvOK := rselect(runcases)
++	chosen, recvOK = rselect(runcases)
+ 	if runcases[chosen].dir == uintptr(SelectRecv) {
+ 		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
+-		recv = fromIword(tt.elem, word, 0)
++		t := tt.elem
++		p := runcases[chosen].val
++		fl := flag(t.Kind()) << flagKindShift
++		if t.size > ptrSize {
++			recv = Value{t, p, 0, fl | flagIndir}
++		} else if t.pointers() {
++			recv = Value{t, *(*unsafe.Pointer)(p), 0, fl}
++		} else {
++			recv = Value{t, nil, loadScalar(p, t.size), fl}
++		}
+ 	}
+ 	return chosen, recv, recvOK
+ }
+@@ -2624,8 +2621,12 @@ func cvtI2I(v Value, typ Type) Value {
+ func chancap(ch unsafe.Pointer) int
+ func chanclose(ch unsafe.Pointer)
+ func chanlen(ch unsafe.Pointer) int
+-func chanrecv(t *rtype, ch unsafe.Pointer, nb bool) (val iword, selected, received bool)
+-func chansend(t *rtype, ch unsafe.Pointer, val iword, nb bool) bool
++
++//go:noescape
++func chanrecv(t *rtype, ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, received bool)
++
++//go:noescape
++func chansend(t *rtype, ch unsafe.Pointer, val unsafe.Pointer, nb bool) bool
+ 
+ func makechan(typ *rtype, size uint64) (ch unsafe.Pointer)
+ func makemap(t *rtype) (m unsafe.Pointer)
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 48cc41e208..cee35c3efd 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -541,18 +541,16 @@ runtime·selectnbrecv2(ChanType *t, byte *v, bool *received, Hchan *c, bool sele
+ }
+ 
+ // For reflect:
+-//	func chansend(c chan, val iword, nb bool) (selected bool)
+-// where an iword is the same word an interface value would use:
+-// the actual data if it fits, or else a pointer to the data.
++//	func chansend(c chan, val *any, nb bool) (selected bool)
++// where val points to the data to be sent.
+ //
+ // The "uintptr selected" is really "bool selected" but saying
+ // uintptr gets us the right alignment for the output parameter block.
+ #pragma textflag NOSPLIT
+ void
+-reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
++reflect·chansend(ChanType *t, Hchan *c, byte *val, bool nb, uintptr selected)
+ {
+ 	bool *sp;
+-	byte *vp;
+ 
+ 	if(nb) {
+ 		selected = false;
+@@ -562,21 +560,16 @@ reflect·chansend(ChanType *t, Hchan *c, uintptr val, bool nb, uintptr selected)
+ 		FLUSH(&selected);
+ 		sp = nil;
+ 	}
+-	if(t->elem->size <= sizeof(val))
+-		vp = (byte*)&val;
+-	else
+-		vp = (byte*)val;
+-	runtime·chansend(t, c, vp, sp, runtime·getcallerpc(&t));
++	runtime·chansend(t, c, val, sp, runtime·getcallerpc(&t));
+ }
+ 
+ // For reflect:
+-//	func chanrecv(c chan, nb bool) (val iword, selected, received bool)
+-// where an iword is the same word an interface value would use:
+-// the actual data if it fits, or else a pointer to the data.
++//	func chanrecv(c chan, nb bool, val *any) (selected, received bool)
++// where val points to a data area that will be filled in with the
++// received value.  val must have the size and type of the channel element type.
+ void
+-reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bool received)
++reflect·chanrecv(ChanType *t, Hchan *c, bool nb, byte *val, bool selected, bool received)
+ {
+-	byte *vp;
+ 	bool *sp;
+ 
+ 	if(nb) {
+@@ -589,15 +582,7 @@ reflect·chanrecv(ChanType *t, Hchan *c, bool nb, uintptr val, bool selected, bo
+ 	}
+ 	received = false;
+ 	FLUSH(&received);
+-	if(t->elem->size <= sizeof(val)) {
+-		val = 0;
+-		vp = (byte*)&val;
+-	} else {
+-		vp = runtime·mal(t->elem->size);
+-		val = (uintptr)vp;
+-		FLUSH(&val);
+-	}
+-	runtime·chanrecv(t, c, vp, sp, &received);
++	runtime·chanrecv(t, c, val, sp, &received);
+ }
+ 
+ static void newselect(int32, Select**);
+@@ -1150,7 +1135,7 @@ struct runtimeSelect
+ 	uintptr dir;
+ 	ChanType *typ;
+ 	Hchan *ch;
+-	uintptr val;
++	byte *val;
+ };
+ 
+ // This enum must match ../reflect/value.go:/SelectDir.
+@@ -1160,32 +1145,18 @@ enum SelectDir {
+ 	SelectDefault,
+ };
+ 
+-// func rselect(cases []runtimeSelect) (chosen int, word uintptr, recvOK bool)
++// func rselect(cases []runtimeSelect) (chosen int, recvOK bool)
+ void
+-reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
++reflect·rselect(Slice cases, intgo chosen, bool recvOK)
+ {
+ 	int32 i;
+ 	Select *sel;
+ 	runtimeSelect* rcase, *rc;
+-	void *elem;
+-	void *recvptr;
+-	uintptr maxsize;
+ 
+ 	chosen = -1;
+-	word = 0;
+ 	recvOK = false;
+ 
+-	maxsize = 0;
+ 	rcase = (runtimeSelect*)cases.array;
+-	for(i=0; i<cases.len; i++) {
+-		rc = &rcase[i];
+-		if(rc->dir == SelectRecv && rc->ch != nil && maxsize < rc->typ->elem->size)
+-			maxsize = rc->typ->elem->size;
+-	}
+-
+-	recvptr = nil;
+-	if(maxsize > sizeof(void*))
+-		recvptr = runtime·mal(maxsize);
+ 
+ 	newselect(cases.len, &sel);
+ 	for(i=0; i<cases.len; i++) {
+@@ -1197,30 +1168,19 @@ reflect·rselect(Slice cases, intgo chosen, uintptr word, bool recvOK)
+ 		case SelectSend:
+ 			if(rc->ch == nil)
+ 				break;
+-			if(rc->typ->elem->size > sizeof(void*))
+-				elem = (void*)rc->val;
+-			else
+-				elem = (void*)&rc->val;
+-			selectsend(sel, rc->ch, (void*)i, elem, 0);
++			selectsend(sel, rc->ch, (void*)i, rc->val, 0);
+ 			break;
+ 		case SelectRecv:
+ 			if(rc->ch == nil)
+ 				break;
+-			if(rc->typ->elem->size > sizeof(void*))
+-				elem = recvptr;
+-			else
+-				elem = &word;
+-			selectrecv(sel, rc->ch, (void*)i, elem, &recvOK, 0);
++			selectrecv(sel, rc->ch, (void*)i, rc->val, &recvOK, 0);
+ 			break;
+ 		}
+ 	}
+ 
+ 	chosen = (intgo)(uintptr)selectgo(&sel);
+-	if(rcase[chosen].dir == SelectRecv && rcase[chosen].typ->elem->size > sizeof(void*))
+-		word = (uintptr)recvptr;
+ 
+ 	FLUSH(&chosen);
+-	FLUSH(&word);
+ 	FLUSH(&recvOK);
+ }
+ 

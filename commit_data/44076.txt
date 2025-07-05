@@ -21,6 +21,20 @@ Date:   Thu May 7 23:43:22 2020 +0200
     Change-Id: I78ece600203a0a8d24de5b6c9eef56f605d44e99
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232800
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/slice.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index d9949e7939..0418ace25a 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -59,7 +59,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+ 		to = mallocgc(tomem, et, true)
+-		if writeBarrier.enabled {
++		if copymem > 0 && writeBarrier.enabled {
+ 			// Only shade the pointers in old.array since we know the destination slice to
+ 			// only contains nil pointers because it has been cleared during alloc.
+ 			bulkBarrierPreWriteSrcOnly(uintptr(to), uintptr(from), copymem)

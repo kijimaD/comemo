@@ -19,6 +19,24 @@ Date:   Fri Jan 8 23:22:12 2016 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 679c23bb22..9e0412e05b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -913,6 +913,12 @@ func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
+ 			s = "DYLD_LIBRARY_PATH"
+ 		}
+ 		cmd.Env = mergeEnvLists([]string{s + "=."}, os.Environ())
++
++		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
++		// different environment variables.
++		if t.goos == "freebsd" && t.gohostarch == "386" {
++			cmd.Env = mergeEnvLists([]string{"LD_32_LIBRARY_PATH=."}, cmd.Env)
++		}
+ 	}
+ 	return cmd.Run()
+ }

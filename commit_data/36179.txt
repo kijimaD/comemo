@@ -20,8 +20,53 @@ Date:   Tue Apr 10 13:26:05 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/ios/go_darwin_arm_exec.go     | 6 ++----
  src/runtime/cgo/gcc_darwin_arm.c   | 2 --
  src/runtime/cgo/gcc_darwin_arm64.c | 2 --
  3 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 56dbb009a1..134be27b47 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -259,11 +259,9 @@ func run(bin string, args []string) (err error) {
+ 	}
+ 
+ 	started = true
+-
+-	s.doCmd("run", "stop reason = signal SIGINT", 20*time.Second)
+-
+ 	startTestsLen := s.out.Len()
+-	fmt.Fprintln(s.in, `process continue`)
++
++	s.do("run")
+ 
+ 	passed := func(out *buf) bool {
+ 		// Just to make things fun, lldb sometimes translates \n into \r\n.
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index 30fca9902a..dd7d4f90e1 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -140,8 +140,6 @@ init_working_dir()
+ 		if (chdir(buf) != 0) {
+ 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
+ 		}
+-		// Notify the test harness that we're correctly set up
+-		raise(SIGINT);
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index 5c483b1845..c99725d2d6 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -142,8 +142,6 @@ init_working_dir()
+ 		if (chdir(buf) != 0) {
+ 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
+ 		}
+-		// Notify the test harness that we're correctly set up
+-		raise(SIGINT);
+ 	}
+ }
+ 

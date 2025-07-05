@@ -13,8 +13,245 @@ Date:   Thu Oct 20 11:45:30 2011 +1100
     R=andybalholm
     CC=golang-dev
     https://golang.org/cl/5299047
-
+---
  src/pkg/html/parse.go      | 84 ++++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/html/parse_test.go |  4 +--
  src/pkg/html/render.go     | 12 +++++--
  3 files changed, 92 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 582437f767..ba7e705a79 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -236,8 +236,15 @@ func (p *parser) setOriginalIM(im insertionMode) {
+ 
+ // Section 11.2.5.4.1.
+ func initialIM(p *parser) (insertionMode, bool) {
+-	if p.tok.Type == DoctypeToken {
+-		p.addChild(&Node{
++	switch p.tok.Type {
++	case CommentToken:
++		p.doc.Add(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return initialIM, true
++	case DoctypeToken:
++		p.doc.Add(&Node{
+ 			Type: DoctypeNode,
+ 			Data: p.tok.Data,
+ 		})
+@@ -275,6 +282,12 @@ func beforeHTMLIM(p *parser) (insertionMode, bool) {
+ 		default:
+ 			// Ignore the token.
+ 		}
++	case CommentToken:
++		p.doc.Add(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return beforeHTMLIM, true
+ 	}
+ 	if add || implied {
+ 		p.addElement("html", attr)
+@@ -312,6 +325,12 @@ func beforeHeadIM(p *parser) (insertionMode, bool) {
+ 		default:
+ 			// Ignore the token.
+ 		}
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return beforeHeadIM, true
+ 	}
+ 	if add || implied {
+ 		p.addElement("head", attr)
+@@ -344,11 +363,17 @@ func inHeadIM(p *parser) (insertionMode, bool) {
+ 			pop = true
+ 		}
+ 		// TODO.
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return inHeadIM, true
+ 	}
+ 	if pop || implied {
+ 		n := p.oe.pop()
+ 		if n.Data != "head" {
+-			panic("html: bad parser state")
++			panic("html: bad parser state: <head> element not found, in the in-head insertion mode")
+ 		}
+ 		return afterHeadIM, !implied
+ 	}
+@@ -387,6 +412,12 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
+ 		}
+ 	case EndTagToken:
+ 		// TODO.
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return afterHeadIM, true
+ 	}
+ 	if add || implied {
+ 		p.addElement("body", attr)
+@@ -469,6 +500,11 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 				p.oe.pop()
+ 			}
+ 		}
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
+ 	}
+ 
+ 	return inBodyIM, true
+@@ -644,6 +680,12 @@ func inTableIM(p *parser) (insertionMode, bool) {
+ 			// Ignore the token.
+ 			return inTableIM, true
+ 		}
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return inTableIM, true
+ 	}
+ 	if add {
+ 		// TODO: clear the stack back to a table context.
+@@ -693,6 +735,12 @@ func inTableBodyIM(p *parser) (insertionMode, bool) {
+ 			// Ignore the token.
+ 			return inTableBodyIM, true
+ 		}
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return inTableBodyIM, true
+ 	}
+ 	if add {
+ 		// TODO: clear the stack back to a table body context.
+@@ -737,6 +785,12 @@ func inRowIM(p *parser) (insertionMode, bool) {
+ 		default:
+ 			// TODO.
+ 		}
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return inRowIM, true
+ 	}
+ 	return useTheRulesFor(p, inRowIM, inTableIM)
+ }
+@@ -763,6 +817,12 @@ func inCellIM(p *parser) (insertionMode, bool) {
+ 			// TODO: check for matching element in table scope.
+ 			closeTheCellAndReprocess = true
+ 		}
++	case CommentToken:
++		p.addChild(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return inCellIM, true
+ 	}
+ 	if closeTheCellAndReprocess {
+ 		if p.popUntil(tableScopeStopTags, "td") || p.popUntil(tableScopeStopTags, "th") {
+@@ -790,7 +850,18 @@ func afterBodyIM(p *parser) (insertionMode, bool) {
+ 		default:
+ 			// TODO.
+ 		}
++	case CommentToken:
++		// The comment is attached to the <html> element.
++		if len(p.oe) < 1 || p.oe[0].Data != "html" {
++			panic("html: bad parser state: <html> element not found, in the after-body insertion mode")
++		}
++		p.oe[0].Add(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return afterBodyIM, true
+ 	}
++	// TODO: should this be "return inBodyIM, true"?
+ 	return afterBodyIM, true
+ }
+ 
+@@ -806,6 +877,12 @@ func afterAfterBodyIM(p *parser) (insertionMode, bool) {
+ 		if p.tok.Data == "html" {
+ 			return useTheRulesFor(p, afterAfterBodyIM, inBodyIM)
+ 		}
++	case CommentToken:
++		p.doc.Add(&Node{
++			Type: CommentNode,
++			Data: p.tok.Data,
++		})
++		return afterAfterBodyIM, true
+ 	}
+ 	return inBodyIM, false
+ }
+@@ -821,6 +898,7 @@ func Parse(r io.Reader) (*Node, os.Error) {
+ 		scripting:  true,
+ 		framesetOK: true,
+ 	}
++	p.tokenizer.ReturnComments = true
+ 	// Iterate until EOF. Any other error will cause an early return.
+ 	im, consumed := initialIM, true
+ 	for {
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 564580c78b..18b70bf510 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -84,7 +84,7 @@ func dumpLevel(w io.Writer, n *Node, level int) os.Error {
+ 	case TextNode:
+ 		fmt.Fprintf(w, "%q", n.Data)
+ 	case CommentNode:
+-		return os.NewError("COMMENT")
++		fmt.Fprintf(w, "<!-- %s -->", n.Data)
+ 	case DoctypeNode:
+ 		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
+ 	case scopeMarkerNode:
+@@ -123,7 +123,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 27; i++ {
++		for i := 0; i < 29; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index e1ec66ff1a..d5dc448433 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -30,9 +30,6 @@ type writer interface {
+ // would become a tree containing <html>, <head> and <body> elements. Another
+ // example is that the programmatic equivalent of "a<head>b</head>c" becomes
+ // "<html><head><head/><body>abc</body></html>".
+-//
+-// Comment nodes are elided from the output, analogous to Parse skipping over
+-// any <!--comment--> input.
+ func Render(w io.Writer, n *Node) os.Error {
+ 	if x, ok := w.(writer); ok {
+ 		return render(x, n)
+@@ -61,6 +58,15 @@ func render(w writer, n *Node) os.Error {
+ 	case ElementNode:
+ 		// No-op.
+ 	case CommentNode:
++		if _, err := w.WriteString("<!--"); err != nil {
++			return err
++		}
++		if _, err := w.WriteString(n.Data); err != nil {
++			return err
++		}
++		if _, err := w.WriteString("-->"); err != nil {
++			return err
++		}
+ 		return nil
+ 	case DoctypeNode:
+ 		if _, err := w.WriteString("<!DOCTYPE "); err != nil {

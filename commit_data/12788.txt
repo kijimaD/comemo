@@ -7,7 +7,41 @@ Date:   Wed Mar 28 09:13:48 2012 +1100
     R=golang-dev, gri, rsc
     CC=golang-dev
     https://golang.org/cl/5921045
-
+---
  src/cmd/godoc/godoc.go | 8 --------
  src/cmd/godoc/main.go  | 3 +++
  2 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f21c20496c..f6dc678b49 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -491,14 +491,6 @@ var fmap = template.FuncMap{
+ 
+ func readTemplate(name string) *template.Template {
+ 	path := "lib/godoc/" + name
+-	if *templateDir != "" {
+-		defaultpath := path
+-		path = pathpkg.Join(*templateDir, name)
+-		if _, err := fs.Stat(path); err != nil {
+-			log.Print("readTemplate:", err)
+-			path = defaultpath
+-		}
+-	}
+ 
+ 	// use underlying file system fs to read the template file
+ 	// (cannot use template ParseFile functions directly)
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 23f712ab3e..da4fc63b5f 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -167,6 +167,9 @@ func main() {
+ 	if *zipfile == "" {
+ 		// use file system of underlying OS
+ 		fs.Bind("/", OS(*goroot), "/", bindReplace)
++		if *templateDir != "" {
++			fs.Bind("/lib/godoc", OS(*templateDir), "/", bindBefore)
++		}
+ 	} else {
+ 		// use file system specified via .zip file (path separator must be '/')
+ 		rc, err := zip.OpenReader(*zipfile)

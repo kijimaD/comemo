@@ -14,8 +14,79 @@ Date:   Mon Oct 18 19:01:33 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356612
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/extern.go    |  5 +++++
  src/runtime/mem_linux.go | 20 ++++++++++++++++++++
  src/runtime/runtime1.go  |  2 ++
  3 files changed, 27 insertions(+)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index b2003ba543..f1f6ea5123 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -78,6 +78,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	If the line ends with "(forced)", this GC was forced by a
+ 	runtime.GC() call.
+ 
++	harddecommit: setting harddecommit=1 causes memory that is returned to the OS to
++	also have protections removed on it. This is the only mode of operation on Windows,
++	but is helpful in debugging scavenger-related issues on other platforms. Currently,
++	only supported on Linux.
++
+ 	inittrace: setting inittrace=1 causes the runtime to emit a single line to standard
+ 	error for each package with init work, summarizing the execution time and memory
+ 	allocation. No information is printed for inits executed as part of plugin loading
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 3436851091..f8f9c53170 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -114,9 +114,29 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 		atomic.Store(&adviseUnused, _MADV_DONTNEED)
+ 		madvise(v, n, _MADV_DONTNEED)
+ 	}
++
++	if debug.harddecommit > 0 {
++		p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++		if p != v || err != 0 {
++			throw("runtime: cannot disable permissions in address space")
++		}
++	}
+ }
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
++	if debug.harddecommit > 0 {
++		p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
++		if err == _ENOMEM {
++			throw("runtime: out of memory")
++		}
++		if p != v || err != 0 {
++			throw("runtime: cannot remap pages in address space")
++		}
++		return
++
++		// Don't do the sysHugePage optimization in hard decommit mode.
++		// We're breaking up pages everywhere, there's no point.
++	}
+ 	// Partially undo the NOHUGEPAGE marks from sysUnused
+ 	// for whole huge pages between v and v+n. This may
+ 	// leave huge pages off at the end points v and v+n
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index b6c3cbfff4..65e1e0eebc 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -315,6 +315,7 @@ var debug struct {
+ 	schedtrace         int32
+ 	tracebackancestors int32
+ 	asyncpreemptoff    int32
++	harddecommit       int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -344,6 +345,7 @@ var dbgvars = []dbgVar{
+ 	{"tracebackancestors", &debug.tracebackancestors},
+ 	{"asyncpreemptoff", &debug.asyncpreemptoff},
+ 	{"inittrace", &debug.inittrace},
++	{"harddecommit", &debug.harddecommit},
+ }
+ 
+ func parsedebugvars() {

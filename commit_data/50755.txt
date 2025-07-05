@@ -19,6 +19,20 @@ Date:   Tue Nov 9 11:35:52 2021 -0500
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/sys_linux_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 65935de99f..ca443b699f 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -456,7 +456,7 @@ finish:
+ 	MOVW	$1000000000, R3
+ 	MULLU	R0, R3, (R1, R0)
+ 	ADD.S	R2, R0
+-	ADC	R4, R1
++	ADC	$0, R1	// Add carry bit to upper half.
+ 
+ 	MOVW	R0, ret_lo+0(FP)
+ 	MOVW	R1, ret_hi+4(FP)

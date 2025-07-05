@@ -7,6 +7,20 @@ Date:   Wed Apr 6 23:07:32 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4377043
-
+---
  src/pkg/syscall/syscall_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 6986ab9f73..2b221bd60a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -797,7 +797,7 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ //sys	read(fd int, p *byte, np int) (n int, errno int)
+ //sys	write(fd int, p *byte, np int) (n int, errno int)
+ 
+-// mmap varies by architecutre; see syscall_linux_*.go.
++// mmap varies by architecture; see syscall_linux_*.go.
+ //sys	munmap(addr uintptr, length uintptr) (errno int)
+ 
+ var mapper = &mmapper{

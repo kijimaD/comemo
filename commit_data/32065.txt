@@ -26,10 +26,778 @@ Date:   Thu Mar 30 11:07:36 2017 -0400
     Change-Id: I7d5e0052712b75811c02c7d86c5112e5649ad782
     Reviewed-on: https://go-review.googlesource.com/38950
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 222 +++++++++++++++++++--------
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  55 +++----
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  45 ++++--
  src/cmd/compile/internal/ssa/opGen.go        |   9 +-
  src/cmd/compile/internal/ssa/rewritePPC64.go | 215 ++++++--------------------
  5 files changed, 258 insertions(+), 288 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 5f7b168ef7..041ff3abed 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -917,75 +917,171 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpPPC64LoweredMove:
+-		// Similar to how this is done on ARM,
+-		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off,
+-		// not store-and-increment.
+-		// Inputs must be valid pointers to memory,
+-		// so adjust arg0 and arg1 as part of the expansion.
+-		// arg2 should be src+size-align,
+-		//
+-		// ADD    -8,R3,R3
+-		// ADD    -8,R4,R4
+-		// MOVDU	8(R4), Rtmp
+-		// MOVDU 	Rtmp, 8(R3)
+-		// CMP	R4, Rarg2
+-		// BL	-3(PC)
+-		// arg2 is the address of the last element of src
+-		// auxint is alignment
+-		var sz int64
+-		var movu obj.As
+-		switch {
+-		case v.AuxInt%8 == 0:
+-			sz = 8
+-			movu = ppc64.AMOVDU
+-		case v.AuxInt%4 == 0:
+-			sz = 4
+-			movu = ppc64.AMOVWZU // MOVWU instruction not implemented
+-		case v.AuxInt%2 == 0:
+-			sz = 2
+-			movu = ppc64.AMOVHU
+-		default:
+-			sz = 1
+-			movu = ppc64.AMOVBU
+-		}
+ 
+-		p := s.Prog(ppc64.AADD)
+-		p.Reg = v.Args[0].Reg()
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = -sz
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[0].Reg()
++		// This will be used when moving more
++		// than 8 bytes.  Moves start with as
++		// as many 8 byte moves as possible, then
++		// 4, 2, or 1 byte(s) as remaining.  This will
++		// work and be efficient for power8 or later.
++		// If there are 64 or more bytes, then a
++		// loop is generated to move 32 bytes and
++		// update the src and dst addresses on each
++		// iteration. When < 64 bytes, the appropriate
++		// number of moves are generated based on the
++		// size.
++		// When moving >= 64 bytes a loop is used
++		//	MOVD len/32,REG_TMP
++		//	MOVD REG_TMP,CTR
++		// top:
++		//	MOVD (R4),R7
++		//	MOVD 8(R4),R8
++		//	MOVD 16(R4),R9
++		//	MOVD 24(R4),R10
++		//	ADD  R4,$32
++		//	MOVD R7,(R3)
++		//	MOVD R8,8(R3)
++		//	MOVD R9,16(R3)
++		//	MOVD R10,24(R3)
++		//	ADD  R3,$32
++		//	BC 16,0,top
++		// Bytes not moved by this loop are moved
++		// with a combination of the following instructions,
++		// starting with the largest sizes and generating as
++		// many as needed, using the appropriate offset value.
++		//	MOVD  n(R4),R7
++		//	MOVD  R7,n(R3)
++		//	MOVW  n1(R4),R7
++		//	MOVW  R7,n1(R3)
++		//	MOVH  n2(R4),R7
++		//	MOVH  R7,n2(R3)
++		//	MOVB  n3(R4),R7
++		//	MOVB  R7,n3(R3)
++
++		// Each loop iteration moves 32 bytes
++		ctr := v.AuxInt / 32
+ 
+-		p = s.Prog(ppc64.AADD)
+-		p.Reg = v.Args[1].Reg()
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = -sz
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Args[1].Reg()
++		// Remainder after the loop
++		rem := v.AuxInt % 32
+ 
+-		p = s.Prog(movu)
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = v.Args[1].Reg()
+-		p.From.Offset = sz
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = ppc64.REGTMP
++		dst_reg := v.Args[0].Reg()
++		src_reg := v.Args[1].Reg()
+ 
+-		p2 := s.Prog(movu)
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = ppc64.REGTMP
+-		p2.To.Type = obj.TYPE_MEM
+-		p2.To.Reg = v.Args[0].Reg()
+-		p2.To.Offset = sz
++		// The set of registers used here, must match the clobbered reg list
++		// in PPC64Ops.go.
++		useregs := []int16{ppc64.REG_R7, ppc64.REG_R8, ppc64.REG_R9, ppc64.REG_R10}
++		offset := int64(0)
+ 
+-		p3 := s.Prog(ppc64.ACMPU)
+-		p3.From.Reg = v.Args[1].Reg()
+-		p3.From.Type = obj.TYPE_REG
+-		p3.To.Reg = v.Args[2].Reg()
+-		p3.To.Type = obj.TYPE_REG
++		// top of the loop
++		var top *obj.Prog
++		// Only generate looping code when loop counter is > 1 for >= 64 bytes
++		if ctr > 1 {
++			// Set up the CTR
++			p := s.Prog(ppc64.AMOVD)
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = ctr
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = ppc64.REGTMP
+ 
+-		p4 := s.Prog(ppc64.ABLT)
+-		p4.To.Type = obj.TYPE_BRANCH
+-		gc.Patch(p4, p)
++			p = s.Prog(ppc64.AMOVD)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = ppc64.REGTMP
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = ppc64.REG_CTR
++
++			// Generate all the MOVDs for loads
++			// based off the same register, increasing
++			// the offset by 8 for each instruction
++			for _, rg := range useregs {
++				p := s.Prog(ppc64.AMOVD)
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = src_reg
++				p.From.Offset = offset
++				p.To.Type = obj.TYPE_REG
++				p.To.Reg = rg
++				if top == nil {
++					top = p
++				}
++				offset += 8
++			}
++			// increment the src_reg for next iteration
++			p = s.Prog(ppc64.AADD)
++			p.Reg = src_reg
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = 32
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = src_reg
++
++			// generate the MOVDs for stores, based
++			// off the same register, using the same
++			// offsets as in the loads.
++			offset = int64(0)
++			for _, rg := range useregs {
++				p := s.Prog(ppc64.AMOVD)
++				p.From.Type = obj.TYPE_REG
++				p.From.Reg = rg
++				p.To.Type = obj.TYPE_MEM
++				p.To.Reg = dst_reg
++				p.To.Offset = offset
++				offset += 8
++			}
++			// increment the dst_reg for next iteration
++			p = s.Prog(ppc64.AADD)
++			p.Reg = dst_reg
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = 32
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = dst_reg
++
++			// BC with BO_BCTR generates bdnz to branch on nonzero CTR
++			// to loop top.
++			p = s.Prog(ppc64.ABC)
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = ppc64.BO_BCTR
++			p.Reg = ppc64.REG_R0
++			p.To.Type = obj.TYPE_BRANCH
++			gc.Patch(p, top)
++
++			// src_reg and dst_reg were incremented in the loop, so
++			// later instructions start with offset 0.
++			offset = int64(0)
++		}
++
++		// No loop was generated for one iteration, so
++		// add 32 bytes to the remainder to move those bytes.
++		if ctr == 1 {
++			rem += 32
++		}
++
++		// Generate all the remaining load and store pairs, starting with
++		// as many 8 byte moves as possible, then 4, 2, 1.
++		for rem > 0 {
++			op, size := ppc64.AMOVB, int64(1)
++			switch {
++			case rem >= 8:
++				op, size = ppc64.AMOVD, 8
++			case rem >= 4:
++				op, size = ppc64.AMOVW, 4
++			case rem >= 2:
++				op, size = ppc64.AMOVH, 2
++			}
++			// Load
++			p := s.Prog(op)
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = ppc64.REG_R7
++			p.From.Type = obj.TYPE_MEM
++			p.From.Reg = src_reg
++			p.From.Offset = offset
++
++			// Store
++			p = s.Prog(op)
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = ppc64.REG_R7
++			p.To.Type = obj.TYPE_MEM
++			p.To.Reg = dst_reg
++			p.To.Offset = offset
++			rem -= size
++			offset += size
++		}
+ 
+ 	case ssa.OpPPC64CALLstatic:
+ 		s.Call(v)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index a44e50629d..4b96d9fc52 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -556,46 +556,29 @@
+ // moves
+ (Move [0] _ _ mem) -> mem
+ (Move [1] dst src mem) -> (MOVBstore dst (MOVBZload src mem) mem)
+-(Move [2] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+-	(MOVHstore dst (MOVHZload src mem) mem)
+ (Move [2] dst src mem) ->
+-	(MOVBstore [1] dst (MOVBZload [1] src mem)
+-		(MOVBstore dst (MOVBZload src mem) mem))
+-(Move [4] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+-	(MOVWstore dst (MOVWload src mem) mem)
+-(Move [4] {t} dst src mem) && t.(Type).Alignment()%2 == 0 ->
+-	(MOVHstore [2] dst (MOVHZload [2] src mem)
+-		(MOVHstore dst (MOVHZload src mem) mem))
+-(Move [4] dst src mem) ->
+-	(MOVBstore [3] dst (MOVBZload [3] src mem)
+-		(MOVBstore [2] dst (MOVBZload [2] src mem)
+-			(MOVBstore [1] dst (MOVBZload [1] src mem)
+-				(MOVBstore dst (MOVBZload src mem) mem))))
+-
+-(Move [8] {t} dst src mem) && t.(Type).Alignment()%8 == 0 ->
+-	(MOVDstore dst (MOVDload src mem) mem)
+-(Move [8] {t} dst src mem) && t.(Type).Alignment()%4 == 0 ->
+-	(MOVWstore [4] dst (MOVWZload [4] src mem)
+-		(MOVWstore dst (MOVWZload src mem) mem))
+-(Move [8] {t} dst src mem) && t.(Type).Alignment()%2 == 0->
+-	(MOVHstore [6] dst (MOVHZload [6] src mem)
+-		(MOVHstore [4] dst (MOVHZload [4] src mem)
+-			(MOVHstore [2] dst (MOVHZload [2] src mem)
+-				(MOVHstore dst (MOVHZload src mem) mem))))
+-
++        (MOVHstore dst (MOVHZload src mem) mem)
+ (Move [3] dst src mem) ->
+-	(MOVBstore [2] dst (MOVBZload [2] src mem)
+-		(MOVBstore [1] dst (MOVBZload [1] src mem)
+-			(MOVBstore dst (MOVBZload src mem) mem)))
++        (MOVBstore [2] dst (MOVBZload [2] src mem)
++                (MOVHstore dst (MOVHload src mem) mem))
++(Move [4] dst src mem) ->
++        (MOVWstore dst (MOVWload src mem) mem)
++(Move [5] dst src mem) ->
++        (MOVBstore [4] dst (MOVBZload [4] src mem)
++                (MOVWstore dst (MOVWload src mem) mem))
++(Move [6] dst src mem) ->
++        (MOVHstore [4] dst (MOVHZload [4] src mem)
++                (MOVWstore dst (MOVWload src mem) mem))
++(Move [7] dst src mem) ->
++        (MOVBstore [6] dst (MOVBZload [6] src mem)
++                (MOVHstore [4] dst (MOVHZload [4] src mem)
++                        (MOVWstore dst (MOVWload src mem) mem)))
++(Move [8] dst src mem) ->
++        (MOVDstore dst (MOVDload src mem) mem)
+ 
+ // Large move uses a loop
+-(Move [s] {t} dst src mem)
+-	&& (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%8 != 0 ->
+-	(LoweredMove [t.(Type).Alignment()]
+-		dst
+-		src
+-		(ADDconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)])
+-		mem)
++(Move [s] dst src mem) && s > 8 ->
++        (LoweredMove [s] dst src mem)
+ 
+ // Calls
+ // Lowering calls
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 387584dbda..04810e2c7d 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -349,26 +349,41 @@ func init() {
+ 			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 		},
++		// Loop code:
++		//	MOVD len/32,REG_TMP  only for loop
++		//	MOVD REG_TMP,CTR     only for loop
++		// loop:
++		//	MOVD (R4),R7
++		//	MOVD 8(R4),R8
++		//	MOVD 16(R4),R9
++		//	MOVD 24(R4),R10
++		//	ADD  R4,$32          only with loop
++		//	MOVD R7,(R3)
++		//	MOVD R8,8(R3)
++		//	MOVD R9,16(R3)
++		//	MOVD R10,24(R3)
++		//	ADD  R3,$32          only with loop
++		//	BC 16,0,loop         only with loop
++		// Bytes not moved by this loop are moved
++		// with a combination of the following instructions,
++		// starting with the largest sizes and generating as
++		// many as needed, using the appropriate offset value.
++		//	MOVD  n(R4),R7
++		//	MOVD  R7,n(R3)
++		//	MOVW  n1(R4),R7
++		//	MOVW  R7,n1(R3)
++		//	MOVH  n2(R4),R7
++		//	MOVH  R7,n2(R3)
++		//	MOVB  n3(R4),R7
++		//	MOVB  R7,n3(R3)
+ 
+-		// large or unaligned move
+-		// arg0 = address of dst memory (in R3, changed as side effect)
+-		// arg1 = address of src memory (in R4, changed as side effect)
+-		// arg2 = address of the last element of src
+-		// arg3 = mem
+-		// returns mem
+-		//  ADD -8,R3,R3 // intermediate value not valid GC ptr, cannot expose to opt+GC
+-		//  ADD -8,R4,R4 // intermediate value not valid GC ptr, cannot expose to opt+GC
+-		//	MOVDU	8(R4), Rtmp
+-		//	MOVDU	Rtmp, 8(R3)
+-		//	CMP	R4, Rarg2
+-		//	BLT	-3(PC)
+ 		{
+ 			name:      "LoweredMove",
+ 			aux:       "Int64",
+-			argLength: 4,
++			argLength: 3,
+ 			reg: regInfo{
+-				inputs:   []regMask{buildReg("R3"), buildReg("R4"), gp},
+-				clobbers: buildReg("R3 R4"),
++				inputs:   []regMask{buildReg("R3"), buildReg("R4")},
++				clobbers: buildReg("R3 R4 R7 R8 R9 R10"),
+ 			},
+ 			clobberFlags:   true,
+ 			typ:            "Mem",
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 74ad2d4eb1..4b7a6b87b1 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -17409,17 +17409,16 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:           "LoweredMove",
+ 		auxType:        auxInt64,
+-		argLen:         4,
++		argLen:         3,
+ 		clobberFlags:   true,
+ 		faultOnNilArg0: true,
+ 		faultOnNilArg1: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 8},          // R3
+-				{1, 16},         // R4
+-				{2, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{0, 8},  // R3
++				{1, 16}, // R4
+ 			},
+-			clobbers: 24, // R3 R4
++			clobbers: 1944, // R3 R4 R7 R8 R9 R10
+ 		},
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1c9a8f2667..0c10487906 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3686,8 +3686,6 @@ func rewriteValuePPC64_OpMod8u(v *Value) bool {
+ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+-	config := b.Func.Config
+-	_ = config
+ 	types := &b.Func.Config.Types
+ 	_ = types
+ 	// match: (Move [0] _ _ mem)
+@@ -3722,20 +3720,16 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [2] {t} dst src mem)
+-	// cond: t.(Type).Alignment()%2 == 0
++	// match: (Move [2] dst src mem)
++	// cond:
+ 	// result: (MOVHstore dst (MOVHZload src mem) mem)
+ 	for {
+ 		if v.AuxInt != 2 {
+ 			break
+ 		}
+-		t := v.Aux
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(t.(Type).Alignment()%2 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVHstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
+@@ -3745,27 +3739,27 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [2] dst src mem)
++	// match: (Move [3] dst src mem)
+ 	// cond:
+-	// result: (MOVBstore [1] dst (MOVBZload [1] src mem) 		(MOVBstore dst (MOVBZload src mem) mem))
++	// result: (MOVBstore [2] dst (MOVBZload [2] src mem)                 (MOVHstore dst (MOVHload src mem) mem))
+ 	for {
+-		if v.AuxInt != 2 {
++		if v.AuxInt != 3 {
+ 			break
+ 		}
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+ 		v.reset(OpPPC64MOVBstore)
+-		v.AuxInt = 1
++		v.AuxInt = 2
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v0.AuxInt = 1
++		v0.AuxInt = 2
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVBstore, TypeMem)
++		v1 := b.NewValue0(v.Pos, OpPPC64MOVHstore, TypeMem)
+ 		v1.AddArg(dst)
+-		v2 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
++		v2 := b.NewValue0(v.Pos, OpPPC64MOVHload, types.Int16)
+ 		v2.AddArg(src)
+ 		v2.AddArg(mem)
+ 		v1.AddArg(v2)
+@@ -3773,20 +3767,16 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [4] {t} dst src mem)
+-	// cond: t.(Type).Alignment()%4 == 0
++	// match: (Move [4] dst src mem)
++	// cond:
+ 	// result: (MOVWstore dst (MOVWload src mem) mem)
+ 	for {
+ 		if v.AuxInt != 4 {
+ 			break
+ 		}
+-		t := v.Aux
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(t.(Type).Alignment()%4 == 0) {
+-			break
+-		}
+ 		v.reset(OpPPC64MOVWstore)
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVWload, types.Int32)
+@@ -3796,132 +3786,55 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [4] {t} dst src mem)
+-	// cond: t.(Type).Alignment()%2 == 0
+-	// result: (MOVHstore [2] dst (MOVHZload [2] src mem) 		(MOVHstore dst (MOVHZload src mem) mem))
+-	for {
+-		if v.AuxInt != 4 {
+-			break
+-		}
+-		t := v.Aux
+-		dst := v.Args[0]
+-		src := v.Args[1]
+-		mem := v.Args[2]
+-		if !(t.(Type).Alignment()%2 == 0) {
+-			break
+-		}
+-		v.reset(OpPPC64MOVHstore)
+-		v.AuxInt = 2
+-		v.AddArg(dst)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
+-		v0.AuxInt = 2
+-		v0.AddArg(src)
+-		v0.AddArg(mem)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVHstore, TypeMem)
+-		v1.AddArg(dst)
+-		v2 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
+-		v2.AddArg(src)
+-		v2.AddArg(mem)
+-		v1.AddArg(v2)
+-		v1.AddArg(mem)
+-		v.AddArg(v1)
+-		return true
+-	}
+-	// match: (Move [4] dst src mem)
++	// match: (Move [5] dst src mem)
+ 	// cond:
+-	// result: (MOVBstore [3] dst (MOVBZload [3] src mem) 		(MOVBstore [2] dst (MOVBZload [2] src mem) 			(MOVBstore [1] dst (MOVBZload [1] src mem) 				(MOVBstore dst (MOVBZload src mem) mem))))
++	// result: (MOVBstore [4] dst (MOVBZload [4] src mem)                 (MOVWstore dst (MOVWload src mem) mem))
+ 	for {
+-		if v.AuxInt != 4 {
++		if v.AuxInt != 5 {
+ 			break
+ 		}
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+ 		v.reset(OpPPC64MOVBstore)
+-		v.AuxInt = 3
++		v.AuxInt = 4
+ 		v.AddArg(dst)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v0.AuxInt = 3
++		v0.AuxInt = 4
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVBstore, TypeMem)
+-		v1.AuxInt = 2
++		v1 := b.NewValue0(v.Pos, OpPPC64MOVWstore, TypeMem)
+ 		v1.AddArg(dst)
+-		v2 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v2.AuxInt = 2
++		v2 := b.NewValue0(v.Pos, OpPPC64MOVWload, types.Int32)
+ 		v2.AddArg(src)
+ 		v2.AddArg(mem)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpPPC64MOVBstore, TypeMem)
+-		v3.AuxInt = 1
+-		v3.AddArg(dst)
+-		v4 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v4.AuxInt = 1
+-		v4.AddArg(src)
+-		v4.AddArg(mem)
+-		v3.AddArg(v4)
+-		v5 := b.NewValue0(v.Pos, OpPPC64MOVBstore, TypeMem)
+-		v5.AddArg(dst)
+-		v6 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v6.AddArg(src)
+-		v6.AddArg(mem)
+-		v5.AddArg(v6)
+-		v5.AddArg(mem)
+-		v3.AddArg(v5)
+-		v1.AddArg(v3)
++		v1.AddArg(mem)
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [8] {t} dst src mem)
+-	// cond: t.(Type).Alignment()%8 == 0
+-	// result: (MOVDstore dst (MOVDload src mem) mem)
+-	for {
+-		if v.AuxInt != 8 {
+-			break
+-		}
+-		t := v.Aux
+-		dst := v.Args[0]
+-		src := v.Args[1]
+-		mem := v.Args[2]
+-		if !(t.(Type).Alignment()%8 == 0) {
+-			break
+-		}
+-		v.reset(OpPPC64MOVDstore)
+-		v.AddArg(dst)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, types.Int64)
+-		v0.AddArg(src)
+-		v0.AddArg(mem)
+-		v.AddArg(v0)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	// match: (Move [8] {t} dst src mem)
+-	// cond: t.(Type).Alignment()%4 == 0
+-	// result: (MOVWstore [4] dst (MOVWZload [4] src mem) 		(MOVWstore dst (MOVWZload src mem) mem))
++	// match: (Move [6] dst src mem)
++	// cond:
++	// result: (MOVHstore [4] dst (MOVHZload [4] src mem)                 (MOVWstore dst (MOVWload src mem) mem))
+ 	for {
+-		if v.AuxInt != 8 {
++		if v.AuxInt != 6 {
+ 			break
+ 		}
+-		t := v.Aux
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(t.(Type).Alignment()%4 == 0) {
+-			break
+-		}
+-		v.reset(OpPPC64MOVWstore)
++		v.reset(OpPPC64MOVHstore)
+ 		v.AuxInt = 4
+ 		v.AddArg(dst)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZload, types.UInt32)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
+ 		v0.AuxInt = 4
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+ 		v.AddArg(v0)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64MOVWstore, TypeMem)
+ 		v1.AddArg(dst)
+-		v2 := b.NewValue0(v.Pos, OpPPC64MOVWZload, types.UInt32)
++		v2 := b.NewValue0(v.Pos, OpPPC64MOVWload, types.Int32)
+ 		v2.AddArg(src)
+ 		v2.AddArg(mem)
+ 		v1.AddArg(v2)
+@@ -3929,24 +3842,20 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [8] {t} dst src mem)
+-	// cond: t.(Type).Alignment()%2 == 0
+-	// result: (MOVHstore [6] dst (MOVHZload [6] src mem) 		(MOVHstore [4] dst (MOVHZload [4] src mem) 			(MOVHstore [2] dst (MOVHZload [2] src mem) 				(MOVHstore dst (MOVHZload src mem) mem))))
++	// match: (Move [7] dst src mem)
++	// cond:
++	// result: (MOVBstore [6] dst (MOVBZload [6] src mem)                 (MOVHstore [4] dst (MOVHZload [4] src mem)                         (MOVWstore dst (MOVWload src mem) mem)))
+ 	for {
+-		if v.AuxInt != 8 {
++		if v.AuxInt != 7 {
+ 			break
+ 		}
+-		t := v.Aux
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(t.(Type).Alignment()%2 == 0) {
+-			break
+-		}
+-		v.reset(OpPPC64MOVHstore)
++		v.reset(OpPPC64MOVBstore)
+ 		v.AuxInt = 6
+ 		v.AddArg(dst)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+ 		v0.AuxInt = 6
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+@@ -3959,83 +3868,51 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
+ 		v2.AddArg(src)
+ 		v2.AddArg(mem)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpPPC64MOVHstore, TypeMem)
+-		v3.AuxInt = 2
++		v3 := b.NewValue0(v.Pos, OpPPC64MOVWstore, TypeMem)
+ 		v3.AddArg(dst)
+-		v4 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
+-		v4.AuxInt = 2
++		v4 := b.NewValue0(v.Pos, OpPPC64MOVWload, types.Int32)
+ 		v4.AddArg(src)
+ 		v4.AddArg(mem)
+ 		v3.AddArg(v4)
+-		v5 := b.NewValue0(v.Pos, OpPPC64MOVHstore, TypeMem)
+-		v5.AddArg(dst)
+-		v6 := b.NewValue0(v.Pos, OpPPC64MOVHZload, types.UInt16)
+-		v6.AddArg(src)
+-		v6.AddArg(mem)
+-		v5.AddArg(v6)
+-		v5.AddArg(mem)
+-		v3.AddArg(v5)
++		v3.AddArg(mem)
+ 		v1.AddArg(v3)
+ 		v.AddArg(v1)
+ 		return true
+ 	}
+-	// match: (Move [3] dst src mem)
++	// match: (Move [8] dst src mem)
+ 	// cond:
+-	// result: (MOVBstore [2] dst (MOVBZload [2] src mem) 		(MOVBstore [1] dst (MOVBZload [1] src mem) 			(MOVBstore dst (MOVBZload src mem) mem)))
++	// result: (MOVDstore dst (MOVDload src mem) mem)
+ 	for {
+-		if v.AuxInt != 3 {
++		if v.AuxInt != 8 {
+ 			break
+ 		}
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		v.reset(OpPPC64MOVBstore)
+-		v.AuxInt = 2
++		v.reset(OpPPC64MOVDstore)
+ 		v.AddArg(dst)
+-		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v0.AuxInt = 2
++		v0 := b.NewValue0(v.Pos, OpPPC64MOVDload, types.Int64)
+ 		v0.AddArg(src)
+ 		v0.AddArg(mem)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpPPC64MOVBstore, TypeMem)
+-		v1.AuxInt = 1
+-		v1.AddArg(dst)
+-		v2 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v2.AuxInt = 1
+-		v2.AddArg(src)
+-		v2.AddArg(mem)
+-		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpPPC64MOVBstore, TypeMem)
+-		v3.AddArg(dst)
+-		v4 := b.NewValue0(v.Pos, OpPPC64MOVBZload, types.UInt8)
+-		v4.AddArg(src)
+-		v4.AddArg(mem)
+-		v3.AddArg(v4)
+-		v3.AddArg(mem)
+-		v1.AddArg(v3)
+-		v.AddArg(v1)
++		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (Move [s] {t} dst src mem)
+-	// cond: (s > 512 || config.noDuffDevice) || t.(Type).Alignment()%8 != 0
+-	// result: (LoweredMove [t.(Type).Alignment()] 		dst 		src 		(ADDconst <src.Type> src [s-moveSize(t.(Type).Alignment(), config)]) 		mem)
++	// match: (Move [s] dst src mem)
++	// cond: s > 8
++	// result: (LoweredMove [s] dst src mem)
+ 	for {
+ 		s := v.AuxInt
+-		t := v.Aux
+ 		dst := v.Args[0]
+ 		src := v.Args[1]
+ 		mem := v.Args[2]
+-		if !((s > 512 || config.noDuffDevice) || t.(Type).Alignment()%8 != 0) {
++		if !(s > 8) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64LoweredMove)
+-		v.AuxInt = t.(Type).Alignment()
++		v.AuxInt = s
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+-		v0 := b.NewValue0(v.Pos, OpPPC64ADDconst, src.Type)
+-		v0.AuxInt = s - moveSize(t.(Type).Alignment(), config)
+-		v0.AddArg(src)
+-		v.AddArg(v0)
+ 		v.AddArg(mem)
+ 		return true
+ 	}

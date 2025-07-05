@@ -7,7 +7,7 @@ Date:   Mon Feb 1 22:18:51 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/198053
-
+---
  src/cmd/gc/go.h                    |  4 +--
  src/cmd/gc/subr.c                  | 62 ++++++++++++++++++--------------------
  src/cmd/gc/typecheck.c             |  3 +-
@@ -15,3 +15,289 @@ Date:   Mon Feb 1 22:18:51 2010 -0800
  test/{bugs => fixedbugs}/bug242.go |  0
  test/golden.out                    |  5 ---
  6 files changed, 60 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d634d0d3a9..16cf87f0c2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -875,8 +875,7 @@ int	isselect(Node*);
+ Node*	staticname(Type*);
+ int	iscomposite(Type*);
+ Node*	callnew(Type*);
+-Node*	saferef(Node*, NodeList**);
+-Node*	safeval(Node*, NodeList**);
++Node*	safeexpr(Node*, NodeList**);
+ int	is64(Type*);
+ int	noconv(Type*, Type*);
+ NodeList*	list1(Node*);
+@@ -1073,6 +1072,7 @@ void	typecheckrange(Node*);
+ Node*	typecheckconv(Node*, Node*, Type*, int, char*);
+ int	checkconv(Type*, Type*, int, int*, int*, char*);
+ Node*	typecheck(Node**, int);
++int	islvalue(Node*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 40d8b6f9db..3e58415a89 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2410,10 +2410,11 @@ staticname(Type *t)
+ }
+ 
+ /*
+- * return side effect-free, assignable n, appending side effects to init.
++ * return side effect-free appending side effects to init.
++ * result is assignable if n is.
+  */
+ Node*
+-saferef(Node *n, NodeList **init)
++safeexpr(Node *n, NodeList **init)
+ {
+ 	Node *l;
+ 	Node *r;
+@@ -2421,9 +2422,11 @@ saferef(Node *n, NodeList **init)
+ 
+ 	switch(n->op) {
+ 	case ONAME:
++	case OLITERAL:
+ 		return n;
++
+ 	case ODOT:
+-		l = saferef(n->left, init);
++		l = safeexpr(n->left, init);
+ 		if(l == n->left)
+ 			return n;
+ 		r = nod(OXXX, N, N);
+@@ -2433,41 +2436,34 @@ saferef(Node *n, NodeList **init)
+ 		walkexpr(&r, init);
+ 		return r;
+ 
+-	case OINDEX:
+ 	case ODOTPTR:
+ 	case OIND:
+-		l = nod(OXXX, N, N);
+-		tempname(l, ptrto(n->type));
+-		a = nod(OAS, l, nod(OADDR, n, N));
+-		typecheck(&a, Etop);
++		l = safeexpr(n->left, init);
++		if(l == n->left)
++			return n;
++		a = nod(OXXX, N, N);
++		*a = *n;
++		a->left = l;
+ 		walkexpr(&a, init);
+-		*init = list(*init, a);
+-		r = nod(OIND, l, N);
+-		typecheck(&r, Erv);
+-		walkexpr(&r, init);
+-		return r;
+-	}
+-	fatal("saferef %N", n);
+-	return N;
+-}
+-
+-/*
+- * return side effect-free n, appending side effects to init.
+- */
+-Node*
+-safeval(Node *n, NodeList **init)
+-{
+-	Node *l;
+-	Node *a;
++		return a;
+ 
+-	// is this a local variable or a dot of a local variable?
+-	for(l=n; l->op == ODOT; l=l->left)
+-		if(l->left->type != T && isptr[l->left->type->etype])
+-			goto copy;
+-	if(l->op == ONAME && (l->class == PAUTO || l->class == PPARAM))
+-		return n;
++	case OINDEX:
++	case OINDEXMAP:
++		l = safeexpr(n->left, init);
++		r = safeexpr(n->right, init);
++		if(l == n->left && r == n->right)
++			return n;
++		a = nod(OXXX, N, N);
++		*a = *n;
++		a->left = l;
++		a->right = r;
++		walkexpr(&a, init);
++		return a;
++	}
+ 
+-copy:
++	// make a copy; must not be used as an lvalue
++	if(islvalue(n))
++		fatal("missing lvalue case in safeexpr: %N", n);
+ 	l = nod(OXXX, N, N);
+ 	tempname(l, n->type);
+ 	a = nod(OAS, l, n);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 7b0ce03829..9c06ff6a15 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -31,7 +31,6 @@ static void	typecheckfunc(Node*);
+ static void	checklvalue(Node*, char*);
+ static void	checkassign(Node*);
+ static void	checkassignlist(NodeList*);
+-static int	islvalue(Node*);
+ static void	toslice(Node**);
+ 
+ void
+@@ -1940,7 +1939,7 @@ addrescapes(Node *n)
+ /*
+  * lvalue etc
+  */
+-static int
++int
+ islvalue(Node *n)
+ {
+ 	switch(n->op) {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index cac2d50ea1..f560d5be27 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -457,6 +457,15 @@ walkexprlist(NodeList *l, NodeList **init)
+ 		walkexpr(&l->n, init);
+ }
+ 
++void
++walkexprlistsafe(NodeList *l, NodeList **init)
++{
++	for(; l; l=l->next) {
++		l->n = safeexpr(l->n, init);
++		walkexpr(&l->n, init);
++	}
++}
++
+ void
+ walkexpr(Node **np, NodeList **init)
+ {
+@@ -610,6 +619,7 @@ walkexpr(Node **np, NodeList **init)
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		walkexpr(&n->left, init);
++		n->left = safeexpr(n->left, init);
+ 		if(oaslit(n, init))
+ 			goto ret;
+ 		walkexpr(&n->right, init);
+@@ -626,8 +636,8 @@ walkexpr(Node **np, NodeList **init)
+ 	as2:
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+-		walkexprlist(n->list, init);
+-		walkexprlist(n->rlist, init);
++		walkexprlistsafe(n->list, init);
++		walkexprlistsafe(n->rlist, init);
+ 		ll = ascompatee(OAS, n->list, n->rlist, init);
+ 		ll = reorder3(ll);
+ 		n = liststmt(ll);
+@@ -639,7 +649,7 @@ walkexpr(Node **np, NodeList **init)
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+-		walkexprlist(n->list, init);
++		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r, init);
+ 		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+ 		n = liststmt(concat(list1(r), ll));
+@@ -650,7 +660,7 @@ walkexpr(Node **np, NodeList **init)
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+-		walkexprlist(n->list, init);
++		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+ 		fn = chanfn("chanrecv2", 2, r->left->type);
+ 		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
+@@ -663,7 +673,7 @@ walkexpr(Node **np, NodeList **init)
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+-		walkexprlist(n->list, init);
++		walkexprlistsafe(n->list, init);
+ 		walkexpr(&r->left, init);
+ 		fn = mapfn("mapaccess2", r->left->type);
+ 		r = mkcall1(fn, getoutargx(fn->type), init, r->left, r->right);
+@@ -676,7 +686,7 @@ walkexpr(Node **np, NodeList **init)
+ 		// a,b = m[i];
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+-		walkexprlist(n->list, init);
++		walkexprlistsafe(n->list, init);
+ 		l = n->list->n;
+ 		t = l->left->type;
+ 		n = mkcall1(mapfn("mapassign2", t), T, init, l->left, l->right, n->rlist->n, n->rlist->next->n);
+@@ -687,7 +697,7 @@ walkexpr(Node **np, NodeList **init)
+ 		*init = concat(*init, n->ninit);
+ 		n->ninit = nil;
+ 		r = n->rlist->n;
+-		walkexprlist(n->list, init);
++		walkexprlistsafe(n->list, init);
+ 		walkdottype(r, init);
+ 		et = ifaceas1(r->type, r->left->type, 1);
+ 		switch(et) {
+@@ -744,6 +754,7 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OASOP:
++		n->left = safeexpr(n->left, init);
+ 		walkexpr(&n->left, init);
+ 		l = n->left;
+ 		if(l->op == OINDEXMAP)
+@@ -761,7 +772,7 @@ walkexpr(Node **np, NodeList **init)
+ 		 */
+ 		et = n->left->type->etype;
+ 		if(widthptr == 4 && (et == TUINT64 || et == TINT64)) {
+-			l = saferef(n->left, init);
++			l = safeexpr(n->left, init);
+ 			r = nod(OAS, l, nod(n->etype, l, n->right));
+ 			typecheck(&r, Etop);
+ 			walkexpr(&r, init);
+@@ -1183,6 +1194,13 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
+ 	 * a expression list. called in
+ 	 *	expr-list = expr-list
+ 	 */
++
++	// ensure order of evaluation for function calls
++	for(ll=nl; ll; ll=ll->next)
++		ll->n = safeexpr(ll->n, init);
++	for(lr=nr; lr; lr=lr->next)
++		lr->n = safeexpr(lr->n, init);
++
+ 	nn = nil;
+ 	for(ll=nl, lr=nr; ll && lr; ll=ll->next, lr=lr->next)
+ 		nn = list(nn, ascompatee1(op, ll->n, lr->n, init));
+@@ -1766,8 +1784,8 @@ mapop(Node *n, NodeList **init)
+ 		// into tmpi := index; map[tmpi] = map[tmpi] op right
+ 
+ 		// make it ok to double-evaluate map[tmpi]
+-		n->left->left = safeval(n->left->left, init);
+-		n->left->right = safeval(n->left->right, init);
++		n->left->left = safeexpr(n->left->left, init);
++		n->left->right = safeexpr(n->left->right, init);
+ 
+ 		a = nod(OXXX, N, N);
+ 		*a = *n->left;		// copy of map[tmpi]
+diff --git a/test/bugs/bug242.go b/test/fixedbugs/bug242.go
+similarity index 100%
+rename from test/bugs/bug242.go
+rename to test/fixedbugs/bug242.go
+diff --git a/test/golden.out b/test/golden.out
+index 72719ab33e..63d179cba5 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -151,11 +151,6 @@ panic PC=xxx
+ 
+ == bugs/
+ 
+-=========== bugs/bug242.go
+-bad map check 13 false false
+-panic PC=xxx
+-BUG: tuple evaluation order
+-
+ =========== bugs/bug246.go
+ bugs/bug246.go:17: cannot convert 0 to type unsafe.Pointer
+ bugs/bug246.go:17: cannot convert 0 (type uintptr) to type *int in conversion

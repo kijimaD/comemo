@@ -12,6 +12,24 @@ Date:   Fri Dec 8 15:33:14 2023 -0500
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Bypass: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  doc/go1.22.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index fc0d95510f..c87d9d3b21 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -633,6 +633,12 @@ defer func() {
+       a value to zero using the language <code>==</code> operator.
+     </p>
+   </dd>
++  <dd>
++    <p><!-- https://go.dev/issue/59599, CL 511035 -->
++      The <a href="/pkg/reflect/#PtrTo"><code>PtrTo</code></a> function is deprecated,
++      in favor of <a href="/pkg/reflect/#PointerTo"><code>PointerTo</code></a>.
++    </p>
++  </dd>
+ </dl><!-- reflect -->
+ 
+ <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>

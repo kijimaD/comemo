@@ -15,10 +15,210 @@ Date:   Tue Sep 14 13:09:19 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/environment.go |  9 ++---
  src/cmd/compile/internal/types2/instantiate.go |  2 +-
  src/cmd/compile/internal/types2/named.go       |  2 +-
  src/cmd/compile/internal/types2/subst.go       |  2 +-
  src/cmd/compile/internal/types2/typestring.go  | 46 ++++++++++++++++++--------
  5 files changed, 41 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/environment.go b/src/cmd/compile/internal/types2/environment.go
+index 816139bbb4..5ef8855a1b 100644
+--- a/src/cmd/compile/internal/types2/environment.go
++++ b/src/cmd/compile/internal/types2/environment.go
+@@ -5,6 +5,7 @@ package types2
+ 
+ import (
+ 	"bytes"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -28,11 +29,11 @@ func NewEnvironment() *Environment {
+ 	}
+ }
+ 
+-// typeHash returns a string representation of typ, which can be used as an exact
++// TypeHash returns a string representation of typ, which can be used as an exact
+ // type hash: types that are identical produce identical string representations.
+ // If typ is a *Named type and targs is not empty, typ is printed as if it were
+-// instantiated with targs.
+-func (env *Environment) typeHash(typ Type, targs []Type) string {
++// instantiated with targs. The result is guaranteed to not contain blanks (" ").
++func (env *Environment) TypeHash(typ Type, targs []Type) string {
+ 	assert(env != nil)
+ 	assert(typ != nil)
+ 	var buf bytes.Buffer
+@@ -56,7 +57,7 @@ func (env *Environment) typeHash(typ Type, targs []Type) string {
+ 		}
+ 	}
+ 
+-	return buf.String()
++	return strings.Replace(buf.String(), " ", "#", -1) // ReplaceAll is not available in Go1.4
+ }
+ 
+ // typeForHash returns the recorded type for the type hash h, if it exists.
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 469ceea5c4..fdb87e75f6 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -108,7 +108,7 @@ func (check *Checker) instance(pos syntax.Pos, typ Type, targs []Type, env *Envi
+ 	case *Named:
+ 		var h string
+ 		if env != nil {
+-			h = env.typeHash(t, targs)
++			h = env.TypeHash(t, targs)
+ 			// typ may already have been instantiated with identical type arguments. In
+ 			// that case, re-use the existing instance.
+ 			if named := env.typeForHash(h, nil); named != nil {
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 99410aedfb..46487d1cae 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -262,7 +262,7 @@ func (n *Named) expand(env *Environment) *Named {
+ 					// instance in the process of expansion.
+ 					env = NewEnvironment()
+ 				}
+-				h := env.typeHash(n.orig, n.targs.list())
++				h := env.TypeHash(n.orig, n.targs.list())
+ 				// add the instance to the environment to avoid infinite recursion.
+ 				// addInstance may return a different, existing instance, but we
+ 				// shouldn't return that instance from expand.
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 4627dd3c5b..8d96494af0 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -211,7 +211,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		// before creating a new named type, check if we have this one already
+-		h := subst.env.typeHash(t.orig, newTArgs)
++		h := subst.env.TypeHash(t.orig, newTArgs)
+ 		dump(">>> new type hash: %s", h)
+ 		if named := subst.env.typeForHash(h, nil); named != nil {
+ 			dump(">>> found %s", named)
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 39ba278d53..71da37c3a1 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -8,7 +8,6 @@ package types2
+ 
+ import (
+ 	"bytes"
+-	"fmt"
+ 	"strconv"
+ 	"unicode/utf8"
+ )
+@@ -83,14 +82,29 @@ func newTypeHasher(buf *bytes.Buffer, env *Environment) *typeWriter {
+ 	return &typeWriter{buf, make(map[Type]bool), nil, env}
+ }
+ 
+-func (w *typeWriter) byte(b byte)                               { w.buf.WriteByte(b) }
+-func (w *typeWriter) string(s string)                           { w.buf.WriteString(s) }
+-func (w *typeWriter) writef(format string, args ...interface{}) { fmt.Fprintf(w.buf, format, args...) }
++func (w *typeWriter) byte(b byte) {
++	if w.env != nil {
++		if b == ' ' {
++			b = '#'
++		}
++		w.buf.WriteByte(b)
++		return
++	}
++	w.buf.WriteByte(b)
++	if b == ',' || b == ';' {
++		w.buf.WriteByte(' ')
++	}
++}
++
++func (w *typeWriter) string(s string) {
++	w.buf.WriteString(s)
++}
++
+ func (w *typeWriter) error(msg string) {
+ 	if w.env != nil {
+ 		panic(msg)
+ 	}
+-	w.string("<" + msg + ">")
++	w.buf.WriteString("<" + msg + ">")
+ }
+ 
+ func (w *typeWriter) typ(typ Type) {
+@@ -117,7 +131,9 @@ func (w *typeWriter) typ(typ Type) {
+ 		w.string(t.name)
+ 
+ 	case *Array:
+-		w.writef("[%d]", t.len)
++		w.byte('[')
++		w.string(strconv.FormatInt(t.len, 10))
++		w.byte(']')
+ 		w.typ(t.elem)
+ 
+ 	case *Slice:
+@@ -128,7 +144,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		w.string("struct{")
+ 		for i, f := range t.fields {
+ 			if i > 0 {
+-				w.string("; ")
++				w.byte(';')
+ 			}
+ 			// This doesn't do the right thing for embedded type
+ 			// aliases where we should print the alias name, not
+@@ -139,7 +155,11 @@ func (w *typeWriter) typ(typ Type) {
+ 			}
+ 			w.typ(f.typ)
+ 			if tag := t.Tag(i); tag != "" {
+-				w.writef(" %q", tag)
++				w.byte(' ')
++				// TODO(gri) If tag contains blanks, replacing them with '#'
++				//           in Environment.TypeHash may produce another tag
++				//           accidentally.
++				w.string(strconv.Quote(tag))
+ 			}
+ 		}
+ 		w.byte('}')
+@@ -177,7 +197,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		first := true
+ 		for _, m := range t.methods {
+ 			if !first {
+-				w.string("; ")
++				w.byte(';')
+ 			}
+ 			first = false
+ 			w.string(m.name)
+@@ -185,7 +205,7 @@ func (w *typeWriter) typ(typ Type) {
+ 		}
+ 		for _, typ := range t.embeddeds {
+ 			if !first {
+-				w.string("; ")
++				w.byte(';')
+ 			}
+ 			first = false
+ 			w.typ(typ)
+@@ -279,7 +299,7 @@ func (w *typeWriter) typeList(list []Type) {
+ 	w.byte('[')
+ 	for i, typ := range list {
+ 		if i > 0 {
+-			w.string(", ")
++			w.byte(',')
+ 		}
+ 		w.typ(typ)
+ 	}
+@@ -303,7 +323,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
+ 				w.byte(' ')
+ 				w.typ(prev)
+ 			}
+-			w.string(", ")
++			w.byte(',')
+ 		}
+ 		prev = tpar.bound
+ 		w.typ(tpar)
+@@ -327,7 +347,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 	if tup != nil {
+ 		for i, v := range tup.vars {
+ 			if i > 0 {
+-				w.string(", ")
++				w.byte(',')
+ 			}
+ 			// parameter names are ignored for type identity and thus type hashes
+ 			if w.env == nil && v.name != "" {

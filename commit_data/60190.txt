@@ -15,7 +15,72 @@ Date:   Thu May 23 15:00:49 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/588075
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modload/init.go                |  7 +++---
  .../script/list_buildmod_reason_issue67587.txt     | 26 ++++++++++++++++++++++
  2 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 89eeb5c71a..4ba1bf98ee 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1472,13 +1472,12 @@ func setDefaultBuildMod() {
+ 			vendorDir = filepath.Join(modRoots[0], "vendor")
+ 		}
+ 		if fi, err := fsys.Stat(vendorDir); err == nil && fi.IsDir() {
+-			modGo := "unspecified"
+ 			if goVersion != "" {
+ 				if gover.Compare(goVersion, "1.14") < 0 {
+ 					// The go version is less than 1.14. Don't set -mod=vendor by default.
+ 					// Since a vendor directory exists, we should record why we didn't use it.
+ 					// This message won't normally be shown, but it may appear with import errors.
+-					cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", modGo)
++					cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", goVersion)
+ 				} else {
+ 					vendoredWorkspace, err := modulesTextIsForWorkspace(vendorDir)
+ 					if err != nil {
+@@ -1499,9 +1498,9 @@ func setDefaultBuildMod() {
+ 						return
+ 					}
+ 				}
+-				modGo = goVersion
++			} else {
++				cfg.BuildModReason = fmt.Sprintf("Go version in " + versionSource + " is unspecified, so vendor directory was not used.")
+ 			}
+-
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/list_buildmod_reason_issue67587.txt b/src/cmd/go/testdata/script/list_buildmod_reason_issue67587.txt
+new file mode 100644
+index 0000000000..a89f0e4f9d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_buildmod_reason_issue67587.txt
+@@ -0,0 +1,26 @@
++cd thirteen
++! go list -deps
++stderr 	'(Go version in go.mod is 1.13, so vendor directory was not used.)'
++
++cd ../unspecified
++! go list -deps
++stderr 	'(Go version in go.mod is unspecified, so vendor directory was not used.)'
++
++-- thirteen/foo.go --
++package foo
++
++import _ "github.com/foo/bar"
++-- thirteen/go.mod --
++module example.com
++
++go 1.13
++-- thirteen/vendor/github.com/foo/bar/bar.go --
++package bar
++-- unspecified/foo.go --
++package foo
++
++import _ "github.com/foo/bar"
++-- unspecified/go.mod --
++module example.com
++-- unspecified/vendor/github.com/foo/bar/bar.go --
++package bar
+\ No newline at end of file

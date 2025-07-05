@@ -14,7 +14,7 @@ Date:   Tue Aug 11 12:51:33 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/13622
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go                 |   12 +-
  .../compile/internal/gc/testdata/regalloc_ssa.go   |   57 ++
  src/cmd/compile/internal/ssa/deadcode.go           |    8 +
@@ -28,3 +28,3711 @@ Date:   Tue Aug 11 12:51:33 2015 -0700
  src/cmd/compile/internal/ssa/tighten.go            |    7 -
  src/cmd/compile/internal/ssa/value.go              |    4 +-
  12 files changed, 1439 insertions(+), 742 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4e115a0fcd..ef90ed40e7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2277,7 +2277,10 @@ func genValue(v *ssa.Value) {
+ 		p.To.Reg = x86.REG_SP
+ 		p.To.Offset = localOffset(v)
+ 	case ssa.OpPhi:
+-		// just check to make sure regalloc did it right
++		// just check to make sure regalloc and stackalloc did it right
++		if v.Type.IsMemory() {
++			return
++		}
+ 		f := v.Block.Func
+ 		loc := f.RegAlloc[v.ID]
+ 		for _, a := range v.Args {
+@@ -2376,13 +2379,16 @@ func genValue(v *ssa.Value) {
+ 	case ssa.OpAMD64InvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v)
+ 	case ssa.OpAMD64REPSTOSQ:
++		p := Prog(x86.AXORL) // TODO: lift out zeroing into its own instruction?
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x86.REG_AX
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = x86.REG_AX
+ 		Prog(x86.AREP)
+ 		Prog(x86.ASTOSQ)
+-		v.Unimplementedf("REPSTOSQ clobbers not implemented: %s", v.LongString())
+ 	case ssa.OpAMD64REPMOVSB:
+ 		Prog(x86.AREP)
+ 		Prog(x86.AMOVSB)
+-		v.Unimplementedf("REPMOVSB clobbers not implemented: %s", v.LongString())
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/testdata/regalloc_ssa.go b/src/cmd/compile/internal/gc/testdata/regalloc_ssa.go
+new file mode 100644
+index 0000000000..f752692952
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/regalloc_ssa.go
+@@ -0,0 +1,57 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests phi implementation
++
++package main
++
++func phiOverwrite_ssa() int {
++	var n int
++	for i := 0; i < 10; i++ {
++		if i == 6 {
++			break
++		}
++		n = i
++	}
++	return n
++}
++
++func phiOverwrite() {
++	want := 5
++	got := phiOverwrite_ssa()
++	if got != want {
++		println("phiOverwrite_ssa()=", want, ", got", got)
++		failed = true
++	}
++}
++
++func phiOverwriteBig_ssa() int {
++	var a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z int
++	a = 1
++	for idx := 0; idx < 26; idx++ {
++		a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z = b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, a
++	}
++	return a*1 + b*2 + c*3 + d*4 + e*5 + f*6 + g*7 + h*8 + i*9 + j*10 + k*11 + l*12 + m*13 + n*14 + o*15 + p*16 + q*17 + r*18 + s*19 + t*20 + u*21 + v*22 + w*23 + x*24 + y*25 + z*26
++}
++
++func phiOverwriteBig() {
++	want := 1
++	got := phiOverwriteBig_ssa()
++	if got != want {
++		println("phiOverwriteBig_ssa()=", want, ", got", got)
++		failed = true
++	}
++}
++
++var failed = false
++
++func main() {
++	phiOverwrite()
++	phiOverwriteBig()
++	if failed {
++		panic("failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 109b3dd09f..8c306c8412 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -59,6 +59,14 @@ func findlive(f *Func) (reachable []bool, live []bool) {
+ 
+ // deadcode removes dead code from f.
+ func deadcode(f *Func) {
++	// deadcode after regalloc is forbidden for now.  Regalloc
++	// doesn't quite generate legal SSA which will lead to some
++	// required moves being eliminated.  See the comment at the
++	// top of regalloc.go for details.
++	if f.RegAlloc != nil {
++		f.Fatalf("deadcode after regalloc")
++	}
++
+ 	reachable, live := findlive(f)
+ 
+ 	// Remove dead values from blocks' value list.  Return dead
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 8bdcfaaac7..5aa5e60e33 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -72,13 +72,14 @@ func init() {
+ 
+ 	// Common individual register masks
+ 	var (
+-		cx     = buildReg("CX")
+-		x15    = buildReg("X15")
+-		gp     = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
+-		fp     = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
+-		gpsp   = gp | buildReg("SP")
+-		gpspsb = gpsp | buildReg("SB")
+-		flags  = buildReg("FLAGS")
++		cx         = buildReg("CX")
++		x15        = buildReg("X15")
++		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
++		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
++		gpsp       = gp | buildReg("SP")
++		gpspsb     = gpsp | buildReg("SB")
++		flags      = buildReg("FLAGS")
++		callerSave = gp | fp | flags
+ 	)
+ 
+ 	// Common slices of register masks
+@@ -90,16 +91,16 @@ func init() {
+ 
+ 	// Common regInfo
+ 	var (
+-		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
+-		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
+-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+-		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly}
+-		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
+-		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}}
++		gp01      = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
++		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
++		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly, clobbers: flags}
++		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly, clobbers: flags}
++		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly, clobbers: flags}
++		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
+ 
+ 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+ 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+-		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly}
++		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
+ 
+ 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+ 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+@@ -122,6 +123,7 @@ func init() {
+ 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
+ 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
+ 	)
++	// TODO: most ops clobber flags
+ 
+ 	// Suffixes encode the bit width of various instructions.
+ 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
+@@ -318,8 +320,8 @@ func init() {
+ 		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
+ 
+ 		//TODO: set register clobber to everything?
+-		{name: "CALLstatic"},                                                            // call static function aux.(*gc.Sym).  arg0=mem, returns mem
+-		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, 0, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
++		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}},                                 // call static function aux.(*gc.Sym).  arg0=mem, returns mem
++		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem returns mem
+ 
+ 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 97ac802cbd..6620c0a1d0 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -15,6 +15,7 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"regexp"
++	"sort"
+ )
+ 
+ type arch struct {
+@@ -125,11 +126,22 @@ func genOp() {
+ 				fmt.Fprintf(w, "asm: x86.A%s,\n", v.asm)
+ 			}
+ 			fmt.Fprintln(w, "reg:regInfo{")
+-			// reg inputs
+-			if len(v.reg.inputs) > 0 {
+-				fmt.Fprintln(w, "inputs: []regMask{")
+-				for _, r := range v.reg.inputs {
+-					fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
++
++			// Compute input allocation order.  We allocate from the
++			// most to the least constrained input.  This order guarantees
++			// that we will always be able to find a register.
++			var s []intPair
++			for i, r := range v.reg.inputs {
++				if r != 0 {
++					s = append(s, intPair{countRegs(r), i})
++				}
++			}
++			if len(s) > 0 {
++				sort.Sort(byKey(s))
++				fmt.Fprintln(w, "inputs: []inputInfo{")
++				for _, p := range s {
++					r := v.reg.inputs[p.val]
++					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
+ 				}
+ 				fmt.Fprintln(w, "},")
+ 			}
+@@ -205,3 +217,23 @@ func genLower() {
+ 		genRules(a)
+ 	}
+ }
++
++// countRegs returns the number of set bits in the register mask.
++func countRegs(r regMask) int {
++	n := 0
++	for r != 0 {
++		n += int(r & 1)
++		r >>= 1
++	}
++	return n
++}
++
++// for sorting a pair of integers by key
++type intPair struct {
++	key, val int
++}
++type byKey []intPair
++
++func (a byKey) Len() int           { return len(a) }
++func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
++func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 848e016129..5c23320680 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -362,7 +362,7 @@ func (v *Value) LongHTML() string {
+ 		s += fmt.Sprintf(" %s", a.HTML())
+ 	}
+ 	r := v.Block.Func.RegAlloc
+-	if r != nil && r[v.ID] != nil {
++	if int(v.ID) < len(r) && r[v.ID] != nil {
+ 		s += " : " + r[v.ID].Name()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 4ca8c770cb..356084fb02 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -19,8 +19,13 @@ type opInfo struct {
+ 	generic bool // this is a generic (arch-independent) opcode
+ }
+ 
++type inputInfo struct {
++	idx  int     // index in Args array
++	regs regMask // allowed input registers
++}
++
+ type regInfo struct {
+-	inputs   []regMask
++	inputs   []inputInfo // ordered in register allocation order
+ 	clobbers regMask
+ 	outputs  []regMask // NOTE: values can only have 1 output for now.
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2155cd318e..cbabbfade5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -425,9 +425,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDSS",
+ 		asm:  x86.AADDSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -438,9 +438,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDSD",
+ 		asm:  x86.AADDSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -451,9 +451,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBSS",
+ 		asm:  x86.ASUBSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++			inputs: []inputInfo{
++				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++				{1, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+ 			},
+ 			clobbers: 2147483648, // .X15
+ 			outputs: []regMask{
+@@ -465,9 +465,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBSD",
+ 		asm:  x86.ASUBSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++			inputs: []inputInfo{
++				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++				{1, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+ 			},
+ 			clobbers: 2147483648, // .X15
+ 			outputs: []regMask{
+@@ -479,9 +479,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULSS",
+ 		asm:  x86.AMULSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -492,9 +492,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULSD",
+ 		asm:  x86.AMULSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -505,9 +505,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "DIVSS",
+ 		asm:  x86.ADIVSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++			inputs: []inputInfo{
++				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++				{1, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+ 			},
+ 			clobbers: 2147483648, // .X15
+ 			outputs: []regMask{
+@@ -519,9 +519,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "DIVSD",
+ 		asm:  x86.ADIVSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+-				2147418112, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++			inputs: []inputInfo{
++				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
++				{1, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
+ 			},
+ 			clobbers: 2147483648, // .X15
+ 			outputs: []regMask{
+@@ -533,9 +533,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSSload",
+ 		asm:  x86.AMOVSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -546,9 +545,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSDload",
+ 		asm:  x86.AMOVSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -577,10 +575,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSSloadidx4",
+ 		asm:  x86.AMOVSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -591,10 +588,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSDloadidx8",
+ 		asm:  x86.AMOVSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+@@ -605,10 +601,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSSstore",
+ 		asm:  x86.AMOVSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				0,
++			inputs: []inputInfo{
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -616,10 +611,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSDstore",
+ 		asm:  x86.AMOVSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				0,
++			inputs: []inputInfo{
++				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -627,11 +621,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSSstoreidx4",
+ 		asm:  x86.AMOVSS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{2, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -639,11 +632,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVSDstoreidx8",
+ 		asm:  x86.AMOVSD,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{2, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -651,10 +643,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDQ",
+ 		asm:  x86.AADDQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -664,10 +657,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDL",
+ 		asm:  x86.AADDL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -677,10 +671,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDW",
+ 		asm:  x86.AADDW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -690,10 +685,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDB",
+ 		asm:  x86.AADDB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -703,9 +699,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDQconst",
+ 		asm:  x86.AADDQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -715,9 +712,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDLconst",
+ 		asm:  x86.AADDL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -727,9 +725,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDWconst",
+ 		asm:  x86.AADDW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -739,9 +738,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ADDBconst",
+ 		asm:  x86.AADDB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -751,10 +751,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBQ",
+ 		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -764,10 +765,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBL",
+ 		asm:  x86.ASUBL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -777,10 +779,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBW",
+ 		asm:  x86.ASUBW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -790,10 +793,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBB",
+ 		asm:  x86.ASUBB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -803,9 +807,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBQconst",
+ 		asm:  x86.ASUBQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -815,9 +820,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBLconst",
+ 		asm:  x86.ASUBL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -827,9 +833,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBWconst",
+ 		asm:  x86.ASUBW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -839,9 +846,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SUBBconst",
+ 		asm:  x86.ASUBB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -851,10 +859,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULQ",
+ 		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -864,10 +873,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULL",
+ 		asm:  x86.AIMULL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -877,10 +887,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULW",
+ 		asm:  x86.AIMULW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -890,10 +901,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULB",
+ 		asm:  x86.AIMULW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -903,9 +915,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULQconst",
+ 		asm:  x86.AIMULQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -915,9 +928,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULLconst",
+ 		asm:  x86.AIMULL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -927,9 +941,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULWconst",
+ 		asm:  x86.AIMULW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -939,9 +954,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MULBconst",
+ 		asm:  x86.AIMULW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -951,10 +967,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDQ",
+ 		asm:  x86.AANDQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -964,10 +981,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDL",
+ 		asm:  x86.AANDL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -977,10 +995,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDW",
+ 		asm:  x86.AANDW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -990,10 +1009,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDB",
+ 		asm:  x86.AANDB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1003,9 +1023,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDQconst",
+ 		asm:  x86.AANDQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1015,9 +1036,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDLconst",
+ 		asm:  x86.AANDL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1027,9 +1049,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDWconst",
+ 		asm:  x86.AANDW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1039,9 +1062,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ANDBconst",
+ 		asm:  x86.AANDB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1051,10 +1075,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORQ",
+ 		asm:  x86.AORQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1064,10 +1089,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORL",
+ 		asm:  x86.AORL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1077,10 +1103,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORW",
+ 		asm:  x86.AORW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1090,10 +1117,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORB",
+ 		asm:  x86.AORB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1103,9 +1131,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORQconst",
+ 		asm:  x86.AORQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1115,9 +1144,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORLconst",
+ 		asm:  x86.AORL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1127,9 +1157,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORWconst",
+ 		asm:  x86.AORW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1139,9 +1170,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ORBconst",
+ 		asm:  x86.AORB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1151,10 +1183,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORQ",
+ 		asm:  x86.AXORQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1164,10 +1197,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORL",
+ 		asm:  x86.AXORL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1177,10 +1211,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORW",
+ 		asm:  x86.AXORW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1190,10 +1225,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORB",
+ 		asm:  x86.AXORB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1203,9 +1239,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORQconst",
+ 		asm:  x86.AXORQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1215,9 +1252,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORLconst",
+ 		asm:  x86.AXORL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1227,9 +1265,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORWconst",
+ 		asm:  x86.AXORW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1239,9 +1278,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "XORBconst",
+ 		asm:  x86.AXORB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1251,9 +1291,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPQ",
+ 		asm:  x86.ACMPQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1264,9 +1304,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPL",
+ 		asm:  x86.ACMPL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1277,9 +1317,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPW",
+ 		asm:  x86.ACMPW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1290,9 +1330,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPB",
+ 		asm:  x86.ACMPB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1303,8 +1343,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPQconst",
+ 		asm:  x86.ACMPQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1315,8 +1355,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPLconst",
+ 		asm:  x86.ACMPL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1327,8 +1367,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPWconst",
+ 		asm:  x86.ACMPW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1339,8 +1379,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "CMPBconst",
+ 		asm:  x86.ACMPB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1351,9 +1391,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTQ",
+ 		asm:  x86.ATESTQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1364,9 +1404,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTL",
+ 		asm:  x86.ATESTL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1377,9 +1417,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTW",
+ 		asm:  x86.ATESTW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1390,9 +1430,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTB",
+ 		asm:  x86.ATESTB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1403,8 +1443,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTQconst",
+ 		asm:  x86.ATESTQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1415,8 +1455,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTLconst",
+ 		asm:  x86.ATESTL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1427,8 +1467,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTWconst",
+ 		asm:  x86.ATESTW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1439,8 +1479,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "TESTBconst",
+ 		asm:  x86.ATESTB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+ 			outputs: []regMask{
+ 				8589934592, // .FLAGS
+@@ -1451,10 +1491,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLQ",
+ 		asm:  x86.ASHLQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1464,10 +1505,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLL",
+ 		asm:  x86.ASHLL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1477,10 +1519,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLW",
+ 		asm:  x86.ASHLW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1490,10 +1533,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLB",
+ 		asm:  x86.ASHLB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1503,9 +1547,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLQconst",
+ 		asm:  x86.ASHLQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1515,9 +1560,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLLconst",
+ 		asm:  x86.ASHLL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1527,9 +1573,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLWconst",
+ 		asm:  x86.ASHLW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1539,9 +1586,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHLBconst",
+ 		asm:  x86.ASHLB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1551,10 +1599,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRQ",
+ 		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1564,10 +1613,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRL",
+ 		asm:  x86.ASHRL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1577,10 +1627,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRW",
+ 		asm:  x86.ASHRW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1590,10 +1641,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRB",
+ 		asm:  x86.ASHRB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1603,9 +1655,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRQconst",
+ 		asm:  x86.ASHRQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1615,9 +1668,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRLconst",
+ 		asm:  x86.ASHRL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1627,9 +1681,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRWconst",
+ 		asm:  x86.ASHRW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1639,9 +1694,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SHRBconst",
+ 		asm:  x86.ASHRB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1651,10 +1707,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARQ",
+ 		asm:  x86.ASARQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1664,10 +1721,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARL",
+ 		asm:  x86.ASARL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1677,10 +1735,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARW",
+ 		asm:  x86.ASARW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1690,10 +1749,11 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARB",
+ 		asm:  x86.ASARB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				2,     // .CX
++			inputs: []inputInfo{
++				{1, 2},     // .CX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65517, // .AX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1703,9 +1763,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARQconst",
+ 		asm:  x86.ASARQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1715,9 +1776,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARLconst",
+ 		asm:  x86.ASARL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1727,9 +1789,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARWconst",
+ 		asm:  x86.ASARW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1739,9 +1802,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SARBconst",
+ 		asm:  x86.ASARB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1751,9 +1815,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ROLQconst",
+ 		asm:  x86.AROLQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1763,9 +1828,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ROLLconst",
+ 		asm:  x86.AROLL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1775,9 +1841,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ROLWconst",
+ 		asm:  x86.AROLW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1787,9 +1854,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "ROLBconst",
+ 		asm:  x86.AROLB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1799,9 +1867,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NEGQ",
+ 		asm:  x86.ANEGQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1811,9 +1880,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NEGL",
+ 		asm:  x86.ANEGL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1823,9 +1893,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NEGW",
+ 		asm:  x86.ANEGW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1835,9 +1906,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NEGB",
+ 		asm:  x86.ANEGB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1847,9 +1919,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NOTQ",
+ 		asm:  x86.ANOTQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1859,9 +1932,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NOTL",
+ 		asm:  x86.ANOTL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1871,9 +1945,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NOTW",
+ 		asm:  x86.ANOTW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1883,9 +1958,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "NOTB",
+ 		asm:  x86.ANOTB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1895,9 +1971,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SBBQcarrymask",
+ 		asm:  x86.ASBBQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1907,9 +1984,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SBBLcarrymask",
+ 		asm:  x86.ASBBL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1919,9 +1997,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETEQ",
+ 		asm:  x86.ASETEQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1931,9 +2010,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETNE",
+ 		asm:  x86.ASETNE,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1943,9 +2023,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETL",
+ 		asm:  x86.ASETLT,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1955,9 +2036,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETLE",
+ 		asm:  x86.ASETLE,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1967,9 +2049,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETG",
+ 		asm:  x86.ASETGT,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1979,9 +2062,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETGE",
+ 		asm:  x86.ASETGE,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -1991,9 +2075,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETB",
+ 		asm:  x86.ASETCS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2003,9 +2088,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETBE",
+ 		asm:  x86.ASETLS,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2015,9 +2101,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETA",
+ 		asm:  x86.ASETHI,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2027,9 +2114,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "SETAE",
+ 		asm:  x86.ASETCC,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				8589934592, // .FLAGS
++			inputs: []inputInfo{
++				{0, 8589934592}, // .FLAGS
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2039,9 +2127,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBQSX",
+ 		asm:  x86.AMOVBQSX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2051,9 +2140,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBQZX",
+ 		asm:  x86.AMOVBQZX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2063,9 +2153,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWQSX",
+ 		asm:  x86.AMOVWQSX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2075,9 +2166,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWQZX",
+ 		asm:  x86.AMOVWQZX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2087,9 +2179,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLQSX",
+ 		asm:  x86.AMOVLQSX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2099,9 +2192,10 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLQZX",
+ 		asm:  x86.AMOVLQZX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2111,6 +2205,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBconst",
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2120,6 +2215,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWconst",
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2129,6 +2225,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLconst",
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2138,6 +2235,7 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQconst",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2146,9 +2244,10 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LEAQ",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2157,10 +2256,11 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LEAQ1",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2169,10 +2269,11 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LEAQ2",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2181,10 +2282,11 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LEAQ4",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2193,10 +2295,11 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LEAQ8",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2206,9 +2309,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBload",
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2219,9 +2321,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBQSXload",
+ 		asm:  x86.AMOVBQSX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2232,9 +2333,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBQZXload",
+ 		asm:  x86.AMOVBQZX,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2245,9 +2345,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWload",
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2258,9 +2357,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLload",
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2271,9 +2369,8 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQload",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2284,10 +2381,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQloadidx8",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+@@ -2298,10 +2394,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBstore",
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -2309,10 +2404,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWstore",
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -2320,10 +2414,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLstore",
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -2331,10 +2424,9 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQstore",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+@@ -2342,54 +2434,54 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQstoreidx8",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				65535,      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				0,
++			inputs: []inputInfo{
++				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{2, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+ 	{
+ 		name: "MOVXzero",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+-				0,
++			inputs: []inputInfo{
++				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+ 			},
+ 		},
+ 	},
+ 	{
+ 		name: "REPSTOSQ",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				128, // .DI
+-				2,   // .CX
++			inputs: []inputInfo{
++				{0, 128}, // .DI
++				{1, 2},   // .CX
+ 			},
+ 			clobbers: 131, // .AX .CX .DI
+ 		},
+ 	},
+ 	{
+ 		name: "CALLstatic",
+-		reg:  regInfo{},
++		reg: regInfo{
++			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
++		},
+ 	},
+ 	{
+ 		name: "CALLclosure",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+-				4,     // .DX
+-				0,
++			inputs: []inputInfo{
++				{1, 4},     // .DX
++				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
++			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
+ 		},
+ 	},
+ 	{
+ 		name: "REPMOVSB",
+ 		reg: regInfo{
+-			inputs: []regMask{
+-				128, // .DI
+-				64,  // .SI
+-				2,   // .CX
++			inputs: []inputInfo{
++				{0, 128}, // .DI
++				{1, 64},  // .SI
++				{2, 2},   // .CX
+ 			},
+ 			clobbers: 194, // .CX .SI .DI
+ 		},
+@@ -2405,6 +2497,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name: "LoweredGetG",
+ 		reg: regInfo{
++			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index b8a2f24c33..d593faf95b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2,22 +2,132 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Register allocation.
++//
++// We use a version of a linear scan register allocator.  We treat the
++// whole function as a single long basic block and run through
++// it using a greedy register allocator.  Then all merge edges
++// (those targeting a block with len(Preds)>1) are processed to
++// shuffle data into the place that the target of the edge expects.
++//
++// The greedy allocator moves values into registers just before they
++// are used, spills registers only when necessary, and spills the
++// value whose next use is farthest in the future.
++//
++// The register allocator requires that a block is not scheduled until
++// at least one of its predecessors have been scheduled.  The most recent
++// such predecessor provides the starting register state for a block.
++//
++// It also requires that there are no critical edges (critical =
++// comes from a block with >1 successor and goes to a block with >1
++// predecessor).  This makes it easy to add fixup code on merge edges -
++// the source of a merge edge has only one successor, so we can add
++// fixup code to the end of that block.
++
++// Spilling
++//
++// For every value, we generate a spill immediately after the value itself.
++//     x = Op y z    : AX
++//     x2 = StoreReg x
++// While AX still holds x, any uses of x will use that value.  When AX is needed
++// for another value, we simply reuse AX.  Spill code has already been generated
++// so there is no code generated at "spill" time.  When x is referenced
++// subsequently, we issue a load to restore x to a register using x2 as
++//  its argument:
++//    x3 = Restore x2 : CX
++// x3 can then be used wherever x is referenced again.
++// If the spill (x2) is never used, it will be removed at the end of regalloc.
++//
++// Phi values are special, as always.  We define two kinds of phis, those
++// where the merge happens in a register (a "register" phi) and those where
++// the merge happens in a stack location (a "stack" phi).
++//
++// A register phi must have the phi and all of its inputs allocated to the
++// same register.  Register phis are spilled similarly to regular ops:
++//     b1: y = ... : AX        b2: z = ... : AX
++//         goto b3                 goto b3
++//     b3: x = phi(y, z) : AX
++//         x2 = StoreReg x
++//
++// A stack phi must have the phi and all of its inputs allocated to the same
++// stack location.  Stack phis start out life already spilled - each phi
++// input must be a store (using StoreReg) at the end of the corresponding
++// predecessor block.
++//     b1: y = ... : AX        b2: z = ... : BX
++//         y2 = StoreReg y         z2 = StoreReg z
++//         goto b3                 goto b3
++//     b3: x = phi(y2, z2)
++// The stack allocator knows that StoreReg args of stack-allocated phis
++// must be allocated to the same stack slot as the phi that uses them.
++// x is now a spilled value and a restore must appear before its first use.
++
++// TODO
++
++// Use an affinity graph to mark two values which should use the
++// same register.  This affinity graph will be used to prefer certain
++// registers for allocation.  This affinity helps eliminate moves that
++// are required for phi implementations and helps generate allocations
++// for 2-register architectures.
++
++// Note: regalloc generates a not-quite-SSA output.  If we have:
++//
++//             b1: x = ... : AX
++//                 x2 = StoreReg x
++//                 ... AX gets reused for something else ...
++//                 if ... goto b3 else b4
++//
++//   b3: x3 = LoadReg x2 : BX       b4: x4 = LoadReg x2 : CX
++//       ... use x3 ...                 ... use x4 ...
++//
++//             b2: ... use x3 ...
++//
++// If b3 is the primary predecessor of b2, then we use x3 in b2 and
++// add a x4:CX->BX copy at the end of b4.
++// But the definition of x3 doesn't dominate b2.  We should really
++// insert a dummy phi at the start of b2 (x5=phi(x3,x4):BX) to keep
++// SSA form.  For now, we ignore this problem as remaining in strict
++// SSA form isn't needed after regalloc.  We'll just leave the use
++// of x3 not dominated by the definition of x3, and the CX->BX copy
++// will have no use (so don't run deadcode after regalloc!).
++// TODO: maybe we should introduce these extra phis?
++
+ package ssa
+ 
+-import "sort"
++import (
++	"fmt"
++	"unsafe"
++)
+ 
+-func setloc(home []Location, v *Value, loc Location) []Location {
+-	for v.ID >= ID(len(home)) {
+-		home = append(home, nil)
+-	}
+-	home[v.ID] = loc
+-	return home
++const regDebug = false
++
++// regalloc performs register allocation on f.  It sets f.RegAlloc
++// to the resulting allocation.
++func regalloc(f *Func) {
++	var s regAllocState
++	s.init(f)
++	s.regalloc(f)
+ }
+ 
+-type register uint
++type register uint8
++
++const noRegister register = 255
+ 
+ type regMask uint64
+ 
++func (m regMask) String() string {
++	s := ""
++	for r := register(0); r < numRegs; r++ {
++		if m>>r&1 == 0 {
++			continue
++		}
++		if s != "" {
++			s += " "
++		}
++		s += fmt.Sprintf("r%d", r)
++	}
++	return s
++}
++
+ // TODO: make arch-dependent
+ var numRegs register = 64
+ 
+@@ -84,343 +194,719 @@ func pickReg(r regMask) register {
+ 	}
+ }
+ 
+-// regalloc performs register allocation on f.  It sets f.RegAlloc
+-// to the resulting allocation.
+-func regalloc(f *Func) {
+-	// For now, a very simple allocator.  Everything has a home
+-	// location on the stack (TBD as a subsequent stackalloc pass).
+-	// Values live in the home locations at basic block boundaries.
+-	// We use a simple greedy allocator within a basic block.
+-	home := make([]Location, f.NumValues())
++// A use is a record of a position (2*pc for value uses, odd numbers for other uses)
++// and a value ID that is used at that position.
++type use struct {
++	idx int32
++	vid ID
++}
+ 
+-	addPhiCopies(f) // add copies of phi inputs in preceeding blocks
++type valState struct {
++	regs       regMask // the set of registers holding a Value (usually just one)
++	uses       []int32 // sorted list of places where Value is used
++	usestorage [2]int32
++	spill      *Value // spilled copy of the Value
++	spill2     *Value // special alternate spill location used for phi resolution
++	spillUsed  bool
++	spill2used bool
++}
+ 
+-	// Compute live values at the end of each block.
+-	live := live(f)
+-	lastUse := make([]int, f.NumValues())
++type regState struct {
++	v *Value // Original (preregalloc) Value stored in this register.
++	c *Value // A Value equal to v which is currently in register.  Might be v or a copy of it.
++	// If a register is unused, v==c==nil
++}
+ 
+-	var oldSched []*Value
++type regAllocState struct {
++	f *Func
++
++	// for each block, its primary predecessor.
++	// A predecessor of b is primary if it is the closest
++	// predecessor that appears before b in the layout order.
++	// We record the index in the Preds list where the primary predecessor sits.
++	primary []int32
++
++	// live values on each edge.  live[b.ID][idx] is a list of value IDs
++	// which are live on b's idx'th successor edge.
++	live [][][]ID
++
++	// current state of each (preregalloc) Value
++	values []valState
++
++	// current state of each register
++	regs []regState
++
++	// registers that contain values which can't be kicked out
++	nospill regMask
++
++	// mask of registers currently in use
++	used regMask
++
++	// An ordered list (by idx) of all uses in the function
++	uses []use
+ 
+-	// Hack to find sp and sb Values and assign them a register.
+-	// TODO: make not so hacky; update the tighten pass when this is done
+-	var sp, sb *Value
+-	for _, v := range f.Entry.Values {
+-		switch v.Op {
+-		case OpSP:
+-			sp = v
+-			home = setloc(home, v, &registers[4]) // TODO: arch-dependent
+-		case OpSB:
+-			sb = v
+-			home = setloc(home, v, &registers[32]) // TODO: arch-dependent
++	// Home locations (registers) for Values
++	home []Location
++
++	// current block we're working on
++	curBlock *Block
++}
++
++// freeReg frees up register r.  Any current user of r is kicked out.
++func (s *regAllocState) freeReg(r register) {
++	v := s.regs[r].v
++	if v == nil {
++		s.f.Fatalf("tried to free an already free register %d\n", r)
++	}
++
++	// Mark r as unused.
++	if regDebug {
++		fmt.Printf("freeReg %d (dump %s/%s)\n", r, v, s.regs[r].c)
++	}
++	s.regs[r] = regState{}
++	s.values[v.ID].regs &^= regMask(1) << r
++	s.used &^= regMask(1) << r
++}
++
++// freeRegs frees up all registers listed in m.
++func (s *regAllocState) freeRegs(m regMask) {
++	for m&s.used != 0 {
++		s.freeReg(pickReg(m & s.used))
++	}
++}
++
++func (s *regAllocState) setHome(v *Value, r register) {
++	// Remember assignment.
++	for int(v.ID) >= len(s.home) {
++		s.home = append(s.home, nil)
++		s.home = s.home[:cap(s.home)]
++	}
++	s.home[v.ID] = &registers[r]
++}
++func (s *regAllocState) getHome(v *Value) register {
++	if int(v.ID) >= len(s.home) || s.home[v.ID] == nil {
++		return noRegister
++	}
++	return register(s.home[v.ID].(*Register).Num)
++}
++
++// assignReg assigns register r to hold c, a copy of v.
++// r must be unused.
++func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
++	if regDebug {
++		fmt.Printf("assignReg %d %s/%s\n", r, v, c)
++	}
++	if s.regs[r].v != nil {
++		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
++	}
++
++	// Update state.
++	s.regs[r] = regState{v, c}
++	s.values[v.ID].regs |= regMask(1) << r
++	s.used |= regMask(1) << r
++	s.setHome(c, r)
++}
++
++// allocReg picks an unused register from regmask.  If there is no unused register,
++// a Value will be kicked out of a register to make room.
++func (s *regAllocState) allocReg(mask regMask) register {
++	// Pick a register to use.
++	mask &^= s.nospill
++	if mask == 0 {
++		s.f.Fatalf("no register available")
++	}
++
++	var r register
++	if unused := mask & ^s.used; unused != 0 {
++		// Pick an unused register.
++		return pickReg(unused)
++		// TODO: use affinity graph to pick a good register
++	}
++	// Pick a value to spill.  Spill the value with the
++	// farthest-in-the-future use.
++	// TODO: Prefer registers with already spilled Values?
++	// TODO: Modify preference using affinity graph.
++	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
++	maxuse := int32(-1)
++	for t := register(0); t < numRegs; t++ {
++		if mask>>t&1 == 0 {
++			continue
++		}
++		v := s.regs[t].v
++		if len(s.values[v.ID].uses) == 0 {
++			// This can happen when fixing up merge blocks at the end.
++			// We've already run through the use lists so they are empty.
++			// Any register would be ok at this point.
++			r = t
++			maxuse = 0
++			break
+ 		}
++		if n := s.values[v.ID].uses[0]; n > maxuse {
++			r = t
++			maxuse = n
++		}
++	}
++	if maxuse == -1 {
++		s.f.Unimplementedf("couldn't find register to spill")
++	}
++	s.freeReg(r)
++	return r
++}
++
++// allocValToReg allocates v to a register selected from regMask and
++// returns the register copy of v. Any previous user is kicked out and spilled
++// (if necessary). Load code is added at the current pc. If nospill is set the
++// allocated register is marked nospill so the assignment cannot be
++// undone until the caller allows it by clearing nospill. Returns a
++// *Value which is either v or a copy of v allocated to the chosen register.
++func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Value {
++	vi := &s.values[v.ID]
++
++	// Check if v is already in a requested register.
++	if mask&vi.regs != 0 {
++		r := pickReg(mask & vi.regs)
++		if s.regs[r].v != v || s.regs[r].c == nil {
++			panic("bad register state")
++		}
++		if nospill {
++			s.nospill |= regMask(1) << r
++		}
++		return s.regs[r].c
++	}
++
++	// SP and SB are allocated specially.  No regular value should
++	// be allocated to them.
++	mask &^= 1<<4 | 1<<32
++
++	// Allocate a register.
++	r := s.allocReg(mask)
++
++	// Allocate v to the new register.
++	var c *Value
++	if vi.regs != 0 {
++		// Copy from a register that v is already in.
++		r2 := pickReg(vi.regs)
++		if s.regs[r2].v != v {
++			panic("bad register state")
++		}
++		c = s.curBlock.NewValue1(v.Line, OpCopy, v.Type, s.regs[r2].c)
++	} else {
++		// Load v from its spill location.
++		// TODO: rematerialize if we can.
++		if vi.spill2 != nil {
++			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill2)
++			vi.spill2used = true
++		} else {
++			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill)
++			vi.spillUsed = true
++		}
++		if v.Type.IsFlags() {
++			v.Unimplementedf("spill of flags not implemented yet")
++		}
++	}
++	s.assignReg(r, v, c)
++	if nospill {
++		s.nospill |= regMask(1) << r
++	}
++	return c
++}
++
++func (s *regAllocState) init(f *Func) {
++	if numRegs > noRegister || numRegs > register(unsafe.Sizeof(regMask(0))*8) {
++		panic("too many registers")
++	}
++
++	s.f = f
++	s.regs = make([]regState, numRegs)
++	s.values = make([]valState, f.NumValues())
++	for i := range s.values {
++		s.values[i].uses = s.values[i].usestorage[:0]
+ 	}
++	s.live = f.live()
+ 
+-	// Register allocate each block separately.  All live values will live
+-	// in home locations (stack slots) between blocks.
++	// Compute block order.  This array allows us to distinguish forward edges
++	// from backward edges and compute how far they go.
++	blockOrder := make([]int32, f.NumBlocks())
++	for i, b := range f.Blocks {
++		blockOrder[b.ID] = int32(i)
++	}
++
++	// Compute primary predecessors.
++	s.primary = make([]int32, f.NumBlocks())
+ 	for _, b := range f.Blocks {
++		best := -1
++		for i, p := range b.Preds {
++			if blockOrder[p.ID] >= blockOrder[b.ID] {
++				continue // backward edge
++			}
++			if best == -1 || blockOrder[p.ID] > blockOrder[b.Preds[best].ID] {
++				best = i
++			}
++		}
++		s.primary[b.ID] = int32(best)
++	}
+ 
+-		// Compute the index of the last use of each Value in the Block.
+-		// Scheduling has already happened, so Values are totally ordered.
+-		// lastUse[x] = max(i) where b.Value[i] uses Value x.
+-		for i, v := range b.Values {
+-			lastUse[v.ID] = -1
+-			for _, w := range v.Args {
+-				// could condition this store on w.Block == b, but no need
+-				lastUse[w.ID] = i
++	// Compute uses.  We assign a PC to each Value in the program, in f.Blocks
++	// and then b.Values order.  Uses are recorded using this numbering.
++	// Uses by Values are recorded as 2*PC.  Special uses (block control values,
++	// pseudo-uses for backedges) are recorded as 2*(last PC in block)+1.
++	var pc int32
++	for _, b := range f.Blocks {
++		// uses in regular Values
++		for _, v := range b.Values {
++			for _, a := range v.Args {
++				s.values[a.ID].uses = append(s.values[a.ID].uses, pc*2)
++				s.uses = append(s.uses, use{pc * 2, a.ID})
+ 			}
++			pc++
+ 		}
+-		// Values which are live at block exit have a lastUse of len(b.Values).
++		// use as a block control value
++		endIdx := pc*2 - 1
+ 		if b.Control != nil {
+-			lastUse[b.Control.ID] = len(b.Values)
++			s.values[b.Control.ID].uses = append(s.values[b.Control.ID].uses, endIdx)
++			s.uses = append(s.uses, use{endIdx, b.Control.ID})
+ 		}
+-		// Values live after block exit have a lastUse of len(b.Values)+1.
+-		for _, vid := range live[b.ID] {
+-			lastUse[vid] = len(b.Values) + 1
++		// uses by backedges
++		// Backedges are treated as uses so that the uses span the entire live
++		// range of the value.
++		for i, c := range b.Succs {
++			if blockOrder[c.ID] > blockOrder[b.ID] {
++				continue // forward edge
++			}
++			for _, vid := range s.live[b.ID][i] {
++				s.values[vid].uses = append(s.values[vid].uses, endIdx)
++				s.uses = append(s.uses, use{endIdx, vid})
++			}
+ 		}
++	}
++	if pc*2 < 0 {
++		f.Fatalf("pc too large: function too big")
++	}
++}
+ 
+-		// For each register, store which value it contains
+-		type regInfo struct {
+-			v     *Value // stack-homed original value (or nil if empty)
+-			c     *Value // the register copy of v
+-			dirty bool   // if the stack-homed copy is out of date
++// clearUses drops any uses <= useIdx.  Any values which have no future
++// uses are dropped from registers.
++func (s *regAllocState) clearUses(useIdx int32) {
++	for len(s.uses) > 0 && s.uses[0].idx <= useIdx {
++		idx := s.uses[0].idx
++		vid := s.uses[0].vid
++		s.uses = s.uses[1:]
++
++		vi := &s.values[vid]
++		if vi.uses[0] != idx {
++			s.f.Fatalf("use mismatch for v%d\n", vid)
+ 		}
+-		regs := make([]regInfo, numRegs)
++		vi.uses = vi.uses[1:]
++		if len(vi.uses) != 0 {
++			continue
++		}
++		// Value is dead, free all registers that hold it (except SP & SB).
++		s.freeRegs(vi.regs &^ (1<<4 | 1<<32))
++	}
++}
+ 
+-		// TODO: hack: initialize fixed registers
+-		regs[4] = regInfo{sp, sp, false}
+-		regs[32] = regInfo{sb, sb, false}
++// Sets the state of the registers to that encoded in state.
++func (s *regAllocState) setState(state []regState) {
++	s.freeRegs(s.used)
++	for r, x := range state {
++		if x.c == nil {
++			continue
++		}
++		s.assignReg(register(r), x.v, x.c)
++	}
++}
+ 
+-		var used regMask  // has a 1 for each non-nil entry in regs
+-		var dirty regMask // has a 1 for each dirty entry in regs
++func (s *regAllocState) regalloc(f *Func) {
++	liveset := newSparseSet(f.NumValues())
++	argset := newSparseSet(f.NumValues())
++	var oldSched []*Value
++	var phis []*Value
++	var stackPhis []*Value
++	var regPhis []*Value
++
++	if f.Entry != f.Blocks[0] {
++		f.Fatalf("entry block must be first")
++	}
++
++	var phiRegs []register
++
++	// For each merge block, we record the starting register state (after phi ops)
++	// for that merge block.  Indexed by blockid/regnum.
++	startRegs := make([][]*Value, f.NumBlocks())
++	// end state of registers for each block, idexed by blockid/regnum.
++	endRegs := make([][]regState, f.NumBlocks())
++	var pc int32
++	for _, b := range f.Blocks {
++		s.curBlock = b
+ 
+-		oldSched = append(oldSched[:0], b.Values...)
++		// Make a copy of the block schedule so we can generate a new one in place.
++		// We make a separate copy for phis and regular values.
++		nphi := 0
++		for _, v := range b.Values {
++			if v.Op != OpPhi {
++				break
++			}
++			nphi++
++		}
++		phis = append(phis[:0], b.Values[:nphi]...)
++		oldSched = append(oldSched[:0], b.Values[nphi:]...)
+ 		b.Values = b.Values[:0]
+ 
+-		for idx, v := range oldSched {
+-			// For each instruction, do:
+-			//   set up inputs to v in registers
+-			//   pick output register
+-			//   run insn
+-			//   mark output register as dirty
+-			// Note that v represents the Value at "home" (on the stack), and c
+-			// is its register equivalent.  There are two ways to establish c:
+-			//   - use of v.  c will be a load from v's home.
+-			//   - definition of v.  c will be identical to v but will live in
+-			//     a register.  v will be modified into a spill of c.
+-			regspec := opcodeTable[v.Op].reg
+-			if v.Op == OpCopy {
+-				// TODO: make this less of a hack
+-				regspec = opcodeTable[OpAMD64ADDQconst].reg
++		// Initialize start state of block.
++		if b == f.Entry {
++			// Regalloc state is empty to start.
++			if nphi > 0 {
++				f.Fatalf("phis in entry block")
+ 			}
+-			inputs := regspec.inputs
+-			outputs := regspec.outputs
+-			if len(inputs) == 0 && len(outputs) == 0 {
+-				// No register allocation required (or none specified yet)
++		} else if len(b.Preds) == 1 {
++			// Start regalloc state with the end state of the previous block.
++			s.setState(endRegs[b.Preds[0].ID])
++			if nphi > 0 {
++				f.Fatalf("phis in single-predecessor block")
++			}
++		} else {
++			// This is the complicated case.  We have more than one predecessor,
++			// which means we may have Phi ops.
++
++			// Copy phi ops into new schedule.
++			b.Values = append(b.Values, phis...)
++
++			// Start with the final register state of the primary predecessor
++			idx := s.primary[b.ID]
++			if idx < 0 {
++				f.Fatalf("block with no primary predecessor %s", b)
++			}
++			p := b.Preds[idx]
++			s.setState(endRegs[p.ID])
++
++			// Drop anything not live on the c->b edge.
++			var idx2 int
++			for idx2 = 0; idx2 < len(p.Succs); idx2++ {
++				if p.Succs[idx2] == b {
++					break
++				}
++			}
++			liveset.clear()
++			liveset.addAll(s.live[p.ID][idx2])
++			for r := register(0); r < numRegs; r++ {
++				v := s.regs[r].v
++				if v == nil {
++					continue
++				}
++				if !liveset.contains(v.ID) {
++					s.freeReg(r)
++				}
++			}
++
++			// Decide on registers for phi ops.  Use the registers determined
++			// by the primary predecessor if we can.
++			// TODO: pick best of (already processed) predecessors?
++			// Majority vote?  Deepest nesting level?
++			phiRegs = phiRegs[:0]
++			var used regMask
++			for _, v := range phis {
++				if v.Type.IsMemory() {
++					phiRegs = append(phiRegs, noRegister)
++					continue
++				}
++				regs := s.values[v.Args[idx].ID].regs
++				m := regs &^ used
++				var r register
++				if m != 0 {
++					r = pickReg(m)
++					used |= regMask(1) << r
++				} else {
++					r = noRegister
++				}
++				phiRegs = append(phiRegs, r)
++			}
++			// Change register user from phi input to phi.  Add phi spill code.
++			for i, v := range phis {
++				if v.Type.IsMemory() {
++					continue
++				}
++				r := phiRegs[i]
++				if r == noRegister {
++					// stack-based phi
++					// Spills will be inserted in all the predecessors below.
++					s.values[v.ID].spill = v        // v starts life spilled
++					s.values[v.ID].spillUsed = true // use is guaranteed
++					continue
++				}
++				// register-based phi
++				// Transfer ownership of register from input arg to phi.
++				s.freeReg(r)
++				s.assignReg(r, v, v)
++				// Spill the phi in case we need to restore it later.
++				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
++				s.values[v.ID].spill = spill
++				s.values[v.ID].spillUsed = false
++			}
++
++			// Save the starting state for use by incoming edges below.
++			startRegs[b.ID] = make([]*Value, numRegs)
++			for r := register(0); r < numRegs; r++ {
++				startRegs[b.ID][r] = s.regs[r].v
++			}
++		}
++
++		// Process all the non-phi values.
++		pc += int32(nphi)
++		for _, v := range oldSched {
++			if v.Op == OpPhi {
++				f.Fatalf("phi %s not at start of block", v)
++			}
++			if v.Op == OpSP {
++				s.assignReg(4, v, v) // TODO: arch-dependent
+ 				b.Values = append(b.Values, v)
++				pc++
+ 				continue
+ 			}
+-			if v.Op == OpCopy && v.Type.IsMemory() {
++			if v.Op == OpSB {
++				s.assignReg(32, v, v) // TODO: arch-dependent
+ 				b.Values = append(b.Values, v)
++				pc++
+ 				continue
+ 			}
+-
+-			// Compute a good input ordering.  Start with the most constrained input.
+-			order := make([]intPair, len(inputs))
+-			for i, input := range inputs {
+-				order[i] = intPair{countRegs(input), i}
++			s.clearUses(pc*2 - 1)
++			regspec := opcodeTable[v.Op].reg
++			if regDebug {
++				fmt.Printf("%d: working on %s %s %v\n", pc, v, v.LongString(), regspec)
++			}
++			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
++				// No register allocation required (or none specified yet)
++				s.freeRegs(regspec.clobbers)
++				b.Values = append(b.Values, v)
++				pc++
++				continue
+ 			}
+-			sort.Sort(byKey(order))
+ 
+-			// nospill contains registers that we can't spill because
+-			// we already set them up for use by the current instruction.
+-			var nospill regMask
+-			nospill |= 0x100000010 // SP & SB can't be spilled (TODO: arch-specific)
++			// TODO: If value is rematerializeable, don't issue it here.
++			// Instead, rely on argument loading code to put it in a register when needed.
+ 
+-			// Move inputs into registers
+-			for _, o := range order {
+-				w := v.Args[o.val]
+-				mask := inputs[o.val]
+-				if mask == 0 {
+-					// Input doesn't need a register
+-					continue
+-				}
+-				// TODO: 2-address overwrite instructions
++			// Move arguments to registers
++			for _, i := range regspec.inputs {
++				a := v.Args[i.idx]
++				v.Args[i.idx] = s.allocValToReg(a, i.regs, true)
++			}
+ 
+-				// Find registers that w is already in
+-				var wreg regMask
+-				for r := register(0); r < numRegs; r++ {
+-					if regs[r].v == w {
+-						wreg |= regMask(1) << r
+-					}
+-				}
++			// Now that all args are in regs, we're ready to issue the value itself.
++			// Before we pick a register for the value, allow input registers
++			// to be deallocated. We do this here so that the output can use the
++			// same register as a dying input.
++			s.nospill = 0
++			s.clearUses(pc * 2)
++
++			// Dump any registers which will be clobbered
++			s.freeRegs(regspec.clobbers)
++
++			// Pick register for output.
++			var r register
++			var mask regMask
++			if len(regspec.outputs) > 0 {
++				mask = regspec.outputs[0]
++			}
++			if mask != 0 {
++				r = s.allocReg(mask)
++				s.assignReg(r, v, v)
++			}
+ 
+-				var r register
+-				if mask&wreg != 0 {
+-					// w is already in an allowed register.  We're done.
+-					r = pickReg(mask & wreg)
+-				} else {
+-					// Pick a register for w
+-					// Priorities (in order)
+-					//  - an unused register
+-					//  - a clean register
+-					//  - a dirty register
+-					// TODO: for used registers, pick the one whose next use is the
+-					// farthest in the future.
+-					mask &^= nospill
+-					if mask & ^dirty != 0 {
+-						mask &^= dirty
+-					}
+-					if mask & ^used != 0 {
+-						mask &^= used
+-					}
+-					r = pickReg(mask)
+-
+-					// Kick out whomever is using this register.
+-					if regs[r].v != nil {
+-						x := regs[r].v
+-						c := regs[r].c
+-						if regs[r].dirty && lastUse[x.ID] >= idx {
+-							// Write x back to home.  Its value is currently held in c.
+-							x.Op = OpStoreReg
+-							x.Aux = nil
+-							x.resetArgs()
+-							x.AddArg(c)
+-							b.Values = append(b.Values, x)
+-							regs[r].dirty = false
+-							dirty &^= regMask(1) << r
+-						}
+-						regs[r].v = nil
+-						regs[r].c = nil
+-						used &^= regMask(1) << r
+-					}
++			// Issue the Value itself.
++			b.Values = append(b.Values, v)
+ 
+-					// Load w into this register
+-					var c *Value
+-					if len(w.Args) == 0 {
+-						// Materialize w
+-						if w.Op == OpSB {
+-							c = w
+-						} else if w.Op == OpSP {
+-							c = b.NewValue1(w.Line, OpCopy, w.Type, w)
+-						} else {
+-							c = b.NewValue0IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux)
+-						}
+-					} else if len(w.Args) == 1 && (w.Args[0].Op == OpSP || w.Args[0].Op == OpSB) {
+-						// Materialize offsets from SP/SB
+-						c = b.NewValue1IA(w.Line, w.Op, w.Type, w.AuxInt, w.Aux, w.Args[0])
+-					} else if wreg != 0 {
+-						// Copy from another register.
+-						// Typically just an optimization, but this is
+-						// required if w is dirty.
+-						s := pickReg(wreg)
+-						// inv: s != r
+-						c = b.NewValue1(w.Line, OpCopy, w.Type, regs[s].c)
+-					} else {
+-						// Load from home location
+-						c = b.NewValue1(w.Line, OpLoadReg, w.Type, w)
+-					}
+-					home = setloc(home, c, &registers[r])
+-					// Remember what we did
+-					regs[r].v = w
+-					regs[r].c = c
+-					regs[r].dirty = false
+-					used |= regMask(1) << r
+-				}
++			// Issue a spill for this value.  We issue spills unconditionally,
++			// then at the end of regalloc delete the ones we never use.
++			spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
++			s.values[v.ID].spill = spill
++			s.values[v.ID].spillUsed = false
+ 
+-				// Replace w with its in-register copy.
+-				v.SetArg(o.val, regs[r].c)
++			// Increment pc for next Value.
++			pc++
++		}
+ 
+-				// Remember not to undo this register assignment until after
+-				// the instruction is issued.
+-				nospill |= regMask(1) << r
+-			}
++		// Load control value into reg
++		if b.Control != nil && !b.Control.Type.IsMemory() {
++			// TODO: regspec for block control values, instead of using
++			// register set from the control op's output.
++			s.allocValToReg(b.Control, opcodeTable[b.Control.Op].reg.outputs[0], false)
++		}
+ 
+-			// TODO: do any clobbering
++		// Record endRegs
++		endRegs[b.ID] = make([]regState, numRegs)
++		copy(endRegs[b.ID], s.regs)
+ 
+-			// pick a register for v itself.
+-			if len(outputs) > 1 {
+-				panic("can't do multi-output yet")
++		// Allow control Values and Values live only on backedges to be dropped.
++		s.clearUses(pc*2 - 1)
++	}
++
++	// Process merge block input edges.  They are the tricky ones.
++	dst := make([]*Value, numRegs)
++	for _, b := range f.Blocks {
++		if len(b.Preds) <= 1 {
++			continue
++		}
++		for i, p := range b.Preds {
++			if regDebug {
++				fmt.Printf("processing %s->%s\n", p, b)
+ 			}
+-			if len(outputs) == 0 || outputs[0] == 0 {
+-				// output doesn't need a register
+-				b.Values = append(b.Values, v)
+-			} else {
+-				mask := outputs[0]
+-				if mask & ^dirty != 0 {
+-					mask &^= dirty
++
++			// Find phis, separate them into stack & register classes.
++			stackPhis = stackPhis[:0]
++			regPhis = regPhis[:0]
++			for _, v := range b.Values {
++				if v.Op != OpPhi {
++					break
+ 				}
+-				if mask & ^used != 0 {
+-					mask &^= used
++				if v.Type.IsMemory() {
++					continue
+ 				}
+-				r := pickReg(mask)
+-
+-				// Kick out whomever is using this register.
+-				if regs[r].v != nil {
+-					x := regs[r].v
+-					c := regs[r].c
+-					if regs[r].dirty && lastUse[x.ID] >= idx {
+-						// Write x back to home.  Its value is currently held in c.
+-						x.Op = OpStoreReg
+-						x.Aux = nil
+-						x.resetArgs()
+-						x.AddArg(c)
+-						b.Values = append(b.Values, x)
+-						regs[r].dirty = false
+-						dirty &^= regMask(1) << r
+-					}
+-					regs[r].v = nil
+-					regs[r].c = nil
+-					used &^= regMask(1) << r
++				if s.getHome(v) != noRegister {
++					regPhis = append(regPhis, v)
++				} else {
++					stackPhis = append(stackPhis, v)
+ 				}
+-
+-				// Reissue v with new op, with r as its home.
+-				c := b.NewValue0IA(v.Line, v.Op, v.Type, v.AuxInt, v.Aux)
+-				c.AddArgs(v.Args...)
+-				home = setloc(home, c, &registers[r])
+-
+-				// Remember what we did
+-				regs[r].v = v
+-				regs[r].c = c
+-				regs[r].dirty = true
+-				used |= regMask(1) << r
+-				dirty |= regMask(1) << r
+ 			}
+-		}
+ 
+-		// If the block ends in a call, we must put the call after the spill code.
+-		var call *Value
+-		if b.Kind == BlockCall {
+-			call = b.Control
+-			if call != b.Values[len(b.Values)-1] {
+-				b.Fatalf("call not at end of block %v %v", b, call)
++			// Start with the state that exists at the end of the
++			// predecessor block.  We'll be adding instructions here
++			// to shuffle registers & stack phis into the right spot.
++			s.setState(endRegs[p.ID])
++			s.curBlock = p
++
++			// Handle stack-based phi ops first.  We need to handle them
++			// first because we need a register with which to copy them.
++
++			// We must be careful not to overwrite any stack phis which are
++			// themselves args of other phis.  For example:
++			//  v1 = phi(v2, v3) : 8(SP)
++			//  v2 = phi(v4, v5) : 16(SP)
++			// Here we must not write v2 until v2 is read and written to v1.
++			// The situation could be even more complicated, with cycles, etc.
++			// So in the interest of being simple, we find all the phis which
++			// are arguments of other phis and copy their values to a temporary
++			// location first.  This temporary location is called "spill2" and
++			// represents a higher-priority but temporary spill location for the value.
++			// Note this is not a problem for register-based phis because
++			// if needed we will use the spilled location as the source, and
++			// the spill location is not clobbered by the code generated here.
++			argset.clear()
++			for _, v := range stackPhis {
++				argset.add(v.Args[i].ID)
+ 			}
+-			b.Values = b.Values[:len(b.Values)-1]
+-			// TODO: do this for all control types?
+-		}
+-
+-		// at the end of the block, spill any remaining dirty, live values
+-		for r := register(0); r < numRegs; r++ {
+-			if !regs[r].dirty {
+-				continue
++			for _, v := range regPhis {
++				argset.add(v.Args[i].ID)
+ 			}
+-			v := regs[r].v
+-			c := regs[r].c
+-			if lastUse[v.ID] <= len(oldSched) {
+-				if v == v.Block.Control {
+-					// link control value to register version
+-					v.Block.Control = c
++			for _, v := range stackPhis {
++				if !argset.contains(v.ID) {
++					continue
+ 				}
+-				continue // not live after block
++				// This stack-based phi is the argument of some other
++				// phi in this block.  We must make a copy of its
++				// value so that we don't clobber it prematurely.
++				c := s.allocValToReg(v, s.values[v.ID].regs|1<<0, false)
++				d := p.NewValue1(v.Line, OpStoreReg, v.Type, c)
++				s.values[v.ID].spill2 = d
+ 			}
+ 
+-			// change v to be a copy of c
+-			v.Op = OpStoreReg
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(c)
+-			b.Values = append(b.Values, v)
++			// Assign to stack-based phis.  We do stack phis first because
++			// we might need a register to do the assignment.
++			for _, v := range stackPhis {
++				// Load phi arg into a register, then store it with a StoreReg.
++				// If already in a register, use that.  If not, use register 0.
++				// TODO: choose a better default register (set of reg by type?).
++				c := s.allocValToReg(v.Args[i], s.values[v.Args[i].ID].regs|1<<0, false)
++				v.Args[i] = p.NewValue1(v.Line, OpStoreReg, v.Type, c)
++			}
++			// Figure out what value goes in each register.
++			for r := register(0); r < numRegs; r++ {
++				dst[r] = startRegs[b.ID][r]
++			}
++			// Handle register-based phi ops.
++			for _, v := range regPhis {
++				r := s.getHome(v)
++				if dst[r] != v {
++					f.Fatalf("dst not right")
++				}
++				v.Args[i] = s.allocValToReg(v.Args[i], regMask(1)<<r, false)
++				dst[r] = nil // we've handled this one
++			}
++			// Move other non-phi register values to the right register.
++			for r := register(0); r < numRegs; r++ {
++				if dst[r] == nil {
++					continue
++				}
++				if s.regs[r].v == dst[r] {
++					continue
++				}
++				mv := s.allocValToReg(dst[r], regMask(1)<<r, false)
++				// TODO: ssa form is probably violated by this step.
++				// I don't know how to splice in the new value because
++				// I need to potentially make a phi and replace all uses.
++				_ = mv
++			}
++			// Reset spill2 fields
++			for _, v := range stackPhis {
++				spill2 := s.values[v.ID].spill2
++				if spill2 == nil {
++					continue
++				}
++				if !s.values[v.ID].spill2used {
++					spill2.Op = OpInvalid
++					spill2.Type = TypeInvalid
++					spill2.resetArgs()
++				}
++				s.values[v.ID].spill2 = nil
++				s.values[v.ID].spill2used = false
++			}
+ 		}
+-
+-		// add call back after spills
+-		if b.Kind == BlockCall {
+-			b.Values = append(b.Values, call)
++	}
++	// TODO: be smarter about the order in which to shuffle registers around.
++	// if we need to do AX->CX and CX->DX, do the latter first.  Now if we do the
++	// former first then the latter must be a restore instead of a register move.
++
++	// Erase any spills we never used
++	for i := range s.values {
++		vi := s.values[i]
++		if vi.spillUsed {
++			continue
++		}
++		spill := vi.spill
++		if spill == nil {
++			// Constants, SP, SB, ...
++			continue
+ 		}
++		spill.Op = OpInvalid
++		spill.Type = TypeInvalid
++		spill.resetArgs()
+ 	}
+-	f.RegAlloc = home
+-	deadcode(f) // remove values that had all of their uses rematerialized.  TODO: separate pass?
+-}
+-
+-// addPhiCopies adds copies of phi inputs in the blocks
+-// immediately preceding the phi's block.
+-func addPhiCopies(f *Func) {
+ 	for _, b := range f.Blocks {
+-		phis := true // all phis should appear first; confirm that as we go
++		i := 0
+ 		for _, v := range b.Values {
+-			switch {
+-			case v.Op == OpPhi && !phis:
+-				f.Fatalf("phi var %v not at beginning of block %v:\n%s\n", v, v.Block, f)
+-				break
+-			case v.Op != OpPhi:
+-				phis = false
++			if v.Op == OpInvalid {
+ 				continue
+-			case v.Type.IsMemory(): // TODO: only "regallocable" types
+-				continue
+-			}
+-			for i, w := range v.Args {
+-				c := b.Preds[i]
+-				cpy := c.NewValue1(w.Line, OpCopy, v.Type, w)
+-				v.Args[i] = cpy
+ 			}
++			b.Values[i] = v
++			i++
+ 		}
++		b.Values = b.Values[:i]
++		// TODO: zero b.Values[i:], recycle Values
++		// Not important now because this is the last phase that manipulates Values
+ 	}
++
++	// Set final regalloc result.
++	f.RegAlloc = s.home
+ }
+ 
+-// live returns a map from block ID to a list of value IDs live at the end of that block
++// live returns a map from block ID and successor edge index to a list
++// of value IDs live on that edge.
+ // TODO: this could be quadratic if lots of variables are live across lots of
+ // basic blocks.  Figure out a way to make this function (or, more precisely, the user
+ // of this function) require only linear size & time.
+-func live(f *Func) [][]ID {
+-	live := make([][]ID, f.NumBlocks())
++func (f *Func) live() [][][]ID {
++	live := make([][][]ID, f.NumBlocks())
++	for _, b := range f.Blocks {
++		live[b.ID] = make([][]ID, len(b.Succs))
++	}
+ 	var phis []*Value
+ 
+ 	s := newSparseSet(f.NumValues())
+@@ -445,7 +931,11 @@ func live(f *Func) [][]ID {
+ 		for _, b := range po {
+ 			// Start with known live values at the end of the block
+ 			s.clear()
+-			s.addAll(live[b.ID])
++			for i := 0; i < len(b.Succs); i++ {
++				s.addAll(live[b.ID][i])
++			}
++
++			// Mark control value as live
+ 			if b.Control != nil {
+ 				s.add(b.Control.ID)
+ 			}
+@@ -467,19 +957,24 @@ func live(f *Func) [][]ID {
+ 			// for each predecessor of b, expand its list of live-at-end values
+ 			// invariant: s contains the values live at the start of b (excluding phi inputs)
+ 			for i, p := range b.Preds {
++				// Find index of b in p's successors.
++				var j int
++				for j = 0; j < len(p.Succs); j++ {
++					if p.Succs[j] == b {
++						break
++					}
++				}
+ 				t.clear()
+-				t.addAll(live[p.ID])
++				t.addAll(live[p.ID][j])
+ 				t.addAll(s.contents())
+ 				for _, v := range phis {
+ 					t.add(v.Args[i].ID)
+ 				}
+-				if t.size() == len(live[p.ID]) {
++				if t.size() == len(live[p.ID][j]) {
+ 					continue
+ 				}
+ 				// grow p's live set
+-				c := make([]ID, t.size())
+-				copy(c, t.contents())
+-				live[p.ID] = c
++				live[p.ID][j] = append(live[p.ID][j][:0], t.contents()...)
+ 				changed = true
+ 			}
+ 		}
+@@ -490,13 +985,3 @@ func live(f *Func) [][]ID {
+ 	}
+ 	return live
+ }
+-
+-// for sorting a pair of integers by key
+-type intPair struct {
+-	key, val int
+-}
+-type byKey []intPair
+-
+-func (a byKey) Len() int           { return len(a) }
+-func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 064b84a804..626fb8f369 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -4,6 +4,15 @@
+ 
+ package ssa
+ 
++// setloc sets the home location of v to loc.
++func setloc(home []Location, v *Value, loc Location) []Location {
++	for v.ID >= ID(len(home)) {
++		home = append(home, nil)
++	}
++	home[v.ID] = loc
++	return home
++}
++
+ // stackalloc allocates storage in the stack frame for
+ // all Values that did not get a register.
+ func stackalloc(f *Func) {
+@@ -26,7 +35,7 @@ func stackalloc(f *Func) {
+ 	// so stackmap is smaller.
+ 
+ 	// Assign stack locations to phis first, because we
+-	// must also assign the same locations to the phi copies
++	// must also assign the same locations to the phi stores
+ 	// introduced during regalloc.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+@@ -36,12 +45,19 @@ func stackalloc(f *Func) {
+ 			if v.Type.IsMemory() { // TODO: only "regallocable" types
+ 				continue
+ 			}
++			if int(v.ID) < len(home) && home[v.ID] != nil {
++				continue // register-based phi
++			}
++			// stack-based phi
+ 			n = align(n, v.Type.Alignment())
+ 			f.Logf("stackalloc: %d-%d for %v\n", n, n+v.Type.Size(), v)
+ 			loc := &LocalSlot{n}
+ 			n += v.Type.Size()
+ 			home = setloc(home, v, loc)
+ 			for _, w := range v.Args {
++				if w.Op != OpStoreReg {
++					f.Fatalf("stack-based phi must have StoreReg args")
++				}
+ 				home = setloc(home, w, loc)
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 02b1f701f5..a43218095e 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -57,13 +57,6 @@ func tighten(f *Func) {
+ 				if v.Op == OpPhi {
+ 					continue
+ 				}
+-				if v.Op == OpSB || v.Op == OpSP {
+-					// regalloc expects OpSP and OpSB values to be in the entry block,
+-					// so don't move them.
+-					// TODO: Handle this more gracefully in regalloc and
+-					// remove this restriction.
+-					continue
+-				}
+ 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
+ 					// v is used in exactly one block, and it is not b.
+ 					// Furthermore, it takes at most one input,
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index e6e23d5270..286edc0cda 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -11,7 +11,7 @@ import "fmt"
+ // if they preserve the value of the Value (e.g. changing a (mul 2 x) to an (add x x)).
+ type Value struct {
+ 	// A unique identifier for the value.  For performance we allocate these IDs
+-	// densely starting at 0.  There is no guarantee that there won't be occasional holes, though.
++	// densely starting at 1.  There is no guarantee that there won't be occasional holes, though.
+ 	ID ID
+ 
+ 	// The operation that computes this value.  See op.go.
+@@ -69,7 +69,7 @@ func (v *Value) LongString() string {
+ 		s += fmt.Sprintf(" %v", a)
+ 	}
+ 	r := v.Block.Func.RegAlloc
+-	if r != nil && r[v.ID] != nil {
++	if int(v.ID) < len(r) && r[v.ID] != nil {
+ 		s += " : " + r[v.ID].Name()
+ 	}
+ 	return s

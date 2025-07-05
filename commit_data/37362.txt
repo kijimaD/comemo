@@ -14,8 +14,83 @@ Date:   Wed Jul 18 15:45:13 2018 -0400
     Change-Id: I17ab361338e270b9fa03999ad1954f2bbe0f5017
     Reviewed-on: https://go-review.googlesource.com/124714
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/get/pkg_test.go | 17 +++++++++++++++++
  src/cmd/go/internal/get/vcs.go      |  8 +++++++-
  src/cmd/go/internal/get/vcs_test.go | 16 ++++++++++++++++
  3 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/get/pkg_test.go b/src/cmd/go/internal/get/pkg_test.go
+index 2f61365090..fc6a179c2e 100644
+--- a/src/cmd/go/internal/get/pkg_test.go
++++ b/src/cmd/go/internal/get/pkg_test.go
+@@ -98,6 +98,23 @@ var parseMetaGoImportsTests = []struct {
+ 		IgnoreMod,
+ 		[]metaImport{{"chitin.io/chitin", "git", "https://github.com/chitin-io/chitin"}},
+ 	},
++	{
++		`<meta name="go-import" content="myitcv.io git https://github.com/myitcv/x">
++	        <meta name="go-import" content="myitcv.io/blah2 mod https://raw.githubusercontent.com/myitcv/pubx/master">
++	        `,
++		IgnoreMod,
++		[]metaImport{{"myitcv.io", "git", "https://github.com/myitcv/x"}},
++	},
++	{
++		`<meta name="go-import" content="myitcv.io git https://github.com/myitcv/x">
++	        <meta name="go-import" content="myitcv.io/blah2 mod https://raw.githubusercontent.com/myitcv/pubx/master">
++	        `,
++		PreferMod,
++		[]metaImport{
++			{"myitcv.io/blah2", "mod", "https://raw.githubusercontent.com/myitcv/pubx/master"},
++			{"myitcv.io", "git", "https://github.com/myitcv/x"},
++		},
++	},
+ }
+ 
+ func TestParseMetaGoImports(t *testing.T) {
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 82392d307b..a4fd28e2a4 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -948,7 +948,13 @@ func matchGoImport(imports []metaImport, importPath string) (metaImport, error)
+ 			continue
+ 		}
+ 
+-		if match != -1 {
++		if match >= 0 {
++			if imports[match].VCS == "mod" && im.VCS != "mod" {
++				// All the mod entries precede all the non-mod entries.
++				// We have a mod entry and don't care about the rest,
++				// matching or not.
++				break
++			}
+ 			return metaImport{}, fmt.Errorf("multiple meta tags match import path %q", importPath)
+ 		}
+ 		match = i
+diff --git a/src/cmd/go/internal/get/vcs_test.go b/src/cmd/go/internal/get/vcs_test.go
+index 142701a70a..d13721bed1 100644
+--- a/src/cmd/go/internal/get/vcs_test.go
++++ b/src/cmd/go/internal/get/vcs_test.go
+@@ -401,6 +401,22 @@ func TestMatchGoImport(t *testing.T) {
+ 			path: "different.example.com/user/foo",
+ 			err:  errors.New("meta tags do not match import path"),
+ 		},
++		{
++			imports: []metaImport{
++				{Prefix: "myitcv.io/blah2", VCS: "mod", RepoRoot: "https://raw.githubusercontent.com/myitcv/pubx/master"},
++				{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
++			},
++			path: "myitcv.io/blah2/foo",
++			mi:   metaImport{Prefix: "myitcv.io/blah2", VCS: "mod", RepoRoot: "https://raw.githubusercontent.com/myitcv/pubx/master"},
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "myitcv.io/blah2", VCS: "mod", RepoRoot: "https://raw.githubusercontent.com/myitcv/pubx/master"},
++				{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
++			},
++			path: "myitcv.io/other",
++			mi:   metaImport{Prefix: "myitcv.io", VCS: "git", RepoRoot: "https://github.com/myitcv/x"},
++		},
+ 	}
+ 
+ 	for _, test := range tests {

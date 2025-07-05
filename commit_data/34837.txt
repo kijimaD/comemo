@@ -14,6 +14,20 @@ Date:   Sat Nov 18 11:43:43 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 3339e0437a..bbc2a0f4ad 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -573,7 +573,7 @@ func (t *tester) registerTests() {
+ 				},
+ 			})
+ 		}
+-		if swig, _ := exec.LookPath("swig"); swig != "" {
++		if swig, _ := exec.LookPath("swig"); swig != "" && goos != "android" {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "swig_stdio",
+ 				heading: "../misc/swig/stdio",

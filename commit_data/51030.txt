@@ -17,7 +17,7 @@ Date:   Tue Nov 23 12:34:04 2021 -0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go.mod                                         |  2 +-
  src/go.sum                                         |  4 +-
  src/net/http/h2_bundle.go                          | 76 ++++++++++++++--------
@@ -31,3 +31,292 @@ Date:   Tue Nov 23 12:34:04 2021 -0800
  .../x/net/route/syscall_go1_12_darwin.go           | 13 ----
  src/vendor/modules.txt                             |  2 +-
  12 files changed, 63 insertions(+), 66 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index b8c4d5c16b..d26e4960b3 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.18
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa
+-	golang.org/x/net v0.0.0-20211108170745-6635138e15ea
++	golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index ff1288f81d..fddc4fbe93 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa h1:idItI2DDfCokpg0N51B2VtiLdJ4vAuXC9fnCb2gACo4=
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+-golang.org/x/net v0.0.0-20211108170745-6635138e15ea h1:FosBMXtOc8Tp9Hbo4ltl1WJSrTVewZU8MPnTPY2HdH8=
+-golang.org/x/net v0.0.0-20211108170745-6635138e15ea/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
++golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9 h1:0qxwC5n+ttVOINCBeRHO0nq9X7uy8SDsPoi5OaCdIEI=
++golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e h1:i6Vklmyu+fZMFYpum+sR4ZWABGW7MyIxfJZXYvcnbns=
+ golang.org/x/sys v0.0.0-20211109065445-02f5c0300f6e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2 h1:GLw7MR8AfAG2GmGcmVgObFOHXYypgGjnGno25RDwn3Y=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 23a4d15326..8d19c42b5a 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7830,36 +7830,49 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+ 		}
+ 	}
+ 
++	handleResponseHeaders := func() (*Response, error) {
++		res := cs.res
++		if res.StatusCode > 299 {
++			// On error or status code 3xx, 4xx, 5xx, etc abort any
++			// ongoing write, assuming that the server doesn't care
++			// about our request body. If the server replied with 1xx or
++			// 2xx, however, then assume the server DOES potentially
++			// want our body (e.g. full-duplex streaming:
++			// golang.org/issue/13444). If it turns out the server
++			// doesn't, they'll RST_STREAM us soon enough. This is a
++			// heuristic to avoid adding knobs to Transport. Hopefully
++			// we can keep it.
++			cs.abortRequestBodyWrite()
++		}
++		res.Request = req
++		res.TLS = cc.tlsState
++		if res.Body == http2noBody && http2actualContentLength(req) == 0 {
++			// If there isn't a request or response body still being
++			// written, then wait for the stream to be closed before
++			// RoundTrip returns.
++			if err := waitDone(); err != nil {
++				return nil, err
++			}
++		}
++		return res, nil
++	}
++
+ 	for {
+ 		select {
+ 		case <-cs.respHeaderRecv:
+-			res := cs.res
+-			if res.StatusCode > 299 {
+-				// On error or status code 3xx, 4xx, 5xx, etc abort any
+-				// ongoing write, assuming that the server doesn't care
+-				// about our request body. If the server replied with 1xx or
+-				// 2xx, however, then assume the server DOES potentially
+-				// want our body (e.g. full-duplex streaming:
+-				// golang.org/issue/13444). If it turns out the server
+-				// doesn't, they'll RST_STREAM us soon enough. This is a
+-				// heuristic to avoid adding knobs to Transport. Hopefully
+-				// we can keep it.
+-				cs.abortRequestBodyWrite()
+-			}
+-			res.Request = req
+-			res.TLS = cc.tlsState
+-			if res.Body == http2noBody && http2actualContentLength(req) == 0 {
+-				// If there isn't a request or response body still being
+-				// written, then wait for the stream to be closed before
+-				// RoundTrip returns.
+-				if err := waitDone(); err != nil {
+-					return nil, err
+-				}
+-			}
+-			return res, nil
++			return handleResponseHeaders()
+ 		case <-cs.abort:
+-			waitDone()
+-			return nil, cs.abortErr
++			select {
++			case <-cs.respHeaderRecv:
++				// If both cs.respHeaderRecv and cs.abort are signaling,
++				// pick respHeaderRecv. The server probably wrote the
++				// response and immediately reset the stream.
++				// golang.org/issue/49645
++				return handleResponseHeaders()
++			default:
++				waitDone()
++				return nil, cs.abortErr
++			}
+ 		case <-ctx.Done():
+ 			err := ctx.Err()
+ 			cs.abortStream(err)
+@@ -7919,6 +7932,9 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 		return err
+ 	}
+ 	cc.addStreamLocked(cs) // assigns stream ID
++	if http2isConnectionCloseRequest(req) {
++		cc.doNotReuse = true
++	}
+ 	cc.mu.Unlock()
+ 
+ 	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
+@@ -8016,6 +8032,7 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 		case <-respHeaderTimer:
+ 			return http2errTimeout
+ 		case <-respHeaderRecv:
++			respHeaderRecv = nil
+ 			respHeaderTimer = nil // keep waiting for END_STREAM
+ 		case <-cs.abort:
+ 			return cs.abortErr
+@@ -9019,7 +9036,7 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
+ 	cs.bytesRemain = res.ContentLength
+ 	res.Body = http2transportResponseBody{cs}
+ 
+-	if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
++	if cs.requestedGzip && http2asciiEqualFold(res.Header.Get("Content-Encoding"), "gzip") {
+ 		res.Header.Del("Content-Encoding")
+ 		res.Header.Del("Content-Length")
+ 		res.ContentLength = -1
+@@ -9158,7 +9175,10 @@ func (b http2transportResponseBody) Close() error {
+ 	select {
+ 	case <-cs.donec:
+ 	case <-cs.ctx.Done():
+-		return cs.ctx.Err()
++		// See golang/go#49366: The net/http package can cancel the
++		// request context after the response body is fully read.
++		// Don't treat this as an error.
++		return nil
+ 	case <-cs.reqCancel:
+ 		return http2errRequestCanceled
+ 	}
+diff --git a/src/vendor/golang.org/x/net/lif/address.go b/src/vendor/golang.org/x/net/lif/address.go
+index afb957fd8e..34b6432d6e 100644
+--- a/src/vendor/golang.org/x/net/lif/address.go
++++ b/src/vendor/golang.org/x/net/lif/address.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build solaris
+ // +build solaris
+ 
+ package lif
+diff --git a/src/vendor/golang.org/x/net/lif/binary.go b/src/vendor/golang.org/x/net/lif/binary.go
+index 738a94f422..f31ca3ad07 100644
+--- a/src/vendor/golang.org/x/net/lif/binary.go
++++ b/src/vendor/golang.org/x/net/lif/binary.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build solaris
+ // +build solaris
+ 
+ package lif
+diff --git a/src/vendor/golang.org/x/net/lif/lif.go b/src/vendor/golang.org/x/net/lif/lif.go
+index 6e81f81f1c..95c7d25846 100644
+--- a/src/vendor/golang.org/x/net/lif/lif.go
++++ b/src/vendor/golang.org/x/net/lif/lif.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build solaris
+ // +build solaris
+ 
+ // Package lif provides basic functions for the manipulation of
+diff --git a/src/vendor/golang.org/x/net/lif/link.go b/src/vendor/golang.org/x/net/lif/link.go
+index 913a53e118..f1af1306ca 100644
+--- a/src/vendor/golang.org/x/net/lif/link.go
++++ b/src/vendor/golang.org/x/net/lif/link.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build solaris
+ // +build solaris
+ 
+ package lif
+diff --git a/src/vendor/golang.org/x/net/lif/sys.go b/src/vendor/golang.org/x/net/lif/sys.go
+index c896041b7b..d0b532d9dc 100644
+--- a/src/vendor/golang.org/x/net/lif/sys.go
++++ b/src/vendor/golang.org/x/net/lif/sys.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build solaris
+ // +build solaris
+ 
+ package lif
+diff --git a/src/vendor/golang.org/x/net/lif/syscall.go b/src/vendor/golang.org/x/net/lif/syscall.go
+index aadab2e14b..8d03b4aa92 100644
+--- a/src/vendor/golang.org/x/net/lif/syscall.go
++++ b/src/vendor/golang.org/x/net/lif/syscall.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build solaris
+ // +build solaris
+ 
+ package lif
+diff --git a/src/vendor/golang.org/x/net/route/syscall.go b/src/vendor/golang.org/x/net/route/syscall.go
+index 97166dd3c4..68d37c9621 100644
+--- a/src/vendor/golang.org/x/net/route/syscall.go
++++ b/src/vendor/golang.org/x/net/route/syscall.go
+@@ -2,28 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || netbsd || openbsd
+-// +build dragonfly freebsd netbsd openbsd
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package route
+ 
+-import (
+-	"syscall"
+-	"unsafe"
+-)
++import _ "unsafe" // for linkname
+ 
+-var zero uintptr
+-
+-func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error {
+-	var p unsafe.Pointer
+-	if len(mib) > 0 {
+-		p = unsafe.Pointer(&mib[0])
+-	} else {
+-		p = unsafe.Pointer(&zero)
+-	}
+-	_, _, errno := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(p), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), newlen)
+-	if errno != 0 {
+-		return error(errno)
+-	}
+-	return nil
+-}
++//go:linkname sysctl syscall.sysctl
++func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error
+diff --git a/src/vendor/golang.org/x/net/route/syscall_go1_12_darwin.go b/src/vendor/golang.org/x/net/route/syscall_go1_12_darwin.go
+deleted file mode 100644
+index 7a13e4fd90..0000000000
+--- a/src/vendor/golang.org/x/net/route/syscall_go1_12_darwin.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.12
+-// +build go1.12
+-
+-package route
+-
+-import _ "unsafe" // for linkname
+-
+-//go:linkname sysctl syscall.sysctl
+-func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 004b599288..2650806683 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -9,7 +9,7 @@ golang.org/x/crypto/curve25519/internal/field
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/internal/subtle
+-# golang.org/x/net v0.0.0-20211108170745-6635138e15ea
++# golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

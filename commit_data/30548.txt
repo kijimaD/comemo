@@ -20,7 +20,83 @@ Date:   Fri Nov 11 17:14:02 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/clientserver_test.go | 33 +++++++++++++++++++++------------
  src/net/http/main_test.go         | 13 +++++++++++++
  2 files changed, 34 insertions(+), 12 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 286f816609..d70aabea74 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1161,7 +1161,6 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
+ 	defer afterTest(t)
+ 
+ 	var errorLog lockedBytesBuffer
+-
+ 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		io.WriteString(w, msg)
+ 		w.(Flusher).Flush()
+@@ -1182,20 +1181,30 @@ func testInterruptWithPanic(t *testing.T, h2 bool, panicValue interface{}) {
+ 	if err == nil {
+ 		t.Errorf("client read all successfully; want some error")
+ 	}
++	logOutput := func() string {
++		errorLog.Lock()
++		defer errorLog.Unlock()
++		return errorLog.String()
++	}
+ 	wantStackLogged := panicValue != nil && panicValue != ErrAbortHandler
+-	errorLog.Lock()
+-	gotLog := errorLog.String()
+-	if !wantStackLogged {
++
++	if err := waitErrCondition(5*time.Second, 10*time.Millisecond, func() error {
++		gotLog := logOutput()
++		if !wantStackLogged {
++			if gotLog == "" {
++				return nil
++			}
++			return fmt.Errorf("want no log output; got: %s", gotLog)
++		}
+ 		if gotLog == "" {
+-			return
++			return fmt.Errorf("wanted a stack trace logged; got nothing")
+ 		}
+-		t.Fatalf("want no log output; got: %s", gotLog)
+-	}
+-	if gotLog == "" {
+-		t.Fatalf("wanted a stack trace logged; got nothing")
+-	}
+-	if !strings.Contains(gotLog, "created by ") && strings.Count(gotLog, "\n") < 6 {
+-		t.Errorf("output doesn't look like a panic stack trace. Got: %s", gotLog)
++		if !strings.Contains(gotLog, "created by ") && strings.Count(gotLog, "\n") < 6 {
++			return fmt.Errorf("output doesn't look like a panic stack trace. Got: %s", gotLog)
++		}
++		return nil
++	}); err != nil {
++		t.Fatal(err)
+ 	}
+ }
+ 
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index aea6e12744..59bf09027b 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -134,3 +134,16 @@ func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
+ 	}
+ 	return false
+ }
++
++// waitErrCondition is like waitCondition but with errors instead of bools.
++func waitErrCondition(waitFor, checkEvery time.Duration, fn func() error) error {
++	deadline := time.Now().Add(waitFor)
++	var err error
++	for time.Now().Before(deadline) {
++		if err = fn(); err == nil {
++			return nil
++		}
++		time.Sleep(checkEvery)
++	}
++	return err
++}

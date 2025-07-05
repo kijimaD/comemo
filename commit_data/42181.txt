@@ -9,8 +9,141 @@ Date:   Tue Oct 29 17:25:56 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go             | 25 +++++++++++++++++++---
  src/cmd/compile/internal/gc/syntax.go          | 29 ++++++++++++++++++++++++++
  src/cmd/compile/internal/logopt/logopt_test.go |  3 +++
  3 files changed, 54 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 7dfff34c37..48c7de327d 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -27,6 +27,7 @@
+ package gc
+ 
+ import (
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+@@ -115,10 +116,15 @@ func caninl(fn *Node) {
+ 	}
+ 
+ 	var reason string // reason, if any, that the function was not inlined
+-	if Debug['m'] > 1 {
++	if Debug['m'] > 1 || logopt.Enabled() {
+ 		defer func() {
+ 			if reason != "" {
+-				fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
++				if Debug['m'] > 1 {
++					fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
++				}
++				if logopt.Enabled() {
++					logopt.LogOpt(fn.Pos, "cannotInlineFunction", "inline", fn.funcname(), reason)
++				}
+ 			}
+ 		}()
+ 	}
+@@ -223,6 +229,9 @@ func caninl(fn *Node) {
+ 	} else if Debug['m'] != 0 {
+ 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
+ 	}
++	if logopt.Enabled() {
++		logopt.LogOpt(fn.Pos, "canInlineFunction", "inline", fn.funcname(), fmt.Sprintf("cost: %d", inlineMaxBudget-visitor.budget))
++	}
+ }
+ 
+ // inlFlood marks n's inline body for export and recursively ensures
+@@ -412,7 +421,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	v.budget--
+ 
+ 	// When debugging, don't stop early, to get full cost of inlining this function
+-	if v.budget < 0 && Debug['m'] < 2 {
++	if v.budget < 0 && Debug['m'] < 2 && !logopt.Enabled() {
+ 		return true
+ 	}
+ 
+@@ -826,11 +835,18 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 	if fn.Func.Inl.Cost > maxCost {
+ 		// The inlined function body is too big. Typically we use this check to restrict
+ 		// inlining into very big functions.  See issue 26546 and 17566.
++		if logopt.Enabled() {
++			logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
++				fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Func.Inl.Cost, fn.pkgFuncName(), maxCost))
++		}
+ 		return n
+ 	}
+ 
+ 	if fn == Curfn || fn.Name.Defn == Curfn {
+ 		// Can't recursively inline a function into itself.
++		if logopt.Enabled() {
++			logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", Curfn.funcname()))
++		}
+ 		return n
+ 	}
+ 
+@@ -857,6 +873,9 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 	if Debug['m'] > 2 {
+ 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
+ 	}
++	if logopt.Enabled() {
++		logopt.LogOpt(n.Pos, "inlineCall", "inline", Curfn.funcname(), fn.pkgFuncName())
++	}
+ 
+ 	if ssaDump != "" && ssaDump == Curfn.funcname() {
+ 		ssaDumpInlined = append(ssaDumpInlined, fn)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 57820f3810..de187959fd 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -269,6 +269,35 @@ func (n *Node) funcname() string {
+ 	return n.Func.Nname.Sym.Name
+ }
+ 
++// pkgFuncName returns the name of the function referenced by n, with package prepended.
++// This differs from the compiler's internal convention where local functions lack a package
++// because the ultimate consumer of this is a human looking at an IDE; package is only empty
++// if the compilation package is actually the empty string.
++func (n *Node) pkgFuncName() string {
++	var s *types.Sym
++	if n == nil {
++		return "<nil>"
++	}
++	if n.Op == ONAME {
++		s = n.Sym
++	} else {
++		if n.Func == nil || n.Func.Nname == nil {
++			return "<nil>"
++		}
++		s = n.Func.Nname.Sym
++	}
++	pkg := s.Pkg
++
++	p := myimportpath
++	if pkg != nil && pkg.Path != "" {
++		p = pkg.Path
++	}
++	if p == "" {
++		return s.Name
++	}
++	return p + "." + s.Name
++}
++
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+ type Name struct {
+ 	Pack      *Node      // real package for import . names
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index f2270fc978..98b8a710c5 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -106,6 +106,9 @@ func TestLogOpt(t *testing.T) {
+ 		// below shows proper inlining and nilcheck
+ 		want(t, slogged, `{"range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}},"severity":3,"code":"nilcheck","source":"go compiler","message":"","relatedInformation":[{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"}]}`)
+ 		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
++		want(t, slogged, `{"range":{"start":{"line":7,"character":6},"end":{"line":7,"character":6}},"severity":3,"code":"canInlineFunction","source":"go compiler","message":"cost: 35"}`)
++		want(t, slogged, `{"range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}},"severity":3,"code":"inlineCall","source":"go compiler","message":"x.bar"}`)
++		want(t, slogged, `{"range":{"start":{"line":8,"character":9},"end":{"line":8,"character":9}},"severity":3,"code":"inlineCall","source":"go compiler","message":"x.bar"}`)
+ 	})
+ }
+ 

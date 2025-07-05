@@ -6,7 +6,34 @@ Date:   Wed Nov 4 15:13:16 2009 -0800
     
     R=rsc
     http://go/go-review/1016041
-
+---
  src/pkg/regexp/regexp.go     | 2 +-
  src/pkg/template/template.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 4ece95b660..399981571a 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -630,7 +630,7 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
+ func MustCompile(str string) *Regexp {
+ 	regexp, error := Compile(str);
+ 	if error != nil {
+-		panicln(`regexp: compiling "`, str, `": `, error);
++		panicln(`regexp: compiling "`, str, `": `, error.String());
+ 	}
+ 	return regexp;
+ }
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index cd0514ba22..85da9121c7 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -898,7 +898,7 @@ func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
+ func MustParse(s string, fmap FormatterMap) *Template {
+ 	t , err := Parse(s, fmap);
+ 	if err != nil {
+-		panic("template parse error: ", err);
++		panic("template parse error: ", err.String());
+ 	}
+ 	return t
+ }

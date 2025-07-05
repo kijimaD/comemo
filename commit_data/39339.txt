@@ -20,8 +20,97 @@ Date:   Sun Feb 24 13:18:13 2019 +0100
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/androidtest.bash  |  5 +----
  src/cmd/dist/build.go | 30 +++++++++++++++++++++++++++++-
  src/iostest.bash      |  6 +-----
  3 files changed, 31 insertions(+), 10 deletions(-)
+
+diff --git a/src/androidtest.bash b/src/androidtest.bash
+index e43b89c0dc..12f240cc58 100755
+--- a/src/androidtest.bash
++++ b/src/androidtest.bash
+@@ -31,14 +31,11 @@ fi
+ export CGO_ENABLED=1
+ unset GOBIN
+ 
+-# Do the build first, so we can build go_android_exec and cleaner.
++# Do the build first, so we can build the 'cleaner' binary.
+ # Also lets us fail early before the (slow) adb push if the build is broken.
+ . ./make.bash --no-banner
+ export GOROOT=$(dirname $(pwd))
+ export PATH=$GOROOT/bin:$PATH
+-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+-	-o ../bin/go_android_${GOARCH}_exec \
+-	../misc/android/go_android_exec.go
+ 
+ export pkgdir=$(dirname $(go list -f '{{.Target}}' runtime))
+ if [ "$pkgdir" = "" ]; then
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index ad2c96436a..6388e3e863 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1366,14 +1366,42 @@ func cmdbootstrap() {
+ 	// Remove go_bootstrap now that we're done.
+ 	xremove(pathf("%s/go_bootstrap", tooldir))
+ 
++	// Build the exec wrapper if necessary.
++	if wrapperPath := wrapperPathFor(goos, goarch); wrapperPath != "" {
++		oldcc := os.Getenv("CC")
++		os.Setenv("GOOS", gohostos)
++		os.Setenv("GOARCH", gohostarch)
++		os.Setenv("CC", compilerEnvLookup(defaultcc, gohostos, gohostarch))
++		goCmd(cmdGo, "build", "-o", pathf("%s/go_%s_%s_exec%s", gobin, goos, goarch, exe), wrapperPath)
++		// Restore environment.
++		// TODO(elias.naur): support environment variables in goCmd?
++		os.Setenv("GOOS", goos)
++		os.Setenv("GOARCH", goarch)
++		os.Setenv("CC", oldcc)
++	}
++
+ 	// Print trailing banner unless instructed otherwise.
+ 	if !noBanner {
+ 		banner()
+ 	}
+ }
+ 
++func wrapperPathFor(goos, goarch string) string {
++	switch {
++	case goos == "android":
++		return pathf("%s/misc/android/go_android_exec.go", goroot)
++	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
++		return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
++	}
++	return ""
++}
++
+ func goInstall(goBinary string, args ...string) {
+-	installCmd := []string{goBinary, "install", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
++	goCmd(goBinary, "install", args...)
++}
++
++func goCmd(goBinary string, cmd string, args ...string) {
++	installCmd := []string{goBinary, cmd, "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+ 	if vflag > 0 {
+ 		installCmd = append(installCmd, "-v")
+ 	}
+diff --git a/src/iostest.bash b/src/iostest.bash
+index b402ff0792..1fc1666bae 100755
+--- a/src/iostest.bash
++++ b/src/iostest.bash
+@@ -56,14 +56,10 @@ export PATH=$GOROOT/bin:$PATH
+ export CGO_ENABLED=1
+ export CC_FOR_TARGET=$GOROOT/misc/ios/clangwrap.sh
+ 
+-# Run the build for the host bootstrap, so we can build go_darwin_arm_exec.
++# Run the build for the host bootstrap, so we can build detect.go.
+ # Also lets us fail early before the (slow) ios-deploy if the build is broken.
+ ./make.bash
+ 
+-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
+-	-o ../bin/go_darwin_${GOARCH}_exec \
+-	../misc/ios/go_darwin_arm_exec.go
+-
+ if [ "$GOIOS_DEV_ID" = "" ]; then
+ 	echo "detecting iOS development identity"
+ 	eval $(GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go run ../misc/ios/detect.go)

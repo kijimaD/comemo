@@ -15,6 +15,21 @@ Date:   Fri Sep 29 11:10:20 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ce5c71ae5a..0548840087 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -3333,7 +3333,8 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 		}
+ 		b.flagCache = make(map[[2]string]bool)
+ 	}
+-	cmdArgs := append(compiler, flag, "-c", "trivial.c")
++	cmdArgs := append([]string(nil), compiler...)
++	cmdArgs = append(cmdArgs, flag, "-c", "trivial.c")
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd(b.WorkDir, "%s", joinUnambiguously(cmdArgs))
+ 		if cfg.BuildN {

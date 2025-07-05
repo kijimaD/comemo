@@ -7,8 +7,108 @@ Date:   Fri Dec 12 13:10:36 2008 -0800
     R=r
     OCL=21082
     CL=21082
-
+---
  src/cmd/gc/const.c | 42 ++++++++++++++++++++++++++----------------
  src/cmd/gc/go.h    |  1 +
  src/cmd/gc/walk.c  |  2 +-
  3 files changed, 28 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index a61ebe5ee1..d8e38300d4 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -34,7 +34,7 @@ truncfltlit(Mpflt *fv, Type *t)
+ }
+ 
+ void
+-convlit(Node *n, Type *t)
++convlit1(Node *n, Type *t, int conv)
+ {
+ 	int et, wt;
+ 
+@@ -92,21 +92,6 @@ convlit(Node *n, Type *t)
+ 			defaultlit(n);
+ 			return;
+ 		}
+-		if(isptrto(t, TSTRING)) {
+-			Rune rune;
+-			int l;
+-			String *s;
+-
+-			rune = mpgetfix(n->val.u.xval);
+-			l = runelen(rune);
+-			s = mal(sizeof(*s)+l);
+-			s->len = l;
+-			runetochar((char*)(s->s), &rune);
+-
+-			n->val.u.sval = s;
+-			n->val.ctype = CTSTR;
+-			break;
+-		}
+ 		if(isint[et]) {
+ 			// int to int
+ 			if(mpcmpfixfix(n->val.u.xval, minintval[et]) < 0)
+@@ -132,6 +117,25 @@ convlit(Node *n, Type *t)
+ 			truncfltlit(fv, t);
+ 			break;
+ 		}
++		if(!conv)
++			goto bad1;
++
++		// only done as string(CONST)
++		if(isptrto(t, TSTRING)) {
++			Rune rune;
++			int l;
++			String *s;
++
++			rune = mpgetfix(n->val.u.xval);
++			l = runelen(rune);
++			s = mal(sizeof(*s)+l);
++			s->len = l;
++			runetochar((char*)(s->s), &rune);
++
++			n->val.u.sval = s;
++			n->val.ctype = CTSTR;
++			break;
++		}
+ 		goto bad1;
+ 
+ 	case Wlitfloat:
+@@ -186,6 +190,12 @@ bad3:
+ 	return;
+ }
+ 
++void
++convlit(Node *n, Type *t)
++{
++	convlit1(n, t, 0);
++}
++
+ void
+ evconst(Node *n)
+ {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 8ab5c24dae..81371f41d4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -822,6 +822,7 @@ Node*	old2new(Node*, Type*);
+ /*
+  *	const.c
+  */
++void	convlit1(Node*, Type*, int);
+ void	convlit(Node*, Type*);
+ void	evconst(Node*);
+ int	cmpslit(Node *l, Node *r);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c0b78d69df..7c17794a5d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -560,7 +560,7 @@ loop:
+ 			goto ret;
+ 
+ 		if(!iscomposite(t))
+-			convlit(l, t);
++			convlit1(l, t, 1);
+ 
+ 		// nil conversion
+ 		if(eqtype(t, l->type, 0)) {

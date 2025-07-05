@@ -10,7 +10,115 @@ Date:   Tue Mar 3 12:53:41 2015 -0800
     Change-Id: Ia2fb49297d8ea7aa7d64c8b1318dc3dc7c8af2f7
     Reviewed-on: https://go-review.googlesource.com/6671
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go             | 44 ++++-----------------------------------
  src/math/big/floatexample_test.go | 32 ++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 40 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index fa0cb2ba89..e24961c61a 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -88,8 +88,8 @@ const (
+ 
+ // Accuracy describes the rounding error produced by the most recent
+ // operation that generated a Float value, relative to the exact value.
+-// The accuracy may be Undef (either Below or Above) for operations on
+-// and resulting in NaNs.
++// The accuracy may be Undef for operations on and resulting in
++// NaNs since they are neither Below nor Above any other value.
+ type Accuracy int8
+ 
+ // Constants describing the Accuracy of a Float.
+@@ -278,6 +278,8 @@ func (x *Float) MantExp(mant *Float) (exp int) {
+ //	z.SetMantExp(±Inf, exp) = ±Inf
+ //	z.SetMantExp( NaN, exp) =  NaN
+ //
++// z and mant may be the same in which case z's exponent
++// is set to exp.
+ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+ 	if debugFloat {
+ 		validate(z)
+@@ -1449,44 +1451,6 @@ func (z *Float) Quo(x, y *Float) *Float {
+ 	return z
+ }
+ 
+-// TODO(gri) eliminate Lsh, Rsh? We can do the same with MantExp, SetMantExp.
+-
+-// Lsh sets z to the rounded x * (1<<s) and returns z.
+-// If z's precision is 0, it is changed to x's precision.
+-// Rounding is performed according to z's precision
+-// and rounding mode; and z's accuracy reports the
+-// result error relative to the exact (not rounded)
+-// result.
+-// BUG(gri) Lsh is not tested and may not work correctly.
+-func (z *Float) Lsh(x *Float, s uint) *Float {
+-	if debugFloat {
+-		validate(x)
+-	}
+-
+-	z.Set(x)
+-	if len(x.mant) != 0 {
+-		z.setExp(int64(z.exp) + int64(s))
+-	}
+-
+-	return z
+-}
+-
+-// Rsh sets z to the rounded x / (1<<s) and returns z.
+-// Precision, rounding, and accuracy reporting are as for Lsh.
+-// BUG(gri) Rsh is not tested and may not work correctly.
+-func (z *Float) Rsh(x *Float, s uint) *Float {
+-	if debugFloat {
+-		validate(x)
+-	}
+-
+-	z.Set(x)
+-	if len(x.mant) != 0 {
+-		z.setExp(int64(z.exp) - int64(s))
+-	}
+-
+-	return z
+-}
+-
+ // Cmp compares x and y and returns:
+ //
+ //   -1 if x <  y
+diff --git a/src/math/big/floatexample_test.go b/src/math/big/floatexample_test.go
+new file mode 100644
+index 0000000000..7123651bbc
+--- /dev/null
++++ b/src/math/big/floatexample_test.go
+@@ -0,0 +1,32 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package big_test
++
++import (
++	"fmt"
++	"math/big"
++)
++
++func Example_Shift() {
++	// Implementing Float "shift" by modifying the (binary) exponents directly.
++	var x big.Float
++	for s := -5; s <= 5; s++ {
++		x.SetFloat64(0.5)
++		x.SetMantExp(&x, x.MantExp(nil)+s) // shift x by s
++		fmt.Println(&x)
++	}
++	// Output:
++	// 0.015625
++	// 0.03125
++	// 0.0625
++	// 0.125
++	// 0.25
++	// 0.5
++	// 1
++	// 2
++	// 4
++	// 8
++	// 16
++}

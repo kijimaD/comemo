@@ -9,6 +9,26 @@ Date:   Mon Dec 2 17:58:19 2013 -0800
     R=dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/36370043
-
+---
  src/pkg/reflect/all_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 17d078753c..df64e3bb7b 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -3640,3 +3640,14 @@ func TestReflectMethodTraceback(t *testing.T) {
+ 		t.Errorf("Call returned %d; want 8", i)
+ 	}
+ }
++
++func TestBigZero(t *testing.T) {
++	const size = 1 << 10
++	var v [size]byte
++	z := Zero(ValueOf(v).Type()).Interface().([size]byte)
++	for i := 0; i < size; i++ {
++		if z[i] != 0 {
++			t.Fatalf("Zero object not all zero, index %d", i)
++		}
++	}
++}

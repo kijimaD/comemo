@@ -15,7 +15,7 @@ Date:   Tue Oct 13 14:19:20 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 ++--
  .../golang.org/x/tools/go/analysis/analysis.go     | 13 +++++++------
@@ -24,3 +24,173 @@ Date:   Tue Oct 13 14:19:20 2020 -0400
  .../x/tools/go/analysis/unitchecker/unitchecker.go |  2 ++
  src/cmd/vendor/modules.txt                         |  2 +-
  7 files changed, 42 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 56941b0541..47165c2d66 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,5 +9,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
+ 	golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
+ 	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
+-	golang.org/x/tools v0.0.0-20200918232735-d647fc253266
++	golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 2b505c4354..1cf0ab778b 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -30,8 +30,8 @@ golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d h1:L/IKR6COd7ubZrs2oTnTi73Ih
+ golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20200918232735-d647fc253266 h1:k7tVuG0g1JwmD3Jh8oAl1vQ1C3jb4Hi/dUl1wWDBJpQ=
+-golang.org/x/tools v0.0.0-20200918232735-d647fc253266/go.mod h1:z6u4i615ZeAfBE4XtMziQW1fSVJXACjjbWkB/mvPzlU=
++golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7 h1:z+ozLsKwDztt1oIueYsv07oF+mXNYIiwU0PQVXwmhlo=
++golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7/go.mod h1:z6u4i615ZeAfBE4XtMziQW1fSVJXACjjbWkB/mvPzlU=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 8c9977355c..8c3c2e7ab9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -95,12 +95,13 @@ type Pass struct {
+ 	Analyzer *Analyzer // the identity of the current analyzer
+ 
+ 	// syntax and type information
+-	Fset       *token.FileSet // file position information
+-	Files      []*ast.File    // the abstract syntax tree of each file
+-	OtherFiles []string       // names of non-Go files of this package
+-	Pkg        *types.Package // type information about the package
+-	TypesInfo  *types.Info    // type information about the syntax trees
+-	TypesSizes types.Sizes    // function for computing sizes of types
++	Fset         *token.FileSet // file position information
++	Files        []*ast.File    // the abstract syntax tree of each file
++	OtherFiles   []string       // names of non-Go files of this package
++	IgnoredFiles []string       // names of ignored source files in this package
++	Pkg          *types.Package // type information about the package
++	TypesInfo    *types.Info    // type information about the syntax trees
++	TypesSizes   types.Sizes    // function for computing sizes of types
+ 
+ 	// Report reports a Diagnostic, a finding about a specific location
+ 	// in the analyzed source code such as a potential mistake.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index fb17a0e415..9fa3302dfb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -121,13 +121,14 @@ package being analyzed, and provides operations to the Run function for
+ reporting diagnostics and other information back to the driver.
+ 
+ 	type Pass struct {
+-		Fset       *token.FileSet
+-		Files      []*ast.File
+-		OtherFiles []string
+-		Pkg        *types.Package
+-		TypesInfo  *types.Info
+-		ResultOf   map[*Analyzer]interface{}
+-		Report     func(Diagnostic)
++		Fset         *token.FileSet
++		Files        []*ast.File
++		OtherFiles   []string
++		IgnoredFiles []string
++		Pkg          *types.Package
++		TypesInfo    *types.Info
++		ResultOf     map[*Analyzer]interface{}
++		Report       func(Diagnostic)
+ 		...
+ 	}
+ 
+@@ -139,6 +140,12 @@ files such as assembly that are part of this package. See the "asmdecl"
+ or "buildtags" analyzers for examples of loading non-Go files and reporting
+ diagnostics against them.
+ 
++The IgnoredFiles field provides the names, but not the contents,
++of ignored Go and non-Go source files that are not part of this package
++with the current build configuration but may be part of other build
++configurations. See the "buildtags" analyzer for an example of loading
++and checking IgnoredFiles.
++
+ The ResultOf field provides the results computed by the analyzers
+ required by this one, as expressed in its Analyzer.Requires field. The
+ driver runs the required analyzers first and makes their results
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index 78176f1011..841b928578 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/ast"
++	"go/parser"
+ 	"strings"
+ 	"unicode"
+ 
+@@ -33,6 +34,20 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
+ 			return nil, err
+ 		}
+ 	}
++	for _, name := range pass.IgnoredFiles {
++		if strings.HasSuffix(name, ".go") {
++			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
++			if err != nil {
++				// Not valid Go source code - not our job to diagnose, so ignore.
++				return nil, nil
++			}
++			checkGoFile(pass, f)
++		} else {
++			if err := checkOtherFile(pass, name); err != nil {
++				return nil, err
++			}
++		}
++	}
+ 	return nil, nil
+ }
+ 
+@@ -132,13 +147,6 @@ func checkLine(line string, pastCutoff bool) error {
+ }
+ 
+ func checkArguments(fields []string) error {
+-	// The original version of this checker in vet could examine
+-	// files with malformed build tags that would cause the file to
+-	// be always ignored by "go build". However, drivers for the new
+-	// analysis API will analyze only the files selected to form a
+-	// package, so these checks will never fire.
+-	// TODO(adonovan): rethink this.
+-
+ 	for _, arg := range fields[1:] {
+ 		for _, elem := range strings.Split(arg, ",") {
+ 			if strings.HasPrefix(elem, "!!") {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 2ed274949b..713e1380ef 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -63,6 +63,7 @@ type Config struct {
+ 	ImportPath                string
+ 	GoFiles                   []string
+ 	NonGoFiles                []string
++	IgnoredFiles              []string
+ 	ImportMap                 map[string]string
+ 	PackageFile               map[string]string
+ 	Standard                  map[string]bool
+@@ -333,6 +334,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				Fset:              fset,
+ 				Files:             files,
+ 				OtherFiles:        cfg.NonGoFiles,
++				IgnoredFiles:      cfg.IgnoredFiles,
+ 				Pkg:               pkg,
+ 				TypesInfo:         info,
+ 				TypesSizes:        tc.Sizes,
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e2078b1a7f..e37cab806a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/mod/zip
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20200918232735-d647fc253266
++# golang.org/x/tools v0.0.0-20201013174405-d88ec18c69c7
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags

@@ -8,6 +8,25 @@ Date:   Mon Feb 10 13:52:58 2014 +0400
     R=golang-codereviews, bradfitz, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/61260044
-
+---
  misc/pprof | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/misc/pprof b/misc/pprof
+index 1fc8d36219..713c3620fc 100755
+--- a/misc/pprof
++++ b/misc/pprof
+@@ -730,6 +730,13 @@ sub RunWeb {
+     return;
+   }
+ 
++  if (`uname` =~ /CYGWIN/) {
++    # Windows(cygwin): open will use standard preference for SVG files.
++    my $winname = `cygpath -wa $fname`;
++    system("explorer.exe", $winname);
++    return;
++  }
++
+   # Some kind of Unix; try generic symlinks, then specific browsers.
+   # (Stop once we find one.)
+   # Works best if the browser is already running.

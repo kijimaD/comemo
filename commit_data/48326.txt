@@ -14,8 +14,345 @@ Date:   Thu Apr 29 13:36:08 2021 -0400
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/name_constraints_test.go | 30 +--------------
  src/crypto/x509/verify.go                | 64 ++++---------------------------
  src/crypto/x509/verify_test.go           | 66 --------------------------------
  3 files changed, 9 insertions(+), 151 deletions(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 3826c82c38..c59a7dc1a6 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -614,7 +614,8 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 		},
+ 	},
+ 
+-	// #30: without SANs, a certificate with a CN is rejected in a constrained chain.
++	// #30: without SANs, a certificate with a CN is still accepted in a
++	// constrained chain, since we ignore the CN in VerifyHostname.
+ 	{
+ 		roots: []constraintsSpec{
+ 			{
+@@ -630,7 +631,6 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 			sans: []string{},
+ 			cn:   "foo.com",
+ 		},
+-		expectedError: "leaf doesn't have a SAN extension",
+ 	},
+ 
+ 	// #31: IPv6 addresses work in constraints: roots can permit them as
+@@ -1595,26 +1595,6 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 			cn:   "foo.bar",
+ 		},
+ 	},
+-
+-	// #85: without SANs, a certificate with a valid CN is accepted in a
+-	// constrained chain if x509ignoreCN is set.
+-	{
+-		roots: []constraintsSpec{
+-			{
+-				ok: []string{"dns:foo.com", "dns:.foo.com"},
+-			},
+-		},
+-		intermediates: [][]constraintsSpec{
+-			{
+-				{},
+-			},
+-		},
+-		leaf: leafSpec{
+-			sans: []string{},
+-			cn:   "foo.com",
+-		},
+-		ignoreCN: true,
+-	},
+ }
+ 
+ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+@@ -1865,10 +1845,6 @@ func parseEKUs(ekuStrs []string) (ekus []ExtKeyUsage, unknowns []asn1.ObjectIden
+ }
+ 
+ func TestConstraintCases(t *testing.T) {
+-	defer func(savedIgnoreCN bool) {
+-		ignoreCN = savedIgnoreCN
+-	}(ignoreCN)
+-
+ 	privateKeys := sync.Pool{
+ 		New: func() interface{} {
+ 			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+@@ -1960,7 +1936,6 @@ func TestConstraintCases(t *testing.T) {
+ 			}
+ 		}
+ 
+-		ignoreCN = test.ignoreCN
+ 		verifyOpts := VerifyOptions{
+ 			Roots:         rootPool,
+ 			Intermediates: intermediatePool,
+@@ -1999,7 +1974,6 @@ func TestConstraintCases(t *testing.T) {
+ 		for _, key := range keys {
+ 			privateKeys.Put(key)
+ 		}
+-		keys = keys[:0]
+ 	}
+ }
+ 
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 2432d9bb86..9ef11466a4 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"net"
+ 	"net/url"
+-	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"strings"
+@@ -18,9 +17,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
+-var ignoreCN = !strings.Contains(os.Getenv("GODEBUG"), "x509ignoreCN=0")
+-
+ type InvalidReason int
+ 
+ const (
+@@ -43,14 +39,7 @@ const (
+ 	// NameMismatch results when the subject name of a parent certificate
+ 	// does not match the issuer name in the child.
+ 	NameMismatch
+-	// NameConstraintsWithoutSANs results when a leaf certificate doesn't
+-	// contain a Subject Alternative Name extension, but a CA certificate
+-	// contains name constraints, and the Common Name can be interpreted as
+-	// a hostname.
+-	//
+-	// This error is only returned when legacy Common Name matching is enabled
+-	// by setting the GODEBUG environment variable to "x509ignoreCN=1". This
+-	// setting might be removed in the future.
++	// NameConstraintsWithoutSANs is a legacy error and is no longer returned.
+ 	NameConstraintsWithoutSANs
+ 	// UnconstrainedName results when a CA certificate contains permitted
+ 	// name constraints, but leaf certificate contains a name of an
+@@ -110,15 +99,7 @@ func (h HostnameError) Error() string {
+ 	c := h.Certificate
+ 
+ 	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+-		if !ignoreCN && !validHostnamePattern(c.Subject.CommonName) {
+-			// This would have validated, if it weren't for the validHostname check on Common Name.
+-			return "x509: Common Name is not a valid hostname: " + c.Subject.CommonName
+-		}
+-		if ignoreCN && validHostnamePattern(c.Subject.CommonName) {
+-			// This would have validated if x509ignoreCN=0 were set.
+-			return "x509: certificate relies on legacy Common Name field, " +
+-				"use SANs or temporarily enable Common Name matching with GODEBUG=x509ignoreCN=0"
+-		}
++		return "x509: certificate relies on legacy Common Name field, use SANs instead"
+ 	}
+ 
+ 	var valid string
+@@ -134,11 +115,7 @@ func (h HostnameError) Error() string {
+ 			valid += san.String()
+ 		}
+ 	} else {
+-		if c.commonNameAsHostname() {
+-			valid = c.Subject.CommonName
+-		} else {
+-			valid = strings.Join(c.DNSNames, ", ")
+-		}
++		valid = strings.Join(c.DNSNames, ", ")
+ 	}
+ 
+ 	if len(valid) == 0 {
+@@ -620,15 +597,8 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		leaf = currentChain[0]
+ 	}
+ 
+-	checkNameConstraints := (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints()
+-	if checkNameConstraints && leaf.commonNameAsHostname() {
+-		// This is the deprecated, legacy case of depending on the commonName as
+-		// a hostname. We don't enforce name constraints against the CN, but
+-		// VerifyHostname will look for hostnames in there if there are no SANs.
+-		// In order to ensure VerifyHostname will not accept an unchecked name,
+-		// return an error here.
+-		return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
+-	} else if checkNameConstraints && leaf.hasSANExtension() {
++	if (certType == intermediateCertificate || certType == rootCertificate) &&
++		c.hasNameConstraints() && leaf.hasSANExtension() {
+ 		err := forEachSAN(leaf.getSANExtension(), func(tag int, data []byte) error {
+ 			switch tag {
+ 			case nameTypeEmail:
+@@ -960,18 +930,6 @@ func validHostname(host string, isPattern bool) bool {
+ 	return true
+ }
+ 
+-// commonNameAsHostname reports whether the Common Name field should be
+-// considered the hostname that the certificate is valid for. This is a legacy
+-// behavior, disabled by default or if the Subject Alt Name extension is present.
+-//
+-// It applies the strict validHostname check to the Common Name field, so that
+-// certificates without SANs can still be validated against CAs with name
+-// constraints if there is no risk the CN would be matched as a hostname.
+-// See NameConstraintsWithoutSANs and issue 24151.
+-func (c *Certificate) commonNameAsHostname() bool {
+-	return !ignoreCN && !c.hasSANExtension() && validHostnamePattern(c.Subject.CommonName)
+-}
+-
+ func matchExactly(hostA, hostB string) bool {
+ 	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
+ 		return false
+@@ -1046,10 +1004,7 @@ func toLowerCaseASCII(in string) string {
+ // against the DNSNames field. If the names are valid hostnames, the certificate
+ // fields can have a wildcard as the left-most label.
+ //
+-// The legacy Common Name field is ignored unless it's a valid hostname, the
+-// certificate doesn't have any Subject Alternative Names, and the GODEBUG
+-// environment variable is set to "x509ignoreCN=0". Support for Common Name is
+-// deprecated will be entirely removed in the future.
++// Note that the legacy Common Name field is ignored.
+ func (c *Certificate) VerifyHostname(h string) error {
+ 	// IP addresses may be written in [ ].
+ 	candidateIP := h
+@@ -1067,15 +1022,10 @@ func (c *Certificate) VerifyHostname(h string) error {
+ 		return HostnameError{c, candidateIP}
+ 	}
+ 
+-	names := c.DNSNames
+-	if c.commonNameAsHostname() {
+-		names = []string{c.Subject.CommonName}
+-	}
+-
+ 	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
+ 	validCandidateName := validHostnameInput(candidateName)
+ 
+-	for _, match := range names {
++	for _, match := range c.DNSNames {
+ 		// Ideally, we'd only match valid hostnames according to RFC 6125 like
+ 		// browsers (more or less) do, but in practice Go is used in a wider
+ 		// array of contexts and can't even assume DNS resolution. Instead,
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 8e0a7bef47..9954a670da 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -30,7 +30,6 @@ type verifyTest struct {
+ 	systemSkip    bool
+ 	systemLax     bool
+ 	keyUsages     []ExtKeyUsage
+-	ignoreCN      bool
+ 
+ 	errorCallback  func(*testing.T, error)
+ 	expectedChains [][]string
+@@ -297,8 +296,6 @@ var verifyTests = []verifyTest{
+ 		errorCallback: expectNotAuthorizedError,
+ 	},
+ 	{
+-		// If any SAN extension is present (even one without any DNS
+-		// names), the CN should be ignored.
+ 		name:        "IgnoreCNWithSANs",
+ 		leaf:        ignoreCNWithSANLeaf,
+ 		dnsName:     "foo.example.com",
+@@ -325,7 +322,6 @@ var verifyTests = []verifyTest{
+ 		// verify error.
+ 		name:          "CriticalExtLeaf",
+ 		leaf:          criticalExtLeafWithExt,
+-		dnsName:       "example.com",
+ 		intermediates: []string{criticalExtIntermediate},
+ 		roots:         []string{criticalExtRoot},
+ 		currentTime:   1486684488,
+@@ -338,7 +334,6 @@ var verifyTests = []verifyTest{
+ 		// cause a verify error.
+ 		name:          "CriticalExtIntermediate",
+ 		leaf:          criticalExtLeaf,
+-		dnsName:       "example.com",
+ 		intermediates: []string{criticalExtIntermediateWithExt},
+ 		roots:         []string{criticalExtRoot},
+ 		currentTime:   1486684488,
+@@ -347,18 +342,6 @@ var verifyTests = []verifyTest{
+ 		errorCallback: expectUnhandledCriticalExtension,
+ 	},
+ 	{
+-		// Test that invalid CN are ignored.
+-		name:        "InvalidCN",
+-		leaf:        invalidCNWithoutSAN,
+-		dnsName:     "foo,invalid",
+-		roots:       []string{invalidCNRoot},
+-		currentTime: 1540000000,
+-		systemSkip:  true, // does not chain to a system root
+-
+-		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+-	},
+-	{
+-		// Test that valid CN are respected.
+ 		name:        "ValidCN",
+ 		leaf:        validCNWithoutSAN,
+ 		dnsName:     "foo.example.com",
+@@ -366,42 +349,6 @@ var verifyTests = []verifyTest{
+ 		currentTime: 1540000000,
+ 		systemSkip:  true, // does not chain to a system root
+ 
+-		expectedChains: [][]string{
+-			{"foo.example.com", "Test root"},
+-		},
+-	},
+-	// Replicate CN tests with ignoreCN = true
+-	{
+-		name:        "IgnoreCNWithSANs/ignoreCN",
+-		leaf:        ignoreCNWithSANLeaf,
+-		dnsName:     "foo.example.com",
+-		roots:       []string{ignoreCNWithSANRoot},
+-		currentTime: 1486684488,
+-		systemSkip:  true, // does not chain to a system root
+-		ignoreCN:    true,
+-
+-		errorCallback: expectHostnameError("certificate is not valid for any names"),
+-	},
+-	{
+-		name:        "InvalidCN/ignoreCN",
+-		leaf:        invalidCNWithoutSAN,
+-		dnsName:     "foo,invalid",
+-		roots:       []string{invalidCNRoot},
+-		currentTime: 1540000000,
+-		systemSkip:  true, // does not chain to a system root
+-		ignoreCN:    true,
+-
+-		errorCallback: expectHostnameError("certificate is not valid for any names"),
+-	},
+-	{
+-		name:        "ValidCN/ignoreCN",
+-		leaf:        validCNWithoutSAN,
+-		dnsName:     "foo.example.com",
+-		roots:       []string{invalidCNRoot},
+-		currentTime: 1540000000,
+-		systemSkip:  true, // does not chain to a system root
+-		ignoreCN:    true,
+-
+ 		errorCallback: expectHostnameError("certificate relies on legacy Common Name field"),
+ 	},
+ 	{
+@@ -503,9 +450,6 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
+ }
+ 
+ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
+-	defer func(savedIgnoreCN bool) { ignoreCN = savedIgnoreCN }(ignoreCN)
+-
+-	ignoreCN = test.ignoreCN
+ 	opts := VerifyOptions{
+ 		Intermediates: NewCertPool(),
+ 		DNSName:       test.dnsName,
+@@ -1589,16 +1533,6 @@ oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
+ XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
+ -----END CERTIFICATE-----`
+ 
+-const invalidCNWithoutSAN = `-----BEGIN CERTIFICATE-----
+-MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
+-A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
+-FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+-AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
+-90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
+-hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
+-xfOcLt/vbvo=
+------END CERTIFICATE-----`
+-
+ const validCNWithoutSAN = `-----BEGIN CERTIFICATE-----
+ MIIBJzCBzwIUB7q8t9mrDAL+UB1OFaMN5BEWFKQwCgYIKoZIzj0EAwIwFDESMBAG
+ A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4NDcyNFoXDTI4MDcwODE4NDcyNFow

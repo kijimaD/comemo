@@ -37,8 +37,170 @@ Date:   Thu Sep 30 15:45:29 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go | 11 ++++++-
  src/cmd/compile/internal/typecheck/subr.go    | 14 ++++----
  src/cmd/compile/internal/types/fmt.go         | 47 +++++++++++++++++++++------
  3 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 77119ce9bd..01ac1679b2 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -188,9 +188,18 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 	// Inline body index.
+ 	for nPkgs := ird.uint64(); nPkgs > 0; nPkgs-- {
+ 		pkg := p.pkgAt(ird.uint64())
++		pkgPrefix := pkg.Prefix + "."
+ 
+ 		for nSyms := ird.uint64(); nSyms > 0; nSyms-- {
+-			s := pkg.Lookup(p.stringAt(ird.uint64()))
++			s2 := p.stringAt(ird.uint64())
++			// Function/method instantiation names may include "" to
++			// represent the path name of the imported package (in type
++			// names), so replace "" with pkg.Prefix. The "" in the names
++			// will get replaced by the linker as well, so will not
++			// appear in the executable. Include the dot to avoid
++			// matching with struct tags ending in '"'.
++			s2 = strings.Replace(s2, "\"\".", pkgPrefix, -1)
++			s := pkg.Lookup(s2)
+ 			off := ird.uint64()
+ 
+ 			if _, ok := inlineImporter[s]; !ok {
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 56e6ec0e27..68240329f5 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -919,14 +919,11 @@ func addTargs(b *bytes.Buffer, targs []*types.Type) {
+ 		if i > 0 {
+ 			b.WriteByte(',')
+ 		}
+-		// Use NameString(), which includes the package name for the local
+-		// package, to make sure that type arguments (including type params),
+-		// are uniquely specified.
+-		tstring := targ.NameString()
+-		// types1 uses "interface {" and types2 uses "interface{" - convert
+-		// to consistent types2 format.  Same for "struct {"
+-		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
+-		tstring = strings.Replace(tstring, "struct {", "struct{", -1)
++		// Make sure that type arguments (including type params), are
++		// uniquely specified. LinkString() eliminates all spaces
++		// and includes the package path (local package path is "" before
++		// linker substitution).
++		tstring := targ.LinkString()
+ 		b.WriteString(tstring)
+ 	}
+ 	b.WriteString("]")
+@@ -1440,6 +1437,7 @@ func Shapify(t *types.Type, index int) *types.Type {
+ 		return s
+ 	}
+ 
++	// LinkString specifies the type uniquely, but has no spaces.
+ 	nm := fmt.Sprintf("%s_%d", u.LinkString(), index)
+ 	sym := types.ShapePkg.Lookup(nm)
+ 	if sym.Def != nil {
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 2f81c7b2e1..c70e22c946 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -64,7 +64,7 @@ var NumImport = make(map[string]int)
+ // The default is regular Go syntax (fmtGo).
+ // fmtDebug is like fmtGo but for debugging dumps and prints the type kind too.
+ // fmtTypeID and fmtTypeIDName are for generating various unique representations
+-// of types used in hashes and the linker.
++// of types used in hashes, the linker, and function/method instantiations.
+ type fmtMode int
+ 
+ const (
+@@ -461,15 +461,25 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 
+ 	case TINTER:
+ 		if t.IsEmptyInterface() {
+-			b.WriteString("interface {}")
++			if mode == fmtTypeID {
++				b.WriteString("interface{}")
++			} else {
++				b.WriteString("interface {}")
++			}
+ 			break
+ 		}
+-		b.WriteString("interface {")
++		if mode == fmtTypeID {
++			b.WriteString("interface{")
++		} else {
++			b.WriteString("interface {")
++		}
+ 		for i, f := range t.AllMethods().Slice() {
+ 			if i != 0 {
+ 				b.WriteByte(';')
+ 			}
+-			b.WriteByte(' ')
++			if mode != fmtTypeID {
++				b.WriteByte(' ')
++			}
+ 			switch {
+ 			case f.Sym == nil:
+ 				// Check first that a symbol is defined for this type.
+@@ -485,7 +495,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			}
+ 			tconv2(b, f.Type, 'S', mode, visited)
+ 		}
+-		if t.AllMethods().Len() != 0 {
++		if t.AllMethods().Len() != 0 && mode != fmtTypeID {
+ 			b.WriteByte(' ')
+ 		}
+ 		b.WriteByte('}')
+@@ -560,15 +570,21 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			}
+ 			b.WriteByte(byte(close))
+ 		} else {
+-			b.WriteString("struct {")
++			if mode == fmtTypeID {
++				b.WriteString("struct{")
++			} else {
++				b.WriteString("struct {")
++			}
+ 			for i, f := range t.Fields().Slice() {
+ 				if i != 0 {
+ 					b.WriteByte(';')
+ 				}
+-				b.WriteByte(' ')
++				if mode != fmtTypeID {
++					b.WriteByte(' ')
++				}
+ 				fldconv(b, f, 'L', mode, visited, funarg)
+ 			}
+-			if t.NumFields() != 0 {
++			if t.NumFields() != 0 && mode != fmtTypeID {
+ 				b.WriteByte(' ')
+ 			}
+ 			b.WriteByte('}')
+@@ -652,7 +668,14 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 
+ 	if name != "" {
+ 		b.WriteString(name)
+-		b.WriteString(" ")
++		if mode == fmtTypeID {
++			// This is the one case where we can't omit the space, since
++			// we need a separate between field name and type, so we use
++			// "#" instead.
++			b.WriteString("#")
++		} else {
++			b.WriteString(" ")
++		}
+ 	}
+ 
+ 	if f.IsDDD() {
+@@ -667,7 +690,11 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 	}
+ 
+ 	if verb != 'S' && funarg == FunargNone && f.Note != "" {
+-		b.WriteString(" ")
++		if mode != fmtTypeID {
++			b.WriteString(" ")
++		}
++		// TODO: for fmtTypeID, we should possibly using %-quoting, so
++		// space is %20, etc.
+ 		b.WriteString(strconv.Quote(f.Note))
+ 	}
+ }

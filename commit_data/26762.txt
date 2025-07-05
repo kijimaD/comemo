@@ -7,6 +7,19 @@ Date:   Thu Feb 25 11:43:45 2016 -0800
     Change-Id: I73ae6a6837a6dcf75b3b8f431d97a18348e01a42
     Reviewed-on: https://go-review.googlesource.com/19921
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.7.txt | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/doc/go1.7.txt b/doc/go1.7.txt
+index 2af8b5447e..a73ba59297 100644
+--- a/doc/go1.7.txt
++++ b/doc/go1.7.txt
+@@ -10,6 +10,4 @@ SOMETHING WILL HAPPEN
+ 
+ API additions and behavior changes:
+ 
+-SOMETHING WILL HAPPEN
+-
+-
++runtime: add CallerFrames and Frames (CL 19869)

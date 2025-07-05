@@ -10,8 +10,67 @@ Date:   Tue Sep 10 14:41:07 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13234052
-
+---
  src/cmd/go/build.go  | 5 ++++-
  src/cmd/go/pkg.go    | 1 +
  src/cmd/go/test.bash | 9 +++++++--
  3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 7308fb6f55..e8a9430c1a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -311,7 +311,9 @@ func runInstall(cmd *Command, args []string) {
+ 
+ 	for _, p := range pkgs {
+ 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
+-			if p.ConflictDir != "" {
++			if p.cmdline {
++				errorf("go install: no install location for .go files listed on command line (GOBIN not set)")
++			} else if p.ConflictDir != "" {
+ 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
+ 			} else {
+ 				errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
+@@ -486,6 +488,7 @@ func goFilesPackage(gofiles []string) *Package {
+ 	bp, err := ctxt.ImportDir(dir, 0)
+ 	pkg := new(Package)
+ 	pkg.local = true
++	pkg.cmdline = true
+ 	pkg.load(&stk, bp, err)
+ 	pkg.localPrefix = dirToImportPath(dir)
+ 	pkg.ImportPath = "command-line-arguments"
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7f53c5c263..71f14c74a2 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -82,6 +82,7 @@ type Package struct {
+ 	fake         bool                 // synthesized package
+ 	forceBuild   bool                 // this package must be rebuilt
+ 	forceLibrary bool                 // this package is a library (even if named "main")
++	cmdline      bool                 // defined by files listed on command line
+ 	local        bool                 // imported via local path (./ or ../)
+ 	localPrefix  string               // interpret ./ and ../ imports relative to this prefix
+ 	exeName      string               // desired name for temporary executable
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 62ab219135..61e9e6ada0 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -150,11 +150,16 @@ fi
+ 
+ # Without $GOBIN set, installing a program outside $GOPATH should fail
+ # (there is nowhere to install it).
+-TEST install without destination
+-if ./testgo install testdata/src/go-cmd-test/helloworld.go; then
++TEST install without destination fails
++if ./testgo install testdata/src/go-cmd-test/helloworld.go 2>testdata/err; then
+ 	echo "go install testdata/src/go-cmd-test/helloworld.go should have failed, did not"
+ 	ok=false
++elif ! grep 'no install location for .go files listed on command line' testdata/err; then
++	echo "wrong error:"
++	cat testdata/err
++	ok=false
+ fi
++rm -f testdata/err
+ 
+ # With $GOBIN set, should install there.
+ TEST install to GOBIN '(command-line package)'

@@ -11,6 +11,43 @@ Date:   Sat Sep 23 17:04:51 2017 -0700
     Change-Id: I2f07e58d0cd6321b386a73b038cf6070cb8e2572
     Reviewed-on: https://go-review.googlesource.com/65732
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 89e5bf691e..17910904f6 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1492,7 +1492,7 @@ func (db *DB) Driver() driver.Driver {
+ }
+ 
+ // ErrConnDone is returned by any operation that is performed on a connection
+-// that has already been committed or rolled back.
++// that has already been returned to the connection pool.
+ var ErrConnDone = errors.New("database/sql: connection is already closed")
+ 
+ // Conn returns a single connection by either opening a new connection
+@@ -1527,9 +1527,9 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
+ 
+ type releaseConn func(error)
+ 
+-// Conn represents a single database session rather than a pool of database
+-// sessions. Prefer running queries from DB unless there is a specific
+-// need for a continuous single database session.
++// Conn represents a single database connection rather than a pool of database
++// connections. Prefer running queries from DB unless there is a specific
++// need for a continuous single database connection.
+ //
+ // A Conn must call Close to return the connection to the database pool
+ // and may do so concurrently with a running query.
+@@ -1893,6 +1893,9 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
+ //  ...
+ //  res, err := tx.StmtContext(ctx, updateMoney).Exec(123.45, 98293203)
+ //
++// The provided context is used for the preparation of the statement, not for the
++// execution of the statement.
++//
+ // The returned statement operates within the transaction and will be closed
+ // when the transaction has been committed or rolled back.
+ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {

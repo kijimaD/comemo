@@ -7,6 +7,19 @@ Date:   Fri Aug 12 14:31:12 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev, mikesamuel
     https://golang.org/cl/4875042
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4ae5c6e2e1..475dc58d82 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -168,6 +168,7 @@ Michael Hoisie <hoisie@gmail.com>
+ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
++Mike Samuel <mikesamuel@gmail.com>
+ Mike Solomon <msolo@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>

@@ -15,7 +15,7 @@ Date:   Wed Apr 24 14:33:50 2019 -0300
     Reviewed-on: https://go-review.googlesource.com/c/go/+/173758
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 ++--
  src/cmd/compile/internal/ppc64/ssa.go        | 30 +++++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
@@ -24,3 +24,215 @@ Date:   Wed Apr 24 14:33:50 2019 -0300
  src/cmd/compile/internal/ssa/rewritePPC64.go | 17 ++++++++++++++++
  test/codegen/mathbits.go                     | 10 ++++++++++
  7 files changed, 78 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0f043d8b5e..128fabde26 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3573,8 +3573,8 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+ 		},
+-		sys.AMD64, sys.ARM64)
+-	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64)
++		sys.AMD64, sys.ARM64, sys.PPC64)
++	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64)
+ 	addF("math/bits", "Sub64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[TUINT64], types.Types[TUINT64]), args[0], args[1], args[2])
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 49f78ee188..4159b2fe7c 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -172,6 +172,31 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p1.To.Type = obj.TYPE_REG
+ 		p1.To.Reg = v.Reg1()
+ 
++	case ssa.OpPPC64LoweredAdd64Carry:
++		// ADDC		Rarg2, -1, Rtmp
++		// ADDE		Rarg1, Rarg0, Reg0
++		// ADDZE	Rzero, Reg1
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		r2 := v.Args[2].Reg()
++		p := s.Prog(ppc64.AADDC)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = -1
++		p.Reg = r2
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ppc64.REGTMP
++		p1 := s.Prog(ppc64.AADDE)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r1
++		p1.Reg = r0
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = v.Reg0()
++		p2 := s.Prog(ppc64.AADDZE)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = ppc64.REGZERO
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = v.Reg1()
++
+ 	case ssa.OpPPC64LoweredAtomicAnd8,
+ 		ssa.OpPPC64LoweredAtomicOr8:
+ 		// LWSYNC
+@@ -620,7 +645,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS, ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL,
++		ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW,
++		ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS,
++		ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 104b76481f..c82b884a5f 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -23,6 +23,7 @@
+ // (x + y) / 2 with x>=y -> (x - y) / 2 + y
+ (Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
+ 
++(Add64carry x y c) -> (LoweredAdd64Carry x y c)
+ (Mul64  x y) -> (MULLD  x y)
+ (Mul(32|16|8)  x y) -> (MULLW  x y)
+ (Mul64uhilo x y) -> (LoweredMuluhilo x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 90585100f8..67dd3c6650 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -136,6 +136,7 @@ func init() {
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
++		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+ 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
+ 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+ 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
+@@ -199,6 +200,7 @@ func init() {
+ 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
+ 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
+ 
++		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
+ 		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
+ 		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1af77c88de..906295f580 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1686,6 +1686,7 @@ const (
+ 	OpPPC64SLW
+ 	OpPPC64ROTL
+ 	OpPPC64ROTLW
++	OpPPC64LoweredAdd64Carry
+ 	OpPPC64ADDconstForCarry
+ 	OpPPC64MaskIfNotCarry
+ 	OpPPC64SRADconst
+@@ -22443,6 +22444,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAdd64Carry",
++		argLen:          3,
++		resultNotInArgs: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{2, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:    "ADDconstForCarry",
+ 		auxType: auxInt16,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 0395eaf3cf..33e0825489 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -29,6 +29,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAdd64_0(v)
+ 	case OpAdd64F:
+ 		return rewriteValuePPC64_OpAdd64F_0(v)
++	case OpAdd64carry:
++		return rewriteValuePPC64_OpAdd64carry_0(v)
+ 	case OpAdd8:
+ 		return rewriteValuePPC64_OpAdd8_0(v)
+ 	case OpAddPtr:
+@@ -786,6 +788,21 @@ func rewriteValuePPC64_OpAdd64F_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAdd64carry_0(v *Value) bool {
++	// match: (Add64carry x y c)
++	// cond:
++	// result: (LoweredAdd64Carry x y c)
++	for {
++		c := v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpPPC64LoweredAdd64Carry)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpAdd8_0(v *Value) bool {
+ 	// match: (Add8 x y)
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 70874590fe..b60e0ff519 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -410,24 +410,32 @@ func AddM(p, q, r *[3]uint) {
+ func Add64(x, y, ci uint64) (r, co uint64) {
+ 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
++	// ppc64: "ADDC", "ADDE", "ADDZE"
++	// ppc64le: "ADDC", "ADDE", "ADDZE"
+ 	return bits.Add64(x, y, ci)
+ }
+ 
+ func Add64C(x, ci uint64) (r, co uint64) {
+ 	// arm64:"ADDS","ADCS","ADC",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ","SBBQ","NEGQ"
++	// ppc64: "ADDC", "ADDE", "ADDZE"
++	// ppc64le: "ADDC", "ADDE", "ADDZE"
+ 	return bits.Add64(x, 7, ci)
+ }
+ 
+ func Add64Z(x, y uint64) (r, co uint64) {
+ 	// arm64:"ADDS","ADC",-"ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"ADDQ","SBBQ","NEGQ",-"NEGL",-"ADCQ"
++	// ppc64: "ADDC", "ADDE", "ADDZE"
++	// ppc64le: "ADDC", "ADDE", "ADDZE"
+ 	return bits.Add64(x, y, 0)
+ }
+ 
+ func Add64R(x, y, ci uint64) uint64 {
+ 	// arm64:"ADDS","ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"NEGL","ADCQ",-"SBBQ",-"NEGQ"
++	// ppc64: "ADDC", "ADDE", "ADDZE"
++	// ppc64le: "ADDC", "ADDE", "ADDZE"
+ 	r, _ := bits.Add64(x, y, ci)
+ 	return r
+ }
+@@ -436,6 +444,8 @@ func Add64M(p, q, r *[3]uint64) {
+ 	r[0], c = bits.Add64(p[0], q[0], c)
+ 	// arm64:"ADCS",-"ADD\t",-"CMP"
+ 	// amd64:"ADCQ",-"NEGL",-"SBBQ",-"NEGQ"
++	// ppc64: "ADDC", "ADDE", "ADDZE"
++	// ppc64le: "ADDC", "ADDE", "ADDZE"
+ 	r[1], c = bits.Add64(p[1], q[1], c)
+ 	r[2], c = bits.Add64(p[2], q[2], c)
+ }

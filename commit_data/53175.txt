@@ -18,7 +18,84 @@ Date:   Fri Apr 29 17:29:58 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ipsock_posix.go |  6 +++++-
  src/net/udpsock_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 9a961b96ab..7bb66f2d6c 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -215,8 +215,12 @@ func addrPortToSockaddrInet4(ap netip.AddrPort) (syscall.SockaddrInet4, error) {
+ func addrPortToSockaddrInet6(ap netip.AddrPort) (syscall.SockaddrInet6, error) {
+ 	// ipToSockaddrInet6 has special handling here for zero length slices.
+ 	// We do not, because netip has no concept of a generic zero IP address.
++	//
++	// addr is allowed to be an IPv4 address, because As16 will convert it
++	// to an IPv4-mapped IPv6 address.
++	// The error message is kept consistent with ipToSockaddrInet6.
+ 	addr := ap.Addr()
+-	if !addr.Is6() {
++	if !addr.IsValid() {
+ 		return syscall.SockaddrInet6{}, &AddrError{Err: "non-IPv6 address", Addr: addr.String()}
+ 	}
+ 	sa := syscall.SockaddrInet6{
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index f8acf6a028..4fa74752b9 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"errors"
+ 	"internal/testenv"
++	"net/netip"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -622,3 +623,45 @@ func TestUDPIPVersionReadMsg(t *testing.T) {
+ 		t.Error("returned UDPAddr is not IPv4")
+ 	}
+ }
++
++// TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion verifies that
++// WriteMsgUDPAddrPort accepts IPv4, IPv4-mapped IPv6, and IPv6 target addresses
++// on a UDPConn listening on "::".
++func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
++	if !supportsIPv6() {
++		t.Skip("IPv6 is not supported")
++	}
++
++	switch runtime.GOOS {
++	case "openbsd":
++		// OpenBSD's IPv6 sockets are always IPv6-only, according to the man page:
++		// https://man.openbsd.org/ip6#IPV6_V6ONLY
++		t.Skipf("skipping on %v", runtime.GOOS)
++	}
++
++	conn, err := ListenUDP("udp", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++
++	daddr4 := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 12345)
++	daddr4in6 := netip.AddrPortFrom(netip.MustParseAddr("::ffff:127.0.0.1"), 12345)
++	daddr6 := netip.AddrPortFrom(netip.MustParseAddr("::1"), 12345)
++	buf := make([]byte, 8)
++
++	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr4in6)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	_, _, err = conn.WriteMsgUDPAddrPort(buf, nil, daddr6)
++	if err != nil {
++		t.Fatal(err)
++	}
++}

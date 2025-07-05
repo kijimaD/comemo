@@ -15,6 +15,28 @@ Date:   Fri Nov 16 10:46:14 2018 -0600
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/init.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index f510a46262..0f7421e584 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+ 	"os"
++	"strings"
+ )
+ 
+ var cmdInit = &base.Command{
+@@ -37,5 +38,8 @@ func runInit(cmd *base.Command, args []string) {
+ 	if _, err := os.Stat("go.mod"); err == nil {
+ 		base.Fatalf("go mod init: go.mod already exists")
+ 	}
++	if strings.Contains(modload.CmdModModule, "@") {
++		base.Fatalf("go mod init: module path must not contain '@'")
++	}
+ 	modload.InitMod() // does all the hard work
+ }

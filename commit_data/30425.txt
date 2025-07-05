@@ -17,6 +17,32 @@ Date:   Wed Aug 31 16:58:56 2016 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mstats.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 02a2914dab..b80ab11389 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -100,6 +100,8 @@ type mstats struct {
+ 	// must be complete.
+ 	gc_trigger uint64
+ 
++	_ uint32 // force 8-byte alignment of heap_live and prevent an alignment check crash on MIPS32.
++
+ 	// heap_live is the number of bytes considered live by the GC.
+ 	// That is: retained by the most recent GC plus allocated
+ 	// since then. heap_live <= heap_alloc, since heap_alloc
+@@ -411,6 +413,11 @@ func init() {
+ 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
+ 		throw("MStats vs MemStatsType size mismatch")
+ 	}
++
++	if unsafe.Offsetof(memstats.heap_live)%8 != 0 {
++		println(unsafe.Offsetof(memstats.heap_live))
++		throw("memstats.heap_live not aligned to 8 bytes")
++	}
+ }
+ 
+ // ReadMemStats populates m with memory allocator statistics.

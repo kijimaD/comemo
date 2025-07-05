@@ -7,9 +7,63 @@ Date:   Mon Dec 9 07:55:53 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/39280043
-
+---
  include/plan9/386/u.h   | 2 ++
  include/plan9/amd64/u.h | 2 ++
  include/plan9/link.h    | 5 +++++
  src/liblink/data.c      | 4 ++--
  4 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/include/plan9/386/u.h b/include/plan9/386/u.h
+index 4736b8efb2..1c4076b5ea 100644
+--- a/include/plan9/386/u.h
++++ b/include/plan9/386/u.h
+@@ -13,3 +13,5 @@ typedef	uint	uint32;
+ typedef	vlong	int64;
+ typedef	uvlong	uint64;
+ typedef	int	intptr;
++typedef	float	float32;
++typedef	double	float64;
+diff --git a/include/plan9/amd64/u.h b/include/plan9/amd64/u.h
+index 090b2fa5c9..c2d4999383 100644
+--- a/include/plan9/amd64/u.h
++++ b/include/plan9/amd64/u.h
+@@ -13,3 +13,5 @@ typedef	uint	uint32;
+ typedef	vlong	int64;
+ typedef	uvlong	uint64;
+ typedef	vlong	intptr;
++typedef	float	float32;
++typedef	double	float64;
+diff --git a/include/plan9/link.h b/include/plan9/link.h
+new file mode 100644
+index 0000000000..f65971efce
+--- /dev/null
++++ b/include/plan9/link.h
+@@ -0,0 +1,5 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../link.h"
+diff --git a/src/liblink/data.c b/src/liblink/data.c
+index 97d2260418..9a481b6e5e 100644
+--- a/src/liblink/data.c
++++ b/src/liblink/data.c
+@@ -99,7 +99,7 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
+ 			s->p[off+i] = p->to.u.sval[i];
+ 	} else if(p->to.type == ctxt->arch->D_CONST) {
+ 		if(p->to.sym)
+-			goto Addr;
++			goto addr;
+ 		o = p->to.offset;
+ 		fl = o;
+ 		cast = (uchar*)&fl;
+@@ -125,7 +125,7 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
+ 			break;
+ 		}
+ 	} else if(p->to.type == ctxt->arch->D_ADDR || p->to.type == ctxt->arch->D_SIZE) {
+-	Addr:
++	addr:
+ 		r = addrel(s);
+ 		r->off = off;
+ 		r->siz = siz;

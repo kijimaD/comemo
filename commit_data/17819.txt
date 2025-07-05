@@ -10,8 +10,83 @@ Date:   Fri Oct 18 10:45:19 2013 +0400
     R=golang-dev, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/14695044
-
+---
  src/pkg/runtime/mprof.goc | 10 ----------
  src/pkg/runtime/proc.c    |  2 --
  src/pkg/runtime/runtime.h |  1 -
  3 files changed, 13 deletions(-)
+
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index a8d57e7635..5b92cec95c 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -255,10 +255,6 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 	uintptr stk[32];
+ 	Bucket *b;
+ 
+-	if(m->nomemprof > 0)
+-		return;
+-
+-	m->nomemprof++;
+ 	nstk = runtime·callers(1, stk, 32);
+ 	runtime·lock(&proflock);
+ 	b = stkbucket(MProf, stk, nstk, true);
+@@ -266,7 +262,6 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 	b->recent_alloc_bytes += size;
+ 	setaddrbucket((uintptr)p, b);
+ 	runtime·unlock(&proflock);
+-	m->nomemprof--;
+ }
+ 
+ // Called when freeing a profiled block.
+@@ -275,10 +270,6 @@ runtime·MProf_Free(void *p, uintptr size)
+ {
+ 	Bucket *b;
+ 
+-	if(m->nomemprof > 0)
+-		return;
+-
+-	m->nomemprof++;
+ 	runtime·lock(&proflock);
+ 	b = getaddrbucket((uintptr)p);
+ 	if(b != nil) {
+@@ -286,7 +277,6 @@ runtime·MProf_Free(void *p, uintptr size)
+ 		b->recent_free_bytes += size;
+ 	}
+ 	runtime·unlock(&proflock);
+-	m->nomemprof--;
+ }
+ 
+ int64 runtime·blockprofilerate;  // in CPU ticks
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index eb3263fc91..de26c72d3d 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -133,7 +133,6 @@ runtime·schedinit(void)
+ 	runtime·sched.maxmcount = 10000;
+ 	runtime·precisestack = haveexperiment("precisestack");
+ 
+-	m->nomemprof++;
+ 	runtime·mprofinit();
+ 	runtime·mallocinit();
+ 	mcommoninit(m);
+@@ -163,7 +162,6 @@ runtime·schedinit(void)
+ 	procresize(procs);
+ 
+ 	mstats.enablegc = 1;
+-	m->nomemprof--;
+ 
+ 	if(raceenabled)
+ 		g->racectx = runtime·raceinit();
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index c989edcf8d..f7c2adb121 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -310,7 +310,6 @@ struct	M
+ 	int32	throwing;
+ 	int32	gcing;
+ 	int32	locks;
+-	int32	nomemprof;
+ 	int32	dying;
+ 	int32	profilehz;
+ 	int32	helpgc;

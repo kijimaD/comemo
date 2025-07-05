@@ -22,7 +22,7 @@ Date:   Mon Mar 7 10:32:51 2022 -0500
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/flag.go              |  25 ++-
  src/cmd/compile/internal/coverage/cover.go         | 189 +++++++++++++++++++++
  src/cmd/compile/internal/gc/main.go                |  10 ++
@@ -36,3 +36,644 @@ Date:   Mon Mar 7 10:32:51 2022 -0500
  src/cmd/dist/buildtool.go                          |   1 +
  src/internal/coverage/cmddefs.go                   |  66 +++++++
  12 files changed, 410 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index a005d2cdf2..459ebf3ba4 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -9,6 +9,8 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/buildcfg"
++	"internal/coverage"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"reflect"
+@@ -110,6 +112,7 @@ type CmdFlags struct {
+ 	MemProfileRate     int          "help:\"set runtime.MemProfileRate to `rate`\""
+ 	MutexProfile       string       "help:\"write mutex profile to `file`\""
+ 	NoLocalImports     bool         "help:\"reject local (relative) imports\""
++	CoverageCfg        func(string) "help:\"read coverage configuration from `file`\""
+ 	Pack               bool         "help:\"write to file.a instead of file.o\""
+ 	Race               bool         "help:\"enable race detector\""
+ 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
+@@ -127,10 +130,11 @@ type CmdFlags struct {
+ 			Patterns map[string][]string
+ 			Files    map[string]string
+ 		}
+-		ImportDirs   []string          // appended to by -I
+-		ImportMap    map[string]string // set by -importcfg
+-		PackageFile  map[string]string // set by -importcfg; nil means not in use
+-		SpectreIndex bool              // set by -spectre=index or -spectre=all
++		ImportDirs   []string                   // appended to by -I
++		ImportMap    map[string]string          // set by -importcfg
++		PackageFile  map[string]string          // set by -importcfg; nil means not in use
++		CoverageInfo *coverage.CoverFixupConfig // set by -coveragecfg
++		SpectreIndex bool                       // set by -spectre=index or -spectre=all
+ 		// Whether we are adding any sort of code instrumentation, such as
+ 		// when the race detector is enabled.
+ 		Instrumenting bool
+@@ -154,6 +158,7 @@ func ParseFlags() {
+ 	Flag.EmbedCfg = readEmbedCfg
+ 	Flag.GenDwarfInl = 2
+ 	Flag.ImportCfg = readImportCfg
++	Flag.CoverageCfg = readCoverageCfg
+ 	Flag.LinkShared = &Ctxt.Flag_linkshared
+ 	Flag.Shared = &Ctxt.Flag_shared
+ 	Flag.WB = true
+@@ -430,6 +435,18 @@ func readImportCfg(file string) {
+ 	}
+ }
+ 
++func readCoverageCfg(file string) {
++	var cfg coverage.CoverFixupConfig
++	data, err := ioutil.ReadFile(file)
++	if err != nil {
++		log.Fatalf("-coveragecfg: %v", err)
++	}
++	if err := json.Unmarshal(data, &cfg); err != nil {
++		log.Fatalf("error reading -coveragecfg file %q: %v", file, err)
++	}
++	Flag.Cfg.CoverageInfo = &cfg
++}
++
+ func readEmbedCfg(file string) {
+ 	data, err := os.ReadFile(file)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/coverage/cover.go b/src/cmd/compile/internal/coverage/cover.go
+new file mode 100644
+index 0000000000..65388072c7
+--- /dev/null
++++ b/src/cmd/compile/internal/coverage/cover.go
+@@ -0,0 +1,189 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/objabi"
++	"internal/coverage"
++	"strconv"
++	"strings"
++)
++
++// Fixup is the main entry point for coverage compiler fixup. It
++// collects and reclassifies the variables mentioned in the
++// -coveragecfg file, then adds calls to the pkg init function as
++// appropriate to register the proper variables with the runtime.
++func Fixup() {
++	metavar, pkgIdVar, initfn, covermode, covergran :=
++		fixupMetaAndCounterVariables()
++	hashv, len := metaHashAndLen()
++	if covermode != coverage.CtrModeTestMain {
++		registerMeta(metavar, initfn, hashv, len,
++			pkgIdVar, covermode, covergran)
++	}
++	if base.Ctxt.Pkgpath == "main" {
++		addInitHookCall(initfn, covermode)
++	}
++}
++
++// fixupMetaAndCounterVariables collects and returns the package ID
++// and meta-data variables being used for this "-cover" build, along
++// with the init function for the package and the coverage mode. It
++// also reclassifies certain variables (for example, tagging coverage
++// counter variables with flags so that they can be handled properly
++// downstream).
++func fixupMetaAndCounterVariables() (*ir.Name, *ir.Name, *ir.Func, coverage.CounterMode, coverage.CounterGranularity) {
++	metaVarName := base.Flag.Cfg.CoverageInfo.MetaVar
++	pkgIdVarName := base.Flag.Cfg.CoverageInfo.PkgIdVar
++	counterMode := base.Flag.Cfg.CoverageInfo.CounterMode
++	counterGran := base.Flag.Cfg.CoverageInfo.CounterGranularity
++	counterPrefix := base.Flag.Cfg.CoverageInfo.CounterPrefix
++	var metavar *ir.Name
++	var pkgidvar *ir.Name
++	var initfn *ir.Func
++
++	ckTypSanity := func(nm *ir.Name, tag string) {
++		if nm.Type() == nil || nm.Type().HasPointers() {
++			base.Fatalf("unsuitable %s %q mentioned in coveragecfg, improper type '%v'", tag, nm.Sym().Name, nm.Type())
++		}
++	}
++
++	for _, n := range typecheck.Target.Decls {
++		if fn, ok := n.(*ir.Func); ok && ir.FuncName(fn) == "init" {
++			if initfn != nil {
++				panic("unexpected")
++			}
++			initfn = fn
++			continue
++		}
++		as, ok := n.(*ir.AssignStmt)
++		if !ok {
++			continue
++		}
++		nm, ok := as.X.(*ir.Name)
++		if !ok {
++			continue
++		}
++		s := nm.Sym()
++		switch s.Name {
++		case metaVarName:
++			metavar = nm
++			ckTypSanity(nm, "metavar")
++			nm.MarkReadonly()
++			continue
++		case pkgIdVarName:
++			pkgidvar = nm
++			ckTypSanity(nm, "pkgidvar")
++			nm.SetCoverageAuxVar(true)
++			s := nm.Linksym()
++			s.Type = objabi.SCOVERAGE_AUXVAR
++			continue
++		}
++		if strings.HasPrefix(s.Name, counterPrefix) {
++			ckTypSanity(nm, "countervar")
++			nm.SetCoverageCounter(true)
++			s := nm.Linksym()
++			s.Type = objabi.SCOVERAGE_COUNTER
++		}
++	}
++	cm := coverage.ParseCounterMode(counterMode)
++	if cm == coverage.CtrModeInvalid {
++		base.Fatalf("bad setting %q for covermode in coveragecfg:",
++			counterMode)
++	}
++	var cg coverage.CounterGranularity
++	switch counterGran {
++	case "perblock":
++		cg = coverage.CtrGranularityPerBlock
++	case "perfunc":
++		cg = coverage.CtrGranularityPerFunc
++	default:
++		base.Fatalf("bad setting %q for covergranularity in coveragecfg:",
++			counterGran)
++	}
++
++	return metavar, pkgidvar, initfn, cm, cg
++}
++
++func metaHashAndLen() ([16]byte, int) {
++
++	// Read meta-data hash from config entry.
++	mhash := base.Flag.Cfg.CoverageInfo.MetaHash
++	if len(mhash) != 32 {
++		base.Fatalf("unexpected: got metahash length %d want 32", len(mhash))
++	}
++	var hv [16]byte
++	for i := 0; i < 16; i++ {
++		nib := string(mhash[i*2 : i*2+2])
++		x, err := strconv.ParseInt(nib, 16, 32)
++		if err != nil {
++			base.Fatalf("metahash bad byte %q", nib)
++		}
++		hv[i] = byte(x)
++	}
++
++	// Return hash and meta-data len
++	return hv, base.Flag.Cfg.CoverageInfo.MetaLen
++}
++
++func registerMeta(mdname *ir.Name, initfn *ir.Func, hash [16]byte, mdlen int, pkgIdVar *ir.Name, cmode coverage.CounterMode, cgran coverage.CounterGranularity) {
++	// Materialize expression for hash (an array literal)
++	pos := initfn.Pos()
++	elist := make([]ir.Node, 0, 16)
++	for i := 0; i < 16; i++ {
++		elem := ir.NewInt(int64(hash[i]))
++		elist = append(elist, elem)
++	}
++	ht := types.NewArray(types.Types[types.TUINT8], 16)
++	hashx := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ht, elist)
++
++	// Materalize expression corresponding to address of the meta-data symbol.
++	mdax := typecheck.NodAddr(mdname)
++	mdauspx := typecheck.ConvNop(mdax, types.Types[types.TUNSAFEPTR])
++
++	// Materialize expression for length.
++	lenx := ir.NewInt(int64(mdlen)) // untyped
++
++	// Generate a call to runtime.addCovMeta, e.g.
++	//
++	//   pkgIdVar = runtime.addCovMeta(&sym, len, hash, pkgpath, pkid, cmode, cgran)
++	//
++	fn := typecheck.LookupRuntime("addCovMeta")
++	pkid := coverage.HardCodedPkgID(base.Ctxt.Pkgpath)
++	pkIdNode := ir.NewInt(int64(pkid))
++	cmodeNode := ir.NewInt(int64(cmode))
++	cgranNode := ir.NewInt(int64(cgran))
++	pkPathNode := ir.NewString(base.Ctxt.Pkgpath)
++	callx := typecheck.Call(pos, fn, []ir.Node{mdauspx, lenx, hashx,
++		pkPathNode, pkIdNode, cmodeNode, cgranNode}, false)
++	assign := callx
++	if pkid == coverage.NotHardCoded {
++		assign = typecheck.Stmt(ir.NewAssignStmt(pos, pkgIdVar, callx))
++	}
++
++	// Tack the call onto the start of our init function. We do this
++	// early in the init since it's possible that instrumented function
++	// bodies (with counter updates) might be inlined into init.
++	initfn.Body.Prepend(assign)
++}
++
++// addInitHookCall generates a call to runtime/coverage.initHook() and
++// inserts it into the package main init function, which will kick off
++// the process for coverage data writing (emit meta data, and register
++// an exit hook to emit counter data).
++func addInitHookCall(initfn *ir.Func, cmode coverage.CounterMode) {
++	typecheck.InitCoverage()
++	pos := initfn.Pos()
++	istest := cmode == coverage.CtrModeTestMain
++	initf := typecheck.LookupCoverage("initHook")
++	istestNode := ir.NewBool(istest)
++	args := []ir.Node{istestNode}
++	callx := typecheck.Call(pos, initf, args, false)
++	initfn.Body.Append(callx)
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c9493bf593..570f632eec 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/coverage"
+ 	"cmd/compile/internal/deadcode"
+ 	"cmd/compile/internal/devirtualize"
+ 	"cmd/compile/internal/dwarfgen"
+@@ -97,6 +98,10 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// pseudo-package used for methods with anonymous receivers
+ 	ir.Pkgs.Go = types.NewPkg("go", "")
+ 
++	// pseudo-package for use with code coverage instrumentation.
++	ir.Pkgs.Coverage = types.NewPkg("go.coverage", "runtime/coverage")
++	ir.Pkgs.Coverage.Prefix = "runtime/coverage"
++
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+@@ -207,6 +212,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// removal can skew the results (e.g., #43444).
+ 	pkginit.MakeInit()
+ 
++	// Fix up init routines if building for code coverage.
++	if base.Flag.Cfg.CoverageInfo != nil {
++		coverage.Fixup()
++	}
++
+ 	// Eliminate some obviously dead code.
+ 	// Must happen after typechecking.
+ 	for _, n := range typecheck.Target.Decls {
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 148edb2c88..2c89e677b4 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -69,7 +69,8 @@ var Syms struct {
+ 
+ // Pkgs holds known packages.
+ var Pkgs struct {
+-	Go      *types.Pkg
+-	Itab    *types.Pkg
+-	Runtime *types.Pkg
++	Go       *types.Pkg
++	Itab     *types.Pkg
++	Runtime  *types.Pkg
++	Coverage *types.Pkg
+ }
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 8c60e3bfd6..e13a7fbfe0 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -195,3 +195,18 @@ func Task() *ir.Name {
+ 	objw.Global(lsym, int32(ot), obj.NOPTR)
+ 	return task
+ }
++
++// initRequiredForCoverage returns TRUE if we need to force creation
++// of an init function for the package so as to insert a coverage
++// runtime registration call.
++func initRequiredForCoverage(l []ir.Node) bool {
++	if base.Flag.Cfg.CoverageInfo == nil {
++		return false
++	}
++	for _, n := range l {
++		if n.Op() == ir.ODCLFUNC {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 7718985aae..fab7df7883 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -7,6 +7,21 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++// Not inlining this function removes a significant chunk of init code.
++//
++//go:noinline
++func newSig(params, results []*types.Field) *types.Type {
++	return types.NewSignature(types.NoPkg, nil, nil, params, results)
++}
++
++func params(tlist ...*types.Type) []*types.Field {
++	flist := make([]*types.Field, len(tlist))
++	for i, typ := range tlist {
++		flist[i] = types.NewField(src.NoXPos, nil, typ)
++	}
++	return flist
++}
++
+ var runtimeDecls = [...]struct {
+ 	name string
+ 	tag  int
+@@ -210,6 +225,7 @@ var runtimeDecls = [...]struct {
+ 	{"libfuzzerTraceConstCmp8", funcTag, 149},
+ 	{"libfuzzerHookStrCmp", funcTag, 150},
+ 	{"libfuzzerHookEqualFold", funcTag, 150},
++	{"addCovMeta", funcTag, 152},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+@@ -217,23 +233,8 @@ var runtimeDecls = [...]struct {
+ 	{"arm64HasATOMICS", varTag, 6},
+ }
+ 
+-// Not inlining this function removes a significant chunk of init code.
+-//
+-//go:noinline
+-func newSig(params, results []*types.Field) *types.Type {
+-	return types.NewSignature(types.NoPkg, nil, nil, params, results)
+-}
+-
+-func params(tlist ...*types.Type) []*types.Field {
+-	flist := make([]*types.Field, len(tlist))
+-	for i, typ := range tlist {
+-		flist[i] = types.NewField(src.NoXPos, nil, typ)
+-	}
+-	return flist
+-}
+-
+ func runtimeTypes() []*types.Type {
+-	var typs [151]*types.Type
++	var typs [153]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -385,5 +386,22 @@ func runtimeTypes() []*types.Type {
+ 	typs[148] = newSig(params(typs[62], typs[62], typs[15]), nil)
+ 	typs[149] = newSig(params(typs[24], typs[24], typs[15]), nil)
+ 	typs[150] = newSig(params(typs[28], typs[28], typs[15]), nil)
++	typs[151] = types.NewArray(typs[0], 16)
++	typs[152] = newSig(params(typs[7], typs[62], typs[151], typs[28], typs[15], typs[66], typs[66]), params(typs[62]))
++	return typs[:]
++}
++
++var coverageDecls = [...]struct {
++	name string
++	tag  int
++	typ  int
++}{
++	{"initHook", funcTag, 1},
++}
++
++func coverageTypes() []*types.Type {
++	var typs [2]*types.Type
++	typs[0] = types.Types[types.TBOOL]
++	typs[1] = newSig(params(typs[0]), nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/typecheck/builtin/coverage.go b/src/cmd/compile/internal/typecheck/builtin/coverage.go
+new file mode 100644
+index 0000000000..ea4462dd97
+--- /dev/null
++++ b/src/cmd/compile/internal/typecheck/builtin/coverage.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// NOTE: If you change this file you must run "go generate"
++// to update builtin.go. This is not done automatically
++// to avoid depending on having a working compiler binary.
++
++//go:build ignore
++// +build ignore
++
++package coverage
++
++func initHook(istest bool)
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index b862594c92..310148ce00 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -273,6 +273,8 @@ func libfuzzerTraceConstCmp8(uint64, uint64, int)
+ func libfuzzerHookStrCmp(string, string, int)
+ func libfuzzerHookEqualFold(string, string, int)
+ 
++func addCovMeta(p unsafe.Pointer, len uint32, hash [16]byte, pkpath string, pkgId int, cmode uint8, cgran uint8) uint32
++
+ // architecture variants
+ var x86HasPOPCNT bool
+ var x86HasSSE41 bool
+diff --git a/src/cmd/compile/internal/typecheck/mkbuiltin.go b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+index 692d78df89..aa3a94a19a 100644
+--- a/src/cmd/compile/internal/typecheck/mkbuiltin.go
++++ b/src/cmd/compile/internal/typecheck/mkbuiltin.go
+@@ -26,6 +26,7 @@ import (
+ )
+ 
+ var stdout = flag.Bool("stdout", false, "write to stdout instead of builtin.go")
++var nofmt = flag.Bool("nofmt", false, "skip formatting builtin.go")
+ 
+ func main() {
+ 	flag.Parse()
+@@ -40,11 +41,32 @@ func main() {
+ 	fmt.Fprintln(&b, `      "cmd/internal/src"`)
+ 	fmt.Fprintln(&b, `)`)
+ 
++	fmt.Fprintln(&b, `
++// Not inlining this function removes a significant chunk of init code.
++//go:noinline
++func newSig(params, results []*types.Field) *types.Type {
++	return types.NewSignature(types.NoPkg, nil, nil, params, results)
++}
++
++func params(tlist ...*types.Type) []*types.Field {
++	flist := make([]*types.Field, len(tlist))
++	for i, typ := range tlist {
++		flist[i] = types.NewField(src.NoXPos, nil, typ)
++	}
++	return flist
++}
++`)
++
+ 	mkbuiltin(&b, "runtime")
++	mkbuiltin(&b, "coverage")
+ 
+-	out, err := format.Source(b.Bytes())
+-	if err != nil {
+-		log.Fatal(err)
++	var err error
++	out := b.Bytes()
++	if !*nofmt {
++		out, err = format.Source(out)
++		if err != nil {
++			log.Fatal(err)
++		}
+ 	}
+ 	if *stdout {
+ 		_, err = os.Stdout.Write(out)
+@@ -102,22 +124,6 @@ func mkbuiltin(w io.Writer, name string) {
+ 	}
+ 	fmt.Fprintln(w, "}")
+ 
+-	fmt.Fprintln(w, `
+-// Not inlining this function removes a significant chunk of init code.
+-//
+-//go:noinline
+-func newSig(params, results []*types.Field) *types.Type {
+-	return types.NewSignature(types.NoPkg, nil, nil, params, results)
+-}
+-
+-func params(tlist ...*types.Type) []*types.Field {
+-	flist := make([]*types.Field, len(tlist))
+-	for i, typ := range tlist {
+-		flist[i] = types.NewField(src.NoXPos, nil, typ)
+-	}
+-	return flist
+-}`)
+-
+ 	fmt.Fprintln(w)
+ 	fmt.Fprintf(w, "func %sTypes() []*types.Type {\n", name)
+ 	fmt.Fprintf(w, "var typs [%d]*types.Type\n", len(interner.typs))
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index 1f60f31851..7fe649faaa 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -101,3 +101,32 @@ func LookupRuntimeVar(name string) *obj.LSym {
+ func LookupRuntimeABI(name string, abi obj.ABI) *obj.LSym {
+ 	return base.PkgLinksym("runtime", name, abi)
+ }
++
++// InitCoverage loads the definitions for routines called
++// by code coverage instrumentation (similar to InitRuntime above).
++func InitCoverage() {
++	typs := coverageTypes()
++	for _, d := range &coverageDecls {
++		sym := ir.Pkgs.Coverage.Lookup(d.name)
++		typ := typs[d.typ]
++		switch d.tag {
++		case funcTag:
++			importfunc(src.NoXPos, sym, typ)
++		case varTag:
++			importvar(src.NoXPos, sym, typ)
++		default:
++			base.Fatalf("unhandled declaration tag %v", d.tag)
++		}
++	}
++}
++
++// LookupCoverage looks up the Go function 'name' in package
++// runtime/coverage. This function must follow the internal calling
++// convention.
++func LookupCoverage(name string) *ir.Name {
++	sym := ir.Pkgs.Coverage.Lookup(name)
++	if sym == nil {
++		base.Fatalf("LookupCoverage: can't find runtime/coverage.%s", name)
++	}
++	return ir.AsNode(sym.Def).(*ir.Name)
++}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 0725039cda..755ec61aff 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -60,6 +60,7 @@ var bootstrapDirs = []string{
+ 	"debug/macho",
+ 	"debug/pe",
+ 	"go/constant",
++	"internal/coverage",
+ 	"internal/buildcfg",
+ 	"internal/goexperiment",
+ 	"internal/goversion",
+diff --git a/src/internal/coverage/cmddefs.go b/src/internal/coverage/cmddefs.go
+new file mode 100644
+index 0000000000..a146ca53e4
+--- /dev/null
++++ b/src/internal/coverage/cmddefs.go
+@@ -0,0 +1,66 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++// CoverPkgConfig is a bundle of information passed from the Go
++// command to the cover command during "go build -cover" runs. The
++// Go command creates and fills in a struct as below, then passes
++// file containing the encoded JSON for the struct to the "cover"
++// tool when instrumenting the source files in a Go package.
++type CoverPkgConfig struct {
++	// File into which cmd/cover should emit summary info
++	// when instrumentation is complete.
++	OutConfig string
++
++	// Import path for the package being instrumented.
++	PkgPath string
++
++	// Package name.
++	PkgName string
++
++	// Instrumentation granularity: one of "perfunc" or "perblock" (default)
++	Granularity string
++
++	// Module path for this package (empty if no go.mod in use)
++	ModulePath string
++}
++
++// CoverFixupConfig contains annotations/notes generated by the
++// cmd/cover tool (during instrumentation) to be passed on to the
++// compiler when the instrumented code is compiled. The cmd/cover tool
++// creates a struct of this type, JSON-encodes it, and emits the
++// result to a file, which the Go command then passes to the compiler
++// when the instrumented package is built.
++type CoverFixupConfig struct {
++	// Name of the variable (created by cmd/cover) containing the
++	// encoded meta-data for the package.
++	MetaVar string
++
++	// Length of the meta-data.
++	MetaLen int
++
++	// Hash computed by cmd/cover of the meta-data.
++	MetaHash string
++
++	// Instrumentation strategy. For now this is always set to
++	// "normal", but in the future we may add new values (for example,
++	// if panic paths are instrumented, or if the instrumenter
++	// eliminates redundant counters).
++	Strategy string
++
++	// Prefix assigned to the names of counter variables generated
++	// during instrumentation by cmd/cover.
++	CounterPrefix string
++
++	// Name chosen for the package ID variable generated during
++	// instrumentation.
++	PkgIdVar string
++
++	// Counter mode (e.g. set/count/atomic)
++	CounterMode string
++
++	// Counter granularity (perblock or perfunc).
++	CounterGranularity string
++}

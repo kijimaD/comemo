@@ -9,6 +9,19 @@ Date:   Mon Jul 18 17:30:00 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4742044
-
+---
  doc/all.css | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index a985d8ffbc..f8f8c653fe 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -135,7 +135,6 @@ h1#title {
+   clear: both;
+ }
+ #content h1 {
+-  margin-bottom: -0em;
+   padding: 0;
+ }
+ #content h2 {

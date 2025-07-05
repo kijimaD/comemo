@@ -7,6 +7,29 @@ Date:   Sun Sep 10 08:52:33 2017 -0700
     Change-Id: I4d5d40e1ed3f58b2cdecd6248cb25c8ae9a1b9a1
     Reviewed-on: https://go-review.googlesource.com/62531
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  test/fixedbugs/bug503.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/bug503.go b/test/fixedbugs/bug503.go
+new file mode 100644
+index 0000000000..7bbc7981c5
+--- /dev/null
++++ b/test/fixedbugs/bug503.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gccgo crashed compiling this file, due to failing to correctly emit
++// the type descriptor for a named alias.
++
++package p
++
++type entry = struct {
++	a, b, c int
++}
++
++var V entry

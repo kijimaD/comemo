@@ -10,6 +10,20 @@ Date:   Tue Jun 9 14:12:39 2015 -0700
     Change-Id: Ibfd333be39ec72bba331fdf352df619cc21851a9
     Reviewed-on: https://go-review.googlesource.com/10849
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/gc/mkbuiltin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/mkbuiltin.go b/src/cmd/compile/internal/gc/mkbuiltin.go
+index f4569b48c2..ea3877f280 100644
+--- a/src/cmd/compile/internal/gc/mkbuiltin.go
++++ b/src/cmd/compile/internal/gc/mkbuiltin.go
+@@ -46,7 +46,7 @@ func mkbuiltin(w io.Writer, name string) {
+ 	if err := exec.Command("go", "tool", "compile", "-A", "builtin/"+name+".go").Run(); err != nil {
+ 		log.Fatal(err)
+ 	}
+-	obj := "name.o"
++	obj := name + ".o"
+ 	defer os.Remove(obj)
+ 
+ 	r, err := os.Open(obj)

@@ -7,10 +7,313 @@ Date:   Mon Aug 22 22:46:59 2011 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4937045
-
+---
  doc/effective_go.html     | 41 +++++++++++++++--------------
  doc/effective_go.tmpl     | 67 +++--------------------------------------------
  doc/progs/eff_bytesize.go | 47 +++++++++++++++++++++++++++++++++
  doc/progs/eff_sequence.go | 42 +++++++++++++++++++++++++++++
  doc/progs/run             |  5 ++++
  5 files changed, 118 insertions(+), 84 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index ec2973a07c..5f27284aaf 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1622,11 +1622,12 @@ enumerator.  Since <code>iota</code> can be part of an expression and
+ expressions can be implicitly repeated, it is easy to build intricate
+ sets of values.
+ </p>
+-<pre>
+-type ByteSize float64
++<pre><!--{{code "progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
++-->type ByteSize float64
++
+ const (
+-    _ = iota  // ignore first value by assigning to blank identifier
+-    KB ByteSize = 1&lt;&lt;(10*iota)
++    _           = iota // ignore first value by assigning to blank identifier
++    KB ByteSize = 1 &lt;&lt; (10 * iota)
+     MB
+     GB
+     TB
+@@ -1641,27 +1642,27 @@ The ability to attach a method such as <code>String</code> to a
+ type makes it possible for such values to format themselves
+ automatically for printing, even as part of a general type.
+ </p>
+-<pre>
+-func (b ByteSize) String() string {
++<pre><!--{{code "progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
++-->func (b ByteSize) String() string {
+     switch {
+     case b &gt;= YB:
+-        return fmt.Sprintf("%.2fYB", float64(b/YB))
++        return fmt.Sprintf(&#34;%.2fYB&#34;, float64(b/YB))
+     case b &gt;= ZB:
+-        return fmt.Sprintf("%.2fZB", float64(b/ZB))
++        return fmt.Sprintf(&#34;%.2fZB&#34;, float64(b/ZB))
+     case b &gt;= EB:
+-        return fmt.Sprintf("%.2fEB", float64(b/EB))
++        return fmt.Sprintf(&#34;%.2fEB&#34;, float64(b/EB))
+     case b &gt;= PB:
+-        return fmt.Sprintf("%.2fPB", float64(b/PB))
++        return fmt.Sprintf(&#34;%.2fPB&#34;, float64(b/PB))
+     case b &gt;= TB:
+-        return fmt.Sprintf("%.2fTB", float64(b/TB))
++        return fmt.Sprintf(&#34;%.2fTB&#34;, float64(b/TB))
+     case b &gt;= GB:
+-        return fmt.Sprintf("%.2fGB", float64(b/GB))
++        return fmt.Sprintf(&#34;%.2fGB&#34;, float64(b/GB))
+     case b &gt;= MB:
+-        return fmt.Sprintf("%.2fMB", float64(b/MB))
++        return fmt.Sprintf(&#34;%.2fMB&#34;, float64(b/MB))
+     case b &gt;= KB:
+-        return fmt.Sprintf("%.2fKB", float64(b/KB))
++        return fmt.Sprintf(&#34;%.2fKB&#34;, float64(b/KB))
+     }
+-    return fmt.Sprintf("%.2fB", float64(b))
++    return fmt.Sprintf(&#34;%.2fB&#34;, float64(b))
+ }
+ </pre>
+ <p>
+@@ -1812,8 +1813,8 @@ by the routines in package <code>sort</code> if it implements
+ and it could also have a custom formatter.
+ In this contrived example <code>Sequence</code> satisfies both.
+ </p>
+-<pre>
+-type Sequence []int
++<pre><!--{{code "progs/eff_sequence.go" `/^type/` "$"}}
++-->type Sequence []int
+ 
+ // Methods required by sort.Interface.
+ func (s Sequence) Len() int {
+@@ -1829,14 +1830,14 @@ func (s Sequence) Swap(i, j int) {
+ // Method for printing - sorts the elements before printing.
+ func (s Sequence) String() string {
+     sort.Sort(s)
+-    str := "["
++    str := &#34;[&#34;
+     for i, elem := range s {
+         if i &gt; 0 {
+-            str += " "
++            str += &#34; &#34;
+         }
+         str += fmt.Sprint(elem)
+     }
+-    return str + "]"
++    return str + &#34;]&#34;
+ }
+ </pre>
+ 
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index 98ef642865..6607894820 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -1622,48 +1622,13 @@ enumerator.  Since <code>iota</code> can be part of an expression and
+ expressions can be implicitly repeated, it is easy to build intricate
+ sets of values.
+ </p>
+-<pre>
+-type ByteSize float64
+-const (
+-    _ = iota  // ignore first value by assigning to blank identifier
+-    KB ByteSize = 1&lt;&lt;(10*iota)
+-    MB
+-    GB
+-    TB
+-    PB
+-    EB
+-    ZB
+-    YB
+-)
+-</pre>
++{{code "progs/eff_bytesize.go" `/^type ByteSize/` `/^\)/`}}
+ <p>
+ The ability to attach a method such as <code>String</code> to a
+ type makes it possible for such values to format themselves
+ automatically for printing, even as part of a general type.
+ </p>
+-<pre>
+-func (b ByteSize) String() string {
+-    switch {
+-    case b &gt;= YB:
+-        return fmt.Sprintf("%.2fYB", float64(b/YB))
+-    case b &gt;= ZB:
+-        return fmt.Sprintf("%.2fZB", float64(b/ZB))
+-    case b &gt;= EB:
+-        return fmt.Sprintf("%.2fEB", float64(b/EB))
+-    case b &gt;= PB:
+-        return fmt.Sprintf("%.2fPB", float64(b/PB))
+-    case b &gt;= TB:
+-        return fmt.Sprintf("%.2fTB", float64(b/TB))
+-    case b &gt;= GB:
+-        return fmt.Sprintf("%.2fGB", float64(b/GB))
+-    case b &gt;= MB:
+-        return fmt.Sprintf("%.2fMB", float64(b/MB))
+-    case b &gt;= KB:
+-        return fmt.Sprintf("%.2fKB", float64(b/KB))
+-    }
+-    return fmt.Sprintf("%.2fB", float64(b))
+-}
+-</pre>
++{{code "progs/eff_bytesize.go" `/^func.*ByteSize.*String/` `/^}/`}}
+ <p>
+ (The <code>float64</code> conversions prevent <code>Sprintf</code> 
+ from recurring back through the <code>String</code> method for 
+@@ -1812,33 +1777,7 @@ by the routines in package <code>sort</code> if it implements
+ and it could also have a custom formatter.
+ In this contrived example <code>Sequence</code> satisfies both.
+ </p>
+-<pre>
+-type Sequence []int
+-
+-// Methods required by sort.Interface.
+-func (s Sequence) Len() int {
+-    return len(s)
+-}
+-func (s Sequence) Less(i, j int) bool {
+-    return s[i] &lt; s[j]
+-}
+-func (s Sequence) Swap(i, j int) {
+-    s[i], s[j] = s[j], s[i]
+-}
+-
+-// Method for printing - sorts the elements before printing.
+-func (s Sequence) String() string {
+-    sort.Sort(s)
+-    str := "["
+-    for i, elem := range s {
+-        if i &gt; 0 {
+-            str += " "
+-        }
+-        str += fmt.Sprint(elem)
+-    }
+-    return str + "]"
+-}
+-</pre>
++{{code "progs/eff_sequence.go" `/^type/` "$"}}
+ 
+ <h3 id="conversions">Conversions</h3>
+ 
+diff --git a/doc/progs/eff_bytesize.go b/doc/progs/eff_bytesize.go
+new file mode 100644
+index 0000000000..bcfde1a5a3
+--- /dev/null
++++ b/doc/progs/eff_bytesize.go
+@@ -0,0 +1,47 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++type ByteSize float64
++
++const (
++	_           = iota // ignore first value by assigning to blank identifier
++	KB ByteSize = 1 << (10 * iota)
++	MB
++	GB
++	TB
++	PB
++	EB
++	ZB
++	YB
++)
++
++func (b ByteSize) String() string {
++	switch {
++	case b >= YB:
++		return fmt.Sprintf("%.2fYB", float64(b/YB))
++	case b >= ZB:
++		return fmt.Sprintf("%.2fZB", float64(b/ZB))
++	case b >= EB:
++		return fmt.Sprintf("%.2fEB", float64(b/EB))
++	case b >= PB:
++		return fmt.Sprintf("%.2fPB", float64(b/PB))
++	case b >= TB:
++		return fmt.Sprintf("%.2fTB", float64(b/TB))
++	case b >= GB:
++		return fmt.Sprintf("%.2fGB", float64(b/GB))
++	case b >= MB:
++		return fmt.Sprintf("%.2fMB", float64(b/MB))
++	case b >= KB:
++		return fmt.Sprintf("%.2fKB", float64(b/KB))
++	}
++	return fmt.Sprintf("%.2fB", float64(b))
++}
++
++func main() {
++	fmt.Println(YB, ByteSize(1e13))
++}
+diff --git a/doc/progs/eff_sequence.go b/doc/progs/eff_sequence.go
+new file mode 100644
+index 0000000000..11c885abf8
+--- /dev/null
++++ b/doc/progs/eff_sequence.go
+@@ -0,0 +1,42 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"sort"
++)
++
++func main() {
++	seq := Sequence{6, 2, -1, 44, 16}
++	sort.Sort(seq)
++	fmt.Println(seq)
++}
++
++type Sequence []int
++
++// Methods required by sort.Interface.
++func (s Sequence) Len() int {
++	return len(s)
++}
++func (s Sequence) Less(i, j int) bool {
++	return s[i] < s[j]
++}
++func (s Sequence) Swap(i, j int) {
++	s[i], s[j] = s[j], s[i]
++}
++
++// Method for printing - sorts the elements before printing.
++func (s Sequence) String() string {
++	sort.Sort(s)
++	str := "["
++	for i, elem := range s {
++		if i > 0 {
++			str += " "
++		}
++		str += fmt.Sprint(elem)
++	}
++	return str + "]"
++}
+diff --git a/doc/progs/run b/doc/progs/run
+index b60fdd7b3e..7bff2ccf4f 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -35,7 +35,9 @@ for i in \
+ 	sieve1.go \
+ 	server1.go \
+ 	strings.go \
++	eff_bytesize.go\
+ 	eff_qr.go \
++	eff_sequence.go\
+ ; do
+ 	$GC $i
+ done
+@@ -83,4 +85,7 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+ $GC server.go
+ testit server1 "" ""
+ 
++testit eff_bytesize "" "1.00YB 9.09TB"
++testit eff_sequence "" "[-1 2 6 16 44]"
++
+ rm -f $O.out *.$O

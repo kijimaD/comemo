@@ -10,7 +10,7 @@ Date:   Tue Mar 3 22:20:44 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6792
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5g/cgen.go   | 2 +-
  src/cmd/5g/cgen64.go | 2 +-
  src/cmd/5g/galign.go | 2 +-
@@ -47,3 +47,586 @@ Date:   Tue Mar 3 22:20:44 2015 -0500
  src/cmd/9l/asm.go    | 2 +-
  src/cmd/9l/obj.go    | 2 +-
  35 files changed, 35 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/5g/cgen.go
+index d9c827776d..a6cc54db6f 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/5g/cgen.go
+@@ -5,11 +5,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ /*
+  * peep.c
+diff --git a/src/cmd/5g/cgen64.go b/src/cmd/5g/cgen64.go
+index 9a3e8ab7d6..8c2f360baf 100644
+--- a/src/cmd/5g/cgen64.go
++++ b/src/cmd/5g/cgen64.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+-import "cmd/internal/gc"
+ 
+ /*
+  * attempt to generate 64-bit
+diff --git a/src/cmd/5g/galign.go b/src/cmd/5g/galign.go
+index d2eeeab456..4b8b82c561 100644
+--- a/src/cmd/5g/galign.go
++++ b/src/cmd/5g/galign.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+-import "cmd/internal/gc"
+ 
+ var thechar int = '5'
+ 
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index 58b0c36b28..cb8485dba5 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+-import "cmd/internal/gc"
+ 
+ func defframe(ptxt *obj.Prog) {
+ 	var n *gc.Node
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index f2ba6e2bff..36c1280d3d 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 5l for all GOOS.
+diff --git a/src/cmd/5g/peep.go b/src/cmd/5g/peep.go
+index 0c304f8b5e..4fd2225334 100644
+--- a/src/cmd/5g/peep.go
++++ b/src/cmd/5g/peep.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ var gactive uint32
+ 
+diff --git a/src/cmd/5g/prog.go b/src/cmd/5g/prog.go
+index 8135b8c58a..9deff0787f 100644
+--- a/src/cmd/5g/prog.go
++++ b/src/cmd/5g/prog.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+-import "cmd/internal/gc"
+ 
+ const (
+ 	RightRdwr = gc.RightRead | gc.RightWrite
+diff --git a/src/cmd/5l/asm.go b/src/cmd/5l/asm.go
+index 0cebb6b6e7..3f9b7ada90 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/5l/asm.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ func needlib(name string) int {
+ 	if name[0] == '\x00' {
+diff --git a/src/cmd/5l/obj.go b/src/cmd/5l/obj.go
+index 7eb3b0e1e6..49ce10718b 100644
+--- a/src/cmd/5l/obj.go
++++ b/src/cmd/5l/obj.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ // Reading object files.
+ 
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/6g/cgen.go
+index 0b0d6b3249..fba794ae20 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/6g/cgen.go
+@@ -5,11 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+-
+-	"cmd/internal/gc"
+ )
+ 
+ /*
+diff --git a/src/cmd/6g/galign.go b/src/cmd/6g/galign.go
+index bdd8a3c226..6a2bac84d8 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/6g/galign.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+-import "cmd/internal/gc"
+ 
+ var thechar int = '6'
+ 
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index 45242b34a0..3e74ce3757 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+-import "cmd/internal/gc"
+ 
+ func defframe(ptxt *obj.Prog) {
+ 	var n *gc.Node
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index 719a1fee92..9df1d097c4 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 6l for all GOOS.
+diff --git a/src/cmd/6g/peep.go b/src/cmd/6g/peep.go
+index a967bba223..11779dee28 100644
+--- a/src/cmd/6g/peep.go
++++ b/src/cmd/6g/peep.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ var gactive uint32
+ 
+diff --git a/src/cmd/6g/prog.go b/src/cmd/6g/prog.go
+index a1895a7017..0bc703fa3c 100644
+--- a/src/cmd/6g/prog.go
++++ b/src/cmd/6g/prog.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+-import "cmd/internal/gc"
+ 
+ var (
+ 	AX               = RtoB(x86.REG_AX)
+diff --git a/src/cmd/6g/reg.go b/src/cmd/6g/reg.go
+index 3c5a69945f..0f32df53c0 100644
+--- a/src/cmd/6g/reg.go
++++ b/src/cmd/6g/reg.go
+@@ -31,10 +31,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+-import "cmd/internal/gc"
+ 
+ const (
+ 	NREGVAR = 32
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index bc95d81540..828aafc648 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ func PADDR(x uint32) uint32 {
+ 	return x &^ 0x80000000
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index a34e30d447..e8c93c90fb 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ // Reading object files.
+ 
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/8g/cgen.go
+index ec8532d6fc..6e6a28141d 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/8g/cgen.go
+@@ -5,11 +5,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ /*
+  * reg.c
+diff --git a/src/cmd/8g/cgen64.go b/src/cmd/8g/cgen64.go
+index 523527033f..1d1ad91298 100644
+--- a/src/cmd/8g/cgen64.go
++++ b/src/cmd/8g/cgen64.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ )
+-import "cmd/internal/gc"
+ 
+ /*
+  * attempt to generate 64-bit
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index 45ef1302f3..86024a8286 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ )
+-import "cmd/internal/gc"
+ 
+ var thechar int = '8'
+ 
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index 1cc9a2bd02..eb5eae2bba 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ )
+-import "cmd/internal/gc"
+ 
+ func defframe(ptxt *obj.Prog) {
+ 	var n *gc.Node
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index 95ec01aaf6..e3a8e7f2ee 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 8l for all GOOS.
+diff --git a/src/cmd/8g/peep.go b/src/cmd/8g/peep.go
+index abb89fdc51..51e0d2eb88 100644
+--- a/src/cmd/8g/peep.go
++++ b/src/cmd/8g/peep.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ const (
+ 	REGEXT      = 0
+diff --git a/src/cmd/8g/prog.go b/src/cmd/8g/prog.go
+index f5c4ab6991..4a14b01ee3 100644
+--- a/src/cmd/8g/prog.go
++++ b/src/cmd/8g/prog.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/i386"
+ )
+-import "cmd/internal/gc"
+ 
+ var (
+ 	AX               = RtoB(i386.REG_AX)
+diff --git a/src/cmd/8l/asm.go b/src/cmd/8l/asm.go
+index d040c03326..b580ad5bc7 100644
+--- a/src/cmd/8l/asm.go
++++ b/src/cmd/8l/asm.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ func needlib(name string) int {
+ 	if name[0] == '\x00' {
+diff --git a/src/cmd/8l/obj.go b/src/cmd/8l/obj.go
+index 5d44721074..01a278cc40 100644
+--- a/src/cmd/8l/obj.go
++++ b/src/cmd/8l/obj.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ // Reading object files.
+ 
+diff --git a/src/cmd/9g/cgen.go b/src/cmd/9g/cgen.go
+index 424825bc03..4ab5215e55 100644
+--- a/src/cmd/9g/cgen.go
++++ b/src/cmd/9g/cgen.go
+@@ -5,11 +5,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ /*
+  * peep.c
+diff --git a/src/cmd/9g/galign.go b/src/cmd/9g/galign.go
+index 99425c3929..b39149a952 100644
+--- a/src/cmd/9g/galign.go
++++ b/src/cmd/9g/galign.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+-import "cmd/internal/gc"
+ 
+ var thechar int = '9'
+ 
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index d9bcfb7028..3cca4a5751 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -5,11 +5,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ func defframe(ptxt *obj.Prog) {
+ 	var n *gc.Node
+diff --git a/src/cmd/9g/gsubr.go b/src/cmd/9g/gsubr.go
+index 1f1a43edb3..5db301a282 100644
+--- a/src/cmd/9g/gsubr.go
++++ b/src/cmd/9g/gsubr.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ // TODO(rsc): Can make this bigger if we move
+ // the text segment up higher in 6l for all GOOS.
+diff --git a/src/cmd/9g/peep.go b/src/cmd/9g/peep.go
+index 03581b1a82..af2e68ce2d 100644
+--- a/src/cmd/9g/peep.go
++++ b/src/cmd/9g/peep.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ 	"fmt"
+ )
+-import "cmd/internal/gc"
+ 
+ var gactive uint32
+ 
+diff --git a/src/cmd/9g/prog.go b/src/cmd/9g/prog.go
+index 24de65f05b..d5d534695a 100644
+--- a/src/cmd/9g/prog.go
++++ b/src/cmd/9g/prog.go
+@@ -5,10 +5,10 @@
+ package main
+ 
+ import (
++	"cmd/internal/gc"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+-import "cmd/internal/gc"
+ 
+ const (
+ 	LeftRdwr  uint32 = gc.LeftRead | gc.LeftWrite
+diff --git a/src/cmd/9l/asm.go b/src/cmd/9l/asm.go
+index f0f5b56f61..2b6cdad208 100644
+--- a/src/cmd/9l/asm.go
++++ b/src/cmd/9l/asm.go
+@@ -31,12 +31,12 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ func needlib(name string) int {
+ 	if name[0] == '\x00' {
+diff --git a/src/cmd/9l/obj.go b/src/cmd/9l/obj.go
+index 8bba6be70d..29b384a1a6 100644
+--- a/src/cmd/9l/obj.go
++++ b/src/cmd/9l/obj.go
+@@ -31,11 +31,11 @@
+ package main
+ 
+ import (
++	"cmd/internal/ld"
+ 	"cmd/internal/obj"
+ 	"fmt"
+ 	"log"
+ )
+-import "cmd/internal/ld"
+ 
+ // Reading object files.
+ 

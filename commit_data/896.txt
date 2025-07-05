@@ -8,6 +8,20 @@ Date:   Fri Oct 17 16:27:49 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=17380
     CL=17380
-
+---
  usr/gri/pretty/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index f634eed1c3..47a613be10 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -142,7 +142,7 @@ func ExprType(x *Node.Expr) *Node.Type {
+ func (P *Parser) NoType(x *Node.Expr) *Node.Expr {
+ 	if x != nil && x.tok == Scanner.TYPE {
+ 		P.Error(x.pos, "expected expression, found type");
+-		x = Node.NewLit(x.pos, Scanner.INT, 0);
++		x = Node.NewLit(x.pos, Scanner.INT, "");
+ 	}
+ 	return x;
+ }

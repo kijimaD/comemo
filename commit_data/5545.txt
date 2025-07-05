@@ -9,7 +9,64 @@ Date:   Mon May 24 17:22:51 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1281042
-
+---
  src/cmd/8g/cgen.c        | 12 ++++++++----
  test/fixedbugs/bug283.go | 19 +++++++++++++++++++
  2 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 77f9a9364e..cd70f5e17f 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -10,6 +10,8 @@
+ void
+ mgen(Node *n, Node *n1, Node *rg)
+ {
++	Node n2;
++
+ 	n1->op = OEMPTY;
+ 
+ 	if(n->addable) {
+@@ -18,11 +20,13 @@ mgen(Node *n, Node *n1, Node *rg)
+ 			reg[n->val.u.reg]++;
+ 		return;
+ 	}
+-	if(n->type->width > widthptr && !isfloat[n->type->etype])
+-		tempname(n1, n->type);
+-	else
+-		regalloc(n1, n->type, rg);
++	tempname(n1, n->type);
+ 	cgen(n, n1);
++	if(n->type->width <= widthptr || isfloat[n->type->etype]) {
++		n2 = *n1;
++		regalloc(n1, n->type, rg);
++		gmove(&n2, n1);
++	}
+ }
+ 
+ void
+diff --git a/test/fixedbugs/bug283.go b/test/fixedbugs/bug283.go
+new file mode 100644
+index 0000000000..45ee9082f0
+--- /dev/null
++++ b/test/fixedbugs/bug283.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=806
++// triggered out of registers on 8g
++
++package main
++
++type Point struct {
++	x int
++	y int
++}
++
++func dist(p0, p1 Point) float64 {
++	return float64((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y))
++}

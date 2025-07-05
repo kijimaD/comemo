@@ -11,7 +11,52 @@ Date:   Sat Jun 3 17:30:47 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 4 +++-
  src/cmd/go/internal/help/helpdoc.go | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b872b7abe3..7ef763d6be 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2173,7 +2173,7 @@
+ //		The operating system for which to compile code.
+ //		Examples are linux, darwin, windows, netbsd.
+ //	GOPATH
+-//		For more details see: 'go help gopath'.
++//		Controls where various files are stored. See: 'go help gopath'.
+ //	GOPROXY
+ //		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
+ //		and https://golang.org/ref/mod#module-proxy for details.
+@@ -2187,6 +2187,8 @@
+ //	GOSUMDB
+ //		The name of checksum database to use and optionally its public key and
+ //		URL. See https://golang.org/ref/mod#authenticating.
++//	GOTOOLCHAIN
++//		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
+ //	GOTMPDIR
+ //		The directory where the go command will write
+ //		temporary source files, packages, and binaries.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 03cda98bbf..68ac4d229d 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -525,7 +525,7 @@ General-purpose environment variables:
+ 		The operating system for which to compile code.
+ 		Examples are linux, darwin, windows, netbsd.
+ 	GOPATH
+-		For more details see: 'go help gopath'.
++		Controls where various files are stored. See: 'go help gopath'.
+ 	GOPROXY
+ 		URL of Go module proxy. See https://golang.org/ref/mod#environment-variables
+ 		and https://golang.org/ref/mod#module-proxy for details.
+@@ -539,6 +539,8 @@ General-purpose environment variables:
+ 	GOSUMDB
+ 		The name of checksum database to use and optionally its public key and
+ 		URL. See https://golang.org/ref/mod#authenticating.
++	GOTOOLCHAIN
++		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
+ 	GOTMPDIR
+ 		The directory where the go command will write
+ 		temporary source files, packages, and binaries.

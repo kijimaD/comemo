@@ -9,7 +9,32 @@ Date:   Mon Aug 19 13:30:31 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/13073044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index ca89e0066b..6982a4e420 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -8,6 +8,7 @@
+ 
+ # Please keep the list sorted.
+ 
++Aaron France <aaron.l.france@gmail.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f8f923b055..d5d85ecc60 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -31,6 +31,7 @@
+ 
+ # Please keep the list sorted.
+ 
++Aaron France <aaron.l.france@gmail.com>
+ Aaron Kemp <kemp.aaron@gmail.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>

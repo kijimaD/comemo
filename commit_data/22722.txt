@@ -32,9 +32,92 @@ Date:   Thu Jan 22 14:15:47 2015 -0800
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bytes/reader.go        |  6 ++++++
  src/bytes/reader_test.go   | 12 ++++++++++++
  src/strings/reader.go      |  6 ++++++
  src/strings/reader_test.go | 13 +++++++++++++
  4 files changed, 37 insertions(+)
+
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index d2d40fa7ca..b89d1548f1 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -29,6 +29,12 @@ func (r *Reader) Len() int {
+ 	return int(int64(len(r.s)) - r.i)
+ }
+ 
++// Size returns the original length of the underlying byte slice.
++// Size is the number of bytes available for reading via ReadAt.
++// The returned value is always the same and is not affected by calls
++// to any other method.
++func (r *Reader) Size() int64 { return int64(len(r.s)) }
++
+ func (r *Reader) Read(b []byte) (n int, err error) {
+ 	if len(b) == 0 {
+ 		return 0, nil
+diff --git a/src/bytes/reader_test.go b/src/bytes/reader_test.go
+index d3dce53499..b929a28260 100644
+--- a/src/bytes/reader_test.go
++++ b/src/bytes/reader_test.go
+@@ -244,3 +244,15 @@ func TestReaderCopyNothing(t *testing.T) {
+ 		t.Errorf("behavior differs: with = %#v; without: %#v", with, withOut)
+ 	}
+ }
++
++// tests that Len is affected by reads, but Size is not.
++func TestReaderLenSize(t *testing.T) {
++	r := NewReader([]byte("abc"))
++	io.CopyN(ioutil.Discard, r, 1)
++	if r.Len() != 2 {
++		t.Errorf("Len = %d; want 2", r.Len())
++	}
++	if r.Size() != 3 {
++		t.Errorf("Size = %d; want 3", r.Size())
++	}
++}
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index 82df974398..7a872fbcb0 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -28,6 +28,12 @@ func (r *Reader) Len() int {
+ 	return int(int64(len(r.s)) - r.i)
+ }
+ 
++// Size returns the original length of the underlying string.
++// Size is the number of bytes available for reading via ReadAt.
++// The returned value is always the same and is not affected by calls
++// to any other method.
++func (r *Reader) Size() int64 { return int64(len(r.s)) }
++
+ func (r *Reader) Read(b []byte) (n int, err error) {
+ 	if len(b) == 0 {
+ 		return 0, nil
+diff --git a/src/strings/reader_test.go b/src/strings/reader_test.go
+index bee90eb258..5003a37be4 100644
+--- a/src/strings/reader_test.go
++++ b/src/strings/reader_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strings"
+ 	"sync"
+@@ -157,3 +158,15 @@ func TestWriteTo(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// tests that Len is affected by reads, but Size is not.
++func TestReaderLenSize(t *testing.T) {
++	r := strings.NewReader("abc")
++	io.CopyN(ioutil.Discard, r, 1)
++	if r.Len() != 2 {
++		t.Errorf("Len = %d; want 2", r.Len())
++	}
++	if r.Size() != 3 {
++		t.Errorf("Size = %d; want 3", r.Size())
++	}
++}

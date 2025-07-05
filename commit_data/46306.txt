@@ -19,10 +19,126 @@ Date:   Thu Dec 17 18:47:26 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go       |  2 +-
  src/cmd/compile/internal/gc/order.go     |  2 +-
  src/cmd/compile/internal/gc/sinit.go     | 18 +++++++++---------
  src/cmd/compile/internal/gc/typecheck.go |  3 ++-
  src/cmd/compile/internal/ir/expr.go      |  1 +
  5 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 33a309db87..5ada83b715 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -452,7 +452,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		// and don't charge for the OBLOCK itself. The ++ undoes the -- below.
+ 		v.budget++
+ 
+-	case ir.OCALLPART:
++	case ir.OCALLPART, ir.OSLICELIT:
+ 		v.budget-- // Hack for toolstash -cmp.
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 9c03a5843c..1a0f0066d0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1281,7 +1281,7 @@ func (o *Order) expr1(n, lhs ir.Node) ir.Node {
+ 		n := n.(*ir.CompLitExpr)
+ 		o.exprList(n.List())
+ 		if n.Transient() {
+-			t := types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
++			t := types.NewArray(n.Type().Elem(), n.Len)
+ 			n.Prealloc = o.newTemp(t, false)
+ 		}
+ 		return n
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 7b710fd511..a845bc5d75 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -142,8 +142,9 @@ func (s *InitSchedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *type
+ 		}
+ 
+ 	case ir.OSLICELIT:
++		r := r.(*ir.CompLitExpr)
+ 		// copy slice
+-		slicesym(l, loff, s.inittemps[r], ir.Int64Val(r.Right()))
++		slicesym(l, loff, s.inittemps[r], r.Len)
+ 		return true
+ 
+ 	case ir.OARRAYLIT, ir.OSTRUCTLIT:
+@@ -232,14 +233,14 @@ func (s *InitSchedule) staticassign(l *ir.Name, loff int64, r ir.Node, typ *type
+ 		}
+ 
+ 	case ir.OSLICELIT:
++		r := r.(*ir.CompLitExpr)
+ 		s.initplan(r)
+ 		// Init slice.
+-		bound := ir.Int64Val(r.Right())
+-		ta := types.NewArray(r.Type().Elem(), bound)
++		ta := types.NewArray(r.Type().Elem(), r.Len)
+ 		ta.SetNoalg(true)
+ 		a := staticname(ta)
+ 		s.inittemps[r] = a
+-		slicesym(l, loff, a, bound)
++		slicesym(l, loff, a, r.Len)
+ 		// Fall through to init underlying array.
+ 		l = a
+ 		loff = 0
+@@ -425,10 +426,11 @@ func getdyn(n ir.Node, top bool) initGenType {
+ 		return initDynamic
+ 
+ 	case ir.OSLICELIT:
++		n := n.(*ir.CompLitExpr)
+ 		if !top {
+ 			return initDynamic
+ 		}
+-		if ir.Int64Val(n.Right())/4 > int64(n.List().Len()) {
++		if n.Len/4 > int64(n.List().Len()) {
+ 			// <25% of entries have explicit values.
+ 			// Very rough estimation, it takes 4 bytes of instructions
+ 			// to initialize 1 byte of result. So don't use a static
+@@ -603,14 +605,12 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
+ 		return false
+ 	}
+ 
+-	r := n.Right()
+-
+-	return smallintconst(r) && (n.Type().Elem().Width == 0 || ir.Int64Val(r) <= smallArrayBytes/n.Type().Elem().Width)
++	return n.Type().Elem().Width == 0 || n.Len <= smallArrayBytes/n.Type().Elem().Width
+ }
+ 
+ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+ 	// make an array type corresponding the number of elements we have
+-	t := types.NewArray(n.Type().Elem(), ir.Int64Val(n.Right()))
++	t := types.NewArray(n.Type().Elem(), n.Len)
+ 	dowidth(t)
+ 
+ 	if ctxt == inNonInitFunction {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4fae4a0819..2d383ab49e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2850,7 +2850,8 @@ func typecheckcomplit(n *ir.CompLitExpr) (res ir.Node) {
+ 	case types.TSLICE:
+ 		length := typecheckarraylit(t.Elem(), -1, n.List().Slice(), "slice literal")
+ 		n.SetOp(ir.OSLICELIT)
+-		n.SetRight(nodintconst(length))
++		n.SetRight(nil)
++		n.Len = length
+ 
+ 	case types.TMAP:
+ 		var cs constSet
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 8f43eb0fb2..d74e7f8763 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -294,6 +294,7 @@ type CompLitExpr struct {
+ 	Ntype    Ntype
+ 	List_    Nodes // initialized values
+ 	Prealloc *Name
++	Len      int64 // backing array length for OSLICELIT
+ }
+ 
+ func NewCompLitExpr(pos src.XPos, op Op, typ Ntype, list []Node) *CompLitExpr {

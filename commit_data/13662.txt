@@ -11,7 +11,41 @@ Date:   Tue Aug 21 11:46:07 2012 +1000
     R=r, robert.hencke, iant, dsymonds, bradfitz
     CC=golang-dev
     https://golang.org/cl/6458158
-
+---
  src/pkg/net/http/example_test.go   | 2 +-
  src/pkg/net/http/transport_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/example_test.go b/src/pkg/net/http/example_test.go
+index ec814407dd..22073eaf7a 100644
+--- a/src/pkg/net/http/example_test.go
++++ b/src/pkg/net/http/example_test.go
+@@ -43,10 +43,10 @@ func ExampleGet() {
+ 		log.Fatal(err)
+ 	}
+ 	robots, err := ioutil.ReadAll(res.Body)
++	res.Body.Close()
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	res.Body.Close()
+ 	fmt.Printf("%s", robots)
+ }
+ 
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 14465727c2..e4072e88fe 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -160,11 +160,11 @@ func TestTransportConnectionCloseOnResponse(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("error in connectionClose=%v, req #%d, Do: %v", connectionClose, n, err)
+ 			}
++			defer res.Body.Close()
+ 			body, err := ioutil.ReadAll(res.Body)
+ 			if err != nil {
+ 				t.Fatalf("error in connectionClose=%v, req #%d, ReadAll: %v", connectionClose, n, err)
+ 			}
+-			defer res.Body.Close()
+ 			return string(body)
+ 		}
+ 

@@ -14,6 +14,20 @@ Date:   Fri Jul 21 01:53:55 2017 +0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/context.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 85f8acf8fa..21a40d5947 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -393,7 +393,7 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
+ 	dur := time.Until(d)
+ 	if dur <= 0 {
+ 		c.cancel(true, DeadlineExceeded) // deadline has already passed
+-		return c, func() { c.cancel(true, Canceled) }
++		return c, func() { c.cancel(false, Canceled) }
+ 	}
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()

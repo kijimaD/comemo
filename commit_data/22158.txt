@@ -12,7 +12,47 @@ Date:   Wed Feb 18 16:27:48 2015 -0800
     Change-Id: Id0194c9f09cea8b68f17b2ac751a8e3240e47f19
     Reviewed-on: https://go-review.googlesource.com/5284
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/gc/subr.go  |  1 -
  src/runtime/mapspeed_test.go | 19 +++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 9dc573e795..b970f1d21a 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -2848,7 +2848,6 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
+ 	}
+ 
+ 	nif := Nod(OIF, nil, nil)
+-	nif.Ninit = list(nif.Ninit, call)
+ 	nif.Ntest = Nod(ONOT, call, nil)
+ 	r := Nod(ORETURN, nil, nil)
+ 	r.List = list(r.List, Nodbool(false))
+diff --git a/src/runtime/mapspeed_test.go b/src/runtime/mapspeed_test.go
+index b036d2a3ab..ac93119d77 100644
+--- a/src/runtime/mapspeed_test.go
++++ b/src/runtime/mapspeed_test.go
+@@ -307,3 +307,22 @@ func BenchmarkSmallKeyMap(b *testing.B) {
+ 		_ = m[5]
+ 	}
+ }
++
++type ComplexAlgKey struct {
++	a, b, c int64
++	_       int
++	d       int32
++	_       int
++	e       string
++	_       int
++	f, g, h int64
++}
++
++func BenchmarkComplexAlgMap(b *testing.B) {
++	m := make(map[ComplexAlgKey]bool)
++	var k ComplexAlgKey
++	m[k] = true
++	for i := 0; i < b.N; i++ {
++		_ = m[k]
++	}
++}

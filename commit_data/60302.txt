@@ -40,8 +40,99 @@ Date:   Thu Jun 6 12:51:57 2024 +0000
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go | 10 +++++++++-
  src/cmd/compile/internal/noder/unified.go    |  9 +++++++++
  src/cmd/compile/internal/pgoir/irgraph.go    | 13 ++++++++++++-
  3 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 0a43135420..783940cbc2 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -364,11 +364,15 @@ func constructCallStat(p *pgoir.Profile, fn *ir.Func, name string, call *ir.Call
+ 		return e.Dst.Name() < stat.Hottest
+ 	}
+ 
++	callerNode := p.WeightedCG.IRNodes[name]
++	if callerNode == nil {
++		return nil
++	}
++
+ 	// Sum of all edges from this callsite, regardless of callee.
+ 	// For direct calls, this should be the same as the single edge
+ 	// weight (except for multiple calls on one line, which we
+ 	// can't distinguish).
+-	callerNode := p.WeightedCG.IRNodes[name]
+ 	for _, edge := range callerNode.OutEdges {
+ 		if edge.CallSiteOffset != offset {
+ 			continue
+@@ -656,6 +660,10 @@ func findHotConcreteCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr,
+ 	callerNode := p.WeightedCG.IRNodes[callerName]
+ 	callOffset := pgoir.NodeLineOffset(call, caller)
+ 
++	if callerNode == nil {
++		return nil, 0
++	}
++
+ 	var hottest *pgoir.IREdge
+ 
+ 	// Returns true if e is hotter than hottest.
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index a1a90cd6b5..22d6f71329 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -69,6 +69,14 @@ func LookupFunc(fullName string) (*ir.Func, error) {
+ 	return nil, fmt.Errorf("%s is not a function (%v) or method (%v)", fullName, err, mErr)
+ }
+ 
++// PostLookupCleanup performs cleanup operations needed
++// after a series of calls to LookupFunc, specifically invoking
++// readBodies to post-process any funcs on the "todoBodies" list
++// that were added as a result of the lookup operations.
++func PostLookupCleanup() {
++	readBodies(typecheck.Target, false)
++}
++
+ func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
+ 	sym := pkg.Lookup(symName)
+ 
+@@ -179,6 +187,7 @@ func unified(m posMap, noders []*noder) {
+ 	inline.InlineCall = unifiedInlineCall
+ 	typecheck.HaveInlineBody = unifiedHaveInlineBody
+ 	pgoir.LookupFunc = LookupFunc
++	pgoir.PostLookupCleanup = PostLookupCleanup
+ 
+ 	data := writePkgStub(m, noders)
+ 
+diff --git a/src/cmd/compile/internal/pgoir/irgraph.go b/src/cmd/compile/internal/pgoir/irgraph.go
+index f1c8d13dec..b031e2a9ff 100644
+--- a/src/cmd/compile/internal/pgoir/irgraph.go
++++ b/src/cmd/compile/internal/pgoir/irgraph.go
+@@ -267,7 +267,16 @@ func addIREdge(callerNode *IRNode, callerName string, call ir.Node, callee *ir.F
+ // LookupFunc looks up a function or method in export data. It is expected to
+ // be overridden by package noder, to break a dependency cycle.
+ var LookupFunc = func(fullName string) (*ir.Func, error) {
+-	base.Fatalf("pgo.LookupMethodFunc not overridden")
++	base.Fatalf("pgoir.LookupMethodFunc not overridden")
++	panic("unreachable")
++}
++
++// PostLookupCleanup performs any remaining cleanup operations needed
++// after a series of calls to LookupFunc, specifically reading in the
++// bodies of functions that may have been delayed due being encountered
++// in a stage where the reader's curfn state was not set up.
++var PostLookupCleanup = func() {
++	base.Fatalf("pgoir.PostLookupCleanup not overridden")
+ 	panic("unreachable")
+ }
+ 
+@@ -386,6 +395,8 @@ func addIndirectEdges(g *IRGraph, namedEdgeMap pgo.NamedEdgeMap) {
+ 		}
+ 		callerNode.OutEdges[key] = edge
+ 	}
++
++	PostLookupCleanup()
+ }
+ 
+ // PrintWeightedCallGraphDOT prints IRGraph in DOT format.

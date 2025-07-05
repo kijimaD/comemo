@@ -17,9 +17,192 @@ Date:   Mon Mar 13 17:23:13 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next/59033.txt                   |   2 +
  src/cmd/dist/buildtool.go            |   1 +
  src/go/build/constraint/vers.go      | 105 +++++++++++++++++++++++++++++++++++
  src/go/build/constraint/vers_test.go |  45 +++++++++++++++
  4 files changed, 153 insertions(+)
+
+diff --git a/api/next/59033.txt b/api/next/59033.txt
+new file mode 100644
+index 0000000000..4c37697462
+--- /dev/null
++++ b/api/next/59033.txt
+@@ -0,0 +1,2 @@
++pkg go/build/constraint, func GoVersion(Expr) string #59033
++
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index f2228df33d..09b8750dc8 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -59,6 +59,7 @@ var bootstrapDirs = []string{
+ 	"debug/elf",
+ 	"debug/macho",
+ 	"debug/pe",
++	"go/build/constraint",
+ 	"go/constant",
+ 	"internal/abi",
+ 	"internal/coverage",
+diff --git a/src/go/build/constraint/vers.go b/src/go/build/constraint/vers.go
+new file mode 100644
+index 0000000000..34c44dcf17
+--- /dev/null
++++ b/src/go/build/constraint/vers.go
+@@ -0,0 +1,105 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package constraint
++
++import (
++	"strconv"
++	"strings"
++)
++
++// GoVersion returns the minimum Go version implied by a given build expression.
++// If the expression can be satisfied without any Go version tags, GoVersion returns an empty string.
++//
++// For example:
++//
++//	GoVersion(linux && go1.22) = "go1.22"
++//	GoVersion((linux && go1.22) || (windows && go1.20)) = "go1.20" => go1.20
++//	GoVersion(linux) = ""
++//	GoVersion(linux || (windows && go1.22)) = ""
++//	GoVersion(!go1.22) = ""
++//
++// GoVersion assumes that any tag or negated tag may independently be true,
++// so that its analysis can be purely structural, without SAT solving.
++// “Impossible” subexpressions may therefore affect the result.
++//
++// For example:
++//
++//	GoVersion((linux && !linux && go1.20) || go1.21) = "go1.20"
++func GoVersion(x Expr) string {
++	v := minVersion(x, +1)
++	if v < 0 {
++		return ""
++	}
++	if v == 0 {
++		return "go1"
++	}
++	return "go1." + strconv.Itoa(v)
++}
++
++// minVersion returns the minimum Go major version (9 for go1.9)
++// implied by expression z, or if sign < 0, by expression !z.
++func minVersion(z Expr, sign int) int {
++	switch z := z.(type) {
++	default:
++		return -1
++	case *AndExpr:
++		op := andVersion
++		if sign < 0 {
++			op = orVersion
++		}
++		return op(minVersion(z.X, sign), minVersion(z.Y, sign))
++	case *OrExpr:
++		op := orVersion
++		if sign < 0 {
++			op = andVersion
++		}
++		return op(minVersion(z.X, sign), minVersion(z.Y, sign))
++	case *NotExpr:
++		return minVersion(z.X, -sign)
++	case *TagExpr:
++		if sign < 0 {
++			// !foo implies nothing
++			return -1
++		}
++		if z.Tag == "go1" {
++			return 0
++		}
++		_, v, _ := stringsCut(z.Tag, "go1.")
++		n, err := strconv.Atoi(v)
++		if err != nil {
++			// not a go1.N tag
++			return -1
++		}
++		return n
++	}
++}
++
++// TODO: Delete, replace calls with strings.Cut once Go bootstrap toolchain is bumped.
++func stringsCut(s, sep string) (before, after string, found bool) {
++	if i := strings.Index(s, sep); i >= 0 {
++		return s[:i], s[i+len(sep):], true
++	}
++	return s, "", false
++}
++
++// andVersion returns the minimum Go version
++// implied by the AND of two minimum Go versions,
++// which is the max of the versions.
++func andVersion(x, y int) int {
++	if x > y {
++		return x
++	}
++	return y
++}
++
++// orVersion returns the minimum Go version
++// implied by the OR of two minimum Go versions,
++// which is the min of the versions.
++func orVersion(x, y int) int {
++	if x < y {
++		return x
++	}
++	return y
++}
+diff --git a/src/go/build/constraint/vers_test.go b/src/go/build/constraint/vers_test.go
+new file mode 100644
+index 0000000000..044de7f8b1
+--- /dev/null
++++ b/src/go/build/constraint/vers_test.go
+@@ -0,0 +1,45 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package constraint
++
++import (
++	"fmt"
++	"testing"
++)
++
++var tests = []struct {
++	in  string
++	out int
++}{
++	{"//go:build linux && go1.60", 60},
++	{"//go:build ignore && go1.60", 60},
++	{"//go:build ignore || go1.60", -1},
++	{"//go:build go1.50 || (ignore && go1.60)", 50},
++	{"// +build go1.60,linux", 60},
++	{"// +build go1.60 linux", -1},
++	{"//go:build go1.50 && !go1.60", 50},
++	{"//go:build !go1.60", -1},
++	{"//go:build linux && go1.50 || darwin && go1.60", 50},
++	{"//go:build linux && go1.50 || !(!darwin || !go1.60)", 50},
++}
++
++func TestGoVersion(t *testing.T) {
++	for _, tt := range tests {
++		x, err := Parse(tt.in)
++		if err != nil {
++			t.Fatal(err)
++		}
++		v := GoVersion(x)
++		want := ""
++		if tt.out == 0 {
++			want = "go1"
++		} else if tt.out > 0 {
++			want = fmt.Sprintf("go1.%d", tt.out)
++		}
++		if v != want {
++			t.Errorf("GoVersion(%q) = %q, want %q, nil", tt.in, v, want)
++		}
++	}
++}

@@ -7,8 +7,51 @@ Date:   Wed Mar 6 15:19:01 2013 -0500
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7486048
-
+---
  misc/cgo/test/cthread.go                | 4 ++++
  src/pkg/runtime/syscall_windows_test.go | 3 +++
  src/run.bat                             | 2 --
  3 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/cthread.go b/misc/cgo/test/cthread.go
+index d918d033fe..d295d008ab 100644
+--- a/misc/cgo/test/cthread.go
++++ b/misc/cgo/test/cthread.go
+@@ -34,6 +34,10 @@ func testCthread(t *testing.T) {
+ 	if runtime.GOARCH == "arm" {
+ 		t.Skip("testCthread disabled on arm")
+ 	}
++	// TODO(brainman): http://golang.org/issue/4955
++	if runtime.GOOS == "windows" {
++		t.Skip("testCthread disabled on windows: http://golang.org/issue/4955")
++	}
+ 
+ 	C.doAdd(10, 6)
+ 
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index f04d2cd543..0b6503b1e8 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -172,6 +172,9 @@ func TestCallbackGC(t *testing.T) {
+ }
+ 
+ func TestCallbackPanic(t *testing.T) {
++	// TODO(brainman): http://golang.org/issue/4971
++	t.Skip("TestCallbackPanic disabled: http://golang.org/issue/4971")
++
+ 	// Make sure panic during callback unwinds properly.
+ 	if runtime.LockedOSThread() {
+ 		t.Fatal("locked OS thread on entry to TestCallbackPanic")
+diff --git a/src/run.bat b/src/run.bat
+index 5f7164a0c9..3f950f5414 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -72,8 +72,6 @@ if errorlevel 1 goto fail
+ echo.
+ 
+ :: cgo tests
+-:: issue 4955 - cgo is broken
+-goto nocgo
+ if x%CGO_ENABLED% == x0 goto nocgo
+ echo # ..\misc\cgo\life
+ go run %GOROOT%\test\run.go - ..\misc\cgo\life

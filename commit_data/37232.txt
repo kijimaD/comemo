@@ -9,6 +9,26 @@ Date:   Wed Jul 11 21:30:09 2018 +0000
     Change-Id: Id87fd106e69d3d9682653eb753b1de616adeed2b
     Reviewed-on: https://go-review.googlesource.com/123416
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index ede22a5a9a..57a667c406 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -57,6 +57,14 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
+ </p>
++<p>
++  As a result of the addition of the new <code>GOOS</code> value
++  "<code>js</code>" and <code>GOARCH</code> value "<code>wasm</code>",
++  Go files named <code>*_js.go</code> or <code>*_wasm.go</code> will
++  now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored by Go
++  tools</a> except when those GOOS/GOARCH values are being used.
++  If you have existing filenames matching those patterns, you will have to rename them.
++</p>
+ 
+ <h2 id="tools">Tools</h2>
+ 

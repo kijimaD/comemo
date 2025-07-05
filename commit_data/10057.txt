@@ -7,6 +7,24 @@ Date:   Wed Oct 19 12:49:01 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/5302044
-
+---
  src/pkg/exp/types/gcimporter.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index fe90f91080..e744a63a96 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -289,9 +289,10 @@ func (p *gcParser) parseExportedName() (*ast.Object, string) {
+ // BasicType = identifier .
+ //
+ func (p *gcParser) parseBasicType() Type {
+-	obj := Universe.Lookup(p.expect(scanner.Ident))
++	id := p.expect(scanner.Ident)
++	obj := Universe.Lookup(id)
+ 	if obj == nil || obj.Kind != ast.Typ {
+-		p.errorf("not a basic type: %s", obj.Name)
++		p.errorf("not a basic type: %s", id)
+ 	}
+ 	return obj.Type.(Type)
+ }

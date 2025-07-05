@@ -9,6 +9,19 @@ Date:   Mon Dec 12 17:35:25 2016 +0000
     Change-Id: I047e98cc36b861ef15292170aeaff8bc29243cab
     Reviewed-on: https://go-review.googlesource.com/34281
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/conduct.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/conduct.html b/doc/conduct.html
+index c749266248..5b81681c10 100644
+--- a/doc/conduct.html
++++ b/doc/conduct.html
+@@ -67,7 +67,6 @@ official forums operated by the Go project (“Go spaces”):
+     <li>The <a href="https://groups.google.com/group/golang-nuts">golang-nuts</a> and
+         <a href="https://groups.google.com/group/golang-dev">golang-dev</a> mailing lists.
+ <li>The #go-nuts IRC channel on Freenode.
+-<li>The <a href="https://reddit.com/r/golang">/r/golang subreddit</a>.
+ </ul>
+ 
+ <p>

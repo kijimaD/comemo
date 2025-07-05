@@ -8,7 +8,40 @@ Date:   Tue Mar 11 18:49:50 2014 -0700
     R=golang-codereviews, iant, bradfitz
     CC=golang-codereviews, math-nuts
     https://golang.org/cl/72820044
-
+---
  src/pkg/debug/dwarf/const.go | 4 ++++
  src/pkg/debug/dwarf/entry.go | 4 ++--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+index 987812b152..93c68881af 100644
+--- a/src/pkg/debug/dwarf/const.go
++++ b/src/pkg/debug/dwarf/const.go
+@@ -212,6 +212,10 @@ const (
+ 	formExprloc     format = 0x18
+ 	formFlagPresent format = 0x19
+ 	formRefSig8     format = 0x20
++	// Extensions for multi-file compression (.dwz)
++	// http://www.dwarfstd.org/ShowIssue.php?issue=120604.1
++	formGnuRefAlt  format = 0x1f20
++	formGnuStrpAlt format = 0x1f21
+ )
+ 
+ // A Tag is the classification (the type) of an Entry.
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index 934416e6c1..665c6840d4 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -241,10 +241,10 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		// lineptr, loclistptr, macptr, rangelistptr
+ 		// New in DWARF 4, but clang can generate them with -gdwarf-2.
+ 		// Section reference, replacing use of formData4 and formData8.
+-		case formSecOffset:
++		case formSecOffset, formGnuRefAlt, formGnuStrpAlt:
+ 			is64, known := b.format.dwarf64()
+ 			if !known {
+-				b.error("unknown size for DW_FORM_sec_offset")
++				b.error("unknown size for form 0x" + strconv.FormatInt(int64(fmt), 16))
+ 			} else if is64 {
+ 				val = int64(b.uint64())
+ 			} else {

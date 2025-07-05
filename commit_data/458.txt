@@ -9,7 +9,7 @@ Date:   Thu Jul 31 13:35:30 2008 -0700
     R=r
     OCL=13690
     CL=13690
-
+---
  usr/gri/gosrc/ast.go      |  24 +++++-----
  usr/gri/gosrc/decls.go    |  22 ++++-----
  usr/gri/gosrc/globals.go  |  51 ++++++++++++++++++---
@@ -18,3 +18,645 @@ Date:   Thu Jul 31 13:35:30 2008 -0700
  usr/gri/gosrc/universe.go |   1 +
  usr/gri/gosrc/verifier.go |   4 --
  7 files changed, 150 insertions(+), 71 deletions(-)
+
+diff --git a/usr/gri/gosrc/ast.go b/usr/gri/gosrc/ast.go
+index 413a3c0c2f..70c1ecbe7c 100644
+--- a/usr/gri/gosrc/ast.go
++++ b/usr/gri/gosrc/ast.go
+@@ -11,27 +11,23 @@ import Universe "universe"
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-export Expr
+-type Expr interface {
+-}
+-
+-
+ export BinaryExpr
+ type BinaryExpr struct {
+-	typ *Globals.Type;
++	typ_ *Globals.Type;
+ 	op int;
+-	x, y Expr;
++	x, y Globals.Expr;
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Statements
+ 
+-export Stat
+-type Stat interface {
++func (x *BinaryExpr) typ() *Globals.Type {
++	return x.typ_;
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Statements
++
+ export Block
+ type Block struct {
+ 	// TODO fill in
+@@ -40,7 +36,7 @@ type Block struct {
+ 
+ export IfStat
+ type IfStat struct {
+-	cond Expr;
+-	then_ Stat;
+-	else_ Stat;
++	cond Globals.Expr;
++	then_ Globals.Stat;
++	else_ Globals.Stat;
+ }
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index 5570d0a0e7..cf95537861 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -6,8 +6,7 @@
+ 
+ package decls
+ 
+-//import "base"
+-import base "base"
++import "base"
+ import base2 "base"
+ 
+ const c0 int = 0
+@@ -53,12 +52,12 @@ type (
+ )
+ 
+ type T6 chan int
+-type T7 chan<- T6
+-type T8 chan-< T6
++type T7 chan<- *T6
++type T8 chan-< *T6
+ 
+ type T9 struct {
+   p *T9;
+-  q [] map [int] *T9;
++  q [] *map [int] *T9;
+   f *func(x, y *T9) *T9;
+ }
+ 
+@@ -97,7 +96,7 @@ var v1 float = c1
+ var (
+   v2 T2;
+   v3 struct {
+-    f1, f2, f3 M0;
++    f1, f2, f3 *M0;
+   }
+ )
+ 
+@@ -105,16 +104,19 @@ var (
+ func f0() {}
+ func f1(a int) {}
+ func f2(a, b int, c float) {}
+-func f3() bool {}
++func f3() bool { return false; }
+ func f4(a int) (z T5, ok bool) {}
+-func f5(a, b int, c float) (z T5, ok bool) {}
++func f5(a, b int, c float) (z T5, ok bool) {
++	u, v := 0, 0;
++	return;
++}
+ 
+ 
+ func (p *T4) m0() {}
+ func (p *T4) m1(a int) {}
+ func (p *T4) m2(a, b int, c float) {}
+-func (p *T4) m3() bool {}
+-func (p *T4) m4(a int) (z T5, ok bool) {}
++func (p *T4) m3() bool { return false; }
++func (p *T4) m4(a int) (z T5, ok bool) { return; }
+ func (p *T4) m5(a, b int, c float) (z T5, ok bool) {
+   L: var x = a;
+ }
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 34743551cf..5b3d6c1d90 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -6,7 +6,7 @@ package Globals
+ 
+ 
+ // The following types should really be in their respective files
+-// (object.go, type.go, scope.go, package.go, compilation.go) but
++// (object.go, type.go, scope.go, package.go, compilation.go, etc.) but
+ // they refer to each other and we don't know how to handle forward
+ // declared pointers across packages yet.
+ 
+@@ -21,6 +21,7 @@ type Object struct {
+ 	ident string;
+ 	typ *Type;
+ 	pnolev int;  // >= 0: package no., <= 0: level, 0: global level of compilation
++	scope *Scope;  // which contains the object
+ }
+ 
+ 
+@@ -33,7 +34,7 @@ type Type struct {
+ 	len_ int;  // array length, no. of parameters (w/o recv)
+ 	obj *Object;  // primary type object or NULL
+ 	key *Type;  // maps
+-	elt *Type;  // arrays, maps, channels, pointers
++	elt *Type;  // aliases, arrays, maps, channels, pointers
+ 	scope *Scope;  // structs, interfaces, functions
+ }
+ 
+@@ -94,9 +95,25 @@ type Compilation struct {
+ }
+ 
+ 
++export Expr
++type Expr interface {
++	typ() *Type;
++	// ... more to come here
++}
++
++
++export Stat
++type Stat interface {
++	// ... more to come here
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Creation
+ 
++export Universe_undef_t
++var Universe_undef_t *Type  // initialized by Universe to Universe.undef_t
++
+ export NewObject
+ func NewObject(pos, kind int, ident string) *Object {
+ 	obj := new(Object);
+@@ -104,8 +121,9 @@ func NewObject(pos, kind int, ident string) *Object {
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+ 	obj.ident = ident;
+-	obj.typ = nil;  // Universe::undef_t;  (cyclic import...)
++	obj.typ = Universe_undef_t;
+ 	obj.pnolev = 0;
++	obj.scope = nil;
+ 	return obj;
+ }
+ 
+@@ -113,7 +131,7 @@ func NewObject(pos, kind int, ident string) *Object {
+ export NewType
+ func NewType(form int) *Type {
+ 	typ := new(Type);
+-	typ.ref = -1;
++	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
+ 	return typ;
+ }
+@@ -122,7 +140,7 @@ func NewType(form int) *Type {
+ export NewPackage;
+ func NewPackage(file_name string) *Package {
+ 	pkg := new(Package);
+-	pkg.ref = -1;
++	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+ 	pkg.key = "<the package key>";  // TODO fix this
+ 	return pkg;
+@@ -152,6 +170,22 @@ func NewCompilation(flags *Flags) *Compilation {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Object methods
++
++func (obj *Object) Copy() *Object {
++	copy := new(Object);
++	copy.exported = obj.exported;
++	copy.pos = obj.pos;
++	copy.kind = obj.kind;
++	copy.ident = obj.ident;
++	copy.typ = obj.typ;
++	copy.pnolev = obj.pnolev;
++	copy.scope = nil;  // cannot be in the same scope (same ident!)
++	return copy;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // List methods
+ 
+@@ -239,6 +273,9 @@ func (scope *Scope) Lookup(ident string) *Object {
+ 	var p *Elem;
+ 	for p = scope.entries.first; p != nil; p = p.next {
+ 		if p.obj.ident == ident {
++			if p.obj.scope != scope {
++				panic "incorrect scope for object";
++			}
+ 			return p.obj;
+ 		}
+ 	}
+@@ -250,7 +287,11 @@ func (scope *Scope) Insert(obj *Object) {
+ 	if scope.Lookup(obj.ident) != nil {
+ 		panic "obj already inserted";
+ 	}
++	if obj.scope != nil {
++		panic "obj already in a scope";
++	}
+ 	scope.entries.AddObj(obj);
++	obj.scope = scope;
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 726b812457..77062a9125 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -149,6 +149,7 @@ func (P *Parser) Declare(obj *Globals.Object) {
+ 
+ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
+   // Determine if we have a receiver or not.
++  // TODO do we still need this?
+   if p0 > 0 && check_recv {
+     // method
+ 	if p0 != 1 {
+@@ -223,7 +224,7 @@ func (P *Parser) DeclareFunc(ident string, typ *Globals.Type) *Globals.Object {
+ 
+ 
+ func (P *Parser) TryType() *Globals.Type;
+-func (P *Parser) ParseExpression();
++func (P *Parser) ParseExpression() Globals.Expr;
+ func (P *Parser) TryStatement() bool;
+ func (P *Parser) ParseDeclaration();
+ 
+@@ -350,6 +351,32 @@ func (P *Parser) ParseType() *Globals.Type {
+ }
+ 
+ 
++func (P *Parser) ParseVarType() *Globals.Type {
++	P.Trace("VarType");
++	
++	pos := P.pos;
++	typ := P.ParseType();
++	
++	if P.semantic_checks {
++		switch typ.form {
++		case Type.ARRAY:
++			if P.comp.flags.sixg || typ.len_ >= 0 {
++				break;
++			}
++			// open arrays must be pointers
++			fallthrough;
++			
++		case Type.MAP, Type.CHANNEL, Type.FUNCTION:
++			P.Error(pos, "must be pointer to this type");
++			typ = Universe.bad_t;
++		}
++	}
++		
++	P.Ecart();
++	return typ;
++}
++
++
+ func (P *Parser) ParseTypeName() *Globals.Type {
+ 	P.Trace("TypeName");
+ 	
+@@ -381,7 +408,7 @@ func (P *Parser) ParseArrayType() *Globals.Type {
+ 		P.ParseExpression();
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+-	typ.elt = P.ParseType();
++	typ.elt = P.ParseVarType();
+ 	P.Ecart();
+ 	
+ 	return typ;
+@@ -403,7 +430,7 @@ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	default:
+ 		typ.flags = Type.SEND + Type.RECV;
+ 	}
+-	typ.elt = P.ParseType();
++	typ.elt = P.ParseVarType();
+ 	P.Ecart();
+ 	
+ 	return typ;
+@@ -414,7 +441,7 @@ func (P *Parser) ParseVarDeclList() {
+ 	P.Trace("VarDeclList");
+ 	
+ 	list := P.ParseIdentDeclList(Object.VAR);
+-	typ := P.ParseType();  // TODO should check completeness of types
++	typ := P.ParseVarType();
+ 	for p := list.first; p != nil; p = p.next {
+ 		p.obj.typ = typ;  // TODO should use/have set_type()
+ 	}
+@@ -571,11 +598,13 @@ func (P *Parser) ParseFunctionType() *Globals.Type {
+ func (P *Parser) ParseMethodDecl() {
+ 	P.Trace("MethodDecl");
+ 	
+-	P.ParseIdent();
++	pos := P.pos;
++	ident := P.ParseIdent();
+ 	P.OpenScope();
+ 	P.level--;
+ 	sig := P.top_scope;
+-	p0 := 0;
++	// dummy receiver (give it a name so it won't conflict with unnamed result)
++	sig.Insert(Globals.NewObject(pos, Object.VAR, ".recv"));
+ 	P.ParseParameters();
+ 	r0 := sig.entries.len_;
+ 	P.TryResult();
+@@ -583,6 +612,10 @@ func (P *Parser) ParseMethodDecl() {
+ 	P.CloseScope();
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
++	obj := Globals.NewObject(pos, Object.FUNC, ident);
++	obj.typ = MakeFunctionType(sig, 1, r0, true);
++	P.Declare(obj);
++	
+ 	P.Ecart();
+ }
+ 
+@@ -614,9 +647,9 @@ func (P *Parser) ParseMapType() *Globals.Type {
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+ 	typ := Globals.NewType(Type.MAP);
+-	typ.key = P.ParseType();
++	typ.key = P.ParseVarType();
+ 	P.Expect(Scanner.RBRACK);
+-	typ.elt = P.ParseType();
++	typ.elt = P.ParseVarType();
+ 	P.Ecart();
+ 	
+ 	return typ;
+@@ -754,14 +787,10 @@ func (P *Parser) ParseBlock(sig *Globals.Scope) {
+ 	P.OpenScope();
+ 	if sig != nil {
+ 		P.level--;
+-		// add function parameters to scope
+-		// TODO do we need to make a copy? what if we change obj fields?
++		// add copies of the formal parameters to the function scope
+ 		scope := P.top_scope;
+ 		for p := sig.entries.first; p != nil; p = p.next {
+-			if p.obj.pnolev != P.level {
+-				panic "incorrect level";
+-			}
+-			scope.Insert(p.obj)
++			scope.Insert(p.obj.Copy())
+ 		}
+ 	}
+ 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
+@@ -798,7 +827,7 @@ func (P *Parser) ParseExpressionList() *Globals.List {
+ }
+ 
+ 
+-func (P *Parser) ParseNew() {
++func (P *Parser) ParseNew() Globals.Expr {
+ 	P.Trace("New");
+ 	
+ 	P.Expect(Scanner.NEW);
+@@ -811,16 +840,18 @@ func (P *Parser) ParseNew() {
+ 	P.Expect(Scanner.RPAREN);
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseFunctionLit() {
++func (P *Parser) ParseFunctionLit() Globals.Expr {
+ 	P.Trace("FunctionLit");
+ 	
+ 	typ := P.ParseFunctionType();
+ 	P.ParseBlock(typ.scope);
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+@@ -847,16 +878,17 @@ func (P *Parser) ParseExpressionPairList() {
+ }
+ 
+ 
+-func (P *Parser) ParseBuiltinCall() {
++func (P *Parser) ParseBuiltinCall() Globals.Expr {
+ 	P.Trace("BuiltinCall");
+ 	
+ 	P.ParseExpressionList();  // TODO should be optional
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
++func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
+ 	P.Trace("CompositeLit");
+ 	
+ 	// TODO I think we should use {} instead of () for
+@@ -894,10 +926,11 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) {
+ 	P.Expect(paren);
+ 
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseOperand(pos int, ident string) {
++func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 	P.Trace("Operand");
+ 
+ 	if pos < 0 && P.tok == Scanner.IDENT {
+@@ -954,10 +987,11 @@ func (P *Parser) ParseOperand(pos int, ident string) {
+ 	
+ exit:
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseSelectorOrTypeAssertion() {
++func (P *Parser) ParseSelectorOrTypeAssertion() Globals.Expr {
+ 	P.Trace("SelectorOrTypeAssertion");
+ 	
+ 	P.Expect(Scanner.PERIOD);
+@@ -970,10 +1004,11 @@ func (P *Parser) ParseSelectorOrTypeAssertion() {
+ 	}
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseIndexOrSlice() {
++func (P *Parser) ParseIndexOrSlice() Globals.Expr {
+ 	P.Trace("IndexOrSlice");
+ 	
+ 	P.Expect(Scanner.LBRACK);
+@@ -985,10 +1020,11 @@ func (P *Parser) ParseIndexOrSlice() {
+ 	P.Expect(Scanner.RBRACK);
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParseCall() {
++func (P *Parser) ParseCall() Globals.Expr {
+ 	P.Trace("Call");
+ 	
+ 	P.Expect(Scanner.LPAREN);
+@@ -998,10 +1034,11 @@ func (P *Parser) ParseCall() {
+ 	P.Expect(Scanner.RPAREN);
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+-func (P *Parser) ParsePrimaryExpr(pos int, ident string) AST.Expr {
++func (P *Parser) ParsePrimaryExpr(pos int, ident string) Globals.Expr {
+ 	P.Trace("PrimaryExpr");
+ 	
+ 	P.ParseOperand(pos, ident);
+@@ -1037,7 +1074,7 @@ func (P *Parser) ParsePrimaryExprList() {
+ }
+ 
+ 
+-func (P *Parser) ParseUnaryExpr() AST.Expr {
++func (P *Parser) ParseUnaryExpr() Globals.Expr {
+ 	P.Trace("UnaryExpr");
+ 	
+ 	switch P.tok {
+@@ -1080,10 +1117,10 @@ func Precedence(tok int) int {
+ }
+ 
+ 
+-func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
++func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr {
+ 	P.Trace("BinaryExpr");
+ 	
+-	var x AST.Expr;
++	var x Globals.Expr;
+ 	if pos >= 0 {
+ 		x = P.ParsePrimaryExpr(pos, ident);
+ 	} else {
+@@ -1092,7 +1129,7 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
+ 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Precedence(P.tok) == prec {
+ 			e := new(AST.BinaryExpr);
+-			e.typ = Universe.undef_t;  // TODO fix this
++			e.typ_ = Universe.undef_t;  // TODO fix this
+ 			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
+ 			e.x = x;
+ 			P.Next();
+@@ -1102,29 +1139,34 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) AST.Expr {
+ 	}
+ 	
+ 	P.Ecart();
++	return x;
+ }
+ 
+ 
+ // Expressions where the first token may be an identifier which has already
+ // been consumed. If the identifier is present, pos is the identifier position,
+ // otherwise pos must be < 0 (and ident is ignored).
+-func (P *Parser) ParseIdentExpression(pos int, ident string) {
++func (P *Parser) ParseIdentExpression(pos int, ident string) Globals.Expr {
+ 	P.Trace("IdentExpression");
+ 	indent := P.indent;
+ 	
+-	P.ParseBinaryExpr(pos, ident, 1);
++	x := P.ParseBinaryExpr(pos, ident, 1);
+ 	
+ 	if indent != P.indent {
+ 		panic "imbalanced tracing code (Expression)";
+ 	}
+ 	P.Ecart();
++	return x;
+ }
+ 
+ 
+-func (P *Parser) ParseExpression() {
+-	P.Trace("Expression");	
+-	P.ParseIdentExpression(-1, "");
++func (P *Parser) ParseExpression() Globals.Expr {
++	P.Trace("Expression");
++	
++	x := P.ParseIdentExpression(-1, "");
++
+ 	P.Ecart();
++	return x;
+ }
+ 
+ 
+@@ -1280,8 +1322,10 @@ func (P *Parser) ParseSimpleStat() {
+ 
+ func (P *Parser) ParseGoStat() {
+ 	P.Trace("GoStat");
++	
+ 	P.Expect(Scanner.GO);
+ 	P.ParseExpression();
++	
+ 	P.Ecart();
+ }
+ 
+@@ -1666,9 +1710,9 @@ func (P *Parser) ParseVarSpec(exported bool) {
+ 		P.Next();
+ 		P.ParseExpressionList();
+ 	} else {
+-		typ := P.ParseType();
++		typ := P.ParseVarType();
+ 		for p := list.first; p != nil; p = p.next {
+-			p.obj.typ = typ;  // TODO should use/have set_type()!
++			p.obj.typ = typ;
+ 		}
+ 		if P.tok == Scanner.ASSIGN {
+ 			P.Next();
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index 4fc5d1f538..9b27e4cfac 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -79,7 +79,7 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
+ 	
+ 	if fun != nil {
+ 		P.PrintObject(fun);
+-		print " ";
++		//print " ";
+ 	} else if p0 > 0 {
+ 		print ". ";
+ 	}
+@@ -94,10 +94,9 @@ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
+ 
+ 
+ func (P *Printer) PrintIndent() {
+-	const scale = 4;
+ 	print "\n";
+-	for i := P.level * scale; i > 0; i-- {
+-		print " ";
++	for i := P.level; i > 0; i-- {
++		print "\t";
+ 	}
+ }
+ 
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index 76f403d066..4ed0277488 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -109,6 +109,7 @@ func init() {
+ 	
+ 	// Interal types
+ 	undef_t = Globals.NewType(Type.UNDEF);
++	Globals.Universe_undef_t = undef_t;
+ 	bad_t = Globals.NewType(Type.BAD);
+ 	nil_t = DeclType(Type.NIL, "nil", 8);
+ 	
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index 08fedc2694..d653fd6597 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -25,10 +25,6 @@ func VerifyObject(obj *Globals.Object, pnolev int);
+ 
+ 
+ func VerifyType(typ *Globals.Type) {
+-	if typ == nil {
+-		return;  // see Globals.NewObject
+-	}
+-	
+ 	if typ.obj != nil {
+ 		VerifyObject(typ.obj, 0);
+ 	}

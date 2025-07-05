@@ -13,6 +13,20 @@ Date:   Mon Nov 13 13:48:49 2017 -0800
     Change-Id: I823dbb87867bf0a77aa20f6ed7a615dbedab3715
     Reviewed-on: https://go-review.googlesource.com/77372
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/hash/hash.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/hash/hash.go b/src/hash/hash.go
+index da2007877a..62cf6a4518 100644
+--- a/src/hash/hash.go
++++ b/src/hash/hash.go
+@@ -14,6 +14,8 @@ import "io"
+ // encoding.BinaryUnmarshaler interfaces. Marshaling a hash implementation
+ // allows its internal state to be saved and used for additional processing
+ // later, without having to re-write the data previously written to the hash.
++// The hash state may contain portions of the input in its original form,
++// which users are expected to handle for any possible security implications.
+ //
+ // Compatibility: Any future changes to hash or crypto packages will endeavor
+ // to maintain compatibility with state encoded using previous versions.

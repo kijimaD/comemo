@@ -11,7 +11,61 @@ Date:   Fri May 6 09:24:16 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go    |  6 ++----
  src/cmd/compile/internal/gc/syntax.go | 11 +++++++++++
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index d45186aa51..0bdabb8c91 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -365,8 +365,7 @@ func inlnode(n *Node) *Node {
+ 	case ODEFER, OPROC:
+ 		switch n.Left.Op {
+ 		case OCALLFUNC, OCALLMETH:
+-			// TODO(marvin): Fix Node.EType type union.
+-			n.Left.Etype = EType(n.Op)
++			n.Left.setNoInline(true)
+ 		}
+ 		fallthrough
+ 
+@@ -468,8 +467,7 @@ func inlnode(n *Node) *Node {
+ 	// switch at the top of this function.
+ 	switch n.Op {
+ 	case OCALLFUNC, OCALLMETH:
+-		// TODO(marvin): Fix Node.EType type union.
+-		if n.Etype == EType(OPROC) || n.Etype == EType(ODEFER) {
++		if n.noInline() {
+ 			return n
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 3608d17c34..1081ad10cd 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -80,6 +80,7 @@ const (
+ 	notLiveAtEnd
+ 	isClosureVar
+ 	isOutputParamHeapAddr
++	noInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+ )
+ 
+ func (n *Node) HasBreak() bool {
+@@ -112,6 +113,16 @@ func (n *Node) setIsClosureVar(b bool) {
+ 		n.flags &^= isClosureVar
+ 	}
+ }
++func (n *Node) noInline() bool {
++	return n.flags&noInline != 0
++}
++func (n *Node) setNoInline(b bool) {
++	if b {
++		n.flags |= noInline
++	} else {
++		n.flags &^= noInline
++	}
++}
+ 
+ func (n *Node) IsOutputParamHeapAddr() bool {
+ 	return n.flags&isOutputParamHeapAddr != 0

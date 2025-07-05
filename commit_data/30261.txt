@@ -16,7 +16,33 @@ Date:   Thu Oct 27 14:33:58 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/link/internal/amd64/obj.go | 2 +-
  src/runtime/runtime-lldb_test.go   | 1 -
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 1b1f4ac771..9646b60115 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -101,7 +101,7 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 4096
+ 		}
+ 		if *ld.FlagTextAddr == -1 {
+-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
++			*ld.FlagTextAddr = 0x1000000 + int64(ld.HEADR)
+ 		}
+ 		if *ld.FlagDataAddr == -1 {
+ 			*ld.FlagDataAddr = 0
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index f222ace1e3..98bc906666 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -139,7 +139,6 @@ intvar = 42
+ `
+ 
+ func TestLldbPython(t *testing.T) {
+-	t.Skip("issue 17463")
+ 	testenv.MustHaveGoBuild(t)
+ 	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+ 		t.Skip("gdb test can fail with GOROOT_FINAL pending")

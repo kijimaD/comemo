@@ -20,7 +20,83 @@ Date:   Wed Aug 14 09:50:51 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/all_test.go | 21 +++++++++++++++++++++
  src/reflect/value.go    | 16 +++++++++++-----
  2 files changed, 32 insertions(+), 5 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 0dbf4c5e87..4431ce2391 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2057,6 +2057,16 @@ func (p Point) TotalDist(points ...Point) int {
+ 	return tot
+ }
+ 
++// This will be index 5.
++func (p *Point) Int64Method(x int64) int64 {
++	return x
++}
++
++// This will be index 6.
++func (p *Point) Int32Method(x int32) int32 {
++	return x
++}
++
+ func TestMethod(t *testing.T) {
+ 	// Non-curried method of type.
+ 	p := Point{3, 4}
+@@ -2265,6 +2275,17 @@ func TestMethodValue(t *testing.T) {
+ 	if i != 425 {
+ 		t.Errorf("Interface MethodByName returned %d; want 425", i)
+ 	}
++
++	// For issue #33628: method args are not stored at the right offset
++	// on amd64p32.
++	m64 := ValueOf(&p).MethodByName("Int64Method").Interface().(func(int64) int64)
++	if x := m64(123); x != 123 {
++		t.Errorf("Int64Method returned %d; want 123", x)
++	}
++	m32 := ValueOf(&p).MethodByName("Int32Method").Interface().(func(int32) int32)
++	if x := m32(456); x != 456 {
++		t.Errorf("Int32Method returned %d; want 456", x)
++	}
+ }
+ 
+ func TestVariadicMethodValue(t *testing.T) {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 218b4d25cc..9ea95bc1d9 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -696,10 +696,16 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
+ 	scratch := framePool.Get().(unsafe.Pointer)
+ 
+ 	// Copy in receiver and rest of args.
+-	// Avoid constructing out-of-bounds pointers if there are no args.
+ 	storeRcvr(rcvr, scratch)
+-	if argSize-ptrSize > 0 {
+-		typedmemmovepartial(frametype, add(scratch, ptrSize, "argSize > ptrSize"), frame, ptrSize, argSize-ptrSize)
++	// Align the first arg. Only on amd64p32 the alignment can be
++	// larger than ptrSize.
++	argOffset := uintptr(ptrSize)
++	if len(t.in()) > 0 {
++		argOffset = align(argOffset, uintptr(t.in()[0].align))
++	}
++	// Avoid constructing out-of-bounds pointers if there are no args.
++	if argSize-argOffset > 0 {
++		typedmemmovepartial(frametype, add(scratch, argOffset, "argSize > argOffset"), frame, argOffset, argSize-argOffset)
+ 	}
+ 
+ 	// Call.
+@@ -714,9 +720,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
+ 	// Ignore any changes to args and just copy return values.
+ 	// Avoid constructing out-of-bounds pointers if there are no return values.
+ 	if frametype.size-retOffset > 0 {
+-		callerRetOffset := retOffset - ptrSize
++		callerRetOffset := retOffset - argOffset
+ 		if runtime.GOARCH == "amd64p32" {
+-			callerRetOffset = align(argSize-ptrSize, 8)
++			callerRetOffset = align(argSize-argOffset, 8)
+ 		}
+ 		// This copies to the stack. Write barriers are not needed.
+ 		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),

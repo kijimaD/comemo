@@ -11,8 +11,311 @@ Date:   Tue Jan 14 15:28:47 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/panic_test.go | 129 +++++++++++++++++++++++++++++++++++++++++++++-
  src/testing/sub_test.go   |  31 +++++++++++
  src/testing/testing.go    |  49 ++++++++++++++++--
  3 files changed, 203 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/panic_test.go b/src/testing/panic_test.go
+index 3491510b81..6b8b95391d 100644
+--- a/src/testing/panic_test.go
++++ b/src/testing/panic_test.go
+@@ -16,6 +16,9 @@ import (
+ )
+ 
+ var testPanicTest = flag.String("test_panic_test", "", "TestPanic: indicates which test should panic")
++var testPanicParallel = flag.Bool("test_panic_parallel", false, "TestPanic: run subtests in parallel")
++var testPanicCleanup = flag.Bool("test_panic_cleanup", false, "TestPanic: indicates whether test should call Cleanup")
++var testPanicCleanupPanic = flag.String("test_panic_cleanup_panic", "", "TestPanic: indicate whether test should call Cleanup function that panics")
+ 
+ func TestPanic(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+@@ -35,6 +38,98 @@ func TestPanic(t *testing.T) {
+ 		desc:  "subtest panics",
+ 		flags: []string{"-test_panic_test=TestPanicHelper/1"},
+ 		want: `
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}, {
++		desc:  "subtest panics with cleanup",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}, {
++		desc:  "subtest panics with outer cleanup panic",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_cleanup_panic=outer"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++`,
++	}, {
++		desc:  "subtest panics with middle cleanup panic",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_cleanup_panic=middle"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}, {
++		desc:  "subtest panics with inner cleanup panic",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_cleanup_panic=inner"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}, {
++		desc:  "parallel subtest panics with cleanup",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_parallel"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}, {
++		desc:  "parallel subtest panics with outer cleanup panic",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_cleanup_panic=outer", "-test_panic_parallel"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++`,
++	}, {
++		desc:  "parallel subtest panics with middle cleanup panic",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_cleanup_panic=middle", "-test_panic_parallel"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
++--- FAIL: TestPanicHelper (N.NNs)
++    panic_test.go:NNN: TestPanicHelper
++    --- FAIL: TestPanicHelper/1 (N.NNs)
++        panic_test.go:NNN: TestPanicHelper/1
++`,
++	}, {
++		desc:  "parallel subtest panics with inner cleanup panic",
++		flags: []string{"-test_panic_test=TestPanicHelper/1", "-test_panic_cleanup", "-test_panic_cleanup_panic=inner", "-test_panic_parallel"},
++		want: `
++ran inner cleanup 1
++ran middle cleanup 1
++ran outer cleanup
+ --- FAIL: TestPanicHelper (N.NNs)
+     panic_test.go:NNN: TestPanicHelper
+     --- FAIL: TestPanicHelper/1 (N.NNs)
+@@ -72,10 +167,42 @@ func TestPanicHelper(t *testing.T) {
+ 	if t.Name() == *testPanicTest {
+ 		panic("panic")
+ 	}
++	switch *testPanicCleanupPanic {
++	case "", "outer", "middle", "inner":
++	default:
++		t.Fatalf("bad -test_panic_cleanup_panic: %s", *testPanicCleanupPanic)
++	}
++	t.Cleanup(func() {
++		fmt.Println("ran outer cleanup")
++		if *testPanicCleanupPanic == "outer" {
++			panic("outer cleanup")
++		}
++	})
+ 	for i := 0; i < 3; i++ {
++		i := i
+ 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
++			chosen := t.Name() == *testPanicTest
++			if chosen && *testPanicCleanup {
++				t.Cleanup(func() {
++					fmt.Printf("ran middle cleanup %d\n", i)
++					if *testPanicCleanupPanic == "middle" {
++						panic("middle cleanup")
++					}
++				})
++			}
++			if chosen && *testPanicParallel {
++				t.Parallel()
++			}
+ 			t.Log(t.Name())
+-			if t.Name() == *testPanicTest {
++			if chosen {
++				if *testPanicCleanup {
++					t.Cleanup(func() {
++						fmt.Printf("ran inner cleanup %d\n", i)
++						if *testPanicCleanupPanic == "inner" {
++							panic("inner cleanup")
++						}
++					})
++				}
+ 				panic("panic")
+ 			}
+ 		})
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 3f0f71f647..3dc30ee72e 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -460,6 +460,21 @@ func TestTRun(t *T) {
+ 			<-ch
+ 			t.Errorf("error")
+ 		},
++	}, {
++		// If a subtest panics we should run cleanups.
++		desc:   "cleanup when subtest panics",
++		ok:     false,
++		chatty: false,
++		output: `
++--- FAIL: cleanup when subtest panics (N.NNs)
++    --- FAIL: cleanup when subtest panics/sub (N.NNs)
++    sub_test.go:NNN: running cleanup`,
++		f: func(t *T) {
++			t.Cleanup(func() { t.Log("running cleanup") })
++			t.Run("sub", func(t2 *T) {
++				t2.FailNow()
++			})
++		},
+ 	}}
+ 	for _, tc := range testCases {
+ 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+@@ -855,3 +870,19 @@ func TestRunCleanup(t *T) {
+ 		t.Errorf("unexpected outer cleanup count; got %d want 0", outerCleanup)
+ 	}
+ }
++
++func TestCleanupParallelSubtests(t *T) {
++	ranCleanup := 0
++	t.Run("test", func(t *T) {
++		t.Cleanup(func() { ranCleanup++ })
++		t.Run("x", func(t *T) {
++			t.Parallel()
++			if ranCleanup > 0 {
++				t.Error("outer cleanup ran before parallel subtest")
++			}
++		})
++	})
++	if ranCleanup != 1 {
++		t.Errorf("unexpected cleanup count; got %d want 1", ranCleanup)
++	}
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 15ff1dd81d..a875fe145f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -791,15 +791,34 @@ func (c *common) Cleanup(f func()) {
+ 	}
+ }
+ 
++// panicHanding is an argument to runCleanup.
++type panicHandling int
++
++const (
++	normalPanic panicHandling = iota
++	recoverAndReturnPanic
++)
++
+ // runCleanup is called at the end of the test.
+-func (c *common) runCleanup() {
++// If catchPanic is true, this will catch panics, and return the recovered
++// value if any.
++func (c *common) runCleanup(ph panicHandling) (panicVal interface{}) {
+ 	c.mu.Lock()
+ 	cleanup := c.cleanup
+ 	c.cleanup = nil
+ 	c.mu.Unlock()
+-	if cleanup != nil {
+-		cleanup()
++	if cleanup == nil {
++		return nil
++	}
++
++	if ph == recoverAndReturnPanic {
++		defer func() {
++			panicVal = recover()
++		}()
+ 	}
++
++	cleanup()
++	return nil
+ }
+ 
+ // callerName gives the function name (qualified with a package path)
+@@ -902,19 +921,29 @@ func tRunner(t *T, fn func(t *T)) {
+ 				}
+ 			}
+ 		}
+-		if err != nil {
++
++		doPanic := func(err interface{}) {
+ 			t.Fail()
++			if r := t.runCleanup(recoverAndReturnPanic); r != nil {
++				t.Logf("cleanup panicked with %v", r)
++			}
+ 			// Flush the output log up to the root before dying.
+ 			t.mu.Lock()
+ 			root := &t.common
+ 			for ; root.parent != nil; root = root.parent {
+ 				root.duration += time.Since(root.start)
+ 				fmt.Fprintf(root.parent.w, "--- FAIL: %s (%s)\n", root.name, fmtDuration(root.duration))
++				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
++					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
++				}
+ 				root.parent.mu.Lock()
+ 				io.Copy(root.parent.w, bytes.NewReader(root.output))
+ 			}
+ 			panic(err)
+ 		}
++		if err != nil {
++			doPanic(err)
++		}
+ 
+ 		t.duration += time.Since(t.start)
+ 
+@@ -928,6 +957,12 @@ func tRunner(t *T, fn func(t *T)) {
+ 			for _, sub := range t.sub {
+ 				<-sub.signal
+ 			}
++			cleanupStart := time.Now()
++			err := t.runCleanup(recoverAndReturnPanic)
++			t.duration += time.Since(cleanupStart)
++			if err != nil {
++				doPanic(err)
++			}
+ 			if !t.isParallel {
+ 				// Reacquire the count for sequential tests. See comment in Run.
+ 				t.context.waitParallel()
+@@ -947,7 +982,11 @@ func tRunner(t *T, fn func(t *T)) {
+ 		}
+ 		t.signal <- signal
+ 	}()
+-	defer t.runCleanup()
++	defer func() {
++		if len(t.sub) == 0 {
++			t.runCleanup(normalPanic)
++		}
++	}()
+ 
+ 	t.start = time.Now()
+ 	t.raceErrors = -race.Errors()

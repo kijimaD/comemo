@@ -14,6 +14,21 @@ Date:   Fri Sep 23 19:57:16 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hash_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 3108b3bf59..a6f3cdbdbe 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -683,6 +683,9 @@ func BenchmarkUnalignedLoad(b *testing.B) {
+ }
+ 
+ func TestCollisions(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
+ 	for i := 0; i < 16; i++ {
+ 		for j := 0; j < 16; j++ {
+ 			if j == i {

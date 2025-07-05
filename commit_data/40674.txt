@@ -13,7 +13,7 @@ Date:   Thu Jun 6 17:00:27 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/get/path.go              |  3 +++
  src/cmd/go/internal/get/vcs.go               | 18 +++++++++---------
  src/cmd/go/internal/modfetch/codehost/git.go | 10 ++++++----
@@ -21,3 +21,245 @@ Date:   Thu Jun 6 17:00:27 2019 -0400
  src/cmd/go/internal/module/module.go         |  3 +++
  src/cmd/go/internal/module/module_test.go    |  2 +-
  6 files changed, 31 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/path.go b/src/cmd/go/internal/get/path.go
+index d443bd28a9..67d7b8a47c 100644
+--- a/src/cmd/go/internal/get/path.go
++++ b/src/cmd/go/internal/get/path.go
+@@ -41,6 +41,9 @@ func checkPath(path string, fileName bool) error {
+ 	if path == "" {
+ 		return fmt.Errorf("empty string")
+ 	}
++	if path[0] == '-' {
++		return fmt.Errorf("leading dash")
++	}
+ 	if strings.Contains(path, "..") {
+ 		return fmt.Errorf("double dot")
+ 	}
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 29d58e6350..fca78b515f 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -112,7 +112,7 @@ var vcsHg = &vcsCmd{
+ 	name: "Mercurial",
+ 	cmd:  "hg",
+ 
+-	createCmd:   []string{"clone -U {repo} {dir}"},
++	createCmd:   []string{"clone -U -- {repo} {dir}"},
+ 	downloadCmd: []string{"pull"},
+ 
+ 	// We allow both tag and branch names as 'tags'
+@@ -128,7 +128,7 @@ var vcsHg = &vcsCmd{
+ 	tagSyncDefault: []string{"update default"},
+ 
+ 	scheme:     []string{"https", "http", "ssh"},
+-	pingCmd:    "identify {scheme}://{repo}",
++	pingCmd:    "identify -- {scheme}://{repo}",
+ 	remoteRepo: hgRemoteRepo,
+ }
+ 
+@@ -145,7 +145,7 @@ var vcsGit = &vcsCmd{
+ 	name: "Git",
+ 	cmd:  "git",
+ 
+-	createCmd:   []string{"clone {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
++	createCmd:   []string{"clone -- {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
+ 	downloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
+ 
+ 	tagCmd: []tagCmd{
+@@ -165,7 +165,7 @@ var vcsGit = &vcsCmd{
+ 	tagSyncDefault: []string{"submodule update --init --recursive"},
+ 
+ 	scheme:     []string{"git", "https", "http", "git+ssh", "ssh"},
+-	pingCmd:    "ls-remote {scheme}://{repo}",
++	pingCmd:    "ls-remote -- {scheme}://{repo}",
+ 	remoteRepo: gitRemoteRepo,
+ }
+ 
+@@ -222,7 +222,7 @@ var vcsBzr = &vcsCmd{
+ 	name: "Bazaar",
+ 	cmd:  "bzr",
+ 
+-	createCmd: []string{"branch {repo} {dir}"},
++	createCmd: []string{"branch -- {repo} {dir}"},
+ 
+ 	// Without --overwrite bzr will not pull tags that changed.
+ 	// Replace by --overwrite-tags after http://pad.lv/681792 goes in.
+@@ -233,7 +233,7 @@ var vcsBzr = &vcsCmd{
+ 	tagSyncDefault: []string{"update -r revno:-1"},
+ 
+ 	scheme:      []string{"https", "http", "bzr", "bzr+ssh"},
+-	pingCmd:     "info {scheme}://{repo}",
++	pingCmd:     "info -- {scheme}://{repo}",
+ 	remoteRepo:  bzrRemoteRepo,
+ 	resolveRepo: bzrResolveRepo,
+ }
+@@ -284,14 +284,14 @@ var vcsSvn = &vcsCmd{
+ 	name: "Subversion",
+ 	cmd:  "svn",
+ 
+-	createCmd:   []string{"checkout {repo} {dir}"},
++	createCmd:   []string{"checkout -- {repo} {dir}"},
+ 	downloadCmd: []string{"update"},
+ 
+ 	// There is no tag command in subversion.
+ 	// The branch information is all in the path names.
+ 
+ 	scheme:     []string{"https", "http", "svn", "svn+ssh"},
+-	pingCmd:    "info {scheme}://{repo}",
++	pingCmd:    "info -- {scheme}://{repo}",
+ 	remoteRepo: svnRemoteRepo,
+ }
+ 
+@@ -334,7 +334,7 @@ var vcsFossil = &vcsCmd{
+ 	name: "Fossil",
+ 	cmd:  "fossil",
+ 
+-	createCmd:   []string{"-go-internal-mkdir {dir} clone {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
++	createCmd:   []string{"-go-internal-mkdir {dir} clone -- {repo} " + filepath.Join("{dir}", fossilRepoName), "-go-internal-cd {dir} open .fossil"},
+ 	downloadCmd: []string{"up"},
+ 
+ 	tagCmd:         []tagCmd{{"tag ls", `(.*)`}},
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 272eadcb23..a1d451d61a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -80,7 +80,7 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
+ 			// but this lets us say git fetch origin instead, which
+ 			// is a little nicer. More importantly, using a named remote
+ 			// avoids a problem with Git LFS. See golang.org/issue/25605.
+-			if _, err := Run(r.dir, "git", "remote", "add", "origin", r.remote); err != nil {
++			if _, err := Run(r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
+ 				os.RemoveAll(r.dir)
+ 				return nil, err
+ 			}
+@@ -123,8 +123,10 @@ type gitRepo struct {
+ 	statCache par.Cache
+ 
+ 	refsOnce sync.Once
+-	refs     map[string]string
+-	refsErr  error
++	// refs maps branch and tag refs (e.g., "HEAD", "refs/heads/master")
++	// to commits (e.g., "37ffd2e798afde829a34e8955b716ab730b2a6d6")
++	refs    map[string]string
++	refsErr error
+ 
+ 	localTagsOnce sync.Once
+ 	localTags     map[string]bool
+@@ -407,7 +409,7 @@ func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
+ // statLocal returns a RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+-	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev)
++	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev, "--")
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unknown revision %s", rev)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index bad802c9c3..34aeedebc5 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -143,7 +143,7 @@ var vcsCmds = map[string]*vcsCmd{
+ 	"hg": {
+ 		vcs: "hg",
+ 		init: func(remote string) []string {
+-			return []string{"hg", "clone", "-U", remote, "."}
++			return []string{"hg", "clone", "-U", "--", remote, "."}
+ 		},
+ 		tags: func(remote string) []string {
+ 			return []string{"hg", "tags", "-q"}
+@@ -168,7 +168,7 @@ var vcsCmds = map[string]*vcsCmd{
+ 			if subdir != "" {
+ 				pattern = []string{"-I", subdir + "/**"}
+ 			}
+-			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", "-r", rev, "--prefix=prefix/", pattern, target)
++			return str.StringList("hg", "archive", "-t", "zip", "--no-decode", "-r", rev, "--prefix=prefix/", pattern, "--", target)
+ 		},
+ 	},
+ 
+@@ -176,7 +176,7 @@ var vcsCmds = map[string]*vcsCmd{
+ 		vcs:  "svn",
+ 		init: nil, // no local checkout
+ 		tags: func(remote string) []string {
+-			return []string{"svn", "list", strings.TrimSuffix(remote, "/trunk") + "/tags"}
++			return []string{"svn", "list", "--", strings.TrimSuffix(remote, "/trunk") + "/tags"}
+ 		},
+ 		tagRE: re(`(?m)^(.*?)/?$`),
+ 		statLocal: func(rev, remote string) []string {
+@@ -184,12 +184,12 @@ var vcsCmds = map[string]*vcsCmd{
+ 			if rev == "latest" {
+ 				suffix = ""
+ 			}
+-			return []string{"svn", "log", "-l1", "--xml", remote + suffix}
++			return []string{"svn", "log", "-l1", "--xml", "--", remote + suffix}
+ 		},
+ 		parseStat: svnParseStat,
+ 		latest:    "latest",
+ 		readFile: func(rev, file, remote string) []string {
+-			return []string{"svn", "cat", remote + "/" + file + "@" + rev}
++			return []string{"svn", "cat", "--", remote + "/" + file + "@" + rev}
+ 		},
+ 		// TODO: zip
+ 	},
+@@ -197,7 +197,7 @@ var vcsCmds = map[string]*vcsCmd{
+ 	"bzr": {
+ 		vcs: "bzr",
+ 		init: func(remote string) []string {
+-			return []string{"bzr", "branch", "--use-existing-dir", remote, "."}
++			return []string{"bzr", "branch", "--use-existing-dir", "--", remote, "."}
+ 		},
+ 		fetch: []string{
+ 			"bzr", "pull", "--overwrite-tags",
+@@ -220,14 +220,14 @@ var vcsCmds = map[string]*vcsCmd{
+ 			if subdir != "" {
+ 				extra = []string{"./" + subdir}
+ 			}
+-			return str.StringList("bzr", "export", "--format=zip", "-r", rev, "--root=prefix/", target, extra)
++			return str.StringList("bzr", "export", "--format=zip", "-r", rev, "--root=prefix/", "--", target, extra)
+ 		},
+ 	},
+ 
+ 	"fossil": {
+ 		vcs: "fossil",
+ 		init: func(remote string) []string {
+-			return []string{"fossil", "clone", remote, ".fossil"}
++			return []string{"fossil", "clone", "--", remote, ".fossil"}
+ 		},
+ 		fetch: []string{"fossil", "pull", "-R", ".fossil"},
+ 		tags: func(remote string) []string {
+@@ -249,7 +249,7 @@ var vcsCmds = map[string]*vcsCmd{
+ 			}
+ 			// Note that vcsRepo.ReadZip below rewrites this command
+ 			// to run in a different directory, to work around a fossil bug.
+-			return str.StringList("fossil", "zip", "-R", ".fossil", "--name", "prefix", extra, rev, target)
++			return str.StringList("fossil", "zip", "-R", ".fossil", "--name", "prefix", extra, "--", rev, target)
+ 		},
+ 	},
+ }
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 481a90b1c4..bc76b92b91 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -169,6 +169,9 @@ func checkPath(path string, fileName bool) error {
+ 	if path == "" {
+ 		return fmt.Errorf("empty string")
+ 	}
++	if path[0] == '-' {
++		return fmt.Errorf("leading dash")
++	}
+ 	if strings.Contains(path, "..") {
+ 		return fmt.Errorf("double dot")
+ 	}
+diff --git a/src/cmd/go/internal/module/module_test.go b/src/cmd/go/internal/module/module_test.go
+index b40bd03dfa..b9f07bf57d 100644
+--- a/src/cmd/go/internal/module/module_test.go
++++ b/src/cmd/go/internal/module/module_test.go
+@@ -79,7 +79,7 @@ var checkPathTests = []struct {
+ 	{"/x.y/z", false, false, false},
+ 	{"x./z", false, false, false},
+ 	{".x/z", false, false, true},
+-	{"-x/z", false, true, true},
++	{"-x/z", false, false, false},
+ 	{"x..y/z", false, false, false},
+ 	{"x.y/z/../../w", false, false, false},
+ 	{"x.y//z", false, false, false},

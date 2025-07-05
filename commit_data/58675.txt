@@ -11,6 +11,33 @@ Date:   Tue Nov 28 16:07:01 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/check.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 4a5f0731df..85fd0744d2 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/token"
+ 	"internal/godebug"
+ 	. "internal/types/errors"
++	"strings"
+ )
+ 
+ // nopos indicates an unknown position
+@@ -618,7 +619,12 @@ func instantiatedIdent(expr ast.Expr) *ast.Ident {
+ 	case *ast.SelectorExpr:
+ 		return x.Sel
+ 	}
+-	panic("instantiated ident not found")
++
++	// extra debugging of #63933
++	var buf strings.Builder
++	buf.WriteString("instantiated ident not found; please report: ")
++	ast.Fprint(&buf, token.NewFileSet(), expr, ast.NotNilFilter)
++	panic(buf.String())
+ }
+ 
+ func (check *Checker) recordDef(id *ast.Ident, obj Object) {

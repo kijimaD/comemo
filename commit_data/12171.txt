@@ -9,10 +9,149 @@ Date:   Thu Feb 23 14:43:58 2012 -0500
     R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
     https://golang.org/cl/5696043
-
+---
  src/pkg/runtime/os_linux.h        | 11 +++++++++++
  src/pkg/runtime/sys_linux_386.s   | 12 ++++++++++++
  src/pkg/runtime/sys_linux_amd64.s | 12 ++++++++++++
  src/pkg/runtime/sys_linux_arm.s   | 10 ++++++++++
  src/pkg/runtime/thread_linux.c    | 13 ++++++++++++-
  5 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_linux.h b/src/pkg/runtime/os_linux.h
+index 82498c9888..ab948ddc17 100644
+--- a/src/pkg/runtime/os_linux.h
++++ b/src/pkg/runtime/os_linux.h
+@@ -22,3 +22,14 @@ void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG	65
+ #define	SI_USER 0
++
++// It's hard to tease out exactly how big a Sigset is, but
++// rt_sigprocmask crashes if we get it wrong, so if binaries
++// are running, this is right.
++typedef struct Sigset Sigset;
++struct Sigset
++{
++	uint32 mask[2];
++};
++void	runtime·rtsigprocmask(int32, Sigset*, Sigset*, int32);
++#define SIG_SETMASK 2
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index bee785407f..32a18ed03d 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -136,6 +136,18 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
++TEXT runtime·rtsigprocmask(SB),7,$0
++	MOVL	$175, AX		// syscall entry
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	MOVL	16(SP), SI
++	CALL	*runtime·_vdso(SB)
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	INT $3
++	RET
++
+ TEXT runtime·rt_sigaction(SB),7,$0
+ 	MOVL	$174, AX		// syscall - rt_sigaction
+ 	MOVL	4(SP), BX
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 68c2bf0eb7..84972b4533 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -123,6 +123,18 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	ADDQ	DX, AX
+ 	RET
+ 
++TEXT runtime·rtsigprocmask(SB),7,$0-32
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	32(SP), R10
++	MOVL	$14, AX			// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	CALL	runtime·notok(SB)
++	RET
++
+ TEXT runtime·rt_sigaction(SB),7,$0-32
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 8f30bff94b..fed963f0dc 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -23,6 +23,7 @@
+ #define SYS_clone (SYS_BASE + 120)
+ #define SYS_rt_sigreturn (SYS_BASE + 173)
+ #define SYS_rt_sigaction (SYS_BASE + 174)
++#define SYS_rt_sigprocmask (SYS_BASE + 175)
+ #define SYS_sigaltstack (SYS_BASE + 186)
+ #define SYS_mmap2 (SYS_BASE + 192)
+ #define SYS_futex (SYS_BASE + 240)
+@@ -292,6 +293,15 @@ TEXT runtime·sigtramp(SB),7,$24
+ 
+ 	RET
+ 
++TEXT runtime·rtsigprocmask(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	12(FP), R3
++	MOVW	$SYS_rt_sigprocmask, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·rt_sigaction(SB),7,$0
+ 	MOVW	0(FP), R0
+ 	MOVW	4(FP), R1
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index d18574145b..005fb1df6a 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -13,6 +13,9 @@ int32 runtime·open(uint8*, int32, int32);
+ int32 runtime·close(int32);
+ int32 runtime·read(int32, void*, int32);
+ 
++static Sigset sigset_all = { ~(uint32)0, ~(uint32)0 };
++static Sigset sigset_none;
++
+ // Linux futex.
+ //
+ //	futexsleep(uint32 *addr, uint32 val)
+@@ -135,6 +138,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+ 	int32 ret;
+ 	int32 flags;
++	Sigset oset;
+ 
+ 	/*
+ 	 * note: strace gets confused if we use CLONE_PTRACE here.
+@@ -152,7 +156,13 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 			stk, m, g, fn, runtime·clone, m->id, m->tls[0], &m);
+ 	}
+ 
+-	if((ret = runtime·clone(flags, stk, m, g, fn)) < 0) {
++	// Disable signals during clone, so that the new thread starts
++	// with signals disabled.  It will enable them in minit.
++	runtime·rtsigprocmask(SIG_SETMASK, &sigset_all, &oset, sizeof oset);
++	ret = runtime·clone(flags, stk, m, g, fn);
++	runtime·rtsigprocmask(SIG_SETMASK, &oset, nil, sizeof oset);
++
++	if(ret < 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -ret);
+ 		runtime·throw("runtime.newosproc");
+ 	}
+@@ -177,6 +187,7 @@ runtime·minit(void)
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof sigset_none);
+ }
+ 
+ void

@@ -9,6 +9,20 @@ Date:   Fri Aug 4 09:47:06 2017 -0700
     Change-Id: I7b8a84de92bbd1d3f78f8a9612f3af8cd092cb94
     Reviewed-on: https://go-review.googlesource.com/53351
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/editors.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/editors.html b/doc/editors.html
+index 5df5d38bce..9fa451c6d4 100644
+--- a/doc/editors.html
++++ b/doc/editors.html
+@@ -23,7 +23,7 @@ editing, navigation, testing, and debugging experience.
+ <li><a href="https://marketplace.visualstudio.com/items?itemName=lukehoban.Go">Visual Studio Code</a>:
+ Go extension provides support for the Go programming language</li>
+ <li><a href="https://www.jetbrains.com/go">Gogland</a>: Gogland is distributed either as a standalone IDE
+-or as a plugin for the IntelliJ Platform IDEs</li>
++or as a plugin for the paid IntelliJ Platform IDEs</li>
+ <li><a href="https://atom.io/packages/go-plus">Atom</a>: Go-Plus is an Atom package that provides enhanced Go support</li>
+ </ul>
+ 

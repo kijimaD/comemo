@@ -20,7 +20,362 @@ Date:   Thu Apr 7 08:01:47 2016 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go      | 218 ++++++++++++++------------------
  src/cmd/compile/internal/gc/lex_test.go |  79 ++++++++++++
  2 files changed, 173 insertions(+), 124 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 2dbbd9276b..4b95bb7124 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -44,6 +44,10 @@ func isDigit(c rune) bool {
+ 	return '0' <= c && c <= '9'
+ }
+ 
++func isQuoted(s string) bool {
++	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
++}
++
+ func plan9quote(s string) string {
+ 	if s == "" {
+ 		return "''"
+@@ -853,15 +857,6 @@ func internString(b []byte) string {
+ 	return s
+ }
+ 
+-func more(pp *string) bool {
+-	p := *pp
+-	for p != "" && isSpace(rune(p[0])) {
+-		p = p[1:]
+-	}
+-	*pp = p
+-	return p != ""
+-}
+-
+ // read and interpret syntax that looks like
+ // //line parse.y:15
+ // as a discontinuity in sequential line numbers.
+@@ -887,7 +882,7 @@ func (l *lexer) getlinepragma() rune {
+ 		text := strings.TrimSuffix(lexbuf.String(), "\r")
+ 
+ 		if strings.HasPrefix(text, "go:cgo_") {
+-			pragcgo(text)
++			pragcgobuf += pragcgo(text)
+ 		}
+ 
+ 		verb := text
+@@ -991,139 +986,114 @@ func (l *lexer) getlinepragma() rune {
+ 	return c
+ }
+ 
+-func getimpsym(pp *string) string {
+-	more(pp) // skip spaces
+-	p := *pp
+-	if p == "" || p[0] == '"' {
+-		return ""
+-	}
+-	i := 0
+-	for i < len(p) && !isSpace(rune(p[i])) && p[i] != '"' {
+-		i++
+-	}
+-	sym := p[:i]
+-	*pp = p[i:]
+-	return sym
+-}
+-
+-func getquoted(pp *string) (string, bool) {
+-	more(pp) // skip spaces
+-	p := *pp
+-	if p == "" || p[0] != '"' {
+-		return "", false
+-	}
+-	p = p[1:]
+-	i := strings.Index(p, `"`)
+-	if i < 0 {
+-		return "", false
+-	}
+-	*pp = p[i+1:]
+-	return p[:i], true
+-}
+-
+-// Copied nearly verbatim from the C compiler's #pragma parser.
+-// TODO: Rewrite more cleanly once the compiler is written in Go.
+-func pragcgo(text string) {
+-	var q string
++func pragcgo(text string) string {
++	f := pragmaFields(text)
+ 
+-	if i := strings.Index(text, " "); i >= 0 {
+-		text, q = text[:i], text[i:]
+-	}
++	verb := f[0][3:] // skip "go:"
++	switch verb {
++	case "cgo_export_static", "cgo_export_dynamic":
++		switch {
++		case len(f) == 2 && !isQuoted(f[1]):
++			local := plan9quote(f[1])
++			return fmt.Sprintln(verb, local)
+ 
+-	verb := text[3:] // skip "go:"
++		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
++			local := plan9quote(f[1])
++			remote := plan9quote(f[2])
++			return fmt.Sprintln(verb, local, remote)
+ 
+-	if verb == "cgo_dynamic_linker" || verb == "dynlinker" {
+-		p, ok := getquoted(&q)
+-		if !ok {
+-			Yyerror("usage: //go:cgo_dynamic_linker \"path\"")
+-			return
++		default:
++			Yyerror(`usage: //go:%s local [remote]`, verb)
+ 		}
+-		pragcgobuf += fmt.Sprintf("cgo_dynamic_linker %v\n", plan9quote(p))
+-		return
++	case "cgo_import_dynamic":
++		switch {
++		case len(f) == 2 && !isQuoted(f[1]):
++			local := plan9quote(f[1])
++			return fmt.Sprintln(verb, local)
+ 
+-	}
++		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
++			local := plan9quote(f[1])
++			remote := plan9quote(f[2])
++			return fmt.Sprintln(verb, local, remote)
+ 
+-	if verb == "dynexport" {
+-		verb = "cgo_export_dynamic"
+-	}
+-	if verb == "cgo_export_static" || verb == "cgo_export_dynamic" {
+-		local := getimpsym(&q)
+-		var remote string
+-		if local == "" {
+-			goto err2
+-		}
+-		if !more(&q) {
+-			pragcgobuf += fmt.Sprintf("%s %v\n", verb, plan9quote(local))
+-			return
+-		}
++		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
++			local := plan9quote(f[1])
++			remote := plan9quote(f[2])
++			library := plan9quote(strings.Trim(f[3], `"`))
++			return fmt.Sprintln(verb, local, remote, library)
+ 
+-		remote = getimpsym(&q)
+-		if remote == "" {
+-			goto err2
++		default:
++			Yyerror(`usage: //go:cgo_import_dynamic local [remote ["library"]]`)
+ 		}
+-		pragcgobuf += fmt.Sprintf("%s %v %v\n", verb, plan9quote(local), plan9quote(remote))
+-		return
+-
+-	err2:
+-		Yyerror("usage: //go:%s local [remote]", verb)
+-		return
+-	}
++	case "cgo_import_static":
++		switch {
++		case len(f) == 2 && !isQuoted(f[1]):
++			local := plan9quote(f[1])
++			return fmt.Sprintln(verb, local)
+ 
+-	if verb == "cgo_import_dynamic" || verb == "dynimport" {
+-		var ok bool
+-		local := getimpsym(&q)
+-		var p string
+-		var remote string
+-		if local == "" {
+-			goto err3
+-		}
+-		if !more(&q) {
+-			pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v\n", plan9quote(local))
+-			return
++		default:
++			Yyerror(`usage: //go:cgo_import_static local`)
+ 		}
++	case "cgo_dynamic_linker":
++		switch {
++		case len(f) == 2 && isQuoted(f[1]):
++			path := plan9quote(strings.Trim(f[1], `"`))
++			return fmt.Sprintln(verb, path)
+ 
+-		remote = getimpsym(&q)
+-		if remote == "" {
+-			goto err3
+-		}
+-		if !more(&q) {
+-			pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v %v\n", plan9quote(local), plan9quote(remote))
+-			return
++		default:
++			Yyerror(`usage: //go:cgo_dynamic_linker "path"`)
+ 		}
++	case "cgo_ldflag":
++		switch {
++		case len(f) == 2 && isQuoted(f[1]):
++			arg := plan9quote(strings.Trim(f[1], `"`))
++			return fmt.Sprintln(verb, arg)
+ 
+-		p, ok = getquoted(&q)
+-		if !ok {
+-			goto err3
++		default:
++			Yyerror(`usage: //go:cgo_ldflag "arg"`)
+ 		}
+-		pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v %v %v\n", plan9quote(local), plan9quote(remote), plan9quote(p))
+-		return
+-
+-	err3:
+-		Yyerror("usage: //go:cgo_import_dynamic local [remote [\"library\"]]")
+-		return
+ 	}
++	return ""
++}
+ 
+-	if verb == "cgo_import_static" {
+-		local := getimpsym(&q)
+-		if local == "" || more(&q) {
+-			Yyerror("usage: //go:cgo_import_static local")
+-			return
++// pragmaFields is similar to strings.FieldsFunc(s, isSpace)
++// but does not split when inside double quoted regions and always
++// splits before the start and after the end of a double quoted region.
++// pragmaFields does not recognize escaped quotes. If a quote in s is not
++// closed the part after the opening quote will not be returned as a field.
++func pragmaFields(s string) []string {
++	var a []string
++	inQuote := false
++	fieldStart := -1 // Set to -1 when looking for start of field.
++	for i, c := range s {
++		switch {
++		case c == '"':
++			if inQuote {
++				inQuote = false
++				a = append(a, s[fieldStart:i+1])
++				fieldStart = -1
++			} else {
++				inQuote = true
++				if fieldStart >= 0 {
++					a = append(a, s[fieldStart:i])
++				}
++				fieldStart = i
++			}
++		case !inQuote && isSpace(c):
++			if fieldStart >= 0 {
++				a = append(a, s[fieldStart:i])
++				fieldStart = -1
++			}
++		default:
++			if fieldStart == -1 {
++				fieldStart = i
++			}
+ 		}
+-		pragcgobuf += fmt.Sprintf("cgo_import_static %v\n", plan9quote(local))
+-		return
+-
+ 	}
+-
+-	if verb == "cgo_ldflag" {
+-		p, ok := getquoted(&q)
+-		if !ok {
+-			Yyerror("usage: //go:cgo_ldflag \"arg\"")
+-			return
+-		}
+-		pragcgobuf += fmt.Sprintf("cgo_ldflag %v\n", plan9quote(p))
+-		return
+-
++	if !inQuote && fieldStart >= 0 { // Last field might end at the end of the string.
++		a = append(a, s[fieldStart:])
+ 	}
++	return a
+ }
+ 
+ func (l *lexer) getr() rune {
+diff --git a/src/cmd/compile/internal/gc/lex_test.go b/src/cmd/compile/internal/gc/lex_test.go
+new file mode 100644
+index 0000000000..9230b30dad
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/lex_test.go
+@@ -0,0 +1,79 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import "testing"
++
++func eq(a, b []string) bool {
++	if len(a) != len(b) {
++		return false
++	}
++	for i := 0; i < len(a); i++ {
++		if a[i] != b[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func TestPragmaFields(t *testing.T) {
++
++	var tests = []struct {
++		in   string
++		want []string
++	}{
++		{"", []string{}},
++		{" \t ", []string{}},
++		{`""""`, []string{`""`, `""`}},
++		{"  a'b'c  ", []string{"a'b'c"}},
++		{"1 2 3 4", []string{"1", "2", "3", "4"}},
++		{"\n☺\t☹\n", []string{"☺", "☹"}},
++		{`"1 2 "  3  " 4 5"`, []string{`"1 2 "`, `3`, `" 4 5"`}},
++		{`"1""2 3""4"`, []string{`"1"`, `"2 3"`, `"4"`}},
++		{`12"34"`, []string{`12`, `"34"`}},
++		{`12"34 `, []string{`12`}},
++	}
++
++	for _, tt := range tests {
++		got := pragmaFields(tt.in)
++		if !eq(got, tt.want) {
++			t.Errorf("pragmaFields(%q) = %v; want %v", tt.in, got, tt.want)
++			continue
++		}
++	}
++}
++
++func TestPragcgo(t *testing.T) {
++
++	var tests = []struct {
++		in   string
++		want string
++	}{
++		{`go:cgo_export_dynamic local`, "cgo_export_dynamic local\n"},
++		{`go:cgo_export_dynamic local remote`, "cgo_export_dynamic local remote\n"},
++		{`go:cgo_export_dynamic local' remote'`, "cgo_export_dynamic 'local''' 'remote'''\n"},
++		{`go:cgo_export_static local`, "cgo_export_static local\n"},
++		{`go:cgo_export_static local remote`, "cgo_export_static local remote\n"},
++		{`go:cgo_export_static local' remote'`, "cgo_export_static 'local''' 'remote'''\n"},
++		{`go:cgo_import_dynamic local`, "cgo_import_dynamic local\n"},
++		{`go:cgo_import_dynamic local remote`, "cgo_import_dynamic local remote\n"},
++		{`go:cgo_import_dynamic local remote "library"`, "cgo_import_dynamic local remote library\n"},
++		{`go:cgo_import_dynamic local' remote' "lib rary"`, "cgo_import_dynamic 'local''' 'remote''' 'lib rary'\n"},
++		{`go:cgo_import_static local`, "cgo_import_static local\n"},
++		{`go:cgo_import_static local'`, "cgo_import_static 'local'''\n"},
++		{`go:cgo_dynamic_linker "/path/"`, "cgo_dynamic_linker /path/\n"},
++		{`go:cgo_dynamic_linker "/p ath/"`, "cgo_dynamic_linker '/p ath/'\n"},
++		{`go:cgo_ldflag "arg"`, "cgo_ldflag arg\n"},
++		{`go:cgo_ldflag "a rg"`, "cgo_ldflag 'a rg'\n"},
++	}
++
++	for _, tt := range tests {
++		got := pragcgo(tt.in)
++		if got != tt.want {
++			t.Errorf("pragcgo(%q) = %q; want %q", tt.in, got, tt.want)
++			continue
++		}
++	}
++}

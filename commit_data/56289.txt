@@ -14,6 +14,20 @@ Date:   Mon Apr 24 10:09:17 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/testenv/exec.go b/src/internal/testenv/exec.go
+index 948e0f29f8..882791ddca 100644
+--- a/src/internal/testenv/exec.go
++++ b/src/internal/testenv/exec.go
+@@ -74,7 +74,7 @@ func init() {
+ 		cmd := exec.Command(exe, "-test.list=^$")
+ 		cmd.Env = origEnv
+ 		if err := cmd.Run(); err == nil {
+-			tryExecOk = true
++			return true
+ 		}
+ 		return false
+ 	}

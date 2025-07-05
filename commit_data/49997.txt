@@ -15,7 +15,34 @@ Date:   Mon Sep 27 04:20:34 2021 +0000
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 2 --
  src/cmd/go/internal/test/test.go | 2 --
  2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 02d2afc582..7be673b290 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1566,8 +1566,6 @@
+ // in no time at all,so a successful package test result will be cached and
+ // reused regardless of -timeout setting.
+ //
+-// Run 'go help fuzz' for details around how the go command handles fuzz targets.
+-//
+ // In addition to the build flags, the flags handled by 'go test' itself are:
+ //
+ // 	-args
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 518555ecba..7c6f109cc5 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -132,8 +132,6 @@ variables are unchanged. A cached test result is treated as executing
+ in no time at all,so a successful package test result will be cached and
+ reused regardless of -timeout setting.
+ 
+-Run 'go help fuzz' for details around how the go command handles fuzz targets.
+-
+ In addition to the build flags, the flags handled by 'go test' itself are:
+ 
+ 	-args

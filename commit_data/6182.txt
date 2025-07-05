@@ -15,8 +15,156 @@ Date:   Tue Sep 7 09:23:49 2010 -0400
     R=rsc
     CC=golang-dev, kaib
     https://golang.org/cl/2148042
-
+---
  src/pkg/syscall/mksyscall.sh          | 23 +++++++++++++----------
  src/pkg/syscall/syscall_linux_arm.go  | 10 +++++-----
  src/pkg/syscall/zsyscall_linux_arm.go | 10 +++++-----
  3 files changed, 23 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/syscall/mksyscall.sh b/src/pkg/syscall/mksyscall.sh
+index 2158825520..d63d9e69fa 100755
+--- a/src/pkg/syscall/mksyscall.sh
++++ b/src/pkg/syscall/mksyscall.sh
+@@ -73,7 +73,8 @@ while(<>) {
+ 	my @out = parseparamlist($out);
+ 
+ 	# Go function header.
+-	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
++	my $out_decl = @out ? sprintf(" (%s)", join(', ', @out)) : "";
++	$text .= sprintf "func %s(%s)%s {\n", $func, join(', ', @in), $out_decl;
+ 
+ 	# Prepare arguments to Syscall.
+ 	my @args = ();
+@@ -88,15 +89,15 @@ while(<>) {
+ 			# Convert slice into pointer, length.
+ 			# Have to be careful not to take address of &a[0] if len == 0:
+ 			# pass nil in that case.
+-			$text .= "\tvar _p$n *$1;\n";
+-			$text .= "\tif len($name) > 0 { _p$n = \&${name}[0]; }\n";
++			$text .= "\tvar _p$n *$1\n";
++			$text .= "\tif len($name) > 0 {\n\t\t_p$n = \&${name}[0]\n\t}\n";
+ 			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
+ 			$n++;
+ 		} elsif($type eq "int64" && $_32bit ne "") {
+ 			if($_32bit eq "big-endian") {
+-				push @args, "uintptr($name >> 32)", "uintptr($name)";
++				push @args, "uintptr($name>>32)", "uintptr($name)";
+ 			} else {
+-				push @args, "uintptr($name)", "uintptr($name >> 32)";
++				push @args, "uintptr($name)", "uintptr($name>>32)";
+ 			}
+ 		} else {
+ 			push @args, "uintptr($name)";
+@@ -159,19 +160,22 @@ while(<>) {
+ 			$ret[$i] = sprintf("r%d", $i);
+ 			$ret[$i+1] = sprintf("r%d", $i+1);
+ 		}
+-		$body .= "\t$name = $type($reg);\n";
++		$body .= "\t$name = $type($reg)\n";
+ 	}
+ 	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
+-		$text .= "\t$call;\n";
++		$text .= "\t$call\n";
+ 	} else {
+-		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
++		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
+ 	}
+ 	$text .= $body;
+ 
+-	$text .= "\treturn;\n";
++	$text .= "\treturn\n";
+ 	$text .= "}\n\n";
+ }
+ 
++chomp $text;
++chomp $text;
++
+ if($errors) {
+ 	exit 1;
+ }
+@@ -185,6 +189,5 @@ package syscall
+ import "unsafe"
+ 
+ $text
+-
+ EOF
+ exit 0;
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 73230679a2..3b4573e415 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -36,15 +36,15 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 
+ //sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Fchown(fd int, uid int, gid int) (errno int)
+-//sys	Fstat(fd int, stat *Stat_t) (errno int)
+-//sys	Fstatfs(fd int, buf *Statfs_t) (errno int)
++//sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
++//sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
+ //sys	Getegid() (egid int)
+ //sys	Geteuid() (euid int)
+ //sys	Getgid() (gid int)
+ //sys	Getuid() (uid int)
+ //sys	Lchown(path string, uid int, gid int) (errno int)
+ //sys	Listen(s int, n int) (errno int)
+-//sys	Lstat(path string, stat *Stat_t) (errno int)
++//sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
+ //sys	Seek(fd int, offset int64, whence int) (off int64, errno int) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
+ //sys	Setfsgid(gid int) (errno int)
+@@ -55,8 +55,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	Setresuid(ruid int, euid int, suid int) (errno int)
+ //sys	Setreuid(ruid int, euid int) (errno int)
+ //sys	Shutdown(fd int, how int) (errno int)
+-//sys	Stat(path string, stat *Stat_t) (errno int)
+-//sys	Statfs(path string, buf *Statfs_t) (errno int)
++//sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
++//sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
+ 
+ // TODO(kaib): add support for tracing
+ func (r *PtraceRegs) PC() uint64 { return 0 }
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 93faf5a74f..1d0eb6bce3 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -680,13 +680,13 @@ func Fchown(fd int, uid int, gid int) (errno int) {
+ }
+ 
+ func Fstat(fd int, stat *Stat_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
++	_, _, e1 := Syscall(SYS_FSTAT64, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
++	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -728,7 +728,7 @@ func Listen(s int, n int) (errno int) {
+ }
+ 
+ func Lstat(path string, stat *Stat_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
++	_, _, e1 := Syscall(SYS_LSTAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+@@ -796,13 +796,13 @@ func Shutdown(fd int, how int) (errno int) {
+ }
+ 
+ func Stat(path string, stat *Stat_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
++	_, _, e1 := Syscall(SYS_STAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0)
+ 	errno = int(e1)
+ 	return
+ }
+ 
+ func Statfs(path string, buf *Statfs_t) (errno int) {
+-	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0)
++	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0)
+ 	errno = int(e1)
+ 	return
+ }

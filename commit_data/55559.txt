@@ -19,8 +19,157 @@ Date:   Sun Nov 27 15:34:28 2022 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Samuel Karp <samuelkarp@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  api/next/46259.txt               | 10 ++++
  src/syscall/exec_freebsd.go      | 10 ++++
  src/syscall/exec_freebsd_test.go | 98 ++++++++++++++++++++++++++++++++++++++++
  3 files changed, 118 insertions(+)
+
+diff --git a/api/next/46259.txt b/api/next/46259.txt
+new file mode 100644
+index 0000000000..a0704bdeb2
+--- /dev/null
++++ b/api/next/46259.txt
+@@ -0,0 +1,10 @@
++pkg syscall (freebsd-386), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-386-cgo), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-amd64), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-arm), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-arm64), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-arm64-cgo), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-riscv64), type SysProcAttr struct, Jail int #46259
++pkg syscall (freebsd-riscv64-cgo), type SysProcAttr struct, Jail int #46259
+diff --git a/src/syscall/exec_freebsd.go b/src/syscall/exec_freebsd.go
+index 9e1cc46c15..4118056143 100644
+--- a/src/syscall/exec_freebsd.go
++++ b/src/syscall/exec_freebsd.go
+@@ -32,6 +32,7 @@ type SysProcAttr struct {
+ 	Foreground bool
+ 	Pgid       int    // Child's process group ID if Setpgid.
+ 	Pdeathsig  Signal // Signal that the process will get when its parent dies (Linux and FreeBSD only)
++	Jail       int    // Jail to which the child process is attached (FreeBSD only).
+ }
+ 
+ const (
+@@ -103,6 +104,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// Fork succeeded, now in child.
+ 
++	// Attach to the given jail, if any. The system call also changes the
++	// process' root and working directories to the jail's path directory.
++	if sys.Jail > 0 {
++		_, _, err1 = RawSyscall(SYS_JAIL_ATTACH, uintptr(sys.Jail), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
+ 	// Enable tracing if requested.
+ 	if sys.Ptrace {
+ 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+diff --git a/src/syscall/exec_freebsd_test.go b/src/syscall/exec_freebsd_test.go
+new file mode 100644
+index 0000000000..2e9513f098
+--- /dev/null
++++ b/src/syscall/exec_freebsd_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build freebsd
++
++package syscall_test
++
++import (
++	"fmt"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"syscall"
++	"testing"
++	"unsafe"
++)
++
++const (
++	flagJailCreate = uintptr(0x1)
++)
++
++func prepareJail(t *testing.T) (int, string) {
++	t.Helper()
++
++	root := t.TempDir()
++	paramPath := []byte("path\x00")
++	conf := make([]syscall.Iovec, 4)
++	conf[0].Base = &paramPath[0]
++	conf[0].SetLen(len(paramPath))
++	p, err := syscall.BytePtrFromString(root)
++	if err != nil {
++		t.Fatal(err)
++	}
++	conf[1].Base = p
++	conf[1].SetLen(len(root) + 1)
++
++	paramPersist := []byte("persist\x00")
++	conf[2].Base = &paramPersist[0]
++	conf[2].SetLen(len(paramPersist))
++	conf[3].Base = nil
++	conf[3].SetLen(0)
++
++	id, _, err1 := syscall.Syscall(syscall.SYS_JAIL_SET,
++		uintptr(unsafe.Pointer(&conf[0])), uintptr(len(conf)), flagJailCreate)
++	if err1 != 0 {
++		t.Fatalf("jail_set: %v", err1)
++	}
++	t.Cleanup(func() {
++		_, _, err1 := syscall.Syscall(syscall.SYS_JAIL_REMOVE, id, 0, 0)
++		if err1 != 0 {
++			t.Errorf("failed to cleanup jail: %v", err)
++		}
++	})
++
++	return int(id), root
++}
++
++func TestJailAttach(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		jailed, err := syscall.SysctlUint32("security.jail.jailed")
++		if err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			os.Exit(2)
++		}
++		if jailed != 1 {
++			t.Fatalf("jailed = %d, want 1", jailed)
++		}
++		return
++	}
++
++	testenv.MustHaveGoBuild(t)
++	// Make sure we are running as root, so we have permissions to create
++	// and remove jails.
++	if os.Getuid() != 0 {
++		t.Skip("kernel prohibits jail system calls in unprivileged process")
++	}
++
++	jid, root := prepareJail(t)
++
++	// Since jail attach does an implicit chroot to the jail's path,
++	// we need the binary there, and it must be statically linked.
++	x := filepath.Join(root, "syscall.test")
++	cmd := exec.Command(testenv.GoToolPath(t), "test", "-c", "-o", x, "syscall")
++	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
++	if o, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("Build of syscall in jail root failed, output %v, err %v", o, err)
++	}
++
++	cmd = exec.Command("/syscall.test", "-test.run=TestJailAttach", "/")
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
++	cmd.SysProcAttr = &syscall.SysProcAttr{Jail: jid}
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
++	}
++}

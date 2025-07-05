@@ -8,9 +8,301 @@ Date:   Wed Oct 15 17:08:10 2008 -0700
     R=r
     OCL=17238
     CL=17240
-
+---
  src/cmd/gc/const.c  | 28 ++++++++++++++---
  src/cmd/gc/go.h     |  2 ++
  src/cmd/gc/subr.c   | 87 +++++++++++++++++++++++++++++++++++++++++++++++++++--
  src/runtime/iface.c | 41 ++++++++++++++++++++++---
  4 files changed, 146 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d97304633a..b624e2aba0 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -41,23 +41,37 @@ convlit(Node *n, Type *t)
+ 		goto bad1;
+ 
+ 	case Wlitnil:
+-		if(!isptr[et] && et != TINTER)
+-			goto bad1;
+ 		if(isptrto(t, TSTRING))
+ 			goto bad1;
+-		break;
++		if(isptr[et])
++			break;
++		if(et == TINTER)
++			break;
++		return;
+ 
+ 	case Wlitstr:
++		if(isnilinter(t)) {
++			defaultlit(n);
++			return;
++		}
+ 		if(isptrto(t, TSTRING))
+ 			break;
+ 		goto bad1;
+ 
+ 	case Wlitbool:
++		if(isnilinter(t)) {
++			defaultlit(n);
++			return;
++		}
+ 		if(et == TBOOL)
+ 			break;
+ 		goto bad1;
+ 
+ 	case Wlitint:
++		if(isnilinter(t)) {
++			defaultlit(n);
++			return;
++		}
+ 		if(isptrto(t, TSTRING)) {
+ 			Rune rune;
+ 			int l;
+@@ -82,9 +96,9 @@ convlit(Node *n, Type *t)
+ 			break;
+ 		}
+ 		if(isfloat[et]) {
++			// int to float
+ 			Mpint *xv;
+ 
+-			// int to float
+ 			xv = n->val.u.xval;
+ 			if(mpcmpfixflt(xv, minfltval[et]) < 0)
+ 				goto bad2;
+@@ -98,10 +112,14 @@ convlit(Node *n, Type *t)
+ 		goto bad1;
+ 
+ 	case Wlitfloat:
++		if(isnilinter(t)) {
++			defaultlit(n);
++			return;
++		}
+ 		if(isint[et]) {
++			// float to int
+ 			Mpflt *fv;
+ 
+-			// float to int
+ 			fv = n->val.u.fval;
+ 			if(mpcmpfltfix(fv, minintval[et]) < 0)
+ 				goto bad2;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fec7ba7dde..eb8806779e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -575,6 +575,8 @@ int	isptrto(Type*, int);
+ int	isptrarray(Type*);
+ int	isptrdarray(Type*);
+ int	isinter(Type*);
++int	isnilinter(Type*);
++Sym*	globalsig(Type*);
+ Type*	ismethod(Type*);
+ Sym*	signame(Type*, int);
+ int	bytearraysz(Type*);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 05977ee6bd..76c585d678 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1397,6 +1397,16 @@ isinter(Type *t)
+ 	return 0;
+ }
+ 
++int
++isnilinter(Type *t)
++{
++	if(!isinter(t))
++		return 0;
++	if(t->type != T)
++		return 0;
++	return 1;
++}
++
+ Type*
+ ismethod(Type *t)
+ {
+@@ -1456,6 +1466,75 @@ out:
+ 	return t;
+ }
+ 
++Sym*
++globalsig(Type *t)
++{
++	int et;
++	Sym *s;
++	char buf[NSYMB];
++	char *glob;
++
++	if(t == T)
++		return S;
++
++	glob = "sys";
++	et = t->etype;
++	switch(et) {
++	default:
++		return S;
++
++	case TINTER:
++		if(isnilinter(t)) {
++			snprint(buf, sizeof(buf), "%s_%s", "sigi", "inter");
++			goto out;
++		}
++		return S;
++
++	case TPTR32:
++	case TPTR64:
++		if(isptrto(t, TSTRING)) {
++			et = TSTRING;
++			break;
++		}
++		return S;
++
++	case TINT8:
++	case TINT16:
++	case TINT32:
++	case TINT64:
++
++	case TUINT8:
++	case TUINT16:
++	case TUINT32:
++	case TUINT64:
++
++	case TFLOAT32:
++	case TFLOAT64:
++	case TFLOAT80:
++
++	case TBOOL:
++		break;
++	}
++	if(t->sym == S)
++		return S;
++	if(t->method != T)
++		return S;
++	if(strcmp(t->sym->name, types[et]->sym->name) != 0)
++		return S;
++	snprint(buf, sizeof(buf), "%s_%S", "sigt", t->sym);
++
++out:
++	s = pkglookup(buf, glob);
++	if(s->oname == N) {
++		s->oname = newname(s);
++		s->oname->type = types[TUINT8];
++		s->oname->class = PEXTERN;
++		s->local = s->local;
++	}
++//print("*** %lT %lS\n", t, s);
++	return s;
++}
++
+ Sym*
+ signame(Type *t, int block)
+ {
+@@ -1479,6 +1558,10 @@ signame(Type *t, int block)
+ 			goto bad;
+ 	}
+ 
++	ss = globalsig(t);
++	if(ss != S)
++		return ss;
++
+ 	e = "sigt";
+ 	if(t->etype == TINTER)
+ 		e = "sigi";
+@@ -1499,6 +1582,7 @@ signame(Type *t, int block)
+ 		signatlist = x;
+ 	} else
+ 		snprint(buf, sizeof(buf), "%s_%s", e, s->name);
++
+ 	ss = pkglookup(buf, s->opackage);
+ 	if(ss->oname == N) {
+ 		ss->oname = newname(ss);
+@@ -1508,9 +1592,6 @@ signame(Type *t, int block)
+ //print("signame: %d %lS\n", ss->local, ss);
+ 	}
+ 
+-	if(strcmp(ss->name, "sigt_int32") == 0)
+-		warn("int32 -> interface");
+-
+ 	return ss;
+ 
+ bad:
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 5ed40ce539..e4ec9d8e99 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -6,6 +6,14 @@
+ 
+ static	int32	debug	= 0;
+ 
++enum
++{
++	ASIMP		= 0,
++	ASTRING,
++	APTR,
++	AINTER,
++};
++
+ typedef	struct	Sigt	Sigt;
+ typedef	struct	Sigi	Sigi;
+ typedef	struct	Map	Map;
+@@ -13,8 +21,8 @@ typedef	struct	Map	Map;
+ struct	Sigt
+ {
+ 	byte*	name;
+-	uint32	hash;		// hash of type // first is alg
+-	uint32	offset;		// offset of substruct // first is width
++	uint32	hash;		// hash of type		// first is alg
++	uint32	offset;		// offset of substruct	// first is width
+ 	void	(*fun)(void);
+ };
+ 
+@@ -22,7 +30,7 @@ struct	Sigi
+ {
+ 	byte*	name;
+ 	uint32	hash;
+-	uint32	perm;		// location of fun in Sigt
++	uint32	perm;		// location of fun in Sigt // first is size
+ };
+ 
+ struct	Map
+@@ -37,6 +45,27 @@ struct	Map
+ 
+ static	Map*	hash[1009];
+ 
++#define	END	nil,0,0,nil
++
++Sigi	sys·sigi_inter[2] =	{ (byte*)"sys·nilinter", 0, 0, nil, 0, 0 };
++
++Sigt	sys·sigt_int8[2] =	{ (byte*)"sys·int8", ASIMP, 1, nil, END };
++Sigt	sys·sigt_int16[2] =	{ (byte*)"sys·int16", ASIMP, 2, nil, END };
++Sigt	sys·sigt_int32[2] =	{ (byte*)"sys·int32", ASIMP, 4, nil, END };
++Sigt	sys·sigt_int64[2] =	{ (byte*)"sys·int64", ASIMP, 8, nil, END };
++
++Sigt	sys·sigt_uint8[2] =	{ (byte*)"sys·uint8", ASIMP, 1, nil, END };
++Sigt	sys·sigt_uint16[2] =	{ (byte*)"sys·uint16", ASIMP, 2, nil, END };
++Sigt	sys·sigt_uint32[2] =	{ (byte*)"sys·uint32", ASIMP, 4, nil, END };
++Sigt	sys·sigt_uint64[2] =	{ (byte*)"sys·uint64", ASIMP, 8, nil, END };
++
++Sigt	sys·sigt_float32[2] =	{ (byte*)"sys·float32", ASIMP, 4, nil, END };
++Sigt	sys·sigt_float64[2] =	{ (byte*)"sys·float64", ASIMP, 8, nil, END };
++//Sigt	sys·sigt_float80[2] =	{ (byte*)"sys·float80", ASIMP, 0, nil, END };
++
++Sigt	sys·sigt_bool[2] =	{ (byte*)"sys·bool", ASIMP, 1, nil, END };
++Sigt	sys·sigt_string[2] =	{ (byte*)"sys·string", ASTRING, 8, nil, END };
++
+ static void
+ printsigi(Sigi *si)
+ {
+@@ -126,7 +155,11 @@ hashmap(Sigi *si, Sigt *st)
+ 	m->sigt = st;
+ 
+ 	nt = 1;
+-	for(ni=1; (iname=si[ni].name) != nil; ni++) {	// ni=1: skip first word
++	for(ni=1;; ni++) {	// ni=1: skip first word
++		iname = si[ni].name;
++		if(iname == nil)
++			break;
++
+ 		// pick up next name from
+ 		// interface signature
+ 		ihash = si[ni].hash;

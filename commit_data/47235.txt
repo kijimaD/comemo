@@ -27,9 +27,274 @@ Date:   Wed Mar 3 16:30:22 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go              | 17 +++++
  src/cmd/go/internal/modfetch/fetch.go              | 77 ++++++++++++++--------
  .../go/testdata/script/mod_get_missing_ziphash.txt | 55 ++++++++++++++++
  src/cmd/go/testdata/script/mod_verify.txt          |  7 +-
  4 files changed, 125 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 9e751931a0..10f774568d 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -80,6 +80,7 @@ func DownloadDir(m module.Version) (string, error) {
+ 		return "", err
+ 	}
+ 
++	// Check whether the directory itself exists.
+ 	dir := filepath.Join(cfg.GOMODCACHE, enc+"@"+encVer)
+ 	if fi, err := os.Stat(dir); os.IsNotExist(err) {
+ 		return dir, err
+@@ -88,6 +89,9 @@ func DownloadDir(m module.Version) (string, error) {
+ 	} else if !fi.IsDir() {
+ 		return dir, &DownloadDirPartialError{dir, errors.New("not a directory")}
+ 	}
++
++	// Check if a .partial file exists. This is created at the beginning of
++	// a download and removed after the zip is extracted.
+ 	partialPath, err := CachePath(m, "partial")
+ 	if err != nil {
+ 		return dir, err
+@@ -97,6 +101,19 @@ func DownloadDir(m module.Version) (string, error) {
+ 	} else if !os.IsNotExist(err) {
+ 		return dir, err
+ 	}
++
++	// Check if a .ziphash file exists. It should be created before the
++	// zip is extracted, but if it was deleted (by another program?), we need
++	// to re-calculate it.
++	ziphashPath, err := CachePath(m, "ziphash")
++	if err != nil {
++		return dir, err
++	}
++	if _, err := os.Stat(ziphashPath); os.IsNotExist(err) {
++		return dir, &DownloadDirPartialError{dir, errors.New("ziphash file is missing")}
++	} else if err != nil {
++		return dir, err
++	}
+ 	return dir, nil
+ }
+ 
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index d5ad277dd0..7b4ce2154c 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -168,13 +168,16 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
+ 		if err != nil {
+ 			return cached{"", err}
+ 		}
++		ziphashfile := zipfile + "hash"
+ 
+-		// Skip locking if the zipfile already exists.
++		// Return without locking if the zip and ziphash files exist.
+ 		if _, err := os.Stat(zipfile); err == nil {
+-			return cached{zipfile, nil}
++			if _, err := os.Stat(ziphashfile); err == nil {
++				return cached{zipfile, nil}
++			}
+ 		}
+ 
+-		// The zip file does not exist. Acquire the lock and create it.
++		// The zip or ziphash file does not exist. Acquire the lock and create them.
+ 		if cfg.CmdName != "mod download" {
+ 			fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
+ 		}
+@@ -184,14 +187,6 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
+ 		}
+ 		defer unlock()
+ 
+-		// Double-check that the zipfile was not created while we were waiting for
+-		// the lock.
+-		if _, err := os.Stat(zipfile); err == nil {
+-			return cached{zipfile, nil}
+-		}
+-		if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+-			return cached{"", err}
+-		}
+ 		if err := downloadZip(ctx, mod, zipfile); err != nil {
+ 			return cached{"", err}
+ 		}
+@@ -204,6 +199,25 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 	ctx, span := trace.StartSpan(ctx, "modfetch.downloadZip "+zipfile)
+ 	defer span.Done()
+ 
++	// Double-check that the zipfile was not created while we were waiting for
++	// the lock in DownloadZip.
++	ziphashfile := zipfile + "hash"
++	var zipExists, ziphashExists bool
++	if _, err := os.Stat(zipfile); err == nil {
++		zipExists = true
++	}
++	if _, err := os.Stat(ziphashfile); err == nil {
++		ziphashExists = true
++	}
++	if zipExists && ziphashExists {
++		return nil
++	}
++
++	// Create parent directories.
++	if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
++		return err
++	}
++
+ 	// Clean up any remaining tempfiles from previous runs.
+ 	// This is only safe to do because the lock file ensures that their
+ 	// writers are no longer active.
+@@ -215,6 +229,12 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 		}
+ 	}
+ 
++	// If the zip file exists, the ziphash file must have been deleted
++	// or lost after a file system crash. Re-hash the zip without downloading.
++	if zipExists {
++		return hashZip(mod, zipfile, ziphashfile)
++	}
++
+ 	// From here to the os.Rename call below is functionally almost equivalent to
+ 	// renameio.WriteToFile, with one key difference: we want to validate the
+ 	// contents of the file (by hashing it) before we commit it. Because the file
+@@ -287,15 +307,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 	}
+ 
+ 	// Hash the zip file and check the sum before renaming to the final location.
+-	hash, err := dirhash.HashZip(f.Name(), dirhash.DefaultHash)
+-	if err != nil {
+-		return err
+-	}
+-	if err := checkModSum(mod, hash); err != nil {
+-		return err
+-	}
+-
+-	if err := renameio.WriteFile(zipfile+"hash", []byte(hash), 0666); err != nil {
++	if err := hashZip(mod, f.Name(), ziphashfile); err != nil {
+ 		return err
+ 	}
+ 	if err := os.Rename(f.Name(), zipfile); err != nil {
+@@ -307,6 +319,22 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
+ 	return nil
+ }
+ 
++// hashZip reads the zip file opened in f, then writes the hash to ziphashfile,
++// overwriting that file if it exists.
++//
++// If the hash does not match go.sum (or the sumdb if enabled), hashZip returns
++// an error and does not write ziphashfile.
++func hashZip(mod module.Version, zipfile, ziphashfile string) error {
++	hash, err := dirhash.HashZip(zipfile, dirhash.DefaultHash)
++	if err != nil {
++		return err
++	}
++	if err := checkModSum(mod, hash); err != nil {
++		return err
++	}
++	return renameio.WriteFile(ziphashfile, []byte(hash), 0666)
++}
++
+ // makeDirsReadOnly makes a best-effort attempt to remove write permissions for dir
+ // and its transitive contents.
+ func makeDirsReadOnly(dir string) {
+@@ -450,11 +478,6 @@ func HaveSum(mod module.Version) bool {
+ 
+ // checkMod checks the given module's checksum.
+ func checkMod(mod module.Version) {
+-	if cfg.GOMODCACHE == "" {
+-		// Do not use current directory.
+-		return
+-	}
+-
+ 	// Do the file I/O before acquiring the go.sum lock.
+ 	ziphash, err := CachePath(mod, "ziphash")
+ 	if err != nil {
+@@ -462,10 +485,6 @@ func checkMod(mod module.Version) {
+ 	}
+ 	data, err := renameio.ReadFile(ziphash)
+ 	if err != nil {
+-		if errors.Is(err, fs.ErrNotExist) {
+-			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
+-			return
+-		}
+ 		base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 	}
+ 	h := strings.TrimSpace(string(data))
+diff --git a/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt b/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt
+new file mode 100644
+index 0000000000..8f6793edf5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt
+@@ -0,0 +1,55 @@
++# Test that if the module cache contains an extracted source directory but not
++# a ziphash, 'go build' complains about a missing sum, and 'go get' adds
++# the sum. Verifies #44749.
++
++# With a tidy go.sum, go build succeeds. This also populates the module cache.
++cp go.sum.tidy go.sum
++go build -n use
++env GOPROXY=off
++env GOSUMDB=off
++
++# Control case: if we delete the hash for rsc.io/quote v1.5.2,
++# 'go build' reports an error. 'go get' adds the sum.
++cp go.sum.bug go.sum
++! go build -n use
++stderr '^use.go:3:8: missing go.sum entry for module providing package rsc.io/quote \(imported by use\); to add:\n\tgo get use$'
++go get -d use
++cmp go.sum go.sum.tidy
++go build -n use
++
++# If we delete the hash *and* the ziphash file, we should see the same behavior.
++cp go.sum.bug go.sum
++rm $WORK/gopath/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.ziphash
++! go build -n use
++stderr '^use.go:3:8: missing go.sum entry for module providing package rsc.io/quote \(imported by use\); to add:\n\tgo get use$'
++go get -d use
++cmp go.sum go.sum.tidy
++go build -n use
++
++-- go.mod --
++module use
++
++go 1.17
++
++require rsc.io/quote v1.5.2
++-- go.sum.tidy --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=
++-- go.sum.bug --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote v1.5.2/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
++rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
++rsc.io/testonly v1.0.0 h1:K/VWHdO+Jv7woUXG0GzVNx1czBXUt3Ib1deaMn+xk64=
++rsc.io/testonly v1.0.0/go.mod h1:OqmGbIFOcF+XrFReLOGZ6BhMM7uMBiQwZsyNmh74SzY=
++-- use.go --
++package use
++
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_verify.txt b/src/cmd/go/testdata/script/mod_verify.txt
+index 43812d069f..b5106659a9 100644
+--- a/src/cmd/go/testdata/script/mod_verify.txt
++++ b/src/cmd/go/testdata/script/mod_verify.txt
+@@ -48,10 +48,13 @@ go mod tidy
+ grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+ grep '^rsc.io/quote v1.1.0 ' go.sum
+ 
+-# sync should ignore missing ziphash; verify should not
++# verify should fail on a missing ziphash. tidy should restore it.
+ rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
+-go mod tidy
+ ! go mod verify
++stderr '^rsc.io/quote v1.1.0: missing ziphash: open '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]rsc.io[/\\]quote[/\\]@v[/\\]v1.1.0.ziphash'
++go mod tidy
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.1.0.ziphash
++go mod verify
+ 
+ # Packages below module root should not be mentioned in go.sum.
+ rm go.sum

@@ -10,6 +10,18 @@ Date:   Wed Sep 2 21:52:19 2015 +1200
     Change-Id: I1488690cecfb66e62d9fdb3b8d257a4dc31d202a
     Reviewed-on: https://go-review.googlesource.com/14187
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/asm_arm.s | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 06591276d9..917cce81c3 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -1072,3 +1072,6 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
+ 	MULU	R0, R1
+ 	SUB	R1, R3, R1
+ 	RET
++
++TEXT runtime·sigreturn(SB),NOSPLIT,$0-4
++        RET

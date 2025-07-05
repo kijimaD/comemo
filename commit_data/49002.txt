@@ -21,7 +21,7 @@ Date:   Tue Jun 8 11:57:11 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/run.go                            | 15 +++++++++++++-
  test/typeparam/mdempsky/1.dir/a.go     |  9 ++++++++
  test/typeparam/mdempsky/1.dir/b.go     |  9 ++++++++
@@ -52,3 +52,543 @@ Date:   Tue Jun 8 11:57:11 2021 -0700
  test/typeparam/mdempsky/8.go           |  7 +++++++
  test/typeparam/mdempsky/9.go           | 11 ++++++++++
  29 files changed, 352 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index ff8bf4b229..df3befbf21 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -86,7 +86,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam"}
++	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky"}
+ 
+ 	// ratec controls the max number of tests running at a time.
+ 	ratec chan bool
+@@ -2203,6 +2203,19 @@ var g3Failures = setOf(
+ 	"fixedbugs/issue9691.go", // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
++
++	"typeparam/mdempsky/1.go",
++	"typeparam/mdempsky/2.go",
++	"typeparam/mdempsky/3.go",
++	"typeparam/mdempsky/4.go",
++	"typeparam/mdempsky/5.go",
++	"typeparam/mdempsky/7.go",
++	"typeparam/mdempsky/8.go",
++	"typeparam/mdempsky/9.go",
++	"typeparam/mdempsky/11.go",
++	"typeparam/mdempsky/12.go",
++	"typeparam/mdempsky/13.go",
++	"typeparam/mdempsky/14.go",
+ )
+ 
+ var unifiedFailures = setOf(
+diff --git a/test/typeparam/mdempsky/1.dir/a.go b/test/typeparam/mdempsky/1.dir/a.go
+new file mode 100644
+index 0000000000..a668eb52dc
+--- /dev/null
++++ b/test/typeparam/mdempsky/1.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T[_ any] int
++
++func F() { _ = new(T[int]) }
+diff --git a/test/typeparam/mdempsky/1.dir/b.go b/test/typeparam/mdempsky/1.dir/b.go
+new file mode 100644
+index 0000000000..af6fef3f6d
+--- /dev/null
++++ b/test/typeparam/mdempsky/1.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() { a.F() }
+diff --git a/test/typeparam/mdempsky/1.go b/test/typeparam/mdempsky/1.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/mdempsky/1.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/10.dir/a.go b/test/typeparam/mdempsky/10.dir/a.go
+new file mode 100644
+index 0000000000..95e111d347
+--- /dev/null
++++ b/test/typeparam/mdempsky/10.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I[T any] interface{ M() T }
+diff --git a/test/typeparam/mdempsky/10.dir/b.go b/test/typeparam/mdempsky/10.dir/b.go
+new file mode 100644
+index 0000000000..0ef28fd02d
+--- /dev/null
++++ b/test/typeparam/mdempsky/10.dir/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++var m = a.I[int].M
++
++var never bool
++
++func main() {
++	if never {
++		m(nil)
++	}
++}
+diff --git a/test/typeparam/mdempsky/10.go b/test/typeparam/mdempsky/10.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/mdempsky/10.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/11.go b/test/typeparam/mdempsky/11.go
+new file mode 100644
+index 0000000000..e86c038a10
+--- /dev/null
++++ b/test/typeparam/mdempsky/11.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Reported by Cuong Manh Le.
++
++package p
++
++type a struct{}
++
++//go:notinheap
++type b a
++
++var _ = (*b)(new(a)) // ERROR "cannot convert"
+diff --git a/test/typeparam/mdempsky/12.dir/a.go b/test/typeparam/mdempsky/12.dir/a.go
+new file mode 100644
+index 0000000000..ee8be939a8
+--- /dev/null
++++ b/test/typeparam/mdempsky/12.dir/a.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type S[T any] struct {
++	F T
++}
++
++var X = S[int]{}
+diff --git a/test/typeparam/mdempsky/12.dir/main.go b/test/typeparam/mdempsky/12.dir/main.go
+new file mode 100644
+index 0000000000..2891322e29
+--- /dev/null
++++ b/test/typeparam/mdempsky/12.dir/main.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"./a"
++)
++
++func main() {
++	_ = a.X
++}
+diff --git a/test/typeparam/mdempsky/12.go b/test/typeparam/mdempsky/12.go
+new file mode 100644
+index 0000000000..a2dc4daacc
+--- /dev/null
++++ b/test/typeparam/mdempsky/12.go
+@@ -0,0 +1,9 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Reported by Cuong Manh Le.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/13.go b/test/typeparam/mdempsky/13.go
+new file mode 100644
+index 0000000000..dc1d29bce1
+--- /dev/null
++++ b/test/typeparam/mdempsky/13.go
+@@ -0,0 +1,38 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Mer interface{ M() }
++
++func F[T Mer](expectPanic bool) {
++	defer func() {
++		err := recover()
++		if (err != nil) != expectPanic {
++			print("FAIL: (", err, " != nil) != ", expectPanic, "\n")
++		}
++	}()
++
++	var t T
++	T.M(t)
++}
++
++type MyMer int
++
++func (MyMer) M() {}
++
++func main() {
++	F[Mer](true)
++	F[struct{ Mer }](true)
++	F[*struct{ Mer }](true)
++
++	F[MyMer](false)
++	F[*MyMer](true)
++	F[struct{ MyMer }](false)
++	F[struct{ *MyMer }](true)
++	F[*struct{ MyMer }](true)
++	F[*struct{ *MyMer }](true)
++}
+diff --git a/test/typeparam/mdempsky/14.go b/test/typeparam/mdempsky/14.go
+new file mode 100644
+index 0000000000..61f9436910
+--- /dev/null
++++ b/test/typeparam/mdempsky/14.go
+@@ -0,0 +1,37 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func Zero[T any]() (_ T) { return }
++
++type T[X any] int
++
++func (T[X]) M() {
++	var have interface{} = Zero[X]()
++	var want interface{} = Zero[MyInt]()
++
++	if have != want {
++		println("FAIL")
++	}
++}
++
++type I interface{ M() }
++
++type MyInt int
++type U = T[MyInt]
++
++var x = U(0)
++var i I = x
++
++func main() {
++	x.M()
++	U.M(x)
++	(*U).M(&x)
++
++	i.M()
++	I.M(x)
++}
+diff --git a/test/typeparam/mdempsky/2.go b/test/typeparam/mdempsky/2.go
+new file mode 100644
+index 0000000000..f09730f949
+--- /dev/null
++++ b/test/typeparam/mdempsky/2.go
+@@ -0,0 +1,20 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T[A, B, C any] int
++
++func (T[A, B, C]) m(x int) {
++	if x <= 0 {
++		return
++	}
++	T[B, C, A](0).m(x - 1)
++}
++
++func main() {
++	T[int8, int16, int32](0).m(3)
++}
+diff --git a/test/typeparam/mdempsky/3.dir/a.go b/test/typeparam/mdempsky/3.dir/a.go
+new file mode 100644
+index 0000000000..cf456e8d48
+--- /dev/null
++++ b/test/typeparam/mdempsky/3.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F[T interface{ chan int }](c T) {}
+diff --git a/test/typeparam/mdempsky/3.dir/b.go b/test/typeparam/mdempsky/3.dir/b.go
+new file mode 100644
+index 0000000000..0cfd142f4c
+--- /dev/null
++++ b/test/typeparam/mdempsky/3.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func g() { a.F(make(chan int)) }
+diff --git a/test/typeparam/mdempsky/3.go b/test/typeparam/mdempsky/3.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/mdempsky/3.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/4.dir/a.go b/test/typeparam/mdempsky/4.dir/a.go
+new file mode 100644
+index 0000000000..cb672949ea
+--- /dev/null
++++ b/test/typeparam/mdempsky/4.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F[T any](T) {
++Loop:
++	for {
++		break Loop
++	}
++}
+diff --git a/test/typeparam/mdempsky/4.dir/b.go b/test/typeparam/mdempsky/4.dir/b.go
+new file mode 100644
+index 0000000000..e1fb0e7c5e
+--- /dev/null
++++ b/test/typeparam/mdempsky/4.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func f() { a.F(0) }
+diff --git a/test/typeparam/mdempsky/4.go b/test/typeparam/mdempsky/4.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/mdempsky/4.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/5.go b/test/typeparam/mdempsky/5.go
+new file mode 100644
+index 0000000000..0d1ad39946
+--- /dev/null
++++ b/test/typeparam/mdempsky/5.go
+@@ -0,0 +1,15 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type X[T any] int
++
++func (X[T]) F(T) {}
++
++func x() {
++	X[interface{}](0).F(0)
++}
+diff --git a/test/typeparam/mdempsky/6.go b/test/typeparam/mdempsky/6.go
+new file mode 100644
+index 0000000000..a26ff62f6d
+--- /dev/null
++++ b/test/typeparam/mdempsky/6.go
+@@ -0,0 +1,11 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I[T any] interface{ M() T }
++
++var _ = I[int].M
+diff --git a/test/typeparam/mdempsky/7.dir/a.go b/test/typeparam/mdempsky/7.dir/a.go
+new file mode 100644
+index 0000000000..59c5995611
+--- /dev/null
++++ b/test/typeparam/mdempsky/7.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I[T any] interface{ M() T }
++
++var X I[int]
+diff --git a/test/typeparam/mdempsky/7.dir/b.go b/test/typeparam/mdempsky/7.dir/b.go
+new file mode 100644
+index 0000000000..9f70530811
+--- /dev/null
++++ b/test/typeparam/mdempsky/7.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var _ = a.X
+diff --git a/test/typeparam/mdempsky/7.go b/test/typeparam/mdempsky/7.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/mdempsky/7.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/8.dir/a.go b/test/typeparam/mdempsky/8.dir/a.go
+new file mode 100644
+index 0000000000..607fe5e0af
+--- /dev/null
++++ b/test/typeparam/mdempsky/8.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F[T interface{ comparable }]() {}
+diff --git a/test/typeparam/mdempsky/8.dir/b.go b/test/typeparam/mdempsky/8.dir/b.go
+new file mode 100644
+index 0000000000..ef2637b894
+--- /dev/null
++++ b/test/typeparam/mdempsky/8.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func init() {
++	a.F[func()]() // ERROR "does not satisfy comparable"
++}
+diff --git a/test/typeparam/mdempsky/8.go b/test/typeparam/mdempsky/8.go
+new file mode 100644
+index 0000000000..32cf4b830d
+--- /dev/null
++++ b/test/typeparam/mdempsky/8.go
+@@ -0,0 +1,7 @@
++// errorcheckdir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/mdempsky/9.go b/test/typeparam/mdempsky/9.go
+new file mode 100644
+index 0000000000..b72516c4ea
+--- /dev/null
++++ b/test/typeparam/mdempsky/9.go
+@@ -0,0 +1,11 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func f[V any]() []V { return []V{0: *new(V)} }
++
++func g() { f[int]() }

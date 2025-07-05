@@ -8,7 +8,7 @@ Date:   Tue Oct 6 14:55:39 2009 -0700
     DELTA=900  (106 added, 31 deleted, 763 changed)
     OCL=35384
     CL=35396
-
+---
  doc/progs/cat.go                         |   4 +-
  doc/progs/cat_rot13.go                   |  22 ++--
  src/cmd/gc/unsafe.go                     |   1 +
@@ -47,3 +47,4169 @@ Date:   Tue Oct 6 14:55:39 2009 -0700
  src/pkg/container/vector/vector.go       |  76 +++++------
  src/pkg/container/vector/vector_test.go  | 128 ++++++++++++------
  37 files changed, 829 insertions(+), 754 deletions(-)
+
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index f9f00b6e32..824b924598 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -19,7 +19,7 @@ func cat(f *file.File) {
+ 		case nr < 0:
+ 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
+ 			os.Exit(1);
+-		case nr == 0:  // EOF
++		case nr == 0:	// EOF
+ 			return;
+ 		case nr > 0:
+ 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+@@ -30,7 +30,7 @@ func cat(f *file.File) {
+ }
+ 
+ func main() {
+-	flag.Parse();   // Scans the arg list and sets up flags
++	flag.Parse();	// Scans the arg list and sets up flags
+ 	if flag.NArg() == 0 {
+ 		cat(file.Stdin);
+ 	}
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index ea608b83d7..6cad78f5a7 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -15,12 +15,12 @@ var rot13_flag = flag.Bool("rot13", false, "rot13 the input")
+ 
+ func rot13(b byte) byte {
+ 	if 'a' <= b && b <= 'z' {
+-	   b = 'a' + ((b - 'a') + 13) % 26;
++		b = 'a' + ((b-'a')+13)%26;
+ 	}
+ 	if 'A' <= b && b <= 'Z' {
+-	   b = 'A' + ((b - 'A') + 13) % 26
++		b = 'A' + ((b-'A')+13)%26;
+ 	}
+-	return b
++	return b;
+ }
+ 
+ type reader interface {
+@@ -29,23 +29,23 @@ type reader interface {
+ }
+ 
+ type rotate13 struct {
+-	source	reader;
++	source reader;
+ }
+ 
+ func newRotate13(source reader) *rotate13 {
+-	return &rotate13{source}
++	return &rotate13{source};
+ }
+ 
+ func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
+ 	r, e := r13.source.Read(b);
+ 	for i := 0; i < r; i++ {
+-		b[i] = rot13(b[i])
++		b[i] = rot13(b[i]);
+ 	}
+-	return r, e
++	return r, e;
+ }
+ 
+ func (r13 *rotate13) String() string {
+-	return r13.source.String()
++	return r13.source.String();
+ }
+ // end of rotate13 implementation
+ 
+@@ -54,14 +54,14 @@ func cat(r reader) {
+ 	var buf [NBUF]byte;
+ 
+ 	if *rot13_flag {
+-		r = newRotate13(r)
++		r = newRotate13(r);
+ 	}
+ 	for {
+ 		switch nr, er := r.Read(&buf); {
+ 		case nr < 0:
+ 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
+ 			os.Exit(1);
+-		case nr == 0:  // EOF
++		case nr == 0:	// EOF
+ 			return;
+ 		case nr > 0:
+ 			nw, ew := file.Stdout.Write(buf[0:nr]);
+@@ -73,7 +73,7 @@ func cat(r reader) {
+ }
+ 
+ func main() {
+-	flag.Parse();   // Scans the arg list and sets up flags
++	flag.Parse();	// Scans the arg list and sets up flags
+ 	if flag.NArg() == 0 {
+ 		cat(file.Stdin);
+ 	}
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index 364dd6b05f..0511262072 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -5,6 +5,7 @@
+ package PACKAGE
+ 
+ type Pointer *any
++
+ func Offsetof(any) int
+ func Sizeof(any) int
+ func Alignof(any) int
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 1407f0f7aa..74ab0177e1 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -67,6 +67,7 @@ func checksum(header []byte) (unsigned int64, signed int64) {
+ }
+ 
+ type slicer []byte
++
+ func (sp *slicer) next(n int) (b []byte) {
+ 	s := *sp;
+ 	b, *sp = s[0:n], s[n:len(s)];
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index c78950fab4..81d79841dd 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -87,6 +87,7 @@ func (tr *Reader) octal(b []byte) int64 {
+ }
+ 
+ type ignoreWriter struct{}
++
+ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
+ 	return len(b), nil;
+ }
+@@ -160,7 +161,7 @@ func (tr *Reader) readHeader() *Header {
+ 			format = "star";
+ 		} else {
+ 			format = "posix";
+-				}
++		}
+ 	case "ustar  \x00":	// old GNU tar
+ 		format = "gnu";
+ 	}
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 85bfef1708..0cefc08693 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -14,8 +14,8 @@ import (
+ )
+ 
+ type untarTest struct {
+-	file string;
+-	headers []*Header;
++	file	string;
++	headers	[]*Header;
+ }
+ 
+ var untarTests = []*untarTest{
+@@ -108,7 +108,7 @@ testLoop:
+ 		f, err := os.Open(test.file, os.O_RDONLY, 0444);
+ 		if err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err);
+-			continue
++			continue;
+ 		}
+ 		tr := NewReader(f);
+ 		for j, header := range test.headers {
+@@ -116,11 +116,11 @@ testLoop:
+ 			if err != nil || hdr == nil {
+ 				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
+ 				f.Close();
+-				continue testLoop
++				continue testLoop;
+ 			}
+ 			if !reflect.DeepEqual(hdr, header) {
+ 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
+-					 i, j, *hdr, *header);
++					i, j, *hdr, *header);
+ 			}
+ 		}
+ 		hdr, err := tr.Next();
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 745a7c43d1..f253a01cea 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -16,8 +16,8 @@ import (
+ )
+ 
+ var (
+-	ErrWriteTooLong = os.NewError("write too long");
+-	ErrFieldTooLong = os.NewError("header field too long");
++	ErrWriteTooLong	= os.NewError("write too long");
++	ErrFieldTooLong	= os.NewError("header field too long");
+ )
+ 
+ // A Writer provides sequential writing of a tar archive in POSIX.1 format.
+@@ -36,17 +36,17 @@ var (
+ //	io.Copy(data, tw);
+ //	tw.Close();
+ type Writer struct {
+-	w io.Writer;
+-	err os.Error;
+-	nb int64;	// number of unwritten bytes for current file entry
+-	pad int64;	// amount of padding to write after current file entry
+-	closed bool;
+-	usedBinary bool;	// whether the binary numeric field extension was used
++	w		io.Writer;
++	err		os.Error;
++	nb		int64;	// number of unwritten bytes for current file entry
++	pad		int64;	// amount of padding to write after current file entry
++	closed		bool;
++	usedBinary	bool;	// whether the binary numeric field extension was used
+ }
+ 
+ // NewWriter creates a new Writer writing to w.
+ func NewWriter(w io.Writer) *Writer {
+-	return &Writer{ w: w }
++	return &Writer{w: w};
+ }
+ 
+ // Flush finishes writing the current file (optional).
+@@ -63,7 +63,7 @@ func (tw *Writer) Flush() os.Error {
+ 	}
+ 	tw.nb = 0;
+ 	tw.pad = 0;
+-	return tw.err
++	return tw.err;
+ }
+ 
+ // Write s into b, terminating it with a NUL if there is room.
+@@ -72,7 +72,7 @@ func (tw *Writer) cString(b []byte, s string) {
+ 		if tw.err == nil {
+ 			tw.err = ErrFieldTooLong;
+ 		}
+-		return
++		return;
+ 	}
+ 	for i, ch := range strings.Bytes(s) {
+ 		b[i] = ch;
+@@ -86,8 +86,8 @@ func (tw *Writer) cString(b []byte, s string) {
+ func (tw *Writer) octal(b []byte, x int64) {
+ 	s := strconv.Itob64(x, 8);
+ 	// leading zeros, but leave room for a NUL.
+-	for len(s) + 1 < len(b) {
+-		s = "0" + s;
++	for len(s)+1 < len(b) {
++		s = "0"+s;
+ 	}
+ 	tw.cString(b, s);
+ }
+@@ -98,7 +98,7 @@ func (tw *Writer) numeric(b []byte, x int64) {
+ 	s := strconv.Itob64(x, 8);
+ 	if len(s) < len(b) {
+ 		tw.octal(b, x);
+-		return
++		return;
+ 	}
+ 	// Too big: use binary (big-endian).
+ 	tw.usedBinary = true;
+@@ -106,7 +106,7 @@ func (tw *Writer) numeric(b []byte, x int64) {
+ 		b[i] = byte(x);
+ 		x >>= 8;
+ 	}
+-	b[0] |= 0x80;  // highest bit indicates binary format
++	b[0] |= 0x80;	// highest bit indicates binary format
+ }
+ 
+ // WriteHeader writes hdr and prepares to accept the file's contents.
+@@ -116,11 +116,11 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 		tw.Flush();
+ 	}
+ 	if tw.err != nil {
+-		return tw.err
++		return tw.err;
+ 	}
+ 
+ 	tw.nb = int64(hdr.Size);
+-	tw.pad = -tw.nb & (blockSize - 1);  // blockSize is a power of two
++	tw.pad = -tw.nb & (blockSize-1);	// blockSize is a power of two
+ 
+ 	header := make([]byte, blockSize);
+ 	s := slicer(header);
+@@ -128,19 +128,19 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	// TODO(dsymonds): handle names longer than 100 chars
+ 	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+ 
+-	tw.octal(s.next(8), hdr.Mode);	// 100:108
+-	tw.numeric(s.next(8), hdr.Uid);	// 108:116
+-	tw.numeric(s.next(8), hdr.Gid);	// 116:124
+-	tw.numeric(s.next(12), hdr.Size);	// 124:136
+-	tw.numeric(s.next(12), hdr.Mtime);	// 136:148
+-	s.next(8);  // chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag;	// 156:157
+-	s.next(100);  // linkname (157:257)
++	tw.octal(s.next(8), hdr.Mode);				// 100:108
++	tw.numeric(s.next(8), hdr.Uid);				// 108:116
++	tw.numeric(s.next(8), hdr.Gid);				// 116:124
++	tw.numeric(s.next(12), hdr.Size);			// 124:136
++	tw.numeric(s.next(12), hdr.Mtime);			// 136:148
++	s.next(8);						// chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag;				// 156:157
++	s.next(100);						// linkname (157:257)
+ 	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
+-	tw.cString(s.next(32), hdr.Uname);	// 265:297
+-	tw.cString(s.next(32), hdr.Gname);	// 297:329
+-	tw.numeric(s.next(8), hdr.Devmajor);	// 329:337
+-	tw.numeric(s.next(8), hdr.Devminor);	// 337:345
++	tw.cString(s.next(32), hdr.Uname);			// 265:297
++	tw.cString(s.next(32), hdr.Gname);			// 297:329
++	tw.numeric(s.next(8), hdr.Devmajor);			// 329:337
++	tw.numeric(s.next(8), hdr.Devminor);			// 337:345
+ 
+ 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+ 	if tw.usedBinary {
+@@ -155,12 +155,12 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 
+ 	if tw.err != nil {
+ 		// problem with header; probably integer too big for a field.
+-		return tw.err
++		return tw.err;
+ 	}
+ 
+ 	_, tw.err = tw.w.Write(header);
+ 
+-	return tw.err
++	return tw.err;
+ }
+ 
+ // Write writes to the current entry in the tar archive.
+@@ -169,7 +169,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
+ 	overwrite := false;
+ 	if int64(len(b)) > tw.nb {
+-		b = b[0:tw.nb];
++		b = b[0 : tw.nb];
+ 		overwrite = true;
+ 	}
+ 	n, err = tw.w.Write(b);
+@@ -178,12 +178,12 @@ func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
+ 		err = ErrWriteTooLong;
+ 	}
+ 	tw.err = err;
+-	return
++	return;
+ }
+ 
+ func (tw *Writer) Close() os.Error {
+ 	if tw.err != nil || tw.closed {
+-		return tw.err
++		return tw.err;
+ 	}
+ 	tw.Flush();
+ 	tw.closed = true;
+@@ -192,8 +192,8 @@ func (tw *Writer) Close() os.Error {
+ 	for i := 0; i < 2; i++ {
+ 		_, tw.err = tw.w.Write(zeroBlock);
+ 		if tw.err != nil {
+-			break
++			break;
+ 		}
+ 	}
+-	return tw.err
++	return tw.err;
+ }
+diff --git a/src/pkg/base64/base64.go b/src/pkg/base64/base64.go
+index 3db0a83da9..c3c2c911e4 100644
+--- a/src/pkg/base64/base64.go
++++ b/src/pkg/base64/base64.go
+@@ -22,8 +22,8 @@ import (
+ // (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
+ // the standard encoding with - and _ substituted for + and /.
+ type Encoding struct {
+-	encode string;
+-	decodeMap [256]byte;
++	encode		string;
++	decodeMap	[256]byte;
+ }
+ 
+ const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+@@ -45,11 +45,11 @@ func NewEncoding(encoder string) *Encoding {
+ 
+ // StdEncoding is the standard base64 encoding, as defined in
+ // RFC 4648.
+-var StdEncoding = NewEncoding(encodeStd);
++var StdEncoding = NewEncoding(encodeStd)
+ 
+ // URLEncoding is the alternate base64 encoding defined in RFC 4648.
+ // It is typically used in URLs and file names.
+-var URLEncoding = NewEncoding(encodeURL);
++var URLEncoding = NewEncoding(encodeURL)
+ 
+ /*
+  * Encoder
+@@ -108,12 +108,12 @@ func (enc *Encoding) Encode(src, dst []byte) {
+ }
+ 
+ type encoder struct {
+-	err os.Error;
+-	enc *Encoding;
+-	w io.Writer;
+-	buf [3]byte;		// buffered data waiting to be encoded
+-	nbuf int;			// number of bytes in buf
+-	out [1024]byte;		// output buffer
++	err	os.Error;
++	enc	*Encoding;
++	w	io.Writer;
++	buf	[3]byte;	// buffered data waiting to be encoded
++	nbuf	int;		// number of bytes in buf
++	out	[1024]byte;	// output buffer
+ }
+ 
+ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+@@ -143,15 +143,15 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 
+ 	// Large interior chunks.
+ 	for len(p) > 3 {
+-		nn := len(e.out)/4 * 3;
++		nn := len(e.out) / 4 * 3;
+ 		if nn > len(p) {
+ 			nn = len(p);
+ 		}
+-		nn -= nn % 3;
++		nn -= nn%3;
+ 		if nn > 0 {
+ 			e.enc.Encode(p[0:nn], &e.out);
+ 			var _ int;
+-			if _, e.err = e.w.Write(e.out[0:nn/3*4]); e.err != nil {
++			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
+ 				return n, e.err;
+ 			}
+ 		}
+@@ -173,7 +173,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		e.enc.Encode(e.buf[0:e.nbuf], &e.out);
++		e.enc.Encode(e.buf[0 : e.nbuf], &e.out);
+ 		e.nbuf = 0;
+ 		var _ int;
+ 		_, e.err = e.w.Write(e.out[0:4]);
+@@ -200,7 +200,7 @@ func (enc *Encoding) EncodedLen(n int) int {
+  * Decoder
+  */
+ 
+-type CorruptInputError int64;
++type CorruptInputError int64
+ 
+ func (e CorruptInputError) String() string {
+ 	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e));
+@@ -218,12 +218,12 @@ func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
+ 
+ 	dbufloop:
+ 		for j := 0; j < 4; j++ {
+-			in := src[i*4+j];
++			in := src[i*4 + j];
+ 			if in == '=' && j >= 2 && i == len(src)/4 - 1 {
+ 				// We've reached the end and there's
+ 				// padding
+-				if src[i*4+3] != '=' {
+-					return n, false, CorruptInputError(i*4+2);
++				if src[i*4 + 3] != '=' {
++					return n, false, CorruptInputError(i*4 + 2);
+ 				}
+ 				dlen = j;
+ 				end = true;
+@@ -231,7 +231,7 @@ func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
+ 			}
+ 			dbuf[j] = enc.decodeMap[in];
+ 			if dbuf[j] == 0xFF {
+-				return n, false, CorruptInputError(i*4+j);
++				return n, false, CorruptInputError(i*4 + j);
+ 			}
+ 		}
+ 
+@@ -239,15 +239,15 @@ func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
+ 		// quantum
+ 		switch dlen {
+ 		case 4:
+-			dst[i*3+2] = dbuf[2]<<6 | dbuf[3];
++			dst[i*3 + 2] = dbuf[2]<<6 | dbuf[3];
+ 			fallthrough;
+ 		case 3:
+-			dst[i*3+1] = dbuf[1]<<4 | dbuf[2]>>2;
++			dst[i*3 + 1] = dbuf[1]<<4 | dbuf[2]>>2;
+ 			fallthrough;
+ 		case 2:
+-			dst[i*3+0] = dbuf[0]<<2 | dbuf[1]>>4;
++			dst[i*3 + 0] = dbuf[0]<<2 | dbuf[1]>>4;
+ 		}
+-		n += dlen - 1;
++		n += dlen-1;
+ 	}
+ 
+ 	return n, end, nil;
+@@ -268,14 +268,14 @@ func (enc *Encoding) Decode(src, dst []byte) (n int, err os.Error) {
+ }
+ 
+ type decoder struct {
+-	err os.Error;
+-	enc *Encoding;
+-	r io.Reader;
+-	end bool;		// saw end of message
+-	buf [1024]byte;	// leftover input
+-	nbuf int;
+-	out []byte;		// leftover decoded output
+-	outbuf [1024/4*3]byte;
++	err	os.Error;
++	enc	*Encoding;
++	r	io.Reader;
++	end	bool;		// saw end of message
++	buf	[1024]byte;	// leftover input
++	nbuf	int;
++	out	[]byte;	// leftover decoded output
++	outbuf	[1024/4*3]byte;
+ }
+ 
+ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+@@ -286,7 +286,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	// Use leftover decoded output from last read.
+ 	if len(d.out) > 0 {
+ 		n = bytes.Copy(p, d.out);
+-		d.out = d.out[n:len(d.out)];
++		d.out = d.out[n : len(d.out)];
+ 		return n, nil;
+ 	}
+ 
+@@ -298,20 +298,20 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	if nn > len(d.buf) {
+ 		nn = len(d.buf);
+ 	}
+-	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 4-d.nbuf);
++	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf : nn], 4 - d.nbuf);
+ 	d.nbuf += nn;
+ 	if d.nbuf < 4 {
+ 		return 0, d.err;
+ 	}
+ 
+ 	// Decode chunk into p, or d.out and then p if p is too small.
+-	nr := d.nbuf/4 * 4;
+-	nw := d.nbuf/4 * 3;
++	nr := d.nbuf / 4 * 4;
++	nw := d.nbuf / 4 * 3;
+ 	if nw > len(p) {
+ 		nw, d.end, d.err = d.enc.decode(d.buf[0:nr], &d.outbuf);
+ 		d.out = d.outbuf[0:nw];
+ 		n = bytes.Copy(p, d.out);
+-		d.out = d.out[n:len(d.out)];
++		d.out = d.out[n : len(d.out)];
+ 	} else {
+ 		n, d.end, d.err = d.enc.decode(d.buf[0:nr], p);
+ 	}
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 4e150ee4b7..30d3cd6813 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -14,7 +14,9 @@ func newZ(x int64) *Int {
+ 
+ 
+ type funZZ func(z, x, y *Int) *Int
+-type argZZ struct { z, x, y *Int }
++type argZZ struct {
++	z, x, y *Int;
++}
+ 
+ var sumZZ = []argZZ{
+ 	argZZ{newZ(0), newZ(0), newZ(0)},
+@@ -29,8 +31,8 @@ var prodZZ = []argZZ{
+ 	argZZ{newZ(0), newZ(0), newZ(0)},
+ 	argZZ{newZ(0), newZ(1), newZ(0)},
+ 	argZZ{newZ(1), newZ(1), newZ(1)},
+-	argZZ{newZ(-991*991), newZ(991), newZ(-991)},
+-	// TODO(gri) add larger products
++	argZZ{newZ(-991 * 991), newZ(991), newZ(-991)},
++// TODO(gri) add larger products
+ }
+ 
+ 
+@@ -55,8 +57,12 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
+ 
+ 
+ func TestSumZZ(t *testing.T) {
+-	AddZZ := func(z, x, y *Int) *Int { return z.Add(x, y) };
+-	SubZZ := func(z, x, y *Int) *Int { return z.Sub(x, y) };
++	AddZZ := func(z, x, y *Int) *Int {
++		return z.Add(x, y);
++	};
++	SubZZ := func(z, x, y *Int) *Int {
++		return z.Sub(x, y);
++	};
+ 	for _, a := range sumZZ {
+ 		arg := a;
+ 		testFunZZ(t, "AddZZ", AddZZ, arg);
+@@ -74,7 +80,9 @@ func TestSumZZ(t *testing.T) {
+ 
+ 
+ func TestProdZZ(t *testing.T) {
+-	MulZZ := func(z, x, y *Int) *Int { return z.Mul(x, y) };
++	MulZZ := func(z, x, y *Int) *Int {
++		return z.Mul(x, y);
++	};
+ 	for _, a := range prodZZ {
+ 		arg := a;
+ 		testFunZZ(t, "MulZZ", MulZZ, arg);
+@@ -85,7 +93,7 @@ func TestProdZZ(t *testing.T) {
+ }
+ 
+ 
+-var facts = map[int] string {
++var facts = map[int]string{
+ 	0: "1",
+ 	1: "1",
+ 	2: "2",
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index d26f39ac0f..ba3a27cf6a 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -85,6 +85,7 @@ type strN struct {
+ 	b	int;
+ 	s	string;
+ }
++
+ var tabN = []strN{
+ 	strN{nil, 10, "0"},
+ 	strN{[]Word{1}, 10, "1"},
+diff --git a/src/pkg/bignum/arith.go b/src/pkg/bignum/arith.go
+index 4ae7e3e0aa..f60b668288 100644
+--- a/src/pkg/bignum/arith.go
++++ b/src/pkg/bignum/arith.go
+@@ -18,14 +18,14 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 	// and return the product as 2 words.
+ 
+ 	const (
+-		W = uint(unsafe.Sizeof(x))*8;
+-		W2 = W/2;
+-		B2 = 1<<W2;
+-		M2 = B2-1;
++		W	= uint(unsafe.Sizeof(x)) * 8;
++		W2	= W/2;
++		B2	= 1<<W2;
++		M2	= B2-1;
+ 	)
+ 
+ 	if x < y {
+-		x, y = y, x
++		x, y = y, x;
+ 	}
+ 
+ 	if x < B2 {
+@@ -41,7 +41,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 		// x = (x1*B2 + x0)
+ 		// y = (y1*B2 + y0)
+ 		x1, x0 := x>>W2, x&M2;
+-	
++
+ 		// x*y = t2*B2*B2 + t1*B2 + t0
+ 		t0 := x0*y;
+ 		t1 := x1*y;
+@@ -49,7 +49,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 		// compute result digits but avoid overflow
+ 		// z = z[1]*B + z[0] = x*y
+ 		z0 = t1<<W2 + t0;
+-		z1 = (t1 + t0>>W2) >> W2;
++		z1 = (t1 + t0>>W2)>>W2;
+ 		return;
+ 	}
+ 
+@@ -68,7 +68,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
+ 	// compute result digits but avoid overflow
+ 	// z = z[1]*B + z[0] = x*y
+ 	z0 = t1<<W2 + t0;
+-	z1 = t2 + (t1 + t0>>W2) >> W2;
++	z1 = t2 + (t1 + t0>>W2)>>W2;
+ 	return;
+ }
+ 
+@@ -80,10 +80,10 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
+ 	// and return the product as 2 words.
+ 
+ 	const (
+-		W = uint(unsafe.Sizeof(x))*8;
+-		W2 = W/2;
+-		B2 = 1<<W2;
+-		M2 = B2-1;
++		W	= uint(unsafe.Sizeof(x)) * 8;
++		W2	= W/2;
++		B2	= 1<<W2;
++		M2	= B2-1;
+ 	)
+ 
+ 	// TODO(gri) Should implement special cases for faster execution.
+@@ -104,7 +104,7 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
+ 	// compute result digits but avoid overflow
+ 	// z = z[1]*B + z[0] = x*y
+ 	z0 = t1<<W2 + t0;
+-	z1 = t2 + (t1 + t0>>W2) >> W2;
++	z1 = t2 + (t1 + t0>>W2)>>W2;
+ 	return;
+ }
+ 
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+index 2fc138cda1..55bdad0ab0 100755
+--- a/src/pkg/bignum/bignum.go
++++ b/src/pkg/bignum/bignum.go
+@@ -56,25 +56,25 @@ import (
+ //    in bits must be even.
+ 
+ type (
+-	digit  uint64;
+-	digit2 uint32;  // half-digits for division
++	digit	uint64;
++	digit2	uint32;	// half-digits for division
+ )
+ 
+ 
+ const (
+-	logW = 64;  // word width
+-	logH = 4;  // bits for a hex digit (= small number)
+-	logB = logW - logH;  // largest bit-width available
++	logW	= 64;		// word width
++	logH	= 4;		// bits for a hex digit (= small number)
++	logB	= logW-logH;	// largest bit-width available
+ 
+ 	// half-digits
+-	_W2 = logB / 2;   // width
+-	_B2 = 1 << _W2;   // base
+-	_M2 = _B2 - 1;    // mask
++	_W2	= logB/2;	// width
++	_B2	= 1<<_W2;	// base
++	_M2	= _B2-1;	// mask
+ 
+ 	// full digits
+-	_W = _W2 * 2;     // width
+-	_B = 1 << _W;     // base
+-	_M = _B - 1;      // mask
++	_W	= _W2*2;	// width
++	_B	= 1<<_W;	// base
++	_M	= _B-1;		// mask
+ )
+ 
+ 
+@@ -110,14 +110,14 @@ func dump(x Natural) {
+ 
+ // Natural represents an unsigned integer value of arbitrary precision.
+ //
+-type Natural []digit;
++type Natural []digit
+ 
+ 
+ // Nat creates a small natural number with value x.
+ //
+ func Nat(x uint64) Natural {
+ 	if x == 0 {
+-		return nil;  // len == 0
++		return nil;	// len == 0
+ 	}
+ 
+ 	// single-digit values
+@@ -138,7 +138,7 @@ func Nat(x uint64) Natural {
+ 	// split x into digits
+ 	z := make(Natural, n);
+ 	for i := 0; i < n; i++ {
+-		z[i] = digit(x & _M);
++		z[i] = digit(x&_M);
+ 		x >>= _W;
+ 	}
+ 
+@@ -152,8 +152,10 @@ func (x Natural) Value() uint64 {
+ 	// single-digit values
+ 	n := len(x);
+ 	switch n {
+-	case 0: return 0;
+-	case 1: return uint64(x[0]);
++	case 0:
++		return 0;
++	case 1:
++		return uint64(x[0]);
+ 	}
+ 
+ 	// multi-digit values
+@@ -162,7 +164,7 @@ func (x Natural) Value() uint64 {
+ 	z := uint64(0);
+ 	s := uint(0);
+ 	for i := 0; i < n && s < 64; i++ {
+-		z += uint64(x[i]) << s;
++		z += uint64(x[i])<<s;
+ 		s += _W;
+ 	}
+ 
+@@ -204,8 +206,10 @@ func (x Natural) IsZero() bool {
+ 
+ func normalize(x Natural) Natural {
+ 	n := len(x);
+-	for n > 0 && x[n-1] == 0 { n-- }
+-	return x[0 : n];
++	for n > 0 && x[n-1] == 0 {
++		n--;
++	}
++	return x[0:n];
+ }
+ 
+ 
+@@ -219,7 +223,7 @@ func nalloc(z Natural, n int) Natural {
+ 		size = 4;
+ 	}
+ 	if size <= cap(z) {
+-		return z[0 : n];
++		return z[0:n];
+ 	}
+ 	return make(Natural, n, size);
+ }
+@@ -240,12 +244,12 @@ func Nadd(zp *Natural, x, y Natural) {
+ 	c := digit(0);
+ 	i := 0;
+ 	for i < m {
+-		t := c + x[i] + y[i];
++		t := c+x[i]+y[i];
+ 		c, z[i] = t>>_W, t&_M;
+ 		i++;
+ 	}
+ 	for i < n {
+-		t := c + x[i];
++		t := c+x[i];
+ 		c, z[i] = t>>_W, t&_M;
+ 		i++;
+ 	}
+@@ -253,7 +257,7 @@ func Nadd(zp *Natural, x, y Natural) {
+ 		z[i] = c;
+ 		i++;
+ 	}
+-	*zp = z[0 : i]
++	*zp = z[0:i];
+ }
+ 
+ 
+@@ -274,20 +278,20 @@ func Nsub(zp *Natural, x, y Natural) {
+ 	n := len(x);
+ 	m := len(y);
+ 	if n < m {
+-		panic("underflow")
++		panic("underflow");
+ 	}
+ 
+ 	z := nalloc(*zp, n);
+ 	c := digit(0);
+ 	i := 0;
+ 	for i < m {
+-		t := c + x[i] - y[i];
+-		c, z[i] = digit(int64(t)>>_W), t&_M;  // requires arithmetic shift!
++		t := c+x[i]-y[i];
++		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
+ 		i++;
+ 	}
+ 	for i < n {
+-		t := c + x[i];
+-		c, z[i] = digit(int64(t)>>_W), t&_M;  // requires arithmetic shift!
++		t := c+x[i];
++		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
+ 		i++;
+ 	}
+ 	if int64(c) < 0 {
+@@ -311,7 +315,7 @@ func (x Natural) Sub(y Natural) Natural {
+ //
+ func muladd11(x, y, c digit) (digit, digit) {
+ 	z1, z0 := MulAdd128(uint64(x), uint64(y), uint64(c));
+-	return digit(z1<<(64 - logB) | z0>>logB), digit(z0&_M);
++	return digit(z1<<(64-logB) | z0>>logB), digit(z0&_M);
+ }
+ 
+ 
+@@ -329,7 +333,7 @@ func Nscale(z *Natural, d uint64) {
+ 	switch {
+ 	case d == 0:
+ 		*z = Nat(0);
+-		return
++		return;
+ 	case d == 1:
+ 		return;
+ 	case d >= _B:
+@@ -346,7 +350,7 @@ func Nscale(z *Natural, d uint64) {
+ 			for i, d := range *z {
+ 				zz[i] = d;
+ 			}
+-			*z = zz
++			*z = zz;
+ 		} else {
+ 			*z = (*z)[0 : n+1];
+ 		}
+@@ -360,7 +364,7 @@ func Nscale(z *Natural, d uint64) {
+ func muladd1(x Natural, d, c digit) Natural {
+ 	assert(isSmall(d-1) && isSmall(c));
+ 	n := len(x);
+-	z := make(Natural, n + 1);
++	z := make(Natural, n+1);
+ 
+ 	for i := 0; i < n; i++ {
+ 		t := c + x[i]*d;
+@@ -376,13 +380,17 @@ func muladd1(x Natural, d, c digit) Natural {
+ //
+ func (x Natural) Mul1(d uint64) Natural {
+ 	switch {
+-	case d == 0: return Nat(0);
+-	case d == 1: return x;
+-	case isSmall(digit(d)): muladd1(x, digit(d), 0);
+-	case d >= _B: return x.Mul(Nat(d));
++	case d == 0:
++		return Nat(0);
++	case d == 1:
++		return x;
++	case isSmall(digit(d)):
++		muladd1(x, digit(d), 0);
++	case d >= _B:
++		return x.Mul(Nat(d));
+ 	}
+ 
+-	z := make(Natural, len(x) + 1);
++	z := make(Natural, len(x)+1);
+ 	c := mul1(z, x, digit(d));
+ 	z[len(x)] = c;
+ 	return normalize(z);
+@@ -406,13 +414,13 @@ func (x Natural) Mul(y Natural) Natural {
+ 		return x.Mul1(uint64(y[0]));
+ 	}
+ 
+-	z := make(Natural, n + m);
++	z := make(Natural, n+m);
+ 	for j := 0; j < m; j++ {
+ 		d := y[j];
+ 		if d != 0 {
+ 			c := digit(0);
+ 			for i := 0; i < n; i++ {
+-				c, z[i+j] = muladd11(x[i], d, z[i+j] + c);
++				c, z[i+j] = muladd11(x[i], d, z[i+j]+c);
+ 			}
+ 			z[n+j] = c;
+ 		}
+@@ -429,30 +437,32 @@ func (x Natural) Mul(y Natural) Natural {
+ 
+ func unpack(x Natural) []digit2 {
+ 	n := len(x);
+-	z := make([]digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
++	z := make([]digit2, n*2 + 1);	// add space for extra digit (used by DivMod)
+ 	for i := 0; i < n; i++ {
+ 		t := x[i];
+-		z[i*2] = digit2(t & _M2);
+-		z[i*2 + 1] = digit2(t >> _W2 & _M2);
++		z[i*2] = digit2(t&_M2);
++		z[i*2 + 1] = digit2(t>>_W2&_M2);
+ 	}
+ 
+ 	// normalize result
+ 	k := 2*n;
+-	for k > 0 && z[k - 1] == 0 { k-- }
+-	return z[0 : k];  // trim leading 0's
++	for k > 0 && z[k-1] == 0 {
++		k--;
++	}
++	return z[0:k];	// trim leading 0's
+ }
+ 
+ 
+ func pack(x []digit2) Natural {
+-	n := (len(x) + 1) / 2;
++	n := (len(x)+1)/2;
+ 	z := make(Natural, n);
+-	if len(x) & 1 == 1 {
++	if len(x)&1 == 1 {
+ 		// handle odd len(x)
+ 		n--;
+ 		z[n] = digit(x[n*2]);
+ 	}
+ 	for i := 0; i < n; i++ {
+-		z[i] = digit(x[i*2 + 1]) << _W2 | digit(x[i*2]);
++		z[i] = digit(x[i*2 + 1])<<_W2 | digit(x[i*2]);
+ 	}
+ 	return normalize(z);
+ }
+@@ -506,14 +516,14 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 	if m == 0 {
+ 		panic("division by zero");
+ 	}
+-	assert(n+1 <= cap(x));  // space for one extra digit
++	assert(n+1 <= cap(x));	// space for one extra digit
+ 	x = x[0 : n+1];
+ 	assert(x[n] == 0);
+ 
+ 	if m == 1 {
+ 		// division by single digit
+ 		// result is shifted left by 1 in place!
+-		x[0] = div21(x[1 : n+1], x[0 : n], y[0]);
++		x[0] = div21(x[1 : n+1], x[0:n], y[0]);
+ 
+ 	} else if m > n {
+ 		// y > x => quotient = 0, remainder = x
+@@ -528,12 +538,12 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 		// TODO Instead of multiplying, it would be sufficient to
+ 		//      shift y such that the normalization condition is
+ 		//      satisfied (as done in Hacker's Delight).
+-		f := _B2 / (digit(y[m-1]) + 1);
++		f := _B2/(digit(y[m-1])+1);
+ 		if f != 1 {
+ 			mul21(x, x, digit2(f));
+ 			mul21(y, y, digit2(f));
+ 		}
+-		assert(_B2/2 <= y[m-1] && y[m-1] < _B2);  // incorrect scaling
++		assert(_B2/2 <= y[m-1] && y[m-1] < _B2);	// incorrect scaling
+ 
+ 		y1, y2 := digit(y[m-1]), digit(y[m-2]);
+ 		for i := n-m; i >= 0; i-- {
+@@ -541,14 +551,15 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 
+ 			// compute trial digit (Knuth)
+ 			var q digit;
+-			{	x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2]);
++			{
++				x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2]);
+ 				if x0 != y1 {
+ 					q = (x0<<_W2 + x1)/y1;
+ 				} else {
+ 					q = _B2-1;
+ 				}
+ 				for y2*q > (x0<<_W2 + x1 - y1*q)<<_W2 + x2 {
+-					q--
++					q--;
+ 				}
+ 			}
+ 
+@@ -556,18 +567,18 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 			c := digit(0);
+ 			for j := 0; j < m; j++ {
+ 				t := c + digit(x[i+j]) - digit(y[j])*q;
+-				c, x[i+j] = digit(int64(t) >> _W2), digit2(t & _M2);  // requires arithmetic shift!
++				c, x[i+j] = digit(int64(t)>>_W2), digit2(t&_M2);	// requires arithmetic shift!
+ 			}
+ 
+ 			// correct if trial digit was too large
+-			if c + digit(x[k]) != 0 {
++			if c+digit(x[k]) != 0 {
+ 				// add y
+ 				c := digit(0);
+ 				for j := 0; j < m; j++ {
+-					t := c + digit(x[i+j]) + digit(y[j]);
+-					c, x[i+j] = t >> _W2, digit2(t & _M2)
++					t := c+digit(x[i+j])+digit(y[j]);
++					c, x[i+j] = t>>_W2, digit2(t&_M2);
+ 				}
+-				assert(c + digit(x[k]) == 0);
++				assert(c+digit(x[k]) == 0);
+ 				// correct trial digit
+ 				q--;
+ 			}
+@@ -577,12 +588,12 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 
+ 		// undo normalization for remainder
+ 		if f != 1 {
+-			c := div21(x[0 : m], x[0 : m], digit2(f));
++			c := div21(x[0:m], x[0:m], digit2(f));
+ 			assert(c == 0);
+ 		}
+ 	}
+ 
+-	return x[m : n+1], x[0 : m];
++	return x[m : n+1], x[0:m];
+ }
+ 
+ 
+@@ -620,7 +631,7 @@ func shl(z, x Natural, s uint) digit {
+ 	n := len(x);
+ 	c := digit(0);
+ 	for i := 0; i < n; i++ {
+-		c, z[i] = x[i] >> (_W-s), x[i] << s & _M | c;
++		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M | c;
+ 	}
+ 	return c;
+ }
+@@ -643,8 +654,8 @@ func shr(z, x Natural, s uint) digit {
+ 	assert(s <= _W);
+ 	n := len(x);
+ 	c := digit(0);
+-	for i := n - 1; i >= 0; i-- {
+-		c, z[i] = x[i] << (_W-s) & _M, x[i] >> s | c;
++	for i := n-1; i >= 0; i-- {
++		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s | c;
+ 	}
+ 	return c;
+ }
+@@ -655,7 +666,7 @@ func shr(z, x Natural, s uint) digit {
+ func (x Natural) Shr(s uint) Natural {
+ 	n := uint(len(x));
+ 	m := n - s/_W;
+-	if m > n {  // check for underflow
++	if m > n {	// check for underflow
+ 		m = 0;
+ 	}
+ 	z := make(Natural, m);
+@@ -677,7 +688,7 @@ func (x Natural) And(y Natural) Natural {
+ 
+ 	z := make(Natural, m);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i] & y[i];
++		z[i] = x[i]&y[i];
+ 	}
+ 	// upper bits are 0
+ 
+@@ -687,7 +698,7 @@ func (x Natural) And(y Natural) Natural {
+ 
+ func copy(z, x Natural) {
+ 	for i, e := range x {
+-		z[i] = e
++		z[i] = e;
+ 	}
+ }
+ 
+@@ -703,9 +714,9 @@ func (x Natural) AndNot(y Natural) Natural {
+ 
+ 	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i] &^ y[i];
++		z[i] = x[i]&^y[i];
+ 	}
+-	copy(z[m : n], x[m : n]);
++	copy(z[m:n], x[m:n]);
+ 
+ 	return normalize(z);
+ }
+@@ -722,9 +733,9 @@ func (x Natural) Or(y Natural) Natural {
+ 
+ 	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i] | y[i];
++		z[i] = x[i]|y[i];
+ 	}
+-	copy(z[m : n], x[m : n]);
++	copy(z[m:n], x[m:n]);
+ 
+ 	return z;
+ }
+@@ -741,9 +752,9 @@ func (x Natural) Xor(y Natural) Natural {
+ 
+ 	z := make(Natural, n);
+ 	for i := 0; i < m; i++ {
+-		z[i] = x[i] ^ y[i];
++		z[i] = x[i]^y[i];
+ 	}
+-	copy(z[m : n], x[m : n]);
++	copy(z[m:n], x[m:n]);
+ 
+ 	return normalize(z);
+ }
+@@ -760,16 +771,20 @@ func (x Natural) Cmp(y Natural) int {
+ 	m := len(y);
+ 
+ 	if n != m || n == 0 {
+-		return n - m;
++		return n-m;
+ 	}
+ 
+-	i := n - 1;
+-	for i > 0 && x[i] == y[i] { i--; }
++	i := n-1;
++	for i > 0 && x[i] == y[i] {
++		i--;
++	}
+ 
+ 	d := 0;
+ 	switch {
+-	case x[i] < y[i]: d = -1;
+-	case x[i] > y[i]: d = 1;
++	case x[i] < y[i]:
++		d = -1;
++	case x[i] > y[i]:
++		d = 1;
+ 	}
+ 
+ 	return d;
+@@ -787,7 +802,7 @@ func log2(x uint64) uint {
+ 		x >>= 1;
+ 		n++;
+ 	}
+-	return n - 1;
++	return n-1;
+ }
+ 
+ 
+@@ -798,7 +813,7 @@ func log2(x uint64) uint {
+ func (x Natural) Log2() uint {
+ 	n := len(x);
+ 	if n > 0 {
+-		return (uint(n) - 1)*_W + log2(uint64(x[n - 1]));
++		return (uint(n)-1)*_W + log2(uint64(x[n-1]));
+ 	}
+ 	panic("Log2(0)");
+ }
+@@ -808,10 +823,10 @@ func (x Natural) Log2() uint {
+ // Returns updated x and x mod d.
+ //
+ func divmod1(x Natural, d digit) (Natural, digit) {
+-	assert(0 < d && isSmall(d - 1));
++	assert(0 < d && isSmall(d-1));
+ 
+ 	c := digit(0);
+-	for i := len(x) - 1; i >= 0; i-- {
++	for i := len(x)-1; i >= 0; i-- {
+ 		t := c<<_W + x[i];
+ 		c, x[i] = t%d, t/d;
+ 	}
+@@ -829,7 +844,7 @@ func (x Natural) ToString(base uint) string {
+ 
+ 	// allocate buffer for conversion
+ 	assert(2 <= base && base <= 16);
+-	n := (x.Log2() + 1) / log2(uint64(base)) + 1;  // +1: round up
++	n := (x.Log2() + 1)/log2(uint64(base)) + 1;	// +1: round up
+ 	s := make([]byte, n);
+ 
+ 	// don't destroy x
+@@ -843,9 +858,9 @@ func (x Natural) ToString(base uint) string {
+ 		var d digit;
+ 		t, d = divmod1(t, digit(base));
+ 		s[i] = "0123456789abcdef"[d];
+-	};
++	}
+ 
+-	return string(s[i : n]);
++	return string(s[i:n]);
+ }
+ 
+ 
+@@ -859,9 +874,12 @@ func (x Natural) String() string {
+ 
+ func fmtbase(c int) uint {
+ 	switch c {
+-	case 'b': return 2;
+-	case 'o': return 8;
+-	case 'x': return 16;
++	case 'b':
++		return 2;
++	case 'o':
++		return 8;
++	case 'x':
++		return 16;
+ 	}
+ 	return 10;
+ }
+@@ -876,11 +894,14 @@ func (x Natural) Format(h fmt.State, c int) {
+ 
+ 
+ func hexvalue(ch byte) uint {
+-	d := uint(1 << logH);
++	d := uint(1<<logH);
+ 	switch {
+-	case '0' <= ch && ch <= '9': d = uint(ch - '0');
+-	case 'a' <= ch && ch <= 'f': d = uint(ch - 'a') + 10;
+-	case 'A' <= ch && ch <= 'F': d = uint(ch - 'A') + 10;
++	case '0' <= ch && ch <= '9':
++		d = uint(ch-'0');
++	case 'a' <= ch && ch <= 'f':
++		d = uint(ch-'a') + 10;
++	case 'A' <= ch && ch <= 'F':
++		d = uint(ch-'A') + 10;
+ 	}
+ 	return d;
+ }
+@@ -942,7 +963,7 @@ func pop1(x digit) uint {
+ //
+ func (x Natural) Pop() uint {
+ 	n := uint(0);
+-	for i := len(x) - 1; i >= 0; i-- {
++	for i := len(x)-1; i >= 0; i-- {
+ 		n += pop1(x[i]);
+ 	}
+ 	return n;
+@@ -970,13 +991,16 @@ func (xp Natural) Pow(n uint) Natural {
+ //
+ func MulRange(a, b uint) Natural {
+ 	switch {
+-	case a > b: return Nat(1);
+-	case a == b: return Nat(uint64(a));
+-	case a + 1 == b: return Nat(uint64(a)).Mul(Nat(uint64(b)));
++	case a > b:
++		return Nat(1);
++	case a == b:
++		return Nat(uint64(a));
++	case a+1 == b:
++		return Nat(uint64(a)).Mul(Nat(uint64(b)));
+ 	}
+-	m := (a + b)>>1;
++	m := (a+b)>>1;
+ 	assert(a <= m && m < b);
+-	return MulRange(a, m).Mul(MulRange(m + 1, b));
++	return MulRange(a, m).Mul(MulRange(m+1, b));
+ }
+ 
+ 
+diff --git a/src/pkg/bignum/bignum_test.go b/src/pkg/bignum/bignum_test.go
+index 2b2be66938..230e42f13b 100644
+--- a/src/pkg/bignum/bignum_test.go
++++ b/src/pkg/bignum/bignum_test.go
+@@ -10,12 +10,12 @@ import (
+ )
+ 
+ const (
+-	sa = "991";
+-	sb = "2432902008176640000";  // 20!
+-	sc = "933262154439441526816992388562667004907159682643816214685929"
+-	     "638952175999932299156089414639761565182862536979208272237582"
+-		 "51185210916864000000000000000000000000";  // 100!
+-	sp = "170141183460469231731687303715884105727";  // prime
++	sa	= "991";
++	sb	= "2432902008176640000";	// 20!
++	sc	= "933262154439441526816992388562667004907159682643816214685929"
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000";	// 100!
++	sp	= "170141183460469231731687303715884105727";	// prime
+ )
+ 
+ func natFromString(s string, base uint, slen *int) Natural {
+@@ -46,30 +46,26 @@ func ratFromString(s string, base uint, slen *int) *Rational {
+ 
+ 
+ var (
+-	nat_zero = Nat(0);
+-	nat_one = Nat(1);
+-	nat_two = Nat(2);
+-
+-	a = natFromString(sa, 10, nil);
+-	b = natFromString(sb, 10, nil);
+-	c = natFromString(sc, 10, nil);
+-	p = natFromString(sp, 10, nil);
+-
+-	int_zero = Int(0);
+-	int_one = Int(1);
+-	int_two = Int(2);
+-
+-	ip = intFromString(sp, 10, nil);
+-
+-	rat_zero = Rat(0, 1);
+-	rat_half = Rat(1, 2);
+-	rat_one = Rat(1, 1);
+-	rat_two = Rat(2, 1);
++	nat_zero	= Nat(0);
++	nat_one		= Nat(1);
++	nat_two		= Nat(2);
++	a		= natFromString(sa, 10, nil);
++	b		= natFromString(sb, 10, nil);
++	c		= natFromString(sc, 10, nil);
++	p		= natFromString(sp, 10, nil);
++	int_zero	= Int(0);
++	int_one		= Int(1);
++	int_two		= Int(2);
++	ip		= intFromString(sp, 10, nil);
++	rat_zero	= Rat(0, 1);
++	rat_half	= Rat(1, 2);
++	rat_one		= Rat(1, 1);
++	rat_two		= Rat(2, 1);
+ )
+ 
+ 
+-var test_msg string;
+-var tester *testing.T;
++var test_msg string
++var tester *testing.T
+ 
+ func test(n uint, b bool) {
+ 	if !b {
+@@ -102,7 +98,10 @@ func rat_eq(n uint, x, y *Rational) {
+ func TestNatConv(t *testing.T) {
+ 	tester = t;
+ 	test_msg = "NatConvA";
+-	type entry1 struct { x uint64; s string };
++	type entry1 struct {
++		x	uint64;
++		s	string;
++	}
+ 	tab := []entry1{
+ 		entry1{0, "0"},
+ 		entry1{255, "255"},
+@@ -111,8 +110,8 @@ func TestNatConv(t *testing.T) {
+ 		entry1{18446744073709551615, "18446744073709551615"},
+ 	};
+ 	for i, e := range tab {
+-		test(100 + uint(i), Nat(e.x).String() == e.s);
+-		test(200 + uint(i), natFromString(e.s, 0, nil).Value() == e.x);
++		test(100+uint(i), Nat(e.x).String() == e.s);
++		test(200+uint(i), natFromString(e.s, 0, nil).Value() == e.x);
+ 	}
+ 
+ 	test_msg = "NatConvB";
+@@ -168,7 +167,10 @@ func abs(x int64) uint64 {
+ func TestIntConv(t *testing.T) {
+ 	tester = t;
+ 	test_msg = "IntConvA";
+-	type entry2 struct { x int64; s string };
++	type entry2 struct {
++		x	int64;
++		s	string;
++	}
+ 	tab := []entry2{
+ 		entry2{0, "0"},
+ 		entry2{-128, "-128"},
+@@ -181,9 +183,9 @@ func TestIntConv(t *testing.T) {
+ 		entry2{9223372036854775807, "9223372036854775807"},
+ 	};
+ 	for i, e := range tab {
+-		test(100 + uint(i), Int(e.x).String() == e.s);
+-		test(200 + uint(i), intFromString(e.s, 0, nil).Value() == e.x);
+-		test(300 + uint(i), Int(e.x).Abs().Value() == abs(e.x));
++		test(100+uint(i), Int(e.x).String() == e.s);
++		test(200+uint(i), intFromString(e.s, 0, nil).Value() == e.x);
++		test(300+uint(i), Int(e.x).Abs().Value() == abs(e.x));
+ 	}
+ 
+ 	test_msg = "IntConvB";
+@@ -335,26 +337,28 @@ func TestNatDiv(t *testing.T) {
+ func TestIntQuoRem(t *testing.T) {
+ 	tester = t;
+ 	test_msg = "IntQuoRem";
+-	type T struct { x, y, q, r int64 };
++	type T struct {
++		x, y, q, r int64;
++	}
+ 	a := []T{
+ 		T{+8, +3, +2, +2},
+ 		T{+8, -3, -2, +2},
+ 		T{-8, +3, -2, -2},
+ 		T{-8, -3, +2, -2},
+-		T{+1, +2,  0, +1},
+-		T{+1, -2,  0, +1},
+-		T{-1, +2,  0, -1},
+-		T{-1, -2,  0, -1},
++		T{+1, +2, 0, +1},
++		T{+1, -2, 0, +1},
++		T{-1, +2, 0, -1},
++		T{-1, -2, 0, -1},
+ 	};
+ 	for i := uint(0); i < uint(len(a)); i++ {
+ 		e := &a[i];
+ 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
+ 		q, r := Int(e.q), Int(e.r).Mul(ip);
+ 		qq, rr := x.QuoRem(y);
+-		int_eq(4*i+0, x.Quo(y), q);
+-		int_eq(4*i+1, x.Rem(y), r);
+-		int_eq(4*i+2, qq, q);
+-		int_eq(4*i+3, rr, r);
++		int_eq(4*i + 0, x.Quo(y), q);
++		int_eq(4*i + 1, x.Rem(y), r);
++		int_eq(4*i + 2, qq, q);
++		int_eq(4*i + 3, rr, r);
+ 	}
+ }
+ 
+@@ -362,14 +366,16 @@ func TestIntQuoRem(t *testing.T) {
+ func TestIntDivMod(t *testing.T) {
+ 	tester = t;
+ 	test_msg = "IntDivMod";
+-	type T struct { x, y, q, r int64 };
++	type T struct {
++		x, y, q, r int64;
++	}
+ 	a := []T{
+ 		T{+8, +3, +2, +2},
+ 		T{+8, -3, -2, +2},
+ 		T{-8, +3, -3, +1},
+ 		T{-8, -3, +3, +1},
+-		T{+1, +2,  0, +1},
+-		T{+1, -2,  0, +1},
++		T{+1, +2, 0, +1},
++		T{+1, -2, 0, +1},
+ 		T{-1, +2, -1, +1},
+ 		T{-1, -2, +1, +1},
+ 	};
+@@ -378,10 +384,10 @@ func TestIntDivMod(t *testing.T) {
+ 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
+ 		q, r := Int(e.q), Int(e.r).Mul(ip);
+ 		qq, rr := x.DivMod(y);
+-		int_eq(4*i+0, x.Div(y), q);
+-		int_eq(4*i+1, x.Mod(y), r);
+-		int_eq(4*i+2, qq, q);
+-		int_eq(4*i+3, rr, r);
++		int_eq(4*i + 0, x.Div(y), q);
++		int_eq(4*i + 1, x.Mod(y), r);
++		int_eq(4*i + 2, qq, q);
++		int_eq(4*i + 3, rr, r);
+ 	}
+ }
+ 
+@@ -418,7 +424,8 @@ func TestNatShift(t *testing.T) {
+ 	}
+ 
+ 	test_msg = "NatShift3L";
+-	{	const m = 3;
++	{
++		const m = 3;
+ 		p := b;
+ 		f := Nat(1<<m);
+ 		for i := uint(0); i < 100; i++ {
+@@ -428,7 +435,8 @@ func TestNatShift(t *testing.T) {
+ 	}
+ 
+ 	test_msg = "NatShift3R";
+-	{	p := c;
++	{
++		p := c;
+ 		for i := uint(0); !p.IsZero(); i++ {
+ 			nat_eq(i, c.Shr(i), p);
+ 			p = p.Shr(1);
+@@ -453,7 +461,8 @@ func TestIntShift(t *testing.T) {
+ 	}
+ 
+ 	test_msg = "IntShift3L";
+-	{	const m = 3;
++	{
++		const m = 3;
+ 		p := ip;
+ 		f := Int(1<<m);
+ 		for i := uint(0); i < 100; i++ {
+@@ -463,7 +472,8 @@ func TestIntShift(t *testing.T) {
+ 	}
+ 
+ 	test_msg = "IntShift3R";
+-	{	p := ip;
++	{
++		p := ip;
+ 		for i := uint(0); p.IsPos(); i++ {
+ 			int_eq(i, ip.Shr(i), p);
+ 			p = p.Shr(1);
+@@ -487,25 +497,25 @@ func TestNatBitOps(t *testing.T) {
+ 	by := Nat(y);
+ 
+ 	test_msg = "NatAnd";
+-	bz := Nat(x & y);
++	bz := Nat(x&y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i));
+ 	}
+ 
+ 	test_msg = "NatAndNot";
+-	bz = Nat(x &^ y);
++	bz = Nat(x&^y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i));
+ 	}
+ 
+ 	test_msg = "NatOr";
+-	bz = Nat(x | y);
++	bz = Nat(x|y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i));
+ 	}
+ 
+ 	test_msg = "NatXor";
+-	bz = Nat(x ^ y);
++	bz = Nat(x^y);
+ 	for i := uint(0); i < 100; i++ {
+ 		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i));
+ 	}
+@@ -515,19 +525,21 @@ func TestNatBitOps(t *testing.T) {
+ func TestIntBitOps1(t *testing.T) {
+ 	tester = t;
+ 	test_msg = "IntBitOps1";
+-	type T struct { x, y int64 };
+-	a := []T {
+-		T{ +7, +3 },
+-		T{ +7, -3 },
+-		T{ -7, +3 },
+-		T{ -7, -3 },
++	type T struct {
++		x, y int64;
++	}
++	a := []T{
++		T{+7, +3},
++		T{+7, -3},
++		T{-7, +3},
++		T{-7, -3},
+ 	};
+ 	for i := uint(0); i < uint(len(a)); i++ {
+ 		e := &a[i];
+-		int_eq(4*i+0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
+-		int_eq(4*i+1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
+-		int_eq(4*i+2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
+-		int_eq(4*i+3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
++		int_eq(4*i + 0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
++		int_eq(4*i + 1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
++		int_eq(4*i + 2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
++		int_eq(4*i + 3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
+ 	}
+ }
+ 
+@@ -536,19 +548,19 @@ func TestIntBitOps2(t *testing.T) {
+ 	tester = t;
+ 
+ 	test_msg = "IntNot";
+-	int_eq(0, Int(-2).Not(), Int( 1));
+-	int_eq(0, Int(-1).Not(), Int( 0));
+-	int_eq(0, Int( 0).Not(), Int(-1));
+-	int_eq(0, Int( 1).Not(), Int(-2));
+-	int_eq(0, Int( 2).Not(), Int(-3));
++	int_eq(0, Int(-2).Not(), Int(1));
++	int_eq(0, Int(-1).Not(), Int(0));
++	int_eq(0, Int(0).Not(), Int(-1));
++	int_eq(0, Int(1).Not(), Int(-2));
++	int_eq(0, Int(2).Not(), Int(-3));
+ 
+ 	test_msg = "IntAnd";
+ 	for x := int64(-15); x < 5; x++ {
+ 		bx := Int(x);
+ 		for y := int64(-5); y < 15; y++ {
+ 			by := Int(y);
+-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+-				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x & y).Shl(i));
++			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
++				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x&y).Shl(i));
+ 			}
+ 		}
+ 	}
+@@ -558,9 +570,9 @@ func TestIntBitOps2(t *testing.T) {
+ 		bx := Int(x);
+ 		for y := int64(-5); y < 15; y++ {
+ 			by := Int(y);
+-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+-				int_eq(2*i+0, bx.Shl(i).AndNot(by.Shl(i)), Int(x &^ y).Shl(i));
+-				int_eq(2*i+1, bx.Shl(i).And(by.Shl(i).Not()), Int(x &^ y).Shl(i));
++			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
++				int_eq(2*i + 0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i));
++				int_eq(2*i + 1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i));
+ 			}
+ 		}
+ 	}
+@@ -570,8 +582,8 @@ func TestIntBitOps2(t *testing.T) {
+ 		bx := Int(x);
+ 		for y := int64(-5); y < 15; y++ {
+ 			by := Int(y);
+-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+-				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x | y).Shl(i));
++			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
++				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x|y).Shl(i));
+ 			}
+ 		}
+ 	}
+@@ -581,8 +593,8 @@ func TestIntBitOps2(t *testing.T) {
+ 		bx := Int(x);
+ 		for y := int64(-5); y < 15; y++ {
+ 			by := Int(y);
+-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+-				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x ^ y).Shl(i));
++			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
++				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x^y).Shl(i));
+ 			}
+ 		}
+ 	}
+@@ -651,4 +663,3 @@ func TestNatPop(t *testing.T) {
+ 		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i);
+ 	}
+ }
+-
+diff --git a/src/pkg/bignum/integer.go b/src/pkg/bignum/integer.go
+index 35a95bb3c4..0d0d0ed8e7 100644
+--- a/src/pkg/bignum/integer.go
++++ b/src/pkg/bignum/integer.go
+@@ -18,8 +18,8 @@ import (
+ // Integer represents a signed integer value of arbitrary precision.
+ //
+ type Integer struct {
+-	sign bool;
+-	mant Natural;
++	sign	bool;
++	mant	Natural;
+ }
+ 
+ 
+@@ -29,7 +29,7 @@ type Integer struct {
+ //
+ func MakeInt(sign bool, mant Natural) *Integer {
+ 	if mant.IsZero() {
+-		sign = false;  // normalize
++		sign = false;	// normalize
+ 	}
+ 	return &Integer{sign, mant};
+ }
+@@ -95,14 +95,14 @@ func (x *Integer) IsZero() bool {
+ // IsNeg returns true iff x < 0.
+ //
+ func (x *Integer) IsNeg() bool {
+-	return x.sign && !x.mant.IsZero()
++	return x.sign && !x.mant.IsZero();
+ }
+ 
+ 
+ // IsPos returns true iff x >= 0.
+ //
+ func (x *Integer) IsPos() bool {
+-	return !x.sign && !x.mant.IsZero()
++	return !x.sign && !x.mant.IsZero();
+ }
+ 
+ 
+@@ -383,7 +383,7 @@ func (x *Integer) And(y *Integer) *Integer {
+ 
+ 	// x.sign != y.sign
+ 	if x.sign {
+-		x, y = y, x;  // & is symmetric
++		x, y = y, x;	// & is symmetric
+ 	}
+ 
+ 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
+@@ -429,7 +429,7 @@ func (x *Integer) Or(y *Integer) *Integer {
+ 
+ 	// x.sign != y.sign
+ 	if x.sign {
+-		x, y = y, x;  // | or symmetric
++		x, y = y, x;	// | or symmetric
+ 	}
+ 
+ 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
+@@ -452,7 +452,7 @@ func (x *Integer) Xor(y *Integer) *Integer {
+ 
+ 	// x.sign != y.sign
+ 	if x.sign {
+-		x, y = y, x;  // ^ is symmetric
++		x, y = y, x;	// ^ is symmetric
+ 	}
+ 
+ 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
+@@ -478,8 +478,10 @@ func (x *Integer) Cmp(y *Integer) int {
+ 		if x.sign {
+ 			r = -r;
+ 		}
+-	case x.sign: r = -1;
+-	case y.sign: r = 1;
++	case x.sign:
++		r = -1;
++	case y.sign:
++		r = 1;
+ 	}
+ 	return r;
+ }
+@@ -532,7 +534,7 @@ func IntFromString(s string, base uint) (*Integer, uint, int) {
+ 		i0 = 1;
+ 	}
+ 
+-	mant, base, slen := NatFromString(s[i0 : len(s)], base);
++	mant, base, slen := NatFromString(s[i0:len(s)], base);
+ 
+-	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen;
++	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0+slen;
+ }
+diff --git a/src/pkg/bignum/nrdiv_test.go b/src/pkg/bignum/nrdiv_test.go
+index 24cb4d5587..6559d62bc0 100644
+--- a/src/pkg/bignum/nrdiv_test.go
++++ b/src/pkg/bignum/nrdiv_test.go
+@@ -21,8 +21,8 @@ import "testing"
+ // value of an fpNat x is x.m * 2^x.e .
+ //
+ type fpNat struct {
+-	m Natural;
+-	e int;
++	m	Natural;
++	e	int;
+ }
+ 
+ 
+@@ -40,7 +40,7 @@ func (x fpNat) sub(y fpNat) fpNat {
+ 
+ // mul2 computes x*2.
+ func (x fpNat) mul2() fpNat {
+-	return fpNat{x.m, x.e+1};
++	return fpNat{x.m, x.e + 1};
+ }
+ 
+ 
+@@ -55,8 +55,10 @@ func (x fpNat) mul(y fpNat) fpNat {
+ //
+ func (x fpNat) mant() Natural {
+ 	switch {
+-	case x.e > 0: return x.m.Shl(uint(x.e));
+-	case x.e < 0: return x.m.Shr(uint(-x.e));
++	case x.e > 0:
++		return x.m.Shl(uint(x.e));
++	case x.e < 0:
++		return x.m.Shr(uint(-x.e));
+ 	}
+ 	return x.m;
+ }
+@@ -131,9 +133,9 @@ func nrDivEst(x0, y0 Natural) Natural {
+ 		// reduce mantissa size
+ 		// TODO: Find smaller bound as it will reduce
+ 		//       computation time massively.
+-		d := int(r.m.Log2()+1) - maxLen;
++		d := int(r.m.Log2() + 1) - maxLen;
+ 		if d > 0 {
+-			r = fpNat{r.m.Shr(uint(d)), r.e+d};
++			r = fpNat{r.m.Shr(uint(d)), r.e + d};
+ 		}
+ 	}
+ 
+@@ -188,5 +190,5 @@ func TestNRDiv(t *testing.T) {
+ 	idiv(t, 7484890589595, 7484890589594);
+ 	div(t, Fact(100), Fact(91));
+ 	div(t, Fact(1000), Fact(991));
+-	//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
++//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
+ }
+diff --git a/src/pkg/bignum/rational.go b/src/pkg/bignum/rational.go
+index baa9b41100..5f7423bacd 100644
+--- a/src/pkg/bignum/rational.go
++++ b/src/pkg/bignum/rational.go
+@@ -12,15 +12,15 @@ import "fmt"
+ // Rational represents a quotient a/b of arbitrary precision.
+ //
+ type Rational struct {
+-	a *Integer;  // numerator
+-	b Natural;  // denominator
++	a	*Integer;	// numerator
++	b	Natural;	// denominator
+ }
+ 
+ 
+ // MakeRat makes a rational number given a numerator a and a denominator b.
+ //
+ func MakeRat(a *Integer, b Natural) *Rational {
+-	f := a.mant.Gcd(b);  // f > 0
++	f := a.mant.Gcd(b);	// f > 0
+ 	if f.Cmp(Nat(1)) != 0 {
+ 		a = MakeInt(a.sign, a.mant.Div(f));
+ 		b = b.Div(f);
+@@ -191,10 +191,10 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
+ 		ch := s[alen];
+ 		if ch == '/' {
+ 			alen++;
+-			b, base, blen = NatFromString(s[alen : len(s)], base);
++			b, base, blen = NatFromString(s[alen:len(s)], base);
+ 		} else if ch == '.' {
+ 			alen++;
+-			b, base, blen = NatFromString(s[alen : len(s)], abase);
++			b, base, blen = NatFromString(s[alen:len(s)], abase);
+ 			assert(base == abase);
+ 			f := Nat(uint64(base)).Pow(uint(blen));
+ 			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
+@@ -203,12 +203,12 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
+ 	}
+ 
+ 	// read exponent, if any
+-	rlen := alen + blen;
++	rlen := alen+blen;
+ 	if rlen < len(s) {
+ 		ch := s[rlen];
+ 		if ch == 'e' || ch == 'E' {
+ 			rlen++;
+-			e, _, elen := IntFromString(s[rlen : len(s)], 10);
++			e, _, elen := IntFromString(s[rlen:len(s)], 10);
+ 			rlen += elen;
+ 			m := Nat(10).Pow(uint(e.mant.Value()));
+ 			if e.sign {
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 0a698c223e..d886790e7a 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -5,21 +5,21 @@
+ package bytes_test
+ 
+ import (
+-	. "bytes";
+-	"rand";
+-	"testing";
++	.	"bytes";
++		"rand";
++		"testing";
+ )
+ 
+ 
+-const N = 10000  // make this bigger for a larger (and slower) test
+-var data string  // test data for write tests
++const N = 10000		// make this bigger for a larger (and slower) test
++var data string		// test data for write tests
+ var bytes []byte	// test data; same as data but as a slice.
+ 
+ 
+ func init() {
+ 	bytes = make([]byte, N);
+ 	for i := 0; i < N; i++ {
+-		bytes[i] = 'a' + byte(i % 26)
++		bytes[i] = 'a' + byte(i%26);
+ 	}
+ 	data = string(bytes);
+ }
+@@ -29,19 +29,19 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
+ 	bytes := buf.Bytes();
+ 	str := buf.String();
+ 	if buf.Len() != len(bytes) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes))
++		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes));
+ 	}
+ 
+ 	if buf.Len() != len(str) {
+-		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str))
++		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str));
+ 	}
+ 
+ 	if buf.Len() != len(s) {
+-		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
++		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s));
+ 	}
+ 
+ 	if string(bytes) != s {
+-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s)
++		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s);
+ 	}
+ }
+ 
+@@ -111,7 +111,7 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
+ 		if err != nil {
+ 			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err);
+ 		}
+-		s = s[n : len(s)];
++		s = s[n:len(s)];
+ 		check(t, testname + " (empty 3)", buf, s);
+ 	}
+ 
+@@ -131,7 +131,7 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.Truncate(0);
+ 		check(t, "TestBasicOperations (3)", &buf, "");
+ 
+-		n, err := buf.Write(Bytes(data[0 : 1]));
++		n, err := buf.Write(Bytes(data[0:1]));
+ 		if n != 1 {
+ 			t.Errorf("wrote 1 byte, but n == %d\n", n);
+ 		}
+@@ -143,19 +143,19 @@ func TestBasicOperations(t *testing.T) {
+ 		buf.WriteByte(data[1]);
+ 		check(t, "TestBasicOperations (5)", &buf, "ab");
+ 
+-		n, err = buf.Write(Bytes(data[2 : 26]));
++		n, err = buf.Write(Bytes(data[2:26]));
+ 		if n != 24 {
+ 			t.Errorf("wrote 25 bytes, but n == %d\n", n);
+ 		}
+-		check(t, "TestBasicOperations (6)", &buf, string(data[0 : 26]));
++		check(t, "TestBasicOperations (6)", &buf, string(data[0:26]));
+ 
+ 		buf.Truncate(26);
+-		check(t, "TestBasicOperations (7)", &buf, string(data[0 : 26]));
++		check(t, "TestBasicOperations (7)", &buf, string(data[0:26]));
+ 
+ 		buf.Truncate(20);
+-		check(t, "TestBasicOperations (8)", &buf, string(data[0 : 20]));
++		check(t, "TestBasicOperations (8)", &buf, string(data[0:20]));
+ 
+-		empty(t, "TestBasicOperations (9)", &buf, string(data[0 : 20]), make([]byte, 5));
++		empty(t, "TestBasicOperations (9)", &buf, string(data[0:20]), make([]byte, 5));
+ 		empty(t, "TestBasicOperations (10)", &buf, "", make([]byte, 100));
+ 
+ 		buf.WriteByte(data[1]);
+@@ -219,16 +219,16 @@ func TestMixedReadsAndWrites(t *testing.T) {
+ 	s := "";
+ 	for i := 0; i < 50; i++ {
+ 		wlen := rand.Intn(len(data));
+-		if i % 2 == 0 {
+-			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0 : wlen]);
++		if i%2 == 0 {
++			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0:wlen]);
+ 		} else {
+-			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0 : wlen]);
++			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0:wlen]);
+ 		}
+ 
+ 		rlen := rand.Intn(len(data));
+ 		fub := make([]byte, rlen);
+ 		n, _ := buf.Read(fub);
+-		s = s[n : len(s)];
++		s = s[n:len(s)];
+ 	}
+ 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));
+ }
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 30ac4580b5..103a896740 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -17,31 +17,31 @@ func Compare(a, b []byte) int {
+ 	for i := 0; i < len(a) && i < len(b); i++ {
+ 		switch {
+ 		case a[i] > b[i]:
+-			return 1
++			return 1;
+ 		case a[i] < b[i]:
+-			return -1
++			return -1;
+ 		}
+ 	}
+ 	switch {
+ 	case len(a) < len(b):
+-		return -1
++		return -1;
+ 	case len(a) > len(b):
+-		return 1
++		return 1;
+ 	}
+-	return 0
++	return 0;
+ }
+ 
+ // Equal returns a boolean reporting whether a == b.
+ func Equal(a, b []byte) bool {
+ 	if len(a) != len(b) {
+-		return false
++		return false;
+ 	}
+ 	for i := 0; i < len(a); i++ {
+ 		if a[i] != b[i] {
+-			return false
++			return false;
+ 		}
+ 	}
+-	return true
++	return true;
+ }
+ 
+ // Copy copies bytes from src to dst,
+@@ -53,9 +53,9 @@ func Copy(dst, src []byte) int {
+ 		src = src[0:len(dst)];
+ 	}
+ 	for i, x := range src {
+-		dst[i] = x
++		dst[i] = x;
+ 	}
+-	return len(src)
++	return len(src);
+ }
+ 
+ // explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes),
+@@ -71,45 +71,45 @@ func explode(s []byte, n int) [][]byte {
+ 		if na+1 >= n {
+ 			a[na] = s;
+ 			na++;
+-			break
++			break;
+ 		}
+ 		_, size = utf8.DecodeRune(s);
+ 		a[na] = s[0:size];
+ 		s = s[size:len(s)];
+ 		na++;
+ 	}
+-	return a[0:na]
++	return a[0:na];
+ }
+ 
+ // Count counts the number of non-overlapping instances of sep in s.
+ func Count(s, sep []byte) int {
+ 	if len(sep) == 0 {
+-		return utf8.RuneCount(s)+1
++		return utf8.RuneCount(s) + 1;
+ 	}
+ 	c := sep[0];
+ 	n := 0;
+ 	for i := 0; i+len(sep) <= len(s); i++ {
+-		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
++		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
+ 			n++;
+-			i += len(sep)-1
++			i += len(sep)-1;
+ 		}
+ 	}
+-	return n
++	return n;
+ }
+ 
+ // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+ func Index(s, sep []byte) int {
+ 	n := len(sep);
+ 	if n == 0 {
+-		return 0
++		return 0;
+ 	}
+ 	c := sep[0];
+ 	for i := 0; i+n <= len(s); i++ {
+-		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
+-			return i
++		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
++			return i;
+ 		}
+ 	}
+-	return -1
++	return -1;
+ }
+ 
+ // Split splits the array s around each instance of sep, returning an array of subarrays of s.
+@@ -117,7 +117,7 @@ func Index(s, sep []byte) int {
+ // If n > 0, split Splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+ func Split(s, sep []byte, n int) [][]byte {
+ 	if len(sep) == 0 {
+-		return explode(s, n)
++		return explode(s, n);
+ 	}
+ 	if n <= 0 {
+ 		n = Count(s, sep) + 1;
+@@ -127,7 +127,7 @@ func Split(s, sep []byte, n int) [][]byte {
+ 	a := make([][]byte, n);
+ 	na := 0;
+ 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
+-		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
++		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
+ 			a[na] = s[start:i];
+ 			na++;
+ 			start = i+len(sep);
+@@ -135,21 +135,21 @@ func Split(s, sep []byte, n int) [][]byte {
+ 		}
+ 	}
+ 	a[na] = s[start:len(s)];
+-	return a[0:na+1]
++	return a[0 : na+1];
+ }
+ 
+ // Join concatenates the elements of a to create a single byte array.   The separator
+ // sep is placed between elements in the resulting array.
+ func Join(a [][]byte, sep []byte) []byte {
+ 	if len(a) == 0 {
+-		return []byte{}
++		return []byte{};
+ 	}
+ 	if len(a) == 1 {
+-		return a[0]
++		return a[0];
+ 	}
+-	n := len(sep) * (len(a)-1);
++	n := len(sep)*(len(a)-1);
+ 	for i := 0; i < len(a); i++ {
+-		n += len(a[i])
++		n += len(a[i]);
+ 	}
+ 
+ 	b := make([]byte, n);
+@@ -158,27 +158,27 @@ func Join(a [][]byte, sep []byte) []byte {
+ 		s := a[i];
+ 		for j := 0; j < len(s); j++ {
+ 			b[bp] = s[j];
+-			bp++
++			bp++;
+ 		}
+-		if i + 1 < len(a) {
++		if i+1 < len(a) {
+ 			s = sep;
+ 			for j := 0; j < len(s); j++ {
+ 				b[bp] = s[j];
+-				bp++
++				bp++;
+ 			}
+ 		}
+ 	}
+-	return b
++	return b;
+ }
+ 
+ // HasPrefix tests whether the byte array s begins with prefix.
+ func HasPrefix(s, prefix []byte) bool {
+-	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
++	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix);
+ }
+ 
+ // HasSuffix tests whether the byte array s ends with suffix.
+ func HasSuffix(s, suffix []byte) bool {
+-	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):len(s)], suffix)
++	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix) : len(s)], suffix);
+ }
+ 
+ // Map returns a copy of the byte array s with all its characters modified
+@@ -188,7 +188,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 	// things unpleasant.  But it's so rare we barge in assuming it's
+ 	// fine.  It could also shrink but that falls out naturally.
+ 	maxbytes := len(s);	// length of b
+-	nbytes := 0;	// number of bytes encoded in b
++	nbytes := 0;		// number of bytes encoded in b
+ 	b := make([]byte, maxbytes);
+ 	for i := 0; i < len(s); {
+ 		wid := 1;
+@@ -204,7 +204,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 			maxbytes = maxbytes*2 + utf8.UTFMax;
+ 			nb := make([]byte, maxbytes);
+ 			for i, c := range b[0:nbytes] {
+-				nb[i] = c
++				nb[i] = c;
+ 			}
+ 			b = nb;
+ 		}
+@@ -216,17 +216,17 @@ func Map(mapping func(rune int) int, s []byte) []byte {
+ 
+ // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
+ func ToUpper(s []byte) []byte {
+-	return Map(unicode.ToUpper, s)
++	return Map(unicode.ToUpper, s);
+ }
+ 
+ // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their lower case.
+ func ToLower(s []byte) []byte {
+-	return Map(unicode.ToLower, s)
++	return Map(unicode.ToLower, s);
+ }
+ 
+ // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
+ func Title(s []byte) []byte {
+-	return Map(unicode.ToTitle, s)
++	return Map(unicode.ToTitle, s);
+ }
+ 
+ // Trim returns a slice of the string s, with all leading and trailing white space
+@@ -237,7 +237,7 @@ func TrimSpace(s []byte) []byte {
+ 		wid := 1;
+ 		rune := int(s[start]);
+ 		if rune >= utf8.RuneSelf {
+-			rune, wid = utf8.DecodeRune(s[start:end])
++			rune, wid = utf8.DecodeRune(s[start:end]);
+ 		}
+ 		if !unicode.IsSpace(rune) {
+ 			break;
+@@ -249,12 +249,11 @@ func TrimSpace(s []byte) []byte {
+ 		rune := int(s[end-1]);
+ 		if rune >= utf8.RuneSelf {
+ 			// Back up carefully looking for beginning of rune. Mustn't pass start.
+-			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
+-			}
++			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {}
+ 			if start > end-wid {	// invalid UTF-8 sequence; stop processing
+-				return s[start:end]
++				return s[start:end];
+ 			}
+-			rune, wid = utf8.DecodeRune(s[end-wid:end]);
++			rune, wid = utf8.DecodeRune(s[end-wid : end]);
+ 		}
+ 		if !unicode.IsSpace(rune) {
+ 			break;
+@@ -268,7 +267,7 @@ func TrimSpace(s []byte) []byte {
+ // Heuristic: Scale by 50% to give n log n time.
+ func resize(n int) int {
+ 	if n < 16 {
+-		n = 16
++		n = 16;
+ 	}
+ 	return n + n/2;
+ }
+@@ -279,14 +278,14 @@ func resize(n int) int {
+ func Add(s, t []byte) []byte {
+ 	lens := len(s);
+ 	lent := len(t);
+-	if lens + lent <= cap(s) {
+-		s = s[0:lens+lent];
++	if lens+lent <= cap(s) {
++		s = s[0 : lens+lent];
+ 	} else {
+ 		news := make([]byte, lens+lent, resize(lens+lent));
+ 		Copy(news, s);
+ 		s = news;
+ 	}
+-	Copy(s[lens:lens+lent], t);
++	Copy(s[lens : lens+lent], t);
+ 	return s;
+ }
+ 
+@@ -295,8 +294,8 @@ func Add(s, t []byte) []byte {
+ // new array is allocated and returned.
+ func AddByte(s []byte, t byte) []byte {
+ 	lens := len(s);
+-	if lens + 1 <= cap(s) {
+-		s = s[0:lens+1];
++	if lens+1 <= cap(s) {
++		s = s[0 : lens+1];
+ 	} else {
+ 		news := make([]byte, lens+1, resize(lens+1));
+ 		Copy(news, s);
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index 2d1255f3ca..ba5b0235ec 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ // The Huffman code lengths used by the fixed-format Huffman blocks.
+-var fixedHuffmanBits = [...]int {
++var fixedHuffmanBits = [...]int{
+ 	// 0-143 length 8
+ 	8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+ 	8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+@@ -45,48 +45,48 @@ var fixedHuffmanBits = [...]int {
+ }
+ 
+ type InitDecoderTest struct {
+-	in []int;
+-	out huffmanDecoder;
+-	ok bool;
++	in	[]int;
++	out	huffmanDecoder;
++	ok	bool;
+ }
+ 
+ var initDecoderTests = []*InitDecoderTest{
+ 	// Example from Connell 1973,
+ 	&InitDecoderTest{
+-		[]int{ 3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5 },
+-		huffmanDecoder {
++		[]int{3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5},
++		huffmanDecoder{
+ 			2, 5,
+-			[maxCodeLen+1]int{ 2: 0, 4, 13, 31 },
+-			[maxCodeLen+1]int{ 2: 0, 1, 6, 20 },
++			[maxCodeLen+1]int{2: 0, 4, 13, 31},
++			[maxCodeLen+1]int{2: 0, 1, 6, 20},
+ 			// Paper used different code assignment:
+ 			// 2, 9, 4, 0, 10, 8, 3, 7, 1, 5, 11, 6
+ 			// Reordered here so that codes of same length
+ 			// are assigned to increasing numbers.
+-			[]int{ 2, 0, 4, 9, 3, 7, 8, 10, 1, 5, 6, 11 },
++			[]int{2, 0, 4, 9, 3, 7, 8, 10, 1, 5, 6, 11},
+ 		},
+ 		true,
+ 	},
+ 
+ 	// Example from RFC 1951 section 3.2.2
+ 	&InitDecoderTest{
+-		[]int{ 2, 1, 3, 3 },
+-		huffmanDecoder {
++		[]int{2, 1, 3, 3},
++		huffmanDecoder{
+ 			1, 3,
+-			[maxCodeLen+1]int{ 1: 0, 2, 7, },
+-			[maxCodeLen+1]int{ 1: 0, 1, 4, },
+-			[]int{ 1, 0, 2, 3 },
++			[maxCodeLen+1]int{1: 0, 2, 7},
++			[maxCodeLen+1]int{1: 0, 1, 4},
++			[]int{1, 0, 2, 3},
+ 		},
+ 		true,
+ 	},
+ 
+ 	// Second example from RFC 1951 section 3.2.2
+ 	&InitDecoderTest{
+-		[]int{ 3, 3, 3, 3, 3, 2, 4, 4 },
++		[]int{3, 3, 3, 3, 3, 2, 4, 4},
+ 		huffmanDecoder{
+ 			2, 4,
+-			[maxCodeLen+1]int{ 2: 0, 6, 15, },
+-			[maxCodeLen+1]int{ 2: 0, 1, 8, },
+-			[]int{ 5, 0, 1, 2, 3, 4, 6, 7 },
++			[maxCodeLen+1]int{2: 0, 6, 15},
++			[maxCodeLen+1]int{2: 0, 1, 8},
++			[]int{5, 0, 1, 2, 3, 4, 6, 7},
+ 		},
+ 		true,
+ 	},
+@@ -100,15 +100,15 @@ var initDecoderTests = []*InitDecoderTest{
+ 
+ 	// Illegal input.
+ 	&InitDecoderTest{
+-		[]int{ },
+-		huffmanDecoder{ },
++		[]int{},
++		huffmanDecoder{},
+ 		false,
+ 	},
+ 
+ 	// Illegal input.
+ 	&InitDecoderTest{
+-		[]int{ 0, 0, 0, 0, 0, 0, 0, },
+-		huffmanDecoder{ },
++		[]int{0, 0, 0, 0, 0, 0, 0},
++		huffmanDecoder{},
+ 		false,
+ 	},
+ }
+@@ -127,8 +127,7 @@ func TestInitDecoder(t *testing.T) {
+ }
+ 
+ func TestUncompressedSource(t *testing.T) {
+-	decoder := NewInflater(bytes.NewBuffer(
+-		[]byte{ 0x01, 0x01, 0x00, 0xfe, 0xff, 0x11 }));
++	decoder := NewInflater(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}));
+ 	output := make([]byte, 1);
+ 	n, error := decoder.Read(output);
+ 	if n != 1 || error != nil {
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 6c36adaa07..4c4780156d 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -15,45 +15,45 @@ import (
+ )
+ 
+ const (
+-	maxCodeLen = 16;	// max length of Huffman code
+-	maxHist = 32768;	// max history required
+-	maxLit = 286;
+-	maxDist = 32;
+-	numCodes = 19;	// number of codes in Huffman meta-code
++	maxCodeLen	= 16;		// max length of Huffman code
++	maxHist		= 32768;	// max history required
++	maxLit		= 286;
++	maxDist		= 32;
++	numCodes	= 19;	// number of codes in Huffman meta-code
+ )
+ 
+ // A CorruptInputError reports the presence of corrupt input at a given offset.
+ type CorruptInputError int64
++
+ func (e CorruptInputError) String() string {
+ 	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e));
+ }
+ 
+ // An InternalError reports an error in the flate code itself.
+ type InternalError string
++
+ func (e InternalError) String() string {
+ 	return "flate: internal error: " + string(e);
+ }
+ 
+ // A ReadError reports an error encountered while reading input.
+ type ReadError struct {
+-	Offset int64;	// byte offset where error occurred
+-	Error os.Error;	// error returned by underlying Read
++	Offset	int64;		// byte offset where error occurred
++	Error	os.Error;	// error returned by underlying Read
+ }
+ 
+ func (e *ReadError) String() string {
+-	return "flate: read error at offset " + strconv.Itoa64(e.Offset)
+-		+ ": " + e.Error.String();
++	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String();
+ }
+ 
+ // A WriteError reports an error encountered while writing output.
+ type WriteError struct {
+-	Offset int64;	// byte offset where error occurred
+-	Error os.Error;	// error returned by underlying Read
++	Offset	int64;		// byte offset where error occurred
++	Error	os.Error;	// error returned by underlying Read
+ }
+ 
+ func (e *WriteError) String() string {
+-	return "flate: write error at offset " + strconv.Itoa64(e.Offset)
+-		+ ": " + e.Error.String();
++	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String();
+ }
+ 
+ // Huffman decoder is based on
+@@ -61,20 +61,20 @@ func (e *WriteError) String() string {
+ // Proceedings of the IEEE, 61(7) (July 1973), pp 1046-1047.
+ type huffmanDecoder struct {
+ 	// min, max code length
+-	min, max int;
++	min, max	int;
+ 
+ 	// limit[i] = largest code word of length i
+ 	// Given code v of length n,
+ 	// need more bits if v > limit[n].
+-	limit [maxCodeLen+1]int;
++	limit	[maxCodeLen+1]int;
+ 
+ 	// base[i] = smallest code word of length i - seq number
+-	base [maxCodeLen+1]int;
++	base	[maxCodeLen+1]int;
+ 
+ 	// codes[seq number] = output code.
+ 	// Given code v of length n, value is
+ 	// codes[v - base[n]].
+-	codes []int;
++	codes	[]int;
+ }
+ 
+ // Initialize Huffman decoding tables from array of code lengths.
+@@ -115,10 +115,10 @@ func (h *huffmanDecoder) init(bits []int) bool {
+ 	for i := min; i <= max; i++ {
+ 		n := count[i];
+ 		nextcode[i] = code;
+-		h.base[i] = code - seq;
++		h.base[i] = code-seq;
+ 		code += n;
+ 		seq += n;
+-		h.limit[i] = code - 1;
++		h.limit[i] = code-1;
+ 		code <<= 1;
+ 	}
+ 
+@@ -142,8 +142,8 @@ func (h *huffmanDecoder) init(bits []int) bool {
+ // See RFC 1951, section 3.2.6.
+ var fixedHuffmanDecoder = huffmanDecoder{
+ 	7, 9,
+-	[maxCodeLen+1]int{ 7: 23, 199, 511, },
+-	[maxCodeLen+1]int{ 7: 0, 24, 224, },
++	[maxCodeLen+1]int{7: 23, 199, 511},
++	[maxCodeLen+1]int{7: 0, 24, 224},
+ 	[]int{
+ 		// length 7: 256-279
+ 		256, 257, 258, 259, 260, 261, 262,
+@@ -187,7 +187,7 @@ var fixedHuffmanDecoder = huffmanDecoder{
+ 		232, 233, 234, 235, 236, 237, 238, 239,
+ 		240, 241, 242, 243, 244, 245, 246, 247,
+ 		248, 249, 250, 251, 252, 253, 254, 255,
+-	}
++	},
+ }
+ 
+ // The actual read interface needed by NewInflater.
+@@ -202,29 +202,29 @@ type Reader interface {
+ // TODO(rsc): Expose this or not?
+ type inflater struct {
+ 	// Input/output sources.
+-	r Reader;
+-	w io.Writer;
+-	roffset int64;
+-	woffset int64;
++	r	Reader;
++	w	io.Writer;
++	roffset	int64;
++	woffset	int64;
+ 
+ 	// Input bits, in top of b.
+-	b uint32;
+-	nb uint;
++	b	uint32;
++	nb	uint;
+ 
+ 	// Huffman decoders for literal/length, distance.
+-	h1, h2 huffmanDecoder;
++	h1, h2	huffmanDecoder;
+ 
+ 	// Length arrays used to define Huffman codes.
+-	bits [maxLit+maxDist]int;
+-	codebits [numCodes]int;
++	bits		[maxLit+maxDist]int;
++	codebits	[numCodes]int;
+ 
+ 	// Output history, buffer.
+-	hist [maxHist]byte;
+-	hp int;	// current output position in buffer
+-	hfull bool;	// buffer has filled at least once
++	hist	[maxHist]byte;
++	hp	int;	// current output position in buffer
++	hfull	bool;	// buffer has filled at least once
+ 
+ 	// Temporary buffer (avoids repeated allocation).
+-	buf [4]byte;
++	buf	[4]byte;
+ }
+ 
+ func (f *inflater) inflate() (err os.Error) {
+@@ -262,9 +262,7 @@ func (f *inflater) inflate() (err os.Error) {
+ // RFC 1951 section 3.2.7.
+ // Compression with dynamic Huffman codes
+ 
+-var codeOrder = [...]int {
+-	16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
+-}
++var codeOrder = [...]int{16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15}
+ 
+ func (f *inflater) readHuffman() os.Error {
+ 	// HLIT[5], HDIST[5], HCLEN[4].
+@@ -352,7 +350,7 @@ func (f *inflater) readHuffman() os.Error {
+ 		}
+ 	}
+ 
+-	if !f.h1.init(f.bits[0:nlit]) || !f.h2.init(f.bits[nlit:nlit+ndist]) {
++	if !f.h1.init(f.bits[0:nlit]) || !f.h2.init(f.bits[nlit : nlit+ndist]) {
+ 		return CorruptInputError(f.roffset);
+ 	}
+ 
+@@ -385,7 +383,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 			return nil;
+ 		// otherwise, reference to older data
+ 		case v < 265:
+-			length = v - (257 - 3);
++			length = v-(257-3);
+ 			n = 0;
+ 		case v < 269:
+ 			length = v*2 - (265*2 - 11);
+@@ -424,7 +422,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 					return err;
+ 				}
+ 			}
+-			dist = int(reverseByte[(f.b & 0x1F) << 3]);
++			dist = int(reverseByte[(f.b & 0x1F)<<3]);
+ 			f.b >>= 5;
+ 			f.nb -= 5;
+ 		} else {
+@@ -439,9 +437,9 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 		case dist >= 30:
+ 			return CorruptInputError(f.roffset);
+ 		default:
+-			nb := uint(dist - 2) >> 1;
++			nb := uint(dist-2) >> 1;
+ 			// have 1 bit in bottom of dist, need nb more.
+-			extra := (dist&1) << nb;
++			extra := (dist&1)<<nb;
+ 			for f.nb < nb {
+ 				if err = f.moreBits(); err != nil {
+ 					return err;
+@@ -497,8 +495,8 @@ func (f *inflater) dataBlock() os.Error {
+ 	if err != nil {
+ 		return &ReadError{f.roffset, err};
+ 	}
+-	n := int(f.buf[0]) | int(f.buf[1])<<8;
+-	nn := int(f.buf[2]) | int(f.buf[3])<<8;
++	n := int(f.buf[0]) | int(f.buf[1]) << 8;
++	nn := int(f.buf[2]) | int(f.buf[3]) << 8;
+ 	if uint16(nn) != uint16(^n) {
+ 		return CorruptInputError(f.roffset);
+ 	}
+@@ -510,7 +508,7 @@ func (f *inflater) dataBlock() os.Error {
+ 		if m > n {
+ 			m = n;
+ 		}
+-		m, err := io.ReadFull(f.r, f.hist[f.hp:f.hp+m]);
++		m, err := io.ReadFull(f.r, f.hist[f.hp : f.hp + m]);
+ 		f.roffset += int64(m);
+ 		if err != nil {
+ 			return &ReadError{f.roffset, err};
+@@ -553,7 +551,7 @@ func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error) {
+ 			}
+ 		}
+ 		v := int(f.b & uint32(1<<n - 1));
+-		v <<= 16 - n;
++		v <<= 16-n;
+ 		v = int(reverseByte[v>>8]) | int(reverseByte[v&0xFF])<<8;	// reverse bits
+ 		if v <= lim {
+ 			f.b >>= n;
+@@ -569,7 +567,7 @@ func (f *inflater) flush() os.Error {
+ 	if f.hp == 0 {
+ 		return nil;
+ 	}
+-	n, err := f.w.Write(f.hist[0:f.hp]);
++	n, err := f.w.Write(f.hist[0 : f.hp]);
+ 	if n != f.hp && err == nil {
+ 		err = io.ErrShortWrite;
+ 	}
+diff --git a/src/pkg/compress/flate/reverse_bits.go b/src/pkg/compress/flate/reverse_bits.go
+index 2866a01dd6..7274541d00 100644
+--- a/src/pkg/compress/flate/reverse_bits.go
++++ b/src/pkg/compress/flate/reverse_bits.go
+@@ -4,7 +4,7 @@
+ 
+ package flate
+ 
+-var reverseByte = [256]byte {
++var reverseByte = [256]byte{
+ 	0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
+ 	0x10, 0x90, 0x50, 0xd0, 0x30, 0xb0, 0x70, 0xf0,
+ 	0x08, 0x88, 0x48, 0xc8, 0x28, 0xa8, 0x68, 0xe8,
+@@ -44,6 +44,5 @@ func reverseUint16(v uint16) uint16 {
+ }
+ 
+ func reverseBits(number uint16, bitLength byte) uint16 {
+-	return reverseUint16(number << uint8(16 - bitLength));
++	return reverseUint16(number << uint8(16-bitLength));
+ }
+-
+diff --git a/src/pkg/compress/flate/token.go b/src/pkg/compress/flate/token.go
+index e6b6d1fd9a..daa23da550 100644
+--- a/src/pkg/compress/flate/token.go
++++ b/src/pkg/compress/flate/token.go
+@@ -8,18 +8,18 @@ const (
+ 	// 2 bits:   type   0 = literal  1=EOF  2=Match   3=Unused
+ 	// 8 bits:   xlength = length - MIN_MATCH_LENGTH
+ 	// 22 bits   xoffset = offset - MIN_OFFSET_SIZE, or literal
+-	lengthShift = 22;
+-	offsetMask = 1<<lengthShift - 1;
+-	typeMask = 3 << 30;
+-	literalType = 0 << 30;
+-	matchType = 1 << 30;
++	lengthShift	= 22;
++	offsetMask	= 1<<lengthShift - 1;
++	typeMask	= 3<<30;
++	literalType	= 0<<30;
++	matchType	= 1<<30;
+ )
+ 
+ // The length code for length X (MIN_MATCH_LENGTH <= X <= MAX_MATCH_LENGTH)
+ // is lengthCodes[length - MIN_MATCH_LENGTH]
+-var lengthCodes = [...]uint32 {
+-	0,  1,  2,  3,  4,  5,  6,  7,  8,  8,
+-	9,  9,  10, 10, 11, 11, 12, 12, 12, 12,
++var lengthCodes = [...]uint32{
++	0, 1, 2, 3, 4, 5, 6, 7, 8, 8,
++	9, 9, 10, 10, 11, 11, 12, 12, 12, 12,
+ 	13, 13, 13, 13, 14, 14, 14, 14, 15, 15,
+ 	15, 15, 16, 16, 16, 16, 16, 16, 16, 16,
+ 	17, 17, 17, 17, 17, 17, 17, 17, 18, 18,
+@@ -43,12 +43,12 @@ var lengthCodes = [...]uint32 {
+ 	26, 26, 26, 26, 27, 27, 27, 27, 27, 27,
+ 	27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+ 	27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+-	27, 27, 27, 27, 27, 28
++	27, 27, 27, 27, 27, 28,
+ }
+ 
+-var offsetCodes = [...]uint32 {
+-	0,  1,  2,  3,  4,  4,  5,  5,  6,  6,  6,  6,  7,  7,  7,  7,
+-	8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9,
++var offsetCodes = [...]uint32{
++	0, 1, 2, 3, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7,
++	8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9,
+ 	10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+ 	11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
+ 	12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+@@ -65,11 +65,11 @@ var offsetCodes = [...]uint32 {
+ 	15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15,
+ }
+ 
+-type token uint32;
++type token uint32
+ 
+ // Convert a literal into a literal token.
+ func literalToken(literal uint32) token {
+-	return token(literalType + literal);
++	return token(literalType+literal);
+ }
+ 
+ // Convert a < xlength, xoffset > pair into a match token.
+@@ -79,21 +79,21 @@ func matchToken(xlength uint32, xoffset uint32) token {
+ 
+ // Returns the type of a token
+ func (t token) typ() uint32 {
+-	return uint32(t) & typeMask;
++	return uint32(t)&typeMask;
+ }
+ 
+ // Returns the literal of a literal token
+ func (t token) literal() uint32 {
+-	return uint32(t - literalType);
++	return uint32(t-literalType);
+ }
+ 
+ // Returns the extra offset of a match token
+ func (t token) offset() uint32 {
+-	return uint32(t) & offsetMask;
++	return uint32(t)&offsetMask;
+ }
+ 
+ func (t token) length() uint32 {
+-	return uint32((t - matchType)>>lengthShift);
++	return uint32((t-matchType)>>lengthShift);
+ }
+ 
+ func lengthCode(len uint32) uint32 {
+@@ -107,10 +107,9 @@ func offsetCode(off uint32) uint32 {
+ 	case off < n:
+ 		return offsetCodes[off];
+ 	case off>>7 < n:
+-		return offsetCodes[off >> 7] + 14;
++		return offsetCodes[off>>7]+14;
+ 	default:
+-		return offsetCodes[off >> 14] + 28;
++		return offsetCodes[off>>14]+28;
+ 	}
+ 	panic("unreachable");
+ }
+-
+diff --git a/src/pkg/compress/flate/util.go b/src/pkg/compress/flate/util.go
+index 9b8eb9f5bb..177ee21d6f 100644
+--- a/src/pkg/compress/flate/util.go
++++ b/src/pkg/compress/flate/util.go
+@@ -70,4 +70,3 @@ func copyUint8s(dst []uint8, src []uint8) int {
+ 	}
+ 	return cnt;
+ }
+-
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index edf363a4be..c13184d72c 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -16,16 +16,14 @@ import (
+ )
+ 
+ const (
+-	gzipID1 = 0x1f;
+-	gzipID2 = 0x8b;
+-
+-	gzipDeflate = 8;
+-
+-	flagText = 1<<0;
+-	flagHdrCrc = 1<<1;
+-	flagExtra = 1<<2;
+-	flagName = 1<<3;
+-	flagComment = 1<<4;
++	gzipID1		= 0x1f;
++	gzipID2		= 0x8b;
++	gzipDeflate	= 8;
++	flagText	= 1<<0;
++	flagHdrCrc	= 1<<1;
++	flagExtra	= 1<<2;
++	flagName	= 1<<3;
++	flagComment	= 1<<4;
+ )
+ 
+ func makeReader(r io.Reader) flate.Reader {
+@@ -55,20 +53,20 @@ var ChecksumError os.Error = os.ErrorString("gzip checksum error")
+ // returned by Read as tentative until they receive the successful
+ // (zero length, nil error) Read marking the end of the data.
+ type Inflater struct {
+-	Comment string;	// comment
+-	Extra []byte;		// "extra data"
+-	Mtime uint32;		// modification time (seconds since January 1, 1970)
+-	Name string;		// file name
+-	OS byte;			// operating system type
+-
+-	r flate.Reader;
+-	inflater io.ReadCloser;
+-	digest hash.Hash32;
+-	size uint32;
+-	flg byte;
+-	buf [512]byte;
+-	err os.Error;
+-	eof bool;
++	Comment	string;	// comment
++	Extra	[]byte;	// "extra data"
++	Mtime	uint32;	// modification time (seconds since January 1, 1970)
++	Name	string;	// file name
++	OS	byte;	// operating system type
++
++	r		flate.Reader;
++	inflater	io.ReadCloser;
++	digest		hash.Hash32;
++	size		uint32;
++	flg		byte;
++	buf		[512]byte;
++	err		os.Error;
++	eof		bool;
+ }
+ 
+ // NewInflater creates a new Inflater reading the given reader.
+@@ -92,7 +90,7 @@ func get4(p []byte) uint32 {
+ 
+ func (z *Inflater) readString() (string, os.Error) {
+ 	var err os.Error;
+-	for i := 0;; i++ {
++	for i := 0; ; i++ {
+ 		if i >= len(z.buf) {
+ 			return "", HeaderError;
+ 		}
+@@ -112,7 +110,7 @@ func (z *Inflater) read2() (uint32, os.Error) {
+ 	if err != nil {
+ 		return 0, err;
+ 	}
+-	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil;
++	return uint32(z.buf[0]) | uint32(z.buf[1]) << 8, nil;
+ }
+ 
+ func (z *Inflater) readHeader(save bool) os.Error {
+@@ -132,7 +130,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
+ 	z.digest.Reset();
+ 	z.digest.Write(z.buf[0:10]);
+ 
+-	if z.flg & flagExtra != 0{
++	if z.flg & flagExtra != 0 {
+ 		n, err := z.read2();
+ 		if err != nil {
+ 			return err;
+@@ -225,4 +223,3 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
+ func (z *Inflater) Close() os.Error {
+ 	return z.inflater.Close();
+ }
+-
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index 1cbebd103c..96dbbf992c 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -22,11 +22,11 @@ var HeaderError os.Error = os.ErrorString("invalid zlib header")
+ var UnsupportedError os.Error = os.ErrorString("unsupported zlib format")
+ 
+ type reader struct {
+-	r flate.Reader;
+-	inflater io.ReadCloser;
+-	digest hash.Hash32;
+-	err os.Error;
+-	scratch [4]byte;
++	r		flate.Reader;
++	inflater	io.ReadCloser;
++	digest		hash.Hash32;
++	err		os.Error;
++	scratch		[4]byte;
+ }
+ 
+ // NewInflater creates a new io.ReadCloser that satisfies reads by decompressing data read from r.
+@@ -43,8 +43,8 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
+ 	if err != nil {
+ 		return nil, err;
+ 	}
+-	h := uint(z.scratch[0])<<8 | uint(z.scratch[1]);
+-	if (z.scratch[0] & 0x0f != zlibDeflate) || (h % 31 != 0) {
++	h := uint(z.scratch[0]) << 8 | uint(z.scratch[1]);
++	if (z.scratch[0] & 0x0f != zlibDeflate) || (h%31 != 0) {
+ 		return nil, HeaderError;
+ 	}
+ 	if z.scratch[1] & 0x20 != 0 {
+@@ -77,7 +77,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
+ 		return 0, err;
+ 	}
+ 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
+-	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3]);
++	checksum := uint32(z.scratch[0]) << 24 | uint32(z.scratch[1]) << 16 | uint32(z.scratch[2]) << 8 | uint32(z.scratch[3]);
+ 	if checksum != z.digest.Sum32() {
+ 		z.err = ChecksumError;
+ 		return 0, z.err;
+@@ -93,4 +93,3 @@ func (z *reader) Close() os.Error {
+ 	z.err = z.inflater.Close();
+ 	return z.err;
+ }
+-
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index 96a81114fc..075ecf62b6 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -12,62 +12,54 @@ import (
+ )
+ 
+ type zlibTest struct {
+-	desc string;
+-	raw string;
+-	compressed []byte;
+-	err os.Error;
++	desc		string;
++	raw		string;
++	compressed	[]byte;
++	err		os.Error;
+ }
+ 
+ // Compare-to-golden test data was generated by the ZLIB example program at
+ // http://www.zlib.net/zpipe.c
+ 
+-var zlibTests = []zlibTest {
+-	zlibTest {
++var zlibTests = []zlibTest{
++	zlibTest{
+ 		"empty",
+ 		"",
+-		[]byte {
+-			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01,
+-		},
+-		nil
++		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01},
++		nil,
+ 	},
+-	zlibTest {
++	zlibTest{
+ 		"goodbye",
+ 		"goodbye, world",
+-		[]byte {
++		[]byte{
+ 			0x78, 0x9c, 0x4b, 0xcf, 0xcf, 0x4f, 0x49, 0xaa,
+ 			0x4c, 0xd5, 0x51, 0x28, 0xcf, 0x2f, 0xca, 0x49,
+ 			0x01, 0x00, 0x28, 0xa5, 0x05, 0x5e,
+ 		},
+-		nil
++		nil,
+ 	},
+-	zlibTest {
++	zlibTest{
+ 		"bad header",
+ 		"",
+-		[]byte {
+-			0x78, 0x9f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01,
+-		},
+-		HeaderError
++		[]byte{0x78, 0x9f, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01},
++		HeaderError,
+ 	},
+-	zlibTest {
++	zlibTest{
+ 		"bad checksum",
+ 		"",
+-		[]byte {
+-			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0xff,
+-		},
++		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0xff},
+ 		ChecksumError,
+ 	},
+-	zlibTest {
++	zlibTest{
+ 		"not enough data",
+ 		"",
+-		[]byte {
+-			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00,
+-		},
++		[]byte{0x78, 0x9c, 0x03, 0x00, 0x00, 0x00},
+ 		io.ErrUnexpectedEOF,
+ 	},
+-	zlibTest {
++	zlibTest{
+ 		"excess data is silently ignored",
+ 		"",
+-		[]byte {
++		[]byte{
+ 			0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01,
+ 			0x78, 0x9c, 0xff,
+ 		},
+diff --git a/src/pkg/compress/zlib/writer.go b/src/pkg/compress/zlib/writer.go
+index cb20809968..6c0c0bbd42 100644
+--- a/src/pkg/compress/zlib/writer.go
++++ b/src/pkg/compress/zlib/writer.go
+@@ -15,18 +15,18 @@ import (
+ // These constants are copied from the flate package, so that code that imports
+ // "compress/zlib" does not also have to import "compress/flate".
+ const (
+-	NoCompression = flate.NoCompression;
+-	BestSpeed = flate.BestSpeed;
+-	BestCompression = flate.BestCompression;
+-	DefaultCompression = flate.DefaultCompression;
++	NoCompression		= flate.NoCompression;
++	BestSpeed		= flate.BestSpeed;
++	BestCompression		= flate.BestCompression;
++	DefaultCompression	= flate.DefaultCompression;
+ )
+ 
+ type writer struct {
+-	w io.Writer;
+-	deflater io.WriteCloser;
+-	digest hash.Hash32;
+-	err os.Error;
+-	scratch [4]byte;
++	w		io.Writer;
++	deflater	io.WriteCloser;
++	digest		hash.Hash32;
++	err		os.Error;
++	scratch		[4]byte;
+ }
+ 
+ // NewDeflater calls NewDeflaterLevel with the default compression level.
+@@ -104,4 +104,3 @@ func (z *writer) Close() os.Error {
+ 	_, z.err = z.w.Write(z.scratch[0:4]);
+ 	return z.err;
+ }
+-
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index ee041d0507..16e88a6a9a 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing";
+ )
+ 
+-var filenames = []string {
++var filenames = []string{
+ 	"testdata/e.txt",
+ 	"testdata/pi.txt",
+ }
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index 6e7eccb5f2..6b10872e1f 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -37,7 +37,7 @@ func Init(h HeapInterface) {
+ //
+ func Push(h HeapInterface, x interface{}) {
+ 	h.Push(x);
+-	up(h, h.Len()-1);
++	up(h, h.Len() - 1);
+ }
+ 
+ 
+@@ -45,7 +45,7 @@ func Push(h HeapInterface, x interface{}) {
+ // and returns it. The complexity is O(log(n)) where n = h.Len().
+ //
+ func Pop(h HeapInterface) interface{} {
+-	n := h.Len()-1;
++	n := h.Len() - 1;
+ 	h.Swap(0, n);
+ 	down(h, 0, n);
+ 	return h.Pop();
+@@ -56,7 +56,7 @@ func Pop(h HeapInterface) interface{} {
+ // The complexity is O(log(n)) where n = h.Len().
+ //
+ func Remove(h HeapInterface, i int) interface{} {
+-	n := h.Len()-1;
++	n := h.Len() - 1;
+ 	if n != i {
+ 		h.Swap(n, i);
+ 		down(h, i, n);
+@@ -85,7 +85,7 @@ func down(h HeapInterface, i, n int) {
+ 			break;
+ 		}
+ 		if j1 := j+1; j1 < n && !h.Less(j, j1) {
+-			j = j1;  // = 2*i + 2
++			j = j1;	// = 2*i + 2
+ 		}
+ 		if h.Less(i, j) {
+ 			break;
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 64000e4632..acd34c4175 100755
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -9,30 +9,30 @@ package list
+ type Element struct {
+ 	// Next and previous pointers in the doubly-linked list of elements.
+ 	// The front of the list has prev = nil, and the back has next = nil.
+-	next, prev *Element;
++	next, prev	*Element;
+ 
+ 	// A unique ID for the list to which this element belongs.
+-	id *byte;
++	id	*byte;
+ 
+ 	// The contents of this list element.
+-	Value interface {};
++	Value	interface{};
+ }
+ 
+ // Next returns the next list element or nil.
+ func (e *Element) Next() *Element {
+-	return e.next
++	return e.next;
+ }
+ 
+ // Prev returns the previous list element or nil.
+ func (e *Element) Prev() *Element {
+-	return e.prev
++	return e.prev;
+ }
+ 
+ // List represents a doubly linked list.
+ type List struct {
+-	front, back *Element;
+-	len int;
+-	id *byte;
++	front, back	*Element;
++	len		int;
++	id		*byte;
+ }
+ 
+ // Init initializes or clears a List.
+@@ -41,28 +41,28 @@ func (l *List) Init() *List {
+ 	l.back = nil;
+ 	l.len = 0;
+ 	l.id = new(byte);
+-	return l
++	return l;
+ }
+ 
+ // New returns an initialized list.
+ func New() *List {
+-	return new(List).Init()
++	return new(List).Init();
+ }
+ 
+ // Front returns the first element in the list.
+ func (l *List) Front() *Element {
+-	return l.front
++	return l.front;
+ }
+ 
+ // Back returns the last element in the list.
+ func (l *List) Back() *Element {
+-	return l.back
++	return l.back;
+ }
+ 
+ // Remove removes the element from the list.
+ func (l *List) Remove(e *Element) {
+ 	if e.id != l.id {
+-		return
++		return;
+ 	}
+ 	if e.prev == nil {
+ 		l.front = e.next;
+@@ -112,7 +112,7 @@ func (l *List) insertFront(e *Element) {
+ 		l.front, l.back = e, e;
+ 		e.prev, e.next = nil, nil;
+ 		l.len = 1;
+-		return
++		return;
+ 	}
+ 	l.insertBefore(e, l.front);
+ }
+@@ -123,55 +123,55 @@ func (l *List) insertBack(e *Element) {
+ 		l.front, l.back = e, e;
+ 		e.prev, e.next = nil, nil;
+ 		l.len = 1;
+-		return
++		return;
+ 	}
+ 	l.insertAfter(e, l.back);
+ }
+ 
+ // PushFront inserts the value at the front of the list and returns a new Element containing the value.
+-func (l *List) PushFront(value interface {}) *Element {
++func (l *List) PushFront(value interface{}) *Element {
+ 	if l.id == nil {
+ 		l.Init();
+ 	}
+-	e := &Element{ nil, nil, l.id, value };
++	e := &Element{nil, nil, l.id, value};
+ 	l.insertFront(e);
+-	return e
++	return e;
+ }
+ 
+ // PushBack inserts the value at the back of the list and returns a new Element containing the value.
+-func (l *List) PushBack(value interface {}) *Element {
++func (l *List) PushBack(value interface{}) *Element {
+ 	if l.id == nil {
+ 		l.Init();
+ 	}
+-	e := &Element{ nil, nil, l.id, value };
++	e := &Element{nil, nil, l.id, value};
+ 	l.insertBack(e);
+-	return e
++	return e;
+ }
+ 
+ // InsertBefore inserts the value immediately before mark and returns a new Element containing the value.
+-func (l *List) InsertBefore(value interface {}, mark *Element) *Element {
++func (l *List) InsertBefore(value interface{}, mark *Element) *Element {
+ 	if mark.id != l.id {
+-		return nil
++		return nil;
+ 	}
+-	e := &Element{ nil, nil, l.id, value };
++	e := &Element{nil, nil, l.id, value};
+ 	l.insertBefore(e, mark);
+-	return e
++	return e;
+ }
+ 
+ // InsertAfter inserts the value immediately after mark and returns a new Element containing the value.
+-func (l *List) InsertAfter(value interface {}, mark *Element) *Element {
++func (l *List) InsertAfter(value interface{}, mark *Element) *Element {
+ 	if mark.id != l.id {
+-		return nil
++		return nil;
+ 	}
+-	e := &Element{ nil, nil, l.id, value };
++	e := &Element{nil, nil, l.id, value};
+ 	l.insertAfter(e, mark);
+-	return e
++	return e;
+ }
+ 
+ // MoveToFront moves the element to the front of the list.
+ func (l *List) MoveToFront(e *Element) {
+ 	if e.id != l.id || l.front == e {
+-		return
++		return;
+ 	}
+ 	l.Remove(e);
+ 	l.insertFront(e);
+@@ -180,7 +180,7 @@ func (l *List) MoveToFront(e *Element) {
+ // MoveToBack moves the element to the back of the list.
+ func (l *List) MoveToBack(e *Element) {
+ 	if e.id != l.id || l.back == e {
+-		return
++		return;
+ 	}
+ 	l.Remove(e);
+ 	l.insertBack(e);
+@@ -188,18 +188,18 @@ func (l *List) MoveToBack(e *Element) {
+ 
+ // Len returns the number of elements in the list.
+ func (l *List) Len() int {
+-	return l.len
++	return l.len;
+ }
+ 
+-func (l *List) iterate(c chan<- interface {}) {
++func (l *List) iterate(c chan<- interface{}) {
+ 	for e := l.front; e != nil; e = e.next {
+ 		c <- e.Value;
+ 	}
+ 	close(c);
+ }
+ 
+-func (l *List) Iter() <-chan interface {} {
+-	c := make(chan interface {});
++func (l *List) Iter() <-chan interface{} {
++	c := make(chan interface{});
+ 	go l.iterate(c);
+-	return c
++	return c;
+ }
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index 741aa55169..5fa9e62c6e 100755
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -13,7 +13,7 @@ func checkListPointers(t *testing.T, l *List, es []*Element) {
+ 		if l.front != nil || l.back != nil {
+ 			t.Errorf("l.front/l.back = %v/%v should be nil/nil", l.front, l.back);
+ 		}
+-		return
++		return;
+ 	}
+ 
+ 	if l.front != es[0] {
+@@ -29,7 +29,7 @@ func checkListPointers(t *testing.T, l *List, es []*Element) {
+ 		if i > 0 {
+ 			e_prev = es[i-1];
+ 		}
+-		if i < len(es) - 1 {
++		if i < len(es)-1 {
+ 			e_next = es[i+1];
+ 		}
+ 		if e.prev != e_prev {
+@@ -55,11 +55,11 @@ func TestList(t *testing.T) {
+ 	// Single element list
+ 	e := l.PushFront("a");
+ 	checkListLen(t, l, 1);
+-	checkListPointers(t, l, []*Element{ e });
++	checkListPointers(t, l, []*Element{e});
+ 	l.MoveToFront(e);
+-	checkListPointers(t, l, []*Element{ e });
++	checkListPointers(t, l, []*Element{e});
+ 	l.MoveToBack(e);
+-	checkListPointers(t, l, []*Element{ e });
++	checkListPointers(t, l, []*Element{e});
+ 	checkListLen(t, l, 1);
+ 	l.Remove(e);
+ 	checkListPointers(t, l, []*Element{});
+@@ -70,48 +70,48 @@ func TestList(t *testing.T) {
+ 	e1 := l.PushFront(1);
+ 	e3 := l.PushBack(3);
+ 	e4 := l.PushBack("banana");
+-	checkListPointers(t, l, []*Element{ e1, e2, e3, e4 });
++	checkListPointers(t, l, []*Element{e1, e2, e3, e4});
+ 	checkListLen(t, l, 4);
+ 
+ 	l.Remove(e2);
+-	checkListPointers(t, l, []*Element{ e1, e3, e4 });
++	checkListPointers(t, l, []*Element{e1, e3, e4});
+ 	checkListLen(t, l, 3);
+ 
+-	l.MoveToFront(e3);  // move from middle
+-	checkListPointers(t, l, []*Element{ e3, e1, e4 });
++	l.MoveToFront(e3);	// move from middle
++	checkListPointers(t, l, []*Element{e3, e1, e4});
+ 
+ 	l.MoveToFront(e1);
+-	l.MoveToBack(e3);  // move from middle
+-	checkListPointers(t, l, []*Element{ e1, e4, e3 });
++	l.MoveToBack(e3);	// move from middle
++	checkListPointers(t, l, []*Element{e1, e4, e3});
+ 
+-	l.MoveToFront(e3);  // move from back
+-	checkListPointers(t, l, []*Element{ e3, e1, e4 });
+-	l.MoveToFront(e3);  // should be no-op
+-	checkListPointers(t, l, []*Element{ e3, e1, e4 });
++	l.MoveToFront(e3);	// move from back
++	checkListPointers(t, l, []*Element{e3, e1, e4});
++	l.MoveToFront(e3);	// should be no-op
++	checkListPointers(t, l, []*Element{e3, e1, e4});
+ 
+-	l.MoveToBack(e3);  // move from front
+-	checkListPointers(t, l, []*Element{ e1, e4, e3 });
+-	l.MoveToBack(e3);  // should be no-op
+-	checkListPointers(t, l, []*Element{ e1, e4, e3 });
++	l.MoveToBack(e3);	// move from front
++	checkListPointers(t, l, []*Element{e1, e4, e3});
++	l.MoveToBack(e3);	// should be no-op
++	checkListPointers(t, l, []*Element{e1, e4, e3});
+ 
+-	e2 = l.InsertBefore(2, e1);  // insert before front
+-	checkListPointers(t, l, []*Element{ e2, e1, e4, e3 });
++	e2 = l.InsertBefore(2, e1);	// insert before front
++	checkListPointers(t, l, []*Element{e2, e1, e4, e3});
+ 	l.Remove(e2);
+-	e2 = l.InsertBefore(2, e4);  // insert before middle
+-	checkListPointers(t, l, []*Element{ e1, e2, e4, e3 });
++	e2 = l.InsertBefore(2, e4);	// insert before middle
++	checkListPointers(t, l, []*Element{e1, e2, e4, e3});
+ 	l.Remove(e2);
+-	e2 = l.InsertBefore(2, e3);  // insert before back
+-	checkListPointers(t, l, []*Element{ e1, e4, e2, e3 });
++	e2 = l.InsertBefore(2, e3);	// insert before back
++	checkListPointers(t, l, []*Element{e1, e4, e2, e3});
+ 	l.Remove(e2);
+ 
+-	e2 = l.InsertAfter(2, e1);  // insert after front
+-	checkListPointers(t, l, []*Element{ e1, e2, e4, e3 });
++	e2 = l.InsertAfter(2, e1);	// insert after front
++	checkListPointers(t, l, []*Element{e1, e2, e4, e3});
+ 	l.Remove(e2);
+-	e2 = l.InsertAfter(2, e4);  // insert after middle
+-	checkListPointers(t, l, []*Element{ e1, e4, e2, e3 });
++	e2 = l.InsertAfter(2, e4);	// insert after middle
++	checkListPointers(t, l, []*Element{e1, e4, e2, e3});
+ 	l.Remove(e2);
+-	e2 = l.InsertAfter(2, e3);  // insert after back
+-	checkListPointers(t, l, []*Element{ e1, e4, e3, e2 });
++	e2 = l.InsertAfter(2, e3);	// insert after back
++	checkListPointers(t, l, []*Element{e1, e4, e3, e2});
+ 	l.Remove(e2);
+ 
+ 	// Check standard iteration.
+diff --git a/src/pkg/container/ring/ring.go b/src/pkg/container/ring/ring.go
+index fc1aef96d7..14593f2159 100644
+--- a/src/pkg/container/ring/ring.go
++++ b/src/pkg/container/ring/ring.go
+@@ -12,8 +12,8 @@ package ring
+ // ring with a nil Value.
+ //
+ type Ring struct {
+-	next, prev *Ring;
+-	Value interface{};  // for use by client; untouched by this library
++	next, prev	*Ring;
++	Value		interface{};	// for use by client; untouched by this library
+ }
+ 
+ 
+@@ -119,7 +119,7 @@ func (r *Ring) Unlink(n int) *Ring {
+ 	if n <= 0 {
+ 		return nil;
+ 	}
+-	return r.Link(r.Move(n + 1));
++	return r.Link(r.Move(n+1));
+ }
+ 
+ 
+@@ -138,8 +138,8 @@ func (r *Ring) Len() int {
+ }
+ 
+ 
+-func (r *Ring) Iter() <-chan interface {} {
+-	c := make(chan interface {});
++func (r *Ring) Iter() <-chan interface{} {
++	c := make(chan interface{});
+ 	go func() {
+ 		if r != nil {
+ 			c <- r.Value;
+@@ -149,5 +149,5 @@ func (r *Ring) Iter() <-chan interface {} {
+ 		}
+ 		close(c);
+ 	}();
+-	return c
++	return c;
+ }
+diff --git a/src/pkg/container/ring/ring_test.go b/src/pkg/container/ring/ring_test.go
+index ee9ce27a67..0dc3a71d1c 100644
+--- a/src/pkg/container/ring/ring_test.go
++++ b/src/pkg/container/ring/ring_test.go
+@@ -54,7 +54,7 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
+ 
+ 	// connections
+ 	if r.next != nil {
+-		var p *Ring;  // previous element
++		var p *Ring;	// previous element
+ 		for q := r; p == nil || q != r; q = q.next {
+ 			if p != nil && p != q.prev {
+ 				t.Errorf("prev = %p, expected q.prev = %p\n", p, q.prev);
+@@ -85,8 +85,8 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
+ 		t.Errorf("r.Move(%d) != r", -N);
+ 	}
+ 	for i := 0; i < 10; i++ {
+-		ni := N + i;
+-		mi := ni % N;
++		ni := N+i;
++		mi := ni%N;
+ 		if r.Move(ni) != r.Move(mi) {
+ 			t.Errorf("r.Move(%d) != r.Move(%d)", ni, mi);
+ 		}
+@@ -99,8 +99,8 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
+ 
+ func TestCornerCases(t *testing.T) {
+ 	var (
+-		r0 *Ring;
+-		r1 Ring;
++		r0	*Ring;
++		r1	Ring;
+ 	)
+ 	// Basics
+ 	verify(t, r0, 0, 0);
+@@ -186,13 +186,13 @@ func TestLink2(t *testing.T) {
+ 	verify(t, r1a, 1, 42);
+ 
+ 	r1a.Link(r1b);
+-	verify(t, r1a, 2, 42 + 77);
++	verify(t, r1a, 2, 42+77);
+ 
+ 	r10.Link(r0);
+ 	verify(t, r10, 10, sumN(10));
+ 
+ 	r10.Link(r1a);
+-	verify(t, r10, 12, sumN(10) + 42 + 77);
++	verify(t, r10, 12, sumN(10)+42+77);
+ }
+ 
+ 
+@@ -220,11 +220,11 @@ func TestUnlink(t *testing.T) {
+ 
+ 	r1 := r10.Unlink(1);
+ 	verify(t, r1, 1, 2);
+-	verify(t, r10, 9, sum10 - 2);
++	verify(t, r10, 9, sum10-2);
+ 
+ 	r9 := r10.Unlink(9);
+-	verify(t, r9, 9, sum10 - 2);
+-	verify(t, r10, 9, sum10 - 2);
++	verify(t, r9, 9, sum10-2);
++	verify(t, r10, 9, sum10-2);
+ }
+ 
+ 
+diff --git a/src/pkg/container/vector/intvector.go b/src/pkg/container/vector/intvector.go
+index 950926e10a..0ae25b9822 100644
+--- a/src/pkg/container/vector/intvector.go
++++ b/src/pkg/container/vector/intvector.go
+@@ -22,25 +22,25 @@ func (p *IntVector) Init(len int) *IntVector {
+ 
+ // NewIntVector returns an initialized new IntVector with length at least len.
+ func NewIntVector(len int) *IntVector {
+-	return new(IntVector).Init(len)
++	return new(IntVector).Init(len);
+ }
+ 
+ 
+ // At returns the i'th element of the vector.
+ func (p *IntVector) At(i int) int {
+-	return p.Vector.At(i).(int)
++	return p.Vector.At(i).(int);
+ }
+ 
+ 
+ // Set sets the i'th element of the vector to value x.
+ func (p *IntVector) Set(i int, x int) {
+-	p.a[i] = x
++	p.a[i] = x;
+ }
+ 
+ 
+ // Last returns the element in the vector of highest index.
+ func (p *IntVector) Last() int {
+-	return p.Vector.Last().(int)
++	return p.Vector.Last().(int);
+ }
+ 
+ 
+@@ -48,42 +48,42 @@ func (p *IntVector) Last() int {
+ func (p *IntVector) Data() []int {
+ 	arr := make([]int, p.Len());
+ 	for i, v := range p.a {
+-		arr[i] = v.(int)
++		arr[i] = v.(int);
+ 	}
+-	return arr
++	return arr;
+ }
+ 
+ 
+ // Insert inserts into the vector an element of value x before
+ // the current element at index i.
+ func (p *IntVector) Insert(i int, x int) {
+-	p.Vector.Insert(i, x)
++	p.Vector.Insert(i, x);
+ }
+ 
+ 
+ // InsertVector inserts into the vector the contents of the Vector
+ // x such that the 0th element of x appears at index i after insertion.
+ func (p *IntVector) InsertVector(i int, x *IntVector) {
+-	p.Vector.InsertVector(i, &x.Vector)
++	p.Vector.InsertVector(i, &x.Vector);
+ }
+ 
+ 
+ // Slice returns a new IntVector by slicing the old one to extract slice [i:j].
+ // The elements are copied. The original vector is unchanged.
+ func (p *IntVector) Slice(i, j int) *IntVector {
+-	return &IntVector{ *p.Vector.Slice(i, j) };
++	return &IntVector{*p.Vector.Slice(i, j)};
+ }
+ 
+ 
+ // Push appends x to the end of the vector.
+ func (p *IntVector) Push(x int) {
+-	p.Vector.Push(x)
++	p.Vector.Push(x);
+ }
+ 
+ 
+ // Pop deletes and returns the last element of the vector.
+ func (p *IntVector) Pop() int {
+-	return p.Vector.Pop().(int)
++	return p.Vector.Pop().(int);
+ }
+ 
+ 
+@@ -96,14 +96,14 @@ func (p *IntVector) AppendVector(x *IntVector) {
+ // SortInterface support
+ // Less returns a boolean denoting whether the i'th element is less than the j'th element.
+ func (p *IntVector) Less(i, j int) bool {
+-	return p.At(i) < p.At(j)
++	return p.At(i) < p.At(j);
+ }
+ 
+ 
+ // Iterate over all elements; driver for range
+ func (p *IntVector) iterate(c chan<- int) {
+ 	for _, v := range p.a {
+-		c <- v.(int)
++		c <- v.(int);
+ 	}
+ 	close(c);
+ }
+diff --git a/src/pkg/container/vector/stringvector.go b/src/pkg/container/vector/stringvector.go
+index cda9760d24..4949d06b75 100644
+--- a/src/pkg/container/vector/stringvector.go
++++ b/src/pkg/container/vector/stringvector.go
+@@ -21,25 +21,25 @@ func (p *StringVector) Init(len int) *StringVector {
+ 
+ // NewStringVector returns an initialized new StringVector with length at least len.
+ func NewStringVector(len int) *StringVector {
+-	return new(StringVector).Init(len)
++	return new(StringVector).Init(len);
+ }
+ 
+ 
+ // At returns the i'th element of the vector.
+ func (p *StringVector) At(i int) string {
+-	return p.Vector.At(i).(string)
++	return p.Vector.At(i).(string);
+ }
+ 
+ 
+ // Set sets the i'th element of the vector to value x.
+ func (p *StringVector) Set(i int, x string) {
+-	p.a[i] = x
++	p.a[i] = x;
+ }
+ 
+ 
+ // Last returns the element in the vector of highest index.
+ func (p *StringVector) Last() string {
+-	return p.Vector.Last().(string)
++	return p.Vector.Last().(string);
+ }
+ 
+ 
+@@ -47,42 +47,42 @@ func (p *StringVector) Last() string {
+ func (p *StringVector) Data() []string {
+ 	arr := make([]string, p.Len());
+ 	for i, v := range p.a {
+-		arr[i] = v.(string)
++		arr[i] = v.(string);
+ 	}
+-	return arr
++	return arr;
+ }
+ 
+ 
+ // Insert inserts into the vector an element of value x before
+ // the current element at index i.
+ func (p *StringVector) Insert(i int, x string) {
+-	p.Vector.Insert(i, x)
++	p.Vector.Insert(i, x);
+ }
+ 
+ 
+ // InsertVector inserts into the vector the contents of the Vector
+ // x such that the 0th element of x appears at index i after insertion.
+ func (p *StringVector) InsertVector(i int, x *StringVector) {
+-	p.Vector.InsertVector(i, &x.Vector)
++	p.Vector.InsertVector(i, &x.Vector);
+ }
+ 
+ 
+ // Slice returns a new StringVector by slicing the old one to extract slice [i:j].
+ // The elements are copied. The original vector is unchanged.
+ func (p *StringVector) Slice(i, j int) *StringVector {
+-	return &StringVector{ *p.Vector.Slice(i, j) };
++	return &StringVector{*p.Vector.Slice(i, j)};
+ }
+ 
+ 
+ // Push appends x to the end of the vector.
+ func (p *StringVector) Push(x string) {
+-	p.Vector.Push(x)
++	p.Vector.Push(x);
+ }
+ 
+ 
+ // Pop deletes and returns the last element of the vector.
+ func (p *StringVector) Pop() string {
+-	return p.Vector.Pop().(string)
++	return p.Vector.Pop().(string);
+ }
+ 
+ 
+@@ -95,14 +95,14 @@ func (p *StringVector) AppendVector(x *StringVector) {
+ // SortInterface support
+ // Less returns a boolean denoting whether the i'th element is less than the j'th element.
+ func (p *StringVector) Less(i, j int) bool {
+-	return p.At(i) < p.At(j)
++	return p.At(i) < p.At(j);
+ }
+ 
+ 
+ // Iterate over all elements; driver for range
+ func (p *StringVector) iterate(c chan<- string) {
+ 	for _, v := range p.a {
+-		c <- v.(string)
++		c <- v.(string);
+ 	}
+ 	close(c);
+ }
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index 179152c9ee..c29edb83f7 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -8,19 +8,19 @@ package vector
+ 
+ // Element is an empty-interface object representing the contents of
+ // a cell in the vector.
+-type Element interface {}
++type Element interface{}
+ 
+ 
+ // Vector is the container itself.
+ // The zero value for Vector is an empty vector ready to use.
+ type Vector struct {
+-	a []Element
++	a []Element;
+ }
+ 
+ 
+ func copy(dst, src []Element) {
+ 	for i := 0; i < len(src); i++ {
+-		dst[i] = src[i]
++		dst[i] = src[i];
+ 	}
+ }
+ 
+@@ -29,28 +29,28 @@ func copy(dst, src []Element) {
+ func expand(a []Element, i, n int) []Element {
+ 	// make sure we have enough space
+ 	len0 := len(a);
+-	len1 := len0 + n;
++	len1 := len0+n;
+ 	if len1 < cap(a) {
+ 		// enough space - just expand
+-		a = a[0 : len1]
++		a = a[0:len1];
+ 	} else {
+ 		// not enough space - double capacity
+ 		capb := cap(a)*2;
+ 		if capb < len1 {
+ 			// still not enough - use required length
+-			capb = len1
++			capb = len1;
+ 		}
+ 		// capb >= len1
+ 		b := make([]Element, len1, capb);
+ 		copy(b, a);
+-		a = b
++		a = b;
+ 	}
+ 
+ 	// make a hole
+-	for j := len0-1; j >= i ; j-- {
+-		a[j+n] = a[j]
++	for j := len0-1; j >= i; j-- {
++		a[j+n] = a[j];
+ 	}
+-	return a
++	return a;
+ }
+ 
+ 
+@@ -61,26 +61,26 @@ func (p *Vector) Init(initial_len int) *Vector {
+ 	a := p.a;
+ 
+ 	if cap(a) == 0 || cap(a) < initial_len {
+-		n := 8;  // initial capacity
++		n := 8;	// initial capacity
+ 		if initial_len > n {
+-			n = initial_len
++			n = initial_len;
+ 		}
+ 		a = make([]Element, n);
+ 	} else {
+ 		// nil out entries
+-		for j := len(a) - 1; j >= 0; j-- {
+-			a[j] = nil
++		for j := len(a)-1; j >= 0; j-- {
++			a[j] = nil;
+ 		}
+ 	}
+ 
+-	p.a = a[0 : initial_len];
+-	return p
++	p.a = a[0:initial_len];
++	return p;
+ }
+ 
+ 
+ // New returns an initialized new Vector with length at least len.
+ func New(len int) *Vector {
+-	return new(Vector).Init(len)
++	return new(Vector).Init(len);
+ }
+ 
+ 
+@@ -90,25 +90,25 @@ func (p *Vector) Len() int {
+ 	if p == nil {
+ 		return 0;
+ 	}
+-	return len(p.a)
++	return len(p.a);
+ }
+ 
+ 
+ // At returns the i'th element of the vector.
+ func (p *Vector) At(i int) Element {
+-	return p.a[i]
++	return p.a[i];
+ }
+ 
+ 
+ // Set sets the i'th element of the vector to value x.
+ func (p *Vector) Set(i int, x Element) {
+-	p.a[i] = x
++	p.a[i] = x;
+ }
+ 
+ 
+ // Last returns the element in the vector of highest index.
+ func (p *Vector) Last() Element {
+-	return p.a[len(p.a) - 1]
++	return p.a[len(p.a) - 1];
+ }
+ 
+ 
+@@ -116,9 +116,9 @@ func (p *Vector) Last() Element {
+ func (p *Vector) Data() []Element {
+ 	arr := make([]Element, p.Len());
+ 	for i, v := range p.a {
+-		arr[i] = v
++		arr[i] = v;
+ 	}
+-	return arr
++	return arr;
+ }
+ 
+ 
+@@ -137,7 +137,7 @@ func (p *Vector) Delete(i int) {
+ 	n := len(a);
+ 
+ 	copy(a[i : n-1], a[i+1 : n]);
+-	a[n-1] = nil;  // support GC, nil out entry
++	a[n-1] = nil;	// support GC, nil out entry
+ 	p.a = a[0 : n-1];
+ }
+ 
+@@ -154,22 +154,22 @@ func (p *Vector) InsertVector(i int, x *Vector) {
+ func (p *Vector) Cut(i, j int) {
+ 	a := p.a;
+ 	n := len(a);
+-	m := n - (j - i);
++	m := n-(j-i);
+ 
+-	copy(a[i : m], a[j : n]);
++	copy(a[i:m], a[j:n]);
+ 	for k := m; k < n; k++ {
+-		a[k] = nil  // support GC, nil out entries
++		a[k] = nil;	// support GC, nil out entries
+ 	}
+ 
+-	p.a = a[0 : m];
++	p.a = a[0:m];
+ }
+ 
+ 
+ // Slice returns a new Vector by slicing the old one to extract slice [i:j].
+ // The elements are copied. The original vector is unchanged.
+ func (p *Vector) Slice(i, j int) *Vector {
+-	s := New(j - i);  // will fail in Init() if j < j
+-	copy(s.a, p.a[i : j]);
++	s := New(j-i);	// will fail in Init() if j < j
++	copy(s.a, p.a[i:j]);
+ 	return s;
+ }
+ 
+@@ -178,7 +178,7 @@ func (p *Vector) Slice(i, j int) *Vector {
+ // The function should not change the indexing of the vector underfoot.
+ func (p *Vector) Do(f func(elem Element)) {
+ 	for i := 0; i < len(p.a); i++ {
+-		f(p.a[i])	// not too safe if f changes the Vector
++		f(p.a[i]);	// not too safe if f changes the Vector
+ 	}
+ }
+ 
+@@ -187,7 +187,7 @@ func (p *Vector) Do(f func(elem Element)) {
+ 
+ // Push appends x to the end of the vector.
+ func (p *Vector) Push(x Element) {
+-	p.Insert(len(p.a), x)
++	p.Insert(len(p.a), x);
+ }
+ 
+ 
+@@ -195,8 +195,8 @@ func (p *Vector) Push(x Element) {
+ func (p *Vector) Pop() Element {
+ 	i := len(p.a) - 1;
+ 	x := p.a[i];
+-	p.a[i] = nil;  // support GC, nil out entry
+-	p.a = p.a[0 : i];
++	p.a[i] = nil;	// support GC, nil out entry
++	p.a = p.a[0:i];
+ 	return x;
+ }
+ 
+@@ -211,27 +211,27 @@ func (p *Vector) AppendVector(x *Vector) {
+ 
+ // LessInterface provides partial support of the SortInterface.
+ type LessInterface interface {
+-	Less(y Element) bool
++	Less(y Element) bool;
+ }
+ 
+ 
+ // Less returns a boolean denoting whether the i'th element is less than the j'th element.
+ func (p *Vector) Less(i, j int) bool {
+-	return p.a[i].(LessInterface).Less(p.a[j])
++	return p.a[i].(LessInterface).Less(p.a[j]);
+ }
+ 
+ 
+ // Swap exchanges the elements at indexes i and j.
+ func (p *Vector) Swap(i, j int) {
+ 	a := p.a;
+-	a[i], a[j] = a[j], a[i]
++	a[i], a[j] = a[j], a[i];
+ }
+ 
+ 
+ // Iterate over all elements; driver for range
+ func (p *Vector) iterate(c chan<- Element) {
+ 	for _, v := range p.a {
+-		c <- v
++		c <- v;
+ 	}
+ 	close(c);
+ }
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index c0d67957d9..32a21f3eb6 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -11,29 +11,45 @@ import "fmt"
+ 
+ func TestZeroLen(t *testing.T) {
+ 	var a *Vector;
+-	if a.Len() != 0 { t.Errorf("A) expected 0, got %d", a.Len()); }
++	if a.Len() != 0 {
++		t.Errorf("A) expected 0, got %d", a.Len());
++	}
+ 	a = New(0);
+-	if a.Len() != 0 { t.Errorf("B) expected 0, got %d", a.Len()); }
++	if a.Len() != 0 {
++		t.Errorf("B) expected 0, got %d", a.Len());
++	}
+ }
+ 
+ 
+ func TestInit(t *testing.T) {
+ 	var a Vector;
+-	if a.Init(0).Len() != 0 { t.Error("A") }
+-	if a.Init(1).Len() != 1 { t.Error("B") }
+-	if a.Init(10).Len() != 10 { t.Error("C") }
++	if a.Init(0).Len() != 0 {
++		t.Error("A");
++	}
++	if a.Init(1).Len() != 1 {
++		t.Error("B");
++	}
++	if a.Init(10).Len() != 10 {
++		t.Error("C");
++	}
+ }
+ 
+ 
+ func TestNew(t *testing.T) {
+-	if New(0).Len() != 0 { t.Error("A") }
+-	if New(1).Len() != 1 { t.Error("B") }
+-	if New(10).Len() != 10 { t.Error("C") }
++	if New(0).Len() != 0 {
++		t.Error("A");
++	}
++	if New(1).Len() != 1 {
++		t.Error("B");
++	}
++	if New(10).Len() != 10 {
++		t.Error("C");
++	}
+ }
+ 
+ 
+ func val(i int) int {
+-	return i*991 - 1234
++	return i*991 - 1234;
+ }
+ 
+ 
+@@ -45,7 +61,9 @@ func TestAccess(t *testing.T) {
+ 		a.Set(i, val(i));
+ 	}
+ 	for i := 0; i < n; i++ {
+-		if a.At(i).(int) != val(i) { t.Error(i) }
++		if a.At(i).(int) != val(i) {
++			t.Error(i);
++		}
+ 	}
+ }
+ 
+@@ -55,25 +73,43 @@ func TestInsertDeleteClear(t *testing.T) {
+ 	var a Vector;
+ 
+ 	for i := 0; i < n; i++ {
+-		if a.Len() != i { t.Errorf("A) wrong len %d (expected %d)", a.Len(), i) }
++		if a.Len() != i {
++			t.Errorf("A) wrong len %d (expected %d)", a.Len(), i);
++		}
+ 		a.Insert(0, val(i));
+-		if a.Last().(int) != val(0) { t.Error("B") }
++		if a.Last().(int) != val(0) {
++			t.Error("B");
++		}
+ 	}
+ 	for i := n-1; i >= 0; i-- {
+-		if a.Last().(int) != val(0) { t.Error("C") }
+-		if a.At(0).(int) != val(i) { t.Error("D") }
++		if a.Last().(int) != val(0) {
++			t.Error("C");
++		}
++		if a.At(0).(int) != val(i) {
++			t.Error("D");
++		}
+ 		a.Delete(0);
+-		if a.Len() != i { t.Errorf("E) wrong len %d (expected %d)", a.Len(), i) }
++		if a.Len() != i {
++			t.Errorf("E) wrong len %d (expected %d)", a.Len(), i);
++		}
+ 	}
+ 
+-	if a.Len() != 0 { t.Errorf("F) wrong len %d (expected 0)", a.Len()) }
++	if a.Len() != 0 {
++		t.Errorf("F) wrong len %d (expected 0)", a.Len());
++	}
+ 	for i := 0; i < n; i++ {
+ 		a.Push(val(i));
+-		if a.Len() != i+1 { t.Errorf("G) wrong len %d (expected %d)", a.Len(), i+1) }
+-		if a.Last().(int) != val(i) { t.Error("H") }
++		if a.Len() != i+1 {
++			t.Errorf("G) wrong len %d (expected %d)", a.Len(), i+1);
++		}
++		if a.Last().(int) != val(i) {
++			t.Error("H");
++		}
+ 	}
+ 	a.Init(0);
+-	if a.Len() != 0 { t.Errorf("I wrong len %d (expected 0)", a.Len()) }
++	if a.Len() != 0 {
++		t.Errorf("I wrong len %d (expected 0)", a.Len());
++	}
+ 
+ 	const m = 5;
+ 	for j := 0; j < m; j++ {
+@@ -81,38 +117,44 @@ func TestInsertDeleteClear(t *testing.T) {
+ 		for i := 0; i < n; i++ {
+ 			x := val(i);
+ 			a.Push(x);
+-			if a.Pop().(int) != x { t.Error("J") }
+-			if a.Len() != j+1 { t.Errorf("K) wrong len %d (expected %d)", a.Len(), j+1) }
++			if a.Pop().(int) != x {
++				t.Error("J");
++			}
++			if a.Len() != j+1 {
++				t.Errorf("K) wrong len %d (expected %d)", a.Len(), j+1);
++			}
+ 		}
+ 	}
+-	if a.Len() != m { t.Errorf("L) wrong len %d (expected %d)", a.Len(), m) }
++	if a.Len() != m {
++		t.Errorf("L) wrong len %d (expected %d)", a.Len(), m);
++	}
+ }
+ 
+ 
+ func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
+ 	for k := i; k < j; k++ {
+ 		if x.At(k).(int) != elt {
+-			t.Errorf("M) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt)
++			t.Errorf("M) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt);
+ 		}
+ 	}
+ 
+ 	s := x.Slice(i, j);
+ 	for k, n := 0, j-i; k < n; k++ {
+ 		if s.At(k).(int) != elt {
+-			t.Errorf("N) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt)
++			t.Errorf("N) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt);
+ 		}
+ 	}
+ }
+ 
+ 
+ func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
+-	n := a + b + c;
++	n := a+b+c;
+ 	if x.Len() != n {
+-		t.Errorf("O) wrong len %d (expected %d)", x.Len(), n)
++		t.Errorf("O) wrong len %d (expected %d)", x.Len(), n);
+ 	}
+ 	verify_slice(t, x, 0, 0, a);
+-	verify_slice(t, x, 1, a, a + b);
+-	verify_slice(t, x, 0, a + b, n);
++	verify_slice(t, x, 1, a, a+b);
++	verify_slice(t, x, 0, a+b, n);
+ }
+ 
+ 
+@@ -157,13 +199,17 @@ func TestSorting(t *testing.T) {
+ 	for i := n-1; i >= 0; i-- {
+ 		a.Set(i, n-1-i);
+ 	}
+-	if sort.IsSorted(a) { t.Error("int vector not sorted") }
++	if sort.IsSorted(a) {
++		t.Error("int vector not sorted");
++	}
+ 
+ 	b := NewStringVector(n);
+ 	for i := n-1; i >= 0; i-- {
+ 		b.Set(i, fmt.Sprint(n-1-i));
+ 	}
+-	if sort.IsSorted(b) { t.Error("string vector not sorted") }
++	if sort.IsSorted(b) {
++		t.Error("string vector not sorted");
++	}
+ }
+ 
+ 
+@@ -172,20 +218,18 @@ func TestDo(t *testing.T) {
+ 	const salt = 17;
+ 	a := NewIntVector(n);
+ 	for i := 0; i < n; i++ {
+-		a.Set(i, salt * i);
++		a.Set(i, salt*i);
+ 	}
+ 	count := 0;
+-	a.Do(
+-		func(e Element) {
+-			i := e.(int);
+-			if i != count*salt {
+-				t.Error("value at", count, "should be", count*salt, "not", i)
+-			}
+-			count++;
++	a.Do(func(e Element) {
++		i := e.(int);
++		if i != count*salt {
++			t.Error("value at", count, "should be", count*salt, "not", i);
+ 		}
+-	);
++		count++;
++	});
+ 	if count != n {
+-		t.Error("should visit", n, "values; did visit", count)
++		t.Error("should visit", n, "values; did visit", count);
+ 	}
+ }
+ 
+@@ -199,11 +243,11 @@ func TestIter(t *testing.T) {
+ 	i := 0;
+ 	for v := range x.Iter() {
+ 		if v.(int) != i*i {
+-			t.Error("Iter expected", i*i, "got", v.(int))
++			t.Error("Iter expected", i*i, "got", v.(int));
+ 		}
+ 		i++;
+ 	}
+ 	if i != Len {
+-		t.Error("Iter stopped at", i, "not", Len)
++		t.Error("Iter stopped at", i, "not", Len);
+ 	}
+ }

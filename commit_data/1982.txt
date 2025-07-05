@@ -7,6 +7,19 @@ Date:   Wed Apr 8 23:34:44 2009 -0700
     R=rsc
     OCL=27248
     CL=27248
-
+---
  test/golden.out | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/golden.out b/test/golden.out
+index 03900e5e56..0585b158f1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -150,6 +150,7 @@ fixedbugs/bug035.go:7: variable f redeclared in this block
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
++fixedbugs/bug037.go:6: s: undefined
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: variable x redeclared in this block

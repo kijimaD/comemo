@@ -10,6 +10,20 @@ Date:   Fri Jun 26 15:13:52 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/11592
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/tar/tar_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 715884a45f..3fdd83db3b 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -136,7 +136,7 @@ type headerRoundTripTest struct {
+ }
+ 
+ func TestHeaderRoundTrip(t *testing.T) {
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
+ 		t.Skipf("skipping on %s; issue 11426", runtime.GOOS)
+ 	}
+ 	golden := []headerRoundTripTest{

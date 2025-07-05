@@ -10,7 +10,65 @@ Date:   Tue May 27 23:58:49 2014 -0400
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/93610043
-
+---
  src/cmd/gc/popt.c           | 10 +++++++++-
  test/fixedbugs/issue8076.go | 17 +++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index d724637677..ea88b94dbe 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -956,7 +956,7 @@ nilwalkback(NilFlow *rcheck)
+ static void
+ nilwalkfwd(NilFlow *rcheck)
+ {
+-	NilFlow *r;
++	NilFlow *r, *last;
+ 	Prog *p;
+ 	ProgInfo info;
+ 	
+@@ -967,6 +967,7 @@ nilwalkfwd(NilFlow *rcheck)
+ 	// avoid problems like:
+ 	//	_ = *x // should panic
+ 	//	for {} // no writes but infinite loop may be considered visible
++	last = nil;
+ 	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
+ 		p = r->f.prog;
+ 		proginfo(&info, p);
+@@ -989,5 +990,12 @@ nilwalkfwd(NilFlow *rcheck)
+ 		// Stop if memory write.
+ 		if((info.flags & RightWrite) && !regtyp(&p->to))
+ 			return;
++		// Stop if we jump backward.
++		// This test is valid because all the NilFlow* are pointers into
++		// a single contiguous array. We will need to add an explicit
++		// numbering when the code is converted to Go.
++		if(last != nil && r <= last)
++			return;
++		last = r;
+ 	}
+ }
+diff --git a/test/fixedbugs/issue8076.go b/test/fixedbugs/issue8076.go
+new file mode 100644
+index 0000000000..ad89067753
+--- /dev/null
++++ b/test/fixedbugs/issue8076.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8076. nilwalkfwd walked forward forever
++// on the instruction loop following the dereference.
++
++package main
++
++func main() {
++	_ = *(*int)(nil)
++L:
++	_ = 0
++	goto L
++}

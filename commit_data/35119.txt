@@ -7,7 +7,44 @@ Date:   Wed Dec 13 16:45:09 2017 +0100
     Change-Id: Ia05fac3298334d6b44267ce02bffcd7bf8a54c72
     Reviewed-on: https://go-review.googlesource.com/83775
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file.go | 5 +++--
  src/os/path.go | 2 +-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index f9cf2b61ab..c667421dc6 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -208,7 +208,8 @@ func (f *File) WriteString(s string) (n int, err error) {
+ 	return f.Write([]byte(s))
+ }
+ 
+-// Mkdir creates a new directory with the specified name and permission bits.
++// Mkdir creates a new directory with the specified name and permission
++// bits (before umask).
+ // If there is an error, it will be of type *PathError.
+ func Mkdir(name string, perm FileMode) error {
+ 	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
+@@ -260,7 +261,7 @@ func Create(name string) (*File, error) {
+ 
+ // OpenFile is the generalized open call; most users will use Open
+ // or Create instead. It opens the named file with specified flag
+-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
++// (O_RDONLY etc.) and perm (before umask), if applicable. If successful,
+ // methods on the returned File can be used for I/O.
+ // If there is an error, it will be of type *PathError.
+ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
+diff --git a/src/os/path.go b/src/os/path.go
+index 17c49c8687..eb996e5fb9 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -13,7 +13,7 @@ import (
+ // MkdirAll creates a directory named path,
+ // along with any necessary parents, and returns nil,
+ // or else returns an error.
+-// The permission bits perm are used for all
++// The permission bits perm (before umask) are used for all
+ // directories that MkdirAll creates.
+ // If path is already a directory, MkdirAll does nothing
+ // and returns nil.

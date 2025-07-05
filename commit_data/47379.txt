@@ -34,10 +34,154 @@ Date:   Thu Feb 11 10:49:55 2021 -0800
     Trust: Filippo Valsorda <filippo@golang.org>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  5 ++++-
  src/net/udpsock.go                        | 22 +++++++++++++---------
  src/net/udpsock_plan9.go                  |  7 ++++---
  src/net/udpsock_posix.go                  |  7 +++----
  src/net/udpsock_test.go                   | 21 +++++++++++++++++++++
  5 files changed, 45 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 9d31975b31..fb9942a8da 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -16,7 +16,7 @@ import (
+ 	"testing"
+ )
+ 
+-// TestIntendedInlining tests that specific runtime functions are inlined.
++// TestIntendedInlining tests that specific functions are inlined.
+ // This allows refactoring for code clarity and re-use without fear that
+ // changes to the compiler will cause silent performance regressions.
+ func TestIntendedInlining(t *testing.T) {
+@@ -155,6 +155,9 @@ func TestIntendedInlining(t *testing.T) {
+ 			"(*rngSource).Int63",
+ 			"(*rngSource).Uint64",
+ 		},
++		"net": {
++			"(*UDPConn).ReadFromUDP",
++		},
+ 	}
+ 
+ 	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index bcd0e2763e..70f2ce226a 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -100,11 +100,20 @@ func (c *UDPConn) SyscallConn() (syscall.RawConn, error) {
+ }
+ 
+ // ReadFromUDP acts like ReadFrom but returns a UDPAddr.
+-func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
++func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
++	// This function is designed to allow the caller to control the lifetime
++	// of the returned *UDPAddr and thereby prevent an allocation.
++	// See https://blog.filippo.io/efficient-go-apis-with-the-inliner/.
++	// The real work is done by readFromUDP, below.
++	return c.readFromUDP(b, &UDPAddr{})
++}
++
++// readFromUDP implements ReadFromUDP.
++func (c *UDPConn) readFromUDP(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+-	n, addr, err := c.readFrom(b)
++	n, addr, err := c.readFrom(b, addr)
+ 	if err != nil {
+ 		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 	}
+@@ -113,14 +122,9 @@ func (c *UDPConn) ReadFromUDP(b []byte) (int, *UDPAddr, error) {
+ 
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+-	if !c.ok() {
+-		return 0, nil, syscall.EINVAL
+-	}
+-	n, addr, err := c.readFrom(b)
+-	if err != nil {
+-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+-	}
++	n, addr, err := c.readFromUDP(b, &UDPAddr{})
+ 	if addr == nil {
++		// Return Addr(nil), not Addr(*UDPConn(nil)).
+ 		return n, nil, err
+ 	}
+ 	return n, addr, err
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index 79986ce4da..1df293d1db 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -11,7 +11,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func (c *UDPConn) readFrom(b []byte) (n int, addr *UDPAddr, err error) {
++func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+ 	buf := make([]byte, udpHeaderSize+len(b))
+ 	m, err := c.fd.Read(buf)
+ 	if err != nil {
+@@ -23,8 +23,9 @@ func (c *UDPConn) readFrom(b []byte) (n int, addr *UDPAddr, err error) {
+ 	buf = buf[:m]
+ 
+ 	h, buf := unmarshalUDPHeader(buf)
+-	n = copy(b, buf)
+-	return n, &UDPAddr{IP: h.raddr, Port: int(h.rport)}, nil
++	n := copy(b, buf)
++	*addr = UDPAddr{IP: h.raddr, Port: int(h.rport)}
++	return n, addr, nil
+ }
+ 
+ func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 58c69f18ad..3b5346e573 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -43,14 +43,13 @@ func (a *UDPAddr) toLocal(net string) sockaddr {
+ 	return &UDPAddr{loopbackIP(net), a.Port, a.Zone}
+ }
+ 
+-func (c *UDPConn) readFrom(b []byte) (int, *UDPAddr, error) {
+-	var addr *UDPAddr
++func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+ 	n, sa, err := c.fd.readFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
++		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port}
+ 	case *syscall.SockaddrInet6:
+-		addr = &UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
++		*addr = UDPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneCache.name(int(sa.ZoneId))}
+ 	}
+ 	return n, addr, err
+ }
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 7a1ed4eb18..8aa64baefe 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -445,3 +445,24 @@ func TestUDPReadSizeError(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkWriteToReadFromUDP(b *testing.B) {
++	conn, err := ListenUDP("udp4", new(UDPAddr))
++	if err != nil {
++		b.Fatal(err)
++	}
++	addr := conn.LocalAddr()
++	buf := make([]byte, 8)
++	b.ResetTimer()
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		_, err := conn.WriteTo(buf, addr)
++		if err != nil {
++			b.Fatal(err)
++		}
++		_, _, err = conn.ReadFromUDP(buf)
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}

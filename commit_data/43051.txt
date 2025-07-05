@@ -14,6 +14,28 @@ Date:   Mon Mar 2 13:51:20 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f2a472bde6..34adeabae1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1274,6 +1274,16 @@ func (s *state) stmt(n *Node) {
+ 		s.assign(n.Left, r, deref, skip)
+ 
+ 	case OIF:
++		if Isconst(n.Left, CTBOOL) {
++			s.stmtList(n.Left.Ninit)
++			if n.Left.Bool() {
++				s.stmtList(n.Nbody)
++			} else {
++				s.stmtList(n.Rlist)
++			}
++			break
++		}
++
+ 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 		var likely int8
+ 		if n.Likely() {

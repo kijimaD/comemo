@@ -9,8 +9,80 @@ Date:   Fri Oct 14 11:31:00 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5269044
-
+---
  src/pkg/http/Makefile             |  5 +++++
  src/pkg/http/transport.go         | 14 +++++++++++++-
  src/pkg/http/transport_windows.go | 21 +++++++++++++++++++++
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/Makefile b/src/pkg/http/Makefile
+index af4fbc12e0..bde50cf7a2 100644
+--- a/src/pkg/http/Makefile
++++ b/src/pkg/http/Makefile
+@@ -24,4 +24,9 @@ GOFILES=\
+ 	transfer.go\
+ 	transport.go\
+ 
++GOFILES_windows=\
++	transport_windows.go\
++	
++GOFILES+=$(GOFILES_$(GOOS))
++
+ include ../../Make.pkg
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index a580e1f7cb..d46d565677 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -489,12 +489,24 @@ func (pc *persistConn) expectingResponse() bool {
+ 	return pc.numExpectedResponses > 0
+ }
+ 
++var remoteSideClosedFunc func(os.Error) bool // or nil to use default
++
++func remoteSideClosed(err os.Error) bool {
++	if err == os.EOF || err == os.EINVAL {
++		return true
++	}
++	if remoteSideClosedFunc != nil {
++		return remoteSideClosedFunc(err)
++	}
++	return false
++}
++
+ func (pc *persistConn) readLoop() {
+ 	alive := true
+ 	for alive {
+ 		pb, err := pc.br.Peek(1)
+ 		if err != nil {
+-			if (err == os.EOF || err == os.EINVAL) && !pc.expectingResponse() {
++			if remoteSideClosed(err) && !pc.expectingResponse() {
+ 				// Remote side closed on us.  (We probably hit their
+ 				// max idle timeout)
+ 				pc.close()
+diff --git a/src/pkg/http/transport_windows.go b/src/pkg/http/transport_windows.go
+new file mode 100644
+index 0000000000..1ae7d83501
+--- /dev/null
++++ b/src/pkg/http/transport_windows.go
+@@ -0,0 +1,21 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"os"
++	"net"
++)
++
++func init() {
++	remoteSideClosedFunc = func(err os.Error) (out bool) {
++		op, ok := err.(*net.OpError)
++		if ok && op.Op == "WSARecv" && op.Net == "tcp" && op.Error == os.Errno(10058) {
++			// TODO(bradfitz): find the symbol for 10058
++			return true
++		}
++		return false
++	}
++}

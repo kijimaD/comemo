@@ -12,8 +12,48 @@ Date:   Mon May 4 11:25:01 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/outbuf_mmap.go   | 2 +-
  src/cmd/link/internal/ld/outbuf_nommap.go | 2 +-
  src/cmd/link/internal/ld/outbuf_test.go   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+index e6ee041abb..f5ccfc9584 100644
+--- a/src/cmd/link/internal/ld/outbuf_mmap.go
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux openbsd
++// +build aix darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_nommap.go b/src/cmd/link/internal/ld/outbuf_nommap.go
+index 51218d8ae7..bad01dc6d5 100644
+--- a/src/cmd/link/internal/ld/outbuf_nommap.go
++++ b/src/cmd/link/internal/ld/outbuf_nommap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !darwin,!dragonfly,!freebsd,!linux,!openbsd,!windows
++// +build !aix,!darwin,!dragonfly,!freebsd,!linux,!netbsd,!openbsd,!windows
+ 
+ package ld
+ 
+diff --git a/src/cmd/link/internal/ld/outbuf_test.go b/src/cmd/link/internal/ld/outbuf_test.go
+index d8c21426b3..db0a92485e 100644
+--- a/src/cmd/link/internal/ld/outbuf_test.go
++++ b/src/cmd/link/internal/ld/outbuf_test.go
+@@ -17,7 +17,7 @@ func TestMMap(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	default:
+ 		t.Skip("unsupported OS")
+-	case "darwin", "dragonfly", "freebsd", "linux", "openbsd", "windows":
++	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows":
+ 	}
+ 	dir, err := ioutil.TempDir("", "TestMMap")
+ 	if err != nil {

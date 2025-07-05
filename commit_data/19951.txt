@@ -12,7 +12,7 @@ Date:   Thu Aug 7 09:00:02 2014 -0400
     R=rsc, aram, khr, dvyukov
     CC=axwalk, golang-codereviews
     https://golang.org/cl/106790044
-
+---
  src/cmd/cc/dcl.c                   |   9 +-
  src/pkg/runtime/callback_windows.c |   8 +-
  src/pkg/runtime/chan.goc           |  54 ++---
@@ -38,3 +38,2990 @@ Date:   Thu Aug 7 09:00:02 2014 -0400
  src/pkg/runtime/vlrt_386.c         | 412 ++++++++++++++++++-------------------
  src/pkg/runtime/vlrt_arm.c         |  27 +--
  24 files changed, 483 insertions(+), 512 deletions(-)
+
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index a7a9426865..051a6c0a74 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -1481,12 +1481,9 @@ edecl(int c, Type *t, Sym *s)
+ {
+ 	Type *t1;
+ 
+-	if(s == S) {
+-		if(!typesu[t->etype])
+-			diag(Z, "unnamed structure element must be struct/union");
+-		if(c != CXXX)
+-			diag(Z, "unnamed structure element cannot have class");
+-	} else
++	if(s == S)
++		diag(Z, "unnamed structure elements not supported");
++	else
+ 		if(c != CXXX)
+ 			diag(Z, "structure element cannot have class: %s", s->name);
+ 	t1 = t;
+diff --git a/src/pkg/runtime/callback_windows.c b/src/pkg/runtime/callback_windows.c
+index 97b75e1d2c..f1283a85d6 100644
+--- a/src/pkg/runtime/callback_windows.c
++++ b/src/pkg/runtime/callback_windows.c
+@@ -11,7 +11,7 @@
+ 
+ typedef	struct	Callbacks	Callbacks;
+ struct	Callbacks {
+-	Lock;
++	Lock			lock;
+ 	WinCallbackContext*	ctxt[cb_max];
+ 	int32			n;
+ };
+@@ -44,13 +44,13 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 		argsize += sizeof(uintptr);
+ 	}
+ 
+-	runtime·lock(&cbs);
++	runtime·lock(&cbs.lock);
+ 	if(runtime·cbctxts == nil)
+ 		runtime·cbctxts = &(cbs.ctxt[0]);
+ 	n = cbs.n;
+ 	for(i=0; i<n; i++) {
+ 		if(cbs.ctxt[i]->gobody == fn.data && cbs.ctxt[i]->cleanstack == cleanstack) {
+-			runtime·unlock(&cbs);
++			runtime·unlock(&cbs.lock);
+ 			// runtime·callbackasm is just a series of CALL instructions
+ 			// (each is 5 bytes long), and we want callback to arrive at
+ 			// correspondent call instruction instead of start of
+@@ -70,7 +70,7 @@ runtime·compilecallback(Eface fn, bool cleanstack)
+ 		c->restorestack = 0;
+ 	cbs.ctxt[n] = c;
+ 	cbs.n++;
+-	runtime·unlock(&cbs);
++	runtime·unlock(&cbs.lock);
+ 
+ 	// as before
+ 	return (byte*)runtime·callbackasm + n * 5;
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index b3520b60fc..7ddfab3f99 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -136,7 +136,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
+ 		mysg.releasetime = -1;
+ 	}
+ 
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 	if(raceenabled)
+ 		runtime·racereadpc(c, pc, chansend);
+ 	if(c->closed)
+@@ -149,7 +149,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
+ 	if(sg != nil) {
+ 		if(raceenabled)
+ 			racesync(c, sg);
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 
+ 		gp = sg->g;
+ 		gp->param = sg;
+@@ -162,7 +162,7 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
+ 	}
+ 
+ 	if(!block) {
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		return false;
+ 	}
+ 
+@@ -171,10 +171,10 @@ chansend(ChanType *t, Hchan *c, byte *ep, bool block, void *pc)
+ 	mysg.selectdone = nil;
+ 	g->param = nil;
+ 	enqueue(&c->sendq, &mysg);
+-	runtime·parkunlock(c, "chan send");
++	runtime·parkunlock(&c->lock, "chan send");
+ 
+ 	if(g->param == nil) {
+-		runtime·lock(c);
++		runtime·lock(&c->lock);
+ 		if(!c->closed)
+ 			runtime·throw("chansend: spurious wakeup");
+ 		goto closed;
+@@ -191,16 +191,16 @@ asynch:
+ 
+ 	if(c->qcount >= c->dataqsiz) {
+ 		if(!block) {
+-			runtime·unlock(c);
++			runtime·unlock(&c->lock);
+ 			return false;
+ 		}
+ 		mysg.g = g;
+ 		mysg.elem = nil;
+ 		mysg.selectdone = nil;
+ 		enqueue(&c->sendq, &mysg);
+-		runtime·parkunlock(c, "chan send");
++		runtime·parkunlock(&c->lock, "chan send");
+ 
+-		runtime·lock(c);
++		runtime·lock(&c->lock);
+ 		goto asynch;
+ 	}
+ 
+@@ -217,18 +217,18 @@ asynch:
+ 	sg = dequeue(&c->recvq);
+ 	if(sg != nil) {
+ 		gp = sg->g;
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		if(sg->releasetime)
+ 			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+ 	} else
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 	if(mysg.releasetime > 0)
+ 		runtime·blockevent(mysg.releasetime - t0, 2);
+ 	return true;
+ 
+ closed:
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ 	runtime·panicstring("send on closed channel");
+ 	return false;  // not reached
+ }
+@@ -262,7 +262,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
+ 		mysg.releasetime = -1;
+ 	}
+ 
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 	if(c->dataqsiz > 0)
+ 		goto asynch;
+ 
+@@ -273,7 +273,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
+ 	if(sg != nil) {
+ 		if(raceenabled)
+ 			racesync(c, sg);
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 
+ 		if(ep != nil)
+ 			c->elemtype->alg->copy(c->elemsize, ep, sg->elem);
+@@ -289,7 +289,7 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
+ 	}
+ 
+ 	if(!block) {
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		return false;
+ 	}
+ 
+@@ -298,10 +298,10 @@ chanrecv(ChanType *t, Hchan* c, byte *ep, bool block, bool *received)
+ 	mysg.selectdone = nil;
+ 	g->param = nil;
+ 	enqueue(&c->recvq, &mysg);
+-	runtime·parkunlock(c, "chan receive");
++	runtime·parkunlock(&c->lock, "chan receive");
+ 
+ 	if(g->param == nil) {
+-		runtime·lock(c);
++		runtime·lock(&c->lock);
+ 		if(!c->closed)
+ 			runtime·throw("chanrecv: spurious wakeup");
+ 		goto closed;
+@@ -319,7 +319,7 @@ asynch:
+ 			goto closed;
+ 
+ 		if(!block) {
+-			runtime·unlock(c);
++			runtime·unlock(&c->lock);
+ 			if(received != nil)
+ 				*received = false;
+ 			return false;
+@@ -328,9 +328,9 @@ asynch:
+ 		mysg.elem = nil;
+ 		mysg.selectdone = nil;
+ 		enqueue(&c->recvq, &mysg);
+-		runtime·parkunlock(c, "chan receive");
++		runtime·parkunlock(&c->lock, "chan receive");
+ 
+-		runtime·lock(c);
++		runtime·lock(&c->lock);
+ 		goto asynch;
+ 	}
+ 
+@@ -349,12 +349,12 @@ asynch:
+ 	sg = dequeue(&c->sendq);
+ 	if(sg != nil) {
+ 		gp = sg->g;
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		if(sg->releasetime)
+ 			sg->releasetime = runtime·cputicks();
+ 		runtime·ready(gp);
+ 	} else
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 
+ 	if(received != nil)
+ 		*received = true;
+@@ -369,7 +369,7 @@ closed:
+ 		*received = false;
+ 	if(raceenabled)
+ 		runtime·raceacquire(c);
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ 	if(mysg.releasetime > 0)
+ 		runtime·blockevent(mysg.releasetime - t0, 2);
+ 	return true;
+@@ -617,7 +617,7 @@ sellock(Select *sel)
+ 		c0 = sel->lockorder[i];
+ 		if(c0 && c0 != c) {
+ 			c = sel->lockorder[i];
+-			runtime·lock(c);
++			runtime·lock(&c->lock);
+ 		}
+ 	}
+ }
+@@ -645,7 +645,7 @@ selunlock(Select *sel)
+ 		c = sel->lockorder[i];
+ 		if(i>0 && sel->lockorder[i-1] == c)
+ 			continue;  // will unlock it on the next iteration
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 	}
+ }
+ 
+@@ -1067,9 +1067,9 @@ closechan(Hchan *c, void *pc)
+ 	if(c == nil)
+ 		runtime·panicstring("close of nil channel");
+ 
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 	if(c->closed) {
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		runtime·panicstring("close of closed channel");
+ 	}
+ 
+@@ -1104,7 +1104,7 @@ closechan(Hchan *c, void *pc)
+ 		runtime·ready(gp);
+ 	}
+ 
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ }
+ 
+ func reflect·chanlen(c *Hchan) (len int) {
+diff --git a/src/pkg/runtime/chan.h b/src/pkg/runtime/chan.h
+index 043ef7d21c..e6e6bacd32 100644
+--- a/src/pkg/runtime/chan.h
++++ b/src/pkg/runtime/chan.h
+@@ -38,7 +38,7 @@ struct	Hchan
+ 	uintgo	recvx;			// receive index
+ 	WaitQ	recvq;			// list of recv waiters
+ 	WaitQ	sendq;			// list of send waiters
+-	Lock;
++	Lock	lock;
+ };
+ 
+ // Buffer follows Hchan immediately in memory.
+diff --git a/src/pkg/runtime/defs_plan9_386.h b/src/pkg/runtime/defs_plan9_386.h
+index bde299dee1..a762b85899 100644
+--- a/src/pkg/runtime/defs_plan9_386.h
++++ b/src/pkg/runtime/defs_plan9_386.h
+@@ -21,9 +21,6 @@ struct Ureg
+ 	uint32	pc;		/* pc */
+ 	uint32	cs;		/* old context */
+ 	uint32	flags;		/* old flags */
+-	union {
+-		uint32	usp;
+-		uint32	sp;
+-	};
++	uint32	sp;
+ 	uint32	ss;		/* old stack segment */
+ };
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 9e968a250e..b002feb1c2 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -515,7 +515,7 @@ dumproots(void)
+ 				if(sp->kind != KindSpecialFinalizer)
+ 					continue;
+ 				spf = (SpecialFinalizer*)sp;
+-				p = (byte*)((s->start << PageShift) + spf->offset);
++				p = (byte*)((s->start << PageShift) + spf->special.offset);
+ 				dumpfinalizer(p, spf->fn, spf->fint, spf->ot);
+ 			}
+ 		}
+@@ -695,7 +695,7 @@ dumpmemprof(void)
+ 			if(sp->kind != KindSpecialProfile)
+ 				continue;
+ 			spp = (SpecialProfile*)sp;
+-			p = (byte*)((s->start << PageShift) + spp->offset);
++			p = (byte*)((s->start << PageShift) + spp->special.offset);
+ 			dumpint(TagAllocSample);
+ 			dumpint((uintptr)p);
+ 			dumpint((uintptr)spp->b);
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index 89c116e127..719d115880 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -42,7 +42,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	}
+ 
+ 	// compiler has provided some good hash codes for us.
+-	h = inter->hash;
++	h = inter->typ.hash;
+ 	h += 17 * type->hash;
+ 	// TODO(rsc): h += 23 * x->mhash ?
+ 	h %= nelem(hash);
+@@ -98,7 +98,7 @@ search:
+ 				throw:
+ 					// didn't find method
+ 					runtime·newTypeAssertionError(
+-						nil, type->string, inter->string,
++						nil, type->string, inter->typ.string,
+ 						iname, &err);
+ 					if(locked)
+ 						runtime·unlock(&ifacelock);
+@@ -231,7 +231,7 @@ assertI2Tret(Type *t, Iface i, byte *ret)
+ 	}
+ 	if(tab->type != t) {
+ 		runtime·newTypeAssertionError(
+-			tab->inter->string, tab->type->string, t->string,
++			tab->inter->typ.string, tab->type->string, t->string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+@@ -332,7 +332,7 @@ func assertI2E(inter *InterfaceType, i Iface) (ret Eface) {
+ 	if(tab == nil) {
+ 		// explicit conversions require non-nil interface value.
+ 		runtime·newTypeAssertionError(
+-			nil, nil, inter->string,
++			nil, nil, inter->typ.string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+@@ -377,7 +377,7 @@ runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface *ret)
+ 	if(tab == nil) {
+ 		// explicit conversions require non-nil interface value.
+ 		runtime·newTypeAssertionError(
+-			nil, nil, inter->string,
++			nil, nil, inter->typ.string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+@@ -414,7 +414,7 @@ runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
+ 	if(t == nil) {
+ 		// explicit conversions require non-nil interface value.
+ 		runtime·newTypeAssertionError(
+-			nil, nil, inter->string,
++			nil, nil, inter->typ.string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+@@ -462,7 +462,7 @@ func assertE2E(inter *InterfaceType, e Eface) (ret Eface) {
+ 	if(t == nil) {
+ 		// explicit conversions require non-nil interface value.
+ 		runtime·newTypeAssertionError(
+-			nil, nil, inter->string,
++			nil, nil, inter->typ.string,
+ 			nil, &err);
+ 		runtime·panic(err);
+ 	}
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index be3280e0f1..8b9447dad6 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -45,9 +45,9 @@ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ 	g->m->mcache->local_nlookup++;
+ 	if (sizeof(void*) == 4 && g->m->mcache->local_nlookup >= (1<<30)) {
+ 		// purge cache stats to prevent overflow
+-		runtime·lock(&runtime·mheap);
++		runtime·lock(&runtime·mheap.lock);
+ 		runtime·purgecachedstats(g->m->mcache);
+-		runtime·unlock(&runtime·mheap);
++		runtime·unlock(&runtime·mheap.lock);
+ 	}
+ 
+ 	s = runtime·MHeap_LookupMaybe(&runtime·mheap, v);
+@@ -341,7 +341,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 
+ static struct
+ {
+-	Lock;
++	Lock	lock;
+ 	byte*	pos;
+ 	byte*	end;
+ } persistent;
+@@ -370,19 +370,19 @@ runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
+ 		align = 8;
+ 	if(size >= PersistentAllocMaxBlock)
+ 		return runtime·SysAlloc(size, stat);
+-	runtime·lock(&persistent);
++	runtime·lock(&persistent.lock);
+ 	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
+ 	if(persistent.pos + size > persistent.end) {
+ 		persistent.pos = runtime·SysAlloc(PersistentAllocChunk, &mstats.other_sys);
+ 		if(persistent.pos == nil) {
+-			runtime·unlock(&persistent);
++			runtime·unlock(&persistent.lock);
+ 			runtime·throw("runtime: cannot allocate memory");
+ 		}
+ 		persistent.end = persistent.pos + PersistentAllocChunk;
+ 	}
+ 	p = persistent.pos;
+ 	persistent.pos += size;
+-	runtime·unlock(&persistent);
++	runtime·unlock(&persistent.lock);
+ 	if(stat != &mstats.other_sys) {
+ 		// reaccount the allocation against provided stat
+ 		runtime·xadd64(stat, size);
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 4b16c55536..593e9b885b 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -370,7 +370,7 @@ struct Special
+ typedef struct SpecialFinalizer SpecialFinalizer;
+ struct SpecialFinalizer
+ {
+-	Special;
++	Special		special;
+ 	FuncVal*	fn;
+ 	uintptr		nret;
+ 	Type*		fint;
+@@ -382,7 +382,7 @@ typedef struct Bucket Bucket; // from mprof.h
+ typedef struct SpecialProfile SpecialProfile;
+ struct SpecialProfile
+ {
+-	Special;
++	Special	special;
+ 	Bucket*	b;
+ };
+ 
+@@ -438,7 +438,7 @@ void	runtime·MSpanList_Remove(MSpan *span);	// from whatever list it is in
+ // Central list of free objects of a given size.
+ struct MCentral
+ {
+-	Lock;
++	Lock  lock;
+ 	int32 sizeclass;
+ 	MSpan nonempty;	// list of spans with a free object
+ 	MSpan empty;	// list of spans with no free objects (or cached in an MCache)
+@@ -454,7 +454,7 @@ bool	runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, ML
+ // but all the other global data is here too.
+ struct MHeap
+ {
+-	Lock;
++	Lock  lock;
+ 	MSpan free[MaxMHeapList];	// free lists of given length
+ 	MSpan freelarge;		// free lists length >= MaxMHeapList
+ 	MSpan busy[MaxMHeapList];	// busy lists of large objects of given length
+@@ -483,7 +483,7 @@ struct MHeap
+ 	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
+ 	// gets its own cache line.
+ 	struct {
+-		MCentral;
++		MCentral mcentral;
+ 		byte pad[CacheLineSize];
+ 	} central[NumSizeClasses];
+ 
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 665173bff5..e17bd2144f 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -22,9 +22,9 @@ runtime·allocmcache(void)
+ 	MCache *c;
+ 	int32 i;
+ 
+-	runtime·lock(&runtime·mheap);
++	runtime·lock(&runtime·mheap.lock);
+ 	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
+-	runtime·unlock(&runtime·mheap);
++	runtime·unlock(&runtime·mheap.lock);
+ 	runtime·memclr((byte*)c, sizeof(*c));
+ 	for(i = 0; i < NumSizeClasses; i++)
+ 		c->alloc[i] = &emptymspan;
+@@ -45,10 +45,10 @@ freemcache(MCache *c)
+ 	runtime·MCache_ReleaseAll(c);
+ 	runtime·stackcache_clear(c);
+ 	runtime·gcworkbuffree(c->gcworkbuf);
+-	runtime·lock(&runtime·mheap);
++	runtime·lock(&runtime·mheap.lock);
+ 	runtime·purgecachedstats(c);
+ 	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+-	runtime·unlock(&runtime·mheap);
++	runtime·unlock(&runtime·mheap.lock);
+ }
+ 
+ static void
+@@ -85,7 +85,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ 		s->incache = false;
+ 
+ 	// Get a new cached span from the central lists.
+-	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
++	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass].mcentral);
+ 	if(s == nil)
+ 		runtime·throw("out of memory");
+ 	if(s->freelist == nil) {
+@@ -106,7 +106,7 @@ runtime·MCache_ReleaseAll(MCache *c)
+ 	for(i=0; i<NumSizeClasses; i++) {
+ 		s = c->alloc[i];
+ 		if(s != &emptymspan) {
+-			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i], s);
++			runtime·MCentral_UncacheSpan(&runtime·mheap.central[i].mcentral, s);
+ 			c->alloc[i] = &emptymspan;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 3f64b5ed23..6b2de02c42 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -37,14 +37,14 @@ runtime·MCentral_CacheSpan(MCentral *c)
+ 	int32 cap, n;
+ 	uint32 sg;
+ 
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 	sg = runtime·mheap.sweepgen;
+ retry:
+ 	for(s = c->nonempty.next; s != &c->nonempty; s = s->next) {
+ 		if(s->sweepgen == sg-2 && runtime·cas(&s->sweepgen, sg-2, sg-1)) {
+-			runtime·unlock(c);
++			runtime·unlock(&c->lock);
+ 			runtime·MSpan_Sweep(s);
+-			runtime·lock(c);
++			runtime·lock(&c->lock);
+ 			// the span could have been moved to heap, retry
+ 			goto retry;
+ 		}
+@@ -63,9 +63,9 @@ retry:
+ 			runtime·MSpanList_Remove(s);
+ 			// swept spans are at the end of the list
+ 			runtime·MSpanList_InsertBack(&c->empty, s);
+-			runtime·unlock(c);
++			runtime·unlock(&c->lock);
+ 			runtime·MSpan_Sweep(s);
+-			runtime·lock(c);
++			runtime·lock(&c->lock);
+ 			// the span could be moved to nonempty or heap, retry
+ 			goto retry;
+ 		}
+@@ -80,7 +80,7 @@ retry:
+ 
+ 	// Replenish central list if empty.
+ 	if(!MCentral_Grow(c)) {
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		return nil;
+ 	}
+ 	goto retry;
+@@ -95,7 +95,7 @@ havespan:
+ 	runtime·MSpanList_Remove(s);
+ 	runtime·MSpanList_InsertBack(&c->empty, s);
+ 	s->incache = true;
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ 	return s;
+ }
+ 
+@@ -105,7 +105,7 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
+ {
+ 	int32 cap, n;
+ 
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 
+ 	s->incache = false;
+ 
+@@ -118,7 +118,7 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
+ 		runtime·MSpanList_Remove(s);
+ 		runtime·MSpanList_Insert(&c->nonempty, s);
+ 	}
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ }
+ 
+ // Free n objects from a span s back into the central free list c.
+@@ -130,7 +130,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ {
+ 	if(s->incache)
+ 		runtime·throw("freespan into cached span");
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 
+ 	// Move to nonempty if necessary.
+ 	if(s->freelist == nil) {
+@@ -150,7 +150,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	runtime·atomicstore(&s->sweepgen, runtime·mheap.sweepgen);
+ 
+ 	if(s->ref != 0) {
+-		runtime·unlock(c);
++		runtime·unlock(&c->lock);
+ 		return false;
+ 	}
+ 
+@@ -158,7 +158,7 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	runtime·MSpanList_Remove(s);
+ 	s->needzero = 1;
+ 	s->freelist = nil;
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ 	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+ 	runtime·MHeap_Free(&runtime·mheap, s, 0);
+ 	return true;
+@@ -174,14 +174,14 @@ MCentral_Grow(MCentral *c)
+ 	byte *p;
+ 	MSpan *s;
+ 
+-	runtime·unlock(c);
++	runtime·unlock(&c->lock);
+ 	npages = runtime·class_to_allocnpages[c->sizeclass];
+ 	size = runtime·class_to_size[c->sizeclass];
+ 	n = (npages << PageShift) / size;
+ 	s = runtime·MHeap_Alloc(&runtime·mheap, npages, c->sizeclass, 0, 1);
+ 	if(s == nil) {
+ 		// TODO(rsc): Log out of memory
+-		runtime·lock(c);
++		runtime·lock(&c->lock);
+ 		return false;
+ 	}
+ 
+@@ -198,7 +198,7 @@ MCentral_Grow(MCentral *c)
+ 	*tailp = nil;
+ 	runtime·markspan((byte*)(s->start<<PageShift), size, n, size*n < (s->npages<<PageShift));
+ 
+-	runtime·lock(c);
++	runtime·lock(&c->lock);
+ 	runtime·MSpanList_Insert(&c->nonempty, s);
+ 	return true;
+ }
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8998a871ae..d7e5d89f01 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -539,7 +539,7 @@ markroot(ParFor *desc, uint32 i)
+ 				// retain everything it points to.
+ 				spf = (SpecialFinalizer*)sp;
+ 				// A finalizer can be set for an inner byte of an object, find object beginning.
+-				p = (void*)((s->start << PageShift) + spf->offset/s->elemsize*s->elemsize);
++				p = (void*)((s->start << PageShift) + spf->special.offset/s->elemsize*s->elemsize);
+ 				scanblock(p, s->elemsize, nil);
+ 				scanblock((void*)&spf->fn, PtrSize, ScanConservatively);
+ 			}
+@@ -1043,7 +1043,7 @@ runtime·MSpan_Sweep(MSpan *s)
+ 		c->local_nsmallfree[cl] += nfree;
+ 		c->local_cachealloc -= nfree * size;
+ 		runtime·xadd64(&mstats.next_gc, -(uint64)(nfree * size * (runtime·gcpercent + 100)/100));
+-		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl], s, nfree, head.next, end);
++		res = runtime·MCentral_FreeSpan(&runtime·mheap.central[cl].mcentral, s, nfree, head.next, end);
+ 		// MCentral_FreeSpan updates sweepgen
+ 	}
+ 	return res;
+@@ -1308,10 +1308,10 @@ runtime·gc(int32 force)
+ 		return;
+ 
+ 	if(runtime·gcpercent == GcpercentUnknown) {	// first time through
+-		runtime·lock(&runtime·mheap);
++		runtime·lock(&runtime·mheap.lock);
+ 		if(runtime·gcpercent == GcpercentUnknown)
+ 			runtime·gcpercent = runtime·readgogc();
+-		runtime·unlock(&runtime·mheap);
++		runtime·unlock(&runtime·mheap.lock);
+ 	}
+ 	if(runtime·gcpercent < 0)
+ 		return;
+@@ -1560,7 +1560,7 @@ runtime∕debug·readGCStats(Slice *pauses)
+ 
+ 	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
+ 	p = (uint64*)pauses->array;
+-	runtime·lock(&runtime·mheap);
++	runtime·lock(&runtime·mheap.lock);
+ 	n = mstats.numgc;
+ 	if(n > nelem(mstats.pause_ns))
+ 		n = nelem(mstats.pause_ns);
+@@ -1575,7 +1575,7 @@ runtime∕debug·readGCStats(Slice *pauses)
+ 	p[n] = mstats.last_gc;
+ 	p[n+1] = mstats.numgc;
+ 	p[n+2] = mstats.pause_total_ns;	
+-	runtime·unlock(&runtime·mheap);
++	runtime·unlock(&runtime·mheap.lock);
+ 	pauses->len = n+3;
+ }
+ 
+@@ -1583,14 +1583,14 @@ int32
+ runtime·setgcpercent(int32 in) {
+ 	int32 out;
+ 
+-	runtime·lock(&runtime·mheap);
++	runtime·lock(&runtime·mheap.lock);
+ 	if(runtime·gcpercent == GcpercentUnknown)
+ 		runtime·gcpercent = runtime·readgogc();
+ 	out = runtime·gcpercent;
+ 	if(in < 0)
+ 		in = -1;
+ 	runtime·gcpercent = in;
+-	runtime·unlock(&runtime·mheap);
++	runtime·unlock(&runtime·mheap.lock);
+ 	return out;
+ }
+ 
+@@ -1670,11 +1670,11 @@ runfinq(void)
+ 				} else if(((InterfaceType*)f->fint)->mhdr.len == 0) {
+ 					// convert to empty interface
+ 					ef = (Eface*)frame;
+-					ef->type = f->ot;
++					ef->type = &f->ot->typ;
+ 					ef->data = f->arg;
+ 				} else {
+ 					// convert to interface with methods, via empty interface.
+-					ef1.type = f->ot;
++					ef1.type = &f->ot->typ;
+ 					ef1.data = f->arg;
+ 					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
+ 						runtime·throw("invalid type conversion in runfinq");
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index c7043bb143..908d668462 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -70,7 +70,7 @@ runtime·MHeap_Init(MHeap *h)
+ 	runtime·MSpanList_Init(&h->freelarge);
+ 	runtime·MSpanList_Init(&h->busylarge);
+ 	for(i=0; i<nelem(h->central); i++)
+-		runtime·MCentral_Init(&h->central[i], i);
++		runtime·MCentral_Init(&h->central[i].mcentral, i);
+ }
+ 
+ void
+@@ -106,9 +106,9 @@ retry:
+ 			runtime·MSpanList_Remove(s);
+ 			// swept spans are at the end of the list
+ 			runtime·MSpanList_InsertBack(list, s);
+-			runtime·unlock(h);
++			runtime·unlock(&h->lock);
+ 			n += runtime·MSpan_Sweep(s);
+-			runtime·lock(h);
++			runtime·lock(&h->lock);
+ 			if(n >= npages)
+ 				return n;
+ 			// the span could have been moved elsewhere
+@@ -153,7 +153,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
+ 	}
+ 
+ 	// Now sweep everything that is not yet swept.
+-	runtime·unlock(h);
++	runtime·unlock(&h->lock);
+ 	for(;;) {
+ 		n = runtime·sweepone();
+ 		if(n == -1)  // all spans are swept
+@@ -162,7 +162,7 @@ MHeap_Reclaim(MHeap *h, uintptr npage)
+ 		if(reclaimed >= npage)
+ 			break;
+ 	}
+-	runtime·lock(h);
++	runtime·lock(&h->lock);
+ }
+ 
+ // Allocate a new span of npage pages from the heap for GC'd memory
+@@ -174,7 +174,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
+ 
+ 	if(g != g->m->g0)
+ 		runtime·throw("mheap_alloc not on M stack");
+-	runtime·lock(h);
++	runtime·lock(&h->lock);
+ 
+ 	// To prevent excessive heap growth, before allocating n pages
+ 	// we need to sweep and reclaim at least n pages.
+@@ -207,7 +207,7 @@ mheap_alloc(MHeap *h, uintptr npage, int32 sizeclass, bool large)
+ 				runtime·MSpanList_InsertBack(&h->busylarge, s);
+ 		}
+ 	}
+-	runtime·unlock(h);
++	runtime·unlock(&h->lock);
+ 	return s;
+ }
+ 
+@@ -259,7 +259,7 @@ runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
+ 
+ 	if(g != g->m->g0)
+ 		runtime·throw("mheap_allocstack not on M stack");
+-	runtime·lock(h);
++	runtime·lock(&h->lock);
+ 	s = MHeap_AllocSpanLocked(h, npage);
+ 	if(s != nil) {
+ 		s->state = MSpanStack;
+@@ -267,7 +267,7 @@ runtime·MHeap_AllocStack(MHeap *h, uintptr npage)
+ 		s->ref = 0;
+ 		mstats.stacks_inuse += s->npages<<PageShift;
+ 	}
+-	runtime·unlock(h);
++	runtime·unlock(&h->lock);
+ 	return s;
+ }
+ 
+@@ -460,7 +460,7 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
+ {
+ 	if(g != g->m->g0)
+ 		runtime·throw("mheap_free not on M stack");
+-	runtime·lock(h);
++	runtime·lock(&h->lock);
+ 	mstats.heap_alloc += g->m->mcache->local_cachealloc;
+ 	g->m->mcache->local_cachealloc = 0;
+ 	if(acct) {
+@@ -468,7 +468,7 @@ mheap_free(MHeap *h, MSpan *s, int32 acct)
+ 		mstats.heap_objects--;
+ 	}
+ 	MHeap_FreeSpanLocked(h, s);
+-	runtime·unlock(h);
++	runtime·unlock(&h->lock);
+ }
+ 
+ static void
+@@ -504,10 +504,10 @@ runtime·MHeap_FreeStack(MHeap *h, MSpan *s)
+ 	if(g != g->m->g0)
+ 		runtime·throw("mheap_freestack not on M stack");
+ 	s->needzero = 1;
+-	runtime·lock(h);
++	runtime·lock(&h->lock);
+ 	mstats.stacks_inuse -= s->npages<<PageShift;
+ 	MHeap_FreeSpanLocked(h, s);
+-	runtime·unlock(h);
++	runtime·unlock(&h->lock);
+ }
+ 
+ static void
+@@ -626,9 +626,9 @@ scavenge(int32 k, uint64 now, uint64 limit)
+ static void
+ scavenge_m(G *gp)
+ {
+-	runtime·lock(&runtime·mheap);
++	runtime·lock(&runtime·mheap.lock);
+ 	scavenge(g->m->scalararg[0], g->m->scalararg[1], g->m->scalararg[2]);
+-	runtime·unlock(&runtime·mheap);
++	runtime·unlock(&runtime·mheap.lock);
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+@@ -865,12 +865,12 @@ runtime·addfinalizer(void *p, FuncVal *f, uintptr nret, Type *fint, PtrType *ot
+ 	runtime·lock(&runtime·mheap.speciallock);
+ 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialfinalizeralloc);
+ 	runtime·unlock(&runtime·mheap.speciallock);
+-	s->kind = KindSpecialFinalizer;
++	s->special.kind = KindSpecialFinalizer;
+ 	s->fn = f;
+ 	s->nret = nret;
+ 	s->fint = fint;
+ 	s->ot = ot;
+-	if(addspecial(p, s))
++	if(addspecial(p, &s->special))
+ 		return true;
+ 
+ 	// There was an old finalizer
+@@ -903,9 +903,9 @@ runtime·setprofilebucket(void *p, Bucket *b)
+ 	runtime·lock(&runtime·mheap.speciallock);
+ 	s = runtime·FixAlloc_Alloc(&runtime·mheap.specialprofilealloc);
+ 	runtime·unlock(&runtime·mheap.speciallock);
+-	s->kind = KindSpecialProfile;
++	s->special.kind = KindSpecialProfile;
+ 	s->b = b;
+-	if(!addspecial(p, s))
++	if(!addspecial(p, &s->special))
+ 		runtime·throw("setprofilebucket: profile already set");
+ }
+ 
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 053781193e..6a028c31f3 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -92,20 +92,20 @@ MProf_GC(void)
+ 	Bucket *b;
+ 
+ 	for(b=mbuckets; b; b=b->allnext) {
+-		b->allocs += b->prev_allocs;
+-		b->frees += b->prev_frees;
+-		b->alloc_bytes += b->prev_alloc_bytes;
+-		b->free_bytes += b->prev_free_bytes;
+-
+-		b->prev_allocs = b->recent_allocs;
+-		b->prev_frees = b->recent_frees;
+-		b->prev_alloc_bytes = b->recent_alloc_bytes;
+-		b->prev_free_bytes = b->recent_free_bytes;
+-
+-		b->recent_allocs = 0;
+-		b->recent_frees = 0;
+-		b->recent_alloc_bytes = 0;
+-		b->recent_free_bytes = 0;
++		b->data.mp.allocs += b->data.mp.prev_allocs;
++		b->data.mp.frees += b->data.mp.prev_frees;
++		b->data.mp.alloc_bytes += b->data.mp.prev_alloc_bytes;
++		b->data.mp.free_bytes += b->data.mp.prev_free_bytes;
++
++		b->data.mp.prev_allocs = b->data.mp.recent_allocs;
++		b->data.mp.prev_frees = b->data.mp.recent_frees;
++		b->data.mp.prev_alloc_bytes = b->data.mp.recent_alloc_bytes;
++		b->data.mp.prev_free_bytes = b->data.mp.recent_free_bytes;
++
++		b->data.mp.recent_allocs = 0;
++		b->data.mp.recent_frees = 0;
++		b->data.mp.recent_alloc_bytes = 0;
++		b->data.mp.recent_free_bytes = 0;
+ 	}
+ }
+ 
+@@ -129,8 +129,8 @@ runtime·MProf_Malloc(void *p, uintptr size)
+ 	nstk = runtime·callers(1, stk, nelem(stk));
+ 	runtime·lock(&proflock);
+ 	b = stkbucket(MProf, size, stk, nstk, true);
+-	b->recent_allocs++;
+-	b->recent_alloc_bytes += size;
++	b->data.mp.recent_allocs++;
++	b->data.mp.recent_alloc_bytes += size;
+ 	runtime·unlock(&proflock);
+ 
+ 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
+@@ -160,8 +160,8 @@ runtime·mprofMalloc_m(void)
+ 		nstk = runtime·gcallers(g->m->curg, 1, stk, nelem(stk));
+ 	runtime·lock(&proflock);
+ 	b = stkbucket(MProf, size, stk, nstk, true);
+-	b->recent_allocs++;
+-	b->recent_alloc_bytes += size;
++	b->data.mp.recent_allocs++;
++	b->data.mp.recent_alloc_bytes += size;
+ 	runtime·unlock(&proflock);
+ 
+ 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of proflock.
+@@ -177,11 +177,11 @@ runtime·MProf_Free(Bucket *b, uintptr size, bool freed)
+ {
+ 	runtime·lock(&proflock);
+ 	if(freed) {
+-		b->recent_frees++;
+-		b->recent_free_bytes += size;
++		b->data.mp.recent_frees++;
++		b->data.mp.recent_free_bytes += size;
+ 	} else {
+-		b->prev_frees++;
+-		b->prev_free_bytes += size;
++		b->data.mp.prev_frees++;
++		b->data.mp.prev_free_bytes += size;
+ 	}
+ 	runtime·unlock(&proflock);
+ }
+@@ -221,8 +221,8 @@ runtime·blockevent(int64 cycles, int32 skip)
+ 	nstk = runtime·callers(skip, stk, nelem(stk));
+ 	runtime·lock(&proflock);
+ 	b = stkbucket(BProf, 0, stk, nstk, true);
+-	b->count++;
+-	b->cycles += cycles;
++	b->data.bp.count++;
++	b->data.bp.cycles += cycles;
+ 	runtime·unlock(&proflock);
+ }
+ 
+@@ -242,10 +242,10 @@ record(Record *r, Bucket *b)
+ {
+ 	int32 i;
+ 
+-	r->alloc_bytes = b->alloc_bytes;
+-	r->free_bytes = b->free_bytes;
+-	r->alloc_objects = b->allocs;
+-	r->free_objects = b->frees;
++	r->alloc_bytes = b->data.mp.alloc_bytes;
++	r->free_bytes = b->data.mp.free_bytes;
++	r->alloc_objects = b->data.mp.allocs;
++	r->free_objects = b->data.mp.frees;
+ 	for(i=0; i<b->nstk && i<nelem(r->stk); i++)
+ 		r->stk[i] = b->stk[i];
+ 	for(; i<nelem(r->stk); i++)
+@@ -261,9 +261,9 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+ 	n = 0;
+ 	clear = true;
+ 	for(b=mbuckets; b; b=b->allnext) {
+-		if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
++		if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
+ 			n++;
+-		if(b->allocs != 0 || b->frees != 0)
++		if(b->data.mp.allocs != 0 || b->data.mp.frees != 0)
+ 			clear = false;
+ 	}
+ 	if(clear) {
+@@ -275,7 +275,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+ 		MProf_GC();
+ 		n = 0;
+ 		for(b=mbuckets; b; b=b->allnext)
+-			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
++			if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
+ 				n++;
+ 	}
+ 	ok = false;
+@@ -283,7 +283,7 @@ func MemProfile(p Slice, include_inuse_zero bool) (n int, ok bool) {
+ 		ok = true;
+ 		r = (Record*)p.array;
+ 		for(b=mbuckets; b; b=b->allnext)
+-			if(include_inuse_zero || b->alloc_bytes != b->free_bytes)
++			if(include_inuse_zero || b->data.mp.alloc_bytes != b->data.mp.free_bytes)
+ 				record(r++, b);
+ 	}
+ 	runtime·unlock(&proflock);
+@@ -296,7 +296,7 @@ runtime·iterate_memprof(void (*callback)(Bucket*, uintptr, uintptr*, uintptr, u
+ 
+ 	runtime·lock(&proflock);
+ 	for(b=mbuckets; b; b=b->allnext) {
+-		callback(b, b->nstk, b->stk, b->size, b->allocs, b->frees);
++		callback(b, b->nstk, b->stk, b->size, b->data.mp.allocs, b->data.mp.frees);
+ 	}
+ 	runtime·unlock(&proflock);
+ }
+@@ -323,8 +323,8 @@ func BlockProfile(p Slice) (n int, ok bool) {
+ 		ok = true;
+ 		r = (BRecord*)p.array;
+ 		for(b=bbuckets; b; b=b->allnext, r++) {
+-			r->count = b->count;
+-			r->cycles = b->cycles;
++			r->count = b->data.bp.count;
++			r->cycles = b->data.bp.cycles;
+ 			for(i=0; i<b->nstk && i<nelem(r->stk); i++)
+ 				r->stk[i] = b->stk[i];
+ 			for(; i<nelem(r->stk); i++)
+diff --git a/src/pkg/runtime/mprof.h b/src/pkg/runtime/mprof.h
+index de5e707d60..5e9f3b55a4 100644
+--- a/src/pkg/runtime/mprof.h
++++ b/src/pkg/runtime/mprof.h
+@@ -42,13 +42,13 @@ struct Bucket
+ 			uintptr	recent_alloc_bytes;
+ 			uintptr	recent_free_bytes;
+ 
+-		};
++		} mp;
+ 		struct  // typ == BProf
+ 		{
+ 			int64	count;
+ 			int64	cycles;
+-		};
+-	};
++		} bp;
++	} data;
+ 	uintptr	hash;	// hash of size + stk
+ 	uintptr	size;
+ 	uintptr	nstk;
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 7b3d16d02d..eb7f8878cb 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -48,7 +48,7 @@ struct PollDesc
+ 	// pollReset, pollWait, pollWaitCanceled and runtime·netpollready (IO rediness notification)
+ 	// proceed w/o taking the lock. So closing, rg, rd, wg and wd are manipulated
+ 	// in a lock-free way by all operations.
+-	Lock;		// protectes the following fields
++	Lock	lock;		// protectes the following fields
+ 	uintptr	fd;
+ 	bool	closing;
+ 	uintptr	seq;	// protects from stale timers and ready notifications
+@@ -63,7 +63,7 @@ struct PollDesc
+ 
+ static struct
+ {
+-	Lock;
++	Lock		lock;
+ 	PollDesc*	first;
+ 	// PollDesc objects must be type-stable,
+ 	// because we can get ready notification from epoll/kqueue
+@@ -95,7 +95,7 @@ func runtime_pollServerInit() {
+ 
+ func runtime_pollOpen(fd uintptr) (pd *PollDesc, errno int) {
+ 	pd = allocPollDesc();
+-	runtime·lock(pd);
++	runtime·lock(&pd->lock);
+ 	if(pd->wg != nil && pd->wg != READY)
+ 		runtime·throw("runtime_pollOpen: blocked write on free descriptor");
+ 	if(pd->rg != nil && pd->rg != READY)
+@@ -107,7 +107,7 @@ func runtime_pollOpen(fd uintptr) (pd *PollDesc, errno int) {
+ 	pd->rd = 0;
+ 	pd->wg = nil;
+ 	pd->wd = 0;
+-	runtime·unlock(pd);
++	runtime·unlock(&pd->lock);
+ 
+ 	errno = runtime·netpollopen(fd, pd);
+ }
+@@ -120,10 +120,10 @@ func runtime_pollClose(pd *PollDesc) {
+ 	if(pd->rg != nil && pd->rg != READY)
+ 		runtime·throw("runtime_pollClose: blocked read on closing descriptor");
+ 	runtime·netpollclose(pd->fd);
+-	runtime·lock(&pollcache);
++	runtime·lock(&pollcache.lock);
+ 	pd->link = pollcache.first;
+ 	pollcache.first = pd;
+-	runtime·unlock(&pollcache);
++	runtime·unlock(&pollcache.lock);
+ }
+ 
+ func runtime_pollReset(pd *PollDesc, mode int) (err int) {
+@@ -164,9 +164,9 @@ func runtime_pollWaitCanceled(pd *PollDesc, mode int) {
+ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
+ 	G *rg, *wg;
+ 
+-	runtime·lock(pd);
++	runtime·lock(&pd->lock);
+ 	if(pd->closing) {
+-		runtime·unlock(pd);
++		runtime·unlock(&pd->lock);
+ 		return;
+ 	}
+ 	pd->seq++;  // invalidate current timers
+@@ -218,7 +218,7 @@ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
+ 		rg = netpollunblock(pd, 'r', false);
+ 	if(pd->wd < 0)
+ 		wg = netpollunblock(pd, 'w', false);
+-	runtime·unlock(pd);
++	runtime·unlock(&pd->lock);
+ 	if(rg)
+ 		runtime·ready(rg);
+ 	if(wg)
+@@ -228,7 +228,7 @@ func runtime_pollSetDeadline(pd *PollDesc, d int64, mode int) {
+ func runtime_pollUnblock(pd *PollDesc) {
+ 	G *rg, *wg;
+ 
+-	runtime·lock(pd);
++	runtime·lock(&pd->lock);
+ 	if(pd->closing)
+ 		runtime·throw("runtime_pollUnblock: already closing");
+ 	pd->closing = true;
+@@ -244,7 +244,7 @@ func runtime_pollUnblock(pd *PollDesc) {
+ 		runtime·deltimer(&pd->wt);
+ 		pd->wt.fv = nil;
+ 	}
+-	runtime·unlock(pd);
++	runtime·unlock(&pd->lock);
+ 	if(rg)
+ 		runtime·ready(rg);
+ 	if(wg)
+@@ -272,13 +272,13 @@ runtime·netpollclosing(PollDesc *pd)
+ void
+ runtime·netpolllock(PollDesc *pd)
+ {
+-	runtime·lock(pd);
++	runtime·lock(&pd->lock);
+ }
+ 
+ void
+ runtime·netpollunlock(PollDesc *pd)
+ {
+-	runtime·unlock(pd);
++	runtime·unlock(&pd->lock);
+ }
+ 
+ // make pd ready, newly runnable goroutines (if any) are enqueued info gpp list
+@@ -396,10 +396,10 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
+ 	// If it's stale, ignore the timer event.
+ 	seq = (uintptr)arg.type;
+ 	rg = wg = nil;
+-	runtime·lock(pd);
++	runtime·lock(&pd->lock);
+ 	if(seq != pd->seq) {
+ 		// The descriptor was reused or timers were reset.
+-		runtime·unlock(pd);
++		runtime·unlock(&pd->lock);
+ 		return;
+ 	}
+ 	if(read) {
+@@ -416,7 +416,7 @@ deadlineimpl(int64 now, Eface arg, bool read, bool write)
+ 		runtime·atomicstorep(&pd->wt.fv, nil);  // full memory barrier between store to wd and load of wg in netpollunblock
+ 		wg = netpollunblock(pd, 'w', false);
+ 	}
+-	runtime·unlock(pd);
++	runtime·unlock(&pd->lock);
+ 	if(rg)
+ 		runtime·ready(rg);
+ 	if(wg)
+@@ -447,7 +447,7 @@ allocPollDesc(void)
+ 	PollDesc *pd;
+ 	uint32 i, n;
+ 
+-	runtime·lock(&pollcache);
++	runtime·lock(&pollcache.lock);
+ 	if(pollcache.first == nil) {
+ 		n = PollBlockSize/sizeof(*pd);
+ 		if(n == 0)
+@@ -462,6 +462,6 @@ allocPollDesc(void)
+ 	}
+ 	pd = pollcache.first;
+ 	pollcache.first = pd->link;
+-	runtime·unlock(&pollcache);
++	runtime·unlock(&pollcache.lock);
+ 	return pd;
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 137f49f5f0..cef41d95f2 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -26,7 +26,7 @@
+ 
+ typedef struct Sched Sched;
+ struct Sched {
+-	Lock;
++	Lock	lock;
+ 
+ 	uint64	goidgen;
+ 
+@@ -371,7 +371,7 @@ mcommoninit(M *mp)
+ 
+ 	mp->fastrand = 0x49f6428aUL + mp->id + runtime·cputicks();
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	mp->id = runtime·sched.mcount++;
+ 	checkmcount();
+ 	runtime·mpreinit(mp);
+@@ -382,7 +382,7 @@ mcommoninit(M *mp)
+ 	// runtime·NumCgoCall() iterates over allm w/o schedlock,
+ 	// so we need to publish it safely.
+ 	runtime·atomicstorep(&runtime·allm, mp);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ }
+ 
+ // Mark gp ready to run.
+@@ -411,7 +411,7 @@ runtime·gcprocs(void)
+ 
+ 	// Figure out how many CPUs to use during GC.
+ 	// Limited by gomaxprocs, number of actual CPUs, and MaxGcproc.
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	n = runtime·gomaxprocs;
+ 	if(n > runtime·ncpu)
+ 		n = runtime·ncpu;
+@@ -419,7 +419,7 @@ runtime·gcprocs(void)
+ 		n = MaxGcproc;
+ 	if(n > runtime·sched.nmidle+1) // one M is currently running
+ 		n = runtime·sched.nmidle+1;
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	return n;
+ }
+ 
+@@ -428,14 +428,14 @@ needaddgcproc(void)
+ {
+ 	int32 n;
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	n = runtime·gomaxprocs;
+ 	if(n > runtime·ncpu)
+ 		n = runtime·ncpu;
+ 	if(n > MaxGcproc)
+ 		n = MaxGcproc;
+ 	n -= runtime·sched.nmidle+1; // one M is currently running
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	return n > 0;
+ }
+ 
+@@ -445,7 +445,7 @@ runtime·helpgc(int32 nproc)
+ 	M *mp;
+ 	int32 n, pos;
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	pos = 0;
+ 	for(n = 1; n < nproc; n++) {  // one M is currently running
+ 		if(runtime·allp[pos]->mcache == g->m->mcache)
+@@ -458,7 +458,7 @@ runtime·helpgc(int32 nproc)
+ 		pos++;
+ 		runtime·notewakeup(&mp->park);
+ 	}
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ }
+ 
+ // Similar to stoptheworld but best-effort and can be called several times.
+@@ -497,7 +497,7 @@ runtime·stoptheworld(void)
+ 	P *p;
+ 	bool wait;
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	runtime·sched.stopwait = runtime·gomaxprocs;
+ 	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
+ 	preemptall();
+@@ -517,7 +517,7 @@ runtime·stoptheworld(void)
+ 		runtime·sched.stopwait--;
+ 	}
+ 	wait = runtime·sched.stopwait > 0;
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 
+ 	// wait for remaining P's to stop voluntarily
+ 	if(wait) {
+@@ -557,7 +557,7 @@ runtime·starttheworld(void)
+ 	gp = runtime·netpoll(false);  // non-blocking
+ 	injectglist(gp);
+ 	add = needaddgcproc();
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	if(newprocs) {
+ 		procresize(newprocs);
+ 		newprocs = 0;
+@@ -581,7 +581,7 @@ runtime·starttheworld(void)
+ 		runtime·sched.sysmonwait = false;
+ 		runtime·notewakeup(&runtime·sched.sysmonnote);
+ 	}
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 
+ 	while(p1) {
+ 		p = p1;
+@@ -964,9 +964,9 @@ stopm(void)
+ 	}
+ 
+ retry:
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	mput(g->m);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	runtime·notesleep(&g->m->park);
+ 	runtime·noteclear(&g->m->park);
+ 	if(g->m->helpgc) {
+@@ -993,18 +993,18 @@ startm(P *p, bool spinning)
+ 	M *mp;
+ 	void (*fn)(void);
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	if(p == nil) {
+ 		p = pidleget();
+ 		if(p == nil) {
+-			runtime·unlock(&runtime·sched);
++			runtime·unlock(&runtime·sched.lock);
+ 			if(spinning)
+ 				runtime·xadd(&runtime·sched.nmspinning, -1);
+ 			return;
+ 		}
+ 	}
+ 	mp = mget();
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	if(mp == nil) {
+ 		fn = nil;
+ 		if(spinning)
+@@ -1037,28 +1037,28 @@ handoffp(P *p)
+ 		startm(p, true);
+ 		return;
+ 	}
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	if(runtime·sched.gcwaiting) {
+ 		p->status = Pgcstop;
+ 		if(--runtime·sched.stopwait == 0)
+ 			runtime·notewakeup(&runtime·sched.stopnote);
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		return;
+ 	}
+ 	if(runtime·sched.runqsize) {
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		startm(p, false);
+ 		return;
+ 	}
+ 	// If this is the last running P and nobody is polling network,
+ 	// need to wakeup another M to poll network.
+ 	if(runtime·sched.npidle == runtime·gomaxprocs-1 && runtime·atomicload64(&runtime·sched.lastpoll) != 0) {
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		startm(p, false);
+ 		return;
+ 	}
+ 	pidleput(p);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ }
+ 
+ // Tries to add one more P to execute G's.
+@@ -1130,11 +1130,11 @@ gcstopm(void)
+ 		runtime·xadd(&runtime·sched.nmspinning, -1);
+ 	}
+ 	p = releasep();
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	p->status = Pgcstop;
+ 	if(--runtime·sched.stopwait == 0)
+ 		runtime·notewakeup(&runtime·sched.stopnote);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	stopm();
+ }
+ 
+@@ -1187,9 +1187,9 @@ top:
+ 		return gp;
+ 	// global runq
+ 	if(runtime·sched.runqsize) {
+-		runtime·lock(&runtime·sched);
++		runtime·lock(&runtime·sched.lock);
+ 		gp = globrunqget(g->m->p, 0);
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		if(gp)
+ 			return gp;
+ 	}
+@@ -1223,19 +1223,19 @@ top:
+ 	}
+ stop:
+ 	// return P and block
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	if(runtime·sched.gcwaiting) {
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		goto top;
+ 	}
+ 	if(runtime·sched.runqsize) {
+ 		gp = globrunqget(g->m->p, 0);
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		return gp;
+ 	}
+ 	p = releasep();
+ 	pidleput(p);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	if(g->m->spinning) {
+ 		g->m->spinning = false;
+ 		runtime·xadd(&runtime·sched.nmspinning, -1);
+@@ -1244,9 +1244,9 @@ stop:
+ 	for(i = 0; i < runtime·gomaxprocs; i++) {
+ 		p = runtime·allp[i];
+ 		if(p && p->runqhead != p->runqtail) {
+-			runtime·lock(&runtime·sched);
++			runtime·lock(&runtime·sched.lock);
+ 			p = pidleget();
+-			runtime·unlock(&runtime·sched);
++			runtime·unlock(&runtime·sched.lock);
+ 			if(p) {
+ 				acquirep(p);
+ 				goto top;
+@@ -1263,9 +1263,9 @@ stop:
+ 		gp = runtime·netpoll(true);  // block until new work is available
+ 		runtime·atomicstore64(&runtime·sched.lastpoll, runtime·nanotime());
+ 		if(gp) {
+-			runtime·lock(&runtime·sched);
++			runtime·lock(&runtime·sched.lock);
+ 			p = pidleget();
+-			runtime·unlock(&runtime·sched);
++			runtime·unlock(&runtime·sched.lock);
+ 			if(p) {
+ 				acquirep(p);
+ 				injectglist(gp->schedlink);
+@@ -1308,14 +1308,14 @@ injectglist(G *glist)
+ 
+ 	if(glist == nil)
+ 		return;
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	for(n = 0; glist; n++) {
+ 		gp = glist;
+ 		glist = gp->schedlink;
+ 		gp->status = Grunnable;
+ 		globrunqput(gp);
+ 	}
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 
+ 	for(; n && runtime·sched.npidle; n--)
+ 		startm(nil, false);
+@@ -1351,9 +1351,9 @@ top:
+ 	// This is a fancy way to say tick%61==0,
+ 	// it uses 2 MUL instructions instead of a single DIV and so is faster on modern processors.
+ 	if(tick - (((uint64)tick*0x4325c53fu)>>36)*61 == 0 && runtime·sched.runqsize > 0) {
+-		runtime·lock(&runtime·sched);
++		runtime·lock(&runtime·sched.lock);
+ 		gp = globrunqget(g->m->p, 1);
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		if(gp)
+ 			resetspinning();
+ 	}
+@@ -1459,9 +1459,9 @@ runtime·gosched0(G *gp)
+ {
+ 	gp->status = Grunnable;
+ 	dropg();
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	globrunqput(gp);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 
+ 	schedule();
+ }
+@@ -1551,12 +1551,12 @@ void
+ 	}
+ 
+ 	if(runtime·atomicload(&runtime·sched.sysmonwait)) {  // TODO: fast atomic
+-		runtime·lock(&runtime·sched);
++		runtime·lock(&runtime·sched.lock);
+ 		if(runtime·atomicload(&runtime·sched.sysmonwait)) {
+ 			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+ 			runtime·notewakeup(&runtime·sched.sysmonnote);
+ 		}
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	}
+ 
+@@ -1564,12 +1564,12 @@ void
+ 	g->m->p->m = nil;
+ 	runtime·atomicstore(&g->m->p->status, Psyscall);
+ 	if(runtime·sched.gcwaiting) {
+-		runtime·lock(&runtime·sched);
++		runtime·lock(&runtime·sched.lock);
+ 		if (runtime·sched.stopwait > 0 && runtime·cas(&g->m->p->status, Psyscall, Pgcstop)) {
+ 			if(--runtime·sched.stopwait == 0)
+ 				runtime·notewakeup(&runtime·sched.stopnote);
+ 		}
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	}
+ 
+@@ -1685,13 +1685,13 @@ exitsyscallfast(void)
+ 	// Try to get any other idle P.
+ 	g->m->p = nil;
+ 	if(runtime·sched.pidle) {
+-		runtime·lock(&runtime·sched);
++		runtime·lock(&runtime·sched.lock);
+ 		p = pidleget();
+ 		if(p && runtime·atomicload(&runtime·sched.sysmonwait)) {
+ 			runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+ 			runtime·notewakeup(&runtime·sched.sysmonnote);
+ 		}
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		if(p) {
+ 			acquirep(p);
+ 			return true;
+@@ -1709,7 +1709,7 @@ exitsyscall0(G *gp)
+ 
+ 	gp->status = Grunnable;
+ 	dropg();
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	p = pidleget();
+ 	if(p == nil)
+ 		globrunqput(gp);
+@@ -1717,7 +1717,7 @@ exitsyscall0(G *gp)
+ 		runtime·atomicstore(&runtime·sched.sysmonwait, 0);
+ 		runtime·notewakeup(&runtime·sched.sysmonnote);
+ 	}
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	if(p) {
+ 		acquirep(p);
+ 		execute(gp);  // Never returns.
+@@ -2069,13 +2069,13 @@ runtime·gomaxprocsfunc(int32 n)
+ 
+ 	if(n > MaxGomaxprocs)
+ 		n = MaxGomaxprocs;
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	ret = runtime·gomaxprocs;
+ 	if(n <= 0 || n == ret) {
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		return ret;
+ 	}
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 
+ 	runtime·semacquire(&runtime·worldsema, false);
+ 	g->m->gcing = 1;
+@@ -2192,7 +2192,7 @@ runtime·badreflectcall(void) // called from assembly
+ }
+ 
+ static struct {
+-	Lock;
++	Lock lock;
+ 	void (*fn)(uintptr*, int32);
+ 	int32 hz;
+ 	uintptr pcbuf[100];
+@@ -2300,9 +2300,9 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 	   ((uint8*)runtime·gogo <= pc && pc < (uint8*)runtime·gogo + RuntimeGogoBytes))
+ 		traceback = false;
+ 
+-	runtime·lock(&prof);
++	runtime·lock(&prof.lock);
+ 	if(prof.fn == nil) {
+-		runtime·unlock(&prof);
++		runtime·unlock(&prof.lock);
+ 		mp->mallocing--;
+ 		return;
+ 	}
+@@ -2341,7 +2341,7 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 		}
+ 	}
+ 	prof.fn(prof.pcbuf, n);
+-	runtime·unlock(&prof);
++	runtime·unlock(&prof.lock);
+ 	mp->mallocing--;
+ }
+ 
+@@ -2366,13 +2366,13 @@ runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
+ 	// it would deadlock.
+ 	runtime·resetcpuprofiler(0);
+ 
+-	runtime·lock(&prof);
++	runtime·lock(&prof.lock);
+ 	prof.fn = fn;
+ 	prof.hz = hz;
+-	runtime·unlock(&prof);
+-	runtime·lock(&runtime·sched);
++	runtime·unlock(&prof.lock);
++	runtime·lock(&runtime·sched.lock);
+ 	runtime·sched.profilehz = hz;
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 
+ 	if(hz != 0)
+ 		runtime·resetcpuprofiler(hz);
+@@ -2510,11 +2510,11 @@ releasep(void)
+ static void
+ incidlelocked(int32 v)
+ {
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	runtime·sched.nmidlelocked += v;
+ 	if(v > 0)
+ 		checkdead();
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ }
+ 
+ // Check for deadlock situation.
+@@ -2583,16 +2583,16 @@ sysmon(void)
+ 		runtime·usleep(delay);
+ 		if(runtime·debug.schedtrace <= 0 &&
+ 			(runtime·sched.gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
+-			runtime·lock(&runtime·sched);
++			runtime·lock(&runtime·sched.lock);
+ 			if(runtime·atomicload(&runtime·sched.gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
+ 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
+-				runtime·unlock(&runtime·sched);
++				runtime·unlock(&runtime·sched.lock);
+ 				runtime·notesleep(&runtime·sched.sysmonnote);
+ 				runtime·noteclear(&runtime·sched.sysmonnote);
+ 				idle = 0;
+ 				delay = 20;
+ 			} else
+-				runtime·unlock(&runtime·sched);
++				runtime·unlock(&runtime·sched.lock);
+ 		}
+ 		// poll network if not polled for more than 10ms
+ 		lastpoll = runtime·atomicload64(&runtime·sched.lastpoll);
+@@ -2757,7 +2757,7 @@ runtime·schedtrace(bool detailed)
+ 	if(starttime == 0)
+ 		starttime = now;
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	runtime·printf("SCHED %Dms: gomaxprocs=%d idleprocs=%d threads=%d spinningthreads=%d idlethreads=%d runqueue=%d",
+ 		(now-starttime)/1000000, runtime·gomaxprocs, runtime·sched.npidle, runtime·sched.mcount,
+ 		runtime·sched.nmspinning, runtime·sched.nmidle, runtime·sched.runqsize);
+@@ -2793,7 +2793,7 @@ runtime·schedtrace(bool detailed)
+ 		}
+ 	}
+ 	if(!detailed) {
+-		runtime·unlock(&runtime·sched);
++		runtime·unlock(&runtime·sched.lock);
+ 		return;
+ 	}
+ 	for(mp = runtime·allm; mp; mp = mp->alllink) {
+@@ -2825,7 +2825,7 @@ runtime·schedtrace(bool detailed)
+ 			lockedm ? lockedm->id : -1);
+ 	}
+ 	runtime·unlock(&allglock);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ }
+ 
+ // Put mp on midle list.
+@@ -2981,9 +2981,9 @@ runqputslow(P *p, G *gp, uint32 h, uint32 t)
+ 	for(i=0; i<n; i++)
+ 		batch[i]->schedlink = batch[i+1];
+ 	// Now put the batch on global queue.
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	globrunqputbatch(batch[0], batch[n], n+1);
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	return true;
+ }
+ 
+@@ -3146,11 +3146,11 @@ runtime·setmaxthreads(int32 in)
+ {
+ 	int32 out;
+ 
+-	runtime·lock(&runtime·sched);
++	runtime·lock(&runtime·sched.lock);
+ 	out = runtime·sched.maxmcount;
+ 	runtime·sched.maxmcount = in;
+ 	checkmcount();
+-	runtime·unlock(&runtime·sched);
++	runtime·unlock(&runtime·sched.lock);
+ 	return out;
+ }
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1687b85c44..b85198f480 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -375,7 +375,7 @@ struct	M
+ 
+ struct P
+ {
+-	Lock;
++	Lock	lock;
+ 
+ 	int32	id;
+ 	uint32	status;		// one of Pidle/Prunning/...
+@@ -506,7 +506,7 @@ enum {
+ 
+ struct	Timers
+ {
+-	Lock;
++	Lock	lock;
+ 	G	*timerproc;
+ 	bool		sleeping;
+ 	bool		rescheduling;
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index c1e8e4e18b..59a890c3e2 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -36,7 +36,7 @@ struct SemaWaiter
+ typedef struct SemaRoot SemaRoot;
+ struct SemaRoot
+ {
+-	Lock;
++	Lock		lock;
+ 	SemaWaiter*	head;
+ 	SemaWaiter*	tail;
+ 	// Number of waiters. Read w/o the lock.
+@@ -48,7 +48,7 @@ struct SemaRoot
+ 
+ struct semtable
+ {
+-	SemaRoot;
++	SemaRoot root;
+ 	uint8 pad[CacheLineSize-sizeof(SemaRoot)];
+ };
+ #pragma dataflag NOPTR /* mark semtable as 'no pointers', hiding from garbage collector */
+@@ -57,7 +57,7 @@ static struct semtable semtable[SEMTABLESZ];
+ static SemaRoot*
+ semroot(uint32 *addr)
+ {
+-	return &semtable[((uintptr)addr >> 3) % SEMTABLESZ];
++	return &semtable[((uintptr)addr >> 3) % SEMTABLESZ].root;
+ }
+ 
+ static void
+@@ -125,19 +125,19 @@ runtime·semacquire(uint32 volatile *addr, bool profile)
+ 		s.releasetime = -1;
+ 	}
+ 	for(;;) {
+-		runtime·lock(root);
++		runtime·lock(&root->lock);
+ 		// Add ourselves to nwait to disable "easy case" in semrelease.
+ 		runtime·xadd(&root->nwait, 1);
+ 		// Check cansemacquire to avoid missed wakeup.
+ 		if(cansemacquire(addr)) {
+ 			runtime·xadd(&root->nwait, -1);
+-			runtime·unlock(root);
++			runtime·unlock(&root->lock);
+ 			return;
+ 		}
+ 		// Any semrelease after the cansemacquire knows we're waiting
+ 		// (we set nwait above), so go to sleep.
+ 		semqueue(root, addr, &s);
+-		runtime·parkunlock(root, "semacquire");
++		runtime·parkunlock(&root->lock, "semacquire");
+ 		if(cansemacquire(addr)) {
+ 			if(t0)
+ 				runtime·blockevent(s.releasetime - t0, 3);
+@@ -162,11 +162,11 @@ runtime·semrelease(uint32 volatile *addr)
+ 		return;
+ 
+ 	// Harder case: search for a waiter and wake it.
+-	runtime·lock(root);
++	runtime·lock(&root->lock);
+ 	if(runtime·atomicload(&root->nwait) == 0) {
+ 		// The count is already consumed by another goroutine,
+ 		// so no need to wake up another goroutine.
+-		runtime·unlock(root);
++		runtime·unlock(&root->lock);
+ 		return;
+ 	}
+ 	for(s = root->head; s; s = s->next) {
+@@ -176,7 +176,7 @@ runtime·semrelease(uint32 volatile *addr)
+ 			break;
+ 		}
+ 	}
+-	runtime·unlock(root);
++	runtime·unlock(&root->lock);
+ 	if(s) {
+ 		if(s->releasetime)
+ 			s->releasetime = runtime·cputicks();
+@@ -206,7 +206,7 @@ func runtime_Semrelease(addr *uint32) {
+ typedef struct SyncSema SyncSema;
+ struct SyncSema
+ {
+-	Lock;
++	Lock		lock;
+ 	SemaWaiter*	head;
+ 	SemaWaiter*	tail;
+ };
+@@ -233,7 +233,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
+ 		w.releasetime = -1;
+ 	}
+ 
+-	runtime·lock(s);
++	runtime·lock(&s->lock);
+ 	if(s->head && s->head->nrelease > 0) {
+ 		// have pending release, consume it
+ 		wake = nil;
+@@ -244,7 +244,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
+ 			if(s->head == nil)
+ 				s->tail = nil;
+ 		}
+-		runtime·unlock(s);
++		runtime·unlock(&s->lock);
+ 		if(wake)
+ 			runtime·ready(wake->g);
+ 	} else {
+@@ -254,7 +254,7 @@ func runtime_Syncsemacquire(s *SyncSema) {
+ 		else
+ 			s->tail->next = &w;
+ 		s->tail = &w;
+-		runtime·parkunlock(s, "semacquire");
++		runtime·parkunlock(&s->lock, "semacquire");
+ 		if(t0)
+ 			runtime·blockevent(w.releasetime - t0, 2);
+ 	}
+@@ -269,7 +269,7 @@ func runtime_Syncsemrelease(s *SyncSema, n uint32) {
+ 	w.next = nil;
+ 	w.releasetime = 0;
+ 
+-	runtime·lock(s);
++	runtime·lock(&s->lock);
+ 	while(w.nrelease > 0 && s->head && s->head->nrelease < 0) {
+ 		// have pending acquire, satisfy it
+ 		wake = s->head;
+@@ -288,7 +288,7 @@ func runtime_Syncsemrelease(s *SyncSema, n uint32) {
+ 		else
+ 			s->tail->next = &w;
+ 		s->tail = &w;
+-		runtime·parkunlock(s, "semarelease");
++		runtime·parkunlock(&s->lock, "semarelease");
+ 	} else
+-		runtime·unlock(s);
++		runtime·unlock(&s->lock);
+ }
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index 376e77a2e4..fa0eb51a1c 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -33,7 +33,7 @@ package runtime
+ 
+ #pragma textflag NOPTR
+ static struct {
+-	Note;
++	Note note;
+ 	uint32 mask[(NSIG+31)/32];
+ 	uint32 wanted[(NSIG+31)/32];
+ 	uint32 recv[(NSIG+31)/32];
+@@ -72,7 +72,7 @@ runtime·sigsend(int32 s)
+ 					new = HASSIGNAL;
+ 				if(runtime·cas(&sig.state, old, new)) {
+ 					if (old == HASWAITER)
+-						runtime·notewakeup(&sig);
++						runtime·notewakeup(&sig.note);
+ 					break;
+ 				}
+ 			}
+@@ -108,8 +108,8 @@ func signal_recv() (m uint32) {
+ 				new = HASWAITER;
+ 			if(runtime·cas(&sig.state, old, new)) {
+ 				if (new == HASWAITER) {
+-					runtime·notetsleepg(&sig, -1);
+-					runtime·noteclear(&sig);
++					runtime·notetsleepg(&sig.note, -1);
++					runtime·noteclear(&sig.note);
+ 				}
+ 				break;
+ 			}
+@@ -139,7 +139,7 @@ func signal_enable(s uint32) {
+ 		// to use for initialization.  It does not pass
+ 		// signal information in m.
+ 		sig.inuse = true;	// enable reception of signals; cannot disable
+-		runtime·noteclear(&sig);
++		runtime·noteclear(&sig.note);
+ 		return;
+ 	}
+ 	
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 10b8cea0ab..fa25671e6e 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -92,9 +92,9 @@ runtime·tsleep(int64 ns, int8 *reason)
+ 	t.period = 0;
+ 	t.fv = &readyv;
+ 	t.arg.data = g;
+-	runtime·lock(&timers);
++	runtime·lock(&timers.lock);
+ 	addtimer(&t);
+-	runtime·parkunlock(&timers, reason);
++	runtime·parkunlock(&timers.lock, reason);
+ }
+ 
+ static FuncVal timerprocv = {timerproc};
+@@ -102,9 +102,9 @@ static FuncVal timerprocv = {timerproc};
+ void
+ runtime·addtimer(Timer *t)
+ {
+-	runtime·lock(&timers);
++	runtime·lock(&timers.lock);
+ 	addtimer(t);
+-	runtime·unlock(&timers);
++	runtime·unlock(&timers.lock);
+ }
+ 
+ // Add a timer to the heap and start or kick the timer proc
+@@ -165,14 +165,14 @@ runtime·deltimer(Timer *t)
+ 	i = t->i;
+ 	USED(i);
+ 
+-	runtime·lock(&timers);
++	runtime·lock(&timers.lock);
+ 
+ 	// t may not be registered anymore and may have
+ 	// a bogus i (typically 0, if generated by Go).
+ 	// Verify it before proceeding.
+ 	i = t->i;
+ 	if(i < 0 || i >= timers.len || timers.t[i] != t) {
+-		runtime·unlock(&timers);
++		runtime·unlock(&timers.lock);
+ 		return false;
+ 	}
+ 
+@@ -188,7 +188,7 @@ runtime·deltimer(Timer *t)
+ 	}
+ 	if(debug)
+ 		dumptimers("deltimer");
+-	runtime·unlock(&timers);
++	runtime·unlock(&timers.lock);
+ 	return true;
+ }
+ 
+@@ -205,7 +205,7 @@ timerproc(void)
+ 	Eface arg;
+ 
+ 	for(;;) {
+-		runtime·lock(&timers);
++		runtime·lock(&timers.lock);
+ 		timers.sleeping = false;
+ 		now = runtime·nanotime();
+ 		for(;;) {
+@@ -230,7 +230,7 @@ timerproc(void)
+ 			}
+ 			f = (void*)t->fv->fn;
+ 			arg = t->arg;
+-			runtime·unlock(&timers);
++			runtime·unlock(&timers.lock);
+ 			if(raceenabled)
+ 				runtime·raceacquire(t);
+ 			f(now, arg);
+@@ -242,20 +242,20 @@ timerproc(void)
+ 			arg.data = nil;
+ 			USED(&arg);
+ 
+-			runtime·lock(&timers);
++			runtime·lock(&timers.lock);
+ 		}
+ 		if(delta < 0) {
+ 			// No timers left - put goroutine to sleep.
+ 			timers.rescheduling = true;
+ 			g->isbackground = true;
+-			runtime·parkunlock(&timers, "timer goroutine (idle)");
++			runtime·parkunlock(&timers.lock, "timer goroutine (idle)");
+ 			g->isbackground = false;
+ 			continue;
+ 		}
+ 		// At least one timer pending.  Sleep until then.
+ 		timers.sleeping = true;
+ 		runtime·noteclear(&timers.waitnote);
+-		runtime·unlock(&timers);
++		runtime·unlock(&timers.lock);
+ 		runtime·notetsleepg(&timers.waitnote, delta);
+ 	}
+ }
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 2eda291aed..1da37323eb 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -66,14 +66,14 @@ struct IMethod
+ 
+ struct InterfaceType
+ {
+-	Type;
++	Type  typ;
+ 	Slice mhdr;
+ 	IMethod m[];
+ };
+ 
+ struct MapType
+ {
+-	Type;
++	Type typ;
+ 	Type *key;
+ 	Type *elem;
+ 	Type *bucket;		// internal type representing a hash bucket
+@@ -87,20 +87,20 @@ struct MapType
+ 
+ struct ChanType
+ {
+-	Type;
++	Type typ;
+ 	Type *elem;
+ 	uintptr dir;
+ };
+ 
+ struct SliceType
+ {
+-	Type;
++	Type typ;
+ 	Type *elem;
+ };
+ 
+ struct FuncType
+ {
+-	Type;
++	Type typ;
+ 	bool dotdotdot;
+ 	Slice in;
+ 	Slice out;
+@@ -108,6 +108,6 @@ struct FuncType
+ 
+ struct PtrType
+ {
+-	Type;
++	Type typ;
+ 	Type *elem;
+ };
+diff --git a/src/pkg/runtime/vlrt_386.c b/src/pkg/runtime/vlrt_386.c
+index ace1beb4cc..bda67b1575 100644
+--- a/src/pkg/runtime/vlrt_386.c
++++ b/src/pkg/runtime/vlrt_386.c
+@@ -42,25 +42,15 @@ typedef	signed char	schar;
+ 
+ #define	SIGN(n)	(1UL<<(n-1))
+ 
+-typedef	struct	Vlong	Vlong;
+-struct	Vlong
++typedef	union	Vlong	Vlong;
++union	Vlong
+ {
+-	union
++	long long	v;
++	struct
+ 	{
+-		long long	v;
+-		struct
+-		{
+-			ulong	lo;
+-			ulong	hi;
+-		};
+-		struct
+-		{
+-			ushort	lols;
+-			ushort	loms;
+-			ushort	hils;
+-			ushort	hims;
+-		};
+-	};
++		ulong	lo;
++		ulong	hi;
++	}		v2;
+ };
+ 
+ void	runtime·abort(void);
+@@ -68,15 +58,15 @@ void	runtime·abort(void);
+ void
+ _d2v(Vlong *y, double d)
+ {
+-	union { double d; struct Vlong; } x;
++	union { double d; Vlong vl; } x;
+ 	ulong xhi, xlo, ylo, yhi;
+ 	int sh;
+ 
+ 	x.d = d;
+ 
+-	xhi = (x.hi & 0xfffff) | 0x100000;
+-	xlo = x.lo;
+-	sh = 1075 - ((x.hi >> 20) & 0x7ff);
++	xhi = (x.vl.v2.hi & 0xfffff) | 0x100000;
++	xlo = x.vl.v2.lo;
++	sh = 1075 - ((x.vl.v2.hi >> 20) & 0x7ff);
+ 
+ 	ylo = 0;
+ 	yhi = 0;
+@@ -109,7 +99,7 @@ _d2v(Vlong *y, double d)
+ 			yhi = d;	/* causes something awful */
+ 		}
+ 	}
+-	if(x.hi & SIGN(32)) {
++	if(x.vl.v2.hi & SIGN(32)) {
+ 		if(ylo != 0) {
+ 			ylo = -ylo;
+ 			yhi = ~yhi;
+@@ -117,8 +107,8 @@ _d2v(Vlong *y, double d)
+ 			yhi = -yhi;
+ 	}
+ 
+-	y->hi = yhi;
+-	y->lo = ylo;
++	y->v2.hi = yhi;
++	y->v2.lo = ylo;
+ }
+ 
+ void
+@@ -131,15 +121,15 @@ _f2v(Vlong *y, float f)
+ double
+ _v2d(Vlong x)
+ {
+-	if(x.hi & SIGN(32)) {
+-		if(x.lo) {
+-			x.lo = -x.lo;
+-			x.hi = ~x.hi;
++	if(x.v2.hi & SIGN(32)) {
++		if(x.v2.lo) {
++			x.v2.lo = -x.v2.lo;
++			x.v2.hi = ~x.v2.hi;
+ 		} else
+-			x.hi = -x.hi;
+-		return -((long)x.hi*4294967296. + x.lo);
++			x.v2.hi = -x.v2.hi;
++		return -((long)x.v2.hi*4294967296. + x.v2.lo);
+ 	}
+-	return (long)x.hi*4294967296. + x.lo;
++	return (long)x.v2.hi*4294967296. + x.v2.lo;
+ }
+ 
+ float
+@@ -157,10 +147,10 @@ slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+ 	ulong numlo, numhi, denhi, denlo, quohi, quolo, t;
+ 	int i;
+ 
+-	numhi = num.hi;
+-	numlo = num.lo;
+-	denhi = den.hi;
+-	denlo = den.lo;
++	numhi = num.v2.hi;
++	numlo = num.v2.lo;
++	denhi = den.v2.hi;
++	denlo = den.v2.lo;
+ 
+ 	/*
+ 	 * get a divide by zero
+@@ -204,12 +194,12 @@ slowdodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+ 	}
+ 
+ 	if(q) {
+-		q->lo = quolo;
+-		q->hi = quohi;
++		q->v2.lo = quolo;
++		q->v2.hi = quohi;
+ 	}
+ 	if(r) {
+-		r->lo = numlo;
+-		r->hi = numhi;
++		r->v2.lo = numlo;
++		r->v2.hi = numhi;
+ 	}
+ }
+ 
+@@ -219,46 +209,46 @@ dodiv(Vlong num, Vlong den, Vlong *qp, Vlong *rp)
+ 	ulong n;
+ 	Vlong x, q, r;
+ 
+-	if(den.hi > num.hi || (den.hi == num.hi && den.lo > num.lo)){
++	if(den.v2.hi > num.v2.hi || (den.v2.hi == num.v2.hi && den.v2.lo > num.v2.lo)){
+ 		if(qp) {
+-			qp->hi = 0;
+-			qp->lo = 0;
++			qp->v2.hi = 0;
++			qp->v2.lo = 0;
+ 		}
+ 		if(rp) {
+-			rp->hi = num.hi;
+-			rp->lo = num.lo;
++			rp->v2.hi = num.v2.hi;
++			rp->v2.lo = num.v2.lo;
+ 		}
+ 		return;
+ 	}
+ 
+-	if(den.hi != 0){
+-		q.hi = 0;
+-		n = num.hi/den.hi;
+-		if(_mul64by32(&x, den, n) || x.hi > num.hi || (x.hi == num.hi && x.lo > num.lo))
++	if(den.v2.hi != 0){
++		q.v2.hi = 0;
++		n = num.v2.hi/den.v2.hi;
++		if(_mul64by32(&x, den, n) || x.v2.hi > num.v2.hi || (x.v2.hi == num.v2.hi && x.v2.lo > num.v2.lo))
+ 			slowdodiv(num, den, &q, &r);
+ 		else {
+-			q.lo = n;
++			q.v2.lo = n;
+ 			r.v = num.v - x.v;
+ 		}
+ 	} else {
+-		if(num.hi >= den.lo){
+-			if(den.lo == 0)
++		if(num.v2.hi >= den.v2.lo){
++			if(den.v2.lo == 0)
+ 				runtime·panicdivide();
+-			q.hi = n = num.hi/den.lo;
+-			num.hi -= den.lo*n;
++			q.v2.hi = n = num.v2.hi/den.v2.lo;
++			num.v2.hi -= den.v2.lo*n;
+ 		} else {
+-			q.hi = 0;
++			q.v2.hi = 0;
+ 		}
+-		q.lo = _div64by32(num, den.lo, &r.lo);
+-		r.hi = 0;
++		q.v2.lo = _div64by32(num, den.v2.lo, &r.v2.lo);
++		r.v2.hi = 0;
+ 	}
+ 	if(qp) {
+-		qp->lo = q.lo;
+-		qp->hi = q.hi;
++		qp->v2.lo = q.v2.lo;
++		qp->v2.hi = q.v2.hi;
+ 	}
+ 	if(rp) {
+-		rp->lo = r.lo;
+-		rp->hi = r.hi;
++		rp->v2.lo = r.v2.lo;
++		rp->v2.hi = r.v2.hi;
+ 	}
+ }
+ 
+@@ -266,11 +256,11 @@ void
+ _divvu(Vlong *q, Vlong n, Vlong d)
+ {
+ 
+-	if(n.hi == 0 && d.hi == 0) {
+-		if(d.lo == 0)
++	if(n.v2.hi == 0 && d.v2.hi == 0) {
++		if(d.v2.lo == 0)
+ 			runtime·panicdivide();
+-		q->hi = 0;
+-		q->lo = n.lo / d.lo;
++		q->v2.hi = 0;
++		q->v2.lo = n.v2.lo / d.v2.lo;
+ 		return;
+ 	}
+ 	dodiv(n, d, q, 0);
+@@ -286,11 +276,11 @@ void
+ _modvu(Vlong *r, Vlong n, Vlong d)
+ {
+ 
+-	if(n.hi == 0 && d.hi == 0) {
+-		if(d.lo == 0)
++	if(n.v2.hi == 0 && d.v2.hi == 0) {
++		if(d.v2.lo == 0)
+ 			runtime·panicdivide();
+-		r->hi = 0;
+-		r->lo = n.lo % d.lo;
++		r->v2.hi = 0;
++		r->v2.lo = n.v2.lo % d.v2.lo;
+ 		return;
+ 	}
+ 	dodiv(n, d, 0, r);
+@@ -306,12 +296,12 @@ static void
+ vneg(Vlong *v)
+ {
+ 
+-	if(v->lo == 0) {
+-		v->hi = -v->hi;
++	if(v->v2.lo == 0) {
++		v->v2.hi = -v->v2.hi;
+ 		return;
+ 	}
+-	v->lo = -v->lo;
+-	v->hi = ~v->hi;
++	v->v2.lo = -v->v2.lo;
++	v->v2.hi = ~v->v2.hi;
+ }
+ 
+ void
+@@ -319,24 +309,24 @@ _divv(Vlong *q, Vlong n, Vlong d)
+ {
+ 	long nneg, dneg;
+ 
+-	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
+-		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
++	if(n.v2.hi == (((long)n.v2.lo)>>31) && d.v2.hi == (((long)d.v2.lo)>>31)) {
++		if((long)n.v2.lo == -0x80000000 && (long)d.v2.lo == -1) {
+ 			// special case: 32-bit -0x80000000 / -1 causes divide error,
+ 			// but it's okay in this 64-bit context.
+-			q->lo = 0x80000000;
+-			q->hi = 0;
++			q->v2.lo = 0x80000000;
++			q->v2.hi = 0;
+ 			return;
+ 		}
+-		if(d.lo == 0)
++		if(d.v2.lo == 0)
+ 			runtime·panicdivide();
+-		q->lo = (long)n.lo / (long)d.lo;
+-		q->hi = ((long)q->lo) >> 31;
++		q->v2.lo = (long)n.v2.lo / (long)d.v2.lo;
++		q->v2.hi = ((long)q->v2.lo) >> 31;
+ 		return;
+ 	}
+-	nneg = n.hi >> 31;
++	nneg = n.v2.hi >> 31;
+ 	if(nneg)
+ 		vneg(&n);
+-	dneg = d.hi >> 31;
++	dneg = d.v2.hi >> 31;
+ 	if(dneg)
+ 		vneg(&d);
+ 	dodiv(n, d, q, 0);
+@@ -355,24 +345,24 @@ _modv(Vlong *r, Vlong n, Vlong d)
+ {
+ 	long nneg, dneg;
+ 
+-	if(n.hi == (((long)n.lo)>>31) && d.hi == (((long)d.lo)>>31)) {
+-		if((long)n.lo == -0x80000000 && (long)d.lo == -1) {
++	if(n.v2.hi == (((long)n.v2.lo)>>31) && d.v2.hi == (((long)d.v2.lo)>>31)) {
++		if((long)n.v2.lo == -0x80000000 && (long)d.v2.lo == -1) {
+ 			// special case: 32-bit -0x80000000 % -1 causes divide error,
+ 			// but it's okay in this 64-bit context.
+-			r->lo = 0;
+-			r->hi = 0;
++			r->v2.lo = 0;
++			r->v2.hi = 0;
+ 			return;
+ 		}
+-		if(d.lo == 0)
++		if(d.v2.lo == 0)
+ 			runtime·panicdivide();
+-		r->lo = (long)n.lo % (long)d.lo;
+-		r->hi = ((long)r->lo) >> 31;
++		r->v2.lo = (long)n.v2.lo % (long)d.v2.lo;
++		r->v2.hi = ((long)r->v2.lo) >> 31;
+ 		return;
+ 	}
+-	nneg = n.hi >> 31;
++	nneg = n.v2.hi >> 31;
+ 	if(nneg)
+ 		vneg(&n);
+-	dneg = d.hi >> 31;
++	dneg = d.v2.hi >> 31;
+ 	if(dneg)
+ 		vneg(&d);
+ 	dodiv(n, d, 0, r);
+@@ -391,24 +381,24 @@ _rshav(Vlong *r, Vlong a, int b)
+ {
+ 	long t;
+ 
+-	t = a.hi;
++	t = a.v2.hi;
+ 	if(b >= 32) {
+-		r->hi = t>>31;
++		r->v2.hi = t>>31;
+ 		if(b >= 64) {
+ 			/* this is illegal re C standard */
+-			r->lo = t>>31;
++			r->v2.lo = t>>31;
+ 			return;
+ 		}
+-		r->lo = t >> (b-32);
++		r->v2.lo = t >> (b-32);
+ 		return;
+ 	}
+ 	if(b <= 0) {
+-		r->hi = t;
+-		r->lo = a.lo;
++		r->v2.hi = t;
++		r->v2.lo = a.v2.lo;
+ 		return;
+ 	}
+-	r->hi = t >> b;
+-	r->lo = (t << (32-b)) | (a.lo >> b);
++	r->v2.hi = t >> b;
++	r->v2.lo = (t << (32-b)) | (a.v2.lo >> b);
+ }
+ 
+ void
+@@ -416,24 +406,24 @@ _rshlv(Vlong *r, Vlong a, int b)
+ {
+ 	ulong t;
+ 
+-	t = a.hi;
++	t = a.v2.hi;
+ 	if(b >= 32) {
+-		r->hi = 0;
++		r->v2.hi = 0;
+ 		if(b >= 64) {
+ 			/* this is illegal re C standard */
+-			r->lo = 0;
++			r->v2.lo = 0;
+ 			return;
+ 		}
+-		r->lo = t >> (b-32);
++		r->v2.lo = t >> (b-32);
+ 		return;
+ 	}
+ 	if(b <= 0) {
+-		r->hi = t;
+-		r->lo = a.lo;
++		r->v2.hi = t;
++		r->v2.lo = a.v2.lo;
+ 		return;
+ 	}
+-	r->hi = t >> b;
+-	r->lo = (t << (32-b)) | (a.lo >> b);
++	r->v2.hi = t >> b;
++	r->v2.lo = (t << (32-b)) | (a.v2.lo >> b);
+ }
+ 
+ #pragma textflag NOSPLIT
+@@ -442,89 +432,89 @@ _lshv(Vlong *r, Vlong a, int b)
+ {
+ 	ulong t;
+ 
+-	t = a.lo;
++	t = a.v2.lo;
+ 	if(b >= 32) {
+-		r->lo = 0;
++		r->v2.lo = 0;
+ 		if(b >= 64) {
+ 			/* this is illegal re C standard */
+-			r->hi = 0;
++			r->v2.hi = 0;
+ 			return;
+ 		}
+-		r->hi = t << (b-32);
++		r->v2.hi = t << (b-32);
+ 		return;
+ 	}
+ 	if(b <= 0) {
+-		r->lo = t;
+-		r->hi = a.hi;
++		r->v2.lo = t;
++		r->v2.hi = a.v2.hi;
+ 		return;
+ 	}
+-	r->lo = t << b;
+-	r->hi = (t >> (32-b)) | (a.hi << b);
++	r->v2.lo = t << b;
++	r->v2.hi = (t >> (32-b)) | (a.v2.hi << b);
+ }
+ 
+ void
+ _andv(Vlong *r, Vlong a, Vlong b)
+ {
+-	r->hi = a.hi & b.hi;
+-	r->lo = a.lo & b.lo;
++	r->v2.hi = a.v2.hi & b.v2.hi;
++	r->v2.lo = a.v2.lo & b.v2.lo;
+ }
+ 
+ void
+ _orv(Vlong *r, Vlong a, Vlong b)
+ {
+-	r->hi = a.hi | b.hi;
+-	r->lo = a.lo | b.lo;
++	r->v2.hi = a.v2.hi | b.v2.hi;
++	r->v2.lo = a.v2.lo | b.v2.lo;
+ }
+ 
+ void
+ _xorv(Vlong *r, Vlong a, Vlong b)
+ {
+-	r->hi = a.hi ^ b.hi;
+-	r->lo = a.lo ^ b.lo;
++	r->v2.hi = a.v2.hi ^ b.v2.hi;
++	r->v2.lo = a.v2.lo ^ b.v2.lo;
+ }
+ 
+ void
+ _vpp(Vlong *l, Vlong *r)
+ {
+ 
+-	l->hi = r->hi;
+-	l->lo = r->lo;
+-	r->lo++;
+-	if(r->lo == 0)
+-		r->hi++;
++	l->v2.hi = r->v2.hi;
++	l->v2.lo = r->v2.lo;
++	r->v2.lo++;
++	if(r->v2.lo == 0)
++		r->v2.hi++;
+ }
+ 
+ void
+ _vmm(Vlong *l, Vlong *r)
+ {
+ 
+-	l->hi = r->hi;
+-	l->lo = r->lo;
+-	if(r->lo == 0)
+-		r->hi--;
+-	r->lo--;
++	l->v2.hi = r->v2.hi;
++	l->v2.lo = r->v2.lo;
++	if(r->v2.lo == 0)
++		r->v2.hi--;
++	r->v2.lo--;
+ }
+ 
+ void
+ _ppv(Vlong *l, Vlong *r)
+ {
+ 
+-	r->lo++;
+-	if(r->lo == 0)
+-		r->hi++;
+-	l->hi = r->hi;
+-	l->lo = r->lo;
++	r->v2.lo++;
++	if(r->v2.lo == 0)
++		r->v2.hi++;
++	l->v2.hi = r->v2.hi;
++	l->v2.lo = r->v2.lo;
+ }
+ 
+ void
+ _mmv(Vlong *l, Vlong *r)
+ {
+ 
+-	if(r->lo == 0)
+-		r->hi--;
+-	r->lo--;
+-	l->hi = r->hi;
+-	l->lo = r->lo;
++	if(r->v2.lo == 0)
++		r->v2.hi--;
++	r->v2.lo--;
++	l->v2.hi = r->v2.hi;
++	l->v2.lo = r->v2.lo;
+ }
+ 
+ void
+@@ -532,67 +522,67 @@ _vasop(Vlong *ret, void *lv, void fn(Vlong*, Vlong, Vlong), int type, Vlong rv)
+ {
+ 	Vlong t, u;
+ 
+-	u.lo = 0;
+-	u.hi = 0;
++	u.v2.lo = 0;
++	u.v2.hi = 0;
+ 	switch(type) {
+ 	default:
+ 		runtime·abort();
+ 		break;
+ 
+ 	case 1:	/* schar */
+-		t.lo = *(schar*)lv;
+-		t.hi = t.lo >> 31;
++		t.v2.lo = *(schar*)lv;
++		t.v2.hi = t.v2.lo >> 31;
+ 		fn(&u, t, rv);
+-		*(schar*)lv = u.lo;
++		*(schar*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 2:	/* uchar */
+-		t.lo = *(uchar*)lv;
+-		t.hi = 0;
++		t.v2.lo = *(uchar*)lv;
++		t.v2.hi = 0;
+ 		fn(&u, t, rv);
+-		*(uchar*)lv = u.lo;
++		*(uchar*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 3:	/* short */
+-		t.lo = *(short*)lv;
+-		t.hi = t.lo >> 31;
++		t.v2.lo = *(short*)lv;
++		t.v2.hi = t.v2.lo >> 31;
+ 		fn(&u, t, rv);
+-		*(short*)lv = u.lo;
++		*(short*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 4:	/* ushort */
+-		t.lo = *(ushort*)lv;
+-		t.hi = 0;
++		t.v2.lo = *(ushort*)lv;
++		t.v2.hi = 0;
+ 		fn(&u, t, rv);
+-		*(ushort*)lv = u.lo;
++		*(ushort*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 9:	/* int */
+-		t.lo = *(int*)lv;
+-		t.hi = t.lo >> 31;
++		t.v2.lo = *(int*)lv;
++		t.v2.hi = t.v2.lo >> 31;
+ 		fn(&u, t, rv);
+-		*(int*)lv = u.lo;
++		*(int*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 10:	/* uint */
+-		t.lo = *(uint*)lv;
+-		t.hi = 0;
++		t.v2.lo = *(uint*)lv;
++		t.v2.hi = 0;
+ 		fn(&u, t, rv);
+-		*(uint*)lv = u.lo;
++		*(uint*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 5:	/* long */
+-		t.lo = *(long*)lv;
+-		t.hi = t.lo >> 31;
++		t.v2.lo = *(long*)lv;
++		t.v2.hi = t.v2.lo >> 31;
+ 		fn(&u, t, rv);
+-		*(long*)lv = u.lo;
++		*(long*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 6:	/* ulong */
+-		t.lo = *(ulong*)lv;
+-		t.hi = 0;
++		t.v2.lo = *(ulong*)lv;
++		t.v2.hi = 0;
+ 		fn(&u, t, rv);
+-		*(ulong*)lv = u.lo;
++		*(ulong*)lv = u.v2.lo;
+ 		break;
+ 
+ 	case 7:	/* vlong */
+@@ -610,8 +600,8 @@ _p2v(Vlong *ret, void *p)
+ 	long t;
+ 
+ 	t = (ulong)p;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret->v2.lo = t;
++	ret->v2.hi = 0;
+ }
+ 
+ void
+@@ -620,8 +610,8 @@ _sl2v(Vlong *ret, long sl)
+ 	long t;
+ 
+ 	t = sl;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret->v2.lo = t;
++	ret->v2.hi = t >> 31;
+ }
+ 
+ void
+@@ -630,8 +620,8 @@ _ul2v(Vlong *ret, ulong ul)
+ 	long t;
+ 
+ 	t = ul;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret->v2.lo = t;
++	ret->v2.hi = 0;
+ }
+ 
+ void
+@@ -640,8 +630,8 @@ _si2v(Vlong *ret, int si)
+ 	long t;
+ 
+ 	t = si;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret->v2.lo = t;
++	ret->v2.hi = t >> 31;
+ }
+ 
+ void
+@@ -650,8 +640,8 @@ _ui2v(Vlong *ret, uint ui)
+ 	long t;
+ 
+ 	t = ui;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret->v2.lo = t;
++	ret->v2.hi = 0;
+ }
+ 
+ void
+@@ -660,8 +650,8 @@ _sh2v(Vlong *ret, long sh)
+ 	long t;
+ 
+ 	t = (sh << 16) >> 16;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret->v2.lo = t;
++	ret->v2.hi = t >> 31;
+ }
+ 
+ void
+@@ -670,8 +660,8 @@ _uh2v(Vlong *ret, ulong ul)
+ 	long t;
+ 
+ 	t = ul & 0xffff;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret->v2.lo = t;
++	ret->v2.hi = 0;
+ }
+ 
+ void
+@@ -680,8 +670,8 @@ _sc2v(Vlong *ret, long uc)
+ 	long t;
+ 
+ 	t = (uc << 24) >> 24;
+-	ret->lo = t;
+-	ret->hi = t >> 31;
++	ret->v2.lo = t;
++	ret->v2.hi = t >> 31;
+ }
+ 
+ void
+@@ -690,8 +680,8 @@ _uc2v(Vlong *ret, ulong ul)
+ 	long t;
+ 
+ 	t = ul & 0xff;
+-	ret->lo = t;
+-	ret->hi = 0;
++	ret->v2.lo = t;
++	ret->v2.hi = 0;
+ }
+ 
+ long
+@@ -699,7 +689,7 @@ _v2sc(Vlong rv)
+ {
+ 	long t;
+ 
+-	t = rv.lo & 0xff;
++	t = rv.v2.lo & 0xff;
+ 	return (t << 24) >> 24;
+ }
+ 
+@@ -707,7 +697,7 @@ long
+ _v2uc(Vlong rv)
+ {
+ 
+-	return rv.lo & 0xff;
++	return rv.v2.lo & 0xff;
+ }
+ 
+ long
+@@ -715,7 +705,7 @@ _v2sh(Vlong rv)
+ {
+ 	long t;
+ 
+-	t = rv.lo & 0xffff;
++	t = rv.v2.lo & 0xffff;
+ 	return (t << 16) >> 16;
+ }
+ 
+@@ -723,107 +713,107 @@ long
+ _v2uh(Vlong rv)
+ {
+ 
+-	return rv.lo & 0xffff;
++	return rv.v2.lo & 0xffff;
+ }
+ 
+ long
+ _v2sl(Vlong rv)
+ {
+ 
+-	return rv.lo;
++	return rv.v2.lo;
+ }
+ 
+ long
+ _v2ul(Vlong rv)
+ {
+ 
+-	return rv.lo;
++	return rv.v2.lo;
+ }
+ 
+ long
+ _v2si(Vlong rv)
+ {
+ 
+-	return rv.lo;
++	return rv.v2.lo;
+ }
+ 
+ long
+ _v2ui(Vlong rv)
+ {
+ 
+-	return rv.lo;
++	return rv.v2.lo;
+ }
+ 
+ int
+ _testv(Vlong rv)
+ {
+-	return rv.lo || rv.hi;
++	return rv.v2.lo || rv.v2.hi;
+ }
+ 
+ int
+ _eqv(Vlong lv, Vlong rv)
+ {
+-	return lv.lo == rv.lo && lv.hi == rv.hi;
++	return lv.v2.lo == rv.v2.lo && lv.v2.hi == rv.v2.hi;
+ }
+ 
+ int
+ _nev(Vlong lv, Vlong rv)
+ {
+-	return lv.lo != rv.lo || lv.hi != rv.hi;
++	return lv.v2.lo != rv.v2.lo || lv.v2.hi != rv.v2.hi;
+ }
+ 
+ int
+ _ltv(Vlong lv, Vlong rv)
+ {
+-	return (long)lv.hi < (long)rv.hi ||
+-		(lv.hi == rv.hi && lv.lo < rv.lo);
++	return (long)lv.v2.hi < (long)rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo < rv.v2.lo);
+ }
+ 
+ int
+ _lev(Vlong lv, Vlong rv)
+ {
+-	return (long)lv.hi < (long)rv.hi ||
+-		(lv.hi == rv.hi && lv.lo <= rv.lo);
++	return (long)lv.v2.hi < (long)rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo <= rv.v2.lo);
+ }
+ 
+ int
+ _gtv(Vlong lv, Vlong rv)
+ {
+-	return (long)lv.hi > (long)rv.hi ||
+-		(lv.hi == rv.hi && lv.lo > rv.lo);
++	return (long)lv.v2.hi > (long)rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo > rv.v2.lo);
+ }
+ 
+ int
+ _gev(Vlong lv, Vlong rv)
+ {
+-	return (long)lv.hi > (long)rv.hi ||
+-		(lv.hi == rv.hi && lv.lo >= rv.lo);
++	return (long)lv.v2.hi > (long)rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo >= rv.v2.lo);
+ }
+ 
+ int
+ _lov(Vlong lv, Vlong rv)
+ {
+-	return lv.hi < rv.hi ||
+-		(lv.hi == rv.hi && lv.lo < rv.lo);
++	return lv.v2.hi < rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo < rv.v2.lo);
+ }
+ 
+ int
+ _lsv(Vlong lv, Vlong rv)
+ {
+-	return lv.hi < rv.hi ||
+-		(lv.hi == rv.hi && lv.lo <= rv.lo);
++	return lv.v2.hi < rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo <= rv.v2.lo);
+ }
+ 
+ int
+ _hiv(Vlong lv, Vlong rv)
+ {
+-	return lv.hi > rv.hi ||
+-		(lv.hi == rv.hi && lv.lo > rv.lo);
++	return lv.v2.hi > rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo > rv.v2.lo);
+ }
+ 
+ int
+ _hsv(Vlong lv, Vlong rv)
+ {
+-	return lv.hi > rv.hi ||
+-		(lv.hi == rv.hi && lv.lo >= rv.lo);
++	return lv.v2.hi > rv.v2.hi ||
++		(lv.v2.hi == rv.v2.hi && lv.v2.lo >= rv.v2.lo);
+ }
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index 016fd7a357..48ae08be32 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -40,21 +40,8 @@ typedef signed char     schar;
+ typedef struct  Vlong   Vlong;
+ struct  Vlong
+ {
+-	union
+-	{
+-		struct
+-		{
+-			ulong   lo;
+-			ulong   hi;
+-		};
+-		struct
+-		{
+-			ushort lols;
+-			ushort loms;
+-			ushort hils;
+-			ushort hims;
+-		};
+-	};
++	ulong   lo;
++	ulong   hi;
+ };
+ 
+ void    runtime·abort(void);
+@@ -82,15 +69,15 @@ _subv(Vlong *r, Vlong a, Vlong b)
+ void
+ _d2v(Vlong *y, double d)
+ {
+-	union { double d; struct Vlong; } x;
++	union { double d; Vlong vl; } x;
+ 	ulong xhi, xlo, ylo, yhi;
+ 	int sh;
+ 
+ 	x.d = d;
+ 
+-	xhi = (x.hi & 0xfffff) | 0x100000;
+-	xlo = x.lo;
+-	sh = 1075 - ((x.hi >> 20) & 0x7ff);
++	xhi = (x.vl.hi & 0xfffff) | 0x100000;
++	xlo = x.vl.lo;
++	sh = 1075 - ((x.vl.hi >> 20) & 0x7ff);
+ 
+ 	ylo = 0;
+ 	yhi = 0;
+@@ -123,7 +110,7 @@ _d2v(Vlong *y, double d)
+ 			yhi = d;        /* causes something awful */
+ 		}
+ 	}
+-	if(x.hi & SIGN(32)) {
++	if(x.vl.hi & SIGN(32)) {
+ 		if(ylo != 0) {
+ 			ylo = -ylo;
+ 			yhi = ~yhi;

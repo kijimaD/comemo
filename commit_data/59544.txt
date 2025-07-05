@@ -21,6 +21,22 @@ Date:   Fri Mar 22 14:33:50 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/serve_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 8998f38367..94b8bdcc2e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -922,6 +922,10 @@ func testServerNoWriteTimeout(t *testing.T, mode testMode) {
+ 		if n != 1<<20 || err != nil {
+ 			t.Errorf("client read response body: %d, %v", n, err)
+ 		}
++		// This shutdown really should be automatic, but it isn't right now.
++		// Shutdown (rather than Close) ensures the handler is done before we return.
++		res.Body.Close()
++		cst.ts.Config.Shutdown(context.Background())
+ 	}
+ }
+ 

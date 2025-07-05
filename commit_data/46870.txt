@@ -15,6 +15,36 @@ Date:   Tue Feb 9 10:23:40 2021 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/worker.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 8ea95438ca..9a92813f8c 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -96,6 +96,11 @@ func (w *worker) runFuzzing() error {
+ 				w.stop()
+ 				return nil
+ 			}
++			if w.waitErr == nil {
++				// Worker exited 0.
++				w.stop()
++				return fmt.Errorf("worker exited unexpectedly with status 0")
++			}
+ 
+ 			// Unexpected termination. Inform the coordinator about the crash.
+ 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+@@ -108,11 +113,7 @@ func (w *worker) runFuzzing() error {
+ 				errMsg:      message,
+ 			}
+ 			w.coordinator.crasherC <- crasher
+-			err := w.stop()
+-			if err == nil {
+-				err = fmt.Errorf("worker exited unexpectedly")
+-			}
+-			return err
++			return w.stop()
+ 
+ 		case input := <-inputC:
+ 			// Received input from coordinator.

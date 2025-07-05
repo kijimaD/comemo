@@ -11,8 +11,80 @@ Date:   Fri Jul 15 16:44:57 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/align_runtime_test.go |  1 -
  src/runtime/mgc.go                |  4 ++--
  src/runtime/mgcpacer.go           | 12 ++++++------
  3 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index 252f59f158..bca01e23e2 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -21,7 +21,6 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(schedt{}.lastpoll),
+ 	unsafe.Offsetof(schedt{}.pollUntil),
+ 	unsafe.Offsetof(schedt{}.timeToRun),
+-	unsafe.Offsetof(gcControllerState{}.dedicatedMarkTime),
+ 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkWorkersNeeded),
+ 	unsafe.Offsetof(gcControllerState{}.fractionalMarkTime),
+ 	unsafe.Offsetof(gcControllerState{}.idleMarkTime),
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0a0de568e3..06ea86929a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1009,7 +1009,7 @@ func gcMarkTermination() {
+ 	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+ 	// We report idle marking time below, but omit it from the
+ 	// overall utilization here since it's "free".
+-	markCpu := gcController.assistTime.Load() + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
++	markCpu := gcController.assistTime.Load() + gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime
+ 	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
+ 	cycleCpu := sweepTermCpu + markCpu + markTermCpu
+ 	work.totaltime += cycleCpu
+@@ -1105,7 +1105,7 @@ func gcMarkTermination() {
+ 		for i, ns := range []int64{
+ 			sweepTermCpu,
+ 			gcController.assistTime.Load(),
+-			gcController.dedicatedMarkTime + gcController.fractionalMarkTime,
++			gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime,
+ 			gcController.idleMarkTime,
+ 			markTermCpu,
+ 		} {
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index b8483cc12b..d4991ad5de 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -270,10 +270,10 @@ type gcControllerState struct {
+ 	// written and read throughout the cycle.
+ 	assistTime atomic.Int64
+ 
+-	// dedicatedMarkTime is the nanoseconds spent in dedicated
+-	// mark workers during this cycle. This is updated atomically
+-	// at the end of the concurrent mark phase.
+-	dedicatedMarkTime int64
++	// dedicatedMarkTime is the nanoseconds spent in dedicated mark workers
++	// during this cycle. This is updated at the end of the concurrent mark
++	// phase.
++	dedicatedMarkTime atomic.Int64
+ 
+ 	// fractionalMarkTime is the nanoseconds spent in the
+ 	// fractional mark worker during this cycle. This is updated
+@@ -418,7 +418,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
+ 	c.globalsScanWork.Store(0)
+ 	c.bgScanCredit.Store(0)
+ 	c.assistTime.Store(0)
+-	c.dedicatedMarkTime = 0
++	c.dedicatedMarkTime.Store(0)
+ 	c.fractionalMarkTime = 0
+ 	c.idleMarkTime = 0
+ 	c.markStartTime = markStartTime
+@@ -905,7 +905,7 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
+ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64) {
+ 	switch mode {
+ 	case gcMarkWorkerDedicatedMode:
+-		atomic.Xaddint64(&c.dedicatedMarkTime, duration)
++		c.dedicatedMarkTime.Add(duration)
+ 		atomic.Xaddint64(&c.dedicatedMarkWorkersNeeded, 1)
+ 	case gcMarkWorkerFractionalMode:
+ 		atomic.Xaddint64(&c.fractionalMarkTime, duration)

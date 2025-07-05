@@ -12,6 +12,22 @@ Date:   Tue Mar 26 06:38:55 2024 +0000
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/main.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 13077668e7..5a4d7f9451 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -519,6 +519,10 @@ func startProfile() {
+ 			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
+ 				log.Fatalf("%v", err)
+ 			}
++			// Close the file after writing the profile.
++			if err := f.Close(); err != nil {
++				log.Fatalf("could not close %v: %v", *memprofile, err)
++			}
+ 		})
+ 	}
+ }

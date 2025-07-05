@@ -9,8 +9,63 @@ Date:   Wed Aug 17 14:54:51 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4896050
-
+---
  src/cmd/gc/Makefile     | 4 ++++
  src/cmd/gc/mkbuiltin    | 2 +-
  src/cmd/gc/mkbuiltin1.c | 6 +++---
  3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 286618ec1b..0af7659e4d 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -65,3 +65,7 @@ opnames.h:	mkopnames go.h
+ 	./mkopnames go.h >opnames.h
+ 
+ CLEANFILES+=*.[568] [568].out y1.tab.c yerr.h mkbuiltin1 builtin.c _builtin.c opnames.h
++
++mkbuiltin1: mkbuiltin1.$O
++	$(HOST_LD) -o $@ mkbuiltin1.$O -L"$(GOROOT)"/lib -lbio -l9 -lm $(HOST_LDFLAGS)
++
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 4dfff1caa5..cfd6e59c1c 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -16,7 +16,7 @@ if [ -z "$GC" ]; then
+ 	exit 1
+ fi
+ 
+-gcc -o mkbuiltin1 mkbuiltin1.c
++gomake mkbuiltin1
+ rm -f _builtin.c
+ for i in runtime unsafe
+ do
+diff --git a/src/cmd/gc/mkbuiltin1.c b/src/cmd/gc/mkbuiltin1.c
+index baa87fec9e..ad83c0346b 100644
+--- a/src/cmd/gc/mkbuiltin1.c
++++ b/src/cmd/gc/mkbuiltin1.c
+@@ -10,7 +10,7 @@
+ 
+ void esc(char*);
+ 
+-int
++void
+ main(int argc, char **argv)
+ {
+ 	char *name;
+@@ -64,13 +64,13 @@ begin:
+ 		}
+ 
+ 		esc(p);
+-		printf("\\n\"\n", p);
++		printf("\\n\"\n");
+ 	}
+ 	sysfatal("did not find end of imports\n");
+ 
+ end:
+ 	printf("\t\"$$\\n\";\n");
+-	return 0;
++	exits(0);
+ }
+ 
+ void

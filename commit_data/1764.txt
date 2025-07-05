@@ -18,9 +18,121 @@ Date:   Thu Mar 5 18:26:12 2009 -0800
     DELTA=343  (176 added, 162 deleted, 5 changed)
     OCL=25803
     CL=25805
-
+---
  src/cmd/gc/Makefile                        | 24 +++++------------------
  src/cmd/gc/{sysimport.c => builtin.c.boot} |  0
  src/cmd/gc/mkbuiltin                       | 31 ++++++++++++++++++++++++++++++
  src/cmd/gc/{mksys.c => mkbuiltin1.c}       |  6 +++---
  4 files changed, 39 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 4237e972a9..e0d0f16887 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -26,7 +26,7 @@ OFILES=\
+ 	mparith1.$O\
+ 	mparith2.$O\
+ 	mparith3.$O\
+-	sysimport.$O\
++	builtin.$O\
+ 	compat.$O\
+ 
+ $(LIB): $(OFILES)
+@@ -40,25 +40,11 @@ y.tab.h: $(YFILES)
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+-# the test here checks whether we have 6g at all.
+-# if so, use it.  if not, just use the sysimport.c we have.
+-# this happens on fresh perforce checkouts where
+-# sysimport.c ends up with an older time stamp
+-# than sys.go (or unsafe.go or mksys.c).
+-sysimport.c:	sys.go unsafe.go mksys.c
+-	if test -x $(BIN)/6g; then \
+-		p4 open sysimport.c; \
+-		gcc -o mksys mksys.c; \
+-		6g sys.go; \
+-		6g unsafe.go; \
+-		./mksys sys >_sysimport.c && \
+-		./mksys unsafe >>_sysimport.c && \
+-		mv _sysimport.c sysimport.c; \
+-	elif test -f sysimport.c; then \
+-		touch sysimport.c; \
+-	fi
++builtin.c:	sys.go unsafe.go mkbuiltin1.c mkbuiltin
++	mkbuiltin >builtin.c || \
++	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
+ 
+ clean:
+-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) _sysimport.c
++	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
+ 
+ install: $(LIB)
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/builtin.c.boot
+similarity index 100%
+rename from src/cmd/gc/sysimport.c
+rename to src/cmd/gc/builtin.c.boot
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+new file mode 100755
+index 0000000000..8148120e0d
+--- /dev/null
++++ b/src/cmd/gc/mkbuiltin
+@@ -0,0 +1,31 @@
++#!/bin/sh
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++gcc -o mkbuiltin1 mkbuiltin1.c
++6g sys.go
++6g unsafe.go
++rm -f _builtin.c
++./mkbuiltin1 sys >_builtin.c
++./mkbuiltin1 unsafe >>_builtin.c
++
++# If _builtin.c has changed vs builtin.c.boot,
++# check in the new change if being run by
++# one of the people who tends to work on
++# the compiler.  This makes sure that changes
++# don't get forgotten, without causing problems
++# in end user Go repositories.
++case "$USER" in
++ken | r | rsc)
++	if ! cmp _builtin.c builtin.c.boot
++	then
++		p4 open builtin.c.boot
++		cp _builtin.c builtin.c.boot
++	fi
++esac
++
++cat _builtin.c
++rm -f _builtin.c
++
+diff --git a/src/cmd/gc/mksys.c b/src/cmd/gc/mkbuiltin1.c
+similarity index 90%
+rename from src/cmd/gc/mksys.c
+rename to src/cmd/gc/mkbuiltin1.c
+index 25593d4152..22ef468f31 100644
+--- a/src/cmd/gc/mksys.c
++++ b/src/cmd/gc/mkbuiltin1.c
+@@ -1,8 +1,8 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
++// Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Extract import data from sys.6 and generate C string version.
++// Compile .go file, import data from .6 file, and generate C string version.
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -18,7 +18,7 @@ main(int argc, char **argv)
+ 	char buf[1024], initfunc[1024], *p, *q;
+ 
+ 	if(argc != 2) {
+-		fprintf(stderr, "usage: sys sys\n");
++		fprintf(stderr, "usage: mkbuiltin1 sys\n");
+ 		fprintf(stderr, "in file $1.6 s/PACKAGE/$1/\n");
+ 		exit(1);
+ 	}

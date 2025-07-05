@@ -16,6 +16,19 @@ Date:   Tue Jun 15 17:04:01 2021 +0200
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/syscall/syscall_windows_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 581a246cd9..194c87805c 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -78,6 +78,7 @@ func TestTOKEN_ALL_ACCESS(t *testing.T) {
+ 
+ func TestStdioAreInheritable(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveExecPath(t, "gcc")
+ 
+ 	tmpdir := t.TempDir()

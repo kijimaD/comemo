@@ -36,6 +36,19 @@ Date:   Mon Mar 20 19:00:14 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 87a84285b6..6726bdd621 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3954,6 +3954,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ // If commaok is false, resok will be nil.
+ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	iface := s.expr(n.Left)            // input interface
++	lineno = n.Pos                     // for typename call
+ 	target := s.expr(typename(n.Type)) // target type
+ 	byteptr := s.f.Config.Types.BytePtr
+ 

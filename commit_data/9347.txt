@@ -7,6 +7,20 @@ Date:   Fri Aug 12 22:42:42 2011 +1000
     R=gri, dsymonds
     CC=golang-dev
     https://golang.org/cl/4881042
-
+---
  lib/godoc/package.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 24806661ac..db9e1d85e4 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -33,7 +33,7 @@ CONSTANTS
+ */}}{{with .Vars}}
+ VARIABLES
+ 
+-{{range .}}{{.Decl $FSet}}
++{{range .}}{{text .Decl $FSet}}
+ {{.Doc}}{{end}}
+ {{end}}{{/*
+ 

@@ -12,7 +12,45 @@ Date:   Tue Feb 1 16:35:02 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go                |  3 +++
  src/cmd/go/testdata/script/work_use_issue50958.txt | 17 +++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index cdcfbeb8de..23f4efd02a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -610,6 +610,9 @@ func UpdateWorkFile(wf *modfile.WorkFile) {
+ 	missingModulePaths := map[string]string{} // module directory listed in file -> abspath modroot
+ 
+ 	for _, d := range wf.Use {
++		if d.Path == "" {
++			continue // d is marked for deletion.
++		}
+ 		modRoot := d.Path
+ 		if d.ModulePath == "" {
+ 			missingModulePaths[d.Path] = modRoot
+diff --git a/src/cmd/go/testdata/script/work_use_issue50958.txt b/src/cmd/go/testdata/script/work_use_issue50958.txt
+new file mode 100644
+index 0000000000..7a25531f3d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_use_issue50958.txt
+@@ -0,0 +1,17 @@
++go work use -r .
++cmp go.work go.work.want
++
++-- go.mod --
++module example
++go 1.18
++-- go.work --
++go 1.18
++
++use sub
++-- go.work.want --
++go 1.18
++
++use .
++-- sub/README.txt --
++This directory no longer contains a go.mod file.
++

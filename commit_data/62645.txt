@@ -11,7 +11,7 @@ Date:   Wed Mar 19 11:15:06 2025 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  api/next/67002.txt                                 |   1 +
  doc/next/6-stdlib/99-minor/os/67002.md             |   1 +
  src/internal/syscall/unix/asm_darwin.s             |   1 +
@@ -36,3 +36,710 @@ Date:   Wed Mar 19 11:15:06 2025 -0700
  src/os/root_unix.go                                |   4 +
  src/os/root_windows.go                             |   4 +
  23 files changed, 451 insertions(+), 11 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index 0e570d4fa0..0ac3a9e7bf 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -3,3 +3,4 @@ pkg os, method (*Root) Chown(string, int, int) error #67002
+ pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+ pkg os, method (*Root) Lchown(string, int, int) error #67002
+ pkg os, method (*Root) Readlink(string) (string, error) #67002
++pkg os, method (*Root) Rename(string, string) error #67002
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+index 4d9f66c19c..b87ab6f2b7 100644
+--- a/doc/next/6-stdlib/99-minor/os/67002.md
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -5,3 +5,4 @@ The [os.Root] type supports the following additional methods:
+   * [os.Root.Chtimes]
+   * [os.Root.Lchown]
+   * [os.Root.Readlink]
++  * [os.Root.Rename]
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 0f28cd1e39..a72240f512 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -27,3 +27,4 @@ TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0; JMP libc_readlinkat(SB)
+ TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0; JMP libc_mkdirat(SB)
+ TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0; JMP libc_fchmodat(SB)
+ TEXT ·libc_fchownat_trampoline(SB),NOSPLIT,$0-0; JMP libc_fchownat(SB)
++TEXT ·libc_renameat_trampoline(SB),NOSPLIT,$0-0; JMP libc_renameat(SB)
+diff --git a/src/internal/syscall/unix/asm_openbsd.s b/src/internal/syscall/unix/asm_openbsd.s
+index b804a52714..2b88b6988c 100644
+--- a/src/internal/syscall/unix/asm_openbsd.s
++++ b/src/internal/syscall/unix/asm_openbsd.s
+@@ -18,3 +18,5 @@ TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_fchmodat(SB)
+ TEXT ·libc_fchownat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_fchownat(SB)
++TEXT ·libc_renameat_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_renameat(SB)
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index 794f8ace14..be7920c115 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -114,3 +114,25 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	}
+ 	return nil
+ }
++
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall.Syscall6(renameatTrap,
++		uintptr(olddirfd),
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_darwin.go b/src/internal/syscall/unix/at_darwin.go
+index 75d7b45569..4f39b76ad1 100644
+--- a/src/internal/syscall/unix/at_darwin.go
++++ b/src/internal/syscall/unix/at_darwin.go
+@@ -102,3 +102,29 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	}
+ 	return nil
+ }
++
++func libc_renameat_trampoline()
++
++//go:cgo_import_dynamic libc_renameat renameat "/usr/lib/libSystem.B.dylib"
++
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_renameat_trampoline),
++		uintptr(olddirfd),
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index d47f69db6f..36a9f22b2a 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -18,6 +18,7 @@ import (
+ //go:linkname procMkdirat libc_mkdirat
+ //go:linkname procFchmodat libc_fchmodat
+ //go:linkname procFchownat libc_fchownat
++//go:linkname procRenameat libc_renameat
+ 
+ var (
+ 	procFstatat,
+@@ -26,7 +27,8 @@ var (
+ 	procReadlinkat,
+ 	procMkdirat,
+ 	procFchmodat,
+-	procFchownat uintptr
++	procFchownat,
++	procRenameat uintptr
+ )
+ 
+ func Unlinkat(dirfd int, path string, flags int) error {
+@@ -160,3 +162,25 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	}
+ 	return nil
+ }
++
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procRenameat)), 4,
++		uintptr(olddirfd),
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 22c959b0c7..bd56aac70d 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -93,3 +93,29 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	}
+ 	return nil
+ }
++
++//go:cgo_import_dynamic libc_renameat renameat "libc.so"
++
++func libc_renameat_trampoline()
++
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_renameat_trampoline),
++		uintptr(olddirfd),
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index f84e8e35da..1241827cff 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -17,6 +17,7 @@ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
+ //go:cgo_import_dynamic libc_fchownat fchownat "libc.so"
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
++//go:cgo_import_dynamic libc_renameat renameat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
+ //go:cgo_import_dynamic libc_readlinkat readlinkat "libc.so"
+ //go:cgo_import_dynamic libc_mkdirat mkdirat "libc.so"
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index 1e89e97f38..f4418776cd 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -14,6 +14,7 @@ const (
+ 	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
+ 	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+ 	fchownatTrap   uintptr = syscall.SYS_FCHOWNAT
++	renameatTrap   uintptr = syscall.SYS_RENAMEAT
+ 
+ 	AT_EACCESS          = 0x4
+ 	AT_FDCWD            = 0xfffafdcd
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index 59a8c2ce5a..d1bec15343 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -21,4 +21,5 @@ const (
+ 	mkdiratTrap        uintptr = syscall.SYS_MKDIRAT
+ 	fchmodatTrap       uintptr = syscall.SYS_FCHMODAT
+ 	fchownatTrap       uintptr = syscall.SYS_FCHOWNAT
++	renameatTrap       uintptr = syscall.SYS_RENAMEAT
+ )
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+index bb946b6581..db42be58b7 100644
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_netbsd.go
+@@ -14,6 +14,7 @@ const (
+ 	mkdiratTrap    uintptr = syscall.SYS_MKDIRAT
+ 	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+ 	fchownatTrap   uintptr = syscall.SYS_FCHOWNAT
++	renameatTrap   uintptr = syscall.SYS_RENAMEAT
+ )
+ 
+ const (
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index 3fdc95436c..2bd55ca0e7 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -111,6 +111,24 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	return syscall.ENOSYS
+ }
+ 
++//go:wasmimport wasi_snapshot_preview1 path_rename
++//go:noescape
++func path_rename(oldFd int32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
++
++func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
++	if oldpath == "" || newpath == "" {
++		return syscall.EINVAL
++	}
++	return errnoErr(path_rename(
++		int32(olddirfd),
++		unsafe.StringData(oldpath),
++		size(len(oldpath)),
++		int32(newdirfd),
++		unsafe.StringData(newpath),
++		size(len(newpath)),
++	))
++}
++
+ //go:wasmimport wasi_snapshot_preview1 path_create_directory
+ //go:noescape
+ func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno
+diff --git a/src/internal/syscall/unix/renameat2_sysnum_linux.go b/src/internal/syscall/unix/renameat2_sysnum_linux.go
+new file mode 100644
+index 0000000000..e41a65db79
+--- /dev/null
++++ b/src/internal/syscall/unix/renameat2_sysnum_linux.go
+@@ -0,0 +1,16 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && (loong64 || riscv64)
++
++package unix
++
++import "syscall"
++
++const (
++	// loong64 and riscv64 only have renameat2.
++	// renameat2 has an extra flags parameter.
++	// When called with a 0 flags it is identical to renameat.
++	renameatTrap uintptr = syscall.SYS_RENAMEAT2
++)
+diff --git a/src/internal/syscall/unix/renameat_sysnum_linux.go b/src/internal/syscall/unix/renameat_sysnum_linux.go
+new file mode 100644
+index 0000000000..d3663ad1dc
+--- /dev/null
++++ b/src/internal/syscall/unix/renameat_sysnum_linux.go
+@@ -0,0 +1,13 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && !(loong64 || riscv64)
++
++package unix
++
++import "syscall"
++
++const (
++	renameatTrap uintptr = syscall.SYS_RENAMEAT
++)
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 19bcc0dbac..edd2e42a88 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -254,3 +254,77 @@ func Deleteat(dirfd syscall.Handle, name string) error {
+ 	}
+ 	return err
+ }
++
++func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, newpath string) error {
++	objAttrs := &OBJECT_ATTRIBUTES{}
++	if err := objAttrs.init(olddirfd, oldpath); err != nil {
++		return err
++	}
++	var h syscall.Handle
++	err := NtOpenFile(
++		&h,
++		SYNCHRONIZE|DELETE,
++		objAttrs,
++		&IO_STATUS_BLOCK{},
++		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
++		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT,
++	)
++	if err != nil {
++		return ntCreateFileError(err, 0)
++	}
++	defer syscall.CloseHandle(h)
++
++	renameInfoEx := FILE_RENAME_INFORMATION_EX{
++		Flags: FILE_RENAME_REPLACE_IF_EXISTS |
++			FILE_RENAME_POSIX_SEMANTICS,
++		RootDirectory: newdirfd,
++	}
++	p16, err := syscall.UTF16FromString(newpath)
++	if err != nil {
++		return err
++	}
++	if len(p16) > len(renameInfoEx.FileName) {
++		return syscall.EINVAL
++	}
++	copy(renameInfoEx.FileName[:], p16)
++	renameInfoEx.FileNameLength = uint32((len(p16) - 1) * 2)
++
++	const (
++		FileRenameInformation   = 10
++		FileRenameInformationEx = 65
++	)
++	err = NtSetInformationFile(
++		h,
++		&IO_STATUS_BLOCK{},
++		uintptr(unsafe.Pointer(&renameInfoEx)),
++		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION_EX{})),
++		FileRenameInformationEx,
++	)
++	if err == nil {
++		return nil
++	}
++
++	// If the prior rename failed, the filesystem might not support
++	// POSIX semantics (for example, FAT), or might not have implemented
++	// FILE_RENAME_INFORMATION_EX.
++	//
++	// Try again.
++	renameInfo := FILE_RENAME_INFORMATION{
++		ReplaceIfExists: true,
++		RootDirectory:   newdirfd,
++	}
++	copy(renameInfo.FileName[:], p16)
++	renameInfo.FileNameLength = renameInfoEx.FileNameLength
++
++	err = NtSetInformationFile(
++		h,
++		&IO_STATUS_BLOCK{},
++		uintptr(unsafe.Pointer(&renameInfo)),
++		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION{})),
++		FileRenameInformation,
++	)
++	if st, ok := err.(NTStatus); ok {
++		return st.Errno()
++	}
++	return err
++}
+diff --git a/src/internal/syscall/windows/types_windows.go b/src/internal/syscall/windows/types_windows.go
+index 6ae37afff8..718a4b863a 100644
+--- a/src/internal/syscall/windows/types_windows.go
++++ b/src/internal/syscall/windows/types_windows.go
+@@ -216,3 +216,25 @@ const (
+ 	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
+ 	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
+ )
++
++// Flags for FILE_RENAME_INFORMATION_EX.
++const (
++	FILE_RENAME_REPLACE_IF_EXISTS = 0x00000001
++	FILE_RENAME_POSIX_SEMANTICS   = 0x00000002
++)
++
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
++type FILE_RENAME_INFORMATION struct {
++	ReplaceIfExists bool
++	RootDirectory   syscall.Handle
++	FileNameLength  uint32
++	FileName        [syscall.MAX_PATH]uint16
++}
++
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
++type FILE_RENAME_INFORMATION_EX struct {
++	Flags          uint32
++	RootDirectory  syscall.Handle
++	FileNameLength uint32
++	FileName       [syscall.MAX_PATH]uint16
++}
+diff --git a/src/os/root.go b/src/os/root.go
+index fcb4600739..55ccd20478 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -199,6 +199,13 @@ func (r *Root) Readlink(name string) (string, error) {
+ 	return rootReadlink(r, name)
+ }
+ 
++// Rename renames (moves) oldname to newname.
++// Both paths are relative to the root.
++// See [Rename] for more details.
++func (r *Root) Rename(oldname, newname string) error {
++	return rootRename(r, oldname, newname)
++}
++
+ func (r *Root) logOpen(name string) {
+ 	if log := testlog.Logger(); log != nil {
+ 		// This won't be right if r's name has changed since it was opened,
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index f0e1aa5131..4a4aa684af 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -166,3 +166,17 @@ func rootReadlink(r *Root, name string) (string, error) {
+ 	}
+ 	return name, nil
+ }
++
++func rootRename(r *Root, oldname, newname string) error {
++	if err := checkPathEscapesLstat(r, oldname); err != nil {
++		return &PathError{Op: "renameat", Path: oldname, Err: err}
++	}
++	if err := checkPathEscapesLstat(r, newname); err != nil {
++		return &PathError{Op: "renameat", Path: newname, Err: err}
++	}
++	err := Rename(joinPath(r.root.name, oldname), joinPath(r.root.name, newname))
++	if err != nil {
++		return &LinkError{"renameat", oldname, newname, underlyingError(err)}
++	}
++	return nil
++}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index 8c07784b5a..2cb867459b 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -138,6 +138,19 @@ func rootRemove(r *Root, name string) error {
+ 	return nil
+ }
+ 
++func rootRename(r *Root, oldname, newname string) error {
++	_, err := doInRoot(r, oldname, func(oldparent sysfdType, oldname string) (struct{}, error) {
++		_, err := doInRoot(r, newname, func(newparent sysfdType, newname string) (struct{}, error) {
++			return struct{}{}, renameat(oldparent, oldname, newparent, newname)
++		})
++		return struct{}{}, err
++	})
++	if err != nil {
++		return &LinkError{"renameat", oldname, newname, err}
++	}
++	return err
++}
++
+ // doInRoot performs an operation on a path in a Root.
+ //
+ // It opens the directory containing the final element of the path,
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 4ca6f9c834..5ed8fe0146 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -699,6 +699,91 @@ func TestRootReadlink(t *testing.T) {
+ 	}
+ }
+ 
++// TestRootRenameFrom tests renaming the test case target to a known-good path.
++func TestRootRenameFrom(t *testing.T) {
++	want := []byte("target")
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			if target != "" {
++				if err := os.WriteFile(target, want, 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++			wantError := test.wantError
++			var linkTarget string
++			if test.ltarget != "" {
++				// Rename will rename the link, not the file linked to.
++				wantError = false
++				var err error
++				linkTarget, err = root.Readlink(test.ltarget)
++				if err != nil {
++					t.Fatalf("root.Readlink(%q) = %v, want success", test.ltarget, err)
++				}
++			}
++
++			const dstPath = "destination"
++
++			// Plan 9 doesn't allow cross-directory renames.
++			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
++				wantError = true
++			}
++
++			err := root.Rename(test.open, dstPath)
++			if errEndsTest(t, err, wantError, "root.Rename(%q, %q)", test.open, dstPath) {
++				return
++			}
++
++			if test.ltarget != "" {
++				got, err := os.Readlink(filepath.Join(root.Name(), dstPath))
++				if err != nil || got != linkTarget {
++					t.Errorf("os.Readlink(%q) = %q, %v, want %q", dstPath, got, err, linkTarget)
++				}
++			} else {
++				got, err := os.ReadFile(filepath.Join(root.Name(), dstPath))
++				if err != nil || !bytes.Equal(got, want) {
++					t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, dstPath, string(got), err, string(want))
++				}
++			}
++		})
++	}
++}
++
++// TestRootRenameTo tests renaming a known-good path to the test case target.
++func TestRootRenameTo(t *testing.T) {
++	want := []byte("target")
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			const srcPath = "source"
++			if err := os.WriteFile(filepath.Join(root.Name(), srcPath), want, 0o666); err != nil {
++				t.Fatal(err)
++			}
++
++			target = test.target
++			wantError := test.wantError
++			if test.ltarget != "" {
++				// Rename will overwrite the final link rather than follow it.
++				target = test.ltarget
++				wantError = false
++			}
++
++			// Plan 9 doesn't allow cross-directory renames.
++			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
++				wantError = true
++			}
++
++			err := root.Rename(srcPath, test.open)
++			if errEndsTest(t, err, wantError, "root.Rename(%q, %q)", srcPath, test.open) {
++				return
++			}
++
++			got, err := os.ReadFile(filepath.Join(root.Name(), target))
++			if err != nil || !bytes.Equal(got, want) {
++				t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, target, string(got), err, string(want))
++			}
++		})
++	}
++}
++
+ // A rootConsistencyTest is a test case comparing os.Root behavior with
+ // the corresponding non-Root function.
+ //
+@@ -927,14 +1012,19 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
+ 		}
+ 
+ 		if err1 != nil || err2 != nil {
+-			e1, ok := err1.(*os.PathError)
+-			if !ok {
+-				t.Fatalf("with root, expected PathError; got: %v", err1)
+-			}
+-			e2, ok := err2.(*os.PathError)
+-			if !ok {
+-				t.Fatalf("without root, expected PathError; got: %v", err1)
++			underlyingError := func(how string, err error) error {
++				switch e := err1.(type) {
++				case *os.PathError:
++					return e.Err
++				case *os.LinkError:
++					return e.Err
++				default:
++					t.Fatalf("%v, expected PathError or LinkError; got: %v", how, err)
++				}
++				return nil
+ 			}
++			e1 := underlyingError("with root", err1)
++			e2 := underlyingError("without root", err1)
+ 			detailedErrorMismatch := false
+ 			if f := test.detailedErrorMismatch; f != nil {
+ 				detailedErrorMismatch = f(t)
+@@ -943,9 +1033,9 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
+ 				// Plan9 syscall errors aren't comparable.
+ 				detailedErrorMismatch = true
+ 			}
+-			if !detailedErrorMismatch && e1.Err != e2.Err {
+-				t.Errorf("with root:    err=%v", e1.Err)
+-				t.Errorf("without root: err=%v", e2.Err)
++			if !detailedErrorMismatch && e1 != e2 {
++				t.Errorf("with root:    err=%v", e1)
++				t.Errorf("without root: err=%v", e2)
+ 				t.Errorf("want consistent results, got mismatch")
+ 			}
+ 		}
+@@ -1110,6 +1200,64 @@ func TestRootConsistencyReadlink(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootConsistencyRename(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		// This test depends on moving files between directories.
++		t.Skip("Plan 9 does not support cross-directory renames")
++	}
++	// Run this test in two directions:
++	// Renaming the test path to a known-good path (from),
++	// and renaming a known-good path to the test path (to).
++	for _, name := range []string{"from", "to"} {
++		t.Run(name, func(t *testing.T) {
++			for _, test := range rootConsistencyTestCases {
++				if runtime.GOOS == "windows" {
++					// On Windows, Rename("/path/to/.", x) succeeds,
++					// because Windows cleans the path to just "/path/to".
++					// Root.Rename(".", x) fails as expected.
++					// Don't run this consistency test on Windows.
++					if test.open == "." || test.open == "./" {
++						continue
++					}
++				}
++
++				test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++					rename := os.Rename
++					lstat := os.Lstat
++					if r != nil {
++						rename = r.Rename
++						lstat = r.Lstat
++					}
++
++					otherPath := "other"
++					if r == nil {
++						otherPath = filepath.Join(t.TempDir(), otherPath)
++					}
++
++					var srcPath, dstPath string
++					if name == "from" {
++						srcPath = path
++						dstPath = otherPath
++					} else {
++						srcPath = otherPath
++						dstPath = path
++					}
++
++					if err := rename(srcPath, dstPath); err != nil {
++						return "", err
++					}
++					fi, err := lstat(dstPath)
++					if err != nil {
++						t.Errorf("stat(%q) after successful copy: %v", dstPath, err)
++						return "stat error", err
++					}
++					return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
++				})
++			}
++		})
++	}
++}
++
+ func TestRootRenameAfterOpen(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index a5ca10b0cd..dc22651423 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -209,6 +209,10 @@ func removeat(fd int, name string) error {
+ 	return e
+ }
+ 
++func renameat(oldfd int, oldname string, newfd int, newname string) error {
++	return unix.Renameat(oldfd, oldname, newfd, newname)
++}
++
+ // checkSymlink resolves the symlink name in parent,
+ // and returns errSymlink with the link contents.
+ //
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 81fc5c320c..f4d2f4152b 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -315,6 +315,10 @@ func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Ti
+ 	return syscall.SetFileTime(h, nil, &a, &w)
+ }
+ 
++func renameat(oldfd syscall.Handle, oldname string, newfd syscall.Handle, newname string) error {
++	return windows.Renameat(oldfd, oldname, newfd, newname)
++}
++
+ func readlinkat(dirfd syscall.Handle, name string) (string, error) {
+ 	fd, err := openat(dirfd, name, windows.O_OPEN_REPARSE, 0)
+ 	if err != nil {

@@ -24,7 +24,7 @@ Date:   Mon Apr 14 15:34:30 2025 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/cgo/gcc.go                                           |  2 +-
  src/cmd/cgo/internal/testplugin/plugin_test.go               |  4 ++--
  src/cmd/cgo/out.go                                           |  6 +++---
@@ -50,3 +50,500 @@ Date:   Mon Apr 14 15:34:30 2025 +0000
  src/debug/dwarf/line_test.go                                 |  4 ++--
  src/go/types/assignments.go                                  |  2 +-
  24 files changed, 54 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d2d7b894b5..edb910a8da 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -2863,7 +2863,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			if ss, ok := dwarfToName[s]; ok {
+ 				s = ss
+ 			}
+-			s = strings.Replace(s, " ", "", -1)
++			s = strings.ReplaceAll(s, " ", "")
+ 			name := c.Ident("_Ctype_" + s)
+ 			tt := *t
+ 			typedef[name.Name] = &tt
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index a8d4c0ea58..d2d998e5f4 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -145,8 +145,8 @@ func goCmd(t *testing.T, op string, args ...string) string {
+ 
+ // escape converts a string to something suitable for a shell command line.
+ func escape(s string) string {
+-	s = strings.Replace(s, "\\", "\\\\", -1)
+-	s = strings.Replace(s, "'", "\\'", -1)
++	s = strings.ReplaceAll(s, "\\", "\\\\")
++	s = strings.ReplaceAll(s, "'", "\\'")
+ 	// Conservative guess at characters that will force quoting
+ 	if s == "" || strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
+ 		s = "'" + s + "'"
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2c3f1e06ff..10870b7c85 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -251,8 +251,8 @@ func (p *Package) writeDefs() {
+ 	}
+ 
+ 	if callsMalloc && !*gccgo {
+-		fmt.Fprint(fgo2, strings.Replace(cMallocDefGo, "PREFIX", cPrefix, -1))
+-		fmt.Fprint(fgcc, strings.Replace(strings.Replace(cMallocDefC, "PREFIX", cPrefix, -1), "PACKED", p.packedAttribute(), -1))
++		fmt.Fprint(fgo2, strings.ReplaceAll(cMallocDefGo, "PREFIX", cPrefix))
++		fmt.Fprint(fgcc, strings.ReplaceAll(strings.Replace(cMallocDefC, "PREFIX", cPrefix, -1), "PACKED", p.packedAttribute()))
+ 	}
+ 
+ 	if err := fgcc.Close(); err != nil {
+@@ -1954,7 +1954,7 @@ extern const char *_GoStringPtr(_GoString_ s);
+ `
+ 
+ func (p *Package) gccExportHeaderProlog() string {
+-	return strings.Replace(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize), -1)
++	return strings.ReplaceAll(gccExportHeaderProlog, "GOINTBITS", fmt.Sprint(8*p.IntSize))
+ }
+ 
+ // gccExportHeaderProlog is written to the exported header, after the
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index feffb06e1f..a8d24a6973 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -226,7 +226,7 @@ func TestScopeRanges(t *testing.T) {
+ 	defer f.Close()
+ 
+ 	// the compiler uses forward slashes for paths even on windows
+-	src = strings.Replace(src, "\\", "/", -1)
++	src = strings.ReplaceAll(src, "\\", "/")
+ 
+ 	pcln, err := f.PCLineTable()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 3e7d86aac5..d08f6fb5d6 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -326,7 +326,7 @@ var mu = sync.Mutex{} // mu protects loggedOpts.
+ // funcName is the name of the function
+ // A typical use for this to accumulate an explanation for a missed optimization, for example, why did something escape?
+ func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
+-	pass = strings.Replace(pass, " ", "_", -1)
++	pass = strings.ReplaceAll(pass, " ", "_")
+ 	return &LoggedOpt{pos, lastPos, pass, funcName, what, args}
+ }
+ 
+@@ -405,7 +405,7 @@ func fixSlash(f string) string {
+ 	if os.PathSeparator == '/' {
+ 		return f
+ 	}
+-	return strings.Replace(f, string(os.PathSeparator), "/", -1)
++	return strings.ReplaceAll(f, string(os.PathSeparator), "/")
+ }
+ 
+ func uriIfy(f string) DocumentURI {
+diff --git a/src/cmd/compile/internal/ssa/_gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+index 5b1e0912cf..3f65831b6e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -350,7 +350,7 @@ func genOp() {
+ 				if !needEffect {
+ 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
+ 				}
+-				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.Replace(v.symEffect, ",", "|Sym", -1))
++				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.ReplaceAll(v.symEffect, ",", "|Sym"))
+ 			} else if needEffect {
+ 				log.Fatalf("symEffect needed for aux %s", v.aux)
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/_gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+index a3f7e5efbf..5f5967a142 100644
+--- a/src/cmd/compile/internal/ssa/_gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -1623,11 +1623,11 @@ func varCount1(loc, m string, cnt map[string]int) {
+ // normalizeWhitespace replaces 2+ whitespace sequences with a single space.
+ func normalizeWhitespace(x string) string {
+ 	x = strings.Join(strings.Fields(x), " ")
+-	x = strings.Replace(x, "( ", "(", -1)
+-	x = strings.Replace(x, " )", ")", -1)
+-	x = strings.Replace(x, "[ ", "[", -1)
+-	x = strings.Replace(x, " ]", "]", -1)
+-	x = strings.Replace(x, ")=>", ") =>", -1)
++	x = strings.ReplaceAll(x, "( ", "(")
++	x = strings.ReplaceAll(x, " )", ")")
++	x = strings.ReplaceAll(x, "[ ", "[")
++	x = strings.ReplaceAll(x, " ]", "]")
++	x = strings.ReplaceAll(x, ")=>", ") =>")
+ 	return x
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 634a6f6864..e9500a24ed 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -169,9 +169,9 @@ func Compile(f *Func) {
+ func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
+ 	f.dumpFileSeq++
+ 	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
+-	fname = strings.Replace(fname, " ", "_", -1)
+-	fname = strings.Replace(fname, "/", "_", -1)
+-	fname = strings.Replace(fname, ":", "_", -1)
++	fname = strings.ReplaceAll(fname, " ", "_")
++	fname = strings.ReplaceAll(fname, "/", "_")
++	fname = strings.ReplaceAll(fname, ":", "_")
+ 
+ 	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
+ 		fname = filepath.Join(ssaDir, fname)
+@@ -264,7 +264,7 @@ func PhaseOption(phase, flag string, val int, valString string) string {
+ 		lastcr := 0
+ 		phasenames := "    check, all, build, intrinsics, genssa"
+ 		for _, p := range passes {
+-			pn := strings.Replace(p.name, " ", "_", -1)
++			pn := strings.ReplaceAll(p.name, " ", "_")
+ 			if len(pn)+len(phasenames)-lastcr > 70 {
+ 				phasenames += "\n    "
+ 				lastcr = len(phasenames)
+@@ -400,7 +400,7 @@ commas. For example:
+ 		return ""
+ 	}
+ 
+-	underphase := strings.Replace(phase, "_", " ", -1)
++	underphase := strings.ReplaceAll(phase, "_", " ")
+ 	var re *regexp.Regexp
+ 	if phase[0] == '~' {
+ 		r, ok := regexp.Compile(underphase[1:])
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 5920428bf9..6dced6edc8 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -694,7 +694,7 @@ func printVariableAndNormalize(v string, printer func(v string) string) string {
+ 	if dollar == -1 { // some not entirely expected response, whine and carry on.
+ 		if cr == -1 {
+ 			response = strings.TrimSpace(response) // discards trailing newline
+-			response = strings.Replace(response, "\n", "<BR>", -1)
++			response = strings.ReplaceAll(response, "\n", "<BR>")
+ 			return "$ Malformed response " + response
+ 		}
+ 		response = strings.TrimSpace(response[:cr])
+@@ -986,8 +986,8 @@ func asCommandLine(cwd string, cmd *exec.Cmd) string {
+ 
+ // escape inserts escapes appropriate for use in a shell command line
+ func escape(s string) string {
+-	s = strings.Replace(s, "\\", "\\\\", -1)
+-	s = strings.Replace(s, "'", "\\'", -1)
++	s = strings.ReplaceAll(s, "\\", "\\\\")
++	s = strings.ReplaceAll(s, "'", "\\'")
+ 	// Conservative guess at characters that will force quoting
+ 	if strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
+ 		s = " '" + s + "'"
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 51c5ec5f04..5736f0b812 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -342,7 +342,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
+ 	}
+ 	n := "missing_pass"
+ 	if f.pass != nil {
+-		n = strings.Replace(f.pass.name, " ", "_", -1)
++		n = strings.ReplaceAll(f.pass.name, " ", "_")
+ 	}
+ 	f.Warnl(f.Entry.Pos, "\t%s\t%s%s\t%s", n, key, value, f.Name)
+ }
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 1d6b47da6d..85a414f31e 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -29,7 +29,7 @@ type HTMLWriter struct {
+ }
+ 
+ func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
+-	path = strings.Replace(path, "/", string(filepath.Separator), -1)
++	path = strings.ReplaceAll(path, "/", string(filepath.Separator))
+ 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+ 	if err != nil {
+ 		f.Fatalf("%v", err)
+@@ -929,7 +929,7 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class,
+ 	if w == nil {
+ 		return
+ 	}
+-	id := strings.Replace(phase, " ", "-", -1)
++	id := strings.ReplaceAll(phase, " ", "-")
+ 	// collapsed column
+ 	w.Printf("<td id=\"%v-col\" class=\"collapsed\"><div>%v</div></td>", id, phase)
+ 
+@@ -1089,7 +1089,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
+ 		return
+ 	}
+ 	fmt.Fprint(pipe, `digraph "" { margin=0; ranksep=.2; `)
+-	id := strings.Replace(phase, " ", "-", -1)
++	id := strings.ReplaceAll(phase, " ", "-")
+ 	fmt.Fprintf(pipe, `id="g_graph_%s";`, id)
+ 	fmt.Fprintf(pipe, `node [style=filled,fillcolor=white,fontsize=16,fontname="Menlo,Times,serif",margin="0.01,0.03"];`)
+ 	fmt.Fprintf(pipe, `edge [fontsize=16,fontname="Menlo,Times,serif"];`)
+@@ -1270,7 +1270,7 @@ func newDotWriter(mask string) *dotWriter {
+ 		return nil
+ 	}
+ 	// User can specify phase name with _ instead of spaces.
+-	mask = strings.Replace(mask, "_", " ", -1)
++	mask = strings.ReplaceAll(mask, "_", " ")
+ 	ph := make(map[string]bool)
+ 	ranges := strings.Split(mask, ",")
+ 	for _, r := range ranges {
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 6aa76cbeba..2a3356bc5c 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -77,18 +77,18 @@ func (r *regInfo) String() string {
+ 	s += "INS:\n"
+ 	for _, i := range r.inputs {
+ 		mask := fmt.Sprintf("%64b", i.regs)
+-		mask = strings.Replace(mask, "0", ".", -1)
++		mask = strings.ReplaceAll(mask, "0", ".")
+ 		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
+ 	}
+ 	s += "OUTS:\n"
+ 	for _, i := range r.outputs {
+ 		mask := fmt.Sprintf("%64b", i.regs)
+-		mask = strings.Replace(mask, "0", ".", -1)
++		mask = strings.ReplaceAll(mask, "0", ".")
+ 		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
+ 	}
+ 	s += "CLOBBERS:\n"
+ 	mask := fmt.Sprintf("%64b", r.clobbers)
+-	mask = strings.Replace(mask, "0", ".", -1)
++	mask = strings.ReplaceAll(mask, "0", ".")
+ 	s += fmt.Sprintf("   |%s|\n", mask)
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/test/testdata/flowgraph_generator1.go b/src/cmd/compile/internal/test/testdata/flowgraph_generator1.go
+index ad22601f43..66ad0869dd 100644
+--- a/src/cmd/compile/internal/test/testdata/flowgraph_generator1.go
++++ b/src/cmd/compile/internal/test/testdata/flowgraph_generator1.go
+@@ -99,7 +99,7 @@ var labels string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+ func blocks(spec string) (blocks []string, fnameBase string) {
+ 	spec = strings.ToUpper(spec)
+ 	blocks = strings.Split(spec, ",")
+-	fnameBase = strings.Replace(spec, ",", "_", -1)
++	fnameBase = strings.ReplaceAll(spec, ",", "_")
+ 	return
+ }
+ 
+diff --git a/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go b/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go
+index 1649f46557..ecf6bab15a 100644
+--- a/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go
++++ b/src/cmd/compile/internal/test/testdata/gen/arithConstGen.go
+@@ -175,7 +175,7 @@ func {{.Name}}_{{.FNumber}}_{{.Type_}}(a {{.Type_}}) {{.Type_}} { return {{.Numb
+ 			if len(s.u) > 0 {
+ 				for _, i := range s.u {
+ 					fd.Number = fmt.Sprintf("%d", i)
+-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
++					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
+ 
+ 					// avoid division by zero
+ 					if o.name != "mod" && o.name != "div" || i != 0 {
+@@ -201,7 +201,7 @@ func {{.Name}}_{{.FNumber}}_{{.Type_}}(a {{.Type_}}) {{.Type_}} { return {{.Numb
+ 				}
+ 				for _, i := range s.i {
+ 					fd.Number = fmt.Sprintf("%d", i)
+-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
++					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
+ 
+ 					// avoid division by zero
+ 					if o.name != "mod" && o.name != "div" || i != 0 {
+@@ -242,7 +242,7 @@ type test_%[1]s%[2]s struct {
+ 				fd := cfncData{s.name, o.name, s.name, o.symbol, "", "", "", ""}
+ 				for _, i := range s.u {
+ 					fd.Number = fmt.Sprintf("%d", i)
+-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
++					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
+ 
+ 					// unsigned
+ 					for _, j := range s.u {
+@@ -282,7 +282,7 @@ type test_%[1]s%[2]s struct {
+ 				fd := cfncData{s.name, o.name, s.name, o.symbol, "", "", "", ""}
+ 				for _, i := range s.i {
+ 					fd.Number = fmt.Sprintf("%d", i)
+-					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
++					fd.FNumber = strings.ReplaceAll(fd.Number, "-", "Neg")
+ 					for _, j := range s.i {
+ 						if o.name != "mod" && o.name != "div" || j != 0 {
+ 							fd.Ans = ansS(i, j, s.name, o.symbol)
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 20ba215fac..8af5f4037a 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -318,7 +318,7 @@ func (check *Checker) typesSummary(list []Type, variadic, hasDots bool) string {
+ 			} else {
+ 				// If we don't have a number, omit the "untyped" qualifier
+ 				// for compactness.
+-				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
++				s = strings.ReplaceAll(t.(*Basic).name, "untyped ", "")
+ 			}
+ 		default:
+ 			s = check.sprintf("%s", t)
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 4fcc508f8e..596036fce9 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1923,7 +1923,7 @@ func banner() {
+ 
+ 	if gohostos == "plan9" {
+ 		// Check that GOROOT/bin is bound before /bin.
+-		pid := strings.Replace(readfile("#c/pid"), " ", "", -1)
++		pid := strings.ReplaceAll(readfile("#c/pid"), " ", "")
+ 		ns := fmt.Sprintf("/proc/%s/ns", pid)
+ 		if !strings.Contains(readfile(ns), fmt.Sprintf("bind -b %s /bin", gorootBin)) {
+ 			xprintf("*** You need to bind %s before /bin.\n", gorootBin)
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index b07a426612..cfd86dc6dc 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -61,7 +61,7 @@ func expandArgs(in []string) (out []string) {
+ 			if err != nil {
+ 				log.Fatal(err)
+ 			}
+-			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
++			args := strings.Split(strings.TrimSpace(strings.ReplaceAll(string(slurp), "\r", "")), "\n")
+ 			for i, arg := range args {
+ 				args[i] = DecodeArg(arg)
+ 			}
+@@ -299,7 +299,7 @@ func (f *DebugFlag) Set(debugstr string) error {
+ 			nl := fmt.Sprintf("\n\t%-*s\t", maxLen, "")
+ 			for _, name := range names {
+ 				help := f.tab[name].help
+-				fmt.Printf("\t%-*s\t%s\n", maxLen, name, strings.Replace(help, "\n", nl, -1))
++				fmt.Printf("\t%-*s\t%s\n", maxLen, name, strings.ReplaceAll(help, "\n", nl))
+ 			}
+ 			if f.debugSSA != nil {
+ 				// ssa options have their own help
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 29bd1f7cf8..7e7867d83f 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -237,7 +237,7 @@ func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string)
+ 	if importcfg == "" {
+ 		importcfg = stdlibImportcfgFile()
+ 	}
+-	pfile := strings.Replace(goname, ".go", ".o", -1)
++	pfile := strings.ReplaceAll(goname, ".go", ".o")
+ 	cmd := []string{goTool, "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
+ 	if *linkshared {
+ 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
+@@ -295,7 +295,7 @@ func (t test) goFileName() string {
+ }
+ 
+ func (t test) goDirName() string {
+-	return filepath.Join(t.dir, strings.Replace(t.goFile, ".go", ".dir", -1))
++	return filepath.Join(t.dir, strings.ReplaceAll(t.goFile, ".go", ".dir"))
+ }
+ 
+ // goDirFiles returns .go files in dir.
+@@ -1145,7 +1145,7 @@ func (t test) checkExpectedOutput(gotBytes []byte) error {
+ 	} else if err != nil {
+ 		return err
+ 	}
+-	got = strings.Replace(got, "\r\n", "\n", -1)
++	got = strings.ReplaceAll(got, "\r\n", "\n")
+ 	if got != string(b) {
+ 		if err == nil {
+ 			return fmt.Errorf("output does not match expected in %s. Instead saw\n%s", filename, got)
+@@ -1300,12 +1300,12 @@ func (test) updateErrors(out, file string) {
+ 		if err != nil || line < 0 || line >= len(lines) {
+ 			continue
+ 		}
+-		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
++		msg = strings.ReplaceAll(msg, file, base) // normalize file mentions in error itself
+ 		msg = strings.TrimLeft(msg, " \t")
+ 		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {
+-			msg = strings.Replace(msg, r, `\`+r, -1)
++			msg = strings.ReplaceAll(msg, r, `\`+r)
+ 		}
+-		msg = strings.Replace(msg, `"`, `.`, -1)
++		msg = strings.ReplaceAll(msg, `"`, `.`)
+ 		msg = tmpRe.ReplaceAllLiteralString(msg, `autotmp_[0-9]+`)
+ 		if errors[line] == nil {
+ 			errors[line] = make(map[string]bool)
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 45f395358a..f55f342d6e 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -545,7 +545,7 @@ func machoadddynlib(lib string, linkmode LinkMode) {
+ }
+ 
+ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
+-	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
++	buf := "__" + strings.ReplaceAll(sect.Name[1:], ".", "_")
+ 
+ 	msect := newMachoSect(mseg, buf, segname)
+ 
+@@ -1039,7 +1039,7 @@ func machosymtab(ctxt *Link) {
+ 		symstr.AddUint8('_')
+ 
+ 		// replace "·" as ".", because DTrace cannot handle it.
+-		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
++		name := strings.ReplaceAll(ldr.SymExtname(s), "·", ".")
+ 
+ 		name = mangleABIName(ctxt, ldr, s, name)
+ 		symstr.Addstring(name)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index b89a7802a2..759262286d 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -155,7 +155,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
+ 	// match exactly. Tools like DTrace will have to wait for now.
+ 	if !ctxt.DynlinkingGo() {
+ 		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
+-		sname = strings.Replace(sname, "·", ".", -1)
++		sname = strings.ReplaceAll(sname, "·", ".")
+ 	}
+ 
+ 	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x).IsText() {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 182379f0df..d4605ae6f7 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2745,7 +2745,7 @@ func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{})
+ 	if s != 0 && reporter.ldr.SymName(s) != "" {
+ 		// Note: Replace is needed here because symbol names might have % in them,
+ 		// due to the use of LinkString for names of instantiating types.
+-		format = strings.Replace(reporter.ldr.SymName(s), "%", "%%", -1) + ": " + format
++		format = strings.ReplaceAll(reporter.ldr.SymName(s), "%", "%%") + ": " + format
+ 	} else {
+ 		format = fmt.Sprintf("sym %d: %s", s, format)
+ 	}
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index 3a02c8e307..3811416b92 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -837,7 +837,7 @@ func splitDrive(path string) (drive, rest string) {
+ 	}
+ 	if len(path) > 3 && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') {
+ 		// Normalize the path so we can search for just \ below.
+-		npath := strings.Replace(path, "/", `\`, -1)
++		npath := strings.ReplaceAll(path, "/", `\`)
+ 		// Get the host part, which must be non-empty.
+ 		slash1 := strings.IndexByte(npath[2:], '\\') + 2
+ 		if slash1 > 2 {
+diff --git a/src/debug/dwarf/line_test.go b/src/debug/dwarf/line_test.go
+index e947d99ebb..0a7ade934a 100644
+--- a/src/debug/dwarf/line_test.go
++++ b/src/debug/dwarf/line_test.go
+@@ -94,8 +94,8 @@ func TestLineGCCWindows(t *testing.T) {
+ 
+ 	toWindows := func(lf *LineFile) *LineFile {
+ 		lf2 := *lf
+-		lf2.Name = strings.Replace(lf2.Name, "/home/austin/go.dev/", "C:\\workdir\\go\\", -1)
+-		lf2.Name = strings.Replace(lf2.Name, "/", "\\", -1)
++		lf2.Name = strings.ReplaceAll(lf2.Name, "/home/austin/go.dev/", "C:\\workdir\\go\\")
++		lf2.Name = strings.ReplaceAll(lf2.Name, "/", "\\")
+ 		return &lf2
+ 	}
+ 	file1C := toWindows(file1C)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 7820b18b56..3b40a9f848 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -321,7 +321,7 @@ func (check *Checker) typesSummary(list []Type, variadic, hasDots bool) string {
+ 			} else {
+ 				// If we don't have a number, omit the "untyped" qualifier
+ 				// for compactness.
+-				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
++				s = strings.ReplaceAll(t.(*Basic).name, "untyped ", "")
+ 			}
+ 		default:
+ 			s = check.sprintf("%s", t)

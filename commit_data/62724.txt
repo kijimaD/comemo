@@ -23,9 +23,221 @@ Date:   Thu Mar 6 17:54:17 2025 +0300
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/devirtualize/pgo.go       |  2 +-
  .../compile/internal/test/pgo_devirtualize_test.go | 63 ++++++++++++++++++----
  .../test/testdata/pgo/devirtualize/devirt.go       | 42 +++++++++++++++
  .../test/testdata/pgo/devirtualize/devirt_test.go  | 16 ++++++
  4 files changed, 112 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 96c9231be3..a8980bb86b 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -741,7 +741,7 @@ func findHotConcreteCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr,
+ 		hottest = e
+ 	}
+ 
+-	if hottest == nil {
++	if hottest == nil || hottest.Weight == 0 {
+ 		if base.Debug.PGODebug >= 2 {
+ 			fmt.Printf("%v: call %s:%d: no hot callee\n", ir.Line(call), callerName, callOffset)
+ 		}
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+index af09107dc0..a97a5799fc 100644
+--- a/src/cmd/compile/internal/test/pgo_devirtualize_test.go
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -23,7 +23,7 @@ const profFileName = "devirt.pprof"
+ const preProfFileName = "devirt.pprof.node_map"
+ 
+ // testPGODevirtualize tests that specific PGO devirtualize rewrites are performed.
+-func testPGODevirtualize(t *testing.T, dir string, want []devirtualization, pgoProfileName string) {
++func testPGODevirtualize(t *testing.T, dir string, want, nowant []devirtualization, pgoProfileName string) {
+ 	testenv.MustHaveGoRun(t)
+ 	t.Parallel()
+ 
+@@ -69,8 +69,10 @@ go 1.21
+ 	}
+ 
+ 	got := make(map[devirtualization]struct{})
++	gotNoHot := make(map[devirtualization]struct{})
+ 
+ 	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing \w+ call .* to (.*)`)
++	noHotLine := regexp.MustCompile(`(.*): call .*: no hot callee`)
+ 
+ 	scanner := bufio.NewScanner(pr)
+ 	for scanner.Scan() {
+@@ -78,15 +80,21 @@ go 1.21
+ 		t.Logf("child: %s", line)
+ 
+ 		m := devirtualizedLine.FindStringSubmatch(line)
+-		if m == nil {
++		if m != nil {
++			d := devirtualization{
++				pos:    m[1],
++				callee: m[2],
++			}
++			got[d] = struct{}{}
+ 			continue
+ 		}
+-
+-		d := devirtualization{
+-			pos:    m[1],
+-			callee: m[2],
++		m = noHotLine.FindStringSubmatch(line)
++		if m != nil {
++			d := devirtualization{
++				pos: m[1],
++			}
++			gotNoHot[d] = struct{}{}
+ 		}
+-		got[d] = struct{}{}
+ 	}
+ 	if err := cmd.Wait(); err != nil {
+ 		t.Fatalf("error running go test: %v", err)
+@@ -104,6 +112,11 @@ go 1.21
+ 		}
+ 		t.Errorf("devirtualization %v missing; got %v", w, got)
+ 	}
++	for _, nw := range nowant {
++		if _, ok := gotNoHot[nw]; !ok {
++			t.Errorf("unwanted devirtualization %v; got %v", nw, got)
++		}
++	}
+ 
+ 	// Run test with PGO to ensure the assertions are still true.
+ 	cmd = testenv.CleanCmdEnv(testenv.Command(t, out))
+@@ -174,8 +187,18 @@ func TestPGODevirtualize(t *testing.T) {
+ 		//	callee: "mult.MultClosure.func1",
+ 		//},
+ 	}
++	nowant := []devirtualization{
++		// ExerciseIfaceZeroWeight
++		{
++			pos: "./devirt.go:256:29",
++		},
++		// ExerciseIndirCallZeroWeight
++		{
++			pos: "./devirt.go:282:37",
++		},
++	}
+ 
+-	testPGODevirtualize(t, dir, want, profFileName)
++	testPGODevirtualize(t, dir, want, nowant, profFileName)
+ }
+ 
+ // TestPGOPreprocessDevirtualize tests that specific functions are devirtualized when PGO
+@@ -237,8 +260,18 @@ func TestPGOPreprocessDevirtualize(t *testing.T) {
+ 		//	callee: "mult.MultClosure.func1",
+ 		//},
+ 	}
++	nowant := []devirtualization{
++		// ExerciseIfaceZeroWeight
++		{
++			pos: "./devirt.go:256:29",
++		},
++		// ExerciseIndirCallZeroWeight
++		{
++			pos: "./devirt.go:282:37",
++		},
++	}
+ 
+-	testPGODevirtualize(t, dir, want, preProfFileName)
++	testPGODevirtualize(t, dir, want, nowant, preProfFileName)
+ }
+ 
+ // Regression test for https://go.dev/issue/65615. If a target function changes
+@@ -303,8 +336,18 @@ func TestLookupFuncGeneric(t *testing.T) {
+ 		//	callee: "mult.MultClosure.func1",
+ 		//},
+ 	}
++	nowant := []devirtualization{
++		// ExerciseIfaceZeroWeight
++		{
++			pos: "./devirt.go:256:29",
++		},
++		// ExerciseIndirCallZeroWeight
++		{
++			pos: "./devirt.go:282:37",
++		},
++	}
+ 
+-	testPGODevirtualize(t, dir, want, profFileName)
++	testPGODevirtualize(t, dir, want, nowant, profFileName)
+ }
+ 
+ var multFnRe = regexp.MustCompile(`func MultFn\(a, b int64\) int64`)
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+index ac238f6dea..129809e386 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+@@ -250,3 +250,45 @@ func ExerciseFuncClosure(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
+ 	}
+ 	return val
+ }
++
++//go:noinline
++func IfaceZeroWeight(a *Add, b Adder) bool {
++	return a.Add(1, 2) == b.Add(3, 4) // unwanted devirtualization
++}
++
++// ExerciseIfaceZeroWeight never calls IfaceZeroWeight, so the callee
++// is not expected to appear in the profile.
++//
++//go:noinline
++func ExerciseIfaceZeroWeight() {
++	if false {
++		a := &Add{}
++		b := &Sub{}
++		// Unreachable call
++		IfaceZeroWeight(a, b)
++	}
++}
++
++func DirectCall() bool {
++	return true
++}
++
++func IndirectCall() bool {
++	return false
++}
++
++//go:noinline
++func IndirCallZeroWeight(indirectCall func() bool) bool {
++	return DirectCall() && indirectCall() // unwanted devirtualization
++}
++
++// ExerciseIndirCallZeroWeight never calls IndirCallZeroWeight, so the
++// callee is not expected to appear in the profile.
++//
++//go:noinline
++func ExerciseIndirCallZeroWeight() {
++	if false {
++		// Unreachable call
++		IndirCallZeroWeight(IndirectCall)
++	}
++}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+index 59b565d77f..2116e9b249 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+@@ -71,3 +71,19 @@ func TestDevirtFuncClosure(t *testing.T) {
+ 		t.Errorf("ExerciseFuncClosure(10) got %d want 1176", v)
+ 	}
+ }
++
++func BenchmarkDevirtIfaceZeroWeight(t *testing.B) {
++	ExerciseIfaceZeroWeight()
++}
++
++func TestDevirtIfaceZeroWeight(t *testing.T) {
++	ExerciseIfaceZeroWeight()
++}
++
++func BenchmarkDevirtIndirCallZeroWeight(t *testing.B) {
++	ExerciseIndirCallZeroWeight()
++}
++
++func TestDevirtIndirCallZeroWeight(t *testing.T) {
++	ExerciseIndirCallZeroWeight()
++}

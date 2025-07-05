@@ -7,10 +7,114 @@ Date:   Tue Aug 7 11:12:54 2012 +0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/6458043
-
+---
  doc/articles/concurrency_patterns.html        | 2 +-
  doc/articles/image_package.html               | 8 ++++----
  doc/articles/json_rpc_tale_of_interfaces.html | 2 +-
  doc/code.html                                 | 2 +-
  doc/install.html                              | 6 +++---
  5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/doc/articles/concurrency_patterns.html b/doc/articles/concurrency_patterns.html
+index 63c8cd59e8..515d974d2b 100644
+--- a/doc/articles/concurrency_patterns.html
++++ b/doc/articles/concurrency_patterns.html
+@@ -17,7 +17,7 @@ and launching a goroutine that sleeps before sending on the channel:
+ We can then use a <code>select</code> statement to receive from either
+ <code>ch</code> or <code>timeout</code>. If nothing arrives on <code>ch</code>
+ after one second, the timeout case is selected and the attempt to read from
+-<cde>ch</cde> is abandoned.
++<code>ch</code> is abandoned.
+ </p>
+ 
+ {{code "/doc/progs/timeout1.go" `/select {/` `/STOP/`}}
+diff --git a/doc/articles/image_package.html b/doc/articles/image_package.html
+index a9d2f3581d..24601b5749 100644
+--- a/doc/articles/image_package.html
++++ b/doc/articles/image_package.html
+@@ -45,7 +45,7 @@ classic algebra:
+ dstr, dstg, dstb, dsta := dst.RGBA()
+ srcr, srcg, srcb, srca := src.RGBA()
+ _, _, _, m := mask.RGBA()
+-const M = 1<<16 - 1
++const M = 1&lt;&lt;16 - 1
+ // The resultant red value is a blend of dstr and srcr, and ranges in [0, M].
+ // The calculation for green, blue and alpha is similar.
+ dstr = (dstr*(M-m) + srcr*m) / M
+@@ -130,7 +130,7 @@ much easier to type.
+ A <code>Rectangle</code> is inclusive at the top-left and exclusive at the
+ bottom-right. For a <code>Point p</code> and a <code>Rectangle r</code>,
+ <code>p.In(r)</code> if and only if
+-<code>r.Min.X <= p.X && p.X < r.Max.X</code>, and similarly for <code>Y</code>. This is analagous to how
++<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analagous to how
+ a slice <code>s[i0:i1]</code> is inclusive at the low end and exclusive at the
+ high end. (Unlike arrays and slices, a <code>Rectangle</code> often has a
+ non-zero origin.)
+@@ -193,8 +193,8 @@ way to iterate over an <code>Image</code> m's pixels looks like:
+ 
+ <pre>
+ b := m.Bounds()
+-for y := b.Min.Y; y < b.Max.Y; y++ {
+-	for x := b.Min.X; y < b.Max.X; x++ {
++for y := b.Min.Y; y &lt; b.Max.Y; y++ {
++	for x := b.Min.X; y &lt; b.Max.X; x++ {
+ 		doStuffWith(m.At(x, y))
+ 	}
+ }
+diff --git a/doc/articles/json_rpc_tale_of_interfaces.html b/doc/articles/json_rpc_tale_of_interfaces.html
+index a545f55f61..0db366f33a 100644
+--- a/doc/articles/json_rpc_tale_of_interfaces.html
++++ b/doc/articles/json_rpc_tale_of_interfaces.html
+@@ -57,7 +57,7 @@ original functionality. From there it is simple to build a
+ After some similar changes to the client side, this was the full extent of the
+ work we needed to do on the RPC package. This whole exercise took about 20
+ minutes! After tidying up and testing the new code, the
+-<a href="http://code.google.com/p/go/source/diff?spec=svn9daf796ebf1cae97b2fcf760a4ab682f1f063f29&r=9daf796ebf1cae97b2fcf760a4ab682f1f063f29&format=side&path=/src/pkg/rpc/server.go">final changeset</a>
++<a href="http://code.google.com/p/go/source/diff?spec=svn9daf796ebf1cae97b2fcf760a4ab682f1f063f29&amp;r=9daf796ebf1cae97b2fcf760a4ab682f1f063f29&amp;format=side&amp;path=/src/pkg/rpc/server.go">final changeset</a>
+ was submitted.
+ </p>
+ 
+diff --git a/doc/code.html b/doc/code.html
+index efbe7eed02..d11685f796 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -182,7 +182,7 @@ func Sqrt(x float64) float64 {
+         // This is a terrible implementation.
+         // Real code should import "math" and use math.Sqrt.
+         z := 0.0
+-        for i := 0; i < 1000; i++ {
++        for i := 0; i &lt; 1000; i++ {
+                 z -= (z*z - x) / (2 * x)
+         }
+         return z
+diff --git a/doc/install.html b/doc/install.html
+index ae5bffab18..ec78d2a5a8 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -41,7 +41,7 @@ proceeding. If your OS or architecture is not on the list, it's possible that
+ </tr>
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 7 or later</td> <td>amd64, 386</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+-<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</tr>
++<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
+ <tr><td>Mac OS X 10.6/10.7</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode</td></tr>
+ <tr><td>Windows 2000 or later</td> <td>amd64, 386</td> <td>use mingw gcc<sup>&#8224;</sup>; cygwin or msys is not needed</td></tr>
+ </table>
+@@ -155,7 +155,7 @@ a zip archive that requires you to set some environment variables and an
+ experimental MSI installer that configures your installation automatically.
+ </p>
+ 
+-<h4 id="windows_zip">Zip archive</h3>
++<h4 id="windows_zip">Zip archive</h4>
+ 
+ <p>
+ Extract the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DArchive">zip file</a>
+@@ -171,7 +171,7 @@ the <code>GOROOT</code> environment variable to your chosen path.
+ Add the <code>bin</code> subdirectory of your Go root (for example, <code>c:\Go\bin</code>) to to your <code>PATH</code> environment variable.
+ </p>
+ 
+-<h4 id="windows_msi">MSI installer (experimental)</h3>
++<h4 id="windows_msi">MSI installer (experimental)</h4>
+ 
+ <p>
+ Open the <a href="http://code.google.com/p/go/downloads/list?q=OpSys-Windows+Type%3DInstaller">MSI file</a>

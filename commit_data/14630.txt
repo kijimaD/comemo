@@ -13,6 +13,23 @@ Date:   Wed Dec 12 13:08:35 2012 -0800
     R=rsc, r, iant, ken, bradfitz, rogpeppe
     CC=golang-dev
     https://golang.org/cl/6909060
-
+---
  doc/go_spec.html | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 468fb3ad28..9e8aafa999 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5104,9 +5104,8 @@ delete(m, k)  // remove element m[k] from map m
+ </pre>
+ 
+ <p>
+-If the element <code>m[k]</code> does not exist, <code>delete</code> is
+-a no-op. Calling <code>delete</code> with a nil map causes a
+-<a href="#Run_time_panics">run-time panic</a>.
++If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
++does not exist, <code>delete</code> is a no-op.
+ </p>
+ 
+ 

@@ -12,7 +12,7 @@ Date:   Sun Dec 8 22:51:31 2013 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/34580044
-
+---
  src/cmd/5c/gc.h    |  66 ++++---------
  src/cmd/5c/list.c  |  34 +++----
  src/cmd/5c/peep.c  |  44 ++++-----
@@ -37,3 +37,2824 @@ Date:   Sun Dec 8 22:51:31 2013 -0500
  src/cmd/cc/pswt.c  |  29 ------
  src/cmd/cc/sub.c   |  10 ++
  23 files changed, 223 insertions(+), 1249 deletions(-)
+
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 084da7e6a5..3b9ca4b2a0 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -46,8 +46,6 @@
+ #define	SZ_DOUBLE	8
+ #define	FNX		100
+ 
+-typedef	struct	Adr	Adr;
+-typedef	struct	Prog	Prog;
+ typedef	struct	Case	Case;
+ typedef	struct	C1	C1;
+ typedef	struct	Multab	Multab;
+@@ -59,33 +57,9 @@ typedef	struct	Rgn	Rgn;
+ 
+ #define	R0ISZERO	0
+ 
+-struct	Adr
+-{
+-	int32	offset;
+-	int32	offset2;
+-	double	dval;
+-	char	sval[NSNAME];
+-	Ieee	ieee;
+-
+-	Sym*	sym;
+-	char	type;
+-	uchar	reg;
+-	char	name;
+-	char	etype;
+-};
+-#define	A	((Adr*)0)
++#define	A	((Addr*)0)
+ 
+ #define	INDEXED	9
+-struct	Prog
+-{
+-	Adr	from;
+-	Adr	to;
+-	Prog*	link;
+-	int32	lineno;
+-	char	as;
+-	uchar	reg;
+-	uchar	scond;
+-};
+ #define	P	((Prog*)0)
+ 
+ struct	Case
+@@ -119,7 +93,7 @@ struct	Hintab
+ struct	Var
+ {
+ 	int32	offset;
+-	Sym*	sym;
++	LSym*	sym;
+ 	char	name;
+ 	char	etype;
+ };
+@@ -174,7 +148,6 @@ EXTERN	Node	fconstnode;
+ EXTERN	int32	continpc;
+ EXTERN	int32	curarg;
+ EXTERN	int32	cursafe;
+-EXTERN	Prog*	firstp;
+ EXTERN	int32	isbigendian;
+ EXTERN	Prog*	lastp;
+ EXTERN	int32	maxargsafe;
+@@ -285,7 +258,7 @@ void	regaalloc(Node*, Node*);
+ void	regind(Node*, Node*);
+ void	gprep(Node*, Node*);
+ void	raddr(Node*, Prog*);
+-void	naddr(Node*, Adr*);
++void	naddr(Node*, Addr*);
+ void	gmovm(Node*, Node*, int);
+ void	gmove(Node*, Node*);
+ void	gmover(Node*, Node*);
+@@ -314,7 +287,6 @@ int	mulcon(Node*, Node*);
+ Multab*	mulcon0(int32);
+ void	nullwarn(Node*, Node*);
+ void	outcode(void);
+-void	ieeedtod(Ieee*, double);
+ 
+ /*
+  * list
+@@ -335,7 +307,7 @@ Reg*	rega(void);
+ int	rcmp(const void*, const void*);
+ void	regopt(Prog*);
+ void	addmove(Reg*, int, int, int);
+-Bits	mkvar(Adr*, int);
++Bits	mkvar(Addr*, int);
+ void	prop(Reg*, Bits, Bits);
+ void	loopit(Reg*, int32);
+ void	synch(Reg*, Bits);
+@@ -343,7 +315,7 @@ uint32	allreg(uint32, Rgn*);
+ void	paint1(Reg*, int);
+ uint32	paint2(Reg*, int);
+ void	paint3(Reg*, int, int32, int);
+-void	addreg(Adr*, int);
++void	addreg(Addr*, int);
+ 
+ /*
+  * peep.c
+@@ -352,21 +324,21 @@ void	peep(void);
+ void	excise(Reg*);
+ Reg*	uniqp(Reg*);
+ Reg*	uniqs(Reg*);
+-int	regtyp(Adr*);
+-int	regzer(Adr*);
+-int	anyvar(Adr*);
++int	regtyp(Addr*);
++int	regzer(Addr*);
++int	anyvar(Addr*);
+ int	subprop(Reg*);
+ int	copyprop(Reg*);
+ int	shiftprop(Reg*);
+-void	constprop(Adr*, Adr*, Reg*);
+-int	copy1(Adr*, Adr*, Reg*, int);
+-int	copyu(Prog*, Adr*, Adr*);
++void	constprop(Addr*, Addr*, Reg*);
++int	copy1(Addr*, Addr*, Reg*, int);
++int	copyu(Prog*, Addr*, Addr*);
+ 
+-int	copyas(Adr*, Adr*);
+-int	copyau(Adr*, Adr*);
+-int	copyau1(Prog*, Adr*);
+-int	copysub(Adr*, Adr*, Adr*, int);
+-int	copysub1(Prog*, Adr*, Adr*, int);
++int	copyas(Addr*, Addr*);
++int	copyau(Addr*, Addr*);
++int	copyau1(Prog*, Addr*);
++int	copysub(Addr*, Addr*, Addr*, int);
++int	copysub1(Prog*, Addr*, Addr*, int);
+ 
+ int32	RtoB(int);
+ int32	FtoB(int);
+@@ -380,8 +352,8 @@ int	modifiescpsr(Prog *p);
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Bits
+-#pragma	varargck	type	"D"	Adr*
+-#pragma	varargck	type	"N"	Adr*
+-#pragma	varargck	type	"R"	Adr*
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"N"	Addr*
++#pragma	varargck	type	"R"	Addr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/5c/list.c b/src/cmd/5c/list.c
+index 30b88400fe..6f2545ff77 100644
+--- a/src/cmd/5c/list.c
++++ b/src/cmd/5c/list.c
+@@ -58,7 +58,7 @@ Bconv(Fmt *fp)
+ 		i = bnum(bits);
+ 		if(str[0])
+ 			strcat(str, " ");
+-		if(var[i].sym == S) {
++		if(var[i].sym == nil) {
+ 			sprint(ss, "$%d", var[i].offset);
+ 			s = ss;
+ 		} else
+@@ -131,7 +131,7 @@ Aconv(Fmt *fp)
+ 	a = va_arg(fp->args, int);
+ 	s = "???";
+ 	if(a >= AXXX && a < ALAST)
+-		s = anames[a];
++		s = anames5[a];
+ 	return fmtstrcpy(fp, s);
+ }
+ 
+@@ -139,11 +139,11 @@ int
+ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	Adr *a;
++	Addr *a;
+ 	const char *op;
+ 	int v;
+ 
+-	a = va_arg(fp->args, Adr*);
++	a = va_arg(fp->args, Addr*);
+ 	switch(a->type) {
+ 
+ 	default:
+@@ -152,7 +152,7 @@ Dconv(Fmt *fp)
+ 
+ 	case D_NONE:
+ 		str[0] = 0;
+-		if(a->name != D_NONE || a->reg != NREG || a->sym != S)
++		if(a->name != D_NONE || a->reg != NREG || a->sym != nil)
+ 			sprint(str, "%N(R%d)(NONE)", a, a->reg);
+ 		break;
+ 
+@@ -187,19 +187,19 @@ Dconv(Fmt *fp)
+ 
+ 	case D_REG:
+ 		sprint(str, "R%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
++		if(a->name != D_NONE || a->sym != nil)
+ 			sprint(str, "%N(R%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_FREG:
+ 		sprint(str, "F%d", a->reg);
+-		if(a->name != D_NONE || a->sym != S)
++		if(a->name != D_NONE || a->sym != nil)
+ 			sprint(str, "%N(R%d)(REG)", a, a->reg);
+ 		break;
+ 
+ 	case D_PSR:
+ 		sprint(str, "PSR");
+-		if(a->name != D_NONE || a->sym != S)
++		if(a->name != D_NONE || a->sym != nil)
+ 			sprint(str, "%N(PSR)(REG)", a);
+ 		break;
+ 
+@@ -208,11 +208,11 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_FCONST:
+-		sprint(str, "$%.17e", a->dval);
++		sprint(str, "$%.17g", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		sprint(str, "$\"%S\"", a->sval);
++		sprint(str, "$\"%S\"", a->u.sval);
+ 		break;
+ 	}
+ 	return fmtstrcpy(fp, str);
+@@ -222,17 +222,17 @@ int
+ Rconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	Adr *a;
++	Addr *a;
+ 	int i, v;
+ 
+-	a = va_arg(fp->args, Adr*);
++	a = va_arg(fp->args, Addr*);
+ 	sprint(str, "GOK-reglist");
+ 	switch(a->type) {
+ 	case D_CONST:
+ 	case D_CONST2:
+ 		if(a->reg != NREG)
+ 			break;
+-		if(a->sym != S)
++		if(a->sym != nil)
+ 			break;
+ 		v = a->offset;
+ 		strcpy(str, "");
+@@ -301,12 +301,12 @@ int
+ Nconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+-	Adr *a;
+-	Sym *s;
++	Addr *a;
++	LSym *s;
+ 
+-	a = va_arg(fp->args, Adr*);
++	a = va_arg(fp->args, Addr*);
+ 	s = a->sym;
+-	if(s == S) {
++	if(s == nil) {
+ 		sprint(str, "%d", a->offset);
+ 		goto out;
+ 	}
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index 22328c18c3..143400a634 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -31,7 +31,7 @@
+ 
+ #include "gc.h"
+ 
+-int xtramodes(Reg*, Adr*);
++int xtramodes(Reg*, Addr*);
+ 
+ void
+ peep(void)
+@@ -281,7 +281,7 @@ uniqs(Reg *r)
+ }
+ 
+ int
+-regtyp(Adr *a)
++regtyp(Addr *a)
+ {
+ 
+ 	if(a->type == D_REG)
+@@ -309,7 +309,7 @@ int
+ subprop(Reg *r0)
+ {
+ 	Prog *p;
+-	Adr *v1, *v2;
++	Addr *v1, *v2;
+ 	Reg *r;
+ 	int t;
+ 
+@@ -427,7 +427,7 @@ int
+ copyprop(Reg *r0)
+ {
+ 	Prog *p;
+-	Adr *v1, *v2;
++	Addr *v1, *v2;
+ 	Reg *r;
+ 
+ 	p = r0->prog;
+@@ -441,7 +441,7 @@ copyprop(Reg *r0)
+ }
+ 
+ int
+-copy1(Adr *v1, Adr *v2, Reg *r, int f)
++copy1(Addr *v1, Addr *v2, Reg *r, int f)
+ {
+ 	int t;
+ 	Prog *p;
+@@ -525,7 +525,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+  * The v1->v2 should be eliminated by copy propagation.
+  */
+ void
+-constprop(Adr *c1, Adr *v1, Reg *r)
++constprop(Addr *c1, Addr *v1, Reg *r)
+ {
+ 	Prog *p;
+ 
+@@ -574,7 +574,7 @@ shiftprop(Reg *r)
+ 	Reg *r1;
+ 	Prog *p, *p1, *p2;
+ 	int n, o;
+-	Adr a;
++	Addr a;
+ 
+ 	p = r->prog;
+ 	if(p->to.type != D_REG)
+@@ -710,7 +710,7 @@ shiftprop(Reg *r)
+ }
+ 
+ Reg*
+-findpre(Reg *r, Adr *v)
++findpre(Reg *r, Addr *v)
+ {
+ 	Reg *r1;
+ 
+@@ -730,7 +730,7 @@ findpre(Reg *r, Adr *v)
+ }
+ 
+ Reg*
+-findinc(Reg *r, Reg *r2, Adr *v)
++findinc(Reg *r, Reg *r2, Addr *v)
+ {
+ 	Reg *r1;
+ 	Prog *p;
+@@ -758,7 +758,7 @@ findinc(Reg *r, Reg *r2, Adr *v)
+ int
+ nochange(Reg *r, Reg *r2, Prog *p)
+ {
+-	Adr a[3];
++	Addr a[3];
+ 	int i, n;
+ 
+ 	if(r == r2)
+@@ -788,7 +788,7 @@ nochange(Reg *r, Reg *r2, Prog *p)
+ }
+ 
+ int
+-findu1(Reg *r, Adr *v)
++findu1(Reg *r, Addr *v)
+ {
+ 	for(; r != R; r = r->s1) {
+ 		if(r->active)
+@@ -810,7 +810,7 @@ findu1(Reg *r, Adr *v)
+ }
+ 
+ int
+-finduse(Reg *r, Adr *v)
++finduse(Reg *r, Addr *v)
+ {
+ 	Reg *r1;
+ 
+@@ -820,11 +820,11 @@ finduse(Reg *r, Adr *v)
+ }
+ 
+ int
+-xtramodes(Reg *r, Adr *a)
++xtramodes(Reg *r, Addr *a)
+ {
+ 	Reg *r1, *r2, *r3;
+ 	Prog *p, *p1;
+-	Adr v;
++	Addr v;
+ 
+ 	p = r->prog;
+ 	if((p->as == AMOVB || p->as == AMOVBS) && p->from.type == D_OREG)	/* byte load */
+@@ -911,7 +911,7 @@ xtramodes(Reg *r, Adr *a)
+  * 0 otherwise (not touched)
+  */
+ int
+-copyu(Prog *p, Adr *v, Adr *s)
++copyu(Prog *p, Addr *v, Addr *s)
+ {
+ 
+ 	switch(p->as) {
+@@ -1106,7 +1106,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == (uchar)REGARG)
++			if(v->reg == REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1124,7 +1124,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == (uchar)REGARG)
++			if(v->reg == REGARG)
+ 				return 3;
+ 		return 0;
+ 	}
+@@ -1175,7 +1175,7 @@ a2type(Prog *p)
+  * semantics
+  */
+ int
+-copyas(Adr *a, Adr *v)
++copyas(Addr *a, Addr *v)
+ {
+ 
+ 	if(regtyp(v)) {
+@@ -1197,7 +1197,7 @@ copyas(Adr *a, Adr *v)
+  * either direct or indirect
+  */
+ int
+-copyau(Adr *a, Adr *v)
++copyau(Addr *a, Addr *v)
+ {
+ 
+ 	if(copyas(a, v))
+@@ -1217,7 +1217,7 @@ copyau(Adr *a, Adr *v)
+ }
+ 
+ int
+-copyau1(Prog *p, Adr *v)
++copyau1(Prog *p, Addr *v)
+ {
+ 
+ 	if(regtyp(v)) {
+@@ -1236,7 +1236,7 @@ copyau1(Prog *p, Adr *v)
+  * return failure to substitute
+  */
+ int
+-copysub(Adr *a, Adr *v, Adr *s, int f)
++copysub(Addr *a, Addr *v, Addr *s, int f)
+ {
+ 
+ 	if(f)
+@@ -1253,7 +1253,7 @@ copysub(Adr *a, Adr *v, Adr *s, int f)
+ }
+ 
+ int
+-copysub1(Prog *p1, Adr *v, Adr *s, int f)
++copysub1(Prog *p1, Addr *v, Addr *s, int f)
+ {
+ 
+ 	if(f)
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 3d67872b40..4d27e3f5c7 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -535,7 +535,7 @@ void
+ addmove(Reg *r, int bn, int rn, int f)
+ {
+ 	Prog *p, *p1;
+-	Adr *a;
++	Addr *a;
+ 	Var *v;
+ 
+ 	p1 = alloc(sizeof(*p1));
+@@ -554,7 +554,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+ 	a->type = D_OREG;
+-	if(a->etype == TARRAY || a->sym == S)
++	if(a->etype == TARRAY || a->sym == nil)
+ 		a->type = D_CONST;
+ 
+ 	p1->as = AMOVW;
+@@ -592,13 +592,13 @@ addmove(Reg *r, int bn, int rn, int f)
+ }
+ 
+ Bits
+-mkvar(Adr *a, int docon)
++mkvar(Addr *a, int docon)
+ {
+ 	Var *v;
+ 	int i, t, n, et, z;
+ 	int32 o;
+ 	Bits bit;
+-	Sym *s;
++	LSym *s;
+ 
+ 	t = a->type;
+ 	if(t == D_REG && a->reg != NREG)
+@@ -608,13 +608,13 @@ mkvar(Adr *a, int docon)
+ 	s = a->sym;
+ 	o = a->offset;
+ 	et = a->etype;
+-	if(s == S) {
++	if(s == nil) {
+ 		if(t != D_CONST || !docon || a->reg != NREG)
+ 			goto none;
+ 		et = TLONG;
+ 	}
+ 	if(t == D_CONST) {
+-		if(s == S && sval(o))
++		if(s == nil && sval(o))
+ 			goto none;
+ 	}
+ 
+@@ -656,7 +656,7 @@ out:
+ 		for(z=0; z<BITS; z++)
+ 			addrs.b[z] |= bit.b[z];
+ 	if(t == D_CONST) {
+-		if(s == S) {
++		if(s == nil) {
+ 			for(z=0; z<BITS; z++)
+ 				consts.b[z] |= bit.b[z];
+ 			return bit;
+@@ -1135,7 +1135,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
+ }
+ 
+ void
+-addreg(Adr *a, int rn)
++addreg(Addr *a, int rn)
+ {
+ 
+ 	a->sym = 0;
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 0f0c457f8f..9e2e72f8e2 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -206,7 +206,7 @@ outstring(char *s, int32 n)
+ 			p->from.offset += nstring - NSNAME;
+ 			p->reg = NSNAME;
+ 			p->to.type = D_SCONST;
+-			memmove(p->to.sval, string, NSNAME);
++			memmove(p->to.u.sval, string, NSNAME);
+ 			mnstring = 0;
+ 		}
+ 		n--;
+@@ -321,7 +321,7 @@ sextern(Sym *s, Node *a, int32 o, int32 w)
+ 		p->from.offset += o+e;
+ 		p->reg = lw;
+ 		p->to.type = D_SCONST;
+-		memmove(p->to.sval, a->cstring+e, lw);
++		memmove(p->to.u.sval, a->cstring+e, lw);
+ 	}
+ }
+ 
+@@ -351,47 +351,9 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
+ 		p->to.type = D_CONST;
+ }
+ 
+-void	zname(Biobuf*, Sym*, int);
+-char*	zaddr(char*, Adr*, int);
+-void	zwrite(Biobuf*, Prog*, int, int);
+-void	outhist(Biobuf*);
+-
+-void
+-zwrite(Biobuf *b, Prog *p, int sf, int st)
+-{
+-	char bf[100], *bp;
+-
+-	bf[0] = p->as;
+-	bf[1] = p->scond;
+-	bf[2] = p->reg;
+-	bf[3] = p->lineno;
+-	bf[4] = p->lineno>>8;
+-	bf[5] = p->lineno>>16;
+-	bf[6] = p->lineno>>24;
+-	bp = zaddr(bf+7, &p->from, sf);
+-	bp = zaddr(bp, &p->to, st);
+-	Bwrite(b, bf, bp-bf);
+-}
+-
+ void
+ outcode(void)
+ {
+-	struct { Sym *sym; short type; } h[NSYM];
+-	Prog *p;
+-	Sym *s;
+-	int sf, st, t, sym;
+-
+-	if(debug['S']) {
+-		for(p = firstp; p != P; p = p->link)
+-			if(p->as != ADATA && p->as != AGLOBL)
+-				pc--;
+-		for(p = firstp; p != P; p = p->link) {
+-			print("%P\n", p);
+-			if(p->as != ADATA && p->as != AGLOBL)
+-				pc++;
+-		}
+-	}
+-
+ 	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
+ 	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&outbuf, "\n");
+@@ -403,249 +365,11 @@ outcode(void)
+ 	}
+ 	Bprint(&outbuf, "!\n");
+ 
+-	outhist(&outbuf);
+-	for(sym=0; sym<NSYM; sym++) {
+-		h[sym].sym = S;
+-		h[sym].type = 0;
+-	}
+-	sym = 1;
+-	for(p = firstp; p != P; p = p->link) {
+-	jackpot:
+-		sf = 0;
+-		s = p->from.sym;
+-		while(s != S) {
+-			sf = s->sym;
+-			if(sf < 0 || sf >= NSYM)
+-				sf = 0;
+-			t = p->from.name;
+-			if(h[sf].type == t)
+-			if(h[sf].sym == s)
+-				break;
+-			s->sym = sym;
+-			zname(&outbuf, s, t);
+-			h[sym].sym = s;
+-			h[sym].type = t;
+-			sf = sym;
+-			sym++;
+-			if(sym >= NSYM)
+-				sym = 1;
+-			break;
+-		}
+-		st = 0;
+-		s = p->to.sym;
+-		while(s != S) {
+-			st = s->sym;
+-			if(st < 0 || st >= NSYM)
+-				st = 0;
+-			t = p->to.name;
+-			if(h[st].type == t)
+-			if(h[st].sym == s)
+-				break;
+-			s->sym = sym;
+-			zname(&outbuf, s, t);
+-			h[sym].sym = s;
+-			h[sym].type = t;
+-			st = sym;
+-			sym++;
+-			if(sym >= NSYM)
+-				sym = 1;
+-			if(st == sf)
+-				goto jackpot;
+-			break;
+-		}
+-		zwrite(&outbuf, p, sf, st);
+-	}
+-	firstp = P;
++	linkouthist(ctxt, &outbuf);
++	linkwritefuncs(ctxt, &outbuf);
+ 	lastp = P;
+ }
+ 
+-void
+-outhist(Biobuf *b)
+-{
+-	Hist *h;
+-	char *p, *q, *op, c;
+-	Prog pg;
+-	int n;
+-	char *tofree;
+-	static int first = 1;
+-	static char *goroot, *goroot_final;
+-
+-	if(first) {
+-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+-		first = 0;
+-		goroot = getenv("GOROOT");
+-		goroot_final = getenv("GOROOT_FINAL");
+-		if(goroot == nil)
+-			goroot = "";
+-		if(goroot_final == nil)
+-			goroot_final = goroot;
+-		if(strcmp(goroot, goroot_final) == 0) {
+-			goroot = nil;
+-			goroot_final = nil;
+-		}
+-	}
+-
+-	tofree = nil;
+-	pg = zprog;
+-	pg.as = AHISTORY;
+-	c = pathchar();
+-	for(h = hist; h != H; h = h->link) {
+-		p = h->name;
+-		if(p != nil && goroot != nil) {
+-			n = strlen(goroot);
+-			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+-				tofree = smprint("%s%s", goroot_final, p+n);
+-				p = tofree;
+-			}
+-		}
+-		op = 0;
+-		if(systemtype(Windows) && p && p[1] == ':'){
+-			c = p[2];
+-		} else if(p && p[0] != c && h->offset == 0 && pathname){
+-			if(systemtype(Windows) && pathname[1] == ':') {
+-				op = p;
+-				p = pathname;
+-				c = p[2];
+-			} else if(pathname[0] == c){
+-				op = p;
+-				p = pathname;
+-			}
+-		}
+-		while(p) {
+-			q = utfrune(p, c);
+-			if(q) {
+-				n = q-p;
+-				if(n == 0){
+-					n = 1;	/* leading "/" */
+-					*p = '/';	/* don't emit "\" on windows */
+-				}
+-				q++;
+-			} else {
+-				n = strlen(p);
+-				q = 0;
+-			}
+-			if(n) {
+-				BPUTC(b, ANAME);
+-				BPUTC(b, D_FILE);
+-				BPUTC(b, 1);
+-				BPUTC(b, '<');
+-				Bwrite(b, p, n);
+-				BPUTC(b, 0);
+-			}
+-			p = q;
+-			if(p == 0 && op) {
+-				p = op;
+-				op = 0;
+-			}
+-		}
+-		pg.lineno = h->line;
+-		pg.to.type = zprog.to.type;
+-		pg.to.offset = h->offset;
+-		if(h->offset)
+-			pg.to.type = D_CONST;
+-
+-		zwrite(b, &pg, 0, 0);
+-
+- 		if(tofree) {
+- 			free(tofree);
+- 			tofree = nil;
+- 		}
+-	}
+-}
+-
+-void
+-zname(Biobuf *b, Sym *s, int t)
+-{
+-	char *n, bf[7];
+-	uint32 sig;
+-
+-	n = s->name;
+-	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
+-		sig = sign(s);
+-		bf[0] = ASIGNAME;
+-		bf[1] = sig;
+-		bf[2] = sig>>8;
+-		bf[3] = sig>>16;
+-		bf[4] = sig>>24;
+-		bf[5] = t;
+-		bf[6] = s->sym;
+-		Bwrite(b, bf, 7);
+-		s->sig = SIGDONE;
+-	}
+-	else{
+-		bf[0] = ANAME;
+-		bf[1] = t;	/* type */
+-		bf[2] = s->sym;	/* sym */
+-		Bwrite(b, bf, 3);
+-	}
+-	Bwrite(b, n, strlen(n)+1);
+-}
+-
+-char*
+-zaddr(char *bp, Adr *a, int s)
+-{
+-	int32 l;
+-	Ieee e;
+-
+-	bp[0] = a->type;
+-	bp[1] = a->reg;
+-	bp[2] = s;
+-	bp[3] = a->name;
+-	bp[4] = 0;
+-	bp += 5;
+-	switch(a->type) {
+-	default:
+-		diag(Z, "unknown type %d in zaddr", a->type);
+-
+-	case D_NONE:
+-	case D_REG:
+-	case D_FREG:
+-	case D_PSR:
+-		break;
+-
+-	case D_CONST2:
+-		l = a->offset2;
+-		bp[0] = l;
+-		bp[1] = l>>8;
+-		bp[2] = l>>16;
+-		bp[3] = l>>24;
+-		bp += 4;	// fall through
+-	case D_OREG:
+-	case D_CONST:
+-	case D_BRANCH:
+-	case D_SHIFT:
+-		l = a->offset;
+-		bp[0] = l;
+-		bp[1] = l>>8;
+-		bp[2] = l>>16;
+-		bp[3] = l>>24;
+-		bp += 4;
+-		break;
+-
+-	case D_SCONST:
+-		memmove(bp, a->sval, NSNAME);
+-		bp += NSNAME;
+-		break;
+-
+-	case D_FCONST:
+-		ieeedtod(&e, a->dval);
+-		l = e.l;
+-		bp[0] = l;
+-		bp[1] = l>>8;
+-		bp[2] = l>>16;
+-		bp[3] = l>>24;
+-		bp += 4;
+-		l = e.h;
+-		bp[0] = l;
+-		bp[1] = l>>8;
+-		bp[2] = l>>16;
+-		bp[3] = l>>24;
+-		bp += 4;
+-		break;
+-	}
+-	return bp;
+-}
+-
+ int32
+ align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 6d9b69d001..373204bf14 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -31,6 +31,8 @@
+ 
+ #include "gc.h"
+ 
++LinkArch	*thelinkarch = &linkarm;
++
+ void
+ ginit(void)
+ {
+@@ -48,7 +50,6 @@ ginit(void)
+ 	breakpc = -1;
+ 	continpc = -1;
+ 	cases = C;
+-	firstp = P;
+ 	lastp = P;
+ 	tfield = types[TLONG];
+ 
+@@ -149,17 +150,17 @@ gclean(void)
+ void
+ nextpc(void)
+ {
++	Plist *pl;
+ 
+ 	p = alloc(sizeof(*p));
+ 	*p = zprog;
+ 	p->lineno = nearln;
+ 	pc++;
+-	if(firstp == P) {
+-		firstp = p;
+-		lastp = p;
+-		return;
+-	}
+-	lastp->link = p;
++	if(lastp == nil) {
++		pl = linknewplist(ctxt);
++		pl->firstpc = p;
++	} else
++		lastp->link = p;
+ 	lastp = p;
+ }
+ 
+@@ -422,7 +423,7 @@ regind(Node *n, Node *nn)
+ void
+ raddr(Node *n, Prog *p)
+ {
+-	Adr a;
++	Addr a;
+ 
+ 	naddr(n, &a);
+ 	if(R0ISZERO && a.type == D_CONST && a.offset == 0) {
+@@ -440,7 +441,7 @@ raddr(Node *n, Prog *p)
+ }
+ 
+ void
+-naddr(Node *n, Adr *a)
++naddr(Node *n, Addr *a)
+ {
+ 	int32 v;
+ 
+@@ -455,7 +456,7 @@ naddr(Node *n, Adr *a)
+ 
+ 	case OREGISTER:
+ 		a->type = D_REG;
+-		a->sym = S;
++		a->sym = nil;
+ 		a->reg = n->reg;
+ 		if(a->reg >= NREG) {
+ 			a->type = D_FREG;
+@@ -477,7 +478,7 @@ naddr(Node *n, Adr *a)
+ 
+ 	case OINDREG:
+ 		a->type = D_OREG;
+-		a->sym = S;
++		a->sym = nil;
+ 		a->offset = n->xoffset;
+ 		a->reg = n->reg;
+ 		break;
+@@ -486,7 +487,7 @@ naddr(Node *n, Adr *a)
+ 		a->etype = n->etype;
+ 		a->type = D_OREG;
+ 		a->name = D_STATIC;
+-		a->sym = n->sym;
++		a->sym = linksym(n->sym);
+ 		a->offset = n->xoffset;
+ 		if(n->class == CSTATIC)
+ 			break;
+@@ -505,11 +506,11 @@ naddr(Node *n, Adr *a)
+ 		goto bad;
+ 
+ 	case OCONST:
+-		a->sym = S;
++		a->sym = nil;
+ 		a->reg = NREG;
+ 		if(typefd[n->type->etype]) {
+ 			a->type = D_FCONST;
+-			a->dval = n->fconst;
++			a->u.dval = n->fconst;
+ 		} else {
+ 			a->type = D_CONST;
+ 			a->offset = n->vconst;
+@@ -930,7 +931,7 @@ void
+ gopcode(int o, Node *f1, Node *f2, Node *t)
+ {
+ 	int a, et;
+-	Adr ta;
++	Addr ta;
+ 
+ 	et = TLONG;
+ 	if(f1 != Z && f1->type != T)
+@@ -1177,7 +1178,7 @@ gpseudo(int a, Sym *s, Node *n)
+ 	nextpc();
+ 	p->as = a;
+ 	p->from.type = D_OREG;
+-	p->from.sym = s;
++	p->from.sym = linksym(s);
+ 	p->from.name = D_EXTERN;
+ 
+ 	switch(a) {
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index c466a3afe2..2b23a37955 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -46,8 +46,6 @@
+ #define	SZ_DOUBLE	8
+ #define	FNX		100
+ 
+-typedef	struct	Adr	Adr;
+-typedef	struct	Prog	Prog;
+ typedef	struct	Case	Case;
+ typedef	struct	C1	C1;
+ typedef	struct	Var	Var;
+@@ -64,29 +62,9 @@ EXTERN	struct
+ 	short	ptr;
+ } idx;
+ 
+-struct	Adr
+-{
+-	vlong	offset;
+-	double	dval;
+-	char	sval[NSNAME];
+-
+-	Sym*	sym;
+-	uchar	type;
+-	uchar	index;
+-	uchar	etype;
+-	uchar	scale;	/* doubles as width in DATA op */
+-};
+-#define	A	((Adr*)0)
+-
+ #define	INDEXED	9
+-struct	Prog
+-{
+-	Adr	from;
+-	Adr	to;
+-	Prog*	link;
+-	int32	lineno;
+-	short	as;
+-};
++
++#define	A	((Addr*)0)
+ #define	P	((Prog*)0)
+ 
+ struct	Case
+@@ -108,7 +86,7 @@ struct	C1
+ struct	Var
+ {
+ 	vlong	offset;
+-	Sym*	sym;
++	LSym*	sym;
+ 	char	name;
+ 	char	etype;
+ };
+@@ -171,7 +149,6 @@ EXTERN	Node	vconstnode;
+ EXTERN	int32	continpc;
+ EXTERN	int32	curarg;
+ EXTERN	int32	cursafe;
+-EXTERN	Prog*	firstp;
+ EXTERN	Prog*	lastp;
+ EXTERN	int32	maxargsafe;
+ EXTERN	int	mnstring;
+@@ -282,7 +259,7 @@ void	regaalloc1(Node*, Node*);
+ void	regaalloc(Node*, Node*);
+ void	regind(Node*, Node*);
+ void	gprep(Node*, Node*);
+-void	naddr(Node*, Adr*);
++void	naddr(Node*, Addr*);
+ void	gcmp(int, Node*, vlong);
+ void	gmove(Node*, Node*);
+ void	gins(int a, Node*, Node*);
+@@ -310,7 +287,6 @@ void	nullwarn(Node*, Node*);
+ void	sextern(Sym*, Node*, int32, int32);
+ void	gextern(Sym*, Node*, int32, int32);
+ void	outcode(void);
+-void	ieeedtod(Ieee*, double);
+ 
+ /*
+  * list
+@@ -331,7 +307,7 @@ Reg*	rega(void);
+ int	rcmp(const void*, const void*);
+ void	regopt(Prog*);
+ void	addmove(Reg*, int, int, int);
+-Bits	mkvar(Reg*, Adr*);
++Bits	mkvar(Reg*, Addr*);
+ void	prop(Reg*, Bits, Bits);
+ void	loopit(Reg*, int32);
+ void	synch(Reg*, Bits);
+@@ -339,7 +315,7 @@ uint32	allreg(uint32, Rgn*);
+ void	paint1(Reg*, int);
+ uint32	paint2(Reg*, int);
+ void	paint3(Reg*, int, int32, int);
+-void	addreg(Adr*, int);
++void	addreg(Addr*, int);
+ 
+ /*
+  * peep.c
+@@ -348,17 +324,17 @@ void	peep(void);
+ void	excise(Reg*);
+ Reg*	uniqp(Reg*);
+ Reg*	uniqs(Reg*);
+-int	regtyp(Adr*);
+-int	anyvar(Adr*);
++int	regtyp(Addr*);
++int	anyvar(Addr*);
+ int	subprop(Reg*);
+ int	copyprop(Reg*);
+-int	copy1(Adr*, Adr*, Reg*, int);
+-int	copyu(Prog*, Adr*, Adr*);
++int	copy1(Addr*, Addr*, Reg*, int);
++int	copyu(Prog*, Addr*, Addr*);
+ 
+-int	copyas(Adr*, Adr*);
+-int	copyau(Adr*, Adr*);
+-int	copysub(Adr*, Adr*, Adr*, int);
+-int	copysub1(Prog*, Adr*, Adr*, int);
++int	copyas(Addr*, Addr*);
++int	copyau(Addr*, Addr*);
++int	copysub(Addr*, Addr*, Addr*, int);
++int	copysub1(Prog*, Addr*, Addr*, int);
+ 
+ int32	RtoB(int);
+ int32	FtoB(int);
+@@ -398,8 +374,8 @@ void	shiftit(Type*, Node*, Node*);
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Bits
+-#pragma	varargck	type	"D"	Adr*
+-#pragma	varargck	type	"lD"	Adr*
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"lD"	Addr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/6c/list.c b/src/cmd/6c/list.c
+index b5a60ac9a2..5bb2bf2c77 100644
+--- a/src/cmd/6c/list.c
++++ b/src/cmd/6c/list.c
+@@ -56,7 +56,7 @@ Bconv(Fmt *fp)
+ 		i = bnum(bits);
+ 		if(str[0])
+ 			strcat(str, " ");
+-		if(var[i].sym == S) {
++		if(var[i].sym == nil) {
+ 			sprint(ss, "$%lld", var[i].offset);
+ 			s = ss;
+ 		} else
+@@ -106,17 +106,17 @@ Aconv(Fmt *fp)
+ 	int i;
+ 
+ 	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames[i]);
++	return fmtstrcpy(fp, anames6[i]);
+ }
+ 
+ int
+ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ], s[STRINGSZ];
+-	Adr *a;
++	Addr *a;
+ 	int i;
+ 
+-	a = va_arg(fp->args, Adr*);
++	a = va_arg(fp->args, Addr*);
+ 	i = a->type;
+ 
+ 	if(fp->flags & FmtLong) {
+@@ -179,11 +179,11 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_FCONST:
+-		sprint(str, "$(%.17e)", a->dval);
++		sprint(str, "$(%.17g)", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		sprint(str, "$\"%S\"", a->sval);
++		sprint(str, "$\"%S\"", a->u.sval);
+ 		break;
+ 
+ 	case D_ADDR:
+diff --git a/src/cmd/6c/peep.c b/src/cmd/6c/peep.c
+index 0a3bd84bc7..a11067c84f 100644
+--- a/src/cmd/6c/peep.c
++++ b/src/cmd/6c/peep.c
+@@ -276,7 +276,7 @@ uniqs(Reg *r)
+ }
+ 
+ int
+-regtyp(Adr *a)
++regtyp(Addr *a)
+ {
+ 	int t;
+ 
+@@ -306,7 +306,7 @@ int
+ subprop(Reg *r0)
+ {
+ 	Prog *p;
+-	Adr *v1, *v2;
++	Addr *v1, *v2;
+ 	Reg *r;
+ 	int t;
+ 
+@@ -445,7 +445,7 @@ int
+ copyprop(Reg *r0)
+ {
+ 	Prog *p;
+-	Adr *v1, *v2;
++	Addr *v1, *v2;
+ 	Reg *r;
+ 
+ 	p = r0->prog;
+@@ -459,7 +459,7 @@ copyprop(Reg *r0)
+ }
+ 
+ int
+-copy1(Adr *v1, Adr *v2, Reg *r, int f)
++copy1(Addr *v1, Addr *v2, Reg *r, int f)
+ {
+ 	int t;
+ 	Prog *p;
+@@ -544,7 +544,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+  * 0 otherwise (not touched)
+  */
+ int
+-copyu(Prog *p, Adr *v, Adr *s)
++copyu(Prog *p, Addr *v, Addr *s)
+ {
+ 
+ 	switch(p->as) {
+@@ -835,7 +835,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+  * semantics
+  */
+ int
+-copyas(Adr *a, Adr *v)
++copyas(Addr *a, Addr *v)
+ {
+ 	if(a->type != v->type)
+ 		return 0;
+@@ -851,7 +851,7 @@ copyas(Adr *a, Adr *v)
+  * either direct or indirect
+  */
+ int
+-copyau(Adr *a, Adr *v)
++copyau(Addr *a, Addr *v)
+ {
+ 
+ 	if(copyas(a, v))
+@@ -870,7 +870,7 @@ copyau(Adr *a, Adr *v)
+  * return failure to substitute
+  */
+ int
+-copysub(Adr *a, Adr *v, Adr *s, int f)
++copysub(Addr *a, Addr *v, Addr *s, int f)
+ {
+ 	int t;
+ 
+diff --git a/src/cmd/6c/reg.c b/src/cmd/6c/reg.c
+index edd93a0a06..bf49a4da0d 100644
+--- a/src/cmd/6c/reg.c
++++ b/src/cmd/6c/reg.c
+@@ -691,7 +691,7 @@ void
+ addmove(Reg *r, int bn, int rn, int f)
+ {
+ 	Prog *p, *p1;
+-	Adr *a;
++	Addr *a;
+ 	Var *v;
+ 
+ 	p1 = alloc(sizeof(*p1));
+@@ -759,13 +759,13 @@ doregbits(int r)
+ }
+ 
+ Bits
+-mkvar(Reg *r, Adr *a)
++mkvar(Reg *r, Addr *a)
+ {
+ 	Var *v;
+ 	int i, t, n, et, z;
+ 	int32 o;
+ 	Bits bit;
+-	Sym *s;
++	LSym *s;
+ 
+ 	/*
+ 	 * mark registers used
+@@ -792,7 +792,7 @@ mkvar(Reg *r, Adr *a)
+ 		break;
+ 	}
+ 	s = a->sym;
+-	if(s == S)
++	if(s == nil)
+ 		goto none;
+ 	if(s->name[0] == '.')
+ 		goto none;
+@@ -1181,7 +1181,7 @@ uint32
+ regset(Reg *r, uint32 bb)
+ {
+ 	uint32 b, set;
+-	Adr v;
++	Addr v;
+ 	int c;
+ 
+ 	set = 0;
+@@ -1202,7 +1202,7 @@ uint32
+ reguse(Reg *r, uint32 bb)
+ {
+ 	uint32 b, set;
+-	Adr v;
++	Addr v;
+ 	int c;
+ 
+ 	set = 0;
+@@ -1349,7 +1349,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
+ }
+ 
+ void
+-addreg(Adr *a, int rn)
++addreg(Addr *a, int rn)
+ {
+ 
+ 	a->sym = 0;
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 2496da477b..afa10bf2f6 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -164,7 +164,7 @@ outstring(char *s, int32 n)
+ 			p->from.offset += nstring - NSNAME;
+ 			p->from.scale = NSNAME;
+ 			p->to.type = D_SCONST;
+-			memmove(p->to.sval, string, NSNAME);
++			memmove(p->to.u.sval, string, NSNAME);
+ 			mnstring = 0;
+ 		}
+ 		n--;
+@@ -185,7 +185,7 @@ sextern(Sym *s, Node *a, int32 o, int32 w)
+ 		p->from.offset += o+e;
+ 		p->from.scale = lw;
+ 		p->to.type = D_SCONST;
+-		memmove(p->to.sval, a->cstring+e, lw);
++		memmove(p->to.u.sval, a->cstring+e, lw);
+ 	}
+ }
+ 
+@@ -215,30 +215,12 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
+ 	}
+ }
+ 
+-void	zname(Biobuf*, Sym*, int);
+-void	zaddr(Biobuf*, Adr*, int);
+-void	outhist(Biobuf*);
+-
+ void
+ outcode(void)
+ {
+-	struct { Sym *sym; short type; } h[NSYM];
+-	Prog *p;
+-	Sym *s;
+-	int f, sf, st, t, sym;
++	int f;
+ 	Biobuf b;
+ 
+-	if(debug['S']) {
+-		for(p = firstp; p != P; p = p->link)
+-			if(p->as != ADATA && p->as != AGLOBL)
+-				pc--;
+-		for(p = firstp; p != P; p = p->link) {
+-			print("%P\n", p);
+-			if(p->as != ADATA && p->as != AGLOBL)
+-				pc++;
+-		}
+-	}
+-
+ 	f = open(outfile, OWRITE);
+ 	if(f < 0) {
+ 		diag(Z, "cannot open %s", outfile);
+@@ -257,261 +239,13 @@ outcode(void)
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+-	outhist(&b);
+-	for(sym=0; sym<NSYM; sym++) {
+-		h[sym].sym = S;
+-		h[sym].type = 0;
+-	}
+-	sym = 1;
+-	for(p = firstp; p != P; p = p->link) {
+-	jackpot:
+-		sf = 0;
+-		s = p->from.sym;
+-		while(s != S) {
+-			sf = s->sym;
+-			if(sf < 0 || sf >= NSYM)
+-				sf = 0;
+-			t = p->from.type;
+-			if(t == D_ADDR)
+-				t = p->from.index;
+-			if(h[sf].type == t)
+-			if(h[sf].sym == s)
+-				break;
+-			s->sym = sym;
+-			zname(&b, s, t);
+-			h[sym].sym = s;
+-			h[sym].type = t;
+-			sf = sym;
+-			sym++;
+-			if(sym >= NSYM)
+-				sym = 1;
+-			break;
+-		}
+-		st = 0;
+-		s = p->to.sym;
+-		while(s != S) {
+-			st = s->sym;
+-			if(st < 0 || st >= NSYM)
+-				st = 0;
+-			t = p->to.type;
+-			if(t == D_ADDR)
+-				t = p->to.index;
+-			if(h[st].type == t)
+-			if(h[st].sym == s)
+-				break;
+-			s->sym = sym;
+-			zname(&b, s, t);
+-			h[sym].sym = s;
+-			h[sym].type = t;
+-			st = sym;
+-			sym++;
+-			if(sym >= NSYM)
+-				sym = 1;
+-			if(st == sf)
+-				goto jackpot;
+-			break;
+-		}
+-		BPUTLE2(&b, p->as);
+-		BPUTLE4(&b, p->lineno);
+-		zaddr(&b, &p->from, sf);
+-		zaddr(&b, &p->to, st);
+-	}
++	linkouthist(ctxt, &b);
++	linkwritefuncs(ctxt, &b);
+ 	Bterm(&b);
+ 	close(f);
+-	firstp = P;
+ 	lastp = P;
+ }
+ 
+-void
+-outhist(Biobuf *b)
+-{
+-	Hist *h;
+-	char *p, *q, *op, c;
+-	Prog pg;
+-	int n;
+-	char *tofree;
+-	static int first = 1;
+-	static char *goroot, *goroot_final;
+-
+-	if(first) {
+-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+-		first = 0;
+-		goroot = getenv("GOROOT");
+-		goroot_final = getenv("GOROOT_FINAL");
+-		if(goroot == nil)
+-			goroot = "";
+-		if(goroot_final == nil)
+-			goroot_final = goroot;
+-		if(strcmp(goroot, goroot_final) == 0) {
+-			goroot = nil;
+-			goroot_final = nil;
+-		}
+-	}
+-
+-	tofree = nil;
+-	pg = zprog;
+-	pg.as = AHISTORY;
+-	c = pathchar();
+-	for(h = hist; h != H; h = h->link) {
+-		p = h->name;
+-		if(p != nil && goroot != nil) {
+-			n = strlen(goroot);
+-			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+-				tofree = smprint("%s%s", goroot_final, p+n);
+-				p = tofree;
+-			}
+-		}
+-		op = 0;
+-		if(systemtype(Windows) && p && p[1] == ':'){
+-			c = p[2];
+-		} else if(p && p[0] != c && h->offset == 0 && pathname){
+-			if(systemtype(Windows) && pathname[1] == ':') {
+-				op = p;
+-				p = pathname;
+-				c = p[2];
+-			} else if(pathname[0] == c){
+-				op = p;
+-				p = pathname;
+-			}
+-		}
+-		while(p) {
+-			q = utfrune(p, c);
+-			if(q) {
+-				n = q-p;
+-				if(n == 0){
+-					n = 1;	/* leading "/" */
+-					*p = '/';	/* don't emit "\" on windows */
+-				}
+-				q++;
+-			} else {
+-				n = strlen(p);
+-				q = 0;
+-			}
+-			if(n) {
+-				BPUTLE2(b, ANAME);
+-				BPUTC(b, D_FILE);
+-				BPUTC(b, 1);
+-				BPUTC(b, '<');
+-				Bwrite(b, p, n);
+-				BPUTC(b, 0);
+-			}
+-			p = q;
+-			if(p == 0 && op) {
+-				p = op;
+-				op = 0;
+-			}
+-		}
+-		pg.lineno = h->line;
+-		pg.to.type = zprog.to.type;
+-		pg.to.offset = h->offset;
+-		if(h->offset)
+-			pg.to.type = D_CONST;
+-
+-		BPUTLE2(b, pg.as);
+-		BPUTLE4(b, pg.lineno);
+-		zaddr(b, &pg.from, 0);
+-		zaddr(b, &pg.to, 0);
+-
+-		if(tofree) {
+-			free(tofree);
+-			tofree = nil;
+-		}
+-	}
+-}
+-
+-void
+-zname(Biobuf *b, Sym *s, int t)
+-{
+-	char *n;
+-	uint32 sig;
+-
+-	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
+-		sig = sign(s);
+-		BPUTLE2(b, ASIGNAME);
+-		BPUTLE4(b, sig);
+-		s->sig = SIGDONE;
+-	}
+-	else{
+-		BPUTLE2(b, ANAME);	/* as */
+-	}
+-	BPUTC(b, t);			/* type */
+-	BPUTC(b, s->sym);		/* sym */
+-	n = s->name;
+-	while(*n) {
+-		BPUTC(b, *n);
+-		n++;
+-	}
+-	BPUTC(b, 0);
+-}
+-
+-void
+-zaddr(Biobuf *b, Adr *a, int s)
+-{
+-	int32 l;
+-	int i, t;
+-	char *n;
+-	Ieee e;
+-
+-	t = 0;
+-	if(a->index != D_NONE || a->scale != 0)
+-		t |= T_INDEX;
+-	if(s != 0)
+-		t |= T_SYM;
+-
+-	switch(a->type) {
+-	default:
+-		t |= T_TYPE;
+-	case D_NONE:
+-		if(a->offset != 0) {
+-			t |= T_OFFSET;
+-			l = a->offset;
+-			if((vlong)l != a->offset)
+-				t |= T_64;
+-		}
+-		break;
+-	case D_FCONST:
+-		t |= T_FCONST;
+-		break;
+-	case D_SCONST:
+-		t |= T_SCONST;
+-		break;
+-	}
+-	BPUTC(b, t);
+-
+-	if(t & T_INDEX) {	/* implies index, scale */
+-		BPUTC(b, a->index);
+-		BPUTC(b, a->scale);
+-	}
+-	if(t & T_OFFSET) {	/* implies offset */
+-		l = a->offset;
+-		BPUTLE4(b, l);
+-		if(t & T_64) {
+-			l = a->offset>>32;
+-			BPUTLE4(b, l);
+-		}
+-	}
+-	if(t & T_SYM)		/* implies sym */
+-		BPUTC(b, s);
+-	if(t & T_FCONST) {
+-		ieeedtod(&e, a->dval);
+-		l = e.l;
+-		BPUTLE4(b, l);
+-		l = e.h;
+-		BPUTLE4(b, l);
+-		return;
+-	}
+-	if(t & T_SCONST) {
+-		n = a->sval;
+-		for(i=0; i<NSNAME; i++) {
+-			BPUTC(b, *n);
+-			n++;
+-		}
+-		return;
+-	}
+-	if(t & T_TYPE)
+-		BPUTC(b, a->type);
+-}
+-
+ int32
+ align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 6f5d42da57..a129b11f41 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -30,6 +30,8 @@
+ 
+ #include "gc.h"
+ 
++LinkArch	*thelinkarch = &linkamd64;
++
+ void
+ ginit(void)
+ {
+@@ -47,7 +49,6 @@ ginit(void)
+ 	breakpc = -1;
+ 	continpc = -1;
+ 	cases = C;
+-	firstp = P;
+ 	lastp = P;
+ 	tfield = types[TINT];
+ 
+@@ -168,17 +169,17 @@ gclean(void)
+ void
+ nextpc(void)
+ {
++	Plist *pl;
+ 
+ 	p = alloc(sizeof(*p));
+ 	*p = zprog;
+ 	p->lineno = nearln;
+ 	pc++;
+-	if(firstp == P) {
+-		firstp = p;
+-		lastp = p;
+-		return;
+-	}
+-	lastp->link = p;
++	if(lastp == nil) {
++		pl = linknewplist(ctxt);
++		pl->firstpc = p;
++	} else
++		lastp->link = p;
+ 	lastp = p;
+ }
+ 
+@@ -441,7 +442,7 @@ regaalloc1(Node *n, Node *nn)
+ 		return;
+ 	}
+ 	nodreg(n, nn, REGARG);
+-	reg[REGARG]++;
++	reg[(uchar)REGARG]++;
+ 	curarg = align(curarg, nn->type, Aarg1, nil);
+ 	curarg = align(curarg, nn->type, Aarg2, nil);
+ 	maxargsafe = maxround(maxargsafe, cursafe+curarg);
+@@ -474,7 +475,7 @@ regind(Node *n, Node *nn)
+ }
+ 
+ void
+-naddr(Node *n, Adr *a)
++naddr(Node *n, Addr *a)
+ {
+ 	int32 v;
+ 
+@@ -489,7 +490,7 @@ naddr(Node *n, Adr *a)
+ 
+ 	case OREGISTER:
+ 		a->type = n->reg;
+-		a->sym = S;
++		a->sym = nil;
+ 		break;
+ 
+ 	case OEXREG:
+@@ -534,14 +535,14 @@ naddr(Node *n, Adr *a)
+ 
+ 	case OINDREG:
+ 		a->type = n->reg+D_INDIR;
+-		a->sym = S;
++		a->sym = nil;
+ 		a->offset = n->xoffset;
+ 		break;
+ 
+ 	case ONAME:
+ 		a->etype = n->etype;
+ 		a->type = D_STATIC;
+-		a->sym = n->sym;
++		a->sym = linksym(n->sym);
+ 		a->offset = n->xoffset;
+ 		if(n->class == CSTATIC)
+ 			break;
+@@ -562,10 +563,10 @@ naddr(Node *n, Adr *a)
+ 	case OCONST:
+ 		if(typefd[n->type->etype]) {
+ 			a->type = D_FCONST;
+-			a->dval = n->fconst;
++			a->u.dval = n->fconst;
+ 			break;
+ 		}
+-		a->sym = S;
++		a->sym = nil;
+ 		a->type = D_CONST;
+ 		if(typev[n->type->etype] || n->type->etype == TIND)
+ 			a->offset = n->vconst;
+@@ -1499,7 +1500,7 @@ gpseudo(int a, Sym *s, Node *n)
+ 	nextpc();
+ 	p->as = a;
+ 	p->from.type = D_EXTERN;
+-	p->from.sym = s;
++	p->from.sym = linksym(s);
+ 
+ 	switch(a) {
+ 	case ATEXT:
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index b668b4c639..f662ad9c36 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -46,8 +46,6 @@
+ #define	SZ_DOUBLE	8
+ #define	FNX		100
+ 
+-typedef	struct	Adr	Adr;
+-typedef	struct	Prog	Prog;
+ typedef	struct	Case	Case;
+ typedef	struct	C1	C1;
+ typedef	struct	Var	Var;
+@@ -64,30 +62,10 @@ EXTERN	struct
+ 	short	ptr;
+ } idx;
+ 
+-struct	Adr
+-{
+-	int32	offset;
+-	int32	offset2;
+-	double	dval;
+-	char	sval[NSNAME];
+-
+-	Sym*	sym;
+-	uchar	type;
+-	uchar	index;
+-	uchar	etype;
+-	uchar	scale;	/* doubles as width in DATA op */
+-};
+-#define	A	((Adr*)0)
++#define	A	((Addr*)0)
+ 
+ #define	INDEXED	9
+-struct	Prog
+-{
+-	Adr	from;
+-	Adr	to;
+-	Prog*	link;
+-	int32	lineno;
+-	short	as;
+-};
++
+ #define	P	((Prog*)0)
+ 
+ struct	Case
+@@ -109,7 +87,7 @@ struct	C1
+ struct	Var
+ {
+ 	int32	offset;
+-	Sym*	sym;
++	LSym*	sym;
+ 	char	name;
+ 	char	etype;
+ };
+@@ -171,7 +149,6 @@ EXTERN	Node	fconstnode;
+ EXTERN	int32	continpc;
+ EXTERN	int32	curarg;
+ EXTERN	int32	cursafe;
+-EXTERN	Prog*	firstp;
+ EXTERN	Prog*	lastp;
+ EXTERN	int32	maxargsafe;
+ EXTERN	int	mnstring;
+@@ -287,7 +264,7 @@ void	regaalloc1(Node*, Node*);
+ void	regaalloc(Node*, Node*);
+ void	regind(Node*, Node*);
+ void	gprep(Node*, Node*);
+-void	naddr(Node*, Adr*);
++void	naddr(Node*, Addr*);
+ void	gmove(Node*, Node*);
+ void	gins(int a, Node*, Node*);
+ void	fgopcode(int, Node*, Node*, int, int);
+@@ -315,7 +292,6 @@ void	nullwarn(Node*, Node*);
+ void	sextern(Sym*, Node*, int32, int32);
+ void	gextern(Sym*, Node*, int32, int32);
+ void	outcode(void);
+-void	ieeedtod(Ieee*, double);
+ 
+ /*
+  * list
+@@ -336,7 +312,7 @@ Reg*	rega(void);
+ int	rcmp(const void*, const void*);
+ void	regopt(Prog*);
+ void	addmove(Reg*, int, int, int);
+-Bits	mkvar(Reg*, Adr*);
++Bits	mkvar(Reg*, Addr*);
+ void	prop(Reg*, Bits, Bits);
+ void	loopit(Reg*, int32);
+ void	synch(Reg*, Bits);
+@@ -344,7 +320,7 @@ uint32	allreg(uint32, Rgn*);
+ void	paint1(Reg*, int);
+ uint32	paint2(Reg*, int);
+ void	paint3(Reg*, int, int32, int);
+-void	addreg(Adr*, int);
++void	addreg(Addr*, int);
+ 
+ /*
+  * peep.c
+@@ -353,17 +329,17 @@ void	peep(void);
+ void	excise(Reg*);
+ Reg*	uniqp(Reg*);
+ Reg*	uniqs(Reg*);
+-int	regtyp(Adr*);
+-int	anyvar(Adr*);
++int	regtyp(Addr*);
++int	anyvar(Addr*);
+ int	subprop(Reg*);
+ int	copyprop(Reg*);
+-int	copy1(Adr*, Adr*, Reg*, int);
+-int	copyu(Prog*, Adr*, Adr*);
++int	copy1(Addr*, Addr*, Reg*, int);
++int	copyu(Prog*, Addr*, Addr*);
+ 
+-int	copyas(Adr*, Adr*);
+-int	copyau(Adr*, Adr*);
+-int	copysub(Adr*, Adr*, Adr*, int);
+-int	copysub1(Prog*, Adr*, Adr*, int);
++int	copyas(Addr*, Addr*);
++int	copyau(Addr*, Addr*);
++int	copysub(Addr*, Addr*, Addr*, int);
++int	copysub1(Prog*, Addr*, Addr*, int);
+ 
+ int32	RtoB(int);
+ int32	FtoB(int);
+@@ -403,8 +379,8 @@ void	shiftit(Type*, Node*, Node*);
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Bits
+-#pragma	varargck	type	"D"	Adr*
+-#pragma	varargck	type	"lD"	Adr*
++#pragma	varargck	type	"D"	Addr*
++#pragma	varargck	type	"lD"	Addr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/8c/list.c b/src/cmd/8c/list.c
+index 8506e08efb..aa76435055 100644
+--- a/src/cmd/8c/list.c
++++ b/src/cmd/8c/list.c
+@@ -56,7 +56,7 @@ Bconv(Fmt *fp)
+ 		i = bnum(bits);
+ 		if(str[0])
+ 			strcat(str, " ");
+-		if(var[i].sym == S) {
++		if(var[i].sym == nil) {
+ 			sprint(ss, "$%d", var[i].offset);
+ 			s = ss;
+ 		} else
+@@ -106,17 +106,17 @@ Aconv(Fmt *fp)
+ 	int i;
+ 
+ 	i = va_arg(fp->args, int);
+-	return fmtstrcpy(fp, anames[i]);
++	return fmtstrcpy(fp, anames8[i]);
+ }
+ 
+ int
+ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ], s[STRINGSZ];
+-	Adr *a;
++	Addr *a;
+ 	int i;
+ 
+-	a = va_arg(fp->args, Adr*);
++	a = va_arg(fp->args, Addr*);
+ 	i = a->type;
+ 
+ 	if(fp->flags & FmtLong) {
+@@ -186,11 +186,11 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_FCONST:
+-		sprint(str, "$(%.17e)", a->dval);
++		sprint(str, "$(%.17g)", a->u.dval);
+ 		break;
+ 
+ 	case D_SCONST:
+-		sprint(str, "$\"%S\"", a->sval);
++		sprint(str, "$\"%S\"", a->u.sval);
+ 		break;
+ 
+ 	case D_ADDR:
+diff --git a/src/cmd/8c/peep.c b/src/cmd/8c/peep.c
+index da0127d118..4f58fc05cd 100644
+--- a/src/cmd/8c/peep.c
++++ b/src/cmd/8c/peep.c
+@@ -217,7 +217,7 @@ uniqs(Reg *r)
+ }
+ 
+ int
+-regtyp(Adr *a)
++regtyp(Addr *a)
+ {
+ 	int t;
+ 
+@@ -245,7 +245,7 @@ int
+ subprop(Reg *r0)
+ {
+ 	Prog *p;
+-	Adr *v1, *v2;
++	Addr *v1, *v2;
+ 	Reg *r;
+ 	int t;
+ 
+@@ -365,7 +365,7 @@ int
+ copyprop(Reg *r0)
+ {
+ 	Prog *p;
+-	Adr *v1, *v2;
++	Addr *v1, *v2;
+ 	Reg *r;
+ 
+ 	p = r0->prog;
+@@ -379,7 +379,7 @@ copyprop(Reg *r0)
+ }
+ 
+ int
+-copy1(Adr *v1, Adr *v2, Reg *r, int f)
++copy1(Addr *v1, Addr *v2, Reg *r, int f)
+ {
+ 	int t;
+ 	Prog *p;
+@@ -464,7 +464,7 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+  * 0 otherwise (not touched)
+  */
+ int
+-copyu(Prog *p, Adr *v, Adr *s)
++copyu(Prog *p, Addr *v, Addr *s)
+ {
+ 
+ 	switch(p->as) {
+@@ -740,7 +740,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+  * semantics
+  */
+ int
+-copyas(Adr *a, Adr *v)
++copyas(Addr *a, Addr *v)
+ {
+ 	if(a->type != v->type)
+ 		return 0;
+@@ -756,7 +756,7 @@ copyas(Adr *a, Adr *v)
+  * either direct or indirect
+  */
+ int
+-copyau(Adr *a, Adr *v)
++copyau(Addr *a, Addr *v)
+ {
+ 
+ 	if(copyas(a, v))
+@@ -775,7 +775,7 @@ copyau(Adr *a, Adr *v)
+  * return failure to substitute
+  */
+ int
+-copysub(Adr *a, Adr *v, Adr *s, int f)
++copysub(Addr *a, Addr *v, Addr *s, int f)
+ {
+ 	int t;
+ 
+diff --git a/src/cmd/8c/reg.c b/src/cmd/8c/reg.c
+index a3d5d61151..3e1cd1fb40 100644
+--- a/src/cmd/8c/reg.c
++++ b/src/cmd/8c/reg.c
+@@ -638,7 +638,7 @@ void
+ addmove(Reg *r, int bn, int rn, int f)
+ {
+ 	Prog *p, *p1;
+-	Adr *a;
++	Addr *a;
+ 	Var *v;
+ 
+ 	p1 = alloc(sizeof(*p1));
+@@ -697,13 +697,13 @@ doregbits(int r)
+ }
+ 
+ Bits
+-mkvar(Reg *r, Adr *a)
++mkvar(Reg *r, Addr *a)
+ {
+ 	Var *v;
+ 	int i, t, n, et, z;
+ 	int32 o;
+ 	Bits bit;
+-	Sym *s;
++	LSym *s;
+ 
+ 	/*
+ 	 * mark registers used
+@@ -730,7 +730,7 @@ mkvar(Reg *r, Adr *a)
+ 		break;
+ 	}
+ 	s = a->sym;
+-	if(s == S)
++	if(s == nil)
+ 		goto none;
+ 	if(s->name[0] == '.')
+ 		goto none;
+@@ -1121,7 +1121,7 @@ uint32
+ regset(Reg *r, uint32 bb)
+ {
+ 	uint32 b, set;
+-	Adr v;
++	Addr v;
+ 	int c;
+ 
+ 	set = 0;
+@@ -1140,7 +1140,7 @@ uint32
+ reguse(Reg *r, uint32 bb)
+ {
+ 	uint32 b, set;
+-	Adr v;
++	Addr v;
+ 	int c;
+ 
+ 	set = 0;
+@@ -1287,7 +1287,7 @@ paint3(Reg *r, int bn, int32 rb, int rn)
+ }
+ 
+ void
+-addreg(Adr *a, int rn)
++addreg(Addr *a, int rn)
+ {
+ 
+ 	a->sym = 0;
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index b681974472..84d1dc5b99 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -169,7 +169,7 @@ outstring(char *s, int32 n)
+ 			p->from.offset += nstring - NSNAME;
+ 			p->from.scale = NSNAME;
+ 			p->to.type = D_SCONST;
+-			memmove(p->to.sval, string, NSNAME);
++			memmove(p->to.u.sval, string, NSNAME);
+ 			mnstring = 0;
+ 		}
+ 		n--;
+@@ -190,7 +190,7 @@ sextern(Sym *s, Node *a, int32 o, int32 w)
+ 		p->from.offset += o+e;
+ 		p->from.scale = lw;
+ 		p->to.type = D_SCONST;
+-		memmove(p->to.sval, a->cstring+e, lw);
++		memmove(p->to.u.sval, a->cstring+e, lw);
+ 	}
+ }
+ 
+@@ -220,29 +220,12 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
+ 	}
+ }
+ 
+-void	zname(Biobuf*, Sym*, int);
+-void	zaddr(Biobuf*, Adr*, int);
+-void	outhist(Biobuf*);
+-
+ void
+ outcode(void)
+ {
+-	struct { Sym *sym; short type; } h[NSYM];
+-	Prog *p;
+-	Sym *s;
+-	int f, sf, st, t, sym;
++	int f;
+ 	Biobuf b;
+ 
+-	if(debug['S']) {
+-		for(p = firstp; p != P; p = p->link)
+-			if(p->as != ADATA && p->as != AGLOBL)
+-				pc--;
+-		for(p = firstp; p != P; p = p->link) {
+-			print("%P\n", p);
+-			if(p->as != ADATA && p->as != AGLOBL)
+-				pc++;
+-		}
+-	}
+ 	f = open(outfile, OWRITE);
+ 	if(f < 0) {
+ 		diag(Z, "cannot open %s", outfile);
+@@ -261,258 +244,13 @@ outcode(void)
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+-	outhist(&b);
+-	for(sym=0; sym<NSYM; sym++) {
+-		h[sym].sym = S;
+-		h[sym].type = 0;
+-	}
+-	sym = 1;
+-	for(p = firstp; p != P; p = p->link) {
+-	jackpot:
+-		sf = 0;
+-		s = p->from.sym;
+-		while(s != S) {
+-			sf = s->sym;
+-			if(sf < 0 || sf >= NSYM)
+-				sf = 0;
+-			t = p->from.type;
+-			if(t == D_ADDR)
+-				t = p->from.index;
+-			if(h[sf].type == t)
+-			if(h[sf].sym == s)
+-				break;
+-			s->sym = sym;
+-			zname(&b, s, t);
+-			h[sym].sym = s;
+-			h[sym].type = t;
+-			sf = sym;
+-			sym++;
+-			if(sym >= NSYM)
+-				sym = 1;
+-			break;
+-		}
+-		st = 0;
+-		s = p->to.sym;
+-		while(s != S) {
+-			st = s->sym;
+-			if(st < 0 || st >= NSYM)
+-				st = 0;
+-			t = p->to.type;
+-			if(t == D_ADDR)
+-				t = p->to.index;
+-			if(h[st].type == t)
+-			if(h[st].sym == s)
+-				break;
+-			s->sym = sym;
+-			zname(&b, s, t);
+-			h[sym].sym = s;
+-			h[sym].type = t;
+-			st = sym;
+-			sym++;
+-			if(sym >= NSYM)
+-				sym = 1;
+-			if(st == sf)
+-				goto jackpot;
+-			break;
+-		}
+-		BPUTLE2(&b, p->as);
+-		BPUTLE4(&b, p->lineno);
+-		zaddr(&b, &p->from, sf);
+-		zaddr(&b, &p->to, st);
+-	}
++	linkouthist(ctxt, &b);
++	linkwritefuncs(ctxt, &b);
+ 	Bterm(&b);
+ 	close(f);
+-	firstp = P;
+ 	lastp = P;
+ }
+ 
+-void
+-outhist(Biobuf *b)
+-{
+-	Hist *h;
+-	char *p, *q, *op, c;
+-	Prog pg;
+-	int n;
+-	char *tofree;
+-	static int first = 1;
+-	static char *goroot, *goroot_final;
+-
+-	if(first) {
+-		// Decide whether we need to rewrite paths from $GOROOT to $GOROOT_FINAL.
+-		first = 0;
+-		goroot = getenv("GOROOT");
+-		goroot_final = getenv("GOROOT_FINAL");
+-		if(goroot == nil)
+-			goroot = "";
+-		if(goroot_final == nil)
+-			goroot_final = goroot;
+-		if(strcmp(goroot, goroot_final) == 0) {
+-			goroot = nil;
+-			goroot_final = nil;
+-		}
+-	}
+-
+-	tofree = nil;
+-	pg = zprog;
+-	pg.as = AHISTORY;
+-	c = pathchar();
+-	for(h = hist; h != H; h = h->link) {
+-		p = h->name;
+-		if(p != nil && goroot != nil) {
+-			n = strlen(goroot);
+-			if(strncmp(p, goroot, strlen(goroot)) == 0 && p[n] == '/') {
+-				tofree = smprint("%s%s", goroot_final, p+n);
+-				p = tofree;
+-			}
+-		}
+-		op = 0;
+-		if(systemtype(Windows) && p && p[1] == ':'){
+-			c = p[2];
+-		} else if(p && p[0] != c && h->offset == 0 && pathname){
+-			if(systemtype(Windows) && pathname[1] == ':') {
+-				op = p;
+-				p = pathname;
+-				c = p[2];
+-			} else if(pathname[0] == c){
+-				op = p;
+-				p = pathname;
+-			}
+-		}
+-		while(p) {
+-			q = utfrune(p, c);
+-			if(q) {
+-				n = q-p;
+-				if(n == 0){
+-					n = 1;	/* leading "/" */
+-					*p = '/';	/* don't emit "\" on windows */
+-				}
+-				q++;
+-			} else {
+-				n = strlen(p);
+-				q = 0;
+-			}
+-			if(n) {
+-				BPUTLE2(b, ANAME);
+-				BPUTC(b, D_FILE);
+-				BPUTC(b, 1);
+-				BPUTC(b, '<');
+-				Bwrite(b, p, n);
+-				BPUTC(b, 0);
+-			}
+-			p = q;
+-			if(p == 0 && op) {
+-				p = op;
+-				op = 0;
+-			}
+-		}
+-		pg.lineno = h->line;
+-		pg.to.type = zprog.to.type;
+-		pg.to.offset = h->offset;
+-		if(h->offset)
+-			pg.to.type = D_CONST;
+-
+-		BPUTLE2(b, pg.as);
+-		BPUTLE4(b, pg.lineno);
+-		zaddr(b, &pg.from, 0);
+-		zaddr(b, &pg.to, 0);
+-
+-		if(tofree) {
+-			free(tofree);
+-			tofree = nil;
+-		}
+-	}
+-}
+-
+-void
+-zname(Biobuf *b, Sym *s, int t)
+-{
+-	char *n;
+-	uint32 sig;
+-
+-	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
+-		sig = sign(s);
+-		BPUTLE2(b, ASIGNAME);
+-		BPUTLE4(b, sig);
+-		s->sig = SIGDONE;
+-	}
+-	else{
+-		BPUTLE2(b, ANAME);	/* as */
+-	}
+-	BPUTC(b, t);			/* type */
+-	BPUTC(b, s->sym);		/* sym */
+-	n = s->name;
+-	while(*n) {
+-		BPUTC(b, *n);
+-		n++;
+-	}
+-	BPUTC(b, 0);
+-}
+-
+-void
+-zaddr(Biobuf *b, Adr *a, int s)
+-{
+-	int32 l;
+-	int i, t;
+-	char *n;
+-	Ieee e;
+-
+-	t = 0;
+-	if(a->index != D_NONE || a->scale != 0)
+-		t |= T_INDEX;
+-	if(s != 0)
+-		t |= T_SYM;
+-
+-	switch(a->type) {
+-	default:
+-		t |= T_TYPE;
+-	case D_NONE:
+-		if(a->offset != 0)
+-			t |= T_OFFSET;
+-		break;
+-	case D_FCONST:
+-		t |= T_FCONST;
+-		break;
+-	case D_SCONST:
+-		t |= T_SCONST;
+-		break;
+-	case D_CONST2:
+-		t |= T_OFFSET|T_OFFSET2;
+-		break;
+-	}
+-	BPUTC(b, t);
+-
+-	if(t & T_INDEX) {	/* implies index, scale */
+-		BPUTC(b, a->index);
+-		BPUTC(b, a->scale);
+-	}
+-	if(t & T_OFFSET) {	/* implies offset */
+-		l = a->offset;
+-		BPUTLE4(b, l);
+-	}
+-	if(t & T_OFFSET2) {	/* implies offset2 */
+-		l = a->offset2;
+-		BPUTLE4(b, l);
+-	}
+-	if(t & T_SYM)		/* implies sym */
+-		BPUTC(b, s);
+-	if(t & T_FCONST) {
+-		ieeedtod(&e, a->dval);
+-		BPUTLE4(b, e.l);
+-		BPUTLE4(b, e.h);
+-		return;
+-	}
+-	if(t & T_SCONST) {
+-		n = a->sval;
+-		for(i=0; i<NSNAME; i++) {
+-			BPUTC(b, *n);
+-			n++;
+-		}
+-		return;
+-	}
+-	if(t & T_TYPE)
+-		BPUTC(b, a->type);
+-}
+-
+ int32
+ align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 5c486af38d..925543a66a 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -30,6 +30,8 @@
+ 
+ #include "gc.h"
+ 
++LinkArch	*thelinkarch = &link386;
++
+ void
+ ginit(void)
+ {
+@@ -48,7 +50,6 @@ ginit(void)
+ 	breakpc = -1;
+ 	continpc = -1;
+ 	cases = C;
+-	firstp = P;
+ 	lastp = P;
+ 	tfield = types[TLONG];
+ 
+@@ -156,17 +157,17 @@ gclean(void)
+ void
+ nextpc(void)
+ {
++	Plist *pl;
+ 
+ 	p = alloc(sizeof(*p));
+ 	*p = zprog;
+ 	p->lineno = nearln;
+ 	pc++;
+-	if(firstp == P) {
+-		firstp = p;
+-		lastp = p;
+-		return;
+-	}
+-	lastp->link = p;
++	if(lastp == nil) {
++		pl = linknewplist(ctxt);
++		pl->firstpc = p;
++	} else
++		lastp->link = p;
+ 	lastp = p;
+ }
+ 
+@@ -435,7 +436,7 @@ regind(Node *n, Node *nn)
+ }
+ 
+ void
+-naddr(Node *n, Adr *a)
++naddr(Node *n, Addr *a)
+ {
+ 	int32 v;
+ 
+@@ -450,7 +451,7 @@ naddr(Node *n, Adr *a)
+ 
+ 	case OREGISTER:
+ 		a->type = n->reg;
+-		a->sym = S;
++		a->sym = nil;
+ 		break;
+ 
+ 	case OEXREG:
+@@ -495,14 +496,14 @@ naddr(Node *n, Adr *a)
+ 
+ 	case OINDREG:
+ 		a->type = n->reg+D_INDIR;
+-		a->sym = S;
++		a->sym = nil;
+ 		a->offset = n->xoffset;
+ 		break;
+ 
+ 	case ONAME:
+ 		a->etype = n->etype;
+ 		a->type = D_STATIC;
+-		a->sym = n->sym;
++		a->sym = linksym(n->sym);
+ 		a->offset = n->xoffset;
+ 		if(n->class == CSTATIC)
+ 			break;
+@@ -523,10 +524,10 @@ naddr(Node *n, Adr *a)
+ 	case OCONST:
+ 		if(typefd[n->type->etype]) {
+ 			a->type = D_FCONST;
+-			a->dval = n->fconst;
++			a->u.dval = n->fconst;
+ 			break;
+ 		}
+-		a->sym = S;
++		a->sym = nil;
+ 		a->type = D_CONST;
+ 		a->offset = n->vconst;
+ 		break;
+@@ -1378,7 +1379,7 @@ gpseudo(int a, Sym *s, Node *n)
+ 	nextpc();
+ 	p->as = a;
+ 	p->from.type = D_EXTERN;
+-	p->from.sym = s;
++	p->from.sym = linksym(s);
+ 
+ 	switch(a) {
+ 	case ATEXT:
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index af2339c976..ce2aa083b0 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -30,6 +30,7 @@
+ 
+ #include <libc.h>
+ #include <bio.h>
++#include <link.h>
+ 
+ #ifndef	EXTERN
+ #define EXTERN	extern
+@@ -48,7 +49,6 @@ typedef	struct	Type	Type;
+ typedef	struct	Funct	Funct;
+ typedef	struct	Decl	Decl;
+ typedef	struct	Io	Io;
+-typedef	struct	Hist	Hist;
+ typedef	struct	Term	Term;
+ typedef	struct	Init	Init;
+ typedef	struct	Bits	Bits;
+@@ -114,6 +114,7 @@ struct	Node
+ struct	Sym
+ {
+ 	Sym*	link;
++	LSym*	lsym;
+ 	Type*	type;
+ 	Type*	suetag;
+ 	Type*	tenum;
+@@ -200,16 +201,6 @@ struct	Io
+ };
+ #define	I	((Io*)0)
+ 
+-struct	Hist
+-{
+-	Hist*	link;
+-	char*	name;
+-	int32	line;
+-	int32	offset;
+-};
+-#define	H	((Hist*)0)
+-EXTERN Hist*	hist;
+-
+ struct	Term
+ {
+ 	vlong	mult;
+@@ -469,7 +460,6 @@ EXTERN	int32	autoffset;
+ EXTERN	int	blockno;
+ EXTERN	Decl*	dclstack;
+ EXTERN	int	debug[256];
+-EXTERN	Hist*	ehist;
+ EXTERN	int32	firstbit;
+ EXTERN	Sym*	firstarg;
+ EXTERN	Type*	firstargtype;
+@@ -498,7 +488,6 @@ EXTERN	int32	nsymb;
+ EXTERN	Biobuf	outbuf;
+ EXTERN	Biobuf	diagbuf;
+ EXTERN	char*	outfile;
+-EXTERN	char*	pathname;
+ EXTERN	int	peekc;
+ EXTERN	int32	stkoff;
+ EXTERN	Type*	strf;
+@@ -510,6 +499,7 @@ EXTERN	Type*	tfield;
+ EXTERN	Type*	tufield;
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
++extern	LinkArch*	thelinkarch;
+ EXTERN	Type*	thisfn;
+ EXTERN	int32	thunk;
+ EXTERN	Type*	types[NALLTYPES];
+@@ -556,6 +546,7 @@ extern	uchar	typechlpfd[];
+ 
+ EXTERN	uchar*	typeword;
+ EXTERN	uchar*	typecmplx;
++EXTERN	Link*	ctxt;
+ 
+ extern	uint32	thash1;
+ extern	uint32	thash2;
+@@ -612,7 +603,6 @@ void	dodefine(char*);
+ void	domacro(void);
+ Sym*	getsym(void);
+ int32	getnsn(void);
+-void	linehist(char*, int);
+ void	macdef(void);
+ void	macprag(void);
+ void	macend(void);
+@@ -731,6 +721,7 @@ void	diag(Node*, char*, ...);
+ void	warn(Node*, char*, ...);
+ void	yyerror(char*, ...);
+ void	fatal(Node*, char*, ...);
++LSym*	linksym(Sym*);
+ 
+ /*
+  * acid.c
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 049dc5196e..59e5409244 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -119,6 +119,7 @@ main(int argc, char *argv[])
+ 	int c;
+ 
+ 	quotefmtinstall(); // before cinit, which overrides %Q
++	ctxt = linknew(thelinkarch);
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	tinit();
+@@ -390,7 +391,7 @@ newfile(char *s, int f)
+ 		errorexit();
+ 	}
+ 	fi.c = 0;
+-	linehist(s, 0);
++	linklinehist(ctxt, lineno, s, 0);
+ }
+ 
+ Sym*
+@@ -1300,13 +1301,6 @@ cinit(void)
+ 	nodproto = new(OPROTO, Z, Z);
+ 	dclstack = D;
+ 
+-	pathname = allocn(pathname, 0, 100);
+-	if(getwd(pathname, 99) == 0) {
+-		pathname = allocn(pathname, 100, 900);
+-		if(getwd(pathname, 999) == 0)
+-			strcpy(pathname, "/???");
+-	}
+-
+ 	fmtinstall('O', Oconv);
+ 	fmtinstall('T', Tconv);
+ 	fmtinstall('F', FNconv);
+@@ -1330,7 +1324,7 @@ loop:
+ 	fi.c = read(i->f, i->b, BUFSIZ) - 1;
+ 	if(fi.c < 0) {
+ 		close(i->f);
+-		linehist(0, 0);
++		linklinehist(ctxt, lineno, nil, 0);
+ 		goto pop;
+ 	}
+ 	fi.p = i->b + 1;
+@@ -1365,70 +1359,7 @@ Oconv(Fmt *fp)
+ int
+ Lconv(Fmt *fp)
+ {
+-	char str[STRINGSZ], s[STRINGSZ];
+-	Hist *h;
+-	struct
+-	{
+-		Hist*	incl;	/* start of this include file */
+-		int32	idel;	/* delta line number to apply to include */
+-		Hist*	line;	/* start of this #line directive */
+-		int32	ldel;	/* delta line number to apply to #line */
+-	} a[HISTSZ];
+-	int32 l, d;
+-	int i, n;
+-
+-	l = va_arg(fp->args, int32);
+-	n = 0;
+-	for(h = hist; h != H; h = h->link) {
+-		if(l < h->line)
+-			break;
+-		if(h->name) {
+-			if(h->offset != 0) {		/* #line directive, not #pragma */
+-				if(n > 0 && n < HISTSZ && h->offset >= 0) {
+-					a[n-1].line = h;
+-					a[n-1].ldel = h->line - h->offset + 1;
+-				}
+-			} else {
+-				if(n < HISTSZ) {	/* beginning of file */
+-					a[n].incl = h;
+-					a[n].idel = h->line;
+-					a[n].line = 0;
+-				}
+-				n++;
+-			}
+-			continue;
+-		}
+-		n--;
+-		if(n > 0 && n < HISTSZ) {
+-			d = h->line - a[n].incl->line;
+-			a[n-1].ldel += d;
+-			a[n-1].idel += d;
+-		}
+-	}
+-	if(n > HISTSZ)
+-		n = HISTSZ;
+-	str[0] = 0;
+-	for(i=n-1; i>=0; i--) {
+-		if(i != n-1) {
+-			if(fp->flags & ~(FmtWidth|FmtPrec))	/* BUG ROB - was f3 */
+-				break;
+-			strcat(str, " ");
+-		}
+-		if(a[i].line)
+-			snprint(s, STRINGSZ, "%s:%d[%s:%d]",
+-				a[i].line->name, l-a[i].ldel+1,
+-				a[i].incl->name, l-a[i].idel+1);
+-		else
+-			snprint(s, STRINGSZ, "%s:%d",
+-				a[i].incl->name, l-a[i].idel+1);
+-		if(strlen(s)+strlen(str) >= STRINGSZ-10)
+-			break;
+-		strcat(str, s);
+-		l = a[i].incl->line - 1;	/* now print out start of this file */
+-	}
+-	if(n == 0)
+-		strcat(str, "<eof>");
+-	return fmtstrcpy(fp, str);
++	return linklinefmt(ctxt, fp);
+ }
+ 
+ int
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index f0a507669c..f6927b2f66 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -642,7 +642,7 @@ nn:
+ 	c = strlen(symb) + 1;
+ 	cp = alloc(c);
+ 	memcpy(cp, symb, c);
+-	linehist(cp, n);
++	linklinehist(ctxt, lineno, cp, n);
+ 	return;
+ 
+ bad:
+@@ -713,7 +713,6 @@ macprag(void)
+ 	Sym *s;
+ 	int c0, c;
+ 	char *hp;
+-	Hist *h;
+ 
+ 	s = getsym();
+ 
+@@ -779,18 +778,7 @@ praglib:
+ 	hp = alloc(c);
+ 	memcpy(hp, symb, c);
+ 
+-	h = alloc(sizeof(Hist));
+-	h->name = hp;
+-	h->line = lineno;
+-	h->offset = -1;
+-	h->link = H;
+-	if(ehist == H) {
+-		hist = h;
+-		ehist = h;
+-		return;
+-	}
+-	ehist->link = h;
+-	ehist = h;
++	linklinehist(ctxt, lineno, hp, -1);
+ 	return;
+ 
+ bad:
+@@ -810,43 +798,3 @@ macend(void)
+ 			return;
+ 	}
+ }
+-
+-void
+-linehist(char *f, int offset)
+-{
+-	Hist *h;
+-
+-	/*
+-	 * overwrite the last #line directive if
+-	 * no alloc has happened since the last one
+-	 */
+-	if(newflag == 0 && ehist != H && offset != 0 && ehist->offset != 0)
+-		if(f && ehist->name && strcmp(f, ehist->name) == 0) {
+-			ehist->line = lineno;
+-			ehist->offset = offset;
+-			return;
+-		}
+-
+-	if(debug['f'])
+-		if(f) {
+-			if(offset)
+-				print("%4d: %s (#line %d)\n", lineno, f, offset);
+-			else
+-				print("%4d: %s\n", lineno, f);
+-		} else
+-			print("%4d: <pop>\n", lineno);
+-	newflag = 0;
+-
+-	h = alloc(sizeof(Hist));
+-	h->name = f;
+-	h->line = lineno;
+-	h->offset = offset;
+-	h->link = H;
+-	if(ehist == H) {
+-		hist = h;
+-		ehist = h;
+-		return;
+-	}
+-	ehist->link = h;
+-	ehist = h;
+-}
+diff --git a/src/cmd/cc/pswt.c b/src/cmd/cc/pswt.c
+index cc9c227637..bae57c64dd 100644
+--- a/src/cmd/cc/pswt.c
++++ b/src/cmd/cc/pswt.c
+@@ -138,32 +138,3 @@ nullwarn(Node *l, Node *r)
+ 	if(r != Z)
+ 		cgen(r, Z);
+ }
+-
+-void
+-ieeedtod(Ieee *ieee, double native)
+-{
+-	double fr, ho, f;
+-	int exp;
+-
+-	if(native < 0) {
+-		ieeedtod(ieee, -native);
+-		ieee->h |= 0x80000000L;
+-		return;
+-	}
+-	if(native == 0) {
+-		ieee->l = 0;
+-		ieee->h = 0;
+-		return;
+-	}
+-	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldn't use fp constants here */
+-	fr = modf(fr*f, &ho);
+-	ieee->h = ho;
+-	ieee->h &= 0xfffffL;
+-	ieee->h |= (exp+1022L) << 20;
+-	f = 65536L;
+-	fr = modf(fr*f, &ho);
+-	ieee->l = ho;
+-	ieee->l <<= 16;
+-	ieee->l |= (int32)(fr*f);
+-}
+diff --git a/src/cmd/cc/sub.c b/src/cmd/cc/sub.c
+index bed9891021..94c11d021c 100644
+--- a/src/cmd/cc/sub.c
++++ b/src/cmd/cc/sub.c
+@@ -2056,3 +2056,13 @@ mixedasop(Type *l, Type *r)
+ {
+ 	return !typefd[l->etype] && typefd[r->etype];
+ }
++
++LSym*
++linksym(Sym *s)
++{
++	if(s == nil)
++		return nil;
++	if(s->lsym != nil)
++		return s->lsym;
++	return linklookup(ctxt, s->name, s->class == CSTATIC);
++}

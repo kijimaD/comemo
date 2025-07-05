@@ -11,7 +11,52 @@ Date:   Mon Nov 11 17:15:03 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                          |  8 --------
  src/cmd/go/testdata/script/fmt_load_errors.txt | 19 +++++++++++++++++++
  2 files changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1016a737a0..cb89cadb83 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5704,14 +5704,6 @@ func TestInstallDeps(t *testing.T) {
+ 	tg.mustExist(p1)
+ }
+ 
+-func TestFmtLoadErrors(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("fmt", "does-not-exist")
+-	tg.run("fmt", "-n", "exclude")
+-}
+-
+ func TestGoTestMinusN(t *testing.T) {
+ 	// Intent here is to verify that 'go test -n' works without crashing.
+ 	// This reuses flag_test.go, but really any test would do.
+diff --git a/src/cmd/go/testdata/script/fmt_load_errors.txt b/src/cmd/go/testdata/script/fmt_load_errors.txt
+new file mode 100644
+index 0000000000..297ec0fe3c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/fmt_load_errors.txt
+@@ -0,0 +1,19 @@
++env GO111MODULE=off
++
++! go fmt does-not-exist
++
++go fmt -n exclude
++stdout 'exclude[/\\]x\.go'
++stdout 'exclude[/\\]x_linux\.go'
++
++-- exclude/empty/x.txt --
++-- exclude/ignore/_x.go --
++package x
++-- exclude/x.go --
++// +build linux,!linux
++
++package x
++-- exclude/x_linux.go --
++// +build windows
++
++package x

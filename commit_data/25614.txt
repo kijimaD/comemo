@@ -8,9 +8,95 @@ Date:   Thu Sep 10 10:16:45 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14460
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/dist/build.go     |  2 ++
  src/cmd/dist/buildtool.go |  3 +++
  src/cmd/dist/test.go      |  4 ++++
  src/cmd/dist/util.go      | 12 ++++++++++++
  4 files changed, 21 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index bcf6e71d52..a30cd862b5 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -54,6 +54,8 @@ var okgoarch = []string{
+ 	"amd64p32",
+ 	"arm",
+ 	"arm64",
++	"mips64",
++	"mips64le",
+ 	"ppc64",
+ 	"ppc64le",
+ }
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 8a55b5da70..20d9535307 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -34,12 +34,14 @@ var bootstrapDirs = []string{
+ 	"compile/internal/arm64",
+ 	"compile/internal/big",
+ 	"compile/internal/gc",
++	"compile/internal/mips64",
+ 	"compile/internal/ppc64",
+ 	"compile/internal/x86",
+ 	"internal/gcprog",
+ 	"internal/obj",
+ 	"internal/obj/arm",
+ 	"internal/obj/arm64",
++	"internal/obj/mips",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
+ 	"link",
+@@ -47,6 +49,7 @@ var bootstrapDirs = []string{
+ 	"link/internal/arm",
+ 	"link/internal/arm64",
+ 	"link/internal/ld",
++	"link/internal/mips64",
+ 	"link/internal/ppc64",
+ 	"link/internal/x86",
+ }
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 99e0c69078..caaec1d4fd 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -745,6 +745,10 @@ func (t *tester) cgoTestSOSupported() bool {
+ 		// External linking not implemented on ppc64 (issue #8912).
+ 		return false
+ 	}
++	if t.goarch == "mips64le" || t.goarch == "mips64" {
++		// External linking not implemented on mips64.
++		return false
++	}
+ 	return true
+ }
+ 
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 2fcd9ca995..d1e5787d66 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -6,6 +6,8 @@ package main
+ 
+ import (
+ 	"bytes"
++	"debug/elf"
++	"encoding/binary"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -438,6 +440,16 @@ func main() {
+ 			gohostarch = "ppc64le"
+ 		case strings.Contains(out, "ppc64"):
+ 			gohostarch = "ppc64"
++		case strings.Contains(out, "mips64"):
++			file, err := elf.Open(os.Args[0])
++			if err != nil {
++				fatal("failed to open %s to determine endianness: %v", os.Args[0], err)
++			}
++			if file.FileHeader.ByteOrder == binary.BigEndian {
++				gohostarch = "mips64"
++			} else {
++				gohostarch = "mips64le"
++			}
+ 		case gohostos == "darwin":
+ 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
+ 				gohostarch = "arm"

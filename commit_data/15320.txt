@@ -7,7 +7,55 @@ Date:   Tue Feb 19 18:05:44 2013 -0800
     R=r, golang-dev
     CC=golang-dev
     https://golang.org/cl/7327053
-
+---
  src/pkg/runtime/print.c   | 10 ++++++++++
  src/pkg/runtime/runtime.h |  1 +
  2 files changed, 11 insertions(+)
+
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index b642999a1d..5b601599bc 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -84,6 +84,7 @@ vprintf(int8 *s, byte *base)
+ 		narg = 0;
+ 		switch(*p) {
+ 		case 't':
++		case 'c':
+ 			narg = arg + 1;
+ 			break;
+ 		case 'd':	// 32-bit
+@@ -126,6 +127,9 @@ vprintf(int8 *s, byte *base)
+ 		case 'a':
+ 			runtime·printslice(*(Slice*)v);
+ 			break;
++		case 'c':
++			runtime·printbyte(*(int8*)v);
++			break;
+ 		case 'd':
+ 			runtime·printint(*(int32*)v);
+ 			break;
+@@ -202,6 +206,12 @@ runtime·printbool(bool v)
+ 	gwrite((byte*)"false", 5);
+ }
+ 
++void
++runtime·printbyte(int8 c)
++{
++	gwrite(&c, 1);
++}
++
+ void
+ runtime·printfloat(float64 v)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 77f60cb4b5..a787cad563 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -817,6 +817,7 @@ void*	runtime·getcallerpc(void*);
+  * runtime go-called
+  */
+ void	runtime·printbool(bool);
++void	runtime·printbyte(int8);
+ void	runtime·printfloat(float64);
+ void	runtime·printint(int64);
+ void	runtime·printiface(Iface);

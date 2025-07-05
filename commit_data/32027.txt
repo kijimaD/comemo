@@ -13,7 +13,65 @@ Date:   Thu Mar 30 14:34:16 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/38728
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  7 ++-----
  src/cmd/compile/internal/gc/ssa.go  | 14 +++++++-------
  2 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index aa09fb71e7..283a8e6160 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -171,8 +171,6 @@ func (s byStackVar) Len() int           { return len(s) }
+ func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
+ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+-var scratchFpMem *Node
+-
+ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	s.stksize = 0
+ 	s.stkptrsize = 0
+@@ -208,9 +206,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 	}
+ 
+-	if f.Config.NeedsFpScratch {
+-		scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
+-		scratchFpMem.SetUsed(scratchUsed)
++	if f.Config.NeedsFpScratch && scratchUsed {
++		s.scratchFpMem = tempAt(src.NoXPos, s.curfn, Types[TUINT64])
+ 	}
+ 
+ 	sort.Sort(byStackVar(fn.Dcl))
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index da4c0bb34a..cbd340974b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4306,8 +4306,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		s.SSEto387 = map[int16]int16{}
+ 	}
+ 
+-	s.ScratchFpMem = scratchFpMem
+-	scratchFpMem = nil
++	s.ScratchFpMem = e.scratchFpMem
+ 
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+@@ -4686,11 +4685,12 @@ func fieldIdx(n *Node) int {
+ // ssafn holds frontend information about a function that the backend is processing.
+ // It also exports a bunch of compiler services for the ssa backend.
+ type ssafn struct {
+-	curfn      *Node
+-	strings    map[string]interface{} // map from constant string to data symbols
+-	stksize    int64                  // stack size for current frame
+-	stkptrsize int64                  // prefix of stack containing pointers
+-	log        bool
++	curfn        *Node
++	strings      map[string]interface{} // map from constant string to data symbols
++	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
++	stksize      int64                  // stack size for current frame
++	stkptrsize   int64                  // prefix of stack containing pointers
++	log          bool
+ }
+ 
+ // StringData returns a symbol (a *Sym wrapped in an interface) which

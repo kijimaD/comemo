@@ -8,6 +8,20 @@ Date:   Fri Oct 10 13:12:32 2014 +1100
     R=bradfitz, minux
     CC=golang-codereviews
     https://golang.org/cl/154220043
-
+---
  src/net/udp_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/udp_test.go b/src/net/udp_test.go
+index aa5751557f..125bbca6c4 100644
+--- a/src/net/udp_test.go
++++ b/src/net/udp_test.go
+@@ -38,7 +38,7 @@ func TestResolveUDPAddr(t *testing.T) {
+ func TestReadFromUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
++		t.Skipf("skipping test on %q, see issue 8916", runtime.GOOS)
+ 	}
+ 
+ 	ra, err := ResolveUDPAddr("udp", "127.0.0.1:7")

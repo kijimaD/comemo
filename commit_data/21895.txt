@@ -7,9 +7,163 @@ Date:   Fri Feb 6 16:57:38 2015 -0500
     Change-Id: I6a119109c8dea7fecb32de2c4b1b5ba54bc485be
     Reviewed-on: https://go-review.googlesource.com/4100
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/i386/list8.go | 22 ++++++----------------
  src/cmd/internal/obj/x86/list6.go  | 14 ++++++--------
  src/liblink/list6.c                | 12 +++++-------
  src/liblink/list8.c                | 19 +++++--------------
  4 files changed, 22 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/internal/obj/i386/list8.go b/src/cmd/internal/obj/i386/list8.go
+index 087da7e4d0..33dfea44ad 100644
+--- a/src/cmd/internal/obj/i386/list8.go
++++ b/src/cmd/internal/obj/i386/list8.go
+@@ -59,6 +59,12 @@ func Pconv(p *obj.Prog) string {
+ 
+ 	default:
+ 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
++		//	SHRQ $32(DX*0), AX
++		// Remove.
++		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != 0 {
++			str += fmt.Sprintf(":%s", Rconv(int(p.From.Index)))
++		}
+ 		break
+ 	}
+ 
+@@ -97,14 +103,6 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+ 
+ 		str = fmt.Sprintf("%v", Rconv(int(a.Reg)))
+ 
+-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+-		//	SHRQ $32(DX*0), AX
+-		// Remove.
+-		if a.Index != REG_NONE {
+-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+-			str += s
+-		}
+-
+ 	case obj.TYPE_BRANCH:
+ 		if a.Sym != nil {
+ 			str = fmt.Sprintf("%s(SB)", a.Sym.Name)
+@@ -158,14 +156,6 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+ 	case obj.TYPE_CONST:
+ 		str = fmt.Sprintf("$%d", a.Offset)
+ 
+-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+-		//	SHRQ $32(DX*0), AX
+-		// Remove.
+-		if a.Index != REG_NONE {
+-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+-			str += s
+-		}
+-
+ 	case obj.TYPE_TEXTSIZE:
+ 		if a.U.Argsize == obj.ArgsSizeUnknown {
+ 			str = fmt.Sprintf("$%d", a.Offset)
+diff --git a/src/cmd/internal/obj/x86/list6.go b/src/cmd/internal/obj/x86/list6.go
+index c782f6387a..af10f38ef0 100644
+--- a/src/cmd/internal/obj/x86/list6.go
++++ b/src/cmd/internal/obj/x86/list6.go
+@@ -71,6 +71,12 @@ func Pconv(p *obj.Prog) string {
+ 
+ 	default:
+ 		str = fmt.Sprintf("%.5d (%v)\t%v\t%v,%v", p.Pc, p.Line(), Aconv(int(p.As)), Dconv(p, 0, &p.From), Dconv(p, 0, &p.To))
++		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
++		//	SHRQ $32(DX*0), AX
++		// Remove.
++		if (p.From.Type == obj.TYPE_REG || p.From.Type == obj.TYPE_CONST) && p.From.Index != 0 {
++			str += fmt.Sprintf(":%s", Rconv(int(p.From.Index)))
++		}
+ 		break
+ 	}
+ 
+@@ -162,14 +168,6 @@ func Dconv(p *obj.Prog, flag int, a *obj.Addr) string {
+ 	case obj.TYPE_CONST:
+ 		str = fmt.Sprintf("$%d", a.Offset)
+ 
+-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+-		//	SHRQ $32(DX*0), AX
+-		// Remove.
+-		if a.Index != REG_NONE {
+-			s = fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+-			str += s
+-		}
+-
+ 	case obj.TYPE_TEXTSIZE:
+ 		if a.U.Argsize == obj.ArgsSizeUnknown {
+ 			str = fmt.Sprintf("$%d", a.Offset)
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index db8b0011af..d9e0b45c7a 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -102,6 +102,11 @@ Pconv(Fmt *fp)
+ 	default:
+ 		sprint(str, "%.5lld (%L)	%A	%D,%D",
+ 			p->pc, p->lineno, p->as, &p->from, &p->to);
++		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
++		//	SHRQ $32(DX*0), AX
++		// Remove.
++		if((p->from.type == TYPE_REG || p->from.type == TYPE_CONST) && p->from.index != REG_NONE)
++			sprint(strchr(str, 0), ":%R", p->from.index);
+ 		break;
+ 	}
+ 	bigP = nil;
+@@ -195,13 +200,6 @@ Dconv(Fmt *fp)
+ 
+ 	case TYPE_CONST:
+ 		sprint(str, "$%lld", a->offset);
+-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+-		//	SHRQ $32(DX*0), AX
+-		// Remove.
+-		if(a->index != REG_NONE) {
+-			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+-			strcat(str, s);
+-		}
+ 		break;
+ 	
+ 	case TYPE_TEXTSIZE:
+diff --git a/src/liblink/list8.c b/src/liblink/list8.c
+index 66db2f1d78..dbba103280 100644
+--- a/src/liblink/list8.c
++++ b/src/liblink/list8.c
+@@ -89,6 +89,11 @@ Pconv(Fmt *fp)
+ 	default:
+ 		sprint(str, "%.5lld (%L)	%A	%D,%D",
+ 			p->pc, p->lineno, p->as, &p->from, &p->to);
++		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
++		//	SHRQ $32(DX*0), AX
++		// Remove.
++		if((p->from.type == TYPE_REG || p->from.type == TYPE_CONST) && p->from.index != 0)
++			sprint(strchr(str, 0), ":%R", p->from.index);
+ 		break;
+ 	}
+ 	bigP = nil;
+@@ -131,13 +136,6 @@ Dconv(Fmt *fp)
+ 			break;
+ 		}
+ 		sprint(str, "%R", a->reg);
+-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+-		//	SHRQ $32(DX*0), AX
+-		// Remove.
+-		if(a->index != REG_NONE) {
+-			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+-			strcat(str, s);
+-		}
+ 		break;
+ 
+ 	case TYPE_BRANCH:
+@@ -189,13 +187,6 @@ Dconv(Fmt *fp)
+ 
+ 	case TYPE_CONST:
+ 		sprint(str, "$%lld", a->offset);
+-		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
+-		//	SHRQ $32(DX*0), AX
+-		// Remove.
+-		if(a->index != REG_NONE) {
+-			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+-			strcat(str, s);
+-		}
+ 		break;
+ 
+ 	case TYPE_TEXTSIZE:

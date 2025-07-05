@@ -12,7 +12,7 @@ Date:   Fri Nov 16 16:20:28 2018 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go        |   1 +
  src/cmd/compile/internal/ssa/decompose.go      |   4 +
  src/cmd/compile/internal/ssa/gen/decArgs.rules |  58 +++++
@@ -21,3 +21,752 @@ Date:   Fri Nov 16 16:20:28 2018 -0500
  src/cmd/compile/internal/ssa/rewritedecArgs.go | 288 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 255 ----------------------
  7 files changed, 371 insertions(+), 308 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 7f933cb66e..96bc5f03c1 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -365,6 +365,7 @@ var passes = [...]pass{
+ 	{name: "early copyelim", fn: copyelim},
+ 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
+ 	{name: "short circuit", fn: shortcircuit},
++	{name: "decompose args", fn: decomposeArgs, required: true},
+ 	{name: "decompose user", fn: decomposeUser, required: true},
+ 	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+ 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 4dc2eabb0c..c59ec4c77d 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -214,6 +214,10 @@ func decomposeInterfacePhi(v *Value) {
+ 	v.AddArg(data)
+ }
+ 
++func decomposeArgs(f *Func) {
++	applyRewrite(f, rewriteBlockdecArgs, rewriteValuedecArgs)
++}
++
+ func decomposeUser(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+diff --git a/src/cmd/compile/internal/ssa/gen/decArgs.rules b/src/cmd/compile/internal/ssa/gen/decArgs.rules
+new file mode 100644
+index 0000000000..e9322b0789
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/decArgs.rules
+@@ -0,0 +1,58 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Decompose compound argument values
++// Do this early to simplify tracking names for debugging.
++
++(Arg {n} [off]) && v.Type.IsString() ->
++  (StringMake
++    (Arg <typ.BytePtr> {n} [off])
++    (Arg <typ.Int> {n} [off+config.PtrSize]))
++
++(Arg {n} [off]) && v.Type.IsSlice() ->
++  (SliceMake
++    (Arg <v.Type.Elem().PtrTo()> {n} [off])
++    (Arg <typ.Int> {n} [off+config.PtrSize])
++    (Arg <typ.Int> {n} [off+2*config.PtrSize]))
++
++(Arg {n} [off]) && v.Type.IsInterface() ->
++  (IMake
++    (Arg <typ.Uintptr> {n} [off])
++    (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
++
++(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->
++  (ComplexMake
++    (Arg <typ.Float64> {n} [off])
++    (Arg <typ.Float64> {n} [off+8]))
++
++(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 ->
++  (ComplexMake
++    (Arg <typ.Float32> {n} [off])
++    (Arg <typ.Float32> {n} [off+4]))
++
++(Arg <t>) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) ->
++  (StructMake0)
++(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) ->
++  (StructMake1
++    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
++(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) ->
++  (StructMake2
++    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
++    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
++(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) ->
++  (StructMake3
++    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
++    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
++    (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
++(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) ->
++  (StructMake4
++    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
++    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
++    (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])
++    (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
++
++(Arg <t>) && t.IsArray() && t.NumElem() == 0 ->
++  (ArrayMake0)
++(Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
++  (ArrayMake1 (Arg <t.Elem()> {n} [off]))
+diff --git a/src/cmd/compile/internal/ssa/gen/decArgsOps.go b/src/cmd/compile/internal/ssa/gen/decArgsOps.go
+new file mode 100644
+index 0000000000..b73d9d3976
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/decArgsOps.go
+@@ -0,0 +1,20 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++var decArgsOps = []opData{}
++
++var decArgsBlocks = []blockData{}
++
++func init() {
++	archs = append(archs, arch{
++		name:    "decArgs",
++		ops:     decArgsOps,
++		blocks:  decArgsBlocks,
++		generic: true,
++	})
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 5a1bee0fa2..89fbfdc6bd 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -871,59 +871,6 @@
+ (Convert (Add(64|32) (Convert ptr mem) off) mem) -> (Add(64|32) ptr off)
+ (Convert (Convert ptr mem) mem) -> ptr
+ 
+-// Decompose compound argument values
+-(Arg {n} [off]) && v.Type.IsString() ->
+-  (StringMake
+-    (Arg <typ.BytePtr> {n} [off])
+-    (Arg <typ.Int> {n} [off+config.PtrSize]))
+-
+-(Arg {n} [off]) && v.Type.IsSlice() ->
+-  (SliceMake
+-    (Arg <v.Type.Elem().PtrTo()> {n} [off])
+-    (Arg <typ.Int> {n} [off+config.PtrSize])
+-    (Arg <typ.Int> {n} [off+2*config.PtrSize]))
+-
+-(Arg {n} [off]) && v.Type.IsInterface() ->
+-  (IMake
+-    (Arg <typ.Uintptr> {n} [off])
+-    (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
+-
+-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->
+-  (ComplexMake
+-    (Arg <typ.Float64> {n} [off])
+-    (Arg <typ.Float64> {n} [off+8]))
+-
+-(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 ->
+-  (ComplexMake
+-    (Arg <typ.Float32> {n} [off])
+-    (Arg <typ.Float32> {n} [off+4]))
+-
+-(Arg <t>) && t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t) ->
+-  (StructMake0)
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t) ->
+-  (StructMake1
+-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t) ->
+-  (StructMake2
+-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
+-    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t) ->
+-  (StructMake3
+-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
+-    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
+-    (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
+-(Arg <t> {n} [off]) && t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t) ->
+-  (StructMake4
+-    (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])
+-    (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
+-    (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])
+-    (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
+-
+-(Arg <t>) && t.IsArray() && t.NumElem() == 0 ->
+-  (ArrayMake0)
+-(Arg <t> {n} [off]) && t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t) ->
+-  (ArrayMake1 (Arg <t.Elem()> {n} [off]))
+-
+ // strength reduction of divide by a constant.
+ // See ../magic.go for a detailed description of these algorithms.
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewritedecArgs.go b/src/cmd/compile/internal/ssa/rewritedecArgs.go
+new file mode 100644
+index 0000000000..6b823252ea
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewritedecArgs.go
+@@ -0,0 +1,288 @@
++// Code generated from gen/decArgs.rules; DO NOT EDIT.
++// generated with: cd gen; go run *.go
++
++package ssa
++
++import "fmt"
++import "math"
++import "cmd/internal/obj"
++import "cmd/internal/objabi"
++import "cmd/compile/internal/types"
++
++var _ = fmt.Println   // in case not otherwise used
++var _ = math.MinInt8  // in case not otherwise used
++var _ = obj.ANOP      // in case not otherwise used
++var _ = objabi.GOROOT // in case not otherwise used
++var _ = types.TypeMem // in case not otherwise used
++
++func rewriteValuedecArgs(v *Value) bool {
++	switch v.Op {
++	case OpArg:
++		return rewriteValuedecArgs_OpArg_0(v) || rewriteValuedecArgs_OpArg_10(v)
++	}
++	return false
++}
++func rewriteValuedecArgs_OpArg_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	fe := b.Func.fe
++	_ = fe
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (Arg {n} [off])
++	// cond: v.Type.IsString()
++	// result: (StringMake (Arg <typ.BytePtr> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]))
++	for {
++		off := v.AuxInt
++		n := v.Aux
++		if !(v.Type.IsString()) {
++			break
++		}
++		v.reset(OpStringMake)
++		v0 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
++		v0.AuxInt = off
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
++		v1.AuxInt = off + config.PtrSize
++		v1.Aux = n
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Arg {n} [off])
++	// cond: v.Type.IsSlice()
++	// result: (SliceMake (Arg <v.Type.Elem().PtrTo()> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]) (Arg <typ.Int> {n} [off+2*config.PtrSize]))
++	for {
++		off := v.AuxInt
++		n := v.Aux
++		if !(v.Type.IsSlice()) {
++			break
++		}
++		v.reset(OpSliceMake)
++		v0 := b.NewValue0(v.Pos, OpArg, v.Type.Elem().PtrTo())
++		v0.AuxInt = off
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
++		v1.AuxInt = off + config.PtrSize
++		v1.Aux = n
++		v.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpArg, typ.Int)
++		v2.AuxInt = off + 2*config.PtrSize
++		v2.Aux = n
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Arg {n} [off])
++	// cond: v.Type.IsInterface()
++	// result: (IMake (Arg <typ.Uintptr> {n} [off]) (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
++	for {
++		off := v.AuxInt
++		n := v.Aux
++		if !(v.Type.IsInterface()) {
++			break
++		}
++		v.reset(OpIMake)
++		v0 := b.NewValue0(v.Pos, OpArg, typ.Uintptr)
++		v0.AuxInt = off
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
++		v1.AuxInt = off + config.PtrSize
++		v1.Aux = n
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Arg {n} [off])
++	// cond: v.Type.IsComplex() && v.Type.Size() == 16
++	// result: (ComplexMake (Arg <typ.Float64> {n} [off]) (Arg <typ.Float64> {n} [off+8]))
++	for {
++		off := v.AuxInt
++		n := v.Aux
++		if !(v.Type.IsComplex() && v.Type.Size() == 16) {
++			break
++		}
++		v.reset(OpComplexMake)
++		v0 := b.NewValue0(v.Pos, OpArg, typ.Float64)
++		v0.AuxInt = off
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, typ.Float64)
++		v1.AuxInt = off + 8
++		v1.Aux = n
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Arg {n} [off])
++	// cond: v.Type.IsComplex() && v.Type.Size() == 8
++	// result: (ComplexMake (Arg <typ.Float32> {n} [off]) (Arg <typ.Float32> {n} [off+4]))
++	for {
++		off := v.AuxInt
++		n := v.Aux
++		if !(v.Type.IsComplex() && v.Type.Size() == 8) {
++			break
++		}
++		v.reset(OpComplexMake)
++		v0 := b.NewValue0(v.Pos, OpArg, typ.Float32)
++		v0.AuxInt = off
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, typ.Float32)
++		v1.AuxInt = off + 4
++		v1.Aux = n
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Arg <t>)
++	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
++	// result: (StructMake0)
++	for {
++		t := v.Type
++		if !(t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)) {
++			break
++		}
++		v.reset(OpStructMake0)
++		return true
++	}
++	// match: (Arg <t> {n} [off])
++	// cond: t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)
++	// result: (StructMake1 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
++	for {
++		t := v.Type
++		off := v.AuxInt
++		n := v.Aux
++		if !(t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)) {
++			break
++		}
++		v.reset(OpStructMake1)
++		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
++		v0.AuxInt = off + t.FieldOff(0)
++		v0.Aux = n
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Arg <t> {n} [off])
++	// cond: t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)
++	// result: (StructMake2 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]) (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
++	for {
++		t := v.Type
++		off := v.AuxInt
++		n := v.Aux
++		if !(t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)) {
++			break
++		}
++		v.reset(OpStructMake2)
++		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
++		v0.AuxInt = off + t.FieldOff(0)
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
++		v1.AuxInt = off + t.FieldOff(1)
++		v1.Aux = n
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Arg <t> {n} [off])
++	// cond: t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)
++	// result: (StructMake3 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]) (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]) (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
++	for {
++		t := v.Type
++		off := v.AuxInt
++		n := v.Aux
++		if !(t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)) {
++			break
++		}
++		v.reset(OpStructMake3)
++		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
++		v0.AuxInt = off + t.FieldOff(0)
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
++		v1.AuxInt = off + t.FieldOff(1)
++		v1.Aux = n
++		v.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
++		v2.AuxInt = off + t.FieldOff(2)
++		v2.Aux = n
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Arg <t> {n} [off])
++	// cond: t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)
++	// result: (StructMake4 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]) (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]) (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]) (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
++	for {
++		t := v.Type
++		off := v.AuxInt
++		n := v.Aux
++		if !(t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)) {
++			break
++		}
++		v.reset(OpStructMake4)
++		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
++		v0.AuxInt = off + t.FieldOff(0)
++		v0.Aux = n
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
++		v1.AuxInt = off + t.FieldOff(1)
++		v1.Aux = n
++		v.AddArg(v1)
++		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
++		v2.AuxInt = off + t.FieldOff(2)
++		v2.Aux = n
++		v.AddArg(v2)
++		v3 := b.NewValue0(v.Pos, OpArg, t.FieldType(3))
++		v3.AuxInt = off + t.FieldOff(3)
++		v3.Aux = n
++		v.AddArg(v3)
++		return true
++	}
++	return false
++}
++func rewriteValuedecArgs_OpArg_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	fe := b.Func.fe
++	_ = fe
++	// match: (Arg <t>)
++	// cond: t.IsArray() && t.NumElem() == 0
++	// result: (ArrayMake0)
++	for {
++		t := v.Type
++		if !(t.IsArray() && t.NumElem() == 0) {
++			break
++		}
++		v.reset(OpArrayMake0)
++		return true
++	}
++	// match: (Arg <t> {n} [off])
++	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
++	// result: (ArrayMake1 (Arg <t.Elem()> {n} [off]))
++	for {
++		t := v.Type
++		off := v.AuxInt
++		n := v.Aux
++		if !(t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)) {
++			break
++		}
++		v.reset(OpArrayMake1)
++		v0 := b.NewValue0(v.Pos, OpArg, t.Elem())
++		v0.AuxInt = off
++		v0.Aux = n
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
++func rewriteBlockdecArgs(b *Block) bool {
++	config := b.Func.Config
++	_ = config
++	fe := b.Func.fe
++	_ = fe
++	typ := &config.Types
++	_ = typ
++	switch b.Kind {
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f16b571b2a..79f0fd434a 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -39,8 +39,6 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpAnd64_0(v) || rewriteValuegeneric_OpAnd64_10(v) || rewriteValuegeneric_OpAnd64_20(v)
+ 	case OpAnd8:
+ 		return rewriteValuegeneric_OpAnd8_0(v) || rewriteValuegeneric_OpAnd8_10(v) || rewriteValuegeneric_OpAnd8_20(v)
+-	case OpArg:
+-		return rewriteValuegeneric_OpArg_0(v) || rewriteValuegeneric_OpArg_10(v)
+ 	case OpArraySelect:
+ 		return rewriteValuegeneric_OpArraySelect_0(v)
+ 	case OpCom16:
+@@ -6817,259 +6815,6 @@ func rewriteValuegeneric_OpAnd8_20(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValuegeneric_OpArg_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	config := b.Func.Config
+-	_ = config
+-	fe := b.Func.fe
+-	_ = fe
+-	typ := &b.Func.Config.Types
+-	_ = typ
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsString()
+-	// result: (StringMake (Arg <typ.BytePtr> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]))
+-	for {
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(v.Type.IsString()) {
+-			break
+-		}
+-		v.reset(OpStringMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
+-		v0.AuxInt = off
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
+-		v1.AuxInt = off + config.PtrSize
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsSlice()
+-	// result: (SliceMake (Arg <v.Type.Elem().PtrTo()> {n} [off]) (Arg <typ.Int> {n} [off+config.PtrSize]) (Arg <typ.Int> {n} [off+2*config.PtrSize]))
+-	for {
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(v.Type.IsSlice()) {
+-			break
+-		}
+-		v.reset(OpSliceMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, v.Type.Elem().PtrTo())
+-		v0.AuxInt = off
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
+-		v1.AuxInt = off + config.PtrSize
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpArg, typ.Int)
+-		v2.AuxInt = off + 2*config.PtrSize
+-		v2.Aux = n
+-		v.AddArg(v2)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsInterface()
+-	// result: (IMake (Arg <typ.Uintptr> {n} [off]) (Arg <typ.BytePtr> {n} [off+config.PtrSize]))
+-	for {
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(v.Type.IsInterface()) {
+-			break
+-		}
+-		v.reset(OpIMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.Uintptr)
+-		v0.AuxInt = off
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
+-		v1.AuxInt = off + config.PtrSize
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsComplex() && v.Type.Size() == 16
+-	// result: (ComplexMake (Arg <typ.Float64> {n} [off]) (Arg <typ.Float64> {n} [off+8]))
+-	for {
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(v.Type.IsComplex() && v.Type.Size() == 16) {
+-			break
+-		}
+-		v.reset(OpComplexMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.Float64)
+-		v0.AuxInt = off
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Float64)
+-		v1.AuxInt = off + 8
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		return true
+-	}
+-	// match: (Arg {n} [off])
+-	// cond: v.Type.IsComplex() && v.Type.Size() == 8
+-	// result: (ComplexMake (Arg <typ.Float32> {n} [off]) (Arg <typ.Float32> {n} [off+4]))
+-	for {
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(v.Type.IsComplex() && v.Type.Size() == 8) {
+-			break
+-		}
+-		v.reset(OpComplexMake)
+-		v0 := b.NewValue0(v.Pos, OpArg, typ.Float32)
+-		v0.AuxInt = off
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, typ.Float32)
+-		v1.AuxInt = off + 4
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		return true
+-	}
+-	// match: (Arg <t>)
+-	// cond: t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)
+-	// result: (StructMake0)
+-	for {
+-		t := v.Type
+-		if !(t.IsStruct() && t.NumFields() == 0 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake0)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)
+-	// result: (StructMake1 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
+-	for {
+-		t := v.Type
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(t.IsStruct() && t.NumFields() == 1 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake1)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = off + t.FieldOff(0)
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)
+-	// result: (StructMake2 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]) (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
+-	for {
+-		t := v.Type
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(t.IsStruct() && t.NumFields() == 2 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake2)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = off + t.FieldOff(0)
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
+-		v1.AuxInt = off + t.FieldOff(1)
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)
+-	// result: (StructMake3 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]) (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]) (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
+-	for {
+-		t := v.Type
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(t.IsStruct() && t.NumFields() == 3 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake3)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = off + t.FieldOff(0)
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
+-		v1.AuxInt = off + t.FieldOff(1)
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
+-		v2.AuxInt = off + t.FieldOff(2)
+-		v2.Aux = n
+-		v.AddArg(v2)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)
+-	// result: (StructMake4 (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]) (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]) (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]) (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
+-	for {
+-		t := v.Type
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(t.IsStruct() && t.NumFields() == 4 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpStructMake4)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
+-		v0.AuxInt = off + t.FieldOff(0)
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
+-		v1.AuxInt = off + t.FieldOff(1)
+-		v1.Aux = n
+-		v.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
+-		v2.AuxInt = off + t.FieldOff(2)
+-		v2.Aux = n
+-		v.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpArg, t.FieldType(3))
+-		v3.AuxInt = off + t.FieldOff(3)
+-		v3.Aux = n
+-		v.AddArg(v3)
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValuegeneric_OpArg_10(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	fe := b.Func.fe
+-	_ = fe
+-	// match: (Arg <t>)
+-	// cond: t.IsArray() && t.NumElem() == 0
+-	// result: (ArrayMake0)
+-	for {
+-		t := v.Type
+-		if !(t.IsArray() && t.NumElem() == 0) {
+-			break
+-		}
+-		v.reset(OpArrayMake0)
+-		return true
+-	}
+-	// match: (Arg <t> {n} [off])
+-	// cond: t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)
+-	// result: (ArrayMake1 (Arg <t.Elem()> {n} [off]))
+-	for {
+-		t := v.Type
+-		off := v.AuxInt
+-		n := v.Aux
+-		if !(t.IsArray() && t.NumElem() == 1 && fe.CanSSA(t)) {
+-			break
+-		}
+-		v.reset(OpArrayMake1)
+-		v0 := b.NewValue0(v.Pos, OpArg, t.Elem())
+-		v0.AuxInt = off
+-		v0.Aux = n
+-		v.AddArg(v0)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValuegeneric_OpArraySelect_0(v *Value) bool {
+ 	// match: (ArraySelect (ArrayMake1 x))
+ 	// cond:

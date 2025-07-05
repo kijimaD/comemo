@@ -15,7 +15,55 @@ Date:   Sat Mar 26 10:03:06 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 23 +++++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 47a6af003c..87fe0fbee1 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2073,7 +2073,7 @@
+ 	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
+ 
+ // We don't need the conditional move if we know the arg of BSF is not zero.
+-(CMOVQEQ x _ (Select1 (BSFQ (ORQconst [c] _)))) && c != 0 => x
++(CMOVQEQ x _ (Select1 (BS(F|R)Q (ORQconst [c] _)))) && c != 0 => x
+ // Extension is unnecessary for trailing zeros.
+ (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) => (BSFQ (ORQconst <t> [1<<8] x))
+ (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) => (BSFQ (ORQconst <t> [1<<16] x))
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0c789d6b49..c17d8b03e2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -5191,6 +5191,29 @@ func rewriteValueAMD64_OpAMD64CMOVQEQ(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (CMOVQEQ x _ (Select1 (BSRQ (ORQconst [c] _))))
++	// cond: c != 0
++	// result: x
++	for {
++		x := v_0
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpAMD64BSRQ {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpAMD64ORQconst {
++			break
++		}
++		c := auxIntToInt32(v_2_0_0.AuxInt)
++		if !(c != 0) {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMOVQGE(v *Value) bool {

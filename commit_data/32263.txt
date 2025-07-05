@@ -12,7 +12,7 @@ Date:   Tue Mar 28 16:14:02 2017 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  3 +++
  src/cmd/internal/obj/s390x/a.out.go       |  4 ++++
  src/cmd/internal/obj/s390x/anames.go      |  2 ++
@@ -23,3 +23,264 @@ Date:   Tue Mar 28 16:14:02 2017 -0400
  src/math/sinh_s390x.s                     | 14 +++++++-------
  src/math/tanh_s390x.s                     |  8 ++++----
  9 files changed, 40 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 1ab07b65e8..0bc06f137f 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -244,6 +244,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	CMPUBGT	R9, $256, 0(PC)        // ec920000007d
+ 	CMPUBGE	R2, $0, 0(PC)          // ec2a0000007d
+ 
++	LGDR	F1, R12                // b3cd00c1
++	LDGR	R2, F15                // b3c100f2
++
+ 	CEFBRA	R0, F15                // b39400f0
+ 	CDFBRA	R1, F14                // b39500e1
+ 	CEGBRA	R2, F13                // b3a400d2
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 9bb035e169..98ea5aebcd 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -291,6 +291,10 @@ const (
+ 	AFIEBR
+ 	AFIDBR
+ 
++	// move from GPR to FPR and vice versa
++	ALDGR
++	ALGDR
++
+ 	// convert from int32/int64 to float/float64
+ 	ACEFBRA
+ 	ACDFBRA
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 67fa2e8d3d..42a0222b57 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -87,6 +87,8 @@ var Anames = []string{
+ 	"FSQRTS",
+ 	"FIEBR",
+ 	"FIDBR",
++	"LDGR",
++	"LGDR",
+ 	"CEFBRA",
+ 	"CDFBRA",
+ 	"CEGBRA",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 3b550355e8..3b3cba8844 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -201,6 +201,8 @@ var optab = []Optab{
+ 	Optab{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, 35, 0},
+ 	Optab{AFMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, 74, 0},
+ 	Optab{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 67, 0},
++	Optab{ALDGR, C_REG, C_NONE, C_NONE, C_FREG, 81, 0},
++	Optab{ALGDR, C_FREG, C_NONE, C_NONE, C_REG, 81, 0},
+ 	Optab{ACEFBRA, C_REG, C_NONE, C_NONE, C_FREG, 82, 0},
+ 	Optab{ACFEBRA, C_FREG, C_NONE, C_NONE, C_REG, 83, 0},
+ 	Optab{AFIEBR, C_SCON, C_FREG, C_NONE, C_FREG, 48, 0},
+@@ -266,7 +268,7 @@ var optab = []Optab{
+ 	Optab{ADWORD, C_DCON, C_NONE, C_NONE, C_NONE, 31, 0},
+ 
+ 	// fast synchronization
+-	Optab{ASYNC, C_NONE, C_NONE, C_NONE, C_NONE, 81, 0},
++	Optab{ASYNC, C_NONE, C_NONE, C_NONE, C_NONE, 80, 0},
+ 
+ 	// store clock
+ 	Optab{ASTCK, C_NONE, C_NONE, C_NONE, C_SAUTO, 88, REGSP},
+@@ -3474,9 +3476,17 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			zRSY(op_CSG, uint32(p.From.Reg), uint32(p.Reg), uint32(p.To.Reg), uint32(v), asm)
+ 		}
+ 
+-	case 81: // sync
++	case 80: // sync
+ 		zRR(op_BCR, 0xE, 0, asm)
+ 
++	case 81: // float to fixed and fixed to float moves (no conversion)
++		switch p.As {
++		case ALDGR:
++			zRRE(op_LDGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++		case ALGDR:
++			zRRE(op_LGDR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++		}
++
+ 	case 82: // fixed to float conversion
+ 		var opcode uint32
+ 		switch p.As {
+diff --git a/src/math/cosh_s390x.s b/src/math/cosh_s390x.s
+index c5e1655147..343ae22e7d 100644
+--- a/src/math/cosh_s390x.s
++++ b/src/math/cosh_s390x.s
+@@ -109,7 +109,7 @@ L14:
+ 	FMOVD   0(R1), F3
+ 	WFMADB  V1, V7, V3, V7
+ 	FNEG    F2, F3
+-	WORD    $0xB3CD0015     //lgdr %r1,%f5
++	LGDR    F5, R1
+ 	MOVD    $coshe2<>+0(SB), R3
+ 	WFCEDBS V4, V0, V0
+ 	FMOVD   0(R3), F5
+@@ -134,7 +134,7 @@ L17:
+ 	WORD    $0xEC21000F     //risbgn %r2,%r1,64-64+0,64-64+0+16-1,64-0-16
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+-	WORD    $0xB3C10022     //ldgr %f2,%r2
++	LDGR    R2, F2
+ 	FMADD   F2, F6, F2
+ 	MOVD    $coshx4ff<>+0(SB), R1
+ 	FMOVD   0(R1), F0
+@@ -173,7 +173,7 @@ L20:
+ 	MOVD    $coshe1<>+0(SB), R1
+ 	FMOVD   0(R1), F5
+ 	WFMADB  V1, V2, V5, V1
+-	WORD    $0xB3CD0013     //lgdr  %r1,%f3
++	LGDR    F3, R1
+ 	MOVD    $coshtab<>+0(SB), R5
+ 	WFMADB  V4, V6, V1, V3
+ 	WORD    $0xEC4139BC     //risbg %r4,%r1,57,128+60,3
+@@ -197,8 +197,8 @@ L20:
+ 	WORD    $0xEC34000F     //risbgn %r3,%r4,64-64+0,64-64+0+16-1,64-0-16
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+-	WORD    $0xB3C10022     //ldgr %f2,%r2
+-	WORD    $0xB3C10003     //ldgr %f0,%r3
++	LDGR    R2, F2
++	LDGR    R3, F0
+ 	FMADD   F2, F1, F2
+ 	FMADD   F0, F6, F0
+ 	FADD    F2, F0
+diff --git a/src/math/log10_s390x.s b/src/math/log10_s390x.s
+index 1b6c79de35..edbc181bc9 100644
+--- a/src/math/log10_s390x.s
++++ b/src/math/log10_s390x.s
+@@ -108,7 +108,7 @@ L8:
+ 	ORW     $0x45000000, R2
+ L4:
+ 	FMOVD   log10rodataL19<>+120(SB), F2
+-	WORD    $0xB3C10041     //ldgr  %f4,%r1
++	LDGR    R1, F4
+ 	WFMADB  V4, V0, V2, V0
+ 	FMOVD   log10rodataL19<>+112(SB), F4
+ 	FMOVD   log10rodataL19<>+104(SB), F6
+diff --git a/src/math/sin_s390x.s b/src/math/sin_s390x.s
+index 0bf8136881..39cc05452a 100644
+--- a/src/math/sin_s390x.s
++++ b/src/math/sin_s390x.s
+@@ -108,7 +108,7 @@ L2:
+ 	WFMDB   V0, V0, V1
+ 	FMOVD   0(R1), F7
+ 	WFMDB   V1, V1, V2
+-	WORD    $0xB3CD0013     //lgdr  %r1,%f3
++	LGDR    F3, R1
+ 	MOVD    $sincosxlim<>+0(SB), R2
+ 	WORD    $0xA7110001     //tmll  %r1,1
+ 	BEQ     L6
+@@ -245,7 +245,7 @@ L21:
+ 	WFMSDB  V0, V2, V3, V2
+ 	FMOVD   0(R1), F3
+ 	WFCHDBS V3, V1, V3
+-	WORD    $0xB3CD0012     //lgdr %r1,%f2
++	LGDR    F2, R1
+ 	BEQ     L36
+ 	MOVD    $sincosxadd<>+0(SB), R2
+ 	FMOVD   0(R2), F4
+diff --git a/src/math/sinh_s390x.s b/src/math/sinh_s390x.s
+index e4752eb7b2..aa494de19a 100644
+--- a/src/math/sinh_s390x.s
++++ b/src/math/sinh_s390x.s
+@@ -112,7 +112,7 @@ L6:
+ 	MOVD    $sinhxadd<>+0(SB), R2
+ 	FMOVD   0(R2), F0
+ 	MOVD    sinhrlog2<>+0(SB), R2
+-	WORD    $0xB3C10062     //ldgr  %f6,%r2
++	LDGR    R2, F6
+ 	WFMSDB  V4, V6, V0, V16
+ 	FMOVD   sinhrodataL21<>+8(SB), F6
+ 	WFADB   V0, V16, V0
+@@ -168,7 +168,7 @@ L6:
+ 	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+-	WORD    $0xB3C10021     //ldgr %f2,%r1
++	LDGR    R1, F2
+ 	FMUL    F2, F0
+ 	FMOVD   F0, ret+8(FP)
+ 	RET
+@@ -177,7 +177,7 @@ L20:
+ 	MOVD    $sinhxadd<>+0(SB), R2
+ 	FMOVD   0(R2), F2
+ 	MOVD    sinhrlog2<>+0(SB), R2
+-	WORD    $0xB3C10002     //ldgr  %f0,%r2
++	LDGR    R2, F0
+ 	WFMSDB  V4, V0, V2, V6
+ 	FMOVD   sinhrodataL21<>+8(SB), F0
+ 	FADD    F6, F2
+@@ -193,13 +193,13 @@ L20:
+ 	FMOVD   0(R2), F3
+ 	MOVD    $sinhe6<>+0(SB), R2
+ 	FMOVD   0(R2), F5
+-	WORD    $0xB3CD0026     //lgdr %r2,%f6
++	LGDR    F6, R2
+ 	RLL     $3, R2, R2
+ 	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+ 	WFMADB  V2, V1, V0, V1
+-	WORD    $0xB3C10001     //ldgr  %f0,%r1
++	LDGR    R1, F0
+ 	MOVD    $sinhe5<>+0(SB), R1
+ 	WFMADB  V2, V3, V5, V3
+ 	FMOVD   0(R1), F5
+@@ -214,7 +214,7 @@ L20:
+ 	WORD    $0xEC32000F     //risbgn %r3,%r2,64-64+0,64-64+0+16-1,64-0-16
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+-	WORD    $0xB3C10063     //ldgr  %f6,%r3
++	LDGR    R3, F6
+ 	WFADB   V0, V6, V16
+ 	MOVD    $sinhe4<>+0(SB), R1
+ 	WFMADB  V1, V7, V5, V1
+@@ -245,7 +245,7 @@ L9:
+ 	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+-	WORD    $0xB3C10021     //ldgr %f2,%r1
++	LDGR    R1, F2
+ 	FMUL    F2, F0
+ 	FMOVD   F0, ret+8(FP)
+ 	RET
+diff --git a/src/math/tanh_s390x.s b/src/math/tanh_s390x.s
+index 31ea836cf8..026d989bd6 100644
+--- a/src/math/tanh_s390x.s
++++ b/src/math/tanh_s390x.s
+@@ -59,7 +59,7 @@ GLOBL tanhtab<>+0(SB), RODATA, $128
+ 
+ TEXT ·tanhAsm(SB),NOSPLIT,$0-16
+ 	FMOVD   x+0(FP), F0
+-	//specail case Tanh(±0) = ±0
++	// special case Tanh(±0) = ±0
+ 	FMOVD   $(0.0), F1
+ 	FCMPU   F0, F1
+ 	BEQ     tanhIsZero
+@@ -72,10 +72,10 @@ L2:
+ 	MOVD    $tanhxadd<>+0(SB), R2
+ 	FMOVD   0(R2), F2
+ 	MOVD    tanhrlog2<>+0(SB), R2
+-	WORD    $0xB3C10042     //ldgr %f4,%r2
++	LDGR    R2, F4
+ 	WFMSDB  V0, V4, V2, V4
+ 	MOVD    $tanhtab<>+0(SB), R3
+-	WORD    $0xB3CD0024     //lgdr %r2,%f4
++	LGDR    F4, R2
+ 	WORD    $0xEC4239BC     //risbg %r4,%r2,57,128+60,3
+ 	BYTE    $0x03
+ 	BYTE    $0x55
+@@ -86,7 +86,7 @@ L2:
+ 	BYTE    $0x30
+ 	BYTE    $0x59
+ 	WORD    $0x68543000     //ld %f5,0(%r4,%r3)
+-	WORD    $0xB3C10061     //ldgr %f6,%r1
++	LDGR    R1, F6
+ 	BLT     L3
+ 	MOVD    $tanhxzero<>+0(SB), R1
+ 	FMOVD   0(R1), F2

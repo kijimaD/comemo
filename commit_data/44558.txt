@@ -15,6 +15,24 @@ Date:   Tue Aug 11 14:58:03 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/sym.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index cf78849cda..34f61b7f62 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -368,7 +368,12 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 		}
+ 	}
+ 	files := ctxt.PosTable.FileTable()
++	usedFiles := make([]goobj.CUFileIndex, 0, len(pc.UsedFiles))
+ 	for f := range pc.UsedFiles {
++		usedFiles = append(usedFiles, f)
++	}
++	sort.Slice(usedFiles, func(i, j int) bool { return usedFiles[i] < usedFiles[j] })
++	for _, f := range usedFiles {
+ 		if filesym := ctxt.Lookup(files[f]); filesym != nil {
+ 			fn(fsym, filesym)
+ 		}

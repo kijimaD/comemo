@@ -13,8 +13,72 @@ Date:   Wed Mar 2 16:36:27 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go         |  2 +-
  src/testing/testing_other.go   |  6 +++---
  src/testing/testing_windows.go | 22 ++++++++++++++++++----
  3 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index df4dfe4490..05d8f22aff 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1122,7 +1122,7 @@ func removeAll(path string) error {
+ 	)
+ 	for {
+ 		err := os.RemoveAll(path)
+-		if !isWindowsAccessDenied(err) {
++		if !isWindowsRetryable(err) {
+ 			return err
+ 		}
+ 		if start.IsZero() {
+diff --git a/src/testing/testing_other.go b/src/testing/testing_other.go
+index 29496d81bc..99a6276a4a 100644
+--- a/src/testing/testing_other.go
++++ b/src/testing/testing_other.go
+@@ -6,8 +6,8 @@
+ 
+ package testing
+ 
+-// isWindowsAccessDenied reports whether err is ERROR_ACCESS_DENIED,
+-// which is defined only on Windows.
+-func isWindowsAccessDenied(err error) bool {
++// isWindowsRetryable reports whether err is a Windows error code
++// that may be fixed by retrying a failed filesystem operation.
++func isWindowsRetryable(err error) bool {
+ 	return false
+ }
+diff --git a/src/testing/testing_windows.go b/src/testing/testing_windows.go
+index bc76cb80cc..fd48ae9579 100644
+--- a/src/testing/testing_windows.go
++++ b/src/testing/testing_windows.go
+@@ -8,11 +8,25 @@ package testing
+ 
+ import (
+ 	"errors"
++	"internal/syscall/windows"
+ 	"syscall"
+ )
+ 
+-// isWindowsAccessDenied reports whether err is ERROR_ACCESS_DENIED,
+-// which is defined only on Windows.
+-func isWindowsAccessDenied(err error) bool {
+-	return errors.Is(err, syscall.ERROR_ACCESS_DENIED)
++// isWindowsRetryable reports whether err is a Windows error code
++// that may be fixed by retrying a failed filesystem operation.
++func isWindowsRetryable(err error) bool {
++	for {
++		unwrapped := errors.Unwrap(err)
++		if unwrapped == nil {
++			break
++		}
++		err = unwrapped
++	}
++	if err == syscall.ERROR_ACCESS_DENIED {
++		return true // Observed in https://go.dev/issue/50051.
++	}
++	if err == windows.ERROR_SHARING_VIOLATION {
++		return true // Observed in https://go.dev/issue/51442.
++	}
++	return false
+ }

@@ -7,6 +7,19 @@ Date:   Thu Mar 3 11:51:16 2011 -0500
     TBR=r
     CC=golang-dev
     https://golang.org/cl/4257054
-
+---
  src/Make.pkg | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 1051502310..d912b69043 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -111,6 +111,7 @@ dir:
+ 
+ ifdef CGOFILES
+ _obj/_cgo_run: $(CGOFILES)
++	@mkdir -p _obj
+ 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+ 	touch _obj/_cgo_run
+ 

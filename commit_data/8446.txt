@@ -7,6 +7,20 @@ Date:   Fri May 20 14:26:00 2011 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4547056
-
+---
  doc/godocs.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 20ee36350d..946c4c39fd 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -104,7 +104,7 @@ function godocs_generateTOC() {
+     }
+   }
+ 
+-  if (!toc_items.length) { return; }
++  if (toc_items.length <= 1) { return; }
+ 
+   var dl1 = document.createElement('dl');
+   var dl2 = document.createElement('dl');

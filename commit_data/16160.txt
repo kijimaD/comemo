@@ -12,7 +12,7 @@ Date:   Wed Apr 10 21:41:54 2013 -0700
     R=golang-dev, iant, r
     CC=golang-dev
     https://golang.org/cl/8610044
-
+---
  misc/cgo/test/cflags.go   | 32 ++++++++++++++++
  misc/cgo/test/cgo_test.go |  1 +
  src/cmd/cgo/gcc.go        | 93 ++---------------------------------------------
@@ -20,3 +20,478 @@ Date:   Wed Apr 10 21:41:54 2013 -0700
  src/cmd/go/build.go       | 57 +++++++++++++++++------------
  src/cmd/go/main.go        | 26 +++++++++----
  6 files changed, 95 insertions(+), 132 deletions(-)
+
+diff --git a/misc/cgo/test/cflags.go b/misc/cgo/test/cflags.go
+new file mode 100644
+index 0000000000..24caab4711
+--- /dev/null
++++ b/misc/cgo/test/cflags.go
+@@ -0,0 +1,32 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the #cgo CFLAGS directive works,
++// with and without platform filters.
++// See http://code.google.com/p/go/issues/detail?id=5224 for details.
++package cgotest
++
++/*
++#cgo CFLAGS: -DCOMMON_VALUE=123
++#cgo windows CFLAGS: -DIS_WINDOWS=1
++#cgo !windows CFLAGS: -DIS_WINDOWS=0
++int common = COMMON_VALUE;
++int is_windows = IS_WINDOWS;
++*/
++import "C"
++
++import (
++	"runtime"
++	"testing"
++)
++
++func testCflags(t *testing.T) {
++	is_windows := C.is_windows == 1
++	if is_windows != (runtime.GOOS == "windows") {
++		t.Errorf("is_windows: %v, runtime.GOOS: %s", is_windows, runtime.GOOS)
++	}
++	if C.common != 123 {
++		t.Errorf("common: %v (expected 123)", C.common)
++	}
++}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index f985996da5..56e1a0625e 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -38,5 +38,6 @@ func Test3775(t *testing.T)                { test3775(t) }
+ func TestCthread(t *testing.T)             { testCthread(t) }
+ func TestCallbackCallers(t *testing.T)     { testCallbackCallers(t) }
+ func Test5227(t *testing.T)                { test5227(t) }
++func TestCflags(t *testing.T)              { testCflags(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 585f01477c..8288a490ac 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -66,71 +66,16 @@ func cname(s string) string {
+ 	return s
+ }
+ 
+-// ParseFlags extracts #cgo CFLAGS and LDFLAGS options from the file
+-// preamble. Multiple occurrences are concatenated with a separating space,
+-// even across files.
+-func (p *Package) ParseFlags(f *File, srcfile string) {
++// DiscardCgoDirectives processes the import C preamble, and discards
++// all #cgo CFLAGS and LDFLAGS directives, so they don't make their
++// way into _cgo_export.h.
++func (f *File) DiscardCgoDirectives() {
+ 	linesIn := strings.Split(f.Preamble, "\n")
+ 	linesOut := make([]string, 0, len(linesIn))
+-
+-NextLine:
+ 	for _, line := range linesIn {
+ 		l := strings.TrimSpace(line)
+ 		if len(l) < 5 || l[:4] != "#cgo" || !unicode.IsSpace(rune(l[4])) {
+ 			linesOut = append(linesOut, line)
+-			continue
+-		}
+-
+-		l = strings.TrimSpace(l[4:])
+-		fields := strings.SplitN(l, ":", 2)
+-		if len(fields) != 2 {
+-			fatalf("%s: bad #cgo line: %s", srcfile, line)
+-		}
+-
+-		var k string
+-		kf := strings.Fields(fields[0])
+-		switch len(kf) {
+-		case 1:
+-			k = kf[0]
+-		case 2:
+-			k = kf[1]
+-			switch kf[0] {
+-			case goos:
+-			case goarch:
+-			case goos + "/" + goarch:
+-			default:
+-				continue NextLine
+-			}
+-		default:
+-			fatalf("%s: bad #cgo option: %s", srcfile, fields[0])
+-		}
+-
+-		args, err := splitQuoted(fields[1])
+-		if err != nil {
+-			fatalf("%s: bad #cgo option %s: %s", srcfile, k, err)
+-		}
+-		for _, arg := range args {
+-			if !safeName(arg) {
+-				fatalf("%s: #cgo option %s is unsafe: %s", srcfile, k, arg)
+-			}
+-		}
+-
+-		switch k {
+-
+-		case "CFLAGS", "LDFLAGS":
+-			p.addToFlag(k, args)
+-
+-		case "pkg-config":
+-			cflags, ldflags, err := pkgConfig(args)
+-			if err != nil {
+-				fatalf("%s: bad #cgo option %s: %s", srcfile, k, err)
+-			}
+-			p.addToFlag("CFLAGS", cflags)
+-			p.addToFlag("LDFLAGS", ldflags)
+-
+-		default:
+-			fatalf("%s: unsupported #cgo option %s", srcfile, k)
+-
+ 		}
+ 	}
+ 	f.Preamble = strings.Join(linesOut, "\n")
+@@ -146,36 +91,6 @@ func (p *Package) addToFlag(flag string, args []string) {
+ 	}
+ }
+ 
+-// pkgConfig runs pkg-config and extracts --libs and --cflags information
+-// for packages.
+-func pkgConfig(packages []string) (cflags, ldflags []string, err error) {
+-	for _, name := range packages {
+-		if len(name) == 0 || name[0] == '-' {
+-			return nil, nil, errors.New(fmt.Sprintf("invalid name: %q", name))
+-		}
+-	}
+-
+-	args := append([]string{"pkg-config", "--cflags"}, packages...)
+-	stdout, stderr, ok := run(nil, args)
+-	if !ok {
+-		os.Stderr.Write(stderr)
+-		return nil, nil, errors.New("pkg-config failed")
+-	}
+-	cflags, err = splitQuoted(string(stdout))
+-	if err != nil {
+-		return
+-	}
+-
+-	args = append([]string{"pkg-config", "--libs"}, packages...)
+-	stdout, stderr, ok = run(nil, args)
+-	if !ok {
+-		os.Stderr.Write(stderr)
+-		return nil, nil, errors.New("pkg-config failed")
+-	}
+-	ldflags, err = splitQuoted(string(stdout))
+-	return
+-}
+-
+ // splitQuoted splits the string s around each instance of one or more consecutive
+ // white space characters while taking into account quotes and escaping, and
+ // returns an array of substrings of s or an empty list if s contains only white space.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 9bea97dbd9..9bd326e1d4 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -235,10 +235,9 @@ func main() {
+ 
+ 	fs := make([]*File, len(goFiles))
+ 	for i, input := range goFiles {
+-		// Parse flags for all files before translating due to CFLAGS.
+ 		f := new(File)
+ 		f.ReadGo(input)
+-		p.ParseFlags(f, input)
++		f.DiscardCgoDirectives()
+ 		fs[i] = f
+ 	}
+ 
+@@ -291,11 +290,6 @@ func main() {
+ // newPackage returns a new Package that will invoke
+ // gcc with the additional arguments specified in args.
+ func newPackage(args []string) *Package {
+-	// Copy the gcc options to a new slice so the list
+-	// can grow without overwriting the slice that args is in.
+-	gccOptions := make([]string, len(args))
+-	copy(gccOptions, args)
+-
+ 	goarch = runtime.GOARCH
+ 	if s := os.Getenv("GOARCH"); s != "" {
+ 		goarch = s
+@@ -318,12 +312,12 @@ func newPackage(args []string) *Package {
+ 	os.Setenv("LC_ALL", "C")
+ 
+ 	p := &Package{
+-		PtrSize:    ptrSize,
+-		IntSize:    intSize,
+-		GccOptions: gccOptions,
+-		CgoFlags:   make(map[string][]string),
+-		Written:    make(map[string]bool),
++		PtrSize:  ptrSize,
++		IntSize:  intSize,
++		CgoFlags: make(map[string][]string),
++		Written:  make(map[string]bool),
+ 	}
++	p.addToFlag("CFLAGS", args)
+ 	return p
+ }
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e7f3fb5bb7..2b35136081 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -20,6 +20,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -1200,8 +1201,8 @@ var cgoLine = regexp.MustCompile(`\[[^\[\]]+\.cgo1\.go:[0-9]+\]`)
+ // run runs the command given by cmdline in the directory dir.
+ // If the command fails, run prints information about the failure
+ // and returns a non-nil error.
+-func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
+-	out, err := b.runOut(dir, desc, cmdargs...)
++func (b *builder) run(dir string, desc string, env []string, cmdargs ...interface{}) error {
++	out, err := b.runOut(dir, desc, env, cmdargs...)
+ 	if len(out) > 0 {
+ 		if desc == "" {
+ 			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
+@@ -1233,7 +1234,7 @@ func (b *builder) processOutput(out []byte) string {
+ 
+ // runOut runs the command given by cmdline in the directory dir.
+ // It returns the command output and any errors that occurred.
+-func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byte, error) {
++func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...interface{}) ([]byte, error) {
+ 	cmdline := stringList(cmdargs...)
+ 	if buildN || buildX {
+ 		b.showcmd(dir, "%s", strings.Join(cmdline, " "))
+@@ -1249,7 +1250,7 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
+ 		cmd.Stdout = &buf
+ 		cmd.Stderr = &buf
+ 		cmd.Dir = dir
+-		cmd.Env = envForDir(cmd.Dir)
++		cmd.Env = mergeEnvLists(env, envForDir(cmd.Dir))
+ 		err := cmd.Run()
+ 
+ 		// cmd.Run will fail on Unix if some other process has the binary
+@@ -1450,13 +1451,13 @@ func (gcToolchain) gc(b *builder, p *Package, obj string, importArgs []string, g
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+ 
+-	output, err = b.runOut(p.Dir, p.ImportPath, args)
++	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
+ 	return ofile, output, err
+ }
+ 
+ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
++	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
+ }
+ 
+ func (gcToolchain) pkgpath(basedir string, p *Package) string {
+@@ -1469,7 +1470,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, tool("pack"), "grcP", b.work, mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.ImportPath, nil, tool("pack"), "grcP", b.work, mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+@@ -1488,14 +1489,14 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ 			swigDirs[sd] = true
+ 		}
+ 	}
+-	return b.run(".", p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, swigArg, buildLdflags, mainpkg)
++	return b.run(".", p.ImportPath, nil, tool(archChar+"l"), "-o", out, importArgs, swigArg, buildLdflags, mainpkg)
+ }
+ 
+ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+ 	args := stringList(tool(archChar+"c"), "-F", "-V", "-w", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, cfile)
+-	return b.run(p.Dir, p.ImportPath, args)
++	return b.run(p.Dir, p.ImportPath, nil, args)
+ }
+ 
+ // The Gccgo toolchain.
+@@ -1527,7 +1528,7 @@ func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+ 
+-	output, err = b.runOut(p.Dir, p.ImportPath, args)
++	output, err = b.runOut(p.Dir, p.ImportPath, nil, args)
+ 	return ofile, output, err
+ }
+ 
+@@ -1538,7 +1539,7 @@ func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) erro
+ 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+ 	}
+ 	defs = append(defs, b.gccArchArgs()...)
+-	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
++	return b.run(p.Dir, p.ImportPath, nil, "gccgo", "-I", obj, "-o", ofile, defs, sfile)
+ }
+ 
+ func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
+@@ -1553,7 +1554,7 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.ImportPath, nil, "ar", "cru", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+@@ -1595,7 +1596,7 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ 	if usesCgo && goos == "linux" {
+ 		ldflags = append(ldflags, "-Wl,-E")
+ 	}
+-	return b.run(".", p.ImportPath, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
++	return b.run(".", p.ImportPath, nil, "gccgo", "-o", out, ofiles, "-Wl,-(", ldflags, "-Wl,-)", buildGccgoflags)
+ }
+ 
+ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+@@ -1607,7 +1608,7 @@ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
+ 		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+ 	}
+ 	// TODO: Support using clang here (during gccgo build)?
+-	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
++	return b.run(p.Dir, p.ImportPath, nil, "gcc", "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile, defs, "-c", cfile)
+ }
+ 
+@@ -1647,7 +1648,7 @@ func (b *builder) libgcc(p *Package) (string, error) {
+ 			return fmt.Fprint(&buf, a...)
+ 		}
+ 	}
+-	f, err := b.runOut(p.Dir, p.ImportPath, gccCmd, "-print-libgcc-file-name")
++	f, err := b.runOut(p.Dir, p.ImportPath, nil, gccCmd, "-print-libgcc-file-name")
+ 	if err != nil {
+ 		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
+ 	}
+@@ -1670,12 +1671,12 @@ func (b *builder) libgcc(p *Package) (string, error) {
+ // gcc runs the gcc C compiler to create an object from a single C file.
+ func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
++	return b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
+ }
+ 
+ // gccld runs the gcc linker to create an executable from a set of object files
+ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
+-	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
++	return b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", out, obj, flags)
+ }
+ 
+ // gccCmd returns a gcc command line prefix
+@@ -1756,7 +1757,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	cgoLDFLAGS := stringList(envList("CGO_LDFLAGS"), p.CgoLDFLAGS)
+ 
+ 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
+-		out, err := b.runOut(p.Dir, p.ImportPath, "pkg-config", "--cflags", pkgs)
++		out, err := b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--cflags", pkgs)
+ 		if err != nil {
+ 			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
+ 			b.print(err.Error() + "\n")
+@@ -1765,7 +1766,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		if len(out) > 0 {
+ 			cgoCFLAGS = append(cgoCFLAGS, strings.Fields(string(out))...)
+ 		}
+-		out, err = b.runOut(p.Dir, p.ImportPath, "pkg-config", "--libs", pkgs)
++		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--libs", pkgs)
+ 		if err != nil {
+ 			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
+ 			b.print(err.Error() + "\n")
+@@ -1802,6 +1803,16 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		cgoflags = append(cgoflags, "-import_syscall=false")
+ 	}
+ 
++	// Update $CGO_LDFLAGS with p.CgoLDFLAGS.
++	var cgoenv []string
++	if len(cgoLDFLAGS) > 0 {
++		flags := make([]string, len(cgoLDFLAGS))
++		for i, f := range cgoLDFLAGS {
++			flags[i] = strconv.Quote(f)
++		}
++		cgoenv = []string{"CGO_LDFLAGS=" + strings.Join(flags, " ")}
++	}
++
+ 	if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 		cgoflags = append(cgoflags, "-gccgo")
+ 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
+@@ -1809,7 +1820,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 		}
+ 		objExt = "o"
+ 	}
+-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
++	if err := b.run(p.Dir, p.ImportPath, cgoenv, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+@@ -1894,7 +1905,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = append(cgoflags, "-dynlinker") // record path to dynamic linker
+ 	}
+-	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC, cgoflags); err != nil {
++	if err := b.run(p.Dir, p.ImportPath, nil, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC, cgoflags); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+@@ -2017,7 +2028,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
+ 		args = append(args, "-c++")
+ 	}
+ 
+-	if out, err := b.runOut(p.Dir, p.ImportPath, "swig", args, file); err != nil {
++	if out, err := b.runOut(p.Dir, p.ImportPath, nil, "swig", args, file); err != nil {
+ 		if len(out) > 0 {
+ 			if bytes.Contains(out, []byte("Unrecognized option -intgosize")) {
+ 				return "", "", errors.New("must have SWIG version >= 2.0.9\n")
+@@ -2055,7 +2066,7 @@ func (b *builder) swigOne(p *Package, file, obj string, cxx bool, intgosize stri
+ 		cxxlib = []string{"-lstdc++"}
+ 	}
+ 	ldflags := stringList(osldflags[goos], cxxlib)
+-	b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", soname, gccObj, ldflags)
++	b.run(p.Dir, p.ImportPath, nil, b.gccCmd(p.Dir), "-o", soname, gccObj, ldflags)
+ 
+ 	return obj + goFile, cObj, nil
+ }
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 61e6299681..3180dbeed2 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -393,16 +393,26 @@ func runOut(dir string, cmdargs ...interface{}) []byte {
+ // child will be faster.
+ func envForDir(dir string) []string {
+ 	env := os.Environ()
+-	for i, kv := range env {
+-		if strings.HasPrefix(kv, "PWD=") {
+-			env[i] = "PWD=" + dir
+-			return env
+-		}
+-	}
+ 	// Internally we only use rooted paths, so dir is rooted.
+ 	// Even if dir is not rooted, no harm done.
+-	env = append(env, "PWD="+dir)
+-	return env
++	return mergeEnvLists([]string{"PWD=" + dir}, env)
++}
++
++// mergeEnvLists merges the two environment lists such that
++// variables with the same name in "in" replace those in "out".
++func mergeEnvLists(in, out []string) []string {
++NextVar:
++	for _, inkv := range in {
++		k := strings.SplitAfterN(inkv, "=", 2)[0]
++		for i, outkv := range out {
++			if strings.HasPrefix(outkv, k) {
++				out[i] = inkv
++				continue NextVar
++			}
++		}
++		out = append(out, inkv)
++	}
++	return out
+ }
+ 
+ // matchPattern(pattern)(name) reports whether

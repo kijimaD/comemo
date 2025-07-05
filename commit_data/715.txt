@@ -8,8 +8,560 @@ Date:   Tue Sep 23 18:34:17 2008 -0700
     R=r
     OCL=15735
     CL=15735
-
+---
  usr/gri/pretty/ast.go     | 47 ++++++++++++++++++++----
  usr/gri/pretty/parser.go  | 94 ++++++++++++++++++++++++++++-------------------
  usr/gri/pretty/printer.go | 87 ++++++++++++++++++++++++++++++++++---------
  3 files changed, 165 insertions(+), 63 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index a5a6c813d0..6376ac929f 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -13,7 +13,11 @@ export type Visitor interface {
+ 	DoNil(x *Nil);
+ 	DoIdent(x *Ident);
+ 	
++	// Types
++	DoFunctionType(x *FunctionType);
++	
+ 	// Declarations
++	//DoVarDeclList(x *VarDeclList);
+ 	DoFuncDecl(x *FuncDecl);
+ 	
+ 	// Expressions
+@@ -29,8 +33,8 @@ export type Visitor interface {
+ 	DoBlock(x *Block);
+ 	DoExprStat(x *ExprStat);
+ 	DoAssignment(x *Assignment);
+-	DoIf(x *If);
+-	DoFor(x *For);
++	DoIfStat(x *IfStat);
++	DoForStat(x *ForStat);
+ 	DoSwitch(x *Switch);
+ 	DoReturn(x *Return);
+ 	
+@@ -110,6 +114,24 @@ func (x *Nil)   Visit(v Visitor)  { v.DoNil(x); }
+ func (x *Ident) Visit(v Visitor)  { v.DoIdent(x); }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Types
++
++export type Type interface {
++	Visit(x Visitor);
++}
++
++
++export type FunctionType struct {
++	recv *VarDeclList;
++	params *List;
++	result *List;
++}
++
++
++func (x *FunctionType) Visit(v Visitor)  { v.DoFunctionType(x); }
++
++
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+@@ -118,14 +140,22 @@ export type Decl interface {
+ }
+ 
+ 
++export type VarDeclList struct {
++	idents *List;
++	typ *Node;
++}
++
++
+ export type FuncDecl struct {
+ 	pos int;
+ 	ident *Ident;
++	typ *FunctionType;
+ 	body *Block;
+ }
+ 
+ 
+-func (x *FuncDecl) Visit(v Visitor)  { v.DoFuncDecl(x); }
++func (x *VarDeclList) Visit(v Visitor)  { /*v.DoVarDeclList(x);*/ }
++func (x *FuncDecl)    Visit(v Visitor)  { v.DoFuncDecl(x); }
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -219,14 +249,17 @@ export type Assignment struct {
+ }
+ 
+ 
+-export type If struct {
++export type IfStat struct {
+ 	pos int;
++	init Stat;
+ 	cond Expr;
+ 	then, else_ *Block;
+ }
+ 
+ 
+-export type For struct {
++export type ForStat struct {
++	pos int;
++	body *Block;
+ }
+ 
+ 
+@@ -243,8 +276,8 @@ export type Return struct {
+ func (x *Block)       Visit(v Visitor)  { v.DoBlock(x); }
+ func (x *ExprStat)    Visit(v Visitor)  { v.DoExprStat(x); }
+ func (x *Assignment)  Visit(v Visitor)  { v.DoAssignment(x); }
+-func (x *If)          Visit(v Visitor)  { v.DoIf(x); }
+-func (x *For)         Visit(v Visitor)  { v.DoFor(x); }
++func (x *IfStat)      Visit(v Visitor)  { v.DoIfStat(x); }
++func (x *ForStat)     Visit(v Visitor)  { v.DoForStat(x); }
+ func (x *Switch)      Visit(v Visitor)  { v.DoSwitch(x); }
+ func (x *Return)      Visit(v Visitor)  { v.DoReturn(x); }
+ 
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index bb8dfda257..3aaacd0821 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -137,19 +137,18 @@ func (P *Parser) ParseIdent() *AST.Ident {
+ }
+ 
+ 
+-func (P *Parser) ParseIdentList() int {
++func (P *Parser) ParseIdentList() *AST.List {
+ 	P.Trace("IdentList");
+ 
+-	P.ParseIdent();
+-	n := 1;
++	list := AST.NewList();
++	list.Add(P.ParseIdent());
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+-		P.ParseIdent();
+-		n++;
++		list.Add(P.ParseIdent());
+ 	}
+ 
+ 	P.Ecart();
+-	return n;
++	return list;
+ }
+ 
+ 
+@@ -243,43 +242,47 @@ func (P *Parser) ParseChannelType() {
+ }
+ 
+ 
+-func (P *Parser) ParseVarDeclList() int {
++func (P *Parser) ParseVarDeclList() *AST.VarDeclList {
+ 	P.Trace("VarDeclList");
+ 	
+-	n := P.ParseIdentList();
++	res := new(AST.VarDeclList);
++	res.idents = P.ParseIdentList();
+ 	P.ParseVarType();
+ 	
+ 	P.Ecart();
+-	return n;
++	return res;
+ }
+ 
+ 
+-func (P *Parser) ParseParameterList() int {
++// Returns a list of AST.VarDeclList
++func (P *Parser) ParseParameterList() *AST.List {
+ 	P.Trace("ParameterList");
+ 	
+-	n := P.ParseVarDeclList();
++	list := AST.NewList();
++	list.Add(P.ParseVarDeclList());
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+-		n += P.ParseVarDeclList();
++		list.Add(P.ParseVarDeclList());
+ 	}
+ 	
+ 	P.Ecart();
+-	return n;
++	return list;
+ }
+ 
+ 
+-func (P *Parser) ParseParameters() int {
++// Returns a list of AST.VarDeclList
++func (P *Parser) ParseParameters() *AST.List {
+ 	P.Trace("Parameters");
+ 	
+-	n := 0;
++	var list *AST.List;
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+-		n = P.ParseParameterList();
++		list = P.ParseParameterList();
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+ 	
+ 	P.Ecart();
+-	return n;
++	return list;
+ }
+ 
+ 
+@@ -299,7 +302,7 @@ func (P *Parser) ParseResultList() {
+ }
+ 
+ 
+-func (P *Parser) ParseResult() {
++func (P *Parser) ParseResult() *AST.List {
+ 	P.Trace("Result");
+ 	
+ 	if P.tok == Scanner.LPAREN {
+@@ -317,6 +320,7 @@ func (P *Parser) ParseResult() {
+ 	}
+ 
+ 	P.Ecart();
++	return nil
+ }
+ 
+ 
+@@ -326,19 +330,21 @@ func (P *Parser) ParseResult() {
+ // (params) type
+ // (params) (results)
+ 
+-func (P *Parser) ParseFunctionType() {
++func (P *Parser) ParseFunctionType() *AST.FunctionType {
+ 	P.Trace("FunctionType");
+ 	
+ 	P.OpenScope();
+ 	P.level--;
+ 
+-	P.ParseParameters();
+-	P.ParseResult();
++	typ := new(AST.FunctionType);
++	typ.params = P.ParseParameters();
++	typ.result = P.ParseResult();
+ 
+ 	P.level++;
+ 	P.CloseScope();
+ 	
+ 	P.Ecart();
++	return typ;
+ }
+ 
+ 
+@@ -892,25 +898,31 @@ func (P *Parser) ParseControlFlowStat(tok int) {
+ }
+ 
+ 
+-func (P *Parser) ParseIfStat() *AST.If {
++func (P *Parser) ParseIfStat() *AST.IfStat {
+ 	P.Trace("IfStat");
+ 
+-	x := new(AST.If);
++	x := new(AST.IfStat);
+ 	x.pos, x.cond = P.pos, AST.NIL;
+ 	
++	var init, cond AST.Node = AST.NIL, AST.NIL;
+ 	P.Expect(Scanner.IF);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+ 		if P.tok != Scanner.SEMICOLON {
+-			P.ParseSimpleStat();
++			init = P.ParseSimpleStat();
+ 		}
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.Next();
+ 			if P.tok != Scanner.LBRACE {
+-				x.cond = P.ParseExpression();
++				cond = P.ParseExpression();
++			} else {
++				cond = init;
++				init = AST.NIL;
+ 			}
+ 		}
+ 	}
++	x.init, x.cond = init, cond;
++	
+ 	x.then = P.ParseBlock();
+ 	if P.tok == Scanner.ELSE {
+ 		P.Next();
+@@ -931,9 +943,12 @@ func (P *Parser) ParseIfStat() *AST.If {
+ }
+ 
+ 
+-func (P *Parser) ParseForStat() {
++func (P *Parser) ParseForStat() *AST.ForStat {
+ 	P.Trace("ForStat");
+ 	
++	stat := new(AST.ForStat);
++	stat.pos = P.pos;
++	
+ 	P.Expect(Scanner.FOR);
+ 	P.OpenScope();
+ 	if P.tok != Scanner.LBRACE {
+@@ -951,10 +966,11 @@ func (P *Parser) ParseForStat() {
+ 			}
+ 		}
+ 	}
+-	P.ParseBlock();
++	stat.body = P.ParseBlock();
+ 	P.CloseScope();
+ 	
+ 	P.Ecart();
++	return stat;
+ }
+ 
+ 
+@@ -1113,7 +1129,7 @@ func (P *Parser) TryStatement() (AST.Stat, bool) {
+ 	case Scanner.IF:
+ 		stat = P.ParseIfStat();
+ 	case Scanner.FOR:
+-		P.ParseForStat();
++		stat = P.ParseForStat();
+ 	case Scanner.SWITCH:
+ 		P.ParseSwitchStat();
+ 	case Scanner.RANGE:
+@@ -1247,40 +1263,42 @@ func (P *Parser) ParseDecl(exported bool, keyword int) {
+ func (P *Parser) ParseFuncDecl(exported bool) *AST.FuncDecl {
+ 	P.Trace("FuncDecl");
+ 	
+-	pos := P.pos;
++	fun := new(AST.FuncDecl);
++	fun.pos = P.pos;
++
+ 	P.Expect(Scanner.FUNC);
+ 
+ 	P.OpenScope();
+ 	P.level--;
+ 
++	var recv *AST.VarDeclList;
+ 	if P.tok == Scanner.LPAREN {
+ 		recv_pos := P.pos;
+-		n := P.ParseParameters();
++		recv := P.ParseParameters().at(0);
++		/*
+ 		if n != 1 {
+ 			P.Error(recv_pos, "must have exactly one receiver");
+ 		}
++		*/
+ 	}
+ 	
+-	ident := P.ParseIdent();
+-	
+-	P.ParseFunctionType();
++	fun.ident = P.ParseIdent();
++	fun.typ = P.ParseFunctionType();
++	fun.typ.recv = recv;
+ 	
+ 	P.level++;
+ 	P.CloseScope();
+ 
+-    var body *AST.Block;
+ 	if P.tok == Scanner.SEMICOLON {
+ 		// forward declaration
+ 		P.Next();
+ 	} else {
+-		body = P.ParseBlock();
++		fun.body = P.ParseBlock();
+ 	}
+ 	
+ 	P.Ecart();
+ 	
+-	x := new(AST.FuncDecl);
+-	x.pos, x.ident, x.body = pos, ident, body;
+-	return x;
++	return fun;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 020b96ed5d..8d60782119 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -13,6 +13,18 @@ type Printer /* implements AST.Visitor */ struct {
+ }
+ 
+ 
++func (P *Printer) NewLine(delta int) {
++	P.indent += delta;
++	if P.indent < 0 {
++		panic("negative indent");
++	}
++	print("\n");
++	for i := P.indent; i > 0; i-- {
++		print("\t");
++	}
++}
++
++
+ func (P *Printer) String(s string) {
+ 	print(s);
+ }
+@@ -23,7 +35,7 @@ func (P *Printer) Print(x AST.Node) {
+ }
+ 
+ 
+-func (P *Printer) PrintExprList(p *AST.List) {
++func (P *Printer) PrintList(p *AST.List) {
+ 	if p != nil {
+ 		for i := 0; i < p.len(); i++ {
+ 			if i > 0 {
+@@ -39,7 +51,8 @@ func (P *Printer) PrintExprList(p *AST.List) {
+ // Basics
+ 
+ func (P *Printer) DoNil(x *AST.Nil) {
+-	P.String("?\n");
++	P.String("?");
++	P.NewLine(0);
+ }
+ 
+ 
+@@ -48,20 +61,48 @@ func (P *Printer) DoIdent(x *AST.Ident) {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Types
++
++func (P *Printer) DoFunctionType(x *AST.FunctionType) {
++	/*
++	if x.recv != nil {
++		P.DoVarDeclList(x.recv);
++	}
++	*/
++	P.String("(");
++	P.PrintList(x.params);
++	P.String(") ");
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+ func (P *Printer) DoBlock(x *AST.Block);
+ 
++
++//func (P *Printer) DoVarDeclList(x *VarDeclList) {
++//}
++
++
+ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
+ 	P.String("func ");
++	if x.typ.recv != nil {
++		P.String("(");
++		P.PrintList(x.typ.recv.idents);
++		P.String(") ");
++	}
+ 	P.DoIdent(x.ident);
+-	P.String("(... something here ...) ");
++	P.DoFunctionType(x.typ);
+ 	if x.body != nil {
+ 		P.DoBlock(x.body);
+ 	} else {
+-		P.String(";\n");
++		P.String(";");
+ 	}
++	P.NewLine(0);
++	P.NewLine(0);
++	P.NewLine(0);
+ }
+ 
+ 
+@@ -106,7 +147,7 @@ func (P *Printer) DoIndex(x *AST.Index) {
+ func (P *Printer) DoCall(x *AST.Call) {
+ 	P.Print(x.fun);
+ 	P.String("(");
+-	P.PrintExprList(x.args);
++	P.PrintList(x.args);
+ 	P.String(")");
+ }
+ 
+@@ -123,55 +164,65 @@ func (P *Printer) DoSelector(x *AST.Selector) {
+ 
+ func (P *Printer) DoBlock(x *AST.Block) {
+ 	if x == nil || x.stats == nil {
+-		P.String("\n");
++		P.NewLine(0);
+ 		return;
+ 	}
+ 
+-	P.String("{\n");
+-	P.indent++;
++	P.String("{");
++	P.NewLine(1);
+ 	for i := 0; i < x.stats.len(); i++ {
++		if i > 0 {
++			P.NewLine(0);
++		}
+ 		P.Print(x.stats.at(i));
+-		P.String("\n");
+ 	}
+-	P.indent--;
+-	P.String("}\n");
++	P.NewLine(-1);
++	P.String("}");
+ }
+ 
+ 
+ func (P *Printer) DoExprStat(x *AST.ExprStat) {
+ 	P.Print(x.expr);
++	P.String(";");
+ }
+ 
+ 
+ func (P *Printer) DoAssignment(x *AST.Assignment) {
+-	P.PrintExprList(x.lhs);
++	P.PrintList(x.lhs);
+ 	P.String(" " + Scanner.TokenName(x.tok) + " ");
+-	P.PrintExprList(x.rhs);
++	P.PrintList(x.rhs);
++	P.String(";");
+ }
+ 
+ 
+-func (P *Printer) DoIf(x *AST.If) {
++func (P *Printer) DoIfStat(x *AST.IfStat) {
+ 	P.String("if ");
++	P.Print(x.init);
++	P.String("; ");
+ 	P.Print(x.cond);
+ 	P.DoBlock(x.then);
+ 	if x.else_ != nil {
+-		P.String("else ");
++		P.String(" else ");
+ 		P.DoBlock(x.else_);
+ 	}
+ }
+ 
+ 
+-func (P *Printer) DoFor(x *AST.For) {
++func (P *Printer) DoForStat(x *AST.ForStat) {
++	P.String("for ");
++	P.DoBlock(x.body);
+ }
+ 
+ 
+ func (P *Printer) DoSwitch(x *AST.Switch) {
++	P.String("switch ");
+ }
+ 
+ 
+ func (P *Printer) DoReturn(x *AST.Return) {
+ 	P.String("return ");
+-	P.PrintExprList(x.res);
++	P.PrintList(x.res);
++	P.String(";");
+ }
+ 
+ 
+@@ -181,7 +232,7 @@ func (P *Printer) DoReturn(x *AST.Return) {
+ func (P *Printer) DoProgram(x *AST.Program) {
+ 	P.String("package ");
+ 	P.DoIdent(x.ident);
+-	P.String("\n");
++	P.NewLine(0);
+ 	for i := 0; i < x.decls.len(); i++ {
+ 		P.Print(x.decls.at(i));
+ 	}

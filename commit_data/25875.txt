@@ -18,7 +18,58 @@ Date:   Mon Nov 30 19:33:49 2015 +0000
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/mediatype.go      | 25 ++++++++++++++-----------
  src/mime/mediatype_test.go |  2 +-
  2 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index 00076048a1..6d4560a351 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -19,18 +19,21 @@ import (
+ // When any of the arguments result in a standard violation then
+ // FormatMediaType returns the empty string.
+ func FormatMediaType(t string, param map[string]string) string {
+-	slash := strings.Index(t, "/")
+-	if slash == -1 {
+-		return ""
+-	}
+-	major, sub := t[:slash], t[slash+1:]
+-	if !isToken(major) || !isToken(sub) {
+-		return ""
+-	}
+ 	var b bytes.Buffer
+-	b.WriteString(strings.ToLower(major))
+-	b.WriteByte('/')
+-	b.WriteString(strings.ToLower(sub))
++	if slash := strings.Index(t, "/"); slash == -1 {
++		if !isToken(t) {
++			return ""
++		}
++		b.WriteString(strings.ToLower(t))
++	} else {
++		major, sub := t[:slash], t[slash+1:]
++		if !isToken(major) || !isToken(sub) {
++			return ""
++		}
++		b.WriteString(strings.ToLower(major))
++		b.WriteByte('/')
++		b.WriteString(strings.ToLower(sub))
++	}
+ 
+ 	attrs := make([]string, 0, len(param))
+ 	for a := range param {
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index e72f95f0a0..d018adef2f 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -281,7 +281,7 @@ type formatTest struct {
+ }
+ 
+ var formatTests = []formatTest{
+-	{"noslash", nil, ""},
++	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
+ 	{"foo bar/baz", nil, ""},
+ 	{"foo/bar baz", nil, ""},
+ 	{"foo/BAR", nil, "foo/bar"},

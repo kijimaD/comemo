@@ -9,7 +9,48 @@ Date:   Mon Sep 17 13:44:55 2012 -0700
     R=rsc, dave, r
     CC=golang-dev, nicksaika
     https://golang.org/cl/6488129
-
+---
  src/cmd/go/main.go   |  7 +++++++
  src/cmd/go/test.bash | 11 +++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 20585d1bea..840d584cd0 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -127,6 +127,13 @@ func main() {
+ 	// which is not what most people want when they do it.
+ 	if gopath := os.Getenv("GOPATH"); gopath == runtime.GOROOT() {
+ 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
++	} else {
++		for _, p := range strings.Split(gopath, ":") {
++			if build.IsLocalImport(p) {
++				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
++				os.Exit(2)
++			}
++		}
+ 	}
+ 
+ 	for _, cmd := range commands {
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 587bcfc1f9..82cbd389cf 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -125,6 +125,17 @@ elif ! test -x testdata/bin1/helloworld; then
+ 	ok=false
+ fi
+ 
++# Reject relative paths in GOPATH.
++if GOPATH=. ./testgo build testdata/src/go-cmd-test/helloworld.go; then
++    echo 'GOPATH="." go build should have failed, did not'
++    ok=false
++fi
++
++if GOPATH=:$(pwd)/testdata:. ./testgo build go-cmd-test; then
++    echo 'GOPATH=":$(pwd)/testdata:." go build should have failed, did not'
++    ok=false
++fi
++
+ if $ok; then
+ 	echo PASS
+ else

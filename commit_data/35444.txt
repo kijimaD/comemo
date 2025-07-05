@@ -63,7 +63,45 @@ Date:   Mon Dec 4 14:24:16 2017 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 14 ++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index db7c1a447b..e43b61b7c7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2662,3 +2662,7 @@
+ (MOVLf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+ (MOVQi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+ (MOVLi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
++
++// LEAQ is rematerializeable, so this helps to avoid register spill.
++// See isuue 22947 for details
++(ADDQconst [off] x:(SP)) -> (LEAQ [off] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0b2b321d25..be85004190 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2054,6 +2054,20 @@ func rewriteValueAMD64_OpAMD64ADDQconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADDQconst [off] x:(SP))
++	// cond:
++	// result: (LEAQ [off] x)
++	for {
++		off := v.AuxInt
++		x := v.Args[0]
++		if x.Op != OpSP {
++			break
++		}
++		v.reset(OpAMD64LEAQ)
++		v.AuxInt = off
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDQconstmem_0(v *Value) bool {

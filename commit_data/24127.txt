@@ -9,6 +9,22 @@ Date:   Sun Jul 12 10:18:32 2015 -0700
     Change-Id: I409b6c4168711913076439036d65e8639ca3b06f
     Reviewed-on: https://go-review.googlesource.com/12073
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 232ca3394a..6ef448c4f2 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -143,6 +143,10 @@ func testMain(m *testing.M) (int, error) {
+ }
+ 
+ func TestMain(m *testing.M) {
++	// Some of the tests install binaries into a custom GOPATH.
++	// That won't work if GOBIN is set.
++	os.Unsetenv("GOBIN")
++
+ 	flag.Parse()
+ 	exitCode, err := testMain(m)
+ 	if err != nil {

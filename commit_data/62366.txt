@@ -14,7 +14,55 @@ Date:   Sun Feb 23 10:34:00 2025 -0800
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go |  1 +
  test/fixedbugs/issue71857.go             | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1b7bcb2b1d..d794098b9d 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1677,6 +1677,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 				tmpReg = s.allocReg(m, &tmpVal)
+ 				s.nospill |= regMask(1) << tmpReg
++				s.tmpused |= regMask(1) << tmpReg
+ 			}
+ 
+ 			// Now that all args are in regs, we're ready to issue the value itself.
+diff --git a/test/fixedbugs/issue71857.go b/test/fixedbugs/issue71857.go
+new file mode 100644
+index 0000000000..34d29281c0
+--- /dev/null
++++ b/test/fixedbugs/issue71857.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "sync/atomic"
++
++//go:noinline
++func f(p0, p1, p2, p3, p4, p5, p6, p7 *uint64, a *atomic.Uint64) {
++	old := a.Or(0xaaa)
++	*p0 = old
++	*p1 = old
++	*p2 = old
++	*p3 = old
++	*p4 = old
++	*p5 = old
++	*p6 = old
++	*p7 = old
++}
++
++func main() {
++	a := new(atomic.Uint64)
++	p := new(uint64)
++	f(p, p, p, p, p, p, p, p, a)
++
++}

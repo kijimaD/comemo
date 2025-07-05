@@ -7,8 +7,227 @@ Date:   Wed Feb 23 11:32:29 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4160058
-
+---
  src/pkg/json/decode.go      | 58 +++++++++++++++++++++++++++++++++++++++------
  src/pkg/json/decode_test.go | 27 ++++++++++++++++-----
  src/pkg/json/encode.go      | 26 ++++++++++++++++++--
  3 files changed, 96 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 388c9a95b0..501230c0c0 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -9,6 +9,7 @@ package json
+ 
+ import (
+ 	"container/vector"
++	"encoding/base64"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -570,17 +571,29 @@ func (d *decodeState) literal(v reflect.Value) {
+ 		}
+ 
+ 	case '"': // string
+-		s, ok := unquote(item)
++		s, ok := unquoteBytes(item)
+ 		if !ok {
+ 			d.error(errPhase)
+ 		}
+ 		switch v := v.(type) {
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"string", v.Type()})
++		case *reflect.SliceValue:
++			if v.Type() != byteSliceType {
++				d.saveError(&UnmarshalTypeError{"string", v.Type()})
++				break
++			}
++			b := make([]byte, base64.StdEncoding.DecodedLen(len(s)))
++			n, err := base64.StdEncoding.Decode(b, s)
++			if err != nil {
++				d.saveError(err)
++				break
++			}
++			v.Set(reflect.NewValue(b[0:n]).(*reflect.SliceValue))
+ 		case *reflect.StringValue:
+-			v.Set(s)
++			v.Set(string(s))
+ 		case *reflect.InterfaceValue:
+-			v.Set(reflect.NewValue(s))
++			v.Set(reflect.NewValue(string(s)))
+ 		}
+ 
+ 	default: // number
+@@ -774,12 +787,43 @@ func getu4(s []byte) int {
+ // unquote converts a quoted JSON string literal s into an actual string t.
+ // The rules are different than for Go, so cannot use strconv.Unquote.
+ func unquote(s []byte) (t string, ok bool) {
++	s, ok = unquoteBytes(s)
++	t = string(s)
++	return
++}
++
++func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
+ 		return
+ 	}
++	s = s[1 : len(s)-1]
++
++	// Check for unusual characters. If there are none,
++	// then no unquoting is needed, so return a slice of the
++	// original bytes.
++	r := 0
++	for r < len(s) {
++		c := s[r]
++		if c == '\\' || c == '"' || c < ' ' {
++			break
++		}
++		if c < utf8.RuneSelf {
++			r++
++			continue
++		}
++		rune, size := utf8.DecodeRune(s[r:])
++		if rune == utf8.RuneError && size == 1 {
++			break
++		}
++		r += size
++	}
++	if r == len(s) {
++		return s, true
++	}
++
+ 	b := make([]byte, len(s)+2*utf8.UTFMax)
+-	w := 0
+-	for r := 1; r < len(s)-1; {
++	w := copy(b, s[0:r])
++	for r < len(s) {
+ 		// Out of room?  Can only happen if s is full of
+ 		// malformed UTF-8 and we're replacing each
+ 		// byte with RuneError.
+@@ -791,7 +835,7 @@ func unquote(s []byte) (t string, ok bool) {
+ 		switch c := s[r]; {
+ 		case c == '\\':
+ 			r++
+-			if r >= len(s)-1 {
++			if r >= len(s) {
+ 				return
+ 			}
+ 			switch s[r] {
+@@ -859,5 +903,5 @@ func unquote(s []byte) (t string, ok bool) {
+ 			w += utf8.EncodeRune(b[w:], rune)
+ 		}
+ 	}
+-	return string(b[0:w]), true
++	return b[0:w], true
+ }
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 2de862c6c2..ad6026363b 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -172,6 +172,25 @@ func TestUnmarshalMarshal(t *testing.T) {
+ 	}
+ }
+ 
++func TestLargeByteSlice(t *testing.T) {
++	s0 := make([]byte, 2000)
++	for i := range s0 {
++		s0[i] = byte(i)
++	}
++	b, err := Marshal(s0)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	var s1 []byte
++	if err := Unmarshal(b, &s1); err != nil {
++		t.Fatalf("Unmarshal: %v", err)
++	}
++	if bytes.Compare(s0, s1) != 0 {
++		t.Errorf("Marshal large byte slice")
++		diff(t, s0, s1)
++	}
++}
++
+ type Xint struct {
+ 	X int
+ }
+@@ -420,11 +439,7 @@ var allValueIndent = `{
+ 		"str25",
+ 		"str26"
+ 	],
+-	"ByteSlice": [
+-		27,
+-		28,
+-		29
+-	],
++	"ByteSlice": "Gxwd",
+ 	"Small": {
+ 		"Tag": "tag30"
+ 	},
+@@ -510,7 +525,7 @@ var pallValueIndent = `{
+ 	"EmptySlice": [],
+ 	"NilSlice": [],
+ 	"StringSlice": [],
+-	"ByteSlice": [],
++	"ByteSlice": "",
+ 	"Small": {
+ 		"Tag": ""
+ 	},
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index baaba1a0d5..26ce47039f 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -7,8 +7,9 @@
+ package json
+ 
+ import (
+-	"os"
+ 	"bytes"
++	"encoding/base64"
++	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"sort"
+@@ -32,7 +33,8 @@ import (
+ // String values encode as JSON strings, with each invalid UTF-8 sequence
+ // replaced by the encoding of the Unicode replacement character U+FFFD.
+ //
+-// Array and slice values encode as JSON arrays.
++// Array and slice values encode as JSON arrays, except that
++// []byte encodes as a base64-encoded string.
+ //
+ // Struct values encode as JSON objects.  Each struct field becomes
+ // a member of the object.  By default the object's key name is the
+@@ -178,6 +180,8 @@ func (e *encodeState) error(err os.Error) {
+ 	panic(err)
+ }
+ 
++var byteSliceType = reflect.Typeof([]byte(nil))
++
+ func (e *encodeState) reflectValue(v reflect.Value) {
+ 	if v == nil {
+ 		e.WriteString("null")
+@@ -264,6 +268,24 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 		e.WriteByte('}')
+ 
+ 	case reflect.ArrayOrSliceValue:
++		if v.Type() == byteSliceType {
++			e.WriteByte('"')
++			s := v.Interface().([]byte)
++			if len(s) < 1024 {
++				// for small buffers, using Encode directly is much faster.
++				dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))
++				base64.StdEncoding.Encode(dst, s)
++				e.Write(dst)
++			} else {
++				// for large buffers, avoid unnecessary extra temporary
++				// buffer space.
++				enc := base64.NewEncoder(base64.StdEncoding, e)
++				enc.Write(s)
++				enc.Close()
++			}
++			e.WriteByte('"')
++			break
++		}
+ 		e.WriteByte('[')
+ 		n := v.Len()
+ 		for i := 0; i < n; i++ {

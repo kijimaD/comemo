@@ -14,6 +14,27 @@ Date:   Wed Oct 19 13:34:15 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/html/template/clone_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index 069064c98b..bbe44f98dd 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -229,3 +229,15 @@ func TestTemplateCloneLookup(t *testing.T) {
+ 		t.Error("after Clone, tmpl.Lookup(tmpl.Name()) != tmpl")
+ 	}
+ }
++
++func TestCloneGrowth(t *testing.T) {
++	tmpl := Must(New("root").Parse(`<title>{{block "B". }}Arg{{end}}</title>`))
++	tmpl = Must(tmpl.Clone())
++	Must(tmpl.Parse(`{{define "B"}}Text{{end}}`))
++	for i := 0; i < 10; i++ {
++		tmpl.Execute(ioutil.Discard, nil)
++	}
++	if len(tmpl.DefinedTemplates()) > 200 {
++		t.Fatalf("too many templates: %v", len(tmpl.DefinedTemplates()))
++	}
++}

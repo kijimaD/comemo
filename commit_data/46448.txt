@@ -13,6 +13,23 @@ Date:   Wed Dec 30 16:41:58 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 6ed25d8948..6a5adf79ca 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -118,11 +118,6 @@ func testMain(m *testing.M) int {
+ 		cc = append(cc, s[start:])
+ 	}
+ 
+-	if GOOS == "darwin" || GOOS == "ios" {
+-		// For Darwin/ARM.
+-		// TODO: do we still need this?
+-		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+-	}
+ 	if GOOS == "aix" {
+ 		// -Wl,-bnoobjreorder is mandatory to keep the same layout
+ 		// in .text section.

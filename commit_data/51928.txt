@@ -8,6 +8,18 @@ Date:   Wed Mar 23 13:47:08 2022 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/394915
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/runtime2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 3d01ac5171..1fb9e195e5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1129,5 +1129,5 @@ var (
+ 	isarchive bool // -buildmode=c-archive
+ )
+ 
+-// Must agree with internal/buildcfg.Experiment.FramePointer.
++// Must agree with internal/buildcfg.FramePointerEnabled.
+ const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"

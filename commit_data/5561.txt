@@ -8,6 +8,31 @@ Date:   Thu May 27 17:23:25 2010 -0700
     R=rsc, r, iant, ken2
     CC=golang-dev
     https://golang.org/cl/1365041
-
+---
  doc/go_spec.html | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index aad1f34dd6..d5b4af698b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of May 24, 2010 -->
++<!-- subtitle Version of May 26, 2010 -->
+ 
+ <!--
+ Todo
+@@ -1344,12 +1344,6 @@ with a type <code>T</code> if one or more of the following conditions applies:
+ <code>V</code> <a href="#Interface_types">implements</a> <code>T</code>.
+ </li>
+ <li>
+-<code>V</code> is a pointer to an array and <code>T</code> is a slice type
+-with compatible element type and at least one of <code>V</code> or <code>T</code> is unnamed.
+-After assignment, the slice variable refers to the original array; the elements are not
+-copied.
+-</li>
+-<li>
+ <code>V</code> is a bidirectional channel and <code>T</code> is a channel type
+ with compatible element type and at least one of <code>V</code> or <code>T</code> is unnamed.
+ </li>

@@ -10,8 +10,111 @@ Date:   Sat Sep 30 17:28:05 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/67315
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go                        |  1 +
  src/cmd/link/internal/ld/lib.go                  |  9 +++++----
  src/cmd/link/internal/{ld => objfile}/objfile.go | 14 +++++++++-----
  3 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index c90354c8ff..cdecbc20b2 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -69,6 +69,7 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/ld",
+ 	"cmd/link/internal/mips",
+ 	"cmd/link/internal/mips64",
++	"cmd/link/internal/objfile",
+ 	"cmd/link/internal/ppc64",
+ 	"cmd/link/internal/s390x",
+ 	"cmd/link/internal/sym",
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index bec2f6f045..0e53417df4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"cmd/link/internal/objfile"
+ 	"cmd/link/internal/sym"
+ 	"crypto/sha1"
+ 	"debug/elf"
+@@ -359,7 +360,7 @@ func (ctxt *Link) loadlib() {
+ 			if ctxt.Debugvlog > 1 {
+ 				ctxt.Logf("%5.2f autolib: %s (from %s)\n", Cputime(), lib.File, lib.Objref)
+ 			}
+-			objfile(ctxt, lib)
++			loadobjfile(ctxt, lib)
+ 		}
+ 	}
+ 
+@@ -403,7 +404,7 @@ func (ctxt *Link) loadlib() {
+ 				if Buildmode == BuildmodeShared || *FlagLinkshared {
+ 					Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 				}
+-				objfile(ctxt, lib)
++				loadobjfile(ctxt, lib)
+ 			}
+ 		}
+ 	}
+@@ -765,7 +766,7 @@ func genhash(ctxt *Link, lib *sym.Library) {
+ 	lib.Hash = hex.EncodeToString(h.Sum(nil))
+ }
+ 
+-func objfile(ctxt *Link, lib *sym.Library) {
++func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 	pkg := objabi.PathToPrefix(lib.Pkg)
+ 
+ 	if ctxt.Debugvlog > 1 {
+@@ -1459,7 +1460,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	ldpkg(ctxt, f, pkg, import1-import0-2, pn, whence) // -2 for !\n
+ 	f.Seek(import1, 0)
+ 
+-	LoadObjFile(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
++	objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+ 	addImports(ctxt, lib, pn)
+ 	return nil
+ }
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/objfile/objfile.go
+similarity index 96%
+rename from src/cmd/link/internal/ld/objfile.go
+rename to src/cmd/link/internal/objfile/objfile.go
+index 77ef1418f0..507b5b3bef 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/objfile/objfile.go
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ld
+-
+-// Reading of Go object files.
++// Package objfile reads Go object files for the Go linker, cmd/link.
++//
++// This package is similar to cmd/internal/objfile which also reads
++// Go object files.
++package objfile
+ 
+ import (
+ 	"bufio"
+@@ -51,7 +53,9 @@ type objReader struct {
+ 	file        []*sym.Symbol
+ }
+ 
+-func LoadObjFile(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
++// Load loads an object file f into library lib.
++// The symbols loaded are added to syms.
++func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
+ 	start := f.Offset()
+ 	r := &objReader{
+ 		rd:              f.Reader,
+@@ -91,7 +95,7 @@ func (r *objReader) loadObjFile() {
+ 		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
+ 	}
+ 
+-	// sym.Symbol references
++	// Symbol references
+ 	r.refs = []*sym.Symbol{nil} // zeroth ref is nil
+ 	for {
+ 		c, err := r.rd.Peek(1)

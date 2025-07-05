@@ -16,6 +16,20 @@ Date:   Fri Aug 18 16:34:29 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/csv/reader.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index c6a8ed02c1..a93de9822d 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -62,7 +62,7 @@ import (
+ )
+ 
+ // A ParseError is returned for parsing errors.
+-// Line numbers are 1-indexed and columns are 0-indexed.
++// Line and column numbers are 1-indexed.
+ type ParseError struct {
+ 	StartLine int   // Line where the record starts
+ 	Line      int   // Line where the error occurred

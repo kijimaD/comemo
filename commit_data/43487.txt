@@ -12,6 +12,20 @@ Date:   Wed Apr 8 11:57:53 2020 -0400
     Change-Id: I53721d383a4cafbe8d031ed25a3b1be2ae8b4285
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227587
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 28bb88a0c3..d68cb1ccc0 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -95,6 +95,8 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
+ // go test debug_test.go -args -u -d
+ 
+ func TestNexting(t *testing.T) {
++	testenv.SkipFlaky(t, 37404)
++
+ 	skipReasons := "" // Many possible skip reasons, list all that apply
+ 	if testing.Short() {
+ 		skipReasons = "not run in short mode; "

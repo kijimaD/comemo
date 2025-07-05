@@ -21,6 +21,19 @@ Date:   Wed Jan 4 11:22:58 2012 +1100
     R=golang-dev, gri, kevlar
     CC=golang-dev
     https://golang.org/cl/5504109
-
+---
  misc/dashboard/app/build/notify.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/app/build/notify.txt b/misc/dashboard/app/build/notify.txt
+index 9b9fff4931..6c90067032 100644
+--- a/misc/dashboard/app/build/notify.txt
++++ b/misc/dashboard/app/build/notify.txt
+@@ -5,5 +5,5 @@ http://{{.Hostname}}/log/{{.Result.LogHash}}
+ 
+ http://code.google.com/p/go/source/detail?r={{shortHash .Commit.Hash}}
+ 
+-$ tail -100 < log
+-{{printf "%s" .Log.Text | tail 100}}
++$ tail -200 < log
++{{printf "%s" .Log.Text | tail 200}}

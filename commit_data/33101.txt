@@ -10,6 +10,20 @@ Date:   Fri Jul 7 21:26:45 2017 +0100
     Change-Id: Ie2c7cb4b4db8f41572df206478ce3b46a0245a5d
     Reviewed-on: https://go-review.googlesource.com/47850
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ced42dad61..3bba87db5a 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -575,7 +575,7 @@ func moduledataverify1(datap *moduledata) {
+ // given program counter address, or else nil.
+ //
+ // If pc represents multiple functions because of inlining, it returns
+-// the *Func describing the outermost frame at pc.
++// the *Func describing the outermost function.
+ func FuncForPC(pc uintptr) *Func {
+ 	return findfunc(pc)._Func()
+ }

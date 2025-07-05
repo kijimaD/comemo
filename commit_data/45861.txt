@@ -26,6 +26,19 @@ Date:   Tue Nov 24 11:07:48 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c30d24ae1a..ebf3896a0a 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -604,6 +604,7 @@ func evconst(n *Node) {
+ 		if len(s) == 1 && Isconst(s[0], constant.String) {
+ 			n.Op = OLITERAL
+ 			n.SetVal(s[0].Val())
++			n.List.Set(nil)
+ 		} else {
+ 			n.List.Set(s)
+ 		}

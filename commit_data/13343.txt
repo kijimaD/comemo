@@ -14,6 +14,20 @@ Date:   Wed Jun 13 16:24:56 2012 -0400
     R=golang-dev, bsiegert
     CC=golang-dev
     https://golang.org/cl/6306076
-
+---
  src/pkg/go/build/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index 67c26ac7f4..618eefe9e4 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -100,7 +100,7 @@
+ // default functionality for other systems, which in this case would
+ // carry the constraint:
+ //
+-//	// +build !linux !darwin !cgo
++//	// +build !linux,!darwin !cgo
+ //
+ // Naming a file dns_windows.go will cause it to be included only when
+ // building the package for Windows; similarly, math_386.s will be included

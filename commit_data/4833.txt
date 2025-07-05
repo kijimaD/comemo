@@ -7,7 +7,32 @@ Date:   Wed Feb 10 00:44:07 2010 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/207052
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5f2a9250f4..537d02faf7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -10,6 +10,7 @@
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
++Alex Brainman <alex.brainman@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a21d564e94..d15edeef3d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -29,6 +29,7 @@
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
++Alex Brainman <alex.brainman@gmail.com>
+ Andrew Gerrand <adg@golang.org>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>

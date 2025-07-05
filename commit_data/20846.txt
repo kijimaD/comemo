@@ -14,7 +14,44 @@ Date:   Sat Oct 18 11:22:05 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/161750043
-
+---
  src/text/template/exec.go      |  2 +-
  src/text/template/exec_test.go | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index f6eed662b7..b00e10c7e4 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -546,7 +546,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
+ 	argv := make([]reflect.Value, numIn)
+ 	// Args must be evaluated. Fixed args first.
+ 	i := 0
+-	for ; i < numFixed; i++ {
++	for ; i < numFixed && i < len(args); i++ {
+ 		argv[i] = s.evalArg(dot, typ.In(i), args[i])
+ 	}
+ 	// Now the ... args.
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index e2cf2d3705..69c213ed24 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -893,6 +893,18 @@ func TestMessageForExecuteEmpty(t *testing.T) {
+ 	}
+ }
+ 
++func TestFinalForPrintf(t *testing.T) {
++	tmpl, err := New("").Parse(`{{"x" | printf}}`)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var b bytes.Buffer
++	err = tmpl.Execute(&b, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
+ type cmpTest struct {
+ 	expr  string
+ 	truth string

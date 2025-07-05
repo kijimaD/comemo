@@ -14,6 +14,41 @@ Date:   Mon Apr 18 10:56:19 2022 -0400
     Change-Id: I271752968d4152a7fdf3e170537e3072bf87ce86
     Reviewed-on: https://go-review.googlesource.com/c/go/+/400814
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.19.html | 16 +++++++++++-----
  1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 21781c3e33..a813d59cb8 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -36,11 +36,6 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <!-- https://go.dev/issue/51461 -->
+-<p>
+-  Passing the <code>-trimpath</code> flag to <code>go</code> commands now
+-  causes <code>runtime.GOROOT()</code> in the resulting binary to return the
+-  empty string instead of the string <code>"go"</code>.
+-</p>
+ <p>
+   The <code>-trimpath</code> flag, if set, is now included in the build settings
+   stamped into Go binaries by <code>go</code> <code>build</code>, and can be
+@@ -137,6 +132,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- net -->
+ 
++<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/51461 -->
++      The <code>GOROOT</code> function now returns the empty string
++      (instead of <code>"go"</code>) when the binary was built with
++      the <code>-trimpath</code> flag set and the <code>GOROOT</code>
++      variable is not set in the process environment.
++    </p>
++  </dd>
++</dl><!-- runtime -->
++
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 397255 -->

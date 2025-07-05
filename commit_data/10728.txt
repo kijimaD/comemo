@@ -9,7 +9,43 @@ Date:   Mon Dec 12 18:25:32 2011 -0500
     R=rsc, krasin
     CC=golang-dev
     https://golang.org/cl/5449115
-
+---
  src/pkg/compress/flate/deflate.go      |  4 +++-
  src/pkg/compress/flate/deflate_test.go | 12 ++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/flate/deflate.go b/src/pkg/compress/flate/deflate.go
+index 1f659bab71..4f744457dd 100644
+--- a/src/pkg/compress/flate/deflate.go
++++ b/src/pkg/compress/flate/deflate.go
+@@ -319,7 +319,9 @@ Loop:
+ 				// For matches this long, we don't bother inserting each individual
+ 				// item into the table.
+ 				d.index += d.length
+-				d.hash = (int(d.window[d.index])<<hashShift + int(d.window[d.index+1]))
++				if d.index < d.maxInsertIndex {
++					d.hash = (int(d.window[d.index])<<hashShift + int(d.window[d.index+1]))
++				}
+ 			}
+ 			if d.ti == maxFlateBlockTokens {
+ 				// The block includes the current character
+diff --git a/src/pkg/compress/flate/deflate_test.go b/src/pkg/compress/flate/deflate_test.go
+index b4876b0f8b..bae5c82305 100644
+--- a/src/pkg/compress/flate/deflate_test.go
++++ b/src/pkg/compress/flate/deflate_test.go
+@@ -318,3 +318,15 @@ func TestWriterDict(t *testing.T) {
+ 		t.Fatalf("writer wrote %q want %q", b1.Bytes(), b.Bytes())
+ 	}
+ }
++
++// See http://code.google.com/p/go/issues/detail?id=2508
++func TestRegression2508(t *testing.T) {
++	w := NewWriter(ioutil.Discard, 1)
++	buf := make([]byte, 1024)
++	for i := 0; i < 131072; i++ {
++		if _, err := w.Write(buf); err != nil {
++			t.Fatalf("writer failed: %v", err)
++		}
++	}
++	w.Close()
++}

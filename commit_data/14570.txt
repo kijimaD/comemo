@@ -11,6 +11,20 @@ Date:   Thu Dec 6 00:00:20 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6862051
-
+---
  src/cmd/ld/lib.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 8e3a8dd690..0f51e6b9f2 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1493,6 +1493,8 @@ void
+ cwrite(void *buf, int n)
+ {
+ 	cflush();
++	if(n <= 0)
++		return;
+ 	if(write(cout, buf, n) != n) {
+ 		diag("write error: %r");
+ 		errorexit();

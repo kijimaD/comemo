@@ -13,7 +13,44 @@ Date:   Wed Mar 25 12:06:59 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go      | 3 +++
  src/cmd/oldlink/internal/objfile/objfile.go | 4 ++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 3b77a4bff3..c04cc03b3e 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1667,6 +1667,9 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
+ 	}
+ 	r := goobj2.NewReaderFromBytes(roObject, readonly)
+ 	if r == nil {
++		if len(roObject) >= 8 && bytes.Equal(roObject[:8], []byte("\x00go114ld")) {
++			log.Fatalf("found object file %s in old format, but -go115newobj is true\nset -go115newobj consistently in all -gcflags, -asmflags, and -ldflags", f.File().Name())
++		}
+ 		panic("cannot read object file")
+ 	}
+ 	localSymVersion := syms.IncVersion()
+diff --git a/src/cmd/oldlink/internal/objfile/objfile.go b/src/cmd/oldlink/internal/objfile/objfile.go
+index 83b931ddef..7be433ad40 100644
+--- a/src/cmd/oldlink/internal/objfile/objfile.go
++++ b/src/cmd/oldlink/internal/objfile/objfile.go
+@@ -13,6 +13,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/dwarf"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+@@ -117,6 +118,9 @@ func (r *objReader) loadObjFile() {
+ 	var buf [8]uint8
+ 	r.readFull(buf[:])
+ 	if string(buf[:]) != startmagic {
++		if string(buf[:]) == goobj2.Magic {
++			log.Fatalf("found object file %s in new format, but -go115newobj is false\nset -go115newobj consistently in all -gcflags, -asmflags, and -ldflags", r.pn)
++		}
+ 		log.Fatalf("%s: invalid file start %x %x %x %x %x %x %x %x", r.pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
+ 	}
+ 

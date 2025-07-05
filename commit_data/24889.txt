@@ -12,9 +12,67 @@ Date:   Sun Sep 6 22:38:49 2015 +0200
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go  | 2 +-
  src/cmd/compile/internal/gc/go.y   | 2 +-
  src/cmd/compile/internal/gc/lex.go | 6 +++---
  src/cmd/compile/internal/gc/y.go   | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f87f7bb2a4..59e1780b7d 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -589,7 +589,7 @@ var externdcl *NodeList
+ 
+ var exportlist []*Node
+ 
+-var importlist *NodeList // imported functions and methods with inlinable bodies
++var importlist []*Node // imported functions and methods with inlinable bodies
+ 
+ var funcsyms *NodeList
+ 
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index ea8ac4fd9c..32f02ded6d 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -2038,7 +2038,7 @@ hidden_import:
+ 		$2.Func.Inl = $3;
+ 
+ 		funcbody($2);
+-		importlist = list(importlist, $2);
++		importlist = append(importlist, $2);
+ 
+ 		if Debug['E'] > 0 {
+ 			fmt.Printf("import [%q] func %v \n", importpkg.Path, $2)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index f2c6398ca2..ce0654e54b 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -423,10 +423,10 @@ func Main() {
+ 	if Debug['l'] > 1 {
+ 		// Typecheck imported function bodies if debug['l'] > 1,
+ 		// otherwise lazily when used or re-exported.
+-		for l := importlist; l != nil; l = l.Next {
+-			if l.N.Func.Inl != nil {
++		for _, n := range importlist {
++			if n.Func.Inl != nil {
+ 				saveerrors()
+-				typecheckinl(l.N)
++				typecheckinl(n)
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 709471a789..9b780353c3 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -3241,7 +3241,7 @@ yydefault:
+ 			yyDollar[2].node.Func.Inl = yyDollar[3].list
+ 
+ 			funcbody(yyDollar[2].node)
+-			importlist = list(importlist, yyDollar[2].node)
++			importlist = append(importlist, yyDollar[2].node)
+ 
+ 			if Debug['E'] > 0 {
+ 				fmt.Printf("import [%q] func %v \n", importpkg.Path, yyDollar[2].node)

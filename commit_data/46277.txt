@@ -18,7 +18,68 @@ Date:   Thu Dec 17 14:57:20 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/file_plan9.go | 10 ----------
  src/os/tempfile.go   | 17 ++++++++++++-----
  2 files changed, 12 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index bbc732838a..4f384e9211 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -336,16 +336,6 @@ func hasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+ }
+ 
+-// LastIndexByte from the strings package.
+-func lastIndex(s string, sep byte) int {
+-	for i := len(s) - 1; i >= 0; i-- {
+-		if s[i] == sep {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+ func rename(oldname, newname string) error {
+ 	dirname := oldname[:lastIndex(oldname, '/')+1]
+ 	if hasPrefix(newname, dirname) {
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 2728485c32..4f90fcf8e8 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -4,10 +4,7 @@
+ 
+ package os
+ 
+-import (
+-	"errors"
+-	"strings"
+-)
++import "errors"
+ 
+ // fastrand provided by runtime.
+ // We generate random temporary file names so that there's a good
+@@ -62,7 +59,7 @@ func prefixAndSuffix(pattern string) (prefix, suffix string, err error) {
+ 			return "", "", errPatternHasSeparator
+ 		}
+ 	}
+-	if pos := strings.LastIndex(pattern, "*"); pos != -1 {
++	if pos := lastIndex(pattern, '*'); pos != -1 {
+ 		prefix, suffix = pattern[:pos], pattern[pos+1:]
+ 	} else {
+ 		prefix = pattern
+@@ -116,3 +113,13 @@ func joinPath(dir, name string) string {
+ 	}
+ 	return dir + string(PathSeparator) + name
+ }
++
++// LastIndexByte from the strings package.
++func lastIndex(s string, sep byte) int {
++	for i := len(s) - 1; i >= 0; i-- {
++		if s[i] == sep {
++			return i
++		}
++	}
++	return -1
++}

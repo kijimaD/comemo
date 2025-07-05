@@ -11,7 +11,33 @@ Date:   Fri Jan 15 16:37:47 2016 +0900
     Change-Id: I07d93a8c872a255a89f91f808b66c889f0a6a69c
     Reviewed-on: https://go-review.googlesource.com/18658
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os1_dragonfly.go | 1 +
  src/runtime/os2_dragonfly.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index 5b146209dc..a739ef5a72 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -168,6 +168,7 @@ func minit() {
+ }
+ 
+ // Called from dropm to undo the effect of an minit.
++//go:nosplit
+ func unminit() {
+ 	if getg().m.newSigstack {
+ 		signalstack(nil)
+diff --git a/src/runtime/os2_dragonfly.go b/src/runtime/os2_dragonfly.go
+index ccad82f013..6ea2da0393 100644
+--- a/src/runtime/os2_dragonfly.go
++++ b/src/runtime/os2_dragonfly.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ const (
+ 	_NSIG        = 33
+-	_SI_USER     = 0x10001
++	_SI_USER     = 0
+ 	_SS_DISABLE  = 4
+ 	_RLIMIT_AS   = 10
+ 	_SIG_BLOCK   = 1

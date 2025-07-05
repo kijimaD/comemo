@@ -21,7 +21,7 @@ Date:   Thu Feb 21 12:48:38 2013 -0500
     R=iant, bradfitz
     CC=golang-dev, gri
     https://golang.org/cl/7313062
-
+---
  src/pkg/exp/ssa/interp/external.go          |  49 +++--
  src/pkg/exp/ssa/interp/external_unix.go     |   4 +-
  src/pkg/exp/ssa/interp/external_windows.go  |   4 +-
@@ -34,3 +34,1277 @@ Date:   Thu Feb 21 12:48:38 2013 -0500
  test/const.go                               |  41 ++--
  test/recover.go                             |  12 +-
  11 files changed, 674 insertions(+), 124 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/interp/external.go b/src/pkg/exp/ssa/interp/external.go
+index 39c5fd33ba..a099ca8b75 100644
+--- a/src/pkg/exp/ssa/interp/external.go
++++ b/src/pkg/exp/ssa/interp/external.go
+@@ -16,7 +16,7 @@ import (
+ 	"time"
+ )
+ 
+-type externalFn func(fn *ssa.Function, args []value, slots []value) value
++type externalFn func(fn *ssa.Function, args []value) value
+ 
+ // Key strings are from Function.FullName().
+ // That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
+@@ -34,6 +34,7 @@ var externals = map[string]externalFn{
+ 	"(reflect.Value).Len":             ext۰reflect۰Value۰Len,
+ 	"(reflect.Value).NumField":        ext۰reflect۰Value۰NumField,
+ 	"(reflect.Value).Pointer":         ext۰reflect۰Value۰Pointer,
++	"(reflect.Value).String":          ext۰reflect۰Value۰String,
+ 	"(reflect.Value).Type":            ext۰reflect۰Value۰Type,
+ 	"(reflect.rtype).Bits":            ext۰reflect۰rtype۰Bits,
+ 	"(reflect.rtype).Elem":            ext۰reflect۰rtype۰Elem,
+@@ -68,73 +69,73 @@ var externals = map[string]externalFn{
+ 	"time.now":                        ext۰time۰now,
+ }
+ 
+-func ext۰math۰Float64frombits(fn *ssa.Function, args []value, slots []value) value {
++func ext۰math۰Float64frombits(fn *ssa.Function, args []value) value {
+ 	return math.Float64frombits(args[0].(uint64))
+ }
+ 
+-func ext۰math۰Float64bits(fn *ssa.Function, args []value, slots []value) value {
++func ext۰math۰Float64bits(fn *ssa.Function, args []value) value {
+ 	return math.Float64bits(args[0].(float64))
+ }
+ 
+-func ext۰math۰Float32frombits(fn *ssa.Function, args []value, slots []value) value {
++func ext۰math۰Float32frombits(fn *ssa.Function, args []value) value {
+ 	return math.Float32frombits(args[0].(uint32))
+ }
+ 
+-func ext۰math۰Float32bits(fn *ssa.Function, args []value, slots []value) value {
++func ext۰math۰Float32bits(fn *ssa.Function, args []value) value {
+ 	return math.Float32bits(args[0].(float32))
+ }
+ 
+-func ext۰runtime۰Breakpoint(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰Breakpoint(fn *ssa.Function, args []value) value {
+ 	runtime.Breakpoint()
+ 	return nil
+ }
+ 
+-func ext۰runtime۰getgoroot(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰getgoroot(fn *ssa.Function, args []value) value {
+ 	return os.Getenv("GOROOT")
+ }
+ 
+-func ext۰runtime۰GOMAXPROCS(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰GOMAXPROCS(fn *ssa.Function, args []value) value {
+ 	return runtime.GOMAXPROCS(args[0].(int))
+ }
+ 
+-func ext۰runtime۰GC(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰GC(fn *ssa.Function, args []value) value {
+ 	runtime.GC()
+ 	return nil
+ }
+ 
+-func ext۰runtime۰Gosched(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰Gosched(fn *ssa.Function, args []value) value {
+ 	runtime.Gosched()
+ 	return nil
+ }
+ 
+-func ext۰runtime۰ReadMemStats(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰ReadMemStats(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): populate args[0].(Struct)
+ 	return nil
+ }
+ 
+-func ext۰atomic۰LoadUint32(fn *ssa.Function, args []value, slots []value) value {
++func ext۰atomic۰LoadUint32(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): fix: not atomic!
+ 	return (*args[0].(*value)).(uint32)
+ }
+ 
+-func ext۰atomic۰StoreUint32(fn *ssa.Function, args []value, slots []value) value {
++func ext۰atomic۰StoreUint32(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): fix: not atomic!
+ 	*args[0].(*value) = args[1].(uint32)
+ 	return nil
+ }
+ 
+-func ext۰atomic۰LoadInt32(fn *ssa.Function, args []value, slots []value) value {
++func ext۰atomic۰LoadInt32(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): fix: not atomic!
+ 	return (*args[0].(*value)).(int32)
+ }
+ 
+-func ext۰atomic۰StoreInt32(fn *ssa.Function, args []value, slots []value) value {
++func ext۰atomic۰StoreInt32(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): fix: not atomic!
+ 	*args[0].(*value) = args[1].(int32)
+ 	return nil
+ }
+ 
+-func ext۰atomic۰CompareAndSwapInt32(fn *ssa.Function, args []value, slots []value) value {
++func ext۰atomic۰CompareAndSwapInt32(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): fix: not atomic!
+ 	p := args[0].(*value)
+ 	if (*p).(int32) == args[1].(int32) {
+@@ -144,7 +145,7 @@ func ext۰atomic۰CompareAndSwapInt32(fn *ssa.Function, args []value, slots []va
+ 	return false
+ }
+ 
+-func ext۰atomic۰AddInt32(fn *ssa.Function, args []value, slots []value) value {
++func ext۰atomic۰AddInt32(fn *ssa.Function, args []value) value {
+ 	// TODO(adonovan): fix: not atomic!
+ 	p := args[0].(*value)
+ 	newv := (*p).(int32) + args[1].(int32)
+@@ -152,27 +153,25 @@ func ext۰atomic۰AddInt32(fn *ssa.Function, args []value, slots []value) value
+ 	return newv
+ }
+ 
+-func ext۰runtime۰SetFinalizer(fn *ssa.Function, args []value, slots []value) value {
++func ext۰runtime۰SetFinalizer(fn *ssa.Function, args []value) value {
+ 	return nil // ignore
+ }
+ 
+-func ext۰time۰now(fn *ssa.Function, args []value, slots []value) value {
++func ext۰time۰now(fn *ssa.Function, args []value) value {
+ 	nano := time.Now().UnixNano()
+ 	return tuple{int64(nano / 1e9), int32(nano % 1e9)}
+ }
+ 
+-func ext۰time۰Sleep(fn *ssa.Function, args []value, slots []value) value {
++func ext۰time۰Sleep(fn *ssa.Function, args []value) value {
+ 	time.Sleep(time.Duration(args[0].(int64)))
+ 	return nil
+ }
+ 
+-func ext۰syscall۰Exit(fn *ssa.Function, args []value, slots []value) value {
+-	// We could emulate syscall.Syscall but it's more effort.
+-	syscall.Exit(args[0].(int))
+-	return nil
++func ext۰syscall۰Exit(fn *ssa.Function, args []value) value {
++	panic(exitPanic(args[0].(int)))
+ }
+ 
+-func ext۰syscall۰Getpid(fn *ssa.Function, args []value, slots []value) value {
++func ext۰syscall۰Getpid(fn *ssa.Function, args []value) value {
+ 	// We could emulate syscall.Syscall but it's more effort.
+ 	return syscall.Getpid()
+ }
+diff --git a/src/pkg/exp/ssa/interp/external_unix.go b/src/pkg/exp/ssa/interp/external_unix.go
+index 114a0f3367..e021ff7214 100644
+--- a/src/pkg/exp/ssa/interp/external_unix.go
++++ b/src/pkg/exp/ssa/interp/external_unix.go
+@@ -11,14 +11,14 @@ import (
+ 	"syscall"
+ )
+ 
+-func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
++func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
+ 	// We could emulate syscall.Syscall but it's more effort.
+ 	err := syscall.Kill(args[0].(int), syscall.Signal(args[1].(int)))
+ 	err = err // TODO(adonovan): fix: adapt concrete err to interpreted iface (e.g. call interpreted errors.New)
+ 	return iface{}
+ }
+ 
+-func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
++func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
+ 	// We could emulate syscall.Syscall but it's more effort.
+ 	p := args[1].([]value)
+ 	b := make([]byte, 0, len(p))
+diff --git a/src/pkg/exp/ssa/interp/external_windows.go b/src/pkg/exp/ssa/interp/external_windows.go
+index cb86d83c49..5bdc1b9edf 100644
+--- a/src/pkg/exp/ssa/interp/external_windows.go
++++ b/src/pkg/exp/ssa/interp/external_windows.go
+@@ -10,10 +10,10 @@ import (
+ 	"exp/ssa"
+ )
+ 
+-func ext۰syscall۰Kill(fn *ssa.Function, args []value, slots []value) value {
++func ext۰syscall۰Kill(fn *ssa.Function, args []value) value {
+ 	panic("syscall.Kill not yet implemented")
+ }
+ 
+-func ext۰syscall۰Write(fn *ssa.Function, args []value, slots []value) value {
++func ext۰syscall۰Write(fn *ssa.Function, args []value) value {
+ 	panic("syscall.Write not yet implemented")
+ }
+diff --git a/src/pkg/exp/ssa/interp/interp.go b/src/pkg/exp/ssa/interp/interp.go
+index a022996def..0fa4316bf0 100644
+--- a/src/pkg/exp/ssa/interp/interp.go
++++ b/src/pkg/exp/ssa/interp/interp.go
+@@ -34,6 +34,9 @@
+ // * the sizes of the int, uint and uintptr types in the target
+ // program are assumed to be the same as those of the interpreter
+ // itself.
++//
++// * os.Exit is implemented using panic, causing deferred functions to
++// run.
+ package interp
+ 
+ import (
+@@ -42,7 +45,6 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+-	"log"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -106,12 +108,11 @@ func (fr *frame) get(key ssa.Value) value {
+ 		if r, ok := fr.i.globals[key]; ok {
+ 			return r
+ 		}
+-	default:
+-		if r, ok := fr.env[key]; ok {
+-			return r
+-		}
+ 	}
+-	panic(fmt.Sprintf("get: unexpected type %T", key))
++	if r, ok := fr.env[key]; ok {
++		return r
++	}
++	panic(fmt.Sprintf("get: no value for %T: %v", key, key.Name()))
+ }
+ 
+ // findMethodSet returns the method set for type typ, which may be one
+@@ -428,7 +429,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
+ 			if i.mode&EnableTracing != 0 {
+ 				fmt.Fprintln(os.Stderr, "\t(external)")
+ 			}
+-			return ext(fn, args, env)
++			return ext(fn, args)
+ 		}
+ 		if fn.Blocks == nil {
+ 			panic("no code for function: " + name)
+@@ -516,7 +517,10 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
+ // mode specifies various interpreter options.  filename and args are
+ // the initial values of os.Args for the target program.
+ //
+-func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) {
++// Interpret returns the exit code of the program: 2 for panic (like
++// gc does), or the argument to os.Exit for normal termination.
++//
++func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string) (exitCode int) {
+ 	i := &interpreter{
+ 		prog:    mainpkg.Prog,
+ 		globals: make(map[ssa.Value]*value),
+@@ -541,6 +545,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string)
+ 			for _, s := range os.Environ() {
+ 				envs = append(envs, s)
+ 			}
++			envs = append(envs, "GOSSAINTERP=1")
+ 			setGlobal(i, pkg, "envs", envs)
+ 
+ 		case "runtime":
+@@ -549,7 +554,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string)
+ 			// unsafe.Sizeof(memStats) won't work since gc
+ 			// and go/types have different sizeof
+ 			// functions.
+-			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3450))
++			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(3696))
+ 
+ 		case "os":
+ 			Args := []value{filename}
+@@ -561,13 +566,15 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string)
+ 	}
+ 
+ 	// Top-level error handler.
+-	complete := false
++	exitCode = 2
+ 	defer func() {
+-		if complete || i.mode&DisableRecover != 0 {
++		if exitCode != 2 || i.mode&DisableRecover != 0 {
+ 			return
+ 		}
+-		// TODO(adonovan): stop the world and dump goroutines.
+ 		switch p := recover().(type) {
++		case exitPanic:
++			exitCode = int(p)
++			return
+ 		case targetPanic:
+ 			fmt.Fprintln(os.Stderr, "panic:", toString(p.v))
+ 		case runtime.Error:
+@@ -575,17 +582,24 @@ func Interpret(mainpkg *ssa.Package, mode Mode, filename string, args []string)
+ 		case string:
+ 			fmt.Fprintln(os.Stderr, "panic:", p)
+ 		default:
+-			panic(fmt.Sprintf("unexpected panic type: %T", p))
++			fmt.Fprintln(os.Stderr, "panic: unexpected type: %T", p)
+ 		}
+-		os.Exit(1)
++
++		// TODO(adonovan): dump panicking interpreter goroutine?
++		// buf := make([]byte, 0x10000)
++		// runtime.Stack(buf, false)
++		// fmt.Fprintln(os.Stderr, string(buf))
++		// (Or dump panicking target goroutine?)
+ 	}()
+ 
+ 	// Run!
+ 	call(i, nil, token.NoPos, mainpkg.Init, nil)
+ 	if mainFn := mainpkg.Func("main"); mainFn != nil {
+ 		call(i, nil, token.NoPos, mainFn, nil)
++		exitCode = 0
+ 	} else {
+-		log.Fatalf("no main function")
++		fmt.Fprintln(os.Stderr, "No main function.")
++		exitCode = 1
+ 	}
+-	complete = true
++	return
+ }
+diff --git a/src/pkg/exp/ssa/interp/interp_test.go b/src/pkg/exp/ssa/interp/interp_test.go
+new file mode 100644
+index 0000000000..e3a35f3eca
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/interp_test.go
+@@ -0,0 +1,222 @@
++package interp_test
++
++import (
++	"exp/ssa"
++	"exp/ssa/interp"
++	"flag"
++	"fmt"
++	"go/build"
++	"strings"
++	"testing"
++)
++
++// ANSI terminal sequences.
++const (
++	ansiRed   = "\x1b[1;31m"
++	ansiGreen = "\x1b[1;32m"
++	ansiReset = "\x1b[0m"
++)
++
++var color = flag.Bool("color", false, "Emit color codes for an ANSI terminal.")
++
++func red(s string) string {
++	if *color {
++		return ansiRed + s + ansiReset
++	}
++	return s
++}
++
++func green(s string) string {
++	if *color {
++		return ansiGreen + s + ansiReset
++	}
++	return s
++}
++
++// Each line contains a space-separated list of $GOROOT/test/
++// filenames comprising the main package of a program.
++// They are ordered quickest-first, roughly.
++//
++// TODO(adonovan): integrate into the $GOROOT/test driver scripts,
++// golden file checking, etc.
++var gorootTests = []string{
++	"235.go",
++	"alias1.go",
++	"chancap.go",
++	"func5.go",
++	"func6.go",
++	"func7.go",
++	"func8.go",
++	"helloworld.go",
++	"varinit.go",
++	"escape3.go",
++	"initcomma.go",
++	"compos.go",
++	"turing.go",
++	"indirect.go",
++	"complit.go",
++	"for.go",
++	"struct0.go",
++	"intcvt.go",
++	"printbig.go",
++	"deferprint.go",
++	"escape.go",
++	"range.go",
++	"const4.go",
++	"float_lit.go",
++	"bigalg.go",
++	"decl.go",
++	"if.go",
++	"named.go",
++	"bigmap.go",
++	"func.go",
++	"reorder2.go",
++	// The following tests are disabled until the typechecker supports shifts correctly.
++	// They can be enabled if you patch workaround https://codereview.appspot.com/7312068.
++	// "closure.go",
++	// "gc.go",
++	// "goprint.go",  // doesn't actually assert anything
++	// "utf.go",
++	"method.go",
++	// "char_lit.go",
++	//"env.go",
++	// "int_lit.go",
++	// "string_lit.go",
++	// "defer.go",
++	// "typeswitch.go",
++	// "stringrange.go",
++	// "reorder.go",
++	"literal.go",
++	// "nul1.go",
++	// "zerodivide.go",
++	// "convert.go",
++	"convT2X.go",
++	// "switch.go",
++	// "initialize.go",
++	// "blank.go", // partly disabled; TODO(adonovan): skip blank fields in struct{_} equivalence.
++	// "map.go",
++	// "bom.go",
++	// "closedchan.go",
++	// "divide.go",
++	// "rename.go",
++	// "const3.go",
++	// "nil.go",
++	// "recover.go", // partly disabled; TODO(adonovan): fix.
++	// Slow tests follow.
++	// "cmplxdivide.go cmplxdivide1.go",
++	// "append.go",
++	// "crlf.go", // doesn't actually assert anything
++	//"typeswitch1.go",
++	// "floatcmp.go",
++	"gc1.go",
++
++	// Working, but not worth enabling:
++	// "gc2.go",       // works, but slow, and cheats on the memory check.
++	// "sigchld.go",   // works, but only on POSIX.
++	// "peano.go",     // works only up to n=9, and slow even then.
++	// "stack.go",     // works, but too slow (~30s) by default.
++	// "solitaire.go", // works, but too slow (~30s).
++	// "const.go",     // works but for but one bug: constant folder doesn't consider representations.
++	// "init1.go",     // too slow (80s) and not that interesting. Cheats on ReadMemStats check too.
++
++	// Broken.  TODO(adonovan): fix.
++	// ddd.go          // builder: variadic methods
++	// copy.go         // very slow; but with N=4 quickly crashes, slice index out of range.
++	// nilptr.go       // interp: V > uintptr not implemented. Slow test, lots of mem
++	// iota.go         // typechecker: crash
++	// rotate.go       // typechecker: shifts
++	// rune.go         // typechecker: shifts
++	// 64bit.go        // typechecker: shifts
++	// cmp.go          // typechecker: comparison
++	// recover1.go     // error: "spurious recover"
++	// recover2.go     // panic: interface conversion: string is not error: missing method Error
++	// recover3.go     // logic errors: panicked with wrong Error.
++	// simassign.go    // requires support for f(f(x,y)).
++	// method3.go      // Fails dynamically; (*T).f vs (T).f are distinct methods.
++	// ddd2.go         // fails
++	// run.go          // rtype.NumOut not yet implemented.  Not really a test though.
++	// args.go         // works, but requires specific os.Args from the driver.
++	// index.go        // a template, not a real test.
++	// mallocfin.go    // SetFinalizer not implemented.
++
++	// TODO(adonovan): add tests from $GOROOT/test/* subtrees:
++	// bench chan bugs fixedbugs interface ken.
++}
++
++// These are files in exp/ssa/interp/testdata/.
++var testdataTests = []string{
++// "coverage.go",  // shifts
++}
++
++func run(t *testing.T, dir, input string) bool {
++	fmt.Printf("Input: %s\n", input)
++
++	var inputs []string
++	for _, i := range strings.Split(input, " ") {
++		inputs = append(inputs, dir+i)
++	}
++
++	b := ssa.NewBuilder(ssa.SanityCheckFunctions, ssa.GorootLoader, nil)
++	files, err := ssa.ParseFiles(b.Prog.Files, ".", inputs...)
++	if err != nil {
++		t.Errorf("ssa.ParseFiles(%s) failed: %s", inputs, err.Error())
++		return false
++	}
++
++	// Print a helpful hint if we don't make it to the end.
++	var hint string
++	defer func() {
++		if hint != "" {
++			fmt.Println(red("FAIL"))
++			fmt.Println(hint)
++		} else {
++			fmt.Println(green("PASS"))
++		}
++	}()
++
++	hint = fmt.Sprintf("To dump SSA representation, run:\n%% go run exp/ssa/ssadump.go -build=CFP %s\n", input)
++	mainpkg, err := b.CreatePackage("main", files)
++	if err != nil {
++		t.Errorf("ssa.Builder.CreatePackage(%s) failed: %s", inputs, err.Error())
++
++		return false
++	}
++
++	b.BuildPackage(mainpkg)
++	b = nil // discard Builder
++
++	hint = fmt.Sprintf("To trace execution, run:\n%% go run exp/ssa/ssadump.go -build=C -run --interp=T %s\n", input)
++	if exitCode := interp.Interpret(mainpkg, 0, inputs[0], []string{}); exitCode != 0 {
++		t.Errorf("interp.Interpret(%s) exited with code %d, want zero", inputs, exitCode)
++		return false
++	}
++
++	hint = "" // call off the hounds
++	return true
++}
++
++// TestInterp runs the interpreter on a selection of small Go programs.
++func TestInterp(t *testing.T) {
++	var failures []string
++
++	for _, input := range testdataTests {
++		if !run(t, build.Default.GOROOT+"/src/pkg/exp/ssa/interp/testdata/", input) {
++			failures = append(failures, input)
++		}
++	}
++
++	if !testing.Short() {
++		for _, input := range gorootTests {
++			if !run(t, build.Default.GOROOT+"/test/", input) {
++				failures = append(failures, input)
++			}
++		}
++	}
++
++	if failures != nil {
++		fmt.Println("The following tests failed:")
++		for _, f := range failures {
++			fmt.Printf("\t%s\n", f)
++		}
++	}
++}
+diff --git a/src/pkg/exp/ssa/interp/reflect.go b/src/pkg/exp/ssa/interp/reflect.go
+index 77c80e98e0..b1a514a120 100644
+--- a/src/pkg/exp/ssa/interp/reflect.go
++++ b/src/pkg/exp/ssa/interp/reflect.go
+@@ -14,6 +14,13 @@ import (
+ 	"unsafe"
+ )
+ 
++// A bogus "reflect" type-checker package.  Shared across interpreters.
++var reflectTypesPackage = &types.Package{
++	Name:     "reflect",
++	Path:     "reflect",
++	Complete: true,
++}
++
+ // rtype is the concrete type the interpreter uses to implement the
+ // reflect.Type interface.  Since its type is opaque to the target
+ // language, we use a types.Basic.
+@@ -21,26 +28,13 @@ import (
+ // type rtype <opaque>
+ var rtypeType = makeNamedType("rtype", &types.Basic{Name: "rtype"})
+ 
+-// Value is the interpreter's version of reflect.Value.
+-//
+-// Since it has no public fields and we control all the functions in
+-// the reflect package, it doesn't matter that it is not the same as
+-// the real Value struct.
+-//
+-// A reflect.Value contains the same two fields as the interpreter's
+-// iface struct.
+-//
+-// type Value struct {
+-//   t    rtype
+-//   v    Value
+-// }
+-//
+-// Even though it's a struct, we use a types.Basic since no-one cares.
+-var reflectValueType = makeNamedType("Value", &types.Basic{Name: "Value"})
+-
+ func makeNamedType(name string, underlying types.Type) *types.NamedType {
+ 	nt := &types.NamedType{Underlying: underlying}
+-	nt.Obj = &types.TypeName{Name: name, Type: nt}
++	nt.Obj = &types.TypeName{
++		Name: name,
++		Type: nt,
++		Pkg:  reflectTypesPackage,
++	}
+ 	return nt
+ }
+ 
+@@ -63,12 +57,12 @@ func makeReflectType(rt rtype) value {
+ 	return iface{rtypeType, rt}
+ }
+ 
+-func ext۰reflect۰Init(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Init(fn *ssa.Function, args []value) value {
+ 	// Signature: func()
+ 	return nil
+ }
+ 
+-func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value) value {
+ 	// Signature: func (t reflect.rtype) int
+ 	rt := args[0].(rtype).t
+ 	basic, ok := underlyingType(rt).(*types.Basic)
+@@ -104,7 +98,7 @@ func ext۰reflect۰rtype۰Bits(fn *ssa.Function, args []value, slots []value) va
+ 	return nil
+ }
+ 
+-func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value) value {
+ 	// Signature: func (t reflect.rtype) reflect.Type
+ 	var elem types.Type
+ 	switch rt := underlyingType(args[0].(rtype).t).(type) {
+@@ -124,22 +118,22 @@ func ext۰reflect۰rtype۰Elem(fn *ssa.Function, args []value, slots []value) va
+ 	return makeReflectType(rtype{elem})
+ }
+ 
+-func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰rtype۰Kind(fn *ssa.Function, args []value) value {
+ 	// Signature: func (t reflect.rtype) uint
+ 	return uint(reflectKind(args[0].(rtype).t))
+ }
+ 
+-func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰rtype۰String(fn *ssa.Function, args []value) value {
+ 	// Signature: func (t reflect.rtype) string
+ 	return args[0].(rtype).t.String()
+ }
+ 
+-func ext۰reflect۰TypeOf(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰TypeOf(fn *ssa.Function, args []value) value {
+ 	// Signature: func (t reflect.rtype) string
+ 	return makeReflectType(rtype{args[0].(iface).t})
+ }
+ 
+-func ext۰reflect۰ValueOf(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰ValueOf(fn *ssa.Function, args []value) value {
+ 	// Signature: func (interface{}) reflect.Value
+ 	itf := args[0].(iface)
+ 	return makeReflectValue(itf.t, itf.v)
+@@ -208,17 +202,22 @@ func reflectKind(t types.Type) reflect.Kind {
+ 	panic(fmt.Sprint("unexpected type: ", t))
+ }
+ 
+-func ext۰reflect۰Value۰Kind(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Kind(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) uint
+ 	return uint(reflectKind(rV2T(args[0]).t))
+ }
+ 
+-func ext۰reflect۰Value۰Type(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰String(fn *ssa.Function, args []value) value {
++	// Signature: func (reflect.Value) string
++	return toString(rV2V(args[0]))
++}
++
++func ext۰reflect۰Value۰Type(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) reflect.Type
+ 	return makeReflectType(rV2T(args[0]))
+ }
+ 
+-func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) int
+ 	switch v := rV2V(args[0]).(type) {
+ 	case string:
+@@ -239,12 +238,12 @@ func ext۰reflect۰Value۰Len(fn *ssa.Function, args []value, slots []value) val
+ 	return nil // unreachable
+ }
+ 
+-func ext۰reflect۰Value۰NumField(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰NumField(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) int
+ 	return len(rV2V(args[0]).(structure))
+ }
+ 
+-func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value) uintptr
+ 	switch v := rV2V(args[0]).(type) {
+ 	case *value:
+@@ -265,7 +264,7 @@ func ext۰reflect۰Value۰Pointer(fn *ssa.Function, args []value, slots []value)
+ 	return nil // unreachable
+ }
+ 
+-func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value, i int) Value
+ 	i := args[1].(int)
+ 	t := underlyingType(rV2T(args[0]).t)
+@@ -280,19 +279,19 @@ func ext۰reflect۰Value۰Index(fn *ssa.Function, args []value, slots []value) v
+ 	return nil // unreachable
+ }
+ 
+-func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰CanAddr(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value) bool
+ 	// Always false for our representation.
+ 	return false
+ }
+ 
+-func ext۰reflect۰Value۰CanInterface(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰CanInterface(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value) bool
+ 	// Always true for our representation.
+ 	return true
+ }
+ 
+-func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value) reflect.Value
+ 	switch x := rV2V(args[0]).(type) {
+ 	case iface:
+@@ -305,19 +304,19 @@ func ext۰reflect۰Value۰Elem(fn *ssa.Function, args []value, slots []value) va
+ 	return nil // unreachable
+ }
+ 
+-func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Field(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value, i int) reflect.Value
+ 	v := args[0]
+ 	i := args[1].(int)
+ 	return makeReflectValue(underlyingType(rV2T(v).t).(*types.Struct).Fields[i].Type, rV2V(v).(structure)[i])
+ }
+ 
+-func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Interface(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value) interface{}
+-	return ext۰reflect۰valueInterface(fn, args, slots)
++	return ext۰reflect۰valueInterface(fn, args)
+ }
+ 
+-func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) int64
+ 	switch x := rV2V(args[0]).(type) {
+ 	case int:
+@@ -336,7 +335,7 @@ func ext۰reflect۰Value۰Int(fn *ssa.Function, args []value, slots []value) val
+ 	return nil // unreachable
+ }
+ 
+-func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) bool
+ 	switch x := rV2V(args[0]).(type) {
+ 	case *value:
+@@ -363,12 +362,12 @@ func ext۰reflect۰Value۰IsNil(fn *ssa.Function, args []value, slots []value) v
+ 	return nil // unreachable
+ }
+ 
+-func ext۰reflect۰Value۰IsValid(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰Value۰IsValid(fn *ssa.Function, args []value) value {
+ 	// Signature: func (reflect.Value) bool
+ 	return rV2V(args[0]) != nil
+ }
+ 
+-func ext۰reflect۰valueInterface(fn *ssa.Function, args []value, slots []value) value {
++func ext۰reflect۰valueInterface(fn *ssa.Function, args []value) value {
+ 	// Signature: func (v reflect.Value, safe bool) interface{}
+ 	v := args[0].(structure)
+ 	return iface{rV2T(v).t, rV2V(v)}
+@@ -394,12 +393,8 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
+ 
+ func initReflect(i *interpreter) {
+ 	i.reflectPackage = &ssa.Package{
+-		Prog: i.prog,
+-		Types: &types.Package{
+-			Name:     "reflect",
+-			Path:     "reflect",
+-			Complete: true,
+-		},
++		Prog:       i.prog,
++		Types:      reflectTypesPackage,
+ 		ImportPath: "reflect",
+ 		Members:    make(map[string]ssa.Member),
+ 	}
+diff --git a/src/pkg/exp/ssa/interp/testdata/coverage.go b/src/pkg/exp/ssa/interp/testdata/coverage.go
+new file mode 100644
+index 0000000000..7573e0f69e
+--- /dev/null
++++ b/src/pkg/exp/ssa/interp/testdata/coverage.go
+@@ -0,0 +1,294 @@
++// This interpreter test is designed to run very quickly yet provide
++// some coverage of a broad selection of constructs.
++// TODO(adonovan): more.
++//
++// Validate this file with 'go run' after editing.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++)
++
++const zero int = 1
++
++var v = []int{1 + zero: 42}
++
++// Nonliteral keys in composite literal.
++func init() {
++	if x := fmt.Sprint(v); x != "[0 0 42]" {
++		panic(x)
++	}
++}
++
++type empty interface{}
++
++type I interface {
++	f() int
++}
++
++type T struct{ z int }
++
++func (t T) f() int { return t.z }
++
++func use(interface{}) {}
++
++var counter = 2
++
++// Test initialization, including init blocks containing 'return'.
++// Assertion is in main.
++func init() {
++	counter *= 3
++	return
++	counter *= 3
++}
++
++func init() {
++	counter *= 5
++	return
++	counter *= 5
++}
++
++// Recursion.
++func fib(x int) int {
++	if x < 2 {
++		return x
++	}
++	return fib(x-1) + fib(x-2)
++}
++
++func fibgen(ch chan int) {
++	for x := 0; x < 10; x++ {
++		ch <- fib(x)
++	}
++	close(ch)
++}
++
++// Goroutines and channels.
++func init() {
++	ch := make(chan int)
++	go fibgen(ch)
++	var fibs []int
++	for v := range ch {
++		fibs = append(fibs, v)
++		if len(fibs) == 10 {
++			break
++		}
++	}
++	if x := fmt.Sprint(fibs); x != "[0 1 1 2 3 5 8 13 21 34]" {
++		panic(x)
++	}
++}
++
++// Test of aliasing.
++func init() {
++	type S struct {
++		a, b string
++	}
++
++	s1 := []string{"foo", "bar"}
++	s2 := s1 // creates an alias
++	s2[0] = "wiz"
++	if x := fmt.Sprint(s1, s2); x != "[wiz bar] [wiz bar]" {
++		panic(x)
++	}
++
++	pa1 := &[2]string{"foo", "bar"}
++	pa2 := pa1        // creates an alias
++	(*pa2)[0] = "wiz" // * required to workaround typechecker bug
++	if x := fmt.Sprint(*pa1, *pa2); x != "[wiz bar] [wiz bar]" {
++		panic(x)
++	}
++
++	a1 := [2]string{"foo", "bar"}
++	a2 := a1 // creates a copy
++	a2[0] = "wiz"
++	if x := fmt.Sprint(a1, a2); x != "[foo bar] [wiz bar]" {
++		panic(x)
++	}
++
++	t1 := S{"foo", "bar"}
++	t2 := t1 // copy
++	t2.a = "wiz"
++	if x := fmt.Sprint(t1, t2); x != "{foo bar} {wiz bar}" {
++		panic(x)
++	}
++}
++
++// Range over string.
++func init() {
++	if x := len("Hello, 世界"); x != 13 { // bytes
++		panic(x)
++	}
++	var indices []int
++	var runes []rune
++	for i, r := range "Hello, 世界" {
++		runes = append(runes, r)
++		indices = append(indices, i)
++	}
++	if x := fmt.Sprint(runes); x != "[72 101 108 108 111 44 32 19990 30028]" {
++		panic(x)
++	}
++	if x := fmt.Sprint(indices); x != "[0 1 2 3 4 5 6 7 10]" {
++		panic(x)
++	}
++	s := ""
++	for _, r := range runes {
++		s = fmt.Sprintf("%s%c", s, r)
++	}
++	if s != "Hello, 世界" {
++		panic(s)
++	}
++}
++
++func main() {
++	if counter != 2*3*5 {
++		panic(counter)
++	}
++
++	// Test builtins (e.g. complex) preserve named argument types.
++	type N complex128
++	var n N
++	n = complex(1.0, 2.0)
++	if n != complex(1.0, 2.0) {
++		panic(n)
++	}
++	if x := reflect.TypeOf(n).String(); x != "main.N" {
++		panic(x)
++	}
++	if real(n) != 1.0 || imag(n) != 2.0 {
++		panic(n)
++	}
++
++	// Channel + select.
++	ch := make(chan int, 1)
++	select {
++	case ch <- 1:
++		// ok
++	default:
++		panic("couldn't send")
++	}
++	if <-ch != 1 {
++		panic("couldn't receive")
++	}
++
++	// Anon structs with methods.
++	anon := struct{ T }{T: T{z: 1}}
++	if x := anon.f(); x != 1 {
++		panic(x)
++	}
++	var i I = anon
++	if x := i.f(); x != 1 {
++		panic(x)
++	}
++	// NB. precise output of reflect.Type.String is undefined.
++	if x := reflect.TypeOf(i).String(); x != "struct { main.T }" && x != "struct{main.T}" {
++		panic(x)
++	}
++
++	// fmt.
++	const message = "Hello, World!"
++	if fmt.Sprintf("%s, %s!", "Hello", "World") != message {
++		panic("oops")
++	}
++
++	// Type assertion.
++	type S struct {
++		f int
++	}
++	var e empty = S{f: 42}
++	switch v := e.(type) {
++	case S:
++		if v.f != 42 {
++			panic(v.f)
++		}
++	default:
++		panic(reflect.TypeOf(v))
++	}
++	if i, ok := e.(I); ok {
++		panic(i)
++	}
++
++	// Switch.
++	var x int
++	switch x {
++	case 1:
++		panic(x)
++		fallthrough
++	case 2, 3:
++		panic(x)
++	default:
++		// ok
++	}
++	// empty switch
++	switch {
++	}
++	// empty switch
++	switch {
++	default:
++	}
++	// empty switch
++	switch {
++	default:
++		fallthrough
++	}
++
++	// string -> []rune conversion.
++	use([]rune("foo"))
++
++	// Calls of form x.f().
++	type S2 struct {
++		f func() int
++	}
++	S2{f: func() int { return 1 }}.f() // field is a func value
++	T{}.f()                            // method call
++	i.f()                              // interface method invocation
++	(interface {
++		f() int
++	}(T{})).f() // anon interface method invocation
++
++	// Map lookup.
++	if v, ok := map[string]string{}["foo5"]; v != "" || ok {
++		panic("oops")
++	}
++}
++
++// Simple closures.
++func init() {
++	b := 3
++	f := func(a int) int {
++		return a + b
++	}
++	b++
++	if x := f(1); x != 5 { // 1+4 == 5
++		panic(x)
++	}
++	b++
++	if x := f(2); x != 7 { // 2+5 == 7
++		panic(x)
++	}
++	if b := f(1) < 16 || f(2) < 17; !b {
++		panic("oops")
++	}
++}
++
++var order []int
++
++func create(x int) int {
++	order = append(order, x)
++	return x
++}
++
++var c = create(b + 1)
++var a, b = create(1), create(2)
++
++// Initialization order of package-level value specs.
++func init() {
++	if x := fmt.Sprint(order); x != "[2 3 1]" {
++		panic(x)
++	}
++	if c != 3 {
++		panic(c)
++	}
++}
+diff --git a/test/blank.go b/test/blank.go
+index ad4d6ebdc6..7f7d9f6f7f 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -8,7 +8,10 @@
+ 
+ package main
+ 
+-import "unsafe"
++import (
++	"os"
++	"unsafe"
++)
+ 
+ import _ "fmt"
+ 
+@@ -104,11 +107,15 @@ func main() {
+ 		panic(sum)
+ 	}
+ 
+-	type T1 struct{ x, y, z int }
+-	t1 := *(*T)(unsafe.Pointer(&T1{1, 2, 3}))
+-	t2 := *(*T)(unsafe.Pointer(&T1{4, 5, 6}))
+-	if t1 != t2 {
+-		panic("T{} != T{}")
++	// exp/ssa/interp doesn't yet skip blank fields in struct
++	// equivalence.  It also cannot support unsafe.Pointer.
++	if os.Getenv("GOSSAINTERP") == "" {
++		type T1 struct{ x, y, z int }
++		t1 := *(*T)(unsafe.Pointer(&T1{1, 2, 3}))
++		t2 := *(*T)(unsafe.Pointer(&T1{4, 5, 6}))
++		if t1 != t2 {
++			panic("T{} != T{}")
++		}
+ 	}
+ 
+ 	h(a, b)
+diff --git a/test/cmp.go b/test/cmp.go
+index a56ca6eadd..5be64561d5 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -8,9 +8,13 @@
+ 
+ package main
+ 
+-import "unsafe"
++import (
++	"os"
++	"unsafe"
++)
+ 
+ var global bool
++
+ func use(b bool) { global = b }
+ 
+ func stringptr(s string) uintptr { return *(*uintptr)(unsafe.Pointer(&s)) }
+@@ -38,8 +42,12 @@ func main() {
+ 	var c string = "hello"
+ 	var d string = "hel" // try to get different pointer
+ 	d = d + "lo"
+-	if stringptr(c) == stringptr(d) {
+-		panic("compiler too smart -- got same string")
++
++	// exp/ssa/interp can't handle unsafe.Pointer.
++	if os.Getenv("GOSSAINTERP") != "" {
++		if stringptr(c) == stringptr(d) {
++			panic("compiler too smart -- got same string")
++		}
+ 	}
+ 
+ 	var e = make(chan int)
+@@ -283,7 +291,7 @@ func main() {
+ 		isfalse(ix != z)
+ 		isfalse(iz != x)
+ 	}
+-	
++
+ 	// structs with _ fields
+ 	{
+ 		var x = struct {
+@@ -296,7 +304,7 @@ func main() {
+ 			x: 1, y: 2, z: 3,
+ 		}
+ 		var ix interface{} = x
+-		
++
+ 		istrue(x == x)
+ 		istrue(x == ix)
+ 		istrue(ix == x)
+diff --git a/test/const.go b/test/const.go
+index 80fbfaf3ea..d583659c6c 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -8,27 +8,29 @@
+ 
+ package main
+ 
++import "os"
++
+ const (
+-	c0 = 0
+-	cm1 = -1
+-	chuge = 1 << 100
++	c0      = 0
++	cm1     = -1
++	chuge   = 1 << 100
+ 	chuge_1 = chuge - 1
+-	c1 = chuge >> 100
+-	c3div2 = 3/2
+-	c1e3 = 1e3
++	c1      = chuge >> 100
++	c3div2  = 3 / 2
++	c1e3    = 1e3
+ 
+-	ctrue = true
++	ctrue  = true
+ 	cfalse = !ctrue
+ )
+ 
+ const (
+-	f0 = 0.0
+-	fm1 = -1.
+-	fhuge float64 = 1 << 100
++	f0              = 0.0
++	fm1             = -1.
++	fhuge   float64 = 1 << 100
+ 	fhuge_1 float64 = chuge - 1
+-	f1 float64 = chuge >> 100
+-	f3div2 = 3./2.
+-	f1e3 float64 = 1e3
++	f1      float64 = chuge >> 100
++	f3div2          = 3. / 2.
++	f1e3    float64 = 1e3
+ )
+ 
+ func assert(t bool, s string) {
+@@ -41,8 +43,8 @@ func ints() {
+ 	assert(c0 == 0, "c0")
+ 	assert(c1 == 1, "c1")
+ 	assert(chuge > chuge_1, "chuge")
+-	assert(chuge_1 + 1 == chuge, "chuge 1")
+-	assert(chuge + cm1 +1  == chuge, "cm1")
++	assert(chuge_1+1 == chuge, "chuge 1")
++	assert(chuge+cm1+1 == chuge, "cm1")
+ 	assert(c3div2 == 1, "3/2")
+ 	assert(c1e3 == 1000, "c1e3 int")
+ 	assert(c1e3 == 1e3, "c1e3 float")
+@@ -81,9 +83,12 @@ func ints() {
+ func floats() {
+ 	assert(f0 == c0, "f0")
+ 	assert(f1 == c1, "f1")
+-	assert(fhuge == fhuge_1, "fhuge")	// float64 can't distinguish fhuge, fhuge_1.
+-	assert(fhuge_1 + 1 == fhuge, "fhuge 1")
+-	assert(fhuge + fm1 +1  == fhuge, "fm1")
++	// TODO(gri): exp/ssa/interp constant folding is incorrect.
++	if os.Getenv("GOSSAINTERP") == "" {
++		assert(fhuge == fhuge_1, "fhuge") // float64 can't distinguish fhuge, fhuge_1.
++	}
++	assert(fhuge_1+1 == fhuge, "fhuge 1")
++	assert(fhuge+fm1+1 == fhuge, "fm1")
+ 	assert(f3div2 == 1.5, "3./2.")
+ 	assert(f1e3 == 1000, "f1e3 int")
+ 	assert(f1e3 == 1.e3, "f1e3 float")
+diff --git a/test/recover.go b/test/recover.go
+index eea655ec57..7c27d7c4d6 100644
+--- a/test/recover.go
++++ b/test/recover.go
+@@ -8,15 +8,21 @@
+ 
+ package main
+ 
+-import "runtime"
++import (
++	"os"
++	"runtime"
++)
+ 
+ func main() {
+ 	test1()
+ 	test1WithClosures()
+ 	test2()
+ 	test3()
+-	test4()
+-	test5()
++	// exp/ssa/interp still has some bugs in recover().
++	if os.Getenv("GOSSAINTERP") == "" {
++		test4()
++		test5()
++	}
+ 	test6()
+ 	test6WithClosures()
+ 	test7()

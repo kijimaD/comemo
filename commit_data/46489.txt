@@ -20,7 +20,55 @@ Date:   Tue Jan 5 03:28:06 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/node.go             |  5 ++++-
  src/cmd/compile/internal/typecheck/typecheck.go | 13 ++++++++-----
  2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a5a7203faa..850d7343aa 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -568,7 +568,10 @@ func OuterValue(n Node) Node {
+ 			continue
+ 		case OINDEX:
+ 			nn := nn.(*IndexExpr)
+-			if nn.X.Type() != nil && nn.X.Type().IsArray() {
++			if nn.X.Type() == nil {
++				base.Fatalf("OuterValue needs type for %v", nn.X)
++			}
++			if nn.X.Type().IsArray() {
+ 				n = nn.X
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 981f4ef1d6..c3a5a3c40f 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1612,6 +1612,14 @@ func checklvalue(n ir.Node, verb string) {
+ }
+ 
+ func checkassign(stmt ir.Node, n ir.Node) {
++	// have already complained about n being invalid
++	if n.Type() == nil {
++		if base.Errors() == 0 {
++			base.Fatalf("expected an error about %v", n)
++		}
++		return
++	}
++
+ 	// Variables declared in ORANGE are assigned on every iteration.
+ 	if !ir.DeclaredBy(n, stmt) || stmt.Op() == ir.ORANGE {
+ 		r := ir.OuterValue(n)
+@@ -1633,11 +1641,6 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 		return
+ 	}
+ 
+-	// have already complained about n being invalid
+-	if n.Type() == nil {
+-		return
+-	}
+-
+ 	switch {
+ 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
+ 		base.Errorf("cannot assign to struct field %v in map", n)

@@ -16,7 +16,34 @@ Date:   Mon Aug 30 17:40:45 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.src | 7 +++++++
  src/go/types/testdata/fixedbugs/issue48082.src                    | 7 +++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.src b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.src
+new file mode 100644
+index 0000000000..5395154978
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48082.src
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue48082
++
++import "init" /* ERROR init must be a func */ /* ERROR could not import init */
+diff --git a/src/go/types/testdata/fixedbugs/issue48082.src b/src/go/types/testdata/fixedbugs/issue48082.src
+new file mode 100644
+index 0000000000..5395154978
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48082.src
+@@ -0,0 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue48082
++
++import "init" /* ERROR init must be a func */ /* ERROR could not import init */

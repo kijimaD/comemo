@@ -10,9 +10,85 @@ Date:   Mon Jun 27 09:16:42 2011 -0400
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/4654064
-
+---
  src/pkg/crypto/aes/cipher.go      | 4 ++--
  src/pkg/crypto/blowfish/cipher.go | 4 ++--
  src/pkg/crypto/twofish/twofish.go | 2 +-
  src/pkg/crypto/xtea/cipher.go     | 4 ++--
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/crypto/aes/cipher.go b/src/pkg/crypto/aes/cipher.go
+index 3a9d023184..73223531e1 100644
+--- a/src/pkg/crypto/aes/cipher.go
++++ b/src/pkg/crypto/aes/cipher.go
+@@ -45,14 +45,14 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
+ 
+ // BlockSize returns the AES block size, 16 bytes.
+ // It is necessary to satisfy the Cipher interface in the
+-// package "crypto/block".
++// package "crypto/cipher".
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 
+ // Encrypt encrypts the 16-byte buffer src using the key k
+ // and stores the result in dst.
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+-// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
++// instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
+ func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c.enc, dst, src) }
+ 
+ // Decrypt decrypts the 16-byte buffer src using the key k
+diff --git a/src/pkg/crypto/blowfish/cipher.go b/src/pkg/crypto/blowfish/cipher.go
+index f3c5175acf..6c37dfe940 100644
+--- a/src/pkg/crypto/blowfish/cipher.go
++++ b/src/pkg/crypto/blowfish/cipher.go
+@@ -42,14 +42,14 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
+ 
+ // BlockSize returns the Blowfish block size, 8 bytes.
+ // It is necessary to satisfy the Cipher interface in the
+-// package "crypto/block".
++// package "crypto/cipher".
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 
+ // Encrypt encrypts the 8-byte buffer src using the key k
+ // and stores the result in dst.
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+-// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
++// instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
+ func (c *Cipher) Encrypt(dst, src []byte) {
+ 	l := uint32(src[0])<<24 | uint32(src[1])<<16 | uint32(src[2])<<8 | uint32(src[3])
+ 	r := uint32(src[4])<<24 | uint32(src[5])<<16 | uint32(src[6])<<8 | uint32(src[7])
+diff --git a/src/pkg/crypto/twofish/twofish.go b/src/pkg/crypto/twofish/twofish.go
+index 1a1aac9b99..2e537c6061 100644
+--- a/src/pkg/crypto/twofish/twofish.go
++++ b/src/pkg/crypto/twofish/twofish.go
+@@ -269,7 +269,7 @@ func h(in, key []byte, offset int) uint32 {
+ // Encrypt encrypts a 16-byte block from src to dst, which may overlap.
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+-// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
++// instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
+ func (c *Cipher) Encrypt(dst, src []byte) {
+ 	S1 := c.s[0]
+ 	S2 := c.s[1]
+diff --git a/src/pkg/crypto/xtea/cipher.go b/src/pkg/crypto/xtea/cipher.go
+index f2a5da0035..b3fba3c841 100644
+--- a/src/pkg/crypto/xtea/cipher.go
++++ b/src/pkg/crypto/xtea/cipher.go
+@@ -48,13 +48,13 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
+ 
+ // BlockSize returns the XTEA block size, 8 bytes.
+ // It is necessary to satisfy the Cipher interface in the
+-// package "crypto/block".
++// package "crypto/cipher".
+ func (c *Cipher) BlockSize() int { return BlockSize }
+ 
+ // Encrypt encrypts the 8 byte buffer src using the key and stores the result in dst.
+ // Note that for amounts of data larger than a block,
+ // it is not safe to just call Encrypt on successive blocks;
+-// instead, use an encryption mode like CBC (see crypto/block/cbc.go).
++// instead, use an encryption mode like CBC (see crypto/cipher/cbc.go).
+ func (c *Cipher) Encrypt(dst, src []byte) { encryptBlock(c, dst, src) }
+ 
+ // Decrypt decrypts the 8 byte buffer src using the key k and stores the result in dst.

@@ -7,9 +7,187 @@ Date:   Fri Aug 3 14:25:35 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6442080
-
+---
  src/pkg/os/error_plan9.go   | 24 +++++++++++++++---------
  src/pkg/os/error_posix.go   | 21 ++++++++++++++++++---
  src/pkg/os/error_test.go    | 27 +++++++++++++++++++++++++++
  src/pkg/os/error_windows.go | 22 +++++++++++++++++-----
  4 files changed, 77 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index f083a2d1de..85260c82ae 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -5,30 +5,36 @@
+ package os
+ 
+ func isExist(err error) bool {
+-	if err == nil {
++	switch pe := err.(type) {
++	case nil:
+ 		return false
+-	}
+-	if pe, ok := err.(*PathError); ok {
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return contains(err.Error(), " exists")
+ }
+ 
+ func isNotExist(err error) bool {
+-	if err == nil {
++	switch pe := err.(type) {
++	case nil:
+ 		return false
+-	}
+-	if pe, ok := err.(*PathError); ok {
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return contains(err.Error(), "does not exist")
+ }
+ 
+ func isPermission(err error) bool {
+-	if err == nil {
++	switch pe := err.(type) {
++	case nil:
+ 		return false
+-	}
+-	if pe, ok := err.(*PathError); ok {
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return contains(err.Error(), "permission denied")
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 1685c1f213..81b626aecb 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -9,21 +9,36 @@ package os
+ import "syscall"
+ 
+ func isExist(err error) bool {
+-	if pe, ok := err.(*PathError); ok {
++	switch pe := err.(type) {
++	case nil:
++		return false
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.EEXIST || err == ErrExist
+ }
+ 
+ func isNotExist(err error) bool {
+-	if pe, ok := err.(*PathError); ok {
++	switch pe := err.(type) {
++	case nil:
++		return false
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.ENOENT || err == ErrNotExist
+ }
+ 
+ func isPermission(err error) bool {
+-	if pe, ok := err.(*PathError); ok {
++	switch pe := err.(type) {
++	case nil:
++		return false
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.EACCES || err == syscall.EPERM || err == ErrPermission
+diff --git a/src/pkg/os/error_test.go b/src/pkg/os/error_test.go
+index 42f846fa3c..054bb3fcbc 100644
+--- a/src/pkg/os/error_test.go
++++ b/src/pkg/os/error_test.go
+@@ -79,3 +79,30 @@ func checkErrorPredicate(predName string, pred func(error) bool, err error) stri
+ 	}
+ 	return ""
+ }
++
++var isExistTests = []struct {
++	err   error
++	is    bool
++	isnot bool
++}{
++	{&os.PathError{Err: os.ErrInvalid}, false, false},
++	{&os.PathError{Err: os.ErrPermission}, false, false},
++	{&os.PathError{Err: os.ErrExist}, true, false},
++	{&os.PathError{Err: os.ErrNotExist}, false, true},
++	{&os.LinkError{Err: os.ErrInvalid}, false, false},
++	{&os.LinkError{Err: os.ErrPermission}, false, false},
++	{&os.LinkError{Err: os.ErrExist}, true, false},
++	{&os.LinkError{Err: os.ErrNotExist}, false, true},
++	{nil, false, false},
++}
++
++func TestIsExist(t *testing.T) {
++	for _, tt := range isExistTests {
++		if is := os.IsExist(tt.err); is != tt.is {
++			t.Errorf("os.IsExist(%T %v) = %v, want %v", tt.err, tt.err, is, tt.is)
++		}
++		if isnot := os.IsNotExist(tt.err); isnot != tt.isnot {
++			t.Errorf("os.IsNotExist(%T %v) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
++		}
++	}
++}
+diff --git a/src/pkg/os/error_windows.go b/src/pkg/os/error_windows.go
+index 2562485726..83db6c0784 100644
+--- a/src/pkg/os/error_windows.go
++++ b/src/pkg/os/error_windows.go
+@@ -7,10 +7,12 @@ package os
+ import "syscall"
+ 
+ func isExist(err error) bool {
+-	if pe, ok := err.(*PathError); ok {
++	switch pe := err.(type) {
++	case nil:
++		return false
++	case *PathError:
+ 		err = pe.Err
+-	}
+-	if pe, ok := err.(*LinkError); ok {
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.ERROR_ALREADY_EXISTS ||
+@@ -18,7 +20,12 @@ func isExist(err error) bool {
+ }
+ 
+ func isNotExist(err error) bool {
+-	if pe, ok := err.(*PathError); ok {
++	switch pe := err.(type) {
++	case nil:
++		return false
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.ERROR_FILE_NOT_FOUND ||
+@@ -26,7 +33,12 @@ func isNotExist(err error) bool {
+ }
+ 
+ func isPermission(err error) bool {
+-	if pe, ok := err.(*PathError); ok {
++	switch pe := err.(type) {
++	case nil:
++		return false
++	case *PathError:
++		err = pe.Err
++	case *LinkError:
+ 		err = pe.Err
+ 	}
+ 	return err == syscall.ERROR_ACCESS_DENIED || err == ErrPermission

@@ -16,7 +16,91 @@ Date:   Fri Nov 18 14:54:14 2022 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go                       | 18 ++++++++++--------
  .../testdata/script/list_compiled_files_issue28749.txt | 10 ++++++++++
  2 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 344f409199..7569935926 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -479,7 +479,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 				p.BuildID = a.buildID
+ 			}
+ 			if need&needCompiledGoFiles != 0 {
+-				if err := b.loadCachedSrcFiles(a); err == nil {
++				if err := b.loadCachedCompiledGoFiles(a); err == nil {
+ 					need &^= needCompiledGoFiles
+ 				}
+ 			}
+@@ -488,7 +488,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		// Source files might be cached, even if the full action is not
+ 		// (e.g., go list -compiled -find).
+ 		if !cachedBuild && need&needCompiledGoFiles != 0 {
+-			if err := b.loadCachedSrcFiles(a); err == nil {
++			if err := b.loadCachedCompiledGoFiles(a); err == nil {
+ 				need &^= needCompiledGoFiles
+ 			}
+ 		}
+@@ -773,7 +773,7 @@ OverlayLoop:
+ 		need &^= needVet
+ 	}
+ 	if need&needCompiledGoFiles != 0 {
+-		if err := b.loadCachedSrcFiles(a); err != nil {
++		if err := b.loadCachedCompiledGoFiles(a); err != nil {
+ 			return fmt.Errorf("loading compiled Go files from cache: %w", err)
+ 		}
+ 		need &^= needCompiledGoFiles
+@@ -1040,28 +1040,30 @@ func (b *Builder) loadCachedVet(a *Action) error {
+ 	return nil
+ }
+ 
+-func (b *Builder) loadCachedSrcFiles(a *Action) error {
++func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
+ 	c := cache.Default()
+ 	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+ 	if err != nil {
+ 		return fmt.Errorf("reading srcfiles list: %w", err)
+ 	}
+-	var files []string
++	var gofiles []string
+ 	for _, name := range strings.Split(string(list), "\n") {
+ 		if name == "" { // end of list
+ 			continue
++		} else if !strings.HasSuffix(name, ".go") {
++			continue
+ 		}
+ 		if strings.HasPrefix(name, "./") {
+-			files = append(files, name[len("./"):])
++			gofiles = append(gofiles, name[len("./"):])
+ 			continue
+ 		}
+ 		file, err := b.findCachedObjdirFile(a, c, name)
+ 		if err != nil {
+ 			return fmt.Errorf("finding %s: %w", name, err)
+ 		}
+-		files = append(files, file)
++		gofiles = append(gofiles, file)
+ 	}
+-	a.Package.CompiledGoFiles = files
++	a.Package.CompiledGoFiles = gofiles
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/list_compiled_files_issue28749.txt b/src/cmd/go/testdata/script/list_compiled_files_issue28749.txt
+new file mode 100644
+index 0000000000..e0fb977c8d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_compiled_files_issue28749.txt
+@@ -0,0 +1,10 @@
++go list -compiled -f {{.CompiledGoFiles}} .
++! stdout 'foo.s'
++
++-- go.mod --
++module example.com/foo
++
++go 1.20
++-- foo.go --
++package foo
++-- foo.s --

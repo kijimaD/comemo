@@ -9,7 +9,46 @@ Date:   Wed Oct 24 10:23:43 2018 -0700
     Change-Id: Ie9d1748c36864a81a633f0016594912ac7dfc005
     Reviewed-on: https://go-review.googlesource.com/c/144385
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/expr.go             |  6 +++++-
  src/go/types/testdata/shifts.src | 12 ++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 35e9b36f31..0dc007069f 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -461,7 +461,11 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 			check.invalidOp(x.Pos(), "shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+-	} else if old.val != nil {
++		// Even if we have an integer, if the value is a constant we
++		// still must check that it is representable as the specific
++		// int type requested (was issue #22969). Fall through here.
++	}
++	if old.val != nil {
+ 		// If x is a constant, it must be representable as a value of typ.
+ 		c := operand{old.mode, x, old.typ, old.val, 0}
+ 		check.convertUntyped(&c, typ)
+diff --git a/src/go/types/testdata/shifts.src b/src/go/types/testdata/shifts.src
+index ca288290d6..52e340ec65 100644
+--- a/src/go/types/testdata/shifts.src
++++ b/src/go/types/testdata/shifts.src
+@@ -354,3 +354,15 @@ func issue21727() {
+ 	var _ = string(1 << s)
+ 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
+ }
++
++func issue22969() {
++	var s uint
++	var a []byte
++	_ = a[0xffffffffffffffff /* ERROR "overflows int" */ <<s] // example from issue 22969
++	_ = make([]int, 0xffffffffffffffff /* ERROR "overflows int" */ << s)
++	_ = make([]int, 0, 0xffffffffffffffff /* ERROR "overflows int" */ << s)
++	var _ byte = 0x100 /* ERROR "overflows byte" */ << s
++	var _ int8 = 0xff /* ERROR "overflows int8" */ << s
++	var _ int16 = 0xffff /* ERROR "overflows int16" */ << s
++	var _ int32 = 0x80000000 /* ERROR "overflows int32" */ << s
++}
+\ No newline at end of file

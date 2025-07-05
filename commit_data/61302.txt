@@ -13,6 +13,45 @@ Date:   Sun Apr 10 23:38:23 2022 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/aes/asm_arm64.s | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/aes/asm_arm64.s b/src/crypto/aes/asm_arm64.s
+index 2bf5bee2b5..192d0df896 100644
+--- a/src/crypto/aes/asm_arm64.s
++++ b/src/crypto/aes/asm_arm64.s
+@@ -22,14 +22,14 @@ TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
+ 
+ 	CMP	$12, R9
+ 	BLT	enc128
+-	BEQ	enc196
++	BEQ	enc192
+ enc256:
+ 	VLD1.P	32(R10), [V1.B16, V2.B16]
+ 	AESE	V1.B16, V0.B16
+ 	AESMC	V0.B16, V0.B16
+ 	AESE	V2.B16, V0.B16
+ 	AESMC	V0.B16, V0.B16
+-enc196:
++enc192:
+ 	VLD1.P	32(R10), [V3.B16, V4.B16]
+ 	AESE	V3.B16, V0.B16
+ 	AESMC	V0.B16, V0.B16
+@@ -73,14 +73,14 @@ TEXT ·decryptBlockAsm(SB),NOSPLIT,$0
+ 
+ 	CMP	$12, R9
+ 	BLT	dec128
+-	BEQ	dec196
++	BEQ	dec192
+ dec256:
+ 	VLD1.P	32(R10), [V1.B16, V2.B16]
+ 	AESD	V1.B16, V0.B16
+ 	AESIMC	V0.B16, V0.B16
+ 	AESD	V2.B16, V0.B16
+ 	AESIMC	V0.B16, V0.B16
+-dec196:
++dec192:
+ 	VLD1.P	32(R10), [V3.B16, V4.B16]
+ 	AESD	V3.B16, V0.B16
+ 	AESIMC	V0.B16, V0.B16

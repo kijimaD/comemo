@@ -13,8 +13,169 @@ Date:   Fri Nov 11 18:34:18 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/malloc.go   | 40 +++++++++++++++++-----------------------
  src/runtime/mbitmap.go  | 17 ++++-------------
  src/runtime/mcentral.go |  1 +
  3 files changed, 22 insertions(+), 36 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c7335c55c6..70a13d0576 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -813,22 +813,24 @@ retry:
+ // base address for all 0-byte allocations
+ var zerobase uintptr
+ 
+-// nextFreeFast returns the next free object if one is quickly available,
+-// and the corresponding free index. Otherwise it returns 0, 0.
+-func nextFreeFast(s *mspan) (gclinkptr, uintptr) {
++// nextFreeFast returns the next free object if one is quickly available.
++// Otherwise it returns 0.
++func nextFreeFast(s *mspan) gclinkptr {
+ 	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
+ 	if theBit < 64 {
+ 		result := s.freeindex + uintptr(theBit)
+ 		if result < s.nelems {
++			freeidx := result + 1
++			if freeidx%64 == 0 && freeidx != s.nelems {
++				return 0
++			}
+ 			s.allocCache >>= uint(theBit + 1)
+-			// NOTE: s.freeindex is not updated for now (although allocCache
+-			// is updated). mallocgc will update s.freeindex later after the
+-			// memory is initialized.
++			s.freeindex = freeidx
+ 			s.allocCount++
+-			return gclinkptr(result*s.elemsize + s.base()), result
++			return gclinkptr(result*s.elemsize + s.base())
+ 		}
+ 	}
+-	return 0, 0
++	return 0
+ }
+ 
+ // nextFree returns the next free object from the cached span if one is available.
+@@ -840,10 +842,10 @@ func nextFreeFast(s *mspan) (gclinkptr, uintptr) {
+ //
+ // Must run in a non-preemptible context since otherwise the owner of
+ // c could change.
+-func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, freeIndex uintptr, shouldhelpgc bool) {
++func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+ 	s = c.alloc[spc]
+ 	shouldhelpgc = false
+-	freeIndex = s.nextFreeIndex()
++	freeIndex := s.nextFreeIndex()
+ 	if freeIndex == s.nelems {
+ 		// The span is full.
+ 		if uintptr(s.allocCount) != s.nelems {
+@@ -951,7 +953,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// In some cases block zeroing can profitably (for latency reduction purposes)
+ 	// be delayed till preemption is possible; delayedZeroing tracks that state.
+ 	delayedZeroing := false
+-	var freeidx uintptr
+ 	if size <= maxSmallSize {
+ 		if noscan && size < maxTinySize {
+ 			// Tiny allocator.
+@@ -1011,10 +1012,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			}
+ 			// Allocate a new maxTinySize block.
+ 			span = c.alloc[tinySpanClass]
+-			var v gclinkptr
+-			v, freeidx = nextFreeFast(span)
++			v := nextFreeFast(span)
+ 			if v == 0 {
+-				v, span, freeidx, shouldhelpgc = c.nextFree(tinySpanClass)
++				v, span, shouldhelpgc = c.nextFree(tinySpanClass)
+ 			}
+ 			x = unsafe.Pointer(v)
+ 			(*[2]uint64)(x)[0] = 0
+@@ -1037,10 +1037,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			size = uintptr(class_to_size[sizeclass])
+ 			spc := makeSpanClass(sizeclass, noscan)
+ 			span = c.alloc[spc]
+-			var v gclinkptr
+-			v, freeidx = nextFreeFast(span)
++			v := nextFreeFast(span)
+ 			if v == 0 {
+-				v, span, freeidx, shouldhelpgc = c.nextFree(spc)
++				v, span, shouldhelpgc = c.nextFree(spc)
+ 			}
+ 			x = unsafe.Pointer(v)
+ 			if needzero && span.needzero != 0 {
+@@ -1052,7 +1051,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		// For large allocations, keep track of zeroed state so that
+ 		// bulk zeroing can be happen later in a preemptible context.
+ 		span = c.allocLarge(size, noscan)
+-		freeidx = 0
++		span.freeindex = 1
+ 		span.allocCount = 1
+ 		size = span.elemsize
+ 		x = unsafe.Pointer(span.base())
+@@ -1094,11 +1093,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// but see uninitialized memory or stale heap bits.
+ 	publicationBarrier()
+ 
+-	// As x and the heap bits are initialized, update
+-	// freeindx now so x is seen by the GC (including
+-	// convervative scan) as an allocated object.
+-	span.updateFreeIndex(freeidx + 1)
+-
+ 	// Allocate black during GC.
+ 	// All slots hold nil so no scanning is needed.
+ 	// This may be racing with GC so do it atomically if there can be
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 8fee8262b7..dc99ba768b 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -132,8 +132,7 @@ func (s *mspan) refillAllocCache(whichByte uintptr) {
+ }
+ 
+ // nextFreeIndex returns the index of the next free object in s at
+-// or after s.freeindex. s.freeindex is not updated (except the full
+-// span case), but the alloc cache is updated.
++// or after s.freeindex.
+ // There are hardware instructions that can be used to make this
+ // faster if profiling warrants it.
+ func (s *mspan) nextFreeIndex() uintptr {
+@@ -171,18 +170,9 @@ func (s *mspan) nextFreeIndex() uintptr {
+ 	}
+ 
+ 	s.allocCache >>= uint(bitIndex + 1)
++	sfreeindex = result + 1
+ 
+-	// NOTE: s.freeindex is not updated for now (although allocCache
+-	// is updated). mallocgc will update s.freeindex later after the
+-	// memory is initialized.
+-
+-	return result
+-}
+-
+-// updateFreeIndex updates s.freeindex to sfreeindex, refills
+-// the allocCache if necessary.
+-func (s *mspan) updateFreeIndex(sfreeindex uintptr) {
+-	if sfreeindex%64 == 0 && sfreeindex != s.nelems {
++	if sfreeindex%64 == 0 && sfreeindex != snelems {
+ 		// We just incremented s.freeindex so it isn't 0.
+ 		// As each 1 in s.allocCache was encountered and used for allocation
+ 		// it was shifted away. At this point s.allocCache contains all 0s.
+@@ -192,6 +182,7 @@ func (s *mspan) updateFreeIndex(sfreeindex uintptr) {
+ 		s.refillAllocCache(whichByte)
+ 	}
+ 	s.freeindex = sfreeindex
++	return result
+ }
+ 
+ // isFree reports whether the index'th object in s is unallocated.
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 6621af5f78..3382c54e7f 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -146,6 +146,7 @@ func (c *mcentral) cacheSpan() *mspan {
+ 				// Check if there's any free space.
+ 				freeIndex := s.nextFreeIndex()
+ 				if freeIndex != s.nelems {
++					s.freeindex = freeIndex
+ 					sweep.active.end(sl)
+ 					goto havespan
+ 				}

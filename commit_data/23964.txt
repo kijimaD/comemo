@@ -9,7 +9,36 @@ Date:   Fri Jun 26 08:46:30 2015 +1000
     Change-Id: I195575a54e30ad6d6b1d0996fde34c0163bbd2c2
     Reviewed-on: https://go-review.googlesource.com/11530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  CONTRIBUTING.md  | 2 ++
  doc/contrib.html | 4 ++++
  2 files changed, 6 insertions(+)
+
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 0ba13d34b7..712431cab5 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -18,6 +18,8 @@ When filing an issue, make sure to answer these five questions:
+ General questions should go to the [golang-nuts mailing list](https://groups.google.com/group/golang-nuts) instead of the issue tracker.
+ The gophers there will answer or ask you to file an issue if you've tripped over a bug.
+ 
++Sensitive security-related issues should be reported to [security@golang.org](mailto:security@golang.org).
++
+ ## Contributing code
+ 
+ Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html)
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 93a609fb20..c286abc9b8 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -91,6 +91,10 @@ a new one.)
+ We pride ourselves on being meticulous; no issue is too small.
+ </p>
+ 
++<p>
++Sensitive security-related issues should be reported to <a href="mailto:security@golang.org">security@golang.org</a>.
++</p>
++
+ <h3><a href="/doc/contribute.html">Contributing code</a></h3>
+ 
+ <p>

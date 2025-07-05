@@ -9,8 +9,146 @@ Date:   Wed Sep 14 20:23:21 2011 -0400
     R=rsc, dvyukov, alex.brainman, jp
     CC=golang-dev
     https://golang.org/cl/4997044
-
+---
  src/pkg/runtime/mgc0.c           |  2 --
  src/pkg/runtime/runtime.h        |  9 +++++--
  src/pkg/runtime/windows/thread.c | 51 +++++++++++++++++++++++++++-------------
  3 files changed, 42 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index e79317bf6f..03d6f7d629 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -603,8 +603,6 @@ runtime·gc(int32 force)
+ 
+ 	m->gcing = 1;
+ 	runtime·stoptheworld();
+-	if(runtime·mheap.Lock.key != 0)
+-		runtime·throw("runtime·mheap locked during gc");
+ 
+ 	cachestats();
+ 	heap0 = mstats.heap_alloc;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8753842a01..25751b80e1 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -119,10 +119,10 @@ enum
+  */
+ struct	Lock
+ {
+-	uint32	key;
+ #ifdef __WINDOWS__
+-	void*	event;
++	M*	waitm;	// linked list of waiting M's
+ #else
++	uint32	key;
+ 	uint32	sema;	// for OS X
+ #endif
+ };
+@@ -251,6 +251,11 @@ struct	M
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags
++
++#ifdef __WINDOWS__
++	void*	event;		// event for signalling
++	M*	nextwaitm;	// next M waiting for lock
++#endif
+ };
+ 
+ struct	Stktop
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index fe8a24f1cd..33637f1d7a 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -40,14 +40,12 @@ extern void *runtime·WaitForSingleObject;
+ extern void *runtime·WriteFile;
+ 
+ static int64 timerfreq;
+-static void destroylock(Lock *l);
+ 
+ void
+ runtime·osinit(void)
+ {
+ 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
+ 	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, (uintptr)1);
+-	runtime·destroylock = destroylock;
+ }
+ 
+ void
+@@ -120,22 +118,50 @@ initevent(void **pevent)
+ 	}
+ }
+ 
++#define LOCK_HELD ((M*)-1)
++
+ static void
+ eventlock(Lock *l)
+ {
+ 	// Allocate event if needed.
+-	if(l->event == 0)
+-		initevent(&l->event);
++	if(m->event == nil)
++		initevent(&m->event);
++
++	for(;;) {
++		m->nextwaitm = runtime·atomicloadp(&l->waitm);
++		if(m->nextwaitm == nil) {
++			if(runtime·casp(&l->waitm, nil, LOCK_HELD))
++				return;
++		// Someone else has it.
++		// l->waitm points to a linked list of M's waiting
++		// for this lock, chained through m->nextwaitm.
++		// Queue this M.
++		} else if(runtime·casp(&l->waitm, m->nextwaitm, m))
++			break;
++	}
+ 
+-	if(runtime·xadd(&l->key, 1) > 1)	// someone else has it; wait
+-		runtime·stdcall(runtime·WaitForSingleObject, 2, l->event, (uintptr)-1);
++	// Wait.
++	runtime·stdcall(runtime·WaitForSingleObject, 2, m->event, (uintptr)-1);
+ }
+ 
+ static void
+ eventunlock(Lock *l)
+ {
+-	if(runtime·xadd(&l->key, -1) > 0)	// someone else is waiting
+-		runtime·stdcall(runtime·SetEvent, 1, l->event);
++	M *mp;
++
++	for(;;) {
++		mp = runtime·atomicloadp(&l->waitm);
++		if(mp == LOCK_HELD) {
++			if(runtime·casp(&l->waitm, LOCK_HELD, nil))
++				return;
++		// Other M's are waiting for the lock.
++		// Dequeue a M.
++		} else if(runtime·casp(&l->waitm, mp, mp->nextwaitm))
++			break;
++	}
++
++	// Wake that M.
++	runtime·stdcall(runtime·SetEvent, 1, mp->event);
+ }
+ 
+ void
+@@ -156,17 +182,10 @@ runtime·unlock(Lock *l)
+ 	eventunlock(l);
+ }
+ 
+-static void
+-destroylock(Lock *l)
+-{
+-	if(l->event != 0)
+-		runtime·stdcall(runtime·CloseHandle, 1, l->event);
+-}
+-
+ void
+ runtime·noteclear(Note *n)
+ {
+-	n->lock.key = 0;	// memset(n, 0, sizeof *n)
++	n->lock.waitm = nil;
+ 	eventlock(&n->lock);
+ }
+ 

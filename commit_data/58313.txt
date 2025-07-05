@@ -12,7 +12,59 @@ Date:   Fri Oct 27 12:30:53 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/538215
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/testenv/exec.go         |  5 ++++-
  src/internal/testenv/testenv_test.go | 23 +++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/testenv/exec.go b/src/internal/testenv/exec.go
+index 50d3b0dc73..7f6ad5cac4 100644
+--- a/src/internal/testenv/exec.go
++++ b/src/internal/testenv/exec.go
+@@ -100,11 +100,14 @@ func MustHaveExecPath(t testing.TB, path string) {
+ // CleanCmdEnv will fill cmd.Env with the environment, excluding certain
+ // variables that could modify the behavior of the Go tools such as
+ // GODEBUG and GOTRACEBACK.
++//
++// If the caller wants to set cmd.Dir, set it before calling this function,
++// so PWD will be set correctly in the environment.
+ func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
+ 	if cmd.Env != nil {
+ 		panic("environment already set")
+ 	}
+-	for _, env := range os.Environ() {
++	for _, env := range cmd.Environ() {
+ 		// Exclude GODEBUG from the environment to prevent its output
+ 		// from breaking tests that are trying to parse other command output.
+ 		if strings.HasPrefix(env, "GODEBUG=") {
+diff --git a/src/internal/testenv/testenv_test.go b/src/internal/testenv/testenv_test.go
+index d748e41540..d39a02b981 100644
+--- a/src/internal/testenv/testenv_test.go
++++ b/src/internal/testenv/testenv_test.go
+@@ -163,3 +163,26 @@ func TestMustHaveExec(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCleanCmdEnvPWD(t *testing.T) {
++	// Test that CleanCmdEnv sets PWD if cmd.Dir is set.
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("PWD is not used on %s", runtime.GOOS)
++	}
++	dir := t.TempDir()
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "help")
++	cmd.Dir = dir
++	cmd = testenv.CleanCmdEnv(cmd)
++
++	for _, env := range cmd.Env {
++		if strings.HasPrefix(env, "PWD=") {
++			pwd := strings.TrimPrefix(env, "PWD=")
++			if pwd != dir {
++				t.Errorf("unexpected PWD: want %s, got %s", dir, pwd)
++			}
++			return
++		}
++	}
++	t.Error("PWD not set in cmd.Env")
++}

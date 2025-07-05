@@ -11,6 +11,20 @@ Date:   Thu Nov 26 11:45:50 2015 -0500
     Change-Id: I3c92a07233b2174c5731d6fa7fbb9ca3a97beb6b
     Reviewed-on: https://go-review.googlesource.com/17237
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bufio/bufio.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 3bbb933df3..6a70f7034d 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -179,7 +179,7 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
+ 
+ // Read reads data into p.
+ // It returns the number of bytes read into p.
+-// It calls Read at most once on the underlying Reader,
++// The bytes are taken from at most one Read on the underlying Reader,
+ // hence n may be less than len(p).
+ // At EOF, the count will be zero and err will be io.EOF.
+ func (b *Reader) Read(p []byte) (n int, err error) {

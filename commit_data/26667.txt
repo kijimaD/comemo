@@ -9,7 +9,7 @@ Date:   Wed Jan 27 12:49:13 2016 -0800
     Change-Id: I2f0971481a460804de96fd8c9e46a9cc62a3fc5b
     Reviewed-on: https://go-review.googlesource.com/19772
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/archive/zip/writer.go          | 2 +-
  src/cmd/cgo/doc.go                 | 2 +-
  src/cmd/cgo/gcc.go                 | 4 ++--
@@ -40,3 +40,401 @@ Date:   Wed Jan 27 12:49:13 2016 -0800
  src/runtime/vdso_linux_amd64.go    | 2 +-
  src/sync/pool.go                   | 2 +-
  29 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 5ce66e6be5..3a9292e380 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -52,7 +52,7 @@ func (w *Writer) Flush() error {
+ }
+ 
+ // Close finishes writing the zip file by writing the central directory.
+-// It does not (and can not) close the underlying writer.
++// It does not (and cannot) close the underlying writer.
+ func (w *Writer) Close() error {
+ 	if w.last != nil && !w.last.closed {
+ 		if err := w.last.close(); err != nil {
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 8b4e2bfd58..90c2584c7f 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -133,7 +133,7 @@ C's union types are represented as a Go byte array with the same length.
+ 
+ Go structs cannot embed fields with C types.
+ 
+-Go code can not refer to zero-sized fields that occur at the end of
++Go code cannot refer to zero-sized fields that occur at the end of
+ non-empty C structs.  To get the address of such a field (which is the
+ only operation you can do with a zero-sized field) you must take the
+ address of the struct and add the size of the struct.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index fb5049c1a1..5bfdef785c 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -432,7 +432,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 			fmt.Fprintf(&b, "\t0,\n")
+ 		}
+ 	}
+-	// for the last entry, we can not use 0, otherwise
++	// for the last entry, we cannot use 0, otherwise
+ 	// in case all __cgodebug_data is zero initialized,
+ 	// LLVM-based gcc will place the it in the __DATA.__common
+ 	// zero-filled section (our debug/macho doesn't support
+@@ -2025,7 +2025,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 	// We can't permit that, because then the size of the Go
+ 	// struct will not be the same as the size of the C struct.
+ 	// Our only option in such a case is to remove the field,
+-	// which means that it can not be referenced from Go.
++	// which means that it cannot be referenced from Go.
+ 	for off > 0 && sizes[len(sizes)-1] == 0 {
+ 		n := len(sizes)
+ 		fld = fld[0 : n-1]
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 54c69c5449..0f8b20cea0 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -255,7 +255,7 @@ func Main() {
+ 		msanpkg.Name = "msan"
+ 	}
+ 	if flag_race != 0 && flag_msan != 0 {
+-		log.Fatal("can not use both -race and -msan")
++		log.Fatal("cannot use both -race and -msan")
+ 	} else if flag_race != 0 || flag_msan != 0 {
+ 		instrumenting = true
+ 	}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ae426088ea..51931769d5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2337,7 +2337,7 @@ func TestGoGetHTTPS404(t *testing.T) {
+ 	tg.run("get", "bazil.org/fuse/fs/fstestutil")
+ }
+ 
+-// Test that you can not import a main package.
++// Test that you cannot import a main package.
+ func TestIssue4210(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index d8e7cb77af..28c36160b5 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -199,7 +199,7 @@ type Scanner interface {
+ 	//    time.Time
+ 	//    nil - for NULL values
+ 	//
+-	// An error should be returned if the value can not be stored
++	// An error should be returned if the value cannot be stored
+ 	// without loss of information.
+ 	Scan(src interface{}) error
+ }
+diff --git a/src/log/syslog/syslog.go b/src/log/syslog/syslog.go
+index 4bf447626f..0e342242ec 100644
+--- a/src/log/syslog/syslog.go
++++ b/src/log/syslog/syslog.go
+@@ -85,7 +85,7 @@ type Writer struct {
+ }
+ 
+ // This interface and the separate syslog_unix.go file exist for
+-// Solaris support as implemented by gccgo.  On Solaris you can not
++// Solaris support as implemented by gccgo.  On Solaris you cannot
+ // simply open a TCP connection to the syslog daemon.  The gccgo
+ // sources have a syslog_solaris.go file that implements unixSyslog to
+ // return a type that satisfies this interface and simply calls the C
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 5e3b6084ae..1b5cda3159 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2032,7 +2032,7 @@ const (
+ 	// For HTTP/2, StateActive fires on the transition from zero
+ 	// to one active request, and only transitions away once all
+ 	// active requests are complete. That means that ConnState
+-	// can not be used to do per-request work; ConnState only notes
++	// cannot be used to do per-request work; ConnState only notes
+ 	// the overall state of the connection.
+ 	StateActive
+ 
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 1e3ea11d9c..feedb3420d 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -418,7 +418,7 @@ func (t *Transport) CloseIdleConnections() {
+ // CancelRequest cancels an in-flight request by closing its connection.
+ // CancelRequest should only be called after RoundTrip has returned.
+ //
+-// Deprecated: Use Request.Cancel instead. CancelRequest can not cancel
++// Deprecated: Use Request.Cancel instead. CancelRequest cannot cancel
+ // HTTP/2 requests.
+ func (t *Transport) CancelRequest(req *Request) {
+ 	t.reqMu.Lock()
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 80e66cffe5..9ee547b15d 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -11,7 +11,7 @@ package on Windows and Plan 9, see below.
+ Types of signals
+ 
+ The signals SIGKILL and SIGSTOP may not be caught by a program, and
+-therefore can not be affected by this package.
++therefore cannot be affected by this package.
+ 
+ Synchronous signals are signals triggered by errors in program
+ execution: SIGBUS, SIGFPE, and SIGSEGV. These are only considered
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index fef8add46f..f632f7ab5a 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -340,7 +340,7 @@ var racecgosync uint64 // represents possible synchronization in C code
+ // When and if we implement a moving garbage collector,
+ // cgoCheckPointer will pin the pointer for the duration of the cgo
+ // call.  (This is necessary but not sufficient; the cgo program will
+-// also have to change to pin Go pointers that can not point to Go
++// also have to change to pin Go pointers that cannot point to Go
+ // pointers.)
+ 
+ // cgoCheckPointer checks if the argument contains a Go pointer that
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 45086c43cd..1204e8143e 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -100,7 +100,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ // related operations. In particular there are times when the GC assumes
+ // that the world is stopped but scheduler related code is still being
+ // executed, dealing with syscalls, dealing with putting gs on runnable
+-// queues and so forth. This code can not execute write barriers because
++// queues and so forth. This code cannot execute write barriers because
+ // the GC might drop them on the floor. Stopping the world involves removing
+ // the p associated with an m. We use the fact that m.p == nil to indicate
+ // that we are in one these critical section and throw if the write is of
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 8653a6a99f..569a304cf4 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -30,8 +30,8 @@ type fixalloc struct {
+ }
+ 
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+-// Since assignments to mlink.next will result in a write barrier being preformed
+-// this can not be used by some of the internal GC structures. For example when
++// Since assignments to mlink.next will result in a write barrier being performed
++// this cannot be used by some of the internal GC structures. For example when
+ // the sweeper is placing an unmarked object on the free list it does not want the
+ // write barrier to be called since that could result in the object being reachable.
+ type mlink struct {
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 368687d006..8ae636077b 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -165,7 +165,7 @@ type MemStats struct {
+ 
+ // Size of the trailing by_size array differs between Go and C,
+ // and all data after by_size is local to runtime, not exported.
+-// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
++// NumSizeClasses was changed, but we cannot change Go struct because of backward compatibility.
+ // sizeof_C_MStats is what C thinks about size of Go struct.
+ var sizeof_C_MStats = unsafe.Offsetof(memstats.by_size) + 61*unsafe.Sizeof(memstats.by_size[0])
+ 
+@@ -192,7 +192,7 @@ func readmemstats_m(stats *MemStats) {
+ 	updatememstats(nil)
+ 
+ 	// Size of the trailing by_size array differs between Go and C,
+-	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
++	// NumSizeClasses was changed, but we cannot change Go struct because of backward compatibility.
+ 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
+ 
+ 	// Stack numbers are part of the heap numbers, separate those out for user consumption
+diff --git a/src/runtime/norace_linux_test.go b/src/runtime/norace_linux_test.go
+index bbf9d0b413..049801d3fc 100644
+--- a/src/runtime/norace_linux_test.go
++++ b/src/runtime/norace_linux_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The file contains tests that can not run under race detector for some reason.
++// The file contains tests that cannot run under race detector for some reason.
+ // +build !race
+ 
+ package runtime_test
+diff --git a/src/runtime/norace_test.go b/src/runtime/norace_test.go
+index 3681bf190d..e9b39b2f45 100644
+--- a/src/runtime/norace_test.go
++++ b/src/runtime/norace_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The file contains tests that can not run under race detector for some reason.
++// The file contains tests that cannot run under race detector for some reason.
+ // +build !race
+ 
+ package runtime_test
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index 5c00407b2f..19bb0f16e0 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -157,7 +157,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+diff --git a/src/runtime/os1_dragonfly.go b/src/runtime/os1_dragonfly.go
+index bf3e1ccb83..7e4f84e6a3 100644
+--- a/src/runtime/os1_dragonfly.go
++++ b/src/runtime/os1_dragonfly.go
+@@ -133,7 +133,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	_g_ := getg()
+ 
+diff --git a/src/runtime/os1_freebsd.go b/src/runtime/os1_freebsd.go
+index 79d995476e..f00fdf4389 100644
+--- a/src/runtime/os1_freebsd.go
++++ b/src/runtime/os1_freebsd.go
+@@ -136,7 +136,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	_g_ := getg()
+ 
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index b38cfc14f9..2d53b934f5 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -225,7 +225,7 @@ func sigblock() {
+ func gettid() uint32
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	// Initialize signal handling.
+ 	_g_ := getg()
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+index dab205de6a..5526d906d8 100644
+--- a/src/runtime/os1_nacl.go
++++ b/src/runtime/os1_nacl.go
+@@ -30,7 +30,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	_g_ := getg()
+ 
+diff --git a/src/runtime/os1_netbsd.go b/src/runtime/os1_netbsd.go
+index eab8eb8702..e32df9585c 100644
+--- a/src/runtime/os1_netbsd.go
++++ b/src/runtime/os1_netbsd.go
+@@ -167,7 +167,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	_g_ := getg()
+ 	_g_.m.procid = uint64(lwp_self())
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+index 7506d591df..9911077911 100644
+--- a/src/runtime/os1_plan9.go
++++ b/src/runtime/os1_plan9.go
+@@ -33,7 +33,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	// Mask all SSE floating-point exceptions
+ 	// when running on the 64-bit kernel.
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index a28e11e088..8d46bca36d 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -399,7 +399,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	var thandle uintptr
+ 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 7ebb35c8e9..fdc817d3f7 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -208,7 +208,7 @@ func sigblock() {
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
++// Called on the new thread, cannot allocate memory.
+ func minit() {
+ 	_g_ := getg()
+ 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 82a8db9914..6b6437dddd 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -261,7 +261,7 @@ cont:
+ 	MOVW    R1, 24(R6)
+ 
+ 	// switch stack and g
+-	MOVW	R6, R13 // sigtramp can not re-entrant, so no need to back up R13.
++	MOVW	R6, R13 // sigtramp is not re-entrant, so no need to back up R13.
+ 	MOVW	R5, g
+ 
+ 	BL	(R0)
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index d0034d5a33..a3b851d2fc 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -245,7 +245,7 @@ cont:
+ 	MOVD	R1, 48(R6)
+ 
+ 	// switch stack and g
+-	MOVD	R6, RSP	// sigtramp can not re-entrant, so no need to back up RSP.
++	MOVD	R6, RSP	// sigtramp is not re-entrant, so no need to back up RSP.
+ 	MOVD	R5, g
+ 
+ 	BL	(R0)
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 38914bb2b9..42571e063c 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -263,7 +263,7 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
+ 		def = (*elf64Verdef)(add(unsafe.Pointer(def), uintptr(def.vd_next)))
+ 	}
+ 
+-	return -1 // can not match any version
++	return -1 // cannot match any version
+ }
+ 
+ func vdso_parse_symbols(info *vdso_info, version int32) {
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 381af0bead..4fb1a1af9d 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -149,7 +149,7 @@ func (p *Pool) getSlow() (x interface{}) {
+ func (p *Pool) pin() *poolLocal {
+ 	pid := runtime_procPin()
+ 	// In pinSlow we store to localSize and then to local, here we load in opposite order.
+-	// Since we've disabled preemption, GC can not happen in between.
++	// Since we've disabled preemption, GC cannot happen in between.
+ 	// Thus here we must observe local at least as large localSize.
+ 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
+ 	s := atomic.LoadUintptr(&p.localSize) // load-acquire

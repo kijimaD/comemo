@@ -7,7 +7,41 @@ Date:   Fri Jan 22 09:49:48 2016 -0500
     Change-Id: I5b749c575e0ec78fb3c50d056899bd1fe5d91853
     Reviewed-on: https://go-review.googlesource.com/18847
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/asm/parse.go   | 3 ++-
  src/cmd/asm/internal/flags/flags.go | 1 +
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 9a42838be9..4258c5ce26 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -16,6 +16,7 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"cmd/asm/internal/arch"
++	"cmd/asm/internal/flags"
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+ )
+@@ -78,7 +79,7 @@ func (p *Parser) errorf(format string, args ...interface{}) {
+ 	}
+ 	fmt.Fprintf(p.errorWriter, format, args...)
+ 	p.errorCount++
+-	if p.errorCount > 10 {
++	if p.errorCount > 10 && !*flags.AllErrors {
+ 		log.Fatal("too many errors")
+ 	}
+ }
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 89bc6f3a8c..fd42e8443b 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -20,6 +20,7 @@ var (
+ 	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+ 	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+ 	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
++	AllErrors = flag.Bool("e", false, "no limit on number of errors reported")
+ )
+ 
+ var (

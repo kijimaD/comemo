@@ -11,7 +11,7 @@ Date:   Tue Jun 16 16:28:57 2015 -0700
     Change-Id: I225947da23e190b12e12cbd0c5e6e91628de7f53
     Reviewed-on: https://go-review.googlesource.com/11151
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gccgoimporter/gccgoinstallation.go |  95 +++
  .../gccgoimporter/gccgoinstallation_test.go        | 194 +++++
  src/go/internal/gccgoimporter/importer.go          | 199 +++++
@@ -25,3 +25,1693 @@ Date:   Tue Jun 16 16:28:57 2015 -0700
  src/go/internal/gccgoimporter/testdata/pointer.go  |   3 +
  src/go/internal/gccgoimporter/testdata/pointer.gox |   4 +
  12 files changed, 1617 insertions(+)
+
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation.go b/src/go/internal/gccgoimporter/gccgoinstallation.go
+new file mode 100644
+index 0000000000..1c56cf5a5b
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/gccgoinstallation.go
+@@ -0,0 +1,95 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gccgoimporter
++
++import (
++	"bufio"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++
++	"golang.org/x/tools/go/types"
++)
++
++// Information about a specific installation of gccgo.
++type GccgoInstallation struct {
++	// Version of gcc (e.g. 4.8.0).
++	GccVersion string
++
++	// Target triple (e.g. x86_64-unknown-linux-gnu).
++	TargetTriple string
++
++	// Built-in library paths used by this installation.
++	LibPaths []string
++}
++
++// Ask the driver at the given path for information for this GccgoInstallation.
++func (inst *GccgoInstallation) InitFromDriver(gccgoPath string) (err error) {
++	cmd := exec.Command(gccgoPath, "-###", "-S", "-x", "go", "-")
++	stderr, err := cmd.StderrPipe()
++	if err != nil {
++		return
++	}
++
++	err = cmd.Start()
++	if err != nil {
++		return
++	}
++
++	scanner := bufio.NewScanner(stderr)
++	for scanner.Scan() {
++		line := scanner.Text()
++		switch {
++		case strings.HasPrefix(line, "Target: "):
++			inst.TargetTriple = line[8:]
++
++		case line[0] == ' ':
++			args := strings.Fields(line)
++			for _, arg := range args[1:] {
++				if strings.HasPrefix(arg, "-L") {
++					inst.LibPaths = append(inst.LibPaths, arg[2:])
++				}
++			}
++		}
++	}
++
++	stdout, err := exec.Command(gccgoPath, "-dumpversion").Output()
++	if err != nil {
++		return
++	}
++	inst.GccVersion = strings.TrimSpace(string(stdout))
++
++	return
++}
++
++// Return the list of export search paths for this GccgoInstallation.
++func (inst *GccgoInstallation) SearchPaths() (paths []string) {
++	for _, lpath := range inst.LibPaths {
++		spath := filepath.Join(lpath, "go", inst.GccVersion)
++		fi, err := os.Stat(spath)
++		if err != nil || !fi.IsDir() {
++			continue
++		}
++		paths = append(paths, spath)
++
++		spath = filepath.Join(spath, inst.TargetTriple)
++		fi, err = os.Stat(spath)
++		if err != nil || !fi.IsDir() {
++			continue
++		}
++		paths = append(paths, spath)
++	}
++
++	paths = append(paths, inst.LibPaths...)
++
++	return
++}
++
++// Return an importer that searches incpaths followed by the gcc installation's
++// built-in search paths and the current directory.
++func (inst *GccgoInstallation) GetImporter(incpaths []string, initmap map[*types.Package]InitData) types.Importer {
++	return GetImporter(append(append(incpaths, inst.SearchPaths()...), "."), initmap)
++}
+diff --git a/src/go/internal/gccgoimporter/gccgoinstallation_test.go b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+new file mode 100644
+index 0000000000..9ab928dce3
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/gccgoinstallation_test.go
+@@ -0,0 +1,194 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gccgoimporter
++
++import (
++	"runtime"
++	"testing"
++
++	"golang.org/x/tools/go/types"
++)
++
++var importablePackages = [...]string{
++	"archive/tar",
++	"archive/zip",
++	"bufio",
++	"bytes",
++	"compress/bzip2",
++	"compress/flate",
++	"compress/gzip",
++	"compress/lzw",
++	"compress/zlib",
++	"container/heap",
++	"container/list",
++	"container/ring",
++	"crypto/aes",
++	"crypto/cipher",
++	"crypto/des",
++	"crypto/dsa",
++	"crypto/ecdsa",
++	"crypto/elliptic",
++	"crypto",
++	"crypto/hmac",
++	"crypto/md5",
++	"crypto/rand",
++	"crypto/rc4",
++	"crypto/rsa",
++	"crypto/sha1",
++	"crypto/sha256",
++	"crypto/sha512",
++	"crypto/subtle",
++	"crypto/tls",
++	"crypto/x509",
++	"crypto/x509/pkix",
++	"database/sql/driver",
++	"database/sql",
++	"debug/dwarf",
++	"debug/elf",
++	"debug/gosym",
++	"debug/macho",
++	"debug/pe",
++	"encoding/ascii85",
++	"encoding/asn1",
++	"encoding/base32",
++	"encoding/base64",
++	"encoding/binary",
++	"encoding/csv",
++	"encoding/gob",
++	"encoding",
++	"encoding/hex",
++	"encoding/json",
++	"encoding/pem",
++	"encoding/xml",
++	"errors",
++	"exp/proxy",
++	"exp/terminal",
++	"expvar",
++	"flag",
++	"fmt",
++	"go/ast",
++	"go/build",
++	"go/doc",
++	"go/format",
++	"go/parser",
++	"go/printer",
++	"go/scanner",
++	"go/token",
++	"hash/adler32",
++	"hash/crc32",
++	"hash/crc64",
++	"hash/fnv",
++	"hash",
++	"html",
++	"html/template",
++	"image/color",
++	"image/color/palette",
++	"image/draw",
++	"image/gif",
++	"image",
++	"image/jpeg",
++	"image/png",
++	"index/suffixarray",
++	"io",
++	"io/ioutil",
++	"log",
++	"log/syslog",
++	"math/big",
++	"math/cmplx",
++	"math",
++	"math/rand",
++	"mime",
++	"mime/multipart",
++	"net",
++	"net/http/cgi",
++	"net/http/cookiejar",
++	"net/http/fcgi",
++	"net/http",
++	"net/http/httptest",
++	"net/http/httputil",
++	"net/http/pprof",
++	"net/mail",
++	"net/rpc",
++	"net/rpc/jsonrpc",
++	"net/smtp",
++	"net/textproto",
++	"net/url",
++	"old/regexp",
++	"old/template",
++	"os/exec",
++	"os",
++	"os/signal",
++	"os/user",
++	"path/filepath",
++	"path",
++	"reflect",
++	"regexp",
++	"regexp/syntax",
++	"runtime/debug",
++	"runtime",
++	"runtime/pprof",
++	"sort",
++	"strconv",
++	"strings",
++	"sync/atomic",
++	"sync",
++	"syscall",
++	"testing",
++	"testing/iotest",
++	"testing/quick",
++	"text/scanner",
++	"text/tabwriter",
++	"text/template",
++	"text/template/parse",
++	"time",
++	"unicode",
++	"unicode/utf16",
++	"unicode/utf8",
++}
++
++func TestInstallationImporter(t *testing.T) {
++	// This test relies on gccgo being around, which it most likely will be if we
++	// were compiled with gccgo.
++	if runtime.Compiler != "gccgo" {
++		t.Skip("This test needs gccgo")
++		return
++	}
++
++	var inst GccgoInstallation
++	err := inst.InitFromDriver("gccgo")
++	if err != nil {
++		t.Fatal(err)
++	}
++	imp := inst.GetImporter(nil, nil)
++
++	// Ensure we don't regress the number of packages we can parse. First import
++	// all packages into the same map and then each individually.
++	pkgMap := make(map[string]*types.Package)
++	for _, pkg := range importablePackages {
++		_, err = imp(pkgMap, pkg)
++		if err != nil {
++			t.Error(err)
++		}
++	}
++
++	for _, pkg := range importablePackages {
++		_, err = imp(make(map[string]*types.Package), pkg)
++		if err != nil {
++			t.Error(err)
++		}
++	}
++
++	// Test for certain specific entities in the imported data.
++	for _, test := range [...]importerTest{
++		{pkgpath: "io", name: "Reader", want: "type Reader interface{Read(p []uint8) (n int, err error)}"},
++		{pkgpath: "io", name: "ReadWriter", want: "type ReadWriter interface{Reader; Writer}"},
++		{pkgpath: "math", name: "Pi", want: "const Pi untyped float"},
++		{pkgpath: "math", name: "Sin", want: "func Sin(x float64) float64"},
++		{pkgpath: "sort", name: "Ints", want: "func Ints(a []int)"},
++		{pkgpath: "unsafe", name: "Pointer", want: "type Pointer unsafe.Pointer"},
++	} {
++		runImporterTest(t, imp, nil, &test)
++	}
++}
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+new file mode 100644
+index 0000000000..59576cad29
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -0,0 +1,199 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package gccgoimporter implements Import for gccgo-generated object files.
++package gccgoimporter // import "golang.org/x/tools/go/gccgoimporter"
++
++import (
++	"bytes"
++	"debug/elf"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++
++	"golang.org/x/tools/go/importer"
++	"golang.org/x/tools/go/types"
++)
++
++// A PackageInit describes an imported package that needs initialization.
++type PackageInit struct {
++	Name     string // short package name
++	InitFunc string // name of init function
++	Priority int    // priority of init function, see InitData.Priority
++}
++
++// The gccgo-specific init data for a package.
++type InitData struct {
++	// Initialization priority of this package relative to other packages.
++	// This is based on the maximum depth of the package's dependency graph;
++	// it is guaranteed to be greater than that of its dependencies.
++	Priority int
++
++	// The list of packages which this package depends on to be initialized,
++	// including itself if needed. This is the subset of the transitive closure of
++	// the package's dependencies that need initialization.
++	Inits []PackageInit
++}
++
++// Locate the file from which to read export data.
++// This is intended to replicate the logic in gofrontend.
++func findExportFile(searchpaths []string, pkgpath string) (string, error) {
++	for _, spath := range searchpaths {
++		pkgfullpath := filepath.Join(spath, pkgpath)
++		pkgdir, name := filepath.Split(pkgfullpath)
++
++		for _, filepath := range [...]string{
++			pkgfullpath,
++			pkgfullpath + ".gox",
++			pkgdir + "lib" + name + ".so",
++			pkgdir + "lib" + name + ".a",
++			pkgfullpath + ".o",
++		} {
++			fi, err := os.Stat(filepath)
++			if err == nil && !fi.IsDir() {
++				return filepath, nil
++			}
++		}
++	}
++
++	return "", fmt.Errorf("%s: could not find export data (tried %s)", pkgpath, strings.Join(searchpaths, ":"))
++}
++
++const (
++	gccgov1Magic    = "v1;\n"
++	goimporterMagic = "\n$$ "
++	archiveMagic    = "!<ar"
++)
++
++// Opens the export data file at the given path. If this is an ELF file,
++// searches for and opens the .go_export section. If this is an archive,
++// reads the export data from the first member, which is assumed to be an ELF file.
++// This is intended to replicate the logic in gofrontend.
++func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err error) {
++	f, err := os.Open(fpath)
++	if err != nil {
++		return
++	}
++	closer = f
++	defer func() {
++		if err != nil && closer != nil {
++			f.Close()
++		}
++	}()
++
++	var magic [4]byte
++	_, err = f.ReadAt(magic[:], 0)
++	if err != nil {
++		return
++	}
++
++	var elfreader io.ReaderAt
++	switch string(magic[:]) {
++	case gccgov1Magic, goimporterMagic:
++		// Raw export data.
++		reader = f
++		return
++
++	case archiveMagic:
++		// TODO(pcc): Read the archive directly instead of using "ar".
++		f.Close()
++		closer = nil
++
++		cmd := exec.Command("ar", "p", fpath)
++		var out []byte
++		out, err = cmd.Output()
++		if err != nil {
++			return
++		}
++
++		elfreader = bytes.NewReader(out)
++
++	default:
++		elfreader = f
++	}
++
++	ef, err := elf.NewFile(elfreader)
++	if err != nil {
++		return
++	}
++
++	sec := ef.Section(".go_export")
++	if sec == nil {
++		err = fmt.Errorf("%s: .go_export section not found", fpath)
++		return
++	}
++
++	reader = sec.Open()
++	return
++}
++
++func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) types.Importer {
++	return func(imports map[string]*types.Package, pkgpath string) (pkg *types.Package, err error) {
++		if pkgpath == "unsafe" {
++			return types.Unsafe, nil
++		}
++
++		fpath, err := findExportFile(searchpaths, pkgpath)
++		if err != nil {
++			return
++		}
++
++		reader, closer, err := openExportFile(fpath)
++		if err != nil {
++			return
++		}
++		if closer != nil {
++			defer closer.Close()
++		}
++
++		var magic [4]byte
++		_, err = reader.Read(magic[:])
++		if err != nil {
++			return
++		}
++		_, err = reader.Seek(0, 0)
++		if err != nil {
++			return
++		}
++
++		switch string(magic[:]) {
++		case gccgov1Magic:
++			var p parser
++			p.init(fpath, reader, imports)
++			pkg = p.parsePackage()
++			if initmap != nil {
++				initmap[pkg] = p.initdata
++			}
++
++		case goimporterMagic:
++			var data []byte
++			data, err = ioutil.ReadAll(reader)
++			if err != nil {
++				return
++			}
++			var n int
++			n, pkg, err = importer.ImportData(imports, data)
++			if err != nil {
++				return
++			}
++
++			if initmap != nil {
++				suffixreader := bytes.NewReader(data[n:])
++				var p parser
++				p.init(fpath, suffixreader, nil)
++				p.parseInitData()
++				initmap[pkg] = p.initdata
++			}
++
++		default:
++			err = fmt.Errorf("unrecognized magic string: %q", string(magic[:]))
++		}
++
++		return
++	}
++}
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+new file mode 100644
+index 0000000000..c7adb459b8
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -0,0 +1,167 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gccgoimporter
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++
++	"golang.org/x/tools/go/types"
++)
++
++type importerTest struct {
++	pkgpath, name, want, wantval string
++	wantinits                    []string
++}
++
++func runImporterTest(t *testing.T, imp types.Importer, initmap map[*types.Package]InitData, test *importerTest) {
++	pkg, err := imp(make(map[string]*types.Package), test.pkgpath)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	if test.name != "" {
++		obj := pkg.Scope().Lookup(test.name)
++		if obj == nil {
++			t.Errorf("%s: object not found", test.name)
++			return
++		}
++
++		got := types.ObjectString(pkg, obj)
++		if got != test.want {
++			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
++		}
++
++		if test.wantval != "" {
++			gotval := obj.(*types.Const).Val().String()
++			if gotval != test.wantval {
++				t.Errorf("%s: got val %q; want val %q", test.name, gotval, test.wantval)
++			}
++		}
++	}
++
++	if len(test.wantinits) > 0 {
++		initdata := initmap[pkg]
++		found := false
++		// Check that the package's own init function has the package's priority
++		for _, pkginit := range initdata.Inits {
++			if pkginit.InitFunc == test.wantinits[0] {
++				if initdata.Priority != pkginit.Priority {
++					t.Errorf("%s: got self priority %d; want %d", test.pkgpath, pkginit.Priority, initdata.Priority)
++				}
++				found = true
++				break
++			}
++		}
++
++		if !found {
++			t.Errorf("%s: could not find expected function %q", test.pkgpath, test.wantinits[0])
++		}
++
++		// Each init function in the list other than the first one is a
++		// dependency of the function immediately before it. Check that
++		// the init functions appear in descending priority order.
++		priority := initdata.Priority
++		for _, wantdepinit := range test.wantinits[1:] {
++			found = false
++			for _, pkginit := range initdata.Inits {
++				if pkginit.InitFunc == wantdepinit {
++					if priority <= pkginit.Priority {
++						t.Errorf("%s: got dep priority %d; want less than %d", test.pkgpath, pkginit.Priority, priority)
++					}
++					found = true
++					priority = pkginit.Priority
++					break
++				}
++			}
++
++			if !found {
++				t.Errorf("%s: could not find expected function %q", test.pkgpath, wantdepinit)
++			}
++		}
++	}
++}
++
++var importerTests = [...]importerTest{
++	{pkgpath: "pointer", name: "Int8Ptr", want: "type Int8Ptr *int8"},
++	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1/1 + -1/1i)"},
++	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1/1 + 1/1i)"},
++	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1/1 + -1/1i)"},
++	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1/1 + 1/1i)"},
++	// TODO: enable this entry once bug has been tracked down
++	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
++}
++
++func TestGoxImporter(t *testing.T) {
++	initmap := make(map[*types.Package]InitData)
++	imp := GetImporter([]string{"testdata"}, initmap)
++
++	for _, test := range importerTests {
++		runImporterTest(t, imp, initmap, &test)
++	}
++}
++
++func TestObjImporter(t *testing.T) {
++	// This test relies on gccgo being around, which it most likely will be if we
++	// were compiled with gccgo.
++	if runtime.Compiler != "gccgo" {
++		t.Skip("This test needs gccgo")
++		return
++	}
++
++	tmpdir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	initmap := make(map[*types.Package]InitData)
++	imp := GetImporter([]string{tmpdir}, initmap)
++
++	artmpdir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	arinitmap := make(map[*types.Package]InitData)
++	arimp := GetImporter([]string{artmpdir}, arinitmap)
++
++	for _, test := range importerTests {
++		gofile := filepath.Join("testdata", test.pkgpath+".go")
++		ofile := filepath.Join(tmpdir, test.pkgpath+".o")
++		afile := filepath.Join(artmpdir, "lib"+test.pkgpath+".a")
++
++		cmd := exec.Command("gccgo", "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
++		out, err := cmd.CombinedOutput()
++		if err != nil {
++			t.Logf("%s", out)
++			t.Fatalf("gccgo %s failed: %s", gofile, err)
++		}
++
++		runImporterTest(t, imp, initmap, &test)
++
++		cmd = exec.Command("ar", "cr", afile, ofile)
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Logf("%s", out)
++			t.Fatalf("ar cr %s %s failed: %s", afile, ofile, err)
++		}
++
++		runImporterTest(t, arimp, arinitmap, &test)
++
++		if err = os.Remove(ofile); err != nil {
++			t.Fatal(err)
++		}
++		if err = os.Remove(afile); err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	if err = os.Remove(tmpdir); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+new file mode 100644
+index 0000000000..5bd1858fb3
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -0,0 +1,856 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gccgoimporter
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"go/token"
++	"io"
++	"strconv"
++	"strings"
++	"text/scanner"
++
++	"golang.org/x/tools/go/exact"
++	"golang.org/x/tools/go/types"
++)
++
++type parser struct {
++	scanner  scanner.Scanner
++	tok      rune                      // current token
++	lit      string                    // literal string; only valid for Ident, Int, String tokens
++	pkgpath  string                    // package path of imported package
++	pkgname  string                    // name of imported package
++	pkg      *types.Package            // reference to imported package
++	imports  map[string]*types.Package // package path -> package object
++	typeMap  map[int]types.Type        // type number -> type
++	initdata InitData                  // package init priority data
++}
++
++func (p *parser) init(filename string, src io.Reader, imports map[string]*types.Package) {
++	p.scanner.Init(src)
++	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
++	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
++	p.scanner.Whitespace = 1<<'\t' | 1<<'\n' | 1<<' '
++	p.scanner.Filename = filename // for good error messages
++	p.next()
++	p.imports = imports
++	p.typeMap = make(map[int]types.Type)
++}
++
++type importError struct {
++	pos scanner.Position
++	err error
++}
++
++func (e importError) Error() string {
++	return fmt.Sprintf("import error %s (byte offset = %d): %s", e.pos, e.pos.Offset, e.err)
++}
++
++func (p *parser) error(err interface{}) {
++	if s, ok := err.(string); ok {
++		err = errors.New(s)
++	}
++	// panic with a runtime.Error if err is not an error
++	panic(importError{p.scanner.Pos(), err.(error)})
++}
++
++func (p *parser) errorf(format string, args ...interface{}) {
++	p.error(fmt.Errorf(format, args...))
++}
++
++func (p *parser) expect(tok rune) string {
++	lit := p.lit
++	if p.tok != tok {
++		p.errorf("expected %s, got %s (%s)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
++	}
++	p.next()
++	return lit
++}
++
++func (p *parser) expectKeyword(keyword string) {
++	lit := p.expect(scanner.Ident)
++	if lit != keyword {
++		p.errorf("expected keyword %s, got %q", keyword, lit)
++	}
++}
++
++func (p *parser) parseString() string {
++	str, err := strconv.Unquote(p.expect(scanner.String))
++	if err != nil {
++		p.error(err)
++	}
++	return str
++}
++
++// unquotedString     = { unquotedStringChar } .
++// unquotedStringChar = <neither a whitespace nor a ';' char> .
++func (p *parser) parseUnquotedString() string {
++	if p.tok == scanner.EOF {
++		p.error("unexpected EOF")
++	}
++	var buf bytes.Buffer
++	buf.WriteString(p.scanner.TokenText())
++	// This loop needs to examine each character before deciding whether to consume it. If we see a semicolon,
++	// we need to let it be consumed by p.next().
++	for ch := p.scanner.Peek(); ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
++		buf.WriteRune(ch)
++		p.scanner.Next()
++	}
++	p.next()
++	return buf.String()
++}
++
++func (p *parser) next() {
++	p.tok = p.scanner.Scan()
++	switch p.tok {
++	case scanner.Ident, scanner.Int, scanner.Float, scanner.String, '·':
++		p.lit = p.scanner.TokenText()
++	default:
++		p.lit = ""
++	}
++}
++
++func (p *parser) parseQualifiedName() (path, name string) {
++	return p.parseQualifiedNameStr(p.parseString())
++}
++
++func (p *parser) parseUnquotedQualifiedName() (path, name string) {
++	return p.parseQualifiedNameStr(p.parseUnquotedString())
++}
++
++// qualifiedName = [ ["."] unquotedString "." ] unquotedString .
++//
++// The above production uses greedy matching.
++func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name string) {
++	parts := strings.Split(unquotedName, ".")
++	if parts[0] == "" {
++		parts = parts[1:]
++	}
++
++	switch len(parts) {
++	case 0:
++		p.errorf("malformed qualified name: %q", unquotedName)
++	case 1:
++		// unqualified name
++		pkgpath = p.pkgpath
++		name = parts[0]
++	default:
++		// qualified name, which may contain periods
++		pkgpath = strings.Join(parts[0:len(parts)-1], ".")
++		name = parts[len(parts)-1]
++	}
++
++	return
++}
++
++// getPkg returns the package for a given path. If the package is
++// not found but we have a package name, create the package and
++// add it to the p.imports map.
++//
++func (p *parser) getPkg(pkgpath, name string) *types.Package {
++	// package unsafe is not in the imports map - handle explicitly
++	if pkgpath == "unsafe" {
++		return types.Unsafe
++	}
++	pkg := p.imports[pkgpath]
++	if pkg == nil && name != "" {
++		pkg = types.NewPackage(pkgpath, name)
++		p.imports[pkgpath] = pkg
++	}
++	return pkg
++}
++
++// parseExportedName is like parseQualifiedName, but
++// the package path is resolved to an imported *types.Package.
++//
++// ExportedName = string [string] .
++func (p *parser) parseExportedName() (pkg *types.Package, name string) {
++	path, name := p.parseQualifiedName()
++	var pkgname string
++	if p.tok == scanner.String {
++		pkgname = p.parseString()
++	}
++	pkg = p.getPkg(path, pkgname)
++	if pkg == nil {
++		p.errorf("package %s (path = %q) not found", name, path)
++	}
++	return
++}
++
++// Name = QualifiedName | "?" .
++func (p *parser) parseName() string {
++	if p.tok == '?' {
++		// Anonymous.
++		p.next()
++		return ""
++	}
++	// The package path is redundant for us. Don't try to parse it.
++	_, name := p.parseUnquotedQualifiedName()
++	return name
++}
++
++func deref(typ types.Type) types.Type {
++	if p, _ := typ.(*types.Pointer); p != nil {
++		typ = p.Elem()
++	}
++	return typ
++}
++
++// Field = Name Type [string] .
++func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
++	name := p.parseName()
++	typ := p.parseType(pkg)
++	anon := false
++	if name == "" {
++		anon = true
++		switch typ := deref(typ).(type) {
++		case *types.Basic:
++			name = typ.Name()
++		case *types.Named:
++			name = typ.Obj().Name()
++		default:
++			p.error("anonymous field expected")
++		}
++	}
++	field = types.NewField(token.NoPos, pkg, name, typ, anon)
++	if p.tok == scanner.String {
++		tag = p.parseString()
++	}
++	return
++}
++
++// Param = Name ["..."] Type .
++func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bool) {
++	name := p.parseName()
++	if p.tok == '.' {
++		p.next()
++		p.expect('.')
++		p.expect('.')
++		isVariadic = true
++	}
++	typ := p.parseType(pkg)
++	if isVariadic {
++		typ = types.NewSlice(typ)
++	}
++	param = types.NewParam(token.NoPos, pkg, name, typ)
++	return
++}
++
++// Var = Name Type .
++func (p *parser) parseVar(pkg *types.Package) *types.Var {
++	name := p.parseName()
++	return types.NewVar(token.NoPos, pkg, name, p.parseType(pkg))
++}
++
++// ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) .
++// FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
++func (p *parser) parseConstValue() (val exact.Value, typ types.Type) {
++	switch p.tok {
++	case scanner.String:
++		str := p.parseString()
++		val = exact.MakeString(str)
++		typ = types.Typ[types.UntypedString]
++		return
++
++	case scanner.Ident:
++		b := false
++		switch p.lit {
++		case "false":
++		case "true":
++			b = true
++
++		default:
++			p.errorf("expected const value, got %s (%q)", scanner.TokenString(p.tok), p.lit)
++		}
++
++		p.next()
++		val = exact.MakeBool(b)
++		typ = types.Typ[types.UntypedBool]
++		return
++	}
++
++	sign := ""
++	if p.tok == '-' {
++		p.next()
++		sign = "-"
++	}
++
++	switch p.tok {
++	case scanner.Int:
++		val = exact.MakeFromLiteral(sign+p.lit, token.INT)
++		if val == nil {
++			p.error("could not parse integer literal")
++		}
++
++		p.next()
++		if p.tok == '\'' {
++			p.next()
++			typ = types.Typ[types.UntypedRune]
++		} else {
++			typ = types.Typ[types.UntypedInt]
++		}
++
++	case scanner.Float:
++		re := sign + p.lit
++		p.next()
++
++		var im string
++		switch p.tok {
++		case '+':
++			p.next()
++			im = p.expect(scanner.Float)
++
++		case '-':
++			p.next()
++			im = "-" + p.expect(scanner.Float)
++
++		case scanner.Ident:
++			// re is in fact the imaginary component. Expect "i" below.
++			im = re
++			re = "0"
++
++		default:
++			val = exact.MakeFromLiteral(re, token.FLOAT)
++			if val == nil {
++				p.error("could not parse float literal")
++			}
++			typ = types.Typ[types.UntypedFloat]
++			return
++		}
++
++		p.expectKeyword("i")
++		reval := exact.MakeFromLiteral(re, token.FLOAT)
++		if reval == nil {
++			p.error("could not parse real component of complex literal")
++		}
++		imval := exact.MakeFromLiteral(im+"i", token.IMAG)
++		if imval == nil {
++			p.error("could not parse imag component of complex literal")
++		}
++		val = exact.BinaryOp(reval, token.ADD, imval)
++		typ = types.Typ[types.UntypedComplex]
++
++	default:
++		p.errorf("expected const value, got %s (%q)", scanner.TokenString(p.tok), p.lit)
++	}
++
++	return
++}
++
++// Const = Name [Type] "=" ConstValue .
++func (p *parser) parseConst(pkg *types.Package) *types.Const {
++	name := p.parseName()
++	var typ types.Type
++	if p.tok == '<' {
++		typ = p.parseType(pkg)
++	}
++	p.expect('=')
++	val, vtyp := p.parseConstValue()
++	if typ == nil {
++		typ = vtyp
++	}
++	return types.NewConst(token.NoPos, pkg, name, typ, val)
++}
++
++// TypeName = ExportedName .
++func (p *parser) parseTypeName() *types.TypeName {
++	pkg, name := p.parseExportedName()
++	scope := pkg.Scope()
++	if obj := scope.Lookup(name); obj != nil {
++		return obj.(*types.TypeName)
++	}
++	obj := types.NewTypeName(token.NoPos, pkg, name, nil)
++	// a named type may be referred to before the underlying type
++	// is known - set it up
++	types.NewNamed(obj, nil, nil)
++	scope.Insert(obj)
++	return obj
++}
++
++// NamedType = TypeName Type { Method } .
++// Method    = "func" "(" Param ")" Name ParamList ResultList ";" .
++func (p *parser) parseNamedType(n int) types.Type {
++	obj := p.parseTypeName()
++
++	pkg := obj.Pkg()
++	typ := obj.Type()
++	p.typeMap[n] = typ
++
++	nt, ok := typ.(*types.Named)
++	if !ok {
++		// This can happen for unsafe.Pointer, which is a TypeName holding a Basic type.
++		pt := p.parseType(pkg)
++		if pt != typ {
++			p.error("unexpected underlying type for non-named TypeName")
++		}
++		return typ
++	}
++
++	underlying := p.parseType(pkg)
++	if nt.Underlying() == nil {
++		nt.SetUnderlying(underlying.Underlying())
++	}
++
++	for p.tok == scanner.Ident {
++		// collect associated methods
++		p.expectKeyword("func")
++		p.expect('(')
++		receiver, _ := p.parseParam(pkg)
++		p.expect(')')
++		name := p.parseName()
++		params, isVariadic := p.parseParamList(pkg)
++		results := p.parseResultList(pkg)
++		p.expect(';')
++
++		sig := types.NewSignature(receiver, params, results, isVariadic)
++		nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
++	}
++
++	return nt
++}
++
++func (p *parser) parseInt() int64 {
++	lit := p.expect(scanner.Int)
++	n, err := strconv.ParseInt(lit, 10, 0)
++	if err != nil {
++		p.error(err)
++	}
++	return n
++}
++
++// ArrayOrSliceType = "[" [ int ] "]" Type .
++func (p *parser) parseArrayOrSliceType(pkg *types.Package) types.Type {
++	p.expect('[')
++	if p.tok == ']' {
++		p.next()
++		return types.NewSlice(p.parseType(pkg))
++	}
++
++	n := p.parseInt()
++	p.expect(']')
++	return types.NewArray(p.parseType(pkg), n)
++}
++
++// MapType = "map" "[" Type "]" Type .
++func (p *parser) parseMapType(pkg *types.Package) types.Type {
++	p.expectKeyword("map")
++	p.expect('[')
++	key := p.parseType(pkg)
++	p.expect(']')
++	elem := p.parseType(pkg)
++	return types.NewMap(key, elem)
++}
++
++// ChanType = "chan" ["<-" | "-<"] Type .
++func (p *parser) parseChanType(pkg *types.Package) types.Type {
++	p.expectKeyword("chan")
++	dir := types.SendRecv
++	switch p.tok {
++	case '-':
++		p.next()
++		p.expect('<')
++		dir = types.SendOnly
++
++	case '<':
++		// don't consume '<' if it belongs to Type
++		if p.scanner.Peek() == '-' {
++			p.next()
++			p.expect('-')
++			dir = types.RecvOnly
++		}
++	}
++
++	return types.NewChan(dir, p.parseType(pkg))
++}
++
++// StructType = "struct" "{" { Field } "}" .
++func (p *parser) parseStructType(pkg *types.Package) types.Type {
++	p.expectKeyword("struct")
++
++	var fields []*types.Var
++	var tags []string
++
++	p.expect('{')
++	for p.tok != '}' && p.tok != scanner.EOF {
++		field, tag := p.parseField(pkg)
++		p.expect(';')
++		fields = append(fields, field)
++		tags = append(tags, tag)
++	}
++	p.expect('}')
++
++	return types.NewStruct(fields, tags)
++}
++
++// ParamList = "(" [ { Parameter "," } Parameter ] ")" .
++func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
++	var list []*types.Var
++	isVariadic := false
++
++	p.expect('(')
++	for p.tok != ')' && p.tok != scanner.EOF {
++		if len(list) > 0 {
++			p.expect(',')
++		}
++		par, variadic := p.parseParam(pkg)
++		list = append(list, par)
++		if variadic {
++			if isVariadic {
++				p.error("... not on final argument")
++			}
++			isVariadic = true
++		}
++	}
++	p.expect(')')
++
++	return types.NewTuple(list...), isVariadic
++}
++
++// ResultList = Type | ParamList .
++func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
++	switch p.tok {
++	case '<':
++		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", p.parseType(pkg)))
++
++	case '(':
++		params, _ := p.parseParamList(pkg)
++		return params
++
++	default:
++		return nil
++	}
++}
++
++// FunctionType = ParamList ResultList .
++func (p *parser) parseFunctionType(pkg *types.Package) *types.Signature {
++	params, isVariadic := p.parseParamList(pkg)
++	results := p.parseResultList(pkg)
++	return types.NewSignature(nil, params, results, isVariadic)
++}
++
++// Func = Name FunctionType .
++func (p *parser) parseFunc(pkg *types.Package) *types.Func {
++	name := p.parseName()
++	if strings.ContainsRune(name, '$') {
++		// This is a Type$equal or Type$hash function, which we don't want to parse,
++		// except for the types.
++		p.discardDirectiveWhileParsingTypes(pkg)
++		return nil
++	}
++	return types.NewFunc(token.NoPos, pkg, name, p.parseFunctionType(pkg))
++}
++
++// InterfaceType = "interface" "{" { ("?" Type | Func) ";" } "}" .
++func (p *parser) parseInterfaceType(pkg *types.Package) types.Type {
++	p.expectKeyword("interface")
++
++	var methods []*types.Func
++	var typs []*types.Named
++
++	p.expect('{')
++	for p.tok != '}' && p.tok != scanner.EOF {
++		if p.tok == '?' {
++			p.next()
++			typs = append(typs, p.parseType(pkg).(*types.Named))
++		} else {
++			method := p.parseFunc(pkg)
++			methods = append(methods, method)
++		}
++		p.expect(';')
++	}
++	p.expect('}')
++
++	return types.NewInterface(methods, typs)
++}
++
++// PointerType = "*" ("any" | Type) .
++func (p *parser) parsePointerType(pkg *types.Package) types.Type {
++	p.expect('*')
++	if p.tok == scanner.Ident {
++		p.expectKeyword("any")
++		return types.Typ[types.UnsafePointer]
++	}
++	return types.NewPointer(p.parseType(pkg))
++}
++
++// TypeDefinition = NamedType | MapType | ChanType | StructType | InterfaceType | PointerType | ArrayOrSliceType | FunctionType .
++func (p *parser) parseTypeDefinition(pkg *types.Package, n int) types.Type {
++	var t types.Type
++	switch p.tok {
++	case scanner.String:
++		t = p.parseNamedType(n)
++
++	case scanner.Ident:
++		switch p.lit {
++		case "map":
++			t = p.parseMapType(pkg)
++
++		case "chan":
++			t = p.parseChanType(pkg)
++
++		case "struct":
++			t = p.parseStructType(pkg)
++
++		case "interface":
++			t = p.parseInterfaceType(pkg)
++		}
++
++	case '*':
++		t = p.parsePointerType(pkg)
++
++	case '[':
++		t = p.parseArrayOrSliceType(pkg)
++
++	case '(':
++		t = p.parseFunctionType(pkg)
++	}
++
++	p.typeMap[n] = t
++	return t
++}
++
++const (
++	// From gofrontend/go/export.h
++	// Note that these values are negative in the gofrontend and have been made positive
++	// in the gccgoimporter.
++	gccgoBuiltinINT8       = 1
++	gccgoBuiltinINT16      = 2
++	gccgoBuiltinINT32      = 3
++	gccgoBuiltinINT64      = 4
++	gccgoBuiltinUINT8      = 5
++	gccgoBuiltinUINT16     = 6
++	gccgoBuiltinUINT32     = 7
++	gccgoBuiltinUINT64     = 8
++	gccgoBuiltinFLOAT32    = 9
++	gccgoBuiltinFLOAT64    = 10
++	gccgoBuiltinINT        = 11
++	gccgoBuiltinUINT       = 12
++	gccgoBuiltinUINTPTR    = 13
++	gccgoBuiltinBOOL       = 15
++	gccgoBuiltinSTRING     = 16
++	gccgoBuiltinCOMPLEX64  = 17
++	gccgoBuiltinCOMPLEX128 = 18
++	gccgoBuiltinERROR      = 19
++	gccgoBuiltinBYTE       = 20
++	gccgoBuiltinRUNE       = 21
++)
++
++func lookupBuiltinType(typ int) types.Type {
++	return [...]types.Type{
++		gccgoBuiltinINT8:       types.Typ[types.Int8],
++		gccgoBuiltinINT16:      types.Typ[types.Int16],
++		gccgoBuiltinINT32:      types.Typ[types.Int32],
++		gccgoBuiltinINT64:      types.Typ[types.Int64],
++		gccgoBuiltinUINT8:      types.Typ[types.Uint8],
++		gccgoBuiltinUINT16:     types.Typ[types.Uint16],
++		gccgoBuiltinUINT32:     types.Typ[types.Uint32],
++		gccgoBuiltinUINT64:     types.Typ[types.Uint64],
++		gccgoBuiltinFLOAT32:    types.Typ[types.Float32],
++		gccgoBuiltinFLOAT64:    types.Typ[types.Float64],
++		gccgoBuiltinINT:        types.Typ[types.Int],
++		gccgoBuiltinUINT:       types.Typ[types.Uint],
++		gccgoBuiltinUINTPTR:    types.Typ[types.Uintptr],
++		gccgoBuiltinBOOL:       types.Typ[types.Bool],
++		gccgoBuiltinSTRING:     types.Typ[types.String],
++		gccgoBuiltinCOMPLEX64:  types.Typ[types.Complex64],
++		gccgoBuiltinCOMPLEX128: types.Typ[types.Complex128],
++		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
++		gccgoBuiltinBYTE:       types.Typ[types.Byte],
++		gccgoBuiltinRUNE:       types.Typ[types.Rune],
++	}[typ]
++}
++
++// Type = "<" "type" ( "-" int | int [ TypeDefinition ] ) ">" .
++func (p *parser) parseType(pkg *types.Package) (t types.Type) {
++	p.expect('<')
++	p.expectKeyword("type")
++
++	switch p.tok {
++	case scanner.Int:
++		n := p.parseInt()
++
++		if p.tok == '>' {
++			t = p.typeMap[int(n)]
++		} else {
++			t = p.parseTypeDefinition(pkg, int(n))
++		}
++
++	case '-':
++		p.next()
++		n := p.parseInt()
++		t = lookupBuiltinType(int(n))
++
++	default:
++		p.errorf("expected type number, got %s (%q)", scanner.TokenString(p.tok), p.lit)
++		return nil
++	}
++
++	p.expect('>')
++	return
++}
++
++// PackageInit = unquotedString unquotedString int .
++func (p *parser) parsePackageInit() PackageInit {
++	name := p.parseUnquotedString()
++	initfunc := p.parseUnquotedString()
++	priority := int(p.parseInt())
++	return PackageInit{Name: name, InitFunc: initfunc, Priority: priority}
++}
++
++// Throw away tokens until we see a ';'. If we see a '<', attempt to parse as a type.
++func (p *parser) discardDirectiveWhileParsingTypes(pkg *types.Package) {
++	for {
++		switch p.tok {
++		case ';':
++			return
++		case '<':
++			p.parseType(p.pkg)
++		case scanner.EOF:
++			p.error("unexpected EOF")
++		default:
++			p.next()
++		}
++	}
++}
++
++// Create the package if we have parsed both the package path and package name.
++func (p *parser) maybeCreatePackage() {
++	if p.pkgname != "" && p.pkgpath != "" {
++		p.pkg = p.getPkg(p.pkgpath, p.pkgname)
++	}
++}
++
++// InitDataDirective = "v1" ";" |
++//                     "priority" int ";" |
++//                     "init" { PackageInit } ";" |
++//                     "checksum" unquotedString ";" .
++func (p *parser) parseInitDataDirective() {
++	if p.tok != scanner.Ident {
++		// unexpected token kind; panic
++		p.expect(scanner.Ident)
++	}
++
++	switch p.lit {
++	case "v1":
++		p.next()
++		p.expect(';')
++
++	case "priority":
++		p.next()
++		p.initdata.Priority = int(p.parseInt())
++		p.expect(';')
++
++	case "init":
++		p.next()
++		for p.tok != ';' && p.tok != scanner.EOF {
++			p.initdata.Inits = append(p.initdata.Inits, p.parsePackageInit())
++		}
++		p.expect(';')
++
++	case "checksum":
++		// Don't let the scanner try to parse the checksum as a number.
++		defer func(mode uint) {
++			p.scanner.Mode = mode
++		}(p.scanner.Mode)
++		p.scanner.Mode &^= scanner.ScanInts | scanner.ScanFloats
++		p.next()
++		p.parseUnquotedString()
++		p.expect(';')
++
++	default:
++		p.errorf("unexpected identifier: %q", p.lit)
++	}
++}
++
++// Directive = InitDataDirective |
++//             "package" unquotedString ";" |
++//             "pkgpath" unquotedString ";" |
++//             "import" unquotedString unquotedString string ";" |
++//             "func" Func ";" |
++//             "type" Type ";" |
++//             "var" Var ";" |
++//             "const" Const ";" .
++func (p *parser) parseDirective() {
++	if p.tok != scanner.Ident {
++		// unexpected token kind; panic
++		p.expect(scanner.Ident)
++	}
++
++	switch p.lit {
++	case "v1", "priority", "init", "checksum":
++		p.parseInitDataDirective()
++
++	case "package":
++		p.next()
++		p.pkgname = p.parseUnquotedString()
++		p.maybeCreatePackage()
++		p.expect(';')
++
++	case "pkgpath":
++		p.next()
++		p.pkgpath = p.parseUnquotedString()
++		p.maybeCreatePackage()
++		p.expect(';')
++
++	case "import":
++		p.next()
++		pkgname := p.parseUnquotedString()
++		pkgpath := p.parseUnquotedString()
++		p.getPkg(pkgpath, pkgname)
++		p.parseString()
++		p.expect(';')
++
++	case "func":
++		p.next()
++		fun := p.parseFunc(p.pkg)
++		if fun != nil {
++			p.pkg.Scope().Insert(fun)
++		}
++		p.expect(';')
++
++	case "type":
++		p.next()
++		p.parseType(p.pkg)
++		p.expect(';')
++
++	case "var":
++		p.next()
++		v := p.parseVar(p.pkg)
++		p.pkg.Scope().Insert(v)
++		p.expect(';')
++
++	case "const":
++		p.next()
++		c := p.parseConst(p.pkg)
++		p.pkg.Scope().Insert(c)
++		p.expect(';')
++
++	default:
++		p.errorf("unexpected identifier: %q", p.lit)
++	}
++}
++
++// Package = { Directive } .
++func (p *parser) parsePackage() *types.Package {
++	for p.tok != scanner.EOF {
++		p.parseDirective()
++	}
++	for _, typ := range p.typeMap {
++		if it, ok := typ.(*types.Interface); ok {
++			it.Complete()
++		}
++	}
++	p.pkg.MarkComplete()
++	return p.pkg
++}
++
++// InitData = { InitDataDirective } .
++func (p *parser) parseInitData() {
++	for p.tok != scanner.EOF {
++		p.parseInitDataDirective()
++	}
++}
+diff --git a/src/go/internal/gccgoimporter/parser_test.go b/src/go/internal/gccgoimporter/parser_test.go
+new file mode 100644
+index 0000000000..1f0f12a2f8
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/parser_test.go
+@@ -0,0 +1,73 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gccgoimporter
++
++import (
++	"bytes"
++	"strings"
++	"testing"
++	"text/scanner"
++
++	"golang.org/x/tools/go/types"
++)
++
++var typeParserTests = []struct {
++	id, typ, want, underlying, methods string
++}{
++	{id: "foo", typ: "<type -1>", want: "int8"},
++	{id: "foo", typ: "<type 1 *<type -19>>", want: "*error"},
++	{id: "foo", typ: "<type 1 *any>", want: "unsafe.Pointer"},
++	{id: "foo", typ: "<type 1 \"Bar\" <type 2 *<type 1>>>", want: "foo.Bar", underlying: "*foo.Bar"},
++	{id: "foo", typ: "<type 1 \"bar.Foo\" \"bar\" <type -1> func (? <type 1>) M (); >", want: "bar.Foo", underlying: "int8", methods: "func (bar.Foo).M()"},
++	{id: "foo", typ: "<type 1 \".bar.foo\" \"bar\" <type -1>>", want: "bar.foo", underlying: "int8"},
++	{id: "foo", typ: "<type 1 []<type -1>>", want: "[]int8"},
++	{id: "foo", typ: "<type 1 [42]<type -1>>", want: "[42]int8"},
++	{id: "foo", typ: "<type 1 map [<type -1>] <type -2>>", want: "map[int8]int16"},
++	{id: "foo", typ: "<type 1 chan <type -1>>", want: "chan int8"},
++	{id: "foo", typ: "<type 1 chan <- <type -1>>", want: "<-chan int8"},
++	{id: "foo", typ: "<type 1 chan -< <type -1>>", want: "chan<- int8"},
++	{id: "foo", typ: "<type 1 struct { I8 <type -1>; I16 <type -2> \"i16\"; }>", want: "struct{I8 int8; I16 int16 \"i16\"}"},
++	{id: "foo", typ: "<type 1 interface { Foo (a <type -1>, b <type -2>) <type -1>; Bar (? <type -2>, ? ...<type -1>) (? <type -2>, ? <type -1>); Baz (); }>", want: "interface{Bar(int16, ...int8) (int16, int8); Baz(); Foo(a int8, b int16) int8}"},
++	{id: "foo", typ: "<type 1 (? <type -1>) <type -2>>", want: "func(int8) int16"},
++}
++
++func TestTypeParser(t *testing.T) {
++	for _, test := range typeParserTests {
++		var p parser
++		p.init("test.gox", strings.NewReader(test.typ), make(map[string]*types.Package))
++		p.pkgname = test.id
++		p.pkgpath = test.id
++		p.maybeCreatePackage()
++		typ := p.parseType(p.pkg)
++
++		if p.tok != scanner.EOF {
++			t.Errorf("expected full parse, stopped at %q", p.lit)
++		}
++
++		got := typ.String()
++		if got != test.want {
++			t.Errorf("got type %q, expected %q", got, test.want)
++		}
++
++		if test.underlying != "" {
++			underlying := typ.Underlying().String()
++			if underlying != test.underlying {
++				t.Errorf("got underlying type %q, expected %q", underlying, test.underlying)
++			}
++		}
++
++		if test.methods != "" {
++			nt := typ.(*types.Named)
++			var buf bytes.Buffer
++			for i := 0; i != nt.NumMethods(); i++ {
++				buf.WriteString(nt.Method(i).String())
++			}
++			methods := buf.String()
++			if methods != test.methods {
++				t.Errorf("got methods %q, expected %q", methods, test.methods)
++			}
++		}
++	}
++}
+diff --git a/src/go/internal/gccgoimporter/testdata/complexnums.go b/src/go/internal/gccgoimporter/testdata/complexnums.go
+new file mode 100644
+index 0000000000..a51b6b01c0
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/complexnums.go
+@@ -0,0 +1,6 @@
++package complexnums
++
++const NN = -1 - 1i
++const NP = -1 + 1i
++const PN = 1 - 1i
++const PP = 1 + 1i
+diff --git a/src/go/internal/gccgoimporter/testdata/complexnums.gox b/src/go/internal/gccgoimporter/testdata/complexnums.gox
+new file mode 100644
+index 0000000000..b66524f80e
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/complexnums.gox
+@@ -0,0 +1,8 @@
++v1;
++package complexnums;
++pkgpath complexnums;
++priority 1;
++const NN = -0.1E1-0.1E1i ;
++const NP = -0.1E1+0.1E1i ;
++const PN = 0.1E1-0.1E1i ;
++const PP = 0.1E1+0.1E1i ;
+diff --git a/src/go/internal/gccgoimporter/testdata/imports.go b/src/go/internal/gccgoimporter/testdata/imports.go
+new file mode 100644
+index 0000000000..7907316a60
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/imports.go
+@@ -0,0 +1,5 @@
++package imports
++
++import "fmt"
++
++var Hello = fmt.Sprintf("Hello, world")
+diff --git a/src/go/internal/gccgoimporter/testdata/imports.gox b/src/go/internal/gccgoimporter/testdata/imports.gox
+new file mode 100644
+index 0000000000..958a4f5b82
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/imports.gox
+@@ -0,0 +1,7 @@
++v1;
++package imports;
++pkgpath imports;
++priority 7;
++import fmt fmt "fmt";
++init imports imports..import 7 math math..import 1 runtime runtime..import 1 strconv strconv..import 2 io io..import 3 reflect reflect..import 3 syscall syscall..import 3 time time..import 4 os os..import 5 fmt fmt..import 6;
++var Hello <type -16>;
+diff --git a/src/go/internal/gccgoimporter/testdata/pointer.go b/src/go/internal/gccgoimporter/testdata/pointer.go
+new file mode 100644
+index 0000000000..4ebc67137d
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/pointer.go
+@@ -0,0 +1,3 @@
++package pointer
++
++type Int8Ptr *int8
+diff --git a/src/go/internal/gccgoimporter/testdata/pointer.gox b/src/go/internal/gccgoimporter/testdata/pointer.gox
+new file mode 100644
+index 0000000000..d96ebbdd14
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/pointer.gox
+@@ -0,0 +1,4 @@
++v1;
++package pointer;
++pkgpath pointer;
++type <type 1 "Int8Ptr" <type 2 *<type -1>>>;

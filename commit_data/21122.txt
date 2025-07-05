@@ -8,6 +8,16 @@ Date:   Mon Nov 17 11:20:53 2014 +1100
     R=rsc, dsymonds
     CC=golang-codereviews
     https://golang.org/cl/175840043
-
+---
  .hgtags | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgtags b/.hgtags
+index edd2163f70..78252b15cc 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -136,3 +136,4 @@ f8b50ad4cac4d4c4ecf48324b4f512f65e82cc1c go1.3beta1
+ f44017549ff9c3cc5eef74ebe7276cd0dfc066b6 go1.3.3
+ f44017549ff9c3cc5eef74ebe7276cd0dfc066b6 release
+ 1fdfd7dfaedb1b7702141617e621ab7328a236a1 go1.4beta1
++122dcdd033354e3208878c428783906ca7588964 go1.4rc1

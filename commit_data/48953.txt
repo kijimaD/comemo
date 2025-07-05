@@ -14,6 +14,31 @@ Date:   Tue Jun 29 16:31:18 2021 -0700
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/os/example_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 3adce51784..e8554b0b12 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"io/fs"
+ 	"log"
+@@ -71,9 +72,9 @@ func ExampleFileMode() {
+ 	}
+ }
+ 
+-func ExampleIsNotExist() {
++func ExampleErrNotExist() {
+ 	filename := "a-nonexistent-file"
+-	if _, err := os.Stat(filename); os.IsNotExist(err) {
++	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
+ 		fmt.Println("file does not exist")
+ 	}
+ 	// Output:

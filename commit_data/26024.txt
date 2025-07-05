@@ -7,6 +7,19 @@ Date:   Thu Jun 25 13:11:25 2015 -0400
     Change-Id: I88fea011e68a8f0d351d2a9dd81d6aa48bc7c7c7
     Reviewed-on: https://go-review.googlesource.com/17731
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 8c4c9f9e6f..c5067a93e1 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -116,6 +116,7 @@ Anthony Starks <ajstarks@gmail.com>
+ Apisak Darakananda <pongad@gmail.com>
+ Aram Hăvărneanu <aram@mgk.ro>
+ Areski Belaid <areski@gmail.com>
++Arkadi Pyuro <arkadi@google.com>
+ Arnaud Ysmal <arnaud.ysmal@gmail.com>
+ Arne Hormann <arnehormann@gmail.com>
+ Arnout Engelen <arnout@bzzt.net>

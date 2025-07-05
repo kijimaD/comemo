@@ -20,8 +20,59 @@ Date:   Thu Nov 11 16:51:08 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go    |  1 -
  src/cmd/link/internal/ld/outbuf.go | 14 ++++++++++++++
  src/cmd/link/internal/ld/sym.go    |  2 +-
  3 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 91665b2ebb..9e13db7b71 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1103,7 +1103,6 @@ func hostlinksetup(ctxt *Link) {
+ 		*flagTmpdir = dir
+ 		ownTmpDir = true
+ 		AtExit(func() {
+-			ctxt.Out.Close()
+ 			os.RemoveAll(*flagTmpdir)
+ 		})
+ 	}
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 9d5e8854fe..1d21dce9c5 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -131,6 +131,20 @@ func (out *OutBuf) Close() error {
+ 	return nil
+ }
+ 
++// ErrorClose closes the output file (if any).
++// It is supposed to be called only at exit on error, so it doesn't do
++// any clean up or buffer flushing, just closes the file.
++func (out *OutBuf) ErrorClose() {
++	if out.isView {
++		panic(viewCloseError)
++	}
++	if out.f == nil {
++		return
++	}
++	out.f.Close() // best effort, ignore error
++	out.f = nil
++}
++
+ // isMmapped returns true if the OutBuf is mmaped.
+ func (out *OutBuf) isMmapped() bool {
+ 	return len(out.buf) != 0
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 72639962e2..d51a59ef46 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -60,7 +60,7 @@ func linknew(arch *sys.Arch) *Link {
+ 
+ 	AtExit(func() {
+ 		if nerrors > 0 {
+-			ctxt.Out.Close()
++			ctxt.Out.ErrorClose()
+ 			mayberemoveoutfile()
+ 		}
+ 	})

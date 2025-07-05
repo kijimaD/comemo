@@ -18,6 +18,27 @@ Date:   Mon Aug 19 17:40:55 2024 -0700
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/syscall/syscall_aix.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index a9bd7a3733..36dfd90678 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -119,11 +119,11 @@ func Getwd() (ret string, err error) {
+ 		b := make([]byte, len)
+ 		err := getcwd(&b[0], len)
+ 		if err == nil {
+-			i := 0
+-			for b[i] != 0 {
+-				i++
++			n := clen(b[:])
++			if n < 1 {
++				return "", EINVAL
+ 			}
+-			return string(b[0:i]), nil
++			return string(b[:n]), nil
+ 		}
+ 		if err != ERANGE {
+ 			return "", err

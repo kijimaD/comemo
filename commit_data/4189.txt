@@ -8,6 +8,22 @@ Date:   Mon Nov 23 13:51:10 2009 -0800
     
     R=rsc
     https://golang.org/cl/157140
-
+---
  src/pkg/testing/iotest/logger.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/testing/iotest/logger.go b/src/pkg/testing/iotest/logger.go
+index 0b01fcbbea..86812d7e60 100644
+--- a/src/pkg/testing/iotest/logger.go
++++ b/src/pkg/testing/iotest/logger.go
+@@ -47,8 +47,8 @@ func (l *readLogger) Read(p []byte) (n int, err os.Error) {
+ 	return;
+ }
+ 
+-// NewReadLogger returns a writer that behaves like w except
+-// that it logs (using log.Stdout) each write to standard output,
++// NewReadLogger returns a reader that behaves like r except
++// that it logs (using log.Stdout) each read to standard output,
+ // printing the prefix and the hexadecimal data written.
+ func NewReadLogger(prefix string, r io.Reader) io.Reader {
+ 	return &readLogger{prefix, r}

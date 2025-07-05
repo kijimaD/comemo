@@ -18,9 +18,140 @@ Date:   Wed Apr 19 14:16:37 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/crash_cgo_test.go                  | 37 ++++++++++++++++++++++++++
  src/runtime/race.go                            |  7 +++++
  src/runtime/testdata/testprogcgo/destructor.c  | 22 +++++++++++++++
  src/runtime/testdata/testprogcgo/destructor.go | 23 ++++++++++++++++
  4 files changed, 89 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index c6c018ccdf..1d8d874ca1 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -9,6 +9,7 @@ package runtime_test
+ import (
+ 	"fmt"
+ 	"internal/goos"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -777,3 +778,39 @@ func TestCgoSigfwd(t *testing.T) {
+ 		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
++
++func TestDestructorCallback(t *testing.T) {
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "DestructorCallback")
++	if want := "OK\n"; got != want {
++		t.Errorf("expected %q, but got:\n%s", want, got)
++	}
++}
++
++func TestDestructorCallbackRace(t *testing.T) {
++	// This test requires building with -race,
++	// so it's somewhat slow.
++	if testing.Short() {
++		t.Skip("skipping test in -short mode")
++	}
++
++	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
++		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
++	}
++
++	t.Parallel()
++
++	exe, err := buildTestProg(t, "testprogcgo", "-race")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testenv.CleanCmdEnv(exec.Command(exe, "DestructorCallback")).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if want := "OK\n"; string(got) != want {
++		t.Errorf("expected %q, but got:\n%s", want, got)
++	}
++}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index f7e99fd940..7c7b78c145 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -407,9 +407,16 @@ func racefini() {
+ 	// already held it's assumed that the first caller exits the program
+ 	// so other calls can hang forever without an issue.
+ 	lock(&raceFiniLock)
++
++	// __tsan_fini will run C atexit functions and C++ destructors,
++	// which can theoretically call back into Go.
++	// Tell the scheduler we entering external code.
++	entersyscall()
++
+ 	// We're entering external code that may call ExitProcess on
+ 	// Windows.
+ 	osPreemptExtEnter(getg().m)
++
+ 	racecall(&__tsan_fini, 0, 0, 0, 0)
+ }
+ 
+diff --git a/src/runtime/testdata/testprogcgo/destructor.c b/src/runtime/testdata/testprogcgo/destructor.c
+new file mode 100644
+index 0000000000..8604d81570
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/destructor.c
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "_cgo_export.h"
++
++static void callDestructorCallback() {
++	GoDestructorCallback();
++}
++
++static void (*destructorFn)(void);
++
++void registerDestructor() {
++	destructorFn = callDestructorCallback;
++}
++
++__attribute__((destructor))
++static void destructor() {
++	if (destructorFn) {
++		destructorFn();
++	}
++}
+diff --git a/src/runtime/testdata/testprogcgo/destructor.go b/src/runtime/testdata/testprogcgo/destructor.go
+new file mode 100644
+index 0000000000..49529f09bf
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/destructor.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// extern void registerDestructor();
++import "C"
++
++import "fmt"
++
++func init() {
++	register("DestructorCallback", DestructorCallback)
++}
++
++//export GoDestructorCallback
++func GoDestructorCallback() {
++}
++
++func DestructorCallback() {
++	C.registerDestructor()
++	fmt.Println("OK")
++}

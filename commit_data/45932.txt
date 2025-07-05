@@ -16,6 +16,19 @@ Date:   Sat Nov 28 19:10:57 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/syntax/semi4.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index f21431b3f5..08c354751b 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+ 	for x		// GCCGO_ERROR "undefined"
+-	{		// ERROR "unexpected {, expecting for loop condition"
+-		z
++	{		// ERROR "unexpected {, expecting for loop condition|expecting .*{.* after for clause"
++		z	// GCCGO_ERROR "undefined"

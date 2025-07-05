@@ -18,7 +18,7 @@ Date:   Mon Oct 23 19:57:07 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     |  6 ++---
  src/cmd/compile/internal/gc/dcl.go       |  6 ++---
  src/cmd/compile/internal/gc/inl.go       | 10 +++-----
@@ -29,3 +29,378 @@ Date:   Mon Oct 23 19:57:07 2017 +0100
  src/cmd/compile/internal/gc/typecheck.go |  4 +--
  src/cmd/compile/internal/gc/walk.go      |  4 +--
  9 files changed, 57 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index aad3db9b77..27ede4b4ad 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -223,8 +223,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 	if n.Op == OLITERAL && !reuse {
+ 		// Can't always set n.Type directly on OLITERAL nodes.
+ 		// See discussion on CL 20813.
+-		nn := *n
+-		n = &nn
++		n = n.copy()
+ 		reuse = true
+ 	}
+ 
+@@ -1333,8 +1332,7 @@ func defaultlitreuse(n *Node, t *types.Type, reuse canReuseNode) *Node {
+ 	}
+ 
+ 	if n.Op == OLITERAL && !reuse {
+-		nn := *n
+-		n = &nn
++		n = n.copy()
+ 		reuse = true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d70812934d..39f7cd45c6 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -466,11 +466,11 @@ func funcargs(nt *Node) {
+ 			// So the two cases must be distinguished.
+ 			// We do not record a pointer to the original node (n->orig).
+ 			// Having multiple names causes too much confusion in later passes.
+-			nn := *n.Left
+-			nn.Orig = &nn
++			nn := n.Left.copy()
++			nn.Orig = nn
+ 			nn.Sym = lookupN("~b", gen)
+ 			gen++
+-			n.Left = &nn
++			n.Left = nn
+ 		}
+ 
+ 		n.Left.Name.Param.Ntype = n.Right
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 71c8a71bb7..54c031178c 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -392,7 +392,7 @@ func inlcopy(n *Node) *Node {
+ 		return n
+ 	}
+ 
+-	m := *n
++	m := n.copy()
+ 	if m.Func != nil {
+ 		m.Func.Inl.Set(nil)
+ 	}
+@@ -403,7 +403,7 @@ func inlcopy(n *Node) *Node {
+ 	m.Ninit.Set(inlcopylist(n.Ninit.Slice()))
+ 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
+ 
+-	return &m
++	return m
+ }
+ 
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+@@ -1192,8 +1192,7 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		return m
+ 
+ 	case OGOTO, OLABEL:
+-		m := nod(OXXX, nil, nil)
+-		*m = *n
++		m := n.copy()
+ 		m.Pos = subst.updatedPos(m.Pos)
+ 		m.Ninit.Set(nil)
+ 		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
+@@ -1202,8 +1201,7 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		return m
+ 	}
+ 
+-	m := nod(OXXX, nil, nil)
+-	*m = *n
++	m := n.copy()
+ 	m.Pos = subst.updatedPos(m.Pos)
+ 	m.Ninit.Set(nil)
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index d3b5f73824..4161b273d0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -109,10 +109,10 @@ func (o *Order) cheapExpr(n *Node) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := *n
+-		a.Orig = &a
++		a := n.copy()
++		a.Orig = a
+ 		a.Left = l
+-		return typecheck(&a, Erv)
++		return typecheck(a, Erv)
+ 	}
+ 
+ 	return o.copyExpr(n, n.Type, false)
+@@ -135,20 +135,20 @@ func (o *Order) safeExpr(n *Node) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := *n
+-		a.Orig = &a
++		a := n.copy()
++		a.Orig = a
+ 		a.Left = l
+-		return typecheck(&a, Erv)
++		return typecheck(a, Erv)
+ 
+ 	case ODOTPTR, OIND:
+ 		l := o.cheapExpr(n.Left)
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := *n
+-		a.Orig = &a
++		a := n.copy()
++		a.Orig = a
+ 		a.Left = l
+-		return typecheck(&a, Erv)
++		return typecheck(a, Erv)
+ 
+ 	case OINDEX, OINDEXMAP:
+ 		var l *Node
+@@ -161,11 +161,11 @@ func (o *Order) safeExpr(n *Node) *Node {
+ 		if l == n.Left && r == n.Right {
+ 			return n
+ 		}
+-		a := *n
+-		a.Orig = &a
++		a := n.copy()
++		a.Orig = a
+ 		a.Left = l
+ 		a.Right = r
+-		return typecheck(&a, Erv)
++		return typecheck(a, Erv)
+ 
+ 	default:
+ 		Fatalf("ordersafeexpr %v", n.Op)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f1f38f4572..c4308c25f0 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -67,17 +67,17 @@ func instrument(fn *Node) {
+ 		// nodpc is the PC of the caller as extracted by
+ 		// getcallerpc. We use -widthptr(FP) for x86.
+ 		// BUG: this will not work on arm.
+-		nodpc := *nodfp
++		nodpc := nodfp.copy()
+ 		nodpc.Type = types.Types[TUINTPTR]
+ 		nodpc.Xoffset = int64(-Widthptr)
+ 		savedLineno := lineno
+ 		lineno = src.NoXPos
+-		nd := mkcall("racefuncenter", nil, nil, &nodpc)
++		nd := mkcall("racefuncenter", nil, nil, nodpc)
+ 
+ 		fn.Func.Enter.Prepend(nd)
+ 		nd = mkcall("racefuncexit", nil, nil)
+ 		fn.Func.Exit.Append(nd)
+-		fn.Func.Dcl = append(fn.Func.Dcl, &nodpc)
++		fn.Func.Dcl = append(fn.Func.Dcl, nodpc)
+ 		lineno = savedLineno
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index a7e9f54b3f..b63ac23ae3 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -328,35 +328,32 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 		// copy slice
+ 		a := inittemps[r]
+ 
+-		n := *l
++		n := l.copy()
+ 		n.Xoffset = l.Xoffset + int64(array_array)
+-		gdata(&n, nod(OADDR, a, nil), Widthptr)
++		gdata(n, nod(OADDR, a, nil), Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_nel)
+-		gdata(&n, r.Right, Widthptr)
++		gdata(n, r.Right, Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_cap)
+-		gdata(&n, r.Right, Widthptr)
++		gdata(n, r.Right, Widthptr)
+ 		return true
+ 
+ 	case OARRAYLIT, OSTRUCTLIT:
+ 		p := initplans[r]
+ 
+-		n := *l
++		n := l.copy()
+ 		for i := range p.E {
+ 			e := &p.E[i]
+ 			n.Xoffset = l.Xoffset + e.Xoffset
+ 			n.Type = e.Expr.Type
+ 			if e.Expr.Op == OLITERAL {
+-				gdata(&n, e.Expr, int(n.Type.Width))
++				gdata(n, e.Expr, int(n.Type.Width))
+ 			} else {
+-				ll := nod(OXXX, nil, nil)
+-				*ll = n
++				ll := n.copy()
+ 				ll.Orig = ll // completely separate copy
+ 				if !staticassign(ll, e.Expr, out) {
+ 					// Requires computation, but we're
+ 					// copying someone else's computation.
+-					rr := nod(OXXX, nil, nil)
+-
+-					*rr = *orig
++					rr := orig.copy()
+ 					rr.Orig = rr // completely separate copy
+ 					rr.Type = ll.Type
+ 					rr.Xoffset += e.Xoffset
+@@ -429,13 +426,13 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		ta := types.NewArray(r.Type.Elem(), bound)
+ 		a := staticname(ta)
+ 		inittemps[r] = a
+-		n := *l
++		n := l.copy()
+ 		n.Xoffset = l.Xoffset + int64(array_array)
+-		gdata(&n, nod(OADDR, a, nil), Widthptr)
++		gdata(n, nod(OADDR, a, nil), Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_nel)
+-		gdata(&n, r.Right, Widthptr)
++		gdata(n, r.Right, Widthptr)
+ 		n.Xoffset = l.Xoffset + int64(array_cap)
+-		gdata(&n, r.Right, Widthptr)
++		gdata(n, r.Right, Widthptr)
+ 
+ 		// Fall through to init underlying array.
+ 		l = a
+@@ -445,17 +442,16 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 		initplan(r)
+ 
+ 		p := initplans[r]
+-		n := *l
++		n := l.copy()
+ 		for i := range p.E {
+ 			e := &p.E[i]
+ 			n.Xoffset = l.Xoffset + e.Xoffset
+ 			n.Type = e.Expr.Type
+ 			if e.Expr.Op == OLITERAL {
+-				gdata(&n, e.Expr, int(n.Type.Width))
++				gdata(n, e.Expr, int(n.Type.Width))
+ 			} else {
+ 				setlineno(e.Expr)
+-				a := nod(OXXX, nil, nil)
+-				*a = n
++				a := n.copy()
+ 				a.Orig = a // completely separate copy
+ 				if !staticassign(a, e.Expr, out) {
+ 					*out = append(*out, nod(OAS, a, e.Expr))
+@@ -522,11 +518,10 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 			// Copy val directly into n.
+ 			n.Type = val.Type
+ 			setlineno(val)
+-			a := nod(OXXX, nil, nil)
+-			*a = n
+-			a.Orig = a
+-			if !staticassign(a, val, out) {
+-				*out = append(*out, nod(OAS, a, val))
++			a := n
++			a.Orig = &a
++			if !staticassign(&a, val, out) {
++				*out = append(*out, nod(OAS, &a, val))
+ 			}
+ 		} else {
+ 			// Construct temp to hold val, write pointer to temp into n.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a6d868a06a..ef68d677e6 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -364,6 +364,11 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
+ 	return n
+ }
+ 
++func (n *Node) copy() *Node {
++	n2 := *n
++	return &n2
++}
++
+ // methcmp sorts methods by name with exported methods first,
+ // and then non-exported methods by their package path.
+ type methcmp []*types.Field
+@@ -439,8 +444,8 @@ func treecopy(n *Node, pos src.XPos) *Node {
+ 
+ 	switch n.Op {
+ 	default:
+-		m := *n
+-		m.Orig = &m
++		m := n.copy()
++		m.Orig = m
+ 		m.Left = treecopy(n.Left, pos)
+ 		m.Right = treecopy(n.Right, pos)
+ 		m.List.Set(listtreecopy(n.List.Slice(), pos))
+@@ -451,7 +456,7 @@ func treecopy(n *Node, pos src.XPos) *Node {
+ 			Dump("treecopy", n)
+ 			Fatalf("treecopy Name")
+ 		}
+-		return &m
++		return m
+ 
+ 	case OPACK:
+ 		// OPACK nodes are never valid in const value declarations,
+@@ -1252,8 +1257,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		r := nod(OXXX, nil, nil)
+-		*r = *n
++		r := n.copy()
+ 		r.Left = l
+ 		r = typecheck(r, Erv)
+ 		r = walkexpr(r, init)
+@@ -1264,8 +1268,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		if l == n.Left {
+ 			return n
+ 		}
+-		a := nod(OXXX, nil, nil)
+-		*a = *n
++		a := n.copy()
+ 		a.Left = l
+ 		a = walkexpr(a, init)
+ 		return a
+@@ -1276,8 +1279,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		if l == n.Left && r == n.Right {
+ 			return n
+ 		}
+-		a := nod(OXXX, nil, nil)
+-		*a = *n
++		a := n.copy()
+ 		a.Left = l
+ 		a.Right = r
+ 		a = walkexpr(a, init)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 9cbbc0b9b6..1bff3431a0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2873,9 +2873,7 @@ func typecheckcomplit(n *Node) *Node {
+ 	}
+ 
+ 	// Save original node (including n.Right)
+-	norig := nod(n.Op, nil, nil)
+-
+-	*norig = *n
++	norig := n.copy()
+ 
+ 	setlineno(n.Right)
+ 	n.Right = typecheck(n.Right, Etype|Ecomplit)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6b862d3bf1..d392d567ca 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3894,7 +3894,7 @@ func wrapCall(n *Node, init *Nodes) *Node {
+ // The result of substArgTypes MUST be assigned back to old, e.g.
+ // 	n.Left = substArgTypes(n.Left, t1, t2)
+ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
+-	n := *old // make shallow copy
++	n := old.copy() // make shallow copy
+ 
+ 	for _, t := range types_ {
+ 		dowidth(t)
+@@ -3903,5 +3903,5 @@ func substArgTypes(old *Node, types_ ...*types.Type) *Node {
+ 	if len(types_) > 0 {
+ 		Fatalf("substArgTypes: too many argument types")
+ 	}
+-	return &n
++	return n
+ }

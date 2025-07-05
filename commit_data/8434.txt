@@ -7,8 +7,257 @@ Date:   Wed May 18 11:02:08 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4536065
-
+---
  src/pkg/big/int.go      | 40 +++++++++++++++++++++++++-------
  src/pkg/big/int_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/big/nat.go      |  5 ++--
  3 files changed, 96 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 2a3fe5faea..74fbef48d0 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -309,11 +309,13 @@ func (x *Int) Cmp(y *Int) (r int) {
+ 
+ 
+ func (x *Int) String() string {
+-	s := ""
+-	if x.neg {
+-		s = "-"
++	switch {
++	case x == nil:
++		return "<nil>"
++	case x.neg:
++		return "-" + x.abs.decimalString()
+ 	}
+-	return s + x.abs.decimalString()
++	return x.abs.decimalString()
+ }
+ 
+ 
+@@ -323,7 +325,7 @@ func charset(ch int) string {
+ 		return lowercaseDigits[0:2]
+ 	case 'o':
+ 		return lowercaseDigits[0:8]
+-	case 'd':
++	case 'd', 'v':
+ 		return lowercaseDigits[0:10]
+ 	case 'x':
+ 		return lowercaseDigits[0:16]
+@@ -339,14 +341,36 @@ func charset(ch int) string {
+ // (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+ //
+ func (x *Int) Format(s fmt.State, ch int) {
+-	if x == nil {
++	cs := charset(ch)
++
++	// special cases
++	switch {
++	case cs == "":
++		// unknown format
++		fmt.Fprintf(s, "%%!%c(big.Int=%s)", ch, x.String())
++		return
++	case x == nil:
+ 		fmt.Fprint(s, "<nil>")
+ 		return
+ 	}
++
++	// determine format
++	format := "%s"
++	if s.Flag('#') {
++		switch ch {
++		case 'o':
++			format = "0%s"
++		case 'x':
++			format = "0x%s"
++		case 'X':
++			format = "0X%s"
++		}
++	}
+ 	if x.neg {
+-		fmt.Fprint(s, "-")
++		format = "-" + format
+ 	}
+-	fmt.Fprint(s, x.abs.string(charset(ch)))
++
++	fmt.Fprintf(s, format, x.abs.string(cs))
+ }
+ 
+ 
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 82fd7564e8..595f04956c 100755
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -348,6 +348,55 @@ func TestSetString(t *testing.T) {
+ }
+ 
+ 
++var formatTests = []struct {
++	input  string
++	format string
++	output string
++}{
++	{"<nil>", "%x", "<nil>"},
++	{"<nil>", "%#x", "<nil>"},
++	{"<nil>", "%#y", "%!y(big.Int=<nil>)"},
++
++	{"10", "%b", "1010"},
++	{"10", "%o", "12"},
++	{"10", "%d", "10"},
++	{"10", "%v", "10"},
++	{"10", "%x", "a"},
++	{"10", "%X", "A"},
++	{"-10", "%X", "-A"},
++	{"10", "%y", "%!y(big.Int=10)"},
++	{"-10", "%y", "%!y(big.Int=-10)"},
++
++	{"10", "%#b", "1010"},
++	{"10", "%#o", "012"},
++	{"10", "%#d", "10"},
++	{"10", "%#v", "10"},
++	{"10", "%#x", "0xa"},
++	{"10", "%#X", "0XA"},
++	{"-10", "%#X", "-0XA"},
++	{"10", "%#y", "%!y(big.Int=10)"},
++	{"-10", "%#y", "%!y(big.Int=-10)"},
++}
++
++
++func TestFormat(t *testing.T) {
++	for i, test := range formatTests {
++		var x *Int
++		if test.input != "<nil>" {
++			var ok bool
++			x, ok = new(Int).SetString(test.input, 0)
++			if !ok {
++				t.Errorf("#%d failed reading input %s", i, test.input)
++			}
++		}
++		output := fmt.Sprintf(test.format, x)
++		if output != test.output {
++			t.Errorf("#%d got %s; want %s", i, output, test.output)
++		}
++	}
++}
++
++
+ // Examples from the Go Language Spec, section "Arithmetic operators"
+ var divisionSignsTests = []struct {
+ 	x, y int64
+@@ -984,6 +1033,7 @@ func testBitFunSelf(t *testing.T, msg string, f bitFun, x, y *Int, exp string) {
+ 	}
+ }
+ 
++
+ func altBit(x *Int, i int) uint {
+ 	z := new(Int).Rsh(x, uint(i))
+ 	z = z.And(z, NewInt(1))
+@@ -993,6 +1043,7 @@ func altBit(x *Int, i int) uint {
+ 	return 0
+ }
+ 
++
+ func altSetBit(z *Int, x *Int, i int, b uint) *Int {
+ 	one := NewInt(1)
+ 	m := one.Lsh(one, uint(i))
+@@ -1005,6 +1056,7 @@ func altSetBit(z *Int, x *Int, i int, b uint) *Int {
+ 	panic("set bit is not 0 or 1")
+ }
+ 
++
+ func testBitset(t *testing.T, x *Int) {
+ 	n := x.BitLen()
+ 	z := new(Int).Set(x)
+@@ -1042,6 +1094,7 @@ func testBitset(t *testing.T, x *Int) {
+ 	}
+ }
+ 
++
+ var bitsetTests = []struct {
+ 	x string
+ 	i int
+@@ -1061,6 +1114,7 @@ var bitsetTests = []struct {
+ 	{"-0x2000000000000000000000000001", 110, 1},
+ }
+ 
++
+ func TestBitSet(t *testing.T) {
+ 	for _, test := range bitwiseTests {
+ 		x := new(Int)
+@@ -1081,6 +1135,7 @@ func TestBitSet(t *testing.T) {
+ 	}
+ }
+ 
++
+ func BenchmarkBitset(b *testing.B) {
+ 	z := new(Int)
+ 	z.SetBit(z, 512, 1)
+@@ -1091,6 +1146,7 @@ func BenchmarkBitset(b *testing.B) {
+ 	}
+ }
+ 
++
+ func BenchmarkBitsetNeg(b *testing.B) {
+ 	z := NewInt(-1)
+ 	z.SetBit(z, 512, 0)
+@@ -1101,6 +1157,7 @@ func BenchmarkBitsetNeg(b *testing.B) {
+ 	}
+ }
+ 
++
+ func BenchmarkBitsetOrig(b *testing.B) {
+ 	z := new(Int)
+ 	altSetBit(z, z, 512, 1)
+@@ -1111,6 +1168,7 @@ func BenchmarkBitsetOrig(b *testing.B) {
+ 	}
+ }
+ 
++
+ func BenchmarkBitsetNegOrig(b *testing.B) {
+ 	z := NewInt(-1)
+ 	altSetBit(z, z, 512, 0)
+@@ -1121,6 +1179,7 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
+ 	}
+ }
+ 
++
+ func TestBitwise(t *testing.T) {
+ 	x := new(Int)
+ 	y := new(Int)
+@@ -1155,6 +1214,7 @@ var notTests = []struct {
+ 	},
+ }
+ 
++
+ func TestNot(t *testing.T) {
+ 	in := new(Int)
+ 	out := new(Int)
+@@ -1183,6 +1243,7 @@ var modInverseTests = []struct {
+ 	{"239487239847", "2410312426921032588552076022197566074856950548502459942654116941958108831682612228890093858261341614673227141477904012196503648957050582631942730706805009223062734745341073406696246014589361659774041027169249453200378729434170325843778659198143763193776859869524088940195577346119843545301547043747207749969763750084308926339295559968882457872412993810129130294592999947926365264059284647209730384947211681434464714438488520940127459844288859336526896320919633919"},
+ }
+ 
++
+ func TestModInverse(t *testing.T) {
+ 	var element, prime Int
+ 	one := NewInt(1)
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 87eb337d22..c2b95e8a20 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -677,13 +677,14 @@ const (
+ 
+ // string converts x to a string using digits from a charset; a digit with
+ // value d is represented by charset[d]. The conversion base is determined
+-// by len(charset). If len(charset) < 2, the result is "<illegal base>".
++// by len(charset), which must be >= 2.
+ func (x nat) string(charset string) string {
+ 	base := len(charset)
+ 
++	// special cases
+ 	switch {
+ 	case base < 2:
+-		return "<illegal base>"
++		panic("illegal base")
+ 	case len(x) == 0:
+ 		return string(charset[0])
+ 	}

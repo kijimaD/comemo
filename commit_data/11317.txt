@@ -14,7 +14,7 @@ Date:   Sun Jan 22 11:50:45 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5561059
-
+---
  test/blank1.go           | 1 +
  test/fixedbugs/bug014.go | 1 +
  test/fixedbugs/bug108.go | 1 +
@@ -23,3 +23,76 @@ Date:   Sun Jan 22 11:50:45 2012 -0800
  test/func4.go            | 1 +
  test/indirect1.go        | 1 +
  7 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/test/blank1.go b/test/blank1.go
+index 5bc1efce5f..bcc78466dc 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -9,4 +9,5 @@ package _	// ERROR "invalid package name _"
+ func main() {
+ 	_()	// ERROR "cannot use _ as value"
+ 	x := _+1	// ERROR "cannot use _ as value"
++	_ = x
+ }
+diff --git a/test/fixedbugs/bug014.go b/test/fixedbugs/bug014.go
+index dac2ce5174..38a6e51abc 100644
+--- a/test/fixedbugs/bug014.go
++++ b/test/fixedbugs/bug014.go
+@@ -11,4 +11,5 @@ func main() {
+ 	var c01 uint8 = '\07';  // ERROR "oct|char"
+ 	var cx0 uint8 = '\x0';  // ERROR "hex|char"
+ 	var cx1 uint8 = '\x';  // ERROR "hex|char"
++	_, _, _, _ = c00, c01, cx0, cx1
+ }
+diff --git a/test/fixedbugs/bug108.go b/test/fixedbugs/bug108.go
+index 5c7649f081..10e406de6e 100644
+--- a/test/fixedbugs/bug108.go
++++ b/test/fixedbugs/bug108.go
+@@ -7,4 +7,5 @@
+ package main
+ func f() {
+ 	v := 1 << 1025;		// ERROR "overflow|stupid shift"
++	_ = v
+ }
+diff --git a/test/fixedbugs/bug175.go b/test/fixedbugs/bug175.go
+index a8f6e3ca40..1ca1415076 100644
+--- a/test/fixedbugs/bug175.go
++++ b/test/fixedbugs/bug175.go
+@@ -10,5 +10,5 @@ func f() (int, bool) { return 0, true }
+ 
+ func main() {
+ 	x, y := f(), 2;	// ERROR "multi"
++	_, _ = x, y
+ }
+-
+diff --git a/test/fixedbugs/bug363.go b/test/fixedbugs/bug363.go
+index 04fcfe1a87..9347ec28b6 100644
+--- a/test/fixedbugs/bug363.go
++++ b/test/fixedbugs/bug363.go
+@@ -17,5 +17,5 @@ func main() {
+ 	println(b)
+ 
+ 	var c int64 = (1<<i) + 4.0  // ok - it's all int64
+-	println(b)
++	println(c)
+ }
+diff --git a/test/func4.go b/test/func4.go
+index 69ce56a197..2a1a932de9 100644
+--- a/test/func4.go
++++ b/test/func4.go
+@@ -11,4 +11,5 @@ var notmain func()
+ func main() {
+ 	var x = &main		// ERROR "address of|invalid"
+ 	main = notmain	// ERROR "assign to|invalid"
++	_ = x
+ }
+diff --git a/test/indirect1.go b/test/indirect1.go
+index 0fd5c19d4d..ecb4f138ac 100644
+--- a/test/indirect1.go
++++ b/test/indirect1.go
+@@ -65,4 +65,5 @@ func f() {
+ 		cap(b2)+	// ERROR "illegal|invalid|must be"
+ 		cap(b3)+
+ 		cap(b4)	// ERROR "illegal|invalid|must be"
++	_ = x
+ }

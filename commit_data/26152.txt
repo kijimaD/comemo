@@ -21,7 +21,7 @@ Date:   Thu Dec 17 14:49:34 2015 -0800
     Change-Id: I61fe305c72311df6a589b49ad7b6e49b6960ca24
     Reviewed-on: https://go-review.googlesource.com/18015
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/defs_darwin.go       |  2 +-
  src/runtime/defs_darwin_386.go   |  6 ++++++
  src/runtime/defs_darwin_amd64.go |  6 ++++++
@@ -30,3 +30,136 @@ Date:   Thu Dec 17 14:49:34 2015 -0800
  src/runtime/os1_darwin.go        | 17 +++++++++++++----
  src/runtime/os_darwin.go         |  2 +-
  7 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index 722013ba96..78df4e7ac8 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -152,7 +152,7 @@ type StackT C.struct_sigaltstack
+ type Sighandler C.union___sigaction_u
+ 
+ type Sigaction C.struct___sigaction // used in syscalls
+-// type Sigaction C.struct_sigaction	// used by the C library
++type Usigaction C.struct_sigaction  // used by sigaction second argument
+ type Sigval C.union_sigval
+ type Siginfo C.siginfo_t
+ type Timeval C.struct_timeval
+diff --git a/src/runtime/defs_darwin_386.go b/src/runtime/defs_darwin_386.go
+index e051301207..1a5967b24b 100644
+--- a/src/runtime/defs_darwin_386.go
++++ b/src/runtime/defs_darwin_386.go
+@@ -167,6 +167,12 @@ type sigactiont struct {
+ 	sa_flags      int32
+ }
+ 
++type usigactiont struct {
++	__sigaction_u [4]byte
++	sa_mask       uint32
++	sa_flags      int32
++}
++
+ type siginfo struct {
+ 	si_signo  int32
+ 	si_errno  int32
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index d9d9fc5516..a4ab090d51 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -168,6 +168,12 @@ type sigactiont struct {
+ 	sa_flags      int32
+ }
+ 
++type usigactiont struct {
++	__sigaction_u [8]byte
++	sa_mask       uint32
++	sa_flags      int32
++}
++
+ type siginfo struct {
+ 	si_signo  int32
+ 	si_errno  int32
+diff --git a/src/runtime/defs_darwin_arm.go b/src/runtime/defs_darwin_arm.go
+index b53336c1b4..3f8dbbf254 100644
+--- a/src/runtime/defs_darwin_arm.go
++++ b/src/runtime/defs_darwin_arm.go
+@@ -169,6 +169,12 @@ type sigactiont struct {
+ 	sa_flags      int32
+ }
+ 
++type usigactiont struct {
++	__sigaction_u [4]byte
++	sa_mask       uint32
++	sa_flags      int32
++}
++
+ type siginfo struct {
+ 	si_signo  int32
+ 	si_errno  int32
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index 3cc77c1066..c25a41b749 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -168,6 +168,12 @@ type sigactiont struct {
+ 	sa_flags      int32
+ }
+ 
++type usigactiont struct {
++	__sigaction_u [8]byte
++	sa_mask       uint32
++	sa_flags      int32
++}
++
+ type siginfo struct {
+ 	si_signo  int32
+ 	si_errno  int32
+diff --git a/src/runtime/os1_darwin.go b/src/runtime/os1_darwin.go
+index e0bfaa9f77..831533235d 100644
+--- a/src/runtime/os1_darwin.go
++++ b/src/runtime/os1_darwin.go
+@@ -444,7 +444,6 @@ func memlimit() uintptr {
+ 
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+ 	if restart {
+ 		sa.sa_flags |= _SA_RESTART
+@@ -456,12 +455,22 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	throw("setsigstack")
++	var osa usigactiont
++	sigaction(uint32(i), nil, &osa)
++	handler := *(*uintptr)(unsafe.Pointer(&osa.__sigaction_u))
++	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || osa.sa_flags&_SA_ONSTACK != 0 {
++		return
++	}
++	var sa sigactiont
++	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = handler
++	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp))
++	sa.sa_mask = osa.sa_mask
++	sa.sa_flags = osa.sa_flags | _SA_ONSTACK
++	sigaction(uint32(i), &sa, nil)
+ }
+ 
+ func getsig(i int32) uintptr {
+-	var sa sigactiont
+-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
++	var sa usigactiont
+ 	sigaction(uint32(i), nil, &sa)
+ 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
+ }
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 75a6eebb70..b8257768ac 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -27,7 +27,7 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ func sigprocmask(how uint32, new, old *sigset)
+ 
+ //go:noescape
+-func sigaction(mode uint32, new, old *sigactiont)
++func sigaction(mode uint32, new *sigactiont, old *usigactiont)
+ 
+ //go:noescape
+ func sigaltstack(new, old *stackt)

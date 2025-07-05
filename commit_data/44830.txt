@@ -27,6 +27,22 @@ Date:   Thu Sep 3 16:36:38 2020 -0400
     Change-Id: I629a79dd7c562ba18bd94159673c3b9b653da643
     Reviewed-on: https://go-review.googlesource.com/c/go/+/253020
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/map.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 399c1b071f..22a0241f56 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -993,6 +993,10 @@ func mapclear(t *maptype, h *hmap) {
+ 	h.noverflow = 0
+ 	h.count = 0
+ 
++	// Reset the hash seed to make it more difficult for attackers to
++	// repeatedly trigger hash collisions. See issue 25237.
++	h.hash0 = fastrand()
++
+ 	// Keep the mapextra allocation but clear any extra information.
+ 	if h.extra != nil {
+ 		*h.extra = mapextra{}

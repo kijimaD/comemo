@@ -18,7 +18,35 @@ Date:   Wed Aug 29 07:06:31 2018 -0600
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/text/template/parse/lex.go        | 2 +-
  src/text/template/parse/parse_test.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index fc259f351e..c0843af6ed 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -155,7 +155,7 @@ func (l *lexer) emit(t itemType) {
+ 	l.items <- item{t, l.start, l.input[l.start:l.pos], l.line}
+ 	// Some items contain text internally. If so, count their newlines.
+ 	switch t {
+-	case itemText, itemRawString, itemLeftDelim, itemRightDelim:
++	case itemText, itemLeftDelim, itemRightDelim:
+ 		l.line += strings.Count(l.input[l.start:l.pos], "\n")
+ 	}
+ 	l.start = l.pos
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index c1f80c1326..d03987581c 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -447,6 +447,9 @@ var errorTests = []parseTest{
+ 	{"emptypipeline",
+ 		`{{ ( ) }}`,
+ 		hasError, `missing value for parenthesized pipeline`},
++	{"multilinerawstring",
++		"{{ $v := `\n` }} {{",
++		hasError, `multilinerawstring:2: unexpected unclosed action`},
+ }
+ 
+ func TestErrors(t *testing.T) {

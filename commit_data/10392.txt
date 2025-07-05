@@ -7,6 +7,33 @@ Date:   Mon Nov 14 13:12:08 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5375089
-
+---
  src/pkg/net/http/cgi/host_test.go | 15 +++++++--------
  1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index 635a85521e..4e977040c0 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -363,14 +363,13 @@ func TestCopyError(t *testing.T) {
+ 	}
+ 	conn.Close()
+ 
+-	if tries := 0; childRunning() {
+-		for tries < 15 && childRunning() {
+-			time.Sleep(50e6 * int64(tries))
+-			tries++
+-		}
+-		if childRunning() {
+-			t.Fatalf("post-conn.Close, expected child to be gone")
+-		}
++	tries := 0
++	for tries < 15 && childRunning() {
++		time.Sleep(50e6 * int64(tries))
++		tries++
++	}
++	if childRunning() {
++		t.Fatalf("post-conn.Close, expected child to be gone")
+ 	}
+ }
+ 

@@ -22,7 +22,57 @@ Date:   Mon Nov 22 15:33:01 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/export_test.go | 9 +++++++++
  src/runtime/malloc_test.go | 7 +++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index b2e64f14ad..ef601f770c 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1307,3 +1307,12 @@ func escape(x interface{}) interface{} {
+ 	escapeSink = nil
+ 	return x
+ }
++
++// Acquirem blocks preemption.
++func Acquirem() {
++	acquirem()
++}
++
++func Releasem() {
++	releasem(getg().m)
++}
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index e028554b23..757f945393 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -198,6 +198,10 @@ func TestTinyAllocIssue37262(t *testing.T) {
+ 	runtime.GC()
+ 	runtime.GC()
+ 
++	// Disable preemption so we stay on one P's tiny allocator and
++	// nothing else allocates from it.
++	runtime.Acquirem()
++
+ 	// Make 1-byte allocations until we get a fresh tiny slot.
+ 	aligned := false
+ 	for i := 0; i < 16; i++ {
+@@ -208,6 +212,7 @@ func TestTinyAllocIssue37262(t *testing.T) {
+ 		}
+ 	}
+ 	if !aligned {
++		runtime.Releasem()
+ 		t.Fatal("unable to get a fresh tiny slot")
+ 	}
+ 
+@@ -229,6 +234,8 @@ func TestTinyAllocIssue37262(t *testing.T) {
+ 	tinyByteSink = nil
+ 	tinyUint32Sink = nil
+ 	tinyObj12Sink = nil
++
++	runtime.Releasem()
+ }
+ 
+ func TestPageCacheLeak(t *testing.T) {

@@ -8,6 +8,20 @@ Date:   Wed Feb 26 08:28:26 2014 -0800
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/68650045
-
+---
  src/pkg/runtime/alg.goc | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index 5d395fa5ee..81eb1664a9 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -511,7 +511,7 @@ runtime·equal(Type *t, ...)
+ 	x = (byte*)ROUND((uintptr)(&t+1), t->align);
+ 	y = x + t->size;
+ 	ret = (bool*)ROUND((uintptr)(y+t->size), Structrnd);
+-	t->alg->equal((bool*)ret, t->size, x, y);
++	t->alg->equal(ret, t->size, x, y);
+ }
+ 
+ // Testing adapter for memclr

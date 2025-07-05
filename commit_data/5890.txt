@@ -10,9 +10,80 @@ Date:   Mon Jul 26 17:34:17 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1903043
-
+---
  src/cmd/gc/const.c       |  6 ++++++
  src/cmd/gc/typecheck.c   |  4 ++++
  test/fixedbugs/bug297.go | 15 +++++++++++++++
  test/fixedbugs/bug298.go | 11 +++++++++++
  4 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index cec95359a0..479e7dd6b7 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -536,6 +536,12 @@ evconst(Node *n)
+ 		v = toflt(v);
+ 		rv = toflt(rv);
+ 	}
++	if(v.ctype != rv.ctype) {
++		// Use of undefined name as constant?
++		if((v.ctype == 0 || rv.ctype == 0) && nerrors > 0)
++			return;
++		fatal("constant type mismatch %T(%d) %T(%d)", nl->type, v.ctype, nr->type, rv.ctype);
++	}
+ 
+ 	// run op
+ 	switch(TUP(n->op, v.ctype)) {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 3784c6699e..b1991333ca 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1129,6 +1129,10 @@ reswitch:
+ 	case ORETURN:
+ 		ok |= Etop;
+ 		typechecklist(n->list, Erv | Efnstruct);
++		if(curfn == N) {
++			yyerror("return outside function");
++			goto error;
++		}
+ 		if(curfn->type->outnamed && n->list == nil)
+ 			goto ret;
+ 		typecheckaste(ORETURN, getoutargx(curfn->type), n->list, "return argument");
+diff --git a/test/fixedbugs/bug297.go b/test/fixedbugs/bug297.go
+new file mode 100644
+index 0000000000..ba029427f2
+--- /dev/null
++++ b/test/fixedbugs/bug297.go
+@@ -0,0 +1,15 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used to crash; issue 961.
++
++package main
++
++type ByteSize float64
++const (
++	_ = iota;   // ignore first value by assigning to blank identifier
++	KB ByteSize = 1<<(10*X) // ERROR "undefined"
++)
+diff --git a/test/fixedbugs/bug298.go b/test/fixedbugs/bug298.go
+new file mode 100644
+index 0000000000..9b329aedfc
+--- /dev/null
++++ b/test/fixedbugs/bug298.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ddd
++
++func Sum() int
++	for i := range []int{} { return i }  // ERROR "return outside function"
++

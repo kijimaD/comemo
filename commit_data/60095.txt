@@ -51,7 +51,7 @@ Date:   Fri Jan 26 17:49:33 2024 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |   2 +-
  src/cmd/compile/internal/ir/func.go                |  46 +-
  src/cmd/compile/internal/ir/sizeof_test.go         |   2 +-
@@ -69,3 +69,3277 @@ Date:   Fri Jan 26 17:49:33 2024 -0500
  src/runtime/panic.go                               |  26 +-
  src/runtime/race/testdata/rangefunc_test.go        |  77 ++
  16 files changed, 1723 insertions(+), 572 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index ed3d3d4eaf..1b438f9ef0 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -508,7 +508,7 @@ opSwitch:
+ 				case "throw":
+ 					v.budget -= inlineExtraThrowCost
+ 					break opSwitch
+-				case "panicrangeexit":
++				case "panicrangestate":
+ 					cheap = true
+ 				}
+ 				// Special case for reflect.noescape. It does just type
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index d20836e006..328a56c860 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -90,15 +90,19 @@ type Func struct {
+ 
+ 	Inl *Inline
+ 
+-	// funcLitGen and goDeferGen track how many closures have been
+-	// created in this function for function literals and go/defer
+-	// wrappers, respectively. Used by closureName for creating unique
+-	// function names.
+-	//
++	// RangeParent, if non-nil, is the first non-range body function containing
++	// the closure for the body of a range function.
++	RangeParent *Func
++
++	// funcLitGen, rangeLitGen and goDeferGen track how many closures have been
++	// created in this function for function literals, range-over-func loops,
++	// and go/defer wrappers, respectively. Used by closureName for creating
++	// unique function names.
+ 	// Tracking goDeferGen separately avoids wrappers throwing off
+ 	// function literal numbering (e.g., runtime/trace_test.TestTraceSymbolize.func11).
+-	funcLitGen int32
+-	goDeferGen int32
++	funcLitGen  int32
++	rangeLitGen int32
++	goDeferGen  int32
+ 
+ 	Label int32 // largest auto-generated label in this function
+ 
+@@ -417,20 +421,25 @@ var globClosgen int32
+ 
+ // closureName generates a new unique name for a closure within outerfn at pos.
+ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
++	if outerfn != nil && outerfn.OClosure != nil && outerfn.OClosure.Func.RangeParent != nil {
++		outerfn = outerfn.OClosure.Func.RangeParent
++	}
+ 	pkg := types.LocalPkg
+ 	outer := "glob."
+-	var prefix string
++	var prefix string = "."
+ 	switch why {
+ 	default:
+ 		base.FatalfAt(pos, "closureName: bad Op: %v", why)
+ 	case OCLOSURE:
+ 		if outerfn == nil || outerfn.OClosure == nil {
+-			prefix = "func"
++			prefix = ".func"
+ 		}
++	case ORANGE:
++		prefix = "-range"
+ 	case OGO:
+-		prefix = "gowrap"
++		prefix = ".gowrap"
+ 	case ODEFER:
+-		prefix = "deferwrap"
++		prefix = ".deferwrap"
+ 	}
+ 	gen := &globClosgen
+ 
+@@ -441,9 +450,12 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+ 		pkg = outerfn.Sym().Pkg
+ 		outer = FuncName(outerfn)
+ 
+-		if why == OCLOSURE {
++		switch why {
++		case OCLOSURE:
+ 			gen = &outerfn.funcLitGen
+-		} else {
++		case ORANGE:
++			gen = &outerfn.rangeLitGen
++		default:
+ 			gen = &outerfn.goDeferGen
+ 		}
+ 	}
+@@ -460,7 +472,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+ 	}
+ 
+ 	*gen++
+-	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
++	return pkg.Lookup(fmt.Sprintf("%s%s%d", outer, prefix, *gen))
+ }
+ 
+ // NewClosureFunc creates a new Func to represent a function literal
+@@ -490,6 +502,12 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
+ 	clo.pos = cpos
+ 	clo.SetType(typ)
+ 	clo.SetTypecheck(1)
++	if why == ORANGE {
++		clo.Func.RangeParent = outerfn
++		if outerfn.OClosure != nil && outerfn.OClosure.Func.RangeParent != nil {
++			clo.Func.RangeParent = outerfn.OClosure.Func.RangeParent
++		}
++	}
+ 	fn.OClosure = clo
+ 
+ 	fn.Nname.Defn = fn
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 3b6823895c..68d2865595 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 168, 288},
++		{Func{}, 176, 296},
+ 		{Name{}, 96, 168},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 4d51c6b446..a95fa03e17 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -22,7 +22,8 @@ var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
+ 
+ // checkFiles configures and runs the types2 checker on the given
+ // parsed source files and then returns the result.
+-func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
++// The map result value indicates which closures are generated from the bodies of range function loops.
++func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*syntax.FuncLit]bool) {
+ 	if base.SyntaxErrors() != 0 {
+ 		base.ErrorExit()
+ 	}
+@@ -150,9 +151,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 	// If we do the rewrite in the back end, like between typecheck and walk,
+ 	// then the new implicit closure will not have a unified IR inline body,
+ 	// and bodyReaderFor will fail.
+-	rangefunc.Rewrite(pkg, info, files)
++	rangeInfo := rangefunc.Rewrite(pkg, info, files)
+ 
+-	return pkg, info
++	return pkg, info, rangeInfo
+ }
+ 
+ // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index a7feadaf6e..042d81bbcd 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2704,7 +2704,7 @@ func (r *reader) syntheticClosure(origPos src.XPos, typ *types.Type, ifaceHack b
+ 		return false
+ 	}
+ 
+-	fn := r.inlClosureFunc(origPos, typ)
++	fn := r.inlClosureFunc(origPos, typ, ir.OCLOSURE)
+ 	fn.SetWrapper(true)
+ 
+ 	clo := fn.OClosure
+@@ -3035,8 +3035,12 @@ func (r *reader) funcLit() ir.Node {
+ 	origPos := r.pos()
+ 	sig := r.signature(nil)
+ 	r.suppressInlPos--
++	why := ir.OCLOSURE
++	if r.Bool() {
++		why = ir.ORANGE
++	}
+ 
+-	fn := r.inlClosureFunc(origPos, sig)
++	fn := r.inlClosureFunc(origPos, sig, why)
+ 
+ 	fn.ClosureVars = make([]*ir.Name, 0, r.Len())
+ 	for len(fn.ClosureVars) < cap(fn.ClosureVars) {
+@@ -3062,14 +3066,14 @@ func (r *reader) funcLit() ir.Node {
+ 
+ // inlClosureFunc constructs a new closure function, but correctly
+ // handles inlining.
+-func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type) *ir.Func {
++func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type, why ir.Op) *ir.Func {
+ 	curfn := r.inlCaller
+ 	if curfn == nil {
+ 		curfn = r.curfn
+ 	}
+ 
+ 	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
+-	return ir.NewClosureFunc(origPos, r.inlPos(origPos), ir.OCLOSURE, sig, curfn, typecheck.Target)
++	return ir.NewClosureFunc(origPos, r.inlPos(origPos), why, sig, curfn, typecheck.Target)
+ }
+ 
+ func (r *reader) exprList() []ir.Node {
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 2391b2f34d..a1a90cd6b5 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -304,9 +304,9 @@ func readBodies(target *ir.Package, duringInlining bool) {
+ // writes an export data package stub representing them,
+ // and returns the result.
+ func writePkgStub(m posMap, noders []*noder) string {
+-	pkg, info := checkFiles(m, noders)
++	pkg, info, otherInfo := checkFiles(m, noders)
+ 
+-	pw := newPkgWriter(m, pkg, info)
++	pw := newPkgWriter(m, pkg, info, otherInfo)
+ 
+ 	pw.collectDecls(noders)
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 13706f9dd2..9b33fb7c6d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -63,9 +63,10 @@ import (
+ type pkgWriter struct {
+ 	pkgbits.PkgEncoder
+ 
+-	m      posMap
+-	curpkg *types2.Package
+-	info   *types2.Info
++	m                     posMap
++	curpkg                *types2.Package
++	info                  *types2.Info
++	rangeFuncBodyClosures map[*syntax.FuncLit]bool // non-public information, e.g., which functions are closures range function bodies?
+ 
+ 	// Indices for previously written syntax and types2 things.
+ 
+@@ -90,13 +91,14 @@ type pkgWriter struct {
+ 
+ // newPkgWriter returns an initialized pkgWriter for the specified
+ // package.
+-func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
++func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
+ 	return &pkgWriter{
+ 		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
+ 
+-		m:      m,
+-		curpkg: pkg,
+-		info:   info,
++		m:                     m,
++		curpkg:                pkg,
++		info:                  info,
++		rangeFuncBodyClosures: otherInfo,
+ 
+ 		pkgsIdx: make(map[*types2.Package]pkgbits.Index),
+ 		objsIdx: make(map[types2.Object]pkgbits.Index),
+@@ -2336,6 +2338,7 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 	w.Sync(pkgbits.SyncFuncLit)
+ 	w.pos(expr)
+ 	w.signature(sig)
++	w.Bool(w.p.rangeFuncBodyClosures[expr])
+ 
+ 	w.Len(len(closureVars))
+ 	for _, cv := range closureVars {
+diff --git a/src/cmd/compile/internal/rangefunc/rangefunc_test.go b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+index 16856c648c..c50059fe18 100644
+--- a/src/cmd/compile/internal/rangefunc/rangefunc_test.go
++++ b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+@@ -2,18 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.rangefunc
+-
+ package rangefunc_test
+ 
+ import (
++	"fmt"
++	"regexp"
+ 	"slices"
+ 	"testing"
+ )
+ 
++type Seq[T any] func(yield func(T) bool)
+ type Seq2[T1, T2 any] func(yield func(T1, T2) bool)
+ 
+-// OfSliceIndex returns a Seq over the elements of s. It is equivalent
++// OfSliceIndex returns a Seq2 over the elements of s. It is equivalent
+ // to range s.
+ func OfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
+ 	return func(yield func(int, T) bool) {
+@@ -54,6 +55,39 @@ func VeryBadOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
+ 	}
+ }
+ 
++// SwallowPanicOfSliceIndex hides panics and converts them to normal return
++func SwallowPanicOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		for i, v := range s {
++			done := false
++			func() {
++				defer func() {
++					if r := recover(); r != nil {
++						done = true
++					}
++				}()
++				done = !yield(i, v)
++			}()
++			if done {
++				return
++			}
++		}
++		return
++	}
++}
++
++// PanickyOfSliceIndex iterates the slice but panics if it exits the loop early
++func PanickyOfSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		for i, v := range s {
++			if !yield(i, v) {
++				panic(fmt.Errorf("Panicky iterator panicking"))
++			}
++		}
++		return
++	}
++}
++
+ // CooperativeBadOfSliceIndex calls the loop body from a goroutine after
+ // a ping on a channel, and returns recover()on that same channel.
+ func CooperativeBadOfSliceIndex[T any, S ~[]T](s S, proceed chan any) Seq2[int, T] {
+@@ -82,6 +116,22 @@ type TrickyIterator struct {
+ 	yield func(int, int) bool
+ }
+ 
++func (ti *TrickyIterator) iterEcho(s []int) Seq2[int, int] {
++	return func(yield func(int, int) bool) {
++		for i, v := range s {
++			if !yield(i, v) {
++				ti.yield = yield
++				return
++			}
++			if ti.yield != nil && !ti.yield(i, v) {
++				return
++			}
++		}
++		ti.yield = yield
++		return
++	}
++}
++
+ func (ti *TrickyIterator) iterAll(s []int) Seq2[int, int] {
+ 	return func(yield func(int, int) bool) {
+ 		ti.yield = yield // Save yield for future abuse
+@@ -118,36 +168,137 @@ func (ti *TrickyIterator) fail() {
+ 	}
+ }
+ 
+-// Check wraps the function body passed to iterator forall
++const DONE = 0      // body of loop has exited in a non-panic way
++const READY = 1     // body of loop has not exited yet, is not running
++const PANIC = 2     // body of loop is either currently running, or has panicked
++const EXHAUSTED = 3 // iterator function return, i.e., sequence is "exhausted"
++
++const MISSING_PANIC = 4 // overload "READY" for panic call
++
++// Check2 wraps the function body passed to iterator forall
+ // in code that ensures that it cannot (successfully) be called
+ // either after body return false (control flow out of loop) or
+ // forall itself returns (the iteration is now done).
+ //
+ // Note that this can catch errors before the inserted checks.
+-func Check[U, V any](forall Seq2[U, V]) Seq2[U, V] {
++func Check2[U, V any](forall Seq2[U, V]) Seq2[U, V] {
+ 	return func(body func(U, V) bool) {
+-		ret := true
++		state := READY
+ 		forall(func(u U, v V) bool {
+-			if !ret {
+-				panic("Checked iterator access after exit")
++			if state != READY {
++				panic(fail[state])
++			}
++			state = PANIC
++			ret := body(u, v)
++			if ret {
++				state = READY
++			} else {
++				state = DONE
++			}
++			return ret
++		})
++		if state == PANIC {
++			panic(fail[MISSING_PANIC])
++		}
++		state = EXHAUSTED
++	}
++}
++
++func Check[U any](forall Seq[U]) Seq[U] {
++	return func(body func(U) bool) {
++		state := READY
++		forall(func(u U) bool {
++			if state != READY {
++				panic(fail[state])
++			}
++			state = PANIC
++			ret := body(u)
++			if ret {
++				state = READY
++			} else {
++				state = DONE
+ 			}
+-			ret = body(u, v)
+ 			return ret
+ 		})
+-		ret = false
++		if state == PANIC {
++			panic(fail[MISSING_PANIC])
++		}
++		state = EXHAUSTED
++	}
++}
++
++func matchError(r any, x string) bool {
++	if r == nil {
++		return false
++	}
++	if x == "" {
++		return true
+ 	}
++	if p, ok := r.(errorString); ok {
++		return p.Error() == x
++	}
++	if p, ok := r.(error); ok {
++		e, err := regexp.Compile(x)
++		if err != nil {
++			panic(fmt.Errorf("Bad regexp '%s' passed to matchError", x))
++		}
++		return e.MatchString(p.Error())
++	}
++	return false
++}
++
++func matchErrorHelper(t *testing.T, r any, x string) {
++	if matchError(r, x) {
++		t.Logf("Saw expected panic '%v'", r)
++	} else {
++		t.Errorf("Saw wrong panic '%v', expected '%s'", r, x)
++	}
++}
++
++// An errorString represents a runtime error described by a single string.
++type errorString string
++
++func (e errorString) Error() string {
++	return string(e)
++}
++
++const (
++	// RERR_ is for runtime error, and may be regexps/substrings, to simplify use of tests with tools
++	RERR_DONE      = "runtime error: range function continued iteration after loop body exit"
++	RERR_PANIC     = "runtime error: range function continued iteration after loop body panic"
++	RERR_EXHAUSTED = "runtime error: range function continued iteration after whole loop exit"
++	RERR_MISSING   = "runtime error: range function recovered a loop body panic and did not resume panicking"
++
++	// CERR_ is for checked errors in the Check combinator defined above, and should be literal strings
++	CERR_PFX       = "checked rangefunc error: "
++	CERR_DONE      = CERR_PFX + "loop iteration after body done"
++	CERR_PANIC     = CERR_PFX + "loop iteration after panic"
++	CERR_EXHAUSTED = CERR_PFX + "loop iteration after iterator exit"
++	CERR_MISSING   = CERR_PFX + "loop iterator swallowed panic"
++)
++
++var fail []error = []error{
++	errorString(CERR_DONE),
++	errorString(CERR_PFX + "loop iterator, unexpected error"),
++	errorString(CERR_PANIC),
++	errorString(CERR_EXHAUSTED),
++	errorString(CERR_MISSING),
+ }
+ 
+ func TestCheck(t *testing.T) {
+ 	i := 0
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, CERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 		} else {
+ 			t.Error("Wanted to see a failure")
+ 		}
+ 	}()
+-	for _, x := range Check(BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
++	for _, x := range Check2(BadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+ 		i += x
+ 		if i > 4*9 {
+ 			break
+@@ -166,7 +317,11 @@ func TestCooperativeBadOfSliceIndex(t *testing.T) {
+ 	}
+ 	proceed <- true
+ 	if r := <-proceed; r != nil {
+-		t.Logf("Saw expected panic '%v'", r)
++		if matchError(r, RERR_EXHAUSTED) {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", r)
++		}
+ 	} else {
+ 		t.Error("Wanted to see a failure")
+ 	}
+@@ -177,10 +332,10 @@ func TestCooperativeBadOfSliceIndex(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCheckCooperativeBadOfSliceIndex(t *testing.T) {
++func TestCooperativeBadOfSliceIndexCheck(t *testing.T) {
+ 	i := 0
+ 	proceed := make(chan any)
+-	for _, x := range Check(CooperativeBadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, proceed)) {
++	for _, x := range Check2(CooperativeBadOfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, proceed)) {
+ 		i += x
+ 		if i >= 36 {
+ 			break
+@@ -188,7 +343,12 @@ func TestCheckCooperativeBadOfSliceIndex(t *testing.T) {
+ 	}
+ 	proceed <- true
+ 	if r := <-proceed; r != nil {
+-		t.Logf("Saw expected panic '%v'", r)
++		if matchError(r, CERR_EXHAUSTED) {
++			t.Logf("Saw expected panic '%v'", r)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", r)
++		}
++
+ 	} else {
+ 		t.Error("Wanted to see a failure")
+ 	}
+@@ -217,7 +377,11 @@ func TestTrickyIterAll(t *testing.T) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_EXHAUSTED) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 		} else {
+ 			t.Error("Wanted to see a failure")
+ 		}
+@@ -241,7 +405,11 @@ func TestTrickyIterOne(t *testing.T) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_EXHAUSTED) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 		} else {
+ 			t.Error("Wanted to see a failure")
+ 		}
+@@ -265,7 +433,11 @@ func TestTrickyIterZero(t *testing.T) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_EXHAUSTED) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 		} else {
+ 			t.Error("Wanted to see a failure")
+ 		}
+@@ -274,10 +446,10 @@ func TestTrickyIterZero(t *testing.T) {
+ 	trickItZero.fail()
+ }
+ 
+-func TestCheckTrickyIterZero(t *testing.T) {
++func TestTrickyIterZeroCheck(t *testing.T) {
+ 	trickItZero := TrickyIterator{}
+ 	i := 0
+-	for _, x := range Check(trickItZero.iterZero([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
++	for _, x := range Check2(trickItZero.iterZero([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})) {
+ 		i += x
+ 		if i >= 36 {
+ 			break
+@@ -289,7 +461,11 @@ func TestCheckTrickyIterZero(t *testing.T) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, CERR_EXHAUSTED) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 		} else {
+ 			t.Error("Wanted to see a failure")
+ 		}
+@@ -298,6 +474,78 @@ func TestCheckTrickyIterZero(t *testing.T) {
+ 	trickItZero.fail()
+ }
+ 
++func TestTrickyIterEcho(t *testing.T) {
++	trickItAll := TrickyIterator{}
++	i := 0
++	for _, x := range trickItAll.iterAll([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++		t.Logf("first loop i=%d", i)
++		i += x
++		if i >= 10 {
++			break
++		}
++	}
++
++	if i != 10 {
++		t.Errorf("Expected i == 10, saw %d instead", i)
++	} else {
++		t.Logf("i = %d", i)
++	}
++
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, RERR_EXHAUSTED) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	i = 0
++	for _, x := range trickItAll.iterEcho([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++		t.Logf("second loop i=%d", i)
++		if x >= 5 {
++			break
++		}
++	}
++
++}
++
++func TestTrickyIterEcho2(t *testing.T) {
++	trickItAll := TrickyIterator{}
++	var i int
++
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, RERR_EXHAUSTED) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	for k := range 2 {
++		i = 0
++		for _, x := range trickItAll.iterEcho([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			t.Logf("k,x,i=%d,%d,%d", k, x, i)
++			i += x
++			if i >= 10 {
++				break
++			}
++		}
++		t.Logf("i = %d", i)
++
++		if i != 10 {
++			t.Errorf("Expected i == 10, saw %d instead", i)
++		}
++	}
++}
++
+ // TestBreak1 should just work, with well-behaved iterators.
+ // (The misbehaving iterator detector should not trigger.)
+ func TestBreak1(t *testing.T) {
+@@ -412,7 +660,11 @@ func TestBreak1BadA(t *testing.T) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -443,7 +695,11 @@ func TestBreak1BadB(t *testing.T) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -507,7 +763,11 @@ func TestMultiCont1(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -551,7 +811,11 @@ func TestMultiCont2(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -595,7 +859,11 @@ func TestMultiCont3(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -639,7 +907,11 @@ func TestMultiBreak0(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -683,7 +955,11 @@ func TestMultiBreak1(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -727,7 +1003,11 @@ func TestMultiBreak2(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -771,7 +1051,11 @@ func TestMultiBreak3(t *testing.T) {
+ 	var expect = []int{1000, 10, 2, 4}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("Expected %v, got %v", expect, result)
+ 			}
+@@ -808,6 +1092,229 @@ W:
+ 	}
+ }
+ 
++func TestPanickyIterator1(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, 3, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, "Panicky iterator panicking") {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, z := range PanickyOfSliceIndex([]int{1, 2, 3, 4}) {
++		result = append(result, z)
++		if z == 4 {
++			break
++		}
++	}
++}
++
++func TestPanickyIterator1Check(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, 3, 4}
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, "Panicky iterator panicking") {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++	}()
++	for _, z := range Check2(PanickyOfSliceIndex([]int{1, 2, 3, 4})) {
++		result = append(result, z)
++		if z == 4 {
++			break
++		}
++	}
++}
++
++func TestPanickyIterator2(t *testing.T) {
++	var result []int
++	var expect = []int{100, 10, 1, 2}
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, RERR_MISSING) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, x := range OfSliceIndex([]int{100, 200}) {
++		result = append(result, x)
++	Y:
++		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
++		for _, y := range VeryBadOfSliceIndex([]int{10, 20}) {
++			result = append(result, y)
++
++			// converts early exit into a panic --> 1, 2
++			for k, z := range PanickyOfSliceIndex([]int{1, 2}) { // iterator panics
++				result = append(result, z)
++				if k == 1 {
++					break Y
++				}
++			}
++		}
++	}
++}
++
++func TestPanickyIterator2Check(t *testing.T) {
++	var result []int
++	var expect = []int{100, 10, 1, 2}
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, CERR_MISSING) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result was %v", result)
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
++		result = append(result, x)
++	Y:
++		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
++		for _, y := range Check2(VeryBadOfSliceIndex([]int{10, 20})) {
++			result = append(result, y)
++
++			// converts early exit into a panic --> 1, 2
++			for k, z := range Check2(PanickyOfSliceIndex([]int{1, 2})) { // iterator panics
++				result = append(result, z)
++				if k == 1 {
++					break Y
++				}
++			}
++		}
++	}
++}
++
++func TestPanickyIterator3(t *testing.T) {
++	var result []int
++	var expect = []int{100, 10, 1, 2, 200, 10, 1, 2}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Errorf("Unexpected panic '%v'", r)
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, x := range OfSliceIndex([]int{100, 200}) {
++		result = append(result, x)
++	Y:
++		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
++		// This is cross-checked against the checked iterator below; the combinator should behave the same.
++		for _, y := range VeryBadOfSliceIndex([]int{10, 20}) {
++			result = append(result, y)
++
++			for k, z := range OfSliceIndex([]int{1, 2}) { // iterator does not panic
++				result = append(result, z)
++				if k == 1 {
++					break Y
++				}
++			}
++		}
++	}
++}
++func TestPanickyIterator3Check(t *testing.T) {
++	var result []int
++	var expect = []int{100, 10, 1, 2, 200, 10, 1, 2}
++	defer func() {
++		if r := recover(); r != nil {
++			t.Errorf("Unexpected panic '%v'", r)
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
++		result = append(result, x)
++	Y:
++		// swallows panics and iterates to end BUT `break Y` disables the body, so--> 10, 1, 2
++		for _, y := range Check2(VeryBadOfSliceIndex([]int{10, 20})) {
++			result = append(result, y)
++
++			for k, z := range Check2(OfSliceIndex([]int{1, 2})) { // iterator does not panic
++				result = append(result, z)
++				if k == 1 {
++					break Y
++				}
++			}
++		}
++	}
++}
++
++func TestPanickyIterator4(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, 3}
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, RERR_MISSING) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, x := range SwallowPanicOfSliceIndex([]int{1, 2, 3, 4}) {
++		result = append(result, x)
++		if x == 3 {
++			panic("x is 3")
++		}
++	}
++
++}
++func TestPanickyIterator4Check(t *testing.T) {
++	var result []int
++	var expect = []int{1, 2, 3}
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, CERR_MISSING) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++	for _, x := range Check2(SwallowPanicOfSliceIndex([]int{1, 2, 3, 4})) {
++		result = append(result, x)
++		if x == 3 {
++			panic("x is 3")
++		}
++	}
++
++}
++
+ // veryBad tests that a loop nest behaves sensibly in the face of a
+ // "very bad" iterator.  In this case, "sensibly" means that the
+ // break out of X still occurs after the very bad iterator finally
+@@ -833,17 +1340,17 @@ X:
+ 	return result
+ }
+ 
+-// checkVeryBad wraps a "very bad" iterator with Check,
++// veryBadCheck wraps a "very bad" iterator with Check,
+ // demonstrating that the very bad iterator also hides panics
+ // thrown by Check.
+-func checkVeryBad(s []int) []int {
++func veryBadCheck(s []int) []int {
+ 	var result []int
+ X:
+ 	for _, x := range OfSliceIndex([]int{1, 2, 3}) {
+ 
+ 		result = append(result, x)
+ 
+-		for _, y := range Check(VeryBadOfSliceIndex(s)) {
++		for _, y := range Check2(VeryBadOfSliceIndex(s)) {
+ 			result = append(result, y)
+ 			break X
+ 		}
+@@ -902,8 +1409,8 @@ func TestVeryBad2(t *testing.T) {
+ 
+ // TestCheckVeryBad checks the behavior of an extremely poorly behaved iterator,
+ // which also suppresses the exceptions from "Check"
+-func TestCheckVeryBad(t *testing.T) {
+-	result := checkVeryBad([]int{10, 20, 30, 40}) // even length
++func TestVeryBadCheck(t *testing.T) {
++	result := veryBadCheck([]int{10, 20, 30, 40}) // even length
+ 	expect := []int{1, 10}
+ 
+ 	if !slices.Equal(expect, result) {
+@@ -929,7 +1436,11 @@ func testBreak1BadDefer(t *testing.T) (result []int) {
+ 
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Logf("Saw expected panic '%v'", r)
++			if matchError(r, RERR_DONE) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
+ 			if !slices.Equal(expect, result) {
+ 				t.Errorf("(Inner) Expected %v, got %v", expect, result)
+ 			}
+@@ -1036,11 +1547,40 @@ func testReturn3(t *testing.T) (result []int, err any) {
+ 	return
+ }
+ 
++// testReturn4 has no bad iterators, but exercises  return variable rewriting
++// differs from testReturn1 because deferred append to "result" does not change
++// the return value in this case.
++func testReturn4(t *testing.T) (_ []int, _ []int, err any) {
++	var result []int
++	defer func() {
++		err = recover()
++	}()
++	for _, x := range OfSliceIndex([]int{-1, -2, -3, -4, -5}) {
++		result = append(result, x)
++		if x == -4 {
++			break
++		}
++		defer func() {
++			result = append(result, x*10)
++		}()
++		for _, y := range OfSliceIndex([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++			if y == 3 {
++				return result, result, nil
++			}
++			result = append(result, y)
++		}
++		result = append(result, x)
++	}
++	return
++}
++
+ // TestReturns checks that returns through bad iterators behave properly,
+ // for inner and outer bad iterators.
+ func TestReturns(t *testing.T) {
+ 	var result []int
++	var result2 []int
+ 	var expect = []int{-1, 1, 2, -10}
++	var expect2 = []int{-1, 1, 2}
+ 	var err any
+ 
+ 	result, err = testReturn1(t)
+@@ -1058,7 +1598,11 @@ func TestReturns(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("Missing expected error")
+ 	} else {
+-		t.Logf("Saw expected panic '%v'", err)
++		if matchError(err, RERR_DONE) {
++			t.Logf("Saw expected panic '%v'", err)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", err)
++		}
+ 	}
+ 
+ 	result, err = testReturn3(t)
+@@ -1068,9 +1612,23 @@ func TestReturns(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("Missing expected error")
+ 	} else {
+-		t.Logf("Saw expected panic '%v'", err)
++		if matchError(err, RERR_DONE) {
++			t.Logf("Saw expected panic '%v'", err)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", err)
++		}
+ 	}
+ 
++	result, result2, err = testReturn4(t)
++	if !slices.Equal(expect2, result) {
++		t.Errorf("Expected %v, got %v", expect2, result)
++	}
++	if !slices.Equal(expect2, result2) {
++		t.Errorf("Expected %v, got %v", expect2, result2)
++	}
++	if err != nil {
++		t.Errorf("Unexpected error %v", err)
++	}
+ }
+ 
+ // testGotoA1 tests loop-nest-internal goto, no bad iterators.
+@@ -1169,7 +1727,11 @@ func TestGotoA(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("Missing expected error")
+ 	} else {
+-		t.Logf("Saw expected panic '%v'", err)
++		if matchError(err, RERR_DONE) {
++			t.Logf("Saw expected panic '%v'", err)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", err)
++		}
+ 	}
+ 
+ 	result, err = testGotoA3(t)
+@@ -1179,7 +1741,11 @@ func TestGotoA(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("Missing expected error")
+ 	} else {
+-		t.Logf("Saw expected panic '%v'", err)
++		if matchError(err, RERR_DONE) {
++			t.Logf("Saw expected panic '%v'", err)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", err)
++		}
+ 	}
+ }
+ 
+@@ -1282,7 +1848,11 @@ func TestGotoB(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("Missing expected error")
+ 	} else {
+-		t.Logf("Saw expected panic '%v'", err)
++		if matchError(err, RERR_DONE) {
++			t.Logf("Saw expected panic '%v'", err)
++		} else {
++			t.Errorf("Saw wrong panic '%v'", err)
++		}
+ 	}
+ 
+ 	result, err = testGotoB3(t)
+@@ -1292,6 +1862,240 @@ func TestGotoB(t *testing.T) {
+ 	if err == nil {
+ 		t.Errorf("Missing expected error")
+ 	} else {
+-		t.Logf("Saw expected panic '%v'", err)
++		matchErrorHelper(t, err, RERR_DONE)
++	}
++}
++
++// once returns an iterator that runs its loop body once with the supplied value
++func once[T any](x T) Seq[T] {
++	return func(yield func(T) bool) {
++		yield(x)
++	}
++}
++
++// terrify converts an iterator into one that panics with the supplied string
++// if/when the loop body terminates early (returns false, for break, goto, outer
++// continue, or return).
++func terrify[T any](s string, forall Seq[T]) Seq[T] {
++	return func(yield func(T) bool) {
++		forall(func(v T) bool {
++			if !yield(v) {
++				panic(s)
++			}
++			return true
++		})
++	}
++}
++
++func use[T any](T) {
++}
++
++// f runs a not-rangefunc iterator that recovers from a panic that follows execution of a return.
++// what does f return?
++func f() string {
++	defer func() { recover() }()
++	defer panic("f panic")
++	for _, s := range []string{"f return"} {
++		return s
++	}
++	return "f not reached"
++}
++
++// g runs a rangefunc iterator that recovers from a panic that follows execution of a return.
++// what does g return?
++func g() string {
++	defer func() { recover() }()
++	for s := range terrify("g panic", once("g return")) {
++		return s
++	}
++	return "g not reached"
++}
++
++// h runs a rangefunc iterator that recovers from a panic that follows execution of a return.
++// the panic occurs in the rangefunc iterator itself.
++// what does h return?
++func h() (hashS string) {
++	defer func() { recover() }()
++	for s := range terrify("h panic", once("h return")) {
++		hashS := s
++		use(hashS)
++		return s
++	}
++	return "h not reached"
++}
++
++func j() (hashS string) {
++	defer func() { recover() }()
++	for s := range terrify("j panic", once("j return")) {
++		hashS = s
++		return
++	}
++	return "j not reached"
++}
++
++// k runs a rangefunc iterator that recovers from a panic that follows execution of a return.
++// the panic occurs in the rangefunc iterator itself.
++// k includes an additional mechanism to for making the return happen
++// what does k return?
++func k() (hashS string) {
++	_return := func(s string) { hashS = s }
++
++	defer func() { recover() }()
++	for s := range terrify("k panic", once("k return")) {
++		_return(s)
++		return
++	}
++	return "k not reached"
++}
++
++func m() (hashS string) {
++	_return := func(s string) { hashS = s }
++
++	defer func() { recover() }()
++	for s := range terrify("m panic", once("m return")) {
++		defer _return(s)
++		return s + ", but should be replaced in a defer"
++	}
++	return "m not reached"
++}
++
++func n() string {
++	defer func() { recover() }()
++	for s := range terrify("n panic", once("n return")) {
++		return s + func(s string) string {
++			defer func() { recover() }()
++			for s := range terrify("n closure panic", once(s)) {
++				return s
++			}
++			return "n closure not reached"
++		}(" and n closure return")
++	}
++	return "n not reached"
++}
++
++type terrifyTestCase struct {
++	f func() string
++	e string
++}
++
++func TestPanicReturns(t *testing.T) {
++	tcs := []terrifyTestCase{
++		{f, "f return"},
++		{g, "g return"},
++		{h, "h return"},
++		{k, "k return"},
++		{j, "j return"},
++		{m, "m return"},
++		{n, "n return and n closure return"},
++	}
++
++	for _, tc := range tcs {
++		got := tc.f()
++		if got != tc.e {
++			t.Errorf("Got %s expected %s", got, tc.e)
++		} else {
++			t.Logf("Got expected %s", got)
++		}
++	}
++}
++
++// twice calls yield twice, the first time defer-recover-saving any panic,
++// for re-panicking later if the second call to yield does not also panic.
++// If the first call panicked, the second call ought to also panic because
++// it was called after a panic-termination of the loop body.
++func twice[T any](x, y T) Seq[T] {
++	return func(yield func(T) bool) {
++		var p any
++		done := false
++		func() {
++			defer func() {
++				p = recover()
++			}()
++			done = !yield(x)
++		}()
++		if done {
++			return
++		}
++		yield(y)
++		if p != nil {
++			// do not swallow the panic
++			panic(p)
++		}
++	}
++}
++
++func TestRunBodyAfterPanic(t *testing.T) {
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, RERR_PANIC) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result")
++		}
++	}()
++	for x := range twice(0, 1) {
++		if x == 0 {
++			panic("x is zero")
++		}
++	}
++}
++
++func TestRunBodyAfterPanicCheck(t *testing.T) {
++	defer func() {
++		if r := recover(); r != nil {
++			if matchError(r, CERR_PANIC) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++		} else {
++			t.Errorf("Wanted to see a failure, result")
++		}
++	}()
++	for x := range Check(twice(0, 1)) {
++		if x == 0 {
++			panic("x is zero")
++		}
++	}
++}
++
++func TestTwoLevelReturn(t *testing.T) {
++	f := func() int {
++		for a := range twice(0, 1) {
++			for b := range twice(0, 2) {
++				x := a + b
++				t.Logf("x=%d", x)
++				if x == 3 {
++					return x
++				}
++			}
++		}
++		return -1
++	}
++	y := f()
++	if y != 3 {
++		t.Errorf("Expected y=3, got y=%d\n", y)
++	}
++}
++
++func TestTwoLevelReturnCheck(t *testing.T) {
++	f := func() int {
++		for a := range Check(twice(0, 1)) {
++			for b := range Check(twice(0, 2)) {
++				x := a + b
++				t.Logf("a=%d, b=%d, x=%d", a, b, x)
++				if x == 3 {
++					return x
++				}
++			}
++		}
++		return -1
++	}
++	y := f()
++	if y != 3 {
++		t.Errorf("Expected y=3, got y=%d\n", y)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index d439412ea8..c888bcefab 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -99,47 +99,31 @@ The return false breaks the loop. Then when f returns, the "check
+ 
+ which causes the return we want.
+ 
+-Return with arguments is more involved. We need somewhere to store the
+-arguments while we break out of f, so we add them to the var
+-declaration, like:
+-
+-	{
+-		var (
+-			#next int
+-			#r1 type1
+-			#r2 type2
+-		)
+-		f(func(x T1) bool {
+-			...
+-			{
+-				// return a, b
+-				#r1, #r2 = a, b
+-				#next = -2
+-				return false
+-			}
+-			...
+-			return true
+-		})
+-		if #next == -2 { return #r1, #r2 }
+-	}
+-
+-TODO: What about:
+-
+-	func f() (x bool) {
+-		for range g(&x) {
+-			return true
+-		}
+-	}
+-
+-	func g(p *bool) func(func() bool) {
+-		return func(yield func() bool) {
+-			yield()
+-			// Is *p true or false here?
++Return with arguments is more involved, and has to deal with
++corner cases involving panic, defer, and recover.  The results
++of the enclosing function or closure are rewritten to give them
++names if they don't have them already, and the names are assigned
++at the return site.
++
++	  func foo() (#rv1 A, #rv2 B) {
++
++		{
++			var (
++				#next int
++			)
++			f(func(x T1) bool {
++				...
++				{
++					// return a, b
++					#rv1, #rv2 = a, b
++					#next = -1
++					return false
++				}
++				...
++				return true
++			})
++			if #next == -1 { return }
+ 		}
+-	}
+-
+-With this rewrite the "return true" is not visible after yield returns,
+-but maybe it should be?
+ 
+ # Checking
+ 
+@@ -147,8 +131,44 @@ To permit checking that an iterator is well-behaved -- that is, that
+ it does not call the loop body again after it has returned false or
+ after the entire loop has exited (it might retain a copy of the body
+ function, or pass it to another goroutine) -- each generated loop has
+-its own #exitK flag that is checked before each iteration, and set both
+-at any early exit and after the iteration completes.
++its own #stateK variable that is used to check for permitted call
++patterns to the yield function for a loop body.
++
++The state values are:
++
++const DONE = 0      // body of loop has exited in a non-panic way
++const READY = 1     // body of loop has not exited yet, is not running
++const PANIC = 2     // body of loop is either currently running, or has panicked
++const EXHAUSTED = 3 // iterator function call, e.g. f(func(x t){...}), returned so the sequence is "exhausted".
++
++const MISSING_PANIC = 4 // used to report errors.
++
++The value of #stateK transitions
++(1) before calling the iterator function,
++
++	var #stateN = READY
++
++(2) after the iterator function call returns,
++
++	if #stateN == PANIC {
++		panic(runtime.panicrangestate(MISSING_PANIC))
++	}
++	#stateN = EXHAUSTED
++
++(3) at the beginning of the iteration of the loop body,
++
++	if #stateN != READY { runtime.panicrangestate(#stateN) }
++	#stateN = PANIC
++
++(4) when loop iteration continues, and
++
++	#stateN = READY
++	[return true]
++
++(5) when control flow exits the loop body.
++
++	#stateN = DONE
++	[return false]
+ 
+ For example:
+ 
+@@ -160,17 +180,23 @@ For example:
+ 
+ becomes
+ 
+-	{
+-		var #exit1 bool
+-		f(func(x T1) bool {
+-			if #exit1 { runtime.panicrangeexit() }
+-			...
+-			if ... { #exit1 = true ; return false }
+-			...
+-			return true
+-		})
+-		#exit1 = true
+-	}
++		{
++			var #state1 = READY
++			f(func(x T1) bool {
++				if #state1 != READY { runtime.panicrangestate(#state1) }
++				#state1 = PANIC
++				...
++				if ... { #state1 = DONE ; return false }
++				...
++				#state1 = READY
++				return true
++			})
++	        if #state1 == PANIC {
++	        	// the code for the loop body did not return normally
++	        	panic(runtime.panicrangestate(MISSING_PANIC))
++	        }
++			#state1 = EXHAUSTED
++		}
+ 
+ # Nested Loops
+ 
+@@ -203,65 +229,83 @@ becomes
+ 	{
+ 		var (
+ 			#next int
+-			#r1 type1
+-			#r2 type2
+ 		)
+-		var #exit1 bool
+-		f(func() {
+-			if #exit1 { runtime.panicrangeexit() }
+-			var #exit2 bool
+-			g(func() {
+-				if #exit2 { runtime.panicrangeexit() }
++		var #state1 = READY
++		f(func() bool {
++			if #state1 != READY { runtime.panicrangestate(#state1) }
++			#state1 = PANIC
++			var #state2 = READY
++			g(func() bool {
++				if #state2 != READY { runtime.panicrangestate(#state2) }
+ 				...
+ 				{
+ 					// return a, b
+-					#r1, #r2 = a, b
+-					#next = -2
+-					#exit1, #exit2 = true, true
++					#rv1, #rv2 = a, b
++					#next = -1
++					#state2 = DONE
+ 					return false
+ 				}
+ 				...
++				#state2 = READY
+ 				return true
+ 			})
+-			#exit2 = true
++	        if #state2 == PANIC {
++	        	panic(runtime.panicrangestate(MISSING_PANIC))
++	        }
++			#state2 = EXHAUSTED
+ 			if #next < 0 {
++				#state1 = DONE
+ 				return false
+ 			}
++			#state1 = READY
+ 			return true
+ 		})
+-		#exit1 = true
+-		if #next == -2 {
+-			return #r1, #r2
++	    if #state1 == PANIC {
++	       	panic(runtime.panicrangestate(MISSING_PANIC))
++	    }
++		#state1 = EXHAUSTED
++		if #next == -1 {
++			return
+ 		}
+ 	}
+ 
+-Note that the #next < 0 after the inner loop handles both kinds of
+-return with a single check.
+-
+ # Labeled break/continue of range-over-func loops
+ 
+ For a labeled break or continue of an outer range-over-func, we
+-use positive #next values. Any such labeled break or continue
++use positive #next values.
++
++Any such labeled break or continue
+ really means "do N breaks" or "do N breaks and 1 continue".
+-We encode that as perLoopStep*N or perLoopStep*N+1 respectively.
++
++The positive #next value tells which level of loop N to target
++with a break or continue, where perLoopStep*N means break out of
++level N and perLoopStep*N-1 means continue into level N.  The
++outermost loop has level 1, therefore #next == perLoopStep means
++to break from the outermost loop, and #next == perLoopStep-1 means
++to continue the outermost loop.
+ 
+ Loops that might need to propagate a labeled break or continue
+ add one or both of these to the #next checks:
+ 
+-	if #next >= 2 {
+-		#next -= 2
+-		return false
+-	}
+-
+-	if #next == 1 {
+-		#next = 0
+-		return true
+-	}
++	    // N == depth of this loop, one less than the one just exited.
++		if #next != 0 {
++		  if #next >= perLoopStep*N-1 { // break or continue this loop
++		  	if #next >= perLoopStep*N+1 { // error checking
++		  	   // TODO reason about what exactly can appear
++		  	   // here given full  or partial checking.
++	           runtime.panicrangestate(DONE)
++		  	}
++		  	rv := #next & 1 == 1 // code generates into #next&1
++			#next = 0
++			return rv
++		  }
++		  return false // or handle returns and gotos
++		}
+ 
+-For example
++For example (with perLoopStep == 2)
+ 
+-	F: for range f {
+-		for range g {
++	F: for range f { // 1, 2
++		for range g { // 3, 4
+ 			for range h {
+ 				...
+ 				break F
+@@ -278,52 +322,68 @@ becomes
+ 
+ 	{
+ 		var #next int
+-		var #exit1 bool
+-		f(func() {
+-			if #exit1 { runtime.panicrangeexit() }
+-			var #exit2 bool
+-			g(func() {
+-				if #exit2 { runtime.panicrangeexit() }
+-				var #exit3 bool
+-				h(func() {
+-					if #exit3 { runtime.panicrangeexit() }
++		var #state1 = READY
++		f(func() { // 1,2
++			if #state1 != READY { runtime.panicrangestate(#state1) }
++			#state1 = PANIC
++			var #state2 = READY
++			g(func() { // 3,4
++				if #state2 != READY { runtime.panicrangestate(#state2) }
++				#state2 = PANIC
++				var #state3 = READY
++				h(func() { // 5,6
++					if #state3 != READY { runtime.panicrangestate(#state3) }
++					#state3 = PANIC
+ 					...
+ 					{
+ 						// break F
+-						#next = 4
+-						#exit1, #exit2, #exit3 = true, true, true
++						#next = 2
++						#state3 = DONE
+ 						return false
+ 					}
+ 					...
+ 					{
+ 						// continue F
+-						#next = 3
+-						#exit2, #exit3 = true, true
++						#next = 1
++						#state3 = DONE
+ 						return false
+ 					}
+ 					...
++					#state3 = READY
+ 					return true
+ 				})
+-				#exit3 = true
+-				if #next >= 2 {
+-					#next -= 2
++				if #state3 == PANIC {
++					panic(runtime.panicrangestate(MISSING_PANIC))
++				}
++				#state3 = EXHAUSTED
++				if #next != 0 {
++					// no breaks or continues targeting this loop
++					#state2 = DONE
+ 					return false
+ 				}
+ 				return true
+ 			})
+-			#exit2 = true
+-			if #next >= 2 {
+-				#next -= 2
++	    	if #state2 == PANIC {
++	       		panic(runtime.panicrangestate(MISSING_PANIC))
++	   		}
++			#state2 = EXHAUSTED
++			if #next != 0 { // just exited g, test for break/continue applied to f/F
++				if #next >= 1 {
++					if #next >= 3 { runtime.panicrangestate(DONE) } // error
++					rv := #next&1 == 1
++					#next = 0
++					return rv
++				}
++				#state1 = DONE
+ 				return false
+ 			}
+-			if #next == 1 {
+-				#next = 0
+-				return true
+-			}
+ 			...
+ 			return true
+ 		})
+-		#exit1 = true
++	    if #state1 == PANIC {
++	       	panic(runtime.panicrangestate(MISSING_PANIC))
++	    }
++		#state1 = EXHAUSTED
+ 	}
+ 
+ Note that the post-h checks only consider a break,
+@@ -332,13 +392,13 @@ since no generated code tries to continue g.
+ # Gotos and other labeled break/continue
+ 
+ The final control flow translations are goto and break/continue of a
+-non-range-over-func statement. In both cases, we may need to break out
+-of one or more range-over-func loops before we can do the actual
++non-range-over-func statement. In both cases, we may need to break
++out of one or more range-over-func loops before we can do the actual
+ control flow statement. Each such break/continue/goto L statement is
+-assigned a unique negative #next value (below -2, since -1 and -2 are
+-for the two kinds of return). Then the post-checks for a given loop
+-test for the specific codes that refer to labels directly targetable
+-from that block. Otherwise, the generic
++assigned a unique negative #next value (since -1 is return). Then
++the post-checks for a given loop test for the specific codes that
++refer to labels directly targetable from that block. Otherwise, the
++generic
+ 
+ 	if #next < 0 { return false }
+ 
+@@ -363,39 +423,48 @@ becomes
+ 	Top: print("start\n")
+ 	{
+ 		var #next int
+-		var #exit1 bool
++		var #state1 = READY
+ 		f(func() {
+-			if #exit1 { runtime.panicrangeexit() }
+-			var #exit2 bool
++			if #state1 != READY{ runtime.panicrangestate(#state1) }
++			#state1 = PANIC
++			var #state2 = READY
+ 			g(func() {
+-				if #exit2 { runtime.panicrangeexit() }
++				if #state2 != READY { runtime.panicrangestate(#state2) }
++				#state2 = PANIC
+ 				...
+-				var #exit3 bool
++				var #state3 bool = READY
+ 				h(func() {
+-				if #exit3 { runtime.panicrangeexit() }
++					if #state3 != READY { runtime.panicrangestate(#state3) }
++					#state3 = PANIC
+ 					...
+ 					{
+ 						// goto Top
+ 						#next = -3
+-						#exit1, #exit2, #exit3 = true, true, true
++						#state3 = DONE
+ 						return false
+ 					}
+ 					...
++					#state3 = READY
+ 					return true
+ 				})
+-				#exit3 = true
+ 				if #next < 0 {
++					#state2 = DONE
+ 					return false
+ 				}
++				#state2 = READY
+ 				return true
+ 			})
+-			#exit2 = true
++			if #state2 == PANIC {runtime.panicrangestate(MISSING_PANIC)}
++			#state2 = EXHAUSTED
+ 			if #next < 0 {
++				#state1 = DONE
+ 				return false
+ 			}
++			#state1 = READY
+ 			return true
+ 		})
+-		#exit1 = true
++		if #state1 == PANIC {runtime.panicrangestate(MISSING_PANIC)}
++		#state1 = EXHAUSTED
+ 		if #next == -3 {
+ 			#next = 0
+ 			goto Top
+@@ -472,6 +541,7 @@ var nopos syntax.Pos
+ type rewriter struct {
+ 	pkg   *types2.Package
+ 	info  *types2.Info
++	sig   *types2.Signature
+ 	outer *syntax.FuncType
+ 	body  *syntax.BlockStmt
+ 
+@@ -493,11 +563,13 @@ type rewriter struct {
+ 	rewritten map[*syntax.ForStmt]syntax.Stmt
+ 
+ 	// Declared variables in generated code for outermost loop.
+-	declStmt     *syntax.DeclStmt
+-	nextVar      types2.Object
+-	retVars      []types2.Object
+-	defers       types2.Object
+-	exitVarCount int // exitvars are referenced from their respective loops
++	declStmt      *syntax.DeclStmt
++	nextVar       types2.Object
++	retVars       []types2.Object
++	defers        types2.Object
++	stateVarCount int // stateVars are referenced from their respective loops
++
++	rangefuncBodyClosures map[*syntax.FuncLit]bool
+ }
+ 
+ // A branch is a single labeled branch.
+@@ -509,44 +581,66 @@ type branch struct {
+ // A forLoop describes a single range-over-func loop being processed.
+ type forLoop struct {
+ 	nfor         *syntax.ForStmt // actual syntax
+-	exitFlag     *types2.Var     // #exit variable for this loop
+-	exitFlagDecl *syntax.VarDecl
++	stateVar     *types2.Var     // #state variable for this loop
++	stateVarDecl *syntax.VarDecl
++	depth        int // outermost loop has depth 1, otherwise depth = depth(parent)+1
+ 
+ 	checkRet      bool     // add check for "return" after loop
+-	checkRetArgs  bool     // add check for "return args" after loop
+ 	checkBreak    bool     // add check for "break" after loop
+ 	checkContinue bool     // add check for "continue" after loop
+ 	checkBranch   []branch // add check for labeled branch after loop
+ }
+ 
++type State int
++
++const (
++	DONE          = State(iota) // body of loop has exited in a non-panic way
++	READY                       // body of loop has not exited yet, is not running
++	PANIC                       // body of loop is either currently running, or has panicked
++	EXHAUSTED                   // iterator function return, i.e., sequence is "exhausted"
++	MISSING_PANIC               // an error code, not really a state.
++)
++
+ // Rewrite rewrites all the range-over-funcs in the files.
+-func Rewrite(pkg *types2.Package, info *types2.Info, files []*syntax.File) {
++// It returns the set of function literals generated from rangefunc loop bodies.
++// This allows for rangefunc loop bodies to be distingushed by debuggers.
++func Rewrite(pkg *types2.Package, info *types2.Info, files []*syntax.File) map[*syntax.FuncLit]bool {
++	ri := make(map[*syntax.FuncLit]bool)
+ 	for _, file := range files {
+ 		syntax.Inspect(file, func(n syntax.Node) bool {
+ 			switch n := n.(type) {
+ 			case *syntax.FuncDecl:
+-				rewriteFunc(pkg, info, n.Type, n.Body)
++				sig, _ := info.Defs[n.Name].Type().(*types2.Signature)
++				rewriteFunc(pkg, info, n.Type, n.Body, sig, ri)
+ 				return false
+ 			case *syntax.FuncLit:
+-				rewriteFunc(pkg, info, n.Type, n.Body)
++				sig, _ := info.Types[n].Type.(*types2.Signature)
++				if sig == nil {
++					tv := n.GetTypeInfo()
++					sig = tv.Type.(*types2.Signature)
++				}
++				rewriteFunc(pkg, info, n.Type, n.Body, sig, ri)
+ 				return false
+ 			}
+ 			return true
+ 		})
+ 	}
++	return ri
+ }
+ 
+ // rewriteFunc rewrites all the range-over-funcs in a single function (a top-level func or a func literal).
+ // The typ and body are the function's type and body.
+-func rewriteFunc(pkg *types2.Package, info *types2.Info, typ *syntax.FuncType, body *syntax.BlockStmt) {
++func rewriteFunc(pkg *types2.Package, info *types2.Info, typ *syntax.FuncType, body *syntax.BlockStmt, sig *types2.Signature, ri map[*syntax.FuncLit]bool) {
+ 	if body == nil {
+ 		return
+ 	}
+ 	r := &rewriter{
+-		pkg:   pkg,
+-		info:  info,
+-		outer: typ,
+-		body:  body,
++		pkg:                   pkg,
++		info:                  info,
++		outer:                 typ,
++		body:                  body,
++		sig:                   sig,
++		rangefuncBodyClosures: ri,
+ 	}
+ 	syntax.Inspect(body, r.inspect)
+ 	if (base.Flag.W != 0) && r.forStack != nil {
+@@ -566,14 +660,19 @@ func (r *rewriter) checkFuncMisuse() bool {
+ func (r *rewriter) inspect(n syntax.Node) bool {
+ 	switch n := n.(type) {
+ 	case *syntax.FuncLit:
+-		rewriteFunc(r.pkg, r.info, n.Type, n.Body)
++		sig, _ := r.info.Types[n].Type.(*types2.Signature)
++		if sig == nil {
++			tv := n.GetTypeInfo()
++			sig = tv.Type.(*types2.Signature)
++		}
++		rewriteFunc(r.pkg, r.info, n.Type, n.Body, sig, r.rangefuncBodyClosures)
+ 		return false
+ 
+ 	default:
+ 		// Push n onto stack.
+ 		r.stack = append(r.stack, n)
+ 		if nfor, ok := forRangeFunc(n); ok {
+-			loop := &forLoop{nfor: nfor}
++			loop := &forLoop{nfor: nfor, depth: 1 + len(r.forStack)}
+ 			r.forStack = append(r.forStack, loop)
+ 			r.startLoop(loop)
+ 		}
+@@ -627,8 +726,8 @@ func (r *rewriter) startLoop(loop *forLoop) {
+ 		r.rewritten = make(map[*syntax.ForStmt]syntax.Stmt)
+ 	}
+ 	if r.checkFuncMisuse() {
+-		// declare the exit flag for this loop's body
+-		loop.exitFlag, loop.exitFlagDecl = r.exitVar(loop.nfor.Pos())
++		// declare the state flag for this loop's body
++		loop.stateVar, loop.stateVarDecl = r.stateVar(loop.nfor.Pos())
+ 	}
+ }
+ 
+@@ -674,61 +773,63 @@ func (r *rewriter) editDefer(x *syntax.CallStmt) syntax.Stmt {
+ 	}
+ 
+ 	// Attach the token as an "extra" argument to the defer.
+-	x.DeferAt = r.useVar(r.defers)
++	x.DeferAt = r.useObj(r.defers)
+ 	setPos(x.DeferAt, x.Pos())
+ 	return x
+ }
+ 
+-func (r *rewriter) exitVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
+-	r.exitVarCount++
++func (r *rewriter) stateVar(pos syntax.Pos) (*types2.Var, *syntax.VarDecl) {
++	r.stateVarCount++
+ 
+-	name := fmt.Sprintf("#exit%d", r.exitVarCount)
+-	typ := r.bool.Type()
++	name := fmt.Sprintf("#state%d", r.stateVarCount)
++	typ := r.int.Type()
+ 	obj := types2.NewVar(pos, r.pkg, name, typ)
+ 	n := syntax.NewName(pos, name)
+ 	setValueType(n, typ)
+ 	r.info.Defs[n] = obj
+ 
+-	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}}
++	return obj, &syntax.VarDecl{NameList: []*syntax.Name{n}, Values: r.stateConst(READY)}
+ }
+ 
+ // editReturn returns the replacement for the return statement x.
+ // See the "Return" section in the package doc comment above for more context.
+ func (r *rewriter) editReturn(x *syntax.ReturnStmt) syntax.Stmt {
+-	// #next = -1 is return with no arguments; -2 is return with arguments.
+-	var next int
+-	if x.Results == nil {
+-		next = -1
+-		r.forStack[0].checkRet = true
+-	} else {
+-		next = -2
+-		r.forStack[0].checkRetArgs = true
+-	}
+-
+-	// Tell the loops along the way to check for a return.
+-	for _, loop := range r.forStack[1:] {
+-		loop.checkRet = true
+-	}
+-
+-	// Assign results, set #next, and return false.
+ 	bl := &syntax.BlockStmt{}
++
+ 	if x.Results != nil {
+-		if r.retVars == nil {
++		// rewrite "return val" into "assign to named result; return"
++		if len(r.outer.ResultList) > 0 {
++			// Make sure that result parameters all have names
+ 			for i, a := range r.outer.ResultList {
+-				obj := r.declVar(fmt.Sprintf("#r%d", i+1), a.Type.GetTypeInfo().Type, nil)
+-				r.retVars = append(r.retVars, obj)
++				if a.Name == nil || a.Name.Value == "_" {
++					r.generateParamName(r.outer.ResultList, i) // updates a.Name
++				}
+ 			}
+ 		}
+-		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(r.retVars), Rhs: x.Results})
++		// Assign to named results
++		results := []types2.Object{}
++		for _, a := range r.outer.ResultList {
++			results = append(results, r.info.Defs[a.Name])
++		}
++		bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.useList(results), Rhs: x.Results})
++		x.Results = nil
+ 	}
++
++	next := -1 // return
++
++	// Tell the loops along the way to check for a return.
++	for _, loop := range r.forStack {
++		loop.checkRet = true
++	}
++
++	// Set #next, and return false.
++
+ 	bl.List = append(bl.List, &syntax.AssignStmt{Lhs: r.next(), Rhs: r.intConst(next)})
+ 	if r.checkFuncMisuse() {
+-		// mark all enclosing loop bodies as exited
+-		for i := 0; i < len(r.forStack); i++ {
+-			bl.List = append(bl.List, r.setExitedAt(i))
+-		}
++		// mark this loop as exited, the others (which will be exited if iterators do not interfere) have not, yet.
++		bl.List = append(bl.List, r.setState(DONE, x.Pos()))
+ 	}
+-	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useVar(r.false)})
++	bl.List = append(bl.List, &syntax.ReturnStmt{Results: r.useObj(r.false)})
+ 	setPos(bl, x.Pos())
+ 	return bl
+ }
+@@ -769,7 +870,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 	var ret *syntax.ReturnStmt
+ 	if x.Tok == syntax.Goto || i < 0 {
+ 		// goto Label
+-		// or break/continue of labeled non-range-over-func loop.
++		// or break/continue of labeled non-range-over-func loop (x.Label != nil).
+ 		// We may be able to leave it alone, or we may have to break
+ 		// out of one or more nested loops and then use #next to signal
+ 		// to complete the break/continue/goto.
+@@ -794,37 +895,34 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 		exitFrom = i + 1
+ 
+ 		// Mark loop we exit to get to targ to check for that branch.
+-		// When i==-1 that's the outermost func body
+-		top := r.forStack[i+1]
++		// When i==-1 / exitFrom == 0 that's the outermost func body.
++		top := r.forStack[exitFrom]
+ 		top.checkBranch = append(top.checkBranch, branch{x.Tok, label})
+ 
+ 		// Mark loops along the way to check for a plain return, so they break.
+-		for j := i + 2; j < len(r.forStack); j++ {
++		for j := exitFrom + 1; j < len(r.forStack); j++ {
+ 			r.forStack[j].checkRet = true
+ 		}
+ 
+ 		// In the innermost loop, use a plain "return false".
+-		ret = &syntax.ReturnStmt{Results: r.useVar(r.false)}
++		ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
+ 	} else {
+ 		// break/continue of labeled range-over-func loop.
+-		depth := len(r.forStack) - 1 - i
+-
+-		// For continue of innermost loop, use "return true".
+-		// Otherwise we are breaking the innermost loop, so "return false".
+-
+-		if depth == 0 && x.Tok == syntax.Continue {
+-			ret = &syntax.ReturnStmt{Results: r.useVar(r.true)}
+-			setPos(ret, x.Pos())
+-			return ret
+-		}
+-		ret = &syntax.ReturnStmt{Results: r.useVar(r.false)}
+-
+-		// If this is a simple break, mark this loop as exited and return false.
+-		// No adjustments to #next.
+-		if depth == 0 {
++		if exitFrom == len(r.forStack) {
++			// Simple break or continue.
++			// Continue returns true, break returns false, optionally both adjust state,
++			// neither modifies #next.
++			var state State
++			if x.Tok == syntax.Continue {
++				ret = &syntax.ReturnStmt{Results: r.useObj(r.true)}
++				state = READY
++			} else {
++				ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
++				state = DONE
++			}
+ 			var stmts []syntax.Stmt
+ 			if r.checkFuncMisuse() {
+-				stmts = []syntax.Stmt{r.setExited(), ret}
++				stmts = []syntax.Stmt{r.setState(state, x.Pos()), ret}
+ 			} else {
+ 				stmts = []syntax.Stmt{ret}
+ 			}
+@@ -835,12 +933,14 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 			return bl
+ 		}
+ 
++		ret = &syntax.ReturnStmt{Results: r.useObj(r.false)}
++
+ 		// The loop inside the one we are break/continue-ing
+ 		// needs to make that happen when we break out of it.
+ 		if x.Tok == syntax.Continue {
+ 			r.forStack[exitFrom].checkContinue = true
+ 		} else {
+-			exitFrom = i
++			exitFrom = i // exitFrom--
+ 			r.forStack[exitFrom].checkBreak = true
+ 		}
+ 
+@@ -851,7 +951,7 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 
+ 		// Set next to break the appropriate number of times;
+ 		// the final time may be a continue, not a break.
+-		next = perLoopStep * depth
++		next = perLoopStep * (i + 1)
+ 		if x.Tok == syntax.Continue {
+ 			next--
+ 		}
+@@ -864,10 +964,9 @@ func (r *rewriter) editBranch(x *syntax.BranchStmt) syntax.Stmt {
+ 	}
+ 
+ 	if r.checkFuncMisuse() {
+-		// Set #exitK for this loop and those exited by the control flow.
+-		for i := exitFrom; i < len(r.forStack); i++ {
+-			bl.List = append(bl.List, r.setExitedAt(i))
+-		}
++		// Set #stateK for this loop.
++		// The exterior loops have not exited yet, and the iterator might interfere.
++		bl.List = append(bl.List, r.setState(DONE, x.Pos()))
+ 	}
+ 
+ 	bl.List = append(bl.List, ret)
+@@ -912,7 +1011,7 @@ func (r *rewriter) computeBranchNext() {
+ 	})
+ 
+ 	// Assign numbers to all the labels we observed.
+-	used := -2
++	used := -1 // returns use -1
+ 	for _, l := range labels {
+ 		used -= 3
+ 		r.branchNext[branch{syntax.Break, l}] = used
+@@ -971,18 +1070,27 @@ func (r *rewriter) endLoop(loop *forLoop) {
+ 		block.List = append(block.List, r.declStmt)
+ 	}
+ 
+-	// declare the exitFlag here so it has proper scope and zeroing
++	// declare the state variable here so it has proper scope and initialization
+ 	if r.checkFuncMisuse() {
+-		exitFlagDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.exitFlagDecl}}
+-		block.List = append(block.List, exitFlagDecl)
++		stateVarDecl := &syntax.DeclStmt{DeclList: []syntax.Decl{loop.stateVarDecl}}
++		setPos(stateVarDecl, start)
++		block.List = append(block.List, stateVarDecl)
+ 	}
+ 
+ 	// iteratorFunc(bodyFunc)
+ 	block.List = append(block.List, call)
+ 
+ 	if r.checkFuncMisuse() {
+-		// iteratorFunc has exited, mark the exit flag for the body
+-		block.List = append(block.List, r.setExited())
++		// iteratorFunc has exited, check for swallowed panic, and set body state to EXHAUSTED
++		nif := &syntax.IfStmt{
++			Cond: r.cond(syntax.Eql, r.useObj(loop.stateVar), r.stateConst(PANIC)),
++			Then: &syntax.BlockStmt{
++				List: []syntax.Stmt{r.callPanic(start, r.stateConst(MISSING_PANIC))},
++			},
++		}
++		setPos(nif, end)
++		block.List = append(block.List, nif)
++		block.List = append(block.List, r.setState(EXHAUSTED, end))
+ 	}
+ 	block.List = append(block.List, checks...)
+ 
+@@ -996,15 +1104,25 @@ func (r *rewriter) endLoop(loop *forLoop) {
+ 	r.rewritten[nfor] = block
+ }
+ 
+-func (r *rewriter) setExited() *syntax.AssignStmt {
+-	return r.setExitedAt(len(r.forStack) - 1)
++func (r *rewriter) cond(op syntax.Operator, x, y syntax.Expr) *syntax.Operation {
++	cond := &syntax.Operation{Op: op, X: x, Y: y}
++	tv := syntax.TypeAndValue{Type: r.bool.Type()}
++	tv.SetIsValue()
++	cond.SetTypeInfo(tv)
++	return cond
++}
++
++func (r *rewriter) setState(val State, pos syntax.Pos) *syntax.AssignStmt {
++	ss := r.setStateAt(len(r.forStack)-1, val)
++	setPos(ss, pos)
++	return ss
+ }
+ 
+-func (r *rewriter) setExitedAt(index int) *syntax.AssignStmt {
++func (r *rewriter) setStateAt(index int, stateVal State) *syntax.AssignStmt {
+ 	loop := r.forStack[index]
+ 	return &syntax.AssignStmt{
+-		Lhs: r.useVar(loop.exitFlag),
+-		Rhs: r.useVar(r.true),
++		Lhs: r.useObj(loop.stateVar),
++		Rhs: r.stateConst(stateVal),
+ 	}
+ }
+ 
+@@ -1028,6 +1146,7 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
+ 			Rbrace: end,
+ 		},
+ 	}
++	r.rangefuncBodyClosures[bodyFunc] = true
+ 	setPos(bodyFunc, start)
+ 
+ 	for i := 0; i < ftyp.Params().Len(); i++ {
+@@ -1042,7 +1161,7 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
+ 			paramVar = types2.NewVar(start, r.pkg, fmt.Sprintf("#p%d", 1+i), typ)
+ 			if i < len(lhs) {
+ 				x := lhs[i]
+-				as := &syntax.AssignStmt{Lhs: x, Rhs: r.useVar(paramVar)}
++				as := &syntax.AssignStmt{Lhs: x, Rhs: r.useObj(paramVar)}
+ 				as.SetPos(x.Pos())
+ 				setPos(as.Rhs, x.Pos())
+ 				bodyFunc.Body.List = append(bodyFunc.Body.List, as)
+@@ -1063,14 +1182,18 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
+ 	loop := r.forStack[len(r.forStack)-1]
+ 
+ 	if r.checkFuncMisuse() {
+-		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertNotExited(start, loop))
++		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, loop))
++		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(PANIC, start))
+ 	}
+ 
+ 	// Original loop body (already rewritten by editStmt during inspect).
+ 	bodyFunc.Body.List = append(bodyFunc.Body.List, body...)
+ 
+-	// return true to continue at end of loop body
+-	ret := &syntax.ReturnStmt{Results: r.useVar(r.true)}
++	// end of loop body, set state to READY and return true to continue iteration
++	if r.checkFuncMisuse() {
++		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(READY, end))
++	}
++	ret := &syntax.ReturnStmt{Results: r.useObj(r.true)}
+ 	ret.SetPos(end)
+ 	bodyFunc.Body.List = append(bodyFunc.Body.List, ret)
+ 
+@@ -1088,27 +1211,75 @@ func (r *rewriter) checks(loop *forLoop, pos syntax.Pos) []syntax.Stmt {
+ 			}
+ 			did[br] = true
+ 			doBranch := &syntax.BranchStmt{Tok: br.tok, Label: &syntax.Name{Value: br.label}}
+-			list = append(list, r.ifNext(syntax.Eql, r.branchNext[br], doBranch))
++			list = append(list, r.ifNext(syntax.Eql, r.branchNext[br], true, doBranch))
+ 		}
+ 	}
++
++	curLoop := loop.depth - 1
++	curLoopIndex := curLoop - 1
++
+ 	if len(r.forStack) == 1 {
+-		if loop.checkRetArgs {
+-			list = append(list, r.ifNext(syntax.Eql, -2, retStmt(r.useList(r.retVars))))
+-		}
+ 		if loop.checkRet {
+-			list = append(list, r.ifNext(syntax.Eql, -1, retStmt(nil)))
++			list = append(list, r.ifNext(syntax.Eql, -1, false, retStmt(nil)))
+ 		}
+ 	} else {
+-		if loop.checkRetArgs || loop.checkRet {
++
++		// Idealized check, implemented more simply for now.
++
++		//	// N == depth of this loop, one less than the one just exited.
++		//	if #next != 0 {
++		//		if #next >= perLoopStep*N-1 { // this loop
++		//			if #next >= perLoopStep*N+1 { // error checking
++		//      		runtime.panicrangestate(DONE)
++		//   		}
++		//			rv := #next & 1 == 1 // code generates into #next&1
++		//			#next = 0
++		//			return rv
++		//		}
++		// 		return false // or handle returns and gotos
++		//	}
++
++		if loop.checkRet {
+ 			// Note: next < 0 also handles gotos handled by outer loops.
+ 			// We set checkRet in that case to trigger this check.
+-			list = append(list, r.ifNext(syntax.Lss, 0, retStmt(r.useVar(r.false))))
++			if r.checkFuncMisuse() {
++				list = append(list, r.ifNext(syntax.Lss, 0, false, r.setStateAt(curLoopIndex, DONE), retStmt(r.useObj(r.false))))
++			} else {
++				list = append(list, r.ifNext(syntax.Lss, 0, false, retStmt(r.useObj(r.false))))
++			}
+ 		}
+-		if loop.checkBreak {
+-			list = append(list, r.ifNext(syntax.Geq, perLoopStep, retStmt(r.useVar(r.false))))
++
++		depthStep := perLoopStep * (curLoop)
++
++		if r.checkFuncMisuse() {
++			list = append(list, r.ifNext(syntax.Gtr, depthStep, false, r.callPanic(pos, r.stateConst(DONE))))
++		} else {
++			list = append(list, r.ifNext(syntax.Gtr, depthStep, true))
+ 		}
+-		if loop.checkContinue {
+-			list = append(list, r.ifNext(syntax.Eql, perLoopStep-1, retStmt(r.useVar(r.true))))
++
++		if r.checkFuncMisuse() {
++			if loop.checkContinue {
++				list = append(list, r.ifNext(syntax.Eql, depthStep-1, true, r.setStateAt(curLoopIndex, READY), retStmt(r.useObj(r.true))))
++			}
++
++			if loop.checkBreak {
++				list = append(list, r.ifNext(syntax.Eql, depthStep, true, r.setStateAt(curLoopIndex, DONE), retStmt(r.useObj(r.false))))
++			}
++
++			if loop.checkContinue || loop.checkBreak {
++				list = append(list, r.ifNext(syntax.Gtr, 0, false, r.setStateAt(curLoopIndex, DONE), retStmt(r.useObj(r.false))))
++			}
++
++		} else {
++			if loop.checkContinue {
++				list = append(list, r.ifNext(syntax.Eql, depthStep-1, true, retStmt(r.useObj(r.true))))
++			}
++			if loop.checkBreak {
++				list = append(list, r.ifNext(syntax.Eql, depthStep, true, retStmt(r.useObj(r.false))))
++			}
++			if loop.checkContinue || loop.checkBreak {
++				list = append(list, r.ifNext(syntax.Gtr, 0, false, retStmt(r.useObj(r.false))))
++			}
+ 		}
+ 	}
+ 
+@@ -1125,38 +1296,25 @@ func retStmt(results syntax.Expr) *syntax.ReturnStmt {
+ 
+ // ifNext returns the statement:
+ //
+-//	if #next op c { adjust; then }
+-//
+-// When op is >=, adjust is #next -= c.
+-// When op is == and c is not -1 or -2, adjust is #next = 0.
+-// Otherwise adjust is omitted.
+-func (r *rewriter) ifNext(op syntax.Operator, c int, then syntax.Stmt) syntax.Stmt {
+-	nif := &syntax.IfStmt{
+-		Cond: &syntax.Operation{Op: op, X: r.next(), Y: r.intConst(c)},
+-		Then: &syntax.BlockStmt{
+-			List: []syntax.Stmt{then},
+-		},
+-	}
+-	tv := syntax.TypeAndValue{Type: r.bool.Type()}
+-	tv.SetIsValue()
+-	nif.Cond.SetTypeInfo(tv)
+-
+-	if op == syntax.Geq {
+-		sub := &syntax.AssignStmt{
+-			Op:  syntax.Sub,
+-			Lhs: r.next(),
+-			Rhs: r.intConst(c),
+-		}
+-		nif.Then.List = []syntax.Stmt{sub, then}
+-	}
+-	if op == syntax.Eql && c != -1 && c != -2 {
++//	if #next op c { [#next = 0;] thens... }
++func (r *rewriter) ifNext(op syntax.Operator, c int, zeroNext bool, thens ...syntax.Stmt) syntax.Stmt {
++	var thenList []syntax.Stmt
++	if zeroNext {
+ 		clr := &syntax.AssignStmt{
+ 			Lhs: r.next(),
+ 			Rhs: r.intConst(0),
+ 		}
+-		nif.Then.List = []syntax.Stmt{clr, then}
++		thenList = append(thenList, clr)
++	}
++	for _, then := range thens {
++		thenList = append(thenList, then)
++	}
++	nif := &syntax.IfStmt{
++		Cond: r.cond(op, r.next(), r.intConst(c)),
++		Then: &syntax.BlockStmt{
++			List: thenList,
++		},
+ 	}
+-
+ 	return nif
+ }
+ 
+@@ -1167,35 +1325,37 @@ func setValueType(x syntax.Expr, typ syntax.Type) {
+ 	x.SetTypeInfo(tv)
+ }
+ 
+-// assertNotExited returns the statement:
++// assertReady returns the statement:
+ //
+-//	if #exitK { runtime.panicrangeexit() }
++//	if #stateK != READY { runtime.panicrangestate(#stateK) }
+ //
+-// where #exitK is the exit guard for loop.
+-func (r *rewriter) assertNotExited(start syntax.Pos, loop *forLoop) syntax.Stmt {
+-	callPanicExpr := &syntax.CallExpr{
+-		Fun: runtimeSym(r.info, "panicrangeexit"),
+-	}
+-	setValueType(callPanicExpr, nil) // no result type
+-
+-	callPanic := &syntax.ExprStmt{X: callPanicExpr}
+-
++// where #stateK is the state variable for loop.
++func (r *rewriter) assertReady(start syntax.Pos, loop *forLoop) syntax.Stmt {
+ 	nif := &syntax.IfStmt{
+-		Cond: r.useVar(loop.exitFlag),
++		Cond: r.cond(syntax.Neq, r.useObj(loop.stateVar), r.stateConst(READY)),
+ 		Then: &syntax.BlockStmt{
+-			List: []syntax.Stmt{callPanic},
++			List: []syntax.Stmt{r.callPanic(start, r.useObj(loop.stateVar))},
+ 		},
+ 	}
+ 	setPos(nif, start)
+ 	return nif
+ }
+ 
++func (r *rewriter) callPanic(start syntax.Pos, arg syntax.Expr) syntax.Stmt {
++	callPanicExpr := &syntax.CallExpr{
++		Fun:     runtimeSym(r.info, "panicrangestate"),
++		ArgList: []syntax.Expr{arg},
++	}
++	setValueType(callPanicExpr, nil) // no result type
++	return &syntax.ExprStmt{X: callPanicExpr}
++}
++
+ // next returns a reference to the #next variable.
+ func (r *rewriter) next() *syntax.Name {
+ 	if r.nextVar == nil {
+ 		r.nextVar = r.declVar("#next", r.int.Type(), nil)
+ 	}
+-	return r.useVar(r.nextVar)
++	return r.useObj(r.nextVar)
+ }
+ 
+ // forRangeFunc checks whether n is a range-over-func.
+@@ -1229,8 +1389,12 @@ func (r *rewriter) intConst(c int) *syntax.BasicLit {
+ 	return lit
+ }
+ 
+-// useVar returns syntax for a reference to decl, which should be its declaration.
+-func (r *rewriter) useVar(obj types2.Object) *syntax.Name {
++func (r *rewriter) stateConst(s State) *syntax.BasicLit {
++	return r.intConst(int(s))
++}
++
++// useObj returns syntax for a reference to decl, which should be its declaration.
++func (r *rewriter) useObj(obj types2.Object) *syntax.Name {
+ 	n := syntax.NewName(nopos, obj.Name())
+ 	tv := syntax.TypeAndValue{Type: obj.Type()}
+ 	tv.SetIsValue()
+@@ -1243,7 +1407,7 @@ func (r *rewriter) useVar(obj types2.Object) *syntax.Name {
+ func (r *rewriter) useList(vars []types2.Object) syntax.Expr {
+ 	var new []syntax.Expr
+ 	for _, obj := range vars {
+-		new = append(new, r.useVar(obj))
++		new = append(new, r.useObj(obj))
+ 	}
+ 	if len(new) == 1 {
+ 		return new[0]
+@@ -1251,18 +1415,28 @@ func (r *rewriter) useList(vars []types2.Object) syntax.Expr {
+ 	return &syntax.ListExpr{ElemList: new}
+ }
+ 
++func (r *rewriter) makeVarName(pos syntax.Pos, name string, typ types2.Type) (*types2.Var, *syntax.Name) {
++	obj := types2.NewVar(pos, r.pkg, name, typ)
++	n := syntax.NewName(pos, name)
++	tv := syntax.TypeAndValue{Type: typ}
++	tv.SetIsValue()
++	n.SetTypeInfo(tv)
++	r.info.Defs[n] = obj
++	return obj, n
++}
++
++func (r *rewriter) generateParamName(results []*syntax.Field, i int) {
++	obj, n := r.sig.RenameResult(results, i)
++	r.info.Defs[n] = obj
++}
++
+ // declVar declares a variable with a given name type and initializer value.
+ func (r *rewriter) declVar(name string, typ types2.Type, init syntax.Expr) *types2.Var {
+ 	if r.declStmt == nil {
+ 		r.declStmt = &syntax.DeclStmt{}
+ 	}
+ 	stmt := r.declStmt
+-	obj := types2.NewVar(stmt.Pos(), r.pkg, name, typ)
+-	n := syntax.NewName(stmt.Pos(), name)
+-	tv := syntax.TypeAndValue{Type: typ}
+-	tv.SetIsValue()
+-	n.SetTypeInfo(tv)
+-	r.info.Defs[n] = obj
++	obj, n := r.makeVarName(stmt.Pos(), name, typ)
+ 	stmt.DeclList = append(stmt.DeclList, &syntax.VarDecl{
+ 		NameList: []*syntax.Name{n},
+ 		// Note: Type is ignored
+@@ -1271,26 +1445,19 @@ func (r *rewriter) declVar(name string, typ types2.Type, init syntax.Expr) *type
+ 	return obj
+ }
+ 
+-// declType declares a type with the given name and type.
+-// This is more like "type name = typ" than "type name typ".
+-func declType(pos syntax.Pos, name string, typ types2.Type) *syntax.Name {
+-	n := syntax.NewName(pos, name)
+-	n.SetTypeInfo(syntax.TypeAndValue{Type: typ})
+-	return n
+-}
+-
+ // runtimePkg is a fake runtime package that contains what we need to refer to in package runtime.
+ var runtimePkg = func() *types2.Package {
+ 	var nopos syntax.Pos
+ 	pkg := types2.NewPackage("runtime", "runtime")
+ 	anyType := types2.Universe.Lookup("any").Type()
++	intType := types2.Universe.Lookup("int").Type()
+ 
+ 	// func deferrangefunc() unsafe.Pointer
+ 	obj := types2.NewFunc(nopos, pkg, "deferrangefunc", types2.NewSignatureType(nil, nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "extra", anyType)), false))
+ 	pkg.Scope().Insert(obj)
+ 
+-	// func panicrangeexit()
+-	obj = types2.NewFunc(nopos, pkg, "panicrangeexit", types2.NewSignatureType(nil, nil, nil, nil, nil, false))
++	// func panicrangestate()
++	obj = types2.NewFunc(nopos, pkg, "panicrangestate", types2.NewSignatureType(nil, nil, nil, types2.NewTuple(types2.NewParam(nopos, pkg, "state", intType)), nil, false))
+ 	pkg.Scope().Insert(obj)
+ 
+ 	return pkg
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c9bcd03ea7..d8279e7c81 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1461,7 +1461,11 @@ func (s *state) stmt(n ir.Node) {
+ 		s.callResult(n, callNormal)
+ 		if n.Op() == ir.OCALLFUNC && n.Fun.Op() == ir.ONAME && n.Fun.(*ir.Name).Class == ir.PFUNC {
+ 			if fn := n.Fun.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+-				n.Fun.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
++				n.Fun.Sym().Pkg == ir.Pkgs.Runtime &&
++					(fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" ||
++						fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" ||
++						fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr" ||
++						fn == "panicrangestate") {
+ 				m := s.mem()
+ 				b := s.endBlock()
+ 				b.Kind = ssa.BlockExit
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 3fee023afb..3a5d3576be 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -117,8 +117,8 @@ func interfaceSwitch(s *byte, t *byte) (int, *byte)
+ func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
+ func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
+ 
+-// panic for iteration after exit in range func
+-func panicrangeexit()
++// panic for various rangefunc iterator errors
++func panicrangestate(state int)
+ 
+ // defer in range over func
+ func deferrangefunc() interface{}
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index e3ef360a03..2f43b1d01c 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -102,142 +102,142 @@ var runtimeDecls = [...]struct {
+ 	{"interfaceSwitch", funcTag, 70},
+ 	{"ifaceeq", funcTag, 72},
+ 	{"efaceeq", funcTag, 72},
+-	{"panicrangeexit", funcTag, 9},
+-	{"deferrangefunc", funcTag, 73},
+-	{"rand32", funcTag, 74},
+-	{"makemap64", funcTag, 76},
+-	{"makemap", funcTag, 77},
+-	{"makemap_small", funcTag, 78},
+-	{"mapaccess1", funcTag, 79},
+-	{"mapaccess1_fast32", funcTag, 80},
+-	{"mapaccess1_fast64", funcTag, 81},
+-	{"mapaccess1_faststr", funcTag, 82},
+-	{"mapaccess1_fat", funcTag, 83},
+-	{"mapaccess2", funcTag, 84},
+-	{"mapaccess2_fast32", funcTag, 85},
+-	{"mapaccess2_fast64", funcTag, 86},
+-	{"mapaccess2_faststr", funcTag, 87},
+-	{"mapaccess2_fat", funcTag, 88},
+-	{"mapassign", funcTag, 79},
+-	{"mapassign_fast32", funcTag, 80},
+-	{"mapassign_fast32ptr", funcTag, 89},
+-	{"mapassign_fast64", funcTag, 81},
+-	{"mapassign_fast64ptr", funcTag, 89},
+-	{"mapassign_faststr", funcTag, 82},
+-	{"mapiterinit", funcTag, 90},
+-	{"mapdelete", funcTag, 90},
+-	{"mapdelete_fast32", funcTag, 91},
+-	{"mapdelete_fast64", funcTag, 92},
+-	{"mapdelete_faststr", funcTag, 93},
+-	{"mapiternext", funcTag, 94},
+-	{"mapclear", funcTag, 95},
+-	{"makechan64", funcTag, 97},
+-	{"makechan", funcTag, 98},
+-	{"chanrecv1", funcTag, 100},
+-	{"chanrecv2", funcTag, 101},
+-	{"chansend1", funcTag, 103},
+-	{"closechan", funcTag, 104},
+-	{"chanlen", funcTag, 105},
+-	{"chancap", funcTag, 105},
+-	{"writeBarrier", varTag, 107},
+-	{"typedmemmove", funcTag, 108},
+-	{"typedmemclr", funcTag, 109},
+-	{"typedslicecopy", funcTag, 110},
+-	{"selectnbsend", funcTag, 111},
+-	{"selectnbrecv", funcTag, 112},
+-	{"selectsetpc", funcTag, 113},
+-	{"selectgo", funcTag, 114},
++	{"panicrangestate", funcTag, 73},
++	{"deferrangefunc", funcTag, 74},
++	{"rand32", funcTag, 75},
++	{"makemap64", funcTag, 77},
++	{"makemap", funcTag, 78},
++	{"makemap_small", funcTag, 79},
++	{"mapaccess1", funcTag, 80},
++	{"mapaccess1_fast32", funcTag, 81},
++	{"mapaccess1_fast64", funcTag, 82},
++	{"mapaccess1_faststr", funcTag, 83},
++	{"mapaccess1_fat", funcTag, 84},
++	{"mapaccess2", funcTag, 85},
++	{"mapaccess2_fast32", funcTag, 86},
++	{"mapaccess2_fast64", funcTag, 87},
++	{"mapaccess2_faststr", funcTag, 88},
++	{"mapaccess2_fat", funcTag, 89},
++	{"mapassign", funcTag, 80},
++	{"mapassign_fast32", funcTag, 81},
++	{"mapassign_fast32ptr", funcTag, 90},
++	{"mapassign_fast64", funcTag, 82},
++	{"mapassign_fast64ptr", funcTag, 90},
++	{"mapassign_faststr", funcTag, 83},
++	{"mapiterinit", funcTag, 91},
++	{"mapdelete", funcTag, 91},
++	{"mapdelete_fast32", funcTag, 92},
++	{"mapdelete_fast64", funcTag, 93},
++	{"mapdelete_faststr", funcTag, 94},
++	{"mapiternext", funcTag, 95},
++	{"mapclear", funcTag, 96},
++	{"makechan64", funcTag, 98},
++	{"makechan", funcTag, 99},
++	{"chanrecv1", funcTag, 101},
++	{"chanrecv2", funcTag, 102},
++	{"chansend1", funcTag, 104},
++	{"closechan", funcTag, 105},
++	{"chanlen", funcTag, 106},
++	{"chancap", funcTag, 106},
++	{"writeBarrier", varTag, 108},
++	{"typedmemmove", funcTag, 109},
++	{"typedmemclr", funcTag, 110},
++	{"typedslicecopy", funcTag, 111},
++	{"selectnbsend", funcTag, 112},
++	{"selectnbrecv", funcTag, 113},
++	{"selectsetpc", funcTag, 114},
++	{"selectgo", funcTag, 115},
+ 	{"block", funcTag, 9},
+-	{"makeslice", funcTag, 115},
+-	{"makeslice64", funcTag, 116},
+-	{"makeslicecopy", funcTag, 117},
+-	{"growslice", funcTag, 119},
+-	{"unsafeslicecheckptr", funcTag, 120},
++	{"makeslice", funcTag, 116},
++	{"makeslice64", funcTag, 117},
++	{"makeslicecopy", funcTag, 118},
++	{"growslice", funcTag, 120},
++	{"unsafeslicecheckptr", funcTag, 121},
+ 	{"panicunsafeslicelen", funcTag, 9},
+ 	{"panicunsafeslicenilptr", funcTag, 9},
+-	{"unsafestringcheckptr", funcTag, 121},
++	{"unsafestringcheckptr", funcTag, 122},
+ 	{"panicunsafestringlen", funcTag, 9},
+ 	{"panicunsafestringnilptr", funcTag, 9},
+-	{"memmove", funcTag, 122},
+-	{"memclrNoHeapPointers", funcTag, 123},
+-	{"memclrHasPointers", funcTag, 123},
+-	{"memequal", funcTag, 124},
+-	{"memequal0", funcTag, 125},
+-	{"memequal8", funcTag, 125},
+-	{"memequal16", funcTag, 125},
+-	{"memequal32", funcTag, 125},
+-	{"memequal64", funcTag, 125},
+-	{"memequal128", funcTag, 125},
+-	{"f32equal", funcTag, 126},
+-	{"f64equal", funcTag, 126},
+-	{"c64equal", funcTag, 126},
+-	{"c128equal", funcTag, 126},
+-	{"strequal", funcTag, 126},
+-	{"interequal", funcTag, 126},
+-	{"nilinterequal", funcTag, 126},
+-	{"memhash", funcTag, 127},
+-	{"memhash0", funcTag, 128},
+-	{"memhash8", funcTag, 128},
+-	{"memhash16", funcTag, 128},
+-	{"memhash32", funcTag, 128},
+-	{"memhash64", funcTag, 128},
+-	{"memhash128", funcTag, 128},
+-	{"f32hash", funcTag, 129},
+-	{"f64hash", funcTag, 129},
+-	{"c64hash", funcTag, 129},
+-	{"c128hash", funcTag, 129},
+-	{"strhash", funcTag, 129},
+-	{"interhash", funcTag, 129},
+-	{"nilinterhash", funcTag, 129},
+-	{"int64div", funcTag, 130},
+-	{"uint64div", funcTag, 131},
+-	{"int64mod", funcTag, 130},
+-	{"uint64mod", funcTag, 131},
+-	{"float64toint64", funcTag, 132},
+-	{"float64touint64", funcTag, 133},
+-	{"float64touint32", funcTag, 134},
+-	{"int64tofloat64", funcTag, 135},
+-	{"int64tofloat32", funcTag, 137},
+-	{"uint64tofloat64", funcTag, 138},
+-	{"uint64tofloat32", funcTag, 139},
+-	{"uint32tofloat64", funcTag, 140},
+-	{"complex128div", funcTag, 141},
+-	{"getcallerpc", funcTag, 142},
+-	{"getcallersp", funcTag, 142},
++	{"memmove", funcTag, 123},
++	{"memclrNoHeapPointers", funcTag, 124},
++	{"memclrHasPointers", funcTag, 124},
++	{"memequal", funcTag, 125},
++	{"memequal0", funcTag, 126},
++	{"memequal8", funcTag, 126},
++	{"memequal16", funcTag, 126},
++	{"memequal32", funcTag, 126},
++	{"memequal64", funcTag, 126},
++	{"memequal128", funcTag, 126},
++	{"f32equal", funcTag, 127},
++	{"f64equal", funcTag, 127},
++	{"c64equal", funcTag, 127},
++	{"c128equal", funcTag, 127},
++	{"strequal", funcTag, 127},
++	{"interequal", funcTag, 127},
++	{"nilinterequal", funcTag, 127},
++	{"memhash", funcTag, 128},
++	{"memhash0", funcTag, 129},
++	{"memhash8", funcTag, 129},
++	{"memhash16", funcTag, 129},
++	{"memhash32", funcTag, 129},
++	{"memhash64", funcTag, 129},
++	{"memhash128", funcTag, 129},
++	{"f32hash", funcTag, 130},
++	{"f64hash", funcTag, 130},
++	{"c64hash", funcTag, 130},
++	{"c128hash", funcTag, 130},
++	{"strhash", funcTag, 130},
++	{"interhash", funcTag, 130},
++	{"nilinterhash", funcTag, 130},
++	{"int64div", funcTag, 131},
++	{"uint64div", funcTag, 132},
++	{"int64mod", funcTag, 131},
++	{"uint64mod", funcTag, 132},
++	{"float64toint64", funcTag, 133},
++	{"float64touint64", funcTag, 134},
++	{"float64touint32", funcTag, 135},
++	{"int64tofloat64", funcTag, 136},
++	{"int64tofloat32", funcTag, 138},
++	{"uint64tofloat64", funcTag, 139},
++	{"uint64tofloat32", funcTag, 140},
++	{"uint32tofloat64", funcTag, 141},
++	{"complex128div", funcTag, 142},
++	{"getcallerpc", funcTag, 143},
++	{"getcallersp", funcTag, 143},
+ 	{"racefuncenter", funcTag, 31},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+ 	{"racewrite", funcTag, 31},
+-	{"racereadrange", funcTag, 143},
+-	{"racewriterange", funcTag, 143},
+-	{"msanread", funcTag, 143},
+-	{"msanwrite", funcTag, 143},
+-	{"msanmove", funcTag, 144},
+-	{"asanread", funcTag, 143},
+-	{"asanwrite", funcTag, 143},
+-	{"checkptrAlignment", funcTag, 145},
+-	{"checkptrArithmetic", funcTag, 147},
+-	{"libfuzzerTraceCmp1", funcTag, 148},
+-	{"libfuzzerTraceCmp2", funcTag, 149},
+-	{"libfuzzerTraceCmp4", funcTag, 150},
+-	{"libfuzzerTraceCmp8", funcTag, 151},
+-	{"libfuzzerTraceConstCmp1", funcTag, 148},
+-	{"libfuzzerTraceConstCmp2", funcTag, 149},
+-	{"libfuzzerTraceConstCmp4", funcTag, 150},
+-	{"libfuzzerTraceConstCmp8", funcTag, 151},
+-	{"libfuzzerHookStrCmp", funcTag, 152},
+-	{"libfuzzerHookEqualFold", funcTag, 152},
+-	{"addCovMeta", funcTag, 154},
++	{"racereadrange", funcTag, 144},
++	{"racewriterange", funcTag, 144},
++	{"msanread", funcTag, 144},
++	{"msanwrite", funcTag, 144},
++	{"msanmove", funcTag, 145},
++	{"asanread", funcTag, 144},
++	{"asanwrite", funcTag, 144},
++	{"checkptrAlignment", funcTag, 146},
++	{"checkptrArithmetic", funcTag, 148},
++	{"libfuzzerTraceCmp1", funcTag, 149},
++	{"libfuzzerTraceCmp2", funcTag, 150},
++	{"libfuzzerTraceCmp4", funcTag, 151},
++	{"libfuzzerTraceCmp8", funcTag, 152},
++	{"libfuzzerTraceConstCmp1", funcTag, 149},
++	{"libfuzzerTraceConstCmp2", funcTag, 150},
++	{"libfuzzerTraceConstCmp4", funcTag, 151},
++	{"libfuzzerTraceConstCmp8", funcTag, 152},
++	{"libfuzzerHookStrCmp", funcTag, 153},
++	{"libfuzzerHookEqualFold", funcTag, 153},
++	{"addCovMeta", funcTag, 155},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+ 	{"armHasVFPv4", varTag, 6},
+ 	{"arm64HasATOMICS", varTag, 6},
+-	{"asanregisterglobals", funcTag, 123},
++	{"asanregisterglobals", funcTag, 124},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [155]*types.Type
++	var typs [156]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -311,88 +311,89 @@ func runtimeTypes() []*types.Type {
+ 	typs[70] = newSig(params(typs[1], typs[1]), params(typs[15], typs[1]))
+ 	typs[71] = types.NewPtr(typs[5])
+ 	typs[72] = newSig(params(typs[71], typs[7], typs[7]), params(typs[6]))
+-	typs[73] = newSig(nil, params(typs[10]))
+-	typs[74] = newSig(nil, params(typs[60]))
+-	typs[75] = types.NewMap(typs[2], typs[2])
+-	typs[76] = newSig(params(typs[1], typs[22], typs[3]), params(typs[75]))
+-	typs[77] = newSig(params(typs[1], typs[15], typs[3]), params(typs[75]))
+-	typs[78] = newSig(nil, params(typs[75]))
+-	typs[79] = newSig(params(typs[1], typs[75], typs[3]), params(typs[3]))
+-	typs[80] = newSig(params(typs[1], typs[75], typs[60]), params(typs[3]))
+-	typs[81] = newSig(params(typs[1], typs[75], typs[24]), params(typs[3]))
+-	typs[82] = newSig(params(typs[1], typs[75], typs[28]), params(typs[3]))
+-	typs[83] = newSig(params(typs[1], typs[75], typs[3], typs[1]), params(typs[3]))
+-	typs[84] = newSig(params(typs[1], typs[75], typs[3]), params(typs[3], typs[6]))
+-	typs[85] = newSig(params(typs[1], typs[75], typs[60]), params(typs[3], typs[6]))
+-	typs[86] = newSig(params(typs[1], typs[75], typs[24]), params(typs[3], typs[6]))
+-	typs[87] = newSig(params(typs[1], typs[75], typs[28]), params(typs[3], typs[6]))
+-	typs[88] = newSig(params(typs[1], typs[75], typs[3], typs[1]), params(typs[3], typs[6]))
+-	typs[89] = newSig(params(typs[1], typs[75], typs[7]), params(typs[3]))
+-	typs[90] = newSig(params(typs[1], typs[75], typs[3]), nil)
+-	typs[91] = newSig(params(typs[1], typs[75], typs[60]), nil)
+-	typs[92] = newSig(params(typs[1], typs[75], typs[24]), nil)
+-	typs[93] = newSig(params(typs[1], typs[75], typs[28]), nil)
+-	typs[94] = newSig(params(typs[3]), nil)
+-	typs[95] = newSig(params(typs[1], typs[75]), nil)
+-	typs[96] = types.NewChan(typs[2], types.Cboth)
+-	typs[97] = newSig(params(typs[1], typs[22]), params(typs[96]))
+-	typs[98] = newSig(params(typs[1], typs[15]), params(typs[96]))
+-	typs[99] = types.NewChan(typs[2], types.Crecv)
+-	typs[100] = newSig(params(typs[99], typs[3]), nil)
+-	typs[101] = newSig(params(typs[99], typs[3]), params(typs[6]))
+-	typs[102] = types.NewChan(typs[2], types.Csend)
+-	typs[103] = newSig(params(typs[102], typs[3]), nil)
+-	typs[104] = newSig(params(typs[102]), nil)
+-	typs[105] = newSig(params(typs[2]), params(typs[15]))
+-	typs[106] = types.NewArray(typs[0], 3)
+-	typs[107] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[106]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+-	typs[108] = newSig(params(typs[1], typs[3], typs[3]), nil)
+-	typs[109] = newSig(params(typs[1], typs[3]), nil)
+-	typs[110] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
+-	typs[111] = newSig(params(typs[102], typs[3]), params(typs[6]))
+-	typs[112] = newSig(params(typs[3], typs[99]), params(typs[6], typs[6]))
+-	typs[113] = newSig(params(typs[71]), nil)
+-	typs[114] = newSig(params(typs[1], typs[1], typs[71], typs[15], typs[15], typs[6]), params(typs[15], typs[6]))
+-	typs[115] = newSig(params(typs[1], typs[15], typs[15]), params(typs[7]))
+-	typs[116] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
+-	typs[117] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
+-	typs[118] = types.NewSlice(typs[2])
+-	typs[119] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[118]))
+-	typs[120] = newSig(params(typs[1], typs[7], typs[22]), nil)
+-	typs[121] = newSig(params(typs[7], typs[22]), nil)
+-	typs[122] = newSig(params(typs[3], typs[3], typs[5]), nil)
+-	typs[123] = newSig(params(typs[7], typs[5]), nil)
+-	typs[124] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
+-	typs[125] = newSig(params(typs[3], typs[3]), params(typs[6]))
+-	typs[126] = newSig(params(typs[7], typs[7]), params(typs[6]))
+-	typs[127] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
+-	typs[128] = newSig(params(typs[7], typs[5]), params(typs[5]))
+-	typs[129] = newSig(params(typs[3], typs[5]), params(typs[5]))
+-	typs[130] = newSig(params(typs[22], typs[22]), params(typs[22]))
+-	typs[131] = newSig(params(typs[24], typs[24]), params(typs[24]))
+-	typs[132] = newSig(params(typs[20]), params(typs[22]))
+-	typs[133] = newSig(params(typs[20]), params(typs[24]))
+-	typs[134] = newSig(params(typs[20]), params(typs[60]))
+-	typs[135] = newSig(params(typs[22]), params(typs[20]))
+-	typs[136] = types.Types[types.TFLOAT32]
+-	typs[137] = newSig(params(typs[22]), params(typs[136]))
+-	typs[138] = newSig(params(typs[24]), params(typs[20]))
+-	typs[139] = newSig(params(typs[24]), params(typs[136]))
+-	typs[140] = newSig(params(typs[60]), params(typs[20]))
+-	typs[141] = newSig(params(typs[26], typs[26]), params(typs[26]))
+-	typs[142] = newSig(nil, params(typs[5]))
+-	typs[143] = newSig(params(typs[5], typs[5]), nil)
+-	typs[144] = newSig(params(typs[5], typs[5], typs[5]), nil)
+-	typs[145] = newSig(params(typs[7], typs[1], typs[5]), nil)
+-	typs[146] = types.NewSlice(typs[7])
+-	typs[147] = newSig(params(typs[7], typs[146]), nil)
+-	typs[148] = newSig(params(typs[64], typs[64], typs[17]), nil)
+-	typs[149] = newSig(params(typs[58], typs[58], typs[17]), nil)
+-	typs[150] = newSig(params(typs[60], typs[60], typs[17]), nil)
+-	typs[151] = newSig(params(typs[24], typs[24], typs[17]), nil)
+-	typs[152] = newSig(params(typs[28], typs[28], typs[17]), nil)
+-	typs[153] = types.NewArray(typs[0], 16)
+-	typs[154] = newSig(params(typs[7], typs[60], typs[153], typs[28], typs[15], typs[64], typs[64]), params(typs[60]))
++	typs[73] = newSig(params(typs[15]), nil)
++	typs[74] = newSig(nil, params(typs[10]))
++	typs[75] = newSig(nil, params(typs[60]))
++	typs[76] = types.NewMap(typs[2], typs[2])
++	typs[77] = newSig(params(typs[1], typs[22], typs[3]), params(typs[76]))
++	typs[78] = newSig(params(typs[1], typs[15], typs[3]), params(typs[76]))
++	typs[79] = newSig(nil, params(typs[76]))
++	typs[80] = newSig(params(typs[1], typs[76], typs[3]), params(typs[3]))
++	typs[81] = newSig(params(typs[1], typs[76], typs[60]), params(typs[3]))
++	typs[82] = newSig(params(typs[1], typs[76], typs[24]), params(typs[3]))
++	typs[83] = newSig(params(typs[1], typs[76], typs[28]), params(typs[3]))
++	typs[84] = newSig(params(typs[1], typs[76], typs[3], typs[1]), params(typs[3]))
++	typs[85] = newSig(params(typs[1], typs[76], typs[3]), params(typs[3], typs[6]))
++	typs[86] = newSig(params(typs[1], typs[76], typs[60]), params(typs[3], typs[6]))
++	typs[87] = newSig(params(typs[1], typs[76], typs[24]), params(typs[3], typs[6]))
++	typs[88] = newSig(params(typs[1], typs[76], typs[28]), params(typs[3], typs[6]))
++	typs[89] = newSig(params(typs[1], typs[76], typs[3], typs[1]), params(typs[3], typs[6]))
++	typs[90] = newSig(params(typs[1], typs[76], typs[7]), params(typs[3]))
++	typs[91] = newSig(params(typs[1], typs[76], typs[3]), nil)
++	typs[92] = newSig(params(typs[1], typs[76], typs[60]), nil)
++	typs[93] = newSig(params(typs[1], typs[76], typs[24]), nil)
++	typs[94] = newSig(params(typs[1], typs[76], typs[28]), nil)
++	typs[95] = newSig(params(typs[3]), nil)
++	typs[96] = newSig(params(typs[1], typs[76]), nil)
++	typs[97] = types.NewChan(typs[2], types.Cboth)
++	typs[98] = newSig(params(typs[1], typs[22]), params(typs[97]))
++	typs[99] = newSig(params(typs[1], typs[15]), params(typs[97]))
++	typs[100] = types.NewChan(typs[2], types.Crecv)
++	typs[101] = newSig(params(typs[100], typs[3]), nil)
++	typs[102] = newSig(params(typs[100], typs[3]), params(typs[6]))
++	typs[103] = types.NewChan(typs[2], types.Csend)
++	typs[104] = newSig(params(typs[103], typs[3]), nil)
++	typs[105] = newSig(params(typs[103]), nil)
++	typs[106] = newSig(params(typs[2]), params(typs[15]))
++	typs[107] = types.NewArray(typs[0], 3)
++	typs[108] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[107]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
++	typs[109] = newSig(params(typs[1], typs[3], typs[3]), nil)
++	typs[110] = newSig(params(typs[1], typs[3]), nil)
++	typs[111] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
++	typs[112] = newSig(params(typs[103], typs[3]), params(typs[6]))
++	typs[113] = newSig(params(typs[3], typs[100]), params(typs[6], typs[6]))
++	typs[114] = newSig(params(typs[71]), nil)
++	typs[115] = newSig(params(typs[1], typs[1], typs[71], typs[15], typs[15], typs[6]), params(typs[15], typs[6]))
++	typs[116] = newSig(params(typs[1], typs[15], typs[15]), params(typs[7]))
++	typs[117] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
++	typs[118] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
++	typs[119] = types.NewSlice(typs[2])
++	typs[120] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[119]))
++	typs[121] = newSig(params(typs[1], typs[7], typs[22]), nil)
++	typs[122] = newSig(params(typs[7], typs[22]), nil)
++	typs[123] = newSig(params(typs[3], typs[3], typs[5]), nil)
++	typs[124] = newSig(params(typs[7], typs[5]), nil)
++	typs[125] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
++	typs[126] = newSig(params(typs[3], typs[3]), params(typs[6]))
++	typs[127] = newSig(params(typs[7], typs[7]), params(typs[6]))
++	typs[128] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
++	typs[129] = newSig(params(typs[7], typs[5]), params(typs[5]))
++	typs[130] = newSig(params(typs[3], typs[5]), params(typs[5]))
++	typs[131] = newSig(params(typs[22], typs[22]), params(typs[22]))
++	typs[132] = newSig(params(typs[24], typs[24]), params(typs[24]))
++	typs[133] = newSig(params(typs[20]), params(typs[22]))
++	typs[134] = newSig(params(typs[20]), params(typs[24]))
++	typs[135] = newSig(params(typs[20]), params(typs[60]))
++	typs[136] = newSig(params(typs[22]), params(typs[20]))
++	typs[137] = types.Types[types.TFLOAT32]
++	typs[138] = newSig(params(typs[22]), params(typs[137]))
++	typs[139] = newSig(params(typs[24]), params(typs[20]))
++	typs[140] = newSig(params(typs[24]), params(typs[137]))
++	typs[141] = newSig(params(typs[60]), params(typs[20]))
++	typs[142] = newSig(params(typs[26], typs[26]), params(typs[26]))
++	typs[143] = newSig(nil, params(typs[5]))
++	typs[144] = newSig(params(typs[5], typs[5]), nil)
++	typs[145] = newSig(params(typs[5], typs[5], typs[5]), nil)
++	typs[146] = newSig(params(typs[7], typs[1], typs[5]), nil)
++	typs[147] = types.NewSlice(typs[7])
++	typs[148] = newSig(params(typs[7], typs[147]), nil)
++	typs[149] = newSig(params(typs[64], typs[64], typs[17]), nil)
++	typs[150] = newSig(params(typs[58], typs[58], typs[17]), nil)
++	typs[151] = newSig(params(typs[60], typs[60], typs[17]), nil)
++	typs[152] = newSig(params(typs[24], typs[24], typs[17]), nil)
++	typs[153] = newSig(params(typs[28], typs[28], typs[17]), nil)
++	typs[154] = types.NewArray(typs[0], 16)
++	typs[155] = newSig(params(typs[7], typs[60], typs[154], typs[28], typs[15], typs[64], typs[64]), params(typs[60]))
+ 	return typs[:]
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/compiler_internal.go b/src/cmd/compile/internal/types2/compiler_internal.go
+new file mode 100644
+index 0000000000..790a6779e4
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/compiler_internal.go
+@@ -0,0 +1,50 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++import (
++	"cmd/compile/internal/syntax"
++	"fmt"
++)
++
++// This file should not be copied to go/types.  See go.dev/issue/67477
++
++// RenameResult takes an array of (result) fields and an index, and if the indexed field
++// does not have a name and if the result in the signature also does not have a name,
++// then the signature and field are renamed to
++//
++//	fmt.Sprintf("#rv%d", i+1)`
++//
++// the newly named object is inserted into the signature's scope,
++// and the object and new field name are returned.
++//
++// The intended use for RenameResult is to allow rangefunc to assign results within a closure.
++// This is a hack, as narrowly targeted as possible to discourage abuse.
++func (s *Signature) RenameResult(results []*syntax.Field, i int) (*Var, *syntax.Name) {
++	a := results[i]
++	obj := s.Results().At(i)
++
++	if !(obj.name == "" || obj.name == "_" && a.Name == nil || a.Name.Value == "_") {
++		panic("Cannot change an existing name")
++	}
++
++	pos := a.Pos()
++	typ := a.Type.GetTypeInfo().Type
++
++	name := fmt.Sprintf("#rv%d", i+1)
++	obj.name = name
++	s.scope.Insert(obj)
++	obj.setScopePos(pos)
++
++	tv := syntax.TypeAndValue{Type: typ}
++	tv.SetIsValue()
++
++	n := syntax.NewName(pos, obj.Name())
++	n.SetTypeInfo(tv)
++
++	a.Name = n
++
++	return obj, n
++}
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index fb729f512e..e2aae748a0 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -81,7 +81,7 @@ var builtins = [...]struct {
+ 	{"runtime.interfaceSwitch", 1},
+ 	{"runtime.ifaceeq", 1},
+ 	{"runtime.efaceeq", 1},
+-	{"runtime.panicrangeexit", 1},
++	{"runtime.panicrangestate", 1},
+ 	{"runtime.deferrangefunc", 1},
+ 	{"runtime.rand32", 1},
+ 	{"runtime.makemap64", 1},
+@@ -116,6 +116,8 @@ var builtins = [...]struct {
+ 	{"runtime.chanrecv2", 1},
+ 	{"runtime.chansend1", 1},
+ 	{"runtime.closechan", 1},
++	{"runtime.chanlen", 1},
++	{"runtime.chancap", 1},
+ 	{"runtime.writeBarrier", 0},
+ 	{"runtime.typedmemmove", 1},
+ 	{"runtime.typedmemclr", 1},
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 58d13b6adb..8bbb769df7 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -297,11 +297,31 @@ func deferproc(fn func()) {
+ 	// been set and must not be clobbered.
+ }
+ 
+-var rangeExitError = error(errorString("range function continued iteration after exit"))
++var rangeDoneError = error(errorString("range function continued iteration after loop body exit"))
++var rangePanicError = error(errorString("range function continued iteration after loop body panic"))
++var rangeExhaustedError = error(errorString("range function continued iteration after whole loop exit"))
++var rangeMissingPanicError = error(errorString("range function recovered a loop body panic and did not resume panicking"))
+ 
+ //go:noinline
+-func panicrangeexit() {
+-	panic(rangeExitError)
++func panicrangestate(state int) {
++	const (
++		// These duplicate magic numbers in cmd/compile/internal/rangefunc
++		DONE          = 0 // body of loop has exited in a non-panic way
++		PANIC         = 2 // body of loop is either currently running, or has panicked
++		EXHAUSTED     = 3 // iterator function return, i.e., sequence is "exhausted"
++		MISSING_PANIC = 4 // body of loop panicked but iterator function defer-recovered it away
++	)
++	switch state {
++	case DONE:
++		panic(rangeDoneError)
++	case PANIC:
++		panic(rangePanicError)
++	case EXHAUSTED:
++		panic(rangeExhaustedError)
++	case MISSING_PANIC:
++		panic(rangeMissingPanicError)
++	}
++	throw("unexpected state passed to panicrangestate")
+ }
+ 
+ // deferrangefunc is called by functions that are about to
+diff --git a/src/runtime/race/testdata/rangefunc_test.go b/src/runtime/race/testdata/rangefunc_test.go
+new file mode 100644
+index 0000000000..f2ff793df7
+--- /dev/null
++++ b/src/runtime/race/testdata/rangefunc_test.go
+@@ -0,0 +1,77 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.rangefunc
++
++package race_test
++
++import (
++	"runtime"
++	"sync/atomic"
++	"testing"
++)
++
++type Seq2[T1, T2 any] func(yield func(T1, T2) bool)
++
++// ofSliceIndex returns a Seq over the elements of s. It is equivalent
++// to range s, except that it splits s into two halves and iterates
++// in two separate goroutines.  This is racy if yield is racy, and yield
++// will be racy if it contains an early exit.
++func ofSliceIndex[T any, S ~[]T](s S) Seq2[int, T] {
++	return func(yield func(int, T) bool) {
++		c := make(chan bool, 2)
++		var done atomic.Bool
++		go func() {
++			for i := 0; i < len(s)/2; i++ {
++				if !done.Load() && !yield(i, s[i]) {
++					done.Store(true)
++					c <- false
++				}
++			}
++			c <- true
++		}()
++		go func() {
++			for i := len(s) / 2; i < len(s); i++ {
++				if !done.Load() && !yield(i, s[i]) {
++					done.Store(true)
++					c <- false
++				}
++			}
++			c <- true
++			return
++		}()
++		if !<-c {
++			return
++		}
++		<-c
++	}
++}
++
++// foo is racy, or not, depending on the value of v
++// (0-4 == racy, otherwise, not racy).
++func foo(v int) int64 {
++	var asum atomic.Int64
++	for i, x := range ofSliceIndex([]int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}) {
++		if i%5 == v {
++			break
++		}
++		asum.Add(x) // don't race on asum
++		runtime.Gosched()
++	}
++	return 100 + asum.Load()
++}
++
++// TestRaceRangeFuncIterator races because x%5 can be equal to 4,
++// therefore foo can early exit.
++func TestRaceRangeFuncIterator(t *testing.T) {
++	x := foo(4)
++	t.Logf("foo(4)=%d", x)
++}
++
++// TestNoRaceRangeFuncIterator does not race because x%5 is never 5,
++// therefore foo's loop will not exit early, and this it will not race.
++func TestNoRaceRangeFuncIterator(t *testing.T) {
++	x := foo(5)
++	t.Logf("foo(5)=%d", x)
++}

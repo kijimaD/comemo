@@ -9,7 +9,32 @@ Date:   Wed Feb 12 12:34:04 2014 +1100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/53410046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 18e8cb7abb..a0e1b1880e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -20,6 +20,7 @@ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex A Skinner <alex@lx.lc>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alex Jin <toalexjin@gmail.com>
++Alexander Larsson <alexander.larsson@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1407372f3f..1cf4fb41d6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -47,6 +47,7 @@ Alex A Skinner <alex@lx.lc>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alex Bramley <abramley@google.com>
+ Alex Jin <toalexjin@gmail.com>
++Alexander Larsson <alexander.larsson@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexander Surma <surma@surmair.de>

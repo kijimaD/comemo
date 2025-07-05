@@ -18,7 +18,55 @@ Date:   Mon Aug 29 20:36:51 2022 +1000
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  9 +--------
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 13 +++++--------
  2 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 9d3cb06697..0207fb45d6 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -142,14 +142,7 @@
+ (Round32F ...) => (Copy ...)
+ (Round64F ...) => (Copy ...)
+ 
+-// From genericOps.go:
+-// "0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0"
+-//
+-// Like other arches, we compute ~((x-1) >> 63), with arithmetic right shift.
+-// For positive x, bit 63 of x-1 is always 0, so the result is -1.
+-// For zero x, bit 63 of x-1 is 1, so the result is 0.
+-//
+-(Slicemask <t> x) => (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
++(Slicemask <t> x) => (SRAI [63] (NEG <t> x))
+ 
+ // Truncations
+ // We ignore the unused high parts of registers, so truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 6244488992..908456b0aa 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -7329,17 +7329,14 @@ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (Slicemask <t> x)
+-	// result: (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
++	// result: (SRAI [63] (NEG <t> x))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		v.reset(OpRISCV64NOT)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64SRAI, t)
+-		v0.AuxInt = int64ToAuxInt(63)
+-		v1 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
+-		v1.AuxInt = int64ToAuxInt(-1)
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpRISCV64SRAI)
++		v.AuxInt = int64ToAuxInt(63)
++		v0 := b.NewValue0(v.Pos, OpRISCV64NEG, t)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}

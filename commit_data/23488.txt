@@ -25,9 +25,419 @@ Date:   Fri May 15 12:19:07 2015 -0400
     Change-Id: Ib61dd70dc74adb40d6f6fdda6eaa4bf7d83481de
     Reviewed-on: https://go-review.googlesource.com/10118
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/esc.go | 100 +++++++++++++++++++++------------------------
  test/escape2.go            |  14 +++----
  test/escape2n.go           |  14 +++----
  test/escape_slice.go       |  81 ++++++++++++++++++++++++++++++++++--
  4 files changed, 138 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 5fb2095bda..a5b6a9b2b1 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -387,6 +387,19 @@ type EscState struct {
+ 	recursive bool      // recursive function or group of mutually recursive functions.
+ }
+ 
++// funcSym returns n.Nname.Sym if no nils are encountered along the way.
++func funcSym(n *Node) *Sym {
++	if n == nil || n.Nname == nil {
++		return nil
++	}
++	return n.Nname.Sym
++}
++
++// curfnSym returns n.Curfn.Nname.Sym if no nils are encountered along the way.
++func curfnSym(n *Node) *Sym {
++	return funcSym(n.Curfn)
++}
++
+ func escAnalyze(all *NodeList, recursive bool) {
+ 	var es EscState
+ 	e := &es
+@@ -428,13 +441,7 @@ func escAnalyze(all *NodeList, recursive bool) {
+ 	if Debug['m'] != 0 {
+ 		for l := e.noesc; l != nil; l = l.Next {
+ 			if l.N.Esc == EscNone {
+-				var tmp *Sym
+-				if l.N.Curfn != nil && l.N.Curfn.Nname != nil {
+-					tmp = l.N.Curfn.Nname.Sym
+-				} else {
+-					tmp = nil
+-				}
+-				Warnl(int(l.N.Lineno), "%v %v does not escape", tmp, Nconv(l.N, obj.FmtShort))
++				Warnl(int(l.N.Lineno), "%v %v does not escape", curfnSym(l.N), Nconv(l.N, obj.FmtShort))
+ 			}
+ 		}
+ 	}
+@@ -593,13 +600,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 1 {
+-		var tmp *Sym
+-		if Curfn != nil && Curfn.Nname != nil {
+-			tmp = Curfn.Nname.Sym
+-		} else {
+-			tmp = nil
+-		}
+-		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, tmp, n)
++		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, funcSym(Curfn), n)
+ 	}
+ 
+ 	switch n.Op {
+@@ -629,8 +630,12 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 		// Everything but fixed array is a dereference.
+ 	case ORANGE:
+-		if Isfixedarray(n.Type) && n.List != nil && n.List.Next != nil {
+-			escassign(e, n.List.Next.N, n.Right)
++		if n.List != nil && n.List.Next != nil {
++			if Isfixedarray(n.Type) {
++				escassign(e, n.List.Next.N, n.Right)
++			} else {
++				escassign(e, n.List.Next.N, addDereference(n.Right))
++			}
+ 		}
+ 
+ 	case OSWITCH:
+@@ -670,13 +675,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+ 			// that b does not escape when b contents do.
+ 			if Debug['m'] != 0 {
+-				var tmp *Sym
+-				if n.Curfn != nil && n.Curfn.Nname != nil {
+-					tmp = n.Curfn.Nname.Sym
+-				} else {
+-					tmp = nil
+-				}
+-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", tmp, Nconv(n.Left, obj.FmtShort))
++				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", curfnSym(n), Nconv(n.Left, obj.FmtShort))
+ 			}
+ 
+ 			break
+@@ -763,7 +762,15 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			for ll := n.List.Next; ll != nil; ll = ll.Next {
+ 				escassign(e, &e.theSink, ll.N) // lose track of assign to dereference
+ 			}
++		} else {
++			// append(slice1, slice2...) -- slice2 itself does not escape, but contents do.
++			slice2 := n.List.Next.N
++			escassign(e, &e.theSink, addDereference(slice2)) // lose track of assign of dereference
++			if Debug['m'] > 2 {
++				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", curfnSym(n), Nconv(n, obj.FmtShort))
++			}
+ 		}
++		escassign(e, &e.theSink, addDereference(n.List.N)) // The original elements are now leaked, too
+ 
+ 	case OCONV, OCONVNOP:
+ 		escassign(e, n, n.Left)
+@@ -776,19 +783,15 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 	case OARRAYLIT:
+ 		if Isslice(n.Type) {
+-			n.Esc = EscNone // until proven otherwise
++			// Slice itself is not leaked until proven otherwise
++			n.Esc = EscNone
+ 			e.noesc = list(e.noesc, n)
+ 			n.Escloopdepth = e.loopdepth
++		}
+ 
+-			// Values make it to memory, lose track.
+-			for ll := n.List; ll != nil; ll = ll.Next {
+-				escassign(e, &e.theSink, ll.N.Right)
+-			}
+-		} else {
+-			// Link values to array.
+-			for ll := n.List; ll != nil; ll = ll.Next {
+-				escassign(e, n, ll.N.Right)
+-			}
++		// Link values to array/slice
++		for ll := n.List; ll != nil; ll = ll.Next {
++			escassign(e, n, ll.N.Right)
+ 		}
+ 
+ 		// Link values to struct.
+@@ -909,14 +912,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 1 {
+-		var tmp *Sym
+-		if Curfn != nil && Curfn.Nname != nil {
+-			tmp = Curfn.Nname.Sym
+-		} else {
+-			tmp = nil
+-		}
+ 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
+-			Ctxt.Line(int(lineno)), e.loopdepth, tmp,
++			Ctxt.Line(int(lineno)), e.loopdepth, funcSym(Curfn),
+ 			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(int(dst.Op), 0),
+ 			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(int(src.Op), 0))
+ 	}
+@@ -1038,12 +1035,15 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 
+ 	case OAPPEND:
+ 		// Append returns first argument.
++		// Subsequent arguments are already leaked because they are operands to append.
+ 		escassign(e, dst, src.List.N)
+ 
+ 	case OINDEX:
+ 		// Index of array preserves input value.
+ 		if Isfixedarray(src.Left.Type) {
+ 			escassign(e, dst, src.Left)
++		} else {
++			escflows(e, dst, src)
+ 		}
+ 
+ 		// Might be pointer arithmetic, in which case
+@@ -1510,13 +1510,7 @@ func escflood(e *EscState, dst *Node) {
+ 	}
+ 
+ 	if Debug['m'] > 1 {
+-		var tmp *Sym
+-		if dst.Curfn != nil && dst.Curfn.Nname != nil {
+-			tmp = dst.Curfn.Nname.Sym
+-		} else {
+-			tmp = nil
+-		}
+-		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), tmp, dst.Escloopdepth)
++		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", walkgen, Nconv(dst, obj.FmtShort), curfnSym(dst), dst.Escloopdepth)
+ 	}
+ 
+ 	for l := dst.Escflowsrc; l != nil; l = l.Next {
+@@ -1548,14 +1542,8 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 	src.Esclevel = level
+ 
+ 	if Debug['m'] > 1 {
+-		var tmp *Sym
+-		if src.Curfn != nil && src.Curfn.Nname != nil {
+-			tmp = src.Curfn.Nname.Sym
+-		} else {
+-			tmp = nil
+-		}
+ 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
+-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), tmp, src.Escloopdepth)
++			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), curfnSym(src), src.Escloopdepth)
+ 	}
+ 
+ 	e.pdepth++
+@@ -1657,6 +1645,10 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+ 		if Isfixedarray(src.Type) {
+ 			break
+ 		}
++		for ll := src.List; ll != nil; ll = ll.Next {
++			escwalk(e, level.dec(), dst, ll.N.Right)
++		}
++
+ 		fallthrough
+ 
+ 	case ODDDARG,
+diff --git a/test/escape2.go b/test/escape2.go
+index cc714711cf..dfc37ed45f 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -787,7 +787,7 @@ func foo93(c chan *int) *int { // ERROR "foo93 c does not escape$"
+ }
+ 
+ // does not leak m
+-func foo94(m map[*int]*int, b bool) *int { // ERROR "foo94 m does not escape$"
++func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r2 level=1"
+ 	for k, v := range m {
+ 		if b {
+ 			return k
+@@ -802,8 +802,8 @@ func foo95(m map[*int]*int, x *int) { // ERROR "foo95 m does not escape$" "leaki
+ 	m[x] = x
+ }
+ 
+-// does not leak m
+-func foo96(m []*int) *int { // ERROR "foo96 m does not escape$"
++// does not leak m but does leak content
++func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
+ 	return m[0]
+ }
+ 
+@@ -823,7 +823,7 @@ func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0
+ }
+ 
+ // does not leak m
+-func foo100(m []*int) *int { // ERROR "foo100 m does not escape$"
++func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -863,8 +863,8 @@ func foo104(x []*int) { // ERROR "foo104 x does not escape$"
+ 	copy(y, x)
+ }
+ 
+-// does not leak x
+-func foo105(x []*int) { // ERROR "foo105 x does not escape$"
++// does not leak x but does leak content
++func foo105(x []*int) { // ERROR "leaking param content: x"
+ 	_ = append(y, x...)
+ }
+ 
+@@ -894,7 +894,7 @@ func foo110(x *int) *int { // ERROR "leaking param: x$"
+ 	return m[nil]
+ }
+ 
+-func foo111(x *int) *int { // ERROR "leaking param: x$"
++func foo111(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0"
+ 	m := []*int{x} // ERROR "foo111 \[\]\*int literal does not escape$"
+ 	return m[0]
+ }
+diff --git a/test/escape2n.go b/test/escape2n.go
+index bf8c534a91..56f05eba30 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -787,7 +787,7 @@ func foo93(c chan *int) *int { // ERROR "foo93 c does not escape$"
+ }
+ 
+ // does not leak m
+-func foo94(m map[*int]*int, b bool) *int { // ERROR "foo94 m does not escape$"
++func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r2 level=1"
+ 	for k, v := range m {
+ 		if b {
+ 			return k
+@@ -802,8 +802,8 @@ func foo95(m map[*int]*int, x *int) { // ERROR "foo95 m does not escape$" "leaki
+ 	m[x] = x
+ }
+ 
+-// does not leak m
+-func foo96(m []*int) *int { // ERROR "foo96 m does not escape$"
++// does not leak m but does leak content
++func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
+ 	return m[0]
+ }
+ 
+@@ -823,7 +823,7 @@ func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0
+ }
+ 
+ // does not leak m
+-func foo100(m []*int) *int { // ERROR "foo100 m does not escape$"
++func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -863,8 +863,8 @@ func foo104(x []*int) { // ERROR "foo104 x does not escape$"
+ 	copy(y, x)
+ }
+ 
+-// does not leak x
+-func foo105(x []*int) { // ERROR "foo105 x does not escape$"
++// does not leak x but does leak content
++func foo105(x []*int) { // ERROR "leaking param content: x"
+ 	_ = append(y, x...)
+ }
+ 
+@@ -894,7 +894,7 @@ func foo110(x *int) *int { // ERROR "leaking param: x$"
+ 	return m[nil]
+ }
+ 
+-func foo111(x *int) *int { // ERROR "leaking param: x$"
++func foo111(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0"
+ 	m := []*int{x} // ERROR "foo111 \[\]\*int literal does not escape$"
+ 	return m[0]
+ }
+diff --git a/test/escape_slice.go b/test/escape_slice.go
+index 9315e27682..0b6599719d 100644
+--- a/test/escape_slice.go
++++ b/test/escape_slice.go
+@@ -8,6 +8,11 @@
+ 
+ package escape
+ 
++import (
++	"os"
++	"strings"
++)
++
+ var sink interface{}
+ 
+ func slice0() {
+@@ -71,9 +76,8 @@ func slice7() *int {
+ }
+ 
+ func slice8() {
+-	// BAD: i should not escape here
+-	i := 0          // ERROR "moved to heap: i"
+-	s := []*int{&i} // ERROR "&i escapes to heap" "literal does not escape"
++	i := 0
++	s := []*int{&i} // ERROR "&i does not escape" "literal does not escape"
+ 	_ = s
+ }
+ 
+@@ -88,3 +92,74 @@ func slice10() []*int {
+ 	s := []*int{&i} // ERROR "&i escapes to heap" "literal escapes to heap"
+ 	return s
+ }
++
++func envForDir(dir string) []string { // ERROR "dir does not escape"
++	env := os.Environ()
++	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string literal does not escape"
++}
++
++func mergeEnvLists(in, out []string) []string { // ERROR "leaking param content: in" "leaking param content: out" "leaking param: out to result ~r2 level=0"
++NextVar:
++	for _, inkv := range in {
++		k := strings.SplitAfterN(inkv, "=", 2)[0]
++		for i, outkv := range out {
++			if strings.HasPrefix(outkv, k) {
++				out[i] = inkv
++				continue NextVar
++			}
++		}
++		out = append(out, inkv)
++	}
++	return out
++}
++
++const (
++	IPv4len = 4
++	IPv6len = 16
++)
++
++var v4InV6Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff}
++
++func IPv4(a, b, c, d byte) IP {
++	p := make(IP, IPv6len) // ERROR "make\(IP, IPv6len\) escapes to heap"
++	copy(p, v4InV6Prefix)
++	p[12] = a
++	p[13] = b
++	p[14] = c
++	p[15] = d
++	return p
++}
++
++type IP []byte
++
++type IPAddr struct {
++	IP   IP
++	Zone string // IPv6 scoped addressing zone
++}
++
++type resolveIPAddrTest struct {
++	network       string
++	litAddrOrName string
++	addr          *IPAddr
++	err           error
++}
++
++var resolveIPAddrTests = []resolveIPAddrTest{
++	{"ip", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++	{"ip4", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++	{"ip4:icmp", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
++}
++
++func setupTestData() {
++	resolveIPAddrTests = append(resolveIPAddrTests,
++		[]resolveIPAddrTest{ // ERROR "\[\]resolveIPAddrTest literal does not escape"
++			{"ip",
++				"localhost",
++				&IPAddr{IP: IPv4(127, 0, 0, 1)}, // ERROR "&IPAddr literal escapes to heap"
++				nil},
++			{"ip4",
++				"localhost",
++				&IPAddr{IP: IPv4(127, 0, 0, 1)}, // ERROR "&IPAddr literal escapes to heap"
++				nil},
++		}...)
++}

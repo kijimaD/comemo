@@ -121,3 +121,96 @@ Date:   Tue Dec 22 17:08:15 2020 -0500
  test/fixedbugs/issue11656.go                       |  23 +-
  test/nosplit.go                                    |   9 +-
  78 files changed, 1436 insertions(+), 660 deletions(-)
+
+diff --cc src/cmd/compile/internal/gc/main.go
+index ff5c208d02,94b4e0e674..b9454604f0
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@@ -228,84 -218,12 +218,18 @@@ func Main(archInit func(*Arch)) 
+  	cgoSymABIs()
+  	timings.Stop()
+  	timings.AddEvent(int64(lines), "lines")
+ +	if base.Flag.G != 0 && base.Flag.G < 3 {
+ +		// can only parse generic code for now
+ +		base.ExitIfErrors()
+ +		return
+ +	}
+ +
+- 	finishUniverse()
+- 
+  	recordPackageName()
+  
+- 	typecheckok = true
+- 
+- 	// Process top-level declarations in phases.
+- 
+- 	// Phase 1: const, type, and names and types of funcs.
+- 	//   This will gather all the information about types
+- 	//   and methods but doesn't depend on any of it.
+- 	//
+- 	//   We also defer type alias declarations until phase 2
+- 	//   to avoid cycles like #18640.
+- 	//   TODO(gri) Remove this again once we have a fix for #25838.
+- 
+- 	// Don't use range--typecheck can add closures to Target.Decls.
+- 	timings.Start("fe", "typecheck", "top1")
+- 	for i := 0; i < len(Target.Decls); i++ {
+- 		n := Target.Decls[i]
+- 		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).Left().Name().Alias()) {
+- 			Target.Decls[i] = typecheck(n, ctxStmt)
+- 		}
+- 	}
+- 
+- 	// Phase 2: Variable assignments.
+- 	//   To check interface assignments, depends on phase 1.
+- 
+- 	// Don't use range--typecheck can add closures to Target.Decls.
+- 	timings.Start("fe", "typecheck", "top2")
+- 	for i := 0; i < len(Target.Decls); i++ {
+- 		n := Target.Decls[i]
+- 		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).Left().Name().Alias() {
+- 			Target.Decls[i] = typecheck(n, ctxStmt)
+- 		}
+- 	}
+- 
+- 	// Phase 3: Type check function bodies.
+- 	// Don't use range--typecheck can add closures to Target.Decls.
+- 	timings.Start("fe", "typecheck", "func")
+- 	var fcount int64
+- 	for i := 0; i < len(Target.Decls); i++ {
+- 		n := Target.Decls[i]
+- 		if n.Op() == ir.ODCLFUNC {
+- 			Curfn = n.(*ir.Func)
+- 			decldepth = 1
+- 			errorsBefore := base.Errors()
+- 			typecheckslice(Curfn.Body().Slice(), ctxStmt)
+- 			checkreturn(Curfn)
+- 			if base.Errors() > errorsBefore {
+- 				Curfn.PtrBody().Set(nil) // type errors; do not compile
+- 			}
+- 			// Now that we've checked whether n terminates,
+- 			// we can eliminate some obviously dead code.
+- 			deadcode(Curfn)
+- 			fcount++
+- 		}
+- 	}
++ 	// Typecheck.
++ 	TypecheckPackage()
+  
+- 	// Phase 3.11: Check external declarations.
+- 	// TODO(mdempsky): This should be handled when type checking their
+- 	// corresponding ODCL nodes.
+- 	timings.Start("fe", "typecheck", "externdcls")
+- 	for i, n := range Target.Externs {
+- 		if n.Op() == ir.ONAME {
+- 			Target.Externs[i] = typecheck(Target.Externs[i], ctxExpr)
+- 		}
+- 	}
+- 
+- 	// Phase 3.14: With all user code type-checked, it's now safe to verify map keys
+- 	// and unused dot imports.
+- 	checkMapKeys()
++ 	// With all user code typechecked, it's now safe to verify unused dot imports.
+  	checkDotImports()
+  	base.ExitIfErrors()
+  

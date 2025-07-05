@@ -9,7 +9,7 @@ Date:   Wed Nov 12 14:20:53 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/169450043
-
+---
  src/runtime/mgc0.c         | 21 +++++++++++++++++++--
  src/runtime/os_darwin.c    |  3 +++
  src/runtime/os_dragonfly.c |  3 +++
@@ -22,3 +22,201 @@ Date:   Wed Nov 12 14:20:53 2014 -0500
  src/runtime/os_solaris.c   |  3 +++
  src/runtime/proc.c         |  2 ++
  11 files changed, 51 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 3c4d1afa56..214b9ebc24 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -29,8 +29,7 @@
+ //       Preempted goroutines are scanned before P schedules next goroutine.
+ //  3. Set phase = GCmark.
+ //  4. Wait for all P's to acknowledge phase change.
+-//  5. Now write barrier marks and enqueues black or grey to white pointers. If a pointer is
+-//       stored into a white slot, such pointer is not marked.
++//  5. Now write barrier marks and enqueues black, grey, or white to white pointers.
+ //       Malloc still allocates white (non-marked) objects.
+ //  6. Meanwhile GC transitively walks the heap marking reachable objects.
+ //  7. When GC finishes marking heap, it preempts P's one-by-one and
+@@ -446,7 +445,25 @@ greyobject(byte *obj, Markbits *mbits, Workbuf *wbuf)
+ 
+ 	if(checkmark) {
+ 		if(!ismarked(mbits)) {
++			MSpan *s;
++			pageID k;
++			uintptr x, i;
++
+ 			runtime·printf("runtime:greyobject: checkmarks finds unexpected unmarked object obj=%p, mbits->bits=%x, *mbits->bitp=%x\n", obj, mbits->bits, *mbits->bitp);
++
++			k = (uintptr)obj>>PageShift;
++			x = k;
++			x -= (uintptr)runtime·mheap.arena_start>>PageShift;
++			s = runtime·mheap.spans[x];
++			runtime·printf("runtime:greyobject Span: obj=%p, k=%p", obj, k);
++			if (s == nil) {
++				runtime·printf(" s=nil\n");
++			} else {
++				runtime·printf(" s->start=%p s->limit=%p, s->state=%d, s->sizeclass=%d, s->elemsize=%D \n", s->start*PageSize, s->limit, s->state, s->sizeclass, s->elemsize);
++				for(i=0; i<s->sizeclass; i++) {
++					runtime·printf(" ((uintptr*)obj)[%D]=%p\n", i, ((uintptr*)obj)[i]);
++				}
++			}
+ 			runtime·throw("checkmark found unmarked object");
+ 		}
+ 		if(ischeckmarked(mbits))
+diff --git a/src/runtime/os_darwin.c b/src/runtime/os_darwin.c
+index bbd29282b0..b866863d09 100644
+--- a/src/runtime/os_darwin.c
++++ b/src/runtime/os_darwin.c
+@@ -135,7 +135,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_dragonfly.c b/src/runtime/os_dragonfly.c
+index e372205ec8..051192ad31 100644
+--- a/src/runtime/os_dragonfly.c
++++ b/src/runtime/os_dragonfly.c
+@@ -195,7 +195,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_freebsd.c b/src/runtime/os_freebsd.c
+index a513cb6044..1c126547a7 100644
+--- a/src/runtime/os_freebsd.c
++++ b/src/runtime/os_freebsd.c
+@@ -203,7 +203,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_linux.c b/src/runtime/os_linux.c
+index 9bd123d597..cc23774e3b 100644
+--- a/src/runtime/os_linux.c
++++ b/src/runtime/os_linux.c
+@@ -233,7 +233,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_nacl.c b/src/runtime/os_nacl.c
+index 14b5583033..ad72cc7c68 100644
+--- a/src/runtime/os_nacl.c
++++ b/src/runtime/os_nacl.c
+@@ -20,7 +20,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_netbsd.c b/src/runtime/os_netbsd.c
+index 58e5bedf2f..28929ea574 100644
+--- a/src/runtime/os_netbsd.c
++++ b/src/runtime/os_netbsd.c
+@@ -271,7 +271,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_openbsd.c b/src/runtime/os_openbsd.c
+index eebaa13eea..960aaffffa 100644
+--- a/src/runtime/os_openbsd.c
++++ b/src/runtime/os_openbsd.c
+@@ -217,7 +217,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_plan9.c b/src/runtime/os_plan9.c
+index f8c543f6f6..18460fc12e 100644
+--- a/src/runtime/os_plan9.c
++++ b/src/runtime/os_plan9.c
+@@ -20,12 +20,18 @@ runtime·mpreinit(M *mp)
+ {
+ 	// Initialize stack and goroutine for note handling.
+ 	mp->gsignal = runtime·malg(32*1024);
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
++
+ 	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, FlagNoScan);
++	runtime·writebarrierptr_nostore(&mp->notesig, mp->notesig);
+ 
+ 	// Initialize stack for handling strings from the
+ 	// errstr system call, as used in package syscall.
+ 	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, FlagNoScan);
++	runtime·writebarrierptr_nostore(&mp->errstr, mp->errstr);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_solaris.c b/src/runtime/os_solaris.c
+index e16b8e6370..bee91d8e60 100644
+--- a/src/runtime/os_solaris.c
++++ b/src/runtime/os_solaris.c
+@@ -176,7 +176,10 @@ void
+ runtime·mpreinit(M *mp)
+ {
+ 	mp->gsignal = runtime·malg(32*1024);
++	runtime·writebarrierptr_nostore(&mp->gsignal, mp->gsignal);
++
+ 	mp->gsignal->m = mp;
++	runtime·writebarrierptr_nostore(&mp->gsignal->m, mp->gsignal->m);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index e5e2df2e42..c1df40d02f 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -876,7 +876,9 @@ runtime·allocm(P *p)
+ 		mp->g0 = runtime·malg(-1);
+ 	else
+ 		mp->g0 = runtime·malg(8192);
++	runtime·writebarrierptr_nostore(&mp->g0, mp->g0);
+ 	mp->g0->m = mp;
++	runtime·writebarrierptr_nostore(&mp->g0->m, mp->g0->m);
+ 
+ 	if(p == g->m->p)
+ 		releasep();

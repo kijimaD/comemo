@@ -18,10 +18,310 @@ Date:   Sat Dec 15 17:03:37 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  misc/cgo/test/issue27054/egl.h        |   7 ++
  misc/cgo/test/issue27054/test27054.go |  17 ++++
  src/cmd/cgo/gcc.go                    |  16 +++
  src/cmd/fix/egltype.go                |  32 ++++++
  src/cmd/fix/egltype_test.go           | 185 ++++++++++++++++++++++++++++++++++
  5 files changed, 257 insertions(+)
+
+diff --git a/misc/cgo/test/issue27054/egl.h b/misc/cgo/test/issue27054/egl.h
+new file mode 100644
+index 0000000000..33a759ea2a
+--- /dev/null
++++ b/misc/cgo/test/issue27054/egl.h
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This is the relevant part of EGL/egl.h.
++
++typedef void *EGLDisplay;
+diff --git a/misc/cgo/test/issue27054/test27054.go b/misc/cgo/test/issue27054/test27054.go
+new file mode 100644
+index 0000000000..186f5bd602
+--- /dev/null
++++ b/misc/cgo/test/issue27054/test27054.go
+@@ -0,0 +1,17 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue27054
++
++/*
++#include "egl.h"
++*/
++import "C"
++import (
++	"testing"
++)
++
++func Test27054(t *testing.T) {
++	var _ C.EGLDisplay = 0 // Note: 0, not nil. That makes sure we use uintptr for this type.
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 1f257d7958..27bd59b54e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -3004,6 +3004,9 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
+ 	if c.badJNI(dt) {
+ 		return true
+ 	}
++	if c.badEGLDisplay(dt) {
++		return true
++	}
+ 	return false
+ }
+ 
+@@ -3140,6 +3143,19 @@ func (c *typeConv) badJNI(dt *dwarf.TypedefType) bool {
+ 	return false
+ }
+ 
++func (c *typeConv) badEGLDisplay(dt *dwarf.TypedefType) bool {
++	if dt.Name != "EGLDisplay" {
++		return false
++	}
++	// Check that the typedef is "typedef void *EGLDisplay".
++	if ptr, ok := dt.Type.(*dwarf.PtrType); ok {
++		if _, ok := ptr.Type.(*dwarf.VoidType); ok {
++			return true
++		}
++	}
++	return false
++}
++
+ // jniTypes maps from JNI types that we want to be uintptrs, to the underlying type to which
+ // they are mapped. The base "jobject" maps to the empty string.
+ var jniTypes = map[string]string{
+diff --git a/src/cmd/fix/egltype.go b/src/cmd/fix/egltype.go
+new file mode 100644
+index 0000000000..c8c4f03e97
+--- /dev/null
++++ b/src/cmd/fix/egltype.go
+@@ -0,0 +1,32 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++func init() {
++	register(eglFix)
++}
++
++var eglFix = fix{
++	name:     "egl",
++	date:     "2018-12-15",
++	f:        eglfix,
++	desc:     `Fixes initializers of EGLDisplay`,
++	disabled: false,
++}
++
++// Old state:
++//   type EGLDisplay unsafe.Pointer
++// New state:
++//   type EGLDisplay uintptr
++// This fix finds nils initializing these types and replaces the nils with 0s.
++func eglfix(f *ast.File) bool {
++	return typefix(f, func(s string) bool {
++		return s == "C.EGLDisplay"
++	})
++}
+diff --git a/src/cmd/fix/egltype_test.go b/src/cmd/fix/egltype_test.go
+new file mode 100644
+index 0000000000..35ffe92595
+--- /dev/null
++++ b/src/cmd/fix/egltype_test.go
+@@ -0,0 +1,185 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(eglTests, eglfix)
++}
++
++var eglTests = []testCase{
++	{
++		Name: "egl.localVariable",
++		In: `package main
++
++import "C"
++
++func f() {
++	var x C.EGLDisplay = nil
++	x = nil
++	x, x = nil, nil
++}
++`,
++		Out: `package main
++
++import "C"
++
++func f() {
++	var x C.EGLDisplay = 0
++	x = 0
++	x, x = 0, 0
++}
++`,
++	},
++	{
++		Name: "egl.globalVariable",
++		In: `package main
++
++import "C"
++
++var x C.EGLDisplay = nil
++
++func f() {
++	x = nil
++}
++`,
++		Out: `package main
++
++import "C"
++
++var x C.EGLDisplay = 0
++
++func f() {
++	x = 0
++}
++`,
++	},
++	{
++		Name: "egl.EqualArgument",
++		In: `package main
++
++import "C"
++
++var x C.EGLDisplay
++var y = x == nil
++var z = x != nil
++`,
++		Out: `package main
++
++import "C"
++
++var x C.EGLDisplay
++var y = x == 0
++var z = x != 0
++`,
++	},
++	{
++		Name: "egl.StructField",
++		In: `package main
++
++import "C"
++
++type T struct {
++	x C.EGLDisplay
++}
++
++var t = T{x: nil}
++`,
++		Out: `package main
++
++import "C"
++
++type T struct {
++	x C.EGLDisplay
++}
++
++var t = T{x: 0}
++`,
++	},
++	{
++		Name: "egl.FunctionArgument",
++		In: `package main
++
++import "C"
++
++func f(x C.EGLDisplay) {
++}
++
++func g() {
++	f(nil)
++}
++`,
++		Out: `package main
++
++import "C"
++
++func f(x C.EGLDisplay) {
++}
++
++func g() {
++	f(0)
++}
++`,
++	},
++	{
++		Name: "egl.ArrayElement",
++		In: `package main
++
++import "C"
++
++var x = [3]C.EGLDisplay{nil, nil, nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = [3]C.EGLDisplay{0, 0, 0}
++`,
++	},
++	{
++		Name: "egl.SliceElement",
++		In: `package main
++
++import "C"
++
++var x = []C.EGLDisplay{nil, nil, nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = []C.EGLDisplay{0, 0, 0}
++`,
++	},
++	{
++		Name: "egl.MapKey",
++		In: `package main
++
++import "C"
++
++var x = map[C.EGLDisplay]int{nil: 0}
++`,
++		Out: `package main
++
++import "C"
++
++var x = map[C.EGLDisplay]int{0: 0}
++`,
++	},
++	{
++		Name: "egl.MapValue",
++		In: `package main
++
++import "C"
++
++var x = map[int]C.EGLDisplay{0: nil}
++`,
++		Out: `package main
++
++import "C"
++
++var x = map[int]C.EGLDisplay{0: 0}
++`,
++	},
++}

@@ -10,6 +10,22 @@ Date:   Wed Dec 12 17:38:17 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/c/153844
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 4768a11c25..7bbe2b710c 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -870,6 +870,10 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
++	if runtime.GOOS == "windows" && runtime.GOARCH == "arm" {
++		t.Skip("skipping on windows/arm; test is incompatible with relocatable binaries")
++	}
++
+ 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+ }
+ 

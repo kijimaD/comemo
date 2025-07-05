@@ -15,7 +15,33 @@ Date:   Fri Dec 18 09:53:25 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/18028
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  api/go1.6.txt        | 1 -
  src/debug/elf/elf.go | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/api/go1.6.txt b/api/go1.6.txt
+index b78d9d72ce..cdf47ed728 100644
+--- a/api/go1.6.txt
++++ b/api/go1.6.txt
+@@ -135,7 +135,6 @@ pkg debug/elf, type Chdr32 struct, Size uint32
+ pkg debug/elf, type Chdr32 struct, Type uint32
+ pkg debug/elf, type Chdr64 struct
+ pkg debug/elf, type Chdr64 struct, Addralign uint64
+-pkg debug/elf, type Chdr64 struct, Reserved uint32
+ pkg debug/elf, type Chdr64 struct, Size uint64
+ pkg debug/elf, type Chdr64 struct, Type uint32
+ pkg debug/elf, type CompressionType int
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 0c79b7a02f..f53ba0079a 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -2006,7 +2006,7 @@ type Dyn64 struct {
+ // ELF64 Compression header.
+ type Chdr64 struct {
+ 	Type      uint32
+-	Reserved  uint32
++	_         uint32 /* Reserved. */
+ 	Size      uint64
+ 	Addralign uint64
+ }

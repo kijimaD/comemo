@@ -14,6 +14,31 @@ Date:   Mon Dec 4 11:09:45 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index eaa54d106f..49258b30fd 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -20,6 +20,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
++	"cmd/internal/objabi"
+ 	"crypto/sha1"
+ )
+ 
+@@ -161,6 +162,11 @@ CheckFlags:
+ 		}
+ 	}
+ 
++	// TODO: Test and delete these conditions.
++	if objabi.Fieldtrack_enabled != 0 || objabi.Preemptibleloops_enabled != 0 || objabi.Clobberdead_enabled != 0 {
++		canDashC = false
++	}
++
+ 	if !canDashC {
+ 		return 1
+ 	}

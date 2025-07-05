@@ -11,8 +11,375 @@ Date:   Thu Jan 25 15:13:12 2018 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Peter Weinberger <pjw@google.com>
-
+---
  src/cmd/trace/annotations.go      | 73 ++++++++++++++++++++++++++++---
  src/cmd/trace/annotations_test.go | 90 ++++++++++++++++++++++++++++++++++++++-
  src/cmd/trace/trace.go            | 43 ++++++++++++-------
  3 files changed, 182 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index c69f62cae5..b9c14b140c 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -20,12 +20,13 @@ func init() {
+ 
+ // httpUserTasks reports all tasks found in the trace.
+ func httpUserTasks(w http.ResponseWriter, r *http.Request) {
+-	tasks, err := analyzeAnnotations()
++	res, err := analyzeAnnotations()
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+ 
++	tasks := res.tasks
+ 	summary := make(map[string]taskStats)
+ 	for _, task := range tasks {
+ 		stats, ok := summary[task.name]
+@@ -62,11 +63,12 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	tasks, err := analyzeAnnotations()
++	res, err := analyzeAnnotations()
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
++	tasks := res.tasks
+ 
+ 	type event struct {
+ 		WhenString string
+@@ -139,21 +141,27 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
+ 	}
+ }
+ 
++type annotationAnalysisResult struct {
++	tasks    map[uint64]*taskDesc // tasks
++	gcEvents []*trace.Event       // GCStartevents, sorted
++}
++
+ // analyzeAnnotations analyzes user annotation events and
+ // returns the task descriptors keyed by internal task id.
+-func analyzeAnnotations() (map[uint64]*taskDesc, error) {
++func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 	res, err := parseTrace()
+ 	if err != nil {
+-		return nil, fmt.Errorf("failed to parse trace: %v", err)
++		return annotationAnalysisResult{}, fmt.Errorf("failed to parse trace: %v", err)
+ 	}
+ 
+ 	events := res.Events
+ 	if len(events) == 0 {
+-		return nil, fmt.Errorf("empty trace")
++		return annotationAnalysisResult{}, fmt.Errorf("empty trace")
+ 	}
+ 
+ 	tasks := allTasks{}
+ 	activeSpans := map[uint64][]*trace.Event{} // goid to active span start events
++	var gcEvents []*trace.Event
+ 
+ 	for _, ev := range events {
+ 		goid := ev.G
+@@ -164,6 +172,17 @@ func analyzeAnnotations() (map[uint64]*taskDesc, error) {
+ 			task := tasks.task(taskid)
+ 			task.addEvent(ev)
+ 
++			// retrieve parent task information
++			if typ == trace.EvUserTaskCreate {
++				if parentID := ev.Args[1]; parentID != 0 {
++					parentTask := tasks.task(parentID)
++					task.parent = parentTask
++					if parentTask != nil {
++						parentTask.children = append(parentTask.children, task)
++					}
++				}
++			}
++
+ 			if typ == trace.EvUserSpan {
+ 				mode := ev.Args[1]
+ 				spans := activeSpans[goid]
+@@ -191,9 +210,12 @@ func analyzeAnnotations() (map[uint64]*taskDesc, error) {
+ 			taskid := spans[len(spans)-1].Args[0]
+ 			task := tasks.task(taskid)
+ 			task.addEvent(ev)
++
++		case trace.EvGCStart:
++			gcEvents = append(gcEvents, ev)
+ 		}
+ 	}
+-	return tasks, nil
++	return annotationAnalysisResult{tasks: tasks, gcEvents: gcEvents}, nil
+ }
+ 
+ // taskDesc represents a task.
+@@ -206,6 +228,16 @@ type taskDesc struct {
+ 
+ 	create *trace.Event // Task create event
+ 	end    *trace.Event // Task end event
++
++	parent   *taskDesc
++	children []*taskDesc
++}
++
++func newTaskDesc(id uint64) *taskDesc {
++	return &taskDesc{
++		id:         id,
++		goroutines: make(map[uint64][]*trace.Event),
++	}
+ }
+ 
+ func (task *taskDesc) String() string {
+@@ -220,6 +252,14 @@ func (task *taskDesc) String() string {
+ 	for _, s := range task.spans {
+ 		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.name, s.goid)
+ 	}
++	if task.parent != nil {
++		fmt.Fprintf(wb, "\tparent: %s\n", task.parent.name)
++	}
++	fmt.Fprintf(wb, "\t%d children:\n", len(task.children))
++	for _, c := range task.children {
++		fmt.Fprintf(wb, "\t\t%s\n", c.name)
++	}
++
+ 	return wb.String()
+ }
+ 
+@@ -297,6 +337,21 @@ func (task *taskDesc) complete() bool {
+ 	return task.create != nil && task.end != nil
+ }
+ 
++// descendents returns all the task nodes in the subtree rooted from this task.
++func (task *taskDesc) decendents() []*taskDesc {
++	if task == nil {
++		return nil
++	}
++	res := []*taskDesc{task}
++	for i := 0; len(res[i:]) > 0; i++ {
++		t := res[i]
++		for _, c := range t.children {
++			res = append(res, c)
++		}
++	}
++	return res
++}
++
+ // firstTimestamp returns the first timestamp of this task found in
+ // this trace. If the trace does not contain the task creation event,
+ // the first timestamp of the trace will be returned.
+@@ -701,7 +756,11 @@ func describeEvent(ev *trace.Event) string {
+ 	case trace.EvGoEnd, trace.EvGoStop:
+ 		return "goroutine stopped"
+ 	case trace.EvUserLog:
+-		return fmt.Sprintf("%v=%v", ev.SArgs[0], ev.SArgs[1])
++		if k, v := ev.SArgs[0], ev.SArgs[1]; k == "" {
++			return v
++		} else {
++			return fmt.Sprintf("%v=%v", k, v)
++		}
+ 	case trace.EvUserSpan:
+ 		if ev.Args[1] == 0 {
+ 			duration := "unknown"
+diff --git a/src/cmd/trace/annotations_test.go b/src/cmd/trace/annotations_test.go
+index 3b75cbf7fc..131e1f4741 100644
+--- a/src/cmd/trace/annotations_test.go
++++ b/src/cmd/trace/annotations_test.go
+@@ -63,10 +63,12 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 	// Run prog0 and capture the execution trace.
+ 	traceProgram(prog0, "TestAnalyzeAnnotations")
+ 
+-	tasks, err := analyzeAnnotations()
++	res, err := analyzeAnnotations()
+ 	if err != nil {
+ 		t.Fatalf("failed to analyzeAnnotations: %v", err)
+ 	}
++	tasks := res.tasks
++
+ 	// For prog0, we expect
+ 	//   - task with name = "task0", with three spans.
+ 	//   - task with name = "task1", with no span.
+@@ -103,6 +105,78 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 	}
+ }
+ 
++// prog1 creates a task hierarchy consisting of three tasks.
++func prog1() {
++	ctx := context.Background()
++	ctx1, done1 := trace.NewContext(ctx, "task1")
++	defer done1()
++	trace.WithSpan(ctx1, "task1.span", func(ctx context.Context) {
++		ctx2, done2 := trace.NewContext(ctx, "task2")
++		defer done2()
++		trace.WithSpan(ctx2, "task2.span", func(ctx context.Context) {
++			ctx3, done3 := trace.NewContext(ctx, "task3")
++			defer done3()
++			trace.WithSpan(ctx3, "task3.span", func(ctx context.Context) {
++			})
++		})
++	})
++}
++
++func TestAnalyzeAnnotationTaskTree(t *testing.T) {
++	// Run prog1 and capture the execution trace.
++	traceProgram(prog1, "TestAnalyzeAnnotationTaskTree")
++
++	res, err := analyzeAnnotations()
++	if err != nil {
++		t.Fatalf("failed to analyzeAnnotation: %v", err)
++	}
++	tasks := res.tasks
++
++	// For prog0, we expect
++	//   - task with name = "", with taskless.span in spans.
++	//   - task with name = "task0", with three spans.
++	wantTasks := map[string]struct {
++		parent   string
++		children []string
++		spans    []string
++	}{
++		"task1": {
++			parent:   "",
++			children: []string{"task2"},
++			spans:    []string{"task1.span"},
++		},
++		"task2": {
++			parent:   "task1",
++			children: []string{"task3"},
++			spans:    []string{"task2.span"},
++		},
++		"task3": {
++			parent:   "task2",
++			children: nil,
++			spans:    []string{"task3.span"},
++		},
++	}
++
++	for _, task := range tasks {
++		want, ok := wantTasks[task.name]
++		if !ok {
++			t.Errorf("unexpected task: %s", task)
++			continue
++		}
++		delete(wantTasks, task.name)
++
++		if parentName(task) != want.parent ||
++			!reflect.DeepEqual(childrenNames(task), want.children) ||
++			!reflect.DeepEqual(spanNames(task), want.spans) {
++			t.Errorf("got %v; want %+v", task, want)
++		}
++	}
++
++	if len(wantTasks) > 0 {
++		t.Errorf("no more tasks; want %+v", wantTasks)
++	}
++}
++
+ // traceProgram runs the provided function while tracing is enabled,
+ // parses the captured trace, and sets the global trace loader to
+ // point to the parsed trace.
+@@ -133,6 +207,20 @@ func spanNames(task *taskDesc) (ret []string) {
+ 	return ret
+ }
+ 
++func parentName(task *taskDesc) string {
++	if task.parent != nil {
++		return task.parent.name
++	}
++	return ""
++}
++
++func childrenNames(task *taskDesc) (ret []string) {
++	for _, s := range task.children {
++		ret = append(ret, s.name)
++	}
++	return ret
++}
++
+ func swapLoaderData(res traceparser.ParseResult, err error) {
+ 	// swap loader's data.
+ 	parseTrace() // fool loader.once.
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index c9536c1246..716d4a99f2 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -195,8 +195,8 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 			log.Printf("failed to parse taskid parameter %q: %v", taskids, err)
+ 			return
+ 		}
+-		tasks, _ := analyzeAnnotations()
+-		task, ok := tasks[taskid]
++		annotRes, _ := analyzeAnnotations()
++		task, ok := annotRes.tasks[taskid]
+ 		if !ok {
+ 			log.Printf("failed to find task with id %d", taskid)
+ 			return
+@@ -206,8 +206,15 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		params.startTime = task.firstTimestamp() - 1
+ 		params.endTime = task.lastTimestamp() + 1
+ 		params.maing = goid
+-		params.gs = task.RelatedGoroutines(res.Events, 0) // find only directly involved goroutines
+-		params.showTask = task
++		params.tasks = task.decendents()
++		gs := map[uint64]bool{}
++		for _, t := range params.tasks {
++			// find only directly involved goroutines
++			for k, v := range t.RelatedGoroutines(res.Events, 0) {
++				gs[k] = v
++			}
++		}
++		params.gs = gs
+ 	}
+ 
+ 	data, err := generateTrace(params)
+@@ -296,7 +303,7 @@ type traceParams struct {
+ 	endTime   int64
+ 	maing     uint64          // for goroutine-oriented view, place this goroutine on the top row
+ 	gs        map[uint64]bool // Goroutines to be displayed for goroutine-oriented or task-oriented view
+-	showTask  *taskDesc       // Task to be displayed
++	tasks     []*taskDesc     // Tasks to be displayed. tasks[0] is the top-most task
+ }
+ 
+ type traceviewMode int
+@@ -627,6 +634,7 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 	ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: trace.SyscallP, Arg: &NameArg{"Syscalls"}})
+ 	ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: trace.SyscallP, Arg: &SortIndexArg{-3}})
+ 
++	// Display rows for Ps if we are in the default trace view mode.
+ 	if ctx.mode == defaultTraceview {
+ 		for i := 0; i <= maxProc; i++ {
+ 			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+@@ -634,20 +642,23 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 		}
+ 	}
+ 
+-	// Display task and its spans
+-	taskRow := uint64(trace.GCP + 1)
+-	if task := ctx.showTask; task != nil {
+-		taskName := fmt.Sprintf("Task %s(%d)", task.name, task.id)
+-		ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: taskRow, Arg: &NameArg{"Tasks"}})
+-		ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: taskRow, Arg: &SortIndexArg{-3}})
+-		ctx.emit(&ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"})
+-		ctx.emit(&ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"})
+-		// Spans
+-		for _, s := range task.spans {
+-			ctx.emitSpan(s)
++	// Display task and its spans if we are in the taskTrace view mode.
++	if ctx.mode == taskTraceview {
++		taskRow := uint64(trace.GCP + 1)
++		for _, task := range ctx.tasks {
++			taskName := fmt.Sprintf("Task %s(%d)", task.name, task.id)
++			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: taskRow, Arg: &NameArg{"Tasks"}})
++			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: taskRow, Arg: &SortIndexArg{-3}})
++			ctx.emit(&ViewerEvent{Category: "task", Name: taskName, Phase: "b", Time: float64(task.firstTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"})
++			ctx.emit(&ViewerEvent{Category: "task", Name: taskName, Phase: "e", Time: float64(task.lastTimestamp()) / 1e3, Tid: taskRow, ID: task.id, Cname: "bad"})
++			// Spans
++			for _, s := range task.spans {
++				ctx.emitSpan(s)
++			}
+ 		}
+ 	}
+ 
++	// Display goroutine rows if we are either in gtrace or taskTrace view mode.
+ 	if ctx.mode != defaultTraceview && ctx.gs != nil {
+ 		for k, v := range ginfos {
+ 			if !ctx.gs[k] {

@@ -16,7 +16,49 @@ Date:   Sun Jul 28 12:52:30 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/11979043
-
+---
  src/pkg/net/ipsock_posix.go |  9 ---------
  src/pkg/net/sock_posix.go   | 10 ++++++++++
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 37827cbb2d..d1940a43b9 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -120,15 +120,6 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 
+ // Internet sockets (TCP, UDP, IP)
+ 
+-// A sockaddr represents a TCP, UDP or IP network address that can
+-// be converted into a syscall.Sockaddr.
+-type sockaddr interface {
+-	Addr
+-	family() int
+-	isWildcard() bool
+-	sockaddr(family int) (syscall.Sockaddr, error)
+-}
+-
+ func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	var la, ra syscall.Sockaddr
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 98d9cbe600..e484a5737e 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -11,6 +11,16 @@ import (
+ 	"time"
+ )
+ 
++// A sockaddr represents a TCP, UDP, IP network endpoint address that
++// can be converted into a syscall.Sockaddr.
++type sockaddr interface {
++	Addr
++	family() int
++	isWildcard() bool
++	sockaddr(family int) (syscall.Sockaddr, error)
++	toAddr() sockaddr
++}
++
+ // Generic POSIX socket creation.
+ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	s, err := sysSocket(f, t, p)

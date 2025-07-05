@@ -11,7 +11,34 @@ Date:   Mon Mar 11 11:39:25 2019 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 2 ++
  src/cmd/go/internal/help/helpdoc.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 33f6126ada..6e8d60f4cd 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1554,6 +1554,8 @@
+ //
+ // 	GOEXE
+ // 		The executable file name suffix (".exe" on Windows, "" on other systems).
++// 	GOGCCFLAGS
++// 		A space-separated list of arguments supplied to the CC command.
+ // 	GOHOSTARCH
+ // 		The architecture (GOARCH) of the Go toolchain binaries.
+ // 	GOHOSTOS
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 916b91efa7..a989483e60 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -587,6 +587,8 @@ Additional information available from 'go env' but not read from the environment
+ 
+ 	GOEXE
+ 		The executable file name suffix (".exe" on Windows, "" on other systems).
++	GOGCCFLAGS
++		A space-separated list of arguments supplied to the CC command.
+ 	GOHOSTARCH
+ 		The architecture (GOARCH) of the Go toolchain binaries.
+ 	GOHOSTOS

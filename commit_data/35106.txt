@@ -12,6 +12,22 @@ Date:   Wed Dec 13 21:18:28 2017 +0000
     Change-Id: I9b904da2f4c7105a0727d2a9056aaa6895d3dadc
     Reviewed-on: https://go-review.googlesource.com/83856
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.10.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 2f5d74ea2f..98bba74e97 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -77,8 +77,8 @@ support for FreeBSD 9.3 has been removed.
+ 
+ <p id="netbsd">
+ Go now runs on NetBSD again but requires the unreleased NetBSD 8.
+-Only <code>GOARCH</code> <code>amd64</code> and <code>386</code> are
+-known to work. The <code>arm</code> port might work but is untested.
++Only <code>GOARCH</code> <code>amd64</code> and <code>386</code> have
++been fixed. The <code>arm</code> port is still broken.
+ </p>
+ 
+ <p id="openbsd">

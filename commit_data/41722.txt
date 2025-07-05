@@ -14,8 +14,132 @@ Date:   Mon Oct 7 22:33:57 2019 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go               | 18 ++++++++++------
  src/cmd/go/testdata/script/mod_tidy_replace.txt   | 26 +++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_vendor_replace.txt | 22 +++++++++++++++++++
  3 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 5f6fd672ba..a9f711733c 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -211,11 +211,17 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 
+ 	// One last pass to finalize wildcards.
+ 	updateMatches(matches, false)
++	checkMultiplePaths()
++	WriteGoMod()
++
++	return matches
++}
+ 
+-	// A given module path may be used as itself or as a replacement for another
+-	// module, but not both at the same time. Otherwise, the aliasing behavior is
+-	// too subtle (see https://golang.org/issue/26607), and we don't want to
+-	// commit to a specific behavior at this point.
++// checkMultiplePaths verifies that a given module path is used as itself
++// or as a replacement for another module, but not both at the same time.
++//
++// (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
++func checkMultiplePaths() {
+ 	firstPath := make(map[module.Version]string, len(buildList))
+ 	for _, mod := range buildList {
+ 		src := mod
+@@ -229,9 +235,6 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 		}
+ 	}
+ 	base.ExitIfErrors()
+-	WriteGoMod()
+-
+-	return matches
+ }
+ 
+ // pathInModuleCache returns the import path of the directory dir,
+@@ -383,6 +386,7 @@ func loadAll(testAll bool) []string {
+ 	}
+ 	all := TargetPackages("...")
+ 	loaded.load(func() []string { return all })
++	checkMultiplePaths()
+ 	WriteGoMod()
+ 
+ 	var paths []string
+diff --git a/src/cmd/go/testdata/script/mod_tidy_replace.txt b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+index d5c2253094..c3158f8610 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_replace.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+@@ -47,6 +47,12 @@ grep 'rsc.io/sampler v1.2.0' go.mod
+ cd outside
+ go list -m all
+ stdout 'rsc.io/sampler v1.3.0'
++cd ..
++
++# The same module can't be used as two different paths.
++cd multiple-paths
++! go mod tidy
++stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+ 
+ -- go.mod --
+ module example.com/tidy
+@@ -109,3 +115,23 @@ package b
+ module golang.org/issue/30166/b
+ 
+ require golang.org/issue/30166/a v0.0.0
++-- multiple-paths/main.go --
++package main
++
++import (
++	"fmt"
++	"rsc.io/quote/v3"
++)
++
++func main() {
++	fmt.Println(quote.GoV3())
++}
++-- multiple-paths/go.mod --
++module quoter
++
++require (
++	rsc.io/quote/v3 v3.0.0
++	not-rsc.io/quote/v3 v3.0.0
++)
++
++replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
+diff --git a/src/cmd/go/testdata/script/mod_vendor_replace.txt b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+index a251daa6c1..900b36a072 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_replace.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+@@ -21,6 +21,11 @@ stdout '.*[/\\]vendor[/\\]rsc.io[/\\]quote[/\\]v3'
+ ! stderr 'finding'
+ ! stderr 'lookup disabled'
+ 
++# The same module can't be used as two different paths.
++cd multiple-paths
++! go mod vendor
++stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
++
+ -- go.mod --
+ module example.com/replace
+ 
+@@ -37,3 +42,20 @@ module not-rsc.io/quote/v3
+ 
+ -- local/not-rsc.io/quote/v3/quote.go --
+ package quote
++
++-- multiple-paths/main.go --
++package main
++import (
++	"fmt"
++	"rsc.io/quote/v3"
++)
++func main() {
++	fmt.Println(quote.GoV3())
++}
++-- multiple-paths/go.mod --
++module quoter
++require (
++	rsc.io/quote/v3 v3.0.0
++	not-rsc.io/quote/v3 v3.0.0
++)
++replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
+\ No newline at end of file

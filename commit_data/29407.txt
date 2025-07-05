@@ -9,7 +9,36 @@ Date:   Tue Sep 6 07:46:59 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go | 3 +++
  src/cmd/link/internal/ld/data.go   | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 9dd55727a0..fe145d0b67 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -798,6 +798,9 @@ func tlsIEtoLE(s *ld.Symbol, off, size int) {
+ 	//
+ 	// To determine the instruction and register, we study the op codes.
+ 	// Consult an AMD64 instruction encoding guide to decipher this.
++	if off < 3 {
++		log.Fatal("R_X86_64_GOTTPOFF reloc not preceded by MOVQ or ADDQ instruction")
++	}
+ 	op := s.P[off-3 : off]
+ 	reg := op[2] >> 3
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index fd536181d7..04e6d3bdb7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -456,6 +456,9 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 				}
+ 				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
+ 				o = int64(ctxt.Tlsoffset)
++				// TODO: o += r.Add when SysArch.Family != sys.AMD64?
++				// Why do we treat r.Add differently on AMD64?
++				// Is the external linker using Xadd at all?
+ 			} else {
+ 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", s.Name)
+ 			}

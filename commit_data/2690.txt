@@ -9,6 +9,116 @@ Date:   Mon Jul 13 22:06:28 2009 -0700
     DELTA=61  (40 added, 18 deleted, 3 changed)
     OCL=31502
     CL=31580
-
+---
  src/cmd/5g/gobj.c | 58 ++++++++++++++++++++++++++++++++++++++-----------------
  1 file changed, 40 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index b8f8f68e95..47de270d0c 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -484,46 +484,67 @@ dstringptr(Sym *s, int off, char *str)
+ }
+ 
+ int
+-duintxx(Sym *s, int off, uint64 v, int wid)
++dgostrlitptr(Sym *s, int off, Strlit *lit)
+ {
+ 	Prog *p;
+ 
+-	off = rnd(off, wid);
++	if(lit == nil)
++		return duintptr(s, off, 0);
+ 
++	off = rnd(off, widthptr);
+ 	p = gins(ADATA, N, N);
+ 	p->from.type = D_OREG;
+ 	p->from.name = D_EXTERN;
+ 	p->from.sym = s;
+ 	p->from.offset = off;
+-	p->reg = wid;
++	p->from.reg = widthptr;
++	datagostring(lit, &p->to);
+ 	p->to.type = D_CONST;
+-	p->to.name = D_NONE;
+-	p->to.offset = v;
+-	off += wid;
++	p->to.etype = TINT32;
++	off += widthptr;
+ 
+ 	return off;
+ }
+ 
+ int
+-duint32(Sym *s, int off, uint32 v)
++dgostringptr(Sym *s, int off, char *str)
+ {
+-	return duintxx(s, off, v, 4);
+-}
++	int n;
++	Strlit *lit;
+ 
+-int
+-duint16(Sym *s, int off, uint32 v)
+-{
+-	return duintxx(s, off, v, 2);
++	if(str == nil)
++		return duintptr(s, off, 0);
++
++	n = strlen(str);
++	lit = mal(sizeof *lit + n);
++	strcpy(lit->s, str);
++	lit->len = n;
++	return dgostrlitptr(s, off, lit);
+ }
+ 
+ int
+-duintptr(Sym *s, int off, uint32 v)
++duintxx(Sym *s, int off, uint64 v, int wid)
+ {
+-	return duintxx(s, off, v, 8);
++	Prog *p;
++
++	off = rnd(off, wid);
++
++	p = gins(ADATA, N, N);
++	p->from.type = D_OREG;
++	p->from.name = D_EXTERN;
++	p->from.sym = s;
++	p->from.offset = off;
++	p->reg = wid;
++	p->to.type = D_CONST;
++	p->to.name = D_NONE;
++	p->to.offset = v;
++	off += wid;
++
++	return off;
+ }
+ 
+ int
+-dsymptr(Sym *s, int off, Sym *x)
++dsymptr(Sym *s, int off, Sym *x, int xoff)
+ {
+ 	Prog *p;
+ 
+@@ -538,7 +559,7 @@ dsymptr(Sym *s, int off, Sym *x)
+ 	p->to.type = D_CONST;
+ 	p->to.name = D_EXTERN;
+ 	p->to.sym = x;
+-	p->to.offset = 0;
++	p->to.offset = xoff;
+ 	off += widthptr;
+ 
+ 	return off;
+@@ -546,9 +567,10 @@ dsymptr(Sym *s, int off, Sym *x)
+ 
+ 
+ void
+-genembedtramp(Type *t, Sig *b)
++genembedtramp(Type *rcvr, Type *method, Sym *newnam)
+ {
+ 	fatal("genembedtramp not implemented");
++	// TODO(kaib): re-lift from 8g
+ //	Sym *e;
+ //	int c, d, o, loaded;
+ //	Prog *p;

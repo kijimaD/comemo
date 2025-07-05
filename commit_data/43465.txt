@@ -14,6 +14,20 @@ Date:   Tue Apr 7 15:52:05 2020 +0300
     Change-Id: I6ee31b31e84b7f6e75ea6ee0f3b8c094835bf5d2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227497
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 040d8cee0b..cc28536fd4 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -199,7 +199,7 @@ func testCopy(t *testing.T, dir, goarch, goos, src, outfile string) (string, err
+ 	t.Log(run)
+ 	cmd := exec.Command(run[0], run[1:]...)
+ 	cmd.Dir = dir
+-	cmd.Env = []string{"GOARCH=" + goarch, "GOOS=" + goos}
++	cmd.Env = append(os.Environ(), "GOARCH="+goarch, "GOOS="+goos)
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+ 	return string(out), err

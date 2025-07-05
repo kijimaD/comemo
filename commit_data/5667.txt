@@ -7,7 +7,110 @@ Date:   Wed Jun 16 12:36:07 2010 +1000
     R=rsc
     CC=golang-dev, rog
     https://golang.org/cl/1707042
-
+---
  src/pkg/image/color.go | 21 +++++++++++++++++++++
  src/pkg/image/image.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+)
+
+diff --git a/src/pkg/image/color.go b/src/pkg/image/color.go
+index c17ffc3894..8a865a8a0c 100644
+--- a/src/pkg/image/color.go
++++ b/src/pkg/image/color.go
+@@ -93,6 +93,16 @@ func (c AlphaColor) RGBA() (r, g, b, a uint32) {
+ 	return a, a, a, a
+ }
+ 
++// An Alpha16Color represents a 16-bit alpha.
++type Alpha16Color struct {
++	A uint16
++}
++
++func (c Alpha16Color) RGBA() (r, g, b, a uint32) {
++	a = uint32(c.A)
++	return a, a, a, a
++}
++
+ // A ColorModel can convert foreign Colors, with a possible loss of precision,
+ // to a Color from its own color model.
+ type ColorModel interface {
+@@ -169,6 +179,14 @@ func toAlphaColor(c Color) Color {
+ 	return AlphaColor{uint8(a >> 8)}
+ }
+ 
++func toAlpha16Color(c Color) Color {
++	if _, ok := c.(Alpha16Color); ok {
++		return c
++	}
++	_, _, _, a := c.RGBA()
++	return Alpha16Color{uint16(a)}
++}
++
+ // The ColorModel associated with RGBAColor.
+ var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
+ 
+@@ -183,3 +201,6 @@ var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color)
+ 
+ // The ColorModel associated with AlphaColor.
+ var AlphaColorModel ColorModel = ColorModelFunc(toAlphaColor)
++
++// The ColorModel associated with Alpha16Color.
++var Alpha16ColorModel ColorModel = ColorModelFunc(toAlpha16Color)
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index ba2c986a4e..decf1ce43b 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -255,6 +255,54 @@ func NewAlpha(w, h int) *Alpha {
+ 	return &Alpha{pix}
+ }
+ 
++// An Alpha16 is an in-memory image backed by a 2-D slice of Alpha16Color values.
++type Alpha16 struct {
++	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
++	Pixel [][]Alpha16Color
++}
++
++func (p *Alpha16) ColorModel() ColorModel { return Alpha16ColorModel }
++
++func (p *Alpha16) Width() int {
++	if len(p.Pixel) == 0 {
++		return 0
++	}
++	return len(p.Pixel[0])
++}
++
++func (p *Alpha16) Height() int { return len(p.Pixel) }
++
++func (p *Alpha16) At(x, y int) Color { return p.Pixel[y][x] }
++
++func (p *Alpha16) Set(x, y int, c Color) { p.Pixel[y][x] = toAlpha16Color(c).(Alpha16Color) }
++
++// Opaque scans the entire image and returns whether or not it is fully opaque.
++func (p *Alpha16) Opaque() bool {
++	h := len(p.Pixel)
++	if h > 0 {
++		w := len(p.Pixel[0])
++		for y := 0; y < h; y++ {
++			pix := p.Pixel[y]
++			for x := 0; x < w; x++ {
++				if pix[x].A != 0xffff {
++					return false
++				}
++			}
++		}
++	}
++	return true
++}
++
++// NewAlpha16 returns a new Alpha16 with the given width and height.
++func NewAlpha16(w, h int) *Alpha16 {
++	buf := make([]Alpha16Color, w*h)
++	pix := make([][]Alpha16Color, h)
++	for y := range pix {
++		pix[y] = buf[w*y : w*(y+1)]
++	}
++	return &Alpha16{pix}
++}
++
+ // A PalettedColorModel represents a fixed palette of colors.
+ type PalettedColorModel []Color
+ 

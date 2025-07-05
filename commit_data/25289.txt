@@ -14,8 +14,67 @@ Date:   Mon Oct 19 14:45:50 2015 +0000
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/export_test.go |  2 ++
  src/net/http/fs.go          |  4 ++--
  src/net/http/fs_test.go     | 22 ++++++++++++++++++++++
  3 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 0457be50da..68fbd43826 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -130,3 +130,5 @@ var ExportServerNewConn = (*Server).newConn
+ var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
+ 
+ var ExportErrRequestCanceled = errRequestCanceled
++
++var ExportServeFile = serveFile
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 394c87d29a..ac7e1b5c49 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -369,8 +369,8 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	}
+ 	defer f.Close()
+ 
+-	d, err1 := f.Stat()
+-	if err1 != nil {
++	d, err := f.Stat()
++	if err != nil {
+ 		msg, code := toHTTPError(err)
+ 		Error(w, msg, code)
+ 		return
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 9b235d278a..a3d64f3a08 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -850,6 +850,28 @@ func TestServeContent(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 12991
++func TestServerFileStatError(t *testing.T) {
++	rec := httptest.NewRecorder()
++	r, _ := NewRequest("GET", "http://foo/", nil)
++	redirect := false
++	name := "file.txt"
++	fs := issue12991FS{}
++	ExportServeFile(rec, r, fs, name, redirect)
++	if body := rec.Body.String(); !strings.Contains(body, "403") || !strings.Contains(body, "Forbidden") {
++		t.Errorf("wanted 403 forbidden message; got: %s", body)
++	}
++}
++
++type issue12991FS struct{}
++
++func (issue12991FS) Open(string) (File, error) { return issue12991File{}, nil }
++
++type issue12991File struct{ File }
++
++func (issue12991File) Stat() (os.FileInfo, error) { return nil, os.ErrPermission }
++func (issue12991File) Close() error               { return nil }
++
+ func TestServeContentErrorMessages(t *testing.T) {
+ 	defer afterTest(t)
+ 	fs := fakeFS{

@@ -7,6 +7,20 @@ Date:   Wed Apr 13 13:49:24 2011 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4411044
-
+---
  src/cmd/gofix/osopen.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+index 2acf1c4556..8eb5d06551 100644
+--- a/src/cmd/gofix/osopen.go
++++ b/src/cmd/gofix/osopen.go
+@@ -71,7 +71,7 @@ func isCreateFlag(flag ast.Expr) bool {
+ 	foundCreate := false
+ 	foundTrunc := false
+ 	// OR'ing of flags: is O_CREATE on?  + or | would be fine; we just look for os.O_CREATE
+-	// and don't worry about the actual opeator.
++	// and don't worry about the actual operator.
+ 	p := flag.Pos()
+ 	for {
+ 		lhs := flag

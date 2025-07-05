@@ -15,6 +15,19 @@ Date:   Wed May 10 18:21:21 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/value.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 290d04d74a..a84af8cae9 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2164,7 +2164,6 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
+ 	case directlyAssignable(dst, v.typ):
+ 		// Overwrite type so that they match.
+ 		// Same memory layout, so no harm done.
+-		v.typ = dst
+ 		fl := v.flag & (flagRO | flagAddr | flagIndir)
+ 		fl |= flag(dst.Kind())
+ 		return Value{dst, v.ptr, fl}

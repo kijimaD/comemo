@@ -9,6 +9,20 @@ Date:   Sun Jul 5 15:00:11 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31151
     CL=31168
-
+---
  src/pkg/net/net_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index cafca3c98d..6756ee86f0 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -37,7 +37,7 @@ var dialErrorTests = []DialErrorTest {
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "no-such-name:80",
+-		"dial tcp no-such-name:80: lookup no-such-name.google.com.: no such host",
++		`dial tcp no-such-name:80: lookup no-such-name\..*\.: no such host`,
+ 	},
+ 	DialErrorTest{
+ 		"tcp", "", "mh/astro/r70:http",

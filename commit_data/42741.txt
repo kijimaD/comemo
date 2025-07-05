@@ -7,6 +7,20 @@ Date:   Mon Feb 17 09:50:21 2020 +0100
     Change-Id: I82050f16906e7d34555a592e96b7855515a1726a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/219641
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.14.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index d5ad07754a..a446e48fdc 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -378,7 +378,7 @@ appropriately.)
+ <p><!-- CL 204338 -->
+   The compiler can now emit machine-readable logs of key optimizations
+   using the <code>-json</code> flag, including inlining, escape
+-  analysis, bounds-check elimination, and nil-check elimination
++  analysis, bounds-check elimination, and nil-check elimination.
+ </p>
+ 
+ <p><!-- CL 196959 -->

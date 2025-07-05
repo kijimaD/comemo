@@ -11,6 +11,20 @@ Date:   Sat Apr 8 12:13:39 2017 +0200
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/ip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index db6bc38798..668818cc4f 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -662,7 +662,7 @@ func ParseIP(s string) IP {
+ // It returns the IP address and the network implied by the IP and
+ // prefix length.
+ // For example, ParseCIDR("192.0.2.1/24") returns the IP address
+-// 198.0.2.1 and the network 198.0.2.0/24.
++// 192.0.2.1 and the network 192.0.2.0/24.
+ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	i := byteIndex(s, '/')
+ 	if i < 0 {

@@ -12,9 +12,74 @@ Date:   Mon Feb 25 16:11:34 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7402054
-
+---
  src/cmd/5g/reg.c | 1 -
  src/cmd/6g/reg.c | 2 --
  src/cmd/8g/reg.c | 2 --
  src/cmd/gc/go.h  | 1 -
  4 files changed, 6 deletions(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 0667531ebf..eaaaf9be3a 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -1012,7 +1012,6 @@ mkvar(Reg *r, Adr *a)
+ 	v = var+i;
+ 	v->offset = o;
+ 	v->name = n;
+-//	v->gotype = a->gotype;
+ 	v->etype = et;
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index e1188a2353..c56d71678b 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -872,7 +872,6 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+ 	a->type = v->name;
+-	a->gotype = v->gotype;
+ 	a->node = v->node;
+ 	a->sym = v->node->sym;
+ 
+@@ -1056,7 +1055,6 @@ mkvar(Reg *r, Adr *a)
+ 	v = var+i;
+ 	v->offset = o;
+ 	v->name = n;
+-	v->gotype = a->gotype;
+ 	v->etype = et;
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index c1f51c0a41..985f6ccbc4 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -806,7 +806,6 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+ 	a->type = v->name;
+-	a->gotype = v->gotype;
+ 	a->node = v->node;
+ 	a->sym = v->node->sym;
+ 
+@@ -984,7 +983,6 @@ mkvar(Reg *r, Adr *a)
+ 	v = var+i;
+ 	v->offset = o;
+ 	v->name = n;
+-	v->gotype = a->gotype;
+ 	v->etype = et;
+ 	v->width = w;
+ 	v->addr = flag;		// funny punning
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 05d942b419..4da7a03ac2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -695,7 +695,6 @@ typedef	struct	Var	Var;
+ struct	Var
+ {
+ 	vlong	offset;
+-	Sym*	gotype;
+ 	Node*	node;
+ 	int	width;
+ 	char	name;

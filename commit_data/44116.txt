@@ -11,7 +11,73 @@ Date:   Mon May 11 11:01:16 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_linux_test.go    | 6 +++---
  src/syscall/syscall_linux_test.go | 9 ++++++---
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index b7a8df21b5..b79dee7525 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -355,7 +355,7 @@ func TestUnshareMountNameSpace(t *testing.T) {
+ 	}
+ 
+ 	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareMountNameSpaceHelper", d)
+-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{Unshareflags: syscall.CLONE_NEWNS}
+ 
+ 	o, err := cmd.CombinedOutput()
+@@ -406,7 +406,7 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 	}
+ 
+ 	cmd = exec.Command("/syscall.test", "-test.run=TestUnshareMountNameSpaceHelper", "/")
+-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{Chroot: d, Unshareflags: syscall.CLONE_NEWNS}
+ 
+ 	o, err := cmd.CombinedOutput()
+@@ -621,7 +621,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
+ 	}
+ 
+ 	cmd := exec.Command(f.Name(), "-test.run=TestAmbientCapsHelper")
+-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index e30a10b870..c5008f2913 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -187,7 +187,7 @@ func TestLinuxDeathSignal(t *testing.T) {
+ 	}
+ 
+ 	cmd := exec.Command(tmpBinary)
+-	cmd.Env = []string{"GO_DEATHSIG_PARENT=1"}
++	cmd.Env = append(os.Environ(), "GO_DEATHSIG_PARENT=1")
+ 	chldStdin, err := cmd.StdinPipe()
+ 	if err != nil {
+ 		t.Fatalf("failed to create new stdin pipe: %v", err)
+@@ -225,7 +225,10 @@ func TestLinuxDeathSignal(t *testing.T) {
+ 
+ func deathSignalParent() {
+ 	cmd := exec.Command(os.Args[0])
+-	cmd.Env = []string{"GO_DEATHSIG_CHILD=1"}
++	cmd.Env = append(os.Environ(),
++		"GO_DEATHSIG_PARENT=",
++		"GO_DEATHSIG_CHILD=1",
++	)
+ 	cmd.Stdin = os.Stdin
+ 	cmd.Stdout = os.Stdout
+ 	attrs := syscall.SysProcAttr{
+@@ -356,7 +359,7 @@ func TestSyscallNoError(t *testing.T) {
+ 	}
+ 
+ 	cmd := exec.Command(tmpBinary)
+-	cmd.Env = []string{"GO_SYSCALL_NOERROR=1"}
++	cmd.Env = append(os.Environ(), "GO_SYSCALL_NOERROR=1")
+ 
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

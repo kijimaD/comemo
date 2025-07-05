@@ -12,6 +12,57 @@ Date:   Mon Oct 1 17:31:35 2012 -0400
     R=gri
     CC=gobot, golang-dev
     https://golang.org/cl/6566043
-
+---
  src/pkg/math/big/nat.go | 21 +++++++++++++++------
  1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 85b9acc0f5..2d5a5c9587 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -1264,15 +1264,21 @@ func (z nat) expNN(x, y, m nat) nat {
+ 	// we also multiply by x, thus adding one to the power.
+ 
+ 	w := _W - int(shift)
++	// zz and r are used to avoid allocating in mul and div as
++	// otherwise the arguments would alias.
++	var zz, r nat
+ 	for j := 0; j < w; j++ {
+-		z = z.mul(z, z)
++		zz = zz.mul(z, z)
++		zz, z = z, zz
+ 
+ 		if v&mask != 0 {
+-			z = z.mul(z, x)
++			zz = zz.mul(z, x)
++			zz, z = z, zz
+ 		}
+ 
+ 		if m != nil {
+-			q, z = q.div(z, z, m)
++			zz, r = zz.div(r, z, m)
++			zz, r, q, z = q, z, zz, r
+ 		}
+ 
+ 		v <<= 1
+@@ -1282,14 +1288,17 @@ func (z nat) expNN(x, y, m nat) nat {
+ 		v = y[i]
+ 
+ 		for j := 0; j < _W; j++ {
+-			z = z.mul(z, z)
++			zz = zz.mul(z, z)
++			zz, z = z, zz
+ 
+ 			if v&mask != 0 {
+-				z = z.mul(z, x)
++				zz = zz.mul(z, x)
++				zz, z = z, zz
+ 			}
+ 
+ 			if m != nil {
+-				q, z = q.div(z, z, m)
++				zz, r = zz.div(r, z, m)
++				zz, r, q, z = q, z, zz, r
+ 			}
+ 
+ 			v <<= 1

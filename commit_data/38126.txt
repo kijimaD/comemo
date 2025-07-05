@@ -13,6 +13,36 @@ Date:   Wed Oct 3 21:54:54 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/example_test.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/reflect/example_test.go b/src/reflect/example_test.go
+index f959b95846..23c08e4950 100644
+--- a/src/reflect/example_test.go
++++ b/src/reflect/example_test.go
+@@ -13,6 +13,24 @@ import (
+ 	"reflect"
+ )
+ 
++func ExampleKind() {
++	for _, v := range []interface{}{"hi", 42, func() {}} {
++		switch v := reflect.ValueOf(v); v.Kind() {
++		case reflect.String:
++			fmt.Println(v.String())
++		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++			fmt.Println(v.Int())
++		default:
++			fmt.Printf("unhandled kind %s", v.Kind())
++		}
++	}
++
++	// Output:
++	// hi
++	// 42
++	// unhandled kind func
++}
++
+ func ExampleMakeFunc() {
+ 	// swap is the implementation passed to MakeFunc.
+ 	// It must work in terms of reflect.Values so that it is possible

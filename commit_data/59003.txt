@@ -20,7 +20,68 @@ Date:   Wed Jan 24 16:29:20 2024 -0500
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/go/version/version.go      | 10 ++++++----
  src/go/version/version_test.go |  3 +++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/version/version.go b/src/go/version/version.go
+index 466c8091ea..6b8ee67442 100644
+--- a/src/go/version/version.go
++++ b/src/go/version/version.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package version provides operations on [Go versions].
++// Package version provides operations on [Go versions]
++// in [Go toolchain name syntax]: strings like
++// "go1.20", "go1.21.0", "go1.22rc2", and "go1.23.4-bigcorp".
+ //
+ // [Go versions]: https://go.dev/doc/toolchain#version
++// [Go toolchain name syntax]: https://go.dev/doc/toolchain#name
+ package version // import "go/version"
+ 
+ import (
+@@ -12,9 +15,10 @@ import (
+ 	"strings"
+ )
+ 
+-// stripGo converts from a "go1.21" version to a "1.21" version.
++// stripGo converts from a "go1.21-bigcorp" version to a "1.21" version.
+ // If v does not start with "go", stripGo returns the empty string (a known invalid version).
+ func stripGo(v string) string {
++	v, _, _ = strings.Cut(v, "-") // strip -bigcorp suffix.
+ 	if len(v) < 2 || v[:2] != "go" {
+ 		return ""
+ 	}
+@@ -50,8 +54,6 @@ func Lang(x string) string {
+ // valid versions and equal to each other.
+ // The language version "go1.21" compares less than the
+ // release candidate and eventual releases "go1.21rc1" and "go1.21.0".
+-// Custom toolchain suffixes are ignored during comparison:
+-// "go1.21.0" and "go1.21.0-bigcorp" are equal.
+ func Compare(x, y string) int {
+ 	return gover.Compare(stripGo(x), stripGo(y))
+ }
+diff --git a/src/go/version/version_test.go b/src/go/version/version_test.go
+index 7c12e7ffd9..ad83a25861 100644
+--- a/src/go/version/version_test.go
++++ b/src/go/version/version_test.go
+@@ -23,13 +23,16 @@ var compareTests = []testCase2[string, string, int]{
+ 	{"go1.19", "go1.19.0", 0},
+ 	{"go1.19rc1", "go1.19", -1},
+ 	{"go1.20", "go1.20.0", 0},
++	{"go1.20", "go1.20.0-bigcorp", 0},
+ 	{"go1.20rc1", "go1.20", -1},
+ 	{"go1.21", "go1.21.0", -1},
++	{"go1.21", "go1.21.0-bigcorp", -1},
+ 	{"go1.21", "go1.21rc1", -1},
+ 	{"go1.21rc1", "go1.21.0", -1},
+ 	{"go1.6", "go1.19", -1},
+ 	{"go1.19", "go1.19.1", -1},
+ 	{"go1.19rc1", "go1.19", -1},
++	{"go1.19rc1", "go1.19", -1},
+ 	{"go1.19rc1", "go1.19.1", -1},
+ 	{"go1.19rc1", "go1.19rc2", -1},
+ 	{"go1.19.0", "go1.19.1", -1},

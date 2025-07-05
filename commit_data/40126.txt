@@ -22,7 +22,7 @@ Date:   Wed Apr 3 22:41:48 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go        |  2 ++
  src/cmd/link/internal/amd64/obj.go        |  1 +
  src/cmd/link/internal/arm/asm.go          |  2 ++
@@ -48,3 +48,520 @@ Date:   Wed Apr 3 22:41:48 2019 -0400
  src/cmd/link/internal/x86/asm.go          |  2 ++
  src/cmd/link/internal/x86/obj.go          |  1 +
  24 files changed, 165 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index fca4877a45..7dbe99c581 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -704,7 +704,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	machlink := int64(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = ld.Domacholink(ctxt)
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index eeeed1ab1a..23741eb4f6 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -54,6 +54,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 7ea1fe5f8f..43d387c862 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -800,7 +800,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index ea91711df0..45a406ec06 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -52,6 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archrelocvariant: archrelocvariant,
+ 		Trampoline:       trampoline,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 5ba038d147..c832099726 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -426,7 +426,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 04202012ee..2f8a141139 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -51,6 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cb74b9a723..a6f75b74e1 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -792,6 +792,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
+ 	writeDatblkToOutBuf(ctxt, ctxt.Out, addr, size)
+ }
+ 
++// Used only on Wasm for now.
+ func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
+ 	buf := bytes.NewBuffer(make([]byte, 0, size))
+ 	out := &OutBuf{w: bufio.NewWriter(buf)}
+@@ -2319,7 +2320,8 @@ func (ctxt *Link) address() []*sym.Segment {
+ }
+ 
+ // layout assigns file offsets and lengths to the segments in order.
+-func (ctxt *Link) layout(order []*sym.Segment) {
++// Returns the file size containing all the segments.
++func (ctxt *Link) layout(order []*sym.Segment) uint64 {
+ 	var prev *sym.Segment
+ 	for _, seg := range order {
+ 		if prev == nil {
+@@ -2348,7 +2350,7 @@ func (ctxt *Link) layout(order []*sym.Segment) {
+ 		}
+ 		prev = seg
+ 	}
+-
++	return prev.Fileoff + prev.Filelen
+ }
+ 
+ // add a trampoline with symbol s (to be laid down after the current function)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 62f2453358..c474878191 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -127,8 +127,15 @@ type Arch struct {
+ 	// offset value.
+ 	Archrelocvariant func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+ 		offset int64) (relocatedOffset int64)
+-	Trampoline  func(*Link, *sym.Reloc, *sym.Symbol)
+-	Asmb        func(*Link)
++	Trampoline func(*Link, *sym.Reloc, *sym.Symbol)
++
++	// Asmb and Asmb2 are arch-specific routines that write the output
++	// file. Typically, Asmb writes most of the content (sections and
++	// segments), for which we have computed the size and offset. Asmb2
++	// writes the rest.
++	Asmb  func(*Link)
++	Asmb2 func(*Link)
++
+ 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
+ 	Elfsetupplt func(*Link)
+ 	Gentext     func(*Link)
+@@ -261,7 +268,7 @@ func libinit(ctxt *Link) {
+ 	Lflag(ctxt, filepath.Join(objabi.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", objabi.GOOS, objabi.GOARCH, suffixsep, suffix)))
+ 
+ 	mayberemoveoutfile()
+-	f, err := os.OpenFile(*flagOutfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
++	f, err := os.OpenFile(*flagOutfile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
+ 	if err != nil {
+ 		Exitf("cannot create %s: %v", *flagOutfile, err)
+ 	}
+@@ -1014,7 +1021,7 @@ func hostlinksetup(ctxt *Link) {
+ 
+ 	p := filepath.Join(*flagTmpdir, "go.o")
+ 	var err error
+-	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
++	f, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
+ 	if err != nil {
+ 		Exitf("cannot create %s: %v", p, err)
+ 	}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 48a9953893..1b2d376fd4 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -241,8 +241,29 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	order := ctxt.address()
+ 	ctxt.reloc()
+ 	dwarfcompress(ctxt)
+-	ctxt.layout(order)
+-	thearch.Asmb(ctxt)
++	filesize := ctxt.layout(order)
++
++	// Write out the output file.
++	// It is split into two parts (Asmb and Asmb2). The first
++	// part writes most of the content (sections and segments),
++	// for which we have computed the size and offset, in a
++	// mmap'd region. The second part writes more content, for
++	// which we don't know the size.
++	var outputMmapped bool
++	if ctxt.Arch.Family != sys.Wasm {
++		// Don't mmap if we're building for Wasm. Wasm file
++		// layout is very different so filesize is meaningless.
++		err := ctxt.Out.Mmap(filesize)
++		outputMmapped = err == nil
++	}
++	if outputMmapped {
++		thearch.Asmb(ctxt)
++		ctxt.Out.Munmap()
++	} else {
++		thearch.Asmb(ctxt)
++	}
++	thearch.Asmb2(ctxt)
++
+ 	ctxt.undef()
+ 	ctxt.hostlink()
+ 	ctxt.archive()
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 5df2be4301..f1b5d7495c 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"cmd/internal/sys"
+ 	"encoding/binary"
++	"log"
+ 	"os"
+ )
+ 
+@@ -20,10 +21,18 @@ import (
+ //
+ // Second, it provides a very cheap offset counter that doesn't require
+ // any system calls to read the value.
++//
++// It also mmaps the output file (if available). The intended usage is:
++// - Mmap the output file
++// - Write the content
++// - possibly apply any edits in the output buffer
++// - Munmap the output file
++// - possibly write more content to the file, which will not be edited later.
+ type OutBuf struct {
+ 	arch   *sys.Arch
+ 	off    int64
+ 	w      *bufio.Writer
++	buf    []byte // backing store of mmap'd output file
+ 	f      *os.File
+ 	encbuf [8]byte // temp buffer used by WriteN methods
+ }
+@@ -32,9 +41,11 @@ func (out *OutBuf) SeekSet(p int64) {
+ 	if p == out.off {
+ 		return
+ 	}
+-	out.Flush()
+-	if _, err := out.f.Seek(p, 0); err != nil {
+-		Exitf("seeking to %d in %s: %v", p, out.f.Name(), err)
++	if out.buf == nil {
++		out.Flush()
++		if _, err := out.f.Seek(p, 0); err != nil {
++			Exitf("seeking to %d in %s: %v", p, out.f.Name(), err)
++		}
+ 	}
+ 	out.off = p
+ }
+@@ -49,12 +60,22 @@ func (out *OutBuf) Offset() int64 {
+ // to explicitly handle the returned error as long as Flush is
+ // eventually called.
+ func (out *OutBuf) Write(v []byte) (int, error) {
++	if out.buf != nil {
++		n := copy(out.buf[out.off:], v)
++		out.off += int64(n)
++		return n, nil
++	}
+ 	n, err := out.w.Write(v)
+ 	out.off += int64(n)
+ 	return n, err
+ }
+ 
+ func (out *OutBuf) Write8(v uint8) {
++	if out.buf != nil {
++		out.buf[out.off] = v
++		out.off++
++		return
++	}
+ 	if err := out.w.WriteByte(v); err == nil {
+ 		out.off++
+ 	}
+@@ -92,6 +113,14 @@ func (out *OutBuf) Write64b(v uint64) {
+ }
+ 
+ func (out *OutBuf) WriteString(s string) {
++	if out.buf != nil {
++		n := copy(out.buf[out.off:], s)
++		if n != len(s) {
++			log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
++		}
++		out.off += int64(n)
++		return
++	}
+ 	n, _ := out.w.WriteString(s)
+ 	out.off += int64(n)
+ }
+@@ -120,7 +149,13 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
+ }
+ 
+ func (out *OutBuf) Flush() {
+-	if err := out.w.Flush(); err != nil {
++	var err error
++	if out.buf != nil {
++		err = out.Msync()
++	} else {
++		err = out.w.Flush()
++	}
++	if err != nil {
+ 		Exitf("flushing %s: %v", out.f.Name(), err)
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/outbuf_mmap.go b/src/cmd/link/internal/ld/outbuf_mmap.go
+new file mode 100644
+index 0000000000..4075141171
+--- /dev/null
++++ b/src/cmd/link/internal/ld/outbuf_mmap.go
+@@ -0,0 +1,44 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux openbsd
++
++package ld
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++func (out *OutBuf) Mmap(filesize uint64) error {
++	err := out.f.Truncate(int64(filesize))
++	if err != nil {
++		Exitf("resize output file failed: %v", err)
++	}
++	out.buf, err = syscall.Mmap(int(out.f.Fd()), 0, int(filesize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED|syscall.MAP_FILE)
++	return err
++}
++
++func (out *OutBuf) Munmap() {
++	err := out.Msync()
++	if err != nil {
++		Exitf("msync output file failed: %v", err)
++	}
++	syscall.Munmap(out.buf)
++	out.buf = nil
++	_, err = out.f.Seek(out.off, 0)
++	if err != nil {
++		Exitf("seek output file failed: %v", err)
++	}
++}
++
++func (out *OutBuf) Msync() error {
++	// TODO: netbsd supports mmap and msync, but the syscall package doesn't define MSYNC.
++	// It is excluded from the build tag for now.
++	_, _, errno := syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(len(out.buf)), syscall.MS_SYNC)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/cmd/link/internal/ld/outbuf_nommap.go b/src/cmd/link/internal/ld/outbuf_nommap.go
+new file mode 100644
+index 0000000000..36a3286099
+--- /dev/null
++++ b/src/cmd/link/internal/ld/outbuf_nommap.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !darwin,!dragonfly,!freebsd,!linux,!openbsd
++
++package ld
++
++import "errors"
++
++var errNotSupported = errors.New("mmap not supported")
++
++func (out *OutBuf) Mmap(filesize uint64) error { return errNotSupported }
++func (out *OutBuf) Munmap()                    { panic("unreachable") }
++func (out *OutBuf) Msync() error               { panic("unreachable") }
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 8409e43afc..f05455e520 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -197,7 +197,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 3c71e23497..231e1ff322 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -54,6 +54,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 51eba596dc..25a1d94dcc 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -209,7 +209,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index b01746e59a..96042083f6 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -53,6 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index d376c4de58..365a45ec13 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1103,7 +1103,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index bd85856c97..51d1791f21 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -54,6 +54,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 46a6ffef82..8540377400 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -540,7 +540,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index a7e30e2d65..3454476b0f 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -50,7 +50,8 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Asmb:             asmb, // in asm.go
++		Asmb:             asmb,  // in asm.go
++		Asmb2:            asmb2, // in asm.go
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index ea6b406c7e..8ab58b200f 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -92,9 +92,11 @@ func assignAddress(ctxt *ld.Link, sect *sym.Section, n int, s *sym.Symbol, va ui
+ 	return sect, n, va
+ }
+ 
++func asmb(ctxt *ld.Link) {} // dummy
++
+ // asmb writes the final WebAssembly module binary.
+ // Spec: https://webassembly.github.io/spec/core/binary/modules.html
+-func asmb(ctxt *ld.Link) {
++func asmb2(ctxt *ld.Link) {
+ 	if ctxt.Debugvlog != 0 {
+ 		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
+ 	}
+diff --git a/src/cmd/link/internal/wasm/obj.go b/src/cmd/link/internal/wasm/obj.go
+index 55f34e335b..f8090a3551 100644
+--- a/src/cmd/link/internal/wasm/obj.go
++++ b/src/cmd/link/internal/wasm/obj.go
+@@ -18,6 +18,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:      archinit,
+ 		AssignAddress: assignAddress,
+ 		Asmb:          asmb,
++		Asmb2:         asmb2,
+ 		Gentext:       gentext,
+ 	}
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 9472f5516d..427ccaf629 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -662,7 +662,9 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
+ 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
++}
+ 
++func asmb2(ctxt *ld.Link) {
+ 	machlink := uint32(0)
+ 	if ctxt.HeadType == objabi.Hdarwin {
+ 		machlink = uint32(ld.Domacholink(ctxt))
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index dbb31263a8..f1fad20081 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -51,6 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Asmb:             asmb,
++		Asmb2:            asmb2,
+ 		Elfreloc1:        elfreloc1,
+ 		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,

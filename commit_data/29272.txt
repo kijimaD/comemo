@@ -36,6 +36,20 @@ Date:   Mon Jul 18 12:32:29 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/internal/sys/arch_arm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index f90f52da7f..880494a0eb 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -8,7 +8,7 @@ const (
+ 	ArchFamily    = ARM
+ 	BigEndian     = 0
+ 	CacheLineSize = 32
+-	PhysPageSize  = 65536*GoosNacl + 4096*(1-GoosNacl)
++	PhysPageSize  = 65536
+ 	PCQuantum     = 4
+ 	Int64Align    = 4
+ 	HugePageSize  = 0

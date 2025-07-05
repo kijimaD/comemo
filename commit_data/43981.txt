@@ -11,6 +11,20 @@ Date:   Thu Apr 30 04:19:25 2020 +0000
     GitHub-Pull-Request: golang/go#38716
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230340
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/race/testdata/select_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/testdata/select_test.go b/src/runtime/race/testdata/select_test.go
+index 3827867687..9a43f9b954 100644
+--- a/src/runtime/race/testdata/select_test.go
++++ b/src/runtime/race/testdata/select_test.go
+@@ -20,7 +20,7 @@ func TestNoRaceSelect1(t *testing.T) {
+ 		x = 1
+ 		// At least two channels are needed because
+ 		// otherwise the compiler optimizes select out.
+-		// See comment in runtime/select.go:^func selectgoImpl.
++		// See comment in runtime/select.go:^func selectgo.
+ 		select {
+ 		case c <- true:
+ 		case c1 <- true:

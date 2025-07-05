@@ -14,6 +14,27 @@ Date:   Mon Nov 4 16:19:29 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205278
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/ld_test.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 1ffcadece9..4dbe09d586 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -76,14 +76,9 @@ func TestUndefinedRelocErrors(t *testing.T) {
+ const carchiveSrcText = `
+ package main
+ 
+-// int fortytwo;
+-import "C"
+-
+-var v int
+-
+ //export GoFunc
+ func GoFunc() {
+-	v = int(C.fortytwo)
++	println(42)
+ }
+ 
+ func main() {

@@ -12,10 +12,76 @@ Date:   Tue Mar 7 23:04:26 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go    | 2 +-
  src/cmd/compile/internal/compare/compare.go | 2 +-
  src/cmd/compile/internal/ssa/debug.go       | 2 +-
  src/cmd/compile/internal/walk/order.go      | 2 +-
  src/cmd/covdata/metamerge.go                | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 9fc0bc45c8..71fbb88888 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -92,7 +92,7 @@ type RegIndex uint8
+ // ABIParamAssignment holds information about how a specific param or
+ // result will be passed: in registers (in which case 'Registers' is
+ // populated) or on the stack (in which case 'Offset' is set to a
+-// non-negative stack offset. The values in 'Registers' are indices
++// non-negative stack offset). The values in 'Registers' are indices
+ // (as described above), not architected registers.
+ type ABIParamAssignment struct {
+ 	Type      *types.Type
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index 9758be1fe8..d8ae7bf24a 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -321,7 +321,7 @@ func eqfield(p ir.Node, q ir.Node, op ir.Op, field *types.Sym) ir.Node {
+ 
+ // eqmem returns the node
+ //
+-//	memequal(&p.field, &q.field, size])
++//	memequal(&p.field, &q.field, size)
+ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
+ 	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
+ 	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 0cd006b21c..0af052294b 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -1751,7 +1751,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
+ // it constructs a 2-element location list: the first element holds
+ // the input register, and the second element holds the stack location
+ // of the param (the assumption being that when optimization is off,
+-// each input param reg will be spilled in the prolog.
++// each input param reg will be spilled in the prolog).
+ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
+ 
+ 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 038844af26..243b682ebb 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -303,7 +303,7 @@ func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.
+ // For:
+ //
+ //	x = m[string(k)]
+-//	x = m[T1{... Tn{..., string(k), ...}]
++//	x = m[T1{... Tn{..., string(k), ...}}]
+ //
+ // where k is []byte, T1 to Tn is a nesting of struct and array literals,
+ // the allocation of backing bytes for the string can be avoided
+diff --git a/src/cmd/covdata/metamerge.go b/src/cmd/covdata/metamerge.go
+index 7f157426c0..b224984f68 100644
+--- a/src/cmd/covdata/metamerge.go
++++ b/src/cmd/covdata/metamerge.go
+@@ -166,7 +166,7 @@ func (mm *metaMerge) beginPod() {
+ //
+ // Case 2: if this is a select merge (-pkg is in effect), then at
+ // this point we write out a new smaller meta-data file that includes
+-// only the packages of interest). At this point we also emit a merged
++// only the packages of interest. At this point we also emit a merged
+ // counter data file as well.
+ //
+ // Case 3: if "-pcombine" is in effect, we don't write anything at

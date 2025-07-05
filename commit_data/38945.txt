@@ -13,7 +13,61 @@ Date:   Tue Dec 11 16:55:16 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/removeall_at.go   |  6 ++++++
  src/os/removeall_test.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index c42319a831..f0fed6dc33 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -25,6 +25,12 @@ func RemoveAll(path string) error {
+ 		return &PathError{"RemoveAll", path, syscall.EINVAL}
+ 	}
+ 
++	// Simple case: if Remove works, we're done.
++	err := Remove(path)
++	if err == nil || IsNotExist(err) {
++		return nil
++	}
++
+ 	// RemoveAll recurses by deleting the path base from
+ 	// its parent directory
+ 	parentDir, base := splitPath(path)
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 1c9f163225..0f7dce078a 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -264,3 +264,31 @@ func TestRemoveAllDotDot(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue #29178.
++func TestRemoveReadOnlyDir(t *testing.T) {
++	t.Parallel()
++
++	tempDir, err := ioutil.TempDir("", "TestRemoveReadOnlyDir-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer RemoveAll(tempDir)
++
++	subdir := filepath.Join(tempDir, "x")
++	if err := Mkdir(subdir, 0); err != nil {
++		t.Fatal(err)
++	}
++
++	// If an error occurs make it more likely that removing the
++	// temporary directory will succeed.
++	defer Chmod(subdir, 0777)
++
++	if err := RemoveAll(subdir); err != nil {
++		t.Fatal(err)
++	}
++
++	if _, err := Stat(subdir); err == nil {
++		t.Error("subdirectory was not removed")
++	}
++}

@@ -14,6 +14,24 @@ Date:   Thu Jul 6 17:56:21 2017 +0000
     Change-Id: Iaa46defd776ae0be817d9f4466a99ac78cfd672b
     Reviewed-on: https://go-review.googlesource.com/47650
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/exec/exec.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index c3599681c3..893d8ee99a 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -416,8 +416,10 @@ func (e *ExitError) Error() string {
+ 	return e.ProcessState.String()
+ }
+ 
+-// Wait waits for the command to exit.
+-// It must have been started by Start.
++// Wait waits for the command to exit and waits for any copying to
++// stdin or copying from stdout or stderr to complete.
++//
++// The command must have been started by Start.
+ //
+ // The returned error is nil if the command runs, has no problems
+ // copying stdin, stdout, and stderr, and exits with a zero exit

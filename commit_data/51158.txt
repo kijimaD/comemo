@@ -13,6 +13,25 @@ Date:   Mon Dec 6 12:31:27 2021 -0500
     Trust: Julie Qiu <julie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_chatty.txt | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_chatty.txt b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+index 1abcbbd389..d07fe50f95 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_chatty.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_chatty.txt
+@@ -37,11 +37,9 @@ go test -v chatty_with_test_fuzz_test.go -fuzz=Fuzz -fuzztime=1x
+ stdout ok
+ stdout PASS
+ ! stdout FAIL
+-# TODO: It's currently the case that it's logged twice. Fix that, and change
+-# this check to verify it.
+-stdout 'all good here'
++stdout -count=1 'all good here'
+ # Verify that the unit test is only run once.
+-! stdout '(?s)logged foo.*logged foo'
++stdout -count=1 'logged foo'
+ 
+ -- chatty_error_fuzz_test.go --
+ package chatty_error_fuzz

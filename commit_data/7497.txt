@@ -9,7 +9,49 @@ Date:   Thu Feb 17 16:33:26 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4190051
-
+---
  src/cmd/gc/subr.c      | 8 ++++++--
  src/cmd/gc/typecheck.c | 4 ++--
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0755ca3cd5..49df50319f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1909,8 +1909,12 @@ assignop(Type *src, Type *dst, char **why)
+ 		return 0;
+ 	}
+ 	if(src->etype == TINTER && dst->etype != TBLANK) {
+-		if(why != nil)
+-			*why = ": need type assertion";
++		if(why != nil) {
++			if(isptrto(dst, TINTER))
++				*why = smprint(":\n\t%T is interface, not pointer to interface", src);
++			else	
++				*why = ": need type assertion";
++		}
+ 		return 0;
+ 	}
+ 
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5edca964aa..731e5a49ed 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1613,7 +1613,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 					exportassignok(tn->type, desc);
+ 					if(assignop(tn->type, tl->type->type, &why) == 0) {
+ 						if(call != N)
+-							yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type->type, desc, call, why);
++							yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type->type, call, why);
+ 						else
+ 							yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type->type, desc, why);
+ 					}
+@@ -1625,7 +1625,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 			exportassignok(tn->type, desc);
+ 			if(assignop(tn->type, tl->type, &why) == 0) {
+ 				if(call != N)
+-					yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type, desc, call, why);
++					yyerror("cannot use %T as type %T in argument to %#N%s", tn->type, tl->type, call, why);
+ 				else
+ 					yyerror("cannot use %T as type %T in %s%s", tn->type, tl->type, desc, why);
+ 			}

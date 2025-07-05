@@ -12,6 +12,20 @@ Date:   Tue Mar 15 15:00:57 2016 -0700
     Change-Id: I42d7bbc0581597f9cf4fb28989847814c81b08a2
     Reviewed-on: https://go-review.googlesource.com/20741
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 8080b7aaba..5c0cc244a1 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -117,7 +117,7 @@ type pass struct {
+ }
+ 
+ // Run consistency checker between each phase
+-var checkEnabled = true
++var checkEnabled = false
+ 
+ // PhaseOption sets the specified flag in the specified ssa phase,
+ // returning empty string if this was successful or a string explaining

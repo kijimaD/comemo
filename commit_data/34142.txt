@@ -21,7 +21,7 @@ Date:   Thu Oct 5 11:11:29 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go            | 20 +++++++++++++++++++-
  src/cmd/go/internal/load/pkg.go           |  2 +-
  src/cmd/go/internal/test/test.go          | 17 ++---------------
@@ -30,3 +30,186 @@ Date:   Thu Oct 5 11:11:29 2017 -0400
  src/runtime/cgo/gcc_signal_darwin_lldb.c  |  2 --
  src/runtime/cgo/signal_darwin_armx.go     | 26 ++------------------------
  7 files changed, 39 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index b50074f0af..0d8e264eb7 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -131,7 +131,24 @@ func isGOROOT(path string) bool {
+ 
+ // ExternalLinkingForced reports whether external linking is being
+ // forced even for programs that do not use cgo.
+-func ExternalLinkingForced() bool {
++func ExternalLinkingForced(inGoroot bool) bool {
++	// Some targets must use external linking even inside GOROOT.
++	switch BuildContext.GOOS {
++	case "android":
++		return true
++	case "darwin":
++		switch BuildContext.GOARCH {
++		case "arm", "arm64":
++			return true
++		}
++	}
++
++	// Otherwise we disable forcing of external linking for GOROOT binaries.
++	// This is primarily for cgo, so we will be able to relax this soon.
++	if inGoroot {
++		return false
++	}
++
+ 	if !BuildContext.CgoEnabled {
+ 		return false
+ 	}
+@@ -151,5 +168,6 @@ func ExternalLinkingForced() bool {
+ 			linkmodeExternal = true
+ 		}
+ 	}
++
+ 	return BuildBuildmode == "c-shared" || BuildBuildmode == "plugin" || pieCgo || BuildLinkshared || linkmodeExternal
+ }
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 63e58c6247..dace766aed 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -946,7 +946,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		importPaths = append(importPaths, "syscall")
+ 	}
+ 
+-	if p.Name == "main" && !p.Goroot && cfg.ExternalLinkingForced() {
++	if p.Name == "main" && cfg.ExternalLinkingForced(p.Goroot) {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index bdedd25651..c3810feb0d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -815,16 +815,10 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		},
+ 	}
+ 
+-	// The generated main also imports testing, regexp, os, and maybe runtime/cgo.
++	// The generated main also imports testing, regexp, and os.
+ 	stk.Push("testmain")
+-	forceCgo := false
+-	if cfg.BuildContext.GOOS == "darwin" {
+-		if cfg.BuildContext.GOARCH == "arm" || cfg.BuildContext.GOARCH == "arm64" {
+-			forceCgo = true
+-		}
+-	}
+ 	deps := testMainDeps
+-	if cfg.ExternalLinkingForced() || forceCgo {
++	if cfg.ExternalLinkingForced(pmain.Goroot) {
+ 		deps = str.StringList(deps, "runtime/cgo")
+ 	}
+ 	for _, dep := range deps {
+@@ -889,8 +883,6 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 		recompileForTest(pmain, p, ptest)
+ 	}
+ 
+-	t.NeedCgo = forceCgo
+-
+ 	for _, cp := range pmain.Internal.Imports {
+ 		if len(cp.Internal.CoverVars) > 0 {
+ 			t.Cover = append(t.Cover, coverInfo{cp, cp.Internal.CoverVars})
+@@ -1319,7 +1311,6 @@ type testFuncs struct {
+ 	NeedTest    bool
+ 	ImportXtest bool
+ 	NeedXtest   bool
+-	NeedCgo     bool
+ 	Cover       []coverInfo
+ }
+ 
+@@ -1448,10 +1439,6 @@ import (
+ {{range $i, $p := .Cover}}
+ 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
+ {{end}}
+-
+-{{if .NeedCgo}}
+-	_ "runtime/cgo"
+-{{end}}
+ )
+ 
+ var tests = []testing.InternalTest{
+diff --git a/src/runtime/cgo/gcc_signal2_darwin_armx.c b/src/runtime/cgo/gcc_signal2_darwin_armx.c
+new file mode 100644
+index 0000000000..6da623b3b1
+--- /dev/null
++++ b/src/runtime/cgo/gcc_signal2_darwin_armx.c
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build lldb
++// +build darwin
++// +build arm arm64
++
++// Used by gcc_signal_darwin_armx.c when doing the test build during cgo.
++// We hope that for real binaries the definition provided by Go will take precedence
++// and the linker will drop this .o file altogether, which is why this definition
++// is all by itself in its own file.
++void xx_cgo_panicmem(void) {}
+diff --git a/src/runtime/cgo/gcc_signal_darwin_armx.c b/src/runtime/cgo/gcc_signal_darwin_armx.c
+index a2d520bce8..3ab1d8b0d6 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_armx.c
++++ b/src/runtime/cgo/gcc_signal_darwin_armx.c
+@@ -39,7 +39,8 @@
+ #include "libcgo.h"
+ #include "libcgo_unix.h"
+ 
+-uintptr_t x_cgo_panicmem;
++void xx_cgo_panicmem(void);
++uintptr_t x_cgo_panicmem = (uintptr_t)xx_cgo_panicmem;
+ 
+ static pthread_mutex_t mach_exception_handler_port_set_mu;
+ static mach_port_t mach_exception_handler_port_set = MACH_PORT_NULL;
+diff --git a/src/runtime/cgo/gcc_signal_darwin_lldb.c b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+index 12cc388400..54d91f6390 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_lldb.c
++++ b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+@@ -8,7 +8,5 @@
+ 
+ #include <stdint.h>
+ 
+-uintptr_t x_cgo_panicmem;
+-
+ void darwin_arm_init_thread_exception_port() {}
+ void darwin_arm_init_mach_exception_handler() {}
+diff --git a/src/runtime/cgo/signal_darwin_armx.go b/src/runtime/cgo/signal_darwin_armx.go
+index 9f6741eb08..e1d9e54c46 100644
+--- a/src/runtime/cgo/signal_darwin_armx.go
++++ b/src/runtime/cgo/signal_darwin_armx.go
+@@ -7,29 +7,7 @@
+ 
+ package cgo
+ 
+-import "unsafe"
+-
+-//go:cgo_import_static x_cgo_panicmem
+-//go:linkname x_cgo_panicmem x_cgo_panicmem
+-var x_cgo_panicmem uintptr
+-
+-// use a pointer to avoid relocation of external symbol in __TEXT
+-// make linker happy
+-var _cgo_panicmem = &x_cgo_panicmem
+-
+-// TODO(crawshaw): move this into x_cgo_init, it will not run until
+-// runtime has finished loading, which may be after its use.
+-func init() {
+-	*_cgo_panicmem = funcPC(panicmem)
+-}
+-
+-func funcPC(f interface{}) uintptr {
+-	var ptrSize = unsafe.Sizeof(uintptr(0))
+-	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
+-}
+-
+-func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+-	return unsafe.Pointer(uintptr(p) + x)
+-}
++import _ "unsafe"
+ 
++//go:cgo_export_static panicmem xx_cgo_panicmem
+ func panicmem()

@@ -13,6 +13,20 @@ Date:   Wed Apr 20 17:29:50 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/22330
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/check.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index e4b8cb05f4..f1d3857f88 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -338,7 +338,7 @@ func checkFunc(f *Func) {
+ 
+ // domCheck reports whether x dominates y (including x==y).
+ func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
+-	if !sdom.isAncestorEq(y, f.Entry) {
++	if !sdom.isAncestorEq(f.Entry, y) {
+ 		// unreachable - ignore
+ 		return true
+ 	}

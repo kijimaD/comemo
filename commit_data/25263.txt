@@ -17,9 +17,140 @@ Date:   Fri Oct 16 09:56:07 2015 +1300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/os/signal/sig.s           | 32 ++++----------------------------
  src/os/signal/signal_unix.go  |  2 +-
  src/runtime/sigqueue.go       |  4 ++++
  src/runtime/sigqueue_plan9.go |  6 ++++++
  4 files changed, 15 insertions(+), 29 deletions(-)
+
+diff --git a/src/os/signal/sig.s b/src/os/signal/sig.s
+index 7fa6c9224e..2e94c91578 100644
+--- a/src/os/signal/sig.s
++++ b/src/os/signal/sig.s
+@@ -2,31 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Assembly to get into package runtime without using exported symbols.
+-
+-// +build amd64 amd64p32 arm arm64 386 ppc64 ppc64le
+-
+-#include "textflag.h"
+-
+-#ifdef GOARCH_arm
+-#define JMP B
+-#endif
+-#ifdef GOARCH_ppc64
+-#define JMP BR
+-#endif
+-#ifdef GOARCH_ppc64le
+-#define JMP BR
+-#endif
+-
+-TEXT ·signal_disable(SB),NOSPLIT,$0
+-	JMP runtime·signal_disable(SB)
+-
+-TEXT ·signal_enable(SB),NOSPLIT,$0
+-	JMP runtime·signal_enable(SB)
+-
+-TEXT ·signal_ignore(SB),NOSPLIT,$0
+-	JMP runtime·signal_ignore(SB)
+-
+-TEXT ·signal_recv(SB),NOSPLIT,$0
+-	JMP runtime·signal_recv(SB)
+-
++// The runtime package uses //go:linkname to push a few functions into this
++// package but we still need a .s file so the Go tool does not pass -complete
++// to the go tool compile so the latter does not complain about Go functions
++// with no bodies.
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 1bdf1d7271..01b1b14fd1 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -11,7 +11,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// In assembly.
++// Defined by the runtime package.
+ func signal_disable(uint32)
+ func signal_enable(uint32)
+ func signal_ignore(uint32)
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index e6e1a84063..f28067f3f9 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -90,6 +90,7 @@ Send:
+ 
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_recv os/signal.signal_recv
+ func signal_recv() uint32 {
+ 	for {
+ 		// Serve any signals from local copy.
+@@ -127,6 +128,7 @@ func signal_recv() uint32 {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_enable os/signal.signal_enable
+ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+ 		// The first call to signal_enable is for us
+@@ -145,6 +147,7 @@ func signal_enable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_disable os/signal.signal_disable
+ func signal_disable(s uint32) {
+ 	if s >= uint32(len(sig.wanted)*32) {
+ 		return
+@@ -154,6 +157,7 @@ func signal_disable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_ignore os/signal.signal_ignore
+ func signal_ignore(s uint32) {
+ 	if s >= uint32(len(sig.wanted)*32) {
+ 		return
+diff --git a/src/runtime/sigqueue_plan9.go b/src/runtime/sigqueue_plan9.go
+index f000fabd1a..89f96be2e9 100644
+--- a/src/runtime/sigqueue_plan9.go
++++ b/src/runtime/sigqueue_plan9.go
+@@ -6,6 +6,8 @@
+ 
+ package runtime
+ 
++import _ "unsafe"
++
+ const qsize = 64
+ 
+ var sig struct {
+@@ -92,6 +94,7 @@ func sendNote(s *byte) bool {
+ 
+ // Called to receive the next queued signal.
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_recv os/signal.signal_recv
+ func signal_recv() string {
+ 	for {
+ 		note := sig.q.pop()
+@@ -108,6 +111,7 @@ func signal_recv() string {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_enable os/signal.signal_enable
+ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+ 		// The first call to signal_enable is for us
+@@ -120,9 +124,11 @@ func signal_enable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_disable os/signal.signal_disable
+ func signal_disable(s uint32) {
+ }
+ 
+ // Must only be called from a single goroutine at a time.
++//go:linkname signal_ignore os/signal.signal_ignore
+ func signal_ignore(s uint32) {
+ }

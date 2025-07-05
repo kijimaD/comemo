@@ -10,6 +10,20 @@ Date:   Thu Jun 8 10:15:38 2017 -0400
     Change-Id: Ibd34a55c5ae7b5eda5c2393b9a6674bdf1d51eb3
     Reviewed-on: https://go-review.googlesource.com/45131
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/extern.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 1c5e884088..6e6c674d96 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -78,7 +78,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	for mark/scan are broken down in to assist time (GC performed in
+ 	line with allocation), background GC time, and idle GC time.
+ 	If the line ends with "(forced)", this GC was forced by a
+-	runtime.GC() call and all phases are STW.
++	runtime.GC() call.
+ 
+ 	Setting gctrace to any value > 0 also causes the garbage collector
+ 	to emit a summary when memory is released back to the system.

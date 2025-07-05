@@ -19,8 +19,125 @@ Date:   Fri Mar 8 15:01:32 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 33 ++++++++-------------------------
  test/loopbce.go                    |  6 +++---
  test/prove.go                      |  4 ++--
  3 files changed, 13 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 84b9207481..d6b2bd3137 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4029,6 +4029,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ }
+ 
+ // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
++// len must be known to be nonnegative.
+ // Starts a new block on return.
+ // idx is already converted to full int width.
+ func (s *state) boundsCheck(idx, len *ssa.Value) {
+@@ -4041,34 +4042,14 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 	s.check(cmp, panicindex)
+ }
+ 
+-func couldBeNegative(v *ssa.Value) bool {
+-	switch v.Op {
+-	case ssa.OpSliceLen, ssa.OpSliceCap, ssa.OpStringLen:
+-		return false
+-	case ssa.OpConst64:
+-		return v.AuxInt < 0
+-	case ssa.OpConst32:
+-		return int32(v.AuxInt) < 0
+-	}
+-	return true
+-}
+-
+ // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
++// len must be known to be nonnegative.
+ // Starts a new block on return.
+ // idx and len are already converted to full int width.
+ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
+ 	if Debug['B'] != 0 {
+ 		return
+ 	}
+-	if couldBeNegative(len) {
+-		// OpIsSliceInBounds requires second arg not negative; if it's not obviously true, must check.
+-		cmpop := ssa.OpGeq64
+-		if len.Type.Size() == 4 {
+-			cmpop = ssa.OpGeq32
+-		}
+-		cmp := s.newValue2(cmpop, types.Types[TBOOL], len, s.zeroVal(len.Type))
+-		s.check(cmp, panicslice)
+-	}
+ 
+ 	// bounds check
+ 	cmp := s.newValue2(ssa.OpIsSliceInBounds, types.Types[TBOOL], idx, len)
+@@ -4332,13 +4313,15 @@ func (s *state) slice(t *types.Type, v, i, j, k *ssa.Value, bounded bool) (p, l,
+ 
+ 	if !bounded {
+ 		// Panic if slice indices are not in bounds.
+-		s.sliceBoundsCheck(i, j)
+-		if j != k {
+-			s.sliceBoundsCheck(j, k)
+-		}
++		// Make sure we check these in reverse order so that we're always
++		// comparing against a value known to be nonnegative. See issue 28797.
+ 		if k != cap {
+ 			s.sliceBoundsCheck(k, cap)
+ 		}
++		if j != k {
++			s.sliceBoundsCheck(j, k)
++		}
++		s.sliceBoundsCheck(i, j)
+ 	}
+ 
+ 	// Generate the following code assuming that indexes are in bounds.
+diff --git a/test/loopbce.go b/test/loopbce.go
+index 81f2524e95..e0a6463c5e 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -63,7 +63,7 @@ func f5(a [10]int) int {
+ 
+ func f6(a []int) {
+ 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+-		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$" "(\([0-9]+\) )?Proved Geq64$"
++		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+ 		f6(b)
+ 	}
+ }
+@@ -186,10 +186,10 @@ func k0(a [100]int) [100]int {
+ 
+ func k1(a [100]int) [100]int {
+ 	for i := 10; i < 90; i++ { // ERROR "Induction variable: limits \[10,90\), increment 1$"
+-		useSlice(a[:i-11]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
++		useSlice(a[:i-11])
+ 		useSlice(a[:i-10]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+ 		useSlice(a[:i-5])  // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+-		useSlice(a[:i])    // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$" "(\([0-9]+\) )?Proved Geq64$"
++		useSlice(a[:i])    // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+ 		useSlice(a[:i+5])  // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+ 		useSlice(a[:i+10]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+ 		useSlice(a[:i+11]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+diff --git a/test/prove.go b/test/prove.go
+index eb0fb2a15e..2db0a841e2 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -269,7 +269,7 @@ func f11b(a []int, i int) {
+ 
+ func f11c(a []int, i int) {
+ 	useSlice(a[:i])
+-	useSlice(a[:i]) // ERROR "Proved Geq64$" "Proved IsSliceInBounds$"
++	useSlice(a[:i]) // ERROR "Proved IsSliceInBounds$"
+ }
+ 
+ func f11d(a []int, i int) {
+@@ -469,7 +469,7 @@ func f17(b []int) {
+ 		// using the derived relation between len and cap.
+ 		// This depends on finding the contradiction, since we
+ 		// don't query this condition directly.
+-		useSlice(b[:i]) // ERROR "Proved Geq64$" "Proved IsSliceInBounds$"
++		useSlice(b[:i]) // ERROR "Proved IsSliceInBounds$"
+ 	}
+ }
+ 

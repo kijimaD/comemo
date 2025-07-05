@@ -15,6 +15,19 @@ Date:   Fri Aug 12 10:49:13 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/lookup_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 3a31f56bea..ed53465ef6 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -416,7 +416,6 @@ func TestLookupGoogleHost(t *testing.T) {
+ }
+ 
+ func TestLookupLongTXT(t *testing.T) {
+-	testenv.SkipFlaky(t, 22857)
+ 	mustHaveExternalNetwork(t)
+ 
+ 	defer dnsWaitGroup.Wait()

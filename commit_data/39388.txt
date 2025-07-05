@@ -19,7 +19,95 @@ Date:   Mon Feb 11 16:33:12 2019 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/regexp/find_test.go | 20 ++++++++++++++++----
  src/regexp/regexp.go    |  8 ++++----
  2 files changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/src/regexp/find_test.go b/src/regexp/find_test.go
+index e07eb7d5c0..87c49b074f 100644
+--- a/src/regexp/find_test.go
++++ b/src/regexp/find_test.go
+@@ -161,6 +161,9 @@ func TestFind(t *testing.T) {
+ 			t.Errorf("expected match; got none: %s", test)
+ 		case test.matches != nil && result != nil:
+ 			expect := test.text[test.matches[0][0]:test.matches[0][1]]
++			if len(result) != cap(result) {
++				t.Errorf("expected capacity %d got %d: %s", len(result), cap(result), test)
++			}
+ 			if expect != string(result) {
+ 				t.Errorf("expected %q got %q: %s", expect, result, test)
+ 			}
+@@ -242,9 +245,13 @@ func TestFindAll(t *testing.T) {
+ 				continue
+ 			}
+ 			for k, e := range test.matches {
++				got := result[k]
++				if len(got) != cap(got) {
++					t.Errorf("match %d: expected capacity %d got %d: %s", k, len(got), cap(got), test)
++				}
+ 				expect := test.text[e[0]:e[1]]
+-				if expect != string(result[k]) {
+-					t.Errorf("match %d: expected %q got %q: %s", k, expect, result[k], test)
++				if expect != string(got) {
++					t.Errorf("match %d: expected %q got %q: %s", k, expect, got, test)
+ 				}
+ 			}
+ 		}
+@@ -323,9 +330,14 @@ func testSubmatchBytes(test *FindTest, n int, submatches []int, result [][]byte,
+ 			}
+ 			continue
+ 		}
++		got := result[k/2]
++		if len(got) != cap(got) {
++			t.Errorf("match %d: expected capacity %d got %d: %s", n, len(got), cap(got), test)
++			return
++		}
+ 		expect := test.text[submatches[k]:submatches[k+1]]
+-		if expect != string(result[k/2]) {
+-			t.Errorf("match %d: expected %q got %q: %s", n, expect, result, test)
++		if expect != string(got) {
++			t.Errorf("match %d: expected %q got %q: %s", n, expect, got, test)
+ 			return
+ 		}
+ 	}
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 38b3c86d9f..88122d4250 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -761,7 +761,7 @@ func (re *Regexp) Find(b []byte) []byte {
+ 	if a == nil {
+ 		return nil
+ 	}
+-	return b[a[0]:a[1]]
++	return b[a[0]:a[1]:a[1]]
+ }
+ 
+ // FindIndex returns a two-element slice of integers defining the location of
+@@ -829,7 +829,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
+ 	ret := make([][]byte, 1+re.numSubexp)
+ 	for i := range ret {
+ 		if 2*i < len(a) && a[2*i] >= 0 {
+-			ret[i] = b[a[2*i]:a[2*i+1]]
++			ret[i] = b[a[2*i]:a[2*i+1]:a[2*i+1]]
+ 		}
+ 	}
+ 	return ret
+@@ -1025,7 +1025,7 @@ func (re *Regexp) FindAll(b []byte, n int) [][]byte {
+ 		if result == nil {
+ 			result = make([][]byte, 0, startSize)
+ 		}
+-		result = append(result, b[match[0]:match[1]])
++		result = append(result, b[match[0]:match[1]:match[1]])
+ 	})
+ 	return result
+ }
+@@ -1100,7 +1100,7 @@ func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
+ 		slice := make([][]byte, len(match)/2)
+ 		for j := range slice {
+ 			if match[2*j] >= 0 {
+-				slice[j] = b[match[2*j]:match[2*j+1]]
++				slice[j] = b[match[2*j]:match[2*j+1]:match[2*j+1]]
+ 			}
+ 		}
+ 		result = append(result, slice)

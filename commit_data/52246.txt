@@ -15,6 +15,20 @@ Date:   Wed Apr 20 11:17:59 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <valsorda@google.com>
-
+---
  src/crypto/rand/rand_getrandom.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/rand_getrandom.go b/src/crypto/rand/rand_getrandom.go
+index cb31a5687a..478aa5c459 100644
+--- a/src/crypto/rand/rand_getrandom.go
++++ b/src/crypto/rand/rand_getrandom.go
+@@ -21,7 +21,7 @@ func init() {
+ 		//     is returned by a single call to getrandom() on systems where int
+ 		//     has a size of 32 bits.
+ 		maxGetRandomRead = (1 << 25) - 1
+-	case "freebsd", "dragonfly", "solaris":
++	case "freebsd", "dragonfly", "solaris", "illumos":
+ 		maxGetRandomRead = 1 << 8
+ 	default:
+ 		panic("no maximum specified for GetRandom")

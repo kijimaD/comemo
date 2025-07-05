@@ -18,6 +18,20 @@ Date:   Tue Mar 27 11:16:10 2012 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/5927050
-
+---
  src/pkg/go/build/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 1c7c47231f..d749aef151 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -387,7 +387,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 				// but check that using it wouldn't find something
+ 				// else first.
+ 				if ctxt.GOROOT != "" {
+-					if dir := ctxt.joinPath(ctxt.GOROOT, "src", sub); ctxt.isDir(dir) {
++					if dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", sub); ctxt.isDir(dir) {
+ 						goto Found
+ 					}
+ 				}

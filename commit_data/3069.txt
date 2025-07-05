@@ -7,9 +7,131 @@ Date:   Mon Aug 24 15:20:37 2009 -0700
     R=ken
     OCL=33778
     CL=33781
-
+---
  src/cmd/5g/cgen.c      | 19 +++++++++++++++++++
  src/cmd/6g/cgen.c      | 20 ++++++++++++++++++++
  src/cmd/8g/cgen.c      | 19 +++++++++++++++++++
  src/cmd/gc/typecheck.c | 12 ++++++++++--
  4 files changed, 68 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index b58d491ac9..b99350c31c 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -790,6 +790,25 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 		}
++		
++		if(isinter(nl->type)) {
++			// front end shold only leave cmp to literal nil
++			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
++				yyerror("illegal interface comparison");
++				break;
++			}
++			a = optoas(a, types[tptr]);
++			regalloc(&n1, types[tptr], N);
++			agen(nl, &n1);
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = 0;
++			nodconst(&tmp, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			patch(gbranch(a, types[tptr]), to);
++			regfree(&n1);
++			break;
++		}
+ 
+ 		a = optoas(a, nr->type);
+ 
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d36c0e15da..fcdf7ead9a 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -743,6 +743,7 @@ bgen(Node *n, int true, Prog *to)
+ 		nl = n->left;
+ 		if(nl == N || nl->type == T)
+ 			goto ret;
++		break;
+ 	}
+ 
+ 	switch(n->op) {
+@@ -787,6 +788,25 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 		}
++		
++		if(isinter(nl->type)) {
++			// front end shold only leave cmp to literal nil
++			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
++				yyerror("illegal interface comparison");
++				break;
++			}
++			a = optoas(a, types[tptr]);
++			regalloc(&n1, types[tptr], N);
++			agen(nl, &n1);
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = 0;
++			nodconst(&tmp, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			patch(gbranch(a, types[tptr]), to);
++			regfree(&n1);
++			break;
++		}
+ 
+ 		a = optoas(a, nr->type);
+ 
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index db1986df98..94627f50be 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -838,6 +838,25 @@ bgen(Node *n, int true, Prog *to)
+ 			regfree(&n1);
+ 			break;
+ 		}
++		
++		if(isinter(nl->type)) {
++			// front end shold only leave cmp to literal nil
++			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
++				yyerror("illegal interface comparison");
++				break;
++			}
++			a = optoas(a, types[tptr]);
++			regalloc(&n1, types[tptr], N);
++			agen(nl, &n1);
++			n2 = n1;
++			n2.op = OINDREG;
++			n2.xoffset = 0;
++			nodconst(&tmp, types[tptr], 0);
++			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
++			patch(gbranch(a, types[tptr]), to);
++			regfree(&n1);
++			break;
++		}
+ 
+ 		if(isfloat[nr->type->etype]) {
+ 			nodreg(&tmp, nr->type, D_F0);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 43351796b7..9f0beb559f 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -323,8 +323,16 @@ reswitch:
+ 				n->op = OADDSTR;
+ 		}
+ 		if(et == TINTER) {
+-			n->etype = n->op;
+-			n->op = OCMPIFACE;
++			if(l->op == OLITERAL && l->val.ctype == CTNIL) {
++				// swap for back end
++				n->left = r;
++				n->right = l;
++			} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
++				// leave alone for back end
++			} else {
++				n->etype = n->op;
++				n->op = OCMPIFACE;
++			}
+ 		}
+ 		n->type = t;
+ 		goto ret;

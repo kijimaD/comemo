@@ -8,8 +8,76 @@ Date:   Tue Feb 3 16:59:26 2009 -0800
     DELTA=52  (15 added, 37 deleted, 0 changed)
     OCL=24274
     CL=24274
-
+---
  test/bugs/bug105.go                | 20 --------------------
  test/{bugs => fixedbugs}/bug041.go |  0
  test/golden.out                    | 12 +++---------
  3 files changed, 3 insertions(+), 29 deletions(-)
+
+diff --git a/test/bugs/bug105.go b/test/bugs/bug105.go
+deleted file mode 100644
+index bbafc039fa..0000000000
+--- a/test/bugs/bug105.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go || echo BUG: should compile
+-
+-package P
+-
+-var x int
+-
+-func f() int {
+-	return P.x  // P should be visible
+-}
+-
+-/*
+-uetli:~/Source/go1/test/bugs gri$ 6g bug105.go
+-bug105.go:8: P: undefined
+-bug105.go:9: illegal types for operand: RETURN
+-	(<int32>INT32)
+-*/
+diff --git a/test/bugs/bug041.go b/test/fixedbugs/bug041.go
+similarity index 100%
+rename from test/bugs/bug041.go
+rename to test/fixedbugs/bug041.go
+diff --git a/test/golden.out b/test/golden.out
+index 1074a9114f..6713ec2fcf 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -117,9 +117,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug041.go
+-bugs/bug041.go:5: export of incomplete type t
+-
+ =========== bugs/bug064.go
+ bugs/bug064.go:15: illegal types for operand: CALL
+ 	int
+@@ -135,12 +132,6 @@ bugs/bug087.go:8: illegal combination of literals LEN 9
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+ BUG: fails incorrectly
+ 
+-=========== bugs/bug105.go
+-bugs/bug105.go:8: P: undefined
+-bugs/bug105.go:8: illegal types for operand: RETURN
+-	int
+-BUG: should compile
+-
+ =========== bugs/bug108.go
+ bugs/bug108.go:4: stupid shift: 1025
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug108.go
+@@ -209,6 +200,9 @@ fixedbugs/bug037.go:6: illegal types for operand: AS
+ fixedbugs/bug039.go:6: variable x redeclared in this block
+ 	previous declaration at fixedbugs/bug039.go:5
+ 
++=========== fixedbugs/bug041.go
++fixedbugs/bug041.go:5: export of incomplete type t
++
+ =========== fixedbugs/bug049.go
+ fixedbugs/bug049.go:6: illegal conversion of nil to string
+ 

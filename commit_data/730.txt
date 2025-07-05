@@ -10,10 +10,779 @@ Date:   Thu Sep 25 15:14:26 2008 -0700
     R=r
     OCL=15881
     CL=15881
-
+---
  usr/gri/pretty/ast.go     |  39 ++++++++++++-
  usr/gri/pretty/parser.go  | 141 +++++++++++++++++++++++-----------------------
  usr/gri/pretty/pretty.go  |  16 ++++--
  usr/gri/pretty/printer.go |  97 +++++++++++++++++++++++--------
  usr/gri/pretty/scanner.go |  27 +++++++--
  5 files changed, 217 insertions(+), 103 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 0ec00709da..7cbd05c5c7 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -23,11 +23,13 @@ export type Visitor interface {
+ 	DoPointerType(x *PointerType);
+ 	
+ 	// Declarations
++	DoImportDecl(x *ImportDecl);
+ 	DoConstDecl(x *ConstDecl);
+ 	DoTypeDecl(x *TypeDecl);
+ 	DoVarDecl(x *VarDecl);
+ 	DoVarDeclList(x *VarDeclList);
+ 	DoFuncDecl(x *FuncDecl);
++	DoMethodDecl(x *MethodDecl);
+ 	DoDeclaration(x *Declaration);
+ 	
+ 	// Expressions
+@@ -40,6 +42,7 @@ export type Visitor interface {
+ 	DoSelector(x *Selector);
+ 	
+ 	// Statements
++	DoLabel(x *Label);
+ 	DoBlock(x *Block);
+ 	DoExprStat(x *ExprStat);
+ 	DoAssignment(x *Assignment);
+@@ -50,7 +53,8 @@ export type Visitor interface {
+ 	DoReturnStat(x *ReturnStat);
+ 	DoIncDecStat(x *IncDecStat);
+ 	DoControlFlowStat(x *ControlFlowStat);
+-	
++	DoGoStat(x *GoStat);
++
+ 	// Program
+ 	DoProgram(x *Program);
+ }
+@@ -71,7 +75,7 @@ export type Node interface {
+ // Thus, empty lists can be represented by nil.
+ 
+ export type List struct {
+-	a *[] Node
++	a *[] Node;
+ }
+ 
+ 
+@@ -176,6 +180,8 @@ export type PointerType struct {
+ 
+ 
+ export type InterfaceType struct {
++	pos int;  // position of "interface"
++	methods *List;  // list of *MethodDecl
+ }
+ 
+ 
+@@ -210,6 +216,12 @@ export type VarDeclList struct {
+ }
+ 
+ 
++export type ImportDecl struct {
++	ident *Ident;
++	file string;
++}
++
++
+ export type ConstDecl struct {
+ 	ident *Ident;
+ 	typ Type;
+@@ -245,11 +257,19 @@ export type FuncDecl struct {
+ }
+ 
+ 
++export type MethodDecl struct {
++	ident *Ident;
++	typ *FunctionType;
++}
++
++
+ func (x *VarDeclList)  Visit(v Visitor)  { v.DoVarDeclList(x); }
++func (x *ImportDecl)   Visit(v Visitor)  { v.DoImportDecl(x); }
+ func (x *ConstDecl)    Visit(v Visitor)  { v.DoConstDecl(x); }
+ func (x *TypeDecl)     Visit(v Visitor)  { v.DoTypeDecl(x); }
+ func (x *VarDecl)      Visit(v Visitor)  { v.DoVarDecl(x); }
+ func (x *FuncDecl)     Visit(v Visitor)  { v.DoFuncDecl(x); }
++func (x *MethodDecl)   Visit(v Visitor)  { v.DoMethodDecl(x); }
+ func (x *Declaration)  Visit(v Visitor)  { v.DoDeclaration(x); }
+ 
+ 
+@@ -321,6 +341,12 @@ export type Stat interface {
+ }
+ 
+ 
++export type Label struct {
++	pos int;  // position of ":"
++	ident Expr;  // should be ident
++}
++
++
+ export type Block struct {
+ 	pos int;  // position of "{"
+ 	stats *List;
+@@ -398,7 +424,14 @@ export type ControlFlowStat struct {
+ }
+ 
+ 
++export type GoStat struct {
++	pos int;  // position of "go"
++	expr Expr;
++}
++
++
+ func (x *Block)            Visit(v Visitor)  { v.DoBlock(x); }
++func (x *Label)            Visit(v Visitor)  { v.DoLabel(x); }
+ func (x *ExprStat)         Visit(v Visitor)  { v.DoExprStat(x); }
+ func (x *Assignment)       Visit(v Visitor)  { v.DoAssignment(x); }
+ func (x *IfStat)           Visit(v Visitor)  { v.DoIfStat(x); }
+@@ -408,6 +441,8 @@ func (x *SwitchStat)       Visit(v Visitor)  { v.DoSwitchStat(x); }
+ func (x *ReturnStat)       Visit(v Visitor)  { v.DoReturnStat(x); }
+ func (x *IncDecStat)       Visit(v Visitor)  { v.DoIncDecStat(x); }
+ func (x *ControlFlowStat)  Visit(v Visitor)  { v.DoControlFlowStat(x); }
++func (x *GoStat)           Visit(v Visitor)  { v.DoGoStat(x); }
++
+ 
+ // ----------------------------------------------------------------------------
+ // Program
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index d272b0bebf..c20f8f8d7c 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -251,12 +251,12 @@ func (P *Parser) ParseChannelType() *AST.ChannelType {
+ func (P *Parser) ParseVarDeclList() *AST.VarDeclList {
+ 	P.Trace("VarDeclList");
+ 	
+-	res := new(AST.VarDeclList);
+-	res.idents = P.ParseIdentList();
+-	res.typ = P.ParseVarType();
++	vars := new(AST.VarDeclList);
++	vars.idents = P.ParseIdentList();
++	vars.typ = P.ParseVarType();
+ 	
+ 	P.Ecart();
+-	return res;
++	return vars;
+ }
+ 
+ 
+@@ -355,33 +355,39 @@ func (P *Parser) ParseFunctionType() *AST.FunctionType {
+ }
+ 
+ 
+-func (P *Parser) ParseMethodDecl() {
++func (P *Parser) ParseMethodDecl() *AST.MethodDecl {
+ 	P.Trace("MethodDecl");
+ 	
+-	ident := P.ParseIdent();
+-	P.ParseFunctionType();
++	decl := new(AST.MethodDecl);
++	decl.ident = P.ParseIdent();
++	decl.typ = P.ParseFunctionType();
+ 	P.Optional(Scanner.SEMICOLON);
+ 	
+ 	P.Ecart();
++	return decl;
+ }
+ 
+ 
+ func (P *Parser) ParseInterfaceType() *AST.InterfaceType {
+ 	P.Trace("InterfaceType");
+ 	
++	typ := new(AST.InterfaceType);
++	typ.pos = P.pos;
++	typ.methods = AST.NewList();
++	
+ 	P.Expect(Scanner.INTERFACE);
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+ 	P.level--;
+-	for P.tok >= Scanner.IDENT {
+-		P.ParseMethodDecl();
++	for P.tok == Scanner.IDENT {
++		typ.methods.Add(P.ParseMethodDecl());
+ 	}
+ 	P.level++;
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+ 	
+ 	P.Ecart();
+-	return nil;
++	return typ;
+ }
+ 
+ 
+@@ -413,7 +419,7 @@ func (P *Parser) ParseStructType() *AST.StructType {
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+ 	P.level--;
+-	for P.tok >= Scanner.IDENT {
++	for P.tok == Scanner.IDENT {
+ 		typ.fields.Add(P.ParseVarDeclList());
+ 		if P.tok != Scanner.RBRACE {
+ 			P.Expect(Scanner.SEMICOLON);
+@@ -505,23 +511,21 @@ func (P *Parser) ParseStatementList() *AST.List {
+ func (P *Parser) ParseBlock() *AST.Block {
+ 	P.Trace("Block");
+ 	
+-	pos := P.pos;
++	block := new(AST.Block);
++	block.pos = P.pos;
++	
+ 	P.Expect(Scanner.LBRACE);
+ 	P.OpenScope();
+ 	
+-	var stats *AST.List;
+ 	if P.tok != Scanner.RBRACE && P.tok != Scanner.SEMICOLON {
+-		stats = P.ParseStatementList();
++		block.stats = P.ParseStatementList();
+ 	}
+ 	P.Optional(Scanner.SEMICOLON);
+ 	P.CloseScope();
+ 	P.Expect(Scanner.RBRACE);
+ 	
+ 	P.Ecart();
+-	
+-	x := new(AST.Block);
+-	x.pos, x.stats = pos, stats;
+-	return x;
++	return block;
+ }
+ 
+ 
+@@ -619,36 +623,37 @@ func (P *Parser) ParseCompositeLit() AST.Expr {
+ func (P *Parser) ParseOperand() AST.Expr {
+ 	P.Trace("Operand");
+ 
+-	var z AST.Expr;
++	var op AST.Expr;
++
+ 	switch P.tok {
+ 	case Scanner.IDENT:
+-		z = P.ParseIdent();
++		op = P.ParseIdent();
+ 		
+ 	case Scanner.LPAREN:
+ 		P.Next();
+-		z = P.ParseExpression();
++		op = P.ParseExpression();
+ 		P.Expect(Scanner.RPAREN);
+ 
+ 	case Scanner.INT, Scanner.FLOAT, Scanner.STRING:
+-		x := new(AST.Literal);
+-		x.pos, x.tok, x.val = P.pos, P.tok, P.val;
+-		z = x;
++		lit := new(AST.Literal);
++		lit.pos, lit.tok, lit.val = P.pos, P.tok, P.val;
++		op = lit;
+ 		P.Next();
+ 
+ 	case Scanner.FUNC:
+-		z = P.ParseFunctionLit();
++		op = P.ParseFunctionLit();
+ 		
+ 	case Scanner.HASH:
+ 		P.Next();
+ 		P.ParseType();
+ 		P.ParseCompositeLit();
+-		z = nil;
++		op = AST.NIL;
+ 
+ 	default:
+ 		if P.tok != Scanner.IDENT {
+ 			typ, ok := P.TryType();
+ 			if ok {
+-				z = P.ParseCompositeLit();
++				op = P.ParseCompositeLit();
+ 				break;
+ 			}
+ 		}
+@@ -658,7 +663,7 @@ func (P *Parser) ParseOperand() AST.Expr {
+ 	}
+ 
+ 	P.Ecart();
+-	return z;
++	return op;
+ }
+ 
+ 
+@@ -789,32 +794,12 @@ func (P *Parser) ParseUnaryExpr() AST.Expr {
+ }
+ 
+ 
+-func Precedence(tok int) int {
+-	// TODO should use a map or array here for lookup
+-	switch tok {
+-	case Scanner.LOR:
+-		return 1;
+-	case Scanner.LAND:
+-		return 2;
+-	case Scanner.ARROW:
+-		return 3;
+-	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
+-		return 4;
+-	case Scanner.ADD, Scanner.SUB, Scanner.OR, Scanner.XOR:
+-		return 5;
+-	case Scanner.MUL, Scanner.QUO, Scanner.REM, Scanner.SHL, Scanner.SHR, Scanner.AND:
+-		return 6;
+-	}
+-	return 0;
+-}
+-
+-
+ func (P *Parser) ParseBinaryExpr(prec1 int) AST.Expr {
+ 	P.Trace("BinaryExpr");
+ 	
+ 	x := P.ParseUnaryExpr();
+-	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+-		for Precedence(P.tok) == prec {
++	for prec := Scanner.Precedence(P.tok); prec >= prec1; prec-- {
++		for Scanner.Precedence(P.tok) == prec {
+ 			pos, tok := P.pos, P.tok;
+ 			P.Next();
+ 			y := P.ParseBinaryExpr(prec + 1);
+@@ -857,7 +842,16 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
+ 	switch P.tok {
+ 	case Scanner.COLON:
+ 		// label declaration
++		l := new(AST.Label);
++		l.pos = P.pos;
++		if x.len() == 1 {
++			l.ident = x.at(0);
++		} else {
++			P.Error(P.pos, "illegal label declaration");
++			l.ident = AST.NIL;
++		}
+ 		P.Next();  // consume ":"
++		stat = l;
+ 		
+ 	case
+ 		Scanner.DEFINE, Scanner.ASSIGN, Scanner.ADD_ASSIGN,
+@@ -867,9 +861,9 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
+ 		pos, tok := P.pos, P.tok;
+ 		P.Next();
+ 		y := P.ParseExpressionList();
+-		asgn := new(AST.Assignment);
+-		asgn.pos, asgn.tok, asgn.lhs, asgn.rhs = pos, tok, x, y;
+-		stat = asgn;
++		a := new(AST.Assignment);
++		a.pos, a.tok, a.lhs, a.rhs = pos, tok, x, y;
++		stat = a;
+ 		
+ 	default:
+ 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
+@@ -883,14 +877,14 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
+ 			P.Next();
+ 			stat = s;
+ 		} else {
+-			xstat := new(AST.ExprStat);
++			s := new(AST.ExprStat);
+ 			if x != nil && x.len() > 0 {
+-				xstat.expr = x.at(0);
++				s.expr = x.at(0);
+ 			} else {
+ 				// this is a syntax error
+-				xstat.expr = AST.NIL;
++				s.expr = AST.NIL;
+ 			}
+-			stat = xstat;
++			stat = s;
+ 		}
+ 	}
+ 	
+@@ -899,13 +893,17 @@ func (P *Parser) ParseSimpleStat() AST.Stat {
+ }
+ 
+ 
+-func (P *Parser) ParseGoStat() {
++func (P *Parser) ParseGoStat() *AST.GoStat {
+ 	P.Trace("GoStat");
+ 	
++	stat := new(AST.GoStat);
++	stat.pos = P.pos;
++	
+ 	P.Expect(Scanner.GO);
+-	P.ParseExpression();
++	stat.expr = P.ParseExpression();
+ 	
+ 	P.Ecart();
++	return stat;
+ }
+ 
+ 
+@@ -1155,7 +1153,7 @@ func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
+ 	case Scanner.MUL, Scanner.ARROW, Scanner.IDENT, Scanner.LPAREN:
+ 		stat = P.ParseSimpleStat();
+ 	case Scanner.GO:
+-		P.ParseGoStat();
++		stat = P.ParseGoStat();
+ 	case Scanner.RETURN:
+ 		stat = P.ParseReturnStat();
+ 	case Scanner.BREAK, Scanner.CONTINUE, Scanner.GOTO:
+@@ -1188,24 +1186,28 @@ func (P *Parser) TryStatement() (stat_ AST.Stat, ok_ bool) {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-func (P *Parser) ParseImportSpec() {
++func (P *Parser) ParseImportSpec() *AST.ImportDecl {
+ 	P.Trace("ImportSpec");
+ 	
++	decl := new(AST.ImportDecl);
++
+ 	if P.tok == Scanner.PERIOD {
+ 		P.Error(P.pos, `"import ." not yet handled properly`);
+ 		P.Next();
+ 	} else if P.tok == Scanner.IDENT {
+-		P.ParseIdent();
++		decl.ident = P.ParseIdent();
+ 	}
+ 	
+ 	if P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
++		decl.file = P.val;
+ 		P.Next();
+ 	} else {
+ 		P.Expect(Scanner.STRING);  // use Expect() error handling
+ 	}
+ 	
+ 	P.Ecart();
++	return decl;
+ }
+ 
+ 
+@@ -1262,15 +1264,14 @@ func (P *Parser) ParseVarSpec(exported bool) *AST.VarDecl {
+ 
+ // TODO Replace this by using function pointers derived from methods.
+ func (P *Parser) ParseSpec(exported bool, keyword int) AST.Decl {
+-	var decl AST.Decl = AST.NIL;
+ 	switch keyword {
+-	case Scanner.IMPORT: P.ParseImportSpec();
+-	case Scanner.CONST: decl = P.ParseConstSpec(exported);
+-	case Scanner.TYPE: decl = P.ParseTypeSpec(exported);
+-	case Scanner.VAR: decl = P.ParseVarSpec(exported);
+-	default: panic("UNREACHABLE");
++	case Scanner.IMPORT: return P.ParseImportSpec();
++	case Scanner.CONST: return P.ParseConstSpec(exported);
++	case Scanner.TYPE: return P.ParseTypeSpec(exported);
++	case Scanner.VAR: return P.ParseVarSpec(exported);
+ 	}
+-	return decl;
++	panic("UNREACHABLE");
++	return AST.NIL;
+ }
+ 
+ 
+@@ -1440,7 +1441,7 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 		}
+ 		
+ 		for P.tok == Scanner.IMPORT {
+-			P.ParseDecl(false, Scanner.IMPORT);
++			decls.Add(P.ParseDecl(false, Scanner.IMPORT));
+ 			P.Optional(Scanner.SEMICOLON);
+ 		}
+ 		
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 18b0adfac0..ab52cfe569 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -40,11 +40,14 @@ func main() {
+ 
+ 	    src, ok := Platform.ReadSourceFile(src_file);
+ 	    if !ok {
+-                print("cannot open ", src_file, "\n");
+-                return;
+-            }
++			print("cannot open ", src_file, "\n");
++			sys.exit(1);
++		}
++
++		if silent.BVal() {
++			print("- ", src_file, "\n");
++		}
+ 
+-	    print("- ", src_file, "\n");
+ 	    scanner := new(Scanner.Scanner);
+             scanner.Open(src_file, src);
+ 
+@@ -57,6 +60,11 @@ func main() {
+ 	    parser.Open(verbose.BVal(), scanner, tstream);
+ 
+ 	    prog := parser.ParseProgram();
++		
++		if scanner.nerrors > 0 {
++			sys.exit(1);
++		}
++		
+ 		if !silent.BVal() {
+ 			Printer.Print(prog);
+ 		}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 7438c57b5a..7ab363da5b 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -11,6 +11,7 @@ import AST "ast"
+ // Printer implements AST.Visitor
+ type Printer struct {
+ 	indent int;
++	prec int;  // operator precedence
+ }
+ 
+ 
+@@ -32,7 +33,10 @@ func (P *Printer) String(s string) {
+ 
+ 
+ func (P *Printer) Print(x AST.Node) {
++	outer := P.prec;
++	P.prec = 0;
+ 	x.Visit(P);
++	P.prec = outer;
+ }
+ 
+ 
+@@ -63,14 +67,9 @@ func (P *Printer) DoIdent(x *AST.Ident) {
+ // Types
+ 
+ func (P *Printer) DoFunctionType(x *AST.FunctionType) {
+-	/*
+-	if x.recv != nil {
+-		P.DoVarDeclList(x.recv);
+-	}
+-	*/
+ 	P.String("(");
+ 	P.PrintList(x.params);
+-	P.String(") ");
++	P.String(")");
+ }
+ 
+ 
+@@ -100,6 +99,10 @@ func (P *Printer) DoStructType(x *AST.StructType) {
+ 
+ 
+ func (P *Printer) DoMapType(x *AST.MapType) {
++	P.String("[");
++	P.Print(x.key);
++	P.String("] ");
++	P.Print(x.val);
+ }
+ 
+ 
+@@ -110,6 +113,19 @@ func (P *Printer) DoChannelType(x *AST.ChannelType) {
+ 
+ 
+ func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
++	P.String("interface {");
++	if x.methods.len() > 0 {
++		P.NewLine(1);
++		for i := 0; i < x.methods.len(); i++ {
++			if i > 0 {
++				P.NewLine(0);
++			}
++			P.Print(x.methods.at(i));
++			P.String(";");
++		}
++		P.NewLine(-1);
++	}
++	P.String("}");
+ }
+ 
+ 
+@@ -125,6 +141,15 @@ func (P *Printer) DoPointerType(x *AST.PointerType) {
+ func (P *Printer) DoBlock(x *AST.Block);
+ 
+ 
++func (P *Printer) DoImportDecl(x *AST.ImportDecl) {
++	if x.ident != nil {
++		P.Print(x.ident);
++		P.String(" ");
++	}
++	P.String(x.file);
++}
++
++
+ func (P *Printer) DoConstDecl(x *AST.ConstDecl) {
+ 	P.Print(x.ident);
+ 	P.String(" ");
+@@ -168,6 +193,7 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
+ 	}
+ 	P.DoIdent(x.ident);
+ 	P.DoFunctionType(x.typ);
++	P.String(" ");
+ 	if x.body != nil {
+ 		P.DoBlock(x.body);
+ 	} else {
+@@ -179,6 +205,12 @@ func (P *Printer) DoFuncDecl(x *AST.FuncDecl) {
+ }
+ 
+ 
++func (P *Printer) DoMethodDecl(x *AST.MethodDecl) {
++	P.DoIdent(x.ident);
++	P.DoFunctionType(x.typ);
++}
++
++
+ func (P *Printer) DoDeclaration(x *AST.Declaration) {
+ 	P.String(Scanner.TokenName(x.tok));
+ 	P.String(" ");
+@@ -208,11 +240,22 @@ func (P *Printer) DoDeclaration(x *AST.Declaration) {
+ // Expressions
+ 
+ func (P *Printer) DoBinary(x *AST.Binary) {
+-	print("(");
++	outer := P.prec;
++	P.prec = Scanner.Precedence(x.tok);
++	
++	if P.prec < outer {
++		print("(");
++	}
++	
+ 	P.Print(x.x);
+ 	P.String(" " + Scanner.TokenName(x.tok) + " ");
+ 	P.Print(x.y);
+-	print(")");
++	
++	if P.prec < outer {
++		print(")");
++	}
++
++	P.prec = outer; 
+ }
+ 
+ 
+@@ -261,27 +304,30 @@ func (P *Printer) DoSelector(x *AST.Selector) {
+ // Statements
+ 
+ func (P *Printer) DoBlock(x *AST.Block) {
+-	if x == nil || x.stats == nil {
+-		P.NewLine(0);
+-		return;
+-	}
+-
+ 	P.String("{");
+-	P.NewLine(1);
+-	for i := 0; i < x.stats.len(); i++ {
+-		if i > 0 {
+-			P.NewLine(0);
++	if x.stats != nil {
++		P.NewLine(1);
++		for i := 0; i < x.stats.len(); i++ {
++			if i > 0 {
++				P.NewLine(0);
++			}
++			P.Print(x.stats.at(i));
+ 		}
+-		P.Print(x.stats.at(i));
++		P.NewLine(-1);
+ 	}
+-	P.NewLine(-1);
+ 	P.String("}");
+ }
+ 
+ 
++func (P *Printer) DoLabel(x *AST.Label) {
++	P.Print(x.ident);
++	P.String(":");
++}
++
++
+ func (P *Printer) DoExprStat(x *AST.ExprStat) {
+ 	P.Print(x.expr);
+-	P.String(";");
++	//P.String(";");
+ }
+ 
+ 
+@@ -289,7 +335,7 @@ func (P *Printer) DoAssignment(x *AST.Assignment) {
+ 	P.PrintList(x.lhs);
+ 	P.String(" " + Scanner.TokenName(x.tok) + " ");
+ 	P.PrintList(x.rhs);
+-	P.String(";");
++	//P.String(";");
+ }
+ 
+ 
+@@ -401,7 +447,7 @@ func (P *Printer) DoReturnStat(x *AST.ReturnStat) {
+ func (P *Printer) DoIncDecStat(x *AST.IncDecStat) {
+ 	P.Print(x.expr);
+ 	P.String(Scanner.TokenName(x.tok));
+-	P.String(";");
++	//P.String(";");
+ }
+ 
+ 
+@@ -415,6 +461,13 @@ func (P *Printer) DoControlFlowStat(x *AST.ControlFlowStat) {
+ }
+ 
+ 
++func (P *Printer) DoGoStat(x *AST.GoStat) {
++	P.String("go ");
++	P.Print(x.expr);
++	P.String(";");
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index cb2d419518..60dfa1c621 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -11,6 +11,7 @@ import Utils "utils"
+ export const (
+ 	ILLEGAL = iota;
+ 	EOF;
++	IDENT;
+ 	INT;
+ 	FLOAT;
+ 	STRING;
+@@ -73,9 +74,6 @@ export const (
+ 	LAND;
+ 	LOR;
+ 	
+-	// IDENT must be immediately before keywords
+-	IDENT;
+-
+ 	// keywords
+ 	KEYWORDS_BEG;
+ 	BREAK;
+@@ -115,6 +113,7 @@ export func TokenName(tok int) string {
+ 	switch (tok) {
+ 	case ILLEGAL: return "illegal";
+ 	case EOF: return "eof";
++	case IDENT: return "ident";
+ 	case INT: return "int";
+ 	case FLOAT: return "float";
+ 	case STRING: return "string";
+@@ -177,8 +176,6 @@ export func TokenName(tok int) string {
+ 	case LAND: return "&&";
+ 	case LOR: return "||";
+ 
+-	case IDENT: return "ident";
+-
+ 	case BREAK: return "break";
+ 	case CASE: return "case";
+ 	case CHAN: return "chan";
+@@ -210,6 +207,26 @@ export func TokenName(tok int) string {
+ }
+ 
+ 
++export func Precedence(tok int) int {
++	// TODO should use a map or array here for lookup
++	switch tok {
++	case LOR:
++		return 1;
++	case LAND:
++		return 2;
++	case ARROW:
++		return 3;
++	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
++		return 4;
++	case ADD, SUB, OR, XOR:
++		return 5;
++	case MUL, QUO, REM, SHL, SHR, AND:
++		return 6;
++	}
++	return 0;
++}
++
++
+ func init() {
+ 	Keywords = new(map [string] int);
+ 	

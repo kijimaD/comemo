@@ -32,7 +32,57 @@ Date:   Thu Oct 29 19:16:20 2015 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Klaus Post <klauspost@gmail.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go | 18 ++++++++++++++++++
  src/math/expm1.go    |  2 +-
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 4838ffc5e1..968a7b1837 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -234,6 +234,18 @@ var expm1 = []float64{
+ 	1.842068661871398836913874273e-02,
+ 	-8.3193870863553801814961137573e-02,
+ }
++var expm1Large = []float64{
++	4.2031418113550844e+21,
++	4.0690789717473863e+33,
++	-0.9372627915981363e+00,
++	-1.0,
++	7.077694784145933e+41,
++	5.117936223839153e+12,
++	5.124137759001189e+22,
++	7.03546003972584e+11,
++	8.456921800389698e+07,
++	-1.0,
++}
+ var exp2 = []float64{
+ 	3.1537839463286288034313104e+01,
+ 	2.1361549283756232296144849e+02,
+@@ -1987,6 +1999,12 @@ func TestExpm1(t *testing.T) {
+ 			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1[i])
+ 		}
+ 	}
++	for i := 0; i < len(vf); i++ {
++		a := vf[i] * 10
++		if f := Expm1(a); !close(expm1Large[i], f) {
++			t.Errorf("Expm1(%g) = %g, want %g", a, f, expm1Large[i])
++		}
++	}
+ 	for i := 0; i < len(vfexpm1SC); i++ {
+ 		if f := Expm1(vfexpm1SC[i]); !alike(expm1SC[i], f) {
+ 			t.Errorf("Expm1(%g) = %g, want %g", vfexpm1SC[i], f, expm1SC[i])
+diff --git a/src/math/expm1.go b/src/math/expm1.go
+index 064e131161..670b96de5e 100644
+--- a/src/math/expm1.go
++++ b/src/math/expm1.go
+@@ -227,7 +227,7 @@ func expm1(x float64) float64 {
+ 			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+ 			return y
+ 		}
+-		t := Float64frombits(uint64((0x3ff - k) << 52)) // 2**-k
++		t := Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
+ 		y := x - (e + t)
+ 		y += 1
+ 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent

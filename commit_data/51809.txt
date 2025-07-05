@@ -12,7 +12,54 @@ Date:   Tue Mar 8 09:51:29 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/fmt/doc.go       | 4 ++++
  src/strconv/quote.go | 6 ++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index f14a7a73e3..6b49deda87 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -110,6 +110,10 @@ For complex numbers, the width and precision apply to the two
+ components independently and the result is parenthesized, so %f applied
+ to 1.2+3.4i produces (1.200000+3.400000i).
+ 
++When formatting a single integer code point or a rune string (type []rune)
++with %q, invalid Unicode code points are changed to the Unicode replacement
++character, U+FFFD, as in strconv.QuoteRune.
++
+ Other flags:
+ 	+	always print a sign for numeric values;
+ 		guarantee ASCII-only output for %q (%+q)
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index d2814b92da..9d20b75a58 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -165,6 +165,8 @@ func AppendQuoteToGraphic(dst []byte, s string) []byte {
+ // QuoteRune returns a single-quoted Go character literal representing the
+ // rune. The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
+ // for control characters and non-printable characters as defined by IsPrint.
++// If r is not a valid Unicode code point, it is interpreted as the Unicode
++// replacement character U+FFFD.
+ func QuoteRune(r rune) string {
+ 	return quoteRuneWith(r, '\'', false, false)
+ }
+@@ -179,6 +181,8 @@ func AppendQuoteRune(dst []byte, r rune) []byte {
+ // the rune. The returned string uses Go escape sequences (\t, \n, \xFF,
+ // \u0100) for non-ASCII characters and non-printable characters as defined
+ // by IsPrint.
++// If r is not a valid Unicode code point, it is interpreted as the Unicode
++// replacement character U+FFFD.
+ func QuoteRuneToASCII(r rune) string {
+ 	return quoteRuneWith(r, '\'', true, false)
+ }
+@@ -193,6 +197,8 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
+ // the rune. If the rune is not a Unicode graphic character,
+ // as defined by IsGraphic, the returned string will use a Go escape sequence
+ // (\t, \n, \xFF, \u0100).
++// If r is not a valid Unicode code point, it is interpreted as the Unicode
++// replacement character U+FFFD.
+ func QuoteRuneToGraphic(r rune) string {
+ 	return quoteRuneWith(r, '\'', false, true)
+ }

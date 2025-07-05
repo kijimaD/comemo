@@ -30,7 +30,66 @@ Date:   Mon Dec 13 16:15:52 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/371534
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/decl.go | 24 ++++++++++++++----------
  test/typeparam/issue50147.go           | 11 +++++++++++
  2 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index b7fd95e2e8..df1ca1c505 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -286,22 +286,26 @@ func (g *irgen) varDecl(out *ir.Nodes, decl *syntax.VarDecl) {
+ 				} else if ir.CurFunc == nil {
+ 					name.Defn = as
+ 				}
+-				lhs := []ir.Node{as.X}
+-				rhs := []ir.Node{}
+-				if as.Y != nil {
+-					rhs = []ir.Node{as.Y}
+-				}
+-				transformAssign(as, lhs, rhs)
+-				as.X = lhs[0]
+-				if as.Y != nil {
+-					as.Y = rhs[0]
++				if !g.delayTransform() {
++					lhs := []ir.Node{as.X}
++					rhs := []ir.Node{}
++					if as.Y != nil {
++						rhs = []ir.Node{as.Y}
++					}
++					transformAssign(as, lhs, rhs)
++					as.X = lhs[0]
++					if as.Y != nil {
++						as.Y = rhs[0]
++					}
+ 				}
+ 				as.SetTypecheck(1)
+ 				out.Append(as)
+ 			}
+ 		}
+ 		if as2 != nil {
+-			transformAssign(as2, as2.Lhs, as2.Rhs)
++			if !g.delayTransform() {
++				transformAssign(as2, as2.Lhs, as2.Rhs)
++			}
+ 			as2.SetTypecheck(1)
+ 			out.Append(as2)
+ 		}
+diff --git a/test/typeparam/issue50147.go b/test/typeparam/issue50147.go
+new file mode 100644
+index 0000000000..2bdce6c504
+--- /dev/null
++++ b/test/typeparam/issue50147.go
+@@ -0,0 +1,11 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func Foo[T any, U interface{ *T }](x T) {
++	var _ U = &x
++}

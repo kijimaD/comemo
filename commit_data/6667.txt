@@ -9,9 +9,141 @@ Date:   Sat Oct 30 23:06:49 2010 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/2728043
-
+---
  src/pkg/os/os_test.go                   | 24 ++++++++++++++++++++++++
  src/pkg/syscall/syscall_windows.go      | 16 ++++++++++++++++
  src/pkg/syscall/zsyscall_windows_386.go | 20 ++++++++++++++++++--
  src/pkg/syscall/ztypes_windows_386.go   |  2 ++
  4 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index eacb0f71f5..0bbb686e18 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -861,3 +861,27 @@ func TestAppend(t *testing.T) {
+ 		t.Fatalf("writeFile: have %q want %q", s, "new|append")
+ 	}
+ }
++
++func TestStatDirWithTrailingSlash(t *testing.T) {
++	// Create new dir, in _obj so it will get
++	// cleaned up by make if not by us.
++	path := "_obj/_TestStatDirWithSlash_"
++	err := MkdirAll(path, 0777)
++	if err != nil {
++		t.Fatalf("MkdirAll %q: %s", path, err)
++	}
++
++	// Stat of path should succeed.
++	_, err = Stat(path)
++	if err != nil {
++		t.Fatal("stat failed:", err)
++	}
++
++	// Stat of path+"/" should succeed too.
++	_, err = Stat(path + "/")
++	if err != nil {
++		t.Fatal("stat failed:", err)
++	}
++
++	RemoveAll("_obj/_TestMkdirAll_")
++}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index d42103bc28..049e9e29b3 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -144,6 +144,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
+ //sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
+ //sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int)
++//sys	GetFileAttributes(name *uint16) (attrs uint32, errno int) [failretval=INVALID_FILE_ATTRIBUTES] = kernel32.GetFileAttributesW
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -302,6 +303,21 @@ func getStdHandle(h int32) (fd int) {
+ }
+ 
+ func Stat(path string, stat *Stat_t) (errno int) {
++	// Remove trailing slash.
++	if path[len(path)-1] == '/' || path[len(path)-1] == '\\' {
++		// Check if we're given root directory ("\" or "c:\").
++		if len(path) == 1 || (len(path) == 3 && path[1] == ':') {
++			// TODO(brainman): Perhaps should fetch other fields, not just FileAttributes.
++			stat.Windata = Win32finddata{}
++			a, e := GetFileAttributes(StringToUTF16Ptr(path))
++			if e != 0 {
++				return e
++			}
++			stat.Windata.FileAttributes = a
++			return 0
++		}
++		path = path[:len(path)-1]
++	}
+ 	h, e := FindFirstFile(StringToUTF16Ptr(path), &stat.Windata)
+ 	if e != 0 {
+ 		return e
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 292d0e32ea..6837de1208 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -60,6 +60,7 @@ var (
+ 	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
+ 	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
+ 	procSetFileTime                = getSysProcAddr(modkernel32, "SetFileTime")
++	procGetFileAttributesW         = getSysProcAddr(modkernel32, "GetFileAttributesW")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -683,7 +684,7 @@ func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno
+ 
+ func OpenProcess(da uint32, b int, pid uint32) (handle uint32, errno int) {
+ 	r0, _, e1 := Syscall(procOpenProcess, uintptr(da), uintptr(b), uintptr(pid))
+-	handle = (uint32)(r0)
++	handle = uint32(r0)
+ 	if handle == 0 {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -698,7 +699,7 @@ func OpenProcess(da uint32, b int, pid uint32) (handle uint32, errno int) {
+ 
+ func GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int) {
+ 	r0, _, e1 := Syscall(procGetExitCodeProcess, uintptr(h), uintptr(unsafe.Pointer(c)), 0)
+-	ok = (bool)(r0 != 0)
++	ok = bool(r0 != 0)
+ 	if !ok {
+ 		if e1 != 0 {
+ 			errno = int(e1)
+@@ -786,6 +787,21 @@ func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime
+ 	return
+ }
+ 
++func GetFileAttributes(name *uint16) (attrs uint32, errno int) {
++	r0, _, e1 := Syscall(procGetFileAttributesW, uintptr(unsafe.Pointer(name)), 0, 0)
++	attrs = uint32(r0)
++	if attrs == INVALID_FILE_ATTRIBUTES {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 4e54ee6cda..a874d9fc7a 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -66,6 +66,8 @@ const (
+ 	FILE_ATTRIBUTE_ARCHIVE   = 0x00000020
+ 	FILE_ATTRIBUTE_NORMAL    = 0x00000080
+ 
++	INVALID_FILE_ATTRIBUTES = 0xffffffff
++
+ 	CREATE_NEW        = 1
+ 	CREATE_ALWAYS     = 2
+ 	OPEN_EXISTING     = 3

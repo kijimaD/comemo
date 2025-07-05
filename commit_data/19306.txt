@@ -10,8 +10,94 @@ Date:   Fri May 9 15:40:55 2014 -0400
     R=golang-codereviews
     CC=agl, bradfitz, golang-codereviews
     https://golang.org/cl/91320043
-
+---
  src/pkg/crypto/aes/aes_test.go   | 28 ++++++++++++++++++++++++++++
  src/pkg/crypto/aes/cipher.go     | 12 ++++++++++++
  src/pkg/crypto/aes/cipher_asm.go |  2 ++
  3 files changed, 42 insertions(+)
+
+diff --git a/src/pkg/crypto/aes/aes_test.go b/src/pkg/crypto/aes/aes_test.go
+index 6261dd09fb..363180931c 100644
+--- a/src/pkg/crypto/aes/aes_test.go
++++ b/src/pkg/crypto/aes/aes_test.go
+@@ -354,6 +354,34 @@ func TestCipherDecrypt(t *testing.T) {
+ 	}
+ }
+ 
++// Test short input/output.
++// Assembly used to not notice.
++// See issue 7928.
++func TestShortBlocks(t *testing.T) {
++	bytes := func(n int) []byte { return make([]byte, n) }
++
++	c, _ := NewCipher(bytes(16))
++
++	mustPanic(t, "crypto/aes: input not full block", func() { c.Encrypt(bytes(1), bytes(1)) })
++	mustPanic(t, "crypto/aes: input not full block", func() { c.Decrypt(bytes(1), bytes(1)) })
++	mustPanic(t, "crypto/aes: input not full block", func() { c.Encrypt(bytes(100), bytes(1)) })
++	mustPanic(t, "crypto/aes: input not full block", func() { c.Decrypt(bytes(100), bytes(1)) })
++	mustPanic(t, "crypto/aes: output not full block", func() { c.Encrypt(bytes(1), bytes(100)) })
++	mustPanic(t, "crypto/aes: output not full block", func() { c.Decrypt(bytes(1), bytes(100)) })
++}
++
++func mustPanic(t *testing.T, msg string, f func()) {
++	defer func() {
++		err := recover()
++		if err == nil {
++			t.Errorf("function did not panic, wanted %q", msg)
++		} else if err != msg {
++			t.Errorf("got panic %v, wanted %q", err, msg)
++		}
++	}()
++	f()
++}
++
+ func BenchmarkEncrypt(b *testing.B) {
+ 	tt := encryptTests[0]
+ 	c, err := NewCipher(tt.key)
+diff --git a/src/pkg/crypto/aes/cipher.go b/src/pkg/crypto/aes/cipher.go
+index d931134a70..2c6bb0a89c 100644
+--- a/src/pkg/crypto/aes/cipher.go
++++ b/src/pkg/crypto/aes/cipher.go
+@@ -46,9 +46,21 @@ func NewCipher(key []byte) (cipher.Block, error) {
+ func (c *aesCipher) BlockSize() int { return BlockSize }
+ 
+ func (c *aesCipher) Encrypt(dst, src []byte) {
++	if len(src) < BlockSize {
++		panic("crypto/aes: input not full block")
++	}
++	if len(dst) < BlockSize {
++		panic("crypto/aes: output not full block")
++	}
+ 	encryptBlock(c.enc, dst, src)
+ }
+ 
+ func (c *aesCipher) Decrypt(dst, src []byte) {
++	if len(src) < BlockSize {
++		panic("crypto/aes: input not full block")
++	}
++	if len(dst) < BlockSize {
++		panic("crypto/aes: output not full block")
++	}
+ 	decryptBlock(c.dec, dst, src)
+ }
+diff --git a/src/pkg/crypto/aes/cipher_asm.go b/src/pkg/crypto/aes/cipher_asm.go
+index 21369fc382..964eaaa6f8 100644
+--- a/src/pkg/crypto/aes/cipher_asm.go
++++ b/src/pkg/crypto/aes/cipher_asm.go
+@@ -21,6 +21,7 @@ func encryptBlock(xk []uint32, dst, src []byte) {
+ 		encryptBlockGo(xk, dst, src)
+ 	}
+ }
++
+ func decryptBlock(xk []uint32, dst, src []byte) {
+ 	if useAsm {
+ 		decryptBlockAsm(len(xk)/4-1, &xk[0], &dst[0], &src[0])
+@@ -28,6 +29,7 @@ func decryptBlock(xk []uint32, dst, src []byte) {
+ 		decryptBlockGo(xk, dst, src)
+ 	}
+ }
++
+ func expandKey(key []byte, enc, dec []uint32) {
+ 	if useAsm {
+ 		rounds := 10

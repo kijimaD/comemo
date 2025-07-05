@@ -7,6 +7,20 @@ Date:   Tue Aug 18 11:40:59 2015 -0400
     Change-Id: Iaeba7c55bbb9e11ac30f3b61369aa597acc30190
     Reviewed-on: https://go-review.googlesource.com/13691
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/note_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index 74097119c9..3d644518c6 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -25,7 +25,7 @@ func TestNoteReading(t *testing.T) {
+ 	}
+ 
+ 	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+-		t.Logf("skipping - golang.org/issue/11184")
++		t.Skipf("skipping - golang.org/issue/11184")
+ 	}
+ 
+ 	switch runtime.GOOS {

@@ -11,10 +11,400 @@ Date:   Fri Nov 21 16:13:31 2008 -0800
     DELTA=323  (323 added, 0 deleted, 0 changed)
     OCL=19831
     CL=19850
-
+---
  src/lib/Makefile     |  10 ++++
  src/lib/testing.go   |   1 +
  src/lib/utf8.go      | 162 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/utf8_test.go | 150 +++++++++++++++++++++++++++++++++++++++++++++++
  src/run.bash         |   2 +
  5 files changed, 325 insertions(+)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 9ee1b51305..6ba45e0185 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -30,11 +30,16 @@ FILES=\
+ 	sort\
+ 	strings\
+ 	testing\
++	utf8\
++
++TEST=\
++	utf8\
+ 
+ clean.dirs: $(addsuffix .dirclean, $(DIRS))
+ install.dirs: $(addsuffix .dirinstall, $(DIRS))
+ install.files: $(addsuffix .install, $(FILES))
+ nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
++test.files: $(addsuffix .test, $(TEST))
+ 
+ %.6: container/%.go
+ 	$(GC) container/$*.go
+@@ -42,6 +47,9 @@ nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
+ %.6: %.go
+ 	$(GC) $*.go
+ 
++%.test: %.6
++	gotest $*_test.go
++
+ %.clean:
+ 	rm -f $*.6
+ 
+@@ -67,6 +75,8 @@ install: install.dirs install.files
+ nuke: nuke.dirs clean.files
+ 	rm -f $(GOROOT)/pkg/*
+ 
++test: test.files
++
+ # TODO: dependencies - should auto-generate
+ 
+ bignum.6: fmt.dirinstall
+diff --git a/src/lib/testing.go b/src/lib/testing.go
+index 0bcdcffcd3..37dcc39411 100644
+--- a/src/lib/testing.go
++++ b/src/lib/testing.go
+@@ -83,6 +83,7 @@ func TRunner(t *T, test *Test) {
+ }
+ 
+ export func Main(tests *[]Test) {
++	flag.Parse();
+ 	ok := true;
+ 	if len(tests) == 0 {
+ 		println("gotest: warning: no tests to run");
+diff --git a/src/lib/utf8.go b/src/lib/utf8.go
+new file mode 100644
+index 0000000000..7b0f15d8f7
+--- /dev/null
++++ b/src/lib/utf8.go
+@@ -0,0 +1,162 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// UTF-8 support.
++
++package utf8
++
++export const (
++	RuneError = 0xFFFD;
++	RuneSelf = 0x80;
++	RuneMax = 1<<21 - 1;
++)
++
++const (
++	T1 = 0x00;	// 0000 0000
++	Tx = 0x80;	// 1000 0000
++	T2 = 0xC0;	// 1100 0000
++	T3 = 0xE0;	// 1110 0000
++	T4 = 0xF0;	// 1111 0000
++	T5 = 0xF8;	// 1111 1000
++
++	Maskx = 0x3F;	// 0011 1111
++	Mask2 = 0x1F;	// 0001 1111
++	Mask3 = 0x0F;	// 0000 1111
++	Mask4 = 0x07;	// 0000 0111
++
++	Rune1Max = 1<<7 - 1;
++	Rune2Max = 1<<11 - 1;
++	Rune3Max = 1<<16 - 1;
++	Rune4Max = 1<<21 - 1;
++)
++
++func DecodeRuneInternal(p *[]byte) (rune, size int, short bool) {
++	if len(p) < 1 {
++		return RuneError, 0, true;
++	}
++	c0 := p[0];
++
++	// 1-byte, 7-bit sequence?
++	if c0 < Tx {
++		return int(c0), 1, false
++	}
++
++	// unexpected continuation byte?
++	if c0 < T2 {
++		return RuneError, 1, false
++	}
++
++	// need first continuation byte
++	if len(p) < 2 {
++		return RuneError, 1, true
++	}
++	c1 := p[1];
++	if c1 < Tx || T2 <= c1 {
++		return RuneError, 1, false
++	}
++
++	// 2-byte, 11-bit sequence?
++	if c0 < T3 {
++		rune = int(c0&Mask2)<<6 | int(c1&Maskx);
++		if rune <= Rune1Max {
++			return RuneError, 1, false
++		}
++		return rune, 2, false
++	}
++
++	// need second continuation byte
++	if len(p) < 3 {
++		return RuneError, 1, true
++	}
++	c2 := p[2];
++	if c2 < Tx || T2 <= c2 {
++		return RuneError, 1, false
++	}
++
++	// 3-byte, 16-bit sequence?
++	if c0 < T4 {
++		rune = int(c0&Mask3)<<12 | int(c1&Maskx)<<6 | int(c2&Maskx);
++		if rune <= Rune2Max {
++			return RuneError, 1, false
++		}
++		return rune, 3, false
++	}
++
++	// need third continuation byte
++	if len(p) < 4 {
++		return RuneError, 1, true
++	}
++	c3 := p[3];
++	if c3 < Tx || T2 <= c3 {
++		return RuneError, 1, false
++	}
++
++	// 4-byte, 21-bit sequence?
++	if c0 < T5 {
++		rune = int(c0&Mask4)<<18 | int(c1&Maskx)<<12 | int(c2&Maskx)<<6 | int(c3&Maskx);
++		if rune <= Rune3Max {
++			return RuneError, 1, false
++		}
++		return rune, 4, false
++	}
++
++	// error
++	return RuneError, 1, false
++}
++
++export func FullRune(p *[]byte) bool {
++	rune, size, short := DecodeRuneInternal(p);
++	return !short
++}
++
++export func DecodeRune(p *[]byte) (rune, size int) {
++	var short bool;
++	rune, size, short = DecodeRuneInternal(p);
++	return;
++}
++
++export func RuneLen(rune int) int {
++	switch {
++	case rune <= Rune1Max:
++		return 1;
++	case rune <= Rune2Max:
++		return 2;
++	case rune <= Rune3Max:
++		return 3;
++	case rune <= Rune4Max:
++		return 4;
++	}
++	return -1;
++}
++
++export func EncodeRune(rune int, p *[]byte) int {
++	if rune <= Rune1Max {
++		p[0] = byte(rune);
++		return 1;
++	}
++
++	if rune <= Rune2Max {
++		p[0] = T2 | byte(rune>>6);
++		p[1] = Tx | byte(rune)&Maskx;
++		return 2;
++	}
++
++	if rune > RuneMax {
++		rune = RuneError
++	}
++
++	if rune <= Rune3Max {
++		p[0] = T3 | byte(rune>>12);
++		p[1] = Tx | byte(rune>>6)&Maskx;
++		p[2] = Tx | byte(rune)&Maskx;
++		return 3;
++	}
++
++	p[0] = T4 | byte(rune>>18);
++	p[1] = Tx | byte(rune>>12)&Maskx;
++	p[2] = Tx | byte(rune>>6)&Maskx;
++	p[3] = Tx | byte(rune)&Maskx;
++	return 4;
++}
++
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8_test.go
+new file mode 100644
+index 0000000000..550f4ba14a
+--- /dev/null
++++ b/src/lib/utf8_test.go
+@@ -0,0 +1,150 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package utf8
++
++import (
++	"fmt";
++	"syscall";
++	"testing";
++	"utf8";
++)
++
++type Utf8Map struct {
++	rune int;
++	str string;
++}
++
++var utf8map = []Utf8Map {
++	Utf8Map{ 0x0000, "\x00" },
++	Utf8Map{ 0x0001, "\x01" },
++	Utf8Map{ 0x007e, "\x7e" },
++	Utf8Map{ 0x007f, "\x7f" },
++	Utf8Map{ 0x0080, "\xc2\x80" },
++	Utf8Map{ 0x0081, "\xc2\x81" },
++	Utf8Map{ 0x00bf, "\xc2\xbf" },
++	Utf8Map{ 0x00c0, "\xc3\x80" },
++	Utf8Map{ 0x00c1, "\xc3\x81" },
++	Utf8Map{ 0x00c8, "\xc3\x88" },
++	Utf8Map{ 0x00d0, "\xc3\x90" },
++	Utf8Map{ 0x00e0, "\xc3\xa0" },
++	Utf8Map{ 0x00f0, "\xc3\xb0" },
++	Utf8Map{ 0x00f8, "\xc3\xb8" },
++	Utf8Map{ 0x00ff, "\xc3\xbf" },
++	Utf8Map{ 0x0100, "\xc4\x80" },
++	Utf8Map{ 0x07ff, "\xdf\xbf" },
++	Utf8Map{ 0x0800, "\xe0\xa0\x80" },
++	Utf8Map{ 0x0801, "\xe0\xa0\x81" },
++	Utf8Map{ 0xfffe, "\xef\xbf\xbe" },
++	Utf8Map{ 0xffff, "\xef\xbf\xbf" },
++	Utf8Map{ 0x10000, "\xf0\x90\x80\x80" },
++	Utf8Map{ 0x10001, "\xf0\x90\x80\x81" },
++	Utf8Map{ 0x10fffe, "\xf4\x8f\xbf\xbe" },
++	Utf8Map{ 0x10ffff, "\xf4\x8f\xbf\xbf" },
++}
++
++func CEscape(s *[]byte) string {
++	t := "\"";
++	for i := 0; i < len(s); i++ {
++		switch {
++		case s[i] == '\\' || s[i] == '"':
++			t += `\`;
++			t += string(s[i]);
++		case s[i] == '\n':
++			t += `\n`;
++		case s[i] == '\t':
++			t += `\t`;
++		case ' ' <= s[i] && s[i] <= '~':
++			t += string(s[i]);
++		default:
++			t += fmt.sprintf(`\x%02x`, s[i]);
++		}
++	}
++	t += "\"";
++	return t;
++}
++
++func Bytes(s string) *[]byte {
++	b := new([]byte, len(s)+1);
++	if !syscall.StringToBytes(b, s) {
++		panic("StringToBytes failed");
++	}
++	return b[0:len(s)];
++}
++
++export func TestFullRune(t *testing.T) {
++	for i := 0; i < len(utf8map); i++ {
++		m := utf8map[i];
++		b := Bytes(m.str);
++		if !utf8.FullRune(b) {
++			t.Errorf("FullRune(%s) (rune %04x) = false, want true", CEscape(b), m.rune);
++		}
++		if b1 := b[0:len(b)-1]; utf8.FullRune(b1) {
++			t.Errorf("FullRune(%s) = true, want false", CEscape(b1));
++		}
++	}
++}
++
++func EqualBytes(a, b *[]byte) bool {
++	if len(a) != len(b) {
++		return false;
++	}
++	for i := 0; i < len(a); i++ {
++		if a[i] != b[i] {
++			return false;
++		}
++	}
++	return true;
++}
++
++export func TestEncodeRune(t *testing.T) {
++	for i := 0; i < len(utf8map); i++ {
++		m := utf8map[i];
++		b := Bytes(m.str);
++		var buf [10]byte;
++		n := utf8.EncodeRune(m.rune, &buf);
++		b1 := (&buf)[0:n];
++		if !EqualBytes(b, b1) {
++			t.Errorf("EncodeRune(0x%04x) = %s want %s", m.rune, CEscape(b1), CEscape(b));
++		}
++	}
++}
++
++export func TestDecodeRune(t *testing.T) {
++	for i := 0; i < len(utf8map); i++ {
++		m := utf8map[i];
++		b := Bytes(m.str);
++		rune, size := utf8.DecodeRune(b);
++		if rune != m.rune || size != len(b) {
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, m.rune, len(b));
++		}
++
++		// there's an extra byte that Bytes left behind - make sure trailing byte works
++		rune, size = utf8.DecodeRune(b[0:cap(b)]);
++		if rune != m.rune || size != len(b) {
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, m.rune, len(b));
++		}
++
++		// make sure missing bytes fail
++		rune, size = utf8.DecodeRune(b[0:len(b)-1]);
++		wantsize := 1;
++		if wantsize >= len(b) {
++			wantsize = 0;
++		}
++		if rune != RuneError || size != wantsize {
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b[0:len(b)-1]), rune, size, RuneError, wantsize);
++		}
++
++		// make sure bad sequences fail
++		if len(b) == 1 {
++			b[0] = 0x80;
++		} else {
++			b[len(b)-1] = 0x7F;
++		}
++		rune, size = utf8.DecodeRune(b);
++		if rune != RuneError || size != 1 {
++			t.Errorf("DecodeRune(%s) = 0x%04x, %d want 0x%04x, %d", CEscape(b), rune, size, RuneError, 1);
++		}
++	}
++}
+diff --git a/src/run.bash b/src/run.bash
+index ea06e8c5b5..4bba1bf53b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -32,6 +32,8 @@ maketest \
+ # all of these are subtly different
+ # from what maketest does.
+ 
++(xcd lib; make test) || exit $?
++
+ (xcd ../usr/gri/pretty
+ make clean
+ time make

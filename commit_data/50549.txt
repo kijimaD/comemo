@@ -23,7 +23,35 @@ Date:   Fri May 7 01:03:59 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/net/url/url.go      | 2 +-
  src/net/url/url_test.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d571ab2fc4..f31aa08b59 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -1083,7 +1083,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ 		url.Path = ""
+ 		return &url
+ 	}
+-	if ref.Path == "" && ref.RawQuery == "" {
++	if ref.Path == "" && !ref.ForceQuery && ref.RawQuery == "" {
+ 		url.RawQuery = u.RawQuery
+ 		if ref.Fragment == "" {
+ 			url.Fragment = u.Fragment
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 6807d58f1a..7c807d7a38 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -1244,6 +1244,9 @@ var resolveReferenceTests = []struct {
+ 	{"https://a/b/c/d;p?q", "//g/d/e/f?y#s", "https://g/d/e/f?y#s"},
+ 	{"https://a/b/c/d;p#s", "?y", "https://a/b/c/d;p?y"},
+ 	{"https://a/b/c/d;p?q#s", "?y", "https://a/b/c/d;p?y"},
++
++	// Empty path and query but with ForceQuery (issue 46033).
++	{"https://a/b/c/d;p?q#s", "?", "https://a/b/c/d;p?"},
+ }
+ 
+ func TestResolveReference(t *testing.T) {

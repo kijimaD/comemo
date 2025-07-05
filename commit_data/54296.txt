@@ -24,7 +24,7 @@ Date:   Tue Oct 4 09:00:31 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go                  |  7 ++++---
  src/cmd/dist/buildtool.go                              |  1 +
  src/cmd/dist/test.go                                   |  2 +-
@@ -45,3 +45,503 @@ Date:   Tue Oct 4 09:00:31 2022 -0400
  .../internal/sys => internal/platform}/supported.go    |  3 +--
  src/internal/testenv/testenv.go                        | 14 ++------------
  19 files changed, 42 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 9b97ce85d2..42273ea350 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/coverage"
++	"internal/platform"
+ 	"log"
+ 	"os"
+ 	"reflect"
+@@ -176,13 +177,13 @@ func ParseFlags() {
+ 	registerFlags()
+ 	objabi.Flagparse(usage)
+ 
+-	if Flag.MSan && !sys.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
++	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+-	if Flag.ASan && !sys.ASanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
++	if Flag.ASan && !platform.ASanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -asan", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+-	if Flag.Race && !sys.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
++	if Flag.Race && !platform.RaceDetectorSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -race", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 	if (*Flag.Shared || *Flag.Dynlink || *Flag.LinkShared) && !Ctxt.Arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.RISCV64, sys.S390X) {
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 755ec61aff..828e93aa4c 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -67,6 +67,7 @@ var bootstrapDirs = []string{
+ 	"internal/pkgbits",
+ 	"internal/race",
+ 	"internal/saferio",
++	"internal/platform",
+ 	"internal/unsafeheader",
+ 	"internal/xcoff",
+ 	"math/big",
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7f85fc1d2d..fb0f1e1352 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1711,7 +1711,7 @@ func (t *tester) runPrecompiledStdTest(timeout time.Duration) error {
+ }
+ 
+ // raceDetectorSupported is a copy of the function
+-// cmd/internal/sys.RaceDetectorSupported, which can't be used here
++// internal/platform.RaceDetectorSupported, which can't be used here
+ // because cmd/dist has to be buildable by Go 1.4.
+ // The race detector only supports 48-bit VMA on arm64. But we don't have
+ // a good solution to check VMA size(See https://golang.org/issue/29948)
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index acc4d66fa7..f1cee5a832 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"go/format"
+ 	"internal/godebug"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/fs"
+@@ -260,17 +261,17 @@ func TestMain(m *testing.M) {
+ 		}
+ 		testGOCACHE = strings.TrimSpace(string(out))
+ 
+-		canMSan = canCgo && sys.MSanSupported(runtime.GOOS, runtime.GOARCH)
+-		canASan = canCgo && sys.ASanSupported(runtime.GOOS, runtime.GOARCH)
+-		canRace = canCgo && sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
++		canMSan = canCgo && platform.MSanSupported(runtime.GOOS, runtime.GOARCH)
++		canASan = canCgo && platform.ASanSupported(runtime.GOOS, runtime.GOARCH)
++		canRace = canCgo && platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+ 		// The race detector doesn't work on Alpine Linux:
+ 		// golang.org/issue/14481
+ 		// gccgo does not support the race detector.
+ 		if isAlpineLinux() || runtime.Compiler == "gccgo" {
+ 			canRace = false
+ 		}
+-		canFuzz = sys.FuzzSupported(runtime.GOOS, runtime.GOARCH)
+-		fuzzInstrumented = sys.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
++		canFuzz = platform.FuzzSupported(runtime.GOOS, runtime.GOARCH)
++		fuzzInstrumented = platform.FuzzInstrumented(runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+ 	// Don't let these environment variables confuse the test.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3e110dcd7c..1e50fdc0a5 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/build"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/platform"
+ 	"io/fs"
+ 	"os"
+ 	"os/exec"
+@@ -43,7 +44,6 @@ import (
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/internal/pkgpattern"
+-	"cmd/internal/sys"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -2604,7 +2604,7 @@ func externalLinkingForced(p *Package) bool {
+ 	// -ldflags=-linkmode=external. External linking mode forces
+ 	// an import of runtime/cgo.
+ 	// If there are multiple -linkmode options, the last one wins.
+-	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
++	pieCgo := cfg.BuildBuildmode == "pie" && !platform.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
+ 	linkmodeExternal := false
+ 	if p != nil {
+ 		ldflags := BuildLdflags.For(p)
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 9a59bba761..2b59763211 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -9,6 +9,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"internal/platform"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -30,7 +31,6 @@ import (
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/sys"
+ 	"cmd/internal/test2json"
+ 
+ 	"golang.org/x/mod/module"
+@@ -664,7 +664,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		base.Fatalf("cannot use -o flag with multiple packages")
+ 	}
+ 	if testFuzz != "" {
+-		if !sys.FuzzSupported(cfg.Goos, cfg.Goarch) {
++		if !platform.FuzzSupported(cfg.Goos, cfg.Goarch) {
+ 			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
+ 		}
+ 		if len(pkgs) != 1 {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index e25f111e1d..d01a051223 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/platform"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -22,7 +23,6 @@ import (
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/quoted"
+-	"cmd/internal/sys"
+ 	"crypto/sha1"
+ )
+ 
+@@ -640,7 +640,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 		// linker's build id, which will cause our build id to not
+ 		// match the next time the tool is built.
+ 		// Rely on the external build id instead.
+-		if !sys.MustLinkExternal(cfg.Goos, cfg.Goarch) {
++		if !platform.MustLinkExternal(cfg.Goos, cfg.Goarch) {
+ 			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index d30b9683e2..458a81bead 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -13,8 +13,8 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/modload"
+ 	"cmd/internal/quoted"
+-	"cmd/internal/sys"
+ 	"fmt"
++	"internal/platform"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -93,7 +93,7 @@ func BuildInit() {
+ // instrumentation is added. 'go test -fuzz' still works without coverage,
+ // but it generates random inputs without guidance, so it's much less effective.
+ func fuzzInstrumentFlags() []string {
+-	if !sys.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
++	if !platform.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
+ 		return nil
+ 	}
+ 	return []string{"-d=libfuzzer"}
+@@ -118,17 +118,17 @@ func instrumentInit() {
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+-	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
++	if cfg.BuildMSan && !platform.MSanSupported(cfg.Goos, cfg.Goarch) {
+ 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+-	if cfg.BuildRace && !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
++	if cfg.BuildRace && !platform.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+ 		fmt.Fprintf(os.Stderr, "-race is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+-	if cfg.BuildASan && !sys.ASanSupported(cfg.Goos, cfg.Goarch) {
++	if cfg.BuildASan && !platform.ASanSupported(cfg.Goos, cfg.Goarch) {
+ 		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+@@ -299,12 +299,12 @@ func buildModeInit() {
+ 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
+ 	}
+ 
+-	if !sys.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
++	if !platform.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
+ 		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+ 	}
+ 
+ 	if cfg.BuildLinkshared {
+-		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
++		if !platform.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
+ 			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+ 		}
+ 		if gccgo {
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 8769aa061c..82af065ac8 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/buildcfg"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"internal/txtar"
+ 	"io/fs"
+@@ -35,7 +36,6 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/work"
+-	"cmd/internal/sys"
+ )
+ 
+ var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
+@@ -459,7 +459,7 @@ Script:
+ 					break
+ 				}
+ 				if value, found := strings.CutPrefix(cond.tag, "buildmode:"); found {
+-					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
++					ok = platform.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
+ 					break
+ 				}
+ 				if strings.HasPrefix(cond.tag, "GOEXPERIMENT:") {
+diff --git a/src/cmd/internal/sys/supported_test.go b/src/cmd/internal/sys/supported_test.go
+deleted file mode 100644
+index 1217814af5..0000000000
+--- a/src/cmd/internal/sys/supported_test.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sys
+-
+-import (
+-	"internal/testenv"
+-	"runtime"
+-	"testing"
+-)
+-
+-func TestMustLinkExternalMatchesTestenv(t *testing.T) {
+-	// MustLinkExternal and testenv.CanInternalLink are the exact opposite.
+-	if b := MustLinkExternal(runtime.GOOS, runtime.GOARCH); b != !testenv.CanInternalLink() {
+-		t.Fatalf("MustLinkExternal() == %v, testenv.CanInternalLink() == %v, don't match", b, testenv.CanInternalLink())
+-	}
+-}
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 5037f5b6c0..a75f35bf5d 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -10,6 +10,7 @@ package main
+ import (
+ 	"debug/elf"
+ 	"fmt"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -19,8 +20,6 @@ import (
+ 	"sync"
+ 	"testing"
+ 	"text/template"
+-
+-	"cmd/internal/sys"
+ )
+ 
+ func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
+@@ -280,7 +279,7 @@ func TestPIESize(t *testing.T) {
+ 	// always skip the test if cgo is not supported.
+ 	testenv.MustHaveCGO(t)
+ 
+-	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
++	if !platform.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
+ 		t.Skip("-buildmode=pie not supported")
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 4dd43a16ab..336cb33e3b 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"internal/buildcfg"
++	"internal/platform"
+ )
+ 
+ // A BuildMode indicates the sort of object we are building.
+@@ -185,7 +186,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		}()
+ 	}
+ 
+-	if sys.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
++	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+ 
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index c1a30363cb..35babe61fc 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"debug/macho"
+ 	"internal/buildcfg"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -17,8 +18,6 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+-
+-	"cmd/internal/sys"
+ )
+ 
+ var AuthorPaidByTheColumnInch struct {
+@@ -976,7 +975,7 @@ func main() {
+ func TestIssue42396(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	if !sys.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
++	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+ 		t.Skip("no race detector support")
+ 	}
+ 
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 86e904dcd5..bbf942503a 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -6,10 +6,10 @@ package main
+ 
+ import (
+ 	"cmd/internal/notsha256"
+-	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -287,7 +287,7 @@ func TestDisasmExtld(t *testing.T) {
+ }
+ 
+ func TestDisasmPIE(t *testing.T) {
+-	if !sys.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
++	if !platform.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
+ 		t.Skipf("skipping on %s/%s, PIE buildmode not supported", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	t.Parallel()
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d1aeb00947..69cff07cbd 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -44,7 +44,7 @@ var depsRules = `
+ 	  internal/coverage/uleb128, internal/coverage/calloc,
+       internal/cpu, internal/goarch,
+ 	  internal/goexperiment, internal/goos,
+-	  internal/goversion, internal/nettrace,
++	  internal/goversion, internal/nettrace, internal/platform,
+ 	  unicode/utf8, unicode/utf16, unicode,
+ 	  unsafe;
+ 
+@@ -529,7 +529,7 @@ var depsRules = `
+ 	internal/fuzz, internal/testlog, runtime/pprof, regexp
+ 	< testing/internal/testdeps;
+ 
+-	OS, flag, testing, internal/cfg
++	OS, flag, testing, internal/cfg, internal/platform
+ 	< internal/testenv;
+ 
+ 	OS, encoding/base64
+diff --git a/src/internal/fuzz/counters_unsupported.go b/src/internal/fuzz/counters_unsupported.go
+index bf28157068..028065ce30 100644
+--- a/src/internal/fuzz/counters_unsupported.go
++++ b/src/internal/fuzz/counters_unsupported.go
+@@ -6,7 +6,7 @@
+ // the instrumentation is OS specific, but only amd64 and arm64 are
+ // supported in the runtime. See src/runtime/libfuzzer*.
+ //
+-// If you update this constraint, also update cmd/internal/sys.FuzzInstrumeted.
++// If you update this constraint, also update internal/platform.FuzzInstrumeted.
+ //
+ //go:build !((darwin || linux || windows || freebsd) && (amd64 || arm64))
+ 
+diff --git a/src/internal/fuzz/sys_unimplemented.go b/src/internal/fuzz/sys_unimplemented.go
+index f84dae6a61..8687c1f963 100644
+--- a/src/internal/fuzz/sys_unimplemented.go
++++ b/src/internal/fuzz/sys_unimplemented.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// If you update this constraint, also update cmd/internal/sys.FuzzSupported.
++// If you update this constraint, also update internal/platform.FuzzSupported.
+ //
+ //go:build !darwin && !freebsd && !linux && !windows
+ 
+diff --git a/src/cmd/internal/sys/supported.go b/src/internal/platform/supported.go
+similarity index 97%
+rename from src/cmd/internal/sys/supported.go
+rename to src/internal/platform/supported.go
+index ee98d0548e..c9264c03ee 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/internal/platform/supported.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sys
++package platform
+ 
+ // RaceDetectorSupported reports whether goos/goarch supports the race
+ // detector. There is a copy of this function in cmd/dist/test.go.
+@@ -70,7 +70,6 @@ func FuzzInstrumented(goos, goarch string) bool {
+ }
+ 
+ // MustLinkExternal reports whether goos/goarch requires external linking.
+-// (This is the opposite of internal/testenv.CanInternalLink. Keep them in sync.)
+ func MustLinkExternal(goos, goarch string) bool {
+ 	switch goos {
+ 	case "android":
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 7b435fd002..fe34a92d9c 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -16,6 +16,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/cfg"
++	"internal/platform"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -295,19 +296,8 @@ func MustHaveCGO(t testing.TB) {
+ 
+ // CanInternalLink reports whether the current system can link programs with
+ // internal linking.
+-// (This is the opposite of cmd/internal/sys.MustLinkExternal. Keep them in sync.)
+ func CanInternalLink() bool {
+-	switch runtime.GOOS {
+-	case "android":
+-		if runtime.GOARCH != "arm64" {
+-			return false
+-		}
+-	case "ios":
+-		if runtime.GOARCH == "arm64" {
+-			return false
+-		}
+-	}
+-	return true
++	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH)
+ }
+ 
+ // MustInternalLink checks that the current system can link programs with internal

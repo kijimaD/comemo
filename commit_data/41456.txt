@@ -11,6 +11,62 @@ Date:   Tue Oct 1 11:07:43 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/trim.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/trim.go b/src/cmd/compile/internal/ssa/trim.go
+index 1293548aad..c930a205c1 100644
+--- a/src/cmd/compile/internal/ssa/trim.go
++++ b/src/cmd/compile/internal/ssa/trim.go
+@@ -4,6 +4,8 @@
+ 
+ package ssa
+ 
++import "cmd/internal/src"
++
+ // trim removes blocks with no code in them.
+ // These blocks were inserted to remove critical edges.
+ func trim(f *Func) {
+@@ -15,6 +17,9 @@ func trim(f *Func) {
+ 			continue
+ 		}
+ 
++		bPos := b.Pos
++		bIsStmt := bPos.IsStmt() == src.PosIsStmt
++
+ 		// Splice b out of the graph. NOTE: `mergePhi` depends on the
+ 		// order, in which the predecessors edges are merged here.
+ 		p, i := b.Preds[0].b, b.Preds[0].i
+@@ -29,6 +34,23 @@ func trim(f *Func) {
+ 			s.Preds = append(s.Preds, Edge{p, i})
+ 		}
+ 
++		// Attempt to preserve a statement boundary
++		if bIsStmt {
++			sawStmt := false
++			for _, v := range s.Values {
++				if isPoorStatementOp(v.Op) {
++					continue
++				}
++				if v.Pos.SameFileAndLine(bPos) {
++					v.Pos = v.Pos.WithIsStmt()
++				}
++				sawStmt = true
++				break
++			}
++			if !sawStmt && s.Pos.SameFileAndLine(bPos) {
++				s.Pos = s.Pos.WithIsStmt()
++			}
++		}
+ 		// If `s` had more than one predecessor, update its phi-ops to
+ 		// account for the merge.
+ 		if ns > 1 {
+@@ -36,6 +58,7 @@ func trim(f *Func) {
+ 				if v.Op == OpPhi {
+ 					mergePhi(v, j, b)
+ 				}
++
+ 			}
+ 			// Remove the phi-ops from `b` if they were merged into the
+ 			// phi-ops of `s`.

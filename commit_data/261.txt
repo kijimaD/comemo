@@ -5,7 +5,45 @@ Date:   Sat Jun 28 11:38:07 2008 -0700
     new test - map failure
     
     SVN=125258
-
+---
  test/bugs/bug060.go | 17 +++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 20 insertions(+)
+
+diff --git a/test/bugs/bug060.go b/test/bugs/bug060.go
+new file mode 100644
+index 0000000000..5afdb488fd
+--- /dev/null
++++ b/test/bugs/bug060.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	m := new(map[int]int);
++	m[0] = 0;
++	m[0]++;
++	if m[0] != 1 {
++		print "map does not increment";
++		sys.exit(1)
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index bb52205ff3..0e1a8c6c04 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -309,6 +309,9 @@ BUG: compilation should succeed
+ =========== bugs/bug059.go
+ BUG: crashes
+ 
++=========== bugs/bug060.go
++BUG: crashes
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

@@ -11,7 +11,7 @@ Date:   Wed Jan 18 13:20:55 2012 -0800
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5557052
-
+---
  test/fixedbugs/bug027.go |  58 ++++++-----
  test/fixedbugs/bug070.go |  26 ++---
  test/ken/label.go        |  28 +++---
@@ -21,3 +21,868 @@ Date:   Wed Jan 18 13:20:55 2012 -0800
  test/peano.go            |  12 ---
  test/turing.go           |  49 ++++-----
  8 files changed, 244 insertions(+), 250 deletions(-)
+
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index acc295d51a..a7b639474e 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -10,49 +10,55 @@ type Element interface {
+ }
+ 
+ type Vector struct {
+-	nelem int;
+-	elem []Element;
++	nelem int
++	elem  []Element
+ }
+ 
+ func New() *Vector {
+-	v := new(Vector);
+-	v.nelem = 0;
+-	v.elem = make([]Element, 10);
+-	return v;
++	v := new(Vector)
++	v.nelem = 0
++	v.elem = make([]Element, 10)
++	return v
+ }
+ 
+ func (v *Vector) At(i int) Element {
+-	return v.elem[i];
++	return v.elem[i]
+ }
+ 
+ func (v *Vector) Insert(e Element) {
+-	v.elem[v.nelem] = e;
+-	v.nelem++;
++	v.elem[v.nelem] = e
++	v.nelem++
+ }
+ 
+ func main() {
+-	type I struct { val int; };
+-	i0 := new(I); i0.val = 0;
+-	i1 := new(I); i1.val = 11;
+-	i2 := new(I); i2.val = 222;
+-	i3 := new(I); i3.val = 3333;
+-	i4 := new(I); i4.val = 44444;
+-	v := New();
+-	print("hi\n");
+-	v.Insert(i4);
+-	v.Insert(i3);
+-	v.Insert(i2);
+-	v.Insert(i1);
+-	v.Insert(i0);
++	type I struct{ val int }
++	i0 := new(I)
++	i0.val = 0
++	i1 := new(I)
++	i1.val = 11
++	i2 := new(I)
++	i2.val = 222
++	i3 := new(I)
++	i3.val = 3333
++	i4 := new(I)
++	i4.val = 44444
++	v := New()
++	print("hi\n")
++	v.Insert(i4)
++	v.Insert(i3)
++	v.Insert(i2)
++	v.Insert(i1)
++	v.Insert(i0)
+ 	for i := 0; i < v.nelem; i++ {
+-		var x *I;
+-		x = v.At(i).(*I);
+-		print(i, " ", x.val, "\n");  // prints correct list
++		var x *I
++		x = v.At(i).(*I)
++		print(i, " ", x.val, "\n") // prints correct list
+ 	}
+ 	for i := 0; i < v.nelem; i++ {
+-		print(i, " ", v.At(i).(*I).val, "\n");
++		print(i, " ", v.At(i).(*I).val, "\n")
+ 	}
+ }
++
+ /*
+ bug027.go:50: illegal types for operand
+ 	(<Element>I{}) CONV (<I>{})
+diff --git a/test/fixedbugs/bug070.go b/test/fixedbugs/bug070.go
+index 6afdd467d9..f63caa9655 100644
+--- a/test/fixedbugs/bug070.go
++++ b/test/fixedbugs/bug070.go
+@@ -7,19 +7,23 @@
+ package main
+ 
+ func main() {
+-	var i, k int;
+-	outer:
+-	for k=0; k<2; k++ {
+-		print("outer loop top k ", k, "\n");
+-		if k != 0 { panic("k not zero") }  // inner loop breaks this one every time
+-		for i=0; i<2; i++ {
+-			if i != 0 { panic("i not zero") }  // loop breaks every time
+-			print("inner loop top i ", i, "\n");
++	var i, k int
++outer:
++	for k = 0; k < 2; k++ {
++		print("outer loop top k ", k, "\n")
++		if k != 0 {
++			panic("k not zero")
++		} // inner loop breaks this one every time
++		for i = 0; i < 2; i++ {
++			if i != 0 {
++				panic("i not zero")
++			} // loop breaks every time
++			print("inner loop top i ", i, "\n")
+ 			if true {
+-				print("do break\n");
+-				break outer;
++				print("do break\n")
++				break outer
+ 			}
+ 		}
+ 	}
+-	print("broke\n");
++	print("broke\n")
+ }
+diff --git a/test/ken/label.go b/test/ken/label.go
+index 770f33e39f..fa5dc0621f 100644
+--- a/test/ken/label.go
++++ b/test/ken/label.go
+@@ -4,33 +4,31 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package main
+ 
+-func
+-main() {
+-	i := 0;
++func main() {
++	i := 0
+ 	if false {
+-		goto gogoloop;
++		goto gogoloop
+ 	}
+ 	if false {
+-		goto gogoloop;
++		goto gogoloop
+ 	}
+ 	if false {
+-		goto gogoloop;
++		goto gogoloop
+ 	}
+-	goto gogoloop;
++	goto gogoloop
+ 
+-// backward declared
++	// backward declared
+ loop:
+-	i = i+1;
++	i = i + 1
+ 	if i < 100 {
+-		goto loop;
++		goto loop
+ 	}
+-	print(i);
+-	print("\n");
+-	return;
++	print(i)
++	print("\n")
++	return
+ 
+ gogoloop:
+-	goto loop;
++	goto loop
+ }
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index 03350662a2..8f1da4b7c6 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -7,61 +7,60 @@
+ package main
+ 
+ type Item interface {
+-	Print();
++	Print()
+ }
+ 
+ type ListItem struct {
+-	item    Item;
+-	next    *ListItem;
++	item Item
++	next *ListItem
+ }
+ 
+ type List struct {
+-	head    *ListItem;
++	head *ListItem
+ }
+ 
+ func (list *List) Init() {
+-	list.head = nil;
++	list.head = nil
+ }
+ 
+ func (list *List) Insert(i Item) {
+-	item := new(ListItem);
+-	item.item = i;
+-	item.next = list.head;
+-	list.head = item;
++	item := new(ListItem)
++	item.item = i
++	item.next = list.head
++	list.head = item
+ }
+ 
+ func (list *List) Print() {
+-	i := list.head;
++	i := list.head
+ 	for i != nil {
+-		i.item.Print();
+-		i = i.next;
++		i.item.Print()
++		i = i.next
+ 	}
+ }
+ 
+ // Something to put in a list
+ type Integer struct {
+-	val		int;
++	val int
+ }
+ 
+ func (this *Integer) Init(i int) *Integer {
+-	this.val = i;
+-	return this;
++	this.val = i
++	return this
+ }
+ 
+ func (this *Integer) Print() {
+-	print(this.val);
++	print(this.val)
+ }
+ 
+-func
+-main() {
+-	list := new(List);
+-	list.Init();
++func main() {
++	list := new(List)
++	list.Init()
+ 	for i := 0; i < 10; i = i + 1 {
+-		integer := new(Integer);
+-		integer.Init(i);
+-		list.Insert(integer);
++		integer := new(Integer)
++		integer.Init(i)
++		list.Insert(integer)
+ 	}
+ 
+-	list.Print();
+-	print("\n");
++	list.Print()
++	print("\n")
+ }
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index af63e4d9f6..76a471cfb3 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -4,269 +4,268 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package main
+ 
+-const nilchar = 0;
++const nilchar = 0
+ 
+ type Atom struct {
+-	str		string;
+-	integer		int;
+-	next		*Slist;	/* in hash bucket */
++	str     string
++	integer int
++	next    *Slist /* in hash bucket */
+ }
+ 
+ type List struct {
+-	car		*Slist;
+-	cdr*Slist;
++	car *Slist
++	cdr *Slist
+ }
+ 
+ type Slist struct {
+-	isatom		bool;
+-	isstring	bool;
++	isatom   bool
++	isstring bool
+ 	//union {
+-	atom		Atom;
+-	list		List;
++	atom Atom
++	list List
+ 	//} u;
+ 
+ }
+ 
+ func (this *Slist) Car() *Slist {
+-	return this.list.car;
++	return this.list.car
+ }
+ 
+ func (this *Slist) Cdr() *Slist {
+-	return this.list.cdr;
++	return this.list.cdr
+ }
+ 
+ func (this *Slist) String() string {
+-	return this.atom.str;
++	return this.atom.str
+ }
+ 
+ func (this *Slist) Integer() int {
+-	return this.atom.integer;
++	return this.atom.integer
+ }
+ 
+ func (slist *Slist) Free() {
+ 	if slist == nil {
+-		return;
++		return
+ 	}
+ 	if slist.isatom {
+-//		free(slist.String());
++		//		free(slist.String());
+ 	} else {
+-		slist.Car().Free();
+-		slist.Cdr().Free();
++		slist.Car().Free()
++		slist.Cdr().Free()
+ 	}
+-//	free(slist);
++	//	free(slist);
+ }
+ 
+ //Slist* atom(byte *s, int i);
+ 
+-var token int;
+-var peekc int = -1;
+-var lineno int32 = 1;
++var token int
++var peekc int = -1
++var lineno int32 = 1
+ 
+-var input string;
+-var inputindex int = 0;
+-var tokenbuf [100]byte;
+-var tokenlen int = 0;
++var input string
++var inputindex int = 0
++var tokenbuf [100]byte
++var tokenlen int = 0
+ 
+-const EOF int = -1;
++const EOF int = -1
+ 
+ func main() {
+-	var list *Slist;
++	var list *Slist
+ 
+-	OpenFile();
+-	for ;; {
+-		list = Parse();
++	OpenFile()
++	for {
++		list = Parse()
+ 		if list == nil {
+-			break;
++			break
+ 		}
+-		list.Print();
+-		list.Free();
+-		break;
++		list.Print()
++		list.Free()
++		break
+ 	}
+ }
+ 
+ func (slist *Slist) PrintOne(doparen bool) {
+ 	if slist == nil {
+-		return;
++		return
+ 	}
+ 	if slist.isatom {
+ 		if slist.isstring {
+-			print(slist.String());
++			print(slist.String())
+ 		} else {
+-			print(slist.Integer());
++			print(slist.Integer())
+ 		}
+ 	} else {
+ 		if doparen {
+-			print("(" );
++			print("(")
+ 		}
+-		slist.Car().PrintOne(true);
++		slist.Car().PrintOne(true)
+ 		if slist.Cdr() != nil {
+-			print(" ");
+-			slist.Cdr().PrintOne(false);
++			print(" ")
++			slist.Cdr().PrintOne(false)
+ 		}
+ 		if doparen {
+-			print(")");
++			print(")")
+ 		}
+ 	}
+ }
+ 
+ func (slist *Slist) Print() {
+-	slist.PrintOne(true);
+-	print("\n");
++	slist.PrintOne(true)
++	print("\n")
+ }
+ 
+ func Get() int {
+-	var c int;
++	var c int
+ 
+ 	if peekc >= 0 {
+-		c = peekc;
+-		peekc = -1;
++		c = peekc
++		peekc = -1
+ 	} else {
+-		c = int(input[inputindex]);
+-		inputindex++;
++		c = int(input[inputindex])
++		inputindex++
+ 		if c == '\n' {
+-			lineno = lineno + 1;
++			lineno = lineno + 1
+ 		}
+ 		if c == nilchar {
+-			inputindex = inputindex - 1;
+-			c = EOF;
++			inputindex = inputindex - 1
++			c = EOF
+ 		}
+ 	}
+-	return c;
++	return c
+ }
+ 
+ func WhiteSpace(c int) bool {
+-	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
++	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
+ }
+ 
+ func NextToken() {
+-	var i, c int;
++	var i, c int
+ 
+-	tokenbuf[0] = nilchar;	// clear previous token
+-	c = Get();
++	tokenbuf[0] = nilchar // clear previous token
++	c = Get()
+ 	for WhiteSpace(c) {
+-		c = Get();
++		c = Get()
+ 	}
+ 	switch c {
+ 	case EOF:
+-		token = EOF;
++		token = EOF
+ 	case '(', ')':
+-		token = c;
+-		break;
++		token = c
++		break
+ 	default:
+-		for i = 0; i < 100 - 1; {	// sizeof tokenbuf - 1
+-			tokenbuf[i] = byte(c);
+-			i = i + 1;
+-			c = Get();
++		for i = 0; i < 100-1; { // sizeof tokenbuf - 1
++			tokenbuf[i] = byte(c)
++			i = i + 1
++			c = Get()
+ 			if c == EOF {
+-				break;
++				break
+ 			}
+ 			if WhiteSpace(c) || c == ')' {
+-				peekc = c;
+-				break;
++				peekc = c
++				break
+ 			}
+ 		}
+-		if i >= 100 - 1 {	// sizeof tokenbuf - 1
+-			panic("atom too long\n");
++		if i >= 100-1 { // sizeof tokenbuf - 1
++			panic("atom too long\n")
+ 		}
+-		tokenlen = i;
+-		tokenbuf[i] = nilchar;
++		tokenlen = i
++		tokenbuf[i] = nilchar
+ 		if '0' <= tokenbuf[0] && tokenbuf[0] <= '9' {
+-			token = '0';
++			token = '0'
+ 		} else {
+-			token = 'A';
++			token = 'A'
+ 		}
+ 	}
+ }
+ 
+ func Expect(c int) {
+ 	if token != c {
+-		print("parse error: expected ", c, "\n");
+-		panic("parse");
++		print("parse error: expected ", c, "\n")
++		panic("parse")
+ 	}
+-	NextToken();
++	NextToken()
+ }
+ 
+ // Parse a non-parenthesized list up to a closing paren or EOF
+ func ParseList() *Slist {
+-	var slist, retval *Slist;
+-
+-	slist = new(Slist);
+-	slist.list.car = nil;
+-	slist.list.cdr = nil;
+-	slist.isatom = false;
+-	slist.isstring = false;
+-
+-	retval = slist;
+-	for ;; {
+-		slist.list.car = Parse();
+-		if token == ')' || token == EOF {	// empty cdr
+-			break;
++	var slist, retval *Slist
++
++	slist = new(Slist)
++	slist.list.car = nil
++	slist.list.cdr = nil
++	slist.isatom = false
++	slist.isstring = false
++
++	retval = slist
++	for {
++		slist.list.car = Parse()
++		if token == ')' || token == EOF { // empty cdr
++			break
+ 		}
+-		slist.list.cdr = new(Slist);
+-		slist = slist.list.cdr;
++		slist.list.cdr = new(Slist)
++		slist = slist.list.cdr
+ 	}
+-	return retval;
++	return retval
+ }
+ 
+-func atom(i int) *Slist	{ // BUG: uses tokenbuf; should take argument)
+-	var slist *Slist;
++func atom(i int) *Slist { // BUG: uses tokenbuf; should take argument)
++	var slist *Slist
+ 
+-	slist = new(Slist);
++	slist = new(Slist)
+ 	if token == '0' {
+-		slist.atom.integer = i;
+-		slist.isstring = false;
++		slist.atom.integer = i
++		slist.isstring = false
+ 	} else {
+-		slist.atom.str = string(tokenbuf[0:tokenlen]);
+-		slist.isstring = true;
++		slist.atom.str = string(tokenbuf[0:tokenlen])
++		slist.isstring = true
+ 	}
+-	slist.isatom = true;
+-	return slist;
++	slist.isatom = true
++	return slist
+ }
+ 
+-func atoi() int	{ // BUG: uses tokenbuf; should take argument)
+-	var v int = 0;
++func atoi() int { // BUG: uses tokenbuf; should take argument)
++	var v int = 0
+ 	for i := 0; i < tokenlen && '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
+-		v = 10 * v + int(tokenbuf[i] - '0');
++		v = 10*v + int(tokenbuf[i]-'0')
+ 	}
+-	return v;
++	return v
+ }
+ 
+ func Parse() *Slist {
+-	var slist *Slist;
++	var slist *Slist
+ 
+ 	if token == EOF || token == ')' {
+-		return nil;
++		return nil
+ 	}
+ 	if token == '(' {
+-		NextToken();
+-		slist = ParseList();
+-		Expect(')');
+-		return slist;
++		NextToken()
++		slist = ParseList()
++		Expect(')')
++		return slist
+ 	} else {
+ 		// Atom
+ 		switch token {
+ 		case EOF:
+-			return nil;
++			return nil
+ 		case '0':
+-			slist = atom(atoi());
++			slist = atom(atoi())
+ 		case '"', 'A':
+-			slist = atom(0);
++			slist = atom(0)
+ 		default:
+-			slist = nil;
+-			print("unknown token: ", token, "\n");
++			slist = nil
++			print("unknown token: ", token, "\n")
+ 		}
+-		NextToken();
+-		return slist;
++		NextToken()
++		return slist
+ 	}
+-	return nil;
++	return nil
+ }
+ 
+ func OpenFile() {
+-	input = "(defn foo (add 12 34))\n\x00";
+-	inputindex = 0;
+-	peekc = -1;		// BUG
+-	NextToken();
++	input = "(defn foo (add 12 34))\n\x00"
++	inputindex = 0
++	peekc = -1 // BUG
++	NextToken()
+ }
+diff --git a/test/ken/simpswitch.go b/test/ken/simpswitch.go
+index ab5dd356b3..4db98b1c09 100644
+--- a/test/ken/simpswitch.go
++++ b/test/ken/simpswitch.go
+@@ -6,19 +6,18 @@
+ 
+ package main
+ 
+-func
+-main() {
+-	a := 3;
+-	for i:=0; i<10; i=i+1 {
+-		switch(i) {
++func main() {
++	a := 3
++	for i := 0; i < 10; i = i + 1 {
++		switch i {
+ 		case 5:
+-			print("five");
+-		case a,7:
+-			print("a");
++			print("five")
++		case a, 7:
++			print("a")
+ 		default:
+-			print(i);
++			print(i)
+ 		}
+-		print("out", i);
++		print("out", i)
+ 	}
+-	print("\n");
++	print("\n")
+ }
+diff --git a/test/peano.go b/test/peano.go
+index f4c59d1e1a..fb74e6533c 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -8,7 +8,6 @@ package main
+ 
+ type Number *Number
+ 
+-
+ // -------------------------------------
+ // Peano primitives
+ 
+@@ -16,24 +15,20 @@ func zero() *Number {
+ 	return nil
+ }
+ 
+-
+ func is_zero(x *Number) bool {
+ 	return x == nil
+ }
+ 
+-
+ func add1(x *Number) *Number {
+ 	e := new(Number)
+ 	*e = x
+ 	return e
+ }
+ 
+-
+ func sub1(x *Number) *Number {
+ 	return *x
+ }
+ 
+-
+ func add(x, y *Number) *Number {
+ 	if is_zero(y) {
+ 		return x
+@@ -42,7 +37,6 @@ func add(x, y *Number) *Number {
+ 	return add(add1(x), sub1(y))
+ }
+ 
+-
+ func mul(x, y *Number) *Number {
+ 	if is_zero(x) || is_zero(y) {
+ 		return zero()
+@@ -51,7 +45,6 @@ func mul(x, y *Number) *Number {
+ 	return add(mul(x, sub1(y)), x)
+ }
+ 
+-
+ func fact(n *Number) *Number {
+ 	if is_zero(n) {
+ 		return add1(zero())
+@@ -60,7 +53,6 @@ func fact(n *Number) *Number {
+ 	return mul(fact(sub1(n)), n)
+ }
+ 
+-
+ // -------------------------------------
+ // Helpers to generate/count Peano integers
+ 
+@@ -72,7 +64,6 @@ func gen(n int) *Number {
+ 	return zero()
+ }
+ 
+-
+ func count(x *Number) int {
+ 	if is_zero(x) {
+ 		return 0
+@@ -81,7 +72,6 @@ func count(x *Number) int {
+ 	return count(sub1(x)) + 1
+ }
+ 
+-
+ func check(x *Number, expected int) {
+ 	var c = count(x)
+ 	if c != expected {
+@@ -90,7 +80,6 @@ func check(x *Number, expected int) {
+ 	}
+ }
+ 
+-
+ // -------------------------------------
+ // Test basic functionality
+ 
+@@ -115,7 +104,6 @@ func init() {
+ 	check(fact(gen(5)), 120)
+ }
+ 
+-
+ // -------------------------------------
+ // Factorial
+ 
+diff --git a/test/turing.go b/test/turing.go
+index 0af39de8b2..9d3f3a669d 100644
+--- a/test/turing.go
++++ b/test/turing.go
+@@ -10,15 +10,16 @@ package main
+ 
+ var p, pc int
+ var a [30000]byte
++
+ const prog = "++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>.!"
+ 
+ func scan(dir int) {
+ 	for nest := dir; dir*nest > 0; pc += dir {
+ 		switch prog[pc+dir] {
+-			case ']':
+-				nest--
+-			case '[':
+-				nest++
++		case ']':
++			nest--
++		case '[':
++			nest++
+ 		}
+ 	}
+ }
+@@ -26,26 +27,26 @@ func scan(dir int) {
+ func main() {
+ 	for {
+ 		switch prog[pc] {
+-			case '>':
+-					p++
+-			case '<':
+-					p--
+-			case '+':
+-					a[p]++
+-			case '-':
+-					a[p]--
+-			case '.':
+-					print(string(a[p]))
+-			case '[':
+-				if a[p] == 0 {
+-					scan(1)
+-				}
+-			case ']':
+-				if a[p] != 0 {
+-					scan(-1)
+-				}
+-			default:
+-					return
++		case '>':
++			p++
++		case '<':
++			p--
++		case '+':
++			a[p]++
++		case '-':
++			a[p]--
++		case '.':
++			print(string(a[p]))
++		case '[':
++			if a[p] == 0 {
++				scan(1)
++			}
++		case ']':
++			if a[p] != 0 {
++				scan(-1)
++			}
++		default:
++			return
+ 		}
+ 		pc++
+ 	}

@@ -31,10 +31,235 @@ Date:   Tue Mar 28 14:54:10 2017 -0400
     Change-Id: I985bf9571100da316c19fbfd19bb1e534a3c9e5f
     Reviewed-on: https://go-review.googlesource.com/38745
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/alldocs.go                  | 20 +++++++++--
  src/cmd/go/internal/help/helpdoc.go    | 15 ++++++--
  src/cmd/go/internal/load/match_test.go | 34 +++++++++++++++++++
  src/cmd/go/internal/load/search.go     | 62 +++++++++++++++++++++++++++++++---
  src/cmd/go/vendor_test.go              |  6 ++--
  5 files changed, 124 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b650e3cce0..7474ffaf5b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -316,7 +316,7 @@
+ //
+ // Usage:
+ //
+-// 	go env [var ...]
++// 	go env [-json] [var ...]
+ //
+ // Env prints Go environment information.
+ //
+@@ -325,6 +325,9 @@
+ // names is given as arguments,  env prints the value of
+ // each named variable on its own line.
+ //
++// The -json flag prints the environment in JSON format
++// instead of as a shell script.
++//
+ //
+ // Start a bug report
+ //
+@@ -1361,8 +1364,19 @@
+ // each of which can match any string, including the empty string and
+ // strings containing slashes.  Such a pattern expands to all package
+ // directories found in the GOPATH trees with names matching the
+-// patterns.  As a special case, x/... matches x as well as x's subdirectories.
+-// For example, net/... expands to net and packages in its subdirectories.
++// patterns.
++//
++// To make common patterns more convenient, there are two special cases.
++// First, /... at the end of the pattern can match an empty string,
++// so that net/... matches both net and packages in its subdirectories, like net/http.
++// Second, any slash-separated pattern element containing a wildcard never
++// participates in a match of the "vendor" element in the path of a vendored
++// package, so that ./... does not match packages in subdirectories of
++// ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
++// Note, however, that a directory named vendor that itself contains code
++// is not a vendored package: cmd/vendor would be a command named vendor,
++// and the pattern cmd/... matches it.
++// See golang.org/s/go15vendor for more about vendoring.
+ //
+ // An import path can also name a package to be downloaded from
+ // a remote repository.  Run 'go help importpath' for details.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 37e2b3b28f..132d956b66 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -71,8 +71,19 @@ An import path is a pattern if it includes one or more "..." wildcards,
+ each of which can match any string, including the empty string and
+ strings containing slashes.  Such a pattern expands to all package
+ directories found in the GOPATH trees with names matching the
+-patterns.  As a special case, x/... matches x as well as x's subdirectories.
+-For example, net/... expands to net and packages in its subdirectories.
++patterns.
++
++To make common patterns more convenient, there are two special cases.
++First, /... at the end of the pattern can match an empty string,
++so that net/... matches both net and packages in its subdirectories, like net/http.
++Second, any slash-separated pattern element containing a wildcard never
++participates in a match of the "vendor" element in the path of a vendored
++package, so that ./... does not match packages in subdirectories of
++./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
++Note, however, that a directory named vendor that itself contains code
++is not a vendored package: cmd/vendor would be a command named vendor,
++and the pattern cmd/... matches it.
++See golang.org/s/go15vendor for more about vendoring.
+ 
+ An import path can also name a package to be downloaded from
+ a remote repository.  Run 'go help importpath' for details.
+diff --git a/src/cmd/go/internal/load/match_test.go b/src/cmd/go/internal/load/match_test.go
+index 41924a2d96..b8d67dac74 100644
+--- a/src/cmd/go/internal/load/match_test.go
++++ b/src/cmd/go/internal/load/match_test.go
+@@ -25,9 +25,43 @@ var matchPatternTests = `
+ 	match net net/http netchan
+ 	not not/http not/net/http
+ 	
++	# Special cases. Quoting docs:
++
++	# First, /... at the end of the pattern can match an empty string,
++	# so that net/... matches both net and packages in its subdirectories, like net/http.
+ 	pattern net/...
+ 	match net net/http
+ 	not not/http not/net/http netchan
++
++	# Second, any slash-separted pattern element containing a wildcard never
++	# participates in a match of the "vendor" element in the path of a vendored
++	# package, so that ./... does not match packages in subdirectories of
++	# ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
++	# Note, however, that a directory named vendor that itself contains code
++	# is not a vendored package: cmd/vendor would be a command named vendor,
++	# and the pattern cmd/... matches it.
++	pattern ./...
++	match ./vendor ./mycode/vendor
++	not ./vendor/foo ./mycode/vendor/foo
++	
++	pattern ./vendor/...
++	match ./vendor/foo ./vendor/foo/vendor
++	not ./vendor/foo/vendor/bar
++	
++	pattern mycode/vendor/...
++	match mycode/vendor mycode/vendor/foo mycode/vendor/foo/vendor
++	not mycode/vendor/foo/vendor/bar
++	
++	pattern x/vendor/y
++	match x/vendor/y
++	not x/vendor
++	
++	pattern x/vendor/y/...
++	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
++	not x/vendor/y/vendor/z
++	
++	pattern .../vendor/...
++	match x/vendor/y x/vendor/y/z x/vendor/y/vendor x/vendor/y/z/vendor
+ `
+ 
+ func TestMatchPattern(t *testing.T) {
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index 670fbbb7e4..4f6292c99a 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -202,17 +202,69 @@ func treeCanMatchPattern(pattern string) func(name string) bool {
+ // name matches pattern. Pattern is a limited glob
+ // pattern in which '...' means 'any string' and there
+ // is no other special syntax.
++// Unfortunately, there are two special cases. Quoting "go help packages":
++//
++// First, /... at the end of the pattern can match an empty string,
++// so that net/... matches both net and packages in its subdirectories, like net/http.
++// Second, any slash-separted pattern element containing a wildcard never
++// participates in a match of the "vendor" element in the path of a vendored
++// package, so that ./... does not match packages in subdirectories of
++// ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
++// Note, however, that a directory named vendor that itself contains code
++// is not a vendored package: cmd/vendor would be a command named vendor,
++// and the pattern cmd/... matches it.
+ func matchPattern(pattern string) func(name string) bool {
++	// Convert pattern to regular expression.
++	// The strategy for the trailing /... is to nest it in an explicit ? expression.
++	// The strategy for the vendor exclusion is to change the unmatchable
++	// vendor strings to a disallowed code point (vendorChar) and to use
++	// "(anything but that codepoint)*" as the implementation of the ... wildcard.
++	// This is a bit complicated but the obvious alternative,
++	// namely a hand-written search like in most shell glob matchers,
++	// is too easy to make accidentally exponential.
++	// Using package regexp guarantees linear-time matching.
++
++	const vendorChar = "\x00"
++
++	if strings.Contains(pattern, vendorChar) {
++		return func(name string) bool { return false }
++	}
++
+ 	re := regexp.QuoteMeta(pattern)
+-	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
+-	// Special case: foo/... matches foo too.
+-	if strings.HasSuffix(re, `/.*`) {
+-		re = re[:len(re)-len(`/.*`)] + `(/.*)?`
++	re = replaceVendor(re, vendorChar)
++	switch {
++	case strings.HasSuffix(re, `/`+vendorChar+`/\.\.\.`):
++		re = strings.TrimSuffix(re, `/`+vendorChar+`/\.\.\.`) + `(/vendor|/` + vendorChar + `/\.\.\.)`
++	case re == vendorChar+`/\.\.\.`:
++		re = `(/vendor|/` + vendorChar + `/\.\.\.)`
++	case strings.HasSuffix(re, `/\.\.\.`):
++		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
+ 	}
++	re = strings.Replace(re, `\.\.\.`, `[^`+vendorChar+`]*`, -1)
++
+ 	reg := regexp.MustCompile(`^` + re + `$`)
++
+ 	return func(name string) bool {
+-		return reg.MatchString(name)
++		if strings.Contains(name, vendorChar) {
++			return false
++		}
++		return reg.MatchString(replaceVendor(name, vendorChar))
++	}
++}
++
++// replaceVendor returns the result of replacing
++// non-trailing vendor path elements in x with repl.
++func replaceVendor(x, repl string) string {
++	if !strings.Contains(x, "vendor") {
++		return x
++	}
++	elem := strings.Split(x, "/")
++	for i := 0; i < len(elem)-1; i++ {
++		if elem[i] == "vendor" {
++			elem[i] = repl
++		}
+ 	}
++	return strings.Join(elem, "/")
+ }
+ 
+ // ImportPaths returns the import paths to use for the given command line.
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index deec02e341..739ce5a5a4 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -20,18 +20,18 @@ func TestVendorImports(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
++	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...", "vend/vendor/...", "vend/x/vendor/...")
+ 	want := `
+ 		vend [vend/vendor/p r]
+ 		vend/dir1 []
+ 		vend/hello [fmt vend/vendor/strings]
+ 		vend/subdir [vend/vendor/p r]
++		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
++		vend/x/invalid [vend/x/invalid/vendor/foo]
+ 		vend/vendor/p []
+ 		vend/vendor/q []
+ 		vend/vendor/strings []
+ 		vend/vendor/vend/dir1/dir2 []
+-		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
+-		vend/x/invalid [vend/x/invalid/vendor/foo]
+ 		vend/x/vendor/p []
+ 		vend/x/vendor/p/p [notfound]
+ 		vend/x/vendor/r []

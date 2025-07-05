@@ -19,6 +19,47 @@ Date:   Wed Mar 16 19:21:49 2022 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/syscall/asm_plan9_amd64.s | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/asm_plan9_amd64.s b/src/syscall/asm_plan9_amd64.s
+index f22db3238d..0641513f37 100644
+--- a/src/syscall/asm_plan9_amd64.s
++++ b/src/syscall/asm_plan9_amd64.s
+@@ -38,7 +38,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
+ 	MOVQ	$128, sysargs1-152(SP)
+ 	MOVQ	$SYS_ERRSTR, BP
+ 	SYSCALL
+-	CALL	runtime·exitsyscall<ABIInternal>(SB)
++	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
+ 	MOVQ	sysargs-160(SP), AX
+ 	MOVQ	AX, errbuf-168(SP)
+ 	CALL	runtime·gostring(SB)
+@@ -46,7 +46,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
+ 	JMP	copyresult3
+ 
+ ok3:
+-	CALL	runtime·exitsyscall<ABIInternal>(SB)
++	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
+ 	LEAQ	·emptystring(SB), SI
+ 
+ copyresult3:
+@@ -83,7 +83,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
+ 	MOVQ	$128, sysargs1-152(SP)
+ 	MOVQ	$SYS_ERRSTR, BP
+ 	SYSCALL
+-	CALL	runtime·exitsyscall<ABIInternal>(SB)
++	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
+ 	MOVQ	sysargs-160(SP), AX
+ 	MOVQ	AX, errbuf-168(SP)
+ 	CALL	runtime·gostring(SB)
+@@ -91,7 +91,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
+ 	JMP	copyresult4
+ 
+ ok4:
+-	CALL	runtime·exitsyscall<ABIInternal>(SB)
++	CALL	runtime·exitsyscall(SB) // call via ABI wrapper, ensuring ABIInternal fixed registers are set
+ 	LEAQ	·emptystring(SB), SI
+ 
+ copyresult4:

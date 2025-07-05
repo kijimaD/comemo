@@ -17,9 +17,123 @@ Date:   Fri Apr 22 22:00:16 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/exec/exec.go         |  6 +-----
  src/os/exec/exec_plan9.go   | 20 ++++++++++----------
  src/os/exec/exec_unix.go    | 20 ++++++++++----------
  src/os/exec/exec_windows.go | 22 +++++++++++-----------
  4 files changed, 32 insertions(+), 36 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index eeca83713b..91c2e003d8 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -230,10 +230,6 @@ func (c *Cmd) argv() []string {
+ 	return []string{c.Path}
+ }
+ 
+-// skipStdinCopyError optionally specifies a function which reports
+-// whether the provided stdin copy error should be ignored.
+-var skipStdinCopyError func(error) bool
+-
+ func (c *Cmd) stdin() (f *os.File, err error) {
+ 	if c.Stdin == nil {
+ 		f, err = os.Open(os.DevNull)
+@@ -257,7 +253,7 @@ func (c *Cmd) stdin() (f *os.File, err error) {
+ 	c.closeAfterWait = append(c.closeAfterWait, pw)
+ 	c.goroutine = append(c.goroutine, func() error {
+ 		_, err := io.Copy(pw, c.Stdin)
+-		if skip := skipStdinCopyError; skip != nil && skip(err) {
++		if skipStdinCopyError(err) {
+ 			err = nil
+ 		}
+ 		if err1 := pw.Close(); err == nil {
+diff --git a/src/os/exec/exec_plan9.go b/src/os/exec/exec_plan9.go
+index 21ac7b765f..8920bec1f5 100644
+--- a/src/os/exec/exec_plan9.go
++++ b/src/os/exec/exec_plan9.go
+@@ -6,14 +6,14 @@ package exec
+ 
+ import "io/fs"
+ 
+-func init() {
+-	skipStdinCopyError = func(err error) bool {
+-		// Ignore hungup errors copying to stdin if the program
+-		// completed successfully otherwise.
+-		// See Issue 35753.
+-		pe, ok := err.(*fs.PathError)
+-		return ok &&
+-			pe.Op == "write" && pe.Path == "|1" &&
+-			pe.Err.Error() == "i/o on hungup channel"
+-	}
++// skipStdinCopyError optionally specifies a function which reports
++// whether the provided stdin copy error should be ignored.
++func skipStdinCopyError(err error) bool {
++	// Ignore hungup errors copying to stdin if the program
++	// completed successfully otherwise.
++	// See Issue 35753.
++	pe, ok := err.(*fs.PathError)
++	return ok &&
++		pe.Op == "write" && pe.Path == "|1" &&
++		pe.Err.Error() == "i/o on hungup channel"
+ }
+diff --git a/src/os/exec/exec_unix.go b/src/os/exec/exec_unix.go
+index c20f35276c..3ed672a744 100644
+--- a/src/os/exec/exec_unix.go
++++ b/src/os/exec/exec_unix.go
+@@ -11,14 +11,14 @@ import (
+ 	"syscall"
+ )
+ 
+-func init() {
+-	skipStdinCopyError = func(err error) bool {
+-		// Ignore EPIPE errors copying to stdin if the program
+-		// completed successfully otherwise.
+-		// See Issue 9173.
+-		pe, ok := err.(*fs.PathError)
+-		return ok &&
+-			pe.Op == "write" && pe.Path == "|1" &&
+-			pe.Err == syscall.EPIPE
+-	}
++// skipStdinCopyError optionally specifies a function which reports
++// whether the provided stdin copy error should be ignored.
++func skipStdinCopyError(err error) bool {
++	// Ignore EPIPE errors copying to stdin if the program
++	// completed successfully otherwise.
++	// See Issue 9173.
++	pe, ok := err.(*fs.PathError)
++	return ok &&
++		pe.Op == "write" && pe.Path == "|1" &&
++		pe.Err == syscall.EPIPE
+ }
+diff --git a/src/os/exec/exec_windows.go b/src/os/exec/exec_windows.go
+index bb937f8aed..e7a2ee6c9d 100644
+--- a/src/os/exec/exec_windows.go
++++ b/src/os/exec/exec_windows.go
+@@ -9,15 +9,15 @@ import (
+ 	"syscall"
+ )
+ 
+-func init() {
+-	skipStdinCopyError = func(err error) bool {
+-		// Ignore ERROR_BROKEN_PIPE and ERROR_NO_DATA errors copying
+-		// to stdin if the program completed successfully otherwise.
+-		// See Issue 20445.
+-		const _ERROR_NO_DATA = syscall.Errno(0xe8)
+-		pe, ok := err.(*fs.PathError)
+-		return ok &&
+-			pe.Op == "write" && pe.Path == "|1" &&
+-			(pe.Err == syscall.ERROR_BROKEN_PIPE || pe.Err == _ERROR_NO_DATA)
+-	}
++// skipStdinCopyError optionally specifies a function which reports
++// whether the provided stdin copy error should be ignored.
++func skipStdinCopyError(err error) bool {
++	// Ignore ERROR_BROKEN_PIPE and ERROR_NO_DATA errors copying
++	// to stdin if the program completed successfully otherwise.
++	// See Issue 20445.
++	const _ERROR_NO_DATA = syscall.Errno(0xe8)
++	pe, ok := err.(*fs.PathError)
++	return ok &&
++		pe.Op == "write" && pe.Path == "|1" &&
++		(pe.Err == syscall.ERROR_BROKEN_PIPE || pe.Err == _ERROR_NO_DATA)
+ }

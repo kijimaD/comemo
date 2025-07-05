@@ -11,6 +11,20 @@ Date:   Mon Mar 2 14:53:07 2015 +1100
     Change-Id: I6d221bce01cce8cc0440e117543233371782ca22
     Reviewed-on: https://go-review.googlesource.com/6421
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/jpeg/scan.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/image/jpeg/scan.go b/src/image/jpeg/scan.go
+index 8fcf401dd8..da60023fb5 100644
+--- a/src/image/jpeg/scan.go
++++ b/src/image/jpeg/scan.go
+@@ -66,7 +66,7 @@ func (d *decoder) processSOS(n int) error {
+ 	for i := 0; i < nComp; i++ {
+ 		cs := d.tmp[1+2*i] // Component selector.
+ 		compIndex := -1
+-		for j, comp := range d.comp {
++		for j, comp := range d.comp[:d.nComp] {
+ 			if cs == comp.c {
+ 				compIndex = j
+ 			}

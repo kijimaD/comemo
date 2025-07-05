@@ -16,7 +16,52 @@ Date:   Mon Nov 28 11:02:52 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/go1.16.txt             |  2 ++
  src/encoding/csv/reader.go | 13 ++++++++-----
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index b06d64c3d3..084f592e18 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -531,6 +531,8 @@ pkg database/sql/driver, type Stmt interface, Exec //deprecated
+ pkg database/sql/driver, type Stmt interface, Query //deprecated
+ pkg debug/gosym, method (*LineTable) LineToPC //deprecated
+ pkg debug/gosym, method (*LineTable) PCToLine //deprecated
++pkg encoding/csv, type Reader struct, TrailingComma //deprecated
++pkg encoding/csv, var ErrTrailingComma //deprecated
+ pkg encoding/json, type InvalidUTF8Error //deprecated
+ pkg encoding/json, type UnmarshalFieldError //deprecated
+ pkg go/build, const AllowBinary //deprecated
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index 90a37e6074..b83208eb3a 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -84,10 +84,12 @@ func (e *ParseError) Unwrap() error { return e.Err }
+ 
+ // These are the errors that can be returned in ParseError.Err.
+ var (
+-	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
+-	ErrBareQuote     = errors.New("bare \" in non-quoted-field")
+-	ErrQuote         = errors.New("extraneous or missing \" in quoted-field")
+-	ErrFieldCount    = errors.New("wrong number of fields")
++	ErrBareQuote  = errors.New("bare \" in non-quoted-field")
++	ErrQuote      = errors.New("extraneous or missing \" in quoted-field")
++	ErrFieldCount = errors.New("wrong number of fields")
++
++	// Deprecated: ErrTrailingComma is no longer used.
++	ErrTrailingComma = errors.New("extra delimiter at end of line")
+ )
+ 
+ var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
+@@ -142,7 +144,8 @@ type Reader struct {
+ 	// By default, each call to Read returns newly allocated memory owned by the caller.
+ 	ReuseRecord bool
+ 
+-	TrailingComma bool // Deprecated: No longer used.
++	// Deprecated: TrailingComma is no longer used.
++	TrailingComma bool
+ 
+ 	r *bufio.Reader
+ 

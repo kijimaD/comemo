@@ -9,7 +9,110 @@ Date:   Wed Aug 17 12:12:01 2011 -0400
     R=agl, rsc
     CC=golang-dev
     https://golang.org/cl/4873049
-
+---
  src/pkg/asn1/asn1.go      | 34 ++++++++++++++++------------------
  src/pkg/asn1/asn1_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 2dcdcfea6c..39b676b419 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -681,23 +681,21 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		}
+ 		err = err1
+ 		return
+-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		switch val.Type().Kind() {
+-		case reflect.Int:
+-			parsedInt, err1 := parseInt(innerBytes)
+-			if err1 == nil {
+-				val.SetInt(int64(parsedInt))
+-			}
+-			err = err1
+-			return
+-		case reflect.Int64:
+-			parsedInt, err1 := parseInt64(innerBytes)
+-			if err1 == nil {
+-				val.SetInt(parsedInt)
+-			}
+-			err = err1
+-			return
++	case reflect.Int, reflect.Int32:
++		parsedInt, err1 := parseInt(innerBytes)
++		if err1 == nil {
++			val.SetInt(int64(parsedInt))
+ 		}
++		err = err1
++		return
++	case reflect.Int64:
++		parsedInt, err1 := parseInt64(innerBytes)
++		if err1 == nil {
++			val.SetInt(parsedInt)
++		}
++		err = err1
++		return
++	// TODO(dfc) Add support for the remaining integer types
+ 	case reflect.Struct:
+ 		structType := fieldType
+ 
+@@ -760,7 +758,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		}
+ 		return
+ 	}
+-	err = StructuralError{"unknown Go type"}
++	err = StructuralError{"unsupported: " + v.Type().String()}
+ 	return
+ }
+ 
+@@ -787,7 +785,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ // Because Unmarshal uses the reflect package, the structs
+ // being written to must use upper case field names.
+ //
+-// An ASN.1 INTEGER can be written to an int or int64.
++// An ASN.1 INTEGER can be written to an int, int32 or int64.
+ // If the encoded value does not fit in the Go type,
+ // Unmarshal returns a parse error.
+ //
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index 8487a14b60..9f48f7bdd5 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -42,6 +42,37 @@ func TestParseInt64(t *testing.T) {
+ 	}
+ }
+ 
++type int32Test struct {
++	in  []byte
++	ok  bool
++	out int32
++}
++
++var int32TestData = []int32Test{
++	{[]byte{0x00}, true, 0},
++	{[]byte{0x7f}, true, 127},
++	{[]byte{0x00, 0x80}, true, 128},
++	{[]byte{0x01, 0x00}, true, 256},
++	{[]byte{0x80}, true, -128},
++	{[]byte{0xff, 0x7f}, true, -129},
++	{[]byte{0xff, 0xff, 0xff, 0xff}, true, -1},
++	{[]byte{0xff}, true, -1},
++	{[]byte{0x80, 0x00, 0x00, 0x00}, true, -2147483648},
++	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00}, false, 0},
++}
++
++func TestParseInt32(t *testing.T) {
++	for i, test := range int32TestData {
++		ret, err := parseInt(test.in)
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
++		}
++		if test.ok && int32(ret) != test.out {
++			t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
++		}
++	}
++}
++
+ var bigIntTests = []struct {
+ 	in     []byte
+ 	base10 string

@@ -7,6 +7,21 @@ Date:   Wed Feb 15 10:31:28 2012 +1100
     R=gri
     CC=golang-dev
     https://golang.org/cl/5675049
-
+---
  doc/style.css | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/style.css b/doc/style.css
+index b9b468d65b..68a43f9b21 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -10,6 +10,9 @@ pre, code {
+ pre .comment {
+ 	color: #375EAB;
+ }
++pre .ln {
++	color: #999;
++}
+ body {
+ 	color: #222;
+ }

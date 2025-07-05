@@ -17,7 +17,7 @@ Date:   Mon Feb 24 18:35:17 2020 -0800
     Reviewed-by: Akhil Indurti <aindurti@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
-
+---
  src/bufio/bufio_test.go                     |  2 +-
  src/encoding/xml/xml.go                     |  4 +-
  src/fmt/fmt_test.go                         | 10 ++---
@@ -31,3 +31,276 @@ Date:   Mon Feb 24 18:35:17 2020 -0800
  src/strconv/quote_test.go                   | 66 ++++++++++++++---------------
  src/strings/strings_test.go                 |  4 +-
  12 files changed, 56 insertions(+), 56 deletions(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 9a9f102f15..4c4522c660 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -147,7 +147,7 @@ func TestReader(t *testing.T) {
+ 	for i := 0; i < len(texts)-1; i++ {
+ 		texts[i] = str + "\n"
+ 		all += texts[i]
+-		str += string(i%26 + 'a')
++		str += string(rune(i)%26 + 'a')
+ 	}
+ 	texts[len(texts)-1] = all
+ 
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 5e73dcf731..adaf4daf19 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -960,7 +960,7 @@ func (d *Decoder) ungetc(b byte) {
+ 	d.offset--
+ }
+ 
+-var entity = map[string]int{
++var entity = map[string]rune{
+ 	"lt":   '<',
+ 	"gt":   '>',
+ 	"amp":  '&',
+@@ -1055,7 +1055,7 @@ Input:
+ 					d.buf.WriteByte(';')
+ 					n, err := strconv.ParseUint(s, base, 64)
+ 					if err == nil && n <= unicode.MaxRune {
+-						text = string(n)
++						text = string(rune(n))
+ 						haveText = true
+ 					}
+ 				}
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index bbaf40a619..072fc6bf3b 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -236,10 +236,10 @@ var fmtTests = []struct {
+ 	{"%#q", "\U0010ffff", "`􏿿`"},
+ 	{"%#+q", "\U0010ffff", "`􏿿`"},
+ 	// Runes that are not valid.
+-	{"%q", string(0x110000), `"�"`},
+-	{"%+q", string(0x110000), `"\ufffd"`},
+-	{"%#q", string(0x110000), "`�`"},
+-	{"%#+q", string(0x110000), "`�`"},
++	{"%q", string(rune(0x110000)), `"�"`},
++	{"%+q", string(rune(0x110000)), `"\ufffd"`},
++	{"%#q", string(rune(0x110000)), "`�`"},
++	{"%#+q", string(rune(0x110000)), "`�`"},
+ 
+ 	// characters
+ 	{"%c", uint('x'), "x"},
+@@ -1457,7 +1457,7 @@ func (flagPrinter) Format(f State, c rune) {
+ 	s := "%"
+ 	for i := 0; i < 128; i++ {
+ 		if f.Flag(i) {
+-			s += string(i)
++			s += string(rune(i))
+ 		}
+ 	}
+ 	if w, ok := f.Width(); ok {
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 8cab0180ee..381577049c 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -600,13 +600,13 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
+ // scanRune returns the next rune value in the input.
+ func (s *ss) scanRune(bitSize int) int64 {
+ 	s.notEOF()
+-	r := int64(s.getRune())
++	r := s.getRune()
+ 	n := uint(bitSize)
+-	x := (r << (64 - n)) >> (64 - n)
+-	if x != r {
++	x := (int64(r) << (64 - n)) >> (64 - n)
++	if x != int64(r) {
+ 		s.errorString("overflow on character value " + string(r))
+ 	}
+-	return r
++	return int64(r)
+ }
+ 
+ // scanBasePrefix reports whether the integer begins with a base prefix
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 7ea8fd70aa..4a6bddb24c 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -28,7 +28,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 			// If codepoint < 0 the absolute value is too large (or unknown) for
+ 			// conversion. This is the same as converting any other out-of-range
+ 			// value - let string(codepoint) do the work.
+-			x.val = constant.MakeString(string(codepoint))
++			x.val = constant.MakeString(string(rune(codepoint)))
+ 			ok = true
+ 		}
+ 	case x.convertibleTo(check, T):
+diff --git a/src/net/dnsclient_test.go b/src/net/dnsclient_test.go
+index 3ab2b836ef..f3ed62db36 100644
+--- a/src/net/dnsclient_test.go
++++ b/src/net/dnsclient_test.go
+@@ -42,7 +42,7 @@ func testUniformity(t *testing.T, size int, margin float64) {
+ 	rand.Seed(1)
+ 	data := make([]*SRV, size)
+ 	for i := 0; i < size; i++ {
+-		data[i] = &SRV{Target: string('a' + i), Weight: 1}
++		data[i] = &SRV{Target: string('a' + rune(i)), Weight: 1}
+ 	}
+ 	checkDistribution(t, data, margin)
+ }
+diff --git a/src/net/rpc/jsonrpc/all_test.go b/src/net/rpc/jsonrpc/all_test.go
+index bbb8eb0291..4e73edc70b 100644
+--- a/src/net/rpc/jsonrpc/all_test.go
++++ b/src/net/rpc/jsonrpc/all_test.go
+@@ -127,8 +127,8 @@ func TestServer(t *testing.T) {
+ 		if resp.Error != nil {
+ 			t.Fatalf("resp.Error: %s", resp.Error)
+ 		}
+-		if resp.Id.(string) != string(i) {
+-			t.Fatalf("resp: bad id %q want %q", resp.Id.(string), string(i))
++		if resp.Id.(string) != string(rune(i)) {
++			t.Fatalf("resp: bad id %q want %q", resp.Id.(string), string(rune(i)))
+ 		}
+ 		if resp.Result.C != 2*i+1 {
+ 			t.Fatalf("resp: bad result: %d+%d=%d", i, i+1, resp.Result.C)
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 0f5e083663..51e7d195fe 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2623,12 +2623,12 @@ func cvtComplex(v Value, t Type) Value {
+ 
+ // convertOp: intXX -> string
+ func cvtIntString(v Value, t Type) Value {
+-	return makeString(v.flag.ro(), string(v.Int()), t)
++	return makeString(v.flag.ro(), string(rune(v.Int())), t)
+ }
+ 
+ // convertOp: uintXX -> string
+ func cvtUintString(v Value, t Type) Value {
+-	return makeString(v.flag.ro(), string(v.Uint()), t)
++	return makeString(v.flag.ro(), string(rune(v.Uint())), t)
+ }
+ 
+ // convertOp: []byte -> string
+diff --git a/src/runtime/pprof/internal/profile/proto.go b/src/runtime/pprof/internal/profile/proto.go
+index 11d7f9ff9b..294acfeb92 100644
+--- a/src/runtime/pprof/internal/profile/proto.go
++++ b/src/runtime/pprof/internal/profile/proto.go
+@@ -232,7 +232,7 @@ func decodeField(b *buffer, data []byte) ([]byte, error) {
+ 		b.u64 = uint64(le32(data[:4]))
+ 		data = data[4:]
+ 	default:
+-		return nil, errors.New("unknown type: " + string(b.typ))
++		return nil, errors.New("unknown type: " + string(rune(b.typ)))
+ 	}
+ 
+ 	return data, nil
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 80c5fa6406..b9ac667533 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -282,7 +282,7 @@ func TestStringOnStack(t *testing.T) {
+ func TestIntString(t *testing.T) {
+ 	// Non-escaping result of intstring.
+ 	s := ""
+-	for i := 0; i < 4; i++ {
++	for i := rune(0); i < 4; i++ {
+ 		s += string(i+'0') + string(i+'0'+1)
+ 	}
+ 	if want := "01122334"; s != want {
+@@ -291,7 +291,7 @@ func TestIntString(t *testing.T) {
+ 
+ 	// Escaping result of intstring.
+ 	var a [4]string
+-	for i := 0; i < 4; i++ {
++	for i := rune(0); i < 4; i++ {
+ 		a[i] = string(i + '0')
+ 	}
+ 	s = a[0] + a[1] + a[2] + a[3]
+diff --git a/src/strconv/quote_test.go b/src/strconv/quote_test.go
+index cdc9aafd55..f1faf137bd 100644
+--- a/src/strconv/quote_test.go
++++ b/src/strconv/quote_test.go
+@@ -180,39 +180,39 @@ type canBackquoteTest struct {
+ 
+ var canbackquotetests = []canBackquoteTest{
+ 	{"`", false},
+-	{string(0), false},
+-	{string(1), false},
+-	{string(2), false},
+-	{string(3), false},
+-	{string(4), false},
+-	{string(5), false},
+-	{string(6), false},
+-	{string(7), false},
+-	{string(8), false},
+-	{string(9), true}, // \t
+-	{string(10), false},
+-	{string(11), false},
+-	{string(12), false},
+-	{string(13), false},
+-	{string(14), false},
+-	{string(15), false},
+-	{string(16), false},
+-	{string(17), false},
+-	{string(18), false},
+-	{string(19), false},
+-	{string(20), false},
+-	{string(21), false},
+-	{string(22), false},
+-	{string(23), false},
+-	{string(24), false},
+-	{string(25), false},
+-	{string(26), false},
+-	{string(27), false},
+-	{string(28), false},
+-	{string(29), false},
+-	{string(30), false},
+-	{string(31), false},
+-	{string(0x7F), false},
++	{string(rune(0)), false},
++	{string(rune(1)), false},
++	{string(rune(2)), false},
++	{string(rune(3)), false},
++	{string(rune(4)), false},
++	{string(rune(5)), false},
++	{string(rune(6)), false},
++	{string(rune(7)), false},
++	{string(rune(8)), false},
++	{string(rune(9)), true}, // \t
++	{string(rune(10)), false},
++	{string(rune(11)), false},
++	{string(rune(12)), false},
++	{string(rune(13)), false},
++	{string(rune(14)), false},
++	{string(rune(15)), false},
++	{string(rune(16)), false},
++	{string(rune(17)), false},
++	{string(rune(18)), false},
++	{string(rune(19)), false},
++	{string(rune(20)), false},
++	{string(rune(21)), false},
++	{string(rune(22)), false},
++	{string(rune(23)), false},
++	{string(rune(24)), false},
++	{string(rune(25)), false},
++	{string(rune(26)), false},
++	{string(rune(27)), false},
++	{string(rune(28)), false},
++	{string(rune(29)), false},
++	{string(rune(30)), false},
++	{string(rune(31)), false},
++	{string(rune(0x7F)), false},
+ 	{`' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true},
+ 	{`0123456789`, true},
+ 	{`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true},
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index ad14a0574a..984fecfa8d 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -678,8 +678,8 @@ func TestMap(t *testing.T) {
+ 		}
+ 		return r
+ 	}
+-	s := string(utf8.RuneSelf) + string(utf8.MaxRune)
+-	r := string(utf8.MaxRune) + string(utf8.RuneSelf) // reverse of s
++	s := string(rune(utf8.RuneSelf)) + string(utf8.MaxRune)
++	r := string(utf8.MaxRune) + string(rune(utf8.RuneSelf)) // reverse of s
+ 	m = Map(encode, s)
+ 	if m != r {
+ 		t.Errorf("encoding not handled correctly: expected %q got %q", r, m)

@@ -45,10 +45,275 @@ Date:   Mon Mar 28 19:10:13 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 27 ++++++++++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++--
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  3 ++
  src/cmd/compile/internal/ssa/opGen.go        | 48 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 30 +++++++----------
  5 files changed, 93 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index dfacff6f40..d25342986f 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -694,6 +694,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpAMD64MOVQloadidx1:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.From.Scale = 1
++		p.From.Index = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+@@ -703,6 +712,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Index = gc.SSARegNum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpAMD64MOVLloadidx1:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.From.Scale = 1
++		p.From.Index = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+@@ -712,6 +730,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Index = gc.SSARegNum(v.Args[1])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpAMD64MOVWloadidx1:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		gc.AddAux(&p.From, v)
++		p.From.Scale = 1
++		p.From.Index = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = gc.SSARegNum(v)
+ 	case ssa.OpAMD64MOVWloadidx2:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 22d2e7e475..bc932c99b1 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1262,13 +1262,13 @@
+     (SHLQconst [56] (MOVBload [i+7] {s} p mem))) -> @x.Block (MOVQload [i] {s} p mem)
+ 
+ (ORW              x:(MOVBloadidx1 [i]   {s} p idx mem)
+-    (SHLWconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem))) -> @x.Block (MOVWload [i] {s} (ADDQ <p.Type> p idx) mem)
++    (SHLWconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem))) -> @x.Block (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
+ 
+ (ORL (ORL (ORL
+                   x:(MOVBloadidx1 [i]   {s} p idx mem)
+     (SHLLconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))
+     (SHLLconst [16] (MOVBloadidx1 [i+2] {s} p idx mem)))
+-    (SHLLconst [24] (MOVBloadidx1 [i+3] {s} p idx mem))) -> @x.Block (MOVLload [i] {s} (ADDQ <p.Type> p idx) mem)
++    (SHLLconst [24] (MOVBloadidx1 [i+3] {s} p idx mem))) -> @x.Block (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+ 
+ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
+                   x:(MOVBloadidx1 [i]   {s} p idx mem)
+@@ -1278,4 +1278,4 @@
+     (SHLQconst [32] (MOVBloadidx1 [i+4] {s} p idx mem)))
+     (SHLQconst [40] (MOVBloadidx1 [i+5] {s} p idx mem)))
+     (SHLQconst [48] (MOVBloadidx1 [i+6] {s} p idx mem)))
+-    (SHLQconst [56] (MOVBloadidx1 [i+7] {s} p idx mem))) -> @x.Block (MOVQload [i] {s} (ADDQ <p.Type> p idx) mem)
++    (SHLQconst [56] (MOVBloadidx1 [i+7] {s} p idx mem))) -> @x.Block (MOVQloadidx1 <v.Type> [i] {s} p idx mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 9dc09aab53..c1bb2efc30 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -406,8 +406,11 @@ func init() {
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, asm: "MOVBLZX", aux: "SymOff"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
++		{name: "MOVWloadidx1", argLength: 3, reg: gploadidx, asm: "MOVWLZX", aux: "SymOff"}, // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem
+ 		{name: "MOVWloadidx2", argLength: 3, reg: gploadidx, asm: "MOVWLZX", aux: "SymOff"}, // load 2 bytes from arg0+2*arg1+auxint+aux. arg2=mem
++		{name: "MOVLloadidx1", argLength: 3, reg: gploadidx, asm: "MOVL", aux: "SymOff"},    // load 4 bytes from arg0+arg1+auxint+aux. arg2=mem
+ 		{name: "MOVLloadidx4", argLength: 3, reg: gploadidx, asm: "MOVL", aux: "SymOff"},    // load 4 bytes from arg0+4*arg1+auxint+aux. arg2=mem
++		{name: "MOVQloadidx1", argLength: 3, reg: gploadidx, asm: "MOVQ", aux: "SymOff"},    // load 8 bytes from arg0+arg1+auxint+aux. arg2=mem
+ 		{name: "MOVQloadidx8", argLength: 3, reg: gploadidx, asm: "MOVQ", aux: "SymOff"},    // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+ 		// TODO: sign-extending indexed loads
+ 		{name: "MOVBstoreidx1", argLength: 4, reg: gpstoreidx, asm: "MOVB", aux: "SymOff"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e76efd40ca..ef2dcb97a3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -310,8 +310,11 @@ const (
+ 	OpAMD64MOVOload
+ 	OpAMD64MOVOstore
+ 	OpAMD64MOVBloadidx1
++	OpAMD64MOVWloadidx1
+ 	OpAMD64MOVWloadidx2
++	OpAMD64MOVLloadidx1
+ 	OpAMD64MOVLloadidx4
++	OpAMD64MOVQloadidx1
+ 	OpAMD64MOVQloadidx8
+ 	OpAMD64MOVBstoreidx1
+ 	OpAMD64MOVWstoreidx2
+@@ -3819,6 +3822,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "MOVWloadidx1",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     x86.AMOVWLZX,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []regMask{
++				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:    "MOVWloadidx2",
+ 		auxType: auxSymOff,
+@@ -3834,6 +3852,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "MOVLloadidx1",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     x86.AMOVL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []regMask{
++				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:    "MOVLloadidx4",
+ 		auxType: auxSymOff,
+@@ -3849,6 +3882,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "MOVQloadidx1",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     x86.AMOVQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []regMask{
++				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:    "MOVQloadidx8",
+ 		auxType: auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2d7aa3bd80..0a7046aace 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -10670,7 +10670,7 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 	}
+ 	// match: (ORL (ORL (ORL                   x:(MOVBloadidx1 [i]   {s} p idx mem)     (SHLLconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))     (SHLLconst [16] (MOVBloadidx1 [i+2] {s} p idx mem)))     (SHLLconst [24] (MOVBloadidx1 [i+3] {s} p idx mem)))
+ 	// cond:
+-	// result: @x.Block (MOVLload [i] {s} (ADDQ <p.Type> p idx) mem)
++	// result: @x.Block (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpAMD64ORL {
+@@ -10768,15 +10768,13 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Line, OpAMD64MOVLload, config.fe.TypeUInt32())
++		v0 := b.NewValue0(v.Line, OpAMD64MOVLloadidx1, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = i
+ 		v0.Aux = s
+-		v1 := b.NewValue0(v.Line, OpAMD64ADDQ, p.Type)
+-		v1.AddArg(p)
+-		v1.AddArg(idx)
+-		v0.AddArg(v1)
++		v0.AddArg(p)
++		v0.AddArg(idx)
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+@@ -11088,7 +11086,7 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
+ 	}
+ 	// match: (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ                   x:(MOVBloadidx1 [i]   {s} p idx mem)     (SHLQconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))     (SHLQconst [16] (MOVBloadidx1 [i+2] {s} p idx mem)))     (SHLQconst [24] (MOVBloadidx1 [i+3] {s} p idx mem)))     (SHLQconst [32] (MOVBloadidx1 [i+4] {s} p idx mem)))     (SHLQconst [40] (MOVBloadidx1 [i+5] {s} p idx mem)))     (SHLQconst [48] (MOVBloadidx1 [i+6] {s} p idx mem)))     (SHLQconst [56] (MOVBloadidx1 [i+7] {s} p idx mem)))
+ 	// cond:
+-	// result: @x.Block (MOVQload [i] {s} (ADDQ <p.Type> p idx) mem)
++	// result: @x.Block (MOVQloadidx1 <v.Type> [i] {s} p idx mem)
+ 	for {
+ 		v_0 := v.Args[0]
+ 		if v_0.Op != OpAMD64ORQ {
+@@ -11306,15 +11304,13 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Line, OpAMD64MOVQload, config.fe.TypeUInt64())
++		v0 := b.NewValue0(v.Line, OpAMD64MOVQloadidx1, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = i
+ 		v0.Aux = s
+-		v1 := b.NewValue0(v.Line, OpAMD64ADDQ, p.Type)
+-		v1.AddArg(p)
+-		v1.AddArg(idx)
+-		v0.AddArg(v1)
++		v0.AddArg(p)
++		v0.AddArg(idx)
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+@@ -11456,7 +11452,7 @@ func rewriteValueAMD64_OpAMD64ORW(v *Value, config *Config) bool {
+ 	}
+ 	// match: (ORW              x:(MOVBloadidx1 [i]   {s} p idx mem)     (SHLWconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))
+ 	// cond:
+-	// result: @x.Block (MOVWload [i] {s} (ADDQ <p.Type> p idx) mem)
++	// result: @x.Block (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpAMD64MOVBloadidx1 {
+@@ -11494,15 +11490,13 @@ func rewriteValueAMD64_OpAMD64ORW(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		b = x.Block
+-		v0 := b.NewValue0(v.Line, OpAMD64MOVWload, config.fe.TypeUInt16())
++		v0 := b.NewValue0(v.Line, OpAMD64MOVWloadidx1, v.Type)
+ 		v.reset(OpCopy)
+ 		v.AddArg(v0)
+ 		v0.AuxInt = i
+ 		v0.Aux = s
+-		v1 := b.NewValue0(v.Line, OpAMD64ADDQ, p.Type)
+-		v1.AddArg(p)
+-		v1.AddArg(idx)
+-		v0.AddArg(v1)
++		v0.AddArg(p)
++		v0.AddArg(idx)
+ 		v0.AddArg(mem)
+ 		return true
+ 	}

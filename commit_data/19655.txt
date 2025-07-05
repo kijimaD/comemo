@@ -9,7 +9,32 @@ Date:   Wed Jul 2 06:45:57 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/111820043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3eb0909120..32df72ebb0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -397,6 +397,7 @@ Tetsuo Kiso <tetsuokiso9@gmail.com>
+ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
++Timo Truyts <alkaloid.btx@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Travis Cline <travis.cline@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5ffc10e6e1..64ea77c3cc 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -546,6 +546,7 @@ Thomas Alan Copeland <talan.copeland@gmail.com>
+ Thomas Habets <habets@google.com>
+ Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
++Timo Truyts <alkaloid.btx@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
+ Todd Wang <toddwang@gmail.com>
+ Tom Szymanski <tgs@google.com>

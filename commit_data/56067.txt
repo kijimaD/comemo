@@ -13,7 +13,89 @@ Date:   Thu Apr 6 17:36:05 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/testdata/testprogcgo/bindm.c  | 34 +++++++++++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/bindm.go | 30 +--------------------------
  2 files changed, 35 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/bindm.c b/src/runtime/testdata/testprogcgo/bindm.c
+new file mode 100644
+index 0000000000..815d8a75f2
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/bindm.c
+@@ -0,0 +1,34 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !plan9 && !windows
++
++#include <stdint.h>
++#include <pthread.h>
++#include <unistd.h>
++#include "_cgo_export.h"
++
++#define CTHREADS 2
++#define CHECKCALLS 100
++
++static void* checkBindMThread(void* thread) {
++	int i;
++	for (i = 0; i < CHECKCALLS; i++) {
++		GoCheckBindM((uintptr_t)thread);
++		usleep(1);
++	}
++	return NULL;
++}
++
++void CheckBindM() {
++	int i;
++	pthread_t s[CTHREADS];
++
++	for (i = 0; i < CTHREADS; i++) {
++		pthread_create(&s[i], NULL, checkBindMThread, &s[i]);
++	}
++	for (i = 0; i < CTHREADS; i++) {
++		pthread_join(s[i], NULL);
++	}
++}
+diff --git a/src/runtime/testdata/testprogcgo/bindm.go b/src/runtime/testdata/testprogcgo/bindm.go
+index ed2c6a7eea..c2003c2093 100644
+--- a/src/runtime/testdata/testprogcgo/bindm.go
++++ b/src/runtime/testdata/testprogcgo/bindm.go
+@@ -10,35 +10,7 @@
+ package main
+ 
+ /*
+-#include <stdint.h>
+-#include <pthread.h>
+-#include <unistd.h>
+-
+-extern void GoCheckBindM();
+-
+-#define CTHREADS 2
+-#define CHECKCALLS 100
+-
+-static void* checkBindMThread(void* thread) {
+-	int i;
+-	for (i = 0; i < CHECKCALLS; i++) {
+-		GoCheckBindM((uintptr_t)thread);
+-		usleep(1);
+-	}
+-	return NULL;
+-}
+-
+-static void CheckBindM() {
+-	int i;
+-	pthread_t s[CTHREADS];
+-
+-	for (i = 0; i < CTHREADS; i++) {
+-		pthread_create(&s[i], NULL, checkBindMThread, &s[i]);
+-	}
+-	for (i = 0; i < CTHREADS; i++) {
+-		pthread_join(s[i], NULL);
+-	}
+-}
++extern void CheckBindM();
+ */
+ import "C"
+ 

@@ -8,7 +8,131 @@ Date:   Thu Jan 8 15:12:00 2009 -0800
     DELTA=37  (0 added, 7 deleted, 30 changed)
     OCL=22330
     CL=22342
-
+---
  src/lib/sort.go      | 43 ++++++++++++++++++-------------------------
  src/lib/sort_test.go | 24 ++++++++++++------------
  2 files changed, 30 insertions(+), 37 deletions(-)
+
+diff --git a/src/lib/sort.go b/src/lib/sort.go
+index fd0866d8e2..39a5f35925 100644
+--- a/src/lib/sort.go
++++ b/src/lib/sort.go
+@@ -34,7 +34,6 @@ func MedianOfThree(data SortInterface, a, b, c int) {
+ 	m0 := b;
+ 	m1 := a;
+ 	m2 := c;
+-
+ 	// bubble sort on 3 elements
+ 	if data.Less(m1, m0) { data.Swap(m1, m0); }
+ 	if data.Less(m2, m1) { data.Swap(m2, m1); }
+@@ -135,40 +134,34 @@ export func IsSorted(data SortInterface) bool {
+ 
+ // Convenience types for common cases
+ 
+-export type IntArray struct {
+-	data []int;
+-}
++export type IntArray []int
+ 
+-func (p *IntArray) Len() int            { return len(p.data); }
+-func (p *IntArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
+-func (p *IntArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
++func (p IntArray) Len() int            { return len(p); }
++func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
++func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+-export type FloatArray struct {
+-	data []float;
+-}
++export type FloatArray  []float
+ 
+-func (p *FloatArray) Len() int            { return len(p.data); }
+-func (p *FloatArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
+-func (p *FloatArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
++func (p FloatArray) Len() int            { return len(p); }
++func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
++func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+-export type StringArray struct {
+-	data []string;
+-}
++export type StringArray []string
+ 
+-func (p *StringArray) Len() int            { return len(p.data); }
+-func (p *StringArray) Less(i, j int) bool  { return p.data[i] < p.data[j]; }
+-func (p *StringArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
++func (p StringArray) Len() int            { return len(p); }
++func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
++func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+ // Convenience wrappers for common cases
+ 
+-export func SortInts(a []int)        { Sort(&IntArray{a}); }
+-export func SortFloats(a []float)    { Sort(&FloatArray{a}); }
+-export func SortStrings(a []string)  { Sort(&StringArray{a}); }
++export func SortInts(a []int)        { Sort(IntArray(a)); }
++export func SortFloats(a []float)    { Sort(FloatArray(a)); }
++export func SortStrings(a []string)  { Sort(StringArray(a)); }
+ 
+ 
+-export func IntsAreSorted(a []int) bool       { return IsSorted(&IntArray{a}); }
+-export func FloatsAreSorted(a []float) bool   { return IsSorted(&FloatArray{a}); }
+-export func StringsAreSorted(a []string) bool { return IsSorted(&StringArray{a}); }
++export func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
++export func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
++export func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
+diff --git a/src/lib/sort_test.go b/src/lib/sort_test.go
+index 03f71da557..65d5c9b690 100644
+--- a/src/lib/sort_test.go
++++ b/src/lib/sort_test.go
+@@ -14,15 +14,15 @@ import (
+ func BentleyMcIlroyTests();
+ 
+ 
+-var ints = []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+-var floats = []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
+-var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
++var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
++var floats = [...]float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
++var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+ 
+ export func TestSortIntArray(t *testing.T) {
+ 	data := ints;
+-	a := sort.IntArray{data};
+-	sort.Sort(&a);
+-	if !sort.IsSorted(&a) {
++	a := IntArray(data);
++	sort.Sort(a);
++	if !sort.IsSorted(a) {
+ 		t.Errorf("sorted %v", ints);
+ 		t.Errorf("   got %v", data);
+ 	}
+@@ -30,9 +30,9 @@ export func TestSortIntArray(t *testing.T) {
+ 
+ export func TestSortFloatArray(t *testing.T) {
+ 	data := floats;
+-	a := sort.FloatArray{data};
+-	sort.Sort(&a);
+-	if !sort.IsSorted(&a) {
++	a := FloatArray(data);
++	sort.Sort(a);
++	if !sort.IsSorted(a) {
+ 		t.Errorf("sorted %v", floats);
+ 		t.Errorf("   got %v", data);
+ 	}
+@@ -40,9 +40,9 @@ export func TestSortFloatArray(t *testing.T) {
+ 
+ export func TestSortStringArray(t *testing.T) {
+ 	data := strings;
+-	a := sort.StringArray{data};
+-	sort.Sort(&a);
+-	if !sort.IsSorted(&a) {
++	a := StringArray(data);
++	sort.Sort(a);
++	if !sort.IsSorted(a) {
+ 		t.Errorf("sorted %v", strings);
+ 		t.Errorf("   got %v", data);
+ 	}

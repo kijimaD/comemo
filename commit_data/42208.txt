@@ -17,9 +17,120 @@ Date:   Thu Nov 14 16:17:47 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207317
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                   |  4 ++++
  .../go/testdata/mod/example.com_stack_v1.0.0.txt   | 18 +++++++++++++++
  .../go/testdata/mod/example.com_stack_v1.0.1.txt   | 18 +++++++++++++++
  .../go/testdata/script/build_cache_trimpath.txt    | 27 ++++++++++++++++++++++
  4 files changed, 67 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index c8849b49fa..0287af7b3b 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -206,8 +206,12 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	// The compiler hides the exact value of $GOROOT
+ 	// when building things in GOROOT.
+ 	// Assume b.WorkDir is being trimmed properly.
++	// When -trimpath is used with a package built from the module cache,
++	// use the module path and version instead of the directory.
+ 	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
+ 		fmt.Fprintf(h, "dir %s\n", p.Dir)
++	} else if cfg.BuildTrimpath && p.Module != nil {
++		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+ 	}
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+ 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+diff --git a/src/cmd/go/testdata/mod/example.com_stack_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_stack_v1.0.0.txt
+new file mode 100644
+index 0000000000..787b7aedfa
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_stack_v1.0.0.txt
+@@ -0,0 +1,18 @@
++Module with a function that prints file name for the top stack frame.
++Different versions of this module are identical, but they should return
++different file names with -trimpath.
++-- .mod --
++module example.com/stack
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0"}
++-- stack.go --
++package stack
++
++import "runtime"
++
++func TopFile() string {
++	_, file, _, _ := runtime.Caller(0)
++	return file
++}
+diff --git a/src/cmd/go/testdata/mod/example.com_stack_v1.0.1.txt b/src/cmd/go/testdata/mod/example.com_stack_v1.0.1.txt
+new file mode 100644
+index 0000000000..c715dd234f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_stack_v1.0.1.txt
+@@ -0,0 +1,18 @@
++Module with a function that prints file name for the top stack frame.
++Different versions of this module are identical, but they should return
++different file names with -trimpath.
++-- .mod --
++module example.com/stack
++
++go 1.14
++-- .info --
++{"Version":"v1.0.1"}
++-- stack.go --
++package stack
++
++import "runtime"
++
++func TopFile() string {
++	_, file, _, _ := runtime.Caller(0)
++	return file
++}
+diff --git a/src/cmd/go/testdata/script/build_cache_trimpath.txt b/src/cmd/go/testdata/script/build_cache_trimpath.txt
+index 39367ae380..9a4b9d7b40 100644
+--- a/src/cmd/go/testdata/script/build_cache_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_cache_trimpath.txt
+@@ -1,3 +1,4 @@
++[short] skip
+ env GO111MODULE=on
+ 
+ # Set up fresh GOCACHE.
+@@ -12,9 +13,35 @@ go build -x -o a.out -trimpath
+ stderr '(compile|gccgo)( |\.exe)'
+ stderr 'link( |\.exe)'
+ 
++# Two distinct versions of the same module with identical content should
++# still be cached separately.
++# Verifies golang.org/issue/35412.
++go get -d example.com/stack@v1.0.0
++go run -trimpath printstack.go
++stdout '^example.com/stack@v1.0.0/stack.go$'
++go get -d example.com/stack@v1.0.1
++go run -trimpath printstack.go
++stdout '^example.com/stack@v1.0.1/stack.go$'
++
+ -- $WORK/hello.go --
+ package main
+ func main() { println("hello") }
+ 
++-- $WORK/printstack.go --
++// +build ignore
++
++package main
++
++import (
++	"fmt"
++
++	"example.com/stack"
++)
++
++func main() {
++	fmt.Println(stack.TopFile())
++}
+ -- $WORK/go.mod --
+ module m
++
++go 1.14

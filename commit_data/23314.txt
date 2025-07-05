@@ -10,6 +10,21 @@ Date:   Wed May 6 09:10:27 2015 -0400
     Change-Id: I4e28dbdcdd693688835bcd1d4b0224454aa7154d
     Reviewed-on: https://go-review.googlesource.com/9784
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  api/next.txt | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/api/next.txt b/api/next.txt
+index 59c3f936d2..cebbe877b6 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -778,9 +778,6 @@ pkg net/http/pprof, func Trace(http.ResponseWriter, *http.Request)
+ pkg net/smtp, method (*Client) TLSConnectionState() (tls.ConnectionState, bool)
+ pkg os/signal, func Ignore(...os.Signal)
+ pkg os/signal, func Reset(...os.Signal)
+-pkg runtime, func GCendtimes()
+-pkg runtime, func GCprinttimes()
+-pkg runtime, func GCstarttimes(int64)
+ pkg runtime, func ReadTrace() []uint8
+ pkg runtime, func StartTrace() error
+ pkg runtime, func StopTrace()

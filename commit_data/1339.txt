@@ -7,9 +7,333 @@ Date:   Sat Dec 13 16:41:47 2008 -0800
     R=r
     OCL=21146
     CL=21146
-
+---
  src/cmd/6g/cgen.c  | 64 ++++++++++++++++++++++++++++++++-----------
  src/cmd/6g/gen.c   | 79 ++----------------------------------------------------
  src/cmd/6g/gg.h    |  2 +-
  src/cmd/6g/gsubr.c | 39 ++++++++++++++++-----------
  4 files changed, 75 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index fa31c5af2f..300020eabf 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -9,7 +9,7 @@ cgen(Node *n, Node *res)
+ {
+ 	Node *nl, *nr, *r;
+ 	Node n1, n2;
+-	int a;
++	int a, f;
+ 	Prog *p1, *p2, *p3;
+ 	Addr addr;
+ 
+@@ -48,6 +48,36 @@ cgen(Node *n, Node *res)
+ 			goto ret;
+ 		}
+ 
++		if(res->ullman >= UINF)
++			goto gen;
++
++		f = 1;	// gen thru register
++		switch(n->op) {
++		case OLITERAL:
++			if(isint[n->type->etype])
++			if(n->type->width <= 4)
++				f = 0;
++			break;
++		case OREGISTER:
++			f = 0;
++			break;
++		}
++
++		if(sudoaddable(res, n->type, &addr, &n1)) {
++			a = optoas(OAS, res->type);
++			if(f) {
++				regalloc(&n2, res->type, N);
++				cgen(n, &n2);
++				p1 = gins(a, &n2, N);
++				regfree(&n2);
++			} else
++				p1 = gins(a, n, N);
++			p1->to = addr;
++			regfree(&n1);
++			goto ret;
++		}
++
++	gen:
+ 		igen(res, &n1, N);
+ 		cgen(n, &n1);
+ 		regfree(&n1);
+@@ -71,19 +101,20 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
+-	if(sudoaddable(n, res->type, &addr)) {
++	if(sudoaddable(n, res->type, &addr, &n1)) {
+ 		a = optoas(OAS, n->type);
+ 		if(res->op == OREGISTER) {
+ 			p1 = gins(a, N, res);
+ 			p1->from = addr;
+ 		} else {
+-			regalloc(&n1, n->type, N);
+-			p1 = gins(a, N, &n1);
++			regalloc(&n2, n->type, &n1);
++			p1 = gins(a, N, &n2);
+ 			p1->from = addr;
+-			gins(a, &n1, res);
+-			regfree(&n1);
++			gins(a, &n2, res);
++			regfree(&n2);
+ 		}
+-		return;
++		regfree(&n1);
++		goto ret;
+ 	}
+ 
+ 	switch(n->op) {
+@@ -173,10 +204,10 @@ cgen(Node *n, Node *res)
+ 		regfree(&n1);
+ 		break;
+ 
+-	case OINDEXPTR:
+-	case OINDEX:
+ 	case ODOT:
+ 	case ODOTPTR:
++	case OINDEXPTR:
++	case OINDEX:
+ 	case OIND:
+ 		igen(n, &n1, res);
+ 		gmove(&n1, res);
+@@ -286,13 +317,14 @@ abop:	// asymmetric binary
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+ 
+-if(sudoaddable(nr, nl->type, &addr)) {
+-	p1 = gins(a, N, &n1);
+-	p1->from = addr;
+-	gmove(&n1, res);
+-	regfree(&n1);
+-	goto ret;
+-}
++		if(sudoaddable(nr, nl->type, &addr, &n2)) {
++			p1 = gins(a, N, &n1);
++			p1->from = addr;
++			gmove(&n1, res);
++			regfree(&n2);
++			regfree(&n1);
++			goto ret;
++		}
+ 
+ 		regalloc(&n2, nr->type, N);
+ 		cgen(nr, &n2);
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 137ad7ae0f..400aa7eac5 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -1165,15 +1165,10 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 		gmove(dx, res);
+ }
+ 
+-/*
+- * this is hard because divide
+- * is done in a fixed numerator
+- * of combined DX:AX registers
+- */
+ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node ax, dx, n3, tmpax, tmpdx;
++	Node ax, dx;
+ 	int rax, rdx;
+ 
+ 	rax = reg[D_AX];
+@@ -1184,64 +1179,12 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ 	regalloc(&ax, nl->type, &ax);
+ 	regalloc(&dx, nl->type, &dx);
+ 
+-	// clean out the AX register
+-	if(rax && !samereg(res, &ax)) {
+-		if(rdx && !samereg(res, &dx)) {
+-			regalloc(&tmpdx, types[TINT64], N);
+-			regalloc(&tmpax, types[TINT64], N);
+-			regalloc(&n3, nl->type, N);		// dest for div
+-
+-			gins(AMOVQ, &dx, &tmpdx);
+-			gins(AMOVQ, &ax, &tmpax);
+-			dodiv(op, nl, nr, &n3, &ax, &dx);
+-			gins(AMOVQ, &tmpax, &ax);
+-			gins(AMOVQ, &tmpdx, &dx);
+-			gmove(&n3, res);
+-
+-			regfree(&tmpdx);
+-			regfree(&tmpax);
+-			regfree(&n3);
+-			goto ret;
+-		}
+-		regalloc(&tmpax, types[TINT64], N);
+-		regalloc(&n3, nl->type, N);		// dest for div
+-
+-		gins(AMOVQ, &ax, &tmpax);
+-		dodiv(op, nl, nr, &n3, &ax, &dx);
+-		gins(AMOVQ, &tmpax, &ax);
+-		gmove(&n3, res);
+-
+-		regfree(&tmpax);
+-		regfree(&n3);
+-		goto ret;
+-	}
+-
+-	// clean out the DX register
+-	if(rdx && !samereg(res, &dx)) {
+-		regalloc(&tmpdx, types[TINT64], N);
+-		regalloc(&n3, nl->type, N);		// dest for div
+-
+-		gins(AMOVQ, &dx, &tmpdx);
+-		dodiv(op, nl, nr, &n3, &ax, &dx);
+-		gins(AMOVQ, &tmpdx, &dx);
+-		gmove(&n3, res);
+-
+-		regfree(&tmpdx);
+-		regfree(&n3);
+-		goto ret;
+-	}
+ 	dodiv(op, nl, nr, res, &ax, &dx);
+ 
+-ret:
+ 	regfree(&ax);
+ 	regfree(&dx);
+ }
+ 
+-/*
+- * this is hard because shift
+- * count is either constant
+- * or the CL register
+- */
+ void
+ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ {
+@@ -1271,25 +1214,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
+ 	nodreg(&n1, types[TINT64], D_CX);
+ 	regalloc(&n1, nr->type, &n1);
+ 
+-	// clean out the CL register
+-	if(rcl) {
+-		regalloc(&n2, types[TINT64], N);
+-		gins(AMOVQ, &n1, &n2);
+-		regfree(&n1);
+-
+-		reg[D_CX] = 0;
+-		if(samereg(res, &n1))
+-			cgen_shift(op, nl, nr, &n2);
+-		else
+-			cgen_shift(op, nl, nr, res);
+-		reg[D_CX] = rcl;
+-
+-		gins(AMOVQ, &n2, &n1);
+-		regfree(&n2);
+-		goto ret;
+-	}
+-
+-	regalloc(&n2, nl->type, res);	// can one shift the CL register
++	regalloc(&n2, nl->type, res);
+ 	if(nl->ullman >= nr->ullman) {
+ 		cgen(nl, &n2);
+ 		cgen(nr, &n1);
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 82d3d455fa..df83aed688 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -199,7 +199,7 @@ void	tempname(Node*, Type*);
+ Plist*	newplist(void);
+ int	isfat(Type*);
+ void	setmaxarg(Type*);
+-int	sudoaddable(Node*, Type*, Addr*);
++int	sudoaddable(Node*, Type*, Addr*, Node*);
+ 
+ /*
+  * list.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 8313b4e008..28acd0c83f 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -113,7 +113,12 @@ ginit(void)
+ 		reg[i] = 0;
+ 	for(i=D_X0; i<=D_X7; i++)
+ 		reg[i] = 0;
+-	reg[D_SP]++;
++	reg[D_AX]++;	// for divide
++	reg[D_CX]++;	// for shift
++	reg[D_DI]++;	// for movstring
++	reg[D_DX]++;	// for divide
++	reg[D_SI]++;	// for movstring
++	reg[D_SP]++;	// for stack
+ }
+ 
+ void
+@@ -121,7 +126,12 @@ gclean(void)
+ {
+ 	int i;
+ 
+-	reg[D_SP]--;
++	reg[D_AX]--;	// for divide
++	reg[D_CX]--;	// for shift
++	reg[D_DI]--;	// for movstring
++	reg[D_DX]--;	// for divide
++	reg[D_SI]--;	// for movstring
++	reg[D_SP]--;	// for stack
+ 	for(i=D_AX; i<=D_R15; i++)
+ 		if(reg[i])
+ 			yyerror("reg %R left allocated\n", i);
+@@ -1800,11 +1810,11 @@ dotoffset(Node *n, int *oary, Node **nn)
+ }
+ 
+ int
+-sudoaddable(Node *n, Type *t, Addr *a)
++sudoaddable(Node *n, Type *t, Addr *a, Node *reg)
+ {
+ 	int et, o, i;
+ 	int oary[10];
+-	Node n1, n2, *nn;
++	Node n1, *nn;
+ 
+ 	if(n->type == T || t == T)
+ 		return 0;
+@@ -1831,28 +1841,27 @@ sudoaddable(Node *n, Type *t, Addr *a)
+ 			return 0;
+ 		}
+ 
+-		regalloc(&n1, types[tptr], N);
+-		n2 = n1;
+-		n2.op = OINDREG;
++		regalloc(reg, types[tptr], N);
++		n1 = *reg;
++		n1.op = OINDREG;
+ 		if(oary[0] >= 0) {
+-			agen(nn, &n1);
+-			n2.xoffset = oary[0];
++			agen(nn, reg);
++			n1.xoffset = oary[0];
+ 		} else {
+-			cgen(nn, &n1);
+-			n2.xoffset = -(oary[0]+1);
++			cgen(nn, reg);
++			n1.xoffset = -(oary[0]+1);
+ 		}
+ 
+ 		for(i=1; i<o; i++) {
+ 			if(oary[i] >= 0)
+ 				fatal("cant happen");
+-			gins(AMOVQ, &n2, &n1);
+-			n2.xoffset = -(oary[i]+1);
++			gins(AMOVQ, &n1, reg);
++			n1.xoffset = -(oary[i]+1);
+ 		}
+ 
+ 		a->type = D_NONE;
+ 		a->index = D_NONE;
+-		naddr(&n2, a);
+-		regfree(&n1);
++		naddr(&n1, a);
+ 		break;
+ 	}
+ 	return 1;

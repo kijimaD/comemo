@@ -13,8 +13,56 @@ Date:   Thu Jul 20 15:45:24 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go         | 5 +++++
  src/go/types/builtins.go                            | 5 +++++
  src/internal/types/testdata/fixedbugs/issue61486.go | 9 +++++++++
  3 files changed, 19 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index f3763862ec..7a209e7a97 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -576,6 +576,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// If nargs == 1, make sure x.mode is either a value or a constant.
+ 		if x.mode != constant_ {
+ 			x.mode = value
++			// A value must not be untyped.
++			check.assignment(x, &emptyInterface, "argument to "+bin.name)
++			if x.mode == invalid {
++				return
++			}
+ 		}
+ 
+ 		// Use the final type computed above for all arguments.
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 4aee3979d0..35b8755a91 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -575,6 +575,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// If nargs == 1, make sure x.mode is either a value or a constant.
+ 		if x.mode != constant_ {
+ 			x.mode = value
++			// A value must not be untyped.
++			check.assignment(x, &emptyInterface, "argument to "+bin.name)
++			if x.mode == invalid {
++				return
++			}
+ 		}
+ 
+ 		// Use the final type computed above for all arguments.
+diff --git a/src/internal/types/testdata/fixedbugs/issue61486.go b/src/internal/types/testdata/fixedbugs/issue61486.go
+new file mode 100644
+index 0000000000..b12a800f0d
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue61486.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(s uint) {
++	_ = min(1 << s)
++}

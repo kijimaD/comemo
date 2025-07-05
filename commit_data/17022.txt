@@ -10,7 +10,73 @@ Date:   Mon Aug 5 10:53:46 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12448044
-
+---
  src/pkg/time/format.go    | 18 ++++++++++++++++--
  src/pkg/time/time_test.go |  4 ++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index f5bb6291dd..c4ea5fca65 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -102,6 +102,16 @@ const (
+ // std0x records the std values for "01", "02", ..., "06".
+ var std0x = [...]int{stdZeroMonth, stdZeroDay, stdZeroHour12, stdZeroMinute, stdZeroSecond, stdYear}
+ 
++// startsWithLowerCase reports whether the the string has a lower-case letter at the beginning.
++// Its purpose is to prevent matching strings like "Month" when looking for "Mon".
++func startsWithLowerCase(str string) bool {
++	if len(str) == 0 {
++		return false
++	}
++	c := str[0]
++	return 'a' <= c && c <= 'z'
++}
++
+ // nextStdChunk finds the first occurrence of a std string in
+ // layout and returns the text before, the std string, and the text after.
+ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+@@ -112,7 +122,9 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 				if len(layout) >= i+7 && layout[i:i+7] == "January" {
+ 					return layout[0:i], stdLongMonth, layout[i+7:]
+ 				}
+-				return layout[0:i], stdMonth, layout[i+3:]
++				if !startsWithLowerCase(layout[i+3:]) {
++					return layout[0:i], stdMonth, layout[i+3:]
++				}
+ 			}
+ 
+ 		case 'M': // Monday, Mon, MST
+@@ -121,7 +133,9 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 					if len(layout) >= i+6 && layout[i:i+6] == "Monday" {
+ 						return layout[0:i], stdLongWeekDay, layout[i+6:]
+ 					}
+-					return layout[0:i], stdWeekDay, layout[i+3:]
++					if !startsWithLowerCase(layout[i+3:]) {
++						return layout[0:i], stdWeekDay, layout[i+3:]
++					}
+ 				}
+ 				if layout[i:i+3] == "MST" {
+ 					return layout[0:i], stdTZ, layout[i+3:]
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 703e2be9a5..4bea49575e 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -413,6 +413,8 @@ var formatTests = []FormatTest{
+ 	{"am/pm", "3pm", "9pm"},
+ 	{"AM/PM", "3PM", "9PM"},
+ 	{"two-digit year", "06 01 02", "09 02 04"},
++	// Three-letter months and days must not be followed by lower-case letter.
++	{"Janet", "Hi Janet, the Month is January", "Hi Janet, the Month is February"},
+ 	// Time stamps, Fractional seconds.
+ 	{"Stamp", Stamp, "Feb  4 21:00:57"},
+ 	{"StampMilli", StampMilli, "Feb  4 21:00:57.012"},
+@@ -505,6 +507,8 @@ var parseTests = []ParseTest{
+ 	// Leading zeros in other places should not be taken as fractional seconds.
+ 	{"zero1", "2006.01.02.15.04.05.0", "2010.02.04.21.00.57.0", false, false, 1, 1},
+ 	{"zero2", "2006.01.02.15.04.05.00", "2010.02.04.21.00.57.01", false, false, 1, 2},
++	// Month and day names only match when not followed by a lower-case letter.
++	{"Janet", "Hi Janet, the Month is January: Jan _2 15:04:05 2006", "Hi Janet, the Month is February: Feb  4 21:00:57 2010", false, true, 1, 0},
+ 
+ 	// Accept any number of fractional second digits (including none) for .999...
+ 	// In Go 1, .999... was completely ignored in the format, meaning the first two

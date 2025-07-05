@@ -7,9 +7,63 @@ Date:   Tue Mar 29 13:00:24 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4327045
-
+---
  src/cmd/Makefile                |  1 +
  src/cmd/gotest/Makefile         |  2 +-
  src/cmd/gotry/Makefile          | 18 ++++++++++++++++++
  src/cmd/{gotest => gotry}/gotry |  0
  4 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index fdb33f0702..0d18f64fee 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -19,6 +19,7 @@ DIRS=\
+ 	godefs\
+ 	gopack\
+ 	gotest\
++	gotry\
+ 	nm\
+ 	prof\
+ 	
+diff --git a/src/cmd/gotest/Makefile b/src/cmd/gotest/Makefile
+index 74054e974c..9ef0f0c1aa 100644
+--- a/src/cmd/gotest/Makefile
++++ b/src/cmd/gotest/Makefile
+@@ -9,7 +9,7 @@ TARG=install
+ clean:
+ 	@true
+ 
+-install: install-gotest install-gotry
++install: install-gotest
+ 
+ install-%: %
+ 	! test -f "$(GOBIN)"/$* || chmod u+w "$(GOBIN)"/$*
+diff --git a/src/cmd/gotry/Makefile b/src/cmd/gotry/Makefile
+new file mode 100644
+index 0000000000..6a32bbf2d6
+--- /dev/null
++++ b/src/cmd/gotry/Makefile
+@@ -0,0 +1,18 @@
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=install
++
++clean:
++	@true
++
++install: install-gotry
++
++install-%: %
++	! test -f "$(GOBIN)"/$* || chmod u+w "$(GOBIN)"/$*
++	sed 's`@@GOROOT@@`$(GOROOT_FINAL)`' $* >"$(GOBIN)"/$*
++	chmod +x "$(GOBIN)"/$*
++
+diff --git a/src/cmd/gotest/gotry b/src/cmd/gotry/gotry
+similarity index 100%
+rename from src/cmd/gotest/gotry
+rename to src/cmd/gotry/gotry

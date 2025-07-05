@@ -15,7 +15,135 @@ Date:   Sun Aug 20 14:06:17 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types/fmt.go  | 20 ++++++++------------
  src/cmd/compile/internal/types/type.go | 25 +++++++------------------
  2 files changed, 15 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 7489edd42e..2b9ba08314 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -520,12 +520,8 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			break
+ 		}
+ 
+-		if funarg := t.StructType().Funarg; funarg != FunargNone {
+-			open, close := '(', ')'
+-			if funarg == FunargTparams {
+-				open, close = '[', ']'
+-			}
+-			b.WriteByte(byte(open))
++		if t.StructType().ParamTuple {
++			b.WriteByte('(')
+ 			fieldVerb := 'v'
+ 			switch mode {
+ 			case fmtTypeID, fmtTypeIDName, fmtGo:
+@@ -536,9 +532,9 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 				if i != 0 {
+ 					b.WriteString(", ")
+ 				}
+-				fldconv(b, f, fieldVerb, mode, visited, funarg)
++				fldconv(b, f, fieldVerb, mode, visited, true)
+ 			}
+-			b.WriteByte(byte(close))
++			b.WriteByte(')')
+ 		} else {
+ 			b.WriteString("struct {")
+ 			for i, f := range t.Fields() {
+@@ -546,7 +542,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 					b.WriteByte(';')
+ 				}
+ 				b.WriteByte(' ')
+-				fldconv(b, f, 'L', mode, visited, funarg)
++				fldconv(b, f, 'L', mode, visited, false)
+ 			}
+ 			if t.NumFields() != 0 {
+ 				b.WriteByte(' ')
+@@ -577,7 +573,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 	}
+ }
+ 
+-func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, funarg Funarg) {
++func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, isParam bool) {
+ 	if f == nil {
+ 		b.WriteString("<T>")
+ 		return
+@@ -634,7 +630,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 		}
+ 
+ 		if s != nil {
+-			if funarg != FunargNone {
++			if isParam {
+ 				name = fmt.Sprint(f.Nname)
+ 			} else if verb == 'L' {
+ 				name = s.Name
+@@ -666,7 +662,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 		tconv2(b, f.Type, 0, mode, visited)
+ 	}
+ 
+-	if verb != 'S' && funarg == FunargNone && f.Note != "" {
++	if verb != 'S' && !isParam && f.Note != "" {
+ 		b.WriteString(" ")
+ 		b.WriteString(strconv.Quote(f.Note))
+ 	}
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 696e8a5bc1..343cc69c18 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -323,20 +323,9 @@ type Struct struct {
+ 	// Map links such structs back to their map type.
+ 	Map *Type
+ 
+-	Funarg Funarg // type of function arguments for arg struct
++	ParamTuple bool // whether this struct is actually a tuple of signature parameters
+ }
+ 
+-// Funarg records the kind of function argument
+-type Funarg uint8
+-
+-const (
+-	FunargNone    Funarg = iota
+-	FunargRcvr           // receiver
+-	FunargParams         // input parameters
+-	FunargResults        // output results
+-	FunargTparams        // type params
+-)
+-
+ // StructType returns t's extra struct-specific fields.
+ func (t *Type) StructType() *Struct {
+ 	t.wantEtype(TSTRUCT)
+@@ -890,7 +879,7 @@ func (t *Type) FuncArgs() *Type {
+ 
+ // IsFuncArgStruct reports whether t is a struct representing function parameters or results.
+ func (t *Type) IsFuncArgStruct() bool {
+-	return t.kind == TSTRUCT && t.extra.(*Struct).Funarg != FunargNone
++	return t.kind == TSTRUCT && t.extra.(*Struct).ParamTuple
+ }
+ 
+ // Methods returns a pointer to the base methods (excluding embedding) for type t.
+@@ -1716,9 +1705,9 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
+ 	t := newType(TFUNC)
+ 	ft := t.funcType()
+ 
+-	funargs := func(fields []*Field, funarg Funarg) *Type {
++	funargs := func(fields []*Field) *Type {
+ 		s := NewStruct(fields)
+-		s.StructType().Funarg = funarg
++		s.StructType().ParamTuple = true
+ 		return s
+ 	}
+ 
+@@ -1727,9 +1716,9 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
+ 	}
+ 	unzeroFieldOffsets(params)
+ 	unzeroFieldOffsets(results)
+-	ft.Receiver = funargs(recvs, FunargRcvr)
+-	ft.Params = funargs(params, FunargParams)
+-	ft.Results = funargs(results, FunargResults)
++	ft.Receiver = funargs(recvs)
++	ft.Params = funargs(params)
++	ft.Results = funargs(results)
+ 	if fieldsHasShape(recvs) || fieldsHasShape(params) || fieldsHasShape(results) {
+ 		t.SetHasShape(true)
+ 	}

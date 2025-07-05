@@ -13,7 +13,34 @@ Date:   Wed Mar 25 21:02:44 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/chan/powser1.go | 2 +-
  test/chan/powser2.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 5357eec50f..e999dde2be 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -595,7 +595,7 @@ func Subst(U, V PS) PS {
+ 	return Z
+ }
+ 
+-// Monomial Substition: U(c x^n)
++// Monomial Substitution: U(c x^n)
+ // Each Ui is multiplied by c^i and followed by n-1 zeros
+ 
+ func MonSubst(U PS, c0 rat, n int) PS {
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index fb1fb8518e..72cbba8cf6 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -609,7 +609,7 @@ func Subst(U, V PS) PS {
+ 	return Z
+ }
+ 
+-// Monomial Substition: U(c x^n)
++// Monomial Substitution: U(c x^n)
+ // Each Ui is multiplied by c^i and followed by n-1 zeros
+ 
+ func MonSubst(U PS, c0 *rat, n int) PS {

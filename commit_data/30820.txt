@@ -10,7 +10,38 @@ Date:   Fri Dec 9 08:49:23 2016 +1300
     Reviewed-on: https://go-review.googlesource.com/34170
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testshared/src/exe/exe.go | 5 +++++
  src/cmd/link/internal/ld/symtab.go | 3 +--
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testshared/src/exe/exe.go b/misc/cgo/testshared/src/exe/exe.go
+index 31fbedd31c..f01ad8ab78 100644
+--- a/misc/cgo/testshared/src/exe/exe.go
++++ b/misc/cgo/testshared/src/exe/exe.go
+@@ -7,6 +7,11 @@ import (
+ 	"runtime"
+ )
+ 
++// Having a function declared in the main package triggered
++// golang.org/issue/18250
++func DeclaredInMain() {
++}
++
+ func main() {
+ 	defer depBase.ImplementedInAsm()
+ 	// This code below causes various go.itab.* symbols to be generated in
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 98ce3ad79b..dd0e5407e8 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -602,8 +602,7 @@ func (ctxt *Link) symtab() {
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	// The ptab slice
+-	if ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0); ptab != nil {
+-		ptab.Attr |= AttrReachable
++	if ptab := ctxt.Syms.ROLookup("go.plugin.tabs", 0); ptab != nil && ptab.Attr.Reachable() {
+ 		ptab.Attr |= AttrLocal
+ 		ptab.Type = obj.SRODATA
+ 

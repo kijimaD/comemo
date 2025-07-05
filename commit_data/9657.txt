@@ -11,7 +11,7 @@ Date:   Mon Sep 12 15:41:49 2011 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/4973074
-
+---
  src/cmd/gofmt/doc.go                       |   6 ++
  src/cmd/gofmt/gofmt.go                     | 118 +++++++++++++++++++++++++++--
  src/cmd/gofmt/gofmt_test.go                |  45 ++++++++---
@@ -32,3 +32,470 @@ Date:   Mon Sep 12 15:41:49 2011 -0400
  src/cmd/gofmt/testdata/stdin4.input        |   3 +
  src/cmd/gofmt/testdata/stdin4.input.gofmt  |   3 +
  19 files changed, 242 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index fca42b76ba..3a20c21e0e 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -53,6 +53,12 @@ In the pattern, single-character lowercase identifiers serve as
+ wildcards matching arbitrary sub-expressions; those expressions
+ will be substituted for the same identifiers in the replacement.
+ 
++When gofmt reads from standard input, it accepts either a full Go program
++or a program fragment.  A program fragment must be a syntactically
++valid declaration list, statement list, or expression.  When formatting
++such a fragment, gofmt preserves leading indentation as well as leading
++and trailing spaces, so that individual sections of a Go program can be
++formatted by piping them through gofmt.
+ 
+ Examples
+ 
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 975ae6ac6f..277f743ab4 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -86,7 +86,7 @@ func isGoFile(f *os.FileInfo) bool {
+ }
+ 
+ // If in == nil, the source is the contents of the file with the given filename.
+-func processFile(filename string, in io.Reader, out io.Writer) os.Error {
++func processFile(filename string, in io.Reader, out io.Writer, stdin bool) os.Error {
+ 	if in == nil {
+ 		f, err := os.Open(filename)
+ 		if err != nil {
+@@ -101,7 +101,7 @@ func processFile(filename string, in io.Reader, out io.Writer) os.Error {
+ 		return err
+ 	}
+ 
+-	file, err := parser.ParseFile(fset, filename, src, parserMode)
++	file, adjust, err := parse(filename, src, stdin)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -119,7 +119,7 @@ func processFile(filename string, in io.Reader, out io.Writer) os.Error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	res := buf.Bytes()
++	res := adjust(src, buf.Bytes())
+ 
+ 	if !bytes.Equal(src, res) {
+ 		// formatting has changed
+@@ -158,7 +158,7 @@ func (v fileVisitor) VisitDir(path string, f *os.FileInfo) bool {
+ func (v fileVisitor) VisitFile(path string, f *os.FileInfo) {
+ 	if isGoFile(f) {
+ 		v <- nil // synchronize error handler
+-		if err := processFile(path, nil, os.Stdout); err != nil {
++		if err := processFile(path, nil, os.Stdout, false); err != nil {
+ 			v <- err
+ 		}
+ 	}
+@@ -211,7 +211,7 @@ func gofmtMain() {
+ 	initRewrite()
+ 
+ 	if flag.NArg() == 0 {
+-		if err := processFile("<standard input>", os.Stdin, os.Stdout); err != nil {
++		if err := processFile("<standard input>", os.Stdin, os.Stdout, true); err != nil {
+ 			report(err)
+ 		}
+ 		return
+@@ -223,7 +223,7 @@ func gofmtMain() {
+ 		case err != nil:
+ 			report(err)
+ 		case dir.IsRegular():
+-			if err := processFile(path, nil, os.Stdout); err != nil {
++			if err := processFile(path, nil, os.Stdout, false); err != nil {
+ 				report(err)
+ 			}
+ 		case dir.IsDirectory():
+@@ -259,3 +259,109 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 	return
+ 
+ }
++
++// parse parses src, which was read from filename,
++// as a Go source file or statement list.
++func parse(filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, os.Error) {
++	// Try as whole source file.
++	file, err := parser.ParseFile(fset, filename, src, parserMode)
++	if err == nil {
++		adjust := func(orig, src []byte) []byte { return src }
++		return file, adjust, nil
++	}
++	// If the error is that the source file didn't begin with a
++	// package line and this is standard input, fall through to
++	// try as a source fragment.  Stop and return on any other error.
++	if !stdin || !strings.Contains(err.String(), "expected 'package'") {
++		return nil, nil, err
++	}
++
++	// If this is a declaration list, make it a source file
++	// by inserting a package clause.
++	// Insert using a ;, not a newline, so that the line numbers
++	// in psrc match the ones in src.
++	psrc := append([]byte("package p;"), src...)
++	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
++	if err == nil {
++		adjust := func(orig, src []byte) []byte {
++			// Remove the package clause.
++			// Gofmt has turned the ; into a \n.
++			src = src[len("package p\n"):]
++			return matchSpace(orig, src)
++		}
++		return file, adjust, nil
++	}
++	// If the error is that the source file didn't begin with a
++	// declaration, fall through to try as a statement list.
++	// Stop and return on any other error.
++	if !strings.Contains(err.String(), "expected declaration") {
++		return nil, nil, err
++	}
++
++	// If this is a statement list, make it a source file
++	// by inserting a package clause and turning the list
++	// into a function body.  This handles expressions too.
++	// Insert using a ;, not a newline, so that the line numbers
++	// in fsrc match the ones in src.
++	fsrc := append(append([]byte("package p; func _() {"), src...), '}')
++	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
++	if err == nil {
++		adjust := func(orig, src []byte) []byte {
++			// Remove the wrapping.
++			// Gofmt has turned the ; into a \n\n.
++			src = src[len("package p\n\nfunc _() {"):]
++			src = src[:len(src)-len("}\n")]
++			// Gofmt has also indented the function body one level.
++			// Remove that indent.
++			src = bytes.Replace(src, []byte("\n\t"), []byte("\n"), -1)
++			return matchSpace(orig, src)
++		}
++		return file, adjust, nil
++	}
++
++	// Failed, and out of options.
++	return nil, nil, err
++}
++
++func cutSpace(b []byte) (before, middle, after []byte) {
++	i := 0
++	for i < len(b) && (b[i] == ' ' || b[i] == '\t' || b[i] == '\n') {
++		i++
++	}
++	j := len(b)
++	for j > 0 && (b[j-1] == ' ' || b[j-1] == '\t' || b[j-1] == '\n') {
++		j--
++	}
++	return b[:i], b[i:j], b[j:]
++}
++
++// matchSpace reformats src to use the same space context as orig.
++// 1) If orig begins with blank lines, matchSpace inserts them at the beginning of src.
++// 2) matchSpace copies the indentation of the first non-blank line in orig
++//    to every non-blank line in src.
++// 3) matchSpace copies the trailing space from orig and uses it in place
++//   of src's trailing space.
++func matchSpace(orig []byte, src []byte) []byte {
++	before, _, after := cutSpace(orig)
++	i := bytes.LastIndex(before, []byte{'\n'})
++	before, indent := before[:i+1], before[i+1:]
++
++	_, src, _ = cutSpace(src)
++
++	var b bytes.Buffer
++	b.Write(before)
++	for len(src) > 0 {
++		line := src
++		if i := bytes.IndexByte(line, '\n'); i >= 0 {
++			line, src = line[:i+1], line[i+1:]
++		} else {
++			src = nil
++		}
++		if len(line) > 0 && line[0] != '\n' { // not blank
++			b.Write(indent)
++		}
++		b.Write(line)
++	}
++	b.Write(after)
++	return b.Bytes()
++}
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 2e35ce9a44..59cd56e072 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -12,13 +12,11 @@ import (
+ 	"testing"
+ )
+ 
+-func runTest(t *testing.T, dirname, in, out, flags string) {
+-	in = filepath.Join(dirname, in)
+-	out = filepath.Join(dirname, out)
+-
++func runTest(t *testing.T, in, out, flags string) {
+ 	// process flags
+ 	*simplifyAST = false
+ 	*rewriteRule = ""
++	stdin := false
+ 	for _, flag := range strings.Split(flags, " ") {
+ 		elts := strings.SplitN(flag, "=", 2)
+ 		name := elts[0]
+@@ -33,6 +31,9 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
+ 			*rewriteRule = value
+ 		case "-s":
+ 			*simplifyAST = true
++		case "-stdin":
++			// fake flag - pretend input is from stdin
++			stdin = true
+ 		default:
+ 			t.Errorf("unrecognized flag name: %s", name)
+ 		}
+@@ -43,7 +44,7 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
+ 	initRewrite()
+ 
+ 	var buf bytes.Buffer
+-	err := processFile(in, nil, &buf)
++	err := processFile(in, nil, &buf, stdin)
+ 	if err != nil {
+ 		t.Error(err)
+ 		return
+@@ -57,23 +58,43 @@ func runTest(t *testing.T, dirname, in, out, flags string) {
+ 
+ 	if got := buf.Bytes(); bytes.Compare(got, expected) != 0 {
+ 		t.Errorf("(gofmt %s) != %s (see %s.gofmt)", in, out, in)
++		d, err := diff(expected, got)
++		if err == nil {
++			t.Errorf("%s", d)
++		}
+ 		ioutil.WriteFile(in+".gofmt", got, 0666)
+ 	}
+ }
+ 
+ // TODO(gri) Add more test cases!
+ var tests = []struct {
+-	dirname, in, out, flags string
++	in, flags string
+ }{
+-	{".", "gofmt.go", "gofmt.go", ""},
+-	{".", "gofmt_test.go", "gofmt_test.go", ""},
+-	{"testdata", "composites.input", "composites.golden", "-s"},
+-	{"testdata", "rewrite1.input", "rewrite1.golden", "-r=Foo->Bar"},
+-	{"testdata", "rewrite2.input", "rewrite2.golden", "-r=int->bool"},
++	{"gofmt.go", ""},
++	{"gofmt_test.go", ""},
++	{"testdata/composites.input", "-s"},
++	{"testdata/rewrite1.input", "-r=Foo->Bar"},
++	{"testdata/rewrite2.input", "-r=int->bool"},
++	{"testdata/stdin*.input", "-stdin"},
+ }
+ 
+ func TestRewrite(t *testing.T) {
+ 	for _, test := range tests {
+-		runTest(t, test.dirname, test.in, test.out, test.flags)
++		match, err := filepath.Glob(test.in)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		for _, in := range match {
++			out := in
++			if strings.HasSuffix(in, ".input") {
++				out = in[:len(in)-len(".input")] + ".golden"
++			}
++			runTest(t, in, out, test.flags)
++			if in != out {
++				// Check idempotence.
++				runTest(t, out, out, test.flags)
++			}
++		}
+ 	}
+ }
+diff --git a/src/cmd/gofmt/testdata/stdin1.golden b/src/cmd/gofmt/testdata/stdin1.golden
+new file mode 100644
+index 0000000000..ff8b0b7ab4
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin1.golden
+@@ -0,0 +1,3 @@
++	if x {
++		y
++	}
+diff --git a/src/cmd/gofmt/testdata/stdin1.golden.gofmt b/src/cmd/gofmt/testdata/stdin1.golden.gofmt
+new file mode 100644
+index 0000000000..1f888877d0
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin1.golden.gofmt
+@@ -0,0 +1,3 @@
++	if x {
++	y
++}
+diff --git a/src/cmd/gofmt/testdata/stdin1.input b/src/cmd/gofmt/testdata/stdin1.input
+new file mode 100644
+index 0000000000..ff8b0b7ab4
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin1.input
+@@ -0,0 +1,3 @@
++	if x {
++		y
++	}
+diff --git a/src/cmd/gofmt/testdata/stdin1.input.gofmt b/src/cmd/gofmt/testdata/stdin1.input.gofmt
+new file mode 100644
+index 0000000000..1f888877d0
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin1.input.gofmt
+@@ -0,0 +1,3 @@
++	if x {
++	y
++}
+diff --git a/src/cmd/gofmt/testdata/stdin2.golden b/src/cmd/gofmt/testdata/stdin2.golden
+new file mode 100644
+index 0000000000..7eb1b54fec
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin2.golden
+@@ -0,0 +1,11 @@
++
++
++var x int
++
++func f() {
++	y := z
++	/* this is a comment */
++	// this is a comment too
++}
++
++
+diff --git a/src/cmd/gofmt/testdata/stdin2.golden.gofmt b/src/cmd/gofmt/testdata/stdin2.golden.gofmt
+new file mode 100644
+index 0000000000..85e8003008
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin2.golden.gofmt
+@@ -0,0 +1,10 @@
++
++
++
++var x int
++
++func f() {
++	y := z
++}
++
++
+diff --git a/src/cmd/gofmt/testdata/stdin2.input b/src/cmd/gofmt/testdata/stdin2.input
+new file mode 100644
+index 0000000000..99defd2d10
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin2.input
+@@ -0,0 +1,11 @@
++
++
++var x int
++
++
++func f() { y := z
++	/* this is a comment */
++	// this is a comment too
++}
++
++
+diff --git a/src/cmd/gofmt/testdata/stdin2.input.gofmt b/src/cmd/gofmt/testdata/stdin2.input.gofmt
+new file mode 100644
+index 0000000000..7eb1b54fec
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin2.input.gofmt
+@@ -0,0 +1,11 @@
++
++
++var x int
++
++func f() {
++	y := z
++	/* this is a comment */
++	// this is a comment too
++}
++
++
+diff --git a/src/cmd/gofmt/testdata/stdin3.golden b/src/cmd/gofmt/testdata/stdin3.golden
+new file mode 100644
+index 0000000000..1bf2f5a483
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin3.golden
+@@ -0,0 +1,6 @@
++
++		/* note: no newline at end of file */
++		for i := 0; i < 10; i++ {
++			s += i
++		}
++	
+\ No newline at end of file
+diff --git a/src/cmd/gofmt/testdata/stdin3.golden.gofmt b/src/cmd/gofmt/testdata/stdin3.golden.gofmt
+new file mode 100644
+index 0000000000..b4d1d4663e
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin3.golden.gofmt
+@@ -0,0 +1,7 @@
++
++
++		/* note: no newline at end of file */
++		for i := 0; i < 10; i++ {
++			s += i
++		}
++	
+\ No newline at end of file
+diff --git a/src/cmd/gofmt/testdata/stdin3.input b/src/cmd/gofmt/testdata/stdin3.input
+new file mode 100644
+index 0000000000..d963bd0d21
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin3.input
+@@ -0,0 +1,4 @@
++
++		/* note: no newline at end of file */
++		for i := 0; i < 10; i++ { s += i }
++	
+\ No newline at end of file
+diff --git a/src/cmd/gofmt/testdata/stdin3.input.gofmt b/src/cmd/gofmt/testdata/stdin3.input.gofmt
+new file mode 100644
+index 0000000000..b4d1d4663e
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin3.input.gofmt
+@@ -0,0 +1,7 @@
++
++
++		/* note: no newline at end of file */
++		for i := 0; i < 10; i++ {
++			s += i
++		}
++	
+\ No newline at end of file
+diff --git a/src/cmd/gofmt/testdata/stdin4.golden b/src/cmd/gofmt/testdata/stdin4.golden
+new file mode 100644
+index 0000000000..5f73435517
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin4.golden
+@@ -0,0 +1,3 @@
++	// comment
++
++	i := 0
+diff --git a/src/cmd/gofmt/testdata/stdin4.golden.gofmt b/src/cmd/gofmt/testdata/stdin4.golden.gofmt
+new file mode 100644
+index 0000000000..5f73435517
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin4.golden.gofmt
+@@ -0,0 +1,3 @@
++	// comment
++
++	i := 0
+diff --git a/src/cmd/gofmt/testdata/stdin4.input b/src/cmd/gofmt/testdata/stdin4.input
+new file mode 100644
+index 0000000000..f02a54fb1a
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin4.input
+@@ -0,0 +1,3 @@
++	// comment
++	
++	i := 0
+diff --git a/src/cmd/gofmt/testdata/stdin4.input.gofmt b/src/cmd/gofmt/testdata/stdin4.input.gofmt
+new file mode 100644
+index 0000000000..5f73435517
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/stdin4.input.gofmt
+@@ -0,0 +1,3 @@
++	// comment
++
++	i := 0

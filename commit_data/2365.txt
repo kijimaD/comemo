@@ -9,7 +9,7 @@ Date:   Tue Jun 2 22:33:21 2009 -0700
     DELTA=78  (47 added, 15 deleted, 16 changed)
     OCL=29729
     CL=29798
-
+---
  src/cmd/6l/go.c  |  4 ++++
  src/cmd/6l/obj.c |  6 ++----
  src/cmd/8l/asm.c | 16 ++++++++++++++-
@@ -18,3 +18,238 @@ Date:   Tue Jun 2 22:33:21 2009 -0700
  src/cmd/8l/obj.c | 62 ++++++++++++++++++++++++++++++++------------------------
  src/cmd/ld/go.c  |  1 -
  7 files changed, 68 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index 82a216520f..08c3c8c36e 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -3,4 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "l.h"
++enum
++{
++	PtrSize = 8
++};
+ #include "../ld/go.c"
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 31fb978e16..5ab1c561c9 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -137,10 +137,8 @@ main(int argc, char *argv[])
+ 		break;
+ 	} ARGEND
+ 	USED(argc);
+-	if(*argv == 0) {
+-		diag("usage: 6l [-options] objects");
+-		errorexit();
+-	}
++	if(*argv == 0)
++		usage();
+ 
+ 	mywhatsys();	// get goroot, goarch, goos
+ 	if(strcmp(goarch, thestring) != 0)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 8dd444afa5..e65d48def6 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -416,7 +416,7 @@ asmb(void)
+ 		wputl(0x003E);			/* reloc table offset */
+ 		wputl(0x0000);			/* overlay number */
+ 		break;
+-	
++
+ 	case 6:
+ 		/* apple MACH */
+ 		va = 4096;
+@@ -766,6 +766,20 @@ datblk(int32 s, int32 n)
+ 				l++;
+ 			}
+ 			break;
++
++		case D_SBIG:
++			if(debug['a'] && i == 0) {
++				Bprint(&bso, pcstr, l+s+INITDAT);
++				for(j=0; j<c; j++)
++					Bprint(&bso, "%.2ux", p->to.scon[j] & 0xff);
++				Bprint(&bso, "\t%P\n", curp);
++			}
++			for(; i<c; i++) {
++				buf.dbuf[l] = p->to.sbig[i];
++				l++;
++			}
++			break;
++
+ 		default:
+ 			fl = p->to.offset;
+ 			if(p->to.type == D_ADDR) {
+diff --git a/src/cmd/8l/go.c b/src/cmd/8l/go.c
+new file mode 100644
+index 0000000000..a295fa5b4c
+--- /dev/null
++++ b/src/cmd/8l/go.c
+@@ -0,0 +1,10 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "l.h"
++enum
++{
++	PtrSize = 4
++};
++#include "../ld/go.c"
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 9afd78faa2..d06d050de3 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -248,6 +248,7 @@ EXTERN	int32	INITDAT;
+ EXTERN	int32	INITRND;
+ EXTERN	int32	INITTEXT;
+ EXTERN	char*	INITENTRY;		/* entry point */
++EXTERN	char*	LIBDIR;
+ EXTERN	Biobuf	bso;
+ EXTERN	int32	bsssize;
+ EXTERN	int32	casepc;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index a14f52d6f7..14dba3e159 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -71,6 +71,13 @@ isobjfile(char *f)
+ 	return v;
+ }
+ 
++void
++usage(void)
++{
++	fprint(2, "usage: 8l [-options] [-E entry] [-H head] [-L dir] [-T text] [-R rnd] [-o out] files...\n");
++	exits("usage");
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+@@ -95,32 +102,26 @@ main(int argc, char *argv[])
+ 			debug[c]++;
+ 		break;
+ 	case 'o': /* output to (next arg) */
+-		outfile = ARGF();
++		outfile = EARGF(usage());
+ 		break;
+ 	case 'E':
+-		a = ARGF();
+-		if(a)
+-			INITENTRY = a;
++		INITENTRY = EARGF(usage());
+ 		break;
+ 	case 'H':
+-		a = ARGF();
+-		if(a)
+-			HEADTYPE = atolwhex(a);
++		HEADTYPE = atolwhex(EARGF(usage()));
++		break;
++	case 'L':
++		LIBDIR = EARGF(usage());
+ 		break;
+ 	case 'T':
+-		a = ARGF();
+-		if(a)
+-			INITTEXT = atolwhex(a);
++		INITTEXT = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'D':
+-		a = ARGF();
+-		if(a)
+-			INITDAT = atolwhex(a);
++		INITDAT = atolwhex(EARGF(usage()));
+ 		break;
+ 	case 'R':
+-		a = ARGF();
+-		if(a)
+-			INITRND = atolwhex(a);
++		INITRND = atolwhex(EARGF(usage()));
++		break;
+ 		break;
+ 	case 'x':	/* produce export table */
+ 		doexp = 1;
+@@ -135,10 +136,8 @@ main(int argc, char *argv[])
+ 		break;
+ 	} ARGEND
+ 	USED(argc);
+-	if(*argv == 0) {
+-		diag("usage: 8l [-options] objects");
+-		errorexit();
+-	}
++	if(*argv == 0)
++		usage();
+ 
+ 	whatsys();	// get goroot, goarch, goos
+ 	if(strcmp(goarch, thestring) != 0)
+@@ -602,12 +601,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ void
+ addlib(char *src, char *obj)
+ {
+-	char name[1024], comp[256], *p, *q;
+-	int i;
++	char name[1024], pname[1024], comp[256], *p, *q;
++	int i, search;
+ 
+ 	if(histfrogp <= 0)
+ 		return;
+ 
++	search = 0;
+ 	if(histfrog[0]->name[1] == '/') {
+ 		sprint(name, "");
+ 		i = 1;
+@@ -616,11 +616,9 @@ addlib(char *src, char *obj)
+ 		sprint(name, ".");
+ 		i = 0;
+ 	} else {
+-		if(debug['9'])
+-			sprint(name, "/%s/lib", thestring);
+-		else
+-			sprint(name, "/usr/%clib", thechar);
++		sprint(name, "");
+ 		i = 0;
++		search = 1;
+ 	}
+ 
+ 	for(; i<histfrogp; i++) {
+@@ -650,6 +648,16 @@ addlib(char *src, char *obj)
+ 		strcat(name, "/");
+ 		strcat(name, comp);
+ 	}
++
++	if(search) {
++		// try dot, -L "libdir", and then goroot.
++		snprint(pname, sizeof pname, "./%s", name);
++		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
++			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
++		if(access(pname, AEXIST) < 0)
++			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
++		strcpy(name, pname);
++	}
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+ 
+@@ -976,6 +984,8 @@ loop:
+ 		}
+ 		if(p->to.offset > s->value)
+ 			s->value = p->to.offset;
++		if(p->from.scale & DUPOK)
++			s->dupok = 1;
+ 		goto loop;
+ 
+ 	case ADYNT:
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index d10d89b122..8ba7d12ce3 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -465,7 +465,6 @@ definetypesigs(void)
+ 	qsort(all, n, sizeof all[0], symcmp);
+ 
+ 	// emit array as sequence of references.
+-	enum { PtrSize = 8 };
+ 	for(i=0; i<n; i++) {
+ 		prog = newdata(s, PtrSize*i, PtrSize, D_EXTERN);
+ 		prog->to.type = D_ADDR;

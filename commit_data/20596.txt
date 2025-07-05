@@ -23,7 +23,81 @@ Date:   Mon Sep 22 11:58:15 2014 -0700
     R=golang-codereviews, josharian, rsc
     CC=golang-codereviews
     https://golang.org/cl/144250043
-
+---
  src/fmt/fmt_test.go | 17 +++++++++++++++++
  src/fmt/format.go   | 34 ++++++++++++++++++++++++++++++----
  2 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index a212c9f702..cca0a495ff 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -854,6 +854,23 @@ func BenchmarkManyArgs(b *testing.B) {
+ 	})
+ }
+ 
++func BenchmarkFprintInt(b *testing.B) {
++	var buf bytes.Buffer
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Fprint(&buf, 123456)
++	}
++}
++
++func BenchmarkFprintIntNoAlloc(b *testing.B) {
++	var x interface{} = 123456
++	var buf bytes.Buffer
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		Fprint(&buf, x)
++	}
++}
++
+ var mallocBuf bytes.Buffer
+ var mallocPointer *int // A pointer so we know the interface value won't allocate.
+ 
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 8aeffd7b2b..255167c8f5 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -199,10 +199,36 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	// block but it's not worth the duplication, so ua has 64 bits.
+ 	i := len(buf)
+ 	ua := uint64(a)
+-	for ua >= base {
+-		i--
+-		buf[i] = digits[ua%base]
+-		ua /= base
++	// use constants for the division and modulo for more efficient code.
++	// switch cases ordered by popularity.
++	switch base {
++	case 10:
++		for ua >= 10 {
++			i--
++			next := ua / 10
++			buf[i] = byte('0' + ua - next*10)
++			ua = next
++		}
++	case 16:
++		for ua >= 16 {
++			i--
++			buf[i] = digits[ua&0xF]
++			ua >>= 4
++		}
++	case 8:
++		for ua >= 8 {
++			i--
++			buf[i] = byte('0' + ua&7)
++			ua >>= 3
++		}
++	case 2:
++		for ua >= 2 {
++			i--
++			buf[i] = byte('0' + ua&1)
++			ua >>= 1
++		}
++	default:
++		panic("fmt: unknown base; can't happen")
+ 	}
+ 	i--
+ 	buf[i] = digits[ua]

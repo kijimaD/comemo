@@ -8,7 +8,42 @@ Date:   Sun Oct 26 08:27:50 2008 -0700
     DELTA=14  (13 added, 0 deleted, 1 changed)
     OCL=17858
     CL=17867
-
+---
  src/lib/fmt/format.go | 4 +++-
  src/lib/fmt/print.go  | 5 +++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/fmt/format.go b/src/lib/fmt/format.go
+index 9099a16306..da8f917329 100644
+--- a/src/lib/fmt/format.go
++++ b/src/lib/fmt/format.go
+@@ -5,10 +5,12 @@
+ package fmt
+ 
+ /*
++	Raw formatter. See print.go for a more palatable interface.
++
+ 	f := fmt.New();
+ 	print f.d(1234).s("\n").str();  // create string, print it
+ 	f.d(-1234).s("\n").put();  // print string
+-	f.ud(^0).putnl();  // print string with automatic newline
++	f.ud(1<<63).putnl();  // print string with automatic newline
+ */
+ 
+ // export Fmt, New;
+diff --git a/src/lib/fmt/print.go b/src/lib/fmt/print.go
+index db42c1e0d5..39500f44ae 100644
+--- a/src/lib/fmt/print.go
++++ b/src/lib/fmt/print.go
+@@ -4,6 +4,11 @@
+ 
+ package fmt
+ 
++/*
++	C-like printf, but because of reflection knowledge does not need
++	to be told about sizes and signedness (no %llud etc. - just %d).
++*/
++
+ import (
+ 	"fmt";
+ 	"reflect";

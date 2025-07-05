@@ -15,6 +15,27 @@ Date:   Tue May 17 09:27:00 2016 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 4f82646dbb..0ad8856514 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -98,6 +98,7 @@ func TestGdbPython(t *testing.T) {
+ 
+ 	args := []string{"-nx", "-q", "--batch", "-iex",
+ 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
++		"-ex", "set startup-with-shell off",
+ 		"-ex", "info auto-load python-scripts",
+ 		"-ex", "br main.go:10",
+ 		"-ex", "run",
+@@ -226,6 +227,7 @@ func TestGdbBacktrace(t *testing.T) {
+ 
+ 	// Execute gdb commands.
+ 	args := []string{"-nx", "-batch",
++		"-ex", "set startup-with-shell off",
+ 		"-ex", "break main.eee",
+ 		"-ex", "run",
+ 		"-ex", "backtrace",

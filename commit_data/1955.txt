@@ -8,7 +8,50 @@ Date:   Thu Apr 2 22:24:52 2009 -0700
     R=rsc
     OCL=27055
     CL=27055
-
+---
  usr/gri/pretty/astprinter.go | 1 +
  usr/gri/pretty/godoc.go      | 6 +++---
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 5164495fe7..66fc3616f4 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -658,6 +658,7 @@ func (P *Printer) DoFuncLit(x *ast.FuncLit) {
+ 	P.DoFuncType(x.Type);
+ 	P.separator = blank;
+ 	P.Stmt(x.Body);
++	P.opt_semi = false;  // BUG 6g or spec
+ 	P.newlines = 0;
+ }
+ 
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 947b42cdaa..8b428d38f0 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -100,14 +100,14 @@ func hasPrefix(s, prefix string) bool {
+ }
+ 
+ 
+-func hasPostfix(s, postfix string) bool {
++func hasSuffix(s, postfix string) bool {
+ 	pos := len(s) - len(postfix);
+ 	return pos >= 0 && s[pos : len(s)] == postfix;
+ }
+ 
+ 
+ func isGoFile(dir *os.Dir) bool {
+-	return dir.IsRegular() && hasPostfix(dir.Name, ".go");
++	return dir.IsRegular() && hasSuffix(dir.Name, ".go");
+ }
+ 
+ 
+@@ -414,7 +414,7 @@ var (
+ 
+ 
+ func addFile(dirname string, filename string) {
+-	if hasPostfix(filename, "_test.go") {
++	if hasSuffix(filename, "_test.go") {
+ 		// ignore package tests
+ 		return;
+ 	}

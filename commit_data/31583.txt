@@ -18,9 +18,89 @@ Date:   Thu Mar 2 07:02:26 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/srcimporter/srcimporter.go |  2 +-
  src/go/types/api.go                        |  2 +-
  src/go/types/gotype.go                     |  2 +-
  src/go/types/sizes.go                      | 17 +++++++++++------
  4 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/internal/srcimporter/srcimporter.go b/src/go/internal/srcimporter/srcimporter.go
+index 26d9d09037..45fddb9fee 100644
+--- a/src/go/internal/srcimporter/srcimporter.go
++++ b/src/go/internal/srcimporter/srcimporter.go
+@@ -35,7 +35,7 @@ func New(ctxt *build.Context, fset *token.FileSet, packages map[string]*types.Pa
+ 	return &Importer{
+ 		ctxt:     ctxt,
+ 		fset:     fset,
+-		sizes:    types.SizesFor(ctxt.GOARCH), // uses go/types default if GOARCH not found
++		sizes:    types.SizesFor(ctxt.Compiler, ctxt.GOARCH), // uses go/types default if GOARCH not found
+ 		packages: packages,
+ 	}
+ }
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index cd8b19f024..1e99f4fb13 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -121,7 +121,7 @@ type Config struct {
+ 	Importer Importer
+ 
+ 	// If Sizes != nil, it provides the sizing functions for package unsafe.
+-	// Otherwise SizesFor("amd64") is used instead.
++	// Otherwise SizesFor("gc", "amd64") is used instead.
+ 	Sizes Sizes
+ 
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+diff --git a/src/go/types/gotype.go b/src/go/types/gotype.go
+index b466fb9fb2..157fd54042 100644
+--- a/src/go/types/gotype.go
++++ b/src/go/types/gotype.go
+@@ -247,7 +247,7 @@ func checkPkgFiles(files []*ast.File) {
+ 			report(err)
+ 		},
+ 		Importer: importer.For(*compiler, nil),
+-		Sizes:    types.SizesFor(build.Default.GOARCH),
++		Sizes:    types.SizesFor(build.Default.Compiler, build.Default.GOARCH),
+ 	}
+ 
+ 	defer func() {
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 67df9180f9..4fa71b4d5e 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -154,7 +154,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ }
+ 
+ // common architecture word sizes and alignments
+-var archSizes = map[string]*StdSizes{
++var gcArchSizes = map[string]*StdSizes{
+ 	"386":      {4, 4},
+ 	"arm":      {4, 4},
+ 	"arm64":    {8, 8},
+@@ -171,16 +171,21 @@ var archSizes = map[string]*StdSizes{
+ 	// update the doc string of SizesFor below.
+ }
+ 
+-// SizesFor returns the Sizes for one of these architectures:
++// SizesFor returns the Sizes used by a compiler for an architecture.
++// The result is nil if a compiler/architecture pair is not known.
++//
++// Supported architectures for compiler "gc":
+ // "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
+ // "mips64", "mips64le", "ppc64", "ppc64le", "s390x".
+-// The result is nil if an architecture is not known.
+-func SizesFor(arch string) Sizes {
+-	return archSizes[arch]
++func SizesFor(compiler, arch string) Sizes {
++	if compiler != "gc" {
++		return nil
++	}
++	return gcArchSizes[arch]
+ }
+ 
+ // stdSizes is used if Config.Sizes == nil.
+-var stdSizes = SizesFor("amd64")
++var stdSizes = SizesFor("gc", "amd64")
+ 
+ func (conf *Config) alignof(T Type) int64 {
+ 	if s := conf.Sizes; s != nil {

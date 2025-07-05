@@ -10,6 +10,44 @@ Date:   Sun Mar 27 15:31:50 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21234
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 72ed6ab442..6199abec8a 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -394,6 +394,7 @@ s%^	........*\]%&~%g
+ s%~	%%g
+ */
+ var etnames = []string{
++	Txxx:        "Txxx",
+ 	TINT:        "INT",
+ 	TUINT:       "UINT",
+ 	TINT8:       "INT8",
+@@ -422,6 +423,13 @@ var etnames = []string{
+ 	TSTRING:     "STRING",
+ 	TUNSAFEPTR:  "TUNSAFEPTR",
+ 	TANY:        "ANY",
++	TIDEAL:      "TIDEAL",
++	TNIL:        "TNIL",
++	TBLANK:      "TBLANK",
++	TFUNCARGS:   "TFUNCARGS",
++	TCHANARGS:   "TCHANARGS",
++	TINTERMETH:  "TINTERMETH",
++	TDDDFIELD:   "TDDDFIELD",
+ }
+ 
+ // Fmt "%E": etype
+@@ -432,6 +440,10 @@ func Econv(et EType) string {
+ 	return fmt.Sprintf("E-%d", et)
+ }
+ 
++func (e EType) String() string {
++	return Econv(e)
++}
++
+ // Fmt "%S": syms
+ func symfmt(s *Sym, flag FmtFlag) string {
+ 	if s.Pkg != nil && flag&FmtShort == 0 {

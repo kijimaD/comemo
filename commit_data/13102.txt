@@ -9,6 +9,29 @@ Date:   Mon May 21 12:59:26 2012 -0400
     R=ken
     CC=golang-dev
     https://golang.org/cl/6215061
-
+---
  src/cmd/6g/reg.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index e8259c476d..d68625bfff 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -164,7 +164,7 @@ regopt(Prog *firstp)
+ 
+ 	if(first) {
+ 		fmtinstall('Q', Qconv);
+-		exregoffset = D_R13;	// R14,R15 are external
++		exregoffset = D_R15;
+ 		first = 0;
+ 	}
+ 
+@@ -1577,7 +1577,7 @@ RtoB(int r)
+ int
+ BtoR(int32 b)
+ {
+-	b &= 0x3fffL;		// no R14 or R15
++	b &= 0xffffL;
+ 	if(b == 0)
+ 		return 0;
+ 	return bitno(b) + D_AX;

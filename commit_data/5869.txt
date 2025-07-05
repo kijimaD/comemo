@@ -9,6 +9,28 @@ Date:   Thu Jul 22 08:55:56 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1848047
-
+---
  src/cmd/8l/pass.c | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 01f04048b1..92a0b93343 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -300,12 +300,10 @@ loop:
+ 			p->pcond = q;
+ 		}
+ 		xfol(p->link);
+-		if(a != ATEXT) {
+-			q = brchain(p->pcond);
+-			if(q->mark) {
+-				p->pcond = q;
+-				return;
+-			}
++		q = brchain(p->pcond);
++		if(q->mark) {
++			p->pcond = q;
++			return;
+ 		}
+ 		p = q;
+ 		goto loop;

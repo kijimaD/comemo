@@ -9,7 +9,7 @@ Date:   Wed Mar 6 15:52:32 2013 -0800
     R=rsc, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/7545043
-
+---
  src/pkg/encoding/gob/timing_test.go | 9 +++++++++
  src/pkg/fmt/fmt_test.go             | 4 ++++
  src/pkg/net/http/header_test.go     | 4 ++++
@@ -21,3 +21,231 @@ Date:   Wed Mar 6 15:52:32 2013 -0800
  src/pkg/strconv/strconv_test.go     | 4 ++++
  src/pkg/time/time_test.go           | 4 ++++
  10 files changed, 50 insertions(+)
+
+diff --git a/src/pkg/encoding/gob/timing_test.go b/src/pkg/encoding/gob/timing_test.go
+index 13eb119253..f589675dd9 100644
+--- a/src/pkg/encoding/gob/timing_test.go
++++ b/src/pkg/encoding/gob/timing_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"os"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -49,6 +50,10 @@ func BenchmarkEndToEndByteBuffer(b *testing.B) {
+ }
+ 
+ func TestCountEncodeMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
++
+ 	const N = 1000
+ 
+ 	var buf bytes.Buffer
+@@ -65,6 +70,10 @@ func TestCountEncodeMallocs(t *testing.T) {
+ }
+ 
+ func TestCountDecodeMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
++
+ 	const N = 1000
+ 
+ 	var buf bytes.Buffer
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index af4b5c8f8e..552f76931b 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -9,6 +9,7 @@ import (
+ 	. "fmt"
+ 	"io"
+ 	"math"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -601,6 +602,9 @@ var mallocTest = []struct {
+ var _ bytes.Buffer
+ 
+ func TestCountMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	for _, mt := range mallocTest {
+ 		mallocs := testing.AllocsPerRun(100, mt.fn)
+ 		if got, max := mallocs, float64(mt.count); got > max {
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index 88c420a44a..a2b82a701c 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"bytes"
++	"runtime"
+ 	"testing"
+ 	"time"
+ )
+@@ -192,6 +193,9 @@ func BenchmarkHeaderWriteSubset(b *testing.B) {
+ }
+ 
+ func TestHeaderWriteSubsetMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	n := testing.AllocsPerRun(100, func() {
+ 		buf.Reset()
+ 		testHeader.WriteSubset(&buf, nil)
+diff --git a/src/pkg/net/rpc/server_test.go b/src/pkg/net/rpc/server_test.go
+index 8a15306235..5b2f9f2ded 100644
+--- a/src/pkg/net/rpc/server_test.go
++++ b/src/pkg/net/rpc/server_test.go
+@@ -465,10 +465,16 @@ func countMallocs(dial func() (*Client, error), t *testing.T) float64 {
+ }
+ 
+ func TestCountMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	fmt.Printf("mallocs per rpc round trip: %v\n", countMallocs(dialDirect, t))
+ }
+ 
+ func TestCountMallocsOverHTTP(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	fmt.Printf("mallocs per HTTP rpc round trip: %v\n", countMallocs(dialHTTP, t))
+ }
+ 
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index e768ad32f0..c4d73602ff 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -107,6 +107,11 @@ func TestClean(t *testing.T) {
+ 		}
+ 	}
+ 
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
++		return
++	}
++
+ 	for _, test := range tests {
+ 		allocs := testing.AllocsPerRun(100, func() { filepath.Clean(test.result) })
+ 		if allocs > 0 {
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 220ec1a0bb..69caa80e4f 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -5,6 +5,7 @@
+ package path
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -72,6 +73,11 @@ func TestClean(t *testing.T) {
+ 		}
+ 	}
+ 
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Log("skipping AllocsPerRun checks; GOMAXPROCS>1")
++		return
++	}
++
+ 	for _, test := range cleantests {
+ 		allocs := testing.AllocsPerRun(100, func() { Clean(test.result) })
+ 		if allocs > 0 {
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 6f006db186..97b3a9f2e5 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"math/rand"
+ 	"os"
+ 	. "reflect"
++	"runtime"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -2011,6 +2012,9 @@ func TestAddr(t *testing.T) {
+ }
+ 
+ func noAlloc(t *testing.T, n int, f func(int)) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	i := -1
+ 	allocs := testing.AllocsPerRun(n, func() {
+ 		f(i)
+diff --git a/src/pkg/sort/search_test.go b/src/pkg/sort/search_test.go
+index 4d8d6d930b..ee95c663cc 100644
+--- a/src/pkg/sort/search_test.go
++++ b/src/pkg/sort/search_test.go
+@@ -5,6 +5,7 @@
+ package sort_test
+ 
+ import (
++	"runtime"
+ 	. "sort"
+ 	"testing"
+ )
+@@ -127,6 +128,9 @@ func runSearchWrappers() {
+ }
+ 
+ func TestSearchWrappersDontAlloc(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	allocs := testing.AllocsPerRun(100, runSearchWrappers)
+ 	if allocs != 0 {
+ 		t.Errorf("expected no allocs for runSearchWrappers, got %v", allocs)
+diff --git a/src/pkg/strconv/strconv_test.go b/src/pkg/strconv/strconv_test.go
+index c3c5389267..3cd7835ccc 100644
+--- a/src/pkg/strconv/strconv_test.go
++++ b/src/pkg/strconv/strconv_test.go
+@@ -5,6 +5,7 @@
+ package strconv_test
+ 
+ import (
++	"runtime"
+ 	. "strconv"
+ 	"strings"
+ 	"testing"
+@@ -43,6 +44,9 @@ var (
+ )
+ 
+ func TestCountMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	for _, mt := range mallocTest {
+ 		allocs := testing.AllocsPerRun(100, mt.fn)
+ 		if max := float64(mt.count); allocs > max {
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 4b268f73d9..a0ee37ae3b 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"math/big"
+ 	"math/rand"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -1299,6 +1300,9 @@ var mallocTest = []struct {
+ }
+ 
+ func TestCountMallocs(t *testing.T) {
++	if runtime.GOMAXPROCS(0) > 1 {
++		t.Skip("skipping; GOMAXPROCS>1")
++	}
+ 	for _, mt := range mallocTest {
+ 		allocs := int(testing.AllocsPerRun(100, mt.fn))
+ 		if allocs > mt.count {

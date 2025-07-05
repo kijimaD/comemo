@@ -15,7 +15,7 @@ Date:   Sat Mar 19 00:34:26 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go             |  1 -
  src/cmd/compile/internal/ir/mini.go             |  1 -
  src/cmd/compile/internal/ir/node.go             |  1 -
@@ -26,3 +26,243 @@ Date:   Sat Mar 19 00:34:26 2022 +0700
  src/cmd/compile/internal/typecheck/subr.go      |  3 --
  src/cmd/compile/internal/typecheck/typecheck.go | 48 +++++++++----------------
  9 files changed, 30 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index ff3cc8ed6e..815e369ad8 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -242,7 +242,6 @@ func NewConstExpr(val constant.Value, orig Node) Node {
+ 	n.orig = orig
+ 	n.SetType(orig.Type())
+ 	n.SetTypecheck(orig.Typecheck())
+-	n.SetDiag(orig.Diag())
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index cb05dfae26..7bc816356d 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -67,7 +67,6 @@ func (n *miniNode) SetTypecheck(x uint8) {
+ 	n.bits.set2(miniTypecheckShift, x)
+ }
+ 
+-func (n *miniNode) Diag() bool     { return false }
+ func (n *miniNode) SetDiag(x bool) { base.AssertfAt(!x, n.Pos(), "SetDiag") }
+ 
+ func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index d8c4022950..390af6aad2 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -46,7 +46,6 @@ type Node interface {
+ 	// Storage for analysis passes.
+ 	Esc() uint16
+ 	SetEsc(x uint16)
+-	Diag() bool
+ 	SetDiag(x bool)
+ 
+ 	// Typecheck values:
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 311944361a..79387dd735 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -198,16 +198,14 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 		return n
+ 	}
+ 
+-	if !n.Diag() {
+-		if explicit {
+-			base.Errorf("cannot convert %L to type %v", n, t)
+-		} else if context != nil {
+-			base.Errorf("cannot use %L as type %v in %s", n, t, context())
+-		} else {
+-			base.Errorf("cannot use %L as type %v", n, t)
+-		}
+-		n.SetDiag(true)
++	if explicit {
++		base.Errorf("cannot convert %L to type %v", n, t)
++	} else if context != nil {
++		base.Errorf("cannot use %L as type %v in %s", n, t, context())
++	} else {
++		base.Errorf("cannot use %L as type %v", n, t)
+ 	}
++	n.SetDiag(true)
+ 
+ 	n.SetType(nil)
+ 	return n
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 7920a9a46c..5027140341 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -413,10 +413,8 @@ func tcConv(n *ir.ConvExpr) ir.Node {
+ 	}
+ 	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+ 	if op == ir.OXXX {
+-		if !n.Diag() && !n.X.Diag() {
+-			base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
+-			n.SetDiag(true)
+-		}
++		base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
++		n.SetDiag(true)
+ 		n.SetOp(ir.OCONV)
+ 		n.SetType(nil)
+ 		return n
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 0a0b5f5e78..630a17b7f2 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -308,9 +308,6 @@ func tcFunc(n *ir.Func) {
+ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
+ 	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
+-	if n.X.Diag() {
+-		n.SetDiag(true)
+-	}
+ 
+ 	l := n.X
+ 
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 393481d4a9..603b9819b1 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -313,12 +313,10 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 		return
+ 	}
+ 
+-	if !n.Diag() {
+-		// The syntax made sure it was a call, so this must be
+-		// a conversion.
+-		n.SetDiag(true)
+-		base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
+-	}
++	// The syntax made sure it was a call, so this must be
++	// a conversion.
++	n.SetDiag(true)
++	base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
+ }
+ 
+ // tcIf typechecks an OIF node.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 0b46037a3b..fdc6ba5929 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -135,9 +135,6 @@ func NodNil() ir.Node {
+ // modifies the tree with missing field names.
+ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
+ 	n.X = typecheck(n.X, ctxType|ctxExpr)
+-	if n.X.Diag() {
+-		n.SetDiag(true)
+-	}
+ 	t := n.X.Type()
+ 	if t == nil {
+ 		return n
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 6860c71a72..ccf4183435 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -404,10 +404,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 	// this code a bit, especially the final case.
+ 	switch {
+ 	case top&(ctxStmt|ctxExpr) == ctxExpr && !isExpr && n.Op() != ir.OTYPE && !isMulti:
+-		if !n.Diag() {
+-			base.Errorf("%v used as value", n)
+-			n.SetDiag(true)
+-		}
++		base.Errorf("%v used as value", n)
++		n.SetDiag(true)
+ 		if t != nil {
+ 			n.SetType(nil)
+ 		}
+@@ -417,10 +415,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 		n.SetDiag(true)
+ 
+ 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
+-		if !n.Diag() {
+-			base.Errorf("%v evaluated but not used", n)
+-			n.SetDiag(true)
+-		}
++		base.Errorf("%v evaluated but not used", n)
++		n.SetDiag(true)
+ 		n.SetType(nil)
+ 
+ 	case top&(ctxType|ctxExpr) == ctxType && n.Op() != ir.OTYPE && n.Op() != ir.ONONAME && (t != nil || n.Op() == ir.ONAME):
+@@ -462,9 +458,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 
+ 	case ir.OLITERAL:
+ 		if n.Sym() == nil && n.Type() == nil {
+-			if !n.Diag() {
+-				base.Fatalf("literal missing type: %v", n)
+-			}
++			base.Fatalf("literal missing type: %v", n)
+ 		}
+ 		return n
+ 
+@@ -473,12 +467,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 
+ 	// names
+ 	case ir.ONONAME:
+-		if !n.Diag() {
+-			// Note: adderrorname looks for this string and
+-			// adds context about the outer expression
+-			base.ErrorfAt(n.Pos(), "undefined: %v", n.Sym())
+-			n.SetDiag(true)
+-		}
++		// Note: adderrorname looks for this string and
++		// adds context about the outer expression
++		base.ErrorfAt(n.Pos(), "undefined: %v", n.Sym())
++		n.SetDiag(true)
+ 		n.SetType(nil)
+ 		return n
+ 
+@@ -813,9 +805,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.ODEFER, ir.OGO:
+ 		n := n.(*ir.GoDeferStmt)
+ 		n.Call = typecheck(n.Call, ctxStmt|ctxExpr)
+-		if !n.Call.Diag() {
+-			tcGoDefer(n)
+-		}
++		tcGoDefer(n)
+ 		return n
+ 
+ 	case ir.OFOR, ir.OFORUNTIL:
+@@ -1383,7 +1373,7 @@ invalidddd:
+ 	return
+ 
+ notenough:
+-	if n == nil || (!n.Diag() && n.Type() != nil) {
++	if n == nil || n.Type() != nil {
+ 		details := errorDetails(nl, tstruct, isddd)
+ 		if call != nil {
+ 			// call is the expression being called, not the overall call.
+@@ -1546,14 +1536,12 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
+ 			elt.Key = Expr(elt.Key)
+ 			key = IndexConst(elt.Key)
+ 			if key < 0 {
+-				if !elt.Key.Diag() {
+-					if key == -2 {
+-						base.Errorf("index too large")
+-					} else {
+-						base.Errorf("index must be non-negative integer constant")
+-					}
+-					elt.Key.SetDiag(true)
++				if key == -2 {
++					base.Errorf("index too large")
++				} else {
++					base.Errorf("index must be non-negative integer constant")
+ 				}
++				elt.Key.SetDiag(true)
+ 				key = -(1 << 30) // stay negative for a while
+ 			}
+ 			kv = elt
+@@ -1628,9 +1616,7 @@ func checkassign(stmt ir.Node, n ir.Node) {
+ 	}
+ 
+ 	defer n.SetType(nil)
+-	if n.Diag() {
+-		return
+-	}
++
+ 	switch {
+ 	case n.Op() == ir.ODOT && n.(*ir.SelectorExpr).X.Op() == ir.OINDEXMAP:
+ 		base.Errorf("cannot assign to struct field %v in map", n)

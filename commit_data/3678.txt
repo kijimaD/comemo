@@ -8,9 +8,237 @@ Date:   Thu Oct 29 21:21:14 2009 -0700
     
     R=rsc
     http://go/go-review/1016004
-
+---
  src/make-arm.bash               |  2 +-
  src/pkg/runtime/arm/asm.s       | 14 ++++---
  src/pkg/runtime/linux/arm/sys.s | 92 ++++++++++++++++++++++++++++++++++++++---
  test/arm-pass.txt               |  8 ++++
  4 files changed, 104 insertions(+), 12 deletions(-)
+
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index 10e0091e6e..d47467bcb0 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -21,7 +21,7 @@ chmod +x $GOBIN/quietgcc
+ 
+ # TODO(kaib): converge with normal build
+ #for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+-for i in lib9 libbio libmach cmd pkg cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 98c9e06bf5..d65a119021 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -55,20 +55,22 @@ TEXT _rt0_arm(SB),7,$-4
+ 	// start this M
+ 	BL	mstart(SB)
+ 
+-	MOVW	$0, R0
+-	SWI	$0x00900001
++	MOVW	$1234, R0
++	MOVW	$1000, R1
++	MOVW	R0, (R1)	// fail hard
+ 	B	_dep_dummy(SB)	// Never reached
+ 
+ 
+-TEXT mainstart(SB),7,$0
++TEXT mainstart(SB),7,$4
+ 	BL	main·init(SB)
+ 	BL	initdone(SB)
+ 	BL	main·main(SB)
+ 	MOVW	$0, R0
+-	MOVW.W	R0, -4(SP)
+-	MOVW.W	R14, -4(SP)	// Push link as well
++	MOVW	R0, 4(SP)
+ 	BL	exit(SB)
+-	MOVW	$8(SP), SP	// pop args and LR
++	MOVW	$1234, R0
++	MOVW	$1001, R1
++	MOVW	R0, (R1)	// fail hard
+ 	RET
+ 
+ // TODO(kaib): remove these once linker works properly
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 2d45955815..2d70adf827 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -6,10 +6,16 @@
+ // System calls and other sys.stuff for arm, Linux
+ //
+ 
++#include "arm/asm.h"
++
+ #define SYS_BASE 0x00900000
+ #define SYS_exit (SYS_BASE + 1)
+ #define SYS_write (SYS_BASE + 4)
++#define SYS_clone (SYS_BASE + 120)
+ #define SYS_mmap2 (SYS_BASE + 192)
++#define SYS_gettid (SYS_BASE + 224)
++#define SYS_futex (SYS_BASE + 240)
++#define SYS_exit_group (SYS_BASE + 248)
+ 
+ TEXT write(SB),7,$0
+ 	MOVW	0(FP), R0
+@@ -19,8 +25,18 @@ TEXT write(SB),7,$0
+ 	RET
+ 
+ TEXT exit(SB),7,$-4
++	MOVW	0(FP), R0
++	SWI	$SYS_exit_group
++	MOVW	$1234, R0
++	MOVW	$1002, R1
++	MOVW	R0, (R1)	// fail hard
++
++TEXT exit1(SB),7,$-4
+ 	MOVW	0(FP), R0
+ 	SWI	$SYS_exit
++	MOVW	$1234, R0
++	MOVW	$1003, R1
++	MOVW	R0, (R1)	// fail hard
+ 
+ TEXT runtime·mmap(SB),7,$0
+ 	MOVW	0(FP), R0
+@@ -32,13 +48,79 @@ TEXT runtime·mmap(SB),7,$0
+ 	SWI	$SYS_mmap2
+ 	RET
+ 
+-// int64 futex(int32 *uaddr, int32 op, int32 val,
++// int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT futex(SB),7,$0
+-	BL  abort(SB)
++	MOVW	4(SP), R0
++	MOVW	8(SP), R1
++	MOVW	12(SP), R2
++	MOVW	16(SP), R3
++	MOVW	20(SP), R4
++	MOVW	24(SP), R5
++	SWI	$SYS_futex
+ 	RET
+ 
+-// int64 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
++
++// int32 clone(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+ TEXT clone(SB),7,$0
+-	BL  abort(SB)
+-    	RET
++	MOVW	flags+0(FP), R0
++	MOVW	stack+4(FP), R1
++	MOVW	$0, R2	// parent tid ptr
++	MOVW	$0, R3	// tls_val
++	MOVW	$0, R4	// child tid ptr
++	MOVW	$0, R5
++
++	// Copy m, g, fn off parent stack for use by child.
++	// TODO(kaib): figure out which registers are clobbered by clone and avoid stack copying
++	MOVW	$-16(R1), R1
++	MOVW	mm+8(FP), R6
++	MOVW	R6, 0(R1)
++	MOVW	gg+12(FP), R6
++	MOVW	R6, 4(R1)
++	MOVW	fn+16(FP), R6
++	MOVW	R6, 8(R1)
++	MOVW	$1234, R6
++	MOVW	R6, 12(R1)
++
++	SWI	$SYS_clone
++
++	// In parent, return.
++	CMP	$0, R0
++	BEQ	2(PC)
++	RET
++
++	// Paranoia: check that SP is as we expect. Use R13 to avoid linker 'fixup'
++	MOVW	12(R13), R0
++	MOVW	$1234, R1
++	CMP	R0, R1
++	BEQ	2(PC)
++	B	abort(SB)
++
++	MOVW	0(R13), m
++	MOVW	4(R13), g
++
++	// paranoia; check they are not nil
++	MOVW	0(m), R0
++	MOVW	0(g), R0
++
++	BL	emptyfunc(SB)	// fault if stack check is wrong
++
++	// Initialize m->procid to Linux tid
++	SWI	$SYS_gettid
++	MOVW	R0, m_procid(m)
++
++	// Call fn
++	MOVW	8(R13), R0
++	MOVW	$16(R13), R13
++	BL	(R0)
++
++	MOVW	$0, R0
++	MOVW	R0, 4(R13)
++	BL	exit1(SB)
++
++	// It shouldn't return
++	MOVW	$1234, R0
++	MOVW	$1005, R1
++	MOVW	R0, (R1)
++
++
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index b7fa90acfa..375b741c0b 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -5,8 +5,11 @@ assign.go
+ bigalg.go
+ blank.go
+ blank1.go
++bugs/bug212.go
++bugs/bug213.go
+ chan/fifo.go
+ chan/goroutines.go
++chan/nonblock.go
+ chan/perm.go
+ chan/powser1.go
+ chan/powser2.go
+@@ -33,6 +36,7 @@ convlit.go
+ convlit1.go
+ decl.go
+ declbad.go
++defer.go
+ empty.go
+ env.go
+ escape.go
+@@ -116,6 +120,7 @@ fixedbugs/bug088.go
+ fixedbugs/bug089.go
+ fixedbugs/bug090.go
+ fixedbugs/bug091.go
++fixedbugs/bug092.go
+ fixedbugs/bug093.go
+ fixedbugs/bug094.go
+ fixedbugs/bug096.go
+@@ -257,6 +262,7 @@ interface/convert1.go
+ interface/convert2.go
+ interface/embed.go
+ interface/embed0.go
++interface/embed1.go
+ interface/explicit.go
+ interface/fail.go
+ interface/fake.go
+@@ -292,6 +298,7 @@ ken/robfunc.go
+ ken/robif.go
+ ken/shift.go
+ ken/simpbool.go
++ken/simpconv.go
+ ken/simpfun.go
+ ken/simpprint.go
+ ken/simpswitch.go
+@@ -329,6 +336,7 @@ stringrange.go
+ switch.go
+ switch1.go
+ test0.go
++turing.go
+ typeswitch.go
+ typeswitch1.go
+ utf.go

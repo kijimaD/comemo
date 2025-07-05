@@ -12,7 +12,7 @@ Date:   Mon Sep 3 10:47:58 2018 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  4 +-
  src/cmd/compile/internal/s390x/ssa.go        |  3 +-
  src/cmd/compile/internal/ssa/gen/S390X.rules |  9 +++-
@@ -21,3 +21,279 @@ Date:   Mon Sep 3 10:47:58 2018 -0400
  src/cmd/compile/internal/ssa/rewriteS390X.go | 74 ++++++++++++++++++++++++++++
  test/codegen/mathbits.go                     | 23 +++++++++
  7 files changed, 141 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3aef7e6b6d..00ff7d4bd5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3361,12 +3361,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft32, types.Types[TUINT32], args[0], args[1])
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.S390X)
+ 	addF("math/bits", "RotateLeft64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpRotateLeft64, types.Types[TUINT64], args[0], args[1])
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.S390X)
+ 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
+ 
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 90e61c34fd..be48e1b23e 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -160,7 +160,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+ 	case ssa.OpS390XSLD, ssa.OpS390XSLW,
+ 		ssa.OpS390XSRD, ssa.OpS390XSRW,
+-		ssa.OpS390XSRAD, ssa.OpS390XSRAW:
++		ssa.OpS390XSRAD, ssa.OpS390XSRAW,
++		ssa.OpS390XRLLG, ssa.OpS390XRLL:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 4fbdef38e7..47766fa77d 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -233,6 +233,10 @@
+ (Rsh(16|8)x16 x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVHZreg y) [64])))
+ (Rsh(16|8)x8  x y) -> (SRAW (MOV(H|B)reg x) (MOVDGE <y.Type> y (MOVDconst <y.Type> [63]) (CMPWUconst (MOVBZreg y) [64])))
+ 
++// Lowering rotates
++(RotateLeft32 x y) -> (RLL  x y)
++(RotateLeft64 x y) -> (RLLG x y)
++
+ // Lowering comparisons
+ (Less64      x y) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
+ (Less32      x y) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
+@@ -532,7 +536,10 @@
+ (SRW  x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRW  x y)
+ (SRAW x (MOV(D|W|H|B|WZ|HZ|BZ)reg y)) -> (SRAW x y)
+ 
+-// Rotate generation
++// Constant rotate generation
++(RLL  x (MOVDconst [c])) -> (RLLconst  x [c&31])
++(RLLG x (MOVDconst [c])) -> (RLLGconst x [c&63])
++
+ (ADD (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
+ ( OR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
+ (XOR (SLDconst x [c]) (SRDconst x [d])) && d == 64-c -> (RLLGconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 9b5f525531..19cb4be41c 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -321,6 +321,8 @@ func init() {
+ 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int8", clobberFlags: true}, // signed arg0 >> auxint, shift amount 0-63
+ 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int8", clobberFlags: true}, // signed int32(arg0) >> auxint, shift amount 0-31
+ 
++		{name: "RLLG", argLength: 2, reg: sh21, asm: "RLLG"},                   // arg0 rotate left arg1, rotate amount 0-63
++		{name: "RLL", argLength: 2, reg: sh21, asm: "RLL"},                     // arg0 rotate left arg1, rotate amount 0-31
+ 		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
+ 		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0ff15db914..5bf7021432 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1794,6 +1794,8 @@ const (
+ 	OpS390XSRAW
+ 	OpS390XSRADconst
+ 	OpS390XSRAWconst
++	OpS390XRLLG
++	OpS390XRLL
+ 	OpS390XRLLGconst
+ 	OpS390XRLLconst
+ 	OpS390XNEG
+@@ -23989,6 +23991,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "RLLG",
++		argLen: 2,
++		asm:    s390x.ARLLG,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "RLL",
++		argLen: 2,
++		asm:    s390x.ARLL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 23550}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:    "RLLGconst",
+ 		auxType: auxInt8,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 768b802ec1..95c9a0d0fc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -391,6 +391,10 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpPopCount64_0(v)
+ 	case OpPopCount8:
+ 		return rewriteValueS390X_OpPopCount8_0(v)
++	case OpRotateLeft32:
++		return rewriteValueS390X_OpRotateLeft32_0(v)
++	case OpRotateLeft64:
++		return rewriteValueS390X_OpRotateLeft64_0(v)
+ 	case OpRound:
+ 		return rewriteValueS390X_OpRound_0(v)
+ 	case OpRound32F:
+@@ -665,6 +669,10 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XORconst_0(v)
+ 	case OpS390XORload:
+ 		return rewriteValueS390X_OpS390XORload_0(v)
++	case OpS390XRLL:
++		return rewriteValueS390X_OpS390XRLL_0(v)
++	case OpS390XRLLG:
++		return rewriteValueS390X_OpS390XRLLG_0(v)
+ 	case OpS390XSLD:
+ 		return rewriteValueS390X_OpS390XSLD_0(v) || rewriteValueS390X_OpS390XSLD_10(v)
+ 	case OpS390XSLW:
+@@ -5399,6 +5407,34 @@ func rewriteValueS390X_OpPopCount8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpRotateLeft32_0(v *Value) bool {
++	// match: (RotateLeft32 x y)
++	// cond:
++	// result: (RLL x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpS390XRLL)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueS390X_OpRotateLeft64_0(v *Value) bool {
++	// match: (RotateLeft64 x y)
++	// cond:
++	// result: (RLLG x y)
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpS390XRLLG)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueS390X_OpRound_0(v *Value) bool {
+ 	// match: (Round x)
+ 	// cond:
+@@ -38644,6 +38680,44 @@ func rewriteValueS390X_OpS390XORload_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XRLL_0(v *Value) bool {
++	// match: (RLL x (MOVDconst [c]))
++	// cond:
++	// result: (RLLconst x [c&31])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpS390XRLLconst)
++		v.AuxInt = c & 31
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueS390X_OpS390XRLLG_0(v *Value) bool {
++	// match: (RLLG x (MOVDconst [c]))
++	// cond:
++	// result: (RLLGconst x [c&63])
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpS390XMOVDconst {
++			break
++		}
++		c := v_1.AuxInt
++		v.reset(OpS390XRLLGconst)
++		v.AuxInt = c & 63
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XSLD_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index ad2c5abb02..b8844c518f 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -171,6 +171,7 @@ func RotateLeft64(n uint64) uint64 {
+ 	// amd64:"ROLQ"
+ 	// arm64:"ROR"
+ 	// ppc64:"ROTL"
++	// s390x:"RLLG"
+ 	return bits.RotateLeft64(n, 37)
+ }
+ 
+@@ -178,6 +179,7 @@ func RotateLeft32(n uint32) uint32 {
+ 	// amd64:"ROLL" 386:"ROLL"
+ 	// arm64:"RORW"
+ 	// ppc64:"ROTLW"
++	// s390x:"RLL"
+ 	return bits.RotateLeft32(n, 9)
+ }
+ 
+@@ -191,6 +193,27 @@ func RotateLeft8(n uint8) uint8 {
+ 	return bits.RotateLeft8(n, 5)
+ }
+ 
++func RotateLeftVariable(n uint, m int) uint {
++	// amd64:"ROLQ"
++	// ppc64:"ROTL"
++	// s390x:"RLLG"
++	return bits.RotateLeft(n, m)
++}
++
++func RotateLeftVariable64(n uint64, m int) uint64 {
++	// amd64:"ROLQ"
++	// ppc64:"ROTL"
++	// s390x:"RLLG"
++	return bits.RotateLeft64(n, m)
++}
++
++func RotateLeftVariable32(n uint32, m int) uint32 {
++	// amd64:"ROLL"
++	// ppc64:"ROTLW"
++	// s390x:"RLL"
++	return bits.RotateLeft32(n, m)
++}
++
+ // ------------------------ //
+ //    bits.TrailingZeros    //
+ // ------------------------ //

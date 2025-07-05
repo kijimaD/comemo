@@ -12,7 +12,37 @@ Date:   Tue Feb 14 11:17:48 2012 -0500
     R=golang-dev, rogpeppe, r
     CC=golang-dev
     https://golang.org/cl/5654078
-
+---
  src/pkg/time/example_test.go | 2 +-
  src/pkg/time/format.go       | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+index 153b1a3b66..b25e64cda3 100644
+--- a/src/pkg/time/example_test.go
++++ b/src/pkg/time/example_test.go
+@@ -51,7 +51,7 @@ func ExampleMonth() {
+ 	}
+ }
+ 
+-// Go launched at Tue Nov 10 15:00:00 -0800 PST 2009
++// Go launched at 2009-11-10 15:00:00 -0800 PST
+ func ExampleDate() {
+ 	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+ 	fmt.Printf("Go launched at %s\n", t.Local())
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 98cf081cfc..ef6f1f3351 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -344,9 +344,9 @@ func formatNano(nanosec, n int, trim bool) string {
+ }
+ 
+ // String returns the time formatted using the format string
+-//	"Mon Jan _2 15:04:05 -0700 MST 2006"
++//	"2006-01-02 15:04:05.999999999 -0700 MST"
+ func (t Time) String() string {
+-	return t.Format("Mon Jan _2 15:04:05 -0700 MST 2006")
++	return t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
+ }
+ 
+ type buffer []byte

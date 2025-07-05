@@ -21,9 +21,147 @@ Date:   Thu Aug 18 16:42:28 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/go/parser/parser.go                  | 32 ++++++++++++++++++--------------
  src/go/parser/short_test.go              |  5 +----
  src/go/types/testdata/check/constdecl.go | 19 ++++++++-----------
  src/go/types/testdata/check/vardecl.go   |  9 +++------
  4 files changed, 30 insertions(+), 35 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 36f9db9ddf..d405ade6a5 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2553,27 +2553,31 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
+ 		defer un(trace(p, keyword.String()+"Spec"))
+ 	}
+ 
+-	pos := p.pos
+ 	idents := p.parseIdentList()
+-	typ := p.tryIdentOrType()
++	var typ ast.Expr
+ 	var values []ast.Expr
+-	// always permit optional initialization for more tolerant parsing
+-	if p.tok == token.ASSIGN {
+-		p.next()
+-		values = p.parseList(true)
+-	}
+-	p.expectSemi() // call before accessing p.linecomment
+-
+ 	switch keyword {
++	case token.CONST:
++		// always permit optional type and initialization for more tolerant parsing
++		if p.tok != token.EOF && p.tok != token.SEMICOLON && p.tok != token.RPAREN {
++			typ = p.tryIdentOrType()
++			if p.tok == token.ASSIGN {
++				p.next()
++				values = p.parseList(true)
++			}
++		}
+ 	case token.VAR:
+-		if typ == nil && values == nil {
+-			p.error(pos, "missing variable type or initialization")
++		if p.tok != token.ASSIGN {
++			typ = p.parseType()
+ 		}
+-	case token.CONST:
+-		if values == nil && (iota == 0 || typ != nil) {
+-			p.error(pos, "missing constant value")
++		if p.tok == token.ASSIGN {
++			p.next()
++			values = p.parseList(true)
+ 		}
++	default:
++		panic("unreachable")
+ 	}
++	p.expectSemi() // call before accessing p.linecomment
+ 
+ 	spec := &ast.ValueSpec{
+ 		Doc:     doc,
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 6e28e23377..4d1da11706 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -194,10 +194,7 @@ var invalids = []string{
+ 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
+ 
+ 	// issue 9639
+-	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`,
+-	`package p; const x /* ERROR "missing constant value" */ ;`,
+-	`package p; const x /* ERROR "missing constant value" */ int;`,
+-	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,
++	`package p; var x, y, z; /* ERROR "expected type" */`,
+ 
+ 	// issue 12437
+ 	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{};`,
+diff --git a/src/go/types/testdata/check/constdecl.go b/src/go/types/testdata/check/constdecl.go
+index f7a9dd43c0..bb07a361fa 100644
+--- a/src/go/types/testdata/check/constdecl.go
++++ b/src/go/types/testdata/check/constdecl.go
+@@ -21,20 +21,17 @@ func _() {
+ }
+ 
+ // Identifier and expression arity must match.
+-// The first error message is produced by the parser.
+-// In a real-world scenario, the type-checker would not be run
+-// in this case and the 2nd error message would not appear.
+-const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++const _ /* ERROR "missing init expr for _" */
+ const _ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++const _ /* ERROR "missing init expr for _" */ int
+ const _ int = 1, 2 /* ERROR "extra init expr 2" */
+ 
+ const (
+-	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++	_ /* ERROR "missing init expr for _" */
+ 	_ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-	_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++	_ /* ERROR "missing init expr for _" */ int
+ 	_ int = 1, 2 /* ERROR "extra init expr 2" */
+ )
+ 
+@@ -55,17 +52,17 @@ const (
+ )
+ 
+ func _() {
+-	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++	const _ /* ERROR "missing init expr for _" */
+ 	const _ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-	const _ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++	const _ /* ERROR "missing init expr for _" */ int
+ 	const _ int = 1, 2 /* ERROR "extra init expr 2" */
+ 
+ 	const (
+-		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */
++		_ /* ERROR "missing init expr for _" */
+ 		_ = 1, 2 /* ERROR "extra init expr 2" */
+ 
+-		_ /* ERROR "missing constant value" */ /* ERROR "missing init expr for _" */ int
++		_ /* ERROR "missing init expr for _" */ int
+ 		_ int = 1, 2 /* ERROR "extra init expr 2" */
+ 	)
+ 
+diff --git a/src/go/types/testdata/check/vardecl.go b/src/go/types/testdata/check/vardecl.go
+index 56abf97722..d4dc4a6c60 100644
+--- a/src/go/types/testdata/check/vardecl.go
++++ b/src/go/types/testdata/check/vardecl.go
+@@ -14,12 +14,9 @@ var m map[string]int
+ var _ int
+ var _, _ int
+ 
+-// The first error message is produced by the parser.
+-// In a real-world scenario, the type-checker would not be run
+-// in this case and the 2nd error message would not appear.
+-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */
+-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _
+-var _ /* ERROR "missing variable type" */ /* ERROR "missing type or init expr" */, _, _
++var _; /* ERROR "expected type" */
++var _, _; /* ERROR "expected type" */
++var _, _, _; /* ERROR "expected type" */
+ 
+ // The initializer must be an expression.
+ var _ = int /* ERROR "not an expression" */

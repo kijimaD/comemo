@@ -11,7 +11,7 @@ Date:   Fri May 1 01:14:04 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231419
     Reviewed-by: Katie Hockman <katie@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/cgi/host.go              |  5 +++--
  src/net/http/cookie.go                | 11 ++++++-----
  src/net/http/fs.go                    |  4 ++--
@@ -19,3 +19,178 @@ Date:   Fri May 1 01:14:04 2020 -0400
  src/net/http/httputil/reverseproxy.go |  3 ++-
  src/net/http/transfer.go              |  8 ++++----
  6 files changed, 19 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 215bb83a39..a038575480 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -21,6 +21,7 @@ import (
+ 	"log"
+ 	"net"
+ 	"net/http"
++	"net/textproto"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -276,8 +277,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			continue
+ 		}
+ 		header, val := parts[0], parts[1]
+-		header = strings.TrimSpace(header)
+-		val = strings.TrimSpace(val)
++		header = textproto.TrimString(header)
++		val = textproto.TrimString(val)
+ 		switch {
+ 		case header == "Status":
+ 			if len(val) < 3 {
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 5c572d6dc5..d7a8f5e94e 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"log"
+ 	"net"
++	"net/textproto"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -60,11 +61,11 @@ func readSetCookies(h Header) []*Cookie {
+ 	}
+ 	cookies := make([]*Cookie, 0, cookieCount)
+ 	for _, line := range h["Set-Cookie"] {
+-		parts := strings.Split(strings.TrimSpace(line), ";")
++		parts := strings.Split(textproto.TrimString(line), ";")
+ 		if len(parts) == 1 && parts[0] == "" {
+ 			continue
+ 		}
+-		parts[0] = strings.TrimSpace(parts[0])
++		parts[0] = textproto.TrimString(parts[0])
+ 		j := strings.Index(parts[0], "=")
+ 		if j < 0 {
+ 			continue
+@@ -83,7 +84,7 @@ func readSetCookies(h Header) []*Cookie {
+ 			Raw:   line,
+ 		}
+ 		for i := 1; i < len(parts); i++ {
+-			parts[i] = strings.TrimSpace(parts[i])
++			parts[i] = textproto.TrimString(parts[i])
+ 			if len(parts[i]) == 0 {
+ 				continue
+ 			}
+@@ -242,7 +243,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 
+ 	cookies := make([]*Cookie, 0, len(lines)+strings.Count(lines[0], ";"))
+ 	for _, line := range lines {
+-		line = strings.TrimSpace(line)
++		line = textproto.TrimString(line)
+ 
+ 		var part string
+ 		for len(line) > 0 { // continue since we have rest
+@@ -251,7 +252,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 			} else {
+ 				part, line = line, ""
+ 			}
+-			part = strings.TrimSpace(part)
++			part = textproto.TrimString(part)
+ 			if len(part) == 0 {
+ 				continue
+ 			}
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index d2144857e8..f95f2426b7 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -756,7 +756,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 	var ranges []httpRange
+ 	noOverlap := false
+ 	for _, ra := range strings.Split(s[len(b):], ",") {
+-		ra = strings.TrimSpace(ra)
++		ra = textproto.TrimString(ra)
+ 		if ra == "" {
+ 			continue
+ 		}
+@@ -764,7 +764,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 		if i < 0 {
+ 			return nil, errors.New("invalid range")
+ 		}
+-		start, end := strings.TrimSpace(ra[:i]), strings.TrimSpace(ra[i+1:])
++		start, end := textproto.TrimString(ra[:i]), textproto.TrimString(ra[i+1:])
+ 		var r httpRange
+ 		if start == "" {
+ 			// If no start is specified, end specifies the
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index d0bc0fade9..13697454cb 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"net/http"
++	"net/textproto"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -221,7 +222,7 @@ func (rw *ResponseRecorder) Result() *http.Response {
+ // This a modified version of same function found in net/http/transfer.go. This
+ // one just ignores an invalid header.
+ func parseContentLength(cl string) int64 {
+-	cl = strings.TrimSpace(cl)
++	cl = textproto.TrimString(cl)
+ 	if cl == "" {
+ 		return -1
+ 	}
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 70de7b107d..3f48fab544 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -13,6 +13,7 @@ import (
+ 	"log"
+ 	"net"
+ 	"net/http"
++	"net/textproto"
+ 	"net/url"
+ 	"strings"
+ 	"sync"
+@@ -387,7 +388,7 @@ func shouldPanicOnCopyError(req *http.Request) bool {
+ func removeConnectionHeaders(h http.Header) {
+ 	for _, f := range h["Connection"] {
+ 		for _, sf := range strings.Split(f, ",") {
+-			if sf = strings.TrimSpace(sf); sf != "" {
++			if sf = textproto.TrimString(sf); sf != "" {
+ 				h.Del(sf)
+ 			}
+ 		}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 350403c366..6d5ea05c32 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -660,9 +660,9 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		// Content-Length headers if they differ in value.
+ 		// If there are dups of the value, remove the dups.
+ 		// See Issue 16490.
+-		first := strings.TrimSpace(contentLens[0])
++		first := textproto.TrimString(contentLens[0])
+ 		for _, ct := range contentLens[1:] {
+-			if first != strings.TrimSpace(ct) {
++			if first != textproto.TrimString(ct) {
+ 				return 0, fmt.Errorf("http: message cannot contain multiple Content-Length headers; got %q", contentLens)
+ 			}
+ 		}
+@@ -701,7 +701,7 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 	// Logic based on Content-Length
+ 	var cl string
+ 	if len(contentLens) == 1 {
+-		cl = strings.TrimSpace(contentLens[0])
++		cl = textproto.TrimString(contentLens[0])
+ 	}
+ 	if cl != "" {
+ 		n, err := parseContentLength(cl)
+@@ -1032,7 +1032,7 @@ func (bl bodyLocked) Read(p []byte) (n int, err error) {
+ // parseContentLength trims whitespace from s and returns -1 if no value
+ // is set, or the value if it's >= 0.
+ func parseContentLength(cl string) (int64, error) {
+-	cl = strings.TrimSpace(cl)
++	cl = textproto.TrimString(cl)
+ 	if cl == "" {
+ 		return -1, nil
+ 	}

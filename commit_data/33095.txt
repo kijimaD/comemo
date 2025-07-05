@@ -13,6 +13,40 @@ Date:   Fri Jul 7 19:49:33 2017 +0000
     Change-Id: Idcb29f93ffb0460413f1fab5bb82fa2605795038
     Reviewed-on: https://go-review.googlesource.com/47834
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b56495e723..a2a5126d2d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -60,7 +60,6 @@ type tester struct {
+ 	goroot     string
+ 	goarch     string
+ 	gohostarch string
+-	goarm      string
+ 	goos       string
+ 	gohostos   string
+ 	cgoEnabled bool
+@@ -104,7 +103,6 @@ func (t *tester) run() {
+ 	t.gohostos = mustEnv("GOHOSTOS")
+ 	t.goarch = mustEnv("GOARCH")
+ 	t.gohostarch = mustEnv("GOHOSTARCH")
+-	t.goarm = os.Getenv("GOARM")
+ 	slurp, err := exec.Command("go", "env", "CGO_ENABLED").Output()
+ 	if err != nil {
+ 		log.Fatalf("Error running go env CGO_ENABLED: %v", err)
+@@ -800,12 +798,6 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 			return false
+ 		}
+ 
+-		if pair == "linux-arm" && t.goarm == "5" {
+-			// Skip the plugin tests for now on ARMv5 because it causes a
+-			// SIGILL. See https://golang.org/issue/19674
+-			return false
+-		}
+-
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+ 		switch pair {

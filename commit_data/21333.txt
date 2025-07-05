@@ -7,6 +7,20 @@ Date:   Mon Dec 22 15:27:46 2014 -0500
     Change-Id: Ie5a36dbcd809fc165f4198d47641d5a95878460c
     Reviewed-on: https://go-review.googlesource.com/2000
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/syscall/syscall.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 1f209ecd58..c7b0daab0f 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -20,7 +20,7 @@
+ //
+ // NOTE: This package is locked down. Code outside the standard
+ // Go repository should be migrated to use the corresponding
+-// package in the go.sys subrepository. That is also where updates
++// package in the golang.org/x/sys repository. That is also where updates
+ // required by new systems or versions should be applied.
+ // See https://golang.org/s/go1.4-syscall for more information.
+ //

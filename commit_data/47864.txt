@@ -20,7 +20,61 @@ Date:   Tue Apr 13 23:41:45 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/reflect/abi.go   | 16 ++++++++++++++++
  src/reflect/value.go |  8 ++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index caa770fcb0..17b79a8394 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -366,6 +366,22 @@ func (a *abiDesc) dump() {
+ 	println("stackCallArgsSize", a.stackCallArgsSize)
+ 	println("retOffset", a.retOffset)
+ 	println("spill", a.spill)
++	print("inRegPtrs:")
++	dumpPtrBitMap(a.inRegPtrs)
++	println()
++	print("outRegPtrs:")
++	dumpPtrBitMap(a.outRegPtrs)
++	println()
++}
++
++func dumpPtrBitMap(b abi.IntArgRegBitmap) {
++	for i := 0; i < intArgRegs; i++ {
++		x := 0
++		if b.Get(i) {
++			x = 1
++		}
++		print(" ", x)
++	}
+ }
+ 
+ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 7890c125d8..6f1a3c02d6 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1023,6 +1023,9 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 	methodFrameSize = align(methodFrameSize, ptrSize)
+ 	methodFrameSize += methodABI.spill
+ 
++	// Mark pointers in registers for the return path.
++	methodRegs.ReturnIsPtr = methodABI.outRegPtrs
++
+ 	// Call.
+ 	// Call copies the arguments from scratch to the stack, calls fn,
+ 	// and then copies the results back into scratch.
+@@ -1059,6 +1062,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 
+ 	// See the comment in callReflect.
+ 	runtime.KeepAlive(ctxt)
++
++	// Keep valueRegs alive because it may hold live pointer results.
++	// The caller (methodValueCall) has it as a stack object, which is only
++	// scanned when there is a reference to it.
++	runtime.KeepAlive(valueRegs)
+ }
+ 
+ // funcName returns the name of f, for use in error messages.

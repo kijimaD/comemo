@@ -8,8 +8,162 @@ Date:   Thu Mar 5 13:35:45 2009 -0800
     DELTA=50  (28 added, 0 deleted, 22 changed)
     OCL=25763
     CL=25770
-
+---
  src/lib/exec.go          | 42 ++++++++++++++++++++++++++++++++++--------
  src/lib/exec_test.go     |  8 ++++----
  src/lib/regexp/regexp.go | 22 ++++++++++++----------
  3 files changed, 50 insertions(+), 22 deletions(-)
+
+diff --git a/src/lib/exec.go b/src/lib/exec.go
+index ec48801f77..e463f917fe 100644
+--- a/src/lib/exec.go
++++ b/src/lib/exec.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The exec package runs external commands.
+ package exec
+ 
+ import (
+@@ -9,13 +10,19 @@ import (
+ 	"syscall";
+ )
+ 
++// Arguments to Run.
+ const (
+ 	DevNull = iota;
+-	Passthru;
++	PassThrough;
+ 	Pipe;
+ 	MergeWithStdout;
+ )
+ 
++// A Cmd represents a running command.
++// Stdin, Stdout, and Stderr are file descriptors to pipes
++// connected to the running command's standard input, output, and error,
++// or else nil, depending on the arguments to Run.
++// Pid is the running command's operating system process ID.
+ type Cmd struct {
+ 	Stdin *os.FD;
+ 	Stdout *os.FD;
+@@ -34,7 +41,7 @@ func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
+ 		}
+ 		f, err := os.Open("/dev/null", rw, 0);
+ 		return f, nil, err;
+-	case Passthru:
++	case PassThrough:
+ 		switch fd {
+ 		case 0:
+ 			return os.Stdin, nil, nil;
+@@ -56,12 +63,22 @@ func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
+ 	return nil, nil, os.EINVAL;
+ }
+ 
+-// Start command running with pipes possibly
+-// connected to stdin, stdout, stderr.
+-// TODO(rsc): Should the stdin,stdout,stderr args
+-// be [3]int instead?
+-func OpenCmd(argv0 string, argv, envv []string, stdin, stdout, stderr int)
+-	(p *Cmd, err *os.Error)
++// Run starts the binary prog running with
++// arguments argv and environment envv.
++// It returns a pointer to a new Cmd representing
++// the command or an error.
++//
++// The parameters stdin, stdout, and stderr
++// specify how to handle standard input, output, and error.
++// The choices are DevNull (connect to /dev/null),
++// PassThrough (connect to the current process's standard stream),
++// Pipe (connect to an operating system pipe), and
++// MergeWithStdout (only for standard error; use the same
++// file descriptor as was used for standard output).
++// If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
++// of the returned Cmd is the other end of the pipe.
++// Otherwise the field in Cmd is nil.
++func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err *os.Error)
+ {
+ 	p = new(Cmd);
+ 	var fd [3]*os.FD;
+@@ -116,6 +133,12 @@ Error:
+ 	return nil, err;
+ }
+ 
++// Wait waits for the running command p,
++// returning the Waitmsg returned by os.Wait and an error.
++// The options are passed through to os.Wait.
++// Setting options to 0 waits for p to exit;
++// other options cause Wait to return for other
++// process events; see package os for details.
+ func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
+ 	if p.Pid < 0 {
+ 		return nil, os.EINVAL;
+@@ -127,6 +150,9 @@ func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
+ 	return w, err;
+ }
+ 
++// Close waits for the running command p to exit,
++// if it hasn't already, and then closes the non-nil file descriptors
++// p.Stdin, p.Stdout, and p.Stderr.
+ func (p *Cmd) Close() *os.Error {
+ 	if p.Pid >= 0 {
+ 		// Loop on interrupt, but
+diff --git a/src/lib/exec_test.go b/src/lib/exec_test.go
+index 54d483799d..f4038fbc23 100644
+--- a/src/lib/exec_test.go
++++ b/src/lib/exec_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"testing";
+ )
+ 
+-func TestOpenCmdCat(t *testing.T) {
+-	cmd, err := exec.OpenCmd("/bin/cat", []string{"cat"}, nil,
++func TestRunCat(t *testing.T) {
++	cmd, err := exec.Run("/bin/cat", []string{"cat"}, nil,
+ 		exec.Pipe, exec.Pipe, exec.DevNull);
+ 	if err != nil {
+ 		t.Fatalf("opencmd /bin/cat: %v", err);
+@@ -31,8 +31,8 @@ func TestOpenCmdCat(t *testing.T) {
+ 	}
+ }
+ 
+-func TestOpenCmdEcho(t *testing.T) {
+-	cmd, err := OpenCmd("/bin/echo", []string{"echo", "hello", "world"}, nil,
++func TestRunEcho(t *testing.T) {
++	cmd, err := Run("/bin/echo", []string{"echo", "hello", "world"}, nil,
+ 		exec.DevNull, exec.Pipe, exec.DevNull);
+ 	if err != nil {
+ 		t.Fatalf("opencmd /bin/echo: %v", err);
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 86ef07c2e7..ec55444f37 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -31,16 +31,18 @@ import (
+ var debug = false;
+ 
+ // Error codes returned by failures to parse an expression.
+-var ErrInternal = os.NewError("internal error");
+-var ErrUnmatchedLpar = os.NewError("unmatched '('");
+-var ErrUnmatchedRpar = os.NewError("unmatched ')'");
+-var ErrUnmatchedLbkt = os.NewError("unmatched '['");
+-var ErrUnmatchedRbkt = os.NewError("unmatched ']'");
+-var ErrBadRange = os.NewError("bad range in character class");
+-var ErrExtraneousBackslash = os.NewError("extraneous backslash");
+-var ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
+-var ErrBareClosure = os.NewError("closure applies to nothing");
+-var ErrBadBackslash = os.NewError("illegal backslash escape");
++var (
++	ErrInternal = os.NewError("internal error");
++	ErrUnmatchedLpar = os.NewError("unmatched '('");
++	ErrUnmatchedRpar = os.NewError("unmatched ')'");
++	ErrUnmatchedLbkt = os.NewError("unmatched '['");
++	ErrUnmatchedRbkt = os.NewError("unmatched ']'");
++	ErrBadRange = os.NewError("bad range in character class");
++	ErrExtraneousBackslash = os.NewError("extraneous backslash");
++	ErrBadClosure = os.NewError("repeated closure (**, ++, etc.)");
++	ErrBareClosure = os.NewError("closure applies to nothing");
++	ErrBadBackslash = os.NewError("illegal backslash escape");
++)
+ 
+ // An instruction executed by the NFA
+ type instr interface {

@@ -12,9 +12,50 @@ Date:   Thu Feb 19 15:12:42 2015 -0500
     Change-Id: Ib5ef348b2c55d2012ffed765f2a6df99dec171f4
     Reviewed-on: https://go-review.googlesource.com/5302
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/rotate0.go | 2 ++
  test/rotate1.go | 2 ++
  test/rotate2.go | 2 ++
  test/rotate3.go | 2 ++
  4 files changed, 8 insertions(+)
+
+diff --git a/test/rotate0.go b/test/rotate0.go
+index 400b225cf7..9c4f560f74 100644
+--- a/test/rotate0.go
++++ b/test/rotate0.go
+@@ -1,3 +1,5 @@
++// skip
++
+ // runoutput ./rotate.go
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+diff --git a/test/rotate1.go b/test/rotate1.go
+index 98b0b1c849..2d9b797922 100644
+--- a/test/rotate1.go
++++ b/test/rotate1.go
+@@ -1,3 +1,5 @@
++// skip
++
+ // runoutput ./rotate.go
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+diff --git a/test/rotate2.go b/test/rotate2.go
+index c50f8ce73b..9044625312 100644
+--- a/test/rotate2.go
++++ b/test/rotate2.go
+@@ -1,3 +1,5 @@
++// skip
++
+ // runoutput ./rotate.go
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.
+diff --git a/test/rotate3.go b/test/rotate3.go
+index 73d47d8524..b6b71c8b47 100644
+--- a/test/rotate3.go
++++ b/test/rotate3.go
+@@ -1,3 +1,5 @@
++// skip
++
+ // runoutput ./rotate.go
+ 
+ // Copyright 2013 The Go Authors.  All rights reserved.

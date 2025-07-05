@@ -20,10 +20,122 @@ Date:   Fri Jan 23 11:24:42 2015 -0800
     Change-Id: Iaa91d8e453109824b4be44321ec5e828f39f0299
     Reviewed-on: https://go-review.googlesource.com/3242
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go       | 4 ++--
  src/cmd/asm/internal/lex/input.go     | 4 ++--
  src/cmd/asm/internal/lex/lex.go       | 9 ++++++++-
  src/cmd/asm/internal/lex/tokenizer.go | 8 ++++++--
  src/cmd/asm/main.go                   | 3 +--
  5 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 4ffbe558c6..29166ccf02 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -144,7 +144,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	if !nameAddr.Is(addr.Symbol|addr.Register|addr.Indirect) || nameAddr.Register != arch.RSB {
+ 		p.errorf("TEXT symbol %q must be an offset from SB", nameAddr.Symbol)
+ 	}
+-	name := strings.Replace(nameAddr.Symbol, "·", ".", 1)
++	name := nameAddr.Symbol
+ 
+ 	// Operand 1 is the text flag, a literal integer.
+ 	flagAddr := p.address(operands[1])
+@@ -160,7 +160,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 	// Not clear we can do better, but it doesn't matter.
+ 	op := operands[2]
+ 	n := len(op)
+-	var locals int64
++	locals := int64(obj.ArgsSizeUnknown)
+ 	if n >= 2 && op[n-2].ScanToken == '-' && op[n-1].ScanToken == scanner.Int {
+ 		p.start(op[n-1:])
+ 		locals = int64(p.expr())
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index ae31998239..eefd6eb6ef 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -234,7 +234,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
+ 				continue
+ 			}
+ 		}
+-		tokens = append(tokens, Token{ScanToken(tok), in.Text()})
++		tokens = append(tokens, Make(tok, in.Text()))
+ 		tok = in.Stack.Next()
+ 	}
+ 	return args, tokens
+@@ -305,7 +305,7 @@ func (in *Input) argsFor(macro *Macro) map[string][]Token {
+ 				return args
+ 			}
+ 		default:
+-			tokens = append(tokens, Token{tok, in.Stack.Text()})
++			tokens = append(tokens, Make(tok, in.Stack.Text()))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 2153591e31..4785350b1f 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -107,6 +107,13 @@ type Token struct {
+ 
+ // Make returns a Token with the given rune (ScanToken) and text representation.
+ func Make(token ScanToken, text string) Token {
++	// If the symbol starts with center dot, as in ·x, rewrite it as ""·x
++	if token == scanner.Ident && strings.HasPrefix(text, "\u00B7") {
++		text = `""` + text
++	}
++	// Substitute the substitutes for . and /.
++	text = strings.Replace(text, "\u00B7", ".", 1)
++	text = strings.Replace(text, "\u2215", "/", -1)
+ 	return Token{ScanToken: token, text: text}
+ }
+ 
+@@ -130,7 +137,7 @@ func tokenize(str string) []Token {
+ 		if tok == scanner.EOF {
+ 			break
+ 		}
+-		tokens = append(tokens, Token{ScanToken: tok, text: t.Text()})
++		tokens = append(tokens, Make(tok, t.Text()))
+ 	}
+ 	return tokens
+ }
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index 6a6fdbc776..24a72479db 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -39,7 +39,9 @@ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
+ 		scanner.ScanComments
+ 	s.Position.Filename = name
+ 	s.IsIdentRune = isIdentRune
+-	obj.Linklinehist(linkCtxt, histLine, name, 0)
++	if file != nil {
++		obj.Linklinehist(linkCtxt, histLine, name, 0)
++	}
+ 	return &Tokenizer{
+ 		s:        &s,
+ 		line:     1,
+@@ -107,7 +109,9 @@ func (t *Tokenizer) Next() ScanToken {
+ 	}
+ 	switch t.tok {
+ 	case '\n':
+-		histLine++
++		if t.file != nil {
++			histLine++
++		}
+ 		t.line++
+ 	case '-':
+ 		if s.Peek() == '>' {
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 08354119a6..3c02d4eebd 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -30,8 +30,7 @@ func main() {
+ 		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
+ 	}
+ 
+-	// Is this right?
+-	flags.Parse(build.Default.GOROOT, build.Default.GOOS, GOARCH, architecture.Thechar)
++	flags.Parse(obj.Getgoroot(), obj.Getgoos(), obj.Getgoarch(), architecture.Thechar)
+ 
+ 	// Create object file, write header.
+ 	fd, err := os.Create(*flags.OutputFile)

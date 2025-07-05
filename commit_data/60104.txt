@@ -14,7 +14,7 @@ Date:   Wed May 15 18:39:01 2024 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/go/build/deps_test.go                  | 67 +++++++++++++++++-------------
  src/internal/coverage/cfile/apis.go        |  7 ++--
  src/internal/coverage/cfile/emit.go        | 24 +++--------
@@ -22,3 +22,385 @@ Date:   Wed May 15 18:39:01 2024 -0400
  src/internal/coverage/rtcov/rtcov.go       | 56 ++++++++++++++++++++++++-
  src/runtime/covermeta.go                   | 66 ++++-------------------------
  6 files changed, 111 insertions(+), 112 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4df56ab78a..f7015ff33b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -39,23 +39,34 @@ import (
+ var depsRules = `
+ 	# No dependencies allowed for any of these packages.
+ 	NONE
+-	< cmp, container/list, container/ring,
+-	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+-	  internal/coverage/uleb128, internal/coverage/calloc,
+-	  internal/goarch, internal/godebugs,
+-	  internal/goexperiment, internal/goos, internal/byteorder,
+-	  internal/goversion, internal/nettrace, internal/platform,
+-	  internal/profilerecord, internal/trace/traceviewer/format,
++	< unsafe
++	< cmp,
++	  container/list,
++	  container/ring,
++	  internal/byteorder,
++	  internal/cfg,
++	  internal/coverage,
++	  internal/coverage/rtcov,
++	  internal/coverage/uleb128,
++	  internal/coverage/calloc,
++	  internal/cpu,
++	  internal/goarch,
++	  internal/godebugs,
++	  internal/goexperiment,
++	  internal/goos,
++	  internal/goversion,
++	  internal/nettrace,
++	  internal/platform,
++	  internal/profilerecord,
++	  internal/trace/traceviewer/format,
+ 	  log/internal,
+-	  unicode/utf8, unicode/utf16, unicode,
+-	  unsafe;
++	  math/bits,
++	  unicode,
++	  unicode/utf8,
++	  unicode/utf16;
+ 
+-	# internal/abi depends only on internal/goarch and unsafe.
+-	internal/goarch, unsafe < internal/abi;
+-
+-	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
+-
+-	unsafe < internal/cpu;
++	internal/goarch < internal/abi;
++	internal/byteorder, internal/goarch < internal/chacha8rand;
+ 
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi,
+@@ -66,7 +77,8 @@ var depsRules = `
+ 	internal/godebugs,
+ 	internal/goexperiment,
+ 	internal/goos,
+-	internal/profilerecord
++	internal/profilerecord,
++	math/bits
+ 	< internal/bytealg
+ 	< internal/stringslite
+ 	< internal/itoa
+@@ -86,22 +98,17 @@ var depsRules = `
+ 	< internal/godebug
+ 	< internal/reflectlite
+ 	< errors
+-	< internal/oserror, math/bits
+-	< iter
+-	< RUNTIME;
++	< internal/oserror;
+ 
+-	RUNTIME, unsafe
+-	< maps;
+-
+-	# slices depends on unsafe for overlapping check, cmp for comparison
+-	# semantics, and math/bits for # calculating bitlength of numbers.
+-	RUNTIME, unsafe, cmp, math/bits
+-	< slices;
++	cmp, internal/race, math/bits
++	< iter
++	< maps, slices;
+ 
+-	RUNTIME, slices
+-	< sort;
++	internal/oserror, maps, slices
++	< RUNTIME;
+ 
+-	sort
++	RUNTIME
++	< sort
+ 	< container/heap;
+ 
+ 	RUNTIME
+@@ -663,7 +670,7 @@ var depsRules = `
+ 	< internal/trace/traceviewer;
+ 
+ 	# Coverage.
+-	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
++	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter,
+ 	internal/coverage, internal/coverage/uleb128
+ 	< internal/coverage/cmerge,
+ 	  internal/coverage/pods,
+diff --git a/src/internal/coverage/cfile/apis.go b/src/internal/coverage/cfile/apis.go
+index efae20495b..ef23af0cf1 100644
+--- a/src/internal/coverage/cfile/apis.go
++++ b/src/internal/coverage/cfile/apis.go
+@@ -7,6 +7,7 @@ package cfile
+ import (
+ 	"fmt"
+ 	"internal/coverage"
++	"internal/coverage/rtcov"
+ 	"io"
+ 	"sync/atomic"
+ 	"unsafe"
+@@ -17,7 +18,7 @@ func WriteMetaDir(dir string) error {
+ 	if !finalHashComputed {
+ 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+ 	}
+-	return emitMetaDataToDirectory(dir, getCovMetaList())
++	return emitMetaDataToDirectory(dir, rtcov.Meta.List)
+ }
+ 
+ // WriteMeta implements [runtime/coverage.WriteMeta].
+@@ -28,7 +29,7 @@ func WriteMeta(w io.Writer) error {
+ 	if !finalHashComputed {
+ 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+ 	}
+-	ml := getCovMetaList()
++	ml := rtcov.Meta.List
+ 	return writeMetaData(w, ml, cmode, cgran, finalHash)
+ }
+ 
+@@ -57,7 +58,7 @@ func WriteCounters(w io.Writer) error {
+ 		return fmt.Errorf("meta-data not written yet, unable to write counter data")
+ 	}
+ 
+-	pm := getCovPkgMap()
++	pm := rtcov.Meta.PkgMap
+ 	s := &emitState{
+ 		counterlist: cl,
+ 		pkgmap:      pm,
+diff --git a/src/internal/coverage/cfile/emit.go b/src/internal/coverage/cfile/emit.go
+index 68d77c5ae8..3993e9cb42 100644
+--- a/src/internal/coverage/cfile/emit.go
++++ b/src/internal/coverage/cfile/emit.go
+@@ -29,25 +29,13 @@ import (
+ // emitted at the end of code coverage testing runs, from instrumented
+ // executables.
+ 
+-// getCovMetaList returns a list of meta-data blobs registered
+-// for the currently executing instrumented program. It is defined in the
+-// runtime.
+-//go:linkname getCovMetaList
+-func getCovMetaList() []rtcov.CovMetaBlob
+-
+ // getCovCounterList returns a list of counter-data blobs registered
+ // for the currently executing instrumented program. It is defined in the
+ // runtime.
++//
+ //go:linkname getCovCounterList
+ func getCovCounterList() []rtcov.CovCounterBlob
+ 
+-// getCovPkgMap returns a map storing the remapped package IDs for
+-// hard-coded runtime packages (see internal/coverage/pkgid.go for
+-// more on why hard-coded package IDs are needed). This function
+-// is defined in the runtime.
+-//go:linkname getCovPkgMap
+-func getCovPkgMap() map[int]int
+-
+ // emitState holds useful state information during the emit process.
+ //
+ // When an instrumented program finishes execution and starts the
+@@ -180,7 +168,7 @@ func granClash(g coverage.CounterGranularity) bool {
+ // all meta-data blobs and capturing os args.
+ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
+ 	// Ask the runtime for the list of coverage meta-data symbols.
+-	ml := getCovMetaList()
++	ml := rtcov.Meta.List
+ 
+ 	// In the normal case (go build -o prog.exe ... ; ./prog.exe)
+ 	// len(ml) will always be non-zero, but we check here since at
+@@ -210,7 +198,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
+ 			}
+ 			fmt.Fprintf(os.Stderr, "\n")
+ 		}
+-		pm := getCovPkgMap()
++		pm := rtcov.Meta.PkgMap
+ 		fmt.Fprintf(os.Stderr, "=+= remap table:\n")
+ 		for from, to := range pm {
+ 			fmt.Fprintf(os.Stderr, "=+= from %d to %d\n",
+@@ -310,7 +298,7 @@ func emitCounterDataToDirectory(outdir string) error {
+ 	}
+ 
+ 	// Ask the runtime for the list of coverage counter symbols.
+-	pm := getCovPkgMap()
++	pm := rtcov.Meta.PkgMap
+ 	s := &emitState{
+ 		counterlist: cl,
+ 		pkgmap:      pm,
+@@ -591,8 +579,8 @@ func MarkProfileEmitted(val bool) {
+ }
+ 
+ func reportErrorInHardcodedList(slot, pkgID int32, fnID, nCtrs uint32) {
+-	metaList := getCovMetaList()
+-	pkgMap := getCovPkgMap()
++	metaList := rtcov.Meta.List
++	pkgMap := rtcov.Meta.PkgMap
+ 
+ 	println("internal error in coverage meta-data tracking:")
+ 	println("encountered bad pkgID:", pkgID, " at slot:", slot,
+diff --git a/src/internal/coverage/cfile/testsupport.go b/src/internal/coverage/cfile/testsupport.go
+index 2a64899e28..a5119187a2 100644
+--- a/src/internal/coverage/cfile/testsupport.go
++++ b/src/internal/coverage/cfile/testsupport.go
+@@ -14,6 +14,7 @@ import (
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/pods"
++	"internal/coverage/rtcov"
+ 	"internal/runtime/atomic"
+ 	"io"
+ 	"os"
+@@ -33,7 +34,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
+ 	}
+ 
+ 	// Emit meta-data and counter data.
+-	ml := getCovMetaList()
++	ml := rtcov.Meta.List
+ 	if len(ml) == 0 {
+ 		// This corresponds to the case where we have a package that
+ 		// contains test code but no functions (which is fine). In this
+diff --git a/src/internal/coverage/rtcov/rtcov.go b/src/internal/coverage/rtcov/rtcov.go
+index bbb93acced..9e30d67900 100644
+--- a/src/internal/coverage/rtcov/rtcov.go
++++ b/src/internal/coverage/rtcov/rtcov.go
+@@ -4,8 +4,10 @@
+ 
+ package rtcov
+ 
++import "unsafe"
++
+ // This package contains types whose structure is shared between
+-// the runtime package and the "runtime/coverage" package.
++// the runtime package and the "runtime/coverage" implementation.
+ 
+ // CovMetaBlob is a container for holding the meta-data symbol (an
+ // RODATA variable) for an instrumented Go package. Here "p" points to
+@@ -32,3 +34,55 @@ type CovCounterBlob struct {
+ 	Counters *uint32
+ 	Len      uint64
+ }
++
++// Meta is the top-level container for bits of state related to
++// code coverage meta-data in the runtime.
++var Meta struct {
++	// List contains the list of currently registered meta-data
++	// blobs for the running program.
++	List []CovMetaBlob
++
++	// PkgMap records mappings from hard-coded package IDs to
++	// slots in the List above.
++	PkgMap map[int]int
++
++	// Set to true if we discover a package mapping glitch.
++	hardCodedListNeedsUpdating bool
++}
++
++// AddMeta is invoked during package "init" functions by the
++// compiler when compiling for coverage instrumentation; here 'p' is a
++// meta-data blob of length 'dlen' for the package in question, 'hash'
++// is a compiler-computed md5.sum for the blob, 'pkpath' is the
++// package path, 'pkid' is the hard-coded ID that the compiler is
++// using for the package (or -1 if the compiler doesn't think a
++// hard-coded ID is needed), and 'cmode'/'cgran' are the coverage
++// counter mode and granularity requested by the user. Return value is
++// the ID for the package for use by the package code itself,
++// or 0 for impossible errors.
++func AddMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkgpath string, pkgid int, cmode uint8, cgran uint8) uint32 {
++	slot := len(Meta.List)
++	Meta.List = append(Meta.List, CovMetaBlob{
++		P:                  (*byte)(p),
++		Len:                dlen,
++		Hash:               hash,
++		PkgPath:            pkgpath,
++		PkgID:              pkgid,
++		CounterMode:        cmode,
++		CounterGranularity: cgran,
++	})
++	if pkgid != -1 {
++		if Meta.PkgMap == nil {
++			Meta.PkgMap = make(map[int]int)
++		}
++		if _, ok := Meta.PkgMap[pkgid]; ok {
++			return 0
++		}
++		// Record the real slot (position on meta-list) for this
++		// package; we'll use the map to fix things up later on.
++		Meta.PkgMap[pkgid] = slot
++	}
++
++	// ID zero is reserved as invalid.
++	return uint32(slot + 1)
++}
+diff --git a/src/runtime/covermeta.go b/src/runtime/covermeta.go
+index bfe43b84ab..57a6b29e91 100644
+--- a/src/runtime/covermeta.go
++++ b/src/runtime/covermeta.go
+@@ -9,64 +9,12 @@ import (
+ 	"unsafe"
+ )
+ 
+-// covMeta is the top-level container for bits of state related to
+-// code coverage meta-data in the runtime.
+-var covMeta struct {
+-	// metaList contains the list of currently registered meta-data
+-	// blobs for the running program.
+-	metaList []rtcov.CovMetaBlob
+-
+-	// pkgMap records mappings from hard-coded package IDs to
+-	// slots in the covMetaList above.
+-	pkgMap map[int]int
+-
+-	// Set to true if we discover a package mapping glitch.
+-	hardCodedListNeedsUpdating bool
+-}
+-
+-// addCovMeta is invoked during package "init" functions by the
+-// compiler when compiling for coverage instrumentation; here 'p' is a
+-// meta-data blob of length 'dlen' for the package in question, 'hash'
+-// is a compiler-computed md5.sum for the blob, 'pkpath' is the
+-// package path, 'pkid' is the hard-coded ID that the compiler is
+-// using for the package (or -1 if the compiler doesn't think a
+-// hard-coded ID is needed), and 'cmode'/'cgran' are the coverage
+-// counter mode and granularity requested by the user. Return value is
+-// the ID for the package for use by the package code itself.
+-func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkpath string, pkid int, cmode uint8, cgran uint8) uint32 {
+-	slot := len(covMeta.metaList)
+-	covMeta.metaList = append(covMeta.metaList,
+-		rtcov.CovMetaBlob{
+-			P:                  (*byte)(p),
+-			Len:                dlen,
+-			Hash:               hash,
+-			PkgPath:            pkpath,
+-			PkgID:              pkid,
+-			CounterMode:        cmode,
+-			CounterGranularity: cgran,
+-		})
+-	if pkid != -1 {
+-		if covMeta.pkgMap == nil {
+-			covMeta.pkgMap = make(map[int]int)
+-		}
+-		if _, ok := covMeta.pkgMap[pkid]; ok {
+-			throw("runtime.addCovMeta: coverage package map collision")
+-		}
+-		// Record the real slot (position on meta-list) for this
+-		// package; we'll use the map to fix things up later on.
+-		covMeta.pkgMap[pkid] = slot
++// The compiler emits calls to runtime.addCovMeta
++// but this code has moved to rtcov.AddMeta.
++func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkgpath string, pkgid int, cmode uint8, cgran uint8) uint32 {
++	id := rtcov.AddMeta(p, dlen, hash, pkgpath, pkgid, cmode, cgran)
++	if id == 0 {
++		throw("runtime.addCovMeta: coverage package map collision")
+ 	}
+-
+-	// ID zero is reserved as invalid.
+-	return uint32(slot + 1)
+-}
+-
+-//go:linkname coverage_getCovMetaList internal/coverage/cfile.getCovMetaList
+-func coverage_getCovMetaList() []rtcov.CovMetaBlob {
+-	return covMeta.metaList
+-}
+-
+-//go:linkname coverage_getCovPkgMap internal/coverage/cfile.getCovPkgMap
+-func coverage_getCovPkgMap() map[int]int {
+-	return covMeta.pkgMap
++	return id
+ }

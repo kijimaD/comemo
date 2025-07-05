@@ -14,7 +14,7 @@ Date:   Fri Mar 3 16:45:21 2017 -0800
     Change-Id: I082e50e1d1f1b544c9e06b6e412a186be6a4a2b5
     Reviewed-on: https://go-review.googlesource.com/37872
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go | 13 ++++++++++--
  src/cmd/internal/obj/link.go        | 18 ++++++++++------
  src/cmd/internal/obj/objfile.go     | 41 +++++++++++++++----------------------
@@ -22,3 +22,237 @@ Date:   Fri Mar 3 16:45:21 2017 -0800
  src/cmd/internal/obj/plist.go       |  3 +++
  src/cmd/internal/obj/sizeof_test.go |  2 +-
  6 files changed, 44 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 9719a8c406..d2f68b7c33 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -436,6 +436,10 @@ func gendebug(fnsym *obj.LSym, decls []*Node) {
+ 		return
+ 	}
+ 
++	if fnsym.FuncInfo == nil {
++		fnsym.FuncInfo = new(obj.FuncInfo)
++	}
++
+ 	for _, n := range decls {
+ 		if n.Op != ONAME { // might be OTYPE or OLITERAL
+ 			continue
+@@ -461,8 +465,13 @@ func gendebug(fnsym *obj.LSym, decls []*Node) {
+ 			Gotype:  Linksym(ngotype(n)),
+ 		}
+ 
+-		a.Link = fnsym.Autom
+-		fnsym.Autom = a
++		fnsym.Autom = append(fnsym.Autom, a)
++	}
++
++	// Reverse to make toolstash happy.
++	// TODO(mdempsky): Remove.
++	for i, j := 0, len(fnsym.Autom)-1; i < j; i, j = i+1, j-1 {
++		fnsym.Autom[i], fnsym.Autom[j] = fnsym.Autom[j], fnsym.Autom[i]
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index a9881166a1..62e9608954 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -326,15 +326,22 @@ type LSym struct {
+ 	Attribute
+ 
+ 	RefIdx int // Index of this symbol in the symbol reference list.
+-	Args   int32
+-	Locals int32
+ 	Size   int64
+ 	Gotype *LSym
+-	Autom  *Auto
+-	Text   *Prog
+-	Pcln   *Pcln
+ 	P      []byte
+ 	R      []Reloc
++
++	// TODO(mdempsky): De-anonymize field.
++	*FuncInfo
++}
++
++// A FuncInfo contains extra fields for STEXT symbols.
++type FuncInfo struct {
++	Args   int32
++	Locals int32
++	Text   *Prog
++	Autom  []*Auto
++	Pcln   Pcln
+ }
+ 
+ // Attribute is a set of symbol attributes.
+@@ -691,7 +698,6 @@ func (r RelocType) IsDirectJump() bool {
+ 
+ type Auto struct {
+ 	Asym    *LSym
+-	Link    *Auto
+ 	Aoffset int32
+ 	Name    AddrName
+ 	Gotype  *LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a30fe39fc2..fbf4d4b244 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -153,7 +153,7 @@ func (w *objWriter) addLengths(s *LSym) {
+ 		return
+ 	}
+ 
+-	pc := s.Pcln
++	pc := &s.Pcln
+ 
+ 	data := 0
+ 	data += len(pc.Pcsp.P)
+@@ -167,11 +167,7 @@ func (w *objWriter) addLengths(s *LSym) {
+ 	w.nData += data
+ 	w.nPcdata += len(pc.Pcdata)
+ 
+-	autom := 0
+-	for a := s.Autom; a != nil; a = a.Link {
+-		autom++
+-	}
+-	w.nAutom += autom
++	w.nAutom += len(s.Autom)
+ 	w.nFuncdata += len(pc.Funcdataoff)
+ 	w.nFile += len(pc.File)
+ }
+@@ -227,7 +223,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 	// Data block
+ 	for _, s := range ctxt.Text {
+ 		w.wr.Write(s.P)
+-		pc := s.Pcln
++		pc := &s.Pcln
+ 		w.wr.Write(pc.Pcsp.P)
+ 		w.wr.Write(pc.Pcfile.P)
+ 		w.wr.Write(pc.Pcline.P)
+@@ -294,11 +290,11 @@ func (w *objWriter) writeRefs(s *LSym) {
+ 	}
+ 
+ 	if s.Type == STEXT {
+-		for a := s.Autom; a != nil; a = a.Link {
++		for _, a := range s.Autom {
+ 			w.writeRef(a.Asym, false)
+ 			w.writeRef(a.Gotype, false)
+ 		}
+-		pc := s.Pcln
++		pc := &s.Pcln
+ 		for _, d := range pc.Funcdata {
+ 			w.writeRef(d, false)
+ 		}
+@@ -338,15 +334,15 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 			fmt.Fprintf(ctxt.Bso, " leaf")
+ 		}
+ 	}
+-
+ 	fmt.Fprintf(ctxt.Bso, "\n")
+-	for p := s.Text; p != nil; p = p.Link {
+-		fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
++	if s.Type == STEXT {
++		for p := s.Text; p != nil; p = p.Link {
++			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
++		}
+ 	}
+-	var c int
+-	var j int
+-	for i := 0; i < len(s.P); {
++	for i := 0; i < len(s.P); i += 16 {
+ 		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
++		j := i
+ 		for j = i; j < i+16 && j < len(s.P); j++ {
+ 			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
+ 		}
+@@ -355,7 +351,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 		}
+ 		fmt.Fprintf(ctxt.Bso, "  ")
+ 		for j = i; j < i+16 && j < len(s.P); j++ {
+-			c = int(s.P[j])
++			c := int(s.P[j])
+ 			if ' ' <= c && c <= 0x7e {
+ 				fmt.Fprintf(ctxt.Bso, "%c", c)
+ 			} else {
+@@ -364,7 +360,6 @@ func (w *objWriter) writeSymDebug(s *LSym) {
+ 		}
+ 
+ 		fmt.Fprintf(ctxt.Bso, "\n")
+-		i += 16
+ 	}
+ 
+ 	sort.Sort(relocByOff(s.R)) // generate stable output
+@@ -440,12 +435,8 @@ func (w *objWriter) writeSym(s *LSym) {
+ 		flags |= 1 << 2
+ 	}
+ 	w.writeInt(flags)
+-	n := 0
+-	for a := s.Autom; a != nil; a = a.Link {
+-		n++
+-	}
+-	w.writeInt(int64(n))
+-	for a := s.Autom; a != nil; a = a.Link {
++	w.writeInt(int64(len(s.Autom)))
++	for _, a := range s.Autom {
+ 		w.writeRefIndex(a.Asym)
+ 		w.writeInt(int64(a.Aoffset))
+ 		if a.Name == NAME_AUTO {
+@@ -458,7 +449,7 @@ func (w *objWriter) writeSym(s *LSym) {
+ 		w.writeRefIndex(a.Gotype)
+ 	}
+ 
+-	pc := s.Pcln
++	pc := &s.Pcln
+ 	w.writeInt(int64(len(pc.Pcsp.P)))
+ 	w.writeInt(int64(len(pc.Pcfile.P)))
+ 	w.writeInt(int64(len(pc.Pcline.P)))
+@@ -575,7 +566,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+ 		var vars []*dwarf.Var
+ 		var abbrev int
+ 		var offs int32
+-		for a := s.Autom; a != nil; a = a.Link {
++		for _, a := range s.Autom {
+ 			switch a.Name {
+ 			case NAME_AUTO:
+ 				abbrev = dwarf.DW_ABRV_AUTO
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 3ed146acea..2395c6ed0e 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -254,8 +254,7 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
+ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	ctxt.Cursym = cursym
+ 
+-	pcln := new(Pcln)
+-	cursym.Pcln = pcln
++	pcln := &cursym.Pcln
+ 
+ 	npcdata := 0
+ 	nfuncdata := 0
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 8584020f04..8532bbc1d4 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -46,6 +46,9 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 
+ 				continue
+ 			}
++			if s.FuncInfo == nil {
++				s.FuncInfo = new(FuncInfo)
++			}
+ 
+ 			if s.Text != nil {
+ 				log.Fatalf("duplicate TEXT for %s", s.Name)
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index 8051715989..5d5a710290 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Addr{}, 40, 64},
+-		{LSym{}, 76, 128},
++		{LSym{}, 60, 104},
+ 		{Prog{}, 148, 232},
+ 	}
+ 

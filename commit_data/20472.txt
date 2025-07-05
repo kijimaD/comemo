@@ -22,7 +22,7 @@ Date:   Tue Sep 9 17:19:01 2014 -0700
     R=aram, 0intro, mischief, rsc
     CC=golang-codereviews
     https://golang.org/cl/110680044
-
+---
  src/runtime/os_plan9.c        | 16 ++++++------
  src/runtime/os_plan9.go       |  3 ++-
  src/runtime/os_plan9.h        |  3 ++-
@@ -31,3 +31,253 @@ Date:   Tue Sep 9 17:19:01 2014 -0700
  src/runtime/sys_plan9_386.s   | 57 ++++++++++++++++++-------------------------
  src/runtime/sys_plan9_amd64.s | 48 ++++++++++++++++--------------------
  7 files changed, 69 insertions(+), 71 deletions(-)
+
+diff --git a/src/runtime/os_plan9.c b/src/runtime/os_plan9.c
+index fe92e5b269..f8c543f6f6 100644
+--- a/src/runtime/os_plan9.c
++++ b/src/runtime/os_plan9.c
+@@ -280,14 +280,16 @@ exit(void)
+ void
+ runtime·newosproc(M *mp, void *stk)
+ {
+-	mp->tls[0] = mp->id;	// so 386 asm can find it
+-	if(0){
+-		runtime·printf("newosproc stk=%p m=%p g=%p rfork=%p id=%d/%d ostk=%p\n",
+-			stk, mp, mp->g0, runtime·rfork, mp->id, (int32)mp->tls[0], &mp);
+-	}
++	int32 pid;
++
++	if(0)
++		runtime·printf("newosproc mp=%p ostk=%p\n", mp, &mp);
+ 
+-	if(runtime·rfork(RFPROC|RFMEM|RFNOWAIT, stk, mp, mp->g0, runtime·mstart) < 0)
+-		runtime·throw("newosproc: rfork failed");
++	USED(stk);
++	if((pid = runtime·rfork(RFPROC|RFMEM|RFNOWAIT)) < 0)
++		runtime·throw("newosproc: rfork failed\n");
++	if(pid == 0)
++		runtime·tstart_plan9(mp);
+ }
+ 
+ #pragma textflag NOSPLIT
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 09cb3d93ff..c7b5bf7050 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -12,7 +12,7 @@ func seek(fd int32, offset int64, whence int32) int64
+ func exits(msg *byte)
+ func brk_(addr unsafe.Pointer) uintptr
+ func sleep(ms int32) int32
+-func rfork(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
++func rfork(flags int32) int32
+ func plan9_semacquire(addr *uint32, block int32) int32
+ func plan9_tsemacquire(addr *uint32, ms int32) int32
+ func plan9_semrelease(addr *uint32, count int32) int32
+@@ -21,6 +21,7 @@ func noted(mode int32) int32
+ func nsec(*int64) int64
+ func sigtramp(ureg, msg unsafe.Pointer)
+ func setfpmasks()
++func tstart_plan9(newm *m)
+ func errstr() string
+ 
+ // The size of the note handler frame varies among architectures,
+diff --git a/src/runtime/os_plan9.h b/src/runtime/os_plan9.h
+index 57a2cafa72..7ebaa9c0c6 100644
+--- a/src/runtime/os_plan9.h
++++ b/src/runtime/os_plan9.h
+@@ -9,7 +9,7 @@ int64	runtime·seek(int32 fd, int64 offset, int32 whence);
+ void	runtime·exits(int8* msg);
+ intptr	runtime·brk_(void*);
+ int32	runtime·sleep(int32 ms);
+-int32	runtime·rfork(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
++int32	runtime·rfork(int32 flags);
+ int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
+ int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
+ int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
+@@ -20,6 +20,7 @@ void	runtime·sigtramp(void*, int8*);
+ void	runtime·sigpanic(void);
+ void	runtime·goexitsall(int8*);
+ void	runtime·setfpmasks(void);
++void	runtime·tstart_plan9(M *newm);
+ 
+ /* open */
+ enum
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 54efb035bf..e3f24a7e67 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -917,8 +917,8 @@ runtime·allocm(P *p)
+ 	mcommoninit(mp);
+ 
+ 	// In case of cgo or Solaris, pthread_create will make us a stack.
+-	// Windows will layout sched stack on OS stack.
+-	if(runtime·iscgo || Solaris || Windows)
++	// Windows and Plan 9 will layout sched stack on OS stack.
++	if(runtime·iscgo || Solaris || Windows || Plan9)
+ 		mp->g0 = runtime·malg(-1);
+ 	else
+ 		mp->g0 = runtime·malg(8192);
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 4622a2c3d7..da9b2b7514 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -522,6 +522,15 @@ enum {
+    Solaris = 0
+ };
+ #endif
++#ifdef GOOS_plan9
++enum {
++   Plan9 = 1
++};
++#else
++enum {
++   Plan9 = 0
++};
++#endif
+ 
+ // Lock-free stack node.
+ struct LFNode
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index 1256347963..a41b56258a 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -131,47 +131,38 @@ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	INT	$64
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+-	
+-TEXT runtime·rfork(SB),NOSPLIT,$0
+-	MOVL	$19, AX // rfork
+-	MOVL	stack+8(SP), CX
+-	MOVL	mm+12(SP), BX	// m
+-	MOVL	gg+16(SP), DX	// g
+-	MOVL	fn+20(SP), SI	// fn
+-	INT     $64
+ 
+-	// In parent, return.
+-	CMPL	AX, $0
+-	JEQ	3(PC)
+-	MOVL	AX, ret+20(FP)
++TEXT runtime·rfork(SB),NOSPLIT,$0
++	MOVL	$19, AX
++	INT	$64
++	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-	// set SP to be on the new child stack
+-	MOVL	CX, SP
++TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
++	MOVL	newm+0(FP), CX
++	MOVL	m_g0(CX), DX
+ 
+-	// Initialize m, g.
+-	get_tls(AX)
+-	MOVL	DX, g(AX)
+-	MOVL	BX, g_m(DX)
++	// Layout new m scheduler stack on os stack.
++	MOVL	SP, AX
++	MOVL	AX, (g_stack+stack_hi)(DX)
++	SUBL	$(64*1024), AX		// stack size
++	MOVL	AX, (g_stack+stack_lo)(DX)
++	MOVL	AX, g_stackguard0(DX)
++	MOVL	AX, g_stackguard1(DX)
+ 
+ 	// Initialize procid from TOS struct.
+ 	MOVL	_tos(SB), AX
+-	MOVL	48(AX), AX // procid
+-	MOVL	AX, m_procid(BX)	// save pid as m->procid
+-	
++	MOVL	48(AX), AX
++	MOVL	AX, m_procid(CX)	// save pid as m->procid
++
++	// Finally, initialize g.
++	get_tls(BX)
++	MOVL	DX, g(BX)
++
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
+-	
+-	MOVL	0(DX), DX	// paranoia; check they are not nil
+-	MOVL	0(BX), BX
+-	
+-	// more paranoia; check that stack splitting code works
+-	PUSHL	SI
+-	CALL	runtime·emptyfunc(SB)
+-	POPL	SI
+-	
+-	CALL	SI	// fn()
+-	CALL	runtime·exit(SB)
+-	MOVL	AX, ret+20(FP)
++	CALL	runtime·mstart(SB)
++
++	MOVL	$0x1234, 0x1234		// not reached
+ 	RET
+ 
+ // void sigtramp(void *ureg, int8 *note)
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 36d2d97e20..b0e1864602 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -130,42 +130,36 @@ TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·rfork(SB),NOSPLIT,$0
+-	MOVQ	$19, BP // rfork
++	MOVQ	$19, BP
+ 	SYSCALL
+-
+-	// In parent, return.
+-	CMPQ	AX, $0
+-	JEQ	3(PC)
+-	MOVL	AX, ret+40(FP)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-	// In child on forked stack.
+-	MOVQ	mm+24(SP), BX	// m
+-	MOVQ	gg+32(SP), DX	// g
+-	MOVQ	fn+40(SP), SI	// fn
+-
+-	// set SP to be on the new child stack
+-	MOVQ	stack+16(SP), CX
+-	MOVQ	CX, SP
++TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
++	MOVQ	newm+0(FP), CX
++	MOVQ	m_g0(CX), DX
+ 
+-	// Initialize m, g.
+-	get_tls(AX)
+-	MOVQ	DX, g(AX)
+-	MOVQ	BX, g_m(DX)
++	// Layout new m scheduler stack on os stack.
++	MOVQ	SP, AX
++	MOVQ	AX, (g_stack+stack_hi)(DX)
++	SUBQ	$(64*1024), AX		// stack size
++	MOVQ	AX, (g_stack+stack_lo)(DX)
++	MOVQ	AX, g_stackguard0(DX)
++	MOVQ	AX, g_stackguard1(DX)
+ 
+ 	// Initialize procid from TOS struct.
+ 	MOVQ	_tos(SB), AX
+ 	MOVQ	64(AX), AX
+-	MOVQ	AX, m_procid(BX)	// save pid as m->procid
+-	
++	MOVQ	AX, m_procid(CX)	// save pid as m->procid
++
++	// Finally, initialize g.
++	get_tls(BX)
++	MOVQ	DX, g(BX)
++
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
+-	
+-	MOVQ	0(DX), DX	// paranoia; check they are not nil
+-	MOVQ	0(BX), BX
+-	
+-	CALL	SI	// fn()
+-	CALL	runtime·exit(SB)
+-	MOVL	AX, ret+40(FP)
++	CALL	runtime·mstart(SB)
++
++	MOVQ	$0x1234, 0x1234		// not reached
+ 	RET
+ 
+ // This is needed by asm_amd64.s

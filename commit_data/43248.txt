@@ -16,7 +16,71 @@ Date:   Fri Mar 20 15:52:43 2020 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/benchmark/bench.go      | 25 ++++++++++++++++++++++---
  src/cmd/link/internal/benchmark/bench_test.go |  4 ++--
  2 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/benchmark/bench.go b/src/cmd/link/internal/benchmark/bench.go
+index 52f98269a1..7b8492ec85 100644
+--- a/src/cmd/link/internal/benchmark/bench.go
++++ b/src/cmd/link/internal/benchmark/bench.go
+@@ -116,7 +116,7 @@ func (m *Metrics) Start(name string) {
+ 	m.curMark = &mark{name: name}
+ 	// Unlikely we need to a GC here, as one was likely just done in closeMark.
+ 	if m.shouldPProf() {
+-		f, err := os.Create(makePProfFilename(m.filebase, name))
++		f, err := os.Create(makePProfFilename(m.filebase, name, "cpuprof"))
+ 		if err != nil {
+ 			panic(err)
+ 		}
+@@ -143,6 +143,25 @@ func (m *Metrics) closeMark() {
+ 		pprof.StopCPUProfile()
+ 		m.pprofFile.Close()
+ 		m.pprofFile = nil
++		if m.gc == GC {
++			// Collect a profile of the live heap. Do a
++			// second GC to force sweep completion so we
++			// get a complete snapshot of the live heap at
++			// the end of this phase.
++			runtime.GC()
++			f, err := os.Create(makePProfFilename(m.filebase, m.curMark.name, "memprof"))
++			if err != nil {
++				panic(err)
++			}
++			err = pprof.WriteHeapProfile(f)
++			if err != nil {
++				panic(err)
++			}
++			err = f.Close()
++			if err != nil {
++				panic(err)
++			}
++		}
+ 	}
+ 	m.marks = append(m.marks, m.curMark)
+ 	m.curMark = nil
+@@ -171,6 +190,6 @@ func makeBenchString(name string) string {
+ 	return string(ret)
+ }
+ 
+-func makePProfFilename(filebase, name string) string {
+-	return fmt.Sprintf("%s_%s.profile", filebase, makeBenchString(name))
++func makePProfFilename(filebase, name, typ string) string {
++	return fmt.Sprintf("%s_%s.%s", filebase, makeBenchString(name), typ)
+ }
+diff --git a/src/cmd/link/internal/benchmark/bench_test.go b/src/cmd/link/internal/benchmark/bench_test.go
+index 48d4d74046..d8ec717c7c 100644
+--- a/src/cmd/link/internal/benchmark/bench_test.go
++++ b/src/cmd/link/internal/benchmark/bench_test.go
+@@ -39,8 +39,8 @@ func TestPProfFlag(t *testing.T) {
+ }
+ 
+ func TestPProfNames(t *testing.T) {
+-	want := "foo_BenchmarkTest.profile"
+-	if v := makePProfFilename("foo", "test"); v != want {
++	want := "foo_BenchmarkTest.cpuprof"
++	if v := makePProfFilename("foo", "test", "cpuprof"); v != want {
+ 		t.Errorf("makePProfFilename() == %q, want %q", v, want)
+ 	}
+ }

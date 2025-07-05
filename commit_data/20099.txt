@@ -9,7 +9,63 @@ Date:   Fri Aug 15 11:41:12 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/130090043
-
+---
  src/pkg/fmt/scan.go      |  1 +
  src/pkg/fmt/scan_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 8a337e479d..d7befeae43 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -360,6 +360,7 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
+ 	}
+ 	if r.buf[0] < utf8.RuneSelf { // fast check for common ASCII case
+ 		rr = rune(r.buf[0])
++		size = 1 // Known to be 1.
+ 		return
+ 	}
+ 	var n int
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index d903f0c3ff..541e12df21 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -842,6 +842,38 @@ func TestLineByLineFscanf(t *testing.T) {
+ 	}
+ }
+ 
++// TestScanStateCount verifies the correct byte count is returned. Issue 8512.
++
++// runeScanner implements the Scanner interface for TestScanStateCount.
++type runeScanner struct {
++	rune rune
++	size int
++}
++
++func (rs *runeScanner) Scan(state ScanState, verb rune) error {
++	r, size, err := state.ReadRune()
++	rs.rune = r
++	rs.size = size
++	return err
++}
++
++func TestScanStateCount(t *testing.T) {
++	var a, b, c runeScanner
++	n, err := Sscanf("12➂", "%c%c%c", &a, &b, &c)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if n != 3 {
++		t.Fatalf("expected 3 items consumed, got %d")
++	}
++	if a.rune != '1' || b.rune != '2' || c.rune != '➂' {
++		t.Errorf("bad scan rune: %q %q %q should be '1' '2' '➂'", a.rune, b.rune, c.rune)
++	}
++	if a.size != 1 || b.size != 1 || c.size != 3 {
++		t.Errorf("bad scan size: %q %q %q should be 1 1 3", a.size, b.size, c.size)
++	}
++}
++
+ // RecursiveInt accepts a string matching %d.%d.%d....
+ // and parses it into a linked list.
+ // It allows us to benchmark recursive descent style scanners.

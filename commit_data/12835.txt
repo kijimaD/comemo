@@ -10,6 +10,20 @@ Date:   Thu Apr 5 11:17:18 2012 +1000
     R=golang-dev, bradfitz, dsymonds
     CC=golang-dev
     https://golang.org/cl/5987043
-
+---
  doc/code.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 517d1a4954..b29f72a921 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -475,7 +475,7 @@ import "code.google.com/p/go.example/newmath"
+ <p>
+ This convention is the easiest way to make your Go packages available for
+ others to use.
+-The <a href="http://godashboard.appspot.com/project">Go Project Dashboard</a>
++The <a href="http://godashboard.appspot.com">Go Project Dashboard</a>
+ is a list of external Go projects including programs and libraries.
+ </p>
+ 

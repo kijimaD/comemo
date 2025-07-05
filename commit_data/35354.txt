@@ -21,8 +21,80 @@ Date:   Thu Jan 18 16:05:39 2018 -0800
     Change-Id: I5937b9b63bafd1efab467a00344302e717976171
     Reviewed-on: https://go-review.googlesource.com/88336
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  .../internal/syntax/testdata/issue20789.src        |  9 +++++++
  .../internal/syntax/testdata/issue23385.src        | 12 +++++++++
  .../internal/syntax/testdata/issue23434.src        | 31 ++++++++++++++++++++++
  3 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue20789.src b/src/cmd/compile/internal/syntax/testdata/issue20789.src
+new file mode 100644
+index 0000000000..5f150db7e6
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue20789.src
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure this doesn't crash the compiler.
++// Line 9 must end in EOF for this test (no newline).
++
++package e
++func([<-chan<-[func /* ERROR unexpected u */ u){go /* ERROR must be function call */
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue23385.src b/src/cmd/compile/internal/syntax/testdata/issue23385.src
+new file mode 100644
+index 0000000000..44abcd7e23
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue23385.src
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check error message for use of = instead of == .
++
++package p
++
++func f() {
++	if true || 0 = 1 /* ERROR assignment .* used as value */ {
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue23434.src b/src/cmd/compile/internal/syntax/testdata/issue23434.src
+new file mode 100644
+index 0000000000..5a72a7f4ed
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue23434.src
+@@ -0,0 +1,31 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 23434: Better synchronization of
++// parser after missing type. There should be exactly
++// one error each time, with now follow errors.
++
++package p
++
++type T /* ERROR unexpected newline */
++
++type Map map[int] /* ERROR unexpected newline */
++
++// Examples from #23434:
++
++func g() {
++	m := make(map[string] /* ERROR unexpected ! */ !)
++	for {
++		x := 1
++		print(x)
++	}
++}
++
++func f() {
++	m := make(map[string] /* ERROR unexpected \) */ )
++	for {
++		x := 1
++		print(x)
++	}
++}

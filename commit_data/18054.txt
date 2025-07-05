@@ -7,6 +7,24 @@ Date:   Wed Dec 18 13:29:27 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/37720046
-
+---
  src/pkg/encoding/csv/reader.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/encoding/csv/reader.go b/src/pkg/encoding/csv/reader.go
+index b328dcc375..d9432954ac 100644
+--- a/src/pkg/encoding/csv/reader.go
++++ b/src/pkg/encoding/csv/reader.go
+@@ -193,12 +193,6 @@ func (r *Reader) readRune() (rune, error) {
+ 	return r1, err
+ }
+ 
+-// unreadRune puts the last rune read from r back.
+-func (r *Reader) unreadRune() {
+-	r.r.UnreadRune()
+-	r.column--
+-}
+-
+ // skip reads runes up to and including the rune delim or until error.
+ func (r *Reader) skip(delim rune) error {
+ 	for {

@@ -24,7 +24,57 @@ Date:   Wed Jul 29 15:15:03 2015 -0400
     Change-Id: I05f01a9df174d64b37fa19b36a6b6c5f18d5ba2d
     Reviewed-on: https://go-review.googlesource.com/12848
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/arm64/obj7.go | 18 ++++++++++++++----
  test/nosplit.go                    |  2 +-
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 77117fb530..da6edd1740 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -553,7 +553,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	var o int
+ 	var q2 *obj.Prog
+ 	var retjmp *obj.LSym
+-	var stkadj int64
+ 	for p := cursym.Text; p != nil; p = p.Link {
+ 		o = int(p.As)
+ 		switch o {
+@@ -567,9 +566,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if (cursym.Text.Mark&LEAF != 0) && ctxt.Autosize <= 8 {
+ 				ctxt.Autosize = 0
+ 			} else if ctxt.Autosize&(16-1) != 0 {
+-				stkadj = 16 - (int64(ctxt.Autosize) & (16 - 1))
+-				ctxt.Autosize += int32(stkadj)
+-				cursym.Locals += int32(stkadj)
++				// The frame includes an LR.
++				// If the frame size is 8, it's only an LR,
++				// so there's no potential for breaking references to
++				// local variables by growing the frame size,
++				// because there are no local variables.
++				// But otherwise, if there is a non-empty locals section,
++				// the author of the code is responsible for making sure
++				// that the frame size is 8 mod 16.
++				if ctxt.Autosize == 8 {
++					ctxt.Autosize += 8
++					ctxt.Locals += 8
++				} else {
++					ctxt.Diag("%v: unaligned frame size %d - must be 8 mod 16 (or 0)", p, ctxt.Autosize-8)
++				}
+ 			}
+ 			p.To.Offset = int64(ctxt.Autosize) - 8
+ 			if ctxt.Autosize == 0 && !(cursym.Text.Mark&LEAF != 0) {
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 596962b2c1..e5c2a9f30e 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -295,7 +295,7 @@ TestCases:
+ 					}
+ 				}
+ 
+-				if size%ptrSize == 4 {
++				if size%ptrSize == 4 || goarch == "arm64" && size != 0 && (size+8)%16 != 0 {
+ 					continue TestCases
+ 				}
+ 				nosplit := m[3]

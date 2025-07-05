@@ -9,7 +9,68 @@ Date:   Thu Dec 19 07:40:10 2013 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/14638043
-
+---
  src/pkg/net/cgo_unix_test.go   | 24 ++++++++++++++++++++++++
  src/pkg/net/netgo_unix_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/pkg/net/cgo_unix_test.go b/src/pkg/net/cgo_unix_test.go
+new file mode 100644
+index 0000000000..33566ce9c2
+--- /dev/null
++++ b/src/pkg/net/cgo_unix_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo,!netgo
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package net
++
++import "testing"
++
++func TestCgoLookupIP(t *testing.T) {
++	host := "localhost"
++	_, err, ok := cgoLookupIP(host)
++	if !ok {
++		t.Errorf("cgoLookupIP must not be a placeholder")
++	}
++	if err != nil {
++		t.Errorf("cgoLookupIP failed: %v", err)
++	}
++	if _, err := goLookupIP(host); err != nil {
++		t.Errorf("goLookupIP failed: %v", err)
++	}
++}
+diff --git a/src/pkg/net/netgo_unix_test.go b/src/pkg/net/netgo_unix_test.go
+new file mode 100644
+index 0000000000..dce9ff9575
+--- /dev/null
++++ b/src/pkg/net/netgo_unix_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !cgo netgo
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package net
++
++import "testing"
++
++func TestGoLookupIP(t *testing.T) {
++	host := "localhost"
++	_, err, ok := cgoLookupIP(host)
++	if ok {
++		t.Errorf("cgoLookupIP must be a placeholder")
++	}
++	if err != nil {
++		t.Errorf("cgoLookupIP failed: %v", err)
++	}
++	if _, err := goLookupIP(host); err != nil {
++		t.Errorf("goLookupIP failed: %v", err)
++	}
++}

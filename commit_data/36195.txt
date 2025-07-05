@@ -12,10 +12,115 @@ Date:   Wed Apr 11 09:57:18 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_386.s         | 6 ------
  src/runtime/asm_amd64.s       | 6 ------
  src/runtime/asm_amd64p32.s    | 6 ------
  src/runtime/cpuflags_amd64.go | 4 +++-
  src/runtime/runtime2.go       | 1 -
  5 files changed, 3 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 4ba1d5b278..e68f727076 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -176,11 +176,6 @@ notintel:
+ 	TESTL	$(1<<27), DI // OSXSAVE
+ 	SETNE	runtime·support_osxsave(SB)
+ 
+-	// If OS support for XMM and YMM is not present
+-	// support_avx will be set back to false later.
+-	TESTL	$(1<<28), DI // AVX
+-	SETNE	runtime·support_avx(SB)
+-
+ eax7:
+ 	// Load EAX=7/ECX=0 cpuid flags
+ 	CMPL	SI, $7
+@@ -211,7 +206,6 @@ osavx:
+ 	JE nocpuinfo
+ #endif
+ noavx:
+-	MOVB $0, runtime·support_avx(SB)
+ 	MOVB $0, runtime·support_avx2(SB)
+ 
+ nocpuinfo:
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index a8357f0e97..23b25bb9a4 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -139,11 +139,6 @@ notintel:
+ 	TESTL	$(1<<27), CX // OSXSAVE
+ 	SETNE	runtime·support_osxsave(SB)
+ 
+-	// If OS support for XMM and YMM is not present
+-	// support_avx will be set back to false later.
+-	TESTL	$(1<<28), CX // AVX
+-	SETNE	runtime·support_avx(SB)
+-
+ eax7:
+ 	// Load EAX=7/ECX=0 cpuid flags
+ 	CMPL	SI, $7
+@@ -170,7 +165,6 @@ osavx:
+ 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+ 	JE nocpuinfo
+ noavx:
+-	MOVB $0, runtime·support_avx(SB)
+ 	MOVB $0, runtime·support_avx2(SB)
+ 
+ nocpuinfo:
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index e58e5ec90f..63bf2b07a0 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -59,11 +59,6 @@ notintel:
+ 	TESTL	$(1<<27), CX // OSXSAVE
+ 	SETNE	runtime·support_osxsave(SB)
+ 
+-	// If OS support for XMM and YMM is not present
+-	// support_avx will be set back to false later.
+-	TESTL	$(1<<28), CX // AVX
+-	SETNE	runtime·support_avx(SB)
+-
+ eax7:
+ 	// Load EAX=7/ECX=0 cpuid flags
+ 	CMPL	SI, $7
+@@ -94,7 +89,6 @@ osavx:
+ 	JE nocpuinfo
+ #endif
+ noavx:
+-	MOVB $0, runtime·support_avx(SB)
+ 	MOVB $0, runtime·support_avx2(SB)
+ 
+ nocpuinfo:
+diff --git a/src/runtime/cpuflags_amd64.go b/src/runtime/cpuflags_amd64.go
+index 3e408dae5f..9d2d4fcbe2 100644
+--- a/src/runtime/cpuflags_amd64.go
++++ b/src/runtime/cpuflags_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "internal/cpu"
++
+ var useAVXmemmove bool
+ 
+ func init() {
+@@ -16,5 +18,5 @@ func init() {
+ 		processor == 0x306A0 ||
+ 		processor == 0x306E0
+ 
+-	useAVXmemmove = support_avx && !isIntelBridgeFamily
++	useAVXmemmove = cpu.X86.HasAVX && !isIntelBridgeFamily
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 22ba375a93..516d3473ce 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -771,7 +771,6 @@ var (
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+-	support_avx          bool
+ 	support_avx2         bool
+ 	support_erms         bool
+ 	support_osxsave      bool

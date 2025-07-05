@@ -10,7 +10,7 @@ Date:   Sun Nov 8 21:46:20 2009 -0800
     R=r
     CC=go-dev
     http://go/go-review/1024026
-
+---
  src/cmd/godoc/godoc.go        | 84 +++++++++++++++++++++----------------------
  src/cmd/godoc/main.go         |  8 ++---
  src/cmd/godoc/snippet.go      |  6 ++--
@@ -25,3 +25,665 @@ Date:   Sun Nov 8 21:46:20 2009 -0800
  src/pkg/template/template.go  |  2 +-
  src/pkg/unicode/maketables.go | 10 +++---
  13 files changed, 97 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index a4bc07f3c4..2acaa7cfe3 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -131,7 +131,7 @@ func pkgName(filename string) string {
+ 
+ func htmlEscape(s string) string {
+ 	var buf bytes.Buffer;
+-	template.HtmlEscape(&buf, strings.Bytes(s));
++	template.HTMLEscape(&buf, strings.Bytes(s));
+ 	return buf.String();
+ }
+ 
+@@ -460,37 +460,37 @@ type Styler struct {
+ var defaultStyler Styler
+ 
+ 
+-func (s *Styler) LineTag(line int) (text []byte, tag printer.HtmlTag) {
+-	tag = printer.HtmlTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
++func (s *Styler) LineTag(line int) (text []byte, tag printer.HTMLTag) {
++	tag = printer.HTMLTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
+ 	return;
+ }
+ 
+ 
+-func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HtmlTag) {
++func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HTMLTag) {
+ 	text = line;
+ 	// minimal syntax-coloring of comments for now - people will want more
+ 	// (don't do anything more until there's a button to turn it on/off)
+-	tag = printer.HtmlTag{`<span class="comment">`, "</span>"};
++	tag = printer.HTMLTag{`<span class="comment">`, "</span>"};
+ 	return;
+ }
+ 
+ 
+-func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HtmlTag) {
++func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
+ 	text = x.Value;
+ 	return;
+ }
+ 
+ 
+-func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HtmlTag) {
++func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+ 	text = strings.Bytes(id.Value);
+ 	if s.highlight == id.Value {
+-		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
++		tag = printer.HTMLTag{"<span class=highlight>", "</span>"};
+ 	}
+ 	return;
+ }
+ 
+ 
+-func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HtmlTag) {
++func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
+ 	text = strings.Bytes(tok.String());
+ 	return;
+ }
+@@ -512,7 +512,7 @@ func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler)
+ // Write text to w; optionally html-escaped.
+ func writeText(w io.Writer, text []byte, html bool) {
+ 	if html {
+-		template.HtmlEscape(w, text);
++		template.HTMLEscape(w, text);
+ 		return;
+ 	}
+ 	w.Write(text);
+@@ -552,7 +552,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
+ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+ 	var buf bytes.Buffer;
+ 	writeAny(&buf, x, false);
+-	doc.ToHtml(w, buf.Bytes());	// does html-escaping
++	doc.ToHTML(w, buf.Bytes());	// does html-escaping
+ }
+ 
+ 
+@@ -651,7 +651,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
+ // Template formatter for "time" format.
+ func timeFmt(w io.Writer, x interface{}, format string) {
+ 	// note: os.Dir.Mtime_ns is in uint64 in ns!
+-	template.HtmlEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
++	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
+ }
+ 
+ 
+@@ -684,25 +684,25 @@ func readTemplate(name string) *template.Template {
+ 
+ 
+ var (
+-	dirlistHtml,
+-		godocHtml,
+-		packageHtml,
++	dirlistHTML,
++		godocHTML,
++		packageHTML,
+ 		packageText,
+-		parseerrorHtml,
++		parseerrorHTML,
+ 		parseerrorText,
+-		searchHtml *template.Template;
++		searchHTML *template.Template;
+ )
+ 
+ func readTemplates() {
+ 	// have to delay until after flags processing,
+ 	// so that main has chdir'ed to goroot.
+-	dirlistHtml = readTemplate("dirlist.html");
+-	godocHtml = readTemplate("godoc.html");
+-	packageHtml = readTemplate("package.html");
++	dirlistHTML = readTemplate("dirlist.html");
++	godocHTML = readTemplate("godoc.html");
++	packageHTML = readTemplate("package.html");
+ 	packageText = readTemplate("package.txt");
+-	parseerrorHtml = readTemplate("parseerror.html");
++	parseerrorHTML = readTemplate("parseerror.html");
+ 	parseerrorText = readTemplate("parseerror.txt");
+-	searchHtml = readTemplate("search.html");
++	searchHTML = readTemplate("search.html");
+ }
+ 
+ 
+@@ -725,8 +725,8 @@ func servePage(c *http.Conn, title, query string, content []byte) {
+ 		Content: content,
+ 	};
+ 
+-	if err := godocHtml.Execute(&d, c); err != nil {
+-		log.Stderrf("godocHtml.Execute: %s", err);
++	if err := godocHTML.Execute(&d, c); err != nil {
++		log.Stderrf("godocHTML.Execute: %s", err);
+ 	}
+ }
+ 
+@@ -756,7 +756,7 @@ func commentText(src []byte) (text string) {
+ }
+ 
+ 
+-func serveHtmlDoc(c *http.Conn, r *http.Request, path string) {
++func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
+ 	// get HTML body contents
+ 	src, err := io.ReadFile(path);
+ 	if err != nil {
+@@ -780,8 +780,8 @@ func serveHtmlDoc(c *http.Conn, r *http.Request, path string) {
+ func serveParseErrors(c *http.Conn, errors *parseErrors) {
+ 	// format errors
+ 	var buf bytes.Buffer;
+-	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
+-		log.Stderrf("parseerrorHtml.Execute: %s", err);
++	if err := parseerrorHTML.Execute(errors, &buf); err != nil {
++		log.Stderrf("parseerrorHTML.Execute: %s", err);
+ 	}
+ 	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
+ }
+@@ -799,12 +799,12 @@ func serveGoSource(c *http.Conn, r *http.Request, path string, styler printer.St
+ 	writeNode(&buf, prog, true, styler);
+ 	fmt.Fprintln(&buf, "</pre>");
+ 
+-	servePage(c, "Source file " + r.Url.Path, "", buf.Bytes());
++	servePage(c, "Source file " + r.URL.Path, "", buf.Bytes());
+ }
+ 
+ 
+ func redirect(c *http.Conn, r *http.Request) (redirected bool) {
+-	if canonical := pathutil.Clean(r.Url.Path) + "/"; r.Url.Path != canonical {
++	if canonical := pathutil.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
+ 		http.Redirect(c, canonical, http.StatusMovedPermanently);
+ 		redirected = true;
+ 	}
+@@ -866,7 +866,7 @@ func serveTextFile(c *http.Conn, r *http.Request, path string) {
+ 
+ 	var buf bytes.Buffer;
+ 	fmt.Fprintln(&buf, "<pre>");
+-	template.HtmlEscape(&buf, src);
++	template.HTMLEscape(&buf, src);
+ 	fmt.Fprintln(&buf, "</pre>");
+ 
+ 	servePage(c, "Text file " + path, "", buf.Bytes());
+@@ -885,8 +885,8 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
+ 	}
+ 
+ 	var buf bytes.Buffer;
+-	if err := dirlistHtml.Execute(list, &buf); err != nil {
+-		log.Stderrf("dirlistHtml.Execute: %s", err);
++	if err := dirlistHTML.Execute(list, &buf); err != nil {
++		log.Stderrf("dirlistHTML.Execute: %s", err);
+ 	}
+ 
+ 	servePage(c, "Directory " + path, "", buf.Bytes());
+@@ -896,21 +896,21 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
+ var fileServer = http.FileServer(".", "")
+ 
+ func serveFile(c *http.Conn, r *http.Request) {
+-	path := pathutil.Join(".", r.Url.Path);
++	path := pathutil.Join(".", r.URL.Path);
+ 
+ 	// pick off special cases and hand the rest to the standard file server
+ 	switch ext := pathutil.Ext(path); {
+-	case r.Url.Path == "/":
+-		serveHtmlDoc(c, r, "doc/root.html");
++	case r.URL.Path == "/":
++		serveHTMLDoc(c, r, "doc/root.html");
+ 		return;
+ 
+-	case r.Url.Path == "/doc/root.html":
++	case r.URL.Path == "/doc/root.html":
+ 		// hide landing page from its real name
+ 		http.NotFound(c, r);
+ 		return;
+ 
+ 	case ext == ".html":
+-		serveHtmlDoc(c, r, path);
++		serveHTMLDoc(c, r, path);
+ 		return;
+ 
+ 	case ext == ".go":
+@@ -1023,7 +1023,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
+ 		return;
+ 	}
+ 
+-	path := r.Url.Path;
++	path := r.URL.Path;
+ 	path = path[len(h.pattern):len(path)];
+ 	info := h.getPageInfo(path);
+ 
+@@ -1036,8 +1036,8 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
+ 		return;
+ 	}
+ 
+-	if err := packageHtml.Execute(info, &buf); err != nil {
+-		log.Stderrf("packageHtml.Execute: %s", err);
++	if err := packageHTML.Execute(info, &buf); err != nil {
++		log.Stderrf("packageHTML.Execute: %s", err);
+ 	}
+ 
+ 	if path == "" {
+@@ -1085,8 +1085,8 @@ func search(c *http.Conn, r *http.Request) {
+ 	}
+ 
+ 	var buf bytes.Buffer;
+-	if err := searchHtml.Execute(result, &buf); err != nil {
+-		log.Stderrf("searchHtml.Execute: %s", err);
++	if err := searchHTML.Execute(result, &buf); err != nil {
++		log.Stderrf("searchHTML.Execute: %s", err);
+ 	}
+ 
+ 	var title string;
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 6c68fcd649..8c0ae7b658 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -133,7 +133,7 @@ func usage() {
+ 
+ func loggingHandler(h http.Handler) http.Handler {
+ 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
+-		log.Stderrf("%s\t%s", c.RemoteAddr, req.Url);
++		log.Stderrf("%s\t%s", c.RemoteAddr, req.URL);
+ 		h.ServeHTTP(c, req);
+ 	});
+ }
+@@ -162,7 +162,7 @@ func main() {
+ 	readTemplates();
+ 
+ 	if *httpaddr != "" {
+-		// Http server mode.
++		// HTTP server mode.
+ 		var handler http.Handler = http.DefaultServeMux;
+ 		if *verbose {
+ 			log.Stderrf("Go Documentation Server\n");
+@@ -218,8 +218,8 @@ func main() {
+ 
+ 	// Command line mode.
+ 	if *html {
+-		packageText = packageHtml;
+-		parseerrorText = parseerrorHtml;
++		packageText = packageHTML;
++		parseerrorText = parseerrorHTML;
+ 	}
+ 
+ 	info := pkgHandler.getPageInfo(flag.Arg(0));
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index add85aacba..b6f64462a7 100755
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -30,15 +30,15 @@ type snippetStyler struct {
+ }
+ 
+ 
+-func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HtmlTag) {
++func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
+ 	return;	// no LineTag for snippets
+ }
+ 
+ 
+-func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HtmlTag) {
++func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+ 	text = strings.Bytes(id.Value);
+ 	if s.highlight == id {
+-		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
++		tag = printer.HTMLTag{"<span class=highlight>", "</span>"};
+ 	}
+ 	return;
+ }
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 36e5d62bca..9c68da227e 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -214,7 +214,7 @@ func (p *printer) writeFormfeeds(n int) {
+ }
+ 
+ 
+-func (p *printer) writeTaggedItem(data []byte, tag HtmlTag) {
++func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
+ 	// write start tag, if any
+ 	// (no html-escaping and no p.pos update for tags - use write0)
+ 	if tag.Start != "" {
+@@ -235,7 +235,7 @@ func (p *printer) writeTaggedItem(data []byte, tag HtmlTag) {
+ // before and after the data. writeItem updates p.last to the position
+ // immediately following the data.
+ //
+-func (p *printer) writeItem(pos token.Position, data []byte, tag HtmlTag) {
++func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
+ 	p.pos = pos;
+ 	if debug {
+ 		// do not update p.pos - use write0
+@@ -357,7 +357,7 @@ func (p *printer) writeCommentLine(comment *ast.Comment, pos token.Position, lin
+ 	line = bytes.Join([][]byte{esc, line, esc}, nil);
+ 
+ 	// apply styler, if any
+-	var tag HtmlTag;
++	var tag HTMLTag;
+ 	if p.Styler != nil {
+ 		line, tag = p.Styler.Comment(comment, line);
+ 	}
+@@ -696,7 +696,7 @@ func (p *printer) print(args ...) {
+ 
+ 		next := p.pos;	// estimated position of next item
+ 		var data []byte;
+-		var tag HtmlTag;
++		var tag HTMLTag;
+ 		isKeyword := false;
+ 		switch x := f.Interface().(type) {
+ 		case whiteSpace:
+@@ -890,8 +890,8 @@ const (
+ )
+ 
+ 
+-// An HtmlTag specifies a start and end tag.
+-type HtmlTag struct {
++// An HTMLTag specifies a start and end tag.
++type HTMLTag struct {
+ 	Start, End string;	// empty if tags are absent
+ }
+ 
+@@ -900,11 +900,11 @@ type HtmlTag struct {
+ // A format consists of text and a (possibly empty) surrounding HTML tag.
+ //
+ type Styler interface {
+-	LineTag(line int) ([]byte, HtmlTag);
+-	Comment(c *ast.Comment, line []byte) ([]byte, HtmlTag);
+-	BasicLit(x *ast.BasicLit) ([]byte, HtmlTag);
+-	Ident(id *ast.Ident) ([]byte, HtmlTag);
+-	Token(tok token.Token) ([]byte, HtmlTag);
++	LineTag(line int) ([]byte, HTMLTag);
++	Comment(c *ast.Comment, line []byte) ([]byte, HTMLTag);
++	BasicLit(x *ast.BasicLit) ([]byte, HTMLTag);
++	Ident(id *ast.Ident) ([]byte, HTMLTag);
++	Token(tok token.Token) ([]byte, HTMLTag);
+ }
+ 
+ 
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 6066becde2..bd6949b2d9 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -110,11 +110,11 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
+ // send() method is nonpublic because, when we refactor the code for persistent
+ // connections, it may no longer make sense to have a method with this signature.
+ func send(req *Request) (resp *Response, err os.Error) {
+-	if req.Url.Scheme != "http" {
+-		return nil, &badStringError{"unsupported protocol scheme", req.Url.Scheme};
++	if req.URL.Scheme != "http" {
++		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme};
+ 	}
+ 
+-	addr := req.Url.Host;
++	addr := req.URL.Host;
+ 	if !hasPort(addr) {
+ 		addr += ":http";
+ 	}
+@@ -169,7 +169,7 @@ func shouldRedirect(statusCode int) bool {
+ //    303 (See Other)
+ //    307 (Temporary Redirect)
+ //
+-// finalUrl is the URL from which the response was fetched -- identical to the input
++// finalURL is the URL from which the response was fetched -- identical to the input
+ // URL unless redirects were followed.
+ //
+ // Caller should close r.Body when done reading it.
+@@ -184,7 +184,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
+ 		}
+ 
+ 		var req Request;
+-		if req.Url, err = ParseURL(url); err != nil {
++		if req.URL, err = ParseURL(url); err != nil {
+ 			break;
+ 		}
+ 		if r, err = send(&req); err != nil {
+@@ -219,7 +219,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
+ 		"Transfer-Encoding": "chunked",
+ 	};
+ 
+-	req.Url, err = ParseURL(url);
++	req.URL, err = ParseURL(url);
+ 	if err != nil {
+ 		return nil, err;
+ 	}
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index c0fa692162..bc42f7b6a4 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -99,8 +99,8 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 
+ 	if redirect {
+ 		// redirect to canonical path: / at end of directory url
+-		// r.Url.Path always begins with /
+-		url := r.Url.Path;
++		// r.URL.Path always begins with /
++		url := r.URL.Path;
+ 		if d.IsDirectory() {
+ 			if url[len(url)-1] != '/' {
+ 				Redirect(c, url+"/", StatusMovedPermanently);
+@@ -171,7 +171,7 @@ type fileHandler struct {
+ func FileServer(root, prefix string) Handler	{ return &fileHandler{root, prefix} }
+ 
+ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
+-	path := r.Url.Path;
++	path := r.URL.Path;
+ 	if !strings.HasPrefix(path, f.prefix) {
+ 		NotFound(c, r);
+ 		return;
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 521b360983..f430005d4e 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -48,8 +48,8 @@ func (e *badStringError) String() string	{ return fmt.Sprintf("%s %q", e.what, e
+ // A Request represents a parsed HTTP request header.
+ type Request struct {
+ 	Method		string;	// GET, POST, PUT, etc.
+-	RawUrl		string;	// The raw URL given in the request.
+-	Url		*URL;	// Parsed URL.
++	RawURL		string;	// The raw URL given in the request.
++	URL		*URL;	// Parsed URL.
+ 	Proto		string;	// "HTTP/1.0"
+ 	ProtoMajor	int;	// 1
+ 	ProtoMinor	int;	// 0
+@@ -125,7 +125,7 @@ const defaultUserAgent = "http.Client"
+ 
+ // Write writes an HTTP/1.1 request -- header and body -- in wire format.
+ // This method consults the following fields of req:
+-//	Url
++//	URL
+ //	Method (defaults to "GET")
+ //	UserAgent (defaults to defaultUserAgent)
+ //	Referer
+@@ -134,13 +134,13 @@ const defaultUserAgent = "http.Client"
+ //
+ // If Body is present, "Transfer-Encoding: chunked" is forced as a header.
+ func (req *Request) Write(w io.Writer) os.Error {
+-	uri := URLEscape(req.Url.Path);
+-	if req.Url.RawQuery != "" {
+-		uri += "?" + req.Url.RawQuery;
++	uri := URLEscape(req.URL.Path);
++	if req.URL.RawQuery != "" {
++		uri += "?" + req.URL.RawQuery;
+ 	}
+ 
+ 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri);
+-	fmt.Fprintf(w, "Host: %s\r\n", req.Url.Host);
++	fmt.Fprintf(w, "Host: %s\r\n", req.URL.Host);
+ 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent));
+ 
+ 	if req.Referer != "" {
+@@ -452,13 +452,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	if f = strings.Split(s, " ", 3); len(f) < 3 {
+ 		return nil, &badStringError{"malformed HTTP request", s};
+ 	}
+-	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
++	req.Method, req.RawURL, req.Proto = f[0], f[1], f[2];
+ 	var ok bool;
+ 	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
+ 		return nil, &badStringError{"malformed HTTP version", req.Proto};
+ 	}
+ 
+-	if req.Url, err = ParseURL(req.RawUrl); err != nil {
++	if req.URL, err = ParseURL(req.RawURL); err != nil {
+ 		return nil, err;
+ 	}
+ 
+@@ -497,7 +497,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	//	GET http://www.google.com/index.html HTTP/1.1
+ 	//	Host: doesntmatter
+ 	// the same.  In the second case, any Host line is ignored.
+-	if v, present := req.Header["Host"]; present && req.Url.Host == "" {
++	if v, present := req.Header["Host"]; present && req.URL.Host == "" {
+ 		req.Host = v;
+ 	}
+ 
+@@ -619,7 +619,7 @@ func (r *Request) ParseForm() (err os.Error) {
+ 
+ 	switch r.Method {
+ 	case "GET":
+-		query = r.Url.RawQuery;
++		query = r.URL.RawQuery;
+ 	case "POST":
+ 		if r.Body == nil {
+ 			return os.ErrorString("missing form body");
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 239da79acd..391b6cb009 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -62,7 +62,7 @@ func TestParseForm(t *testing.T) {
+ 
+ func TestQuery(t *testing.T) {
+ 	req := &Request{Method: "GET"};
+-	req.Url, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
++	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
+ 	if q := req.FormValue("q"); q != "foo" {
+ 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
+ 	}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 4b4c5837a8..c155b77252 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -357,7 +357,7 @@ func Redirect(c *Conn, url string, code int) {
+ 	// Because of this problem, no one pays attention
+ 	// to the RFC; they all send back just a new path.
+ 	// So do we.
+-	oldpath := c.Req.Url.Path;
++	oldpath := c.Req.URL.Path;
+ 	if oldpath == "" {	// should not happen, but avoid a crash if it does
+ 		oldpath = "/";
+ 	}
+@@ -468,7 +468,7 @@ func cleanPath(p string) string {
+ // pattern most closely matches the request URL.
+ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
+ 	// Clean path to canonical form and redirect.
+-	if p := cleanPath(req.Url.Path); p != req.Url.Path {
++	if p := cleanPath(req.URL.Path); p != req.URL.Path {
+ 		c.SetHeader("Location", p);
+ 		c.WriteHeader(StatusMovedPermanently);
+ 		return;
+@@ -478,7 +478,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
+ 	var h Handler;
+ 	var n = 0;
+ 	for k, v := range mux.m {
+-		if !pathMatch(k, req.Url.Path) {
++		if !pathMatch(k, req.URL.Path) {
+ 			continue;
+ 		}
+ 		if h == nil || len(k) > n {
+diff --git a/src/pkg/http/triv.go b/src/pkg/http/triv.go
+index f9c6b64abb..cd983fe6fe 100644
+--- a/src/pkg/http/triv.go
++++ b/src/pkg/http/triv.go
+@@ -59,8 +59,8 @@ var pathVar = expvar.NewMap("file-requests")
+ 
+ func FileServer(c *http.Conn, req *http.Request) {
+ 	c.SetHeader("content-type", "text/plain; charset=utf-8");
+-	pathVar.Add(req.Url.Path, 1);
+-	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
++	pathVar.Add(req.URL.Path, 1);
++	path := *webroot + req.URL.Path;	// TODO: insecure: use os.CleanName
+ 	f, err := os.Open(path, os.O_RDONLY, 0);
+ 	if err != nil {
+ 		c.WriteHeader(http.StatusNotFound);
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index c5174e2943..a0468e9d46 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -29,9 +29,9 @@ var (
+ 	esc_gt		= strings.Bytes("&gt;");
+ )
+ 
+-// HtmlEscape writes to w the properly escaped HTML equivalent
++// HTMLEscape writes to w the properly escaped HTML equivalent
+ // of the plain text data s.
+-func HtmlEscape(w io.Writer, s []byte) {
++func HTMLEscape(w io.Writer, s []byte) {
+ 	var esc []byte;
+ 	last := 0;
+ 	for i, c := range s {
+@@ -56,9 +56,9 @@ func HtmlEscape(w io.Writer, s []byte) {
+ 	w.Write(s[last:len(s)]);
+ }
+ 
+-// HtmlFormatter formats arbitrary values for HTML
+-func HtmlFormatter(w io.Writer, value interface{}, format string) {
++// HTMLFormatter formats arbitrary values for HTML
++func HTMLFormatter(w io.Writer, value interface{}, format string) {
+ 	var b bytes.Buffer;
+ 	fmt.Fprint(&b, value);
+-	HtmlEscape(w, b.Bytes());
++	HTMLEscape(w, b.Bytes());
+ }
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 728b7a529a..635323a663 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -99,7 +99,7 @@ type FormatterMap map[string]func(io.Writer, interface{}, string)
+ 
+ // Built-in formatters.
+ var builtins = FormatterMap{
+-	"html": HtmlFormatter,
++	"html": HTMLFormatter,
+ 	"str": StringFormatter,
+ 	"": StringFormatter,
+ }
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index c310ef071d..fddbfd7ea8 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -30,7 +30,7 @@ func main() {
+ 	printCases();
+ }
+ 
+-var dataUrl = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
++var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
+ var url = flag.String("url",
+ 	"http://www.unicode.org/Public/5.1.0/ucd/",
+ 	"URL of Unicode database directory")
+@@ -255,10 +255,10 @@ func letterOp(code int) bool {
+ }
+ 
+ func loadChars() {
+-	if *dataUrl == "" {
++	if *dataURL == "" {
+ 		flag.Set("data", *url + "UnicodeData.txt");
+ 	}
+-	resp, _, err := http.Get(*dataUrl);
++	resp, _, err := http.Get(*dataURL);
+ 	if err != nil {
+ 		die.Log(err);
+ 	}
+@@ -318,7 +318,7 @@ func printCategories() {
+ 			"// DO NOT EDIT\n\n"
+ 			"package unicode\n\n",
+ 		*tablelist,
+-		*dataUrl);
++		*dataURL);
+ 
+ 	fmt.Println("// Version is the Unicode edition from which the tables are derived.");
+ 	fmt.Printf("const Version = %q\n\n", version());
+@@ -784,7 +784,7 @@ func printCases() {
+ 			"// non-self mappings.\n"
+ 			"var CaseRanges = _CaseRanges\n"
+ 			"var _CaseRanges = []CaseRange {\n",
+-		*dataUrl);
++		*dataURL);
+ 
+ 	var startState *caseState;	// the start of a run; nil for not active
+ 	var prevState = &caseState{};	// the state of the previous character

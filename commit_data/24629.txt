@@ -9,6 +9,19 @@ Date:   Thu Aug 13 15:39:43 2015 -0700
     Change-Id: I112c6517371215c9797db8f1dffca0f3047c39e3
     Reviewed-on: https://go-review.googlesource.com/13633
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/testflag.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index ee4ab187e0..1f3e3d316a 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -36,6 +36,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "cover", boolVar: &testCover},
+ 	{name: "covermode"},
+ 	{name: "coverpkg"},
++	{name: "exec"},
+ 
+ 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+ 	{name: "bench", passToTest: true},

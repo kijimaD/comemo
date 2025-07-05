@@ -9,6 +9,19 @@ Date:   Fri Apr 16 17:30:12 2021 -0400
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/util.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index e99375f538..df60145d1e 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -249,6 +249,7 @@ func writefile(text, file string, flag int) {
+ 	if flag&writeExec != 0 {
+ 		mode = 0777
+ 	}
++	xremove(file) // in case of symlink tricks by misc/reboot test
+ 	err := ioutil.WriteFile(file, new, mode)
+ 	if err != nil {
+ 		fatalf("%v", err)

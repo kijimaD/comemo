@@ -13,6 +13,89 @@ Date:   Mon Apr 11 17:35:24 2022 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  test/run.go | 51 +++++++++++++--------------------------------------
  1 file changed, 13 insertions(+), 38 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 468379b4a9..45cd086fc4 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -14,6 +14,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"go/build/constraint"
+ 	"hash/fnv"
+ 	"io"
+ 	"io/fs"
+@@ -462,40 +463,24 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
+ 		return true, ""
+ 	}
+ 	for _, line := range strings.Split(src, "\n") {
+-		line = strings.TrimSpace(line)
+-		if strings.HasPrefix(line, "//") {
+-			line = line[2:]
+-		} else {
+-			continue
+-		}
+-		line = strings.TrimSpace(line)
+-		if len(line) == 0 || line[0] != '+' {
+-			continue
++		if strings.HasPrefix(line, "package ") {
++			break
+ 		}
+-		gcFlags := os.Getenv("GO_GCFLAGS")
+-		ctxt := &context{
+-			GOOS:       goos,
+-			GOARCH:     goarch,
+-			cgoEnabled: cgoEnabled,
+-			noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+-		}
+-
+-		words := strings.Fields(line)
+-		if words[0] == "+build" {
+-			ok := false
+-			for _, word := range words[1:] {
+-				if ctxt.match(word) {
+-					ok = true
+-					break
+-				}
++
++		if expr, err := constraint.Parse(line); err == nil {
++			gcFlags := os.Getenv("GO_GCFLAGS")
++			ctxt := &context{
++				GOOS:       goos,
++				GOARCH:     goarch,
++				cgoEnabled: cgoEnabled,
++				noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
+ 			}
+-			if !ok {
+-				// no matching tag found.
++
++			if !expr.Eval(ctxt.match) {
+ 				return false, line
+ 			}
+ 		}
+ 	}
+-	// no build tags
+ 	return true, ""
+ }
+ 
+@@ -503,16 +488,6 @@ func (ctxt *context) match(name string) bool {
+ 	if name == "" {
+ 		return false
+ 	}
+-	if first, rest, ok := strings.Cut(name, ","); ok {
+-		// comma-separated list
+-		return ctxt.match(first) && ctxt.match(rest)
+-	}
+-	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+-		return false
+-	}
+-	if strings.HasPrefix(name, "!") { // negation
+-		return len(name) > 1 && !ctxt.match(name[1:])
+-	}
+ 
+ 	// Tags must be letters, digits, underscores or dots.
+ 	// Unlike in Go identifiers, all digits are fine (e.g., "386").

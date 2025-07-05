@@ -13,8 +13,88 @@ Date:   Wed Aug 17 16:27:01 2022 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/netpoll.go      | 10 +++++-----
  src/runtime/netpoll_stub.go |  6 +++---
  src/runtime/time.go         |  2 +-
  3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index ac6bc89530..7933f36db7 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -177,7 +177,7 @@ type pollCache struct {
+ 
+ var (
+ 	netpollInitLock mutex
+-	netpollInited   uint32
++	netpollInited   atomic.Uint32
+ 
+ 	pollcache      pollCache
+ 	netpollWaiters uint32
+@@ -189,19 +189,19 @@ func poll_runtime_pollServerInit() {
+ }
+ 
+ func netpollGenericInit() {
+-	if atomic.Load(&netpollInited) == 0 {
++	if netpollInited.Load() == 0 {
+ 		lockInit(&netpollInitLock, lockRankNetpollInit)
+ 		lock(&netpollInitLock)
+-		if netpollInited == 0 {
++		if netpollInited.Load() == 0 {
+ 			netpollinit()
+-			atomic.Store(&netpollInited, 1)
++			netpollInited.Store(1)
+ 		}
+ 		unlock(&netpollInitLock)
+ 	}
+ }
+ 
+ func netpollinited() bool {
+-	return atomic.Load(&netpollInited) != 0
++	return netpollInited.Load() != 0
+ }
+ 
+ //go:linkname poll_runtime_isPollServerDescriptor internal/poll.runtime_isPollServerDescriptor
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index d0a63bca86..5860e1db03 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -8,7 +8,7 @@ package runtime
+ 
+ import "runtime/internal/atomic"
+ 
+-var netpollInited uint32
++var netpollInited atomic.Uint32
+ var netpollWaiters uint32
+ 
+ var netpollStubLock mutex
+@@ -19,7 +19,7 @@ var netpollBrokenLock mutex
+ var netpollBroken bool
+ 
+ func netpollGenericInit() {
+-	atomic.Store(&netpollInited, 1)
++	netpollInited.Store(1)
+ }
+ 
+ func netpollBreak() {
+@@ -57,5 +57,5 @@ func netpoll(delay int64) gList {
+ }
+ 
+ func netpollinited() bool {
+-	return atomic.Load(&netpollInited) != 0
++	return netpollInited.Load() != 0
+ }
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 80b0bfb72c..a4bbc53cfa 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -289,7 +289,7 @@ func addtimer(t *timer) {
+ func doaddtimer(pp *p, t *timer) {
+ 	// Timers rely on the network poller, so make sure the poller
+ 	// has started.
+-	if netpollInited == 0 {
++	if netpollInited.Load() == 0 {
+ 		netpollGenericInit()
+ 	}
+ 

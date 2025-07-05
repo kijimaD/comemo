@@ -21,7 +21,7 @@ Date:   Thu Sep 7 16:02:11 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/os_windows.go        | 78 ----------------------------------------
  src/runtime/sys_windows_386.s    |  5 ---
  src/runtime/sys_windows_amd64.s  |  5 ---
@@ -32,3 +32,289 @@ Date:   Thu Sep 7 16:02:11 2023 +0200
  src/runtime/time_windows_arm.s   |  6 ----
  src/runtime/time_windows_arm64.s |  6 ----
  9 files changed, 123 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index a4d902d083..41875d2264 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -91,14 +91,12 @@ var (
+ 	_GetStdHandle,
+ 	_GetSystemDirectoryA,
+ 	_GetSystemInfo,
+-	_GetSystemTimeAsFileTime,
+ 	_GetThreadContext,
+ 	_SetThreadContext,
+ 	_LoadLibraryExW,
+ 	_LoadLibraryW,
+ 	_PostQueuedCompletionStatus,
+ 	_QueryPerformanceCounter,
+-	_QueryPerformanceFrequency,
+ 	_RaiseFailFastException,
+ 	_ResumeThread,
+ 	_SetConsoleCtrlHandler,
+@@ -300,11 +298,6 @@ func loadOptionalSyscalls() {
+ 	if _WSAGetOverlappedResult == nil {
+ 		throw("WSAGetOverlappedResult not found")
+ 	}
+-
+-	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
+-		// running on Wine
+-		initWine(k32)
+-	}
+ }
+ 
+ func monitorSuspendResume() {
+@@ -548,77 +541,6 @@ func osinit() {
+ 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
+ }
+ 
+-// useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
+-// This is only set to 1 when running under Wine.
+-var useQPCTime uint8
+-
+-var qpcStartCounter int64
+-var qpcMultiplier int64
+-
+-//go:nosplit
+-func nanotimeQPC() int64 {
+-	var counter int64 = 0
+-	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
+-
+-	// returns number of nanoseconds
+-	return (counter - qpcStartCounter) * qpcMultiplier
+-}
+-
+-//go:nosplit
+-func nowQPC() (sec int64, nsec int32, mono int64) {
+-	var ft int64
+-	stdcall1(_GetSystemTimeAsFileTime, uintptr(unsafe.Pointer(&ft)))
+-
+-	t := (ft - 116444736000000000) * 100
+-
+-	sec = t / 1000000000
+-	nsec = int32(t - sec*1000000000)
+-
+-	mono = nanotimeQPC()
+-	return
+-}
+-
+-func initWine(k32 uintptr) {
+-	_GetSystemTimeAsFileTime = windowsFindfunc(k32, []byte("GetSystemTimeAsFileTime\000"))
+-	if _GetSystemTimeAsFileTime == nil {
+-		throw("could not find GetSystemTimeAsFileTime() syscall")
+-	}
+-
+-	_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
+-	_QueryPerformanceFrequency = windowsFindfunc(k32, []byte("QueryPerformanceFrequency\000"))
+-	if _QueryPerformanceCounter == nil || _QueryPerformanceFrequency == nil {
+-		throw("could not find QPC syscalls")
+-	}
+-
+-	// We can not simply fallback to GetSystemTimeAsFileTime() syscall, since its time is not monotonic,
+-	// instead we use QueryPerformanceCounter family of syscalls to implement monotonic timer
+-	// https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
+-
+-	var tmp int64
+-	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&tmp)))
+-	if tmp == 0 {
+-		throw("QueryPerformanceFrequency syscall returned zero, running on unsupported hardware")
+-	}
+-
+-	// This should not overflow, it is a number of ticks of the performance counter per second,
+-	// its resolution is at most 10 per usecond (on Wine, even smaller on real hardware), so it will be at most 10 millions here,
+-	// panic if overflows.
+-	if tmp > (1<<31 - 1) {
+-		throw("QueryPerformanceFrequency overflow 32 bit divider, check nosplit discussion to proceed")
+-	}
+-	qpcFrequency := int32(tmp)
+-	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&qpcStartCounter)))
+-
+-	// Since we are supposed to run this time calls only on Wine, it does not lose precision,
+-	// since Wine's timer is kind of emulated at 10 Mhz, so it will be a nice round multiplier of 100
+-	// but for general purpose system (like 3.3 Mhz timer on i7) it will not be very precise.
+-	// We have to do it this way (or similar), since multiplying QPC counter by 100 millions overflows
+-	// int64 and resulted time will always be invalid.
+-	qpcMultiplier = int64(timediv(1000000000, qpcFrequency, nil))
+-
+-	useQPCTime = 1
+-}
+-
+ //go:nosplit
+ func getRandomData(r []byte) {
+ 	n := 0
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 41a6ee69ca..cb854c52e0 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -251,8 +251,6 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+-	CMPB	runtime·useQPCTime(SB), $0
+-	JNE	useQPC
+ loop:
+ 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+ 	MOVL	(_INTERRUPT_TIME+time_lo), CX
+@@ -269,9 +267,6 @@ loop:
+ 	MOVL	AX, ret_lo+0(FP)
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
+-useQPC:
+-	JMP	runtime·nanotimeQPC(SB)
+-	RET
+ 
+ // This is called from rt0_go, which runs on the system stack
+ // using the initial stack allocated by the OS.
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index e66f444ff5..6d26bd3447 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -265,16 +265,11 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+-	CMPB	runtime·useQPCTime(SB), $0
+-	JNE	useQPC
+ 	MOVQ	$_INTERRUPT_TIME, DI
+ 	MOVQ	time_lo(DI), AX
+ 	IMULQ	$100, AX
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
+-useQPC:
+-	JMP	runtime·nanotimeQPC(SB)
+-	RET
+ 
+ // func osSetupTLS(mp *m)
+ // Setup TLS. for use by needm on Windows.
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 67009df723..c9fca19981 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -231,11 +231,6 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+-	MOVW	$0, R0
+-	MOVB	runtime·useQPCTime(SB), R0
+-	CMP	$0, R0
+-	BNE	useQPC
+-	MOVW	$_INTERRUPT_TIME, R3
+ loop:
+ 	MOVW	time_hi1(R3), R1
+ 	DMB	MB_ISH
+@@ -254,8 +249,6 @@ loop:
+ 	MOVW	R3, ret_lo+0(FP)
+ 	MOVW	R4, ret_hi+4(FP)
+ 	RET
+-useQPC:
+-	RET	runtime·nanotimeQPC(SB)		// tail call
+ 
+ // save_g saves the g register (R10) into thread local memory
+ // so that we can call externally compiled
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 22bf1dda70..2781c3c7d0 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -249,17 +249,12 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
+ 	RET
+ 
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+-	MOVB	runtime·useQPCTime(SB), R0
+-	CMP	$0, R0
+-	BNE	useQPC
+ 	MOVD	$_INTERRUPT_TIME, R3
+ 	MOVD	time_lo(R3), R0
+ 	MOVD	$100, R1
+ 	MUL	R1, R0
+ 	MOVD	R0, ret+0(FP)
+ 	RET
+-useQPC:
+-	RET	runtime·nanotimeQPC(SB)		// tail call
+ 
+ // This is called from rt0_go, which runs on the system stack
+ // using the initial stack allocated by the OS.
+diff --git a/src/runtime/time_windows_386.s b/src/runtime/time_windows_386.s
+index b8b636ef30..77e5f76faa 100644
+--- a/src/runtime/time_windows_386.s
++++ b/src/runtime/time_windows_386.s
+@@ -9,8 +9,6 @@
+ #include "time_windows.h"
+ 
+ TEXT time·now(SB),NOSPLIT,$0-20
+-	CMPB	runtime·useQPCTime(SB), $0
+-	JNE	useQPC
+ loop:
+ 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+ 	MOVL	(_INTERRUPT_TIME+time_lo), CX
+@@ -79,6 +77,3 @@ wall:
+ 	MOVL	AX, sec+0(FP)
+ 	MOVL	DX, sec+4(FP)
+ 	RET
+-useQPC:
+-	JMP	runtime·nowQPC(SB)
+-	RET
+diff --git a/src/runtime/time_windows_amd64.s b/src/runtime/time_windows_amd64.s
+index 226f2b5136..d3fcf2e11e 100644
+--- a/src/runtime/time_windows_amd64.s
++++ b/src/runtime/time_windows_amd64.s
+@@ -9,9 +9,6 @@
+ #include "time_windows.h"
+ 
+ TEXT time·now(SB),NOSPLIT,$0-24
+-	CMPB	runtime·useQPCTime(SB), $0
+-	JNE	useQPC
+-
+ 	MOVQ	$_INTERRUPT_TIME, DI
+ 	MOVQ	time_lo(DI), AX
+ 	IMULQ	$100, AX
+@@ -37,6 +34,3 @@ TEXT time·now(SB),NOSPLIT,$0-24
+ 	SUBQ	DX, CX
+ 	MOVL	CX, nsec+8(FP)
+ 	RET
+-useQPC:
+-	JMP	runtime·nowQPC(SB)
+-	RET
+diff --git a/src/runtime/time_windows_arm.s b/src/runtime/time_windows_arm.s
+index 8d4469f993..ff5686d9c4 100644
+--- a/src/runtime/time_windows_arm.s
++++ b/src/runtime/time_windows_arm.s
+@@ -9,10 +9,6 @@
+ #include "time_windows.h"
+ 
+ TEXT time·now(SB),NOSPLIT,$0-20
+-	MOVW    $0, R0
+-	MOVB    runtime·useQPCTime(SB), R0
+-	CMP	$0, R0
+-	BNE	useQPC
+ 	MOVW	$_INTERRUPT_TIME, R3
+ loop:
+ 	MOVW	time_hi1(R3), R1
+@@ -85,6 +81,4 @@ wall:
+ 	MOVW	R7,sec_hi+4(FP)
+ 	MOVW	R1,nsec+8(FP)
+ 	RET
+-useQPC:
+-	RET	runtime·nowQPC(SB)		// tail call
+ 
+diff --git a/src/runtime/time_windows_arm64.s b/src/runtime/time_windows_arm64.s
+index 7943d6b46d..47e7656c88 100644
+--- a/src/runtime/time_windows_arm64.s
++++ b/src/runtime/time_windows_arm64.s
+@@ -9,10 +9,6 @@
+ #include "time_windows.h"
+ 
+ TEXT time·now(SB),NOSPLIT,$0-24
+-	MOVB    runtime·useQPCTime(SB), R0
+-	CMP	$0, R0
+-	BNE	useQPC
+-
+ 	MOVD	$_INTERRUPT_TIME, R3
+ 	MOVD	time_lo(R3), R0
+ 	MOVD	$100, R1
+@@ -42,6 +38,4 @@ TEXT time·now(SB),NOSPLIT,$0-24
+ 	MSUB	R1, R0, R2, R0
+ 	MOVW	R0, nsec+8(FP)
+ 	RET
+-useQPC:
+-	RET	runtime·nowQPC(SB)		// tail call
+ 

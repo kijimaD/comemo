@@ -9,6 +9,24 @@ Date:   Mon Oct 25 18:11:00 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/2736041
-
+---
  lib/godoc/godoc.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 2b598dc7a3..b6f77fcdb3 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -2,7 +2,11 @@
+ <html>
+ <head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+-<title>The Go Programming Language</title>
++{.section Title}
++  <title>{@|html-esc} - The Go Programming Language</title>
++{.or}
++  <title>The Go Programming Language</title>
++{.end}
+ <link rel="stylesheet" href="/doc/all.css" type="text/css" media="all" charset="utf-8">
+ <!--[if lt IE 8]>
+ <link rel="stylesheet" href="/doc/ie.css" type="text/css">

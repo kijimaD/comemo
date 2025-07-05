@@ -10,7 +10,62 @@ Date:   Wed Nov 23 09:04:02 2011 -0800
     R=golang-dev, r
     CC=golang-dev, remy
     https://golang.org/cl/5436053
-
+---
  src/pkg/fmt/fmt_test.go | 16 ++++++++++++++--
  src/pkg/fmt/print.go    |  2 +-
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 6370560d0b..00aac798cb 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -47,8 +47,10 @@ func TestFmtInterface(t *testing.T) {
+ const b32 uint32 = 1<<32 - 1
+ const b64 uint64 = 1<<64 - 1
+ 
+-var array = []int{1, 2, 3, 4, 5}
+-var iarray = []interface{}{1, "hello", 2.5, nil}
++var array = [5]int{1, 2, 3, 4, 5}
++var iarray = [4]interface{}{1, "hello", 2.5, nil}
++var slice = array[:]
++var islice = iarray[:]
+ 
+ type A struct {
+ 	i int
+@@ -327,6 +329,12 @@ var fmttests = []struct {
+ 	{"%v", &array, "&[1 2 3 4 5]"},
+ 	{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
+ 
++	// slices
++	{"%v", slice, "[1 2 3 4 5]"},
++	{"%v", islice, "[1 hello 2.5 <nil>]"},
++	{"%v", &slice, "&[1 2 3 4 5]"},
++	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
++
+ 	// complexes with %v
+ 	{"%v", 1 + 2i, "(1+2i)"},
+ 	{"%v", complex64(1 + 2i), "(1+2i)"},
+@@ -359,6 +367,10 @@ var fmttests = []struct {
+ 	{"%#v", SI{}, `fmt_test.SI{I:interface {}(nil)}`},
+ 	{"%#v", []int(nil), `[]int(nil)`},
+ 	{"%#v", []int{}, `[]int{}`},
++	{"%#v", array, `[5]int{1, 2, 3, 4, 5}`},
++	{"%#v", &array, `&[5]int{1, 2, 3, 4, 5}`},
++	{"%#v", iarray, `[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
++	{"%#v", &iarray, `&[4]interface {}{1, "hello", 2.5, interface {}(nil)}`},
+ 	{"%#v", map[int]byte(nil), `map[int] uint8(nil)`},
+ 	{"%#v", map[int]byte{}, `map[int] uint8{}`},
+ 
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 7143e07a36..e5ca117240 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -877,7 +877,7 @@ BigSwitch:
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteString(value.Type().String())
+-			if f.IsNil() {
++			if f.Kind() == reflect.Slice && f.IsNil() {
+ 				p.buf.WriteString("(nil)")
+ 				break
+ 			}

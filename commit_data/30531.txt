@@ -10,6 +10,29 @@ Date:   Thu Nov 10 16:38:22 2016 -0800
     Change-Id: I2f2ec0a42b248643e76df8654e11bf0b01a5d030
     Reviewed-on: https://go-review.googlesource.com/33114
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.8.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 01a0924a04..ce2d55ea90 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -8,7 +8,7 @@ Hybrid barrier. <100us GC pauses.
+ 
+ Language:
+ 
+-Alias declarations?
++When explicitly converting structs, tags are ignored for structural type identity (CL 24190).
+ 
+ Tools:
+ 
+@@ -396,7 +396,7 @@ image/color: improve speed of RGBA methods (CL 31773)
+ image/draw: optimize drawFillOver as drawFillSrc for opaque fills (CL 28790)
+ math/big: avoid allocation in float.{Add, Sub} when there's no aliasing (CL 23568)
+ math/big: make division faster (CL 30613)
+-math/big: slightly faster float->decimal conversion (CL 31250)
++math/big: 10%-20% faster float->decimal conversion (CL 31250, CL 31275)
+ math/big: use array instead of slice for deBruijn lookups (CL 26663)
+ math/big: uses SIMD for some math big functions on s390x (CL 32211)
+ math: speed up Gamma(+Inf) (CL 31370)

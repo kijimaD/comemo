@@ -85,7 +85,7 @@ Date:   Mon Apr 23 14:54:45 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 22 ++++++--
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  8 ++-
  src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +
@@ -93,3 +93,269 @@ Date:   Mon Apr 23 14:54:45 2018 -0700
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 70 ++++++++++++++++++++++++--
  test/codegen/mathbits.go                       |  8 +--
  6 files changed, 109 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1e8ac4e6de..c0d58f76d4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3124,6 +3124,11 @@ func init() {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], args[0])
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++	addF("math/bits", "Len32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitLen32, types.Types[TINT], args[0])
++		},
++		sys.AMD64)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -3132,7 +3137,7 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt32to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -3142,8 +3147,12 @@ func init() {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+-	// Note: disabled on AMD64 because the Go code is faster!
++		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
++	addF("math/bits", "Len16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpBitLen16, types.Types[TINT], args[0])
++		},
++		sys.AMD64)
+ 	addF("math/bits", "Len8",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -3154,7 +3163,12 @@ func init() {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[TINT], x)
+ 		},
+ 		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
+-
++	// Note: disabled on AMD64 because the Go code is faster!
++	// addF("math/bits", "Len8",
++	// 	func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	// 		return s.newValue1(ssa.OpBitLen8, types.Types[TINT], args[0])
++	// 	},
++	// 	sys.AMD64)
+ 	addF("math/bits", "Len",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3d55bd8a94..b4560f0afc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -60,8 +60,14 @@
+ (Ctz16 x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [16] x)))
+ (Ctz8  x) -> (Select0 (BSFL (BTSLconst <typ.UInt32> [ 8] x)))
+ 
++// BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
++// However, for zero-extended values, we can cheat a bit, and calculate
++// BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently
++// places the index of the highest set bit where we want it.
+ (BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
+-(BitLen32 x) -> (BitLen64 (MOVLQZX <typ.UInt64> x))
++(BitLen32 x) -> (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
++(BitLen16 x) -> (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x))))
++(BitLen8  x) -> (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x))))
+ 
+ (Bswap(64|32) x) -> (BSWAP(Q|L) x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 232a9ac095..42cfa74f02 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -244,6 +244,8 @@ var genericOps = []opData{
+ 	{name: "Ctz16", argLength: 1},    // Count trailing (low order) zeroes (returns 0-16)
+ 	{name: "Ctz32", argLength: 1},    // Count trailing (low order) zeroes (returns 0-32)
+ 	{name: "Ctz64", argLength: 1},    // Count trailing (low order) zeroes (returns 0-64)
++	{name: "BitLen8", argLength: 1},  // Number of bits in arg[0] (returns 0-8)
++	{name: "BitLen16", argLength: 1}, // Number of bits in arg[0] (returns 0-16)
+ 	{name: "BitLen32", argLength: 1}, // Number of bits in arg[0] (returns 0-32)
+ 	{name: "BitLen64", argLength: 1}, // Number of bits in arg[0] (returns 0-64)
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b6750d7f4b..aea2246e84 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2023,6 +2023,8 @@ const (
+ 	OpCtz16
+ 	OpCtz32
+ 	OpCtz64
++	OpBitLen8
++	OpBitLen16
+ 	OpBitLen32
+ 	OpBitLen64
+ 	OpBswap32
+@@ -25467,6 +25469,16 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "BitLen8",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "BitLen16",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "BitLen32",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0c000e506d..12812b523e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -549,10 +549,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v)
+ 	case OpAvg64u:
+ 		return rewriteValueAMD64_OpAvg64u_0(v)
++	case OpBitLen16:
++		return rewriteValueAMD64_OpBitLen16_0(v)
+ 	case OpBitLen32:
+ 		return rewriteValueAMD64_OpBitLen32_0(v)
+ 	case OpBitLen64:
+ 		return rewriteValueAMD64_OpBitLen64_0(v)
++	case OpBitLen8:
++		return rewriteValueAMD64_OpBitLen8_0(v)
+ 	case OpBswap32:
+ 		return rewriteValueAMD64_OpBswap32_0(v)
+ 	case OpBswap64:
+@@ -51905,6 +51909,31 @@ func rewriteValueAMD64_OpAvg64u_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpBitLen16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (BitLen16 x)
++	// cond:
++	// result: (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x))))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSRL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpAMD64LEAL1, typ.UInt32)
++		v1.AuxInt = 1
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, typ.UInt32)
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpBitLen32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -51912,12 +51941,20 @@ func rewriteValueAMD64_OpBitLen32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (BitLen32 x)
+ 	// cond:
+-	// result: (BitLen64 (MOVLQZX <typ.UInt64> x))
++	// result: (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpBitLen64)
+-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, typ.UInt64)
+-		v0.AddArg(x)
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSRQ, types.NewTuple(typ.UInt64, types.TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpAMD64LEAQ1, typ.UInt64)
++		v1.AuxInt = 1
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, typ.UInt64)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Pos, OpAMD64MOVLQZX, typ.UInt64)
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -51953,6 +51990,31 @@ func rewriteValueAMD64_OpBitLen64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpBitLen8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (BitLen8 x)
++	// cond:
++	// result: (Select0 (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x))))
++	for {
++		x := v.Args[0]
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSRL, types.NewTuple(typ.UInt32, types.TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpAMD64LEAL1, typ.UInt32)
++		v1.AuxInt = 1
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, typ.UInt32)
++		v3.AddArg(x)
++		v1.AddArg(v3)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpBswap32_0(v *Value) bool {
+ 	// match: (Bswap32 x)
+ 	// cond:
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index eb4c5ca019..39f46c70c8 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -29,7 +29,7 @@ func LeadingZeros64(n uint64) int {
+ }
+ 
+ func LeadingZeros32(n uint32) int {
+-	// amd64:"BSRQ"
++	// amd64:"BSRQ","LEAQ",-"CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+@@ -37,7 +37,7 @@ func LeadingZeros32(n uint32) int {
+ }
+ 
+ func LeadingZeros16(n uint16) int {
+-	// amd64:"BSRQ"
++	// amd64:"BSRL","LEAL",-"CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+@@ -73,7 +73,7 @@ func Len64(n uint64) int {
+ }
+ 
+ func Len32(n uint32) int {
+-	// amd64:"BSRQ"
++	// amd64:"BSRQ","LEAQ",-"CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"
+@@ -81,7 +81,7 @@ func Len32(n uint32) int {
+ }
+ 
+ func Len16(n uint16) int {
+-	// amd64:"BSRQ"
++	// amd64:"BSRL","LEAL",-"CMOVQEQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
+ 	// mips:"CLZ"

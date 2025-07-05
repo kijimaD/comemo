@@ -19,7 +19,7 @@ Date:   Thu May 20 18:55:47 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/reflect/asm_amd64.s               |  4 ++--
  src/runtime/asm.s                     |  2 +-
  src/runtime/asm_amd64.s               | 14 +++++++-------
@@ -54,3 +54,838 @@ Date:   Thu May 20 18:55:47 2021 -0400
  src/runtime/zcallback_windows_arm.s   |  2 +-
  src/runtime/zcallback_windows_arm64.s |  2 +-
  33 files changed, 85 insertions(+), 93 deletions(-)
+
+diff --git a/src/reflect/asm_amd64.s b/src/reflect/asm_amd64.s
+index facf07516d..86d3f4e4bf 100644
+--- a/src/reflect/asm_amd64.s
++++ b/src/reflect/asm_amd64.s
+@@ -32,7 +32,7 @@ TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
+ 	// NO_LOCAL_POINTERS is a lie. The stack map for the two locals in this
+ 	// frame is specially handled in the runtime. See the comment above LOCAL_RETVALID.
+ 	LEAQ	LOCAL_REGARGS(SP), R12
+-	CALL	runtime·spillArgs<ABIInternal>(SB)
++	CALL	runtime·spillArgs(SB)
+ 	MOVQ	DX, 24(SP) // outside of moveMakeFuncArgPtrs's arg area
+ 	MOVQ	DX, 0(SP)
+ 	MOVQ	R12, 8(SP)
+@@ -48,7 +48,7 @@ TEXT ·makeFuncStub<ABIInternal>(SB),(NOSPLIT|WRAPPER),$312
+ 	MOVQ	AX, 24(SP)
+ 	CALL	·callReflect(SB)
+ 	LEAQ	LOCAL_REGARGS(SP), R12
+-	CALL	runtime·unspillArgs<ABIInternal>(SB)
++	CALL	runtime·unspillArgs(SB)
+ 	RET
+ 
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 72c744925d..0e14fcd3e6 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -13,6 +13,6 @@ DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
+ GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
+ 
+ #ifndef GOARCH_amd64
+-TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+ 	JMP	·sigpanic<ABIInternal>(SB)
+ #endif
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 5990ce54c8..96f0d3fefc 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -469,7 +469,7 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
+ 
+ #ifdef GOEXPERIMENT_regabireflect
+ // spillArgs stores return values from registers to a *internal/abi.RegArgs in R12.
+-TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT ·spillArgs(SB),NOSPLIT,$0-0
+ 	MOVQ AX, 0(R12)
+ 	MOVQ BX, 8(R12)
+ 	MOVQ CX, 16(R12)
+@@ -497,7 +497,7 @@ TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // unspillArgs loads args into registers from a *internal/abi.RegArgs in R12.
+-TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ 	MOVQ 0(R12), AX
+ 	MOVQ 8(R12), BX
+ 	MOVQ 16(R12), CX
+@@ -525,11 +525,11 @@ TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
+ 	RET
+ #else
+ // spillArgs stores return values from registers to a pointer in R12.
+-TEXT ·spillArgs<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT ·spillArgs(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // unspillArgs loads args into registers from a pointer in R12.
+-TEXT ·unspillArgs<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT ·unspillArgs(SB),NOSPLIT,$0-0
+ 	RET
+ #endif
+ 
+@@ -588,7 +588,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
+ 	REP;MOVSB;				\
+ 	/* set up argument registers */		\
+ 	MOVQ    regArgs+40(FP), R12;		\
+-	CALL    ·unspillArgs<ABIInternal>(SB);		\
++	CALL    ·unspillArgs(SB);		\
+ 	/* call function */			\
+ 	MOVQ	f+8(FP), DX;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+@@ -596,7 +596,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
+ 	CALL	R12;				\
+ 	/* copy register return values back */		\
+ 	MOVQ    regArgs+40(FP), R12;		\
+-	CALL    ·spillArgs<ABIInternal>(SB);		\
++	CALL    ·spillArgs(SB);		\
+ 	MOVLQZX	stackArgsSize+24(FP), CX;		\
+ 	MOVLQZX	stackRetOffset+28(FP), BX;		\
+ 	MOVQ	stackArgs+16(FP), DI;		\
+@@ -1596,7 +1596,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+ // This function is injected from the signal handler for panicking
+ // signals. It is quite painful to set X15 in the signal context,
+ // so we do it here.
+-TEXT ·sigpanic0<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+ #ifdef GOEXPERIMENT_regabig
+ 	get_tls(R14)
+ 	MOVQ	g(R14), R14
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 6c980540f5..f2b90307ca 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -128,8 +128,7 @@ func header(arch string) {
+ 	}
+ 	fmt.Fprintf(out, "#include \"go_asm.h\"\n")
+ 	fmt.Fprintf(out, "#include \"textflag.h\"\n\n")
+-	fmt.Fprintf(out, "// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.\n")
+-	fmt.Fprintf(out, "TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0\n")
++	fmt.Fprintf(out, "TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0\n")
+ }
+ 
+ func p(f string, args ...interface{}) {
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index c5dc23de8b..dacb5c23a0 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -100,7 +101,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 		if usesLR {
+ 			c.setpc(funcPC(sigpanictramp))
+ 		} else {
+-			c.setpc(funcPC(sigpanic0))
++			c.setpc(abi.FuncPCABI0(sigpanic0))
+ 		}
+ 		return _NCONT
+ 	}
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index c8b29e396c..235c96e45a 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -149,7 +150,7 @@ func newosproc(mp *m) {
+ 	// with signals disabled. It will enable them in minit.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
++	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+ 	if ret < 0 {
+@@ -429,13 +430,13 @@ func setsig(i uint32, fn uintptr) {
+ 	// should not be used". x86_64 kernel requires it. Only use it on
+ 	// x86.
+ 	if GOARCH == "386" || GOARCH == "amd64" {
+-		sa.sa_restorer = funcPC(sigreturn)
++		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
+ 	}
+ 	if fn == funcPC(sighandler) {
+ 		if iscgo {
+-			fn = funcPC(cgoSigtramp)
++			fn = abi.FuncPCABI0(cgoSigtramp)
+ 		} else {
+-			fn = funcPC(sigtramp)
++			fn = abi.FuncPCABI0(sigtramp)
+ 		}
+ 	}
+ 	sa.sa_handler = fn
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index f0935264ac..d82173e738 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -543,7 +544,7 @@ func initLongPathSupport() {
+ }
+ 
+ func osinit() {
+-	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
++	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
+ 
+ 	setBadSignalMsg()
+ 
+@@ -906,7 +907,7 @@ func semacreate(mp *m) {
+ func newosproc(mp *m) {
+ 	// We pass 0 for the stack size to use the default for this binary.
+ 	thandle := stdcall6(_CreateThread, 0, 0,
+-		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
++		abi.FuncPCABI0(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
+ 		0, 0)
+ 
+ 	if thandle == 0 {
+@@ -1385,7 +1386,7 @@ func preemptM(mp *m) {
+ 	if gp != nil && wantAsyncPreempt(gp) {
+ 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+ 			// Inject call to asyncPreempt
+-			targetPC := funcPC(asyncPreempt)
++			targetPC := abi.FuncPCABI0(asyncPreempt)
+ 			switch GOARCH {
+ 			default:
+ 				throw("unsupported architecture")
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 1d5aae1363..d1291c9c48 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -53,6 +53,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -315,7 +316,7 @@ func asyncPreempt2() {
+ var asyncPreemptStack = ^uintptr(0)
+ 
+ func init() {
+-	f := findfunc(funcPC(asyncPreempt))
++	f := findfunc(abi.FuncPCABI0(asyncPreempt))
+ 	total := funcMaxSPDelta(f)
+ 	f = findfunc(funcPC(asyncPreempt2))
+ 	total += funcMaxSPDelta(f)
+diff --git a/src/runtime/preempt_386.s b/src/runtime/preempt_386.s
+index a803b24dc6..c3a5fa1f36 100644
+--- a/src/runtime/preempt_386.s
++++ b/src/runtime/preempt_386.s
+@@ -3,8 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	PUSHFL
+ 	ADJSP $156
+ 	NOP SP
+diff --git a/src/runtime/preempt_amd64.s b/src/runtime/preempt_amd64.s
+index dc7af806d3..31f7c8b66f 100644
+--- a/src/runtime/preempt_amd64.s
++++ b/src/runtime/preempt_amd64.s
+@@ -3,8 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	PUSHQ BP
+ 	MOVQ SP, BP
+ 	// Save flags before clobbering them
+diff --git a/src/runtime/preempt_arm.s b/src/runtime/preempt_arm.s
+index bbc9fbb1ea..8f243c0dcd 100644
+--- a/src/runtime/preempt_arm.s
++++ b/src/runtime/preempt_arm.s
+@@ -3,8 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW.W R14, -188(R13)
+ 	MOVW R0, 4(R13)
+ 	MOVW R1, 8(R13)
+diff --git a/src/runtime/preempt_arm64.s b/src/runtime/preempt_arm64.s
+index 2b70a28479..36ee13282c 100644
+--- a/src/runtime/preempt_arm64.s
++++ b/src/runtime/preempt_arm64.s
+@@ -3,8 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD R30, -496(RSP)
+ 	SUB $496, RSP
+ 	#ifdef GOOS_linux
+diff --git a/src/runtime/preempt_mips64x.s b/src/runtime/preempt_mips64x.s
+index b755425bc5..c1249e382e 100644
+--- a/src/runtime/preempt_mips64x.s
++++ b/src/runtime/preempt_mips64x.s
+@@ -6,8 +6,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVV R31, -488(R29)
+ 	SUBV $488, R29
+ 	MOVV R1, 8(R29)
+diff --git a/src/runtime/preempt_mipsx.s b/src/runtime/preempt_mipsx.s
+index c1bff60859..70b79e05b9 100644
+--- a/src/runtime/preempt_mipsx.s
++++ b/src/runtime/preempt_mipsx.s
+@@ -6,8 +6,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW R31, -244(R29)
+ 	SUB $244, R29
+ 	MOVW R1, 4(R29)
+diff --git a/src/runtime/preempt_ppc64x.s b/src/runtime/preempt_ppc64x.s
+index 70bd91982b..7ed4021dde 100644
+--- a/src/runtime/preempt_ppc64x.s
++++ b/src/runtime/preempt_ppc64x.s
+@@ -6,8 +6,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD R31, -488(R1)
+ 	MOVD LR, R31
+ 	MOVDU R31, -520(R1)
+diff --git a/src/runtime/preempt_riscv64.s b/src/runtime/preempt_riscv64.s
+index d4f9cc277f..eb68dcba2b 100644
+--- a/src/runtime/preempt_riscv64.s
++++ b/src/runtime/preempt_riscv64.s
+@@ -3,8 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOV X1, -472(X2)
+ 	ADD $-472, X2
+ 	MOV X3, 8(X2)
+diff --git a/src/runtime/preempt_s390x.s b/src/runtime/preempt_s390x.s
+index c6f11571df..ca9e47cde1 100644
+--- a/src/runtime/preempt_s390x.s
++++ b/src/runtime/preempt_s390x.s
+@@ -3,8 +3,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	IPM R10
+ 	MOVD R14, -248(R15)
+ 	ADD $-248, R15
+diff --git a/src/runtime/preempt_wasm.s b/src/runtime/preempt_wasm.s
+index da90e8aa6d..0cf57d3d22 100644
+--- a/src/runtime/preempt_wasm.s
++++ b/src/runtime/preempt_wasm.s
+@@ -3,7 +3,6 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-// Note: asyncPreempt doesn't use the internal ABI, but we must be able to inject calls to it from the signal handler, so Go code has to see the PC of this function literally.
+-TEXT ·asyncPreempt<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	// No async preemption on wasm
+ 	UNDEF
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index cc8c5db1bd..f1c3c3098d 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"unsafe"
+ )
+ 
+@@ -361,7 +362,7 @@ func raceinit() (gctx, pctx uintptr) {
+ 		throw("raceinit: race build must use cgo")
+ 	}
+ 
+-	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), funcPC(racecallbackthunk), 0)
++	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
+ 
+ 	// Round data segment to page boundaries, because it's used in mmap().
+ 	start := ^uintptr(0)
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 8d4813eadd..469623ff20 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -441,9 +441,7 @@ call:
+ // The overall effect of Go->C->Go call chain is similar to that of mcall.
+ // RARG0 contains command code. RARG1 contains command-specific context.
+ // See racecallback for command codes.
+-// Defined as ABIInternal so as to avoid introducing a wrapper,
+-// because its address is passed to C via funcPC.
+-TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $0-0
++TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $0-0
+ 	// Handle command raceGetProcCmd (0) here.
+ 	// First, code below assumes that we are on curg, while raceGetProcCmd
+ 	// can be executed on g0. Second, it is called frequently, so will
+diff --git a/src/runtime/signal_amd64.go b/src/runtime/signal_amd64.go
+index e45fbb4a87..afcf4404fb 100644
+--- a/src/runtime/signal_amd64.go
++++ b/src/runtime/signal_amd64.go
+@@ -9,6 +9,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -70,10 +71,10 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	// Go special registers. We inject sigpanic0 (instead of sigpanic),
+ 	// which takes care of that.
+ 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
+-		c.pushCall(funcPC(sigpanic0), pc)
++		c.pushCall(abi.FuncPCABI0(sigpanic0), pc)
+ 	} else {
+ 		// Not safe to push the call. Just clobber the frame.
+-		c.set_rip(uint64(funcPC(sigpanic0)))
++		c.set_rip(uint64(abi.FuncPCABI0(sigpanic0)))
+ 	}
+ }
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f2e526973d..6396232dd7 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+@@ -329,7 +330,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	if wantAsyncPreempt(gp) {
+ 		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
+ 			// Adjust the PC and inject a call to asyncPreempt.
+-			ctxt.pushCall(funcPC(asyncPreempt), newpc)
++			ctxt.pushCall(abi.FuncPCABI0(asyncPreempt), newpc)
+ 		}
+ 	}
+ 
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index f2ce24d735..af15709a4a 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -27,15 +28,15 @@ func firstcontinuetramp()
+ func lastcontinuetramp()
+ 
+ func initExceptionHandler() {
+-	stdcall2(_AddVectoredExceptionHandler, 1, funcPC(exceptiontramp))
++	stdcall2(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
+ 	if _AddVectoredContinueHandler == nil || GOARCH == "386" {
+ 		// use SetUnhandledExceptionFilter for windows-386 or
+ 		// if VectoredContinueHandler is unavailable.
+ 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
+-		stdcall1(_SetUnhandledExceptionFilter, funcPC(lastcontinuetramp))
++		stdcall1(_SetUnhandledExceptionFilter, abi.FuncPCABI0(lastcontinuetramp))
+ 	} else {
+-		stdcall2(_AddVectoredContinueHandler, 1, funcPC(firstcontinuetramp))
+-		stdcall2(_AddVectoredContinueHandler, 0, funcPC(lastcontinuetramp))
++		stdcall2(_AddVectoredContinueHandler, 1, abi.FuncPCABI0(firstcontinuetramp))
++		stdcall2(_AddVectoredContinueHandler, 0, abi.FuncPCABI0(lastcontinuetramp))
+ 	}
+ }
+ 
+@@ -133,7 +134,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	// The exception is not from asyncPreempt, so not to push a
+ 	// sigpanic call to make it look like that. Instead, just
+ 	// overwrite the PC. (See issue #35773)
+-	if r.ip() != 0 && r.ip() != funcPC(asyncPreempt) {
++	if r.ip() != 0 && r.ip() != abi.FuncPCABI0(asyncPreempt) {
+ 		sp := unsafe.Pointer(r.sp())
+ 		delta := uintptr(sys.StackAlign)
+ 		sp = add(sp, -delta)
+@@ -145,7 +146,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 			*((*uintptr)(sp)) = r.ip()
+ 		}
+ 	}
+-	r.set_ip(funcPC(sigpanic0))
++	r.set_ip(abi.FuncPCABI0(sigpanic0))
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 33cc670b64..f22b7ad928 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -328,9 +328,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	POPQ	BP
+ 	RET
+ 
+-// Defined as ABIInternal since it does not use the stack-based Go ABI.
+ // Called using C ABI.
+-TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+@@ -348,8 +347,7 @@ TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+-// Defined as ABIInternal since it does not use the stack-based Go ABI.
+-TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	// If no traceback function, do usual sigtramp.
+ 	MOVQ	runtime·cgoTraceback(SB), AX
+ 	TESTQ	AX, AX
+@@ -392,12 +390,12 @@ TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 	// The first three arguments, and the fifth, are already in registers.
+ 	// Set the two remaining arguments now.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+-	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
++	MOVQ	$runtime·sigtramp(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+ sigtramp:
+-	JMP	runtime·sigtramp<ABIInternal>(SB)
++	JMP	runtime·sigtramp(SB)
+ 
+ sigtrampnog:
+ 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+@@ -428,8 +426,7 @@ sigtrampnog:
+ // https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/x86_64/sigaction.c
+ // The code that cares about the precise instructions used is:
+ // https://gcc.gnu.org/viewcvs/gcc/trunk/libgcc/config/i386/linux-unwind.h?revision=219188&view=markup
+-// Defined as ABIInternal since it does not use the stack-based Go ABI.
+-TEXT runtime·sigreturn<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 	MOVQ	$SYS_rt_sigreturn, AX
+ 	SYSCALL
+ 	INT $3	// not reached
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 0b3933502a..cf3a439523 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -8,7 +8,7 @@
+ #include "time_windows.h"
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	MOVL	fn+0(FP), BX
+ 
+ 	// SetLastError(0).
+@@ -147,21 +147,21 @@ done:
+ 	BYTE $0xC2; WORD $4
+ 	RET // unreached; make assembler happy
+ 
+-TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
+ 	MOVL	$runtime·exceptionhandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
+ 	// is never called
+ 	INT	$3
+ 
+-TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT,$0-0
++TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
+ 	MOVL	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+   	MOVL	0(SP), AX	// will use to find our callback context
+ 
+ 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
+@@ -180,7 +180,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$0
+ 	CLD
+ 
+ 	// determine index into runtime·cbs table
+-	SUBL	$runtime·callbackasm<ABIInternal>(SB), AX
++	SUBL	$runtime·callbackasm(SB), AX
+ 	MOVL	$0, DX
+ 	MOVL	$5, BX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+ 	DIVL	BX
+@@ -250,7 +250,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	MOVL	newm+0(FP), BX
+ 
+ 	PUSHL	BX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index e7782846b2..6cc5bba2b7 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -13,7 +13,7 @@
+ #define maxargs 18
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+ 	// asmcgocall will put first argument into CX.
+ 	PUSHQ	CX			// save for later
+ 	MOVQ	libcall_fn(CX), AX
+@@ -179,15 +179,15 @@ done:
+ 
+ 	RET
+ 
+-TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	$runtime·exceptionhandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·firstcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+-TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVQ	$runtime·lastcontinuehandler(SB), AX
+ 	JMP	sigtramp<>(SB)
+ 
+@@ -212,7 +212,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	ADDQ	$8, SP
+ 
+ 	// determine index into runtime·cbs table
+-	MOVQ	$runtime·callbackasm<ABIInternal>(SB), DX
++	MOVQ	$runtime·callbackasm(SB), DX
+ 	SUBQ	DX, AX
+ 	MOVQ	$0, DX
+ 	MOVQ	$5, CX	// divide by 5 because each call instruction in runtime·callbacks is 5 bytes long
+@@ -245,7 +245,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+ 	// Switch from the host ABI to the Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index 48f8c7dedf..c9e96cb652 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -10,7 +10,7 @@
+ // Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
+ 	MOVW	R0, R4			// put libcall * in r4
+ 	MOVW	R13, R5			// save stack pointer in r5
+@@ -222,21 +222,21 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R0, R13
+ 	B	(R1)
+ 
+-TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·exceptionhandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·firstcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·lastcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$runtime·lastcontinuehandler(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
+ 	// On entry, the trampoline in zcallback_windows_arm.s left
+ 	// the callback index in R12 (which is volatile in the C ABI).
+ 
+@@ -275,7 +275,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+ 	B	(R12)	// return
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R4-R11, R14], (R13)		// push {r4-r11, lr}
+ 
+ 	MOVW	m_g0(R0), g
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 7a2e11f5ae..1cf877dce9 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -18,7 +18,7 @@
+ // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
+ 
+ // void runtime·asmstdcall(void *c);
+-TEXT runtime·asmstdcall<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+ 	STP.W	(R29, R30), -32(RSP)	// allocate C ABI stack frame
+ 	STP	(R19, R20), 16(RSP) // save old R19, R20
+ 	MOVD	R0, R19	// save libcall pointer
+@@ -290,11 +290,11 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R0, RSP
+ 	B	(R1)
+ 
+-TEXT runtime·exceptiontramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·exceptionhandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+-TEXT runtime·firstcontinuetramp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$runtime·firstcontinuehandler<ABIInternal>(SB), R1
+ 	B	sigtramp<>(SB)
+ 
+@@ -304,7 +304,7 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
+ 
+ GLOBL runtime·cbctxts(SB), NOPTR, $4
+ 
+-TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
++TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
+ 	NO_LOCAL_POINTERS
+ 
+ 	// On entry, the trampoline in zcallback_windows_arm64.s left
+@@ -356,7 +356,7 @@ TEXT runtime·callbackasm1<ABIInternal>(SB),NOSPLIT,$208-0
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+-TEXT runtime·tstart_stdcall<ABIInternal>(SB),NOSPLIT,$96-0
++TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
+ 	SAVE_R19_TO_R28(-10*8)
+ 
+ 	MOVD	m_g0(R0), g
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 6b9195bcd5..e045e5f4bf 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -224,7 +224,7 @@ func callbackasmAddr(i int) uintptr {
+ 		// followed by a branch instruction
+ 		entrySize = 8
+ 	}
+-	return funcPC(callbackasm) + uintptr(i*entrySize)
++	return abi.FuncPCABI0(callbackasm) + uintptr(i*entrySize)
+ }
+ 
+ const callbackMaxFrame = 64 * sys.PtrSize
+diff --git a/src/runtime/wincallback.go b/src/runtime/wincallback.go
+index a7a787d8f6..73f1e567ce 100644
+--- a/src/runtime/wincallback.go
++++ b/src/runtime/wincallback.go
+@@ -33,7 +33,7 @@ func genasm386Amd64() {
+ // CALL instruction in runtime·callbackasm. This determines
+ // which Go callback function is executed later on.
+ 
+-TEXT runtime·callbackasm<ABIInternal>(SB),7,$0
++TEXT runtime·callbackasm(SB),7,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString("\tCALL\truntime·callbackasm1(SB)\n")
+@@ -61,7 +61,7 @@ func genasmArm() {
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString(fmt.Sprintf("\tMOVW\t$%d, R12\n", i))
+@@ -89,7 +89,7 @@ func genasmArm64() {
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ `)
+ 	for i := 0; i < maxCallback; i++ {
+ 		buf.WriteString(fmt.Sprintf("\tMOVD\t$%d, R12\n", i))
+diff --git a/src/runtime/zcallback_windows.s b/src/runtime/zcallback_windows.s
+index e451c2b9d0..561527c90d 100644
+--- a/src/runtime/zcallback_windows.s
++++ b/src/runtime/zcallback_windows.s
+@@ -11,7 +11,7 @@
+ // CALL instruction in runtime·callbackasm. This determines
+ // which Go callback function is executed later on.
+ 
+-TEXT runtime·callbackasm<ABIInternal>(SB),7,$0
++TEXT runtime·callbackasm(SB),7,$0
+ 	CALL	runtime·callbackasm1(SB)
+ 	CALL	runtime·callbackasm1(SB)
+ 	CALL	runtime·callbackasm1(SB)
+diff --git a/src/runtime/zcallback_windows_arm.s b/src/runtime/zcallback_windows_arm.s
+index a73a813acb..f943d84cbf 100644
+--- a/src/runtime/zcallback_windows_arm.s
++++ b/src/runtime/zcallback_windows_arm.s
+@@ -9,7 +9,7 @@
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0, R12
+ 	B	runtime·callbackasm1(SB)
+ 	MOVW	$1, R12
+diff --git a/src/runtime/zcallback_windows_arm64.s b/src/runtime/zcallback_windows_arm64.s
+index 2a6bda0990..69fb05788c 100644
+--- a/src/runtime/zcallback_windows_arm64.s
++++ b/src/runtime/zcallback_windows_arm64.s
+@@ -9,7 +9,7 @@
+ // It then calls the Go implementation for that callback.
+ #include "textflag.h"
+ 
+-TEXT runtime·callbackasm<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·callbackasm(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$0, R12
+ 	B	runtime·callbackasm1(SB)
+ 	MOVD	$1, R12

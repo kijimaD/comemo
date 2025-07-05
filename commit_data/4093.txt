@@ -14,6 +14,40 @@ Date:   Tue Nov 17 09:02:47 2009 -0800
     
     R=agl1, rsc, iant2, r
     https://golang.org/cl/155059
-
+---
  src/cmd/cc/lex.c | 12 ++----------
  1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 428ba55ad9..118efd2311 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -1517,16 +1517,11 @@ void
+ setinclude(char *p)
+ {
+ 	int i;
+-	char *e;
+-
+-	while(*p != 0) {
+-		e = strchr(p, ' ');
+-		if(e != 0)
+-			*e = '\0';
+ 
++	if(*p != 0) {
+ 		for(i=1; i < ninclude; i++)
+ 			if(strcmp(p, include[i]) == 0)
+-				break;
++				return;
+ 
+ 		if(i >= ninclude)
+ 			include[ninclude++] = p;
+@@ -1536,9 +1531,6 @@ setinclude(char *p)
+ 			exits("ninclude");
+ 		}
+ 
+-		if(e == 0)
+-			break;
+-		p = e+1;
+ 	}
+ }
+ 

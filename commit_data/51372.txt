@@ -20,6 +20,28 @@ Date:   Tue Dec 7 15:59:14 2021 -0500
     Trust: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7509f7632f..eee0a25fee 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4300,11 +4300,13 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	newg.gopc = callerpc
+ 	newg.ancestors = saveAncestors(callergp)
+ 	newg.startpc = fn.fn
+-	if _g_.m.curg != nil {
+-		newg.labels = _g_.m.curg.labels
+-	}
+ 	if isSystemGoroutine(newg, false) {
+ 		atomic.Xadd(&sched.ngsys, +1)
++	} else {
++		// Only user goroutines inherit pprof labels.
++		if _g_.m.curg != nil {
++			newg.labels = _g_.m.curg.labels
++		}
+ 	}
+ 	// Track initial transition?
+ 	newg.trackingSeq = uint8(fastrand())

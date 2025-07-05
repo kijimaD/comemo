@@ -29,7 +29,7 @@ Date:   Thu May 16 12:38:41 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177602
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  | 63 +++++++++++++++++-----
  src/cmd/go/internal/mvs/mvs.go                     |  9 ++--
  .../testdata/mod/example.com_newcycle_a_v1.0.0.txt | 10 ++++
@@ -37,3 +37,213 @@ Date:   Thu May 16 12:38:41 2019 -0400
  .../testdata/mod/example.com_newcycle_b_v1.0.0.txt |  8 +++
  src/cmd/go/testdata/script/mod_get_newcycle.txt    | 14 +++++
  6 files changed, 99 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index bf87c4a0d1..7a5d550997 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -23,6 +23,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"sort"
+ 	"strings"
+ 	"sync"
+ )
+@@ -570,14 +571,23 @@ func runGet(cmd *base.Command, args []string) {
+ 	}
+ 
+ 	// Scan for any upgrades lost by the downgrades.
+-	lost := make(map[string]string)
+-	for _, m := range modload.BuildList() {
+-		t := byPath[m.Path]
+-		if t != nil && semver.Compare(m.Version, t.m.Version) != 0 {
+-			lost[m.Path] = m.Version
++	var lostUpgrades []*query
++	var versionByPath map[string]string
++	if len(down) > 0 {
++		versionByPath = make(map[string]string)
++		for _, m := range modload.BuildList() {
++			versionByPath[m.Path] = m.Version
+ 		}
++		for _, q := range byPath {
++			if v, ok := versionByPath[q.m.Path]; q.m.Version != "none" && (!ok || semver.Compare(v, q.m.Version) != 0) {
++				lostUpgrades = append(lostUpgrades, q)
++			}
++		}
++		sort.Slice(lostUpgrades, func(i, j int) bool {
++			return lostUpgrades[i].m.Path < lostUpgrades[j].m.Path
++		})
+ 	}
+-	if len(lost) > 0 {
++	if len(lostUpgrades) > 0 {
+ 		desc := func(m module.Version) string {
+ 			s := m.Path + "@" + m.Version
+ 			t := byPath[m.Path]
+@@ -590,19 +600,17 @@ func runGet(cmd *base.Command, args []string) {
+ 		for _, d := range down {
+ 			downByPath[d.Path] = d
+ 		}
++
+ 		var buf strings.Builder
+ 		fmt.Fprintf(&buf, "go get: inconsistent versions:")
+ 		reqs := modload.Reqs()
+-		for _, q := range queries {
+-			if lost[q.m.Path] == "" {
+-				continue
+-			}
++		for _, q := range lostUpgrades {
+ 			// We lost q because its build list requires a newer version of something in down.
+ 			// Figure out exactly what.
+ 			// Repeatedly constructing the build list is inefficient
+ 			// if there are MANY command-line arguments,
+ 			// but at least all the necessary requirement lists are cached at this point.
+-			list, err := mvs.BuildList(q.m, reqs)
++			list, err := buildListForLostUpgrade(q.m, reqs)
+ 			if err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+@@ -618,7 +626,12 @@ func runGet(cmd *base.Command, args []string) {
+ 			if sep != "," {
+ 				// We have no idea why this happened.
+ 				// At least report the problem.
+-				fmt.Fprintf(&buf, " ended up at %v unexpectedly (please report at golang.org/issue/new)", lost[q.m.Path])
++				if v := versionByPath[q.m.Path]; v == "" {
++					fmt.Fprintf(&buf, " removed unexpectedly")
++				} else {
++					fmt.Fprintf(&buf, " ended up at %s unexpectedly", v)
++				}
++				fmt.Fprintf(&buf, " (please report at golang.org/issue/new)")
+ 			}
+ 		}
+ 		base.Fatalf("%v", buf.String())
+@@ -894,3 +907,29 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+ 
+ 	return module.Version{Path: m.Path, Version: info.Version}, nil
+ }
++
++// buildListForLostUpgrade returns the build list for the module graph
++// rooted at lost. Unlike mvs.BuildList, the target module (lost) is not
++// treated specially. The returned build list may contain a newer version
++// of lost.
++//
++// buildListForLostUpgrade is used after a downgrade has removed a module
++// requested at a specific version. This helps us understand the requirements
++// implied by each downgrade.
++func buildListForLostUpgrade(lost module.Version, reqs mvs.Reqs) ([]module.Version, error) {
++	return mvs.BuildList(lostUpgradeRoot, &lostUpgradeReqs{Reqs: reqs, lost: lost})
++}
++
++var lostUpgradeRoot = module.Version{Path: "lost-upgrade-root", Version: ""}
++
++type lostUpgradeReqs struct {
++	mvs.Reqs
++	lost module.Version
++}
++
++func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error) {
++	if mod == lostUpgradeRoot {
++		return []module.Version{r.lost}, nil
++	}
++	return r.Reqs.Required(mod)
++}
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index d1c3d8c08a..90f8f269b5 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -121,9 +121,6 @@ func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
+ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) module.Version) ([]module.Version, error) {
+ 	// Explore work graph in parallel in case reqs.Required
+ 	// does high-latency network operations.
+-	var work par.Work
+-	work.Add(target)
+-
+ 	type modGraphNode struct {
+ 		m        module.Version
+ 		required []module.Version
+@@ -137,6 +134,7 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
+ 		haveErr  int32
+ 	)
+ 
++	var work par.Work
+ 	work.Add(target)
+ 	work.Do(10, func(item interface{}) {
+ 		m := item.(module.Version)
+@@ -217,6 +215,11 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) mo
+ 	// Construct the list by traversing the graph again, replacing older
+ 	// modules with required minimum versions.
+ 	if v := min[target.Path]; v != target.Version {
++		// TODO(jayconrod): there is a special case in modload.mvsReqs.Max
++		// that prevents us from selecting a newer version of a module
++		// when the module has no version. This may only be the case for target.
++		// Should we always panic when target has a version?
++		// See golang.org/issue/31491, golang.org/issue/29773.
+ 		panic(fmt.Sprintf("mistake: chose version %q instead of target %+v", v, target)) // TODO: Don't panic.
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/mod/example.com_newcycle_a_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_newcycle_a_v1.0.0.txt
+new file mode 100644
+index 0000000000..829065df9f
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_newcycle_a_v1.0.0.txt
+@@ -0,0 +1,10 @@
++example.com/newcycle/a v1.0.0
++
++Transitively requires v1.0.1 of itself via example.com/newcycle/b
++
++-- .mod --
++module example.com/newcycle/a
++
++require example.com/newcycle/b v1.0.0
++-- .info --
++{"Version":"v1.0.0"}
+diff --git a/src/cmd/go/testdata/mod/example.com_newcycle_a_v1.0.1.txt b/src/cmd/go/testdata/mod/example.com_newcycle_a_v1.0.1.txt
+new file mode 100644
+index 0000000000..a03f4b49fd
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_newcycle_a_v1.0.1.txt
+@@ -0,0 +1,10 @@
++example.com/newcycle/a v1.0.1
++
++Transitively requires itself via example.com/newcycle/b
++
++-- .mod --
++module example.com/newcycle/a
++
++require example.com/newcycle/b v1.0.0
++-- .info --
++{"Version":"v1.0.1"}
+diff --git a/src/cmd/go/testdata/mod/example.com_newcycle_b_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_newcycle_b_v1.0.0.txt
+new file mode 100644
+index 0000000000..ff9e1f5ea5
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_newcycle_b_v1.0.0.txt
+@@ -0,0 +1,8 @@
++example.com/newcycle/b v1.0.0
++
++-- .mod --
++module example.com/newcycle/b
++
++require example.com/newcycle/a v1.0.1
++-- .info --
++{"Version":"v1.0.0"}
+diff --git a/src/cmd/go/testdata/script/mod_get_newcycle.txt b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+new file mode 100644
+index 0000000000..9616863383
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+@@ -0,0 +1,14 @@
++env GO111MODULE=on
++
++# Download modules to avoid stderr chatter
++go mod download example.com/newcycle/a@v1.0.0
++go mod download example.com/newcycle/a@v1.0.1
++go mod download example.com/newcycle/b@v1.0.0
++
++go mod init m
++! go get example.com/newcycle/a@v1.0.0
++cmp stderr stderr-expected
++
++-- stderr-expected --
++go get: inconsistent versions:
++	example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1 (not example.com/newcycle/a@v1.0.0)

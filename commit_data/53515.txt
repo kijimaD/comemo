@@ -16,8 +16,72 @@ Date:   Mon Aug 15 23:09:00 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dnsconfig_unix.go                      | 10 +++++++---
  src/net/dnsconfig_unix_test.go                 | 13 +++++++++++++
  src/net/testdata/search-single-dot-resolv.conf |  5 +++++
  3 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 3ba6d44fc3..65098f6827 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -64,9 +64,13 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 			}
+ 
+ 		case "search": // set search path to given servers
+-			conf.search = make([]string, len(f)-1)
+-			for i := 0; i < len(conf.search); i++ {
+-				conf.search[i] = ensureRooted(f[i+1])
++			conf.search = make([]string, 0, len(f)-1)
++			for i := 1; i < len(f); i++ {
++				name := ensureRooted(f[i])
++				if name == "." {
++					continue
++				}
++				conf.search = append(conf.search, name)
+ 			}
+ 
+ 		case "options": // magic options
+diff --git a/src/net/dnsconfig_unix_test.go b/src/net/dnsconfig_unix_test.go
+index 513f624b00..9be751f2e3 100644
+--- a/src/net/dnsconfig_unix_test.go
++++ b/src/net/dnsconfig_unix_test.go
+@@ -52,6 +52,16 @@ var dnsReadConfigTests = []struct {
+ 			attempts: 2,
+ 		},
+ 	},
++	{
++		name: "testdata/search-single-dot-resolv.conf",
++		want: &dnsConfig{
++			servers:  []string{"8.8.8.8:53"},
++			search:   []string{},
++			ndots:    1,
++			timeout:  5 * time.Second,
++			attempts: 2,
++		},
++	},
+ 	{
+ 		name: "testdata/empty-resolv.conf",
+ 		want: &dnsConfig{
+@@ -166,6 +176,9 @@ func TestDNSReadConfig(t *testing.T) {
+ 	getHostname = func() (string, error) { return "host.domain.local", nil }
+ 
+ 	for _, tt := range dnsReadConfigTests {
++		if len(tt.want.search) == 0 {
++			tt.want.search = append(tt.want.search, dnsDefaultSearch()...)
++		}
+ 		conf := dnsReadConfig(tt.name)
+ 		if conf.err != nil {
+ 			t.Fatal(conf.err)
+diff --git a/src/net/testdata/search-single-dot-resolv.conf b/src/net/testdata/search-single-dot-resolv.conf
+new file mode 100644
+index 0000000000..934cd3e97c
+--- /dev/null
++++ b/src/net/testdata/search-single-dot-resolv.conf
+@@ -0,0 +1,5 @@
++# /etc/resolv.conf
++
++domain localdomain
++search .
++nameserver 8.8.8.8

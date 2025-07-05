@@ -10,7 +10,7 @@ Date:   Tue Oct 9 15:29:43 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6625072
-
+---
  src/cmd/5l/asm.c  | 30 +++++++++++++++++++----
  src/cmd/5l/obj.c  |  4 +++
  src/cmd/6l/asm.c  | 30 +++++++++++++++++++----
@@ -21,3 +21,424 @@ Date:   Tue Oct 9 15:29:43 2012 -0700
  src/cmd/ld/elf.c  | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/ld/elf.h  |  4 +++
  9 files changed, 167 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 463e3bfa33..b114309d45 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -79,6 +79,7 @@ enum {
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
+ 	ElfStrNoteOpenbsdIdent,
++	ElfStrNoteBuildInfo,
+ 	ElfStrNoPtrData,
+ 	ElfStrNoPtrBss,
+ 	NElfStr
+@@ -523,6 +524,8 @@ doelf(void)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	if(HEADTYPE == Hopenbsd)
+ 		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
++	if(buildinfolen > 0)
++		elfstr[ElfStrNoteBuildInfo] = addstring(shstrtab, ".note.gnu.build-id");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gcdata");
+ 	addstring(shstrtab, ".gcbss");
+@@ -669,7 +672,7 @@ asmb(void)
+ 	int a, dynsym;
+ 	uint32 fo, symo, startva, resoff;
+ 	ElfEhdr *eh;
+-	ElfPhdr *ph, *pph;
++	ElfPhdr *ph, *pph, *pnote;
+ 	ElfShdr *sh;
+ 	Section *sect;
+ 	int o;
+@@ -706,6 +709,8 @@ asmb(void)
+ 		}
+ 		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
+ 			elftextsh += 1;
++		if(buildinfolen > 0)
++			elftextsh += 1;
+ 	}
+ 
+ 	/* output symbol table */
+@@ -876,6 +881,7 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
++		pnote = nil;
+ 		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
+ 			sh = nil;
+ 			switch(HEADTYPE) {
+@@ -889,10 +895,22 @@ asmb(void)
+ 				break;
+ 			}
+ 
+-			ph = newElfPhdr();
+-			ph->type = PT_NOTE;
+-			ph->flags = PF_R;
+-			phsh(ph, sh);
++			pnote = newElfPhdr();
++			pnote->type = PT_NOTE;
++			pnote->flags = PF_R;
++			phsh(pnote, sh);
++		}
++
++		if(buildinfolen > 0) {
++			sh = newElfShdr(elfstr[ElfStrNoteBuildInfo]);
++			resoff -= elfbuildinfo(sh, startva, resoff);
++
++			if(pnote == nil) {
++				pnote = newElfPhdr();
++				pnote->type = PT_NOTE;
++				pnote->flags = PF_R;
++			}
++			phsh(pnote, sh);
+ 		}
+ 
+ 		elfphload(&segtext);
+@@ -1079,6 +1097,8 @@ asmb(void)
+ 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+ 		if(HEADTYPE == Hopenbsd)
+ 			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
++		if(buildinfolen > 0)
++			a += elfwritebuildinfo(elfstr[ElfStrNoteBuildInfo]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 7e229ac17e..4a7ccc63f7 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -143,6 +143,10 @@ main(int argc, char *argv[])
+ 		val = EARGF(usage());
+ 		addstrdata(name, val);
+ 		break;
++	case 'B':
++		val = EARGF(usage());
++		addbuildinfo(val);
++		break;
+ 	} ARGEND
+ 
+ 	USED(argc);
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 8af8606603..67ab63b3e2 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -96,6 +96,7 @@ enum {
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
+ 	ElfStrNoteOpenbsdIdent,
++	ElfStrNoteBuildInfo,
+ 	ElfStrNoPtrData,
+ 	ElfStrNoPtrBss,
+ 	NElfStr
+@@ -597,6 +598,8 @@ doelf(void)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	if(HEADTYPE == Hopenbsd)
+ 		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
++	if(buildinfolen > 0)
++		elfstr[ElfStrNoteBuildInfo] = addstring(shstrtab, ".note.gnu.build-id");
+ 	addstring(shstrtab, ".elfdata");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gcdata");
+@@ -734,7 +737,7 @@ asmb(void)
+ 	int a, dynsym;
+ 	vlong vl, startva, symo, dwarfoff, machlink, resoff;
+ 	ElfEhdr *eh;
+-	ElfPhdr *ph, *pph;
++	ElfPhdr *ph, *pph, *pnote;
+ 	ElfShdr *sh;
+ 	Section *sect;
+ 	Sym *sym;
+@@ -807,6 +810,8 @@ asmb(void)
+ 		}
+ 		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
+ 			elftextsh += 1;
++		if(buildinfolen > 0)
++			elftextsh += 1;
+ 		break;
+ 	case Hwindows:
+ 		break;
+@@ -976,6 +981,7 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
++		pnote = nil;
+ 		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
+ 			sh = nil;
+ 			switch(HEADTYPE) {
+@@ -989,10 +995,22 @@ asmb(void)
+ 				break;
+ 			}
+ 
+-			ph = newElfPhdr();
+-			ph->type = PT_NOTE;
+-			ph->flags = PF_R;
+-			phsh(ph, sh);
++			pnote = newElfPhdr();
++			pnote->type = PT_NOTE;
++			pnote->flags = PF_R;
++			phsh(pnote, sh);
++		}
++
++		if(buildinfolen > 0) {
++			sh = newElfShdr(elfstr[ElfStrNoteBuildInfo]);
++			resoff -= elfbuildinfo(sh, startva, resoff);
++
++			if(pnote == nil) {
++				pnote = newElfPhdr();
++				pnote->type = PT_NOTE;
++				pnote->flags = PF_R;
++			}
++			phsh(pnote, sh);
+ 		}
+ 
+ 		elfphload(&segtext);
+@@ -1179,6 +1197,8 @@ asmb(void)
+ 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+ 		if(HEADTYPE == Hopenbsd)
+ 			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
++		if(buildinfolen > 0)
++			a += elfwritebuildinfo(elfstr[ElfStrNoteBuildInfo]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index cfce2111b8..5987310f95 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -140,6 +140,10 @@ main(int argc, char *argv[])
+ 		val = EARGF(usage());
+ 		addstrdata(name, val);
+ 		break;
++	case 'B':
++		val = EARGF(usage());
++		addbuildinfo(val);
++		break;
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 44cd77cbac..06f974a757 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -92,6 +92,7 @@ enum {
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
+ 	ElfStrNoteOpenbsdIdent,
++	ElfStrNoteBuildInfo,
+ 	ElfStrNoPtrData,
+ 	ElfStrNoPtrBss,
+ 	NElfStr
+@@ -573,6 +574,8 @@ doelf(void)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	if(HEADTYPE == Hopenbsd)
+ 		elfstr[ElfStrNoteOpenbsdIdent] = addstring(shstrtab, ".note.openbsd.ident");
++	if(buildinfolen > 0)
++		elfstr[ElfStrNoteBuildInfo] = addstring(shstrtab, ".note.gnu.build-id");
+ 	addstring(shstrtab, ".elfdata");
+ 	addstring(shstrtab, ".rodata");
+ 	addstring(shstrtab, ".gcdata");
+@@ -710,7 +713,7 @@ asmb(void)
+ 	int a, dynsym;
+ 	uint32 symo, startva, dwarfoff, machlink, resoff;
+ 	ElfEhdr *eh;
+-	ElfPhdr *ph, *pph;
++	ElfPhdr *ph, *pph, *pnote;
+ 	ElfShdr *sh;
+ 	Section *sect;
+ 	Sym *sym;
+@@ -764,6 +767,8 @@ asmb(void)
+ 		}
+ 		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd)
+ 			elftextsh += 1;
++		if(buildinfolen > 0)
++			elftextsh += 1;
+ 	}
+ 
+ 	symsize = 0;
+@@ -1036,6 +1041,7 @@ asmb(void)
+ 			phsh(ph, sh);
+ 		}
+ 
++		pnote = nil;
+ 		if(HEADTYPE == Hnetbsd || HEADTYPE == Hopenbsd) {
+ 			sh = nil;
+ 			switch(HEADTYPE) {
+@@ -1049,10 +1055,22 @@ asmb(void)
+ 				break;
+ 			}
+ 
+-			ph = newElfPhdr();
+-			ph->type = PT_NOTE;
+-			ph->flags = PF_R;
+-			phsh(ph, sh);
++			pnote = newElfPhdr();
++			pnote->type = PT_NOTE;
++			pnote->flags = PF_R;
++			phsh(pnote, sh);
++		}
++
++		if(buildinfolen > 0) {
++			sh = newElfShdr(elfstr[ElfStrNoteBuildInfo]);
++			resoff -= elfbuildinfo(sh, startva, resoff);
++
++			if(pnote == nil) {
++				pnote = newElfPhdr();
++				pnote->type = PT_NOTE;
++				pnote->flags = PF_R;
++			}
++			phsh(pnote, sh);
+ 		}
+ 
+ 		// Additions to the reserved area must be above this line.
+@@ -1249,6 +1267,8 @@ asmb(void)
+ 			a += elfwritenetbsdsig(elfstr[ElfStrNoteNetbsdIdent]);
+ 		if(HEADTYPE == Hopenbsd)
+ 			a += elfwriteopenbsdsig(elfstr[ElfStrNoteOpenbsdIdent]);
++		if(buildinfolen > 0)
++			a += elfwritebuildinfo(elfstr[ElfStrNoteBuildInfo]);
+ 		if(a > ELFRESERVE)	
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 648fef1ab0..773a6ddfb1 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -145,6 +145,10 @@ main(int argc, char *argv[])
+ 		val = EARGF(usage());
+ 		addstrdata(name, val);
+ 		break;
++	case 'B':
++		val = EARGF(usage());
++		addbuildinfo(val);
++		break;
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 539448d276..a4977d581c 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -58,5 +58,8 @@ Options new in this version:
+ 		as displayed in the symbol table printed by "go tool nm".
+ 	-b
+ 		Link with race detection libraries.
++	-B value
++		Add a NT_GNU_BUILD_ID note when using ELF.  The value
++		should start with 0x and be an even number of hex digits.
+ */
+ package documentation
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 7e46c2767c..7fa41e2372 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -31,6 +31,8 @@ struct Elfstring
+ static Elfstring elfstr[100];
+ static int nelfstr;
+ 
++static char buildinfo[32];
++
+ /*
+  Initialize the global variable that describes the ELF header. It will be updated as
+  we write section and prog headers.
+@@ -455,6 +457,77 @@ elfwriteopenbsdsig(vlong stridx)
+ 	return sh->size;
+ }
+ 
++void
++addbuildinfo(char *val)
++{
++	char *ov;
++	int i, b, j;
++
++	if(val[0] != '0' || val[1] != 'x') {
++		fprint(2, "%s: -B argument must start with 0x: %s\n", argv0, val);
++		exits("usage");
++	}
++	ov = val;
++	val += 2;
++	i = 0;
++	while(*val != '\0') {
++		if(val[1] == '\0') {
++			fprint(2, "%s: -B argument must have even number of digits: %s\n", argv0, ov);
++			exits("usage");
++		}
++		b = 0;
++		for(j = 0; j < 2; j++, val++) {
++			b *= 16;
++		  	if(*val >= '0' && *val <= '9')
++				b += *val - '0';
++			else if(*val >= 'a' && *val <= 'f')
++				b += *val - 'a' + 10;
++			else if(*val >= 'A' && *val <= 'F')
++				b += *val - 'A' + 10;
++			else {
++				fprint(2, "%s: -B argument contains invalid hex digit %c: %s\n", argv0, *val, ov);
++				exits("usage");
++			}
++		}
++		if(i >= nelem(buildinfo)) {
++			fprint(2, "%s: -B option too long (max %d digits): %s\n", argv0, (int)nelem(buildinfo), ov);
++			exits("usage");
++		}
++		buildinfo[i++] = b;
++	}
++	buildinfolen = i;
++}
++
++// Build info note
++#define ELF_NOTE_BUILDINFO_NAMESZ	4
++#define ELF_NOTE_BUILDINFO_TAG		3
++#define ELF_NOTE_BUILDINFO_NAME		"GNU\0"
++
++int
++elfbuildinfo(ElfShdr *sh, uint64 startva, uint64 resoff)
++{
++	int n;
++
++	n = ELF_NOTE_BUILDINFO_NAMESZ + rnd(buildinfolen, 4);
++	return elfnote(sh, startva, resoff, n);
++}
++
++int
++elfwritebuildinfo(vlong stridx)
++{
++	ElfShdr *sh;
++
++	sh = elfwritenotehdr(stridx, ELF_NOTE_BUILDINFO_NAMESZ, buildinfolen, ELF_NOTE_BUILDINFO_TAG);
++	if(sh == nil)
++		return 0;
++
++	cwrite(ELF_NOTE_BUILDINFO_NAME, ELF_NOTE_BUILDINFO_NAMESZ);
++	cwrite(buildinfo, buildinfolen);
++	cwrite("\0\0\0", rnd(buildinfolen, 4) - buildinfolen);
++
++	return sh->size;
++}
++
+ extern int nelfsym;
+ int elfverneed;
+ 
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index f5d0713e48..3eb13ae398 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -979,6 +979,9 @@ int	elfnetbsdsig(ElfShdr*, uint64, uint64);
+ int	elfwritenetbsdsig(vlong);
+ int	elfopenbsdsig(ElfShdr*, uint64, uint64);
+ int	elfwriteopenbsdsig(vlong);
++void	addbuildinfo(char*);
++int	elfbuildinfo(ElfShdr*, uint64, uint64);
++int	elfwritebuildinfo(vlong);
+ void	elfdynhash(void);
+ ElfPhdr* elfphload(Segment*);
+ ElfShdr* elfshbits(Section*);
+@@ -988,6 +991,7 @@ void	elfaddverneed(Sym*);
+ EXTERN	int	elfstrsize;
+ EXTERN	char*	elfstrdat;
+ EXTERN	int	elftextsh;
++EXTERN	int	buildinfolen;
+ 
+ /*
+  * Total amount of space to reserve at the start of the file

@@ -30,10 +30,186 @@ Date:   Mon Oct 12 10:51:34 2020 -0400
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/internal/syscall/windows/mksyscall.go          |  2 +-
  src/internal/syscall/windows/registry/mksyscall.go |  2 +-
  src/internal/syscall/windows/zsyscall_windows.go   | 26 +++++++-------
  src/syscall/mksyscall_windows.go                   | 40 ++++++++++++++++++++--
  src/syscall/syscall.go                             |  2 +-
  5 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 95e36f7aa3..599f07601b 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -6,4 +6,4 @@
+ 
+ package windows
+ 
+-//go:generate go run golang.org/x/sys/windows/mkwinsyscall -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go
++//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go
+diff --git a/src/internal/syscall/windows/registry/mksyscall.go b/src/internal/syscall/windows/registry/mksyscall.go
+index cb4906a7b2..320abf7fc6 100644
+--- a/src/internal/syscall/windows/registry/mksyscall.go
++++ b/src/internal/syscall/windows/registry/mksyscall.go
+@@ -6,4 +6,4 @@
+ 
+ package registry
+ 
+-//go:generate go run golang.org/x/sys/windows/mkwinsyscall -output zsyscall_windows.go syscall.go
++//go:generate go run ../../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall.go
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 0840dc283a..1eb8c2dfd2 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -40,14 +40,15 @@ var (
+ 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
+ 	modws2_32   = syscall.NewLazyDLL(sysdll.Add("ws2_32.dll"))
+ 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
+-	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
+ 	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
++	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
+ 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
+ 
+ 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
+ 	procMoveFileExW                  = modkernel32.NewProc("MoveFileExW")
+ 	procGetModuleFileNameW           = modkernel32.NewProc("GetModuleFileNameW")
++	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
+ 	procWSASocketW                   = modws2_32.NewProc("WSASocketW")
+ 	procLockFileEx                   = modkernel32.NewProc("LockFileEx")
+ 	procUnlockFileEx                 = modkernel32.NewProc("UnlockFileEx")
+@@ -71,7 +72,6 @@ var (
+ 	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
+ 	procGetProcessMemoryInfo         = modpsapi.NewProc("GetProcessMemoryInfo")
+ 	procGetFileInformationByHandleEx = modkernel32.NewProc("GetFileInformationByHandleEx")
+-	procSetFileInformationByHandle   = modkernel32.NewProc("SetFileInformationByHandle")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+@@ -82,8 +82,8 @@ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapter
+ 	return
+ }
+ 
+-func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
+-	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
++func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetComputerNameExW.Addr(), 3, uintptr(nameformat), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)))
+ 	if r1 == 0 {
+ 		if e1 != 0 {
+ 			err = errnoErr(e1)
+@@ -94,8 +94,8 @@ func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint
+ 	return
+ }
+ 
+-func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
+-	r1, _, e1 := syscall.Syscall(procGetComputerNameExW.Addr(), 3, uintptr(nameformat), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)))
++func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
+ 	if r1 == 0 {
+ 		if e1 != 0 {
+ 			err = errnoErr(e1)
+@@ -106,9 +106,10 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
+ 	return
+ }
+ 
+-func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
+-	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
+-	if r1 == 0 {
++func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
++	n = uint32(r0)
++	if n == 0 {
+ 		if e1 != 0 {
+ 			err = errnoErr(e1)
+ 		} else {
+@@ -118,10 +119,9 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
+ 	return
+ }
+ 
+-func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) {
+-	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
+-	n = uint32(r0)
+-	if n == 0 {
++func SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) {
++	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
++	if r1 == 0 {
+ 		if e1 != 0 {
+ 			err = errnoErr(e1)
+ 		} else {
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index d66bf7865f..240254b2c7 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -4,9 +4,11 @@
+ 
+ // +build ignore
+ 
++// mksyscall_windows wraps golang.org/x/sys/windows/mkwinsyscall.
+ package main
+ 
+ import (
++	"bytes"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -14,11 +16,43 @@ import (
+ )
+ 
+ func main() {
+-	os.Stderr.WriteString("WARNING: Please switch from using:\n    go run $GOROOT/src/syscall/mksyscall_windows.go\nto using:\n    go run golang.org/x/sys/windows/mkwinsyscall\n")
+-	args := append([]string{"run", "golang.org/x/sys/windows/mkwinsyscall"}, os.Args[1:]...)
+-	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), args...)
++	goTool := filepath.Join(runtime.GOROOT(), "bin", "go")
++
++	listCmd := exec.Command(goTool, "list", "-m")
++	listCmd.Env = append(os.Environ(), "GO111MODULE=on")
++
++	var (
++		cmdEnv  []string
++		modArgs []string
++	)
++	if out, err := listCmd.Output(); err == nil && string(bytes.TrimSpace(out)) == "std" {
++		// Force module mode to use mkwinsyscall at the same version as the x/sys
++		// module vendored into the standard library.
++		cmdEnv = append(os.Environ(), "GO111MODULE=on")
++
++		// Force -mod=readonly instead of the default -mod=vendor.
++		//
++		// mkwinsyscall is not itself vendored into the standard library, and it is
++		// not feasible to do so at the moment: std-vendored libraries are included
++		// in the "std" meta-pattern (because in general they *are* linked into
++		// users binaries separately from the original import paths), and we can't
++		// allow a binary in the "std" meta-pattern.
++		modArgs = []string{"-mod=readonly"}
++	} else {
++		// Nobody outside the standard library should be using this wrapper: other
++		// modules can vendor in the mkwinsyscall tool directly (as described in
++		// https://golang.org/issue/25922), so they don't need this wrapper to
++		// set module mode and -mod=readonly explicitly.
++		os.Stderr.WriteString("WARNING: Please switch from using:\n    go run $GOROOT/src/syscall/mksyscall_windows.go\nto using:\n    go run golang.org/x/sys/windows/mkwinsyscall\n")
++	}
++
++	args := append([]string{"run"}, modArgs...)
++	args = append(args, "golang.org/x/sys/windows/mkwinsyscall")
++	args = append(args, os.Args[1:]...)
++	cmd := exec.Command(goTool, args...)
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
++	cmd.Env = cmdEnv
+ 	err := cmd.Run()
+ 	if err != nil {
+ 		os.Exit(1)
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index 980ef9d27f..2e7a3ae5f2 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -26,7 +26,7 @@
+ //
+ package syscall
+ 
+-//go:generate go run golang.org/x/sys/windows/mkwinsyscall -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
++//go:generate go run ./mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
+ 
+ // StringByteSlice converts a string to a NUL-terminated []byte,
+ // If s contains a NUL byte this function panics instead of

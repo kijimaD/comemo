@@ -12,7 +12,7 @@ Date:   Tue Dec 8 18:19:30 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/167055
-
+---
  src/pkg/runtime/386/asm.s           | 11 +++++++++++
  src/pkg/runtime/amd64/asm.s         | 10 ++++++++++
  src/pkg/runtime/darwin/386/sys.s    |  1 +
@@ -22,3 +22,145 @@ Date:   Tue Dec 8 18:19:30 2009 -0800
  src/pkg/runtime/linux/386/sys.s     |  1 +
  src/pkg/runtime/linux/amd64/sys.s   |  1 +
  8 files changed, 36 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index bd88f0fdc5..7ec62161d9 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -323,6 +323,17 @@ TEXT	runcgo(SB),7,$16
+ 	MOVL	4(SP), SP
+ 	RET
+ 
++// check that SP is in range [g->stackbase, g->stackguard)
++TEXT stackcheck(SB), 7, $0
++	MOVL g, AX
++	CMPL g_stackbase(AX), SP
++	JHI 2(PC)
++	INT $3
++	CMPL SP, g_stackguard(AX)
++	JHI 2(PC)
++	INT $3
++	RET
++
+ 
+ GLOBL m0(SB), $1024
+ GLOBL g0(SB), $1024
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index aee4e9a3f7..3bd63ad15b 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -301,3 +301,13 @@ TEXT runcgo(SB),7,$32
+ 	MOVQ	8(SP), SP
+ 	RET
+ 
++// check that SP is in range [g->stackbase, g->stackguard)
++TEXT stackcheck(SB), 7, $0
++	CMPQ g_stackbase(g), SP
++	JHI 2(PC)
++	INT $3
++	CMPQ SP, g_stackguard(g)
++	JHI 2(PC)
++	INT $3
++	RET
++
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 445f530028..38459447f8 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -153,6 +153,7 @@ TEXT bsdthread_start(SB),7,$0
+ 	MOVL	AX, g
+ 	MOVL	DX, m
+ 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
++	CALL	stackcheck(SB)		// smashes AX
+ 	CALL	CX	// fn()
+ 	CALL	exit1(SB)
+ 	RET
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 1c0eaead5b..651ccb2348 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -9,13 +9,13 @@
+ #include "386/asm.h"
+ 	
+ TEXT sys_umtx_op(SB),7,$-4
+-	MOVL $454, AX
+-	INT $0x80
++	MOVL	$454, AX
++	INT	$0x80
+ 	RET
+ 
+ TEXT thr_new(SB),7,$-4
+-	MOVL $455, AX
+-	INT $0x80
++	MOVL	$455, AX
++	INT	$0x80
+ 	RET
+ 
+ TEXT thr_start(SB),7,$0
+@@ -33,10 +33,11 @@ TEXT thr_start(SB),7,$0
+ 	POPL	AX
+ 	POPL	AX
+ 	POPAL
+-	MOVL BX, g
+-	MOVL AX, m
+-	CALL mstart(SB)
+-	MOVL 0, AX			// crash (not reached)
++	MOVL	BX, g
++	MOVL	AX, m
++	CALL	stackcheck(SB)		// smashes AX
++	CALL	mstart(SB)
++	MOVL	0, AX			// crash (not reached)
+ 
+ // Exit the entire program (like C exit)
+ TEXT exit(SB),7,$-4
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 1b62468105..30184e297c 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -28,6 +28,7 @@ TEXT thr_new(SB),7,$0
+ TEXT thr_start(SB),7,$0
+ 	MOVQ DI, m
+ 	MOVQ m_g0(m), g
++	CALL stackcheck(SB)
+ 	CALL mstart(SB)
+ 	MOVQ 0, AX			// crash (not reached)
+ 
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index 5f44022365..bf891e9804 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -139,8 +139,8 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 
+ 	param.start_func = thr_start;
+ 	param.arg = m;
+-	param.stack_base = stk;
+-	param.stack_size = g->stackbase - g->stackguard + 256;
++	param.stack_base = (int8*)g->stackbase;
++	param.stack_size = (byte*)stk - (byte*)g->stackbase;
+ 	param.child_tid = (intptr*)&m->procid;
+ 	param.parent_tid = nil;
+ 	param.tls_base = (int8*)&m->tls[0];
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 097dfe9155..72882cb9dc 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -152,6 +152,7 @@ TEXT clone(SB),7,$0
+ 	MOVL	DX, g
+ 	MOVL	BX, m
+ 
++	CALL	stackcheck(SB)	// smashes AX
+ 	MOVL	0(DX), DX	// paranoia; check they are not nil
+ 	MOVL	0(BX), BX
+ 
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 238a423b13..6565d86de2 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -149,6 +149,7 @@ TEXT clone(SB),7,$0
+ 	MOVQ	SI, SP
+ 	MOVQ	R8, m
+ 	MOVQ	R9, g
++	CALL	stackcheck(SB)
+ 
+ 	// Initialize m->procid to Linux tid
+ 	MOVL	$186, AX	// gettid

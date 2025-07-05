@@ -12,6 +12,32 @@ Date:   Thu Jan 26 14:37:53 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/os_linux.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 3ad1e3b8fc..37cd8e6482 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -558,9 +558,6 @@ func signalM(mp *m, sig int) {
+ 	tgkill(getpid(), int(mp.procid), sig)
+ }
+ 
+-// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
+-const go118UseTimerCreateProfiler = true
+-
+ // validSIGPROF compares this signal delivery's code against the signal sources
+ // that the profiler uses, returning whether the delivery should be processed.
+ // To be processed, a signal delivery from a known profiling mechanism should
+@@ -619,10 +616,6 @@ func setThreadCPUProfiler(hz int32) {
+ 	mp := getg().m
+ 	mp.profilehz = hz
+ 
+-	if !go118UseTimerCreateProfiler {
+-		return
+-	}
+-
+ 	// destroy any active timer
+ 	if mp.profileTimerValid.Load() {
+ 		timerid := mp.profileTimer

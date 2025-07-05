@@ -7,6 +7,20 @@ Date:   Thu Aug 19 10:03:58 2010 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/1983045
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 41a7b8af93..9e769aba47 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2603,7 +2603,7 @@ func CubeRoot(x float64) float64 {
+         }
+     }
+     // A million iterations has not converged; something is wrong.
+-    panic(fmt.Sprintf("CubeRoot(%g) did not converge", x)
++    panic(fmt.Sprintf("CubeRoot(%g) did not converge", x))
+ }
+ </pre>
+ 

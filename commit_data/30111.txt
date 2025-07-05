@@ -31,7 +31,108 @@ Date:   Mon Oct 24 12:38:06 2016 -0700
     Change-Id: Ic10a91936da96f54ee0b2f4a4fe4a8c9b93a5b4a
     Reviewed-on: https://go-review.googlesource.com/31852
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 17 +++++++++++++++--
  src/cmd/doc/pkg.go      | 47 ++++++++++++++++++++++++++++++++++++++++++-----
  2 files changed, 57 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 3c668876d2..1c054fd566 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -304,7 +304,7 @@ var tests = []test{
+ 
+ 	// Interface.
+ 	{
+-		"type",
++		"interface type",
+ 		[]string{p, `ExportedInterface`},
+ 		[]string{
+ 			`Comment about exported interface`, // Include comment.
+@@ -324,7 +324,7 @@ var tests = []test{
+ 	},
+ 	// Interface -u with unexported methods.
+ 	{
+-		"type with unexported methods and -u",
++		"interface type with unexported methods and -u",
+ 		[]string{"-u", p, `ExportedInterface`},
+ 		[]string{
+ 			`Comment about exported interface`, // Include comment.
+@@ -340,6 +340,19 @@ var tests = []test{
+ 		},
+ 	},
+ 
++	// Interface method.
++	{
++		"interface method",
++		[]string{p, `ExportedInterface.ExportedMethod`},
++		[]string{
++			`Comment before exported method.*\n.*ExportedMethod\(\)` +
++				`.*Comment on line with exported method`,
++		},
++		[]string{
++			`Comment about exported interface.`,
++		},
++	},
++
+ 	// Method.
+ 	{
+ 		"method",
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 5ea1ebf599..daa6ed358c 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -755,11 +755,48 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
+ 	}
+ 	found := false
+ 	for _, typ := range types {
+-		for _, meth := range typ.Methods {
+-			if match(method, meth.Name) {
+-				decl := meth.Decl
+-				decl.Body = nil
+-				pkg.emit(meth.Doc, decl)
++		if len(typ.Methods) > 0 {
++			for _, meth := range typ.Methods {
++				if match(method, meth.Name) {
++					decl := meth.Decl
++					decl.Body = nil
++					pkg.emit(meth.Doc, decl)
++					found = true
++				}
++			}
++			continue
++		}
++		// Type may be an interface. The go/doc package does not attach
++		// an interface's methods to the doc.Type. We need to dig around.
++		spec := pkg.findTypeSpec(typ.Decl, typ.Name)
++		inter, ok := spec.Type.(*ast.InterfaceType)
++		if !ok {
++			// Not an interface type.
++			// TODO? Maybe handle struct fields here.
++			continue
++		}
++		for _, iMethod := range inter.Methods.List {
++			// This is an interface, so there can be only one name.
++			// TODO: Anonymous methods (embedding)
++			if len(iMethod.Names) == 0 {
++				continue
++			}
++			name := iMethod.Names[0].Name
++			if match(method, name) {
++				// pkg.oneLineField(iMethod, 0)
++				if iMethod.Doc != nil {
++					for _, comment := range iMethod.Doc.List {
++						doc.ToText(&pkg.buf, comment.Text, "", indent, indentedWidth)
++					}
++				}
++				s := pkg.oneLineNode(iMethod.Type)
++				// Hack: s starts "func" but there is no name present.
++				// We could instead build a FuncDecl but it's not worthwhile.
++				lineComment := ""
++				if iMethod.Comment != nil {
++					lineComment = fmt.Sprintf("  %s", iMethod.Comment.List[0].Text)
++				}
++				pkg.Printf("func %s%s%s\n", name, s[4:], lineComment)
+ 				found = true
+ 			}
+ 		}

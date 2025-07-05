@@ -39,7 +39,7 @@ Date:   Thu May 7 21:34:54 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/internal/poll/copy_file_range_linux.go |   8 +-
  src/internal/poll/fd_unix.go               |  59 ++++++--
  src/internal/poll/fd_writev_unix.go        |  13 +-
@@ -55,3 +55,627 @@ Date:   Thu May 7 21:34:54 2020 -0700
  src/runtime/trace/trace_stack_test.go      |   1 +
  src/syscall/exec_unix.go                   |   7 +-
  14 files changed, 359 insertions(+), 30 deletions(-)
+
+diff --git a/src/internal/poll/copy_file_range_linux.go b/src/internal/poll/copy_file_range_linux.go
+index 98210cc6cf..604607f774 100644
+--- a/src/internal/poll/copy_file_range_linux.go
++++ b/src/internal/poll/copy_file_range_linux.go
+@@ -88,6 +88,12 @@ func copyFileRange(dst, src *FD, max int) (written int64, err error) {
+ 		return 0, err
+ 	}
+ 	defer src.readUnlock()
+-	n, err := unix.CopyFileRange(src.Sysfd, nil, dst.Sysfd, nil, max, 0)
++	var n int
++	for {
++		n, err = unix.CopyFileRange(src.Sysfd, nil, dst.Sysfd, nil, max, 0)
++		if err != syscall.EINTR {
++			break
++		}
++	}
+ 	return int64(n), err
+ }
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 4716d58a6e..85c79bbebb 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -8,7 +8,6 @@ package poll
+ 
+ import (
+ 	"io"
+-	"runtime"
+ 	"sync/atomic"
+ 	"syscall"
+ )
+@@ -153,7 +152,7 @@ func (fd *FD) Read(p []byte) (int, error) {
+ 		p = p[:maxRW]
+ 	}
+ 	for {
+-		n, err := syscall.Read(fd.Sysfd, p)
++		n, err := ignoringEINTR(syscall.Read, fd.Sysfd, p)
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN && fd.pd.pollable() {
+@@ -161,12 +160,6 @@ func (fd *FD) Read(p []byte) (int, error) {
+ 					continue
+ 				}
+ 			}
+-
+-			// On MacOS we can see EINTR here if the user
+-			// pressed ^Z.  See issue #22838.
+-			if runtime.GOOS == "darwin" && err == syscall.EINTR {
+-				continue
+-			}
+ 		}
+ 		err = fd.eofError(n, err)
+ 		return n, err
+@@ -184,7 +177,16 @@ func (fd *FD) Pread(p []byte, off int64) (int, error) {
+ 	if fd.IsStream && len(p) > maxRW {
+ 		p = p[:maxRW]
+ 	}
+-	n, err := syscall.Pread(fd.Sysfd, p, off)
++	var (
++		n   int
++		err error
++	)
++	for {
++		n, err = syscall.Pread(fd.Sysfd, p, off)
++		if err != syscall.EINTR {
++			break
++		}
++	}
+ 	if err != nil {
+ 		n = 0
+ 	}
+@@ -205,6 +207,9 @@ func (fd *FD) ReadFrom(p []byte) (int, syscall.Sockaddr, error) {
+ 	for {
+ 		n, sa, err := syscall.Recvfrom(fd.Sysfd, p, 0)
+ 		if err != nil {
++			if err == syscall.EINTR {
++				continue
++			}
+ 			n = 0
+ 			if err == syscall.EAGAIN && fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+@@ -229,6 +234,9 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
+ 	for {
+ 		n, oobn, flags, sa, err := syscall.Recvmsg(fd.Sysfd, p, oob, 0)
+ 		if err != nil {
++			if err == syscall.EINTR {
++				continue
++			}
+ 			// TODO(dfc) should n and oobn be set to 0
+ 			if err == syscall.EAGAIN && fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+@@ -256,7 +264,7 @@ func (fd *FD) Write(p []byte) (int, error) {
+ 		if fd.IsStream && max-nn > maxRW {
+ 			max = nn + maxRW
+ 		}
+-		n, err := syscall.Write(fd.Sysfd, p[nn:max])
++		n, err := ignoringEINTR(syscall.Write, fd.Sysfd, p[nn:max])
+ 		if n > 0 {
+ 			nn += n
+ 		}
+@@ -293,6 +301,9 @@ func (fd *FD) Pwrite(p []byte, off int64) (int, error) {
+ 			max = nn + maxRW
+ 		}
+ 		n, err := syscall.Pwrite(fd.Sysfd, p[nn:max], off+int64(nn))
++		if err == syscall.EINTR {
++			continue
++		}
+ 		if n > 0 {
+ 			nn += n
+ 		}
+@@ -319,6 +330,9 @@ func (fd *FD) WriteTo(p []byte, sa syscall.Sockaddr) (int, error) {
+ 	}
+ 	for {
+ 		err := syscall.Sendto(fd.Sysfd, p, 0, sa)
++		if err == syscall.EINTR {
++			continue
++		}
+ 		if err == syscall.EAGAIN && fd.pd.pollable() {
+ 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+@@ -342,6 +356,9 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
+ 	}
+ 	for {
+ 		n, err := syscall.SendmsgN(fd.Sysfd, p, oob, sa, 0)
++		if err == syscall.EINTR {
++			continue
++		}
+ 		if err == syscall.EAGAIN && fd.pd.pollable() {
+ 			if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 				continue
+@@ -370,6 +387,8 @@ func (fd *FD) Accept() (int, syscall.Sockaddr, string, error) {
+ 			return s, rsa, "", err
+ 		}
+ 		switch err {
++		case syscall.EINTR:
++			continue
+ 		case syscall.EAGAIN:
+ 			if fd.pd.pollable() {
+ 				if err = fd.pd.waitRead(fd.isFile); err == nil {
+@@ -404,7 +423,7 @@ func (fd *FD) ReadDirent(buf []byte) (int, error) {
+ 	}
+ 	defer fd.decref()
+ 	for {
+-		n, err := syscall.ReadDirent(fd.Sysfd, buf)
++		n, err := ignoringEINTR(syscall.ReadDirent, fd.Sysfd, buf)
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN && fd.pd.pollable() {
+@@ -495,7 +514,7 @@ func (fd *FD) WriteOnce(p []byte) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	return syscall.Write(fd.Sysfd, p)
++	return ignoringEINTR(syscall.Write, fd.Sysfd, p)
+ }
+ 
+ // RawRead invokes the user-defined function f for a read operation.
+@@ -535,3 +554,19 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
+ 		}
+ 	}
+ }
++
++// ignoringEINTR makes a function call and repeats it if it returns
++// an EINTR error. This appears to be required even though we install
++// all signal handlers with SA_RESTART: see #22838, #38033, #38836.
++// Also #20400 and #36644 are issues in which a signal handler is
++// installed without setting SA_RESTART. None of these are the common case,
++// but there are enough of them that it seems that we can't avoid
++// an EINTR loop.
++func ignoringEINTR(fn func(fd int, p []byte) (int, error), fd int, p []byte) (int, error) {
++	for {
++		n, err := fn(fd, p)
++		if err != syscall.EINTR {
++			return n, err
++		}
++	}
++}
+diff --git a/src/internal/poll/fd_writev_unix.go b/src/internal/poll/fd_writev_unix.go
+index 86af795b5a..daeec96c38 100644
+--- a/src/internal/poll/fd_writev_unix.go
++++ b/src/internal/poll/fd_writev_unix.go
+@@ -12,9 +12,18 @@ import (
+ )
+ 
+ func writev(fd int, iovecs []syscall.Iovec) (uintptr, error) {
+-	r, _, e := syscall.Syscall(syscall.SYS_WRITEV, uintptr(fd), uintptr(unsafe.Pointer(&iovecs[0])), uintptr(len(iovecs)))
++	var (
++		r uintptr
++		e syscall.Errno
++	)
++	for {
++		r, _, e = syscall.Syscall(syscall.SYS_WRITEV, uintptr(fd), uintptr(unsafe.Pointer(&iovecs[0])), uintptr(len(iovecs)))
++		if e != syscall.EINTR {
++			break
++		}
++	}
+ 	if e != 0 {
+-		return r, syscall.Errno(e)
++		return r, e
+ 	}
+ 	return r, nil
+ }
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 40ae3468b0..a24e41dcaa 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -35,6 +35,9 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (int64, error) {
+ 		} else if n == 0 && err1 == nil {
+ 			break
+ 		}
++		if err1 == syscall.EINTR {
++			continue
++		}
+ 		if err1 == syscall.EAGAIN {
+ 			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {
+ 				continue
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index 8e938065f1..d64283007d 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -32,6 +32,9 @@ func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
+ 		} else if n == 0 && err1 == nil {
+ 			break
+ 		}
++		if err1 == syscall.EINTR {
++			continue
++		}
+ 		if err1 == syscall.EAGAIN {
+ 			if err1 = dstFD.pd.waitWrite(dstFD.isFile); err1 == nil {
+ 				continue
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index 5b17ae8551..01baf14ed7 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -87,6 +87,9 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
+ 	}
+ 	for {
+ 		n, err := splice(pipefd, sock.Sysfd, max, spliceNonblock)
++		if err == syscall.EINTR {
++			continue
++		}
+ 		if err != syscall.EAGAIN {
+ 			return n, err
+ 		}
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index 6050d1f642..305e2fd209 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -68,7 +68,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 			iovecs[i] = syscall.Iovec{}
+ 		}
+ 		if err != nil {
+-			if err.(syscall.Errno) == syscall.EAGAIN {
++			if err == syscall.EINTR {
++				continue
++			}
++			if err == syscall.EAGAIN {
+ 				if err = fd.pd.waitWrite(fd.isFile); err == nil {
+ 					continue
+ 				}
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 6e4ffe82d2..7759a2d2ea 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -33,9 +33,18 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 		p.sigMu.Unlock()
+ 	}
+ 
+-	var status syscall.WaitStatus
+-	var rusage syscall.Rusage
+-	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
++	var (
++		status syscall.WaitStatus
++		rusage syscall.Rusage
++		pid1   int
++		e      error
++	)
++	for {
++		pid1, e = syscall.Wait4(p.Pid, &status, 0, &rusage)
++		if e != syscall.EINTR {
++			break
++		}
++	}
+ 	if e != nil {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 45bf649015..5420b2db73 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -18,15 +18,20 @@ const _P_PID = 0
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	var errno syscall.Errno
+-	// The arguments on 32-bit FreeBSD look like the following:
+-	// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
+-	// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on ARM, MIPS or PowerPC
+-	if runtime.GOARCH == "386" {
+-		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+-	} else if runtime.GOARCH == "arm" {
+-		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
+-	} else {
+-		_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++	for {
++		// The arguments on 32-bit FreeBSD look like the following:
++		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
++		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on ARM, MIPS or PowerPC
++		if runtime.GOARCH == "386" {
++			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
++		} else if runtime.GOARCH == "arm" {
++			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
++		} else {
++			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++		}
++		if errno != syscall.EINTR {
++			break
++		}
+ 	}
+ 	runtime.KeepAlive(p)
+ 	if errno != 0 {
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index 6c904e54db..9c56eb2d41 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -27,7 +27,13 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	// We don't care about the values it returns.
+ 	var siginfo [16]uint64
+ 	psig := &siginfo[0]
+-	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++	var e syscall.Errno
++	for {
++		_, _, e = syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++		if e != syscall.EINTR {
++			break
++		}
++	}
+ 	runtime.KeepAlive(p)
+ 	if e != 0 {
+ 		// waitid has been available since Linux 2.6.9, but
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index a4d0ebfcd6..4872189f16 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -573,3 +573,30 @@ func TestSegv(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// TestEINTR tests that we handle EINTR correctly.
++// See issue #20400 and friends.
++func TestEINTR(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("no EINTR on %s", runtime.GOOS)
++	case "linux":
++		if runtime.GOARCH == "386" {
++			// On linux-386 the Go signal handler sets
++			// a restorer function that is not preserved
++			// by the C sigaction call in the test,
++			// causing the signal handler to crash when
++			// returning the normal code. The test is not
++			// architecture-specific, so just skip on 386
++			// rather than doing a complicated workaround.
++			t.Skip("skipping on linux-386; C sigaction does not preserve Go restorer")
++		}
++	}
++
++	t.Parallel()
++	output := runTestProg(t, "testprogcgo", "EINTR")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("want %s, got %s\n", want, output)
++	}
++}
+diff --git a/src/runtime/testdata/testprogcgo/eintr.go b/src/runtime/testdata/testprogcgo/eintr.go
+new file mode 100644
+index 0000000000..cd88c15c37
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/eintr.go
+@@ -0,0 +1,214 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package main
++
++/*
++#include <errno.h>
++#include <signal.h>
++#include <string.h>
++
++static int clearRestart(int sig) {
++	struct sigaction sa;
++
++	memset(&sa, 0, sizeof sa);
++	if (sigaction(sig, NULL, &sa) < 0) {
++		return errno;
++	}
++	sa.sa_flags &=~ SA_RESTART;
++	if (sigaction(sig, &sa, NULL) < 0) {
++		return errno;
++	}
++	return 0;
++}
++*/
++import "C"
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"io"
++	"log"
++	"net"
++	"os"
++	"os/exec"
++	"sync"
++	"syscall"
++	"time"
++)
++
++func init() {
++	register("EINTR", EINTR)
++	register("Nop", Nop)
++}
++
++// Test various operations when a signal handler is installed without
++// the SA_RESTART flag. This tests that the os and net APIs handle EINTR.
++func EINTR() {
++	if errno := C.clearRestart(C.int(syscall.SIGURG)); errno != 0 {
++		log.Fatal(syscall.Errno(errno))
++	}
++	if errno := C.clearRestart(C.int(syscall.SIGWINCH)); errno != 0 {
++		log.Fatal(syscall.Errno(errno))
++	}
++	if errno := C.clearRestart(C.int(syscall.SIGCHLD)); errno != 0 {
++		log.Fatal(syscall.Errno(errno))
++	}
++
++	// Send ourselves SIGWINCH regularly.
++	go func() {
++		for range time.Tick(100 * time.Microsecond) {
++			syscall.Kill(0, syscall.SIGWINCH)
++		}
++	}()
++
++	var wg sync.WaitGroup
++	testPipe(&wg)
++	testNet(&wg)
++	testExec(&wg)
++	wg.Wait()
++	fmt.Println("OK")
++}
++
++// spin does CPU bound spinning and allocating for a millisecond,
++// to get a SIGURG.
++//go:noinline
++func spin() (float64, [][]byte) {
++	stop := time.Now().Add(time.Millisecond)
++	r1 := 0.0
++	var r2 [][]byte
++	for time.Now().Before(stop) {
++		for i := 1; i < 1e6; i++ {
++			r1 += r1 / float64(i)
++			r2 = append(r2, bytes.Repeat([]byte{byte(i)}, 100))
++		}
++	}
++	return r1, r2
++}
++
++// testPipe tests pipe operations.
++func testPipe(wg *sync.WaitGroup) {
++	r, w, err := os.Pipe()
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := syscall.SetNonblock(int(r.Fd()), false); err != nil {
++		log.Fatal(err)
++	}
++	if err := syscall.SetNonblock(int(w.Fd()), false); err != nil {
++		log.Fatal(err)
++	}
++	wg.Add(2)
++	go func() {
++		defer wg.Done()
++		defer w.Close()
++		// Spin before calling Write so that the first ReadFull
++		// in the other goroutine will likely be interrupted
++		// by a signal.
++		spin()
++		// This Write will likely be interrupted by a signal
++		// as the other goroutine spins in the middle of reading.
++		// We write enough data that we should always fill the
++		// pipe buffer and need multiple write system calls.
++		if _, err := w.Write(bytes.Repeat([]byte{0}, 2 << 20)); err != nil {
++			log.Fatal(err)
++		}
++	}()
++	go func() {
++		defer wg.Done()
++		defer r.Close()
++		b := make([]byte, 1 << 20)
++		// This ReadFull will likely be interrupted by a signal,
++		// as the other goroutine spins before writing anything.
++		if _, err := io.ReadFull(r, b); err != nil {
++			log.Fatal(err)
++		}
++		// Spin after reading half the data so that the Write
++		// in the other goroutine will likely be interrupted
++		// before it completes.
++		spin()
++		if _, err := io.ReadFull(r, b); err != nil {
++			log.Fatal(err)
++		}
++	}()
++}
++
++// testNet tests network operations.
++func testNet(wg *sync.WaitGroup) {
++	ln, err := net.Listen("tcp4", "127.0.0.1:0")
++	if err != nil {
++		if errors.Is(err, syscall.EAFNOSUPPORT) || errors.Is(err, syscall.EPROTONOSUPPORT) {
++			return
++		}
++		log.Fatal(err)
++	}
++	wg.Add(2)
++	go func() {
++		defer wg.Done()
++		defer ln.Close()
++		c, err := ln.Accept()
++		if err != nil {
++			log.Fatal(err)
++		}
++		defer c.Close()
++		cf, err := c.(*net.TCPConn).File()
++		if err != nil {
++			log.Fatal(err)
++		}
++		defer cf.Close()
++		if err := syscall.SetNonblock(int(cf.Fd()), false); err != nil {
++			log.Fatal(err)
++		}
++		// See comments in testPipe.
++		spin()
++		if _, err := cf.Write(bytes.Repeat([]byte{0}, 2 << 20)); err != nil {
++			log.Fatal(err)
++		}
++	}()
++	go func() {
++		defer wg.Done()
++		spin()
++		c, err := net.Dial("tcp", ln.Addr().String())
++		if err != nil {
++			log.Fatal(err)
++		}
++		defer c.Close()
++		cf, err := c.(*net.TCPConn).File()
++		if err != nil {
++			log.Fatal(err)
++		}
++		defer cf.Close()
++		if err := syscall.SetNonblock(int(cf.Fd()), false); err != nil {
++			log.Fatal(err)
++		}
++		// See comments in testPipe.
++		b := make([]byte, 1 << 20)
++		if _, err := io.ReadFull(cf, b); err != nil {
++			log.Fatal(err)
++		}
++		spin()
++		if _, err := io.ReadFull(cf, b); err != nil {
++			log.Fatal(err)
++		}
++	}()
++}
++
++func testExec(wg *sync.WaitGroup) {
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		if err := exec.Command(os.Args[0], "Nop").Run(); err != nil {
++			log.Fatal(err)
++		}
++	}()
++}
++
++// Nop just sleeps for a bit. This is used to test interrupts while waiting
++// for a child.
++func Nop() {
++	time.Sleep(time.Millisecond)
++}
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index e3608c687f..cfc0419b72 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -252,6 +252,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 			{trace.EvGoSysCall, []frame{
+ 				{"syscall.read", 0},
+ 				{"syscall.Read", 0},
++				{"internal/poll.ignoringEINTR", 0},
+ 				{"internal/poll.(*FD).Read", 0},
+ 				{"os.(*File).read", 0},
+ 				{"os.(*File).Read", 0},
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 0345af44f9..cb08b7084c 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -217,7 +217,12 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 
+ 	// Read child error status from pipe.
+ 	Close(p[1])
+-	n, err = readlen(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
++	for {
++		n, err = readlen(p[0], (*byte)(unsafe.Pointer(&err1)), int(unsafe.Sizeof(err1)))
++		if err != EINTR {
++			break
++		}
++	}
+ 	Close(p[0])
+ 	if err != nil || n != 0 {
+ 		if n == int(unsafe.Sizeof(err1)) {

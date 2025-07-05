@@ -8,6 +8,30 @@ Date:   Tue Oct 6 15:08:32 2009 -0700
     DELTA=5  (5 added, 0 deleted, 0 changed)
     OCL=35387
     CL=35401
-
+---
  src/cmd/8l/obj.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 565fe765cd..4e63a38cef 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -99,6 +99,8 @@ main(int argc, char *argv[])
+ 	INITDAT = -1;
+ 	INITRND = -1;
+ 	INITENTRY = 0;
++	libdir[nlibdir++] = ".";	// look in dot first
++
+ 	ARGBEGIN {
+ 	default:
+ 		c = ARGC();
+@@ -151,6 +153,9 @@ main(int argc, char *argv[])
+ 	if(strcmp(goarch, thestring) != 0)
+ 		print("goarch is not known: %s\n", goarch);
+ 
++	// put goroot in the libdir list.
++	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
++
+ 	if(HEADTYPE == -1) {
+ 		HEADTYPE = 2;
+ 		if(strcmp(goos, "linux") == 0)

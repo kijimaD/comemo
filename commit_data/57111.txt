@@ -14,6 +14,19 @@ Date:   Tue Jun 20 13:58:56 2023 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/node.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 7f8ca023f2..769340e9cd 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -52,7 +52,6 @@ type Node interface {
+ 	//  0 means the node is not typechecked
+ 	//  1 means the node is completely typechecked
+ 	//  2 means typechecking of the node is in progress
+-	//  3 means the node has its type from types2, but may need transformation
+ 	Typecheck() uint8
+ 	SetTypecheck(x uint8)
+ 	NonNil() bool

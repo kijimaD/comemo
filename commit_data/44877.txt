@@ -11,6 +11,20 @@ Date:   Tue Sep 8 20:41:51 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/objfile/macho.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index fdb7e76dfc..1d6963f7c4 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -60,7 +60,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
+ 		} else if int(s.Sect) <= len(f.macho.Sections) {
+ 			sect := f.macho.Sections[s.Sect-1]
+ 			switch sect.Seg {
+-			case "__TEXT":
++			case "__TEXT", "__DATA_CONST":
+ 				sym.Code = 'R'
+ 			case "__DATA":
+ 				sym.Code = 'D'

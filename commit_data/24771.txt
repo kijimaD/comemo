@@ -9,6 +9,33 @@ Date:   Fri Aug 28 13:35:32 2015 -0700
     Change-Id: I9b29a6fddffd51af305c685f3a8e2a0594bfeeab
     Reviewed-on: https://go-review.googlesource.com/14032
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c00ab59acd..ca9943d81f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1800,7 +1800,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			}
+ 			return v
+-		case PAUTO | PHEAP:
++		case PAUTO | PHEAP, PPARAMREF:
+ 			return s.expr(n.Name.Heapaddr)
+ 		default:
+ 			s.Unimplementedf("variable address class %v not implemented", n.Class)
+@@ -1864,10 +1864,8 @@ func canSSA(n *Node) bool {
+ 	if n.Class&PHEAP != 0 {
+ 		return false
+ 	}
+-	if n.Class == PEXTERN {
+-		return false
+-	}
+-	if n.Class == PPARAMOUT {
++	switch n.Class {
++	case PEXTERN, PPARAMOUT, PPARAMREF:
+ 		return false
+ 	}
+ 	return canSSAType(n.Type)

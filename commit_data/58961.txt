@@ -12,7 +12,43 @@ Date:   Tue Jan 23 14:42:42 2024 -0500
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/maps/maps.go | 5 +++++
  src/maps/maps.s  | 5 -----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/maps/maps.go b/src/maps/maps.go
+index befde18c9c..82b348c2f3 100644
+--- a/src/maps/maps.go
++++ b/src/maps/maps.go
+@@ -5,6 +5,10 @@
+ // Package maps defines various functions useful with maps of any type.
+ package maps
+ 
++import (
++	_ "unsafe"
++)
++
+ // Equal reports whether two maps contain the same key/value pairs.
+ // Values are compared using ==.
+ func Equal[M1, M2 ~map[K]V, K, V comparable](m1 M1, m2 M2) bool {
+@@ -34,6 +38,7 @@ func EqualFunc[M1 ~map[K]V1, M2 ~map[K]V2, K comparable, V1, V2 any](m1 M1, m2 M
+ }
+ 
+ // clone is implemented in the runtime package.
++//go:linkname clone maps.clone
+ func clone(m any) any
+ 
+ // Clone returns a copy of m.  This is a shallow clone:
+diff --git a/src/maps/maps.s b/src/maps/maps.s
+deleted file mode 100644
+index 4e5577892d..0000000000
+--- a/src/maps/maps.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// need this empty asm file to enable linkname.
+\ No newline at end of file

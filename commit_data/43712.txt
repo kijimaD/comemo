@@ -11,6 +11,80 @@ Date:   Tue Apr 21 19:03:53 2020 +0000
     Change-Id: I2afa6a9d42cb29cfad09e706fb465c57e3774abd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229301
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/pprof/pprof.go | 27 ++++++---------------------
  1 file changed, 6 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b828619a86..b4f9ab8f7a 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -81,7 +81,6 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"sync"
+-	"sync/atomic"
+ 	"text/tabwriter"
+ 	"time"
+ 	"unsafe"
+@@ -715,22 +714,10 @@ func (p runtimeProfile) Stack(i int) []uintptr { return p[i].Stack() }
+ 
+ var cpu struct {
+ 	sync.Mutex
+-	profiling uint32 // bool, accessed atomically
++	profiling bool
+ 	done      chan bool
+ }
+ 
+-func cpuProfiling() bool {
+-	return atomic.LoadUint32(&cpu.profiling) != 0
+-}
+-
+-func setCPUProfiling(b bool) {
+-	if b {
+-		atomic.StoreUint32(&cpu.profiling, 1)
+-	} else {
+-		atomic.StoreUint32(&cpu.profiling, 0)
+-	}
+-}
+-
+ // StartCPUProfile enables CPU profiling for the current process.
+ // While profiling, the profile will be buffered and written to w.
+ // StartCPUProfile returns an error if profiling is already enabled.
+@@ -760,10 +747,10 @@ func StartCPUProfile(w io.Writer) error {
+ 		cpu.done = make(chan bool)
+ 	}
+ 	// Double-check.
+-	if cpuProfiling() {
++	if cpu.profiling {
+ 		return fmt.Errorf("cpu profiling already in use")
+ 	}
+-	setCPUProfiling(true)
++	cpu.profiling = true
+ 	runtime.SetCPUProfileRate(hz)
+ 	go profileWriter(w)
+ 	return nil
+@@ -780,9 +767,7 @@ func profileWriter(w io.Writer) {
+ 	b := newProfileBuilder(w)
+ 	var err error
+ 	for {
+-		if cpuProfiling() {
+-			time.Sleep(100 * time.Millisecond)
+-		}
++		time.Sleep(100 * time.Millisecond)
+ 		data, tags, eof := readProfile()
+ 		if e := b.addCPUData(data, tags); e != nil && err == nil {
+ 			err = e
+@@ -807,10 +792,10 @@ func StopCPUProfile() {
+ 	cpu.Lock()
+ 	defer cpu.Unlock()
+ 
+-	if !cpuProfiling() {
++	if !cpu.profiling {
+ 		return
+ 	}
+-	setCPUProfiling(false)
++	cpu.profiling = false
+ 	runtime.SetCPUProfileRate(0)
+ 	<-cpu.done
+ }

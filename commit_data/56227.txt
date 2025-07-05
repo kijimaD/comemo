@@ -11,9 +11,216 @@ Date:   Tue Jan 3 17:59:48 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/malloc.go     | 63 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/mgc.go        |  5 ++++
  src/runtime/mheap.go      |  4 +++
  src/runtime/mpagealloc.go | 59 +++++++++++++++++++++++++++++++++++++++++++-
  4 files changed, 130 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index de83722fff..b53e10a435 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -323,6 +323,28 @@ const (
+ 	//
+ 	// This should agree with minZeroPage in the compiler.
+ 	minLegalPointer uintptr = 4096
++
++	// minHeapForMetadataHugePages sets a threshold on when certain kinds of
++	// heap metadata, currently the arenas map L2 entries and page alloc bitmap
++	// mappings, are allowed to be backed by huge pages. If the heap goal ever
++	// exceeds this threshold, then huge pages are enabled.
++	//
++	// These numbers are chosen with the assumption that huge pages are on the
++	// order of a few MiB in size.
++	//
++	// The kind of metadata this applies to has a very low overhead when compared
++	// to address space used, but their constant overheads for small heaps would
++	// be very high if they were to be backed by huge pages (e.g. a few MiB makes
++	// a huge difference for an 8 MiB heap, but barely any difference for a 1 GiB
++	// heap). The benefit of huge pages is also not worth it for small heaps,
++	// because only a very, very small part of the metadata is used for small heaps.
++	//
++	// N.B. If the heap goal exceeds the threshold then shrinks to a very small size
++	// again, then huge pages will still be enabled for this mapping. The reason is that
++	// there's no point unless we're also returning the physical memory for these
++	// metadata mappings back to the OS. That would be quite complex to do in general
++	// as the heap is likely fragmented after a reduction in heap size.
++	minHeapForMetadataHugePages = 1 << 30
+ )
+ 
+ // physPageSize is the size in bytes of the OS's physical pages.
+@@ -718,6 +740,11 @@ mapped:
+ 			if l2 == nil {
+ 				throw("out of memory allocating heap arena map")
+ 			}
++			if h.arenasHugePages {
++				sysHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
++			} else {
++				sysNoHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
++			}
+ 			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
+ 		}
+ 
+@@ -817,6 +844,42 @@ retry:
+ 	}
+ }
+ 
++// enableMetadataHugePages enables huge pages for various sources of heap metadata.
++//
++// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
++// time, but may take time proportional to the size of the mapped heap beyond that.
++//
++// This function is idempotent.
++//
++// The heap lock must not be held over this operation, since it will briefly acquire
++// the heap lock.
++func (h *mheap) enableMetadataHugePages() {
++	// Enable huge pages for page structure.
++	h.pages.enableChunkHugePages()
++
++	// Grab the lock and set arenasHugePages if it's not.
++	//
++	// Once arenasHugePages is set, all new L2 entries will be eligible for
++	// huge pages. We'll set all the old entries after we release the lock.
++	lock(&h.lock)
++	if h.arenasHugePages {
++		unlock(&h.lock)
++		return
++	}
++	h.arenasHugePages = true
++	unlock(&h.lock)
++
++	// N.B. The arenas L1 map is quite small on all platforms, so it's fine to
++	// just iterate over the whole thing.
++	for i := range h.arenas {
++		l2 := (*[1 << arenaL2Bits]*heapArena)(atomic.Loadp(unsafe.Pointer(&h.arenas[i])))
++		if l2 == nil {
++			continue
++		}
++		sysHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
++	}
++}
++
+ // base address for all 0-byte allocations
+ var zerobase uintptr
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 7c7d1449a2..bb56ab8063 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1182,6 +1182,11 @@ func gcMarkTermination() {
+ 		lc.mspan.setUserArenaChunkToFault()
+ 	}
+ 
++	// Enable huge pages on some metadata if we cross a heap threshold.
++	if gcController.heapGoal() > minHeapForMetadataHugePages {
++		mheap_.enableMetadataHugePages()
++	}
++
+ 	semrelease(&worldsema)
+ 	semrelease(&gcsema)
+ 	// Careful: another GC cycle may start now.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a164b6550b..06592fe95b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -144,6 +144,10 @@ type mheap struct {
+ 	// will never be nil.
+ 	arenas [1 << arenaL1Bits]*[1 << arenaL2Bits]*heapArena
+ 
++	// arenasHugePages indicates whether arenas' L2 entries are eligible
++	// to be backed by huge pages.
++	arenasHugePages bool
++
+ 	// heapArenaAlloc is pre-reserved space for allocating heapArena
+ 	// objects. This is only used on 32-bit, where we pre-reserve
+ 	// this space to avoid interleaving it with the heap itself.
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 6b5583035b..4f35cafc24 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -292,6 +292,10 @@ type pageAlloc struct {
+ 	// Protected by mheapLock.
+ 	summaryMappedReady uintptr
+ 
++	// chunkHugePages indicates whether page bitmap chunks should be backed
++	// by huge pages.
++	chunkHugePages bool
++
+ 	// Whether or not this struct is being used in tests.
+ 	test bool
+ }
+@@ -385,10 +389,21 @@ func (p *pageAlloc) grow(base, size uintptr) {
+ 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
+ 		if p.chunks[c.l1()] == nil {
+ 			// Create the necessary l2 entry.
+-			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
++			const l2Size = unsafe.Sizeof(*p.chunks[0])
++			r := sysAlloc(l2Size, p.sysStat)
+ 			if r == nil {
+ 				throw("pageAlloc: out of memory")
+ 			}
++			if !p.test {
++				// Make the chunk mapping eligible or ineligible
++				// for huge pages, depending on what our current
++				// state is.
++				if p.chunkHugePages {
++					sysHugePage(r, l2Size)
++				} else {
++					sysNoHugePage(r, l2Size)
++				}
++			}
+ 			// Store the new chunk block but avoid a write barrier.
+ 			// grow is used in call chains that disallow write barriers.
+ 			*(*uintptr)(unsafe.Pointer(&p.chunks[c.l1()])) = uintptr(r)
+@@ -402,6 +417,48 @@ func (p *pageAlloc) grow(base, size uintptr) {
+ 	p.update(base, size/pageSize, true, false)
+ }
+ 
++// enableChunkHugePages enables huge pages for the chunk bitmap mappings (disabled by default).
++//
++// This function is idempotent.
++//
++// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
++// time, but may take time proportional to the size of the mapped heap beyond that.
++//
++// The heap lock must not be held over this operation, since it will briefly acquire
++// the heap lock.
++func (p *pageAlloc) enableChunkHugePages() {
++	// Grab the heap lock to turn on huge pages for new chunks and clone the current
++	// heap address space ranges.
++	//
++	// After the lock is released, we can be sure that bitmaps for any new chunks may
++	// be backed with huge pages, and we have the address space for the rest of the
++	// chunks. At the end of this function, all chunk metadata should be backed by huge
++	// pages.
++	lock(&mheap_.lock)
++	if p.chunkHugePages {
++		unlock(&mheap_.lock)
++		return
++	}
++	p.chunkHugePages = true
++	var inUse addrRanges
++	inUse.sysStat = p.sysStat
++	p.inUse.cloneInto(&inUse)
++	unlock(&mheap_.lock)
++
++	// This might seem like a lot of work, but all these loops are for generality.
++	//
++	// For a 1 GiB contiguous heap, a 48-bit address space, 13 L1 bits, a palloc chunk size
++	// of 4 MiB, and adherence to the default set of heap address hints, this will result in
++	// exactly 1 call to sysHugePage.
++	for _, r := range p.inUse.ranges {
++		for i := chunkIndex(r.base.addr()).l1(); i < chunkIndex(r.limit.addr()-1).l1(); i++ {
++			// N.B. We can assume that p.chunks[i] is non-nil and in a mapped part of p.chunks
++			// because it's derived from inUse, which never shrinks.
++			sysHugePage(unsafe.Pointer(p.chunks[i]), unsafe.Sizeof(*p.chunks[0]))
++		}
++	}
++}
++
+ // update updates heap metadata. It must be called each time the bitmap
+ // is updated.
+ //

@@ -22,7 +22,70 @@ Date:   Thu Nov 17 13:12:13 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5399049
-
+---
  src/pkg/html/parse.go      | 38 ++++++++++++++++++++++++++++++++++++++
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 58b754ef3d..9b7e934ac3 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -683,6 +683,44 @@ func inBodyIM(p *parser) bool {
+ 		case "image":
+ 			p.tok.Data = "img"
+ 			return false
++		case "isindex":
++			if p.form != nil {
++				// Ignore the token.
++				return true
++			}
++			action := ""
++			prompt := "This is a searchable index. Enter search keywords: "
++			attr := []Attribute{{Key: "name", Val: "isindex"}}
++			for _, a := range p.tok.Attr {
++				switch a.Key {
++				case "action":
++					action = a.Val
++				case "name":
++					// Ignore the attribute.
++				case "prompt":
++					prompt = a.Val
++				default:
++					attr = append(attr, a)
++				}
++			}
++			p.acknowledgeSelfClosingTag()
++			p.popUntil(buttonScopeStopTags, "p")
++			p.addElement("form", nil)
++			p.form = p.top()
++			if action != "" {
++				p.form.Attr = []Attribute{{Key: "action", Val: action}}
++			}
++			p.addElement("hr", nil)
++			p.oe.pop()
++			p.addElement("label", nil)
++			p.addText(prompt)
++			p.addElement("input", attr)
++			p.oe.pop()
++			p.oe.pop()
++			p.addElement("hr", nil)
++			p.oe.pop()
++			p.oe.pop()
++			p.form = nil
+ 		case "caption", "col", "colgroup", "frame", "head", "tbody", "td", "tfoot", "th", "thead", "tr":
+ 			// Ignore the token.
+ 		default:
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 07e84907cf..4f15ae1d55 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -134,7 +134,7 @@ func TestParser(t *testing.T) {
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+ 		{"tests1.dat", -1},
+-		{"tests2.dat", 42},
++		{"tests2.dat", 43},
+ 		{"tests3.dat", 0},
+ 	}
+ 	for _, tf := range testFiles {

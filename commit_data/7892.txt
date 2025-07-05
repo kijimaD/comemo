@@ -7,7 +7,7 @@ Date:   Sun Mar 27 23:39:42 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4313051
-
+---
  doc/codelab/wiki/Makefile          |  2 +-
  src/all-qemu.bash                  | 16 +++++++++++++++
  src/pkg/Makefile                   |  4 ++--
@@ -20,3 +20,333 @@ Date:   Sun Mar 27 23:39:42 2011 -0400
  src/run.bash                       |  1 +
  test/fixedbugs/bug243.go           | 37 +++++++++++++++++++++++++++++-----
  11 files changed, 134 insertions(+), 11 deletions(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index 43f05b21d0..09c3291a0d 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -8,7 +8,7 @@ all: index.html
+ 
+ include ../../../src/Make.common
+ 
+-CLEANFILES+=index.html srcextract.bin htmlify.bin
++CLEANFILES+=index.html srcextract.bin htmlify.bin get.bin
+ 
+ index.html: srcextract.bin htmlify.bin
+ 	PATH=.:$$PATH awk '/^!/{system(substr($$0,2)); next} {print}' < wiki.html | tr -d '\r' > index.html
+diff --git a/src/all-qemu.bash b/src/all-qemu.bash
+new file mode 100755
+index 0000000000..b2be15ac8c
+--- /dev/null
++++ b/src/all-qemu.bash
+@@ -0,0 +1,16 @@
++#!/usr/bin/env bash
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Run all.bash but exclude tests that depend on functionality
++# missing in QEMU's system call emulation.
++
++export DISABLE_NET_TESTS=1  # no external network
++export NOTEST=""
++
++NOTEST="$NOTEST big" # xxx
++NOTEST="$NOTEST http net rpc syslog websocket"  # no localhost network
++NOTEST="$NOTEST os"  # 64-bit seek fails
++
++./all.bash
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 51300c0880..c5f3e0710a 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -169,7 +169,7 @@ DIRS+=\
+ 
+ endif
+ 
+-NOTEST=\
++NOTEST+=\
+ 	crypto\
+ 	crypto/openpgp/error\
+ 	debug/proc\
+@@ -196,7 +196,7 @@ NOTEST=\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\
+ 
+-NOBENCH=\
++NOBENCH+=\
+ 	container/vector\
+ 
+ # Disable tests that depend on an external network.
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 72ce581f03..090f92af18 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -114,7 +114,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 	// start a timer to produce a time-out signal
+ 	tc := make(chan int)
+ 	go func() {
+-		time.Sleep(2e9) // plenty of a safety margin, even for very slow machines
++		time.Sleep(10e9) // plenty of a safety margin, even for very slow machines
+ 		tc <- 0
+ 	}()
+ 
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index bf4cb4819e..05c6b02612 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -135,6 +135,8 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0ULL;
+ 	sa.sa_restorer = (void*)runtime·sigreturn;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
+ 	sa.sa_handler = fn;
+ 	runtime·rt_sigaction(i, &sa, nil, 8);
+ }
+diff --git a/src/pkg/runtime/linux/signals.h b/src/pkg/runtime/linux/signals.h
+index 1fc5f8c87c..919b80ea29 100644
+--- a/src/pkg/runtime/linux/signals.h
++++ b/src/pkg/runtime/linux/signals.h
+@@ -13,7 +13,7 @@ SigTab runtime·sigtab[] = {
+ 	/* 1 */	Q+R, "SIGHUP: terminal line hangup",
+ 	/* 2 */	Q+R, "SIGINT: interrupt",
+ 	/* 3 */	C, "SIGQUIT: quit",
+-	/* 4 */	C, "SIGILL: illegal instruction",
++	/* 4 */	C+P, "SIGILL: illegal instruction",
+ 	/* 5 */	C, "SIGTRAP: trace trap",
+ 	/* 6 */	C, "SIGABRT: abort",
+ 	/* 7 */	C+P, "SIGBUS: bus error",
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 1ae0a995ec..3363bbcf1c 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -25,6 +25,7 @@ casfail:
+ 	RET
+ 
+ TEXT ·armCompareAndSwapUint64(SB),7,$0
++	BL	fastCheck64<>(SB)
+ 	MOVW	valptr+0(FP), R1
+ 	MOVW	oldlo+4(FP), R2
+ 	MOVW	oldhi+8(FP), R3
+@@ -62,6 +63,7 @@ addloop:
+ 	RET
+ 
+ TEXT ·armAddUint64(SB),7,$0
++	BL	fastCheck64<>(SB)
+ 	MOVW	valptr+0(FP), R1
+ 	MOVW	deltalo+4(FP), R2
+ 	MOVW	deltahi+8(FP), R3
+@@ -76,3 +78,42 @@ add64loop:
+ 	MOVW	R4, retlo+12(FP)
+ 	MOVW	R5, rethi+16(FP)
+ 	RET
++
++// Check for broken 64-bit LDREXD as found in QEMU.
++// LDREXD followed by immediate STREXD should succeed.
++// If it fails, try a few times just to be sure (maybe our thread got
++// rescheduled between the two instructions) and then panic.
++// A bug in some copies of QEMU makes STREXD never succeed,
++// which will make uses of the 64-bit atomic operations loop forever.
++// If things are working, set okLDREXD to avoid future checks.
++// https://bugs.launchpad.net/qemu/+bug/670883.
++TEXT	check64<>(SB),7,$8
++	MOVW	$10, R1
++loop:
++	LDREXD	(SP), R2
++	STREXD	R2, (SP), R0
++	CMP	$0, R0
++	BEQ	ok
++	SUB	$1, R1
++	CMP	$0, R1
++	BNE	loop
++	// Must be buggy QEMU.
++	BL	·panic64(SB)
++ok:
++	RET
++
++// Fast, cached version of check.  No frame, just MOVW CMP RET after first time.
++TEXT	fastCheck64<>(SB),7,$-4
++	MOVW	ok64<>(SB), R0
++	CMP	$0, R0	// have we been here before?
++	RET.NE
++	B	slowCheck64<>(SB)
++
++TEXT slowCheck64<>(SB),7,$0
++	BL	check64<>(SB)
++	// Still here, must be okay.
++	MOVW	$1, R0
++	MOVW	R0, ok64<>(SB)
++	RET
++
++GLOBL ok64<>(SB), $4
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index bf8a692b60..119ad0036f 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package atomic
++package atomic_test
+ 
+ import (
+ 	"runtime"
++	. "sync/atomic"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -27,6 +28,16 @@ const (
+ 	magic64 = 0xdeddeadbeefbeef
+ )
+ 
++// Do the 64-bit functions panic?  If so, don't bother testing.
++var test64err = func() (err interface{}) {
++	defer func() {
++		err = recover()
++	}()
++	var x int64
++	AddInt64(&x, 1)
++	return nil
++}()
++
+ func TestAddInt32(t *testing.T) {
+ 	var x struct {
+ 		before int32
+@@ -70,6 +81,10 @@ func TestAddUint32(t *testing.T) {
+ }
+ 
+ func TestAddInt64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
+ 	var x struct {
+ 		before int64
+ 		i      int64
+@@ -91,6 +106,10 @@ func TestAddInt64(t *testing.T) {
+ }
+ 
+ func TestAddUint64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
+ 	var x struct {
+ 		before uint64
+ 		i      uint64
+@@ -193,6 +212,10 @@ func TestCompareAndSwapUint32(t *testing.T) {
+ }
+ 
+ func TestCompareAndSwapInt64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
+ 	var x struct {
+ 		before int64
+ 		i      int64
+@@ -222,6 +245,10 @@ func TestCompareAndSwapInt64(t *testing.T) {
+ }
+ 
+ func TestCompareAndSwapUint64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
+ 	var x struct {
+ 		before uint64
+ 		i      uint64
+@@ -479,6 +506,10 @@ func hammerCompareAndSwapUintptr64(uval *uint64, count int) {
+ }
+ 
+ func TestHammer64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
+ 	const p = 4
+ 	n := 100000
+ 	if testing.Short() {
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index 1335def59f..ec5a0d33af 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -55,3 +55,8 @@ func AddUint64(val *uint64, delta uint64) (new uint64)
+ 
+ // AddUintptr atomically adds delta to *val and returns the new value.
+ func AddUintptr(val *uintptr, delta uintptr) (new uintptr)
++
++// Helper for ARM.  Linker will discard on other systems
++func panic64() {
++	panic("sync/atomic: broken 64-bit atomic operations (buggy QEMU)")
++}
+diff --git a/src/run.bash b/src/run.bash
+index dd80d3ab64..90fa63276f 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -98,6 +98,7 @@ time gomake ogle
+ time ./run
+ ) || exit $?
+ 
++[ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
+ (xcd ../doc/codelab/wiki
+ gomake clean
+ gomake
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+index 236c14402f..0c531968e6 100644
+--- a/test/fixedbugs/bug243.go
++++ b/test/fixedbugs/bug243.go
+@@ -6,12 +6,14 @@
+ 
+ package main
+ 
+-import (
+-	"net"
+-)
++import "os"
++
++// Issue 481: closures and var declarations
++// with multiple variables assigned from one
++// function call.
+ 
+ func main() {
+-	var listen, _ = net.Listen("tcp", "127.0.0.1:0")
++	var listen, _ = Listen("tcp", "127.0.0.1:0")
+ 
+ 	go func() {
+ 		for {
+@@ -20,6 +22,31 @@ func main() {
+ 		}
+ 	}()
+ 
+-	var conn, _ = net.Dial("tcp", "", listen.Addr().String())
++	var conn, _ = Dial("tcp", "", listen.Addr().String())
+ 	_ = conn
+ }
++
++// Simulated net interface to exercise bug
++// without involving a real network.
++type T chan int
++
++var global T
++
++func Listen(x, y string) (T, string) {
++	global = make(chan int)
++	return global, y
++}
++
++func (t T) Addr() os.Error {
++	return os.ErrorString("stringer")
++}
++
++func (t T) Accept() (int, string) {
++	return <-t, ""
++}
++
++func Dial(x, y, z string) (int, string) {
++	global <- 1
++	return 0, ""
++}
++

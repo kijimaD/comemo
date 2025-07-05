@@ -27,7 +27,7 @@ Date:   Fri Sep 14 09:57:06 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs2_linux.go        |  5 ++++-
  src/runtime/defs_linux.go         |  5 ++++-
  src/runtime/defs_linux_386.go     |  1 +
@@ -60,3 +60,484 @@ Date:   Fri Sep 14 09:57:06 2018 +0200
  src/runtime/sys_openbsd_amd64.s   |  4 +++-
  src/runtime/sys_openbsd_arm.s     |  4 ++--
  31 files changed, 77 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/defs2_linux.go b/src/runtime/defs2_linux.go
+index c10dfb8624..b08c0dafe1 100644
+--- a/src/runtime/defs2_linux.go
++++ b/src/runtime/defs2_linux.go
+@@ -58,7 +58,10 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_DONTNEED   = C.MADV_DONTNEED
++	MADV_FREE       = C.MADV_FREE
++	MADV_HUGEPAGE   = C.MADV_HUGEPAGE
++	MADV_NOHUGEPAGE = C.MADV_HNOUGEPAGE
+ 
+ 	SA_RESTART  = C.SA_RESTART
+ 	SA_ONSTACK  = C.SA_ONSTACK
+diff --git a/src/runtime/defs_linux.go b/src/runtime/defs_linux.go
+index 553366a50b..2d810136d9 100644
+--- a/src/runtime/defs_linux.go
++++ b/src/runtime/defs_linux.go
+@@ -47,7 +47,10 @@ const (
+ 	MAP_PRIVATE = C.MAP_PRIVATE
+ 	MAP_FIXED   = C.MAP_FIXED
+ 
+-	MADV_DONTNEED = C.MADV_DONTNEED
++	MADV_DONTNEED   = C.MADV_DONTNEED
++	MADV_FREE       = C.MADV_FREE
++	MADV_HUGEPAGE   = C.MADV_HUGEPAGE
++	MADV_NOHUGEPAGE = C.MADV_HNOUGEPAGE
+ 
+ 	SA_RESTART = C.SA_RESTART
+ 	SA_ONSTACK = C.SA_ONSTACK
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index a7e435f854..0ebac17aef 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -18,6 +18,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index e8c6a212db..c0a0ef0dd4 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -18,6 +18,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index 62ec8fab5e..43946bb79c 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -16,6 +16,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index c295bc0257..c2cc281ab4 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -18,6 +18,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index df11cb0965..9dacd5d1e9 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -18,6 +18,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_mipsx.go b/src/runtime/defs_linux_mipsx.go
+index 702fbb51c8..9532ac54ee 100644
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -22,6 +22,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index 45363d1285..5a4326da07 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -18,6 +18,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index 45363d1285..5a4326da07 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -18,6 +18,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index ab90723f75..a6cc9c48e9 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -19,6 +19,7 @@ const (
+ 	_MAP_FIXED   = 0x10
+ 
+ 	_MADV_DONTNEED   = 0x4
++	_MADV_FREE       = 0x8
+ 	_MADV_HUGEPAGE   = 0xe
+ 	_MADV_NOHUGEPAGE = 0xf
+ 
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 7aa48170a1..845f72ded2 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -34,10 +35,12 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 	return p
+ }
+ 
++var adviseUnused = uint32(_MADV_FREE)
++
+ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 	// By default, Linux's "transparent huge page" support will
+ 	// merge pages into a huge page if there's even a single
+-	// present regular page, undoing the effects of the DONTNEED
++	// present regular page, undoing the effects of madvise(adviseUnused)
+ 	// below. On amd64, that means khugepaged can turn a single
+ 	// 4KB page to 2MB, bloating the process's RSS by as much as
+ 	// 512X. (See issue #8832 and Linux kernel bug
+@@ -102,7 +105,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 		throw("unaligned sysUnused")
+ 	}
+ 
+-	madvise(v, n, _MADV_DONTNEED)
++	advise := atomic.Load(&adviseUnused)
++	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
++		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
++		// not supported.
++		atomic.Store(&adviseUnused, _MADV_DONTNEED)
++		madvise(v, n, _MADV_DONTNEED)
++	}
+ }
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 02249d0aad..c14db74003 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -25,7 +25,8 @@ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ //go:noescape
+ func open(name *byte, mode, perm int32) int32
+ 
+-func madvise(addr unsafe.Pointer, n uintptr, flags int32)
++// return value is only set on linux to be used in osinit()
++func madvise(addr unsafe.Pointer, n uintptr, flags int32) int32
+ 
+ // exitThread terminates the current thread, writing *wait = 0 when
+ // the stack is safe to reclaim.
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index f0eb5f4e21..b18e967651 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -260,9 +260,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	flags+16(FP), DX
+ 	MOVQ	$75, AX	// madvise
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	JCC	2(PC)
++	MOVL	$-1, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+-	
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+0(FP), DI
+ 	MOVQ	old+8(FP), SI
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index b8f685a323..754689ba05 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -163,7 +163,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$-4
+ TEXT runtime·madvise(SB),NOSPLIT,$-4
+ 	MOVL	$75, AX	// madvise
+ 	INT	$0x80
+-	// ignore failure - maybe pages are locked
++	JAE	2(PC)
++	MOVL	$-1, AX
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·setitimer(SB), NOSPLIT, $-4
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index be191a0784..55959b3e3a 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -337,9 +337,11 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	flags+16(FP), DX
+ 	MOVQ	$75, AX	// madvise
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	JCC	2(PC)
++	MOVL	$-1, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+-	
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 	MOVQ	new+0(FP), DI
+ 	MOVQ	old+8(FP), SI
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 93bf569367..f347b9fa96 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -264,14 +264,15 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVW addr+0(FP), R0		// arg 1 addr
+-	MOVW n+4(FP), R1		// arg 2 len
+-	MOVW flags+8(FP), R2		// arg 3 flags
+-	MOVW $SYS_madvise, R7
+-	SWI $0
+-	// ignore failure - maybe pages are locked
++	MOVW	addr+0(FP), R0		// arg 1 addr
++	MOVW	n+4(FP), R1		// arg 2 len
++	MOVW	flags+8(FP), R2		// arg 3 flags
++	MOVW	$SYS_madvise, R7
++	SWI	$0
++	MOVW.CS $-1, R0
++	MOVW	R0, ret+12(FP)
+ 	RET
+-	
++
+ TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW new+0(FP), R0
+ 	MOVW old+4(FP), R1
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 4e914f3e60..40b55a67eb 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -427,7 +427,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	n+4(FP), CX
+ 	MOVL	flags+8(FP), DX
+ 	INVOKE_SYSCALL
+-	// ignore failure - maybe pages are locked
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 4492dad02e..7e846371e5 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -519,7 +519,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	flags+16(FP), DX
+ 	MOVQ	$SYS_madvise, AX
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index a709c4cbd0..43a58335c8 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -195,7 +195,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVW	flags+8(FP), R2
+ 	MOVW	$SYS_madvise, R7
+ 	SWI	$0
+-	// ignore failure - maybe pages are locked
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 086c8ddc63..8b344be8f8 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -401,7 +401,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	flags+16(FP), R2
+ 	MOVD	$SYS_madvise, R8
+ 	SVC
+-	// ignore failure - maybe pages are locked
++	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 337299ba5f..c45703d228 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -291,7 +291,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	flags+16(FP), R6
+ 	MOVV	$SYS_madvise, R2
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index dca5f1ee45..f362b0f3f1 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -302,13 +302,13 @@ TEXT runtime·munmap(SB),NOSPLIT,$0-8
+ 	UNDEF	// crash
+ 	RET
+ 
+-TEXT runtime·madvise(SB),NOSPLIT,$0-12
++TEXT runtime·madvise(SB),NOSPLIT,$0-16
+ 	MOVW	addr+0(FP), R4
+ 	MOVW	n+4(FP), R5
+ 	MOVW	flags+8(FP), R6
+ 	MOVW	$SYS_madvise, R2
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val, struct timespec *timeout, int32 *uaddr2, int32 val2);
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 7c2f8ea637..ed79b69257 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -454,7 +454,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	n+8(FP), R4
+ 	MOVW	flags+16(FP), R5
+ 	SYSCALL	$SYS_madvise
+-	// ignore failure - maybe pages are locked
++	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 95401af62e..c79ceea751 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -290,7 +290,7 @@ TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	flags+16(FP), R4
+ 	MOVW	$SYS_madvise, R1
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 4042ab4f8a..66f4620cab 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -135,7 +135,9 @@ TEXT runtime·munmap(SB),NOSPLIT,$-4
+ TEXT runtime·madvise(SB),NOSPLIT,$-4
+ 	MOVL	$75, AX			// sys_madvise
+ 	INT	$0x80
+-	// ignore failure - maybe pages are locked
++	JAE	2(PC)
++	MOVL	$-1, AX
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 11b9c1b417..5523659196 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -319,7 +319,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	flags+16(FP), DX	// arg 3 - behav
+ 	MOVQ	$75, AX			// sys_madvise
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	JCC	2(PC)
++	MOVL	$-1, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 6b2c5a8357..304075f295 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -284,11 +284,12 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVW addr+0(FP), R0	// arg 1 - addr
+-	MOVW n+4(FP), R1	// arg 2 - len
+-	MOVW flags+8(FP), R2	// arg 3 - behav
+-	SWI $0xa0004b	// sys_madvise
+-	// ignore failure - maybe pages are locked
++	MOVW	addr+0(FP), R0	// arg 1 - addr
++	MOVW	n+4(FP), R1	// arg 2 - len
++	MOVW	flags+8(FP), R2	// arg 3 - behav
++	SWI	$0xa0004b	// sys_madvise
++	MOVW.CS	$-1, R0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 21f13c806e..8e34ab497a 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -136,7 +136,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$-4
+ 	MOVL	$75, AX			// sys_madvise
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
++	MOVL	$-1, AX
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$-4
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 38ac38d9bf..227e81869c 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -305,7 +305,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVL	flags+16(FP), DX	// arg 3 - behav
+ 	MOVQ	$75, AX			// sys_madvise
+ 	SYSCALL
+-	// ignore failure - maybe pages are locked
++	JCC	2(PC)
++	MOVL	$-1, AX
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index ff1c1da9b9..52d3638bc1 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -143,8 +143,8 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
+ 	MOVW	flags+8(FP), R2		// arg 2 - flags
+ 	MOVW	$75, R12		// sys_madvise
+ 	SWI	$0
+-	MOVW.CS	$0, R8			// crash on syscall failure
+-	MOVW.CS	R8, (R8)
++	MOVW.CS	$-1, R0
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$0

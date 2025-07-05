@@ -14,6 +14,20 @@ Date:   Fri Jun 4 15:18:35 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/testing/fuzz.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 06f755b1ea..9f0bb1ec50 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -20,7 +20,7 @@ import (
+ func initFuzzFlags() {
+ 	matchFuzz = flag.String("test.fuzz", "", "run the fuzz target matching `regexp`")
+ 	flag.Var(&fuzzDuration, "test.fuzztime", "time to spend fuzzing; default is to run indefinitely")
+-	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a crash; default is to minimize for 60s")
++	flag.Var(&minimizeDuration, "test.fuzzminimizetime", "time to spend minimizing a value after finding a crash")
+ 	fuzzCacheDir = flag.String("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored")
+ 	isFuzzWorker = flag.Bool("test.fuzzworker", false, "coordinate with the parent process to fuzz random values")
+ }

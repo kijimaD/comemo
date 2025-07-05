@@ -12,7 +12,118 @@ Date:   Thu May 21 15:00:06 2015 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 25 -------------
  src/cmd/compile/internal/gc/walk.go     | 62 +++------------------------------
  2 files changed, 4 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 446ec038c8..6e384682fd 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -186,31 +186,6 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 	// as we do not instrument runtime code.
+ 	// typedslicecopy is instrumented in runtime.
+ 	case OCALLFUNC:
+-		if n.Left.Sym != nil && n.Left.Sym.Pkg == Runtimepkg && (strings.HasPrefix(n.Left.Sym.Name, "writebarrier") || n.Left.Sym.Name == "typedmemmove") {
+-			// Find the dst argument.
+-			// The list can be reordered, so it's not necessary just the first or the second element.
+-			var l *NodeList
+-			for l = n.List; l != nil; l = l.Next {
+-				if n.Left.Sym.Name == "typedmemmove" {
+-					if l.N.Left.Xoffset == int64(Widthptr) {
+-						break
+-					}
+-				} else {
+-					if l.N.Left.Xoffset == 0 {
+-						break
+-					}
+-				}
+-			}
+-
+-			if l == nil {
+-				Fatal("racewalk: writebarrier no arg")
+-			}
+-			if l.N.Right.Op != OADDR {
+-				Fatal("racewalk: writebarrier bad arg")
+-			}
+-			callinstr(&l.N.Right.Left, init, 1, 0)
+-		}
+-
+ 		racewalknode(&n.Left, init, 0, 0)
+ 		goto ret
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 11117666c7..04f0491c15 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2226,65 +2226,11 @@ var applywritebarrier_bv Bvec
+ 
+ func applywritebarrier(n *Node, init **NodeList) *Node {
+ 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
+-		if flag_race == 0 {
+-			if Debug_wb > 1 {
+-				Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
+-			}
+-			n.Op = OASWB
+-			return n
+-		}
+-		// Use slow path always for race detector.
+-		if Curfn != nil && Curfn.Func.Nowritebarrier {
+-			Yyerror("write barrier prohibited")
+-		}
+-		if Debug_wb > 0 {
+-			Warnl(int(n.Lineno), "write barrier")
+-		}
+-		t := n.Left.Type
+-		l := Nod(OADDR, n.Left, nil)
+-		l.Etype = 1 // addr does not escape
+-		if t.Width == int64(Widthptr) {
+-			n = mkcall1(writebarrierfn("writebarrierptr", t, n.Right.Type), nil, init, l, n.Right)
+-		} else if t.Etype == TSTRING {
+-			n = mkcall1(writebarrierfn("writebarrierstring", t, n.Right.Type), nil, init, l, n.Right)
+-		} else if Isslice(t) {
+-			n = mkcall1(writebarrierfn("writebarrierslice", t, n.Right.Type), nil, init, l, n.Right)
+-		} else if Isinter(t) {
+-			n = mkcall1(writebarrierfn("writebarrieriface", t, n.Right.Type), nil, init, l, n.Right)
+-		} else if t.Width <= int64(4*Widthptr) {
+-			x := int64(0)
+-			if applywritebarrier_bv.b == nil {
+-				applywritebarrier_bv = bvalloc(4)
+-			}
+-			bvresetall(applywritebarrier_bv)
+-			onebitwalktype1(t, &x, applywritebarrier_bv)
+-			var name string
+-			switch t.Width / int64(Widthptr) {
+-			default:
+-				Fatal("found writebarrierfat for %d-byte object of type %v", int(t.Width), t)
+-
+-			case 2:
+-				name = fmt.Sprintf("writebarrierfat%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1))
+-
+-			case 3:
+-				name = fmt.Sprintf("writebarrierfat%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2))
+-
+-			case 4:
+-				name = fmt.Sprintf("writebarrierfat%d%d%d%d", bvget(applywritebarrier_bv, 0), bvget(applywritebarrier_bv, 1), bvget(applywritebarrier_bv, 2), bvget(applywritebarrier_bv, 3))
+-			}
+-
+-			n = mkcall1(writebarrierfn(name, t, n.Right.Type), nil, init, l, Nodintconst(0), n.Right)
+-		} else {
+-			r := n.Right
+-			for r.Op == OCONVNOP {
+-				r = r.Left
+-			}
+-			r = Nod(OADDR, r, nil)
+-			r.Etype = 1 // addr does not escape
+-
+-			//warnl(n->lineno, "typedmemmove %T %N", t, r);
+-			n = mkcall1(writebarrierfn("typedmemmove", t, r.Left.Type), nil, init, typename(t), l, r)
++		if Debug_wb > 1 {
++			Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
+ 		}
++		n.Op = OASWB
++		return n
+ 	}
+ 	return n
+ }

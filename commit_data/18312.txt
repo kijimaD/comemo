@@ -7,6 +7,56 @@ Date:   Tue Jan 21 14:34:37 2014 -0800
     R=golang-codereviews, iant, khr, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/54160043
-
+---
  src/pkg/runtime/panic.c | 35 +++++++++++++++++++++++++----------
  1 file changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 7bd408aea8..73185273cb 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -355,19 +355,34 @@ runtime·startpanic(void)
+ 		m->mallocing = 1; // tell rest of panic not to try to malloc
+ 	} else if(m->mcache == nil) // can happen if called from signal handler or throw
+ 		m->mcache = runtime·allocmcache();
+-	if(m->dying) {
++	switch(m->dying) {
++	case 0:
++		m->dying = 1;
++		if(g != nil)
++			g->writebuf = nil;
++		runtime·xadd(&runtime·panicking, 1);
++		runtime·lock(&paniclk);
++		if(runtime·debug.schedtrace > 0 || runtime·debug.scheddetail > 0)
++			runtime·schedtrace(true);
++		runtime·freezetheworld();
++		return;
++	case 1:
++		// Something failed while panicing, probably the print of the
++		// argument to panic().  Just print a stack trace and exit.
++		m->dying = 2;
+ 		runtime·printf("panic during panic\n");
+ 		runtime·dopanic(0);
+-		runtime·exit(3); // not reached
++		runtime·exit(3);
++	case 2:
++		// This is a genuine bug in the runtime, we couldn't even
++		// print the stack trace successfully.
++		m->dying = 3;
++		runtime·printf("stack trace unavailable\n");
++		runtime·exit(4);
++	default:
++		// Can't even print!  Just exit.
++		runtime·exit(5);
+ 	}
+-	m->dying = 1;
+-	if(g != nil)
+-		g->writebuf = nil;
+-	runtime·xadd(&runtime·panicking, 1);
+-	runtime·lock(&paniclk);
+-	if(runtime·debug.schedtrace > 0 || runtime·debug.scheddetail > 0)
+-		runtime·schedtrace(true);
+-	runtime·freezetheworld();
+ }
+ 
+ void

@@ -9,6 +9,31 @@ Date:   Wed Dec 13 16:03:19 2017 -0800
     Change-Id: I468348d2b000f146f88ef8b7cf450eea8d1c12a7
     Reviewed-on: https://go-review.googlesource.com/83917
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/diagnostics.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index ea419d2c40..7a37dd98e4 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -254,7 +254,8 @@ trace spans. You need to manually instrument your code to create, end, and annot
+ <p><strong>How should I propagate trace headers in Go libraries?</strong></p>
+ 
+ <p>
+-You can propagate trace identifiers and tags in the <code>context.Context</code>.
++You can propagate trace identifiers and tags in the
++<a href="/pkg/context#Context"><code>context.Context</code></a>.
+ There is no canonical trace key or common representation of trace headers
+ in the industry yet. Each tracing provider is responsible for providing propagation
+ utilities in their Go libraries.
+@@ -267,7 +268,8 @@ runtime can be included in a trace?</strong>
+ 
+ <p>
+ The standard library and runtime are trying to expose several additional APIs
+-to notify on low level internal events. For example, httptrace.ClientTrace
++to notify on low level internal events. For example,
++<a href="/pkg/net/http/httptrace#ClientTrace"><code>httptrace.ClientTrace</code></a>
+ provides APIs to follow low-level events in the life cycle of an outgoing request.
+ There is an ongoing effort to retrieve low-level runtime events from
+ the runtime execution tracer and allow users to define and record their user events.

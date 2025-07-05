@@ -16,9 +16,158 @@ Date:   Tue Jul 9 14:01:56 2024 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/597356
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 29 ++++++++++++++++++++++++++
  src/cmd/compile/internal/types2/stmt.go        |  9 ++++----
  src/go/types/issues_test.go                    | 29 ++++++++++++++++++++++++++
  src/go/types/stmt.go                           |  9 ++++----
  4 files changed, 68 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index b4da3c0b91..20e3f52fac 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -1092,3 +1092,32 @@ func _() {
+ 	conf := Config{GoVersion: "go1.17"}
+ 	mustTypecheck(src, &conf, nil)
+ }
++
++func TestIssue68334(t *testing.T) {
++	const src = `
++package p
++
++func f(x int) {
++	for i, j := range x {
++		_, _ = i, j
++	}
++	var a, b int
++	for a, b = range x {
++		_, _ = a, b
++	}
++}
++`
++
++	got := ""
++	conf := Config{
++		GoVersion: "go1.21",                                      // #68334 requires GoVersion <= 1.21
++		Error:     func(err error) { got += err.Error() + "\n" }, // #68334 requires Error != nil
++	}
++	typecheck(src, &conf, nil) // do not crash
++
++	want := "p:5:20: cannot range over x (variable of type int): requires go1.22 or later\n" +
++		"p:9:19: cannot range over x (variable of type int): requires go1.22 or later\n"
++	if got != want {
++		t.Errorf("got: %s want: %s", got, want)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 58783f47c3..b598a4f068 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -920,14 +920,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 
+ 			// initialize lhs iteration variable, if any
+ 			typ := rhs[i]
+-			if typ == nil {
++			if typ == nil || typ == Typ[Invalid] {
++				// typ == Typ[Invalid] can happen if allowVersion fails.
+ 				obj.typ = Typ[Invalid]
+ 				obj.used = true // don't complain about unused variable
+ 				continue
+ 			}
+ 
+ 			if rangeOverInt {
+-				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
++				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
+ 				check.initVar(obj, &x, "range clause")
+ 			} else {
+ 				var y operand
+@@ -957,12 +958,12 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 
+ 			// assign to lhs iteration variable, if any
+ 			typ := rhs[i]
+-			if typ == nil {
++			if typ == nil || typ == Typ[Invalid] {
+ 				continue
+ 			}
+ 
+ 			if rangeOverInt {
+-				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
++				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
+ 				check.assignVar(lhs, nil, &x, "range clause")
+ 				// If the assignment succeeded, if x was untyped before, it now
+ 				// has a type inferred via the assignment. It must be an integer.
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index c99c9a9550..3f459d3883 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -1102,3 +1102,32 @@ func _() {
+ 	conf := Config{GoVersion: "go1.17"}
+ 	mustTypecheck(src, &conf, nil)
+ }
++
++func TestIssue68334(t *testing.T) {
++	const src = `
++package p
++
++func f(x int) {
++	for i, j := range x {
++		_, _ = i, j
++	}
++	var a, b int
++	for a, b = range x {
++		_, _ = a, b
++	}
++}
++`
++
++	got := ""
++	conf := Config{
++		GoVersion: "go1.21",                                      // #68334 requires GoVersion <= 1.21
++		Error:     func(err error) { got += err.Error() + "\n" }, // #68334 requires Error != nil
++	}
++	typecheck(src, &conf, nil) // do not crash
++
++	want := "p:5:20: cannot range over x (variable of type int): requires go1.22 or later\n" +
++		"p:9:19: cannot range over x (variable of type int): requires go1.22 or later\n"
++	if got != want {
++		t.Errorf("got: %s want: %s", got, want)
++	}
++}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 215b20160d..c9f7a4f929 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -922,14 +922,15 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 
+ 			// initialize lhs iteration variable, if any
+ 			typ := rhs[i]
+-			if typ == nil {
++			if typ == nil || typ == Typ[Invalid] {
++				// typ == Typ[Invalid] can happen if allowVersion fails.
+ 				obj.typ = Typ[Invalid]
+ 				obj.used = true // don't complain about unused variable
+ 				continue
+ 			}
+ 
+ 			if rangeOverInt {
+-				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
++				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
+ 				check.initVar(obj, &x, "range clause")
+ 			} else {
+ 				var y operand
+@@ -959,12 +960,12 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 
+ 			// assign to lhs iteration variable, if any
+ 			typ := rhs[i]
+-			if typ == nil {
++			if typ == nil || typ == Typ[Invalid] {
+ 				continue
+ 			}
+ 
+ 			if rangeOverInt {
+-				assert(i == 0) // at most one iteration variable (rhs[1] == nil for rangeOverInt)
++				assert(i == 0) // at most one iteration variable (rhs[1] == nil or Typ[Invalid] for rangeOverInt)
+ 				check.assignVar(lhs, nil, &x, "range clause")
+ 				// If the assignment succeeded, if x was untyped before, it now
+ 				// has a type inferred via the assignment. It must be an integer.

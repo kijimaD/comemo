@@ -16,7 +16,7 @@ Date:   Thu Oct 22 16:37:19 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/264480
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go      |  6 ++--
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  src/reflect/deepequal.go                 | 12 +++++++-
@@ -24,3 +24,209 @@ Date:   Thu Oct 22 16:37:19 2020 -0700
  src/runtime/netpoll.go                   | 47 ++++++++++++++++++++++----------
  test/fixedbugs/issue42076.go             | 21 ++++++++++++++
  6 files changed, 81 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index eccd6f8a74..defefd76b3 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1854,8 +1854,10 @@ func isdirectiface(t *types.Type) bool {
+ 	}
+ 
+ 	switch t.Etype {
+-	case TPTR,
+-		TCHAN,
++	case TPTR:
++		// Pointers to notinheap types must be stored indirectly. See issue 42076.
++		return !t.Elem().NotInHeap()
++	case TCHAN,
+ 		TMAP,
+ 		TFUNC,
+ 		TUNSAFEPTR:
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index ce817db446..8ebeaf1330 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2516,7 +2516,7 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 				n.Left = nod(OADDR, n.Left, nil)
+ 				n.Left.SetImplicit(true)
+ 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
+-			} else if tt.IsPtr() && !rcvr.IsPtr() && types.Identical(tt.Elem(), rcvr) {
++			} else if tt.IsPtr() && (!rcvr.IsPtr() || rcvr.IsPtr() && rcvr.Elem().NotInHeap()) && types.Identical(tt.Elem(), rcvr) {
+ 				n.Left = nod(ODEREF, n.Left, nil)
+ 				n.Left.SetImplicit(true)
+ 				n.Left = typecheck(n.Left, ctxType|ctxExpr)
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index be66464129..d951d8d999 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -35,7 +35,17 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 	// and it's safe and valid to get Value's internal pointer.
+ 	hard := func(v1, v2 Value) bool {
+ 		switch v1.Kind() {
+-		case Map, Slice, Ptr, Interface:
++		case Ptr:
++			if v1.typ.ptrdata == 0 {
++				// go:notinheap pointers can't be cyclic.
++				// At least, all of our current uses of go:notinheap have
++				// that property. The runtime ones aren't cyclic (and we don't use
++				// DeepEqual on them anyway), and the cgo-generated ones are
++				// all empty structs.
++				return false
++			}
++			fallthrough
++		case Map, Slice, Interface:
+ 			// Nil pointers cannot be cyclic. Avoid putting them in the visited map.
+ 			return !v1.IsNil() && !v2.IsNil()
+ 		}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index bb6371b867..24eab6a2c6 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -90,6 +90,7 @@ func (f flag) ro() flag {
+ 
+ // pointer returns the underlying pointer represented by v.
+ // v.Kind() must be Ptr, Map, Chan, Func, or UnsafePointer
++// if v.Kind() == Ptr, the base type must not be go:notinheap.
+ func (v Value) pointer() unsafe.Pointer {
+ 	if v.typ.size != ptrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+@@ -1453,7 +1454,16 @@ func (v Value) Pointer() uintptr {
+ 	// TODO: deprecate
+ 	k := v.kind()
+ 	switch k {
+-	case Chan, Map, Ptr, UnsafePointer:
++	case Ptr:
++		if v.typ.ptrdata == 0 {
++			// Handle pointers to go:notinheap types directly,
++			// so we never materialize such pointers as an
++			// unsafe.Pointer. (Such pointers are always indirect.)
++			// See issue 42076.
++			return *(*uintptr)(v.ptr)
++		}
++		fallthrough
++	case Chan, Map, UnsafePointer:
+ 		return uintptr(v.pointer())
+ 	case Func:
+ 		if v.flag&flagMethod != 0 {
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 34ea82a7fa..77eb3aa4c6 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -79,16 +79,17 @@ type pollDesc struct {
+ 	lock    mutex // protects the following fields
+ 	fd      uintptr
+ 	closing bool
+-	everr   bool    // marks event scanning error happened
+-	user    uint32  // user settable cookie
+-	rseq    uintptr // protects from stale read timers
+-	rg      uintptr // pdReady, pdWait, G waiting for read or nil
+-	rt      timer   // read deadline timer (set if rt.f != nil)
+-	rd      int64   // read deadline
+-	wseq    uintptr // protects from stale write timers
+-	wg      uintptr // pdReady, pdWait, G waiting for write or nil
+-	wt      timer   // write deadline timer
+-	wd      int64   // write deadline
++	everr   bool      // marks event scanning error happened
++	user    uint32    // user settable cookie
++	rseq    uintptr   // protects from stale read timers
++	rg      uintptr   // pdReady, pdWait, G waiting for read or nil
++	rt      timer     // read deadline timer (set if rt.f != nil)
++	rd      int64     // read deadline
++	wseq    uintptr   // protects from stale write timers
++	wg      uintptr   // pdReady, pdWait, G waiting for write or nil
++	wt      timer     // write deadline timer
++	wd      int64     // write deadline
++	self    *pollDesc // storage for indirect interface. See (*pollDesc).makeArg.
+ }
+ 
+ type pollCache struct {
+@@ -157,6 +158,7 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+ 	pd.wseq++
+ 	pd.wg = 0
+ 	pd.wd = 0
++	pd.self = pd
+ 	unlock(&pd.lock)
+ 
+ 	var errno int32
+@@ -271,14 +273,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 			// Copy current seq into the timer arg.
+ 			// Timer func will check the seq against current descriptor seq,
+ 			// if they differ the descriptor was reused or timers were reset.
+-			pd.rt.arg = pd
++			pd.rt.arg = pd.makeArg()
+ 			pd.rt.seq = pd.rseq
+ 			resettimer(&pd.rt, pd.rd)
+ 		}
+ 	} else if pd.rd != rd0 || combo != combo0 {
+ 		pd.rseq++ // invalidate current timers
+ 		if pd.rd > 0 {
+-			modtimer(&pd.rt, pd.rd, 0, rtf, pd, pd.rseq)
++			modtimer(&pd.rt, pd.rd, 0, rtf, pd.makeArg(), pd.rseq)
+ 		} else {
+ 			deltimer(&pd.rt)
+ 			pd.rt.f = nil
+@@ -287,14 +289,14 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	if pd.wt.f == nil {
+ 		if pd.wd > 0 && !combo {
+ 			pd.wt.f = netpollWriteDeadline
+-			pd.wt.arg = pd
++			pd.wt.arg = pd.makeArg()
+ 			pd.wt.seq = pd.wseq
+ 			resettimer(&pd.wt, pd.wd)
+ 		}
+ 	} else if pd.wd != wd0 || combo != combo0 {
+ 		pd.wseq++ // invalidate current timers
+ 		if pd.wd > 0 && !combo {
+-			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd, pd.wseq)
++			modtimer(&pd.wt, pd.wd, 0, netpollWriteDeadline, pd.makeArg(), pd.wseq)
+ 		} else {
+ 			deltimer(&pd.wt)
+ 			pd.wt.f = nil
+@@ -547,3 +549,20 @@ func (c *pollCache) alloc() *pollDesc {
+ 	unlock(&c.lock)
+ 	return pd
+ }
++
++// makeArg converts pd to an interface{}.
++// makeArg does not do any allocation. Normally, such
++// a conversion requires an allocation because pointers to
++// go:notinheap types (which pollDesc is) must be stored
++// in interfaces indirectly. See issue 42076.
++func (pd *pollDesc) makeArg() (i interface{}) {
++	x := (*eface)(unsafe.Pointer(&i))
++	x._type = pdType
++	x.data = unsafe.Pointer(&pd.self)
++	return
++}
++
++var (
++	pdEface interface{} = (*pollDesc)(nil)
++	pdType  *_type      = efaceOf(&pdEface)._type
++)
+diff --git a/test/fixedbugs/issue42076.go b/test/fixedbugs/issue42076.go
+new file mode 100644
+index 0000000000..3e954813c9
+--- /dev/null
++++ b/test/fixedbugs/issue42076.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package main
++
++import "reflect"
++
++//go:notinheap
++type NIH struct {
++}
++
++var x, y NIH
++
++func main() {
++	if reflect.DeepEqual(&x, &y) != true {
++		panic("should report true")
++	}
++}

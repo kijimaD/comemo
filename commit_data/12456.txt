@@ -16,6 +16,44 @@ Date:   Wed Mar 7 00:41:24 2012 -0500
     R=golang-dev, mikioh.mikioh, r
     CC=golang-dev
     https://golang.org/cl/5754062
-
+---
  src/pkg/net/dial_test.go | 14 ++++++++++++--
  1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 3881953bb5..f9c47d02bb 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"flag"
++	"fmt"
+ 	"regexp"
+ 	"runtime"
+ 	"testing"
+@@ -44,13 +45,22 @@ func TestDialTimeout(t *testing.T) {
+ 				errc <- err
+ 			}()
+ 		}
+-	case "darwin":
++	case "darwin", "windows":
+ 		// At least OS X 10.7 seems to accept any number of
+ 		// connections, ignoring listen's backlog, so resort
+ 		// to connecting to a hopefully-dead 127/8 address.
+ 		// Same for windows.
++		//
++		// Use a bogus port (44444) instead of 80, because
++		// on our 386 builder, this Dial succeeds, connecting
++		// to an IIS web server somewhere.  The data center
++		// or VM or firewall must be stealing the TCP connection.
+ 		go func() {
+-			_, err := DialTimeout("tcp", "127.0.71.111:80", 200*time.Millisecond)
++			c, err := DialTimeout("tcp", "127.0.71.111:44444", 200*time.Millisecond)
++			if err == nil {
++				err = fmt.Errorf("unexpected: connected to %s!", c.RemoteAddr())
++				c.Close()
++			}
+ 			errc <- err
+ 		}()
+ 	default:

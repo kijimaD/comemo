@@ -17,7 +17,7 @@ Date:   Thu Dec 3 21:02:19 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/copy.go  |   6 +-
  src/cmd/compile/internal/ir/expr.go  | 171 ++++++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/ir/func.go  |  22 +++--
@@ -27,3 +27,971 @@ Date:   Thu Dec 3 21:02:19 2020 -0500
  src/cmd/compile/internal/ir/type.go  |  74 ++++++++++++++-
  src/cmd/compile/internal/ir/visit.go |  30 +-----
  8 files changed, 419 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/copy.go b/src/cmd/compile/internal/ir/copy.go
+index 8d174d6e53..86e78cfc33 100644
+--- a/src/cmd/compile/internal/ir/copy.go
++++ b/src/cmd/compile/internal/ir/copy.go
+@@ -65,9 +65,9 @@ func Copy(n Node) Node {
+ }
+ 
+ func copyList(x Nodes) Nodes {
+-	out := make([]Node, x.Len())
+-	copy(out, x.Slice())
+-	return AsNodes(out)
++	c := make([]Node, x.Len())
++	copy(c, x.Slice())
++	return AsNodes(c)
+ }
+ 
+ // A Node can implement DeepCopyNode to provide a custom implementation
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 7431a56d94..9e5dfaf0f2 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -12,6 +12,20 @@ import (
+ 	"go/constant"
+ )
+ 
++func maybeDo(x Node, err error, do func(Node) error) error {
++	if x != nil && err == nil {
++		err = do(x)
++	}
++	return err
++}
++
++func maybeDoList(x Nodes, err error, do func(Node) error) error {
++	if err == nil {
++		err = DoList(x, do)
++	}
++	return err
++}
++
+ // A miniStmt is a miniNode with extra fields common to expressions.
+ // TODO(rsc): Once we are sure about the contents, compact the bools
+ // into a bit field and leave extra bits available for implementations
+@@ -82,6 +96,12 @@ func (n *AddStringExpr) copy() Node {
+ 	c.list = c.list.Copy()
+ 	return &c
+ }
++func (n *AddStringExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.list, err, do)
++	return err
++}
+ 
+ func (n *AddStringExpr) List() Nodes     { return n.list }
+ func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
+@@ -109,6 +129,12 @@ func (n *AddrExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *AddrExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *AddrExpr) Left() Node      { return n.X }
+ func (n *AddrExpr) SetLeft(x Node)  { n.X = x }
+@@ -146,6 +172,13 @@ func (n *BinaryExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *BinaryExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Y, err, do)
++	return err
++}
+ 
+ func (n *BinaryExpr) Left() Node      { return n.X }
+ func (n *BinaryExpr) SetLeft(x Node)  { n.X = x }
+@@ -207,6 +240,15 @@ func (n *CallExpr) copy() Node {
+ 	c.body = c.body.Copy()
+ 	return &c
+ }
++func (n *CallExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDoList(n.Args, err, do)
++	err = maybeDoList(n.Rargs, err, do)
++	err = maybeDoList(n.body, err, do)
++	return err
++}
+ 
+ func (n *CallExpr) Orig() Node         { return n.orig }
+ func (n *CallExpr) SetOrig(x Node)     { n.orig = x }
+@@ -260,6 +302,12 @@ func (n *CallPartExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *CallPartExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *CallPartExpr) Func() *Func     { return n.fn }
+ func (n *CallPartExpr) Left() Node      { return n.X }
+@@ -286,6 +334,11 @@ func (n *ClosureExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *ClosureExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ func (n *ClosureExpr) Func() *Func { return n.fn }
+ 
+@@ -312,6 +365,11 @@ func (n *ClosureRead) copy() Node {
+ 
+ func (n *ClosureRead) Type() *types.Type { return n.typ }
+ func (n *ClosureRead) Offset() int64     { return n.offset }
++func (n *ClosureRead) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ // A CompLitExpr is a composite literal Type{Vals}.
+ // Before type-checking, the type is Ntype.
+@@ -339,6 +397,13 @@ func (n *CompLitExpr) copy() Node {
+ 	c.list = c.list.Copy()
+ 	return &c
+ }
++func (n *CompLitExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Ntype, err, do)
++	err = maybeDoList(n.list, err, do)
++	return err
++}
+ 
+ func (n *CompLitExpr) Orig() Node      { return n.orig }
+ func (n *CompLitExpr) SetOrig(x Node)  { n.orig = x }
+@@ -373,9 +438,10 @@ func NewConstExpr(val constant.Value, orig Node) Node {
+ 	return n
+ }
+ 
+-func (n *ConstExpr) String() string                { return fmt.Sprint(n) }
+-func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *ConstExpr) copy() Node                    { c := *n; return &c }
++func (n *ConstExpr) String() string                       { return fmt.Sprint(n) }
++func (n *ConstExpr) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
++func (n *ConstExpr) copy() Node                           { c := *n; return &c }
++func (n *ConstExpr) doChildren(do func(Node) error) error { return nil }
+ 
+ func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
+ func (n *ConstExpr) Orig() Node          { return n.orig }
+@@ -406,6 +472,12 @@ func (n *ConvExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *ConvExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *ConvExpr) rawCopy() Node  { c := *n; return &c }
+ func (n *ConvExpr) Left() Node     { return n.X }
+@@ -442,6 +514,13 @@ func (n *IndexExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *IndexExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Index, err, do)
++	return err
++}
+ 
+ func (n *IndexExpr) Left() Node               { return n.X }
+ func (n *IndexExpr) SetLeft(x Node)           { n.X = x }
+@@ -484,6 +563,13 @@ func (n *KeyExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *KeyExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Key, err, do)
++	err = maybeDo(n.Value, err, do)
++	return err
++}
+ 
+ func (n *KeyExpr) Left() Node          { return n.Key }
+ func (n *KeyExpr) SetLeft(x Node)      { n.Key = x }
+@@ -528,6 +614,13 @@ func (n *InlinedCallExpr) copy() Node {
+ 	c.ReturnVars = c.ReturnVars.Copy()
+ 	return &c
+ }
++func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.ReturnVars, err, do)
++	return err
++}
+ 
+ func (n *InlinedCallExpr) Body() Nodes      { return n.body }
+ func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
+@@ -559,6 +652,13 @@ func (n *MakeExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *MakeExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Len, err, do)
++	err = maybeDo(n.Cap, err, do)
++	return err
++}
+ 
+ func (n *MakeExpr) Left() Node      { return n.Len }
+ func (n *MakeExpr) SetLeft(x Node)  { n.Len = x }
+@@ -574,7 +674,7 @@ func (n *MakeExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A MethodExpr is a method expression X.M (where X is an expression, not a type).
++// A MethodExpr is a method value X.M (where X is an expression, not a type).
+ type MethodExpr struct {
+ 	miniExpr
+ 	X      Node
+@@ -600,6 +700,13 @@ func (n *MethodExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *MethodExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.M, err, do)
++	return err
++}
+ 
+ func (n *MethodExpr) Left() Node          { return n.X }
+ func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
+@@ -633,6 +740,11 @@ func (n *NilExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *NilExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ func (n *NilExpr) Sym() *types.Sym     { return n.sym }
+ func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
+@@ -658,6 +770,12 @@ func (n *ParenExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *ParenExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *ParenExpr) Left() Node     { return n.X }
+ func (n *ParenExpr) SetLeft(x Node) { n.X = x }
+@@ -693,6 +811,11 @@ func (n *ResultExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *ResultExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ func (n *ResultExpr) Offset() int64     { return n.offset }
+ func (n *ResultExpr) SetOffset(x int64) { n.offset = x }
+@@ -730,6 +853,12 @@ func (n *SelectorExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *SelectorExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *SelectorExpr) Left() Node          { return n.X }
+ func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
+@@ -764,6 +893,13 @@ func (n *SliceExpr) copy() Node {
+ 	c.list = c.list.Copy()
+ 	return &c
+ }
++func (n *SliceExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDoList(n.list, err, do)
++	return err
++}
+ 
+ func (n *SliceExpr) Left() Node      { return n.X }
+ func (n *SliceExpr) SetLeft(x Node)  { n.X = x }
+@@ -871,6 +1007,13 @@ func (n *SliceHeaderExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Ptr, err, do)
++	err = maybeDoList(n.lenCap, err, do)
++	return err
++}
+ 
+ func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
+ func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
+@@ -899,6 +1042,12 @@ func (n *StarExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *StarExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *StarExpr) Left() Node     { return n.X }
+ func (n *StarExpr) SetLeft(x Node) { n.X = x }
+@@ -949,6 +1098,14 @@ func (n *TypeAssertExpr) copy() Node {
+ 	c.Itab = c.Itab.Copy()
+ 	return &c
+ }
++func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Ntype, err, do)
++	err = maybeDoList(n.Itab, err, do)
++	return err
++}
+ 
+ func (n *TypeAssertExpr) Left() Node      { return n.X }
+ func (n *TypeAssertExpr) SetLeft(x Node)  { n.X = x }
+@@ -988,6 +1145,12 @@ func (n *UnaryExpr) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *UnaryExpr) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *UnaryExpr) Left() Node     { return n.X }
+ func (n *UnaryExpr) SetLeft(x Node) { n.X = x }
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index ae803cd6a5..342b7a91e7 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -118,14 +118,20 @@ func NewFunc(pos src.XPos) *Func {
+ func (f *Func) String() string                { return fmt.Sprint(f) }
+ func (f *Func) Format(s fmt.State, verb rune) { FmtNode(f, s, verb) }
+ func (f *Func) copy() Node                    { panic(f.no("copy")) }
+-func (f *Func) Func() *Func                   { return f }
+-func (f *Func) Body() Nodes                   { return f.body }
+-func (f *Func) PtrBody() *Nodes               { return &f.body }
+-func (f *Func) SetBody(x Nodes)               { f.body = x }
+-func (f *Func) Type() *types.Type             { return f.typ }
+-func (f *Func) SetType(x *types.Type)         { f.typ = x }
+-func (f *Func) Iota() int64                   { return f.iota }
+-func (f *Func) SetIota(x int64)               { f.iota = x }
++func (f *Func) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(f.body, err, do)
++	return err
++}
++
++func (f *Func) Func() *Func           { return f }
++func (f *Func) Body() Nodes           { return f.body }
++func (f *Func) PtrBody() *Nodes       { return &f.body }
++func (f *Func) SetBody(x Nodes)       { f.body = x }
++func (f *Func) Type() *types.Type     { return f.typ }
++func (f *Func) SetType(x *types.Type) { f.typ = x }
++func (f *Func) Iota() int64           { return f.iota }
++func (f *Func) SetIota(x int64)       { f.iota = x }
+ 
+ func (f *Func) Sym() *types.Sym {
+ 	if f.Nname != nil {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index dc8c58e4f4..2ff1fbc683 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -149,22 +149,24 @@ func newNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+ 	return n
+ }
+ 
+-func (n *Name) String() string                { return fmt.Sprint(n) }
+-func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+-func (n *Name) copy() Node                    { c := *n; return &c }
+-func (n *Name) Name() *Name                   { return n }
+-func (n *Name) Sym() *types.Sym               { return n.sym }
+-func (n *Name) SetSym(x *types.Sym)           { n.sym = x }
+-func (n *Name) SubOp() Op                     { return n.subOp }
+-func (n *Name) SetSubOp(x Op)                 { n.subOp = x }
+-func (n *Name) Class() Class                  { return n.class }
+-func (n *Name) SetClass(x Class)              { n.class = x }
+-func (n *Name) Func() *Func                   { return n.fn }
+-func (n *Name) SetFunc(x *Func)               { n.fn = x }
+-func (n *Name) Offset() int64                 { return n.offset }
+-func (n *Name) SetOffset(x int64)             { n.offset = x }
+-func (n *Name) Iota() int64                   { return n.offset }
+-func (n *Name) SetIota(x int64)               { n.offset = x }
++func (n *Name) String() string                       { return fmt.Sprint(n) }
++func (n *Name) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
++func (n *Name) copy() Node                           { c := *n; return &c }
++func (n *Name) doChildren(do func(Node) error) error { return nil }
++
++func (n *Name) Name() *Name         { return n }
++func (n *Name) Sym() *types.Sym     { return n.sym }
++func (n *Name) SetSym(x *types.Sym) { n.sym = x }
++func (n *Name) SubOp() Op           { return n.subOp }
++func (n *Name) SetSubOp(x Op)       { n.subOp = x }
++func (n *Name) Class() Class        { return n.class }
++func (n *Name) SetClass(x Class)    { n.class = x }
++func (n *Name) Func() *Func         { return n.fn }
++func (n *Name) SetFunc(x *Func)     { n.fn = x }
++func (n *Name) Offset() int64       { return n.offset }
++func (n *Name) SetOffset(x int64)   { n.offset = x }
++func (n *Name) Iota() int64         { return n.offset }
++func (n *Name) SetIota(x int64)     { n.offset = x }
+ 
+ func (*Name) CanBeNtype() {}
+ 
+@@ -321,10 +323,12 @@ type PkgName struct {
+ 	Used bool
+ }
+ 
+-func (p *PkgName) String() string                { return fmt.Sprint(p) }
+-func (p *PkgName) Format(s fmt.State, verb rune) { FmtNode(p, s, verb) }
+-func (p *PkgName) copy() Node                    { c := *p; return &c }
+-func (p *PkgName) Sym() *types.Sym               { return p.sym }
++func (p *PkgName) String() string                       { return fmt.Sprint(p) }
++func (p *PkgName) Format(s fmt.State, verb rune)        { FmtNode(p, s, verb) }
++func (p *PkgName) copy() Node                           { c := *p; return &c }
++func (p *PkgName) doChildren(do func(Node) error) error { return nil }
++
++func (p *PkgName) Sym() *types.Sym { return p.sym }
+ 
+ func (*PkgName) CanBeNtype() {}
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 705eb9e47e..02ab87846f 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -30,6 +30,8 @@ type Node interface {
+ 	// For making copies. For Copy and SepCopy.
+ 	copy() Node
+ 
++	doChildren(func(Node) error) error
++
+ 	// Abstract graph structure, for generic traversals.
+ 	Op() Op
+ 	SetOp(x Op)
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 5af6a62cf2..b940c5f59d 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -11,7 +11,6 @@ import (
+ )
+ 
+ // A Decl is a declaration of a const, type, or var. (A declared func is a Func.)
+-// (This is not technically a statement but it's not worth its own file.)
+ type Decl struct {
+ 	miniNode
+ 	X Node // the thing being declared
+@@ -32,8 +31,14 @@ func NewDecl(pos src.XPos, op Op, x Node) *Decl {
+ func (n *Decl) String() string                { return fmt.Sprint(n) }
+ func (n *Decl) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *Decl) copy() Node                    { c := *n; return &c }
+-func (n *Decl) Left() Node                    { return n.X }
+-func (n *Decl) SetLeft(x Node)                { n.X = x }
++func (n *Decl) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDo(n.X, err, do)
++	return err
++}
++
++func (n *Decl) Left() Node     { return n.X }
++func (n *Decl) SetLeft(x Node) { n.X = x }
+ 
+ // A miniStmt is a miniNode with extra fields common to statements.
+ type miniStmt struct {
+@@ -77,6 +82,13 @@ func (n *AssignListStmt) copy() Node {
+ 	c.Rhs = c.Rhs.Copy()
+ 	return &c
+ }
++func (n *AssignListStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.Lhs, err, do)
++	err = maybeDoList(n.Rhs, err, do)
++	return err
++}
+ 
+ func (n *AssignListStmt) List() Nodes       { return n.Lhs }
+ func (n *AssignListStmt) PtrList() *Nodes   { return &n.Lhs }
+@@ -123,6 +135,13 @@ func (n *AssignStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *AssignStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Y, err, do)
++	return err
++}
+ 
+ func (n *AssignStmt) Left() Node        { return n.X }
+ func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
+@@ -166,6 +185,13 @@ func (n *AssignOpStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *AssignOpStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDo(n.Y, err, do)
++	return err
++}
+ 
+ func (n *AssignOpStmt) Left() Node            { return n.X }
+ func (n *AssignOpStmt) SetLeft(x Node)        { n.X = x }
+@@ -200,6 +226,12 @@ func (n *BlockStmt) copy() Node {
+ 	c.list = c.list.Copy()
+ 	return &c
+ }
++func (n *BlockStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.list, err, do)
++	return err
++}
+ 
+ func (n *BlockStmt) List() Nodes     { return n.list }
+ func (n *BlockStmt) PtrList() *Nodes { return &n.list }
+@@ -234,6 +266,11 @@ func (n *BranchStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *BranchStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ func (n *BranchStmt) Sym() *types.Sym       { return n.Label }
+ func (n *BranchStmt) SetSym(sym *types.Sym) { n.Label = sym }
+@@ -266,6 +303,15 @@ func (n *CaseStmt) copy() Node {
+ 	c.body = c.body.Copy()
+ 	return &c
+ }
++func (n *CaseStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.Vars, err, do)
++	err = maybeDoList(n.list, err, do)
++	err = maybeDo(n.Comm, err, do)
++	err = maybeDoList(n.body, err, do)
++	return err
++}
+ 
+ func (n *CaseStmt) List() Nodes      { return n.list }
+ func (n *CaseStmt) PtrList() *Nodes  { return &n.list }
+@@ -299,6 +345,12 @@ func (n *DeferStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *DeferStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Call, err, do)
++	return err
++}
+ 
+ func (n *DeferStmt) Left() Node     { return n.Call }
+ func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
+@@ -309,8 +361,8 @@ type ForStmt struct {
+ 	miniStmt
+ 	Label    *types.Sym
+ 	Cond     Node
+-	Post     Node
+ 	Late     Nodes
++	Post     Node
+ 	body     Nodes
+ 	hasBreak bool
+ }
+@@ -333,6 +385,15 @@ func (n *ForStmt) copy() Node {
+ 	c.body = c.body.Copy()
+ 	return &c
+ }
++func (n *ForStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Cond, err, do)
++	err = maybeDoList(n.Late, err, do)
++	err = maybeDo(n.Post, err, do)
++	err = maybeDoList(n.body, err, do)
++	return err
++}
+ 
+ func (n *ForStmt) Sym() *types.Sym     { return n.Label }
+ func (n *ForStmt) SetSym(x *types.Sym) { n.Label = x }
+@@ -376,6 +437,12 @@ func (n *GoStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *GoStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Call, err, do)
++	return err
++}
+ 
+ func (n *GoStmt) Left() Node     { return n.Call }
+ func (n *GoStmt) SetLeft(x Node) { n.Call = x }
+@@ -407,6 +474,14 @@ func (n *IfStmt) copy() Node {
+ 	c.Else = c.Else.Copy()
+ 	return &c
+ }
++func (n *IfStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Cond, err, do)
++	err = maybeDoList(n.body, err, do)
++	err = maybeDoList(n.Else, err, do)
++	return err
++}
+ 
+ func (n *IfStmt) Left() Node       { return n.Cond }
+ func (n *IfStmt) SetLeft(x Node)   { n.Cond = x }
+@@ -439,6 +514,11 @@ func (n *InlineMarkStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ func (n *InlineMarkStmt) Offset() int64     { return n.Index }
+ func (n *InlineMarkStmt) SetOffset(x int64) { n.Index = x }
+@@ -463,6 +543,11 @@ func (n *LabelStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *LabelStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	return err
++}
+ 
+ func (n *LabelStmt) Sym() *types.Sym     { return n.Label }
+ func (n *LabelStmt) SetSym(x *types.Sym) { n.Label = x }
+@@ -498,6 +583,14 @@ func (n *RangeStmt) copy() Node {
+ 	c.body = c.body.Copy()
+ 	return &c
+ }
++func (n *RangeStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.Vars, err, do)
++	err = maybeDo(n.X, err, do)
++	err = maybeDoList(n.body, err, do)
++	return err
++}
+ 
+ func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
+ func (n *RangeStmt) SetSym(x *types.Sym)   { n.Label = x }
+@@ -540,6 +633,12 @@ func (n *ReturnStmt) copy() Node {
+ 	c.Results = c.Results.Copy()
+ 	return &c
+ }
++func (n *ReturnStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.Results, err, do)
++	return err
++}
+ 
+ func (n *ReturnStmt) Orig() Node      { return n.orig }
+ func (n *ReturnStmt) SetOrig(x Node)  { n.orig = x }
+@@ -576,6 +675,13 @@ func (n *SelectStmt) copy() Node {
+ 	c.Compiled = c.Compiled.Copy()
+ 	return &c
+ }
++func (n *SelectStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDoList(n.Cases, err, do)
++	err = maybeDoList(n.Compiled, err, do)
++	return err
++}
+ 
+ func (n *SelectStmt) List() Nodes         { return n.Cases }
+ func (n *SelectStmt) PtrList() *Nodes     { return &n.Cases }
+@@ -609,6 +715,13 @@ func (n *SendStmt) copy() Node {
+ 	c.init = c.init.Copy()
+ 	return &c
+ }
++func (n *SendStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Chan, err, do)
++	err = maybeDo(n.Value, err, do)
++	return err
++}
+ 
+ func (n *SendStmt) Left() Node      { return n.Chan }
+ func (n *SendStmt) SetLeft(x Node)  { n.Chan = x }
+@@ -644,6 +757,14 @@ func (n *SwitchStmt) copy() Node {
+ 	c.Compiled = c.Compiled.Copy()
+ 	return &c
+ }
++func (n *SwitchStmt) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoList(n.init, err, do)
++	err = maybeDo(n.Tag, err, do)
++	err = maybeDoList(n.Cases, err, do)
++	err = maybeDoList(n.Compiled, err, do)
++	return err
++}
+ 
+ func (n *SwitchStmt) Left() Node          { return n.Tag }
+ func (n *SwitchStmt) SetLeft(x Node)      { n.Tag = x }
+@@ -678,6 +799,14 @@ func NewTypeSwitchGuard(pos src.XPos, name, x Node) *TypeSwitchGuard {
+ func (n *TypeSwitchGuard) String() string                { return fmt.Sprint(n) }
+ func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *TypeSwitchGuard) copy() Node                    { c := *n; return &c }
++func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
++	var err error
++	if n.name != nil {
++		err = maybeDo(n.name, err, do)
++	}
++	err = maybeDo(n.X, err, do)
++	return err
++}
+ 
+ func (n *TypeSwitchGuard) Left() Node {
+ 	if n.name == nil {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index a8af99034d..2723c00044 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -75,6 +75,11 @@ func NewChanType(pos src.XPos, elem Node, dir types.ChanDir) *ChanType {
+ func (n *ChanType) String() string                { return fmt.Sprint(n) }
+ func (n *ChanType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *ChanType) copy() Node                    { c := *n; return &c }
++func (n *ChanType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDo(n.Elem, err, do)
++	return err
++}
+ func (n *ChanType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Elem = nil
+@@ -105,6 +110,12 @@ func NewMapType(pos src.XPos, key, elem Node) *MapType {
+ func (n *MapType) String() string                { return fmt.Sprint(n) }
+ func (n *MapType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *MapType) copy() Node                    { c := *n; return &c }
++func (n *MapType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDo(n.Key, err, do)
++	err = maybeDo(n.Elem, err, do)
++	return err
++}
+ func (n *MapType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Key = nil
+@@ -139,6 +150,11 @@ func (n *StructType) copy() Node {
+ 	c.Fields = copyFields(c.Fields)
+ 	return &c
+ }
++func (n *StructType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoFields(n.Fields, err, do)
++	return err
++}
+ 
+ func (n *StructType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+@@ -181,6 +197,11 @@ func (n *InterfaceType) copy() Node {
+ 	c.Methods = copyFields(c.Methods)
+ 	return &c
+ }
++func (n *InterfaceType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoFields(n.Methods, err, do)
++	return err
++}
+ 
+ func (n *InterfaceType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+@@ -221,6 +242,13 @@ func (n *FuncType) copy() Node {
+ 	c.Results = copyFields(c.Results)
+ 	return &c
+ }
++func (n *FuncType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDoField(n.Recv, err, do)
++	err = maybeDoFields(n.Params, err, do)
++	err = maybeDoFields(n.Results, err, do)
++	return err
++}
+ 
+ func (n *FuncType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+@@ -284,6 +312,31 @@ func copyFields(list []*Field) []*Field {
+ 	return out
+ }
+ 
++func maybeDoField(f *Field, err error, do func(Node) error) error {
++	if f != nil {
++		if err == nil && f.Decl != nil {
++			err = do(f.Decl)
++		}
++		if err == nil && f.Ntype != nil {
++			err = do(f.Ntype)
++		}
++	}
++	return err
++}
++
++func maybeDoFields(list []*Field, err error, do func(Node) error) error {
++	if err != nil {
++		return err
++	}
++	for _, f := range list {
++		err = maybeDoField(f, err, do)
++		if err != nil {
++			return err
++		}
++	}
++	return err
++}
++
+ func (f *Field) deepCopy(pos src.XPos) *Field {
+ 	if f == nil {
+ 		return nil
+@@ -322,6 +375,11 @@ func NewSliceType(pos src.XPos, elem Node) *SliceType {
+ func (n *SliceType) String() string                { return fmt.Sprint(n) }
+ func (n *SliceType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *SliceType) copy() Node                    { c := *n; return &c }
++func (n *SliceType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDo(n.Elem, err, do)
++	return err
++}
+ func (n *SliceType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Elem = nil
+@@ -353,6 +411,12 @@ func NewArrayType(pos src.XPos, size Node, elem Node) *ArrayType {
+ func (n *ArrayType) String() string                { return fmt.Sprint(n) }
+ func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *ArrayType) copy() Node                    { c := *n; return &c }
++func (n *ArrayType) doChildren(do func(Node) error) error {
++	var err error
++	err = maybeDo(n.Len, err, do)
++	err = maybeDo(n.Elem, err, do)
++	return err
++}
+ 
+ func (n *ArrayType) DeepCopy(pos src.XPos) Node {
+ 	if n.op == OTYPE {
+@@ -384,9 +448,13 @@ func newTypeNode(pos src.XPos, typ *types.Type) *typeNode {
+ func (n *typeNode) String() string                { return fmt.Sprint(n) }
+ func (n *typeNode) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *typeNode) copy() Node                    { c := *n; return &c }
+-func (n *typeNode) Type() *types.Type             { return n.typ }
+-func (n *typeNode) Sym() *types.Sym               { return n.typ.Sym() }
+-func (n *typeNode) CanBeNtype()                   {}
++func (n *typeNode) doChildren(do func(Node) error) error {
++	return nil
++}
++
++func (n *typeNode) Type() *types.Type { return n.typ }
++func (n *typeNode) Sym() *types.Sym   { return n.typ.Sym() }
++func (n *typeNode) CanBeNtype()       {}
+ 
+ // TypeNode returns the Node representing the type t.
+ func TypeNode(t *types.Type) Ntype {
+diff --git a/src/cmd/compile/internal/ir/visit.go b/src/cmd/compile/internal/ir/visit.go
+index a239fd1532..042257c32a 100644
+--- a/src/cmd/compile/internal/ir/visit.go
++++ b/src/cmd/compile/internal/ir/visit.go
+@@ -14,7 +14,9 @@
+ 
+ package ir
+ 
+-import "errors"
++import (
++	"errors"
++)
+ 
+ // DoChildren calls do(x) on each of n's non-nil child nodes x.
+ // If any call returns a non-nil error, DoChildren stops and returns that error.
+@@ -86,7 +88,7 @@ import "errors"
+ //				found = v
+ //				return stop
+ //			}
+-//			return DoChildren(x, do)
++//			return ir.DoChildren(x, do)
+ //		}
+ //		do(n)
+ //		return found
+@@ -100,29 +102,7 @@ func DoChildren(n Node, do func(Node) error) error {
+ 	if n == nil {
+ 		return nil
+ 	}
+-	if err := DoList(n.Init(), do); err != nil {
+-		return err
+-	}
+-	if l := n.Left(); l != nil {
+-		if err := do(l); err != nil {
+-			return err
+-		}
+-	}
+-	if r := n.Right(); r != nil {
+-		if err := do(r); err != nil {
+-			return err
+-		}
+-	}
+-	if err := DoList(n.List(), do); err != nil {
+-		return err
+-	}
+-	if err := DoList(n.Body(), do); err != nil {
+-		return err
+-	}
+-	if err := DoList(n.Rlist(), do); err != nil {
+-		return err
+-	}
+-	return nil
++	return n.doChildren(do)
+ }
+ 
+ // DoList calls f on each non-nil node x in the list, in list order.

@@ -18,7 +18,7 @@ Date:   Wed Feb 20 11:38:16 2019 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm64/ssa.go        |  18 ++-
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  36 ++++-
  src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   9 +-
@@ -26,3 +26,596 @@ Date:   Wed Feb 20 11:38:16 2019 +0000
  src/cmd/compile/internal/ssa/rewriteARM64.go | 212 ++++++++++++++++++++++++---
  test/codegen/condmove.go                     |   2 +-
  6 files changed, 293 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 87703dd80d..0bc8f3a5ab 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -860,7 +860,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARM64LessThanU,
+ 		ssa.OpARM64LessEqualU,
+ 		ssa.OpARM64GreaterThanU,
+-		ssa.OpARM64GreaterEqualU:
++		ssa.OpARM64GreaterEqualU,
++		ssa.OpARM64LessThanF,
++		ssa.OpARM64LessEqualF,
++		ssa.OpARM64GreaterThanF,
++		ssa.OpARM64GreaterEqualF:
+ 		// generate boolean values using CSET
+ 		p := s.Prog(arm64.ACSET)
+ 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+@@ -908,6 +912,10 @@ var condBits = map[ssa.Op]int16{
+ 	ssa.OpARM64GreaterThanU:  arm64.COND_HI,
+ 	ssa.OpARM64GreaterEqual:  arm64.COND_GE,
+ 	ssa.OpARM64GreaterEqualU: arm64.COND_HS,
++	ssa.OpARM64LessThanF:     arm64.COND_MI,
++	ssa.OpARM64LessEqualF:    arm64.COND_LS,
++	ssa.OpARM64GreaterThanF:  arm64.COND_GT,
++	ssa.OpARM64GreaterEqualF: arm64.COND_GE,
+ }
+ 
+ var blockJump = map[ssa.BlockKind]struct {
+@@ -929,6 +937,10 @@ var blockJump = map[ssa.BlockKind]struct {
+ 	ssa.BlockARM64NZW:  {arm64.ACBNZW, arm64.ACBZW},
+ 	ssa.BlockARM64TBZ:  {arm64.ATBZ, arm64.ATBNZ},
+ 	ssa.BlockARM64TBNZ: {arm64.ATBNZ, arm64.ATBZ},
++	ssa.BlockARM64FLT:  {arm64.ABMI, arm64.ABPL},
++	ssa.BlockARM64FGE:  {arm64.ABGE, arm64.ABLT},
++	ssa.BlockARM64FLE:  {arm64.ABLS, arm64.ABHI},
++	ssa.BlockARM64FGT:  {arm64.ABGT, arm64.ABLE},
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+@@ -975,7 +987,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+ 		ssa.BlockARM64ULT, ssa.BlockARM64UGT,
+ 		ssa.BlockARM64ULE, ssa.BlockARM64UGE,
+ 		ssa.BlockARM64Z, ssa.BlockARM64NZ,
+-		ssa.BlockARM64ZW, ssa.BlockARM64NZW:
++		ssa.BlockARM64ZW, ssa.BlockARM64NZW,
++		ssa.BlockARM64FLT, ssa.BlockARM64FGE,
++		ssa.BlockARM64FLE, ssa.BlockARM64FGT:
+ 		jmp := blockJump[b.Kind]
+ 		var p *obj.Prog
+ 		switch next {
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 6e0420983a..8b263a092f 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -296,8 +296,14 @@
+ (Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Less32 x y) -> (LessThan (CMPW x y))
+ (Less64 x y) -> (LessThan (CMP x y))
+-(Less32F x y) -> (GreaterThan (FCMPS y x)) // reverse operands to work around NaN
+-(Less64F x y) -> (GreaterThan (FCMPD y x)) // reverse operands to work around NaN
++
++// Set condition flags for floating-point comparisons "x < y"
++// and "x <= y". Because if either or both of the operands are
++// NaNs, all three of (x < y), (x == y) and (x > y) are false,
++// and ARM Manual says FCMP instruction sets PSTATE.<N,Z,C,V>
++// of this case to (0, 0, 1, 1).
++(Less32F x y) -> (LessThanF (FCMPS x y))
++(Less64F x y) -> (LessThanF (FCMPD x y))
+ 
+ (Less8U x y)  -> (LessThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Less16U x y) -> (LessThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -308,8 +314,10 @@
+ (Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Leq32 x y) -> (LessEqual (CMPW x y))
+ (Leq64 x y) -> (LessEqual (CMP x y))
+-(Leq32F x y) -> (GreaterEqual (FCMPS y x)) // reverse operands to work around NaN
+-(Leq64F x y) -> (GreaterEqual (FCMPD y x)) // reverse operands to work around NaN
++
++// Refer to the comments for op Less64F above.
++(Leq32F x y) -> (LessEqualF (FCMPS x y))
++(Leq64F x y) -> (LessEqualF (FCMPD x y))
+ 
+ (Leq8U x y)  -> (LessEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Leq16U x y) -> (LessEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -320,8 +328,8 @@
+ (Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Greater32 x y) -> (GreaterThan (CMPW x y))
+ (Greater64 x y) -> (GreaterThan (CMP x y))
+-(Greater32F x y) -> (GreaterThan (FCMPS x y))
+-(Greater64F x y) -> (GreaterThan (FCMPD x y))
++(Greater32F x y) -> (GreaterThanF (FCMPS x y))
++(Greater64F x y) -> (GreaterThanF (FCMPD x y))
+ 
+ (Greater8U x y)  -> (GreaterThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Greater16U x y) -> (GreaterThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -332,8 +340,8 @@
+ (Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+ (Geq32 x y) -> (GreaterEqual (CMPW x y))
+ (Geq64 x y) -> (GreaterEqual (CMP x y))
+-(Geq32F x y) -> (GreaterEqual (FCMPS x y))
+-(Geq64F x y) -> (GreaterEqual (FCMPD x y))
++(Geq32F x y) -> (GreaterEqualF (FCMPS x y))
++(Geq64F x y) -> (GreaterEqualF (FCMPD x y))
+ 
+ (Geq8U x y)  -> (GreaterEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Geq16U x y) -> (GreaterEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -550,6 +558,10 @@
+ (If (GreaterThanU cc) yes no) -> (UGT cc yes no)
+ (If (GreaterEqual cc) yes no) -> (GE cc yes no)
+ (If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
++(If (LessThanF cc) yes no) -> (FLT cc yes no)
++(If (LessEqualF cc) yes no) -> (FLE cc yes no)
++(If (GreaterThanF cc) yes no) -> (FGT cc yes no)
++(If (GreaterEqualF cc) yes no) -> (FGE cc yes no)
+ 
+ (If cond yes no) -> (NZ cond yes no)
+ 
+@@ -595,6 +607,10 @@
+ (NZ (GreaterThanU cc) yes no) -> (UGT cc yes no)
+ (NZ (GreaterEqual cc) yes no) -> (GE cc yes no)
+ (NZ (GreaterEqualU cc) yes no) -> (UGE cc yes no)
++(NZ (LessThanF cc) yes no) -> (FLT cc yes no)
++(NZ (LessEqualF cc) yes no) -> (FLE cc yes no)
++(NZ (GreaterThan cc) yes no) -> (FGT cc yes no)
++(NZ (GreaterEqual cc) yes no) -> (FGE cc yes no)
+ 
+ (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTWconst [c] y) yes no)
+ (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTWconst [c] y) yes no)
+@@ -1518,6 +1534,10 @@
+ (UGE (InvertFlags cmp) yes no) -> (ULE cmp yes no)
+ (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
+ (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
++(FLT (InvertFlags cmp) yes no) -> (FGT cmp yes no)
++(FGT (InvertFlags cmp) yes no) -> (FLT cmp yes no)
++(FLE (InvertFlags cmp) yes no) -> (FGE cmp yes no)
++(FGE (InvertFlags cmp) yes no) -> (FLE cmp yes no)
+ 
+ // absorb InvertFlags into CSEL(0)
+ (CSEL {cc} x y (InvertFlags cmp)) -> (CSEL {arm64Invert(cc.(Op))} x y cmp)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index fc0a41527b..2a65d547bd 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -466,7 +466,10 @@ func init() {
+ 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
+ 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
+ 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
+-
++		{name: "LessThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x<y false otherwise.
++		{name: "LessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x<=y false otherwise.
++		{name: "GreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x>y false otherwise.
++		{name: "GreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x>=y false otherwise.
+ 		// duffzero
+ 		// arg0 = address of memory to zero
+ 		// arg1 = mem
+@@ -663,6 +666,10 @@ func init() {
+ 		{name: "NZW"},  // Control != 0, 32-bit
+ 		{name: "TBZ"},  // Control & (1 << Aux.(int64)) == 0
+ 		{name: "TBNZ"}, // Control & (1 << Aux.(int64)) != 0
++		{name: "FLT"},
++		{name: "FLE"},
++		{name: "FGT"},
++		{name: "FGE"},
+ 	}
+ 
+ 	archs = append(archs, arch{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5fcc64f460..b50532fb69 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -77,6 +77,10 @@ const (
+ 	BlockARM64NZW
+ 	BlockARM64TBZ
+ 	BlockARM64TBNZ
++	BlockARM64FLT
++	BlockARM64FLE
++	BlockARM64FGT
++	BlockARM64FGE
+ 
+ 	BlockMIPSEQ
+ 	BlockMIPSNE
+@@ -189,6 +193,10 @@ var blockString = [...]string{
+ 	BlockARM64NZW:  "NZW",
+ 	BlockARM64TBZ:  "TBZ",
+ 	BlockARM64TBNZ: "TBNZ",
++	BlockARM64FLT:  "FLT",
++	BlockARM64FLE:  "FLE",
++	BlockARM64FGT:  "FGT",
++	BlockARM64FGE:  "FGE",
+ 
+ 	BlockMIPSEQ:  "EQ",
+ 	BlockMIPSNE:  "NE",
+@@ -1361,6 +1369,10 @@ const (
+ 	OpARM64LessEqualU
+ 	OpARM64GreaterThanU
+ 	OpARM64GreaterEqualU
++	OpARM64LessThanF
++	OpARM64LessEqualF
++	OpARM64GreaterThanF
++	OpARM64GreaterEqualF
+ 	OpARM64DUFFZERO
+ 	OpARM64LoweredZero
+ 	OpARM64DUFFCOPY
+@@ -18138,6 +18150,42 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "LessThanF",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "LessEqualF",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "GreaterThanF",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
++	{
++		name:   "GreaterEqualF",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:           "DUFFZERO",
+ 		auxType:        auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 24f392a43e..7ad04ead93 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -33923,12 +33923,12 @@ func rewriteValueARM64_OpGeq32F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Geq32F x y)
+ 	// cond:
+-	// result: (GreaterEqual (FCMPS x y))
++	// result: (GreaterEqualF (FCMPS x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterEqual)
++		v.reset(OpARM64GreaterEqualF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -33977,12 +33977,12 @@ func rewriteValueARM64_OpGeq64F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Geq64F x y)
+ 	// cond:
+-	// result: (GreaterEqual (FCMPD x y))
++	// result: (GreaterEqualF (FCMPD x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterEqual)
++		v.reset(OpARM64GreaterEqualF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -34154,12 +34154,12 @@ func rewriteValueARM64_OpGreater32F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Greater32F x y)
+ 	// cond:
+-	// result: (GreaterThan (FCMPS x y))
++	// result: (GreaterThanF (FCMPS x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterThan)
++		v.reset(OpARM64GreaterThanF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -34208,12 +34208,12 @@ func rewriteValueARM64_OpGreater64F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Greater64F x y)
+ 	// cond:
+-	// result: (GreaterThan (FCMPD x y))
++	// result: (GreaterThanF (FCMPD x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterThan)
++		v.reset(OpARM64GreaterThanF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+@@ -34496,15 +34496,15 @@ func rewriteValueARM64_OpLeq32F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Leq32F x y)
+ 	// cond:
+-	// result: (GreaterEqual (FCMPS y x))
++	// result: (LessEqualF (FCMPS x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterEqual)
++		v.reset(OpARM64LessEqualF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
+-		v0.AddArg(y)
+ 		v0.AddArg(x)
++		v0.AddArg(y)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -34550,15 +34550,15 @@ func rewriteValueARM64_OpLeq64F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Leq64F x y)
+ 	// cond:
+-	// result: (GreaterEqual (FCMPD y x))
++	// result: (LessEqualF (FCMPD x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterEqual)
++		v.reset(OpARM64LessEqualF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
+-		v0.AddArg(y)
+ 		v0.AddArg(x)
++		v0.AddArg(y)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -34700,15 +34700,15 @@ func rewriteValueARM64_OpLess32F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Less32F x y)
+ 	// cond:
+-	// result: (GreaterThan (FCMPS y x))
++	// result: (LessThanF (FCMPS x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterThan)
++		v.reset(OpARM64LessThanF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
+-		v0.AddArg(y)
+ 		v0.AddArg(x)
++		v0.AddArg(y)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -34754,15 +34754,15 @@ func rewriteValueARM64_OpLess64F_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Less64F x y)
+ 	// cond:
+-	// result: (GreaterThan (FCMPD y x))
++	// result: (LessThanF (FCMPD x y))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64GreaterThan)
++		v.reset(OpARM64LessThanF)
+ 		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
+-		v0.AddArg(y)
+ 		v0.AddArg(x)
++		v0.AddArg(y)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -39510,6 +39510,66 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++	case BlockARM64FGE:
++		// match: (FGE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (FLE cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64InvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARM64FLE
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++	case BlockARM64FGT:
++		// match: (FGT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (FLT cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64InvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARM64FLT
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++	case BlockARM64FLE:
++		// match: (FLE (InvertFlags cmp) yes no)
++		// cond:
++		// result: (FGE cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64InvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARM64FGE
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
++	case BlockARM64FLT:
++		// match: (FLT (InvertFlags cmp) yes no)
++		// cond:
++		// result: (FGT cmp yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64InvertFlags {
++				break
++			}
++			cmp := v.Args[0]
++			b.Kind = BlockARM64FGT
++			b.SetControl(cmp)
++			b.Aux = nil
++			return true
++		}
+ 	case BlockARM64GE:
+ 		// match: (GE (CMPWconst [0] x:(ANDconst [c] y)) yes no)
+ 		// cond: x.Uses == 1
+@@ -40674,6 +40734,62 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (If (LessThanF cc) yes no)
++		// cond:
++		// result: (FLT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64LessThanF {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FLT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (LessEqualF cc) yes no)
++		// cond:
++		// result: (FLE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64LessEqualF {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FLE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (GreaterThanF cc) yes no)
++		// cond:
++		// result: (FGT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64GreaterThanF {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FGT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (If (GreaterEqualF cc) yes no)
++		// cond:
++		// result: (FGE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64GreaterEqualF {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FGE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (If cond yes no)
+ 		// cond:
+ 		// result: (NZ cond yes no)
+@@ -42413,6 +42529,62 @@ func rewriteBlockARM64(b *Block) bool {
+ 			b.Aux = nil
+ 			return true
+ 		}
++		// match: (NZ (LessThanF cc) yes no)
++		// cond:
++		// result: (FLT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64LessThanF {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FLT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (NZ (LessEqualF cc) yes no)
++		// cond:
++		// result: (FLE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64LessEqualF {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FLE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (NZ (GreaterThan cc) yes no)
++		// cond:
++		// result: (FGT cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64GreaterThan {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FGT
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
++		// match: (NZ (GreaterEqual cc) yes no)
++		// cond:
++		// result: (FGE cc yes no)
++		for {
++			v := b.Control
++			if v.Op != OpARM64GreaterEqual {
++				break
++			}
++			cc := v.Args[0]
++			b.Kind = BlockARM64FGE
++			b.SetControl(cc)
++			b.Aux = nil
++			return true
++		}
+ 		// match: (NZ (ANDconst [c] x) yes no)
+ 		// cond: oneBit(c)
+ 		// result: (TBNZ {ntz(c)} x yes no)
+diff --git a/test/codegen/condmove.go b/test/codegen/condmove.go
+index aa82d43f49..3690a54618 100644
+--- a/test/codegen/condmove.go
++++ b/test/codegen/condmove.go
+@@ -95,7 +95,7 @@ func cmovfloatint2(x, y float64) float64 {
+ 			rexp = rexp - 1
+ 		}
+ 		// amd64:"CMOVQHI"
+-		// arm64:"CSEL\tGT"
++		// arm64:"CSEL\tMI"
+ 		r = r - ldexp(y, (rexp-yexp))
+ 	}
+ 	return r

@@ -13,6 +13,20 @@ Date:   Sun Oct 8 15:52:43 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/go/token/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/token/example_test.go b/src/go/token/example_test.go
+index 0011703b7c..7e5017e13c 100644
+--- a/src/go/token/example_test.go
++++ b/src/go/token/example_test.go
+@@ -66,7 +66,7 @@ func ok(pos p) bool {
+ 		fmt.Printf("%s: %s\n", fmtPosition, kind)
+ 	}
+ 
+-	//Output:
++	// Output:
+ 	//
+ 	// main.go:3:1: import
+ 	// main.go:5:1: import

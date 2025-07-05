@@ -22,7 +22,166 @@ Date:   Mon Jun 5 10:37:37 2017 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/benchmark.go | 76 +++++++++++++++++++++++++-----------------------
  src/testing/testing.go   | 50 +++++++++++++++----------------
  2 files changed, 63 insertions(+), 63 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 84005aa322..0a08cca7b3 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -427,44 +427,46 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ // processBench runs bench b for the configured CPU counts and prints the results.
+ func (ctx *benchContext) processBench(b *B) {
+ 	for i, procs := range cpuList {
+-		runtime.GOMAXPROCS(procs)
+-		benchName := benchmarkName(b.name, procs)
+-		fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
+-		// Recompute the running time for all but the first iteration.
+-		if i > 0 {
+-			b = &B{
+-				common: common{
+-					signal: make(chan bool),
+-					name:   b.name,
+-					w:      b.w,
+-					chatty: b.chatty,
+-				},
+-				benchFunc: b.benchFunc,
+-				benchTime: b.benchTime,
++		for j := uint(0); j < *count; j++ {
++			runtime.GOMAXPROCS(procs)
++			benchName := benchmarkName(b.name, procs)
++			fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
++			// Recompute the running time for all but the first iteration.
++			if i > 0 || j > 0 {
++				b = &B{
++					common: common{
++						signal: make(chan bool),
++						name:   b.name,
++						w:      b.w,
++						chatty: b.chatty,
++					},
++					benchFunc: b.benchFunc,
++					benchTime: b.benchTime,
++				}
++				b.run1()
++			}
++			r := b.doBench()
++			if b.failed {
++				// The output could be very long here, but probably isn't.
++				// We print it all, regardless, because we don't want to trim the reason
++				// the benchmark failed.
++				fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
++				continue
++			}
++			results := r.String()
++			if *benchmarkMemory || b.showAllocResult {
++				results += "\t" + r.MemString()
++			}
++			fmt.Fprintln(b.w, results)
++			// Unlike with tests, we ignore the -chatty flag and always print output for
++			// benchmarks since the output generation time will skew the results.
++			if len(b.output) > 0 {
++				b.trimOutput()
++				fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
++			}
++			if p := runtime.GOMAXPROCS(-1); p != procs {
++				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+ 			}
+-			b.run1()
+-		}
+-		r := b.doBench()
+-		if b.failed {
+-			// The output could be very long here, but probably isn't.
+-			// We print it all, regardless, because we don't want to trim the reason
+-			// the benchmark failed.
+-			fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
+-			continue
+-		}
+-		results := r.String()
+-		if *benchmarkMemory || b.showAllocResult {
+-			results += "\t" + r.MemString()
+-		}
+-		fmt.Fprintln(b.w, results)
+-		// Unlike with tests, we ignore the -chatty flag and always print output for
+-		// benchmarks since the output generation time will skew the results.
+-		if len(b.output) > 0 {
+-			b.trimOutput()
+-			fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
+-		}
+-		if p := runtime.GOMAXPROCS(-1); p != procs {
+-			fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
+ 		}
+ 	}
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 579a30ca1e..9e519f5cb9 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -991,27 +991,29 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 	ok = true
+ 	for _, procs := range cpuList {
+ 		runtime.GOMAXPROCS(procs)
+-		ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
+-		t := &T{
+-			common: common{
+-				signal:  make(chan bool),
+-				barrier: make(chan bool),
+-				w:       os.Stdout,
+-				chatty:  *chatty,
+-			},
+-			context: ctx,
+-		}
+-		tRunner(t, func(t *T) {
+-			for _, test := range tests {
+-				t.Run(test.Name, test.F)
++		for i := uint(0); i < *count; i++ {
++			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
++			t := &T{
++				common: common{
++					signal:  make(chan bool),
++					barrier: make(chan bool),
++					w:       os.Stdout,
++					chatty:  *chatty,
++				},
++				context: ctx,
+ 			}
+-			// Run catching the signal rather than the tRunner as a separate
+-			// goroutine to avoid adding a goroutine during the sequential
+-			// phase as this pollutes the stacktrace output when aborting.
+-			go func() { <-t.signal }()
+-		})
+-		ok = ok && !t.Failed()
+-		ran = ran || t.ran
++			tRunner(t, func(t *T) {
++				for _, test := range tests {
++					t.Run(test.Name, test.F)
++				}
++				// Run catching the signal rather than the tRunner as a separate
++				// goroutine to avoid adding a goroutine during the sequential
++				// phase as this pollutes the stacktrace output when aborting.
++				go func() { <-t.signal }()
++			})
++			ok = ok && !t.Failed()
++			ran = ran || t.ran
++		}
+ 	}
+ 	return ran, ok
+ }
+@@ -1167,13 +1169,9 @@ func parseCpuList() {
+ 			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
+ 			os.Exit(1)
+ 		}
+-		for i := uint(0); i < *count; i++ {
+-			cpuList = append(cpuList, cpu)
+-		}
++		cpuList = append(cpuList, cpu)
+ 	}
+ 	if cpuList == nil {
+-		for i := uint(0); i < *count; i++ {
+-			cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+-		}
++		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+ 	}
+ }

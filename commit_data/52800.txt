@@ -10,6 +10,36 @@ Date:   Thu Jun 2 16:53:36 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/410116
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
-
+---
  doc/go1.19.html | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index e7387268ba..7eba7b535f 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -412,6 +412,24 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- strconv -->
+ 
++<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/51192 --><!-- CL 385796 -->
++      On PowerPC (<code>GOARCH=ppc64</code>, <code>ppc64le</code>),
++      <a href="/pkg/syscall/#Syscall"><code>Syscall</code></a>,
++      <a href="/pkg/syscall/#Syscall6"><code>Syscall6</code></a>,
++      <a href="/pkg/syscall/#RawSyscall"><code>RawSyscall</code></a>, and
++      <a href="/pkg/syscall/#RawSyscall6"><code>RawSyscall6</code></a>
++      now always return 0 for return value <code>r2</code> instead of an
++      undefined value.
++    </p>
++
++    <p><!-- CL 391434 -->
++      On AIX and Solaris, <code>Getrusage</code> is now defined.
++    </p>
++  </dd>
++</dl><!-- syscall -->
++
+ <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
+   <dd>
+     <p><!-- CL 393515 -->

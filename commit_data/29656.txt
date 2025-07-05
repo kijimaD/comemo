@@ -9,6 +9,22 @@ Date:   Fri Sep 30 17:23:24 2016 -0400
     Change-Id: I375d5d4f2714ff415542f4fe56a548e53c5e8ba6
     Reviewed-on: https://go-review.googlesource.com/30134
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/context.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 3afa3e90d2..41a5cefef9 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -443,7 +443,9 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
+ // Use context Values only for request-scoped data that transits processes and
+ // APIs, not for passing optional parameters to functions.
+ //
+-// The provided key must be comparable.
++// The provided key must be comparable and should not be
++// of type string or any other built-in type.
++// Users of WithValue should define their own types for keys.
+ func WithValue(parent Context, key, val interface{}) Context {
+ 	if key == nil {
+ 		panic("nil key")

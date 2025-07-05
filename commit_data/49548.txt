@@ -16,6 +16,29 @@ Date:   Thu Aug 26 16:57:06 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/abi/abiutils.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index d657ddc867..24f34b8263 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -722,14 +722,17 @@ func setup() {
+ 			types.NewField(nxp, fname("len"), ui),
+ 			types.NewField(nxp, fname("cap"), ui),
+ 		})
++		types.CalcStructSize(synthSlice)
+ 		synthString = types.NewStruct(types.NoPkg, []*types.Field{
+ 			types.NewField(nxp, fname("data"), unsp),
+ 			types.NewField(nxp, fname("len"), ui),
+ 		})
++		types.CalcStructSize(synthString)
+ 		synthIface = types.NewStruct(types.NoPkg, []*types.Field{
+ 			types.NewField(nxp, fname("f1"), unsp),
+ 			types.NewField(nxp, fname("f2"), unsp),
+ 		})
++		types.CalcStructSize(synthIface)
+ 	})
+ }
+ 

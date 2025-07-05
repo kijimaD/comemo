@@ -20,6 +20,20 @@ Date:   Tue Apr 12 13:38:17 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index a00d8c94a2..74322caea1 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -109,7 +109,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+ 			gid = Getgid()
+ 		}
+ 
+-		if uint32(gid) == st.Gid || isGroupMember(gid) {
++		if uint32(gid) == st.Gid || isGroupMember(int(st.Gid)) {
+ 			fmode = (st.Mode >> 3) & 7
+ 		} else {
+ 			fmode = st.Mode & 7

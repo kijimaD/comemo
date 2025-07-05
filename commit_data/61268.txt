@@ -14,9 +14,120 @@ Date:   Fri Jun 28 00:03:53 2024 +1000
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: 鹏程汪 <wangpengcheng.pp@bytedance.com>
-
+---
  src/cmd/asm/internal/arch/arch.go  |  4 ++++
  src/cmd/internal/obj/riscv/cpu.go  | 36 +++++++++++++++++++++++++++++++++++-
  src/cmd/internal/obj/riscv/list.go |  2 ++
  src/cmd/internal/obj/riscv/obj.go  | 10 ++++++++++
  4 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 11bb7af899..429dff7be5 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -586,6 +586,10 @@ func archRISCV64(shared bool) *Arch {
+ 		name := fmt.Sprintf("F%d", i-riscv.REG_F0)
+ 		register[name] = int16(i)
+ 	}
++	for i := riscv.REG_V0; i <= riscv.REG_V31; i++ {
++		name := fmt.Sprintf("V%d", i-riscv.REG_V0)
++		register[name] = int16(i)
++	}
+ 
+ 	// General registers with ABI names.
+ 	register["ZERO"] = riscv.REG_ZERO
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index d353ec4cec..ba655c01d8 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -72,7 +72,7 @@ const (
+ 	REG_X30
+ 	REG_X31
+ 
+-	// FP register numberings.
++	// Floating Point register numberings.
+ 	REG_F0
+ 	REG_F1
+ 	REG_F2
+@@ -106,6 +106,40 @@ const (
+ 	REG_F30
+ 	REG_F31
+ 
++	// Vector register numberings.
++	REG_V0
++	REG_V1
++	REG_V2
++	REG_V3
++	REG_V4
++	REG_V5
++	REG_V6
++	REG_V7
++	REG_V8
++	REG_V9
++	REG_V10
++	REG_V11
++	REG_V12
++	REG_V13
++	REG_V14
++	REG_V15
++	REG_V16
++	REG_V17
++	REG_V18
++	REG_V19
++	REG_V20
++	REG_V21
++	REG_V22
++	REG_V23
++	REG_V24
++	REG_V25
++	REG_V26
++	REG_V27
++	REG_V28
++	REG_V29
++	REG_V30
++	REG_V31
++
+ 	// This marks the end of the register numbering.
+ 	REG_END
+ 
+diff --git a/src/cmd/internal/obj/riscv/list.go b/src/cmd/internal/obj/riscv/list.go
+index bc87539f27..c5b7e80719 100644
+--- a/src/cmd/internal/obj/riscv/list.go
++++ b/src/cmd/internal/obj/riscv/list.go
+@@ -28,6 +28,8 @@ func RegName(r int) string {
+ 		return fmt.Sprintf("X%d", r-REG_X0)
+ 	case REG_F0 <= r && r <= REG_F31:
+ 		return fmt.Sprintf("F%d", r-REG_F0)
++	case REG_V0 <= r && r <= REG_V31:
++		return fmt.Sprintf("V%d", r-REG_V0)
+ 	default:
+ 		return fmt.Sprintf("Rgok(%d)", r-obj.RBaseRISCV)
+ 	}
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 1ca9f64cdd..f6049f79fd 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1030,6 +1030,11 @@ func regF(r uint32) uint32 {
+ 	return regVal(r, REG_F0, REG_F31)
+ }
+ 
++// regV returns a vector register.
++func regV(r uint32) uint32 {
++	return regVal(r, REG_V0, REG_V31)
++}
++
+ // regAddr extracts a register from an Addr.
+ func regAddr(a obj.Addr, min, max uint32) uint32 {
+ 	if a.Type != obj.TYPE_REG {
+@@ -1112,6 +1117,11 @@ func wantFloatReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
+ 	wantReg(ctxt, ins, pos, "float", r, REG_F0, REG_F31)
+ }
+ 
++// wantVectorReg checks that r is a vector register.
++func wantVectorReg(ctxt *obj.Link, ins *instruction, pos string, r uint32) {
++	wantReg(ctxt, ins, pos, "vector", r, REG_V0, REG_V31)
++}
++
+ // wantEvenOffset checks that the offset is a multiple of two.
+ func wantEvenOffset(ctxt *obj.Link, ins *instruction, offset int64) {
+ 	if err := immEven(offset); err != nil {

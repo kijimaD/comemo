@@ -7,6 +7,20 @@ Date:   Tue Apr 20 22:51:48 2010 -0700
     R=gri, eds
     CC=golang-dev
     https://golang.org/cl/947042
-
+---
  src/pkg/big/nat.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 6c7e6e722d..8843d43549 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -432,7 +432,7 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
+ 	}
+ 
+ 	// convert string
+-	z = makeN(z, len(z), false)
++	z = z[0:0]
+ 	for ; i < n; i++ {
+ 		d := hexValue(s[i])
+ 		if 0 <= d && d < base {

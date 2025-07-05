@@ -11,10 +11,299 @@ Date:   Thu Mar 1 15:36:04 2018 +0000
     Change-Id: I55473e1eed096ed1c3e431aed2cbf0b6b5444b91
     Reviewed-on: https://go-review.googlesource.com/97895
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dwinl.go    |  2 +-
  src/cmd/compile/internal/gc/obj.go      |  4 +--
  src/cmd/compile/internal/gc/pgen.go     |  6 ++---
  src/cmd/compile/internal/gc/racewalk.go | 13 ++++------
  src/cmd/compile/internal/gc/reflect.go  | 45 +++++++++++++++------------------
  5 files changed, 32 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index 43ae0bce7f..29782b2683 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -23,7 +23,7 @@ type varPos struct {
+ // This is the main entry point for collection of raw material to
+ // drive generation of DWARF "inlined subroutine" DIEs. See proposal
+ // 22080 for more details and background info.
+-func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCalls {
++func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 	var inlcalls dwarf.InlCalls
+ 
+ 	if Debug_gendwarfinl != 0 {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 874c59cb44..3750448e00 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -401,8 +401,8 @@ func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+ 	return off
+ }
+ 
+-func dsymptrOff(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+-	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
++func dsymptrOff(s *obj.LSym, off int, x *obj.LSym) int {
++	s.WriteOff(Ctxt, int64(off), x, 0)
+ 	off += 4
+ 	return off
+ }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index e920f698b7..15eaf3b252 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -390,7 +390,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCall
+ 	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
+ 	var inlcalls dwarf.InlCalls
+ 	if genDwarfInline > 0 {
+-		inlcalls = assembleInlines(fnsym, fn, dwarfVars)
++		inlcalls = assembleInlines(fnsym, dwarfVars)
+ 	}
+ 	return scopes, inlcalls
+ }
+@@ -457,7 +457,7 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
+ 
+ // createComplexVars creates recomposed DWARF vars with location lists,
+ // suitable for describing optimized code.
+-func createComplexVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
++func createComplexVars(fn *Func) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+ 	debugInfo := fn.DebugInfo
+ 
+ 	// Produce a DWARF variable entry for each user variable.
+@@ -489,7 +489,7 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
+ 	var decls []*Node
+ 	var selected map[*Node]bool
+ 	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && fn.DebugInfo != nil {
+-		decls, vars, selected = createComplexVars(fnsym, fn, automDecls)
++		decls, vars, selected = createComplexVars(fn)
+ 	} else {
+ 		decls, vars, selected = createSimpleVars(automDecls)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 4b92ce9e0e..861b5a6835 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -424,14 +424,14 @@ func isartificial(n *Node) bool {
+ 	return false
+ }
+ 
+-func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
++func callinstr(np **Node, init *Nodes, wr int, skip int) {
+ 	n := *np
+ 
+ 	//fmt.Printf("callinstr for %v [ %v ] etype=%v class=%v\n",
+ 	//	n, n.Op, n.Type.Etype, n.Class)
+ 
+ 	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
+-		return false
++		return
+ 	}
+ 	t := n.Type
+ 	// dowidth may not have been called for PEXTERN.
+@@ -441,17 +441,17 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 		Fatalf("instrument: %v badwidth", t)
+ 	}
+ 	if w == 0 {
+-		return false // can't race on zero-sized things
++		return // can't race on zero-sized things
+ 	}
+ 	if isartificial(n) {
+-		return false
++		return
+ 	}
+ 
+ 	b := outervalue(n)
+ 
+ 	// it skips e.g. stores to ... parameter array
+ 	if isartificial(b) {
+-		return false
++		return
+ 	}
+ 	class := b.Class()
+ 
+@@ -502,10 +502,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 		}
+ 
+ 		init.Append(f)
+-		return true
+ 	}
+-
+-	return false
+ }
+ 
+ // makeaddable returns a node whose memory location is the
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 08d87a7f5d..1535991a78 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -564,11 +564,11 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 		// Every package that imports this one directly defines the symbol.
+ 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+ 		ns := Ctxt.Lookup(`type..importpath."".`)
+-		return dsymptrOff(s, ot, ns, 0)
++		return dsymptrOff(s, ot, ns)
+ 	}
+ 
+ 	dimportpath(pkg)
+-	return dsymptrOff(s, ot, pkg.Pathsym, 0)
++	return dsymptrOff(s, ot, pkg.Pathsym)
+ }
+ 
+ // dnameField dumps a reflect.name for a struct field.
+@@ -723,7 +723,7 @@ func dextratypeData(lsym *obj.LSym, ot int, t *types.Type) int {
+ 		}
+ 		nsym := dname(a.name, "", pkg, exported)
+ 
+-		ot = dsymptrOff(lsym, ot, nsym, 0)
++		ot = dsymptrOff(lsym, ot, nsym)
+ 		ot = dmethodptrOff(lsym, ot, dtypesym(a.mtype))
+ 		ot = dmethodptrOff(lsym, ot, a.isym.Linksym())
+ 		ot = dmethodptrOff(lsym, ot, a.tsym.Linksym())
+@@ -841,11 +841,7 @@ var (
+ )
+ 
+ // dcommontype dumps the contents of a reflect.rtype (runtime._type).
+-func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
+-	if ot != 0 {
+-		Fatalf("dcommontype %d", ot)
+-	}
+-
++func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	sizeofAlg := 2 * Widthptr
+ 	if algarray == nil {
+ 		algarray = sysfunc("algarray")
+@@ -884,6 +880,7 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
+ 	//		str           nameOff
+ 	//		ptrToThis     typeOff
+ 	//	}
++	ot := 0
+ 	ot = duintptr(lsym, ot, uint64(t.Width))
+ 	ot = duintptr(lsym, ot, uint64(ptrdata))
+ 	ot = duint32(lsym, ot, typehash(t))
+@@ -948,14 +945,14 @@ func dcommontype(lsym *obj.LSym, ot int, t *types.Type) int {
+ 	ot = dsymptr(lsym, ot, gcsym, 0) // gcdata
+ 
+ 	nsym := dname(p, "", nil, exported)
+-	ot = dsymptrOff(lsym, ot, nsym, 0) // str
++	ot = dsymptrOff(lsym, ot, nsym) // str
+ 	// ptrToThis
+ 	if sptr == nil {
+ 		ot = duint32(lsym, ot, 0)
+ 	} else if sptrWeak {
+ 		ot = dsymptrWeakOff(lsym, ot, sptr)
+ 	} else {
+-		ot = dsymptrOff(lsym, ot, sptr, 0)
++		ot = dsymptrOff(lsym, ot, sptr)
+ 	}
+ 
+ 	return ot
+@@ -1186,7 +1183,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 	ot := 0
+ 	switch t.Etype {
+ 	default:
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dextratype(lsym, ot, t, 0)
+ 
+ 	case TARRAY:
+@@ -1194,7 +1191,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		s1 := dtypesym(t.Elem())
+ 		t2 := types.NewSlice(t.Elem())
+ 		s2 := dtypesym(t2)
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dsymptr(lsym, ot, s1, 0)
+ 		ot = dsymptr(lsym, ot, s2, 0)
+ 		ot = duintptr(lsym, ot, uint64(t.NumElem()))
+@@ -1203,14 +1200,14 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 	case TSLICE:
+ 		// ../../../../runtime/type.go:/sliceType
+ 		s1 := dtypesym(t.Elem())
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dsymptr(lsym, ot, s1, 0)
+ 		ot = dextratype(lsym, ot, t, 0)
+ 
+ 	case TCHAN:
+ 		// ../../../../runtime/type.go:/chanType
+ 		s1 := dtypesym(t.Elem())
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dsymptr(lsym, ot, s1, 0)
+ 		ot = duintptr(lsym, ot, uint64(t.ChanDir()))
+ 		ot = dextratype(lsym, ot, t, 0)
+@@ -1228,7 +1225,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 			dtypesym(t1.Type)
+ 		}
+ 
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		inCount := t.NumRecvs() + t.NumParams()
+ 		outCount := t.NumResults()
+ 		if isddd {
+@@ -1262,7 +1259,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		}
+ 
+ 		// ../../../../runtime/type.go:/interfaceType
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 
+ 		var tpkg *types.Pkg
+ 		if t.Sym != nil && t != types.Types[t.Etype] && t != types.Errortype {
+@@ -1285,8 +1282,8 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 			}
+ 			nsym := dname(a.name, "", pkg, exported)
+ 
+-			ot = dsymptrOff(lsym, ot, nsym, 0)
+-			ot = dsymptrOff(lsym, ot, dtypesym(a.type_), 0)
++			ot = dsymptrOff(lsym, ot, nsym)
++			ot = dsymptrOff(lsym, ot, dtypesym(a.type_))
+ 		}
+ 
+ 	// ../../../../runtime/type.go:/mapType
+@@ -1295,7 +1292,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		s2 := dtypesym(t.Val())
+ 		s3 := dtypesym(bmap(t))
+ 		s4 := dtypesym(hmap(t))
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dsymptr(lsym, ot, s1, 0)
+ 		ot = dsymptr(lsym, ot, s2, 0)
+ 		ot = dsymptr(lsym, ot, s3, 0)
+@@ -1324,7 +1321,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 	case TPTR32, TPTR64:
+ 		if t.Elem().Etype == TANY {
+ 			// ../../../../runtime/type.go:/UnsafePointerType
+-			ot = dcommontype(lsym, ot, t)
++			ot = dcommontype(lsym, t)
+ 			ot = dextratype(lsym, ot, t, 0)
+ 
+ 			break
+@@ -1333,7 +1330,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		// ../../../../runtime/type.go:/ptrType
+ 		s1 := dtypesym(t.Elem())
+ 
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dsymptr(lsym, ot, s1, 0)
+ 		ot = dextratype(lsym, ot, t, 0)
+ 
+@@ -1358,7 +1355,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 			}
+ 		}
+ 
+-		ot = dcommontype(lsym, ot, t)
++		ot = dcommontype(lsym, t)
+ 		ot = dgopkgpath(lsym, ot, spkg)
+ 		ot = dsymptr(lsym, ot, lsym, ot+3*Widthptr+uncommonSize(t))
+ 		ot = duintptr(lsym, ot, uint64(len(fields)))
+@@ -1554,8 +1551,8 @@ func dumptabs() {
+ 			//	typ  typeOff // pointer to symbol
+ 			// }
+ 			nsym := dname(p.s.Name, "", nil, true)
+-			ot = dsymptrOff(s, ot, nsym, 0)
+-			ot = dsymptrOff(s, ot, dtypesym(p.t), 0)
++			ot = dsymptrOff(s, ot, nsym)
++			ot = dsymptrOff(s, ot, dtypesym(p.t))
+ 		}
+ 		ggloblsym(s, int32(ot), int16(obj.RODATA))
+ 

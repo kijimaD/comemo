@@ -6,7 +6,55 @@ Date:   Thu Dec 3 20:28:24 2009 -0800
     
     R=rsc
     https://golang.org/cl/166052
-
+---
  src/cmd/6g/ggen.c |  3 ++-
  src/cmd/8g/ggen.c | 14 ++++----------
  2 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index cf56148616..5b42d0f1ae 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -80,8 +80,9 @@ compile(Node *fn)
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+-	if(!debug['N'] || debug['R'] || debug['P'])
++	if(!debug['N'] || debug['R'] || debug['P']) {
+ 		regopt(ptxt);
++	}
+ 
+ 	// fill in argument size
+ 	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 8ec8d9ba27..2e8837267c 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -80,7 +80,6 @@ compile(Node *fn)
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+-if(0)
+ 	if(!debug['N'] || debug['R'] || debug['P']) {
+ 		regopt(ptxt);
+ 	}
+@@ -470,15 +469,10 @@ cgen_asop(Node *n)
+ 	}
+ 
+ hard:
+-	if(nr->ullman > nl->ullman) {
+-		tempname(&n2, nr->type);
+-		cgen(nr, &n2);
+-		igen(nl, &n1, N);
+-	} else {
+-		igen(nl, &n1, N);
+-		tempname(&n2, nr->type);
+-		cgen(nr, &n2);
+-	}
++	tempname(&n2, nr->type);
++	cgen(nr, &n2);
++
++	igen(nl, &n1, N);
+ 
+ 	n3 = *n;
+ 	n3.left = &n1;

@@ -11,7 +11,69 @@ Date:   Wed Nov 23 01:43:33 2016 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/cmd/gofmt/gofmt.go      | 15 ++++++++++-----
  src/cmd/gofmt/gofmt_test.go | 13 +++++++++++++
  2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 88ee75f52d..e1ef0ddb83 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -18,6 +18,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
+ )
+@@ -252,6 +253,8 @@ func diff(b1, b2 []byte) (data []byte, err error) {
+ 
+ }
+ 
++const chmodSupported = runtime.GOOS != "windows"
++
+ // backupFile writes data to a new file named filename<number> with permissions perm,
+ // with <number randomly chosen such that the file name is unique. backupFile returns
+ // the chosen file name.
+@@ -262,11 +265,13 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error)
+ 		return "", err
+ 	}
+ 	bakname := f.Name()
+-	err = f.Chmod(perm)
+-	if err != nil {
+-		f.Close()
+-		os.Remove(bakname)
+-		return bakname, err
++	if chmodSupported {
++		err = f.Chmod(perm)
++		if err != nil {
++			f.Close()
++			os.Remove(bakname)
++			return bakname, err
++		}
+ 	}
+ 
+ 	// write data to backup file
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index dea012764b..b7ca9e8d11 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -171,3 +171,16 @@ func TestCRLF(t *testing.T) {
+ 		t.Errorf("%s contains CR's", golden)
+ 	}
+ }
++
++func TestBackupFile(t *testing.T) {
++	dir, err := ioutil.TempDir("", "gofmt_test")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++	name, err := backupFile(filepath.Join(dir, "foo.go"), []byte("  package main"), 0644)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("Created: %s", name)
++}

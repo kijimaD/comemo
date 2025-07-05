@@ -15,9 +15,65 @@ Date:   Thu May 4 11:43:41 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  4 +++-
  test/fixedbugs/issue11614.go             |  2 +-
  test/fixedbugs/issue20233.go             |  2 +-
  test/fixedbugs/issue20245.go             | 11 +++++++++++
  4 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e66ce5dc98..6f544a5b9a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2156,7 +2156,9 @@ OpSwitch:
+ 
+ 	evconst(n)
+ 	if n.Op == OTYPE && top&Etype == 0 {
+-		yyerror("type %v is not an expression", n.Type)
++		if !n.Type.Broke() {
++			yyerror("type %v is not an expression", n.Type)
++		}
+ 		n.Type = nil
+ 		return n
+ 	}
+diff --git a/test/fixedbugs/issue11614.go b/test/fixedbugs/issue11614.go
+index 959643a514..91f134d44a 100644
+--- a/test/fixedbugs/issue11614.go
++++ b/test/fixedbugs/issue11614.go
+@@ -15,7 +15,7 @@ type I interface {
+ }
+ 
+ func n() {
+-	(I) // ERROR "type I is not an expression"
++	(I)
+ }
+ 
+ func m() {
+diff --git a/test/fixedbugs/issue20233.go b/test/fixedbugs/issue20233.go
+index 5734cf44ef..4dec4e458b 100644
+--- a/test/fixedbugs/issue20233.go
++++ b/test/fixedbugs/issue20233.go
+@@ -8,4 +8,4 @@
+ 
+ package p
+ 
+-var f = func(...A) // ERROR "type func(....*) is not an expression" ERROR "undefined: A"
++var f = func(...A) // ERROR "undefined: A"
+diff --git a/test/fixedbugs/issue20245.go b/test/fixedbugs/issue20245.go
+new file mode 100644
+index 0000000000..b07dbe20de
+--- /dev/null
++++ b/test/fixedbugs/issue20245.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20245: panic while formatting an error message
++
++package p
++
++var e = interface{ I1 } // ERROR "undefined: I1"

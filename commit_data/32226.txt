@@ -13,7 +13,46 @@ Date:   Thu Apr 13 08:00:09 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/40575
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/link.go    | 11 ++++++-----
  src/cmd/internal/obj/objfile.go |  5 ++++-
  2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index fc0305344f..893ccf674a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -324,11 +324,12 @@ type LSym struct {
+ 
+ // A FuncInfo contains extra fields for STEXT symbols.
+ type FuncInfo struct {
+-	Args   int32
+-	Locals int32
+-	Text   *Prog
+-	Autom  []*Auto
+-	Pcln   Pcln
++	Args     int32
++	Locals   int32
++	Text     *Prog
++	Autom    []*Auto
++	Pcln     Pcln
++	dwarfSym *LSym
+ }
+ 
+ // Attribute is a set of symbol attributes.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a4a9091bb9..518aab18da 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -560,7 +560,10 @@ func (ctxt *Link) dwarfSym(s *LSym) *LSym {
+ 	if s.Type != STEXT {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+-	return ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
++	if s.FuncInfo.dwarfSym == nil {
++		s.FuncInfo.dwarfSym = ctxt.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
++	}
++	return s.FuncInfo.dwarfSym
+ }
+ 
+ // populateDWARF fills in the DWARF Debugging Information Entry for TEXT symbol s.

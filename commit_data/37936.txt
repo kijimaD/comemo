@@ -7,6 +7,20 @@ Date:   Wed Sep 12 17:11:33 2018 -0700
     Change-Id: I24c4b08091bf3b8734f5dcdb9eac1a3582a4daa8
     Reviewed-on: https://go-review.googlesource.com/135116
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 4e14f40ade..b1fcb2d10b 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -180,7 +180,7 @@ type Info struct {
+ 	//
+ 	//     *ast.ImportSpec    *PkgName for imports without renames
+ 	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+-	//     *ast.Field         anonymous parameter *Var
++	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
+ 	//
+ 	Implicits map[ast.Node]Object
+ 

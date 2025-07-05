@@ -7,6 +7,20 @@ Date:   Mon Apr 8 16:07:49 2019 -0400
     Change-Id: I09e0c2720ec0a51dc73c24b4550a749448656025
     Reviewed-on: https://go-review.googlesource.com/c/go/+/171143
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index c622cb17c5..a4069be407 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -124,7 +124,7 @@ go1.11.7 (released 2019/04/05) includes fixes to the runtime and the
+ <p>
+ go1.11.8 (released 2019/04/08) fixes an issue where using the prebuilt binary
+ releases on older versions of GNU/Linux
+-<a href="https://golang/go/issues/31293">led to failures</a>
++<a href="https://golang.org/issues/31293">led to failures</a>
+ when linking programs that used cgo.
+ Only Linux users who hit this issue need to update.
+ </p>

@@ -21,6 +21,30 @@ Date:   Tue Oct 23 01:29:40 2018 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go | 13 +++++--------
  1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 4e7741c5fb..a506c25dc7 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -239,13 +239,10 @@ func ModInfoProg(info string) []byte {
+ 	// Populate it in an init func so that it will work with go:linkname,
+ 	// but use a string constant instead of the name 'string' in case
+ 	// package main shadows the built-in 'string' with some local declaration.
+-	return []byte(fmt.Sprintf(`
+-		package main
+-		import _ "unsafe"
+-		//go:linkname __debug_modinfo__ runtime/debug.modinfo
+-		var __debug_modinfo__ = ""
+-		func init() {
+-			__debug_modinfo__ = %q
+-		}
++	return []byte(fmt.Sprintf(`package main
++import _ "unsafe"
++//go:linkname __debug_modinfo__ runtime/debug.modinfo
++var __debug_modinfo__ = ""
++func init() { __debug_modinfo__ = %q }
+ 	`, string(infoStart)+info+string(infoEnd)))
+ }

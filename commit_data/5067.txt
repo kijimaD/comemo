@@ -11,7 +11,7 @@ Date:   Tue Mar 16 23:10:07 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/562041
-
+---
  src/pkg/runtime/mingw/syscall.cgo     |  27 ++--
  src/pkg/syscall/mkall.sh              |  17 ++-
  src/pkg/syscall/mksyscall_mingw.sh    | 226 ++++++++++++++++++++++++++++++++++
@@ -21,3 +21,641 @@ Date:   Tue Mar 16 23:10:07 2010 -0700
  src/pkg/syscall/zsysnum_mingw_386.go  |  11 --
  src/pkg/syscall/ztypes_mingw_386.go   |  13 +-
  8 files changed, 376 insertions(+), 84 deletions(-)
+
+diff --git a/src/pkg/runtime/mingw/syscall.cgo b/src/pkg/runtime/mingw/syscall.cgo
+index 1553c61315..25726f7390 100644
+--- a/src/pkg/runtime/mingw/syscall.cgo
++++ b/src/pkg/runtime/mingw/syscall.cgo
+@@ -6,6 +6,18 @@ package syscall
+ #include "runtime.h"
+ #include "os.h"
+ 
++static uintptr
++stdcallerr(uintptr *lasterr, uintptr trap, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9)
++{
++	uintptr r;
++
++	·entersyscall();
++	r = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
++	*lasterr = (uintptr)stdcall_raw(GetLastError);
++	·exitsyscall();
++	return r;
++}
++
+ func loadlibraryex(filename uintptr) (handle uint32) {
+ 	handle = (uint32)stdcall(LoadLibraryEx, filename, 0, 0);
+ }
+@@ -15,19 +27,18 @@ func getprocaddress(handle uint32, procname uintptr) (proc uintptr) {
+ }
+ 
+ func Syscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	·entersyscall();
+-	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3);
++	r1 = stdcallerr(&err, trap, a1, a2, a3, 0, 0, 0, 0, 0, 0);
+ 	r2 = 0;
+-	err = (uintptr)stdcall_raw(GetLastError);
+-	·exitsyscall();
+ }
+ 
+ func Syscall6(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	·entersyscall();
+-	r1 = (uintptr)stdcall_raw((void*)trap, a1, a2, a3, a4, a5, a6);
++	r1 = stdcallerr(&err, trap, a1, a2, a3, a4, a5, a6, 0, 0, 0);
++	r2 = 0;
++}
++
++func Syscall9(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, lasterr uintptr) {
++	r1 = stdcallerr(&lasterr, trap, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+ 	r2 = 0;
+-	err = (uintptr)stdcall_raw(GetLastError);
+-	·exitsyscall();
+ }
+ 
+ func RawSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index b1650d7ca8..a8cb8143a4 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -145,11 +145,10 @@ linux_arm)
+ 	mkerrors="mkerrors.sh"
+ 	;;
+ mingw_386)
+-	# TODO(brainman): create proper mksyscall / mksysnum / mktypes
+-	mksyscall="mksyscall.sh -l32"
+-	mksysnum="XXXXXX_mksysnum.sh"
+-	mktypes="XXXXXX_godefs -gsyscall -f-m32"
+-	exit 1
++	mksyscall="mksyscall_mingw.sh -l32"
++	mksysnum=
++	mktypes=
++	mkerrors=
+ 	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+@@ -158,8 +157,8 @@ mingw_386)
+ esac
+ 
+ (
+-	echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
+-	echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
+-	echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
+-	echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
++	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"; fi
++	if [ -n "$mksyscall" ]; then echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"; fi
++	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
++	if [ -n "$mktypes" ]; then echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"; fi
+ ) | $run
+diff --git a/src/pkg/syscall/mksyscall_mingw.sh b/src/pkg/syscall/mksyscall_mingw.sh
+new file mode 100755
+index 0000000000..4913b3655d
+--- /dev/null
++++ b/src/pkg/syscall/mksyscall_mingw.sh
+@@ -0,0 +1,226 @@
++#!/usr/bin/perl
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This program reads a file containing function prototypes
++# (like syscall_darwin.go) and generates system call bodies.
++# The prototypes are marked by lines beginning with "//sys"
++# and read like func declarations if //sys is replaced by func, but:
++#	* The parameter lists must give a name for each argument.
++#	  This includes return parameters.
++#	* The parameter lists must give a type for each argument:
++#	  the (x, y, z int) shorthand is not allowed.
++#	* If the return parameter is an error number, it must be named errno.
++#	* If go func name needs to be different from it's winapi dll name,
++#	  the winapi name could be specified at the end, after "=" sign, like
++#	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA
++#	* Each function, that returns errno, needs to supply a number,
++#	  that return value of winapi will be tested against to
++#	  detect failure. This would set errno to windows "last-error",
++#	  otherwise it will be 0. The value can be provided at
++#	  the very end of //sys declaration, like
++#	  //sys LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryA, 0xffffffff
++#	  and is 0 by default.
++
++$cmdline = "mksyscall_mingw.sh " . join(' ', @ARGV);
++$errors = 0;
++$_32bit = "";
++
++if($ARGV[0] eq "-b32") {
++	$_32bit = "big-endian";
++	shift;
++} elsif($ARGV[0] eq "-l32") {
++	$_32bit = "little-endian";
++	shift;
++}
++
++if($ARGV[0] =~ /^-/) {
++	print STDERR "usage: mksyscall_mingw.sh [-b32 | -l32] [file ...]\n";
++	exit 1;
++}
++
++sub parseparamlist($) {
++	my ($list) = @_;
++	$list =~ s/^\s*//;
++	$list =~ s/\s*$//;
++	if($list eq "") {
++		return ();
++	}
++	return split(/\s*,\s*/, $list);
++}
++
++sub parseparam($) {
++	my ($p) = @_;
++	if($p !~ /^(\S*) (\S*)$/) {
++		print STDERR "$ARGV:$.: malformed parameter: $p\n";
++		$errors = 1;
++		return ("xx", "int");
++	}
++	return ($1, $2);
++}
++
++$text = "";
++$vars = "";
++while(<>) {
++	chomp;
++	s/\s+/ /g;
++	s/^\s+//;
++	s/\s+$//;
++	next if !/^\/\/sys /;
++
++	# Line must be of the form
++	#	func Open(path string, mode int, perm int) (fd int, errno int)
++	# Split into name, in params, out params.
++	if(!/^\/\/sys (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(\w*))?(?:\s*,\s*(\w+))?$/) {
++		print STDERR "$ARGV:$.: malformed //sys declaration\n";
++		$errors = 1;
++		next;
++	}
++	my ($func, $in, $out, $sysname, $failretval) = ($1, $2, $3, $4, $5);
++
++	# Split argument lists on comma.
++	my @in = parseparamlist($in);
++	my @out = parseparamlist($out);
++
++	# System call name.
++	if($sysname eq "") {
++		$sysname = "$func";
++	}
++
++	# System call pointer variable name.
++	$sysvarname = "proc$sysname";
++
++	# Returned value when failed
++	if($failretval eq "") {
++		$failretval = "0";
++	}
++
++	# Decide which version of api is used: ascii or unicode.
++	if($sysname !~ /W$/) {
++		$strconvfunc = "StringBytePtr";
++	} else {
++		$strconvfunc = "StringToUTF16Ptr";
++	}
++
++	# Winapi proc address variable.
++	$vars .= sprintf "\t%s = getSysProcAddr(modKERNEL32, \"%s\")\n", $sysvarname, $sysname;
++
++	# Go function header.
++	$text .= sprintf "func %s(%s) (%s) {\n", $func, join(', ', @in), join(', ', @out);
++
++	# Prepare arguments to Syscall9.
++	my @args = ();
++	my $n = 0;
++	foreach my $p (@in) {
++		my ($name, $type) = parseparam($p);
++		if($type =~ /^\*/) {
++			push @args, "uintptr(unsafe.Pointer($name))";
++		} elsif($type eq "string") {
++			push @args, "uintptr(unsafe.Pointer($strconvfunc($name)))";
++		} elsif($type =~ /^\[\](.*)/) {
++			# Convert slice into pointer, length.
++			# Have to be careful not to take address of &a[0] if len == 0:
++			# pass nil in that case.
++			$text .= "\tvar _p$n *$1;\n";
++			$text .= "\tif len($name) > 0 { _p$n = \&${name}[0]; }\n";
++			push @args, "uintptr(unsafe.Pointer(_p$n))", "uintptr(len($name))";
++			$n++;
++		} elsif($type eq "int64" && $_32bit ne "") {
++			if($_32bit eq "big-endian") {
++				push @args, "uintptr($name >> 32)", "uintptr($name)";
++			} else {
++				push @args, "uintptr($name)", "uintptr($name >> 32)";
++			}
++		} else {
++			push @args, "uintptr($name)";
++		}
++	}
++
++	# Determine which form to use; pad args with zeros.
++	my $asm = "Syscall9";
++	if(@args <= 9) {
++		while(@args < 9) {
++			push @args, "0";
++		}
++	} else {
++		print STDERR "$ARGV:$.: too many arguments to system call\n";
++	}
++
++	# Actual call.
++	my $args = join(', ', @args);
++	my $call = "$asm($sysvarname, $args)";
++
++	# Assign return values.
++	my $body = "";
++	my @ret = ("_", "_", "_");
++	for(my $i=0; $i<@out; $i++) {
++		my $p = $out[$i];
++		my ($name, $type) = parseparam($p);
++		my $reg = "";
++		if($name eq "errno") {
++			$reg = "e1";
++			$ret[2] = $reg;
++		} else {
++			$reg = sprintf("r%d", $i);
++			$ret[$i] = $reg;
++		}
++		if($type eq "bool") {
++			$reg = "$reg != 0";
++		}
++		if($type eq "int64" && $_32bit ne "") {
++			# 64-bit number in r1:r0 or r0:r1.
++			if($i+2 > @out) {
++				print STDERR "$ARGV:$.: not enough registers for int64 return\n";
++			}
++			if($_32bit eq "big-endian") {
++				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i, $i+1);
++			} else {
++				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i+1, $i);
++			}
++			$ret[$i] = sprintf("r%d", $i);
++			$ret[$i+1] = sprintf("r%d", $i+1);
++		}
++		if($name eq "errno") {
++			# Set errno to "last error" only if returned value indicate failure
++			$body .= "\tif uint32(r0) == $failretval {\n";
++			$body .= "\t\t$name = $type($reg);\n";
++			$body .= "\t} else {\n";
++			$body .= "\t\t$name = 0;\n";
++			$body .= "\t}\n";
++		} else {
++			$body .= "\t$name = $type($reg);\n";
++		}
++	}
++	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
++		$text .= "\t$call;\n";
++	} else {
++		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
++	}
++	$text .= $body;
++
++	$text .= "\treturn;\n";
++	$text .= "}\n\n";
++}
++
++if($errors) {
++	exit 1;
++}
++
++print <<EOF;
++// $cmdline
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++import "unsafe"
++
++var (
++	modKERNEL32 = loadDll("kernel32.dll")
++$vars
++)
++
++$text
++
++EOF
++exit 0;
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index b653a5a20e..16b8a281ea 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -6,7 +6,10 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	"unsafe"
++	"utf16"
++)
+ 
+ const OS = "mingw"
+ 
+@@ -20,6 +23,10 @@ import (
+ 	"syscall"
+ )
+ 
++func abort(funcname string, err int) {
++	panic(funcname+" failed: (", err, ") ", syscall.GetErrstr(err), "\n")
++}
++
+ func print_version(v uint32) {
+ 	major := byte(v)
+ 	minor := uint8(v >> 8)
+@@ -30,69 +37,90 @@ func print_version(v uint32) {
+ func main() {
+ 	h, err := syscall.LoadLibrary("kernel32.dll")
+ 	if err != 0 {
+-		panic("failed to LoadLibrary #", err, "\n")
++		abort("LoadLibrary", err)
+ 	}
+ 	defer syscall.FreeLibrary(h)
+ 	proc, err := syscall.GetProcAddress(h, "GetVersion")
+ 	if err != 0 {
+-		panic("could not GetProcAddress #", err, "\n")
+-	}
+-	r, _, e := syscall.Syscall(uintptr(proc), 0, 0, 0)
+-	err = int(e)
+-	if err != 0 {
+-		panic("GetVersion failed #", err, "\n")
++		abort("GetProcAddress", err)
+ 	}
++	r, _, _ := syscall.Syscall(uintptr(proc), 0, 0, 0)
+ 	print_version(uint32(r))
+ }
+ 
+ */
+ 
+-//sys	GetLastError() (lasterrno int)
+-
+-// TODO(brainman): probably should use LoadLibraryW here instead
+-//sys	LoadLibraryA(libname string) (handle Module, errno int)
++// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
++// with a terminating NUL added.
++func StringToUTF16(s string) []uint16 { return utf16.Encode([]int(s + "\x00")) }
+ 
+-func LoadLibrary(libname string) (handle Module, errno int) {
+-	h, e := LoadLibraryA(libname)
+-	if int(h) != 0 {
+-		return h, 0
++// UTF16ToString returns the UTF-8 encoding of the UTF-16 sequence s,
++// with a terminating NUL removed.
++func UTF16ToString(s []uint16) string {
++	if n := len(s); n > 0 && s[n-1] == 0 {
++		s = s[0 : n-1]
+ 	}
+-	return h, e
++	return string(utf16.Decode(s))
+ }
+ 
+-// TODO(brainman): should handle errors like in LoadLibrary, otherwise will be returning 'old' errors
+-//sys	FreeLibrary(handle Module) (ok Bool, errno int)
+-//sys	GetProcAddress(module Module, procname string) (proc uint32, errno int)
+-//sys	GetVersion() (ver uint32, errno int)
++// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
++// the UTF-8 string s, with a terminating NUL added.
++func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+ 
+ // dll helpers
+ 
+ // implemented in ../pkg/runtime/mingw/syscall.cgo
++func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, lasterr uintptr)
+ func loadlibraryex(filename uintptr) (handle uint32)
+ func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
+ 
+-func loadDll(fname string) Module {
++func loadDll(fname string) uint32 {
+ 	m := loadlibraryex(uintptr(unsafe.Pointer(StringBytePtr(fname))))
+ 	if m == 0 {
+ 		panic("syscall: could not LoadLibraryEx ", fname)
+ 	}
+-	return Module(m)
++	return m
+ }
+ 
+-func getSysProcAddr(m Module, pname string) uintptr {
+-	p := getprocaddress(uint32(m), uintptr(unsafe.Pointer(StringBytePtr(pname))))
++func getSysProcAddr(m uint32, pname string) uintptr {
++	p := getprocaddress(m, uintptr(unsafe.Pointer(StringBytePtr(pname))))
+ 	if p == 0 {
+ 		panic("syscall: could not GetProcAddress for ", pname)
+ 	}
+ 	return p
+ }
+ 
++// windows api calls
++
++//sys	GetLastError() (lasterrno int)
++//sys	LoadLibrary(libname string) (handle uint32, errno int) = LoadLibraryW
++//sys	FreeLibrary(handle uint32) (ok bool, errno int)
++//sys	GetProcAddress(module uint32, procname string) (proc uint32, errno int)
++//sys	GetVersion() (ver uint32, errno int)
++//sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) = FormatMessageW
++
++// TODO(brainman): maybe GetErrstr should replace Errstr alltogether
++
++func GetErrstr(errno int) string {
++	if errno == EMINGW {
++		return errors[errno]
++	}
++	var b = make([]uint16, 300)
++	n, err := FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_ARGUMENT_ARRAY, 0, uint32(errno), 0, b, nil)
++	if err != 0 {
++		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
++	}
++	return UTF16ToString(b[0 : n-1])
++}
++
+ // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
+ 
+ func Pipe(p []int) (errno int) { return EMINGW }
+ 
+-//sys	Close(fd int) (errno int)
+-//sys	read(fd int, buf *byte, nbuf int) (n int, errno int)
++func Close(fd int) (errno int) { return EMINGW }
++func read(fd int, buf *byte, nbuf int) (n int, errno int) {
++	return 0, EMINGW
++}
+ 
+ func fcntl(fd, cmd, arg int) (val int, errno int) {
+ 	return 0, EMINGW
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_mingw_386.go
+index cd51d22fb3..0af1d1106d 100644
+--- a/src/pkg/syscall/zerrors_mingw_386.go
++++ b/src/pkg/syscall/zerrors_mingw_386.go
+@@ -6,7 +6,11 @@ package syscall
+ // TODO(brainman): populate errors in zerrors_mingw.go
+ 
+ const (
+-	EMINGW = 99 /* otherwise unused */
++	ERROR_INSUFFICIENT_BUFFER = 122
++	ERROR_MOD_NOT_FOUND       = 126
++	ERROR_PROC_NOT_FOUND      = 127
++	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
++	EMINGW = 99999 /* otherwise unused */
+ )
+ 
+ // Error table
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_mingw_386.go
+index c457eb43ca..c2bc912ac4 100644
+--- a/src/pkg/syscall/zsyscall_mingw_386.go
++++ b/src/pkg/syscall/zsyscall_mingw_386.go
+@@ -1,53 +1,81 @@
+-// mksyscall.sh -l32 syscall_mingw.go
++// mksyscall_mingw.sh -l32 syscall_mingw.go syscall_mingw_386.go
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+ package syscall
+ 
+ import "unsafe"
+ 
++var (
++	modKERNEL32        = loadDll("kernel32.dll")
++	procGetLastError   = getSysProcAddr(modKERNEL32, "GetLastError")
++	procLoadLibraryW   = getSysProcAddr(modKERNEL32, "LoadLibraryW")
++	procFreeLibrary    = getSysProcAddr(modKERNEL32, "FreeLibrary")
++	procGetProcAddress = getSysProcAddr(modKERNEL32, "GetProcAddress")
++	procGetVersion     = getSysProcAddr(modKERNEL32, "GetVersion")
++	procFormatMessageW = getSysProcAddr(modKERNEL32, "FormatMessageW")
++)
++
+ func GetLastError() (lasterrno int) {
+-	r0, _, _ := Syscall(SYS_GET_LAST_ERROR, 0, 0, 0)
++	r0, _, _ := Syscall9(procGetLastError, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+ 	lasterrno = int(r0)
+ 	return
+ }
+ 
+-func LoadLibraryA(libname string) (handle Module, errno int) {
+-	r0, _, e1 := Syscall(SYS_LOAD_LIBRARY_A, uintptr(unsafe.Pointer(StringBytePtr(libname))), 0, 0)
+-	handle = Module(r0)
+-	errno = int(e1)
++func LoadLibrary(libname string) (handle uint32, errno int) {
++	r0, _, e1 := Syscall9(procLoadLibraryW, uintptr(unsafe.Pointer(StringToUTF16Ptr(libname))), 0, 0, 0, 0, 0, 0, 0, 0)
++	handle = uint32(r0)
++	if uint32(r0) == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
+ 	return
+ }
+ 
+-func FreeLibrary(handle Module) (ok Bool, errno int) {
+-	r0, _, e1 := Syscall(SYS_FREE_LIBRARY, uintptr(handle), 0, 0)
+-	ok = Bool(r0)
+-	errno = int(e1)
++func FreeLibrary(handle uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall9(procFreeLibrary, uintptr(handle), 0, 0, 0, 0, 0, 0, 0, 0)
++	ok = bool(r0 != 0)
++	if uint32(r0) == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
+ 	return
+ }
+ 
+-func GetProcAddress(module Module, procname string) (proc uint32, errno int) {
+-	r0, _, e1 := Syscall(SYS_GET_PROC_ADDRESS, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0)
++func GetProcAddress(module uint32, procname string) (proc uint32, errno int) {
++	r0, _, e1 := Syscall9(procGetProcAddress, uintptr(module), uintptr(unsafe.Pointer(StringBytePtr(procname))), 0, 0, 0, 0, 0, 0, 0)
+ 	proc = uint32(r0)
+-	errno = int(e1)
++	if uint32(r0) == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
+ 	return
+ }
+ 
+ func GetVersion() (ver uint32, errno int) {
+-	r0, _, e1 := Syscall(SYS_GET_VERSION, 0, 0, 0)
++	r0, _, e1 := Syscall9(procGetVersion, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+ 	ver = uint32(r0)
+-	errno = int(e1)
+-	return
+-}
+-
+-func Close(fd int) (errno int) {
+-	_, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
+-	errno = int(e1)
++	if uint32(r0) == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
+ 	return
+ }
+ 
+-func read(fd int, buf *byte, nbuf int) (n int, errno int) {
+-	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf))
+-	n = int(r0)
+-	errno = int(e1)
++func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, errno int) {
++	var _p0 *uint16
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r0, _, e1 := Syscall9(procFormatMessageW, uintptr(flags), uintptr(msgsrc), uintptr(msgid), uintptr(langid), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(args)), 0, 0)
++	n = uint32(r0)
++	if uint32(r0) == 0 {
++		errno = int(e1)
++	} else {
++		errno = 0
++	}
+ 	return
+ }
+diff --git a/src/pkg/syscall/zsysnum_mingw_386.go b/src/pkg/syscall/zsysnum_mingw_386.go
+index 144cf2b623..9cccb3ef0b 100644
+--- a/src/pkg/syscall/zsysnum_mingw_386.go
++++ b/src/pkg/syscall/zsysnum_mingw_386.go
+@@ -2,14 +2,3 @@
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+-
+-// TODO(brainman): autogenerate winapi proc pointers in zsysnum_mingw.go
+-
+-var (
+-	SYS_KERNEL32         = loadDll("kernel32.dll")
+-	SYS_GET_LAST_ERROR   = getSysProcAddr(SYS_KERNEL32, "GetLastError")
+-	SYS_LOAD_LIBRARY_A   = getSysProcAddr(SYS_KERNEL32, "LoadLibraryA")
+-	SYS_FREE_LIBRARY     = getSysProcAddr(SYS_KERNEL32, "FreeLibrary")
+-	SYS_GET_PROC_ADDRESS = getSysProcAddr(SYS_KERNEL32, "GetProcAddress")
+-	SYS_GET_VERSION      = getSysProcAddr(SYS_KERNEL32, "GetVersion")
+-)
+diff --git a/src/pkg/syscall/ztypes_mingw_386.go b/src/pkg/syscall/ztypes_mingw_386.go
+index 24e9f40997..99aa8b4ca9 100644
+--- a/src/pkg/syscall/ztypes_mingw_386.go
++++ b/src/pkg/syscall/ztypes_mingw_386.go
+@@ -25,6 +25,16 @@ const (
+ 	SizeofCmsghdr       = 0xc
+ )
+ 
++const (
++	FORMAT_MESSAGE_ALLOCATE_BUFFER = 256
++	FORMAT_MESSAGE_IGNORE_INSERTS  = 512
++	FORMAT_MESSAGE_FROM_STRING     = 1024
++	FORMAT_MESSAGE_FROM_HMODULE    = 2048
++	FORMAT_MESSAGE_FROM_SYSTEM     = 4096
++	FORMAT_MESSAGE_ARGUMENT_ARRAY  = 8192
++	FORMAT_MESSAGE_MAX_WIDTH_MASK  = 255
++)
++
+ // Types
+ 
+ type _C_short int16
+@@ -35,9 +45,6 @@ type _C_long int32
+ 
+ type _C_long_long int64
+ 
+-type Bool uint32
+-type Module uint32
+-
+ type Timeval struct {
+ 	Sec  int32
+ 	Usec int32

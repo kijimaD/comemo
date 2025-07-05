@@ -21,9 +21,101 @@ Date:   Fri Apr 24 01:01:48 2020 -0400
     Run-TryBot: Rebecca Stambler <rstambler@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/expr.go             |  7 +++++--
  src/go/types/lookup.go           | 13 ++++++++++++-
  src/go/types/operand.go          |  7 ++++++-
  src/go/types/testdata/issues.src |  5 ++++-
  4 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index f88b2389c6..d1e892a9b7 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1566,10 +1566,13 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface,
+ 	if method == nil {
+ 		return
+ 	}
+-
+ 	var msg string
+ 	if wrongType != nil {
+-		msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
++		if check.identical(method.typ, wrongType.typ) {
++			msg = fmt.Sprintf("missing method %s (%s has pointer receiver)", method.name, method.name)
++		} else {
++			msg = fmt.Sprintf("wrong type for method %s (have %s, want %s)", method.name, wrongType.typ, method.typ)
++		}
+ 	} else {
+ 		msg = "missing method " + method.name
+ 	}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index d774dd5d5c..3c9ff182ec 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -271,8 +271,10 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
+ // The receiver may be nil if missingMethod is invoked through
+ // an exported API call (such as MissingMethod), i.e., when all
+ // methods have been type-checked.
+-// If the type has the correctly names method, but with the wrong
++// If the type has the correctly named method, but with the wrong
+ // signature, the existing method is returned as well.
++// To improve error messages, also report the wrong signature
++// when the method exists on *V instead of V.
+ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
+ 	check.completeInterface(T)
+ 
+@@ -302,6 +304,15 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 	for _, m := range T.allMethods {
+ 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
+ 
++		// Check if *V implements this method of T.
++		if obj == nil {
++			ptr := NewPointer(V)
++			obj, _, _ = check.rawLookupFieldOrMethod(ptr, false, m.pkg, m.name)
++			if obj != nil {
++				return m, obj.(*Func)
++			}
++		}
++
+ 		// we must have a method (not a field of matching function type)
+ 		f, _ := obj.(*Func)
+ 		if f == nil {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index eb49e6b1dc..80d11e2f21 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -266,7 +266,12 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
+ 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
+ 			if reason != nil {
+ 				if wrongType != nil {
+-					*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
++					if check.identical(m.typ, wrongType.typ) {
++						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
++					} else {
++						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
++					}
++
+ 				} else {
+ 					*reason = "missing method " + m.Name()
+ 				}
+diff --git a/src/go/types/testdata/issues.src b/src/go/types/testdata/issues.src
+index f8d037b99e..6cf4420e51 100644
+--- a/src/go/types/testdata/issues.src
++++ b/src/go/types/testdata/issues.src
+@@ -130,6 +130,9 @@ func issue10260() {
+ 		t2 *T2
+ 	)
+ 
++	var x I1 = T1 /* ERROR cannot use .*: missing method foo \(foo has pointer receiver\) */ {}
++	_ = x /* ERROR .* cannot have dynamic type T1 \(missing method foo \(foo has pointer receiver\)\) */ .(T1)
++
+ 	_ = i2 /* ERROR i2 .* cannot have dynamic type \*T1 \(wrong type for method foo \(have func\(\), want func\(x int\)\)\) */ .(*T1)
+ 
+ 	i1 = i0 /* ERROR cannot use .* missing method foo */
+@@ -355,4 +358,4 @@ func issue35895() {
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+ 	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
+-}
+\ No newline at end of file
++}

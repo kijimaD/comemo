@@ -10,8 +10,51 @@ Date:   Tue Sep 10 12:24:43 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13643044
-
+---
  src/libmach/5obj.c | 4 ++--
  src/libmach/6obj.c | 2 +-
  src/libmach/8obj.c | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index 48fc49fd34..7fd3459a8e 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -127,7 +127,7 @@ addr(Biobuf *bp)
+ 		break;
+ 	case D_REGREG:
+ 	case D_REGREG2:
+-		BGETC(bp);
++		Bgetc(bp);
+ 		break;
+ 	case D_CONST2:
+ 		Bgetle4(bp); // fall through
+@@ -167,5 +167,5 @@ static void
+ skip(Biobuf *bp, int n)
+ {
+ 	while (n-- > 0)
+-		BGETC(bp);
++		Bgetc(bp);
+ }
+diff --git a/src/libmach/6obj.c b/src/libmach/6obj.c
+index 9a7c9ac21d..1921c9e4c9 100644
+--- a/src/libmach/6obj.c
++++ b/src/libmach/6obj.c
+@@ -169,5 +169,5 @@ static void
+ skip(Biobuf *bp, int n)
+ {
+ 	while (n-- > 0)
+-		BGETC(bp);
++		Bgetc(bp);
+ }
+diff --git a/src/libmach/8obj.c b/src/libmach/8obj.c
+index e11a7dfd14..c44d92c55a 100644
+--- a/src/libmach/8obj.c
++++ b/src/libmach/8obj.c
+@@ -166,5 +166,5 @@ static void
+ skip(Biobuf *bp, int n)
+ {
+ 	while (n-- > 0)
+-		BGETC(bp);
++		Bgetc(bp);
+ }

@@ -10,9 +10,109 @@ Date:   Mon Jun 21 13:05:38 2010 -0700
     TBR=r
     CC=golang-dev
     https://golang.org/cl/1689046
-
+---
  src/pkg/Makefile                    | 15 ++++++++++-----
  src/pkg/netchan/netchan_test.go     |  6 +++---
  src/pkg/rpc/server_test.go          |  4 ++--
  src/pkg/websocket/websocket_test.go |  2 +-
  4 files changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 005c957046..1bbb91bfeb 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -146,11 +146,10 @@ NOTEST=\
+ NOBENCH=\
+ 	container/vector\
+ 
+-TEST=\
+-	$(filter-out $(NOTEST),$(DIRS))
+-
+-BENCH=\
+-	$(filter-out $(NOBENCH),$(TEST))
++# Disable tests that depend on an external network.
++ifeq ($(DISABLE_NET_TESTS),1)
++NOTEST+=http net
++endif
+ 
+ # Disable tests that NaCl cannot run yet.
+ ifeq ($(GOOS),nacl)
+@@ -172,6 +171,12 @@ NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+ NOTEST+=websocket    # no network
+ endif
+ 
++TEST=\
++	$(filter-out $(NOTEST),$(DIRS))
++
++BENCH=\
++	$(filter-out $(NOBENCH),$(TEST))
++
+ clean.dirs: $(addsuffix .clean, $(DIRS))
+ install.dirs: $(addsuffix .install, $(DIRS))
+ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index ca3f4d4c79..01fc0f3272 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -72,7 +72,7 @@ func importSend(imp *Importer, t *testing.T) {
+ }
+ 
+ func TestExportSendImportReceive(t *testing.T) {
+-	exp, err := NewExporter("tcp", ":0")
++	exp, err := NewExporter("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal("new exporter:", err)
+ 	}
+@@ -85,7 +85,7 @@ func TestExportSendImportReceive(t *testing.T) {
+ }
+ 
+ func TestExportReceiveImportSend(t *testing.T) {
+-	exp, err := NewExporter("tcp", ":0")
++	exp, err := NewExporter("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal("new exporter:", err)
+ 	}
+@@ -98,7 +98,7 @@ func TestExportReceiveImportSend(t *testing.T) {
+ }
+ 
+ func TestClosingExportSendImportReceive(t *testing.T) {
+-	exp, err := NewExporter("tcp", ":0")
++	exp, err := NewExporter("tcp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal("new exporter:", err)
+ 	}
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 3196891d25..edf35e6c9f 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -55,7 +55,7 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
+ func startServer() {
+ 	Register(new(Arith))
+ 
+-	l, e := net.Listen("tcp", ":0") // any available address
++	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+ 		log.Exitf("net.Listen tcp :0: %v", e)
+ 	}
+@@ -64,7 +64,7 @@ func startServer() {
+ 	go Accept(l)
+ 
+ 	HandleHTTP()
+-	l, e = net.Listen("tcp", ":0") // any available address
++	l, e = net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+ 		log.Stderrf("net.Listen tcp :0: %v", e)
+ 		os.Exit(1)
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 0762fca699..df7e9f4dae 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -20,7 +20,7 @@ var serverAddr string
+ func echoServer(ws *Conn) { io.Copy(ws, ws) }
+ 
+ func startServer() {
+-	l, e := net.Listen("tcp", ":0") // any available address
++	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+ 	if e != nil {
+ 		log.Exitf("net.Listen tcp :0 %v", e)
+ 	}

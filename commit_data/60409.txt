@@ -14,6 +14,19 @@ Date:   Fri Jul 12 20:03:08 2024 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/encoding/json/stream.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index 5c98d1de04..cb61ea7212 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -194,6 +194,7 @@ func NewEncoder(w io.Writer) *Encoder {
+ }
+ 
+ // Encode writes the JSON encoding of v to the stream,
++// with insignificant space characters elided,
+ // followed by a newline character.
+ //
+ // See the documentation for [Marshal] for details about the

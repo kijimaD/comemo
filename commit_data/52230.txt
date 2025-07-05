@@ -9,6 +9,45 @@ Date:   Mon Apr 4 15:41:08 2022 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/nosplit.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 1d94f6eb91..7e0fd4e791 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -70,6 +70,18 @@ start 0 call start
+ start 0 nosplit call start
+ REJECT
+ 
++# Non-trivial recursion runs out of space.
++start 0 call f1
++f1 0 nosplit call f2
++f2 0 nosplit call f1
++REJECT
++# Same but cycle starts below nosplit entry.
++start 0 call f1
++f1 0 nosplit call f2
++f2 0 nosplit call f3
++f3 0 nosplit call f2
++REJECT
++
+ # Chains of ordinary functions okay.
+ start 0 call f1
+ f1 80 call f2
+@@ -105,6 +117,14 @@ f8 16 nosplit call end
+ end 1000
+ REJECT
+ 
++# Two paths both go over the stack limit.
++start 0 call f1
++f1 80 nosplit call f2 call f3
++f2 40 nosplit call f4
++f3 96 nosplit
++f4 40 nosplit
++REJECT
++
+ # Test cases near the 128-byte limit.
+ 
+ # Ordinary stack split frame is always okay.

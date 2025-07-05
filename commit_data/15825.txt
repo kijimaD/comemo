@@ -12,7 +12,48 @@ Date:   Tue Mar 19 07:08:26 2013 +0100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7810044
-
+---
  src/pkg/runtime/os_netbsd.c  | 7 +------
  src/pkg/runtime/os_openbsd.c | 4 ++--
  2 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index 6cf57d6564..d4b874f4c2 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -65,7 +65,6 @@ int32
+ runtime·semasleep(int64 ns)
+ {
+ 	Timespec ts;
+-	int64 secs;
+ 
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&m->waitsemalock, 1))
+@@ -94,11 +93,7 @@ runtime·semasleep(int64 ns)
+ 				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
+ 			} else {
+ 				ns += runtime·nanotime();
+-				secs = ns/1000000000LL;
+-				// Avoid overflow
+-				if(secs > 1LL<<30)
+-					secs = 1LL<<30;
+-				ts.tv_sec = secs;
++				ts.tv_sec = ns/1000000000LL;
+ 				ts.tv_nsec = ns%1000000000LL;
+ 				// TODO(jsing) - potential deadlock!
+ 				// See above for details.
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index c3f562e0a2..2c34f0ef99 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -79,8 +79,8 @@ runtime·semasleep(int64 ns)
+ 				ns += runtime·nanotime();
+ 				secs = ns/1000000000LL;
+ 				// Avoid overflow
+-				if(secs > 1LL<<30)
+-					secs = 1LL<<30;
++				if(secs >= 1LL<<31)
++					secs = (1LL<<31) - 1;
+ 				ts.tv_sec = secs;
+ 				ts.tv_nsec = ns%1000000000LL;
+ 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);

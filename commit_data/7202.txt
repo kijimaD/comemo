@@ -9,7 +9,50 @@ Date:   Thu Jan 20 12:50:35 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4079042
-
+---
  src/cmd/6g/cgen.c        |  3 ---
  test/fixedbugs/bug319.go | 22 ++++++++++++++++++++++
  2 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d4d22fd610..47f3374f53 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -431,9 +431,6 @@ agen(Node *n, Node *res)
+ 	if(n == N || n->type == T)
+ 		return;
+ 
+-	if(!isptr[res->type->etype] && res->type->etype != TUINTPTR)
+-		fatal("agen: not tptr: %T", res->type);
+-
+ 	while(n->op == OCONVNOP)
+ 		n = n->left;
+ 
+diff --git a/test/fixedbugs/bug319.go b/test/fixedbugs/bug319.go
+new file mode 100644
+index 0000000000..f60eee4fb2
+--- /dev/null
++++ b/test/fixedbugs/bug319.go
+@@ -0,0 +1,22 @@
++// $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++func main() {
++	var x int
++	
++	a := uint64(uintptr(unsafe.Pointer(&x)))
++	b := uint32(uintptr(unsafe.Pointer(&x)))
++	c := uint16(uintptr(unsafe.Pointer(&x)))
++	d := int64(uintptr(unsafe.Pointer(&x)))
++	e := int32(uintptr(unsafe.Pointer(&x)))
++	f := int16(uintptr(unsafe.Pointer(&x)))
++
++	_, _, _, _, _, _ = a, b, c, d, e, f
++}

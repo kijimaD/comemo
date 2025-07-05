@@ -12,8 +12,117 @@ Date:   Thu Sep 27 06:21:38 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6574046
-
+---
  src/pkg/fmt/fmt_test.go |  8 +++++++-
  src/pkg/fmt/format.go   | 39 +++++++++++++++++++++++++++++++--------
  src/pkg/fmt/print.go    |  9 ++++-----
  3 files changed, 42 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 720db63a00..210d8f8b3d 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -127,6 +127,10 @@ var fmttests = []struct {
+ 	{"%s", []byte("abc"), "abc"},
+ 	{"%x", []byte("abc"), "616263"},
+ 	{"% x", []byte("abc\xff"), "61 62 63 ff"},
++	{"%#x", []byte("abc\xff"), "0x610x620x630xff"},
++	{"%#X", []byte("abc\xff"), "0X610X620X630XFF"},
++	{"%# x", []byte("abc\xff"), "0x61 0x62 0x63 0xff"},
++	{"%# X", []byte("abc\xff"), "0X61 0X62 0X63 0XFF"},
+ 	{"% X", []byte("abc\xff"), "61 62 63 FF"},
+ 	{"%x", []byte("xyz"), "78797a"},
+ 	{"%X", []byte("xyz"), "78797A"},
+@@ -350,10 +354,12 @@ var fmttests = []struct {
+ 	{"%+v", B{1, 2}, `{I:<1> j:2}`},
+ 	{"%+v", C{1, B{2, 3}}, `{i:1 B:{I:<2> j:3}}`},
+ 
+-	// q on Stringable items
++	// other formats on Stringable items
+ 	{"%s", I(23), `<23>`},
+ 	{"%q", I(23), `"<23>"`},
+ 	{"%x", I(23), `3c32333e`},
++	{"%#x", I(23), `0x3c0x320x330x3e`},
++	{"%# x", I(23), `0x3c 0x32 0x33 0x3e`},
+ 	{"%d", I(23), `23`}, // Stringer applies only to string formats.
+ 
+ 	// go syntax
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 3c9cd0de69..ce801162d6 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -285,18 +285,41 @@ func (f *fmt) fmt_s(s string) {
+ 	f.padString(s)
+ }
+ 
+-// fmt_sx formats a string as a hexadecimal encoding of its bytes.
+-func (f *fmt) fmt_sx(s, digits string) {
++// fmt_sbx formats a string or byte slice as a hexadecimal encoding of its bytes.
++func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
++	n := len(b)
++	if b == nil {
++		n = len(s)
++	}
++	x := digits[10] - 'a' + 'x'
+ 	// TODO: Avoid buffer by pre-padding.
+-	var b []byte
+-	for i := 0; i < len(s); i++ {
++	var buf []byte
++	for i := 0; i < n; i++ {
+ 		if i > 0 && f.space {
+-			b = append(b, ' ')
++			buf = append(buf, ' ')
++		}
++		if f.sharp {
++			buf = append(buf, '0', x)
++		}
++		var c byte
++		if b == nil {
++			c = s[i]
++		} else {
++			c = b[i]
+ 		}
+-		v := s[i]
+-		b = append(b, digits[v>>4], digits[v&0xF])
++		buf = append(buf, digits[c>>4], digits[c&0xF])
+ 	}
+-	f.pad(b)
++	f.pad(buf)
++}
++
++// fmt_sx formats a string as a hexadecimal encoding of its bytes.
++func (f *fmt) fmt_sx(s, digits string) {
++	f.fmt_sbx(s, nil, digits)
++}
++
++// fmt_bx formats a byte slice as a hexadecimal encoding of its bytes.
++func (f *fmt) fmt_bx(b []byte, digits string) {
++	f.fmt_sbx("", b, digits)
+ }
+ 
+ // fmt_q formats a string as a double-quoted, escaped Go string constant.
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index c42e516d55..13e58737f9 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -569,16 +569,15 @@ func (p *pp) fmtBytes(v []byte, verb rune, goSyntax bool, depth int) {
+ 		}
+ 		return
+ 	}
+-	s := string(v)
+ 	switch verb {
+ 	case 's':
+-		p.fmt.fmt_s(s)
++		p.fmt.fmt_s(string(v))
+ 	case 'x':
+-		p.fmt.fmt_sx(s, ldigits)
++		p.fmt.fmt_bx(v, ldigits)
+ 	case 'X':
+-		p.fmt.fmt_sx(s, udigits)
++		p.fmt.fmt_bx(v, udigits)
+ 	case 'q':
+-		p.fmt.fmt_q(s)
++		p.fmt.fmt_q(string(v))
+ 	default:
+ 		p.badVerb(verb)
+ 	}

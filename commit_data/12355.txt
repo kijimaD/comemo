@@ -7,6 +7,20 @@ Date:   Mon Mar 5 10:57:58 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5727052
-
+---
  misc/benchcmp | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/benchcmp b/misc/benchcmp
+index 24382b2bfd..015e7d2b28 100755
+--- a/misc/benchcmp
++++ b/misc/benchcmp
+@@ -7,7 +7,7 @@ case "$1" in
+ -*)	
+ 	echo 'usage: benchcmp old.txt new.txt' >&2
+ 	echo >&2
+-	echo 'Each input file should be gotest -bench output.' >&2
++	echo 'Each input file should be go test -test.run=NONE -test.bench=. > [old,new].txt' >&2
+ 	echo 'Benchcmp compares the first and last for each benchmark.' >&2
+ 	exit 2
+ esac

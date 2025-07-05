@@ -7,6 +7,20 @@ Date:   Thu Nov 18 12:34:04 2010 -0800
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/3206041
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d01de4a749..5eb2252fbb 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -426,7 +426,7 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
+ 			printer.Fprint(fgo2, fn.Recv.List[0].Type)
+ 			forFieldList(fntype.Params,
+ 				func(i int, atype ast.Expr) {
+-					fmt.Fprintf(fgo2, ", p%d", i)
++					fmt.Fprintf(fgo2, ", p%d ", i)
+ 					printer.Fprint(fgo2, atype)
+ 				})
+ 			fmt.Fprintf(fgo2, ")")

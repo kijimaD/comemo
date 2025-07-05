@@ -14,7 +14,41 @@ Date:   Tue Dec 1 22:11:56 2020 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 2 +-
  test/linkname2.go                    | 7 +++++--
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index de7dcda15e..e5677f921f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -275,7 +275,7 @@ func (p *noder) processPragmas() {
+ 		n := ir.AsNode(lookup(l.local).Def)
+ 		if n == nil || n.Op() != ir.ONAME {
+ 			// TODO(mdempsky): Change to p.errorAt before Go 1.17 release.
+-			base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
++			// base.WarnfAt(p.makeXPos(l.pos), "//go:linkname must refer to declared function or variable (will be an error in Go 1.17)")
+ 			continue
+ 		}
+ 		if n.Sym().Linkname != "" {
+diff --git a/test/linkname2.go b/test/linkname2.go
+index cb7f9be345..43e66a5849 100644
+--- a/test/linkname2.go
++++ b/test/linkname2.go
+@@ -16,10 +16,13 @@ var x, y int
+ //go:linkname x ok
+ 
+ // ERROR "//go:linkname requires linkname argument or -p compiler flag"
+-// ERROR "//go:linkname must refer to declared function or variable"
+-// ERROR "//go:linkname must refer to declared function or variable"
++// BAD: want error "//go:linkname must refer to declared function or variable"
++// BAD: want error "//go:linkname must refer to declared function or variable"
+ // ERROR "duplicate //go:linkname for x"
+ 
++// The two BAD lines are just waiting for #42938 before we can
++// re-enable the errors.
++
+ //line linkname2.go:18
+ //go:linkname y
+ //go:linkname nonexist nonexist

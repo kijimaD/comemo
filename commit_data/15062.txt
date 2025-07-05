@@ -38,7 +38,7 @@ Date:   Thu Jan 31 08:06:38 2013 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/7225074
-
+---
  src/cmd/go/build.go       | 75 ++++++++++++++++++++++++++++++++++++++----
  src/cmd/go/doc.go         | 33 ++++++++++++-------
  src/cmd/go/fix.go         |  2 +-
@@ -55,3 +55,872 @@ Date:   Thu Jan 31 08:06:38 2013 -0800
  src/cmd/go/vet.go         |  2 +-
  src/pkg/go/build/build.go | 70 ++++++++++++++++++++++++++++++---------
  15 files changed, 346 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 2d1f252770..7bdbb09aa0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -79,6 +79,9 @@ The build flags are shared by the build, install, run, and test commands:
+ 		See the documentation for the go/build package for
+ 		more information about build tags.
+ 
++The list flags accept a space-separated list of strings. To embed spaces
++in an element in the list, surround it with either single or double quotes.
++
+ For more about specifying packages, see 'go help packages'.
+ For more about where packages and binaries are installed,
+ see 'go help gopath'.
+@@ -167,11 +170,52 @@ func addBuildFlagsNX(cmd *Command) {
+ 	cmd.Flag.BoolVar(&buildX, "x", false, "")
+ }
+ 
++func isSpaceByte(c byte) bool {
++	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
++}
++
+ type stringsFlag []string
+ 
+ func (v *stringsFlag) Set(s string) error {
+-	*v = strings.Fields(s)
+-	return nil
++	var err error
++	*v, err = splitQuotedFields(s)
++	return err
++}
++
++func splitQuotedFields(s string) ([]string, error) {
++	// Split fields allowing '' or "" around elements.
++	// Quotes further inside the string do not count.
++	var f []string
++	for len(s) > 0 {
++		for len(s) > 0 && isSpaceByte(s[0]) {
++			s = s[1:]
++		}
++		if len(s) == 0 {
++			break
++		}
++		// Accepted quoted string. No unescaping inside.
++		if s[0] == '"' || s[0] == '\'' {
++			quote := s[0]
++			s = s[1:]
++			i := 0
++			for i < len(s) && s[i] != quote {
++				i++
++			}
++			if i >= len(s) {
++				return nil, fmt.Errorf("unterminated %c string", quote)
++			}
++			f = append(f, s[:i])
++			s = s[i+1:]
++			continue
++		}
++		i := 0
++		for i < len(s) && !isSpaceByte(s[i]) {
++			i++
++		}
++		f = append(f, s[:i])
++		s = s[i:]
++	}
++	return f, nil
+ }
+ 
+ func (v *stringsFlag) String() string {
+@@ -244,7 +288,7 @@ func runInstall(cmd *Command, args []string) {
+ 
+ 	for _, p := range pkgs {
+ 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
+-			errorf("go install: no install location for %s", p.ImportPath)
++			errorf("go install: no install location for directory %s outside GOPATH", p.Dir)
+ 		}
+ 	}
+ 	exitIfErrors()
+@@ -514,9 +558,18 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		a.f = (*builder).build
+ 		a.target = a.objpkg
+ 		if a.link {
+-			// An executable file.
+-			// (This is the name of a temporary file.)
+-			a.target = a.objdir + "a.out" + exeSuffix
++			// An executable file. (This is the name of a temporary file.)
++			// Because we run the temporary file in 'go run' and 'go test',
++			// the name will show up in ps listings. If the caller has specified
++			// a name, use that instead of a.out. The binary is generated
++			// in an otherwise empty subdirectory named exe to avoid
++			// naming conflicts.  The only possible conflict is if we were
++			// to create a top-level package named exe.
++			name := "a.out"
++			if p.exeName != "" {
++				name = p.exeName
++			}
++			a.target = a.objdir + filepath.Join("exe", name) + exeSuffix
+ 		}
+ 	}
+ 
+@@ -690,6 +743,14 @@ func (b *builder) build(a *action) (err error) {
+ 		return err
+ 	}
+ 
++	// make target directory
++	dir, _ := filepath.Split(a.target)
++	if dir != "" {
++		if err := b.mkdir(dir); err != nil {
++			return err
++		}
++	}
++
+ 	var gofiles, cfiles, sfiles, objects, cgoObjects []string
+ 	gofiles = append(gofiles, a.p.GoFiles...)
+ 	cfiles = append(cfiles, a.p.CFiles...)
+@@ -914,7 +975,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 		if dir := a1.pkgdir; dir == a1.p.build.PkgRoot && !incMap[dir] {
+ 			incMap[dir] = true
+ 			if _, ok := buildToolchain.(gccgcToolchain); ok {
+-				dir = filepath.Join(dir, "gccgo")
++				dir = filepath.Join(dir, "gccgo_"+goos+"_"+goarch)
+ 			} else {
+ 				dir = filepath.Join(dir, goos+"_"+goarch)
+ 				if buildRace {
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 09cf9a7f19..d54b4b26f0 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -95,6 +95,9 @@ The build flags are shared by the build, install, run, and test commands:
+ 		See the documentation for the go/build package for
+ 		more information about build tags.
+ 
++The list flags accept a space-separated list of strings. To embed spaces
++in an element in the list, surround it with either single or double quotes.
++
+ For more about specifying packages, see 'go help packages'.
+ For more about where packages and binaries are installed,
+ see 'go help gopath'.
+@@ -272,7 +275,7 @@ List packages
+ 
+ Usage:
+ 
+-	go list [-e] [-f format] [-json] [packages]
++	go list [-e] [-f format] [-json] [-tags 'tag list'] [packages]
+ 
+ List lists the packages named by the import paths, one per line.
+ 
+@@ -299,14 +302,15 @@ which calls strings.Join. The struct being passed to the template is:
+         Root       string // Go root or Go path dir containing this package
+ 
+         // Source files
+-        GoFiles  []string     // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-        CgoFiles []string     // .go sources files that import "C"
+-        CFiles   []string     // .c source files
+-        HFiles   []string     // .h source files
+-        SFiles   []string     // .s source files
+-        SysoFiles []string    // .syso object files to add to archive
+-        SwigFiles []string    // .swig files
+-        SwigCXXFiles []string // .swigcxx files
++        GoFiles  []string       // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++        CgoFiles []string       // .go sources files that import "C"
++        IgnoredGoFiles []string // .go sources ignored due to build constraints
++        CFiles   []string       // .c source files
++        HFiles   []string       // .h source files
++        SFiles   []string       // .s source files
++        SysoFiles []string      // .syso object files to add to archive
++        SwigFiles []string      // .swig files
++        SwigCXXFiles []string   // .swigcxx files
+ 
+         // Cgo directives
+         CgoCFLAGS    []string // cgo: flags for C compiler
+@@ -341,6 +345,9 @@ printing.  Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
++The -tags flag specifies a list of build tags, like in the 'go build'
++command.
++
+ For more about specifying packages, see 'go help packages'.
+ 
+ 
+@@ -376,6 +383,7 @@ followed by detailed output for each failed package.
+ 'Go test' recompiles each package along with any files with names matching
+ the file pattern "*_test.go".  These additional files can contain test functions,
+ benchmark functions, and example functions.  See 'go help testfunc' for more.
++Each listed package causes the execution of a separate test binary.
+ 
+ By default, go test needs no arguments.  It compiles and tests the package
+ with source in the current directory, including tests, and runs the tests.
+@@ -748,6 +756,9 @@ will compile the test binary and then run it as
+ 
+ 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+ 
++The test flags that generate profiles also leave the test binary in pkg.test
++for use when analyzing the profiles.
++
+ 
+ Description of testing functions
+ 
+@@ -763,8 +774,8 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
+ 
+ 	func BenchmarkXXX(b *testing.B) { ... }
+ 
+-An example function is similar to a test function but, instead of using *testing.T
+-to report success or failure, prints output to os.Stdout and os.Stderr.
++An example function is similar to a test function but, instead of using
++*testing.T to report success or failure, prints output to os.Stdout.
+ That output is compared against the function's "Output:" comment, which
+ must be the last comment in the function body (see example below). An
+ example with no such comment, or with no text after "Output:" is compiled
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index ef02b5739f..8736cce3e2 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -25,6 +25,6 @@ func runFix(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList(tool("fix"), relPaths(pkg.gofiles)))
++		run(stringList(tool("fix"), relPaths(pkg.allgofiles)))
+ 	}
+ }
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index b1aba32f3f..9d3c911dd6 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -34,7 +34,7 @@ func runFmt(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList("gofmt", "-l", "-w", relPaths(pkg.gofiles)))
++		run(stringList("gofmt", "-l", "-w", relPaths(pkg.allgofiles)))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index abcc2ba434..4741d5c124 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -204,7 +204,7 @@ func download(arg string, stk *importStack) {
+ 	// due to wildcard expansion.
+ 	for _, p := range pkgs {
+ 		if *getFix {
+-			run(stringList(tool("fix"), relPaths(p.gofiles)))
++			run(stringList(tool("fix"), relPaths(p.allgofiles)))
+ 
+ 			// The imports might have changed, so reload again.
+ 			p = reloadPackage(arg, stk)
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 25a6f45c1b..2d23d077e2 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ var cmdList = &Command{
+-	UsageLine: "list [-e] [-f format] [-json] [packages]",
++	UsageLine: "list [-e] [-f format] [-json] [-tags 'tag list'] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.
+@@ -42,14 +42,15 @@ which calls strings.Join. The struct being passed to the template is:
+         Root       string // Go root or Go path dir containing this package
+ 
+         // Source files
+-        GoFiles  []string     // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-        CgoFiles []string     // .go sources files that import "C"
+-        CFiles   []string     // .c source files
+-        HFiles   []string     // .h source files
+-        SFiles   []string     // .s source files
+-        SysoFiles []string    // .syso object files to add to archive
+-        SwigFiles []string    // .swig files
+-        SwigCXXFiles []string // .swigcxx files
++        GoFiles  []string       // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++        CgoFiles []string       // .go sources files that import "C"
++        IgnoredGoFiles []string // .go sources ignored due to build constraints
++        CFiles   []string       // .c source files
++        HFiles   []string       // .h source files
++        SFiles   []string       // .s source files
++        SysoFiles []string      // .syso object files to add to archive
++        SwigFiles []string      // .swig files
++        SwigCXXFiles []string   // .swigcxx files
+ 
+         // Cgo directives
+         CgoCFLAGS    []string // cgo: flags for C compiler
+@@ -84,6 +85,9 @@ printing.  Erroneous packages will have a non-empty ImportPath and
+ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
++The -tags flag specifies a list of build tags, like in the 'go build'
++command.
++
+ For more about specifying packages, see 'go help packages'.
+ 	`,
+ }
+@@ -91,6 +95,7 @@ For more about specifying packages, see 'go help packages'.
+ func init() {
+ 	cmdList.Run = runList // break init cycle
+ 	cmdList.Flag.Var(buildCompiler{}, "compiler", "")
++	cmdList.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
+ }
+ 
+ var listE = cmdList.Flag.Bool("e", false, "")
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 7e34fdfd3a..bd5d889711 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -129,6 +129,10 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "warning: GOPATH set to GOROOT (%s) has no effect\n", gopath)
+ 	} else {
+ 		for _, p := range filepath.SplitList(gopath) {
++			if strings.Contains(p, "~") && runtime.GOOS != "windows" {
++				fmt.Fprintf(os.Stderr, "go: GOPATH entry cannot contain shell metacharacter '~': %q\n", p)
++				os.Exit(2)
++			}
+ 			if build.IsLocalImport(p) {
+ 				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
+ 				os.Exit(2)
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index f05cf01947..793a43da8f 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -36,14 +36,15 @@ type Package struct {
+ 	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
+ 
+ 	// Source files
+-	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-	CgoFiles     []string `json:",omitempty"` // .go sources files that import "C"
+-	CFiles       []string `json:",omitempty"` // .c source files
+-	HFiles       []string `json:",omitempty"` // .h source files
+-	SFiles       []string `json:",omitempty"` // .s source files
+-	SysoFiles    []string `json:",omitempty"` // .syso system object files added to package
+-	SwigFiles    []string `json:",omitempty"` // .swig files
+-	SwigCXXFiles []string `json:",omitempty"` // .swigcxx files
++	GoFiles        []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++	CgoFiles       []string `json:",omitempty"` // .go sources files that import "C"
++	IgnoredGoFiles []string `json:",omitempty"` // .go sources ignored due to build constraints
++	CFiles         []string `json:",omitempty"` // .c source files
++	HFiles         []string `json:",omitempty"` // .h source files
++	SFiles         []string `json:",omitempty"` // .s source files
++	SysoFiles      []string `json:",omitempty"` // .syso system object files added to package
++	SwigFiles      []string `json:",omitempty"` // .swig files
++	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
+ 
+ 	// Cgo directives
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+@@ -71,12 +72,14 @@ type Package struct {
+ 	imports      []*Package
+ 	deps         []*Package
+ 	gofiles      []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
++	allgofiles   []string // gofiles + IgnoredGoFiles, absolute paths
+ 	target       string   // installed file for this package (may be executable)
+ 	fake         bool     // synthesized package
+ 	forceBuild   bool     // this package must be rebuilt
+ 	forceLibrary bool     // this package is a library (even if named "main")
+ 	local        bool     // imported via local path (./ or ../)
+ 	localPrefix  string   // interpret ./ and ../ imports relative to this prefix
++	exeName      string   // desired name for temporary executable
+ }
+ 
+ func (p *Package) copyBuild(pp *build.Package) {
+@@ -92,6 +95,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
+ 	p.GoFiles = pp.GoFiles
+ 	p.CgoFiles = pp.CgoFiles
++	p.IgnoredGoFiles = pp.IgnoredGoFiles
+ 	p.CFiles = pp.CFiles
+ 	p.HFiles = pp.HFiles
+ 	p.SFiles = pp.SFiles
+@@ -318,11 +322,13 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			// Install cross-compiled binaries to subdirectories of bin.
+ 			elem = full
+ 		}
+-		p.target = filepath.Join(p.build.BinDir, elem)
++		if p.build.BinDir != "" {
++			p.target = filepath.Join(p.build.BinDir, elem)
++		}
+ 		if p.Goroot && (isGoTool[p.ImportPath] || strings.HasPrefix(p.ImportPath, "exp/")) {
+ 			p.target = filepath.Join(gorootPkg, "tool", full)
+ 		}
+-		if buildContext.GOOS == "windows" {
++		if p.target != "" && buildContext.GOOS == "windows" {
+ 			p.target += ".exe"
+ 		}
+ 	} else if p.local {
+@@ -357,6 +363,13 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	}
+ 	sort.Strings(p.gofiles)
+ 
++	p.allgofiles = stringList(p.IgnoredGoFiles)
++	for i := range p.allgofiles {
++		p.allgofiles[i] = filepath.Join(p.Dir, p.allgofiles[i])
++	}
++	p.allgofiles = append(p.allgofiles, p.gofiles...)
++	sort.Strings(p.allgofiles)
++
+ 	// Build list of imported packages and full dependency list.
+ 	imports := make([]*Package, 0, len(p.Imports))
+ 	deps := make(map[string]bool)
+@@ -431,7 +444,7 @@ func (p *Package) swigSoname(file string) string {
+ func (p *Package) swigDir(ctxt *build.Context) string {
+ 	dir := p.build.PkgRoot
+ 	if ctxt.Compiler == "gccgo" {
+-		dir = filepath.Join(dir, "gccgo")
++		dir = filepath.Join(dir, "gccgo_"+ctxt.GOOS+"_"+ctxt.GOARCH)
+ 	} else {
+ 		dir = filepath.Join(dir, ctxt.GOOS+"_"+ctxt.GOARCH)
+ 	}
+@@ -596,12 +609,23 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 			arg = sub
+ 		}
+ 	}
+-	if strings.HasPrefix(arg, "cmd/") && !strings.Contains(arg[4:], "/") {
++	if strings.HasPrefix(arg, "cmd/") {
+ 		if p := cmdCache[arg]; p != nil {
+ 			return p
+ 		}
+ 		stk.push(arg)
+ 		defer stk.pop()
++
++		if strings.Contains(arg[4:], "/") {
++			p := &Package{
++				Error: &PackageError{
++					ImportStack: stk.copy(),
++					Err:         fmt.Sprintf("invalid import path: cmd/... is reserved for Go commands"),
++				},
++			}
++			return p
++		}
++
+ 		bp, err := buildContext.ImportDir(filepath.Join(gorootSrc, arg), 0)
+ 		bp.ImportPath = arg
+ 		bp.Goroot = true
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 88f57617e4..27f989fb9f 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -46,6 +46,13 @@ func runRun(cmd *Command, args []string) {
+ 	if len(files) == 0 {
+ 		fatalf("go run: no go files listed")
+ 	}
++	for _, file := range files {
++		if strings.HasSuffix(file, "_test.go") {
++			// goFilesPackage is going to assign this to TestGoFiles.
++			// Reject since it won't be part of the build.
++			fatalf("go run: cannot run *_test.go files (%s)", file)
++		}
++	}
+ 	p := goFilesPackage(files)
+ 	if p.Error != nil {
+ 		fatalf("%s", p.Error)
+@@ -58,6 +65,13 @@ func runRun(cmd *Command, args []string) {
+ 		fatalf("go run: cannot run non-main package")
+ 	}
+ 	p.target = "" // must build - not up to date
++	var src string
++	if len(p.GoFiles) > 0 {
++		src = p.GoFiles[0]
++	} else {
++		src = p.CgoFiles[0]
++	}
++	p.exeName = src[:len(src)-len(".go")] // name temporary executable for first go file
+ 	a1 := b.action(modeBuild, modeBuild, p)
+ 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
+ 	b.do(a)
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 11e1f3b683..5b0defdef8 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -183,7 +183,7 @@ fi
+ 
+ # issue 4186. go get cannot be used to download packages to $GOROOT
+ # Test that without GOPATH set, go get should fail
+-d=$(mktemp -d)
++d=$(mktemp -d -t testgo)
+ mkdir -p $d/src/pkg
+ if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then 
+ 	echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with $GOPATH unset'
+@@ -191,7 +191,7 @@ if GOPATH= GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch
+ fi	
+ rm -rf $d
+ # Test that with GOPATH=$GOROOT, go get should fail
+-d=$(mktemp -d)
++d=$(mktemp -d -t testgo)
+ mkdir -p $d/src/pkg
+ if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpatch ; then
+         echo 'go get code.google.com/p/go.codereview/cmd/hgpatch should not succeed with GOPATH=$GOROOT'
+@@ -199,6 +199,86 @@ if GOPATH=$d GOROOT=$d ./testgo get -d code.google.com/p/go.codereview/cmd/hgpat
+ fi
+ rm -rf $d
+ 
++# issue 3941: args with spaces
++d=$(mktemp -d -t testgo)
++cat >$d/main.go<<EOF
++package main
++var extern string
++func main() {
++	println(extern)
++}
++EOF
++./testgo run -ldflags '-X main.extern "hello world"' $d/main.go 2>hello.out
++if ! grep -q '^hello world' hello.out; then
++	echo "ldflags -X main.extern 'hello world' failed. Output:"
++	cat hello.out
++	ok=false
++fi
++rm -rf $d
++
++# test that go test -cpuprofile leaves binary behind
++./testgo test -cpuprofile strings.prof strings || ok=false
++if [ ! -x strings.test ]; then
++	echo "go test -cpuprofile did not create strings.test"
++	ok=false
++fi
++rm -f strings.prof strings.test
++
++# issue 4568. test that symlinks don't screw things up too badly.
++old=$(pwd)
++d=$(mktemp -d -t testgo)
++mkdir -p $d/src
++(
++	ln -s $d $d/src/dir1
++	cd $d/src/dir1
++	echo package p >p.go
++	export GOPATH=$d
++	if [ "$($old/testgo list -f '{{.Root}}' .)" != "$d" ]; then
++		echo got lost in symlink tree:
++		pwd
++		env|grep WD
++		$old/testgo list -json . dir1
++		touch $d/failed
++	fi		
++)
++if [ -f $d/failed ]; then
++	ok=false
++fi
++rm -rf $d
++
++# issue 4515.
++d=$(mktemp -d -t testgo)
++mkdir -p $d/src/example/a $d/src/example/b $d/bin
++cat >$d/src/example/a/main.go <<EOF
++package main
++func main() {}
++EOF
++cat >$d/src/example/b/main.go <<EOF
++// +build mytag
++
++package main
++func main() {}
++EOF
++GOPATH=$d ./testgo install -tags mytag example/a example/b || ok=false
++if [ ! -x $d/bin/a -o ! -x $d/bin/b ]; then
++	echo go install example/a example/b did not install binaries
++	ok=false
++fi
++rm -f $d/bin/*
++GOPATH=$d ./testgo install -tags mytag example/... || ok=false
++if [ ! -x $d/bin/a -o ! -x $d/bin/b ]; then
++	echo go install example/... did not install binaries
++	ok=false
++fi
++rm -f $d/bin/*go
++export GOPATH=$d
++if [ "$(./testgo list -tags mytag example/b...)" != "example/b" ]; then
++	echo go list example/b did not find example/b
++	ok=false
++fi
++unset GOPATH
++rm -rf $d
++
+ # clean up
+ rm -rf testdata/bin testdata/bin1
+ rm -f testgo
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index d2498cafce..10082ce001 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -48,6 +48,7 @@ followed by detailed output for each failed package.
+ 'Go test' recompiles each package along with any files with names matching
+ the file pattern "*_test.go".  These additional files can contain test functions,
+ benchmark functions, and example functions.  See 'go help testfunc' for more.
++Each listed package causes the execution of a separate test binary.
+ 
+ By default, go test needs no arguments.  It compiles and tests the package
+ with source in the current directory, including tests, and runs the tests.
+@@ -156,6 +157,9 @@ here are passed through unaltered.  For instance, the command
+ will compile the test binary and then run it as
+ 
+ 	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
++
++The test flags that generate profiles also leave the test binary in pkg.test
++for use when analyzing the profiles.
+ `,
+ }
+ 
+@@ -206,6 +210,7 @@ See the documentation of the testing package for more information.
+ 
+ var (
+ 	testC            bool     // -c flag
++	testProfile      bool     // some profiling flag
+ 	testI            bool     // -i flag
+ 	testV            bool     // -v flag
+ 	testFiles        []string // -file flag(s)  TODO: not respected
+@@ -231,12 +236,15 @@ func runTest(cmd *Command, args []string) {
+ 	if testC && len(pkgs) != 1 {
+ 		fatalf("cannot use -c flag with multiple packages")
+ 	}
++	if testProfile && len(pkgs) != 1 {
++		fatalf("cannot use test profile flag with multiple packages")
++	}
+ 
+ 	// If a test timeout was given and is parseable, set our kill timeout
+ 	// to that timeout plus one minute.  This is a backup alarm in case
+ 	// the test wedges with a goroutine spinning and its background
+ 	// timer does not get a chance to fire.
+-	if dt, err := time.ParseDuration(testTimeout); err == nil {
++	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
+ 		testKillTimeout = dt + 1*time.Minute
+ 	}
+ 
+@@ -427,7 +435,14 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 
+ 	// Use last element of import path, not package name.
+ 	// They differ when package name is "main".
+-	_, elem := path.Split(p.ImportPath)
++	// But if the import path is "command-line-arguments",
++	// like it is during 'go run', use the package name.
++	var elem string
++	if p.ImportPath == "command-line-arguments" {
++		elem = p.Name
++	} else {
++		_, elem = path.Split(p.ImportPath)
++	}
+ 	testBinary := elem + ".test"
+ 
+ 	// The ptest package needs to be importable under the
+@@ -554,14 +569,17 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	a.target = filepath.Join(testDir, testBinary) + exeSuffix
+ 	pmainAction := a
+ 
+-	if testC {
+-		// -c flag: create action to copy binary to ./test.out.
++	if testC || testProfile {
++		// -c or profiling flag: create action to copy binary to ./test.out.
+ 		runAction = &action{
+ 			f:      (*builder).install,
+ 			deps:   []*action{pmainAction},
+ 			p:      pmain,
+-			target: testBinary + exeSuffix,
++			target: filepath.Join(cwd, testBinary+exeSuffix),
+ 		}
++		pmainAction = runAction // in case we are running the test
++	}
++	if testC {
+ 		printAction = &action{p: p, deps: []*action{runAction}} // nop
+ 	} else {
+ 		// run test
+@@ -655,7 +673,7 @@ func (b *builder) runTest(a *action) error {
+ 		case <-tick.C:
+ 			cmd.Process.Kill()
+ 			err = <-done
+-			fmt.Fprintf(&buf, "*** Test killed: ran too long.\n")
++			fmt.Fprintf(&buf, "*** Test killed: ran too long (%v).\n", testKillTimeout)
+ 		}
+ 		tick.Stop()
+ 	}
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 6d3b2bed31..8dd51437d7 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -134,6 +134,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			passToTest = append(passToTest, args[i])
+ 			continue
+ 		}
++		var err error
+ 		switch f.name {
+ 		// bool flags.
+ 		case "a", "c", "i", "n", "x", "v", "work", "race":
+@@ -141,11 +142,20 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		case "p":
+ 			setIntFlag(&buildP, value)
+ 		case "gcflags":
+-			buildGcflags = strings.Fields(value)
++			buildGcflags, err = splitQuotedFields(value)
++			if err != nil {
++				fatalf("invalid flag argument for -%s: %v", f.name, err)
++			}
+ 		case "ldflags":
+-			buildLdflags = strings.Fields(value)
++			buildLdflags, err = splitQuotedFields(value)
++			if err != nil {
++				fatalf("invalid flag argument for -%s: %v", f.name, err)
++			}
+ 		case "gccgoflags":
+-			buildGccgoflags = strings.Fields(value)
++			buildGccgoflags, err = splitQuotedFields(value)
++			if err != nil {
++				fatalf("invalid flag argument for -%s: %v", f.name, err)
++			}
+ 		case "tags":
+ 			buildContext.BuildTags = strings.Fields(value)
+ 		case "compiler":
+@@ -157,6 +167,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			testBench = true
+ 		case "timeout":
+ 			testTimeout = value
++		case "blockprofile", "cpuprofile", "memprofile":
++			testProfile = true
+ 		}
+ 		if extraWord {
+ 			i++
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 01e8ff6bb8..299b94cb36 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -100,7 +100,14 @@ func runTool(cmd *Command, args []string) {
+ 	}
+ 	err := toolCmd.Run()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
++		// Only print about the exit status if the command
++		// didn't even run (not an ExitError) or it didn't exit cleanly
++		// or we're printing command lines too (-x mode).
++		// Assume if command exited cleanly (even with non-zero status)
++		// it printed any messages it wanted to print.
++		if e, ok := err.(*exec.ExitError); !ok || !e.Exited() || buildX {
++			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
++		}
+ 		setExitStatus(1)
+ 		return
+ 	}
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index eb0b89ccad..40e2726186 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -32,6 +32,6 @@ func runVet(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(tool("vet"), relPaths(pkg.gofiles))
++		run(tool("vet"), relPaths(stringList(pkg.allgofiles, pkg.IgnoredGoFiles)))
+ 	}
+ }
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index e2a47a556a..4dedee6caa 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -117,12 +117,27 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
+ 		return f(root, dir)
+ 	}
+ 
+-	if p, err := filepath.EvalSymlinks(root); err == nil {
+-		root = p
++	// Try using paths we received.
++	if rel, ok = hasSubdir(root, dir); ok {
++		return
+ 	}
+-	if p, err := filepath.EvalSymlinks(dir); err == nil {
+-		dir = p
++
++	// Try expanding symlinks and comparing
++	// expanded against unexpanded and
++	// expanded against expanded.
++	rootSym, _ := filepath.EvalSymlinks(root)
++	dirSym, _ := filepath.EvalSymlinks(dir)
++
++	if rel, ok = hasSubdir(rootSym, dir); ok {
++		return
++	}
++	if rel, ok = hasSubdir(root, dirSym); ok {
++		return
+ 	}
++	return hasSubdir(rootSym, dirSym)
++}
++
++func hasSubdir(root, dir string) (rel string, ok bool) {
+ 	const sep = string(filepath.Separator)
+ 	root = filepath.Clean(root)
+ 	if !strings.HasSuffix(root, sep) {
+@@ -181,6 +196,21 @@ func (ctxt *Context) gopath() []string {
+ 			// Do not get confused by this common mistake.
+ 			continue
+ 		}
++		if strings.Contains(p, "~") && runtime.GOOS != "windows" {
++			// Path segments containing ~ on Unix are almost always
++			// users who have incorrectly quoted ~ while setting GOPATH,
++			// preventing it from expanding to $HOME.
++			// The situation is made more confusing by the fact that
++			// bash allows quoted ~ in $PATH (most shells do not).
++			// Do not get confused by this, and do not try to use the path.
++			// It does not exist, and printing errors about it confuses
++			// those users even more, because they think "sure ~ exists!".
++			// The go command diagnoses this situation and prints a
++			// useful error.
++			// On Windows, ~ is used in short names, such as c:\progra~1
++			// for c:\program files.
++			continue
++		}
+ 		all = append(all, p)
+ 	}
+ 	return all
+@@ -284,14 +314,15 @@ type Package struct {
+ 	PkgObj     string // installed .a file
+ 
+ 	// Source files
+-	GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+-	CgoFiles     []string // .go source files that import "C"
+-	CFiles       []string // .c source files
+-	HFiles       []string // .h source files
+-	SFiles       []string // .s source files
+-	SysoFiles    []string // .syso system object files to add to archive
+-	SwigFiles    []string // .swig files
+-	SwigCXXFiles []string // .swigcxx files
++	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
++	CgoFiles       []string // .go source files that import "C"
++	IgnoredGoFiles []string // .go source files ignored for this build
++	CFiles         []string // .c source files
++	HFiles         []string // .h source files
++	SFiles         []string // .s source files
++	SysoFiles      []string // .syso system object files to add to archive
++	SwigFiles      []string // .swig files
++	SwigCXXFiles   []string // .swigcxx files
+ 
+ 	// Cgo directives
+ 	CgoPkgConfig []string // Cgo pkg-config directives
+@@ -519,15 +550,20 @@ Found:
+ 			strings.HasPrefix(name, ".") {
+ 			continue
+ 		}
+-		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
+-			continue
+-		}
+ 
+ 		i := strings.LastIndex(name, ".")
+ 		if i < 0 {
+ 			i = len(name)
+ 		}
+ 		ext := name[i:]
++
++		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
++			if ext == ".go" {
++				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
++			}
++			continue
++		}
++
+ 		switch ext {
+ 		case ".go", ".c", ".s", ".h", ".S", ".swig", ".swigcxx":
+ 			// tentatively okay - read to make sure
+@@ -561,6 +597,9 @@ Found:
+ 
+ 		// Look for +build comments to accept or reject the file.
+ 		if !ctxt.UseAllFiles && !ctxt.shouldBuild(data) {
++			if ext == ".go" {
++				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
++			}
+ 			continue
+ 		}
+ 
+@@ -593,6 +632,7 @@ Found:
+ 
+ 		pkg := pf.Name.Name
+ 		if pkg == "documentation" {
++			p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+ 			continue
+ 		}
+ 

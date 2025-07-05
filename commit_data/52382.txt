@@ -26,7 +26,33 @@ Date:   Sun Aug 15 15:57:43 2021 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/imports/build.go | 1 +
  src/cmd/go/internal/work/exec.go     | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index 53fa1967f7..0f20a8786e 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -328,6 +328,7 @@ var KnownArch = map[string]bool{
+ 	"mips64le":    true,
+ 	"mips64p32":   true,
+ 	"mips64p32le": true,
++	"loong64":     true,
+ 	"ppc":         true,
+ 	"riscv":       true,
+ 	"riscv64":     true,
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 0b8e5d2330..7c71d7e6e4 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2654,6 +2654,8 @@ func (b *Builder) gccArchArgs() []string {
+ 		} else if cfg.GOMIPS == "softfloat" {
+ 			return append(args, "-msoft-float")
+ 		}
++	case "loong64":
++		return []string{"-mabi=lp64d"}
+ 	case "ppc64":
+ 		if cfg.Goos == "aix" {
+ 			return []string{"-maix64"}

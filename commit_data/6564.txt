@@ -7,6 +7,62 @@ Date:   Wed Oct 20 14:06:00 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2595041
-
+---
  src/cmd/ld/pe.c | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 4351c7c57c..025782f872 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -86,6 +86,7 @@ pewrite(void)
+ {
+ 	int i, j;
+ 
++	seek(cout, 0, 0);
+ 	ewrite(cout, dosstub, sizeof dosstub);
+ 	strnput("PE", 4);
+ 
+@@ -102,7 +103,7 @@ pewrite(void)
+ void
+ dope(void)
+ {
+-	textsect = new_section(".text", textsize, 0);
++	textsect = new_section(".text", segtext.len, 0);
+ 	textsect->Characteristics = IMAGE_SCN_CNT_CODE|
+ 		IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_READ;
+@@ -167,7 +168,6 @@ add_import_table(void)
+ 	for(f=fs; f->name; f++)
+ 		f->thunk += va;
+ 
+-	vlong off = seek(cout, 0, 1);
+ 	seek(cout, 0, 2);
+ 	for(d=ds; ; d++) {
+ 		lputl(d->OriginalFirstThunk);
+@@ -187,12 +187,13 @@ add_import_table(void)
+ 		lputl(f->thunk);
+ 	strnput("", isect->SizeOfRawData - size);
+ 	cflush();
+-	seek(cout, off, 0);
+ }
+ 
+ void
+ asmbpe(void)
+ {
++	vlong eof;
++
+ 	switch(thechar) {
+ 	default:
+ 		diag("unknown PE architecture");
+@@ -205,6 +206,10 @@ asmbpe(void)
+ 		break;
+ 	}
+ 
++	// make sure the end of file is INITRND-aligned.
++	eof = seek(cout, 0, 2);
++	strnput("", rnd(eof, INITRND) - eof);
++
+ 	add_import_table();
+ 
+ 	fh.NumberOfSections = nsect;

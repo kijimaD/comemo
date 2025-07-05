@@ -41,7 +41,314 @@ Date:   Thu Aug 28 08:49:56 2014 -0700
     R=golang-codereviews, ruiu, gobot, bradfitz, dave, minux
     CC=bradfitz, golang-codereviews
     https://golang.org/cl/107020044
-
+---
  src/pkg/database/sql/sql.go      | 99 +++++++++++++++++++---------------------
  src/pkg/database/sql/sql_test.go | 36 +++++++++------
  2 files changed, 67 insertions(+), 68 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 690fc80d68..09f75b647a 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -13,7 +13,6 @@
+ package sql
+ 
+ import (
+-	"container/list"
+ 	"database/sql/driver"
+ 	"errors"
+ 	"fmt"
+@@ -198,8 +197,8 @@ type DB struct {
+ 	dsn    string
+ 
+ 	mu           sync.Mutex // protects following fields
+-	freeConn     *list.List // of *driverConn
+-	connRequests *list.List // of connRequest
++	freeConn     []*driverConn
++	connRequests []chan *connRequest
+ 	numOpen      int
+ 	pendingOpens int
+ 	// Used to signal the need for new connections
+@@ -232,9 +231,6 @@ type driverConn struct {
+ 	inUse      bool
+ 	onPut      []func() // code (with db.mu held) run when conn is next returned
+ 	dbmuClosed bool     // same as closed, but guarded by db.mu, for connIfFree
+-	// This is the Element returned by db.freeConn.PushFront(conn).
+-	// It's used by connIfFree to remove the conn from the freeConn list.
+-	listElem *list.Element
+ }
+ 
+ func (dc *driverConn) releaseConn(err error) {
+@@ -437,8 +433,6 @@ func Open(driverName, dataSourceName string) (*DB, error) {
+ 		openerCh: make(chan struct{}, connectionRequestQueueSize),
+ 		lastPut:  make(map[*driverConn]string),
+ 	}
+-	db.freeConn = list.New()
+-	db.connRequests = list.New()
+ 	go db.connectionOpener()
+ 	return db, nil
+ }
+@@ -469,17 +463,13 @@ func (db *DB) Close() error {
+ 	}
+ 	close(db.openerCh)
+ 	var err error
+-	fns := make([]func() error, 0, db.freeConn.Len())
+-	for db.freeConn.Front() != nil {
+-		dc := db.freeConn.Front().Value.(*driverConn)
+-		dc.listElem = nil
++	fns := make([]func() error, 0, len(db.freeConn))
++	for _, dc := range db.freeConn {
+ 		fns = append(fns, dc.closeDBLocked())
+-		db.freeConn.Remove(db.freeConn.Front())
+ 	}
++	db.freeConn = nil
+ 	db.closed = true
+-	for db.connRequests.Front() != nil {
+-		req := db.connRequests.Front().Value.(connRequest)
+-		db.connRequests.Remove(db.connRequests.Front())
++	for _, req := range db.connRequests {
+ 		close(req)
+ 	}
+ 	db.mu.Unlock()
+@@ -527,11 +517,11 @@ func (db *DB) SetMaxIdleConns(n int) {
+ 		db.maxIdle = db.maxOpen
+ 	}
+ 	var closing []*driverConn
+-	for db.freeConn.Len() > db.maxIdleConnsLocked() {
+-		dc := db.freeConn.Back().Value.(*driverConn)
+-		dc.listElem = nil
+-		db.freeConn.Remove(db.freeConn.Back())
+-		closing = append(closing, dc)
++	idleCount := len(db.freeConn)
++	maxIdle := db.maxIdleConnsLocked()
++	if idleCount > maxIdle {
++		closing = db.freeConn[maxIdle:]
++		db.freeConn = db.freeConn[:maxIdle]
+ 	}
+ 	db.mu.Unlock()
+ 	for _, c := range closing {
+@@ -564,7 +554,7 @@ func (db *DB) SetMaxOpenConns(n int) {
+ // If there are connRequests and the connection limit hasn't been reached,
+ // then tell the connectionOpener to open new connections.
+ func (db *DB) maybeOpenNewConnections() {
+-	numRequests := db.connRequests.Len() - db.pendingOpens
++	numRequests := len(db.connRequests) - db.pendingOpens
+ 	if db.maxOpen > 0 {
+ 		numCanOpen := db.maxOpen - (db.numOpen + db.pendingOpens)
+ 		if numRequests > numCanOpen {
+@@ -616,7 +606,10 @@ func (db *DB) openNewConnection() {
+ // connRequest represents one request for a new connection
+ // When there are no idle connections available, DB.conn will create
+ // a new connRequest and put it on the db.connRequests list.
+-type connRequest chan<- interface{} // takes either a *driverConn or an error
++type connRequest struct {
++	conn *driverConn
++	err  error
++}
+ 
+ var errDBClosed = errors.New("sql: database is closed")
+ 
+@@ -630,32 +623,24 @@ func (db *DB) conn() (*driverConn, error) {
+ 
+ 	// If db.maxOpen > 0 and the number of open connections is over the limit
+ 	// and there are no free connection, make a request and wait.
+-	if db.maxOpen > 0 && db.numOpen >= db.maxOpen && db.freeConn.Len() == 0 {
++	if db.maxOpen > 0 && db.numOpen >= db.maxOpen && len(db.freeConn) == 0 {
+ 		// Make the connRequest channel. It's buffered so that the
+ 		// connectionOpener doesn't block while waiting for the req to be read.
+-		ch := make(chan interface{}, 1)
+-		req := connRequest(ch)
+-		db.connRequests.PushBack(req)
++		req := make(chan *connRequest, 1)
++		db.connRequests = append(db.connRequests, req)
+ 		db.maybeOpenNewConnections()
+ 		db.mu.Unlock()
+-		ret, ok := <-ch
+-		if !ok {
++		ret := <-req
++		if ret == nil {
+ 			return nil, errDBClosed
+ 		}
+-		switch ret.(type) {
+-		case *driverConn:
+-			return ret.(*driverConn), nil
+-		case error:
+-			return nil, ret.(error)
+-		default:
+-			panic("sql: Unexpected type passed through connRequest.ch")
+-		}
++		return ret.conn, ret.err
+ 	}
+ 
+-	if f := db.freeConn.Front(); f != nil {
+-		conn := f.Value.(*driverConn)
+-		conn.listElem = nil
+-		db.freeConn.Remove(f)
++	if c := len(db.freeConn); c > 0 {
++		conn := db.freeConn[0]
++		copy(db.freeConn, db.freeConn[1:])
++		db.freeConn = db.freeConn[:c-1]
+ 		conn.inUse = true
+ 		db.mu.Unlock()
+ 		return conn, nil
+@@ -702,9 +687,15 @@ func (db *DB) connIfFree(wanted *driverConn) (*driverConn, error) {
+ 	if wanted.inUse {
+ 		return nil, errConnBusy
+ 	}
+-	if wanted.listElem != nil {
+-		db.freeConn.Remove(wanted.listElem)
+-		wanted.listElem = nil
++	idx := -1
++	for ii, v := range db.freeConn {
++		if v == wanted {
++			idx = ii
++			break
++		}
++	}
++	if idx >= 0 {
++		db.freeConn = append(db.freeConn[:idx], db.freeConn[idx+1:]...)
+ 		wanted.inUse = true
+ 		return wanted, nil
+ 	}
+@@ -793,18 +784,20 @@ func (db *DB) putConn(dc *driverConn, err error) {
+ // If a connRequest was fulfilled or the *driverConn was placed in the
+ // freeConn list, then true is returned, otherwise false is returned.
+ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
+-	if db.connRequests.Len() > 0 {
+-		req := db.connRequests.Front().Value.(connRequest)
+-		db.connRequests.Remove(db.connRequests.Front())
+-		if err != nil {
+-			req <- err
+-		} else {
++	if c := len(db.connRequests); c > 0 {
++		req := db.connRequests[0]
++		copy(db.connRequests, db.connRequests[1:])
++		db.connRequests = db.connRequests[:c-1]
++		if err == nil {
+ 			dc.inUse = true
+-			req <- dc
++		}
++		req <- &connRequest{
++			conn: dc,
++			err:  err,
+ 		}
+ 		return true
+-	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > db.freeConn.Len() {
+-		dc.listElem = db.freeConn.PushFront(dc)
++	} else if err == nil && !db.closed && db.maxIdleConnsLocked() > len(db.freeConn) {
++		db.freeConn = append(db.freeConn, dc)
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 71c81d6f76..8849c81c4b 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -24,7 +24,14 @@ func init() {
+ 	}
+ 	freedFrom := make(map[dbConn]string)
+ 	putConnHook = func(db *DB, c *driverConn) {
+-		if c.listElem != nil {
++		idx := -1
++		for i, v := range db.freeConn {
++			if v == c {
++				idx = i
++				break
++			}
++		}
++		if idx >= 0 {
+ 			// print before panic, as panic may get lost due to conflicting panic
+ 			// (all goroutines asleep) elsewhere, since we might not unlock
+ 			// the mutex in freeConn here.
+@@ -79,15 +86,14 @@ func closeDB(t testing.TB, db *DB) {
+ 			t.Errorf("Error closing fakeConn: %v", err)
+ 		}
+ 	})
+-	for node, i := db.freeConn.Front(), 0; node != nil; node, i = node.Next(), i+1 {
+-		dc := node.Value.(*driverConn)
++	for i, dc := range db.freeConn {
+ 		if n := len(dc.openStmt); n > 0 {
+ 			// Just a sanity check. This is legal in
+ 			// general, but if we make the tests clean up
+ 			// their statements first, then we can safely
+ 			// verify this is always zero here, and any
+ 			// other value is a leak.
+-			t.Errorf("while closing db, freeConn %d/%d had %d open stmts; want 0", i, db.freeConn.Len(), n)
++			t.Errorf("while closing db, freeConn %d/%d had %d open stmts; want 0", i, len(db.freeConn), n)
+ 		}
+ 	}
+ 	err := db.Close()
+@@ -105,10 +111,10 @@ func closeDB(t testing.TB, db *DB) {
+ // numPrepares assumes that db has exactly 1 idle conn and returns
+ // its count of calls to Prepare
+ func numPrepares(t *testing.T, db *DB) int {
+-	if n := db.freeConn.Len(); n != 1 {
++	if n := len(db.freeConn); n != 1 {
+ 		t.Fatalf("free conns = %d; want 1", n)
+ 	}
+-	return (db.freeConn.Front().Value.(*driverConn)).ci.(*fakeConn).numPrepare
++	return db.freeConn[0].ci.(*fakeConn).numPrepare
+ }
+ 
+ func (db *DB) numDeps() int {
+@@ -133,7 +139,7 @@ func (db *DB) numDepsPollUntil(want int, d time.Duration) int {
+ func (db *DB) numFreeConns() int {
+ 	db.mu.Lock()
+ 	defer db.mu.Unlock()
+-	return db.freeConn.Len()
++	return len(db.freeConn)
+ }
+ 
+ func (db *DB) dumpDeps(t *testing.T) {
+@@ -650,10 +656,10 @@ func TestQueryRowClosingStmt(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if db.freeConn.Len() != 1 {
++	if len(db.freeConn) != 1 {
+ 		t.Fatalf("expected 1 free conn")
+ 	}
+-	fakeConn := (db.freeConn.Front().Value.(*driverConn)).ci.(*fakeConn)
++	fakeConn := db.freeConn[0].ci.(*fakeConn)
+ 	if made, closed := fakeConn.stmtsMade, fakeConn.stmtsClosed; made != closed {
+ 		t.Errorf("statement close mismatch: made %d, closed %d", made, closed)
+ 	}
+@@ -878,13 +884,13 @@ func TestMaxIdleConns(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	tx.Commit()
+-	if got := db.freeConn.Len(); got != 1 {
++	if got := len(db.freeConn); got != 1 {
+ 		t.Errorf("freeConns = %d; want 1", got)
+ 	}
+ 
+ 	db.SetMaxIdleConns(0)
+ 
+-	if got := db.freeConn.Len(); got != 0 {
++	if got := len(db.freeConn); got != 0 {
+ 		t.Errorf("freeConns after set to zero = %d; want 0", got)
+ 	}
+ 
+@@ -893,7 +899,7 @@ func TestMaxIdleConns(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	tx.Commit()
+-	if got := db.freeConn.Len(); got != 0 {
++	if got := len(db.freeConn); got != 0 {
+ 		t.Errorf("freeConns = %d; want 0", got)
+ 	}
+ }
+@@ -1180,10 +1186,10 @@ func TestCloseConnBeforeStmts(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	if db.freeConn.Len() != 1 {
+-		t.Fatalf("expected 1 freeConn; got %d", db.freeConn.Len())
++	if len(db.freeConn) != 1 {
++		t.Fatalf("expected 1 freeConn; got %d", len(db.freeConn))
+ 	}
+-	dc := db.freeConn.Front().Value.(*driverConn)
++	dc := db.freeConn[0]
+ 	if dc.closed {
+ 		t.Errorf("conn shouldn't be closed")
+ 	}

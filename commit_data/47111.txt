@@ -14,6 +14,21 @@ Date:   Tue Feb 23 21:22:20 2021 -0500
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal-abi.md | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal-abi.md b/src/cmd/compile/internal-abi.md
+index 3a3509d8c2..0e5d8ce260 100644
+--- a/src/cmd/compile/internal-abi.md
++++ b/src/cmd/compile/internal-abi.md
+@@ -402,9 +402,6 @@ Special-purpose registers are as follows:
+ | R15 | GOT reference temporary | Fixed if dynlink |
+ | X15 | Zero value | Fixed |
+ 
+-TODO: We may start with the existing TLS-based g and move to R14
+-later.
+-
+ *Rationale*: These register meanings are compatible with Go’s
+ stack-based calling convention except for R14 and X15, which will have
+ to be restored on transitions from ABI0 code to ABIInternal code.

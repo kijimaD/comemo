@@ -15,7 +15,7 @@ Date:   Wed Oct 26 21:07:52 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/dial_test.go       | 17 +++++++++++++++++
  src/net/iprawsock_posix.go |  4 ++++
  src/net/ipsock.go          |  7 +++++++
@@ -25,3 +25,135 @@ Date:   Wed Oct 26 21:07:52 2016 -0400
  src/net/udpsock_posix.go   |  4 ++++
  src/net/unixsock_posix.go  |  4 ++++
  8 files changed, 46 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 8b21e6b088..6ba8e950b8 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -55,6 +55,23 @@ func TestProhibitionaryDialArg(t *testing.T) {
+ 	}
+ }
+ 
++func TestDialLocal(t *testing.T) {
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ln.Close()
++	_, port, err := SplitHostPort(ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	c, err := Dial("tcp", JoinHostPort("", port))
++	if err != nil {
++		t.Fatal(err)
++	}
++	c.Close()
++}
++
+ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+diff --git a/src/net/iprawsock_posix.go b/src/net/iprawsock_posix.go
+index 3e0b060a8a..d5e229fb9c 100644
+--- a/src/net/iprawsock_posix.go
++++ b/src/net/iprawsock_posix.go
+@@ -50,6 +50,10 @@ func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, 0, a.Zone)
+ }
+ 
++func (a *IPAddr) toLocal(net string) sockaddr {
++	return &IPAddr{loopbackIP(net), a.Zone}
++}
++
+ func (c *IPConn) readFrom(b []byte) (int, *IPAddr, error) {
+ 	// TODO(cw,rsc): consider using readv if we know the family
+ 	// type to avoid the header trim/copy
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index c04813fa32..5e6b0a9940 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -251,3 +251,10 @@ func (r *Resolver) internetAddrList(ctx context.Context, net, addr string) (addr
+ 	}
+ 	return filterAddrList(filter, ips, inetaddr)
+ }
++
++func loopbackIP(net string) IP {
++	if net != "" && net[len(net)-1] == '6' {
++		return IPv6loopback
++	}
++	return IP{127, 0, 0, 1}
++}
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index abe90ac0e6..f4fab3f9aa 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -154,6 +154,9 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 
+ // Internet sockets (TCP, UDP, IP)
+ func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string) (fd *netFD, err error) {
++	if (runtime.GOOS == "windows" || runtime.GOOS == "openbsd" || runtime.GOOS == "nacl") && mode == "dial" && raddr.isWildcard() {
++		raddr = raddr.toLocal(net)
++	}
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+ 	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr)
+ }
+diff --git a/src/net/sock_posix.go b/src/net/sock_posix.go
+index c3af27b596..16351e1f14 100644
+--- a/src/net/sock_posix.go
++++ b/src/net/sock_posix.go
+@@ -30,6 +30,9 @@ type sockaddr interface {
+ 	// interface. It returns a nil interface when the address is
+ 	// nil.
+ 	sockaddr(family int) (syscall.Sockaddr, error)
++
++	// toLocal maps the zero address to a local system address (127.0.0.1 or ::1)
++	toLocal(net string) sockaddr
+ }
+ 
+ // socket returns a network file descriptor that is ready for
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index c9a8b6808e..9641e5c028 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -40,6 +40,10 @@ func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
+ }
+ 
++func (a *TCPAddr) toLocal(net string) sockaddr {
++	return &TCPAddr{loopbackIP(net), a.Port, a.Zone}
++}
++
+ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
+ 	if n, err, handled := sendFile(c.fd, r); handled {
+ 		return n, err
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 4924801ebb..72aadca5dc 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -38,6 +38,10 @@ func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
+ }
+ 
++func (a *UDPAddr) toLocal(net string) sockaddr {
++	return &UDPAddr{loopbackIP(net), a.Port, a.Zone}
++}
++
+ func (c *UDPConn) readFrom(b []byte) (int, *UDPAddr, error) {
+ 	var addr *UDPAddr
+ 	n, sa, err := c.fd.readFrom(b)
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 1ab7cbe222..a8f892e6c4 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -94,6 +94,10 @@ func (a *UnixAddr) sockaddr(family int) (syscall.Sockaddr, error) {
+ 	return &syscall.SockaddrUnix{Name: a.Name}, nil
+ }
+ 
++func (a *UnixAddr) toLocal(net string) sockaddr {
++	return a
++}
++
+ func (c *UnixConn) readFrom(b []byte) (int, *UnixAddr, error) {
+ 	var addr *UnixAddr
+ 	n, sa, err := c.fd.readFrom(b)

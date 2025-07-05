@@ -14,6 +14,38 @@ Date:   Thu Jun 25 16:42:08 2009 -0700
     R=ken
     OCL=30767
     CL=30767
-
+---
  src/cmd/gc/dcl.c | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 471319d0d9..c33ead564d 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1684,7 +1684,7 @@ void
+ constiter(Node *vv, Type *t, Node *cc)
+ {
+ 	Iter viter, citer;
+-	Node *v, *c;
++	Node *v, *c, n1;
+ 
+ 	if(cc == N) {
+ 		if(t != T)
+@@ -1712,7 +1712,16 @@ loop:
+ 		return;
+ 	}
+ 
+-	gettype(c, N);
++	memset(&n1, 0, sizeof n1);
++	gettype(c, &n1);
++	if(n1.ninit != nil) {
++		// the expression had extra code to run.
++		// dodclconst is going to print an error
++		// because the expression isn't constant,
++		// but out of paranoia, bump nerrors so
++		// that compile cannot succeed accidentally
++		nerrors++;
++	}
+ 	if(t != T)
+ 		convlit(c, t);
+ 	if(t == T)

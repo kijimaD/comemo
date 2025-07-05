@@ -7,7 +7,7 @@ Date:   Thu Nov 5 10:55:57 2009 -0800
     
     R=r
     http://go/go-review/1017047
-
+---
  src/pkg/syscall/errstr.go               | 13 +++--
  src/pkg/syscall/exec.go                 | 27 ++++-------
  src/pkg/syscall/syscall_darwin.go       | 49 ++++++++++---------
@@ -25,3 +25,1005 @@ Date:   Thu Nov 5 10:55:57 2009 -0800
  src/pkg/syscall/zsysnum_linux_arm.go    |  5 +-
  src/pkg/syscall/ztypes_linux_arm.go     | 12 ++---
  16 files changed, 168 insertions(+), 178 deletions(-)
+
+diff --git a/src/pkg/syscall/errstr.go b/src/pkg/syscall/errstr.go
+index 12a2c0d62d..f21e1d94eb 100644
+--- a/src/pkg/syscall/errstr.go
++++ b/src/pkg/syscall/errstr.go
+@@ -5,25 +5,24 @@
+ package syscall
+ 
+ 
+-func str(val int) string {  // do it here rather than with fmt to avoid dependency
++func str(val int) string {	// do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+-		return "-" + str(-val);
++		return "-"+str(-val);
+ 	}
+-	var buf [32]byte;  // big enough for int64
++	var buf [32]byte;	// big enough for int64
+ 	i := len(buf)-1;
+ 	for val >= 10 {
+ 		buf[i] = byte(val%10 + '0');
+ 		i--;
+ 		val /= 10;
+ 	}
+-	buf[i] = byte(val + '0');
++	buf[i] = byte(val+'0');
+ 	return string(buf[i:len(buf)]);
+ }
+ 
+ func Errstr(errno int) string {
+ 	if errno < 0 || errno >= int(len(errors)) {
+-		return "error " + str(errno)
++		return "error "+str(errno);
+ 	}
+-	return errors[errno]
++	return errors[errno];
+ }
+-
+diff --git a/src/pkg/syscall/exec.go b/src/pkg/syscall/exec.go
+index 7abf59dff9..eb577f3260 100644
+--- a/src/pkg/syscall/exec.go
++++ b/src/pkg/syscall/exec.go
+@@ -98,9 +98,7 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
+ // no rescheduling, no malloc calls, and no new stack segments.
+ // The calls to RawSyscall are okay because they are assembly
+ // functions that do not grow the stack.
+-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int)
+-	(pid int, err int)
+-{
++func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int) (pid int, err int) {
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., err1).
+ 	var r1, r2, err1 uintptr;
+@@ -113,7 +111,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
+ 	// No more allocation or calls of non-assembly functions.
+ 	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0);
+ 	if err1 != 0 {
+-		return 0, int(err1)
++		return 0, int(err1);
+ 	}
+ 
+ 	// On Darwin:
+@@ -126,7 +124,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
+ 
+ 	if r1 != 0 {
+ 		// parent; return PID
+-		return int(r1), 0
++		return int(r1), 0;
+ 	}
+ 
+ 	// Fork succeeded, now in child.
+@@ -224,9 +222,7 @@ childerror:
+ 	panic("unreached");
+ }
+ 
+-func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int)
+-	(pid int, err int)
+-{
++func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
+ 	var p [2]int;
+ 	var n int;
+ 	var err1 uintptr;
+@@ -269,7 +265,7 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 			Close(p[1]);
+ 		}
+ 		ForkLock.Unlock();
+-		return 0, err
++		return 0, err;
+ 	}
+ 	ForkLock.Unlock();
+ 
+@@ -291,24 +287,20 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 		for err1 == EINTR {
+ 			_, err1 = Wait4(pid, &wstatus, 0, nil);
+ 		}
+-		return 0, err
++		return 0, err;
+ 	}
+ 
+ 	// Read got EOF, so pipe closed on exec, so exec succeeded.
+-	return pid, 0
++	return pid, 0;
+ }
+ 
+ // Combination of fork and exec, careful to be thread safe.
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
+-	(pid int, err int)
+-{
++func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
+ 	return forkExec(argv0, argv, envv, false, dir, fd);
+ }
+ 
+ // PtraceForkExec is like ForkExec, but starts the child in a traced state.
+-func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
+-	(pid int, err int)
+-{
++func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
+ 	return forkExec(argv0, argv, envv, true, dir, fd);
+ }
+ 
+@@ -320,4 +312,3 @@ func Exec(argv0 string, argv []string, envv []string) (err int) {
+ 		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])));
+ 	return int(err1);
+ }
+-
+diff --git a/src/pkg/syscall/syscall_darwin.go b/src/pkg/syscall/syscall_darwin.go
+index 07f12482b1..21900554b7 100644
+--- a/src/pkg/syscall/syscall_darwin.go
++++ b/src/pkg/syscall/syscall_darwin.go
+@@ -82,12 +82,12 @@ func Setgroups(gids []int) (errno int) {
+ type WaitStatus uint32
+ 
+ const (
+-	mask = 0x7F;
+-	core = 0x80;
+-	shift = 8;
++	mask	= 0x7F;
++	core	= 0x80;
++	shift	= 8;
+ 
+-	exited = 0;
+-	stopped = 0x7F;
++	exited	= 0;
++	stopped	= 0x7F;
+ )
+ 
+ func (w WaitStatus) Exited() bool {
+@@ -98,7 +98,7 @@ func (w WaitStatus) ExitStatus() int {
+ 	if w&mask != exited {
+ 		return -1;
+ 	}
+-	return int(w >> shift);
++	return int(w>>shift);
+ }
+ 
+ func (w WaitStatus) Signaled() bool {
+@@ -106,7 +106,7 @@ func (w WaitStatus) Signaled() bool {
+ }
+ 
+ func (w WaitStatus) Signal() int {
+-	sig := int(w & mask);
++	sig := int(w&mask);
+ 	if sig == stopped || sig == 0 {
+ 		return -1;
+ 	}
+@@ -129,7 +129,7 @@ func (w WaitStatus) StopSignal() int {
+ 	if !w.Stopped() {
+ 		return -1;
+ 	}
+-	return int(w >> shift) & 0xFF;
++	return int(w>>shift)&0xFF;
+ }
+ 
+ func (w WaitStatus) TrapCause() int {
+@@ -180,9 +180,9 @@ type Sockaddr interface {
+ }
+ 
+ type SockaddrInet4 struct {
+-	Port int;
+-	Addr [4]byte;
+-	raw RawSockaddrInet4;
++	Port	int;
++	Addr	[4]byte;
++	raw	RawSockaddrInet4;
+ }
+ 
+ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+@@ -192,7 +192,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+ 	sa.raw.Len = SizeofSockaddrInet4;
+ 	sa.raw.Family = AF_INET;
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
+-	p[0] = byte(sa.Port>>8);
++	p[0] = byte(sa.Port >> 8);
+ 	p[1] = byte(sa.Port);
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i];
+@@ -201,9 +201,9 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+ }
+ 
+ type SockaddrInet6 struct {
+-	Port int;
+-	Addr [16]byte;
+-	raw RawSockaddrInet6;
++	Port	int;
++	Addr	[16]byte;
++	raw	RawSockaddrInet6;
+ }
+ 
+ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+@@ -213,7 +213,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+ 	sa.raw.Len = SizeofSockaddrInet6;
+ 	sa.raw.Family = AF_INET6;
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
+-	p[0] = byte(sa.Port>>8);
++	p[0] = byte(sa.Port >> 8);
+ 	p[1] = byte(sa.Port);
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i];
+@@ -222,8 +222,8 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+ }
+ 
+ type SockaddrUnix struct {
+-	Name string;
+-	raw RawSockaddrUnix;
++	Name	string;
++	raw	RawSockaddrUnix;
+ }
+ 
+ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+@@ -232,7 +232,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	if n >= len(sa.raw.Path) || n == 0 {
+ 		return 0, 0, EINVAL;
+ 	}
+-	sa.raw.Len = byte(3 + n);	// 2 for Family, Len; 1 for NUL
++	sa.raw.Len = byte(3+n);	// 2 for Family, Len; 1 for NUL
+ 	sa.raw.Family = AF_UNIX;
+ 	for i := 0; i < n; i++ {
+ 		sa.raw.Path[i] = int8(name[i]);
+@@ -245,10 +245,10 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+ 	case AF_UNIX:
+ 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa));
+ 		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
+-			return nil, EINVAL
++			return nil, EINVAL;
+ 		}
+ 		sa := new(SockaddrUnix);
+-		n := int(pp.Len) - 3;	// subtract leading Family, Len, terminating NUL
++		n := int(pp.Len)-3;	// subtract leading Family, Len, terminating NUL
+ 		for i := 0; i < n; i++ {
+ 			if pp.Path[i] == 0 {
+ 				// found early NUL; assume Len is overestimating
+@@ -334,7 +334,7 @@ func Connect(fd int, sa Sockaddr) (errno int) {
+ 
+ func Socket(domain, typ, proto int) (fd, errno int) {
+ 	if domain == AF_INET6 && SocketDisableIPv6 {
+-		return -1, EAFNOSUPPORT
++		return -1, EAFNOSUPPORT;
+ 	}
+ 	fd, errno = socket(domain, typ, proto);
+ 	return;
+@@ -403,7 +403,7 @@ func nametomib(name string) (mib []_C_int, errno int) {
+ 	// I am scared that if we don't include the +2 here, the kernel
+ 	// will silently write 2 words farther than we specify
+ 	// and we'll get memory corruption.
+-	var buf [CTL_MAXNAME+2] _C_int;
++	var buf [CTL_MAXNAME + 2]_C_int;
+ 	n := uintptr(CTL_MAXNAME)*siz;
+ 
+ 	p := (*byte)(unsafe.Pointer(&buf[0]));
+@@ -414,7 +414,7 @@ func nametomib(name string) (mib []_C_int, errno int) {
+ 	if errno = sysctl([]_C_int{0, 3}, p, &n, &bytes[0], uintptr(len(name))); errno != 0 {
+ 		return nil, errno;
+ 	}
+-	return buf[0:n/siz], 0;
++	return buf[0 : n/siz], 0;
+ }
+ 
+ func Sysctl(name string) (value string, errno int) {
+@@ -773,4 +773,3 @@ func SysctlUint32(name string) (value uint32, errno int) {
+ // __mac_mount
+ // __mac_get_mount
+ // __mac_getfsstat
+-
+diff --git a/src/pkg/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+index aa558c217f..5654e09da7 100644
+--- a/src/pkg/syscall/syscall_darwin_386.go
++++ b/src/pkg/syscall/syscall_darwin_386.go
+@@ -5,7 +5,7 @@
+ package syscall
+ 
+ func Getpagesize() int {
+-	return 4096
++	return 4096;
+ }
+ 
+ func TimespecToNsec(ts Timespec) int64 {
+@@ -13,8 +13,8 @@ func TimespecToNsec(ts Timespec) int64 {
+ }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec / 1e9);
+-	ts.Nsec = int32(nsec % 1e9);
++	ts.Sec = int32(nsec/1e9);
++	ts.Nsec = int32(nsec%1e9);
+ 	return;
+ }
+ 
+@@ -24,7 +24,7 @@ func TimevalToNsec(tv Timeval) int64 {
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Usec = int32(nsec%1e9 / 1e3);
++	tv.Usec = int32(nsec%1e9/1e3);
+ 	tv.Sec = int32(nsec/1e9);
+ 	return;
+ }
+diff --git a/src/pkg/syscall/syscall_darwin_amd64.go b/src/pkg/syscall/syscall_darwin_amd64.go
+index 34e83ec6b4..7522069b1d 100644
+--- a/src/pkg/syscall/syscall_darwin_amd64.go
++++ b/src/pkg/syscall/syscall_darwin_amd64.go
+@@ -5,7 +5,7 @@
+ package syscall
+ 
+ func Getpagesize() int {
+-	return 4096
++	return 4096;
+ }
+ 
+ func TimespecToNsec(ts Timespec) int64 {
+@@ -13,8 +13,8 @@ func TimespecToNsec(ts Timespec) int64 {
+ }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = nsec / 1e9;
+-	ts.Nsec = nsec % 1e9;
++	ts.Sec = nsec/1e9;
++	ts.Nsec = nsec%1e9;
+ 	return;
+ }
+ 
+@@ -24,7 +24,7 @@ func TimevalToNsec(tv Timeval) int64 {
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+-	tv.Usec = int32(nsec%1e9 / 1e3);
++	tv.Usec = int32(nsec%1e9/1e3);
+ 	tv.Sec = int64(nsec/1e9);
+ 	return;
+ }
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index bcca5caed8..900889df60 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -47,7 +47,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (errno int) {
+ 	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])));
+ }
+ 
+-const ImplementsGetwd = true;
++const ImplementsGetwd = true
+ 
+ //sys	Getcwd(buf []byte) (n int, errno int)
+ func Getwd() (wd string, errno int) {
+@@ -57,10 +57,10 @@ func Getwd() (wd string, errno int) {
+ 		return "", err;
+ 	}
+ 	// Getcwd returns the number of bytes written to buf, including the NUL.
+-	if n < 1|| n > len(buf) || buf[n-1] != 0 {
++	if n < 1 || n > len(buf) || buf[n-1] != 0 {
+ 		return "", EINVAL;
+ 	}
+-	return string(buf[0:n-1]), 0
++	return string(buf[0 : n-1]), 0;
+ }
+ 
+ func Getgroups() (gids []int, errno int) {
+@@ -113,11 +113,11 @@ type WaitStatus uint32
+ // from stopped via the core dump bit.
+ 
+ const (
+-	mask = 0x7F;
+-	core = 0x80;
+-	exited = 0x00;
+-	stopped = 0x7F;
+-	shift = 8;
++	mask	= 0x7F;
++	core	= 0x80;
++	exited	= 0x00;
++	stopped	= 0x7F;
++	shift	= 8;
+ )
+ 
+ func (w WaitStatus) Exited() bool {
+@@ -144,28 +144,28 @@ func (w WaitStatus) ExitStatus() int {
+ 	if !w.Exited() {
+ 		return -1;
+ 	}
+-	return int(w >> shift) & 0xFF;
++	return int(w>>shift)&0xFF;
+ }
+ 
+ func (w WaitStatus) Signal() int {
+ 	if !w.Signaled() {
+ 		return -1;
+ 	}
+-	return int(w & mask);
++	return int(w&mask);
+ }
+ 
+ func (w WaitStatus) StopSignal() int {
+ 	if !w.Stopped() {
+ 		return -1;
+ 	}
+-	return int(w >> shift) & 0xFF;
++	return int(w>>shift)&0xFF;
+ }
+ 
+ func (w WaitStatus) TrapCause() int {
+ 	if w.StopSignal() != SIGTRAP {
+ 		return -1;
+ 	}
+-	return int(w >> shift) >> 8;
++	return int(w>>shift)>>8;
+ }
+ 
+ //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
+@@ -193,9 +193,9 @@ type Sockaddr interface {
+ }
+ 
+ type SockaddrInet4 struct {
+-	Port int;
+-	Addr [4]byte;
+-	raw RawSockaddrInet4;
++	Port	int;
++	Addr	[4]byte;
++	raw	RawSockaddrInet4;
+ }
+ 
+ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+@@ -204,7 +204,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+ 	}
+ 	sa.raw.Family = AF_INET;
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
+-	p[0] = byte(sa.Port>>8);
++	p[0] = byte(sa.Port >> 8);
+ 	p[1] = byte(sa.Port);
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i];
+@@ -213,9 +213,9 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
+ }
+ 
+ type SockaddrInet6 struct {
+-	Port int;
+-	Addr [16]byte;
+-	raw RawSockaddrInet6;
++	Port	int;
++	Addr	[16]byte;
++	raw	RawSockaddrInet6;
+ }
+ 
+ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+@@ -224,7 +224,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+ 	}
+ 	sa.raw.Family = AF_INET6;
+ 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
+-	p[0] = byte(sa.Port>>8);
++	p[0] = byte(sa.Port >> 8);
+ 	p[1] = byte(sa.Port);
+ 	for i := 0; i < len(sa.Addr); i++ {
+ 		sa.raw.Addr[i] = sa.Addr[i];
+@@ -233,8 +233,8 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
+ }
+ 
+ type SockaddrUnix struct {
+-	Name string;
+-	raw RawSockaddrUnix;
++	Name	string;
++	raw	RawSockaddrUnix;
+ }
+ 
+ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+@@ -252,7 +252,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
+ 	}
+ 
+ 	// length is family, name, NUL.
+-	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0;
++	return uintptr(unsafe.Pointer(&sa.raw)), 1+_Socklen(n)+1, 0;
+ }
+ 
+ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
+@@ -356,7 +356,7 @@ func Connect(fd int, sa Sockaddr) (errno int) {
+ 
+ func Socket(domain, typ, proto int) (fd, errno int) {
+ 	if domain == AF_INET6 && SocketDisableIPv6 {
+-		return -1, EAFNOSUPPORT
++		return -1, EAFNOSUPPORT;
+ 	}
+ 	fd, errno = socket(domain, typ, proto);
+ 	return;
+@@ -401,9 +401,9 @@ func bytesCopy(dst, src []byte) int {
+ 		src = src[0:len(dst)];
+ 	}
+ 	for i, x := range src {
+-		dst[i] = x
++		dst[i] = x;
+ 	}
+-	return len(src)
++	return len(src);
+ }
+ 
+ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
+@@ -422,11 +422,11 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
+ 	// boundary.
+ 	n := 0;
+ 	if addr % sizeofPtr != 0 {
+-		errno = ptrace(req, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
++		errno = ptrace(req, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+ 		if errno != 0 {
+ 			return 0, errno;
+ 		}
+-		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
++		n += bytesCopy(out, buf[addr % sizeofPtr : len(buf)]);
+ 		out = out[n:len(out)];
+ 	}
+ 
+@@ -462,13 +462,13 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 	n := 0;
+ 	if addr % sizeofPtr != 0 {
+ 		var buf [sizeofPtr]byte;
+-		errno = ptrace(peekReq, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
++		errno = ptrace(peekReq, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+ 		if errno != 0 {
+ 			return 0, errno;
+ 		}
+-		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
++		n += bytesCopy(buf[addr % sizeofPtr : len(buf)], data);
+ 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
+-		errno = ptrace(pokeReq, pid, addr - addr%sizeofPtr, word);
++		errno = ptrace(pokeReq, pid, addr - addr % sizeofPtr, word);
+ 		if errno != 0 {
+ 			return 0, errno;
+ 		}
+@@ -483,7 +483,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 			return n, errno;
+ 		}
+ 		n += sizeofPtr;
+-		data = data[sizeofPtr:len(data)];
++		data = data[sizeofPtr : len(data)];
+ 	}
+ 
+ 	// Trailing edge.
+@@ -793,4 +793,3 @@ func PtraceDetach(pid int) (errno int) {
+ // Waitid
+ // Writev
+ // _Sysctl
+-
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index c506d783d1..796859c0a8 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -7,7 +7,7 @@ package syscall
+ import "unsafe"
+ 
+ func Getpagesize() int {
+-	return 4096
++	return 4096;
+ }
+ 
+ func TimespecToNsec(ts Timespec) int64 {
+@@ -15,8 +15,8 @@ func TimespecToNsec(ts Timespec) int64 {
+ }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec / 1e9);
+-	ts.Nsec = int32(nsec % 1e9);
++	ts.Sec = int32(nsec/1e9);
++	ts.Nsec = int32(nsec%1e9);
+ 	return;
+ }
+ 
+@@ -27,7 +27,7 @@ func TimevalToNsec(tv Timeval) int64 {
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+ 	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9 / 1e3);
++	tv.Usec = int32(nsec%1e9/1e3);
+ 	return;
+ }
+ 
+@@ -72,23 +72,23 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ 
+ const (
+ 	// see linux/net.h
+-	_SOCKET = 1;
+-	_BIND = 2;
+-	_CONNECT = 3;
+-	_LISTEN = 4;
+-	_ACCEPT = 5;
+-	_GETSOCKNAME = 6;
+-	_GETPEERNAME = 7;
+-	_SOCKETPAIR = 8;
+-	_SEND = 9;
+-	_RECV = 10;
+-	_SENDTO = 11;
+-	_RECVFROM = 12;
+-	_SHUTDOWN = 13;
+-	_SETSOCKOPT = 14;
+-	_GETSOCKOPT = 15;
+-	_SENDMSG = 16;
+-	_RECVMSG = 17;
++	_SOCKET		= 1;
++	_BIND		= 2;
++	_CONNECT	= 3;
++	_LISTEN		= 4;
++	_ACCEPT		= 5;
++	_GETSOCKNAME	= 6;
++	_GETPEERNAME	= 7;
++	_SOCKETPAIR	= 8;
++	_SEND		= 9;
++	_RECV		= 10;
++	_SENDTO		= 11;
++	_RECVFROM	= 12;
++	_SHUTDOWN	= 13;
++	_SETSOCKOPT	= 14;
++	_GETSOCKOPT	= 15;
++	_SENDMSG	= 16;
++	_RECVMSG	= 17;
+ )
+ 
+ func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
+@@ -144,7 +144,7 @@ func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int
+ 	}
+ 	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
+ 	return;
+-}	
++}
+ 
+ func Listen(s int, n int) (errno int) {
+ 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index babaf9e41d..685fc1b481 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -43,7 +43,7 @@ package syscall
+ //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+ 
+ func Getpagesize() int {
+-	return 4096
++	return 4096;
+ }
+ 
+ func TimespecToNsec(ts Timespec) int64 {
+@@ -51,8 +51,8 @@ func TimespecToNsec(ts Timespec) int64 {
+ }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = nsec / 1e9;
+-	ts.Nsec = nsec % 1e9;
++	ts.Sec = nsec/1e9;
++	ts.Nsec = nsec%1e9;
+ 	return;
+ }
+ 
+@@ -63,7 +63,7 @@ func TimevalToNsec(tv Timeval) int64 {
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+ 	tv.Sec = nsec/1e9;
+-	tv.Usec = nsec%1e9 / 1e3;
++	tv.Usec = nsec%1e9/1e3;
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index f87182cd7b..d71b2e1545 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -5,7 +5,7 @@
+ package syscall
+ 
+ func Getpagesize() int {
+-	return 4096
++	return 4096;
+ }
+ 
+ func TimespecToNsec(ts Timespec) int64 {
+@@ -13,15 +13,15 @@ func TimespecToNsec(ts Timespec) int64 {
+ }
+ 
+ func NsecToTimespec(nsec int64) (ts Timespec) {
+-	ts.Sec = int32(nsec / 1e9);
+-	ts.Nsec = int32(nsec % 1e9);
++	ts.Sec = int32(nsec/1e9);
++	ts.Nsec = int32(nsec%1e9);
+ 	return;
+ }
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	nsec += 999;	// round up to microsecond
+ 	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9 / 1e3);
++	tv.Usec = int32(nsec%1e9/1e3);
+ 	return;
+ }
+ 
+@@ -63,9 +63,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 
+ // TODO(kaib): add support for tracing
+ func (r *PtraceRegs) PC() uint64 {
+-        return 0;
++	return 0;
+ }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) {
+ }
+-
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index bc8ec79757..3efea2e961 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -52,7 +52,7 @@ const OS = "nacl"
+ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+ 	// Offset passed to system call is 32 bits.  Failure of vision by NaCl.
+ 	if int64(int32(offset)) != offset {
+-		return 0, ERANGE
++		return 0, ERANGE;
+ 	}
+ 	o, _, e := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
+ 	return int64(o), int(e);
+@@ -74,7 +74,7 @@ func Sleep(ns int64) (errno int) {
+ 		return;
+ 	}
+ 	ts.Sec += tv.Sec;
+-	ts.Nsec += tv.Usec*1000;
++	ts.Nsec += tv.Usec * 1000;
+ 	switch {
+ 	case ts.Nsec >= 1e9:
+ 		ts.Nsec -= 1e9;
+@@ -194,51 +194,51 @@ func Ftruncate(fd int, length int64) (errno int) {
+ // don't implement Chdir, so the fallback algorithm
+ // fails worse than calling Getwd does.
+ 
+-const ImplementsGetwd = true;
++const ImplementsGetwd = true
+ 
+ func Getwd() (wd string, errno int) {
+ 	return "", ENACL;
+ }
+ 
+ func Getuid() (uid int) {
+-	return -1
++	return -1;
+ }
+ 
+ func Geteuid() (euid int) {
+-	return -1
++	return -1;
+ }
+ 
+ func Getgid() (gid int) {
+-	return -1
++	return -1;
+ }
+ 
+ func Getegid() (egid int) {
+-	return -1
++	return -1;
+ }
+ 
+ func Getppid() (ppid int) {
+-	return -1
++	return -1;
+ }
+ 
+ func Getgroups() (gids []int, errno int) {
+-	return nil, ENACL
++	return nil, ENACL;
+ }
+ 
+ type Sockaddr interface {
+-	sockaddr()
++	sockaddr();
+ }
+ 
+ type SockaddrInet4 struct {
+-	Port int;
+-	Addr [4]byte;
++	Port	int;
++	Addr	[4]byte;
+ }
+ 
+ func (*SockaddrInet4) sockaddr() {
+ }
+ 
+ type SockaddrInet6 struct {
+-	Port int;
+-	Addr [16]byte;
++	Port	int;
++	Addr	[16]byte;
+ }
+ 
+ func (*SockaddrInet6) sockaddr() {
+@@ -252,7 +252,7 @@ func (*SockaddrUnix) sockaddr() {
+ }
+ 
+ const (
+-	AF_INET = 1+iota;
++	AF_INET	= 1+iota;
+ 	AF_INET6;
+ 	AF_UNIX;
+ 	IPPROTO_TCP;
+@@ -305,8 +305,8 @@ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
+ }
+ 
+ type Linger struct {
+-	Onoff int32;
+-	Linger int32;
++	Onoff	int32;
++	Linger	int32;
+ }
+ 
+ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+@@ -318,22 +318,22 @@ func Listen(s int, n int) (errno int) {
+ }
+ 
+ type Rusage struct {
+-	Utime Timeval;
+-	Stime Timeval;
+-	Maxrss int32;
+-	Ixrss int32;
+-	Idrss int32;
+-	Isrss int32;
+-	Minflt int32;
+-	Majflt int32;
+-	Nswap int32;
+-	Inblock int32;
+-	Oublock int32;
+-	Msgsnd int32;
+-	Msgrcv int32;
+-	Nsignals int32;
+-	Nvcsw int32;
+-	Nivcsw int32;
++	Utime		Timeval;
++	Stime		Timeval;
++	Maxrss		int32;
++	Ixrss		int32;
++	Idrss		int32;
++	Isrss		int32;
++	Minflt		int32;
++	Majflt		int32;
++	Nswap		int32;
++	Inblock		int32;
++	Oublock		int32;
++	Msgsnd		int32;
++	Msgrcv		int32;
++	Nsignals	int32;
++	Nvcsw		int32;
++	Nivcsw		int32;
+ }
+ 
+ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
+@@ -343,37 +343,37 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
+ type WaitStatus uint32
+ 
+ func (WaitStatus) Exited() bool {
+-	return false
++	return false;
+ }
+ 
+ func (WaitStatus) ExitStatus() int {
+-	return -1
++	return -1;
+ }
+ 
+ func (WaitStatus) Signal() int {
+-	return -1
++	return -1;
+ }
+ 
+ func (WaitStatus) CoreDump() bool {
+-	return false
++	return false;
+ }
+ 
+ func (WaitStatus) Stopped() bool {
+-	return false
++	return false;
+ }
+ 
+ func (WaitStatus) Continued() bool {
+-	return false
++	return false;
+ }
+ 
+ func (WaitStatus) StopSignal() int {
+-	return -1
++	return -1;
+ }
+ 
+ func (WaitStatus) Signaled() bool {
+-	return false
++	return false;
+ }
+ 
+ func (WaitStatus) TrapCause() int {
+-	return -1
++	return -1;
+ }
+diff --git a/src/pkg/syscall/syscall_nacl_386.go b/src/pkg/syscall/syscall_nacl_386.go
+index 3ed3ccc25e..e87c1ffbf9 100644
+--- a/src/pkg/syscall/syscall_nacl_386.go
++++ b/src/pkg/syscall/syscall_nacl_386.go
+@@ -5,12 +5,12 @@
+ package syscall
+ 
+ func Getpagesize() int {
+-	return 4096
++	return 4096;
+ }
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9 / 1e3);
++	tv.Usec = int32(nsec%1e9/1e3);
+ 	return;
+ }
+ 
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index f82ba3b990..908cdd3e24 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -176,7 +176,7 @@ const (
+ 	SIGINT		= 0x2;
+ 	SIGIOT		= 0x6;
+ 	SIGTERM		= 0xf;
+-	O_EXCL					= 0x80;
++	O_EXCL		= 0x80;
+ )
+ 
+ // Types
+diff --git a/src/pkg/syscall/zsysnum_linux_386.go b/src/pkg/syscall/zsysnum_linux_386.go
+index 7cd1991473..02691b856a 100644
+--- a/src/pkg/syscall/zsysnum_linux_386.go
++++ b/src/pkg/syscall/zsysnum_linux_386.go
+@@ -315,4 +315,5 @@ const (
+ 	SYS_FALLOCATE			= 324;
+ )
+ 
+-func _darwin_system_call_conflict() {}
++func _darwin_system_call_conflict() {
++}
+diff --git a/src/pkg/syscall/zsysnum_linux_amd64.go b/src/pkg/syscall/zsysnum_linux_amd64.go
+index ee7912f06e..74faa95787 100644
+--- a/src/pkg/syscall/zsysnum_linux_amd64.go
++++ b/src/pkg/syscall/zsysnum_linux_amd64.go
+@@ -292,4 +292,5 @@ const (
+ 	SYS_FALLOCATE			= 285;
+ )
+ 
+-func _darwin_system_call_conflict() {}
++func _darwin_system_call_conflict() {
++}
+diff --git a/src/pkg/syscall/zsysnum_linux_arm.go b/src/pkg/syscall/zsysnum_linux_arm.go
+index 0debe23986..a493bfe9c8 100644
+--- a/src/pkg/syscall/zsysnum_linux_arm.go
++++ b/src/pkg/syscall/zsysnum_linux_arm.go
+@@ -3,7 +3,7 @@
+ package syscall
+ 
+ const (
+-	SYS_SYSCALL_BASE = 0;
++	SYS_SYSCALL_BASE	= 0;
+ 
+ 	SYS_RESTART_SYSCALL		= (SYS_SYSCALL_BASE + 0);
+ 	SYS_EXIT			= (SYS_SYSCALL_BASE + 1);
+@@ -333,4 +333,5 @@ const (
+ 	SYS_INOTIFY_INIT1		= (SYS_SYSCALL_BASE + 360);
+ )
+ 
+-func _darwin_system_call_conflict() {}
++func _darwin_system_call_conflict() {
++}
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 87121d3466..536b08bfae 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -78,12 +78,12 @@ const (
+ 	SizeofSockaddrAny	= 0x1c;
+ 	SizeofSockaddrUnix	= 0x6e;
+ 	PTRACE_TRACEME		= 0;
+-	PTRACE_PEEKTEXT	= 0x1;
+-	PTRACE_PEEKDATA	= 0x2;
+-	PTRACE_PEEKUSER	= 0x3;
+-	PTRACE_POKETEXT	= 0x4;
+-	PTRACE_POKEDATA	= 0x5;
+-	PTRACE_POKEUSER	= 0x6;
++	PTRACE_PEEKTEXT		= 0x1;
++	PTRACE_PEEKDATA		= 0x2;
++	PTRACE_PEEKUSER		= 0x3;
++	PTRACE_POKETEXT		= 0x4;
++	PTRACE_POKEDATA		= 0x5;
++	PTRACE_POKEUSER		= 0x6;
+ 	PTRACE_CONT		= 0x7;
+ 	PTRACE_KILL		= 0x8;
+ 	PTRACE_SINGLESTEP	= 0x9;

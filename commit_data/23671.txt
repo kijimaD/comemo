@@ -31,7 +31,103 @@ Date:   Mon Apr 20 00:37:37 2015 -0400
     Change-Id: Ide109572f96bbb5a35be45dda17738317462a7d4
     Reviewed-on: https://go-review.googlesource.com/10682
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/build.go  | 24 ++++++++++++++++++++++++
  src/cmd/go/test.bash | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 73 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 2f88a1f883..ec74ea4133 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -540,6 +540,30 @@ func runInstall(cmd *Command, args []string) {
+ 		}
+ 	}
+ 	b.do(a)
++	exitIfErrors()
++
++	// Success. If this command is 'go install' with no arguments
++	// and the current directory (the implicit argument) is a command,
++	// remove any leftover command binary from a previous 'go build'.
++	// The binary is installed; it's not needed here anymore.
++	// And worse it might be a stale copy, which you don't want to find
++	// instead of the installed one if $PATH contains dot.
++	// One way to view this behavior is that it is as if 'go install' first
++	// runs 'go build' and the moves the generated file to the install dir.
++	// See issue 9645.
++	if len(args) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
++		// Compute file 'go build' would have created.
++		// If it exists and is an executable file, remove it.
++		_, targ := filepath.Split(pkgs[0].ImportPath)
++		targ += exeSuffix
++		fi, err := os.Stat(targ)
++		if err == nil {
++			m := fi.Mode()
++			if m.IsRegular() && m&0111 != 0 {
++				os.Remove(targ)
++			}
++		}
++	}
+ }
+ 
+ // Global build parameters (used during package load)
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 6d4213c738..4f36584de3 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -96,6 +96,55 @@ elif grep -q runtime $d/err.out; then
+ fi
+ rm -r $d
+ 
++TEST 'go install cleans up after go build'
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++export GOPATH=$d
++mkdir -p $d/src/mycmd
++echo 'package main; func main(){}' >$d/src/mycmd/main.go
++old=$(pwd)
++cd $d/src/mycmd
++"$old/testgo" build
++if [ ! -x mycmd ]; then
++	echo "testgo build did not write command binary"
++	ok=false
++fi
++"$old/testgo" install
++if [ -e mycmd ]; then
++	echo "testgo install did not remove command binary"
++	ok=false
++fi
++"$old/testgo" build
++if [ ! -x mycmd ]; then
++	echo "testgo build did not write command binary (second time)"
++	ok=false
++fi
++# install with arguments does not remove the target,
++# even in the same directory
++"$old/testgo" install mycmd
++if [ ! -e mycmd ]; then
++	echo "testgo install mycmd removed command binary when run in mycmd"
++	ok=false
++fi
++"$old/testgo" build
++if [ ! -x mycmd ]; then
++	echo "testgo build did not write command binary (third time)"
++	ok=false
++fi
++# and especially not outside the directory
++cd $d
++cp src/mycmd/mycmd .
++"$old/testgo" install mycmd
++if [ ! -e $d/src/mycmd/mycmd ]; then
++	echo "testgo install mycmd removed command binary from its source dir when run outside mycmd"
++	ok=false
++fi
++if [ ! -e $d/mycmd ]; then
++	echo "testgo install mycmd removed command binary from current dir when run outside mycmd"
++	ok=false
++fi
++cd "$old"
++rm -r $d
++
+ TEST 'go install rebuilds stale packages in other GOPATH'
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+ export GOPATH=$d/d1:$d/d2

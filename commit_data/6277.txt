@@ -7,7 +7,39 @@ Date:   Tue Sep 14 12:03:26 2010 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/2184042
-
+---
  src/cmd/godoc/doc.go   | 4 ++--
  src/cmd/godoc/godoc.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 82281b1755..ad855cd54a 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -62,9 +62,9 @@ The flags are:
+ 	-sync_minutes=0
+ 		sync interval in minutes; sync is disabled if <= 0
+ 	-filter=""
+-		file containing permitted permitted directory paths
++		filter file containing permitted package directory paths
+ 	-filter_minutes=0
+-		filter update interval in minutes; update is disabled if <= 0
++		filter file update interval in minutes; update is disabled if <= 0
+ 
+ The -path flag accepts a list of colon-separated paths; unrooted paths are relative
+ to the current working directory. Each path is considered as an additional root for
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index e1a828fe79..4d084a6bdb 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -53,8 +53,8 @@ var (
+ 	// file system roots
+ 	goroot      = flag.String("goroot", runtime.GOROOT(), "Go root directory")
+ 	path        = flag.String("path", "", "additional package directories (colon-separated)")
+-	filter      = flag.String("filter", "godoc.dirlist", "file containing permitted package directory paths")
+-	filterMin   = flag.Int("filter_minutes", 0, "filter update interval in minutes; disabled if <= 0")
++	filter      = flag.String("filter", "godoc.dirlist", "filter file containing permitted package directory paths")
++	filterMin   = flag.Int("filter_minutes", 0, "filter file update interval in minutes; disabled if <= 0")
+ 	filterDelay delayTime // actual filter update interval in minutes; usually filterDelay == filterMin, but filterDelay may back off exponentially
+ 
+ 	// layout control

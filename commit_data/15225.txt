@@ -7,6 +7,20 @@ Date:   Wed Feb 13 16:47:33 2013 -0500
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7304065
-
+---
  src/cmd/5l/asm.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 11a5f0cbec..04f2a9c6cb 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -686,7 +686,7 @@ asmb(void)
+ 	}
+ 	cflush();
+ 	if(debug['c']){
+-		print("textsize=%d\n", segtext.filelen);
++		print("textsize=%ulld\n", segtext.filelen);
+ 		print("datsize=%ulld\n", segdata.filelen);
+ 		print("bsssize=%ulld\n", segdata.len - segdata.filelen);
+ 		print("symsize=%d\n", symsize);

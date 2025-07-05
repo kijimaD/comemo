@@ -12,7 +12,7 @@ Date:   Tue May 21 23:39:35 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/go/build/badlinkname.go          |  3 ---
  src/go/build/build.go                | 23 ++++++++++++++++++++++-
  src/internal/poll/badlinkname.go     | 15 ---------------
@@ -23,3 +23,202 @@ Date:   Tue May 21 23:39:35 2024 -0400
  src/runtime/stubs.go                 |  1 +
  src/syscall/rlimit.go                | 11 +++++++++++
  9 files changed, 65 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/build/badlinkname.go b/src/go/build/badlinkname.go
+index feed305f02..ad2ed2beba 100644
+--- a/src/go/build/badlinkname.go
++++ b/src/go/build/badlinkname.go
+@@ -12,9 +12,6 @@ import _ "unsafe"
+ // This may change in the future. Please do not depend on them
+ // in new code.
+ 
+-//go:linkname defaultReleaseTags
+-//go:linkname defaultToolTags
+-
+ // The compiler doesn't allow linknames on methods, for good reasons.
+ // We use this trick to push linknames of the methods.
+ // Do not call them in this package.
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 43c74cb99a..1fa03b0a36 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -29,6 +29,7 @@ import (
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
++	_ "unsafe" // for linkname
+ )
+ 
+ // A Context specifies the supporting context for a build.
+@@ -306,7 +307,27 @@ func defaultGOPATH() string {
+ 	return ""
+ }
+ 
+-var defaultToolTags, defaultReleaseTags []string
++// defaultToolTags should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/gopherjs/gopherjs
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname defaultToolTags
++var defaultToolTags []string
++
++// defaultReleaseTags should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/gopherjs/gopherjs
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname defaultReleaseTags
++var defaultReleaseTags []string
+ 
+ func defaultContext() Context {
+ 	var c Context
+diff --git a/src/internal/poll/badlinkname.go b/src/internal/poll/badlinkname.go
+deleted file mode 100644
+index 67e49bb409..0000000000
+--- a/src/internal/poll/badlinkname.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package poll
+-
+-import _ "unsafe"
+-
+-// As of Go 1.22, the symbols below are found to be pulled via
+-// linkname in the wild. We provide a push linkname here, to
+-// keep them accessible with pull linknames.
+-// This may change in the future. Please do not depend on them
+-// in new code.
+-
+-//go:linkname IsPollDescriptor
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index b51535ecf2..b78d156476 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -164,6 +164,16 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 
+ // IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+ // This is only used for testing.
++//
++// IsPollDescriptor should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/opencontainers/runc
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname IsPollDescriptor
+ func IsPollDescriptor(fd uintptr) bool {
+ 	return runtime_isPollServerDescriptor(fd)
+ }
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 42b332d244..9469681572 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -45,7 +45,18 @@ func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr {
+ var useAeshash bool
+ 
+ // in asm_*.s
++
++// memhash should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/dgraph-io/ristretto
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname memhash
+ func memhash(p unsafe.Pointer, h, s uintptr) uintptr
++
+ func memhash32(p unsafe.Pointer, h uintptr) uintptr
+ func memhash64(p unsafe.Pointer, h uintptr) uintptr
+ 
+diff --git a/src/runtime/badlinkname.go b/src/runtime/badlinkname.go
+index 9e34086517..4d99ef48b6 100644
+--- a/src/runtime/badlinkname.go
++++ b/src/runtime/badlinkname.go
+@@ -12,11 +12,15 @@ import _ "unsafe"
+ // This may change in the future. Please do not depend on them
+ // in new code.
+ 
++// These should be an internal details
++// but widely used packages access them using linkname.
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++
+ //go:linkname add
+ //go:linkname atomicwb
+ //go:linkname callers
+ //go:linkname chanbuf
+-//go:linkname cputicks
+ //go:linkname entersyscallblock
+ //go:linkname fastexprand
+ //go:linkname gopanic
+@@ -35,3 +39,7 @@ import _ "unsafe"
+ //go:linkname typedslicecopy
+ //go:linkname typehash
+ //go:linkname wakep
++
++// Notable members of the hall of shame include:
++//   - github.com/dgraph-io/ristretto
++//go:linkname cputicks
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 145b1a45b1..9a710f6edf 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1038,6 +1038,7 @@ func sync_fatal(s string) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
++//   - github.com/dgraph-io/ristretto
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 83f5e4e330..96f333bc0f 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -87,6 +87,7 @@ func badsystemstack() {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
++//   - github.com/dgraph-io/ristretto
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index d77341bde9..9547ce8f6d 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -8,9 +8,20 @@ package syscall
+ 
+ import (
+ 	"sync/atomic"
++	_ "unsafe"
+ )
+ 
+ // origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
++//
++// origRlimitNofile should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/opencontainers/runc
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname origRlimitNofile
+ var origRlimitNofile atomic.Pointer[Rlimit]
+ 
+ // Some systems set an artificially low soft limit on open file count, for compatibility

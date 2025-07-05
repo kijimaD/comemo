@@ -19,6 +19,32 @@ Date:   Wed Jul 7 12:33:40 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types/fmt.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 0ce423dae7..7b284aa661 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -112,11 +112,19 @@ func sconv(s *Sym, verb rune, mode fmtMode) string {
+ 	if s.Name == "_" {
+ 		return "_"
+ 	}
++
++	q := pkgqual(s.Pkg, verb, mode)
++	if q == "" {
++		return s.Name
++	}
++
+ 	buf := fmtBufferPool.Get().(*bytes.Buffer)
+ 	buf.Reset()
+ 	defer fmtBufferPool.Put(buf)
+ 
+-	symfmt(buf, s, verb, mode)
++	buf.WriteString(q)
++	buf.WriteByte('.')
++	buf.WriteString(s.Name)
+ 	return InternString(buf.Bytes())
+ }
+ 

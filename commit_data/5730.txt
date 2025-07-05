@@ -9,6 +9,20 @@ Date:   Tue Jun 29 17:47:27 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1667051
-
+---
  src/pkg/runtime/proc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index a587a7fd43..2abb28307e 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -168,7 +168,7 @@ gput(G *g)
+ 	M *m;
+ 
+ 	// If g is wired, hand it off directly.
+-	if((m = g->lockedm) != nil) {
++	if(sched.mcpu < sched.mcpumax && (m = g->lockedm) != nil) {
+ 		mnextg(m, g);
+ 		return;
+ 	}

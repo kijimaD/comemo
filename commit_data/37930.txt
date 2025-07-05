@@ -33,9 +33,143 @@ Date:   Wed Sep 12 18:07:51 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/vet/main.go            |  1 +
  src/cmd/vet/shadow.go          |  9 +++------
  src/cmd/vet/testdata/shadow.go | 32 ++++++++++++++++++++++++++++++++
  src/cmd/vet/types.go           | 24 ++++++++++++++++++++++--
  4 files changed, 58 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index c50d4885a0..646adf4d76 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -467,6 +467,7 @@ type Package struct {
+ 	path      string
+ 	defs      map[*ast.Ident]types.Object
+ 	uses      map[*ast.Ident]types.Object
++	implicits map[ast.Node]types.Object
+ 	selectors map[*ast.SelectorExpr]*types.Selection
+ 	types     map[ast.Expr]types.TypeAndValue
+ 	spans     map[types.Object]Span
+diff --git a/src/cmd/vet/shadow.go b/src/cmd/vet/shadow.go
+index 29c952fd88..47a48834bf 100644
+--- a/src/cmd/vet/shadow.go
++++ b/src/cmd/vet/shadow.go
+@@ -86,14 +86,11 @@ func (s Span) contains(pos token.Pos) bool {
+ 	return s.min <= pos && pos < s.max
+ }
+ 
+-// growSpan expands the span for the object to contain the instance represented
+-// by the identifier.
+-func (pkg *Package) growSpan(ident *ast.Ident, obj types.Object) {
++// growSpan expands the span for the object to contain the source range [pos, end).
++func (pkg *Package) growSpan(obj types.Object, pos, end token.Pos) {
+ 	if *strictShadowing {
+ 		return // No need
+ 	}
+-	pos := ident.Pos()
+-	end := ident.End()
+ 	span, ok := pkg.spans[obj]
+ 	if ok {
+ 		if span.min > pos {
+@@ -232,7 +229,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
+ 		// the shadowing identifier.
+ 		span, ok := f.pkg.spans[shadowed]
+ 		if !ok {
+-			f.Badf(ident.Pos(), "internal error: no range for %q", ident.Name)
++			f.Badf(shadowed.Pos(), "internal error: no range for %q", shadowed.Name())
+ 			return
+ 		}
+ 		if !span.contains(ident.Pos()) {
+diff --git a/src/cmd/vet/testdata/shadow.go b/src/cmd/vet/testdata/shadow.go
+index c55cb2772a..d10fde2b81 100644
+--- a/src/cmd/vet/testdata/shadow.go
++++ b/src/cmd/vet/testdata/shadow.go
+@@ -57,3 +57,35 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
+ func one() int {
+ 	return 1
+ }
++
++// Must not complain with an internal error for the
++// implicitly declared type switch variable v.
++func issue26725(x interface{}) int {
++	switch v := x.(type) {
++	case int, int32:
++		if v, ok := x.(int); ok {
++			return v
++		}
++	case int64:
++		return int(v)
++	}
++	return 0
++}
++
++// Verify that implicitly declared variables from
++// type switches are considered in shadowing analysis.
++func shadowTypeSwitch(a interface{}) {
++	switch t := a.(type) {
++	case int:
++		{
++			t := 0 // ERROR "declaration of .t. shadows declaration at shadow.go:78"
++			_ = t
++		}
++		_ = t
++	case uint:
++		{
++			t := uint(0) // OK because t is not mentioned later in this function
++			_ = t
++		}
++	}
++}
+diff --git a/src/cmd/vet/types.go b/src/cmd/vet/types.go
+index 5f8e481e01..3ff4b5966d 100644
+--- a/src/cmd/vet/types.go
++++ b/src/cmd/vet/types.go
+@@ -73,6 +73,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
+ 	}
+ 	pkg.defs = make(map[*ast.Ident]types.Object)
+ 	pkg.uses = make(map[*ast.Ident]types.Object)
++	pkg.implicits = make(map[ast.Node]types.Object)
+ 	pkg.selectors = make(map[*ast.SelectorExpr]*types.Selection)
+ 	pkg.spans = make(map[types.Object]Span)
+ 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
+@@ -95,6 +96,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
+ 		Types:      pkg.types,
+ 		Defs:       pkg.defs,
+ 		Uses:       pkg.uses,
++		Implicits:  pkg.implicits,
+ 	}
+ 	typesPkg, err := config.Check(pkg.path, fs, astFiles, info)
+ 	if len(allErrors) == 0 && err != nil {
+@@ -103,10 +105,28 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) []error {
+ 	pkg.typesPkg = typesPkg
+ 	// update spans
+ 	for id, obj := range pkg.defs {
+-		pkg.growSpan(id, obj)
++		// Ignore identifiers that don't denote objects
++		// (package names, symbolic variables such as t
++		// in t := x.(type) of type switch headers).
++		if obj != nil {
++			pkg.growSpan(obj, id.Pos(), id.End())
++		}
+ 	}
+ 	for id, obj := range pkg.uses {
+-		pkg.growSpan(id, obj)
++		pkg.growSpan(obj, id.Pos(), id.End())
++	}
++	for node, obj := range pkg.implicits {
++		// A type switch with a short variable declaration
++		// such as t := x.(type) doesn't declare the symbolic
++		// variable (t in the example) at the switch header;
++		// instead a new variable t (with specific type) is
++		// declared implicitly for each case. Such variables
++		// are found in the types.Info.Implicits (not Defs)
++		// map. Add them here, assuming they are declared at
++		// the type cases' colon ":".
++		if cc, ok := node.(*ast.CaseClause); ok {
++			pkg.growSpan(obj, cc.Colon, cc.Colon)
++		}
+ 	}
+ 	return allErrors
+ }

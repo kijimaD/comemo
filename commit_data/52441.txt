@@ -14,8 +14,69 @@ Date:   Fri Apr 29 15:28:03 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/reflect/float32reg_generic.go |  2 +-
  src/reflect/float32reg_riscv64.s  | 27 +++++++++++++++++++++++++++
  src/reflect/stubs_riscv64.go      |  8 ++++++++
  3 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/float32reg_generic.go b/src/reflect/float32reg_generic.go
+index 307c0bb33c..23ad4bf285 100644
+--- a/src/reflect/float32reg_generic.go
++++ b/src/reflect/float32reg_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !ppc64 && !ppc64le
++//go:build !ppc64 && !ppc64le && !riscv64
+ 
+ package reflect
+ 
+diff --git a/src/reflect/float32reg_riscv64.s b/src/reflect/float32reg_riscv64.s
+new file mode 100644
+index 0000000000..8fcf3ba3e9
+--- /dev/null
++++ b/src/reflect/float32reg_riscv64.s
+@@ -0,0 +1,27 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// riscv64 allows 32-bit floats to live in the bottom
++// part of the register, it expects them to be NaN-boxed.
++// These functions are needed to ensure correct conversions
++// on riscv64.
++
++// Convert float32->uint64
++TEXT ·archFloat32ToReg(SB),NOSPLIT,$0-16
++	MOVF	val+0(FP), F1
++	MOVD	F1, ret+8(FP)
++	RET
++
++// Convert uint64->float32
++TEXT ·archFloat32FromReg(SB),NOSPLIT,$0-12
++	// Normally a float64->float32 conversion
++	// would need rounding, but riscv64 store valid
++	// float32 in the lower 32 bits, thus we only need to
++	// unboxed the NaN-box by store a float32.
++	MOVD	reg+0(FP), F1
++	MOVF	F1, ret+8(FP)
++	RET
++
+diff --git a/src/reflect/stubs_riscv64.go b/src/reflect/stubs_riscv64.go
+new file mode 100644
+index 0000000000..a72ebab970
+--- /dev/null
++++ b/src/reflect/stubs_riscv64.go
+@@ -0,0 +1,8 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reflect
++
++func archFloat32FromReg(reg uint64) float32
++func archFloat32ToReg(val float32) uint64

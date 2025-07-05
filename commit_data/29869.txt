@@ -11,7 +11,153 @@ Date:   Thu Oct 13 17:56:04 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/expvar/expvar.go      | 20 ++++++++++++++++++++
  src/expvar/expvar_test.go | 28 +++++++++++++++++-----------
  2 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index fde763d7ce..7339fa00b7 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -49,6 +49,10 @@ type Int struct {
+ 	i int64
+ }
+ 
++func (v *Int) Value() int64 {
++	return atomic.LoadInt64(&v.i)
++}
++
+ func (v *Int) String() string {
+ 	return strconv.FormatInt(atomic.LoadInt64(&v.i), 10)
+ }
+@@ -66,6 +70,10 @@ type Float struct {
+ 	f uint64
+ }
+ 
++func (v *Float) Value() float64 {
++	return math.Float64frombits(atomic.LoadUint64(&v.f))
++}
++
+ func (v *Float) String() string {
+ 	return strconv.FormatFloat(
+ 		math.Float64frombits(atomic.LoadUint64(&v.f)), 'g', -1, 64)
+@@ -219,6 +227,14 @@ type String struct {
+ 	s  string
+ }
+ 
++func (v *String) Value() string {
++	v.mu.RLock()
++	defer v.mu.RUnlock()
++	return v.s
++}
++
++// String implements the Val interface. To get the unquoted string
++// use Value.
+ func (v *String) String() string {
+ 	v.mu.RLock()
+ 	s := v.s
+@@ -237,6 +253,10 @@ func (v *String) Set(value string) {
+ // and formatting the returned value using JSON.
+ type Func func() interface{}
+ 
++func (f Func) Value() interface{} {
++	return f()
++}
++
+ func (f Func) String() string {
+ 	v, _ := json.Marshal(f())
+ 	return string(v)
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 7b1c9dfc4f..0efa8643c0 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -7,13 +7,12 @@ package expvar
+ import (
+ 	"bytes"
+ 	"encoding/json"
+-	"math"
+ 	"net"
+ 	"net/http/httptest"
++	"reflect"
+ 	"runtime"
+ 	"strconv"
+ 	"sync"
+-	"sync/atomic"
+ 	"testing"
+ )
+ 
+@@ -58,6 +57,10 @@ func TestInt(t *testing.T) {
+ 	if reqs.i != -2 {
+ 		t.Errorf("reqs.i = %v, want -2", reqs.i)
+ 	}
++
++	if v, want := reqs.Value(), int64(-2); v != want {
++		t.Errorf("reqs.Value() = %q, want %q", v, want)
++	}
+ }
+ 
+ func BenchmarkIntAdd(b *testing.B) {
+@@ -80,10 +83,6 @@ func BenchmarkIntSet(b *testing.B) {
+ 	})
+ }
+ 
+-func (v *Float) val() float64 {
+-	return math.Float64frombits(atomic.LoadUint64(&v.f))
+-}
+-
+ func TestFloat(t *testing.T) {
+ 	RemoveAll()
+ 	reqs := NewFloat("requests-float")
+@@ -96,8 +95,8 @@ func TestFloat(t *testing.T) {
+ 
+ 	reqs.Add(1.5)
+ 	reqs.Add(1.25)
+-	if v := reqs.val(); v != 2.75 {
+-		t.Errorf("reqs.val() = %v, want 2.75", v)
++	if v := reqs.Value(); v != 2.75 {
++		t.Errorf("reqs.Value() = %v, want 2.75", v)
+ 	}
+ 
+ 	if s := reqs.String(); s != "2.75" {
+@@ -105,8 +104,8 @@ func TestFloat(t *testing.T) {
+ 	}
+ 
+ 	reqs.Add(-2)
+-	if v := reqs.val(); v != 0.75 {
+-		t.Errorf("reqs.val() = %v, want 0.75", v)
++	if v := reqs.Value(); v != 0.75 {
++		t.Errorf("reqs.Value() = %v, want 0.75", v)
+ 	}
+ }
+ 
+@@ -146,6 +145,10 @@ func TestString(t *testing.T) {
+ 		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
+ 	}
+ 
++	if s, want := name.Value(), "Mike"; s != want {
++		t.Errorf("from %q, name.Value() = %q, want %q", name.s, s, want)
++	}
++
+ 	// Make sure we produce safe JSON output.
+ 	name.Set(`<`)
+ 	if s, want := name.String(), "\"\\u003c\""; s != want {
+@@ -177,7 +180,7 @@ func TestMapCounter(t *testing.T) {
+ 	if x := colors.m["blue"].(*Int).i; x != 4 {
+ 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
+ 	}
+-	if x := colors.m[`green "midori"`].(*Float).val(); x != 4.125 {
++	if x := colors.m[`green "midori"`].(*Float).Value(); x != 4.125 {
+ 		t.Errorf("colors.m[`green \"midori\"] = %v, want 4.125", x)
+ 	}
+ 
+@@ -242,6 +245,9 @@ func TestFunc(t *testing.T) {
+ 	if s, exp := f.String(), `["a","b"]`; s != exp {
+ 		t.Errorf(`f.String() = %q, want %q`, s, exp)
+ 	}
++	if v := f.Value(); !reflect.DeepEqual(v, x) {
++		t.Errorf(`f.Value() = %q, want %q`, v, x)
++	}
+ 
+ 	x = 17
+ 	if s, exp := f.String(), `17`; s != exp {

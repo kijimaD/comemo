@@ -12,6 +12,20 @@ Date:   Fri Sep 28 15:58:19 2018 +0200
     Change-Id: Iea551236d334705a58a446c8992b20adcfe4159b
     Reviewed-on: https://go-review.googlesource.com/c/138726
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/path/filepath/path_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index 349dea7b53..c10b3288a1 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package filepath
+ 

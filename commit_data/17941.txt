@@ -7,6 +7,18 @@ Date:   Tue Dec 10 12:06:24 2013 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/39780043
-
+---
  misc/cgo/testcdefs/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcdefs/test.bash b/misc/cgo/testcdefs/test.bash
+index 1a14ad35c6..01621a49ac 100755
+--- a/misc/cgo/testcdefs/test.bash
++++ b/misc/cgo/testcdefs/test.bash
+@@ -12,5 +12,5 @@ done
+ 
+ go build . && ./testcdefs
+ EXIT=$?
+-rm -rf _obj main *.h
++rm -rf _obj testcdefs *.h
+ exit $EXIT

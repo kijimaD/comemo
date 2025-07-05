@@ -23,6 +23,23 @@ Date:   Wed Sep 20 10:44:06 2023 -0400
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Commit-Queue: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/transport.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index ac7477ea1d..1cf41a5474 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1577,6 +1577,11 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
+ 	}()
+ 	if err := <-errc; err != nil {
+ 		plainConn.Close()
++		if err == (tlsHandshakeTimeoutError{}) {
++			// Now that we have closed the connection,
++			// wait for the call to HandshakeContext to return.
++			<-errc
++		}
+ 		if trace != nil && trace.TLSHandshakeDone != nil {
+ 			trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+ 		}

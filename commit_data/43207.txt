@@ -16,7 +16,51 @@ Date:   Mon Mar 16 20:08:00 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/runtime2.go    |  4 ++++
  src/runtime/signal_unix.go | 10 +++++++++-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9e3ccb2e40..1a98927647 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -539,6 +539,10 @@ type m struct {
+ 	// requested, but fails. Accessed atomically.
+ 	preemptGen uint32
+ 
++	// Whether this is a pending preemption signal on this M.
++	// Accessed atomically.
++	signalPending uint32
++
+ 	dlogPerM
+ 
+ 	mOS
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 32b192c977..b8f27d1147 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -333,6 +333,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 
+ 	// Acknowledge the preemption.
+ 	atomic.Xadd(&gp.m.preemptGen, 1)
++	atomic.Store(&gp.m.signalPending, 0)
+ }
+ 
+ const preemptMSupported = pushCallSupported
+@@ -359,7 +360,14 @@ func preemptM(mp *m) {
+ 		// required).
+ 		return
+ 	}
+-	signalM(mp, sigPreempt)
++	if atomic.Cas(&mp.signalPending, 0, 1) {
++		// If multiple threads are preempting the same M, it may send many
++		// signals to the same M such that it hardly make progress, causing
++		// live-lock problem. Apparently this could happen on darwin. See
++		// issue #37741.
++		// Only send a signal if there isn't already one pending.
++		signalM(mp, sigPreempt)
++	}
+ }
+ 
+ // sigFetchG fetches the value of G safely when running in a signal handler.

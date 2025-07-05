@@ -17,7 +17,43 @@ Date:   Fri Jun 9 19:59:37 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/builtin/builtin.go | 4 ++++
  src/cmp/cmp.go         | 5 +++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 03e90c8a56..da0ace1498 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -210,10 +210,14 @@ func make(t Type, size ...IntegerType) Type
+ 
+ // The max built-in function returns the largest value of a fixed number of
+ // arguments of [cmp.Ordered] types. There must be at least one argument.
++// If T is a floating-point type and any of the arguments are NaNs,
++// max will return NaN.
+ func max[T cmp.Ordered](x T, y ...T) T
+ 
+ // The min built-in function returns the smallest value of a fixed number of
+ // arguments of [cmp.Ordered] types. There must be at least one argument.
++// If T is a floating-point type and any of the arguments are NaNs,
++// min will return NaN.
+ func min[T cmp.Ordered](x T, y ...T) T
+ 
+ // The new built-in function allocates memory. The first argument is a type,
+diff --git a/src/cmp/cmp.go b/src/cmp/cmp.go
+index 3da8ff4570..0fba5c1211 100644
+--- a/src/cmp/cmp.go
++++ b/src/cmp/cmp.go
+@@ -10,6 +10,11 @@ package cmp
+ // that supports the operators < <= >= >.
+ // If future releases of Go add new ordered types,
+ // this constraint will be modified to include them.
++//
++// Note that floating-point types may contain NaN ("not-a-number") values.
++// An operator such as == or < will always report false when
++// comparing a NaN value with any other value, NaN or not.
++// See the [Compare] function for a consistent way to compare NaN values.
+ type Ordered interface {
+ 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+ 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |

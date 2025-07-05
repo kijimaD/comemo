@@ -12,6 +12,24 @@ Date:   Sat Jun 20 08:12:10 2015 +1000
     Change-Id: Icb644286dbce88f17ee3d96ad90efba34a80a92d
     Reviewed-on: https://go-review.googlesource.com/11291
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 0936d4d2d4..e0353508fe 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -30,9 +30,9 @@ const p = "cmd/doc/testdata"
+ var tests = []test{
+ 	// Sanity check.
+ 	{
+-		"fmt",
+-		[]string{`fmt`},
+-		[]string{`type Formatter interface`},
++		"sanity check",
++		[]string{p},
++		[]string{`type ExportedType struct`},
+ 		nil,
+ 	},
+ 

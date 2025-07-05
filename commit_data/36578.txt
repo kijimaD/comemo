@@ -73,7 +73,7 @@ Date:   Sun Apr 29 10:42:14 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules |  10 +-
  src/cmd/compile/internal/ssa/gen/386Ops.go |   7 +
  src/cmd/compile/internal/ssa/opGen.go      |  75 +++
@@ -81,3 +81,1247 @@ Date:   Sun Apr 29 10:42:14 2018 +0000
  src/cmd/compile/internal/x86/ssa.go        |   3 +-
  test/codegen/arithmetic.go                 |   6 +-
  6 files changed, 998 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 6ab90e2619..aa678add21 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -641,6 +641,8 @@
+ 	((ADD|SUB|MUL)SSmem [off1+off2] {sym} val base mem)
+ ((ADD|SUB|MUL)SDmem [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(off1+off2) ->
+ 	((ADD|SUB|MUL)SDmem [off1+off2] {sym} val base mem)
++((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDLconst [off2] base) val mem) && is32Bit(off1+off2) ->
++	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
+ 
+ // Fold constants into stores.
+ (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+@@ -763,6 +765,9 @@
+ ((ADD|SUB|MUL)SDmem [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+ 	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	((ADD|SUB|MUL)SDmem [off1+off2] {mergeSym(sym1,sym2)} val base mem)
++((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
++	&& is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) ->
++	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 
+ (MOVBload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
+ (MOVWload [off] {sym} (ADDL ptr idx) mem) && ptr.Op != OpSB -> (MOVWloadidx1 [off] {sym} ptr idx mem)
+@@ -839,10 +844,13 @@
+ (MOVSDstoreidx1 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx1 [int64(int32(c+d))]   {sym} ptr idx val mem)
+ (MOVSDstoreidx8 [c] {sym} ptr (ADDLconst [d] idx) val mem) -> (MOVSDstoreidx8 [int64(int32(c+8*d))] {sym} ptr idx val mem)
+ 
+-// Merge load to op
++// Merge load/store to op
+ ((ADD|AND|OR|XOR|SUB)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> ((ADD|AND|OR|XOR|SUB)Lmem x [off] {sym} ptr mem)
+ ((ADD|SUB|MUL)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SDmem x [off] {sym} ptr mem)
+ ((ADD|SUB|MUL)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoad(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL)SSmem x [off] {sym} ptr mem)
++(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lmem x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
++(MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
++	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+ 
+ (MOVBstoreconstidx1 [x] {sym} (ADDLconst [c] ptr) idx mem) ->
+ 	(MOVBstoreconstidx1 [ValAndOff(x).add(c)] {sym} ptr idx mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 23060ef0f6..6b7a2eb2ec 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -345,6 +345,13 @@ func init() {
+ 		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
++		// direct binary-op on memory (read-modify-write)
++		{name: "ADDLmodify", argLength: 3, reg: gpstore, asm: "ADDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) += arg1, arg2=mem
++		{name: "SUBLmodify", argLength: 3, reg: gpstore, asm: "SUBL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) -= arg1, arg2=mem
++		{name: "ANDLmodify", argLength: 3, reg: gpstore, asm: "ANDL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) &= arg1, arg2=mem
++		{name: "ORLmodify", argLength: 3, reg: gpstore, asm: "ORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // *(arg0+auxint+aux) |= arg1, arg2=mem
++		{name: "XORLmodify", argLength: 3, reg: gpstore, asm: "XORL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // *(arg0+auxint+aux) ^= arg1, arg2=mem
++
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBLZX", aux: "SymOff", symEffect: "Read"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
+ 		{name: "MOVWloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVWLZX", aux: "SymOff", symEffect: "Read"}, // load 2 bytes from arg0+arg1+auxint+aux. arg2=mem
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b0d893a2a8..0e7a8fccdd 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -380,6 +380,11 @@ const (
+ 	Op386MOVBstore
+ 	Op386MOVWstore
+ 	Op386MOVLstore
++	Op386ADDLmodify
++	Op386SUBLmodify
++	Op386ANDLmodify
++	Op386ORLmodify
++	Op386XORLmodify
+ 	Op386MOVBloadidx1
+ 	Op386MOVWloadidx1
+ 	Op386MOVWloadidx2
+@@ -4418,6 +4423,76 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "ADDLmodify",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AADDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "SUBLmodify",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.ASUBL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "ANDLmodify",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AANDL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "ORLmodify",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AORL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
++	{
++		name:           "XORLmodify",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AXORL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 255},   // AX CX DX BX SP BP SI DI
++				{0, 65791}, // AX CX DX BX SP BP SI DI SB
++			},
++		},
++	},
+ 	{
+ 		name:        "MOVBloadidx1",
+ 		auxType:     auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 712cc9398e..6cafcdc5e7 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -25,6 +25,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_Op386ADDLconst_0(v)
+ 	case Op386ADDLmem:
+ 		return rewriteValue386_Op386ADDLmem_0(v)
++	case Op386ADDLmodify:
++		return rewriteValue386_Op386ADDLmodify_0(v)
+ 	case Op386ADDSD:
+ 		return rewriteValue386_Op386ADDSD_0(v)
+ 	case Op386ADDSDmem:
+@@ -39,6 +41,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_Op386ANDLconst_0(v)
+ 	case Op386ANDLmem:
+ 		return rewriteValue386_Op386ANDLmem_0(v)
++	case Op386ANDLmodify:
++		return rewriteValue386_Op386ANDLmodify_0(v)
+ 	case Op386CMPB:
+ 		return rewriteValue386_Op386CMPB_0(v)
+ 	case Op386CMPBconst:
+@@ -86,7 +90,7 @@ func rewriteValue386(v *Value) bool {
+ 	case Op386MOVLloadidx4:
+ 		return rewriteValue386_Op386MOVLloadidx4_0(v)
+ 	case Op386MOVLstore:
+-		return rewriteValue386_Op386MOVLstore_0(v)
++		return rewriteValue386_Op386MOVLstore_0(v) || rewriteValue386_Op386MOVLstore_10(v)
+ 	case Op386MOVLstoreconst:
+ 		return rewriteValue386_Op386MOVLstoreconst_0(v)
+ 	case Op386MOVLstoreconstidx1:
+@@ -171,6 +175,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_Op386ORLconst_0(v)
+ 	case Op386ORLmem:
+ 		return rewriteValue386_Op386ORLmem_0(v)
++	case Op386ORLmodify:
++		return rewriteValue386_Op386ORLmodify_0(v)
+ 	case Op386ROLBconst:
+ 		return rewriteValue386_Op386ROLBconst_0(v)
+ 	case Op386ROLLconst:
+@@ -237,6 +243,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_Op386SUBLconst_0(v)
+ 	case Op386SUBLmem:
+ 		return rewriteValue386_Op386SUBLmem_0(v)
++	case Op386SUBLmodify:
++		return rewriteValue386_Op386SUBLmodify_0(v)
+ 	case Op386SUBSD:
+ 		return rewriteValue386_Op386SUBSD_0(v)
+ 	case Op386SUBSDmem:
+@@ -251,6 +259,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_Op386XORLconst_0(v)
+ 	case Op386XORLmem:
+ 		return rewriteValue386_Op386XORLmem_0(v)
++	case Op386XORLmodify:
++		return rewriteValue386_Op386XORLmodify_0(v)
+ 	case OpAdd16:
+ 		return rewriteValue386_OpAdd16_0(v)
+ 	case OpAdd32:
+@@ -1589,6 +1599,66 @@ func rewriteValue386_Op386ADDLmem_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386ADDLmodify_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	// match: (ADDLmodify [off1] {sym} (ADDLconst [off2] base) val mem)
++	// cond: is32Bit(off1+off2)
++	// result: (ADDLmodify [off1+off2] {sym} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386ADDLconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(Op386ADDLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (ADDLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (ADDLmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386LEAL {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(Op386ADDLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386ADDSD_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2047,6 +2117,66 @@ func rewriteValue386_Op386ANDLmem_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386ANDLmodify_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	// match: (ANDLmodify [off1] {sym} (ADDLconst [off2] base) val mem)
++	// cond: is32Bit(off1+off2)
++	// result: (ANDLmodify [off1+off2] {sym} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386ADDLconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(Op386ANDLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (ANDLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (ANDLmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386LEAL {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(Op386ANDLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386CMPB_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -5220,80 +5350,622 @@ func rewriteValue386_Op386MOVLstore_0(v *Value) bool {
+ 		if v_0.Op != Op386LEAL1 {
+ 			break
+ 		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		_ = v_0.Args[1]
+-		ptr := v_0.Args[0]
+-		idx := v_0.Args[1]
+-		val := v.Args[1]
+-		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(Op386MOVLstoreidx1)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// result: (MOVLstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386LEAL4 {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(Op386MOVLstoreidx4)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore [off] {sym} (ADDL ptr idx) val mem)
++	// cond: ptr.Op != OpSB
++	// result: (MOVLstoreidx1 [off] {sym} ptr idx val mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386ADDL {
++			break
++		}
++		_ = v_0.Args[1]
++		ptr := v_0.Args[0]
++		idx := v_0.Args[1]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(ptr.Op != OpSB) {
++			break
++		}
++		v.reset(Op386MOVLstoreidx1)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(idx)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ADDLmem x [off] {sym} ptr mem) mem)
++	// cond: y.Uses==1 && clobber(y)
++	// result: (ADDLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ADDLmem {
++			break
++		}
++		if y.AuxInt != off {
++			break
++		}
++		if y.Aux != sym {
++			break
++		}
++		_ = y.Args[2]
++		x := y.Args[0]
++		if ptr != y.Args[1] {
++			break
++		}
++		mem := y.Args[2]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && clobber(y)) {
++			break
++		}
++		v.reset(Op386ADDLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ANDLmem x [off] {sym} ptr mem) mem)
++	// cond: y.Uses==1 && clobber(y)
++	// result: (ANDLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ANDLmem {
++			break
++		}
++		if y.AuxInt != off {
++			break
++		}
++		if y.Aux != sym {
++			break
++		}
++		_ = y.Args[2]
++		x := y.Args[0]
++		if ptr != y.Args[1] {
++			break
++		}
++		mem := y.Args[2]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && clobber(y)) {
++			break
++		}
++		v.reset(Op386ANDLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ORLmem x [off] {sym} ptr mem) mem)
++	// cond: y.Uses==1 && clobber(y)
++	// result: (ORLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ORLmem {
++			break
++		}
++		if y.AuxInt != off {
++			break
++		}
++		if y.Aux != sym {
++			break
++		}
++		_ = y.Args[2]
++		x := y.Args[0]
++		if ptr != y.Args[1] {
++			break
++		}
++		mem := y.Args[2]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && clobber(y)) {
++			break
++		}
++		v.reset(Op386ORLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(XORLmem x [off] {sym} ptr mem) mem)
++	// cond: y.Uses==1 && clobber(y)
++	// result: (XORLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386XORLmem {
++			break
++		}
++		if y.AuxInt != off {
++			break
++		}
++		if y.Aux != sym {
++			break
++		}
++		_ = y.Args[2]
++		x := y.Args[0]
++		if ptr != y.Args[1] {
++			break
++		}
++		mem := y.Args[2]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && clobber(y)) {
++			break
++		}
++		v.reset(Op386XORLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValue386_Op386MOVLstore_10(v *Value) bool {
++	// match: (MOVLstore {sym} [off] ptr y:(ADDL l:(MOVLload [off] {sym} ptr mem) x) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (ADDLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ADDL {
++			break
++		}
++		_ = y.Args[1]
++		l := y.Args[0]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		x := y.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386ADDLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ADDL x l:(MOVLload [off] {sym} ptr mem)) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (ADDLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ADDL {
++			break
++		}
++		_ = y.Args[1]
++		x := y.Args[0]
++		l := y.Args[1]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386ADDLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(SUBL l:(MOVLload [off] {sym} ptr mem) x) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (SUBLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386SUBL {
++			break
++		}
++		_ = y.Args[1]
++		l := y.Args[0]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		x := y.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386SUBLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ANDL l:(MOVLload [off] {sym} ptr mem) x) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (ANDLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ANDL {
++			break
++		}
++		_ = y.Args[1]
++		l := y.Args[0]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		x := y.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386ANDLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ANDL x l:(MOVLload [off] {sym} ptr mem)) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (ANDLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ANDL {
++			break
++		}
++		_ = y.Args[1]
++		x := y.Args[0]
++		l := y.Args[1]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386ANDLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ORL l:(MOVLload [off] {sym} ptr mem) x) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (ORLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ORL {
++			break
++		}
++		_ = y.Args[1]
++		l := y.Args[0]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		x := y.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386ORLmodify)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVLstore {sym} [off] ptr y:(ORL x l:(MOVLload [off] {sym} ptr mem)) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (ORLmodify [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386ORL {
++			break
++		}
++		_ = y.Args[1]
++		x := y.Args[0]
++		l := y.Args[1]
++		if l.Op != Op386MOVLload {
++			break
++		}
++		if l.AuxInt != off {
+ 			break
+ 		}
+-		v.reset(Op386MOVLstoreidx1)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386ORLmodify)
++		v.AuxInt = off
++		v.Aux = sym
+ 		v.AddArg(ptr)
+-		v.AddArg(idx)
+-		v.AddArg(val)
++		v.AddArg(x)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVLstore [off1] {sym1} (LEAL4 [off2] {sym2} ptr idx) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
+-	// result: (MOVLstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
++	// match: (MOVLstore {sym} [off] ptr y:(XORL l:(MOVLload [off] {sym} ptr mem) x) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (XORLmodify [off] {sym} ptr x mem)
+ 	for {
+-		off1 := v.AuxInt
+-		sym1 := v.Aux
++		off := v.AuxInt
++		sym := v.Aux
+ 		_ = v.Args[2]
+-		v_0 := v.Args[0]
+-		if v_0.Op != Op386LEAL4 {
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386XORL {
+ 			break
+ 		}
+-		off2 := v_0.AuxInt
+-		sym2 := v_0.Aux
+-		_ = v_0.Args[1]
+-		ptr := v_0.Args[0]
+-		idx := v_0.Args[1]
+-		val := v.Args[1]
+-		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		_ = y.Args[1]
++		l := y.Args[0]
++		if l.Op != Op386MOVLload {
+ 			break
+ 		}
+-		v.reset(Op386MOVLstoreidx4)
+-		v.AuxInt = off1 + off2
+-		v.Aux = mergeSym(sym1, sym2)
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		x := y.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386XORLmodify)
++		v.AuxInt = off
++		v.Aux = sym
+ 		v.AddArg(ptr)
+-		v.AddArg(idx)
+-		v.AddArg(val)
++		v.AddArg(x)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (MOVLstore [off] {sym} (ADDL ptr idx) val mem)
+-	// cond: ptr.Op != OpSB
+-	// result: (MOVLstoreidx1 [off] {sym} ptr idx val mem)
++	// match: (MOVLstore {sym} [off] ptr y:(XORL x l:(MOVLload [off] {sym} ptr mem)) mem)
++	// cond: y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l)
++	// result: (XORLmodify [off] {sym} ptr x mem)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+ 		_ = v.Args[2]
+-		v_0 := v.Args[0]
+-		if v_0.Op != Op386ADDL {
++		ptr := v.Args[0]
++		y := v.Args[1]
++		if y.Op != Op386XORL {
+ 			break
+ 		}
+-		_ = v_0.Args[1]
+-		ptr := v_0.Args[0]
+-		idx := v_0.Args[1]
+-		val := v.Args[1]
+-		mem := v.Args[2]
+-		if !(ptr.Op != OpSB) {
++		_ = y.Args[1]
++		x := y.Args[0]
++		l := y.Args[1]
++		if l.Op != Op386MOVLload {
+ 			break
+ 		}
+-		v.reset(Op386MOVLstoreidx1)
++		if l.AuxInt != off {
++			break
++		}
++		if l.Aux != sym {
++			break
++		}
++		_ = l.Args[1]
++		if ptr != l.Args[0] {
++			break
++		}
++		mem := l.Args[1]
++		if mem != v.Args[2] {
++			break
++		}
++		if !(y.Uses == 1 && l.Uses == 1 && clobber(y) && clobber(l)) {
++			break
++		}
++		v.reset(Op386XORLmodify)
+ 		v.AuxInt = off
+ 		v.Aux = sym
+ 		v.AddArg(ptr)
+-		v.AddArg(idx)
+-		v.AddArg(val)
++		v.AddArg(x)
+ 		v.AddArg(mem)
+ 		return true
+ 	}
+@@ -13508,6 +14180,66 @@ func rewriteValue386_Op386ORLmem_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386ORLmodify_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	// match: (ORLmodify [off1] {sym} (ADDLconst [off2] base) val mem)
++	// cond: is32Bit(off1+off2)
++	// result: (ORLmodify [off1+off2] {sym} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386ADDLconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(Op386ORLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (ORLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (ORLmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386LEAL {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(Op386ORLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386ROLBconst_0(v *Value) bool {
+ 	// match: (ROLBconst [c] (ROLBconst [d] x))
+ 	// cond:
+@@ -15016,6 +15748,66 @@ func rewriteValue386_Op386SUBLmem_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386SUBLmodify_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	// match: (SUBLmodify [off1] {sym} (ADDLconst [off2] base) val mem)
++	// cond: is32Bit(off1+off2)
++	// result: (SUBLmodify [off1+off2] {sym} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386ADDLconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(Op386SUBLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (SUBLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (SUBLmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386LEAL {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(Op386SUBLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_Op386SUBSD_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -15578,6 +16370,66 @@ func rewriteValue386_Op386XORLmem_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValue386_Op386XORLmodify_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
++	// match: (XORLmodify [off1] {sym} (ADDLconst [off2] base) val mem)
++	// cond: is32Bit(off1+off2)
++	// result: (XORLmodify [off1+off2] {sym} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386ADDLconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(Op386XORLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (XORLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)
++	// result: (XORLmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != Op386LEAL {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		base := v_0.Args[0]
++		val := v.Args[1]
++		mem := v.Args[2]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared)) {
++			break
++		}
++		v.reset(Op386XORLmodify)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(base)
++		v.AddArg(val)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValue386_OpAdd16_0(v *Value) bool {
+ 	// match: (Add16 x y)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index a9b95bd410..b8b8a8b33d 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -521,7 +521,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if v.Reg() != v.Args[0].Reg() {
+ 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+ 		}
+-	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore:
++	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore,
++		ssa.Op386ADDLmodify, ssa.Op386SUBLmodify, ssa.Op386ANDLmodify, ssa.Op386ORLmodify, ssa.Op386XORLmodify:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 3948ef301d..f358020f55 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -14,7 +14,11 @@ package codegen
+ //    Subtraction    //
+ // ----------------- //
+ 
+-func SubMem(arr []int) int {
++func SubMem(arr []int, b int) int {
++	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
++	arr[2] -= b
++	// 386:`SUBL\s[A-Z]+,\s12\([A-Z]+\)`
++	arr[3] -= b
+ 	// 386:"SUBL\t4"
+ 	// amd64:"SUBQ\t8"
+ 	return arr[0] - arr[1]

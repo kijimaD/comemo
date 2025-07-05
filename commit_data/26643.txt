@@ -9,6 +9,20 @@ Date:   Fri Feb 19 11:42:34 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/api/goapi_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 1d2cc9ac82..a3fe0efedc 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -178,7 +178,7 @@ func BenchmarkAll(b *testing.B) {
+ 		for _, context := range contexts {
+ 			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
+ 			for _, name := range pkgNames {
+-				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
++				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") && !internalPkg.MatchString(name) {
+ 					pkg, _ := w.Import(name)
+ 					w.export(pkg)
+ 				}

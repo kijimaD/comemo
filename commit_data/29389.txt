@@ -17,6 +17,34 @@ Date:   Mon Sep 12 15:19:36 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 65161094fe..bb2905cf7c 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -105,17 +105,20 @@ func TestGdbPython(t *testing.T) {
+ 		"-ex", "set startup-with-shell off",
+ 		"-ex", "info auto-load python-scripts",
+ 		"-ex", "set python print-stack full",
+-		"-ex", "br main.go:10",
++		"-ex", "br fmt.Println",
+ 		"-ex", "run",
+ 		"-ex", "echo BEGIN info goroutines\n",
+ 		"-ex", "info goroutines",
+ 		"-ex", "echo END\n",
++		"-ex", "up", // up from fmt.Println to main
+ 		"-ex", "echo BEGIN print mapvar\n",
+ 		"-ex", "print mapvar",
+ 		"-ex", "echo END\n",
+ 		"-ex", "echo BEGIN print strvar\n",
+ 		"-ex", "print strvar",
+-		"-ex", "echo END\n"}
++		"-ex", "echo END\n",
++		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
++	}
+ 
+ 	// without framepointer, gdb cannot backtrace our non-standard
+ 	// stack frames on RISC architectures.

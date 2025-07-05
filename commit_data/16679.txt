@@ -7,10 +7,172 @@ Date:   Fri Jun 28 23:08:07 2013 +0200
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10741043
-
+---
  test/fixedbugs/issue4232.go | 28 ++++++++++++++--------------
  test/fixedbugs/issue4452.go |  2 +-
  test/fixedbugs/issue4463.go | 44 ++++++++++++++++++++++----------------------
  test/fixedbugs/issue4813.go | 12 ++++++------
  test/fixedbugs/issue5609.go |  2 +-
  5 files changed, 44 insertions(+), 44 deletions(-)
+
+diff --git a/test/fixedbugs/issue4232.go b/test/fixedbugs/issue4232.go
+index 29ddfa8a90..e5daa65623 100644
+--- a/test/fixedbugs/issue4232.go
++++ b/test/fixedbugs/issue4232.go
+@@ -8,26 +8,26 @@ package p
+ 
+ func f() {
+ 	var a [10]int
+-	_ = a[-1] // ERROR "invalid array index -1"
+-	_ = a[-1:] // ERROR "invalid slice index -1"
+-	_ = a[:-1] // ERROR "invalid slice index -1"
+-	_ = a[10] // ERROR "invalid array index 10"
++	_ = a[-1]  // ERROR "invalid array index -1|index out of bounds"
++	_ = a[-1:] // ERROR "invalid slice index -1|index out of bounds"
++	_ = a[:-1] // ERROR "invalid slice index -1|index out of bounds"
++	_ = a[10]  // ERROR "invalid array index 10|index out of bounds"
+ 
+ 	var s []int
+-	_ = s[-1] // ERROR "invalid slice index -1"
+-	_ = s[-1:] // ERROR "invalid slice index -1"
+-	_ = s[:-1] // ERROR "invalid slice index -1"
++	_ = s[-1]  // ERROR "invalid slice index -1|index out of bounds"
++	_ = s[-1:] // ERROR "invalid slice index -1|index out of bounds"
++	_ = s[:-1] // ERROR "invalid slice index -1|index out of bounds"
+ 	_ = s[10]
+ 
+ 	const c = "foo"
+-	_ = c[-1] // ERROR "invalid string index -1"
+-	_ = c[-1:] // ERROR "invalid slice index -1"
+-	_ = c[:-1] // ERROR "invalid slice index -1"
+-	_ = c[3] // ERROR "invalid string index 3"
++	_ = c[-1]  // ERROR "invalid string index -1|index out of bounds"
++	_ = c[-1:] // ERROR "invalid slice index -1|index out of bounds"
++	_ = c[:-1] // ERROR "invalid slice index -1|index out of bounds"
++	_ = c[3]   // ERROR "invalid string index 3|index out of bounds"
+ 
+ 	var t string
+-	_ = t[-1] // ERROR "invalid string index -1"
+-	_ = t[-1:] // ERROR "invalid slice index -1"
+-	_ = t[:-1] // ERROR "invalid slice index -1"
++	_ = t[-1]  // ERROR "invalid string index -1|index out of bounds"
++	_ = t[-1:] // ERROR "invalid slice index -1|index out of bounds"
++	_ = t[:-1] // ERROR "invalid slice index -1|index out of bounds"
+ 	_ = t[3]
+ }
+diff --git a/test/fixedbugs/issue4452.go b/test/fixedbugs/issue4452.go
+index c75da90245..54dd214d69 100644
+--- a/test/fixedbugs/issue4452.go
++++ b/test/fixedbugs/issue4452.go
+@@ -9,5 +9,5 @@
+ package main
+ 
+ func main() {
+-	_ = [...]int(4) // ERROR "use of \[\.\.\.\] array outside of array literal"
++	_ = [...]int(4) // ERROR "\[\.\.\.\].*outside of array literal"
+ }
+diff --git a/test/fixedbugs/issue4463.go b/test/fixedbugs/issue4463.go
+index fe07af71fb..70977ceb78 100644
+--- a/test/fixedbugs/issue4463.go
++++ b/test/fixedbugs/issue4463.go
+@@ -45,17 +45,17 @@ func F() {
+ 	(println("bar"))
+ 	(recover())
+ 
+-	go append(a, 0)			// ERROR "discards result"
+-	go cap(a)			// ERROR "discards result"
+-	go complex(1, 2)		// ERROR "discards result"
+-	go imag(1i)			// ERROR "discards result"
+-	go len(a)			// ERROR "discards result"
+-	go make([]int, 10)		// ERROR "discards result"
+-	go new(int)			// ERROR "discards result"
+-	go real(1i)			// ERROR "discards result"
+-	go unsafe.Alignof(a)		// ERROR "discards result"
+-	go unsafe.Offsetof(s.f)		// ERROR "discards result"
+-	go unsafe.Sizeof(a)		// ERROR "discards result"
++	go append(a, 0)			// ERROR "not used|discards result"
++	go cap(a)			// ERROR "not used|discards result"
++	go complex(1, 2)		// ERROR "not used|discards result"
++	go imag(1i)			// ERROR "not used|discards result"
++	go len(a)			// ERROR "not used|discards result"
++	go make([]int, 10)		// ERROR "not used|discards result"
++	go new(int)			// ERROR "not used|discards result"
++	go real(1i)			// ERROR "not used|discards result"
++	go unsafe.Alignof(a)		// ERROR "not used|discards result"
++	go unsafe.Offsetof(s.f)		// ERROR "not used|discards result"
++	go unsafe.Sizeof(a)		// ERROR "not used|discards result"
+ 
+ 	go close(c)
+ 	go copy(a, a)
+@@ -65,17 +65,17 @@ func F() {
+ 	go println("bar")
+ 	go recover()
+ 
+-	defer append(a, 0)		// ERROR "discards result"
+-	defer cap(a)			// ERROR "discards result"
+-	defer complex(1, 2)		// ERROR "discards result"
+-	defer imag(1i)			// ERROR "discards result"
+-	defer len(a)			// ERROR "discards result"
+-	defer make([]int, 10)		// ERROR "discards result"
+-	defer new(int)			// ERROR "discards result"
+-	defer real(1i)			// ERROR "discards result"
+-	defer unsafe.Alignof(a)		// ERROR "discards result"
+-	defer unsafe.Offsetof(s.f)	// ERROR "discards result"
+-	defer unsafe.Sizeof(a)		// ERROR "discards result"
++	defer append(a, 0)		// ERROR "not used|discards result"
++	defer cap(a)			// ERROR "not used|discards result"
++	defer complex(1, 2)		// ERROR "not used|discards result"
++	defer imag(1i)			// ERROR "not used|discards result"
++	defer len(a)			// ERROR "not used|discards result"
++	defer make([]int, 10)		// ERROR "not used|discards result"
++	defer new(int)			// ERROR "not used|discards result"
++	defer real(1i)			// ERROR "not used|discards result"
++	defer unsafe.Alignof(a)		// ERROR "not used|discards result"
++	defer unsafe.Offsetof(s.f)	// ERROR "not used|discards result"
++	defer unsafe.Sizeof(a)		// ERROR "not used|discards result"
+ 
+ 	defer close(c)
+ 	defer copy(a, a)
+diff --git a/test/fixedbugs/issue4813.go b/test/fixedbugs/issue4813.go
+index 0ca9d3f72d..20dc58795a 100644
+--- a/test/fixedbugs/issue4813.go
++++ b/test/fixedbugs/issue4813.go
+@@ -31,22 +31,22 @@ var (
+ 	a3 = A[f2] // ERROR "truncated"
+ 	a4 = A[c]
+ 	a5 = A[c2] // ERROR "truncated"
+-	a6 = A[vf] // ERROR "non-integer"
+-	a7 = A[vc] // ERROR "non-integer"
++	a6 = A[vf] // ERROR "non-integer|must be integer"
++	a7 = A[vc] // ERROR "non-integer|must be integer"
+ 
+ 	s1 = S[i]
+ 	s2 = S[f]
+ 	s3 = S[f2] // ERROR "truncated"
+ 	s4 = S[c]
+ 	s5 = S[c2] // ERROR "truncated"
+-	s6 = S[vf] // ERROR "non-integer"
+-	s7 = S[vc] // ERROR "non-integer"
++	s6 = S[vf] // ERROR "non-integer|must be integer"
++	s7 = S[vc] // ERROR "non-integer|must be integer"
+ 
+ 	t1 = T[i]
+ 	t2 = T[f]
+ 	t3 = T[f2] // ERROR "truncated"
+ 	t4 = T[c]
+ 	t5 = T[c2] // ERROR "truncated"
+-	t6 = T[vf] // ERROR "non-integer"
+-	t7 = T[vc] // ERROR "non-integer"
++	t6 = T[vf] // ERROR "non-integer|must be integer"
++	t7 = T[vc] // ERROR "non-integer|must be integer"
+ )
+diff --git a/test/fixedbugs/issue5609.go b/test/fixedbugs/issue5609.go
+index 34619b3418..ea770b4865 100644
+--- a/test/fixedbugs/issue5609.go
++++ b/test/fixedbugs/issue5609.go
+@@ -10,4 +10,4 @@ package pkg
+ 
+ const Large uint64 = 18446744073709551615
+ 
+-var foo [Large]uint64 // ERROR "array bound is too large"
++var foo [Large]uint64 // ERROR "array bound is too large|array bound overflows"

@@ -41,9 +41,221 @@ Date:   Mon Dec 9 18:47:22 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/39710043
-
+---
  src/cmd/8c/list.c | 24 ++++++++++++------------
  src/cmd/8g/list.c | 14 +++++++-------
  src/cmd/8l/list.c | 22 +++++++++++-----------
  src/cmd/8l/obj.c  |  2 +-
  4 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/8c/list.c b/src/cmd/8c/list.c
+index aa76435055..98aebce531 100644
+--- a/src/cmd/8c/list.c
++++ b/src/cmd/8c/list.c
+@@ -121,7 +121,7 @@ Dconv(Fmt *fp)
+ 
+ 	if(fp->flags & FmtLong) {
+ 		if(i == D_CONST2)
+-			sprint(str, "$%d-%d", a->offset, a->offset2);
++			sprint(str, "$%lld-%d", a->offset, a->offset2);
+ 		else {
+ 			// ATEXT dst is not constant
+ 			sprint(str, "!!%D", a);
+@@ -131,7 +131,7 @@ Dconv(Fmt *fp)
+ 
+ 	if(i >= D_INDIR) {
+ 		if(a->offset)
+-			sprint(str, "%d(%R)", a->offset, i-D_INDIR);
++			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
+ 		else
+ 			sprint(str, "(%R)", i-D_INDIR);
+ 		goto brk;
+@@ -139,7 +139,7 @@ Dconv(Fmt *fp)
+ 	switch(i) {
+ 	default:
+ 		if(a->offset)
+-			sprint(str, "$%d,%R", a->offset, i);
++			sprint(str, "$%lld,%R", a->offset, i);
+ 		else
+ 			sprint(str, "%R", i);
+ 		break;
+@@ -149,39 +149,39 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_BRANCH:
+-		sprint(str, "%d", a->offset);
++		sprint(str, "%lld", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:
+-		sprint(str, "%s+%d(SB)", a->sym->name, a->offset);
++		sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
+ 		break;
+ 
+ 	case D_STATIC:
+-		sprint(str, "%s<>+%d(SB)", a->sym->name, a->offset);
++		sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
+ 		break;
+ 
+ 	case D_AUTO:
+ 		if(a->sym)
+-			sprint(str, "%s+%d(SP)", a->sym->name, a->offset);
++			sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
+ 		else
+-			sprint(str, "%d(SP)", a->offset);
++			sprint(str, "%lld(SP)", a->offset);
+ 		break;
+ 
+ 	case D_PARAM:
+ 		if(a->sym)
+-			sprint(str, "%s+%d(FP)", a->sym->name, a->offset);
++			sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
+ 		else
+-			sprint(str, "%d(FP)", a->offset);
++			sprint(str, "%lld(FP)", a->offset);
+ 		break;
+ 
+ 	case D_CONST:
+-		sprint(str, "$%d", a->offset);
++		sprint(str, "$%lld", a->offset);
+ 		break;
+ 
+ 	case D_CONST2:
+ 		if(!(fp->flags & FmtLong)) {
+ 			// D_CONST2 outside of ATEXT should not happen
+-			sprint(str, "!!$%d-%d", a->offset, a->offset2);
++			sprint(str, "!!$%lld-%d", a->offset, a->offset2);
+ 		}
+ 		break;
+ 
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+index d4a86e4733..96954d4bb3 100644
+--- a/src/cmd/8g/list.c
++++ b/src/cmd/8g/list.c
+@@ -88,7 +88,7 @@ Dconv(Fmt *fp)
+ 	i = a->type;
+ 	if(i >= D_INDIR) {
+ 		if(a->offset)
+-			snprint(str, sizeof(str), "%d(%R)", a->offset, i-D_INDIR);
++			snprint(str, sizeof(str), "%lld(%R)", a->offset, i-D_INDIR);
+ 		else
+ 			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
+ 		goto brk;
+@@ -97,7 +97,7 @@ Dconv(Fmt *fp)
+ 
+ 	default:
+ 		if(a->offset)
+-			snprint(str, sizeof(str), "$%d,%R", a->offset, i);
++			snprint(str, sizeof(str), "$%lld,%R", a->offset, i);
+ 		else
+ 			snprint(str, sizeof(str), "%R", i);
+ 		break;
+@@ -111,19 +111,19 @@ Dconv(Fmt *fp)
+ 		break;
+ 
+ 	case D_EXTERN:
+-		snprint(str, sizeof(str), "%lS+%d(SB)", a->sym, a->offset);
++		snprint(str, sizeof(str), "%lS+%lld(SB)", a->sym, a->offset);
+ 		break;
+ 
+ 	case D_STATIC:
+-		snprint(str, sizeof(str), "%lS<>+%d(SB)", a->sym, a->offset);
++		snprint(str, sizeof(str), "%lS<>+%lld(SB)", a->sym, a->offset);
+ 		break;
+ 
+ 	case D_AUTO:
+-		snprint(str, sizeof(str), "%lS+%d(SP)", a->sym, a->offset);
++		snprint(str, sizeof(str), "%lS+%lld(SP)", a->sym, a->offset);
+ 		break;
+ 
+ 	case D_PARAM:
+-		snprint(str, sizeof(str), "%lS+%d(FP)", a->sym, a->offset);
++		snprint(str, sizeof(str), "%lS+%lld(FP)", a->sym, a->offset);
+ 		break;
+ 
+ 	case D_CONST:
+@@ -133,7 +133,7 @@ Dconv(Fmt *fp)
+ 			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
+ 			break;
+ 		}
+-		snprint(str, sizeof(str), "$%d", a->offset);
++		snprint(str, sizeof(str), "$%lld", a->offset);
+ 		break;
+ 
+ 	case D_FCONST:
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 8e57b4af1c..b6df665e35 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -104,7 +104,7 @@ Dconv(Fmt *fp)
+ 	i = a->type;
+ 	if(i >= D_INDIR && i < 2*D_INDIR) {
+ 		if(a->offset)
+-			snprint(str, sizeof str, "%d(%R)", a->offset, i-D_INDIR);
++			snprint(str, sizeof str, "%lld(%R)", a->offset, i-D_INDIR);
+ 		else
+ 			snprint(str, sizeof str, "(%R)", i-D_INDIR);
+ 		goto brk;
+@@ -122,40 +122,40 @@ Dconv(Fmt *fp)
+ 	case D_BRANCH:
+ 		if(bigP != P && bigP->pcond != P)
+ 			if(a->sym != S)
+-				snprint(str, sizeof str, "%ux+%s", bigP->pcond->pc,
++				snprint(str, sizeof str, "%llux+%s", bigP->pcond->pc,
+ 					a->sym->name);
+ 			else
+-				snprint(str, sizeof str, "%ux", bigP->pcond->pc);
++				snprint(str, sizeof str, "%llux", bigP->pcond->pc);
+ 		else
+-			snprint(str, sizeof str, "%d(PC)", a->offset);
++			snprint(str, sizeof str, "%lld(PC)", a->offset);
+ 		break;
+ 
+ 	case D_EXTERN:
+-		snprint(str, sizeof str, "%s+%d(SB)", xsymname(a->sym), a->offset);
++		snprint(str, sizeof str, "%s+%lld(SB)", xsymname(a->sym), a->offset);
+ 		break;
+ 
+ 	case D_STATIC:
+-		snprint(str, sizeof str, "%s<%d>+%d(SB)", xsymname(a->sym),
++		snprint(str, sizeof str, "%s<%d>+%lld(SB)", xsymname(a->sym),
+ 			a->sym->version, a->offset);
+ 		break;
+ 
+ 	case D_AUTO:
+-		snprint(str, sizeof str, "%s+%d(SP)", xsymname(a->sym), a->offset);
++		snprint(str, sizeof str, "%s+%lld(SP)", xsymname(a->sym), a->offset);
+ 		break;
+ 
+ 	case D_PARAM:
+ 		if(a->sym)
+-			snprint(str, sizeof str, "%s+%d(FP)", a->sym->name, a->offset);
++			snprint(str, sizeof str, "%s+%lld(FP)", a->sym->name, a->offset);
+ 		else
+-			snprint(str, sizeof str, "%d(FP)", a->offset);
++			snprint(str, sizeof str, "%lld(FP)", a->offset);
+ 		break;
+ 
+ 	case D_CONST:
+-		snprint(str, sizeof str, "$%d", a->offset);
++		snprint(str, sizeof str, "$%lld", a->offset);
+ 		break;
+ 
+ 	case D_CONST2:
+-		snprint(str, sizeof str, "$%d-%d", a->offset, a->offset2);
++		snprint(str, sizeof str, "$%lld-%d", a->offset, a->offset2);
+ 		break;
+ 
+ 	case D_FCONST:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index e588060bee..2a5c222a04 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -129,6 +129,6 @@ archinit(void)
+ 		break;
+ 	}
+ 	if(INITDAT != 0 && INITRND != 0)
+-		print("warning: -D0x%ux is ignored because of -R0x%ux\n",
++		print("warning: -D0x%llux is ignored because of -R0x%ux\n",
+ 			INITDAT, INITRND);
+ }

@@ -13,7 +13,7 @@ Date:   Thu Sep 12 21:05:45 2019 +0200
     Change-Id: Ieabe846a8cb283d66def3cdf11e2523b3b31f345
     Reviewed-on: https://go-review.googlesource.com/c/go/+/195117
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go      |   4 +
  src/cmd/compile/internal/ssa/gen/Wasm.rules |  59 +--
  src/cmd/compile/internal/ssa/gen/WasmOps.go | 142 ++++--
@@ -25,3 +25,2431 @@ Date:   Thu Sep 12 21:05:45 2019 +0200
  src/cmd/internal/obj/wasm/a.out.go          |  22 +-
  src/cmd/internal/obj/wasm/wasmobj.go        |  26 +-
  10 files changed, 798 insertions(+), 371 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index e46d937e42..4e035dd248 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -25,6 +25,8 @@ type Config struct {
+ 	registers      []Register    // machine registers
+ 	gpRegMask      regMask       // general purpose integer register mask
+ 	fpRegMask      regMask       // floating point register mask
++	fp32RegMask    regMask       // floating point register mask
++	fp64RegMask    regMask       // floating point register mask
+ 	specialRegMask regMask       // special register mask
+ 	GCRegMap       []*Register   // garbage collector register map, by GC register index
+ 	FPReg          int8          // register number of frame pointer, -1 if not used
+@@ -324,6 +326,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.registers = registersWasm[:]
+ 		c.gpRegMask = gpRegMaskWasm
+ 		c.fpRegMask = fpRegMaskWasm
++		c.fp32RegMask = fp32RegMaskWasm
++		c.fp64RegMask = fp64RegMaskWasm
+ 		c.FPReg = framepointerRegWasm
+ 		c.LinkReg = linkRegWasm
+ 		c.hasGReg = true
+diff --git a/src/cmd/compile/internal/ssa/gen/Wasm.rules b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+index c9dd6e8084..e66a46d1b5 100644
+--- a/src/cmd/compile/internal/ssa/gen/Wasm.rules
++++ b/src/cmd/compile/internal/ssa/gen/Wasm.rules
+@@ -4,13 +4,13 @@
+ 
+ // Lowering arithmetic
+ (Add(64|32|16|8|Ptr) x y) -> (I64Add x y)
+-(Add(64|32)F x y) -> (F64Add x y)
++(Add(64|32)F x y) -> (F(64|32)Add x y)
+ 
+ (Sub(64|32|16|8|Ptr) x y) -> (I64Sub x y)
+-(Sub(64|32)F x y) -> (F64Sub x y)
++(Sub(64|32)F x y) -> (F(64|32)Sub x y)
+ 
+ (Mul(64|32|16|8) x y) -> (I64Mul x y)
+-(Mul(64|32)F x y) -> (F64Mul x y)
++(Mul(64|32)F x y) -> (F(64|32)Mul x y)
+ 
+ (Div64  x y) -> (I64DivS x y)
+ (Div64u x y) -> (I64DivU x y)
+@@ -20,7 +20,7 @@
+ (Div16u x y) -> (I64DivU (ZeroExt16to64 x) (ZeroExt16to64 y))
+ (Div8   x y) -> (I64DivS (SignExt8to64 x) (SignExt8to64 y))
+ (Div8u  x y) -> (I64DivU (ZeroExt8to64 x) (ZeroExt8to64 y))
+-(Div(64|32)F x y) -> (F64Div x y)
++(Div(64|32)F x y) -> (F(64|32)Div x y)
+ 
+ (Mod64  x y) -> (I64RemS x y)
+ (Mod64u x y) -> (I64RemU x y)
+@@ -38,8 +38,7 @@
+ (Xor(64|32|16|8) x y) -> (I64Xor x y)
+ 
+ (Neg(64|32|16|8) x) -> (I64Sub (I64Const [0]) x)
+-(Neg32F x) -> (F64Neg x)
+-(Neg64F x) -> (F64Neg x)
++(Neg(64|32)F x) -> (F(64|32)Neg x)
+ 
+ (Com(64|32|16|8) x) -> (I64Xor x (I64Const [-1]))
+ 
+@@ -75,28 +74,24 @@
+ (Trunc16to8         x) -> x
+ 
+ // Lowering float <-> int
+-(Cvt32to32F x) -> (LoweredRound32F (F64ConvertI64S (SignExt32to64 x)))
+-(Cvt32to64F x) -> (F64ConvertI64S (SignExt32to64 x))
+-(Cvt64to32F x) -> (LoweredRound32F (F64ConvertI64S x))
+-(Cvt64to64F x) -> (F64ConvertI64S x)
+-(Cvt32Uto32F x) -> (LoweredRound32F (F64ConvertI64U (ZeroExt32to64 x)))
+-(Cvt32Uto64F x) -> (F64ConvertI64U (ZeroExt32to64 x))
+-(Cvt64Uto32F x) -> (LoweredRound32F (F64ConvertI64U x))
+-(Cvt64Uto64F x) -> (F64ConvertI64U x)
+-
+-(Cvt32Fto32 x) -> (I64TruncSatF64S x)
+-(Cvt32Fto64 x) -> (I64TruncSatF64S x)
++(Cvt32to(64|32)F x) -> (F(64|32)ConvertI64S (SignExt32to64 x))
++(Cvt64to(64|32)F x) -> (F(64|32)ConvertI64S x)
++(Cvt32Uto(64|32)F x) -> (F(64|32)ConvertI64U (ZeroExt32to64 x))
++(Cvt64Uto(64|32)F x) -> (F(64|32)ConvertI64U x)
++
++(Cvt32Fto32 x) -> (I64TruncSatF32S x)
++(Cvt32Fto64 x) -> (I64TruncSatF32S x)
+ (Cvt64Fto32 x) -> (I64TruncSatF64S x)
+ (Cvt64Fto64 x) -> (I64TruncSatF64S x)
+-(Cvt32Fto32U x) -> (I64TruncSatF64U x)
+-(Cvt32Fto64U x) -> (I64TruncSatF64U x)
++(Cvt32Fto32U x) -> (I64TruncSatF32U x)
++(Cvt32Fto64U x) -> (I64TruncSatF32U x)
+ (Cvt64Fto32U x) -> (I64TruncSatF64U x)
+ (Cvt64Fto64U x) -> (I64TruncSatF64U x)
+ 
+-(Cvt32Fto64F x) -> x
+-(Cvt64Fto32F x) -> (LoweredRound32F x)
++(Cvt32Fto64F x) -> (F64PromoteF32 x)
++(Cvt64Fto32F x) -> (F32DemoteF64 x)
+ 
+-(Round32F x) -> (LoweredRound32F x)
++(Round32F x) -> x
+ (Round64F x) -> x
+ 
+ // Lowering shifts
+@@ -165,8 +160,7 @@
+ (Less32U x y) -> (I64LtU (ZeroExt32to64 x) (ZeroExt32to64 y))
+ (Less16U x y) -> (I64LtU (ZeroExt16to64 x) (ZeroExt16to64 y))
+ (Less8U  x y) -> (I64LtU (ZeroExt8to64  x) (ZeroExt8to64  y))
+-(Less64F x y) -> (F64Lt x y)
+-(Less32F x y) -> (F64Lt (LoweredRound32F x) (LoweredRound32F y))
++(Less(64|32)F x y) -> (F(64|32)Lt x y)
+ 
+ (Leq64  x y) -> (I64LeS x y)
+ (Leq32  x y) -> (I64LeS (SignExt32to64 x) (SignExt32to64 y))
+@@ -176,8 +170,7 @@
+ (Leq32U x y) -> (I64LeU (ZeroExt32to64 x) (ZeroExt32to64 y))
+ (Leq16U x y) -> (I64LeU (ZeroExt16to64 x) (ZeroExt16to64 y))
+ (Leq8U  x y) -> (I64LeU (ZeroExt8to64  x) (ZeroExt8to64  y))
+-(Leq64F x y) -> (F64Le x y)
+-(Leq32F x y) -> (F64Le (LoweredRound32F x) (LoweredRound32F y))
++(Leq(64|32)F x y) -> (F(64|32)Le x y)
+ 
+ (Greater64  x y) -> (I64GtS x y)
+ (Greater32  x y) -> (I64GtS (SignExt32to64 x) (SignExt32to64 y))
+@@ -187,8 +180,7 @@
+ (Greater32U x y) -> (I64GtU (ZeroExt32to64 x) (ZeroExt32to64 y))
+ (Greater16U x y) -> (I64GtU (ZeroExt16to64 x) (ZeroExt16to64 y))
+ (Greater8U  x y) -> (I64GtU (ZeroExt8to64  x) (ZeroExt8to64  y))
+-(Greater64F x y) -> (F64Gt x y)
+-(Greater32F x y) -> (F64Gt (LoweredRound32F x) (LoweredRound32F y))
++(Greater(64|32)F x y) -> (F(64|32)Gt x y)
+ 
+ (Geq64  x y) -> (I64GeS x y)
+ (Geq32  x y) -> (I64GeS (SignExt32to64 x) (SignExt32to64 y))
+@@ -198,8 +190,7 @@
+ (Geq32U x y) -> (I64GeU (ZeroExt32to64 x) (ZeroExt32to64 y))
+ (Geq16U x y) -> (I64GeU (ZeroExt16to64 x) (ZeroExt16to64 y))
+ (Geq8U  x y) -> (I64GeU (ZeroExt8to64  x) (ZeroExt8to64  y))
+-(Geq64F x y) -> (F64Ge x y)
+-(Geq32F x y) -> (F64Ge (LoweredRound32F x) (LoweredRound32F y))
++(Geq(64|32)F x y) -> (F(64|32)Ge x y)
+ 
+ (Eq64  x y) -> (I64Eq x y)
+ (Eq32  x y) -> (I64Eq (ZeroExt32to64 x) (ZeroExt32to64 y))
+@@ -207,8 +198,7 @@
+ (Eq8   x y) -> (I64Eq (ZeroExt8to64  x) (ZeroExt8to64  y))
+ (EqB   x y) -> (I64Eq x y)
+ (EqPtr x y) -> (I64Eq x y)
+-(Eq64F x y) -> (F64Eq x y)
+-(Eq32F x y) -> (F64Eq (LoweredRound32F x) (LoweredRound32F y))
++(Eq(64|32)F x y) -> (F(64|32)Eq x y)
+ 
+ (Neq64  x y) -> (I64Ne x y)
+ (Neq32  x y) -> (I64Ne (ZeroExt32to64 x) (ZeroExt32to64 y))
+@@ -216,8 +206,7 @@
+ (Neq8   x y) -> (I64Ne (ZeroExt8to64  x) (ZeroExt8to64  y))
+ (NeqB   x y) -> (I64Ne x y)
+ (NeqPtr x y) -> (I64Ne x y)
+-(Neq64F x y) -> (F64Ne x y)
+-(Neq32F x y) -> (F64Ne (LoweredRound32F x) (LoweredRound32F y))
++(Neq(64|32)F x y) -> (F(64|32)Ne x y)
+ 
+ // Lowering loads
+ (Load <t> ptr mem) && is32BitFloat(t) -> (F32Load ptr mem)
+@@ -327,7 +316,7 @@
+ 
+ // Lowering constants
+ (Const(64|32|16|8) [val]) -> (I64Const [val])
+-(Const(64|32)F [val]) -> (F64Const [val])
++(Const(64|32)F [val]) -> (F(64|32)Const [val])
+ (ConstNil) -> (I64Const [0])
+ (ConstBool [b]) -> (I64Const [b])
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index 500d7201c2..e43eae17e9 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -43,6 +43,23 @@ var regNamesWasm = []string{
+ 	"F14",
+ 	"F15",
+ 
++	"F16",
++	"F17",
++	"F18",
++	"F19",
++	"F20",
++	"F21",
++	"F22",
++	"F23",
++	"F24",
++	"F25",
++	"F26",
++	"F27",
++	"F28",
++	"F29",
++	"F30",
++	"F31",
++
+ 	"SP",
+ 	"g",
+ 
+@@ -73,29 +90,35 @@ func init() {
+ 
+ 	var (
+ 		gp     = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15")
+-		fp     = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
++		fp32   = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
++		fp64   = buildReg("F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
+ 		gpsp   = gp | buildReg("SP")
+ 		gpspsb = gpsp | buildReg("SB")
+ 		// The "registers", which are actually local variables, can get clobbered
+ 		// if we're switching goroutines, because it unwinds the WebAssembly stack.
+-		callerSave = gp | fp | buildReg("g")
++		callerSave = gp | fp32 | fp64 | buildReg("g")
+ 	)
+ 
+ 	// Common regInfo
+ 	var (
+-		gp01    = regInfo{inputs: nil, outputs: []regMask{gp}}
+-		gp11    = regInfo{inputs: []regMask{gpsp}, outputs: []regMask{gp}}
+-		gp21    = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: []regMask{gp}}
+-		gp31    = regInfo{inputs: []regMask{gpsp, gpsp, gpsp}, outputs: []regMask{gp}}
+-		fp01    = regInfo{inputs: nil, outputs: []regMask{fp}}
+-		fp11    = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+-		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+-		fp21gp  = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{gp}}
+-		gpload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: []regMask{gp}}
+-		gpstore = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+-		fpload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: []regMask{fp}}
+-		fpstore = regInfo{inputs: []regMask{gpspsb, fp, 0}}
+-		// fpstoreconst = regInfo{inputs: []regMask{fp, 0}}
++		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
++		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: []regMask{gp}}
++		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: []regMask{gp}}
++		gp31      = regInfo{inputs: []regMask{gpsp, gpsp, gpsp}, outputs: []regMask{gp}}
++		fp32_01   = regInfo{inputs: nil, outputs: []regMask{fp32}}
++		fp32_11   = regInfo{inputs: []regMask{fp32}, outputs: []regMask{fp32}}
++		fp32_21   = regInfo{inputs: []regMask{fp32, fp32}, outputs: []regMask{fp32}}
++		fp32_21gp = regInfo{inputs: []regMask{fp32, fp32}, outputs: []regMask{gp}}
++		fp64_01   = regInfo{inputs: nil, outputs: []regMask{fp64}}
++		fp64_11   = regInfo{inputs: []regMask{fp64}, outputs: []regMask{fp64}}
++		fp64_21   = regInfo{inputs: []regMask{fp64, fp64}, outputs: []regMask{fp64}}
++		fp64_21gp = regInfo{inputs: []regMask{fp64, fp64}, outputs: []regMask{gp}}
++		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: []regMask{gp}}
++		gpstore   = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
++		fp32load  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: []regMask{fp32}}
++		fp32store = regInfo{inputs: []regMask{gpspsb, fp32, 0}}
++		fp64load  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: []regMask{fp64}}
++		fp64store = regInfo{inputs: []regMask{gpspsb, fp64, 0}}
+ 	)
+ 
+ 	var WasmOps = []opData{
+@@ -112,7 +135,6 @@ func init() {
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},                                                   // returns the SP of the caller of the current function
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil. arg1=mem
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Sym", symEffect: "None"},          // invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+-		{name: "LoweredRound32F", argLength: 1, reg: fp11, typ: "Float32"},                                                 // rounds arg0 to 32-bit float precision. arg0=value
+ 
+ 		// LoweredConvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+@@ -139,13 +161,14 @@ func init() {
+ 		{name: "I64Store32", asm: "I64Store32", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem"},   // store 32-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
+ 		{name: "I64Store", asm: "I64Store", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem"},       // store 64-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
+ 
+-		{name: "F32Load", asm: "F32Load", argLength: 2, reg: fpload, aux: "Int64", typ: "Float64"}, // read 32-bit float from address arg0+aux, arg1=mem
+-		{name: "F64Load", asm: "F64Load", argLength: 2, reg: fpload, aux: "Int64", typ: "Float64"}, // read 64-bit float from address arg0+aux, arg1=mem
+-		{name: "F32Store", asm: "F32Store", argLength: 3, reg: fpstore, aux: "Int64", typ: "Mem"},  // store 32-bit float arg1 at address arg0+aux, arg2=mem, returns mem
+-		{name: "F64Store", asm: "F64Store", argLength: 3, reg: fpstore, aux: "Int64", typ: "Mem"},  // store 64-bit float arg1 at address arg0+aux, arg2=mem, returns mem
++		{name: "F32Load", asm: "F32Load", argLength: 2, reg: fp32load, aux: "Int64", typ: "Float32"}, // read 32-bit float from address arg0+aux, arg1=mem
++		{name: "F64Load", asm: "F64Load", argLength: 2, reg: fp64load, aux: "Int64", typ: "Float64"}, // read 64-bit float from address arg0+aux, arg1=mem
++		{name: "F32Store", asm: "F32Store", argLength: 3, reg: fp32store, aux: "Int64", typ: "Mem"},  // store 32-bit float arg1 at address arg0+aux, arg2=mem, returns mem
++		{name: "F64Store", asm: "F64Store", argLength: 3, reg: fp64store, aux: "Int64", typ: "Mem"},  // store 64-bit float arg1 at address arg0+aux, arg2=mem, returns mem
+ 
+-		{name: "I64Const", reg: gp01, aux: "Int64", rematerializeable: true, typ: "Int64"},     // returns the constant integer aux
+-		{name: "F64Const", reg: fp01, aux: "Float64", rematerializeable: true, typ: "Float64"}, // returns the constant float aux
++		{name: "I64Const", reg: gp01, aux: "Int64", rematerializeable: true, typ: "Int64"},        // returns the constant integer aux
++		{name: "F32Const", reg: fp32_01, aux: "Float32", rematerializeable: true, typ: "Float32"}, // returns the constant float aux
++		{name: "F64Const", reg: fp64_01, aux: "Float64", rematerializeable: true, typ: "Float64"}, // returns the constant float aux
+ 
+ 		{name: "I64Eqz", asm: "I64Eqz", argLength: 1, reg: gp11, typ: "Bool"}, // arg0 == 0
+ 		{name: "I64Eq", asm: "I64Eq", argLength: 2, reg: gp21, typ: "Bool"},   // arg0 == arg1
+@@ -159,12 +182,19 @@ func init() {
+ 		{name: "I64GeS", asm: "I64GeS", argLength: 2, reg: gp21, typ: "Bool"}, // arg0 >= arg1 (signed)
+ 		{name: "I64GeU", asm: "I64GeU", argLength: 2, reg: gp21, typ: "Bool"}, // arg0 >= arg1 (unsigned)
+ 
+-		{name: "F64Eq", asm: "F64Eq", argLength: 2, reg: fp21gp, typ: "Bool"}, // arg0 == arg1
+-		{name: "F64Ne", asm: "F64Ne", argLength: 2, reg: fp21gp, typ: "Bool"}, // arg0 != arg1
+-		{name: "F64Lt", asm: "F64Lt", argLength: 2, reg: fp21gp, typ: "Bool"}, // arg0 < arg1
+-		{name: "F64Gt", asm: "F64Gt", argLength: 2, reg: fp21gp, typ: "Bool"}, // arg0 > arg1
+-		{name: "F64Le", asm: "F64Le", argLength: 2, reg: fp21gp, typ: "Bool"}, // arg0 <= arg1
+-		{name: "F64Ge", asm: "F64Ge", argLength: 2, reg: fp21gp, typ: "Bool"}, // arg0 >= arg1
++		{name: "F32Eq", asm: "F32Eq", argLength: 2, reg: fp32_21gp, typ: "Bool"}, // arg0 == arg1
++		{name: "F32Ne", asm: "F32Ne", argLength: 2, reg: fp32_21gp, typ: "Bool"}, // arg0 != arg1
++		{name: "F32Lt", asm: "F32Lt", argLength: 2, reg: fp32_21gp, typ: "Bool"}, // arg0 < arg1
++		{name: "F32Gt", asm: "F32Gt", argLength: 2, reg: fp32_21gp, typ: "Bool"}, // arg0 > arg1
++		{name: "F32Le", asm: "F32Le", argLength: 2, reg: fp32_21gp, typ: "Bool"}, // arg0 <= arg1
++		{name: "F32Ge", asm: "F32Ge", argLength: 2, reg: fp32_21gp, typ: "Bool"}, // arg0 >= arg1
++
++		{name: "F64Eq", asm: "F64Eq", argLength: 2, reg: fp64_21gp, typ: "Bool"}, // arg0 == arg1
++		{name: "F64Ne", asm: "F64Ne", argLength: 2, reg: fp64_21gp, typ: "Bool"}, // arg0 != arg1
++		{name: "F64Lt", asm: "F64Lt", argLength: 2, reg: fp64_21gp, typ: "Bool"}, // arg0 < arg1
++		{name: "F64Gt", asm: "F64Gt", argLength: 2, reg: fp64_21gp, typ: "Bool"}, // arg0 > arg1
++		{name: "F64Le", asm: "F64Le", argLength: 2, reg: fp64_21gp, typ: "Bool"}, // arg0 <= arg1
++		{name: "F64Ge", asm: "F64Ge", argLength: 2, reg: fp64_21gp, typ: "Bool"}, // arg0 >= arg1
+ 
+ 		{name: "I64Add", asm: "I64Add", argLength: 2, reg: gp21, typ: "Int64"},                    // arg0 + arg1
+ 		{name: "I64AddConst", asm: "I64Add", argLength: 1, reg: gp11, aux: "Int64", typ: "Int64"}, // arg0 + aux
+@@ -181,28 +211,48 @@ func init() {
+ 		{name: "I64ShrS", asm: "I64ShrS", argLength: 2, reg: gp21, typ: "Int64"},                  // arg0 >> (arg1 % 64) (signed)
+ 		{name: "I64ShrU", asm: "I64ShrU", argLength: 2, reg: gp21, typ: "Int64"},                  // arg0 >> (arg1 % 64) (unsigned)
+ 
+-		{name: "F64Neg", asm: "F64Neg", argLength: 1, reg: fp11, typ: "Float64"}, // -arg0
+-		{name: "F64Add", asm: "F64Add", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 + arg1
+-		{name: "F64Sub", asm: "F64Sub", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 - arg1
+-		{name: "F64Mul", asm: "F64Mul", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 * arg1
+-		{name: "F64Div", asm: "F64Div", argLength: 2, reg: fp21, typ: "Float64"}, // arg0 / arg1
++		{name: "F32Neg", asm: "F32Neg", argLength: 1, reg: fp32_11, typ: "Float32"}, // -arg0
++		{name: "F32Add", asm: "F32Add", argLength: 2, reg: fp32_21, typ: "Float32"}, // arg0 + arg1
++		{name: "F32Sub", asm: "F32Sub", argLength: 2, reg: fp32_21, typ: "Float32"}, // arg0 - arg1
++		{name: "F32Mul", asm: "F32Mul", argLength: 2, reg: fp32_21, typ: "Float32"}, // arg0 * arg1
++		{name: "F32Div", asm: "F32Div", argLength: 2, reg: fp32_21, typ: "Float32"}, // arg0 / arg1
+ 
+-		{name: "I64TruncSatF64S", asm: "I64TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to a signed integer (saturating)
+-		{name: "I64TruncSatF64U", asm: "I64TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to an unsigned integer (saturating)
+-		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the signed integer arg0 to a float
+-		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
++		{name: "F64Neg", asm: "F64Neg", argLength: 1, reg: fp64_11, typ: "Float64"}, // -arg0
++		{name: "F64Add", asm: "F64Add", argLength: 2, reg: fp64_21, typ: "Float64"}, // arg0 + arg1
++		{name: "F64Sub", asm: "F64Sub", argLength: 2, reg: fp64_21, typ: "Float64"}, // arg0 - arg1
++		{name: "F64Mul", asm: "F64Mul", argLength: 2, reg: fp64_21, typ: "Float64"}, // arg0 * arg1
++		{name: "F64Div", asm: "F64Div", argLength: 2, reg: fp64_21, typ: "Float64"}, // arg0 / arg1
++
++		{name: "I64TruncSatF64S", asm: "I64TruncSatF64S", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to a signed integer (saturating)
++		{name: "I64TruncSatF64U", asm: "I64TruncSatF64U", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to an unsigned integer (saturating)
++		{name: "I64TruncSatF32S", asm: "I64TruncSatF32S", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to a signed integer (saturating)
++		{name: "I64TruncSatF32U", asm: "I64TruncSatF32U", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{gp}}, typ: "Int64"}, // truncates the float arg0 to an unsigned integer (saturating)
++		{name: "F32ConvertI64S", asm: "F32ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp32}}, typ: "Float32"}, // converts the signed integer arg0 to a float
++		{name: "F32ConvertI64U", asm: "F32ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp32}}, typ: "Float32"}, // converts the unsigned integer arg0 to a float
++		{name: "F64ConvertI64S", asm: "F64ConvertI64S", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp64}}, typ: "Float64"}, // converts the signed integer arg0 to a float
++		{name: "F64ConvertI64U", asm: "F64ConvertI64U", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{fp64}}, typ: "Float64"}, // converts the unsigned integer arg0 to a float
++		{name: "F32DemoteF64", asm: "F32DemoteF64", argLength: 1, reg: regInfo{inputs: []regMask{fp64}, outputs: []regMask{fp32}}, typ: "Float32"},
++		{name: "F64PromoteF32", asm: "F64PromoteF32", argLength: 1, reg: regInfo{inputs: []regMask{fp32}, outputs: []regMask{fp64}}, typ: "Float64"},
+ 
+ 		{name: "I64Extend8S", asm: "I64Extend8S", argLength: 1, reg: gp11, typ: "Int64"},   // sign-extend arg0 from 8 to 64 bit
+ 		{name: "I64Extend16S", asm: "I64Extend16S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 16 to 64 bit
+ 		{name: "I64Extend32S", asm: "I64Extend32S", argLength: 1, reg: gp11, typ: "Int64"}, // sign-extend arg0 from 32 to 64 bit
+ 
+-		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp11, typ: "Float64"},         // sqrt(arg0)
+-		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp11, typ: "Float64"},       // trunc(arg0)
+-		{name: "F64Ceil", asm: "F64Ceil", argLength: 1, reg: fp11, typ: "Float64"},         // ceil(arg0)
+-		{name: "F64Floor", asm: "F64Floor", argLength: 1, reg: fp11, typ: "Float64"},       // floor(arg0)
+-		{name: "F64Nearest", asm: "F64Nearest", argLength: 1, reg: fp11, typ: "Float64"},   // round(arg0)
+-		{name: "F64Abs", asm: "F64Abs", argLength: 1, reg: fp11, typ: "Float64"},           // abs(arg0)
+-		{name: "F64Copysign", asm: "F64Copysign", argLength: 2, reg: fp21, typ: "Float64"}, // copysign(arg0, arg1)
++		{name: "F32Sqrt", asm: "F32Sqrt", argLength: 1, reg: fp64_11, typ: "Float32"},         // sqrt(arg0)
++		{name: "F32Trunc", asm: "F32Trunc", argLength: 1, reg: fp64_11, typ: "Float32"},       // trunc(arg0)
++		{name: "F32Ceil", asm: "F32Ceil", argLength: 1, reg: fp64_11, typ: "Float32"},         // ceil(arg0)
++		{name: "F32Floor", asm: "F32Floor", argLength: 1, reg: fp64_11, typ: "Float32"},       // floor(arg0)
++		{name: "F32Nearest", asm: "F32Nearest", argLength: 1, reg: fp64_11, typ: "Float32"},   // round(arg0)
++		{name: "F32Abs", asm: "F32Abs", argLength: 1, reg: fp64_11, typ: "Float32"},           // abs(arg0)
++		{name: "F32Copysign", asm: "F32Copysign", argLength: 2, reg: fp64_21, typ: "Float32"}, // copysign(arg0, arg1)
++
++		{name: "F64Sqrt", asm: "F64Sqrt", argLength: 1, reg: fp64_11, typ: "Float64"},         // sqrt(arg0)
++		{name: "F64Trunc", asm: "F64Trunc", argLength: 1, reg: fp64_11, typ: "Float64"},       // trunc(arg0)
++		{name: "F64Ceil", asm: "F64Ceil", argLength: 1, reg: fp64_11, typ: "Float64"},         // ceil(arg0)
++		{name: "F64Floor", asm: "F64Floor", argLength: 1, reg: fp64_11, typ: "Float64"},       // floor(arg0)
++		{name: "F64Nearest", asm: "F64Nearest", argLength: 1, reg: fp64_11, typ: "Float64"},   // round(arg0)
++		{name: "F64Abs", asm: "F64Abs", argLength: 1, reg: fp64_11, typ: "Float64"},           // abs(arg0)
++		{name: "F64Copysign", asm: "F64Copysign", argLength: 2, reg: fp64_21, typ: "Float64"}, // copysign(arg0, arg1)
+ 
+ 		{name: "I64Ctz", asm: "I64Ctz", argLength: 1, reg: gp11, typ: "Int64"},       // ctz(arg0)
+ 		{name: "I64Clz", asm: "I64Clz", argLength: 1, reg: gp11, typ: "Int64"},       // clz(arg0)
+@@ -219,7 +269,9 @@ func init() {
+ 		blocks:          nil,
+ 		regnames:        regNamesWasm,
+ 		gpregmask:       gp,
+-		fpregmask:       fp,
++		fpregmask:       fp32 | fp64,
++		fp32regmask:     fp32,
++		fp64regmask:     fp64,
+ 		framepointerreg: -1, // not used
+ 		linkreg:         -1, // not used
+ 	})
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 253af9047a..643b570f7a 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -34,6 +34,8 @@ type arch struct {
+ 	regnames        []string
+ 	gpregmask       regMask
+ 	fpregmask       regMask
++	fp32regmask     regMask
++	fp64regmask     regMask
+ 	specialregmask  regMask
+ 	framepointerreg int8
+ 	linkreg         int8
+@@ -400,6 +402,12 @@ func genOp() {
+ 		fmt.Fprintln(w, "}")
+ 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
+ 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
++		if a.fp32regmask != 0 {
++			fmt.Fprintf(w, "var fp32RegMask%s = regMask(%d)\n", a.name, a.fp32regmask)
++		}
++		if a.fp64regmask != 0 {
++			fmt.Fprintf(w, "var fp64RegMask%s = regMask(%d)\n", a.name, a.fp64regmask)
++		}
+ 		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
+ 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
+ 		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 69d33e3bd5..31ed3cad1f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2097,7 +2097,6 @@ const (
+ 	OpWasmLoweredGetCallerSP
+ 	OpWasmLoweredNilCheck
+ 	OpWasmLoweredWB
+-	OpWasmLoweredRound32F
+ 	OpWasmLoweredConvert
+ 	OpWasmSelect
+ 	OpWasmI64Load8U
+@@ -2116,6 +2115,7 @@ const (
+ 	OpWasmF32Store
+ 	OpWasmF64Store
+ 	OpWasmI64Const
++	OpWasmF32Const
+ 	OpWasmF64Const
+ 	OpWasmI64Eqz
+ 	OpWasmI64Eq
+@@ -2128,6 +2128,12 @@ const (
+ 	OpWasmI64LeU
+ 	OpWasmI64GeS
+ 	OpWasmI64GeU
++	OpWasmF32Eq
++	OpWasmF32Ne
++	OpWasmF32Lt
++	OpWasmF32Gt
++	OpWasmF32Le
++	OpWasmF32Ge
+ 	OpWasmF64Eq
+ 	OpWasmF64Ne
+ 	OpWasmF64Lt
+@@ -2148,6 +2154,11 @@ const (
+ 	OpWasmI64Shl
+ 	OpWasmI64ShrS
+ 	OpWasmI64ShrU
++	OpWasmF32Neg
++	OpWasmF32Add
++	OpWasmF32Sub
++	OpWasmF32Mul
++	OpWasmF32Div
+ 	OpWasmF64Neg
+ 	OpWasmF64Add
+ 	OpWasmF64Sub
+@@ -2155,11 +2166,24 @@ const (
+ 	OpWasmF64Div
+ 	OpWasmI64TruncSatF64S
+ 	OpWasmI64TruncSatF64U
++	OpWasmI64TruncSatF32S
++	OpWasmI64TruncSatF32U
++	OpWasmF32ConvertI64S
++	OpWasmF32ConvertI64U
+ 	OpWasmF64ConvertI64S
+ 	OpWasmF64ConvertI64U
++	OpWasmF32DemoteF64
++	OpWasmF64PromoteF32
+ 	OpWasmI64Extend8S
+ 	OpWasmI64Extend16S
+ 	OpWasmI64Extend32S
++	OpWasmF32Sqrt
++	OpWasmF32Trunc
++	OpWasmF32Ceil
++	OpWasmF32Floor
++	OpWasmF32Nearest
++	OpWasmF32Abs
++	OpWasmF32Copysign
+ 	OpWasmF64Sqrt
+ 	OpWasmF64Trunc
+ 	OpWasmF64Ceil
+@@ -28074,7 +28098,7 @@ var opcodeTable = [...]opInfo{
+ 		call:      true,
+ 		symEffect: SymNone,
+ 		reg: regInfo{
+-			clobbers: 12884901887, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 g
++			clobbers: 844424930131967, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 g
+ 		},
+ 	},
+ 	{
+@@ -28087,7 +28111,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 				{1, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 12884901887, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 g
++			clobbers: 844424930131967, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 g
+ 		},
+ 	},
+ 	{
+@@ -28099,7 +28123,7 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+-			clobbers: 12884901887, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 g
++			clobbers: 844424930131967, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 g
+ 		},
+ 	},
+ 	{
+@@ -28110,7 +28134,7 @@ var opcodeTable = [...]opInfo{
+ 		symEffect:         SymAddr,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28190,18 +28214,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "LoweredRound32F",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-			},
+-			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "LoweredConvert",
+ 		argLen: 2,
+@@ -28220,9 +28232,9 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.ASelect,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{2, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{2, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28236,7 +28248,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load8U,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28250,7 +28262,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load8S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28264,7 +28276,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load16U,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28278,7 +28290,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load16S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28292,7 +28304,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load32U,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28306,7 +28318,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load32S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28320,7 +28332,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Load,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28334,8 +28346,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Store8,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4295032831},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{1, 281474976776191},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 		},
+ 	},
+@@ -28346,8 +28358,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Store16,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4295032831},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{1, 281474976776191},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 		},
+ 	},
+@@ -28358,8 +28370,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Store32,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4295032831},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{1, 281474976776191},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 		},
+ 	},
+@@ -28370,8 +28382,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Store,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4295032831},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{1, 281474976776191},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 		},
+ 	},
+@@ -28382,7 +28394,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AF32Load,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28396,10 +28408,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AF64Load,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -28410,8 +28422,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AF32Store,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4294901760},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{1, 4294901760},       // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 		},
+ 	},
+@@ -28422,8 +28434,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AF64Store,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 4294901760},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-				{0, 21474902015}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
++				{1, 281470681743360},  // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{0, 1407374883618815}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP SB
+ 			},
+ 		},
+ 	},
+@@ -28438,6 +28450,17 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:              "F32Const",
++		auxType:           auxFloat32,
++		argLen:            0,
++		rematerializeable: true,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:              "F64Const",
+ 		auxType:           auxFloat64,
+@@ -28445,7 +28468,7 @@ var opcodeTable = [...]opInfo{
+ 		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -28455,7 +28478,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Eqz,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28468,8 +28491,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Eq,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28482,8 +28505,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Ne,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28496,8 +28519,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64LtS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28510,8 +28533,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64LtU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28524,8 +28547,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64GtS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28538,8 +28561,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64GtU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28552,8 +28575,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64LeS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28566,8 +28589,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64LeU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28580,8 +28603,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64GeS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28594,8 +28617,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64GeU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28603,9 +28626,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Eq",
++		name:   "F32Eq",
+ 		argLen: 2,
+-		asm:    wasm.AF64Eq,
++		asm:    wasm.AF32Eq,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28617,9 +28640,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Ne",
++		name:   "F32Ne",
+ 		argLen: 2,
+-		asm:    wasm.AF64Ne,
++		asm:    wasm.AF32Ne,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28631,9 +28654,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Lt",
++		name:   "F32Lt",
+ 		argLen: 2,
+-		asm:    wasm.AF64Lt,
++		asm:    wasm.AF32Lt,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28645,9 +28668,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Gt",
++		name:   "F32Gt",
+ 		argLen: 2,
+-		asm:    wasm.AF64Gt,
++		asm:    wasm.AF32Gt,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28659,9 +28682,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Le",
++		name:   "F32Le",
+ 		argLen: 2,
+-		asm:    wasm.AF64Le,
++		asm:    wasm.AF32Le,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28673,9 +28696,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Ge",
++		name:   "F32Ge",
+ 		argLen: 2,
+-		asm:    wasm.AF64Ge,
++		asm:    wasm.AF32Ge,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28686,14 +28709,98 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "F64Eq",
++		argLen: 2,
++		asm:    wasm.AF64Eq,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "F64Ne",
++		argLen: 2,
++		asm:    wasm.AF64Ne,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "F64Lt",
++		argLen: 2,
++		asm:    wasm.AF64Lt,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "F64Gt",
++		argLen: 2,
++		asm:    wasm.AF64Gt,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "F64Le",
++		argLen: 2,
++		asm:    wasm.AF64Le,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "F64Ge",
++		argLen: 2,
++		asm:    wasm.AF64Ge,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:   "I64Add",
+ 		argLen: 2,
+ 		asm:    wasm.AI64Add,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28707,7 +28814,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:     wasm.AI64Add,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28720,8 +28827,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Sub,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28734,8 +28841,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Mul,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28748,8 +28855,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64DivS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28762,8 +28869,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64DivU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28776,8 +28883,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64RemS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28790,8 +28897,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64RemU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28804,8 +28911,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64And,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28818,8 +28925,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Or,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28832,8 +28939,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Xor,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28846,8 +28953,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Shl,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28860,8 +28967,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64ShrS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28874,8 +28981,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64ShrU,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28883,9 +28990,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Neg",
++		name:   "F32Neg",
+ 		argLen: 1,
+-		asm:    wasm.AF64Neg,
++		asm:    wasm.AF32Neg,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28896,9 +29003,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Add",
++		name:   "F32Add",
+ 		argLen: 2,
+-		asm:    wasm.AF64Add,
++		asm:    wasm.AF32Add,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28910,9 +29017,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Sub",
++		name:   "F32Sub",
+ 		argLen: 2,
+-		asm:    wasm.AF64Sub,
++		asm:    wasm.AF32Sub,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28924,9 +29031,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Mul",
++		name:   "F32Mul",
+ 		argLen: 2,
+-		asm:    wasm.AF64Mul,
++		asm:    wasm.AF32Mul,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28938,9 +29045,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "F64Div",
++		name:   "F32Div",
+ 		argLen: 2,
+-		asm:    wasm.AF64Div,
++		asm:    wasm.AF32Div,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28951,13 +29058,82 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "F64Neg",
++		argLen: 1,
++		asm:    wasm.AF64Neg,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F64Add",
++		argLen: 2,
++		asm:    wasm.AF64Add,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F64Sub",
++		argLen: 2,
++		asm:    wasm.AF64Sub,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F64Mul",
++		argLen: 2,
++		asm:    wasm.AF64Mul,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F64Div",
++		argLen: 2,
++		asm:    wasm.AF64Div,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "I64TruncSatF64S",
+ 		argLen: 1,
+ 		asm:    wasm.AI64TruncSatF64S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -28968,6 +29144,32 @@ var opcodeTable = [...]opInfo{
+ 		name:   "I64TruncSatF64U",
+ 		argLen: 1,
+ 		asm:    wasm.AI64TruncSatF64U,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64TruncSatF32S",
++		argLen: 1,
++		asm:    wasm.AI64TruncSatF32S,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:   "I64TruncSatF32U",
++		argLen: 1,
++		asm:    wasm.AI64TruncSatF32U,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -28977,6 +29179,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "F32ConvertI64S",
++		argLen: 1,
++		asm:    wasm.AF32ConvertI64S,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
++	{
++		name:   "F32ConvertI64U",
++		argLen: 1,
++		asm:    wasm.AF32ConvertI64U,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++		},
++	},
+ 	{
+ 		name:   "F64ConvertI64S",
+ 		argLen: 1,
+@@ -28986,7 +29214,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -28998,18 +29226,44 @@ var opcodeTable = [...]opInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32DemoteF64",
++		argLen: 1,
++		asm:    wasm.AF32DemoteF64,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
+ 			outputs: []outputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 			},
+ 		},
+ 	},
++	{
++		name:   "F64PromoteF32",
++		argLen: 1,
++		asm:    wasm.AF64PromoteF32,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "I64Extend8S",
+ 		argLen: 1,
+ 		asm:    wasm.AI64Extend8S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -29022,7 +29276,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Extend16S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -29035,23 +29289,115 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Extend32S,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+ 			},
+ 		},
+ 	},
++	{
++		name:   "F32Sqrt",
++		argLen: 1,
++		asm:    wasm.AF32Sqrt,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32Trunc",
++		argLen: 1,
++		asm:    wasm.AF32Trunc,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32Ceil",
++		argLen: 1,
++		asm:    wasm.AF32Ceil,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32Floor",
++		argLen: 1,
++		asm:    wasm.AF32Floor,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32Nearest",
++		argLen: 1,
++		asm:    wasm.AF32Nearest,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32Abs",
++		argLen: 1,
++		asm:    wasm.AF32Abs,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "F32Copysign",
++		argLen: 2,
++		asm:    wasm.AF32Copysign,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "F64Sqrt",
+ 		argLen: 1,
+ 		asm:    wasm.AF64Sqrt,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29061,10 +29407,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF64Trunc,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29074,10 +29420,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF64Ceil,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29087,10 +29433,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF64Floor,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29100,10 +29446,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF64Nearest,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29113,10 +29459,10 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF64Abs,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29126,11 +29472,11 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AF64Copysign,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+-				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 			outputs: []outputInfo{
+-				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++				{0, 281470681743360}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+ 			},
+ 		},
+ 	},
+@@ -29140,7 +29486,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Ctz,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -29153,7 +29499,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Clz,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -29166,8 +29512,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI32Rotl,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -29180,8 +29526,8 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Rotl,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+-				{1, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{1, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -29194,7 +29540,7 @@ var opcodeTable = [...]opInfo{
+ 		asm:    wasm.AI64Popcnt,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 4295032831}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
++				{0, 281474976776191}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 SP
+ 			},
+ 			outputs: []outputInfo{
+ 				{0, 65535}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15
+@@ -31655,12 +32001,30 @@ var registersWasm = [...]Register{
+ 	{29, wasm.REG_F13, -1, "F13"},
+ 	{30, wasm.REG_F14, -1, "F14"},
+ 	{31, wasm.REG_F15, -1, "F15"},
+-	{32, wasm.REGSP, -1, "SP"},
+-	{33, wasm.REGG, -1, "g"},
+-	{34, 0, -1, "SB"},
++	{32, wasm.REG_F16, -1, "F16"},
++	{33, wasm.REG_F17, -1, "F17"},
++	{34, wasm.REG_F18, -1, "F18"},
++	{35, wasm.REG_F19, -1, "F19"},
++	{36, wasm.REG_F20, -1, "F20"},
++	{37, wasm.REG_F21, -1, "F21"},
++	{38, wasm.REG_F22, -1, "F22"},
++	{39, wasm.REG_F23, -1, "F23"},
++	{40, wasm.REG_F24, -1, "F24"},
++	{41, wasm.REG_F25, -1, "F25"},
++	{42, wasm.REG_F26, -1, "F26"},
++	{43, wasm.REG_F27, -1, "F27"},
++	{44, wasm.REG_F28, -1, "F28"},
++	{45, wasm.REG_F29, -1, "F29"},
++	{46, wasm.REG_F30, -1, "F30"},
++	{47, wasm.REG_F31, -1, "F31"},
++	{48, wasm.REGSP, -1, "SP"},
++	{49, wasm.REGG, -1, "g"},
++	{50, 0, -1, "SB"},
+ }
+ var gpRegMaskWasm = regMask(65535)
+-var fpRegMaskWasm = regMask(4294901760)
++var fpRegMaskWasm = regMask(281474976645120)
++var fp32RegMaskWasm = regMask(4294901760)
++var fp64RegMaskWasm = regMask(281470681743360)
+ var specialRegMaskWasm = regMask(0)
+ var framepointerRegWasm = int8(-1)
+ var linkRegWasm = int8(-1)
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 3b7049b823..2590315ba1 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -792,7 +792,13 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
+ 		return 0
+ 	}
+ 	if t.IsFloat() || t == types.TypeInt128 {
+-		m = s.f.Config.fpRegMask
++		if t.Etype == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
++			m = s.f.Config.fp32RegMask
++		} else if t.Etype == types.TFLOAT64 && s.f.Config.fp64RegMask != 0 {
++			m = s.f.Config.fp64RegMask
++		} else {
++			m = s.f.Config.fpRegMask
++		}
+ 	} else {
+ 		m = s.f.Config.gpRegMask
+ 	}
+@@ -2220,13 +2226,8 @@ func (e *edgeState) erase(loc Location) {
+ // findRegFor finds a register we can use to make a temp copy of type typ.
+ func (e *edgeState) findRegFor(typ *types.Type) Location {
+ 	// Which registers are possibilities.
+-	var m regMask
+ 	types := &e.s.f.Config.Types
+-	if typ.IsFloat() {
+-		m = e.s.compatRegs(types.Float64)
+-	} else {
+-		m = e.s.compatRegs(types.Int64)
+-	}
++	m := e.s.compatRegs(typ)
+ 
+ 	// Pick a register. In priority order:
+ 	// 1) an unused register
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index c9384af16a..f424bcf2e6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -617,11 +617,11 @@ func rewriteValueWasm_OpAdd32_0(v *Value) bool {
+ func rewriteValueWasm_OpAdd32F_0(v *Value) bool {
+ 	// match: (Add32F x y)
+ 	// cond:
+-	// result: (F64Add x y)
++	// result: (F32Add x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Add)
++		v.reset(OpWasmF32Add)
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+@@ -909,10 +909,10 @@ func rewriteValueWasm_OpConst32_0(v *Value) bool {
+ func rewriteValueWasm_OpConst32F_0(v *Value) bool {
+ 	// match: (Const32F [val])
+ 	// cond:
+-	// result: (F64Const [val])
++	// result: (F32Const [val])
+ 	for {
+ 		val := v.AuxInt
+-		v.reset(OpWasmF64Const)
++		v.reset(OpWasmF32Const)
+ 		v.AuxInt = val
+ 		return true
+ 	}
+@@ -1111,10 +1111,10 @@ func rewriteValueWasm_OpCtz8NonZero_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+-	// result: (I64TruncSatF64S x)
++	// result: (I64TruncSatF32S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncSatF64S)
++		v.reset(OpWasmI64TruncSatF32S)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1122,10 +1122,10 @@ func rewriteValueWasm_OpCvt32Fto32_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto32U_0(v *Value) bool {
+ 	// match: (Cvt32Fto32U x)
+ 	// cond:
+-	// result: (I64TruncSatF64U x)
++	// result: (I64TruncSatF32U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncSatF64U)
++		v.reset(OpWasmI64TruncSatF32U)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1133,10 +1133,10 @@ func rewriteValueWasm_OpCvt32Fto32U_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto64_0(v *Value) bool {
+ 	// match: (Cvt32Fto64 x)
+ 	// cond:
+-	// result: (I64TruncSatF64S x)
++	// result: (I64TruncSatF32S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncSatF64S)
++		v.reset(OpWasmI64TruncSatF32S)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1144,11 +1144,10 @@ func rewriteValueWasm_OpCvt32Fto64_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto64F_0(v *Value) bool {
+ 	// match: (Cvt32Fto64F x)
+ 	// cond:
+-	// result: x
++	// result: (F64PromoteF32 x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpWasmF64PromoteF32)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1156,10 +1155,10 @@ func rewriteValueWasm_OpCvt32Fto64F_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt32Fto64U_0(v *Value) bool {
+ 	// match: (Cvt32Fto64U x)
+ 	// cond:
+-	// result: (I64TruncSatF64U x)
++	// result: (I64TruncSatF32U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmI64TruncSatF64U)
++		v.reset(OpWasmI64TruncSatF32U)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1169,14 +1168,12 @@ func rewriteValueWasm_OpCvt32Uto32F_0(v *Value) bool {
+ 	typ := &b.Func.Config.Types
+ 	// match: (Cvt32Uto32F x)
+ 	// cond:
+-	// result: (LoweredRound32F (F64ConvertI64U (ZeroExt32to64 x)))
++	// result: (F32ConvertI64U (ZeroExt32to64 x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmLoweredRound32F)
+-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64U, typ.Float64)
+-		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpWasmF32ConvertI64U)
++		v0 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -1201,14 +1198,12 @@ func rewriteValueWasm_OpCvt32to32F_0(v *Value) bool {
+ 	typ := &b.Func.Config.Types
+ 	// match: (Cvt32to32F x)
+ 	// cond:
+-	// result: (LoweredRound32F (F64ConvertI64S (SignExt32to64 x)))
++	// result: (F32ConvertI64S (SignExt32to64 x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmLoweredRound32F)
+-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64S, typ.Float64)
+-		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpWasmF32ConvertI64S)
++		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -1242,10 +1237,10 @@ func rewriteValueWasm_OpCvt64Fto32_0(v *Value) bool {
+ func rewriteValueWasm_OpCvt64Fto32F_0(v *Value) bool {
+ 	// match: (Cvt64Fto32F x)
+ 	// cond:
+-	// result: (LoweredRound32F x)
++	// result: (F32DemoteF64 x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmLoweredRound32F)
++		v.reset(OpWasmF32DemoteF64)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -1284,17 +1279,13 @@ func rewriteValueWasm_OpCvt64Fto64U_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpCvt64Uto32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Cvt64Uto32F x)
+ 	// cond:
+-	// result: (LoweredRound32F (F64ConvertI64U x))
++	// result: (F32ConvertI64U x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmLoweredRound32F)
+-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64U, typ.Float64)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpWasmF32ConvertI64U)
++		v.AddArg(x)
+ 		return true
+ 	}
+ }
+@@ -1310,17 +1301,13 @@ func rewriteValueWasm_OpCvt64Uto64F_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpCvt64to32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Cvt64to32F x)
+ 	// cond:
+-	// result: (LoweredRound32F (F64ConvertI64S x))
++	// result: (F32ConvertI64S x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmLoweredRound32F)
+-		v0 := b.NewValue0(v.Pos, OpWasmF64ConvertI64S, typ.Float64)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
++		v.reset(OpWasmF32ConvertI64S)
++		v.AddArg(x)
+ 		return true
+ 	}
+ }
+@@ -1395,11 +1382,11 @@ func rewriteValueWasm_OpDiv32_0(v *Value) bool {
+ func rewriteValueWasm_OpDiv32F_0(v *Value) bool {
+ 	// match: (Div32F x y)
+ 	// cond:
+-	// result: (F64Div x y)
++	// result: (F32Div x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Div)
++		v.reset(OpWasmF32Div)
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+@@ -1540,21 +1527,15 @@ func rewriteValueWasm_OpEq32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpEq32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Eq32F x y)
+ 	// cond:
+-	// result: (F64Eq (LoweredRound32F x) (LoweredRound32F y))
++	// result: (F32Eq x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Eq)
+-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v.reset(OpWasmF32Eq)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+@@ -1698,21 +1679,15 @@ func rewriteValueWasm_OpGeq32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpGeq32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Geq32F x y)
+ 	// cond:
+-	// result: (F64Ge (LoweredRound32F x) (LoweredRound32F y))
++	// result: (F32Ge x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Ge)
+-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v.reset(OpWasmF32Ge)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+@@ -1897,21 +1872,15 @@ func rewriteValueWasm_OpGreater32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpGreater32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Greater32F x y)
+ 	// cond:
+-	// result: (F64Gt (LoweredRound32F x) (LoweredRound32F y))
++	// result: (F32Gt x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Gt)
+-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v.reset(OpWasmF32Gt)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+@@ -2125,21 +2094,15 @@ func rewriteValueWasm_OpLeq32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpLeq32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Leq32F x y)
+ 	// cond:
+-	// result: (F64Le (LoweredRound32F x) (LoweredRound32F y))
++	// result: (F32Le x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Le)
+-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v.reset(OpWasmF32Le)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+@@ -2297,21 +2260,15 @@ func rewriteValueWasm_OpLess32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpLess32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Less32F x y)
+ 	// cond:
+-	// result: (F64Lt (LoweredRound32F x) (LoweredRound32F y))
++	// result: (F32Lt x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Lt)
+-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v.reset(OpWasmF32Lt)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+@@ -3410,11 +3367,11 @@ func rewriteValueWasm_OpMul32_0(v *Value) bool {
+ func rewriteValueWasm_OpMul32F_0(v *Value) bool {
+ 	// match: (Mul32F x y)
+ 	// cond:
+-	// result: (F64Mul x y)
++	// result: (F32Mul x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Mul)
++		v.reset(OpWasmF32Mul)
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+@@ -3494,10 +3451,10 @@ func rewriteValueWasm_OpNeg32_0(v *Value) bool {
+ func rewriteValueWasm_OpNeg32F_0(v *Value) bool {
+ 	// match: (Neg32F x)
+ 	// cond:
+-	// result: (F64Neg x)
++	// result: (F32Neg x)
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Neg)
++		v.reset(OpWasmF32Neg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -3584,21 +3541,15 @@ func rewriteValueWasm_OpNeq32_0(v *Value) bool {
+ 	}
+ }
+ func rewriteValueWasm_OpNeq32F_0(v *Value) bool {
+-	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Neq32F x y)
+ 	// cond:
+-	// result: (F64Ne (LoweredRound32F x) (LoweredRound32F y))
++	// result: (F32Ne x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Ne)
+-		v0 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v0.AddArg(x)
+-		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpWasmLoweredRound32F, typ.Float32)
+-		v1.AddArg(y)
+-		v.AddArg(v1)
++		v.reset(OpWasmF32Ne)
++		v.AddArg(x)
++		v.AddArg(y)
+ 		return true
+ 	}
+ }
+@@ -3924,10 +3875,11 @@ func rewriteValueWasm_OpRotateLeft8_0(v *Value) bool {
+ func rewriteValueWasm_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:
+-	// result: (LoweredRound32F x)
++	// result: x
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpWasmLoweredRound32F)
++		v.reset(OpCopy)
++		v.Type = x.Type
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -5124,11 +5076,11 @@ func rewriteValueWasm_OpSub32_0(v *Value) bool {
+ func rewriteValueWasm_OpSub32F_0(v *Value) bool {
+ 	// match: (Sub32F x y)
+ 	// cond:
+-	// result: (F64Sub x y)
++	// result: (F32Sub x y)
+ 	for {
+ 		y := v.Args[1]
+ 		x := v.Args[0]
+-		v.reset(OpWasmF64Sub)
++		v.reset(OpWasmF32Sub)
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return true
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 761a40227d..5b366eb08b 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -176,18 +176,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpWasmI64Store8, ssa.OpWasmI64Store16, ssa.OpWasmI64Store32, ssa.OpWasmI64Store, ssa.OpWasmF32Store, ssa.OpWasmF64Store:
+ 		getValue32(s, v.Args[0])
+ 		getValue64(s, v.Args[1])
+-		if v.Op == ssa.OpWasmF32Store {
+-			s.Prog(wasm.AF32DemoteF64)
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
+ 
+ 	case ssa.OpStoreReg:
+ 		getReg(s, wasm.REG_SP)
+ 		getValue64(s, v.Args[0])
+-		if v.Type.Etype == types.TFLOAT32 {
+-			s.Prog(wasm.AF32DemoteF64)
+-		}
+ 		p := s.Prog(storeOp(v.Type))
+ 		gc.AddrAuto(&p.To, v)
+ 
+@@ -246,11 +240,6 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 			panic("wasm: bad LoweredAddr")
+ 		}
+ 
+-	case ssa.OpWasmLoweredRound32F:
+-		getValue64(s, v.Args[0])
+-		s.Prog(wasm.AF32DemoteF64)
+-		s.Prog(wasm.AF64PromoteF32)
+-
+ 	case ssa.OpWasmLoweredConvert:
+ 		getValue64(s, v.Args[0])
+ 
+@@ -268,6 +257,9 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 	case ssa.OpWasmI64Const:
+ 		i64Const(s, v.AuxInt)
+ 
++	case ssa.OpWasmF32Const:
++		f32Const(s, v.AuxFloat())
++
+ 	case ssa.OpWasmF64Const:
+ 		f64Const(s, v.AuxFloat())
+ 
+@@ -275,9 +267,6 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 		getValue32(s, v.Args[0])
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
+-		if v.Op == ssa.OpWasmF32Load {
+-			s.Prog(wasm.AF64PromoteF32)
+-		}
+ 
+ 	case ssa.OpWasmI64Eqz:
+ 		getValue64(s, v.Args[0])
+@@ -286,7 +275,9 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 			s.Prog(wasm.AI64ExtendI32U)
+ 		}
+ 
+-	case ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU, ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
++	case ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU,
++		ssa.OpWasmF32Eq, ssa.OpWasmF32Ne, ssa.OpWasmF32Lt, ssa.OpWasmF32Gt, ssa.OpWasmF32Le, ssa.OpWasmF32Ge,
++		ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
+ 		getValue64(s, v.Args[0])
+ 		getValue64(s, v.Args[1])
+ 		s.Prog(v.Op.Asm())
+@@ -294,7 +285,9 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 			s.Prog(wasm.AI64ExtendI32U)
+ 		}
+ 
+-	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div, ssa.OpWasmF64Copysign, ssa.OpWasmI64Rotl:
++	case ssa.OpWasmI64Add, ssa.OpWasmI64Sub, ssa.OpWasmI64Mul, ssa.OpWasmI64DivU, ssa.OpWasmI64RemS, ssa.OpWasmI64RemU, ssa.OpWasmI64And, ssa.OpWasmI64Or, ssa.OpWasmI64Xor, ssa.OpWasmI64Shl, ssa.OpWasmI64ShrS, ssa.OpWasmI64ShrU, ssa.OpWasmI64Rotl,
++		ssa.OpWasmF32Add, ssa.OpWasmF32Sub, ssa.OpWasmF32Mul, ssa.OpWasmF32Div, ssa.OpWasmF32Copysign,
++		ssa.OpWasmF64Add, ssa.OpWasmF64Sub, ssa.OpWasmF64Mul, ssa.OpWasmF64Div, ssa.OpWasmF64Copysign:
+ 		getValue64(s, v.Args[0])
+ 		getValue64(s, v.Args[1])
+ 		s.Prog(v.Op.Asm())
+@@ -316,37 +309,50 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 		}
+ 		s.Prog(wasm.AI64DivS)
+ 
+-	case ssa.OpWasmI64TruncSatF64S:
++	case ssa.OpWasmI64TruncSatF32S, ssa.OpWasmI64TruncSatF64S:
+ 		getValue64(s, v.Args[0])
+ 		if objabi.GOWASM.SatConv {
+ 			s.Prog(v.Op.Asm())
+ 		} else {
++			if v.Op == ssa.OpWasmI64TruncSatF32S {
++				s.Prog(wasm.AF64PromoteF32)
++			}
+ 			p := s.Prog(wasm.ACall)
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
+ 		}
+ 
+-	case ssa.OpWasmI64TruncSatF64U:
++	case ssa.OpWasmI64TruncSatF32U, ssa.OpWasmI64TruncSatF64U:
+ 		getValue64(s, v.Args[0])
+ 		if objabi.GOWASM.SatConv {
+ 			s.Prog(v.Op.Asm())
+ 		} else {
++			if v.Op == ssa.OpWasmI64TruncSatF32U {
++				s.Prog(wasm.AF64PromoteF32)
++			}
+ 			p := s.Prog(wasm.ACall)
+ 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
+ 		}
+ 
+-	case
+-		ssa.OpWasmF64Neg, ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U,
++	case ssa.OpWasmF32DemoteF64:
++		getValue64(s, v.Args[0])
++		s.Prog(v.Op.Asm())
++
++	case ssa.OpWasmF64PromoteF32:
++		getValue64(s, v.Args[0])
++		s.Prog(v.Op.Asm())
++
++	case ssa.OpWasmF32ConvertI64S, ssa.OpWasmF32ConvertI64U,
++		ssa.OpWasmF64ConvertI64S, ssa.OpWasmF64ConvertI64U,
+ 		ssa.OpWasmI64Extend8S, ssa.OpWasmI64Extend16S, ssa.OpWasmI64Extend32S,
+-		ssa.OpWasmF64Sqrt, ssa.OpWasmF64Trunc, ssa.OpWasmF64Ceil, ssa.OpWasmF64Floor, ssa.OpWasmF64Nearest, ssa.OpWasmF64Abs, ssa.OpWasmI64Ctz, ssa.OpWasmI64Clz, ssa.OpWasmI64Popcnt:
++		ssa.OpWasmF32Neg, ssa.OpWasmF32Sqrt, ssa.OpWasmF32Trunc, ssa.OpWasmF32Ceil, ssa.OpWasmF32Floor, ssa.OpWasmF32Nearest, ssa.OpWasmF32Abs,
++		ssa.OpWasmF64Neg, ssa.OpWasmF64Sqrt, ssa.OpWasmF64Trunc, ssa.OpWasmF64Ceil, ssa.OpWasmF64Floor, ssa.OpWasmF64Nearest, ssa.OpWasmF64Abs,
++		ssa.OpWasmI64Ctz, ssa.OpWasmI64Clz, ssa.OpWasmI64Popcnt:
+ 		getValue64(s, v.Args[0])
+ 		s.Prog(v.Op.Asm())
+ 
+ 	case ssa.OpLoadReg:
+ 		p := s.Prog(loadOp(v.Type))
+ 		gc.AddrAuto(&p.From, v.Args[0])
+-		if v.Type.Etype == types.TFLOAT32 {
+-			s.Prog(wasm.AF64PromoteF32)
+-		}
+ 
+ 	case ssa.OpCopy:
+ 		getValue64(s, v.Args[0])
+@@ -359,7 +365,9 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 
+ func isCmp(v *ssa.Value) bool {
+ 	switch v.Op {
+-	case ssa.OpWasmI64Eqz, ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU, ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
++	case ssa.OpWasmI64Eqz, ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU,
++		ssa.OpWasmF32Eq, ssa.OpWasmF32Ne, ssa.OpWasmF32Lt, ssa.OpWasmF32Gt, ssa.OpWasmF32Le, ssa.OpWasmF32Ge,
++		ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
+ 		return true
+ 	default:
+ 		return false
+@@ -407,6 +415,11 @@ func i64Const(s *gc.SSAGenState, val int64) {
+ 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: val}
+ }
+ 
++func f32Const(s *gc.SSAGenState, val float64) {
++	p := s.Prog(wasm.AF32Const)
++	p.From = obj.Addr{Type: obj.TYPE_FCONST, Val: val}
++}
++
+ func f64Const(s *gc.SSAGenState, val float64) {
+ 	p := s.Prog(wasm.AF64Const)
+ 	p.From = obj.Addr{Type: obj.TYPE_FCONST, Val: val}
+diff --git a/src/cmd/internal/obj/wasm/a.out.go b/src/cmd/internal/obj/wasm/a.out.go
+index b4bc329adf..72ecaa9286 100644
+--- a/src/cmd/internal/obj/wasm/a.out.go
++++ b/src/cmd/internal/obj/wasm/a.out.go
+@@ -266,7 +266,7 @@ const (
+ 	REG_RET3
+ 	REG_PAUSE
+ 
+-	// locals
++	// i32 locals
+ 	REG_R0
+ 	REG_R1
+ 	REG_R2
+@@ -283,6 +283,8 @@ const (
+ 	REG_R13
+ 	REG_R14
+ 	REG_R15
++
++	// f32 locals
+ 	REG_F0
+ 	REG_F1
+ 	REG_F2
+@@ -300,6 +302,24 @@ const (
+ 	REG_F14
+ 	REG_F15
+ 
++	// f64 locals
++	REG_F16
++	REG_F17
++	REG_F18
++	REG_F19
++	REG_F20
++	REG_F21
++	REG_F22
++	REG_F23
++	REG_F24
++	REG_F25
++	REG_F26
++	REG_F27
++	REG_F28
++	REG_F29
++	REG_F30
++	REG_F31
++
+ 	REG_PC_B // also first parameter, i32
+ 
+ 	MAXREG
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 0acf78a80c..ed8edb064b 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -59,6 +59,23 @@ var Register = map[string]int16{
+ 	"F14": REG_F14,
+ 	"F15": REG_F15,
+ 
++	"F16": REG_F16,
++	"F17": REG_F17,
++	"F18": REG_F18,
++	"F19": REG_F19,
++	"F20": REG_F20,
++	"F21": REG_F21,
++	"F22": REG_F22,
++	"F23": REG_F23,
++	"F24": REG_F24,
++	"F25": REG_F25,
++	"F26": REG_F26,
++	"F27": REG_F27,
++	"F28": REG_F28,
++	"F29": REG_F29,
++	"F30": REG_F30,
++	"F31": REG_F31,
++
+ 	"PC_B": REG_PC_B,
+ }
+ 
+@@ -841,7 +858,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		regs := []int16{REG_SP}
+-		for reg := int16(REG_R0); reg <= REG_F15; reg++ {
++		for reg := int16(REG_R0); reg <= REG_F31; reg++ {
+ 			if regUsed[reg-MINREG] {
+ 				regs = append(regs, reg)
+ 			}
+@@ -1022,6 +1039,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 			}
+ 			writeSleb128(w, p.From.Offset)
+ 
++		case AF32Const:
++			b := make([]byte, 4)
++			binary.LittleEndian.PutUint32(b, math.Float32bits(float32(p.From.Val.(float64))))
++			w.Write(b)
++
+ 		case AF64Const:
+ 			b := make([]byte, 8)
+ 			binary.LittleEndian.PutUint64(b, math.Float64bits(p.From.Val.(float64)))
+@@ -1106,6 +1128,8 @@ func regType(reg int16) valueType {
+ 	case reg >= REG_R0 && reg <= REG_R15:
+ 		return i64
+ 	case reg >= REG_F0 && reg <= REG_F15:
++		return f32
++	case reg >= REG_F16 && reg <= REG_F31:
+ 		return f64
+ 	default:
+ 		panic("invalid register")

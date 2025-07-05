@@ -9,6 +9,20 @@ Date:   Mon Dec 28 14:14:41 2020 +0800
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/io/fs/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index 06d0b1769c..c33ff10729 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -15,7 +15,7 @@ import (
+ var SkipDir = errors.New("skip this directory")
+ 
+ // WalkDirFunc is the type of the function called by WalkDir to visit
+-// each each file or directory.
++// each file or directory.
+ //
+ // The path argument contains the argument to Walk as a prefix.
+ // That is, if Walk is called with root argument "dir" and finds a file

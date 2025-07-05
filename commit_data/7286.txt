@@ -15,6 +15,36 @@ Date:   Mon Jan 31 11:50:04 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4121043
-
+---
  src/pkg/unicode/Makefile | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index 3b2c1dd658..53f7229e7b 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -13,6 +13,8 @@ GOFILES=\
+ 
+ include ../../Make.pkg
+ 
++CLEANFILES+=maketables
++
+ maketables: maketables.go
+ 	$(GC) maketables.go
+ 	$(LD) -o maketables maketables.$O
+@@ -21,9 +23,12 @@ tables:	maketables
+ 	./maketables --tables=all > tables.go
+ 	gofmt -w tables.go
+ 
++# Build (but do not run) maketables during testing,
++# just to make sure it still compiles.
++test: maketables
++
++# Downloads from www.unicode.org, so not part
++# of standard test scripts.
+ testtables: maketables
+ 	@echo '***' Be sure to make tables and make install first
+ 	./maketables -test
+-
+-all: maketables
+-CLEANFILES+=maketables

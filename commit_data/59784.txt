@@ -19,6 +19,20 @@ Date:   Mon Apr 22 20:09:05 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/reflect/all_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5df83bef7a..f2cb604bac 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8521,7 +8521,7 @@ func TestClear(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			t.Parallel()
+ 			if !tc.testFunc(tc.value) {
+-				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
++				t.Errorf("unexpected result for value.Clear(): %v", tc.value)
+ 			}
+ 		})
+ 	}

@@ -22,9 +22,117 @@ Date:   Wed Apr 7 10:15:33 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/lock_futex.go |  2 +-
  src/runtime/lock_js.go    |  7 ++++++-
  src/runtime/lock_sema.go  |  2 +-
  src/runtime/proc.go       | 31 +++++++++++++------------------
  4 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 017b481c64..e4c8d01941 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -239,7 +239,7 @@ func notetsleepg(n *note, ns int64) bool {
+ 	return ok
+ }
+ 
+-func beforeIdle(int64) (*g, bool) {
++func beforeIdle(int64, int64) (*g, bool) {
+ 	return nil, false
+ }
+ 
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index 04e7e85c12..0ca3512baf 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -176,7 +176,12 @@ var idleID int32
+ // If an event handler returned, we resume it and it will pause the execution.
+ // beforeIdle either returns the specific goroutine to schedule next or
+ // indicates with otherReady that some goroutine became ready.
+-func beforeIdle(delay int64) (gp *g, otherReady bool) {
++func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
++	delay := int64(-1)
++	if pollUntil != 0 {
++		delay = pollUntil - now
++	}
++
+ 	if delay > 0 {
+ 		clearIdleID()
+ 		if delay < 1e6 {
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 3c0a7ca67e..7a6af28b56 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -298,7 +298,7 @@ func notetsleepg(n *note, ns int64) bool {
+ 	return ok
+ }
+ 
+-func beforeIdle(int64) (*g, bool) {
++func beforeIdle(int64, int64) (*g, bool) {
+ 	return nil, false
+ }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6c1c5dd917..3ee5805aef 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2742,17 +2742,11 @@ stop:
+ 		}
+ 	}
+ 
+-	delta := int64(-1)
+-	if pollUntil != 0 {
+-		// checkTimers ensures that polluntil > now.
+-		delta = pollUntil - now
+-	}
+-
+ 	// wasm only:
+ 	// If a callback returned and no other goroutine is awake,
+ 	// then wake event handler goroutine which pauses execution
+ 	// until a callback was triggered.
+-	gp, otherReady := beforeIdle(delta)
++	gp, otherReady := beforeIdle(now, pollUntil)
+ 	if gp != nil {
+ 		casgstatus(gp, _Gwaiting, _Grunnable)
+ 		if trace.enabled {
+@@ -2842,15 +2836,6 @@ stop:
+ 			}
+ 		}
+ 	}
+-	if pollUntil != 0 {
+-		if now == 0 {
+-			now = nanotime()
+-		}
+-		delta = pollUntil - now
+-		if delta < 0 {
+-			delta = 0
+-		}
+-	}
+ 
+ 	// Check for idle-priority GC work again.
+ 	//
+@@ -2909,11 +2894,21 @@ stop:
+ 		if _g_.m.spinning {
+ 			throw("findrunnable: netpoll with spinning")
+ 		}
++		delay := int64(-1)
++		if pollUntil != 0 {
++			if now == 0 {
++				now = nanotime()
++			}
++			delay = pollUntil - now
++			if delay < 0 {
++				delay = 0
++			}
++		}
+ 		if faketime != 0 {
+ 			// When using fake time, just poll.
+-			delta = 0
++			delay = 0
+ 		}
+-		list := netpoll(delta) // block until new work is available
++		list := netpoll(delay) // block until new work is available
+ 		atomic.Store64(&sched.pollUntil, 0)
+ 		atomic.Store64(&sched.lastpoll, uint64(nanotime()))
+ 		if faketime != 0 && list.empty() {

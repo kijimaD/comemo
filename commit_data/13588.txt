@@ -11,8 +11,57 @@ Date:   Tue Aug 7 09:57:14 2012 +0800
     R=dave, rsc
     CC=golang-dev
     https://golang.org/cl/6344078
-
+---
  src/pkg/math/all_test.go | 11 +++++++++++
  src/pkg/math/bits.go     |  2 +-
  src/pkg/runtime/float.c  |  2 +-
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 8cbead1ab7..cdea8035f9 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -1693,6 +1693,17 @@ func alike(a, b float64) bool {
+ 	return false
+ }
+ 
++func TestNaN(t *testing.T) {
++	f64 := NaN()
++	if f64 == f64 {
++		t.Fatalf("NaN() returns %g, expected NaN", f64)
++	}
++	f32 := float32(f64)
++	if f32 == f32 {
++		t.Fatalf("float32(NaN()) is %g, expected NaN", f32)
++	}
++}
++
+ func TestAcos(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := vf[i] / 10
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+index 1cf60ce7df..0df0b1cc9f 100644
+--- a/src/pkg/math/bits.go
++++ b/src/pkg/math/bits.go
+@@ -5,7 +5,7 @@
+ package math
+ 
+ const (
+-	uvnan    = 0x7FF0000000000001
++	uvnan    = 0x7FF8000000000001
+ 	uvinf    = 0x7FF0000000000000
+ 	uvneginf = 0xFFF0000000000000
+ 	mask     = 0x7FF
+diff --git a/src/pkg/runtime/float.c b/src/pkg/runtime/float.c
+index f481519f65..4d9f125977 100644
+--- a/src/pkg/runtime/float.c
++++ b/src/pkg/runtime/float.c
+@@ -4,7 +4,7 @@
+ 
+ #include "runtime.h"
+ 
+-static	uint64	uvnan		= 0x7FF0000000000001ULL;
++static	uint64	uvnan		= 0x7FF8000000000001ULL;
+ static	uint64	uvinf		= 0x7FF0000000000000ULL;
+ static	uint64	uvneginf	= 0xFFF0000000000000ULL;
+ 

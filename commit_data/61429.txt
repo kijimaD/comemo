@@ -20,7 +20,34 @@ Date:   Thu Nov 7 17:40:08 2024 -0800
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/encoding/json/decode.go | 2 +-
  src/text/template/exec.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 1a05ef59a2..98102291ab 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -472,7 +472,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
+ 		// Prevent infinite loop if v is an interface pointing to its own address:
+ 		//     var v any
+ 		//     v = &v
+-		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem() == v {
++		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem().Equal(v) {
+ 			v = v.Elem()
+ 			break
+ 		}
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 872d8aaa0c..57f076e35f 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -810,7 +810,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
+ 				return v
+ 			}
+ 		}
+-		if final != missingVal {
++		if !final.Equal(missingVal) {
+ 			// The last argument to and/or is coming from
+ 			// the pipeline. We didn't short circuit on an earlier
+ 			// argument, so we are going to return this one.

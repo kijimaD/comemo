@@ -14,9 +14,84 @@ Date:   Wed Sep 21 13:30:18 2022 -0700
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go      | 8 ++------
  src/go/types/call.go                         | 4 ++--
  src/internal/types/testdata/check/decls1.go  | 2 +-
  src/internal/types/testdata/check/issues0.go | 2 +-
  4 files changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 87b29d7260..fb7d5ec553 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -465,7 +465,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 					}
+ 				}
+ 				if exp == nil {
+-					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
++					check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
+ 					goto Error
+ 				}
+ 				check.objDecl(exp, nil)
+@@ -473,11 +473,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+ 					if !pkg.fake {
+-						if check.conf.CompilerErrorMessages {
+-							check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s.%s", pkg.name, sel)
+-						} else {
+-							check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
+-						}
++						check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
+ 					}
+ 					goto Error
+ 				}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index c580885a5a..ab0aea69bf 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -469,7 +469,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
+ 					}
+ 				}
+ 				if exp == nil {
+-					check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package C", sel)
++					check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
+ 					goto Error
+ 				}
+ 				check.objDecl(exp, nil)
+@@ -477,7 +477,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+ 					if !pkg.fake {
+-						check.errorf(e.Sel, _UndeclaredImportedName, "%s not declared by package %s", sel, pkg.name)
++						check.errorf(e.Sel, _UndeclaredImportedName, "undefined: %s", ast.Expr(e))
+ 					}
+ 					goto Error
+ 				}
+diff --git a/src/internal/types/testdata/check/decls1.go b/src/internal/types/testdata/check/decls1.go
+index 4052c86925..c1bdf3cf91 100644
+--- a/src/internal/types/testdata/check/decls1.go
++++ b/src/internal/types/testdata/check/decls1.go
+@@ -64,7 +64,7 @@ var (
+ 	t13 int = a /* ERROR "shifted operand" */ << d
+ 	t14 int = i << j
+ 	t15 math /* ERROR "not in selector" */
+-	t16 math.xxx /* ERROR "not declared" */
++	t16 math.xxx /* ERROR "undefined" */
+ 	t17 math /* ERROR "not a type" */ .Pi
+ 	t18 float64 = math.Pi * 10.0
+ 	t19 int = t1 /* ERROR "cannot call" */ ()
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index 8e277a7177..fc0c028276 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -91,7 +91,7 @@ func issue10979() {
+ 		nosuchtype /* ERROR undefined: nosuchtype */
+ 	}
+ 	type _ interface {
+-		fmt.Nosuchtype /* ERROR Nosuchtype not declared by package fmt */
++		fmt.Nosuchtype /* ERROR undefined: fmt\.Nosuchtype */
+ 	}
+ 	type _ interface {
+ 		nosuchpkg /* ERROR undefined: nosuchpkg */ .Nosuchtype

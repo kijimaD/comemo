@@ -10,6 +10,30 @@ Date:   Thu Feb 16 09:27:26 2012 +1100
     R=golang-dev, untheoretic
     CC=golang-dev
     https://golang.org/cl/5674054
-
+---
  src/pkg/net/http/fs_test.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 143617e95f..f3e4a053e3 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -398,11 +398,15 @@ func TestLinuxSendfile(t *testing.T) {
+ 		return
+ 	}
+ 
+-	_, err = Get(fmt.Sprintf("http://%s/", ln.Addr()))
++	res, err := Get(fmt.Sprintf("http://%s/", ln.Addr()))
+ 	if err != nil {
+-		t.Errorf("http client error: %v", err)
+-		return
++		t.Fatalf("http client error: %v", err)
++	}
++	_, err = io.Copy(ioutil.Discard, res.Body)
++	if err != nil {
++		t.Fatalf("client body read error: %v", err)
+ 	}
++	res.Body.Close()
+ 
+ 	// Force child to exit cleanly.
+ 	Get(fmt.Sprintf("http://%s/quit", ln.Addr()))

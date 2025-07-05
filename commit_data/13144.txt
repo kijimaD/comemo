@@ -9,7 +9,203 @@ Date:   Wed May 23 16:12:45 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6213065
-
+---
  src/pkg/go/parser/parser.go      | 30 ++++++++++++--------
  src/pkg/go/parser/parser_test.go | 61 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index f40c4e2de3..aeeda5f3d9 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -619,10 +619,10 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+ 
+ 	doc := p.leadComment
+ 
+-	// fields
++	// FieldDecl
+ 	list, typ := p.parseVarList(false)
+ 
+-	// optional tag
++	// Tag
+ 	var tag *ast.BasicLit
+ 	if p.tok == token.STRING {
+ 		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+@@ -637,7 +637,6 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+ 	} else {
+ 		// ["*"] TypeName (AnonymousField)
+ 		typ = list[0] // we always have at least one element
+-		p.resolve(typ)
+ 		if n := len(list); n > 1 || !isTypeName(deref(typ)) {
+ 			pos := typ.Pos()
+ 			p.errorExpected(pos, "anonymous field")
+@@ -649,6 +648,7 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
+ 
+ 	field := &ast.Field{Doc: doc, Names: idents, Type: typ, Tag: tag, Comment: p.lineComment}
+ 	p.declare(field, nil, scope, ast.Var, idents...)
++	p.resolve(typ)
+ 
+ 	return field
+ }
+@@ -691,12 +691,15 @@ func (p *parser) parsePointerType() *ast.StarExpr {
+ 	return &ast.StarExpr{Star: star, X: base}
+ }
+ 
++// If the result is an identifier, it is not resolved.
+ func (p *parser) tryVarType(isParam bool) ast.Expr {
+ 	if isParam && p.tok == token.ELLIPSIS {
+ 		pos := p.pos
+ 		p.next()
+ 		typ := p.tryIdentOrType(isParam) // don't use parseType so we can provide better error message
+-		if typ == nil {
++		if typ != nil {
++			p.resolve(typ)
++		} else {
+ 			p.error(pos, "'...' parameter is missing type")
+ 			typ = &ast.BadExpr{From: pos, To: p.pos}
+ 		}
+@@ -705,6 +708,7 @@ func (p *parser) tryVarType(isParam bool) ast.Expr {
+ 	return p.tryIdentOrType(false)
+ }
+ 
++// If the result is an identifier, it is not resolved.
+ func (p *parser) parseVarType(isParam bool) ast.Expr {
+ 	typ := p.tryVarType(isParam)
+ 	if typ == nil {
+@@ -716,6 +720,7 @@ func (p *parser) parseVarType(isParam bool) ast.Expr {
+ 	return typ
+ }
+ 
++// If any of the results are identifiers, they are not resolved.
+ func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
+ 	if p.trace {
+ 		defer un(trace(p, "VarList"))
+@@ -736,9 +741,7 @@ func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
+ 	}
+ 
+ 	// if we had a list of identifiers, it must be followed by a type
+-	if typ = p.tryVarType(isParam); typ != nil {
+-		p.resolve(typ)
+-	}
++	typ = p.tryVarType(isParam)
+ 
+ 	return
+ }
+@@ -748,7 +751,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 		defer un(trace(p, "ParameterList"))
+ 	}
+ 
++	// ParameterDecl
+ 	list, typ := p.parseVarList(ellipsisOk)
++
++	// analyze case
+ 	if typ != nil {
+ 		// IdentifierList Type
+ 		idents := p.makeIdentList(list)
+@@ -757,10 +763,10 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 		// Go spec: The scope of an identifier denoting a function
+ 		// parameter or result variable is the function body.
+ 		p.declare(field, nil, scope, ast.Var, idents...)
++		p.resolve(typ)
+ 		if p.tok == token.COMMA {
+ 			p.next()
+ 		}
+-
+ 		for p.tok != token.RPAREN && p.tok != token.EOF {
+ 			idents := p.parseIdentList()
+ 			typ := p.parseVarType(ellipsisOk)
+@@ -769,18 +775,18 @@ func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params [
+ 			// Go spec: The scope of an identifier denoting a function
+ 			// parameter or result variable is the function body.
+ 			p.declare(field, nil, scope, ast.Var, idents...)
++			p.resolve(typ)
+ 			if !p.atComma("parameter list") {
+ 				break
+ 			}
+ 			p.next()
+ 		}
+-
+ 	} else {
+ 		// Type { "," Type } (anonymous parameters)
+ 		params = make([]*ast.Field, len(list))
+-		for i, x := range list {
+-			p.resolve(x)
+-			params[i] = &ast.Field{Type: x}
++		for i, typ := range list {
++			p.resolve(typ)
++			params[i] = &ast.Field{Type: typ}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 7e0ae88218..1b7a41b1bf 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -135,6 +135,67 @@ func TestVarScope(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnresolved(t *testing.T) {
++	f, err := ParseFile(fset, "", `
++package p
++//
++func f1a(int)
++func f2a(byte, int, float)
++func f3a(a, b int, c float)
++func f4a(...complex)
++func f5a(a s1a, b ...complex)
++//
++func f1b(*int)
++func f2b([]byte, (int), *float)
++func f3b(a, b *int, c []float)
++func f4b(...*complex)
++func f5b(a s1a, b ...[]complex)
++//
++type s1a struct { int }
++type s2a struct { byte; int; s1a }
++type s3a struct { a, b int; c float }
++//
++type s1b struct { *int }
++type s2b struct { byte; int; *float }
++type s3b struct { a, b *s3b; c []float }
++`, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	want := "int " + // f1a
++		"byte int float " + // f2a
++		"int float " + // f3a
++		"complex " + // f4a
++		"complex " + // f5a
++		//
++		"int " + // f1b
++		"byte int float " + // f2b
++		"int float " + // f3b
++		"complex " + // f4b
++		"complex " + // f5b
++		//
++		"int " + // s1a
++		"byte int " + // s2a
++		"int float " + // s3a
++		//
++		"int " + // s1a
++		"byte int float " + // s2a
++		"float " // s3a
++
++	// collect unresolved identifiers
++	var buf bytes.Buffer
++	for _, u := range f.Unresolved {
++		buf.WriteString(u.Name)
++		buf.WriteByte(' ')
++	}
++	got := buf.String()
++
++	if got != want {
++		t.Errorf("\ngot:  %s\nwant: %s", got, want)
++	}
++}
++
+ var imports = map[string]bool{
+ 	`"a"`:        true,
+ 	"`a`":        true,

@@ -13,7 +13,7 @@ Date:   Tue Apr 25 10:58:12 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/gob/codec_test.go      | 38 ++++++++++++++++++-------------------
  src/go/parser/error_test.go         |  4 ++--
  src/go/types/typestring_test.go     |  4 ++--
@@ -27,3 +27,419 @@ Date:   Tue Apr 25 10:58:12 2017 +0100
  src/text/template/parse/lex_test.go |  4 ++--
  src/time/sleep_test.go              |  4 ++--
  12 files changed, 43 insertions(+), 44 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index c102059590..387d58229c 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -320,7 +320,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	}
+ }
+ 
+-func execDec(typ string, instr *decInstr, state *decoderState, t *testing.T, value reflect.Value) {
++func execDec(instr *decInstr, state *decoderState, t *testing.T, value reflect.Value) {
+ 	defer testError(t)
+ 	v := int(state.decodeUint())
+ 	if v+state.fieldnum != 6 {
+@@ -347,7 +347,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data bool
+ 		instr := &decInstr{decBool, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(boolResult)
+-		execDec("bool", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != true {
+ 			t.Errorf("bool a = %v not true", data)
+ 		}
+@@ -357,7 +357,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data int
+ 		instr := &decInstr{decOpTable[reflect.Int], 6, nil, ovfl}
+ 		state := newDecodeStateFromData(signedResult)
+-		execDec("int", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("int a = %v not 17", data)
+ 		}
+@@ -368,7 +368,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data uint
+ 		instr := &decInstr{decOpTable[reflect.Uint], 6, nil, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+-		execDec("uint", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("uint a = %v not 17", data)
+ 		}
+@@ -379,7 +379,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data int8
+ 		instr := &decInstr{decInt8, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(signedResult)
+-		execDec("int8", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("int8 a = %v not 17", data)
+ 		}
+@@ -390,7 +390,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data uint8
+ 		instr := &decInstr{decUint8, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+-		execDec("uint8", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("uint8 a = %v not 17", data)
+ 		}
+@@ -401,7 +401,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data int16
+ 		instr := &decInstr{decInt16, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(signedResult)
+-		execDec("int16", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("int16 a = %v not 17", data)
+ 		}
+@@ -412,7 +412,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data uint16
+ 		instr := &decInstr{decUint16, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+-		execDec("uint16", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("uint16 a = %v not 17", data)
+ 		}
+@@ -423,7 +423,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data int32
+ 		instr := &decInstr{decInt32, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(signedResult)
+-		execDec("int32", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("int32 a = %v not 17", data)
+ 		}
+@@ -434,7 +434,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data uint32
+ 		instr := &decInstr{decUint32, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+-		execDec("uint32", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("uint32 a = %v not 17", data)
+ 		}
+@@ -445,7 +445,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data uintptr
+ 		instr := &decInstr{decOpTable[reflect.Uintptr], 6, nil, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+-		execDec("uintptr", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("uintptr a = %v not 17", data)
+ 		}
+@@ -456,7 +456,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data int64
+ 		instr := &decInstr{decInt64, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(signedResult)
+-		execDec("int64", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("int64 a = %v not 17", data)
+ 		}
+@@ -467,7 +467,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data uint64
+ 		instr := &decInstr{decUint64, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(unsignedResult)
+-		execDec("uint64", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("uint64 a = %v not 17", data)
+ 		}
+@@ -478,7 +478,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data float32
+ 		instr := &decInstr{decFloat32, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(floatResult)
+-		execDec("float32", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("float32 a = %v not 17", data)
+ 		}
+@@ -489,7 +489,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data float64
+ 		instr := &decInstr{decFloat64, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(floatResult)
+-		execDec("float64", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17 {
+ 			t.Errorf("float64 a = %v not 17", data)
+ 		}
+@@ -500,7 +500,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data complex64
+ 		instr := &decInstr{decOpTable[reflect.Complex64], 6, nil, ovfl}
+ 		state := newDecodeStateFromData(complexResult)
+-		execDec("complex", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17+19i {
+ 			t.Errorf("complex a = %v not 17+19i", data)
+ 		}
+@@ -511,7 +511,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data complex128
+ 		instr := &decInstr{decOpTable[reflect.Complex128], 6, nil, ovfl}
+ 		state := newDecodeStateFromData(complexResult)
+-		execDec("complex", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != 17+19i {
+ 			t.Errorf("complex a = %v not 17+19i", data)
+ 		}
+@@ -522,7 +522,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data []byte
+ 		instr := &decInstr{decUint8Slice, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(bytesResult)
+-		execDec("bytes", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if string(data) != "hello" {
+ 			t.Errorf(`bytes a = %q not "hello"`, string(data))
+ 		}
+@@ -533,7 +533,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data string
+ 		instr := &decInstr{decString, 6, nil, ovfl}
+ 		state := newDecodeStateFromData(bytesResult)
+-		execDec("bytes", instr, state, t, reflect.ValueOf(&data))
++		execDec(instr, state, t, reflect.ValueOf(&data))
+ 		if data != "hello" {
+ 			t.Errorf(`bytes a = %q not "hello"`, data)
+ 		}
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index 1a08d5a6b1..ef91e1ea60 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -66,7 +66,7 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *(HERE)? *"([^"]*)" *\*/$`)
+ // expectedErrors collects the regular expressions of ERROR comments found
+ // in files and returns them as a map of error positions to error messages.
+ //
+-func expectedErrors(t *testing.T, fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
++func expectedErrors(fset *token.FileSet, filename string, src []byte) map[token.Pos]string {
+ 	errors := make(map[token.Pos]string)
+ 
+ 	var s scanner.Scanner
+@@ -161,7 +161,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
+ 
+ 	// we are expecting the following errors
+ 	// (collect these after parsing a file so that it is found in the file set)
+-	expected := expectedErrors(t, fset, filename, src)
++	expected := expectedErrors(fset, filename, src)
+ 
+ 	// verify errors returned by the parser
+ 	compareErrors(t, fset, expected, found)
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 6365df5fe2..b794ea813d 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -17,7 +17,7 @@ import (
+ 
+ const filename = "<src>"
+ 
+-func makePkg(t *testing.T, src string) (*Package, error) {
++func makePkg(src string) (*Package, error) {
+ 	fset := token.NewFileSet()
+ 	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
+ 	if err != nil {
+@@ -126,7 +126,7 @@ func TestTypeString(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		src := `package p; import "io"; type _ io.Writer; type T ` + test.src
+-		pkg, err := makePkg(t, src)
++		pkg, err := makePkg(src)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", src, err)
+ 			continue
+diff --git a/src/image/image_test.go b/src/image/image_test.go
+index 799c1a7a11..08ba61ea0c 100644
+--- a/src/image/image_test.go
++++ b/src/image/image_test.go
+@@ -16,7 +16,7 @@ type image interface {
+ 	SubImage(Rectangle) Image
+ }
+ 
+-func cmp(t *testing.T, cm color.Model, c0, c1 color.Color) bool {
++func cmp(cm color.Model, c0, c1 color.Color) bool {
+ 	r0, g0, b0, a0 := cm.Convert(c0).RGBA()
+ 	r1, g1, b1, a1 := cm.Convert(c1).RGBA()
+ 	return r0 == r1 && g0 == g1 && b0 == b1 && a0 == a1
+@@ -42,12 +42,12 @@ func TestImage(t *testing.T) {
+ 			t.Errorf("%T: want bounds %v, got %v", m, Rect(0, 0, 10, 10), m.Bounds())
+ 			continue
+ 		}
+-		if !cmp(t, m.ColorModel(), Transparent, m.At(6, 3)) {
++		if !cmp(m.ColorModel(), Transparent, m.At(6, 3)) {
+ 			t.Errorf("%T: at (6, 3), want a zero color, got %v", m, m.At(6, 3))
+ 			continue
+ 		}
+ 		m.Set(6, 3, Opaque)
+-		if !cmp(t, m.ColorModel(), Opaque, m.At(6, 3)) {
++		if !cmp(m.ColorModel(), Opaque, m.At(6, 3)) {
+ 			t.Errorf("%T: at (6, 3), want a non-zero color, got %v", m, m.At(6, 3))
+ 			continue
+ 		}
+@@ -60,16 +60,16 @@ func TestImage(t *testing.T) {
+ 			t.Errorf("%T: sub-image want bounds %v, got %v", m, Rect(3, 2, 9, 8), m.Bounds())
+ 			continue
+ 		}
+-		if !cmp(t, m.ColorModel(), Opaque, m.At(6, 3)) {
++		if !cmp(m.ColorModel(), Opaque, m.At(6, 3)) {
+ 			t.Errorf("%T: sub-image at (6, 3), want a non-zero color, got %v", m, m.At(6, 3))
+ 			continue
+ 		}
+-		if !cmp(t, m.ColorModel(), Transparent, m.At(3, 3)) {
++		if !cmp(m.ColorModel(), Transparent, m.At(3, 3)) {
+ 			t.Errorf("%T: sub-image at (3, 3), want a zero color, got %v", m, m.At(3, 3))
+ 			continue
+ 		}
+ 		m.Set(3, 3, Opaque)
+-		if !cmp(t, m.ColorModel(), Opaque, m.At(3, 3)) {
++		if !cmp(m.ColorModel(), Opaque, m.At(3, 3)) {
+ 			t.Errorf("%T: sub-image at (3, 3), want a non-zero color, got %v", m, m.At(3, 3))
+ 			continue
+ 		}
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 11213349a7..15c169dbc1 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -409,7 +409,7 @@ func TestCopyError(t *testing.T) {
+ 	}
+ 
+ 	childRunning := func() bool {
+-		return isProcessRunning(t, pid)
++		return isProcessRunning(pid)
+ 	}
+ 
+ 	if !childRunning() {
+diff --git a/src/net/http/cgi/plan9_test.go b/src/net/http/cgi/plan9_test.go
+index c8235831b0..2c29ef8025 100644
+--- a/src/net/http/cgi/plan9_test.go
++++ b/src/net/http/cgi/plan9_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"testing"
+ )
+ 
+-func isProcessRunning(t *testing.T, pid int) bool {
++func isProcessRunning(pid int) bool {
+ 	_, err := os.Stat("/proc/" + strconv.Itoa(pid))
+ 	return err == nil
+ }
+diff --git a/src/net/http/cgi/posix_test.go b/src/net/http/cgi/posix_test.go
+index 5ff9e7d5eb..9396ce036a 100644
+--- a/src/net/http/cgi/posix_test.go
++++ b/src/net/http/cgi/posix_test.go
+@@ -9,10 +9,9 @@ package cgi
+ import (
+ 	"os"
+ 	"syscall"
+-	"testing"
+ )
+ 
+-func isProcessRunning(t *testing.T, pid int) bool {
++func isProcessRunning(pid int) bool {
+ 	p, err := os.FindProcess(pid)
+ 	if err != nil {
+ 		return false
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 0c21d213f7..d2a78f5bee 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -388,7 +388,7 @@ func checkMarks(t *testing.T, report bool) {
+ // Assumes that each node name is unique. Good enough for a test.
+ // If clear is true, any incoming error is cleared before return. The errors
+ // are always accumulated, though.
+-func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool) error {
++func mark(info os.FileInfo, err error, errors *[]error, clear bool) error {
+ 	if err != nil {
+ 		*errors = append(*errors, err)
+ 		if clear {
+@@ -437,7 +437,7 @@ func TestWalk(t *testing.T) {
+ 	errors := make([]error, 0, 10)
+ 	clear := true
+ 	markFn := func(path string, info os.FileInfo, err error) error {
+-		return mark(path, info, err, &errors, clear)
++		return mark(info, err, &errors, clear)
+ 	}
+ 	// Expect no errors.
+ 	err := filepath.Walk(tree.name, markFn)
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 22e4dca771..e7c0f3333e 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -53,14 +53,14 @@ func TestStopTheWorldDeadlock(t *testing.T) {
+ }
+ 
+ func TestYieldProgress(t *testing.T) {
+-	testYieldProgress(t, false)
++	testYieldProgress(false)
+ }
+ 
+ func TestYieldLockedProgress(t *testing.T) {
+-	testYieldProgress(t, true)
++	testYieldProgress(true)
+ }
+ 
+-func testYieldProgress(t *testing.T, locked bool) {
++func testYieldProgress(locked bool) {
+ 	c := make(chan bool)
+ 	cack := make(chan bool)
+ 	go func() {
+diff --git a/src/sync/waitgroup_test.go b/src/sync/waitgroup_test.go
+index c7c391ba23..e3e3096645 100644
+--- a/src/sync/waitgroup_test.go
++++ b/src/sync/waitgroup_test.go
+@@ -18,11 +18,11 @@ func testWaitGroup(t *testing.T, wg1 *WaitGroup, wg2 *WaitGroup) {
+ 	wg2.Add(n)
+ 	exited := make(chan bool, n)
+ 	for i := 0; i != n; i++ {
+-		go func(i int) {
++		go func() {
+ 			wg1.Done()
+ 			wg2.Wait()
+ 			exited <- true
+-		}(i)
++		}()
+ 	}
+ 	wg1.Wait()
+ 	for i := 0; i != n; i++ {
+diff --git a/src/text/template/parse/lex_test.go b/src/text/template/parse/lex_test.go
+index d655d788b3..2c73bb623a 100644
+--- a/src/text/template/parse/lex_test.go
++++ b/src/text/template/parse/lex_test.go
+@@ -498,7 +498,7 @@ func TestShutdown(t *testing.T) {
+ 	// We need to duplicate template.Parse here to hold on to the lexer.
+ 	const text = "erroneous{{define}}{{else}}1234"
+ 	lexer := lex("foo", text, "{{", "}}")
+-	_, err := New("root").parseLexer(lexer, text)
++	_, err := New("root").parseLexer(lexer)
+ 	if err == nil {
+ 		t.Fatalf("expected error")
+ 	}
+@@ -511,7 +511,7 @@ func TestShutdown(t *testing.T) {
+ 
+ // parseLexer is a local version of parse that lets us pass in the lexer instead of building it.
+ // We expect an error, so the tree set and funcs list are explicitly nil.
+-func (t *Tree) parseLexer(lex *lexer, text string) (tree *Tree, err error) {
++func (t *Tree) parseLexer(lex *lexer) (tree *Tree, err error) {
+ 	defer t.recover(&err)
+ 	t.ParseName = t.Name
+ 	t.startParse(nil, lex, map[string]*Tree{})
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index dd0a820dd6..9b4a3ccc12 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -227,7 +227,7 @@ func TestAfterQueuing(t *testing.T) {
+ 	err := errors.New("!=nil")
+ 	for i := 0; i < attempts && err != nil; i++ {
+ 		delta := Duration(20+i*50) * Millisecond
+-		if err = testAfterQueuing(t, delta); err != nil {
++		if err = testAfterQueuing(delta); err != nil {
+ 			t.Logf("attempt %v failed: %v", i, err)
+ 		}
+ 	}
+@@ -247,7 +247,7 @@ func await(slot int, result chan<- afterResult, ac <-chan Time) {
+ 	result <- afterResult{slot, <-ac}
+ }
+ 
+-func testAfterQueuing(t *testing.T, delta Duration) error {
++func testAfterQueuing(delta Duration) error {
+ 	// make the result channel buffered because we don't want
+ 	// to depend on channel queueing semantics that might
+ 	// possibly change in the future.

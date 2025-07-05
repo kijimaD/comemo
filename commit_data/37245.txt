@@ -18,7 +18,58 @@ Date:   Thu Jul 12 11:44:05 2018 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go |  5 +++++
  test/fixedbugs/issue26024.go         | 28 ++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 88b4380637..f78d051b06 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -692,6 +692,11 @@ func (lv *Liveness) markUnsafePoints() {
+ 			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
+ 		}
+ 		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
++		if s0 == s1 {
++			// There's no difference between write barrier on and off.
++			// Thus there's no unsafe locations. See issue 26024.
++			continue
++		}
+ 		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
+ 			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
+ 		}
+diff --git a/test/fixedbugs/issue26024.go b/test/fixedbugs/issue26024.go
+new file mode 100644
+index 0000000000..78877b21fe
+--- /dev/null
++++ b/test/fixedbugs/issue26024.go
+@@ -0,0 +1,28 @@
++// compile
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package r
++
++// f compiles into code where no stores remain in the two successors
++// of a write barrier block; i.e., they are empty. Pre-fix, this
++// results in an unexpected input to markUnsafePoints, that expects to
++// see a pair of non-empty plain blocks.
++func f() {
++	var i int
++	var s string
++	for len(s) < len(s) {
++		i++
++		s = "a"
++	}
++	var b bool
++	var sa []string
++	for true {
++		sa = []string{""}
++		for b || i == 0 {
++		}
++		b = !b
++		_ = sa
++	}
++}

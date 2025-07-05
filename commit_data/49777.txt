@@ -12,6 +12,18 @@ Date:   Thu Sep 9 15:55:05 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/issue48301.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue48301.go b/test/fixedbugs/issue48301.go
+index 46fe779a42..1ff9ffb9a0 100644
+--- a/test/fixedbugs/issue48301.go
++++ b/test/fixedbugs/issue48301.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func _() {
+-	type T = T // ERROR "T uses T"
++	type T = T // ERROR "T uses T|invalid recursive type T"
+ }

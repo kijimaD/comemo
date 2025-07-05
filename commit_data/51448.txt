@@ -10,9 +10,207 @@ Date:   Mon Jan 31 12:51:45 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/382076
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/fixedbugs/issue50929.go2       | 68 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/unify.go           |  5 +-
  src/go/types/testdata/fixedbugs/issue50929.go2     | 68 ++++++++++++++++++++++
  src/go/types/unify.go                              |  7 ++-
  4 files changed, 145 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2
+new file mode 100644
+index 0000000000..941dbaa3c1
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50929.go2
+@@ -0,0 +1,68 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is tested when running "go test -run Manual"
++// without source arguments. Use for one-off debugging.
++
++package p
++
++import "fmt"
++
++type F[A, B any] int
++
++func G[A, B any](F[A, B]) {
++}
++
++func _() {
++	// TODO(gri) only report one error below (issue #50932)
++	var x F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
++	G(x /* ERROR does not match */)
++}
++
++// test case from issue
++// (lots of errors but doesn't crash anymore)
++
++type RC[G any, RG any] interface {
++	~[]RG
++}
++
++type RG[G any] struct{}
++
++type RSC[G any] []*RG[G]
++
++type M[Rc RC[G, RG], G any, RG any] struct {
++	Fn func(Rc)
++}
++
++type NFn[Rc RC[G, RG], G any, RG any] func(Rc)
++
++func NC[Rc RC[G, RG], G any, RG any](nFn NFn[Rc, G, RG]) {
++	var empty Rc
++	nFn(empty)
++}
++
++func NSG[G any](c RSC[G]) {
++	fmt.Println(c)
++}
++
++func MMD[Rc RC /* ERROR cannot infer RG */ /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG] {
++
++	var nFn NFn /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG]
++
++	var empty Rc
++	switch any(empty).(type) {
++	case BC /* ERROR undeclared name: BC */ :
++
++	case RSC[G]:
++		nFn = NSG /* ERROR cannot use NSG\[G\] */ [G]
++	}
++
++	return M /* ERROR got 2 arguments */ [Rc, RG]{
++		Fn: func(rc Rc) {
++			NC(nFn /* ERROR does not match */ )
++		},
++	}
++
++	return M /* ERROR got 2 arguments */ [Rc, RG]{}
++}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index b844fb22b6..13d5af671e 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -457,11 +457,14 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()
+ 
++			if len(xargs) != len(yargs) {
++				return false
++			}
++
+ 			// TODO(gri) This is not always correct: two types may have the same names
+ 			//           in the same package if one of them is nested in a function.
+ 			//           Extremely unlikely but we need an always correct solution.
+ 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
+-				assert(len(xargs) == len(yargs))
+ 				for i, x := range xargs {
+ 					if !u.nify(x, yargs[i], p) {
+ 						return false
+diff --git a/src/go/types/testdata/fixedbugs/issue50929.go2 b/src/go/types/testdata/fixedbugs/issue50929.go2
+new file mode 100644
+index 0000000000..941dbaa3c1
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50929.go2
+@@ -0,0 +1,68 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is tested when running "go test -run Manual"
++// without source arguments. Use for one-off debugging.
++
++package p
++
++import "fmt"
++
++type F[A, B any] int
++
++func G[A, B any](F[A, B]) {
++}
++
++func _() {
++	// TODO(gri) only report one error below (issue #50932)
++	var x F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [int]
++	G(x /* ERROR does not match */)
++}
++
++// test case from issue
++// (lots of errors but doesn't crash anymore)
++
++type RC[G any, RG any] interface {
++	~[]RG
++}
++
++type RG[G any] struct{}
++
++type RSC[G any] []*RG[G]
++
++type M[Rc RC[G, RG], G any, RG any] struct {
++	Fn func(Rc)
++}
++
++type NFn[Rc RC[G, RG], G any, RG any] func(Rc)
++
++func NC[Rc RC[G, RG], G any, RG any](nFn NFn[Rc, G, RG]) {
++	var empty Rc
++	nFn(empty)
++}
++
++func NSG[G any](c RSC[G]) {
++	fmt.Println(c)
++}
++
++func MMD[Rc RC /* ERROR cannot infer RG */ /* ERROR got 1 arguments */ [RG], RG any, G any]() M /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG] {
++
++	var nFn NFn /* ERROR got 2 arguments */ /* ERROR Rc does not match */ [Rc, RG]
++
++	var empty Rc
++	switch any(empty).(type) {
++	case BC /* ERROR undeclared name: BC */ :
++
++	case RSC[G]:
++		nFn = NSG /* ERROR cannot use NSG\[G\] */ [G]
++	}
++
++	return M /* ERROR got 2 arguments */ [Rc, RG]{
++		Fn: func(rc Rc) {
++			NC(nFn /* ERROR does not match */ )
++		},
++	}
++
++	return M /* ERROR got 2 arguments */ [Rc, RG]{}
++}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 085048f797..5d6d78bff0 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -164,7 +164,7 @@ func (d *tparamsList) index(typ Type) int {
+ }
+ 
+ // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+-// Otherwise, the result is < 0. tpar must not be nil.j
++// Otherwise, the result is < 0. tpar must not be nil.
+ func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+ 	// Once a type parameter is bound its index is >= 0. However, there are some
+ 	// code paths (namely tracing and type hashing) by which it is possible to
+@@ -457,11 +457,14 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 			xargs := x.targs.list()
+ 			yargs := y.targs.list()
+ 
++			if len(xargs) != len(yargs) {
++				return false
++			}
++
+ 			// TODO(gri) This is not always correct: two types may have the same names
+ 			//           in the same package if one of them is nested in a function.
+ 			//           Extremely unlikely but we need an always correct solution.
+ 			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
+-				assert(len(xargs) == len(yargs))
+ 				for i, x := range xargs {
+ 					if !u.nify(x, yargs[i], p) {
+ 						return false

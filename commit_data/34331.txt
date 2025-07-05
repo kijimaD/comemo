@@ -11,7 +11,43 @@ Date:   Sat Jan 7 23:42:23 2017 -0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go |  3 +++
  test/fixedbugs/issue13265.go        | 15 +++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e973de968f..a597114252 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2187,6 +2187,9 @@ func callnew(t *types.Type) *Node {
+ }
+ 
+ func iscallret(n *Node) bool {
++	if n == nil {
++		return false
++	}
+ 	n = outervalue(n)
+ 	return n.Op == OINDREGSP
+ }
+diff --git a/test/fixedbugs/issue13265.go b/test/fixedbugs/issue13265.go
+new file mode 100644
+index 0000000000..3036ba7c24
+--- /dev/null
++++ b/test/fixedbugs/issue13265.go
+@@ -0,0 +1,15 @@
++// errorcheck -0 -race
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 13265: nil pointer deref.
++
++package p
++
++func f() {
++    var c chan chan chan int
++    for ; ; <-<-<-c {
++    }
++}

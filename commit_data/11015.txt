@@ -9,7 +9,52 @@ Date:   Tue Jan 3 12:15:08 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5501078
-
+---
  doc/codewalk/functions.xml | 12 +-----------
  doc/codewalk/pig.go        |  3 ---
  2 files changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/doc/codewalk/functions.xml b/doc/codewalk/functions.xml
+index 986a017e1a..db518dcc06 100644
+--- a/doc/codewalk/functions.xml
++++ b/doc/codewalk/functions.xml
+@@ -45,7 +45,7 @@
+   turn.
+ </step>
+ 
+-<step title="Multiple return values" src="doc/codewalk/pig.go:/\/\/ roll returns/,/stay.*true\n}/">
++<step title="Multiple return values" src="doc/codewalk/pig.go:/\/\/ roll returns/,/true\n}/">
+ 	Go functions can return multiple values.  
+ 	<br/><br/>
+ 
+@@ -82,16 +82,6 @@
+   associated with the current player.
+ </step>
+ 
+-<step title="Comparing functions" src="doc/codewalk/pig.go:/if action/,/currentPlayer\)\)\n\t\t}/">
+-	Functions can be compared for equality in Go.  From the 
+-	<a href="http://golang.org/doc/go_spec.html#Comparison_operators">language specification</a>:
+-  Function values are equal if they refer to the same function or if both are <code>nil</code>.
+-	<br/><br/>
+-
+-  We enforce that a <code>strategy</code> function can only return a legal
+-  <code>action</code>: either <code>roll</code> or <code>stay</code>.
+-</step>
+-
+ <step title="Simulating a tournament" src="doc/codewalk/pig.go:/\/\/ roundRobin/,/gamesPerStrategy\n}/">
+ 	The <code>roundRobin</code> function simulates a tournament and tallies wins.
+ 	Each strategy plays each other strategy <code>gamesPerSeries</code> times.
+diff --git a/doc/codewalk/pig.go b/doc/codewalk/pig.go
+index b3f02aff1e..10963b4e40 100644
+--- a/doc/codewalk/pig.go
++++ b/doc/codewalk/pig.go
+@@ -61,9 +61,6 @@ func play(strategy0, strategy1 strategy) int {
+ 	currentPlayer := rand.Intn(2) // Randomly decide who plays first
+ 	for s.player+s.thisTurn < win {
+ 		action := strategies[currentPlayer](s)
+-		if action != roll && action != stay {
+-			panic(fmt.Sprintf("Player %d is cheating", currentPlayer))
+-		}
+ 		s, turnIsOver = action(s)
+ 		if turnIsOver {
+ 			currentPlayer = (currentPlayer + 1) % 2

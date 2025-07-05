@@ -13,7 +13,7 @@ Date:   Sat Jul 3 05:27:54 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go           | 12 ------------
  src/cmd/compile/internal/noder/helpers.go     |  3 ---
  src/cmd/compile/internal/noder/stmt.go        |  6 +-----
@@ -23,3 +23,128 @@ Date:   Sat Jul 3 05:27:54 2021 -0700
  src/cmd/compile/internal/typecheck/iimport.go |  1 -
  src/cmd/compile/internal/typecheck/stmt.go    |  1 -
  8 files changed, 1 insertion(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 4ff75e616d..9c800dcd1a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -142,17 +142,6 @@ func (n *BinaryExpr) SetOp(op Op) {
+ 	}
+ }
+ 
+-// A CallUse records how the result of the call is used:
+-type CallUse byte
+-
+-const (
+-	_ CallUse = iota
+-
+-	CallUseExpr // single expression result is used
+-	CallUseList // list of results are used
+-	CallUseStmt // results not used - call is a statement
+-)
+-
+ // A CallExpr is a function call X(Args).
+ type CallExpr struct {
+ 	miniExpr
+@@ -161,7 +150,6 @@ type CallExpr struct {
+ 	Args      Nodes
+ 	KeepAlive []*Name // vars to be kept alive until call returns
+ 	IsDDD     bool
+-	Use       CallUse
+ 	NoInline  bool
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 6ab318318b..08affe4411 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -113,9 +113,6 @@ func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) ir.Node {
+ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+ 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 	n.IsDDD = dots
+-	// n.Use will be changed to ir.CallUseStmt in g.stmt() if this call is
+-	// just a statement (any return values are ignored).
+-	n.Use = ir.CallUseExpr
+ 
+ 	if fun.Op() == ir.OTYPE {
+ 		// Actually a type conversion, not a function call.
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 32a1483b4a..672a732187 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -35,11 +35,7 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 	case *syntax.BlockStmt:
+ 		return ir.NewBlockStmt(g.pos(stmt), g.blockStmt(stmt))
+ 	case *syntax.ExprStmt:
+-		x := g.expr(stmt.X)
+-		if call, ok := x.(*ir.CallExpr); ok {
+-			call.Use = ir.CallUseStmt
+-		}
+-		return x
++		return g.expr(stmt.X)
+ 	case *syntax.SendStmt:
+ 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
+ 		if n.Chan.Type().HasTParam() || n.Value.Type().HasTParam() {
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 7a685c4b47..e02b7e758d 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -326,7 +326,6 @@ assignOK:
+ 		stmt := stmt.(*ir.AssignListStmt)
+ 		stmt.SetOp(ir.OAS2FUNC)
+ 		r := rhs[0].(*ir.CallExpr)
+-		r.Use = ir.CallUseList
+ 		rtyp := r.Type()
+ 
+ 		mismatched := false
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index d0aad5ac07..68f0c20e52 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -317,10 +317,6 @@ func tcFunc(n *ir.Func) {
+ 
+ // tcCall typechecks an OCALL node.
+ func tcCall(n *ir.CallExpr, top int) ir.Node {
+-	n.Use = ir.CallUseExpr
+-	if top == ctxStmt {
+-		n.Use = ir.CallUseStmt
+-	}
+ 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
+ 	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
+ 	if n.X.Diag() {
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index b17af815ec..82bbda5228 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1922,7 +1922,6 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.bool(n.IsDDD)
+ 		if go117ExportTypes {
+ 			w.exoticType(n.Type())
+-			w.uint64(uint64(n.Use))
+ 		}
+ 
+ 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index a45bbfd1f8..17e60effd6 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1465,7 +1465,6 @@ func (r *importReader) node() ir.Node {
+ 		n.IsDDD = r.bool()
+ 		if go117ExportTypes {
+ 			n.SetType(r.exoticType())
+-			n.Use = ir.CallUse(r.uint64())
+ 		}
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index f1275f29c0..0143411822 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -201,7 +201,6 @@ assignOK:
+ 		stmt := stmt.(*ir.AssignListStmt)
+ 		stmt.SetOp(ir.OAS2FUNC)
+ 		r := rhs[0].(*ir.CallExpr)
+-		r.Use = ir.CallUseList
+ 		rtyp := r.Type()
+ 
+ 		mismatched := false

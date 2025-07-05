@@ -15,6 +15,20 @@ Date:   Sun Feb 19 12:10:18 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4bcac53994..11caacb9e9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1952,7 +1952,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 	case ODOTPTR:
+ 		p := s.exprPtr(n.Left, false, n.Pos)
+-		p = s.newValue1I(ssa.OpOffPtr, p.Type, n.Xoffset, p)
++		p = s.newValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, p)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case OINDEX:

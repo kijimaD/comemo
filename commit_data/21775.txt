@@ -7,7 +7,34 @@ Date:   Fri Jan 30 16:33:31 2015 -0800
     Change-Id: Icb1490f97584d61823339ae809b88d423b185e64
     Reviewed-on: https://go-review.googlesource.com/3751
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go     | 2 +-
  src/math/big/floatconv.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 1c3fcb5f74..ea42a9166e 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -58,7 +58,7 @@ const debugFloat = true // enable for debugging
+ // rounding, Float arithmetic operations emulate the corresponding float32
+ // or float64 IEEE-754 operations (except for denormalized numbers and NaNs).
+ //
+-// CAUTION: THIS IS WORK IN PROGRESS - DO NOT USE YET.
++// CAUTION: THIS IS WORK IN PROGRESS - USE AT YOUR OWN RISK.
+ //
+ type Float struct {
+ 	mode RoundingMode
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index f50a3a5c72..a1b234f144 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -184,7 +184,7 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
+ //
+ // BUG(gri) Currently, Format only accepts the 'b' and 'p' format.
+ func (x *Float) Format(format byte, prec int) string {
+-	const extra = 10 // TODO(gri) determine a good/better vaue here
++	const extra = 10 // TODO(gri) determine a good/better value here
+ 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
+ }
+ 

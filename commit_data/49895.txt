@@ -21,7 +21,7 @@ Date:   Thu Sep 9 09:38:55 2021 -0700
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |  11 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/go/testdata/script/mod_all.txt             |  67 ++++-
@@ -32,3 +32,576 @@ Date:   Thu Sep 9 09:38:55 2021 -0700
  src/cmd/vendor/modules.txt                         |   2 +-
  src/go.mod                                         |   3 +
  9 files changed, 266 insertions(+), 152 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 05a118d812..26be677254 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,12 +4,15 @@ go 1.18
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20210827144239-02619b876842
+-	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1
+-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+-	golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4
+-	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
++	golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a
+ 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+ 	golang.org/x/tools v0.1.6-0.20210904010709-360456621443
++)
++
++require (
++	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
++	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
++	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+ 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index eebb44c053..19bb1ee213 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -9,8 +9,8 @@ golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1 h1:MwxAfiDvuwX8Nnnc6iRDhzyM
+ golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 h1:HWj/xjIHfjYU5nVXpTM0s39J9CbLn7Cc5a7IC5rwsMQ=
+ golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+-golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4 h1:7Qds88gNaRx0Dz/1wOwXlR7asekh1B1u26wEwN6FcEI=
+-golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a h1:55PVa91KndtPGH2lus5l2gDZqoO/x+Oa5CV0lVf8Ij8=
++golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e h1:XMgFehsDnnLGtjvjOfqWSUzt0alpTR1RSEuznObga2c=
+ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+diff --git a/src/cmd/go/testdata/script/mod_all.txt b/src/cmd/go/testdata/script/mod_all.txt
+index 6fa2d83239..b71a920870 100644
+--- a/src/cmd/go/testdata/script/mod_all.txt
++++ b/src/cmd/go/testdata/script/mod_all.txt
+@@ -202,9 +202,9 @@ go mod edit -go=1.17 u/go.mod
+ go mod edit -go=1.17 w/go.mod
+ go mod edit -go=1.17 x/go.mod
+ go mod edit -go=1.17
+-cp go.mod go.mod.orig
++cmp go.mod go.mod.beforetidy
+ go mod tidy
+-cmp go.mod go.mod.orig
++cmp go.mod go.mod.aftertidy
+ 
+ # With lazy loading, 'go list all' with neither -mod=vendor nor -test should
+ # match -mod=vendor without -test in 1.15.
+@@ -466,3 +466,66 @@ module example.com/x
+ go 1.15
+ -- x/x.go --
+ package x
++-- go.mod.beforetidy --
++module example.com/main
++
++// Note: this go.mod file initially specifies go 1.15,
++// but includes some redundant roots so that it
++// also already obeys the 1.17 lazy loading invariants.
++go 1.17
++
++require (
++	example.com/a v0.1.0
++	example.com/b v0.1.0 // indirect
++	example.com/q v0.1.0
++	example.com/r v0.1.0 // indirect
++	example.com/t v0.1.0
++	example.com/u v0.1.0 // indirect
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c
++	example.com/d v0.1.0 => ./d
++	example.com/q v0.1.0 => ./q
++	example.com/r v0.1.0 => ./r
++	example.com/s v0.1.0 => ./s
++	example.com/t v0.1.0 => ./t
++	example.com/u v0.1.0 => ./u
++	example.com/w v0.1.0 => ./w
++	example.com/x v0.1.0 => ./x
++)
++-- go.mod.aftertidy --
++module example.com/main
++
++// Note: this go.mod file initially specifies go 1.15,
++// but includes some redundant roots so that it
++// also already obeys the 1.17 lazy loading invariants.
++go 1.17
++
++require (
++	example.com/a v0.1.0
++	example.com/q v0.1.0
++	example.com/t v0.1.0
++)
++
++require (
++	example.com/b v0.1.0 // indirect
++	example.com/r v0.1.0 // indirect
++	example.com/u v0.1.0 // indirect
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c
++	example.com/d v0.1.0 => ./d
++	example.com/q v0.1.0 => ./q
++	example.com/r v0.1.0 => ./r
++	example.com/s v0.1.0 => ./s
++	example.com/t v0.1.0 => ./t
++	example.com/u v0.1.0 => ./u
++	example.com/w v0.1.0 => ./w
++	example.com/x v0.1.0 => ./x
++)
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index 481c10d2b7..9d30026459 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -83,14 +83,14 @@ require (
+ package x
+ import _ "rsc.io/quote"
+ -- go.mod.crlf --
+-module m
+-
+-go 1.14
+-
+-require (
+-	rsc.io/quote v1.5.2
+-	rsc.io/testonly v1.0.0 // indirect
+-)
++module m
++
++go 1.14
++
++require (
++	rsc.io/quote v1.5.2
++	rsc.io/testonly v1.0.0 // indirect
++)
+ -- go.mod.unsorted --
+ module m
+ 
+@@ -141,10 +141,10 @@ module m
+ 
+ go $goversion
+ 
++require rsc.io/quote v1.5.2
++
+ require (
+-	rsc.io/quote v1.5.2
++	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+ 	rsc.io/sampler v1.3.0 // indirect
+ 	rsc.io/testonly v1.0.0 // indirect
+ )
+-
+-require golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+index 44bc58cc6c..a45de5ad8c 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+@@ -72,10 +72,9 @@ go 1.17
+ 
+ replace example.net/indirect v0.1.0 => ./indirect
+ 
+-require (
+-	example.net/ambiguous/nested v0.1.0 // indirect
+-	example.net/indirect v0.1.0
+-)
++require example.net/indirect v0.1.0
++
++require example.net/ambiguous/nested v0.1.0 // indirect
+ -- all-m.txt --
+ example.com/m
+ example.net/ambiguous v0.1.0
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+index ea9e42e87e..11313f144c 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+@@ -97,10 +97,9 @@ replace (
+ 	example.net/requireincompatible v0.1.0 => ./requireincompatible
+ )
+ 
+-require (
+-	example.com/retract/incompatible v1.0.0 // indirect
+-	example.net/lazy v0.1.0
+-)
++require example.net/lazy v0.1.0
++
++require example.com/retract/incompatible v1.0.0 // indirect
+ -- incompatible.go --
+ package incompatible
+ 
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index d6a2d3879e..98211a450a 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -1034,170 +1034,217 @@ func (f *File) SetRequire(req []*Require) {
+ 
+ // SetRequireSeparateIndirect updates the requirements of f to contain the given
+ // requirements. Comment contents (except for 'indirect' markings) are retained
+-// from the first existing requirement for each module path, and block structure
+-// is maintained as long as the indirect markings match.
++// from the first existing requirement for each module path. Like SetRequire,
++// SetRequireSeparateIndirect adds requirements for new paths in req,
++// updates the version and "// indirect" comment on existing requirements,
++// and deletes requirements on paths not in req. Existing duplicate requirements
++// are deleted.
+ //
+-// Any requirements on paths not already present in the file are added. Direct
+-// requirements are added to the last block containing *any* other direct
+-// requirement. Indirect requirements are added to the last block containing
+-// *only* other indirect requirements. If no suitable block exists, a new one is
+-// added, with the last block containing a direct dependency (if any)
+-// immediately before the first block containing only indirect dependencies.
++// As its name suggests, SetRequireSeparateIndirect puts direct and indirect
++// requirements into two separate blocks, one containing only direct
++// requirements, and the other containing only indirect requirements.
++// SetRequireSeparateIndirect may move requirements between these two blocks
++// when their indirect markings change. However, SetRequireSeparateIndirect
++// won't move requirements from other blocks, especially blocks with comments.
+ //
+-// The Syntax field is ignored for requirements in the given blocks.
++// If the file initially has one uncommented block of requirements,
++// SetRequireSeparateIndirect will split it into a direct-only and indirect-only
++// block. This aids in the transition to separate blocks.
+ func (f *File) SetRequireSeparateIndirect(req []*Require) {
+-	type modKey struct {
+-		path     string
+-		indirect bool
+-	}
+-	need := make(map[modKey]string)
+-	for _, r := range req {
+-		need[modKey{r.Mod.Path, r.Indirect}] = r.Mod.Version
++	// hasComments returns whether a line or block has comments
++	// other than "indirect".
++	hasComments := func(c Comments) bool {
++		return len(c.Before) > 0 || len(c.After) > 0 || len(c.Suffix) > 1 ||
++			(len(c.Suffix) == 1 &&
++				strings.TrimSpace(strings.TrimPrefix(c.Suffix[0].Token, string(slashSlash))) != "indirect")
+ 	}
+ 
+-	comments := make(map[string]Comments)
+-	for _, r := range f.Require {
+-		v, ok := need[modKey{r.Mod.Path, r.Indirect}]
+-		if !ok {
+-			if _, ok := need[modKey{r.Mod.Path, !r.Indirect}]; ok {
+-				if _, dup := comments[r.Mod.Path]; !dup {
+-					comments[r.Mod.Path] = r.Syntax.Comments
+-				}
++	// moveReq adds r to block. If r was in another block, moveReq deletes
++	// it from that block and transfers its comments.
++	moveReq := func(r *Require, block *LineBlock) {
++		var line *Line
++		if r.Syntax == nil {
++			line = &Line{Token: []string{AutoQuote(r.Mod.Path), r.Mod.Version}}
++			r.Syntax = line
++			if r.Indirect {
++				r.setIndirect(true)
+ 			}
+-			r.markRemoved()
+-			continue
++		} else {
++			line = new(Line)
++			*line = *r.Syntax
++			if !line.InBlock && len(line.Token) > 0 && line.Token[0] == "require" {
++				line.Token = line.Token[1:]
++			}
++			r.Syntax.Token = nil // Cleanup will delete the old line.
++			r.Syntax = line
+ 		}
+-		r.setVersion(v)
+-		delete(need, modKey{r.Mod.Path, r.Indirect})
++		line.InBlock = true
++		block.Line = append(block.Line, line)
+ 	}
+ 
++	// Examine existing require lines and blocks.
+ 	var (
+-		lastDirectOrMixedBlock Expr
+-		firstIndirectOnlyBlock Expr
+-		lastIndirectOnlyBlock  Expr
++		// We may insert new requirements into the last uncommented
++		// direct-only and indirect-only blocks. We may also move requirements
++		// to the opposite block if their indirect markings change.
++		lastDirectIndex   = -1
++		lastIndirectIndex = -1
++
++		// If there are no direct-only or indirect-only blocks, a new block may
++		// be inserted after the last require line or block.
++		lastRequireIndex = -1
++
++		// If there's only one require line or block, and it's uncommented,
++		// we'll move its requirements to the direct-only or indirect-only blocks.
++		requireLineOrBlockCount = 0
++
++		// Track the block each requirement belongs to (if any) so we can
++		// move them later.
++		lineToBlock = make(map[*Line]*LineBlock)
+ 	)
+-	for _, stmt := range f.Syntax.Stmt {
++	for i, stmt := range f.Syntax.Stmt {
+ 		switch stmt := stmt.(type) {
+ 		case *Line:
+ 			if len(stmt.Token) == 0 || stmt.Token[0] != "require" {
+ 				continue
+ 			}
+-			if isIndirect(stmt) {
+-				lastIndirectOnlyBlock = stmt
+-			} else {
+-				lastDirectOrMixedBlock = stmt
++			lastRequireIndex = i
++			requireLineOrBlockCount++
++			if !hasComments(stmt.Comments) {
++				if isIndirect(stmt) {
++					lastIndirectIndex = i
++				} else {
++					lastDirectIndex = i
++				}
+ 			}
++
+ 		case *LineBlock:
+ 			if len(stmt.Token) == 0 || stmt.Token[0] != "require" {
+ 				continue
+ 			}
+-			indirectOnly := true
++			lastRequireIndex = i
++			requireLineOrBlockCount++
++			allDirect := len(stmt.Line) > 0 && !hasComments(stmt.Comments)
++			allIndirect := len(stmt.Line) > 0 && !hasComments(stmt.Comments)
+ 			for _, line := range stmt.Line {
+-				if len(line.Token) == 0 {
+-					continue
+-				}
+-				if !isIndirect(line) {
+-					indirectOnly = false
+-					break
++				lineToBlock[line] = stmt
++				if hasComments(line.Comments) {
++					allDirect = false
++					allIndirect = false
++				} else if isIndirect(line) {
++					allDirect = false
++				} else {
++					allIndirect = false
+ 				}
+ 			}
+-			if indirectOnly {
+-				lastIndirectOnlyBlock = stmt
+-				if firstIndirectOnlyBlock == nil {
+-					firstIndirectOnlyBlock = stmt
+-				}
+-			} else {
+-				lastDirectOrMixedBlock = stmt
++			if allDirect {
++				lastDirectIndex = i
++			}
++			if allIndirect {
++				lastIndirectIndex = i
+ 			}
+ 		}
+ 	}
+ 
+-	isOrContainsStmt := func(stmt Expr, target Expr) bool {
+-		if stmt == target {
+-			return true
+-		}
+-		if stmt, ok := stmt.(*LineBlock); ok {
+-			if target, ok := target.(*Line); ok {
+-				for _, line := range stmt.Line {
+-					if line == target {
+-						return true
+-					}
+-				}
++	oneFlatUncommentedBlock := requireLineOrBlockCount == 1 &&
++		!hasComments(*f.Syntax.Stmt[lastRequireIndex].Comment())
++
++	// Create direct and indirect blocks if needed. Convert lines into blocks
++	// if needed. If we end up with an empty block or a one-line block,
++	// Cleanup will delete it or convert it to a line later.
++	insertBlock := func(i int) *LineBlock {
++		block := &LineBlock{Token: []string{"require"}}
++		f.Syntax.Stmt = append(f.Syntax.Stmt, nil)
++		copy(f.Syntax.Stmt[i+1:], f.Syntax.Stmt[i:])
++		f.Syntax.Stmt[i] = block
++		return block
++	}
++
++	ensureBlock := func(i int) *LineBlock {
++		switch stmt := f.Syntax.Stmt[i].(type) {
++		case *LineBlock:
++			return stmt
++		case *Line:
++			block := &LineBlock{
++				Token: []string{"require"},
++				Line:  []*Line{stmt},
+ 			}
++			stmt.Token = stmt.Token[1:] // remove "require"
++			stmt.InBlock = true
++			f.Syntax.Stmt[i] = block
++			return block
++		default:
++			panic(fmt.Sprintf("unexpected statement: %v", stmt))
+ 		}
+-		return false
+ 	}
+ 
+-	addRequire := func(path, vers string, indirect bool, comments Comments) {
+-		var line *Line
+-		if indirect {
+-			if lastIndirectOnlyBlock != nil {
+-				line = f.Syntax.addLine(lastIndirectOnlyBlock, "require", path, vers)
+-			} else {
+-				// Add a new require block after the last direct-only or mixed "require"
+-				// block (if any).
+-				//
+-				// (f.Syntax.addLine would add the line to an existing "require" block if
+-				// present, but here the existing "require" blocks are all direct-only, so
+-				// we know we need to add a new block instead.)
+-				line = &Line{Token: []string{"require", path, vers}}
+-				lastIndirectOnlyBlock = line
+-				firstIndirectOnlyBlock = line // only block implies first block
+-				if lastDirectOrMixedBlock == nil {
+-					f.Syntax.Stmt = append(f.Syntax.Stmt, line)
+-				} else {
+-					for i, stmt := range f.Syntax.Stmt {
+-						if isOrContainsStmt(stmt, lastDirectOrMixedBlock) {
+-							f.Syntax.Stmt = append(f.Syntax.Stmt, nil)     // increase size
+-							copy(f.Syntax.Stmt[i+2:], f.Syntax.Stmt[i+1:]) // shuffle elements up
+-							f.Syntax.Stmt[i+1] = line
+-							break
+-						}
+-					}
+-				}
+-			}
++	var lastDirectBlock *LineBlock
++	if lastDirectIndex < 0 {
++		if lastIndirectIndex >= 0 {
++			lastDirectIndex = lastIndirectIndex
++			lastIndirectIndex++
++		} else if lastRequireIndex >= 0 {
++			lastDirectIndex = lastRequireIndex + 1
+ 		} else {
+-			if lastDirectOrMixedBlock != nil {
+-				line = f.Syntax.addLine(lastDirectOrMixedBlock, "require", path, vers)
+-			} else {
+-				// Add a new require block before the first indirect block (if any).
+-				//
+-				// That way if the file initially contains only indirect lines,
+-				// the direct lines still appear before it: we preserve existing
+-				// structure, but only to the extent that that structure already
+-				// reflects the direct/indirect split.
+-				line = &Line{Token: []string{"require", path, vers}}
+-				lastDirectOrMixedBlock = line
+-				if firstIndirectOnlyBlock == nil {
+-					f.Syntax.Stmt = append(f.Syntax.Stmt, line)
+-				} else {
+-					for i, stmt := range f.Syntax.Stmt {
+-						if isOrContainsStmt(stmt, firstIndirectOnlyBlock) {
+-							f.Syntax.Stmt = append(f.Syntax.Stmt, nil)   // increase size
+-							copy(f.Syntax.Stmt[i+1:], f.Syntax.Stmt[i:]) // shuffle elements up
+-							f.Syntax.Stmt[i] = line
+-							break
+-						}
+-					}
+-				}
+-			}
++			lastDirectIndex = len(f.Syntax.Stmt)
+ 		}
++		lastDirectBlock = insertBlock(lastDirectIndex)
++	} else {
++		lastDirectBlock = ensureBlock(lastDirectIndex)
++	}
+ 
+-		line.Comments.Before = commentsAdd(line.Comments.Before, comments.Before)
+-		line.Comments.Suffix = commentsAdd(line.Comments.Suffix, comments.Suffix)
++	var lastIndirectBlock *LineBlock
++	if lastIndirectIndex < 0 {
++		lastIndirectIndex = lastDirectIndex + 1
++		lastIndirectBlock = insertBlock(lastIndirectIndex)
++	} else {
++		lastIndirectBlock = ensureBlock(lastIndirectIndex)
++	}
+ 
+-		r := &Require{
+-			Mod:      module.Version{Path: path, Version: vers},
+-			Indirect: indirect,
+-			Syntax:   line,
++	// Delete requirements we don't want anymore.
++	// Update versions and indirect comments on requirements we want to keep.
++	// If a requirement is in last{Direct,Indirect}Block with the wrong
++	// indirect marking after this, or if the requirement is in an single
++	// uncommented mixed block (oneFlatUncommentedBlock), move it to the
++	// correct block.
++	//
++	// Some blocks may be empty after this. Cleanup will remove them.
++	need := make(map[string]*Require)
++	for _, r := range req {
++		need[r.Mod.Path] = r
++	}
++	have := make(map[string]*Require)
++	for _, r := range f.Require {
++		path := r.Mod.Path
++		if need[path] == nil || have[path] != nil {
++			// Requirement not needed, or duplicate requirement. Delete.
++			r.markRemoved()
++			continue
++		}
++		have[r.Mod.Path] = r
++		r.setVersion(need[path].Mod.Version)
++		r.setIndirect(need[path].Indirect)
++		if need[path].Indirect &&
++			(oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastDirectBlock) {
++			moveReq(r, lastIndirectBlock)
++		} else if !need[path].Indirect &&
++			(oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastIndirectBlock) {
++			moveReq(r, lastDirectBlock)
+ 		}
+-		r.setIndirect(indirect)
+-		f.Require = append(f.Require, r)
+ 	}
+ 
+-	for k, vers := range need {
+-		addRequire(k.path, vers, k.indirect, comments[k.path])
++	// Add new requirements.
++	for path, r := range need {
++		if have[path] == nil {
++			if r.Indirect {
++				moveReq(r, lastIndirectBlock)
++			} else {
++				moveReq(r, lastDirectBlock)
++			}
++			f.Require = append(f.Require, r)
++		}
+ 	}
++
+ 	f.SortBlocks()
+ }
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 966ba1358e..4ff07ab015 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
+ ## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+-# golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4
++# golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+diff --git a/src/go.mod b/src/go.mod
+index a4a6c4f05d..69e2655e88 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -5,6 +5,9 @@ go 1.18
+ require (
+ 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+ 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
++)
++
++require (
+ 	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e // indirect
+ 	golang.org/x/text v0.3.7 // indirect
+ )

@@ -18,6 +18,35 @@ Date:   Wed Aug 18 13:10:04 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 75b4931c31..75d6115783 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -578,7 +578,9 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 
+ 		// Sort methods, for consistency with types2.
+ 		methods := append([]*types.Field(nil), t.Methods().Slice()...)
+-		sort.Sort(types.MethodsByName(methods))
++		if base.Debug.UnifiedQuirks != 0 {
++			sort.Sort(types.MethodsByName(methods))
++		}
+ 
+ 		w.uint64(uint64(len(methods)))
+ 		for _, m := range methods {
+@@ -978,8 +980,10 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		// Sort methods and embedded types, for consistency with types2.
+ 		// Note: embedded types may be anonymous, and types2 sorts them
+ 		// with sort.Stable too.
+-		sort.Sort(types.MethodsByName(methods))
+-		sort.Stable(types.EmbeddedsByName(embeddeds))
++		if base.Debug.UnifiedQuirks != 0 {
++			sort.Sort(types.MethodsByName(methods))
++			sort.Stable(types.EmbeddedsByName(embeddeds))
++		}
+ 
+ 		w.startType(interfaceType)
+ 		w.setPkg(t.Pkg(), true)

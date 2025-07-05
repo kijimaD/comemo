@@ -9,7 +9,48 @@ Date:   Fri Aug 21 21:38:41 2015 -0500
     Change-Id: I101190c40a753faaa82193ac37e2978b20a96e4e
     Reviewed-on: https://go-review.googlesource.com/13748
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go  | 10 ++++++++++
  src/cmd/compile/internal/gc/type.go |  8 ++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6d3359ad0e..a7349a8f1f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1349,6 +1349,16 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.newValue1(op, Types[TINT], s.expr(n.Left))
+ 		case n.Left.Type.IsString(): // string; not reachable for OCAP
+ 			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
++		case n.Left.Type.IsMap():
++			s.Unimplementedf("unhandled len(map)")
++			return nil
++		case n.Left.Type.IsChan():
++			if n.Op == OCAP {
++				s.Unimplementedf("unhandled cap(chan)")
++			} else {
++				s.Unimplementedf("unhandled len(chan)")
++			}
++			return nil
+ 		default: // array
+ 			return s.constInt(Types[TINT], n.Left.Type.Bound)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index bcad025ba6..697152bebd 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -64,6 +64,14 @@ func (t *Type) IsString() bool {
+ 	return t.Etype == TSTRING
+ }
+ 
++func (t *Type) IsMap() bool {
++	return t.Etype == TMAP
++}
++
++func (t *Type) IsChan() bool {
++	return t.Etype == TCHAN
++}
++
+ func (t *Type) IsSlice() bool {
+ 	return t.Etype == TARRAY && t.Bound < 0
+ }

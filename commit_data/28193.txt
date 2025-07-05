@@ -11,6 +11,29 @@ Date:   Wed May 4 11:43:42 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 457bf639db..d77b912041 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -208,10 +208,16 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("value %s has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
+ 			}
+ 
+-			for _, arg := range v.Args {
++			for i, arg := range v.Args {
+ 				if arg == nil {
+ 					f.Fatalf("value %s has nil arg", v.LongString())
+ 				}
++				if v.Op != OpPhi {
++					// For non-Phi ops, memory args must be last, if present
++					if arg.Type.IsMemory() && i != len(v.Args)-1 {
++						f.Fatalf("value %s has non-final memory arg (%d < %d)", v.LongString(), i, len(v.Args)-1)
++					}
++				}
+ 			}
+ 
+ 			if valueMark[v.ID] {

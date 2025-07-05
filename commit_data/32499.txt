@@ -18,8 +18,80 @@ Date:   Thu Apr 27 07:37:40 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/norace.go |  9 +++++++++
  src/cmd/compile/internal/gc/pgen.go   | 23 +++++++++++++++++------
  src/cmd/compile/internal/gc/race.go   |  9 +++++++++
  3 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/norace.go b/src/cmd/compile/internal/gc/norace.go
+new file mode 100644
+index 0000000000..e00f0c4a84
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/norace.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++package gc
++
++const raceEnabled = false
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 363d53393a..3cf5f60331 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
++	"math/rand"
+ 	"sort"
+ 	"sync"
+ )
+@@ -253,12 +254,22 @@ func compileSSA(fn *Node, worker int) {
+ // and waits for them to complete.
+ func compileFunctions() {
+ 	if len(compilequeue) != 0 {
+-		// Compile the longest functions first,
+-		// since they're most likely to be the slowest.
+-		// This helps avoid stragglers.
+-		obj.SortSlice(compilequeue, func(i, j int) bool {
+-			return compilequeue[i].Nbody.Len() > compilequeue[j].Nbody.Len()
+-		})
++		if raceEnabled {
++			// Randomize compilation order to try to shake out races.
++			tmp := make([]*Node, len(compilequeue))
++			perm := rand.Perm(len(compilequeue))
++			for i, v := range perm {
++				tmp[v] = compilequeue[i]
++			}
++			copy(compilequeue, tmp)
++		} else {
++			// Compile the longest functions first,
++			// since they're most likely to be the slowest.
++			// This helps avoid stragglers.
++			obj.SortSlice(compilequeue, func(i, j int) bool {
++				return compilequeue[i].Nbody.Len() > compilequeue[j].Nbody.Len()
++			})
++		}
+ 		var wg sync.WaitGroup
+ 		c := make(chan *Node)
+ 		for i := 0; i < nBackendWorkers; i++ {
+diff --git a/src/cmd/compile/internal/gc/race.go b/src/cmd/compile/internal/gc/race.go
+new file mode 100644
+index 0000000000..78e1997cf9
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/race.go
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package gc
++
++const raceEnabled = true

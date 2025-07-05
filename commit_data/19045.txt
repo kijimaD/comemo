@@ -7,7 +7,55 @@ Date:   Sun Apr 6 10:30:02 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/84570045
-
+---
  src/cmd/8g/prog.c  | 15 ++++++++++-----
  src/cmd/gc/plive.c | 10 +++++++++-
  2 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+index 627658b452..8eed67f6d2 100644
+--- a/src/cmd/8g/prog.c
++++ b/src/cmd/8g/prog.c
+@@ -138,11 +138,16 @@ static ProgInfo progtable[ALAST] = {
+ 	[AFMOVW]=	{SizeW | LeftAddr | RightWrite},
+ 	[AFMOVV]=	{SizeQ | LeftAddr | RightWrite},
+ 
+-	[AFMOVDP]=	{SizeD | LeftRead | RightAddr},
+-	[AFMOVFP]=	{SizeF | LeftRead | RightAddr},
+-	[AFMOVLP]=	{SizeL | LeftRead | RightAddr},
+-	[AFMOVWP]=	{SizeW | LeftRead | RightAddr},
+-	[AFMOVVP]=	{SizeQ | LeftRead | RightAddr},
++	// These instructions are marked as RightAddr
++	// so that the register optimizer does not try to replace the
++	// memory references with integer register references.
++	// But they do not use the previous value at the address, so
++	// we also mark them RightWrite.
++	[AFMOVDP]=	{SizeD | LeftRead | RightWrite | RightAddr},
++	[AFMOVFP]=	{SizeF | LeftRead | RightWrite | RightAddr},
++	[AFMOVLP]=	{SizeL | LeftRead | RightWrite | RightAddr},
++	[AFMOVWP]=	{SizeW | LeftRead | RightWrite | RightAddr},
++	[AFMOVVP]=	{SizeQ | LeftRead | RightWrite | RightAddr},
+ 
+ 	[AFMULD]=	{SizeD | LeftAddr | RightRdwr},
+ 	[AFMULDP]=	{SizeD | LeftAddr | RightRdwr},
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index f6db02be54..eb89017338 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -755,7 +755,15 @@ Next:
+ 					if(prog->as == AVARDEF || prog->as == AVARKILL)
+ 						bvset(varkill, pos);
+ 				} else {
+-					if(info.flags & (RightRead | RightAddr))
++					// RightRead is a read, obviously.
++					// RightAddr by itself is also implicitly a read.
++					//
++					// RightAddr|RightWrite means that the address is being taken
++					// but only so that the instruction can write to the value.
++					// It is not a read. It is equivalent to RightWrite except that
++					// having the RightAddr bit set keeps the registerizer from
++					// trying to substitute a register for the memory location.
++					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
+ 						bvset(uevar, pos);
+ 					if(info.flags & RightWrite)
+ 						if(to->node != nil && (!isfat(to->node->type) || prog->as == AVARDEF))

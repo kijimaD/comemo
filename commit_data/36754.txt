@@ -18,7 +18,7 @@ Date:   Wed May 23 22:03:08 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go                      |   1 -
  src/crypto/aes/asm_s390x.s                     |  23 ------
  src/crypto/aes/cipher_amd64.go                 |  12 +--
@@ -38,3 +38,582 @@ Date:   Wed May 23 22:03:08 2018 +0000
  src/internal/cpu/cpu_s390x.go                  |  15 ++++
  src/internal/cpu/cpu_s390x.s                   | 101 +++++++++++++++++++++++++
  18 files changed, 158 insertions(+), 181 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index 39c5aa0b68..c1cacdb752 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -13,7 +13,6 @@ import (
+ )
+ 
+ // The following functions are defined in gcm_amd64.s.
+-func hasGCMAsm() bool
+ 
+ //go:noescape
+ func aesEncBlock(dst, src *[16]byte, ks []uint32)
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/aes/asm_s390x.s
+index cbeb622ace..0c60ac2275 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/aes/asm_s390x.s
+@@ -151,29 +151,6 @@ loop:
+ 	MOVD	$0, R0
+ 	RET
+ 
+-// func supportsKMA() bool
+-TEXT ·supportsKMA(SB),NOSPLIT,$24-1
+-	MOVD	$tmp-24(SP), R1
+-	MOVD	$2, R0       // store 24-bytes
+-	XC	$24, (R1), (R1)
+-	WORD	$0xb2b01000  // STFLE (R1)
+-	MOVWZ	16(R1), R2
+-	ANDW	$(1<<13), R2 // test bit 146 (message-security-assist 8)
+-	BEQ	no
+-
+-	MOVD	$0, R0       // KMA-Query
+-	XC	$16, (R1), (R1)
+-	WORD	$0xb9296024  // kma %r6,%r2,%r4
+-	MOVWZ	(R1), R2
+-	WORD	$0xa7213800  // TMLL R2, $0x3800
+-	BVS	yes
+-no:
+-	MOVB	$0, ret+0(FP)
+-	RET
+-yes:
+-	MOVB	$1, ret+0(FP)
+-	RET
+-
+ // func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+ TEXT ·kmaGCM(SB),NOSPLIT,$112-120
+ 	MOVD	fn+0(FP), R0
+diff --git a/src/crypto/aes/cipher_amd64.go b/src/crypto/aes/cipher_amd64.go
+index 43de3bdffd..4b3b877cd7 100644
+--- a/src/crypto/aes/cipher_amd64.go
++++ b/src/crypto/aes/cipher_amd64.go
+@@ -6,10 +6,11 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/cipherhw"
++	"internal/cpu"
+ )
+ 
+ // defined in asm_amd64.s
++
+ func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+ func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+@@ -18,10 +19,8 @@ type aesCipherAsm struct {
+ 	aesCipher
+ }
+ 
+-var useAsm = cipherhw.AESGCMSupport()
+-
+ func newCipher(key []byte) (cipher.Block, error) {
+-	if !useAsm {
++	if !cpu.X86.HasAES {
+ 		return newCipherGeneric(key)
+ 	}
+ 	n := len(key) + 28
+@@ -35,8 +34,9 @@ func newCipher(key []byte) (cipher.Block, error) {
+ 	case 256 / 8:
+ 		rounds = 14
+ 	}
++
+ 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
+-	if hasGCMAsm() {
++	if cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ {
+ 		return &aesCipherGCM{c}, nil
+ 	}
+ 
+@@ -68,7 +68,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+ // expandKey is used by BenchmarkExpand to ensure that the asm implementation
+ // of key expansion is used for the benchmark when it is available.
+ func expandKey(key []byte, enc, dec []uint32) {
+-	if useAsm {
++	if cpu.X86.HasAES {
+ 		rounds := 10 // rounds needed for AES128
+ 		switch len(key) {
+ 		case 192 / 8:
+diff --git a/src/crypto/aes/cipher_ppc64le.go b/src/crypto/aes/cipher_ppc64le.go
+index 4a564e926c..110f61f57c 100644
+--- a/src/crypto/aes/cipher_ppc64le.go
++++ b/src/crypto/aes/cipher_ppc64le.go
+@@ -11,23 +11,18 @@ import (
+ // defined in asm_ppc64le.s
+ 
+ //go:noescape
+-
+ func setEncryptKeyAsm(key *byte, keylen int, enc *uint32) int
+ 
+ //go:noescape
+-
+ func setDecryptKeyAsm(key *byte, keylen int, dec *uint32) int
+ 
+ //go:noescape
+-
+ func doEncryptKeyAsm(key *byte, keylen int, dec *uint32) int
+ 
+ //go:noescape
+-
+ func encryptBlockAsm(dst, src *byte, enc *uint32)
+ 
+ //go:noescape
+-
+ func decryptBlockAsm(dst, src *byte, dec *uint32)
+ 
+ type aesCipherAsm struct {
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+index 28d0ac90cf..93e3b929b9 100644
+--- a/src/crypto/aes/cipher_s390x.go
++++ b/src/crypto/aes/cipher_s390x.go
+@@ -6,7 +6,7 @@ package aes
+ 
+ import (
+ 	"crypto/cipher"
+-	"crypto/internal/cipherhw"
++	"internal/cpu"
+ )
+ 
+ type code int
+@@ -19,9 +19,9 @@ const (
+ )
+ 
+ type aesCipherAsm struct {
+-	function code      // code for cipher message instruction
+-	key      []byte    // key (128, 192 or 256 bytes)
+-	storage  [256]byte // array backing key slice
++	function code     // code for cipher message instruction
++	key      []byte   // key (128, 192 or 256 bits)
++	storage  [32]byte // array backing key slice
+ }
+ 
+ // cryptBlocks invokes the cipher message (KM) instruction with
+@@ -30,10 +30,13 @@ type aesCipherAsm struct {
+ //go:noescape
+ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+-var useAsm = cipherhw.AESGCMSupport()
+-
+ func newCipher(key []byte) (cipher.Block, error) {
+-	if !useAsm {
++	// Strictly speaking, this check should be for HasKM.
++	// The check for HasKMC and HasKMCTR provides compatibility
++	// with the existing optimized s390x CBC and CTR implementations
++	// in this package, which already assert that they meet the
++	// cbcEncAble, cbcDecAble, and ctrAble interfaces
++	if !(cpu.S390X.HasKM && cpu.S390X.HasKMC && cpu.S390X.HasKMCTR) {
+ 		return newCipherGeneric(key)
+ 	}
+ 
+diff --git a/src/crypto/aes/gcm_amd64.s b/src/crypto/aes/gcm_amd64.s
+index c1fc923a75..b651cc4925 100644
+--- a/src/crypto/aes/gcm_amd64.s
++++ b/src/crypto/aes/gcm_amd64.s
+@@ -71,20 +71,6 @@ GLOBL bswapMask<>(SB), (NOPTR+RODATA), $16
+ GLOBL gcmPoly<>(SB), (NOPTR+RODATA), $16
+ GLOBL andMask<>(SB), (NOPTR+RODATA), $240
+ 
+-// func hasGCMAsm() bool
+-// returns whether AES-NI AND CLMUL-NI are supported
+-TEXT ·hasGCMAsm(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	MOVQ CX, DX
+-	SHRQ $25, CX
+-	SHRQ $1, DX
+-	ANDQ DX, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+-
+ // func aesEncBlock(dst, src *[16]byte, ks []uint32)
+ TEXT ·aesEncBlock(SB),NOSPLIT,$0
+ 	MOVQ dst+0(FP), DI
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index d9f9b73470..acac6ec7b6 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/subtle"
+ 	"errors"
++	"internal/cpu"
+ )
+ 
+ // This file contains two implementations of AES-GCM. The first implementation
+@@ -84,7 +85,7 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 		nonceSize: nonceSize,
+ 		tagSize:   tagSize,
+ 	}
+-	if hasKMA {
++	if cpu.S390X.HasKMA {
+ 		g := gcmKMA{g}
+ 		return &g, nil
+ 	}
+@@ -288,13 +289,6 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	return ret, nil
+ }
+ 
+-// supportsKMA reports whether the message-security-assist 8 facility is available.
+-// This function call may be expensive so hasKMA should be queried instead.
+-func supportsKMA() bool
+-
+-// hasKMA contains the result of supportsKMA.
+-var hasKMA = supportsKMA()
+-
+ // gcmKMA implements the cipher.AEAD interface using the KMA instruction. It should
+ // only be used if hasKMA is true.
+ type gcmKMA struct {
+diff --git a/src/crypto/internal/cipherhw/asm_amd64.s b/src/crypto/internal/cipherhw/asm_amd64.s
+deleted file mode 100644
+index dd1afd4d9e..0000000000
+--- a/src/crypto/internal/cipherhw/asm_amd64.s
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64,!gccgo,!appengine
+-
+-#include "textflag.h"
+-
+-// func hasAESNI() bool
+-TEXT ·hasAESNI(SB),NOSPLIT,$0
+-	XORQ AX, AX
+-	INCL AX
+-	CPUID
+-	SHRQ $25, CX
+-	ANDQ $1, CX
+-	MOVB CX, ret+0(FP)
+-	RET
+diff --git a/src/crypto/internal/cipherhw/asm_s390x.s b/src/crypto/internal/cipherhw/asm_s390x.s
+deleted file mode 100644
+index 51dc1c657e..0000000000
+--- a/src/crypto/internal/cipherhw/asm_s390x.s
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build s390x,!gccgo,!appengine
+-
+-#include "textflag.h"
+-
+-// func hasHWSupport() bool
+-TEXT ·hasHWSupport(SB),NOSPLIT,$16-1
+-	XOR	R0, R0          // set function code to 0 (query)
+-	LA	mask-16(SP), R1 // 16-byte stack variable for mask
+-	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
+-
+-	// check for KM AES functions
+-	WORD	$0xB92E0024 // cipher message (KM)
+-	MOVD	mask-16(SP), R2
+-	AND	R3, R2
+-	CMPBNE	R2, R3, notfound
+-
+-	// check for KMC AES functions
+-	WORD	$0xB92F0024 // cipher message with chaining (KMC)
+-	MOVD	mask-16(SP), R2
+-	AND	R3, R2
+-	CMPBNE	R2, R3, notfound
+-
+-	// check for KMCTR AES functions
+-	WORD	$0xB92D4024 // cipher message with counter (KMCTR)
+-	MOVD	mask-16(SP), R2
+-	AND	R3, R2
+-	CMPBNE	R2, R3, notfound
+-
+-	// check for KIMD GHASH function
+-	WORD	$0xB93E0024    // compute intermediate message digest (KIMD)
+-	MOVD	mask-8(SP), R2 // bits 64-127
+-	MOVD	$(1<<62), R5
+-	AND	R5, R2
+-	CMPBNE	R2, R5, notfound
+-
+-	MOVB	$1, ret+0(FP)
+-	RET
+-notfound:
+-	MOVB	$0, ret+0(FP)
+-	RET
+diff --git a/src/crypto/internal/cipherhw/cipherhw_amd64.go b/src/crypto/internal/cipherhw/cipherhw_amd64.go
+deleted file mode 100644
+index be0d490a22..0000000000
+--- a/src/crypto/internal/cipherhw/cipherhw_amd64.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64,!gccgo,!appengine
+-
+-package cipherhw
+-
+-// defined in asm_amd64.s
+-func hasAESNI() bool
+-
+-// AESGCMSupport returns true if the Go standard library supports AES-GCM in
+-// hardware.
+-func AESGCMSupport() bool {
+-	return hasAESNI()
+-}
+diff --git a/src/crypto/internal/cipherhw/cipherhw_s390x.go b/src/crypto/internal/cipherhw/cipherhw_s390x.go
+deleted file mode 100644
+index 9cd7679598..0000000000
+--- a/src/crypto/internal/cipherhw/cipherhw_s390x.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build s390x,!gccgo,!appengine
+-
+-package cipherhw
+-
+-// hasHWSupport reports whether the AES-128, AES-192 and AES-256 cipher message
+-// (KM) function codes are supported. Note that this function is expensive.
+-// defined in asm_s390x.s
+-func hasHWSupport() bool
+-
+-var hwSupport = hasHWSupport()
+-
+-func AESGCMSupport() bool {
+-	return hwSupport
+-}
+diff --git a/src/crypto/internal/cipherhw/doc.go b/src/crypto/internal/cipherhw/doc.go
+deleted file mode 100644
+index a75fcf6496..0000000000
+--- a/src/crypto/internal/cipherhw/doc.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package cipherhw exposes common functions for detecting whether hardware
+-// support for certain ciphers and authenticators is present.
+-package cipherhw
+diff --git a/src/crypto/internal/cipherhw/generic.go b/src/crypto/internal/cipherhw/generic.go
+deleted file mode 100644
+index 64d90d3b41..0000000000
+--- a/src/crypto/internal/cipherhw/generic.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !amd64,!s390x gccgo appengine
+-
+-package cipherhw
+-
+-func AESGCMSupport() bool {
+-	return false
+-}
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index d3beb619f9..32caa6233c 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -7,12 +7,12 @@ package tls
+ import (
+ 	"container/list"
+ 	"crypto"
+-	"crypto/internal/cipherhw"
+ 	"crypto/rand"
+ 	"crypto/sha512"
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
++	"internal/cpu"
+ 	"io"
+ 	"math/big"
+ 	"net"
+@@ -917,7 +917,23 @@ func defaultCipherSuites() []uint16 {
+ 
+ func initDefaultCipherSuites() {
+ 	var topCipherSuites []uint16
+-	if cipherhw.AESGCMSupport() {
++
++	// Check the cpu flags for each platform that has optimized GCM implementations.
++	// Worst case, these variables will just all be false
++	hasGCMAsmAMD64 := cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
++
++	// TODO: enable the arm64 HasAES && HasPMULL feature check after the
++	// optimized AES-GCM implementation for arm64 is merged (CL 107298).
++	// This is explicitly set to false for now to prevent misprioritization
++	// of AES-GCM based cipher suites, which will be slower than chacha20-poly1305
++	hasGCMAsmARM64 := false
++	// hasGCMAsmARM64 := cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
++
++	hasGCMAsmS390X := cpu.S390X.HasKM && (cpu.S390X.HasKMA || (cpu.S390X.HasKMCTR && cpu.S390X.HasKIMD))
++
++	hasGCMAsm := hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
++
++	if hasGCMAsm {
+ 		// If AES-GCM hardware is provided then prioritise AES-GCM
+ 		// cipher suites.
+ 		topCipherSuites = []uint16{
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 451c2e0a4c..9aebd7327a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -120,7 +120,6 @@ var pkgDeps = map[string][]string{
+ 		"L2",
+ 		"crypto",
+ 		"crypto/cipher",
+-		"crypto/internal/cipherhw",
+ 		"crypto/subtle",
+ 		"encoding/base32",
+ 		"encoding/base64",
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index eae9a6c7e3..6f7d89f1c2 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -100,7 +100,12 @@ var S390X s390x
+ type s390x struct {
+ 	_     [CacheLineSize]byte
+ 	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
+-	_     [CacheLineSize]byte
++	HasKM    bool // cipher message (KM)
++	HasKMA   bool // cipher message assist (KMA)
++	HasKMC   bool // cipher message with chaining (KMC)
++	HasKMCTR bool // cipher message with counter (KMCTR)
++	HasKIMD  bool // compute intermediate message digest (KIMD)
++	_        [CacheLineSize]byte
+ }
+ 
+ // initialize examines the processor and sets the relevant variables above.
+diff --git a/src/internal/cpu/cpu_s390x.go b/src/internal/cpu/cpu_s390x.go
+index 4455809d53..7b78289467 100644
+--- a/src/internal/cpu/cpu_s390x.go
++++ b/src/internal/cpu/cpu_s390x.go
+@@ -5,3 +5,18 @@
+ package cpu
+ 
+ const CacheLineSize = 256
++
++// the following cpu feature detection functions are defined in cpu_s390x.s
++func hasKM() bool
++func hasKMC() bool
++func hasKMCTR() bool
++func hasKMA() bool
++func hasKIMD() bool
++
++func init() {
++	S390X.HasKM = hasKM()
++	S390X.HasKMC = hasKMC()
++	S390X.HasKMCTR = hasKMCTR()
++	S390X.HasKMA = hasKMA()
++	S390X.HasKIMD = hasKIMD()
++}
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+new file mode 100644
+index 0000000000..4930c3823d
+--- /dev/null
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -0,0 +1,101 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func hasKM() bool
++TEXT ·hasKM(SB),NOSPLIT,$16-1
++ 	XOR	R0, R0          // set function code to 0 (query)
++	LA	mask-16(SP), R1 // 16-byte stack variable for mask
++	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
++
++	// check for KM AES functions
++	WORD	$0xB92E0024 // cipher message (KM)
++	MOVD	mask-16(SP), R2
++	AND	R3, R2
++	CMPBNE	R2, R3, notfound
++
++	MOVB	$1, ret+0(FP)
++	RET
++notfound:
++	MOVB	$0, ret+0(FP)
++	RET
++
++// func hasKMC() bool
++TEXT ·hasKMC(SB),NOSPLIT,$16-1
++ 	XOR	R0, R0          // set function code to 0 (query)
++	LA	mask-16(SP), R1 // 16-byte stack variable for mask
++	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
++
++	// check for KMC AES functions
++	WORD	$0xB92F0024 // cipher message with chaining (KMC)
++	MOVD	mask-16(SP), R2
++	AND	R3, R2
++	CMPBNE	R2, R3, notfound
++
++	MOVB	$1, ret+0(FP)
++	RET
++notfound:
++	MOVB	$0, ret+0(FP)
++	RET
++
++// func hasKMCTR() bool
++TEXT ·hasKMCTR(SB),NOSPLIT,$16-1
++	XOR	R0, R0          // set function code to 0 (query)
++	LA	mask-16(SP), R1 // 16-byte stack variable for mask
++	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
++
++	// check for KMCTR AES functions
++	WORD	$0xB92D4024 // cipher message with counter (KMCTR)
++	MOVD	mask-16(SP), R2
++	AND	R3, R2
++	CMPBNE	R2, R3, notfound
++
++	MOVB	$1, ret+0(FP)
++	RET
++notfound:
++	MOVB	$0, ret+0(FP)
++	RET
++
++// func hasKMA() bool
++TEXT ·hasKMA(SB),NOSPLIT,$24-1
++	MOVD	$tmp-24(SP), R1
++	MOVD	$2, R0       // store 24-bytes
++	XC	$24, (R1), (R1)
++	WORD	$0xb2b01000  // STFLE (R1)
++	MOVWZ	16(R1), R2
++	ANDW	$(1<<13), R2 // test bit 146 (message-security-assist 8)
++	BEQ	no
++
++	MOVD	$0, R0       // KMA-Query
++	XC	$16, (R1), (R1)
++	WORD	$0xb9296024  // kma %r6,%r2,%r4
++	MOVWZ	(R1), R2
++	WORD	$0xa7213800  // TMLL R2, $0x3800
++	BVS	yes
++no:
++	MOVB	$0, ret+0(FP)
++	RET
++yes:
++	MOVB	$1, ret+0(FP)
++	RET
++
++// func hasKIMD() bool
++TEXT ·hasKIMD(SB),NOSPLIT,$16-1
++	XOR	R0, R0          // set function code to 0 (query)
++	LA	mask-16(SP), R1 // 16-byte stack variable for mask
++	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
++
++	// check for KIMD GHASH function
++	WORD	$0xB93E0024    // compute intermediate message digest (KIMD)
++	MOVD	mask-8(SP), R2 // bits 64-127
++	MOVD	$(1<<62), R5
++	AND	R5, R2
++	CMPBNE	R2, R5, notfound
++
++	MOVB	$1, ret+0(FP)
++	RET
++notfound:
++	MOVB	$0, ret+0(FP)
++	RET

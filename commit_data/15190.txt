@@ -7,9 +7,67 @@ Date:   Mon Feb 11 09:18:31 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7308079
-
+---
  doc/articles/c_go_cgo.html | 5 ++---
  doc/code.html              | 4 ++--
  doc/contrib.html           | 2 +-
  doc/docs.html              | 2 +-
  4 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/doc/articles/c_go_cgo.html b/doc/articles/c_go_cgo.html
+index 967f57e784..b37a6ba65b 100644
+--- a/doc/articles/c_go_cgo.html
++++ b/doc/articles/c_go_cgo.html
+@@ -169,9 +169,8 @@ in the Go tree demonstrate more advanced concepts.
+ <p>
+ For a simple, idiomatic example of a cgo-based package, see Russ Cox's <a
+ href="http://code.google.com/p/gosqlite/source/browse/sqlite/sqlite.go">gosqlite</a>.
+-Also, the Go Project Dashboard lists <a
+-href="https://godashboard.appspot.com/project?tag=cgo">several other
+-cgo packages</a>.
++Also, the <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Community Wiki</a>
++lists many packages, some of which use cgo.
+ </p>
+ 
+ <p>
+diff --git a/doc/code.html b/doc/code.html
+index 3ebb0bc9f9..82b211870d 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -480,8 +480,8 @@ import "code.google.com/p/go.example/newmath"
+ <p>
+ This convention is the easiest way to make your Go packages available for
+ others to use.
+-The <a href="http://godashboard.appspot.com">Go Project Dashboard</a>
+-is a list of external Go projects including programs and libraries.
++The <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Community Wiki</a>
++has a list of external Go projects including programs and libraries.
+ </p>
+ 
+ <p>
+diff --git a/doc/contrib.html b/doc/contrib.html
+index ab4de34d74..a9f12f93f0 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -88,7 +88,7 @@ are particularly in need of outside help.
+ <p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a> 
+ mailing list is for general Go discussion.</p>
+ 
+-<h3 id="projects"><a href="http://godashboard.appspot.com/project">Go Project Dashboard</a></h3>
++<h3 id="projects"><a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Wiki Projects Page</a></h3>
+ <p>A list of external Go projects including programs and libraries.</p>
+ 
+ <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
+diff --git a/doc/docs.html b/doc/docs.html
+index 256e1b915f..3112381c25 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -201,7 +201,7 @@ documentation.
+ <p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a>
+ mailing list is for general Go discussion.</p>
+ 
+-<h3 id="projects"><a href="http://godashboard.appspot.com/project">Go Project Dashboard</a></h3>
++<h3 id="projects"><a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Wiki Projects Page</a></h3>
+ <p>A list of external Go projects including programs and libraries.</p>
+ 
+ <h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>

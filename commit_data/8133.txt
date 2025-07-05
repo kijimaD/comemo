@@ -9,6 +9,31 @@ Date:   Sat Apr 16 18:44:51 2011 +1000
     R=adg, dsymonds
     CC=golang-dev
     https://golang.org/cl/4439042
-
+---
  misc/goplay/goplay.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index f887fbbda7..f3e2ff5651 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -235,8 +235,8 @@ function autoindent(el) {
+ 	}, 1);
+ }
+ 
+-function keyHandler() {
+-	var e = window.event;
++function keyHandler(event) {
++	var e = window.event || event;
+ 	if (e.keyCode == 9) { // tab
+ 		insertTabs(1);
+ 		e.preventDefault();
+@@ -290,7 +290,7 @@ function compileUpdate() {
+ </head>
+ <body>
+ <table width="100%"><tr><td width="60%" valign="top">
+-<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler();" onkeyup="autocompile();">«@|html»</textarea>
++<textarea autofocus="true" id="edit" spellcheck="false" onkeydown="keyHandler(event);" onkeyup="autocompile();">«@|html»</textarea>
+ <div class="hints">
+ (Shift-Enter to compile and run.)&nbsp;&nbsp;&nbsp;&nbsp;
+ <input type="checkbox" id="autocompile" value="checked" /> Compile and run after each keystroke

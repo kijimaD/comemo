@@ -7,7 +7,7 @@ Date:   Mon Sep 7 15:00:52 2015 +1200
     Change-Id: I88fa0cc245a2141af04acced8716e08b1133abd1
     Reviewed-on: https://go-review.googlesource.com/14350
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 15 ++++++++-------
  src/cmd/internal/obj/arm64/asm7.go |  1 -
  src/cmd/internal/obj/data.go       | 15 ---------------
@@ -23,3 +23,395 @@ Date:   Mon Sep 7 15:00:52 2015 +1200
  src/cmd/link/internal/ld/lib.go    |  4 ++--
  src/cmd/link/internal/ld/sym.go    |  7 +------
  14 files changed, 22 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 4cc3b6398e..5150e2bc26 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -319,6 +319,7 @@ func Main() {
+ 	dclcontext = PEXTERN
+ 	nerrors = 0
+ 	lexlineno = 1
++	const BOM = 0xFEFF
+ 
+ 	for _, infile = range flag.Args() {
+ 		linehistpush(infile)
+@@ -338,7 +339,7 @@ func Main() {
+ 		curio.last = 0
+ 
+ 		// Skip initial BOM if present.
+-		if obj.Bgetrune(curio.bin) != obj.BOM {
++		if obj.Bgetrune(curio.bin) != BOM {
+ 			obj.Bungetrune(curio.bin)
+ 		}
+ 
+@@ -601,11 +602,11 @@ func findpkg(name string) (file string, ok bool) {
+ 		// if there is an array.6 in the array.a library,
+ 		// want to find all of array.a, not just array.6.
+ 		file = fmt.Sprintf("%s.a", name)
+-		if obj.Access(file, 0) >= 0 {
++		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+ 		file = fmt.Sprintf("%s.o", name)
+-		if obj.Access(file, 0) >= 0 {
++		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+ 		return "", false
+@@ -623,11 +624,11 @@ func findpkg(name string) (file string, ok bool) {
+ 
+ 	for p := idirs; p != nil; p = p.link {
+ 		file = fmt.Sprintf("%s/%s.a", p.dir, name)
+-		if obj.Access(file, 0) >= 0 {
++		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+ 		file = fmt.Sprintf("%s/%s.o", p.dir, name)
+-		if obj.Access(file, 0) >= 0 {
++		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+ 	}
+@@ -644,11 +645,11 @@ func findpkg(name string) (file string, ok bool) {
+ 		}
+ 
+ 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+-		if obj.Access(file, 0) >= 0 {
++		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+ 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
+-		if obj.Access(file, 0) >= 0 {
++		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 32f4a903aa..f34dd6dafc 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -147,7 +147,6 @@ func OPBIT(x uint32) uint32 {
+ const (
+ 	LFROM = 1 << 0
+ 	LTO   = 1 << 1
+-	LPOOL = 1 << 2
+ )
+ 
+ var optab = []Optab{
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 6645b6969d..d3d6786558 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -239,21 +239,6 @@ func setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
+ 	return setaddrplus(ctxt, s, off, t, 0)
+ }
+ 
+-func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
+-	if s.Type == 0 {
+-		s.Type = SDATA
+-	}
+-	i := s.Size
+-	s.Size += int64(ctxt.Arch.Ptrsize)
+-	Symgrow(ctxt, s, s.Size)
+-	r := Addrel(s)
+-	r.Sym = t
+-	r.Off = int32(i)
+-	r.Siz = uint8(ctxt.Arch.Ptrsize)
+-	r.Type = R_SIZE
+-	return i + int64(r.Siz)
+-}
+-
+ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+ 	if s.Type == 0 {
+ 		s.Type = SDATA
+diff --git a/src/cmd/internal/obj/fmt.go b/src/cmd/internal/obj/fmt.go
+index 1268f426a5..a6a97d55b5 100644
+--- a/src/cmd/internal/obj/fmt.go
++++ b/src/cmd/internal/obj/fmt.go
+@@ -17,18 +17,11 @@ package obj
+ const (
+ 	FmtWidth = 1 << iota
+ 	FmtLeft
+-	FmtPrec
+ 	FmtSharp
+-	FmtSpace
+ 	FmtSign
+-	FmtApost
+-	FmtZero
+ 	FmtUnsigned
+ 	FmtShort
+ 	FmtLong
+-	FmtVLong
+ 	FmtComma
+ 	FmtByte
+-	FmtLDouble
+-	FmtFlag
+ )
+diff --git a/src/cmd/internal/obj/funcdata.go b/src/cmd/internal/obj/funcdata.go
+index 44cba7aae8..dc13028646 100644
+--- a/src/cmd/internal/obj/funcdata.go
++++ b/src/cmd/internal/obj/funcdata.go
+@@ -74,6 +74,5 @@ const (
+ 	PCDATA_StackMapIndex       = 0
+ 	FUNCDATA_ArgsPointerMaps   = 0
+ 	FUNCDATA_LocalsPointerMaps = 1
+-	FUNCDATA_DeadValueMaps     = 2
+ 	ArgsSizeUnknown            = -0x80000000
+ )
+diff --git a/src/cmd/internal/obj/libc.go b/src/cmd/internal/obj/libc.go
+deleted file mode 100644
+index b200b26047..0000000000
+--- a/src/cmd/internal/obj/libc.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2015 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package obj
+-
+-const (
+-	AEXIST = 0
+-	BOM    = 0xFEFF
+-)
+-
+-var GOEXPERIMENT string
+diff --git a/src/cmd/internal/obj/mgc0.go b/src/cmd/internal/obj/mgc0.go
+deleted file mode 100644
+index a385d607bb..0000000000
+--- a/src/cmd/internal/obj/mgc0.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package obj
+-
+-// Garbage collector liveness bitmap generation.
+-
+-// The command line flag -live causes this code to print debug information.
+-// The levels are:
+-//
+-//	-live (aka -live=1): print liveness lists as code warnings at safe points
+-//	-live=2: print an assembly listing with liveness annotations
+-//	-live=3: print information during each computation phase (much chattier)
+-//
+-// Each level includes the earlier output as well.
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Used by cmd/gc.
+-
+-const (
+-	InsData = 1 + iota
+-	InsArray
+-	InsArrayEnd
+-	InsEnd
+-	MaxGCMask = 65536
+-)
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 76054e2709..13930aa6c9 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -107,8 +107,6 @@ import (
+ 	"strings"
+ )
+ 
+-var outfile string
+-
+ // The Go and C compilers, and the assembler, call writeobj to write
+ // out a Go object file.  The linker does not call this; the linker
+ // does not write out object files.
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 31c8c2217e..dd5297edc5 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -107,12 +107,7 @@ func Linknew(arch *LinkArch) *Link {
+ 
+ 	// On arm, record goarm.
+ 	if ctxt.Arch.Thechar == '5' {
+-		p := Getgoarm()
+-		if p != "" {
+-			ctxt.Goarm = int32(Atoi(p))
+-		} else {
+-			ctxt.Goarm = 6
+-		}
++		ctxt.Goarm = Getgoarm()
+ 	}
+ 
+ 	return ctxt
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 3c3fc88674..f03eb6943f 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"log"
+ 	"os"
+-	"strconv"
+ 	"strings"
+ 	"time"
+ )
+@@ -166,17 +165,6 @@ func Brdstr(b *Biobuf, delim int, cut int) string {
+ 	return s
+ }
+ 
+-func Access(name string, mode int) int {
+-	if mode != 0 {
+-		panic("bad access")
+-	}
+-	_, err := os.Stat(name)
+-	if err != nil {
+-		return -1
+-	}
+-	return 0
+-}
+-
+ func Blinelen(b *Biobuf) int {
+ 	return b.linelen
+ }
+@@ -212,10 +200,14 @@ func Getgoos() string {
+ 	return envOr("GOOS", defaultGOOS)
+ }
+ 
+-func Getgoarm() string {
++func Getgoarm() int32 {
+ 	switch v := envOr("GOARM", defaultGOARM); v {
+-	case "5", "6", "7":
+-		return v
++	case "5":
++		return 5
++	case "6":
++		return 6
++	case "7":
++		return 7
+ 	}
+ 	// Fail here, rather than validate at multiple call sites.
+ 	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
+@@ -235,11 +227,6 @@ func Getgoversion() string {
+ 	return version
+ }
+ 
+-func Atoi(s string) int {
+-	i, _ := strconv.Atoi(s)
+-	return i
+-}
+-
+ func (p *Prog) Line() string {
+ 	return p.Ctxt.LineHist.LineString(int(p.Lineno))
+ }
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 7a69dc8414..0aa986187a 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -40,8 +40,6 @@ import (
+ // Instruction layout.
+ 
+ const (
+-	MaxAlign = 32 // max data alignment
+-
+ 	// Loop alignment constants:
+ 	// want to align loop entry to LoopAlign-byte boundary,
+ 	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
+@@ -175,7 +173,6 @@ const (
+ 	Zil_rp
+ 	Ziq_rp
+ 	Zilo_m
+-	Ziqo_m
+ 	Zjmp
+ 	Zjmpcon
+ 	Zloop
+@@ -225,14 +222,10 @@ const (
+ 	Py1 = 0x81 // symbolic; exact value doesn't matter
+ 	Py3 = 0x83 // symbolic; exact value doesn't matter
+ 
+-	Rxf = 1 << 9 /* internal flag for Rxr on from */
+-	Rxt = 1 << 8 /* internal flag for Rxr on to */
+ 	Rxw = 1 << 3 /* =1, 64-bit operand size */
+ 	Rxr = 1 << 2 /* extend modrm reg */
+ 	Rxx = 1 << 1 /* extend sib index */
+ 	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
+-
+-	Maxand = 10 /* in -a output width of the byte codes */
+ )
+ 
+ var ycover [Ymax * Ymax]uint8
+@@ -245,11 +238,6 @@ var ynone = []ytab{
+ 	{Ynone, Ynone, Ynone, Zlit, 1},
+ }
+ 
+-var ysahf = []ytab{
+-	{Ynone, Ynone, Ynone, Zlit, 2},
+-	{Ynone, Ynone, Ynone, Zlit, 1},
+-}
+-
+ var ytext = []ytab{
+ 	{Ymb, Ynone, Ytextsize, Zpseudo, 0},
+ 	{Ymb, Yi32, Ytextsize, Zpseudo, 1},
+diff --git a/src/cmd/link/internal/ld/ldpe.go b/src/cmd/link/internal/ld/ldpe.go
+index b98cf0206b..8439c06560 100644
+--- a/src/cmd/link/internal/ld/ldpe.go
++++ b/src/cmd/link/internal/ld/ldpe.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -191,8 +192,8 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+ 		if peobj.sect[i].name[0] != '/' {
+ 			continue
+ 		}
+-		l = uint32(obj.Atoi(peobj.sect[i].name[1:]))
+-		peobj.sect[i].name = cstring(peobj.snames[l:])
++		n, _ := strconv.Atoi(peobj.sect[i].name[1:])
++		peobj.sect[i].name = cstring(peobj.snames[n:])
+ 	}
+ 
+ 	// read symbols
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 89f805d483..e7aa21709b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -421,7 +421,7 @@ func loadinternal(name string) {
+ 			if Debug['v'] != 0 {
+ 				fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, shlibname)
+ 			}
+-			if obj.Access(shlibname, obj.AEXIST) >= 0 {
++			if _, err := os.Stat(shlibname); err == nil {
+ 				addlibpath(Ctxt, "internal", "internal", "", name, shlibname)
+ 				found = 1
+ 				break
+@@ -431,7 +431,7 @@ func loadinternal(name string) {
+ 		if Debug['v'] != 0 {
+ 			fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, pname)
+ 		}
+-		if obj.Access(pname, obj.AEXIST) >= 0 {
++		if _, err := os.Stat(pname); err == nil {
+ 			addlibpath(Ctxt, "internal", "internal", pname, name, "")
+ 			found = 1
+ 			break
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index e1b2f958aa..c0ab90a170 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -144,12 +144,7 @@ func linknew(arch *LinkArch) *Link {
+ 
+ 	// On arm, record goarm.
+ 	if ctxt.Arch.Thechar == '5' {
+-		p := obj.Getgoarm()
+-		if p != "" {
+-			ctxt.Goarm = int32(obj.Atoi(p))
+-		} else {
+-			ctxt.Goarm = 6
+-		}
++		ctxt.Goarm = obj.Getgoarm()
+ 	}
+ 
+ 	return ctxt

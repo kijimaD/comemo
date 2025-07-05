@@ -11,6 +11,25 @@ Date:   Mon Feb 13 14:40:48 2017 -0500
     Change-Id: Id1807ff9d4ba5de425d8b147205f29b18351230f
     Reviewed-on: https://go-review.googlesource.com/36842
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/response.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index ae118fb386..1b19088a72 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -37,9 +37,10 @@ type Response struct {
+ 	// Header maps header keys to values. If the response had multiple
+ 	// headers with the same key, they may be concatenated, with comma
+ 	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
+-	// be semantically equivalent to a comma-delimited sequence.) Values
+-	// duplicated by other fields in this struct (e.g., ContentLength) are
+-	// omitted from Header.
++	// be semantically equivalent to a comma-delimited sequence.) When
++	// Header values are duplicated by other fields in this struct (e.g.,
++	// ContentLength, TransferEncoding, Trailer), the field values are
++	// authoritative.
+ 	//
+ 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
+ 	Header Header

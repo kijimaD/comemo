@@ -7,7 +7,39 @@ Date:   Wed Jul 21 14:14:21 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1697053
-
+---
  src/cmd/gc/range.c  | 4 +++-
  test/golden-arm.out | 4 ++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index dca3a54542..b57639b232 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -115,7 +115,9 @@ walkrange(Node *n)
+ 		v2 = n->list->next->n;
+ 	hv2 = N;
+ 
+-	if(v2 == N && t->etype == TARRAY) {
++	// TODO(kaib): re-enable this optimization on arm once we are on par with 6g/8g
++	// see http://code.google.com/p/go/issues/detail?id=943
++	if(v2 == N && t->etype == TARRAY && thechar != '5') {
+ 		// will have just one reference to argument.
+ 		// no need to make a potentially expensive copy.
+ 		ha = a;
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index 449424dcab..a8628fe1b6 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -52,9 +52,9 @@ FAIL
+ Hello World!
+ 
+ =========== ken/cplx0.go
+-(+1.066132e-308+1.313301e-308i)
++(+1.066132e-308+1.313303e-308i)
+ (+1.066132e-308+1.066132e-308i)
+-(+1.066132e-308+1.313301e-308i)
++(+1.066132e-308+1.313303e-308i)
+ (+1.066132e-308+1.066132e-308i)
+ 
+ =========== ken/cplx3.go

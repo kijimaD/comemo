@@ -7,6 +7,21 @@ Date:   Tue Jun 1 14:48:57 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1442042
-
+---
  src/cmd/gc/subr.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index cf7b1865cf..ac700b4c0e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1123,6 +1123,9 @@ basicnames[] =
+ 	[TFLOAT]	= "float",
+ 	[TFLOAT32]	= "float32",
+ 	[TFLOAT64]	= "float64",
++	[TCOMPLEX]	= "complex",
++	[TCOMPLEX64]	= "complex64",
++	[TCOMPLEX128]	= "complex128",
+ 	[TBOOL]		= "bool",
+ 	[TANY]		= "any",
+ 	[TSTRING]	= "string",

@@ -9,10 +9,229 @@ Date:   Fri May 19 09:46:22 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/level_test.go        | 10 +++++++
  src/log/slog/logger_test.go       | 55 ++++++++++++++++++++++++++++++++++++++-
  src/log/slog/record_test.go       | 19 ++++++++------
  src/log/slog/text_handler_test.go |  2 ++
  src/log/slog/value_test.go        | 25 +++++++++++++++++-
  5 files changed, 101 insertions(+), 10 deletions(-)
+
+diff --git a/src/log/slog/level_test.go b/src/log/slog/level_test.go
+index 33b20fdb68..0b28e71e4c 100644
+--- a/src/log/slog/level_test.go
++++ b/src/log/slog/level_test.go
+@@ -166,3 +166,13 @@ func TestLevelVarFlag(t *testing.T) {
+ 		t.Errorf("got %v, want %v", g, w)
+ 	}
+ }
++
++func TestLevelVarString(t *testing.T) {
++	var v LevelVar
++	v.Set(LevelError)
++	got := v.String()
++	want := "LevelVar(ERROR)"
++	if got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++}
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 510d038614..d151c0490c 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -209,7 +209,7 @@ func TestCallDepth(t *testing.T) {
+ 
+ func TestAlloc(t *testing.T) {
+ 	dl := New(discardHandler{})
+-	defer func(d *Logger) { SetDefault(d) }(Default())
++	defer SetDefault(Default()) // restore
+ 	SetDefault(dl)
+ 
+ 	t.Run("Info", func(t *testing.T) {
+@@ -370,6 +370,50 @@ func TestNewLogLogger(t *testing.T) {
+ 	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)
+ }
+ 
++func TestLoggerNoOps(t *testing.T) {
++	l := Default()
++	if l.With() != l {
++		t.Error("wanted receiver, didn't get it")
++	}
++	if With() != l {
++		t.Error("wanted receiver, didn't get it")
++	}
++	if l.WithGroup("") != l {
++		t.Error("wanted receiver, didn't get it")
++	}
++}
++
++func TestContext(t *testing.T) {
++	// Verify that the context argument to log output methods is passed to the handler.
++	// Also check the level.
++	h := &captureHandler{}
++	l := New(h)
++	defer SetDefault(Default()) // restore
++	SetDefault(l)
++
++	for _, test := range []struct {
++		f         func(context.Context, string, ...any)
++		wantLevel Level
++	}{
++		{l.DebugCtx, LevelDebug},
++		{l.InfoCtx, LevelInfo},
++		{l.WarnCtx, LevelWarn},
++		{l.ErrorCtx, LevelError},
++		{DebugCtx, LevelDebug},
++		{InfoCtx, LevelInfo},
++		{WarnCtx, LevelWarn},
++		{ErrorCtx, LevelError},
++	} {
++		h.clear()
++		ctx := context.WithValue(context.Background(), "L", test.wantLevel)
++
++		test.f(ctx, "msg")
++		if gv := h.ctx.Value("L"); gv != test.wantLevel || h.r.Level != test.wantLevel {
++			t.Errorf("got context value %v, level %s; want %s for both", gv, h.r.Level, test.wantLevel)
++		}
++	}
++}
++
+ func checkLogOutput(t *testing.T, got, wantRegexp string) {
+ 	t.Helper()
+ 	got = clean(got)
+@@ -393,6 +437,7 @@ func clean(s string) string {
+ 
+ type captureHandler struct {
+ 	mu     sync.Mutex
++	ctx    context.Context
+ 	r      Record
+ 	attrs  []Attr
+ 	groups []string
+@@ -401,6 +446,7 @@ type captureHandler struct {
+ func (h *captureHandler) Handle(ctx context.Context, r Record) error {
+ 	h.mu.Lock()
+ 	defer h.mu.Unlock()
++	h.ctx = ctx
+ 	h.r = r
+ 	return nil
+ }
+@@ -427,6 +473,13 @@ func (c *captureHandler) WithGroup(name string) Handler {
+ 	return &c2
+ }
+ 
++func (c *captureHandler) clear() {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	c.ctx = nil
++	c.r = Record{}
++}
++
+ type discardHandler struct {
+ 	disabled bool
+ 	attrs    []Attr
+diff --git a/src/log/slog/record_test.go b/src/log/slog/record_test.go
+index bcfc4dd224..15d9330a85 100644
+--- a/src/log/slog/record_test.go
++++ b/src/log/slog/record_test.go
+@@ -24,14 +24,17 @@ func TestRecordAttrs(t *testing.T) {
+ 	}
+ 
+ 	// Early return.
+-	var got []Attr
+-	r.Attrs(func(a Attr) bool {
+-		got = append(got, a)
+-		return len(got) < 2
+-	})
+-	want := as[:2]
+-	if !attrsEqual(got, want) {
+-		t.Errorf("got %v, want %v", got, want)
++	// Hit both loops in Record.Attrs: front and back.
++	for _, stop := range []int{2, 6} {
++		var got []Attr
++		r.Attrs(func(a Attr) bool {
++			got = append(got, a)
++			return len(got) < stop
++		})
++		want := as[:stop]
++		if !attrsEqual(got, want) {
++			t.Errorf("got %v, want %v", got, want)
++		}
+ 	}
+ }
+ 
+diff --git a/src/log/slog/text_handler_test.go b/src/log/slog/text_handler_test.go
+index 9d6301909d..591c243b11 100644
+--- a/src/log/slog/text_handler_test.go
++++ b/src/log/slog/text_handler_test.go
+@@ -165,6 +165,8 @@ func TestNeedsQuoting(t *testing.T) {
+ 		{"\a\b", true},
+ 		{"a\tb", true},
+ 		{"µåπ", false},
++		{"a b", true},
++		{"badutf8\xF6", true},
+ 	} {
+ 		got := needsQuoting(test.in)
+ 		if got != test.want {
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+index 1196e7595b..615bed79d9 100644
+--- a/src/log/slog/value_test.go
++++ b/src/log/slog/value_test.go
+@@ -13,6 +13,12 @@ import (
+ 	"unsafe"
+ )
+ 
++func TestKindString(t *testing.T) {
++	if got, want := KindGroup.String(), "Group"; got != want {
++		t.Errorf("got %q, want %q", got, want)
++	}
++}
++
+ func TestValueEqual(t *testing.T) {
+ 	var x, y int
+ 	vals := []Value{
+@@ -55,6 +61,7 @@ func TestValueString(t *testing.T) {
+ 		want string
+ 	}{
+ 		{Int64Value(-3), "-3"},
++		{Uint64Value(1), "1"},
+ 		{Float64Value(.15), "0.15"},
+ 		{BoolValue(true), "true"},
+ 		{StringValue("foo"), "foo"},
+@@ -118,13 +125,23 @@ func TestAnyValue(t *testing.T) {
+ 	}{
+ 		{1, IntValue(1)},
+ 		{1.5, Float64Value(1.5)},
++		{float32(2.5), Float64Value(2.5)},
+ 		{"s", StringValue("s")},
+-		{uint(2), Uint64Value(2)},
+ 		{true, BoolValue(true)},
+ 		{testTime, TimeValue(testTime)},
+ 		{time.Hour, DurationValue(time.Hour)},
+ 		{[]Attr{Int("i", 3)}, GroupValue(Int("i", 3))},
+ 		{IntValue(4), IntValue(4)},
++		{uint(2), Uint64Value(2)},
++		{uint8(3), Uint64Value(3)},
++		{uint16(4), Uint64Value(4)},
++		{uint32(5), Uint64Value(5)},
++		{uint64(6), Uint64Value(6)},
++		{uintptr(7), Uint64Value(7)},
++		{int8(8), Int64Value(8)},
++		{int16(9), Int64Value(9)},
++		{int32(10), Int64Value(10)},
++		{int64(11), Int64Value(11)},
+ 	} {
+ 		got := AnyValue(test.in)
+ 		if !got.Equal(test.want) {
+@@ -141,6 +158,12 @@ func TestValueAny(t *testing.T) {
+ 		time.UTC, // time.Locations treated specially...
+ 		KindBool, // ...as are Kinds
+ 		[]Attr{Int("a", 1)},
++		int64(2),
++		uint64(3),
++		true,
++		time.Minute,
++		time.Time{},
++		3.14,
+ 	} {
+ 		v := AnyValue(want)
+ 		got := v.Any()

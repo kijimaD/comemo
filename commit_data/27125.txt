@@ -15,6 +15,21 @@ Date:   Thu Mar 10 14:52:01 2016 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/tls/conn.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 89e4c2f74a..42445b94d7 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -803,7 +803,8 @@ func (c *Conn) readHandshake() (interface{}, error) {
+ 	data := c.hand.Bytes()
+ 	n := int(data[1])<<16 | int(data[2])<<8 | int(data[3])
+ 	if n > maxHandshake {
+-		return nil, c.in.setErrorLocked(c.sendAlert(alertInternalError))
++		c.sendAlertLocked(alertInternalError)
++		return nil, c.in.setErrorLocked(fmt.Errorf("tls: handshake message of length %d bytes exceeds maximum of %d bytes", n, maxHandshake))
+ 	}
+ 	for c.hand.Len() < 4+n {
+ 		if err := c.in.err; err != nil {

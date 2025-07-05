@@ -9,6 +9,22 @@ Date:   Thu Jul 23 19:00:15 2015 -0700
     Change-Id: I21736a4c6f6fb2f61aec1396ce2c965e3e329e92
     Reviewed-on: https://go-review.googlesource.com/12621
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/runtime/sys_dragonfly_amd64.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 3dae2a79df..7e8dc1bbc3 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -125,8 +125,8 @@ TEXT runtime·raise(SB),NOSPLIT,$16
+ 	MOVL	$496, AX	// lwp_gettid
+ 	SYSCALL
+ 	MOVQ	$-1, DI		// arg 1 - pid
+-	MOVQ	8(SP), DI	// arg 2 - tid
+-	MOVL	sig+0(FP), SI	// arg 3 - signum
++	MOVQ	AX, SI		// arg 2 - tid
++	MOVL	sig+0(FP), DX	// arg 3 - signum
+ 	MOVL	$497, AX	// lwp_kill
+ 	SYSCALL
+ 	RET

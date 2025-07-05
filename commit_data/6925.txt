@@ -7,8 +7,56 @@ Date:   Sun Dec 12 14:16:37 2010 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/3606043
-
+---
  lib/godoc/package.html | 4 ++--
  src/cmd/gc/align.c     | 4 ++--
  src/pkg/go/doc/doc.go  | 2 +-
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 3a73a9e3ba..5dc61b7cd9 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -104,12 +104,12 @@
+ 	<th align="left">Synopsis</th>
+ 	</tr>
+ 	<tr>
+-	<th align="left"><a href="..">..<a></th>
++	<th align="left"><a href="..">..</a></th>
+ 	</tr>
+ 	{.repeated section List}
+ 		<tr>
+ 		{Depth|padding}
+-		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html-esc}<a></td>
++		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html-esc}</a></td>
+ 		<td></td>
+ 		<td align="left">{Synopsis|html-esc}</td>
+ 		</tr>
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 1d68b55a00..57dd3071be 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -7,8 +7,8 @@
+ /*
+  * machine size and rounding
+  * alignment is dictated around
+- * the size of a pointer, set in belexinit
+- * (see ../6g/align.c).
++ * the size of a pointer, set in betypeinit
++ * (see ../6g/galign.c).
+  */
+ 
+ static int defercalc;
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index dfa2360272..fb1c4e03d8 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -127,7 +127,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
+ 			name := ""
+ 			switch {
+ 			case v.Type != nil:
+-				// a type is present; determine it's name
++				// a type is present; determine its name
+ 				name = baseTypeName(v.Type)
+ 			case decl.Tok == token.CONST:
+ 				// no type is present but we have a constant declaration;

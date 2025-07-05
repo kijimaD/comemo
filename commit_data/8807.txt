@@ -7,7 +7,7 @@ Date:   Mon Jun 20 18:40:20 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4528113
-
+---
  src/pkg/syscall/Makefile                  |  3 ++
  src/pkg/syscall/route_bsd.go              |  2 -
  src/pkg/syscall/sockcmsg_unix.go          | 65 ++++++++++++++++++++++++
@@ -23,3 +23,448 @@ Date:   Mon Jun 20 18:40:20 2011 -0400
  src/pkg/syscall/zsyscall_freebsd_386.go   | 17 +++++++
  src/pkg/syscall/zsyscall_freebsd_amd64.go | 17 +++++++
  14 files changed, 263 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index c7f1b942c5..d7bd58373b 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -20,6 +20,7 @@ GOFILES_freebsd=\
+ 	bpf_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
++	sockcmsg_unix.go\
+ 	syscall_bsd.go\
+ 	syscall_unix.go\
+ 
+@@ -27,6 +28,7 @@ GOFILES_darwin=\
+ 	bpf_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
++	sockcmsg_unix.go\
+ 	syscall_bsd.go\
+ 	syscall_unix.go\
+ 
+@@ -34,6 +36,7 @@ GOFILES_linux=\
+ 	exec_unix.go\
+ 	lsf_linux.go\
+ 	netlink_linux.go\
++	sockcmsg_unix.go\
+ 	syscall_unix.go\
+ 
+ GOFILES_windows=\
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index dded97b346..7821a6d29b 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -10,8 +10,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
+-
+ // Round the length of a raw sockaddr up to align it properly.
+ func rsaAlignOf(salen int) int {
+ 	salign := sizeofPtr
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+new file mode 100644
+index 0000000000..f0c05eaf31
+--- /dev/null
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -0,0 +1,65 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Socket control messages
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++// Round the length of a raw sockaddr up to align it propery.
++func cmsgAlignOf(salen int) int {
++	salign := sizeofPtr
++	// NOTE: It seems like 64-bit Darwin kernel still requires 32-bit
++	// aligned access to BSD subsystem.
++	if darwinAMD64 {
++		salign = 4
++	}
++	if salen == 0 {
++		return salign
++	}
++	return (salen + salign - 1) & ^(salign - 1)
++}
++
++func cmsgLen(datalen int) int {
++	return cmsgAlignOf(SizeofCmsghdr) + datalen
++}
++
++type SocketControlMessage struct {
++	Header Cmsghdr
++	Data   []byte
++}
++
++func ParseSocketControlMessage(buf []byte) ([]SocketControlMessage, int) {
++	var (
++		h     *Cmsghdr
++		dbuf  []byte
++		e     int
++		cmsgs []SocketControlMessage
++	)
++
++	for len(buf) >= cmsgLen(0) {
++		h, dbuf, e = socketControlMessageHeaderAndData(buf)
++		if e != 0 {
++			break
++		}
++		m := SocketControlMessage{}
++		m.Header = *h
++		m.Data = dbuf[:int(h.Len)-cmsgAlignOf(SizeofCmsghdr)]
++		cmsgs = append(cmsgs, m)
++		buf = buf[cmsgAlignOf(int(h.Len)):]
++	}
++
++	return cmsgs, e
++}
++
++func socketControlMessageHeaderAndData(buf []byte) (*Cmsghdr, []byte, int) {
++	h := (*Cmsghdr)(unsafe.Pointer(&buf[0]))
++	if h.Len < SizeofCmsghdr || int(h.Len) > len(buf) {
++		return nil, nil, EINVAL
++	}
++	return h, buf[cmsgAlignOf(SizeofCmsghdr):], 0
++}
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index ec3b3167a8..2df75917b4 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -425,6 +425,80 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+ 	return sendto(fd, p, flags, ptr, n)
+ }
+ 
++//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
++
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
++	var msg Msghdr
++	var rsa RawSockaddrAny
++	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Namelen = uint32(SizeofSockaddrAny)
++	var iov Iovec
++	if len(p) > 0 {
++		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.SetLen(len(p))
++	}
++	var dummy byte
++	if len(oob) > 0 {
++		// receive at least one normal byte
++		if len(p) == 0 {
++			iov.Base = &dummy
++			iov.SetLen(1)
++		}
++		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.SetControllen(len(oob))
++	}
++	msg.Iov = &iov
++	msg.Iovlen = 1
++	if n, errno = recvmsg(fd, &msg, flags); errno != 0 {
++		return
++	}
++	oobn = int(msg.Controllen)
++	recvflags = int(msg.Flags)
++	// source address is only specified if the socket is unconnected
++	if rsa.Addr.Family != AF_UNSPEC {
++		from, errno = anyToSockaddr(&rsa)
++	}
++	return
++}
++
++//sys	sendmsg(s int, msg *Msghdr, flags int) (errno int)
++
++func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
++	var ptr uintptr
++	var salen _Socklen
++	if to != nil {
++		var err int
++		ptr, salen, err = to.sockaddr()
++		if err != 0 {
++			return err
++		}
++	}
++	var msg Msghdr
++	msg.Name = (*byte)(unsafe.Pointer(ptr))
++	msg.Namelen = uint32(salen)
++	var iov Iovec
++	if len(p) > 0 {
++		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
++		iov.SetLen(len(p))
++	}
++	var dummy byte
++	if len(oob) > 0 {
++		// send at least one normal byte
++		if len(p) == 0 {
++			iov.Base = &dummy
++			iov.SetLen(1)
++		}
++		msg.Control = (*byte)(unsafe.Pointer(&oob[0]))
++		msg.SetControllen(len(oob))
++	}
++	msg.Iov = &iov
++	msg.Iovlen = 1
++	if errno = sendmsg(fd, &msg, flags); errno != 0 {
++		return
++	}
++	return
++}
++
+ // TODO:
+ // FreeBSD has IP_SENDIF.  Darwin probably needs BSDLLCTest, see:
+ // http://developer.apple.com/mac/library/samplecode/BSDLLCTest/index.html
+@@ -540,14 +614,6 @@ func Futimes(fd int, tv []Timeval) (errno int) {
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ 
+-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
+-	return 0, 0, 0, nil, EAFNOSUPPORT
+-}
+-
+-func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
+-	return EAFNOSUPPORT
+-}
+-
+ // TODO: wrap
+ //	Acct(name nil-string) (errno int)
+ //	Gethostuuid(uuid *byte, timeout *Timespec) (errno int)
+diff --git a/src/pkg/syscall/syscall_darwin_386.go b/src/pkg/syscall/syscall_darwin_386.go
+index 5101ba6c78..d76b22844b 100644
+--- a/src/pkg/syscall/syscall_darwin_386.go
++++ b/src/pkg/syscall/syscall_darwin_386.go
+@@ -40,4 +40,16 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Flags = uint16(flags)
+ }
+ 
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint32(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
++
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) // sic
+diff --git a/src/pkg/syscall/syscall_darwin_amd64.go b/src/pkg/syscall/syscall_darwin_amd64.go
+index acf7a55548..ed43723049 100644
+--- a/src/pkg/syscall/syscall_darwin_amd64.go
++++ b/src/pkg/syscall/syscall_darwin_amd64.go
+@@ -39,3 +39,15 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Filter = int16(mode)
+ 	k.Flags = uint16(flags)
+ }
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint64(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
+diff --git a/src/pkg/syscall/syscall_freebsd_386.go b/src/pkg/syscall/syscall_freebsd_386.go
+index d0fa506c7e..d3b5a1bfec 100644
+--- a/src/pkg/syscall/syscall_freebsd_386.go
++++ b/src/pkg/syscall/syscall_freebsd_386.go
+@@ -29,4 +29,16 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Flags = uint16(flags)
+ }
+ 
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint32(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
++
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) // sic
+diff --git a/src/pkg/syscall/syscall_freebsd_amd64.go b/src/pkg/syscall/syscall_freebsd_amd64.go
+index ef5aff6ef5..8c1ddf6db4 100644
+--- a/src/pkg/syscall/syscall_freebsd_amd64.go
++++ b/src/pkg/syscall/syscall_freebsd_amd64.go
+@@ -28,3 +28,15 @@ func SetKevent(k *Kevent_t, fd, mode, flags int) {
+ 	k.Filter = int16(mode)
+ 	k.Flags = uint16(flags)
+ }
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint64(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 3b8f36da63..1d6fc76c79 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -529,17 +529,17 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
+ 	var ptr uintptr
+-	var nsock _Socklen
++	var salen _Socklen
+ 	if to != nil {
+ 		var err int
+-		ptr, nsock, err = to.sockaddr()
++		ptr, salen, err = to.sockaddr()
+ 		if err != 0 {
+ 			return err
+ 		}
+ 	}
+ 	var msg Msghdr
+ 	msg.Name = (*byte)(unsafe.Pointer(ptr))
+-	msg.Namelen = uint32(nsock)
++	msg.Namelen = uint32(salen)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+ 		iov.Base = (*byte)(unsafe.Pointer(&p[0]))
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index d17ef52d5c..20c8a135fe 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -16,6 +16,8 @@ var (
+ 	Stderr = 2
+ )
+ 
++const darwinAMD64 = OS == "darwin" && ARCH == "amd64"
++
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index bbaceee196..436953ecaa 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -154,6 +154,23 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index ee39eadc11..1ba4c3cfe5 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -154,6 +154,23 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 4f7fdefba1..d152e43806 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -154,6 +154,23 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)))
+ 	n = int(r0)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index 609ecdd2a9..156b087e39 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -154,6 +154,23 @@ func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno i
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func recvmsg(s int, msg *Msghdr, flags int) (n int, errno int) {
++	r0, _, e1 := Syscall(SYS_RECVMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	n = int(r0)
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func sendmsg(s int, msg *Msghdr, flags int) (errno int) {
++	_, _, e1 := Syscall(SYS_SENDMSG, uintptr(s), uintptr(unsafe.Pointer(msg)), uintptr(flags))
++	errno = int(e1)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int) {
+ 	r0, _, e1 := Syscall6(SYS_KEVENT, uintptr(kq), uintptr(change), uintptr(nchange), uintptr(event), uintptr(nevent), uintptr(unsafe.Pointer(timeout)))
+ 	n = int(r0)

@@ -17,6 +17,21 @@ Date:   Fri Sep 22 15:50:03 2017 +0200
     Change-Id: I177afff519b862a5c548e094203c219504852006
     Reviewed-on: https://go-review.googlesource.com/65352
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/tar_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index f844a9b9b2..8d44f3bf65 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -768,6 +768,9 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ }
+ 
+ func TestSparseFiles(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping test on plan9; see https://golang.org/issue/21977")
++	}
+ 	// Only perform the tests for hole-detection on the builders,
+ 	// where we have greater control over the filesystem.
+ 	sparseSupport := testenv.Builder() != ""

@@ -27,7 +27,83 @@ Date:   Tue Nov 19 13:48:35 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                         | 42 ---------------------------
  src/cmd/go/testdata/script/gopath_install.txt | 11 +++++++
  2 files changed, 11 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8b0b0d5513..e45e258846 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1376,48 +1376,6 @@ func TestGoGetTestOnlyPkg(t *testing.T) {
+ 	tg.run("get", "-t", "golang.org/x/tour/content...")
+ }
+ 
+-func TestInstalls(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("don't install into GOROOT in short mode")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempDir("gobin")
+-	tg.setenv("GOPATH", tg.path("."))
+-	goroot := runtime.GOROOT()
+-	tg.setenv("GOROOT", goroot)
+-
+-	// cmd/fix installs into tool
+-	tg.run("env", "GOOS")
+-	goos := strings.TrimSpace(tg.getStdout())
+-	tg.setenv("GOOS", goos)
+-	tg.run("env", "GOARCH")
+-	goarch := strings.TrimSpace(tg.getStdout())
+-	tg.setenv("GOARCH", goarch)
+-	fixbin := filepath.Join(goroot, "pkg", "tool", goos+"_"+goarch, "fix") + exeSuffix
+-	tg.must(robustio.RemoveAll(fixbin))
+-	tg.run("install", "cmd/fix")
+-	tg.wantExecutable(fixbin, "did not install cmd/fix to $GOROOT/pkg/tool")
+-	tg.must(os.Remove(fixbin))
+-	tg.setenv("GOBIN", tg.path("gobin"))
+-	tg.run("install", "cmd/fix")
+-	tg.wantExecutable(fixbin, "did not install cmd/fix to $GOROOT/pkg/tool with $GOBIN set")
+-	tg.unsetenv("GOBIN")
+-
+-	// gopath program installs into GOBIN
+-	tg.tempFile("src/progname/p.go", `package main; func main() {}`)
+-	tg.setenv("GOBIN", tg.path("gobin"))
+-	tg.run("install", "progname")
+-	tg.unsetenv("GOBIN")
+-	tg.wantExecutable(tg.path("gobin/progname")+exeSuffix, "did not install progname to $GOBIN/progname")
+-
+-	// gopath program installs into GOPATH/bin
+-	tg.run("install", "progname")
+-	tg.wantExecutable(tg.path("bin/progname")+exeSuffix, "did not install progname to $GOPATH/bin/progname")
+-}
+-
+ // Issue 4104.
+ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
+ 	tooSlow(t)
+diff --git a/src/cmd/go/testdata/script/gopath_install.txt b/src/cmd/go/testdata/script/gopath_install.txt
+index d1ca0e5db4..4b42fc593f 100644
+--- a/src/cmd/go/testdata/script/gopath_install.txt
++++ b/src/cmd/go/testdata/script/gopath_install.txt
+@@ -33,6 +33,17 @@ env GOBIN=$WORK/bin1
+ go install go-cmd-test/helloworld.go
+ exists $GOBIN/helloworld$GOEXE
+ 
++# We can't assume that we can write to GOROOT, because it may not be writable.
++# However, we can check its install location using 'go list'.
++# cmd/fix should be installed to GOROOT/pkg, not GOPATH/bin.
++env GOPATH=$PWD
++go list -f '{{.Target}}' cmd/fix
++stdout $GOROOT'[/\\]pkg[/\\]tool[/\\]'$GOOS'_'$GOARCH'[/\\]fix'$GOEXE'$'
++
++# GOBIN should not affect toolchain install locations.
++env GOBIN=$WORK/bin1
++go list -f '{{.Target}}' cmd/fix
++stdout $GOROOT'[/\\]pkg[/\\]tool[/\\]'$GOOS'_'$GOARCH'[/\\]fix'$GOEXE'$'
+ 
+ -- go-cmd-test/helloworld.go --
+ package main

@@ -9,8 +9,97 @@ Date:   Fri Aug 8 16:12:34 2008 -0700
     DELTA=43  (5 added, 36 deleted, 2 changed)
     OCL=14008
     CL=14010
-
+---
  test/bugs/bug041.go |  8 --------
  test/bugs/bug042.go | 28 ----------------------------
  test/golden.out     | 13 +++++++------
  3 files changed, 7 insertions(+), 42 deletions(-)
+
+diff --git a/test/bugs/bug041.go b/test/bugs/bug041.go
+index 709b774d05..1a6e0dde80 100644
+--- a/test/bugs/bug041.go
++++ b/test/bugs/bug041.go
+@@ -13,11 +13,3 @@ type S struct {
+ func main() {
+   var s S;
+ }
+-
+-/*
+-Another problem with implicit forward declarations (as in this program on line 6)
+-is that it is not clear in which scope the type (here "T") should be declared.
+-This is the main reason why we should not allow implicit forward declarations at all,
+-and instead have an explicit type forward declaration. For more on this subject
+-see bug042.go.
+-*/
+diff --git a/test/bugs/bug042.go b/test/bugs/bug042.go
+deleted file mode 100644
+index 9c873abfc8..0000000000
+--- a/test/bugs/bug042.go
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $D/$F.go || echo BUG: compilation should succeed
+-
+-package main
+-
+-type T  // BUG forward declaration should be accepted
+-type S struct {
+-  p *T
+-}
+-
+-type T struct {
+-  p *S
+-}
+-
+-func main() {
+-  var s S;
+-}
+-
+-/*
+-Per discussion w/ Ken, some time ago, we came to the conclusion that explicit
+-forward declarations (as on line 5 in this program) are preferrable over
+-implicit forward declarations because they make it explicit in which scope a
+-type is to be declared fully, eventually. As an aside, the machinery for it is
+-almost free in the compiler (one extra 'if' as far as I can tell).
+-*/
+diff --git a/test/golden.out b/test/golden.out
+index 8ae432b1d5..c5b823e879 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -71,10 +71,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug042.go
+-bugs/bug042.go:6: syntax error
+-BUG: compilation should succeed
+-
+ =========== bugs/bug046.go
+ bugs/bug046.go:7: illegal <this> pointer
+ BUG: known to fail incorrectly
+@@ -136,8 +132,8 @@ outer loop top k 1
+ k not zero
+ panic on line 310 PC=0x1362
+ 0x1362?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++	main·main(1, 0, 1606416392, ...)
++	main·main(0x1, 0x7fff5fbff808, 0x0, ...)
+ BUG: crashes
+ Trace/BPT trap          ./$A.out
+ 
+@@ -192,6 +188,11 @@ Bus error               $G $D/$F.go
+ 4882
+ BUG: succeeds incorrectly
+ 
++=========== bugs/bug087.go
++bugs/bug087.go:8: illegal combination of literals LEN 9
++bugs/bug087.go:8: illegal combination of literals LEN 9
++BUG: fails incorrectly
++
+ =========== fixedbugs/bug025.go
+ fixedbugs/bug025.go:7: variable exported but not defined: Foo
+ 

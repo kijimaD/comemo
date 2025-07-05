@@ -8,6 +8,55 @@ Date:   Tue Sep 8 17:11:57 2009 -0700
     DELTA=22  (19 added, 0 deleted, 3 changed)
     OCL=34463
     CL=34463
-
+---
  doc/effective_go.html | 25 ++++++++++++++++++++++---
  1 file changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 740c1cf8e9..becfd17b2a 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -489,10 +489,10 @@ and <code>while</code> and there is no <code>do-while</code>.
+ There are three forms, only one of which has semicolons:
+ </p>
+ <pre>
+-// Like a C for:
++// Like a C for
+ for init; condition; post { }
+ 
+-// Like a C while:
++// Like a C while
+ for condition { }
+ 
+ // Like a C for(;;)
+@@ -521,10 +521,29 @@ for key, value := range m {  // key is unused; could call it '_'
+ }
+ </pre>
+ 
++<p>
++For strings, the <code>range</code> does more of the work for you, breaking out individual
++characters by parsing the UTF-8 (erroneous encodings consume one byte and produce the
++replacement rune U+FFFD). The loop
++</p>
++<pre>
++for pos, char := range "日本語" {
++    fmt.Printf("character %c starts at byte position %d\n", char, pos)
++}
++</pre>
++<p>
++prints
++</p>
++<pre>
++character 日 starts at byte position 0
++character 本 starts at byte position 3
++character 語 starts at byte position 6
++</pre>
++
+ <p>
+ Finally, since Go has no comma operator and <code>++</code> and <code>--</code>
+ are statements not expressions, if you want to run multiple variables in a <code>for</code>
+-you can use parallel assignment:
++you should use parallel assignment:
+ </p>
+ <pre>
+ // Reverse a

@@ -47,7 +47,7 @@ Date:   Tue Sep 12 12:33:21 2017 -0400
     Change-Id: I56cc991fc2e55249d69518d4e1ba76cc23904e35
     Reviewed-on: https://go-review.googlesource.com/63290
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64.s    |   8 ++
  src/cmd/compile/internal/ppc64/ssa.go        |  25 +----
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  22 ++--
@@ -58,3 +58,486 @@ Date:   Tue Sep 12 12:33:21 2017 -0400
  src/cmd/internal/obj/ppc64/anames.go         |   2 +
  src/cmd/internal/obj/ppc64/asm9.go           |   6 ++
  9 files changed, 175 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 25e439d31b..313ccddf80 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -550,6 +550,14 @@ label1:
+ //	ftsqrt	BF, FRB
+ 	FTSQRT	F2,$7
+ 
++//	FCFID	
++//	FCFIDS
++
++	FCFID	F2,F3
++	FCFIDCC	F3,F3
++	FCFIDS	F2,F3
++	FCFIDSCC F2,F3
++
+ //
+ // CMP
+ //
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index f62123162c..c56f53c206 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -152,29 +152,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Reg = y
+ 		}
+ 
+-	case ssa.OpPPC64Xf2i64:
+-		{
+-			x := v.Args[0].Reg()
+-			y := v.Reg()
+-
+-			p := s.Prog(ppc64.AMFVSRD)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = y
+-		}
+-	case ssa.OpPPC64Xi2f64:
+-		{
+-			x := v.Args[0].Reg()
+-			y := v.Reg()
+-
+-			p := s.Prog(ppc64.AMTVSRD)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = y
+-		}
+-
+ 	case ssa.OpPPC64LoweredAtomicAnd8,
+ 		ssa.OpPPC64LoweredAtomicOr8:
+ 		// SYNC
+@@ -597,7 +574,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+ 
+-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB:
++	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW, ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 8488e201dc..0a09724b8e 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -57,19 +57,25 @@
+ (Div64F x y) -> (FDIV x y)
+ 
+ // Lowering float <-> int
+-(Cvt32to32F x) -> (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
+-(Cvt32to64F x) -> (FCFID (Xi2f64 (SignExt32to64 x)))
+-(Cvt64to32F x) -> (FRSP (FCFID (Xi2f64 x)))
+-(Cvt64to64F x) -> (FCFID (Xi2f64 x))
++(Cvt32to32F x) -> (FCFIDS (MTVSRD (SignExt32to64 x)))
++(Cvt32to64F x) -> (FCFID (MTVSRD (SignExt32to64 x)))
++(Cvt64to32F x) -> (FCFIDS (MTVSRD x))
++(Cvt64to64F x) -> (FCFID (MTVSRD x))
+ 
+-(Cvt32Fto32 x) -> (Xf2i64 (FCTIWZ x))
+-(Cvt32Fto64 x) -> (Xf2i64 (FCTIDZ x))
+-(Cvt64Fto32 x) -> (Xf2i64 (FCTIWZ x))
+-(Cvt64Fto64 x) -> (Xf2i64 (FCTIDZ x))
++(Cvt32Fto32 x) -> (MFVSRD (FCTIWZ x))
++(Cvt32Fto64 x) -> (MFVSRD (FCTIDZ x))
++(Cvt64Fto32 x) -> (MFVSRD (FCTIWZ x))
++(Cvt64Fto64 x) -> (MFVSRD (FCTIDZ x))
+ 
+ (Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
+ (Cvt64Fto32F x) -> (FRSP x)
+ 
++(MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr x _)) -> (MFVSRD x)
++(FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr x _)) -> (MTVSRD x)
++
++(FMOVDstore [off] {sym} ptr (MTVSRD x) mem) -> (MOVDstore [off] {sym} ptr x mem)
++(MOVDstore [off] {sym} ptr (MFVSRD x) mem) -> (FMOVDstore [off] {sym} ptr x mem)
++
+ (Round32F x) -> (LoweredRound32F x)
+ (Round64F x) -> (LoweredRound64F x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 133ca03db0..b96bd66b1a 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -223,6 +223,7 @@ func init() {
+ 		{name: "FCTIDZ", argLength: 1, reg: fp11, asm: "FCTIDZ", typ: "Float64"}, // convert float to 64-bit int round towards zero
+ 		{name: "FCTIWZ", argLength: 1, reg: fp11, asm: "FCTIWZ", typ: "Float64"}, // convert float to 32-bit int round towards zero
+ 		{name: "FCFID", argLength: 1, reg: fp11, asm: "FCFID", typ: "Float64"},   // convert 64-bit integer to float
++		{name: "FCFIDS", argLength: 1, reg: fp11, asm: "FCFIDS", typ: "Float32"}, // convert 32-bit integer to float
+ 		{name: "FRSP", argLength: 1, reg: fp11, asm: "FRSP", typ: "Float64"},     // round float to 32-bit value
+ 
+ 		// Movement between float and integer registers with no change in bits; accomplished with stores+loads on PPC.
+@@ -231,8 +232,8 @@ func init() {
+ 		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
+ 		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
+ 
+-		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64"},   // move 64 bits of F register into G register
+-		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64"}, // move 64 bits of G register into F register
++		{name: "MFVSRD", argLength: 1, reg: fpgp, asm: "MFVSRD", typ: "Int64"},   // move 64 bits of F register into G register
++		{name: "MTVSRD", argLength: 1, reg: gpfp, asm: "MTVSRD", typ: "Float64"}, // move 64 bits of G register into F register
+ 
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
+ 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2f729b446a..c5d43f4611 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1333,9 +1333,10 @@ const (
+ 	OpPPC64FCTIDZ
+ 	OpPPC64FCTIWZ
+ 	OpPPC64FCFID
++	OpPPC64FCFIDS
+ 	OpPPC64FRSP
+-	OpPPC64Xf2i64
+-	OpPPC64Xi2f64
++	OpPPC64MFVSRD
++	OpPPC64MTVSRD
+ 	OpPPC64AND
+ 	OpPPC64ANDN
+ 	OpPPC64OR
+@@ -17086,6 +17087,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FCFIDS",
++		argLen: 1,
++		asm:    ppc64.AFCFIDS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []outputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
++	},
+ 	{
+ 		name:   "FRSP",
+ 		argLen: 1,
+@@ -17100,8 +17114,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "Xf2i64",
++		name:   "MFVSRD",
+ 		argLen: 1,
++		asm:    ppc64.AMFVSRD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -17112,8 +17127,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "Xi2f64",
++		name:   "MTVSRD",
+ 		argLen: 1,
++		asm:    ppc64.AMTVSRD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index e567019b45..53d457f224 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -1307,10 +1307,10 @@ func rewriteValuePPC64_OpCvt32Fto32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+-	// result: (Xf2i64 (FCTIWZ x))
++	// result: (MFVSRD (FCTIWZ x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpPPC64Xf2i64)
++		v.reset(OpPPC64MFVSRD)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIWZ, typ.Float64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -1324,10 +1324,10 @@ func rewriteValuePPC64_OpCvt32Fto64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt32Fto64 x)
+ 	// cond:
+-	// result: (Xf2i64 (FCTIDZ x))
++	// result: (MFVSRD (FCTIDZ x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpPPC64Xf2i64)
++		v.reset(OpPPC64MFVSRD)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIDZ, typ.Float64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -1353,15 +1353,13 @@ func rewriteValuePPC64_OpCvt32to32F_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt32to32F x)
+ 	// cond:
+-	// result: (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
++	// result: (FCFIDS (MTVSRD (SignExt32to64 x)))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpPPC64FRSP)
+-		v0 := b.NewValue0(v.Pos, OpPPC64FCFID, typ.Float64)
+-		v1 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
+-		v2 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+-		v2.AddArg(x)
+-		v1.AddArg(v2)
++		v.reset(OpPPC64FCFIDS)
++		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
++		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
++		v1.AddArg(x)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+ 		return true
+@@ -1374,11 +1372,11 @@ func rewriteValuePPC64_OpCvt32to64F_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt32to64F x)
+ 	// cond:
+-	// result: (FCFID (Xi2f64 (SignExt32to64 x)))
++	// result: (FCFID (MTVSRD (SignExt32to64 x)))
+ 	for {
+ 		x := v.Args[0]
+ 		v.reset(OpPPC64FCFID)
+-		v0 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
+ 		v1 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+@@ -1393,10 +1391,10 @@ func rewriteValuePPC64_OpCvt64Fto32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt64Fto32 x)
+ 	// cond:
+-	// result: (Xf2i64 (FCTIWZ x))
++	// result: (MFVSRD (FCTIWZ x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpPPC64Xf2i64)
++		v.reset(OpPPC64MFVSRD)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIWZ, typ.Float64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -1421,10 +1419,10 @@ func rewriteValuePPC64_OpCvt64Fto64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt64Fto64 x)
+ 	// cond:
+-	// result: (Xf2i64 (FCTIDZ x))
++	// result: (MFVSRD (FCTIDZ x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpPPC64Xf2i64)
++		v.reset(OpPPC64MFVSRD)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64FCTIDZ, typ.Float64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -1438,14 +1436,12 @@ func rewriteValuePPC64_OpCvt64to32F_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt64to32F x)
+ 	// cond:
+-	// result: (FRSP (FCFID (Xi2f64 x)))
++	// result: (FCFIDS (MTVSRD x))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpPPC64FRSP)
+-		v0 := b.NewValue0(v.Pos, OpPPC64FCFID, typ.Float64)
+-		v1 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
+-		v1.AddArg(x)
+-		v0.AddArg(v1)
++		v.reset(OpPPC64FCFIDS)
++		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
++		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+@@ -1457,11 +1453,11 @@ func rewriteValuePPC64_OpCvt64to64F_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Cvt64to64F x)
+ 	// cond:
+-	// result: (FCFID (Xi2f64 x))
++	// result: (FCFID (MTVSRD x))
+ 	for {
+ 		x := v.Args[0]
+ 		v.reset(OpPPC64FCFID)
+-		v0 := b.NewValue0(v.Pos, OpPPC64Xi2f64, typ.Float64)
++		v0 := b.NewValue0(v.Pos, OpPPC64MTVSRD, typ.Float64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+@@ -6242,6 +6238,33 @@ func rewriteValuePPC64_OpPPC64FADDS_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64FMOVDload_0(v *Value) bool {
++	// match: (FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr x _))
++	// cond:
++	// result: (MTVSRD x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MOVDstore {
++			break
++		}
++		if v_1.AuxInt != off {
++			break
++		}
++		if v_1.Aux != sym {
++			break
++		}
++		_ = v_1.Args[2]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		x := v_1.Args[1]
++		v.reset(OpPPC64MTVSRD)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+@@ -6294,6 +6317,28 @@ func rewriteValuePPC64_OpPPC64FMOVDload_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64FMOVDstore_0(v *Value) bool {
++	// match: (FMOVDstore [off] {sym} ptr (MTVSRD x) mem)
++	// cond:
++	// result: (MOVDstore [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MTVSRD {
++			break
++		}
++		x := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpPPC64MOVDstore)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+ 	// cond: is16Bit(off1+off2)
+ 	// result: (FMOVDstore [off1+off2] {sym} ptr val mem)
+@@ -7070,6 +7115,33 @@ func rewriteValuePPC64_OpPPC64MOVBstorezero_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
++	// match: (MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr x _))
++	// cond:
++	// result: (MFVSRD x)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[1]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64FMOVDstore {
++			break
++		}
++		if v_1.AuxInt != off {
++			break
++		}
++		if v_1.Aux != sym {
++			break
++		}
++		_ = v_1.Args[2]
++		if ptr != v_1.Args[0] {
++			break
++		}
++		x := v_1.Args[1]
++		v.reset(OpPPC64MFVSRD)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+ 	// cond: canMergeSym(sym1,sym2)
+ 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+@@ -7122,6 +7194,28 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
++	// match: (MOVDstore [off] {sym} ptr (MFVSRD x) mem)
++	// cond:
++	// result: (FMOVDstore [off] {sym} ptr x mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpPPC64MFVSRD {
++			break
++		}
++		x := v_1.Args[0]
++		mem := v.Args[2]
++		v.reset(OpPPC64FMOVDstore)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
+ 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)
+ 	// cond: is16Bit(off1+off2)
+ 	// result: (MOVDstore [off1+off2] {sym} x val mem)
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index f9bdbd45ea..de8ee3f30d 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -650,6 +650,8 @@ const (
+ 	AFCFIDCC
+ 	AFCFIDU
+ 	AFCFIDUCC
++	AFCFIDS
++	AFCFIDSCC
+ 	AFCTID
+ 	AFCTIDCC
+ 	AFCTIDZ
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 65b03bd652..72b31564fd 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -271,6 +271,8 @@ var Anames = []string{
+ 	"FCFIDCC",
+ 	"FCFIDU",
+ 	"FCFIDUCC",
++	"FCFIDS",
++	"FCFIDSCC",
+ 	"FCTID",
+ 	"FCTIDCC",
+ 	"FCTIDZ",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index c775fa7e6f..dd6429fd0b 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1596,6 +1596,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFCFIDCC, r0)
+ 			opset(AFCFIDU, r0)
+ 			opset(AFCFIDUCC, r0)
++			opset(AFCFIDS, r0)
++			opset(AFCFIDSCC, r0)
+ 			opset(AFRES, r0)
+ 			opset(AFRESCC, r0)
+ 			opset(AFRIM, r0)
+@@ -3656,6 +3658,10 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 		return OPVCC(63, 974, 0, 0)
+ 	case AFCFIDUCC:
+ 		return OPVCC(63, 974, 0, 1)
++	case AFCFIDS:
++		return OPVCC(59, 846, 0, 0)
++	case AFCFIDSCC:
++		return OPVCC(59, 846, 0, 1)
+ 	case AFCTIW:
+ 		return OPVCC(63, 14, 0, 0)
+ 	case AFCTIWCC:

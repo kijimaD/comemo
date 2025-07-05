@@ -31,7 +31,7 @@ Date:   Fri Dec 3 16:10:10 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/372854
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/bug176.go           |   7 ++-
  test/fixedbugs/bug195.go           |   8 +--
  test/fixedbugs/bug228.go           |   6 +--
@@ -70,3 +70,877 @@ Date:   Fri Dec 3 16:10:10 2021 -0800
  test/run.go                        | 105 +++++++++++++++++--------------------
  test/typecheck.go                  |   2 +-
  37 files changed, 226 insertions(+), 193 deletions(-)
+
+diff --git a/test/fixedbugs/bug176.go b/test/fixedbugs/bug176.go
+index 7001dd081e..61e63c7656 100644
+--- a/test/fixedbugs/bug176.go
++++ b/test/fixedbugs/bug176.go
+@@ -8,7 +8,6 @@ package main
+ 
+ var x int
+ 
+-var a = []int{ x: 1}	// ERROR "constant"
+-var b = [...]int{x: 1}	// GCCGO_ERROR "constant"
+-var c = map[int]int{ x: 1}
+-
++var a = []int{x: 1}    // ERROR "constant"
++var b = [...]int{x: 1} // ERROR "constant"
++var c = map[int]int{x: 1}
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 6d8578d6cb..4a3bf0db81 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -11,14 +11,14 @@ type I2 int
+ 
+ type I3 interface{ int } // ERROR "interface"
+ 
+-type S struct {
+-	x interface{ S } // ERROR "interface"
++type S struct { // GC_ERROR "invalid recursive type"
++	x interface{ S } // GCCGO_ERROR "interface"
+ }
+-type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE: I4 refers to\n\tLINE: I4$"
++type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE:.* I4 refers to\n\tLINE:.* I4$"
+ 	I4 // GCCGO_ERROR "interface"
+ }
+ 
+-type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE: I5 refers to\n\tLINE+4: I6 refers to\n\tLINE: I5$"
++type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE:.* I5 refers to\n\tLINE+4:.* I6 refers to\n\tLINE:.* I5$"
+ 	I6
+ }
+ 
+diff --git a/test/fixedbugs/bug228.go b/test/fixedbugs/bug228.go
+index 50e895917f..5c0e7e5122 100644
+--- a/test/fixedbugs/bug228.go
++++ b/test/fixedbugs/bug228.go
+@@ -6,14 +6,10 @@
+ 
+ package main
+ 
+-func f(x int, y ...int)	// ok
++func f(x int, y ...int) // ok
+ 
+ func g(x int, y float32) (...)	// ERROR "[.][.][.]"
+ 
+-func h(x, y ...int)		// ERROR "[.][.][.]"
+-
+-func i(x int, y ...int, z float32)	// ERROR "[.][.][.]"
+-
+ var x ...int;		// ERROR "[.][.][.]|syntax|type"
+ 
+ type T ...int;		// ERROR "[.][.][.]|syntax|type"
+diff --git a/test/fixedbugs/bug228a.go b/test/fixedbugs/bug228a.go
+new file mode 100644
+index 0000000000..c42b0bffb7
+--- /dev/null
++++ b/test/fixedbugs/bug228a.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(x int, y ...int) // ok
++
++func h(x, y ...int) // ERROR "[.][.][.]"
++
++func i(x int, y ...int, z float32) // ERROR "[.][.][.]"
+diff --git a/test/fixedbugs/bug231.go b/test/fixedbugs/bug231.go
+index f64ddc3e75..db0d536db7 100644
+--- a/test/fixedbugs/bug231.go
++++ b/test/fixedbugs/bug231.go
+@@ -6,17 +6,19 @@
+ 
+ package main
+ 
+-type I interface { m() }
+-type T struct { m func() }
+-type M struct {}
++type I interface{ m() }
++type T struct{ m func() }
++type M struct{}
++
+ func (M) m() {}
+ 
+ func main() {
+ 	var t T
+ 	var m M
+ 	var i I
+-	
++
+ 	i = m
+-	i = t	// ERROR "not a method|has no methods" "does not implement I"
++	// types2 does not give extra error "T.m is a field, not a method"
++	i = t // ERROR "not a method|has no methods|does not implement I"
+ 	_ = i
+ }
+diff --git a/test/fixedbugs/bug255.go b/test/fixedbugs/bug255.go
+index 458fb972b2..38df7813c9 100644
+--- a/test/fixedbugs/bug255.go
++++ b/test/fixedbugs/bug255.go
+@@ -8,13 +8,13 @@ package main
+ 
+ var a [10]int      // ok
+ var b [1e1]int     // ok
+-var c [1.5]int     // ERROR "truncated"
+-var d ["abc"]int   // ERROR "invalid array bound|not numeric"
+-var e [nil]int     // ERROR "use of untyped nil|invalid array bound|not numeric"
++var c [1.5]int     // ERROR "truncated|must be integer"
++var d ["abc"]int   // ERROR "invalid array bound|not numeric|must be integer"
++var e [nil]int     // ERROR "use of untyped nil|invalid array bound|not numeric|must be constant"
+ var f [e]int       // ok: error already reported for e
+-var g [1 << 65]int // ERROR "array bound is too large|overflows"
++var g [1 << 65]int // ERROR "array bound is too large|overflows|must be integer"
+ var h [len(a)]int  // ok
+ 
+ func ff() string
+ 
+-var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant"
++var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant|must be constant"
+diff --git a/test/fixedbugs/bug388.go b/test/fixedbugs/bug388.go
+index 2d508501e0..a060c9fd5a 100644
+--- a/test/fixedbugs/bug388.go
++++ b/test/fixedbugs/bug388.go
+@@ -13,16 +13,6 @@ func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintT
+ 	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
+ }
+ 
+-func bar(i int) {
+-	runtime.UintType := i       // ERROR "non-name runtime.UintType|non-name on left side|undefined identifier"
+-	println(runtime.UintType)	// GCCGO_ERROR "invalid use of type|undefined identifier"
+-}
+-
+-func baz() {
+-	main.i := 1	// ERROR "non-name main.i|non-name on left side"
+-	println(main.i)	// GCCGO_ERROR "no fields or methods"
+-}
+-
+ func qux() {
+ 	var main.i	// ERROR "unexpected [.]|expected type"
+ 	println(main.i)
+diff --git a/test/fixedbugs/bug388a.go b/test/fixedbugs/bug388a.go
+new file mode 100644
+index 0000000000..fca6d9c1e4
+--- /dev/null
++++ b/test/fixedbugs/bug388a.go
+@@ -0,0 +1,23 @@
++// errorcheck
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2231
++
++package main
++import "runtime"
++
++func bar(i int) {
++	runtime.UintType := i       // ERROR "non-name runtime.UintType|non-name on left side|undefined"
++	println(runtime.UintType)	// ERROR "invalid use of type|undefined"
++}
++
++func baz() {
++	main.i := 1	// ERROR "non-name main.i|non-name on left side|undefined"
++	println(main.i)	// ERROR "no fields or methods|undefined"
++}
++
++func main() {
++}
+diff --git a/test/fixedbugs/bug412.go b/test/fixedbugs/bug412.go
+index 183fb7e4af..26ac45fbb4 100644
+--- a/test/fixedbugs/bug412.go
++++ b/test/fixedbugs/bug412.go
+@@ -7,10 +7,10 @@
+ package p
+ 
+ type t struct {
+-	x int  // GCCGO_ERROR "duplicate field name .x."
+-	x int  // GC_ERROR "duplicate field x"
++	x int // GCCGO_ERROR "duplicate field name .x."
++	x int // GC_ERROR "duplicate field x|x redeclared"
+ }
+ 
+ func f(t *t) int {
+-	return t.x  // GC_ERROR "ambiguous selector t.x"
++	return t.x
+ }
+diff --git a/test/fixedbugs/issue11590.go b/test/fixedbugs/issue11590.go
+index f2a955f96d..9f89783343 100644
+--- a/test/fixedbugs/issue11590.go
++++ b/test/fixedbugs/issue11590.go
+@@ -6,6 +6,6 @@
+ 
+ package p
+ 
+-var _ = int8(4) * 300         // ERROR "constant 300 overflows int8" "constant 1200 overflows int8|integer constant overflow"
+-var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64|complex real part overflow"
+-var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128|complex real part overflow"
++var _ = int8(4) * 300         // ERROR "overflows int8"
++var _ = complex64(1) * 1e200  // ERROR "complex real part overflow|overflows complex64"
++var _ = complex128(1) * 1e500 // ERROR "complex real part overflow|overflows complex128"
+diff --git a/test/fixedbugs/issue11610.go b/test/fixedbugs/issue11610.go
+index 7ebfae6709..8d68c98f2d 100644
+--- a/test/fixedbugs/issue11610.go
++++ b/test/fixedbugs/issue11610.go
+@@ -8,7 +8,6 @@
+ // following an empty import.
+ 
+ package a
+-import""  // ERROR "import path is empty"
+ var?      // ERROR "invalid character U\+003F '\?'|invalid character 0x3f in input file"
+ 
+ var x int // ERROR "unexpected var|expected identifier|expected type"
+diff --git a/test/fixedbugs/issue11610a.go b/test/fixedbugs/issue11610a.go
+new file mode 100644
+index 0000000000..bbf60b6b04
+--- /dev/null
++++ b/test/fixedbugs/issue11610a.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test an internal compiler error on ? symbol in declaration
++// following an empty import.
++
++package a
++import""  // ERROR "import path is empty|invalid import path \(empty string\)"
+diff --git a/test/fixedbugs/issue11614.go b/test/fixedbugs/issue11614.go
+index 6ea463b7fe..e8d6badfb9 100644
+--- a/test/fixedbugs/issue11614.go
++++ b/test/fixedbugs/issue11614.go
+@@ -11,15 +11,15 @@
+ package main
+ 
+ type I interface {
+-	int // ERROR "interface contains embedded non-interface"
++	int // ERROR "interface contains embedded non-interface|embedding non-interface type int requires"
+ }
+ 
+ func n() {
+-	(I)
++	(I) // GC_ERROR "is not an expression"
+ }
+ 
+ func m() {
+-	(interface{int}) // ERROR "interface contains embedded non-interface" "type interface { int } is not an expression"
++	(interface{int}) // ERROR "interface contains embedded non-interface|embedding non-interface type int requires" "type interface { int } is not an expression|\(interface{int}\) \(type\) is not an expression"
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue14520.go b/test/fixedbugs/issue14520.go
+index 0b840ff4be..29cc270deb 100644
+--- a/test/fixedbugs/issue14520.go
++++ b/test/fixedbugs/issue14520.go
+@@ -6,9 +6,6 @@
+ 
+ package f
+ 
+-import /* // ERROR "import path" */ `
+-bogus`
+-
+ func f(x int /* // GC_ERROR "unexpected newline"
+ 
+ */) // GCCGO_ERROR "expected .*\).*|expected declaration"
+diff --git a/test/fixedbugs/issue14520a.go b/test/fixedbugs/issue14520a.go
+new file mode 100644
+index 0000000000..bb45d7e186
+--- /dev/null
++++ b/test/fixedbugs/issue14520a.go
+@@ -0,0 +1,10 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package f
++
++import /* // ERROR "import path" */ `
++bogus`
+diff --git a/test/fixedbugs/issue17038.go b/test/fixedbugs/issue17038.go
+index 4d7422c60c..1b65ffc1f0 100644
+--- a/test/fixedbugs/issue17038.go
++++ b/test/fixedbugs/issue17038.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-const A = complex(0()) // ERROR "cannot call non-function" "not enough arguments"
++const A = complex(0()) // ERROR "cannot call non-function"
+diff --git a/test/fixedbugs/issue19012.go b/test/fixedbugs/issue19012.go
+index 158618aa27..77b2236063 100644
+--- a/test/fixedbugs/issue19012.go
++++ b/test/fixedbugs/issue19012.go
+@@ -13,9 +13,9 @@ package main
+ 
+ func f(x int, y uint) {
+ 	if true {
+-		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
++		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
+ 	}
+-	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|mismatched types"
++	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue21979.go b/test/fixedbugs/issue21979.go
+index addf786c03..c6575a3928 100644
+--- a/test/fixedbugs/issue21979.go
++++ b/test/fixedbugs/issue21979.go
+@@ -7,39 +7,40 @@
+ package p
+ 
+ func f() {
+-	_ = bool("")      // ERROR "cannot convert .. \(type untyped string\) to type bool|invalid type conversion"
+-	_ = bool(1)       // ERROR "cannot convert 1 \(type untyped int\) to type bool|invalid type conversion"
+-	_ = bool(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type bool|invalid type conversion"
+-	_ = bool(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type bool|invalid type conversion"
++	_ = bool("")      // ERROR "cannot convert .. \(.*untyped string.*\) to type bool|invalid type conversion"
++	_ = bool(1)       // ERROR "cannot convert 1 \(.*untyped int.*\) to type bool|invalid type conversion"
++	_ = bool(1.0)     // ERROR "cannot convert 1.* \(.*untyped float.*\) to type bool|invalid type conversion"
++	_ = bool(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(.*untyped complex.*\) to type bool|invalid type conversion"
+ 
+-	_ = string(true) // ERROR "cannot convert true \(type untyped bool\) to type string|invalid type conversion"
++	_ = string(true) // ERROR "cannot convert true \(.*untyped bool.*\) to type string|invalid type conversion"
+ 	_ = string(-1)
+-	_ = string(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type string|invalid type conversion"
+-	_ = string(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type string|invalid type conversion"
++	_ = string(1.0)     // ERROR "cannot convert 1.* \(.*untyped float.*\) to type string|invalid type conversion"
++	_ = string(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(.*untyped complex.*\) to type string|invalid type conversion"
+ 
+-	_ = int("")   // ERROR "cannot convert .. \(type untyped string\) to type int|invalid type conversion"
+-	_ = int(true) // ERROR "cannot convert true \(type untyped bool\) to type int|invalid type conversion"
++	_ = int("")   // ERROR "cannot convert .. \(.*untyped string.*\) to type int|invalid type conversion"
++	_ = int(true) // ERROR "cannot convert true \(.*untyped bool.*\) to type int|invalid type conversion"
+ 	_ = int(-1)
+ 	_ = int(1)
+ 	_ = int(1.0)
+-	_ = int(-4 + 2i) // ERROR "truncated to integer"
++	_ = int(-4 + 2i) // ERROR "truncated to integer|cannot convert -4 \+ 2i \(.*untyped complex.*\) to type int"
+ 
+-	_ = uint("")   // ERROR "cannot convert .. \(type untyped string\) to type uint|invalid type conversion"
+-	_ = uint(true) // ERROR "cannot convert true \(type untyped bool\) to type uint|invalid type conversion"
+-	_ = uint(-1)   // ERROR "constant -1 overflows uint|integer constant overflow"
++	_ = uint("")   // ERROR "cannot convert .. \(.*untyped string.*\) to type uint|invalid type conversion"
++	_ = uint(true) // ERROR "cannot convert true \(.*untyped bool.*\) to type uint|invalid type conversion"
++	_ = uint(-1)   // ERROR "constant -1 overflows uint|integer constant overflow|cannot convert -1 \(untyped int constant\) to type uint"
+ 	_ = uint(1)
+ 	_ = uint(1.0)
+-	_ = uint(-4 + 2i) // ERROR "constant -4 overflows uint" "truncated to integer"
++	// types1 reports extra error "truncated to integer"
++	_ = uint(-4 + 2i) // ERROR "constant -4 overflows uint|truncated to integer|cannot convert -4 \+ 2i \(untyped complex constant.*\) to type uint"
+ 
+-	_ = float64("")   // ERROR "cannot convert .. \(type untyped string\) to type float64|invalid type conversion"
+-	_ = float64(true) // ERROR "cannot convert true \(type untyped bool\) to type float64|invalid type conversion"
++	_ = float64("")   // ERROR "cannot convert .. \(.*untyped string.*\) to type float64|invalid type conversion"
++	_ = float64(true) // ERROR "cannot convert true \(.*untyped bool.*\) to type float64|invalid type conversion"
+ 	_ = float64(-1)
+ 	_ = float64(1)
+ 	_ = float64(1.0)
+-	_ = float64(-4 + 2i) // ERROR "truncated to"
++	_ = float64(-4 + 2i) // ERROR "truncated to|cannot convert -4 \+ 2i \(.*untyped complex.*\) to type float64"
+ 
+-	_ = complex128("")   // ERROR "cannot convert .. \(type untyped string\) to type complex128|invalid type conversion"
+-	_ = complex128(true) // ERROR "cannot convert true \(type untyped bool\) to type complex128|invalid type conversion"
++	_ = complex128("")   // ERROR "cannot convert .. \(.*untyped string.*\) to type complex128|invalid type conversion"
++	_ = complex128(true) // ERROR "cannot convert true \(.*untyped bool.*\) to type complex128|invalid type conversion"
+ 	_ = complex128(-1)
+ 	_ = complex128(1)
+ 	_ = complex128(1.0)
+diff --git a/test/fixedbugs/issue23732.go b/test/fixedbugs/issue23732.go
+index db2d182234..79b60e26df 100644
+--- a/test/fixedbugs/issue23732.go
++++ b/test/fixedbugs/issue23732.go
+@@ -24,19 +24,19 @@ func main() {
+ 	_ = Foo{ // GCCGO_ERROR "too few expressions"
+ 		1,
+ 		2,
+-		3, // GC_ERROR "too few values in Foo{...}"
+-	}
++		3,
++	} // GC_ERROR "too few values in"
+ 
+ 	_ = Foo{
+ 		1,
+ 		2,
+ 		3,
+-		Bar{"A", "B"}, // ERROR "too many values in Bar{...}|too many expressions"
++		Bar{"A", "B"}, // ERROR "too many values in|too many expressions"
+ 	}
+ 
+ 	_ = Foo{ // GCCGO_ERROR "too few expressions"
+ 		1,
+ 		2,
+-		Bar{"A", "B"}, // ERROR "too many values in Bar{...}|too many expressions" "too few values in Foo{...}"
+-	}
++		Bar{"A", "B"}, // ERROR "too many values in|too many expressions"
++	} // GC_ERROR "too few values in"
+ }
+diff --git a/test/fixedbugs/issue25958.go b/test/fixedbugs/issue25958.go
+index 90fcee15fd..91358f83fe 100644
+--- a/test/fixedbugs/issue25958.go
++++ b/test/fixedbugs/issue25958.go
+@@ -11,7 +11,7 @@ package p
+ 
+ func f(done chan struct{}) {
+ 	select {
+-	case done: // ERROR "must be receive|expected .*<-.* or .*=" "not used"
+-	case (chan struct{})(done): // ERROR "must be receive|expected .*<-.* or .*="
++	case done: // ERROR "must be receive|expected .*<-.* or .*=|must be send or receive|not used"
++	case (chan struct{})(done): // ERROR "must be receive|expected .*<-.* or .*=|must be send or receive"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue28079b.go b/test/fixedbugs/issue28079b.go
+index 54c9db994b..69d1a2f480 100644
+--- a/test/fixedbugs/issue28079b.go
++++ b/test/fixedbugs/issue28079b.go
+@@ -10,8 +10,8 @@ package p
+ 
+ import "unsafe"
+ 
+-type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound|array bound is not constant"
++type T [uintptr(unsafe.Pointer(nil))]int // ERROR "non-constant array bound|array bound is not constant|must be constant"
+ 
+ func f() {
+-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "shift of type float64|non-integer type for left operand of shift"
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "shift of type float64|non-integer type for left operand of shift|must be integer"
+ }
+diff --git a/test/fixedbugs/issue28268.go b/test/fixedbugs/issue28268.go
+index 59a4c57c67..263b2d1b42 100644
+--- a/test/fixedbugs/issue28268.go
++++ b/test/fixedbugs/issue28268.go
+@@ -16,8 +16,8 @@ type T struct {
+ 
+ type E struct{}
+ 
+-func (T) b()  {} // ERROR "field and method named b|redeclares struct field name"
+-func (*T) E() {} // ERROR "field and method named E|redeclares struct field name"
++func (T) b()  {} // ERROR "field and method named b|redeclares struct field name|field and method with the same name b"
++func (*T) E() {} // ERROR "field and method named E|redeclares struct field name|field and method with the same name E"
+ 
+ func _() {
+ 	var x T
+diff --git a/test/fixedbugs/issue33460.go b/test/fixedbugs/issue33460.go
+index d90b0a4348..dff468a12c 100644
+--- a/test/fixedbugs/issue33460.go
++++ b/test/fixedbugs/issue33460.go
+@@ -18,11 +18,11 @@ const iii int = 0x3
+ func f(v int) {
+ 	switch v {
+ 	case zero, one:
+-	case two, one: // ERROR "previous case at LINE-1|duplicate case in switch"
++	case two, one: // ERROR "previous case at LINE-1|duplicate case .*in.* switch"
+ 
+ 	case three:
+-	case 3: // ERROR "previous case at LINE-1|duplicate case in switch"
+-	case iii: // ERROR "previous case at LINE-2|duplicate case in switch"
++	case 3: // ERROR "previous case at LINE-1|duplicate case .*in.* switch"
++	case iii: // ERROR "previous case at LINE-2|duplicate case .*in.* switch"
+ 	}
+ }
+ 
+@@ -31,7 +31,7 @@ const b = "b"
+ var _ = map[string]int{
+ 	"a": 0,
+ 	b:   1,
+-	"a": 2, // ERROR "previous key at LINE-2|duplicate key in map literal"
+-	"b": 3, // GC_ERROR "previous key at LINE-2"
+-	"b": 4, // GC_ERROR "previous key at LINE-3"
++	"a": 2, // ERROR "previous key at LINE-2|duplicate key.*in map literal"
++	"b": 3, // GC_ERROR "previous key at LINE-2|duplicate key.*in map literal"
++	"b": 4, // GC_ERROR "previous key at LINE-3|duplicate key.*in map literal"
+ }
+diff --git a/test/fixedbugs/issue4232.go b/test/fixedbugs/issue4232.go
+index 30d132683a..f49c6152e0 100644
+--- a/test/fixedbugs/issue4232.go
++++ b/test/fixedbugs/issue4232.go
+@@ -11,46 +11,46 @@ package p
+ 
+ func f() {
+ 	var a [10]int
+-	_ = a[-1]  // ERROR "invalid array index -1|index out of bounds"
+-	_ = a[-1:] // ERROR "invalid slice index -1|index out of bounds"
+-	_ = a[:-1] // ERROR "invalid slice index -1|index out of bounds"
+-	_ = a[10]  // ERROR "invalid array index 10|index out of bounds"
++	_ = a[-1]  // ERROR "invalid array index -1|index out of bounds|must not be negative"
++	_ = a[-1:] // ERROR "invalid slice index -1|index out of bounds|must not be negative"
++	_ = a[:-1] // ERROR "invalid slice index -1|index out of bounds|must not be negative"
++	_ = a[10]  // ERROR "invalid array index 10|index .*out of bounds"
+ 	_ = a[9:10]
+ 	_ = a[10:10]
+-	_ = a[9:12]            // ERROR "invalid slice index 12|index out of bounds"
+-	_ = a[11:12]           // ERROR "invalid slice index 11|index out of bounds"
+-	_ = a[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
++	_ = a[9:12]            // ERROR "invalid slice index 12|index .*out of bounds"
++	_ = a[11:12]           // ERROR "invalid slice index 11|index .*out of bounds"
++	_ = a[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds"
+ 
+ 	var s []int
+-	_ = s[-1]  // ERROR "invalid slice index -1|index out of bounds"
+-	_ = s[-1:] // ERROR "invalid slice index -1|index out of bounds"
+-	_ = s[:-1] // ERROR "invalid slice index -1|index out of bounds"
++	_ = s[-1]  // ERROR "invalid slice index -1|index .*out of bounds|must not be negative"
++	_ = s[-1:] // ERROR "invalid slice index -1|index .*out of bounds|must not be negative"
++	_ = s[:-1] // ERROR "invalid slice index -1|index .*out of bounds|must not be negative"
+ 	_ = s[10]
+ 	_ = s[9:10]
+ 	_ = s[10:10]
+ 	_ = s[9:12]
+ 	_ = s[11:12]
+-	_ = s[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
++	_ = s[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds"
+ 
+ 	const c = "foofoofoof"
+-	_ = c[-1]  // ERROR "invalid string index -1|index out of bounds"
+-	_ = c[-1:] // ERROR "invalid slice index -1|index out of bounds"
+-	_ = c[:-1] // ERROR "invalid slice index -1|index out of bounds"
+-	_ = c[10]  // ERROR "invalid string index 10|index out of bounds"
++	_ = c[-1]  // ERROR "invalid string index -1|index out of bounds|must not be negative"
++	_ = c[-1:] // ERROR "invalid slice index -1|index out of bounds|must not be negative"
++	_ = c[:-1] // ERROR "invalid slice index -1|index out of bounds|must not be negative"
++	_ = c[10]  // ERROR "invalid string index 10|index .*out of bounds"
+ 	_ = c[9:10]
+ 	_ = c[10:10]
+-	_ = c[9:12]            // ERROR "invalid slice index 12|index out of bounds"
+-	_ = c[11:12]           // ERROR "invalid slice index 11|index out of bounds"
+-	_ = c[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
++	_ = c[9:12]            // ERROR "invalid slice index 12|index .*out of bounds"
++	_ = c[11:12]           // ERROR "invalid slice index 11|index .*out of bounds"
++	_ = c[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds"
+ 
+ 	var t string
+-	_ = t[-1]  // ERROR "invalid string index -1|index out of bounds"
+-	_ = t[-1:] // ERROR "invalid slice index -1|index out of bounds"
+-	_ = t[:-1] // ERROR "invalid slice index -1|index out of bounds"
++	_ = t[-1]  // ERROR "invalid string index -1|index out of bounds|must not be negative"
++	_ = t[-1:] // ERROR "invalid slice index -1|index out of bounds|must not be negative"
++	_ = t[:-1] // ERROR "invalid slice index -1|index out of bounds|must not be negative"
+ 	_ = t[10]
+ 	_ = t[9:10]
+ 	_ = t[10:10]
+ 	_ = t[9:12]
+ 	_ = t[11:12]
+-	_ = t[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
++	_ = t[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds"
+ }
+diff --git a/test/fixedbugs/issue4452.go b/test/fixedbugs/issue4452.go
+index f91bd2c0fb..c3d9b61ecb 100644
+--- a/test/fixedbugs/issue4452.go
++++ b/test/fixedbugs/issue4452.go
+@@ -9,5 +9,5 @@
+ package main
+ 
+ func main() {
+-	_ = [...]int(4) // ERROR "\[\.\.\.\].*outside of array literal"
++	_ = [...]int(4) // ERROR "\[\.\.\.\].*outside of array literal|invalid use of \[\.\.\.\] array"
+ }
+diff --git a/test/fixedbugs/issue4510.dir/f1.go b/test/fixedbugs/issue4510.dir/f1.go
+index 7e2cffa5dd..1217106fca 100644
+--- a/test/fixedbugs/issue4510.dir/f1.go
++++ b/test/fixedbugs/issue4510.dir/f1.go
+@@ -4,6 +4,6 @@
+ 
+ package p
+ 
+-import "fmt" // ERROR "fmt redeclared|imported"
++import "fmt" // GCCGO_ERROR "fmt redeclared|imported"
+ 
+ var _ = fmt.Printf
+diff --git a/test/fixedbugs/issue4510.dir/f2.go b/test/fixedbugs/issue4510.dir/f2.go
+index 895fc342ba..1a67153771 100644
+--- a/test/fixedbugs/issue4510.dir/f2.go
++++ b/test/fixedbugs/issue4510.dir/f2.go
+@@ -4,4 +4,4 @@
+ 
+ package p
+ 
+-func fmt() {}
++func fmt() {} // GC_ERROR "fmt already declared through import of package"
+diff --git a/test/fixedbugs/issue7525.go b/test/fixedbugs/issue7525.go
+index fcfab7236a..b292d66ff1 100644
+--- a/test/fixedbugs/issue7525.go
++++ b/test/fixedbugs/issue7525.go
+@@ -10,6 +10,6 @@ package main
+ 
+ import "unsafe"
+ 
+-var x struct {
+-	a [unsafe.Sizeof(x.a)]int // ERROR "array bound|typechecking loop|invalid expression"
++var x struct { // GC_ERROR "initialization loop for x"
++	a [unsafe.Sizeof(x.a)]int // GCCGO_ERROR "array bound|typechecking loop|invalid expression"
+ }
+diff --git a/test/fixedbugs/issue7525b.go b/test/fixedbugs/issue7525b.go
+index 20a62ee963..139408eb79 100644
+--- a/test/fixedbugs/issue7525b.go
++++ b/test/fixedbugs/issue7525b.go
+@@ -8,6 +8,6 @@
+ 
+ package main
+ 
+-var y struct {
+-	d [len(y.d)]int // ERROR "array bound|typechecking loop|invalid array"
++var y struct { // GC_ERROR "initialization loop for y"
++	d [len(y.d)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/fixedbugs/issue7525c.go b/test/fixedbugs/issue7525c.go
+index f633b1cf89..94481597ee 100644
+--- a/test/fixedbugs/issue7525c.go
++++ b/test/fixedbugs/issue7525c.go
+@@ -8,6 +8,6 @@
+ 
+ package main
+ 
+-var z struct {
+-	e [cap(z.e)]int // ERROR "array bound|typechecking loop|invalid array"
++var z struct { // GC_ERROR "initialization loop for z"
++	e [cap(z.e)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/fixedbugs/issue7525d.go b/test/fixedbugs/issue7525d.go
+index 141d675246..62d465930a 100644
+--- a/test/fixedbugs/issue7525d.go
++++ b/test/fixedbugs/issue7525d.go
+@@ -10,6 +10,6 @@ package main
+ 
+ import "unsafe"
+ 
+-var x struct {
+-	b [unsafe.Offsetof(x.b)]int // ERROR "array bound|typechecking loop|invalid array"
++var x struct { // GC_ERROR "initialization loop for x"
++	b [unsafe.Offsetof(x.b)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/fixedbugs/issue7525e.go b/test/fixedbugs/issue7525e.go
+index c13194ca63..150df074ed 100644
+--- a/test/fixedbugs/issue7525e.go
++++ b/test/fixedbugs/issue7525e.go
+@@ -10,6 +10,6 @@ package main
+ 
+ import "unsafe"
+ 
+-var x struct {
+-	c [unsafe.Alignof(x.c)]int // ERROR "array bound|typechecking loop|invalid array"
++var x struct { // GC_ERROR "initialization loop for x"
++	c [unsafe.Alignof(x.c)]int // GCCGO_ERROR "array bound|typechecking loop|invalid array"
+ }
+diff --git a/test/import1.go b/test/import1.go
+index 2433b5f2ad..294ef3a46b 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -9,11 +9,11 @@
+ 
+ package main
+ 
+-import "bufio"	// GCCGO_ERROR "previous|not used"
++import "bufio"	// ERROR "previous|not used"
+ import bufio "os"	// ERROR "redeclared|redefinition|incompatible" "imported and not used"
+ 
+ import (
+-	"fmt"	// GCCGO_ERROR "previous|not used"
++	"fmt"	// ERROR "previous|not used"
+ 	fmt "math"	// ERROR "redeclared|redefinition|incompatible" "imported and not used: \x22math\x22 as fmt"
+ 	. "math"	// GC_ERROR "imported and not used: \x22math\x22$"
+ )
+diff --git a/test/import6.go b/test/import6.go
+index c19280f0e0..17c7dd4817 100644
+--- a/test/import6.go
++++ b/test/import6.go
+@@ -34,5 +34,6 @@ import "\xFFFD"   // ERROR "import path"
+ import `\xFFFD`   // ERROR "import path"
+ 
+ // Invalid local imports.
+-import "/foo"  // ERROR "import path cannot be absolute path"
+-import "c:/foo"  // ERROR "import path contains invalid character"
++// types2 adds extra "not used" error.
++import "/foo"  // ERROR "import path cannot be absolute path|not used"
++import "c:/foo"  // ERROR "import path contains invalid character|invalid character"
+diff --git a/test/initializerr.go b/test/initializerr.go
+index 5e2e9a91a0..aae740da38 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -18,24 +18,24 @@ type T struct {
+ }
+ 
+ var x = 1
+-var a1 = S { 0, X: 1 }	// ERROR "mixture|undefined"
+-var a2 = S { Y: 3, Z: 2, Y: 3 } // ERROR "duplicate"
+-var a3 = T { S{}, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
+-var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index|too many"
+-var a5 = []byte { x: 2 }	// ERROR "index"
+-var a6 = []byte{1: 1, 2: 2, 1: 3}	// ERROR "duplicate"
++var a1 = S{0, X: 1}                             // ERROR "mixture|undefined" "too few values"
++var a2 = S{Y: 3, Z: 2, Y: 3}                    // ERROR "duplicate"
++var a3 = T{S{}, 2, 3, 4, 5, 6}                  // ERROR "convert|too many"
++var a4 = [5]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10} // ERROR "index|too many"
++var a5 = []byte{x: 2}                           // ERROR "index"
++var a6 = []byte{1: 1, 2: 2, 1: 3}               // ERROR "duplicate"
+ 
+-var ok1 = S { }	// should be ok
+-var ok2 = T { S: ok1 }	// should be ok
++var ok1 = S{}       // should be ok
++var ok2 = T{S: ok1} // should be ok
+ 
+ // These keys can be computed at compile time but they are
+ // not constants as defined by the spec, so they do not trigger
+ // compile-time errors about duplicate key values.
+ // See issue 4555.
+ 
+-type Key struct {X, Y int}
++type Key struct{ X, Y int }
+ 
+ var _ = map[Key]string{
+-	Key{1,2}: "hello",
+-	Key{1,2}: "world",
++	Key{1, 2}: "hello",
++	Key{1, 2}: "world",
+ }
+diff --git a/test/run.go b/test/run.go
+index 37be958959..278d5efce9 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -350,25 +350,25 @@ func (t *test) initExpectFail(hasGFlag bool) {
+ 		return
+ 	}
+ 
+-	if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
+-		// tests should always pass when run w/o types2 (i.e., using the
+-		// legacy typechecker, option -G=0).
+-		return
+-	}
++	var failureSets []map[string]bool
+ 
+-	failureSets := []map[string]bool{types2Failures}
++	if t.glevel == 0 && !hasGFlag && !unifiedEnabled {
++		failureSets = append(failureSets, g0Failures)
++	} else {
++		failureSets = append(failureSets, types2Failures)
+ 
+-	// Note: gccgo supports more 32-bit architectures than this, but
+-	// hopefully the 32-bit failures are fixed before this matters.
+-	switch goarch {
+-	case "386", "arm", "mips", "mipsle":
+-		failureSets = append(failureSets, types2Failures32Bit)
+-	}
++		// Note: gccgo supports more 32-bit architectures than this, but
++		// hopefully the 32-bit failures are fixed before this matters.
++		switch goarch {
++		case "386", "arm", "mips", "mipsle":
++			failureSets = append(failureSets, types2Failures32Bit)
++		}
+ 
+-	if unifiedEnabled {
+-		failureSets = append(failureSets, unifiedFailures)
+-	} else {
+-		failureSets = append(failureSets, g3Failures)
++		if unifiedEnabled {
++			failureSets = append(failureSets, unifiedFailures)
++		} else {
++			failureSets = append(failureSets, g3Failures)
++		}
+ 	}
+ 
+ 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
+@@ -2115,47 +2115,15 @@ func overlayDir(dstRoot, srcRoot string) error {
+ // List of files that the compiler cannot errorcheck with the new typechecker (compiler -G option).
+ // Temporary scaffolding until we pass all the tests at which point this map can be removed.
+ var types2Failures = setOf(
+-	"import1.go",      // types2 reports extra errors
+-	"import6.go",      // issue #43109
+-	"initializerr.go", // types2 reports extra errors
+-	"notinheap.go",    // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+-	"shift1.go",       // mostly just different wording, but reports two new errors.
+-	"typecheck.go",    // invalid function is not causing errors when called
+-
+-	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
+-	"fixedbugs/bug195.go", // types2 reports slightly different (but correct) bugs
+-	"fixedbugs/bug228.go", // types2 doesn't run when there are syntax errors
+-	"fixedbugs/bug231.go", // types2 bug? (same error reported twice)
+-	"fixedbugs/bug255.go", // types2 reports extra errors
+-	"fixedbugs/bug388.go", // types2 not run due to syntax errors
+-	"fixedbugs/bug412.go", // types2 produces a follow-on error
+-
+-	"fixedbugs/issue10700.go",  // types2 reports ok hint, but does not match regexp
+-	"fixedbugs/issue11590.go",  // types2 doesn't report a follow-on error (pref: types2)
+-	"fixedbugs/issue11610.go",  // types2 not run after syntax errors
+-	"fixedbugs/issue11614.go",  // types2 reports an extra error
+-	"fixedbugs/issue14520.go",  // missing import path error by types2
+-	"fixedbugs/issue17038.go",  // types2 doesn't report a follow-on error (pref: types2)
+-	"fixedbugs/issue18331.go",  // missing error about misuse of //go:noescape (irgen needs code from noder)
+-	"fixedbugs/issue18419.go",  // types2 reports no field or method member, but should say unexported
+-	"fixedbugs/issue19012.go",  // multiple errors on same line
+-	"fixedbugs/issue20233.go",  // types2 reports two instead of one error (pref: compiler)
+-	"fixedbugs/issue20245.go",  // types2 reports two instead of one error (pref: compiler)
+-	"fixedbugs/issue21979.go",  // types2 doesn't report a follow-on error (pref: types2)
+-	"fixedbugs/issue23732.go",  // types2 reports different (but ok) line numbers
+-	"fixedbugs/issue25958.go",  // types2 doesn't report a follow-on error (pref: types2)
+-	"fixedbugs/issue28079b.go", // types2 reports follow-on errors
+-	"fixedbugs/issue28268.go",  // types2 reports follow-on errors
+-	"fixedbugs/issue31053.go",  // types2 reports "unknown field" instead of "cannot refer to unexported field"
+-	"fixedbugs/issue33460.go",  // types2 reports alternative positions in separate error
+-	"fixedbugs/issue4232.go",   // types2 reports (correct) extra errors
+-	"fixedbugs/issue4452.go",   // types2 reports (correct) extra errors
+-	"fixedbugs/issue4510.go",   // types2 reports different (but ok) line numbers
+-	"fixedbugs/issue7525b.go",  // types2 reports init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525c.go",  // types2 reports init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525d.go",  // types2 reports init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525e.go",  // types2 reports init cycle error on different line - ok otherwise
+-	"fixedbugs/issue7525.go",   // types2 reports init cycle error on different line - ok otherwise
++	"notinheap.go",            // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
++	"shift1.go",               // types2 reports two new errors which are probably not right
++	"fixedbugs/issue10700.go", // types2 should give hint about ptr to interface
++	"fixedbugs/issue18331.go", // missing error about misuse of //go:noescape (irgen needs code from noder)
++	"fixedbugs/issue18419.go", // types2 reports no field or method member, but should say unexported
++	"fixedbugs/issue20233.go", // types2 reports two instead of one error (pref: -G=0)
++	"fixedbugs/issue20245.go", // types2 reports two instead of one error (pref: -G=0)
++	"fixedbugs/issue28268.go", // types2 reports follow-on errors (pref: -G=0)
++	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
+ )
+ 
+ var types2Failures32Bit = setOf(
+@@ -2168,6 +2136,29 @@ var g3Failures = setOf(
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ )
+ 
++// In all of these cases, -G=0 reports reasonable errors, but either -G=0 or types2
++// report extra errors, so we can't match correctly on both. We now set the patterns
++// to match correctly on all the types2 errors.
++var g0Failures = setOf(
++	"import1.go",      // types2 reports extra errors
++	"initializerr.go", // types2 reports extra error
++	"typecheck.go",    // types2 reports extra error at function call
++
++	"fixedbugs/bug176.go", // types2 reports all errors (pref: types2)
++	"fixedbugs/bug195.go", // types2 reports slight different errors, and an extra error
++	"fixedbugs/bug412.go", // types2 produces a follow-on error
++
++	"fixedbugs/issue11614.go", // types2 reports an extra error
++	"fixedbugs/issue17038.go", // types2 doesn't report a follow-on error (pref: types2)
++	"fixedbugs/issue23732.go", // types2 reports different (but ok) line numbers
++	"fixedbugs/issue4510.go",  // types2 reports different (but ok) line numbers
++	"fixedbugs/issue7525b.go", // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525c.go", // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525d.go", // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525e.go", // types2 reports init cycle error on different line - ok otherwise
++	"fixedbugs/issue7525.go",  // types2 reports init cycle error on different line - ok otherwise
++)
++
+ var unifiedFailures = setOf(
+ 	"closure3.go",  // unified IR numbers closures differently than -d=inlfuncswithclosures
+ 	"escape4.go",   // unified IR can inline f5 and f6; test doesn't expect this
+diff --git a/test/typecheck.go b/test/typecheck.go
+index 4c55d2edcb..f822ae98ef 100644
+--- a/test/typecheck.go
++++ b/test/typecheck.go
+@@ -17,6 +17,6 @@ func mine(int b) int { // ERROR "undefined.*b"
+ }
+ 
+ func main() {
+-	mine()     // GCCGO_ERROR "not enough arguments"
++	mine()     // ERROR "not enough arguments"
+ 	c = mine() // ERROR "undefined.*c|not enough arguments"
+ }

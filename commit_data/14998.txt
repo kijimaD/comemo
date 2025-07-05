@@ -9,7 +9,35 @@ Date:   Mon Jan 28 12:49:26 2013 -0500
     TBR=adg
     CC=golang-dev
     https://golang.org/cl/7235052
-
+---
  src/pkg/go/build/build.go      | 4 +++-
  src/pkg/go/build/build_test.go | 1 +
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 6c65b3da63..f11582ac68 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -322,7 +322,9 @@ func (p *Package) IsCommand() bool {
+ // the named directory.
+ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
+ 	p, err := ctxt.Import(".", dir, mode)
+-	if err == nil && !ctxt.isDir(p.Dir) {
++	// TODO(rsc,adg): breaks godoc net/http. Not sure why.
++	// See CL 7232047 and issue 4696.
++	if false && err == nil && !ctxt.isDir(p.Dir) {
+ 		err = fmt.Errorf("%q is not a directory", p.Dir)
+ 	}
+ 	return p, err
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 56e2786b8f..4684d9baf8 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -92,6 +92,7 @@ func TestLocalDirectory(t *testing.T) {
+ 
+ // golang.org/issue/3248
+ func TestBogusDirectory(t *testing.T) {
++	return // See issue 4696.
+ 	const dir = "/foo/bar/baz/gopher"
+ 	_, err := ImportDir(dir, FindOnly)
+ 	want := fmt.Sprintf("%q is not a directory", filepath.FromSlash(dir))

@@ -11,6 +11,20 @@ Date:   Sun Feb 11 21:40:26 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/math/rand/v2/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/v2/rand.go b/src/math/rand/v2/rand.go
+index f490408472..17e55830c8 100644
+--- a/src/math/rand/v2/rand.go
++++ b/src/math/rand/v2/rand.go
+@@ -14,7 +14,7 @@
+ //
+ // This package's outputs might be easily predictable regardless of how it's
+ // seeded. For random numbers suitable for security-sensitive work, see the
+-// crypto/rand package.
++// [crypto/rand] package.
+ package rand
+ 
+ import (

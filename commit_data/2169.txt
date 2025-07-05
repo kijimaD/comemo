@@ -8,6 +8,20 @@ Date:   Fri May 8 11:21:20 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=28528
     CL=28531
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 28a96549a9..3c98df89c6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2305,7 +2305,7 @@ arguments.
+ Given the function and call
+ </p>
+ <pre>
+-func Fprintf(f io.Write, format string, args ...)
++func Fprintf(f io.Writer, format string, args ...)
+ Fprintf(os.Stdout, "%s %d", "hello", 23);
+ </pre>
+ 

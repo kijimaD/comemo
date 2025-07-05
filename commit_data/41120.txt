@@ -13,6 +13,27 @@ Date:   Thu Sep 5 16:04:06 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/main.go | 9 ++-------
  1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/main.go b/src/cmd/dist/main.go
+index 07361d828f..3e54915122 100644
+--- a/src/cmd/dist/main.go
++++ b/src/cmd/dist/main.go
+@@ -66,13 +66,8 @@ func main() {
+ 		// Since FreeBSD 10 gcc is no longer part of the base system.
+ 		defaultclang = true
+ 	case "openbsd":
+-		// The gcc available on OpenBSD armv7 is old/inadequate (for example, lacks
+-		// __sync_fetch_and_*/__sync_*_and_fetch) and will likely be removed in the
+-		// not-to-distant future - use clang instead. OpenBSD arm64 does not ship
+-		// with gcc.
+-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+-			defaultclang = true
+-		}
++		// OpenBSD ships with GCC 4.2, which is now quite old.
++		defaultclang = true
+ 	case "plan9":
+ 		gohostarch = os.Getenv("objtype")
+ 		if gohostarch == "" {

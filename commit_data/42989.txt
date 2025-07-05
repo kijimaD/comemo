@@ -22,7 +22,7 @@ Date:   Mon Jul 8 18:13:23 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185345
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go                 |   2 +-
  src/cmd/go/internal/fmtcmd/fmt.go                  |   7 +-
  src/cmd/go/internal/list/list.go                   |   1 +
@@ -49,3 +49,1097 @@ Date:   Mon Jul 8 18:13:23 2019 -0400
  src/cmd/go/testdata/script/test_flags.txt          |   2 +-
  src/cmd/go/testdata/script/vet_internal.txt        |  71 ++++++++
  25 files changed, 470 insertions(+), 180 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 69e17482b4..588969ab4f 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -232,7 +232,7 @@ func clean(p *load.Package) {
+ 	cleaned[p] = true
+ 
+ 	if p.Dir == "" {
+-		base.Errorf("can't load package: %v", p.Error)
++		base.Errorf("%v", p.Error)
+ 		return
+ 	}
+ 	dirs, err := ioutil.ReadDir(p.Dir)
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 408af52ffa..d6894edc9f 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -6,11 +6,11 @@
+ package fmtcmd
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"strings"
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
+@@ -72,11 +72,12 @@ func runFmt(cmd *base.Command, args []string) {
+ 			continue
+ 		}
+ 		if pkg.Error != nil {
+-			if strings.HasPrefix(pkg.Error.Err.Error(), "build constraints exclude all Go files") {
++			var nogo *load.NoGoError
++			if errors.As(pkg.Error, &nogo) && len(pkg.InternalAllGoFiles()) > 0 {
+ 				// Skip this error, as we will format
+ 				// all files regardless.
+ 			} else {
+-				base.Errorf("can't load package: %s", pkg.Error)
++				base.Errorf("%v", pkg.Error)
+ 				continue
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 8d979e276f..b90a6bf49a 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -451,6 +451,7 @@ func runList(cmd *base.Command, args []string) {
+ 		pkgs = load.PackagesAndErrors(args)
+ 	} else {
+ 		pkgs = load.Packages(args)
++		base.ExitIfErrors()
+ 	}
+ 
+ 	if cache.Default() == nil {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 9bf7c228b7..21dcee1315 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -187,20 +187,17 @@ type PackageInternal struct {
+ 	Gccgoflags []string // -gccgoflags for this package
+ }
+ 
++// A NoGoError indicates that no Go files for the package were applicable to the
++// build for that package.
++//
++// That may be because there were no files whatsoever, or because all files were
++// excluded, or because all non-excluded files were test sources.
+ type NoGoError struct {
+ 	Package *Package
+ }
+ 
+ func (e *NoGoError) Error() string {
+-	// Count files beginning with _ and ., which we will pretend don't exist at all.
+-	dummy := 0
+-	for _, name := range e.Package.IgnoredGoFiles {
+-		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") {
+-			dummy++
+-		}
+-	}
+-
+-	if len(e.Package.IgnoredGoFiles) > dummy {
++	if len(e.Package.constraintIgnoredGoFiles()) > 0 {
+ 		// Go files exist, but they were ignored due to build constraints.
+ 		return "build constraints exclude all Go files in " + e.Package.Dir
+ 	}
+@@ -213,6 +210,23 @@ func (e *NoGoError) Error() string {
+ 	return "no Go files in " + e.Package.Dir
+ }
+ 
++// rewordError returns a version of err with trivial layers removed and
++// (possibly-wrapped) instances of build.NoGoError replaced with load.NoGoError,
++// which more clearly distinguishes sub-cases.
++func (p *Package) rewordError(err error) error {
++	if mErr, ok := err.(*search.MatchError); ok && mErr.Match.IsLiteral() {
++		err = mErr.Err
++	}
++	var noGo *build.NoGoError
++	if errors.As(err, &noGo) {
++		if p.Dir == "" && noGo.Dir != "" {
++			p.Dir = noGo.Dir
++		}
++		err = &NoGoError{Package: p}
++	}
++	return err
++}
++
+ // Resolve returns the resolved version of imports,
+ // which should be p.TestImports or p.XTestImports, NOT p.Imports.
+ // The imports in p.TestImports and p.XTestImports are not recursively
+@@ -313,10 +327,7 @@ type PackageError struct {
+ 
+ func (p *PackageError) Error() string {
+ 	// Import cycles deserve special treatment.
+-	if p.IsImportCycle {
+-		return fmt.Sprintf("%s\npackage %s\n", p.Err, strings.Join(p.ImportStack, "\n\timports "))
+-	}
+-	if p.Pos != "" {
++	if p.Pos != "" && !p.IsImportCycle {
+ 		// Omit import stack. The full path to the file where the error
+ 		// is the most important thing.
+ 		return p.Pos + ": " + p.Err.Error()
+@@ -339,6 +350,8 @@ func (p *PackageError) Error() string {
+ 	return "package " + strings.Join(stack, "\n\timports ") + ": " + p.Err.Error()
+ }
+ 
++func (p *PackageError) Unwrap() error { return p.Err }
++
+ // PackageError implements MarshalJSON so that Err is marshaled as a string
+ // and non-essential fields are omitted.
+ func (p *PackageError) MarshalJSON() ([]byte, error) {
+@@ -583,9 +596,10 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
+ 		if !cfg.ModulesEnabled && path != cleanImport(path) {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.Copy(),
+-				Err:         fmt.Errorf("non-canonical import path: %q should be %q", path, pathpkg.Clean(path)),
++				Err:         ImportErrorf(path, "non-canonical import path %q: should be %q", path, pathpkg.Clean(path)),
+ 			}
+ 			p.Incomplete = true
++			setErrorPos(p, importPos)
+ 		}
+ 	}
+ 
+@@ -1533,12 +1547,8 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	}
+ 
+ 	if err != nil {
+-		if _, ok := err.(*build.NoGoError); ok {
+-			err = &NoGoError{Package: p}
+-		}
+ 		p.Incomplete = true
+-
+-		setError(base.ExpandScanner(err))
++		setError(base.ExpandScanner(p.rewordError(err)))
+ 		if _, isScanErr := err.(scanner.ErrorList); !isScanErr {
+ 			return
+ 		}
+@@ -1934,13 +1944,22 @@ func (p *Package) InternalXGoFiles() []string {
+ // using absolute paths. "Possibly relevant" means that files are not excluded
+ // due to build tags, but files with names beginning with . or _ are still excluded.
+ func (p *Package) InternalAllGoFiles() []string {
+-	var extra []string
++	return p.mkAbs(str.StringList(p.constraintIgnoredGoFiles(), p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
++}
++
++// constraintIgnoredGoFiles returns the list of Go files ignored for reasons
++// other than having a name beginning with '.' or '_'.
++func (p *Package) constraintIgnoredGoFiles() []string {
++	if len(p.IgnoredGoFiles) == 0 {
++		return nil
++	}
++	files := make([]string, 0, len(p.IgnoredGoFiles))
+ 	for _, f := range p.IgnoredGoFiles {
+-		if f != "" && f[0] != '.' || f[0] != '_' {
+-			extra = append(extra, f)
++		if f != "" && f[0] != '.' && f[0] != '_' {
++			files = append(files, f)
+ 		}
+ 	}
+-	return p.mkAbs(str.StringList(extra, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
++	return files
+ }
+ 
+ // usesSwig reports whether the package needs to run SWIG.
+@@ -2034,7 +2053,7 @@ func Packages(args []string) []*Package {
+ 	var pkgs []*Package
+ 	for _, pkg := range PackagesAndErrors(args) {
+ 		if pkg.Error != nil {
+-			base.Errorf("can't load package: %s", pkg.Error)
++			base.Errorf("%v", pkg.Error)
+ 			continue
+ 		}
+ 		pkgs = append(pkgs, pkg)
+@@ -2092,8 +2111,24 @@ func PackagesAndErrors(patterns []string) []*Package {
+ 			pkgs = append(pkgs, p)
+ 		}
+ 
+-		// TODO: if len(m.Pkgs) == 0 && len(m.Errs) > 0, should we add a *Package
+-		// with a non-nil Error field?
++		if len(m.Errs) > 0 {
++			// In addition to any packages that were actually resolved from the
++			// pattern, there was some error in resolving the pattern itself.
++			// Report it as a synthetic package.
++			p := new(Package)
++			p.ImportPath = m.Pattern()
++			p.Error = &PackageError{
++				ImportStack: nil, // The error arose from a pattern, not an import.
++				Err:         p.rewordError(m.Errs[0]),
++			}
++			p.Incomplete = true
++			p.Match = append(p.Match, m.Pattern())
++			p.Internal.CmdlinePkg = true
++			if m.IsLiteral() {
++				p.Internal.CmdlinePkgLiteral = true
++			}
++			pkgs = append(pkgs, p)
++		}
+ 	}
+ 
+ 	// Now that CmdlinePkg is set correctly,
+@@ -2129,7 +2164,7 @@ func PackagesForBuild(args []string) []*Package {
+ 	printed := map[*PackageError]bool{}
+ 	for _, pkg := range pkgs {
+ 		if pkg.Error != nil {
+-			base.Errorf("can't load package: %s", pkg.Error)
++			base.Errorf("%v", pkg.Error)
+ 			printed[pkg.Error] = true
+ 		}
+ 		for _, err := range pkg.DepsErrors {
+@@ -2139,7 +2174,7 @@ func PackagesForBuild(args []string) []*Package {
+ 			// Only print each once.
+ 			if !printed[err] {
+ 				printed[err] = true
+-				base.Errorf("%s", err)
++				base.Errorf("%v", err)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 3db3a266d5..162c29d2a6 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -132,8 +132,6 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		}
+ 		dir := filepath.Join(cfg.GOROOT, "src", path)
+ 		return module.Version{}, dir, nil
+-	} else if pathIsStd && path == cfg.GOROOTsrc {
+-		return module.Version{}, dir, errors.New("directory should not directly contain source files")
+ 	}
+ 
+ 	// -mod=vendor is special.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 5506fc9b3c..32841d96cb 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -94,79 +94,21 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 				pkgs := str.StringList(fsDirs[i])
+ 				m.Pkgs = pkgs[:0]
+ 				for _, pkg := range pkgs {
+-					var dir string
+-					if !filepath.IsAbs(pkg) {
+-						dir = filepath.Join(base.Cwd, pkg)
+-					} else {
+-						dir = filepath.Clean(pkg)
+-					}
++					pkg, err := resolveLocalPackage(pkg)
++					if err != nil {
++						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
++							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
++						}
+ 
+-					// golang.org/issue/32917: We should resolve a relative path to a
+-					// package path only if the relative path actually contains the code
+-					// for that package.
+-					if !dirContainsPackage(dir) {
+ 						// If we're outside of a module, ensure that the failure mode
+ 						// indicates that.
+ 						ModRoot()
+ 
+-						// If the directory is local but does not exist, don't return it
+-						// while loader is iterating, since this might trigger a fetch.
+-						// After loader is done iterating, we still need to return the
+-						// path, so that "go list -e" produces valid output.
+ 						if !iterating {
+-							// We don't have a valid path to resolve to, so report the
+-							// unresolved path.
+-							m.Pkgs = append(m.Pkgs, pkg)
++							m.AddError(err)
+ 						}
+ 						continue
+ 					}
+-
+-					// Note: The checks for @ here are just to avoid misinterpreting
+-					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+-					// It's not strictly necessary but helpful to keep the checks.
+-					if modRoot != "" && dir == modRoot {
+-						pkg = targetPrefix
+-						if modRoot == cfg.GOROOTsrc {
+-							// A package in GOROOT/src would have an empty path.
+-							// Keep the path as cfg.GOROOTsrc. We'll report an error in Import.
+-							// See golang.org/issue/36587.
+-							pkg = modRoot
+-						}
+-					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
+-						suffix := filepath.ToSlash(dir[len(modRoot):])
+-						if strings.HasPrefix(suffix, "/vendor/") {
+-							// TODO getmode vendor check
+-							pkg = strings.TrimPrefix(suffix, "/vendor/")
+-						} else if targetInGorootSrc && Target.Path == "std" {
+-							// Don't add the prefix "std/" to packages in the "std" module.
+-							// It's the one module path that isn't a prefix of its packages.
+-							pkg = strings.TrimPrefix(suffix, "/")
+-							if pkg == "builtin" {
+-								// "builtin" is a pseudo-package with a real source file.
+-								// It's not included in "std", so it shouldn't be included in
+-								// "./..." within module "std" either.
+-								continue
+-							}
+-						} else {
+-							modPkg := targetPrefix + suffix
+-							if _, ok := dirInModule(modPkg, targetPrefix, modRoot, true); ok {
+-								pkg = modPkg
+-							} else if !iterating {
+-								ModRoot()
+-								base.Errorf("go: directory %s is outside main module", base.ShortPath(dir))
+-							}
+-						}
+-					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
+-						pkg = filepath.ToSlash(sub)
+-					} else if path := pathInModuleCache(dir); path != "" {
+-						pkg = path
+-					} else {
+-						pkg = ""
+-						if !iterating {
+-							ModRoot()
+-							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+-						}
+-					}
+ 					m.Pkgs = append(m.Pkgs, pkg)
+ 				}
+ 
+@@ -244,6 +186,105 @@ func checkMultiplePaths() {
+ 	base.ExitIfErrors()
+ }
+ 
++// resolveLocalPackage resolves a filesystem path to a package path.
++func resolveLocalPackage(dir string) (string, error) {
++	var absDir string
++	if filepath.IsAbs(dir) {
++		absDir = filepath.Clean(dir)
++	} else {
++		absDir = filepath.Join(base.Cwd, dir)
++	}
++
++	bp, err := cfg.BuildContext.ImportDir(absDir, 0)
++	if err != nil && (bp == nil || len(bp.IgnoredGoFiles) == 0) {
++		// golang.org/issue/32917: We should resolve a relative path to a
++		// package path only if the relative path actually contains the code
++		// for that package.
++		//
++		// If the named directory does not exist or contains no Go files,
++		// the package does not exist.
++		// Other errors may affect package loading, but not resolution.
++		if _, err := os.Stat(absDir); err != nil {
++			if os.IsNotExist(err) {
++				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
++				// messages will be easier for users to search for.
++				return "", &os.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
++			}
++			return "", err
++		}
++		if _, noGo := err.(*build.NoGoError); noGo {
++			// A directory that does not contain any Go source files — even ignored
++			// ones! — is not a Go package, and we can't resolve it to a package
++			// path because that path could plausibly be provided by some other
++			// module.
++			//
++			// Any other error indicates that the package “exists” (at least in the
++			// sense that it cannot exist in any other module), but has some other
++			// problem (such as a syntax error).
++			return "", err
++		}
++	}
++
++	if modRoot != "" && absDir == modRoot {
++		if absDir == cfg.GOROOTsrc {
++			return "", errPkgIsGorootSrc
++		}
++		return targetPrefix, nil
++	}
++
++	// Note: The checks for @ here are just to avoid misinterpreting
++	// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
++	// It's not strictly necessary but helpful to keep the checks.
++	if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
++		suffix := filepath.ToSlash(absDir[len(modRoot):])
++		if strings.HasPrefix(suffix, "/vendor/") {
++			if cfg.BuildMod != "vendor" {
++				return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
++			}
++
++			readVendorList()
++			pkg := strings.TrimPrefix(suffix, "/vendor/")
++			if _, ok := vendorPkgModule[pkg]; !ok {
++				return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
++			}
++			return pkg, nil
++		}
++
++		if targetPrefix == "" {
++			pkg := strings.TrimPrefix(suffix, "/")
++			if pkg == "builtin" {
++				// "builtin" is a pseudo-package with a real source file.
++				// It's not included in "std", so it shouldn't resolve from "."
++				// within module "std" either.
++				return "", errPkgIsBuiltin
++			}
++			return pkg, nil
++		}
++
++		pkg := targetPrefix + suffix
++		if _, ok := dirInModule(pkg, targetPrefix, modRoot, true); !ok {
++			return "", &PackageNotInModuleError{Mod: Target, Pattern: pkg}
++		}
++		return pkg, nil
++	}
++
++	if sub := search.InDir(absDir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
++		return filepath.ToSlash(sub), nil
++	}
++
++	pkg := pathInModuleCache(absDir)
++	if pkg == "" {
++		return "", fmt.Errorf("directory %s outside available modules", base.ShortPath(absDir))
++	}
++	return pkg, nil
++}
++
++var (
++	errDirectoryNotFound = errors.New("directory not found")
++	errPkgIsGorootSrc    = errors.New("GOROOT/src is not an importable package")
++	errPkgIsBuiltin      = errors.New(`"builtin" is a pseudo-package, not an importable package`)
++)
++
+ // pathInModuleCache returns the import path of the directory dir,
+ // if dir is in the module cache copy of a module in our build list.
+ func pathInModuleCache(dir string) string {
+@@ -273,32 +314,6 @@ func pathInModuleCache(dir string) string {
+ 	return ""
+ }
+ 
+-var dirContainsPackageCache sync.Map // absolute dir → bool
+-
+-func dirContainsPackage(dir string) bool {
+-	isPkg, ok := dirContainsPackageCache.Load(dir)
+-	if !ok {
+-		_, err := cfg.BuildContext.ImportDir(dir, 0)
+-		if err == nil {
+-			isPkg = true
+-		} else {
+-			if fi, statErr := os.Stat(dir); statErr != nil || !fi.IsDir() {
+-				// A non-directory or inaccessible directory is not a Go package.
+-				isPkg = false
+-			} else if _, noGo := err.(*build.NoGoError); noGo {
+-				// A directory containing no Go source files is not a Go package.
+-				isPkg = false
+-			} else {
+-				// An error other than *build.NoGoError indicates that the package exists
+-				// but has some other problem (such as a syntax error).
+-				isPkg = true
+-			}
+-		}
+-		isPkg, _ = dirContainsPackageCache.LoadOrStore(dir, isPkg)
+-	}
+-	return isPkg.(bool)
+-}
+-
+ // ImportFromFiles adds modules to the build list as needed
+ // to satisfy the imports in the named Go source files.
+ func ImportFromFiles(gofiles []string) {
+@@ -767,7 +782,7 @@ func (ld *loader) doPkg(item interface{}) {
+ 			// Leave for error during load.
+ 			return
+ 		}
+-		if build.IsLocalImport(pkg.path) {
++		if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
+ 			// Leave for error during load.
+ 			// (Module mode does not allow local imports.)
+ 			return
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index b490220b24..f8ea7e6309 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -661,6 +661,13 @@ func (e *PackageNotInModuleError) Error() string {
+ 	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
+ }
+ 
++func (e *PackageNotInModuleError) ImportPath() string {
++	if !strings.Contains(e.Pattern, "...") {
++		return e.Pattern
++	}
++	return ""
++}
++
+ // ModuleHasRootPackage returns whether module m contains a package m.Path.
+ func ModuleHasRootPackage(m module.Version) (bool, error) {
+ 	root, isLocal, err := fetch(m)
+diff --git a/src/cmd/go/testdata/script/cmd_import_error.txt b/src/cmd/go/testdata/script/cmd_import_error.txt
+index 685c606a41..dea76f4d4b 100644
+--- a/src/cmd/go/testdata/script/cmd_import_error.txt
++++ b/src/cmd/go/testdata/script/cmd_import_error.txt
+@@ -5,7 +5,7 @@ env GO111MODULE=on
+ # a clear error in module mode.
+ 
+ ! go list cmd/unknown
+-stderr '^can''t load package: package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
++stderr '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+ 
+ go list -f '{{range .DepsErrors}}{{.Err}}{{end}}' x.go
+ stdout '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+diff --git a/src/cmd/go/testdata/script/import_cycle.txt b/src/cmd/go/testdata/script/import_cycle.txt
+new file mode 100644
+index 0000000000..901f43cd27
+--- /dev/null
++++ b/src/cmd/go/testdata/script/import_cycle.txt
+@@ -0,0 +1,12 @@
++env GO111MODULE=off
++
++! go build selfimport
++stderr -count=1 'import cycle not allowed'
++
++# 'go list' shouldn't hang forever.
++go list -e -json selfimport
++
++-- $GOPATH/src/selfimport/selfimport.go --
++package selfimport
++
++import "selfimport"
+diff --git a/src/cmd/go/testdata/script/list_ambiguous_path.txt b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+index bdb7ffb077..82dde45380 100644
+--- a/src/cmd/go/testdata/script/list_ambiguous_path.txt
++++ b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+@@ -17,10 +17,10 @@ stdout '^command-line-arguments$'
+ # A single typo-ed pattern for a Go file. This should
+ # treat the wrong pattern as if it were a package.
+ ! go list ./foo.go/b.go
+-stderr 'package ./foo.go/b.go: cannot find package "."'
++stderr '^stat .*[/\\]foo\.go[/\\]b\.go: directory not found$'
+ 
+ # Multiple patterns for Go files with a typo. This should
+-# treat the wrong pattern as if it were a non-existint file.
++# treat the wrong pattern as if it were a nonexistent file.
+ ! go list ./foo.go/a.go ./foo.go/b.go
+ [plan9] stderr 'stat ./foo.go/b.go: ''./foo.go/b.go'' does not exist'
+ [windows] stderr './foo.go/b.go: The system cannot find the file specified'
+diff --git a/src/cmd/go/testdata/script/list_gofile_in_goroot.txt b/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
+index 0a3b128eae..604d8b4fe1 100644
+--- a/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
++++ b/src/cmd/go/testdata/script/list_gofile_in_goroot.txt
+@@ -1,46 +1,73 @@
+ # Return an error if the user tries to list a go source file directly in $GOROOT/src.
+ # Tests golang.org/issue/36587
+ 
+-mkdir $WORK/fakegoroot/src
+-mkdir $WORK/fakegopath/src
+-
+-env GOROOT=$WORK/fakegoroot
+-env GOPATH=$WORK/fakegopath
+-
+-cp go.mod $GOROOT/src/go.mod
+-cp foo.go $GOROOT/src/foo.go
++env GOROOT=$WORK/goroot
++env GOPATH=$WORK/gopath
+ 
+ go env GOROOT
+-stdout $WORK(/|\\)fakegoroot
++stdout $WORK[/\\]goroot
+ 
+ # switch to GOROOT/src
+ cd $GOROOT/src
+ 
+-# GO111MODULE=on,GOROOT
++# In module mode, 'go list ./...' should not treat .go files in GOROOT/src as an
++# importable package, since that directory has no valid import path.
+ env GO111MODULE=on
+-! go list ./...
+-stderr 'directory should not directly contain source files'
+-go list -e .
+-go list -f '{{if .Error}}{{.Error.Err}}{{end}}' -e ./...
+-stdout 'directory should not directly contain source files'
++go list ...
++stdout -count=1 '^.+$'
++stdout '^fmt$'
++! stdout foo
++
++go list ./...
++stdout -count=1 '^.+$'
++stdout '^fmt$'
++! stdout foo
++
++go list std
++stdout -count=1 '^.+$'
++stdout '^fmt$'
+ 
+-# GO111MODULE=off,GOROOT
++! go list .
++stderr '^GOROOT/src is not an importable package$'
++
++# In GOPATH mode, 'go list ./...' should synthesize a legacy GOPATH-mode path —
++# not a standard-library or empty path — for the errant package.
+ env GO111MODULE=off
+ go list ./...
+-[!windows] stdout _$WORK/fakegoroot/src
+-[windows] stdout fakegoroot/src # On windows the ":" in the volume name is mangled
++stdout -count=2 '^.+$' # Both 'fmt' and GOROOT/src should be listed.
++stdout '^fmt$'
++[!windows] stdout ^_$WORK/goroot/src$
++[windows] stdout goroot/src$ # On windows the ":" in the volume name is mangled
++
++go list ...
++! stdout goroot/src
++
++go list std
++! stdout goroot/src
++
++go list .
++[!windows] stdout ^_$WORK/goroot/src$
++[windows] stdout goroot/src$
+ 
+ # switch to GOPATH/src
+-cp $WORK/gopath/src/foo.go $GOPATH/src/foo.go
+ cd $GOPATH/src
+ 
+ # GO111MODULE=off,GOPATH
+ env GO111MODULE=off
+ go list ./...
++[!windows] stdout ^_$WORK/gopath/src$
++[windows] stdout gopath/src$
++
++go list all
++! stdout gopath/src
+ 
+--- go.mod --
+-module g
++-- $WORK/goroot/src/go.mod --
++module std
+ 
+ go 1.14
+--- foo.go --
+-package foo
+\ No newline at end of file
++-- $WORK/goroot/src/foo.go --
++package foo
++-- $WORK/goroot/src/fmt/fmt.go --
++package fmt
++-- $GOPATH/src/foo.go --
++package foo
+diff --git a/src/cmd/go/testdata/script/list_test_non_go_files.txt b/src/cmd/go/testdata/script/list_test_non_go_files.txt
+index 16b98f4a37..6b2b6336a6 100644
+--- a/src/cmd/go/testdata/script/list_test_non_go_files.txt
++++ b/src/cmd/go/testdata/script/list_test_non_go_files.txt
+@@ -5,7 +5,7 @@ go list -e -test -json -- c.c x.go
+ stdout '"Err": "named files must be .go files: c.c"'
+ 
+ ! go list -test -json -- c.c x.go
+-stderr 'can''t load package: named files must be .go files: c.c'
++stderr '^named files must be \.go files: c\.c$'
+ 
+ -- x.go --
+ package main
+diff --git a/src/cmd/go/testdata/script/mod_ambiguous_import.txt b/src/cmd/go/testdata/script/mod_ambiguous_import.txt
+index 4281faf799..feaf5d273d 100644
+--- a/src/cmd/go/testdata/script/mod_ambiguous_import.txt
++++ b/src/cmd/go/testdata/script/mod_ambiguous_import.txt
+@@ -15,8 +15,7 @@ mkdir vendor/example.com/m/importy
+ cp $WORK/importy/importy.go vendor/example.com/m/importy/importy.go
+ go build example.com/m/importy
+ ! go build -mod=vendor example.com/m/importy
+-stderr '^can.t load package: ambiguous import: found package example.com/m/importy in multiple directories:\n\t'$WORK'[/\\]importy\n\t'$WORK'[/\\]vendor[/\\]example.com[/\\]m[/\\]importy$'
+-
++stderr '^ambiguous import: found package example.com/m/importy in multiple directories:\n\t'$WORK'[/\\]importy\n\t'$WORK'[/\\]vendor[/\\]example.com[/\\]m[/\\]importy$'
+ 
+ -- $WORK/go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_dot.txt b/src/cmd/go/testdata/script/mod_dot.txt
+index c90074d0a6..1f7643e1de 100644
+--- a/src/cmd/go/testdata/script/mod_dot.txt
++++ b/src/cmd/go/testdata/script/mod_dot.txt
+@@ -8,12 +8,12 @@ cd dir
+ stderr 'go get \.: path .* is not a package in module rooted at .*[/\\]dir$'
+ ! go list
+ ! stderr 'cannot find module providing package'
+-stderr '^can.t load package: package \.: no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
++stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+ 
+ cd subdir
+ ! go list
+ ! stderr 'cannot find module providing package'
+-stderr '^can.t load package: package \.: no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
++stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
+ cd ..
+ 
+ # golang.org/issue/30590: if a package is found in the filesystem
+@@ -22,7 +22,74 @@ cd ..
+ # to find a module providing the package.
+ ! go list ./othermodule
+ ! stderr 'cannot find module providing package'
+-stderr 'go: directory othermodule is outside main module'
++stderr '^main module \(example\.com\) does not contain package example.com/othermodule$'
++
++# golang.org/issue/27122: 'go build' of a nonexistent directory should produce
++# a helpful "no Go files" error message, not a generic "unknown import path".
++! go list ./subdir
++stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
++
++# golang.org/issue/29280: 'go list -e' for a nonexistent directory should
++# report a nonexistent package with an error.
++go list -e -json ./subdir
++stdout '"Incomplete": true'
++
++# golang.org/issue/28155: 'go list ./testdata' should not synthesize underscores.
++go list ./testdata
++stdout '^example.com/testdata'
++
++# golang.org/issue/32921: vendor directories should only be accepted as directories
++# if the directory would actually be used to load the package.
++! go list ./vendor/nonexist
++stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]nonexist$'
++
++! go list ./vendor/pkg
++stderr '^without -mod=vendor, directory '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]pkg has no package path$'
++
++! go list -mod=vendor ./vendor/nonexist
++stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]nonexist$'
++
++! go list -mod=vendor ./vendor/unlisted
++stderr '^directory '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]unlisted is not a package listed in vendor/modules.txt$'
++
++go list -mod=vendor ./vendor/pkg
++stdout '^pkg$'
++
++# Packages within GOROOT should resolve as in any other module,
++# except that -mod=vendor is implied by default.
++cd $GOROOT/src
++! go list .
++stderr '^no Go files in '$GOROOT'[/\\]src$'
++
++! go list ./builtin
++stderr '^"builtin" is a pseudo-package, not an importable package$'
++
++! go list ./debug
++! stderr 'cannot find module providing package'
++stderr '^no Go files in '$GOROOT'[/\\]src[/\\]debug$'
++
++! go list ./golang.org/x/tools/cmd/goimports
++! stderr 'cannot find module providing package'
++stderr '^stat '$GOROOT'[/\\]src[/\\]golang.org[/\\]x[/\\]tools[/\\]cmd[/\\]goimports: directory not found'
++
++go list ./vendor/golang.org/x/net/http2/hpack
++stdout '^golang.org/x/net/http2/hpack$'
++
++# golang.org/issue/30756: packages in other GOROOTs should not get the special
++# prefixless treatment of GOROOT itself.
++cd $WORK/othergoroot/src
++! go list .
++stderr '^no Go files in '$WORK'[/\\]othergoroot[/\\]src$'
++
++go list ./builtin
++stdout '^std/builtin$'  # Only the "std" in actual $GOROOT is special, and only its "builtin" is special.
++
++! go list ./bytes
++! stderr 'cannot find module providing package'
++stderr '^no Go files in '$WORK'[/\\]othergoroot[/\\]src[/\\]bytes$'
++
++! go list ./vendor/golang.org/x/net/http2/hpack
++stderr '^without -mod=vendor, directory '$WORK'[/\\]othergoroot[/\\]src[/\\]vendor[/\\]golang.org[/\\]x[/\\]net[/\\]http2[/\\]hpack has no package path$'
+ 
+ -- dir/go.mod --
+ module example.com
+@@ -34,3 +101,27 @@ module example.com/othermodule
+ go 1.13
+ -- dir/othermodule/om.go --
+ package othermodule
++-- dir/testdata/td.go --
++package testdata
++-- dir/vendor/modules.txt --
++# pkg v0.0.0
++pkg
++-- dir/vendor/nonexist/README --
++There are no Go source files here either.
++-- dir/vendor/pkg/pkg.go --
++package pkg
++-- dir/vendor/unlisted/unlisted.go --
++package unlisted
++-- emptyroot/go.mod --
++module example.com/emptyroot
++-- emptyroot/pkg/pkg.go --
++package pkg
++-- $WORK/othergoroot/src/go.mod --
++module std
++go 1.13
++-- $WORK/othergoroot/src/builtin/builtin.go --
++package builtin
++-- $WORK/othergoroot/src/bytes/README --
++There are no Go source files in this directory.
++-- $WORK/othergoroot/src/vendor/golang.org/x/net/http2/hpack --
++package hpack
+diff --git a/src/cmd/go/testdata/script/mod_empty_err.txt b/src/cmd/go/testdata/script/mod_empty_err.txt
+index 729f848156..b309f634dd 100644
+--- a/src/cmd/go/testdata/script/mod_empty_err.txt
++++ b/src/cmd/go/testdata/script/mod_empty_err.txt
+@@ -4,16 +4,16 @@ env GO111MODULE=on
+ cd $WORK
+ 
+ go list -e -f {{.Error}} .
+-stdout 'package \.: no Go files in \$WORK'
++stdout 'no Go files in \$WORK'
+ 
+ go list -e -f {{.Error}} ./empty
+-stdout 'package \./empty: no Go files in \$WORK[/\\]empty'
++stdout 'no Go files in \$WORK[/\\]empty'
+ 
+ go list -e -f {{.Error}} ./exclude
+-stdout 'package \./exclude: build constraints exclude all Go files in \$WORK[/\\]exclude'
++stdout 'package example.com/m/exclude: build constraints exclude all Go files in \$WORK[/\\]exclude'
+ 
+ go list -e -f {{.Error}} ./missing
+-stdout 'package \./missing: cannot find package "." in:\s*\$WORK[/\\]missing'
++stdout 'stat '$WORK'[/\\]missing: directory not found'
+ 
+ # use 'go build -n' because 'go list' reports no error.
+ ! go build -n ./testonly
+diff --git a/src/cmd/go/testdata/script/mod_fs_patterns.txt b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+index 4911fbb613..a20fefd6d3 100644
+--- a/src/cmd/go/testdata/script/mod_fs_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+@@ -33,11 +33,11 @@ stderr 'import lookup disabled'
+ 
+ ! go build -mod=readonly ./nonexist
+ ! stderr 'import lookup disabled'
+-stderr '^can.t load package: package ./nonexist: cannot find package "." in:\n\t'$WORK'[/\\]gopath[/\\]src[/\\]x[/\\]nonexist$'
++stderr '^stat '$GOPATH'[/\\]src[/\\]x[/\\]nonexist: directory not found'
+ 
+ ! go build -mod=readonly ./go.mod
+ ! stderr 'import lookup disabled'
+-stderr 'can.t load package: package ./go.mod: cannot find package'
++stderr 'main module \(m\) does not contain package m/go.mod'
+ 
+ 
+ # File system paths and patterns should allow the '@' character.
+diff --git a/src/cmd/go/testdata/script/mod_goroot_errors.txt b/src/cmd/go/testdata/script/mod_goroot_errors.txt
+index 255844408a..9d7a94d263 100644
+--- a/src/cmd/go/testdata/script/mod_goroot_errors.txt
++++ b/src/cmd/go/testdata/script/mod_goroot_errors.txt
+@@ -11,12 +11,12 @@ env GO111MODULE=on
+ ! go build -mod=readonly nonexist
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr '^can''t load package: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+ 
+ ! go build nonexist
+ ! stderr 'import lookup disabled'
+ ! stderr 'missing dot'
+-stderr '^can''t load package: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
++stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+ 
+ # Building a nonexistent std package indirectly should also fail usefully.
+ 
+diff --git a/src/cmd/go/testdata/script/mod_import_cycle.txt b/src/cmd/go/testdata/script/mod_import_cycle.txt
+new file mode 100644
+index 0000000000..7be074973a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_import_cycle.txt
+@@ -0,0 +1,40 @@
++env GO111MODULE=on
++
++# 'go list all' should fail with a reasonable error message
++! go list all
++stderr '^package m\n\timports m/a\n\timports m/b\n\timports m/a: import cycle not allowed'
++
++# 'go list -e' should not print to stderr, but should mark all three
++# packages (m, m/a, and m/b) as Incomplete.
++go list -e -json all
++! stderr .
++stdout -count=3 '"Incomplete": true,'
++
++-- go.mod --
++module m
++
++require (
++	m/a v0.0.0
++	m/b v0.0.0
++)
++
++replace (
++	m/a => ./a
++	m/b => ./b
++)
++-- m.go --
++package m
++import (
++	_ "m/a"
++	_ "m/b"
++)
++-- a/go.mod --
++module m/a
++-- a/a.go --
++package a
++import _ "m/b"
++-- b/go.mod --
++module m/b
++-- b/b.go --
++package b
++import _ "m/a"
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index f6994c1e66..6653435a06 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -11,11 +11,7 @@ go list -f '{{.ImportPath}}' $GOROOT/src/math
+ stdout ^math$
+ go list -f '{{.ImportPath}}' .
+ stdout ^x$
+-! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stderr '^can.t load package: package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
+ 
+-go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stdout '^package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
+ go mod download rsc.io/quote@v1.5.2
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ stdout '^rsc.io/quote$'
+diff --git a/src/cmd/go/testdata/script/mod_list_replace_dir.txt b/src/cmd/go/testdata/script/mod_list_replace_dir.txt
+index d43bbe7f2b..cad7fe2528 100644
+--- a/src/cmd/go/testdata/script/mod_list_replace_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_replace_dir.txt
+@@ -3,10 +3,10 @@
+ # Verifies golang.org/issue/29548
+ 
+ env GO111MODULE=on
+-go mod download
++go mod download rsc.io/quote@v1.5.1 rsc.io/quote@v1.5.2
+ 
+ ! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stderr 'can only use path@version syntax with .go get.'
++stderr '^directory ..[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2 outside available modules$'
+ 
+ go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.1
+ stdout 'rsc.io/quote'
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 751f6e645e..ac581264f1 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -6,7 +6,7 @@ env GOFLAGS=-mod=readonly
+ go mod edit -fmt
+ cp go.mod go.mod.empty
+ ! go list all
+-stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly'
++stderr '^x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly'
+ ! stderr '\(\)' # If we don't have a reason for -mod=readonly, don't log an empty one.
+ cmp go.mod go.mod.empty
+ 
+@@ -14,7 +14,7 @@ cmp go.mod go.mod.empty
+ chmod 0400 go.mod
+ env GOFLAGS=
+ ! go list all
+-stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly\n\t\(go.mod file is read-only\.\)$'
++stderr '^x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly\n\t\(go.mod file is read-only\.\)$'
+ 
+ chmod 0600 go.mod
+ env GOFLAGS=-mod=readonly
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index fd5b04a498..54b1a12448 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -27,9 +27,8 @@ stdout 'example.com/v v1.12.0 => ./v12'
+ # module does not contain a package.
+ cd fail
+ ! go list all
+-stdout 'localhost.fail'
+-stderr '^can''t load package: m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+-stderr '^can''t load package: m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
++stderr '^m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
++stderr '^m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/noncanonical_import.txt b/src/cmd/go/testdata/script/noncanonical_import.txt
+index 7fdc0718ef..018cb01ca6 100644
+--- a/src/cmd/go/testdata/script/noncanonical_import.txt
++++ b/src/cmd/go/testdata/script/noncanonical_import.txt
+@@ -1,9 +1,7 @@
+ env GO111MODULE=off
+ 
+ ! go build canonical/d
+-stderr 'package canonical/d'
+-stderr 'imports canonical/b'
+-stderr 'imports canonical/a/: non-canonical'
++stderr '^canonical[/\\]b[/\\]b.go:3:8: non-canonical import path "canonical/a/": should be "canonical/a"$'
+ 
+ -- canonical/a/a.go --
+ package a
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index a335aec1c8..226b8d1315 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -15,7 +15,7 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+ # Even though ./x looks like a package path, the real package should be
+ # the implicit '.'.
+ ! go test --answer=42 ./x
+-stderr 'can''t load package: package \.: '
++stderr '^no Go files in .+$'
+ ! stderr '/x'
+ 
+ # An explicit '-outputdir=' argument should set test.outputdir
+diff --git a/src/cmd/go/testdata/script/vet_internal.txt b/src/cmd/go/testdata/script/vet_internal.txt
+new file mode 100644
+index 0000000000..46e1ac7398
+--- /dev/null
++++ b/src/cmd/go/testdata/script/vet_internal.txt
+@@ -0,0 +1,71 @@
++env GO111MODULE=off
++
++# Issue 36173. Verify that "go vet" prints line numbers on load errors.
++
++! go vet a/a.go
++stderr '^a[/\\]a.go:5:3: use of internal package'
++
++! go vet a/a_test.go
++stderr '^package command-line-arguments \(test\): use of internal package' # BUG
++
++! go vet a
++stderr '^a[/\\]a.go:5:3: use of internal package'
++
++go vet b/b.go
++! stderr 'use of internal package'
++
++! go vet b/b_test.go
++stderr '^package command-line-arguments \(test\): use of internal package' # BUG
++
++! go vet depends-on-a/depends-on-a.go
++stderr '^a[/\\]a.go:5:3: use of internal package'
++
++! go vet depends-on-a/depends-on-a_test.go
++stderr '^package command-line-arguments \(test\)\n\timports a: use of internal package a/x/internal/y not allowed$' # BUG
++
++! go vet depends-on-a
++stderr '^a[/\\]a.go:5:3: use of internal package'
++
++-- a/a.go --
++// A package with bad imports in both src and test
++package a
++
++import (
++  _ "a/x/internal/y"
++)
++
++-- a/a_test.go --
++package a
++
++import (
++  _ "a/x/internal/y"
++)
++
++-- b/b.go --
++// A package with a bad import in test only
++package b
++
++-- b/b_test.go --
++package b
++
++import (
++  _ "a/x/internal/y"
++)
++
++-- depends-on-a/depends-on-a.go --
++// A package that depends on a package with a bad import
++package depends
++
++import (
++  _ "a"
++)
++
++-- depends-on-a/depends-on-a_test.go --
++package depends
++
++import (
++  _ "a"
++)
++
++-- a/x/internal/y/y.go --
++package y

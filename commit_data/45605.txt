@@ -17,7 +17,7 @@ Date:   Thu Oct 29 11:27:17 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/266373
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/test.go                       |   4 +++-
  src/cmd/go/internal/work/init.go           |   2 +-
  src/cmd/internal/sys/supported.go          |   4 +++-
@@ -28,3 +28,169 @@ Date:   Thu Oct 29 11:27:17 2020 -0400
  src/runtime/race/race_darwin_arm64.syso    | Bin 0 -> 438936 bytes
  src/runtime/race_arm64.s                   |  15 +++++++++++++++
  9 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 7c454dd38d..9c25392cc0 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1619,7 +1619,9 @@ func raceDetectorSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+ 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
+-	case "darwin", "freebsd", "netbsd", "windows":
++	case "darwin":
++		return goarch == "amd64" || goarch == "arm64"
++	case "freebsd", "netbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+ 		return false
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index d65c076c6a..102def4838 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -79,7 +79,7 @@ func instrumentInit() {
+ 	}
+ 	if cfg.BuildRace {
+ 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
++			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64, darwin/arm64, and windows/amd64\n", flag.Args()[0])
+ 			base.SetExitStatus(2)
+ 			base.Exit()
+ 		}
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 3c750774ed..69d7591440 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -13,7 +13,9 @@ func RaceDetectorSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+ 		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
+-	case "darwin", "freebsd", "netbsd", "windows":
++	case "darwin":
++		return goarch == "amd64" || goarch == "arm64"
++	case "freebsd", "netbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+ 		return false
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 0cb3cc25c0..cd64d86a4a 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -206,7 +206,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	// When the race flag is set, the LLVM tsan relocatable file is linked
+ 	// into the final binary, which means external linking is required because
+ 	// internal linking does not support it.
+-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
++	if *flagRace && (ctxt.Arch.InFamily(sys.PPC64) || ctxt.IsDarwin() && ctxt.IsARM64()) {
+ 		return true, "race on " + objabi.GOARCH
+ 	}
+ 
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index d12f2bc2ac..d26869e23a 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -47,7 +47,7 @@ THE SOFTWARE.
+ const (
+ 	MACHO_X86_64_RELOC_UNSIGNED = 0
+ 	MACHO_X86_64_RELOC_SIGNED   = 1
+-	MACHO_FAKE_GOTPCREL         = 100
++	MACHO_ARM64_RELOC_ADDEND    = 10
+ )
+ 
+ type ldMachoObj struct {
+@@ -707,11 +707,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 
+ 		sb := l.MakeSymbolUpdater(sect.sym)
++		var rAdd int64
+ 		for j := uint32(0); j < sect.nreloc; j++ {
+ 			var (
+ 				rOff  int32
+ 				rSize uint8
+-				rAdd  int64
+ 				rType objabi.RelocType
+ 				rSym  loader.Sym
+ 			)
+@@ -722,6 +722,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 				return errorf("%v: unexpected scattered relocation", s)
+ 			}
+ 
++			if arch.Family == sys.ARM64 && rel.type_ == MACHO_ARM64_RELOC_ADDEND {
++				// Two relocations. This addend will be applied to the next one.
++				rAdd = int64(rel.symnum)
++				continue
++			} else {
++				rAdd = 0
++			}
++
+ 			rSize = rel.length
+ 			rType = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+ 			rOff = int32(rel.addr)
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index b36d82ccfd..178ab94ab5 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -11,3 +11,4 @@ race_linux_ppc64le.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153
+ race_netbsd_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+ race_windows_amd64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
+ race_linux_arm64.syso built with LLVM 89f7ccea6f6488c443655880229c54db1f180153 and Go f62d3202bf9dbb3a00ad2a2c63ff4fa4188c5d3b.
++race_darwin_arm64.syso built with LLVM 00da38ce2d36c07f12c287dc515d37bb7bc410e9 and Go fe70a3a0fd31441bcbb9932ecab11a6083cf2119.
+diff --git a/src/runtime/race/race.go b/src/runtime/race/race.go
+index c894de5f72..d6a14b79e7 100644
+--- a/src/runtime/race/race.go
++++ b/src/runtime/race/race.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le race,linux,arm64
++// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le race,linux,arm64 race,darwin,arm64
+ 
+ package race
+ 
+diff --git a/src/runtime/race/race_darwin_arm64.syso b/src/runtime/race/race_darwin_arm64.syso
+new file mode 100644
+index 0000000000..f6eaa62ae3
+Binary files /dev/null and b/src/runtime/race/race_darwin_arm64.syso differ
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 9b909ac021..59373a9f3f 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -25,8 +25,15 @@
+ 
+ // The race ctx, ThreadState *thr below, is passed in R0 and loaded in racecalladdr.
+ 
++#ifdef TLS_darwin
++#define TP_ALIGN	AND	$~7, R0
++#else
++#define TP_ALIGN
++#endif
++
+ #define load_g \
+ 	MRS_TPIDR_R0 \
++	TP_ALIGN \
+ 	MOVD    runtime·tls_g(SB), R11 \
+ 	ADD     R11, R0 \
+ 	MOVD    0(R0), g
+@@ -423,7 +430,13 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
+ 	// benefit from this fast path.
+ 	CBNZ	R0, rest
+ 	MOVD	g, R13
++#ifdef TLS_darwin
++	MOVD	R27, R12 // save R27 a.k.a. REGTMP (callee-save in C). load_g clobbers it
++#endif
+ 	load_g
++#ifdef TLS_darwin
++	MOVD	R12, R27
++#endif
+ 	MOVD	g_m(g), R0
+ 	MOVD	m_p(R0), R0
+ 	MOVD	p_raceprocctx(R0), R0
+@@ -477,5 +490,7 @@ noswitch:
+ 	BL	runtime·racecallback(SB)
+ 	JMP	ret
+ 
++#ifndef TLSG_IS_VARIABLE
+ // tls_g, g value for each thread in TLS
+ GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8
++#endif

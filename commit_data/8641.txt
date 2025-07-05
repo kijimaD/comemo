@@ -17,9 +17,326 @@ Date:   Tue Jun 7 12:23:08 2011 +0000
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/4561061
-
+---
  src/pkg/fmt/fmt_test.go            |  14 ++---
  src/pkg/go/scanner/scanner_test.go |   2 +-
  src/pkg/strconv/quote.go           | 119 +++++++++++++++++++++++--------------
  src/pkg/strconv/quote_test.go      |  62 +++++++++++++------
  4 files changed, 125 insertions(+), 72 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index caecb6fb84..122b9516ba 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -132,15 +132,15 @@ var fmttests = []struct {
+ 	{"%q", `"`, `"\""`},
+ 	{"%q", "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
+ 	{"%q", "abc\xffdef", `"abc\xffdef"`},
+-	{"%q", "\u263a", `"\u263a"`},
++	{"%q", "\u263a", `"☺"`},
+ 	{"%q", "\U0010ffff", `"\U0010ffff"`},
+ 
+ 	// escaped characters
+ 	{"%q", 'x', `'x'`},
+ 	{"%q", 0, `'\x00'`},
+ 	{"%q", '\n', `'\n'`},
+-	{"%q", '\u1234', `'\u1234'`},
+-	{"%q", '\U00012345', `'\U00012345'`},
++	{"%q", '\u0e00', `'\u0e00'`},         // not a printable rune.
++	{"%q", '\U000c2345', `'\U000c2345'`}, // not a printable rune.
+ 	{"%q", int64(0x7FFFFFFF), `%!q(int64=2147483647)`},
+ 	{"%q", uint64(0xFFFFFFFF), `%!q(uint64=4294967295)`},
+ 	{"%q", '"', `'"'`},
+@@ -148,7 +148,7 @@ var fmttests = []struct {
+ 
+ 	// width
+ 	{"%5s", "abc", "  abc"},
+-	{"%2s", "\u263a", " \u263a"},
++	{"%2s", "\u263a", " ☺"},
+ 	{"%-5s", "abc", "abc  "},
+ 	{"%-8q", "abc", `"abc"   `},
+ 	{"%05s", "abc", "00abc"},
+@@ -158,9 +158,9 @@ var fmttests = []struct {
+ 	{"%.5s", "日本語日本語", "日本語日本"},
+ 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
+ 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
+-	{"%.3q", "日本語日本語", `"\u65e5\u672c\u8a9e"`},
+-	{"%.3q", []byte("日本語日本語"), `"\u65e5\u672c\u8a9e"`},
+-	{"%10.1q", "日本語日本語", `  "\u65e5"`},
++	{"%.3q", "日本語日本語", `"日本語"`},
++	{"%.3q", []byte("日本語日本語"), `"日本語"`},
++	{"%10.1q", "日本語日本語", `       "日"`},
+ 
+ 	// integers
+ 	{"%d", 12345, "12345"},
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 8af972838d..ee1e830a18 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -652,7 +652,7 @@ var errors = []struct {
+ }{
+ 	{"\a", token.ILLEGAL, 0, "illegal character '\\a'"},
+ 	{`#`, token.ILLEGAL, 0, "illegal character '#'"},
+-	{`…`, token.ILLEGAL, 0, "illegal character '\\u2026'"},
++	{`…`, token.ILLEGAL, 0, "illegal character '…'"},
+ 	{`' '`, token.CHAR, 0, ""},
+ 	{`''`, token.CHAR, 0, "illegal character literal"},
+ 	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index bbc0b2658e..98b19d3a2b 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -14,56 +14,68 @@ import (
+ 
+ const lowerhex = "0123456789abcdef"
+ 
+-func quoteWith(s string, quote byte) string {
++func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 	var buf bytes.Buffer
+ 	buf.WriteByte(quote)
+-	for ; len(s) > 0; s = s[1:] {
+-		switch c := s[0]; {
+-		case c == quote:
++	for width := 0; len(s) > 0; s = s[width:] {
++		rune := int(s[0])
++		width = 1
++		if rune >= utf8.RuneSelf {
++			rune, width = utf8.DecodeRuneInString(s)
++		}
++		if width == 1 && rune == utf8.RuneError {
++			goto printEscX
++		}
++		if rune == int(quote) || rune == '\\' { // always backslashed
+ 			buf.WriteByte('\\')
+-			buf.WriteByte(quote)
+-		case c == '\\':
+-			buf.WriteString(`\\`)
+-		case ' ' <= c && c <= '~':
+-			buf.WriteString(string(c))
+-		case c == '\a':
++			buf.WriteByte(byte(rune))
++			continue
++		}
++		if ASCIIonly {
++			if rune <= unicode.MaxASCII && unicode.IsPrint(rune) {
++				buf.WriteRune(rune)
++				continue
++			}
++		} else if unicode.IsPrint(rune) {
++			buf.WriteRune(rune)
++			continue
++		}
++		switch rune {
++		case '\a':
+ 			buf.WriteString(`\a`)
+-		case c == '\b':
++		case '\b':
+ 			buf.WriteString(`\b`)
+-		case c == '\f':
++		case '\f':
+ 			buf.WriteString(`\f`)
+-		case c == '\n':
++		case '\n':
+ 			buf.WriteString(`\n`)
+-		case c == '\r':
++		case '\r':
+ 			buf.WriteString(`\r`)
+-		case c == '\t':
++		case '\t':
+ 			buf.WriteString(`\t`)
+-		case c == '\v':
++		case '\v':
+ 			buf.WriteString(`\v`)
+-
+-		case c >= utf8.RuneSelf && utf8.FullRuneInString(s):
+-			r, size := utf8.DecodeRuneInString(s)
+-			if r == utf8.RuneError && size == 1 {
+-				goto EscX
+-			}
+-			s = s[size-1:] // next iteration will slice off 1 more
+-			if r < 0x10000 {
++		default:
++			switch {
++			case rune < ' ':
++			printEscX:
++				buf.WriteString(`\x`)
++				buf.WriteByte(lowerhex[s[0]>>4])
++				buf.WriteByte(lowerhex[s[0]&0xF])
++			case rune > unicode.MaxRune:
++				rune = 0xFFFD
++				fallthrough
++			case rune < 0x10000:
+ 				buf.WriteString(`\u`)
+-				for j := uint(0); j < 4; j++ {
+-					buf.WriteByte(lowerhex[(r>>(12-4*j))&0xF])
++				for s := 12; s >= 0; s -= 4 {
++					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
+ 				}
+-			} else {
++			default:
+ 				buf.WriteString(`\U`)
+-				for j := uint(0); j < 8; j++ {
+-					buf.WriteByte(lowerhex[(r>>(28-4*j))&0xF])
++				for s := 28; s >= 0; s -= 4 {
++					buf.WriteByte(lowerhex[rune>>uint(s)&0xF])
+ 				}
+ 			}
+-
+-		default:
+-		EscX:
+-			buf.WriteString(`\x`)
+-			buf.WriteByte(lowerhex[c>>4])
+-			buf.WriteByte(lowerhex[c&0xF])
+ 		}
+ 	}
+ 	buf.WriteByte(quote)
+@@ -71,21 +83,38 @@ func quoteWith(s string, quote byte) string {
+ 
+ }
+ 
+-// Quote returns a double-quoted Go string literal
+-// representing s.  The returned string uses Go escape
+-// sequences (\t, \n, \xFF, \u0100) for control characters
+-// and non-ASCII characters.
++// Quote returns a double-quoted Go string literal representing s.  The
++// returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
++// control characters and non-printable characters as defined by
++// unicode.IsPrint.
+ func Quote(s string) string {
+-	return quoteWith(s, '"')
++	return quoteWith(s, '"', false)
++}
++
++// QuoteToASCII returns a double-quoted Go string literal representing s.
++// The returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
++// non-ASCII characters and non-printable characters as defined by
++// unicode.IsPrint.
++func QuoteToASCII(s string) string {
++	return quoteWith(s, '"', true)
+ }
+ 
+-// QuoteRune returns a single-quoted Go character literal
+-// representing the rune.  The returned string uses Go escape
+-// sequences (\t, \n, \xFF, \u0100) for control characters
+-// and non-ASCII characters.
++// QuoteRune returns a single-quoted Go character literal representing the
++// rune.  The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
++// for control characters and non-printable characters as defined by
++// unicode.IsPrint.
+ func QuoteRune(rune int) string {
+ 	// TODO: avoid the allocation here.
+-	return quoteWith(string(rune), '\'')
++	return quoteWith(string(rune), '\'', false)
++}
++
++// QuoteRuneToASCII returns a single-quoted Go character literal representing
++// the rune.  The returned string uses Go escape sequences (\t, \n, \xFF,
++// \u0100) for non-ASCII characters and non-printable characters as defined
++// by unicode.IsPrint.
++func QuoteRuneToASCII(rune int) string {
++	// TODO: avoid the allocation here.
++	return quoteWith(string(rune), '\'', true)
+ }
+ 
+ // CanBackquote returns whether the string s would be
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 3232d611cf..4d615db443 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -11,17 +11,18 @@ import (
+ )
+ 
+ type quoteTest struct {
+-	in  string
+-	out string
++	in    string
++	out   string
++	ascii string
+ }
+ 
+ var quotetests = []quoteTest{
+-	{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
+-	{"\\", `"\\"`},
+-	{"abc\xffdef", `"abc\xffdef"`},
+-	{"\u263a", `"\u263a"`},
+-	{"\U0010ffff", `"\U0010ffff"`},
+-	{"\x04", `"\x04"`},
++	{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`, `"\a\b\f\r\n\t\v"`},
++	{"\\", `"\\"`, `"\\"`},
++	{"abc\xffdef", `"abc\xffdef"`, `"abc\xffdef"`},
++	{"\u263a", `"☺"`, `"\u263a"`},
++	{"\U0010ffff", `"\U0010ffff"`, `"\U0010ffff"`},
++	{"\x04", `"\x04"`, `"\x04"`},
+ }
+ 
+ func TestQuote(t *testing.T) {
+@@ -32,20 +33,30 @@ func TestQuote(t *testing.T) {
+ 	}
+ }
+ 
++func TestQuoteToASCII(t *testing.T) {
++	for _, tt := range quotetests {
++		if out := QuoteToASCII(tt.in); out != tt.ascii {
++			t.Errorf("QuoteToASCII(%s) = %s, want %s", tt.in, out, tt.ascii)
++		}
++	}
++}
++
+ type quoteRuneTest struct {
+-	in  int
+-	out string
++	in    int
++	out   string
++	ascii string
+ }
+ 
+ var quoterunetests = []quoteRuneTest{
+-	{'a', `'a'`},
+-	{'\a', `'\a'`},
+-	{'\\', `'\\'`},
+-	{0xFF, `'\u00ff'`},
+-	{0x263a, `'\u263a'`},
+-	{0x0010ffff, `'\U0010ffff'`},
+-	{0x0010ffff + 1, `'\ufffd'`},
+-	{0x04, `'\x04'`},
++	{'a', `'a'`, `'a'`},
++	{'\a', `'\a'`, `'\a'`},
++	{'\\', `'\\'`, `'\\'`},
++	{0xFF, `'ÿ'`, `'\u00ff'`},
++	{0x263a, `'☺'`, `'\u263a'`},
++	{0xfffd, `'�'`, `'\ufffd'`},
++	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`},
++	{0x0010ffff + 1, `'�'`, `'\ufffd'`},
++	{0x04, `'\x04'`, `'\x04'`},
+ }
+ 
+ func TestQuoteRune(t *testing.T) {
+@@ -56,6 +67,14 @@ func TestQuoteRune(t *testing.T) {
+ 	}
+ }
+ 
++func TestQuoteRuneToASCII(t *testing.T) {
++	for _, tt := range quoterunetests {
++		if out := QuoteRuneToASCII(tt.in); out != tt.ascii {
++			t.Errorf("QuoteRuneToASCII(%U) = %s, want %s", tt.in, out, tt.ascii)
++		}
++	}
++}
++
+ type canBackquoteTest struct {
+ 	in  string
+ 	out bool
+@@ -110,7 +129,12 @@ func TestCanBackquote(t *testing.T) {
+ 	}
+ }
+ 
+-var unquotetests = []quoteTest{
++type unQuoteTest struct {
++	in  string
++	out string
++}
++
++var unquotetests = []unQuoteTest{
+ 	{`""`, ""},
+ 	{`"a"`, "a"},
+ 	{`"abc"`, "abc"},

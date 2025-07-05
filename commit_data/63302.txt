@@ -12,8 +12,50 @@ Date:   Mon Jun 9 16:59:00 2025 -0400
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/net/iprawsock.go | 3 ---
  src/net/tcpsock.go   | 2 +-
  src/net/udpsock.go   | 3 ---
  3 files changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index 4c06b1b5ac..76dded9ca1 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -24,9 +24,6 @@ import (
+ // BUG(mikio): On JS and Plan 9, methods and functions related
+ // to IPConn are not implemented.
+ 
+-// BUG(mikio): On Windows, the File method of IPConn is not
+-// implemented.
+-
+ // IPAddr represents the address of an IP end point.
+ type IPAddr struct {
+ 	IP   IP
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 1b11a03f65..9d215db1b2 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -14,7 +14,7 @@ import (
+ 	"time"
+ )
+ 
+-// BUG(mikio): On JS and Windows, the File method of TCPConn and
++// BUG(mikio): On JS, the File method of TCPConn and
+ // TCPListener is not implemented.
+ 
+ // TCPAddr represents the address of a TCP end point.
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 56aabffa31..35da018c30 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -14,9 +14,6 @@ import (
+ // BUG(mikio): On Plan 9, the ReadMsgUDP and
+ // WriteMsgUDP methods of UDPConn are not implemented.
+ 
+-// BUG(mikio): On Windows, the File method of UDPConn is not
+-// implemented.
+-
+ // BUG(mikio): On JS, methods and functions related to UDPConn are not
+ // implemented.
+ 

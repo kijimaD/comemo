@@ -9,10 +9,83 @@ Date:   Fri Nov 4 09:31:35 2016 +0200
     Change-Id: I2f8a11321dc8f10bebbc8df90ba00ec65b9ee0fa
     Reviewed-on: https://go-review.googlesource.com/32790
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/doc/reader.go                    | 5 +++++
  src/go/doc/testdata/issue17788.0.golden | 8 ++++++++
  src/go/doc/testdata/issue17788.1.golden | 8 ++++++++
  src/go/doc/testdata/issue17788.2.golden | 8 ++++++++
  src/go/doc/testdata/issue17788.go       | 8 ++++++++
  5 files changed, 37 insertions(+)
+
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index ca46a047d6..8e82353868 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -362,6 +362,11 @@ func (r *reader) readFunc(fun *ast.FuncDecl) {
+ 	// associate methods with the receiver type, if any
+ 	if fun.Recv != nil {
+ 		// method
++		if len(fun.Recv.List) == 0 {
++			// should not happen (incorrect AST); (See issue 17788)
++			// don't show this method
++			return
++		}
+ 		recvTypeName, imp := baseTypeName(fun.Recv.List[0].Type)
+ 		if imp {
+ 			// should not happen (incorrect AST);
+diff --git a/src/go/doc/testdata/issue17788.0.golden b/src/go/doc/testdata/issue17788.0.golden
+new file mode 100644
+index 0000000000..42c00da504
+--- /dev/null
++++ b/src/go/doc/testdata/issue17788.0.golden
+@@ -0,0 +1,8 @@
++// 
++PACKAGE issue17788
++
++IMPORTPATH
++	testdata/issue17788
++
++FILENAMES
++	testdata/issue17788.go
+diff --git a/src/go/doc/testdata/issue17788.1.golden b/src/go/doc/testdata/issue17788.1.golden
+new file mode 100644
+index 0000000000..42c00da504
+--- /dev/null
++++ b/src/go/doc/testdata/issue17788.1.golden
+@@ -0,0 +1,8 @@
++// 
++PACKAGE issue17788
++
++IMPORTPATH
++	testdata/issue17788
++
++FILENAMES
++	testdata/issue17788.go
+diff --git a/src/go/doc/testdata/issue17788.2.golden b/src/go/doc/testdata/issue17788.2.golden
+new file mode 100644
+index 0000000000..42c00da504
+--- /dev/null
++++ b/src/go/doc/testdata/issue17788.2.golden
+@@ -0,0 +1,8 @@
++// 
++PACKAGE issue17788
++
++IMPORTPATH
++	testdata/issue17788
++
++FILENAMES
++	testdata/issue17788.go
+diff --git a/src/go/doc/testdata/issue17788.go b/src/go/doc/testdata/issue17788.go
+new file mode 100644
+index 0000000000..883ad5f769
+--- /dev/null
++++ b/src/go/doc/testdata/issue17788.go
+@@ -0,0 +1,8 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue17788
++
++func ( /* receiver type */ ) f0() {
++}

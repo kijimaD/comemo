@@ -14,6 +14,26 @@ Date:   Thu Oct 21 11:11:13 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/357589
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index d03c0b1cf9..6fb1a71d43 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -75,6 +75,14 @@
+ //         })
+ //     }
+ //
++// A detailed specification of the benchmark results format is given
++// in https://golang.org/design/14313-benchmark-format.
++//
++// There are standard tools for working with benchmark results at
++// https://golang.org/x/perf/cmd.
++// In particular, https://golang.org/x/perf/cmd/benchstat performs
++// statistically robust A/B comparisons.
++//
+ // Examples
+ //
+ // The package also runs and verifies example code. Example functions may

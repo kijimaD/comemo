@@ -37,10 +37,173 @@ Date:   Mon Jun 25 18:00:43 2018 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/crash_test.go     | 29 +++++++++++++++++++++++++++++
  src/runtime/export_test.go    | 11 +++++++++++
  src/runtime/os_windows.go     |  5 +++--
  src/runtime/panic.go          |  5 +++++
  src/runtime/signal_windows.go | 30 ++++++++++++++++++++++++++++++
  5 files changed, 78 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index b266d7b77e..7eb20f24ea 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -687,3 +687,32 @@ func TestRuntimePanic(t *testing.T) {
+ 		t.Errorf("output did not contain expected string %q", want)
+ 	}
+ }
++
++// Test that g0 stack overflows are handled gracefully.
++func TestG0StackOverflow(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	switch runtime.GOOS {
++	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
++		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
++	}
++
++	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
++		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestG0StackOverflow", "-test.v"))
++		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
++		out, err := cmd.CombinedOutput()
++		// Don't check err since it's expected to crash.
++		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
++			t.Fatalf("%s\n(exit status %v)", out, err)
++		}
++		// Check that it's a signal-style traceback.
++		if runtime.GOOS != "windows" {
++			if want := "PC="; !strings.Contains(string(out), want) {
++				t.Errorf("output does not contain %q:\n%s", want, out)
++			}
++		}
++		return
++	}
++
++	runtime.G0StackOverflow()
++}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 7ebdfc1520..89f887b765 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -461,3 +461,14 @@ func PanicForTesting(b []byte, i int) byte {
+ func unexportedPanicForTesting(b []byte, i int) byte {
+ 	return b[i]
+ }
++
++func G0StackOverflow() {
++	systemstack(func() {
++		stackOverflow(nil)
++	})
++}
++
++func stackOverflow(x *byte) {
++	var buf [256]byte
++	stackOverflow(&buf[0])
++}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 6f73a5ba24..6180dd3a60 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -701,8 +701,9 @@ func minit() {
+ 	// The system leaves an 8K PAGE_GUARD region at the bottom of
+ 	// the stack (in theory VirtualQuery isn't supposed to include
+ 	// that, but it does). Add an additional 8K of slop for
+-	// calling C functions that don't have stack checks. We
+-	// shouldn't be anywhere near this bound anyway.
++	// calling C functions that don't have stack checks and for
++	// lastcontinuehandler. We shouldn't be anywhere near this
++	// bound anyway.
+ 	base := mbi.allocationBase + 16<<10
+ 	// Sanity check the stack bounds.
+ 	g0 := getg()
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 7bb7f9b90c..a5287a0b86 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -889,6 +889,11 @@ func shouldPushSigpanic(gp *g, pc, lr uintptr) bool {
+ 
+ // isAbortPC returns true if pc is the program counter at which
+ // runtime.abort raises a signal.
++//
++// It is nosplit because it's part of the isgoexception
++// implementation.
++//
++//go:nosplit
+ func isAbortPC(pc uintptr) bool {
+ 	return pc == funcPC(abort) || ((GOARCH == "arm" || GOARCH == "arm64") && pc == funcPC(abort)+sys.PCQuantum)
+ }
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index fe5ff87cd6..a63450038d 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -38,6 +38,13 @@ func initExceptionHandler() {
+ 	}
+ }
+ 
++// isgoexception returns true if this exception should be translated
++// into a Go panic.
++//
++// It is nosplit to avoid growing the stack in case we're aborting
++// because of a stack overflow.
++//
++//go:nosplit
+ func isgoexception(info *exceptionrecord, r *context) bool {
+ 	// Only handle exception if executing instructions in Go binary
+ 	// (not Windows library code).
+@@ -73,11 +80,19 @@ func isgoexception(info *exceptionrecord, r *context) bool {
+ // Called by sigtramp from Windows VEH handler.
+ // Return value signals whether the exception has been handled (EXCEPTION_CONTINUE_EXECUTION)
+ // or should be made available to other handlers in the chain (EXCEPTION_CONTINUE_SEARCH).
++//
++// This is the first entry into Go code for exception handling. This
++// is nosplit to avoid growing the stack until we've checked for
++// _EXCEPTION_BREAKPOINT, which is raised if we overflow the g0 stack,
++//
++//go:nosplit
+ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	if !isgoexception(info, r) {
+ 		return _EXCEPTION_CONTINUE_SEARCH
+ 	}
+ 
++	// After this point, it is safe to grow the stack.
++
+ 	if gp.throwsplit {
+ 		// We can't safely sigpanic because it may grow the
+ 		// stack. Let it fall through.
+@@ -113,6 +128,10 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ // if ExceptionHandler returns EXCEPTION_CONTINUE_EXECUTION.
+ // firstcontinuehandler will stop that search,
+ // if exceptionhandler did the same earlier.
++//
++// It is nosplit for the same reason as exceptionhandler.
++//
++//go:nosplit
+ func firstcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	if !isgoexception(info, r) {
+ 		return _EXCEPTION_CONTINUE_SEARCH
+@@ -124,6 +143,10 @@ var testingWER bool
+ 
+ // lastcontinuehandler is reached, because runtime cannot handle
+ // current exception. lastcontinuehandler will print crash info and exit.
++//
++// It is nosplit for the same reason as exceptionhandler.
++//
++//go:nosplit
+ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	if testingWER {
+ 		return _EXCEPTION_CONTINUE_SEARCH
+@@ -136,6 +159,13 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	}
+ 	panicking = 1
+ 
++	// In case we're handling a g0 stack overflow, blow away the
++	// g0 stack bounds so we have room to print the traceback. If
++	// this somehow overflows the stack, the OS will trap it.
++	_g_.stack.lo = 0
++	_g_.stackguard0 = _g_.stack.lo + _StackGuard
++	_g_.stackguard1 = _g_.stackguard0
++
+ 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
+ 
+ 	print("PC=", hex(r.ip()), "\n")

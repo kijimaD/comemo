@@ -9,7 +9,7 @@ Date:   Mon Sep 28 14:54:53 2009 -0700
     DELTA=44  (4 added, 8 deleted, 32 changed)
     OCL=35048
     CL=35054
-
+---
  src/pkg/go/parser/parser.go                     | 19 ++++++++-----------
  src/pkg/go/printer/printer.go                   |  7 ++-----
  src/pkg/go/printer/testdata/comments.go         |  9 +++++----
@@ -18,3 +18,224 @@ Date:   Mon Sep 28 14:54:53 2009 -0700
  src/pkg/go/printer/testdata/declarations.go     | 10 +++++-----
  src/pkg/go/printer/testdata/declarations.golden | 12 ++++++------
  7 files changed, 34 insertions(+), 38 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index d3be849b51..034ee80994 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -305,16 +305,13 @@ func (p *parser) parseIdent() *ast.Ident {
+ }
+ 
+ 
+-func (p *parser) parseIdentList(x ast.Expr) []*ast.Ident {
++func (p *parser) parseIdentList() []*ast.Ident {
+ 	if p.trace {
+ 		defer un(trace(p, "IdentList"));
+ 	}
+ 
+ 	list := vector.New(0);
+-	if x == nil {
+-		x = p.parseIdent();
+-	}
+-	list.Push(x);
++	list.Push(p.parseIdent());
+ 	for p.tok == token.COMMA {
+ 		p.next();
+ 		list.Push(p.parseIdent());
+@@ -587,7 +584,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
+ 
+ 		for p.tok == token.COMMA {
+ 			p.next();
+-			idents := p.parseIdentList(nil);
++			idents := p.parseIdentList();
+ 			typ := p.parseParameterType(ellipsisOk);
+ 			list.Push(&ast.Field{nil, idents, typ, nil, nil});
+ 		}
+@@ -679,9 +676,9 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 	var idents []*ast.Ident;
+ 	var typ ast.Expr;
+ 	x := p.parseQualifiedIdent();
+-	if _, isIdent := x.(*ast.Ident); isIdent && (p.tok == token.COMMA || p.tok == token.LPAREN) {
+-		// methods
+-		idents = p.parseIdentList(x);
++	if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
++		// method
++		idents = []*ast.Ident{ident};
+ 		params, results := p.parseSignature();
+ 		typ = &ast.FuncType{noPos, params, results};
+ 	} else {
+@@ -1748,7 +1745,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Sp
+ 		defer un(trace(p, "ConstSpec"));
+ 	}
+ 
+-	idents := p.parseIdentList(nil);
++	idents := p.parseIdentList();
+ 	typ := p.tryType();
+ 	var values []ast.Expr;
+ 	if typ != nil || p.tok == token.ASSIGN {
+@@ -1779,7 +1776,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
+ 		defer un(trace(p, "VarSpec"));
+ 	}
+ 
+-	idents := p.parseIdentList(nil);
++	idents := p.parseIdentList();
+ 	typ := p.tryType();
+ 	var values []ast.Expr;
+ 	if typ == nil || p.tok == token.ASSIGN {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 3c9f32405c..21c8912890 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -610,12 +610,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 	} else { // interface
+ 		for i, f := range list {
+ 			p.leadComment(f.Doc);
+-			p.identList(f.Names);
+-			if len(f.Names) > 1 {
+-				p.print(blank);
+-			}
+ 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
+-				// method(s)
++				// method
++				p.expr(f.Names[0]);  // exactly one name
+ 				p.signature(ftyp.Params, ftyp.Results);
+ 			} else {
+ 				// embedded interface
+diff --git a/src/pkg/go/printer/testdata/comments.go b/src/pkg/go/printer/testdata/comments.go
+index 690da6bbef..271886d720 100644
+--- a/src/pkg/go/printer/testdata/comments.go
++++ b/src/pkg/go/printer/testdata/comments.go
+@@ -42,20 +42,21 @@ type SZ interface {}
+ 
+ // The I0 interface; no method is exported.
+ type I0 interface {
+-	f, g (x int) int;  // 2 unexported methods
++	f(x int) int;  // unexported method
+ }
+ 
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0;
+-	F, G (x float) float;  // 2 exported methods
+-	H, g (x int) int;  // 1 unexported method
++	F(x float) float;  // exported methods
++	g(x int) int;  // unexported method
+ }
+ 
+ // The I2 interface; all methods are exported.
+ type I1 interface {
+ 	I0;
+-	F, G (x float) float;  // 2 exported methods
++	F(x float) float;  // exported method
++	G(x float) float;  // exported method
+ }
+ 
+ // This comment group should be separated
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 2d37c5d265..40f81c194e 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -42,20 +42,21 @@ type SZ interface{}
+ 
+ // The I0 interface; no method is exported.
+ type I0 interface {
+-	f, g (x int) int;	// 2 unexported methods
++	f(x int) int;	// unexported method
+ }
+ 
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0;
+-	F, G (x float) float;	// 2 exported methods
+-	H, g (x int) int;		// 1 unexported method
++	F(x float) float;	// exported methods
++	g(x int) int;		// unexported method
+ }
+ 
+ // The I2 interface; all methods are exported.
+ type I1 interface {
+ 	I0;
+-	F, G (x float) float;	// 2 exported methods
++	F(x float) float;	// exported method
++	G(x float) float;	// exported method
+ }
+ 
+ // This comment group should be separated
+diff --git a/src/pkg/go/printer/testdata/comments.x b/src/pkg/go/printer/testdata/comments.x
+index 98c57a40ce..9450119c68 100644
+--- a/src/pkg/go/printer/testdata/comments.x
++++ b/src/pkg/go/printer/testdata/comments.x
+@@ -35,13 +35,13 @@ type I0 interface {
+ // The I1 interface; some methods are not exported.
+ type I1 interface {
+ 	I0;
+-	F, G (x float) float;
+-	H(x int) int;
++	F(x float) float;
+ 	// contains unexported methods
+ }
+ 
+ // The I2 interface; all methods are exported.
+ type I1 interface {
+ 	I0;
+-	F, G (x float) float;
++	F(x float) float;
++	G(x float) float;
+ }
+diff --git a/src/pkg/go/printer/testdata/declarations.go b/src/pkg/go/printer/testdata/declarations.go
+index 4ad78fe0eb..e853eb55c7 100644
+--- a/src/pkg/go/printer/testdata/declarations.go
++++ b/src/pkg/go/printer/testdata/declarations.go
+@@ -215,18 +215,18 @@ type _ interface {
+ 
+ type _ interface {
+ 	f();
+-	fffff, g ();
++	fffff();
+ }
+ 
+ type _ interface {
+ 	EI;
+ 	f();
+-	fffff, g ();
++	fffffg();
+ }
+ 
+ type _ interface {  // this comment must not change indentation
+ 	EI;  // here's a comment
+-	f();  // no blank between f and ()
+-	fffff, g ();  // blank between identifiers and ()
+-	gggggggggggg, hhhhhhhhhhhhhh (x, y, z int) ();  // hurray
++	f();  // no blank between identifier and ()
++	fffff();  // no blank between identifier and ()
++	gggggggggggg(x, y, z int) ();  // hurray
+ }
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 6ab45db745..4181b05ecd 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -209,18 +209,18 @@ type _ interface {
+ 
+ type _ interface {
+ 	f();
+-	fffff, g ();
++	fffff();
+ }
+ 
+ type _ interface {
+ 	EI;
+ 	f();
+-	fffff, g ();
++	fffffg();
+ }
+ 
+ type _ interface {	// this comment must not change indentation
+-	EI;											// here's a comment
+-	f();										// no blank between f and ()
+-	fffff, g ();								// blank between identifiers and ()
+-	gggggggggggg, hhhhhhhhhhhhhh (x, y, z int);	// hurray
++	EI;							// here's a comment
++	f();						// no blank between identifier and ()
++	fffff();					// no blank between identifier and ()
++	gggggggggggg(x, y, z int);	// hurray
+ }

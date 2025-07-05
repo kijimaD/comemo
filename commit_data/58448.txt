@@ -23,6 +23,24 @@ Date:   Thu Nov 9 09:43:26 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/net/http/transfer.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index b24998174f..dffff56b31 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -410,7 +410,11 @@ func (t *transferWriter) writeBody(w io.Writer) (err error) {
+ //
+ // This function is only intended for use in writeBody.
+ func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err error) {
+-	n, err = io.Copy(dst, src)
++	bufp := copyBufPool.Get().(*[]byte)
++	buf := *bufp
++	defer copyBufPool.Put(bufp)
++
++	n, err = io.CopyBuffer(dst, src, buf)
+ 	if err != nil && err != io.EOF {
+ 		t.bodyReadError = err
+ 	}

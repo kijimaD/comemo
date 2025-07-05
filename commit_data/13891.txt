@@ -23,7 +23,7 @@ Date:   Fri Sep 21 00:35:25 2012 -0400
     R=r
     CC=bradfitz, gobot, golang-dev
     https://golang.org/cl/6526048
-
+---
  src/pkg/unicode/digit.go       |   2 +-
  src/pkg/unicode/graphic.go     |  10 ++--
  src/pkg/unicode/letter.go      |  74 ++++++++++++++++++--------
@@ -31,3 +31,705 @@ Date:   Fri Sep 21 00:35:25 2012 -0400
  src/pkg/unicode/maketables.go  |  20 ++++++-
  src/pkg/unicode/tables.go      |  38 +++++++++++++
  6 files changed, 232 insertions(+), 30 deletions(-)
+
+diff --git a/src/pkg/unicode/digit.go b/src/pkg/unicode/digit.go
+index 4800bd6ea8..53171b3969 100644
+--- a/src/pkg/unicode/digit.go
++++ b/src/pkg/unicode/digit.go
+@@ -9,5 +9,5 @@ func IsDigit(r rune) bool {
+ 	if r <= MaxLatin1 {
+ 		return '0' <= r && r <= '9'
+ 	}
+-	return Is(Digit, r)
++	return isExcludingLatin(Digit, r)
+ }
+diff --git a/src/pkg/unicode/graphic.go b/src/pkg/unicode/graphic.go
+index 0de90ebd80..1105688d43 100644
+--- a/src/pkg/unicode/graphic.go
++++ b/src/pkg/unicode/graphic.go
+@@ -78,13 +78,13 @@ func IsLetter(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&(pLu|pLl) != 0
+ 	}
+-	return Is(Letter, r)
++	return isExcludingLatin(Letter, r)
+ }
+ 
+ // IsMark reports whether the rune is a mark character (category M).
+ func IsMark(r rune) bool {
+ 	// There are no mark characters in Latin-1.
+-	return Is(Mark, r)
++	return isExcludingLatin(Mark, r)
+ }
+ 
+ // IsNumber reports whether the rune is a number (category N).
+@@ -92,7 +92,7 @@ func IsNumber(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pN != 0
+ 	}
+-	return Is(Number, r)
++	return isExcludingLatin(Number, r)
+ }
+ 
+ // IsPunct reports whether the rune is a Unicode punctuation character
+@@ -119,7 +119,7 @@ func IsSpace(r rune) bool {
+ 		}
+ 		return false
+ 	}
+-	return Is(White_Space, r)
++	return isExcludingLatin(White_Space, r)
+ }
+ 
+ // IsSymbol reports whether the rune is a symbolic character.
+@@ -127,5 +127,5 @@ func IsSymbol(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pS != 0
+ 	}
+-	return Is(Symbol, r)
++	return isExcludingLatin(Symbol, r)
+ }
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index be484553dc..8239557e3f 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -19,8 +19,9 @@ const (
+ // The two slices must be in sorted order and non-overlapping.
+ // Also, R32 should contain only values >= 0x10000 (1<<16).
+ type RangeTable struct {
+-	R16 []Range16
+-	R32 []Range32
++	R16         []Range16
++	R32         []Range32
++	LatinOffset int // number of entries in R16 with Hi <= MaxLatin1
+ }
+ 
+ // Range16 represents of a range of 16-bit Unicode code points.  The range runs from Lo to Hi
+@@ -80,14 +81,31 @@ const (
+ 	UpperLower = MaxRune + 1 // (Cannot be a valid delta.)
+ )
+ 
+-// is16 uses binary search to test whether rune is in the specified slice of 16-bit ranges.
++// linearMax is the maximum size table for linear search for non-Latin1 rune.
++// Derived by running 'go test -calibrate'.
++const linearMax = 18
++
++// is16 reports whether r is in the sorted slice of 16-bit ranges.
+ func is16(ranges []Range16, r uint16) bool {
++	if len(ranges) <= linearMax || r <= MaxLatin1 {
++		for i := range ranges {
++			range_ := &ranges[i]
++			if r < range_.Lo {
++				return false
++			}
++			if r <= range_.Hi {
++				return (r-range_.Lo)%range_.Stride == 0
++			}
++		}
++		return false
++	}
++
+ 	// binary search over ranges
+ 	lo := 0
+ 	hi := len(ranges)
+ 	for lo < hi {
+ 		m := lo + (hi-lo)/2
+-		range_ := ranges[m]
++		range_ := &ranges[m]
+ 		if range_.Lo <= r && r <= range_.Hi {
+ 			return (r-range_.Lo)%range_.Stride == 0
+ 		}
+@@ -100,8 +118,21 @@ func is16(ranges []Range16, r uint16) bool {
+ 	return false
+ }
+ 
+-// is32 uses binary search to test whether rune is in the specified slice of 32-bit ranges.
++// is32 reports whether r is in the sorted slice of 32-bit ranges.
+ func is32(ranges []Range32, r uint32) bool {
++	if len(ranges) <= linearMax {
++		for i := range ranges {
++			range_ := &ranges[i]
++			if r < range_.Lo {
++				return false
++			}
++			if r <= range_.Hi {
++				return (r-range_.Lo)%range_.Stride == 0
++			}
++		}
++		return false
++	}
++
+ 	// binary search over ranges
+ 	lo := 0
+ 	hi := len(ranges)
+@@ -122,21 +153,6 @@ func is32(ranges []Range32, r uint32) bool {
+ 
+ // Is tests whether rune is in the specified table of ranges.
+ func Is(rangeTab *RangeTable, r rune) bool {
+-	// common case: rune is ASCII or Latin-1.
+-	if uint32(r) <= MaxLatin1 {
+-		// Only need to check R16, since R32 is always >= 1<<16.
+-		r16 := uint16(r)
+-		for _, r := range rangeTab.R16 {
+-			if r16 > r.Hi {
+-				continue
+-			}
+-			if r16 < r.Lo {
+-				return false
+-			}
+-			return (r16-r.Lo)%r.Stride == 0
+-		}
+-		return false
+-	}
+ 	r16 := rangeTab.R16
+ 	if len(r16) > 0 && r <= rune(r16[len(r16)-1].Hi) {
+ 		return is16(r16, uint16(r))
+@@ -148,13 +164,25 @@ func Is(rangeTab *RangeTable, r rune) bool {
+ 	return false
+ }
+ 
++func isExcludingLatin(rangeTab *RangeTable, r rune) bool {
++	r16 := rangeTab.R16
++	if off := rangeTab.LatinOffset; len(r16) > off && r <= rune(r16[len(r16)-1].Hi) {
++		return is16(r16[off:], uint16(r))
++	}
++	r32 := rangeTab.R32
++	if len(r32) > 0 && r >= rune(r32[0].Lo) {
++		return is32(r32, uint32(r))
++	}
++	return false
++}
++
+ // IsUpper reports whether the rune is an upper case letter.
+ func IsUpper(r rune) bool {
+ 	// See comment in IsGraphic.
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pLu != 0
+ 	}
+-	return Is(Upper, r)
++	return isExcludingLatin(Upper, r)
+ }
+ 
+ // IsLower reports whether the rune is a lower case letter.
+@@ -163,7 +191,7 @@ func IsLower(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pLl != 0
+ 	}
+-	return Is(Lower, r)
++	return isExcludingLatin(Lower, r)
+ }
+ 
+ // IsTitle reports whether the rune is a title case letter.
+@@ -171,7 +199,7 @@ func IsTitle(r rune) bool {
+ 	if r <= MaxLatin1 {
+ 		return false
+ 	}
+-	return Is(Title, r)
++	return isExcludingLatin(Title, r)
+ }
+ 
+ // to maps the rune using the specified case mapping.
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 2d80562182..0ec25ab7e2 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -5,6 +5,10 @@
+ package unicode_test
+ 
+ import (
++	"flag"
++	"fmt"
++	"runtime"
++	"sort"
+ 	"testing"
+ 	. "unicode"
+ )
+@@ -427,3 +431,117 @@ func TestSimpleFold(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Running 'go test -calibrate' runs the calibration to find a plausible
++// cutoff point for linear search of a range list vs. binary search.
++// We create a fake table and then time how long it takes to do a
++// sequence of searches within that table, for all possible inputs 
++// relative to the ranges (something before all, in each, between each, after all).
++// This assumes that all possible runes are equally likely.
++// In practice most runes are ASCII so this is a conservative estimate
++// of an effective cutoff value. In practice we could probably set it higher
++// than what this function recommends.
++
++var calibrate = flag.Bool("calibrate", false, "compute crossover for linear vs. binary search")
++
++func TestCalibrate(t *testing.T) {
++	if !*calibrate {
++		return
++	}
++
++	if runtime.GOARCH == "amd64" {
++		fmt.Printf("warning: running calibration on %s\n", runtime.GOARCH)
++	}
++
++	// Find the point where binary search wins by more than 10%.
++	// The 10% bias gives linear search an edge when they're close,
++	// because on predominantly ASCII inputs linear search is even
++	// better than our benchmarks measure.
++	n := sort.Search(64, func(n int) bool {
++		tab := fakeTable(n)
++		blinear := func(b *testing.B) {
++			tab := tab
++			max := n*5 + 20
++			for i := 0; i < b.N; i++ {
++				for j := 0; j <= max; j++ {
++					linear(tab, uint16(j))
++				}
++			}
++		}
++		bbinary := func(b *testing.B) {
++			tab := tab
++			max := n*5 + 20
++			for i := 0; i < b.N; i++ {
++				for j := 0; j <= max; j++ {
++					binary(tab, uint16(j))
++				}
++			}
++		}
++		bmlinear := testing.Benchmark(blinear)
++		bmbinary := testing.Benchmark(bbinary)
++		fmt.Printf("n=%d: linear=%d binary=%d\n", n, bmlinear.NsPerOp(), bmbinary.NsPerOp())
++		return bmlinear.NsPerOp()*100 > bmbinary.NsPerOp()*110
++	})
++	fmt.Printf("calibration: linear cutoff = %d\n", n)
++}
++
++func fakeTable(n int) []Range16 {
++	var r16 []Range16
++	for i := 0; i < n; i++ {
++		r16 = append(r16, Range16{uint16(i*5 + 10), uint16(i*5 + 12), 1})
++	}
++	return r16
++}
++
++func linear(ranges []Range16, r uint16) bool {
++	for i := range ranges {
++		range_ := &ranges[i]
++		if r < range_.Lo {
++			return false
++		}
++		if r <= range_.Hi {
++			return (r-range_.Lo)%range_.Stride == 0
++		}
++	}
++	return false
++}
++
++func binary(ranges []Range16, r uint16) bool {
++	// binary search over ranges
++	lo := 0
++	hi := len(ranges)
++	for lo < hi {
++		m := lo + (hi-lo)/2
++		range_ := &ranges[m]
++		if range_.Lo <= r && r <= range_.Hi {
++			return (r-range_.Lo)%range_.Stride == 0
++		}
++		if r < range_.Lo {
++			hi = m
++		} else {
++			lo = m + 1
++		}
++	}
++	return false
++}
++
++func TestLatinOffset(t *testing.T) {
++	var maps = []map[string]*RangeTable{
++		Categories,
++		FoldCategory,
++		FoldScript,
++		Properties,
++		Scripts,
++	}
++	for _, m := range maps {
++		for name, tab := range m {
++			i := 0
++			for i < len(tab.R16) && tab.R16[i].Hi <= MaxLatin1 {
++				i++
++			}
++			if tab.LatinOffset != i {
++				t.Errorf("%s: LatinOffset=%d, want %d", name, tab.LatinOffset, i)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index fcd14fc733..2ed1915d2d 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -503,6 +503,7 @@ const format = "\t\t{0x%04x, 0x%04x, %d},\n"
+ func dumpRange(header string, inCategory Op) {
+ 	fmt.Print(header)
+ 	next := rune(0)
++	latinOffset := 0
+ 	fmt.Print("\tR16: []Range16{\n")
+ 	// one Range for each iteration
+ 	count := &range16Count
+@@ -546,11 +547,17 @@ func dumpRange(header string, inCategory Op) {
+ 				break
+ 			}
+ 		}
++		if uint32(hi) <= unicode.MaxLatin1 {
++			latinOffset++
++		}
+ 		size, count = printRange(uint32(lo), uint32(hi), uint32(stride), size, count)
+ 		// next range: start looking where this range ends
+ 		next = hi + 1
+ 	}
+ 	fmt.Print("\t},\n")
++	if latinOffset > 0 {
++		fmt.Printf("\tLatinOffset: %d,\n", latinOffset)
++	}
+ 	fmt.Print("}\n\n")
+ }
+ 
+@@ -760,14 +767,17 @@ func printScriptOrProperty(doProps bool) {
+ 		}
+ 		ndecl++
+ 		fmt.Printf("var _%s = &RangeTable {\n", name)
+-		fmt.Print("\tR16: []Range16{\n")
+ 		ranges := foldAdjacent(table[name])
++		fmt.Print("\tR16: []Range16{\n")
+ 		size := 16
+ 		count := &range16Count
+ 		for _, s := range ranges {
+ 			size, count = printRange(s.Lo, s.Hi, s.Stride, size, count)
+ 		}
+ 		fmt.Print("\t},\n")
++		if off := findLatinOffset(ranges); off > 0 {
++			fmt.Printf("\tLatinOffset: %d,\n", off)
++		}
+ 		fmt.Print("}\n\n")
+ 	}
+ 	decl.Sort()
+@@ -779,6 +789,14 @@ func printScriptOrProperty(doProps bool) {
+ 	fmt.Print(")\n\n")
+ }
+ 
++func findLatinOffset(ranges []unicode.Range32) int {
++	i := 0
++	for i < len(ranges) && ranges[i].Hi <= unicode.MaxLatin1 {
++		i++
++	}
++	return i
++}
++
+ const (
+ 	CaseUpper = 1 << iota
+ 	CaseLower
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index ebd169b099..859e53c3ce 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -71,6 +71,7 @@ var _C = &RangeTable{
+ 		{0xf0000, 0xffffd, 1},
+ 		{0x100000, 0x10fffd, 1},
+ 	},
++	LatinOffset: 2,
+ }
+ 
+ var _Cc = &RangeTable{
+@@ -78,6 +79,7 @@ var _Cc = &RangeTable{
+ 		{0x0001, 0x001f, 1},
+ 		{0x007f, 0x009f, 1},
+ 	},
++	LatinOffset: 2,
+ }
+ 
+ var _Cf = &RangeTable{
+@@ -536,6 +538,7 @@ var _L = &RangeTable{
+ 		{0x2b740, 0x2b81d, 1},
+ 		{0x2f800, 0x2fa1d, 1},
+ 	},
++	LatinOffset: 6,
+ }
+ 
+ var _Ll = &RangeTable{
+@@ -682,6 +685,7 @@ var _Ll = &RangeTable{
+ 		{0x1d7c4, 0x1d7c9, 1},
+ 		{0x1d7cb, 0x1d7cb, 1},
+ 	},
++	LatinOffset: 5,
+ }
+ 
+ var _Lm = &RangeTable{
+@@ -1186,6 +1190,7 @@ var _Lu = &RangeTable{
+ 		{0x1d790, 0x1d7a8, 1},
+ 		{0x1d7ca, 0x1d7ca, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _M = &RangeTable{
+@@ -1769,6 +1774,7 @@ var _N = &RangeTable{
+ 		{0x1d7ce, 0x1d7ff, 1},
+ 		{0x1f100, 0x1f10a, 1},
+ 	},
++	LatinOffset: 4,
+ }
+ 
+ var _Nd = &RangeTable{
+@@ -1814,6 +1820,7 @@ var _Nd = &RangeTable{
+ 		{0x11066, 0x1106f, 1},
+ 		{0x1d7ce, 0x1d7ff, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Nl = &RangeTable{
+@@ -1879,6 +1886,7 @@ var _No = &RangeTable{
+ 		{0x1d360, 0x1d371, 1},
+ 		{0x1f100, 0x1f10a, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _P = &RangeTable{
+@@ -2003,6 +2011,7 @@ var _P = &RangeTable{
+ 		{0x110be, 0x110c1, 1},
+ 		{0x12470, 0x12473, 1},
+ 	},
++	LatinOffset: 10,
+ }
+ 
+ var _Pc = &RangeTable{
+@@ -2053,6 +2062,7 @@ var _Pe = &RangeTable{
+ 		{0xff09, 0xff3d, 52},
+ 		{0xff5d, 0xff63, 3},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Pf = &RangeTable{
+@@ -2194,6 +2204,7 @@ var _Po = &RangeTable{
+ 		{0x110be, 0x110c1, 1},
+ 		{0x12470, 0x12473, 1},
+ 	},
++	LatinOffset: 7,
+ }
+ 
+ var _Ps = &RangeTable{
+@@ -2222,6 +2233,7 @@ var _Ps = &RangeTable{
+ 		{0xff5b, 0xff5f, 4},
+ 		{0xff62, 0xff62, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _S = &RangeTable{
+@@ -2409,6 +2421,7 @@ var _S = &RangeTable{
+ 		{0x1f680, 0x1f6c5, 1},
+ 		{0x1f700, 0x1f773, 1},
+ 	},
++	LatinOffset: 9,
+ }
+ 
+ var _Sc = &RangeTable{
+@@ -2425,6 +2438,7 @@ var _Sc = &RangeTable{
+ 		{0xffe0, 0xffe1, 1},
+ 		{0xffe5, 0xffe6, 1},
+ 	},
++	LatinOffset: 2,
+ }
+ 
+ var _Sk = &RangeTable{
+@@ -2452,6 +2466,7 @@ var _Sk = &RangeTable{
+ 		{0xff3e, 0xff40, 2},
+ 		{0xffe3, 0xffe3, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _Sm = &RangeTable{
+@@ -2510,6 +2525,7 @@ var _Sm = &RangeTable{
+ 		{0x1d76f, 0x1d789, 26},
+ 		{0x1d7a9, 0x1d7c3, 26},
+ 	},
++	LatinOffset: 5,
+ }
+ 
+ var _So = &RangeTable{
+@@ -2666,6 +2682,7 @@ var _So = &RangeTable{
+ 		{0x1f680, 0x1f6c5, 1},
+ 		{0x1f700, 0x1f773, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _Z = &RangeTable{
+@@ -2677,6 +2694,7 @@ var _Z = &RangeTable{
+ 		{0x202f, 0x205f, 48},
+ 		{0x3000, 0x3000, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Zl = &RangeTable{
+@@ -2699,6 +2717,7 @@ var _Zs = &RangeTable{
+ 		{0x202f, 0x205f, 48},
+ 		{0x3000, 0x3000, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ // These variables have type *RangeTable.
+@@ -3179,6 +3198,7 @@ var _Common = &RangeTable{
+ 		{0xe0001, 0xe0001, 1},
+ 		{0xe0020, 0xe007f, 1},
+ 	},
++	LatinOffset: 7,
+ }
+ 
+ var _Coptic = &RangeTable{
+@@ -3649,6 +3669,7 @@ var _Latin = &RangeTable{
+ 		{0xff21, 0xff3a, 1},
+ 		{0xff41, 0xff5a, 1},
+ 	},
++	LatinOffset: 6,
+ }
+ 
+ var _Lepcha = &RangeTable{
+@@ -4199,6 +4220,7 @@ var _ASCII_Hex_Digit = &RangeTable{
+ 		{0x0041, 0x0046, 1},
+ 		{0x0061, 0x0066, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _Bidi_Control = &RangeTable{
+@@ -4230,6 +4252,7 @@ var _Dash = &RangeTable{
+ 		{0xfe63, 0xfe63, 1},
+ 		{0xff0d, 0xff0d, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Deprecated = &RangeTable{
+@@ -4370,6 +4393,7 @@ var _Diacritic = &RangeTable{
+ 		{0x1d185, 0x1d18b, 1},
+ 		{0x1d1aa, 0x1d1ad, 1},
+ 	},
++	LatinOffset: 6,
+ }
+ 
+ var _Extender = &RangeTable{
+@@ -4395,6 +4419,7 @@ var _Extender = &RangeTable{
+ 		{0xaadd, 0xaadd, 1},
+ 		{0xff70, 0xff70, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Hex_Digit = &RangeTable{
+@@ -4406,6 +4431,7 @@ var _Hex_Digit = &RangeTable{
+ 		{0xff21, 0xff26, 1},
+ 		{0xff41, 0xff46, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _Hyphen = &RangeTable{
+@@ -4421,6 +4447,7 @@ var _Hyphen = &RangeTable{
+ 		{0xff0d, 0xff0d, 1},
+ 		{0xff65, 0xff65, 1},
+ 	},
++	LatinOffset: 2,
+ }
+ 
+ var _IDS_Binary_Operator = &RangeTable{
+@@ -4695,6 +4722,7 @@ var _Other_ID_Continue = &RangeTable{
+ 		{0x1369, 0x1371, 1},
+ 		{0x19da, 0x19da, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Other_ID_Start = &RangeTable{
+@@ -4828,6 +4856,7 @@ var _Other_Math = &RangeTable{
+ 		{0x1d7c4, 0x1d7cb, 1},
+ 		{0x1d7ce, 0x1d7ff, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Other_Uppercase = &RangeTable{
+@@ -4868,6 +4897,7 @@ var _Pattern_Syntax = &RangeTable{
+ 		{0xfd3e, 0xfd3f, 1},
+ 		{0xfe45, 0xfe46, 1},
+ 	},
++	LatinOffset: 15,
+ }
+ 
+ var _Pattern_White_Space = &RangeTable{
+@@ -4878,6 +4908,7 @@ var _Pattern_White_Space = &RangeTable{
+ 		{0x200e, 0x200f, 1},
+ 		{0x2028, 0x2029, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _Quotation_Mark = &RangeTable{
+@@ -4895,6 +4926,7 @@ var _Quotation_Mark = &RangeTable{
+ 		{0xff07, 0xff07, 1},
+ 		{0xff62, 0xff63, 1},
+ 	},
++	LatinOffset: 4,
+ }
+ 
+ var _Radical = &RangeTable{
+@@ -4957,6 +4989,7 @@ var _STerm = &RangeTable{
+ 		{0x11047, 0x11048, 1},
+ 		{0x110be, 0x110c1, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var _Soft_Dotted = &RangeTable{
+@@ -4995,6 +5028,7 @@ var _Soft_Dotted = &RangeTable{
+ 		{0x1d65e, 0x1d65f, 1},
+ 		{0x1d692, 0x1d693, 1},
+ 	},
++	LatinOffset: 1,
+ }
+ 
+ var _Terminal_Punctuation = &RangeTable{
+@@ -5069,6 +5103,7 @@ var _Terminal_Punctuation = &RangeTable{
+ 		{0x110be, 0x110c1, 1},
+ 		{0x12470, 0x12473, 1},
+ 	},
++	LatinOffset: 5,
+ }
+ 
+ var _Unified_Ideograph = &RangeTable{
+@@ -5114,6 +5149,7 @@ var _White_Space = &RangeTable{
+ 		{0x205f, 0x205f, 1},
+ 		{0x3000, 0x3000, 1},
+ 	},
++	LatinOffset: 4,
+ }
+ 
+ // These variables have type *RangeTable.
+@@ -5887,6 +5923,7 @@ var foldLl = &RangeTable{
+ 	R32: []Range32{
+ 		{0x10400, 0x10427, 1},
+ 	},
++	LatinOffset: 3,
+ }
+ 
+ var foldLt = &RangeTable{
+@@ -6001,6 +6038,7 @@ var foldLu = &RangeTable{
+ 	R32: []Range32{
+ 		{0x10428, 0x1044f, 1},
+ 	},
++	LatinOffset: 4,
+ }
+ 
+ var foldM = &RangeTable{

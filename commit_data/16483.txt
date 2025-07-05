@@ -16,7 +16,64 @@ Date:   Tue Jun 4 08:33:00 2013 +0200
     R=golang-dev, iant, dave, daniel.morsing, ality, rsc
     CC=golang-dev
     https://golang.org/cl/9040043
-
+---
  src/cmd/6c/cgen.c | 5 +++--
  src/cmd/8c/cgen.c | 5 +++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 95400c4453..7afacb2177 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -392,13 +392,13 @@ cgen(Node *n, Node *nn)
+ 			}
+ 		}
+ 
+-		if(o == OMUL) {
++		if(o == OMUL || o == OLMUL) {
+ 			if(l->addable >= INDEXED) {
+ 				t = l;
+ 				l = r;
+ 				r = t;
+ 			}
+-			/* should favour AX */
++			reg[D_DX]++; // for gopcode case OMUL
+ 			regalloc(&nod, l, nn);
+ 			cgen(l, &nod);
+ 			if(r->addable < INDEXED || hardconst(r)) {
+@@ -410,6 +410,7 @@ cgen(Node *n, Node *nn)
+ 				gopcode(OMUL, n->type, r, &nod);	/* addressible */
+ 			gmove(&nod, nn);
+ 			regfree(&nod);
++			reg[D_DX]--;
+ 			break;
+ 		}
+ 
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index 78eb7ecedb..4d4ae13abe 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -404,13 +404,13 @@ cgen(Node *n, Node *nn)
+ 			}
+ 		}
+ 
+-		if(o == OMUL) {
++		if(o == OMUL || o == OLMUL) {
+ 			if(l->addable >= INDEXED) {
+ 				t = l;
+ 				l = r;
+ 				r = t;
+ 			}
+-			/* should favour AX */
++			reg[D_DX]++; // for gopcode case OMUL
+ 			regalloc(&nod, l, nn);
+ 			cgen(l, &nod);
+ 			if(r->addable < INDEXED) {
+@@ -422,6 +422,7 @@ cgen(Node *n, Node *nn)
+ 				gopcode(OMUL, n->type, r, &nod);	/* addressible */
+ 			gmove(&nod, nn);
+ 			regfree(&nod);
++			reg[D_DX]--;
+ 			break;
+ 		}
+ 

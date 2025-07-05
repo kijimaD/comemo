@@ -11,7 +11,64 @@ Date:   Tue Feb 26 19:42:56 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7383055
-
+---
  src/cmd/ld/data.c      | 25 +++----------------------
  src/pkg/runtime/mgc0.c |  2 +-
  2 files changed, 4 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index e4d16fdc1f..1e0bd2cd0f 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -748,27 +748,6 @@ setuint64(Sym *s, vlong r, uint64 v)
+ 	setuintxx(s, r, v, 8);
+ }
+ 
+-static vlong
+-addaddrpcrelplus(Sym *s, Sym *t, int32 add)
+-{
+-	vlong i;
+-	Reloc *r;
+-
+-	if(s->type == 0)
+-		s->type = SDATA;
+-	s->reachable = 1;
+-	i = s->size;
+-	s->size += PtrSize;
+-	symgrow(s, s->size);
+-	r = addrel(s);
+-	r->sym = t;
+-	r->off = i;
+-	r->siz = PtrSize;
+-	r->type = D_PCREL;
+-	r->add = add;
+-	return i;
+-}
+-
+ vlong
+ addaddrplus(Sym *s, Sym *t, int32 add)
+ {
+@@ -949,7 +928,9 @@ gcaddsym(Sym *gc, Sym *s, int32 off)
+ 		//print("gcaddsym:    %s    %d    %s\n", s->name, s->size, gotype->name);
+ 		adduintxx(gc, GC_CALL, PtrSize);
+ 		adduintxx(gc, off, PtrSize);
+-		addaddrpcrelplus(gc, decodetype_gc(gotype), 4*PtrSize);
++		addpcrelplus(gc, decodetype_gc(gotype), 3*PtrSize+4);
++		if(PtrSize == 8)
++			adduintxx(gc, 0, 4);
+ 	} else {
+ 		//print("gcaddsym:    %s    %d    <unknown type>\n", s->name, s->size);
+ 		for(a = -off&(PtrSize-1); a+PtrSize<=s->size; a+=PtrSize) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index b2ed693c65..e9d5d301b8 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -837,7 +837,7 @@ scanblock(Workbuf *wbuf, Obj *wp, uintptr nobj, bool keepworking)
+ 			// Stack push.
+ 			*stack_ptr-- = stack_top;
+ 			stack_top = (Frame){1, 0, stack_top.b + pc[1], pc+3 /*return address*/};
+-			pc = (uintptr*)((byte*)pc + (uintptr)pc[2]);  // target of the CALL instruction
++			pc = (uintptr*)((byte*)pc + *(int32*)(pc+2));  // target of the CALL instruction
+ 			continue;
+ 
+ 		case GC_MAP_PTR:

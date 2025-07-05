@@ -8,7 +8,49 @@ Date:   Tue Mar 10 16:39:23 2009 -0700
     DELTA=20  (20 added, 0 deleted, 0 changed)
     OCL=26054
     CL=26062
-
+---
  test/bugs/bug138.go | 19 +++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 24 insertions(+)
+
+diff --git a/test/bugs/bug138.go b/test/bugs/bug138.go
+new file mode 100644
+index 0000000000..09c61e05ce
+--- /dev/null
++++ b/test/bugs/bug138.go
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || echo BUG should compile
++
++package main
++
++func main() {
++	const c int = -1;
++	var i int = -1;
++	var xc uint = uint(c);  // this does not work
++	var xi uint = uint(i);  // this works
++}
++
++/*
++bug138.go:8: overflow converting constant to uint
++bug138.go:8: illegal combination of literals CONV 7
++*/
+diff --git a/test/golden.out b/test/golden.out
+index bb1e2cb44b..31616f4faa 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -154,6 +154,11 @@ bugs/bug137.go:9: break label is not defined: L2
+ bugs/bug137.go:15: break label is not defined: L4
+ BUG should compile
+ 
++=========== bugs/bug138.go
++bugs/bug138.go:8: overflow converting constant to uint
++bugs/bug138.go:8: illegal combination of literals CONV 7
++BUG should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

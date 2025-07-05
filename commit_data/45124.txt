@@ -27,6 +27,33 @@ Date:   Fri Sep 25 17:10:24 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/buildall.bash | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index dc67c0630f..19ea172c5b 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -3,10 +3,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# Usage: buildall.sh [-e] [pattern]
++# Usage: buildall.bash [-e] [pattern]
+ #
+ # buildall.bash builds the standard library for all Go-supported
+-# architectures. It is used by the "all-compile" trybot builder,
++# architectures. It is used by the "misc-compile" trybot builders,
+ # as a smoke test to quickly flag portability issues.
+ #
+ # Options:
+@@ -42,7 +42,7 @@ gettargets() {
+ }
+ 
+ selectedtargets() {
+-	gettargets | egrep -v 'android-arm|darwin-arm64' | egrep "$pattern"
++	gettargets | egrep "$pattern"
+ }
+ 
+ # put linux first in the target list to get all the architectures up front.

@@ -12,7 +12,33 @@ Date:   Wed Oct 16 10:55:39 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go           | 1 +
  src/cmd/asm/internal/asm/testdata/ppc64.s | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index b960d8f022..9fc7fa5598 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -353,6 +353,7 @@ func (p *Parser) asmPCAlign(operands [][]lex.Token) {
+ 	prog := &obj.Prog{
+ 		Ctxt: p.ctxt,
+ 		As:   obj.APCALIGN,
++		Pos:  p.pos(),
+ 		From: key,
+ 	}
+ 	p.append(prog, "", true)
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 918c2e1681..e2c1000e0b 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -1156,6 +1156,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVD 4(R1), SPR(3)              // ebe100047fe303a6
+ 	MOVD 4(R1), XER                 // ebe100047fe103a6
+ 	OR $0, R0, R0                   // 60000000
++
++	PCALIGN $16
+ 	PNOP                            // 0700000000000000
+ 
+ 	SETB CR1,R3                     // 7c640100

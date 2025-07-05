@@ -15,7 +15,102 @@ Date:   Tue Jul 28 13:37:13 2015 -0400
     Change-Id: I5b588ac1585b2e9d1d18143520d2d51686b563e3
     Reviewed-on: https://go-review.googlesource.com/12746
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/trace/trace_stack_test.go |  2 +-
  src/runtime/trace/trace_test.go       | 33 ---------------------------------
  2 files changed, 1 insertion(+), 34 deletions(-)
+
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index 58139ba144..f3baf0bb69 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -21,8 +21,8 @@ import (
+ // In particular that we strip bottom uninteresting frames like goexit,
+ // top uninteresting frames (runtime guts).
+ func TestTraceSymbolize(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+ 	testenv.MustHaveExec(t)
++
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index 76d3d44ae7..0a8957ffdf 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -17,27 +17,7 @@ import (
+ 	"time"
+ )
+ 
+-func skipTraceTestsIfNeeded(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "solaris":
+-		t.Skip("skipping: solaris timer can go backwards (https://golang.org/issue/8976)")
+-	case "darwin":
+-		switch runtime.GOARCH {
+-		case "arm", "arm64":
+-			// TODO(rsc): What does this have to do with the trace tests?
+-			// There is no forking here.
+-			t.Skipf("skipping on %s/%s, cannot fork", runtime.GOOS, runtime.GOARCH)
+-		}
+-	}
+-
+-	switch runtime.GOARCH {
+-	case "arm":
+-		t.Skip("skipping: arm tests fail with 'failed to parse trace' (https://golang.org/issue/9725)")
+-	}
+-}
+-
+ func TestTraceStartStop(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+@@ -54,7 +34,6 @@ func TestTraceStartStop(t *testing.T) {
+ }
+ 
+ func TestTraceDoubleStart(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+ 	Stop()
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+@@ -68,7 +47,6 @@ func TestTraceDoubleStart(t *testing.T) {
+ }
+ 
+ func TestTrace(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)
+@@ -101,8 +79,6 @@ func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GD
+ }
+ 
+ func TestTraceStress(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+-
+ 	var wg sync.WaitGroup
+ 	done := make(chan bool)
+ 
+@@ -236,8 +212,6 @@ func TestTraceStress(t *testing.T) {
+ // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
+ // And concurrently with all that start/stop trace 3 times.
+ func TestTraceStressStartStop(t *testing.T) {
+-	skipTraceTestsIfNeeded(t)
+-
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
+ 	outerDone := make(chan bool)
+ 
+@@ -375,13 +349,6 @@ func TestTraceStressStartStop(t *testing.T) {
+ }
+ 
+ func TestTraceFutileWakeup(t *testing.T) {
+-	// The test generates a full-load of futile wakeups on channels,
+-	// and ensures that the trace is consistent after their removal.
+-	skipTraceTestsIfNeeded(t)
+-	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+-		t.Skip("test is unreliable; issue #10512")
+-	}
+-
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+ 		t.Fatalf("failed to start tracing: %v", err)

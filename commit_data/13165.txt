@@ -9,6 +9,31 @@ Date:   Thu May 24 16:24:39 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6252047
-
+---
  src/pkg/strconv/itoa.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/strconv/itoa.go b/src/pkg/strconv/itoa.go
+index ca40dd7ef6..67f17d8664 100644
+--- a/src/pkg/strconv/itoa.go
++++ b/src/pkg/strconv/itoa.go
+@@ -4,13 +4,17 @@
+ 
+ package strconv
+ 
+-// FormatUint returns the string representation of i in the given base.
++// FormatUint returns the string representation of i in the given base,
++// for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
++// for digit values >= 10.
+ func FormatUint(i uint64, base int) string {
+ 	_, s := formatBits(nil, i, base, false, false)
+ 	return s
+ }
+ 
+-// FormatInt returns the string representation of i in the given base.
++// FormatInt returns the string representation of i in the given base,
++// for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
++// for digit values >= 10.
+ func FormatInt(i int64, base int) string {
+ 	_, s := formatBits(nil, uint64(i), base, i < 0, false)
+ 	return s

@@ -17,7 +17,61 @@ Date:   Wed Sep 28 17:26:12 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ------------
  src/runtime/sys_dragonfly_amd64.s     | 12 ------------
  2 files changed, 24 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index b534dccf79..e532ad69d6 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -56,7 +56,6 @@ static void*
+ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+-	stack_t ss;
+ 
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+@@ -66,17 +65,6 @@ threadentry(void *v)
+ 	 */
+ 	setg_gcc((void*)ts.g);
+ 
+-	// On DragonFly, a new thread inherits the signal stack of the
+-	// creating thread. That confuses minit, so we remove that
+-	// signal stack here before calling the regular mstart. It's
+-	// a bit baroque to remove a signal stack here only to add one
+-	// in minit, but it's a simple change that keeps DragonFly
+-	// working like other OS's. At this point all signals are
+-	// blocked, so there is no race.
+-	memset(&ss, 0, sizeof ss);
+-	ss.ss_flags = SS_DISABLE;
+-	sigaltstack(&ss, nil);
+-
+ 	crosscall_amd64(ts.fn);
+ 	return nil;
+ }
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 76dff10670..bc16bdbbde 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -51,18 +51,6 @@ TEXT runtime·lwp_start(SB),NOSPLIT,$0
+ 	MOVQ	R13, g_m(DI)
+ 	MOVQ	DI, g(CX)
+ 
+-	// On DragonFly, a new thread inherits the signal stack of the
+-	// creating thread. That confuses minit, so we remove that
+-	// signal stack here before calling the regular mstart. It's
+-	// a bit baroque to remove a signal stack here only to add one
+-	// in minit, but it's a simple change that keeps DragonFly
+-	// working like other OS's. At this point all signals are
+-	// blocked, so there is no race.
+-	SUBQ	$8, SP
+-	MOVQ	$0, 0(SP)
+-	CALL	runtime·signalstack(SB)
+-	ADDQ	$8, SP
+-
+ 	CALL	runtime·stackcheck(SB)
+ 	CALL	runtime·mstart(SB)
+ 

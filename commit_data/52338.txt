@@ -15,7 +15,76 @@ Date:   Tue Apr 26 23:55:11 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/example_test.go | 11 +++++++++++
  src/time/format.go       | 16 ++++++++++------
  2 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index ec2259b1ba..059c6310a6 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -212,6 +212,11 @@ func ExampleTime_Format() {
+ 		panic(err)
+ 	}
+ 
++	tz, err := time.LoadLocation("Asia/Shanghai")
++	if err != nil { // Always check errors even if they should not happen.
++		panic(err)
++	}
++
+ 	// time.Time's Stringer method is useful without any format.
+ 	fmt.Println("default format:", t)
+ 
+@@ -221,6 +226,10 @@ func ExampleTime_Format() {
+ 	// The time zone attached to the time value affects its output.
+ 	fmt.Println("Same, in UTC:", t.UTC().Format(time.UnixDate))
+ 
++	fmt.Println("in Shanghai with seconds:", t.In(tz).Format("2006-01-02T15:04:05 -070000"))
++
++	fmt.Println("in Shanghai with colon seconds:", t.In(tz).Format("2006-01-02T15:04:05 -07:00:00"))
++
+ 	// The rest of this function demonstrates the properties of the
+ 	// layout string used in the format.
+ 
+@@ -286,6 +295,8 @@ func ExampleTime_Format() {
+ 	// default format: 2015-02-25 11:06:39 -0800 PST
+ 	// Unix format: Wed Feb 25 11:06:39 PST 2015
+ 	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
++	//in Shanghai with seconds: 2015-02-26T03:06:39 +080000
++	//in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
+ 	//
+ 	// Formats:
+ 	//
+diff --git a/src/time/format.go b/src/time/format.go
+index 2f66df668b..5f696189ff 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -64,17 +64,21 @@ import "errors"
+ //
+ // Numeric time zone offsets format as follows:
+ //
+-//	"-0700"  ±hhmm
+-//	"-07:00" ±hh:mm
+-//	"-07"    ±hh
++//	"-0700"     ±hhmm
++//	"-07:00"    ±hh:mm
++//	"-07"       ±hh
++//	"-070000"   ±hhmmss
++//	"-07:00:00" ±hh:mm:ss
+ //
+ // Replacing the sign in the format with a Z triggers
+ // the ISO 8601 behavior of printing Z instead of an
+ // offset for the UTC zone. Thus:
+ //
+-//	"Z0700"  Z or ±hhmm
+-//	"Z07:00" Z or ±hh:mm
+-//	"Z07"    Z or ±hh
++//	"Z0700"      Z or ±hhmm
++//	"Z07:00"     Z or ±hh:mm
++//	"Z07"        Z or ±hh
++//	"Z070000"    Z or ±hhmmss
++//	"Z07:00:00"  Z or ±hh:mm:ss
+ //
+ // Within the format string, the underscores in "_2" and "__2" represent spaces
+ // that may be replaced by digits if the following number has multiple digits,

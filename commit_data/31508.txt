@@ -36,7 +36,55 @@ Date:   Sun Feb 26 15:25:57 2017 -0800
     Change-Id: I4c92fb96aa0c3d33df7b3f2da548612e79b56b5b
     Reviewed-on: https://go-review.googlesource.com/37499
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 11 ++++++++++-
  src/cmd/compile/internal/gc/inl.go   | 10 ++++++++++
  2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 48b98b798a..948d46d01f 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -115,11 +115,20 @@ type NilVal struct{}
+ // n must be an integer or rune constant.
+ func (n *Node) Int64() int64 {
+ 	if !Isconst(n, CTINT) {
+-		Fatalf("Int(%v)", n)
++		Fatalf("Int64(%v)", n)
+ 	}
+ 	return n.Val().U.(*Mpint).Int64()
+ }
+ 
++// Bool returns n as a bool.
++// n must be a boolean constant.
++func (n *Node) Bool() bool {
++	if !Isconst(n, CTBOOL) {
++		Fatalf("Bool(%v)", n)
++	}
++	return n.Val().U.(bool)
++}
++
+ // truncate float literal fv to 32-bit or 64-bit precision
+ // according to type; return truncated value.
+ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 04e24c1ef2..a1fd20d637 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -277,6 +277,16 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
+ 		return true
+ 	}
+ 
++	if n.Op == OIF && Isconst(n.Left, CTBOOL) {
++		var taken Nodes // statements for the branch that is always taken
++		if n.Left.Bool() {
++			taken = n.Nbody // then case
++		} else {
++			taken = n.Rlist // else case
++		}
++		return ishairylist(n.Ninit, budget, reason) || ishairylist(taken, budget, reason)
++	}
++
+ 	return ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
+ 		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
+ 		ishairylist(n.Ninit, budget, reason) || ishairylist(n.Nbody, budget, reason)

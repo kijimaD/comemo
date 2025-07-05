@@ -19,7 +19,45 @@ Date:   Wed Mar 11 22:24:01 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go    | 6 ++++--
  src/cmd/link/internal/s390x/asm.go | 2 +-
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index b071089254..078b0a55db 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1645,6 +1645,10 @@ func (ctxt *Link) doelf() {
+ 		dynamic.SetReachable(true)
+ 		dynamic.SetType(sym.SELFSECT) // writable
+ 
++		if ctxt.IsS390X() {
++			// S390X uses .got instead of .got.plt
++			gotplt = got
++		}
+ 		thearch.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
+ 
+ 		/*
+@@ -1678,8 +1682,6 @@ func (ctxt *Link) doelf() {
+ 
+ 		if ctxt.IsPPC64() {
+ 			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, plt.Sym())
+-		} else if ctxt.IsS390X() {
+-			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, got.Sym())
+ 		} else {
+ 			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, gotplt.Sym())
+ 		}
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index c5060fa02c..57437f2f4e 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -346,7 +346,7 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
+ 		// larl    %r1,_GLOBAL_OFFSET_TABLE_
+ 		plt.AddUint8(0xc0)
+ 		plt.AddUint8(0x10)
+-		plt.AddPCRelPlus(ctxt.Arch, got.Sym(), 6)
++		plt.AddSymRef(ctxt.Arch, got.Sym(), 6, objabi.R_PCRELDBL, 4)
+ 		// mvc     48(8,%r15),8(%r1)
+ 		plt.AddUint8(0xd2)
+ 		plt.AddUint8(0x07)

@@ -16,7 +16,7 @@ Date:   Tue May 24 19:48:19 2011 -0400
     R=golang-dev, gri, rsc
     CC=golang-dev
     https://golang.org/cl/4526069
-
+---
  src/cmd/gc/typecheck.c                      | 8 +++++++-
  test/fixedbugs/bug226.dir/y.go              | 2 +-
  test/{bugs => fixedbugs}/bug322.dir/lib.go  | 0
@@ -24,3 +24,75 @@ Date:   Tue May 24 19:48:19 2011 -0400
  test/{bugs => fixedbugs}/bug322.go          | 0
  test/golden.out                             | 5 -----
  6 files changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9aaf3e6efe..0cf11684da 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -822,7 +822,13 @@ reswitch:
+ 
+ 		case ODOTMETH:
+ 			n->op = OCALLMETH;
+-			typecheckaste(OCALL, n->left, 0, getthisx(t), list1(l->left), "method receiver");
++			// typecheckaste was used here but there wasn't enough
++			// information further down the call chain to know if we
++			// were testing a method receiver for unexported fields.
++			// It isn't necessary, so just do a sanity check.
++			tp = getthisx(t)->type->type;
++			if(l->left == N || !eqtype(l->left->type, tp))
++				fatal("method receiver");
+ 			break;
+ 
+ 		default:
+diff --git a/test/fixedbugs/bug226.dir/y.go b/test/fixedbugs/bug226.dir/y.go
+index 01e8b7b437..c66d592b7c 100644
+--- a/test/fixedbugs/bug226.dir/y.go
++++ b/test/fixedbugs/bug226.dir/y.go
+@@ -15,7 +15,7 @@ func f() {
+ 	_ = x.T{};
+ 	_ = x.T{Y:2};
+ 	
+-	ok1.M();	// ERROR "assignment.*T"
++	ok1.M();
+ 	bad1 := *ok;	// ERROR "assignment.*T"
+ 	bad2 := ok1;	// ERROR "assignment.*T"
+ 	*ok4 = ok1;	// ERROR "assignment.*T"
+diff --git a/test/bugs/bug322.dir/lib.go b/test/fixedbugs/bug322.dir/lib.go
+similarity index 100%
+rename from test/bugs/bug322.dir/lib.go
+rename to test/fixedbugs/bug322.dir/lib.go
+diff --git a/test/bugs/bug322.dir/main.go b/test/fixedbugs/bug322.dir/main.go
+similarity index 69%
+rename from test/bugs/bug322.dir/main.go
+rename to test/fixedbugs/bug322.dir/main.go
+index 0ab5b32e45..f403c7d32e 100644
+--- a/test/bugs/bug322.dir/main.go
++++ b/test/fixedbugs/bug322.dir/main.go
+@@ -38,10 +38,3 @@ func main() {
+ 	var pi2 PI = pt
+ 	pi2.PM()
+ }
+-
+-/*
+-These should not be errors anymore:
+-
+-bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
+-bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T in method receiver
+-*/
+diff --git a/test/bugs/bug322.go b/test/fixedbugs/bug322.go
+similarity index 100%
+rename from test/bugs/bug322.go
+rename to test/fixedbugs/bug322.go
+diff --git a/test/golden.out b/test/golden.out
+index 725e8de448..4400e41dd1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -161,8 +161,3 @@ panic: interface conversion: interface is main.T, not main.T
+ 0x0
+ 
+ == bugs/
+-
+-=========== bugs/bug322.go
+-bugs/bug322.dir/main.go:19: implicit assignment of unexported field 'x' of lib.T in method receiver
+-bugs/bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T in method receiver
+-BUG: fails incorrectly

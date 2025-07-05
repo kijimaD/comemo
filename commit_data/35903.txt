@@ -11,7 +11,108 @@ Date:   Fri Mar 16 12:05:18 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 37 --------------------------
  test/codegen/structs.go                 | 46 +++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 29033db7ee..f208264109 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -279,43 +279,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
+ 	},
+-	// Structure zeroing.  See issue #18370.
+-	{
+-		fn: `
+-		type T1 struct {
+-			a, b, c int
+-		}
+-		func $(t *T1) {
+-			*t = T1{}
+-		}
+-		`,
+-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)"},
+-	},
+-	// SSA-able composite literal initialization. Issue 18872.
+-	{
+-		fn: `
+-		type T18872 struct {
+-			a, b, c, d int
+-		}
+-
+-		func f18872(p *T18872) {
+-			*p = T18872{1, 2, 3, 4}
+-		}
+-		`,
+-		pos: []string{"\tMOVQ\t[$]1", "\tMOVQ\t[$]2", "\tMOVQ\t[$]3", "\tMOVQ\t[$]4"},
+-	},
+-	// Also test struct containing pointers (this was special because of write barriers).
+-	{
+-		fn: `
+-		type T2 struct {
+-			a, b, c *int
+-		}
+-		func f19(t *T2) {
+-			*t = T2{}
+-		}
+-		`,
+-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.gcWriteBarrier\\(SB\\)"},
+-	},
+ 	{
+ 		fn: `
+ 		func f33(m map[int]int) int {
+diff --git a/test/codegen/structs.go b/test/codegen/structs.go
+new file mode 100644
+index 0000000000..b81ad67c44
+--- /dev/null
++++ b/test/codegen/structs.go
+@@ -0,0 +1,46 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// This file contains code generation tests related to the handling of
++// struct types.
++
++// ------------- //
++//    Zeroing    //
++// ------------- //
++
++type Z1 struct {
++	a, b, c int
++}
++
++func Zero1(t *Z1) { // Issue #18370
++	// amd64:`XORPS\tX., X`,`MOVUPS\tX., \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
++	*t = Z1{}
++}
++
++type Z2 struct {
++	a, b, c *int
++}
++
++func Zero2(t *Z2) {
++	// amd64:`XORPS\tX., X`,`MOVUPS\tX., \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
++	// amd64:`.*runtime[.]gcWriteBarrier\(SB\)`
++	*t = Z2{}
++}
++
++// ------------------ //
++//    Initializing    //
++// ------------------ //
++
++type I1 struct {
++	a, b, c, d int
++}
++
++func Init1(p *I1) { // Issue #18872
++	// amd64:`MOVQ\t[$]1`,`MOVQ\t[$]2`,`MOVQ\t[$]3`,`MOVQ\t[$]4`
++	*p = I1{1, 2, 3, 4}
++}

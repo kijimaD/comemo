@@ -8,9 +8,165 @@ Date:   Tue Nov 18 19:25:43 2008 -0800
     R=r
     OCL=19563
     CL=19565
-
+---
  usr/gri/pretty/printer.go   |  9 ++++++---
  usr/gri/pretty/tabwriter.go | 43 ++++++++++++++++++++++++++++++++++---------
  usr/gri/pretty/test.sh      |  2 +-
  usr/gri/pretty/untab.go     |  3 ++-
  4 files changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 039199db46..06f72409a6 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -13,8 +13,11 @@ import IO "io"
+ import OS "os"
+ import TabWriter "tabwriter"
+ 
+-var tabwith = Flag.Int("tabwidth", 4, nil, "tab width");
+-var comments = Flag.Bool("comments", false, nil, "enable printing of comments");
++var (
++	usetabs = Flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
++	tabwidth = Flag.Int("tabwidth", 4, nil, "tab width");
++	comments = Flag.Bool("comments", false, nil, "enable printing of comments");
++)
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -594,7 +597,7 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 
+ func (P *Printer) Program(p *AST.Program) {
+ 	// TODO should initialize all fields?
+-	P.writer = TabWriter.MakeTabWriter(OS.Stdout, 4);
++	P.writer = TabWriter.MakeTabWriter(OS.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
+ 	
+ 	P.clist = p.comments;
+ 	P.cindex = 0;
+diff --git a/usr/gri/pretty/tabwriter.go b/usr/gri/pretty/tabwriter.go
+index e97eea9c4b..7ba7a0d2bc 100644
+--- a/usr/gri/pretty/tabwriter.go
++++ b/usr/gri/pretty/tabwriter.go
+@@ -88,6 +88,7 @@ func (b *ByteArray) Append(s *[]byte) {
+ export type TabWriter struct {
+ 	// configuration
+ 	writer IO.Write;
++	usetabs bool;
+ 	tabwidth int;
+ 
+ 	// current state
+@@ -103,8 +104,9 @@ func (b *TabWriter) AddLine() {
+ }
+ 
+ 
+-func (b *TabWriter) Init(writer IO.Write, tabwidth int) {
++func (b *TabWriter) Init(writer IO.Write, usetabs bool, tabwidth int) {
+ 	b.writer = writer;
++	b.usetabs = usetabs;
+ 	b.tabwidth = tabwidth;
+ 	
+ 	b.buf.Init(1024);
+@@ -141,15 +143,33 @@ func (b *TabWriter) Dump() {
+ }
+ 
+ 
++var Tabs = &[]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'}
+ var Blanks = &[]byte{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}
+ var Newline = &[]byte{'\n'}
+ 
+-func (b *TabWriter) WriteBlanks(n int) {
+-	for n >= len(Blanks) {
+-		m, err := b.writer.Write(Blanks);
+-		n -= len(Blanks);
++
++func (b *TabWriter) Padding(textwidth, cellwidth int) {
++	n := cellwidth - textwidth;
++	if n < 0 {
++		panic("internal error");
++	}
++	if b.usetabs {
++		if cellwidth % b.tabwidth != 0 {
++			panic("internal error");  // cellwidth should be a multiple of tabwidth
++		}
++		n = (n + b.tabwidth - 1) / b.tabwidth;
++		for n > len(Tabs) {
++			m, err := b.writer.Write(Tabs);
++			n -= len(Tabs);
++		}
++		m, err := b.writer.Write(Tabs[0 : n]);
++	} else {
++		for n > len(Blanks) {
++			m, err := b.writer.Write(Blanks);
++			n -= len(Blanks);
++		}
++		m, err := b.writer.Write(Blanks[0 : n]);
+ 	}
+-	m, err := b.writer.Write(Blanks[0 : n]);
+ }
+ 
+ 
+@@ -164,7 +184,7 @@ func (b *TabWriter) PrintLines(pos int, line0, line1 int) int {
+ 			}
+ 			pos += w;
+ 			if j < b.widths.Len() {
+-				b.WriteBlanks(b.widths.At(j).(int) - w);
++				b.Padding(w, b.widths.At(j).(int));
+ 			}
+ 		}
+ 		m, err := b.writer.Write(Newline);
+@@ -205,6 +225,11 @@ func (b *TabWriter) Format(pos int, line0, line1 int) int {
+ 			}
+ 			// column block end
+ 
++			if b.usetabs {
++				// make width a multiple of the tab width
++				width = ((width + b.tabwidth - 1) / b.tabwidth) * b.tabwidth;
++			}
++			
+ 			// format and print all columns to the right of this column
+ 			// (we know the widths of this column and all columns to the left)
+ 			b.widths.Append(width);
+@@ -277,8 +302,8 @@ func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
+ }
+ 
+ 
+-export func MakeTabWriter(writer IO.Write, tabwidth int) *TabWriter {
++export func MakeTabWriter(writer IO.Write, usetabs bool, tabwidth int) *TabWriter {
+ 	b := new(TabWriter);
+-	b.Init(writer, tabwidth);
++	b.Init(writer, usetabs, tabwidth);
+ 	return b;
+ }
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 2b57aedca7..5492482456 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -22,7 +22,7 @@ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+ 	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+-	bug068.go | bug088.go | bug083.go | bug106.go ) ;;  # skip - files contain syntax errors
++	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go ) ;;  # skip - files contain syntax errors
+ 	* ) $1 $2; count ;;
+ 	esac
+ }
+diff --git a/usr/gri/pretty/untab.go b/usr/gri/pretty/untab.go
+index 48f1bcf385..5f033e1b98 100644
+--- a/usr/gri/pretty/untab.go
++++ b/usr/gri/pretty/untab.go
+@@ -14,6 +14,7 @@ import (
+ 
+ 
+ var (
++	usetabs = Flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
+ 	tabwidth = Flag.Int("tabwidth", 4, nil, "tab width");
+ )
+ 
+@@ -35,7 +36,7 @@ func Untab(name string, src *OS.FD, dst *TabWriter.TabWriter) {
+ 
+ func main() {
+ 	Flag.Parse();
+-	dst := TabWriter.MakeTabWriter(OS.Stdout, int(tabwidth.IVal()));
++	dst := TabWriter.MakeTabWriter(OS.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
+ 	if Flag.NArg() > 0 {
+ 		for i := 0; i < Flag.NArg(); i++ {
+ 			name := Flag.Arg(i);

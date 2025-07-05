@@ -12,7 +12,66 @@ Date:   Tue Mar 26 23:35:42 2013 +0100
     R=dvyukov
     CC=golang-dev
     https://golang.org/cl/7935045
-
+---
  src/cmd/gc/racewalk.c                     | 18 +++++++++---------
  src/pkg/runtime/race/testdata/mop_test.go |  4 ++--
  2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 80257985dd..fee5cf4226 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -241,6 +241,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OXOR:
+ 	case OSUB:
+ 	case OMUL:
++	case OHMUL:
+ 	case OEQ:
+ 	case ONE:
+ 	case OLT:
+@@ -379,19 +380,18 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OPARAM:     // it appears only in fn->exit to copy heap params back
+ 	case OCLOSUREVAR:// immutable pointer to captured variable
+ 	case ODOTMETH:   // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+-		goto ret;
+-
+-	// unimplemented
+-	case OSLICESTR:
+-	case OAPPEND:
+-	case ODCL:
++	case OINDREG:    // at this stage, only n(SP) nodes from nodarg
++	case ODCL:       // declarations (without value) cannot be races
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
+-	case OLITERAL:
+ 	case OTYPE:
+ 	case ONONAME:
+-	case OINDREG:
+-	case OHMUL:
++	case OLITERAL:
++	case OSLICESTR:  // always preceded by bounds checking, avoid double instrumentation.
++		goto ret;
++
++	// unimplemented
++	case OAPPEND:
+ 		goto ret;
+ 	}
+ 
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index f0fe868ccb..1a7ed96249 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -339,11 +339,11 @@ func TestRaceDiv(t *testing.T) {
+ }
+ 
+ func TestRaceDivConst(t *testing.T) {
+-	var x, y, z int
++	var x, y, z uint32
+ 	ch := make(chan int, 2)
+ 
+ 	go func() {
+-		x = y / 3
++		x = y / 3 // involves only a HMUL node
+ 		ch <- 1
+ 	}()
+ 	go func() {

@@ -12,7 +12,47 @@ Date:   Mon Oct 9 22:39:50 2023 +0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  4 ++++
  test/fixedbugs/issue63462.go                 | 18 ++++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 29c180be34..298e29ec56 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -142,6 +142,10 @@ func expandCalls(f *Func) {
+ 		call := v.Args[0]
+ 		aux := call.Aux.(*AuxCall)
+ 		mem := x.memForCall[call.ID]
++		if mem == nil {
++			mem = call.Block.NewValue1I(call.Pos, OpSelectN, types.TypeMem, int64(aux.abiInfo.OutRegistersUsed()), call)
++			x.memForCall[call.ID] = mem
++		}
+ 
+ 		i := v.AuxInt
+ 		regs := aux.RegsOfResult(i)
+diff --git a/test/fixedbugs/issue63462.go b/test/fixedbugs/issue63462.go
+new file mode 100644
+index 0000000000..09b7e257a2
+--- /dev/null
++++ b/test/fixedbugs/issue63462.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	for b := "" < join([]string{}, "") && true; ; {
++		_ = b
++	}
++}
++
++//go:noinline
++func join(elems []string, sep string) string {
++	return ""
++}

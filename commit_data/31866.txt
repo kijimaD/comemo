@@ -14,8 +14,65 @@ Date:   Tue Mar 21 14:57:58 2017 +0100
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/MIPS.rules | 3 +--
  src/cmd/compile/internal/ssa/rewriteMIPS.go | 7 ++-----
  src/runtime/runtime1.go                     | 6 ++++++
  3 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index fe6f182ca4..3f40951d3b 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -406,8 +406,7 @@
+ 				(ANDconst  <types.UInt32> [3] ptr)))
+ 		(NORconst [0] <types.UInt32> (SLL <types.UInt32>
+ 			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3]
+-				(ANDconst <types.UInt32> [3]
+-					(XORconst <types.UInt32> [3] ptr)))))) mem)
++				(ANDconst <types.UInt32> [3] ptr))))) mem)
+ 
+ // AtomicOr8(ptr,val) -> LoweredAtomicOr(ptr&^3,uint32(val) << (((ptr^3) & 3) * 8))
+ (AtomicOr8 ptr val mem) && config.BigEndian ->
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 5e70fc4f73..19144108e7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -688,7 +688,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
+ 	_ = types
+ 	// match: (AtomicAnd8  ptr val mem)
+ 	// cond: !config.BigEndian
+-	// result: (LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr) 		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val) 			(SLLconst <types.UInt32> [3] 				(ANDconst  <types.UInt32> [3] ptr))) 		(NORconst [0] <types.UInt32> (SLL <types.UInt32> 			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3] 				(ANDconst <types.UInt32> [3] 					(XORconst <types.UInt32> [3] ptr)))))) mem)
++	// result: (LoweredAtomicAnd (AND <types.UInt32Ptr> (MOVWconst [^3]) ptr) 		(OR <types.UInt32> (SLL <types.UInt32> (ZeroExt8to32 val) 			(SLLconst <types.UInt32> [3] 				(ANDconst  <types.UInt32> [3] ptr))) 		(NORconst [0] <types.UInt32> (SLL <types.UInt32> 			(MOVWconst [0xff]) (SLLconst <types.UInt32> [3] 				(ANDconst <types.UInt32> [3] ptr))))) mem)
+ 	for {
+ 		ptr := v.Args[0]
+ 		val := v.Args[1]
+@@ -726,10 +726,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *Value) bool {
+ 		v10.AuxInt = 3
+ 		v11 := b.NewValue0(v.Pos, OpMIPSANDconst, types.UInt32)
+ 		v11.AuxInt = 3
+-		v12 := b.NewValue0(v.Pos, OpMIPSXORconst, types.UInt32)
+-		v12.AuxInt = 3
+-		v12.AddArg(ptr)
+-		v11.AddArg(v12)
++		v11.AddArg(ptr)
+ 		v10.AddArg(v11)
+ 		v8.AddArg(v10)
+ 		v7.AddArg(v8)
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 2f7317b501..c0733481a8 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -259,6 +259,12 @@ func check() {
+ 		throw("atomicor8")
+ 	}
+ 
++	m = [4]byte{0xff, 0xff, 0xff, 0xff}
++	atomic.And8(&m[1], 0x1)
++	if m[0] != 0xff || m[1] != 0x1 || m[2] != 0xff || m[3] != 0xff {
++		throw("atomicand8")
++	}
++
+ 	*(*uint64)(unsafe.Pointer(&j)) = ^uint64(0)
+ 	if j == j {
+ 		throw("float64nan")

@@ -10,9 +10,34 @@ Date:   Wed Oct 21 19:52:11 2009 -0700
     DELTA=7  (4 added, 0 deleted, 3 changed)
     OCL=35972
     CL=35981
-
+---
  doc/GoCourseDay1.pdf | Bin 0 -> 801481 bytes
  doc/GoCourseDay2.pdf | Bin 0 -> 806917 bytes
  doc/GoCourseDay3.pdf | Bin 0 -> 530944 bytes
  src/pkg/http/fs.go   |   1 +
  4 files changed, 1 insertion(+)
+
+diff --git a/doc/GoCourseDay1.pdf b/doc/GoCourseDay1.pdf
+new file mode 100644
+index 0000000000..daa99851b7
+Binary files /dev/null and b/doc/GoCourseDay1.pdf differ
+diff --git a/doc/GoCourseDay2.pdf b/doc/GoCourseDay2.pdf
+new file mode 100644
+index 0000000000..d05486e308
+Binary files /dev/null and b/doc/GoCourseDay2.pdf differ
+diff --git a/doc/GoCourseDay3.pdf b/doc/GoCourseDay3.pdf
+new file mode 100644
+index 0000000000..91d723a686
+Binary files /dev/null and b/doc/GoCourseDay3.pdf differ
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index b56a101554..312f65a748 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -22,6 +22,7 @@ var contentByExt = map[string] string {
+ 	".html":	"text/html; charset=utf-8",
+ 	".jpg":	"image/jpeg",
+ 	".js":	"application/x-javascript",
++	".pdf":	"application/pdf",
+ 	".png":	"image/png",
+ }
+ 

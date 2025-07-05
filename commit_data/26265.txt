@@ -9,6 +9,20 @@ Date:   Wed Jan 6 15:47:47 2016 -0500
     Change-Id: I236381508c69d56748e672d184b92caa715e81ae
     Reviewed-on: https://go-review.googlesource.com/18342
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 6baf2b53c8..96a7672778 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -48,7 +48,7 @@ If your OS or architecture is not on the list, you may be able to
+ </tr>
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 8-STABLE or later</td> <td>amd64</td> <td>Debian GNU/kFreeBSD not supported</td></tr>
+-<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; install from source for ARM</td></tr>
++<tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported</td></tr>
+ <tr><td>Mac OS X 10.7 or later</td> <td>amd64</td> <td>use the clang or gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
+ <tr><td>Windows XP or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+ </table>

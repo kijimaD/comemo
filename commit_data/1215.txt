@@ -9,10 +9,208 @@ Date:   Fri Nov 21 12:36:16 2008 -0800
     DELTA=144  (80 added, 62 deleted, 2 changed)
     OCL=19760
     CL=19799
-
+---
  src/clean.bash     |  2 +-
  src/lib/Makefile   | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/clean.bash | 13 ---------
  src/lib/make.bash  | 56 ------------------------------------
  src/make.bash      |  2 +-
  5 files changed, 86 insertions(+), 71 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index b381c1137f..143eb0b7a6 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -7,7 +7,7 @@ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
+ do
+ 	cd $i
+ 	case $i in
+-	cmd | lib)
++	cmd)
+ 		bash clean.bash
+ 		;;
+ 	*)
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+new file mode 100644
+index 0000000000..114b27a092
+--- /dev/null
++++ b/src/lib/Makefile
+@@ -0,0 +1,84 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++all: install
++
++GC=6g
++
++DIRS=\
++	container/array\
++	fmt\
++	http\
++	math\
++	net\
++	os\
++	reflect\
++	regexp\
++	strconv\
++	time\
++
++FILES=\
++	bignum\
++	bufio\
++	vector\
++	flag\
++	io\
++	once\
++	rand\
++	sort\
++	strings\
++	testing\
++
++clean.dirs: $(addsuffix .dirclean, $(DIRS))
++install.dirs: $(addsuffix .dirinstall, $(DIRS))
++install.files: $(addsuffix .install, $(FILES))
++nuke.dirs: $(addsuffix .dirnuke, $(DIRS))
++
++%.6: container/%.go
++	$(GC) container/$*.go
++
++%.6: %.go
++	$(GC) $*.go
++
++%.clean:
++	rm -f $*.6
++
++%.install: %.6
++	cp $*.6 $(GOROOT)/pkg/$*.6
++
++%.dirclean:
++	+cd $* && make clean
++
++%.dirinstall:
++	+cd $* && make install
++
++%.dirnuke:
++	+cd $* && make nuke
++
++clean.files:
++	rm -f 6.out *.6
++
++clean: clean.dirs clean.files
++
++install: install.dirs install.files
++
++nuke: nuke.dirs clean.files
++	rm -f $(GOROOT)/pkg/*
++
++# dependencies - should auto-generate
++
++bignum.6: fmt.dirinstall
++bufio.6: io.install os.dirinstall
++flag.6: fmt.dirinstall
++io.6: os.dirinstall syscall.dirinstall
++testing.6: flag.install fmt.dirinstall
++
++fmt.dirinstall: io.install reflect.dirinstall strconv.dirinstall
++http.dirinstall: bufio.install io.install net.dirinstall os.dirinstall strings.install 
++net.dirinstall: once.install os.dirinstall strconv.dirinstall
++os.dirinstall: syscall.dirinstall
++regexp.dirinstall: os.dirinstall
++reflect.dirinstall: strconv.dirinstall
++strconv.dirinstall: os.dirinstall
++time.dirinstall: once.install os.dirinstall
+diff --git a/src/lib/clean.bash b/src/lib/clean.bash
+deleted file mode 100755
+index 02f5aab49f..0000000000
+--- a/src/lib/clean.bash
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#!/bin/bash
+-
+-rm -f $GOROOT/pkg/*
+-
+-for i in syscall math os strconv container/array reflect fmt tabwriter net time http regexp
+-do
+-	(cd $i; make nuke)
+-done
+-
+diff --git a/src/lib/make.bash b/src/lib/make.bash
+deleted file mode 100755
+index 4398d44e3f..0000000000
+--- a/src/lib/make.bash
++++ /dev/null
+@@ -1,56 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#!/bin/bash
+-
+-function buildfiles() {
+-	rm -f *.6
+-	for i
+-	do
+-		base=$(basename $i .go)
+-		echo 6g -o $GOROOT/pkg/$base.6 $i
+-		6g -o $GOROOT/pkg/$base.6 $i
+-	done
+-}
+-
+-function builddirs() {
+-	for i
+-	do
+-		echo; echo; echo %%%% making lib/$i %%%%; echo
+-		(cd $i; make install)
+-	done
+-}
+-
+-set -e
+-rm -f *.6
+-
+-# Don't sort the elements of the lists - some of the orderings matter.
+-
+-buildfiles	strings.go
+-
+-builddirs	syscall\
+-		math\
+-		os\
+-		strconv\
+-		container/array\
+-		reflect\
+-	
+-buildfiles	io.go
+-
+-builddirs	fmt\
+-		tabwriter\
+-
+-buildfiles	flag.go\
+-		container/vector.go\
+-		rand.go\
+-		sort.go\
+-		bufio.go\
+-		once.go\
+-		bignum.go\
+-		testing.go\
+-	
+-builddirs	net\
+-		time\
+-		http\
+-		regexp\
+diff --git a/src/make.bash b/src/make.bash
+index a6f5fd92c6..830ac70689 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -23,7 +23,7 @@ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+ 	case $i in
+-	cmd | lib)
++	cmd)
+ 		bash make.bash
+ 		;;
+ 	*)

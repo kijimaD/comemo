@@ -13,10 +13,171 @@ Date:   Mon Dec 3 21:03:02 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  .../go/analysis/internal/analysisflags/help.go     |  2 +-
  .../x/tools/go/analysis/passes/printf/printf.go    |  4 +-
  .../x/tools/go/analysis/passes/printf/types.go     | 13 +++--
  .../x/tools/go/analysis/unitchecker/main.go        | 64 ++++++++++++++++++++++
  .../x/tools/go/analysis/unitchecker/unitchecker.go |  2 +-
  5 files changed, 76 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+index 66aa624572..043b97896d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+@@ -18,7 +18,7 @@ string. It uses heuristics that do not guarantee all reports are
+ genuine problems, but it can find errors not caught by the compilers.
+ `
+ 
+-// Help implements the help subcommand for a multichecker or vet-lite
++// Help implements the help subcommand for a multichecker or unitchecker
+ // style command. The optional args specify the analyzers to describe.
+ // Help calls log.Fatal if no such analyzer exists.
+ func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 9fa0a1c603..c0265aafee 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -714,7 +714,7 @@ var printVerbs = []printVerb{
+ 	// '#' is alternate format for several verbs.
+ 	// ' ' is spacer for numbers
+ 	{'%', noFlag, 0},
+-	{'b', numFlag, argInt | argFloat | argComplex},
++	{'b', numFlag, argInt | argFloat | argComplex | argPointer},
+ 	{'c', "-", argRune | argInt},
+ 	{'d', numFlag, argInt | argPointer},
+ 	{'e', sharpNumFlag, argFloat | argComplex},
+@@ -723,7 +723,7 @@ var printVerbs = []printVerb{
+ 	{'F', sharpNumFlag, argFloat | argComplex},
+ 	{'g', sharpNumFlag, argFloat | argComplex},
+ 	{'G', sharpNumFlag, argFloat | argComplex},
+-	{'o', sharpNumFlag, argInt},
++	{'o', sharpNumFlag, argInt | argPointer},
+ 	{'p', "-#", argPointer},
+ 	{'q', " -+.0#", argRune | argInt | argString},
+ 	{'s', " -+.0", argString},
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 0ebc8107f3..e8810464cd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -56,11 +56,11 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 
+ 	switch typ := typ.(type) {
+ 	case *types.Signature:
+-		return t&argPointer != 0
++		return t == argPointer
+ 
+ 	case *types.Map:
+-		// Recur: map[int]int matches %d.
+-		return t&argPointer != 0 ||
++		return t == argPointer ||
++			// Recur: map[int]int matches %d.
+ 			(matchArgTypeInternal(pass, t, typ.Key(), arg, inProgress) && matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress))
+ 
+ 	case *types.Chan:
+@@ -72,17 +72,20 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 			return true // %s matches []byte
+ 		}
+ 		// Recur: []int matches %d.
+-		return t&argPointer != 0 || matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
++		return matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
+ 
+ 	case *types.Slice:
+ 		// Same as array.
+ 		if types.Identical(typ.Elem().Underlying(), types.Typ[types.Byte]) && t&argString != 0 {
+ 			return true // %s matches []byte
+ 		}
++		if t == argPointer {
++			return true // %p prints a slice's 0th element
++		}
+ 		// Recur: []int matches %d. But watch out for
+ 		//	type T []T
+ 		// If the element is a pointer type (type T[]*T), it's handled fine by the Pointer case below.
+-		return t&argPointer != 0 || matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
++		return matchArgTypeInternal(pass, t, typ.Elem(), arg, inProgress)
+ 
+ 	case *types.Pointer:
+ 		// Ugly, but dealing with an edge case: a known pointer to an invalid type,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/main.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/main.go
+new file mode 100644
+index 0000000000..844e8f3dac
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/main.go
+@@ -0,0 +1,64 @@
++// +build ignore
++
++// This file provides an example command for static checkers
++// conforming to the golang.org/x/tools/go/analysis API.
++// It serves as a model for the behavior of the cmd/vet tool in $GOROOT.
++// Being based on the unitchecker driver, it must be run by go vet:
++//
++//   $ go build -o unitchecker main.go
++//   $ go vet -vettool=unitchecker my/project/...
++//
++// For a checker also capable of running standalone, use multichecker.
++package main
++
++import (
++	"golang.org/x/tools/go/analysis/unitchecker"
++
++	"golang.org/x/tools/go/analysis/passes/asmdecl"
++	"golang.org/x/tools/go/analysis/passes/assign"
++	"golang.org/x/tools/go/analysis/passes/atomic"
++	"golang.org/x/tools/go/analysis/passes/bools"
++	"golang.org/x/tools/go/analysis/passes/buildtag"
++	"golang.org/x/tools/go/analysis/passes/cgocall"
++	"golang.org/x/tools/go/analysis/passes/composite"
++	"golang.org/x/tools/go/analysis/passes/copylock"
++	"golang.org/x/tools/go/analysis/passes/httpresponse"
++	"golang.org/x/tools/go/analysis/passes/loopclosure"
++	"golang.org/x/tools/go/analysis/passes/lostcancel"
++	"golang.org/x/tools/go/analysis/passes/nilfunc"
++	"golang.org/x/tools/go/analysis/passes/printf"
++	"golang.org/x/tools/go/analysis/passes/shift"
++	"golang.org/x/tools/go/analysis/passes/stdmethods"
++	"golang.org/x/tools/go/analysis/passes/structtag"
++	"golang.org/x/tools/go/analysis/passes/tests"
++	"golang.org/x/tools/go/analysis/passes/unmarshal"
++	"golang.org/x/tools/go/analysis/passes/unreachable"
++	"golang.org/x/tools/go/analysis/passes/unsafeptr"
++	"golang.org/x/tools/go/analysis/passes/unusedresult"
++)
++
++func main() {
++	unitchecker.Main(
++		asmdecl.Analyzer,
++		assign.Analyzer,
++		atomic.Analyzer,
++		bools.Analyzer,
++		buildtag.Analyzer,
++		cgocall.Analyzer,
++		composite.Analyzer,
++		copylock.Analyzer,
++		httpresponse.Analyzer,
++		loopclosure.Analyzer,
++		lostcancel.Analyzer,
++		nilfunc.Analyzer,
++		printf.Analyzer,
++		shift.Analyzer,
++		stdmethods.Analyzer,
++		structtag.Analyzer,
++		tests.Analyzer,
++		unmarshal.Analyzer,
++		unreachable.Analyzer,
++		unsafeptr.Analyzer,
++		unusedresult.Analyzer,
++	)
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 59489f92da..ec3103b27e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -112,7 +112,7 @@ Usage of %[1]s:
+ 		os.Exit(0)
+ 	}
+ 	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
+-		log.Fatalf("invalid command: want .cfg file (this reduced version of %s is intended to be run only by the 'go vet' command)", progname)
++		log.Fatalf(`invoking "go tool vet" directly is unsupported; use "go vet"`)
+ 	}
+ 	Run(args[0], analyzers)
+ }

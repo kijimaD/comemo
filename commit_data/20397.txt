@@ -11,7 +11,7 @@ Date:   Thu Sep 4 23:05:18 2014 -0400
     R=r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/132600043
-
+---
  src/pkg/runtime/asm_386.s               | 2 +-
  src/pkg/runtime/asm_amd64.s             | 2 +-
  src/pkg/runtime/asm_amd64p32.s          | 2 +-
@@ -119,3 +119,1382 @@ Date:   Thu Sep 4 23:05:18 2014 -0400
  src/pkg/runtime/vlop_arm.s              | 2 +-
  src/pkg/runtime/vlrt.c                  | 2 +-
  106 files changed, 106 insertions(+), 106 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 40271567b0..25911a5b9c 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 9103ef29e3..962074582d 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index a0e63b4405..64a436495f 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 3869696f60..9e68e099e2 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // using frame size $-4 means do not save LR on stack.
+ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
+diff --git a/src/pkg/runtime/atomic_386.c b/src/pkg/runtime/atomic_386.c
+index d7162a1b8b..82d36f2d96 100644
+--- a/src/pkg/runtime/atomic_386.c
++++ b/src/pkg/runtime/atomic_386.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma textflag NOSPLIT
+ uint32
+diff --git a/src/pkg/runtime/atomic_amd64x.c b/src/pkg/runtime/atomic_amd64x.c
+index 11b5789363..7be57ac95a 100644
+--- a/src/pkg/runtime/atomic_amd64x.c
++++ b/src/pkg/runtime/atomic_amd64x.c
+@@ -5,7 +5,7 @@
+ // +build amd64 amd64p32
+ 
+ #include "runtime.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma textflag NOSPLIT
+ uint32
+diff --git a/src/pkg/runtime/heapdump.c b/src/pkg/runtime/heapdump.c
+index 83c2be2ac7..d07fdb29bc 100644
+--- a/src/pkg/runtime/heapdump.c
++++ b/src/pkg/runtime/heapdump.c
+@@ -17,7 +17,7 @@
+ #include "typekind.h"
+ #include "funcdata.h"
+ #include "zaexperiment.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ extern byte runtime·data[];
+ extern byte runtime·edata[];
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 86846f3e6d..752ff60f37 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -13,7 +13,7 @@
+ #include "typekind.h"
+ #include "race.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Mark mheap as 'no pointers', it does not contain interesting pointers but occupies ~45K.
+ #pragma dataflag NOPTR
+diff --git a/src/pkg/runtime/mem_darwin.c b/src/pkg/runtime/mem_darwin.c
+index 72a2d18ad6..bf3ede5778 100644
+--- a/src/pkg/runtime/mem_darwin.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -7,7 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma textflag NOSPLIT
+ void*
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index 01e7707bbc..bfb405607e 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -7,7 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mem_nacl.c b/src/pkg/runtime/mem_nacl.c
+index 968fe8da54..6c836f18a7 100644
+--- a/src/pkg/runtime/mem_nacl.c
++++ b/src/pkg/runtime/mem_nacl.c
+@@ -7,7 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index 8d04c832ce..31820e5170 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -7,7 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index 8d04c832ce..31820e5170 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -7,7 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index 4f753adb4d..402869f393 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -7,7 +7,7 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ extern byte runtime·end[];
+ static byte *bloc = { runtime·end };
+diff --git a/src/pkg/runtime/mem_solaris.c b/src/pkg/runtime/mem_solaris.c
+index 01cbe9e1a4..8e90ba1d9e 100644
+--- a/src/pkg/runtime/mem_solaris.c
++++ b/src/pkg/runtime/mem_solaris.c
+@@ -7,7 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index 33ce003d28..7bc028bf3a 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum {
+ 	MEM_COMMIT = 0x1000,
+diff --git a/src/pkg/runtime/memclr_386.s b/src/pkg/runtime/memclr_386.s
+index aeabad413e..8b163923e9 100644
+--- a/src/pkg/runtime/memclr_386.s
++++ b/src/pkg/runtime/memclr_386.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !plan9
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB), NOSPLIT, $0-8
+diff --git a/src/pkg/runtime/memclr_amd64.s b/src/pkg/runtime/memclr_amd64.s
+index 01c6a415c0..35b3b4beef 100644
+--- a/src/pkg/runtime/memclr_amd64.s
++++ b/src/pkg/runtime/memclr_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ // +build !plan9
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB), NOSPLIT, $0-16
+diff --git a/src/pkg/runtime/memclr_arm.s b/src/pkg/runtime/memclr_arm.s
+index b19ea72a3f..1824d33b14 100644
+--- a/src/pkg/runtime/memclr_arm.s
++++ b/src/pkg/runtime/memclr_arm.s
+@@ -23,7 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TO = 8
+ TOE = 11
+diff --git a/src/pkg/runtime/memclr_plan9_386.s b/src/pkg/runtime/memclr_plan9_386.s
+index ed5dbbd3c6..b4b671f773 100644
+--- a/src/pkg/runtime/memclr_plan9_386.s
++++ b/src/pkg/runtime/memclr_plan9_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB), NOSPLIT, $0-8
+diff --git a/src/pkg/runtime/memclr_plan9_amd64.s b/src/pkg/runtime/memclr_plan9_amd64.s
+index 64f3c992ef..37e61dfbcc 100644
+--- a/src/pkg/runtime/memclr_plan9_amd64.s
++++ b/src/pkg/runtime/memclr_plan9_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·memclr(void*, uintptr)
+ TEXT runtime·memclr(SB),NOSPLIT,$0-16
+diff --git a/src/pkg/runtime/memmove_386.s b/src/pkg/runtime/memmove_386.s
+index 51b08d56d3..4c0c74c1af 100644
+--- a/src/pkg/runtime/memmove_386.s
++++ b/src/pkg/runtime/memmove_386.s
+@@ -25,7 +25,7 @@
+ 
+ // +build !plan9
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+diff --git a/src/pkg/runtime/memmove_amd64.s b/src/pkg/runtime/memmove_amd64.s
+index 339c5dd410..f968435340 100644
+--- a/src/pkg/runtime/memmove_amd64.s
++++ b/src/pkg/runtime/memmove_amd64.s
+@@ -25,7 +25,7 @@
+ 
+ // +build !plan9
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·memmove(void*, void*, uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+diff --git a/src/pkg/runtime/memmove_arm.s b/src/pkg/runtime/memmove_arm.s
+index 9701dc99f2..f187d42678 100644
+--- a/src/pkg/runtime/memmove_arm.s
++++ b/src/pkg/runtime/memmove_arm.s
+@@ -23,7 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // TE or TS are spilled to the stack during bulk register moves.
+ TS = 0
+diff --git a/src/pkg/runtime/memmove_nacl_amd64p32.s b/src/pkg/runtime/memmove_nacl_amd64p32.s
+index ba47e85461..373607afec 100644
+--- a/src/pkg/runtime/memmove_nacl_amd64p32.s
++++ b/src/pkg/runtime/memmove_nacl_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+diff --git a/src/pkg/runtime/memmove_plan9_386.s b/src/pkg/runtime/memmove_plan9_386.s
+index 4d5f7c6907..025d4ce1bf 100644
+--- a/src/pkg/runtime/memmove_plan9_386.s
++++ b/src/pkg/runtime/memmove_plan9_386.s
+@@ -23,7 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+diff --git a/src/pkg/runtime/memmove_plan9_amd64.s b/src/pkg/runtime/memmove_plan9_amd64.s
+index 035d475ac8..8e96b87175 100644
+--- a/src/pkg/runtime/memmove_plan9_amd64.s
++++ b/src/pkg/runtime/memmove_plan9_amd64.s
+@@ -23,7 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·memmove(void*, void*, uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 05e555b8a4..55c38a7e5b 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -60,7 +60,7 @@
+ #include "type.h"
+ #include "typekind.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum {
+ 	Debug		= 0,
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 2fbd5e1042..7cb65dad0d 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -28,7 +28,7 @@
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma dataflag NOPTR
+ int32 runtime·class_to_size[NumSizeClasses];
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 466591877d..536f688cf1 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ extern SigTab runtime·sigtab[];
+ 
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index 7bde58f756..d470f7c78c 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ extern SigTab runtime·sigtab[];
+ extern int32 runtime·sys_umtx_sleep(uint32*, int32, int32);
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 4c58b531ce..aae944ea11 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ extern SigTab runtime·sigtab[];
+ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
+diff --git a/src/pkg/runtime/os_freebsd_arm.c b/src/pkg/runtime/os_freebsd_arm.c
+index 1fa235b01d..2f2d7767f2 100644
+--- a/src/pkg/runtime/os_freebsd_arm.c
++++ b/src/pkg/runtime/os_freebsd_arm.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ void
+ runtime·checkgoarm(void)
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 7ab4858d9a..66e7bcec05 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ extern SigTab runtime·sigtab[];
+ 
+diff --git a/src/pkg/runtime/os_linux_386.c b/src/pkg/runtime/os_linux_386.c
+index ad72814649..dc89d04e28 100644
+--- a/src/pkg/runtime/os_linux_386.c
++++ b/src/pkg/runtime/os_linux_386.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define AT_NULL		0
+ #define AT_RANDOM	25
+diff --git a/src/pkg/runtime/os_linux_arm.c b/src/pkg/runtime/os_linux_arm.c
+index aad08b9890..e3eda7c2d1 100644
+--- a/src/pkg/runtime/os_linux_arm.c
++++ b/src/pkg/runtime/os_linux_arm.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define AT_NULL		0
+ #define AT_PLATFORM	15 // introduced in at least 2.6.11
+diff --git a/src/pkg/runtime/os_nacl.c b/src/pkg/runtime/os_nacl.c
+index fba32e5687..37a1fcca0d 100644
+--- a/src/pkg/runtime/os_nacl.c
++++ b/src/pkg/runtime/os_nacl.c
+@@ -6,7 +6,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "arch_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "stack.h"
+ 
+ int8 *goos = "nacl";
+diff --git a/src/pkg/runtime/os_nacl_arm.c b/src/pkg/runtime/os_nacl_arm.c
+index c94b2c78a6..1248ea6449 100644
+--- a/src/pkg/runtime/os_nacl_arm.c
++++ b/src/pkg/runtime/os_nacl_arm.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ void
+ runtime·checkgoarm(void)
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index cee96ebed1..d6c3bc8261 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/os_netbsd_arm.c b/src/pkg/runtime/os_netbsd_arm.c
+index e440e7def3..9dd4bcdc9c 100644
+--- a/src/pkg/runtime/os_netbsd_arm.c
++++ b/src/pkg/runtime/os_netbsd_arm.c
+@@ -6,7 +6,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "signal_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ void
+ runtime·lwp_mcontext_init(McontextT *mc, void *stack, M *mp, G *gp, void (*fn)(void))
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 7c9e478e84..59abc97b7c 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index bae4549a6e..f824710793 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ #include "os_GOOS.h"
+ #include "arch_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ int8 *goos = "plan9";
+ extern SigTab runtime·sigtab[];
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index c7ec3f212f..5e1f7ab076 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -7,7 +7,7 @@
+ #include "os_GOOS.h"
+ #include "signal_unix.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma dynexport runtime·end _end
+ #pragma dynexport runtime·etext _etext
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 9bf6ecbc64..885fe63343 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -6,7 +6,7 @@
+ #include "type.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma dynimport runtime·AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
+ #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 72078f4343..152c9a3d55 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -6,7 +6,7 @@
+ #include "arch_GOARCH.h"
+ #include "stack.h"
+ #include "malloc.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Code related to defer, panic and recover.
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3fecfe90e4..3c5e244a92 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -10,7 +10,7 @@
+ #include "race.h"
+ #include "type.h"
+ #include "mgc0.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Goroutine scheduler
+ // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 125309510b..9ac73fbccf 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -11,7 +11,7 @@
+ #include "race.h"
+ #include "type.h"
+ #include "typekind.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Race runtime functions called via runtime·racecall.
+ void __tsan_init(void);
+diff --git a/src/pkg/runtime/race_amd64.s b/src/pkg/runtime/race_amd64.s
+index a4a9dfeb55..bdea28c7c0 100644
+--- a/src/pkg/runtime/race_amd64.s
++++ b/src/pkg/runtime/race_amd64.s
+@@ -6,7 +6,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // The following thunks allow calling the gcc-compiled race runtime directly
+ // from Go code without going all the way through cgo.
+diff --git a/src/pkg/runtime/rt0_android_arm.s b/src/pkg/runtime/rt0_android_arm.s
+index 3eecbbddc5..6b65fb47b1 100644
+--- a/src/pkg/runtime/rt0_android_arm.s
++++ b/src/pkg/runtime/rt0_android_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_arm_android(SB),NOSPLIT,$-4
+ 	MOVW		(R13), R0      // argc
+diff --git a/src/pkg/runtime/rt0_darwin_386.s b/src/pkg/runtime/rt0_darwin_386.s
+index 7fe1df4c90..4c8c92dda8 100644
+--- a/src/pkg/runtime/rt0_darwin_386.s
++++ b/src/pkg/runtime/rt0_darwin_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_darwin(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/rt0_darwin_amd64.s b/src/pkg/runtime/rt0_darwin_amd64.s
+index ac323c83c2..452d854558 100644
+--- a/src/pkg/runtime/rt0_darwin_amd64.s
++++ b/src/pkg/runtime/rt0_darwin_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_darwin(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+diff --git a/src/pkg/runtime/rt0_dragonfly_386.s b/src/pkg/runtime/rt0_dragonfly_386.s
+index 9262a0f9e1..548ba796a0 100644
+--- a/src/pkg/runtime/rt0_dragonfly_386.s
++++ b/src/pkg/runtime/rt0_dragonfly_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_dragonfly(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/rt0_dragonfly_amd64.s b/src/pkg/runtime/rt0_dragonfly_amd64.s
+index a83b20e228..fb56618d8f 100644
+--- a/src/pkg/runtime/rt0_dragonfly_amd64.s
++++ b/src/pkg/runtime/rt0_dragonfly_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_dragonfly(SB),NOSPLIT,$-8
+ 	LEAQ	8(DI), SI // argv
+diff --git a/src/pkg/runtime/rt0_freebsd_386.s b/src/pkg/runtime/rt0_freebsd_386.s
+index 242b67df5e..cd7a915f84 100644
+--- a/src/pkg/runtime/rt0_freebsd_386.s
++++ b/src/pkg/runtime/rt0_freebsd_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_freebsd(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/rt0_freebsd_amd64.s b/src/pkg/runtime/rt0_freebsd_amd64.s
+index 729effbdba..7989f7c3e9 100644
+--- a/src/pkg/runtime/rt0_freebsd_amd64.s
++++ b/src/pkg/runtime/rt0_freebsd_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_freebsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(DI), SI // argv
+diff --git a/src/pkg/runtime/rt0_freebsd_arm.s b/src/pkg/runtime/rt0_freebsd_arm.s
+index d50c73c237..f31252698e 100644
+--- a/src/pkg/runtime/rt0_freebsd_arm.s
++++ b/src/pkg/runtime/rt0_freebsd_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // FreeBSD and Linux use the same linkage to main
+ 
+diff --git a/src/pkg/runtime/rt0_linux_386.s b/src/pkg/runtime/rt0_linux_386.s
+index 285aeed73c..74ddc94da9 100644
+--- a/src/pkg/runtime/rt0_linux_386.s
++++ b/src/pkg/runtime/rt0_linux_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_linux(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/rt0_linux_amd64.s b/src/pkg/runtime/rt0_linux_amd64.s
+index 7f8c795481..985426acc4 100644
+--- a/src/pkg/runtime/rt0_linux_amd64.s
++++ b/src/pkg/runtime/rt0_linux_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_linux(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+diff --git a/src/pkg/runtime/rt0_linux_arm.s b/src/pkg/runtime/rt0_linux_arm.s
+index 21391c7300..8af3d3505e 100644
+--- a/src/pkg/runtime/rt0_linux_arm.s
++++ b/src/pkg/runtime/rt0_linux_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
+ 	MOVW	(R13), R0	// argc
+diff --git a/src/pkg/runtime/rt0_nacl_386.s b/src/pkg/runtime/rt0_nacl_386.s
+index e374bf3359..d4ba06306a 100644
+--- a/src/pkg/runtime/rt0_nacl_386.s
++++ b/src/pkg/runtime/rt0_nacl_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // NaCl entry has:
+ //	0(FP) - arg block == SP+8
+diff --git a/src/pkg/runtime/rt0_nacl_amd64p32.s b/src/pkg/runtime/rt0_nacl_amd64p32.s
+index de08618fc8..d8703dc0f0 100644
+--- a/src/pkg/runtime/rt0_nacl_amd64p32.s
++++ b/src/pkg/runtime/rt0_nacl_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // NaCl entry on 32-bit x86 has DI pointing at the arg block, which contains:
+ //
+diff --git a/src/pkg/runtime/rt0_nacl_arm.s b/src/pkg/runtime/rt0_nacl_arm.s
+index 243cb3375d..eadb4782dd 100644
+--- a/src/pkg/runtime/rt0_nacl_arm.s
++++ b/src/pkg/runtime/rt0_nacl_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // NaCl entry has:
+ //	0(FP) - 0
+diff --git a/src/pkg/runtime/rt0_netbsd_386.s b/src/pkg/runtime/rt0_netbsd_386.s
+index f4cc78a1bc..70b8532538 100644
+--- a/src/pkg/runtime/rt0_netbsd_386.s
++++ b/src/pkg/runtime/rt0_netbsd_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_netbsd(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/rt0_netbsd_amd64.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+index e2288dbaed..fad56614e5 100644
+--- a/src/pkg/runtime/rt0_netbsd_amd64.s
++++ b/src/pkg/runtime/rt0_netbsd_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_netbsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+diff --git a/src/pkg/runtime/rt0_netbsd_arm.s b/src/pkg/runtime/rt0_netbsd_arm.s
+index 1f649d97c4..bad66e06cf 100644
+--- a/src/pkg/runtime/rt0_netbsd_arm.s
++++ b/src/pkg/runtime/rt0_netbsd_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // FreeBSD/NetBSD and Linux use the same linkage to main
+ 
+diff --git a/src/pkg/runtime/rt0_openbsd_386.s b/src/pkg/runtime/rt0_openbsd_386.s
+index 35439d0d58..f25d2e1cf0 100644
+--- a/src/pkg/runtime/rt0_openbsd_386.s
++++ b/src/pkg/runtime/rt0_openbsd_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_openbsd(SB),NOSPLIT,$8
+ 	MOVL	8(SP), AX
+diff --git a/src/pkg/runtime/rt0_openbsd_amd64.s b/src/pkg/runtime/rt0_openbsd_amd64.s
+index a394890f94..58fe666391 100644
+--- a/src/pkg/runtime/rt0_openbsd_amd64.s
++++ b/src/pkg/runtime/rt0_openbsd_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_openbsd(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+diff --git a/src/pkg/runtime/rt0_plan9_386.s b/src/pkg/runtime/rt0_plan9_386.s
+index 4aaabfaa45..7e2887b857 100644
+--- a/src/pkg/runtime/rt0_plan9_386.s
++++ b/src/pkg/runtime/rt0_plan9_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_plan9(SB),NOSPLIT,$12
+ 	MOVL	AX, _tos(SB)
+diff --git a/src/pkg/runtime/rt0_plan9_amd64.s b/src/pkg/runtime/rt0_plan9_amd64.s
+index 9f20eef60a..a372a0ba8b 100644
+--- a/src/pkg/runtime/rt0_plan9_amd64.s
++++ b/src/pkg/runtime/rt0_plan9_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_plan9(SB),NOSPLIT,$24
+ 	MOVQ	AX, _tos(SB)
+diff --git a/src/pkg/runtime/rt0_solaris_amd64.s b/src/pkg/runtime/rt0_solaris_amd64.s
+index fd0a79cc9b..92a9fc2952 100644
+--- a/src/pkg/runtime/rt0_solaris_amd64.s
++++ b/src/pkg/runtime/rt0_solaris_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_solaris(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+diff --git a/src/pkg/runtime/rt0_windows_386.s b/src/pkg/runtime/rt0_windows_386.s
+index d4008ad5dc..00604372f1 100644
+--- a/src/pkg/runtime/rt0_windows_386.s
++++ b/src/pkg/runtime/rt0_windows_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_386_windows(SB),NOSPLIT,$12
+ 	MOVL	12(SP), AX
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index 0b144717ba..890a570d1d 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT _rt0_amd64_windows(SB),NOSPLIT,$-8
+ 	LEAQ	8(SP), SI // argv
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 751181274a..d28ee58179 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -5,7 +5,7 @@
+ #include "runtime.h"
+ #include "stack.h"
+ #include "arch_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Keep a cached value to make gotraceback fast,
+ // since we call it on every call to gentraceback.
+diff --git a/src/pkg/runtime/softfloat_arm.c b/src/pkg/runtime/softfloat_arm.c
+index 5e5f4025ec..09b0cf20ac 100644
+--- a/src/pkg/runtime/softfloat_arm.c
++++ b/src/pkg/runtime/softfloat_arm.c
+@@ -7,7 +7,7 @@
+ // It uses true little-endian doubles, while the 7500 used mixed-endian.
+ 
+ #include "runtime.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define CPSR 14
+ #define FLAGS_N (1U << 31)
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 8456f79369..3993a372e0 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -11,7 +11,7 @@
+ #include "type.h"
+ #include "race.h"
+ #include "mgc0.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/string.c b/src/pkg/runtime/string.c
+index 5421b53196..4f25adf8e3 100644
+--- a/src/pkg/runtime/string.c
++++ b/src/pkg/runtime/string.c
+@@ -6,7 +6,7 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "race.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ String	runtime·emptystring;
+ 
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index f8b2a9f0ad..f6bc14f2c9 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -7,7 +7,7 @@ package runtime
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "stack.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // This file contains functions called by Go but written
+ // in C.  These functions are problematic for the garbage
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 1ec694db68..a961c71a83 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -7,7 +7,7 @@
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 5f0d9dfa1d..2f98bfb06c 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -12,7 +12,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/sys_dragonfly_386.s b/src/pkg/runtime/sys_dragonfly_386.s
+index bd8c8d8f6d..dd0e27e26a 100644
+--- a/src/pkg/runtime/sys_dragonfly_386.s
++++ b/src/pkg/runtime/sys_dragonfly_386.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 	
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$-4
+ 	MOVL	$469, AX		// umtx_sleep
+diff --git a/src/pkg/runtime/sys_dragonfly_amd64.s b/src/pkg/runtime/sys_dragonfly_amd64.s
+index 1c279df9c8..2c756018c2 100644
+--- a/src/pkg/runtime/sys_dragonfly_amd64.s
++++ b/src/pkg/runtime/sys_dragonfly_amd64.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 	
+ TEXT runtime·sys_umtx_sleep(SB),NOSPLIT,$0
+ 	MOVQ addr+0(FP), DI		// arg 1 - ptr
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 929572f073..ffc28560ec 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 	
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$-4
+ 	MOVL	$454, AX
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index f1198541dc..65f8c1a6ee 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // FreeBSD 8, FreeBSD 9, and older versions that I have checked
+ // do not restore R10 on exit from a "restarted" system call
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index da43871b96..d875138b62 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // for EABI, as we don't support OABI
+ #define SYS_BASE 0x0
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 426e05faa1..0f6d4bbb5e 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0
+ 	MOVL	$252, AX	// syscall number
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 3ce6bfc905..33b91e872f 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$0-4
+ 	MOVL	code+0(FP), DI
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index a2abe8f25c..bd285f3998 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // for EABI, as we don't support OABI
+ #define SYS_BASE 0x0
+diff --git a/src/pkg/runtime/sys_nacl_386.s b/src/pkg/runtime/sys_nacl_386.s
+index 5798b1aede..47985f31f5 100644
+--- a/src/pkg/runtime/sys_nacl_386.s
++++ b/src/pkg/runtime/sys_nacl_386.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "syscall_nacl.h"
+ 
+ #define NACL_SYSCALL(code) \
+diff --git a/src/pkg/runtime/sys_nacl_amd64p32.s b/src/pkg/runtime/sys_nacl_amd64p32.s
+index 1fd083718a..c30c2a8933 100644
+--- a/src/pkg/runtime/sys_nacl_amd64p32.s
++++ b/src/pkg/runtime/sys_nacl_amd64p32.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "syscall_nacl.h"
+ 
+ #define NACL_SYSCALL(code) \
+diff --git a/src/pkg/runtime/sys_nacl_arm.s b/src/pkg/runtime/sys_nacl_arm.s
+index cc18522208..d354ab4837 100644
+--- a/src/pkg/runtime/sys_nacl_arm.s
++++ b/src/pkg/runtime/sys_nacl_arm.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ #include "syscall_nacl.h"
+ 
+ #define NACL_SYSCALL(code) \
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index cecc389b5f..83a76cb343 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-4
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 5b46dbe707..eb9766d3f5 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // int32 lwp_create(void *context, uintptr flags, void *lwpid)
+ TEXT runtime·lwp_create(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index bf133a2100..039a0832e0 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),NOSPLIT,$-4
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index d836a1f9ea..12d9c5c6b4 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define	CLOCK_MONOTONIC	$3
+ 
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index e9371c3b63..4e9db23908 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #define CLOCK_MONOTONIC	$3
+ 
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 43fb367ed9..dfa09613e4 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index 257f405c8d..08ddc3ffa8 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/sys_solaris_amd64.s b/src/pkg/runtime/sys_solaris_amd64.s
+index 8506e9939a..2055d6c80b 100644
+--- a/src/pkg/runtime/sys_solaris_amd64.s
++++ b/src/pkg/runtime/sys_solaris_amd64.s
+@@ -7,7 +7,7 @@
+ //
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // This is needed by asm_amd64.s
+ TEXT runtime·settls(SB),NOSPLIT,$8
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index f9a456a2ca..f4d561feea 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 7e59dfc50c..e5890e04ae 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // maxargs should be divisible by 2, as Windows stack
+ // must be kept 16-byte aligned on syscall entry.
+diff --git a/src/pkg/runtime/syscall_solaris.goc b/src/pkg/runtime/syscall_solaris.goc
+index 21bcce4d17..935a2f6cfc 100644
+--- a/src/pkg/runtime/syscall_solaris.goc
++++ b/src/pkg/runtime/syscall_solaris.goc
+@@ -7,7 +7,7 @@ package syscall
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "cgocall.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #pragma dynimport libc·chdir chdir "libc.so"
+ #pragma dynimport libc·chroot chroot "libc.so"
+diff --git a/src/pkg/runtime/thunk.s b/src/pkg/runtime/thunk.s
+index 0c057a3e23..babc927680 100644
+--- a/src/pkg/runtime/thunk.s
++++ b/src/pkg/runtime/thunk.s
+@@ -5,7 +5,7 @@
+ // This file exposes various internal runtime functions to other packages in std lib.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ #ifdef GOARCH_arm
+ #define JMP B
+diff --git a/src/pkg/runtime/tls_arm.s b/src/pkg/runtime/tls_arm.s
+index 37edfa968e..1b1cbc9783 100644
+--- a/src/pkg/runtime/tls_arm.s
++++ b/src/pkg/runtime/tls_arm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ #include "funcdata.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // We have to resort to TLS variable to save g(R10).
+ // One reason is that external code might trigger
+diff --git a/src/pkg/runtime/vlop_386.s b/src/pkg/runtime/vlop_386.s
+index 7af67c987a..ce8e7d0643 100644
+--- a/src/pkg/runtime/vlop_386.s
++++ b/src/pkg/runtime/vlop_386.s
+@@ -23,7 +23,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ /*
+  * C runtime for 64-bit divide.
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index 0953deee78..6abcabad20 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -24,7 +24,7 @@
+ // THE SOFTWARE.
+ 
+ #include "zasm_GOOS_GOARCH.h"
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ arg=0
+ 
+diff --git a/src/pkg/runtime/vlrt.c b/src/pkg/runtime/vlrt.c
+index 486555dda3..cb0d147961 100644
+--- a/src/pkg/runtime/vlrt.c
++++ b/src/pkg/runtime/vlrt.c
+@@ -25,7 +25,7 @@
+ 
+ // +build arm 386
+ 
+-#include "../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ /*
+  * C runtime for 64-bit divide, others.

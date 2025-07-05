@@ -9,7 +9,55 @@ Date:   Wed Sep 2 19:05:22 2015 +0200
     Change-Id: I16e7363549a0dec8c61addfa14af0866c1fd7c40
     Reviewed-on: https://go-review.googlesource.com/14173
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/read_test.go | 21 +++++++++++++++++++++
  src/encoding/xml/xml.go       |  7 ++++++-
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 7d004dc488..7a98092803 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -712,3 +712,24 @@ func TestUnmarshalIntoInterface(t *testing.T) {
+ 		t.Errorf("failed to unmarshal into interface, have %q want %q", have, want)
+ 	}
+ }
++
++type X struct {
++	D string `xml:",comment"`
++}
++
++// Issue 11112. Unmarshal must reject invalid comments.
++func TestMalformedComment(t *testing.T) {
++	testData := []string{
++		"<X><!-- a---></X>",
++		"<X><!-- -- --></X>",
++		"<X><!-- a--b --></X>",
++		"<X><!------></X>",
++	}
++	for i, test := range testData {
++		data := []byte(test)
++		v := new(X)
++		if err := Unmarshal(data, v); err == nil {
++			t.Errorf("%d: unmarshal should reject invalid comments", i)
++		}
++	}
++}
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index bd766a6934..bdd607cfa8 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -624,7 +624,12 @@ func (d *Decoder) rawToken() (Token, error) {
+ 					return nil, d.err
+ 				}
+ 				d.buf.WriteByte(b)
+-				if b0 == '-' && b1 == '-' && b == '>' {
++				if b0 == '-' && b1 == '-' {
++					if b != '>' {
++						d.err = d.syntaxError(
++							`invalid sequence "--" not allowed in comments`)
++						return nil, d.err
++					}
+ 					break
+ 				}
+ 				b0, b1 = b1, b

@@ -10,7 +10,7 @@ Date:   Sat Jun 27 15:45:20 2015 +0100
     Change-Id: I52b187a791cf1919cb70ed6dabdc9f57b317ea83
     Reviewed-on: https://go-review.googlesource.com/11631
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  46 ++++++-
  src/cmd/compile/internal/ssa/TODO              |   2 +
  src/cmd/compile/internal/ssa/func.go           |  17 +++
@@ -20,3 +20,440 @@ Date:   Sat Jun 27 15:45:20 2015 +0100
  src/cmd/compile/internal/ssa/opGen.go          |  34 +++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 171 +++++++++++++++++++++++++
  8 files changed, 287 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d8b7cdf660..d31d895f43 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -223,6 +223,11 @@ func (s *state) newValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ssa.Val
+ 	return s.curBlock.NewValue2(s.peekLine(), op, t, arg0, arg1)
+ }
+ 
++// newValue2I adds a new value with two arguments and an auxint value to the current block.
++func (s *state) newValue2I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1 *ssa.Value) *ssa.Value {
++	return s.curBlock.NewValue2I(s.peekLine(), op, t, aux, arg0, arg1)
++}
++
+ // newValue3 adds a new value with three arguments to the current block.
+ func (s *state) newValue3(op ssa.Op, t ssa.Type, arg0, arg1, arg2 *ssa.Value) *ssa.Value {
+ 	return s.curBlock.NewValue3(s.peekLine(), op, t, arg0, arg1, arg2)
+@@ -554,6 +559,12 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
+ 	if right == nil {
+ 		// right == nil means use the zero value of the assigned type.
+ 		t := left.Type
++		if !canSSA(left) {
++			// if we can't ssa this memory, treat it as just zeroing out the backing memory
++			addr := s.addr(left)
++			s.vars[&memvar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
++			return
++		}
+ 		switch {
+ 		case t.IsString():
+ 			val = s.entryNewValue0A(ssa.OpConst, left.Type, "")
+@@ -624,7 +635,7 @@ func (s *state) addr(n *Node) *ssa.Value {
+ // n must be an ONAME.
+ func canSSA(n *Node) bool {
+ 	if n.Op != ONAME {
+-		Fatal("canSSA passed a non-ONAME %s %v", Oconv(int(n.Op), 0), n)
++		return false
+ 	}
+ 	if n.Addrtaken {
+ 		return false
+@@ -638,6 +649,9 @@ func canSSA(n *Node) bool {
+ 	if n.Class == PPARAMOUT {
+ 		return false
+ 	}
++	if Isfat(n.Type) {
++		return false
++	}
+ 	return true
+ 	// TODO: try to make more variables SSAable.
+ }
+@@ -1062,6 +1076,22 @@ func genValue(v *ssa.Value) {
+ 		p.From.Reg = regnum(v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v)
++	case ssa.OpAMD64MOVXzero:
++		nb := v.AuxInt
++		offset := int64(0)
++		reg := regnum(v.Args[0])
++		for nb >= 8 {
++			nb, offset = movZero(x86.AMOVQ, 8, nb, offset, reg)
++		}
++		for nb >= 4 {
++			nb, offset = movZero(x86.AMOVL, 4, nb, offset, reg)
++		}
++		for nb >= 2 {
++			nb, offset = movZero(x86.AMOVW, 2, nb, offset, reg)
++		}
++		for nb >= 1 {
++			nb, offset = movZero(x86.AMOVB, 1, nb, offset, reg)
++		}
+ 	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
+ 		if v.Type.IsMemory() {
+ 			return
+@@ -1121,6 +1151,20 @@ func genValue(v *ssa.Value) {
+ 	}
+ }
+ 
++// movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
++func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
++	p := Prog(as)
++	// TODO: use zero register on archs that support it.
++	p.From.Type = obj.TYPE_CONST
++	p.From.Offset = 0
++	p.To.Type = obj.TYPE_MEM
++	p.To.Reg = regnum
++	p.To.Offset = offset
++	offset += width
++	nleft = nbytes - width
++	return nleft, offset
++}
++
+ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 	lineno = b.Line
+ 	switch b.Kind {
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index e2e3fb8a57..340c905654 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -59,3 +59,5 @@ Other
+    checkOpcodeCounts.  Michael Matloob suggests using a similar
+    pattern matcher to the rewrite engine to check for certain
+    expression subtrees in the output.
++ - Implement memory zeroing with REPSTOSQ and DuffZero
++ - make deadstore work with zeroing.
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 046c068eb9..f746861050 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -188,6 +188,23 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
+ 	return v
+ }
+ 
++// NewValue2I returns a new value in the block with two arguments and an auxint value.
++func (b *Block) NewValue2I(line int32, op Op, t Type, aux int64, arg0, arg1 *Value) *Value {
++	v := &Value{
++		ID:     b.Func.vid.get(),
++		Op:     op,
++		Type:   t,
++		AuxInt: aux,
++		Block:  b,
++		Line:   line,
++	}
++	v.Args = v.argstorage[:2]
++	v.Args[0] = arg0
++	v.Args[1] = arg1
++	b.Values = append(b.Values, v)
++	return v
++}
++
+ // NewValue3 returns a new value in the block with three arguments and zero aux values.
+ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
+ 	v := &Value{
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index d3d14c3a0f..d03da723b7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -137,6 +137,18 @@
+ 
+ (ADDQconst [0] x) -> (Copy x)
+ 
++// lower Zero instructions with word sizes
++(Zero [0] _ mem) -> (Copy mem)
++(Zero [1] destptr mem) -> (MOVBstore destptr (Const <TypeInt8> [0]) mem)
++(Zero [2] destptr mem) -> (MOVWstore destptr (Const <TypeInt16> [0]) mem)
++(Zero [4] destptr mem) -> (MOVLstore destptr (Const <TypeInt32> [0]) mem)
++(Zero [8] destptr mem) -> (MOVQstore destptr (Const <TypeInt64> [0]) mem)
++
++// rewrite anything less than 4 words into a series of MOV[BWLQ] $0, ptr(off) instructions
++(Zero [size] destptr mem) && size < 4*8 -> (MOVXzero [size] destptr mem)
++// Use STOSQ to zero memory. Rewrite this into storing the words with REPSTOSQ and then filling in the remainder with linear moves
++(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (Const <TypeUInt64> [size/8]) mem))
++
+ // Absorb InvertFlags into branches.
+ (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+ (GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 6d0b4ece3c..5706b9fcef 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -86,6 +86,7 @@ func init() {
+ 	gpload := regInfo{[]regMask{gpspsb, 0}, 0, []regMask{gp}}
+ 	gploadidx := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, []regMask{gp}}
+ 	gpstore := regInfo{[]regMask{gpspsb, gpsp, 0}, 0, nil}
++	gpstoreconst := regInfo{[]regMask{gpspsb, 0}, 0, nil}
+ 	gpstoreidx := regInfo{[]regMask{gpspsb, gpsp, gpsp, 0}, 0, nil}
+ 	flagsgp := regInfo{[]regMask{flags}, 0, []regMask{gp}}
+ 	cmov := regInfo{[]regMask{flags, gp, gp}, 0, []regMask{gp}}
+@@ -153,6 +154,10 @@ func init() {
+ 		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"},      // store 8 bytes in arg1 to arg0+auxint. arg2=mem
+ 		{name: "MOVQstoreidx8", reg: gpstoreidx},            // store 8 bytes in arg2 to arg0+8*arg1+auxint. arg3=mem
+ 
++		{name: "MOVXzero", reg: gpstoreconst}, // store auxint 0 bytes into arg0 using a series of MOV instructions. arg1=mem.
++		// TODO: implement this when register clobbering works
++		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
++
+ 		// Load/store from global. Same as the above loads, but arg0 is missing and
+ 		// aux is a GlobalOffset instead of an int64.
+ 		{name: "MOVQloadglobal"},  // Load from aux.(GlobalOffset).  arg0 = memory
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 151e8e13e3..a6e6c93fc5 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -51,6 +51,7 @@ var genericOps = []opData{
+ 	{name: "Load"},  // Load from arg0.  arg1=memory
+ 	{name: "Store"}, // Store arg1 to arg0.  arg2=memory.  Returns memory.
+ 	{name: "Move"},  // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
++	{name: "Zero"},  // arg0=destptr, arg1=mem, auxint=size. Returns memory.
+ 
+ 	// Function calls.  Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack.  The method receiver, if any, is treated
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 997522037c..a6fb0b06e2 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -98,6 +98,8 @@ const (
+ 	OpAMD64MOVLstore
+ 	OpAMD64MOVQstore
+ 	OpAMD64MOVQstoreidx8
++	OpAMD64MOVXzero
++	OpAMD64REPSTOSQ
+ 	OpAMD64MOVQloadglobal
+ 	OpAMD64MOVQstoreglobal
+ 	OpAMD64CALLstatic
+@@ -130,6 +132,7 @@ const (
+ 	OpLoad
+ 	OpStore
+ 	OpMove
++	OpZero
+ 	OpClosureCall
+ 	OpStaticCall
+ 	OpConvert
+@@ -794,6 +797,28 @@ var opcodeTable = [...]opInfo{
+ 			outputs:  []regMask{},
+ 		},
+ 	},
++	{
++		name: "MOVXzero",
++		reg: regInfo{
++			inputs: []regMask{
++				4295032831, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
++				0,
++			},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++	},
++	{
++		name: "REPSTOSQ",
++		reg: regInfo{
++			inputs: []regMask{
++				128, // .DI
++				2,   // .CX
++			},
++			clobbers: 131, // .AX .CX .DI
++			outputs:  []regMask{},
++		},
++	},
+ 	{
+ 		name: "MOVQloadglobal",
+ 		reg: regInfo{
+@@ -1091,6 +1116,15 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 		generic: true,
+ 	},
++	{
++		name: "Zero",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
+ 	{
+ 		name: "ClosureCall",
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 599203c119..a781740b9b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1647,6 +1647,177 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		}
+ 		goto ende6ef29f885a8ecf3058212bb95917323
+ 	ende6ef29f885a8ecf3058212bb95917323:
++		;
++	case OpZero:
++		// match: (Zero [0] _ mem)
++		// cond:
++		// result: (Copy mem)
++		{
++			if v.AuxInt != 0 {
++				goto endb85a34a7d102b0e0d801454f437db5bf
++			}
++			mem := v.Args[1]
++			v.Op = OpCopy
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(mem)
++			return true
++		}
++		goto endb85a34a7d102b0e0d801454f437db5bf
++	endb85a34a7d102b0e0d801454f437db5bf:
++		;
++		// match: (Zero [1] destptr mem)
++		// cond:
++		// result: (MOVBstore destptr (Const <TypeInt8> [0]) mem)
++		{
++			if v.AuxInt != 1 {
++				goto end09ec7b1fc5ad40534e0e25c896323f5c
++			}
++			destptr := v.Args[0]
++			mem := v.Args[1]
++			v.Op = OpAMD64MOVBstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(destptr)
++			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0.Type = TypeInt8
++			v0.AuxInt = 0
++			v.AddArg(v0)
++			v.AddArg(mem)
++			return true
++		}
++		goto end09ec7b1fc5ad40534e0e25c896323f5c
++	end09ec7b1fc5ad40534e0e25c896323f5c:
++		;
++		// match: (Zero [2] destptr mem)
++		// cond:
++		// result: (MOVWstore destptr (Const <TypeInt16> [0]) mem)
++		{
++			if v.AuxInt != 2 {
++				goto end2dee246789dbd305bb1eaec768bdae14
++			}
++			destptr := v.Args[0]
++			mem := v.Args[1]
++			v.Op = OpAMD64MOVWstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(destptr)
++			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0.Type = TypeInt16
++			v0.AuxInt = 0
++			v.AddArg(v0)
++			v.AddArg(mem)
++			return true
++		}
++		goto end2dee246789dbd305bb1eaec768bdae14
++	end2dee246789dbd305bb1eaec768bdae14:
++		;
++		// match: (Zero [4] destptr mem)
++		// cond:
++		// result: (MOVLstore destptr (Const <TypeInt32> [0]) mem)
++		{
++			if v.AuxInt != 4 {
++				goto ende2bf4ecf21bc9e76700a9c5f62546e78
++			}
++			destptr := v.Args[0]
++			mem := v.Args[1]
++			v.Op = OpAMD64MOVLstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(destptr)
++			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0.Type = TypeInt32
++			v0.AuxInt = 0
++			v.AddArg(v0)
++			v.AddArg(mem)
++			return true
++		}
++		goto ende2bf4ecf21bc9e76700a9c5f62546e78
++	ende2bf4ecf21bc9e76700a9c5f62546e78:
++		;
++		// match: (Zero [8] destptr mem)
++		// cond:
++		// result: (MOVQstore destptr (Const <TypeInt64> [0]) mem)
++		{
++			if v.AuxInt != 8 {
++				goto enda65d5d60783daf9b9405f04c44f7adaf
++			}
++			destptr := v.Args[0]
++			mem := v.Args[1]
++			v.Op = OpAMD64MOVQstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(destptr)
++			v0 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v0.Type = TypeInt64
++			v0.AuxInt = 0
++			v.AddArg(v0)
++			v.AddArg(mem)
++			return true
++		}
++		goto enda65d5d60783daf9b9405f04c44f7adaf
++	enda65d5d60783daf9b9405f04c44f7adaf:
++		;
++		// match: (Zero [size] destptr mem)
++		// cond: size < 4*8
++		// result: (MOVXzero [size] destptr mem)
++		{
++			size := v.AuxInt
++			destptr := v.Args[0]
++			mem := v.Args[1]
++			if !(size < 4*8) {
++				goto endf0a22f1506977610ac0a310eee152075
++			}
++			v.Op = OpAMD64MOVXzero
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = size
++			v.AddArg(destptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto endf0a22f1506977610ac0a310eee152075
++	endf0a22f1506977610ac0a310eee152075:
++		;
++		// match: (Zero [size] destptr mem)
++		// cond: size >= 4*8
++		// result: (Zero [size%8] (OffPtr <TypeUInt64> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (Const <TypeUInt64> [size/8]) mem))
++		{
++			size := v.AuxInt
++			destptr := v.Args[0]
++			mem := v.Args[1]
++			if !(size >= 4*8) {
++				goto end7a358169d20d6834b21f2e03fbf351b2
++			}
++			v.Op = OpZero
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = size % 8
++			v0 := v.Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
++			v0.Type = TypeUInt64
++			v0.AuxInt = size - (size % 8)
++			v0.AddArg(destptr)
++			v.AddArg(v0)
++			v1 := v.Block.NewValue0(v.Line, OpAMD64REPSTOSQ, TypeInvalid)
++			v1.Type = TypeMem
++			v1.AddArg(destptr)
++			v2 := v.Block.NewValue0(v.Line, OpConst, TypeInvalid)
++			v2.Type = TypeUInt64
++			v2.AuxInt = size / 8
++			v1.AddArg(v2)
++			v1.AddArg(mem)
++			v.AddArg(v1)
++			return true
++		}
++		goto end7a358169d20d6834b21f2e03fbf351b2
++	end7a358169d20d6834b21f2e03fbf351b2:
+ 	}
+ 	return false
+ }

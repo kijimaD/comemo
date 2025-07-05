@@ -7,9 +7,122 @@ Date:   Thu Jul 21 14:10:39 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4794049
-
+---
  src/cmd/gc/go.h        |  1 -
  src/cmd/gc/subr.c      | 23 -----------------------
  src/cmd/gc/walk.c      | 11 -----------
  src/pkg/runtime/chan.c | 12 ++++++++++++
  4 files changed, 12 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ff71e80a94..c61e8a9942 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1106,7 +1106,6 @@ int	isinter(Type *t);
+ int	isnil(Node *n);
+ int	isnilinter(Type *t);
+ int	isptrto(Type *t, int et);
+-int	isselect(Node *n);
+ int	isslice(Type *t);
+ int	istype(Type *t, int et);
+ void	linehist(char *file, int32 off, int relative);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 96727b10bd..9ec630bcf2 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1719,29 +1719,6 @@ isblank(Node *n)
+ 	return p[0] == '_' && p[1] == '\0';
+ }
+ 
+-int
+-isselect(Node *n)
+-{
+-	Sym *s;
+-
+-	if(n == N)
+-		return 0;
+-	n = n->left;
+-	s = pkglookup("selectsend", runtimepkg);
+-	if(s == n->sym)
+-		return 1;
+-	s = pkglookup("selectrecv", runtimepkg);
+-	if(s == n->sym)
+-		return 1;
+-	s = pkglookup("selectrecv2", runtimepkg);
+-	if(s == n->sym)
+-		return 1;
+-	s = pkglookup("selectdefault", runtimepkg);
+-	if(s == n->sym)
+-		return 1;
+-	return 0;
+-}
+-
+ int
+ isinter(Type *t)
+ {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index c9ca9b3b37..0383e5a6a5 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -501,17 +501,6 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 		ll = ascompatte(n->op, n->isddd, getinarg(t), n->list, 0, init);
+ 		n->list = reorder1(ll);
+-		if(isselect(n)) {
+-			// special prob with selectsend and selectrecv:
+-			// if chan is nil, they don't know big the channel
+-			// element is and therefore don't know how to find
+-			// the output bool, so we clear it before the call.
+-			Node *b;
+-			b = nodbool(0);
+-			typecheck(&b, Erv);
+-			lr = ascompatte(n->op, 0, getoutarg(t), list1(b), 0, init);
+-			n->list = concat(n->list, lr);
+-		}
+ 		goto ret;
+ 
+ 	case OCALLMETH:
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 7010d06d18..ee351a6436 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -632,6 +632,9 @@ static void selectsend(Select *sel, Hchan *c, void *pc, void *elem, int32 so);
+ void
+ runtime·selectsend(Select *sel, Hchan *c, void *elem, bool selected)
+ {
++	selected = false;
++	FLUSH(&selected);
++
+ 	// nil cases do not compete
+ 	if(c == nil)
+ 		return;
+@@ -670,6 +673,9 @@ static void selectrecv(Select *sel, Hchan *c, void *pc, void *elem, bool*, int32
+ void
+ runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
+ {
++	selected = false;
++	FLUSH(&selected);
++
+ 	// nil cases do not compete
+ 	if(c == nil)
+ 		return;
+@@ -682,6 +688,9 @@ runtime·selectrecv(Select *sel, Hchan *c, void *elem, bool selected)
+ void
+ runtime·selectrecv2(Select *sel, Hchan *c, void *elem, bool *received, bool selected)
+ {
++	selected = false;
++	FLUSH(&selected);
++
+ 	// nil cases do not compete
+ 	if(c == nil)
+ 		return;
+@@ -721,6 +730,9 @@ static void selectdefault(Select*, void*, int32);
+ void
+ runtime·selectdefault(Select *sel, bool selected)
+ {
++	selected = false;
++	FLUSH(&selected);
++
+ 	selectdefault(sel, runtime·getcallerpc(&sel), (byte*)&selected - (byte*)&sel);
+ }
+ 

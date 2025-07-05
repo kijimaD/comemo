@@ -18,7 +18,7 @@ Date:   Fri Dec 2 10:44:34 2016 -0800
     Change-Id: I5507cea6c2be46a7677087c1aeb69382d31033eb
     Reviewed-on: https://go-review.googlesource.com/34236
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go                |  1 +
  src/cmd/compile/internal/gc/noder.go       | 18 +++----
  src/cmd/compile/internal/syntax/nodes.go   |  9 ++--
@@ -28,3 +28,439 @@ Date:   Fri Dec 2 10:44:34 2016 -0800
  src/cmd/compile/internal/syntax/source.go  | 10 ++--
  src/cmd/compile/internal/syntax/syntax.go  | 19 ++++----
  8 files changed, 93 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 8660e7ae9b..f0f0852c55 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -650,6 +650,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.Node %T":             "",
+ 	"cmd/compile/internal/syntax.Operator %d":         "",
+ 	"cmd/compile/internal/syntax.Operator %s":         "",
++	"cmd/compile/internal/syntax.Pos %s":              "",
+ 	"cmd/compile/internal/syntax.token %d":            "",
+ 	"cmd/compile/internal/syntax.token %q":            "",
+ 	"cmd/compile/internal/syntax.token %s":            "",
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 6c9b414558..cdfa84aa4c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -28,8 +28,8 @@ func parseFile(filename string) {
+ 	p.file(file)
+ 
+ 	if !imported_unsafe {
+-		for _, x := range p.linknames {
+-			p.error(syntax.Error{Line: x, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
++		for _, pos := range p.linknames {
++			p.error(syntax.Error{Pos: pos, Msg: "//go:linkname only allowed in Go files that import \"unsafe\""})
+ 		}
+ 	}
+ 
+@@ -41,7 +41,7 @@ func parseFile(filename string) {
+ // noder transforms package syntax's AST into a Nod tree.
+ type noder struct {
+ 	baseline  int32
+-	linknames []uint // tracks //go:linkname lines
++	linknames []syntax.Pos // tracks //go:linkname positions
+ }
+ 
+ func (p *noder) file(file *syntax.File) {
+@@ -1011,7 +1011,7 @@ func (p *noder) error(err error) {
+ 	line := p.baseline
+ 	var msg string
+ 	if err, ok := err.(syntax.Error); ok {
+-		line += int32(err.Line) - 1
++		line += int32(err.Pos.Line()) - 1
+ 		msg = err.Msg
+ 	} else {
+ 		msg = err.Error()
+@@ -1019,7 +1019,7 @@ func (p *noder) error(err error) {
+ 	yyerrorl(src.MakePos(line), "%s", msg)
+ }
+ 
+-func (p *noder) pragma(line uint, text string) syntax.Pragma {
++func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 	switch {
+ 	case strings.HasPrefix(text, "line "):
+ 		// Want to use LastIndexByte below but it's not defined in Go1.4 and bootstrap fails.
+@@ -1033,23 +1033,23 @@ func (p *noder) pragma(line uint, text string) syntax.Pragma {
+ 			break
+ 		}
+ 		if n > 1e8 {
+-			p.error(syntax.Error{Line: line, Msg: "line number out of range"})
++			p.error(syntax.Error{Pos: pos, Msg: "line number out of range"})
+ 			errorexit()
+ 		}
+ 		if n <= 0 {
+ 			break
+ 		}
+-		lexlineno = src.MakePos(p.baseline + int32(line))
++		lexlineno = src.MakePos(p.baseline + int32(pos.Line()))
+ 		linehistupdate(text[5:i], n)
+ 
+ 	case strings.HasPrefix(text, "go:linkname "):
+ 		// Record line number so we can emit an error later if
+ 		// the file doesn't import package unsafe.
+-		p.linknames = append(p.linknames, line)
++		p.linknames = append(p.linknames, pos)
+ 
+ 		f := strings.Fields(text)
+ 		if len(f) != 3 {
+-			p.error(syntax.Error{Line: line, Msg: "usage: //go:linkname localname linkname"})
++			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname linkname"})
+ 			break
+ 		}
+ 		lookup(f[1]).Linkname = f[2]
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index a20574f113..adbb4da750 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -8,7 +8,7 @@ package syntax
+ // Nodes
+ 
+ type Node interface {
+-	Pos() *Pos
++	Pos() Pos
+ 	aNode()
+ 	init(p *parser)
+ }
+@@ -19,14 +19,15 @@ type node struct {
+ 	pos Pos
+ }
+ 
+-func (n *node) Pos() *Pos {
+-	return &n.pos
++func (n *node) Pos() Pos {
++	return n.pos
+ }
+ 
+ func (*node) aNode() {}
+ 
++// TODO(gri) we may be able to get rid of init here and in Node
+ func (n *node) init(p *parser) {
+-	n.pos = MakePos(p.base, p.line, p.col)
++	n.pos = p.pos()
+ }
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 50503d2ad8..505031ac2b 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -35,14 +35,26 @@ type parser struct {
+ func (p *parser) init(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
+ 	p.base = NewFileBase(filename)
+ 	p.errh = errh
+-	p.scanner.init(src, p.error_at, func(line, col uint, text string) {
+-		if strings.HasPrefix(text, "line ") {
+-			p.updateBase(line, col, text[5:])
+-		}
+-		if pragh != nil {
+-			p.pragma |= pragh(line, text)
+-		}
+-	}, gcCompat)
++	p.scanner.init(
++		src,
++		// Error and pragma handlers for scanner.
++		// Because the (line, col) positions passed to these
++		// handlers are always at or after the current reading
++		// position, it is save to use the most recent position
++		// base to compute the corresponding Pos value.
++		func(line, col uint, msg string) {
++			p.error_at(p.pos_at(line, col), msg)
++		},
++		func(line, col uint, text string) {
++			if strings.HasPrefix(text, "line ") {
++				p.updateBase(line, col, text[5:])
++			}
++			if pragh != nil {
++				p.pragma |= pragh(p.pos_at(line, col), text)
++			}
++		},
++		gcCompat,
++	)
+ 
+ 	p.first = nil
+ 	p.pragma = 0
+@@ -61,7 +73,7 @@ func (p *parser) updateBase(line, col uint, text string) {
+ 	nstr := text[i+1:]
+ 	n, err := strconv.Atoi(nstr)
+ 	if err != nil || n <= 0 || n > lineMax {
+-		p.error_at(line, col+uint(i+1), "invalid line number: "+nstr)
++		p.error_at(p.pos_at(line, col+uint(i+1)), "invalid line number: "+nstr)
+ 		return
+ 	}
+ 	p.base = NewLinePragmaBase(MakePos(p.base.Pos().Base(), line, col), text[:i], uint(n))
+@@ -85,9 +97,14 @@ func (p *parser) want(tok token) {
+ // ----------------------------------------------------------------------------
+ // Error handling
+ 
++// pos_at returns the Pos value for (line, col) and the current position base.
++func (p *parser) pos_at(line, col uint) Pos {
++	return MakePos(p.base, line, col)
++}
++
+ // error reports an error at the given position.
+-func (p *parser) error_at(line, col uint, msg string) {
+-	err := Error{line, col, msg}
++func (p *parser) error_at(pos Pos, msg string) {
++	err := Error{pos, msg}
+ 	if p.first == nil {
+ 		p.first = err
+ 	}
+@@ -97,13 +114,8 @@ func (p *parser) error_at(line, col uint, msg string) {
+ 	p.errh(err)
+ }
+ 
+-// error reports a (non-syntax) error at the current token position.
+-func (p *parser) error(msg string) {
+-	p.error_at(p.line, p.col, msg)
+-}
+-
+ // syntax_error_at reports a syntax error at the given position.
+-func (p *parser) syntax_error_at(line, col uint, msg string) {
++func (p *parser) syntax_error_at(pos Pos, msg string) {
+ 	if trace {
+ 		defer p.trace("syntax_error (" + msg + ")")()
+ 	}
+@@ -122,7 +134,7 @@ func (p *parser) syntax_error_at(line, col uint, msg string) {
+ 		msg = ", " + msg
+ 	default:
+ 		// plain error - we don't care about current token
+-		p.error_at(line, col, "syntax error: "+msg)
++		p.error_at(pos, "syntax error: "+msg)
+ 		return
+ 	}
+ 
+@@ -144,13 +156,13 @@ func (p *parser) syntax_error_at(line, col uint, msg string) {
+ 		tok = tokstring(p.tok)
+ 	}
+ 
+-	p.error_at(line, col, "syntax error: unexpected "+tok+msg)
++	p.error_at(pos, "syntax error: unexpected "+tok+msg)
+ }
+ 
+-// syntax_error reports a syntax error at the current token position.
+-func (p *parser) syntax_error(msg string) {
+-	p.syntax_error_at(p.line, p.col, msg)
+-}
++// Convenience methods using the current token position.
++func (p *parser) pos() Pos                { return p.pos_at(p.line, p.col) }
++func (p *parser) error(msg string)        { p.error_at(p.pos(), msg) }
++func (p *parser) syntax_error(msg string) { p.syntax_error_at(p.pos(), msg) }
+ 
+ // The stopset contains keywords that start a statement.
+ // They are good synchronization points in case of syntax
+@@ -1247,7 +1259,7 @@ func (p *parser) fieldDecl(styp *StructType) {
+ 			p.want(_Rparen)
+ 			tag := p.oliteral()
+ 			p.addField(styp, nil, typ, tag)
+-			p.error("cannot parenthesize embedded type")
++			p.syntax_error("cannot parenthesize embedded type")
+ 
+ 		} else {
+ 			// '(' embed ')' oliteral
+@@ -1255,7 +1267,7 @@ func (p *parser) fieldDecl(styp *StructType) {
+ 			p.want(_Rparen)
+ 			tag := p.oliteral()
+ 			p.addField(styp, nil, typ, tag)
+-			p.error("cannot parenthesize embedded type")
++			p.syntax_error("cannot parenthesize embedded type")
+ 		}
+ 
+ 	case _Star:
+@@ -1266,7 +1278,7 @@ func (p *parser) fieldDecl(styp *StructType) {
+ 			p.want(_Rparen)
+ 			tag := p.oliteral()
+ 			p.addField(styp, nil, typ, tag)
+-			p.error("cannot parenthesize embedded type")
++			p.syntax_error("cannot parenthesize embedded type")
+ 
+ 		} else {
+ 			// '*' embed oliteral
+@@ -1334,7 +1346,7 @@ func (p *parser) methodDecl() *Field {
+ 		f.init(p)
+ 		f.Type = p.qualifiedName(nil)
+ 		p.want(_Rparen)
+-		p.error("cannot parenthesize embedded type")
++		p.syntax_error("cannot parenthesize embedded type")
+ 		return f
+ 
+ 	default:
+@@ -1401,7 +1413,7 @@ func (p *parser) dotsType() *DotsType {
+ 	p.want(_DotDotDot)
+ 	t.Elem = p.tryType()
+ 	if t.Elem == nil {
+-		p.error("final argument in variadic function missing type")
++		p.syntax_error("final argument in variadic function missing type")
+ 	}
+ 
+ 	return t
+@@ -1612,7 +1624,7 @@ func (p *parser) labeledStmt(label *Name) Stmt {
+ 		s.Stmt = p.stmt()
+ 		if s.Stmt == missing_stmt {
+ 			// report error at line of ':' token
+-			p.syntax_error_at(label.Pos().Line(), label.Pos().Col(), "missing statement after label")
++			p.syntax_error_at(label.Pos(), "missing statement after label")
+ 			// we are already at the end of the labeled statement - no need to advance
+ 			return missing_stmt
+ 		}
+@@ -1695,7 +1707,7 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
+ 	if p.tok != _Semi {
+ 		// accept potential varDecl but complain
+ 		if forStmt && p.got(_Var) {
+-			p.error("var declaration not allowed in for initializer")
++			p.syntax_error("var declaration not allowed in for initializer")
+ 		}
+ 		init = p.simpleStmt(nil, forStmt)
+ 		// If we have a range clause, we are done.
+@@ -1748,7 +1760,7 @@ func (p *parser) ifStmt() *IfStmt {
+ 	p.want(_If)
+ 	s.Init, s.Cond, _ = p.header(false)
+ 	if s.Cond == nil {
+-		p.error("missing condition in if statement")
++		p.syntax_error("missing condition in if statement")
+ 	}
+ 
+ 	if gcCompat {
+@@ -1764,7 +1776,7 @@ func (p *parser) ifStmt() *IfStmt {
+ 		case _Lbrace:
+ 			s.Else = p.blockStmt()
+ 		default:
+-			p.error("else must be followed by if or statement block")
++			p.syntax_error("else must be followed by if or statement block")
+ 			p.advance(_Name, _Rbrace)
+ 		}
+ 	}
+@@ -2137,7 +2149,7 @@ func (p *parser) exprList() Expr {
+ 			list = append(list, p.expr())
+ 		}
+ 		t := new(ListExpr)
+-		t.init(p) // TODO(gri) what is the correct thing here?
++		t.pos = x.Pos()
+ 		t.ElemList = list
+ 		x = t
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index 48bac7a42e..6601df9ec7 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -34,18 +34,18 @@ func MakePos(base *PosBase, line, col uint) Pos {
+ }
+ 
+ // Filename returns the name of the actual file containing this position.
+-func (p *Pos) Filename() string { return p.base.Pos().RelFilename() }
++func (p Pos) Filename() string { return p.base.Pos().RelFilename() }
+ 
+ // Base returns the position base.
+-func (p *Pos) Base() *PosBase { return p.base }
++func (p Pos) Base() *PosBase { return p.base }
+ 
+ // RelFilename returns the filename recorded with the position's base.
+-func (p *Pos) RelFilename() string { return p.base.Filename() }
++func (p Pos) RelFilename() string { return p.base.Filename() }
+ 
+ // RelLine returns the line number relative to the positions's base.
+-func (p *Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
++func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().Line() }
+ 
+-func (p *Pos) String() string {
++func (p Pos) String() string {
+ 	b := p.base
+ 
+ 	if b == b.Pos().base {
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index c31611a96d..8af2f1ce14 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -41,6 +41,18 @@ func (s *scanner) init(src io.Reader, errh, pragh func(line, col uint, msg strin
+ 	s.nlsemi = false
+ }
+ 
++// next advances the scanner by reading the next token.
++//
++// If a read, source encoding, or lexical error occurs, next
++// calls the error handler installed with init. The handler
++// must exist.
++//
++// If a //line or //go: directive is encountered, next
++// calls the pragma handler installed with init, if not nil.
++//
++// The (line, col) position passed to the error and pragma
++// handler is always at or after the current source reading
++// position.
+ func (s *scanner) next() {
+ 	nlsemi := s.nlsemi
+ 	s.nlsemi = false
+diff --git a/src/cmd/compile/internal/syntax/source.go b/src/cmd/compile/internal/syntax/source.go
+index 78a1e81771..037742d73c 100644
+--- a/src/cmd/compile/internal/syntax/source.go
++++ b/src/cmd/compile/internal/syntax/source.go
+@@ -77,9 +77,13 @@ func (s *source) error(msg string) {
+ }
+ 
+ // getr reads and returns the next rune.
+-// If an error occurs, the error handler provided to init
+-// is called with position (line and column) information
+-// and error message before getr returns.
++//
++// If a read or source encoding error occurs, getr
++// calls the error handler installed with init.
++// The handler must exist.
++//
++// The (line, col) position passed to the error handler
++// is always at the current source reading position.
+ func (s *source) getr() rune {
+ redo:
+ 	s.r0, s.line0, s.col0 = s.r, s.line, s.col
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index fcaeb3d99d..4585defb8f 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -15,13 +15,12 @@ type Mode uint
+ 
+ // Error describes a syntax error. Error implements the error interface.
+ type Error struct {
+-	// TODO(gri) Line, Col should be replaced with Pos, eventually.
+-	Line, Col uint
+-	Msg       string
++	Pos Pos
++	Msg string
+ }
+ 
+ func (err Error) Error() string {
+-	return fmt.Sprintf("%d: %s", err.Line, err.Msg)
++	return fmt.Sprintf("%s: %s", err.Pos, err.Msg)
+ }
+ 
+ var _ error = Error{} // verify that Error implements error
+@@ -37,11 +36,11 @@ type Pragma uint16
+ // A PragmaHandler is used to process //line and //go: directives as
+ // they're scanned. The returned Pragma value will be unioned into the
+ // next FuncDecl node.
+-type PragmaHandler func(line uint, text string) Pragma
++type PragmaHandler func(pos Pos, text string) Pragma
+ 
+ // Parse parses a single Go source file from src and returns the corresponding
+-// syntax tree. If there are syntax errors, Parse will return the first error
+-// encountered. The filename is only used for position information.
++// syntax tree. If there are errors, Parse will return the first error found.
++// The filename is only used for position information.
+ //
+ // If errh != nil, it is called with each error encountered, and Parse will
+ // process as much source as possible. If errh is nil, Parse will terminate
+@@ -50,11 +49,11 @@ type PragmaHandler func(line uint, text string) Pragma
+ // If a PragmaHandler is provided, it is called with each pragma encountered.
+ //
+ // The Mode argument is currently ignored.
+-func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, err error) {
++func Parse(filename string, src io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) (_ *File, first error) {
+ 	defer func() {
+ 		if p := recover(); p != nil {
+-			var ok bool
+-			if err, ok = p.(Error); ok {
++			if err, ok := p.(Error); ok {
++				first = err
+ 				return
+ 			}
+ 			panic(p)

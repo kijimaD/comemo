@@ -10,6 +10,29 @@ Date:   Thu Oct 25 13:52:50 2018 +0300
     Change-Id: I36f55ceb23b444e8060a479500c5f709cbd3f6f0
     Reviewed-on: https://go-review.googlesource.com/c/144577
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/html.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 499fda5af5..d76d7c7b33 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -50,10 +50,14 @@ body {
+     font-family: Arial, sans-serif;
+ }
+ 
++h1 {
++    font-size: 18px;
++    display: inline-block;
++    margin: 0 1em .5em 0;
++}
++
+ #helplink {
+-    margin-bottom: 15px;
+-    display: block;
+-    margin-top: -15px;
++    display: inline-block;
+ }
+ 
+ #help {

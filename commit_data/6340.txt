@@ -7,6 +7,20 @@ Date:   Wed Sep 22 16:25:26 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2199043
-
+---
  src/pkg/http/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 136e6dfe4b..060619b835 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -61,7 +61,7 @@ func shouldEscape(c byte) bool {
+ 	switch c {
+ 	case '<', '>', '#', '%', '"', // RFC 2396 delims
+ 		'{', '}', '|', '\\', '^', '[', ']', '`', // RFC2396 unwise
+-		'?', '&', '=', '+': // RFC 2396 reserved in path
++		';', '/', '?', ':', '@', '&', '=', '+', '$', ',': // RFC 2396 reserved
+ 		return true
+ 	}
+ 	return false

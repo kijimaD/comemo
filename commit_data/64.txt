@@ -6,6 +6,40 @@ Date:   Thu May 1 18:14:17 2008 -0700
     - fixed a typo
     
     SVN=117439
-
+---
  doc/go_lang.txt | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 26ffbb2c03..132824e14e 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1512,7 +1512,7 @@ Switch statements
+ 
+ Switches provide multi-way execution.
+ 
+-  SwitchStat = "switch" [ [ SimpleStat ";" ] "Expression ] "{" { CaseClause } "}" .
++  SwitchStat = "switch" [ [ SimpleStat ";" ] Expression ] "{" { CaseClause } "}" .
+   CaseClause = CaseList StatementList [ ";" ] [ "fallthrough" [ ";" ] ] .
+   CaseList = Case { Case } .
+   Case = ( "case" ExpressionList | "default" ) ":" .
+@@ -1686,6 +1686,7 @@ array elements (the values).
+ 
+ TODO: is this right?
+ 
++
+ Break statements
+ ----
+ 
+@@ -1762,8 +1763,9 @@ Import declarations
+ A program can gain access to exported items from another package
+ through an import declaration:
+ 
+-  ImportDecl = "import" [ "." | PackageName ] PackageFileName .
+-  PackageFileName = string_lit .
++  ImportDecl = "import" ( ImportSpec | "(" ImportSpecList [ ";" ] ")" ) .
++  ImportSpec = [ "." | PackageName ] PackageFileName .
++  ImportSpecList = ImportSpec { ";" ImportSpec } .
+ 
+ An import statement makes the exported contents of the named
+ package file accessible in this package.

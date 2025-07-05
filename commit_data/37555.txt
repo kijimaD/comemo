@@ -16,9 +16,220 @@ Date:   Fri Aug 17 12:40:18 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/list/list.go            | 37 ++++++++++----------
  src/cmd/go/internal/load/pkg.go             | 15 ++++----
  src/cmd/go/internal/modload/load.go         | 17 +++++----
  src/cmd/go/testdata/script/mod_patterns.txt | 53 +++++++++++------------------
  4 files changed, 56 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 423516aad7..186b006c12 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -47,24 +47,25 @@ syntax of package template. The default output is equivalent
+ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+ 
+     type Package struct {
+-        Dir           string  // directory containing package sources
+-        ImportPath    string  // import path of package in dir
+-        ImportComment string  // path in import comment on package statement
+-        Name          string  // package name
+-        Doc           string  // package documentation string
+-        Target        string  // install path
+-        Shlib         string  // the shared library that contains this package (only set when -linkshared)
+-        Goroot        bool    // is this package in the Go root?
+-        Standard      bool    // is this package part of the standard Go library?
+-        Stale         bool    // would 'go install' do anything for this package?
+-        StaleReason   string  // explanation for Stale==true
+-        Root          string  // Go root or Go path dir containing this package
+-        ConflictDir   string  // this directory shadows Dir in $GOPATH
+-        BinaryOnly    bool    // binary-only package: cannot be recompiled from sources
+-        ForTest       string  // package is only for use in named test
+-        DepOnly       bool    // package is only a dependency, not explicitly listed
+-        Export        string  // file containing export data (when using -export)
+-        Module        *Module // info about package's containing module, if any (can be nil)
++        Dir           string   // directory containing package sources
++        ImportPath    string   // import path of package in dir
++        ImportComment string   // path in import comment on package statement
++        Name          string   // package name
++        Doc           string   // package documentation string
++        Target        string   // install path
++        Shlib         string   // the shared library that contains this package (only set when -linkshared)
++        Goroot        bool     // is this package in the Go root?
++        Standard      bool     // is this package part of the standard Go library?
++        Stale         bool     // would 'go install' do anything for this package?
++        StaleReason   string   // explanation for Stale==true
++        Root          string   // Go root or Go path dir containing this package
++        ConflictDir   string   // this directory shadows Dir in $GOPATH
++        BinaryOnly    bool     // binary-only package: cannot be recompiled from sources
++        ForTest       string   // package is only for use in named test
++        Export        string   // file containing export data (when using -export)
++        Module        *Module  // info about package's containing module, if any (can be nil)
++        Match         []string // command-line patterns matching this package
++        DepOnly       bool     // package is only a dependency, not explicitly listed
+ 
+         // Source files
+         GoFiles         []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b7257e77e3..43887b0008 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -60,15 +60,17 @@ type PackagePublic struct {
+ 	Doc           string                `json:",omitempty"` // package documentation string
+ 	Target        string                `json:",omitempty"` // installed target for this package (may be executable)
+ 	Shlib         string                `json:",omitempty"` // the shared library that contains this package (only set when -linkshared)
+-	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
+-	Standard      bool                  `json:",omitempty"` // is this package part of the standard Go library?
+ 	Root          string                `json:",omitempty"` // Go root or Go path dir containing this package
+ 	ConflictDir   string                `json:",omitempty"` // Dir is hidden by this other directory
+-	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
+ 	ForTest       string                `json:",omitempty"` // package is only for use in named test
+-	DepOnly       bool                  `json:",omitempty"` // package is only as a dependency, not explicitly listed
+ 	Export        string                `json:",omitempty"` // file containing export data (set by go list -export)
+ 	Module        *modinfo.ModulePublic `json:",omitempty"` // info about package's module, if any
++	Match         []string              `json:",omitempty"` // command-line patterns matching this package
++	Goroot        bool                  `json:",omitempty"` // is this package found in the Go root?
++	Standard      bool                  `json:",omitempty"` // is this package part of the standard Go library?
++	DepOnly       bool                  `json:",omitempty"` // package is only as a dependency, not explicitly listed
++	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
++	Incomplete    bool                  `json:",omitempty"` // was there an error loading this package or dependencies?
+ 
+ 	// Stale and StaleReason remain here *only* for the list command.
+ 	// They are only initialized in preparation for list execution.
+@@ -107,7 +109,7 @@ type PackagePublic struct {
+ 	Deps      []string          `json:",omitempty"` // all (recursively) imported dependencies
+ 
+ 	// Error information
+-	Incomplete bool            `json:",omitempty"` // was there an error loading this package or dependencies?
++	// Incomplete is above, packed into the other bools
+ 	Error      *PackageError   `json:",omitempty"` // error loading this package (not dependencies)
+ 	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
+ 
+@@ -1848,6 +1850,7 @@ func PackagesAndErrors(patterns []string) []*Package {
+ 	for _, m := range matches {
+ 		for _, pkg := range m.Pkgs {
+ 			p := loadPackage(pkg, &stk)
++			p.Match = append(p.Match, m.Pattern)
+ 			p.Internal.CmdlinePkg = true
+ 			if m.Literal {
+ 				// Note: do not set = m.Literal unconditionally
+@@ -1937,7 +1940,6 @@ func PackagesForBuild(args []string) []*Package {
+ func GoFilesPackage(gofiles []string) *Package {
+ 	ModInit()
+ 
+-	// TODO: Remove this restriction.
+ 	for _, f := range gofiles {
+ 		if !strings.HasSuffix(f, ".go") {
+ 			base.Fatalf("named files must be .go files")
+@@ -1998,6 +2000,7 @@ func GoFilesPackage(gofiles []string) *Package {
+ 	pkg.Internal.LocalPrefix = dirToImportPath(dir)
+ 	pkg.ImportPath = "command-line-arguments"
+ 	pkg.Target = ""
++	pkg.Match = gofiles
+ 
+ 	if pkg.Name == "main" {
+ 		_, elem := filepath.Split(gofiles[0])
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e408e478d3..b00f81458f 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -56,14 +56,14 @@ func ImportPaths(patterns []string) []*search.Match {
+ 
+ 	var matches []*search.Match
+ 	for _, pattern := range search.CleanPatterns(patterns) {
+-			m := &search.Match{
+-				Pattern: pattern,
+-				Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
+-			}
+-			if m.Literal {
+-				m.Pkgs = []string{pattern}
+-			}
+-			matches = append(matches, m)
++		m := &search.Match{
++			Pattern: pattern,
++			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
++		}
++		if m.Literal {
++			m.Pkgs = []string{pattern}
++		}
++		matches = append(matches, m)
+ 	}
+ 
+ 	fsDirs := make([][]string, len(matches))
+@@ -622,7 +622,6 @@ func (ld *loader) computePatternAll(paths []string) []string {
+ 	}
+ 	sort.Strings(all)
+ 
+-	fmt.Fprintf(os.Stderr, "ALL %v -> %v\n", paths, all)
+ 	return all
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_patterns.txt b/src/cmd/go/testdata/script/mod_patterns.txt
+index a43fe82489..4fa436ba2d 100644
+--- a/src/cmd/go/testdata/script/mod_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_patterns.txt
+@@ -5,43 +5,30 @@ cd m
+ # 'go list all' should list all of the packages used (directly or indirectly) by
+ # the packages in the main module, but no other packages from the standard
+ # library or active modules.
+-go list all
+-stdout example.com/m/useunicode
+-stdout example.com/m/useunsafe
+-[cgo] stdout example.com/m/useC
+-[!cgo] ! stdout example.com/m/useC
+-stdout '^unicode$'
+-stdout '^unsafe$'
+-! stdout index/suffixarray
+-
++#
+ # 'go list ...' should list packages in all active modules and the standard library.
+ # But not cmd/* - see golang.org/issue/26924.
+-go list ...
+-stdout example.com/unused/useerrors
+-stdout example.com/m/useunsafe
+-[cgo] stdout example.com/m/useC
+-[!cgo] ! stdout example.com/m/useC
+-stdout '^unicode$'
+-stdout '^unsafe$'
+-stdout index/suffixarray
+-! stdout cmd/pprof
+-
+-# 'go list example.com/m/...' should list packages in all modules that begin with
+-# "example.com/m/".
+-go list example.com/m/...
+-stdout example.com/m/useunicode
+-stdout example.com/m/useunsafe
+-! stdout example.com/[^m]
+-! stdout ^[^e]
+-[cgo] stdout example.com/m/useC
+-[!cgo] ! stdout example.com/m/useC
+-
++#
++# 'go list example.com/m/...' should list packages in all modules that begin with 'example.com/m/'.
++#
+ # 'go list ./...' should list only packages in the current module, not other active modules.
+-go list ./...
+-stdout example.com/m/useunicode
+-stdout example.com/m/useunsafe
+-[cgo] stdout example.com/m/useC
++#
++# Warnings about unmatched patterns should only be printed once.
++#
++# And the go command should be able to keep track of all this!
++go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
++stdout 'example.com/m/useunicode: \[all \.\.\. example.com/m/... ./...\]'
++stdout 'example.com/m/useunsafe: \[all \.\.\. example.com/m/... ./...\]'
++[cgo] stdout 'example.com/m/useC: \[all \.\.\. example.com/m/... ./...\]'
+ [!cgo] ! stdout example.com/m/useC
++stdout 'example.com/unused/useerrors: \[\.\.\.\]' # but not "all"
++stdout 'example.com/m/nested/useencoding: \[\.\.\. example.com/m/...\]' # but NOT "all" or "./..."
++stdout '^unicode: \[all \.\.\.\]'
++stdout '^unsafe: \[all \.\.\.\]'
++stdout 'index/suffixarray: \[\.\.\.\]'
++! stdout cmd/pprof # golang.org/issue/26924
++
++stderr -count=1 '^go: warning: "./xyz..." matched no packages$'
+ 
+ env CGO_ENABLED=0
+ go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...

@@ -5,7 +5,7 @@ Date:   Sun Jun 29 20:40:08 2008 -0700
     segmented stacks
     
     SVN=125267
-
+---
  src/cmd/6l/l.h                 |   3 +-
  src/cmd/6l/list.c              |  29 ++++----
  src/cmd/6l/pass.c              |  21 +++---
@@ -13,3 +13,540 @@ Date:   Sun Jun 29 20:40:08 2008 -0700
  src/runtime/rt0_amd64_linux.s  | 158 ++++++++++++++++++++++++++++++++++++-----
  src/runtime/runtime.c          |   8 +--
  6 files changed, 311 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 20bac85d0f..8966ed260e 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -346,8 +346,7 @@ EXTERN	char*	EXPTAB;
+ EXTERN	Prog	undefp;
+ EXTERN	ulong	stroffset;
+ EXTERN	vlong	textstksiz;
+-EXTERN	vlong	textinarg;
+-EXTERN	vlong	textoutarg;
++EXTERN	vlong	textarg;
+ 
+ #define	UP	(&undefp)
+ 
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index 98321565b9..789e7cec20 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -106,11 +106,11 @@ Dconv(Fmt *fp)
+ 			goto brk;
+ 		}
+ 		parsetextconst(a->offset);
+-		if(textinarg == 0 && textoutarg == 0) {
++		if(textarg == 0) {
+ 			sprint(str, "$%lld", textstksiz);
+ 			goto brk;
+ 		}
+-		sprint(str, "$%lld-%lld-%lld", textstksiz, textinarg, textoutarg);
++		sprint(str, "$%lld-%lld", textstksiz, textarg);
+ 		goto brk;
+ 	}
+ 
+@@ -422,18 +422,15 @@ parsetextconst(vlong arg)
+ 	if(textstksiz & 0x80000000LL)
+ 		textstksiz = -(-textstksiz & 0xffffffffLL);
+ 		
+-
+-	// the following throws away one bit
+-	// of precision, but maintains compat
+-	textinarg = (arg >> 32) & 0xffffLL;
+-	if(textinarg & 0x8000LL)
+-		textinarg = -(-textinarg & 0xffffLL);
+-	if(textinarg <= 0)
+-		textinarg = 100;
+-
+-	textoutarg = (arg >> 48) & 0xffffLL;
+-	if(textoutarg & 0x8000LL)
+-		textoutarg = -(-textoutarg & 0xffffLL);
+-	if(textoutarg <= 0)
+-		textoutarg = 0;
++	textarg = (arg >> 32) & 0xffffffffLL;
++	if(textarg & 0x80000000LL)
++		textarg = 0;
++	if(textarg <= 0)
++		textarg = 100;
++	if(textarg > textstksiz) {
++		textarg = textstksiz;
++		if(textarg <= 0)
++			textarg = 0;
++	}
++	textarg = (textarg+7) & ~7LL;
+ }
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 468318aec0..d593908969 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -668,7 +668,7 @@ dostkoff(void)
+ 			q = P;
+ 			if(pmorestack != P)
+ 			if(!(p->from.scale & NOSPLIT)) {
+-				if(autoffset <= 50) {
++				if(autoffset <= 75) {
+ 					// small stack
+ 					p = appendp(p);
+ 					p->as = ACMPQ;
+@@ -678,14 +678,9 @@ dostkoff(void)
+ 				} else {
+ 					// large stack
+ 					p = appendp(p);
+-					p->as = AMOVQ;
+-					p->from.type = D_SP;
+-					p->to.type = D_AX;
+-
+-					p = appendp(p);
+-					p->as = ASUBQ;
+-					p->from.type = D_CONST;
+-					p->from.offset = autoffset-50;
++					p->as = ALEAQ;
++					p->from.type = D_INDIR+D_SP;
++					p->from.offset = -(autoffset-75);
+ 					p->to.type = D_AX;
+ 
+ 					p = appendp(p);
+@@ -693,6 +688,7 @@ dostkoff(void)
+ 					p->from.type = D_AX;
+ 					p->to.type = D_INDIR+D_R15;
+ 				}
++
+ 				// common
+ 				p = appendp(p);
+ 				p->as = AJHI;
+@@ -703,9 +699,14 @@ dostkoff(void)
+ 				p = appendp(p);
+ 				p->as = AMOVQ;
+ 				p->from.type = D_CONST;
+-				p->from.offset = curtext->to.offset;
++				p->from.offset = 0;
+ 				p->to.type = D_AX;
+ 
++				/* 160 comes from 3 calls (3*8) 4 safes (4*8) and 104 guard */
++				if(autoffset+160 > 4096)
++					p->from.offset = (autoffset+160) & ~7LL;
++				p->from.offset |= textarg<<32;
++
+ 				p = appendp(p);
+ 				p->as = ACALL;
+ 				p->to.type = D_BRANCH;
+diff --git a/src/runtime/rt0_amd64_darwin.s b/src/runtime/rt0_amd64_darwin.s
+index 2219489642..8f2aed6696 100644
+--- a/src/runtime/rt0_amd64_darwin.s
++++ b/src/runtime/rt0_amd64_darwin.s
+@@ -5,30 +5,40 @@
+ 
+ TEXT	_rt0_amd64_darwin(SB),7,$-8
+ 
+-// copy arguments forward on an even stack
+-
++	// copy arguments forward on an even stack
+ 
+ 	MOVQ	0(SP), AX		// argc
+ 	LEAQ	8(SP), BX		// argv
++	SUBQ	$(4*8+7), SP		// 2args 2auto
+ 	ANDQ	$~7, SP
+-	SUBQ	$32, SP
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
+ 
+-// allocate the per-user block
++	// allocate the per-user block
+ 
+ 	LEAQ	peruser<>(SB), R15	// dedicated u. register
+-	MOVQ	SP, AX
+-	SUBQ	$4096, AX
+-	MOVQ	AX, 0(R15)
++
++	LEAQ	(-4096+104+4*8)(SP), AX
++	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
++
++	MOVL	$1024, AX
++	MOVL	AX, 0(SP)
++	CALL	mal(SB)
++
++	LEAQ	104(AX), BX
++	MOVQ	BX, 16(R15)		// 16(R15) is limit of istack (w 104b guard)
++
++	ADDQ	0(SP), AX
++	LEAQ	(-4*8)(AX), BX
++	MOVQ	BX, 24(R15)		// 24(R15) is base of istack (w auto*4)
+ 
+ 	CALL	check(SB)
+ 
+-// process the arguments
++	// process the arguments
+ 
+-	MOVL	16(SP), AX
++	MOVL	16(SP), AX		// copy argc
+ 	MOVL	AX, 0(SP)
+-	MOVQ	24(SP), AX
++	MOVQ	24(SP), AX		// copy argv
+ 	MOVQ	AX, 8(SP)
+ 	CALL	args(SB)
+ 
+@@ -38,15 +48,131 @@ TEXT	_rt0_amd64_darwin(SB),7,$-8
+ 	MOVQ	AX, 0(SP)		// exit status
+ 	CALL	sys·exit(SB)
+ 
+-	CALL	notok(SB)
+-
+-	ADDQ	$32, SP
++	CALL	notok(SB)		// fault
+ 	RET
+ 
++//
++// the calling sequence for a routine that
++// needs N bytes stack, A args.
++//
++//	N1 = (N+160 > 4096)? N+160: 0
++//	A1 = A
++//
++// if N <= 75
++//	CMPQ	SP, 0(R15)
++//	JHI	3(PC)
++//	MOVQ	$(N1<<0) | (A1<<32)), AX
++//	CALL	_morestack
++//
++// if N > 75
++//	LEAQ	(-N-75)(SP), AX
++//	CMPQ	AX, 0(R15)
++//	JHI	3(PC)
++//	MOVQ	$(N1<<0) | (A1<<32)), AX
++//	CALL	_morestack
++//
++
+ TEXT	_morestack(SB), 7, $0
+-	MOVQ	SP, AX
+-	SUBQ	$1024, AX
++	// save stuff on interrupt stack
++
++	MOVQ	24(R15), BX		// istack
++	MOVQ	SP, 8(BX)		// old SP
++	MOVQ	AX, 16(BX)		// magic number
++	MOVQ	0(R15), AX		// old limit
++	MOVQ	AX, 24(BX)
++
++	// switch and set up new limit
++
++	MOVQ	BX, SP
++	MOVQ	16(R15), AX		// istack limit
++	MOVQ	AX, 0(R15)
++
++	// allocate a new stack max of request and 4k
++
++	MOVL	16(SP), AX		// magic number
++	CMPL	AX, $4096
++	JHI	2(PC)
++	MOVL	$4096, AX
++	MOVL	AX, 0(SP)
++	CALL	mal(SB)
++
++	// switch to new stack
++
++	MOVQ	SP, BX			// istack
++	ADDQ	$104, AX		// new stack limit
++	MOVQ	AX, 0(R15)
++	ADDQ	0(SP), AX
++	LEAQ	(-104-4*8)(AX), SP	// new SP
++	MOVQ	8(R15), AX
++	MOVQ	AX, 0(SP)		// old base
++	MOVQ	SP, 8(R15)		// new base
++
++	// copy needed stuff from istack to new stack
++
++	MOVQ	16(BX), AX		// magic number
++	MOVQ	AX, 16(SP)
++	MOVQ	24(BX), AX		// old limit
++	MOVQ	AX, 24(SP)
++	MOVQ	8(BX), AX		// old SP
++	MOVQ	AX, 8(SP)
++
++// are there parameters
++
++	MOVL	20(SP), CX		// copy count
++	CMPL	CX, $0
++	JEQ	easy
++
++// copy in
++
++	LEAQ	16(AX), SI
++	SUBQ	CX, SP
++	MOVQ	SP, DI
++	SHRL	$3, CX
++	CLD
++	REP
++	MOVSQ
++
++	// call the intended
++	CALL	0(AX)
++
++// copy out
++
++	MOVQ	SP, SI
++	MOVQ	8(R15), BX		// new base
++	MOVQ	8(BX), AX		// old SP
++	LEAQ	16(AX), DI
++	MOVL	20(BX), CX		// copy count
++	SHRL	$3, CX
++	CLD
++	REP
++	MOVSQ
++
++	// restore old SP and limit
++	MOVQ	8(R15), SP		// new base
++	MOVQ	24(SP), AX		// old limit
+ 	MOVQ	AX, 0(R15)
++	MOVQ	0(SP), AX
++	MOVQ	AX, 8(R15)		// old base
++	MOVQ	8(SP), AX		// old SP
++	MOVQ	AX, SP
++
++	// and return to the call behind mine
++	ADDQ	$8, SP
++	RET
++
++easy:
++	CALL	0(AX)
++
++	// restore old SP and limit
++	MOVQ	24(SP), AX		// old limit
++	MOVQ	AX, 0(R15)
++	MOVQ	0(SP), AX
++	MOVQ	AX, 8(R15)		// old base
++	MOVQ	8(SP), AX		// old SP
++	MOVQ	AX, SP
++
++	// and return to the call behind mine
++	ADDQ	$8, SP
+ 	RET
+ 
+ TEXT	FLUSH(SB),7,$-8
+diff --git a/src/runtime/rt0_amd64_linux.s b/src/runtime/rt0_amd64_linux.s
+index 1dd77e4711..fdda7e1c8e 100644
+--- a/src/runtime/rt0_amd64_linux.s
++++ b/src/runtime/rt0_amd64_linux.s
+@@ -5,30 +5,40 @@
+ 
+ TEXT	_rt0_amd64_linux(SB),7,$-8
+ 
+-// copy arguments forward on an even stack
+-
++	// copy arguments forward on an even stack
+ 
+ 	MOVQ	0(SP), AX		// argc
+ 	LEAQ	8(SP), BX		// argv
++	SUBQ	$(4*8+7), SP		// 2args 2auto
+ 	ANDQ	$~7, SP
+-	SUBQ	$32, SP
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
+ 
+-// allocate the per-user block
++	// allocate the per-user block
+ 
+ 	LEAQ	peruser<>(SB), R15	// dedicated u. register
+-	MOVQ	SP, AX
+-	SUBQ	$4096, AX
+-	MOVQ	AX, 0(R15)
++
++	LEAQ	(-4096+104+4*8)(SP), AX
++	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
++
++	MOVL	$1024, AX
++	MOVL	AX, 0(SP)
++	CALL	mal(SB)
++
++	LEAQ	104(AX), BX
++	MOVQ	BX, 16(R15)		// 16(R15) is limit of istack (w 104b guard)
++
++	ADDQ	0(SP), AX
++	LEAQ	(-4*8)(AX), BX
++	MOVQ	BX, 24(R15)		// 24(R15) is base of istack (w auto*4)
+ 
+ 	CALL	check(SB)
+ 
+-// process the arguments
++	// process the arguments
+ 
+-	MOVL	16(SP), AX
++	MOVL	16(SP), AX		// copy argc
+ 	MOVL	AX, 0(SP)
+-	MOVQ	24(SP), AX
++	MOVQ	24(SP), AX		// copy argv
+ 	MOVQ	AX, 8(SP)
+ 	CALL	args(SB)
+ 
+@@ -38,15 +48,131 @@ TEXT	_rt0_amd64_linux(SB),7,$-8
+ 	MOVQ	AX, 0(SP)		// exit status
+ 	CALL	sys·exit(SB)
+ 
+-	CALL	notok(SB)
+-
+-	ADDQ	$32, SP
++	CALL	notok(SB)		// fault
+ 	RET
+ 
++//
++// the calling sequence for a routine that
++// needs N bytes stack, A args.
++//
++//	N1 = (N+160 > 4096)? N+160: 0
++//	A1 = A
++//
++// if N <= 75
++//	CMPQ	SP, 0(R15)
++//	JHI	3(PC)
++//	MOVQ	$(N1<<0) | (A1<<32)), AX
++//	CALL	_morestack
++//
++// if N > 75
++//	LEAQ	(-N-75)(SP), AX
++//	CMPQ	AX, 0(R15)
++//	JHI	3(PC)
++//	MOVQ	$(N1<<0) | (A1<<32)), AX
++//	CALL	_morestack
++//
++
+ TEXT	_morestack(SB), 7, $0
+-	MOVQ	SP, AX
+-	SUBQ	$1024, AX
++	// save stuff on interrupt stack
++
++	MOVQ	24(R15), BX		// istack
++	MOVQ	SP, 8(BX)		// old SP
++	MOVQ	AX, 16(BX)		// magic number
++	MOVQ	0(R15), AX		// old limit
++	MOVQ	AX, 24(BX)
++
++	// switch and set up new limit
++
++	MOVQ	BX, SP
++	MOVQ	16(R15), AX		// istack limit
++	MOVQ	AX, 0(R15)
++
++	// allocate a new stack max of request and 4k
++
++	MOVL	16(SP), AX		// magic number
++	CMPL	AX, $4096
++	JHI	2(PC)
++	MOVL	$4096, AX
++	MOVL	AX, 0(SP)
++	CALL	mal(SB)
++
++	// switch to new stack
++
++	MOVQ	SP, BX			// istack
++	ADDQ	$104, AX		// new stack limit
++	MOVQ	AX, 0(R15)
++	ADDQ	0(SP), AX
++	LEAQ	(-104-4*8)(AX), SP	// new SP
++	MOVQ	8(R15), AX
++	MOVQ	AX, 0(SP)		// old base
++	MOVQ	SP, 8(R15)		// new base
++
++	// copy needed stuff from istack to new stack
++
++	MOVQ	16(BX), AX		// magic number
++	MOVQ	AX, 16(SP)
++	MOVQ	24(BX), AX		// old limit
++	MOVQ	AX, 24(SP)
++	MOVQ	8(BX), AX		// old SP
++	MOVQ	AX, 8(SP)
++
++// are there parameters
++
++	MOVL	20(SP), CX		// copy count
++	CMPL	CX, $0
++	JEQ	easy
++
++// copy in
++
++	LEAQ	16(AX), SI
++	SUBQ	CX, SP
++	MOVQ	SP, DI
++	SHRL	$3, CX
++	CLD
++	REP
++	MOVSQ
++
++	// call the intended
++	CALL	0(AX)
++
++// copy out
++
++	MOVQ	SP, SI
++	MOVQ	8(R15), BX		// new base
++	MOVQ	8(BX), AX		// old SP
++	LEAQ	16(AX), DI
++	MOVL	20(BX), CX		// copy count
++	SHRL	$3, CX
++	CLD
++	REP
++	MOVSQ
++
++	// restore old SP and limit
++	MOVQ	8(R15), SP		// new base
++	MOVQ	24(SP), AX		// old limit
+ 	MOVQ	AX, 0(R15)
++	MOVQ	0(SP), AX
++	MOVQ	AX, 8(R15)		// old base
++	MOVQ	8(SP), AX		// old SP
++	MOVQ	AX, SP
++
++	// and return to the call behind mine
++	ADDQ	$8, SP
++	RET
++
++easy:
++	CALL	0(AX)
++
++	// restore old SP and limit
++	MOVQ	24(SP), AX		// old limit
++	MOVQ	AX, 0(R15)
++	MOVQ	0(SP), AX
++	MOVQ	AX, 8(R15)		// old base
++	MOVQ	8(SP), AX		// old SP
++	MOVQ	AX, SP
++
++	// and return to the call behind mine
++	ADDQ	$8, SP
+ 	RET
+ 
+ TEXT	FLUSH(SB),7,$-8
+@@ -145,7 +271,7 @@ TEXT	notok(SB),1,$-8
+ 
+ TEXT	sys·memclr(SB),1,$-8
+ 	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), CX		// arg 2 count
++	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
+ 	ADDL	$7, CX
+ 	SHRL	$3, CX
+ 	MOVQ	$0, AX
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 5ff3f85a3f..52ffba7d88 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -183,7 +183,7 @@ brk(uint32 n)
+ {
+ 	byte* v;
+ 
+-	v = sys·mmap(nil, NHUNK, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
++	v = sys·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, 0, 0);
+ 	sys·memclr(v, n);
+ 	nmmap += n;
+ 	return v;
+@@ -194,10 +194,8 @@ mal(uint32 n)
+ {
+ 	byte* v;
+ 
+-	// round to keep everything 64-bit alligned
+-	while(n & 7)
+-		n++;
+-
++	// round to keep everything 64-bit aligned
++	n = (n+7) & ~7;
+ 	nmal += n;
+ 
+ 	// do we have enough in contiguous hunk

@@ -25,7 +25,7 @@ Date:   Mon Oct 24 10:25:05 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  9 +++++++++
  src/cmd/compile/internal/gc/dcl.go             |  6 +++---
  src/cmd/compile/internal/gc/ssa.go             |  6 +++++-
@@ -43,3 +43,349 @@ Date:   Mon Oct 24 10:25:05 2016 -0400
  src/runtime/asm_amd64p32.s                     |  6 ------
  src/runtime/stubs.go                           |  4 +++-
  16 files changed, 90 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 8c92f07320..22e69aa514 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -795,6 +795,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLclosure, ssa.OpAMD64CALLinter:
+ 		s.Call(v)
++
++	case ssa.OpAMD64LoweredGetCallerPC:
++		p := s.Prog(x86.AMOVQ)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = -8 // PC is stored 8 bytes below first parameter.
++		p.From.Name = obj.NAME_PARAM
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
+ 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
+ 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL:
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 66caf2d943..cf91f53709 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1077,9 +1077,9 @@ func makefuncsym(s *types.Sym) {
+ 	if s.IsBlank() {
+ 		return
+ 	}
+-	if compiling_runtime && (s.Name == "getg" || s.Name == "getclosureptr") {
+-		// runtime.getg() and getclosureptr are not real functions and so do not
+-		// get funcsyms.
++	if compiling_runtime && (s.Name == "getg" || s.Name == "getclosureptr" || s.Name == "getcallerpc") {
++		// runtime.getg(), getclosureptr(), and getcallerpc() are
++		// not real functions and so do not get funcsyms.
+ 		return
+ 	}
+ 	if _, existed := s.Pkg.LookupOK(funcsymname(s)); !existed {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 94446d88e4..1a960497ab 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2584,6 +2584,11 @@ func init() {
+ 		},
+ 		all...)
+ 
++	addF("runtime", "getcallerpc",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue0(ssa.OpGetCallerPC, s.f.Config.Types.Uintptr)
++		}, sys.AMD64, sys.I386)
++
+ 	/******** runtime/internal/sys ********/
+ 	addF("runtime/internal/sys", "Ctz32",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+@@ -2614,7 +2619,6 @@ func init() {
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
+-
+ 	addF("runtime/internal/atomic", "Load64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 49fcd36530..c961c0f720 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -383,6 +383,7 @@
+ (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+ (GetG mem) -> (LoweredGetG mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ (Addr {sym} base) -> (LEAL {sym} base)
+ 
+ // block rewrites
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 25f3931c20..bea80fd47d 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -440,6 +440,11 @@ func init() {
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index e4321cbbcb..724b921e82 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -482,6 +482,7 @@
+ (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+ (GetG mem) -> (LoweredGetG mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
++(GetCallerPC) -> (LoweredGetCallerPC)
+ (Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
+ (Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 8390fd0c88..51dc3d33ee 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -540,6 +540,11 @@ func init() {
+ 		// and sorts it to the very beginning of the block to prevent other
+ 		// use of DX (the closure pointer)
+ 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
++		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
++		// I.e., if f calls g "calls" getcallerpc,
++		// the result should be the PC within f that g will return to.
++		// See runtime/stubs.go for a more detailed discussion.
++		{name: "LoweredGetCallerPC", reg: gp01},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 2967d29941..bec7ef97d5 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -378,6 +378,7 @@ var genericOps = []opData{
+ 	// Pseudo-ops
+ 	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
+ 	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
++	{name: "GetCallerPC"},        // for getcallerpc intrinsic
+ 
+ 	// Indexing operations
+ 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1f0138b610..39b9be3e11 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -396,6 +396,7 @@ const (
+ 	Op386InvertFlags
+ 	Op386LoweredGetG
+ 	Op386LoweredGetClosurePtr
++	Op386LoweredGetCallerPC
+ 	Op386LoweredNilCheck
+ 	Op386MOVLconvert
+ 	Op386FlagEQ
+@@ -653,6 +654,7 @@ const (
+ 	OpAMD64InvertFlags
+ 	OpAMD64LoweredGetG
+ 	OpAMD64LoweredGetClosurePtr
++	OpAMD64LoweredGetCallerPC
+ 	OpAMD64LoweredNilCheck
+ 	OpAMD64MOVQconvert
+ 	OpAMD64MOVLconvert
+@@ -1905,6 +1907,7 @@ const (
+ 	OpNilCheck
+ 	OpGetG
+ 	OpGetClosurePtr
++	OpGetCallerPC
+ 	OpPtrIndex
+ 	OpOffPtr
+ 	OpSliceMake
+@@ -4286,6 +4289,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "LoweredGetCallerPC",
++		argLen: 0,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 239}, // AX CX DX BX BP SI DI
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+@@ -7914,6 +7926,15 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "LoweredGetCallerPC",
++		argLen: 0,
++		reg: regInfo{
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+@@ -22834,6 +22855,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  0,
+ 		generic: true,
+ 	},
++	{
++		name:    "GetCallerPC",
++		argLen:  0,
++		generic: true,
++	},
+ 	{
+ 		name:    "PtrIndex",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 6726dbd0f5..b363dd3f18 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -329,6 +329,8 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValue386_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValue386_OpGetCallerPC_0(v)
+ 	case OpGetClosurePtr:
+ 		return rewriteValue386_OpGetClosurePtr_0(v)
+ 	case OpGetG:
+@@ -15052,6 +15054,15 @@ func rewriteValue386_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValue386_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(Op386LoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValue386_OpGetClosurePtr_0(v *Value) bool {
+ 	// match: (GetClosurePtr)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 01d2f883c6..60d68db23d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -563,6 +563,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpGeq8_0(v)
+ 	case OpGeq8U:
+ 		return rewriteValueAMD64_OpGeq8U_0(v)
++	case OpGetCallerPC:
++		return rewriteValueAMD64_OpGetCallerPC_0(v)
+ 	case OpGetClosurePtr:
+ 		return rewriteValueAMD64_OpGetClosurePtr_0(v)
+ 	case OpGetG:
+@@ -40851,6 +40853,15 @@ func rewriteValueAMD64_OpGeq8U_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpGetCallerPC_0(v *Value) bool {
++	// match: (GetCallerPC)
++	// cond:
++	// result: (LoweredGetCallerPC)
++	for {
++		v.reset(OpAMD64LoweredGetCallerPC)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpGetClosurePtr_0(v *Value) bool {
+ 	// match: (GetClosurePtr)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index ca430d681b..12cbac63bb 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -666,6 +666,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			q.To.Type = obj.TYPE_REG
+ 			q.To.Reg = r
+ 		}
++
++	case ssa.Op386LoweredGetCallerPC:
++		p := s.Prog(x86.AMOVL)
++		p.From.Type = obj.TYPE_MEM
++		p.From.Offset = -4 // PC is stored 4 bytes below first parameter.
++		p.From.Name = obj.NAME_PARAM
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
+ 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
+ 		s.Call(v)
+ 	case ssa.Op386NEGL,
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 76758686e5..f3b927f0b7 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -849,12 +849,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$4-8
+-	MOVL	argp+0(FP),AX		// addr of first arg
+-	MOVL	-4(AX),AX		// get calling pc
+-	MOVL	AX, ret+4(FP)
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+ 	CMPB	runtime·support_sse2(SB), $1
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index f992276794..d87f454e03 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -833,12 +833,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	INT	$3
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
+-	MOVQ	argp+0(FP),AX		// addr of first arg
+-	MOVQ	-8(AX),AX		// get calling pc
+-	MOVQ	AX, ret+8(FP)
+-	RET
+-
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 6777ad03b9..c80a563bda 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -559,12 +559,6 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 	MOVL	0, AX
+ 	RET
+ 
+-TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12
+-	MOVL	argp+0(FP),AX		// addr of first arg
+-	MOVL	-8(AX),AX		// get calling pc
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ // int64 runtime·cputicks(void)
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+ 	RDTSC
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 331fc0d518..65f1695ec4 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -200,7 +200,9 @@ func publicationBarrier()
+ // getcallersp returns the stack pointer (SP) of its caller's caller.
+ // For both, the argp must be a pointer to the caller's first function argument.
+ // The implementation may or may not use argp, depending on
+-// the architecture.
++// the architecture. The implementation may be a compiler
++// intrinsic; there is not necessarily code implementing this
++// on every platform.
+ //
+ // For example:
+ //

@@ -16,7 +16,7 @@ Date:   Wed Feb 6 11:40:54 2013 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7218044
-
+---
  src/pkg/runtime/proc.c                       |  15 ++---
  src/pkg/runtime/race.c                       |  90 ++++++++++++++-------------
  src/pkg/runtime/race.h                       |   6 +-
@@ -27,3 +27,524 @@ Date:   Wed Feb 6 11:40:54 2013 +0400
  src/pkg/runtime/race0.c                      |  12 ++--
  src/pkg/runtime/runtime.h                    |   1 +
  9 files changed, 107 insertions(+), 101 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 8cf8d9d81f..0a17367382 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -221,7 +221,7 @@ runtime·schedinit(void)
+ 	m->nomemprof--;
+ 
+ 	if(raceenabled)
+-		runtime·raceinit();
++		g->racectx = runtime·raceinit();
+ }
+ 
+ extern void main·init(void);
+@@ -283,6 +283,8 @@ schedunlock(void)
+ void
+ runtime·goexit(void)
+ {
++	if(raceenabled)
++		runtime·racegoend();
+ 	g->status = Gmoribund;
+ 	runtime·gosched();
+ }
+@@ -909,8 +911,6 @@ schedule(G *gp)
+ 			gput(gp);
+ 			break;
+ 		case Gmoribund:
+-			if(raceenabled)
+-				runtime·racegoend(gp->goid);
+ 			gp->status = Gdead;
+ 			if(gp->lockedm) {
+ 				gp->lockedm = nil;
+@@ -1327,7 +1327,7 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	byte *sp;
+ 	G *newg;
+ 	int32 siz;
+-	int64 goid;
++	uintptr racectx;
+ 
+ //printf("newproc1 %p %p narg=%d nret=%d\n", fn, argp, narg, nret);
+ 	siz = narg + nret;
+@@ -1340,9 +1340,8 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	if(siz > StackMin - 1024)
+ 		runtime·throw("runtime.newproc: function arguments too large for new goroutine");
+ 
+-	goid = runtime·xadd64((uint64*)&runtime·sched.goidgen, 1);
+ 	if(raceenabled)
+-		runtime·racegostart(goid, callerpc);
++		racectx = runtime·racegostart(callerpc);
+ 
+ 	schedlock();
+ 
+@@ -1374,9 +1373,11 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret, void *callerpc)
+ 	newg->sched.g = newg;
+ 	newg->entry = fn;
+ 	newg->gopc = (uintptr)callerpc;
++	if(raceenabled)
++		newg->racectx = racectx;
+ 
+ 	runtime·sched.gcount++;
+-	newg->goid = goid;
++	newg->goid = ++runtime·sched.goidgen;
+ 
+ 	newprocreadylocked(newg);
+ 	schedunlock();
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index bf07a7ccf0..1a2e37a36d 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -10,36 +10,36 @@
+ #include "malloc.h"
+ #include "race.h"
+ 
+-void runtime∕race·Initialize(void);
++void runtime∕race·Initialize(uintptr *racectx);
+ void runtime∕race·MapShadow(void *addr, uintptr size);
+ void runtime∕race·Finalize(void);
+-void runtime∕race·FinalizerGoroutine(int32);
+-void runtime∕race·Read(int32 goid, void *addr, void *pc);
+-void runtime∕race·Write(int32 goid, void *addr, void *pc);
+-void runtime∕race·ReadRange(int32 goid, void *addr, uintptr sz, uintptr step, void *pc);
+-void runtime∕race·WriteRange(int32 goid, void *addr, uintptr sz, uintptr step, void *pc);
+-void runtime∕race·FuncEnter(int32 goid, void *pc);
+-void runtime∕race·FuncExit(int32 goid);
+-void runtime∕race·Malloc(int32 goid, void *p, uintptr sz, void *pc);
++void runtime∕race·FinalizerGoroutine(uintptr racectx);
++void runtime∕race·Read(uintptr racectx, void *addr, void *pc);
++void runtime∕race·Write(uintptr racectx, void *addr, void *pc);
++void runtime∕race·ReadRange(uintptr racectx, void *addr, uintptr sz, uintptr step, void *pc);
++void runtime∕race·WriteRange(uintptr racectx, void *addr, uintptr sz, uintptr step, void *pc);
++void runtime∕race·FuncEnter(uintptr racectx, void *pc);
++void runtime∕race·FuncExit(uintptr racectx);
++void runtime∕race·Malloc(uintptr racectx, void *p, uintptr sz, void *pc);
+ void runtime∕race·Free(void *p);
+-void runtime∕race·GoStart(int32 pgoid, int32 chgoid, void *pc);
+-void runtime∕race·GoEnd(int32 goid);
+-void runtime∕race·Acquire(int32 goid, void *addr);
+-void runtime∕race·Release(int32 goid, void *addr);
+-void runtime∕race·ReleaseMerge(int32 goid, void *addr);
++void runtime∕race·GoStart(uintptr racectx, uintptr *chracectx, void *pc);
++void runtime∕race·GoEnd(uintptr racectx);
++void runtime∕race·Acquire(uintptr racectx, void *addr);
++void runtime∕race·Release(uintptr racectx, void *addr);
++void runtime∕race·ReleaseMerge(uintptr racectx, void *addr);
+ 
+ extern byte noptrdata[];
+ extern byte enoptrbss[];
+ 
+ static bool onstack(uintptr argp);
+ 
+-void
++uintptr
+ runtime·raceinit(void)
+ {
+-	uintptr sz;
++	uintptr sz, racectx;
+ 
+ 	m->racecall = true;
+-	runtime∕race·Initialize();
++	runtime∕race·Initialize(&racectx);
+ 	sz = (byte*)&runtime·mheap - noptrdata;
+ 	if(sz)
+ 		runtime∕race·MapShadow(noptrdata, sz);
+@@ -47,6 +47,7 @@ runtime·raceinit(void)
+ 	if(sz)
+ 		runtime∕race·MapShadow(&runtime·mheap+1, sz);
+ 	m->racecall = false;
++	return racectx;
+ }
+ 
+ void
+@@ -73,7 +74,7 @@ runtime·racewrite(uintptr addr)
+ {
+ 	if(!onstack(addr)) {
+ 		m->racecall = true;
+-		runtime∕race·Write(g->goid-1, (void*)addr, runtime·getcallerpc(&addr));
++		runtime∕race·Write(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
+ 		m->racecall = false;
+ 	}
+ }
+@@ -86,7 +87,7 @@ runtime·raceread(uintptr addr)
+ {
+ 	if(!onstack(addr)) {
+ 		m->racecall = true;
+-		runtime∕race·Read(g->goid-1, (void*)addr, runtime·getcallerpc(&addr));
++		runtime∕race·Read(g->racectx, (void*)addr, runtime·getcallerpc(&addr));
+ 		m->racecall = false;
+ 	}
+ }
+@@ -105,7 +106,7 @@ runtime·racefuncenter(uintptr pc)
+ 		runtime·callers(2, &pc, 1);
+ 
+ 	m->racecall = true;
+-	runtime∕race·FuncEnter(g->goid-1, (void*)pc);
++	runtime∕race·FuncEnter(g->racectx, (void*)pc);
+ 	m->racecall = false;
+ }
+ 
+@@ -115,7 +116,7 @@ void
+ runtime·racefuncexit(void)
+ {
+ 	m->racecall = true;
+-	runtime∕race·FuncExit(g->goid-1);
++	runtime∕race·FuncExit(g->racectx);
+ 	m->racecall = false;
+ }
+ 
+@@ -126,7 +127,7 @@ runtime·racemalloc(void *p, uintptr sz, void *pc)
+ 	if(m->curg == nil)
+ 		return;
+ 	m->racecall = true;
+-	runtime∕race·Malloc(m->curg->goid-1, p, sz, pc);
++	runtime∕race·Malloc(m->curg->racectx, p, sz, pc);
+ 	m->racecall = false;
+ }
+ 
+@@ -138,42 +139,45 @@ runtime·racefree(void *p)
+ 	m->racecall = false;
+ }
+ 
+-void
+-runtime·racegostart(int32 goid, void *pc)
++uintptr
++runtime·racegostart(void *pc)
+ {
++	uintptr racectx;
++
+ 	m->racecall = true;
+-	runtime∕race·GoStart(g->goid-1, goid-1, pc);
++	runtime∕race·GoStart(g->racectx, &racectx, pc);
+ 	m->racecall = false;
++	return racectx;
+ }
+ 
+ void
+-runtime·racegoend(int32 goid)
++runtime·racegoend(void)
+ {
+ 	m->racecall = true;
+-	runtime∕race·GoEnd(goid-1);
++	runtime∕race·GoEnd(g->racectx);
+ 	m->racecall = false;
+ }
+ 
+ static void
+ memoryaccess(void *addr, uintptr callpc, uintptr pc, bool write)
+ {
+-	int64 goid;
++	uintptr racectx;
+ 
+ 	if(!onstack((uintptr)addr)) {
+ 		m->racecall = true;
+-		goid = g->goid-1;
++		racectx = g->racectx;
+ 		if(callpc) {
+ 			if(callpc == (uintptr)runtime·lessstack ||
+ 				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
+ 				runtime·callers(3, &callpc, 1);
+-			runtime∕race·FuncEnter(goid, (void*)callpc);
++			runtime∕race·FuncEnter(racectx, (void*)callpc);
+ 		}
+ 		if(write)
+-			runtime∕race·Write(goid, addr, (void*)pc);
++			runtime∕race·Write(racectx, addr, (void*)pc);
+ 		else
+-			runtime∕race·Read(goid, addr, (void*)pc);
++			runtime∕race·Read(racectx, addr, (void*)pc);
+ 		if(callpc)
+-			runtime∕race·FuncExit(goid);
++			runtime∕race·FuncExit(racectx);
+ 		m->racecall = false;
+ 	}
+ }
+@@ -193,23 +197,23 @@ runtime·racereadpc(void *addr, void *callpc, void *pc)
+ static void
+ rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc, bool write)
+ {
+-	int64 goid;
++	uintptr racectx;
+ 
+ 	if(!onstack((uintptr)addr)) {
+ 		m->racecall = true;
+-		goid = g->goid-1;
++		racectx = g->racectx;
+ 		if(callpc) {
+ 			if(callpc == (uintptr)runtime·lessstack ||
+ 				(callpc >= (uintptr)runtime·mheap.arena_start && callpc < (uintptr)runtime·mheap.arena_used))
+ 				runtime·callers(3, &callpc, 1);
+-			runtime∕race·FuncEnter(goid, (void*)callpc);
++			runtime∕race·FuncEnter(racectx, (void*)callpc);
+ 		}
+ 		if(write)
+-			runtime∕race·WriteRange(goid, addr, size, step, (void*)pc);
++			runtime∕race·WriteRange(racectx, addr, size, step, (void*)pc);
+ 		else
+-			runtime∕race·ReadRange(goid, addr, size, step, (void*)pc);
++			runtime∕race·ReadRange(racectx, addr, size, step, (void*)pc);
+ 		if(callpc)
+-			runtime∕race·FuncExit(goid);
++			runtime∕race·FuncExit(racectx);
+ 		m->racecall = false;
+ 	}
+ }
+@@ -238,7 +242,7 @@ runtime·raceacquireg(G *gp, void *addr)
+ 	if(g->raceignore)
+ 		return;
+ 	m->racecall = true;
+-	runtime∕race·Acquire(gp->goid-1, addr);
++	runtime∕race·Acquire(gp->racectx, addr);
+ 	m->racecall = false;
+ }
+ 
+@@ -254,7 +258,7 @@ runtime·racereleaseg(G *gp, void *addr)
+ 	if(g->raceignore)
+ 		return;
+ 	m->racecall = true;
+-	runtime∕race·Release(gp->goid-1, addr);
++	runtime∕race·Release(gp->racectx, addr);
+ 	m->racecall = false;
+ }
+ 
+@@ -270,7 +274,7 @@ runtime·racereleasemergeg(G *gp, void *addr)
+ 	if(g->raceignore)
+ 		return;
+ 	m->racecall = true;
+-	runtime∕race·ReleaseMerge(gp->goid-1, addr);
++	runtime∕race·ReleaseMerge(gp->racectx, addr);
+ 	m->racecall = false;
+ }
+ 
+@@ -278,7 +282,7 @@ void
+ runtime·racefingo(void)
+ {
+ 	m->racecall = true;
+-	runtime∕race·FinalizerGoroutine(g->goid - 1);
++	runtime∕race·FinalizerGoroutine(g->racectx);
+ 	m->racecall = false;
+ }
+ 
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+index 8a753db39c..432a8a97d1 100644
+--- a/src/pkg/runtime/race.h
++++ b/src/pkg/runtime/race.h
+@@ -11,15 +11,15 @@ enum { raceenabled = 0 };
+ #endif
+ 
+ // Initialize race detection subsystem.
+-void	runtime·raceinit(void);
++uintptr	runtime·raceinit(void);
+ // Finalize race detection subsystem, does not return.
+ void	runtime·racefini(void);
+ 
+ void	runtime·racemapshadow(void *addr, uintptr size);
+ void	runtime·racemalloc(void *p, uintptr sz, void *pc);
+ void	runtime·racefree(void *p);
+-void	runtime·racegostart(int32 goid, void *pc);
+-void	runtime·racegoend(int32 goid);
++uintptr	runtime·racegostart(void *pc);
++void	runtime·racegoend(void);
+ void	runtime·racewritepc(void *addr, void *callpc, void *pc);
+ void	runtime·racereadpc(void *addr, void *callpc, void *pc);
+ void	runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc);
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index 318ea08560..b0a5c9a502 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -8,23 +8,23 @@
+ package race
+ 
+ /*
+-void __tsan_init(void);
++void __tsan_init(void **racectx);
+ void __tsan_fini(void);
+ void __tsan_map_shadow(void *addr, void *size);
+-void __tsan_go_start(int pgoid, int chgoid, void *pc);
+-void __tsan_go_end(int goid);
+-void __tsan_read(int goid, void *addr, void *pc);
+-void __tsan_write(int goid, void *addr, void *pc);
+-void __tsan_read_range(int goid, void *addr, long sz, long step, void *pc);
+-void __tsan_write_range(int goid, void *addr, long sz, long step, void *pc);
+-void __tsan_func_enter(int goid, void *pc);
+-void __tsan_func_exit(int goid);
+-void __tsan_malloc(int goid, void *p, long sz, void *pc);
++void __tsan_go_start(void *racectx, void **chracectx, void *pc);
++void __tsan_go_end(void *racectx);
++void __tsan_read(void *racectx, void *addr, void *pc);
++void __tsan_write(void *racectx, void *addr, void *pc);
++void __tsan_read_range(void *racectx, void *addr, long sz, long step, void *pc);
++void __tsan_write_range(void *racectx, void *addr, long sz, long step, void *pc);
++void __tsan_func_enter(void *racectx, void *pc);
++void __tsan_func_exit(void *racectx);
++void __tsan_malloc(void *racectx, void *p, long sz, void *pc);
+ void __tsan_free(void *p);
+-void __tsan_acquire(int goid, void *addr);
+-void __tsan_release(int goid, void *addr);
+-void __tsan_release_merge(int goid, void *addr);
+-void __tsan_finalizer_goroutine(int tid);
++void __tsan_acquire(void *racectx, void *addr);
++void __tsan_release(void *racectx, void *addr);
++void __tsan_release_merge(void *racectx, void *addr);
++void __tsan_finalizer_goroutine(void *racectx);
+ */
+ import "C"
+ 
+@@ -33,8 +33,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-func Initialize() {
+-	C.__tsan_init()
++func Initialize(racectx *uintptr) {
++	C.__tsan_init((*unsafe.Pointer)(unsafe.Pointer(racectx)))
+ }
+ 
+ func Finalize() {
+@@ -45,62 +45,62 @@ func MapShadow(addr, size uintptr) {
+ 	C.__tsan_map_shadow(unsafe.Pointer(addr), unsafe.Pointer(size))
+ }
+ 
+-func FinalizerGoroutine(goid int32) {
+-	C.__tsan_finalizer_goroutine(C.int(goid))
++func FinalizerGoroutine(racectx uintptr) {
++	C.__tsan_finalizer_goroutine(unsafe.Pointer(racectx))
+ }
+ 
+-func Read(goid int32, addr, pc uintptr) {
+-	C.__tsan_read(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
++func Read(racectx uintptr, addr, pc uintptr) {
++	C.__tsan_read(unsafe.Pointer(racectx), unsafe.Pointer(addr), unsafe.Pointer(pc))
+ }
+ 
+-func Write(goid int32, addr, pc uintptr) {
+-	C.__tsan_write(C.int(goid), unsafe.Pointer(addr), unsafe.Pointer(pc))
++func Write(racectx uintptr, addr, pc uintptr) {
++	C.__tsan_write(unsafe.Pointer(racectx), unsafe.Pointer(addr), unsafe.Pointer(pc))
+ }
+ 
+-func ReadRange(goid int32, addr, sz, step, pc uintptr) {
+-	C.__tsan_read_range(C.int(goid), unsafe.Pointer(addr),
++func ReadRange(racectx uintptr, addr, sz, step, pc uintptr) {
++	C.__tsan_read_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
+ 		C.long(sz), C.long(step), unsafe.Pointer(pc))
+ }
+ 
+-func WriteRange(goid int32, addr, sz, step, pc uintptr) {
+-	C.__tsan_write_range(C.int(goid), unsafe.Pointer(addr),
++func WriteRange(racectx uintptr, addr, sz, step, pc uintptr) {
++	C.__tsan_write_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
+ 		C.long(sz), C.long(step), unsafe.Pointer(pc))
+ }
+ 
+-func FuncEnter(goid int32, pc uintptr) {
+-	C.__tsan_func_enter(C.int(goid), unsafe.Pointer(pc))
++func FuncEnter(racectx uintptr, pc uintptr) {
++	C.__tsan_func_enter(unsafe.Pointer(racectx), unsafe.Pointer(pc))
+ }
+ 
+-func FuncExit(goid int32) {
+-	C.__tsan_func_exit(C.int(goid))
++func FuncExit(racectx uintptr) {
++	C.__tsan_func_exit(unsafe.Pointer(racectx))
+ }
+ 
+-func Malloc(goid int32, p, sz, pc uintptr) {
+-	C.__tsan_malloc(C.int(goid), unsafe.Pointer(p), C.long(sz), unsafe.Pointer(pc))
++func Malloc(racectx uintptr, p, sz, pc uintptr) {
++	C.__tsan_malloc(unsafe.Pointer(racectx), unsafe.Pointer(p), C.long(sz), unsafe.Pointer(pc))
+ }
+ 
+ func Free(p uintptr) {
+ 	C.__tsan_free(unsafe.Pointer(p))
+ }
+ 
+-func GoStart(pgoid, chgoid int32, pc uintptr) {
+-	C.__tsan_go_start(C.int(pgoid), C.int(chgoid), unsafe.Pointer(pc))
++func GoStart(racectx uintptr, chracectx *uintptr, pc uintptr) {
++	C.__tsan_go_start(unsafe.Pointer(racectx), (*unsafe.Pointer)(unsafe.Pointer(chracectx)), unsafe.Pointer(pc))
+ }
+ 
+-func GoEnd(goid int32) {
+-	C.__tsan_go_end(C.int(goid))
++func GoEnd(racectx uintptr) {
++	C.__tsan_go_end(unsafe.Pointer(racectx))
+ }
+ 
+-func Acquire(goid int32, addr uintptr) {
+-	C.__tsan_acquire(C.int(goid), unsafe.Pointer(addr))
++func Acquire(racectx uintptr, addr uintptr) {
++	C.__tsan_acquire(unsafe.Pointer(racectx), unsafe.Pointer(addr))
+ }
+ 
+-func Release(goid int32, addr uintptr) {
+-	C.__tsan_release(C.int(goid), unsafe.Pointer(addr))
++func Release(racectx uintptr, addr uintptr) {
++	C.__tsan_release(unsafe.Pointer(racectx), unsafe.Pointer(addr))
+ }
+ 
+-func ReleaseMerge(goid int32, addr uintptr) {
+-	C.__tsan_release_merge(C.int(goid), unsafe.Pointer(addr))
++func ReleaseMerge(racectx uintptr, addr uintptr) {
++	C.__tsan_release_merge(unsafe.Pointer(racectx), unsafe.Pointer(addr))
+ }
+ 
+ //export __tsan_symbolize
+diff --git a/src/pkg/runtime/race/race_darwin_amd64.syso b/src/pkg/runtime/race/race_darwin_amd64.syso
+index b147940ebd..24a00497c0 100644
+Binary files a/src/pkg/runtime/race/race_darwin_amd64.syso and b/src/pkg/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_linux_amd64.syso b/src/pkg/runtime/race/race_linux_amd64.syso
+index 4d1846cbd1..b15091ba81 100644
+Binary files a/src/pkg/runtime/race/race_linux_amd64.syso and b/src/pkg/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+index 4936dc5e18..0a3a583547 100644
+Binary files a/src/pkg/runtime/race/race_windows_amd64.syso and b/src/pkg/runtime/race/race_windows_amd64.syso differ
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+index c1c1ee73d8..f91c12757f 100644
+--- a/src/pkg/runtime/race0.c
++++ b/src/pkg/runtime/race0.c
+@@ -7,9 +7,10 @@
+ 
+ #include "runtime.h"
+ 
+-void
++uintptr
+ runtime·raceinit(void)
+ {
++	return 0;
+ }
+ 
+ void
+@@ -119,15 +120,14 @@ runtime·racefree(void *p)
+ 	USED(p);
+ }
+ 
+-void
+-runtime·racegostart(int32 goid, void *pc)
++uintptr
++runtime·racegostart(void *pc)
+ {
+-	USED(goid);
+ 	USED(pc);
++	return 0;
+ }
+ 
+ void
+-runtime·racegoend(int32 goid)
++runtime·racegoend()
+ {
+-	USED(goid);
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ea46388d71..77f60cb4b5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -233,6 +233,7 @@ struct	G
+ 	uintptr	sigcode1;
+ 	uintptr	sigpc;
+ 	uintptr	gopc;	// pc of go statement that created this goroutine
++	uintptr	racectx;
+ 	uintptr	end[];
+ };
+ struct	M

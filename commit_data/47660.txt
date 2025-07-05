@@ -14,6 +14,23 @@ Date:   Fri Apr 2 21:04:31 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/macho.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 3630e67c25..872144e723 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -1022,7 +1022,10 @@ func machosymtab(ctxt *Link) {
+ 		symstr.AddUint8('_')
+ 
+ 		// replace "·" as ".", because DTrace cannot handle it.
+-		symstr.Addstring(strings.Replace(ldr.SymExtname(s), "·", ".", -1))
++		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
++
++		name = mangleABIName(ldr, s, name)
++		symstr.Addstring(name)
+ 
+ 		if t := ldr.SymType(s); t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
+ 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol

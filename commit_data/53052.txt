@@ -30,9 +30,186 @@ Date:   Tue Jun 28 16:31:29 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go   | 30 +++++++++++++++++++++
  src/cmd/compile/internal/noder/reader.go | 45 ++++++++++++++++++++++++++++++--
  src/cmd/compile/internal/noder/writer.go | 26 +++++++++++++++---
  test/escape_iface_unified.go             |  5 ++--
  4 files changed, 97 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 9ef016ab73..b6f80a1723 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -430,6 +430,36 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 
+ 	case ir.OMETHEXPR:
+ 		v.budget++ // Hack for toolstash -cmp.
++
++	case ir.OAS2:
++		n := n.(*ir.AssignListStmt)
++
++		// Unified IR unconditionally rewrites:
++		//
++		//	a, b = f()
++		//
++		// into:
++		//
++		//	DCL tmp1
++		//	DCL tmp2
++		//	tmp1, tmp2 = f()
++		//	a, b = tmp1, tmp2
++		//
++		// so that it can insert implicit conversions as necessary. To
++		// minimize impact to the existing inlining heuristics (in
++		// particular, to avoid breaking the existing inlinability regress
++		// tests), we need to compensate for this here.
++		if base.Debug.Unified != 0 {
++			if init := n.Rhs[0].Init(); len(init) == 1 {
++				if _, ok := init[0].(*ir.AssignListStmt); ok {
++					// 4 for each value, because each temporary variable now
++					// appears 3 times (DCL, LHS, RHS), plus an extra DCL node.
++					//
++					// 1 for the extra "tmp1, tmp2 = f()" assignment statement.
++					v.budget += 4*int32(len(n.Lhs)) + 1
++				}
++			}
++		}
+ 	}
+ 
+ 	v.budget--
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index ea1465693c..c56c658bef 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1238,7 +1238,6 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 
+ 	case stmtAssign:
+ 		pos := r.pos()
+-
+ 		names, lhs := r.assignList()
+ 		rhs := r.multiExpr()
+ 
+@@ -1444,6 +1443,18 @@ func (r *reader) selectStmt(label *types.Sym) ir.Node {
+ 		comm := r.stmt()
+ 		body := r.stmts()
+ 
++		// multiExpr will have desugared a comma-ok receive expression
++		// into a separate statement. However, the rest of the compiler
++		// expects comm to be the OAS2RECV statement itself, so we need to
++		// shuffle things around to fit that pattern.
++		if as2, ok := comm.(*ir.AssignListStmt); ok && as2.Op() == ir.OAS2 {
++			init := ir.TakeInit(as2.Rhs[0])
++			base.AssertfAt(len(init) == 1 && init[0].Op() == ir.OAS2RECV, as2.Pos(), "unexpected assignment: %+v", as2)
++
++			comm = init[0]
++			body = append([]ir.Node{as2}, body...)
++		}
++
+ 		clauses[i] = ir.NewCommStmt(pos, comm, body)
+ 	}
+ 	if len(clauses) > 0 {
+@@ -1810,11 +1821,41 @@ func (r *reader) optExpr() ir.Node {
+ func (r *reader) multiExpr() []ir.Node {
+ 	r.Sync(pkgbits.SyncMultiExpr)
+ 
++	if r.Bool() { // N:1
++		pos := r.pos()
++		expr := r.expr()
++
++		// See typecheck.typecheckargs.
++		curfn := r.curfn
++		if curfn == nil {
++			curfn = typecheck.InitTodoFunc
++		}
++
++		results := make([]ir.Node, r.Len())
++		as := ir.NewAssignListStmt(pos, ir.OAS2, nil, []ir.Node{expr})
++		as.Def = true
++		for i := range results {
++			tmp := typecheck.TempAt(pos, curfn, r.typ())
++			as.PtrInit().Append(ir.NewDecl(pos, ir.ODCL, tmp))
++			as.Lhs.Append(tmp)
++
++			res := ir.Node(tmp)
++			if r.Bool() {
++				res = typecheck.Expr(Implicit(ir.NewConvExpr(pos, ir.OCONV, r.typ(), res)))
++			}
++			results[i] = res
++		}
++
++		// TODO(mdempsky): Could use ir.InlinedCallExpr instead?
++		results[0] = ir.InitExpr([]ir.Node{typecheck.Stmt(as)}, results[0])
++		return results
++	}
++
++	// N:N
+ 	exprs := make([]ir.Node, r.Len())
+ 	if len(exprs) == 0 {
+ 		return nil
+ 	}
+-
+ 	for i := range exprs {
+ 		exprs[i] = r.expr()
+ 	}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 7020a02616..3c247dff4e 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1590,19 +1590,37 @@ func (w *writer) optExpr(expr syntax.Expr) {
+ // an f(g()) call, or the RHS operand in a comma-ok assignment).
+ func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syntax.Expr) {
+ 	w.Sync(pkgbits.SyncMultiExpr)
+-	w.Len(len(exprs))
+ 
+ 	if len(exprs) == 1 {
+ 		expr := exprs[0]
+ 		if tuple, ok := w.p.typeOf(expr).(*types2.Tuple); ok {
+-			// N:1 assignment
+ 			assert(tuple.Len() > 1)
+-			w.expr(expr) // TODO(mdempsky): Implicit conversions to dstTypes.
++			w.Bool(true) // N:1 assignment
++			w.pos(pos)
++			w.expr(expr)
++
++			w.Len(tuple.Len())
++			for i := 0; i < tuple.Len(); i++ {
++				src := tuple.At(i).Type()
++				// TODO(mdempsky): Investigate not writing src here. I think
++				// the reader should be able to infer it from expr anyway.
++				w.typ(src)
++				if dst := dstType(i); w.Bool(dst != nil && !types2.Identical(src, dst)) {
++					if src == nil || dst == nil {
++						w.p.fatalf(pos, "src is %v, dst is %v", src, dst)
++					}
++					if !types2.AssignableTo(src, dst) {
++						w.p.fatalf(pos, "%v is not assignable to %v", src, dst)
++					}
++					w.typ(dst)
++				}
++			}
+ 			return
+ 		}
+ 	}
+ 
+-	// N:N assignment
++	w.Bool(false) // N:N assignment
++	w.Len(len(exprs))
+ 	for i, expr := range exprs {
+ 		w.implicitConvExpr(pos, dstType(i), expr)
+ 	}
+diff --git a/test/escape_iface_unified.go b/test/escape_iface_unified.go
+index 7ac8e00151..80222dae5f 100644
+--- a/test/escape_iface_unified.go
++++ b/test/escape_iface_unified.go
+@@ -18,8 +18,7 @@ func dotTypeEscape2() { // #13805, #15796
+ 		var x interface{} = i // ERROR "i does not escape"
+ 		var y interface{} = j // ERROR "j does not escape"
+ 
+-		sink = x.(int) // ERROR "x.\(int\) escapes to heap"
+-		// BAD: should be "y.\(int\) escapes to heap" too
+-		sink, *(&ok) = y.(int)
++		sink = x.(int)         // ERROR "x.\(int\) escapes to heap"
++		sink, *(&ok) = y.(int) // ERROR "autotmp_.* escapes to heap"
+ 	}
+ }

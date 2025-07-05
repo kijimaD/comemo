@@ -7,7 +7,7 @@ Date:   Wed Feb 11 17:55:16 2009 -0800
     R=r
     OCL=24349
     CL=24913
-
+---
  src/lib/json/generic.go     |   4 +-
  src/lib/json/struct.go      |   4 +-
  src/lib/reflect/all_test.go |   4 +-
@@ -26,3 +26,805 @@ Date:   Wed Feb 11 17:55:16 2009 -0800
  test/ken/interfun.go        |   6 +-
  usr/gri/pretty/parser.go    |   4 +-
  17 files changed, 208 insertions(+), 62 deletions(-)
+
+diff --git a/src/lib/json/generic.go b/src/lib/json/generic.go
+index b57fcb12e2..08ae8dc29f 100644
+--- a/src/lib/json/generic.go
++++ b/src/lib/json/generic.go
+@@ -75,7 +75,7 @@ func (j *_Array) Elem(i int) Json {
+ 	if i < 0 || i >= j.a.Len() {
+ 		return Null
+ 	}
+-	return j.a.At(i)
++	return j.a.At(i).(Json)
+ }
+ func (j *_Array) String() string {
+ 	s := "[";
+@@ -232,7 +232,7 @@ func (b *_JsonBuilder) Get() Json {
+ 	case b.ptr != nil:
+ 		return *b.ptr;
+ 	case b.a != nil:
+-		return b.a.At(b.i);
++		return b.a.At(b.i).(Json);
+ 	case b.m != nil:
+ 		return b.m[b.k];
+ 	}
+diff --git a/src/lib/json/struct.go b/src/lib/json/struct.go
+index f37ee461ef..82e0a80a7b 100644
+--- a/src/lib/json/struct.go
++++ b/src/lib/json/struct.go
+@@ -122,7 +122,7 @@ func (b *_StructBuilder) Array() {
+ 		pv := v.(reflect.PtrValue);
+ 		psubtype := pv.Type().(reflect.PtrType).Sub();
+ 		if pv.Get() == nil && psubtype.Kind() == reflect.ArrayKind {
+-			av := reflect.NewSliceValue(psubtype, 0, 8);
++			av := reflect.NewSliceValue(psubtype.(reflect.ArrayType), 0, 8);
+ 			pv.SetSub(av);
+ 		}
+ 	}
+@@ -148,7 +148,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
+ 				for n <= i {
+ 					n *= 2
+ 				}
+-				av1 := reflect.NewSliceValue(av.Type(), av.Len(), n);
++				av1 := reflect.NewSliceValue(av.Type().(reflect.ArrayType), av.Len(), n);
+ 				av1.CopyFrom(av, av.Len());
+ 				pv.SetSub(av1);
+ 				av = av1;
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index a840fc8928..f6428fdf38 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -270,7 +270,7 @@ func TestAll(tt *testing.T) {	// TODO(r): wrap up better
+ 	assert(typ.String(), "[]uint32");
+ 
+ 	t = reflect.ParseTypeString("", "[]int32");
+-	v := reflect.NewSliceValue(t, 5, 10);
++	v := reflect.NewSliceValue(t.(ArrayType), 5, 10);
+ 	t1 := reflect.ParseTypeString("", "*[]int32");
+ 	v1 := reflect.NewInitValue(t1);
+ 	if v1 == nil { panic("V1 is nil"); }
+@@ -308,7 +308,7 @@ func TestCopyArray(t *testing.T) {
+ 		}
+ 	}
+ 	for tocopy := 1; tocopy <= 7; tocopy++ {
+-		vb.(PtrValue).Sub().(ArrayValue).CopyFrom(va.(PtrValue).Sub(), tocopy);
++		vb.(PtrValue).Sub().(ArrayValue).CopyFrom(va.(PtrValue).Sub().(ArrayValue), tocopy);
+ 		for i := 0; i < tocopy; i++ {
+ 			if a[i] != b[i] {
+ 				t.Errorf("1 tocopy=%d a[%d]=%d, b[%d]=%d",
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index d317e1a68f..b2ccfdf483 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -105,9 +105,9 @@ func TypeToString(typ Type, expand bool) string {
+ 		}
+ 		return str + TypeToString(c.Elem(), false);
+ 	case StructKind:
+-		return "struct{" + typeFieldsToString(typ, ";") + "}";
++		return "struct{" + typeFieldsToString(typ.(StructType), ";") + "}";
+ 	case InterfaceKind:
+-		return "interface{" + typeFieldsToString(typ, ";") + "}";
++		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";") + "}";
+ 	case FuncKind:
+ 		f := typ.(FuncType);
+ 		str = "(" + typeFieldsToString(f.In(), ",") + ")";
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index b02ad32d7a..d949f23f40 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -149,6 +149,12 @@ func (t *stubType) Get() Type {
+ // -- Pointer
+ 
+ type PtrType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	Sub()	Type
+ }
+ 
+@@ -168,6 +174,12 @@ func (t *ptrTypeStruct) Sub() Type {
+ // -- Array
+ 
+ type ArrayType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	IsSlice()	bool;
+ 	Len()	int;
+ 	Elem()	Type;
+@@ -207,6 +219,12 @@ func (t *arrayTypeStruct) Elem() Type {
+ // -- Map
+ 
+ type MapType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	Key()	Type;
+ 	Elem()	Type;
+ }
+@@ -232,6 +250,12 @@ func (t *mapTypeStruct) Elem() Type {
+ // -- Chan
+ 
+ type ChanType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	Dir()	int;
+ 	Elem()	Type;
+ }
+@@ -263,6 +287,12 @@ func (t *chanTypeStruct) Elem() Type {
+ // -- Struct
+ 
+ type StructType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	Field(int)	(name string, typ Type, tag string, offset int);
+ 	Len()	int;
+ }
+@@ -323,6 +353,12 @@ func (t *structTypeStruct) Len() int {
+ // -- Interface
+ 
+ type InterfaceType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	Field(int)	(name string, typ Type, tag string, offset int);
+ 	Len()	int;
+ }
+@@ -349,6 +385,12 @@ var nilInterface = newInterfaceTypeStruct("nil", "", make([]structField, 0));
+ // -- Func
+ 
+ type FuncType interface {
++	// TODO: Type;
++	Kind()	int;
++	Name()	string;
++	String()	string;
++	Size()	int;
++
+ 	In()	StructType;
+ 	Out()	StructType;
+ }
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 8a2706e974..6464d7e6d2 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -66,9 +66,11 @@ type creatorFn func(typ Type, addr Addr) Value
+ // -- Missing
+ 
+ type MissingValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
+ 	Addr()	Addr;
++	Interface()	interface {};
+ }
+ 
+ type missingValueStruct struct {
+@@ -82,10 +84,14 @@ func missingCreator(typ Type, addr Addr) Value {
+ // -- Int
+ 
+ type IntValue interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	int;
+ 	Set(int);
+-	Type()	Type;
+ }
+ 
+ type intValueStruct struct {
+@@ -107,10 +113,14 @@ func (v *intValueStruct) Set(i int) {
+ // -- Int8
+ 
+ type Int8Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	int8;
+ 	Set(int8);
+-	Type()	Type;
+ }
+ 
+ type int8ValueStruct struct {
+@@ -132,10 +142,14 @@ func (v *int8ValueStruct) Set(i int8) {
+ // -- Int16
+ 
+ type Int16Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	int16;
+ 	Set(int16);
+-	Type()	Type;
+ }
+ 
+ type int16ValueStruct struct {
+@@ -157,10 +171,14 @@ func (v *int16ValueStruct) Set(i int16) {
+ // -- Int32
+ 
+ type Int32Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	int32;
+ 	Set(int32);
+-	Type()	Type;
+ }
+ 
+ type int32ValueStruct struct {
+@@ -182,10 +200,14 @@ func (v *int32ValueStruct) Set(i int32) {
+ // -- Int64
+ 
+ type Int64Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	int64;
+ 	Set(int64);
+-	Type()	Type;
+ }
+ 
+ type int64ValueStruct struct {
+@@ -207,10 +229,14 @@ func (v *int64ValueStruct) Set(i int64) {
+ // -- Uint
+ 
+ type UintValue interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	uint;
+ 	Set(uint);
+-	Type()	Type;
+ }
+ 
+ type uintValueStruct struct {
+@@ -232,10 +258,14 @@ func (v *uintValueStruct) Set(i uint) {
+ // -- Uint8
+ 
+ type Uint8Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	uint8;
+ 	Set(uint8);
+-	Type()	Type;
+ }
+ 
+ type uint8ValueStruct struct {
+@@ -257,10 +287,14 @@ func (v *uint8ValueStruct) Set(i uint8) {
+ // -- Uint16
+ 
+ type Uint16Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	uint16;
+ 	Set(uint16);
+-	Type()	Type;
+ }
+ 
+ type uint16ValueStruct struct {
+@@ -282,10 +316,14 @@ func (v *uint16ValueStruct) Set(i uint16) {
+ // -- Uint32
+ 
+ type Uint32Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	uint32;
+ 	Set(uint32);
+-	Type()	Type;
+ }
+ 
+ type uint32ValueStruct struct {
+@@ -307,10 +345,14 @@ func (v *uint32ValueStruct) Set(i uint32) {
+ // -- Uint64
+ 
+ type Uint64Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	uint64;
+ 	Set(uint64);
+-	Type()	Type;
+ }
+ 
+ type uint64ValueStruct struct {
+@@ -332,10 +374,14 @@ func (v *uint64ValueStruct) Set(i uint64) {
+ // -- Uintptr
+ 
+ type UintptrValue interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	uintptr;
+ 	Set(uintptr);
+-	Type()	Type;
+ }
+ 
+ type uintptrValueStruct struct {
+@@ -357,10 +403,14 @@ func (v *uintptrValueStruct) Set(i uintptr) {
+ // -- Float
+ 
+ type FloatValue interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	float;
+ 	Set(float);
+-	Type()	Type;
+ }
+ 
+ type floatValueStruct struct {
+@@ -382,10 +432,14 @@ func (v *floatValueStruct) Set(f float) {
+ // -- Float32
+ 
+ type Float32Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	float32;
+ 	Set(float32);
+-	Type()	Type;
+ }
+ 
+ type float32ValueStruct struct {
+@@ -407,10 +461,14 @@ func (v *float32ValueStruct) Set(f float32) {
+ // -- Float64
+ 
+ type Float64Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	float64;
+ 	Set(float64);
+-	Type()	Type;
+ }
+ 
+ type float64ValueStruct struct {
+@@ -432,10 +490,14 @@ func (v *float64ValueStruct) Set(f float64) {
+ // -- Float80
+ 
+ type Float80Value interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	float80;
+ 	Set(float80);
+-	Type()	Type;
+ }
+ 
+ type float80ValueStruct struct {
+@@ -460,10 +522,14 @@ func (v *Float80ValueStruct) Set(f float80) {
+ // -- String
+ 
+ type StringValue interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	string;
+ 	Set(string);
+-	Type()	Type;
+ }
+ 
+ type stringValueStruct struct {
+@@ -485,10 +551,14 @@ func (v *stringValueStruct) Set(s string) {
+ // -- Bool
+ 
+ type BoolValue interface {
++	// TODO: Value;
+ 	Kind()	int;
++	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	bool;
+ 	Set(bool);
+-	Type()	Type;
+ }
+ 
+ type boolValueStruct struct {
+@@ -510,8 +580,12 @@ func (v *boolValueStruct) Set(b bool) {
+ // -- Pointer
+ 
+ type PtrValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Sub()	Value;
+ 	Get()	Addr;
+ 	SetSub(Value);
+@@ -547,8 +621,12 @@ func ptrCreator(typ Type, addr Addr) Value {
+ // Slices and arrays are represented by the same interface.
+ 
+ type ArrayValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	IsSlice()	bool;
+ 	Len()	int;
+ 	Cap() int;
+@@ -681,8 +759,12 @@ func arrayCreator(typ Type, addr Addr) Value {
+ // -- Map	TODO: finish and test
+ 
+ type MapValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Len()	int;
+ 	Elem(key Value)	Value;
+ }
+@@ -707,8 +789,11 @@ func (v *mapValueStruct) Elem(key Value) Value {
+ // -- Chan
+ 
+ type ChanValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
+ }
+ 
+ type chanValueStruct struct {
+@@ -722,8 +807,12 @@ func chanCreator(typ Type, addr Addr) Value {
+ // -- Struct
+ 
+ type StructValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Len()	int;
+ 	Field(i int)	Value;
+ }
+@@ -757,8 +846,12 @@ func structCreator(typ Type, addr Addr) Value {
+ // -- Interface
+ 
+ type InterfaceValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
++
+ 	Get()	interface {};
+ }
+ 
+@@ -777,8 +870,11 @@ func interfaceCreator(typ Type, addr Addr) Value {
+ // -- Func
+ 
+ type FuncValue interface {
++	// TODO: Value;
+ 	Kind()	int;
+ 	Type()	Type;
++	Addr()	Addr;
++	Interface()	interface {};
+ }
+ 
+ type funcValueStruct struct {
+@@ -860,7 +956,7 @@ func NewSliceValue(typ ArrayType, len, cap int) ArrayValue {
+ 	array.len = uint32(len);
+ 	array.cap = uint32(cap);
+ 
+-	return newValueAddr(typ, Addr(array));
++	return newValueAddr(typ, Addr(array)).(ArrayValue);
+ }
+ 
+ // Works on both slices and arrays
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index 6e769e98cb..b48110819b 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -126,7 +126,7 @@ func put(dat item, out *dch){
+ func get(in *dch) *rat {
+ 	seqno++;
+ 	in.req <- seqno;
+-	return <-in.dat;
++	return (<-in.dat).(*rat);
+ }
+ 
+ // Get one item from each of n demand channels
+@@ -332,9 +332,9 @@ func Add(U, V PS) PS{
+ 		for {
+ 			<-Z.req;
+ 			uv = get2(U,V);
+-			switch end(uv[0])+2*end(uv[1]) {
++			switch end(uv[0].(*rat))+2*end(uv[1].(*rat)) {
+ 			case 0:
+-				Z.dat <- add(uv[0], uv[1]);
++				Z.dat <- add(uv[0].(*rat), uv[1].(*rat));
+ 			case 1:
+ 				Z.dat <- uv[1];
+ 				copy(V,Z);
+@@ -448,13 +448,13 @@ func Mul(U, V PS) PS{
+ 	go func(U, V, Z PS){
+ 		<-Z.req;
+ 		uv := get2(U,V);
+-		if end(uv[0])!=0 || end(uv[1]) != 0 {
++		if end(uv[0].(*rat))!=0 || end(uv[1].(*rat)) != 0 {
+ 			Z.dat <- finis;
+ 		} else {
+-			Z.dat <- mul(uv[0],uv[1]);
++			Z.dat <- mul(uv[0].(*rat),uv[1].(*rat));
+ 			UU := Split(U);
+ 			VV := Split(V);
+-			W := Add(Cmul(uv[0],VV[0]),Cmul(uv[1],UU[0]));
++			W := Add(Cmul(uv[0].(*rat),VV[0]),Cmul(uv[1].(*rat),UU[0]));
+ 			<-Z.req;
+ 			Z.dat <- get(W);
+ 			copy(Add(W,Mul(UU[1],VV[1])),Z);
+diff --git a/test/fixedbugs/bug027.go b/test/fixedbugs/bug027.go
+index 16300502b8..acc295d51a 100644
+--- a/test/fixedbugs/bug027.go
++++ b/test/fixedbugs/bug027.go
+@@ -46,7 +46,7 @@ func main() {
+ 	v.Insert(i0);
+ 	for i := 0; i < v.nelem; i++ {
+ 		var x *I;
+-		x = v.At(i);
++		x = v.At(i).(*I);
+ 		print(i, " ", x.val, "\n");  // prints correct list
+ 	}
+ 	for i := 0; i < v.nelem; i++ {
+diff --git a/test/fixedbugs/bug054.go b/test/fixedbugs/bug054.go
+index 0ed5d07082..c8a2272c23 100644
+--- a/test/fixedbugs/bug054.go
++++ b/test/fixedbugs/bug054.go
+@@ -23,10 +23,7 @@ type TStruct struct {
+ }
+ 
+ func (s *TStruct) field(i int) *TStruct {
+-	// works if we say
+-	//	t := s.fields.At(i);
+-	//	return t;
+-	return s.fields.At(i);
++	return s.fields.At(i).(*TStruct);
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/bug089.go b/test/fixedbugs/bug089.go
+index 296e9e6d6d..e3d8ff66bb 100644
+--- a/test/fixedbugs/bug089.go
++++ b/test/fixedbugs/bug089.go
+@@ -17,5 +17,5 @@ var	i2	I2;
+ func
+ main()
+ {
+-	i2 = e();	// bug089.go:16: fatal error: agen_inter i2i
++	i2 = e().(I2);	// bug089.go:16: fatal error: agen_inter i2i
+ }
+diff --git a/test/fixedbugs/bug113.go b/test/fixedbugs/bug113.go
+index ea75260cf2..14bd076926 100644
+--- a/test/fixedbugs/bug113.go
++++ b/test/fixedbugs/bug113.go
+@@ -11,10 +11,10 @@ func foo2(i int32) int32 { return i }
+ func main() {
+   var i I;
+   i = 1;
+-  var v1 int = i;
++  var v1 = i.(int);
+   if foo1(v1) != 1 { panicln(1) }
+-  var v2 int32 = int32(i.(int));
++  var v2 = int32(i.(int));
+   if foo2(v2) != 1 { panicln(2) }
+-  var v3 int32 = i; // This implicit type conversion should fail at runtime.
++  var v3 = i.(int32); // This type conversion should fail at runtime.
+   if foo2(v3) != 1 { panicln(3) }
+ }
+diff --git a/test/interface2.go b/test/interface2.go
+index 1db033887f..53676787ff 100644
+--- a/test/interface2.go
++++ b/test/interface2.go
+@@ -17,7 +17,7 @@ func main() {
+ 	var i I;
+ 	var e interface {};
+ 	e = s;
+-	i = e;
++	i = e.(I);
+ }
+ 
+ // hide S down here to avoid static warning
+diff --git a/test/interface5.go b/test/interface5.go
+index 2e273ddddb..86036a778b 100644
+--- a/test/interface5.go
++++ b/test/interface5.go
+@@ -12,10 +12,21 @@ var t *T
+ type I interface { M() }
+ var i I
+ 
++type I2 interface { M(); N(); }
++var i2 I2;
++
++var e interface { };
++
+ func main() {
++	e = t;	// ok
++	t = e;	// ERROR "need explicit"
++
+ 	// neither of these can work,
+ 	// because i has an extra method
+ 	// that t does not, so i cannot contain a t.
+-	i = t;	// ERROR "missing|incompatible"
+-	t = i;	// ERROR "missing|incompatible"
++	i = t;	// ERROR "missing|incompatible|is not"
++	t = i;	// ERROR "missing|incompatible|is not"
++
++	i = i2;	// ok
++	i2 = i;	// ERROR "need explicit"
+ }
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index f0c9f4ec2b..8f4641e811 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -214,7 +214,7 @@ main()
+ 
+ 	// run it thru an interface
+ 	i = s;
+-	s = i;
++	s = i.(*S);
+ 
+ 	// same as t3
+ 	if s.test1() != s.a1 { panicln("t4", 1) }
+diff --git a/test/ken/interbasic.go b/test/ken/interbasic.go
+index 05eea395bb..c6b982fe14 100644
+--- a/test/ken/interbasic.go
++++ b/test/ken/interbasic.go
+@@ -85,21 +85,21 @@ main()
+ 	u32 = 4455;	ia[11] = u32;
+ 	u64 = 765432;	ia[12] = u64;
+ 
+-	s = ia[0];	if s != "xxx" { panicln(0,s); }
++	s = ia[0].(string);	if s != "xxx" { panicln(0,s); }
+ 	i32 = int32(ia[1].(int));
+ 			if i32 != 12345 { panicln(1,i32); }
+-	b = ia[2];	if b != true { panicln(2,b); }
++	b = ia[2].(bool);	if b != true { panicln(2,b); }
+ 
+-	s = ia[3];	if s != "now is" { panicln(3,s); }
+-	b = ia[4];	if b != false { panicln(4,b); }
++	s = ia[3].(string);	if s != "now is" { panicln(3,s); }
++	b = ia[4].(bool);	if b != false { panicln(4,b); }
+ 
+-	i8 = ia[5];	if i8 != 29 { panicln(5,i8); }
+-	i16 = ia[6];	if i16 != 994 { panicln(6,i16); }
+-	i32 = ia[7];	if i32 != 3434 { panicln(7,i32); }
+-	i64 = ia[8];	if i64 != 1234567 { panicln(8,i64); }
++	i8 = ia[5].(int8);	if i8 != 29 { panicln(5,i8); }
++	i16 = ia[6].(int16);	if i16 != 994 { panicln(6,i16); }
++	i32 = ia[7].(int32);	if i32 != 3434 { panicln(7,i32); }
++	i64 = ia[8].(int64);	if i64 != 1234567 { panicln(8,i64); }
+ 
+-	u8 = ia[9];	if u8 != 12 { panicln(5,u8); }
+-	u16 = ia[10];	if u16 != 799 { panicln(6,u16); }
+-	u32 = ia[11];	if u32 != 4455 { panicln(7,u32); }
+-	u64 = ia[12];	if u64 != 765432 { panicln(8,u64); }
++	u8 = ia[9].(uint8);	if u8 != 12 { panicln(5,u8); }
++	u16 = ia[10].(uint16);	if u16 != 799 { panicln(6,u16); }
++	u32 = ia[11].(uint32);	if u32 != 4455 { panicln(7,u32); }
++	u64 = ia[12].(uint64);	if u64 != 765432 { panicln(8,u64); }
+ }
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index 97db893168..876d94128d 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -49,16 +49,16 @@ main()
+ 	if s.g() != 6 { panic(12); }
+ 
+ 	i1 = s;		// convert S to I1
+-	i2 = i1;	// convert I1 to I2
++	i2 = i1.(I2);	// convert I1 to I2
+ 
+ 	// call interface
+ 	if i1.f() != 5 { panic(21); }
+ 	if i2.f() != 5 { panic(22); }
+ 	if i2.g() != 6 { panic(23); }
+ 
+-	g = i1;		// convert I1 to S
++	g = i1.(*S);		// convert I1 to S
+ 	if g != s { panic(31); }
+ 
+-	g = i2;		// convert I2 to S
++	g = i2.(*S);		// convert I2 to S
+ 	if g != s { panic(32); }
+ }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 189fcf43ca..b5cbcd72bf 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -299,7 +299,7 @@ func (P *Parser) parseIdentList() AST.Expr {
+ 			x = last;
+ 		} else {
+ 			last.Y = P.newBinaryExpr(pos, Scanner.COMMA, last.Y, y);
+-			last = last.Y;
++			last = last.Y.(*AST.BinaryExpr);
+ 		}
+ 	}
+ 
+@@ -987,7 +987,7 @@ func (P *Parser) parseCompositeElements() AST.Expr {
+ 				x = last;
+ 			} else {
+ 				last.Y = P.newBinaryExpr(pos, Scanner.COMMA, last.Y, y);
+-				last = last.Y;
++				last = last.Y.(*AST.BinaryExpr);
+ 			}
+ 
+ 			if P.tok == Scanner.COMMA {

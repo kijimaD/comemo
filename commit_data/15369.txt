@@ -9,6 +9,20 @@ Date:   Fri Feb 22 12:23:19 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7396051
-
+---
  src/pkg/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index b1dafd0c3d..466a8786f2 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -50,7 +50,7 @@
+ //     }
+ //
+ // The package also runs and verifies example code. Example functions may
+-// include a concluding comment that begins with "Output:" and is compared with
++// include a concluding line comment that begins with "Output:" and is compared with
+ // the standard output of the function when the tests are run. (The comparison
+ // ignores leading and trailing space.) These are examples of an example:
+ //

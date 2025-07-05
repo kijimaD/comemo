@@ -9,6 +9,21 @@ Date:   Wed Jun 26 15:25:16 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  misc/cgo/errors/ptr_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/cgo/errors/ptr_test.go b/misc/cgo/errors/ptr_test.go
+index d1ef191bf5..42dfb92bd8 100644
+--- a/misc/cgo/errors/ptr_test.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -466,6 +466,9 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
+ 	if err := os.MkdirAll(src, 0777); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if err := ioutil.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest"), 0666); err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	// Prepare two cgo inputs: one for standard cgo and one for //export cgo.
+ 	// (The latter cannot have C definitions, only declarations.)

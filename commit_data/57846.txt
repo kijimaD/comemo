@@ -15,10 +15,216 @@ Date:   Wed Sep 6 14:43:22 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go    |  6 ++++-
  src/cmd/compile/internal/ir/fmt.go     | 45 +++++++++++-----------------------
  src/cmd/compile/internal/ir/val.go     | 17 -------------
  src/cmd/compile/internal/types/fmt.go  | 36 ---------------------------
  src/cmd/compile/internal/types/type.go | 20 +++++++++++++++
  5 files changed, 39 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 37a30edca2..852a139883 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -133,10 +133,14 @@ type BasicLit struct {
+ }
+ 
+ func NewBasicLit(pos src.XPos, val constant.Value) Node {
++	if val == nil || val.Kind() == constant.Unknown {
++		base.FatalfAt(pos, "bad value: %v", val)
++	}
++
+ 	n := &BasicLit{val: val}
+ 	n.op = OLITERAL
+ 	n.pos = pos
+-	n.SetType(idealType(val.Kind()))
++	n.SetType(types.UntypedTypes[val.Kind()])
+ 	n.SetTypecheck(1)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 0c553a9963..c5d56d10f9 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -580,46 +580,29 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 	case ONIL:
+ 		fmt.Fprint(s, "nil")
+ 
+-	case OLITERAL: // this is a bit of a mess
+-		if !exportFormat && n.Sym() != nil {
++	case OLITERAL:
++		if n.Sym() != nil {
+ 			fmt.Fprint(s, n.Sym())
+ 			return
+ 		}
+ 
+-		needUnparen := false
+-		if n.Type() != nil && !n.Type().IsUntyped() {
+-			// Need parens when type begins with what might
+-			// be misinterpreted as a unary operator: * or <-.
+-			if n.Type().IsPtr() || (n.Type().IsChan() && n.Type().ChanDir() == types.Crecv) {
+-				fmt.Fprintf(s, "(%v)(", n.Type())
+-			} else {
+-				fmt.Fprintf(s, "%v(", n.Type())
+-			}
+-			needUnparen = true
+-		}
+-
+-		if n.Type() == types.UntypedRune {
+-			switch x, ok := constant.Uint64Val(n.Val()); {
+-			case !ok:
+-				fallthrough
+-			default:
+-				fmt.Fprintf(s, "('\\x00' + %v)", n.Val())
++		typ := n.Type()
++		val := n.Val()
+ 
+-			case x < utf8.RuneSelf:
++		// Special case for rune constants.
++		if typ == types.RuneType || typ == types.UntypedRune {
++			if x, ok := constant.Uint64Val(val); ok && x <= utf8.MaxRune {
+ 				fmt.Fprintf(s, "%q", x)
+-
+-			case x < 1<<16:
+-				fmt.Fprintf(s, "'\\u%04x'", x)
+-
+-			case x <= utf8.MaxRune:
+-				fmt.Fprintf(s, "'\\U%08x'", x)
++				return
+ 			}
+-		} else {
+-			fmt.Fprint(s, types.FmtConst(n.Val(), s.Flag('#')))
+ 		}
+ 
+-		if needUnparen {
+-			fmt.Fprintf(s, ")")
++		// Only include typ if it's neither the default nor untyped type
++		// for the constant value.
++		if k := val.Kind(); typ == types.Types[types.DefaultKinds[k]] || typ == types.UntypedTypes[k] {
++			fmt.Fprint(s, val)
++		} else {
++			fmt.Fprintf(s, "%v(%v)", typ, val)
+ 		}
+ 
+ 	case ODCLFUNC:
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index 75da5a1462..16c8a08ca0 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -60,23 +60,6 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
+ 	panic("unreachable")
+ }
+ 
+-func idealType(ct constant.Kind) *types.Type {
+-	switch ct {
+-	case constant.String:
+-		return types.UntypedString
+-	case constant.Bool:
+-		return types.UntypedBool
+-	case constant.Int:
+-		return types.UntypedInt
+-	case constant.Float:
+-		return types.UntypedFloat
+-	case constant.Complex:
+-		return types.UntypedComplex
+-	}
+-	base.Fatalf("unexpected Ctype: %v", ct)
+-	return nil
+-}
+-
+ var OKForConst [types.NTYPE]bool
+ 
+ // Int64Val returns n as an int64.
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 2011ea1521..f45a44eed9 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
+-	"go/constant"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -683,41 +682,6 @@ func SplitVargenSuffix(name string) (base, suffix string) {
+ 	return name, ""
+ }
+ 
+-// Val
+-
+-func FmtConst(v constant.Value, sharp bool) string {
+-	if !sharp && v.Kind() == constant.Complex {
+-		real, imag := constant.Real(v), constant.Imag(v)
+-
+-		var re string
+-		sre := constant.Sign(real)
+-		if sre != 0 {
+-			re = real.String()
+-		}
+-
+-		var im string
+-		sim := constant.Sign(imag)
+-		if sim != 0 {
+-			im = imag.String()
+-		}
+-
+-		switch {
+-		case sre == 0 && sim == 0:
+-			return "0"
+-		case sre == 0:
+-			return im + "i"
+-		case sim == 0:
+-			return re
+-		case sim < 0:
+-			return fmt.Sprintf("(%s%si)", re, im)
+-		default:
+-			return fmt.Sprintf("(%s+%si)", re, im)
+-		}
+-	}
+-
+-	return v.String()
+-}
+-
+ // TypeHash computes a hash value for type t to use in type switch statements.
+ func TypeHash(t *Type) uint32 {
+ 	p := t.LinkString()
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 68073f6173..fd01ef8c0e 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"go/constant"
+ 	"internal/types/errors"
+ 	"sync"
+ )
+@@ -128,6 +129,25 @@ var (
+ 	UntypedComplex = newType(TIDEAL)
+ )
+ 
++// UntypedTypes maps from a constant.Kind to its untyped Type
++// representation.
++var UntypedTypes = [...]*Type{
++	constant.Bool:    UntypedBool,
++	constant.String:  UntypedString,
++	constant.Int:     UntypedInt,
++	constant.Float:   UntypedFloat,
++	constant.Complex: UntypedComplex,
++}
++
++// DefaultKinds maps from a constant.Kind to its default Kind.
++var DefaultKinds = [...]Kind{
++	constant.Bool:    TBOOL,
++	constant.String:  TSTRING,
++	constant.Int:     TINT,
++	constant.Float:   TFLOAT64,
++	constant.Complex: TCOMPLEX128,
++}
++
+ // A Type represents a Go type.
+ //
+ // There may be multiple unnamed types with identical structure. However, there must

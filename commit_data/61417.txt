@@ -15,6 +15,37 @@ Date:   Wed Nov 6 13:53:02 2024 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/race/race_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 4fe61683eb..cbc90ea0bb 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -107,6 +107,11 @@ func processLog(testName string, tsanLog []string) string {
+ 			gotRace = true
+ 			break
+ 		}
++		if strings.Contains(s, "fatal error: concurrent map") {
++			// Detected by the runtime, not the race detector.
++			gotRace = true
++			break
++		}
+ 	}
+ 
+ 	failing := strings.Contains(testName, "Failing")
+@@ -177,8 +182,11 @@ func runTests(t *testing.T) ([]byte, error) {
+ 	)
+ 	// There are races: we expect tests to fail and the exit code to be non-zero.
+ 	out, _ := cmd.CombinedOutput()
+-	if bytes.Contains(out, []byte("fatal error:")) {
+-		// But don't expect runtime to crash.
++	fatals := bytes.Count(out, []byte("fatal error:"))
++	mapFatals := bytes.Count(out, []byte("fatal error: concurrent map"))
++	if fatals > mapFatals {
++		// But don't expect runtime to crash (other than
++		// in the map concurrent access detector).
+ 		return out, fmt.Errorf("runtime fatal error")
+ 	}
+ 	return out, nil

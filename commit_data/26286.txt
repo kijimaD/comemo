@@ -12,7 +12,51 @@ Date:   Thu Jan 7 07:45:59 2016 +0100
     Change-Id: I85a5cc28e8d161637a8bc1de33f4a637d9154cd1
     Reviewed-on: https://go-review.googlesource.com/18291
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/os/file_plan9.go | 11 ++++++++++-
  src/os/os_test.go    |  3 ---
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 085ebc4c8a..c83fa028b9 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -339,7 +339,9 @@ func rename(oldname, newname string) error {
+ 
+ 	// If newname still contains slashes after removing the oldname
+ 	// prefix, the rename is cross-directory and must be rejected.
+-	// This case is caught by d.Marshal below.
++	if lastIndex(newname, '/') >= 0 {
++		return &LinkError{"rename", oldname, newname, ErrInvalid}
++	}
+ 
+ 	var d syscall.Dir
+ 
+@@ -351,6 +353,13 @@ func rename(oldname, newname string) error {
+ 	if err != nil {
+ 		return &LinkError{"rename", oldname, newname, err}
+ 	}
++
++	// If newname already exists and is not a directory, rename replaces it.
++	f, err := Stat(dirname + newname)
++	if err == nil && !f.IsDir() {
++		Remove(dirname + newname)
++	}
++
+ 	if err = syscall.Wstat(oldname, buf[:n]); err != nil {
+ 		return &LinkError{"rename", oldname, newname, err}
+ 	}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 5689e775f7..945724b2b2 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -773,9 +773,6 @@ func TestRename(t *testing.T) {
+ }
+ 
+ func TestRenameOverwriteDest(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9")
+-	}
+ 	defer chtmpdir(t)()
+ 	from, to := "renamefrom", "renameto"
+ 	// Just in case.

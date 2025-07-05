@@ -26,7 +26,286 @@ Date:   Sat Nov 16 19:40:42 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/fsys/fsys.go      | 85 ++++++++++++++++++++++++++++++++---
  src/cmd/go/internal/fsys/fsys_test.go | 69 ++++++++++++++++++++++++++--
  2 files changed, 144 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index e8df80bb93..9387e165d6 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -114,6 +114,22 @@ type replace struct {
+ 	to string
+ }
+ 
++var binds []replace
++
++// Bind makes the virtual file system use dir as if it were mounted at mtpt,
++// like Plan 9's “bind” or Linux's “mount --bind”, or like os.Symlink
++// but without the symbolic link.
++//
++// For now, the behavior of using Bind on multiple overlapping
++// mountpoints (for example Bind("x", "/a") and Bind("y", "/a/b"))
++// is undefined.
++func Bind(dir, mtpt string) {
++	if dir == "" || mtpt == "" {
++		panic("Bind of empty directory")
++	}
++	binds = append(binds, replace{abs(mtpt), abs(dir)})
++}
++
+ // cwd returns the current directory, caching it on first use.
+ var cwd = sync.OnceValue(cwdOnce)
+ 
+@@ -158,7 +174,8 @@ type info struct {
+ 	abs      string
+ 	deleted  bool
+ 	replaced bool
+-	dir      bool
++	dir      bool // must be dir
++	file     bool // must be file
+ 	actual   string
+ }
+ 
+@@ -169,6 +186,24 @@ func stat(path string) info {
+ 		return info{abs: apath, actual: path}
+ 	}
+ 
++	// Apply bind replacements before applying overlay.
++	replaced := false
++	for _, r := range binds {
++		if str.HasFilePathPrefix(apath, r.from) {
++			// apath is below r.from.
++			// Replace prefix with r.to and fall through to overlay.
++			apath = r.to + apath[len(r.from):]
++			path = apath
++			replaced = true
++			break
++		}
++		if str.HasFilePathPrefix(r.from, apath) {
++			// apath is above r.from.
++			// Synthesize a directory in case one does not exist.
++			return info{abs: apath, replaced: true, dir: true, actual: path}
++		}
++	}
++
+ 	// Binary search for apath to find the nearest relevant entry in the overlay.
+ 	i, ok := slices.BinarySearchFunc(overlay, apath, searchcmp)
+ 	if ok {
+@@ -185,7 +220,7 @@ func stat(path string) info {
+ 			return info{abs: apath, replaced: true, dir: true, actual: path}
+ 		}
+ 		// Replaced file.
+-		return info{abs: apath, replaced: true, actual: r.to}
++		return info{abs: apath, replaced: true, file: true, actual: r.to}
+ 	}
+ 	if i < len(overlay) && str.HasFilePathPrefix(overlay[i].from, apath) {
+ 		// Replacement for child path; infer existence of parent directory.
+@@ -204,7 +239,7 @@ func stat(path string) info {
+ 		// Parent replaced by file; path is deleted.
+ 		return info{abs: apath, deleted: true}
+ 	}
+-	return info{abs: apath, actual: path}
++	return info{abs: apath, replaced: replaced, actual: path}
+ }
+ 
+ // children returns a sequence of (name, info)
+@@ -212,6 +247,23 @@ func stat(path string) info {
+ // implied by the overlay.
+ func (i *info) children() iter.Seq2[string, info] {
+ 	return func(yield func(string, info) bool) {
++		// Build list of directory children implied by the binds.
++		// Binds are not sorted, so just loop over them.
++		var dirs []string
++		for _, m := range binds {
++			if str.HasFilePathPrefix(m.from, i.abs) && m.from != i.abs {
++				name := m.from[len(i.abs)+1:]
++				if i := strings.IndexByte(name, filepath.Separator); i >= 0 {
++					name = name[:i]
++				}
++				dirs = append(dirs, name)
++			}
++		}
++		if len(dirs) > 1 {
++			slices.Sort(dirs)
++			str.Uniq(&dirs)
++		}
++
+ 		// Loop looking for next possible child in sorted overlay,
+ 		// which is previous child plus "\x00".
+ 		target := i.abs + string(filepath.Separator) + "\x00"
+@@ -228,12 +280,12 @@ func (i *info) children() iter.Seq2[string, info] {
+ 			}
+ 			if j >= len(overlay) {
+ 				// Nothing found at all.
+-				return
++				break
+ 			}
+ 			r := overlay[j]
+ 			if !str.HasFilePathPrefix(r.from, i.abs) {
+ 				// Next entry in overlay is beyond the directory we want; all done.
+-				return
++				break
+ 			}
+ 
+ 			// Found the next child in the directory.
+@@ -256,6 +308,14 @@ func (i *info) children() iter.Seq2[string, info] {
+ 				dir:      dir || strings.HasSuffix(r.to, string(filepath.Separator)),
+ 				actual:   actual,
+ 			}
++			for ; len(dirs) > 0 && dirs[0] < name; dirs = dirs[1:] {
++				if !yield(dirs[0], info{abs: filepath.Join(i.abs, dirs[0]), replaced: true, dir: true}) {
++					return
++				}
++			}
++			if len(dirs) > 0 && dirs[0] == name {
++				dirs = dirs[1:]
++			}
+ 			if !yield(name, ci) {
+ 				return
+ 			}
+@@ -270,6 +330,12 @@ func (i *info) children() iter.Seq2[string, info] {
+ 				goto Loop
+ 			}
+ 		}
++
++		for _, dir := range dirs {
++			if !yield(dir, info{abs: filepath.Join(i.abs, dir), replaced: true, dir: true}) {
++				return
++			}
++		}
+ 	}
+ }
+ 
+@@ -382,15 +448,16 @@ func ReadDir(name string) ([]fs.DirEntry, error) {
+ 	if !info.replaced {
+ 		return osReadDir(name)
+ 	}
+-	if !info.dir {
++	if info.file {
+ 		return nil, &fs.PathError{Op: "read", Path: name, Err: errNotDir}
+ 	}
+ 
+ 	// Start with normal disk listing.
+-	dirs, err := osReadDir(name)
++	dirs, err := osReadDir(info.actual)
+ 	if err != nil && !os.IsNotExist(err) && !errors.Is(err, errNotDir) {
+ 		return nil, err
+ 	}
++	dirErr := err
+ 
+ 	// Merge disk listing and overlay entries in map.
+ 	all := make(map[string]fs.DirEntry)
+@@ -426,6 +493,10 @@ func ReadDir(name string) ([]fs.DirEntry, error) {
+ 		dirs = append(dirs, d)
+ 	}
+ 	slices.SortFunc(dirs, func(x, y fs.DirEntry) int { return strings.Compare(x.Name(), y.Name()) })
++
++	if len(dirs) == 0 {
++		return nil, dirErr
++	}
+ 	return dirs, nil
+ }
+ 
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index ec5488f5e3..575eae1e61 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -23,6 +23,7 @@ import (
+ func resetForTesting() {
+ 	cwd = sync.OnceValue(cwdOnce)
+ 	overlay = nil
++	binds = nil
+ }
+ 
+ // initOverlay resets the overlay state to reflect the config.
+@@ -64,12 +65,12 @@ var statInfoTests = []struct {
+ }{
+ 	{"foo", info{abs: "/tmp/foo", actual: "foo"}},
+ 	{"foo/bar/baz/quux", info{abs: "/tmp/foo/bar/baz/quux", actual: "foo/bar/baz/quux"}},
+-	{"x", info{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"}},
+-	{"/tmp/x", info{abs: "/tmp/x", replaced: true, actual: "/tmp/replace/x"}},
++	{"x", info{abs: "/tmp/x", replaced: true, file: true, actual: "/tmp/replace/x"}},
++	{"/tmp/x", info{abs: "/tmp/x", replaced: true, file: true, actual: "/tmp/replace/x"}},
+ 	{"x/y", info{abs: "/tmp/x/y", deleted: true}},
+ 	{"a", info{abs: "/tmp/a", replaced: true, dir: true, actual: "a"}},
+ 	{"a/b", info{abs: "/tmp/a/b", replaced: true, dir: true, actual: "a/b"}},
+-	{"a/b/c", info{abs: "/tmp/a/b/c", replaced: true, actual: "/tmp/replace/c"}},
++	{"a/b/c", info{abs: "/tmp/a/b/c", replaced: true, file: true, actual: "/tmp/replace/c"}},
+ 	{"d/e", info{abs: "/tmp/d/e", deleted: true}},
+ 	{"d", info{abs: "/tmp/d", replaced: true, dir: true, actual: "d"}},
+ }
+@@ -1232,6 +1233,38 @@ func TestStatSymlink(t *testing.T) {
+ 	}
+ }
+ 
++func TestBindOverlay(t *testing.T) {
++	initOverlay(t, `{"Replace": {"mtpt/x.go": "xx.go"}}
++-- mtpt/x.go --
++mtpt/x.go
++-- mtpt/y.go --
++mtpt/y.go
++-- mtpt2/x.go --
++mtpt/x.go
++-- replaced/x.go --
++replaced/x.go
++-- replaced/x/y/z.go --
++replaced/x/y/z.go
++-- xx.go --
++xx.go
++`)
++
++	testReadFile(t, "mtpt/x.go", "xx.go\n")
++
++	Bind("replaced", "mtpt")
++	testReadFile(t, "mtpt/x.go", "replaced/x.go\n")
++	testReadDir(t, "mtpt/x", "y/")
++	testReadDir(t, "mtpt/x/y", "z.go")
++	testReadFile(t, "mtpt/x/y/z.go", "replaced/x/y/z.go\n")
++	testReadFile(t, "mtpt/y.go", "ERROR")
++
++	Bind("replaced", "mtpt2/a/b")
++	testReadDir(t, "mtpt2", "a/", "x.go")
++	testReadDir(t, "mtpt2/a", "b/")
++	testReadDir(t, "mtpt2/a/b", "x/", "x.go")
++	testReadFile(t, "mtpt2/a/b/x.go", "replaced/x.go\n")
++}
++
+ var badOverlayTests = []struct {
+ 	json string
+ 	err  string
+@@ -1272,3 +1305,33 @@ func TestBadOverlay(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func testReadFile(t *testing.T, name string, want string) {
++	t.Helper()
++	data, err := ReadFile(name)
++	if want == "ERROR" {
++		if data != nil || err == nil {
++			t.Errorf("ReadFile(%q) = %q, %v, want nil, error", name, data, err)
++		}
++		return
++	}
++	if string(data) != want || err != nil {
++		t.Errorf("ReadFile(%q) = %q, %v, want %q, nil", name, data, err, want)
++	}
++}
++
++func testReadDir(t *testing.T, name string, want ...string) {
++	t.Helper()
++	dirs, err := ReadDir(name)
++	var names []string
++	for _, d := range dirs {
++		name := d.Name()
++		if d.IsDir() {
++			name += "/"
++		}
++		names = append(names, name)
++	}
++	if !slices.Equal(names, want) || err != nil {
++		t.Errorf("ReadDir(%q) = %q, %v, want %q, nil", name, names, err, want)
++	}
++}

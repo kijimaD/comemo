@@ -11,6 +11,20 @@ Date:   Fri Jan 10 07:03:21 2020 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/root_cgo_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_cgo_darwin.go b/src/crypto/x509/root_cgo_darwin.go
+index 255a8d3525..8a54282a6b 100644
+--- a/src/crypto/x509/root_cgo_darwin.go
++++ b/src/crypto/x509/root_cgo_darwin.go
+@@ -159,7 +159,7 @@ static Boolean isRootCertificate(SecCertificateRef cert, CFErrorRef *errRef) {
+ //
+ // Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
+ // be released (using CFRelease) after we've consumed its content.
+-int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
++static int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
+ 	int i;
+ 
+ 	if (debugDarwinRoots) {

@@ -8,6 +8,31 @@ Date:   Tue Dec 8 01:11:30 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/17521
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client_test.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 61b257dc11..0b5615a554 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -83,12 +83,15 @@ func TestClient(t *testing.T) {
+ 	}
+ }
+ 
+-func TestClientHead(t *testing.T) {
++func TestClientHead_h1(t *testing.T) { testClientHead(t, false) }
++func TestClientHead_h2(t *testing.T) { testClientHead(t, true) }
++
++func testClientHead(t *testing.T, h2 bool) {
+ 	defer afterTest(t)
+-	ts := httptest.NewServer(robotsTxtHandler)
+-	defer ts.Close()
++	cst := newClientServerTest(t, h2, robotsTxtHandler)
++	defer cst.close()
+ 
+-	r, err := Head(ts.URL)
++	r, err := cst.c.Head(cst.ts.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

@@ -11,7 +11,169 @@ Date:   Tue Mar 6 20:10:35 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 74 ++++-----------------------------
  test/codegen/mathbits.go                | 30 +++++++++++++
  2 files changed, 37 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index faee6d7c93..0e39d0df3e 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -224,7 +224,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "amd64",
+ 		os:      "linux",
+-		imports: []string{"math/bits", "unsafe", "runtime"},
++		imports: []string{"unsafe", "runtime"},
+ 		tests:   linuxAMD64Tests,
+ 	},
+ 	{
+@@ -233,10 +233,9 @@ var allAsmTests = []*asmTests{
+ 		tests: linux386Tests,
+ 	},
+ 	{
+-		arch:    "s390x",
+-		os:      "linux",
+-		imports: []string{"math/bits"},
+-		tests:   linuxS390XTests,
++		arch:  "s390x",
++		os:    "linux",
++		tests: linuxS390XTests,
+ 	},
+ 	{
+ 		arch:    "arm",
+@@ -245,10 +244,9 @@ var allAsmTests = []*asmTests{
+ 		tests:   linuxARMTests,
+ 	},
+ 	{
+-		arch:    "arm64",
+-		os:      "linux",
+-		imports: []string{"math/bits"},
+-		tests:   linuxARM64Tests,
++		arch:  "arm64",
++		os:    "linux",
++		tests: linuxARM64Tests,
+ 	},
+ 	{
+ 		arch:  "mips",
+@@ -522,31 +520,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tBTQ\t\\$60"},
+ 	},
+-	// Intrinsic tests for math/bits
+-	{
+-		fn: `
+-		func f45(a uint64) uint64 {
+-			return bits.ReverseBytes64(a)
+-		}
+-		`,
+-		pos: []string{"\tBSWAPQ\t"},
+-	},
+-	{
+-		fn: `
+-		func f46(a uint32) uint32 {
+-			return bits.ReverseBytes32(a)
+-		}
+-		`,
+-		pos: []string{"\tBSWAPL\t"},
+-	},
+-	{
+-		fn: `
+-		func f47(a uint16) uint16 {
+-			return bits.ReverseBytes16(a)
+-		}
+-		`,
+-		pos: []string{"\tROLW\t\\$8,"},
+-	},
+ 	// multiplication merging tests
+ 	{
+ 		fn: `
+@@ -1169,23 +1142,6 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tFMSUBS\t"},
+ 	},
+-	// Intrinsic tests for math/bits
+-	{
+-		fn: `
+-		func f22(a uint64) uint64 {
+-			return bits.ReverseBytes64(a)
+-		}
+-		`,
+-		pos: []string{"\tMOVDBR\t"},
+-	},
+-	{
+-		fn: `
+-		func f23(a uint32) uint32 {
+-			return bits.ReverseBytes32(a)
+-		}
+-		`,
+-		pos: []string{"\tMOVWBR\t"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+@@ -1361,22 +1317,6 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"\tORN\t"},
+ 		neg: []string{"\tORR\t"},
+ 	},
+-	{
+-		fn: `
+-		func f22(a uint64) uint64 {
+-			return bits.ReverseBytes64(a)
+-		}
+-		`,
+-		pos: []string{"\tREV\t"},
+-	},
+-	{
+-		fn: `
+-		func f23(a uint32) uint32 {
+-			return bits.ReverseBytes32(a)
+-		}
+-		`,
+-		pos: []string{"\tREVW\t"},
+-	},
+ 	{
+ 		fn: `
+ 		func f34(a uint64) uint64 {
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index a95c13caa9..2185b535b9 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -124,6 +124,36 @@ func OnesCount16(n uint16) int {
+ 	return bits.OnesCount16(n)
+ }
+ 
++// ----------------------- //
++//    bits.ReverseBytes    //
++// ----------------------- //
++
++func ReverseBytes(n uint) uint {
++	//amd64:"BSWAPQ"
++	//s390x:"MOVDBR"
++	//arm64:"REV"
++	return bits.ReverseBytes(n)
++}
++
++func ReverseBytes64(n uint64) uint64 {
++	//amd64:"BSWAPQ"
++	//s390x:"MOVDBR"
++	//arm64:"REV"
++	return bits.ReverseBytes64(n)
++}
++
++func ReverseBytes32(n uint32) uint32 {
++	//amd64:"BSWAPL"
++	//s390x:"MOVWBR"
++	//arm64:"REVW"
++	return bits.ReverseBytes32(n)
++}
++
++func ReverseBytes16(n uint16) uint16 {
++	//amd64:"ROLW"
++	return bits.ReverseBytes16(n)
++}
++
+ // ------------------------ //
+ //    bits.TrailingZeros    //
+ // ------------------------ //

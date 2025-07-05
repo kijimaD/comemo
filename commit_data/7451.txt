@@ -9,6 +9,24 @@ Date:   Sat Feb 12 18:03:16 2011 -0800
     R=golang-dev, ehog.hedge, rsc
     CC=golang-dev
     https://golang.org/cl/4160049
-
+---
  doc/code.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index 55afe09af3..9236cf263b 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -160,9 +160,9 @@ is the package's default name for imports.
+ Go's convention is that the package name is the last element of the
+ import path: the package imported as <code>"crypto/rot13"</code>
+ should be named <code>rot13</code>.
+-At the moment, the Go tools impose a restriction that package names are unique
+-across all packages linked into a single binary, but that restriction
+-will be lifted soon.
++There is no requirement that package names be unique
++across all packages linked into a single binary,
++only that the import paths (their full file names) be unique.
+ </p>
+ 
+ <p>

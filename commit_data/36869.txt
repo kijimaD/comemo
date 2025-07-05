@@ -13,7 +13,64 @@ Date:   Tue Jun 5 12:48:51 2018 -0700
     Change-Id: Ia8b817f7f467570b05f88d584e86b6ef4acdccc6
     Reviewed-on: https://go-review.googlesource.com/116376
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 17 ++++++++++++++---
  test/fixedbugs/issue25101.go       | 16 ++++++++++++++++
  2 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index d88c5e5c5e..736ea0a018 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -778,15 +778,26 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
+ 
+ // origSym returns the original symbol written by the user.
+ func origSym(s *types.Sym) *types.Sym {
+-	if s != nil && s.Name[0] == '~' {
++	if s == nil {
++		return nil
++	}
++
++	if len(s.Name) > 1 && s.Name[0] == '~' {
+ 		switch s.Name[1] {
+ 		case 'r': // originally an unnamed result
+-			s = nil
++			return nil
+ 		case 'b': // originally the blank identifier _
+ 			// TODO(mdempsky): Does s.Pkg matter here?
+-			s = nblank.Sym
++			return nblank.Sym
+ 		}
++		return s
+ 	}
++
++	if strings.HasPrefix(s.Name, ".anon") {
++		// originally an unnamed or _ name (see subr.go: structargs)
++		return nil
++	}
++
+ 	return s
+ }
+ 
+diff --git a/test/fixedbugs/issue25101.go b/test/fixedbugs/issue25101.go
+new file mode 100644
+index 0000000000..4fd6bed92b
+--- /dev/null
++++ b/test/fixedbugs/issue25101.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Indexed export format must not crash when writing
++// the anonymous parameter for m.
++
++package p
++
++var x interface {
++	m(int)
++}
++
++var M = x.m

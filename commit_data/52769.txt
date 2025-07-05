@@ -19,7 +19,48 @@ Date:   Thu May 26 17:52:28 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.19.html      | 5 -----
  src/reflect/value.go | 6 ------
  2 files changed, 11 deletions(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 5b31b3b520..7a427cd08a 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -299,11 +299,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+-    <p><!-- CL 401434 -->
+-      <a href="/pkg/reflect/#SliceHeader"><code>SliceHeader</code></a>
+-      and <a href="/pkg/reflect/#StringHeader"><code>StringHeader</code></a>
+-      are now deprecated, and their use should be avoided.
+-    </p>
+     <p><!-- CL 357331 -->
+       TODO: <a href="https://go.dev/cl/357331">https://go.dev/cl/357331</a>: allow Value.Bytes on addressable byte arrays
+     </p>
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 400f24f9ba..5abdca2820 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2667,9 +2667,6 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ // Moreover, the Data field is not sufficient to guarantee the data
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
+-//
+-// Deprecated: this type should not be used, it exists only for
+-// backward compatibility.
+ type StringHeader struct {
+ 	Data uintptr
+ 	Len  int
+@@ -2681,9 +2678,6 @@ type StringHeader struct {
+ // Moreover, the Data field is not sufficient to guarantee the data
+ // it references will not be garbage collected, so programs must keep
+ // a separate, correctly typed pointer to the underlying data.
+-//
+-// Deprecated: this type should not be used, it exists only for
+-// backward compatibility.
+ type SliceHeader struct {
+ 	Data uintptr
+ 	Len  int

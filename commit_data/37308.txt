@@ -18,7 +18,7 @@ Date:   Sun Jul 15 23:42:16 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/verify.go               | 13 ++--
  src/cmd/go/internal/modfetch/cache.go              | 53 ++++++++++++-
  src/cmd/go/internal/modfetch/fetch.go              | 26 +++++--
@@ -29,3 +29,449 @@ Date:   Sun Jul 15 23:42:16 2018 -0400
  src/cmd/go/proxy_test.go                           | 25 +++++-
  .../go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt   | 88 ++++++++++++++++++++++
  9 files changed, 220 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 27cd9ed5f8..9b8d73f83c 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+-	"path/filepath"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/dirhash"
+@@ -30,10 +29,14 @@ func runVerify() {
+ 
+ func verifyMod(mod module.Version) bool {
+ 	ok := true
+-	zip := filepath.Join(modfetch.SrcMod, "cache/download", mod.Path, "/@v/", mod.Version+".zip")
+-	_, zipErr := os.Stat(zip)
+-	dir := filepath.Join(modfetch.SrcMod, mod.Path+"@"+mod.Version)
+-	_, dirErr := os.Stat(dir)
++	zip, zipErr := modfetch.CachePath(mod, "zip")
++	if zipErr == nil {
++		_, zipErr = os.Stat(zip)
++	}
++	dir, dirErr := modfetch.DownloadDir(mod)
++	if dirErr == nil {
++		_, dirErr = os.Stat(dir)
++	}
+ 	data, err := ioutil.ReadFile(zip + "hash")
+ 	if err != nil {
+ 		if zipErr != nil && os.IsNotExist(zipErr) && dirErr != nil && os.IsNotExist(dirErr) {
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 587b2a6585..31cdf42c60 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -15,6 +15,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modfetch/codehost"
++	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/semver"
+ )
+@@ -23,6 +24,48 @@ var QuietLookup bool // do not print about lookups
+ 
+ var SrcMod string // $GOPATH/src/mod; set by package modload
+ 
++func cacheDir(path string) (string, error) {
++	if SrcMod == "" {
++		return "", fmt.Errorf("internal error: modfetch.SrcMod not set")
++	}
++	enc, err := module.EncodePath(path)
++	if err != nil {
++		return "", err
++	}
++	return filepath.Join(SrcMod, "cache/download", enc, "/@v"), nil
++}
++
++func CachePath(m module.Version, suffix string) (string, error) {
++	dir, err := cacheDir(m.Path)
++	if err != nil {
++		return "", err
++	}
++	if !semver.IsValid(m.Version) {
++		return "", fmt.Errorf("non-semver module version %q", m.Version)
++	}
++	if semver.Canonical(m.Version) != m.Version {
++		return "", fmt.Errorf("non-canonical module version %q", m.Version)
++	}
++	return filepath.Join(dir, m.Version+"."+suffix), nil
++}
++
++func DownloadDir(m module.Version) (string, error) {
++	if SrcMod == "" {
++		return "", fmt.Errorf("internal error: modfetch.SrcMod not set")
++	}
++	enc, err := module.EncodePath(m.Path)
++	if err != nil {
++		return "", err
++	}
++	if !semver.IsValid(m.Version) {
++		return "", fmt.Errorf("non-semver module version %q", m.Version)
++	}
++	if semver.Canonical(m.Version) != m.Version {
++		return "", fmt.Errorf("non-canonical module version %q", m.Version)
++	}
++	return filepath.Join(SrcMod, enc+"@"+m.Version), nil
++}
++
+ // A cachingRepo is a cache around an underlying Repo,
+ // avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not Zip).
+ // It is also safe for simultaneous use by multiple goroutines
+@@ -245,7 +288,11 @@ func readDiskStatByHash(path, rev string) (file string, info *RevInfo, err error
+ 		return "", nil, errNotCached
+ 	}
+ 	rev = rev[:12]
+-	dir, err := os.Open(filepath.Join(SrcMod, "cache/download", path, "@v"))
++	cdir, err := cacheDir(path)
++	if err != nil {
++		return "", nil, errNotCached
++	}
++	dir, err := os.Open(cdir)
+ 	if err != nil {
+ 		return "", nil, errNotCached
+ 	}
+@@ -296,10 +343,10 @@ func readDiskGoMod(path, rev string) (file string, data []byte, err error) {
+ // If the read fails, the caller can use
+ // writeDiskCache(file, data) to write a new cache entry.
+ func readDiskCache(path, rev, suffix string) (file string, data []byte, err error) {
+-	if !semver.IsValid(rev) || SrcMod == "" {
++	file, err = CachePath(module.Version{Path: path, Version: rev}, suffix)
++	if err != nil {
+ 		return "", nil, errNotCached
+ 	}
+-	file = filepath.Join(SrcMod, "cache/download", path, "@v", rev+"."+suffix)
+ 	data, err = ioutil.ReadFile(file)
+ 	if err != nil {
+ 		return file, nil, errNotCached
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 87797f9f09..1693ef900c 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -41,17 +41,22 @@ func Download(mod module.Version) (dir string, err error) {
+ 		err error
+ 	}
+ 	c := downloadCache.Do(mod, func() interface{} {
+-		modpath := mod.Path + "@" + mod.Version
+-		dir = filepath.Join(SrcMod, modpath)
++		dir, err := DownloadDir(mod)
++		if err != nil {
++			return cached{"", err}
++		}
+ 		if files, _ := ioutil.ReadDir(dir); len(files) == 0 {
+-			zipfile := filepath.Join(SrcMod, "cache/download", mod.Path, "@v", mod.Version+".zip")
++			zipfile, err := CachePath(mod, "zip")
++			if err != nil {
++				return cached{"", err}
++			}
+ 			if _, err := os.Stat(zipfile); err == nil {
+ 				// Use it.
+ 				// This should only happen if the mod/cache directory is preinitialized
+ 				// or if src/mod/path was removed but not src/mod/cache/download.
+ 				fmt.Fprintf(os.Stderr, "go: extracting %s %s\n", mod.Path, mod.Version)
+ 			} else {
+-				if err := os.MkdirAll(filepath.Join(SrcMod, "cache/download", mod.Path, "@v"), 0777); err != nil {
++				if err := os.MkdirAll(filepath.Dir(zipfile), 0777); err != nil {
+ 					return cached{"", err}
+ 				}
+ 				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
+@@ -59,6 +64,7 @@ func Download(mod module.Version) (dir string, err error) {
+ 					return cached{"", err}
+ 				}
+ 			}
++			modpath := mod.Path + "@" + mod.Version
+ 			if err := Unzip(dir, zipfile, modpath, 0); err != nil {
+ 				fmt.Fprintf(os.Stderr, "-> %s\n", err)
+ 				return cached{"", err}
+@@ -201,7 +207,11 @@ func checkSum(mod module.Version) {
+ 	}
+ 
+ 	// Do the file I/O before acquiring the go.sum lock.
+-	data, err := ioutil.ReadFile(filepath.Join(SrcMod, "cache/download", mod.Path, "@v", mod.Version+".ziphash"))
++	ziphash, err := CachePath(mod, "ziphash")
++	if err != nil {
++		base.Fatalf("go: verifying %s@%s: %v", mod.Path, mod.Version, err)
++	}
++	data, err := ioutil.ReadFile(ziphash)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+ 			// This can happen if someone does rm -rf GOPATH/src/cache/download. So it goes.
+@@ -260,7 +270,11 @@ func Sum(mod module.Version) string {
+ 		return ""
+ 	}
+ 
+-	data, err := ioutil.ReadFile(filepath.Join(SrcMod, "cache/download", mod.Path, "@v", mod.Version+".ziphash"))
++	ziphash, err := CachePath(mod, "ziphash")
++	if err != nil {
++		return ""
++	}
++	data, err := ioutil.ReadFile(ziphash)
+ 	if err != nil {
+ 		return ""
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 02c2e63ac2..4cc7457308 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -15,6 +15,7 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/modfetch/codehost"
++	"cmd/go/internal/module"
+ 	"cmd/go/internal/semver"
+ )
+ 
+@@ -26,7 +27,7 @@ func lookupProxy(path string) (Repo, error) {
+ 		// Don't echo $GOPROXY back in case it has user:password in it (sigh).
+ 		return nil, fmt.Errorf("invalid $GOPROXY setting")
+ 	}
+-	return newProxyRepo(u.String(), path), nil
++	return newProxyRepo(u.String(), path)
+ }
+ 
+ type proxyRepo struct {
+@@ -34,8 +35,12 @@ type proxyRepo struct {
+ 	path string
+ }
+ 
+-func newProxyRepo(baseURL, path string) Repo {
+-	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(path), path}
++func newProxyRepo(baseURL, path string) (Repo, error) {
++	enc, err := module.EncodePath(path)
++	if err != nil {
++		return nil, err
++	}
++	return &proxyRepo{strings.TrimSuffix(baseURL, "/") + "/" + pathEscape(enc), path}, nil
+ }
+ 
+ func (p *proxyRepo) ModulePath() string {
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 917d0ff8dc..905b16b80e 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -218,7 +218,7 @@ func lookup(path string) (r Repo, err error) {
+ 
+ 	if rr.VCS == "mod" {
+ 		// Fetch module from proxy with base URL rr.Repo.
+-		return newProxyRepo(rr.Repo, path), nil
++		return newProxyRepo(rr.Repo, path)
+ 	}
+ 
+ 	code, err := lookupCodeRepo(rr)
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 13424a2e26..85172e805b 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -12,7 +12,6 @@ import (
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/semver"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"os"
+@@ -115,10 +114,9 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 				m.Version = q.Version
+ 				m.Time = &q.Time
+ 			}
+-
+-			if semver.IsValid(m.Version) {
+-				dir := filepath.Join(modfetch.SrcMod, m.Path+"@"+m.Version)
+-				if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
++			dir, err := modfetch.DownloadDir(module.Version{Path: m.Path, Version: m.Version})
++			if err == nil {
++				if info, err := os.Stat(dir); err == nil && info.IsDir() {
+ 					m.Dir = dir
+ 				}
+ 			}
+diff --git a/src/cmd/go/mod_test.go b/src/cmd/go/mod_test.go
+index 6cd9f8a948..c57470b4d3 100644
+--- a/src/cmd/go/mod_test.go
++++ b/src/cmd/go/mod_test.go
+@@ -807,6 +807,27 @@ func TestModGetUpgrade(t *testing.T) {
+ 	tg.grepStderr(`go get: disabled by -getmode=vendor`, "expected disabled")
+ }
+ 
++func TestModPathCase(t *testing.T) {
++	tg := testGoModules(t)
++	defer tg.cleanup()
++
++	tg.run("get", "rsc.io/QUOTE")
++
++	tg.run("list", "-m", "all")
++	tg.grepStdout(`^rsc.io/quote v1.5.2`, "want lower-case quote v1.5.2")
++	tg.grepStdout(`^rsc.io/QUOTE v1.5.2`, "want upper-case quote v1.5.2")
++
++	// Note: the package is rsc.io/QUOTE/QUOTE to avoid
++	// a case-sensitive import collision error in load/pkg.go.
++	// Once the module code is checking imports within a module,
++	// that error should probably e relaxed, so that it's allowed to have
++	// both x.com/FOO/bar and x.com/foo/bar in the same program
++	// provided the module paths are x.com/FOO and x.com/foo.
++	tg.run("list", "-f=DEPS {{.Deps}}\nDIR {{.Dir}}", "rsc.io/QUOTE/QUOTE")
++	tg.grepStdout(`DEPS.*rsc.io/quote`, "want quote as dep")
++	tg.grepStdout(`DIR.*!q!u!o!t!e`, "want !q!u!o!t!e in directory name")
++}
++
+ func TestModBadDomain(t *testing.T) {
+ 	tg := testGoModules(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 28b2ac1584..2b15f0ed6e 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
++	"testing"
+ 
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+@@ -77,7 +78,12 @@ func readModList() {
+ 		if i < 0 {
+ 			continue
+ 		}
+-		path := strings.Replace(name[:i], "_", "/", -1)
++		enc := strings.Replace(name[:i], "_", "/", -1)
++		path, err := module.DecodePath(enc)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
++			continue
++		}
+ 		vers := name[i+1:]
+ 		modList = append(modList, module.Version{Path: path, Version: vers})
+ 	}
+@@ -98,7 +104,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		http.NotFound(w, r)
+ 		return
+ 	}
+-	path, file := path[:i], path[i+len("/@v/"):]
++	enc, file := path[:i], path[i+len("/@v/"):]
++	path, err := module.DecodePath(enc)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
++		http.NotFound(w, r)
++		return
++	}
+ 	if file == "list" {
+ 		n := 0
+ 		for _, m := range modList {
+@@ -218,12 +230,17 @@ func findHash(m module.Version) string {
+ var archiveCache par.Cache
+ 
+ func readArchive(path, vers string) *txtar.Archive {
+-	prefix := strings.Replace(path, "/", "_", -1)
++	enc, err := module.EncodePath(path)
++	if err != nil {
++		return nil
++	}
++
++	prefix := strings.Replace(enc, "/", "_", -1)
+ 	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+vers+".txt")
+ 	a := archiveCache.Do(name, func() interface{} {
+ 		a, err := txtar.ParseFile(name)
+ 		if err != nil {
+-			if !os.IsNotExist(err) {
++			if testing.Verbose() || !os.IsNotExist(err) {
+ 				fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+ 			}
+ 			a = nil
+diff --git a/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt b/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt
+new file mode 100644
+index 0000000000..177f077ae1
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt
+@@ -0,0 +1,88 @@
++rsc.io/quote@v2.0.0 && cp mod/rsc.io_quote_v0.0.0-20180709153244-fd906ed3b100.txt mod/rsc.io_quote_v2.0.0.txt
++
++-- .mod --
++module rsc.io/QUOTE
++
++require rsc.io/quote v1.5.2
++-- .info --
++{"Version":"v1.5.2","Name":"","Short":"","Time":"2018-07-15T16:25:34Z"}
++-- go.mod --
++module rsc.io/QUOTE
++
++require rsc.io/quote v1.5.2
++-- QUOTE/quote.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PACKAGE QUOTE COLLECTS LOUD SAYINGS.
++package QUOTE
++
++import (
++	"strings"
++
++	"rsc.io/quote"
++)
++
++// HELLO RETURNS A GREETING.
++func HELLO() string {
++	return strings.ToUpper(quote.Hello())
++}
++
++// GLASS RETURNS A USEFUL PHRASE FOR WORLD TRAVELERS.
++func GLASS() string {
++	return strings.ToUpper(quote.GLASS())
++}
++
++// GO RETURNS A GO PROVERB.
++func GO() string {
++	return strings.ToUpper(quote.GO())
++}
++
++// OPT RETURNS AN OPTIMIZATION TRUTH.
++func OPT() string {
++	return strings.ToUpper(quote.OPT())
++}
++-- QUOTE/quote_test.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package QUOTE
++
++import (
++	"os"
++	"testing"
++)
++
++func init() {
++	os.Setenv("LC_ALL", "en")
++}
++
++func TestHELLO(t *testing.T) {
++	hello := "HELLO, WORLD"
++	if out := HELLO(); out != hello {
++		t.Errorf("HELLO() = %q, want %q", out, hello)
++	}
++}
++
++func TestGLASS(t *testing.T) {
++	glass := "I CAN EAT GLASS AND IT DOESN'T HURT ME."
++	if out := GLASS(); out != glass {
++		t.Errorf("GLASS() = %q, want %q", out, glass)
++	}
++}
++
++func TestGO(t *testing.T) {
++	go1 := "DON'T COMMUNICATE BY SHARING MEMORY, SHARE MEMORY BY COMMUNICATING."
++	if out := GO(); out != go1 {
++		t.Errorf("GO() = %q, want %q", out, go1)
++	}
++}
++
++func TestOPT(t *testing.T) {
++	opt := "IF A PROGRAM IS TOO SLOW, IT MUST HAVE A LOOP."
++	if out := OPT(); out != opt {
++		t.Errorf("OPT() = %q, want %q", out, opt)
++	}
++}

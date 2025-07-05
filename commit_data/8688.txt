@@ -10,9 +10,92 @@ Date:   Fri Jun 10 22:32:45 2011 +1000
     R=r, mirtchovski, adg, rsc, n13m3y3r, ality, go.peter.90, lstoakes, iant, jan.mercl, bsiegert, robert.hencke, rogpeppe, befelemepeseveze, kevlar
     CC=golang-dev
     https://golang.org/cl/4557047
-
+---
  src/pkg/Makefile                 |  1 +
  src/pkg/bike/shed/Makefile       | 11 +++++++++++
  src/pkg/bike/shed/colors.go      | 26 ++++++++++++++++++++++++++
  src/pkg/bike/shed/colors_test.go | 15 +++++++++++++++
  4 files changed, 53 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 2d6b3d0146..a04ddc1103 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -18,6 +18,7 @@ DIRS=\
+ 	archive/zip\
+ 	asn1\
+ 	big\
++	bike/shed\
+ 	bufio\
+ 	bytes\
+ 	cmath\
+diff --git a/src/pkg/bike/shed/Makefile b/src/pkg/bike/shed/Makefile
+new file mode 100644
+index 0000000000..a2538a170f
+--- /dev/null
++++ b/src/pkg/bike/shed/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=bike/shed
++GOFILES=\
++	colors.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/bike/shed/colors.go b/src/pkg/bike/shed/colors.go
+new file mode 100644
+index 0000000000..0466b04c0c
+--- /dev/null
++++ b/src/pkg/bike/shed/colors.go
+@@ -0,0 +1,26 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Package shed defines colors for bike sheds.
++
++See http://red.bikeshed.org/ for more details.
++
++TODO: More colors, colour support, stripes, methods, ponies.
++*/
++package shed
++
++// A Color represents a color, or a colour if you're colonial enough.
++type Color uint8
++
++const (
++	Red Color = iota
++	Green
++	Yellow
++	Blue
++	Purple
++	Magenta
++	Chartreuse
++	Cyan
++)
+diff --git a/src/pkg/bike/shed/colors_test.go b/src/pkg/bike/shed/colors_test.go
+new file mode 100644
+index 0000000000..b2ac3c1e44
+--- /dev/null
++++ b/src/pkg/bike/shed/colors_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package shed
++
++import (
++	"testing"
++)
++
++func TestCompilerIsNotColorBlind(t *testing.T) {
++	if Red == Green {
++		t.Error("Expected Red != Green, but couldn't distinguish them")
++	}
++}

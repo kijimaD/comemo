@@ -7,7 +7,67 @@ Date:   Tue Apr 21 21:43:25 2015 -0400
     Change-Id: Ie8dfdb592ee0bfc736d08c92c3d8413a37b6ac03
     Reviewed-on: https://go-review.googlesource.com/9241
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_ppc64x.s       |  4 ++--
  src/runtime/sys_darwin_amd64.s | 14 +++++++-------
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 5b7ad41df0..53870f6640 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -686,11 +686,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-16
+ 	BL	asmcgocall<>(SB)
+ 	RET
+ 
+-TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-24
++TEXT ·asmcgocall_errno(SB),NOSPLIT,$0-20
+ 	MOVD	fn+0(FP), R3
+ 	MOVD	arg+8(FP), R4
+ 	BL	asmcgocall<>(SB)
+-	MOVD	R3, ret+16(FP)
++	MOVW	R3, ret+16(FP)
+ 	RET
+ 
+ // asmcgocall common code. fn in R3, arg in R4. returns errno in R3.
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 3d0d3395b8..bcb752a210 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -277,8 +277,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+-	MOVQ	new+8(SP), DI
+-	MOVQ	old+16(SP), SI
++	MOVQ	new+0(FP), DI
++	MOVQ	old+8(FP), SI
+ 	MOVQ	$(0x2000000+53), AX
+ 	SYSCALL
+ 	JCC	2(PC)
+@@ -308,9 +308,9 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	// Set up arguments to bsdthread_create system call.
+ 	// The ones in quotes pass through to the thread callback
+ 	// uninterpreted, so we can put whatever we want there.
+-	MOVQ	fn+24(SP),   DI
+-	MOVQ	arg+16(SP),  SI
+-	MOVQ	stk+8(SP),   DX
++	MOVQ	fn+16(FP),   DI
++	MOVQ	arg+8(FP),  SI
++	MOVQ	stk+0(FP),   DX
+ 	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
+ 	MOVQ	$0,          R9  // paranoia
+ 	MOVQ	$0,          R10 // paranoia, "pthread"
+@@ -318,10 +318,10 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	SYSCALL
+ 	JCC 4(PC)
+ 	NEGQ	AX
+-	MOVL	AX, ret+32(FP)
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 	MOVL	$0, AX
+-	MOVL	AX, ret+32(FP)
++	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,

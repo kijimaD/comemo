@@ -15,9 +15,255 @@ Date:   Sun Feb 21 12:50:35 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/callers_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/extern.go       |  7 ++--
  src/runtime/pprof/pprof.go  | 29 ++++++----------
  src/runtime/symtab.go       | 78 ++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 173 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/callers_test.go b/src/runtime/callers_test.go
+new file mode 100644
+index 0000000000..cb3e6e87c7
+--- /dev/null
++++ b/src/runtime/callers_test.go
+@@ -0,0 +1,83 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"strings"
++	"testing"
++)
++
++func f1(pan bool) []uintptr {
++	return f2(pan) // line 14
++}
++
++func f2(pan bool) []uintptr {
++	return f3(pan) // line 18
++}
++
++func f3(pan bool) []uintptr {
++	if pan {
++		panic("f3") // line 23
++	}
++	ret := make([]uintptr, 20)
++	return ret[:runtime.Callers(0, ret)] // line 26
++}
++
++func testCallers(t *testing.T, pcs []uintptr, pan bool) {
++	m := make(map[string]int, len(pcs))
++	frames := runtime.CallersFrames(pcs)
++	for {
++		frame, more := frames.Next()
++		if frame.Function != "" {
++			m[frame.Function] = frame.Line
++		}
++		if !more {
++			break
++		}
++	}
++
++	var seen []string
++	for k := range m {
++		seen = append(seen, k)
++	}
++	t.Logf("functions seen: %s", strings.Join(seen, " "))
++
++	var f3Line int
++	if pan {
++		f3Line = 23
++	} else {
++		f3Line = 26
++	}
++	want := []struct {
++		name string
++		line int
++	}{
++		{"f1", 14},
++		{"f2", 18},
++		{"f3", f3Line},
++	}
++	for _, w := range want {
++		if got := m["runtime_test."+w.name]; got != w.line {
++			t.Errorf("%s is line %d, want %d", w.name, got, w.line)
++		}
++	}
++}
++
++func TestCallers(t *testing.T) {
++	testCallers(t, f1(false), false)
++}
++
++func TestCallersPanic(t *testing.T) {
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatal("did not panic")
++		}
++		pcs := make([]uintptr, 20)
++		pcs = pcs[:runtime.Callers(0, pcs)]
++		testCallers(t, pcs, true)
++	}()
++	f1(true)
++}
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 2c98482e26..9c1f9f5a03 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -191,12 +191,9 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ //
+ // Note that since each slice entry pc[i] is a return program counter,
+ // looking up the file and line for pc[i] (for example, using (*Func).FileLine)
+-// will return the file and line number of the instruction immediately
++// will normally return the file and line number of the instruction immediately
+ // following the call.
+-// To look up the file and line number of the call itself, use pc[i]-1.
+-// As an exception to this rule, if pc[i-1] corresponds to the function
+-// runtime.sigpanic, then pc[i] is the program counter of a faulting
+-// instruction and should be used without any subtraction.
++// To easily look up file/line information for the call sequence, use Frames.
+ func Callers(skip int, pc []uintptr) int {
+ 	// runtime.callers uses pc.array==nil as a signal
+ 	// to print a stack trace.  Pick off 0-length pc here
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index e09a33d5d9..5e91fa8abe 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -325,33 +325,24 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ // for a single stack trace.
+ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
+ 	show := allFrames
+-	wasPanic := false
+-	for i, pc := range stk {
+-		f := runtime.FuncForPC(pc)
+-		if f == nil {
++	frames := runtime.CallersFrames(stk)
++	for {
++		frame, more := frames.Next()
++		name := frame.Function
++		if name == "" {
+ 			show = true
+-			fmt.Fprintf(w, "#\t%#x\n", pc)
+-			wasPanic = false
++			fmt.Fprintf(w, "#\t%#x\n", frame.PC)
+ 		} else {
+-			tracepc := pc
+-			// Back up to call instruction.
+-			if i > 0 && pc > f.Entry() && !wasPanic {
+-				if runtime.GOARCH == "386" || runtime.GOARCH == "amd64" {
+-					tracepc--
+-				} else {
+-					tracepc -= 4 // arm, etc
+-				}
+-			}
+-			file, line := f.FileLine(tracepc)
+-			name := f.Name()
+ 			// Hide runtime.goexit and any runtime functions at the beginning.
+ 			// This is useful mainly for allocation traces.
+-			wasPanic = name == "runtime.gopanic"
+ 			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
+ 				continue
+ 			}
+ 			show = true
+-			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", pc, name, pc-f.Entry(), file, line)
++			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", frame.PC, name, frame.PC-frame.Entry, frame.File, frame.Line)
++		}
++		if !more {
++			break
+ 		}
+ 	}
+ 	if !show {
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 00b0a850e0..afea41448f 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -9,6 +9,84 @@ import (
+ 	"unsafe"
+ )
+ 
++// Frames may be used to get function/file/line information for a
++// slice of PC values returned by Callers.
++type Frames struct {
++	callers []uintptr
++
++	// If previous caller in iteration was a panic, then
++	// ci.callers[0] is the address of the faulting instruction
++	// instead of the return address of the call.
++	wasPanic bool
++}
++
++// Frame is the information returned by Frames for each call frame.
++type Frame struct {
++	// Program counter for this frame; multiple frames may have
++	// the same PC value.
++	PC uintptr
++
++	// Func for this frame; may be nil for non-Go code or fully
++	// inlined functions.
++	Func *Func
++
++	// Function name, file name, and line number for this call frame.
++	// May be the empty string or zero if not known.
++	// If Func is not nil then Function == Func.Name().
++	Function string
++	File     string
++	Line     int
++
++	// Entry point for the function; may be zero if not known.
++	// If Func is not nil then Entry == Func.Entry().
++	Entry uintptr
++}
++
++// CallersFrames takes a slice of PC values returned by Callers and
++// prepares to return function/file/line information.
++// Do not change the slice until you are done with the Frames.
++func CallersFrames(callers []uintptr) *Frames {
++	return &Frames{callers, false}
++}
++
++// Next returns frame information for the next caller.
++// If more is false, there are no more callers (the Frame value is valid).
++func (ci *Frames) Next() (frame Frame, more bool) {
++	if len(ci.callers) == 0 {
++		ci.wasPanic = false
++		return Frame{}, false
++	}
++	pc := ci.callers[0]
++	ci.callers = ci.callers[1:]
++	more = len(ci.callers) > 0
++	f := FuncForPC(pc)
++	if f == nil {
++		ci.wasPanic = false
++		return Frame{}, more
++	}
++
++	entry := f.Entry()
++	xpc := pc
++	if xpc > entry && !ci.wasPanic {
++		xpc--
++	}
++	file, line := f.FileLine(xpc)
++
++	function := f.Name()
++	ci.wasPanic = entry == sigpanicPC
++
++	frame = Frame{
++		PC:       xpc,
++		Func:     f,
++		Function: function,
++		File:     file,
++		Line:     line,
++		Entry:    entry,
++	}
++
++	return frame, more
++}
++
+ // NOTE: Func does not expose the actual unexported fields, because we return *Func
+ // values to users, and we want to keep them from being able to overwrite the data
+ // with (say) *f = Func{}.

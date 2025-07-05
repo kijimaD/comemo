@@ -16,7 +16,7 @@ Date:   Thu Feb 27 06:57:06 2014 +1100
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/69020044
-
+---
  src/cmd/5a/lex.c  |  8 +++++++-
  src/cmd/5c/swt.c  |  2 +-
  src/cmd/5c/txt.c  |  5 +++--
@@ -31,3 +31,384 @@ Date:   Thu Feb 27 06:57:06 2014 +1100
  src/cmd/cc/cc.h   |  5 +++--
  src/cmd/cc/lex.c  | 13 +++++++++++++
  13 files changed, 96 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 13ad1128c3..211f7538b5 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -73,6 +73,12 @@ main(int argc, char *argv[])
+ 	listinit5();
+ 	fmtinstall('L', Lconv);
+ 
++	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
++	// but not other values.	
++	p = getgoarch();
++	if(strncmp(p, thestring, strlen(thestring)) != 0)
++		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
++
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+@@ -162,7 +168,7 @@ assemble(char *file)
+ 		errorexit();
+ 	}
+ 	Binit(&obuf, of, OWRITE);
+-	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(&obuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ 	Bprint(&obuf, "!\n");
+ 
+ 	for(pass = 1; pass <= 2; pass++) {
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index b7332a27ad..97c2e6c84e 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -354,7 +354,7 @@ gextern(Sym *s, Node *a, int32 o, int32 w)
+ void
+ outcode(void)
+ {
+-	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(&outbuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ 	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&outbuf, "\n");
+ 		Bprint(&outbuf, "$$  // exports\n\n");
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 373204bf14..536b810302 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -33,13 +33,14 @@
+ 
+ LinkArch	*thelinkarch = &linkarm;
+ 
++int thechar = '5';
++char *thestring = "arm";
++
+ void
+ ginit(void)
+ {
+ 	Type *t;
+ 
+-	thechar = '5';
+-	thestring = "arm";
+ 	exregoffset = REGEXT;
+ 	exfregoffset = FREGEXT;
+ 	listinit();
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index d81d3be50a..98f3e42725 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -79,6 +79,12 @@ main(int argc, char *argv[])
+ 	listinit6();
+ 	fmtinstall('L', Lconv);
+ 
++	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
++	// but not other values.	
++	p = getgoarch();
++	if(strncmp(p, thestring, strlen(thestring)) != 0)
++		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
++
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+@@ -164,7 +170,7 @@ assemble(char *file)
+ 		errorexit();
+ 	}
+ 	Binit(&obuf, of, OWRITE);
+-	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(&obuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ 	Bprint(&obuf, "!\n");
+ 
+ 	for(pass = 1; pass <= 2; pass++) {
+diff --git a/src/cmd/6c/reg.c b/src/cmd/6c/reg.c
+index 7ca745691b..348d747b72 100644
+--- a/src/cmd/6c/reg.c
++++ b/src/cmd/6c/reg.c
+@@ -717,7 +717,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 		p1->as = AMOVB;
+ 	if(v->etype == TSHORT || v->etype == TUSHORT)
+ 		p1->as = AMOVW;
+-	if(v->etype == TVLONG || v->etype == TUVLONG || v->etype == TIND)
++	if(v->etype == TVLONG || v->etype == TUVLONG || (v->etype == TIND && ewidth[TIND] == 8))
+ 		p1->as = AMOVQ;
+ 	if(v->etype == TFLOAT)
+ 		p1->as = AMOVSS;
+@@ -1373,6 +1373,8 @@ BtoR(int32 b)
+ {
+ 
+ 	b &= 0xffffL;
++	if(nacl)
++		b &= ~((1<<(D_BP-D_AX)) | (1<<(D_R15-D_AX)));
+ 	if(b == 0)
+ 		return 0;
+ 	return bitno(b) + D_AX;
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index 744a60222c..ba1c1f652d 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -207,7 +207,7 @@ xcom(Node *n)
+ 				n->addable = 8;
+ 			break;
+ 		}
+-		if(n->addable == 8 && !side(n)) {
++		if(n->addable == 8 && !side(n) && !nacl) {
+ 			indx(n);
+ 			l = new1(OINDEX, idx.basetree, idx.regtree);
+ 			l->scale = idx.scale;
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index d94250aa40..c46207d34a 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -228,7 +228,7 @@ outcode(void)
+ 	}
+ 	Binit(&b, f, OWRITE);
+ 
+-	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(&b, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ 	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+@@ -292,6 +292,21 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		break;
+ 
+ 	case Aarg1:	/* initial align of parameter */
++		if(ewidth[TIND] == 4) {
++			if(typesu[t->etype]) {
++				for(v = t->link; v != T; v = v->down)
++					o = align(o, v, Aarg1, maxalign);
++				goto out;
++			}
++			w = ewidth[t->etype];
++			if(typev[t->etype] || t->etype == TDOUBLE)
++				w = 8;
++			else if(w <= 0 || w >= 4)
++				w = 4;
++			else
++				w = 1;
++			break;
++		}
+ 		w = ewidth[t->etype];
+ 		if(w <= 0 || w >= SZ_VLONG) {
+ 			w = SZ_VLONG;
+@@ -302,6 +317,10 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 
+ 	case Aarg2:	/* width of a parameter */
+ 		o += t->width;
++		if(ewidth[TIND] == 4) {
++			o = align(o, t, Aarg1, maxalign);
++			goto out;
++		}
+ 		w = t->width;
+ 		if(w > SZ_VLONG)
+ 			w = SZ_VLONG;
+@@ -315,6 +334,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 	o = xround(o, w);
+ 	if(maxalign && *maxalign < w)
+ 		*maxalign = w;
++out:
+ 	if(debug['A'])
+ 		print("align %s %d %T = %d\n", bnames[op], i, t, o);
+ 	return o;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index e7598e1889..61b333c1cb 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -32,15 +32,18 @@
+ 
+ LinkArch	*thelinkarch = &linkamd64;
+ 
++int thechar = '6';
++char *thestring = "amd64";
++
+ void
+ ginit(void)
+ {
+ 	int i;
+ 	Type *t;
+ 
+-	thechar = '6';
+-	thestring = "amd64";
+-	dodefine("_64BIT");
++	dodefine("_64BITREG");
++	if(ewidth[TIND] == 8)
++		dodefine("_64BIT");
+ 	listinit();
+ 	nstring = 0;
+ 	mnstring = 0;
+@@ -130,6 +133,10 @@ ginit(void)
+ 		if(i >= D_X0 && i <= D_X7)
+ 			reg[i] = 0;
+ 	}
++	if(nacl) {
++		reg[D_BP] = 1;
++		reg[D_R15] = 1;
++	}
+ }
+ 
+ void
+@@ -139,6 +146,10 @@ gclean(void)
+ 	Sym *s;
+ 
+ 	reg[D_SP]--;
++	if(nacl) {
++		reg[D_BP]--;
++		reg[D_R15]--;
++	}
+ 	for(i=D_AX; i<=D_R15; i++)
+ 		if(reg[i])
+ 			diag(Z, "reg %R left allocated", i);
+@@ -569,7 +580,7 @@ naddr(Node *n, Addr *a)
+ 		}
+ 		a->sym = nil;
+ 		a->type = D_CONST;
+-		if(typev[n->type->etype] || n->type->etype == TIND)
++		if(typev[n->type->etype] || (n->type->etype == TIND && ewidth[TIND] == 8))
+ 			a->offset = n->vconst;
+ 		else
+ 			a->offset = convvtox(n->vconst, typeu[n->type->etype]? TULONG: TLONG);
+@@ -632,6 +643,12 @@ gmove(Node *f, Node *t)
+ 
+ 	ft = f->type->etype;
+ 	tt = t->type->etype;
++	if(ewidth[TIND] == 4) {
++		if(ft == TIND)
++			ft = TUINT;
++		if(tt == TIND)
++			tt = TUINT;
++	}
+ 	t64 = tt == TVLONG || tt == TUVLONG || tt == TIND;
+ 	if(debug['M'])
+ 		print("gop: %O %O[%s],%O[%s]\n", OAS,
+@@ -723,6 +740,8 @@ gmove(Node *f, Node *t)
+ 		goto ld;
+ 	case TIND:
+ 		a = AMOVQ;
++		if(ewidth[TIND] == 4)
++			a = AMOVL;
+ 
+ 	ld:
+ 		regalloc(&nod, f, t);
+@@ -1228,6 +1247,8 @@ gopcode(int o, Type *ty, Node *f, Node *t)
+ 	et = TLONG;
+ 	if(ty != T)
+ 		et = ty->etype;
++	if(et == TIND && ewidth[TIND] == 4)
++		et = TUINT;
+ 	if(debug['M']) {
+ 		if(f != Z && f->type != T)
+ 			print("gop: %O %O[%s],", o, f->op, tnames[et]);
+@@ -1564,7 +1585,7 @@ exreg(Type *t)
+ 		if(exregoffset >= 64)
+ 			return 0;
+ 		o = exregoffset;
+-		exregoffset += 8;
++		exregoffset += ewidth[TIND];
+ 		return o+1;	// +1 to avoid 0 == failure; naddr's case OEXREG will subtract 1.
+ 	}
+ 	return 0;
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index b48b900b1f..6c55b31435 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -79,6 +79,12 @@ main(int argc, char *argv[])
+ 	listinit8();
+ 	fmtinstall('L', Lconv);
+ 
++	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
++	// but not other values.	
++	p = getgoarch();
++	if(strncmp(p, thestring, strlen(thestring)) != 0)
++		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
++
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	cinit();
+@@ -163,7 +169,7 @@ assemble(char *file)
+ 		errorexit();
+ 	}
+ 	Binit(&obuf, of, OWRITE);
+-	Bprint(&obuf, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(&obuf, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ 	Bprint(&obuf, "!\n");
+ 
+ 	for(pass = 1; pass <= 2; pass++) {
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index ae4edb810f..54fb0881f8 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -233,7 +233,7 @@ outcode(void)
+ 	}
+ 	Binit(&b, f, OWRITE);
+ 
+-	Bprint(&b, "go object %s %s %s\n", getgoos(), thestring, getgoversion());
++	Bprint(&b, "go object %s %s %s\n", getgoos(), getgoarch(), getgoversion());
+ 	if(pragcgobuf.to > pragcgobuf.start) {
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 4708785c4a..8a38955459 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -32,14 +32,15 @@
+ 
+ LinkArch	*thelinkarch = &link386;
+ 
++int thechar = '8';
++char *thestring = "386";
++
+ void
+ ginit(void)
+ {
+ 	int i;
+ 	Type *t;
+ 
+-	thechar = '8';
+-	thestring = "386";
+ 	exregoffset = 0;
+ 	exfregoffset = 0;
+ 	listinit();
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index ad0034a623..726364ce94 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -506,8 +506,8 @@ EXTERN	Sym*	symstring;
+ EXTERN	int	taggen;
+ EXTERN	Type*	tfield;
+ EXTERN	Type*	tufield;
+-EXTERN	int	thechar;
+-EXTERN	char*	thestring;
++extern	int	thechar;
++extern	char*	thestring;
+ extern	LinkArch*	thelinkarch;
+ EXTERN	Type*	thisfn;
+ EXTERN	int32	thunk;
+@@ -524,6 +524,7 @@ EXTERN	int	flag_largemodel;
+ EXTERN	int	ncontin;
+ EXTERN	int	canreach;
+ EXTERN	int	warnreach;
++EXTERN	int	nacl;
+ EXTERN	Bits	zbits;
+ EXTERN	Fmt	pragcgobuf;
+ EXTERN	Biobuf	bstdout;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 163bb0f0aa..f6025d2807 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -117,6 +117,19 @@ void
+ main(int argc, char *argv[])
+ {
+ 	int c;
++	char *p;
++
++	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
++	// but not other values.	
++	p = getgoarch();
++	if(strncmp(p, thestring, strlen(thestring)) != 0)
++		sysfatal("cannot use %cc with GOARCH=%s", thechar, p);
++	if(strcmp(getgoarch(), "amd64p32") == 0) // must be before cinit
++		ewidth[TIND] = 4;
++		
++	nacl = strcmp(getgoos(), "nacl") == 0;
++	if(nacl)
++		flag_largemodel = 1;
+ 
+ 	quotefmtinstall(); // before cinit, which overrides %Q
+ 

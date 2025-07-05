@@ -10,7 +10,71 @@ Date:   Fri Jun 26 20:28:06 2009 -0700
     R=rsc
     OCL=30797
     CL=30820
-
+---
  src/pkg/gob/type.go      | 15 ++++++++++++---
  src/pkg/gob/type_test.go |  5 +++--
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 7bf06b0495..35661027c1 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -8,7 +8,9 @@ import (
+ 	"fmt";
+ 	"os";
+ 	"reflect";
++	"strings";
+ 	"sync";
++	"unicode";
+ )
+ 
+ var id	uint32	// incremented for each new type we build
+@@ -119,7 +121,7 @@ func (s *structType) safeString(seen map[uint32] bool) string {
+ 		return s.name
+ 	}
+ 	seen[s._id] = true;
+-	str := "struct { ";
++	str := s.name + " = struct { ";
+ 	for _, f := range s.field {
+ 		str += fmt.Sprintf("%s %s; ", f.name, f.typ.safeString(seen));
+ 	}
+@@ -170,8 +172,15 @@ func newTypeObject(name string, rt reflect.Type) Type {
+ 		st := rt.(reflect.StructType);
+ 		field := make([]*fieldType, st.Len());
+ 		for i := 0; i < st.Len(); i++ {
+-			name, typ, tag, offset := st.Field(i);
+-			field[i] =  &fieldType{ name, newType("", typ) };
++			name, typ, _tag, _offset := st.Field(i);
++			// Find trailing name in type, e.g. from "*gob.Bar" want "Bar", which
++			// is defined as the word after the period (there is at most one period).
++			typestring := typ.String();
++			period := strings.Index(typestring, ".");
++			if period >= 0 {
++				typestring = typestring[period+1:len(typestring)]
++			}
++			field[i] =  &fieldType{ name, newType(typestring, typ) };
+ 		}
+ 		strType.field = field;
+ 		return strType;
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index 4629443953..9a615621f8 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -118,14 +118,15 @@ type Foo struct {
+ 	d *float;	// will become float32
+ 	e ****float64;	// will become float64
+ 	f *Bar;
+-	g *Foo;	// will not explode
++	g *Bar;	// should not interpolate the definition of Bar again
++	h *Foo;	// will not explode
+ }
+ 
+ func TestStructType(t *testing.T) {
+ 	sstruct := GetType("Foo", Foo{});
+ 	str := sstruct.String();
+ 	// If we can print it correctly, we built it correctly.
+-	expected := "struct { a int; b int; c string; d float32; e float64; f struct { x string; }; g Foo; }";
++	expected := "Foo = struct { a int; b int; c string; d float32; e float64; f Bar = struct { x string; }; g Bar; h Foo; }";
+ 	if str != expected {
+ 		t.Errorf("struct printed as %q; expected %q", str, expected);
+ 	}

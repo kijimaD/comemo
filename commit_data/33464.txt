@@ -9,6 +9,35 @@ Date:   Tue Aug 15 19:23:26 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index d39c6d3b66..1c5144ae9e 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -220,12 +220,22 @@ func (f *xorNonceAEAD) Open(out, nonce, plaintext, additionalData []byte) ([]byt
+ 	return result, err
+ }
+ 
++type gcmtls interface {
++	NewGCMTLS() (cipher.AEAD, error)
++}
++
+ func aeadAESGCM(key, fixedNonce []byte) cipher.AEAD {
+ 	aes, err := aes.NewCipher(key)
+ 	if err != nil {
+ 		panic(err)
+ 	}
+-	aead, err := cipher.NewGCM(aes)
++	var aead cipher.AEAD
++	if aesTLS, ok := aes.(gcmtls); ok {
++		aead, err = aesTLS.NewGCMTLS()
++	} else {
++		boring.Unreachable()
++		aead, err = cipher.NewGCM(aes)
++	}
+ 	if err != nil {
+ 		panic(err)
+ 	}

@@ -23,7 +23,7 @@ Date:   Wed May 26 13:54:31 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/logopt/logopt_test.go |  4 +--
  src/cmd/compile/internal/noder/object.go       | 22 +++++++------
  src/cmd/compile/internal/typecheck/dcl.go      |  9 ++----
@@ -42,3 +42,792 @@ Date:   Wed May 26 13:54:31 2021 -0700
  test/fixedbugs/issue12588.go                   |  6 ++--
  test/fixedbugs/issue42284.dir/a.go             |  2 +-
  17 files changed, 101 insertions(+), 102 deletions(-)
+
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 71976174b0..41a11b0c70 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -209,7 +209,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ 		want(t, slogged, `{"range":{"start":{"line":11,"character":6},"end":{"line":11,"character":6}},"severity":3,"code":"isInBounds","source":"go compiler","message":""}`)
+ 		want(t, slogged, `{"range":{"start":{"line":7,"character":6},"end":{"line":7,"character":6}},"severity":3,"code":"canInlineFunction","source":"go compiler","message":"cost: 35"}`)
+ 		// escape analysis explanation
+-		want(t, slogged, `{"range":{"start":{"line":7,"character":13},"end":{"line":7,"character":13}},"severity":3,"code":"leak","source":"go compiler","message":"parameter z leaks to ~r2 with derefs=0",`+
++		want(t, slogged, `{"range":{"start":{"line":7,"character":13},"end":{"line":7,"character":13}},"severity":3,"code":"leak","source":"go compiler","message":"parameter z leaks to ~r0 with derefs=0",`+
+ 			`"relatedInformation":[`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
+@@ -220,7 +220,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u0026y.b (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r2 = ~R0:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~R0:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index a1a10e4eaa..581a3652ec 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -113,19 +113,21 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
+ 		}
+ 
+ 	case *types2.Var:
+-		var sym *types.Sym
+-		if class == ir.PPARAMOUT {
++		sym := g.sym(obj)
++		if class == ir.PPARAMOUT && (sym == nil || sym.IsBlank()) {
+ 			// Backend needs names for result parameters,
+ 			// even if they're anonymous or blank.
+-			switch obj.Name() {
+-			case "":
+-				sym = typecheck.LookupNum("~r", len(ir.CurFunc.Dcl)) // 'r' for "result"
+-			case "_":
+-				sym = typecheck.LookupNum("~b", len(ir.CurFunc.Dcl)) // 'b' for "blank"
++			nresults := 0
++			for _, n := range ir.CurFunc.Dcl {
++				if n.Class == ir.PPARAMOUT {
++					nresults++
++				}
++			}
++			if sym == nil {
++				sym = typecheck.LookupNum("~r", nresults) // 'r' for "result"
++			} else {
++				sym = typecheck.LookupNum("~b", nresults) // 'b' for "blank"
+ 			}
+-		}
+-		if sym == nil {
+-			sym = g.sym(obj)
+ 		}
+ 		name = g.objCommon(pos, ir.ONAME, sym, class, g.typ(obj.Type()))
+ 
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index f3058d8811..5f8b8b3d41 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -353,12 +353,10 @@ func funcargs(nt *ir.FuncType) {
+ 	}
+ 
+ 	// declare the out arguments.
+-	gen := len(nt.Params)
+-	for _, n := range nt.Results {
++	for i, n := range nt.Results {
+ 		if n.Sym == nil {
+ 			// Name so that escape analysis can track it. ~r stands for 'result'.
+-			n.Sym = LookupNum("~r", gen)
+-			gen++
++			n.Sym = LookupNum("~r", i)
+ 		}
+ 		if n.Sym.IsBlank() {
+ 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
+@@ -367,8 +365,7 @@ func funcargs(nt *ir.FuncType) {
+ 			//	func g() int
+ 			// f is allowed to use a plain 'return' with no arguments, while g is not.
+ 			// So the two cases must be distinguished.
+-			n.Sym = LookupNum("~b", gen)
+-			gen++
++			n.Sym = LookupNum("~b", i)
+ 		}
+ 
+ 		funcarg(n, ir.PPARAMOUT)
+diff --git a/test/escape2.go b/test/escape2.go
+index b9b723d866..04ab635aa5 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -59,7 +59,7 @@ func foo8(xx, yy *int) int { // ERROR "xx does not escape$" "yy does not escape$
+ 	return *xx
+ }
+ 
+-func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r2 level=0$" "leaking param: yy to result ~r2 level=0$"
++func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r0 level=0$" "leaking param: yy to result ~r0 level=0$"
+ 	xx = yy
+ 	return xx
+ }
+@@ -343,11 +343,11 @@ func indaddr1(x int) *int { // ERROR "moved to heap: x$"
+ 	return &x
+ }
+ 
+-func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return *&x
+ }
+ 
+-func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return *(**int)(unsafe.Pointer(&x))
+ }
+ 
+@@ -374,11 +374,11 @@ func float64bitsptr(f float64) *uint64 { // ERROR "moved to heap: f$"
+ 	return (*uint64)(unsafe.Pointer(&f))
+ }
+ 
+-func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r1 level=0$"
++func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r0 level=0$"
+ 	return (*uint64)(unsafe.Pointer(f))
+ }
+ 
+-func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	switch val := i.(type) {
+ 	case *int:
+ 		return val
+@@ -389,7 +389,7 @@ func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1 level
+ 	return nil
+ }
+ 
+-func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	switch j := i; *j + 110 {
+ 	case 12:
+ 		return j
+@@ -401,7 +401,7 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ }
+ 
+ // assigning to an array element is like assigning to the array
+-func foo60(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func foo60(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	var a [12]*int
+ 	a[0] = i
+ 	return a[1]
+@@ -414,7 +414,7 @@ func foo60a(i *int) *int { // ERROR "i does not escape$"
+ }
+ 
+ // assigning to a struct field  is like assigning to the struct
+-func foo61(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func foo61(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	type S struct {
+ 		a, b *int
+ 	}
+@@ -611,11 +611,11 @@ func foo74c() {
+ 	}
+ }
+ 
+-func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r2 level=0$" "x does not escape$"
++func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r0 level=0$" "x does not escape$"
+ 	return y
+ }
+ 
+-func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r2 level=0$" "y does not escape$"
++func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r0 level=0$" "y does not escape$"
+ 	return &x[0]
+ }
+ 
+@@ -770,7 +770,7 @@ func foo91(x *int) map[*int]*int { // ERROR "leaking param: x$"
+ 	return map[*int]*int{x: nil} // ERROR "map\[\*int\]\*int{...} escapes to heap$"
+ }
+ 
+-func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return [2]*int{x, nil}
+ }
+ 
+@@ -783,7 +783,7 @@ func foo93(c chan *int) *int { // ERROR "c does not escape$"
+ }
+ 
+ // does not leak m
+-func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r2 level=1"
++func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r0 level=1"
+ 	for k, v := range m {
+ 		if b {
+ 			return k
+@@ -799,12 +799,12 @@ func foo95(m map[*int]*int, x *int) { // ERROR "m does not escape$" "leaking par
+ }
+ 
+ // does not leak m but does leak content
+-func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
++func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r0 level=1"
+ 	return m[0]
+ }
+ 
+ // does leak m
+-func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
++func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r0 level=0$"
+ 	return m[0]
+ }
+ 
+@@ -814,12 +814,12 @@ func foo98(m map[int]*int) *int { // ERROR "m does not escape$"
+ }
+ 
+ // does leak m
+-func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0$"
++func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r0 level=0$"
+ 	return m[:]
+ }
+ 
+ // does not leak m
+-func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
++func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r0 level=1"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -827,7 +827,7 @@ func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
+ }
+ 
+ // does leak m
+-func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
++func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r0 level=0$"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -890,27 +890,27 @@ func foo110(x *int) *int { // ERROR "leaking param: x$"
+ 	return m[nil]
+ }
+ 
+-func foo111(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0"
++func foo111(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0"
+ 	m := []*int{x} // ERROR "\[\]\*int{...} does not escape$"
+ 	return m[0]
+ }
+ 
+-func foo112(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo112(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	m := [1]*int{x}
+ 	return m[0]
+ }
+ 
+-func foo113(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo113(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	m := Bar{ii: x}
+ 	return m.ii
+ }
+ 
+-func foo114(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo114(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	m := &Bar{ii: x} // ERROR "&Bar{...} does not escape$"
+ 	return m.ii
+ }
+ 
+-func foo115(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo115(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return (*int)(unsafe.Pointer(uintptr(unsafe.Pointer(x)) + 1))
+ }
+ 
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 7c8208aa73..01a25795f4 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -59,7 +59,7 @@ func foo8(xx, yy *int) int { // ERROR "xx does not escape$" "yy does not escape$
+ 	return *xx
+ }
+ 
+-func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r2 level=0$" "leaking param: yy to result ~r2 level=0$"
++func foo9(xx, yy *int) *int { // ERROR "leaking param: xx to result ~r0 level=0$" "leaking param: yy to result ~r0 level=0$"
+ 	xx = yy
+ 	return xx
+ }
+@@ -343,11 +343,11 @@ func indaddr1(x int) *int { // ERROR "moved to heap: x$"
+ 	return &x
+ }
+ 
+-func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func indaddr2(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return *&x
+ }
+ 
+-func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func indaddr3(x *int32) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return *(**int)(unsafe.Pointer(&x))
+ }
+ 
+@@ -374,11 +374,11 @@ func float64bitsptr(f float64) *uint64 { // ERROR "moved to heap: f$"
+ 	return (*uint64)(unsafe.Pointer(&f))
+ }
+ 
+-func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r1 level=0$"
++func float64ptrbitsptr(f *float64) *uint64 { // ERROR "leaking param: f to result ~r0 level=0$"
+ 	return (*uint64)(unsafe.Pointer(f))
+ }
+ 
+-func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	switch val := i.(type) {
+ 	case *int:
+ 		return val
+@@ -389,7 +389,7 @@ func typesw(i interface{}) *int { // ERROR "leaking param: i to result ~r1 level
+ 	return nil
+ }
+ 
+-func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	switch j := i; *j + 110 {
+ 	case 12:
+ 		return j
+@@ -401,7 +401,7 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
+ }
+ 
+ // assigning to an array element is like assigning to the array
+-func foo60(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func foo60(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	var a [12]*int
+ 	a[0] = i
+ 	return a[1]
+@@ -414,7 +414,7 @@ func foo60a(i *int) *int { // ERROR "i does not escape$"
+ }
+ 
+ // assigning to a struct field  is like assigning to the struct
+-func foo61(i *int) *int { // ERROR "leaking param: i to result ~r1 level=0$"
++func foo61(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 	type S struct {
+ 		a, b *int
+ 	}
+@@ -611,11 +611,11 @@ func foo74c() {
+ 	}
+ }
+ 
+-func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r2 level=0$" "x does not escape$"
++func myprint(y *int, x ...interface{}) *int { // ERROR "leaking param: y to result ~r0 level=0$" "x does not escape$"
+ 	return y
+ }
+ 
+-func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r2 level=0$" "y does not escape$"
++func myprint1(y *int, x ...interface{}) *interface{} { // ERROR "leaking param: x to result ~r0 level=0$" "y does not escape$"
+ 	return &x[0]
+ }
+ 
+@@ -770,7 +770,7 @@ func foo91(x *int) map[*int]*int { // ERROR "leaking param: x$"
+ 	return map[*int]*int{x: nil} // ERROR "map\[\*int\]\*int{...} escapes to heap$"
+ }
+ 
+-func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo92(x *int) [2]*int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return [2]*int{x, nil}
+ }
+ 
+@@ -783,7 +783,7 @@ func foo93(c chan *int) *int { // ERROR "c does not escape$"
+ }
+ 
+ // does not leak m
+-func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r2 level=1"
++func foo94(m map[*int]*int, b bool) *int { // ERROR "leaking param: m to result ~r0 level=1"
+ 	for k, v := range m {
+ 		if b {
+ 			return k
+@@ -799,12 +799,12 @@ func foo95(m map[*int]*int, x *int) { // ERROR "m does not escape$" "leaking par
+ }
+ 
+ // does not leak m but does leak content
+-func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
++func foo96(m []*int) *int { // ERROR "leaking param: m to result ~r0 level=1"
+ 	return m[0]
+ }
+ 
+ // does leak m
+-func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
++func foo97(m [1]*int) *int { // ERROR "leaking param: m to result ~r0 level=0$"
+ 	return m[0]
+ }
+ 
+@@ -814,12 +814,12 @@ func foo98(m map[int]*int) *int { // ERROR "m does not escape$"
+ }
+ 
+ // does leak m
+-func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r1 level=0$"
++func foo99(m *[1]*int) []*int { // ERROR "leaking param: m to result ~r0 level=0$"
+ 	return m[:]
+ }
+ 
+ // does not leak m
+-func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
++func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r0 level=1"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -827,7 +827,7 @@ func foo100(m []*int) *int { // ERROR "leaking param: m to result ~r1 level=1"
+ }
+ 
+ // does leak m
+-func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r1 level=0$"
++func foo101(m [1]*int) *int { // ERROR "leaking param: m to result ~r0 level=0$"
+ 	for _, v := range m {
+ 		return v
+ 	}
+@@ -890,27 +890,27 @@ func foo110(x *int) *int { // ERROR "leaking param: x$"
+ 	return m[nil]
+ }
+ 
+-func foo111(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0"
++func foo111(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0"
+ 	m := []*int{x} // ERROR "\[\]\*int{...} does not escape$"
+ 	return m[0]
+ }
+ 
+-func foo112(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo112(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	m := [1]*int{x}
+ 	return m[0]
+ }
+ 
+-func foo113(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo113(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	m := Bar{ii: x}
+ 	return m.ii
+ }
+ 
+-func foo114(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo114(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	m := &Bar{ii: x} // ERROR "&Bar{...} does not escape$"
+ 	return m.ii
+ }
+ 
+-func foo115(x *int) *int { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo115(x *int) *int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return (*int)(unsafe.Pointer(uintptr(unsafe.Pointer(x)) + 1))
+ }
+ 
+diff --git a/test/escape5.go b/test/escape5.go
+index 82be2c38e7..73acfb46a9 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -22,19 +22,19 @@ func leaktoret(p *int) *int { // ERROR "leaking param: p to result"
+ 	return p
+ }
+ 
+-func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: p to result ~r2"
++func leaktoret2(p *int) (*int, *int) { // ERROR "leaking param: p to result ~r0" "leaking param: p to result ~r1"
+ 	return p, p
+ }
+ 
+-func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r2" "leaking param: q to result ~r3"
++func leaktoret22(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r0" "leaking param: q to result ~r1"
+ 	return p, q
+ }
+ 
+-func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
++func leaktoret22b(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: q to result ~r0"
+ 	return leaktoret22(q, p)
+ }
+ 
+-func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r3" "leaking param: q to result ~r2"
++func leaktoret22c(p, q *int) (*int, *int) { // ERROR "leaking param: p to result ~r1" "leaking param: q to result ~r0"
+ 	r, s := leaktoret22(q, p)
+ 	return r, s
+ }
+diff --git a/test/escape_array.go b/test/escape_array.go
+index 0d07fd861f..83062c9436 100644
+--- a/test/escape_array.go
++++ b/test/escape_array.go
+@@ -12,15 +12,15 @@ var Ssink *string
+ 
+ type U [2]*string
+ 
+-func bar(a, b *string) U { // ERROR "leaking param: a to result ~r2 level=0$" "leaking param: b to result ~r2 level=0$"
++func bar(a, b *string) U { // ERROR "leaking param: a to result ~r0 level=0$" "leaking param: b to result ~r0 level=0$"
+ 	return U{a, b}
+ }
+ 
+-func foo(x U) U { // ERROR "leaking param: x to result ~r1 level=0$"
++func foo(x U) U { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return U{x[1], x[0]}
+ }
+ 
+-func bff(a, b *string) U { // ERROR "leaking param: a to result ~r2 level=0$" "leaking param: b to result ~r2 level=0$"
++func bff(a, b *string) U { // ERROR "leaking param: a to result ~r0 level=0$" "leaking param: b to result ~r0 level=0$"
+ 	return foo(foo(bar(a, b)))
+ }
+ 
+@@ -41,27 +41,27 @@ func tbff2() *string {
+ 	return u[1]
+ }
+ 
+-func car(x U) *string { // ERROR "leaking param: x to result ~r1 level=0$"
++func car(x U) *string { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return x[0]
+ }
+ 
+ // BAD: need fine-grained analysis to track x[0] and x[1] differently.
+-func fun(x U, y *string) *string { // ERROR "leaking param: x to result ~r2 level=0$" "leaking param: y to result ~r2 level=0$"
++func fun(x U, y *string) *string { // ERROR "leaking param: x to result ~r0 level=0$" "leaking param: y to result ~r0 level=0$"
+ 	x[0] = y
+ 	return x[1]
+ }
+ 
+-func fup(x *U, y *string) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param: y$"
++func fup(x *U, y *string) *string { // ERROR "leaking param: x to result ~r0 level=1$" "leaking param: y$"
+ 	x[0] = y // leaking y to heap is intended
+ 	return x[1]
+ }
+ 
+-func fum(x *U, y **string) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param content: y$"
++func fum(x *U, y **string) *string { // ERROR "leaking param: x to result ~r0 level=1$" "leaking param content: y$"
+ 	x[0] = *y
+ 	return x[1]
+ }
+ 
+-func fuo(x *U, y *U) *string { // ERROR "leaking param: x to result ~r2 level=1$" "leaking param content: y$"
++func fuo(x *U, y *U) *string { // ERROR "leaking param: x to result ~r0 level=1$" "leaking param content: y$"
+ 	x[0] = y[0]
+ 	return x[1]
+ }
+diff --git a/test/escape_calls.go b/test/escape_calls.go
+index 9e1db5426e..aa7c7f516c 100644
+--- a/test/escape_calls.go
++++ b/test/escape_calls.go
+@@ -11,7 +11,7 @@
+ 
+ package foo
+ 
+-func f(buf []byte) []byte { // ERROR "leaking param: buf to result ~r1 level=0$"
++func f(buf []byte) []byte { // ERROR "leaking param: buf to result ~r0 level=0$"
+ 	return buf
+ }
+ 
+diff --git a/test/escape_closure.go b/test/escape_closure.go
+index 9152319fe0..bd6c025476 100644
+--- a/test/escape_closure.go
++++ b/test/escape_closure.go
+@@ -44,7 +44,7 @@ func ClosureCallArgs3() {
+ 
+ func ClosureCallArgs4() {
+ 	x := 0
+-	_ = func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape"
++	_ = func(p *int) *int { // ERROR "leaking param: p to result ~r0" "func literal does not escape"
+ 		return p
+ 	}(&x)
+ }
+@@ -111,7 +111,7 @@ func ClosureCallArgs11() {
+ 
+ func ClosureCallArgs12() {
+ 	x := 0
+-	defer func(p *int) *int { // ERROR "leaking param: p to result ~r1" "func literal does not escape"
++	defer func(p *int) *int { // ERROR "leaking param: p to result ~r0" "func literal does not escape"
+ 		return p
+ 	}(&x)
+ }
+@@ -126,7 +126,7 @@ func ClosureCallArgs13() {
+ func ClosureCallArgs14() {
+ 	x := 0
+ 	p := &x
+-	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r1 level=1" "func literal does not escape"
++	_ = func(p **int) *int { // ERROR "leaking param: p to result ~r0 level=1" "func literal does not escape"
+ 		return *p
+ 	}(&p)
+ }
+@@ -145,7 +145,7 @@ func ClosureLeak1(s string) string { // ERROR "s does not escape"
+ }
+ 
+ // See #14409 -- returning part of captured var leaks it.
+-func ClosureLeak1a(a ...string) string { // ERROR "leaking param: a to result ~r1 level=1$"
++func ClosureLeak1a(a ...string) string { // ERROR "leaking param: a to result ~r0 level=1$"
+ 	return func() string { // ERROR "func literal does not escape"
+ 		return a[0]
+ 	}()
+diff --git a/test/escape_param.go b/test/escape_param.go
+index dc93f689cf..b630bae88f 100644
+--- a/test/escape_param.go
++++ b/test/escape_param.go
+@@ -16,7 +16,7 @@ func zero() int { return 0 }
+ var sink interface{}
+ 
+ // in -> out
+-func param0(p *int) *int { // ERROR "leaking param: p to result ~r1"
++func param0(p *int) *int { // ERROR "leaking param: p to result ~r0"
+ 	return p
+ }
+ 
+@@ -31,7 +31,7 @@ func caller0b() {
+ }
+ 
+ // in, in -> out, out
+-func param1(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r2" "leaking param: p2 to result ~r3"
++func param1(p1, p2 *int) (*int, *int) { // ERROR "leaking param: p1 to result ~r0" "leaking param: p2 to result ~r1"
+ 	return p1, p2
+ }
+ 
+@@ -222,7 +222,7 @@ func caller8() {
+ }
+ 
+ // *in -> out
+-func param9(p ***int) **int { // ERROR "leaking param: p to result ~r1 level=1"
++func param9(p ***int) **int { // ERROR "leaking param: p to result ~r0 level=1"
+ 	return *p
+ }
+ 
+@@ -241,7 +241,7 @@ func caller9b() {
+ }
+ 
+ // **in -> out
+-func param10(p ***int) *int { // ERROR "leaking param: p to result ~r1 level=2"
++func param10(p ***int) *int { // ERROR "leaking param: p to result ~r0 level=2"
+ 	return **p
+ }
+ 
+@@ -436,6 +436,6 @@ func param14a(x [4]*int) interface{} { // ERROR "leaking param: x$"
+ 
+ // Convert to a direct interface, does not need an allocation.
+ // So x only leaks to result.
+-func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r1 level=0"
++func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r0 level=0"
+ 	return x
+ }
+diff --git a/test/escape_runtime_atomic.go b/test/escape_runtime_atomic.go
+index 62e8fede27..30d1d0c0c1 100644
+--- a/test/escape_runtime_atomic.go
++++ b/test/escape_runtime_atomic.go
+@@ -13,8 +13,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-// BAD: should always be "leaking param: addr to result ~r1 level=1$".
+-func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r1 level=1)?$"
++// BAD: should always be "leaking param: addr to result ~r0 level=1$".
++func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r0 level=1)?$"
+ 	return atomic.Loadp(addr)
+ }
+ 
+diff --git a/test/escape_slice.go b/test/escape_slice.go
+index d60414736c..055b60be41 100644
+--- a/test/escape_slice.go
++++ b/test/escape_slice.go
+@@ -101,7 +101,7 @@ func slice11() {
+ 	_ = s
+ }
+ 
+-func slice12(x []int) *[1]int { // ERROR "leaking param: x to result ~r1 level=0$"
++func slice12(x []int) *[1]int { // ERROR "leaking param: x to result ~r0 level=0$"
+ 	return (*[1]int)(x)
+ }
+ 
+@@ -110,7 +110,7 @@ func envForDir(dir string) []string { // ERROR "dir does not escape"
+ 	return mergeEnvLists([]string{"PWD=" + dir}, env) // ERROR ".PWD=. \+ dir escapes to heap" "\[\]string{...} does not escape"
+ }
+ 
+-func mergeEnvLists(in, out []string) []string { // ERROR "leaking param content: in" "leaking param content: out" "leaking param: out to result ~r2 level=0"
++func mergeEnvLists(in, out []string) []string { // ERROR "leaking param content: in" "leaking param content: out" "leaking param: out to result ~r0 level=0"
+ NextVar:
+ 	for _, inkv := range in {
+ 		k := strings.SplitAfterN(inkv, "=", 2)[0]
+diff --git a/test/escape_struct_return.go b/test/escape_struct_return.go
+index 222ef8bc22..a42ae1e8c9 100644
+--- a/test/escape_struct_return.go
++++ b/test/escape_struct_return.go
+@@ -15,11 +15,11 @@ type U struct {
+ 	_spp **string
+ }
+ 
+-func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r2 level=0$" "leaking param: spp to result ~r2 level=0$"
++func A(sp *string, spp **string) U { // ERROR "leaking param: sp to result ~r0 level=0$" "leaking param: spp to result ~r0 level=0$"
+ 	return U{sp, spp}
+ }
+ 
+-func B(spp **string) U { // ERROR "leaking param: spp to result ~r1 level=0$"
++func B(spp **string) U { // ERROR "leaking param: spp to result ~r0 level=0$"
+ 	return U{*spp, spp}
+ }
+ 
+diff --git a/test/escape_unsafe.go b/test/escape_unsafe.go
+index b34beacccb..cec6674a14 100644
+--- a/test/escape_unsafe.go
++++ b/test/escape_unsafe.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // (1) Conversion of a *T1 to Pointer to *T2.
+ 
+-func convert(p *float64) *uint64 { // ERROR "leaking param: p to result ~r1 level=0$"
++func convert(p *float64) *uint64 { // ERROR "leaking param: p to result ~r0 level=0$"
+ 	return (*uint64)(unsafe.Pointer(p))
+ }
+ 
+@@ -39,12 +39,12 @@ func arithMask() unsafe.Pointer {
+ // (5) Conversion of the result of reflect.Value.Pointer or
+ // reflect.Value.UnsafeAddr from uintptr to Pointer.
+ 
+-// BAD: should be "leaking param: p to result ~r1 level=0$"
++// BAD: should be "leaking param: p to result ~r0 level=0$"
+ func valuePointer(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
+ 	return unsafe.Pointer(reflect.ValueOf(p).Pointer())
+ }
+ 
+-// BAD: should be "leaking param: p to result ~r1 level=0$"
++// BAD: should be "leaking param: p to result ~r0 level=0$"
+ func valueUnsafeAddr(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
+ 	return unsafe.Pointer(reflect.ValueOf(p).Elem().UnsafeAddr())
+ }
+@@ -52,11 +52,11 @@ func valueUnsafeAddr(p *int) unsafe.Pointer { // ERROR "leaking param: p$"
+ // (6) Conversion of a reflect.SliceHeader or reflect.StringHeader
+ // Data field to or from Pointer.
+ 
+-func fromSliceData(s []int) unsafe.Pointer { // ERROR "leaking param: s to result ~r1 level=0$"
++func fromSliceData(s []int) unsafe.Pointer { // ERROR "leaking param: s to result ~r0 level=0$"
+ 	return unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&s)).Data)
+ }
+ 
+-func fromStringData(s string) unsafe.Pointer { // ERROR "leaking param: s to result ~r1 level=0$"
++func fromStringData(s string) unsafe.Pointer { // ERROR "leaking param: s to result ~r0 level=0$"
+ 	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
+ }
+ 
+diff --git a/test/fixedbugs/issue12006.go b/test/fixedbugs/issue12006.go
+index 0a2ef8dad0..e878bc48e2 100644
+--- a/test/fixedbugs/issue12006.go
++++ b/test/fixedbugs/issue12006.go
+@@ -87,7 +87,7 @@ func TFooI() {
+ 	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "... argument does not escape"
+ }
+ 
+-func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
++func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
+ 	for i := 0; i < len(args); i++ {
+ 		switch x := args[i].(type) {
+ 		case nil:
+@@ -123,7 +123,7 @@ type fakeSlice struct {
+ 	a *[4]interface{}
+ }
+ 
+-func FooK(args fakeSlice) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
++func FooK(args fakeSlice) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
+ 	for i := 0; i < args.l; i++ {
+ 		switch x := (*args.a)[i].(type) {
+ 		case nil:
+@@ -148,7 +148,7 @@ func TFooK2() {
+ 	isink = FooK(fs)
+ }
+ 
+-func FooL(args []interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
++func FooL(args []interface{}) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
+ 	for i := 0; i < len(args); i++ {
+ 		switch x := args[i].(type) {
+ 		case nil:
+diff --git a/test/fixedbugs/issue12588.go b/test/fixedbugs/issue12588.go
+index 950ef36e20..dc8111198c 100644
+--- a/test/fixedbugs/issue12588.go
++++ b/test/fixedbugs/issue12588.go
+@@ -35,7 +35,7 @@ func g(a *A) int { // ERROR "a does not escape"
+ 	return 0
+ }
+ 
+-func h(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
++func h(a *B) *uint64 { // ERROR "leaking param: a to result ~r0 level=1"
+ 	for i, x := range &a.b {
+ 		if i == 0 {
+ 			return x
+@@ -44,7 +44,7 @@ func h(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
+ 	return nil
+ }
+ 
+-func h2(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
++func h2(a *B) *uint64 { // ERROR "leaking param: a to result ~r0 level=1"
+ 	p := &a.b
+ 	for i, x := range p {
+ 		if i == 0 {
+@@ -55,7 +55,7 @@ func h2(a *B) *uint64 { // ERROR "leaking param: a to result ~r1 level=1"
+ }
+ 
+ // Seems like below should be level=1, not 0.
+-func k(a B) *uint64 { // ERROR "leaking param: a to result ~r1 level=0"
++func k(a B) *uint64 { // ERROR "leaking param: a to result ~r0 level=0"
+ 	for i, x := range &a.b {
+ 		if i == 0 {
+ 			return x
+diff --git a/test/fixedbugs/issue42284.dir/a.go b/test/fixedbugs/issue42284.dir/a.go
+index ffe9310be3..f7fd80bd20 100644
+--- a/test/fixedbugs/issue42284.dir/a.go
++++ b/test/fixedbugs/issue42284.dir/a.go
+@@ -13,7 +13,7 @@ func E() I { // ERROR "can inline E"
+ 	return T(0) // ERROR "T\(0\) escapes to heap"
+ }
+ 
+-func F(i I) I { // ERROR "can inline F" "leaking param: i to result ~r1 level=0"
++func F(i I) I { // ERROR "can inline F" "leaking param: i to result ~r0 level=0"
+ 	i = nil
+ 	return i
+ }

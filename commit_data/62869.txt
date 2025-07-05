@@ -14,7 +14,7 @@ Date:   Wed Apr 23 14:23:45 2025 -0400
     Commit-Queue: Alan Donovan <adonovan@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/3-tools.md                                |  13 +-
  src/cmd/go/internal/test/flagdefs.go               |   1 +
  src/cmd/go/internal/test/flagdefs_test.go          |   3 +
@@ -26,3 +26,597 @@ Date:   Wed Apr 23 14:23:45 2025 -0400
  src/cmd/vet/testdata/hostport/hostport.go          |  17 ++
  src/cmd/vet/vet_test.go                            |   1 +
  10 files changed, 478 insertions(+), 3 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 886852b784..b61848bca7 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -26,10 +26,17 @@ specifying the command's current version.
+ 
+ ### Vet {#vet}
+ 
++The `go vet` command includes new analyzers:
++
+ <!-- go.dev/issue/18022 -->
+ 
+-The `go vet` command now includes the
+-[waitgroup](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup)
+-analyzer, which reports misplaced calls to [sync.WaitGroup.Add].
++- [waitgroup](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup),
++  which reports misplaced calls to [sync.WaitGroup.Add]; and
++
++<!-- go.dev/issue/28308 -->
+ 
++- [hostport](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/hostport),
++  which reports uses of `fmt.Sprintf("%s:%d", host, port)` to
++  construct addresses for [net.Dial], as these will not work with
++  IPv6; instead it suggests using [net.JoinHostPort].
+ 
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 372142467b..8aa0bfc2bf 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -55,6 +55,7 @@ var passAnalyzersToVet = map[string]bool{
+ 	"directive":        true,
+ 	"errorsas":         true,
+ 	"framepointer":     true,
++	"hostport":         true,
+ 	"httpresponse":     true,
+ 	"ifaceassert":      true,
+ 	"loopclosure":      true,
+diff --git a/src/cmd/go/internal/test/flagdefs_test.go b/src/cmd/go/internal/test/flagdefs_test.go
+index 5461b2d1a5..8a7ce1d7d6 100644
+--- a/src/cmd/go/internal/test/flagdefs_test.go
++++ b/src/cmd/go/internal/test/flagdefs_test.go
+@@ -18,6 +18,9 @@ func TestMain(m *testing.M) {
+ 	os.Exit(m.Run())
+ }
+ 
++// TestPassFlagToTest ensures that the generated table of flags is
++// consistent with output of "go tool vet -flags", using the installed
++// go command---so if it fails, you may need to re-run make.bash.
+ func TestPassFlagToTest(t *testing.T) {
+ 	wantNames := genflags.ShortTestFlags()
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/hostport/hostport.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/hostport/hostport.go
+new file mode 100644
+index 0000000000..e808b1aa1b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/hostport/hostport.go
+@@ -0,0 +1,185 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package hostport defines an analyzer for calls to net.Dial with
++// addresses of the form "%s:%d" or "%s:%s", which work only with IPv4.
++package hostport
++
++import (
++	"fmt"
++	"go/ast"
++	"go/constant"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/types/typeutil"
++	typeindexanalyzer "golang.org/x/tools/internal/analysisinternal/typeindex"
++	"golang.org/x/tools/internal/typesinternal/typeindex"
++)
++
++const Doc = `check format of addresses passed to net.Dial
++
++This analyzer flags code that produce network address strings using
++fmt.Sprintf, as in this example:
++
++    addr := fmt.Sprintf("%s:%d", host, 12345) // "will not work with IPv6"
++    ...
++    conn, err := net.Dial("tcp", addr)       // "when passed to dial here"
++
++The analyzer suggests a fix to use the correct approach, a call to
++net.JoinHostPort:
++
++    addr := net.JoinHostPort(host, "12345")
++    ...
++    conn, err := net.Dial("tcp", addr)
++
++A similar diagnostic and fix are produced for a format string of "%s:%s".
++`
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "hostport",
++	Doc:      Doc,
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/hostport",
++	Requires: []*analysis.Analyzer{inspect.Analyzer, typeindexanalyzer.Analyzer},
++	Run:      run,
++}
++
++func run(pass *analysis.Pass) (any, error) {
++	var (
++		index      = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
++		info       = pass.TypesInfo
++		fmtSprintf = index.Object("fmt", "Sprintf")
++	)
++	if !index.Used(fmtSprintf) {
++		return nil, nil // fast path: package doesn't use fmt.Sprintf
++	}
++
++	// checkAddr reports a diagnostic (and returns true) if e
++	// is a call of the form fmt.Sprintf("%d:%d", ...).
++	// The diagnostic includes a fix.
++	//
++	// dialCall is non-nil if the Dial call is non-local
++	// but within the same file.
++	checkAddr := func(e ast.Expr, dialCall *ast.CallExpr) {
++		if call, ok := e.(*ast.CallExpr); ok && typeutil.Callee(info, call) == fmtSprintf {
++			// Examine format string.
++			formatArg := call.Args[0]
++			if tv := info.Types[formatArg]; tv.Value != nil {
++				numericPort := false
++				format := constant.StringVal(tv.Value)
++				switch format {
++				case "%s:%d":
++					// Have: fmt.Sprintf("%s:%d", host, port)
++					numericPort = true
++
++				case "%s:%s":
++					// Have: fmt.Sprintf("%s:%s", host, portStr)
++					// Keep port string as is.
++
++				default:
++					return
++				}
++
++				// Use granular edits to preserve original formatting.
++				edits := []analysis.TextEdit{
++					{
++						// Replace fmt.Sprintf with net.JoinHostPort.
++						Pos:     call.Fun.Pos(),
++						End:     call.Fun.End(),
++						NewText: []byte("net.JoinHostPort"),
++					},
++					{
++						// Delete format string.
++						Pos: formatArg.Pos(),
++						End: call.Args[1].Pos(),
++					},
++				}
++
++				// Turn numeric port into a string.
++				if numericPort {
++					//  port => fmt.Sprintf("%d", port)
++					//   123 => "123"
++					port := call.Args[2]
++					newPort := fmt.Sprintf(`fmt.Sprintf("%%d", %s)`, port)
++					if port := info.Types[port].Value; port != nil {
++						if i, ok := constant.Int64Val(port); ok {
++							newPort = fmt.Sprintf(`"%d"`, i) // numeric constant
++						}
++					}
++
++					edits = append(edits, analysis.TextEdit{
++						Pos:     port.Pos(),
++						End:     port.End(),
++						NewText: []byte(newPort),
++					})
++				}
++
++				// Refer to Dial call, if not adjacent.
++				suffix := ""
++				if dialCall != nil {
++					suffix = fmt.Sprintf(" (passed to net.Dial at L%d)",
++						pass.Fset.Position(dialCall.Pos()).Line)
++				}
++
++				pass.Report(analysis.Diagnostic{
++					// Highlight the format string.
++					Pos:     formatArg.Pos(),
++					End:     formatArg.End(),
++					Message: fmt.Sprintf("address format %q does not work with IPv6%s", format, suffix),
++					SuggestedFixes: []analysis.SuggestedFix{{
++						Message:   "Replace fmt.Sprintf with net.JoinHostPort",
++						TextEdits: edits,
++					}},
++				})
++			}
++		}
++	}
++
++	// Check address argument of each call to net.Dial et al.
++	for _, callee := range []types.Object{
++		index.Object("net", "Dial"),
++		index.Object("net", "DialTimeout"),
++		index.Selection("net", "Dialer", "Dial"),
++	} {
++		for curCall := range index.Calls(callee) {
++			call := curCall.Node().(*ast.CallExpr)
++			switch address := call.Args[1].(type) {
++			case *ast.CallExpr:
++				if len(call.Args) == 2 { // avoid spread-call edge case
++					// net.Dial("tcp", fmt.Sprintf("%s:%d", ...))
++					checkAddr(address, nil)
++				}
++
++			case *ast.Ident:
++				// addr := fmt.Sprintf("%s:%d", ...)
++				// ...
++				// net.Dial("tcp", addr)
++
++				// Search for decl of addrVar within common ancestor of addrVar and Dial call.
++				// TODO(adonovan): abstract "find RHS of statement that assigns var v".
++				// TODO(adonovan): reject if there are other assignments to var v.
++				if addrVar, ok := info.Uses[address].(*types.Var); ok {
++					if curId, ok := index.Def(addrVar); ok {
++						// curIdent is the declaring ast.Ident of addr.
++						switch parent := curId.Parent().Node().(type) {
++						case *ast.AssignStmt:
++							if len(parent.Rhs) == 1 {
++								// Have: addr := fmt.Sprintf("%s:%d", ...)
++								checkAddr(parent.Rhs[0], call)
++							}
++
++						case *ast.ValueSpec:
++							if len(parent.Values) == 1 {
++								// Have: var addr = fmt.Sprintf("%s:%d", ...)
++								checkAddr(parent.Values[0], call)
++							}
++						}
++					}
++				}
++			}
++		}
++	}
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/typeindex/typeindex.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/typeindex/typeindex.go
+new file mode 100644
+index 0000000000..bba21c6ea0
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/typeindex/typeindex.go
+@@ -0,0 +1,33 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package typeindex defines an analyzer that provides a
++// [golang.org/x/tools/internal/typesinternal/typeindex.Index].
++//
++// Like [golang.org/x/tools/go/analysis/passes/inspect], it is
++// intended to be used as a helper by other analyzers; it reports no
++// diagnostics of its own.
++package typeindex
++
++import (
++	"reflect"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typesinternal/typeindex"
++)
++
++var Analyzer = &analysis.Analyzer{
++	Name: "typeindex",
++	Doc:  "indexes of type information for later passes",
++	URL:  "https://pkg.go.dev/golang.org/x/tools/internal/analysisinternal/typeindex",
++	Run: func(pass *analysis.Pass) (any, error) {
++		inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++		return typeindex.New(inspect, pass.Pkg, pass.TypesInfo), nil
++	},
++	RunDespiteErrors: true,
++	Requires:         []*analysis.Analyzer{inspect.Analyzer},
++	ResultType:       reflect.TypeOf(new(typeindex.Index)),
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/typeindex/typeindex.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/typeindex/typeindex.go
+new file mode 100644
+index 0000000000..34087a98fb
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/typeindex/typeindex.go
+@@ -0,0 +1,223 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package typeindex provides an [Index] of type information for a
++// package, allowing efficient lookup of, say, whether a given symbol
++// is referenced and, if so, where from; or of the [cursor.Cursor] for
++// the declaration of a particular [types.Object] symbol.
++package typeindex
++
++import (
++	"encoding/binary"
++	"go/ast"
++	"go/types"
++	"iter"
++
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/go/types/typeutil"
++	"golang.org/x/tools/internal/astutil/cursor"
++	"golang.org/x/tools/internal/astutil/edge"
++	"golang.org/x/tools/internal/typesinternal"
++)
++
++// New constructs an Index for the package of type-annotated syntax
++//
++// TODO(adonovan): accept a FileSet too?
++// We regret not requiring one in inspector.New.
++func New(inspect *inspector.Inspector, pkg *types.Package, info *types.Info) *Index {
++	ix := &Index{
++		inspect:  inspect,
++		info:     info,
++		packages: make(map[string]*types.Package),
++		def:      make(map[types.Object]cursor.Cursor),
++		uses:     make(map[types.Object]*uses),
++	}
++
++	addPackage := func(pkg2 *types.Package) {
++		if pkg2 != nil && pkg2 != pkg {
++			ix.packages[pkg2.Path()] = pkg2
++		}
++	}
++
++	for cur := range cursor.Root(inspect).Preorder((*ast.ImportSpec)(nil), (*ast.Ident)(nil)) {
++		switch n := cur.Node().(type) {
++		case *ast.ImportSpec:
++			// Index direct imports, including blank ones.
++			if pkgname := info.PkgNameOf(n); pkgname != nil {
++				addPackage(pkgname.Imported())
++			}
++
++		case *ast.Ident:
++			// Index all defining and using identifiers.
++			if obj := info.Defs[n]; obj != nil {
++				ix.def[obj] = cur
++			}
++
++			if obj := info.Uses[n]; obj != nil {
++				// Index indirect dependencies (via fields and methods).
++				if !typesinternal.IsPackageLevel(obj) {
++					addPackage(obj.Pkg())
++				}
++
++				us, ok := ix.uses[obj]
++				if !ok {
++					us = &uses{}
++					us.code = us.initial[:0]
++					ix.uses[obj] = us
++				}
++				delta := cur.Index() - us.last
++				if delta < 0 {
++					panic("non-monotonic")
++				}
++				us.code = binary.AppendUvarint(us.code, uint64(delta))
++				us.last = cur.Index()
++			}
++		}
++	}
++	return ix
++}
++
++// An Index holds an index mapping [types.Object] symbols to their syntax.
++// In effect, it is the inverse of [types.Info].
++type Index struct {
++	inspect  *inspector.Inspector
++	info     *types.Info
++	packages map[string]*types.Package      // packages of all symbols referenced from this package
++	def      map[types.Object]cursor.Cursor // Cursor of *ast.Ident that defines the Object
++	uses     map[types.Object]*uses         // Cursors of *ast.Idents that use the Object
++}
++
++// A uses holds the list of Cursors of Idents that use a given symbol.
++//
++// The Uses map of [types.Info] is substantial, so it pays to compress
++// its inverse mapping here, both in space and in CPU due to reduced
++// allocation. A Cursor is 2 words; a Cursor.Index is 4 bytes; but
++// since Cursors are naturally delivered in ascending order, we can
++// use varint-encoded deltas at a cost of only ~1.7-2.2 bytes per use.
++//
++// Many variables have only one or two uses, so their encoded uses may
++// fit in the 4 bytes of initial, saving further CPU and space
++// essentially for free since the struct's size class is 4 words.
++type uses struct {
++	code    []byte  // varint-encoded deltas of successive Cursor.Index values
++	last    int32   // most recent Cursor.Index value; used during encoding
++	initial [4]byte // use slack in size class as initial space for code
++}
++
++// Uses returns the sequence of Cursors of [*ast.Ident]s in this package
++// that refer to obj. If obj is nil, the sequence is empty.
++func (ix *Index) Uses(obj types.Object) iter.Seq[cursor.Cursor] {
++	return func(yield func(cursor.Cursor) bool) {
++		if uses := ix.uses[obj]; uses != nil {
++			var last int32
++			for code := uses.code; len(code) > 0; {
++				delta, n := binary.Uvarint(code)
++				last += int32(delta)
++				if !yield(cursor.At(ix.inspect, last)) {
++					return
++				}
++				code = code[n:]
++			}
++		}
++	}
++}
++
++// Used reports whether any of the specified objects are used, in
++// other words, obj != nil && Uses(obj) is non-empty for some obj in objs.
++//
++// (This treatment of nil allows Used to be called directly on the
++// result of [Index.Object] so that analyzers can conveniently skip
++// packages that don't use a symbol of interest.)
++func (ix *Index) Used(objs ...types.Object) bool {
++	for _, obj := range objs {
++		if obj != nil && ix.uses[obj] != nil {
++			return true
++		}
++	}
++	return false
++}
++
++// Def returns the Cursor of the [*ast.Ident] in this package
++// that declares the specified object, if any.
++func (ix *Index) Def(obj types.Object) (cursor.Cursor, bool) {
++	cur, ok := ix.def[obj]
++	return cur, ok
++}
++
++// Package returns the package of the specified path,
++// or nil if it is not referenced from this package.
++func (ix *Index) Package(path string) *types.Package {
++	return ix.packages[path]
++}
++
++// Object returns the package-level symbol name within the package of
++// the specified path, or nil if the package or symbol does not exist
++// or is not visible from this package.
++func (ix *Index) Object(path, name string) types.Object {
++	if pkg := ix.Package(path); pkg != nil {
++		return pkg.Scope().Lookup(name)
++	}
++	return nil
++}
++
++// Selection returns the named method or field belonging to the
++// package-level type returned by Object(path, typename).
++func (ix *Index) Selection(path, typename, name string) types.Object {
++	if obj := ix.Object(path, typename); obj != nil {
++		if tname, ok := obj.(*types.TypeName); ok {
++			obj, _, _ := types.LookupFieldOrMethod(tname.Type(), true, obj.Pkg(), name)
++			return obj
++		}
++	}
++	return nil
++}
++
++// Calls returns the sequence of cursors for *ast.CallExpr nodes that
++// call the specified callee, as defined by [typeutil.Callee].
++// If callee is nil, the sequence is empty.
++func (ix *Index) Calls(callee types.Object) iter.Seq[cursor.Cursor] {
++	return func(yield func(cursor.Cursor) bool) {
++		for cur := range ix.Uses(callee) {
++			ek, _ := cur.ParentEdge()
++
++			// The call may be of the form f() or x.f(),
++			// optionally with parens; ascend from f to call.
++			//
++			// It is tempting but wrong to use the first
++			// CallExpr ancestor: we have to make sure the
++			// ident is in the CallExpr.Fun position, otherwise
++			// f(f, f) would have two spurious matches.
++			// Avoiding Enclosing is also significantly faster.
++
++			// inverse unparen: f -> (f)
++			for ek == edge.ParenExpr_X {
++				cur = cur.Parent()
++				ek, _ = cur.ParentEdge()
++			}
++
++			// ascend selector: f -> x.f
++			if ek == edge.SelectorExpr_Sel {
++				cur = cur.Parent()
++				ek, _ = cur.ParentEdge()
++			}
++
++			// inverse unparen again
++			for ek == edge.ParenExpr_X {
++				cur = cur.Parent()
++				ek, _ = cur.ParentEdge()
++			}
++
++			// ascend from f or x.f to call
++			if ek == edge.CallExpr_Fun {
++				curCall := cur.Parent()
++				call := curCall.Node().(*ast.CallExpr)
++				if typeutil.Callee(ix.info, call) == callee {
++					if !yield(curCall) {
++						return
++					}
++				}
++			}
++		}
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 991fc8250c..dbf37f04b8 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -93,6 +93,7 @@ golang.org/x/tools/go/analysis/passes/defers
+ golang.org/x/tools/go/analysis/passes/directive
+ golang.org/x/tools/go/analysis/passes/errorsas
+ golang.org/x/tools/go/analysis/passes/framepointer
++golang.org/x/tools/go/analysis/passes/hostport
+ golang.org/x/tools/go/analysis/passes/httpresponse
+ golang.org/x/tools/go/analysis/passes/ifaceassert
+ golang.org/x/tools/go/analysis/passes/inspect
+@@ -123,6 +124,7 @@ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/aliases
+ golang.org/x/tools/internal/analysisinternal
++golang.org/x/tools/internal/analysisinternal/typeindex
+ golang.org/x/tools/internal/astutil
+ golang.org/x/tools/internal/astutil/cursor
+ golang.org/x/tools/internal/astutil/edge
+@@ -132,6 +134,7 @@ golang.org/x/tools/internal/fmtstr
+ golang.org/x/tools/internal/stdlib
+ golang.org/x/tools/internal/typeparams
+ golang.org/x/tools/internal/typesinternal
++golang.org/x/tools/internal/typesinternal/typeindex
+ golang.org/x/tools/internal/versions
+ # rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef
+ ## explicit; go 1.20
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index c9d611f927..49f4e2f342 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -24,6 +24,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/directive"
+ 	"golang.org/x/tools/go/analysis/passes/errorsas"
+ 	"golang.org/x/tools/go/analysis/passes/framepointer"
++	"golang.org/x/tools/go/analysis/passes/hostport"
+ 	"golang.org/x/tools/go/analysis/passes/httpresponse"
+ 	"golang.org/x/tools/go/analysis/passes/ifaceassert"
+ 	"golang.org/x/tools/go/analysis/passes/loopclosure"
+@@ -67,6 +68,7 @@ func main() {
+ 		errorsas.Analyzer,
+ 		framepointer.Analyzer,
+ 		httpresponse.Analyzer,
++		hostport.Analyzer,
+ 		ifaceassert.Analyzer,
+ 		loopclosure.Analyzer,
+ 		lostcancel.Analyzer,
+diff --git a/src/cmd/vet/testdata/hostport/hostport.go b/src/cmd/vet/testdata/hostport/hostport.go
+new file mode 100644
+index 0000000000..eb263a82c9
+--- /dev/null
++++ b/src/cmd/vet/testdata/hostport/hostport.go
+@@ -0,0 +1,17 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the hostport checker.
++
++package hostport
++
++import (
++	"fmt"
++	"net"
++)
++
++func _(host string, port int) {
++	addr := fmt.Sprintf("%s:%d", host, port) // ERROR "address format .%s:%d. does not work with IPv6"
++	net.Dial("tcp", addr)
++}
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 2f89784dfc..54eabca938 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -57,6 +57,7 @@ func TestVet(t *testing.T) {
+ 		"copylock",
+ 		"deadcode",
+ 		"directive",
++		"hostport",
+ 		"httpresponse",
+ 		"lostcancel",
+ 		"method",

@@ -21,6 +21,41 @@ Date:   Thu Mar 29 19:52:31 2018 +0300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e76abb7612..06948525ad 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -895,9 +895,11 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		}
+ 	}
+ 
+-	tg.tempFile("d1/src/p1/p1.go", `package p1`)
++	// Every main package depends on the "runtime".
++	tg.tempFile("d1/src/p1/p1.go", `package main; func main(){}`)
+ 	tg.setenv("GOPATH", tg.path("d1"))
+-	tg.run("install", "-a", "p1")
++	// Pass -i flag to rebuild everything outdated.
++	tg.run("install", "-i", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, before any changes")
+ 
+ 	// Changing mtime of runtime/internal/sys/sys.go
+@@ -919,13 +921,13 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
+ 	addNL(sys)
+ 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after changing sys.go again")
+-	tg.run("install", "p1")
++	tg.run("install", "-i", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
+ 
+ 	// Restore to "old" release.
+ 	restore()
+ 	tg.wantStale("p1", "stale dependency: runtime/internal/sys", "./testgo list claims p1 is NOT stale, incorrectly, after restoring sys.go")
+-	tg.run("install", "p1")
++	tg.run("install", "-i", "p1")
+ 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
+ 
+ 	// Everything is out of date. Rebuild to leave things in a better state.

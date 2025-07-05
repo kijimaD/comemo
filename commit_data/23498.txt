@@ -19,6 +19,126 @@ Date:   Mon May 18 15:49:02 2015 -0700
     Change-Id: I2764c5847fb1635ddc898e2ee385d007d67f03c5
     Reviewed-on: https://go-review.googlesource.com/10141
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/syntax.go | 90 +++++++++++++++++++++++--------------------
  1 file changed, 49 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index d52a3d4fe7..69348d1c2f 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -23,32 +23,6 @@ type Node struct {
+ 	List  *NodeList
+ 	Rlist *NodeList
+ 
+-	Op          uint8
+-	Nointerface bool
+-	Ullman      uint8 // sethi/ullman number
+-	Addable     bool  // addressable
+-	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+-	Bounded     bool  // bounds check unnecessary
+-	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
+-	Embedded    uint8 // ODCLFIELD embedded type
+-	Colas       bool  // OAS resulting from :=
+-	Diag        uint8 // already printed error about this
+-	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+-	Walkdef     uint8
+-	Typecheck   uint8
+-	Local       bool
+-	Dodata      uint8
+-	Initorder   uint8
+-	Used        bool
+-	Isddd       bool // is the argument variadic
+-	Implicit    bool
+-	Addrtaken   bool   // address taken, even if not moved to heap
+-	Assigned    bool   // is the variable ever assigned to
+-	Likely      int8   // likeliness of if statement
+-	Hasbreak    bool   // has break statement
+-	Esc         uint16 // EscXXX
+-	Funcdepth   int32
+-
+ 	// most nodes
+ 	Type  *Type
+ 	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
+@@ -57,12 +31,6 @@ type Node struct {
+ 	// func
+ 	Func *Func
+ 
+-	// OLITERAL
+-	Val Val
+-
+-	// OREGISTER, OINDREG
+-	Reg int16
+-
+ 	// ONAME
+ 	Name     *Name
+ 	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
+@@ -79,19 +47,59 @@ type Node struct {
+ 	Initplan *InitPlan
+ 
+ 	// Escape analysis.
+-	Escflowsrc   *NodeList // flow(this, src)
+-	Escretval    *NodeList // on OCALLxxx, list of dummy return values
+-	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
++	Escflowsrc *NodeList // flow(this, src)
++	Escretval  *NodeList // on OCALLxxx, list of dummy return values
++
++	Sym *Sym // various
++
++	Opt interface{} // for optimization passes
++
++	// OLITERAL
++	Val Val
+ 
+-	Sym      *Sym  // various
+-	Vargen   int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
+-	Lineno   int32
+ 	Xoffset  int64
+ 	Stkdelta int64 // offset added by stack frame compaction phase.
+-	Iota     int32
+-	Walkgen  uint32
++
++	// Escape analysis.
++	Escloopdepth int32 // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
++
++	Vargen  int32 // unique name for OTYPE/ONAME within a function.  Function outputs are numbered starting at one.
++	Lineno  int32
++	Iota    int32
++	Walkgen uint32
++
++	Funcdepth int32
++
++	// OREGISTER, OINDREG
++	Reg int16
++
++	// most nodes - smaller fields
+ 	Esclevel Level
+-	Opt      interface{} // for optimization passes
++	Esc      uint16 // EscXXX
++
++	Op          uint8
++	Nointerface bool
++	Ullman      uint8 // sethi/ullman number
++	Addable     bool  // addressable
++	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
++	Bounded     bool  // bounds check unnecessary
++	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
++	Embedded    uint8 // ODCLFIELD embedded type
++	Colas       bool  // OAS resulting from :=
++	Diag        uint8 // already printed error about this
++	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
++	Walkdef     uint8
++	Typecheck   uint8
++	Local       bool
++	Dodata      uint8
++	Initorder   uint8
++	Used        bool
++	Isddd       bool // is the argument variadic
++	Implicit    bool
++	Addrtaken   bool // address taken, even if not moved to heap
++	Assigned    bool // is the variable ever assigned to
++	Likely      int8 // likeliness of if statement
++	Hasbreak    bool // has break statement
+ }
+ 
+ // Name holds Node fields used only by ONAME nodes.

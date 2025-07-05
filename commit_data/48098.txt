@@ -17,6 +17,68 @@ Date:   Wed Apr 7 17:43:09 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/scanner/scanner_test.go | 49 ++++++++++++++++++++++++++----------------
  1 file changed, 30 insertions(+), 19 deletions(-)
+
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index db095b3da6..ac8d257716 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -889,26 +889,37 @@ func BenchmarkScan(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkScanFile(b *testing.B) {
+-	b.StopTimer()
+-	const filename = "scanner.go"
+-	src, err := os.ReadFile(filename)
+-	if err != nil {
+-		panic(err)
+-	}
+-	fset := token.NewFileSet()
+-	file := fset.AddFile(filename, fset.Base(), len(src))
+-	b.SetBytes(int64(len(src)))
+-	var s Scanner
+-	b.StartTimer()
+-	for i := 0; i < b.N; i++ {
+-		s.Init(file, src, nil, ScanComments)
+-		for {
+-			_, tok, _ := s.Scan()
+-			if tok == token.EOF {
+-				break
++func BenchmarkScanFiles(b *testing.B) {
++	// Scan a few arbitrary large files, and one small one, to provide some
++	// variety in benchmarks.
++	for _, p := range []string{
++		"go/types/expr.go",
++		"go/parser/parser.go",
++		"net/http/server.go",
++		"go/scanner/errors.go",
++	} {
++		b.Run(p, func(b *testing.B) {
++			b.StopTimer()
++			filename := filepath.Join("..", "..", filepath.FromSlash(p))
++			src, err := os.ReadFile(filename)
++			if err != nil {
++				b.Fatal(err)
+ 			}
+-		}
++			fset := token.NewFileSet()
++			file := fset.AddFile(filename, fset.Base(), len(src))
++			b.SetBytes(int64(len(src)))
++			var s Scanner
++			b.StartTimer()
++			for i := 0; i < b.N; i++ {
++				s.Init(file, src, nil, ScanComments)
++				for {
++					_, tok, _ := s.Scan()
++					if tok == token.EOF {
++						break
++					}
++				}
++			}
++		})
+ 	}
+ }
+ 

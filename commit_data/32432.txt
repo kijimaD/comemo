@@ -22,8 +22,204 @@ Date:   Thu Apr 20 16:51:36 2017 +0300
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_windows.go       | 83 ++++++++++++++++++++++++++++++++++++++++-
  src/runtime/sys_windows_386.s   | 12 +++++-
  src/runtime/sys_windows_amd64.s | 10 +++++
  3 files changed, 102 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 44c982ba2e..672cc100d5 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -73,9 +73,12 @@ var (
+ 	_GetQueuedCompletionStatus,
+ 	_GetStdHandle,
+ 	_GetSystemInfo,
++	_GetSystemTimeAsFileTime,
+ 	_GetThreadContext,
+ 	_LoadLibraryW,
+ 	_LoadLibraryA,
++	_QueryPerformanceCounter,
++	_QueryPerformanceFrequency,
+ 	_ResumeThread,
+ 	_SetConsoleCtrlHandler,
+ 	_SetErrorMode,
+@@ -188,6 +191,11 @@ func loadOptionalSyscalls() {
+ 		throw("ntdll.dll not found")
+ 	}
+ 	_NtWaitForSingleObject = windowsFindfunc(n32, []byte("NtWaitForSingleObject\000"))
++
++	if windowsFindfunc(n32, []byte("wine_get_version\000")) != nil {
++		// running on Wine
++		initWine(k32)
++	}
+ }
+ 
+ //go:nosplit
+@@ -292,6 +300,79 @@ func osinit() {
+ 	stdcall2(_SetProcessPriorityBoost, currentProcess, 1)
+ }
+ 
++func nanotime() int64
++
++// useQPCTime controls whether time.now and nanotime use QueryPerformanceCounter.
++// This is only set to 1 when running under Wine.
++var useQPCTime uint8
++
++var qpcStartCounter int64
++var qpcMultiplier int64
++
++//go:nosplit
++func nanotimeQPC() int64 {
++	var counter int64 = 0
++	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
++
++	// returns number of nanoseconds
++	return (counter - qpcStartCounter) * qpcMultiplier
++}
++
++//go:nosplit
++func nowQPC() (sec int64, nsec int32, mono int64) {
++	var ft int64
++	stdcall1(_GetSystemTimeAsFileTime, uintptr(unsafe.Pointer(&ft)))
++
++	t := (ft - 116444736000000000) * 100
++
++	sec = t / 1000000000
++	nsec = int32(t - sec*1000000000)
++
++	mono = nanotimeQPC()
++	return
++}
++
++func initWine(k32 uintptr) {
++	_GetSystemTimeAsFileTime = windowsFindfunc(k32, []byte("GetSystemTimeAsFileTime\000"))
++	if _GetSystemTimeAsFileTime == nil {
++		throw("could not find GetSystemTimeAsFileTime() syscall")
++	}
++
++	_QueryPerformanceCounter = windowsFindfunc(k32, []byte("QueryPerformanceCounter\000"))
++	_QueryPerformanceFrequency = windowsFindfunc(k32, []byte("QueryPerformanceFrequency\000"))
++	if _QueryPerformanceCounter == nil || _QueryPerformanceFrequency == nil {
++		throw("could not find QPC syscalls")
++	}
++
++	// We can not simply fallback to GetSystemTimeAsFileTime() syscall, since its time is not monotonic,
++	// instead we use QueryPerformanceCounter family of syscalls to implement monotonic timer
++	// https://msdn.microsoft.com/en-us/library/windows/desktop/dn553408(v=vs.85).aspx
++
++	var tmp int64
++	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&tmp)))
++	if tmp == 0 {
++		throw("QueryPerformanceFrequency syscall returned zero, running on unsupported hardware")
++	}
++
++	// This should not overflow, it is a number of ticks of the performance counter per second,
++	// its resolution is at most 10 per usecond (on Wine, even smaller on real hardware), so it will be at most 10 millions here,
++	// panic if overflows.
++	if tmp > (1<<31 - 1) {
++		throw("QueryPerformanceFrequency overflow 32 bit divider, check nosplit discussion to proceed")
++	}
++	qpcFrequency := int32(tmp)
++	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&qpcStartCounter)))
++
++	// Since we are supposed to run this time calls only on Wine, it does not lose precision,
++	// since Wine's timer is kind of emulated at 10 Mhz, so it will be a nice round multiplier of 100
++	// but for general purpose system (like 3.3 Mhz timer on i7) it will not be very precise.
++	// We have to do it this way (or similar), since multiplying QPC counter by 100 millions overflows
++	// int64 and resulted time will always be invalid.
++	qpcMultiplier = int64(timediv(1000000000, qpcFrequency, nil))
++
++	useQPCTime = 1
++}
++
+ //go:nosplit
+ func getRandomData(r []byte) {
+ 	n := 0
+@@ -578,8 +659,6 @@ func unminit() {
+ 	*tp = 0
+ }
+ 
+-func nanotime() int64
+-
+ // Calling stdcall on os stack.
+ // May run during STW, so write barriers are not allowed.
+ //go:nowritebarrier
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 35bc7a9aaa..128e8abd97 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -441,6 +441,8 @@ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ #define time_hi2 8
+ 
+ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
++	CMPB	runtime·useQPCTime(SB), $0
++	JNE	useQPC
+ loop:
+ 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+ 	MOVL	(_INTERRUPT_TIME+time_lo), CX
+@@ -459,8 +461,13 @@ loop:
+ 	MOVL	AX, ret_lo+0(FP)
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
++useQPC:
++	JMP	runtime·nanotimeQPC(SB)
++	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$0-20
++	CMPB	runtime·useQPCTime(SB), $0
++	JNE	useQPC
+ loop:
+ 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+ 	MOVL	(_INTERRUPT_TIME+time_lo), CX
+@@ -477,7 +484,7 @@ loop:
+ 	// w*100 = DX:AX
+ 	// subtract startNano and save for return
+ 	SUBL	runtime·startNano+0(SB), AX
+-	SBBL runtime·startNano+4(SB), DX
++	SBBL	runtime·startNano+4(SB), DX
+ 	MOVL	AX, mono+12(FP)
+ 	MOVL	DX, mono+16(FP)
+ 
+@@ -532,3 +539,6 @@ wall:
+ 	MOVL	AX, sec+0(FP)
+ 	MOVL	DX, sec+4(FP)
+ 	RET
++useQPC:
++	JMP	runtime·nowQPC(SB)
++	RET
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 898aadfcf4..744e78c708 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -474,6 +474,8 @@ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ #define time_hi2 8
+ 
+ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
++	CMPB	runtime·useQPCTime(SB), $0
++	JNE	useQPC
+ 	MOVQ	$_INTERRUPT_TIME, DI
+ loop:
+ 	MOVL	time_hi1(DI), AX
+@@ -487,8 +489,13 @@ loop:
+ 	SUBQ	runtime·startNano(SB), CX
+ 	MOVQ	CX, ret+0(FP)
+ 	RET
++useQPC:
++	JMP	runtime·nanotimeQPC(SB)
++	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$0-24
++	CMPB	runtime·useQPCTime(SB), $0
++	JNE	useQPC
+ 	MOVQ	$_INTERRUPT_TIME, DI
+ loop:
+ 	MOVL	time_hi1(DI), AX
+@@ -529,3 +536,6 @@ wall:
+ 	SUBQ	DX, CX
+ 	MOVL	CX, nsec+8(FP)
+ 	RET
++useQPC:
++	JMP	runtime·nowQPC(SB)
++	RET

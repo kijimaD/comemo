@@ -13,10 +13,117 @@ Date:   Tue Apr 12 12:26:17 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20875
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/cgen.go  | 4 ++--
  src/cmd/compile/internal/gc/gsubr.go | 8 +++++---
  src/cmd/compile/internal/gc/pgen.go  | 2 +-
  src/cmd/compile/internal/gc/reg.go   | 2 +-
  src/cmd/compile/internal/gc/walk.go  | 7 ++++++-
  5 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index eacbc30f87..9de2a19f68 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -247,7 +247,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		return
+ 	}
+ 
+-	if Ctxt.Arch.InFamily(sys.AMD64, sys.I386) && n.Addable {
++	if Ctxt.Arch.InFamily(sys.AMD64, sys.I386, sys.S390X) && n.Addable {
+ 		Thearch.Gmove(n, res)
+ 		return
+ 	}
+@@ -1829,7 +1829,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		// Some architectures might need a temporary or other help here,
+ 		// but they don't support direct generation of a bool value yet.
+ 		// We can fix that as we go.
+-		mayNeedTemp := Ctxt.Arch.InFamily(sys.ARM, sys.ARM64, sys.MIPS64, sys.PPC64)
++		mayNeedTemp := Ctxt.Arch.InFamily(sys.ARM, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X)
+ 
+ 		if genval {
+ 			if mayNeedTemp {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 63a8e969c3..f1316db8d8 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -58,7 +58,9 @@ func Ismem(n *Node) bool {
+ 		return true
+ 
+ 	case OADDR:
+-		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64) // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
++		// amd64 and s390x use PC relative addressing.
++		// TODO(rsc): not sure why ppc64 needs this too.
++		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64, sys.S390X)
+ 	}
+ 
+ 	return false
+@@ -84,7 +86,7 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
+ 	p := Prog(as)
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	p.To.Val = nil
+-	if as != obj.AJMP && likely != 0 && Thearch.LinkArch.Family != sys.PPC64 && Thearch.LinkArch.Family != sys.ARM64 && Thearch.LinkArch.Family != sys.MIPS64 {
++	if as != obj.AJMP && likely != 0 && !Thearch.LinkArch.InFamily(sys.PPC64, sys.ARM64, sys.MIPS64, sys.S390X) {
+ 		p.From.Type = obj.TYPE_CONST
+ 		if likely > 0 {
+ 			p.From.Offset = 1
+@@ -458,7 +460,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 	case OADDR:
+ 		Naddr(a, n.Left)
+ 		a.Etype = uint8(Tptr)
+-		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) { // TODO(rsc): Do this even for arm, ppc64.
++		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) { // TODO(rsc): Do this even for these architectures.
+ 			a.Width = int64(Widthptr)
+ 		}
+ 		if a.Type != obj.TYPE_MEM {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index f6e9ab3b06..baa960bf75 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -287,7 +287,7 @@ func allocauto(ptxt *obj.Prog) {
+ 		if haspointers(n.Type) {
+ 			stkptrsize = Stksize
+ 		}
+-		if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) {
++		if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+ 			Stksize = Rnd(Stksize, int64(Widthptr))
+ 		}
+ 		if Stksize >= 1<<31 {
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 8705d6dfa4..138ad683c5 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1115,7 +1115,7 @@ func regopt(firstp *obj.Prog) {
+ 
+ 		// Currently we never generate three register forms.
+ 		// If we do, this will need to change.
+-		if p.From3Type() != obj.TYPE_NONE {
++		if p.From3Type() != obj.TYPE_NONE && p.From3Type() != obj.TYPE_CONST {
+ 			Fatalf("regopt not implemented for from3")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 586a8e9c4f..3e5f5161db 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -673,7 +673,7 @@ opswitch:
+ 		walkexprlist(n.List.Slice(), init)
+ 
+ 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
+-			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.PPC64) {
++			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
+ 				n.Op = OSQRT
+ 				n.Left = n.List.First()
+ 				n.List.Set(nil)
+@@ -3294,6 +3294,11 @@ func walkrotate(n *Node) *Node {
+ 	// Constants adding to width?
+ 	w := int(l.Type.Width * 8)
+ 
++	if Thearch.LinkArch.Family == sys.S390X && w != 32 && w != 64 {
++		// only supports 32-bit and 64-bit rotates
++		return n
++	}
++
+ 	if Smallintconst(l.Right) && Smallintconst(r.Right) {
+ 		sl := int(l.Right.Int64())
+ 		if sl >= 0 {

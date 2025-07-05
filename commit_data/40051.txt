@@ -11,8 +11,96 @@ Date:   Mon Apr 15 10:36:17 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/export_unix_test.go |  9 +++++++++
  src/os/os_unix_test.go     | 25 +++++++++++++++++++++++++
  src/os/path_unix.go        | 18 ++++++++++++++----
  3 files changed, 48 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/export_unix_test.go b/src/os/export_unix_test.go
+new file mode 100644
+index 0000000000..032b1a9dbf
+--- /dev/null
++++ b/src/os/export_unix_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
++
++package os
++
++var SplitPath = splitPath
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 87c3bcd8fa..fa4c594136 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -288,3 +288,28 @@ func TestNewFileNonBlock(t *testing.T) {
+ 	t.Parallel()
+ 	newFileTest(t, false)
+ }
++
++func TestSplitPath(t *testing.T) {
++	t.Parallel()
++	for _, tt := range []struct{ path, wantDir, wantBase string }{
++		{"a", ".", "a"},
++		{"a/", ".", "a"},
++		{"a//", ".", "a"},
++		{"a/b", "a", "b"},
++		{"a/b/", "a", "b"},
++		{"a/b/c", "a/b", "c"},
++		{"/a", "/", "a"},
++		{"/a/", "/", "a"},
++		{"/a/b", "/a", "b"},
++		{"/a/b/", "/a", "b"},
++		{"/a/b/c", "/a/b", "c"},
++		{"//a", "/", "a"},
++		{"//a/", "/", "a"},
++		{"///a", "/", "a"},
++		{"///a/", "/", "a"},
++	} {
++		if dir, base := SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
++			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
++		}
++	}
++}
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index a08ddaf6db..df423d2c9d 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -38,20 +38,30 @@ func basename(name string) string {
+ func splitPath(path string) (string, string) {
+ 	// if no better parent is found, the path is relative from "here"
+ 	dirname := "."
+-	// if no slashes in path, base is path
+-	basename := path
++
++	// Remove all but one leading slash.
++	for len(path) > 1 && path[0] == '/' && path[1] == '/' {
++		path = path[1:]
++	}
+ 
+ 	i := len(path) - 1
+ 
+-	// Remove trailing slashes
++	// Remove trailing slashes.
+ 	for ; i > 0 && path[i] == '/'; i-- {
+ 		path = path[:i]
+ 	}
+ 
++	// if no slashes in path, base is path
++	basename := path
++
+ 	// Remove leading directory path
+ 	for i--; i >= 0; i-- {
+ 		if path[i] == '/' {
+-			dirname = path[:i]
++			if i == 0 {
++				dirname = path[:1]
++			} else {
++				dirname = path[:i]
++			}
+ 			basename = path[i+1:]
+ 			break
+ 		}

@@ -11,6 +11,24 @@ Date:   Mon Aug 2 12:17:13 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/341150
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/goexperiment/flags.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index b7a62b3e26..0a61a0e5fc 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -80,10 +80,7 @@ type Flags struct {
+ 	// RegabiArgs enables register arguments/results in all
+ 	// compiled Go functions.
+ 	//
+-	// Requires wrappers (to do ABI translation), g (because
+-	// runtime assembly that's been ported to ABIInternal uses the
+-	// G register), reflect (so reflection calls use registers),
+-	// and defer (because the runtime doesn't support passing
+-	// register arguments to defer/go).
++	// Requires wrappers (to do ABI translation), and reflect (so
++	// reflection calls use registers).
+ 	RegabiArgs bool
+ }

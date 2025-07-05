@@ -14,7 +14,70 @@ Date:   Fri Apr 23 12:03:48 2021 -0700
     Trust: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go            |  8 ++++++--
  src/cmd/go/testdata/script/list_swigcxx.txt | 27 +++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index ab9ce88c3c..38e826607e 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -246,11 +246,11 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	if p.Internal.ForceLibrary {
+ 		fmt.Fprintf(h, "forcelibrary\n")
+ 	}
+-	if len(p.CgoFiles)+len(p.SwigFiles) > 0 {
++	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
+ 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+ 		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
+ 		fmt.Fprintf(h, "CC=%q %q %q %q\n", b.ccExe(), cppflags, cflags, ldflags)
+-		if len(p.CXXFiles)+len(p.SwigFiles) > 0 {
++		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
+ 			fmt.Fprintf(h, "CXX=%q %q\n", b.cxxExe(), cxxflags)
+ 		}
+ 		if len(p.FFiles) > 0 {
+@@ -654,6 +654,10 @@ OverlayLoop:
+ 		}
+ 
+ 		outGo, outObj, err := b.cgo(a, base.Tool("cgo"), objdir, pcCFLAGS, pcLDFLAGS, mkAbsFiles(a.Package.Dir, cgofiles), gccfiles, cxxfiles, a.Package.MFiles, a.Package.FFiles)
++
++		// The files in cxxfiles have now been handled by b.cgo.
++		cxxfiles = nil
++
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/testdata/script/list_swigcxx.txt b/src/cmd/go/testdata/script/list_swigcxx.txt
+new file mode 100644
+index 0000000000..c6acd9ecdb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_swigcxx.txt
+@@ -0,0 +1,27 @@
++# go list should not report SWIG-generated C++ files in CompiledGoFiles.
++
++[!exec:swig] skip
++[!exec:g++] skip
++
++# CompiledGoFiles should contain 4 files:
++#  a.go
++#  a.swigcxx.go
++#  _cgo_gotypes.go
++#  a.cgo1.go
++
++go list -f '{{.CompiledGoFiles}}' -compiled=true example/swig
++
++# These names we see here, other than a.go, will be from the build cache,
++# so we just count them.
++stdout a\.go
++stdout -count=3 $GOCACHE
++
++-- go.mod --
++module example
++
++go 1.16
++
++-- swig/a.go --
++package swig
++
++-- swig/a.swigcxx --

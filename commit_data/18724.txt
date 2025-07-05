@@ -16,7 +16,50 @@ Date:   Mon Mar 3 20:43:23 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/69980047
-
+---
  src/pkg/math/rand/rand.go      | 6 ++++++
  src/pkg/math/rand/rand_test.go | 7 +++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/pkg/math/rand/rand.go b/src/pkg/math/rand/rand.go
+index d3ea840178..0c91f88184 100644
+--- a/src/pkg/math/rand/rand.go
++++ b/src/pkg/math/rand/rand.go
+@@ -60,6 +60,9 @@ func (r *Rand) Int63n(n int64) int64 {
+ 	if n <= 0 {
+ 		panic("invalid argument to Int63n")
+ 	}
++	if n&(n-1) == 0 { // n is power of two, can mask
++		return r.Int63() & (n - 1)
++	}
+ 	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
+ 	v := r.Int63()
+ 	for v > max {
+@@ -74,6 +77,9 @@ func (r *Rand) Int31n(n int32) int32 {
+ 	if n <= 0 {
+ 		panic("invalid argument to Int31n")
+ 	}
++	if n&(n-1) == 0 { // n is power of two, can mask
++		return r.Int31() & (n - 1)
++	}
+ 	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
+ 	v := r.Int31()
+ 	for v > max {
+diff --git a/src/pkg/math/rand/rand_test.go b/src/pkg/math/rand/rand_test.go
+index c174c613f4..ab0dc49b41 100644
+--- a/src/pkg/math/rand/rand_test.go
++++ b/src/pkg/math/rand/rand_test.go
+@@ -376,6 +376,13 @@ func BenchmarkFloat32(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkFloat64(b *testing.B) {
++	r := New(NewSource(1))
++	for n := b.N; n > 0; n-- {
++		r.Float64()
++	}
++}
++
+ func BenchmarkPerm3(b *testing.B) {
+ 	r := New(NewSource(1))
+ 	for n := b.N; n > 0; n-- {

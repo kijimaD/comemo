@@ -9,6 +9,11 @@ Date:   Sun Feb 21 18:57:21 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/216068
-
+---
  test/{nul.go => nul1.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/nul.go b/test/nul1.go
+similarity index 100%
+rename from test/nul.go
+rename to test/nul1.go

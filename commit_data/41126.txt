@@ -16,6 +16,19 @@ Date:   Thu Aug 22 16:36:20 2019 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/security_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index fd8caeab4e..a3a1d7d56c 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -143,6 +143,7 @@ var goodLinkerFlags = [][]string{
+ 	{"-L", "framework"},
+ 	{"-framework", "Chocolate"},
+ 	{"-v"},
++	{"-Wl,-sectcreate,__TEXT,__info_plist,${SRCDIR}/Info.plist"},
+ 	{"-Wl,-framework", "-Wl,Chocolate"},
+ 	{"-Wl,-framework,Chocolate"},
+ 	{"-Wl,-unresolved-symbols=ignore-all"},

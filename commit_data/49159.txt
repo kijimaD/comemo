@@ -13,6 +13,23 @@ Date:   Fri Jul 23 14:38:04 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stmt.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index b7085c4776..5af4a2da9c 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -128,6 +128,11 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 			if e.Type().HasTParam() {
+ 				// Delay transforming the return statement if any of the
+ 				// return values have a type param.
++				if !ir.HasNamedResults(ir.CurFunc) {
++					// But add CONVIFACE nodes where needed if
++					// any of the return values have interface type.
++					typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), n.Results, true)
++				}
+ 				n.SetTypecheck(3)
+ 				return n
+ 			}

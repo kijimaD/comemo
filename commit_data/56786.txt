@@ -73,9 +73,137 @@ Date:   Fri May 19 19:12:35 2023 +0000
     Reviewed-by: Ansiwen <ansiwen@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go      |  4 ++++
  src/runtime/pinner.go   | 50 +++++++++++++++++++++++++++++++++++++++----------
  src/runtime/proc.go     |  1 +
  src/runtime/runtime2.go |  4 ++++
  4 files changed, 49 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c119308441..c8e68807ee 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1085,6 +1085,9 @@ func gcMarkTermination() {
+ 	// having pages get stuck on them. These pages are hidden from
+ 	// the scavenger, so in small idle heaps a significant amount
+ 	// of additional memory might be held onto.
++	//
++	// Also, flush the pinner cache, to avoid leaking that memory
++	// indefinitely.
+ 	systemstack(func() {
+ 		forEachP(func(pp *p) {
+ 			pp.mcache.prepareForSweep()
+@@ -1095,6 +1098,7 @@ func gcMarkTermination() {
+ 					unlock(&mheap_.lock)
+ 				})
+ 			}
++			pp.pinnerCache = nil
+ 		})
+ 	})
+ 	// Now that we've swept stale spans in mcaches, they don't
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+index 94c9e92432..2f28db10c0 100644
+--- a/src/runtime/pinner.go
++++ b/src/runtime/pinner.go
+@@ -27,17 +27,34 @@ type Pinner struct {
+ // local variable. If one of these conditions is not met, Pin will panic.
+ func (p *Pinner) Pin(pointer any) {
+ 	if p.pinner == nil {
+-		p.pinner = new(pinner)
+-		p.refs = p.refStore[:0]
+-		SetFinalizer(p.pinner, func(i *pinner) {
+-			if len(i.refs) != 0 {
+-				i.unpin() // only required to make the test idempotent
+-				pinnerLeakPanic()
+-			}
+-		})
++		// Check the pinner cache first.
++		mp := acquirem()
++		if pp := mp.p.ptr(); pp != nil {
++			p.pinner = pp.pinnerCache
++			pp.pinnerCache = nil
++		}
++		releasem(mp)
++
++		if p.pinner == nil {
++			// Didn't get anything from the pinner cache.
++			p.pinner = new(pinner)
++			p.refs = p.refStore[:0]
++
++			// We set this finalizer once and never clear it. Thus, if the
++			// pinner gets cached, we'll reuse it, along with its finalizer.
++			// This lets us avoid the relatively expensive SetFinalizer call
++			// when reusing from the cache. The finalizer however has to be
++			// resilient to an empty pinner being finalized, which is done
++			// by checking p.refs' length.
++			SetFinalizer(p.pinner, func(i *pinner) {
++				if len(i.refs) != 0 {
++					i.unpin() // only required to make the test idempotent
++					pinnerLeakPanic()
++				}
++			})
++		}
+ 	}
+ 	ptr := pinnerGetPtr(&pointer)
+-
+ 	setPinned(ptr, true)
+ 	p.refs = append(p.refs, ptr)
+ }
+@@ -45,6 +62,17 @@ func (p *Pinner) Pin(pointer any) {
+ // Unpin all pinned objects of the Pinner.
+ func (p *Pinner) Unpin() {
+ 	p.pinner.unpin()
++
++	mp := acquirem()
++	if pp := mp.p.ptr(); pp != nil && pp.pinnerCache == nil {
++		// Put the pinner back in the cache, but only if the
++		// cache is empty. If application code is reusing Pinners
++		// on its own, we want to leave the backing store in place
++		// so reuse is more efficient.
++		pp.pinnerCache = p.pinner
++		p.pinner = nil
++	}
++	releasem(mp)
+ }
+ 
+ const (
+@@ -63,8 +91,10 @@ func (p *pinner) unpin() {
+ 	}
+ 	for i := range p.refs {
+ 		setPinned(p.refs[i], false)
+-		p.refs[i] = nil
+ 	}
++	// The following two lines make all pointers to references
++	// in p.refs unreachable, either by deleting them or dropping
++	// p.refs' backing store (if it was not backed by refStore).
+ 	p.refStore = [pinnerRefStoreSize]unsafe.Pointer{}
+ 	p.refs = p.refStore[:0]
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 56518fd3af..886f7bdca9 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5088,6 +5088,7 @@ func (pp *p) destroy() {
+ 		pp.sudogbuf[i] = nil
+ 	}
+ 	pp.sudogcache = pp.sudogbuf[:0]
++	pp.pinnerCache = nil
+ 	for j := range pp.deferpoolbuf {
+ 		pp.deferpoolbuf[j] = nil
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 59271a6001..f4c76abd1c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -675,6 +675,10 @@ type p struct {
+ 		buf [128]*mspan
+ 	}
+ 
++	// Cache of a single pinner object to reduce allocations from repeated
++	// pinner creation.
++	pinnerCache *pinner
++
+ 	trace pTraceState
+ 
+ 	palloc persistentAlloc // per-P to avoid mutex

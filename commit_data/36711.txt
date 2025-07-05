@@ -15,6 +15,24 @@ Date:   Tue May 22 11:07:43 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 7a953546dc..f42094a0f5 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -493,6 +493,12 @@ func (lv *Liveness) markUnsafePoints() {
+ 
+ 	// Mark write barrier unsafe points.
+ 	for _, wbBlock := range lv.f.WBLoads {
++		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
++			// The write barrier block was optimized away
++			// but we haven't done dead block elimination.
++			// (This can happen in -N mode.)
++			continue
++		}
+ 		// Check that we have the expected diamond shape.
+ 		if len(wbBlock.Succs) != 2 {
+ 			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)

@@ -8,7 +8,45 @@ Date:   Wed Oct 1 16:51:32 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/151960044
-
+---
  src/reflect/all_test.go | 14 ++++++++++++++
  src/reflect/value.go    |  4 +++-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index b72c4b176d..d17ef5c5e9 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3939,3 +3939,17 @@ func TestValueString(t *testing.T) {
+ 		t.Errorf("ValueOf(Impl{}).Method(0).String() = %q, want %q", method.String(), "<func() Value>")
+ 	}
+ }
++
++func TestInvalid(t *testing.T) {
++	// Used to have inconsistency between IsValid() and Kind() != Invalid.
++	type T struct{ v interface{} }
++
++	v := ValueOf(T{}).Field(0)
++	if v.IsValid() != true || v.Kind() != Interface {
++		t.Errorf("field: IsValid=%v, Kind=%v, want true, Interface", v.IsValid(), v.Kind())
++	}
++	v = v.Elem()
++	if v.IsValid() != false || v.Kind() != Invalid {
++		t.Errorf("field elem: IsValid=%v, Kind=%v, want false, Invalid", v.IsValid(), v.Kind())
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 12d423f3c3..9c65ee2703 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -791,7 +791,9 @@ func (v Value) Elem() Value {
+ 			})(v.ptr))
+ 		}
+ 		x := unpackEface(eface)
+-		x.flag |= v.flag & flagRO
++		if x.flag != 0 {
++			x.flag |= v.flag & flagRO
++		}
+ 		return x
+ 	case Ptr:
+ 		ptr := v.ptr

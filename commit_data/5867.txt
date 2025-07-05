@@ -7,6 +7,26 @@ Date:   Thu Jul 22 10:15:36 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1843046
-
+---
  src/clean.bash | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 567e6e3196..db4cf40101 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -9,6 +9,14 @@ if [ -z "$GOROOT" ] ; then
+ 	echo '$GOROOT not set'
+ 	exit 1
+ fi
++if [ -z "$GOOS" ] ; then
++	echo '$GOOS not set'
++	exit 1
++fi
++if [ -z "$GOARCH" ] ; then
++	echo '$GOARCH not set'
++	exit 1
++fi
+ 
+ GOBIN="${GOBIN:-$HOME/bin}"
+ 

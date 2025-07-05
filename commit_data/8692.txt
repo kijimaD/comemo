@@ -7,7 +7,7 @@ Date:   Sat Jun 11 09:25:18 2011 +1000
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4602054
-
+---
  doc/go_tutorial.html          | 12 ++++++------
  doc/go_tutorial.txt           |  2 +-
  doc/progs/sort.go             | 36 ++++++++++++++++++------------------
@@ -21,3 +21,357 @@ Date:   Sat Jun 11 09:25:18 2011 +1000
  src/pkg/syscall/exec_unix.go  | 10 +++++-----
  src/pkg/unicode/maketables.go |  4 ++--
  12 files changed, 62 insertions(+), 62 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index aa85134b37..4f3f6b94b3 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -934,12 +934,12 @@ We can apply <code>Sort</code> to any type that implements <code>Len</code>, <co
+ The <code>sort</code> package includes the necessary methods to allow sorting of
+ arrays of integers, strings, etc.; here's the code for arrays of <code>int</code>
+ <p>
+-<pre> <!-- progs/sort.go /type.*IntArray/ /Swap/ -->
+-33    type IntArray []int
++<pre> <!-- progs/sort.go /type.*IntSlice/ /Swap/ -->
++33    type IntSlice []int
+ 
+-35    func (p IntArray) Len() int            { return len(p) }
+-36    func (p IntArray) Less(i, j int) bool  { return p[i] &lt; p[j] }
+-37    func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
++35    func (p IntSlice) Len() int            { return len(p) }
++36    func (p IntSlice) Less(i, j int) bool  { return p[i] &lt; p[j] }
++37    func (p IntSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ </pre>
+ <p>
+ Here we see methods defined for non-<code>struct</code> types.  You can define methods
+@@ -952,7 +952,7 @@ to test that the result is sorted.
+ <pre> <!-- progs/sortmain.go /func.ints/ /^}/ -->
+ 12    func ints() {
+ 13        data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+-14        a := sort.IntArray(data)
++14        a := sort.IntSlice(data)
+ 15        sort.Sort(a)
+ 16        if !sort.IsSorted(a) {
+ 17            panic(&quot;fail&quot;)
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index 513190ef2c..7e2bc7c4b9 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -628,7 +628,7 @@ We can apply "Sort" to any type that implements "Len", "Less", and "Swap".
+ The "sort" package includes the necessary methods to allow sorting of
+ arrays of integers, strings, etc.; here's the code for arrays of "int"
+ 
+---PROG progs/sort.go /type.*IntArray/ /Swap/
++--PROG progs/sort.go /type.*IntSlice/ /Swap/
+ 
+ Here we see methods defined for non-"struct" types.  You can define methods
+ for any type you define and name in your package.
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+index 79e7f563eb..47df9b3513 100644
+--- a/doc/progs/sort.go
++++ b/doc/progs/sort.go
+@@ -30,34 +30,34 @@ func IsSorted(data Interface) bool {
+ 
+ // Convenience types for common cases
+ 
+-type IntArray []int
++type IntSlice []int
+ 
+-func (p IntArray) Len() int            { return len(p) }
+-func (p IntArray) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
++func (p IntSlice) Len() int            { return len(p) }
++func (p IntSlice) Less(i, j int) bool  { return p[i] < p[j] }
++func (p IntSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ 
+ 
+-type Float64Array []float64
++type Float64Slice []float64
+ 
+-func (p Float64Array) Len() int            { return len(p) }
+-func (p Float64Array) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p Float64Array) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
++func (p Float64Slice) Len() int            { return len(p) }
++func (p Float64Slice) Less(i, j int) bool  { return p[i] < p[j] }
++func (p Float64Slice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ 
+ 
+-type StringArray []string
++type StringSlice []string
+ 
+-func (p StringArray) Len() int            { return len(p) }
+-func (p StringArray) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
++func (p StringSlice) Len() int            { return len(p) }
++func (p StringSlice) Less(i, j int) bool  { return p[i] < p[j] }
++func (p StringSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+ 
+ 
+ // Convenience wrappers for common cases
+ 
+-func SortInts(a []int)        { Sort(IntArray(a)) }
+-func SortFloat64s(a []float64)    { Sort(Float64Array(a)) }
+-func SortStrings(a []string)  { Sort(StringArray(a)) }
++func SortInts(a []int)        { Sort(IntSlice(a)) }
++func SortFloat64s(a []float64)    { Sort(Float64Slice(a)) }
++func SortStrings(a []string)  { Sort(StringSlice(a)) }
+ 
+ 
+-func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)) }
+-func Float64sAreSorted(a []float64) bool   { return IsSorted(Float64Array(a)) }
+-func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)) }
++func IntsAreSorted(a []int) bool       { return IsSorted(IntSlice(a)) }
++func Float64sAreSorted(a []float64) bool   { return IsSorted(Float64Slice(a)) }
++func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index a77ae7381a..28eec8d4f8 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func ints() {
+ 	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+-	a := sort.IntArray(data)
++	a := sort.IntSlice(data)
+ 	sort.Sort(a)
+ 	if !sort.IsSorted(a) {
+ 		panic("fail")
+@@ -20,7 +20,7 @@ func ints() {
+ 
+ func strings() {
+ 	data := []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+-	a := sort.StringArray(data)
++	a := sort.StringSlice(data)
+ 	sort.Sort(a)
+ 	if !sort.IsSorted(a) {
+ 		panic("fail")
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index e5d2f94e9b..f9b852c0f7 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -218,7 +218,7 @@ type Flag struct {
+ 
+ // sortFlags returns the flags as a slice in lexicographical sorted order.
+ func sortFlags(flags map[string]*Flag) []*Flag {
+-	list := make(sort.StringArray, len(flags))
++	list := make(sort.StringSlice, len(flags))
+ 	i := 0
+ 	for _, f := range flags {
+ 		list[i] = f.Name
+diff --git a/src/pkg/sort/search.go b/src/pkg/sort/search.go
+index 6828e19b63..bb73b35eeb 100644
+--- a/src/pkg/sort/search.go
++++ b/src/pkg/sort/search.go
+@@ -99,7 +99,7 @@ func SearchStrings(a []string, x string) int {
+ 
+ 
+ // Search returns the result of applying SearchInts to the receiver and x.
+-func (p IntArray) Search(x int) int { return SearchInts(p, x) }
++func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
+ 
+ 
+ // Search returns the result of applying SearchFloat64s to the receiver and x.
+@@ -107,4 +107,4 @@ func (p Float64Array) Search(x float64) int { return SearchFloat64s(p, x) }
+ 
+ 
+ // Search returns the result of applying SearchStrings to the receiver and x.
+-func (p StringArray) Search(x string) int { return SearchStrings(p, x) }
++func (p StringSlice) Search(x string) int { return SearchStrings(p, x) }
+diff --git a/src/pkg/sort/search_test.go b/src/pkg/sort/search_test.go
+index 939f66af38..71e8c83e0e 100644
+--- a/src/pkg/sort/search_test.go
++++ b/src/pkg/sort/search_test.go
+@@ -107,9 +107,9 @@ var wrappertests = []struct {
+ 	{"SearchInts", SearchInts(data, 11), 8},
+ 	{"SearchFloat64s", SearchFloat64s(fdata, 2.1), 4},
+ 	{"SearchStrings", SearchStrings(sdata, ""), 0},
+-	{"IntArray.Search", IntArray(data).Search(0), 2},
++	{"IntSlice.Search", IntSlice(data).Search(0), 2},
+ 	{"Float64Array.Search", Float64Array(fdata).Search(2.0), 3},
+-	{"StringArray.Search", StringArray(sdata).Search("x"), 3},
++	{"StringSlice.Search", StringSlice(sdata).Search("x"), 3},
+ }
+ 
+ 
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index 30b1819af2..42594ffa81 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -155,15 +155,15 @@ func IsSorted(data Interface) bool {
+ 
+ // Convenience types for common cases
+ 
+-// IntArray attaches the methods of Interface to []int, sorting in increasing order.
+-type IntArray []int
++// IntSlice attaches the methods of Interface to []int, sorting in increasing order.
++type IntSlice []int
+ 
+-func (p IntArray) Len() int           { return len(p) }
+-func (p IntArray) Less(i, j int) bool { return p[i] < p[j] }
+-func (p IntArray) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
++func (p IntSlice) Len() int           { return len(p) }
++func (p IntSlice) Less(i, j int) bool { return p[i] < p[j] }
++func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ // Sort is a convenience method.
+-func (p IntArray) Sort() { Sort(p) }
++func (p IntSlice) Sort() { Sort(p) }
+ 
+ 
+ // Float64Array attaches the methods of Interface to []float64, sorting in increasing order.
+@@ -177,30 +177,30 @@ func (p Float64Array) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ func (p Float64Array) Sort() { Sort(p) }
+ 
+ 
+-// StringArray attaches the methods of Interface to []string, sorting in increasing order.
+-type StringArray []string
++// StringSlice attaches the methods of Interface to []string, sorting in increasing order.
++type StringSlice []string
+ 
+-func (p StringArray) Len() int           { return len(p) }
+-func (p StringArray) Less(i, j int) bool { return p[i] < p[j] }
+-func (p StringArray) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
++func (p StringSlice) Len() int           { return len(p) }
++func (p StringSlice) Less(i, j int) bool { return p[i] < p[j] }
++func (p StringSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ // Sort is a convenience method.
+-func (p StringArray) Sort() { Sort(p) }
++func (p StringSlice) Sort() { Sort(p) }
+ 
+ 
+ // Convenience wrappers for common cases
+ 
+ // SortInts sorts an array of ints in increasing order.
+-func SortInts(a []int) { Sort(IntArray(a)) }
++func SortInts(a []int) { Sort(IntSlice(a)) }
+ // SortFloat64s sorts an array of float64s in increasing order.
+ func SortFloat64s(a []float64) { Sort(Float64Array(a)) }
+ // SortStrings sorts an array of strings in increasing order.
+-func SortStrings(a []string) { Sort(StringArray(a)) }
++func SortStrings(a []string) { Sort(StringSlice(a)) }
+ 
+ 
+ // IntsAreSorted tests whether an array of ints is sorted in increasing order.
+-func IntsAreSorted(a []int) bool { return IsSorted(IntArray(a)) }
++func IntsAreSorted(a []int) bool { return IsSorted(IntSlice(a)) }
+ // Float64sAreSorted tests whether an array of float64s is sorted in increasing order.
+ func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Array(a)) }
+ // StringsAreSorted tests whether an array of strings is sorted in increasing order.
+-func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)) }
++func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+diff --git a/src/pkg/sort/sort_test.go b/src/pkg/sort/sort_test.go
+index 3d7337fd01..1f0805a7b6 100644
+--- a/src/pkg/sort/sort_test.go
++++ b/src/pkg/sort/sort_test.go
+@@ -16,9 +16,9 @@ var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984,
+ var float64s = [...]float64{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
+ var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+ 
+-func TestSortIntArray(t *testing.T) {
++func TestSortIntSlice(t *testing.T) {
+ 	data := ints
+-	a := IntArray(data[0:])
++	a := IntSlice(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+ 		t.Errorf("sorted %v", ints)
+@@ -36,9 +36,9 @@ func TestSortFloat64Array(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSortStringArray(t *testing.T) {
++func TestSortStringSlice(t *testing.T) {
+ 	data := strings
+-	a := StringArray(data[0:])
++	a := StringSlice(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+ 		t.Errorf("sorted %v", strings)
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index 962b39b780..01edb49ecf 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -62,7 +62,7 @@ var ForkLock sync.RWMutex
+ 
+ // Convert array of string to array
+ // of NUL-terminated byte pointer.
+-func StringArrayPtr(ss []string) []*byte {
++func StringSlicePtr(ss []string) []*byte {
+ 	bb := make([]*byte, len(ss)+1)
+ 	for i := 0; i < len(ss); i++ {
+ 		bb[i] = StringBytePtr(ss[i])
+@@ -364,7 +364,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error)
+ 
+ 	// Convert args to C form.
+ 	argv0p := StringBytePtr(argv0)
+-	argvp := StringArrayPtr(argv)
++	argvp := StringSlicePtr(argv)
+ 
+ 	var chroot *byte
+ 	if attr.Chroot != "" {
+@@ -514,7 +514,7 @@ func Exec(argv0 string, argv []string, envv []string) (err Error) {
+ 
+ 	_, _, e := Syscall(SYS_EXEC,
+ 		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
+-		uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0])),
++		uintptr(unsafe.Pointer(&StringSlicePtr(argv)[0])),
+ 		0)
+ 
+ 	return NewError(e)
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index b6cb1baa26..dee3022688 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -62,7 +62,7 @@ var ForkLock sync.RWMutex
+ 
+ // Convert array of string to array
+ // of NUL-terminated byte pointer.
+-func StringArrayPtr(ss []string) []*byte {
++func StringSlicePtr(ss []string) []*byte {
+ 	bb := make([]*byte, len(ss)+1)
+ 	for i := 0; i < len(ss); i++ {
+ 		bb[i] = StringBytePtr(ss[i])
+@@ -293,8 +293,8 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err int) {
+ 
+ 	// Convert args to C form.
+ 	argv0p := StringBytePtr(argv0)
+-	argvp := StringArrayPtr(argv)
+-	envvp := StringArrayPtr(attr.Env)
++	argvp := StringSlicePtr(argv)
++	envvp := StringSlicePtr(attr.Env)
+ 
+ 	if OS == "freebsd" && len(argv[0]) > len(argv0) {
+ 		argvp[0] = argv0p
+@@ -378,7 +378,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
+ func Exec(argv0 string, argv []string, envv []string) (err int) {
+ 	_, _, err1 := RawSyscall(SYS_EXECVE,
+ 		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
+-		uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0])),
+-		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])))
++		uintptr(unsafe.Pointer(&StringSlicePtr(argv)[0])),
++		uintptr(unsafe.Pointer(&StringSlicePtr(envv)[0])))
+ 	return int(err1)
+ }
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 655fe46e42..39c7121a67 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -344,7 +344,7 @@ func printCategories() {
+ 		fmt.Print("}\n\n")
+ 	}
+ 
+-	decl := make(sort.StringArray, len(list))
++	decl := make(sort.StringSlice, len(list))
+ 	ndecl := 0
+ 	for _, name := range list {
+ 		if _, ok := category[name]; !ok {
+@@ -665,7 +665,7 @@ func printScriptOrProperty(doProps bool) {
+ 		fmt.Print("}\n\n")
+ 	}
+ 
+-	decl := make(sort.StringArray, len(list))
++	decl := make(sort.StringSlice, len(list))
+ 	ndecl := 0
+ 	for _, name := range list {
+ 		if doProps {

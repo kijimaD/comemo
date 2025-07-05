@@ -12,9 +12,122 @@ Date:   Fri Jul 2 18:12:02 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/332609
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go            | 10 ++++++----
  .../internal/types2/testdata/check/issues.go2        | 10 ++++------
  .../types2/testdata/fixedbugs/issue47031.go2         | 20 ++++++++++++++++++++
  src/cmd/compile/internal/types2/type.go              | 13 +++++++------
  4 files changed, 37 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index d59a2f474c..91be14bde3 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -73,10 +73,12 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 
+ 	typ, isPtr := deref(T)
+ 
+-	// *typ where typ is an interface has no methods.
+-	// Be cautious: typ may be nil (issue 39634, crash #3).
+-	if typ == nil || isPtr && IsInterface(typ) {
+-		return
++	// *typ where typ is an interface or type parameter has no methods.
++	switch under(typ).(type) {
++	case *Interface, *TypeParam:
++		if isPtr {
++			return
++		}
+ 	}
+ 
+ 	// Start with typ as single entry at shallowest depth.
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 59dd4ae465..88ae294d7c 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -24,22 +24,20 @@ func _() {
+ 	eql[io.Reader](nil, nil)
+ }
+ 
+-// If we have a receiver of pointer type (below: *T) we must ignore
+-// the pointer in the implementation of the method lookup because
+-// the type bound of T is an interface and pointer to interface types
+-// have no methods and then the lookup would fail.
++// If we have a receiver of pointer to type parameter type (below: *T)
++// we don't have any methods, like for interfaces.
+ type C[T any] interface {
+     m()
+ }
+ 
+ // using type bound C
+ func _[T C[T]](x *T) {
+-	x.m()
++	x.m /* ERROR x\.m undefined */ ()
+ }
+ 
+ // using an interface literal as bound
+ func _[T interface{ m() }](x *T) {
+-	x.m()
++	x.m /* ERROR x\.m undefined */ ()
+ }
+ 
+ func f2[_ interface{ m1(); m2() }]()
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47031.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47031.go2
+new file mode 100644
+index 0000000000..b184f9b5b7
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47031.go2
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Mer interface { M() }
++
++func F[T Mer](p *T) {
++	p.M /* ERROR p\.M undefined */ ()
++}
++
++type MyMer int
++
++func (MyMer) M() {}
++
++func _() {
++	F(new(MyMer))
++	F[Mer](nil)
++}
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index e3f63f63b5..c2da97605b 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -112,11 +112,6 @@ func asSignature(t Type) *Signature {
+ 	return op
+ }
+ 
+-func asInterface(t Type) *Interface {
+-	op, _ := optype(t).(*Interface)
+-	return op
+-}
+-
+ func asMap(t Type) *Map {
+ 	op, _ := optype(t).(*Map)
+ 	return op
+@@ -127,10 +122,16 @@ func asChan(t Type) *Chan {
+ 	return op
+ }
+ 
+-// If the argument to asNamed and asTypeParam is of the respective types
++// If the argument to asInterface, asNamed, or asTypeParam is of the respective type
+ // (possibly after expanding an instance type), these methods return that type.
+ // Otherwise the result is nil.
+ 
++// asInterface does not need to look at optype (type sets don't contain interfaces)
++func asInterface(t Type) *Interface {
++	u, _ := under(t).(*Interface)
++	return u
++}
++
+ func asNamed(t Type) *Named {
+ 	e, _ := expand(t).(*Named)
+ 	return e

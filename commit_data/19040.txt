@@ -12,9 +12,80 @@ Date:   Fri Apr 4 08:42:35 2014 +0200
     R=rsc, dave, khr
     CC=golang-codereviews
     https://golang.org/cl/84400043
-
+---
  src/cmd/6g/cgen.c | 2 +-
  src/cmd/6g/ggen.c | 4 ++--
  src/cmd/8g/cgen.c | 2 +-
  src/cmd/8g/ggen.c | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 9509232dc9..eb45b29ea1 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1448,7 +1448,7 @@ sgen(Node *n, Node *ns, int64 w)
+ 		gins(ACLD, N, N);
+ 	} else {
+ 		// normal direction
+-		if(q > 128) {
++		if(q > 128 || (nacl && q >= 4)) {
+ 			gconreg(movptr, q, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index b980a78c25..2633b19e4d 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -77,7 +77,7 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax)
+ 		for(i = 0; i < cnt; i += widthreg) {
+ 			p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame+lo+i);
+ 		}
+-	} else if(cnt <= 128*widthreg) {
++	} else if(!nacl && (cnt <= 128*widthreg)) {
+ 		p = appendpp(p, leaptr, D_SP+D_INDIR, frame+lo, D_DI, 0);
+ 		p = appendpp(p, ADUFFZERO, D_NONE, 0, D_ADDR, 2*(128-cnt/widthreg));
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+@@ -1119,7 +1119,7 @@ clearfat(Node *nl)
+ 	savex(D_AX, &ax, &oldax, N, types[tptr]);
+ 	gconreg(AMOVL, 0, D_AX);
+ 
+-	if(q > 128) {
++	if(q > 128 || (q >= 4 && nacl)) {
+ 		gconreg(movptr, q, D_CX);
+ 		gins(AREP, N, N);	// repeat
+ 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 85daeb97e6..042997a8be 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1315,7 +1315,7 @@ sgen(Node *n, Node *res, int64 w)
+ 	} else {
+ 		gins(ACLD, N, N);	// paranoia.  TODO(rsc): remove?
+ 		// normal direction
+-		if(q > 128) {
++		if(q > 128 || (q >= 4 && nacl)) {
+ 			gconreg(AMOVL, q, D_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 1b7d81dee6..2285a04e61 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -75,7 +75,7 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax)
+ 		for(i = 0; i < cnt; i += widthreg) {
+ 			p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+lo+i);
+ 		}
+-	} else if(cnt <= 128*widthreg) {
++	} else if(!nacl && cnt <= 128*widthreg) {
+ 		p = appendpp(p, ALEAL, D_SP+D_INDIR, frame+lo, D_DI, 0);
+ 		p = appendpp(p, ADUFFZERO, D_NONE, 0, D_ADDR, 1*(128-cnt/widthreg));
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+@@ -176,7 +176,7 @@ clearfat(Node *nl)
+ 	agen(nl, &n1);
+ 	gconreg(AMOVL, 0, D_AX);
+ 
+-	if(q > 128) {
++	if(q > 128 || (q >= 4 && nacl)) {
+ 		gconreg(AMOVL, q, D_CX);
+ 		gins(AREP, N, N);	// repeat
+ 		gins(ASTOSL, N, N);	// STOL AL,*(DI)+

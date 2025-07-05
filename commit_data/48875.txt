@@ -17,9 +17,95 @@ Date:   Tue Jun 22 20:37:42 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go      | 13 ++++++-------
  src/cmd/compile/internal/walk/closure.go |  8 --------
  src/cmd/compile/internal/walk/order.go   |  6 +-----
  src/cmd/compile/internal/walk/stmt.go    |  4 +++-
  4 files changed, 10 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 779793b2f2..b46fd905fe 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -157,13 +157,12 @@ const (
+ type CallExpr struct {
+ 	miniExpr
+ 	origNode
+-	X               Node
+-	Args            Nodes
+-	KeepAlive       []*Name // vars to be kept alive until call returns
+-	IsDDD           bool
+-	Use             CallUse
+-	NoInline        bool
+-	PreserveClosure bool // disable directClosureCall for this call
++	X         Node
++	Args      Nodes
++	KeepAlive []*Name // vars to be kept alive until call returns
++	IsDDD     bool
++	Use       CallUse
++	NoInline  bool
+ }
+ 
+ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 5db907d01d..2b7fe8f926 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -37,14 +37,6 @@ func directClosureCall(n *ir.CallExpr) {
+ 		return // leave for walkClosure to handle
+ 	}
+ 
+-	// If wrapGoDefer() in the order phase has flagged this call,
+-	// avoid eliminating the closure even if there is a direct call to
+-	// (the closure is needed to simplify the register ABI). See
+-	// wrapGoDefer for more details.
+-	if n.PreserveClosure {
+-		return
+-	}
+-
+ 	// We are going to insert captured variables before input args.
+ 	var params []*types.Field
+ 	var decls []*ir.Name
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 4d40cf890e..c24f80508a 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1564,11 +1564,10 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	// TODO: maybe not wrap if the called function has no arguments and
+ 	// only in-register results?
+ 	if len(callArgs) == 0 && call.Op() == ir.OCALLFUNC && callX.Type().NumResults() == 0 {
+-		if c, ok := call.(*ir.CallExpr); ok && callX != nil && callX.Op() == ir.OCLOSURE {
++		if callX.Op() == ir.OCLOSURE {
+ 			clo := callX.(*ir.ClosureExpr)
+ 			clo.Func.SetClosureCalled(false)
+ 			clo.IsGoWrap = true
+-			c.PreserveClosure = true
+ 		}
+ 		return
+ 	}
+@@ -1771,9 +1770,6 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 	topcall := ir.NewCallExpr(n.Pos(), ir.OCALL, clo, nil)
+ 	typecheck.Call(topcall)
+ 
+-	// Tag the call to insure that directClosureCall doesn't undo our work.
+-	topcall.PreserveClosure = true
+-
+ 	fn.SetClosureCalled(false)
+ 
+ 	// Finally, point the defer statement at the newly generated call.
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index e1ac652364..2352719da3 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -204,7 +204,9 @@ func walkGoDefer(n *ir.GoDeferStmt) ir.Node {
+ 	}
+ 
+ 	var init ir.Nodes
+-	n.Call = walkExpr(n.Call, &init)
++
++	call := n.Call.(*ir.CallExpr)
++	call.X = walkExpr(call.X, &init)
+ 
+ 	if len(init) > 0 {
+ 		init.Append(n)

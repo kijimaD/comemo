@@ -14,7 +14,7 @@ Date:   Tue Mar 22 20:55:38 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/mini.go             |  3 ---
  src/cmd/compile/internal/ir/node.go             |  1 -
  src/cmd/compile/internal/typecheck/const.go     | 12 ++++--------
@@ -23,3 +23,166 @@ Date:   Tue Mar 22 20:55:38 2022 +0700
  src/cmd/compile/internal/typecheck/stmt.go      |  3 +--
  src/cmd/compile/internal/typecheck/typecheck.go | 19 +++++--------------
  7 files changed, 12 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 7bc816356d..801a48a78e 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -7,7 +7,6 @@
+ package ir
+ 
+ import (
+-	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
+@@ -67,8 +66,6 @@ func (n *miniNode) SetTypecheck(x uint8) {
+ 	n.bits.set2(miniTypecheckShift, x)
+ }
+ 
+-func (n *miniNode) SetDiag(x bool) { base.AssertfAt(!x, n.Pos(), "SetDiag") }
+-
+ func (n *miniNode) Walked() bool     { return n.bits&miniWalked != 0 }
+ func (n *miniNode) SetWalked(x bool) { n.bits.set(miniWalked, x) }
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 390af6aad2..5e5868abb2 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -46,7 +46,6 @@ type Node interface {
+ 	// Storage for analysis passes.
+ 	Esc() uint16
+ 	SetEsc(x uint16)
+-	SetDiag(x bool)
+ 
+ 	// Typecheck values:
+ 	//  0 means the node is not typechecked
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 79387dd735..1422ab0031 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -98,10 +98,7 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 		}
+ 		n = ir.Copy(n)
+ 		if t == nil {
+-			base.Errorf("use of untyped nil")
+-			n.SetDiag(true)
+-			n.SetType(nil)
+-			return n
++			base.Fatalf("use of untyped nil")
+ 		}
+ 
+ 		if !t.HasNil() {
+@@ -199,13 +196,12 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 	}
+ 
+ 	if explicit {
+-		base.Errorf("cannot convert %L to type %v", n, t)
++		base.Fatalf("cannot convert %L to type %v", n, t)
+ 	} else if context != nil {
+-		base.Errorf("cannot use %L as type %v in %s", n, t, context())
++		base.Fatalf("cannot use %L as type %v in %s", n, t, context())
+ 	} else {
+-		base.Errorf("cannot use %L as type %v", n, t)
++		base.Fatalf("cannot use %L as type %v", n, t)
+ 	}
+-	n.SetDiag(true)
+ 
+ 	n.SetType(nil)
+ 	return n
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 5027140341..11e5268feb 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -413,11 +413,7 @@ func tcConv(n *ir.ConvExpr) ir.Node {
+ 	}
+ 	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+ 	if op == ir.OXXX {
+-		base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
+-		n.SetDiag(true)
+-		n.SetOp(ir.OCONV)
+-		n.SetType(nil)
+-		return n
++		base.Fatalf("cannot convert %L to type %v%s", n.X, n.Type(), why)
+ 	}
+ 
+ 	n.SetOp(op)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 630a17b7f2..298af2aeeb 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -357,8 +357,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	l = n.X
+ 	if l.Op() == ir.OTYPE {
+ 		if n.IsDDD {
+-			base.Errorf("invalid use of ... in type conversion to %v", l.Type())
+-			n.SetDiag(true)
++			base.Fatalf("invalid use of ... in type conversion to %v", l.Type())
+ 		}
+ 
+ 		// pick off before type-checking arguments
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 603b9819b1..a6ff84e7f6 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -315,8 +315,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 
+ 	// The syntax made sure it was a call, so this must be
+ 	// a conversion.
+-	n.SetDiag(true)
+-	base.ErrorfAt(n.Pos(), "%s requires function call, not conversion", what)
++	base.FatalfAt(n.Pos(), "%s requires function call, not conversion", what)
+ }
+ 
+ // tcIf typechecks an OIF node.
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 7b9e35b444..13c19dbdac 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -454,10 +454,8 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 	case ir.ONONAME:
+ 		// Note: adderrorname looks for this string and
+ 		// adds context about the outer expression
+-		base.ErrorfAt(n.Pos(), "undefined: %v", n.Sym())
+-		n.SetDiag(true)
+-		n.SetType(nil)
+-		return n
++		base.FatalfAt(n.Pos(), "undefined: %v", n.Sym())
++		panic("unreachable")
+ 
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+@@ -828,8 +826,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 
+ 	case ir.OTYPESW:
+ 		n := n.(*ir.TypeSwitchGuard)
+-		base.Errorf("use of .(type) outside type switch")
+-		n.SetDiag(true)
++		base.Fatalf("use of .(type) outside type switch")
+ 		return n
+ 
+ 	case ir.ODCLFUNC:
+@@ -1374,7 +1371,7 @@ notenough:
+ 			base.Errorf("not enough arguments to %v%s", op, details)
+ 		}
+ 		if n != nil {
+-			n.SetDiag(true)
++			base.Fatalf("invalid call")
+ 		}
+ 	}
+ 	return
+@@ -1521,13 +1518,7 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
+ 			elt.Key = Expr(elt.Key)
+ 			key = IndexConst(elt.Key)
+ 			if key < 0 {
+-				if key == -2 {
+-					base.Errorf("index too large")
+-				} else {
+-					base.Errorf("index must be non-negative integer constant")
+-				}
+-				elt.Key.SetDiag(true)
+-				key = -(1 << 30) // stay negative for a while
++				base.Fatalf("invalid index: %v", elt.Key)
+ 			}
+ 			kv = elt
+ 			r = elt.Value

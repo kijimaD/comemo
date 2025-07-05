@@ -11,6 +11,20 @@ Date:   Sun Jun 30 16:19:58 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <mail@eliasnaur.com>
-
+---
  src/runtime/sys_darwin_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index ac5f4e4d63..e653c54f61 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -88,7 +88,7 @@ TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$8, SP
+-	MOVL	16(SP), CX		// arg 1 pipefd
++	MOVL	16(SP), AX		// arg 1 pipefd
+ 	MOVL	AX, 0(SP)
+ 	CALL	libc_pipe(SB)
+ 	TESTL	AX, AX

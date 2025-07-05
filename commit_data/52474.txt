@@ -18,7 +18,7 @@ Date:   Tue May 3 12:51:25 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go           |  4 ++--
  src/cmd/compile/internal/ir/node_gen.go       | 30 ++++++++++++++++++++++++---
  src/cmd/compile/internal/noder/expr.go        |  4 ++--
@@ -27,3 +27,162 @@ Date:   Tue May 3 12:51:25 2022 -0700
  src/cmd/compile/internal/typecheck/iimport.go | 10 +++------
  src/cmd/compile/internal/typecheck/subr.go    |  2 +-
  7 files changed, 37 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index e54b6f0675..986fb29e45 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -741,10 +741,10 @@ func (n *InstExpr) SetImplicit(b bool) { n.flags.set(miniExprImplicit, b) }
+ type InstExpr struct {
+ 	miniExpr
+ 	X     Node
+-	Targs []Node
++	Targs []Ntype
+ }
+ 
+-func NewInstExpr(pos src.XPos, op Op, x Node, targs []Node) *InstExpr {
++func NewInstExpr(pos src.XPos, op Op, x Node, targs []Ntype) *InstExpr {
+ 	n := &InstExpr{X: x, Targs: targs}
+ 	n.pos = pos
+ 	n.op = op
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 0d094ae76b..5b82b55694 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -683,7 +683,7 @@ func (n *InstExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *InstExpr) copy() Node {
+ 	c := *n
+ 	c.init = copyNodes(c.init)
+-	c.Targs = copyNodes(c.Targs)
++	c.Targs = copyNtypes(c.Targs)
+ 	return &c
+ }
+ func (n *InstExpr) doChildren(do func(Node) bool) bool {
+@@ -693,7 +693,7 @@ func (n *InstExpr) doChildren(do func(Node) bool) bool {
+ 	if n.X != nil && do(n.X) {
+ 		return true
+ 	}
+-	if doNodes(n.Targs, do) {
++	if doNtypes(n.Targs, do) {
+ 		return true
+ 	}
+ 	return false
+@@ -703,7 +703,7 @@ func (n *InstExpr) editChildren(edit func(Node) Node) {
+ 	if n.X != nil {
+ 		n.X = edit(n.X).(Node)
+ 	}
+-	editNodes(n.Targs, edit)
++	editNtypes(n.Targs, edit)
+ }
+ 
+ func (n *JumpTableStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+@@ -1409,3 +1409,27 @@ func editNodes(list []Node, edit func(Node) Node) {
+ 		}
+ 	}
+ }
++
++func copyNtypes(list []Ntype) []Ntype {
++	if list == nil {
++		return nil
++	}
++	c := make([]Ntype, len(list))
++	copy(c, list)
++	return c
++}
++func doNtypes(list []Ntype, do func(Node) bool) bool {
++	for _, x := range list {
++		if x != nil && do(x) {
++			return true
++		}
++	}
++	return false
++}
++func editNtypes(list []Ntype, edit func(Node) Node) {
++	for i, x := range list {
++		if x != nil {
++			list[i] = edit(x).(Ntype)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index e37e4cd661..a1160d42c4 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -197,7 +197,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ // substType does a normal type substition, but tparams is in the form of a field
+ // list, and targs is in terms of a slice of type nodes. substType records any newly
+ // instantiated types into g.instTypeList.
+-func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node) *types.Type {
++func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Ntype) *types.Type {
+ 	fields := tparams.FieldSlice()
+ 	tparams1 := make([]*types.Type, len(fields))
+ 	for i, f := range fields {
+@@ -339,7 +339,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 				typed(method.Type(), n)
+ 
+ 				xt := deref(x.Type())
+-				targs := make([]ir.Node, len(xt.RParams()))
++				targs := make([]ir.Ntype, len(xt.RParams()))
+ 				for i := range targs {
+ 					targs[i] = ir.TypeNode(xt.RParams()[i])
+ 				}
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index ee9e0e2680..3b60760a34 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -42,7 +42,7 @@ func (g *irgen) use(name *syntax.Name) ir.Node {
+ 		if inst, ok := g.info.Instances[name]; ok {
+ 			// This is the case where inferring types required the
+ 			// types of the function arguments.
+-			targs := make([]ir.Node, inst.TypeArgs.Len())
++			targs := make([]ir.Ntype, inst.TypeArgs.Len())
+ 			for i := range targs {
+ 				targs[i] = ir.TypeNode(g.typ(inst.TypeArgs.At(i)))
+ 			}
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 66e48b0e7e..34ba6bb8d5 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1865,7 +1865,7 @@ func (g *genInst) getDictionaryValue(pos src.XPos, gf *ir.Name, targs []*types.T
+ }
+ 
+ // hasShapeNodes returns true if the type of any node in targs has a shape.
+-func hasShapeNodes(targs []ir.Node) bool {
++func hasShapeNodes(targs []ir.Ntype) bool {
+ 	for _, n := range targs {
+ 		if n.Type().HasShape() {
+ 			return true
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index d2ea954a50..851b1ead63 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1724,13 +1724,9 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OFUNCINST:
+ 		pos := r.pos()
+ 		x := r.expr()
+-		ntargs := r.uint64()
+-		var targs []ir.Node
+-		if ntargs > 0 {
+-			targs = make([]ir.Node, ntargs)
+-			for i := range targs {
+-				targs[i] = ir.TypeNode(r.typ())
+-			}
++		targs := make([]ir.Ntype, r.uint64())
++		for i := range targs {
++			targs[i] = ir.TypeNode(r.typ())
+ 		}
+ 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
+ 		n.SetType(r.typ())
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 8cd81cf12b..8918b9890b 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -882,7 +882,7 @@ type symlink struct {
+ 
+ // TypesOf converts a list of nodes to a list
+ // of types of those nodes.
+-func TypesOf(x []ir.Node) []*types.Type {
++func TypesOf(x []ir.Ntype) []*types.Type {
+ 	r := make([]*types.Type, len(x))
+ 	for i, n := range x {
+ 		r[i] = n.Type()

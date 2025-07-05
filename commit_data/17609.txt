@@ -21,7 +21,7 @@ Date:   Mon Sep 16 15:47:13 2013 +1000
     R=r, dominik.honnef
     CC=golang-dev
     https://golang.org/cl/13724043
-
+---
  doc/articles/c_go_cgo.html                    | 179 -------
  doc/articles/concurrency_patterns.html        |  79 ----
  doc/articles/defer_panic_recover.html         | 197 --------
@@ -66,3 +66,4748 @@ Date:   Mon Sep 16 15:47:13 2013 +1000
  doc/reference.html                            |  64 ---
  doc/root.html                                 |  14 +-
  43 files changed, 132 insertions(+), 4227 deletions(-)
+
+diff --git a/doc/articles/c_go_cgo.html b/doc/articles/c_go_cgo.html
+deleted file mode 100644
+index 4b04bb49e8..0000000000
+--- a/doc/articles/c_go_cgo.html
++++ /dev/null
+@@ -1,179 +0,0 @@
+-<!--{
+-"Title": "C? Go? Cgo!",
+-"Template": true
+-}-->
+-
+-<p>
+-Cgo lets Go packages call C code. Given a Go source file written with some
+-special features, cgo outputs Go and C files that can be combined into a
+-single Go package.
+-</p>
+-
+-<p>
+-To lead with an example, here's a Go package that provides two functions -
+-<code>Random</code> and <code>Seed</code> - that wrap C's <code>rand</code>
+-and <code>srand</code> functions.
+-</p>
+-
+-{{code "/doc/progs/cgo1.go" `/package rand/` `/END/`}}
+-
+-<p>
+-Let's look at what's happening here, starting with the import statement.
+-</p>
+-
+-<p>
+-The <code>rand</code> package imports <code>"C"</code>, but you'll find there's
+-no such package in the standard Go library. That's because <code>C</code> is a
+-"pseudo-package", a special name interpreted by cgo as a reference to C's
+-name space.
+-</p>
+-
+-<p>
+-The <code>rand</code> package contains four references to the <code>C</code>
+-package: the calls to <code>C.rand</code> and <code>C.srand</code>, the
+-conversion <code>C.uint(i)</code>, and the <code>import</code> statement.
+-</p>
+-
+-<p>
+-The <code>Random</code> function calls the standard C library's <code>random</code>
+-function and returns the result.  In C, <code>rand</code> returns a value of the
+-C type <code>int</code>, which cgo represents as the type <code>C.int</code>.
+-It must be converted to a Go type before it can be used by Go code outside this
+-package, using an ordinary Go type conversion:
+-</p>
+-
+-{{code "/doc/progs/cgo1.go" `/func Random/` `/STOP/`}}
+-
+-<p>
+-Here's an equivalent function that uses a temporary variable to illustrate
+-the type conversion more explicitly:
+-</p>
+-
+-{{code "/doc/progs/cgo2.go" `/func Random/` `/STOP/`}}
+-
+-<p>
+-The <code>Seed</code> function does the reverse, in a way. It takes a
+-regular Go <code>int</code>, converts it to the C <code>unsigned int</code>
+-type, and passes it to the C function <code>srand</code>.
+-</p>
+-
+-{{code "/doc/progs/cgo1.go" `/func Seed/` `/END/`}}
+-
+-<p>
+-Note that cgo knows the <code>unsigned int</code> type as <code>C.uint</code>;
+-see the <a href="/cmd/cgo">cgo documentation</a> for a complete list of
+-these numeric type names.
+-</p>
+-
+-<p>
+-The one detail of this example we haven't examined yet is the comment
+-above the <code>import</code> statement.
+-</p>
+-
+-{{code "/doc/progs/cgo1.go" `/\/\*/` `/STOP/`}}
+-
+-<p>
+-Cgo recognizes this comment.  Any lines starting
+-with <code>#cgo</code>
+-followed
+-by a space character are removed; these become directives for cgo.
+-The remaining lines are used as a header when compiling the C parts of
+-the package.  In this case those lines are just a
+-single <code>#include</code>
+-statement, but they can be almost any C code.  The <code>#cgo</code>
+-directives are
+-used to provide flags for the compiler and linker when building the C
+-parts of the package.
+-</p>
+-
+-<p>
+-There is a limitation: if your program uses any <code>//export</code>
+-directives, then the C code in the comment may only include declarations
+-(<code>extern int f();</code>), not definitions (<code>int f() {
+-return 1; }</code>).  You can use <code>//export</code> directives to
+-make Go functions accessible to C code.
+-</p>
+-
+-<p>
+-The <code>#cgo</code> and <code>//export</code> directives are
+-documented in
+-the <a href="/cmd/cgo/">cgo documentation</a>.
+-</p>
+-
+-<p>
+-<b>Strings and things</b>
+-</p>
+-
+-<p>
+-Unlike Go, C doesn't have an explicit string type. Strings in C are
+-represented by a zero-terminated array of chars.
+-</p>
+-
+-<p>
+-Conversion between Go and C strings is done with the
+-<code>C.CString</code>, <code>C.GoString</code>, and
+-<code>C.GoStringN</code> functions. These conversions make a copy of the
+-string data.
+-</p>
+-
+-<p>
+-This next example implements a <code>Print</code> function that writes a
+-string to standard output using C's <code>fputs</code> function from the
+-<code>stdio</code> library:
+-</p>
+-
+-{{code "/doc/progs/cgo3.go" `/package print/` `/END/`}}
+-
+-<p>
+-Memory allocations made by C code are not known to Go's memory manager.
+-When you create a C string with <code>C.CString</code> (or any C memory
+-allocation) you must remember to free the memory when you're done with it
+-by calling <code>C.free</code>.
+-</p>
+-
+-<p>
+-The call to <code>C.CString</code> returns a pointer to the start of the
+-char array, so before the function exits we convert it to an
+-<a href="/pkg/unsafe/#Pointer"><code>unsafe.Pointer</code></a> and release
+-the memory allocation with <code>C.free</code>. A common idiom in cgo programs
+-is to <a href="/doc/articles/defer_panic_recover.html"><code>defer</code></a>
+-the free immediately after allocating (especially when the code that follows
+-is more complex than a single function call), as in this rewrite of
+-<code>Print</code>:
+-</p>
+-
+-{{code "/doc/progs/cgo4.go" `/func Print/` `/END/`}}
+-
+-<p>
+-<b>Building cgo packages</b>
+-</p>
+-
+-<p>
+-To build cgo packages, just use <a href="/cmd/go/#hdr-Compile_packages_and_dependencies">"
+-<code>go build</code>"</a> or
+-<a href="/cmd/go/#hdr-Compile_and_install_packages_and_dependencies">"<code>go install</code>
+-"</a> as usual. The go tool recognizes the special <code>"C"</code> import and automatically
+-uses cgo for those files.
+-</p>
+-
+-<p>
+-<b>More cgo resources</b>
+-</p>
+-
+-<p>
+-The <a href="/cmd/cgo/">cgo command</a> documentation has more detail about
+-the C pseudo-package and the build process. The <a href="/misc/cgo/">cgo examples</a>
+-in the Go tree demonstrate more advanced concepts.
+-</p>
+-
+-<p>
+-For a simple, idiomatic example of a cgo-based package, see Russ Cox's <a
+-href="http://code.google.com/p/gosqlite/source/browse/sqlite/sqlite.go">gosqlite</a>.
+-Also, the <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Community Wiki</a>
+-lists many packages, some of which use cgo.
+-</p>
+-
+-<p>
+-Finally, if you're curious as to how all this works internally, take a look
+-at the introductory comment of the runtime package's <a href="/src/pkg/runtime/cgocall.c">cgocall.c</a>.
+-</p>
+diff --git a/doc/articles/concurrency_patterns.html b/doc/articles/concurrency_patterns.html
+deleted file mode 100644
+index 62168b840b..0000000000
+--- a/doc/articles/concurrency_patterns.html
++++ /dev/null
+@@ -1,79 +0,0 @@
+-<!--{
+-"Title": "Go Concurrency Patterns: Timing out, moving on",
+-"Template": true
+-}-->
+-
+-<p>
+-Concurrent programming has its own idioms. A good example is timeouts. Although
+-Go's channels do not support them directly, they are easy to implement. Say we
+-want to receive from the channel <code>ch</code>, but want to wait at most one
+-second for the value to arrive. We would start by creating a signalling channel
+-and launching a goroutine that sleeps before sending on the channel:
+-</p>
+-
+-{{code "/doc/progs/timeout1.go" `/timeout :=/` `/STOP/`}}
+-
+-<p>
+-We can then use a <code>select</code> statement to receive from either
+-<code>ch</code> or <code>timeout</code>. If nothing arrives on <code>ch</code>
+-after one second, the timeout case is selected and the attempt to read from
+-<code>ch</code> is abandoned.
+-</p>
+-
+-{{code "/doc/progs/timeout1.go" `/select {/` `/STOP/`}}
+-
+-<p>
+-The <code>timeout</code> channel is buffered with space for 1 value, allowing
+-the timeout goroutine to send to the channel and then exit. The goroutine
+-doesn't know (or care) whether the value is received. This means the goroutine
+-won't hang around forever if the <code>ch</code> receive happens before the
+-timeout is reached. The <code>timeout</code> channel will eventually be
+-deallocated by the garbage collector.
+-</p>
+-
+-<p>
+-(In this example we used <code>time.Sleep</code> to demonstrate the mechanics
+-of goroutines and channels. In real programs you should use <code>
+-<a href="/pkg/time/#After">time.After</a></code>, a function that returns
+-a channel and sends on that channel after the specified duration.)
+-</p>
+-
+-<p>
+-Let's look at another variation of this pattern. In this example we have a
+-program that reads from multiple replicated databases simultaneously. The
+-program needs only one of the answers, and it should accept the answer that
+-arrives first.
+-</p>
+-
+-<p>
+-The function <code>Query</code> takes a slice of database connections and a
+-<code>query</code> string. It queries each of the databases in parallel and
+-returns the first response it receives:
+-</p>
+-
+-{{code "/doc/progs/timeout2.go" `/func Query/` `/STOP/`}}
+-
+-<p>
+-In this example, the closure does a non-blocking send, which it achieves by
+-using the send operation in <code>select</code> statement with a
+-<code>default</code> case. If the send cannot go through immediately the
+-default case will be selected. Making the send non-blocking guarantees that
+-none of the goroutines launched in the loop will hang around. However, if the
+-result arrives before the main function has made it to the receive, the send
+-could fail since no one is ready.
+-</p>
+-
+-<p>
+-This problem is a textbook example of what is known as a
+-<a href="https://en.wikipedia.org/wiki/Race_condition">race condition</a>, but
+-the fix is trivial. We just make sure to buffer the channel <code>ch</code> (by
+-adding the buffer length as the second argument to <a href="/pkg/builtin/#make">make</a>),
+-guaranteeing that the first send has a place to put the value. This ensures the
+-send will always succeed, and the first value to arrive will be retrieved
+-regardless of the order of execution.
+-</p>
+-
+-<p>
+-These two examples demonstrate the simplicity with which Go can express complex
+-interactions between goroutines.
+-</p>
+diff --git a/doc/articles/defer_panic_recover.html b/doc/articles/defer_panic_recover.html
+deleted file mode 100644
+index c964cd368c..0000000000
+--- a/doc/articles/defer_panic_recover.html
++++ /dev/null
+@@ -1,197 +0,0 @@
+-<!--{
+-	"Title": "Defer, Panic, and Recover",
+-	"Template": true
+-}-->
+-
+-<p>
+-Go has the usual mechanisms for control flow: if, for, switch, goto.  It also
+-has the go statement to run code in a separate goroutine.  Here I'd like to
+-discuss some of the less common ones: defer, panic, and recover.
+-</p>
+- 
+-<p>
+-A <b>defer statement</b> pushes a function call onto a list. The list of saved
+-calls is executed after the surrounding function returns. Defer is commonly
+-used to simplify functions that perform various clean-up actions.
+-</p>
+- 
+-<p>
+-For example, let's look at a function that opens two files and copies the
+-contents of one file to the other:
+-</p>
+- 
+-{{code "/doc/progs/defer.go" `/func CopyFile/` `/STOP/`}}
+-
+-<p>
+-This works, but there is a bug. If the call to os.Create fails, the
+-function will return without closing the source file. This can be easily
+-remedied by putting a call to src.Close before the second return statement,
+-but if the function were more complex the problem might not be so easily
+-noticed and resolved. By introducing defer statements we can ensure that the
+-files are always closed:
+-</p>
+- 
+-{{code "/doc/progs/defer2.go" `/func CopyFile/` `/STOP/`}}
+-
+-<p>
+-Defer statements allow us to think about closing each file right after opening
+-it, guaranteeing that, regardless of the number of return statements in the
+-function, the files <i>will</i> be closed.
+-</p>
+- 
+-<p>
+-The behavior of defer statements is straightforward and predictable. There are
+-three simple rules:
+-</p>
+- 
+-<p>
+-1. <i>A deferred function's arguments are evaluated when the defer statement is
+-evaluated.</i> 
+-</p>
+- 
+-<p>
+-In this example, the expression "i" is evaluated when the Println call is
+-deferred. The deferred call will print "0" after the function returns.
+-</p>
+- 
+-{{code "/doc/progs/defer.go" `/func a/` `/STOP/`}}
+-
+-<p>
+-2. <i>Deferred function calls are executed in Last In First Out order
+-</i>after<i> the surrounding function returns.</i> 
+-</p>
+- 
+-<p>
+-This function prints "3210":
+-</p>
+-
+-{{code "/doc/progs/defer.go" `/func b/` `/STOP/`}}
+- 
+-<p>
+-3. <i>Deferred functions may read and assign to the returning function's named
+-return values.</i> 
+-</p>
+- 
+-<p>
+-In this example, a deferred function increments the return value i <i>after</i>
+-the surrounding function returns. Thus, this function returns 2:
+-</p>
+-
+-{{code "/doc/progs/defer.go" `/func c/` `/STOP/`}}
+- 
+-<p>
+-This is convenient for modifying the error return value of a function; we will
+-see an example of this shortly.
+-</p>
+- 
+-<p>
+-<b>Panic</b> is a built-in function that stops the ordinary flow of control and
+-begins <i>panicking</i>. When the function F calls panic, execution of F stops,
+-any deferred functions in F are executed normally, and then F returns to its
+-caller. To the caller, F then behaves like a call to panic. The process
+-continues up the stack until all functions in the current goroutine have
+-returned, at which point the program crashes. Panics can be initiated by
+-invoking panic directly. They can also be caused by runtime errors, such as
+-out-of-bounds array accesses.
+-</p>
+- 
+-<p>
+-<b>Recover</b> is a built-in function that regains control of a panicking
+-goroutine. Recover is only useful inside deferred functions. During normal
+-execution, a call to recover will return nil and have no other effect. If the
+-current goroutine is panicking, a call to recover will capture the value given
+-to panic and resume normal execution.
+-</p>
+- 
+-<p>
+-Here's an example program that demonstrates the mechanics of panic and defer:
+-</p>
+-
+-{{code "/doc/progs/defer2.go" `/package main/` `/STOP/`}}
+- 
+-<p>
+-The function g takes the int i, and panics if i is greater than 3, or else it
+-calls itself with the argument i+1. The function f defers a function that calls
+-recover and prints the recovered value (if it is non-nil). Try to picture what
+-the output of this program might be before reading on.
+-</p>
+- 
+-<p>
+-The program will output:
+-</p>
+- 
+-<pre>Calling g.
+-Printing in g 0
+-Printing in g 1
+-Printing in g 2
+-Printing in g 3
+-Panicking!
+-Defer in g 3
+-Defer in g 2
+-Defer in g 1
+-Defer in g 0
+-Recovered in f 4
+-Returned normally from f.</pre> 
+-
+-<p>
+-If we remove the deferred function from f the panic is not recovered and
+-reaches the top of the goroutine's call stack, terminating the program. This
+-modified program will output:
+-</p>
+- 
+-<pre>Calling g.
+-Printing in g 0
+-Printing in g 1
+-Printing in g 2
+-Printing in g 3
+-Panicking!
+-Defer in g 3
+-Defer in g 2
+-Defer in g 1
+-Defer in g 0
+-panic: 4
+- 
+-panic PC=0x2a9cd8
+-[stack trace omitted]</pre> 
+-
+-<p>
+-For a real-world example of <b>panic</b> and <b>recover</b>, see the
+-<a href="/pkg/encoding/json/">json package</a> from the Go standard library.
+-It decodes JSON-encoded data with a set of recursive functions.
+-When malformed JSON is encountered, the parser calls panic to unwind the
+-stack to the top-level function call, which recovers from the panic and returns
+-an appropriate error value (see the 'error' and 'unmarshal' methods of
+-the decodeState type in
+-<a href="/src/pkg/encoding/json/decode.go">decode.go</a>).
+-</p>
+-
+-<p>
+-The convention in the Go libraries is that even when a package uses panic
+-internally, its external API still presents explicit error return values.
+-</p>
+- 
+-<p>
+-Other uses of <b>defer</b> (beyond the file.Close example given earlier)
+-include releasing a mutex:
+-</p>
+-
+-<pre>mu.Lock()
+-defer mu.Unlock()</pre> 
+-
+-<p>
+-printing a footer:
+-</p>
+- 
+-<pre>printHeader()
+-defer printFooter()</pre> 
+-
+-<p>
+-and more.
+-</p>
+- 
+-<p>
+-In summary, the defer statement (with or without panic and recover) provides an
+-unusual and powerful mechanism for control flow.  It can be used to model a
+-number of features implemented by special-purpose structures in other
+-programming languages. Try it out.
+-</p>
+diff --git a/doc/articles/error_handling.html b/doc/articles/error_handling.html
+deleted file mode 100644
+index 6ba05ac1da..0000000000
+--- a/doc/articles/error_handling.html
++++ /dev/null
+@@ -1,316 +0,0 @@
+-<!--{
+-	"Title": "Error Handling and Go",
+-	"Template": true
+-}-->
+-
+-<p>
+-If you have written any Go code you have probably encountered the built-in
+-<code>error</code> type. Go code uses <code>error</code> values to
+-indicate an abnormal state. For example, the <code>os.Open</code> function
+-returns a non-nil <code>error</code> value when it fails to open a file.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/func Open/`}}
+-
+-<p>
+-The following code uses <code>os.Open</code> to open a file. If an error
+-occurs it calls <code>log.Fatal</code> to print the error message and stop.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/func openFile/` `/STOP/`}}
+-
+-<p>
+-You can get a lot done in Go knowing just this about the <code>error</code>
+-type, but in this article we'll take a closer look at <code>error</code> and
+-discuss some good practices for error handling in Go.
+-</p>
+-
+-<p>
+-<b>The error type</b>
+-</p>
+-
+-<p>
+-The <code>error</code> type is an interface type. An <code>error</code>
+-variable represents any value that can describe itself as a string. Here is the
+-interface's declaration:
+-</p>
+-
+-<pre>type error interface {
+-    Error() string
+-}</pre>
+-
+-<p>
+-The <code>error</code> type, as with all built in types, is
+-<a href="/doc/go_spec.html#Predeclared_identifiers">predeclared</a> in the
+-<a href="/doc/go_spec.html#Blocks">universe block</a>.
+-</p>
+-
+-<p>
+-The most commonly-used <code>error</code> implementation is the
+-<a href="/pkg/errors/">errors</a> package's unexported <code>errorString</code> type.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/errorString/` `/STOP/`}}
+-
+-<p>
+-You can construct one of these values with the <code>errors.New</code>
+-function. It takes a string that it converts to an <code>errors.errorString</code>
+-and returns as an <code>error</code> value.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/New/` `/STOP/`}}
+-
+-<p>
+-Here's how you might use <code>errors.New</code>:
+-</p>
+-
+-{{code "/doc/progs/error.go" `/func Sqrt/` `/STOP/`}}
+-
+-<p>
+-A caller passing a negative argument to <code>Sqrt</code> receives a non-nil
+-<code>error</code> value (whose concrete representation is an
+-<code>errors.errorString</code> value). The caller can access the error string
+-("math: square root of...") by calling the <code>error</code>'s
+-<code>Error</code> method, or by just printing it:
+-</p>
+-
+-{{code "/doc/progs/error.go" `/func printErr/` `/STOP/`}}
+-
+-<p>
+-The <a href="/pkg/fmt/">fmt</a> package formats an <code>error</code> value
+-by calling its <code>Error() string</code> method.
+-</p>
+-
+-<p>
+-It is the error implementation's responsibility to summarize the context.
+-The error returned by <code>os.Open</code> formats as "open /etc/passwd:
+-permission denied," not just "permission denied."  The error returned by our
+-<code>Sqrt</code> is missing information about the invalid argument.
+-</p>
+-
+-<p>
+-To add that information, a useful function is the <code>fmt</code> package's
+-<code>Errorf</code>. It formats a string according to <code>Printf</code>'s
+-rules and returns it as an <code>error</code> created by
+-<code>errors.New</code>.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/fmtError/` `/STOP/`}}
+-
+-<p>
+-In many cases <code>fmt.Errorf</code> is good enough, but since
+-<code>error</code> is an interface, you can use arbitrary data structures as
+-error values, to allow callers to inspect the details of the error.
+-</p>
+-
+-<p>
+-For instance, our hypothetical callers might want to recover the invalid
+-argument passed to <code>Sqrt</code>. We can enable that by defining a new
+-error implementation instead of using <code>errors.errorString</code>:
+-</p>
+-
+-{{code "/doc/progs/error.go" `/type NegativeSqrtError/` `/STOP/`}}
+-
+-<p>
+-A sophisticated caller can then use a
+-<a href="/doc/go_spec.html#Type_assertions">type assertion</a> to check for a
+-<code>NegativeSqrtError</code> and handle it specially, while callers that just
+-pass the error to <code>fmt.Println</code> or <code>log.Fatal</code> will see
+-no change in behavior.
+-</p>
+-
+-<p>
+-As another example, the <a href="/pkg/encoding/json/">json</a> package specifies a
+-<code>SyntaxError</code> type that the <code>json.Decode</code> function
+-returns when it encounters a syntax error parsing a JSON blob.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/type SyntaxError/` `/STOP/`}}
+-
+-<p>
+-The <code>Offset</code> field isn't even shown in the default formatting of the
+-error, but callers can use it to add file and line information to their error
+-messages:
+-</p>
+-
+-{{code "/doc/progs/error.go" `/func decodeError/` `/STOP/`}}
+-
+-<p>
+-(This is a slightly simplified version of some
+-<a href="http://golang.org/s/camjsondecode">actual code</a>
+-from the <a href="http://camlistore.org">Camlistore</a> project.)
+-</p>
+-
+-<p>
+-The <code>error</code> interface requires only a <code>Error</code> method;
+-specific error implementations might have additional methods. For instance, the
+-<a href="/pkg/net/">net</a> package returns errors of type
+-<code>error</code>, following the usual convention, but some of the error
+-implementations have additional methods defined by the <code>net.Error</code>
+-interface:
+-</p>
+-
+-<pre>package net
+-
+-type Error interface {
+-    error
+-    Timeout() bool   // Is the error a timeout?
+-    Temporary() bool // Is the error temporary?
+-}</pre>
+-
+-<p>
+-Client code can test for a <code>net.Error</code> with a type assertion and
+-then distinguish transient network errors from permanent ones. For instance, a
+-web crawler might sleep and retry when it encounters a temporary error and give
+-up otherwise.
+-</p>
+-
+-{{code "/doc/progs/error.go" `/func netError/` `/STOP/`}}
+-
+-<p>
+-<b>Simplifying repetitive error handling</b>
+-</p>
+-
+-<p>
+-In Go, error handling is important. The language's design and conventions
+-encourage you to explicitly check for errors where they occur (as distinct from
+-the convention in other languages of throwing exceptions and sometimes catching
+-them). In some cases this makes Go code verbose, but fortunately there are some
+-techniques you can use to minimize repetitive error handling.
+-</p>
+-
+-<p>
+-Consider an <a href="http://code.google.com/appengine/docs/go/">App Engine</a>
+-application with an HTTP handler that retrieves a record from the datastore and
+-formats it with a template.
+-</p>
+-
+-{{code "/doc/progs/error2.go" `/func init/` `/STOP/`}}
+-
+-<p>
+-This function handles errors returned by the <code>datastore.Get</code>
+-function and <code>viewTemplate</code>'s <code>Execute</code> method. In both
+-cases, it presents a simple error message to the user with the HTTP status code
+-500 ("Internal Server Error"). This looks like a manageable amount of code, but
+-add some more HTTP handlers and you quickly end up with many copies of
+-identical error handling code.
+-</p>
+-
+-<p>
+-To reduce the repetition we can define our own HTTP <code>appHandler</code>
+-type that includes an <code>error</code> return value:
+-</p>
+-
+-{{code "/doc/progs/error3.go" `/type appHandler/`}}
+-
+-<p>
+-Then we can change our <code>viewRecord</code> function to return errors:
+-</p>
+-
+-{{code "/doc/progs/error3.go" `/func viewRecord/` `/STOP/`}}
+-
+-<p>
+-This is simpler than the original version, but the <a
+-href="/pkg/net/http/">http</a> package doesn't understand functions that return
+-<code>error</code>.
+-To fix this we can implement the <code>http.Handler</code> interface's
+-<code>ServeHTTP</code> method on <code>appHandler</code>:
+-</p>
+-
+-{{code "/doc/progs/error3.go" `/ServeHTTP/` `/STOP/`}}
+-
+-<p>
+-The <code>ServeHTTP</code> method calls the <code>appHandler</code> function
+-and displays the returned error (if any) to the user.  Notice that the method's
+-receiver, <code>fn</code>, is a function. (Go can do that!) The method invokes
+-the function by calling the receiver in the expression <code>fn(w, r)</code>.
+-</p>
+-
+-<p>
+-Now when registering <code>viewRecord</code> with the http package we use the
+-<code>Handle</code> function (instead of <code>HandleFunc</code>) as
+-<code>appHandler</code> is an <code>http.Handler</code> (not an
+-<code>http.HandlerFunc</code>). 
+-</p>
+-
+-{{code "/doc/progs/error3.go" `/func init/` `/STOP/`}}
+-
+-<p>
+-With this basic error handling infrastructure in place, we can make it more
+-user friendly. Rather than just displaying the error string, it would be better
+-to give the user a simple error message with an appropriate HTTP status code,
+-while logging the full error to the App Engine developer console for debugging
+-purposes.
+-</p>
+-
+-<p>
+-To do this we create an <code>appError</code> struct containing an
+-<code>error</code> and some other fields:
+-</p>
+-
+-{{code "/doc/progs/error4.go" `/type appError/` `/STOP/`}}
+-
+-<p>
+-Next we modify the appHandler type to return <code>*appError</code> values:
+-</p>
+-
+-{{code "/doc/progs/error4.go" `/type appHandler/`}}
+-
+-<p>
+-(It's usually a mistake to pass back the concrete type of an error rather than
+-<code>error</code>,
+-for reasons discussed in <a href="/doc/go_faq.html#nil_error">the Go FAQ</a>,
+-but it's the right thing to do here because <code>ServeHTTP</code> is the only
+-place that sees the value and uses its contents.)
+-</p>
+-
+-<p>
+-And make <code>appHandler</code>'s <code>ServeHTTP</code> method display the
+-<code>appError</code>'s <code>Message</code> to the user with the correct HTTP
+-status <code>Code</code> and log the full <code>Error</code> to the developer
+-console:
+-</p>
+-
+-{{code "/doc/progs/error4.go" `/ServeHTTP/` `/STOP/`}}
+-
+-<p>
+-Finally, we update <code>viewRecord</code> to the new function signature and
+-have it return more context when it encounters an error: 
+-</p>
+-
+-{{code "/doc/progs/error4.go" `/func viewRecord/` `/STOP/`}}
+-
+-<p>
+-This version of <code>viewRecord</code> is the same length as the original, but
+-now each of those lines has specific meaning and we are providing a friendlier
+-user experience.
+-</p>
+-
+-<p>
+-It doesn't end there; we can further improve the error handling in our
+-application. Some ideas:
+-</p>
+-
+-<ul>
+-<li>give the error handler a pretty HTML template,
+-<li>make debugging easier by writing the stack trace to the HTTP response when
+-the user is an administrator,
+-<li>write a constructor function for <code>appError</code> that stores the
+-stack trace for easier debugging, 
+-<li>recover from panics inside the <code>appHandler</code>, logging the error
+-to the console as "Critical," while telling the user "a serious error
+-has occurred." This is a nice touch to avoid exposing the user to inscrutable
+-error messages caused by programming errors.
+-See the <a href="defer_panic_recover.html">Defer, Panic, and Recover</a>
+-article for more details.
+-</ul>
+-
+-<p>
+-<b>Conclusion</b>
+-</p>
+-
+-<p>
+-Proper error handling is an essential requirement of good software. By
+-employing the techniques described in this post you should be able to write
+-more reliable and succinct Go code.
+-</p>
+diff --git a/doc/articles/gobs_of_data.html b/doc/articles/gobs_of_data.html
+deleted file mode 100644
+index 6b836b2c36..0000000000
+--- a/doc/articles/gobs_of_data.html
++++ /dev/null
+@@ -1,315 +0,0 @@
+-<!--{
+-"Title": "Gobs of data",
+-"Template": true
+-}-->
+-
+-<p>
+-To transmit a data structure across a network or to store it in a file, it must
+-be encoded and then decoded again. There are many encodings available, of
+-course: <a href="http://www.json.org/">JSON</a>,
+-<a href="http://www.w3.org/XML/">XML</a>, Google's
+-<a href="http://code.google.com/p/protobuf">protocol buffers</a>, and more.
+-And now there's another, provided by Go's <a href="/pkg/encoding/gob/">gob</a>
+-package.
+-</p>
+-
+-<p>
+-Why define a new encoding? It's a lot of work and redundant at that. Why not
+-just use one of the existing formats? Well, for one thing, we do! Go has
+-<a href="/pkg/">packages</a> supporting all the encodings just mentioned (the
+-<a href="http://code.google.com/p/goprotobuf">protocol buffer package</a> is in
+-a separate repository but it's one of the most frequently downloaded). And for
+-many purposes, including communicating with tools and systems written in other
+-languages, they're the right choice.
+-</p>
+-
+-<p>
+-But for a Go-specific environment, such as communicating between two servers
+-written in Go, there's an opportunity to build something much easier to use and
+-possibly more efficient.
+-</p>
+-
+-<p>
+-Gobs work with the language in a way that an externally-defined,
+-language-independent encoding cannot. At the same time, there are lessons to be
+-learned from the existing systems.
+-</p>
+-
+-<p>
+-<b>Goals</b>
+-</p>
+-
+-<p>
+-The gob package was designed with a number of goals in mind.
+-</p>
+-
+-<p>
+-First, and most obvious, it had to be very easy to use. First, because Go has
+-reflection, there is no need for a separate interface definition language or
+-"protocol compiler". The data structure itself is all the package should need
+-to figure out how to encode and decode it. On the other hand, this approach
+-means that gobs will never work as well with other languages, but that's OK:
+-gobs are unashamedly Go-centric.
+-</p>
+-
+-<p>
+-Efficiency is also important. Textual representations, exemplified by XML and
+-JSON, are too slow to put at the center of an efficient communications network.
+-A binary encoding is necessary.
+-</p>
+-
+-<p>
+-Gob streams must be self-describing. Each gob stream, read from the beginning,
+-contains sufficient information that the entire stream can be parsed by an
+-agent that knows nothing a priori about its contents. This property means that
+-you will always be able to decode a gob stream stored in a file, even long
+-after you've forgotten what data it represents.
+-</p>
+-
+-<p>
+-There were also some things to learn from our experiences with Google protocol
+-buffers.
+-</p>
+-
+-<p>
+-<b>Protocol buffer misfeatures</b>
+-</p>
+-
+-<p>
+-Protocol buffers had a major effect on the design of gobs, but have three
+-features that were deliberately avoided. (Leaving aside the property that
+-protocol buffers aren't self-describing: if you don't know the data definition
+-used to encode a protocol buffer, you might not be able to parse it.)
+-</p>
+-
+-<p>
+-First, protocol buffers only work on the data type we call a struct in Go. You
+-can't encode an integer or array at the top level, only a struct with fields
+-inside it. That seems a pointless restriction, at least in Go. If all you want
+-to send is an array of integers, why should you have to put it into a
+-struct first?
+-</p>
+-
+-<p>
+-Next, a protocol buffer definition may specify that fields <code>T.x</code> and
+-<code>T.y</code> are required to be present whenever a value of type
+-<code>T</code> is encoded or decoded.  Although such required fields may seem
+-like a good idea, they are costly to implement because the codec must maintain a
+-separate data structure while encoding and decoding, to be able to report when
+-required fields are missing.  They're also a maintenance problem. Over time, one
+-may want to modify the data definition to remove a required field, but that may
+-cause existing clients of the data to crash. It's better not to have them in the
+-encoding at all.  (Protocol buffers also have optional fields. But if we don't
+-have required fields, all fields are optional and that's that. There will be
+-more to say about optional fields a little later.)
+-</p>
+-
+-<p>
+-The third protocol buffer misfeature is default values. If a protocol buffer
+-omits the value for a "defaulted" field, then the decoded structure behaves as
+-if the field were set to that value. This idea works nicely when you have
+-getter and setter methods to control access to the field, but is harder to
+-handle cleanly when the container is just a plain idiomatic struct. Required
+-fields are also tricky to implement: where does one define the default values,
+-what types do they have (is text UTF-8? uninterpreted bytes? how many bits in a
+-float?) and despite the apparent simplicity, there were a number of
+-complications in their design and implementation for protocol buffers. We
+-decided to leave them out of gobs and fall back to Go's trivial but effective
+-defaulting rule: unless you set something otherwise, it has the "zero value"
+-for that type - and it doesn't need to be transmitted.
+-</p>
+-
+-<p>
+-So gobs end up looking like a sort of generalized, simplified protocol buffer.
+-How do they work?
+-</p>
+-
+-<p>
+-<b>Values</b>
+-</p>
+-
+-<p>
+-The encoded gob data isn't about <code>int8</code>s and <code>uint16</code>s.
+-Instead, somewhat analogous to constants in Go, its integer values are abstract,
+-sizeless numbers, either signed or unsigned. When you encode an
+-<code>int8</code>, its value is transmitted as an unsized, variable-length
+-integer. When you encode an <code>int64</code>, its value is also transmitted as
+-an unsized, variable-length integer. (Signed and unsigned are treated
+-distinctly, but the same unsized-ness applies to unsigned values too.) If both
+-have the value 7, the bits sent on the wire will be identical. When the receiver
+-decodes that value, it puts it into the receiver's variable, which may be of
+-arbitrary integer type. Thus an encoder may send a 7 that came from an
+-<code>int8</code>, but the receiver may store it in an <code>int64</code>. This
+-is fine: the value is an integer and as a long as it fits, everything works. (If
+-it doesn't fit, an error results.) This decoupling from the size of the variable
+-gives some flexibility to the encoding: we can expand the type of the integer
+-variable as the software evolves, but still be able to decode old data.
+-</p>
+-
+-<p>
+-This flexibility also applies to pointers. Before transmission, all pointers are
+-flattened. Values of type <code>int8</code>, <code>*int8</code>,
+-<code>**int8</code>, <code>****int8</code>, etc. are all transmitted as an
+-integer value, which may then be stored in <code>int</code> of any size, or
+-<code>*int</code>, or <code>******int</code>, etc. Again, this allows for
+-flexibility.
+-</p>
+-
+-<p>
+-Flexibility also happens because, when decoding a struct, only those fields
+-that are sent by the encoder are stored in the destination. Given the value
+-</p>
+-
+-{{code "/doc/progs/gobs1.go" `/type T/` `/STOP/`}}
+-
+-<p>
+-the encoding of <code>t</code> sends only the 7 and 8. Because it's zero, the
+-value of <code>Y</code> isn't even sent; there's no need to send a zero value.
+-</p>
+-
+-<p>
+-The receiver could instead decode the value into this structure:
+-</p>
+-
+-{{code "/doc/progs/gobs1.go" `/type U/` `/STOP/`}}
+-
+-<p>
+-and acquire a value of <code>u</code> with only <code>X</code> set (to the
+-address of an <code>int8</code> variable set to 7); the <code>Z</code> field is
+-ignored - where would you put it? When decoding structs, fields are matched by
+-name and compatible type, and only fields that exist in both are affected. This
+-simple approach finesses the "optional field" problem: as the type
+-<code>T</code> evolves by adding fields, out of date receivers will still
+-function with the part of the type they recognize. Thus gobs provide the
+-important result of optional fields - extensibility - without any additional
+-mechanism or notation.
+-</p>
+-
+-<p>
+-From integers we can build all the other types: bytes, strings, arrays, slices,
+-maps, even floats. Floating-point values are represented by their IEEE 754
+-floating-point bit pattern, stored as an integer, which works fine as long as
+-you know their type, which we always do. By the way, that integer is sent in
+-byte-reversed order because common values of floating-point numbers, such as
+-small integers, have a lot of zeros at the low end that we can avoid
+-transmitting.
+-</p>
+-
+-<p>
+-One nice feature of gobs that Go makes possible is that they allow you to define
+-your own encoding by having your type satisfy the
+-<a href="/pkg/encoding/gob/#GobEncoder">GobEncoder</a> and
+-<a href="/pkg/encoding/gob/#GobDecoder">GobDecoder</a> interfaces, in a manner
+-analogous to the <a href="/pkg/encoding/json/">JSON</a> package's
+-<a href="/pkg/encoding/json/#Marshaler">Marshaler</a> and
+-<a href="/pkg/encoding/json/#Unmarshaler">Unmarshaler</a> and also to the
+-<a href="/pkg/fmt/#Stringer">Stringer</a> interface from
+-<a href="/pkg/fmt/">package fmt</a>. This facility makes it possible to
+-represent special features, enforce constraints, or hide secrets when you
+-transmit data. See the <a href="/pkg/encoding/gob/">documentation</a> for
+-details.
+-</p>
+-
+-<p>
+-<b>Types on the wire</b>
+-</p>
+-
+-<p>
+-The first time you send a given type, the gob package includes in the data
+-stream a description of that type. In fact, what happens is that the encoder is
+-used to encode, in the standard gob encoding format, an internal struct that
+-describes the type and gives it a unique number. (Basic types, plus the layout
+-of the type description structure, are predefined by the software for
+-bootstrapping.) After the type is described, it can be referenced by its type
+-number.
+-</p>
+-
+-<p>
+-Thus when we send our first type <code>T</code>, the gob encoder sends a
+-description of <code>T</code> and tags it with a type number, say 127. All
+-values, including the first, are then prefixed by that number, so a stream of
+-<code>T</code> values looks like:
+-</p>
+-
+-<pre>
+-("define type id" 127, definition of type T)(127, T value)(127, T value), ...
+-</pre>
+-
+-<p>
+-These type numbers make it possible to describe recursive types and send values
+-of those types. Thus gobs can encode types such as trees:
+-</p>
+-
+-{{code "/doc/progs/gobs1.go" `/type Node/` `/STOP/`}}
+-
+-<p>
+-(It's an exercise for the reader to discover how the zero-defaulting rule makes
+-this work, even though gobs don't represent pointers.)
+-</p>
+-
+-<p>
+-With the type information, a gob stream is fully self-describing except for the
+-set of bootstrap types, which is a well-defined starting point.
+-</p>
+-
+-<p>
+-<b>Compiling a machine</b>
+-</p>
+-
+-<p>
+-The first time you encode a value of a given type, the gob package builds a
+-little interpreted machine specific to that data type. It uses reflection on
+-the type to construct that machine, but once the machine is built it does not
+-depend on reflection. The machine uses package unsafe and some trickery to
+-convert the data into the encoded bytes at high speed. It could use reflection
+-and avoid unsafe, but would be significantly slower. (A similar high-speed
+-approach is taken by the protocol buffer support for Go, whose design was
+-influenced by the implementation of gobs.) Subsequent values of the same type
+-use the already-compiled machine, so they can be encoded right away.
+-</p>
+-
+-<p>
+-Decoding is similar but harder. When you decode a value, the gob package holds
+-a byte slice representing a value of a given encoder-defined type to decode,
+-plus a Go value into which to decode it. The gob package builds a machine for
+-that pair: the gob type sent on the wire crossed with the Go type provided for
+-decoding. Once that decoding machine is built, though, it's again a
+-reflectionless engine that uses unsafe methods to get maximum speed.
+-</p>
+-
+-<p>
+-<b>Use</b>
+-</p>
+-
+-<p>
+-There's a lot going on under the hood, but the result is an efficient,
+-easy-to-use encoding system for transmitting data. Here's a complete example
+-showing differing encoded and decoded types. Note how easy it is to send and
+-receive values; all you need to do is present values and variables to the
+-<a href="/pkg/encoding/gob/">gob package</a> and it does all the work.
+-</p>
+-
+-{{code "/doc/progs/gobs2.go" `/package main/` `$`}}
+-
+-<p>
+-You can compile and run this example code in the
+-<a href="http://play.golang.org/p/_-OJV-rwMq">Go Playground</a>.
+-</p>
+-
+-<p>
+-The <a href="/pkg/net/rpc/">rpc package</a> builds on gobs to turn this
+-encode/decode automation into transport for method calls across the network.
+-That's a subject for another article.
+-</p>
+-
+-<p>
+-<b>Details</b>
+-</p>
+-
+-<p>
+-The <a href="/pkg/encoding/gob/">gob package documentation</a>, especially the
+-file <a href="/src/pkg/encoding/gob/doc.go">doc.go</a>, expands on many of the
+-details described here and includes a full worked example showing how the
+-encoding represents data. If you are interested in the innards of the gob
+-implementation, that's a good place to start.
+-</p>
+diff --git a/doc/articles/godoc_documenting_go_code.html b/doc/articles/godoc_documenting_go_code.html
+deleted file mode 100644
+index 3f4e3228c7..0000000000
+--- a/doc/articles/godoc_documenting_go_code.html
++++ /dev/null
+@@ -1,147 +0,0 @@
+-<!--{
+-"Title": "Godoc: documenting Go code",
+-"Template": true
+-}-->
+-
+-<p>
+-The Go project takes documentation seriously. Documentation is a huge part of
+-making software accessible and maintainable. Of course it must be well-written
+-and accurate, but it also must be easy to write and to maintain. Ideally, it
+-should be coupled to the code itself so the documentation evolves along with the
+-code. The easier it is for programmers to produce good documentation, the better
+-for everyone.
+-</p>
+-
+-<p>
+-To that end, we have developed the <a href="/cmd/godoc/">godoc</a> documentation
+-tool. This article describes godoc's approach to documentation, and explains how
+-you can use our conventions and tools to write good documentation for your own
+-projects.
+-</p>
+-
+-<p>
+-Godoc parses Go source code - including comments - and produces documentation as
+-HTML or plain text. The end result is documentation tightly coupled with the
+-code it documents. For example, through godoc's web interface you can navigate
+-from a function's <a href="/pkg/strings/#HasPrefix">documentation</a> to its
+-<a href="/src/pkg/strings/strings.go?#L312">implementation</a> with one click.
+-</p>
+-
+-<p>
+-Godoc is conceptually related to Python's
+-<a href="http://www.python.org/dev/peps/pep-0257/">Docstring</a> and Java's
+-<a href="http://www.oracle.com/technetwork/java/javase/documentation/index-jsp-135444.html">Javadoc</a>,
+-but its design is simpler. The comments read by godoc are not language
+-constructs (as with Docstring) nor must they have their own machine-readable
+-syntax (as with Javadoc). Godoc comments are just good comments, the sort you
+-would want to read even if godoc didn't exist.
+-</p>
+-
+-<p>
+-The convention is simple: to document a type, variable, constant, function, or
+-even a package, write a regular comment directly preceding its declaration, with
+-no intervening blank line. Godoc will then present that comment as text
+-alongside the item it documents. For example, this is the documentation for the
+-<code>fmt</code> package's <a href="/pkg/fmt/#Fprint"><code>Fprint</code></a>
+-function:
+-</p>
+-
+-{{code "/src/pkg/fmt/print.go" `/Fprint formats using the default/` `/func Fprint/`}}
+-
+-<p>
+-Notice this comment is a complete sentence that begins with the name of the
+-element it describes. This important convention allows us to generate
+-documentation in a variety of formats, from plain text to HTML to UNIX man
+-pages, and makes it read better when tools truncate it for brevity, such as when
+-they extract the first line or sentence.
+-</p>
+-
+-<p>
+-Comments on package declarations should provide general package documentation.
+-These comments can be short, like the <a href="/pkg/sort/"><code>sort</code></a>
+-package's brief description:
+-</p>
+-
+-{{code "/src/pkg/sort/sort.go" `/Package sort provides/` `/package sort/`}}
+-
+-<p>
+-They can also be detailed like the <a href="/pkg/encoding/gob/"><code>gob</code></a>
+-package's overview. That package uses another convention for packages
+-that need large amounts of introductory documentation: the package comment is
+-placed in its own file, <a href="/src/pkg/encoding/gob/doc.go">doc.go</a>, which
+-contains only those comments and a package clause.
+-</p>
+-
+-<p>
+-When writing package comments of any size, keep in mind that their first
+-sentence will appear in godoc's <a href="/pkg/">package list</a>.
+-</p>
+-
+-<p>
+-Comments that are not adjacent to a top-level declaration are omitted from
+-godoc's output, with one notable exception. Top-level comments that begin with
+-the word <code>"BUG(who)"</code> are recognized as known bugs, and included in
+-the "Bugs" section of the package documentation. The "who" part should be the
+-user name of someone who could provide more information. For example, this is a
+-known issue from the <a href="/pkg/sync/atomic/#pkg-note-BUG"><code>sync/atomic</code></a> package:
+-</p>
+-
+-<pre>
+-// BUG(rsc): On x86-32, the 64-bit functions use instructions
+-// unavailable before the Pentium MMX. On both ARM and x86-32, it is the
+-// caller's responsibility to arrange for 64-bit alignment of 64-bit
+-// words accessed atomically.
+-</pre>
+-
+-<p>
+-Godoc treats executable commands in the same way. It looks for a comment on
+-package main, which is sometimes put in a separate file called <code>doc.go</code>.
+-For example, see the
+-<a href="/cmd/godoc/">godoc documentation</a> and its corresponding
+-<a href="/src/cmd/godoc/doc.go">doc.go</a> file.
+-</p>
+-
+-<p>
+-There are a few formatting rules that Godoc uses when converting comments to
+-HTML:
+-</p>
+-
+-<ul>
+-<li>
+-Subsequent lines of text are considered part of the same paragraph; you must
+-leave a blank line to separate paragraphs.
+-</li>
+-<li>
+-Pre-formatted text must be indented relative to the surrounding comment text
+-(see gob's <a href="/src/pkg/encoding/gob/doc.go">doc.go</a> for an example).
+-</li>
+-<li>
+-URLs will be converted to HTML links; no special markup is necessary.
+-</li>
+-</ul>
+-
+-<p>
+-Note that none of these rules requires you to do anything out of the ordinary.
+-</p>
+-
+-<p>
+-In fact, the best thing about godoc's minimal approach is how easy it is to use.
+-As a result, a lot of Go code, including all of the standard library, already
+-follows the conventions.
+-</p>
+-
+-<p>
+-Your own code can present good documentation just by having comments as
+-described above. Any Go packages installed inside <code>$GOROOT/src/pkg</code>
+-and any <code>GOPATH</code> work spaces will already be accessible via godoc's
+-command-line and HTTP interfaces, and you can specify additional paths for
+-indexing via the <code>-path</code> flag or just by running <code>"godoc ."</code>
+-in the source directory. See the <a href="/cmd/godoc/">godoc documentation</a>
+-for more details.
+-</p>
+-
+-<p>
+-Godoc recognizes example functions written according to the
+-<a href="/pkg/testing/#pkg-overview"><code>testing</code></a> package's naming
+-conventions and presents them appropriately.
+-</p>
+diff --git a/doc/articles/gos_declaration_syntax.html b/doc/articles/gos_declaration_syntax.html
+deleted file mode 100644
+index 455cced1d5..0000000000
+--- a/doc/articles/gos_declaration_syntax.html
++++ /dev/null
+@@ -1,348 +0,0 @@
+-<!--{
+-"Title": "Go's Declaration Syntax"
+-}-->
+-
+-<p>
+-Newcomers to Go wonder why the declaration syntax is different from the
+-tradition established in the C family. In this post we'll compare the
+-two approaches and explain why Go's declarations look as they do.
+-</p>
+-
+-<p>
+-<b>C syntax</b>
+-</p>
+-
+-<p>
+-First, let's talk about C syntax. C took an unusual and clever approach
+-to declaration syntax. Instead of describing the types with special
+-syntax, one writes an expression involving the item being declared, and
+-states what type that expression will have. Thus
+-</p>
+-
+-<pre>
+-int x;
+-</pre>
+-
+-<p>
+-declares x to be an int: the expression 'x' will have type int. In
+-general, to figure out how to write the type of a new variable, write an
+-expression involving that variable that evaluates to a basic type, then
+-put the basic type on the left and the expression on the right.
+-</p>
+-
+-<p>
+-Thus, the declarations
+-</p>
+-
+-<pre>
+-int *p;
+-int a[3];
+-</pre>
+-
+-<p>
+-state that p is a pointer to int because '*p' has type int, and that a
+-is an array of ints because a[3] (ignoring the particular index value,
+-which is punned to be the size of the array) has type int.
+-</p>
+-
+-<p>
+-What about functions? Originally, C's function declarations wrote the
+-types of the arguments outside the parens, like this:
+-</p>
+-
+-<pre>
+-int main(argc, argv)
+-    int argc;
+-    char *argv[];
+-{ /* ... */ }
+-</pre>
+-
+-<p>
+-Again, we see that main is a function because the expression main(argc,
+-argv) returns an int. In modern notation we'd write
+-</p>
+-
+-<pre>
+-int main(int argc, char *argv[]) { /* ... */ }
+-</pre>
+-
+-<p>
+-but the basic structure is the same.
+-</p>
+-
+-<p>
+-This is a clever syntactic idea that works well for simple types but can
+-get confusing fast. The famous example is declaring a function pointer.
+-Follow the rules and you get this:
+-</p>
+-
+-<pre>
+-int (*fp)(int a, int b);
+-</pre>
+-
+-<p>
+-Here, fp is a pointer to a function because if you write the expression
+-(*fp)(a, b) you'll call a function that returns int. What if one of fp's
+-arguments is itself a function?
+-</p>
+-
+-<pre>
+-int (*fp)(int (*ff)(int x, int y), int b)
+-</pre>
+-
+-<p>
+-That's starting to get hard to read.
+-</p>
+-
+-<p>
+-Of course, we can leave out the name of the parameters when we declare a
+-function, so main can be declared
+-</p>
+-
+-<pre>
+-int main(int, char *[])
+-</pre>
+-
+-<p>
+-Recall that argv is declared like this,
+-</p>
+-
+-<pre>
+-char *argv[]
+-</pre>
+-
+-<p>
+-so you drop the name from the <em>middle</em> of its declaration to construct
+-its type. It's not obvious, though, that you declare something of type
+-char *[] by putting its name in the middle.
+-</p>
+-
+-<p>
+-And look what happens to fp's declaration if you don't name the
+-parameters:
+-</p>
+-
+-<pre>
+-int (*fp)(int (*)(int, int), int)
+-</pre>
+-
+-<p>
+-Not only is it not obvious where to put the name inside
+-</p>
+-
+-<pre>
+-int (*)(int, int)
+-</pre>
+-
+-<p>
+-it's not exactly clear that it's a function pointer declaration at all.
+-And what if the return type is a function pointer?
+-</p>
+-
+-<pre>
+-int (*(*fp)(int (*)(int, int), int))(int, int)
+-</pre>
+-
+-<p>
+-It's hard even to see that this declaration is about fp.
+-</p>
+-
+-<p>
+-You can construct more elaborate examples but these should illustrate
+-some of the difficulties that C's declaration syntax can introduce.
+-</p>
+-
+-<p>
+-There's one more point that needs to be made, though. Because type and
+-declaration syntax are the same, it can be difficult to parse
+-expressions with types in the middle. This is why, for instance, C casts
+-always parenthesize the type, as in
+-</p>
+-
+-<pre>
+-(int)M_PI
+-</pre>
+-
+-<p>
+-<b>Go syntax</b>
+-</p>
+-
+-<p>
+-Languages outside the C family usually use a distinct type syntax in
+-declarations. Although it's a separate point, the name usually comes
+-first, often followed by a colon. Thus our examples above become
+-something like (in a fictional but illustrative language)
+-</p>
+-
+-<pre>
+-x: int
+-p: pointer to int
+-a: array[3] of int
+-</pre>
+-
+-<p>
+-These declarations are clear, if verbose - you just read them left to
+-right. Go takes its cue from here, but in the interests of brevity it
+-drops the colon and removes some of the keywords:
+-</p>
+-
+-<pre>
+-x int
+-p *int
+-a [3]int
+-</pre>
+-
+-<p>
+-There is no direct correspondence between the look of [3]int and how to
+-use a in an expression. (We'll come back to pointers in the next
+-section.) You gain clarity at the cost of a separate syntax.
+-</p>
+-
+-<p>
+-Now consider functions. Let's transcribe the declaration for main, even
+-though the main function in Go takes no arguments:
+-</p>
+-
+-<pre>
+-func main(argc int, argv *[]byte) int
+-</pre>
+-
+-<p>
+-Superficially that's not much different from C, but it reads well from
+-left to right:
+-</p>
+-
+-<p>
+-<em>function main takes an int and a pointer to a slice of bytes and returns an int.</em>
+-</p>
+-
+-<p>
+-Drop the parameter names and it's just as clear - they're always first
+-so there's no confusion.
+-</p>
+-
+-<pre>
+-func main(int, *[]byte) int
+-</pre>
+-
+-<p>
+-One value of this left-to-right style is how well it works as the types
+-become more complex. Here's a declaration of a function variable
+-(analogous to a function pointer in C):
+-</p>
+-
+-<pre>
+-f func(func(int,int) int, int) int
+-</pre>
+-
+-<p>
+-Or if f returns a function:
+-</p>
+-
+-<pre>
+-f func(func(int,int) int, int) func(int, int) int
+-</pre>
+-
+-<p>
+-It still reads clearly, from left to right, and it's always obvious
+-which name is being declared - the name comes first.
+-</p>
+-
+-<p>
+-The distinction between type and expression syntax makes it easy to
+-write and invoke closures in Go:
+-</p>
+-
+-<pre>
+-sum := func(a, b int) int { return a+b } (3, 4)
+-</pre>
+-
+-<p>
+-<b>Pointers</b>
+-</p>
+-
+-<p>
+-Pointers are the exception that proves the rule. Notice that in arrays
+-and slices, for instance, Go's type syntax puts the brackets on the left
+-of the type but the expression syntax puts them on the right of the
+-expression:
+-</p>
+-
+-<pre>
+-var a []int
+-x = a[1]
+-</pre>
+-
+-<p>
+-For familiarity, Go's pointers use the * notation from C, but we could
+-not bring ourselves to make a similar reversal for pointer types. Thus
+-pointers work like this
+-</p>
+-
+-<pre>
+-var p *int
+-x = *p
+-</pre>
+-
+-<p>
+-We couldn't say
+-</p>
+-
+-<pre>
+-var p *int
+-x = p*
+-</pre>
+-
+-<p>
+-because that postfix * would conflate with multiplication. We could have
+-used the Pascal ^, for example:
+-</p>
+-
+-<pre>
+-var p ^int
+-x = p^
+-</pre>
+-
+-<p>
+-and perhaps we should have (and chosen another operator for xor),
+-because the prefix asterisk on both types and expressions complicates
+-things in a number of ways. For instance, although one can write
+-</p>
+-
+-<pre>
+-[]int("hi")
+-</pre>
+-
+-<p>
+-as a conversion, one must parenthesize the type if it starts with a *:
+-</p>
+-
+-<pre>
+-(*int)(nil)
+-</pre>
+-
+-<p>
+-Had we been willing to give up * as pointer syntax, those parentheses
+-would be unnecessary.
+-</p>
+-
+-<p>
+-So Go's pointer syntax is tied to the familiar C form, but those ties
+-mean that we cannot break completely from using parentheses to
+-disambiguate types and expressions in the grammar.
+-</p>
+-
+-<p>
+-Overall, though, we believe Go's type syntax is easier to understand
+-than C's, especially when things get complicated.
+-</p>
+-
+-<p>
+-<b>Notes</b>
+-</p>
+-
+-<p>
+-Go's declarations read left to right. It's been pointed out that C's
+-read in a spiral! See <a href="http://c-faq.com/decl/spiral.anderson.html">
+-The "Clockwise/Spiral Rule"</a> by David Anderson.
+-</p>
+diff --git a/doc/articles/image-20.png b/doc/articles/image-20.png
+deleted file mode 100644
+index 063e430645..0000000000
+Binary files a/doc/articles/image-20.png and /dev/null differ
+diff --git a/doc/articles/image-2a.png b/doc/articles/image-2a.png
+deleted file mode 100644
+index 3f1c0afff8..0000000000
+Binary files a/doc/articles/image-2a.png and /dev/null differ
+diff --git a/doc/articles/image-2b.png b/doc/articles/image-2b.png
+deleted file mode 100644
+index 32b2470114..0000000000
+Binary files a/doc/articles/image-2b.png and /dev/null differ
+diff --git a/doc/articles/image-2c.png b/doc/articles/image-2c.png
+deleted file mode 100644
+index f9abce5b52..0000000000
+Binary files a/doc/articles/image-2c.png and /dev/null differ
+diff --git a/doc/articles/image-2d.png b/doc/articles/image-2d.png
+deleted file mode 100644
+index ed0a9f92c4..0000000000
+Binary files a/doc/articles/image-2d.png and /dev/null differ
+diff --git a/doc/articles/image-2e.png b/doc/articles/image-2e.png
+deleted file mode 100644
+index 483b208e3a..0000000000
+Binary files a/doc/articles/image-2e.png and /dev/null differ
+diff --git a/doc/articles/image-2f.png b/doc/articles/image-2f.png
+deleted file mode 100644
+index 3dce02d5f4..0000000000
+Binary files a/doc/articles/image-2f.png and /dev/null differ
+diff --git a/doc/articles/image-package-01.png b/doc/articles/image-package-01.png
+deleted file mode 100644
+index aad9b12434..0000000000
+Binary files a/doc/articles/image-package-01.png and /dev/null differ
+diff --git a/doc/articles/image-package-02.png b/doc/articles/image-package-02.png
+deleted file mode 100644
+index 3dd4692f3e..0000000000
+Binary files a/doc/articles/image-package-02.png and /dev/null differ
+diff --git a/doc/articles/image-package-03.png b/doc/articles/image-package-03.png
+deleted file mode 100644
+index 5bc0bf732d..0000000000
+Binary files a/doc/articles/image-package-03.png and /dev/null differ
+diff --git a/doc/articles/image-package-04.png b/doc/articles/image-package-04.png
+deleted file mode 100644
+index 393dc1207e..0000000000
+Binary files a/doc/articles/image-package-04.png and /dev/null differ
+diff --git a/doc/articles/image-package-05.png b/doc/articles/image-package-05.png
+deleted file mode 100644
+index 54c47b67bf..0000000000
+Binary files a/doc/articles/image-package-05.png and /dev/null differ
+diff --git a/doc/articles/image_draw.html b/doc/articles/image_draw.html
+deleted file mode 100644
+index 71658cf920..0000000000
+--- a/doc/articles/image_draw.html
++++ /dev/null
+@@ -1,222 +0,0 @@
+-<!--{
+-	"Title": "The Go image/draw package",
+-	"Template": true
+-}-->
+-
+-<p>
+-<a href="/pkg/image/draw/">Package image/draw</a> defines
+-only one operation: drawing a source image onto a destination
+-image, through an optional mask image. This one operation is
+-surprisingly versatile and can perform a number of common image
+-manipulation tasks elegantly and efficiently.  
+-</p>
+-
+-<p>
+-Composition is performed pixel by pixel in the style of the Plan 9
+-graphics library and the X Render extension. The model is based on
+-the classic "Compositing Digital Images" paper by Porter and Duff,
+-with an additional mask parameter: <code>dst = (src IN mask) OP dst</code>.
+-For a fully opaque mask, this reduces to the original Porter-Duff
+-formula: <code>dst = src OP dst</code>. In Go, a nil mask image is equivalent
+-to an infinitely sized, fully opaque mask image.
+-</p>
+-
+-<p>
+-The Porter-Duff paper presented
+-<a href="http://www.w3.org/TR/SVGCompositing/examples/compop-porterduff-examples.png">12 different composition operators</a>,
+-but with an explicit mask, only 2 of these are needed in practice:
+-source-over-destination and source. In Go, these operators are
+-represented by the <code>Over</code> and <code>Src</code> constants. The <code>Over</code> operator
+-performs the natural layering of a source image over a destination
+-image: the change to the destination image is smaller where the
+-source (after masking) is more transparent (that is, has lower
+-alpha). The <code>Src</code> operator merely copies the source (after masking)
+-with no regard for the destination image's original content. For
+-fully opaque source and mask images, the two operators produce the
+-same output, but the <code>Src</code> operator is usually faster.
+-</p>
+-
+-<p><b>Geometric Alignment</b></p>
+-
+-<p>  
+-Composition requires associating destination pixels with source and
+-mask pixels. Obviously, this requires destination, source and mask
+-images, and a composition operator, but it also requires specifying
+-what rectangle of each image to use. Not every drawing should write
+-to the entire destination: when updating an animating image, it is
+-more efficient to only draw the parts of the image that have
+-changed. Not every drawing should read from the entire source: when
+-using a sprite that combines many small images into one large one,
+-only a part of the image is needed. Not every drawing should read
+-from the entire mask: a mask image that collects a font's glyphs is
+-similar to a sprite. Thus, drawing also needs to know three
+-rectangles, one for each image. Since each rectangle has the same
+-width and height, it suffices to pass a destination rectangle `r`
+-and two points <code>sp</code> and <code>mp</code>: the source rectangle is equal to <code>r</code>
+-translated so that <code>r.Min</code> in the destination image aligns with 
+-<code>sp</code> in the source image, and similarly for <code>mp</code>. The effective
+-rectangle is also clipped to each image's bounds in their
+-respective co-ordinate space.
+-</p>
+-
+-<p>
+-<img src="image-20.png">
+-</p>
+-
+-<p>
+-The <a href="/pkg/image/draw/#DrawMask"><code>DrawMask</code></a>
+-function takes seven arguments, but an explicit mask and mask-point
+-are usually unnecessary, so the
+-<a href="/pkg/image/draw/#Draw"><code>Draw</code></a> function takes five:
+-</p>
+-
+-<pre>
+-// Draw calls DrawMask with a nil mask.
+-func Draw(dst Image, r image.Rectangle, src image.Image, sp image.Point, op Op)
+-func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point,
+-	mask image.Image, mp image.Point, op Op)
+-</pre>
+-
+-<p>
+-The destination image must be mutable, so the image/draw package
+-defines a <a href="/pkg/image/draw/#Image"><code>draw.Image</code></a>
+-interface which has a <code>Set</code> method.
+-</p>
+-
+-{{code "../src/pkg/image/draw/draw.go" `/type Image/` `/}/`}}
+-  
+-<p><b>Filling a Rectangle</b></p>
+-
+-<p>
+-To fill a rectangle with a solid color, use an <code>image.Uniform</code>
+-source. The <code>Uniform</code> type re-interprets a <code>Color</code> as a
+-practically infinite-sized <code>Image</code> of that color. For those
+-familiar with the design of Plan 9's draw library, there is no need
+-for an explicit "repeat bit" in Go's slice-based image types; the
+-concept is subsumed by <code>Uniform</code>.
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/ZERO/` `/STOP/`}}
+-
+-<p>
+-To initialize a new image to all-blue:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/BLUE/` `/STOP/`}}
+-
+-<p>
+-To reset an image to transparent (or black, if the destination
+-image's color model cannot represent transparency), use
+-<code>image.Transparent</code>, which is an <code>image.Uniform</code>:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/RESET/` `/STOP/`}}
+-  
+-<p>
+-<img src="image-2a.png">
+-</p>
+-
+- 
+-<p><b>Copying an Image</b></p>
+-
+-<p>
+-To copy from a rectangle <code>sr</code> in the source image to a rectangle
+-starting at a point <code>dp</code> in the destination, convert the source
+-rectangle into the destination image's co-ordinate space:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/RECT/` `/STOP/`}}
+-  
+-<p>
+-Alternatively:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/RECT2/` `/STOP/`}}
+-  
+-<p>
+-To copy the entire source image, use <code>sr = src.Bounds()</code>.
+-</p>
+-  
+-<p>
+-<img src="image-2b.png">
+-</p>
+- 
+-<p><b>Scrolling an Image</b></p>
+-
+-<p>
+-Scrolling an image is just copying an image to itself, with
+-different destination and source rectangles. Overlapping
+-destination and source images are perfectly valid, just as Go's
+-built-in copy function can handle overlapping destination and
+-source slices. To scroll an image m by 20 pixels:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/SCROLL/` `/STOP/`}}
+-  
+-<p><img src="image-2c.png"></p>
+- 
+-<p><b>Converting an Image to RGBA</b></p>
+-
+-<p>
+-The result of decoding an image format might not be an
+-<code>image.RGBA</code>: decoding a GIF results in an <code>image.Paletted</code>,
+-decoding a JPEG results in a <code>ycbcr.YCbCr</code>, and the result of
+-decoding a PNG depends on the image data. To convert any image to
+-an <code>image.RGBA</code>:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/CONV/` `/STOP/`}}
+-  
+-<p>
+-<img src="image-2d.png">
+-</p>
+-
+-<p><b>Drawing Through a Mask</b></p>
+-
+-<p>
+-To draw an image through a circular mask with center <code>p</code> and radius
+-<code>r</code>:
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/CIRCLESTRUCT/` `/STOP/`}}
+-{{code "/doc/progs/image_draw.go" `/CIRCLE2/` `/STOP/`}}
+-  
+-<p>
+-<img src="image-2e.png">
+-</p>
+-
+-<p><b>Drawing Font Glyphs</b></p>
+-
+-<p> 
+-To draw a font glyph in blue starting from a point <code>p</code>, draw with
+-an <code>image.Uniform</code> source and an <code>image.Alpha mask</code>. For
+-simplicity, we aren't performing any sub-pixel positioning or
+-rendering, or correcting for a font's height above a baseline.
+-</p>
+-
+-{{code "/doc/progs/image_draw.go" `/GLYPH/` `/STOP/`}}
+-
+-<p>
+-<img src="image-2f.png">
+-</p>
+-  
+-<p><b>Performance</b></p>
+-
+-<p>
+-The image/draw package implementation demonstrates how to provide
+-an image manipulation function that is both general purpose, yet
+-efficient for common cases. The <code>DrawMask</code> function takes arguments
+-of interface types, but immediately makes type assertions that its
+-arguments are of specific struct types, corresponding to common
+-operations like drawing one <code>image.RGBA</code> image onto another, or
+-drawing an <code>image.Alpha</code> mask (such as a font glyph) onto an
+-<code>image.RGBA</code> image. If a type assertion succeeds, that type
+-information is used to run a specialized implementation of the
+-general algorithm. If the assertions fail, the fallback code path
+-uses the generic <code>At</code> and <code>Set</code> methods. The fast-paths are purely
+-a performance optimization; the resultant destination image is the
+-same either way. In practice, only a small number of special cases
+-are necessary to support typical applications.  
+-</p>
+-
+-
+diff --git a/doc/articles/image_package.html b/doc/articles/image_package.html
+deleted file mode 100644
+index 39a93ccdae..0000000000
+--- a/doc/articles/image_package.html
++++ /dev/null
+@@ -1,312 +0,0 @@
+-<!--{
+-	"Title": "The Go image package",
+-	"Template": true
+-}-->
+-
+-<p>
+-The <a href="/pkg/image/">image</a> and
+-<a href="/pkg/image/color/">image/color</a> packages define a number of types:
+-<code>color.Color</code> and <code>color.Model</code> describe colors,
+-<code>image.Point</code> and <code>image.Rectangle</code> describe basic 2-D
+-geometry, and <code>image.Image</code> brings the two concepts together to
+-represent a rectangular grid of colors. A
+-<a href="/doc/articles/image_draw.html">separate article</a> covers image
+-composition with the <a href="/pkg/image/draw/">image/draw</a> package.
+-</p>
+-
+-<p>
+-<b>Colors and Color Models</b>
+-</p>
+-
+-<p>
+-<a href="/pkg/image/color/#Color">Color</a> is an interface that defines the minimal
+-method set of any type that can be considered a color: one that can be converted
+-to red, green, blue and alpha values. The conversion may be lossy, such as
+-converting from CMYK or YCbCr color spaces.
+-</p>
+-
+-{{code "/src/pkg/image/color/color.go" `/type Color interface/` `/^}/`}}
+-
+-<p>
+-There are three important subtleties about the return values. First, the red,
+-green and blue are alpha-premultiplied: a fully saturated red that is also 25%
+-transparent is represented by RGBA returning a 75% r. Second, the channels have
+-a 16-bit effective range: 100% red is represented by RGBA returning an r of
+-65535, not 255, so that converting from CMYK or YCbCr is not as lossy. Third,
+-the type returned is <code>uint32</code>, even though the maximum value is 65535, to
+-guarantee that multiplying two values together won't overflow. Such
+-multiplications occur when blending two colors according to an alpha mask from a
+-third color, in the style of
+-<a href="https://en.wikipedia.org/wiki/Alpha_compositing">Porter and Duff's</a>
+-classic algebra:
+-</p>
+-
+-<pre>
+-dstr, dstg, dstb, dsta := dst.RGBA()
+-srcr, srcg, srcb, srca := src.RGBA()
+-_, _, _, m := mask.RGBA()
+-const M = 1&lt;&lt;16 - 1
+-// The resultant red value is a blend of dstr and srcr, and ranges in [0, M].
+-// The calculation for green, blue and alpha is similar.
+-dstr = (dstr*(M-m) + srcr*m) / M
+-</pre>
+-
+-<p>
+-The last line of that code snippet would have been more complicated if we worked
+-with non-alpha-premultiplied colors, which is why <code>Color</code> uses
+-alpha-premultiplied values.
+-</p>
+-
+-<p>
+-The image/color package also defines a number of concrete types that implement
+-the <code>Color</code> interface. For example,
+-<a href="/pkg/image/color/#RGBA"><code>RGBA</code></a> is a struct that represents
+-the classic "8 bits per channel" color.
+-</p>
+-
+-{{code "/src/pkg/image/color/color.go" `/type RGBA struct/` `/^}/`}}
+-
+-<p>
+-Note that the <code>R</code> field of an <code>RGBA</code> is an 8-bit
+-alpha-premultiplied color in the range [0, 255]. <code>RGBA</code> satisfies the
+-<code>Color</code> interface by multiplying that value by 0x101 to generate a
+-16-bit alpha-premultiplied color in the range [0, 65535]. Similarly, the
+-<a href="/pkg/image/color/#NRGBA"><code>NRGBA</code></a> struct type represents
+-an 8-bit non-alpha-premultiplied color, as used by the PNG image format. When
+-manipulating an <code>NRGBA</code>'s fields directly, the values are
+-non-alpha-premultiplied, but when calling the <code>RGBA</code> method, the
+-return values are alpha-premultiplied.
+-</p>
+-
+-<p>
+-A <a href="/pkg/image/color/#Model"><code>Model</code></a> is simply
+-something that can convert <code>Color</code>s to other <code>Color</code>s, possibly lossily. For
+-example, the <code>GrayModel</code> can convert any <code>Color</code> to a
+-desaturated <a href="/pkg/image/color/#Gray"><code>Gray</code></a>. A
+-<code>Palette</code> can convert any <code>Color</code> to one from a
+-limited palette.
+-</p>
+-
+-{{code "/src/pkg/image/color/color.go" `/type Model interface/` `/^}/`}}
+-
+-{{code "/src/pkg/image/color/color.go" `/type Palette \[\]Color/`}}
+-
+-<p>
+-<b>Points and Rectangles</b>
+-</p>
+-
+-<p>
+-A <a href="/pkg/image/#Point"><code>Point</code></a> is an (x, y) co-ordinate
+-on the integer grid, with axes increasing right and down. It is neither a pixel
+-nor a grid square. A <code>Point</code> has no intrinsic width, height or
+-color, but the visualizations below use a small colored square.
+-</p>
+-
+-{{code "/src/pkg/image/geom.go" `/type Point struct/` `/^}/`}}
+-
+-<p>
+-<img src="image-package-01.png" width="400" height="300">
+-</p>
+-
+-{{code "/doc/progs/image_package1.go" `/p := image.Point/`}}
+-
+-<p>
+-A <a href="/pkg/image/#Rectangle"><code>Rectangle</code></a> is an axis-aligned
+-rectangle on the integer grid, defined by its top-left and bottom-right
+-<code>Point</code>.  A <code>Rectangle</code> also has no intrinsic color, but
+-the visualizations below outline rectangles with a thin colored line, and call
+-out their <code>Min</code> and <code>Max</code> <code>Point</code>s.
+-</p>
+-
+-{{code "/src/pkg/image/geom.go" `/type Rectangle struct/` `/^}/`}}
+-
+-<p>
+-For convenience, <code>image.Rect(x0, y0, x1, y1)</code> is equivalent to
+-<code>image.Rectangle{image.Point{x0, y0}, image.Point{x1, y1}}</code>, but is
+-much easier to type.
+-</p>
+-
+-<p>
+-A <code>Rectangle</code> is inclusive at the top-left and exclusive at the
+-bottom-right. For a <code>Point p</code> and a <code>Rectangle r</code>,
+-<code>p.In(r)</code> if and only if
+-<code>r.Min.X &lt;= p.X &amp;&amp; p.X &lt; r.Max.X</code>, and similarly for <code>Y</code>. This is analogous to how
+-a slice <code>s[i0:i1]</code> is inclusive at the low end and exclusive at the
+-high end. (Unlike arrays and slices, a <code>Rectangle</code> often has a
+-non-zero origin.)
+-</p>
+-
+-<p>
+-<img src="image-package-02.png" width="400" height="300">
+-</p>
+-
+-{{code "/doc/progs/image_package2.go" `/r := image.Rect/` `/fmt.Println/`}}
+-
+-<p>
+-Adding a <code>Point</code> to a <code>Rectangle</code> translates the
+-<code>Rectangle</code>. Points and Rectangles are not restricted to be in the
+-bottom-right quadrant.
+-</p>
+-
+-<p>
+-<img src="image-package-03.png" width="400" height="300">
+-</p>
+-
+-{{code "/doc/progs/image_package3.go" `/r := image.Rect/` `/fmt.Println/`}}
+-
+-<p>
+-Intersecting two Rectangles yields another Rectangle, which may be empty.
+-</p>
+-
+-<p>
+-<img src="image-package-04.png" width="400" height="300">
+-</p>
+-
+-{{code "/doc/progs/image_package4.go" `/r := image.Rect/` `/fmt.Printf/`}}
+-
+-<p>
+-Points and Rectangles are passed and returned by value. A function that takes a
+-<code>Rectangle</code> argument will be as efficient as a function that takes
+-two <code>Point</code> arguments, or four <code>int</code> arguments.
+-</p>
+-
+-<p>
+-<b>Images</b>
+-</p>
+-
+-<p>
+-An <a href="/pkg/image/#Image">Image</a> maps every grid square in a
+-<code>Rectangle</code> to a <code>Color</code> from a <code>Model</code>.
+-"The pixel at (x, y)" refers to the color of the grid square defined by the
+-points (x, y), (x+1, y), (x+1, y+1) and (x, y+1).
+-</p>
+-
+-{{code "/src/pkg/image/image.go" `/type Image interface/` `/^}/`}}
+-
+-<p>
+-A common mistake is assuming that an <code>Image</code>'s bounds start at (0,
+-0). For example, an animated GIF contains a sequence of Images, and each
+-<code>Image</code> after the first typically only holds pixel data for the area
+-that changed, and that area doesn't necessarily start at (0, 0). The correct
+-way to iterate over an <code>Image</code> m's pixels looks like:
+-</p>
+-
+-<pre>
+-b := m.Bounds()
+-for y := b.Min.Y; y &lt; b.Max.Y; y++ {
+-	for x := b.Min.X; x &lt; b.Max.X; x++ {
+-		doStuffWith(m.At(x, y))
+-	}
+-}
+-</pre>
+-
+-<p>
+-<code>Image</code> implementations do not have to be based on an in-memory
+-slice of pixel data. For example, a
+-<a href="/pkg/image/#Uniform"><code>Uniform</code></a> is an
+-<code>Image</code> of enormous bounds and uniform color, whose in-memory
+-representation is simply that color.
+-</p>
+-
+-{{code "/src/pkg/image/names.go" `/type Uniform struct/` `/^}/`}}
+-
+-<p>
+-Typically, though, programs will want an image based on a slice. Struct types
+-like <a href="/pkg/image/#RGBA"><code>RGBA</code></a> and
+-<a href="/pkg/image/#Gray"><code>Gray</code></a> (which other packages refer
+-to as <code>image.RGBA</code> and <code>image.Gray</code>) hold slices of pixel
+-data and implement the <code>Image</code> interface.
+-</p>
+-
+-{{code "/src/pkg/image/image.go" `/type RGBA struct/` `/^}/`}}
+-
+-<p>
+-These types also provide a <code>Set(x, y int, c color.Color)</code> method
+-that allows modifying the image one pixel at a time.
+-</p>
+-
+-{{code "/doc/progs/image_package5.go" `/m := image.New/` `/m.Set/`}}
+-
+-<p>
+-If you're reading or writing a lot of pixel data, it can be more efficient, but
+-more complicated, to access these struct type's <code>Pix</code> field directly.
+-</p>
+-
+-<p>
+-The slice-based <code>Image</code> implementations also provide a
+-<code>SubImage</code> method, which returns an <code>Image</code> backed by the
+-same array. Modifying the pixels of a sub-image will affect the pixels of the
+-original image, analogous to how modifying the contents of a sub-slice
+-<code>s[i0:i1]</code> will affect the contents of the original slice
+-<code>s</code>.
+-</p>
+-
+-<img src="image-package-05.png" width="400" height="300">
+-
+-{{code "/doc/progs/image_package6.go" `/m0 := image.New/` `/fmt.Println\(m0.Stride/`}}
+-
+-<p>
+-For low-level code that works on an image's <code>Pix</code> field, be aware
+-that ranging over <code>Pix</code> can affect pixels outside an image's bounds.
+-In the example above, the pixels covered by <code>m1.Pix</code> are shaded in
+-blue. Higher-level code, such as the <code>At</code> and <code>Set</code>
+-methods or the <a href="/pkg/image/draw/">image/draw package</a>, will clip
+-their operations to the image's bounds.
+-</p>
+-
+-<p>
+-<b>Image Formats</b>
+-</p>
+-
+-<p>
+-The standard package library supports a number of common image formats, such as
+-GIF, JPEG and PNG. If you know the format of a source image file, you can
+-decode from an <a href="/pkg/io/#Reader"><code>io.Reader</code></a> directly.
+-</p>
+-
+-<pre>
+-import (
+-	"image/jpeg"
+-	"image/png"
+-	"io"
+-)
+-
+-// convertJPEGToPNG converts from JPEG to PNG.
+-func convertJPEGToPNG(w io.Writer, r io.Reader) error {
+-	img, err := jpeg.Decode(r)
+-	if err != nil {
+-		return err
+-	}
+-	return png.Encode(w, img)
+-}
+-</pre>
+-
+-<p>
+-If you have image data of unknown format, the
+-<a href="/pkg/image/#Decode"><code>image.Decode</code></a> function can detect
+-the format. The set of recognized formats is constructed at run time and is not
+-limited to those in the standard package library. An image format package
+-typically registers its format in an init function, and the main package will
+-"underscore import" such a package solely for the side effect of format
+-registration.
+-</p>
+-
+-<pre>
+-import (
+-	"image"
+-	"image/png"
+-	"io"
+-
+-	_ "code.google.com/p/vp8-go/webp"
+-	_ "image/jpeg"
+-)
+-
+-// convertToPNG converts from any recognized format to PNG.
+-func convertToPNG(w io.Writer, r io.Reader) error {
+-	img, _, err := image.Decode(r)
+-	if err != nil {
+-		return err
+-	}
+-	return png.Encode(w, img)
+-}
+-</pre>
+diff --git a/doc/articles/index.html b/doc/articles/index.html
+index 5f70734ecd..9ddd669731 100644
+--- a/doc/articles/index.html
++++ b/doc/articles/index.html
+@@ -3,5 +3,6 @@
+ }-->
+ 
+ <p>
+-See the <a href="/doc/#articles">Documents page</a> for a complete list of Go articles.
++See the <a href="/doc/#articles">Documents page</a> and the
++<a href="/blog/index">Blog index</a> for a complete list of Go articles.
+ </p>
+diff --git a/doc/articles/json_and_go.html b/doc/articles/json_and_go.html
+deleted file mode 100644
+index 8c4ef33a41..0000000000
+--- a/doc/articles/json_and_go.html
++++ /dev/null
+@@ -1,357 +0,0 @@
+-<!--{
+-"Title": "JSON and Go",
+-"Template": true
+-}-->
+-
+-<p>
+-JSON (JavaScript Object Notation) is a simple data interchange format.
+-Syntactically it resembles the objects and lists of JavaScript. It is most
+-commonly used for communication between web back-ends and JavaScript programs
+-running in the browser, but it is used in many other places, too. Its home page,
+-<a href="http://json.org">json.org</a>, provides a wonderfully clear and concise
+-definition of the standard.
+-</p>
+-
+-<p>
+-With the <a href="/pkg/encoding/json/">json package</a> it's a snap to read and
+-write JSON data from your Go programs.
+-</p>
+-
+-<p>
+-<b>Encoding</b>
+-</p>
+-
+-<p>
+-To encode JSON data we use the
+-<a href="/pkg/encoding/json/#Marshal"><code>Marshal</code></a> function.
+-</p>
+-
+-<pre>
+-func Marshal(v interface{}) ([]byte, error)
+-</pre>
+-
+-<p>
+-Given the Go data structure, <code>Message</code>,
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/type Message/` `/STOP/`}}
+-
+-<p>
+-and an instance of <code>Message</code>
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/m :=/`}}
+-
+-<p>
+-we can marshal a JSON-encoded version of <code>m</code> using <code>json.Marshal</code>:
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/b, err :=/`}}
+-
+-<p>
+-If all is well, <code>err</code> will be <code>nil</code> and <code>b</code>
+-will be a <code>[]byte</code> containing this JSON data:
+-</p>
+-
+-<pre>
+-b == []byte(`{"Name":"Alice","Body":"Hello","Time":1294706395881547000}`)
+-</pre>
+-
+-<p>
+-Only data structures that can be represented as valid JSON will be encoded:
+-</p>
+-
+-<ul>
+-<li>
+-JSON objects only support strings as keys; to encode a Go map type it must be
+-of the form <code>map[string]T</code> (where <code>T</code> is any Go type
+-supported by the json package).
+-</li>
+-<li>
+-Channel, complex, and function types cannot be encoded.
+-</li>
+-<li>
+-Cyclic data structures are not supported; they will cause <code>Marshal</code>
+-to go into an infinite loop.
+-</li>
+-<li>
+-Pointers will be encoded as the values they point to (or 'null' if the pointer
+-is <code>nil</code>).
+-</li>
+-</ul>
+-
+-<p>
+-The json package only accesses the exported fields of struct types (those that
+-begin with an uppercase letter). Therefore only the exported fields of a struct
+-will be present in the JSON output.
+-</p>
+-
+-<p>
+-<b>Decoding</b>
+-</p>
+-
+-<p>
+-To decode JSON data we use the
+-<a href="/pkg/encoding/json/#Unmarshal"><code>Unmarshal</code></a> function.
+-</p>
+-
+-<pre>
+-func Unmarshal(data []byte, v interface{}) error
+-</pre>
+-
+-<p>
+-We must first create a place where the decoded data will be stored
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/var m Message/`}}
+-
+-<p>
+-and call <code>json.Unmarshal</code>, passing it a <code>[]byte</code> of JSON
+-data and a pointer to <code>m</code>
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/err := json.Unmarshal/`}}
+-
+-<p>
+-If <code>b</code> contains valid JSON that fits in <code>m</code>, after the
+-call <code>err</code> will be <code>nil</code> and the data from <code>b</code>
+-will have been stored in the struct <code>m</code>, as if by an assignment
+-like:
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/m = Message/` `/STOP/`}}
+-
+-<p>
+-How does <code>Unmarshal</code> identify the fields in which to store the
+-decoded data? For a given JSON key <code>"Foo"</code>, <code>Unmarshal</code>
+-will look through the destination struct's fields to find (in order of
+-preference):
+-</p>
+-
+-<ul>
+-<li>
+-An exported field with a tag of <code>`json:"Foo"`</code> (see the
+-<a href="/ref/spec#Struct_types">Go spec</a> for more on struct tags),
+-</li>
+-<li>
+-An exported field named <code>"Foo"</code>, or
+-</li>
+-<li>
+-An exported field named <code>"FOO"</code> or <code>"FoO"</code> or some other
+-case-insensitive match of <code>"Foo"</code>.
+-</li>
+-</ul>
+-
+-<p>
+-What happens when the structure of the JSON data doesn't exactly match the Go
+-type?
+-</p>
+-
+-{{code "/doc/progs/json1.go" `/"Food":"Pickle"/` `/STOP/`}}
+-
+-<p>
+-<code>Unmarshal</code> will decode only the fields that it can find in the
+-destination type.  In this case, only the <code>Name</code> field of m will be
+-populated, and the <code>Food</code> field will be ignored. This behavior is
+-particularly useful when you wish to pick only a few specific fields out of a
+-large JSON blob. It also means that any unexported fields in the destination
+-struct will be unaffected by <code>Unmarshal</code>.
+-</p>
+-
+-<p>
+-But what if you don't know the structure of your JSON data beforehand?
+-</p>
+-
+-<p>
+-<b>Generic JSON with <code>interface{}</code></b>
+-</p>
+-
+-<p>
+-The <code>interface{}</code> (empty interface) type describes an interface with
+-zero methods.  Every Go type implements at least zero methods and therefore
+-satisfies the empty interface.
+-</p>
+-
+-<p>
+-The empty interface serves as a general container type:
+-</p>
+-
+-{{code "/doc/progs/json2.go" `/var i interface{}/` `/STOP/`}}
+-
+-<p>
+-A type assertion accesses the underlying concrete type:
+-</p>
+-
+-{{code "/doc/progs/json2.go" `/r := i/` `/STOP/`}}
+-
+-<p>
+-Or, if the underlying type is unknown, a type switch determines the type:
+-</p>
+-
+-{{code "/doc/progs/json2.go" `/switch v/` `/STOP/`}}
+-
+-<p>
+-The json package uses <code>map[string]interface{}</code> and
+-<code>[]interface{}</code> values to store arbitrary JSON objects and arrays;
+-it will happily unmarshal any valid JSON blob into a plain
+-<code>interface{}</code> value.  The default concrete Go types are:
+-</p>
+-
+-<ul>
+-<li>
+-<code>bool</code> for JSON booleans,
+-</li>
+-<li>
+-<code>float64</code> for JSON numbers,
+-</li>
+-<li>
+-<code>string</code> for JSON strings, and
+-</li>
+-<li>
+-<code>nil</code> for JSON null.
+-</li>
+-</ul>
+-
+-<p>
+-<b>Decoding arbitrary data</b>
+-</p>
+-
+-<p>
+-Consider this JSON data, stored in the variable <code>b</code>:
+-</p>
+-
+-{{code "/doc/progs/json3.go" `/b :=/`}}
+-
+-<p>
+-Without knowing this data's structure, we can decode it into an
+-<code>interface{}</code> value with <code>Unmarshal</code>:
+-</p>
+-
+-{{code "/doc/progs/json3.go" `/var f interface/` `/STOP/`}}
+-
+-<p>
+-At this point the Go value in <code>f</code> would be a map whose keys are
+-strings and whose values are themselves stored as empty interface values:
+-</p>
+-
+-{{code "/doc/progs/json3.go" `/f = map/` `/STOP/`}}
+-
+-<p>
+-To access this data we can use a type assertion to access <code>f</code>'s
+-underlying <code>map[string]interface{}</code>:
+-</p>
+-
+-{{code "/doc/progs/json3.go" `/m := f/`}}
+-
+-<p>
+-We can then iterate through the map with a range statement and use a type switch
+-to access its values as their concrete types:
+-</p>
+-
+-{{code "/doc/progs/json3.go" `/for k, v/` `/STOP/`}}
+-
+-<p>
+-In this way you can work with unknown JSON data while still enjoying the
+-benefits of type safety.
+-</p>
+-
+-<p>
+-<b>Reference Types</b>
+-</p>
+-
+-<p>
+-Let's define a Go type to contain the data from the previous example:
+-</p>
+-
+-{{code "/doc/progs/json4.go" `/type FamilyMember/` `/STOP/`}}
+-
+-{{code "/doc/progs/json4.go" `/var m FamilyMember/` `/STOP/`}}
+-
+-<p>
+-Unmarshaling that data into a <code>FamilyMember</code> value works as
+-expected, but if we look closely we can see a remarkable thing has happened.
+-With the var statement we allocated a <code>FamilyMember</code> struct, and
+-then provided a pointer to that value to <code>Unmarshal</code>, but at that
+-time the <code>Parents</code> field was a <code>nil</code> slice value. To
+-populate the <code>Parents</code> field, <code>Unmarshal</code> allocated a new
+-slice behind the scenes. This is typical of how <code>Unmarshal</code> works
+-with the supported reference types (pointers, slices, and maps).
+-</p>
+-
+-<p>
+-Consider unmarshaling into this data structure:
+-</p>
+-
+-<pre>
+-type Foo struct {
+-    Bar *Bar
+-}
+-</pre>
+-
+-<p>
+-If there were a <code>Bar</code> field in the JSON object,
+-<code>Unmarshal</code> would allocate a new <code>Bar</code> and populate it.
+-If not, <code>Bar</code> would be left as a <code>nil</code> pointer.
+-</p>
+-
+-<p>
+-From this a useful pattern arises: if you have an application that receives a
+-few distinct message types, you might define "receiver" structure like
+-</p>
+-
+-<pre>
+-type IncomingMessage struct {
+-    Cmd *Command
+-    Msg *Message
+-}
+-</pre>
+-
+-<p>
+-and the sending party can populate the <code>Cmd</code> field and/or the
+-<code>Msg</code> field of the top-level JSON object, depending on the type of
+-message they want to communicate. <code>Unmarshal</code>, when decoding the
+-JSON into an <code>IncomingMessage</code> struct, will only allocate the data
+-structures present in the JSON data. To know which messages to process, the
+-programmer need simply test that either <code>Cmd</code> or <code>Msg</code> is
+-not <code>nil</code>.
+-</p>
+-
+-<p>
+-<b>Streaming Encoders and Decoders</b>
+-</p>
+-
+-<p>
+-The json package provides <code>Decoder</code> and <code>Encoder</code> types
+-to support the common operation of reading and writing streams of JSON data.
+-The <code>NewDecoder</code> and <code>NewEncoder</code> functions wrap the
+-<a href="/pkg/io/#Reader"><code>io.Reader</code></a> and
+-<a href="/pkg/io/#Writer"><code>io.Writer</code></a> interface types.
+-</p>
+-
+-<pre>
+-func NewDecoder(r io.Reader) *Decoder
+-func NewEncoder(w io.Writer) *Encoder
+-</pre>
+-
+-<p>
+-Here's an example program that reads a series of JSON objects from standard
+-input, removes all but the <code>Name</code> field from each object, and then
+-writes the objects to standard output:
+-</p>
+-
+-{{code "/doc/progs/json5.go" `/package main/` `$`}}
+-
+-<p>
+-Due to the ubiquity of Readers and Writers, these <code>Encoder</code> and
+-<code>Decoder</code> types can be used in a broad range of scenarios, such as
+-reading and writing to HTTP connections, WebSockets, or files.
+-</p>
+-
+-<p>
+-<b>References</b>
+-</p>
+-
+-<p>
+-For more information see the <a href="/pkg/encoding/json/">json package documentation</a>. For an example usage of
+-json see the source files of the <a href="/pkg/net/rpc/jsonrpc/">jsonrpc package</a>.
+-</p>
+diff --git a/doc/articles/json_rpc_tale_of_interfaces.html b/doc/articles/json_rpc_tale_of_interfaces.html
+deleted file mode 100644
+index 0db366f33a..0000000000
+--- a/doc/articles/json_rpc_tale_of_interfaces.html
++++ /dev/null
+@@ -1,78 +0,0 @@
+-<!--{
+-"Title": "JSON-RPC: a tale of interfaces"
+-}-->
+-
+-<p>
+-Here we present an example where Go's
+-<a href="/doc/effective_go.html#interfaces_and_types">interfaces</a> made it
+-easy to refactor some existing code to make it more flexible and extensible.
+-Originally, the standard library's <a href="/pkg/net/rpc/">RPC package</a> used
+-a custom wire format called <a href="/pkg/encoding/gob/">gob</a>. For a
+-particular application, we wanted to use <a href="/pkg/encoding/json/">JSON</a>
+-as an alternate wire format.
+-</p>
+-
+-<p>
+-We first defined a pair of interfaces to describe the functionality of the
+-existing wire format, one for the client, and one for the server (depicted
+-below).
+-</p>
+-
+-<pre>
+-type ServerCodec interface {
+-	ReadRequestHeader(*Request) error
+-	ReadRequestBody(interface{}) error
+-	WriteResponse(*Response, interface{}) error
+-	Close() error
+-}
+-</pre>
+-
+-<p>
+-On the server side, we then changed two internal function signatures to accept
+-the <code>ServerCodec</code> interface instead of our existing
+-<code>gob.Encoder</code>. Here's one of them:
+-</p>
+-
+-<pre>
+-func sendResponse(sending *sync.Mutex, req *Request,
+-	reply interface{}, enc *gob.Encoder, errmsg string)
+-</pre>
+-
+-<p>
+-became
+-</p>
+-
+-<pre>
+-func sendResponse(sending *sync.Mutex, req *Request,
+-		reply interface{}, enc ServerCodec, errmsg string)
+-</pre>
+-
+-<p>
+-We then wrote a trivial <code>gobServerCodec</code> wrapper to reproduce the
+-original functionality. From there it is simple to build a
+-<code>jsonServerCodec</code>.
+-</p>
+-
+-<p>
+-After some similar changes to the client side, this was the full extent of the
+-work we needed to do on the RPC package. This whole exercise took about 20
+-minutes! After tidying up and testing the new code, the
+-<a href="http://code.google.com/p/go/source/diff?spec=svn9daf796ebf1cae97b2fcf760a4ab682f1f063f29&amp;r=9daf796ebf1cae97b2fcf760a4ab682f1f063f29&amp;format=side&amp;path=/src/pkg/rpc/server.go">final changeset</a>
+-was submitted.
+-</p>
+-
+-<p>
+-In an inheritance-oriented language like Java or C++, the obvious path would be
+-to generalize the RPC class, and create JsonRPC and GobRPC subclasses. However,
+-this approach becomes tricky if you want to make a further generalization
+-orthogonal to that hierarchy. (For example, if you were to implement an
+-alternate RPC standard). In our Go package, we took a route that is both
+-conceptually simpler and requires less code be written or changed.
+-</p>
+-
+-<p>
+-A vital quality for any codebase is maintainability. As needs change, it is
+-essential to adapt your code easily and cleanly, lest it become unwieldy to work
+-with. We believe Go's lightweight, composition-oriented type system provides a
+-means of structuring code that scales.
+-</p>
+diff --git a/doc/articles/laws_of_reflection.html b/doc/articles/laws_of_reflection.html
+deleted file mode 100644
+index 57a769692a..0000000000
+--- a/doc/articles/laws_of_reflection.html
++++ /dev/null
+@@ -1,649 +0,0 @@
+-<!--{
+-	"Title": "The Laws of Reflection",
+-	"Template": true
+-}-->
+-
+-<p>
+-Reflection in computing is the
+-ability of a program to examine its own structure, particularly
+-through types; it's a form of metaprogramming. It's also a great
+-source of confusion.
+-</p>
+-
+-<p>
+-In this article we attempt to clarify things by explaining how
+-reflection works in Go. Each language's reflection model is
+-different (and many languages don't support it at all), but
+-this article is about Go, so for the rest of this article the word
+-"reflection" should be taken to mean "reflection in Go".
+-</p>
+-
+-<p><b>Types and interfaces</b></p>
+-
+-<p>
+-Because reflection builds on the type system, let's start with a
+-refresher about types in Go.
+-</p>
+-
+-<p>
+-Go is statically typed. Every variable has a static type, that is,
+-exactly one type known and fixed at compile time: <code>int</code>,
+-<code>float32</code>, <code>*MyType</code>, <code>[]byte</code>,
+-and so on. If we declare
+-</p>
+-
+-{{code "/doc/progs/interface.go" `/type MyInt/` `/STOP/`}}
+-
+-<p>
+-then <code>i</code> has type <code>int</code> and <code>j</code>
+-has type <code>MyInt</code>. The variables <code>i</code> and
+-<code>j</code> have distinct static types and, although they have
+-the same underlying type, they cannot be assigned to one another
+-without a conversion.
+-</p>
+-
+-<p>
+-One important category of type is interface types, which represent
+-fixed sets of methods. An interface variable can store any concrete
+-(non-interface) value as long as that value implements the
+-interface's methods. A well-known pair of examples is
+-<code>io.Reader</code> and <code>io.Writer</code>, the types
+-<code>Reader</code> and <code>Writer</code> from the
+-<a href="/pkg/io/">io package</a>:
+-</p>
+-
+-{{code "/doc/progs/interface.go" `/// Reader/` `/STOP/`}}
+-
+-<p>
+-Any type that implements a <code>Read</code> (or
+-<code>Write</code>) method with this signature is said to implement
+-<code>io.Reader</code> (or <code>io.Writer</code>). For the
+-purposes of this discussion, that means that a variable of type
+-<code>io.Reader</code> can hold any value whose type has a
+-<code>Read</code> method:
+-</p>
+-
+-{{code "/doc/progs/interface.go" `/func readers/` `/STOP/`}}
+-
+-<p>
+-It's important to be clear that whatever concrete value
+-<code>r</code> may hold, <code>r</code>'s type is always
+-<code>io.Reader</code>: Go is statically typed and the static type
+-of <code>r</code> is <code>io.Reader</code>.</p>
+-
+-<p>
+-An extremely important example of an interface type is the empty
+-interface:
+-</p>
+-
+-<pre>
+-interface{}
+-</pre>
+-
+-<p>
+-It represents the empty set of methods and is satisfied by any
+-value at all, since any value has zero or more methods.
+-</p>
+-
+-<p>
+-Some people say that Go's interfaces are dynamically typed, but
+-that is misleading. They are statically typed: a variable of
+-interface type always has the same static type, and even though at
+-run time the value stored in the interface variable may change
+-type, that value will always satisfy the interface.
+-</p>
+-
+-<p>
+-We need to be precise about all this because reflection and
+-interfaces are closely related.
+-</p>
+-
+-<p><b>The representation of an interface</b></p>
+-
+-<p>
+-Russ Cox has written a
+-<a href="http://research.swtch.com/2009/12/go-data-structures-interfaces.html">detailed blog post</a>
+-about the representation of interface values in Go. It's not necessary to
+-repeat the full story here, but a simplified summary is in order.
+-</p>
+-
+-<p>
+-A variable of interface type stores a pair: the concrete value
+-assigned to the variable, and that value's type descriptor.
+-To be more precise, the value is the underlying concrete data item
+-that implements the interface and the type describes the full type
+-of that item. For instance, after
+-</p>
+-
+-{{code "/doc/progs/interface.go" `/func typeAssertions/` `/STOP/`}}
+-
+-<p>
+-<code>r</code> contains, schematically, the (value, type) pair,
+-(<code>tty</code>, <code>*os.File</code>). Notice that the type
+-<code>*os.File</code> implements methods other than
+-<code>Read</code>; even though the interface value provides access
+-only to the <code>Read</code> method, the value inside carries all
+-the type information about that value. That's why we can do things
+-like this:
+-</p>
+-
+-{{code "/doc/progs/interface.go" `/var w io.Writer/` `/STOP/`}}
+-
+-<p>
+-The expression in this assignment is a type assertion; what it
+-asserts is that the item inside <code>r</code> also implements
+-<code>io.Writer</code>, and so we can assign it to <code>w</code>.
+-After the assignment, <code>w</code> will contain the pair
+-(<code>tty</code>, <code>*os.File</code>). That's the same pair as
+-was held in <code>r</code>. The static type of the interface
+-determines what methods may be invoked with an interface variable,
+-even though the concrete value inside may have a larger set of
+-methods.
+-</p>
+-
+-<p>
+-Continuing, we can do this:
+-</p>
+-
+-{{code "/doc/progs/interface.go" `/var empty interface{}/` `/STOP/`}}
+-
+-<p>
+-and our empty interface value, <code>empty</code>, will again contain
+-that same pair, (<code>tty</code>, <code>*os.File</code>). That's
+-handy: an empty interface can hold any value and contains all the
+-information we could ever need about that value.
+-</p>
+-
+-<p>
+-(We don't need a type assertion here because it's known statically
+-that <code>w</code> satisfies the empty interface. In the example
+-where we moved a value from a <code>Reader</code> to a
+-<code>Writer</code>, we needed to be explicit and use a type
+-assertion because <code>Writer</code>'s methods are not a
+-subset of <code>Reader</code>'s.)
+-</p>
+-
+-<p>
+-One important detail is that the pair inside an interface always
+-has the form (value, concrete type) and cannot have the form
+-(value, interface type). Interfaces do not hold interface
+-values.
+-</p>
+-
+-<p>
+-Now we're ready to reflect.
+-</p>
+-
+-<p><b>The first law of reflection</b></p>
+-
+-<p><b>1. Reflection goes from interface value to reflection object.</b></p>
+-
+-<p>
+-At the basic level, reflection is just a mechanism to examine the
+-type and value pair stored inside an interface variable. To get
+-started, there are two types we need to know about in
+-<a href="/pkg/reflect/">package reflect</a>:
+-<a href="/pkg/reflect/#Type">Type</a> and
+-<a href="/pkg/reflect/#Value">Value</a>. Those two types
+-give access to the contents of an interface variable, and two
+-simple functions, called <code>reflect.TypeOf</code> and
+-<code>reflect.ValueOf</code>, retrieve <code>reflect.Type</code>
+-and <code>reflect.Value</code> pieces out of an interface value.
+-(Also, from the <code>reflect.Value</code> it's easy to get
+-to the <code>reflect.Type</code>, but let's keep the
+-<code>Value</code> and <code>Type</code> concepts separate for
+-now.)
+-</p>
+-
+-<p>
+-Let's start with <code>TypeOf</code>:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/package main/` `/STOP main/`}}
+-
+-<p>
+-This program prints
+-</p>
+-
+-<pre>
+-type: float64
+-</pre>
+-
+-<p>
+-You might be wondering where the interface is here, since the program looks
+-like it's passing the <code>float64</code> variable <code>x</code>, not an
+-interface value, to <code>reflect.TypeOf</code>. But it's there; as
+-<a href="/pkg/reflect/#TypeOf">godoc reports</a>, the signature of
+-<code>reflect.TypeOf</code> includes an empty interface:
+-</p>
+-
+-<pre>
+-// TypeOf returns the reflection Type of the value in the interface{}.
+-func TypeOf(i interface{}) Type
+-</pre>
+-
+-<p>
+-When we call <code>reflect.TypeOf(x)</code>, <code>x</code> is
+-first stored in an empty interface, which is then passed as the
+-argument; <code>reflect.TypeOf</code> unpacks that empty interface
+-to recover the type information.
+-</p>
+-
+-<p>
+-The <code>reflect.ValueOf</code> function, of course, recovers the
+-value (from here on we'll elide the boilerplate and focus just on
+-the executable code):
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f9/` `/STOP/`}}
+-
+-<p>
+-prints
+-</p>
+-
+-<pre>
+-value: &lt;float64 Value&gt;
+-</pre>
+-
+-<p>
+-Both <code>reflect.Type</code> and <code>reflect.Value</code> have
+-lots of methods to let us examine and manipulate them. One
+-important example is that <code>Value</code> has a
+-<code>Type</code> method that returns the <code>Type</code> of a
+-<code>reflect.Value</code>. Another is that both <code>Type</code>
+-and <code>Value</code> have a <code>Kind</code> method that returns
+-a constant indicating what sort of item is stored:
+-<code>Uint</code>, <code>Float64</code>, <code>Slice</code>, and so
+-on. Also methods on <code>Value</code> with names like
+-<code>Int</code> and <code>Float</code> let us grab values (as
+-<code>int64</code> and <code>float64</code>) stored inside:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f1/` `/STOP/`}}
+-
+-<p>
+-prints
+-</p>
+-
+-<pre>
+-type: float64
+-kind is float64: true
+-value: 3.4
+-</pre>
+-
+-<p>
+-There are also methods like <code>SetInt</code> and
+-<code>SetFloat</code> but to use them we need to understand
+-settability, the subject of the third law of reflection, discussed
+-below.
+-</p>
+-
+-<p>
+-The reflection library has a couple of properties worth singling
+-out. First, to keep the API simple, the "getter" and "setter"
+-methods of <code>Value</code> operate on the largest type that can
+-hold the value: <code>int64</code> for all the signed integers, for
+-instance. That is, the <code>Int</code> method of
+-<code>Value</code> returns an <code>int64</code> and the
+-<code>SetInt</code> value takes an <code>int64</code>; it may be
+-necessary to convert to the actual type involved:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f2/` `/STOP/`}}
+-
+-<p>
+-The second property is that the <code>Kind</code> of a reflection
+-object describes the underlying type, not the static type. If a
+-reflection object contains a value of a user-defined integer type,
+-as in
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f3/` `/STOP/`}}
+-
+-<p>
+-the <code>Kind</code> of <code>v</code> is still
+-<code>reflect.Int</code>, even though the static type of
+-<code>x</code> is <code>MyInt</code>, not <code>int</code>. In
+-other words, the <code>Kind</code> cannot discriminate an int from
+-a <code>MyInt</code> even though the <code>Type</code> can.
+-</p>
+-
+-<p><b>The second law of reflection</b></p>
+-
+-<p><b>2. Reflection goes from reflection object to interface
+-value.</b></p>
+-
+-<p>
+-Like physical reflection, reflection in Go generates its own
+-inverse.
+-</p>
+-
+-<p>
+-Given a <code>reflect.Value</code> we can recover an interface
+-value using the <code>Interface</code> method; in effect the method
+-packs the type and value information back into an interface
+-representation and returns the result:
+-</p>
+-
+-<pre>
+-// Interface returns v's value as an interface{}.
+-func (v Value) Interface() interface{}
+-</pre>
+-
+-<p>
+-As a consequence we can say
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f3b/` `/STOP/`}}
+-
+-<p>
+-to print the <code>float64</code> value represented by the
+-reflection object <code>v</code>.
+-</p>
+-
+-<p>
+-We can do even better, though. The arguments to
+-<code>fmt.Println</code>, <code>fmt.Printf</code> and so on are all
+-passed as empty interface values, which are then unpacked by the
+-<code>fmt</code> package internally just as we have been doing in
+-the previous examples. Therefore all it takes to print the contents
+-of a <code>reflect.Value</code> correctly is to pass the result of
+-the <code>Interface</code> method to the formatted print
+-routine:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f3c/` `/STOP/`}}
+-
+-<p>
+-(Why not <code>fmt.Println(v)</code>? Because <code>v</code> is a
+-<code>reflect.Value</code>; we want the concrete value it holds.)
+-Since our value is a <code>float64</code>, we can even use a
+-floating-point format if we want:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f3d/` `/STOP/`}}
+-
+-<p>
+-and get in this case
+-</p>
+-
+-<pre>
+-3.4e+00
+-</pre>
+-
+-<p>
+-Again, there's no need to type-assert the result of
+-<code>v.Interface()</code> to <code>float64</code>; the empty
+-interface value has the concrete value's type information inside
+-and <code>Printf</code> will recover it.
+-</p>
+-
+-<p>
+-In short, the <code>Interface</code> method is the inverse of the
+-<code>ValueOf</code> function, except that its result is always of
+-static type <code>interface{}</code>.
+-</p>
+-
+-<p>
+-Reiterating: Reflection goes from interface values to reflection
+-objects and back again.
+-</p>
+-
+-<p><b>The third law of reflection</b></p>
+-
+-<p><b>3. To modify a reflection object, the value must be settable.</b></p>
+-
+-<p>
+-The third law is the most subtle and confusing, but it's easy
+-enough to understand if we start from first principles.
+-</p>
+-
+-<p>
+-Here is some code that does not work, but is worth studying.
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f4/` `/STOP/`}}
+-
+-<p>
+-If you run this code, it will panic with the cryptic message
+-</p>
+-
+-<pre>
+-panic: reflect.Value.SetFloat using unaddressable value
+-</pre>
+-
+-<p>
+-The problem is not that the value <code>7.1</code> is not
+-addressable; it's that <code>v</code> is not settable. Settability
+-is a property of a reflection <code>Value</code>, and not all
+-reflection <code>Values</code> have it.
+-</p>
+-
+-<p>
+-The <code>CanSet</code> method of <code>Value</code> reports the
+-settability of a <code>Value</code>; in our case,
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f5/` `/STOP/`}}
+-
+-<p>
+-prints
+-</p>
+-
+-<pre>
+-settability of v: false
+-</pre>
+-
+-<p>
+-It is an error to call a <code>Set</code> method on an non-settable
+-<code>Value</code>. But what is settability?
+-</p>
+-
+-<p>
+-Settability is a bit like addressability, but stricter. It's the
+-property that a reflection object can modify the actual storage
+-that was used to create the reflection object. Settability is
+-determined by whether the reflection object holds the original
+-item. When we say
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f6/` `/STOP/`}}
+-
+-<p>
+-we pass a <em>copy</em> of <code>x</code> to
+-<code>reflect.ValueOf</code>, so the interface value created as the
+-argument to <code>reflect.ValueOf</code> is a <em>copy</em> of
+-<code>x</code>, not <code>x</code> itself. Thus, if the
+-statement
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f6b/` `/STOP/`}}
+-
+-<p>
+-were allowed to succeed, it would not update <code>x</code>, even
+-though <code>v</code> looks like it was created from
+-<code>x</code>. Instead, it would update the copy of <code>x</code>
+-stored inside the reflection value and <code>x</code> itself would
+-be unaffected. That would be confusing and useless, so it is
+-illegal, and settability is the property used to avoid this
+-issue.
+-</p>
+-
+-<p>
+-If this seems bizarre, it's not. It's actually a familiar situation
+-in unusual garb. Think of passing <code>x</code> to a
+-function:
+-</p>
+-
+-<pre>
+-f(x)
+-</pre>
+-
+-<p>
+-We would not expect <code>f</code> to be able to modify
+-<code>x</code> because we passed a copy of <code>x</code>'s value,
+-not <code>x</code> itself. If we want <code>f</code> to modify
+-<code>x</code> directly we must pass our function the address of
+-<code>x</code> (that is, a pointer to <code>x</code>):</p>
+-
+-<p>
+-<code>f(&amp;x)</code>
+-</p>
+-
+-<p>
+-This is straightforward and familiar, and reflection works the same
+-way. If we want to modify <code>x</code> by reflection, we must
+-give the reflection library a pointer to the value we want to
+-modify.
+-</p>
+-
+-<p>
+-Let's do that. First we initialize <code>x</code> as usual
+-and then create a reflection value that points to it, called
+-<code>p</code>.
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f7/` `/STOP/`}}
+-
+-<p>
+-The output so far is
+-</p>
+-
+-<pre>
+-type of p: *float64
+-settability of p: false
+-</pre>
+-
+-<p>
+-The reflection object <code>p</code> isn't settable, but it's not
+-<code>p</code> we want to set, it's (in effect) <code>*p</code>. To
+-get to what <code>p</code> points to, we call the <code>Elem</code>
+-method of <code>Value</code>, which indirects through the pointer,
+-and save the result in a reflection <code>Value</code> called
+-<code>v</code>:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f7b/` `/STOP/`}}
+-
+-<p>
+-Now <code>v</code> is a settable reflection object, as the output
+-demonstrates,
+-</p>
+-
+-<pre>
+-settability of v: true
+-</pre>
+-
+-<p>
+-and since it represents <code>x</code>, we are finally able to use
+-<code>v.SetFloat</code> to modify the value of
+-<code>x</code>:
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f7c/` `/STOP/`}}
+-
+-<p>
+-The output, as expected, is
+-</p>
+-
+-<pre>
+-7.1
+-7.1
+-</pre>
+-
+-<p>
+-Reflection can be hard to understand but it's doing exactly what
+-the language does, albeit through reflection <code>Types</code> and
+-<code>Values</code> that can disguise what's going on. Just keep in
+-mind that reflection Values need the address of something in order
+-to modify what they represent.
+-</p>
+-
+-<p><b>Structs</b></p>
+-
+-<p>
+-In our previous example <code>v</code> wasn't a pointer itself, it
+-was just derived from one. A common way for this situation to arise
+-is when using reflection to modify the fields of a structure. As
+-long as we have the address of the structure, we can modify its
+-fields.
+-</p>
+-
+-<p>
+-Here's a simple example that analyzes a struct value, <code>t</code>. We create
+-the reflection object with the address of the struct because we'll want to
+-modify it later. Then we set <code>typeOfT</code> to its type and iterate over
+-the fields using straightforward method calls
+-(see <a href="/pkg/reflect/">package reflect</a> for details).
+-Note that we extract the names of the fields from the struct type, but the
+-fields themselves are regular <code>reflect.Value</code> objects.
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f8/` `/STOP/`}}
+-
+-<p>
+-The output of this program is
+-</p>
+-
+-<pre>
+-0: A int = 23
+-1: B string = skidoo
+-</pre>
+-
+-<p>
+-There's one more point about settability introduced in
+-passing here: the field names of <code>T</code> are upper case
+-(exported) because only exported fields of a struct are
+-settable.
+-</p>
+-
+-<p>
+-Because <code>s</code> contains a settable reflection object, we
+-can modify the fields of the structure.
+-</p>
+-
+-{{code "/doc/progs/interface2.go" `/START f8b/` `/STOP/`}}
+-
+-<p>
+-And here's the result:
+-</p>
+-
+-<pre>
+-t is now {77 Sunset Strip}
+-</pre>
+-
+-<p>
+-If we modified the program so that <code>s</code> was created from
+-<code>t</code>, not <code>&amp;t</code>, the calls to
+-<code>SetInt</code> and <code>SetString</code> would fail as the
+-fields of <code>t</code> would not be settable.
+-</p>
+-
+-<p><b>Conclusion</b></p>
+-
+-<p>
+-Here again are the laws of reflection:
+-</p>
+-
+-<ol>
+-<li>Reflection goes from interface value to reflection
+-object.</li>
+-<li>Reflection goes from reflection object to interface
+-value.</li>
+-<li>To modify a reflection object, the value must be settable.</li>
+-</ol>
+-
+-<p>
+-Once you understand these laws reflection in Go becomes much easier
+-to use, although it remains subtle. It's a powerful tool that
+-should be used with care and avoided unless strictly
+-necessary.
+-</p>
+-
+-<p>
+-There's plenty more to reflection that we haven't covered &mdash;
+-sending and receiving on channels, allocating memory, using slices
+-and maps, calling methods and functions &mdash; but this post is
+-long enough. We'll cover some of those topics in a later
+-article.
+-</p>
+diff --git a/doc/articles/race_detector.html b/doc/articles/race_detector.html
+deleted file mode 100644
+index 282db8ba40..0000000000
+--- a/doc/articles/race_detector.html
++++ /dev/null
+@@ -1,388 +0,0 @@
+-<!--{
+-	"Title": "Data Race Detector",
+-	"Template": true
+-}-->
+-
+-<h2 id="Introduction">Introduction</h2>
+-
+-<p>
+-Data races are among the most common and hardest to debug types of bugs in concurrent systems.
+-A data race occurs when two goroutines access the same variable concurrently and at least one of the accesses is a write.
+-See the <a href="/ref/mem/">The Go Memory Model</a> for details.
+-</p>
+-
+-<p>
+-Here is an example of a data race that can lead to crashes and memory corruption:
+-</p>
+-
+-<pre>
+-func main() {
+-	c := make(chan bool)
+-	m := make(map[string]string)
+-	go func() {
+-		m["1"] = "a" // First conflicting access.
+-		c &lt;- true
+-	}()
+-	m["2"] = "b" // Second conflicting access.
+-	&lt;-c
+-	for k, v := range m {
+-		fmt.Println(k, v)
+-	}
+-}
+-</pre>
+-
+-<h2 id="Usage">Usage</h2>
+-
+-<p>
+-To help diagnose such bugs, Go includes a built-in data race detector.
+-To use it, add the <code>-race</code> flag to the go command:
+-</p>
+-
+-<pre>
+-$ go test -race mypkg    // to test the package
+-$ go run -race mysrc.go  // to run the source file
+-$ go build -race mycmd   // to build the command
+-$ go install -race mypkg // to install the package
+-</pre>
+-
+-<h2 id="Report_Format">Report Format</h2>
+-
+-<p>
+-When the race detector finds a data race in the program, it prints a report.
+-The report contains stack traces for conflicting accesses, as well as stacks where the involved goroutines were created.
+-Here is an example:
+-</p>
+-
+-<pre>
+-WARNING: DATA RACE
+-Read by goroutine 185:
+-  net.(*pollServer).AddFD()
+-      src/pkg/net/fd_unix.go:89 +0x398
+-  net.(*pollServer).WaitWrite()
+-      src/pkg/net/fd_unix.go:247 +0x45
+-  net.(*netFD).Write()
+-      src/pkg/net/fd_unix.go:540 +0x4d4
+-  net.(*conn).Write()
+-      src/pkg/net/net.go:129 +0x101
+-  net.func·060()
+-      src/pkg/net/timeout_test.go:603 +0xaf
+-
+-Previous write by goroutine 184:
+-  net.setWriteDeadline()
+-      src/pkg/net/sockopt_posix.go:135 +0xdf
+-  net.setDeadline()
+-      src/pkg/net/sockopt_posix.go:144 +0x9c
+-  net.(*conn).SetDeadline()
+-      src/pkg/net/net.go:161 +0xe3
+-  net.func·061()
+-      src/pkg/net/timeout_test.go:616 +0x3ed
+-
+-Goroutine 185 (running) created at:
+-  net.func·061()
+-      src/pkg/net/timeout_test.go:609 +0x288
+-
+-Goroutine 184 (running) created at:
+-  net.TestProlongTimeout()
+-      src/pkg/net/timeout_test.go:618 +0x298
+-  testing.tRunner()
+-      src/pkg/testing/testing.go:301 +0xe8
+-</pre>
+-
+-<h2 id="Options">Options</h2>
+-
+-<p>
+-The <code>GORACE</code> environment variable sets race detector options.
+-The format is:
+-</p>
+-
+-<pre>
+-GORACE="option1=val1 option2=val2"
+-</pre>
+-
+-<p>
+-The options are:
+-</p>
+-
+-<ul>
+-<li>
+-<code>log_path</code> (default <code>stderr</code>): The race detector writes
+-its report to a file named <code>log_path.<em>pid</em></code>.
+-The special names <code>stdout</code>
+-and <code>stderr</code> cause reports to be written to standard output and
+-standard error, respectively.
+-</li>
+-
+-<li>
+-<code>exitcode</code> (default <code>66</code>): The exit status to use when
+-exiting after a detected race.
+-</li>
+-
+-<li>
+-<code>strip_path_prefix</code> (default <code>""</code>): Strip this prefix
+-from all reported file paths, to make reports more concise.
+-</li>
+-
+-<li>
+-<code>history_size</code> (default <code>1</code>): The per-goroutine memory
+-access history is <code>32K * 2**history_size elements</code>.
+-Increasing this value can avoid a "failed to restore the stack" error in reports, at the
+-cost of increased memory usage.
+-</li>
+-
+-<li>
+-<code>halt_on_error</code> (default <code>0</code>): Controls whether the program
+-exits after reporting first data race.
+-</li>
+-</ul>
+-
+-<p>
+-Example:
+-</p>
+-
+-<pre>
+-$ GORACE="log_path=/tmp/race/report strip_path_prefix=/my/go/sources/" go test -race
+-</pre>
+-
+-<h2 id="Excluding_Tests">Excluding Tests</h2>
+-
+-<p>
+-When you build with <code>-race</code> flag, the <code>go</code> command defines additional
+-<a href="/pkg/go/build/#hdr-Build_Constraints">build tag</a> <code>race</code>.
+-You can use the tag to exclude some code and tests when running the race detector.
+-Some examples:
+-</p>
+-
+-<pre>
+-// +build !race
+-
+-package foo
+-
+-// The test contains a data race. See issue 123.
+-func TestFoo(t *testing.T) {
+-	// ...
+-}
+-
+-// The test fails under the race detector due to timeouts.
+-func TestBar(t *testing.T) {
+-	// ...
+-}
+-
+-// The test takes too long under the race detector.
+-func TestBaz(t *testing.T) {
+-	// ...
+-}
+-</pre>
+-
+-<h2 id="How_To_Use">How To Use</h2>
+-
+-<p>
+-To start, run your tests using the race detector (<code>go test -race</code>).
+-The race detector only finds races that happen at runtime, so it can't find
+-races in code paths that are not executed.
+-If your tests have incomplete coverage,
+-you may find more races by running a binary built with <code>-race</code> under a realistic
+-workload.
+-</p>
+-
+-<h2 id="Typical_Data_Races">Typical Data Races</h2>
+-
+-<p>
+-Here are some typical data races.  All of them can be detected with the race detector.
+-</p>
+-
+-<h3 id="Race_on_loop_counter">Race on loop counter</h3>
+-
+-<pre>
+-func main() {
+-	var wg sync.WaitGroup
+-	wg.Add(5)
+-	for i := 0; i < 5; i++ {
+-		go func() {
+-			fmt.Println(i) // Not the 'i' you are looking for.
+-			wg.Done()
+-		}()
+-	}
+-	wg.Wait()
+-}
+-</pre>
+-
+-<p>
+-The variable <code>i</code> in the function literal is the same variable used by the loop, so
+-the read in the goroutine races with the loop increment.
+-(This program typically prints 55555, not 01234.)
+-The program can be fixed by making a copy of the variable:
+-</p>
+-
+-<pre>
+-func main() {
+-	var wg sync.WaitGroup
+-	wg.Add(5)
+-	for i := 0; i < 5; i++ {
+-		go func(j int) {
+-			fmt.Println(j) // Good. Read local copy of the loop counter.
+-			wg.Done()
+-		}(i)
+-	}
+-	wg.Wait()
+-}
+-</pre>
+-
+-<h3 id="Accidentally_shared_variable">Accidentally shared variable</h3>
+-
+-<pre>
+-// ParallelWrite writes data to file1 and file2, returns the errors.
+-func ParallelWrite(data []byte) chan error {
+-	res := make(chan error, 2)
+-	f1, err := os.Create("file1")
+-	if err != nil {
+-		res &lt;- err
+-	} else {
+-		go func() {
+-			// This err is shared with the main goroutine,
+-			// so the write races with the write below.
+-			_, err = f1.Write(data)
+-			res &lt;- err
+-			f1.Close()
+-		}()
+-	}
+-	f2, err := os.Create("file2") // The second conflicting write to err.
+-	if err != nil {
+-		res &lt;- err
+-	} else {
+-		go func() {
+-			_, err = f2.Write(data)
+-			res &lt;- err
+-			f2.Close()
+-		}()
+-	}
+-	return res
+-}
+-</pre>
+-
+-<p>
+-The fix is to introduce new variables in the goroutines (note the use of <code>:=</code>):
+-</p>
+-
+-<pre>
+-			...
+-			_, err := f1.Write(data)
+-			...
+-			_, err := f2.Write(data)
+-			...
+-</pre>
+-
+-<h3 id="Unprotected_global_variable">Unprotected global variable</h3>
+-
+-<p>
+-If the following code is called from several goroutines, it leads to races on the <code>service</code> map.
+-Concurrent reads and writes of the same map are not safe:
+-</p>
+-
+-<pre>
+-var service map[string]net.Addr
+-
+-func RegisterService(name string, addr net.Addr) {
+-	service[name] = addr
+-}
+-
+-func LookupService(name string) net.Addr {
+-	return service[name]
+-}
+-</pre>
+-
+-<p>
+-To make the code safe, protect the accesses with a mutex:
+-</p>
+-
+-<pre>
+-var (
+-	service   map[string]net.Addr
+-	serviceMu sync.Mutex
+-)
+-
+-func RegisterService(name string, addr net.Addr) {
+-	serviceMu.Lock()
+-	defer serviceMu.Unlock()
+-	service[name] = addr
+-}
+-
+-func LookupService(name string) net.Addr {
+-	serviceMu.Lock()
+-	defer serviceMu.Unlock()
+-	return service[name]
+-}
+-</pre>
+-
+-<h3 id="Primitive_unprotected_variable">Primitive unprotected variable</h3>
+-
+-<p>
+-Data races can happen on variables of primitive types as well (<code>bool</code>, <code>int</code>, <code>int64</code>, etc.),
+-as in this example:
+-</p>
+-
+-<pre>
+-type Watchdog struct{ last int64 }
+-
+-func (w *Watchdog) KeepAlive() {
+-	w.last = time.Now().UnixNano() // First conflicting access.
+-}
+-
+-func (w *Watchdog) Start() {
+-	go func() {
+-		for {
+-			time.Sleep(time.Second)
+-			// Second conflicting access.
+-			if w.last < time.Now().Add(-10*time.Second).UnixNano() {
+-				fmt.Println("No keepalives for 10 seconds. Dying.")
+-				os.Exit(1)
+-			}
+-		}
+-	}()
+-}
+-</pre>
+-
+-<p>
+-Even such "innocent" data races can lead to hard-to-debug problems caused by
+-non-atomicity of the memory accesses,
+-interference with compiler optimizations,
+-or reordering issues accessing processor memory .
+-</p>
+-
+-<p>
+-A typical fix for this race is to use a channel or a mutex.
+-To preserve the lock-free behavior, one can also use the
+-<a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> package.
+-</p>
+-
+-<pre>
+-type Watchdog struct{ last int64 }
+-
+-func (w *Watchdog) KeepAlive() {
+-	atomic.StoreInt64(&amp;w.last, time.Now().UnixNano())
+-}
+-
+-func (w *Watchdog) Start() {
+-	go func() {
+-		for {
+-			time.Sleep(time.Second)
+-			if atomic.LoadInt64(&amp;w.last) < time.Now().Add(-10*time.Second).UnixNano() {
+-				fmt.Println("No keepalives for 10 seconds. Dying.")
+-				os.Exit(1)
+-			}
+-		}
+-	}()
+-}
+-</pre>
+-
+-<h2 id="Supported_Systems">Supported Systems</h2>
+-
+-<p>
+-The race detector runs on <code>darwin/amd64</code>, <code>linux/amd64</code>, and <code>windows/amd64</code>.
+-</p>
+-
+-<h2 id="Runtime_Overheads">Runtime Overhead</h2>
+-
+-<p>
+-The cost of race detection varies by program, but for a typical program, memory
+-usage may increase by 5-10x and execution time by 2-20x.
+-</p>
+diff --git a/doc/articles/slice-1.png b/doc/articles/slice-1.png
+deleted file mode 100644
+index ba465cf718..0000000000
+Binary files a/doc/articles/slice-1.png and /dev/null differ
+diff --git a/doc/articles/slice-2.png b/doc/articles/slice-2.png
+deleted file mode 100644
+index a57581e8cf..0000000000
+Binary files a/doc/articles/slice-2.png and /dev/null differ
+diff --git a/doc/articles/slice-3.png b/doc/articles/slice-3.png
+deleted file mode 100644
+index 64ece5e877..0000000000
+Binary files a/doc/articles/slice-3.png and /dev/null differ
+diff --git a/doc/articles/slice-array.png b/doc/articles/slice-array.png
+deleted file mode 100644
+index a533702cf6..0000000000
+Binary files a/doc/articles/slice-array.png and /dev/null differ
+diff --git a/doc/articles/slice-struct.png b/doc/articles/slice-struct.png
+deleted file mode 100644
+index f9141fc592..0000000000
+Binary files a/doc/articles/slice-struct.png and /dev/null differ
+diff --git a/doc/articles/slices_usage_and_internals.html b/doc/articles/slices_usage_and_internals.html
+deleted file mode 100644
+index ebdca01503..0000000000
+--- a/doc/articles/slices_usage_and_internals.html
++++ /dev/null
+@@ -1,438 +0,0 @@
+-<!--{
+-	"Title": "Slices: usage and internals",
+-	"Template": true
+-}-->
+-
+-<p>
+-Go's slice type provides a convenient and efficient means of working with
+-sequences of typed data. Slices are analogous to arrays in other languages, but
+-have some unusual properties. This article will look at what slices are and how
+-they are used.
+-</p>
+-
+-<p>
+-<b>Arrays</b>
+-</p>
+-
+-<p>
+-The slice type is an abstraction built on top of Go's array type, and so to
+-understand slices we must first understand arrays.
+-</p>
+-
+-<p>
+-An array type definition specifies a length and an element type. For example,
+-the type <code>[4]int</code> represents an array of four integers. An array's
+-size is fixed; its length is part of its type (<code>[4]int</code> and
+-<code>[5]int</code> are distinct, incompatible types). Arrays can be indexed in
+-the usual way, so the expression <code>s[n]</code> accesses the <i>n</i>th
+-element, starting from zero.
+-</p>
+-
+-<pre>
+-var a [4]int
+-a[0] = 1
+-i := a[0]
+-// i == 1
+-</pre>
+-
+-<p>
+-Arrays do not need to be initialized explicitly; the zero value of an array is
+-a ready-to-use array whose elements are themselves zeroed:
+-</p>
+-
+-<pre>
+-// a[2] == 0, the zero value of the int type
+-</pre>
+-
+-<p>
+-The in-memory representation of <code>[4]int</code> is just four integer values laid out sequentially:
+-</p>
+-
+-<p>
+-<img src="slice-array.png">
+-</p>
+-
+-<p>
+-Go's arrays are values. An array variable denotes the entire array; it is not a
+-pointer to the first array element (as would be the case in C).  This means
+-that when you assign or pass around an array value you will make a copy of its
+-contents. (To avoid the copy you could pass a <i>pointer</i> to the array, but
+-then that's a pointer to an array, not an array.) One way to think about arrays
+-is as a sort of struct but with indexed rather than named fields: a fixed-size
+-composite value.
+-</p>
+-
+-<p>
+-An array literal can be specified like so:
+-</p>
+-
+-<pre>
+-b := [2]string{"Penn", "Teller"}
+-</pre>
+-
+-<p>
+-Or, you can have the compiler count the array elements for you:
+-</p>
+-
+-<pre>
+-b := [...]string{"Penn", "Teller"}
+-</pre>
+-
+-<p>
+-In both cases, the type of <code>b</code> is <code>[2]string</code>.
+-</p>
+-
+-<p>
+-<b>Slices</b>
+-</p>
+-
+-<p>
+-Arrays have their place, but they're a bit inflexible, so you don't see them
+-too often in Go code. Slices, though, are everywhere. They build on arrays to
+-provide great power and convenience.
+-</p>
+-
+-<p>
+-The type specification for a slice is <code>[]T</code>, where <code>T</code> is
+-the type of the elements of the slice. Unlike an array type, a slice type has
+-no specified length.
+-</p>
+-
+-<p>
+-A slice literal is declared just like an array literal, except you leave out
+-the element count:
+-</p>
+-
+-<pre>
+-letters := []string{"a", "b", "c", "d"}
+-</pre>
+-
+-<p>
+-A slice can be created with the built-in function called <code>make</code>,
+-which has the signature,
+-</p>
+-
+-<pre>
+-func make([]T, len, cap) []T
+-</pre>
+-
+-<p>
+-where T stands for the element type of the slice to be created. The
+-<code>make</code> function takes a type, a length, and an optional capacity.
+-When called, <code>make</code> allocates an array and returns a slice that
+-refers to that array.
+-</p>
+-
+-<pre>
+-var s []byte
+-s = make([]byte, 5, 5)
+-// s == []byte{0, 0, 0, 0, 0}
+-</pre>
+-
+-<p>
+-When the capacity argument is omitted, it defaults to the specified length.
+-Here's a more succinct version of the same code:
+-</p>
+-
+-<pre>
+-s := make([]byte, 5)
+-</pre>
+-
+-<p>
+-The length and capacity of a slice can be inspected using the built-in
+-<code>len</code> and <code>cap</code> functions.
+-</p>
+-
+-<pre>
+-len(s) == 5
+-cap(s) == 5
+-</pre>
+-
+-<p>
+-The next two sections discuss the relationship between length and capacity.
+-</p>
+-
+-<p>
+-The zero value of a slice is <code>nil</code>. The <code>len</code> and
+-<code>cap</code> functions will both return 0 for a nil slice.
+-</p>
+-
+-<p>
+-A slice can also be formed by "slicing" an existing slice or array. Slicing is
+-done by specifying a half-open range with two indices separated by a colon. For
+-example, the expression <code>b[1:4]</code> creates a slice including elements
+-1 through 3 of <code>b</code> (the indices of the resulting slice will be 0
+-through 2).
+-</p>
+-
+-<pre>
+-b := []byte{'g', 'o', 'l', 'a', 'n', 'g'}
+-// b[1:4] == []byte{'o', 'l', 'a'}, sharing the same storage as b
+-</pre>
+-
+-<p>
+-The start and end indices of a slice expression are optional; they default to zero and the slice's length respectively:
+-</p>
+-
+-<pre>
+-// b[:2] == []byte{'g', 'o'}
+-// b[2:] == []byte{'l', 'a', 'n', 'g'}
+-// b[:] == b
+-</pre>
+-
+-<p>
+-This is also the syntax to create a slice given an array:
+-</p>
+-
+-<pre>
+-x := [3]string{"Лайка", "Белка", "Стрелка"}
+-s := x[:] // a slice referencing the storage of x
+-</pre>
+-
+-<p>
+-<b>Slice internals</b>
+-</p>
+-
+-<p>
+-A slice is a descriptor of an array segment. It consists of a pointer to the
+-array, the length of the segment, and its capacity (the maximum length of the
+-segment).
+-</p>
+-
+-<p>
+-<img src="slice-struct.png">
+-</p>
+-
+-<p>
+-Our variable <code>s</code>, created earlier by <code>make([]byte, 5)</code>,
+-is structured like this:
+-</p>
+-
+-<p>
+-<img src="slice-1.png">
+-</p>
+-
+-<p>
+-The length is the number of elements referred to by the slice. The capacity is
+-the number of elements in the underlying array (beginning at the element
+-referred to by the slice pointer). The distinction between length and capacity
+-will be made clear as we walk through the next few examples.
+-</p>
+-
+-<p>
+-As we slice <code>s</code>, observe the changes in the slice data structure and
+-their relation to the underlying array:
+-</p>
+-
+-<pre>
+-s = s[2:4]
+-</pre>
+-
+-<p>
+-<img src="slice-2.png">
+-</p>
+-
+-<p>
+-Slicing does not copy the slice's data. It creates a new slice value that
+-points to the original array. This makes slice operations as efficient as
+-manipulating array indices. Therefore, modifying the <i>elements</i> (not the
+-slice itself) of a re-slice modifies the elements of the original slice:
+-</p>
+-
+-<pre>
+-d := []byte{'r', 'o', 'a', 'd'}
+-e := d[2:] 
+-// e == []byte{'a', 'd'}
+-e[1] = 'm'
+-// e == []byte{'a', 'm'}
+-// d == []byte{'r', 'o', 'a', 'm'}
+-</pre>
+-
+-<p>
+-Earlier we sliced <code>s</code> to a length shorter than its capacity. We can
+-grow s to its capacity by slicing it again:
+-</p>
+-
+-<pre>
+-s = s[:cap(s)]
+-</pre>
+-
+-<p>
+-<img src="slice-3.png">
+-</p>
+-
+-<p>
+-A slice cannot be grown beyond its capacity. Attempting to do so will cause a
+-runtime panic, just as when indexing outside the bounds of a slice or array.
+-Similarly, slices cannot be re-sliced below zero to access earlier elements in
+-the array.
+-</p>
+-
+-<p>
+-<b>Growing slices (the copy and append functions)</b>
+-</p>
+-
+-<p>
+-To increase the capacity of a slice one must create a new, larger slice and
+-copy the contents of the original slice into it. This technique is how dynamic
+-array implementations from other languages work behind the scenes. The next
+-example doubles the capacity of <code>s</code> by making a new slice,
+-<code>t</code>, copying the contents of <code>s</code> into <code>t</code>, and
+-then assigning the slice value <code>t</code> to <code>s</code>:
+-</p>
+-
+-<pre>
+-t := make([]byte, len(s), (cap(s)+1)*2) // +1 in case cap(s) == 0
+-for i := range s {
+-        t[i] = s[i]
+-}
+-s = t
+-</pre>
+-
+-<p>
+-The looping piece of this common operation is made easier by the built-in copy
+-function. As the name suggests, copy copies data from a source slice to a
+-destination slice. It returns the number of elements copied.
+-</p>
+-
+-<pre>
+-func copy(dst, src []T) int
+-</pre>
+-
+-<p>
+-The <code>copy</code> function supports copying between slices of different
+-lengths (it will copy only up to the smaller number of elements). In addition,
+-<code>copy</code> can handle source and destination slices that share the same
+-underlying array, handling overlapping slices correctly.
+-</p>
+-
+-<p>
+-Using <code>copy</code>, we can simplify the code snippet above:
+-</p>
+-
+-<pre>
+-t := make([]byte, len(s), (cap(s)+1)*2)
+-copy(t, s)
+-s = t
+-</pre>
+-
+-<p>
+-A common operation is to append data to the end of a slice. This function
+-appends byte elements to a slice of bytes, growing the slice if necessary, and
+-returns the updated slice value:
+-</p>
+-
+-{{code "/doc/progs/slices.go" `/AppendByte/` `/STOP/`}}
+-
+-<p>
+-One could use <code>AppendByte</code> like this:
+-</p>
+-
+-<pre>
+-p := []byte{2, 3, 5}
+-p = AppendByte(p, 7, 11, 13)
+-// p == []byte{2, 3, 5, 7, 11, 13}
+-</pre>
+-
+-<p>
+-Functions like <code>AppendByte</code> are useful because they offer complete
+-control over the way the slice is grown. Depending on the characteristics of
+-the program, it may be desirable to allocate in smaller or larger chunks, or to
+-put a ceiling on the size of a reallocation.
+-</p>
+-
+-<p>
+-But most programs don't need complete control, so Go provides a built-in
+-<code>append</code> function that's good for most purposes; it has the
+-signature
+-</p>
+-
+-<pre>
+-func append(s []T, x ...T) []T 
+-</pre>
+-
+-<p>
+-The <code>append</code> function appends the elements <code>x</code> to the end
+-of the slice <code>s</code>, and grows the slice if a greater capacity is
+-needed.
+-</p>
+-
+-<pre>
+-a := make([]int, 1)
+-// a == []int{0}
+-a = append(a, 1, 2, 3)
+-// a == []int{0, 1, 2, 3}
+-</pre>
+-
+-<p>
+-To append one slice to another, use <code>...</code> to expand the second
+-argument to a list of arguments.
+-</p>
+-
+-<pre>
+-a := []string{"John", "Paul"}
+-b := []string{"George", "Ringo", "Pete"}
+-a = append(a, b...) // equivalent to "append(a, b[0], b[1], b[2])"
+-// a == []string{"John", "Paul", "George", "Ringo", "Pete"}
+-</pre>
+-
+-<p>
+-Since the zero value of a slice (<code>nil</code>) acts like a zero-length
+-slice, you can declare a slice variable and then append to it in a loop:
+-</p>
+-
+-{{code "/doc/progs/slices.go" `/Filter/` `/STOP/`}}
+-
+-<p>
+-<b>A possible "gotcha"</b>
+-</p>
+-
+-<p>
+-As mentioned earlier, re-slicing a slice doesn't make a copy of the underlying
+-array. The full array will be kept in memory until it is no longer referenced.
+-Occasionally this can cause the program to hold all the data in memory when
+-only a small piece of it is needed.
+-</p>
+-
+-<p>
+-For example, this <code>FindDigits</code> function loads a file into memory and
+-searches it for the first group of consecutive numeric digits, returning them
+-as a new slice.
+-</p>
+-
+-{{code "/doc/progs/slices.go" `/digit/` `/STOP/`}}
+-
+-<p>
+-This code behaves as advertised, but the returned <code>[]byte</code> points
+-into an array containing the entire file. Since the slice references the
+-original array, as long as the slice is kept around the garbage collector can't
+-release the array; the few useful bytes of the file keep the entire contents in
+-memory.
+-</p>
+-
+-<p>
+-To fix this problem one can copy the interesting data to a new slice before
+-returning it:
+-</p>
+-
+-{{code "/doc/progs/slices.go" `/CopyDigits/` `/STOP/`}}
+-
+-<p>
+-A more concise version of this function could be constructed by using
+-<code>append</code>. This is left as an exercise for the reader.
+-</p>
+-
+-<p>
+-<b>Further Reading</b>
+-</p>
+-
+-<p>
+-<a href="/doc/effective_go.html">Effective Go</a> contains an
+-in-depth treatment of <a href="/doc/effective_go.html#slices">slices</a>
+-and <a href="/doc/effective_go.html#arrays">arrays</a>, 
+-and the Go <a href="/doc/go_spec.html">language specification</a>
+-defines <a href="/doc/go_spec.html#Slice_types">slices</a> and their
+-<a href="/doc/go_spec.html#Length_and_capacity">associated</a>
+-<a href="/doc/go_spec.html#Making_slices_maps_and_channels">helper</a>
+-<a href="/doc/go_spec.html#Appending_and_copying_slices">functions</a>.
+-</p>
+diff --git a/doc/cmd.html b/doc/cmd.html
+index ac54923d43..b8bdcdadec 100644
+--- a/doc/cmd.html
++++ b/doc/cmd.html
+@@ -27,9 +27,9 @@ the go <code>tool</code> subcommand.
+ </p>
+ 
+ <p>
+-Finally, two of the commands, <code>fmt</code> and <code>doc</code>, are also
+-installed as regular binaries called <code>gofmt</code> and <code>godoc</code>
+-because they are so often referenced.
++Finally the <code>fmt</code> and <code>godoc</code> commands are installed
++as regular binaries called <code>gofmt</code> and <code>godoc</code> because
++they are so often referenced.
+ </p>
+ 
+ <p>
+@@ -62,17 +62,17 @@ details.
+ </tr>
+ 
+ <tr>
+-<td><a href="/cmd/fix/">fix</a></td>
++<td><a href="http://godoc.org/code.google.com/p/go.tools/cmd/cover/">cover</a></td>
+ <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+-<td>Fix finds Go programs that use old features of the language and libraries
+-and rewrites them to use newer ones.</td>
++<td>Cover is a program for creating and analyzing the coverage profiles
++generated by <code>"go test -coverprofile"</code>.
+ </tr>
+ 
+ <tr>
+-<td><a href="/cmd/go/">doc</a></td>
++<td><a href="/cmd/fix/">fix</a></td>
+ <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+-<td>Doc extracts and generates documentation for Go packages, it is also available as
+-an independent <a href="/cmd/godoc/">godoc</a> command with more general options.</td>
++<td>Fix finds Go programs that use old features of the language and libraries
++and rewrites them to use newer ones.</td>
+ </tr>
+ 
+ <tr>
+@@ -83,7 +83,13 @@ gofmt</a> command with more general options.</td>
+ </tr>
+ 
+ <tr>
+-<td><a href="/cmd/vet/">vet</a></td>
++<td><a href="http://godoc.org/code.google.com/p/go.tools/cmd/godoc/">godoc</a></td>
++<td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
++<td>Godoc extracts and generates documentation for Go packages.</td>
++</tr>
++
++<tr>
++<td><a href="http://godoc.org/code.google.com/p/go.tools/cmd/vet/">vet</a></td>
+ <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+ <td>Vet examines Go source code and reports suspicious constructs, such as Printf
+ calls whose arguments do not align with the format string.</td>
+diff --git a/doc/contrib.html b/doc/contrib.html
+index a9f12f93f0..5d4d409893 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -26,14 +26,41 @@ We encourage all Go users to subscribe to
+ <a href="http://groups.google.com/group/golang-announce">golang-announce</a>.
+ </p>
+ 
+-<h2 id="resources">Developer Resources</h2>
+ 
+-<h3 id="source"><a href="https://code.google.com/p/go/source">Source Code</a></h3>
+-<p>Check out the Go source code.</p>
++<h2 id="go1">Version history</h2>
+ 
+ <h3 id="release"><a href="/doc/devel/release.html">Release History</a></h3>
+ <p>A summary of the changes between Go releases.</p>
+ 
++<h4 id="go1notes"><a href="/doc/go1">Go 1 Release Notes</a></h3>
++<p>
++A guide for updating your code to work with Go 1.
++</p>
++
++<h4 id="go1.1notes"><a href="/doc/go1.1">Go 1.1 Release Notes</a></h3>
++<p>
++A list of significant changes in Go 1.1, with instructions for updating your
++code where necessary.
++</p>
++
++<h4 id="go1.2notes"><a href="/doc/go1.2">Go 1.2 Release Notes</a></h3>
++<p>
++A list of significant changes in Go 1.2, with instructions for updating your
++code where necessary.
++</p>
++
++<h3 id="go1compat"><a href="/doc/go1compat">Go 1 and the Future of Go Programs</a></h3>
++<p>
++What Go 1 defines and the backwards-compatibility guarantees one can expect as
++Go 1 matures.
++</p>
++
++
++<h2 id="resources">Developer Resources</h2>
++
++<h3 id="source"><a href="https://code.google.com/p/go/source">Source Code</a></h3>
++<p>Check out the Go source code.</p>
++
+ <h3 id="golang-dev"><a href="http://groups.google.com/group/golang-dev">Developer Mailing List</a></h3>
+ <p>The <a href="http://groups.google.com/group/golang-dev">golang-dev</a>
+ mailing list is for discussing and reviewing code for the Go project.</p>
+@@ -80,29 +107,3 @@ open issues that interest you. Those labeled
+ <a href="http://code.google.com/p/go/issues/list?q=status=HelpWanted">HelpWanted</a>
+ are particularly in need of outside help.
+ </p>
+-
+-
+-<h2 id="community">The Go Community</h2>
+-
+-<h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
+-<p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a> 
+-mailing list is for general Go discussion.</p>
+-
+-<h3 id="projects"><a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Wiki Projects Page</a></h3>
+-<p>A list of external Go projects including programs and libraries.</p>
+-
+-<h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
+-<p><b>#go-nuts</b> on <b>irc.freenode.net</b> is the official Go IRC channel.</p>
+-
+-<h3 id="pluscom"><a href="https://plus.google.com/communities/114112804251407510571">The Go+ community</a></h3>
+-<p>The Google+ community for Go enthusiasts.</p>
+-
+-<h3 id="plus"><a href="https://plus.google.com/101406623878176903605/posts">The Go Programming Language at Google+</a></h3>
+-<p>The Go project's Google+ page.</p>
+-
+-<h3 id="twitter"><a href="http://twitter.com/go_nuts">@go_nuts at Twitter</a></h3>
+-<p>The Go project's official Twitter account.</p>
+-
+-<h3 id="blog"><a href="http://blog.golang.org/">The Go Blog</a></h3>
+-<p>The official blog of the Go project, featuring news and in-depth articles by
+-the Go team and guests.</p>
+diff --git a/doc/docs.html b/doc/docs.html
+index 32ce1d63bc..7aad8dadf4 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -58,49 +58,47 @@ A must read for any new Go programmer. It augments the tour and
+ the language specification, both of which should be read first.
+ </p>
+ 
+-<h3 id="ref"><a href="/ref/">Go References</a></h3>
+-<p>Language specification, memory model, and detailed documentation for the commands and packages.</p>
+-
+-<h3 id="appengine"><a href="https://developers.google.com/appengine/docs/go/gettingstarted/">Getting Started with Go on App Engine</a></h3>
++<h3 id="faq"><a href="/doc/faq">Frequently Asked Questions (FAQ)</a></h3>
+ <p>
+-How to develop and deploy a simple Go project with
+-<a href="https://developers.google.com/appengine/">Google App Engine</a>.
++Answers to common questions about Go.
+ </p>
+ 
+-<h3 id="go_faq"><a href="go_faq.html">Frequently Asked Questions (FAQ)</a></h3>
++<h3 id="wiki"><a href="/wiki">The Go Wiki</a></h3>
++<p>A wiki maintained by the Go community.</p>
++
++<h4 id="learn_more">More</h4>
+ <p>
+-Answers to common questions about Go.
++See the <a href="/wiki/Learn">Learn</a> page at the <a href="/wiki">Wiki</a>
++for more Go learning resources.
+ </p>
+ 
+-<h3 id="wiki"><a href="http://code.google.com/p/go-wiki/wiki">Go Language Community Wiki</a></h3>
+-<p>A wiki maintained by the Go community.</p>
+ 
+-<h2 id="go1">Go version 1</h2>
++<h2 id="references">References</h2>
+ 
+-<h3 id="go1notes"><a href="/doc/go1.html">Go 1 Release Notes</a></h3>
++<h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
+ <p>
+-A guide for updating your code to work with Go 1.
++The documentation for the Go standard library.
+ </p>
+ 
+-<h3 id="go1.1notes"><a href="/doc/go1.1.html">Go 1.1 Release Notes</a></h3>
++<h3 id="cmd"><a href="/doc/cmd">Command Documentation</a></h3>
+ <p>
+-A list of significant changes in Go 1.1, with instructions for updating your
+-code where necessary.
++The documentation for the Go tools.
+ </p>
+ 
+-<h3 id="go1.2notes"><a href="/doc/go1.2.html">Go 1.2 Release Notes</a></h3>
++<h3 id="spec"><a href="/ref/spec">Language Specification</a></h3>
+ <p>
+-A list of significant changes in Go 1.2, with instructions for updating your
+-code where necessary.
++The official Go Language specification.
+ </p>
+ 
+-<h3 id="go1compat"><a href="/doc/go1compat.html">Go 1 and the Future of Go Programs</a></h3>
++<h3 id="go_mem"><a href="/ref/mem">The Go Memory Model</a></h3>
+ <p>
+-What Go 1 defines and the backwards-compatibility guarantees one can expect as
+-Go 1 matures.
++A document that specifies the conditions under which reads of a variable in
++one goroutine can be guaranteed to observe values produced by writes to the
++same variable in a different goroutine.
+ </p>
+ 
+-<h2 id="articles">Go Articles</h2>
++
++<h2 id="articles">Articles</h2>
+ 
+ <h3 id="blog"><a href="http://blog.golang.org/">The Go Blog</a></h3>
+ <p>The official blog of the Go project, featuring news and in-depth articles by
+@@ -119,44 +117,46 @@ Guided tours of Go programs.
+ 
+ <h4>Language</h4>
+ <ul>
+-<li><a href="/doc/articles/json_rpc_tale_of_interfaces.html">JSON-RPC: a tale of interfaces</a></li>
+-<li><a href="/doc/articles/gos_declaration_syntax.html">Go's Declaration Syntax</a></li>
+-<li><a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a></li>
+-<li><a href="/doc/articles/concurrency_patterns.html">Go Concurrency Patterns: Timing out, moving on</a></li>
+-<li><a href="/doc/articles/slices_usage_and_internals.html">Go Slices: usage and internals</a></li>
+-<li><a href="http://blog.golang.org/2011/05/gif-decoder-exercise-in-go-interfaces.html">A GIF decoder: an exercise in Go interfaces</a></li>
+-<li><a href="/doc/articles/error_handling.html">Error Handling and Go</a></li>
++<li><a href="/blog/json-rpc-tale-of-interfaces">JSON-RPC: a tale of interfaces</a></li>
++<li><a href="/blog/gos-declaration-syntax">Go's Declaration Syntax</a></li>
++<li><a href="/blog/defer-panic-and-recover">Defer, Panic, and Recover</a></li>
++<li><a href="/blog/go-concurrency-patterns-timing-out-and">Go Concurrency Patterns: Timing out, moving on</a></li>
++<li><a href="/blog/go-slices-usage-and-internals">Go Slices: usage and internals</a></li>
++<li><a href="/blog/gif-decoder-exercise-in-go-interfaces">A GIF decoder: an exercise in Go interfaces</a></li>
++<li><a href="/blog/error-handling-and-go">Error Handling and Go</a></li>
++<li><a href="/blog/organizing-go-code">Organizing Go code</a></li>
+ </ul>
+ 
+ <h4>Packages</h4>
+ <ul>
+-<li><a href="/doc/articles/json_and_go.html">JSON and Go</a> - using the <a href="/pkg/encoding/json/">json</a> package.</li>
+-<li><a href="/doc/articles/gobs_of_data.html">Gobs of data</a> - the design and use of the <a href="/pkg/encoding/gob/">gob</a> package.</li>
+-<li><a href="/doc/articles/laws_of_reflection.html">The Laws of Reflection</a> - the fundamentals of the <a href="/pkg/reflect/">reflect</a> package.</li>
+-<li><a href="/doc/articles/image_package.html">The Go image package</a> - the fundamentals of the <a href="/pkg/image/">image</a> package.</li>
+-<li><a href="/doc/articles/image_draw.html">The Go image/draw package</a> - the fundamentals of the <a href="/pkg/image/draw/">image/draw</a> package.</li>
++<li><a href="/blog/json-and-go">JSON and Go</a> - using the <a href="/pkg/encoding/json/">json</a> package.</li>
++<li><a href="/blog/gobs-of-data">Gobs of data</a> - the design and use of the <a href="/pkg/encoding/gob/">gob</a> package.</li>
++<li><a href="/blog/laws-of-reflection">The Laws of Reflection</a> - the fundamentals of the <a href="/pkg/reflect/">reflect</a> package.</li>
++<li><a href="/blog/go-image-package">The Go image package</a> - the fundamentals of the <a href="/pkg/image/">image</a> package.</li>
++<li><a href="/blog/go-imagedraw-package">The Go image/draw package</a> - the fundamentals of the <a href="/pkg/image/draw/">image/draw</a> package.</li>
+ </ul>
+ 
+ <h4>Tools</h4>
+ <ul>
+ <li><a href="/doc/articles/go_command.html">About the Go command</a> - why we wrote it, what it is, what it's not, and how to use it.</li>
+-<li><a href="/doc/articles/c_go_cgo.html">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
++<li><a href="/blog/c-go-cgo">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
+ <li><a href="/doc/gdb">Debugging Go Code with GDB</a></li>
+-<li><a href="/doc/articles/godoc_documenting_go_code.html">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
+-<li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
+-<li><a href="/doc/articles/race_detector.html">Data Race Detector</a> - testing Go programs for race conditions.</li>
++<li><a href="/blog/godoc-documenting-go-code">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
++<li><a href="/blog/profiling-go-programs">Profiling Go Programs</a></li>
++<li><a href="/blog/race-detector">Data Race Detector</a> - testing Go programs for race conditions.</li>
+ </ul>
+ 
++<h4 id="articles_more">More</h4>
++<p>
++See the <a href="/wiki/Articles">Articles page</a> at the
++<a href="/wiki">Wiki</a> for more Go articles.
++</p>
++
++
+ <h2 id="talks">Talks</h2>
+ 
+ <img class="gopher" src="/doc/gopher/talks.png"/>
+ 
+-<p>
+-The talks marked with a red asterisk (<font color="red">*</font>) were written
+-before Go 1 and contain some examples that are no longer correct, but they are
+-still of value.
+-</p>
+-
+ <h3 id="video_tour_of_go"><a href="http://research.swtch.com/gotour">A Video Tour of Go</a></h3>
+ <p>
+ Three things that make Go fast, fun, and productive:
+@@ -164,63 +164,31 @@ interfaces, reflection, and concurrency. Builds a toy web crawler to
+ demonstrate these.
+ </p>
+ 
+-<h3 id="go_concurrency_patterns"><a href="http://www.youtube.com/watch?v=f6kdp27TYZs">Go Concurrency Patterns</a></h3>
++<h3 id="go_code_that_grows"><a href="http://vimeo.com/53221560">Code that grows with grace</a></h3>
+ <p>
+-Concurrency is the key to designing high performance network services. Go's concurrency primitives (goroutines and channels) provide a simple and efficient means of expressing concurrent execution. In this talk we see how tricky concurrency problems can be solved gracefully with simple Go code.
+-</p>
+-
+-<h3 id="meet_the_go_team"><a href="http://www.youtube.com/watch?v=sln-gJaURzk">Meet the Go team</a></h3>
+-<p>
+-A panel discussion with David Symonds, Robert Griesemer, Rob Pike, Ken Thompson, Andrew Gerrand, and Brad Fitzpatrick.
++One of Go's key design goals is code adaptability; that it should be easy to take a simple design and build upon it in a clean and natural way. In this talk Andrew Gerrand describes a simple "chat roulette" server that matches pairs of incoming TCP connections, and then use Go's concurrency mechanisms, interfaces, and standard library to extend it with a web interface and other features. While the function of the program changes dramatically, Go's flexibility preserves the original design as it grows.
+ </p>
+ 
+-<h3 id="writing_web_apps"><a href="http://www.youtube.com/watch?v=-i0hat7pdpk">Writing Web Apps in Go</a><font color="red">*</font></h3>
++<h3 id="go_concurrency_patterns"><a href="http://www.youtube.com/watch?v=f6kdp27TYZs">Go Concurrency Patterns</a></h3>
+ <p>
+-A talk by Rob Pike and Andrew Gerrand presented at Google I/O 2011.
+-It walks through the construction and deployment of a simple web application
+-and unveils the <a href="http://blog.golang.org/2011/05/go-and-google-app-engine.html">Go runtime for App Engine</a>.
+-See the <a href="http://talks.golang.org/2011/Writing_Web_Apps_in_Go.pdf">presentation slides</a>.
++Concurrency is the key to designing high performance network services. Go's concurrency primitives (goroutines and channels) provide a simple and efficient means of expressing concurrent execution. In this talk we see how tricky concurrency problems can be solved gracefully with simple Go code.
+ </p>
+ 
+-<h3 id="go_programming"><a href="http://www.youtube.com/watch?v=jgVhBThJdXc">Go Programming</a><font color="red">*</font></h3>
++<h3 id="advanced_go_concurrency_patterns"><a href="http://www.youtube.com/watch?v=QDDwwePbDtw">Advanced Go Concurrency Patterns</a></h3>
+ <p>
+-A presentation delivered by Rob Pike and Russ Cox at Google I/O 2010.  It
+-illustrates how programming in Go differs from other languages through a set of
+-examples demonstrating features particular to Go.  These include concurrency,
+-embedded types, methods on any type, and program construction using interfaces.
++This talk expands on the <i>Go Concurrency Patterns</i> talk to dive deeper into Go's concurrency primitives.
+ </p>
+ 
+ <h4 id="talks_more">More</h4>
+ <p>
+-See the <a href="http://code.google.com/p/go-wiki/wiki/GoTalks">GoTalks
+-page</a> at the <a href="http://code.google.com/p/go-wiki/wiki">Go Wiki</a> for
+-more Go talks.
++See the <a href="/talks">Go Talks site</a> and <a href="/wiki/GoTalks">wiki page</a> for more Go talks.
+ </p>
+ 
++
+ <h2 id="nonenglish">Non-English Documentation</h2>
+ 
+ <p>
+-See the <a href="http://code.google.com/p/go-wiki/wiki/NonEnglish">NonEnglish</a> page
+-at the <a href="http://code.google.com/p/go-wiki/wiki">Go Wiki</a> for localized
++See the <a href="/wiki/NonEnglish">NonEnglish</a> page
++at the <a href="/wiki">Wiki</a> for localized
+ documentation.
+ </p>
+-
+-<h2 id="community">The Go Community</h2>
+-
+-<img class="gopher" src="/doc/gopher/project.png"/>
+-
+-<h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
+-<p>The <a href="http://groups.google.com/group/golang-nuts">golang-nuts</a>
+-mailing list is for general Go discussion.</p>
+-
+-<h3 id="projects"><a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Wiki Projects Page</a></h3>
+-<p>A list of external Go projects including programs and libraries.</p>
+-
+-<h3 id="irc"><a href="irc:irc.freenode.net/go-nuts">Go IRC Channel</a></h3>
+-<p><b>#go-nuts</b> on <b>irc.freenode.net</b> is the official Go IRC channel.</p>
+-
+-<h3 id="plus"><a href="https://plus.google.com/101406623878176903605/posts">The Go Programming Language at Google+</a></h3>
+-<p>The Go project's Google+ page.</p>
+-
+-<h3 id="twitter"><a href="http://twitter.com/go_nuts">@go_nuts at Twitter</a></h3>
+-<p>The Go project's official Twitter account.</p>
+diff --git a/doc/go1.html b/doc/go1.html
+index 2687827c0e..3bbe5d3168 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1,5 +1,6 @@
+ <!--{
+ 	"Title": "Go 1 Release Notes",
++	"Path":  "/doc/go1",
+ 	"Template": true
+ }-->
+ 
+diff --git a/doc/go1compat.html b/doc/go1compat.html
+index 1dfd382c23..7ca3d355d6 100644
+--- a/doc/go1compat.html
++++ b/doc/go1compat.html
+@@ -1,5 +1,6 @@
+ <!--{
+-	"Title": "Go 1 and the Future of Go Programs"
++	"Title": "Go 1 and the Future of Go Programs",
++	"Path":  "/doc/go1compat"
+ }-->
+ 
+ <h2 id="introduction">Introduction</h2>
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 38a0aa0702..4f0832aa88 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1,5 +1,5 @@
+ <!--{
+-	"Title": "FAQ",
++	"Title": "Frequently Asked Questions (FAQ)",
+ 	"Path": "/doc/faq"
+ }-->
+ 
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 3e769daeca..d2cbd3eacc 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -1,7 +1,7 @@
+ <!--{
+ 	"Title": "The Go Memory Model",
+ 	"Subtitle": "Version of March 6, 2012",
+-	"Path": "/ref/mem"
++	"Path": "/doc/mem"
+ }-->
+ 
+ <style>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9c2923462b..b9249e1c78 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,7 +1,7 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+ 	"Subtitle": "Version of Sep 12, 2013",
+-	"Path": "/ref/spec"
++	"Path": "/doc/spec"
+ }-->
+ 
+ <!--
+diff --git a/doc/help.html b/doc/help.html
+index 3478b9e60c..250d90c9d4 100644
+--- a/doc/help.html
++++ b/doc/help.html
+@@ -11,10 +11,13 @@ Need help with Go? Try these resources.
+ 
+ <div id="manual-nav"></div>
+ 
+-<h3 id="go_faq"><a href="/doc/go_faq.html">Frequently Asked Questions (FAQ)</a></h3>
++<h3 id="faq"><a href="/doc/faq">Frequently Asked Questions (FAQ)</a></h3>
+ <p>Answers to common questions about Go.</p>
+ 
+-<h3 id="wiki"><a href="http://code.google.com/p/go-wiki/wiki">Go Language Community Wiki</a></h3>
++<h3 id="playground"><a href="/play">The Go Playground</a></h3>
++<p>A place to write, run, and share Go code.</p>
++
++<h3 id="wiki"><a href="/wiki">The Go Wiki</a></h3>
+ <p>A wiki maintained by the Go community.</p>
+ 
+ <h3 id="mailinglist"><a href="http://groups.google.com/group/golang-nuts">Go Nuts Mailing List</a></h3>
+@@ -39,6 +42,9 @@ Go IRC channel.</p>
+ <p>Tweeting your about problem with the <code>#golang</code> hashtag usually
+ generates some helpful responses.</p>
+ 
+-<h3 id="blog"><a href="http://blog.golang.org/">The Go Blog</a></h3>
+-<p>The official blog of the Go project, featuring news and in-depth articles by
+-the Go team and guests.</p>
++<h3 id="go_user_groups"><a href="/wiki/GoUserGroups">Go User Groups</a></h3>
++<p>
++Each month in places around the world, groups of Go programmers ("gophers")
++meet to talk about Go. Find a chapter near you.
++</p>
++
+diff --git a/doc/reference.html b/doc/reference.html
+deleted file mode 100644
+index 241d75a439..0000000000
+--- a/doc/reference.html
++++ /dev/null
+@@ -1,64 +0,0 @@
+-<!--{
+-	"Title": "References",
+-    "Path":  "/ref/"
+-}-->
+-
+-<img class="gopher" src="/doc/gopher/ref.png" />
+-
+-<p>Good bedtime reading.</p>
+-
+-<div>
+-
+-<h3 id="pkg"><a href="/pkg/">Package Documentation</a></h3>
+-<p>
+-The documentation for the Go standard library.
+-</p>
+-
+-<h3 id="cmd"><a href="/doc/cmd">Command Documentation</a></h3>
+-<p>
+-The documentation for the Go tools.
+-</p>
+-
+-<h3 id="spec"><a href="/ref/spec">Language Specification</a></h3>
+-<p>
+-The official Go Language specification.
+-</p>
+-
+-<h3 id="appengine"><a href="https://developers.google.com/appengine/docs/go/">App Engine Go Runtime Documentation</a></h3>
+-<p>
+-The documentation for
+-<a href="https://developers.google.com/appengine/">Google App Engine</a>'s Go runtime.
+-</p>
+-
+-<h3 id="go_mem"><a href="/ref/mem">The Go Memory Model</a></h3>
+-<p>
+-A document that specifies the conditions under which reads of a variable in
+-one goroutine can be guaranteed to observe values produced by writes to the
+-same variable in a different goroutine.
+-</p>
+-
+-<h4 id="subrepos">Sub-repositories</h4>
+-
+-<p>
+-These packages are part of the Go Project but outside the main Go tree.
+-They are developed under looser <a href="/doc/go1compat.html">compatibility
+-requirements</a> than the Go core.
+-Install them with "<code><a href="/cmd/go/#hdr-Download_and_install_packages_and_dependencies">go get</a></code>".
+-</p>
+-
+-<ul>
+-<li><a href="http://code.google.com/p/go/source/browse?repo=codereview"><code>code.google.com/p/go.codereview</code></a> [<a href="http://godoc.org/code.google.com/p/go.codereview">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=crypto"><code>code.google.com/p/go.crypto</code></a> [<a href="http://godoc.org/code.google.com/p/go.crypto">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=image"><code>code.google.com/p/go.image</code></a> [<a href="http://godoc.org/code.google.com/p/go.image">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=net"><code>code.google.com/p/go.net</code></a> [<a href="http://godoc.org/code.google.com/p/go.net">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=text"><code>code.google.com/p/go.text</code></a> [<a href="http://godoc.org/code.google.com/p/go.text">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=exp"><code>code.google.com/p/go.exp</code></a> [<a href="http://godoc.org/code.google.com/p/go.exp">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=talks"><code>code.google.com/p/go.talks</code></a> [<a href="http://godoc.org/code.google.com/p/go.talks">docs</a>]
+-<li><a href="http://code.google.com/p/go/source/browse?repo=blog"><code>code.google.com/p/go.blog</code></a> [<a href="http://godoc.org/code.google.com/p/go.blog">docs</a>]
+-</ul>
+-
+-<p>
+-See the <a href="/doc/">documents page</a> for more documentation.
+-</p>
+-
+-</div>
+diff --git a/doc/root.html b/doc/root.html
+index 8e69eea998..69c73a031b 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -5,7 +5,7 @@
+ <div class="left">
+ 
+ <div id="learn">
+-<img class="icon share" src="/doc/share.png" alt="View full screen" title="View full screen">
++<a class="popout share">Pop-out</a>
+ <div class="rootHeading">Try Go</div>
+ <div class="input">
+ <textarea spellcheck="false" class="code">// You can edit this code!
+@@ -69,7 +69,7 @@ Linux, Mac OS X, Windows, and more.
+ 
+ <div id="video">
+ <div class="rootHeading">Featured video</div>
+-<iframe width="415" height="241" src="http://www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
++<iframe width="415" height="241" src="//www.youtube.com/embed/ytEkHepK08c" frameborder="0" allowfullscreen></iframe>
+ </div>
+ 
+ </div>
+@@ -135,6 +135,16 @@ window.initFuncs.push(function() {
+ 	$('<script/>').attr('text', 'text/javascript')
+ 		.attr('src', 'http://blog.golang.org/.json?jsonp=feedLoaded')
+ 		.appendTo('body');
++
++	// Set the video at random.
++	var videos = [
++		{h: 241, s: "//www.youtube.com/embed/ytEkHepK08c"}, // Tour of Go
++		{h: 241, s: "//www.youtube.com/embed/f6kdp27TYZs"}, // Concurrency Patterns
++		{h: 233, s: "//player.vimeo.com/video/53221560"},   // Grows with grace
++		{h: 233, s: "//player.vimeo.com/video/69237265"}    // Simple environment
++	];
++	var v = videos[Math.floor(Math.random()*videos.length)];
++	$('#video iframe').attr('height', v.h).attr('src', v.s);
+ });
+ 
+ </script>

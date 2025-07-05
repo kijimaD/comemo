@@ -7,6 +7,20 @@ Date:   Sat Oct 4 17:11:01 2008 -0700
     R=r
     OCL=16497
     CL=16497
-
+---
  src/cmd/gc/walk.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index eee99ac00b..a8f3a7782f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2104,6 +2104,8 @@ mapop(Node *n, int top)
+ 		a = nod(n->etype, a, n->right);		// m[tmpi] op right
+ 		a = nod(OAS, n->left, a);		// map[tmpi] = map[tmpi] op right
+ 		r = nod(OLIST, r, a);
++		walktype(r, Etop);
++		break;
+ 	}
+ 	return r;
+ 

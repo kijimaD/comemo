@@ -7,6 +7,20 @@ Date:   Sun Oct 16 00:26:39 2016 +0200
     Change-Id: Idca6115181960eed7a955027ee77a02decb4e7f2
     Reviewed-on: https://go-review.googlesource.com/31179
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/rpc/server.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index cff32413a3..4920c668ea 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -55,6 +55,8 @@
+ 
+ 		package server
+ 
++		import "errors"
++
+ 		type Args struct {
+ 			A, B int
+ 		}

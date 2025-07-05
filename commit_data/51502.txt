@@ -8,6 +8,51 @@ Date:   Mon Feb 7 10:02:30 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/383794
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go1.18.html | 33 +++++++++++++++++++++++++++++++++
  1 file changed, 33 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 4d77f14d53..7e11f73820 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -90,6 +90,39 @@ Do not send CLs removing the interior tags from such phrases.
+   </li>
+ </ul>
+ 
++<p>
++  There are three experimental packages using generics that may be
++  useful.
++  These packages are in x/exp repository; their API is not covered by
++  the Go 1 guarantee and may change as we gain more experience with
++  generics.
++  <dl>
++    <dt><a href="https://pkg.go.dev/golang.org/x/exp/constraints"><code>golang.org/x/exp/constraints</code></a></dt>
++    <dd>
++      <p>
++	Constraints that are useful for generic code, such as
++	<a href="https://pkg.go.dev/golang.org/x/exp/constraints#Ordered"><code>constraints.Ordered</code></a>.
++      </p>
++    </dd>
++
++    <dt><a href="https://pkg.go.dev/golang.org/x/exp/slices"><code>golang.org/x/exp/slices</code></a></dt>
++    <dd>
++      <p>
++	A collection of generic functions that operate on slices of
++	any element type.
++      </p>
++    </dd>
++
++    <dt><a href="https://pkg.go.dev/golang.org/x/exp/maps"><code>golang.org/x/exp/maps</code></a></dt>
++    <dd>
++      <p>
++	A collection of generic functions that operate on maps of
++	any key or element type.
++      </p>
++    </dd>
++  </dl>
++</p>
++
+ <p>
+   The current generics implementation has the following limitations:
+   <ul>

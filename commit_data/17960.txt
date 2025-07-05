@@ -13,8 +13,75 @@ Date:   Wed Dec 11 12:11:37 2013 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/40770044
-
+---
  src/cmd/5a/a.y | 8 ++++----
  src/cmd/6a/a.y | 2 +-
  src/cmd/8a/a.y | 2 +-
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index 154ce8b3a6..73ef682640 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -41,7 +41,7 @@
+ 	int32	lval;
+ 	double	dval;
+ 	char	sval[8];
+-	LAddr	addr;
++	Addr	addr;
+ }
+ %left	'|'
+ %left	'^'
+@@ -175,7 +175,7 @@ inst:
+  */
+ |	LTYPE8 cond ioreg ',' '[' reglist ']'
+ 	{
+-		LAddr g;
++		Addr g;
+ 
+ 		g = nullgen;
+ 		g.type = D_CONST;
+@@ -184,7 +184,7 @@ inst:
+ 	}
+ |	LTYPE8 cond '[' reglist ']' ',' ioreg
+ 	{
+-		LAddr g;
++		Addr g;
+ 
+ 		g = nullgen;
+ 		g.type = D_CONST;
+@@ -279,7 +279,7 @@ inst:
+  */
+ |	LTYPEJ cond con ',' expr ',' spreg ',' creg ',' creg oexpr
+ 	{
+-		LAddr g;
++		Addr g;
+ 
+ 		g = nullgen;
+ 		g.type = D_CONST;
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index aeaf86b809..6fd4910673 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -40,7 +40,7 @@
+ 	vlong	lval;
+ 	double	dval;
+ 	char	sval[8];
+-	LAddr	addr;
++	Addr	addr;
+ 	Addr2	addr2;
+ }
+ %left	'|'
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index c4ad7e289c..d7ff623da2 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -44,7 +44,7 @@
+ 	} con2;
+ 	double	dval;
+ 	char	sval[8];
+-	LAddr	addr;
++	Addr	addr;
+ 	Addr2	addr2;
+ }
+ %left	'|'

@@ -15,8 +15,82 @@ Date:   Tue Nov 28 09:50:25 2023 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        |  4 ++--
  src/go/types/builtins.go                           |  4 ++--
  .../types/testdata/fixedbugs/issue64406.go         | 23 ++++++++++++++++++++++
  3 files changed, 27 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 575a1daed2..60f6d7f415 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -799,7 +799,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+ 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
+ 
+-		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
++		ptr, _ := coreType(x.typ).(*Pointer)
+ 		if ptr == nil {
+ 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
+ 			return
+@@ -820,7 +820,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// unsafe.SliceData(slice []T) *T
+ 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
+ 
+-		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
++		slice, _ := coreType(x.typ).(*Slice)
+ 		if slice == nil {
+ 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
+ 			return
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 3a3cee1726..901573661b 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -798,7 +798,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+ 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
+ 
+-		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
++		ptr, _ := coreType(x.typ).(*Pointer)
+ 		if ptr == nil {
+ 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
+ 			return
+@@ -819,7 +819,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// unsafe.SliceData(slice []T) *T
+ 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
+ 
+-		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
++		slice, _ := coreType(x.typ).(*Slice)
+ 		if slice == nil {
+ 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
+ 			return
+diff --git a/src/internal/types/testdata/fixedbugs/issue64406.go b/src/internal/types/testdata/fixedbugs/issue64406.go
+new file mode 100644
+index 0000000000..54b959dbba
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue64406.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue64406
++
++import (
++	"unsafe"
++)
++
++func sliceData[E any, S ~[]E](s S) *E {
++	return unsafe.SliceData(s)
++}
++
++func slice[E any, S ~*E](s S) []E {
++	return unsafe.Slice(s, 0)
++}
++
++func f() {
++	s := []uint32{0}
++	_ = sliceData(s)
++	_ = slice(&s)
++}

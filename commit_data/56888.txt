@@ -19,6 +19,27 @@ Date:   Tue May 30 10:49:11 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/pkginit/initorder.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index db24264989..9416470ca1 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -321,15 +321,6 @@ func (d *initDeps) foundDep(n *ir.Name) {
+ 		return
+ 	}
+ 
+-	// Treat coverage counter variables effectively as invisible with
+-	// respect to init order. If we don't do this, then the
+-	// instrumentation vars can perturb the order of initialization
+-	// away from the order of the original uninstrumented program.
+-	// See issue #56293 for more details.
+-	if n.CoverageCounter() || n.CoverageAuxVar() {
+-		return
+-	}
+-
+ 	if d.seen.Has(n) {
+ 		return
+ 	}

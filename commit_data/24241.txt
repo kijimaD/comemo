@@ -12,7 +12,34 @@ Date:   Fri Jul 17 17:26:08 2015 +0200
     Change-Id: Ic67f62026b5c9d002c5c5632299f14ecac8b02ae
     Reviewed-on: https://go-review.googlesource.com/12354
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html        | 2 +-
  src/go/types/typexpr.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index cc01494ff5..9f29989d05 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -2090,7 +2090,7 @@ Receiver     = Parameters .
+ </pre>
+ 
+ <p>
+-The receiver is specified via an extra parameter section preceeding the method
++The receiver is specified via an extra parameter section preceding the method
+ name. That parameter section must declare a single parameter, the receiver.
+ Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
+ parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 1160e9c511..dd0e8b028c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -151,7 +151,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 
+ 	if recvPar != nil {
+ 		// recv parameter list present (may be empty)
+-		// spec: "The receiver is specified via an extra parameter section preceeding the
++		// spec: "The receiver is specified via an extra parameter section preceding the
+ 		// method name. That parameter section must declare a single parameter, the receiver."
+ 		var recv *Var
+ 		switch len(recvList) {

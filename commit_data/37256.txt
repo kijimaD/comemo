@@ -21,6 +21,22 @@ Date:   Thu Jul 12 16:32:02 2018 +0000
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/roundtrip_js.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 336c413cea..cb4a4392b5 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -60,7 +60,9 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 			return nil, err
+ 		}
+ 		req.Body.Close()
+-		opt.Set("body", body)
++		a := js.TypedArrayOf(body)
++		defer a.Release()
++		opt.Set("body", a)
+ 	}
+ 	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
+ 	var (

@@ -7,7 +7,7 @@ Date:   Wed Jun 15 21:35:34 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4576063
-
+---
  src/pkg/go/build/Makefile             |  2 +-
  src/pkg/go/build/build_test.go        | 67 ++++++++++++++++++++---------------
  src/pkg/go/build/cgotest/cgotest.go   | 12 +++++++
@@ -18,3 +18,263 @@ Date:   Wed Jun 15 21:35:34 2011 +1000
  src/pkg/go/build/pkgtest/sqrt_amd64.s |  9 +++++
  src/pkg/go/build/pkgtest/sqrt_arm.s   | 10 ++++++
  9 files changed, 102 insertions(+), 74 deletions(-)
+
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+index 5bb2c86ed2..349e00e801 100644
+--- a/src/pkg/go/build/Makefile
++++ b/src/pkg/go/build/Makefile
+@@ -11,7 +11,7 @@ GOFILES=\
+ 	path.go\
+ 	syslist.go\
+ 
+-CLEANFILES+=syslist.go cgotest/_obj
++CLEANFILES+=syslist.go pkgtest/_obj cmdtest/_obj cgotest/_obj
+ 
+ include ../../../Make.pkg
+ 
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 64487065ee..4bd52868d3 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -5,53 +5,64 @@
+ package build
+ 
+ import (
++	"exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-// TODO(adg): test building binaries
+-
+ var buildPkgs = []string{
+-	"path",
+-	"big",
++	"go/build/pkgtest",
++	"go/build/cmdtest",
+ 	"go/build/cgotest",
+ }
+ 
++const cmdtestOutput = "3"
++
+ func TestBuild(t *testing.T) {
+ 	for _, pkg := range buildPkgs {
+ 		if runtime.GOARCH == "arm" && strings.Contains(pkg, "/cgo") {
+ 			// no cgo for arm, yet.
+ 			continue
+ 		}
++
+ 		tree := Path[0] // Goroot
+-		testBuild(t, tree, pkg)
+-	}
+-}
++		dir := filepath.Join(tree.SrcDir(), pkg)
+ 
+-func testBuild(t *testing.T, tree *Tree, pkg string) {
+-	dir := filepath.Join(tree.SrcDir(), pkg)
+-	info, err := ScanDir(dir, true)
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-	s, err := Build(tree, pkg, info)
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-	for _, c := range s.Cmd {
+-		t.Log("Run:", c)
+-		err = c.Run()
++		info, err := ScanDir(dir, true)
+ 		if err != nil {
+-			t.Error(c, err)
+-			return
++			t.Error("ScanDir:", err)
++			continue
+ 		}
+-	}
+-	if err := s.Clean(); err != nil {
+-		t.Errorf("cleaning: %v", err)
+-		t.Logf("Intermediate: %v", s.Intermediate)
++
++		s, err := Build(tree, pkg, info)
++		if err != nil {
++			t.Error("Build:", err)
++			continue
++		}
++
++		if err := s.Run(); err != nil {
++			t.Error("Run:", err)
++			continue
++		}
++
++		if pkg == "go/build/cmdtest" {
++			bin := s.Output[0]
++			b, err := exec.Command(bin).CombinedOutput()
++			if err != nil {
++				t.Errorf("exec: %s: %v", bin, err)
++				continue
++			}
++			if string(b) != cmdtestOutput {
++				t.Errorf("cmdtest output: %s want: %s", b, cmdtestOutput)
++			}
++		}
++
++		defer func(s *Script) {
++			if err := s.Nuke(); err != nil {
++				t.Errorf("nuking: %v", err)
++			}
++		}(s)
+ 	}
+ }
+diff --git a/src/pkg/go/build/cgotest/cgotest.go b/src/pkg/go/build/cgotest/cgotest.go
+new file mode 100644
+index 0000000000..32b9318614
+--- /dev/null
++++ b/src/pkg/go/build/cgotest/cgotest.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++char* greeting = "hello, world";
++*/
++import "C"
++
++var Greeting = C.GoString(C.greeting)
+diff --git a/src/pkg/go/build/cgotest/file.go b/src/pkg/go/build/cgotest/file.go
+deleted file mode 100644
+index 3b2a2e7d9b..0000000000
+--- a/src/pkg/go/build/cgotest/file.go
++++ /dev/null
+@@ -1,45 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-A trivial example of wrapping a C library in Go.
+-For a more complex example and explanation,
+-see ../gmp/gmp.go.
+-*/
+-
+-package stdio
+-
+-/*
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <sys/stat.h>
+-#include <errno.h>
+-
+-char* greeting = "hello, world";
+-*/
+-import "C"
+-import "unsafe"
+-
+-type File C.FILE
+-
+-// TODO(brainman): uncomment once stdout and stderr references are working on Windows.
+-//var Stdout = (*File)(C.stdout)
+-//var Stderr = (*File)(C.stderr)
+-
+-// Test reference to library symbol.
+-// Stdout and stderr are too special to be a reliable test.
+-var myerr = C.sys_errlist
+-
+-func (f *File) WriteString(s string) {
+-	p := C.CString(s)
+-	C.fputs(p, (*C.FILE)(f))
+-	C.free(unsafe.Pointer(p))
+-	f.Flush()
+-}
+-
+-func (f *File) Flush() {
+-	C.fflush((*C.FILE)(f))
+-}
+-
+-var Greeting = C.GoString(C.greeting)
+diff --git a/src/pkg/go/build/cmdtest/main.go b/src/pkg/go/build/cmdtest/main.go
+new file mode 100644
+index 0000000000..bed4f485a0
+--- /dev/null
++++ b/src/pkg/go/build/cmdtest/main.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/build/pkgtest"
++
++func main() {
++	pkgtest.Foo()
++	print(int(pkgtest.Sqrt(9)))
++}
+diff --git a/src/pkg/go/build/pkgtest/pkgtest.go b/src/pkg/go/build/pkgtest/pkgtest.go
+new file mode 100644
+index 0000000000..9322f5ebd7
+--- /dev/null
++++ b/src/pkg/go/build/pkgtest/pkgtest.go
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pkgtest
++
++func Foo() {}
++
++func Sqrt(x float64) float64
+diff --git a/src/pkg/go/build/pkgtest/sqrt_386.s b/src/pkg/go/build/pkgtest/sqrt_386.s
+new file mode 100644
+index 0000000000..d0a428d52e
+--- /dev/null
++++ b/src/pkg/go/build/pkgtest/sqrt_386.s
+@@ -0,0 +1,10 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Sqrt(x float64) float64	
++TEXT ·Sqrt(SB),7,$0
++	FMOVD   x+0(FP),F0
++	FSQRT
++	FMOVDP  F0,r+8(FP)
++	RET
+diff --git a/src/pkg/go/build/pkgtest/sqrt_amd64.s b/src/pkg/go/build/pkgtest/sqrt_amd64.s
+new file mode 100644
+index 0000000000..f5b329e70a
+--- /dev/null
++++ b/src/pkg/go/build/pkgtest/sqrt_amd64.s
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Sqrt(x float64) float64
++TEXT ·Sqrt(SB),7,$0
++	SQRTSD x+0(FP), X0
++	MOVSD X0, r+8(FP)
++	RET
+diff --git a/src/pkg/go/build/pkgtest/sqrt_arm.s b/src/pkg/go/build/pkgtest/sqrt_arm.s
+new file mode 100644
+index 0000000000..befbb8a898
+--- /dev/null
++++ b/src/pkg/go/build/pkgtest/sqrt_arm.s
+@@ -0,0 +1,10 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Sqrt(x float64) float64	
++TEXT ·Sqrt(SB),7,$0
++	MOVD   x+0(FP),F0
++	SQRTD  F0,F0
++	MOVD  F0,r+8(FP)
++	RET

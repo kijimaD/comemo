@@ -7,6 +7,23 @@ Date:   Thu Apr 1 15:58:10 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/836046
-
+---
  src/pkg/debug/macho/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index 018f71e141..3aab45f6b1 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -126,9 +126,9 @@ type FormatError struct {
+ func (e *FormatError) String() string {
+ 	msg := e.msg
+ 	if e.val != nil {
+-		msg += fmt.Sprintf(" '%v' ", e.val)
++		msg += fmt.Sprintf(" '%v'", e.val)
+ 	}
+-	msg += fmt.Sprintf("in record at byte %#x", e.off)
++	msg += fmt.Sprintf(" in record at byte %#x", e.off)
+ 	return msg
+ }
+ 

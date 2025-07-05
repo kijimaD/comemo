@@ -9,7 +9,43 @@ Date:   Fri May 15 21:59:08 2009 -0700
     DELTA=12  (12 added, 0 deleted, 0 changed)
     OCL=28960
     CL=28962
-
+---
  src/lib/container/vector/vector.go      | 4 ++++
  src/lib/container/vector/vector_test.go | 8 ++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/lib/container/vector/vector.go b/src/lib/container/vector/vector.go
+index 30bbbab2a7..5b5cad21cd 100644
+--- a/src/lib/container/vector/vector.go
++++ b/src/lib/container/vector/vector.go
+@@ -84,7 +84,11 @@ func New(len int) *Vector {
+ 
+ 
+ // Len returns the number of elements in the vector.
++// Len is 0 if p == nil.
+ func (p *Vector) Len() int {
++	if p == nil {
++		return 0;
++	}
+ 	return len(p.a)
+ }
+ 
+diff --git a/src/lib/container/vector/vector_test.go b/src/lib/container/vector/vector_test.go
+index 0e39493127..2a9819394c 100644
+--- a/src/lib/container/vector/vector_test.go
++++ b/src/lib/container/vector/vector_test.go
+@@ -10,6 +10,14 @@ import "sort"
+ import "fmt"
+ 
+ 
++func TestZeroLen(t *testing.T) {
++	var a *vector.Vector;
++	if a.Len() != 0 { t.Errorf("A) expected 0, got %d", a.Len()); }
++	a = vector.New(0);
++	if a.Len() != 0 { t.Errorf("B) expected 0, got %d", a.Len()); }
++}
++
++
+ func TestInit(t *testing.T) {
+ 	var a vector.Vector;
+ 	if a.Init(0).Len() != 0 { t.Error("A") }

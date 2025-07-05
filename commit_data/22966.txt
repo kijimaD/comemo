@@ -20,7 +20,7 @@ Date:   Wed Apr 15 15:51:25 2015 -0700
     Change-Id: I5e18841b752a83ca0519aa1b2d36ef02ce1de6f9
     Reviewed-on: https://go-review.googlesource.com/8971
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/dist/buildtool.go                      |   1 +
  src/cmd/internal/gc/pgen.go                    |   9 +
  src/cmd/internal/gc/ssa.go                     | 450 ++++++++++++++++++++
@@ -50,3 +50,3065 @@ Date:   Wed Apr 15 15:51:25 2015 -0700
  src/cmd/internal/ssa/types/type.go             | 229 -----------
  src/cmd/internal/ssa/value.go                  |  12 -
  28 files changed, 1458 insertions(+), 777 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 69e077c002..daaf66c596 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -46,6 +46,7 @@ var bootstrapDirs = []string{
+ 	"internal/obj/arm64",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
++	"internal/ssa",
+ 	"old5a",
+ 	"old6a",
+ 	"old8a",
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index b6c9f30b98..78b41eef4d 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -418,6 +418,15 @@ func compile(fn *Node) {
+ 		goto ret
+ 	}
+ 
++	// Build an SSA backend function
++	{
++		name := Curfn.Nname.Sym.Name
++		if len(name) > 4 && name[len(name)-4:] == "_ssa" {
++			buildssa(Curfn)
++			// TODO(khr): use result of buildssa
++		}
++	}
++
+ 	continpc = nil
+ 	breakpc = nil
+ 
+diff --git a/src/cmd/internal/gc/ssa.go b/src/cmd/internal/gc/ssa.go
+new file mode 100644
+index 0000000000..415e9dc639
+--- /dev/null
++++ b/src/cmd/internal/gc/ssa.go
+@@ -0,0 +1,450 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"log"
++
++	"cmd/internal/ssa"
++)
++
++func buildssa(fn *Node) {
++	dumplist("buildssa", Curfn.Nbody)
++
++	var s ssaState
++
++	// TODO(khr): build config just once at the start of the compiler binary
++	s.config = ssa.NewConfig(Thearch.Thestring)
++	s.f = s.config.NewFunc()
++	s.f.Name = fn.Nname.Sym.Name
++
++	// We construct SSA using an algorithm similar to
++	// Brau, Buchwald, Hack, Leißa, Mallon, and Zwinkau
++	// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
++	// TODO: check this comment
++
++	// Allocate starting block
++	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
++
++	// Allocate exit block
++	s.exit = s.f.NewBlock(ssa.BlockExit)
++
++	// TODO(khr): all args.  Make a struct containing args/returnvals, declare
++	// an FP which contains a pointer to that struct.
++
++	s.vars = map[string]*ssa.Value{}
++	s.labels = map[string]*ssa.Block{}
++	s.argOffsets = map[string]int64{}
++
++	// Convert the AST-based IR to the SSA-based IR
++	s.startBlock(s.f.Entry)
++	s.stmtList(fn.Nbody)
++
++	// Finish up exit block
++	s.startBlock(s.exit)
++	s.exit.Control = s.mem()
++	s.endBlock()
++
++	// Link up variable uses to variable definitions
++	s.linkForwardReferences()
++
++	ssa.Compile(s.f)
++
++	// TODO(khr): Use the resulting s.f to generate code
++}
++
++type ssaState struct {
++	// configuration (arch) information
++	config *ssa.Config
++
++	// function we're building
++	f *ssa.Func
++
++	// exit block that "return" jumps to (and panics jump to)
++	exit *ssa.Block
++
++	// the target block for each label in f
++	labels map[string]*ssa.Block
++
++	// current location where we're interpreting the AST
++	curBlock *ssa.Block
++
++	// variable assignments in the current block (map from variable name to ssa value)
++	vars map[string]*ssa.Value
++
++	// all defined variables at the end of each block.  Indexed by block ID.
++	defvars []map[string]*ssa.Value
++
++	// offsets of argument slots
++	// unnamed and unused args are not listed.
++	argOffsets map[string]int64
++}
++
++// startBlock sets the current block we're generating code in to b.
++func (s *ssaState) startBlock(b *ssa.Block) {
++	s.curBlock = b
++	s.vars = map[string]*ssa.Value{}
++}
++
++// endBlock marks the end of generating code for the current block.
++// Returns the (former) current block.  Returns nil if there is no current
++// block, i.e. if no code flows to the current execution point.
++func (s *ssaState) endBlock() *ssa.Block {
++	b := s.curBlock
++	if b == nil {
++		return nil
++	}
++	for len(s.defvars) <= int(b.ID) {
++		s.defvars = append(s.defvars, nil)
++	}
++	s.defvars[b.ID] = s.vars
++	s.curBlock = nil
++	s.vars = nil
++	return b
++}
++
++// ssaStmtList converts the statement n to SSA and adds it to s.
++func (s *ssaState) stmtList(l *NodeList) {
++	for ; l != nil; l = l.Next {
++		s.stmt(l.N)
++	}
++}
++
++// ssaStmt converts the statement n to SSA and adds it to s.
++func (s *ssaState) stmt(n *Node) {
++	s.stmtList(n.Ninit)
++	switch n.Op {
++
++	case OBLOCK:
++		s.stmtList(n.List)
++
++	case ODCL:
++		// TODO: ???  Assign 0?
++
++	case OLABEL, OGOTO:
++		// get block at label, or make one
++		t := s.labels[n.Left.Sym.Name]
++		if t == nil {
++			t = s.f.NewBlock(ssa.BlockPlain)
++			s.labels[n.Left.Sym.Name] = t
++		}
++		// go to that label (we pretend "label:" is preceded by "goto label")
++		b := s.endBlock()
++		addEdge(b, t)
++
++		if n.Op == OLABEL {
++			// next we work on the label's target block
++			s.startBlock(t)
++		}
++
++	case OAS:
++		// TODO(khr): colas?
++		val := s.expr(n.Right)
++		if n.Left.Op == OINDREG {
++			// indirect off a register (TODO: always SP?)
++			// used for storing arguments to callees
++			addr := s.f.Entry.NewValue(ssa.OpSPAddr, Ptrto(n.Right.Type), n.Left.Xoffset)
++			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
++		} else if n.Left.Op != ONAME {
++			// some more complicated expression.  Rewrite to a store.  TODO
++			addr := s.expr(n.Left) // TODO: wrap in &
++
++			// TODO(khr): nil check
++			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, n.Right.Type, nil, addr, val, s.mem())
++		} else if n.Left.Addable == 0 {
++			// TODO
++			log.Fatalf("assignment to non-addable value")
++		} else if n.Left.Class&PHEAP != 0 {
++			// TODO
++			log.Fatalf("assignment to heap value")
++		} else if n.Left.Class == PPARAMOUT {
++			// store to parameter slot
++			addr := s.f.Entry.NewValue(ssa.OpFPAddr, Ptrto(n.Right.Type), n.Left.Xoffset)
++			s.vars[".mem"] = s.curBlock.NewValue3(ssa.OpStore, ssa.TypeMem, nil, addr, val, s.mem())
++		} else {
++			// normal variable
++			s.vars[n.Left.Sym.Name] = val
++		}
++	case OIF:
++		cond := s.expr(n.Ntest)
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.Control = cond
++		// TODO(khr): likely direction
++
++		bThen := s.f.NewBlock(ssa.BlockPlain)
++		bEnd := s.f.NewBlock(ssa.BlockPlain)
++		var bElse *ssa.Block
++
++		if n.Nelse == nil {
++			addEdge(b, bThen)
++			addEdge(b, bEnd)
++		} else {
++			bElse = s.f.NewBlock(ssa.BlockPlain)
++			addEdge(b, bThen)
++			addEdge(b, bElse)
++		}
++
++		s.startBlock(bThen)
++		s.stmtList(n.Nbody)
++		b = s.endBlock()
++		if b != nil {
++			addEdge(b, bEnd)
++		}
++
++		if n.Nelse != nil {
++			s.startBlock(bElse)
++			s.stmtList(n.Nelse)
++			b = s.endBlock()
++			if b != nil {
++				addEdge(b, bEnd)
++			}
++		}
++		s.startBlock(bEnd)
++
++	case ORETURN:
++		s.stmtList(n.List)
++		b := s.endBlock()
++		addEdge(b, s.exit)
++
++	case OFOR:
++		bCond := s.f.NewBlock(ssa.BlockPlain)
++		bBody := s.f.NewBlock(ssa.BlockPlain)
++		bEnd := s.f.NewBlock(ssa.BlockPlain)
++
++		// first, jump to condition test
++		b := s.endBlock()
++		addEdge(b, bCond)
++
++		// generate code to test condition
++		// TODO(khr): Ntest == nil exception
++		s.startBlock(bCond)
++		cond := s.expr(n.Ntest)
++		b = s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.Control = cond
++		// TODO(khr): likely direction
++		addEdge(b, bBody)
++		addEdge(b, bEnd)
++
++		// generate body
++		s.startBlock(bBody)
++		s.stmtList(n.Nbody)
++		s.stmt(n.Nincr)
++		b = s.endBlock()
++		addEdge(b, bCond)
++
++		s.startBlock(bEnd)
++
++	case OVARKILL:
++		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
++		// Maybe just link it in the store chain?
++	default:
++		log.Fatalf("unhandled stmt %s", opnames[n.Op])
++	}
++}
++
++// expr converts the expression n to ssa, adds it to s and returns the ssa result.
++func (s *ssaState) expr(n *Node) *ssa.Value {
++	if n == nil {
++		// TODO(khr): is this nil???
++		return s.f.Entry.NewValue(ssa.OpConst, n.Type, nil)
++	}
++	switch n.Op {
++	case ONAME:
++		// remember offsets for PPARAM names
++		s.argOffsets[n.Sym.Name] = n.Xoffset
++		return s.variable(n.Sym.Name, n.Type)
++		// binary ops
++	case OLITERAL:
++		switch n.Val.Ctype {
++		case CTINT:
++			return s.f.ConstInt(n.Type, Mpgetfix(n.Val.U.Xval))
++		default:
++			log.Fatalf("unhandled OLITERAL %v", n.Val.Ctype)
++			return nil
++		}
++	case OLT:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		return s.curBlock.NewValue2(ssa.OpLess, ssa.TypeBool, nil, a, b)
++	case OADD:
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		return s.curBlock.NewValue2(ssa.OpAdd, a.Type, nil, a, b)
++
++	case OSUB:
++		// TODO:(khr) fold code for all binary ops together somehow
++		a := s.expr(n.Left)
++		b := s.expr(n.Right)
++		return s.curBlock.NewValue2(ssa.OpSub, a.Type, nil, a, b)
++
++	case OIND:
++		p := s.expr(n.Left)
++		c := s.curBlock.NewValue1(ssa.OpCheckNil, ssa.TypeBool, nil, p)
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.Control = c
++		bNext := s.f.NewBlock(ssa.BlockPlain)
++		addEdge(b, bNext)
++		addEdge(b, s.exit)
++		s.startBlock(bNext)
++		// TODO(khr): if ptr check fails, don't go directly to exit.
++		// Instead, go to a call to panicnil or something.
++		// TODO: implicit nil checks somehow?
++
++		return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
++	case ODOTPTR:
++		p := s.expr(n.Left)
++		// TODO: nilcheck
++		p = s.curBlock.NewValue2(ssa.OpAdd, p.Type, nil, p, s.f.ConstInt(s.config.UIntPtr, n.Xoffset))
++		return s.curBlock.NewValue2(ssa.OpLoad, n.Type, nil, p, s.mem())
++
++	case OINDEX:
++		// TODO: slice vs array?  Map index is already reduced to a function call
++		a := s.expr(n.Left)
++		i := s.expr(n.Right)
++		// convert index to full width
++		// TODO: if index is 64-bit and we're compiling to 32-bit, check that high
++		// 32 bits are zero (and use a low32 op instead of convnop here).
++		i = s.curBlock.NewValue1(ssa.OpConvNop, s.config.UIntPtr, nil, i)
++
++		// bounds check
++		len := s.curBlock.NewValue1(ssa.OpSliceLen, s.config.UIntPtr, nil, a)
++		cmp := s.curBlock.NewValue2(ssa.OpCheckBound, ssa.TypeBool, nil, i, len)
++		b := s.endBlock()
++		b.Kind = ssa.BlockIf
++		b.Control = cmp
++		bNext := s.f.NewBlock(ssa.BlockPlain)
++		addEdge(b, bNext)
++		addEdge(b, s.exit)
++		s.startBlock(bNext)
++		// TODO: don't go directly to s.exit.  Go to a stub that calls panicindex first.
++
++		return s.curBlock.NewValue3(ssa.OpSliceIndex, n.Left.Type.Type, nil, a, i, s.mem())
++
++	case OCALLFUNC:
++		// run all argument assignments
++		// TODO(khr): do we need to evaluate function first?
++		// Or is it already side-effect-free and does not require a call?
++		s.stmtList(n.List)
++
++		if n.Left.Op != ONAME {
++			// TODO(khr): closure calls?
++			log.Fatalf("can't handle CALLFUNC with non-ONAME fn %s", opnames[n.Left.Op])
++		}
++		bNext := s.f.NewBlock(ssa.BlockPlain)
++		call := s.curBlock.NewValue1(ssa.OpStaticCall, ssa.TypeMem, n.Left.Sym.Name, s.mem())
++		b := s.endBlock()
++		b.Kind = ssa.BlockCall
++		b.Control = call
++		addEdge(b, bNext)
++		addEdge(b, s.exit)
++
++		// read result from stack at the start of the fallthrough block
++		s.startBlock(bNext)
++		var titer Iter
++		fp := Structfirst(&titer, Getoutarg(n.Left.Type))
++		a := s.f.Entry.NewValue(ssa.OpSPAddr, Ptrto(fp.Type), fp.Width)
++		return s.curBlock.NewValue2(ssa.OpLoad, fp.Type, nil, a, call)
++	default:
++		log.Fatalf("unhandled expr %s", opnames[n.Op])
++		return nil
++	}
++}
++
++// variable returns the value of a variable at the current location.
++func (s *ssaState) variable(name string, t ssa.Type) *ssa.Value {
++	if s.curBlock == nil {
++		log.Fatalf("nil curblock!")
++	}
++	v := s.vars[name]
++	if v == nil {
++		// TODO: get type?  Take Sym as arg?
++		v = s.curBlock.NewValue(ssa.OpFwdRef, t, name)
++		s.vars[name] = v
++	}
++	return v
++}
++
++func (s *ssaState) mem() *ssa.Value {
++	return s.variable(".mem", ssa.TypeMem)
++}
++
++func (s *ssaState) linkForwardReferences() {
++	// Build ssa graph.  Each variable on its first use in a basic block
++	// leaves a FwdRef in that block representing the incoming value
++	// of that variable.  This function links that ref up with possible definitions,
++	// inserting Phi values as needed.  This is essentially the algorithm
++	// described by Brau, Buchwald, Hack, Leißa, Mallon, and Zwinkau:
++	// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
++	for _, b := range s.f.Blocks {
++		for _, v := range b.Values {
++			if v.Op != ssa.OpFwdRef {
++				continue
++			}
++			name := v.Aux.(string)
++			v.Op = ssa.OpCopy
++			v.Aux = nil
++			v.SetArgs1(s.lookupVarIncoming(b, v.Type, name))
++		}
++	}
++}
++
++// lookupVarIncoming finds the variable's value at the start of block b.
++func (s *ssaState) lookupVarIncoming(b *ssa.Block, t ssa.Type, name string) *ssa.Value {
++	// TODO(khr): have lookupVarIncoming overwrite the fwdRef or copy it
++	// will be used in, instead of having the result used in a copy value.
++	if b == s.f.Entry {
++		if name == ".mem" {
++			return b.NewValue(ssa.OpArg, t, name)
++		}
++		// variable is live at the entry block.  Load it.
++		a := s.f.Entry.NewValue(ssa.OpFPAddr, Ptrto(t.(*Type)), s.argOffsets[name])
++		m := b.NewValue(ssa.OpArg, ssa.TypeMem, ".mem") // TODO: reuse mem starting value
++		return b.NewValue2(ssa.OpLoad, t, nil, a, m)
++	}
++	var vals []*ssa.Value
++	for _, p := range b.Preds {
++		vals = append(vals, s.lookupVarOutgoing(p, t, name))
++	}
++	v0 := vals[0]
++	for i := 1; i < len(vals); i++ {
++		if vals[i] != v0 {
++			// need a phi value
++			v := b.NewValue(ssa.OpPhi, t, nil)
++			v.AddArgs(vals...)
++			return v
++		}
++	}
++	return v0
++}
++
++// lookupVarOutgoing finds the variable's value at the end of block b.
++func (s *ssaState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name string) *ssa.Value {
++	m := s.defvars[b.ID]
++	if v, ok := m[name]; ok {
++		return v
++	}
++	// The variable is not defined by b and we haven't
++	// looked it up yet.  Generate v, a copy value which
++	// will be the outgoing value of the variable.  Then
++	// look up w, the incoming value of the variable.
++	// Make v = copy(w).  We need the extra copy to
++	// prevent infinite recursion when looking up the
++	// incoming value of the variable.
++	v := b.NewValue(ssa.OpCopy, t, nil)
++	m[name] = v
++	v.AddArg(s.lookupVarIncoming(b, t, name))
++	return v
++}
++
++// TODO: the above mutually recursive functions can lead to very deep stacks.  Fix that.
++
++// addEdge adds an edge from b to c.
++func addEdge(b, c *ssa.Block) {
++	b.Succs = append(b.Succs, c)
++	c.Preds = append(c.Preds, b)
++}
+diff --git a/src/cmd/internal/gc/type.go b/src/cmd/internal/gc/type.go
+new file mode 100644
+index 0000000000..e88ca7c898
+--- /dev/null
++++ b/src/cmd/internal/gc/type.go
+@@ -0,0 +1,62 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file provides methods that let us export a Type as an ../ssa:Type.
++// We don't export this package's Type directly because it would lead
++// to an import cycle with this package and ../ssa.
++// TODO: move Type to its own package, then we don't need to dance around import cycles.
++
++package gc
++
++import (
++	"cmd/internal/ssa"
++)
++
++func (t *Type) Size() int64 {
++	dowidth(t)
++	return t.Width
++}
++
++func (t *Type) IsBoolean() bool {
++	return t.Etype == TBOOL
++}
++
++func (t *Type) IsInteger() bool {
++	switch t.Etype {
++	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR:
++		return true
++	}
++	return false
++}
++
++func (t *Type) IsSigned() bool {
++	switch t.Etype {
++	case TINT8, TINT16, TINT32, TINT64, TINT:
++		return true
++	}
++	return false
++}
++
++func (t *Type) IsFloat() bool {
++	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64
++}
++
++func (t *Type) IsPtr() bool {
++	return t.Etype == TPTR32 || t.Etype == TPTR64 ||
++		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
++}
++
++func (t *Type) Elem() ssa.Type {
++	return t.Type
++}
++func (t *Type) PtrTo() ssa.Type {
++	return Ptrto(t)
++}
++
++func (t *Type) IsMemory() bool { return false }
++func (t *Type) IsFlags() bool  { return false }
++
++func (t *Type) String() string {
++	return typefmt(t, 0)
++}
+diff --git a/src/cmd/internal/ssa/cgen.go b/src/cmd/internal/ssa/cgen.go
+index 4b1a90b89d..c13e715653 100644
+--- a/src/cmd/internal/ssa/cgen.go
++++ b/src/cmd/internal/ssa/cgen.go
+@@ -4,7 +4,11 @@
+ 
+ package ssa
+ 
+-import "fmt"
++import (
++	"bytes"
++	"fmt"
++	"os"
++)
+ 
+ // cgen selects machine instructions for the function.
+ // This pass generates assembly output for now, but should
+@@ -20,27 +24,30 @@ func cgen(f *Func) {
+ 	for idx, b := range f.Blocks {
+ 		fmt.Printf("%d:\n", b.ID)
+ 		for _, v := range b.Values {
++			var buf bytes.Buffer
+ 			asm := opcodeTable[v.Op].asm
+-			fmt.Print("\t")
+-			if asm == "" {
+-				fmt.Print("\t")
+-			}
++			buf.WriteString("        ")
+ 			for i := 0; i < len(asm); i++ {
+ 				switch asm[i] {
+ 				default:
+-					fmt.Printf("%c", asm[i])
++					buf.WriteByte(asm[i])
++				case '\t':
++					buf.WriteByte(' ')
++					for buf.Len()%8 != 0 {
++						buf.WriteByte(' ')
++					}
+ 				case '%':
+ 					i++
+ 					switch asm[i] {
+ 					case '%':
+-						fmt.Print("%")
++						buf.WriteByte('%')
+ 					case 'I':
+ 						i++
+ 						n := asm[i] - '0'
+ 						if f.RegAlloc[v.Args[n].ID] != nil {
+-							fmt.Print(f.RegAlloc[v.Args[n].ID].Name())
++							buf.WriteString(f.RegAlloc[v.Args[n].ID].Name())
+ 						} else {
+-							fmt.Printf("v%d", v.Args[n].ID)
++							fmt.Fprintf(&buf, "v%d", v.Args[n].ID)
+ 						}
+ 					case 'O':
+ 						i++
+@@ -49,17 +56,22 @@ func cgen(f *Func) {
+ 							panic("can only handle 1 output for now")
+ 						}
+ 						if f.RegAlloc[v.ID] != nil {
+-							// TODO: output tuple
+-							fmt.Print(f.RegAlloc[v.ID].Name())
++							buf.WriteString(f.RegAlloc[v.ID].Name())
+ 						} else {
+-							fmt.Printf("v%d", v.ID)
++							fmt.Fprintf(&buf, "v%d", v.ID)
+ 						}
+ 					case 'A':
+-						fmt.Print(v.Aux)
++						fmt.Fprint(&buf, v.Aux)
+ 					}
+ 				}
+ 			}
+-			fmt.Println("\t; " + v.LongString())
++			for buf.Len() < 40 {
++				buf.WriteByte(' ')
++			}
++			buf.WriteString("; ")
++			buf.WriteString(v.LongString())
++			buf.WriteByte('\n')
++			os.Stdout.Write(buf.Bytes())
+ 		}
+ 		// find next block in layout sequence
+ 		var next *Block
+@@ -106,6 +118,15 @@ func cgen(f *Func) {
+ 				fmt.Printf("\tJLT\t%d\n", b.Succs[0].ID)
+ 				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
+ 			}
++		case BlockULT:
++			if b.Succs[0] == next {
++				fmt.Printf("\tJAE\t%d\n", b.Succs[1].ID)
++			} else if b.Succs[1] == next {
++				fmt.Printf("\tJB\t%d\n", b.Succs[0].ID)
++			} else {
++				fmt.Printf("\tJB\t%d\n", b.Succs[0].ID)
++				fmt.Printf("\tJMP\t%d\n", b.Succs[1].ID)
++			}
+ 		default:
+ 			fmt.Printf("\t%s ->", b.Kind.String())
+ 			for _, s := range b.Succs {
+diff --git a/src/cmd/internal/ssa/check.go b/src/cmd/internal/ssa/check.go
+index b501cdb54c..453388a899 100644
+--- a/src/cmd/internal/ssa/check.go
++++ b/src/cmd/internal/ssa/check.go
+@@ -106,7 +106,6 @@ func checkFunc(f *Func) {
+ 				log.Panicf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
+ 			}
+ 
+-			// TODO: check idom
+ 			// TODO: check for cycles in values
+ 			// TODO: check type
+ 		}
+diff --git a/src/cmd/internal/ssa/config.go b/src/cmd/internal/ssa/config.go
+new file mode 100644
+index 0000000000..80acda4b23
+--- /dev/null
++++ b/src/cmd/internal/ssa/config.go
+@@ -0,0 +1,48 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "log"
++
++type Config struct {
++	arch    string            // "amd64", etc.
++	ptrSize int64             // 4 or 8
++	UIntPtr Type              // pointer arithmetic type
++	lower   func(*Value) bool // lowering function
++
++	// TODO: more stuff.  Compiler flags of interest, ...
++}
++
++// NewConfig returns a new configuration object for the given architecture.
++func NewConfig(arch string) *Config {
++	c := &Config{arch: arch}
++	switch arch {
++	case "amd64":
++		c.ptrSize = 8
++		c.lower = lowerAmd64
++	case "386":
++		c.ptrSize = 4
++		c.lower = lowerAmd64 // TODO(khr): full 32-bit support
++	default:
++		log.Fatalf("arch %s not implemented", arch)
++	}
++
++	// cache the intptr type in the config
++	c.UIntPtr = TypeUInt32
++	if c.ptrSize == 8 {
++		c.UIntPtr = TypeUInt64
++	}
++
++	return c
++}
++
++// NewFunc returns a new, empty function object
++func (c *Config) NewFunc() *Func {
++	// TODO(khr): should this function take name, type, etc. as arguments?
++	return &Func{Config: c}
++}
++
++// TODO(khr): do we really need a separate Config, or can we just
++// store all its fields inside a Func?
+diff --git a/src/cmd/internal/ssa/cse.go b/src/cmd/internal/ssa/cse.go
+index c44b08f61c..aba24aeabc 100644
+--- a/src/cmd/internal/ssa/cse.go
++++ b/src/cmd/internal/ssa/cse.go
+@@ -4,9 +4,7 @@
+ 
+ package ssa
+ 
+-import (
+-	"sort"
+-)
++import "sort"
+ 
+ // cse does common-subexpression elimination on the Function.
+ // Values are just relinked, nothing is deleted.  A subsequent deadcode
+@@ -115,7 +113,9 @@ func cse(f *Func) {
+ 			// Replace all elements of e which v dominates
+ 			for i := 0; i < len(e); {
+ 				w := e[i]
+-				if w != v && dom(v.Block, w.Block, idom) {
++				if w == v {
++					e, e[i] = e[:len(e)-1], e[len(e)-1]
++				} else if dom(v.Block, w.Block, idom) {
+ 					rewrite[w.ID] = v
+ 					e, e[i] = e[:len(e)-1], e[len(e)-1]
+ 				} else {
+diff --git a/src/cmd/internal/ssa/deadcode.go b/src/cmd/internal/ssa/deadcode.go
+index f9e4b18d5f..a805861489 100644
+--- a/src/cmd/internal/ssa/deadcode.go
++++ b/src/cmd/internal/ssa/deadcode.go
+@@ -115,6 +115,7 @@ func deadcode(f *Func) {
+ 	f.Blocks = f.Blocks[:i]
+ 
+ 	// TODO: renumber Blocks and Values densely?
++	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
+ }
+ 
+ // There was an edge b->c.  It has been removed from b's successors.
+diff --git a/src/cmd/internal/ssa/deadcode_test.go b/src/cmd/internal/ssa/deadcode_test.go
+index 94fc359af7..1b7c81c568 100644
+--- a/src/cmd/internal/ssa/deadcode_test.go
++++ b/src/cmd/internal/ssa/deadcode_test.go
+@@ -27,7 +27,7 @@ func TestDeadLoop(t *testing.T) {
+ 	addEdge(deadblock, exit)
+ 
+ 	// dead value in dead block
+-	deadval := deadblock.NewValue(OpConstBool, TypeBool, true)
++	deadval := deadblock.NewValue(OpConst, TypeBool, true)
+ 	deadblock.Control = deadval
+ 
+ 	CheckFunc(f)
+@@ -55,7 +55,7 @@ func TestDeadValue(t *testing.T) {
+ 	mem := entry.NewValue(OpArg, TypeMem, ".mem")
+ 	exit.Control = mem
+ 
+-	deadval := entry.NewValue(OpConstInt, TypeInt, 37)
++	deadval := entry.NewValue(OpConst, TypeInt64, int64(37))
+ 
+ 	CheckFunc(f)
+ 	Deadcode(f)
+@@ -84,7 +84,7 @@ func TestNeverTaken(t *testing.T) {
+ 	mem := entry.NewValue(OpArg, TypeMem, ".mem")
+ 	exit.Control = mem
+ 
+-	cond := entry.NewValue(OpConstBool, TypeBool, false)
++	cond := entry.NewValue(OpConst, TypeBool, false)
+ 	entry.Control = cond
+ 
+ 	CheckFunc(f)
+diff --git a/src/cmd/internal/ssa/func.go b/src/cmd/internal/ssa/func.go
+index b4677c97b3..bdc8815e1a 100644
+--- a/src/cmd/internal/ssa/func.go
++++ b/src/cmd/internal/ssa/func.go
+@@ -7,6 +7,7 @@ package ssa
+ // A Func represents a Go func declaration (or function literal) and
+ // its body.  This package compiles each Func independently.
+ type Func struct {
++	Config *Config  // architecture information
+ 	Name   string   // e.g. bytes·Compare
+ 	Type   Type     // type signature of the function.
+ 	Blocks []*Block // unordered set of all basic blocks (note: not indexable by ID)
+@@ -53,9 +54,53 @@ func (b *Block) NewValue(op Op, t Type, aux interface{}) *Value {
+ 	return v
+ }
+ 
++// NewValue1 returns a new value in the block with one argument.
++func (b *Block) NewValue1(op Op, t Type, aux interface{}, arg *Value) *Value {
++	v := &Value{
++		ID:    b.Func.vid.get(),
++		Op:    op,
++		Type:  t,
++		Aux:   aux,
++		Block: b,
++	}
++	v.Args = v.argstorage[:1]
++	v.Args[0] = arg
++	b.Values = append(b.Values, v)
++	return v
++}
++
++// NewValue2 returns a new value in the block with two arguments.
++func (b *Block) NewValue2(op Op, t Type, aux interface{}, arg0, arg1 *Value) *Value {
++	v := &Value{
++		ID:    b.Func.vid.get(),
++		Op:    op,
++		Type:  t,
++		Aux:   aux,
++		Block: b,
++	}
++	v.Args = v.argstorage[:2]
++	v.Args[0] = arg0
++	v.Args[1] = arg1
++	b.Values = append(b.Values, v)
++	return v
++}
++
++// NewValue3 returns a new value in the block with three arguments.
++func (b *Block) NewValue3(op Op, t Type, aux interface{}, arg0, arg1, arg2 *Value) *Value {
++	v := &Value{
++		ID:    b.Func.vid.get(),
++		Op:    op,
++		Type:  t,
++		Aux:   aux,
++		Block: b,
++	}
++	v.Args = []*Value{arg0, arg1, arg2}
++	b.Values = append(b.Values, v)
++	return v
++}
++
+ // ConstInt returns an int constant representing its argument.
+-func (f *Func) ConstInt(c int64) *Value {
++func (f *Func) ConstInt(t Type, c int64) *Value {
+ 	// TODO: cache?
+-	// TODO: different types?
+-	return f.Entry.NewValue(OpConst, TypeInt64, c)
++	return f.Entry.NewValue(OpConst, t, c)
+ }
+diff --git a/src/cmd/internal/ssa/fuse.go b/src/cmd/internal/ssa/fuse.go
+index bfce9ef970..af3e8a8e14 100644
+--- a/src/cmd/internal/ssa/fuse.go
++++ b/src/cmd/internal/ssa/fuse.go
+@@ -30,6 +30,9 @@ func fuse(f *Func) {
+ 				}
+ 			}
+ 		}
++		if f.Entry == b {
++			f.Entry = c
++		}
+ 
+ 		// trash b, just in case
+ 		b.Kind = BlockUnknown
+diff --git a/src/cmd/internal/ssa/generic.go b/src/cmd/internal/ssa/generic.go
+index 3118b3af9d..2a96793c61 100644
+--- a/src/cmd/internal/ssa/generic.go
++++ b/src/cmd/internal/ssa/generic.go
+@@ -11,23 +11,24 @@ func genericRules(v *Value) bool {
+ 		{
+ 			t := v.Type
+ 			if v.Args[0].Op != OpConst {
+-				goto end0
++				goto endc86f5c160a87f6f5ec90b6551ec099d9
+ 			}
+ 			c := v.Args[0].Aux
+ 			if v.Args[1].Op != OpConst {
+-				goto end0
++				goto endc86f5c160a87f6f5ec90b6551ec099d9
+ 			}
+ 			d := v.Args[1].Aux
+ 			if !(is64BitInt(t) && isSigned(t)) {
+-				goto end0
++				goto endc86f5c160a87f6f5ec90b6551ec099d9
+ 			}
+ 			v.Op = OpConst
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.Aux = c.(int64) + d.(int64)
+ 			return true
+ 		}
+-	end0:
++		goto endc86f5c160a87f6f5ec90b6551ec099d9
++	endc86f5c160a87f6f5ec90b6551ec099d9:
+ 		;
+ 		// match: (Add <t> (Const [c]) (Const [d]))
+ 		// cond: is64BitInt(t) && !isSigned(t)
+@@ -35,101 +36,130 @@ func genericRules(v *Value) bool {
+ 		{
+ 			t := v.Type
+ 			if v.Args[0].Op != OpConst {
+-				goto end1
++				goto end8941c2a515c1bd38530b7fd96862bac4
+ 			}
+ 			c := v.Args[0].Aux
+ 			if v.Args[1].Op != OpConst {
+-				goto end1
++				goto end8941c2a515c1bd38530b7fd96862bac4
+ 			}
+ 			d := v.Args[1].Aux
+ 			if !(is64BitInt(t) && !isSigned(t)) {
+-				goto end1
++				goto end8941c2a515c1bd38530b7fd96862bac4
+ 			}
+ 			v.Op = OpConst
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.Aux = c.(uint64) + d.(uint64)
+ 			return true
+ 		}
+-	end1:
++		goto end8941c2a515c1bd38530b7fd96862bac4
++	end8941c2a515c1bd38530b7fd96862bac4:
+ 		;
+-	case OpLoad:
+-		// match: (Load (FPAddr [offset]) mem)
++	case OpSliceCap:
++		// match: (SliceCap (Load ptr mem))
+ 		// cond:
+-		// result: (LoadFP [offset] mem)
++		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.UIntPtr> [int64(v.Block.Func.Config.ptrSize*2)])) mem)
+ 		{
+-			if v.Args[0].Op != OpFPAddr {
+-				goto end2
++			if v.Args[0].Op != OpLoad {
++				goto ende03f9b79848867df439b56889bb4e55d
+ 			}
+-			offset := v.Args[0].Aux
+-			mem := v.Args[1]
+-			v.Op = OpLoadFP
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			v.Op = OpLoad
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Aux = offset
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpAdd, TypeInvalid, nil)
++			v0.Type = ptr.Type
++			v0.AddArg(ptr)
++			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
++			v1.Type = v.Block.Func.Config.UIntPtr
++			v1.Aux = int64(v.Block.Func.Config.ptrSize * 2)
++			v0.AddArg(v1)
++			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end2:
++		goto ende03f9b79848867df439b56889bb4e55d
++	ende03f9b79848867df439b56889bb4e55d:
+ 		;
+-		// match: (Load (SPAddr [offset]) mem)
++	case OpSliceIndex:
++		// match: (SliceIndex s i mem)
+ 		// cond:
+-		// result: (LoadSP [offset] mem)
++		// result: (Load (Add <s.Type.Elem().PtrTo()> (SlicePtr <s.Type.Elem().PtrTo()> s) (Mul <v.Block.Func.Config.UIntPtr> i (Const <v.Block.Func.Config.UIntPtr> [s.Type.Elem().Size()]))) mem)
+ 		{
+-			if v.Args[0].Op != OpSPAddr {
+-				goto end3
+-			}
+-			offset := v.Args[0].Aux
+-			mem := v.Args[1]
+-			v.Op = OpLoadSP
++			s := v.Args[0]
++			i := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpLoad
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Aux = offset
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpAdd, TypeInvalid, nil)
++			v0.Type = s.Type.Elem().PtrTo()
++			v1 := v.Block.NewValue(OpSlicePtr, TypeInvalid, nil)
++			v1.Type = s.Type.Elem().PtrTo()
++			v1.AddArg(s)
++			v0.AddArg(v1)
++			v2 := v.Block.NewValue(OpMul, TypeInvalid, nil)
++			v2.Type = v.Block.Func.Config.UIntPtr
++			v2.AddArg(i)
++			v3 := v.Block.NewValue(OpConst, TypeInvalid, nil)
++			v3.Type = v.Block.Func.Config.UIntPtr
++			v3.Aux = s.Type.Elem().Size()
++			v2.AddArg(v3)
++			v0.AddArg(v2)
++			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end3:
++		goto end733704831a61760840348f790b3ab045
++	end733704831a61760840348f790b3ab045:
+ 		;
+-	case OpStore:
+-		// match: (Store (FPAddr [offset]) val mem)
++	case OpSliceLen:
++		// match: (SliceLen (Load ptr mem))
+ 		// cond:
+-		// result: (StoreFP [offset] val mem)
++		// result: (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.UIntPtr> [int64(v.Block.Func.Config.ptrSize)])) mem)
+ 		{
+-			if v.Args[0].Op != OpFPAddr {
+-				goto end4
++			if v.Args[0].Op != OpLoad {
++				goto ende94950a57eca1871c93afdeaadb90223
+ 			}
+-			offset := v.Args[0].Aux
+-			val := v.Args[1]
+-			mem := v.Args[2]
+-			v.Op = OpStoreFP
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			v.Op = OpLoad
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Aux = offset
+-			v.AddArg(val)
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpAdd, TypeInvalid, nil)
++			v0.Type = ptr.Type
++			v0.AddArg(ptr)
++			v1 := v.Block.NewValue(OpConst, TypeInvalid, nil)
++			v1.Type = v.Block.Func.Config.UIntPtr
++			v1.Aux = int64(v.Block.Func.Config.ptrSize)
++			v0.AddArg(v1)
++			v.AddArg(v0)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end4:
++		goto ende94950a57eca1871c93afdeaadb90223
++	ende94950a57eca1871c93afdeaadb90223:
+ 		;
+-		// match: (Store (SPAddr [offset]) val mem)
++	case OpSlicePtr:
++		// match: (SlicePtr (Load ptr mem))
+ 		// cond:
+-		// result: (StoreSP [offset] val mem)
++		// result: (Load ptr mem)
+ 		{
+-			if v.Args[0].Op != OpSPAddr {
+-				goto end5
++			if v.Args[0].Op != OpLoad {
++				goto end459613b83f95b65729d45c2ed663a153
+ 			}
+-			offset := v.Args[0].Aux
+-			val := v.Args[1]
+-			mem := v.Args[2]
+-			v.Op = OpStoreSP
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[0].Args[1]
++			v.Op = OpLoad
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Aux = offset
+-			v.AddArg(val)
++			v.resetArgs()
++			v.AddArg(ptr)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end5:
++		goto end459613b83f95b65729d45c2ed663a153
++	end459613b83f95b65729d45c2ed663a153:
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/internal/ssa/id.go b/src/cmd/internal/ssa/id.go
+index 43f23c838c..3f53e1a434 100644
+--- a/src/cmd/internal/ssa/id.go
++++ b/src/cmd/internal/ssa/id.go
+@@ -31,8 +31,6 @@ func (a *idAlloc) get() ID {
+ // put deallocates an ID.
+ func (a *idAlloc) put(x ID) {
+ 	a.free = append(a.free, x)
+-	// TODO: IR check should make sure that the IR contains
+-	// no IDs that are in the free list.
+ }
+ 
+ // num returns the maximum ID ever returned + 1.
+diff --git a/src/cmd/internal/ssa/lower.go b/src/cmd/internal/ssa/lower.go
+index 18fe9861a6..82e5d23241 100644
+--- a/src/cmd/internal/ssa/lower.go
++++ b/src/cmd/internal/ssa/lower.go
+@@ -4,19 +4,12 @@
+ 
+ package ssa
+ 
+-var (
+-	// TODO(khr): put arch configuration constants together somewhere
+-	intSize = 8
+-	ptrSize = 8
+-)
+-
+ //go:generate go run rulegen/rulegen.go rulegen/lower_amd64.rules lowerAmd64 lowerAmd64.go
+ 
+ // convert to machine-dependent ops
+ func lower(f *Func) {
+ 	// repeat rewrites until we find no more rewrites
+-	// TODO: pick the target arch from config
+-	applyRewrite(f, lowerAmd64)
++	applyRewrite(f, f.Config.lower)
+ 
+ 	// TODO: check for unlowered opcodes, fail if we find one
+ 
+@@ -29,6 +22,12 @@ func lower(f *Func) {
+ 			case OpSETL:
+ 				b.Kind = BlockLT
+ 				b.Control = b.Control.Args[0]
++			case OpSETNE:
++				b.Kind = BlockNE
++				b.Control = b.Control.Args[0]
++			case OpSETB:
++				b.Kind = BlockULT
++				b.Control = b.Control.Args[0]
+ 				// TODO: others
+ 			}
+ 		case BlockLT:
+@@ -36,6 +35,21 @@ func lower(f *Func) {
+ 				b.Kind = BlockGE
+ 				b.Control = b.Control.Args[0]
+ 			}
++		case BlockULT:
++			if b.Control.Op == OpInvertFlags {
++				b.Kind = BlockUGE
++				b.Control = b.Control.Args[0]
++			}
++		case BlockEQ:
++			if b.Control.Op == OpInvertFlags {
++				b.Kind = BlockNE
++				b.Control = b.Control.Args[0]
++			}
++		case BlockNE:
++			if b.Control.Op == OpInvertFlags {
++				b.Kind = BlockEQ
++				b.Control = b.Control.Args[0]
++			}
+ 			// TODO: others
+ 		}
+ 	}
+diff --git a/src/cmd/internal/ssa/lowerAmd64.go b/src/cmd/internal/ssa/lowerAmd64.go
+index 88f0e43bd8..6c0a42d976 100644
+--- a/src/cmd/internal/ssa/lowerAmd64.go
++++ b/src/cmd/internal/ssa/lowerAmd64.go
+@@ -4,6 +4,65 @@ package ssa
+ 
+ func lowerAmd64(v *Value) bool {
+ 	switch v.Op {
++	case OpADDCQ:
++		// match: (ADDCQ [c] (LEAQ8 [d] x y))
++		// cond:
++		// result: (LEAQ8 [c.(int64)+d.(int64)] x y)
++		{
++			c := v.Aux
++			if v.Args[0].Op != OpLEAQ8 {
++				goto end16348939e556e99e8447227ecb986f01
++			}
++			d := v.Args[0].Aux
++			x := v.Args[0].Args[0]
++			y := v.Args[0].Args[1]
++			v.Op = OpLEAQ8
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c.(int64) + d.(int64)
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end16348939e556e99e8447227ecb986f01
++	end16348939e556e99e8447227ecb986f01:
++		;
++		// match: (ADDCQ [off1] (FPAddr [off2]))
++		// cond:
++		// result: (FPAddr [off1.(int64)+off2.(int64)])
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpFPAddr {
++				goto end28e093ab0618066e6b2609db7aaf309b
++			}
++			off2 := v.Args[0].Aux
++			v.Op = OpFPAddr
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			return true
++		}
++		goto end28e093ab0618066e6b2609db7aaf309b
++	end28e093ab0618066e6b2609db7aaf309b:
++		;
++		// match: (ADDCQ [off1] (SPAddr [off2]))
++		// cond:
++		// result: (SPAddr [off1.(int64)+off2.(int64)])
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpSPAddr {
++				goto endd0c27c62d150b88168075c5ba113d1fa
++			}
++			off2 := v.Args[0].Aux
++			v.Op = OpSPAddr
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			return true
++		}
++		goto endd0c27c62d150b88168075c5ba113d1fa
++	endd0c27c62d150b88168075c5ba113d1fa:
++		;
+ 	case OpADDQ:
+ 		// match: (ADDQ x (Const [c]))
+ 		// cond:
+@@ -11,55 +70,82 @@ func lowerAmd64(v *Value) bool {
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpConst {
+-				goto end0
++				goto endef6908cfdf56e102cc327a3ddc14393d
+ 			}
+ 			c := v.Args[1].Aux
+ 			v.Op = OpADDCQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.Aux = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-	end0:
++		goto endef6908cfdf56e102cc327a3ddc14393d
++	endef6908cfdf56e102cc327a3ddc14393d:
+ 		;
+ 		// match: (ADDQ (Const [c]) x)
+ 		// cond:
+ 		// result: (ADDCQ [c] x)
+ 		{
+ 			if v.Args[0].Op != OpConst {
+-				goto end1
++				goto endb54a32cf3147f424f08b46db62c69b23
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+ 			v.Op = OpADDCQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.Aux = c
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-	end1:
++		goto endb54a32cf3147f424f08b46db62c69b23
++	endb54a32cf3147f424f08b46db62c69b23:
++		;
++		// match: (ADDQ x (SHLCQ [shift] y))
++		// cond: shift.(int64) == 3
++		// result: (LEAQ8 [int64(0)] x y)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpSHLCQ {
++				goto end7fa0d837edd248748cef516853fd9475
++			}
++			shift := v.Args[1].Aux
++			y := v.Args[1].Args[0]
++			if !(shift.(int64) == 3) {
++				goto end7fa0d837edd248748cef516853fd9475
++			}
++			v.Op = OpLEAQ8
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(0)
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end7fa0d837edd248748cef516853fd9475
++	end7fa0d837edd248748cef516853fd9475:
+ 		;
+ 	case OpAdd:
+ 		// match: (Add <t> x y)
+-		// cond: is64BitInt(t)
++		// cond: (is64BitInt(t) || isPtr(t))
+ 		// result: (ADDQ x y)
+ 		{
+ 			t := v.Type
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+-			if !(is64BitInt(t)) {
+-				goto end2
++			if !(is64BitInt(t) || isPtr(t)) {
++				goto endf031c523d7dd08e4b8e7010a94cd94c9
+ 			}
+ 			v.Op = OpADDQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.AddArg(y)
+ 			return true
+ 		}
+-	end2:
++		goto endf031c523d7dd08e4b8e7010a94cd94c9
++	endf031c523d7dd08e4b8e7010a94cd94c9:
+ 		;
+ 		// match: (Add <t> x y)
+ 		// cond: is32BitInt(t)
+@@ -69,16 +155,17 @@ func lowerAmd64(v *Value) bool {
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+ 			if !(is32BitInt(t)) {
+-				goto end3
++				goto end35a02a1587264e40cf1055856ff8445a
+ 			}
+ 			v.Op = OpADDL
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.AddArg(y)
+ 			return true
+ 		}
+-	end3:
++		goto end35a02a1587264e40cf1055856ff8445a
++	end35a02a1587264e40cf1055856ff8445a:
+ 		;
+ 	case OpCMPQ:
+ 		// match: (CMPQ x (Const [c]))
+@@ -87,30 +174,31 @@ func lowerAmd64(v *Value) bool {
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpConst {
+-				goto end4
++				goto end1770a40e4253d9f669559a360514613e
+ 			}
+ 			c := v.Args[1].Aux
+ 			v.Op = OpCMPCQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.Aux = c
+ 			return true
+ 		}
+-	end4:
++		goto end1770a40e4253d9f669559a360514613e
++	end1770a40e4253d9f669559a360514613e:
+ 		;
+ 		// match: (CMPQ (Const [c]) x)
+ 		// cond:
+ 		// result: (InvertFlags (CMPCQ <TypeFlags> x [c]))
+ 		{
+ 			if v.Args[0].Op != OpConst {
+-				goto end5
++				goto enda4e64c7eaeda16c1c0db9dac409cd126
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+ 			v.Op = OpInvertFlags
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v0 := v.Block.NewValue(OpCMPCQ, TypeInvalid, nil)
+ 			v0.Type = TypeFlags
+ 			v0.AddArg(x)
+@@ -118,7 +206,47 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-	end5:
++		goto enda4e64c7eaeda16c1c0db9dac409cd126
++	enda4e64c7eaeda16c1c0db9dac409cd126:
++		;
++	case OpCheckBound:
++		// match: (CheckBound idx len)
++		// cond:
++		// result: (SETB (CMPQ <TypeFlags> idx len))
++		{
++			idx := v.Args[0]
++			len := v.Args[1]
++			v.Op = OpSETB
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpCMPQ, TypeInvalid, nil)
++			v0.Type = TypeFlags
++			v0.AddArg(idx)
++			v0.AddArg(len)
++			v.AddArg(v0)
++			return true
++		}
++		goto end249426f6f996d45a62f89a591311a954
++	end249426f6f996d45a62f89a591311a954:
++		;
++	case OpCheckNil:
++		// match: (CheckNil p)
++		// cond:
++		// result: (SETNE (TESTQ <TypeFlags> p p))
++		{
++			p := v.Args[0]
++			v.Op = OpSETNE
++			v.Aux = nil
++			v.resetArgs()
++			v0 := v.Block.NewValue(OpTESTQ, TypeInvalid, nil)
++			v0.Type = TypeFlags
++			v0.AddArg(p)
++			v0.AddArg(p)
++			v.AddArg(v0)
++			return true
++		}
++		goto end90d3057824f74ef953074e473aa0b282
++	end90d3057824f74ef953074e473aa0b282:
+ 		;
+ 	case OpLess:
+ 		// match: (Less x y)
+@@ -128,11 +256,11 @@ func lowerAmd64(v *Value) bool {
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+ 			if !(is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type)) {
+-				goto end6
++				goto endcecf13a952d4c6c2383561c7d68a3cf9
+ 			}
+ 			v.Op = OpSETL
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v0 := v.Block.NewValue(OpCMPQ, TypeInvalid, nil)
+ 			v0.Type = TypeFlags
+ 			v0.AddArg(x)
+@@ -140,49 +268,292 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-	end6:
++		goto endcecf13a952d4c6c2383561c7d68a3cf9
++	endcecf13a952d4c6c2383561c7d68a3cf9:
+ 		;
+-	case OpLoadFP:
+-		// match: (LoadFP <t> [offset] mem)
+-		// cond: typeSize(t) == 8
+-		// result: (LoadFP8 <t> [offset] mem)
++	case OpLoad:
++		// match: (Load <t> ptr mem)
++		// cond: (is64BitInt(t) || isPtr(t))
++		// result: (MOVQload [int64(0)] ptr mem)
+ 		{
+ 			t := v.Type
+-			offset := v.Aux
+-			mem := v.Args[0]
+-			if !(typeSize(t) == 8) {
+-				goto end7
++			ptr := v.Args[0]
++			mem := v.Args[1]
++			if !(is64BitInt(t) || isPtr(t)) {
++				goto end581ce5a20901df1b8143448ba031685b
++			}
++			v.Op = OpMOVQload
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(0)
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto end581ce5a20901df1b8143448ba031685b
++	end581ce5a20901df1b8143448ba031685b:
++		;
++	case OpMOVQload:
++		// match: (MOVQload [off1] (FPAddr [off2]) mem)
++		// cond:
++		// result: (MOVQloadFP [off1.(int64)+off2.(int64)] mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpFPAddr {
++				goto endce972b1aa84b56447978c43def87fa57
+ 			}
+-			v.Op = OpLoadFP8
++			off2 := v.Args[0].Aux
++			mem := v.Args[1]
++			v.Op = OpMOVQloadFP
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Type = t
+-			v.Aux = offset
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end7:
++		goto endce972b1aa84b56447978c43def87fa57
++	endce972b1aa84b56447978c43def87fa57:
+ 		;
+-	case OpLoadSP:
+-		// match: (LoadSP <t> [offset] mem)
+-		// cond: typeSize(t) == 8
+-		// result: (LoadSP8 <t> [offset] mem)
++		// match: (MOVQload [off1] (SPAddr [off2]) mem)
++		// cond:
++		// result: (MOVQloadSP [off1.(int64)+off2.(int64)] mem)
+ 		{
+-			t := v.Type
+-			offset := v.Aux
+-			mem := v.Args[0]
+-			if !(typeSize(t) == 8) {
+-				goto end8
++			off1 := v.Aux
++			if v.Args[0].Op != OpSPAddr {
++				goto end3d8628a6536350a123be81240b8a1376
++			}
++			off2 := v.Args[0].Aux
++			mem := v.Args[1]
++			v.Op = OpMOVQloadSP
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(mem)
++			return true
++		}
++		goto end3d8628a6536350a123be81240b8a1376
++	end3d8628a6536350a123be81240b8a1376:
++		;
++		// match: (MOVQload [off1] (ADDCQ [off2] ptr) mem)
++		// cond:
++		// result: (MOVQload [off1.(int64)+off2.(int64)] ptr mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpADDCQ {
++				goto enda68a39292ba2a05b3436191cb0bb0516
++			}
++			off2 := v.Args[0].Aux
++			ptr := v.Args[0].Args[0]
++			mem := v.Args[1]
++			v.Op = OpMOVQload
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(ptr)
++			v.AddArg(mem)
++			return true
++		}
++		goto enda68a39292ba2a05b3436191cb0bb0516
++	enda68a39292ba2a05b3436191cb0bb0516:
++		;
++		// match: (MOVQload [off1] (LEAQ8 [off2] ptr idx) mem)
++		// cond:
++		// result: (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpLEAQ8 {
++				goto end35060118a284c93323ab3fb827156638
+ 			}
+-			v.Op = OpLoadSP8
++			off2 := v.Args[0].Aux
++			ptr := v.Args[0].Args[0]
++			idx := v.Args[0].Args[1]
++			mem := v.Args[1]
++			v.Op = OpMOVQload8
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Type = t
+-			v.Aux = offset
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(ptr)
++			v.AddArg(idx)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end8:
++		goto end35060118a284c93323ab3fb827156638
++	end35060118a284c93323ab3fb827156638:
++		;
++	case OpMOVQstore:
++		// match: (MOVQstore [off1] (FPAddr [off2]) val mem)
++		// cond:
++		// result: (MOVQstoreFP [off1.(int64)+off2.(int64)] val mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpFPAddr {
++				goto end0a2a81a20558dfc93790aecb1e9cc81a
++			}
++			off2 := v.Args[0].Aux
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpMOVQstoreFP
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end0a2a81a20558dfc93790aecb1e9cc81a
++	end0a2a81a20558dfc93790aecb1e9cc81a:
++		;
++		// match: (MOVQstore [off1] (SPAddr [off2]) val mem)
++		// cond:
++		// result: (MOVQstoreSP [off1.(int64)+off2.(int64)] val mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpSPAddr {
++				goto end1cb5b7e766f018270fa434c6f46f607f
++			}
++			off2 := v.Args[0].Aux
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpMOVQstoreSP
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end1cb5b7e766f018270fa434c6f46f607f
++	end1cb5b7e766f018270fa434c6f46f607f:
++		;
++		// match: (MOVQstore [off1] (ADDCQ [off2] ptr) val mem)
++		// cond:
++		// result: (MOVQstore [off1.(int64)+off2.(int64)] ptr val mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpADDCQ {
++				goto end271e3052de832e22b1f07576af2854de
++			}
++			off2 := v.Args[0].Aux
++			ptr := v.Args[0].Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpMOVQstore
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(ptr)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end271e3052de832e22b1f07576af2854de
++	end271e3052de832e22b1f07576af2854de:
++		;
++		// match: (MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem)
++		// cond:
++		// result: (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
++		{
++			off1 := v.Aux
++			if v.Args[0].Op != OpLEAQ8 {
++				goto endb5cba0ee3ba21d2bd8e5aa163d2b984e
++			}
++			off2 := v.Args[0].Aux
++			ptr := v.Args[0].Args[0]
++			idx := v.Args[0].Args[1]
++			val := v.Args[1]
++			mem := v.Args[2]
++			v.Op = OpMOVQstore8
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = off1.(int64) + off2.(int64)
++			v.AddArg(ptr)
++			v.AddArg(idx)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto endb5cba0ee3ba21d2bd8e5aa163d2b984e
++	endb5cba0ee3ba21d2bd8e5aa163d2b984e:
++		;
++	case OpMULCQ:
++		// match: (MULCQ [c] x)
++		// cond: c.(int64) == 8
++		// result: (SHLCQ [int64(3)] x)
++		{
++			c := v.Aux
++			x := v.Args[0]
++			if !(c.(int64) == 8) {
++				goto end90a1c055d9658aecacce5e101c1848b4
++			}
++			v.Op = OpSHLCQ
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = int64(3)
++			v.AddArg(x)
++			return true
++		}
++		goto end90a1c055d9658aecacce5e101c1848b4
++	end90a1c055d9658aecacce5e101c1848b4:
++		;
++	case OpMULQ:
++		// match: (MULQ x (Const [c]))
++		// cond:
++		// result: (MULCQ [c] x)
++		{
++			x := v.Args[0]
++			if v.Args[1].Op != OpConst {
++				goto endc427f4838d2e83c00cc097b20bd20a37
++			}
++			c := v.Args[1].Aux
++			v.Op = OpMULCQ
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto endc427f4838d2e83c00cc097b20bd20a37
++	endc427f4838d2e83c00cc097b20bd20a37:
++		;
++		// match: (MULQ (Const [c]) x)
++		// cond:
++		// result: (MULCQ [c] x)
++		{
++			if v.Args[0].Op != OpConst {
++				goto endd70de938e71150d1c9e8173c2a5b2d95
++			}
++			c := v.Args[0].Aux
++			x := v.Args[1]
++			v.Op = OpMULCQ
++			v.Aux = nil
++			v.resetArgs()
++			v.Aux = c
++			v.AddArg(x)
++			return true
++		}
++		goto endd70de938e71150d1c9e8173c2a5b2d95
++	endd70de938e71150d1c9e8173c2a5b2d95:
++		;
++	case OpMul:
++		// match: (Mul <t> x y)
++		// cond: is64BitInt(t)
++		// result: (MULQ x y)
++		{
++			t := v.Type
++			x := v.Args[0]
++			y := v.Args[1]
++			if !(is64BitInt(t)) {
++				goto endfab0d598f376ecba45a22587d50f7aff
++			}
++			v.Op = OpMULQ
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto endfab0d598f376ecba45a22587d50f7aff
++	endfab0d598f376ecba45a22587d50f7aff:
+ 		;
+ 	case OpSETL:
+ 		// match: (SETL (InvertFlags x))
+@@ -190,16 +561,17 @@ func lowerAmd64(v *Value) bool {
+ 		// result: (SETGE x)
+ 		{
+ 			if v.Args[0].Op != OpInvertFlags {
+-				goto end9
++				goto end456c7681d48305698c1ef462d244bdc6
+ 			}
+ 			x := v.Args[0].Args[0]
+ 			v.Op = OpSETGE
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.AddArg(x)
+ 			return true
+ 		}
+-	end9:
++		goto end456c7681d48305698c1ef462d244bdc6
++	end456c7681d48305698c1ef462d244bdc6:
+ 		;
+ 	case OpSUBQ:
+ 		// match: (SUBQ x (Const [c]))
+@@ -208,17 +580,18 @@ func lowerAmd64(v *Value) bool {
+ 		{
+ 			x := v.Args[0]
+ 			if v.Args[1].Op != OpConst {
+-				goto end10
++				goto endb31e242f283867de4722665a5796008c
+ 			}
+ 			c := v.Args[1].Aux
+ 			v.Op = OpSUBCQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.Aux = c
+ 			return true
+ 		}
+-	end10:
++		goto endb31e242f283867de4722665a5796008c
++	endb31e242f283867de4722665a5796008c:
+ 		;
+ 		// match: (SUBQ <t> (Const [c]) x)
+ 		// cond:
+@@ -226,13 +599,13 @@ func lowerAmd64(v *Value) bool {
+ 		{
+ 			t := v.Type
+ 			if v.Args[0].Op != OpConst {
+-				goto end11
++				goto end569cc755877d1f89a701378bec05c08d
+ 			}
+ 			c := v.Args[0].Aux
+ 			x := v.Args[1]
+ 			v.Op = OpNEGQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v0 := v.Block.NewValue(OpSUBCQ, TypeInvalid, nil)
+ 			v0.Type = t
+ 			v0.AddArg(x)
+@@ -240,49 +613,31 @@ func lowerAmd64(v *Value) bool {
+ 			v.AddArg(v0)
+ 			return true
+ 		}
+-	end11:
++		goto end569cc755877d1f89a701378bec05c08d
++	end569cc755877d1f89a701378bec05c08d:
+ 		;
+-	case OpStoreFP:
+-		// match: (StoreFP [offset] val mem)
+-		// cond: typeSize(val.Type) == 8
+-		// result: (StoreFP8 [offset] val mem)
++	case OpStore:
++		// match: (Store ptr val mem)
++		// cond: (is64BitInt(val.Type) || isPtr(val.Type))
++		// result: (MOVQstore [int64(0)] ptr val mem)
+ 		{
+-			offset := v.Aux
+-			val := v.Args[0]
+-			mem := v.Args[1]
+-			if !(typeSize(val.Type) == 8) {
+-				goto end12
+-			}
+-			v.Op = OpStoreFP8
+-			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Aux = offset
+-			v.AddArg(val)
+-			v.AddArg(mem)
+-			return true
+-		}
+-	end12:
+-		;
+-	case OpStoreSP:
+-		// match: (StoreSP [offset] val mem)
+-		// cond: typeSize(val.Type) == 8
+-		// result: (StoreSP8 [offset] val mem)
+-		{
+-			offset := v.Aux
+-			val := v.Args[0]
+-			mem := v.Args[1]
+-			if !(typeSize(val.Type) == 8) {
+-				goto end13
++			ptr := v.Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			if !(is64BitInt(val.Type) || isPtr(val.Type)) {
++				goto end9680b43f504bc06f9fab000823ce471a
+ 			}
+-			v.Op = OpStoreSP8
++			v.Op = OpMOVQstore
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
+-			v.Aux = offset
++			v.resetArgs()
++			v.Aux = int64(0)
++			v.AddArg(ptr)
+ 			v.AddArg(val)
+ 			v.AddArg(mem)
+ 			return true
+ 		}
+-	end13:
++		goto end9680b43f504bc06f9fab000823ce471a
++	end9680b43f504bc06f9fab000823ce471a:
+ 		;
+ 	case OpSub:
+ 		// match: (Sub <t> x y)
+@@ -293,16 +648,17 @@ func lowerAmd64(v *Value) bool {
+ 			x := v.Args[0]
+ 			y := v.Args[1]
+ 			if !(is64BitInt(t)) {
+-				goto end14
++				goto ende6ef29f885a8ecf3058212bb95917323
+ 			}
+ 			v.Op = OpSUBQ
+ 			v.Aux = nil
+-			v.Args = v.argstorage[:0]
++			v.resetArgs()
+ 			v.AddArg(x)
+ 			v.AddArg(y)
+ 			return true
+ 		}
+-	end14:
++		goto ende6ef29f885a8ecf3058212bb95917323
++	ende6ef29f885a8ecf3058212bb95917323:
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/internal/ssa/op.go b/src/cmd/internal/ssa/op.go
+index 19d973921c..600dc9faa6 100644
+--- a/src/cmd/internal/ssa/op.go
++++ b/src/cmd/internal/ssa/op.go
+@@ -17,8 +17,8 @@ const (
+ 
+ 	// machine-independent opcodes
+ 
+-	OpNop   // should never be used, appears only briefly during construction,  Has type Void.
+-	OpThunk // used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
++	OpNop    // should never be used, appears only briefly during construction,  Has type Void.
++	OpFwdRef // used during ssa construction.  Like OpCopy, but the arg has not been specified yet.
+ 
+ 	// 2-input arithmetic
+ 	OpAdd
+@@ -28,7 +28,12 @@ const (
+ 	// 2-input comparisons
+ 	OpLess
+ 
+-	// constants
++	// constants.  Constant values are stored in the aux field.
++	// booleans have a bool aux field, strings have a string aux
++	// field, and so on.  All integer types store their value
++	// in the aux field as an int64 (including int, uint64, etc.).
++	// We could store int8 as an int8, but that won't work for int,
++	// as it may be different widths on the host and target.
+ 	OpConst
+ 
+ 	OpArg    // address of a function parameter/result.  Memory input is an arg called ".mem".
+@@ -46,12 +51,11 @@ const (
+ 	OpStringPtr
+ 	OpStringLen
+ 
+-	OpSlice
+-	OpIndex
+-	OpIndexAddr
++	OpSliceIndex
++	OpSliceIndexAddr
+ 
+-	OpLoad  // args are ptr, memory
+-	OpStore // args are ptr, value, memory, returns memory
++	OpLoad  // args are ptr, memory.  Loads from ptr+aux.(int64)
++	OpStore // args are ptr, value, memory, returns memory.  Stores to ptr+aux.(int64)
+ 
+ 	OpCheckNil   // arg[0] != nil
+ 	OpCheckBound // 0 <= arg[0] < arg[1]
+@@ -71,14 +75,6 @@ const (
+ 	OpFPAddr // offset from FP (+ == args from caller, - == locals)
+ 	OpSPAddr // offset from SP
+ 
+-	// load/store from constant offsets from SP/FP
+-	// The distinction between FP/SP needs to be maintained until after
+-	// register allocation because we don't know the size of the frame yet.
+-	OpLoadFP
+-	OpLoadSP
+-	OpStoreFP
+-	OpStoreSP
+-
+ 	// spill&restore ops for the register allocator.  These are
+ 	// semantically identical to OpCopy; they do not take/return
+ 	// stores like regular memory ops do.  We can get away without memory
+@@ -93,12 +89,22 @@ const (
+ 	OpSUBQ
+ 	OpADDCQ // 1 input arg.  output = input + aux.(int64)
+ 	OpSUBCQ // 1 input arg.  output = input - aux.(int64)
++	OpMULQ
++	OpMULCQ // output = input * aux.(int64)
++	OpSHLQ  // output = input0 << input1
++	OpSHLCQ // output = input << aux.(int64)
+ 	OpNEGQ
+ 	OpCMPQ
+ 	OpCMPCQ // 1 input arg.  Compares input with aux.(int64)
+ 	OpADDL
+-	OpSETL // generate bool = "flags encode less than"
+-	OpSETGE
++	OpTESTQ // compute flags of arg[0] & arg[1]
++	OpSETEQ
++	OpSETNE
++
++	// generate boolean based on the flags setting
++	OpSETL  // less than
++	OpSETGE // >=
++	OpSETB  // "below" = unsigned less than
+ 
+ 	// InvertFlags reverses direction of flags register interpretation:
+ 	// (InvertFlags (OpCMPQ a b)) == (OpCMPQ b a)
+@@ -110,11 +116,16 @@ const (
+ 	OpLEAQ4 // x+4*y
+ 	OpLEAQ8 // x+8*y
+ 
++	OpMOVQload   // (ptr, mem): loads from ptr+aux.(int64)
++	OpMOVQstore  // (ptr, val, mem): stores val to ptr+aux.(int64), returns mem
++	OpMOVQload8  // (ptr,idx,mem): loads from ptr+idx*8+aux.(int64)
++	OpMOVQstore8 // (ptr,idx,val,mem): stores to ptr+idx*8+aux.(int64), returns mem
++
+ 	// load/store 8-byte integer register from stack slot.
+-	OpLoadFP8
+-	OpLoadSP8
+-	OpStoreFP8
+-	OpStoreSP8
++	OpMOVQloadFP
++	OpMOVQloadSP
++	OpMOVQstoreFP
++	OpMOVQstoreSP
+ 
+ 	OpMax // sentinel
+ )
+@@ -184,7 +195,9 @@ var shift = [2][]regMask{{gp, cx}, {overwrite0}}
+ var gp2_flags = [2][]regMask{{gp, gp}, {flags}}
+ var gp1_flags = [2][]regMask{{gp}, {flags}}
+ var gpload = [2][]regMask{{gp, 0}, {gp}}
++var gploadX = [2][]regMask{{gp, gp, 0}, {gp}} // indexed loads
+ var gpstore = [2][]regMask{{gp, gp, 0}, {0}}
++var gpstoreX = [2][]regMask{{gp, gp, gp, 0}, {0}} // indexed stores
+ 
+ // Opcodes that represent the input Go program
+ var genericTable = [...]OpInfo{
+@@ -197,7 +210,7 @@ var genericTable = [...]OpInfo{
+ 	OpLess: {},
+ 
+ 	OpConst:  {}, // aux matches the type (e.g. bool, int64 float64)
+-	OpArg:    {}, // aux is the name of the input variable  TODO:?
++	OpArg:    {}, // aux is the name of the input variable.  Currently only ".mem" is used
+ 	OpGlobal: {}, // address of a global variable
+ 	OpFunc:   {},
+ 	OpCopy:   {},
+@@ -251,17 +264,25 @@ var amd64Table = [...]OpInfo{
+ 	OpADDCQ: {asm: "ADDQ\t$%A,%I0,%O0", reg: gp11_overwrite},                 // aux = int64 constant to add
+ 	OpSUBQ:  {asm: "SUBQ\t%I0,%I1,%O0", reg: gp21},
+ 	OpSUBCQ: {asm: "SUBQ\t$%A,%I0,%O0", reg: gp11_overwrite},
++	OpMULQ:  {asm: "MULQ\t%I0,%I1,%O0", reg: gp21},
++	OpMULCQ: {asm: "MULQ\t$%A,%I0,%O0", reg: gp11_overwrite},
++	OpSHLQ:  {asm: "SHLQ\t%I0,%I1,%O0", reg: gp21},
++	OpSHLCQ: {asm: "SHLQ\t$%A,%I0,%O0", reg: gp11_overwrite},
+ 
+ 	OpCMPQ:  {asm: "CMPQ\t%I0,%I1", reg: gp2_flags}, // compute arg[0]-arg[1] and produce flags
+ 	OpCMPCQ: {asm: "CMPQ\t$%A,%I0", reg: gp1_flags},
++	OpTESTQ: {asm: "TESTQ\t%I0,%I1", reg: gp2_flags},
+ 
+ 	OpLEAQ:  {flags: OpFlagCommutative, asm: "LEAQ\t%A(%I0)(%I1*1),%O0", reg: gp21}, // aux = int64 constant to add
+ 	OpLEAQ2: {asm: "LEAQ\t%A(%I0)(%I1*2),%O0"},
+ 	OpLEAQ4: {asm: "LEAQ\t%A(%I0)(%I1*4),%O0"},
+ 	OpLEAQ8: {asm: "LEAQ\t%A(%I0)(%I1*8),%O0"},
+ 
+-	//OpLoad8:  {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
+-	//OpStore8: {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
++	// loads and stores
++	OpMOVQload:   {asm: "MOVQ\t%A(%I0),%O0", reg: gpload},
++	OpMOVQstore:  {asm: "MOVQ\t%I1,%A(%I0)", reg: gpstore},
++	OpMOVQload8:  {asm: "MOVQ\t%A(%I0)(%I1*8),%O0", reg: gploadX},
++	OpMOVQstore8: {asm: "MOVQ\t%I2,%A(%I0)(%I1*8)", reg: gpstoreX},
+ 
+ 	OpStaticCall: {asm: "CALL\t%A(SB)"},
+ 
+@@ -271,10 +292,10 @@ var amd64Table = [...]OpInfo{
+ 	OpSETL: {},
+ 
+ 	// ops for load/store to stack
+-	OpLoadFP8:  {asm: "MOVQ\t%A(FP),%O0"},
+-	OpLoadSP8:  {asm: "MOVQ\t%A(SP),%O0"},
+-	OpStoreFP8: {asm: "MOVQ\t%I0,%A(FP)"},
+-	OpStoreSP8: {asm: "MOVQ\t%I0,%A(SP)"},
++	OpMOVQloadFP:  {asm: "MOVQ\t%A(FP),%O0"},
++	OpMOVQloadSP:  {asm: "MOVQ\t%A(SP),%O0"},
++	OpMOVQstoreFP: {asm: "MOVQ\t%I0,%A(FP)"},
++	OpMOVQstoreSP: {asm: "MOVQ\t%I0,%A(SP)"},
+ 
+ 	// ops for spilling of registers
+ 	// unlike regular loads & stores, these take no memory argument.
+diff --git a/src/cmd/internal/ssa/op_string.go b/src/cmd/internal/ssa/op_string.go
+index dba1725262..5c42d22439 100644
+--- a/src/cmd/internal/ssa/op_string.go
++++ b/src/cmd/internal/ssa/op_string.go
+@@ -4,9 +4,9 @@ package ssa
+ 
+ import "fmt"
+ 
+-const _Op_name = "OpUnknownOpNopOpThunkOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceOpIndexOpIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpLoadFPOpLoadSPOpStoreFPOpStoreSPOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpNEGQOpCMPQOpCMPCQOpADDLOpSETLOpSETGEOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpLoadFP8OpLoadSP8OpStoreFP8OpStoreSP8OpMax"
++const _Op_name = "OpUnknownOpNopOpFwdRefOpAddOpSubOpMulOpLessOpConstOpArgOpGlobalOpFuncOpCopyOpPhiOpSliceMakeOpSlicePtrOpSliceLenOpSliceCapOpStringMakeOpStringPtrOpStringLenOpSliceIndexOpSliceIndexAddrOpLoadOpStoreOpCheckNilOpCheckBoundOpCallOpStaticCallOpConvertOpConvNopOpFPAddrOpSPAddrOpStoreReg8OpLoadReg8OpADDQOpSUBQOpADDCQOpSUBCQOpMULQOpMULCQOpSHLQOpSHLCQOpNEGQOpCMPQOpCMPCQOpADDLOpTESTQOpSETEQOpSETNEOpSETLOpSETGEOpSETBOpInvertFlagsOpLEAQOpLEAQ2OpLEAQ4OpLEAQ8OpMOVQloadOpMOVQstoreOpMOVQload8OpMOVQstore8OpMOVQloadFPOpMOVQloadSPOpMOVQstoreFPOpMOVQstoreSPOpMax"
+ 
+-var _Op_index = [...]uint16{0, 9, 14, 21, 26, 31, 36, 42, 49, 54, 62, 68, 74, 79, 90, 100, 110, 120, 132, 143, 154, 161, 168, 179, 185, 192, 202, 214, 220, 232, 241, 250, 258, 266, 274, 282, 291, 300, 311, 321, 327, 333, 340, 347, 353, 359, 366, 372, 378, 385, 398, 404, 411, 418, 425, 434, 443, 453, 463, 468}
++var _Op_index = [...]uint16{0, 9, 14, 22, 27, 32, 37, 43, 50, 55, 63, 69, 75, 80, 91, 101, 111, 121, 133, 144, 155, 167, 183, 189, 196, 206, 218, 224, 236, 245, 254, 262, 270, 281, 291, 297, 303, 310, 317, 323, 330, 336, 343, 349, 355, 362, 368, 375, 382, 389, 395, 402, 408, 421, 427, 434, 441, 448, 458, 469, 480, 492, 504, 516, 529, 542, 547}
+ 
+ func (i Op) String() string {
+ 	if i < 0 || i+1 >= Op(len(_Op_index)) {
+diff --git a/src/cmd/internal/ssa/rewrite.go b/src/cmd/internal/ssa/rewrite.go
+index d22926e8f9..855719a877 100644
+--- a/src/cmd/internal/ssa/rewrite.go
++++ b/src/cmd/internal/ssa/rewrite.go
+@@ -4,16 +4,22 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/internal/ssa/types" // TODO: use golang.org/x/tools/go/types instead
+-)
++import "fmt"
+ 
+ func applyRewrite(f *Func, r func(*Value) bool) {
+ 	// repeat rewrites until we find no more rewrites
++	var curv *Value
++	defer func() {
++		if curv != nil {
++			fmt.Printf("panic during rewrite of %s\n", curv.LongString())
++			// TODO(khr): print source location also
++		}
++	}()
+ 	for {
+ 		change := false
+ 		for _, b := range f.Blocks {
+ 			for _, v := range b.Values {
++				curv = v
+ 				if r(v) {
+ 					change = true
+ 				}
+@@ -28,36 +34,21 @@ func applyRewrite(f *Func, r func(*Value) bool) {
+ // Common functions called from rewriting rules
+ 
+ func is64BitInt(t Type) bool {
+-	if b, ok := t.Underlying().(*types.Basic); ok {
+-		switch b.Kind() {
+-		case types.Int64, types.Uint64:
+-			return true
+-		}
+-	}
+-	return false
++	return t.Size() == 8 && t.IsInteger()
+ }
+ 
+ func is32BitInt(t Type) bool {
+-	if b, ok := t.Underlying().(*types.Basic); ok {
+-		switch b.Kind() {
+-		case types.Int32, types.Uint32:
+-			return true
+-		}
+-	}
+-	return false
++	return t.Size() == 4 && t.IsInteger()
++}
++
++func isPtr(t Type) bool {
++	return t.IsPtr()
+ }
+ 
+ func isSigned(t Type) bool {
+-	if b, ok := t.Underlying().(*types.Basic); ok {
+-		switch b.Kind() {
+-		case types.Int8, types.Int16, types.Int32, types.Int64:
+-			return true
+-		}
+-	}
+-	return false
++	return t.IsSigned()
+ }
+ 
+-var sizer types.Sizes = &types.StdSizes{int64(ptrSize), int64(ptrSize)} // TODO(khr): from config
+ func typeSize(t Type) int64 {
+-	return sizer.Sizeof(t)
++	return t.Size()
+ }
+diff --git a/src/cmd/internal/ssa/rulegen/generic.rules b/src/cmd/internal/ssa/rulegen/generic.rules
+index 1fc1620c5c..d17449930f 100644
+--- a/src/cmd/internal/ssa/rulegen/generic.rules
++++ b/src/cmd/internal/ssa/rulegen/generic.rules
+@@ -6,12 +6,14 @@
+ (Add <t> (Const [c]) (Const [d])) && is64BitInt(t) && isSigned(t) -> (Const [{c.(int64)+d.(int64)}])
+ (Add <t> (Const [c]) (Const [d])) && is64BitInt(t) && !isSigned(t) -> (Const [{c.(uint64)+d.(uint64)}])
+ 
+-// load/store to stack
+-(Load (FPAddr [offset]) mem) -> (LoadFP [offset] mem)
+-(Store (FPAddr [offset]) val mem) -> (StoreFP [offset] val mem)
+-
+-(Load (SPAddr [offset]) mem) -> (LoadSP [offset] mem)
+-(Store (SPAddr [offset]) val mem) -> (StoreSP [offset] val mem)
++// tear apart slices
++// TODO: anything that generates a slice needs to go in here.
++(SlicePtr (Load ptr mem)) -> (Load ptr mem)
++(SliceLen (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.UIntPtr> [int64(v.Block.Func.Config.ptrSize)])) mem)
++(SliceCap (Load ptr mem)) -> (Load (Add <ptr.Type> ptr (Const <v.Block.Func.Config.UIntPtr> [int64(v.Block.Func.Config.ptrSize*2)])) mem)
+ 
+ // expand array indexing
+ // others?  Depends on what is already done by frontend
++
++// Note: bounds check has already been done
++(SliceIndex s i mem) -> (Load (Add <s.Type.Elem().PtrTo()> (SlicePtr <s.Type.Elem().PtrTo()> s) (Mul <v.Block.Func.Config.UIntPtr> i (Const <v.Block.Func.Config.UIntPtr> [s.Type.Elem().Size()]))) mem)
+diff --git a/src/cmd/internal/ssa/rulegen/lower_amd64.rules b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+index f60ac361ad..10c8dcc50f 100644
+--- a/src/cmd/internal/ssa/rulegen/lower_amd64.rules
++++ b/src/cmd/internal/ssa/rulegen/lower_amd64.rules
+@@ -13,35 +13,72 @@
+ //  - aux will be nil if not specified.
+ 
+ // x86 register conventions:
+-//  - Integer types live in the low portion of registers.  Upper portions are junk.
++//  - Integer types live in the low portion of registers.
++//    Upper portions are correctly extended.
+ //  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
+ //  - We do not use AH,BH,CH,DH registers.
+ //  - Floating-point types will live in the low natural slot of an sse2 register.
+ //    Unused portions are junk.
+ 
+ // These are the lowerings themselves
+-(Add <t> x y) && is64BitInt(t) -> (ADDQ x y)
++(Add <t> x y) && (is64BitInt(t) || isPtr(t)) -> (ADDQ x y)
+ (Add <t> x y) && is32BitInt(t) -> (ADDL x y)
+ 
+ (Sub <t> x y) && is64BitInt(t) -> (SUBQ x y)
+ 
++(Mul <t> x y) && is64BitInt(t) -> (MULQ x y)
++
+ (Less x y) && is64BitInt(v.Args[0].Type) && isSigned(v.Args[0].Type) -> (SETL (CMPQ <TypeFlags> x y))
+ 
+-// stack loads/stores
+-(LoadFP <t> [offset] mem) && typeSize(t) == 8 -> (LoadFP8 <t> [offset] mem)
+-(StoreFP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreFP8 [offset] val mem)
+-(LoadSP <t> [offset] mem) && typeSize(t) == 8 -> (LoadSP8 <t> [offset] mem)
+-(StoreSP [offset] val mem) && typeSize(val.Type) == 8 -> (StoreSP8 [offset] val mem)
++(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload [int64(0)] ptr mem)
++(Store ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVQstore [int64(0)] ptr val mem)
++
++// checks
++(CheckNil p) -> (SETNE (TESTQ <TypeFlags> p p))
++(CheckBound idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
+ // Rules below here apply some simple optimizations after lowering.
+ // TODO: Should this be a separate pass?
+ 
++// stack loads/stores
++(MOVQload [off1] (FPAddr [off2]) mem) -> (MOVQloadFP [off1.(int64)+off2.(int64)] mem)
++(MOVQload [off1] (SPAddr [off2]) mem) -> (MOVQloadSP [off1.(int64)+off2.(int64)] mem)
++(MOVQstore [off1] (FPAddr [off2]) val mem) -> (MOVQstoreFP [off1.(int64)+off2.(int64)] val mem)
++(MOVQstore [off1] (SPAddr [off2]) val mem) -> (MOVQstoreSP [off1.(int64)+off2.(int64)] val mem)
++
++// fold constants into instructions
+ (ADDQ x (Const [c])) -> (ADDCQ [c] x) // TODO: restrict c to int32 range?
+ (ADDQ (Const [c]) x) -> (ADDCQ [c] x)
+ (SUBQ x (Const [c])) -> (SUBCQ x [c])
+ (SUBQ <t> (Const [c]) x) -> (NEGQ (SUBCQ <t> x [c]))
++(MULQ x (Const [c])) -> (MULCQ [c] x)
++(MULQ (Const [c]) x) -> (MULCQ [c] x)
+ (CMPQ x (Const [c])) -> (CMPCQ x [c])
+ (CMPQ (Const [c]) x) -> (InvertFlags (CMPCQ <TypeFlags> x [c]))
+ 
++// strength reduction
++// TODO: do this a lot more generically
++(MULCQ [c] x) && c.(int64) == 8 -> (SHLCQ [int64(3)] x)
++
++// fold add/shift into leaq
++(ADDQ x (SHLCQ [shift] y)) && shift.(int64) == 3 -> (LEAQ8 [int64(0)] x y)
++(ADDCQ [c] (LEAQ8 [d] x y)) -> (LEAQ8 [c.(int64)+d.(int64)] x y)
++
+ // reverse ordering of compare instruction
+ (SETL (InvertFlags x)) -> (SETGE x)
++
++// fold constants into memory operations
++// Note that this is not always a good idea because if not all the uses of
++// the ADDCQ get eliminated, we still have to compute the ADDCQ and we now
++// have potentially two live values (ptr and (ADDCQ [off] ptr)) instead of one.
++// Nevertheless, let's do it!
++(MOVQload [off1] (ADDCQ [off2] ptr) mem) -> (MOVQload [off1.(int64)+off2.(int64)] ptr mem)
++(MOVQstore [off1] (ADDCQ [off2] ptr) val mem) -> (MOVQstore [off1.(int64)+off2.(int64)] ptr val mem)
++
++// indexed loads and stores
++(MOVQload [off1] (LEAQ8 [off2] ptr idx) mem) -> (MOVQload8 [off1.(int64)+off2.(int64)] ptr idx mem)
++(MOVQstore [off1] (LEAQ8 [off2] ptr idx) val mem) -> (MOVQstore8 [off1.(int64)+off2.(int64)] ptr idx val mem)
++
++// Combine the offset of a stack object with the offset within a stack object
++(ADDCQ [off1] (FPAddr [off2])) -> (FPAddr [off1.(int64)+off2.(int64)])
++(ADDCQ [off1] (SPAddr [off2])) -> (SPAddr [off1.(int64)+off2.(int64)])
+diff --git a/src/cmd/internal/ssa/rulegen/rulegen.go b/src/cmd/internal/ssa/rulegen/rulegen.go
+index 4038662ca8..31f46f7cce 100644
+--- a/src/cmd/internal/ssa/rulegen/rulegen.go
++++ b/src/cmd/internal/ssa/rulegen/rulegen.go
+@@ -14,6 +14,7 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"crypto/md5"
+ 	"fmt"
+ 	"go/format"
+ 	"io"
+@@ -96,10 +97,15 @@ func main() {
+ 		ops = append(ops, op)
+ 	}
+ 	sort.Strings(ops)
+-	rulenum := 0
+ 	for _, op := range ops {
+ 		fmt.Fprintf(w, "case Op%s:\n", op)
+ 		for _, rule := range oprules[op] {
++			// Note: we use a hash to identify the rule so that its
++			// identity is invariant to adding/removing rules elsewhere
++			// in the rules file.  This is useful to squash spurious
++			// diffs that would occur if we used rule index.
++			rulehash := fmt.Sprintf("%02x", md5.Sum([]byte(rule)))
++
+ 			// split at ->
+ 			s := strings.Split(rule, "->")
+ 			if len(s) != 2 {
+@@ -120,7 +126,7 @@ func main() {
+ 			fmt.Fprintf(w, "// cond: %s\n", cond)
+ 			fmt.Fprintf(w, "// result: %s\n", result)
+ 
+-			fail := fmt.Sprintf("{\ngoto end%d\n}\n", rulenum)
++			fail := fmt.Sprintf("{\ngoto end%s\n}\n", rulehash)
+ 
+ 			fmt.Fprintf(w, "{\n")
+ 			genMatch(w, match, fail)
+@@ -133,8 +139,8 @@ func main() {
+ 			fmt.Fprintf(w, "return true\n")
+ 
+ 			fmt.Fprintf(w, "}\n")
+-			fmt.Fprintf(w, "end%d:;\n", rulenum)
+-			rulenum++
++			fmt.Fprintf(w, "goto end%s\n", rulehash) // use label
++			fmt.Fprintf(w, "end%s:;\n", rulehash)
+ 		}
+ 	}
+ 	fmt.Fprintf(w, "}\n")
+@@ -249,7 +255,7 @@ func genResult0(w io.Writer, result string, alloc *int, top bool) string {
+ 		v = "v"
+ 		fmt.Fprintf(w, "v.Op = Op%s\n", s[0])
+ 		fmt.Fprintf(w, "v.Aux = nil\n")
+-		fmt.Fprintf(w, "v.Args = v.argstorage[:0]\n")
++		fmt.Fprintf(w, "v.resetArgs()\n")
+ 		hasType = true
+ 	} else {
+ 		v = fmt.Sprintf("v%d", *alloc)
+diff --git a/src/cmd/internal/ssa/ssac/main.go b/src/cmd/internal/ssa/ssac/main.go
+index 361bc87bff..2afa7c6aa9 100644
+--- a/src/cmd/internal/ssa/ssac/main.go
++++ b/src/cmd/internal/ssa/ssac/main.go
+@@ -16,8 +16,6 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"cmd/internal/ssa/types"
+-
+ 	"cmd/internal/ssa"
+ )
+ 
+@@ -227,9 +225,9 @@ func buildFunc(lines []sexpr) *ssa.Func {
+ 				b.Control = v
+ 			}
+ 		}
+-		// link up thunks to their actual values
++		// link up forward references to their actual values
+ 		for _, v := range b.Values {
+-			if v.Op != ssa.OpThunk {
++			if v.Op != ssa.OpFwdRef {
+ 				continue
+ 			}
+ 			varid := v.Aux.(int)
+@@ -302,7 +300,7 @@ func genExpr(state *ssaFuncState, b *ssa.Block, e sexpr) *ssa.Value {
+ 		if err != nil {
+ 			panic("bad cint value")
+ 		}
+-		return b.Func.ConstInt(c)
++		return b.Func.ConstInt(ssa.TypeInt64, c)
+ 	case "LT":
+ 		x := genExpr(state, b, e.parts[1])
+ 		y := genExpr(state, b, e.parts[2])
+@@ -310,28 +308,30 @@ func genExpr(state *ssaFuncState, b *ssa.Block, e sexpr) *ssa.Value {
+ 		v.AddArg(x)
+ 		v.AddArg(y)
+ 		return v
+-	case "FP":
+-		typ := state.types[e.parts[1].name]
+-		offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
+-		if err != nil {
+-			panic(err)
+-		}
+-		v := b.NewValue(ssa.OpFPAddr, types.NewPointer(typ), offset)
+-		return v
+-	case "SP":
+-		typ := state.types[e.parts[1].name]
+-		offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
+-		if err != nil {
+-			panic(err)
+-		}
+-		v := b.NewValue(ssa.OpSPAddr, types.NewPointer(typ), offset)
+-		return v
+-	case "LOAD":
+-		p := genExpr(state, b, e.parts[1])
+-		v := b.NewValue(ssa.OpLoad, p.Type.(*types.Pointer).Elem(), nil)
+-		v.AddArg(p)
+-		v.AddArg(genVar(state, b, state.memID))
+-		return v
++		/*
++			case "FP":
++				typ := state.types[e.parts[1].name]
++				offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
++				if err != nil {
++					panic(err)
++				}
++				v := b.NewValue(ssa.OpFPAddr, types.NewPointer(typ), offset)
++				return v
++			case "SP":
++				typ := state.types[e.parts[1].name]
++				offset, err := strconv.ParseInt(e.parts[2].name, 10, 64)
++				if err != nil {
++					panic(err)
++				}
++				v := b.NewValue(ssa.OpSPAddr, types.NewPointer(typ), offset)
++				return v
++			case "LOAD":
++				p := genExpr(state, b, e.parts[1])
++				v := b.NewValue(ssa.OpLoad, p.Type.(*types.Pointer).Elem(), nil)
++				v.AddArg(p)
++				v.AddArg(genVar(state, b, state.memID))
++				return v
++		*/
+ 	default:
+ 		fmt.Println(e.parts[0].name)
+ 		panic("unknown op")
+@@ -372,9 +372,9 @@ func lookupVarOutgoing(state *ssaFuncState, b *ssa.Block, id int) *ssa.Value {
+ 		return v
+ 	}
+ 	// We don't know about defined variables in this block (yet).
+-	// Make a thunk for this variable.
+-	fmt.Printf("making thunk for var=%d in block=%d\n", id, b.ID)
+-	v = b.NewValue(ssa.OpThunk, state.vartypes[id], id)
++	// Make a forward reference for this variable.
++	fmt.Printf("making fwdRef for var=%d in block=%d\n", id, b.ID)
++	v = b.NewValue(ssa.OpFwdRef, state.vartypes[id], id)
+ 
+ 	// memoize result
+ 	state.defs[blockvar{b.ID, id}] = v
+@@ -400,7 +400,7 @@ func lookupVarIncoming(state *ssaFuncState, b *ssa.Block, id int) *ssa.Value {
+ 			args[i] = lookupVarOutgoing(state, p, id)
+ 		}
+ 
+-		// if <=1 value that isn't this variable's thunk, don't make phi
++		// if <=1 value that isn't this variable's fwdRef, don't make phi
+ 		v.Op = ssa.OpPhi
+ 		v.AddArgs(args...) // note: order corresponding to b.Pred
+ 	}
+@@ -418,20 +418,22 @@ func parseSexprType(e sexpr) ssa.Type {
+ 			panic("unknown type")
+ 		}
+ 	}
+-	if e.parts[0].name == "FUNC" {
+-		// TODO: receiver?  Already folded into args?  Variadic?
+-		var args, rets []*types.Var
+-		for _, s := range e.parts[1].parts {
+-			t := parseSexprType(s)
+-			args = append(args, types.NewParam(0, nil, "noname", t))
+-		}
+-		for _, s := range e.parts[2].parts {
+-			t := parseSexprType(s)
+-			rets = append(rets, types.NewParam(0, nil, "noname", t))
++	/*
++		if e.parts[0].name == "FUNC" {
++			// TODO: receiver?  Already folded into args?  Variadic?
++			var args, rets []*types.Var
++			for _, s := range e.parts[1].parts {
++				t := parseSexprType(s)
++				args = append(args, types.NewParam(0, nil, "noname", t))
++			}
++			for _, s := range e.parts[2].parts {
++				t := parseSexprType(s)
++				rets = append(rets, types.NewParam(0, nil, "noname", t))
++			}
++			sig := types.NewSignature(nil, nil, types.NewTuple(args...), types.NewTuple(rets...), false)
++			return ssa.Type(sig)
+ 		}
+-		sig := types.NewSignature(nil, nil, types.NewTuple(args...), types.NewTuple(rets...), false)
+-		return ssa.Type(sig)
+-	}
++	*/
+ 	// TODO: array/struct/...
+ 	panic("compound type")
+ }
+diff --git a/src/cmd/internal/ssa/type.go b/src/cmd/internal/ssa/type.go
+index 98efe54133..611c85834a 100644
+--- a/src/cmd/internal/ssa/type.go
++++ b/src/cmd/internal/ssa/type.go
+@@ -4,89 +4,71 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/internal/ssa/types" // TODO: use golang.org/x/tools/go/types instead
+-)
+-
+-// We just inherit types from go/types
+-type Type types.Type
+-
+-var (
+-	// shortcuts for commonly used basic types
+-	//TypeInt     = types.Typ[types.Int]
+-	//TypeUint    = types.Typ[types.Uint]
+-	TypeInt8   = types.Typ[types.Int8]
+-	TypeInt16  = types.Typ[types.Int16]
+-	TypeInt32  = types.Typ[types.Int32]
+-	TypeInt64  = types.Typ[types.Int64]
+-	TypeUint8  = types.Typ[types.Uint8]
+-	TypeUint16 = types.Typ[types.Uint16]
+-	TypeUint32 = types.Typ[types.Uint32]
+-	TypeUint64 = types.Typ[types.Uint64]
+-	//TypeUintptr = types.Typ[types.Uintptr]
+-	TypeBool   = types.Typ[types.Bool]
+-	TypeString = types.Typ[types.String]
++// TODO: use go/types instead?
+ 
+-	TypeInvalid = types.Typ[types.Invalid]
+-
+-	// Additional compiler-only types go here.
+-	TypeMem   = &Memory{}
+-	TypeFlags = &Flags{}
+-
+-	// TODO(khr): we probably shouldn't use int/uint/uintptr as Value types in the compiler.
+-	// In OpConst's case, their width is the compiler's width, not the to-be-compiled
+-	// program's width.  For now, we can translate int/uint/uintptr to their specific
+-	// widths variants before SSA.
+-	// However, we may need at some point to maintain all possible user types in the
+-	// compiler to handle things like interface conversion.  At that point, we may
+-	// need to revisit this decision.
+-)
++// A type interface used to import cmd/internal/gc:Type
++// Type instances are not guaranteed to be canonical.
++type Type interface {
++	Size() int64 // return the size in bytes
+ 
+-// typeIdentical reports whether its two arguments are the same type.
+-func typeIdentical(t, u Type) bool {
+-	if t == TypeMem {
+-		return u == TypeMem
+-	}
+-	if t == TypeFlags {
+-		return u == TypeFlags
+-	}
+-	return types.Identical(t, u)
+-}
++	IsBoolean() bool // is a named or unnamed boolean type
++	IsInteger() bool //  ... ditto for the others
++	IsSigned() bool
++	IsFloat() bool
++	IsPtr() bool
+ 
+-// A type representing all of memory
+-type Memory struct {
+-}
++	IsMemory() bool // special ssa-package-only types
++	IsFlags() bool
+ 
+-func (t *Memory) Underlying() types.Type { panic("Underlying of Memory") }
+-func (t *Memory) String() string         { return "mem" }
++	Elem() Type  // given []T or *T, return T
++	PtrTo() Type // given T, return *T
+ 
+-// A type representing the unknown type
+-type Unknown struct {
++	String() string
+ }
+ 
+-func (t *Unknown) Underlying() types.Type { panic("Underlying of Unknown") }
+-func (t *Unknown) String() string         { return "unk" }
++// Stub implementation for now, until we are completely using ../gc:Type
++type TypeImpl struct {
++	Size_   int64
++	Boolean bool
++	Integer bool
++	Signed  bool
++	Float   bool
++	Ptr     bool
+ 
+-// A type representing the void type.  Used during building, should always
+-// be eliminated by the first deadcode pass.
+-type Void struct {
+-}
++	Memory bool
++	Flags  bool
+ 
+-func (t *Void) Underlying() types.Type { panic("Underlying of Void") }
+-func (t *Void) String() string         { return "void" }
+-
+-// A type representing the results of a nil check or bounds check.
+-// TODO: or type check?
+-// TODO: just use bool?
+-type Check struct {
++	Name string
+ }
+ 
+-func (t *Check) Underlying() types.Type { panic("Underlying of Check") }
+-func (t *Check) String() string         { return "check" }
++func (t *TypeImpl) Size() int64     { return t.Size_ }
++func (t *TypeImpl) IsBoolean() bool { return t.Boolean }
++func (t *TypeImpl) IsInteger() bool { return t.Integer }
++func (t *TypeImpl) IsSigned() bool  { return t.Signed }
++func (t *TypeImpl) IsFloat() bool   { return t.Float }
++func (t *TypeImpl) IsPtr() bool     { return t.Ptr }
++func (t *TypeImpl) IsMemory() bool  { return t.Memory }
++func (t *TypeImpl) IsFlags() bool   { return t.Flags }
++func (t *TypeImpl) String() string  { return t.Name }
++func (t *TypeImpl) Elem() Type      { panic("not implemented"); return nil }
++func (t *TypeImpl) PtrTo() Type     { panic("not implemented"); return nil }
+ 
+-// x86 flags type
+-type Flags struct {
+-}
++var (
++	// shortcuts for commonly used basic types
++	TypeInt8   = &TypeImpl{Size_: 1, Integer: true, Signed: true, Name: "int8"}
++	TypeInt16  = &TypeImpl{Size_: 2, Integer: true, Signed: true, Name: "int16"}
++	TypeInt32  = &TypeImpl{Size_: 4, Integer: true, Signed: true, Name: "int32"}
++	TypeInt64  = &TypeImpl{Size_: 8, Integer: true, Signed: true, Name: "int64"}
++	TypeUInt8  = &TypeImpl{Size_: 1, Integer: true, Name: "uint8"}
++	TypeUInt16 = &TypeImpl{Size_: 2, Integer: true, Name: "uint16"}
++	TypeUInt32 = &TypeImpl{Size_: 4, Integer: true, Name: "uint32"}
++	TypeUInt64 = &TypeImpl{Size_: 8, Integer: true, Name: "uint64"}
++	TypeBool   = &TypeImpl{Size_: 1, Boolean: true, Name: "bool"}
++	//TypeString = types.Typ[types.String]
++
++	TypeInvalid = &TypeImpl{Name: "invalid"}
+ 
+-func (t *Flags) Underlying() types.Type { panic("Underlying of Flags") }
+-func (t *Flags) String() string         { return "flags" }
++	// Additional compiler-only types go here.
++	TypeMem   = &TypeImpl{Memory: true, Name: "mem"}
++	TypeFlags = &TypeImpl{Flags: true, Name: "flags"}
++)
+diff --git a/src/cmd/internal/ssa/types/object.go b/src/cmd/internal/ssa/types/object.go
+deleted file mode 100644
+index cd0be163b7..0000000000
+--- a/src/cmd/internal/ssa/types/object.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This package is a drop-in replacement for go/types
+-// for use until go/types is included in the main repo.
+-
+-package types
+-
+-// An Object describes a named language entity such as a package,
+-// constant, type, variable, function (incl. methods), or label.
+-// All objects implement the Object interface.
+-//
+-type Object interface {
+-	Name() string // package local object name
+-	Type() Type   // object type
+-}
+-
+-// An object implements the common parts of an Object.
+-type object struct {
+-	name string
+-	typ  Type
+-}
+-
+-func (obj *object) Name() string { return obj.name }
+-func (obj *object) Type() Type   { return obj.typ }
+-
+-// A Variable represents a declared variable (including function parameters and results, and struct fields).
+-type Var struct {
+-	object
+-	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
+-	visited   bool // for initialization cycle detection
+-	isField   bool // var is struct field
+-	used      bool // set if the variable was used
+-}
+-
+-func NewParam(pos int, pkg *int, name string, typ Type) *Var {
+-	return &Var{object: object{name, typ}, used: true} // parameters are always 'used'
+-}
+diff --git a/src/cmd/internal/ssa/types/sizes.go b/src/cmd/internal/ssa/types/sizes.go
+deleted file mode 100644
+index b52f636fc5..0000000000
+--- a/src/cmd/internal/ssa/types/sizes.go
++++ /dev/null
+@@ -1,117 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file implements Sizes.
+-
+-package types
+-
+-import "log"
+-
+-// Sizes defines the sizing functions for package unsafe.
+-type Sizes interface {
+-	// Alignof returns the alignment of a variable of type T.
+-	// Alignof must implement the alignment guarantees required by the spec.
+-	Alignof(T Type) int64
+-
+-	// Offsetsof returns the offsets of the given struct fields, in bytes.
+-	// Offsetsof must implement the offset guarantees required by the spec.
+-	Offsetsof(fields []*Var) []int64
+-
+-	// Sizeof returns the size of a variable of type T.
+-	// Sizeof must implement the size guarantees required by the spec.
+-	Sizeof(T Type) int64
+-}
+-
+-// StdSizes is a convenience type for creating commonly used Sizes.
+-// It makes the following simplifying assumptions:
+-//
+-//	- The size of explicitly sized basic types (int16, etc.) is the
+-//	  specified size.
+-//	- The size of strings and interfaces is 2*WordSize.
+-//	- The size of slices is 3*WordSize.
+-//	- The size of an array of n elements corresponds to the size of
+-//	  a struct of n consecutive fields of the array's element type.
+-//      - The size of a struct is the offset of the last field plus that
+-//	  field's size. As with all element types, if the struct is used
+-//	  in an array its size must first be aligned to a multiple of the
+-//	  struct's alignment.
+-//	- All other types have size WordSize.
+-//	- Arrays and structs are aligned per spec definition; all other
+-//	  types are naturally aligned with a maximum alignment MaxAlign.
+-//
+-// *StdSizes implements Sizes.
+-//
+-type StdSizes struct {
+-	WordSize int64 // word size in bytes - must be >= 4 (32bits)
+-	MaxAlign int64 // maximum alignment in bytes - must be >= 1
+-}
+-
+-func (s *StdSizes) Alignof(T Type) int64 {
+-	a := s.Sizeof(T) // may be 0
+-	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
+-	if a < 1 {
+-		return 1
+-	}
+-	if a > s.MaxAlign {
+-		return s.MaxAlign
+-	}
+-	return a
+-}
+-
+-func (s *StdSizes) Offsetsof(fields []*Var) []int64 {
+-	offsets := make([]int64, len(fields))
+-	var o int64
+-	for i, f := range fields {
+-		a := s.Alignof(f.typ)
+-		o = align(o, a)
+-		offsets[i] = o
+-		o += s.Sizeof(f.typ)
+-	}
+-	return offsets
+-}
+-
+-var basicSizes = [...]byte{
+-	Bool:       1,
+-	Int8:       1,
+-	Int16:      2,
+-	Int32:      4,
+-	Int64:      8,
+-	Uint8:      1,
+-	Uint16:     2,
+-	Uint32:     4,
+-	Uint64:     8,
+-	Float32:    4,
+-	Float64:    8,
+-	Complex64:  8,
+-	Complex128: 16,
+-}
+-
+-func (s *StdSizes) Sizeof(T Type) int64 {
+-	switch t := T.Underlying().(type) {
+-	case *Basic:
+-		k := t.kind
+-		if int(k) < len(basicSizes) {
+-			if s := basicSizes[k]; s > 0 {
+-				return int64(s)
+-			}
+-		}
+-		if k == String {
+-			return s.WordSize * 2
+-		}
+-	case *Slice:
+-		return s.WordSize * 3
+-	default:
+-		log.Fatalf("not implemented")
+-	}
+-	return s.WordSize // catch-all
+-}
+-
+-// stdSizes is used if Config.Sizes == nil.
+-var stdSizes = StdSizes{8, 8}
+-
+-// align returns the smallest y >= x such that y % a == 0.
+-func align(x, a int64) int64 {
+-	y := x + a - 1
+-	return y - y%a
+-}
+diff --git a/src/cmd/internal/ssa/types/type.go b/src/cmd/internal/ssa/types/type.go
+deleted file mode 100644
+index e01de5c1e4..0000000000
+--- a/src/cmd/internal/ssa/types/type.go
++++ /dev/null
+@@ -1,229 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This package is a drop-in replacement for go/types
+-// for use until go/types is included in the main repo.
+-
+-package types
+-
+-// A Type represents a type of Go.
+-// All types implement the Type interface.
+-type Type interface {
+-	// Underlying returns the underlying type of a type.
+-	Underlying() Type
+-
+-	// String returns a string representation of a type.
+-	String() string
+-}
+-
+-// BasicKind describes the kind of basic type.
+-type BasicKind int
+-
+-const (
+-	Invalid BasicKind = iota // type is invalid
+-
+-	// predeclared types
+-	Bool
+-	Int
+-	Int8
+-	Int16
+-	Int32
+-	Int64
+-	Uint
+-	Uint8
+-	Uint16
+-	Uint32
+-	Uint64
+-	Uintptr
+-	Float32
+-	Float64
+-	Complex64
+-	Complex128
+-	String
+-	UnsafePointer
+-
+-	// types for untyped values
+-	UntypedBool
+-	UntypedInt
+-	UntypedRune
+-	UntypedFloat
+-	UntypedComplex
+-	UntypedString
+-	UntypedNil
+-
+-	// aliases
+-	Byte = Uint8
+-	Rune = Int32
+-)
+-
+-// BasicInfo is a set of flags describing properties of a basic type.
+-type BasicInfo int
+-
+-// Properties of basic types.
+-const (
+-	IsBoolean BasicInfo = 1 << iota
+-	IsInteger
+-	IsUnsigned
+-	IsFloat
+-	IsComplex
+-	IsString
+-	IsUntyped
+-
+-	IsOrdered   = IsInteger | IsFloat | IsString
+-	IsNumeric   = IsInteger | IsFloat | IsComplex
+-	IsConstType = IsBoolean | IsNumeric | IsString
+-)
+-
+-// A Basic represents a basic type.
+-type Basic struct {
+-	kind BasicKind
+-	info BasicInfo
+-	name string
+-}
+-
+-// Kind returns the kind of basic type b.
+-func (b *Basic) Kind() BasicKind { return b.kind }
+-
+-// Info returns information about properties of basic type b.
+-func (b *Basic) Info() BasicInfo { return b.info }
+-
+-// Name returns the name of basic type b.
+-func (b *Basic) Name() string { return b.name }
+-
+-// A Pointer represents a pointer type.
+-type Pointer struct {
+-	base Type // element type
+-}
+-
+-// NewPointer returns a new pointer type for the given element (base) type.
+-func NewPointer(elem Type) *Pointer { return &Pointer{base: elem} }
+-
+-// Elem returns the element type for the given pointer p.
+-func (p *Pointer) Elem() Type { return p.base }
+-
+-// A Slice represents a slice type.
+-type Slice struct {
+-	elem Type
+-}
+-
+-// NewSlice returns a new slice type for the given element type.
+-func NewSlice(elem Type) *Slice { return &Slice{elem} }
+-
+-// Elem returns the element type of slice s.
+-func (s *Slice) Elem() Type { return s.elem }
+-
+-// Implementations for Type methods.
+-func (t *Basic) Underlying() Type     { return t }
+-func (t *Slice) Underlying() Type     { return t }
+-func (t *Pointer) Underlying() Type   { return t }
+-func (t *Signature) Underlying() Type { return t }
+-
+-func (b *Basic) String() string     { return b.name }
+-func (t *Slice) String() string     { return "[]" + t.elem.String() }
+-func (t *Pointer) String() string   { return "*" + t.base.String() }
+-func (t *Signature) String() string { return "sig" /* TODO */ }
+-
+-var Typ = [...]*Basic{
+-	Invalid: {Invalid, 0, "invalid type"},
+-
+-	Bool:          {Bool, IsBoolean, "bool"},
+-	Int:           {Int, IsInteger, "int"},
+-	Int8:          {Int8, IsInteger, "int8"},
+-	Int16:         {Int16, IsInteger, "int16"},
+-	Int32:         {Int32, IsInteger, "int32"},
+-	Int64:         {Int64, IsInteger, "int64"},
+-	Uint:          {Uint, IsInteger | IsUnsigned, "uint"},
+-	Uint8:         {Uint8, IsInteger | IsUnsigned, "uint8"},
+-	Uint16:        {Uint16, IsInteger | IsUnsigned, "uint16"},
+-	Uint32:        {Uint32, IsInteger | IsUnsigned, "uint32"},
+-	Uint64:        {Uint64, IsInteger | IsUnsigned, "uint64"},
+-	Uintptr:       {Uintptr, IsInteger | IsUnsigned, "uintptr"},
+-	Float32:       {Float32, IsFloat, "float32"},
+-	Float64:       {Float64, IsFloat, "float64"},
+-	Complex64:     {Complex64, IsComplex, "complex64"},
+-	Complex128:    {Complex128, IsComplex, "complex128"},
+-	String:        {String, IsString, "string"},
+-	UnsafePointer: {UnsafePointer, 0, "Pointer"},
+-
+-	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, "untyped bool"},
+-	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, "untyped int"},
+-	UntypedRune:    {UntypedRune, IsInteger | IsUntyped, "untyped rune"},
+-	UntypedFloat:   {UntypedFloat, IsFloat | IsUntyped, "untyped float"},
+-	UntypedComplex: {UntypedComplex, IsComplex | IsUntyped, "untyped complex"},
+-	UntypedString:  {UntypedString, IsString | IsUntyped, "untyped string"},
+-	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil"},
+-}
+-
+-// Identical reports whether x and y are identical.
+-func Identical(x, y Type) bool {
+-	if x == y {
+-		return true
+-	}
+-
+-	switch x := x.(type) {
+-	case *Basic:
+-		// Basic types are singletons except for the rune and byte
+-		// aliases, thus we cannot solely rely on the x == y check
+-		// above.
+-		if y, ok := y.(*Basic); ok {
+-			return x.kind == y.kind
+-		}
+-	default:
+-		panic("can't handle yet")
+-	}
+-	return false
+-}
+-
+-// A Tuple represents an ordered list of variables; a nil *Tuple is a valid (empty) tuple.
+-// Tuples are used as components of signatures and to represent the type of multiple
+-// assignments; they are not first class types of Go.
+-type Tuple struct {
+-	vars []*Var
+-}
+-
+-// NewTuple returns a new tuple for the given variables.
+-func NewTuple(x ...*Var) *Tuple {
+-	if len(x) > 0 {
+-		return &Tuple{x}
+-	}
+-	return nil
+-}
+-
+-// Len returns the number variables of tuple t.
+-func (t *Tuple) Len() int {
+-	if t != nil {
+-		return len(t.vars)
+-	}
+-	return 0
+-}
+-
+-// At returns the i'th variable of tuple t.
+-func (t *Tuple) At(i int) *Var { return t.vars[i] }
+-
+-// A Signature represents a (non-builtin) function or method type.
+-type Signature struct {
+-	recv     *Var   // nil if not a method
+-	params   *Tuple // (incoming) parameters from left to right; or nil
+-	results  *Tuple // (outgoing) results from left to right; or nil
+-	variadic bool   // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+-}
+-
+-// NewSignature returns a new function type for the given receiver, parameters,
+-// and results, either of which may be nil. If variadic is set, the function
+-// is variadic, it must have at least one parameter, and the last parameter
+-// must be of unnamed slice type.
+-func NewSignature(scope *int, recv *Var, params, results *Tuple, variadic bool) *Signature {
+-	// TODO(gri) Should we rely on the correct (non-nil) incoming scope
+-	//           or should this function allocate and populate a scope?
+-	if variadic {
+-		n := params.Len()
+-		if n == 0 {
+-			panic("types.NewSignature: variadic function must have at least one parameter")
+-		}
+-		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
+-			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
+-		}
+-	}
+-	return &Signature{recv, params, results, variadic}
+-}
+diff --git a/src/cmd/internal/ssa/value.go b/src/cmd/internal/ssa/value.go
+index 389ba1ff77..dab6239dee 100644
+--- a/src/cmd/internal/ssa/value.go
++++ b/src/cmd/internal/ssa/value.go
+@@ -101,15 +101,3 @@ func (v *Value) resetArgs() {
+ 	v.argstorage[1] = nil
+ 	v.Args = v.argstorage[:0]
+ }
+-
+-// CopyFrom converts v to be the same value as w.  v and w must
+-// have the same type.
+-func (v *Value) CopyFrom(w *Value) {
+-	if !typeIdentical(v.Type, w.Type) {
+-		panic("copyFrom with unequal types")
+-	}
+-	v.Op = w.Op
+-	v.Aux = w.Aux
+-	v.resetArgs()
+-	v.AddArgs(w.Args...)
+-}

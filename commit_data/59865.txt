@@ -14,7 +14,62 @@ Date:   Sat May 4 00:40:18 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/stringslite/strings.go | 14 +++++++++++++-
  src/strings/clone.go                |  9 ++-------
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/stringslite/strings.go b/src/internal/stringslite/strings.go
+index c0c6e2dce5..4114b86130 100644
+--- a/src/internal/stringslite/strings.go
++++ b/src/internal/stringslite/strings.go
+@@ -8,7 +8,10 @@
+ // Tests for these functions are in the strings package.
+ package stringslite
+ 
+-import "internal/bytealg"
++import (
++	"internal/bytealg"
++	"unsafe"
++)
+ 
+ func HasPrefix(s, prefix string) bool {
+ 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+@@ -136,3 +139,12 @@ func TrimSuffix(s, suffix string) string {
+ 	}
+ 	return s
+ }
++
++func Clone(s string) string {
++	if len(s) == 0 {
++		return ""
++	}
++	b := make([]byte, len(s))
++	copy(b, s)
++	return unsafe.String(&b[0], len(b))
++}
+diff --git a/src/strings/clone.go b/src/strings/clone.go
+index d14df11d49..f965b5963a 100644
+--- a/src/strings/clone.go
++++ b/src/strings/clone.go
+@@ -5,7 +5,7 @@
+ package strings
+ 
+ import (
+-	"unsafe"
++	"internal/stringslite"
+ )
+ 
+ // Clone returns a fresh copy of s.
+@@ -19,10 +19,5 @@ import (
+ // For strings of length zero the string "" will be returned
+ // and no allocation is made.
+ func Clone(s string) string {
+-	if len(s) == 0 {
+-		return ""
+-	}
+-	b := make([]byte, len(s))
+-	copy(b, s)
+-	return unsafe.String(&b[0], len(b))
++	return stringslite.Clone(s)
+ }

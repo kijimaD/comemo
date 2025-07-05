@@ -17,9 +17,182 @@ Date:   Wed Jun 17 18:18:23 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/run/run.go     |  2 +-
  src/cmd/go/internal/test/test.go   | 10 +++++-----
  src/cmd/go/internal/work/action.go | 15 ++++++++-------
  src/cmd/go/internal/work/exec.go   | 17 ++++++++---------
  4 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 3630f68c54..deec5106ff 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -146,7 +146,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ // buildRunProgram is the action for running a binary that has already
+ // been compiled. We ignore exit status.
+-func buildRunProgram(b *work.Builder, a *work.Action) error {
++func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd("", "%s", strings.Join(cmdline, " "))
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d71d339828..9788590938 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1069,7 +1069,7 @@ func (lockedStdout) Write(b []byte) (int, error) {
+ }
+ 
+ // builderRunTest is the action for running a test binary.
+-func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
++func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	if a.Failed {
+ 		// We were unable to build the binary.
+ 		a.Failed = false
+@@ -1642,7 +1642,7 @@ func coveragePercentage(out []byte) string {
+ }
+ 
+ // builderCleanTest is the action for cleaning up after a test.
+-func builderCleanTest(b *work.Builder, a *work.Action) error {
++func builderCleanTest(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	if cfg.BuildWork {
+ 		return nil
+ 	}
+@@ -1654,7 +1654,7 @@ func builderCleanTest(b *work.Builder, a *work.Action) error {
+ }
+ 
+ // builderPrintTest is the action for printing a test result.
+-func builderPrintTest(b *work.Builder, a *work.Action) error {
++func builderPrintTest(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	clean := a.Deps[0]
+ 	run := clean.Deps[0]
+ 	if run.TestOutput != nil {
+@@ -1665,7 +1665,7 @@ func builderPrintTest(b *work.Builder, a *work.Action) error {
+ }
+ 
+ // builderNoTest is the action for testing a package with no test files.
+-func builderNoTest(b *work.Builder, a *work.Action) error {
++func builderNoTest(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	var stdout io.Writer = os.Stdout
+ 	if testJSON {
+ 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+@@ -1677,7 +1677,7 @@ func builderNoTest(b *work.Builder, a *work.Action) error {
+ }
+ 
+ // printExitStatus is the action for printing the exit status
+-func printExitStatus(b *work.Builder, a *work.Action) error {
++func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 	if !testJSON && len(pkgArgs) != 0 {
+ 		if base.GetExitStatus() != 0 {
+ 			fmt.Println("FAIL")
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 6b5f9e4807..a37a5e618d 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -10,6 +10,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"container/heap"
++	"context"
+ 	"debug/elf"
+ 	"encoding/json"
+ 	"fmt"
+@@ -63,13 +64,13 @@ type Builder struct {
+ 
+ // An Action represents a single action in the action graph.
+ type Action struct {
+-	Mode       string                        // description of action operation
+-	Package    *load.Package                 // the package this action works on
+-	Deps       []*Action                     // actions that must happen before this one
+-	Func       func(*Builder, *Action) error // the action itself (nil = no-op)
+-	IgnoreFail bool                          // whether to run f even if dependencies fail
+-	TestOutput *bytes.Buffer                 // test output buffer
+-	Args       []string                      // additional args for runProgram
++	Mode       string                                         // description of action operation
++	Package    *load.Package                                  // the package this action works on
++	Deps       []*Action                                      // actions that must happen before this one
++	Func       func(*Builder, context.Context, *Action) error // the action itself (nil = no-op)
++	IgnoreFail bool                                           // whether to run f even if dependencies fail
++	TestOutput *bytes.Buffer                                  // test output buffer
++	Args       []string                                       // additional args for runProgram
+ 
+ 	triggers []*Action // inverse of deps
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 56a127f36f..3903502a67 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -127,8 +127,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
+ 				desc += "(" + a.Mode + " " + a.Package.Desc() + ")"
+ 			}
+ 			ctx, span := trace.StartSpan(ctx, desc)
+-			_ = ctx
+-			err = a.Func(b, a)
++			err = a.Func(b, ctx, a)
+ 			span.Done()
+ 		}
+ 		if a.json != nil {
+@@ -400,7 +399,7 @@ const (
+ 
+ // build is the action for building a single package.
+ // Note that any new influence on this logic must be reported in b.buildActionID above as well.
+-func (b *Builder) build(a *Action) (err error) {
++func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 	p := a.Package
+ 
+ 	bit := func(x uint32, b bool) uint32 {
+@@ -1005,7 +1004,7 @@ var VetFlags []string
+ // VetExplicit records whether the vet flags were set explicitly on the command line.
+ var VetExplicit bool
+ 
+-func (b *Builder) vet(a *Action) error {
++func (b *Builder) vet(ctx context.Context, a *Action) error {
+ 	// a.Deps[0] is the build of the package being vetted.
+ 	// a.Deps[1] is the build of the "fmt" package.
+ 
+@@ -1196,7 +1195,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 
+ // link is the action for linking a single command.
+ // Note that any new influence on this logic must be reported in b.linkActionID above as well.
+-func (b *Builder) link(a *Action) (err error) {
++func (b *Builder) link(ctx context.Context, a *Action) (err error) {
+ 	if b.useCache(a, b.linkActionID(a), a.Package.Target) || b.IsCmdList {
+ 		return nil
+ 	}
+@@ -1388,7 +1387,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string,
+ 	return
+ }
+ 
+-func (b *Builder) installShlibname(a *Action) error {
++func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
+ 	if err := allowInstall(a); err != nil {
+ 		return err
+ 	}
+@@ -1437,7 +1436,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
+ 	return h.Sum()
+ }
+ 
+-func (b *Builder) linkShared(a *Action) (err error) {
++func (b *Builder) linkShared(ctx context.Context, a *Action) (err error) {
+ 	if b.useCache(a, b.linkSharedActionID(a), a.Target) || b.IsCmdList {
+ 		return nil
+ 	}
+@@ -1463,7 +1462,7 @@ func (b *Builder) linkShared(a *Action) (err error) {
+ }
+ 
+ // BuildInstallFunc is the action for installing a single package or executable.
+-func BuildInstallFunc(b *Builder, a *Action) (err error) {
++func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
+ 	defer func() {
+ 		if err != nil && err != errPrintedOutput {
+ 			// a.Package == nil is possible for the go install -buildmode=shared
+@@ -1716,7 +1715,7 @@ func (b *Builder) writeFile(file string, text []byte) error {
+ }
+ 
+ // Install the cgo export header file, if there is one.
+-func (b *Builder) installHeader(a *Action) error {
++func (b *Builder) installHeader(ctx context.Context, a *Action) error {
+ 	src := a.Objdir + "_cgo_install.h"
+ 	if _, err := os.Stat(src); os.IsNotExist(err) {
+ 		// If the file does not exist, there are no exported

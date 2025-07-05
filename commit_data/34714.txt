@@ -20,7 +20,38 @@ Date:   Tue Nov 7 11:34:35 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/vet/print.go          | 5 +++--
  src/cmd/vet/testdata/print.go | 5 +++++
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 620075d118..5dc6bdf628 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -672,8 +672,9 @@ func (f *File) checkPrint(call *ast.CallExpr, name string) {
+ 		// The last item, if a string, should not have a newline.
+ 		arg = args[len(args)-1]
+ 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+-			if strings.HasSuffix(lit.Value, `\n"`) {
+-				f.Badf(call.Pos(), "%s args end with redundant newline", name)
++			str, _ := strconv.Unquote(lit.Value)
++			if strings.HasSuffix(str, "\n") {
++				f.Badf(call.Pos(), "%s arg list ends with redundant newline", name)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index c3f5abe4f1..b7bc98ab56 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -532,4 +532,9 @@ func UnexportedStringerOrError() {
+ 	}
+ 	fmt.Printf("%s", uef)  // ERROR "Printf format %s has arg uef of wrong type testdata.unexportedErrorOtherFields"
+ 	fmt.Printf("%s", &uef) // ERROR "Printf format %s has arg &uef of wrong type [*]testdata.unexportedErrorOtherFields"
++
++	fmt.Println("foo\n", "bar") // not an error
++	fmt.Println("foo\n")        // ERROR "Println arg list ends with redundant newline"
++	fmt.Println("foo\\n")       // not an error
++	fmt.Println(`foo\n`)        // not an error
+ }

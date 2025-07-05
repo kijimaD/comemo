@@ -5,7 +5,7 @@ Date:   Sat Apr 2 14:24:03 2011 -0700
     R=rsc, brainman, ality, r2, r
     CC=golang-dev
     https://golang.org/cl/3816043
-
+---
  src/pkg/syscall/Makefile              |   3 +
  src/pkg/syscall/asm_plan9_386.s       | 151 ++++++++++
  src/pkg/syscall/exec_plan9.go         | 521 ++++++++++++++++++++++++++++++++++
@@ -24,3 +24,1775 @@ Date:   Sat Apr 2 14:24:03 2011 -0700
  src/pkg/syscall/zsysnum_plan9_386.go  |  47 +++
  src/pkg/syscall/ztypes_plan9_386.go   |  74 +++++
  17 files changed, 1604 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 061b0056c6..978bc94f8e 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -32,6 +32,9 @@ GOFILES_linux=\
+ 
+ GOFILES_windows=\
+ 	exec_windows.go
++	
++GOFILES_plan9=\
++	exec_plan9.go
+ 
+ OFILES=\
+ 	asm_$(GOOS)_$(GOARCH).$O\
+diff --git a/src/pkg/syscall/asm_plan9_386.s b/src/pkg/syscall/asm_plan9_386.s
+new file mode 100644
+index 0000000000..86ebedccce
+--- /dev/null
++++ b/src/pkg/syscall/asm_plan9_386.s
+@@ -0,0 +1,151 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System call support for 386, Plan 9
++//
++
++//func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err string)
++//func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err string)
++//func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++//func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
++
++// Trap # in AX, args on stack above caller pc.
++TEXT	·Syscall(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$64
++	MOVL	AX, r1+20(SP)
++	MOVL	$0, r2+24(SP)
++	CMPL	AX, $-1
++	JNE	ok3
++
++	SUBL	$8, SP
++	CALL	syscall·errstr(SB)
++	MOVL	SP, SI
++	ADDL	$8, SP
++	JMP	copyresult3
++	
++ok3:
++	LEAL	runtime·emptystring(SB), SI	
++	
++copyresult3:
++	LEAL	err+28(SP), DI
++
++	CLD
++	MOVSL
++	MOVSL
++
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	·Syscall6(SB),7,$0
++	CALL	runtime·entersyscall(SB)
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$64
++	MOVL	AX, r1+32(SP)
++	MOVL	$0, r2+36(SP)
++	CMPL	AX, $-1
++	JNE	ok4
++	
++	SUBL	$8, SP
++	CALL	syscall·errstr(SB)
++	MOVL	SP, SI
++	ADDL	$8, SP
++	JMP	copyresult4
++	
++ok4:
++	LEAL	runtime·emptystring(SB), SI
++	
++copyresult4:
++	LEAL	err+40(SP), DI
++
++	CLD
++	MOVSL
++	MOVSL
++
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT ·RawSyscall(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$64
++	MOVL	AX, r1+20(SP)
++	MOVL	AX, r2+24(SP)
++	MOVL	AX, err+28(SP)
++	RET
++
++TEXT	·RawSyscall6(SB),7,$0
++	MOVL	4(SP), AX	// syscall entry
++	// slide args down on top of system call number
++	LEAL		8(SP), SI
++	LEAL		4(SP), DI
++	CLD
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	MOVSL
++	INT	$64
++	MOVL	AX, r1+32(SP)
++	MOVL	AX, r2+36(SP)
++	MOVL	AX, err+40(SP)		
++	RET
++
++#define SYS_SEEK 39	/* from zsysnum_plan9_386.go */
++
++//func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
++TEXT ·seek(SB),7,$0
++	LEAL	newoffset+24(SP), AX
++	MOVL	AX, placeholder+4(SP)
++	
++	MOVL	$SYS_SEEK, AX	// syscall entry
++	INT	$64
++	
++	CMPL	AX, $-1
++	JNE	ok6
++	MOVL	AX, 24(SP)	// newoffset low
++	MOVL	AX, 28(SP)	// newoffset high
++	
++	SUBL	$8, SP
++	CALL	syscall·errstr(SB)
++	MOVL	SP, SI
++	ADDL	$8, SP	
++	JMP	copyresult6
++	
++ok6:
++	LEAL	runtime·emptystring(SB), SI
++	
++copyresult6:
++	LEAL	err+32(SP), DI
++
++	CLD
++	MOVSL
++	MOVSL
++	RET
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+new file mode 100644
+index 0000000000..94ec395d6d
+--- /dev/null
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -0,0 +1,521 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Fork, exec, wait, etc.
++
++package syscall
++
++import (
++	"sync"
++	"unsafe"
++)
++
++// Lock synchronizing creation of new file descriptors with fork.
++//
++// We want the child in a fork/exec sequence to inherit only the
++// file descriptors we intend.  To do that, we mark all file
++// descriptors close-on-exec and then, in the child, explicitly
++// unmark the ones we want the exec'ed program to keep.
++// Unix doesn't make this easy: there is, in general, no way to
++// allocate a new file descriptor close-on-exec.  Instead you
++// have to allocate the descriptor and then mark it close-on-exec.
++// If a fork happens between those two events, the child's exec
++// will inherit an unwanted file descriptor.
++//
++// This lock solves that race: the create new fd/mark close-on-exec
++// operation is done holding ForkLock for reading, and the fork itself
++// is done holding ForkLock for writing.  At least, that's the idea.
++// There are some complications.
++//
++// Some system calls that create new file descriptors can block
++// for arbitrarily long times: open on a hung NFS server or named
++// pipe, accept on a socket, and so on.  We can't reasonably grab
++// the lock across those operations.
++//
++// It is worse to inherit some file descriptors than others.
++// If a non-malicious child accidentally inherits an open ordinary file,
++// that's not a big deal.  On the other hand, if a long-lived child
++// accidentally inherits the write end of a pipe, then the reader
++// of that pipe will not see EOF until that child exits, potentially
++// causing the parent program to hang.  This is a common problem
++// in threaded C programs that use popen.
++//
++// Luckily, the file descriptors that are most important not to
++// inherit are not the ones that can take an arbitrarily long time
++// to create: pipe returns instantly, and the net package uses
++// non-blocking I/O to accept on a listening socket.
++// The rules for which file descriptor-creating operations use the
++// ForkLock are as follows:
++//
++// 1) Pipe.    Does not block.  Use the ForkLock.
++// 2) Socket.  Does not block.  Use the ForkLock.
++// 3) Accept.  If using non-blocking mode, use the ForkLock.
++//             Otherwise, live with the race.
++// 4) Open.    Can block.  Use O_CLOEXEC if available (Linux).
++//             Otherwise, live with the race.
++// 5) Dup.     Does not block.  Use the ForkLock.
++//             On Linux, could use fcntl F_DUPFD_CLOEXEC
++//             instead of the ForkLock, but only for dup(fd, -1).
++
++var ForkLock sync.RWMutex
++
++// Convert array of string to array
++// of NUL-terminated byte pointer.
++func StringArrayPtr(ss []string) []*byte {
++	bb := make([]*byte, len(ss)+1)
++	for i := 0; i < len(ss); i++ {
++		bb[i] = StringBytePtr(ss[i])
++	}
++	bb[len(ss)] = nil
++	return bb
++}
++
++// gbit16 reads a 16-bit numeric value from a 9P protocol message strored in b,
++// returning the value and the remaining slice of b.
++func gbit16(b []byte) (uint16, []byte) {
++	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
++}
++
++// gstring reads a string from a 9P protocol message strored in b,
++// returning the value as a Go string and the remaining slice of b.
++func gstring(b []byte) (string, []byte) {
++	n, b := gbit16(b)
++	return string(b[0:n]), b[n:]
++}
++
++// readdirnames returns the names of files inside the directory represented by dirfd.
++func readdirnames(dirfd int) (names []string, err Error) {
++	result := make([]string, 0, 100)
++	var buf [STATMAX]byte
++
++	for {
++		n, e := Read(dirfd, buf[:])
++		if e != nil {
++			return []string{}, e
++		}
++		if n == 0 {
++			break
++		}
++
++		for i := 0; i < n; {
++			m, _ := gbit16(buf[i:])
++			m += 2
++
++			if m < STATFIXLEN {
++				return []string{}, NewError("malformed stat buffer")
++			}
++
++			name, _ := gstring(buf[i+41:])
++			result = append(result, name)
++
++			i += int(m)
++		}
++	}
++	return []string{}, nil
++}
++
++// readdupdevice returns a list of currently opened fds (excluding stdin, stdout, stderr) from the dup device #d.
++// ForkLock should be write locked before calling, so that no new fds would be created while the fd list is being read.
++func readdupdevice() (fds []int, err Error) {
++	dupdevfd, err := Open("#d", O_RDONLY)
++
++	if err != nil {
++		return
++	}
++	defer Close(dupdevfd)
++
++	fileNames, err := readdirnames(dupdevfd)
++	if err != nil {
++		return
++	}
++
++	fds = make([]int, 0, len(fileNames)>>1)
++	for _, fdstr := range fileNames {
++		if l := len(fdstr); l > 2 && fdstr[l-3] == 'c' && fdstr[l-2] == 't' && fdstr[l-1] == 'l' {
++			continue
++		}
++
++		fd := int(atoi([]byte(fdstr)))
++
++		if fd == 0 || fd == 1 || fd == 2 || fd == dupdevfd {
++			continue
++		}
++
++		fds = append(fds, fd)
++	}
++
++	return fds[0:len(fds)], nil
++}
++
++var startupFds []int
++
++// Plan 9 does not allow clearing the OCEXEC flag
++// from the underlying channel backing an open file descriptor,
++// therefore we store a list of already opened file descriptors
++// inside startupFds and skip them when manually closing descriptors
++// not meant to be passed to a child exec.
++func init() {
++	startupFds, _ = readdupdevice()
++}
++
++// forkAndExecInChild forks the process, calling dup onto 0..len(fd)
++// and finally invoking exec(argv0, argvv, envv) in the child.
++// If a dup or exec fails, it writes the error string to pipe.
++// (The pipe write end is close-on-exec so if exec succeeds, it will be closed.)
++//
++// In the child, this function must not acquire any locks, because
++// they might have been locked at the time of the fork.  This means
++// no rescheduling, no malloc calls, and no new stack segments.
++// The calls to RawSyscall are okay because they are assembly
++// functions that do not grow the stack.
++func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, chroot, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int) (pid int, err Error) {
++	// Declare all variables at top in case any
++	// declarations require heap allocation (e.g., errbuf).
++	var (
++		r1       uintptr
++		nextfd   int
++		i        int
++		clearenv int
++		envfd    int
++		errbuf   [ERRMAX]byte
++	)
++
++	// guard against side effects of shuffling fds below.
++	fd := append([]int(nil), attr.Files...)
++
++	if envv != nil {
++		clearenv = RFCENVG
++	}
++
++	// About to call fork.
++	// No more allocation or calls of non-assembly functions.
++	r1, _, _ = RawSyscall(SYS_RFORK, uintptr(RFPROC|RFFDG|RFREND|clearenv), 0, 0)
++
++	if r1 != 0 {
++		if int(r1) == -1 {
++			return 0, NewError(errstr())
++		}
++		// parent; return PID
++		return int(r1), nil
++	}
++
++	// Fork succeeded, now in child.
++
++	// Close fds we don't need.
++	for i = 0; i < len(fdsToClose); i++ {
++		r1, _, _ = RawSyscall(SYS_CLOSE, uintptr(fdsToClose[i]), 0, 0)
++		if int(r1) == -1 {
++			goto childerror
++		}
++	}
++
++	if envv != nil {
++		// Write new environment variables.
++		for i = 0; i < len(envv); i++ {
++			r1, _, _ = RawSyscall(SYS_CREATE, uintptr(unsafe.Pointer(envv[i].name)), uintptr(O_WRONLY), uintptr(0666))
++
++			if int(r1) == -1 {
++				goto childerror
++			}
++
++			envfd = int(r1)
++
++			r1, _, _ = RawSyscall6(SYS_PWRITE, uintptr(envfd), uintptr(unsafe.Pointer(envv[i].value)), uintptr(envv[i].nvalue),
++				^uintptr(0), ^uintptr(0), 0)
++
++			if int(r1) == -1 || int(r1) != envv[i].nvalue {
++				goto childerror
++			}
++
++			r1, _, _ = RawSyscall(SYS_CLOSE, uintptr(envfd), 0, 0)
++
++			if int(r1) == -1 {
++				goto childerror
++			}
++		}
++	}
++
++	// Chdir
++	if dir != nil {
++		r1, _, _ = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
++		if int(r1) == -1 {
++			goto childerror
++		}
++	}
++
++	// Pass 1: look for fd[i] < i and move those up above len(fd)
++	// so that pass 2 won't stomp on an fd it needs later.
++	nextfd = int(len(fd))
++	if pipe < nextfd {
++		r1, _, _ = RawSyscall(SYS_DUP, uintptr(pipe), uintptr(nextfd), 0)
++		if int(r1) == -1 {
++			goto childerror
++		}
++		pipe = nextfd
++		nextfd++
++	}
++	for i = 0; i < len(fd); i++ {
++		if fd[i] >= 0 && fd[i] < int(i) {
++			r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(nextfd), 0)
++			if int(r1) == -1 {
++				goto childerror
++			}
++
++			fd[i] = nextfd
++			nextfd++
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
++		}
++	}
++
++	// Pass 2: dup fd[i] down onto i.
++	for i = 0; i < len(fd); i++ {
++		if fd[i] == -1 {
++			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
++			continue
++		}
++		if fd[i] == int(i) {
++			continue
++		}
++
++		r1, _, _ = RawSyscall(SYS_DUP, uintptr(fd[i]), uintptr(i), 0)
++		if int(r1) == -1 {
++			goto childerror
++		}
++		RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
++	}
++
++	// Time to exec.
++	r1, _, _ = RawSyscall(SYS_EXEC,
++		uintptr(unsafe.Pointer(argv0)),
++		uintptr(unsafe.Pointer(&argv[0])), 0)
++
++childerror:
++	// send error string on pipe
++	RawSyscall(SYS_ERRSTR, uintptr(unsafe.Pointer(&errbuf[0])), uintptr(len(errbuf)), 0)
++	errbuf[len(errbuf)-1] = 0
++	i = 0
++	for i < len(errbuf) && errbuf[i] != 0 {
++		i++
++	}
++
++	RawSyscall6(SYS_PWRITE, uintptr(pipe), uintptr(unsafe.Pointer(&errbuf[0])), uintptr(i),
++		^uintptr(0), ^uintptr(0), 0)
++
++	for {
++		RawSyscall(SYS_EXITS, 0, 0, 0)
++	}
++
++	// Calling panic is not actually safe,
++	// but the for loop above won't break
++	// and this shuts up the compiler.
++	panic("unreached")
++}
++
++func cexecPipe(p []int) Error {
++	e := Pipe(p)
++	if e != nil {
++		return e
++	}
++
++	fd, e := Open("#d/"+itoa(p[1]), O_CLOEXEC)
++	if e != nil {
++		Close(p[0])
++		Close(p[1])
++		return e
++	}
++
++	Close(fd)
++	return nil
++}
++
++type envItem struct {
++	name   *byte
++	value  *byte
++	nvalue int
++}
++
++type ProcAttr struct {
++	Dir    string   // Current working directory.
++	Env    []string // Environment.
++	Files  []int    // File descriptors.
++	Chroot string   // Chroot.
++}
++
++var zeroAttributes ProcAttr
++
++
++func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) {
++	var (
++		p      [2]int
++		n      int
++		errbuf [ERRMAX]byte
++		wmsg   Waitmsg
++	)
++
++	if attr == nil {
++		attr = &zeroAttributes
++	}
++
++	p[0] = -1
++	p[1] = -1
++
++	// Convert args to C form.
++	argv0p := StringBytePtr(argv[0])
++	argvp := StringArrayPtr(argv)
++
++	var chroot *byte
++	if attr.Chroot != "" {
++		chroot = StringBytePtr(attr.Chroot)
++	}
++	var dir *byte
++	if attr.Dir != "" {
++		dir = StringBytePtr(attr.Dir)
++	}
++	var envvParsed []envItem
++	if attr.Env != nil {
++		envvParsed = make([]envItem, 0, len(attr.Env))
++		for _, v := range attr.Env {
++			i := 0
++			for i < len(v) && v[i] != '=' {
++				i++
++			}
++
++			envvParsed = append(envvParsed, envItem{StringBytePtr("/env/" + v[:i]), StringBytePtr(v[i+1:]), len(v) - i})
++		}
++	}
++
++	// Acquire the fork lock to prevent other threads from creating new fds before we fork.
++	ForkLock.Lock()
++
++	// get a list of open fds, excluding stdin,stdout and stderr that need to be closed in the child.
++	// no new fds can be created while we hold the ForkLock for writing.
++	openFds, e := readdupdevice()
++
++	if e != nil {
++		ForkLock.Unlock()
++		return 0, e
++	}
++
++	fdsToClose := make([]int, 0, len(openFds))
++	// exclude fds opened from startup from the list of fds to be closed.
++	for _, fd := range openFds {
++		isReserved := false
++		for _, reservedFd := range startupFds {
++			if fd == reservedFd {
++				isReserved = true
++				break
++			}
++		}
++
++		if !isReserved {
++			fdsToClose = append(fdsToClose, fd)
++		}
++	}
++
++	// exclude fds requested by the caller from the list of fds to be closed.
++	for _, fd := range openFds {
++		isReserved := false
++		for _, reservedFd := range attr.Files {
++			if fd == reservedFd {
++				isReserved = true
++				break
++			}
++		}
++
++		if !isReserved {
++			fdsToClose = append(fdsToClose, fd)
++		}
++	}
++
++	// Allocate child status pipe close on exec.	
++	e = cexecPipe(p[:])
++
++	if e != nil {
++		return 0, e
++	}
++	fdsToClose = append(fdsToClose, p[0])
++
++	// Kick off child.
++	pid, err = forkAndExecInChild(argv0p, argvp, envvParsed, chroot, dir, attr, fdsToClose, p[1])
++
++	if err != nil {
++		if p[0] >= 0 {
++			Close(p[0])
++			Close(p[1])
++		}
++		ForkLock.Unlock()
++		return 0, err
++	}
++	ForkLock.Unlock()
++
++	// Read child error status from pipe.
++	Close(p[1])
++	n, err = Read(p[0], errbuf[:])
++	Close(p[0])
++
++	if err != nil || n != 0 {
++		if n != 0 {
++			err = NewError(string(errbuf[:]))
++		}
++
++		// Child failed; wait for it to exit, to make sure
++		// the zombies don't accumulate.
++		for wmsg.Pid != pid {
++			Await(&wmsg)
++		}
++		return 0, err
++	}
++
++	// Read got EOF, so pipe closed on exec, so exec succeeded.
++	return pid, nil
++}
++
++// Combination of fork and exec, careful to be thread safe.
++func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err Error) {
++	return forkExec(argv0, argv, attr)
++}
++
++// StartProcess wraps ForkExec for package os.
++func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int, err Error) {
++	pid, err = forkExec(argv0, argv, attr)
++	return pid, 0, err
++}
++
++// Ordinary exec.
++func Exec(argv0 string, argv []string, envv []string) (err Error) {
++	if envv != nil {
++		r1, _, _ := RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
++		if int(r1) == -1 {
++			return NewError(errstr())
++		}
++
++		for _, v := range envv {
++			i := 0
++			for i < len(v) && v[i] != '=' {
++				i++
++			}
++
++			fd, e := Create("/env/"+v[:i], O_WRONLY, 0666)
++			if e != nil {
++				return e
++			}
++
++			_, e = Write(fd, []byte(v[i+1:]))
++			if e != nil {
++				Close(fd)
++				return e
++			}
++			Close(fd)
++		}
++	}
++
++	_, _, e := Syscall(SYS_EXEC,
++		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
++		uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0])),
++		0)
++
++	return NewError(e)
++}
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 7e4511f38f..f0a13d9c87 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -145,6 +145,12 @@ windows_386)
+ 	mktypes=
+ 	mkerrors="./mkerrors_windows.sh -f -m32"
+ 	;;
++plan9_386)
++	mkerrors=
++	mksyscall="./mksyscall.pl -l32 -plan9"
++	mksysnum="./mksysnum_plan9.sh /n/sources/plan9/sys/src/libc/9syscall/sys.h"
++	mktypes="godefs -gsyscall -f -m32"
++	;;
+ *)
+ 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
+ 	exit 1
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index d4f9c2ab74..068a5e697d 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -23,6 +23,7 @@ $cmdline = "mksyscall.pl " . join(' ', @ARGV);
+ $errors = 0;
+ $_32bit = "";
+ $nacl = 0;
++$plan9 = 0;
+ 
+ if($ARGV[0] eq "-b32") {
+ 	$_32bit = "big-endian";
+@@ -35,6 +36,10 @@ if($ARGV[0] eq "-nacl") {
+ 	$nacl = 1;
+ 	shift;
+ }
++if($ARGV[0] eq "-plan9") {
++	$plan9 = 1;
++	shift;
++}
+ 
+ if($ARGV[0] =~ /^-/) {
+ 	print STDERR "usage: mksyscall.pl [-b32 | -l32] [file ...]\n";
+@@ -160,9 +165,13 @@ while(<>) {
+ 		my $p = $out[$i];
+ 		my ($name, $type) = parseparam($p);
+ 		my $reg = "";
+-		if($name eq "errno") {
++		if($name eq "errno" && !$plan9) {
+ 			$reg = "e1";
+ 			$ret[2] = $reg;
++		} elsif ($name eq "err" && $plan9) {
++			$ret[0] = "r0";			
++			$ret[2] = "e1";
++			next;
+ 		} else {
+ 			$reg = sprintf("r%d", $i);
+ 			$ret[$i] = $reg;
+@@ -191,6 +200,13 @@ while(<>) {
+ 		$text .= "\t$ret[0], $ret[1], $ret[2] := $call\n";
+ 	}
+ 	$text .= $body;
++	
++	if ($plan9 && $ret[2] eq "e1") {
++		$text .= "\terr = nil\n";
++		$text .= "\tif int(r0) == -1 {\n";
++		$text .= "\t\t err = NewError(e1)\n";
++		$text .= "\t}\n";
++	}
+ 
+ 	$text .= "\treturn\n";
+ 	$text .= "}\n\n";
+diff --git a/src/pkg/syscall/mksysnum_plan9.sh b/src/pkg/syscall/mksysnum_plan9.sh
+new file mode 100755
+index 0000000000..fc619f0903
+--- /dev/null
++++ b/src/pkg/syscall/mksysnum_plan9.sh
+@@ -0,0 +1,25 @@
++#!/bin/sh
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++COMMAND="mksysnum_plan9.sh $@"
++
++cat <<EOF
++// $COMMAND
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const(
++EOF
++
++SP='[ 	]' # space or tab
++sed "s/^#define${SP}\\([A-Z0-9_][A-Z0-9_]*\\)${SP}${SP}*\\([0-9][0-9]*\\)/SYS_\\1=\\2/g" \
++	< $1 | grep -v SYS__
++
++cat <<EOF
++)
++EOF
+diff --git a/src/pkg/syscall/str.go b/src/pkg/syscall/str.go
+index 12f0c7d607..0fce842e8c 100644
+--- a/src/pkg/syscall/str.go
++++ b/src/pkg/syscall/str.go
+@@ -4,9 +4,9 @@
+ 
+ package syscall
+ 
+-func str(val int) string { // do it here rather than with fmt to avoid dependency
++func itoa(val int) string { // do it here rather than with fmt to avoid dependency
+ 	if val < 0 {
+-		return "-" + str(-val)
++		return "-" + itoa(-val)
+ 	}
+ 	var buf [32]byte // big enough for int64
+ 	i := len(buf) - 1
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index f27eb1de55..4667663591 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -60,7 +60,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (errno int) {
+ func Futimes(fd int, tv []Timeval) (errno int) {
+ 	// Believe it or not, this is the best we can do on Linux
+ 	// (and is what glibc does).
+-	return Utimes("/proc/self/fd/"+str(fd), tv)
++	return Utimes("/proc/self/fd/"+itoa(fd), tv)
+ }
+ 
+ const ImplementsGetwd = true
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+new file mode 100644
+index 0000000000..b889940bfc
+--- /dev/null
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -0,0 +1,343 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Plan 9 system calls.
++// This file is compiled as ordinary Go code,
++// but it is also input to mksyscall,
++// which parses the //sys lines and generates system call stubs.
++// Note that sometimes we use a lowercase //sys name and
++// wrap it in our own nicer implementation.
++
++package syscall
++
++import "unsafe"
++
++const OS = "plan9"
++
++const ImplementsGetwd = true
++
++// An Error can represent any printable error condition.
++type Error interface {
++	String() string
++}
++
++// ErrorString implements Error's String method by returning itself.
++type ErrorString string
++
++func (e ErrorString) String() string { return string(e) }
++
++// NewError converts s to an ErrorString, which satisfies the Error interface.
++func NewError(s string) Error { return ErrorString(s) }
++
++var (
++	Stdin  = 0
++	Stdout = 1
++	Stderr = 2
++
++	EISDIR Error = NewError("file is a directory")
++)
++
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err string)
++func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err string)
++func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
++func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
++
++func atoi(b []byte) (n uint) {
++	n = 0
++	for i := 0; i < len(b); i++ {
++		n = n*10 + uint(b[i]-'0')
++	}
++	return
++}
++
++func cstring(s []byte) string {
++	for i, _ := range s {
++		if s[i] == 0 {
++			return string(s[0:i])
++		}
++	}
++	return string(s)
++}
++
++func errstr() string {
++	var buf [ERRMAX]byte
++
++	RawSyscall(SYS_ERRSTR, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), 0)
++
++	buf[len(buf)-1] = 0
++	return cstring(buf[:])
++}
++
++func Getpagesize() int { return 4096 }
++
++//sys	exits(msg *byte)
++func Exits(msg *string) {
++	if msg == nil {
++		exits(nil)
++	}
++
++	exits(StringBytePtr(*msg))
++}
++
++func Exit(code int) {
++	if code == 0 {
++		Exits(nil)
++	}
++
++	msg := itoa(code)
++	Exits(&msg)
++}
++
++func readnum(path string) (uint, Error) {
++	var b [12]byte
++
++	fd, e := Open(path, O_RDONLY)
++	if e != nil {
++		return 0, e
++	}
++	defer Close(fd)
++
++	n, e := Pread(fd, b[:], 0)
++
++	if e != nil {
++		return 0, e
++	}
++
++	m := 0
++	for ; m < n && b[m] == ' '; m++ {
++	}
++
++	return atoi(b[m : n-1]), nil
++}
++
++func Getpid() (pid int) {
++	n, _ := readnum("#c/pid")
++	return int(n)
++}
++
++func Getppid() (ppid int) {
++	n, _ := readnum("#c/ppid")
++	return int(n)
++}
++
++
++func Read(fd int, p []byte) (n int, err Error) {
++	return Pread(fd, p, -1)
++}
++
++func Write(fd int, p []byte) (n int, err Error) {
++	return Pwrite(fd, p, -1)
++}
++
++func Getwd() (wd string, err Error) {
++	fd, e := Open(".", O_RDONLY)
++
++	if e != nil {
++		return "", e
++	}
++	defer Close(fd)
++
++	return Fd2path(fd)
++}
++
++//sys	fd2path(fd int, buf []byte) (err Error)
++func Fd2path(fd int) (path string, err Error) {
++	var buf [512]byte
++
++	e := fd2path(fd, buf[:])
++	if e != nil {
++		return "", e
++	}
++	return cstring(buf[:]), nil
++}
++
++//sys	pipe(p *[2]_C_int) (err Error)
++func Pipe(p []int) (err Error) {
++	if len(p) != 2 {
++		return NewError("bad arg in system call")
++	}
++	var pp [2]_C_int
++	err = pipe(&pp)
++	p[0] = int(pp[0])
++	p[1] = int(pp[1])
++	return
++}
++
++
++//sys	sleep(millisecs int32) (err Error)
++func Sleep(nsec int64) (err Error) {
++	return sleep(int32((nsec + 999) / 1e6)) // round up to microsecond
++}
++
++// Underlying system call writes to newoffset via pointer.
++// Implemented in assembly to avoid allocation.
++func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, err Error) {
++	newoffset, e := seek(0, fd, offset, whence)
++
++	err = nil
++	if newoffset == -1 {
++		err = NewError(e)
++	}
++	return
++}
++
++func Mkdir(path string, mode uint32) (err Error) {
++	fd, err := Create(path, O_RDONLY, DMDIR|mode)
++
++	if fd != -1 {
++		Close(fd)
++	}
++
++	return
++}
++
++type Waitmsg struct {
++	Pid  int
++	Time [3]uint32
++	Msg  string
++}
++
++//sys	await(s []byte) (n int, err Error)
++func Await(w *Waitmsg) (err Error) {
++	var buf [512]byte
++	var f [5][]byte
++
++	n, err := await(buf[:])
++
++	if err != nil || w == nil {
++		return
++	}
++
++	nf := 0
++	p := 0
++	for i := 0; i < n && nf < len(f)-1; i++ {
++		if buf[i] == ' ' {
++			f[nf] = buf[p:i]
++			p = i + 1
++			nf++
++		}
++	}
++	f[nf] = buf[p:]
++	nf++
++
++	if nf != len(f) {
++		return NewError("invalid wait message")
++	}
++	w.Pid = int(atoi(f[0]))
++	w.Time[0] = uint32(atoi(f[1]))
++	w.Time[1] = uint32(atoi(f[2]))
++	w.Time[2] = uint32(atoi(f[3]))
++	w.Msg = string(f[4])
++	return
++}
++
++func Unmount(name, old string) (err Error) {
++	oldp := uintptr(unsafe.Pointer(StringBytePtr(old)))
++
++	var r0 uintptr
++	var e string
++
++	// bind(2) man page: If name is zero, everything bound or mounted upon old is unbound or unmounted.
++	if name == "" {
++		r0, _, e = Syscall(SYS_UNMOUNT, _zero, oldp, 0)
++	} else {
++		r0, _, e = Syscall(SYS_UNMOUNT, uintptr(unsafe.Pointer(StringBytePtr(name))), oldp, 0)
++	}
++
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e)
++	}
++	return
++}
++
++func Fchdir(fd int) (err Error) {
++	path, err := Fd2path(fd)
++
++	if err != nil {
++		return
++	}
++
++	return Chdir(path)
++}
++
++type Timeval struct {
++	Sec  int32
++	Usec int32
++}
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999 // round up to microsecond
++	tv.Usec = int32(nsec % 1e9 / 1e3)
++	tv.Sec = int32(nsec / 1e9)
++	return
++}
++
++func DecodeBintime(b []byte) (nsec int64, err Error) {
++	if len(b) != 8 {
++		return -1, NewError("bad /dev/bintime format")
++	}
++	err = nil
++	nsec = int64(b[0])<<56 |
++		int64(b[1])<<48 |
++		int64(b[2])<<40 |
++		int64(b[3])<<32 |
++		int64(b[4])<<24 |
++		int64(b[5])<<16 |
++		int64(b[6])<<8 |
++		int64(b[7])
++	return
++}
++
++func Gettimeofday(tv *Timeval) (err Error) {
++	// TODO(paulzhol): 
++	// avoid reopening a file descriptor for /dev/bintime on each call,
++	// use lower-level calls to avoid allocation.
++
++	var b [8]byte
++	var nsec int64
++
++	fd, e := Open("/dev/bintime", O_RDONLY)
++	if e != nil {
++		return e
++	}
++	defer Close(fd)
++
++	if _, e = Pread(fd, b[:], 0); e != nil {
++		return e
++	}
++
++	if nsec, e = DecodeBintime(b[:]); e != nil {
++		return e
++	}
++	*tv = NsecToTimeval(nsec)
++
++	return e
++}
++
++func Getegid() (egid int) { return -1 }
++func Geteuid() (euid int) { return -1 }
++func Getgid() (gid int)   { return -1 }
++func Getuid() (uid int)   { return -1 }
++
++func Getgroups() (gids []int, err Error) {
++	return make([]int, 0), nil
++}
++
++//sys	Dup(oldfd int, newfd int) (fd int, err Error)
++//sys	Open(path string, mode int) (fd int, err Error)
++//sys	Create(path string, mode int, perm uint32) (fd int, err Error)
++//sys	Remove(path string) (err Error)
++//sys	Pread(fd int, p []byte, offset int64) (n int, err Error)
++//sys	Pwrite(fd int, p []byte, offset int64) (n int, err Error)
++//sys	Close(fd int) (err Error)
++//sys	Chdir(path string) (err Error)
++//sys	Bind(name string, old string, flag int) (err Error)
++//sys	Mount(fd int, afd int, old string, flag int, aname string) (err Error)
++//sys	Stat(path string, edir []byte) (n int, err Error)
++//sys	Fstat(fd int, edir []byte) (n int, err Error)
++//sys	Wstat(path string, edir []byte) (err Error)
++//sys	Fwstat(fd int, edir []byte) (err Error)
+diff --git a/src/pkg/syscall/syscall_plan9_386.go b/src/pkg/syscall/syscall_plan9_386.go
+new file mode 100644
+index 0000000000..e82b540b4b
+--- /dev/null
++++ b/src/pkg/syscall/syscall_plan9_386.go
+@@ -0,0 +1,5 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 74fe29d020..a77e40bc6b 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -17,7 +17,7 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ 
+ func Errstr(errno int) string {
+ 	if errno < 0 || errno >= int(len(errors)) {
+-		return "error " + str(errno)
++		return "error " + itoa(errno)
+ 	}
+ 	return errors[errno]
+ }
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 4f8230003c..705c742b14 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -175,7 +175,7 @@ func Errstr(errno int) string {
+ 	b := make([]uint16, 300)
+ 	n, err := FormatMessage(flags, 0, uint32(errno), 0, b, nil)
+ 	if err != 0 {
+-		return "error " + str(errno) + " (FormatMessage failed with err=" + str(err) + ")"
++		return "error " + itoa(errno) + " (FormatMessage failed with err=" + itoa(err) + ")"
+ 	}
+ 	// trim terminating \r and \n
+ 	for ; n > 0 && (b[n-1] == '\n' || b[n-1] == '\r'); n-- {
+diff --git a/src/pkg/syscall/types_plan9.c b/src/pkg/syscall/types_plan9.c
+new file mode 100644
+index 0000000000..6308ce08be
+--- /dev/null
++++ b/src/pkg/syscall/types_plan9.c
+@@ -0,0 +1,115 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Input to godefs.  See also mkerrors.sh and mkall.sh
++*/
++
++typedef unsigned short ushort;
++typedef unsigned char uchar;
++typedef unsigned long ulong;
++typedef unsigned int uint;
++typedef long long vlong;
++typedef unsigned long long uvlong;
++
++typedef int $_C_int;
++
++enum {
++	OREAD	= 0,	// open for read
++	OWRITE	= 1,	// write
++	ORDWR	= 2,	// read and write
++
++	$O_RDONLY	= OREAD,
++	$O_WRONLY	= OWRITE,
++	$O_RDWR		= ORDWR,
++
++	OEXEC	= 3,	// execute, == read but check execute permission
++	OTRUNC	= 16,	// or'ed in (except for exec), truncate file first
++	OCEXEC	= 32,	// or'ed in, close on exec
++
++	$O_CLOEXEC  = OCEXEC,
++
++	ORCLOSE	= 64,		// or'ed in, remove on close
++	OEXCL	= 0x1000,	// or'ed in, exclusive use (create only)
++	$O_EXCL	= OEXCL,
++
++	$STATMAX	= 65535U,
++	$ERRMAX		= 128,
++
++	$MORDER		= 0x0003,	// mask for bits defining order of mounting
++	$MREPL		= 0x0000,	// mount replaces object
++	$MBEFORE	= 0x0001,	// mount goes before others in union directory
++	$MAFTER		= 0x0002,	// mount goes after others in union directory
++	$MCREATE	= 0x0004,	// permit creation in mounted directory
++	$MCACHE		= 0x0010,	// cache some data
++	$MMASK		= 0x0017,	// all bits on
++
++	$RFNAMEG	= (1<<0),
++	$RFENVG		= (1<<1),
++	$RFFDG		= (1<<2),
++	$RFNOTEG	= (1<<3),
++	$RFPROC		= (1<<4),
++	$RFMEM		= (1<<5),
++	$RFNOWAIT	= (1<<6),
++	$RFCNAMEG	= (1<<10),
++	$RFCENVG	= (1<<11),
++	$RFCFDG		= (1<<12),
++	$RFREND		= (1<<13),
++	$RFNOMNT	= (1<<14),
++
++	// bits in Qid.type
++	$QTDIR		= 0x80,		// type bit for directories
++	$QTAPPEND	= 0x40,		// type bit for append only files
++	$QTEXCL		= 0x20,		// type bit for exclusive use files
++	$QTMOUNT	= 0x10,		// type bit for mounted channel
++	$QTAUTH		= 0x08,		// type bit for authentication file
++	$QTTMP		= 0x04,		// type bit for not-backed-up file
++	$QTFILE		= 0x00,		// plain file
++
++
++	// bits in Dir.mode
++	$DMDIR		= 0x80000000,	// mode bit for directories
++	$DMAPPEND	= 0x40000000,	// mode bit for append only files
++	$DMEXCL		= 0x20000000,	// mode bit for exclusive use files
++	$DMMOUNT	= 0x10000000,	// mode bit for mounted channel
++	$DMAUTH		= 0x08000000,	// mode bit for authentication file
++	$DMTMP		= 0x04000000,	// mode bit for non-backed-up files
++	$DMREAD		= 0x4,		// mode bit for read permission
++	$DMWRITE	= 0x2,		// mode bit for write permission
++	$DMEXEC		= 0x1,		// mode bit for execute permission
++
++	BIT8SZ	= 1,
++	BIT16SZ	= 2,
++	BIT32SZ	= 4,
++	BIT64SZ	= 8,
++	QIDSZ = BIT8SZ+BIT32SZ+BIT64SZ,
++
++	// STATFIXLEN includes leading 16-bit count
++	// The count, however, excludes itself; total size is BIT16SZ+count
++	$STATFIXLEN = BIT16SZ+QIDSZ+5*BIT16SZ+4*BIT32SZ+1*BIT64SZ,	// amount of fixed length data in a stat buffer
++};
++
++
++struct Prof			// Per process profiling
++{
++	struct Plink	*pp;	// known to be 0(ptr)
++	struct Plink	*next;	// known to be 4(ptr)
++	struct Plink	*last;
++	struct Plink	*first;
++	ulong		pid;
++	ulong		what;
++};
++
++struct Tos {
++	struct Prof	prof;
++	uvlong		cyclefreq;	// cycle clock frequency if there is one, 0 otherwise
++	vlong		kcycles;	// cycles spent in kernel
++	vlong		pcycles;	// cycles spent in process (kernel + user)
++	ulong		pid;		// might as well put the pid here
++	ulong		clock;
++	// top of stack is here
++};
++
++typedef struct Prof $Prof;
++typedef struct Tos $Tos;
+diff --git a/src/pkg/syscall/zerrors_plan9_386.go b/src/pkg/syscall/zerrors_plan9_386.go
+new file mode 100644
+index 0000000000..78b5c72bbf
+--- /dev/null
++++ b/src/pkg/syscall/zerrors_plan9_386.go
+@@ -0,0 +1,25 @@
++package syscall
++
++// Constants
++const (
++	// Invented values to support what package os expects.
++	O_CREAT    = 0x02000
++	O_NOCTTY   = 0x00000
++	O_TRUNC    = 0x00000
++	O_NONBLOCK = 0x00000
++	O_APPEND   = 0x00000
++	O_SYNC     = 0x00000
++	O_ASYNC    = 0x00000
++
++
++	S_IFMT   = 0x1f000
++	S_IFIFO  = 0x1000
++	S_IFCHR  = 0x2000
++	S_IFDIR  = 0x4000
++	S_IFBLK  = 0x6000
++	S_IFREG  = 0x8000
++	S_IFLNK  = 0xa000
++	S_IFSOCK = 0xc000
++)
++
++// Error table
+diff --git a/src/pkg/syscall/zsyscall_plan9_386.go b/src/pkg/syscall/zsyscall_plan9_386.go
+new file mode 100644
+index 0000000000..75c411ad67
+--- /dev/null
++++ b/src/pkg/syscall/zsyscall_plan9_386.go
+@@ -0,0 +1,267 @@
++// mksyscall.pl -l32 -plan9 syscall_plan9.go syscall_plan9_386.go
++// MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
++
++package syscall
++
++import "unsafe"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func exits(msg *byte) {
++	Syscall(SYS_EXITS, uintptr(unsafe.Pointer(msg)), 0, 0)
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func fd2path(fd int, buf []byte) (err Error) {
++	var _p0 unsafe.Pointer
++	if len(buf) > 0 {
++		_p0 = unsafe.Pointer(&buf[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS_FD2PATH, uintptr(fd), uintptr(_p0), uintptr(len(buf)))
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pipe(p *[2]_C_int) (err Error) {
++	r0, _, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func sleep(millisecs int32) (err Error) {
++	r0, _, e1 := Syscall(SYS_SLEEP, uintptr(millisecs), 0, 0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func await(s []byte) (n int, err Error) {
++	var _p0 unsafe.Pointer
++	if len(s) > 0 {
++		_p0 = unsafe.Pointer(&s[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS_AWAIT, uintptr(_p0), uintptr(len(s)), 0)
++	n = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Dup(oldfd int, newfd int) (fd int, err Error) {
++	r0, _, e1 := Syscall(SYS_DUP, uintptr(oldfd), uintptr(newfd), 0)
++	fd = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Open(path string, mode int) (fd int, err Error) {
++	r0, _, e1 := Syscall(SYS_OPEN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0)
++	fd = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Create(path string, mode int, perm uint32) (fd int, err Error) {
++	r0, _, e1 := Syscall(SYS_CREATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), uintptr(perm))
++	fd = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Remove(path string) (err Error) {
++	r0, _, e1 := Syscall(SYS_REMOVE, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Pread(fd int, p []byte, offset int64) (n int, err Error) {
++	var _p0 unsafe.Pointer
++	if len(p) > 0 {
++		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	n = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Pwrite(fd int, p []byte, offset int64) (n int, err Error) {
++	var _p0 unsafe.Pointer
++	if len(p) > 0 {
++		_p0 = unsafe.Pointer(&p[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(_p0), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0)
++	n = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Close(fd int) (err Error) {
++	r0, _, e1 := Syscall(SYS_CLOSE, uintptr(fd), 0, 0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Chdir(path string) (err Error) {
++	r0, _, e1 := Syscall(SYS_CHDIR, uintptr(unsafe.Pointer(StringBytePtr(path))), 0, 0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Bind(name string, old string, flag int) (err Error) {
++	r0, _, e1 := Syscall(SYS_BIND, uintptr(unsafe.Pointer(StringBytePtr(name))), uintptr(unsafe.Pointer(StringBytePtr(old))), uintptr(flag))
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Mount(fd int, afd int, old string, flag int, aname string) (err Error) {
++	r0, _, e1 := Syscall6(SYS_MOUNT, uintptr(fd), uintptr(afd), uintptr(unsafe.Pointer(StringBytePtr(old))), uintptr(flag), uintptr(unsafe.Pointer(StringBytePtr(aname))), 0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Stat(path string, edir []byte) (n int, err Error) {
++	var _p0 unsafe.Pointer
++	if len(edir) > 0 {
++		_p0 = unsafe.Pointer(&edir[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(edir)))
++	n = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Fstat(fd int, edir []byte) (n int, err Error) {
++	var _p0 unsafe.Pointer
++	if len(edir) > 0 {
++		_p0 = unsafe.Pointer(&edir[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(_p0), uintptr(len(edir)))
++	n = int(r0)
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Wstat(path string, edir []byte) (err Error) {
++	var _p0 unsafe.Pointer
++	if len(edir) > 0 {
++		_p0 = unsafe.Pointer(&edir[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS_WSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(_p0), uintptr(len(edir)))
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func Fwstat(fd int, edir []byte) (err Error) {
++	var _p0 unsafe.Pointer
++	if len(edir) > 0 {
++		_p0 = unsafe.Pointer(&edir[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	r0, _, e1 := Syscall(SYS_FWSTAT, uintptr(fd), uintptr(_p0), uintptr(len(edir)))
++	err = nil
++	if int(r0) == -1 {
++		err = NewError(e1)
++	}
++	return
++}
+diff --git a/src/pkg/syscall/zsysnum_plan9_386.go b/src/pkg/syscall/zsysnum_plan9_386.go
+new file mode 100644
+index 0000000000..4135b8d819
+--- /dev/null
++++ b/src/pkg/syscall/zsysnum_plan9_386.go
+@@ -0,0 +1,47 @@
++// mksysnum_plan9.sh /media/sys/src/libc/9syscall/sys.h
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const (
++	SYS_SYSR1      = 0
++	SYS_BIND       = 2
++	SYS_CHDIR      = 3
++	SYS_CLOSE      = 4
++	SYS_DUP        = 5
++	SYS_ALARM      = 6
++	SYS_EXEC       = 7
++	SYS_EXITS      = 8
++	SYS_FAUTH      = 10
++	SYS_SEGBRK     = 12
++	SYS_OPEN       = 14
++	SYS_OSEEK      = 16
++	SYS_SLEEP      = 17
++	SYS_RFORK      = 19
++	SYS_PIPE       = 21
++	SYS_CREATE     = 22
++	SYS_FD2PATH    = 23
++	SYS_BRK_       = 24
++	SYS_REMOVE     = 25
++	SYS_NOTIFY     = 28
++	SYS_NOTED      = 29
++	SYS_SEGATTACH  = 30
++	SYS_SEGDETACH  = 31
++	SYS_SEGFREE    = 32
++	SYS_SEGFLUSH   = 33
++	SYS_RENDEZVOUS = 34
++	SYS_UNMOUNT    = 35
++	SYS_SEMACQUIRE = 37
++	SYS_SEMRELEASE = 38
++	SYS_SEEK       = 39
++	SYS_FVERSION   = 40
++	SYS_ERRSTR     = 41
++	SYS_STAT       = 42
++	SYS_FSTAT      = 43
++	SYS_WSTAT      = 44
++	SYS_FWSTAT     = 45
++	SYS_MOUNT      = 46
++	SYS_AWAIT      = 47
++	SYS_PREAD      = 50
++	SYS_PWRITE     = 51
++)
+diff --git a/src/pkg/syscall/ztypes_plan9_386.go b/src/pkg/syscall/ztypes_plan9_386.go
+new file mode 100644
+index 0000000000..8f823ba659
+--- /dev/null
++++ b/src/pkg/syscall/ztypes_plan9_386.go
+@@ -0,0 +1,74 @@
++// godefs -gsyscall -f -m32 types_plan9.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++package syscall
++
++// Constants
++const (
++	O_RDONLY   = 0
++	O_WRONLY   = 0x1
++	O_RDWR     = 0x2
++	O_CLOEXEC  = 0x20
++	O_EXCL     = 0x1000
++	STATMAX    = 0xffff
++	ERRMAX     = 0x80
++	MORDER     = 0x3
++	MREPL      = 0
++	MBEFORE    = 0x1
++	MAFTER     = 0x2
++	MCREATE    = 0x4
++	MCACHE     = 0x10
++	MMASK      = 0x17
++	RFNAMEG    = 0x1
++	RFENVG     = 0x2
++	RFFDG      = 0x4
++	RFNOTEG    = 0x8
++	RFPROC     = 0x10
++	RFMEM      = 0x20
++	RFNOWAIT   = 0x40
++	RFCNAMEG   = 0x400
++	RFCENVG    = 0x800
++	RFCFDG     = 0x1000
++	RFREND     = 0x2000
++	RFNOMNT    = 0x4000
++	QTDIR      = 0x80
++	QTAPPEND   = 0x40
++	QTEXCL     = 0x20
++	QTMOUNT    = 0x10
++	QTAUTH     = 0x8
++	QTTMP      = 0x4
++	QTFILE     = 0
++	DMDIR      = 0x80000000
++	DMAPPEND   = 0x40000000
++	DMEXCL     = 0x20000000
++	DMMOUNT    = 0x10000000
++	DMAUTH     = 0x8000000
++	DMTMP      = 0x4000000
++	DMREAD     = 0x4
++	DMWRITE    = 0x2
++	DMEXEC     = 0x1
++	STATFIXLEN = 0x31
++)
++
++// Types
++
++type _C_int int32
++
++type Prof struct {
++	Pp    *[0]byte /* sPlink */
++	Next  *[0]byte /* sPlink */
++	Last  *[0]byte /* sPlink */
++	First *[0]byte /* sPlink */
++	Pid   uint32
++	What  uint32
++}
++
++type Tos struct {
++	Prof      Prof
++	Cyclefreq uint64
++	Kcycles   int64
++	Pcycles   int64
++	Pid       uint32
++	Clock     uint32
++}

@@ -9,9 +9,109 @@ Date:   Wed Apr 29 10:51:42 2015 +0100
     Change-Id: I75080f24104256065fd73b07a13c5b8e7d6da94c
     Reviewed-on: https://go-review.googlesource.com/9442
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/dcl.go |  3 +++
  src/cmd/internal/gc/gen.go | 21 ++++++++++++++++++---
  src/cmd/internal/gc/go.go  |  1 +
  test/goto.go               | 16 ++++++++++++++++
  4 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index 85a33bec3f..58b69ab8f9 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -65,6 +65,9 @@ func popdcl() {
+ 		}
+ 		s = Pkglookup(d.Name, d.Pkg)
+ 		lno = int(s.Lastlineno)
++		if s.Def != nil {
++			d.whyPushed = s.Def.Op
++		}
+ 		dcopy(s, d)
+ 		d.Lastlineno = int32(lno)
+ 		if dflag() {
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index cd0e650ca9..bba04d41ad 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -159,6 +159,21 @@ func checkgoto(from *Node, to *Node) {
+ 		fs = fs.Link
+ 	}
+ 	if fs != to.Sym {
++		// more declarations at label than at goto.
++		// figure out if they are all types.
++		ts := to.Sym
++		ntt := nt
++		for ; ntt > nf; ntt-- {
++			if ts.whyPushed != OTYPE {
++				break
++			}
++			ts = ts.Link
++		}
++		// all types, nothing to see here.
++		if ntt == nf {
++			return
++		}
++
+ 		lno := int(lineno)
+ 		setlineno(from)
+ 
+@@ -168,11 +183,11 @@ func checkgoto(from *Node, to *Node) {
+ 		var block *Sym
+ 
+ 		var dcl *Sym
+-		ts := to.Sym
++		ts = to.Sym
+ 		for ; nt > nf; nt-- {
+ 			if ts.Pkg == nil {
+ 				block = ts
+-			} else {
++			} else if ts.whyPushed != OTYPE {
+ 				dcl = ts
+ 			}
+ 			ts = ts.Link
+@@ -181,7 +196,7 @@ func checkgoto(from *Node, to *Node) {
+ 		for ts != fs {
+ 			if ts.Pkg == nil {
+ 				block = ts
+-			} else {
++			} else if ts.whyPushed != OTYPE {
+ 				dcl = ts
+ 			}
+ 			ts = ts.Link
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 31692bdf00..4800218c95 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -111,6 +111,7 @@ type Sym struct {
+ 	Uniqgen   uint32
+ 	Importdef *Pkg   // where imported definition was found
+ 	Linkname  string // link name
++	whyPushed uint8  // why this symbol pushed onto dclstack. Same as Node.Op. Used by goto validation
+ 
+ 	// saved and restored by dcopy
+ 	Pkg        *Pkg
+diff --git a/test/goto.go b/test/goto.go
+index ca477b3d0c..c626f3d1c1 100644
+--- a/test/goto.go
++++ b/test/goto.go
+@@ -536,3 +536,19 @@ func _() {
+ 		goto L // ERROR "goto L jumps into block starting at LINE-4|goto jumps into block"
+ 	}
+ }
++
++// issue 8042
++func _() {
++	goto L
++	type a int
++	L:
++}
++
++// make sure we only complain about variable declarations.
++func _() {
++	goto L // ERROR "goto L jumps over declaration of x at LINE+2|goto jumps over declaration"
++	type a int
++	x := 1	// GCCGO_ERROR "defined here"
++	_ = x
++L:
++}

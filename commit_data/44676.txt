@@ -30,7 +30,7 @@ Date:   Mon Aug 17 16:14:48 2020 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go        | 14 ++++++++++++++
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 +++
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 ++
@@ -38,3 +38,158 @@ Date:   Mon Aug 17 16:14:48 2020 -0500
  src/cmd/compile/internal/ssa/rewritePPC64.go | 21 +++++++++++++++++++++
  test/codegen/arithmetic.go                   | 12 ++++++++----
  6 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 0efdd710fb..4d2ad48135 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -601,6 +601,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.OpPPC64MADDLD:
++		r := v.Reg()
++		r1 := v.Args[0].Reg()
++		r2 := v.Args[1].Reg()
++		r3 := v.Args[2].Reg()
++		// r = r1*r2 ± r3
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r1
++		p.Reg = r2
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r3})
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
++
+ 	case ssa.OpPPC64FMADD, ssa.OpPPC64FMADDS, ssa.OpPPC64FMSUB, ssa.OpPPC64FMSUBS:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index fd28e10098..14942d50f9 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -11,6 +11,9 @@
+ (Sub32F ...) => (FSUBS ...)
+ (Sub64F ...) => (FSUB ...)
+ 
++// Combine 64 bit integer multiply and adds
++(ADD l:(MULLD x y) z) && objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
++
+ (Mod16 x y) => (Mod32 (SignExt16to32 x) (SignExt16to32 y))
+ (Mod16u x y) => (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
+ (Mod8 x y) => (Mod32 (SignExt8to32 x) (SignExt8to32 y))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 0261dc283b..825d0faf34 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -137,6 +137,7 @@ func init() {
+ 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
++		gp31        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+ 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+ 		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+ 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
+@@ -179,6 +180,7 @@ func init() {
+ 
+ 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
+ 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
++		{name: "MADDLD", argLength: 3, reg: gp31, asm: "MADDLD", typ: "Int64"},                  // (arg0*arg1)+arg2 (signed 64-bit)
+ 
+ 		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},   // (arg0 * arg1) >> 64, signed
+ 		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index df2a27368b..4cd72799e8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1832,6 +1832,7 @@ const (
+ 	OpPPC64FSUBS
+ 	OpPPC64MULLD
+ 	OpPPC64MULLW
++	OpPPC64MADDLD
+ 	OpPPC64MULHD
+ 	OpPPC64MULHW
+ 	OpPPC64MULHDU
+@@ -24374,6 +24375,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MADDLD",
++		argLen: 3,
++		asm:    ppc64.AMADDLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{2, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:        "MULHD",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 37b75cc58a..7704b80dc6 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3852,6 +3852,27 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
++	// match: (ADD l:(MULLD x y) z)
++	// cond: objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)
++	// result: (MADDLD x y z)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			l := v_0
++			if l.Op != OpPPC64MULLD {
++				continue
++			}
++			y := l.Args[1]
++			x := l.Args[0]
++			z := v_1
++			if !(objabi.GOPPC64 >= 9 && l.Uses == 1 && clobber(l)) {
++				continue
++			}
++			v.reset(OpPPC64MADDLD)
++			v.AddArg3(x, y, z)
++			return true
++		}
++		break
++	}
+ 	// match: (ADD (SLDconst x [c]) (SRDconst x [d]))
+ 	// cond: d == 64-c
+ 	// result: (ROTLconst [c] x)
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 9f30ec8ce4..45fdb68903 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -253,16 +253,20 @@ func Divisible(n1 uint, n2 int) (bool, bool, bool, bool) {
+ 	// 386:"IMUL3L\t[$]-1431655765","ADDL\t[$]715827882","ROLL\t[$]31",-"DIVQ"
+ 	// arm64:"MUL","ADD\t[$]3074457345618258602","ROR",-"DIV"
+ 	// arm:"MUL","ADD\t[$]715827882",-".*udiv"
+-	// ppc64:"MULLD","ADD","ROTL\t[$]63"
+-	// ppc64le:"MULLD","ADD","ROTL\t[$]63"
++	// ppc64/power8:"MULLD","ADD","ROTL\t[$]63"
++	// ppc64le/power8:"MULLD","ADD","ROTL\t[$]63"
++	// ppc64/power9:"MADDLD","ROTL\t[$]63"
++	// ppc64le/power9:"MADDLD","ROTL\t[$]63"
+ 	evenS := n2%6 == 0
+ 
+ 	// amd64:"IMULQ","ADD",-"ROLQ",-"DIVQ"
+ 	// 386:"IMUL3L\t[$]678152731","ADDL\t[$]113025455",-"ROLL",-"DIVQ"
+ 	// arm64:"MUL","ADD\t[$]485440633518672410",-"ROR",-"DIV"
+ 	// arm:"MUL","ADD\t[$]113025455",-".*udiv"
+-	// ppc64:"MULLD","ADD",-"ROTL"
+-	// ppc64le:"MULLD","ADD",-"ROTL"
++	// ppc64/power8:"MULLD","ADD",-"ROTL"
++	// ppc64/power9:"MADDLD",-"ROTL"
++	// ppc64le/power8:"MULLD","ADD",-"ROTL"
++	// ppc64le/power9:"MADDLD",-"ROTL"
+ 	oddS := n2%19 == 0
+ 
+ 	return evenU, oddU, evenS, oddS

@@ -9,8 +9,110 @@ Date:   Tue Mar 24 18:04:19 2009 -0700
     DELTA=33  (28 added, 0 deleted, 5 changed)
     OCL=26694
     CL=26711
-
+---
  src/cmd/8a/lex.c    | 31 +++++++++++++++++++++++++------
  src/cmd/8c/Makefile |  2 +-
  src/cmd/clean.bash  |  2 +-
  3 files changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 139ab0a328..d4c61af07d 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -33,11 +33,30 @@
+ #include "y.tab.h"
+ #include <ctype.h>
+ 
++enum
++{
++	Plan9	= 1<<0,
++	Unix	= 1<<1,
++	Windows	= 1<<2,
++};
++
++int
++systemtype(int sys)
++{
++	return sys&Plan9;
++}
++
++int
++pathchar(void)
++{
++	return '/';
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+ 	char *p;
+-	int nout, nproc, status, i, c;
++	int nout, nproc, i, c;
+ 
+ 	thechar = '8';
+ 	thestring = "386";
+@@ -162,7 +181,7 @@ assemble(char *file)
+ 
+ 	pass = 1;
+ 	pinit(file);
+-	
++
+ 	Bprint(&obuf, "%s\n", thestring);
+ 
+ 	for(i=0; i<nDlist; i++)
+@@ -172,7 +191,7 @@ assemble(char *file)
+ 		cclean();
+ 		return nerrors;
+ 	}
+-	
++
+ 	Bprint(&obuf, "\n!\n");
+ 
+ 	pass = 2;
+@@ -308,7 +327,7 @@ struct
+ 	"CMPSW",	LTYPE0,	ACMPSW,
+ 	"CMPXCHGB",	LTYPE3,	ACMPXCHGB,
+ 	"CMPXCHGL",	LTYPE3,	ACMPXCHGL,
+-	"CMPXCHGW",	LTYPE3,	ACMPXCHGW,	
++	"CMPXCHGW",	LTYPE3,	ACMPXCHGW,
+ 	"DAA",		LTYPE0,	ADAA,
+ 	"DAS",		LTYPE0,	ADAS,
+ 	"DATA",		LTYPED,	ADATA,
+@@ -661,9 +680,9 @@ cinit(void)
+ 	}
+ 
+ 	pathname = allocn(pathname, 0, 100);
+-	if(mygetwd(pathname, 99) == 0) {
++	if(getwd(pathname, 99) == 0) {
+ 		pathname = allocn(pathname, 100, 900);
+-		if(mygetwd(pathname, 999) == 0)
++		if(getwd(pathname, 999) == 0)
+ 			strcpy(pathname, "/???");
+ 	}
+ }
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index 9893ef63fd..75919ddfd4 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -30,7 +30,7 @@ LIB=\
+ 	../cc/cc.a$O
+ 
+ $(TARG): $(OFILES) $(LIB)
+-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lm -lbio -l9
+ 
+ $(OFILES): $(HFILES)
+ 
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 615aaad9b6..9b3467ae4a 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c gc 6g ar db nm acid cov gobuild prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c gc 6g ar db nm acid cov gobuild prof gotest
+ do
+ 	cd $i
+ 	make clean

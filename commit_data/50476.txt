@@ -10,6 +10,32 @@ Date:   Wed Oct 27 10:13:50 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/359175
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/type.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 0896949d7e..4701e06c49 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -269,8 +269,6 @@ const (
+ )
+ 
+ // Ptr is the old name for the Pointer kind.
+-//
+-// Deprecated: use the new spelling, Pointer.
+ const Ptr = Pointer
+ 
+ // tflag is used by an rtype to signal what extra type information is
+@@ -1425,9 +1423,9 @@ func TypeOf(i interface{}) Type {
+ var ptrMap sync.Map // map[*rtype]*ptrType
+ 
+ // PtrTo returns the pointer type with element t.
+-// For example, if t represents type Foo, PointerTo(t) represents *Foo.
++// For example, if t represents type Foo, PtrTo(t) represents *Foo.
+ //
+-// Deprecated: use PointerTo. PtrTo is the old spelling.
++// PtrTo is the old spelling of PointerTo.
+ // The two functions behave identically.
+ func PtrTo(t Type) Type { return PointerTo(t) }
+ 

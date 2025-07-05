@@ -22,6 +22,50 @@ Date:   Thu Nov 9 14:14:44 2017 -0800
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/sql.go | 21 +++++++++++++--------
  1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 1192eaae26..22458c0aeb 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2256,6 +2256,13 @@ func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, ar
+ 		return nil, err
+ 	}
+ 
++	// -1 means the driver doesn't know how to count the number of
++	// placeholders, so we won't sanity check input here and instead let the
++	// driver deal with errors.
++	if want := ds.si.NumInput(); want >= 0 && want != len(dargs) {
++		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", want, len(dargs))
++	}
++
+ 	resi, err := ctxDriverStmtExec(ctx, ds.si, dargs)
+ 	if err != nil {
+ 		return nil, err
+@@ -2422,18 +2429,16 @@ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, arg
+ 	ds.Lock()
+ 	defer ds.Unlock()
+ 
+-	want := ds.si.NumInput()
++	dargs, err := driverArgsConnLocked(ci, ds, args)
++	if err != nil {
++		return nil, err
++	}
+ 
+ 	// -1 means the driver doesn't know how to count the number of
+ 	// placeholders, so we won't sanity check input here and instead let the
+ 	// driver deal with errors.
+-	if want != -1 && len(args) != want {
+-		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", want, len(args))
+-	}
+-
+-	dargs, err := driverArgsConnLocked(ci, ds, args)
+-	if err != nil {
+-		return nil, err
++	if want := ds.si.NumInput(); want >= 0 && want != len(dargs) {
++		return nil, fmt.Errorf("sql: statement expects %d inputs; got %d", want, len(dargs))
+ 	}
+ 
+ 	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)

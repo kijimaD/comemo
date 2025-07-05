@@ -21,7 +21,45 @@ Date:   Tue Jul 20 15:02:01 2021 -0700
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  5 -----
  src/runtime/iface.go                      | 10 ++++++++++
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 460d926a0d..cff36dd3bf 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1394,11 +1394,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			// TODO: need to modify m.X? I don't think any downstream passes use it.
+ 			m.SetType(subst.unshapifyTyp(m.Type()))
+ 
+-		case ir.OPTRLIT:
+-			m := m.(*ir.AddrExpr)
+-			// Walk uses the type of the argument of ptrlit. Also could be a shape type?
+-			m.X.SetType(subst.unshapifyTyp(m.X.Type()))
+-
+ 		case ir.OMETHEXPR:
+ 			se := m.(*ir.SelectorExpr)
+ 			se.X = ir.TypeNodeAt(se.X.Pos(), subst.unshapifyTyp(se.X.Type()))
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 79a49c0dff..71bd2d2f07 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -214,6 +214,16 @@ imethods:
+ 		if ipkg == "" {
+ 			ipkg = inter.pkgpath.name()
+ 		}
++		if iname == "==" {
++			// Don't need '==' method right now (from comparable),
++			// just fill in with a random pointer for now.
++			if k == 0 {
++				fun0 = unsafe.Pointer(m)
++			} else {
++				methods[k] = unsafe.Pointer(m)
++			}
++			continue imethods
++		}
+ 		for ; j < nt; j++ {
+ 			t := &xmhdr[j]
+ 			tname := typ.nameOff(t.name)

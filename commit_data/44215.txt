@@ -11,7 +11,7 @@ Date:   Thu May 28 13:58:45 2020 +0200
     Run-TryBot: Elias Naur <mail@eliasnaur.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_dup2_linux.go    | 10 ++++++++++
  src/syscall/syscall_dup3_linux.go    |  9 +++++++++
  src/syscall/syscall_linux_386.go     |  5 +----
@@ -24,3 +24,179 @@ Date:   Thu May 28 13:58:45 2020 +0200
  src/syscall/syscall_linux_riscv64.go |  5 +----
  src/syscall/syscall_linux_s390x.go   |  5 +----
  11 files changed, 28 insertions(+), 36 deletions(-)
+
+diff --git a/src/syscall/syscall_dup2_linux.go b/src/syscall/syscall_dup2_linux.go
+new file mode 100644
+index 0000000000..f03a923112
+--- /dev/null
++++ b/src/syscall/syscall_dup2_linux.go
+@@ -0,0 +1,10 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !android
++// +build 386 amd64 arm mips mipsle mips64 mips64le ppc64 ppc64le s390x
++
++package syscall
++
++const _SYS_dup = SYS_DUP2
+diff --git a/src/syscall/syscall_dup3_linux.go b/src/syscall/syscall_dup3_linux.go
+new file mode 100644
+index 0000000000..1ebdcb20a2
+--- /dev/null
++++ b/src/syscall/syscall_dup3_linux.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build android arm64 riscv64
++
++package syscall
++
++const _SYS_dup = SYS_DUP3
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 3c1e6e4218..5076dd97ab 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -9,10 +9,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS32
+-)
++const _SYS_setgroups = SYS_SETGROUPS32
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index 0f28b55d47..bf340d9996 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,10 +4,7 @@
+ 
+ package syscall
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index d346029a1f..c4c403a400 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -6,10 +6,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS32
+-)
++const _SYS_setgroups = SYS_SETGROUPS32
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: int32(sec), Nsec: int32(nsec)}
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 1ad9dd8ea3..61014b264a 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -6,10 +6,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const (
+-	_SYS_dup       = SYS_DUP3
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func EpollCreate(size int) (fd int, err error) {
+ 	if size <= 0 {
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 157c32326b..e3683def67 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -7,10 +7,7 @@
+ 
+ package syscall
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index f2fea71aac..cbe2f0233f 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -9,10 +9,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+ 
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 22d6e56010..ba52e5a3ac 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -7,10 +7,7 @@
+ 
+ package syscall
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 61e9c60e70..d54bd38510 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -6,10 +6,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const (
+-	_SYS_dup       = SYS_DUP3
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ func EpollCreate(size int) (fd int, err error) {
+ 	if size <= 0 {
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index fcedf5909a..80cb1ccc19 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -6,10 +6,7 @@ package syscall
+ 
+ import "unsafe"
+ 
+-const (
+-	_SYS_dup       = SYS_DUP2
+-	_SYS_setgroups = SYS_SETGROUPS
+-)
++const _SYS_setgroups = SYS_SETGROUPS
+ 
+ //sys	Dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)

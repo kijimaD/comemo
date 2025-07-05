@@ -52,7 +52,7 @@ Date:   Fri Apr 1 20:11:30 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21611
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go       |  12 +-
  src/cmd/compile/internal/gc/bexport.go     |   4 +-
  src/cmd/compile/internal/gc/bimport.go     |  28 +-
@@ -69,3 +69,1295 @@ Date:   Fri Apr 1 20:11:30 2016 -0700
  src/cmd/compile/internal/gc/universe.go    |   6 +-
  src/cmd/compile/internal/gc/walk.go        |   2 +-
  15 files changed, 490 insertions(+), 225 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 9d5c3a550c..e43ed7b225 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -198,11 +198,11 @@ func dowidth(t *Type) {
+ 
+ 		// make fake type to check later to
+ 		// trigger channel argument check.
+-		t1 := typWrapper(TCHANARGS, t)
++		t1 := typChanArgs(t)
+ 		checkwidth(t1)
+ 
+ 	case TCHANARGS:
+-		t1 := t.Wrapped()
++		t1 := t.ChanArgs()
+ 		dowidth(t1) // just in case
+ 		if t1.Elem().Width >= 1<<16 {
+ 			Yyerror("channel element type too large (>64kB)")
+@@ -271,18 +271,18 @@ func dowidth(t *Type) {
+ 	// make fake type to check later to
+ 	// trigger function argument computation.
+ 	case TFUNC:
+-		t1 := typWrapper(TFUNCARGS, t)
++		t1 := typFuncArgs(t)
+ 		checkwidth(t1)
+ 		w = int64(Widthptr) // width of func type is pointer
+ 
+ 	// function is 3 cated structures;
+ 	// compute their widths as side-effect.
+ 	case TFUNCARGS:
+-		t1 := t.Wrapped()
++		t1 := t.FuncArgs()
+ 		w = widstruct(t1, t1.Recvs(), 0, 0)
+ 		w = widstruct(t1, t1.Params(), w, Widthreg)
+ 		w = widstruct(t1, t1.Results(), w, Widthreg)
+-		t1.Argwid = w
++		t1.Extra.(*FuncType).Argwid = w
+ 		if w%int64(Widthreg) != 0 {
+ 			Warn("bad type %v %d\n", t1, w)
+ 		}
+@@ -386,7 +386,7 @@ func Argsize(t *Type) int {
+ 		}
+ 	}
+ 
+-	w = (w + int64(Widthptr) - 1) &^ (int64(Widthptr) - 1)
++	w = Rnd(w, int64(Widthptr))
+ 	if int64(int(w)) != w {
+ 		Fatalf("argsize too big")
+ 	}
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f88afd2488..8dcf97b31d 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -602,7 +602,7 @@ func (p *exporter) typ(t *Type) {
+ 	case TDDDFIELD:
+ 		// see p.param use of TDDDFIELD
+ 		p.tag(dddTag)
+-		p.typ(t.Wrapped())
++		p.typ(t.DDDField())
+ 
+ 	case TSTRUCT:
+ 		p.tag(structTag)
+@@ -768,7 +768,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
+ 	t := q.Type
+ 	if q.Isddd {
+ 		// create a fake type to encode ... just for the p.typ call
+-		t = typWrapper(TDDDFIELD, t.Elem())
++		t = typDDDField(t.Elem())
+ 	}
+ 	p.typ(t)
+ 	if n > 0 {
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 8c53372b80..7ad4d9dbb0 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -359,16 +359,20 @@ func (p *importer) typ() *Type {
+ 
+ 	case arrayTag, sliceTag:
+ 		t = p.newtyp(TARRAY)
++		var bound int64
+ 		if i == arrayTag {
+-			t.SetNumElem(p.int64())
++			bound = p.int64()
++		}
++		elem := p.typ()
++		if i == arrayTag {
++			t.Extra = &ArrayType{Elem: elem, Bound: bound}
+ 		} else {
+-			t.SetNumElem(sliceBound)
++			t.Extra = SliceType{Elem: elem}
+ 		}
+-		t.Type = p.typ()
+ 
+ 	case dddTag:
+ 		t = p.newtyp(TDDDFIELD)
+-		t.Type = p.typ()
++		t.Extra = DDDFieldType{T: p.typ()}
+ 
+ 	case structTag:
+ 		t = p.newtyp(TSTRUCT)
+@@ -376,7 +380,7 @@ func (p *importer) typ() *Type {
+ 
+ 	case pointerTag:
+ 		t = p.newtyp(Tptr)
+-		t.Type = p.typ()
++		t.Extra = PtrType{Elem: p.typ()}
+ 
+ 	case signatureTag:
+ 		t = p.newtyp(TFUNC)
+@@ -393,13 +397,15 @@ func (p *importer) typ() *Type {
+ 
+ 	case mapTag:
+ 		t = p.newtyp(TMAP)
+-		t.Down = p.typ() // key
+-		t.Type = p.typ() // val
++		mt := t.MapType()
++		mt.Key = p.typ()
++		mt.Val = p.typ()
+ 
+ 	case chanTag:
+ 		t = p.newtyp(TCHAN)
+-		t.Chan = ChanDir(p.int())
+-		t.Type = p.typ()
++		ct := t.ChanType()
++		ct.Dir = ChanDir(p.int())
++		ct.Elem = p.typ()
+ 
+ 	default:
+ 		Fatalf("importer: unexpected type (tag = %d)", i)
+@@ -444,7 +450,7 @@ func (p *importer) field() *Node {
+ 		// anonymous field - typ must be T or *T and T must be a type name
+ 		s := typ.Sym
+ 		if s == nil && typ.IsPtr() {
+-			s = typ.Type.Sym // deref
++			s = typ.Elem().Sym // deref
+ 		}
+ 		pkg := importpkg
+ 		if sym != nil {
+@@ -531,7 +537,7 @@ func (p *importer) param(named bool) *Node {
+ 	isddd := false
+ 	if typ.Etype == TDDDFIELD {
+ 		// TDDDFIELD indicates wrapped ... slice type
+-		typ = typSlice(typ.Wrapped())
++		typ = typSlice(typ.DDDField())
+ 		isddd = true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index fb81545a46..c652c65962 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -743,8 +743,8 @@ func checkembeddedtype(t *Type) {
+ 
+ 	if t.IsPtr() {
+ 		Yyerror("embedded type cannot be a pointer")
+-	} else if t.Etype == TFORW && t.Embedlineno == 0 {
+-		t.Embedlineno = lineno
++	} else if t.Etype == TFORW && t.ForwardType().Embedlineno == 0 {
++		t.ForwardType().Embedlineno = lineno
+ 	}
+ }
+ 
+@@ -855,7 +855,7 @@ func tostruct0(t *Type, l []*Node) {
+ 
+ func tofunargs(l []*Node) *Type {
+ 	t := typ(TSTRUCT)
+-	t.Funarg = true
++	t.StructType().Funarg = true
+ 
+ 	fields := make([]*Field, len(l))
+ 	for i, n := range l {
+@@ -1061,11 +1061,11 @@ func functype0(t *Type, this *Node, in, out []*Node) {
+ 		t.Broke = true
+ 	}
+ 
+-	t.Outnamed = false
++	t.FuncType().Outnamed = false
+ 	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
+ 		s := out[0].Left.Orig.Sym
+ 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
+-			t.Outnamed = true
++			t.FuncType().Outnamed = true
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 6de7da0667..17311cf6af 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -592,7 +592,7 @@ func dumpasmhdr() {
+ 
+ 		case OTYPE:
+ 			t := n.Type
+-			if !t.IsStruct() || t.Map != nil || t.IsFuncArgStruct() {
++			if !t.IsStruct() || t.StructType().Map != nil || t.IsFuncArgStruct() {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 27ccdfbdcf..5c5503619f 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -671,19 +671,20 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		return buf.String()
+ 
+ 	case TSTRUCT:
+-		if t.Map != nil {
++		if m := t.StructType().Map; m != nil {
++			mt := m.MapType()
+ 			// Format the bucket struct for map[x]y as map.bucket[x]y.
+ 			// This avoids a recursive print that generates very long names.
+-			if t.Map.Bucket == t {
+-				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Val().String()
++			if mt.Bucket == t {
++				return "map.bucket[" + m.Key().String() + "]" + m.Val().String()
+ 			}
+ 
+-			if t.Map.Hmap == t {
+-				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Val().String()
++			if mt.Hmap == t {
++				return "map.hdr[" + m.Key().String() + "]" + m.Val().String()
+ 			}
+ 
+-			if t.Map.Hiter == t {
+-				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Val().String()
++			if mt.Hiter == t {
++				return "map.iter[" + m.Key().String() + "]" + m.Val().String()
+ 			}
+ 
+ 			Yyerror("unknown internal map type")
+@@ -735,7 +736,7 @@ func typefmt(t *Type, flag FmtFlag) string {
+ 		if fmtmode == FExp {
+ 			Fatalf("cannot use TDDDFIELD with old exporter")
+ 		}
+-		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Wrapped())
++		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.DDDField())
+ 	}
+ 
+ 	if fmtmode == FExp {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index efe10a419c..63f7bf825e 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -375,7 +375,7 @@ func compile(fn *Node) {
+ 	// set up domain for labels
+ 	clearlabels()
+ 
+-	if Curfn.Type.Outnamed {
++	if Curfn.Type.FuncType().Outnamed {
+ 		// add clearing of the output parameters
+ 		for _, t := range Curfn.Type.Results().Fields().Slice() {
+ 			if t.Nname != nil {
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index fcb8bfa0c2..44dc1db12e 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -10,6 +10,14 @@ import (
+ 	"testing"
+ )
+ 
++func typeWithoutPointers() *Type {
++	return &Type{Etype: TSTRUCT, Extra: &StructType{Haspointers: 1}} // haspointers -> false
++}
++
++func typeWithPointers() *Type {
++	return &Type{Etype: TSTRUCT, Extra: &StructType{Haspointers: 2}} // haspointers -> true
++}
++
+ // Test all code paths for cmpstackvarlt.
+ func TestCmpstackvar(t *testing.T) {
+ 	testdata := []struct {
+@@ -62,13 +70,13 @@ func TestCmpstackvar(t *testing.T) {
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &Type{Haspointers: 1}}, // haspointers -> false
+-			Node{Class: PAUTO, Type: &Type{Haspointers: 2}}, // haspointers -> true
++			Node{Class: PAUTO, Type: typeWithoutPointers()},
++			Node{Class: PAUTO, Type: typeWithPointers()},
+ 			false,
+ 		},
+ 		{
+-			Node{Class: PAUTO, Type: &Type{Haspointers: 2}}, // haspointers -> true
+-			Node{Class: PAUTO, Type: &Type{Haspointers: 1}}, // haspointers -> false
++			Node{Class: PAUTO, Type: typeWithPointers()},
++			Node{Class: PAUTO, Type: typeWithoutPointers()},
+ 			true,
+ 		},
+ 		{
+@@ -127,7 +135,7 @@ func TestStackvarSort(t *testing.T) {
+ 		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+ 		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+ 		{Class: PAUTO, Used: true, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+-		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
++		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &Sym{}},
+ 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+ 		{Class: PAUTO, Type: &Type{}, Name: &Name{Needzero: true}, Sym: &Sym{}},
+ 		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
+@@ -148,7 +156,7 @@ func TestStackvarSort(t *testing.T) {
+ 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+ 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
+ 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
+-		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
++		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &Sym{}},
+ 	}
+ 	// haspointers updates Type.Haspointers as a side effect, so
+ 	// exercise this function on all inputs so that reflect.DeepEqual
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index c069b35787..df9ef27b7a 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -86,8 +86,8 @@ func makefield(name string, t *Type) *Field {
+ }
+ 
+ func mapbucket(t *Type) *Type {
+-	if t.Bucket != nil {
+-		return t.Bucket
++	if t.MapType().Bucket != nil {
++		return t.MapType().Bucket
+ 	}
+ 
+ 	bucket := typ(TSTRUCT)
+@@ -157,17 +157,17 @@ func mapbucket(t *Type) *Type {
+ 		Yyerror("bad math in mapbucket for %v", t)
+ 	}
+ 
+-	t.Bucket = bucket
++	t.MapType().Bucket = bucket
+ 
+-	bucket.Map = t
++	bucket.StructType().Map = t
+ 	return bucket
+ }
+ 
+ // Builds a type representing a Hmap structure for the given map type.
+ // Make sure this stays in sync with ../../../../runtime/hashmap.go!
+ func hmap(t *Type) *Type {
+-	if t.Hmap != nil {
+-		return t.Hmap
++	if t.MapType().Hmap != nil {
++		return t.MapType().Hmap
+ 	}
+ 
+ 	bucket := mapbucket(t)
+@@ -186,14 +186,14 @@ func hmap(t *Type) *Type {
+ 	h.Local = t.Local
+ 	h.SetFields(field[:])
+ 	dowidth(h)
+-	t.Hmap = h
+-	h.Map = t
++	t.MapType().Hmap = h
++	h.StructType().Map = t
+ 	return h
+ }
+ 
+ func hiter(t *Type) *Type {
+-	if t.Hiter != nil {
+-		return t.Hiter
++	if t.MapType().Hiter != nil {
++		return t.MapType().Hiter
+ 	}
+ 
+ 	// build a struct:
+@@ -234,8 +234,8 @@ func hiter(t *Type) *Type {
+ 	if i.Width != int64(12*Widthptr) {
+ 		Yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+ 	}
+-	t.Hiter = i
+-	i.Map = t
++	t.MapType().Hiter = i
++	i.StructType().Map = t
+ 	return i
+ }
+ 
+@@ -664,67 +664,47 @@ var kinds = []int{
+ }
+ 
+ func haspointers(t *Type) bool {
+-	if t.Haspointers != 0 {
+-		return t.Haspointers-1 != 0
+-	}
+-
+-	var ret bool
+ 	switch t.Etype {
+-	case TINT,
+-		TUINT,
+-		TINT8,
+-		TUINT8,
+-		TINT16,
+-		TUINT16,
+-		TINT32,
+-		TUINT32,
+-		TINT64,
+-		TUINT64,
+-		TUINTPTR,
+-		TFLOAT32,
+-		TFLOAT64,
+-		TCOMPLEX64,
+-		TCOMPLEX128,
+-		TBOOL:
+-		ret = false
++	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
++		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
++		return false
+ 
+ 	case TARRAY:
+ 		if t.IsSlice() {
+-			ret = true
+-			break
++			return true
+ 		}
+ 
+-		if t.NumElem() == 0 { // empty array
+-			ret = false
+-			break
++		at := t.Extra.(*ArrayType)
++		if at.Haspointers != 0 {
++			return at.Haspointers-1 != 0
+ 		}
+ 
+-		ret = haspointers(t.Elem())
++		ret := false
++		if t.NumElem() != 0 { // non-empty array
++			ret = haspointers(t.Elem())
++		}
++
++		at.Haspointers = 1 + uint8(obj.Bool2int(ret))
++		return ret
+ 
+ 	case TSTRUCT:
+-		ret = false
++		st := t.StructType()
++		if st.Haspointers != 0 {
++			return st.Haspointers-1 != 0
++		}
++
++		ret := false
+ 		for _, t1 := range t.Fields().Slice() {
+ 			if haspointers(t1.Type) {
+ 				ret = true
+ 				break
+ 			}
+ 		}
+-
+-	case TSTRING,
+-		TPTR32,
+-		TPTR64,
+-		TUNSAFEPTR,
+-		TINTER,
+-		TCHAN,
+-		TMAP,
+-		TFUNC:
+-		fallthrough
+-	default:
+-		ret = true
++		st.Haspointers = 1 + uint8(obj.Bool2int(ret))
++		return ret
+ 	}
+ 
+-	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
+-	return ret
++	return true
+ }
+ 
+ // typeptrdata returns the length in bytes of the prefix of t
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 11c0f419da..8b0dfe538e 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -27,7 +27,21 @@ func TestSizeof(t *testing.T) {
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+-		{Type{}, 116, 184},
++		{Type{}, 56, 88},
++		{MapType{}, 20, 40},
++		{ForwardType{}, 16, 32},
++		{FuncType{}, 28, 48},
++		{StructType{}, 12, 24},
++		{InterType{}, 4, 8},
++		{ChanType{}, 8, 16},
++		{ArrayType{}, 16, 24},
++		{InterMethType{}, 4, 8},
++		{DDDFieldType{}, 4, 8},
++		{FuncArgsType{}, 4, 8},
++		{ChanArgsType{}, 4, 8},
++		{PtrType{}, 4, 8},
++		{SliceType{}, 4, 8},
++		{DDDArrayType{}, 4, 8},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1c2e528384..127a7c4698 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4218,7 +4218,7 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
+ 
+ func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+-	ptrType := Ptrto(n.Type.Type)
++	ptrType := Ptrto(n.Type.Elem())
+ 	lenType := Types[TINT]
+ 	if n.Class == PAUTO && !n.Addrtaken {
+ 		// Split this slice up into three separate variables.
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index e04cfcda63..3d2f01ef7d 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -122,55 +122,174 @@ var (
+ 
+ // A Type represents a Go type.
+ type Type struct {
+-	Etype       EType
+-	Noalg       bool
+-	Chan        ChanDir
+-	Trecur      uint8 // to detect loops
+-	Printed     bool
+-	Funarg      bool // TSTRUCT only: whether this struct represents function parameters
+-	Local       bool // created in this file
+-	Deferwidth  bool
+-	Broke       bool // broken type definition.
+-	Align       uint8
+-	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+-	Outnamed    bool  // on TFUNC
+-
+-	Nod  *Node // canonical OTYPE node
+-	Orig *Type // original type (type literal or predefined type)
++	// Extra contains extra etype-specific fields.
++	// As an optimization, those etype-specific structs which contain exactly
++	// one pointer-shaped field are stored as values rather than pointers when possible.
++	//
++	// TMAP: *MapType
++	// TFORW: *ForwardType
++	// TFUNC: *FuncType
++	// TINTERMETHOD: InterMethType
++	// TSTRUCT: *StructType
++	// TINTER: *InterType
++	// TDDDFIELD: DDDFieldType
++	// TFUNCARGS: FuncArgsType
++	// TCHANARGS: ChanArgsType
++	// TCHAN: *ChanType
++	// TPTR32, TPTR64: PtrType
++	// TARRAY: *ArrayType, SliceType, or DDDArrayType
++	Extra interface{}
++
++	// Width is the width of this Type in bytes.
++	Width int64
+ 
+ 	methods    Fields
+ 	allMethods Fields
+ 
+-	Sym    *Sym
++	Nod  *Node // canonical OTYPE node
++	Orig *Type // original type (type literal or predefined type)
++
++	Sym    *Sym  // symbol containing name, for named types
+ 	Vargen int32 // unique name for OTYPE/ONAME
+-	Lineno int32
++	Lineno int32 // line at which this type was declared, implicitly or explicitly
++
++	Maplineno int32 // first use of this type as a map key
++
++	Etype      EType // kind of type
++	Noalg      bool  // suppress hash and eq algorithm generation
++	Trecur     uint8 // to detect loops
++	Printed    bool  // prevent duplicate export printing
++	Local      bool  // created in this file
++	Deferwidth bool
++	Broke      bool  // broken type definition.
++	Align      uint8 // the required alignment of this type, in bytes
++}
++
++// MapType contains Type fields specific to maps.
++type MapType struct {
++	Key *Type // Key type
++	Val *Type // Val (elem) type
++
++	Bucket *Type // internal struct type representing a hash bucket
++	Hmap   *Type // internal struct type representing the Hmap (map header object)
++	Hiter  *Type // internal struct type representing hash iterator state
++}
++
++// MapType returns t's extra map-specific fields.
++func (t *Type) MapType() *MapType {
++	t.wantEtype(TMAP)
++	return t.Extra.(*MapType)
++}
++
++// ForwardType contains Type fields specific to forward types.
++type ForwardType struct {
++	Copyto      []*Node // where to copy the eventual value to
++	Embedlineno int32   // first use of this type as an embedded type
++}
++
++// ForwardType returns t's extra forward-type-specific fields.
++func (t *Type) ForwardType() *ForwardType {
++	t.wantEtype(TFORW)
++	return t.Extra.(*ForwardType)
++}
++
++// FuncType contains Type fields specific to func types.
++type FuncType struct {
++	Receiver *Type // function receiver
++	Results  *Type // function results
++	Params   *Type // function params
++
++	Nname *Node
+ 
+-	nname  *Node
++	// Argwid is the total width of the function receiver, params, and results.
++	// It gets calculated via a temporary TFUNCARGS type.
++	// Note that TFUNC's Width is Widthptr.
+ 	Argwid int64
+ 
+-	// most nodes
+-	Type  *Type // element type for TARRAY, TCHAN, TMAP, TPTRxx
+-	Width int64
++	Outnamed bool
++}
++
++// FuncType returns t's extra func-specific fields.
++func (t *Type) FuncType() *FuncType {
++	t.wantEtype(TFUNC)
++	return t.Extra.(*FuncType)
++}
++
++// InterMethType contains Type fields specific to interface method psuedo-types.
++type InterMethType struct {
++	Nname *Node
++}
+ 
+-	// TSTRUCT
++// StructType contains Type fields specific to struct types.
++type StructType struct {
+ 	fields Fields
+ 
+-	Down *Type // key type in TMAP; next struct in Funarg TSTRUCT
++	// Maps have three associated internal structs (see struct MapType).
++	// Map links such structs back to their map type.
++	Map *Type
+ 
+-	// TARRAY
+-	Bound int64 // negative is slice
++	Funarg      bool  // whether this struct represents function parameters
++	Haspointers uint8 // 0 unknown, 1 no, 2 yes
++}
++
++// StructType returns t's extra struct-specific fields.
++func (t *Type) StructType() *StructType {
++	t.wantEtype(TSTRUCT)
++	return t.Extra.(*StructType)
++}
++
++// InterType contains Type fields specific to interface types.
++type InterType struct {
++	fields Fields
++}
++
++// PtrType contains Type fields specific to pointer types.
++type PtrType struct {
++	Elem *Type // element type
++}
++
++// DDDFieldType contains Type fields specific to TDDDFIELD types.
++type DDDFieldType struct {
++	T *Type // reference to a slice type for ... args
++}
++
++// ChanArgsType contains Type fields specific to TCHANARGS types.
++type ChanArgsType struct {
++	T *Type // reference to a chan type whose elements need a width check
++}
+ 
+-	// TMAP
+-	Bucket *Type // internal type representing a hash bucket
+-	Hmap   *Type // internal type representing a Hmap (map header object)
+-	Hiter  *Type // internal type representing hash iterator state
+-	Map    *Type // link from the above 3 internal types back to the map type.
++// // FuncArgsType contains Type fields specific to TFUNCARGS types.
++type FuncArgsType struct {
++	T *Type // reference to a func type whose elements need a width check
++}
+ 
+-	Maplineno   int32 // first use of TFORW as map key
+-	Embedlineno int32 // first use of TFORW as embedded type
++// ChanType contains Type fields specific to channel types.
++type ChanType struct {
++	Elem *Type   // element type
++	Dir  ChanDir // channel direction
++}
+ 
+-	// for TFORW, where to copy the eventual value to
+-	Copyto []*Node
++// ChanType returns t's extra channel-specific fields.
++func (t *Type) ChanType() *ChanType {
++	t.wantEtype(TCHAN)
++	return t.Extra.(*ChanType)
++}
++
++// ArrayType contains Type fields specific to array types with known lengths.
++type ArrayType struct {
++	Elem        *Type // element type
++	Bound       int64 // number of elements; always >= 0; do not use with sliceBound or dddBound
++	Haspointers uint8 // 0 unknown, 1 no, 2 yes
++}
++
++// SliceType contains Type fields specific to slice types.
++type SliceType struct {
++	Elem *Type // element type
++}
++
++// DDDArrayType contains Type fields specific to ddd array types.
++type DDDArrayType struct {
++	Elem *Type // element type
+ }
+ 
+ // A Field represents a field in a struct or a method in an interface or
+@@ -252,38 +371,61 @@ func typ(et EType) *Type {
+ 		Lineno: lineno,
+ 	}
+ 	t.Orig = t
++	// TODO(josharian): lazily initialize some of these?
++	switch t.Etype {
++	case TMAP:
++		t.Extra = new(MapType)
++	case TFORW:
++		t.Extra = new(ForwardType)
++	case TFUNC:
++		t.Extra = new(FuncType)
++	case TINTERMETH:
++		t.Extra = InterMethType{}
++	case TSTRUCT:
++		t.Extra = new(StructType)
++	case TINTER:
++		t.Extra = new(InterType)
++	case TPTR32, TPTR64:
++		t.Extra = PtrType{}
++	case TCHANARGS:
++		t.Extra = ChanArgsType{}
++	case TFUNCARGS:
++		t.Extra = FuncArgsType{}
++	case TDDDFIELD:
++		t.Extra = DDDFieldType{}
++	case TCHAN:
++		t.Extra = new(ChanType)
++	}
+ 	return t
+ }
+ 
+ // typArray returns a new fixed-length array Type.
+ func typArray(elem *Type, bound int64) *Type {
+ 	t := typ(TARRAY)
+-	t.Type = elem
+-	t.Bound = bound
++	t.Extra = &ArrayType{Elem: elem, Bound: bound}
+ 	return t
+ }
+ 
+ // typSlice returns a new slice Type.
+ func typSlice(elem *Type) *Type {
+ 	t := typ(TARRAY)
+-	t.Type = elem
+-	t.Bound = sliceBound
++	t.Extra = SliceType{Elem: elem}
+ 	return t
+ }
+ 
+ // typDDDArray returns a new [...]T array Type.
+ func typDDDArray(elem *Type) *Type {
+ 	t := typ(TARRAY)
+-	t.Type = elem
+-	t.Bound = dddBound
++	t.Extra = DDDArrayType{Elem: elem}
+ 	return t
+ }
+ 
+ // typChan returns a new chan Type with direction dir.
+ func typChan(elem *Type, dir ChanDir) *Type {
+ 	t := typ(TCHAN)
+-	t.Type = elem
+-	t.Chan = dir
++	ct := t.ChanType()
++	ct.Elem = elem
++	ct.Dir = dir
+ 	return t
+ }
+ 
+@@ -294,29 +436,39 @@ func typMap(k, v *Type) *Type {
+ 	}
+ 
+ 	t := typ(TMAP)
+-	t.Down = k
+-	t.Type = v
++	mt := t.MapType()
++	mt.Key = k
++	mt.Val = v
+ 	return t
+ }
+ 
+ // typPtr returns a new pointer type pointing to t.
+ func typPtr(elem *Type) *Type {
+ 	t := typ(Tptr)
+-	t.Type = elem
++	t.Extra = PtrType{Elem: elem}
+ 	t.Width = int64(Widthptr)
+ 	t.Align = uint8(Widthptr)
+ 	return t
+ }
+ 
+-// typWrapper returns a new wrapper psuedo-type.
+-func typWrapper(et EType, wrapped *Type) *Type {
+-	switch et {
+-	case TCHANARGS, TFUNCARGS, TDDDFIELD:
+-	default:
+-		Fatalf("typWrapper bad etype %s", et)
+-	}
+-	t := typ(et)
+-	t.Type = wrapped
++// typDDDField returns a new TDDDFIELD type for slice type s.
++func typDDDField(s *Type) *Type {
++	t := typ(TDDDFIELD)
++	t.Extra = DDDFieldType{T: s}
++	return t
++}
++
++// typChanArgs returns a new TCHANARGS type for channel type c.
++func typChanArgs(c *Type) *Type {
++	t := typ(TCHANARGS)
++	t.Extra = ChanArgsType{T: c}
++	return t
++}
++
++// typFuncArgs returns a new TFUNCARGS type for func type f.
++func typFuncArgs(f *Type) *Type {
++	t := typ(TFUNCARGS)
++	t.Extra = FuncArgsType{T: f}
+ 	return t
+ }
+ 
+@@ -362,20 +514,43 @@ func substAny(t *Type, types *[]*Type) *Type {
+ 		t = (*types)[0]
+ 		*types = (*types)[1:]
+ 
+-	case TPTR32, TPTR64, TCHAN, TARRAY:
+-		elem := substAny(t.Type, types)
+-		if elem != t.Type {
++	case TPTR32, TPTR64:
++		elem := substAny(t.Elem(), types)
++		if elem != t.Elem() {
++			t = t.Copy()
++			t.Extra = PtrType{Elem: elem}
++		}
++
++	case TARRAY:
++		elem := substAny(t.Elem(), types)
++		if elem != t.Elem() {
++			t = t.Copy()
++			switch x := t.Extra.(type) {
++			case *ArrayType:
++				x.Elem = elem
++			case SliceType:
++				t.Extra = SliceType{Elem: elem}
++			case DDDArrayType:
++				t.Extra = DDDArrayType{Elem: elem}
++			default:
++				Fatalf("substAny bad array elem type %T %v", x, t)
++			}
++		}
++
++	case TCHAN:
++		elem := substAny(t.Elem(), types)
++		if elem != t.Elem() {
+ 			t = t.Copy()
+-			t.Type = elem
++			t.Extra.(*ChanType).Elem = elem
+ 		}
+ 
+ 	case TMAP:
+-		key := substAny(t.Down, types)
+-		val := substAny(t.Type, types)
+-		if key != t.Down || val != t.Type {
++		key := substAny(t.Key(), types)
++		val := substAny(t.Val(), types)
++		if key != t.Key() || val != t.Val() {
+ 			t = t.Copy()
+-			t.Down = key
+-			t.Type = val
++			t.Extra.(*MapType).Key = key
++			t.Extra.(*MapType).Val = val
+ 		}
+ 
+ 	case TFUNC:
+@@ -426,6 +601,32 @@ func (t *Type) Copy() *Type {
+ 		return nil
+ 	}
+ 	nt := *t
++	// copy any *T Extra fields, to avoid aliasing
++	switch t.Etype {
++	case TMAP:
++		x := *t.Extra.(*MapType)
++		nt.Extra = &x
++	case TFORW:
++		x := *t.Extra.(*ForwardType)
++		nt.Extra = &x
++	case TFUNC:
++		x := *t.Extra.(*FuncType)
++		nt.Extra = &x
++	case TSTRUCT:
++		x := *t.Extra.(*StructType)
++		nt.Extra = &x
++	case TINTER:
++		x := *t.Extra.(*InterType)
++		nt.Extra = &x
++	case TCHAN:
++		x := *t.Extra.(*ChanType)
++		nt.Extra = &x
++	case TARRAY:
++		if arr, ok := t.Extra.(*ArrayType); ok {
++			x := *arr
++			nt.Extra = &x
++		}
++	}
+ 	// TODO(mdempsky): Find out why this is necessary and explain.
+ 	if t.Orig == t {
+ 		nt.Orig = &nt
+@@ -483,17 +684,17 @@ func (t *Type) wantEtype2(et1, et2 EType) {
+ 
+ func (t *Type) RecvsP() **Type {
+ 	t.wantEtype(TFUNC)
+-	return &t.Type
++	return &t.Extra.(*FuncType).Receiver
+ }
+ 
+ func (t *Type) ParamsP() **Type {
+ 	t.wantEtype(TFUNC)
+-	return &t.Type.Down.Down
++	return &t.Extra.(*FuncType).Params
+ }
+ 
+ func (t *Type) ResultsP() **Type {
+ 	t.wantEtype(TFUNC)
+-	return &t.Type.Down
++	return &t.Extra.(*FuncType).Results
+ }
+ 
+ func (t *Type) Recvs() *Type   { return *t.RecvsP() }
+@@ -524,51 +725,82 @@ var paramsResults = [2]func(*Type) *Type{
+ // Key returns the key type of map type t.
+ func (t *Type) Key() *Type {
+ 	t.wantEtype(TMAP)
+-	return t.Down
++	return t.Extra.(*MapType).Key
+ }
+ 
+ // Val returns the value type of map type t.
+ func (t *Type) Val() *Type {
+ 	t.wantEtype(TMAP)
+-	return t.Type
++	return t.Extra.(*MapType).Val
+ }
+ 
+ // Elem returns the type of elements of t.
+ // Usable with pointers, channels, arrays, and slices.
+ func (t *Type) Elem() *Type {
+ 	switch t.Etype {
+-	case TPTR32, TPTR64, TCHAN, TARRAY:
+-	default:
+-		Fatalf("Type.Elem %s", t.Etype)
++	case TPTR32, TPTR64:
++		return t.Extra.(PtrType).Elem
++	case TARRAY:
++		switch t := t.Extra.(type) {
++		case *ArrayType:
++			return t.Elem
++		case SliceType:
++			return t.Elem
++		case DDDArrayType:
++			return t.Elem
++		}
++	case TCHAN:
++		return t.Extra.(*ChanType).Elem
+ 	}
+-	return t.Type
++	Fatalf("Type.Elem %s", t.Etype)
++	return nil
+ }
+ 
+-// Wrapped returns the type that pseudo-type t wraps.
+-func (t *Type) Wrapped() *Type {
+-	switch t.Etype {
+-	case TCHANARGS, TFUNCARGS, TDDDFIELD:
+-	default:
+-		Fatalf("Type.Wrapped %s", t.Etype)
+-	}
+-	return t.Type
++// DDDField returns the slice ... type for TDDDFIELD type t.
++func (t *Type) DDDField() *Type {
++	t.wantEtype(TDDDFIELD)
++	return t.Extra.(DDDFieldType).T
++}
++
++// ChanArgs returns the channel type for TCHANARGS type t.
++func (t *Type) ChanArgs() *Type {
++	t.wantEtype(TCHANARGS)
++	return t.Extra.(ChanArgsType).T
++}
++
++// FuncArgs returns the channel type for TFUNCARGS type t.
++func (t *Type) FuncArgs() *Type {
++	t.wantEtype(TFUNCARGS)
++	return t.Extra.(FuncArgsType).T
+ }
+ 
+ // Nname returns the associated function's nname.
+ func (t *Type) Nname() *Node {
+-	t.wantEtype2(TFUNC, TINTERMETH)
+-	return t.nname
++	switch t.Etype {
++	case TFUNC:
++		return t.Extra.(*FuncType).Nname
++	case TINTERMETH:
++		return t.Extra.(InterMethType).Nname
++	}
++	Fatalf("Type.Nname %v %v", t.Etype, t)
++	return nil
+ }
+ 
+ // Nname sets the associated function's nname.
+ func (t *Type) SetNname(n *Node) {
+-	t.wantEtype2(TFUNC, TINTERMETH)
+-	t.nname = n
++	switch t.Etype {
++	case TFUNC:
++		t.Extra.(*FuncType).Nname = n
++	case TINTERMETH:
++		t.Extra = InterMethType{Nname: n}
++	default:
++		Fatalf("Type.SetNname %v %v", t.Etype, t)
++	}
+ }
+ 
+ // IsFuncArgStruct reports whether t is a struct representing function parameters.
+ func (t *Type) IsFuncArgStruct() bool {
+-	return t.Etype == TSTRUCT && t.Funarg
++	return t.Etype == TSTRUCT && t.Extra.(*StructType).Funarg
+ }
+ 
+ func (t *Type) Methods() *Fields {
+@@ -582,10 +814,14 @@ func (t *Type) AllMethods() *Fields {
+ }
+ 
+ func (t *Type) Fields() *Fields {
+-	if t.Etype != TSTRUCT && t.Etype != TINTER {
+-		Fatalf("Fields: type %v does not have fields", t)
++	switch t.Etype {
++	case TSTRUCT:
++		return &t.Extra.(*StructType).fields
++	case TINTER:
++		return &t.Extra.(*InterType).fields
+ 	}
+-	return &t.fields
++	Fatalf("Fields: type %v does not have fields", t)
++	return nil
+ }
+ 
+ // Field returns the i'th field/method of struct/interface type t.
+@@ -608,15 +844,15 @@ func (t *Type) isDDDArray() bool {
+ 	if t.Etype != TARRAY {
+ 		return false
+ 	}
+-	t.checkBound()
+-	return t.Bound == dddBound
++	_, ok := t.Extra.(DDDArrayType)
++	return ok
+ }
+ 
+ // ArgWidth returns the total aligned argument size for a function.
+ // It includes the receiver, parameters, and results.
+ func (t *Type) ArgWidth() int64 {
+ 	t.wantEtype(TFUNC)
+-	return t.Argwid
++	return t.Extra.(*FuncType).Argwid
+ }
+ 
+ func (t *Type) Size() int64 {
+@@ -764,20 +1000,20 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
+ 		// by the general code after the switch.
+ 
+ 	case TSTRUCT:
+-		if t.Map == nil {
+-			if x.Map != nil {
++		if t.StructType().Map == nil {
++			if x.StructType().Map != nil {
+ 				return ssa.CMPlt // nil < non-nil
+ 			}
+ 			// to the fallthrough
+-		} else if x.Map == nil {
++		} else if x.StructType().Map == nil {
+ 			return ssa.CMPgt // nil > non-nil
+-		} else if t.Map.Bucket == t {
++		} else if t.StructType().Map.MapType().Bucket == t {
+ 			// Both have non-nil Map
+ 			// Special case for Maps which include a recursive type where the recursion is not broken with a named type
+-			if x.Map.Bucket != x {
++			if x.StructType().Map.MapType().Bucket != x {
+ 				return ssa.CMPlt // bucket maps are least
+ 			}
+-			return t.Map.cmp(x.Map)
++			return t.StructType().Map.cmp(x.StructType().Map)
+ 		} // If t != t.Map.Bucket, fall through to general case
+ 
+ 		fallthrough
+@@ -910,21 +1146,22 @@ func (t *Type) IsChan() bool {
+ 	return t.Etype == TCHAN
+ }
+ 
+-// checkBound enforces that Bound has an acceptable value.
+-func (t *Type) checkBound() {
+-	if t.Bound != sliceBound && t.Bound < 0 && t.Bound != dddBound {
+-		Fatalf("bad TARRAY bounds %d %s", t.Bound, t)
+-	}
+-}
+-
++// TODO: Remove noinline when issue 15084 is resolved.
++//go:noinline
+ func (t *Type) IsSlice() bool {
+-	t.checkBound()
+-	return t.Etype == TARRAY && t.Bound == sliceBound
++	if t.Etype != TARRAY {
++		return false
++	}
++	_, ok := t.Extra.(SliceType)
++	return ok
+ }
+ 
+ func (t *Type) IsArray() bool {
+-	t.checkBound()
+-	return t.Etype == TARRAY && t.Bound >= 0
++	if t.Etype != TARRAY {
++		return false
++	}
++	_, ok := t.Extra.(*ArrayType)
++	return ok
+ }
+ 
+ func (t *Type) IsStruct() bool {
+@@ -961,24 +1198,48 @@ func (t *Type) FieldOff(i int) int64 {
+ 
+ func (t *Type) NumElem() int64 {
+ 	t.wantEtype(TARRAY)
+-	t.checkBound()
+-	return t.Bound
++	switch t := t.Extra.(type) {
++	case *ArrayType:
++		return t.Bound
++	case SliceType:
++		return sliceBound
++	case DDDArrayType:
++		return dddBound
++	}
++	Fatalf("NumElem on non-array %T %v", t.Extra, t)
++	return 0
+ }
+ 
+ // SetNumElem sets the number of elements in an array type.
+ // It should not be used if at all possible.
+ // Create a new array/slice/dddArray with typX instead.
+-// TODO(josharian): figure out how to get rid of this.
++// The only allowed uses are:
++//   * array -> slice as a hack to suppress extra error output
++//   * ddd array -> array
++// TODO(josharian): figure out how to get rid of this entirely.
+ func (t *Type) SetNumElem(n int64) {
+ 	t.wantEtype(TARRAY)
+-	t.Bound = n
++	switch {
++	case n >= 0:
++		if !t.isDDDArray() {
++			Fatalf("SetNumElem non-ddd -> array %v", t)
++		}
++		t.Extra = &ArrayType{Elem: t.Elem(), Bound: n}
++	case n == sliceBound:
++		if !t.IsArray() {
++			Fatalf("SetNumElem non-array -> slice %v", t)
++		}
++		t.Extra = SliceType{Elem: t.Elem()}
++	default:
++		Fatalf("SetNumElem %d %v", n, t)
++	}
+ }
+ 
+ // ChanDir returns the direction of a channel type t.
+ // The direction will be one of Crecv, Csend, or Cboth.
+ func (t *Type) ChanDir() ChanDir {
+ 	t.wantEtype(TCHAN)
+-	return t.Chan
++	return t.Extra.(*ChanType).Dir
+ }
+ 
+ func (t *Type) IsMemory() bool { return false }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index db74a0d246..ab7d257aac 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2103,7 +2103,7 @@ OpSwitch:
+ 			return n
+ 		}
+ 
+-		if Curfn.Type.Outnamed && n.List.Len() == 0 {
++		if Curfn.Type.FuncType().Outnamed && n.List.Len() == 0 {
+ 			break OpSwitch
+ 		}
+ 		typecheckaste(ORETURN, nil, false, Curfn.Type.Results(), n.List, func() string { return "return argument" })
+@@ -2161,12 +2161,8 @@ OpSwitch:
+ 	t := n.Type
+ 	if t != nil && !t.IsFuncArgStruct() && n.Op != OTYPE {
+ 		switch t.Etype {
+-		case TFUNC, // might have TANY; wait until its called
+-			TANY,
+-			TFORW,
+-			TIDEAL,
+-			TNIL,
+-			TBLANK:
++		case TFUNC, // might have TANY; wait until it's called
++			TANY, TFORW, TIDEAL, TNIL, TBLANK:
+ 			break
+ 
+ 		default:
+@@ -3522,13 +3518,13 @@ var mapqueue []*Node
+ func copytype(n *Node, t *Type) {
+ 	if t.Etype == TFORW {
+ 		// This type isn't computed yet; when it is, update n.
+-		t.Copyto = append(t.Copyto, n)
++		t.ForwardType().Copyto = append(t.ForwardType().Copyto, n)
+ 		return
+ 	}
+ 
+ 	maplineno := n.Type.Maplineno
+-	embedlineno := n.Type.Embedlineno
+-	l := n.Type.Copyto
++	embedlineno := n.Type.ForwardType().Embedlineno
++	l := n.Type.ForwardType().Copyto
+ 
+ 	// TODO(mdempsky): Fix Type rekinding.
+ 	*n.Type = *t
+@@ -3544,7 +3540,6 @@ func copytype(n *Node, t *Type) {
+ 	t.Nod = nil
+ 	t.Printed = false
+ 	t.Deferwidth = false
+-	t.Copyto = nil
+ 
+ 	// Update nodes waiting on this type.
+ 	for _, n := range l {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index c2ba9c9a93..3330fbbab2 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -359,16 +359,16 @@ func lexinit1() {
+ 	// t = interface { Error() string }
+ 
+ 	rcvr := typ(TSTRUCT)
+-	rcvr.Funarg = true
++	rcvr.StructType().Funarg = true
+ 	field := newField()
+ 	field.Type = Ptrto(typ(TSTRUCT))
+ 	rcvr.SetFields([]*Field{field})
+ 
+ 	in := typ(TSTRUCT)
+-	in.Funarg = true
++	in.StructType().Funarg = true
+ 
+ 	out := typ(TSTRUCT)
+-	out.Funarg = true
++	out.StructType().Funarg = true
+ 	field = newField()
+ 	field.Type = Types[TSTRING]
+ 	out.SetFields([]*Field{field})
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 392dae0fa9..ff8ddea7f6 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -287,7 +287,7 @@ func walkstmt(n *Node) *Node {
+ 		if n.List.Len() == 0 {
+ 			break
+ 		}
+-		if (Curfn.Type.Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) {
++		if (Curfn.Type.FuncType().Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) {
+ 			// assign to the function out parameters,
+ 			// so that reorder3 can fix up conflicts
+ 			var rl []*Node

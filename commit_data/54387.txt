@@ -13,8 +13,85 @@ Date:   Tue Oct 4 18:40:38 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go          |  5 +++
  src/go/types/lookup.go                             |  5 +++
  .../types/testdata/fixedbugs/issue51025.go         | 38 ++++++++++++++++++++++
  3 files changed, 48 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 860535cf49..5f76752086 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -395,6 +395,11 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
+ 		return "(" + check.interfacePtrError(T) + ")"
+ 	}
+ 
++	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, m.pkg, m.name, false)
++	if fld, _ := obj.(*Var); fld != nil {
++		return check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
++	}
++
+ 	return check.sprintf("(missing %s)", mname)
+ }
+ 
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 43fd8d9947..9e0a06aedb 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -395,6 +395,11 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
+ 		return "(" + check.interfacePtrError(T) + ")"
+ 	}
+ 
++	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, m.pkg, m.name, false)
++	if fld, _ := obj.(*Var); fld != nil {
++		return check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
++	}
++
+ 	return check.sprintf("(missing %s)", mname)
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue51025.go b/src/internal/types/testdata/fixedbugs/issue51025.go
+new file mode 100644
+index 0000000000..207b06e84b
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue51025.go
+@@ -0,0 +1,38 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ interface{ m() } = struct /* ERROR m is a field, not a method */ {
++	m func()
++}{}
++
++var _ interface{ m() } = & /* ERROR m is a field, not a method */ struct {
++	m func()
++}{}
++
++var _ interface{ M() } = struct /* ERROR missing method M */ {
++	m func()
++}{}
++
++var _ interface{ M() } = & /* ERROR missing method M */ struct {
++	m func()
++}{}
++
++// test case from issue
++type I interface{ m() }
++type T struct{ m func() }
++type M struct{}
++
++func (M) m() {}
++
++func _() {
++	var t T
++	var m M
++	var i I
++
++	i = m
++	i = t // ERROR m is a field, not a method
++	_ = i
++}

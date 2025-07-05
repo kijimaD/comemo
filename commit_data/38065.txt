@@ -11,6 +11,29 @@ Date:   Sun Sep 30 09:04:17 2018 -0700
     Change-Id: I46a975ed37d5e570afe2e228d3edf74949e08ad7
     Reviewed-on: https://go-review.googlesource.com/138580
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/reflect/asm_s390x.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/asm_s390x.s b/src/reflect/asm_s390x.s
+index 2ab5481c9b..cb7954c900 100644
+--- a/src/reflect/asm_s390x.s
++++ b/src/reflect/asm_s390x.s
+@@ -14,7 +14,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	MOVD	R12, 8(R15)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R15)
+-	MOVB	R0, 32(R15)
++	MOVB	$0, 32(R15)
+ 	ADD	$32, R15, R3
+ 	MOVD	R3, 24(R15)
+ 	BL	·callReflect(SB)
+@@ -29,7 +29,7 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	MOVD	R12, 8(R15)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R15)
+-	MOVB	R0, 32(R15)
++	MOVB	$0, 32(R15)
+ 	ADD	$32, R15, R3
+ 	MOVD	R3, 24(R15)
+ 	BL	·callMethod(SB)

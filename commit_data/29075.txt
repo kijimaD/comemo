@@ -9,7 +9,106 @@ Date:   Tue Aug 23 15:18:09 2016 -0700
     Change-Id: I62073e9fdcfe5ddda9b0a47fe8554b524191a77c
     Reviewed-on: https://go-review.googlesource.com/27638
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 43 +++++++++++-----------------------
  src/cmd/compile/internal/gc/bimport.go |  2 +-
  2 files changed, 15 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index a55493854f..9c1ccd87a1 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -810,9 +810,6 @@ func (p *exporter) typ(t *Type) {
+ }
+ 
+ func (p *exporter) qualifiedName(sym *Sym) {
+-	if strings.Contains(sym.Name, ".") {
+-		Fatalf("exporter: invalid symbol name: %s", sym.Name)
+-	}
+ 	p.string(sym.Name)
+ 	p.pkg(sym.Pkg)
+ }
+@@ -834,7 +831,7 @@ func (p *exporter) fieldList(t *Type) {
+ 
+ func (p *exporter) field(f *Field) {
+ 	p.pos(f.Nname)
+-	p.fieldName(f.Sym, f)
++	p.fieldName(f)
+ 	p.typ(f.Type)
+ 	p.string(f.Note)
+ }
+@@ -856,37 +853,27 @@ func (p *exporter) methodList(t *Type) {
+ 
+ func (p *exporter) method(m *Field) {
+ 	p.pos(m.Nname)
+-	p.fieldName(m.Sym, m)
++	p.fieldName(m)
+ 	p.paramList(m.Type.Params(), false)
+ 	p.paramList(m.Type.Results(), false)
+ }
+ 
+ // fieldName is like qualifiedName but it doesn't record the package
+ // for blank (_) or exported names.
+-func (p *exporter) fieldName(sym *Sym, t *Field) {
+-	if t != nil && sym != t.Sym {
+-		Fatalf("exporter: invalid fieldName parameters")
+-	}
+-
+-	name := sym.Name
+-	if t != nil {
+-		if t.Embedded == 0 {
+-			name = sym.Name
+-		} else if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
+-			// anonymous field with unexported base type name: use "?" as field name
+-			// (bname != "" per spec, but we are conservative in case of errors)
+-			name = "?"
+-		} else {
+-			name = ""
+-		}
+-	}
++func (p *exporter) fieldName(t *Field) {
++	name := t.Sym.Name
+ 
+-	if strings.Contains(name, ".") {
+-		Fatalf("exporter: invalid symbol name: %s", name)
++	if t.Embedded != 0 {
++		name = "" // anonymous field
++		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
++			// anonymous field with unexported base type name
++			name = "?" // unexported name to force export of package
++		}
+ 	}
+ 	p.string(name)
+-	if name == "?" || name != "_" && name != "" && !exportname(name) {
+-		p.pkg(sym.Pkg)
++
++	if name != "_" && name != "" && !exportname(name) {
++		p.pkg(t.Sym.Pkg)
+ 	}
+ }
+ 
+@@ -895,10 +882,8 @@ func basetypeName(t *Type) string {
+ 	if s == nil && t.IsPtr() {
+ 		s = t.Elem().Sym // deref
+ 	}
++	// s should exist, but be conservative
+ 	if s != nil {
+-		if strings.Contains(s.Name, ".") {
+-			Fatalf("exporter: invalid symbol name: %s", s.Name)
+-		}
+ 		return s.Name
+ 	}
+ 	return ""
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 00d5a702ca..0e30031f07 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -595,7 +595,7 @@ func (p *importer) fieldName() *Sym {
+ 		// (see parser.go:sym). The binary exporter only exports blank as a non-exported
+ 		// identifier without qualification.
+ 		pkg = builtinpkg
+-	} else if name == "?" || name != "" && !exportname(name) {
++	} else if name != "" && !exportname(name) {
+ 		if name == "?" {
+ 			name = ""
+ 		}

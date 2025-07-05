@@ -7,6 +7,24 @@ Date:   Thu Jan 27 08:26:28 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4102043
-
+---
  src/cmd/ld/ldpe.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 66b122bb33..d8b0a6fc23 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -170,8 +170,10 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			 (symbuf[2] == 0) && (symbuf[3] == 0)) {
+ 			l = le32(&symbuf[4]);
+ 			obj->pesym[i].name = (char*)&obj->snames[l];
+-		} else {
+-			obj->pesym[i].name = strdup((char*)symbuf);
++		} else { // sym name length <= 8
++			obj->pesym[i].name = mal(9);
++			strncpy(obj->pesym[i].name, (char*)symbuf, 8);
++			obj->pesym[i].name[8] = 0;
+ 		}
+ 		obj->pesym[i].value = le32(&symbuf[8]);
+ 		obj->pesym[i].sectnum = le16(&symbuf[12]);

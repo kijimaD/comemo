@@ -14,7 +14,75 @@ Date:   Thu Aug 20 16:03:34 2009 -0700
     DELTA=21  (17 added, 2 deleted, 2 changed)
     OCL=33582
     CL=33616
-
+---
  src/pkg/compress/flate/inflate.go    |  5 ++---
  src/pkg/compress/gzip/gunzip_test.go | 18 +++++++++++++++++-
  2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 8719473d91..819528514f 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -460,7 +460,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
+ 					return err;
+ 				}
+ 			}
+-			dist = int(f.b & 0x1F);
++			dist = int(reverseByte[(f.b & 0x1F) << 3]);
+ 			f.b >>= 5;
+ 			f.nb -= 5;
+ 		} else {
+@@ -628,7 +628,6 @@ func makeReader(r io.Reader) Reader {
+ // Inflate reads DEFLATE-compressed data from r and writes
+ // the uncompressed data to w.
+ func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
+-	var ok bool;	// TODO(rsc): why not := on next line?
+ 	f.r = makeReader(r);
+ 	f.w = w;
+ 	f.woffset = 0;
+@@ -643,7 +642,7 @@ func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
+ 
+ // NewInflater returns a new ReadCloser that can be used
+ // to read the uncompressed version of r.  It is the caller's
+-// responsibility to call Close on the ReadClosed when
++// responsibility to call Close on the ReadCloser when
+ // finished reading.
+ func NewInflater(r io.Reader) io.ReadCloser {
+ 	var f inflater;
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 49f6e9c919..d881c9875b 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -8,8 +8,8 @@ import (
+ 	"bytes";
+ 	"fmt";
+ 	"io";
+-	"testing";
+ 	"os";
++	"testing";
+ )
+ 
+ type gzipTest struct {
+@@ -68,6 +68,22 @@ var gzipTests = []gzipTest {
+ 		},
+ 		nil
+ 	},
++	gzipTest {	// has a fixed huffman block with some length-distance pairs
++		"shesells.txt",
++		"shesells.txt",
++		"she sells seashells by the seashore\n",
++		[]byte {
++			0x1f, 0x8b, 0x08, 0x08, 0x72, 0x66, 0x8b, 0x4a,
++			0x00, 0x03, 0x73, 0x68, 0x65, 0x73, 0x65, 0x6c,
++			0x6c, 0x73, 0x2e, 0x74, 0x78, 0x74, 0x00, 0x2b,
++			0xce, 0x48, 0x55, 0x28, 0x4e, 0xcd, 0xc9, 0x29,
++			0x06, 0x92, 0x89, 0xc5, 0x19, 0x60, 0x56, 0x52,
++			0xa5, 0x42, 0x09, 0x58, 0x18, 0x28, 0x90, 0x5f,
++			0x94, 0xca, 0x05, 0x00, 0x76, 0xb0, 0x3b, 0xeb,
++			0x24, 0x00, 0x00, 0x00,
++		},
++		nil
++	},
+ 	gzipTest {	// has dynamic huffman blocks
+ 		"gettysburg",
+ 		"gettysburg",

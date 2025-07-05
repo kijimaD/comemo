@@ -9,6 +9,11 @@ Date:   Fri Oct 12 18:50:41 2012 +0800
     R=r
     CC=golang-dev
     https://golang.org/cl/6660046
-
+---
  doc/ExpressivenessOfGo.pdf | Bin 859406 -> 0 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/ExpressivenessOfGo.pdf b/doc/ExpressivenessOfGo.pdf
+deleted file mode 100644
+index f1931d0818..0000000000
+Binary files a/doc/ExpressivenessOfGo.pdf and /dev/null differ

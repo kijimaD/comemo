@@ -13,7 +13,7 @@ Date:   Sun Oct 17 11:41:23 2010 -0400
     R=ken2, r2, ken3
     CC=golang-dev
     https://golang.org/cl/2487042
-
+---
  src/cmd/5l/l.h            | 10 ----------
  src/cmd/5l/list.c         |  7 -------
  src/cmd/5l/obj.c          |  3 +--
@@ -22,3 +22,502 @@ Date:   Sun Oct 17 11:41:23 2010 -0400
  src/cmd/5l/thumb.c        | 41 ++++++++++++++++-----------------------
  src/pkg/runtime/arm/asm.s |  2 +-
  7 files changed, 26 insertions(+), 125 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 6414b023ac..1e720f3bea 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -238,9 +238,6 @@ enum
+ 	C_LACON,
+ 	C_GACON,	/* thumb */
+ 
+-	C_RECON,
+-	C_LECON,
+-
+ 	C_SBRA,
+ 	C_LBRA,
+ 	C_GBRA,		/* thumb */
+@@ -251,12 +248,6 @@ enum
+ 	C_SAUTO,	/* -0xfff to 0xfff */
+ 	C_LAUTO,
+ 
+-	C_HEXT,
+-	C_FEXT,
+-	C_HFEXT,
+-	C_SEXT,
+-	C_LEXT,
+-
+ 	C_HOREG,
+ 	C_FOREG,
+ 	C_HFOREG,
+@@ -280,7 +271,6 @@ enum
+ 	LABEL		= 1<<1,
+ 	LEAF		= 1<<2,
+ 
+-	BIG		= (1<<12)-4,
+ 	STRINGSZ	= 200,
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 582e79aadc..5df41ff1b3 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -382,7 +382,6 @@ cnames[] =
+ 	[C_FAUTO]	= "C_FAUTO",
+ 	[C_FCON]	= "C_FCON",
+ 	[C_FCR]		= "C_FCR",
+-	[C_FEXT]	= "C_FEXT",
+ 	[C_FOREG]	= "C_FOREG",
+ 	[C_FREG]	= "C_FREG",
+ 	[C_GACON]	= "C_GACON",
+@@ -391,9 +390,7 @@ cnames[] =
+ 	[C_GOK]		= "C_GOK",
+ 	[C_GOREG]	= "C_GOREG",
+ 	[C_HAUTO]	= "C_HAUTO",
+-	[C_HEXT]	= "C_HEXT",
+ 	[C_HFAUTO]	= "C_HFAUTO",
+-	[C_HFEXT]	= "C_HFEXT",
+ 	[C_HFOREG]	= "C_HFOREG",
+ 	[C_HOREG]	= "C_HOREG",
+ 	[C_HREG]	= "C_HREG",
+@@ -401,8 +398,6 @@ cnames[] =
+ 	[C_LAUTO]	= "C_LAUTO",
+ 	[C_LBRA]	= "C_LBRA",
+ 	[C_LCON]	= "C_LCON",
+-	[C_LECON]	= "C_LECON",
+-	[C_LEXT]	= "C_LEXT",
+ 	[C_LOREG]	= "C_LOREG",
+ 	[C_NCON]	= "C_NCON",
+ 	[C_NONE]	= "C_NONE",
+@@ -411,7 +406,6 @@ cnames[] =
+ 	[C_PSR]		= "C_PSR",
+ 	[C_RACON]	= "C_RACON",
+ 	[C_RCON]	= "C_RCON",
+-	[C_RECON]	= "C_RECON",
+ 	[C_REG]		= "C_REG",
+ 	[C_REGREG]	= "C_REGREG",
+ 	[C_ROREG]	= "C_ROREG",
+@@ -419,7 +413,6 @@ cnames[] =
+ 	[C_SAUTO]	= "C_SAUTO",
+ 	[C_SBRA]	= "C_SBRA",
+ 	[C_SCON]	= "C_SCON",
+-	[C_SEXT]	= "C_SEXT",
+ 	[C_SHIFT]	= "C_SHIFT",
+ 	[C_SOREG]	= "C_SOREG",
+ 	[C_SP]		= "C_SP",
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index b811a609fd..6392d93ca8 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -70,6 +70,7 @@ main(int argc, char *argv[])
+ {
+ 	int c, i;
+ 
++debug['s'] = 1;
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+ 	listinit();
+@@ -258,9 +259,7 @@ main(int argc, char *argv[])
+ 	follow();
+ 	softfloat();
+ 	noops();
+-	xdefine("setR12", SFIXED, 0);
+ 	span();
+-	xdefine("setR12", SFIXED, INITDAT+BIG);
+ 	reloc();
+ 	asmb();
+ 	undef();
+diff --git a/src/cmd/5l/optab.c b/src/cmd/5l/optab.c
+index 92fe12fc29..cfbb5d5a9d 100644
+--- a/src/cmd/5l/optab.c
++++ b/src/cmd/5l/optab.c
+@@ -34,8 +34,6 @@ Optab	optab[] =
+ {
+ 	/* struct Optab:
+ 	  OPCODE,	from, prog->reg, to,		 type,size,param,flag */
+-	{ ATEXT,	C_LEXT,	C_NONE,	C_LCON, 	 0, 0, 0 },
+-	{ ATEXT,	C_LEXT,	C_REG,	C_LCON, 	 0, 0, 0 },
+ 	{ ATEXT,	C_ADDR,	C_NONE,	C_LCON, 	 0, 0, 0 },
+ 	{ ATEXT,	C_ADDR,	C_REG,	C_LCON, 	 0, 0, 0 },
+ 
+@@ -56,7 +54,6 @@ Optab	optab[] =
+ 	{ AMVN,		C_SHIFT,C_NONE,	C_REG,		 3, 4, 0 },
+ 	{ ACMP,		C_SHIFT,C_REG,	C_NONE,		 3, 4, 0 },
+ 
+-	{ AMOVW,	C_RECON,C_NONE,	C_REG,		 4, 4, REGSB },
+ 	{ AMOVW,	C_RACON,C_NONE,	C_REG,		 4, 4, REGSP },
+ 
+ 	{ AB,		C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0,	LPOOL },
+@@ -81,7 +78,6 @@ Optab	optab[] =
+ 
+ 	{ AWORD,	C_NONE,	C_NONE,	C_LCON,		11, 4, 0 },
+ 	{ AWORD,	C_NONE,	C_NONE,	C_GCON,		11, 4, 0 },
+-	{ AWORD,	C_NONE,	C_NONE,	C_LEXT,		11, 4, 0 },
+ 	{ AWORD,	C_NONE,	C_NONE,	C_ADDR,		11, 4, 0 },
+ 
+ 	{ AMOVW,	C_NCON,	C_NONE,	C_REG,		12, 4, 0 },
+@@ -109,85 +105,64 @@ Optab	optab[] =
+ 
+ 	{ AMULL,	C_REG,	C_REG,	C_REGREG,	17, 4, 0 },
+ 
+-	{ AMOVW,	C_REG,	C_NONE,	C_SEXT,		20, 4, REGSB },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_SAUTO,	20, 4, REGSP },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_SOREG,	20, 4, 0 },
+-	{ AMOVB,	C_REG,	C_NONE,	C_SEXT,		20, 4, REGSB },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_SAUTO,	20, 4, REGSP },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_SOREG,	20, 4, 0 },
+-	{ AMOVBU,	C_REG,	C_NONE,	C_SEXT,		20, 4, REGSB },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_SAUTO,	20, 4, REGSP },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_SOREG,	20, 4, 0 },
+ 
+-	{ AMOVW,	C_SEXT,	C_NONE,	C_REG,		21, 4, REGSB },
+ 	{ AMOVW,	C_SAUTO,C_NONE,	C_REG,		21, 4, REGSP },
+ 	{ AMOVW,	C_SOREG,C_NONE,	C_REG,		21, 4, 0 },
+-	{ AMOVBU,	C_SEXT,	C_NONE,	C_REG,		21, 4, REGSB },
+ 	{ AMOVBU,	C_SAUTO,C_NONE,	C_REG,		21, 4, REGSP },
+ 	{ AMOVBU,	C_SOREG,C_NONE,	C_REG,		21, 4, 0 },
+ 
+-	{ AMOVB,	C_SEXT,	C_NONE,	C_REG,		22, 12, REGSB },
+ 	{ AMOVB,	C_SAUTO,C_NONE,	C_REG,		22, 12, REGSP },
+ 	{ AMOVB,	C_SOREG,C_NONE,	C_REG,		22, 12, 0 },
+-	{ AMOVH,	C_SEXT,	C_NONE,	C_REG,		22, 12, REGSB },
+ 	{ AMOVH,	C_SAUTO,C_NONE,	C_REG,		22, 12, REGSP },
+ 	{ AMOVH,	C_SOREG,C_NONE,	C_REG,		22, 12, 0 },
+-	{ AMOVHU,	C_SEXT,	C_NONE,	C_REG,		22, 12, REGSB },
+ 	{ AMOVHU,	C_SAUTO,C_NONE,	C_REG,		22, 12, REGSP },
+ 	{ AMOVHU,	C_SOREG,C_NONE,	C_REG,		22, 12, 0 },
+ 
+-	{ AMOVH,	C_REG,	C_NONE,	C_SEXT,		23, 12, REGSB },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_SAUTO,	23, 12, REGSP },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_SOREG,	23, 12, 0 },
+-	{ AMOVHU,	C_REG,	C_NONE,	C_SEXT,		23, 12, REGSB },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_SAUTO,	23, 12, REGSP },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_SOREG,	23, 12, 0 },
+ 
+-	{ AMOVW,	C_REG,	C_NONE,	C_LEXT,		30, 8, REGSB,	LTO },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_LAUTO,	30, 8, REGSP,	LTO },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_LOREG,	30, 8, 0,	LTO },
+ 	{ AMOVW,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO },
+-	{ AMOVB,	C_REG,	C_NONE,	C_LEXT,		30, 8, REGSB,	LTO },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_LAUTO,	30, 8, REGSP,	LTO },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_LOREG,	30, 8, 0,	LTO },
+ 	{ AMOVB,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO },
+-	{ AMOVBU,	C_REG,	C_NONE,	C_LEXT,		30, 8, REGSB,	LTO },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_LAUTO,	30, 8, REGSP,	LTO },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_LOREG,	30, 8, 0,	LTO },
+ 	{ AMOVBU,	C_REG,	C_NONE,	C_ADDR,		64, 8, 0,	LTO },
+ 
+-	{ AMOVW,	C_LEXT,	C_NONE,	C_REG,		31, 8, REGSB,	LFROM },
+ 	{ AMOVW,	C_LAUTO,C_NONE,	C_REG,		31, 8, REGSP,	LFROM },
+ 	{ AMOVW,	C_LOREG,C_NONE,	C_REG,		31, 8, 0,	LFROM },
+ 	{ AMOVW,	C_ADDR,	C_NONE,	C_REG,		65, 8, 0,	LFROM },
+-	{ AMOVBU,	C_LEXT,	C_NONE,	C_REG,		31, 8, REGSB,	LFROM },
+ 	{ AMOVBU,	C_LAUTO,C_NONE,	C_REG,		31, 8, REGSP,	LFROM },
+ 	{ AMOVBU,	C_LOREG,C_NONE,	C_REG,		31, 8, 0,	LFROM },
+ 	{ AMOVBU,	C_ADDR,	C_NONE,	C_REG,		65, 8, 0,	LFROM },
+ 
+-	{ AMOVB,	C_LEXT,	C_NONE,	C_REG,		32, 16, REGSB,	LFROM },
+ 	{ AMOVB,	C_LAUTO,C_NONE,	C_REG,		32, 16, REGSP,	LFROM },
+ 	{ AMOVB,	C_LOREG,C_NONE,	C_REG,		32, 16, 0,	LFROM },
+ 	{ AMOVB,	C_ADDR,	C_NONE,	C_REG,		66, 16, 0,	LFROM },
+-	{ AMOVH,	C_LEXT,	C_NONE,	C_REG,		32, 16, REGSB,	LFROM },
+ 	{ AMOVH,	C_LAUTO,C_NONE,	C_REG,		32, 16, REGSP,	LFROM },
+ 	{ AMOVH,	C_LOREG,C_NONE,	C_REG,		32, 16, 0,	LFROM },
+ 	{ AMOVH,	C_ADDR,	C_NONE,	C_REG,		66, 16, 0,	LFROM },
+-	{ AMOVHU,	C_LEXT,	C_NONE,	C_REG,		32, 16, REGSB,	LFROM },
+ 	{ AMOVHU,	C_LAUTO,C_NONE,	C_REG,		32, 16, REGSP,	LFROM },
+ 	{ AMOVHU,	C_LOREG,C_NONE,	C_REG,		32, 16, 0,	LFROM },
+ 	{ AMOVHU,	C_ADDR,	C_NONE,	C_REG,		66, 16, 0,	LFROM },
+ 
+-	{ AMOVH,	C_REG,	C_NONE,	C_LEXT,		33, 24, REGSB,	LTO },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_LAUTO,	33, 24, REGSP,	LTO },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_LOREG,	33, 24, 0,	LTO },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_ADDR,		67, 24, 0,	LTO },
+-	{ AMOVHU,	C_REG,	C_NONE,	C_LEXT,		33, 24, REGSB,	LTO },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_LAUTO,	33, 24, REGSP,	LTO },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_LOREG,	33, 24, 0,	LTO },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_ADDR,		67, 24, 0,	LTO },
+ 
+-	{ AMOVW,	C_LECON,C_NONE,	C_REG,		34, 8, REGSB,	LFROM },
+ 	{ AMOVW,	C_LACON,C_NONE,	C_REG,		34, 8, REGSP,	LFROM },
+ 
+ 	{ AMOVW,	C_PSR,	C_NONE,	C_REG,		35, 4, 0 },
+@@ -201,19 +176,15 @@ Optab	optab[] =
+ 
+ 	{ ARFE,		C_NONE,	C_NONE,	C_NONE,		41, 4, 0 },
+ 
+-	{ AMOVF,	C_FREG,	C_NONE,	C_FEXT,		50, 4, REGSB },
+ 	{ AMOVF,	C_FREG,	C_NONE,	C_FAUTO,	50, 4, REGSP },
+ 	{ AMOVF,	C_FREG,	C_NONE,	C_FOREG,	50, 4, 0 },
+ 
+-	{ AMOVF,	C_FEXT,	C_NONE,	C_FREG,		51, 4, REGSB },
+ 	{ AMOVF,	C_FAUTO,C_NONE,	C_FREG,		51, 4, REGSP },
+ 	{ AMOVF,	C_FOREG,C_NONE,	C_FREG,		51, 4, 0 },
+ 
+-	{ AMOVF,	C_FREG,	C_NONE,	C_LEXT,		52, 12, REGSB,	LTO },
+ 	{ AMOVF,	C_FREG,	C_NONE,	C_LAUTO,	52, 12, REGSP,	LTO },
+ 	{ AMOVF,	C_FREG,	C_NONE,	C_LOREG,	52, 12, 0,	LTO },
+ 
+-	{ AMOVF,	C_LEXT,	C_NONE,	C_FREG,		53, 12, REGSB,	LFROM },
+ 	{ AMOVF,	C_LAUTO,C_NONE,	C_FREG,		53, 12, REGSP,	LFROM },
+ 	{ AMOVF,	C_LOREG,C_NONE,	C_FREG,		53, 12, 0,	LFROM },
+ 
+@@ -248,37 +219,27 @@ Optab	optab[] =
+ 	{ ACASE,	C_REG,	C_NONE,	C_NONE,		62, 4, 0 },
+ 	{ ABCASE,	C_NONE, C_NONE, C_SBRA,		63, 4, 0 },
+ 
+-	{ AMOVH,	C_REG,	C_NONE,	C_HEXT,		70, 4, REGSB,	V4 },
+ 	{ AMOVH,	C_REG,	C_NONE, C_HAUTO,	70, 4, REGSP,	V4 },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_HOREG,	70, 4, 0,	V4 },
+-	{ AMOVHU,	C_REG,	C_NONE,	C_HEXT,		70, 4, REGSB,	V4 },
+ 	{ AMOVHU,	C_REG,	C_NONE, C_HAUTO,	70, 4, REGSP,	V4 },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_HOREG,	70, 4, 0,	V4 },
+ 
+-	{ AMOVB,	C_HEXT,	C_NONE, C_REG,		71, 4, REGSB,	V4 },
+ 	{ AMOVB,	C_HAUTO,C_NONE,	C_REG,		71, 4, REGSP,	V4 },
+ 	{ AMOVB,	C_HOREG,C_NONE,	C_REG,		71, 4, 0,	V4 },
+-	{ AMOVH,	C_HEXT,	C_NONE,	C_REG,		71, 4, REGSB,	V4 },
+ 	{ AMOVH,	C_HAUTO,C_NONE, C_REG,		71, 4, REGSP,	V4 },
+ 	{ AMOVH,	C_HOREG,C_NONE,	C_REG,		71, 4, 0,	V4 },
+-	{ AMOVHU,	C_HEXT,	C_NONE,	C_REG,		71, 4, REGSB,	V4 },
+ 	{ AMOVHU,	C_HAUTO,C_NONE, C_REG,		71, 4, REGSP,	V4 },
+ 	{ AMOVHU,	C_HOREG,C_NONE,	C_REG,		71, 4, 0,	V4 },
+ 
+-	{ AMOVH,	C_REG,	C_NONE,	C_LEXT,		72, 8, REGSB,	LTO|V4 },
+ 	{ AMOVH,	C_REG,	C_NONE, C_LAUTO,	72, 8, REGSP,	LTO|V4 },
+ 	{ AMOVH,	C_REG,	C_NONE,	C_LOREG,	72, 8, 0,	LTO|V4 },
+-	{ AMOVHU,	C_REG,	C_NONE,	C_LEXT,		72, 8, REGSB,	LTO|V4 },
+ 	{ AMOVHU,	C_REG,	C_NONE, C_LAUTO,	72, 8, REGSP,	LTO|V4 },
+ 	{ AMOVHU,	C_REG,	C_NONE,	C_LOREG,	72, 8, 0,	LTO|V4 },
+ 
+-	{ AMOVB,	C_LEXT,	C_NONE, C_REG,		73, 8, REGSB,	LFROM|V4 },
+ 	{ AMOVB,	C_LAUTO,C_NONE,	C_REG,		73, 8, REGSP,	LFROM|V4 },
+ 	{ AMOVB,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM|V4 },
+-	{ AMOVH,	C_LEXT,	C_NONE,	C_REG,		73, 8, REGSB,	LFROM|V4 },
+ 	{ AMOVH,	C_LAUTO,C_NONE, C_REG,		73, 8, REGSP,	LFROM|V4 },
+ 	{ AMOVH,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM|V4 },
+-	{ AMOVHU,	C_LEXT,	C_NONE,	C_REG,		73, 8, REGSB,	LFROM|V4 },
+ 	{ AMOVHU,	C_LAUTO,C_NONE, C_REG,		73, 8, REGSP,	LFROM|V4 },
+ 	{ AMOVHU,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM|V4 },
+ 	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index e02ee91381..3a1c35b62d 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -54,9 +54,9 @@ ispad(Prog *p)
+ {
+ 	if(p->as != AMOVW)
+ 		return 0;
+-	if(p->from.type != D_REG || p->from.reg != REGSB)
++	if(p->from.type != D_REG || p->from.reg != REGTMP)
+ 		return 0;
+-	if(p->to.type != D_REG || p->to.reg != REGSB)
++	if(p->to.type != D_REG || p->to.reg != REGTMP)
+ 		return 0;
+ 	return 1;
+ }
+@@ -121,9 +121,9 @@ pad(Prog *p, int pc)
+ 	q->as = AMOVW;
+ 	q->line = p->line;
+ 	q->from.type = D_REG;
+-	q->from.reg = REGSB;
++	q->from.reg = REGTMP;
+ 	q->to.type = D_REG;
+-	q->to.reg = REGSB;
++	q->to.reg = REGTMP;
+ 	q->pc = pc;
+ 	q->link = p->link;
+ 	return q;
+@@ -542,6 +542,7 @@ xdefine(char *p, int t, int32 v)
+ 	s = lookup(p, 0);
+ 	s->type = t;
+ 	s->value = v;
++	s->reachable = 1;
+ }
+ 
+ int32
+@@ -670,16 +671,8 @@ aclass(Adr *a)
+ 					s->name, TNAME);
+ 				s->type = SDATA;
+ 			}
+-			instoffset = s->value + a->offset - INITDAT - BIG;
+-			t = immaddr(instoffset);
+-			if(t) {
+-				if(immhalf(instoffset))
+-					return immfloat(t) ? C_HFEXT : C_HEXT;
+-				if(immfloat(t))
+-					return C_FEXT;
+-				return C_SEXT;
+-			}
+-			return C_LEXT;
++			instoffset = s->value + a->offset;
++			return C_ADDR;
+ 		case D_AUTO:
+ 			instoffset = autosize + a->offset;
+ 			t = immaddr(instoffset);
+@@ -770,23 +763,11 @@ aclass(Adr *a)
+ 			if(s == S)
+ 				break;
+ 			t = s->type;
+-			switch(t) {
+-			case 0:
+-			case SXREF:
++			if(t == 0 || t == SXREF) {
+ 				diag("undefined external: %s in %s",
+ 					s->name, TNAME);
+ 				s->type = SDATA;
+-				break;
+-			case SFIXED:
+-			case STEXT:
+-			case SCONST:
+-				instoffset = symaddr(s) + a->offset;
+-				return C_LCON;
+ 			}
+-			instoffset = s->value + a->offset - INITDAT - BIG;
+-			t = immrot(instoffset);
+-			if(t && instoffset != 0)
+-				return C_RECON;
+ 			instoffset = symaddr(s) + a->offset;
+ 			return C_LCON;
+ 
+@@ -899,20 +880,6 @@ cmp(int a, int b)
+ 		if(b == C_RACON)
+ 			return 1;
+ 		break;
+-	case C_LECON:
+-		if(b == C_RECON)
+-			return 1;
+-		break;
+-
+-	case C_HFEXT:
+-		return b == C_HEXT || b == C_FEXT;
+-	case C_FEXT:
+-	case C_HEXT:
+-		return b == C_HFEXT;
+-	case C_SEXT:
+-		return cmp(C_HFEXT, b);
+-	case C_LEXT:
+-		return cmp(C_SEXT, b);
+ 
+ 	case C_HFAUTO:
+ 		return b == C_HAUTO || b == C_FAUTO;
+diff --git a/src/cmd/5l/thumb.c b/src/cmd/5l/thumb.c
+index 415d0d4bd8..d2c84b2537 100644
+--- a/src/cmd/5l/thumb.c
++++ b/src/cmd/5l/thumb.c
+@@ -204,8 +204,7 @@ thumbaclass(Adr *a, Prog *p)
+ 				a->sym->type = SDATA;
+ 			}
+ 			instoffset = a->sym->value + a->offset;
+-			return C_LEXT;	/* INITDAT unknown at this stage */
+-			// return immacon(instoffset, p, C_SEXT, C_LEXT);
++			return C_ADDR;	/* INITDAT unknown at this stage */
+ 		case D_AUTO:
+ 			instoffset = autosize + a->offset;
+ 			return immauto(instoffset, p);
+@@ -357,8 +356,8 @@ thumbaclass(Adr *a, Prog *p)
+ // as a1 a2 a3 type size param lit vers
+ Optab thumboptab[] =
+ {
+-	{ ATEXT,		C_LEXT,		C_NONE,		C_LCON,		0,	0,	0 },
+-	{ ATEXT,		C_LEXT,		C_REG,		C_LCON,		0,	0,	0 },
++	{ ATEXT,		C_ADDR,		C_NONE,		C_LCON,		0,	0,	0 },
++	{ ATEXT,		C_ADDR,		C_REG,		C_LCON,		0,	0,	0 },
+ 	{ AMVN,		C_REG,		C_NONE,		C_REG,		1,	2,	0 },
+ 	{ ASRL,		C_REG,		C_NONE,		C_REG,		1,	2,	0 },
+ 	{ ACMP,		C_REG,		C_REG,		C_NONE,		1,	2,	0 },
+@@ -411,37 +410,27 @@ Optab thumboptab[] =
+ 	{ ASWI,		C_NONE,		C_NONE,		C_LCON,		16,	2,	0 },
+ 	{ AWORD,		C_NONE,		C_NONE,		C_LCON,		17,	4,	0 },
+ 	{ AWORD,		C_NONE,		C_NONE,		C_GCON,		17,	4,	0 },
+-	{ AWORD,		C_NONE,		C_NONE,		C_LEXT,		17,	4, 	0 },
++	{ AWORD,		C_NONE,		C_NONE,		C_ADDR,		17,	4, 	0 },
+ 	{ ADWORD,	C_LCON,		C_NONE,		C_LCON,		50,	8,	0 },
+ 	{ AMOVW,		C_SAUTO,		C_NONE,		C_REG,		18,	2,	REGSP },
+ 	{ AMOVW,		C_LAUTO,		C_NONE,		C_REG,		33,	6,	0,	LFROM  },
+ 	// { AMOVW,		C_OFFPC,		C_NONE,		C_REG,		18,	2,	REGPC,	LFROM  },
+-	{ AMOVW,		C_SEXT,		C_NONE,		C_REG,		30,	4,	0 },
+ 	{ AMOVW,		C_SOREG,		C_NONE,		C_REG,		19,	2,	0 },
+-	{ AMOVHU,	C_SEXT,		C_NONE,		C_REG,		30,	4,	0 },
+ 	{ AMOVHU,	C_SOREG,		C_NONE,		C_REG,		19,	2,	0 },
+-	{ AMOVBU,	C_SEXT,		C_NONE,		C_REG,		30,	4,	0 },
+ 	{ AMOVBU,	C_SOREG,		C_NONE,		C_REG,		19,	2,	0 },
+ 	{ AMOVW,		C_REG,		C_NONE,		C_SAUTO,		20,	2,	0 },
+ 	{ AMOVW,		C_REG,		C_NONE,		C_LAUTO,		34,	6,	0,	LTO },
+-	{ AMOVW,		C_REG,		C_NONE,		C_SEXT,		31,	4,	0 },
+ 	{ AMOVW,		C_REG,		C_NONE,		C_SOREG,		21,	2,	0 },
+-	{ AMOVH,		C_REG,		C_NONE,		C_SEXT,		31,	4,	0 },
+ 	{ AMOVH,		C_REG,		C_NONE,		C_SOREG,		21,	2,	0 },
+-	{ AMOVB,		C_REG,		C_NONE,		C_SEXT,		31,	4,	0 },
+ 	{ AMOVB,		C_REG,		C_NONE,		C_SOREG,		21,	2,	0 },
+-	{ AMOVHU,	C_REG,		C_NONE,		C_SEXT,		31,	4,	0 },
+ 	{ AMOVHU,	C_REG,		C_NONE,		C_SOREG,		21,	2,	0 },
+-	{ AMOVBU,	C_REG,		C_NONE,		C_SEXT,		31,	4,	0 },
+ 	{ AMOVBU,	C_REG,		C_NONE,		C_SOREG,		21,	2,	0 },
+ 	{ AMOVW,		C_REG,		C_NONE,		C_REG,		22,	2,	0 },
+ 	{ AMOVB,		C_REG,		C_NONE,		C_REG,		23,	4,	0 },
+ 	{ AMOVH,		C_REG,		C_NONE,		C_REG,		23,	4,	0 },
+ 	{ AMOVBU,	C_REG,		C_NONE,		C_REG,		23,	4,	0 },
+ 	{ AMOVHU,	C_REG,		C_NONE,		C_REG,		23,	4,	0 },
+-	{ AMOVH,		C_SEXT,		C_NONE,		C_REG,		32,	6,	0 },
+ 	{ AMOVH,		C_SOREG,		C_NONE,		C_REG,		24,	4,	0 },
+-	{ AMOVB,		C_SEXT,		C_NONE,		C_REG,		32,	6,	0 },
+ 	{ AMOVB,		C_SOREG,		C_NONE,		C_REG,		24,	4,	0 },
+ 	{ AMOVW,		C_SACON,	C_NONE,		C_REG,		25,	2,	0 },
+ 	{ AMOVW,		C_LACON,	C_NONE,		C_REG,		35,	4,	0 },
+@@ -468,16 +457,16 @@ Optab thumboptab[] =
+ 	{ AMOVB,		C_REG,		C_NONE,		C_GOREG,		29,	4,	0,	LTO },
+ 	{ AMOVHU,	C_REG,		C_NONE,		C_GOREG,		29,	4,	0,	LTO },
+ 	{ AMOVBU,	C_REG,		C_NONE,		C_GOREG,		29,	4,	0,	LTO },
+-	{ AMOVW,		C_LEXT,		C_NONE,		C_REG,		30,	4,	0,	LFROM },
+-	{ AMOVH,		C_LEXT,		C_NONE,		C_REG,		32,	6,	0,	LFROM },
+-	{ AMOVB,		C_LEXT,		C_NONE,		C_REG,		32,	6,	0,	LFROM },
+-	{ AMOVHU,	C_LEXT,		C_NONE,		C_REG,		30,	4,	0,	LFROM },
+-	{ AMOVBU,	C_LEXT,		C_NONE,		C_REG,		30,	4,	0,	LFROM },
+-	{ AMOVW,		C_REG,		C_NONE,		C_LEXT,		31,	4,	0,	LTO },
+-	{ AMOVH,		C_REG,		C_NONE,		C_LEXT,		31,	4,	0,	LTO },
+-	{ AMOVB,		C_REG,		C_NONE,		C_LEXT,		31,	4,	0,	LTO },
+-	{ AMOVHU,	C_REG,		C_NONE,		C_LEXT,		31,	4,	0,	LTO },
+-	{ AMOVBU,	C_REG,		C_NONE,		C_LEXT,		31,	4,	0,	LTO },
++	{ AMOVW,		C_ADDR,		C_NONE,		C_REG,		30,	4,	0,	LFROM },
++	{ AMOVH,		C_ADDR,		C_NONE,		C_REG,		32,	6,	0,	LFROM },
++	{ AMOVB,		C_ADDR,		C_NONE,		C_REG,		32,	6,	0,	LFROM },
++	{ AMOVHU,	C_ADDR,		C_NONE,		C_REG,		30,	4,	0,	LFROM },
++	{ AMOVBU,	C_ADDR,		C_NONE,		C_REG,		30,	4,	0,	LFROM },
++	{ AMOVW,		C_REG,		C_NONE,		C_ADDR,		31,	4,	0,	LTO },
++	{ AMOVH,		C_REG,		C_NONE,		C_ADDR,		31,	4,	0,	LTO },
++	{ AMOVB,		C_REG,		C_NONE,		C_ADDR,		31,	4,	0,	LTO },
++	{ AMOVHU,	C_REG,		C_NONE,		C_ADDR,		31,	4,	0,	LTO },
++	{ AMOVBU,	C_REG,		C_NONE,		C_ADDR,		31,	4,	0,	LTO },
+ 
+ 	{ AXXX,		C_NONE,		C_NONE,		C_NONE,		0,	2,	0 },
+ };
+@@ -980,6 +969,7 @@ if(debug['G']) print("%ux: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
+ 		}
+ 		break;
+ 	case 30:		/* AMOVW... *addr, R */
++		diag("likely broken");  // does this still refer to SB?
+ 		thumbaclass(&p->from, p);
+ 		o1 = mv(p, rt, instoffset);		// MOV addr, rtmp
+ 		o2 = thumbopmv(p->as, 1);
+@@ -987,6 +977,7 @@ if(debug['G']) print("%ux: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
+ 		o2 |= (rt<<3) | rt;			// MOV* 0(rtmp), R
+ 		break;
+ 	case 31:		/* AMOVW... R, *addr */
++		diag("likely broken");  // does this still refer to SB?
+ 		thumbaclass(&p->to, p);
+ 		o1 = mv(p, REGTMPT, instoffset);
+ 		o2 = thumbopmv(p->as, 0);
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 6c01e95207..5ed16dee75 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -6,7 +6,7 @@
+ 
+ // using frame size $-4 means do not save LR on stack.
+ TEXT _rt0_arm(SB),7,$-4
+-	MOVW $setR12(SB), R12
++	MOVW	$0xcafebabe, R12
+ 
+ 	// copy arguments forward on an even stack
+ 	// use R13 instead of SP to avoid linker rewriting the offsets

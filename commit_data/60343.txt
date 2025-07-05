@@ -15,9 +15,91 @@ Date:   Fri Jun 21 14:49:21 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/594015
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                         |  2 +-
  src/cmd/go.sum                                         |  4 ++--
  .../vendor/golang.org/x/telemetry/counter/counter.go   | 18 +++++++++++++++++-
  src/cmd/vendor/modules.txt                             |  2 +-
  4 files changed, 21 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 559ffd1ccd..0625195931 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.18.0
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.21.0
+-	golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb
++	golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6
+ 	golang.org/x/term v0.20.0
+ 	golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 8f9517bc62..25276c92b2 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
+ golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb h1:0Ge50tvTqbHEyuQDgCYypgL2afqNjRNdl4GHPJuN9QY=
+-golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb/go.mod h1:n38mvGdgc4dA684EC4NwQwoPKSw4jyKw8/DgZHDA1Dk=
++golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6 h1:2+8QyQRLYDeEKd+CM/BsuaBaLdhAsNdasS/SnZfPS9g=
++golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6/go.mod h1:n38mvGdgc4dA684EC4NwQwoPKSw4jyKw8/DgZHDA1Dk=
+ golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
+ golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+index ba1c68889e..7a7e66b22d 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+@@ -15,6 +15,7 @@ import (
+ 	"runtime/debug"
+ 
+ 	"golang.org/x/telemetry/internal/counter"
++	"golang.org/x/telemetry/internal/telemetry"
+ )
+ 
+ // Inc increments the counter with the given name.
+@@ -83,11 +84,26 @@ func NewStack(name string, depth int) *StackCounter {
+ // counter file on disk and starts to mmap telemetry counters to the file.
+ // Open also persists any counters already created in the current process.
+ //
+-// Programs using telemetry should call Open exactly once.
++// Programs using telemetry should call either Open or OpenDir exactly once.
+ func Open() {
+ 	counter.Open()
+ }
+ 
++// OpenDir prepares telemetry counters for recording to the file system, using
++// the specified telemetry directory, if it is not the empty string.
++//
++// If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
++// counter file on disk and starts to mmap telemetry counters to the file.
++// Open also persists any counters already created in the current process.
++//
++// Programs using telemetry should call either Open or OpenDir exactly once.
++func OpenDir(telemetryDir string) {
++	if telemetryDir != "" {
++		telemetry.Default = telemetry.NewDir(telemetryDir)
++	}
++	counter.Open()
++}
++
+ // CountFlags creates a counter for every flag that is set
+ // and increments the counter. The name of the counter is
+ // the concatenation of prefix and the flag name.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8ba7df290f..fc1f25588a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240612191826-8cad58b3fcbb
++# golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

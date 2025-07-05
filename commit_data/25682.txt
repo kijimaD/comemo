@@ -14,7 +14,53 @@ Date:   Sun Oct 25 22:42:41 2015 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go      |  2 +-
  src/encoding/json/decode_test.go | 21 +++++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index e7e8d0b997..bd939b4258 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -757,7 +757,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 				d.saveError(err)
+ 				break
+ 			}
+-			v.Set(reflect.ValueOf(b[0:n]))
++			v.SetBytes(b[:n])
+ 		case reflect.String:
+ 			v.SetString(string(s))
+ 		case reflect.Interface:
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 0ed3b51628..9546ae459c 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1253,6 +1253,27 @@ func TestByteKind(t *testing.T) {
+ 	}
+ }
+ 
++// The fix for issue 8962 introduced a regression.
++// Issue 12921.
++func TestSliceOfCustomByte(t *testing.T) {
++	type Uint8 uint8
++
++	a := []Uint8("hello")
++
++	data, err := Marshal(a)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var b []Uint8
++	err = Unmarshal(data, &b)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !reflect.DeepEqual(a, b) {
++		t.Fatal("expected %v == %v", a, b)
++	}
++}
++
+ var decodeTypeErrorTests = []struct {
+ 	dest interface{}
+ 	src  string

@@ -29,7 +29,7 @@ Date:   Thu Sep 1 19:31:04 2022 -0400
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/symtab.go | 6 +++++-
  test/fixedbugs/bug514.go           | 2 +-
  test/fixedbugs/issue40954.go       | 2 +-
@@ -38,3 +38,98 @@ Date:   Thu Sep 1 19:31:04 2022 -0400
  test/fixedbugs/issue46903.go       | 2 +-
  test/fixedbugs/issue51733.go       | 2 +-
  7 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 02b384ba9d..5074ffa8c9 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -684,8 +684,12 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 		// Add R_XCOFFREF relocation to prevent ld's garbage collection of
+ 		// the following symbols. They might not be referenced in the program.
+ 		addRef := func(name string) {
++			s := ldr.Lookup(name, 0)
++			if s == 0 {
++				return
++			}
+ 			r, _ := moduledata.AddRel(objabi.R_XCOFFREF)
+-			r.SetSym(ldr.Lookup(name, 0))
++			r.SetSym(s)
+ 			r.SetSiz(uint8(ctxt.Arch.PtrSize))
+ 		}
+ 		addRef("runtime.rodata")
+diff --git a/test/fixedbugs/bug514.go b/test/fixedbugs/bug514.go
+index 1a6c7f14dd..9b23185337 100644
+--- a/test/fixedbugs/bug514.go
++++ b/test/fixedbugs/bug514.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !aix
++//go:build cgo
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue40954.go b/test/fixedbugs/issue40954.go
+index e268b808ca..0beaabb743 100644
+--- a/test/fixedbugs/issue40954.go
++++ b/test/fixedbugs/issue40954.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !aix
++//go:build cgo
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue42032.go b/test/fixedbugs/issue42032.go
+index 68fbc89045..eb11859101 100644
+--- a/test/fixedbugs/issue42032.go
++++ b/test/fixedbugs/issue42032.go
+@@ -4,7 +4,7 @@
+ // source code is governed by a BSD-style license that can be found in
+ // the LICENSE file.
+ 
+-//go:build cgo && !aix
++//go:build cgo
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue42076.go b/test/fixedbugs/issue42076.go
+index b958d0eeb5..ef8db2da30 100644
+--- a/test/fixedbugs/issue42076.go
++++ b/test/fixedbugs/issue42076.go
+@@ -4,7 +4,7 @@
+ // source code is governed by a BSD-style license that can be found in
+ // the LICENSE file.
+ 
+-//go:build cgo && !aix
++//go:build cgo
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue46903.go b/test/fixedbugs/issue46903.go
+index 90ceb9a86c..28cb43df3b 100644
+--- a/test/fixedbugs/issue46903.go
++++ b/test/fixedbugs/issue46903.go
+@@ -1,5 +1,5 @@
+ // run
+-//go:build goexperiment.unified && cgo && !aix
++//go:build goexperiment.unified && cgo
+ 
+ // TODO(mdempsky): Enable test unconditionally. This test should pass
+ // for non-unified mode too.
+diff --git a/test/fixedbugs/issue51733.go b/test/fixedbugs/issue51733.go
+index 757ef733c3..933c3e868c 100644
+--- a/test/fixedbugs/issue51733.go
++++ b/test/fixedbugs/issue51733.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo && !aix
++//go:build cgo
+ 
+ package main
+ 

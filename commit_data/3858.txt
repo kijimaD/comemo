@@ -6,6 +6,21 @@ Date:   Fri Nov 6 13:51:17 2009 -0800
     
     R=rsc
     http://go/go-review/1025006
-
+---
  src/cmd/5g/cgen.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index e46efdae74..9fc59391e9 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -436,8 +436,7 @@ flt2:	// binary
+ 	} else {
+ 		cgen(nr, &f0);
+ 		regalloc(&f1, n->type, N);
+-		gmove(&f0, &f1);
+-		cgen(nl, &f0);
++		cgen(nl, &f1);
+ 		gins(optoas(n->op, n->type), &f0, &f1);
+ 	}
+ 	gmove(&f1, res);

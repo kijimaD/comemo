@@ -7,6 +7,20 @@ Date:   Tue Jun 21 10:55:07 2011 +1000
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/4595055
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 9a674c72bf..2ecef44f41 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2245,7 +2245,7 @@ we would write <code>job.Logger</code>.
+ This would be useful if we wanted to refine the methods of <code>Logger</code>.
+ </p>
+ <pre>
+-func (job *Job) Logf(format string, args ...) {
++func (job *Job) Logf(format string, args ...interface{}) {
+     job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args))
+ }
+ </pre>

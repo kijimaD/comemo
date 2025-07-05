@@ -17,7 +17,7 @@ Date:   Wed Jul 28 13:39:30 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/typeparam/absdiff.go                    |  6 +-
  test/typeparam/absdiffimp.dir/a.go           |  2 +-
  test/typeparam/aliasimp.dir/a.go             |  2 +-
@@ -78,3 +78,1983 @@ Date:   Wed Jul 28 13:39:30 2021 -0700
  test/typeparam/valimp.dir/a.go               | 10 ++--
  test/typeparam/valimp.dir/main.go            | 85 +++++++++++++-------------
  59 files changed, 423 insertions(+), 418 deletions(-)
+
+diff --git a/test/typeparam/absdiff.go b/test/typeparam/absdiff.go
+index e76a998b4d..cad6e84c4e 100644
+--- a/test/typeparam/absdiff.go
++++ b/test/typeparam/absdiff.go
+@@ -61,7 +61,7 @@ type complexAbs[T Complex] T
+ func (a complexAbs[T]) Abs() complexAbs[T] {
+ 	r := float64(real(a))
+ 	i := float64(imag(a))
+-	d := math.Sqrt(r * r + i * i)
++	d := math.Sqrt(r*r + i*i)
+ 	return complexAbs[T](complex(d, 0))
+ }
+ 
+@@ -88,10 +88,10 @@ func main() {
+ 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+ 	}
+ 
+-	if got, want := complexAbsDifference(5.0 + 2.0i, 2.0 - 2.0i), 5+0i; got != want {
++	if got, want := complexAbsDifference(5.0+2.0i, 2.0-2.0i), 5+0i; got != want {
+ 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+ 	}
+-	if got, want := complexAbsDifference(2.0 - 2.0i, 5.0 + 2.0i), 5+0i; got != want {
++	if got, want := complexAbsDifference(2.0-2.0i, 5.0+2.0i), 5+0i; got != want {
+ 		panic(fmt.Sprintf("got = %v, want = %v", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/absdiffimp.dir/a.go b/test/typeparam/absdiffimp.dir/a.go
+index df81dcf538..7b5bfbe2ac 100644
+--- a/test/typeparam/absdiffimp.dir/a.go
++++ b/test/typeparam/absdiffimp.dir/a.go
+@@ -58,7 +58,7 @@ type complexAbs[T Complex] T
+ func (a complexAbs[T]) Abs() complexAbs[T] {
+ 	r := float64(real(a))
+ 	i := float64(imag(a))
+-	d := math.Sqrt(r * r + i * i)
++	d := math.Sqrt(r*r + i*i)
+ 	return complexAbs[T](complex(d, 0))
+ }
+ 
+diff --git a/test/typeparam/aliasimp.dir/a.go b/test/typeparam/aliasimp.dir/a.go
+index 3fac4aac98..c64e87c10f 100644
+--- a/test/typeparam/aliasimp.dir/a.go
++++ b/test/typeparam/aliasimp.dir/a.go
+@@ -5,5 +5,5 @@
+ package a
+ 
+ type Rimp[T any] struct {
+-        F T
++	F T
+ }
+diff --git a/test/typeparam/aliasimp.dir/main.go b/test/typeparam/aliasimp.dir/main.go
+index 6638fa9454..221a6c758d 100644
+--- a/test/typeparam/aliasimp.dir/main.go
++++ b/test/typeparam/aliasimp.dir/main.go
+@@ -7,7 +7,7 @@ package main
+ import "a"
+ 
+ type R[T any] struct {
+-        F T
++	F T
+ }
+ 
+ type S = R
+diff --git a/test/typeparam/boundmethod.go b/test/typeparam/boundmethod.go
+index c150f9d85a..3deabbcdce 100644
+--- a/test/typeparam/boundmethod.go
++++ b/test/typeparam/boundmethod.go
+@@ -11,50 +11,50 @@
+ package main
+ 
+ import (
+-        "fmt"
+-        "reflect"
+-        "strconv"
++	"fmt"
++	"reflect"
++	"strconv"
+ )
+ 
+ type myint int
+ 
+ //go:noinline
+ func (m myint) String() string {
+-        return strconv.Itoa(int(m))
++	return strconv.Itoa(int(m))
+ }
+ 
+ type Stringer interface {
+-        String() string
++	String() string
+ }
+ 
+ func stringify[T Stringer](s []T) (ret []string) {
+-        for _, v := range s {
+-                ret = append(ret, v.String())
+-        }
+-        return ret
++	for _, v := range s {
++		ret = append(ret, v.String())
++	}
++	return ret
+ }
+ 
+ type StringInt[T any] T
+ 
+ //go:noinline
+ func (m StringInt[T]) String() string {
+-        return "aa"
++	return "aa"
+ }
+ 
+ func main() {
+-        x := []myint{myint(1), myint(2), myint(3)}
++	x := []myint{myint(1), myint(2), myint(3)}
+ 
+-        got := stringify(x)
+-        want := []string{"1", "2", "3"}
+-        if !reflect.DeepEqual(got, want) {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
+-        }
++	got := stringify(x)
++	want := []string{"1", "2", "3"}
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("got %s, want %s", got, want))
++	}
+ 
+-        x2 := []StringInt[myint]{StringInt[myint](1), StringInt[myint](2), StringInt[myint](3)}
++	x2 := []StringInt[myint]{StringInt[myint](1), StringInt[myint](2), StringInt[myint](3)}
+ 
+-        got2 := stringify(x2)
+-        want2 := []string{"aa", "aa", "aa"}
+-        if !reflect.DeepEqual(got2, want2) {
+-                panic(fmt.Sprintf("got %s, want %s", got2, want2))
+-        }
++	got2 := stringify(x2)
++	want2 := []string{"aa", "aa", "aa"}
++	if !reflect.DeepEqual(got2, want2) {
++		panic(fmt.Sprintf("got %s, want %s", got2, want2))
++	}
+ }
+diff --git a/test/typeparam/builtins.go b/test/typeparam/builtins.go
+index 3fe6f79391..819588b07d 100644
+--- a/test/typeparam/builtins.go
++++ b/test/typeparam/builtins.go
+@@ -39,7 +39,9 @@ func _[T C5[X], X any](ch T) {
+ 
+ type M0 interface{ int }
+ type M1 interface{ map[string]int }
+-type M2 interface { map[string]int | map[string]float64 }
++type M2 interface {
++	map[string]int | map[string]float64
++}
+ type M3 interface{ map[string]int | map[rune]int }
+ type M4[K comparable, V any] interface{ map[K]V | map[rune]V }
+ 
+diff --git a/test/typeparam/chans.go b/test/typeparam/chans.go
+index 2fcd4af75e..c30c21c37b 100644
+--- a/test/typeparam/chans.go
++++ b/test/typeparam/chans.go
+@@ -183,7 +183,7 @@ func _Ranger[Elem any]() (*_Sender[Elem], *_Receiver[Elem]) {
+ 		values: c,
+ 		done:   d,
+ 	}
+-	r := &_Receiver[Elem] {
++	r := &_Receiver[Elem]{
+ 		values: c,
+ 		done:   d,
+ 	}
+diff --git a/test/typeparam/chansimp.dir/a.go b/test/typeparam/chansimp.dir/a.go
+index a3f73b2199..7321992704 100644
+--- a/test/typeparam/chansimp.dir/a.go
++++ b/test/typeparam/chansimp.dir/a.go
+@@ -176,7 +176,7 @@ func Ranger[Elem any]() (*Sender[Elem], *Receiver[Elem]) {
+ 		values: c,
+ 		done:   d,
+ 	}
+-	r := &Receiver[Elem] {
++	r := &Receiver[Elem]{
+ 		values: c,
+ 		done:   d,
+ 	}
+diff --git a/test/typeparam/combine.go b/test/typeparam/combine.go
+index 0e120cf242..5dfdb78442 100644
+--- a/test/typeparam/combine.go
++++ b/test/typeparam/combine.go
+@@ -13,18 +13,18 @@ import (
+ type Gen[A any] func() (A, bool)
+ 
+ func Combine[T1, T2, T any](g1 Gen[T1], g2 Gen[T2], join func(T1, T2) T) Gen[T] {
+-    return func() (T, bool) {
+-        var t T
+-        t1, ok := g1()
+-        if !ok {
+-            return t, false
+-        }
+-        t2, ok := g2()
+-        if !ok {
+-            return t, false
+-        }
+-        return join(t1, t2), true
+-    }
++	return func() (T, bool) {
++		var t T
++		t1, ok := g1()
++		if !ok {
++			return t, false
++		}
++		t2, ok := g2()
++		if !ok {
++			return t, false
++		}
++		return join(t1, t2), true
++	}
+ }
+ 
+ type Pair[A, B any] struct {
+@@ -37,7 +37,7 @@ func _NewPair[A, B any](a A, b B) Pair[A, B] {
+ }
+ 
+ func Combine2[A, B any](ga Gen[A], gb Gen[B]) Gen[Pair[A, B]] {
+-    return Combine(ga, gb, _NewPair[A, B])
++	return Combine(ga, gb, _NewPair[A, B])
+ }
+ 
+ func main() {
+@@ -60,6 +60,6 @@ func main() {
+ 	}
+ 	gc4 := Combine2(g1, g3)
+ 	if got, ok := gc4(); !ok || got.A != 3 || got.B != "y" {
+-		panic (fmt.Sprintf("got %v, %v, wanted {3, y}, true", got, ok))
++		panic(fmt.Sprintf("got %v, %v, wanted {3, y}, true", got, ok))
+ 	}
+ }
+diff --git a/test/typeparam/cons.go b/test/typeparam/cons.go
+index f20514fb66..4750392a95 100644
+--- a/test/typeparam/cons.go
++++ b/test/typeparam/cons.go
+@@ -51,7 +51,7 @@ type List[a any] interface {
+ 	Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any
+ }
+ 
+-type Nil[a any] struct{
++type Nil[a any] struct {
+ }
+ 
+ func (xs Nil[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a], any]) any {
+@@ -67,7 +67,7 @@ func (xs Cons[a]) Match(casenil Function[Nil[a], any], casecons Function[Cons[a]
+ 	return casecons.Apply(xs)
+ }
+ 
+-type mapNil[a, b any] struct{
++type mapNil[a, b any] struct {
+ }
+ 
+ func (m mapNil[a, b]) Apply(_ Nil[a]) any {
+diff --git a/test/typeparam/dictionaryCapture-noinline.go b/test/typeparam/dictionaryCapture-noinline.go
+index 4b46d5f57f..ad5bfa008e 100644
+--- a/test/typeparam/dictionaryCapture-noinline.go
++++ b/test/typeparam/dictionaryCapture-noinline.go
+@@ -44,7 +44,7 @@ func is7(x int) {
+ }
+ func is77(x, y int) {
+ 	if x != 7 || y != 7 {
+-		println(x,y)
++		println(x, y)
+ 		panic("assertion failed")
+ 	}
+ }
+@@ -63,7 +63,7 @@ func (x s[T]) g2() (T, T) {
+ }
+ 
+ func methodExpressions() {
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	f0 := s[int].g0
+ 	f0(x)
+ 	f1 := s[int].g1
+@@ -73,7 +73,7 @@ func methodExpressions() {
+ }
+ 
+ func methodValues() {
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	f0 := x.g0
+ 	f0()
+ 	f1 := x.g1
+@@ -82,20 +82,20 @@ func methodValues() {
+ 	is77(f2())
+ }
+ 
+-var x interface{
++var x interface {
+ 	g0()
+-	g1()int
+-	g2()(int,int)
+-} = s[int]{a:7}
+-var y interface{} = s[int]{a:7}
++	g1() int
++	g2() (int, int)
++} = s[int]{a: 7}
++var y interface{} = s[int]{a: 7}
+ 
+ func interfaceMethods() {
+ 	x.g0()
+ 	is7(x.g1())
+ 	is77(x.g2())
+-	y.(interface{g0()}).g0()
+-	is7(y.(interface{g1()int}).g1())
+-	is77(y.(interface{g2()(int,int)}).g2())
++	y.(interface{ g0() }).g0()
++	is7(y.(interface{ g1() int }).g1())
++	is77(y.(interface{ g2() (int, int) }).g2())
+ }
+ 
+ // Also check for instantiations outside functions.
+@@ -107,7 +107,7 @@ var hh0 = s[int].g0
+ var hh1 = s[int].g1
+ var hh2 = s[int].g2
+ 
+-var xtop = s[int]{a:7}
++var xtop = s[int]{a: 7}
+ var ii0 = x.g0
+ var ii1 = x.g1
+ var ii2 = x.g2
+@@ -116,7 +116,7 @@ func globals() {
+ 	gg0(7)
+ 	is7(gg1(7))
+ 	is77(gg2(7))
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	hh0(x)
+ 	is7(hh1(x))
+ 	is77(hh2(x))
+diff --git a/test/typeparam/dictionaryCapture.go b/test/typeparam/dictionaryCapture.go
+index 26af7a09b0..7c7948145a 100644
+--- a/test/typeparam/dictionaryCapture.go
++++ b/test/typeparam/dictionaryCapture.go
+@@ -51,7 +51,7 @@ func is7(x int) {
+ }
+ func is77(x, y int) {
+ 	if x != 7 || y != 7 {
+-		println(x,y)
++		println(x, y)
+ 		panic("assertion failed")
+ 	}
+ }
+@@ -70,7 +70,7 @@ func (x s[T]) g2() (T, T) {
+ }
+ 
+ func methodExpressions() {
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	f0 := s[int].g0
+ 	f0(x)
+ 	f0p := (*s[int]).g0
+@@ -106,7 +106,7 @@ func genMethodExpressions[T comparable](want T) {
+ }
+ 
+ func methodValues() {
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	f0 := x.g0
+ 	f0()
+ 	f1 := x.g1
+@@ -129,20 +129,20 @@ func genMethodValues[T comparable](want T) {
+ 	}
+ }
+ 
+-var x interface{
++var x interface {
+ 	g0()
+-	g1()int
+-	g2()(int,int)
+-} = s[int]{a:7}
+-var y interface{} = s[int]{a:7}
++	g1() int
++	g2() (int, int)
++} = s[int]{a: 7}
++var y interface{} = s[int]{a: 7}
+ 
+ func interfaceMethods() {
+ 	x.g0()
+ 	is7(x.g1())
+ 	is77(x.g2())
+-	y.(interface{g0()}).g0()
+-	is7(y.(interface{g1()int}).g1())
+-	is77(y.(interface{g2()(int,int)}).g2())
++	y.(interface{ g0() }).g0()
++	is7(y.(interface{ g1() int }).g1())
++	is77(y.(interface{ g2() (int, int) }).g2())
+ }
+ 
+ // Also check for instantiations outside functions.
+@@ -154,7 +154,7 @@ var hh0 = s[int].g0
+ var hh1 = s[int].g1
+ var hh2 = s[int].g2
+ 
+-var xtop = s[int]{a:7}
++var xtop = s[int]{a: 7}
+ var ii0 = x.g0
+ var ii1 = x.g1
+ var ii2 = x.g2
+@@ -163,7 +163,7 @@ func globals() {
+ 	gg0(7)
+ 	is7(gg1(7))
+ 	is77(gg2(7))
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	hh0(x)
+ 	is7(hh1(x))
+ 	is77(hh2(x))
+@@ -172,7 +172,6 @@ func globals() {
+ 	is77(ii2())
+ }
+ 
+-
+ func recursive() {
+ 	if got, want := recur1[int](5), 110; got != want {
+ 		panic(fmt.Sprintf("recur1[int](5) = %d, want = %d", got, want))
+@@ -187,14 +186,14 @@ func recur1[T Integer](n T) T {
+ 	if n == 0 || n == 1 {
+ 		return T(1)
+ 	} else {
+-		return n * recur2(n - 1)
++		return n * recur2(n-1)
+ 	}
+ }
+ 
+ func recur2[T Integer](n T) T {
+ 	list := make([]T, n)
+ 	for i, _ := range list {
+-		list[i] = T(i+1)
++		list[i] = T(i + 1)
+ 	}
+ 	var sum T
+ 	for _, elt := range list {
+diff --git a/test/typeparam/dottype.go b/test/typeparam/dottype.go
+index 0131f64202..89a9b02111 100644
+--- a/test/typeparam/dottype.go
++++ b/test/typeparam/dottype.go
+@@ -36,20 +36,20 @@ func g2[T I](x I) (T, bool) {
+ 	return t, ok
+ }
+ 
+-func h[T any](x interface{}) struct{a, b T} {
+-	return x.(struct{a, b T})
++func h[T any](x interface{}) struct{ a, b T } {
++	return x.(struct{ a, b T })
+ }
+ 
+-func k[T any](x interface{}) interface { bar() T } {
+-	return x.(interface{bar() T })
++func k[T any](x interface{}) interface{ bar() T } {
++	return x.(interface{ bar() T })
+ }
+ 
+ type mybar int
++
+ func (x mybar) bar() int {
+ 	return int(x)
+ }
+ 
+-
+ func main() {
+ 	var i interface{} = int(3)
+ 	var j I = myint(3)
+@@ -66,7 +66,7 @@ func main() {
+ 	println(g2[myint](j))
+ 	println(g2[myint](y))
+ 
+-	println(h[int](struct{a, b int}{3, 5}).a)
++	println(h[int](struct{ a, b int }{3, 5}).a)
+ 
+ 	println(k[int](mybar(3)).bar())
+ }
+diff --git a/test/typeparam/double.go b/test/typeparam/double.go
+index 6652613814..6ddb6b2d08 100644
+--- a/test/typeparam/double.go
++++ b/test/typeparam/double.go
+@@ -44,29 +44,29 @@ func main() {
+ 	want := MySlice{2, 4, 6}
+ 	got := _DoubleElems[MySlice, int](arg)
+ 	if !reflect.DeepEqual(got, want) {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	// constraint type inference
+ 	got = _DoubleElems[MySlice](arg)
+ 	if !reflect.DeepEqual(got, want) {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	got = _DoubleElems(arg)
+ 	if !reflect.DeepEqual(got, want) {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	farg := MyFloatSlice{1.2, 2.0, 3.5}
+ 	fwant := MyFloatSlice{2.4, 4.0, 7.0}
+ 	fgot := _DoubleElems(farg)
+ 	if !reflect.DeepEqual(fgot, fwant) {
+-                panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
++		panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
+ 	}
+ 
+ 	fgot = _DoubleElems2(farg)
+ 	if !reflect.DeepEqual(fgot, fwant) {
+-                panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
++		panic(fmt.Sprintf("got %s, want %s", fgot, fwant))
+ 	}
+ }
+diff --git a/test/typeparam/equal.go b/test/typeparam/equal.go
+index 6776b19d12..a1d3e8ae02 100644
+--- a/test/typeparam/equal.go
++++ b/test/typeparam/equal.go
+@@ -40,7 +40,7 @@ func (x myint) foo() {
+ 
+ func k[T comparable](t T, i interface{}) bool {
+ 	// Compare derived type value to interface.
+-	return struct{a, b T}{t, t} == i
++	return struct{ a, b T }{t, t} == i
+ }
+ 
+ func main() {
+@@ -51,21 +51,19 @@ func main() {
+ 	assert(h(myint(3), myint(3)))
+ 	assert(!h(myint(3), myint(5)))
+ 
+-	type S struct { a, b float64 }
++	type S struct{ a, b float64 }
+ 
+-	assert(f(S{3,5}, S{3,5}))
+-	assert(!f(S{3,5}, S{4,6}))
+-	assert(g(S{3,5}, S{3,5}))
+-	assert(!g(S{3,5}, S{4,6}))
++	assert(f(S{3, 5}, S{3, 5}))
++	assert(!f(S{3, 5}, S{4, 6}))
++	assert(g(S{3, 5}, S{3, 5}))
++	assert(!g(S{3, 5}, S{4, 6}))
+ 
+-	assert(k(3, struct{a, b int}{3, 3}))
+-	assert(!k(3, struct{a, b int}{3, 4}))
++	assert(k(3, struct{ a, b int }{3, 3}))
++	assert(!k(3, struct{ a, b int }{3, 4}))
+ }
+ 
+-func assert(b bool)  {
++func assert(b bool) {
+ 	if !b {
+ 		panic("assertion failed")
+ 	}
+ }
+-
+-
+diff --git a/test/typeparam/fact.go b/test/typeparam/fact.go
+index baa7fbc68e..e19cfe6956 100644
+--- a/test/typeparam/fact.go
++++ b/test/typeparam/fact.go
+@@ -8,11 +8,11 @@ package main
+ 
+ import "fmt"
+ 
+-func fact[T interface { ~int | ~int64 | ~float64 }](n T) T {
++func fact[T interface{ ~int | ~int64 | ~float64 }](n T) T {
+ 	if n == 1 {
+ 		return 1
+ 	}
+-	return n * fact(n - 1)
++	return n * fact(n-1)
+ }
+ 
+ func main() {
+diff --git a/test/typeparam/factimp.dir/a.go b/test/typeparam/factimp.dir/a.go
+index cb1ff2615b..0bd73a88e7 100644
+--- a/test/typeparam/factimp.dir/a.go
++++ b/test/typeparam/factimp.dir/a.go
+@@ -4,9 +4,9 @@
+ 
+ package a
+ 
+-func Fact[T interface { int | int64 | float64 }](n T) T {
++func Fact[T interface{ int | int64 | float64 }](n T) T {
+ 	if n == 1 {
+ 		return 1
+ 	}
+-	return n * Fact(n - 1)
++	return n * Fact(n-1)
+ }
+diff --git a/test/typeparam/graph.go b/test/typeparam/graph.go
+index f2a2630ad0..cecf349a9a 100644
+--- a/test/typeparam/graph.go
++++ b/test/typeparam/graph.go
+@@ -225,7 +225,6 @@ func TestShortestPath() {
+ 	}
+ }
+ 
+-
+ func main() {
+ 	TestShortestPath()
+ }
+diff --git a/test/typeparam/ifaceconv.go b/test/typeparam/ifaceconv.go
+index f4023366b9..ee3a9e0dc3 100644
+--- a/test/typeparam/ifaceconv.go
++++ b/test/typeparam/ifaceconv.go
+@@ -37,11 +37,11 @@ type C interface {
+ type myInt int
+ 
+ func (x myInt) foo() int {
+-	return int(x+1)
++	return int(x + 1)
+ }
+ 
+-func h[T C](x T) interface{foo() int} {
+-	var i interface{foo()int} = x
++func h[T C](x T) interface{ foo() int } {
++	var i interface{ foo() int } = x
+ 	return i
+ }
+ func i[T C](x T) C {
+diff --git a/test/typeparam/index.go b/test/typeparam/index.go
+index 80824efac3..906f76d325 100644
+--- a/test/typeparam/index.go
++++ b/test/typeparam/index.go
+@@ -79,4 +79,3 @@ func main() {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ }
+-
+diff --git a/test/typeparam/interfacearg.go b/test/typeparam/interfacearg.go
+index 1d19499318..28ea3e3afb 100644
+--- a/test/typeparam/interfacearg.go
++++ b/test/typeparam/interfacearg.go
+@@ -23,9 +23,11 @@ func F() {
+ 
+ // Testing the various combinations of method expressions.
+ type S1 struct{}
++
+ func (*S1) M() {}
+ 
+ type S2 struct{}
++
+ func (S2) M() {}
+ 
+ func _F1[T interface{ M() }](t T) {
+diff --git a/test/typeparam/issue39755.go b/test/typeparam/issue39755.go
+index 13a575d16f..c4b6902eea 100644
+--- a/test/typeparam/issue39755.go
++++ b/test/typeparam/issue39755.go
+@@ -8,14 +8,14 @@
+ 
+ package p
+ 
+-func _[T interface{~map[string]int}](x T) {
++func _[T interface{ ~map[string]int }](x T) {
+ 	_ = x == nil
+ }
+ 
+ // simplified test case from issue
+ 
+ type PathParamsConstraint interface {
+-        ~map[string]string | ~[]struct{key, value string}
++	~map[string]string | ~[]struct{ key, value string }
+ }
+ 
+ type PathParams[T PathParamsConstraint] struct {
+diff --git a/test/typeparam/issue44688.go b/test/typeparam/issue44688.go
+index de1140b67c..5ebce72628 100644
+--- a/test/typeparam/issue44688.go
++++ b/test/typeparam/issue44688.go
+@@ -8,7 +8,7 @@
+ 
+ package main
+ 
+-type A1[T any] struct{
++type A1[T any] struct {
+ 	val T
+ }
+ 
+diff --git a/test/typeparam/issue45817.go b/test/typeparam/issue45817.go
+index 744698f40b..1efee3b0af 100644
+--- a/test/typeparam/issue45817.go
++++ b/test/typeparam/issue45817.go
+@@ -13,11 +13,12 @@ import (
+ type s[T any] struct {
+ 	a T
+ }
++
+ func (x s[T]) f() T {
+ 	return x.a
+ }
+ func main() {
+-	x := s[int]{a:7}
++	x := s[int]{a: 7}
+ 	f := x.f
+ 	if got, want := f(), 7; got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+diff --git a/test/typeparam/issue46472.go b/test/typeparam/issue46472.go
+index bab48e7d2f..cd4d923ef5 100644
+--- a/test/typeparam/issue46472.go
++++ b/test/typeparam/issue46472.go
+@@ -10,7 +10,7 @@ func foo[T any](d T) {
+ 	switch v := interface{}(d).(type) {
+ 	case string:
+ 		if v != "x" {
+-			panic("unexpected v: "+v)
++			panic("unexpected v: " + v)
+ 		}
+ 	}
+ 
+diff --git a/test/typeparam/issue47258.go b/test/typeparam/issue47258.go
+index 76629f7424..717329471e 100644
+--- a/test/typeparam/issue47258.go
++++ b/test/typeparam/issue47258.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ type Numeric interface {
+-	int32|int64|float64|complex64
++	int32 | int64 | float64 | complex64
+ }
+ 
+ //go:noline
+diff --git a/test/typeparam/list.go b/test/typeparam/list.go
+index c63c9bff79..adfe72f1de 100644
+--- a/test/typeparam/list.go
++++ b/test/typeparam/list.go
+@@ -11,10 +11,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ // _List is a linked list of ordered values of type T.
+@@ -34,9 +34,9 @@ func (l *_List[T]) Largest() T {
+ }
+ 
+ type OrderedNum interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64
+ }
+ 
+ // _ListNum is a linked _List of ordered numeric values of type T.
+@@ -64,40 +64,40 @@ func main() {
+ 	i2 := &_List[int]{i3, 3}
+ 	i1 := &_List[int]{i2, 2}
+ 	if got, want := i1.Largest(), 3; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+ 	b3 := &_List[byte]{nil, byte(1)}
+ 	b2 := &_List[byte]{b3, byte(3)}
+ 	b1 := &_List[byte]{b2, byte(2)}
+ 	if got, want := b1.Largest(), byte(3); got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+ 	f3 := &_List[float64]{nil, 13.5}
+ 	f2 := &_List[float64]{f3, 1.2}
+ 	f1 := &_List[float64]{f2, 4.5}
+ 	if got, want := f1.Largest(), 13.5; got != want {
+-                panic(fmt.Sprintf("got %f, want %f", got, want))
++		panic(fmt.Sprintf("got %f, want %f", got, want))
+ 	}
+ 
+ 	s3 := &_List[string]{nil, "dd"}
+ 	s2 := &_List[string]{s3, "aa"}
+ 	s1 := &_List[string]{s2, "bb"}
+ 	if got, want := s1.Largest(), "dd"; got != want {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ 
+ 	j3 := &_ListNum[int]{nil, 1}
+ 	j2 := &_ListNum[int]{j3, 32}
+ 	j1 := &_ListNum[int]{j2, 2}
+ 	if got, want := j1.ClippedLargest(), 2; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 	g3 := &_ListNum[float64]{nil, 13.5}
+ 	g2 := &_ListNum[float64]{g3, 1.2}
+ 	g1 := &_ListNum[float64]{g2, 4.5}
+ 	if got, want := g1.ClippedLargest(), 4.5; got != want {
+-                panic(fmt.Sprintf("got %f, want %f", got, want))
++		panic(fmt.Sprintf("got %f, want %f", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/list2.go b/test/typeparam/list2.go
+index 32023cf319..e7f346c78e 100644
+--- a/test/typeparam/list2.go
++++ b/test/typeparam/list2.go
+@@ -50,7 +50,7 @@ func (e *_Element[T]) Prev() *_Element[T] {
+ // The zero value for _List is an empty list ready to use.
+ type _List[T any] struct {
+ 	root _Element[T] // sentinel list element, only &root, root.prev, and root.next are used
+-	len  int     // current list length excluding (this) sentinel element
++	len  int         // current list length excluding (this) sentinel element
+ }
+ 
+ // Init initializes or clears list l.
+@@ -594,7 +594,6 @@ func TestTransform() {
+ 	checkList(l2, []interface{}{"1", "2"})
+ }
+ 
+-
+ func main() {
+ 	TestList()
+ 	TestExtending()
+@@ -607,4 +606,3 @@ func main() {
+ 	TestInsertAfterUnknownMark()
+ 	TestTransform()
+ }
+-
+diff --git a/test/typeparam/listimp.dir/a.go b/test/typeparam/listimp.dir/a.go
+index 2b5b23cde3..bf1641af9c 100644
+--- a/test/typeparam/listimp.dir/a.go
++++ b/test/typeparam/listimp.dir/a.go
+@@ -5,49 +5,49 @@
+ package a
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ // List is a linked list of ordered values of type T.
+ type List[T Ordered] struct {
+-        Next *List[T]
+-        Val  T
++	Next *List[T]
++	Val  T
+ }
+ 
+ func (l *List[T]) Largest() T {
+-        var max T
+-        for p := l; p != nil; p = p.Next {
+-                if p.Val > max {
+-                        max = p.Val
+-                }
+-        }
+-        return max
++	var max T
++	for p := l; p != nil; p = p.Next {
++		if p.Val > max {
++			max = p.Val
++		}
++	}
++	return max
+ }
+ 
+ type OrderedNum interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64
+ }
+ 
+ // ListNum is a linked _List of ordered numeric values of type T.
+ type ListNum[T OrderedNum] struct {
+-        Next *ListNum[T]
+-        Val  T
++	Next *ListNum[T]
++	Val  T
+ }
+ 
+ const Clip = 5
+ 
+ // clippedLargest returns the largest in the list of OrderNums, but a max of 5.
+ func (l *ListNum[T]) ClippedLargest() T {
+-        var max T
+-        for p := l; p != nil; p = p.Next {
+-                if p.Val > max && p.Val < Clip {
+-                        max = p.Val
+-                }
+-        }
+-        return max
++	var max T
++	for p := l; p != nil; p = p.Next {
++		if p.Val > max && p.Val < Clip {
++			max = p.Val
++		}
++	}
++	return max
+ }
+diff --git a/test/typeparam/listimp.dir/main.go b/test/typeparam/listimp.dir/main.go
+index d43ad508be..985ff59a18 100644
+--- a/test/typeparam/listimp.dir/main.go
++++ b/test/typeparam/listimp.dir/main.go
+@@ -10,43 +10,43 @@ import (
+ )
+ 
+ func main() {
+-        i3 := &a.List[int]{nil, 1}
+-        i2 := &a.List[int]{i3, 3}
+-        i1 := &a.List[int]{i2, 2}
+-        if got, want := i1.Largest(), 3; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
+-        }
++	i3 := &a.List[int]{nil, 1}
++	i2 := &a.List[int]{i3, 3}
++	i1 := &a.List[int]{i2, 2}
++	if got, want := i1.Largest(), 3; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
+ 
+-        b3 := &a.List[byte]{nil, byte(1)}
+-        b2 := &a.List[byte]{b3, byte(3)}
+-        b1 := &a.List[byte]{b2, byte(2)}
+-        if got, want := b1.Largest(), byte(3); got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
+-        }
++	b3 := &a.List[byte]{nil, byte(1)}
++	b2 := &a.List[byte]{b3, byte(3)}
++	b1 := &a.List[byte]{b2, byte(2)}
++	if got, want := b1.Largest(), byte(3); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
+ 
+-        f3 := &a.List[float64]{nil, 13.5}
+-        f2 := &a.List[float64]{f3, 1.2}
+-        f1 := &a.List[float64]{f2, 4.5}
+-        if got, want := f1.Largest(), 13.5; got != want {
+-                panic(fmt.Sprintf("got %f, want %f", got, want))
+-        }
++	f3 := &a.List[float64]{nil, 13.5}
++	f2 := &a.List[float64]{f3, 1.2}
++	f1 := &a.List[float64]{f2, 4.5}
++	if got, want := f1.Largest(), 13.5; got != want {
++		panic(fmt.Sprintf("got %f, want %f", got, want))
++	}
+ 
+-        s3 := &a.List[string]{nil, "dd"}
+-        s2 := &a.List[string]{s3, "aa"}
+-        s1 := &a.List[string]{s2, "bb"}
+-        if got, want := s1.Largest(), "dd"; got != want {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
+-        }
+-        j3 := &a.ListNum[int]{nil, 1}
+-        j2 := &a.ListNum[int]{j3, 32}
+-        j1 := &a.ListNum[int]{j2, 2}
+-        if got, want := j1.ClippedLargest(), 2; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
+-        }
+-        g3 := &a.ListNum[float64]{nil, 13.5}
+-        g2 := &a.ListNum[float64]{g3, 1.2}
+-        g1 := &a.ListNum[float64]{g2, 4.5}
+-        if got, want := g1.ClippedLargest(), 4.5; got != want {
+-                panic(fmt.Sprintf("got %f, want %f", got, want))
+-        }
++	s3 := &a.List[string]{nil, "dd"}
++	s2 := &a.List[string]{s3, "aa"}
++	s1 := &a.List[string]{s2, "bb"}
++	if got, want := s1.Largest(), "dd"; got != want {
++		panic(fmt.Sprintf("got %s, want %s", got, want))
++	}
++	j3 := &a.ListNum[int]{nil, 1}
++	j2 := &a.ListNum[int]{j3, 32}
++	j1 := &a.ListNum[int]{j2, 2}
++	if got, want := j1.ClippedLargest(), 2; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++	g3 := &a.ListNum[float64]{nil, 13.5}
++	g2 := &a.ListNum[float64]{g3, 1.2}
++	g1 := &a.ListNum[float64]{g2, 4.5}
++	if got, want := g1.ClippedLargest(), 4.5; got != want {
++		panic(fmt.Sprintf("got %f, want %f", got, want))
++	}
+ }
+diff --git a/test/typeparam/listimp2.dir/a.go b/test/typeparam/listimp2.dir/a.go
+index 76ad669767..3a7dfc3999 100644
+--- a/test/typeparam/listimp2.dir/a.go
++++ b/test/typeparam/listimp2.dir/a.go
+@@ -44,7 +44,7 @@ func (e *Element[T]) Prev() *Element[T] {
+ // The zero value for List is an empty list ready to use.
+ type List[T any] struct {
+ 	root Element[T] // sentinel list element, only &root, root.prev, and root.next are used
+-	len  int     // current list length excluding (this) sentinel element
++	len  int        // current list length excluding (this) sentinel element
+ }
+ 
+ // Init initializes or clears list l.
+diff --git a/test/typeparam/listimp2.dir/main.go b/test/typeparam/listimp2.dir/main.go
+index 0c2c38e399..226e1a9a57 100644
+--- a/test/typeparam/listimp2.dir/main.go
++++ b/test/typeparam/listimp2.dir/main.go
+@@ -301,7 +301,6 @@ func TestTransform() {
+ 	checkList(l2, []interface{}{"1", "2"})
+ }
+ 
+-
+ func main() {
+ 	TestList()
+ 	TestExtending()
+diff --git a/test/typeparam/lockable.go b/test/typeparam/lockable.go
+index 9372c76b4d..9b20d87bb7 100644
+--- a/test/typeparam/lockable.go
++++ b/test/typeparam/lockable.go
+@@ -11,7 +11,7 @@ import "sync"
+ // A Lockable is a value that may be safely simultaneously accessed
+ // from multiple goroutines via the Get and Set methods.
+ type Lockable[T any] struct {
+-	x T
++	x  T
+ 	mu sync.Mutex
+ }
+ 
+diff --git a/test/typeparam/mapimp.dir/a.go b/test/typeparam/mapimp.dir/a.go
+index 6835e214b8..cbfa80ac6b 100644
+--- a/test/typeparam/mapimp.dir/a.go
++++ b/test/typeparam/mapimp.dir/a.go
+@@ -7,9 +7,9 @@ package a
+ // Map calls the function f on every element of the slice s,
+ // returning a new slice of the results.
+ func Mapper[F, T any](s []F, f func(F) T) []T {
+-        r := make([]T, len(s))
+-        for i, v := range s {
+-                r[i] = f(v)
+-        }
+-        return r
++	r := make([]T, len(s))
++	for i, v := range s {
++		r[i] = f(v)
++	}
++	return r
+ }
+diff --git a/test/typeparam/mincheck.dir/a.go b/test/typeparam/mincheck.dir/a.go
+index 7d42492b74..fa0f249e61 100644
+--- a/test/typeparam/mincheck.dir/a.go
++++ b/test/typeparam/mincheck.dir/a.go
+@@ -5,12 +5,12 @@
+ package a
+ 
+ type Ordered interface {
+-        int | int64 | float64
++	int | int64 | float64
+ }
+ 
+ func Min[T Ordered](x, y T) T {
+-        if x < y {
+-                return x
+-        }
+-        return y
++	if x < y {
++		return x
++	}
++	return y
+ }
+diff --git a/test/typeparam/minimp.dir/a.go b/test/typeparam/minimp.dir/a.go
+index 6c3e0eba36..fabde62c5d 100644
+--- a/test/typeparam/minimp.dir/a.go
++++ b/test/typeparam/minimp.dir/a.go
+@@ -5,12 +5,12 @@
+ package a
+ 
+ type Ordered interface {
+-        ~int | ~int64 | ~float64 | ~string
++	~int | ~int64 | ~float64 | ~string
+ }
+ 
+ func Min[T Ordered](x, y T) T {
+-        if x < y {
+-                return x
+-        }
+-        return y
++	if x < y {
++		return x
++	}
++	return y
+ }
+diff --git a/test/typeparam/mutualimp.dir/a.go b/test/typeparam/mutualimp.dir/a.go
+index 56ca57cea5..5b924d3ce5 100644
+--- a/test/typeparam/mutualimp.dir/a.go
++++ b/test/typeparam/mutualimp.dir/a.go
+@@ -5,7 +5,8 @@
+ package a
+ 
+ type X int
++
+ func (x X) M() X { return x }
+ 
+ func F[T interface{ M() U }, U interface{ M() T }]() {}
+-func G() { F[X, X]() }
++func G()                                             { F[X, X]() }
+diff --git a/test/typeparam/ordered.go b/test/typeparam/ordered.go
+index 699505ec75..0f539d659c 100644
+--- a/test/typeparam/ordered.go
++++ b/test/typeparam/ordered.go
+@@ -13,15 +13,15 @@ import (
+ )
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ type orderedSlice[Elem Ordered] []Elem
+ 
+-func (s orderedSlice[Elem]) Len() int           { return len(s) }
++func (s orderedSlice[Elem]) Len() int { return len(s) }
+ func (s orderedSlice[Elem]) Less(i, j int) bool {
+ 	if s[i] < s[j] {
+ 		return true
+@@ -32,7 +32,7 @@ func (s orderedSlice[Elem]) Less(i, j int) bool {
+ 	}
+ 	return false
+ }
+-func (s orderedSlice[Elem]) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s orderedSlice[Elem]) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+ 
+ func _OrderedSlice[Elem Ordered](s []Elem) {
+ 	sort.Sort(orderedSlice[Elem](s))
+@@ -68,7 +68,7 @@ func testOrdered[Elem Ordered](name string, s []Elem, sorter func([]Elem)) bool
+ 	}
+ 	for i := len(s1) - 1; i > 0; i-- {
+ 		if s1[i] < s1[i-1] {
+-			fmt.Printf("%s: element %d (%v) < element %d (%v)", name, i, s1[i], i - 1, s1[i - 1])
++			fmt.Printf("%s: element %d (%v) < element %d (%v)", name, i, s1[i], i-1, s1[i-1])
+ 			ok = false
+ 		}
+ 	}
+diff --git a/test/typeparam/orderedmap.go b/test/typeparam/orderedmap.go
+index 6a895bd396..1f077333b8 100644
+--- a/test/typeparam/orderedmap.go
++++ b/test/typeparam/orderedmap.go
+@@ -15,10 +15,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ // _Map is an ordered map.
+@@ -230,7 +230,7 @@ func _Ranger[Elem any]() (*_Sender[Elem], *_Receiver[Elem]) {
+ 		values: c,
+ 		done:   d,
+ 	}
+-	r := &_Receiver[Elem] {
++	r := &_Receiver[Elem]{
+ 		values: c,
+ 		done:   d,
+ 	}
+diff --git a/test/typeparam/orderedmapsimp.dir/a.go b/test/typeparam/orderedmapsimp.dir/a.go
+index 37fc3e79b9..d6a2de5d7b 100644
+--- a/test/typeparam/orderedmapsimp.dir/a.go
++++ b/test/typeparam/orderedmapsimp.dir/a.go
+@@ -10,10 +10,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ // Map is an ordered map.
+@@ -170,7 +170,7 @@ func Ranger[Elem any]() (*Sender[Elem], *Receiver[Elem]) {
+ 		values: c,
+ 		done:   d,
+ 	}
+-	r := &Receiver[Elem] {
++	r := &Receiver[Elem]{
+ 		values: c,
+ 		done:   d,
+ 	}
+diff --git a/test/typeparam/orderedmapsimp.dir/main.go b/test/typeparam/orderedmapsimp.dir/main.go
+index ac4cee6a78..978f1e763c 100644
+--- a/test/typeparam/orderedmapsimp.dir/main.go
++++ b/test/typeparam/orderedmapsimp.dir/main.go
+@@ -17,7 +17,7 @@ func TestMap() {
+ 		panic(fmt.Sprintf("unexpectedly found %q in empty map", []byte("a")))
+ 	}
+ 
+-	for _, c := range []int{ 'a', 'c', 'b' } {
++	for _, c := range []int{'a', 'c', 'b'} {
+ 		if !m.Insert([]byte(string(c)), c) {
+ 			panic(fmt.Sprintf("key %q unexpectedly already present", []byte(string(c))))
+ 		}
+diff --git a/test/typeparam/pair.go b/test/typeparam/pair.go
+index 57742022b1..c1427b9c52 100644
+--- a/test/typeparam/pair.go
++++ b/test/typeparam/pair.go
+@@ -25,7 +25,10 @@ func main() {
+ 		panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
+ 	}
+ 
+-	type mypair struct { f1 int32; f2 int64 }
++	type mypair struct {
++		f1 int32
++		f2 int64
++	}
+ 	mp := mypair(p)
+ 	if mp.f1 != 1 || mp.f2 != 2 {
+ 		panic(fmt.Sprintf("mp == %#v, want %#v", mp, mypair{1, 2}))
+diff --git a/test/typeparam/pairimp.dir/a.go b/test/typeparam/pairimp.dir/a.go
+index 27b2412961..a984fba37b 100644
+--- a/test/typeparam/pairimp.dir/a.go
++++ b/test/typeparam/pairimp.dir/a.go
+@@ -5,6 +5,6 @@
+ package a
+ 
+ type Pair[F1, F2 any] struct {
+-        Field1 F1
+-        Field2 F2
++	Field1 F1
++	Field2 F2
+ }
+diff --git a/test/typeparam/pairimp.dir/main.go b/test/typeparam/pairimp.dir/main.go
+index fc2face81d..027fdd9ce7 100644
+--- a/test/typeparam/pairimp.dir/main.go
++++ b/test/typeparam/pairimp.dir/main.go
+@@ -11,17 +11,20 @@ import (
+ )
+ 
+ func main() {
+-        p := a.Pair[int32, int64]{1, 2}
+-        if got, want := unsafe.Sizeof(p.Field1), uintptr(4); got != want {
+-                panic(fmt.Sprintf("unexpected f1 size == %d, want %d", got, want))
+-        }
+-        if got, want := unsafe.Sizeof(p.Field2), uintptr(8); got != want {
+-                panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
+-        }
++	p := a.Pair[int32, int64]{1, 2}
++	if got, want := unsafe.Sizeof(p.Field1), uintptr(4); got != want {
++		panic(fmt.Sprintf("unexpected f1 size == %d, want %d", got, want))
++	}
++	if got, want := unsafe.Sizeof(p.Field2), uintptr(8); got != want {
++		panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
++	}
+ 
+-        type mypair struct { Field1 int32; Field2 int64 }
+-        mp := mypair(p)
+-        if mp.Field1 != 1 || mp.Field2 != 2 {
+-                panic(fmt.Sprintf("mp == %#v, want %#v", mp, mypair{1, 2}))
+-        }
++	type mypair struct {
++		Field1 int32
++		Field2 int64
++	}
++	mp := mypair(p)
++	if mp.Field1 != 1 || mp.Field2 != 2 {
++		panic(fmt.Sprintf("mp == %#v, want %#v", mp, mypair{1, 2}))
++	}
+ }
+diff --git a/test/typeparam/sets.go b/test/typeparam/sets.go
+index 258514489e..4f07b590e3 100644
+--- a/test/typeparam/sets.go
++++ b/test/typeparam/sets.go
+@@ -160,7 +160,7 @@ func TestSet() {
+ 	vals := s1.Values()
+ 	sort.Ints(vals)
+ 	w1 := []int{1, 2, 3, 4}
+-	if !_SliceEqual(vals,  w1) {
++	if !_SliceEqual(vals, w1) {
+ 		panic(fmt.Sprintf("(%v).Values() == %v, want %v", s1, vals, w1))
+ 	}
+ }
+diff --git a/test/typeparam/settable.go b/test/typeparam/settable.go
+index d0b831b533..99455e93fa 100644
+--- a/test/typeparam/settable.go
++++ b/test/typeparam/settable.go
+@@ -44,7 +44,6 @@ func fromStrings1a[T any, PT Setter[T]](s []string) []PT {
+ 	return result
+ }
+ 
+-
+ // Takes one type parameter and a set function
+ func fromStrings2[T any](s []string, set func(*T, string)) []T {
+ 	results := make([]T, len(s))
+diff --git a/test/typeparam/sliceimp.dir/a.go b/test/typeparam/sliceimp.dir/a.go
+index 61b1b17a98..da12e9f9fc 100644
+--- a/test/typeparam/sliceimp.dir/a.go
++++ b/test/typeparam/sliceimp.dir/a.go
+@@ -5,26 +5,26 @@
+ package a
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ // Max returns the maximum of two values of some ordered type.
+ func Max[T Ordered](a, b T) T {
+-        if a > b {
+-                return a
+-        }
+-        return b
++	if a > b {
++		return a
++	}
++	return b
+ }
+ 
+ // Min returns the minimum of two values of some ordered type.
+ func Min[T Ordered](a, b T) T {
+-        if a < b {
+-                return a
+-        }
+-        return b
++	if a < b {
++		return a
++	}
++	return b
+ }
+ 
+ // Equal reports whether two slices are equal: the same length and all
+@@ -121,7 +121,7 @@ func Append[T any](s []T, t ...T) []T {
+ 	if tot <= cap(s) {
+ 		s = s[:tot]
+ 	} else {
+-		news := make([]T, tot, tot + tot/2)
++		news := make([]T, tot, tot+tot/2)
+ 		Copy(news, s)
+ 		s = news
+ 	}
+diff --git a/test/typeparam/sliceimp.dir/main.go b/test/typeparam/sliceimp.dir/main.go
+index 2d4d3b2831..0f79e10018 100644
+--- a/test/typeparam/sliceimp.dir/main.go
++++ b/test/typeparam/sliceimp.dir/main.go
+@@ -12,42 +12,42 @@ import (
+ )
+ 
+ type Integer interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+ }
+ 
+ func TestEqual() {
+-        s1 := []int{1, 2, 3}
+-        if !a.Equal(s1, s1) {
+-                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s1))
+-        }
+-        s2 := []int{1, 2, 3}
+-        if !a.Equal(s1, s2) {
+-                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s2))
+-        }
+-        s2 = append(s2, 4)
+-        if a.Equal(s1, s2) {
+-                panic(fmt.Sprintf("a.Equal(%v, %v) = true, want false", s1, s2))
+-        }
+-
+-        s3 := []float64{1, 2, math.NaN()}
+-        if !a.Equal(s3, s3) {
+-                panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s3, s3))
+-        }
+-
+-        if a.Equal(s1, nil) {
+-                panic(fmt.Sprintf("a.Equal(%v, nil) = true, want false", s1))
+-        }
+-        if a.Equal(nil, s1) {
+-                panic(fmt.Sprintf("a.Equal(nil, %v) = true, want false", s1))
+-        }
+-        if !a.Equal(s1[:0], nil) {
+-                panic(fmt.Sprintf("a.Equal(%v, nil = false, want true", s1[:0]))
+-        }
++	s1 := []int{1, 2, 3}
++	if !a.Equal(s1, s1) {
++		panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s1))
++	}
++	s2 := []int{1, 2, 3}
++	if !a.Equal(s1, s2) {
++		panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s1, s2))
++	}
++	s2 = append(s2, 4)
++	if a.Equal(s1, s2) {
++		panic(fmt.Sprintf("a.Equal(%v, %v) = true, want false", s1, s2))
++	}
++
++	s3 := []float64{1, 2, math.NaN()}
++	if !a.Equal(s3, s3) {
++		panic(fmt.Sprintf("a.Equal(%v, %v) = false, want true", s3, s3))
++	}
++
++	if a.Equal(s1, nil) {
++		panic(fmt.Sprintf("a.Equal(%v, nil) = true, want false", s1))
++	}
++	if a.Equal(nil, s1) {
++		panic(fmt.Sprintf("a.Equal(nil, %v) = true, want false", s1))
++	}
++	if !a.Equal(s1[:0], nil) {
++		panic(fmt.Sprintf("a.Equal(%v, nil = false, want true", s1[:0]))
++	}
+ }
+ 
+ func offByOne[Elem Integer](a, b Elem) bool {
+-	return a == b + 1 || a == b - 1
++	return a == b+1 || a == b-1
+ }
+ 
+ func TestEqualFn() {
+@@ -92,12 +92,12 @@ func TestMap() {
+ 
+ func TestReduce() {
+ 	s1 := []int{1, 2, 3}
+-	r := a.Reduce(s1, 0, func(f float64, i int) float64 { return float64(i) * 2.5 + f })
++	r := a.Reduce(s1, 0, func(f float64, i int) float64 { return float64(i)*2.5 + f })
+ 	if want := 15.0; r != want {
+ 		panic(fmt.Sprintf("a.Reduce(%v, 0, ...) = %v, want %v", s1, r, want))
+ 	}
+ 
+-	if got := a.Reduce(nil, 0, func(i, j int) int { return i + j}); got != 0 {
++	if got := a.Reduce(nil, 0, func(i, j int) int { return i + j }); got != 0 {
+ 		panic(fmt.Sprintf("a.Reduce(nil, 0, add) = %v, want 0", got))
+ 	}
+ }
+diff --git a/test/typeparam/slices.go b/test/typeparam/slices.go
+index 50783a5439..b5e8e0c606 100644
+--- a/test/typeparam/slices.go
++++ b/test/typeparam/slices.go
+@@ -15,31 +15,31 @@ import (
+ )
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ type Integer interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+ }
+ 
+ // Max returns the maximum of two values of some ordered type.
+ func _Max[T Ordered](a, b T) T {
+-        if a > b {
+-                return a
+-        }
+-        return b
++	if a > b {
++		return a
++	}
++	return b
+ }
+ 
+ // Min returns the minimum of two values of some ordered type.
+ func _Min[T Ordered](a, b T) T {
+-        if a < b {
+-                return a
+-        }
+-        return b
++	if a < b {
++		return a
++	}
++	return b
+ }
+ 
+ // _Equal reports whether two slices are equal: the same length and all
+@@ -136,7 +136,7 @@ func _Append[T any](s []T, t ...T) []T {
+ 	if tot <= cap(s) {
+ 		s = s[:tot]
+ 	} else {
+-		news := make([]T, tot, tot + tot/2)
++		news := make([]T, tot, tot+tot/2)
+ 		_Copy(news, s)
+ 		s = news
+ 	}
+@@ -156,37 +156,37 @@ func _Copy[T any](s, t []T) int {
+ }
+ 
+ func TestEqual() {
+-        s1 := []int{1, 2, 3}
+-        if !_Equal(s1, s1) {
+-                panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s1))
+-        }
+-        s2 := []int{1, 2, 3}
+-        if !_Equal(s1, s2) {
+-                panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s2))
+-        }
+-        s2 = append(s2, 4)
+-        if _Equal(s1, s2) {
+-                panic(fmt.Sprintf("_Equal(%v, %v) = true, want false", s1, s2))
+-        }
+-
+-        s3 := []float64{1, 2, math.NaN()}
+-        if !_Equal(s3, s3) {
+-                panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s3, s3))
+-        }
+-
+-        if _Equal(s1, nil) {
+-                panic(fmt.Sprintf("_Equal(%v, nil) = true, want false", s1))
+-        }
+-        if _Equal(nil, s1) {
+-                panic(fmt.Sprintf("_Equal(nil, %v) = true, want false", s1))
+-        }
+-        if !_Equal(s1[:0], nil) {
+-                panic(fmt.Sprintf("_Equal(%v, nil = false, want true", s1[:0]))
+-        }
++	s1 := []int{1, 2, 3}
++	if !_Equal(s1, s1) {
++		panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s1))
++	}
++	s2 := []int{1, 2, 3}
++	if !_Equal(s1, s2) {
++		panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s2))
++	}
++	s2 = append(s2, 4)
++	if _Equal(s1, s2) {
++		panic(fmt.Sprintf("_Equal(%v, %v) = true, want false", s1, s2))
++	}
++
++	s3 := []float64{1, 2, math.NaN()}
++	if !_Equal(s3, s3) {
++		panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s3, s3))
++	}
++
++	if _Equal(s1, nil) {
++		panic(fmt.Sprintf("_Equal(%v, nil) = true, want false", s1))
++	}
++	if _Equal(nil, s1) {
++		panic(fmt.Sprintf("_Equal(nil, %v) = true, want false", s1))
++	}
++	if !_Equal(s1[:0], nil) {
++		panic(fmt.Sprintf("_Equal(%v, nil = false, want true", s1[:0]))
++	}
+ }
+ 
+ func offByOne[Elem Integer](a, b Elem) bool {
+-	return a == b + 1 || a == b - 1
++	return a == b+1 || a == b-1
+ }
+ 
+ func TestEqualFn() {
+@@ -231,12 +231,12 @@ func TestMap() {
+ 
+ func TestReduce() {
+ 	s1 := []int{1, 2, 3}
+-	r := _Reduce(s1, 0, func(f float64, i int) float64 { return float64(i) * 2.5 + f })
++	r := _Reduce(s1, 0, func(f float64, i int) float64 { return float64(i)*2.5 + f })
+ 	if want := 15.0; r != want {
+ 		panic(fmt.Sprintf("_Reduce(%v, 0, ...) = %v, want %v", s1, r, want))
+ 	}
+ 
+-	if got := _Reduce(nil, 0, func(i, j int) int { return i + j}); got != 0 {
++	if got := _Reduce(nil, 0, func(i, j int) int { return i + j }); got != 0 {
+ 		panic(fmt.Sprintf("_Reduce(nil, 0, add) = %v, want 0", got))
+ 	}
+ }
+diff --git a/test/typeparam/smallest.go b/test/typeparam/smallest.go
+index 3fead6a067..af1d72d899 100644
+--- a/test/typeparam/smallest.go
++++ b/test/typeparam/smallest.go
+@@ -11,10 +11,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+-                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+-                ~float32 | ~float64 |
+-                ~string
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~string
+ }
+ 
+ func Smallest[T Ordered](s []T) T {
+diff --git a/test/typeparam/smoketest.go b/test/typeparam/smoketest.go
+index d92e02713d..eeda25964f 100644
+--- a/test/typeparam/smoketest.go
++++ b/test/typeparam/smoketest.go
+@@ -29,8 +29,8 @@ type _ T2[int, string, struct{}]
+ type _ T3[bool]
+ 
+ // methods
+-func (T1[P]) m1() {}
+-func (T1[_]) m2() {}
++func (T1[P]) m1()           {}
++func (T1[_]) m2()           {}
+ func (x T2[P1, P2, P3]) m() {}
+ 
+ // type lists
+diff --git a/test/typeparam/stringable.go b/test/typeparam/stringable.go
+index 20da012cb8..855a1edb3b 100644
+--- a/test/typeparam/stringable.go
++++ b/test/typeparam/stringable.go
+@@ -38,9 +38,9 @@ func (a myint) String() string {
+ }
+ 
+ func main() {
+-	v := StringableList[myint]{ myint(1), myint(2) }
++	v := StringableList[myint]{myint(1), myint(2)}
+ 
+ 	if got, want := v.String(), "1, 2"; got != want {
+-                panic(fmt.Sprintf("got %s, want %s", got, want))
++		panic(fmt.Sprintf("got %s, want %s", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/struct.go b/test/typeparam/struct.go
+index 093f6935e6..ad1b41ddac 100644
+--- a/test/typeparam/struct.go
++++ b/test/typeparam/struct.go
+@@ -35,15 +35,15 @@ type S3 struct {
+ func main() {
+ 	s1 := S1{Eint{2}, "foo"}
+ 	if got, want := s1.E.v, 2; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 	s2 := S2{Eint{3}, Ebool{true}, "foo"}
+ 	if got, want := s2.Eint.v, 3; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 	var s3 S3
+ 	s3.E = &Eint{4}
+ 	if got, want := s3.E.v, 4; got != want {
+-                panic(fmt.Sprintf("got %d, want %d", got, want))
++		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/subdict.go b/test/typeparam/subdict.go
+index c899af6d0d..b4e84baf8a 100644
+--- a/test/typeparam/subdict.go
++++ b/test/typeparam/subdict.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test cases where a main dictionary is needed inside a generic function/method, because 
++// Test cases where a main dictionary is needed inside a generic function/method, because
+ // we are calling a method on a fully-instantiated type or a fully-instantiated function.
+ // (probably not common situations, of course)
+ 
+@@ -33,7 +33,6 @@ func (v *value[T]) get(def T) T {
+ 	}
+ }
+ 
+-
+ func main() {
+ 	var s value[string]
+ 	if got, want := s.get("ab"), ""; got != want {
+diff --git a/test/typeparam/sum.go b/test/typeparam/sum.go
+index 53e6face11..d444e007a3 100644
+--- a/test/typeparam/sum.go
++++ b/test/typeparam/sum.go
+@@ -40,11 +40,11 @@ func main() {
+ 
+ 	fwant := vec2[0] + vec2[1]
+ 	fgot := Sum[float64](vec2)
+-	if Abs(fgot - fwant) > 1e-10 {
++	if Abs(fgot-fwant) > 1e-10 {
+ 		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
+ 	}
+ 	fgot = Sum(vec2)
+-	if Abs(fgot - fwant) > 1e-10 {
++	if Abs(fgot-fwant) > 1e-10 {
+ 		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
+ 	}
+ }
+diff --git a/test/typeparam/tparam1.go b/test/typeparam/tparam1.go
+index 2bcc4af3db..a196caf976 100644
+--- a/test/typeparam/tparam1.go
++++ b/test/typeparam/tparam1.go
+@@ -10,18 +10,18 @@ package tparam1
+ 
+ // The predeclared identifier "any" is only visible as a constraint
+ // in a type parameter list.
+-var _ any // ERROR "cannot use any outside constraint position"
++var _ any     // ERROR "cannot use any outside constraint position"
+ func _(_ any) // ERROR "cannot use any outside constraint position"
+-type _[_ any /* ok here */ ] struct{}
++type _[_ any /* ok here */] struct{}
+ 
+ const N = 10
+ 
+ type (
+-        _[] struct{} // slice
+-        _[N] struct{} // array
+-        _[T any] struct{}
+-        _[T, T any] struct{} // ERROR "T redeclared"
+-        _[T1, T2 any, T3 any] struct{}
++	_                     []struct{}  // slice
++	_                     [N]struct{} // array
++	_[T any]              struct{}
++	_[T, T any]           struct{} // ERROR "T redeclared"
++	_[T1, T2 any, T3 any] struct{}
+ )
+ 
+ func _[T any]()
+@@ -36,7 +36,7 @@ func _[T C]()
+ func _[T struct{}]() // ERROR "not an interface"
+ func _[T interface{ m() T }]()
+ func _[T1 interface{ m() T2 }, T2 interface{ m() T1 }]() {
+-        var _ T1
++	var _ T1
+ }
+ 
+ // TODO(gri) expand this
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+index 5c51c9c461..3d035bf457 100644
+--- a/test/typeparam/typelist.go
++++ b/test/typeparam/typelist.go
+@@ -10,19 +10,19 @@ package p
+ 
+ // Assignability of an unnamed pointer type to a type parameter that
+ // has a matching underlying type.
+-func _[T interface{}, PT interface{type *T}] (x T) PT {
+-    return &x
++func _[T interface{}, PT interface{ type *T }](x T) PT {
++	return &x
+ }
+ 
+ // Indexing of generic types containing type parameters in their type list:
+ func at[T interface{ type []E }, E any](x T, i int) E {
+-        return x[i]
++	return x[i]
+ }
+ 
+ // A generic type inside a function acts like a named type. Its underlying
+ // type is itself, its "operational type" is defined by the type list in
+ // the tybe bound, if any.
+-func _[T interface{type int}](x T) {
++func _[T interface{ type int }](x T) {
+ 	type myint int
+ 	var _ int = int(x)
+ 	var _ T = 42
+@@ -30,7 +30,7 @@ func _[T interface{type int}](x T) {
+ }
+ 
+ // Indexing a generic type which has a structural contraints to be an array.
+-func _[T interface { type [10]int }](x T) {
++func _[T interface{ type [10]int }](x T) {
+ 	_ = x[9] // ok
+ }
+ 
+@@ -44,7 +44,7 @@ func _[T interface{ type *int }](p T) int {
+ func _[T interface{ type chan int }](ch T) int {
+ 	// This would deadlock if executed (but ok for a compile test)
+ 	ch <- 0
+-	return <- ch
++	return <-ch
+ }
+ 
+ // Calling of a generic type which has a structural constraint to be a function.
+@@ -59,11 +59,10 @@ func _[T interface{ type func(string) int }](f T) int {
+ }
+ 
+ // Map access of a generic type which has a structural constraint to be a map.
+-func _[V any, T interface { type map[string]V }](p T) V {
++func _[V any, T interface{ type map[string]V }](p T) V {
+ 	return p["test"]
+ }
+ 
+-
+ // Testing partial and full type inference, including the case where the types can
+ // be inferred without needing the types of the function arguments.
+ 
+@@ -86,7 +85,7 @@ func _() {
+ }
+ */
+ 
+-func f2[A any, B interface{type []A}](_ A, _ B)
++func f2[A any, B interface{ type []A }](_ A, _ B)
+ func _() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -106,7 +105,7 @@ func _() {
+ }
+ */
+ 
+-func f4[A any, B interface{type []C}, C interface{type *A}](_ A, _ B, c C)
++func f4[A any, B interface{ type []C }, C interface{ type *A }](_ A, _ B, c C)
+ func _() {
+ 	f := f4[int]
+ 	var x int
+@@ -114,15 +113,20 @@ func _() {
+ 	f4(x, []*int{}, &x)
+ }
+ 
+-func f5[A interface{type struct{b B; c C}}, B any, C interface{type *B}](x B) A
++func f5[A interface {
++	type struct {
++		b B
++		c C
++	}
++}, B any, C interface{ type *B }](x B) A
+ func _() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b
+ 	var _ float64 = *x.c
+ }
+ 
+-func f6[A any, B interface{type struct{f []A}}](B) A
++func f6[A any, B interface{ type struct{ f []A } }](B) A
+ func _() {
+-	x := f6(struct{f []string}{})
++	x := f6(struct{ f []string }{})
+ 	var _ string = x
+ }
+diff --git a/test/typeparam/valimp.dir/a.go b/test/typeparam/valimp.dir/a.go
+index 5aa5ebfa97..2ed0063cfd 100644
+--- a/test/typeparam/valimp.dir/a.go
++++ b/test/typeparam/valimp.dir/a.go
+@@ -5,7 +5,7 @@
+ package a
+ 
+ type Value[T any] struct {
+-        val T
++	val T
+ }
+ 
+ // The noinline directive should survive across import, and prevent instantiations
+@@ -13,20 +13,20 @@ type Value[T any] struct {
+ 
+ //go:noinline
+ func Get[T any](v *Value[T]) T {
+-        return v.val
++	return v.val
+ }
+ 
+ //go:noinline
+ func Set[T any](v *Value[T], val T) {
+-        v.val = val
++	v.val = val
+ }
+ 
+ //go:noinline
+ func (v *Value[T]) Set(val T) {
+-        v.val = val
++	v.val = val
+ }
+ 
+ //go:noinline
+ func (v *Value[T]) Get() T {
+-        return v.val
++	return v.val
+ }
+diff --git a/test/typeparam/valimp.dir/main.go b/test/typeparam/valimp.dir/main.go
+index 925fb1e699..606ff2273a 100644
+--- a/test/typeparam/valimp.dir/main.go
++++ b/test/typeparam/valimp.dir/main.go
+@@ -10,47 +10,46 @@ import (
+ )
+ 
+ func main() {
+-        var v1 a.Value[int]
+-
+-        a.Set(&v1, 1)
+-        if got, want := a.Get(&v1), 1; got != want {
+-                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
+-        }
+-        v1.Set(2)
+-        if got, want := v1.Get(), 2; got != want {
+-                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
+-        }
+-        v1p := new(a.Value[int])
+-        a.Set(v1p, 3)
+-        if got, want := a.Get(v1p), 3; got != want {
+-                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
+-        }
+-
+-        v1p.Set(4)
+-        if got, want := v1p.Get(), 4; got != want {
+-                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
+-        }
+-
+-        var v2 a.Value[string]
+-        a.Set(&v2, "a")
+-        if got, want := a.Get(&v2), "a"; got != want {
+-                panic(fmt.Sprintf("Get() == %q, want %q", got, want))
+-        }
+-
+-        v2.Set("b")
+-        if got, want := a.Get(&v2), "b"; got != want {
+-                panic(fmt.Sprintf("Get() == %q, want %q", got, want))
+-        }
+-
+-        v2p := new(a.Value[string])
+-        a.Set(v2p, "c")
+-        if got, want := a.Get(v2p), "c"; got != want {
+-                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
+-        }
+-
+-        v2p.Set("d")
+-        if got, want := v2p.Get(), "d"; got != want {
+-                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
+-        }
++	var v1 a.Value[int]
++
++	a.Set(&v1, 1)
++	if got, want := a.Get(&v1), 1; got != want {
++		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++	}
++	v1.Set(2)
++	if got, want := v1.Get(), 2; got != want {
++		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++	}
++	v1p := new(a.Value[int])
++	a.Set(v1p, 3)
++	if got, want := a.Get(v1p), 3; got != want {
++		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++	}
++
++	v1p.Set(4)
++	if got, want := v1p.Get(), 4; got != want {
++		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++	}
++
++	var v2 a.Value[string]
++	a.Set(&v2, "a")
++	if got, want := a.Get(&v2), "a"; got != want {
++		panic(fmt.Sprintf("Get() == %q, want %q", got, want))
++	}
++
++	v2.Set("b")
++	if got, want := a.Get(&v2), "b"; got != want {
++		panic(fmt.Sprintf("Get() == %q, want %q", got, want))
++	}
++
++	v2p := new(a.Value[string])
++	a.Set(v2p, "c")
++	if got, want := a.Get(v2p), "c"; got != want {
++		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++	}
++
++	v2p.Set("d")
++	if got, want := v2p.Get(), "d"; got != want {
++		panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++	}
+ }
+-

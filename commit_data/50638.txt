@@ -26,7 +26,7 @@ Date:   Fri Oct 29 17:41:41 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/doc/pkg.go                    | 21 +++++++++--
  src/go/doc/exports.go                 | 58 ++++++++++++++++++++---------
  src/go/doc/filter.go                  |  2 +
@@ -36,3 +36,536 @@ Date:   Fri Oct 29 17:41:41 2021 -0400
  src/go/doc/testdata/generics.2.golden | 70 +++++++++++++++++++++++++++++++++++
  src/go/doc/testdata/generics.go       | 61 ++++++++++++++++++++++++++++++
  8 files changed, 339 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 822c9e16f8..2257c5c0eb 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -323,7 +323,8 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
+ 		if n.Assign.IsValid() {
+ 			sep = " = "
+ 		}
+-		return fmt.Sprintf("type %s%s%s", n.Name.Name, sep, pkg.oneLineNodeDepth(n.Type, depth))
++		tparams := pkg.formatTypeParams(n.TypeParams, depth)
++		return fmt.Sprintf("type %s%s%s%s", n.Name.Name, tparams, sep, pkg.oneLineNodeDepth(n.Type, depth))
+ 
+ 	case *ast.FuncType:
+ 		var params []string
+@@ -342,15 +343,16 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
+ 			}
+ 		}
+ 
++		tparam := pkg.formatTypeParams(n.TypeParams, depth)
+ 		param := joinStrings(params)
+ 		if len(results) == 0 {
+-			return fmt.Sprintf("func(%s)", param)
++			return fmt.Sprintf("func%s(%s)", tparam, param)
+ 		}
+ 		result := joinStrings(results)
+ 		if !needParens {
+-			return fmt.Sprintf("func(%s) %s", param, result)
++			return fmt.Sprintf("func%s(%s) %s", tparam, param, result)
+ 		}
+-		return fmt.Sprintf("func(%s) (%s)", param, result)
++		return fmt.Sprintf("func%s(%s) (%s)", tparam, param, result)
+ 
+ 	case *ast.StructType:
+ 		if n.Fields == nil || len(n.Fields.List) == 0 {
+@@ -419,6 +421,17 @@ func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
+ 	}
+ }
+ 
++func (pkg *Package) formatTypeParams(list *ast.FieldList, depth int) string {
++	if list.NumFields() == 0 {
++		return ""
++	}
++	var tparams []string
++	for _, field := range list.List {
++		tparams = append(tparams, pkg.oneLineField(field, depth))
++	}
++	return "[" + joinStrings(tparams) + "]"
++}
++
+ // oneLineField returns a one-line summary of the field.
+ func (pkg *Package) oneLineField(field *ast.Field, depth int) string {
+ 	var names []string
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 819c030c9b..671c622205 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -79,18 +79,15 @@ func hasExportedName(list []*ast.Ident) bool {
+ 	return false
+ }
+ 
+-// removeErrorField removes anonymous fields named "error" from an interface.
+-// This is called when "error" has been determined to be a local name,
+-// not the predeclared type.
+-//
+-func removeErrorField(ityp *ast.InterfaceType) {
++// removeAnonymousField removes anonymous fields named name from an interface.
++func removeAnonymousField(name string, ityp *ast.InterfaceType) {
+ 	list := ityp.Methods.List // we know that ityp.Methods != nil
+ 	j := 0
+ 	for _, field := range list {
+ 		keepField := true
+ 		if n := len(field.Names); n == 0 {
+ 			// anonymous field
+-			if fname, _ := baseTypeName(field.Type); fname == "error" {
++			if fname, _ := baseTypeName(field.Type); fname == name {
+ 				keepField = false
+ 			}
+ 		}
+@@ -119,16 +116,25 @@ func (r *reader) filterFieldList(parent *namedType, fields *ast.FieldList, ityp
+ 	for _, field := range list {
+ 		keepField := false
+ 		if n := len(field.Names); n == 0 {
+-			// anonymous field
++			// anonymous field or embedded type or union element
+ 			fname := r.recordAnonymousField(parent, field.Type)
+-			if token.IsExported(fname) {
+-				keepField = true
+-			} else if ityp != nil && fname == "error" {
+-				// possibly the predeclared error interface; keep
+-				// it for now but remember this interface so that
+-				// it can be fixed if error is also defined locally
+-				keepField = true
+-				r.remember(ityp)
++			if fname != "" {
++				if token.IsExported(fname) {
++					keepField = true
++				} else if ityp != nil && predeclaredTypes[fname] {
++					// possibly an embedded predeclared type; keep it for now but
++					// remember this interface so that it can be fixed if name is also
++					// defined locally
++					keepField = true
++					r.remember(fname, ityp)
++				}
++			} else {
++				// If we're operating on an interface, assume that this is an embedded
++				// type or union element.
++				//
++				// TODO(rfindley): consider traversing into approximation/unions
++				// elements to see if they are entirely unexported.
++				keepField = ityp != nil
+ 			}
+ 		} else {
+ 			field.Names = filterIdentList(field.Names)
+@@ -172,6 +178,17 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 		// nothing to do
+ 	case *ast.ParenExpr:
+ 		r.filterType(nil, t.X)
++	case *ast.StarExpr: // possibly an embedded type literal
++		r.filterType(nil, t.X)
++	case *ast.UnaryExpr:
++		if t.Op == token.TILDE { // approximation element
++			r.filterType(nil, t.X)
++		}
++	case *ast.BinaryExpr:
++		if t.Op == token.OR { // union
++			r.filterType(nil, t.X)
++			r.filterType(nil, t.Y)
++		}
+ 	case *ast.ArrayType:
+ 		r.filterType(nil, t.Elt)
+ 	case *ast.StructType:
+@@ -179,6 +196,7 @@ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 			t.Incomplete = true
+ 		}
+ 	case *ast.FuncType:
++		r.filterParamList(t.TypeParams)
+ 		r.filterParamList(t.Params)
+ 		r.filterParamList(t.Results)
+ 	case *ast.InterfaceType:
+@@ -219,12 +237,16 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ 			}
+ 		}
+ 	case *ast.TypeSpec:
++		// Don't filter type parameters here, by analogy with function parameters
++		// which are not filtered for top-level function declarations.
+ 		if name := s.Name.Name; token.IsExported(name) {
+ 			r.filterType(r.lookupType(s.Name.Name), s.Type)
+ 			return true
+-		} else if name == "error" {
+-			// special case: remember that error is declared locally
+-			r.errorDecl = true
++		} else if IsPredeclared(name) {
++			if r.shadowedPredecl == nil {
++				r.shadowedPredecl = make(map[string]bool)
++			}
++			r.shadowedPredecl[name] = true
+ 		}
+ 	}
+ 	return false
+diff --git a/src/go/doc/filter.go b/src/go/doc/filter.go
+index a6f243f33e..9904da150e 100644
+--- a/src/go/doc/filter.go
++++ b/src/go/doc/filter.go
+@@ -34,6 +34,8 @@ func matchDecl(d *ast.GenDecl, f Filter) bool {
+ 			if f(v.Name.Name) {
+ 				return true
+ 			}
++			// We don't match ordinary parameters in filterFuncs, so by analogy don't
++			// match type parameters here.
+ 			switch t := v.Type.(type) {
+ 			case *ast.StructType:
+ 				if matchFields(t.Fields, f) {
+diff --git a/src/go/doc/reader.go b/src/go/doc/reader.go
+index c277b35e89..348b9b59a0 100644
+--- a/src/go/doc/reader.go
++++ b/src/go/doc/reader.go
+@@ -101,6 +101,10 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
+ 	switch t := x.(type) {
+ 	case *ast.Ident:
+ 		return t.Name, false
++	case *ast.IndexExpr:
++		return baseTypeName(t.X)
++	case *ast.IndexListExpr:
++		return baseTypeName(t.X)
+ 	case *ast.SelectorExpr:
+ 		if _, ok := t.X.(*ast.Ident); ok {
+ 			// only possible for qualified type names;
+@@ -112,7 +116,7 @@ func baseTypeName(x ast.Expr) (name string, imported bool) {
+ 	case *ast.StarExpr:
+ 		return baseTypeName(t.X)
+ 	}
+-	return
++	return "", false
+ }
+ 
+ // An embeddedSet describes a set of embedded types.
+@@ -163,9 +167,9 @@ type reader struct {
+ 	types     map[string]*namedType
+ 	funcs     methodSet
+ 
+-	// support for package-local error type declarations
+-	errorDecl bool                 // if set, type "error" was declared locally
+-	fixlist   []*ast.InterfaceType // list of interfaces containing anonymous field "error"
++	// support for package-local shadowing of predeclared types
++	shadowedPredecl map[string]bool
++	fixmap          map[string][]*ast.InterfaceType
+ }
+ 
+ func (r *reader) isVisible(name string) bool {
+@@ -224,8 +228,11 @@ func (r *reader) readDoc(comment *ast.CommentGroup) {
+ 	r.doc += "\n" + text
+ }
+ 
+-func (r *reader) remember(typ *ast.InterfaceType) {
+-	r.fixlist = append(r.fixlist, typ)
++func (r *reader) remember(predecl string, typ *ast.InterfaceType) {
++	if r.fixmap == nil {
++		r.fixmap = make(map[string][]*ast.InterfaceType)
++	}
++	r.fixmap[predecl] = append(r.fixmap[predecl], typ)
+ }
+ 
+ func specNames(specs []ast.Spec) []string {
+@@ -679,10 +686,11 @@ func (r *reader) computeMethodSets() {
+ 		}
+ 	}
+ 
+-	// if error was declared locally, don't treat it as exported field anymore
+-	if r.errorDecl {
+-		for _, ityp := range r.fixlist {
+-			removeErrorField(ityp)
++	// For any predeclared names that are declared locally, don't treat them as
++	// exported fields anymore.
++	for predecl := range r.shadowedPredecl {
++		for _, ityp := range r.fixmap[predecl] {
++			removeAnonymousField(predecl, ityp)
+ 		}
+ 	}
+ }
+@@ -869,6 +877,7 @@ func IsPredeclared(s string) bool {
+ }
+ 
+ var predeclaredTypes = map[string]bool{
++	"any":        true,
+ 	"bool":       true,
+ 	"byte":       true,
+ 	"complex64":  true,
+diff --git a/src/go/doc/testdata/generics.0.golden b/src/go/doc/testdata/generics.0.golden
+new file mode 100644
+index 0000000000..a6dbcf673c
+--- /dev/null
++++ b/src/go/doc/testdata/generics.0.golden
+@@ -0,0 +1,70 @@
++// Package generics contains the new syntax supporting generic ...
++PACKAGE generics
++
++IMPORTPATH
++	testdata/generics
++
++FILENAMES
++	testdata/generics.go
++
++FUNCTIONS
++	// AnotherFunc has an implicit constraint interface.  Neither type ...
++	func AnotherFunc[T ~struct{ f int }](_ struct{ f int })
++
++	// Func has an instantiated constraint. 
++	func Func[T Constraint[string, Type[int]]]()
++
++
++TYPES
++	// AFuncType demonstrates filtering of parameters and type ...
++	type AFuncType[T ~struct{ f int }] func(_ struct {
++		// contains filtered or unexported fields
++	})
++
++	// Constraint is a constraint interface with two type parameters. 
++	type Constraint[P, Q interface{ string | ~int | Type[int] }] interface {
++		~int | ~byte | Type[string]
++		M() P
++	}
++
++	// NewEmbeddings demonstrates how we filter the new embedded ...
++	type NewEmbeddings interface {
++		string	// should not be filtered
++	
++		struct {
++			// contains filtered or unexported fields
++		}
++		~struct {
++			// contains filtered or unexported fields
++		}
++		*struct {
++			// contains filtered or unexported fields
++		}
++		struct {
++			// contains filtered or unexported fields
++		} | ~struct {
++			// contains filtered or unexported fields
++		}
++		// contains filtered or unexported methods
++	}
++
++	// Parameterized types should be shown. 
++	type Type[P any] struct {
++		Field P
++	}
++
++	// Variables with an instantiated type should be shown. 
++	var X Type[int]
++
++	// Constructors for parameterized types should be shown. 
++	func Constructor[lowerCase any]() Type[lowerCase]
++
++	// MethodA uses a different name for its receiver type parameter. 
++	func (t Type[A]) MethodA(p A)
++
++	// MethodB has a blank receiver type parameter. 
++	func (t Type[_]) MethodB()
++
++	// MethodC has a lower-case receiver type parameter. 
++	func (t Type[c]) MethodC()
++
+diff --git a/src/go/doc/testdata/generics.1.golden b/src/go/doc/testdata/generics.1.golden
+new file mode 100644
+index 0000000000..c0548b5e96
+--- /dev/null
++++ b/src/go/doc/testdata/generics.1.golden
+@@ -0,0 +1,60 @@
++// Package generics contains the new syntax supporting generic ...
++PACKAGE generics
++
++IMPORTPATH
++	testdata/generics
++
++FILENAMES
++	testdata/generics.go
++
++FUNCTIONS
++	// AnotherFunc has an implicit constraint interface.  Neither type ...
++	func AnotherFunc[T ~struct{ f int }](_ struct{ f int })
++
++	// Func has an instantiated constraint. 
++	func Func[T Constraint[string, Type[int]]]()
++
++
++TYPES
++	// AFuncType demonstrates filtering of parameters and type ...
++	type AFuncType[T ~struct{ f int }] func(_ struct{ f int })
++
++	// Constraint is a constraint interface with two type parameters. 
++	type Constraint[P, Q interface{ string | ~int | Type[int] }] interface {
++		~int | ~byte | Type[string]
++		M() P
++	}
++
++	// NewEmbeddings demonstrates how we filter the new embedded ...
++	type NewEmbeddings interface {
++		string	// should not be filtered
++		int16
++		struct{ f int }
++		~struct{ f int }
++		*struct{ f int }
++		struct{ f int } | ~struct{ f int }
++	}
++
++	// Parameterized types should be shown. 
++	type Type[P any] struct {
++		Field P
++	}
++
++	// Variables with an instantiated type should be shown. 
++	var X Type[int]
++
++	// Constructors for parameterized types should be shown. 
++	func Constructor[lowerCase any]() Type[lowerCase]
++
++	// MethodA uses a different name for its receiver type parameter. 
++	func (t Type[A]) MethodA(p A)
++
++	// MethodB has a blank receiver type parameter. 
++	func (t Type[_]) MethodB()
++
++	// MethodC has a lower-case receiver type parameter. 
++	func (t Type[c]) MethodC()
++
++	// int16 shadows the predeclared type int16. 
++	type int16 int
++
+diff --git a/src/go/doc/testdata/generics.2.golden b/src/go/doc/testdata/generics.2.golden
+new file mode 100644
+index 0000000000..a6dbcf673c
+--- /dev/null
++++ b/src/go/doc/testdata/generics.2.golden
+@@ -0,0 +1,70 @@
++// Package generics contains the new syntax supporting generic ...
++PACKAGE generics
++
++IMPORTPATH
++	testdata/generics
++
++FILENAMES
++	testdata/generics.go
++
++FUNCTIONS
++	// AnotherFunc has an implicit constraint interface.  Neither type ...
++	func AnotherFunc[T ~struct{ f int }](_ struct{ f int })
++
++	// Func has an instantiated constraint. 
++	func Func[T Constraint[string, Type[int]]]()
++
++
++TYPES
++	// AFuncType demonstrates filtering of parameters and type ...
++	type AFuncType[T ~struct{ f int }] func(_ struct {
++		// contains filtered or unexported fields
++	})
++
++	// Constraint is a constraint interface with two type parameters. 
++	type Constraint[P, Q interface{ string | ~int | Type[int] }] interface {
++		~int | ~byte | Type[string]
++		M() P
++	}
++
++	// NewEmbeddings demonstrates how we filter the new embedded ...
++	type NewEmbeddings interface {
++		string	// should not be filtered
++	
++		struct {
++			// contains filtered or unexported fields
++		}
++		~struct {
++			// contains filtered or unexported fields
++		}
++		*struct {
++			// contains filtered or unexported fields
++		}
++		struct {
++			// contains filtered or unexported fields
++		} | ~struct {
++			// contains filtered or unexported fields
++		}
++		// contains filtered or unexported methods
++	}
++
++	// Parameterized types should be shown. 
++	type Type[P any] struct {
++		Field P
++	}
++
++	// Variables with an instantiated type should be shown. 
++	var X Type[int]
++
++	// Constructors for parameterized types should be shown. 
++	func Constructor[lowerCase any]() Type[lowerCase]
++
++	// MethodA uses a different name for its receiver type parameter. 
++	func (t Type[A]) MethodA(p A)
++
++	// MethodB has a blank receiver type parameter. 
++	func (t Type[_]) MethodB()
++
++	// MethodC has a lower-case receiver type parameter. 
++	func (t Type[c]) MethodC()
++
+diff --git a/src/go/doc/testdata/generics.go b/src/go/doc/testdata/generics.go
+new file mode 100644
+index 0000000000..b5debba437
+--- /dev/null
++++ b/src/go/doc/testdata/generics.go
+@@ -0,0 +1,61 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package generics contains the new syntax supporting generic programming in
++// Go.
++package generics
++
++// Variables with an instantiated type should be shown.
++var X Type[int]
++
++// Parameterized types should be shown.
++type Type[P any] struct {
++	Field P
++}
++
++// Constructors for parameterized types should be shown.
++func Constructor[lowerCase any]() Type[lowerCase] {
++	return Type[lowerCase]{}
++}
++
++// MethodA uses a different name for its receiver type parameter.
++func (t Type[A]) MethodA(p A) {}
++
++// MethodB has a blank receiver type parameter.
++func (t Type[_]) MethodB() {}
++
++// MethodC has a lower-case receiver type parameter.
++func (t Type[c]) MethodC() {}
++
++// Constraint is a constraint interface with two type parameters.
++type Constraint[P, Q interface{ string | ~int | Type[int] }] interface {
++	~int | ~byte | Type[string]
++	M() P
++}
++
++// int16 shadows the predeclared type int16.
++type int16 int
++
++// NewEmbeddings demonstrates how we filter the new embedded elements.
++type NewEmbeddings interface {
++	string // should not be filtered
++	int16
++	struct{ f int }
++	~struct{ f int }
++	*struct{ f int }
++	struct{ f int } | ~struct{ f int }
++}
++
++// Func has an instantiated constraint.
++func Func[T Constraint[string, Type[int]]]() {}
++
++// AnotherFunc has an implicit constraint interface.
++//
++// Neither type parameters nor regular parameters should be filtered.
++func AnotherFunc[T ~struct{ f int }](_ struct{ f int }) {}
++
++// AFuncType demonstrates filtering of parameters and type parameters. Here we
++// don't filter type parameters (to be consistent with function declarations),
++// but DO filter the RHS.
++type AFuncType[T ~struct{ f int }] func(_ struct{ f int })

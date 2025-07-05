@@ -23,7 +23,42 @@ Date:   Thu May 16 09:19:20 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Alex Scheel <alex.scheel@hashicorp.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/crypto/x509/x509.go      | 10 +++++++++-
  src/crypto/x509/x509_test.go |  1 +
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 3e26941573..47bb428110 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2111,8 +2111,16 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
+ 		signed = h.Sum(nil)
+ 	}
+ 
++	var signerOpts crypto.SignerOpts = hashFunc
++	if template.SignatureAlgorithm != 0 && template.SignatureAlgorithm.isRSAPSS() {
++		signerOpts = &rsa.PSSOptions{
++			SaltLength: rsa.PSSSaltLengthEqualsHash,
++			Hash:       hashFunc,
++		}
++	}
++
+ 	var signature []byte
+-	signature, err = key.Sign(rand, signed, hashFunc)
++	signature, err = key.Sign(rand, signed, signerOpts)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index a9dc145265..026367b167 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1418,6 +1418,7 @@ func TestCreateCertificateRequest(t *testing.T) {
+ 		sigAlgo SignatureAlgorithm
+ 	}{
+ 		{"RSA", testPrivateKey, SHA256WithRSA},
++		{"RSA-PSS-SHA256", testPrivateKey, SHA256WithRSAPSS},
+ 		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA256},
+ 		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA256},
+ 		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA256},

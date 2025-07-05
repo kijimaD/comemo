@@ -11,6 +11,25 @@ Date:   Fri Dec 1 03:25:02 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 2d608f4b24..804cf4a1db 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1190,7 +1190,12 @@ func testChtimes(t *testing.T, name string) {
+ 			// the contents are accessed; also, it is set
+ 			// whenever mtime is set.
+ 		case "netbsd":
+-			t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring. See NetBSD issue golang.org/issue/19293)", at, pat)
++			mounts, _ := ioutil.ReadFile("/proc/mounts")
++			if strings.Contains(string(mounts), "noatime") {
++				t.Logf("AccessTime didn't go backwards, but see a filesystem mounted noatime; ignoring. Issue 19293.")
++			} else {
++				t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring on NetBSD, assuming noatime, Issue 19293)", at, pat)
++			}
+ 		default:
+ 			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
+ 		}

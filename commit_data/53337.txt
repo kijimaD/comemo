@@ -19,8 +19,138 @@ Date:   Fri Aug 5 20:40:45 2022 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/codes.go  |  4 ++-
  src/cmd/compile/internal/noder/reader.go | 49 ++++++++++++++++++--------------
  src/cmd/compile/internal/noder/writer.go | 27 ++++++++++++++----
  3 files changed, 51 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/codes.go b/src/cmd/compile/internal/noder/codes.go
+index 7c72a94e5f..d8de1f483c 100644
+--- a/src/cmd/compile/internal/noder/codes.go
++++ b/src/cmd/compile/internal/noder/codes.go
+@@ -43,7 +43,9 @@ const (
+ 	exprGlobal          // global variable or function
+ 	exprCompLit
+ 	exprFuncLit
+-	exprSelector
++	exprFieldVal
++	exprMethodVal
++	exprMethodExpr
+ 	exprIndex
+ 	exprSlice
+ 	exprAssert
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 1c4323b67a..11428b1928 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1881,36 +1881,41 @@ func (r *reader) expr() (res ir.Node) {
+ 	case exprFuncLit:
+ 		return r.funcLit()
+ 
+-	case exprSelector:
+-		var x ir.Node
+-		if r.Bool() { // MethodExpr
+-			if r.Bool() {
+-				return r.dict.methodExprs[r.Len()]
+-			}
++	case exprFieldVal:
++		x := r.expr()
++		pos := r.pos()
++		_, sym := r.selector()
+ 
+-			n := ir.TypeNode(r.typ())
+-			n.SetTypecheck(1)
+-			x = n
+-		} else { // FieldVal, MethodVal
+-			x = r.expr()
+-		}
++		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
++
++	case exprMethodVal:
++		x := r.expr()
+ 		pos := r.pos()
+ 		_, sym := r.selector()
+ 
+ 		n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+-		if n.Op() == ir.OMETHVALUE {
+-			wrapper := methodValueWrapper{
+-				rcvr:   n.X.Type(),
+-				method: n.Selection,
+-			}
+-			if r.importedDef() {
+-				haveMethodValueWrappers = append(haveMethodValueWrappers, wrapper)
+-			} else {
+-				needMethodValueWrappers = append(needMethodValueWrappers, wrapper)
+-			}
++		wrapper := methodValueWrapper{
++			rcvr:   n.X.Type(),
++			method: n.Selection,
++		}
++		if r.importedDef() {
++			haveMethodValueWrappers = append(haveMethodValueWrappers, wrapper)
++		} else {
++			needMethodValueWrappers = append(needMethodValueWrappers, wrapper)
+ 		}
+ 		return n
+ 
++	case exprMethodExpr:
++		if r.Bool() {
++			return r.dict.methodExprs[r.Len()]
++		}
++
++		typ := r.typ()
++		pos := r.pos()
++		_, sym := r.selector()
++
++		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, ir.TypeNode(typ), sym)).(*ir.SelectorExpr)
++
+ 	case exprIndex:
+ 		x := r.expr()
+ 		pos := r.pos()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 7702de223e..71ebd2dbb6 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1585,8 +1585,25 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		sel, ok := w.p.info.Selections[expr]
+ 		assert(ok)
+ 
+-		w.Code(exprSelector)
+-		if w.Bool(sel.Kind() == types2.MethodExpr) {
++		switch sel.Kind() {
++		default:
++			w.p.fatalf(expr, "unexpected selection kind: %v", sel.Kind())
++
++		case types2.FieldVal:
++			w.Code(exprFieldVal)
++			w.expr(expr.X)
++			w.pos(expr)
++			w.selector(sel.Obj())
++
++		case types2.MethodVal:
++			w.Code(exprMethodVal)
++			w.expr(expr.X)
++			w.pos(expr)
++			w.selector(sel.Obj())
++
++		case types2.MethodExpr:
++			w.Code(exprMethodExpr)
++
+ 			tv, ok := w.p.info.Types[expr.X]
+ 			assert(ok)
+ 			assert(tv.IsType())
+@@ -1600,11 +1617,9 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			}
+ 
+ 			w.typInfo(typInfo)
+-		} else {
+-			w.expr(expr.X)
++			w.pos(expr)
++			w.selector(sel.Obj())
+ 		}
+-		w.pos(expr)
+-		w.selector(sel.Obj())
+ 
+ 	case *syntax.IndexExpr:
+ 		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation

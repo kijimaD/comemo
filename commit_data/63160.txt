@@ -78,6 +78,31 @@ Date:   Sat Mar 1 14:30:03 2025 -0500
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/value.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 05ecfa1a5b..1fadd01298 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1652,6 +1652,9 @@ func (v Value) IsZero() bool {
+ 		if v.flag&flagIndir == 0 {
+ 			return v.ptr == nil
+ 		}
++		if v.ptr == unsafe.Pointer(&zeroVal[0]) {
++			return true
++		}
+ 		typ := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
+ 		// If the type is comparable, then compare directly with zero.
+ 		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
+@@ -1680,6 +1683,9 @@ func (v Value) IsZero() bool {
+ 		if v.flag&flagIndir == 0 {
+ 			return v.ptr == nil
+ 		}
++		if v.ptr == unsafe.Pointer(&zeroVal[0]) {
++			return true
++		}
+ 		typ := (*abi.StructType)(unsafe.Pointer(v.typ()))
+ 		// If the type is comparable, then compare directly with zero.
+ 		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {

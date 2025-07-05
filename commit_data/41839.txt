@@ -10,6 +10,20 @@ Date:   Mon Oct 21 15:48:23 2019 +0900
     Change-Id: I9782e2396313abc39ac55e3fdcec8f53bcaff84e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202377
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/link/internal/ld/ld.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index d277220382..dae75a4c1a 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -148,7 +148,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ 				}
+ 			}
+ 		}
+-		pname = path.Clean(pname)
++		pname = filepath.Clean(pname)
+ 	}
+ 
+ 	return pname, isshlib

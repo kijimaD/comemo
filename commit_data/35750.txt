@@ -20,7 +20,40 @@ Date:   Mon Mar 5 15:51:54 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go |  2 +-
  test/codegen/movesmall.go               | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index c55685f91f..971c21554a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -830,7 +830,7 @@ func isInlinableMemmoveSize(sz int64, c *Config) bool {
+ 	switch c.arch {
+ 	case "amd64", "amd64p32":
+ 		return sz <= 16
+-	case "386", "ppc64", "s390x", "ppc64le":
++	case "386", "ppc64", "s390x", "ppc64le", "arm64":
+ 		return sz <= 8
+ 	case "arm", "mips", "mips64", "mipsle", "mips64le":
+ 		return sz <= 4
+diff --git a/test/codegen/movesmall.go b/test/codegen/movesmall.go
+new file mode 100644
+index 0000000000..59b2a16dd1
+--- /dev/null
++++ b/test/codegen/movesmall.go
+@@ -0,0 +1,13 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func movesmall() {
++	// arm64:-"memmove"
++	x := [...]byte{1, 2, 3, 4, 5, 6, 7}
++	copy(x[1:], x[:])
++}

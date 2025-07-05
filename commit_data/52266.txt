@@ -15,6 +15,11 @@ Date:   Fri Feb 25 14:31:32 2022 -0500
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/{live_syscall.go => live_uintptrkeepalive.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/live_syscall.go b/test/live_uintptrkeepalive.go
+similarity index 100%
+rename from test/live_syscall.go
+rename to test/live_uintptrkeepalive.go

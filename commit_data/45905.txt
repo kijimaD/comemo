@@ -69,7 +69,7 @@ Date:   Thu Nov 26 12:26:02 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/blank1.go              |  2 +-
  test/chan/perm.go           |  6 +++---
  test/complit1.go            | 10 +++++-----
@@ -89,3 +89,316 @@ Date:   Thu Nov 26 12:26:02 2020 -0800
  test/method2.go             |  6 +++---
  test/syntax/chan1.go        |  4 ++--
  18 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/test/blank1.go b/test/blank1.go
+index c9a8e6a290..70e01b1a30 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -13,7 +13,7 @@ var t struct {
+ 	_ int
+ }
+ 
+-func (x int) _() { // ERROR "cannot define new methods on non-local type"
++func (x int) _() { // ERROR "methods on non-local type"
+ 	println(x)
+ }
+ 
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 7da88bdae8..0c96d921d1 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -25,8 +25,8 @@ func main() {
+ 	cs = cr // ERROR "illegal types|incompatible|cannot"
+ 
+ 	var n int
+-	<-n    // ERROR "receive from non-chan"
+-	n <- 2 // ERROR "send to non-chan"
++	<-n    // ERROR "receive from non-chan|expected channel"
++	n <- 2 // ERROR "send to non-chan|must be channel"
+ 
+ 	c <- 0       // ok
+ 	<-c          // ok
+@@ -66,5 +66,5 @@ func main() {
+ 	close(c)
+ 	close(cs)
+ 	close(cr) // ERROR "receive"
+-	close(n)  // ERROR "invalid operation.*non-chan type"
++	close(n)  // ERROR "invalid operation.*non-chan type|must be channel"
+ }
+diff --git a/test/complit1.go b/test/complit1.go
+index eb0f920fcb..7c2a4e2996 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -22,9 +22,9 @@ var (
+ 	_ = m[0][:]            // ERROR "slice of unaddressable value"
+ 	_ = f()[:]             // ERROR "slice of unaddressable value"
+ 
+-	_ = 301[:]  // ERROR "cannot slice"
+-	_ = 3.1[:]  // ERROR "cannot slice"
+-	_ = true[:] // ERROR "cannot slice"
++	_ = 301[:]  // ERROR "cannot slice|attempt to slice object that is not"
++	_ = 3.1[:]  // ERROR "cannot slice|attempt to slice object that is not"
++	_ = true[:] // ERROR "cannot slice|attempt to slice object that is not"
+ 
+ 	// these are okay because they are slicing a pointer to an array
+ 	_ = (&[3]int{1, 2, 3})[:]
+@@ -46,8 +46,8 @@ var (
+ 	_ = &T{0, 0, "", nil}               // ok
+ 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
+ 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
+-	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP"
+-	_ = &Ti{}                           // ERROR "invalid composite literal type Ti"
++	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP|omit types within composite literal"
++	_ = &Ti{}                           // ERROR "invalid composite literal type Ti|expected.*type for composite literal"
+ )
+ 
+ type M map[T]T
+diff --git a/test/convlit.go b/test/convlit.go
+index de760542da..1c66c89e88 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -21,9 +21,9 @@ var x6 = int(1e100)      // ERROR "overflow"
+ var x7 = float32(1e1000) // ERROR "overflow"
+ 
+ // unsafe.Pointer can only convert to/from uintptr
+-var _ = string(unsafe.Pointer(uintptr(65)))  // ERROR "convert"
+-var _ = float64(unsafe.Pointer(uintptr(65))) // ERROR "convert"
+-var _ = int(unsafe.Pointer(uintptr(65)))     // ERROR "convert"
++var _ = string(unsafe.Pointer(uintptr(65)))  // ERROR "convert|conversion"
++var _ = float64(unsafe.Pointer(uintptr(65))) // ERROR "convert|conversion"
++var _ = int(unsafe.Pointer(uintptr(65)))     // ERROR "convert|conversion"
+ 
+ // implicit conversions merit scrutiny
+ var s string
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 9857814648..01b9c0eadb 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -60,5 +60,5 @@ func bad(args ...int) {
+ 	_ = [...]byte("foo") // ERROR "[.][.][.]"
+ 	_ = [...][...]int{{1,2,3},{4,5,6}}	// ERROR "[.][.][.]"
+ 
+-	Foo(x...) // ERROR "invalid use of [.][.][.] in call"
++	Foo(x...) // ERROR "invalid use of .*[.][.][.]"
+ }
+diff --git a/test/fixedbugs/bug176.go b/test/fixedbugs/bug176.go
+index ea3a909747..7001dd081e 100644
+--- a/test/fixedbugs/bug176.go
++++ b/test/fixedbugs/bug176.go
+@@ -9,6 +9,6 @@ package main
+ var x int
+ 
+ var a = []int{ x: 1}	// ERROR "constant"
+-var b = [...]int{x: 1}
++var b = [...]int{x: 1}	// GCCGO_ERROR "constant"
+ var c = map[int]int{ x: 1}
+ 
+diff --git a/test/fixedbugs/bug332.go b/test/fixedbugs/bug332.go
+index d43c2ddcff..159c8b4e68 100644
+--- a/test/fixedbugs/bug332.go
++++ b/test/fixedbugs/bug332.go
+@@ -14,4 +14,4 @@ func main() {}
+ 
+ // important: no newline on end of next line.
+ // 6g used to print <epoch> instead of bug332.go:111
+-func (t *T) F() {} // ERROR "undefined: T"
+\ No newline at end of file
++func (t *T) F() {} // ERROR "undefined.*T"
+\ No newline at end of file
+diff --git a/test/fixedbugs/issue4232.go b/test/fixedbugs/issue4232.go
+index 935f3820c6..30d132683a 100644
+--- a/test/fixedbugs/issue4232.go
++++ b/test/fixedbugs/issue4232.go
+@@ -19,7 +19,7 @@ func f() {
+ 	_ = a[10:10]
+ 	_ = a[9:12]            // ERROR "invalid slice index 12|index out of bounds"
+ 	_ = a[11:12]           // ERROR "invalid slice index 11|index out of bounds"
+-	_ = a[1<<100 : 1<<110] // ERROR "overflows int" "invalid slice index 1 << 100|index out of bounds"
++	_ = a[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
+ 
+ 	var s []int
+ 	_ = s[-1]  // ERROR "invalid slice index -1|index out of bounds"
+@@ -30,7 +30,7 @@ func f() {
+ 	_ = s[10:10]
+ 	_ = s[9:12]
+ 	_ = s[11:12]
+-	_ = s[1<<100 : 1<<110] // ERROR "overflows int" "invalid slice index 1 << 100|index out of bounds"
++	_ = s[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
+ 
+ 	const c = "foofoofoof"
+ 	_ = c[-1]  // ERROR "invalid string index -1|index out of bounds"
+@@ -41,7 +41,7 @@ func f() {
+ 	_ = c[10:10]
+ 	_ = c[9:12]            // ERROR "invalid slice index 12|index out of bounds"
+ 	_ = c[11:12]           // ERROR "invalid slice index 11|index out of bounds"
+-	_ = c[1<<100 : 1<<110] // ERROR "overflows int" "invalid slice index 1 << 100|index out of bounds"
++	_ = c[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
+ 
+ 	var t string
+ 	_ = t[-1]  // ERROR "invalid string index -1|index out of bounds"
+@@ -52,5 +52,5 @@ func f() {
+ 	_ = t[10:10]
+ 	_ = t[9:12]
+ 	_ = t[11:12]
+-	_ = t[1<<100 : 1<<110] // ERROR "overflows int" "invalid slice index 1 << 100|index out of bounds"
++	_ = t[1<<100 : 1<<110] // ERROR "overflows int|integer constant overflow" "invalid slice index 1 << 100|index out of bounds"
+ }
+diff --git a/test/fixedbugs/issue4458.go b/test/fixedbugs/issue4458.go
+index 98ffea79dc..59cfa9fcee 100644
+--- a/test/fixedbugs/issue4458.go
++++ b/test/fixedbugs/issue4458.go
+@@ -16,5 +16,5 @@ func (T) foo() {}
+ func main() {
+ 	av := T{}
+ 	pav := &av
+-	(**T).foo(&pav) // ERROR "no method foo|requires named type or pointer to named"
++	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named"
+ }
+diff --git a/test/fixedbugs/issue5172.go b/test/fixedbugs/issue5172.go
+index 0339935b64..ed92ac6ff2 100644
+--- a/test/fixedbugs/issue5172.go
++++ b/test/fixedbugs/issue5172.go
+@@ -21,6 +21,6 @@ func main() {
+ 	go f.bar()    // ERROR "undefined"
+ 	defer f.bar() // ERROR "undefined"
+ 
+-	t := T{1} // ERROR "too many values"
++	t := T{1} // ERROR "too many"
+ 	go t.Bar()
+ }
+diff --git a/test/init.go b/test/init.go
+index 317f2472cb..5e182281da 100644
+--- a/test/init.go
++++ b/test/init.go
+@@ -14,6 +14,6 @@ func init() {
+ 
+ func main() {
+ 	init()         // ERROR "undefined.*init"
+-	runtime.init() // ERROR "undefined.*runtime\.init"
++	runtime.init() // ERROR "undefined.*runtime\.init|reference to undefined name"
+ 	var _ = init   // ERROR "undefined.*init"
+ }
+diff --git a/test/initializerr.go b/test/initializerr.go
+index 990ab60f96..5e2e9a91a0 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -23,7 +23,7 @@ var a2 = S { Y: 3, Z: 2, Y: 3 } // ERROR "duplicate"
+ var a3 = T { S{}, 2, 3, 4, 5, 6 }	// ERROR "convert|too many"
+ var a4 = [5]byte{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }	// ERROR "index|too many"
+ var a5 = []byte { x: 2 }	// ERROR "index"
+-var a6 = []byte{1: 1, 2: 2, 1: 3}	// ERROR "duplicate index"
++var a6 = []byte{1: 1, 2: 2, 1: 3}	// ERROR "duplicate"
+ 
+ var ok1 = S { }	// should be ok
+ var ok2 = T { S: ok1 }	// should be ok
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 1fb3b6a05a..3f9451e8d2 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -57,7 +57,7 @@ func main() {
+ 
+ 	// cannot type-assert non-interfaces
+ 	f := 2.0
+-	_ = f.(int) // ERROR "non-interface type"
++	_ = f.(int) // ERROR "non-interface type|only valid for interface types"
+ 
+ }
+ 
+diff --git a/test/label.go b/test/label.go
+index 11716cc2c5..7deead6fba 100644
+--- a/test/label.go
++++ b/test/label.go
+@@ -61,5 +61,5 @@ L10:
+ 
+ 	goto L10
+ 
+-	goto go2 // ERROR "label go2 not defined"
++	goto go2 // ERROR "label go2 not defined|reference to undefined label .*go2"
+ }
+diff --git a/test/label1.go b/test/label1.go
+index b2e0ef09b8..a8eaecbff2 100644
+--- a/test/label1.go
++++ b/test/label1.go
+@@ -15,11 +15,11 @@ var x int
+ func f1() {
+ 	switch x {
+ 	case 1:
+-		continue // ERROR "continue is not in a loop$"
++		continue // ERROR "continue is not in a loop$|continue statement not within for"
+ 	}
+ 	select {
+ 	default:
+-		continue // ERROR "continue is not in a loop$"
++		continue // ERROR "continue is not in a loop$|continue statement not within for"
+ 	}
+ 
+ }
+@@ -103,14 +103,14 @@ L5:
+ 		}
+ 	}
+ 
+-	continue // ERROR "continue is not in a loop$"
++	continue // ERROR "continue is not in a loop$|continue statement not within for"
+ 	for {
+-		continue on // ERROR "continue label not defined: on"
++		continue on // ERROR "continue label not defined: on|invalid continue label .*on"
+ 	}
+ 
+-	break // ERROR "break is not in a loop, switch, or select"
++	break // ERROR "break is not in a loop, switch, or select|break statement not within for or switch or select"
+ 	for {
+-		break dance // ERROR "break label not defined: dance"
++		break dance // ERROR "break label not defined: dance|invalid break label .*dance"
+ 	}
+ 
+ 	for {
+diff --git a/test/map1.go b/test/map1.go
+index 498c2ec45b..b4aa70755f 100644
+--- a/test/map1.go
++++ b/test/map1.go
+@@ -61,8 +61,8 @@ type T8 struct { F *T7 }
+ 
+ func main() {
+ 	m := make(map[int]int)
+-	delete()        // ERROR "missing arguments"
+-	delete(m)       // ERROR "missing second \(key\) argument"
++	delete()        // ERROR "missing arguments|not enough arguments"
++	delete(m)       // ERROR "missing second \(key\) argument|not enough arguments"
+ 	delete(m, 2, 3) // ERROR "too many arguments"
+-	delete(1, m)    // ERROR "first argument to delete must be map"
+-}
+\ No newline at end of file
++	delete(1, m)    // ERROR "first argument to delete must be map|argument 1 must be a map"
++}
+diff --git a/test/method2.go b/test/method2.go
+index a45a943156..7feb675055 100644
+--- a/test/method2.go
++++ b/test/method2.go
+@@ -33,9 +33,9 @@ var _ = (*Val).val // ERROR "method"
+ var v Val
+ var pv = &v
+ 
+-var _ = pv.val() // ERROR "pv.val undefined"
+-var _ = pv.val   // ERROR "pv.val undefined"
++var _ = pv.val() // ERROR "undefined"
++var _ = pv.val   // ERROR "undefined"
+ 
+ func (t *T) g() int { return t.a }
+ 
+-var _ = (T).g() // ERROR "needs pointer receiver|undefined"
++var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires pointer"
+diff --git a/test/syntax/chan1.go b/test/syntax/chan1.go
+index 56103d1d79..88a5b4777b 100644
+--- a/test/syntax/chan1.go
++++ b/test/syntax/chan1.go
+@@ -10,8 +10,8 @@ var c chan int
+ var v int
+ 
+ func main() {
+-	if c <- v { // ERROR "cannot use c <- v as value"
++	if c <- v { // ERROR "cannot use c <- v as value|send statement used as value"
+ 	}
+ }
+ 
+-var _ = c <- v // ERROR "unexpected <-"
++var _ = c <- v // ERROR "unexpected <-|send statement used as value"

@@ -9,6 +9,20 @@ Date:   Mon Mar 30 19:01:59 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=26926
     CL=26928
-
+---
  src/lib/log.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/log.go b/src/lib/log.go
+index 7a81eb63d6..34158c789e 100644
+--- a/src/lib/log.go
++++ b/src/lib/log.go
+@@ -160,7 +160,7 @@ func Stdout(v ...) {
+ 
+ // Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
+ func Stderr(v ...) {
+-	stdout.Output(2, fmt.Sprintln(v))
++	stderr.Output(2, fmt.Sprintln(v))
+ }
+ 
+ // Stdoutf is a helper functions for easy formatted logging to stdout. It is analogous to Printf().

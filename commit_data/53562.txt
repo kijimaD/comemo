@@ -20,6 +20,53 @@ Date:   Mon Aug 1 16:25:15 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/semasleep_test.go | 25 ++++++++++++++++++++-----
  1 file changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index d56733c0cf..7262853465 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -37,14 +37,16 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatalf("Failed to start command: %v", err)
+ 	}
++
++	waiting := false
+ 	doneCh := make(chan error, 1)
+-	go func() {
+-		doneCh <- cmd.Wait()
+-		close(doneCh)
+-	}()
+ 	t.Cleanup(func() {
+ 		cmd.Process.Kill()
+-		<-doneCh
++		if waiting {
++			<-doneCh
++		} else {
++			cmd.Wait()
++		}
+ 	})
+ 
+ 	// Wait for After1 to close its stdout so that we know the runtime's SIGIO
+@@ -57,6 +59,19 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 		t.Fatalf("error reading from testprog: %v", err)
+ 	}
+ 
++	// Wait for child exit.
++	//
++	// Note that we must do this after waiting for the write/child end of
++	// stdout to close. Wait closes the read/parent end of stdout, so
++	// starting this goroutine prior to io.ReadAll introduces a race
++	// condition where ReadAll may get fs.ErrClosed if the child exits too
++	// quickly.
++	waiting = true
++	go func() {
++		doneCh <- cmd.Wait()
++		close(doneCh)
++	}()
++
+ 	// Wait for an arbitrary timeout longer than one second. The subprocess itself
+ 	// attempts to sleep for one second, but if the machine running the test is
+ 	// heavily loaded that subprocess may not schedule very quickly even if the

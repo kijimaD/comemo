@@ -18,8 +18,160 @@ Date:   Tue Jun 27 11:30:29 2023 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go         | 30 +++++++++---------
  src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  3 +-
  src/cmd/compile/internal/ssa/opGen.go         | 45 ++++++++++++++++++---------
  3 files changed, 48 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 23df7eefad..7745352c98 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -573,18 +573,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+ 
+-		// Mask has been set as sh
+-	case ssa.OpPPC64RLDICL:
+-		r := v.Reg()
+-		r1 := v.Args[0].Reg()
+-		shifts := v.AuxInt
+-		p := s.Prog(v.Op.Asm())
+-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftsh(shifts)}
+-		p.AddRestSourceConst(ssa.GetPPC64Shiftmb(shifts))
+-		p.Reg = r1
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
+-
+ 	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS,
+ 		ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64DIVDU, ssa.OpPPC64DIVWU,
+ 		ssa.OpPPC64SRAD, ssa.OpPPC64SRAW, ssa.OpPPC64SRD, ssa.OpPPC64SRW, ssa.OpPPC64SLD, ssa.OpPPC64SLW,
+@@ -623,13 +611,27 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 		// Auxint holds encoded rotate + mask
+ 	case ssa.OpPPC64RLWINM, ssa.OpPPC64RLWMI:
+-		rot, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
++		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 		p.Reg = v.Args[0].Reg()
+-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(rot)}
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(sh)}
+ 		p.AddRestSourceArgs([]obj.Addr{{Type: obj.TYPE_CONST, Offset: mb}, {Type: obj.TYPE_CONST, Offset: me}})
+ 		// Auxint holds mask
++
++	case ssa.OpPPC64RLDICL, ssa.OpPPC64RLDICR:
++		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
++		p := s.Prog(v.Op.Asm())
++		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: sh}
++		switch v.Op {
++		case ssa.OpPPC64RLDICL:
++			p.AddRestSourceConst(mb)
++		case ssa.OpPPC64RLDICR:
++			p.AddRestSourceConst(me)
++		}
++		p.Reg = v.Args[0].Reg()
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
++
+ 	case ssa.OpPPC64RLWNM:
+ 		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index 4be362373c..af555416a8 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -215,7 +215,6 @@ func init() {
+ 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
+ 		// The following are ops to implement the extended mnemonics for shifts as described in section C.8 of the ISA.
+ 		// The constant shift values are packed into the aux int32.
+-		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int32"},     // arg0 extract bits identified by shift params"
+ 		{name: "CLRLSLWI", argLength: 1, reg: gp11, asm: "CLRLSLWI", aux: "Int32"}, //
+ 		{name: "CLRLSLDI", argLength: 1, reg: gp11, asm: "CLRLSLDI", aux: "Int32"}, //
+ 
+@@ -243,6 +242,8 @@ func init() {
+ 		{name: "RLWINM", argLength: 1, reg: gp11, asm: "RLWNM", aux: "Int64"},                      // Rotate and mask by immediate "rlwinm". encodePPC64RotateMask describes aux
+ 		{name: "RLWNM", argLength: 2, reg: gp21, asm: "RLWNM", aux: "Int64"},                       // Rotate and mask by "rlwnm". encodePPC64RotateMask describes aux
+ 		{name: "RLWMI", argLength: 2, reg: gp21a0, asm: "RLWMI", aux: "Int64", resultInArg0: true}, // "rlwimi" similar aux encoding as above
++		{name: "RLDICL", argLength: 1, reg: gp11, asm: "RLDICL", aux: "Int64"},                     // Auxint is encoded similarly to RLWINM, but only MB and SH are valid. ME is always 63.
++		{name: "RLDICR", argLength: 1, reg: gp11, asm: "RLDICR", aux: "Int64"},                     // Likewise, but only ME and SH are valid. MB is always 0.
+ 
+ 		{name: "CNTLZD", argLength: 1, reg: gp11, asm: "CNTLZD", clobberFlags: true}, // count leading zeros
+ 		{name: "CNTLZW", argLength: 1, reg: gp11, asm: "CNTLZW", clobberFlags: true}, // count leading zeros (32 bit)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 84dcd9a3cc..b599df0525 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2136,7 +2136,6 @@ const (
+ 	OpPPC64SLW
+ 	OpPPC64ROTL
+ 	OpPPC64ROTLW
+-	OpPPC64RLDICL
+ 	OpPPC64CLRLSLWI
+ 	OpPPC64CLRLSLDI
+ 	OpPPC64ADDC
+@@ -2159,6 +2158,8 @@ const (
+ 	OpPPC64RLWINM
+ 	OpPPC64RLWNM
+ 	OpPPC64RLWMI
++	OpPPC64RLDICL
++	OpPPC64RLDICR
+ 	OpPPC64CNTLZD
+ 	OpPPC64CNTLZW
+ 	OpPPC64CNTTZD
+@@ -28661,20 +28662,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:    "RLDICL",
+-		auxType: auxInt32,
+-		argLen:  1,
+-		asm:     ppc64.ARLDICL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []outputInfo{
+-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+ 	{
+ 		name:    "CLRLSLWI",
+ 		auxType: auxInt32,
+@@ -29002,6 +28989,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "RLDICL",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ARLDICL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:    "RLDICR",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     ppc64.ARLDICR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:         "CNTLZD",
+ 		argLen:       1,

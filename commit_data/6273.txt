@@ -7,7 +7,71 @@ Date:   Tue Sep 14 17:25:34 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/2157042
-
+---
  src/pkg/exp/eval/expr.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/exp/eval/type.go |  2 ++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 07e287caad..9054ad8fbe 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -1239,6 +1239,38 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 		}
+ 		return expr
+ 
++	case copyType:
++		if !checkCount(2, 2) {
++			return nil
++		}
++		src := as[1]
++		dst := as[0]
++		if src.t != dst.t {
++			a.diag("arguments to built-in function 'copy' must have same type\nsrc: %s\ndst: %s\n", src.t, dst.t)
++			return nil
++		}
++		if _, ok := src.t.lit().(*SliceType); !ok {
++			a.diag("src argument to 'copy' must be a slice (got: %s)", src.t)
++			return nil
++		}
++		if _, ok := dst.t.lit().(*SliceType); !ok {
++			a.diag("dst argument to 'copy' must be a slice (got: %s)", dst.t)
++			return nil
++		}
++		expr := a.newExpr(IntType, "function call")
++		srcf := src.asSlice()
++		dstf := dst.asSlice()
++		expr.eval = func(t *Thread) int64 {
++			src, dst := srcf(t), dstf(t)
++			nelems := src.Len
++			if nelems > dst.Len {
++				nelems = dst.Len
++			}
++			dst.Base.Sub(0, nelems).Assign(t, src.Base.Sub(0, nelems))
++			return nelems
++		}
++		return expr
++
+ 	case lenType:
+ 		if !checkCount(1, 1) {
+ 			return nil
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 5ac1e46f9e..5a7ffb99c8 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -712,6 +712,7 @@ var (
+ 	panicType   = &FuncType{builtin: "panic"}
+ 	printType   = &FuncType{builtin: "print"}
+ 	printlnType = &FuncType{builtin: "println"}
++	copyType    = &FuncType{builtin: "copy"}
+ )
+ 
+ // Two function types are identical if they have the same number of
+@@ -1249,6 +1250,7 @@ func init() {
+ 	universe.DefineConst("cap", universePos, capType, nil)
+ 	universe.DefineConst("close", universePos, closeType, nil)
+ 	universe.DefineConst("closed", universePos, closedType, nil)
++	universe.DefineConst("copy", universePos, copyType, nil)
+ 	universe.DefineConst("len", universePos, lenType, nil)
+ 	universe.DefineConst("make", universePos, makeType, nil)
+ 	universe.DefineConst("new", universePos, newType, nil)

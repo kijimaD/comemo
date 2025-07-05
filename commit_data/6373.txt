@@ -7,6 +7,38 @@ Date:   Fri Sep 24 13:12:50 2010 -0400
     TBR=gri
     CC=golang-dev
     https://golang.org/cl/2229047
-
+---
  src/pkg/debug/proc/proc_linux.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 1194d3afff..f0cc43a108 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -297,7 +297,7 @@ func (t *thread) logTrace(format string, args ...interface{}) {
+ 		}
+ 	}
+ 	fmt.Fprint(os.Stderr, ": ")
+-	fmt.Fprintf(os.Stderr, format, args)
++	fmt.Fprintf(os.Stderr, format, args...)
+ 	fmt.Fprint(os.Stderr, "\n")
+ }
+ 
+@@ -305,7 +305,7 @@ func (t *thread) warn(format string, args ...interface{}) {
+ 	logLock.Lock()
+ 	defer logLock.Unlock()
+ 	fmt.Fprintf(os.Stderr, "Thread %d: WARNING ", t.tid)
+-	fmt.Fprintf(os.Stderr, format, args)
++	fmt.Fprintf(os.Stderr, format, args...)
+ 	fmt.Fprint(os.Stderr, "\n")
+ }
+ 
+@@ -316,7 +316,7 @@ func (p *process) logTrace(format string, args ...interface{}) {
+ 	logLock.Lock()
+ 	defer logLock.Unlock()
+ 	fmt.Fprintf(os.Stderr, "Process %d: ", p.pid)
+-	fmt.Fprintf(os.Stderr, format, args)
++	fmt.Fprintf(os.Stderr, format, args...)
+ 	fmt.Fprint(os.Stderr, "\n")
+ }
+ 

@@ -45,10 +45,125 @@ Date:   Mon Aug 3 09:46:50 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/13044
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/malloc.go   |  6 ++++++
  src/runtime/mcentral.go | 19 ++-----------------
  src/runtime/mgc.go      |  1 +
  src/runtime/mgcsweep.go | 32 ++++++++++++++++++++++++++++++++
  src/runtime/mheap.go    |  1 +
  5 files changed, 42 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c936014bea..40f672abb0 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -736,6 +736,12 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
+ 	if size&_PageMask != 0 {
+ 		npages++
+ 	}
++
++	// Deduct credit for this span allocation and sweep if
++	// necessary. mHeap_Alloc will also sweep npages, so this only
++	// pays the debt down to npage pages.
++	deductSweepCredit(npages*_PageSize, npages)
++
+ 	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
+ 	if s == nil {
+ 		throw("out of memory")
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 915da69d87..161af99089 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -29,23 +29,8 @@ func mCentral_Init(c *mcentral, sizeclass int32) {
+ 
+ // Allocate a span to use in an MCache.
+ func mCentral_CacheSpan(c *mcentral) *mspan {
+-	// Perform proportional sweep work. We don't directly reuse
+-	// the spans we're sweeping here for this allocation because
+-	// these can hold any size class. We'll sweep one more span
+-	// below and use that because it will have the right size
+-	// class and be hot in our cache.
+-	pagesOwed := int64(mheap_.sweepPagesPerByte * float64(memstats.heap_live-memstats.heap_marked))
+-	if pagesOwed-int64(mheap_.pagesSwept) > 1 {
+-		// Get the debt down to one page, which we're likely
+-		// to take care of below (if we don't, that's fine;
+-		// we'll pick up the slack later).
+-		for pagesOwed-int64(atomicload64(&mheap_.pagesSwept)) > 1 {
+-			if gosweepone() == ^uintptr(0) {
+-				mheap_.sweepPagesPerByte = 0
+-				break
+-			}
+-		}
+-	}
++	// Deduct credit for this span allocation and sweep if necessary.
++	deductSweepCredit(uintptr(class_to_size[c.sizeclass]), 0)
+ 
+ 	lock(&c.lock)
+ 	sg := mheap_.sweepgen
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f308530c5c..c50d68e432 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1563,6 +1563,7 @@ func gcSweep(mode int) {
+ 	lock(&mheap_.lock)
+ 	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
+ 	mheap_.pagesSwept = 0
++	mheap_.spanBytesAlloc = 0
+ 	unlock(&mheap_.lock)
+ 
+ 	// Background sweep.
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 800e919827..eaa446323b 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -313,6 +313,38 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
+ 	return res
+ }
+ 
++// deductSweepCredit deducts sweep credit for allocating a span of
++// size spanBytes. This must be performed *before* the span is
++// allocated to ensure the system has enough credit. If necessary, it
++// performs sweeping to prevent going in to debt. If the caller will
++// also sweep pages (e.g., for a large allocation), it can pass a
++// non-zero callerSweepPages to leave that many pages unswept.
++//
++// deductSweepCredit is the core of the "proportional sweep" system.
++// It uses statistics gathered by the garbage collector to perform
++// enough sweeping so that all pages are swept during the concurrent
++// sweep phase between GC cycles.
++//
++// mheap_ must NOT be locked.
++func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
++	if mheap_.sweepPagesPerByte == 0 {
++		// Proportional sweep is done or disabled.
++		return
++	}
++
++	// Account for this span allocation.
++	spanBytesAlloc := xadd64(&mheap_.spanBytesAlloc, int64(spanBytes))
++
++	// Fix debt if necessary.
++	pagesOwed := int64(mheap_.sweepPagesPerByte * float64(spanBytesAlloc))
++	for pagesOwed-int64(atomicload64(&mheap_.pagesSwept)) > int64(callerSweepPages) {
++		if gosweepone() == ^uintptr(0) {
++			mheap_.sweepPagesPerByte = 0
++			break
++		}
++	}
++}
++
+ func dumpFreeList(s *mspan) {
+ 	printlock()
+ 	print("runtime: free list of span ", s, ":\n")
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index eb4e1fb9d4..d190782580 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -29,6 +29,7 @@ type mheap struct {
+ 	spans_mapped uintptr
+ 
+ 	// Proportional sweep
++	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
+ 	pagesSwept        uint64  // pages swept this cycle; updated atomically
+ 	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+ 

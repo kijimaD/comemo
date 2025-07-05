@@ -16,7 +16,7 @@ Date:   Thu Aug 24 00:36:28 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/xml/atom_test.go    |  6 +--
  src/encoding/xml/marshal.go      |  9 +++--
  src/encoding/xml/marshal_test.go |  4 +-
@@ -26,3 +26,657 @@ Date:   Thu Aug 24 00:36:28 2017 +0200
  src/encoding/xml/xml.go          | 80 +++++++++++++++++++++-------------------
  src/encoding/xml/xml_test.go     |  6 +--
  8 files changed, 103 insertions(+), 94 deletions(-)
+
+diff --git a/src/encoding/xml/atom_test.go b/src/encoding/xml/atom_test.go
+index a71284312a..f394dab6f0 100644
+--- a/src/encoding/xml/atom_test.go
++++ b/src/encoding/xml/atom_test.go
+@@ -12,20 +12,20 @@ var atomValue = &Feed{
+ 	Link:    []Link{{Href: "http://example.org/"}},
+ 	Updated: ParseTime("2003-12-13T18:30:02Z"),
+ 	Author:  Person{Name: "John Doe"},
+-	Id:      "urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6",
++	ID:      "urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6",
+ 
+ 	Entry: []Entry{
+ 		{
+ 			Title:   "Atom-Powered Robots Run Amok",
+ 			Link:    []Link{{Href: "http://example.org/2003/12/13/atom03"}},
+-			Id:      "urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a",
++			ID:      "urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a",
+ 			Updated: ParseTime("2003-12-13T18:30:02Z"),
+ 			Summary: NewText("Some text."),
+ 		},
+ 	},
+ }
+ 
+-var atomXml = `` +
++var atomXML = `` +
+ 	`<feed xmlns="http://www.w3.org/2005/Atom" updated="2003-12-13T18:30:02Z">` +
+ 	`<title>Example Feed</title>` +
+ 	`<id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>` +
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 4c6ba8c1a5..42133a75ab 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -16,10 +16,11 @@ import (
+ )
+ 
+ const (
+-	// A generic XML header suitable for use with the output of Marshal.
++	// Header is a generic XML header suitable for use with the output of Marshal.
+ 	// This is not automatically added to any output of this package,
+ 	// it is provided as a convenience.
+-	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
++	Header             = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
++	xmlNamespacePrefix = "xml"
+ )
+ 
+ // Marshal returns the XML encoding of v.
+@@ -320,7 +321,7 @@ func (p *printer) createAttrPrefix(url string) string {
+ 	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
+ 	// but users should not be trying to use that one directly - that's our job.)
+ 	if url == xmlURL {
+-		return "xml"
++		return xmlNamespacePrefix
+ 	}
+ 
+ 	// Need to define a new name space.
+@@ -1011,7 +1012,7 @@ func (s *parentStack) push(parents []string) error {
+ 	return nil
+ }
+ 
+-// A MarshalXMLError is returned when Marshal encounters a type
++// UnsupportedTypeError is returned when Marshal encounters a type
+ // that cannot be converted into XML.
+ type UnsupportedTypeError struct {
+ 	Type reflect.Type
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 674c6b5b3f..11f451270a 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -646,7 +646,7 @@ var marshalTests = []struct {
+ 	{Value: &Universe{Visible: 9.3e13}, ExpectXML: `<universe>9.3e+13</universe>`},
+ 	{Value: &Particle{HasMass: true}, ExpectXML: `<particle>true</particle>`},
+ 	{Value: &Departure{When: ParseTime("2013-01-09T00:15:00-09:00")}, ExpectXML: `<departure>2013-01-09T00:15:00-09:00</departure>`},
+-	{Value: atomValue, ExpectXML: atomXml},
++	{Value: atomValue, ExpectXML: atomXML},
+ 	{
+ 		Value: &Ship{
+ 			Name:  "Heart of Gold",
+@@ -1910,7 +1910,7 @@ func BenchmarkMarshal(b *testing.B) {
+ 
+ func BenchmarkUnmarshal(b *testing.B) {
+ 	b.ReportAllocs()
+-	xml := []byte(atomXml)
++	xml := []byte(atomXML)
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+ 			Unmarshal(xml, &Feed{})
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 000d9fbd0e..dffb95d77a 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -192,19 +192,19 @@ func receiverType(val interface{}) string {
+ 
+ // unmarshalInterface unmarshals a single XML element into val.
+ // start is the opening tag of the element.
+-func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error {
++func (d *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error {
+ 	// Record that decoder must stop at end tag corresponding to start.
+-	p.pushEOF()
++	d.pushEOF()
+ 
+-	p.unmarshalDepth++
+-	err := val.UnmarshalXML(p, *start)
+-	p.unmarshalDepth--
++	d.unmarshalDepth++
++	err := val.UnmarshalXML(d, *start)
++	d.unmarshalDepth--
+ 	if err != nil {
+-		p.popEOF()
++		d.popEOF()
+ 		return err
+ 	}
+ 
+-	if !p.popEOF() {
++	if !d.popEOF() {
+ 		return fmt.Errorf("xml: %s.UnmarshalXML did not consume entire <%s> element", receiverType(val), start.Name.Local)
+ 	}
+ 
+@@ -214,11 +214,11 @@ func (p *Decoder) unmarshalInterface(val Unmarshaler, start *StartElement) error
+ // unmarshalTextInterface unmarshals a single XML element into val.
+ // The chardata contained in the element (but not its children)
+ // is passed to the text unmarshaler.
+-func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
++func (d *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
+ 	var buf []byte
+ 	depth := 1
+ 	for depth > 0 {
+-		t, err := p.Token()
++		t, err := d.Token()
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -237,7 +237,7 @@ func (p *Decoder) unmarshalTextInterface(val encoding.TextUnmarshaler) error {
+ }
+ 
+ // unmarshalAttr unmarshals a single XML attribute into val.
+-func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
++func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+ 	if val.Kind() == reflect.Ptr {
+ 		if val.IsNil() {
+ 			val.Set(reflect.New(val.Type().Elem()))
+@@ -276,7 +276,7 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
+ 		val.Set(reflect.Append(val, reflect.Zero(val.Type().Elem())))
+ 
+ 		// Recur to read element into slice.
+-		if err := p.unmarshalAttr(val.Index(n), attr); err != nil {
++		if err := d.unmarshalAttr(val.Index(n), attr); err != nil {
+ 			val.SetLen(n)
+ 			return err
+ 		}
+@@ -299,11 +299,11 @@ var (
+ )
+ 
+ // Unmarshal a single XML element into val.
+-func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
++func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 	// Find start element if we need it.
+ 	if start == nil {
+ 		for {
+-			tok, err := p.Token()
++			tok, err := d.Token()
+ 			if err != nil {
+ 				return err
+ 			}
+@@ -333,24 +333,24 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 	if val.CanInterface() && val.Type().Implements(unmarshalerType) {
+ 		// This is an unmarshaler with a non-pointer receiver,
+ 		// so it's likely to be incorrect, but we do what we're told.
+-		return p.unmarshalInterface(val.Interface().(Unmarshaler), start)
++		return d.unmarshalInterface(val.Interface().(Unmarshaler), start)
+ 	}
+ 
+ 	if val.CanAddr() {
+ 		pv := val.Addr()
+ 		if pv.CanInterface() && pv.Type().Implements(unmarshalerType) {
+-			return p.unmarshalInterface(pv.Interface().(Unmarshaler), start)
++			return d.unmarshalInterface(pv.Interface().(Unmarshaler), start)
+ 		}
+ 	}
+ 
+ 	if val.CanInterface() && val.Type().Implements(textUnmarshalerType) {
+-		return p.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler))
++		return d.unmarshalTextInterface(val.Interface().(encoding.TextUnmarshaler))
+ 	}
+ 
+ 	if val.CanAddr() {
+ 		pv := val.Addr()
+ 		if pv.CanInterface() && pv.Type().Implements(textUnmarshalerType) {
+-			return p.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler))
++			return d.unmarshalTextInterface(pv.Interface().(encoding.TextUnmarshaler))
+ 		}
+ 	}
+ 
+@@ -376,7 +376,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 		// TODO: For now, simply ignore the field. In the near
+ 		//       future we may choose to unmarshal the start
+ 		//       element on it, if not nil.
+-		return p.Skip()
++		return d.Skip()
+ 
+ 	case reflect.Slice:
+ 		typ := v.Type()
+@@ -392,7 +392,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 		v.Set(reflect.Append(val, reflect.Zero(v.Type().Elem())))
+ 
+ 		// Recur to read element into slice.
+-		if err := p.unmarshal(v.Index(n), start); err != nil {
++		if err := d.unmarshal(v.Index(n), start); err != nil {
+ 			v.SetLen(n)
+ 			return err
+ 		}
+@@ -445,7 +445,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 				case fAttr:
+ 					strv := finfo.value(sv)
+ 					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
+-						if err := p.unmarshalAttr(strv, a); err != nil {
++						if err := d.unmarshalAttr(strv, a); err != nil {
+ 							return err
+ 						}
+ 						handled = true
+@@ -460,7 +460,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 			if !handled && any >= 0 {
+ 				finfo := &tinfo.fields[any]
+ 				strv := finfo.value(sv)
+-				if err := p.unmarshalAttr(strv, a); err != nil {
++				if err := d.unmarshalAttr(strv, a); err != nil {
+ 					return err
+ 				}
+ 			}
+@@ -488,11 +488,11 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 			case fInnerXml:
+ 				if !saveXML.IsValid() {
+ 					saveXML = finfo.value(sv)
+-					if p.saved == nil {
++					if d.saved == nil {
+ 						saveXMLIndex = 0
+-						p.saved = new(bytes.Buffer)
++						d.saved = new(bytes.Buffer)
+ 					} else {
+-						saveXMLIndex = p.savedOffset()
++						saveXMLIndex = d.savedOffset()
+ 					}
+ 				}
+ 			}
+@@ -505,9 +505,9 @@ Loop:
+ 	for {
+ 		var savedOffset int
+ 		if saveXML.IsValid() {
+-			savedOffset = p.savedOffset()
++			savedOffset = d.savedOffset()
+ 		}
+-		tok, err := p.Token()
++		tok, err := d.Token()
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -515,28 +515,28 @@ Loop:
+ 		case StartElement:
+ 			consumed := false
+ 			if sv.IsValid() {
+-				consumed, err = p.unmarshalPath(tinfo, sv, nil, &t)
++				consumed, err = d.unmarshalPath(tinfo, sv, nil, &t)
+ 				if err != nil {
+ 					return err
+ 				}
+ 				if !consumed && saveAny.IsValid() {
+ 					consumed = true
+-					if err := p.unmarshal(saveAny, &t); err != nil {
++					if err := d.unmarshal(saveAny, &t); err != nil {
+ 						return err
+ 					}
+ 				}
+ 			}
+ 			if !consumed {
+-				if err := p.Skip(); err != nil {
++				if err := d.Skip(); err != nil {
+ 					return err
+ 				}
+ 			}
+ 
+ 		case EndElement:
+ 			if saveXML.IsValid() {
+-				saveXMLData = p.saved.Bytes()[saveXMLIndex:savedOffset]
++				saveXMLData = d.saved.Bytes()[saveXMLIndex:savedOffset]
+ 				if saveXMLIndex == 0 {
+-					p.saved = nil
++					d.saved = nil
+ 				}
+ 			}
+ 			break Loop
+@@ -666,7 +666,7 @@ func copyValue(dst reflect.Value, src []byte) (err error) {
+ // The consumed result tells whether XML elements have been consumed
+ // from the Decoder until start's matching end element, or if it's
+ // still untouched because start is uninteresting for sv's fields.
+-func (p *Decoder) unmarshalPath(tinfo *typeInfo, sv reflect.Value, parents []string, start *StartElement) (consumed bool, err error) {
++func (d *Decoder) unmarshalPath(tinfo *typeInfo, sv reflect.Value, parents []string, start *StartElement) (consumed bool, err error) {
+ 	recurse := false
+ Loop:
+ 	for i := range tinfo.fields {
+@@ -681,7 +681,7 @@ Loop:
+ 		}
+ 		if len(finfo.parents) == len(parents) && finfo.name == start.Name.Local {
+ 			// It's a perfect match, unmarshal the field.
+-			return true, p.unmarshal(finfo.value(sv), start)
++			return true, d.unmarshal(finfo.value(sv), start)
+ 		}
+ 		if len(finfo.parents) > len(parents) && finfo.parents[len(parents)] == start.Name.Local {
+ 			// It's a prefix for the field. Break and recurse
+@@ -704,18 +704,18 @@ Loop:
+ 	// prefix. Recurse and attempt to match these.
+ 	for {
+ 		var tok Token
+-		tok, err = p.Token()
++		tok, err = d.Token()
+ 		if err != nil {
+ 			return true, err
+ 		}
+ 		switch t := tok.(type) {
+ 		case StartElement:
+-			consumed2, err := p.unmarshalPath(tinfo, sv, parents, &t)
++			consumed2, err := d.unmarshalPath(tinfo, sv, parents, &t)
+ 			if err != nil {
+ 				return true, err
+ 			}
+ 			if !consumed2 {
+-				if err := p.Skip(); err != nil {
++				if err := d.Skip(); err != nil {
+ 					return true, err
+ 				}
+ 			}
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index a1eb516187..bd6260d6d4 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -83,7 +83,7 @@ not being used from outside intra_region_diff.py.
+ type Feed struct {
+ 	XMLName Name      `xml:"http://www.w3.org/2005/Atom feed"`
+ 	Title   string    `xml:"title"`
+-	Id      string    `xml:"id"`
++	ID      string    `xml:"id"`
+ 	Link    []Link    `xml:"link"`
+ 	Updated time.Time `xml:"updated,attr"`
+ 	Author  Person    `xml:"author"`
+@@ -92,7 +92,7 @@ type Feed struct {
+ 
+ type Entry struct {
+ 	Title   string    `xml:"title"`
+-	Id      string    `xml:"id"`
++	ID      string    `xml:"id"`
+ 	Link    []Link    `xml:"link"`
+ 	Updated time.Time `xml:"updated"`
+ 	Author  Person    `xml:"author"`
+@@ -123,7 +123,7 @@ var atomFeed = Feed{
+ 		{Rel: "alternate", Href: "http://codereview.appspot.com/"},
+ 		{Rel: "self", Href: "http://codereview.appspot.com/rss/mine/rsc"},
+ 	},
+-	Id:      "http://codereview.appspot.com/",
++	ID:      "http://codereview.appspot.com/",
+ 	Updated: ParseTime("2009-10-04T01:35:58+00:00"),
+ 	Author: Person{
+ 		Name:     "rietveld<>",
+@@ -140,7 +140,7 @@ var atomFeed = Feed{
+ 				Name:     "email-address-removed",
+ 				InnerXML: "<name>email-address-removed</name>",
+ 			},
+-			Id: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
++			ID: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
+ 			Summary: Text{
+ 				Type: "html",
+ 				Body: `
+@@ -187,7 +187,7 @@ the top of feeds.py marked NOTE(rsc).
+ 				Name:     "email-address-removed",
+ 				InnerXML: "<name>email-address-removed</name>",
+ 			},
+-			Id: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
++			ID: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
+ 			Summary: Text{
+ 				Type: "html",
+ 				Body: `
+diff --git a/src/encoding/xml/typeinfo.go b/src/encoding/xml/typeinfo.go
+index 751caa97aa..2e7ae935a8 100644
+--- a/src/encoding/xml/typeinfo.go
++++ b/src/encoding/xml/typeinfo.go
+@@ -40,6 +40,8 @@ const (
+ 	fOmitEmpty
+ 
+ 	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
++
++	xmlName = "XMLName"
+ )
+ 
+ var tinfoMap sync.Map // map[reflect.Type]*typeInfo
+@@ -91,7 +93,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 				return nil, err
+ 			}
+ 
+-			if f.Name == "XMLName" {
++			if f.Name == xmlName {
+ 				tinfo.xmlname = finfo
+ 				continue
+ 			}
+@@ -148,7 +150,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 		case 0:
+ 			finfo.flags |= fElement
+ 		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny, fAny | fAttr:
+-			if f.Name == "XMLName" || tag != "" && mode != fAttr {
++			if f.Name == xmlName || tag != "" && mode != fAttr {
+ 				valid = false
+ 			}
+ 		default:
+@@ -173,7 +175,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
+ 			f.Name, typ, f.Tag.Get("xml"))
+ 	}
+ 
+-	if f.Name == "XMLName" {
++	if f.Name == xmlName {
+ 		// The XMLName field records the XML element name. Don't
+ 		// process it as usual because its name should default to
+ 		// empty rather than to the field name.
+@@ -235,7 +237,7 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
+ 	}
+ 	for i, n := 0, typ.NumField(); i < n; i++ {
+ 		f := typ.Field(i)
+-		if f.Name != "XMLName" {
++		if f.Name != xmlName {
+ 			continue
+ 		}
+ 		finfo, err := structFieldInfo(typ, &f)
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 9a3b792955..1aba31ce60 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -60,6 +60,7 @@ type StartElement struct {
+ 	Attr []Attr
+ }
+ 
++// Copy creates a new copy of StartElement.
+ func (e StartElement) Copy() StartElement {
+ 	attrs := make([]Attr, len(e.Attr))
+ 	copy(attrs, e.Attr)
+@@ -88,12 +89,14 @@ func makeCopy(b []byte) []byte {
+ 	return b1
+ }
+ 
++// Copy creates a new copy of CharData.
+ func (c CharData) Copy() CharData { return CharData(makeCopy(c)) }
+ 
+ // A Comment represents an XML comment of the form <!--comment-->.
+ // The bytes do not include the <!-- and --> comment markers.
+ type Comment []byte
+ 
++// Copy creates a new copy of Comment.
+ func (c Comment) Copy() Comment { return Comment(makeCopy(c)) }
+ 
+ // A ProcInst represents an XML processing instruction of the form <?target inst?>
+@@ -102,6 +105,7 @@ type ProcInst struct {
+ 	Inst   []byte
+ }
+ 
++// Copy creates a new copy of ProcInst.
+ func (p ProcInst) Copy() ProcInst {
+ 	p.Inst = makeCopy(p.Inst)
+ 	return p
+@@ -111,6 +115,7 @@ func (p ProcInst) Copy() ProcInst {
+ // The bytes do not include the <! and > markers.
+ type Directive []byte
+ 
++// Copy creates a new copy of Directive.
+ func (d Directive) Copy() Directive { return Directive(makeCopy(d)) }
+ 
+ // CopyToken returns a copy of a Token.
+@@ -266,12 +271,12 @@ func (d *Decoder) Token() (Token, error) {
+ 		// to the other attribute names, so process
+ 		// the translations first.
+ 		for _, a := range t1.Attr {
+-			if a.Name.Space == "xmlns" {
++			if a.Name.Space == xmlnsPrefix {
+ 				v, ok := d.ns[a.Name.Local]
+ 				d.pushNs(a.Name.Local, v, ok)
+ 				d.ns[a.Name.Local] = a.Value
+ 			}
+-			if a.Name.Space == "" && a.Name.Local == "xmlns" {
++			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix {
+ 				// Default space for untagged names
+ 				v, ok := d.ns[""]
+ 				d.pushNs("", v, ok)
+@@ -296,20 +301,23 @@ func (d *Decoder) Token() (Token, error) {
+ 	return t, err
+ }
+ 
+-const xmlURL = "http://www.w3.org/XML/1998/namespace"
++const (
++	xmlURL      = "http://www.w3.org/XML/1998/namespace"
++	xmlnsPrefix = "xmlns"
++)
+ 
+ // Apply name space translation to name n.
+ // The default name space (for Space=="")
+ // applies only to element names, not to attribute names.
+ func (d *Decoder) translate(n *Name, isElementName bool) {
+ 	switch {
+-	case n.Space == "xmlns":
++	case n.Space == xmlnsPrefix:
+ 		return
+ 	case n.Space == "" && !isElementName:
+ 		return
+-	case n.Space == "xml":
++	case n.Space == xmlNamespacePrefix:
+ 		n.Space = xmlURL
+-	case n.Space == "" && n.Local == "xmlns":
++	case n.Space == "" && n.Local == xmlnsPrefix:
+ 		return
+ 	}
+ 	if v, ok := d.ns[n.Space]; ok {
+@@ -786,10 +794,9 @@ func (d *Decoder) rawToken() (Token, error) {
+ 			if d.Strict {
+ 				d.err = d.syntaxError("attribute name without = in element")
+ 				return nil, d.err
+-			} else {
+-				d.ungetc(b)
+-				a.Value = a.Name.Local
+ 			}
++			d.ungetc(b)
++			a.Value = a.Name.Local
+ 		} else {
+ 			d.space()
+ 			data := d.attrval()
+@@ -1027,7 +1034,6 @@ Input:
+ 					if d.err != nil {
+ 						return nil
+ 					}
+-					ok = false
+ 				}
+ 				if b, ok = d.mustgetc(); !ok {
+ 					return nil
+@@ -1837,15 +1843,15 @@ var htmlAutoClose = []string{
+ }
+ 
+ var (
+-	esc_quot = []byte("&#34;") // shorter than "&quot;"
+-	esc_apos = []byte("&#39;") // shorter than "&apos;"
+-	esc_amp  = []byte("&amp;")
+-	esc_lt   = []byte("&lt;")
+-	esc_gt   = []byte("&gt;")
+-	esc_tab  = []byte("&#x9;")
+-	esc_nl   = []byte("&#xA;")
+-	esc_cr   = []byte("&#xD;")
+-	esc_fffd = []byte("\uFFFD") // Unicode replacement character
++	escQuot = []byte("&#34;") // shorter than "&quot;"
++	escApos = []byte("&#39;") // shorter than "&apos;"
++	escAmp  = []byte("&amp;")
++	escLT   = []byte("&lt;")
++	escGT   = []byte("&gt;")
++	escTab  = []byte("&#x9;")
++	escNL   = []byte("&#xA;")
++	escCR   = []byte("&#xD;")
++	escFFFD = []byte("\uFFFD") // Unicode replacement character
+ )
+ 
+ // EscapeText writes to w the properly escaped XML equivalent
+@@ -1865,27 +1871,27 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
+ 		i += width
+ 		switch r {
+ 		case '"':
+-			esc = esc_quot
++			esc = escQuot
+ 		case '\'':
+-			esc = esc_apos
++			esc = escApos
+ 		case '&':
+-			esc = esc_amp
++			esc = escAmp
+ 		case '<':
+-			esc = esc_lt
++			esc = escLT
+ 		case '>':
+-			esc = esc_gt
++			esc = escGT
+ 		case '\t':
+-			esc = esc_tab
++			esc = escTab
+ 		case '\n':
+ 			if !escapeNewline {
+ 				continue
+ 			}
+-			esc = esc_nl
++			esc = escNL
+ 		case '\r':
+-			esc = esc_cr
++			esc = escCR
+ 		default:
+ 			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
+-				esc = esc_fffd
++				esc = escFFFD
+ 				break
+ 			}
+ 			continue
+@@ -1914,24 +1920,24 @@ func (p *printer) EscapeString(s string) {
+ 		i += width
+ 		switch r {
+ 		case '"':
+-			esc = esc_quot
++			esc = escQuot
+ 		case '\'':
+-			esc = esc_apos
++			esc = escApos
+ 		case '&':
+-			esc = esc_amp
++			esc = escAmp
+ 		case '<':
+-			esc = esc_lt
++			esc = escLT
+ 		case '>':
+-			esc = esc_gt
++			esc = escGT
+ 		case '\t':
+-			esc = esc_tab
++			esc = escTab
+ 		case '\n':
+-			esc = esc_nl
++			esc = escNL
+ 		case '\r':
+-			esc = esc_cr
++			esc = escCR
+ 		default:
+ 			if !isInCharacterRange(r) || (r == 0xFFFD && width == 1) {
+-				esc = esc_fffd
++				esc = escFFFD
+ 				break
+ 			}
+ 			continue
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index dad6ed98c1..7950ca22c4 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -479,15 +479,15 @@ func TestAllScalars(t *testing.T) {
+ }
+ 
+ type item struct {
+-	Field_a string
++	FieldA string
+ }
+ 
+ func TestIssue569(t *testing.T) {
+-	data := `<item><Field_a>abcd</Field_a></item>`
++	data := `<item><FieldA>abcd</FieldA></item>`
+ 	var i item
+ 	err := Unmarshal([]byte(data), &i)
+ 
+-	if err != nil || i.Field_a != "abcd" {
++	if err != nil || i.FieldA != "abcd" {
+ 		t.Fatal("Expecting abcd")
+ 	}
+ }

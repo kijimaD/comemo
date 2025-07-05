@@ -17,7 +17,89 @@ Date:   Thu May 17 09:39:21 2018 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/go_test.go          | 34 ++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/get/get.go |  9 ++++++---
  2 files changed, 40 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f1fbf6cb69..a44866f6b2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3776,6 +3776,40 @@ func TestGoGetUpdateInsecure(t *testing.T) {
+ 	tg.run("get", "-d", "-u", "-f", "-insecure", pkg)
+ }
+ 
++func TestGoGetUpdateUnknownProtocol(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	const repo = "github.com/golang/example"
++
++	// Clone the repo via HTTPS manually.
++	repoDir := tg.path("src/" + repo)
++	cmd := exec.Command("git", "clone", "-q", "https://"+repo, repoDir)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("cloning %v repo: %v\n%s", repo, err, out)
++	}
++
++	// Configure the repo to use a protocol unknown to cmd/go
++	// that still actually works.
++	cmd = exec.Command("git", "remote", "set-url", "origin", "xyz://"+repo)
++	cmd.Dir = repoDir
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("git remote set-url: %v\n%s", err, out)
++	}
++	cmd = exec.Command("git", "config", "--local", "url.https://github.com/.insteadOf", "xyz://github.com/")
++	cmd.Dir = repoDir
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("git config: %v\n%s", err, out)
++	}
++
++	// We need -f to ignore import comments.
++	tg.run("get", "-d", "-u", "-f", repo+"/hello")
++}
++
+ func TestGoGetInsecureCustomDomain(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 5bfeac387c..ffa15c5ba4 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -369,6 +369,7 @@ func downloadPackage(p *load.Package) error {
+ 		vcs            *vcsCmd
+ 		repo, rootPath string
+ 		err            error
++		blindRepo      bool // set if the repo has unusual configuration
+ 	)
+ 
+ 	security := web.Secure
+@@ -389,10 +390,12 @@ func downloadPackage(p *load.Package) error {
+ 			dir := filepath.Join(p.Internal.Build.SrcRoot, filepath.FromSlash(rootPath))
+ 			remote, err := vcs.remoteRepo(vcs, dir)
+ 			if err != nil {
+-				return err
++				// Proceed anyway. The package is present; we likely just don't understand
++				// the repo configuration (e.g. unusual remote protocol).
++				blindRepo = true
+ 			}
+ 			repo = remote
+-			if !*getF {
++			if !*getF && err == nil {
+ 				if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
+ 					repo := rr.repo
+ 					if rr.vcs.resolveRepo != nil {
+@@ -416,7 +419,7 @@ func downloadPackage(p *load.Package) error {
+ 		}
+ 		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
+ 	}
+-	if !vcs.isSecure(repo) && !*getInsecure {
++	if !blindRepo && !vcs.isSecure(repo) && !*getInsecure {
+ 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
+ 	}
+ 

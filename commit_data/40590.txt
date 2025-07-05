@@ -33,7 +33,99 @@ Date:   Tue May 28 14:59:23 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 24 +++++++++++++++-
  test/fixedbugs/issue32288.go             | 48 ++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 925f55234b..54c9c9d7de 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -219,9 +219,31 @@ func nilcheckelim2(f *Func) {
+ 				continue
+ 			}
+ 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+-				if v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive {
++				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(GCNode).Typ().HasHeapPointer()) {
+ 					// These ops don't really change memory.
+ 					continue
++					// Note: OpVarDef requires that the defined variable not have pointers.
++					// We need to make sure that there's no possible faulting
++					// instruction between a VarDef and that variable being
++					// fully initialized. If there was, then anything scanning
++					// the stack during the handling of that fault will see
++					// a live but uninitialized pointer variable on the stack.
++					//
++					// If we have:
++					//
++					//   NilCheck p
++					//   VarDef x
++					//   x = *p
++					//
++					// We can't rewrite that to
++					//
++					//   VarDef x
++					//   NilCheck p
++					//   x = *p
++					//
++					// Particularly, even though *p faults on p==nil, we still
++					// have to do the explicit nil check before the VarDef.
++					// See issue #32288.
+ 				}
+ 				// This op changes memory.  Any faulting instruction after v that
+ 				// we've recorded in the unnecessary map is now obsolete.
+diff --git a/test/fixedbugs/issue32288.go b/test/fixedbugs/issue32288.go
+new file mode 100644
+index 0000000000..91c930c0b5
+--- /dev/null
++++ b/test/fixedbugs/issue32288.go
+@@ -0,0 +1,48 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	s   [1]string
++	pad [16]uintptr
++}
++
++//go:noinline
++func f(t *int, p *int) []T {
++	var res []T
++	for {
++		var e *T
++		res = append(res, *e)
++	}
++}
++
++func main() {
++	defer func() {
++		useStack(100) // force a stack copy
++		// We're expecting a panic.
++		// The bug in this issue causes a throw, which this recover() will not squash.
++		recover()
++	}()
++	junk() // fill the stack with invalid pointers
++	f(nil, nil)
++}
++
++func useStack(n int) {
++	if n == 0 {
++		return
++	}
++	useStack(n - 1)
++}
++
++//go:noinline
++func junk() uintptr {
++	var a [128]uintptr // 1k of bad pointers on the stack
++	for i := range a {
++		a[i] = 0xaa
++	}
++	return a[12]
++}

@@ -25,8 +25,230 @@ Date:   Mon Oct 20 07:33:08 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/154360049
-
+---
  src/encoding/gob/codec_test.go | 14 +++++++---
  src/encoding/gob/decode.go     | 63 +++++++++++++++++++++++++++++++++++++++---
  src/encoding/gob/decoder.go    | 40 ++++++---------------------
  3 files changed, 78 insertions(+), 39 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index b3749e3528..56a7298fa5 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -50,6 +50,12 @@ func testError(t *testing.T) {
+ 	return
+ }
+ 
++func newDecBuffer(data []byte) *decBuffer {
++	return &decBuffer{
++		data: data,
++	}
++}
++
+ // Test basic encode/decode routines for unsigned integers
+ func TestUintCodec(t *testing.T) {
+ 	defer testError(t)
+@@ -65,7 +71,7 @@ func TestUintCodec(t *testing.T) {
+ 	for u := uint64(0); ; u = (u + 1) * 7 {
+ 		b.Reset()
+ 		encState.encodeUint(u)
+-		decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
++		decState := newDecodeState(newDecBuffer(b.Bytes()))
+ 		v := decState.decodeUint()
+ 		if u != v {
+ 			t.Errorf("Encode/Decode: sent %#x received %#x", u, v)
+@@ -81,7 +87,7 @@ func verifyInt(i int64, t *testing.T) {
+ 	var b = new(encBuffer)
+ 	encState := newEncoderState(b)
+ 	encState.encodeInt(i)
+-	decState := newDecodeState(bytes.NewBuffer(b.Bytes()))
++	decState := newDecodeState(newDecBuffer(b.Bytes()))
+ 	decState.buf = make([]byte, 8)
+ 	j := decState.decodeInt()
+ 	if i != j {
+@@ -118,7 +124,7 @@ var complexResult = []byte{0x07, 0xFE, 0x31, 0x40, 0xFE, 0x33, 0x40}
+ // The result of encoding "hello" with field number 7
+ var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
+ 
+-func newDecodeState(buf *bytes.Buffer) *decoderState {
++func newDecodeState(buf *decBuffer) *decoderState {
+ 	d := new(decoderState)
+ 	d.b = buf
+ 	d.buf = make([]byte, uint64Size)
+@@ -328,7 +334,7 @@ func execDec(typ string, instr *decInstr, state *decoderState, t *testing.T, val
+ }
+ 
+ func newDecodeStateFromData(data []byte) *decoderState {
+-	b := bytes.NewBuffer(data)
++	b := newDecBuffer(data)
+ 	state := newDecodeState(b)
+ 	state.fieldnum = -1
+ 	return state
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index f44838e4cf..a5bef93141 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -7,7 +7,6 @@
+ package gob
+ 
+ import (
+-	"bytes"
+ 	"encoding"
+ 	"errors"
+ 	"io"
+@@ -29,15 +28,71 @@ type decoderState struct {
+ 	dec *Decoder
+ 	// The buffer is stored with an extra indirection because it may be replaced
+ 	// if we load a type during decode (when reading an interface value).
+-	b        *bytes.Buffer
++	b        *decBuffer
+ 	fieldnum int // the last field number read.
+ 	buf      []byte
+ 	next     *decoderState // for free list
+ }
+ 
++// decBuffer is an extremely simple, fast implementation of a read-only byte buffer.
++// It is initialized by calling Size and then copying the data into the slice returned by Bytes().
++type decBuffer struct {
++	data   []byte
++	offset int // Read offset.
++}
++
++func (d *decBuffer) Read(p []byte) (int, error) {
++	n := copy(p, d.data[d.offset:])
++	if n == 0 && len(p) != 0 {
++		return 0, io.EOF
++	}
++	d.offset += n
++	return n, nil
++}
++
++func (d *decBuffer) Drop(n int) {
++	if n > d.Len() {
++		panic("drop")
++	}
++	d.offset += n
++}
++
++// Size grows the buffer to exactly n bytes, so d.Bytes() will
++// return a slice of length n. Existing data is first discarded.
++func (d *decBuffer) Size(n int) {
++	d.Reset()
++	if cap(d.data) < n {
++		d.data = make([]byte, n)
++	} else {
++		d.data = d.data[0:n]
++	}
++}
++
++func (d *decBuffer) ReadByte() (byte, error) {
++	if d.offset >= len(d.data) {
++		return 0, io.EOF
++	}
++	c := d.data[d.offset]
++	d.offset++
++	return c, nil
++}
++
++func (d *decBuffer) Len() int {
++	return len(d.data) - d.offset
++}
++
++func (d *decBuffer) Bytes() []byte {
++	return d.data[d.offset:]
++}
++
++func (d *decBuffer) Reset() {
++	d.data = d.data[0:0]
++	d.offset = 0
++}
++
+ // We pass the bytes.Buffer separately for easier testing of the infrastructure
+ // without requiring a full Decoder.
+-func (dec *Decoder) newDecoderState(buf *bytes.Buffer) *decoderState {
++func (dec *Decoder) newDecoderState(buf *decBuffer) *decoderState {
+ 	d := dec.freeList
+ 	if d == nil {
+ 		d = new(decoderState)
+@@ -633,7 +688,7 @@ func (dec *Decoder) ignoreInterface(state *decoderState) {
+ 		error_(dec.err)
+ 	}
+ 	// At this point, the decoder buffer contains a delimited value. Just toss it.
+-	state.b.Next(int(state.decodeUint()))
++	state.b.Drop(int(state.decodeUint()))
+ }
+ 
+ // decodeGobDecoder decodes something implementing the GobDecoder interface.
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index fe1494100a..c453e9ba39 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -6,7 +6,6 @@ package gob
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"errors"
+ 	"io"
+ 	"reflect"
+@@ -23,13 +22,12 @@ const tooBig = 1 << 30
+ type Decoder struct {
+ 	mutex        sync.Mutex                              // each item must be received atomically
+ 	r            io.Reader                               // source of the data
+-	buf          bytes.Buffer                            // buffer for more efficient i/o from r
++	buf          decBuffer                               // buffer for more efficient i/o from r
+ 	wireType     map[typeId]*wireType                    // map from remote ID to local description
+ 	decoderCache map[reflect.Type]map[typeId]**decEngine // cache of compiled engines
+ 	ignorerCache map[typeId]**decEngine                  // ditto for ignored objects
+ 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
+ 	countBuf     []byte                                  // used for decoding integers while parsing messages
+-	tmp          []byte                                  // temporary storage for i/o; saves reallocating
+ 	err          error
+ }
+ 
+@@ -90,37 +88,17 @@ func (dec *Decoder) recvMessage() bool {
+ 
+ // readMessage reads the next nbytes bytes from the input.
+ func (dec *Decoder) readMessage(nbytes int) {
+-	// Allocate the dec.tmp buffer, up to 10KB.
+-	const maxBuf = 10 * 1024
+-	nTmp := nbytes
+-	if nTmp > maxBuf {
+-		nTmp = maxBuf
++	if dec.buf.Len() != 0 {
++		// The buffer should always be empty now.
++		panic("non-empty decoder buffer")
+ 	}
+-	if cap(dec.tmp) < nTmp {
+-		nAlloc := nTmp + 100 // A little extra for growth.
+-		if nAlloc > maxBuf {
+-			nAlloc = maxBuf
+-		}
+-		dec.tmp = make([]byte, nAlloc)
+-	}
+-	dec.tmp = dec.tmp[:nTmp]
+-
+ 	// Read the data
+-	dec.buf.Grow(nbytes)
+-	for nbytes > 0 {
+-		if nbytes < nTmp {
+-			dec.tmp = dec.tmp[:nbytes]
+-		}
+-		var nRead int
+-		nRead, dec.err = io.ReadFull(dec.r, dec.tmp)
+-		if dec.err != nil {
+-			if dec.err == io.EOF {
+-				dec.err = io.ErrUnexpectedEOF
+-			}
+-			return
++	dec.buf.Size(nbytes)
++	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
++	if dec.err != nil {
++		if dec.err == io.EOF {
++			dec.err = io.ErrUnexpectedEOF
+ 		}
+-		dec.buf.Write(dec.tmp)
+-		nbytes -= nRead
+ 	}
+ }
+ 

@@ -13,6 +13,29 @@ Date:   Thu May 5 17:19:07 2022 -0700
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  test/fixedbugs/issue52535.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/issue52535.go b/test/fixedbugs/issue52535.go
+new file mode 100644
+index 0000000000..6cb971f5bc
+--- /dev/null
++++ b/test/fixedbugs/issue52535.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gofrontend crashed converting unnamed bool type to any.
++
++package p
++
++func F() {
++	m := make(map[int]int)
++	var ok any
++	_, ok = m[0]
++	_ = ok
++}

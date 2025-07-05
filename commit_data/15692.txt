@@ -16,9 +16,78 @@ Date:   Mon Mar 11 13:34:57 2013 -0700
     R=rsc, rminnich, ality, bradfitz
     CC=golang-dev
     https://golang.org/cl/7666043
-
+---
  src/cmd/dist/build.c     | 3 ++-
  src/cmd/ld/lib.c         | 5 +++++
  src/lib9/run_plan9.c     | 4 ++--
  src/lib9/tempdir_plan9.c | 4 ++--
  4 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 5150ac3f29..bac7439e61 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1070,7 +1070,8 @@ shouldbuild(char *file, char *dir)
+ 			name = lastelem(file);
+ 			if(streq(name, "goos.c") || streq(name, "flag.c"))
+ 				return 1;
+-			return 0;
++			if(!contains(name, "plan9"))
++				return 0;
+ 		}
+ 		if(streq(dir, "libbio"))
+ 			return 0;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index b895e5088e..cbd947dc82 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -556,6 +556,11 @@ hostobjs(void)
+ 	}
+ }
+ 
++// provided by lib9
++int runcmd(char**);
++char* mktempdir(void);
++void removeall(char*);
++
+ static void
+ rmtemp(void)
+ {
+diff --git a/src/lib9/run_plan9.c b/src/lib9/run_plan9.c
+index 7feb48d981..2b043cc2c7 100644
+--- a/src/lib9/run_plan9.c
++++ b/src/lib9/run_plan9.c
+@@ -15,9 +15,9 @@ runcmd(char **argv)
+ 	case -1:
+ 		return -1;
+ 	case 0:
+-		execvp(argv[0], argv);
++		exec(argv[0], argv);
+ 		fprint(2, "exec %s: %r", argv[0]);
+-		_exit(1);
++		exits("exec");
+ 	}
+ 	
+ 	w = wait();
+diff --git a/src/lib9/tempdir_plan9.c b/src/lib9/tempdir_plan9.c
+index 9c14d6dd0e..092d00d167 100644
+--- a/src/lib9/tempdir_plan9.c
++++ b/src/lib9/tempdir_plan9.c
+@@ -9,7 +9,7 @@ char*
+ mktempdir(void)
+ {
+ 	char *p;
+-	int i;
++	int fd, i;
+ 	
+ 	p = smprint("/tmp/go-link-XXXXXX");
+ 	for(i=0; i<1000; i++) {
+@@ -27,7 +27,7 @@ mktempdir(void)
+ void
+ removeall(char *p)
+ {
+-	int fd, n;
++	int fd, n, i;
+ 	Dir *d;
+ 	char *q;
+ 	

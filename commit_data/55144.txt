@@ -21,7 +21,7 @@ Date:   Thu Dec 8 16:20:37 2022 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |  60 +++++++----
  .../internal/types2/testdata/local/issue47996.go   |   2 +-
  src/go/types/check_test.go                         |  62 +++++++----
@@ -122,3 +122,3445 @@ Date:   Thu Dec 8 16:20:37 2022 -0800
  src/internal/types/testdata/spec/comparisons.go    |   4 +-
  src/internal/types/testdata/spec/conversions.go    |  40 +++----
  99 files changed, 568 insertions(+), 532 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 6825133048..c7970c59a6 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -4,20 +4,27 @@
+ 
+ // This file implements a typechecker test harness. The packages specified
+ // in tests are typechecked. Error messages reported by the typechecker are
+-// compared against the error messages expected in the test files.
++// compared against the errors expected in the test files.
+ //
+-// Expected errors are indicated in the test files by putting a comment
+-// of the form /* ERROR "rx" */ immediately following an offending token.
+-// The harness will verify that an error matching the regular expression
+-// rx is reported at that source position. Consecutive comments may be
+-// used to indicate multiple errors for the same token position.
++// Expected errors are indicated in the test files by putting comments
++// of the form /* ERROR pattern */ or /* ERRORx pattern */ (or a similar
++// //-style line comment) immediately following the tokens where errors
++// are reported. There must be exactly one blank before and after the
++// ERROR/ERRORx indicator, and the pattern must be a properly quoted Go
++// string.
+ //
+-// For instance, the following test file indicates that a "not declared"
++// The harness will verify that each ERROR pattern is a substring of the
++// error reported at that source position, and that each ERRORx pattern
++// is a regular expression matching the respective error.
++// Consecutive comments may be used to indicate multiple errors reported
++// at the same position.
++//
++// For instance, the following test source indicates that an "undeclared"
+ // error should be reported for the undeclared variable x:
+ //
+ //	package p
+ //	func f() {
+-//		_ = x /* ERROR "not declared" */ + 1
++//		_ = x /* ERROR "undeclared" */ + 1
+ //	}
+ 
+ package types2_test
+@@ -31,6 +38,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 
+@@ -172,7 +180,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 			t.Error(err)
+ 			continue
+ 		}
+-		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERROR ")); len(m) > 0 {
++		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
+ 			errmap[filename] = m
+ 		}
+ 		f.Close()
+@@ -195,24 +203,34 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		// At least one of the errors in errList should match the current error.
+ 		indices = indices[:0]
+ 		for i, want := range errList {
+-			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
+-			// We expect all patterns to be quoted in double quotes
+-			// and then we remove the quotes.
+-			// TODO(gri) use correct strconv.Unquote eventually
+-			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
+-				pattern = pattern[1 : n-1]
+-			} else {
+-				t.Errorf("%s:%d:%d: unquoted pattern: %s", filename, line, want.Pos.Col(), pattern)
+-				continue
++			pattern, substr := strings.CutPrefix(want.Msg, " ERROR ")
++			if !substr {
++				var found bool
++				pattern, found = strings.CutPrefix(want.Msg, " ERRORx ")
++				if !found {
++					panic("unreachable")
++				}
+ 			}
+-			rx, err := regexp.Compile(pattern)
++			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
+ 			if err != nil {
+ 				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+ 				continue
+ 			}
+-			if rx.MatchString(gotMsg) {
+-				indices = append(indices, i)
++			if substr {
++				if !strings.Contains(gotMsg, pattern) {
++					continue
++				}
++			} else {
++				rx, err := regexp.Compile(pattern)
++				if err != nil {
++					t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
++					continue
++				}
++				if !rx.MatchString(gotMsg) {
++					continue
++				}
+ 			}
++			indices = append(indices, i)
+ 		}
+ 		if len(indices) == 0 {
+ 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
+diff --git a/src/cmd/compile/internal/types2/testdata/local/issue47996.go b/src/cmd/compile/internal/types2/testdata/local/issue47996.go
+index 6fb50a611b..375a931f77 100644
+--- a/src/cmd/compile/internal/types2/testdata/local/issue47996.go
++++ b/src/cmd/compile/internal/types2/testdata/local/issue47996.go
+@@ -5,4 +5,4 @@
+ package p
+ 
+ // don't crash
+-func T /* ERROR "missing" */ [P] /* ERROR "missing" */ m /* ERROR "unexpected" */ () /* ERROR "\)" */ { /* ERROR "{" */ } /* ERROR "}" */
++func T /* ERROR "missing" */ [P] /* ERROR "missing" */ m /* ERROR "unexpected" */ () /* ERROR ")" */ { /* ERROR "{" */ } /* ERROR "}" */
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index ea742f2b90..638355049e 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -4,20 +4,27 @@
+ 
+ // This file implements a typechecker test harness. The packages specified
+ // in tests are typechecked. Error messages reported by the typechecker are
+-// compared against the error messages expected in the test files.
++// compared against the errors expected in the test files.
+ //
+-// Expected errors are indicated in the test files by putting a comment
+-// of the form /* ERROR "rx" */ immediately following an offending token.
+-// The harness will verify that an error matching the regular expression
+-// rx is reported at that source position. Consecutive comments may be
+-// used to indicate multiple errors for the same token position.
++// Expected errors are indicated in the test files by putting comments
++// of the form /* ERROR pattern */ or /* ERRORx pattern */ (or a similar
++// //-style line comment) immediately following the tokens where errors
++// are reported. There must be exactly one blank before and after the
++// ERROR/ERRORx indicator, and the pattern must be a properly quoted Go
++// string.
+ //
+-// For instance, the following test file indicates that a "not declared"
++// The harness will verify that each ERROR pattern is a substring of the
++// error reported at that source position, and that each ERRORx pattern
++// is a regular expression matching the respective error.
++// Consecutive comments may be used to indicate multiple errors reported
++// at the same position.
++//
++// For instance, the following test source indicates that an "undeclared"
+ // error should be reported for the undeclared variable x:
+ //
+ //	package p
+ //	func f() {
+-//		_ = x /* ERROR "not declared" */ + 1
++//		_ = x /* ERROR "undeclared" */ + 1
+ //	}
+ 
+ package types_test
+@@ -36,6 +43,7 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 
+@@ -185,7 +193,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	// collect expected errors
+ 	errmap := make(map[string]map[int][]comment)
+ 	for i, filename := range filenames {
+-		if m := commentMap(srcs[i], regexp.MustCompile("^ ERROR ")); len(m) > 0 {
++		if m := commentMap(srcs[i], regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
+ 			errmap[filename] = m
+ 		}
+ 	}
+@@ -207,24 +215,34 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		// At least one of the errors in errList should match the current error.
+ 		indices = indices[:0]
+ 		for i, want := range errList {
+-			pattern := strings.TrimSpace(want.text[len(" ERROR "):])
+-			// We expect all patterns to be quoted in double quotes
+-			// and then we remove the quotes.
+-			// TODO(gri) use correct strconv.Unquote eventually
+-			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
+-				pattern = pattern[1 : n-1]
+-			} else {
+-				t.Errorf("%s:%d:%d: unquoted pattern: %s", filename, line, want.col, pattern)
+-				continue
++			pattern, substr := strings.CutPrefix(want.text, " ERROR ")
++			if !substr {
++				var found bool
++				pattern, found = strings.CutPrefix(want.text, " ERRORx ")
++				if !found {
++					panic("unreachable")
++				}
+ 			}
+-			rx, err := regexp.Compile(pattern)
++			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
+ 			if err != nil {
+ 				t.Errorf("%s:%d:%d: %v", filename, line, want.col, err)
+ 				continue
+ 			}
+-			if rx.MatchString(gotMsg) {
+-				indices = append(indices, i)
++			if substr {
++				if !strings.Contains(gotMsg, pattern) {
++					continue
++				}
++			} else {
++				rx, err := regexp.Compile(pattern)
++				if err != nil {
++					t.Errorf("%s:%d:%d: %v", filename, line, want.col, err)
++					continue
++				}
++				if !rx.MatchString(gotMsg) {
++					continue
++				}
+ 			}
++			indices = append(indices, i)
+ 		}
+ 		if len(indices) == 0 {
+ 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
+@@ -335,7 +353,7 @@ func TestLongConstants(t *testing.T) {
+ // be representable as int even if they already have a type that can
+ // represent larger values.
+ func TestIndexRepresentability(t *testing.T) {
+-	const src = `package index; var s []byte; var _ = s[int64 /* ERROR "int64\(1\) << 40 \(.*\) overflows int" */ (1) << 40]`
++	const src = `package index; var s []byte; var _ = s[int64 /* ERRORx "int64\\(1\\) << 40 \\(.*\\) overflows int" */ (1) << 40]`
+ 	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+ 
+diff --git a/src/go/types/commentMap_test.go b/src/go/types/commentMap_test.go
+index ef6017a0aa..e0e3f638fa 100644
+--- a/src/go/types/commentMap_test.go
++++ b/src/go/types/commentMap_test.go
+@@ -14,8 +14,8 @@ import (
+ )
+ 
+ type comment struct {
+-	line, col int // comment position
+-	text string   // comment text, excluding "//", "/*", or "*/"
++	line, col int    // comment position
++	text      string // comment text, excluding "//", "/*", or "*/"
+ }
+ 
+ // commentMap collects all comments in the given src with comment text
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index cbd6ca29e9..bb6b4c3161 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -574,7 +574,7 @@ import (
+ func _() {
+ 	// Packages should be fully qualified when there is ambiguity within the
+ 	// error string itself.
+-	a.F(template /* ERROR "cannot use.*html/template.* as .*text/template" */ .Template{})
++	a.F(template /* ERRORx "cannot use.*html/template.* as .*text/template" */ .Template{})
+ }
+ `
+ 		csrc = `
+@@ -587,12 +587,12 @@ import (
+ )
+ 
+ // Issue #46905: make sure template is not the first package qualified.
+-var _ fmt.Stringer = 1 // ERROR "cannot use 1.*as fmt\.Stringer"
++var _ fmt.Stringer = 1 // ERRORx "cannot use 1.*as fmt\\.Stringer"
+ 
+ // Packages should be fully qualified when there is ambiguity in reachable
+ // packages. In this case both a (and for that matter html/template) import
+ // text/template.
+-func _() { a.G(template /* ERROR "cannot use .*html/template.*Template" */ .Template{}) }
++func _() { a.G(template /* ERRORx "cannot use .*html/template.*Template" */ .Template{}) }
+ `
+ 
+ 		tsrc = `
+@@ -603,7 +603,7 @@ import "text/template"
+ type T int
+ 
+ // Verify that the current package name also causes disambiguation.
+-var _ T = template /* ERROR "cannot use.*text/template.* as T value" */.Template{}
++var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Template{}
+ `
+ 	)
+ 
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index 08b6004d1e..9ae696d5b9 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -35,9 +35,9 @@ func append1() {
+ 	type S []byte
+ 	type T string
+ 	var t T
+-	_ = append(s, "foo" /* ERROR "cannot use .* in argument to append" */ )
++	_ = append(s, "foo" /* ERRORx `cannot use .* in argument to append` */ )
+ 	_ = append(s, "foo"...)
+-	_ = append(S(s), "foo" /* ERROR "cannot use .* in argument to append" */ )
++	_ = append(S(s), "foo" /* ERRORx `cannot use .* in argument to append` */ )
+ 	_ = append(S(s), "foo"...)
+ 	_ = append(s, t /* ERROR "cannot use t" */ )
+ 	_ = append(s, t...)
+@@ -100,7 +100,7 @@ func cap1() {
+ 
+ 	var s [][]byte
+ 	_ = cap(s)
+-	_ = cap(s... /* ERROR "invalid use of \.\.\." */ )
++	_ = cap(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func cap2() {
+@@ -161,7 +161,7 @@ func close1() {
+ 	_ = close /* ERROR "used as value" */ (c)
+ 
+ 	var s []chan int
+-	close(s... /* ERROR "invalid use of \.\.\." */ )
++	close(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func close2() {
+@@ -204,9 +204,9 @@ func complex1() {
+ 	complex /* ERROR "not used" */ (1, 2)
+ 
+ 	var _ complex64 = complex(f32, f32)
+-	var _ complex64 = complex /* ERROR "cannot use .* in variable declaration" */ (f64, f64)
++	var _ complex64 = complex /* ERRORx `cannot use .* in variable declaration` */ (f64, f64)
+ 
+-	var _ complex128 = complex /* ERROR "cannot use .* in variable declaration" */ (f32, f32)
++	var _ complex128 = complex /* ERRORx `cannot use .* in variable declaration` */ (f32, f32)
+ 	var _ complex128 = complex(f64, f64)
+ 
+ 	// untyped constants
+@@ -225,7 +225,7 @@ func complex1() {
+ 	var s uint
+ 	_ = complex(1 /* ERROR "integer" */ <<s, 0)
+ 	const _ = complex /* ERROR "not constant" */ (1 /* ERROR "integer" */ <<s, 0)
+-	var _ int = complex /* ERROR "cannot use .* in variable declaration" */ (1 /* ERROR "integer" */ <<s, 0)
++	var _ int = complex /* ERRORx `cannot use .* in variable declaration` */ (1 /* ERROR "integer" */ <<s, 0)
+ 
+ 	// floating-point argument types must be identical
+ 	type F32 float32
+@@ -241,7 +241,7 @@ func complex1() {
+ 	_ = complex(f64 /* ERROR "mismatched types" */ , x64)
+ 
+ 	var t []float32
+-	_ = complex(t... /* ERROR "invalid use of \.\.\." */ )
++	_ = complex(t... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func complex2() {
+@@ -275,7 +275,7 @@ func copy1() {
+ 	copy(t /* ERROR "copy expects slice arguments" */ , nil)
+ 	copy(nil /* ERROR "copy expects slice arguments" */ , t)
+ 	copy(nil /* ERROR "copy expects slice arguments" */ , nil)
+-	copy(t... /* ERROR "invalid use of \.\.\." */ )
++	copy(t... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func copy2() {
+@@ -299,7 +299,7 @@ func delete1() {
+ 	_ = delete /* ERROR "used as value" */ (m, s)
+ 
+ 	var t []map[string]string
+-	delete(t... /* ERROR "invalid use of \.\.\." */ )
++	delete(t... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func delete2() {
+@@ -331,8 +331,8 @@ func imag1() {
+ 	assert(_6 == 0)
+ 	f32 = imag(c64)
+ 	f64 = imag(c128)
+-	f32 = imag /* ERROR "cannot use .* in assignment" */ (c128)
+-	f64 = imag /* ERROR "cannot use .* in assignment" */ (c64)
++	f32 = imag /* ERRORx `cannot use .* in assignment` */ (c128)
++	f64 = imag /* ERRORx `cannot use .* in assignment` */ (c64)
+ 	imag /* ERROR "not used" */ (c64)
+ 	_, _ = f32, f64
+ 
+@@ -345,7 +345,7 @@ func imag1() {
+ 	f64 = imag(x128)
+ 
+ 	var a []complex64
+-	_ = imag(a... /* ERROR "invalid use of \.\.\." */ )
++	_ = imag(a... /* ERROR "invalid use of ..." */ )
+ 
+ 	// if argument is untyped, result is untyped
+ 	const _ byte = imag(1.2 + 3i)
+@@ -395,7 +395,7 @@ func len1() {
+ 
+ 	var s [][]byte
+ 	_ = len(s)
+-	_ = len(s... /* ERROR "invalid use of \.\.\." */ )
++	_ = len(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func len2() {
+@@ -489,7 +489,7 @@ func make1() {
+ 
+ 	var t []int
+ 	_ = make([]int, t[0], t[1])
+-	_ = make([]int, t... /* ERROR "invalid use of \.\.\." */ )
++	_ = make([]int, t... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func make2() {
+@@ -509,7 +509,7 @@ func new1() {
+ 	new /* ERROR "not used" */ (int)
+         _ = &new /* ERROR "cannot take address" */ (int)
+ 
+-	_ = new(int... /* ERROR "invalid use of \.\.\." */ )
++	_ = new(int... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func new2() {
+@@ -530,7 +530,7 @@ func panic1() {
+ 
+ 	var s []byte
+ 	panic(s)
+-	panic(s... /* ERROR "invalid use of \.\.\." */ )
++	panic(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func panic2() {
+@@ -553,7 +553,7 @@ func print1() {
+ 	println(nil /* ERROR "untyped nil" */ )
+ 
+ 	var s []int
+-	print(s... /* ERROR "invalid use of \.\.\." */ )
++	print(s... /* ERROR "invalid use of ..." */ )
+ 	_ = print /* ERROR "used as value" */ ()
+ }
+ 
+@@ -579,7 +579,7 @@ func println1() {
+ 	println(nil /* ERROR "untyped nil" */ )
+ 
+ 	var s []int
+-	println(s... /* ERROR "invalid use of \.\.\." */ )
++	println(s... /* ERROR "invalid use of ..." */ )
+ 	_ = println /* ERROR "used as value" */ ()
+ }
+ 
+@@ -611,8 +611,8 @@ func real1() {
+ 	assert(_6 == 0)
+ 	f32 = real(c64)
+ 	f64 = real(c128)
+-	f32 = real /* ERROR "cannot use .* in assignment" */ (c128)
+-	f64 = real /* ERROR "cannot use .* in assignment" */ (c64)
++	f32 = real /* ERRORx `cannot use .* in assignment` */ (c128)
++	f64 = real /* ERRORx `cannot use .* in assignment` */ (c64)
+ 	real /* ERROR "not used" */ (c64)
+ 
+ 	// complex type may not be predeclared
+@@ -625,7 +625,7 @@ func real1() {
+ 	_, _ = f32, f64
+ 
+ 	var a []complex64
+-	_ = real(a... /* ERROR "invalid use of \.\.\." */ )
++	_ = real(a... /* ERROR "invalid use of ..." */ )
+ 
+ 	// if argument is untyped, result is untyped
+ 	const _ byte = real(1 + 2.3i)
+@@ -650,7 +650,7 @@ func recover1() {
+ 	recover()
+ 
+ 	var s []int
+-	recover(s... /* ERROR "invalid use of \.\.\." */ )
++	recover(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func recover2() {
+@@ -719,7 +719,7 @@ func Alignof1() {
+ 
+ 	var s []byte
+ 	_ = unsafe.Alignof(s)
+-	_ = unsafe.Alignof(s... /* ERROR "invalid use of \.\.\." */ )
++	_ = unsafe.Alignof(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func Alignof2() {
+@@ -775,7 +775,7 @@ func Offsetof1() {
+ 	_ = unsafe.Offsetof(y2 /* ERROR "method value" */ .m)
+ 
+ 	var s []byte
+-	_ = unsafe.Offsetof(s... /* ERROR "invalid use of \.\.\." */ )
++	_ = unsafe.Offsetof(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func Offsetof2() {
+@@ -849,7 +849,7 @@ func Sizeof1() {
+ 
+ 	var s []byte
+ 	_ = unsafe.Sizeof(s)
+-	_ = unsafe.Sizeof(s... /* ERROR "invalid use of \.\.\." */ )
++	_ = unsafe.Sizeof(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func Sizeof2() {
+@@ -866,11 +866,11 @@ func Slice1() {
+ 	unsafe.Slice(1, 2, 3) // ERROR "too many arguments"
+ 	unsafe.Slice(1 /* ERROR "is not a pointer" */ , 2)
+ 	unsafe.Slice(nil /* ERROR "nil is not a pointer" */ , 0)
+-	unsafe.Slice(&x, "foo" /* ERROR "cannot convert .* to type int" */ )
++	unsafe.Slice(&x, "foo" /* ERRORx `cannot convert .* to type int` */ )
+ 	unsafe.Slice(&x, 1.2 /* ERROR "truncated to int" */ )
+ 	unsafe.Slice(&x, - /* ERROR "must not be negative" */ 1)
+ 	unsafe /* ERROR "not used" */ .Slice(&x, 0)
+-	var _ []byte = unsafe /* ERROR "value of type \[\]int" */ .Slice(&x, 0)
++	var _ []byte = unsafe /* ERROR "value of type []int" */ .Slice(&x, 0)
+ 
+ 	var _ []int = unsafe.Slice(&x, 0)
+ 	_ = unsafe.Slice(&x, 1.0)
+@@ -892,7 +892,7 @@ func String1() {
+ 	unsafe.String()        // ERROR "not enough arguments"
+ 	unsafe.String(1, 2, 3) // ERROR "too many arguments"
+ 	unsafe.String(1 /* ERROR "cannot use 1" */ , 2)
+-	unsafe.String(&b, "foo" /* ERROR "cannot convert .* to type int" */ )
++	unsafe.String(&b, "foo" /* ERRORx `cannot convert .* to type int` */ )
+ 	unsafe.String(&b, 1.2 /* ERROR "truncated to int" */ )
+ 	unsafe.String(&b, - /* ERROR "must not be negative" */ 1)
+ 	unsafe /* ERROR "not used" */ .String(&b, 0)
+@@ -926,7 +926,7 @@ func assert1() {
+ 	_ = assert(true)
+ 
+ 	var s []byte
+-	assert(s... /* ERROR "invalid use of \.\.\." */ )
++	assert(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func assert2() {
+@@ -945,7 +945,7 @@ func trace1() {
+ 	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
+ 
+ 	var s []byte
+-	trace(s... /* ERROR "invalid use of \.\.\." */ )
++	trace(s... /* ERROR "invalid use of ..." */ )
+ }
+ 
+ func trace2() {
+diff --git a/src/internal/types/testdata/check/builtins1.go b/src/internal/types/testdata/check/builtins1.go
+index cd622b678b..725bba18a2 100644
+--- a/src/internal/types/testdata/check/builtins1.go
++++ b/src/internal/types/testdata/check/builtins1.go
+@@ -124,7 +124,7 @@ func _[T M1](m T) {
+ 
+ func _[T M2](m T) {
+ 	delete(m, "foo")
+-	delete(m, 0 /* ERROR "cannot use .* as string" */)
++	delete(m, 0 /* ERRORx `cannot use .* as string` */)
+ }
+ 
+ func _[T M3](m T) {
+diff --git a/src/internal/types/testdata/check/conversions1.go b/src/internal/types/testdata/check/conversions1.go
+index 93a5f182fb..65aabde910 100644
+--- a/src/internal/types/testdata/check/conversions1.go
++++ b/src/internal/types/testdata/check/conversions1.go
+@@ -20,7 +20,7 @@ func _() {
+ 	var t T
+ 	var u struct{}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
+ 	s = u
+ 	s = S(s)
+ 	s = S(t)
+@@ -40,12 +40,12 @@ func _() {
+ 		x int "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = T(u)
+ }
+ 
+@@ -61,12 +61,12 @@ func _() {
+ 		x E "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = T(u)
+ }
+ 
+@@ -89,12 +89,12 @@ func _() {
+ 		} "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = T(u)
+ }
+ 
+@@ -115,12 +115,12 @@ func _() {
+ 		x E2 "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = S(s)
+ 	s = S(t /* ERROR "cannot convert" */ )
+ 	s = S(u /* ERROR "cannot convert" */ )
+-	t = u   // ERROR "cannot use .* in assignment"
++	t = u   // ERRORx `cannot use .* in assignment`
+ 	t = T(u)
+ }
+ 
+@@ -140,12 +140,12 @@ func _() {
+ 	var t T
+ 	var u struct{ f func(E) }
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u /* ERROR "cannot convert" */ )
+-	t = u   // ERROR "cannot use .* in assignment"
++	t = u   // ERRORx `cannot use .* in assignment`
+ 	t = T(u /* ERROR "cannot convert" */ )
+ }
+ 
+@@ -158,12 +158,12 @@ func _() {
+ 	var t *T
+ 	var u *struct{}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u)
+ }
+ 
+@@ -178,12 +178,12 @@ func _() {
+ 		x int "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u)
+ }
+ 
+@@ -199,12 +199,12 @@ func _() {
+ 		x E "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u)
+ }
+ 
+@@ -227,12 +227,12 @@ func _() {
+ 		} "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u)
+ }
+ 
+@@ -253,12 +253,12 @@ func _() {
+ 		x E2 "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t /* ERROR "cannot convert" */ )
+ 	s = (*S)(u /* ERROR "cannot convert" */ )
+-	t = u      // ERROR "cannot use .* in assignment"
++	t = u      // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u)
+ }
+ 
+@@ -278,12 +278,12 @@ func _() {
+ 	var t *T
+ 	var u *struct{ f func(E) }
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u /* ERROR "cannot convert" */ )
+-	t = u      // ERROR "cannot use .* in assignment"
++	t = u      // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u /* ERROR "cannot convert" */ )
+ }
+ 
+@@ -303,11 +303,11 @@ func _() {
+ 	var t *T
+ 	var u *struct{ f func(E) }
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERRORx `cannot use .* in assignment`
++	s = u // ERRORx `cannot use .* in assignment`
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u /* ERROR "cannot convert" */ )
+-	t = u      // ERROR "cannot use .* in assignment"
++	t = u      // ERRORx `cannot use .* in assignment`
+ 	t = (*T)(u /* ERROR "cannot convert" */ )
+ }
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index 72d423e95a..25dc286b77 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -51,7 +51,7 @@ func _() { var init int; _ = init }
+ 
+ // invalid array types
+ type (
+-	iA0 [... /* ERROR "invalid use of \[...\] array" */ ]byte
++	iA0 [... /* ERROR "invalid use of [...] array" */ ]byte
+ 	// The error message below could be better. At the moment
+ 	// we believe an integer that is too large is not an integer.
+ 	// But at least we get an error.
+diff --git a/src/internal/types/testdata/check/decls1.go b/src/internal/types/testdata/check/decls1.go
+index faeacbf3c8..06f3b2e6cb 100644
+--- a/src/internal/types/testdata/check/decls1.go
++++ b/src/internal/types/testdata/check/decls1.go
+@@ -48,16 +48,16 @@ var (
+ 	s19 = s1 /* ERROR "cannot call" */ ()
+  	s20 = f0 /* ERROR "no value" */ ()
+ 	s21 = f6(1, s1, i)
+-	s22 = f6(1, s1, uu /* ERROR "cannot use .* in argument" */ )
++	s22 = f6(1, s1, uu /* ERRORx `cannot use .* in argument` */ )
+ 
+ 	t1 int = i + j
+ 	t2 int = i /* ERROR "mismatched types" */ + x
+-	t3 int = c /* ERROR "cannot use .* variable declaration" */ + d
++	t3 int = c /* ERRORx `cannot use .* variable declaration` */ + d
+ 	t4 string = s + t
+ 	t5 string = s /* ERROR "invalid operation" */ / t
+ 	t6 byte = array[t1]
+ 	t7 byte = array[x /* ERROR "must be integer" */]
+-	t8 *int = & /* ERROR "cannot use .* variable declaration" */ a
++	t8 *int = & /* ERRORx `cannot use .* variable declaration` */ a
+ 	t10 *int = &42 /* ERROR "cannot take address" */
+ 	t11 *complex64 = &v
+ 	t12 complex64 = -(u + *t11) / *&v
+@@ -69,7 +69,7 @@ var (
+ 	t18 float64 = math.Pi * 10.0
+ 	t19 int = t1 /* ERROR "cannot call" */ ()
+ 	t20 int = f0 /* ERROR "no value" */ ()
+-	t21 int = a /* ERROR "cannot use .* variable declaration" */
++	t21 int = a /* ERRORx `cannot use .* variable declaration` */
+ )
+ 
+ // Various more complex expressions
+@@ -96,8 +96,8 @@ var (
+ 	v11 = xx/yy*yy - xx
+ 	v12 = true && false
+ 	v13 = nil /* ERROR "use of untyped nil" */
+-	v14 string = 257 // ERROR "cannot use 257 .* as string value in variable declaration$"
+-	v15 int8 = 257 // ERROR "cannot use 257 .* as int8 value in variable declaration .*overflows"
++	v14 string = 257 // ERRORx `cannot use 257 .* as string value in variable declaration$`
++	v15 int8 = 257 // ERRORx `cannot use 257 .* as int8 value in variable declaration .*overflows`
+ )
+ 
+ // Multiple assignment expressions
+diff --git a/src/internal/types/testdata/check/decls2/decls2a.go b/src/internal/types/testdata/check/decls2/decls2a.go
+index 731405b20b..c2fb421b96 100644
+--- a/src/internal/types/testdata/check/decls2/decls2a.go
++++ b/src/internal/types/testdata/check/decls2/decls2a.go
+@@ -95,8 +95,8 @@ func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
+ // Methods associated with non-local or unnamed types.
+ func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
+ func ([ /* ERROR "invalid receiver" */ ]int) m() {}
+-func (time /* ERROR "cannot define new methods on non-local type time\.Time" */ .Time) m() {}
+-func (* /* ERROR "cannot define new methods on non-local type time\.Time" */ time.Time) m() {}
++func (time /* ERROR "cannot define new methods on non-local type time.Time" */ .Time) m() {}
++func (* /* ERROR "cannot define new methods on non-local type time.Time" */ time.Time) m() {}
+ func (x /* ERROR "invalid receiver" */ interface{}) m() {}
+ 
+ // Unsafe.Pointer is treated like a pointer when used as receiver type.
+diff --git a/src/internal/types/testdata/check/decls2/decls2b.go b/src/internal/types/testdata/check/decls2/decls2b.go
+index d4c5861e5e..dd6cd44d99 100644
+--- a/src/internal/types/testdata/check/decls2/decls2b.go
++++ b/src/internal/types/testdata/check/decls2/decls2b.go
+@@ -40,17 +40,17 @@ func f_double /* ERROR "redeclared" */ () {}
+ // Verify by checking that errors are reported.
+ func (T /* ERROR "undefined" */ ) _() {}
+ func (T1) _(undefined /* ERROR "undefined" */ ) {}
+-func (T1) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
++func (T1) _() int { return "foo" /* ERRORx "cannot use .* in return statement" */ }
+ 
+ // Methods with undefined receiver type can still be checked.
+ // Verify by checking that errors are reported.
+ func (Foo /* ERROR "undefined" */ ) m() {}
+ func (Foo /* ERROR "undefined" */ ) m(undefined /* ERROR "undefined" */ ) {}
+-func (Foo /* ERROR "undefined" */ ) m() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
++func (Foo /* ERRORx `undefined` */ ) m() int { return "foo" /* ERRORx "cannot use .* in return statement" */ }
+ 
+ func (Foo /* ERROR "undefined" */ ) _() {}
+ func (Foo /* ERROR "undefined" */ ) _(undefined /* ERROR "undefined" */ ) {}
+-func (Foo /* ERROR "undefined" */ ) _() int { return "foo" /* ERROR "cannot use .* in return statement" */ }
++func (Foo /* ERROR "undefined" */ ) _() int { return "foo" /* ERRORx "cannot use .* in return statement" */ }
+ 
+ // Receiver declarations are regular parameter lists;
+ // receiver types may use parentheses, and the list
+diff --git a/src/internal/types/testdata/check/decls3.go b/src/internal/types/testdata/check/decls3.go
+index 947ab307ba..fed2f60055 100644
+--- a/src/internal/types/testdata/check/decls3.go
++++ b/src/internal/types/testdata/check/decls3.go
+@@ -221,16 +221,16 @@ func _() {
+ 	_ = S2{}.B
+ 	_ = S2{}.C
+ 	_ = S2{}.D /* ERROR "no field or method" */
+-	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}\.S1" */
++	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
+ 	_ = S3{}.A
+-	_ = S3{}.B /* ERROR "ambiguous selector S3{}\.B" */
++	_ = S3{}.B /* ERROR "ambiguous selector S3{}.B" */
+ 	_ = S3{}.D
+ 	_ = S3{}.E
+ 	_ = S4{}.A
+ 	_ = S4{}.B /* ERROR "no field or method" */
+-	_ = S5{}.X /* ERROR "ambiguous selector S5{}\.X" */
++	_ = S5{}.X /* ERROR "ambiguous selector S5{}.X" */
+ 	_ = S5{}.Y
+-	_ = S10{}.X /* ERROR "ambiguous selector S10{}\.X" */
++	_ = S10{}.X /* ERROR "ambiguous selector S10{}.X" */
+ 	_ = S10{}.Y
+ }
+ 
+diff --git a/src/internal/types/testdata/check/errors.go b/src/internal/types/testdata/check/errors.go
+index f9aa3fc71b..d9d22ac2b4 100644
+--- a/src/internal/types/testdata/check/errors.go
++++ b/src/internal/types/testdata/check/errors.go
+@@ -8,46 +8,46 @@ package errors
+ // (matching messages are regular expressions, hence the \'s).
+ func f(x int, m map[string]int) {
+ 	// no values
+-	_ = f /* ERROR "f\(0, m\) \(no value\) used as value" */ (0, m)
++	_ = f /* ERROR "f(0, m) (no value) used as value" */ (0, m)
+ 
+ 	// built-ins
+-	_ = println // ERROR "println \(built-in\) must be called"
++	_ = println // ERROR "println (built-in) must be called"
+ 
+ 	// types
+-	_ = complex128 // ERROR "complex128 \(type\) is not an expression"
++	_ = complex128 // ERROR "complex128 (type) is not an expression"
+ 
+ 	// constants
+ 	const c1 = 991
+ 	const c2 float32 = 0.5
+ 	const c3 = "foo"
+-	0 // ERROR "0 \(untyped int constant\) is not used"
+-	0.5 // ERROR "0.5 \(untyped float constant\) is not used"
+-	"foo" // ERROR ""foo" \(untyped string constant\) is not used"
+-	c1 // ERROR "c1 \(untyped int constant 991\) is not used"
+-	c2 // ERROR "c2 \(constant 0.5 of type float32\) is not used"
+-	c1 /* ERROR "c1 \+ c2 \(constant 991.5 of type float32\) is not used" */ + c2
+-	c3 // ERROR "c3 \(untyped string constant "foo"\) is not used"
++	0 // ERROR "0 (untyped int constant) is not used"
++	0.5 // ERROR "0.5 (untyped float constant) is not used"
++	"foo" // ERROR `"foo" (untyped string constant) is not used`
++	c1 // ERROR "c1 (untyped int constant 991) is not used"
++	c2 // ERROR "c2 (constant 0.5 of type float32) is not used"
++	c1 /* ERROR "c1 + c2 (constant 991.5 of type float32) is not used" */ + c2
++	c3 // ERROR `c3 (untyped string constant "foo") is not used`
+ 
+ 	// variables
+-	x // ERROR "x \(variable of type int\) is not used"
++	x // ERROR "x (variable of type int) is not used"
+ 
+ 	// values
+ 	nil // ERROR "nil is not used"
+-	( /* ERROR "\(\*int\)\(nil\) \(value of type \*int\) is not used" */ *int)(nil)
+-	x /* ERROR "x != x \(untyped bool value\) is not used" */ != x
+-	x /* ERROR "x \+ x \(value of type int\) is not used" */ + x
++	( /* ERROR "(*int)(nil) (value of type *int) is not used" */ *int)(nil)
++	x /* ERROR "x != x (untyped bool value) is not used" */ != x
++	x /* ERROR "x + x (value of type int) is not used" */ + x
+ 
+ 	// value, ok's
+ 	const s = "foo"
+-	m /* ERROR "m\[s\] \(map index expression of type int\) is not used" */ [s]
++	m /* ERROR "m[s] (map index expression of type int) is not used" */ [s]
+ }
+ 
+ // Valid ERROR comments can have a variety of forms.
+ func _() {
+-	0 /* ERROR "0 .* is not used" */
+-	0 /* ERROR "0 .* is not used" */
+-	0 // ERROR "0 .* is not used"
+-	0 // ERROR "0 .* is not used"
++	0 /* ERRORx "0 .* is not used" */
++	0 /* ERRORx "0 .* is not used" */
++	0 // ERRORx "0 .* is not used"
++	0 // ERRORx "0 .* is not used"
+ }
+ 
+ // Don't report spurious errors as a consequence of earlier errors.
+diff --git a/src/internal/types/testdata/check/expr0.go b/src/internal/types/testdata/check/expr0.go
+index 059ad61d5c..552bd8fa8f 100644
+--- a/src/internal/types/testdata/check/expr0.go
++++ b/src/internal/types/testdata/check/expr0.go
+@@ -28,7 +28,7 @@ var (
+ 	// byte
+ 	_ = byte(0)
+ 	_ = byte(- /* ERROR "cannot convert" */ 1)
+-	_ = - /* ERROR "-byte\(1\) \(constant -1 of type byte\) overflows byte" */ byte(1) // test for issue 11367
++	_ = - /* ERROR "-byte(1) (constant -1 of type byte) overflows byte" */ byte(1) // test for issue 11367
+ 	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
+ 
+ 	// int
+@@ -144,7 +144,7 @@ var (
+ 	ch10, ok = <-ch
+ 	// ok is of type bool
+ 	ch11, myok = <-ch
+-	_ mybool = myok /* ERROR "cannot use .* in variable declaration" */
++	_ mybool = myok /* ERRORx `cannot use .* in variable declaration` */
+ )
+ 
+ // address of composite literals
+diff --git a/src/internal/types/testdata/check/expr1.go b/src/internal/types/testdata/check/expr1.go
+index 8d54ec2f9e..1c04c8fb6e 100644
+--- a/src/internal/types/testdata/check/expr1.go
++++ b/src/internal/types/testdata/check/expr1.go
+@@ -90,8 +90,8 @@ func _(x, y float64, z myfloat64) {
+ 	x = x * y
+ 	x = x / y
+ 	x = x /* ERROR "not defined" */ % y
+-	x = x /* ERROR "operand x .* must be integer" */ << y
+-	x = x /* ERROR "operand x .* must be integer" */ >> y
++	x = x /* ERRORx `operand x .* must be integer` */ << y
++	x = x /* ERRORx `operand x .* must be integer` */ >> y
+ 
+ 	z = z + 1
+ 	z = z + -1
+@@ -102,8 +102,8 @@ func _(x, y float64, z myfloat64) {
+ 	z = z /* ERROR "mismatched types" */ * y
+ 	z = z /* ERROR "mismatched types" */ / y
+ 	z = z /* ERROR "mismatched types" */ % y
+-	z = z /* ERROR "operand z .* must be integer" */ << y
+-	z = z /* ERROR "operand z .* must be integer" */ >> y
++	z = z /* ERRORx `operand z .* must be integer` */ << y
++	z = z /* ERRORx `operand z .* must be integer` */ >> y
+ }
+ 
+ type mystring string
+diff --git a/src/internal/types/testdata/check/expr2.go b/src/internal/types/testdata/check/expr2.go
+index b00cfc21f8..ebb85eb233 100644
+--- a/src/internal/types/testdata/check/expr2.go
++++ b/src/internal/types/testdata/check/expr2.go
+@@ -9,7 +9,7 @@ package expr2
+ func _bool() {
+ 	const t = true == true
+ 	const f = true == false
+-	_ = t /* ERROR "operator .* not defined" */ < f
++	_ = t /* ERRORx `operator .* not defined` */ < f
+ 	_ = 0 == t /* ERROR "mismatched types untyped int and untyped bool" */
+ 	var b bool
+ 	var x, y float32
+@@ -40,7 +40,7 @@ func arrays() {
+ 	_ = c == d /* ERROR "mismatched types" */
+ 
+ 	var e [10]func() int
+-	_ = e /* ERROR "\[10\]func\(\) int cannot be compared" */ == e
++	_ = e /* ERROR "[10]func() int cannot be compared" */ == e
+ }
+ 
+ func structs() {
+diff --git a/src/internal/types/testdata/check/expr3.go b/src/internal/types/testdata/check/expr3.go
+index 8cf9482257..da8d54fd1d 100644
+--- a/src/internal/types/testdata/check/expr3.go
++++ b/src/internal/types/testdata/check/expr3.go
+@@ -28,22 +28,22 @@ func indexes() {
+ 	a0 = a[0]
+ 	_ = a0
+ 	var a1 int32
+-	a1 = a /* ERROR "cannot use .* in assignment" */ [1]
++	a1 = a /* ERRORx `cannot use .* in assignment` */ [1]
+ 	_ = a1
+ 
+ 	_ = a[9]
+-	_ = a[10 /* ERROR "index .* out of bounds" */ ]
++	_ = a[10 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = a[1 /* ERROR "overflows" */ <<100]
+ 	_ = a[1<< /* ERROR "constant shift overflow" */ 1000] // no out-of-bounds follow-on error
+ 	_ = a[10:]
+ 	_ = a[:10]
+ 	_ = a[10:10]
+-	_ = a[11 /* ERROR "index .* out of bounds" */ :]
+-	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
++	_ = a[11 /* ERRORx `index .* out of bounds` */ :]
++	_ = a[: 11 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = a[: 1 /* ERROR "overflows" */ <<100]
+ 	_ = a[:10:10]
+-	_ = a[:11 /* ERROR "index .* out of bounds" */ :10]
+-	_ = a[:10:11 /* ERROR "index .* out of bounds" */ ]
++	_ = a[:11 /* ERRORx `index .* out of bounds` */ :10]
++	_ = a[:10:11 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = a[10:0 /* ERROR "invalid slice indices" */ :10]
+ 	_ = a[0:10:0 /* ERROR "invalid slice indices" */ ]
+ 	_ = a[10:0 /* ERROR "invalid slice indices" */:0]
+@@ -51,30 +51,30 @@ func indexes() {
+ 
+ 	pa := &a
+ 	_ = pa[9]
+-	_ = pa[10 /* ERROR "index .* out of bounds" */ ]
++	_ = pa[10 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = pa[1 /* ERROR "overflows" */ <<100]
+ 	_ = pa[10:]
+ 	_ = pa[:10]
+ 	_ = pa[10:10]
+-	_ = pa[11 /* ERROR "index .* out of bounds" */ :]
+-	_ = pa[: 11 /* ERROR "index .* out of bounds" */ ]
++	_ = pa[11 /* ERRORx `index .* out of bounds` */ :]
++	_ = pa[: 11 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = pa[: 1 /* ERROR "overflows" */ <<100]
+ 	_ = pa[:10:10]
+-	_ = pa[:11 /* ERROR "index .* out of bounds" */ :10]
+-	_ = pa[:10:11 /* ERROR "index .* out of bounds" */ ]
++	_ = pa[:11 /* ERRORx `index .* out of bounds` */ :10]
++	_ = pa[:10:11 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = pa[10:0 /* ERROR "invalid slice indices" */ :10]
+ 	_ = pa[0:10:0 /* ERROR "invalid slice indices" */ ]
+ 	_ = pa[10:0 /* ERROR "invalid slice indices" */ :0]
+ 	_ = &pa /* ERROR "cannot take address" */ [:10]
+ 
+ 	var b [0]int
+-	_ = b[0 /* ERROR "index .* out of bounds" */ ]
++	_ = b[0 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = b[:]
+ 	_ = b[0:]
+ 	_ = b[:0]
+ 	_ = b[0:0]
+ 	_ = b[0:0:0]
+-	_ = b[1 /* ERROR "index .* out of bounds" */ :0:0]
++	_ = b[1 /* ERRORx `index .* out of bounds` */ :0:0]
+ 
+ 	var s []int
+ 	_ = s[- /* ERROR "negative" */ 1]
+@@ -95,7 +95,7 @@ func indexes() {
+ 	_ = &s /* ERROR "cannot take address" */ [:10]
+ 
+ 	var m map[string]int
+-	_ = m[0 /* ERROR "cannot use .* in map index" */ ]
++	_ = m[0 /* ERRORx `cannot use .* in map index` */ ]
+ 	_ = m /* ERROR "cannot slice" */ ["foo" : "bar"]
+ 	_ = m["foo"]
+ 	// ok is of type bool
+@@ -115,10 +115,10 @@ func indexes() {
+ 	t0 = t[0]
+ 	_ = t0
+ 	var t1 rune
+-	t1 = t /* ERROR "cannot use .* in assignment" */ [2]
++	t1 = t /* ERRORx `cannot use .* in assignment` */ [2]
+ 	_ = t1
+ 	_ = ("foo" + "bar")[5]
+-	_ = ("foo" + "bar")[6 /* ERROR "index .* out of bounds" */ ]
++	_ = ("foo" + "bar")[6 /* ERRORx `index .* out of bounds` */ ]
+ 
+ 	const c = "foo"
+ 	_ = c[- /* ERROR "negative" */ 1]
+@@ -128,9 +128,9 @@ func indexes() {
+ 	c0 = c[0]
+ 	_ = c0
+ 	var c2 float32
+-	c2 = c /* ERROR "cannot use .* in assignment" */ [2]
+-	_ = c[3 /* ERROR "index .* out of bounds" */ ]
+-	_ = ""[0 /* ERROR "index .* out of bounds" */ ]
++	c2 = c /* ERRORx `cannot use .* in assignment` */ [2]
++	_ = c[3 /* ERRORx `index .* out of bounds` */ ]
++	_ = ""[0 /* ERRORx `index .* out of bounds` */ ]
+ 	_ = c2
+ 
+ 	_ = s[1<<30] // no compile-time error here
+@@ -142,8 +142,8 @@ func indexes() {
+ 	var i, j int
+ 	ss = "foo"[1:2]
+ 	ss = "foo"[i:j]
+-	ms = "foo" /* ERROR "cannot use .* in assignment" */ [1:2]
+-	ms = "foo" /* ERROR "cannot use .* in assignment" */ [i:j]
++	ms = "foo" /* ERRORx `cannot use .* in assignment` */ [1:2]
++	ms = "foo" /* ERRORx `cannot use .* in assignment` */ [i:j]
+ 	_, _ = ss, ms
+ }
+ 
+@@ -157,10 +157,10 @@ func (*T) m() {}
+ func method_expressions() {
+ 	_ = T.a /* ERROR "no field or method" */
+ 	_ = T.x /* ERROR "has no method" */
+-	_ = T.m /* ERROR "invalid method expression T\.m \(needs pointer receiver \(\*T\)\.m\)" */
++	_ = T.m /* ERROR "invalid method expression T.m (needs pointer receiver (*T).m)" */
+ 	_ = (*T).m
+ 
+-	var f func(*T) = T.m /* ERROR "invalid method expression T\.m \(needs pointer receiver \(\*T\)\.m\)" */
++	var f func(*T) = T.m /* ERROR "invalid method expression T.m (needs pointer receiver (*T).m)" */
+ 	var g func(*T) = (*T).m
+ 	_, _ = f, g
+ 
+@@ -182,11 +182,11 @@ func struct_literals() {
+ 
+ 	// keyed elements
+ 	_ = T1{}
+-	_ = T1{a: 0, 1 /* ERROR "mixture of .* elements" */ }
++	_ = T1{a: 0, 1 /* ERRORx `mixture of .* elements` */ }
+ 	_ = T1{aa /* ERROR "unknown field" */ : 0}
+ 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
+ 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
+-	_ = T1{a: "foo" /* ERROR "cannot use .* in struct literal" */ }
++	_ = T1{a: "foo" /* ERRORx `cannot use .* in struct literal` */ }
+ 	_ = T1{c /* ERROR "unknown field" */ : 0}
+ 	_ = T1{T0: { /* ERROR "missing type" */ }} // struct literal element type may not be elided
+ 	_ = T1{T0: T0{}}
+@@ -197,7 +197,7 @@ func struct_literals() {
+ 	_ = T0{1, b /* ERROR "mixture" */ : 2, 3}
+ 	_ = T0{1, 2} /* ERROR "too few values" */
+ 	_ = T0{1, 2, 3, 4  /* ERROR "too many values" */ }
+-	_ = T0{1, "foo" /* ERROR "cannot use .* in struct literal" */, 3.4  /* ERROR "cannot use .*\(truncated\)" */}
++	_ = T0{1, "foo" /* ERRORx `cannot use .* in struct literal` */, 3.4  /* ERRORx `cannot use .*\(truncated\)` */}
+ 
+ 	// invalid type
+ 	type P *struct{
+@@ -218,26 +218,26 @@ func struct_literals() {
+ func array_literals() {
+ 	type A0 [0]int
+ 	_ = A0{}
+-	_ = A0{0 /* ERROR "index .* out of bounds" */}
+-	_ = A0{0 /* ERROR "index .* out of bounds" */ : 0}
++	_ = A0{0 /* ERRORx `index .* out of bounds` */}
++	_ = A0{0 /* ERRORx `index .* out of bounds` */ : 0}
+ 
+ 	type A1 [10]int
+ 	_ = A1{}
+ 	_ = A1{0, 1, 2}
+ 	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+-	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 /* ERROR "index .* out of bounds" */ }
++	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 /* ERRORx `index .* out of bounds` */ }
+ 	_ = A1{- /* ERROR "negative" */ 1: 0}
+ 	_ = A1{8: 8, 9}
+-	_ = A1{8: 8, 9, 10 /* ERROR "index .* out of bounds" */ }
++	_ = A1{8: 8, 9, 10 /* ERRORx `index .* out of bounds` */ }
+ 	_ = A1{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
+ 	_ = A1{5: 5, 6, 7, 3: 3, 4}
+ 	_ = A1{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
+-	_ = A1{10 /* ERROR "index .* out of bounds" */ : 10, 10 /* ERROR "index .* out of bounds" */ : 10}
++	_ = A1{10 /* ERRORx `index .* out of bounds` */ : 10, 10 /* ERRORx `index .* out of bounds` */ : 10}
+ 	_ = A1{5: 5, 6, 7, 3: 3, 1 /* ERROR "overflows" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
+ 	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
+ 	_ = A1{2.0}
+ 	_ = A1{2.1 /* ERROR "truncated" */ }
+-	_ = A1{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
++	_ = A1{"foo" /* ERRORx `cannot use .* in array or slice literal` */ }
+ 
+ 	// indices must be integer constants
+ 	i := 1
+@@ -255,7 +255,7 @@ func array_literals() {
+ 	var a13 [3]int
+ 	var a14 [4]int
+ 	a13 = a1
+-	a14 = a1 /* ERROR "cannot use .* in assignment" */
++	a14 = a1 /* ERRORx `cannot use .* in assignment` */
+ 	_, _ = a13, a14
+ 
+ 	a2 := [...]int{- /* ERROR "negative" */ 1: 0}
+@@ -303,7 +303,7 @@ func slice_literals() {
+ 	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "overflows" */ <<100: 4}
+ 	_ = S0{2.0}
+ 	_ = S0{2.1 /* ERROR "truncated" */ }
+-	_ = S0{"foo" /* ERROR "cannot use .* in array or slice literal" */ }
++	_ = S0{"foo" /* ERRORx `cannot use .* in array or slice literal` */ }
+ 
+ 	// indices must be resolved correctly
+ 	const index1 = 1
+@@ -356,8 +356,8 @@ func map_literals() {
+ 
+ 	_ = M0{}
+ 	_ = M0{1 /* ERROR "missing key" */ }
+-	_ = M0{1 /* ERROR "cannot use .* in map literal" */ : 2}
+-	_ = M0{"foo": "bar" /* ERROR "cannot use .* in map literal" */ }
++	_ = M0{1 /* ERRORx `cannot use .* in map literal` */ : 2}
++	_ = M0{"foo": "bar" /* ERRORx `cannot use .* in map literal` */ }
+ 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
+ 
+ 	_ = map[interface{}]int{2: 1, 2 /* ERROR "duplicate key" */ : 1}
+@@ -457,7 +457,7 @@ func type_asserts() {
+ 	_ = myok
+ 
+ 	var t I
+-	_ = t /* ERROR "use of .* outside type switch" */ .(type)
++	_ = t /* ERRORx `use of .* outside type switch` */ .(type)
+ 	_ = t /* ERROR "m has pointer receiver" */ .(T)
+ 	_ = t.(*T)
+ 	_ = t /* ERROR "missing method m" */ .(T1)
+@@ -493,62 +493,62 @@ func _calls() {
+ 	f1(0)
+ 	f1(x)
+ 	f1(10.0)
+-	f1() /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */
+-	f1(x, y /* ERROR "too many arguments in call to f1\n\thave \(int, float32\)\n\twant \(int\)" */ )
+-	f1(s /* ERROR "cannot use .* in argument" */ )
++	f1() /* ERROR "not enough arguments in call to f1\n\thave ()\n\twant (int)" */
++	f1(x, y /* ERROR "too many arguments in call to f1\n\thave (int, float32)\n\twant (int)" */ )
++	f1(s /* ERRORx `cannot use .* in argument` */ )
+ 	f1(x ... /* ERROR "cannot use ..." */ )
+ 	f1(g0 /* ERROR "used as value" */ ())
+ 	f1(g1())
+-	f1(g2 /* ERROR "too many arguments in call to f1\n\thave \(float32, string\)\n\twant \(int\)" */ ())
++	f1(g2 /* ERROR "too many arguments in call to f1\n\thave (float32, string)\n\twant (int)" */ ())
+ 
+-	f2() /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */
+-	f2(3.14) /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */
++	f2() /* ERROR "not enough arguments in call to f2\n\thave ()\n\twant (float32, string)" */
++	f2(3.14) /* ERROR "not enough arguments in call to f2\n\thave (number)\n\twant (float32, string)" */
+ 	f2(3.14, "foo")
+-	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
++	f2(x /* ERRORx `cannot use .* in argument` */ , "foo")
+ 	f2(g0 /* ERROR "used as value" */ ())
+-	f2(g1()) /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */
++	f2(g1()) /* ERROR "not enough arguments in call to f2\n\thave (int)\n\twant (float32, string)" */
+ 	f2(g2())
+ 
+ 	fs() /* ERROR "not enough arguments" */
+ 	fs(g0 /* ERROR "used as value" */ ())
+-	fs(g1 /* ERROR "cannot use .* in argument" */ ())
++	fs(g1 /* ERRORx `cannot use .* in argument` */ ())
+ 	fs(g2 /* ERROR "too many arguments" */ ())
+ 	fs(gs())
+ 
+ 	fv()
+ 	fv(1, 2.0, x)
+-	fv(s /* ERROR "cannot use .* in argument" */ )
++	fv(s /* ERRORx `cannot use .* in argument` */ )
+ 	fv(s...)
+ 	fv(x /* ERROR "cannot use" */ ...)
+ 	fv(1, s /* ERROR "too many arguments" */ ...)
+-	fv(gs /* ERROR "cannot use .* in argument" */ ())
+-	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
++	fv(gs /* ERRORx `cannot use .* in argument` */ ())
++	fv(gs /* ERRORx `cannot use .* in argument` */ ()...)
+ 
+ 	var t T
+ 	t.fm()
+ 	t.fm(1, 2.0, x)
+-	t.fm(s /* ERROR "cannot use .* in argument" */ )
++	t.fm(s /* ERRORx `cannot use .* in argument` */ )
+ 	t.fm(g1())
+ 	t.fm(1, s /* ERROR "too many arguments" */ ...)
+-	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
+-	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
++	t.fm(gs /* ERRORx `cannot use .* in argument` */ ())
++	t.fm(gs /* ERRORx `cannot use .* in argument` */ ()...)
+ 
+ 	T.fm(t, )
+ 	T.fm(t, 1, 2.0, x)
+-	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
++	T.fm(t, s /* ERRORx `cannot use .* in argument` */ )
+ 	T.fm(t, g1())
+ 	T.fm(t, 1, s /* ERROR "too many arguments" */ ...)
+-	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
+-	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
++	T.fm(t, gs /* ERRORx `cannot use .* in argument` */ ())
++	T.fm(t, gs /* ERRORx `cannot use .* in argument` */ ()...)
+ 
+ 	var i interface{ fm(x ...int) } = t
+ 	i.fm()
+ 	i.fm(1, 2.0, x)
+-	i.fm(s /* ERROR "cannot use .* in argument" */ )
++	i.fm(s /* ERRORx `cannot use .* in argument` */ )
+ 	i.fm(g1())
+ 	i.fm(1, s /* ERROR "too many arguments" */ ...)
+-	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
+-	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
++	i.fm(gs /* ERRORx `cannot use .* in argument` */ ())
++	i.fm(gs /* ERRORx `cannot use .* in argument` */ ()...)
+ 
+ 	fi()
+ 	fi(1, 2.0, x, 3.14, "foo")
+diff --git a/src/internal/types/testdata/check/go1_12.go b/src/internal/types/testdata/check/go1_12.go
+index 56c6d5a4c9..b47d3de147 100644
+--- a/src/internal/types/testdata/check/go1_12.go
++++ b/src/internal/types/testdata/check/go1_12.go
+@@ -31,6 +31,6 @@ const (
+ // signed shift counts
+ var (
+ 	s int
+-	_ = 1 << s // ERROR "invalid operation: signed shift count s \(variable of type int\) requires go1.13 or later"
++	_ = 1 << s // ERROR "invalid operation: signed shift count s (variable of type int) requires go1.13 or later"
+ 	_ = 1 >> s // ERROR "signed shift count"
+ )
+diff --git a/src/internal/types/testdata/check/importC.go b/src/internal/types/testdata/check/importC.go
+index a91feb653a..2cdf383a08 100644
+--- a/src/internal/types/testdata/check/importC.go
++++ b/src/internal/types/testdata/check/importC.go
+@@ -7,9 +7,9 @@
+ package importC
+ 
+ import "C"
+-import _ /* ERROR "cannot rename import "C"" */ "C"
+-import foo /* ERROR "cannot rename import "C"" */ "C"
+-import . /* ERROR "cannot rename import "C"" */ "C"
++import _ /* ERROR `cannot rename import "C"` */ "C"
++import foo /* ERROR `cannot rename import "C"` */ "C"
++import . /* ERROR `cannot rename import "C"` */ "C"
+ 
+ // Test cases extracted from issue #22090.
+ 
+diff --git a/src/internal/types/testdata/check/importdecl0/importdecl0b.go b/src/internal/types/testdata/check/importdecl0/importdecl0b.go
+index c5216a5dec..99e1d1ebdf 100644
+--- a/src/internal/types/testdata/check/importdecl0/importdecl0b.go
++++ b/src/internal/types/testdata/check/importdecl0/importdecl0b.go
+@@ -8,7 +8,7 @@ import "math"
+ import m "math"
+ 
+ import . "testing" // declares T in file scope
+-import . /* ERROR ".unsafe. imported and not used" */ "unsafe"
++import . /* ERRORx `.unsafe. imported and not used` */ "unsafe"
+ import . "fmt"     // declares Println in file scope
+ 
+ import (
+diff --git a/src/internal/types/testdata/check/importdecl1/importdecl1b.go b/src/internal/types/testdata/check/importdecl1/importdecl1b.go
+index fc39863764..49ac2d53e6 100644
+--- a/src/internal/types/testdata/check/importdecl1/importdecl1b.go
++++ b/src/internal/types/testdata/check/importdecl1/importdecl1b.go
+@@ -4,7 +4,7 @@
+ 
+ package importdecl1
+ 
+-import . /* ERROR ".unsafe. imported and not used" */ "unsafe"
++import . /* ERRORx ".unsafe. imported and not used" */ "unsafe"
+ 
+ type B interface {
+ 	A
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index c8c92ba1ef..6039df951e 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -59,7 +59,7 @@ func issue9473(a []int, b ...int) {
+ 	_ = append(f0())
+ 	_ = append(f0(), f0()...)
+ 	_ = append(f1())
+-	_ = append(f2 /* ERROR "cannot use .* in argument" */ ())
++	_ = append(f2 /* ERRORx `cannot use .* in argument` */ ())
+ 	_ = append(f2()... /* ERROR "cannot use ..." */ )
+ 	_ = append(f0(), f1 /* ERROR "multiple-value f1" */ ())
+ 	_ = append(f0(), f2 /* ERROR "multiple-value f2" */ ())
+@@ -70,7 +70,7 @@ func issue9473(a []int, b ...int) {
+ 	append_(f0())
+ 	append_(f0(), f0()...)
+ 	append_(f1())
+-	append_(f2 /* ERROR "cannot use .* in argument" */ ())
++	append_(f2 /* ERRORx `cannot use .* in argument` */ ())
+ 	append_(f2()... /* ERROR "cannot use ..." */ )
+ 	append_(f0(), f1 /* ERROR "multiple-value f1" */ ())
+ 	append_(f0(), f2 /* ERROR "multiple-value f2" */ ())
+@@ -91,7 +91,7 @@ func issue10979() {
+ 		nosuchtype /* ERROR "undefined: nosuchtype" */
+ 	}
+ 	type _ interface {
+-		fmt.Nosuchtype /* ERROR "undefined: fmt\.Nosuchtype" */
++		fmt.Nosuchtype /* ERROR "undefined: fmt.Nosuchtype" */
+ 	}
+ 	type _ interface {
+ 		nosuchpkg /* ERROR "undefined: nosuchpkg" */ .Nosuchtype
+@@ -133,35 +133,35 @@ func issue10260() {
+ 	)
+ 
+ 	var x I1
+-	x = T1 /* ERROR "cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\)" */ {}
+-	_ = x /* ERROR "impossible type assertion: x\.\(T1\)\n\tT1 does not implement I1 \(method foo has pointer receiver\)" */ .(T1)
++	x = T1 /* ERRORx `cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\)` */ {}
++	_ = x /* ERROR "impossible type assertion: x.(T1)\n\tT1 does not implement I1 (method foo has pointer receiver)" */ .(T1)
+ 
+ 	T1{}.foo /* ERROR "cannot call pointer method foo on T1" */ ()
+-	x.Foo /* ERROR "x.Foo undefined \(type I1 has no field or method Foo, but does have foo\)" */ ()
++	x.Foo /* ERROR "x.Foo undefined (type I1 has no field or method Foo, but does have foo)" */ ()
+ 
+-	_ = i2 /* ERROR "impossible type assertion: i2\.\(\*T1\)\n\t\*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)" */ .(*T1)
++	_ = i2 /* ERROR "impossible type assertion: i2.(*T1)\n\t*T1 does not implement I2 (wrong type for method foo)\n\t\thave foo()\n\t\twant foo(int)" */ .(*T1)
+ 
+-	i1 = i0 /* ERROR "cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\)" */
+-	i1 = t0 /* ERROR ".* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)" */
+-	i1 = i2 /* ERROR ".* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)" */
+-	i1 = t2 /* ERROR ".* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)" */
+-	i2 = i1 /* ERROR ".* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)" */
+-	i2 = t1 /* ERROR ".* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)" */
++	i1 = i0 /* ERRORx `cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\)` */
++	i1 = t0 /* ERRORx `.* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)` */
++	i1 = i2 /* ERRORx `.* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)` */
++	i1 = t2 /* ERRORx `.* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)` */
++	i2 = i1 /* ERRORx `.* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)` */
++	i2 = t1 /* ERRORx `.* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)` */
+ 
+-	_ = func() I1 { return i0 /* ERROR "cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\)" */ }
+-	_ = func() I1 { return t0 /* ERROR ".* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)" */ }
+-	_ = func() I1 { return i2 /* ERROR ".* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)" */ }
+-	_ = func() I1 { return t2 /* ERROR ".* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)" */ }
+-	_ = func() I2 { return i1 /* ERROR ".* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)" */ }
+-	_ = func() I2 { return t1 /* ERROR ".* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)" */ }
++	_ = func() I1 { return i0 /* ERRORx `cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\)` */ }
++	_ = func() I1 { return t0 /* ERRORx `.* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)` */ }
++	_ = func() I1 { return i2 /* ERRORx `.* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)` */ }
++	_ = func() I1 { return t2 /* ERRORx `.* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)` */ }
++	_ = func() I2 { return i1 /* ERRORx `.* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)` */ }
++	_ = func() I2 { return t1 /* ERRORx `.* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)` */ }
+ 
+ 	// a few more - less exhaustive now
+ 
+ 	f := func(I1, I2){}
+ 	f(i0 /* ERROR "missing method foo" */ , i1 /* ERROR "wrong type for method foo" */ )
+ 
+-	_ = [...]I1{i0 /* ERROR "cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\)" */ }
+-	_ = [...]I1{i2 /* ERROR "cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)" */ }
++	_ = [...]I1{i0 /* ERRORx `cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\)` */ }
++	_ = [...]I1{i2 /* ERRORx `cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)` */ }
+ 	_ = []I1{i0 /* ERROR "missing method foo" */ }
+ 	_ = []I1{i2 /* ERROR "wrong type for method foo" */ }
+ 	_ = map[int]I1{0: i0 /* ERROR "missing method foo" */ }
+@@ -282,7 +282,7 @@ type issue25301b /* ERROR "invalid recursive type" */ = interface {
+ }
+ 
+ type issue25301c interface {
+-	notE // ERROR "non-interface type struct\{\}"
++	notE // ERROR "non-interface type struct{}"
+ }
+ 
+ type notE = struct{}
+@@ -317,7 +317,7 @@ var issue27346 = [][n /* ERROR "undefined" */ ]int{
+ 	0: {},
+ }
+ 
+-var issue22467 = map[int][... /* ERROR "invalid use of ..." */ ]int{0: {}}
++var issue22467 = map[int][... /* ERROR "invalid use of [...] array" */ ]int{0: {}}
+ 
+ // Test that invalid use of ... in parameter lists is recognized
+ // (issue #28281).
+@@ -334,7 +334,7 @@ func issue28281g() (... /* ERROR "can only use ... with final parameter" */ TT)
+ func issue26234a(f *syn.Prog) {
+ 	// The error message below should refer to the actual package name (syntax)
+ 	// not the local package name (syn).
+-	f.foo /* ERROR "f\.foo undefined \(type \*syntax\.Prog has no field or method foo\)" */
++	f.foo /* ERROR "f.foo undefined (type *syntax.Prog has no field or method foo)" */
+ }
+ 
+ type T struct {
+@@ -351,19 +351,19 @@ func issue26234b(x T) {
+ }
+ 
+ func issue26234c() {
+-	T.x /* ERROR "T.x undefined \(type T has no method x\)" */ ()
++	T.x /* ERROR "T.x undefined (type T has no method x)" */ ()
+ }
+ 
+ func issue35895() {
+ 	// T is defined in this package, don't qualify its name with the package name.
+-	var _ T = 0 // ERROR "cannot use 0 \(untyped int constant\) as T"
++	var _ T = 0 // ERROR "cannot use 0 (untyped int constant) as T"
+ 
+ 	// There is only one package with name syntax imported, only use the (global) package name in error messages.
+-	var _ *syn.Prog = 0 // ERROR "cannot use 0 \(untyped int constant\) as \*syntax.Prog"
++	var _ *syn.Prog = 0 // ERROR "cannot use 0 (untyped int constant) as *syntax.Prog"
+ 
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+-	var _ t1.Template = t2 /* ERROR "cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template" */ .Template{}
++	var _ t1.Template = t2 /* ERRORx `cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template` */ .Template{}
+ }
+ 
+ func issue42989(s uint) {
+diff --git a/src/internal/types/testdata/check/issues1.go b/src/internal/types/testdata/check/issues1.go
+index efde922cd2..11eed7d273 100644
+--- a/src/internal/types/testdata/check/issues1.go
++++ b/src/internal/types/testdata/check/issues1.go
+@@ -33,12 +33,12 @@ type C[T any] interface {
+ 
+ // using type bound C
+ func _[T C[T]](x *T) {
+-	x.m /* ERROR "x\.m undefined" */ ()
++	x.m /* ERROR "x.m undefined" */ ()
+ }
+ 
+ // using an interface literal as bound
+ func _[T interface{ m() }](x *T) {
+-	x.m /* ERROR "x\.m undefined" */ ()
++	x.m /* ERROR "x.m undefined" */ ()
+ }
+ 
+ func f2[_ interface{ m1(); m2() }]() {}
+diff --git a/src/internal/types/testdata/check/methodsets.go b/src/internal/types/testdata/check/methodsets.go
+index 27f6d31f88..5b3e4a296c 100644
+--- a/src/internal/types/testdata/check/methodsets.go
++++ b/src/internal/types/testdata/check/methodsets.go
+@@ -29,7 +29,7 @@ type T3 struct {
+ func _() {
+ 	var (
+ 		_ func(T0) = T0.v0
+-		_ = T0.p0 /* ERROR "invalid method expression T0\.p0 \(needs pointer receiver \(\*T0\)\.p0\)" */
++		_ = T0.p0 /* ERROR "invalid method expression T0.p0 (needs pointer receiver (*T0).p0)" */
+ 
+ 		_ func (*T0) = (*T0).v0
+ 		_ func (*T0) = (*T0).p0
+@@ -40,7 +40,7 @@ func _() {
+ 		_ func(T2) = T2.p2
+ 
+ 		_ func(T3) = T3.v0
+-		_ func(T3) = T3.p0 /* ERROR "invalid method expression T3\.p0 \(needs pointer receiver \(\*T3\)\.p0\)" */
++		_ func(T3) = T3.p0 /* ERROR "invalid method expression T3.p0 (needs pointer receiver (*T3).p0)" */
+ 		_ func(T3) = T3.v1
+ 		_ func(T3) = T3.p1
+ 		_ func(T3) = T3.v2
+@@ -196,9 +196,9 @@ func issue5918() {
+ 		_ func(error) string = error.Error
+ 
+ 		perr = &err
+-		_ = perr.Error /* ERROR "type \*error is pointer to interface, not interface" */ ()
+-		_ func() string = perr.Error /* ERROR "type \*error is pointer to interface, not interface" */
+-		_ func(*error) string = (*error).Error /* ERROR "type \*error is pointer to interface, not interface" */
++		_ = perr.Error /* ERROR "type *error is pointer to interface, not interface" */ ()
++		_ func() string = perr.Error /* ERROR "type *error is pointer to interface, not interface" */
++		_ func(*error) string = (*error).Error /* ERROR "type *error is pointer to interface, not interface" */
+ 	)
+ 
+ 	type T *interface{ m() int }
+diff --git a/src/internal/types/testdata/check/shifts.go b/src/internal/types/testdata/check/shifts.go
+index a9a3e34725..6ae3985aba 100644
+--- a/src/internal/types/testdata/check/shifts.go
++++ b/src/internal/types/testdata/check/shifts.go
+@@ -259,26 +259,26 @@ func shifts7() {
+ func shifts8() {
+ 	// shift examples from shift discussion: better error messages
+ 	var s uint
+-	_ = 1.0 /* ERROR "shifted operand 1.0 \(type float64\) must be integer" */ <<s == 1
+-	_ = 1.0 /* ERROR "shifted operand 1.0 \(type float64\) must be integer" */ <<s == 1.0
+-	_ = 1 /* ERROR "shifted operand 1 \(type float64\) must be integer" */ <<s == 1.0
+-	_ = 1 /* ERROR "shifted operand 1 \(type float64\) must be integer" */ <<s + 1.0 == 1
+-	_ = 1 /* ERROR "shifted operand 1 \(type float64\) must be integer" */ <<s + 1.1 == 1
+-	_ = 1 /* ERROR "shifted operand 1 \(type float64\) must be integer" */ <<s + 1 == 1.0
++	_ = 1.0 /* ERROR "shifted operand 1.0 (type float64) must be integer" */ <<s == 1
++	_ = 1.0 /* ERROR "shifted operand 1.0 (type float64) must be integer" */ <<s == 1.0
++	_ = 1 /* ERROR "shifted operand 1 (type float64) must be integer" */ <<s == 1.0
++	_ = 1 /* ERROR "shifted operand 1 (type float64) must be integer" */ <<s + 1.0 == 1
++	_ = 1 /* ERROR "shifted operand 1 (type float64) must be integer" */ <<s + 1.1 == 1
++	_ = 1 /* ERROR "shifted operand 1 (type float64) must be integer" */ <<s + 1 == 1.0
+ 
+ 	// additional cases
+-	_ = complex(1.0 /* ERROR "shifted operand 1.0 \(type float64\) must be integer" */ <<s, 1)
+-	_ = complex(1.0, 1 /* ERROR "shifted operand 1 \(type float64\) must be integer" */ <<s)
++	_ = complex(1.0 /* ERROR "shifted operand 1.0 (type float64) must be integer" */ <<s, 1)
++	_ = complex(1.0, 1 /* ERROR "shifted operand 1 (type float64) must be integer" */ <<s)
+ 
+ 	_ = int(1.<<s)
+-	_ = int(1.1 /* ERROR "shifted operand .* must be integer" */ <<s)
+-	_ = float32(1 /* ERROR "shifted operand .* must be integer" */ <<s)
+-	_ = float32(1. /* ERROR "shifted operand .* must be integer" */ <<s)
+-	_ = float32(1.1 /* ERROR "shifted operand .* must be integer" */ <<s)
++	_ = int(1.1 /* ERRORx `shifted operand .* must be integer` */ <<s)
++	_ = float32(1 /* ERRORx `shifted operand .* must be integer` */ <<s)
++	_ = float32(1. /* ERRORx `shifted operand .* must be integer` */ <<s)
++	_ = float32(1.1 /* ERRORx `shifted operand .* must be integer` */ <<s)
+ 	// TODO(gri) the error messages for these two are incorrect - disabled for now
+ 	// _ = complex64(1<<s)
+ 	// _ = complex64(1.<<s)
+-	_ = complex64(1.1 /* ERROR "shifted operand .* must be integer" */ <<s)
++	_ = complex64(1.1 /* ERRORx `shifted operand .* must be integer` */ <<s)
+ }
+ 
+ func shifts9() {
+@@ -382,7 +382,7 @@ func issue21727() {
+ 	var a = make([]int, 1<<s + 1.2 /* ERROR "truncated to int" */ )
+ 	var _ = a[1<<s - 2.3 /* ERROR "truncated to int" */ ]
+ 	var _ int = 1<<s + 3.4 /* ERROR "truncated to int" */
+-	var _ = string(1 /* ERROR "shifted operand 1 .* must be integer" */ << s)
++	var _ = string(1 /* ERRORx `shifted operand 1 .* must be integer` */ << s)
+ 	var _ = string(1.0 /* ERROR "cannot convert" */ << s)
+ }
+ 
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index b41ab73c78..5232285419 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -29,19 +29,19 @@ func assignments0() (int, int) {
+ 
+ 	a, b, c = <- /* ERROR "assignment mismatch: 3 variables but 1 value" */ ch
+ 
+-	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
+-	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
++	return /* ERROR "not enough return values\n\thave ()\n\twant (int, int)" */
++	return 1 /* ERROR "not enough return values\n\thave (number)\n\twant (int, int)" */
+ 	return 1, 2
+-	return 1, 2, 3 /* ERROR "too many return values\n\thave \(number, number, number\)\n\twant \(int, int\)" */
++	return 1, 2, 3 /* ERROR "too many return values\n\thave (number, number, number)\n\twant (int, int)" */
+ }
+ 
+ func assignments1() {
+ 	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
+-	b = i /* ERROR "cannot use .* in assignment" */
+-	i = f /* ERROR "cannot use .* in assignment" */
+-	f = c /* ERROR "cannot use .* in assignment" */
+-	c = s /* ERROR "cannot use .* in assignment" */
+-	s = b /* ERROR "cannot use .* in assignment" */
++	b = i /* ERRORx `cannot use .* in assignment` */
++	i = f /* ERRORx `cannot use .* in assignment` */
++	f = c /* ERRORx `cannot use .* in assignment` */
++	c = s /* ERRORx `cannot use .* in assignment` */
++	s = b /* ERRORx `cannot use .* in assignment` */
+ 
+ 	v0, v1, v2 := 1 /* ERROR "assignment mismatch" */ , 2, 3, 4
+ 	_, _, _ = v0, v1, v2
+@@ -70,7 +70,7 @@ func assignments1() {
+ 	// test cases for issue 5800
+ 	var (
+ 		_ int = nil /* ERROR "cannot use nil as int value in variable declaration" */
+-		_ [10]int = nil /* ERROR "cannot use nil as \[10\]int value in variable declaration" */
++		_ [10]int = nil /* ERROR "cannot use nil as [10]int value in variable declaration" */
+ 		_ []byte = nil
+ 		_ struct{} = nil /* ERROR "cannot use nil as struct{} value in variable declaration" */
+ 		_ func() = nil
+@@ -182,7 +182,7 @@ func sends() {
+ 	var x int
+ 	x <- /* ERROR "cannot send" */ x
+ 	rch <- /* ERROR "cannot send" */ x
+-	ch <- "foo" /* ERROR "cannot use .* in send" */
++	ch <- "foo" /* ERRORx `cannot use .* in send` */
+ 	ch <- x
+ }
+ 
+@@ -383,13 +383,13 @@ func returns0() {
+ func returns1(x float64) (int, *float64) {
+ 	return 0, &x
+ 	return /* ERROR "not enough return values" */
+-	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
++	return "foo" /* ERRORx `cannot .* in return statement` */, x /* ERRORx `cannot use .* in return statement` */
+ 	return 0, &x, 1 /* ERROR "too many return values" */
+ }
+ 
+ func returns2() (a, b int) {
+ 	return
+-	return 1, "foo" /* ERROR "cannot use .* in return statement" */
++	return 1, "foo" /* ERRORx `cannot use .* in return statement` */
+ 	return 1, 2, 3 /* ERROR "too many return values" */
+ 	{
+ 		type a int
+@@ -431,7 +431,7 @@ func switches0() {
+ 
+ 	switch int32(x) {
+ 	case 1, 2:
+-	case x /* ERROR "invalid case x in switch on int32\(x\) \(mismatched types int and int32\)" */ :
++	case x /* ERROR "invalid case x in switch on int32(x) (mismatched types int and int32)" */ :
+ 	}
+ 
+ 	switch x {
+@@ -611,7 +611,7 @@ func switches2() {
+ 	// untyped constants are converted to default types
+ 	switch 1<<63-1 {
+ 	}
+-	switch 1 /* ERROR "cannot use .* as int value.*\(overflows\)" */ << 63 {
++	switch 1 /* ERRORx `cannot use .* as int value.*\(overflows\)` */ << 63 {
+ 	}
+ 	var x int
+ 	switch 1.0 {
+@@ -633,9 +633,9 @@ func switches2() {
+ }
+ 
+ func issue11667() {
+-	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
++	switch 9223372036854775808 /* ERRORx `cannot use .* as int value.*\(overflows\)` */ {
+ 	}
+-	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
++	switch 9223372036854775808 /* ERRORx `cannot use .* as int value.*\(overflows\)` */ {
+ 	case 9223372036854775808:
+ 	}
+ 	var x int
+@@ -701,16 +701,16 @@ func typeswitches() {
+ 
+ 	switch t := x.(type) {
+ 	case nil:
+-		var v bool = t /* ERROR "cannot use .* in variable declaration" */
++		var v bool = t /* ERRORx `cannot use .* in variable declaration` */
+ 		_ = v
+ 	case int:
+ 		var v int = t
+ 		_ = v
+ 	case float32, complex64:
+-		var v float32 = t /* ERROR "cannot use .* in variable declaration" */
++		var v float32 = t /* ERRORx `cannot use .* in variable declaration` */
+ 		_ = v
+ 	default:
+-		var v float32 = t /* ERROR "cannot use .* in variable declaration" */
++		var v float32 = t /* ERRORx `cannot use .* in variable declaration` */
+ 		_ = v
+ 	}
+ 
+@@ -726,7 +726,7 @@ func typeswitches() {
+ 	{
+ 		x := 1
+ 		v := 2
+-		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
++		switch v /* ERROR "v (variable of type int) is not an interface" */ .(type) {
+ 		case int:
+ 			println(x)
+ 			println(x / 0 /* ERROR "invalid operation: division by zero" */)
+@@ -832,7 +832,7 @@ func rangeloops1() {
+ 		ii = i
+ 		_ = ii
+ 		var xx float64
+-		xx = x /* ERROR "cannot use .* in assignment" */
++		xx = x /* ERRORx `cannot use .* in assignment` */
+ 		_ = xx
+ 	}
+ 	var ii int
+@@ -883,7 +883,7 @@ func rangeloops1() {
+ 	for range m {}
+ 	for k := range m {
+ 		var kk int32
+-		kk = k /* ERROR "cannot use .* in assignment" */
++		kk = k /* ERRORx `cannot use .* in assignment` */
+ 		_ = kk
+ 	}
+ 	for k, v := range m {
+@@ -925,17 +925,17 @@ func rangeloops2() {
+ 	var a [10]int
+ 	var i I
+ 	_ = i
+-	for i /* ERROR "cannot use .* in assignment" */ = range a {}
+-	for i /* ERROR "cannot use .* in assignment" */ = range &a {}
+-	for i /* ERROR "cannot use .* in assignment" */ = range a[:] {}
++	for i /* ERRORx `cannot use .* in assignment` */ = range a {}
++	for i /* ERRORx `cannot use .* in assignment` */ = range &a {}
++	for i /* ERRORx `cannot use .* in assignment` */ = range a[:] {}
+ 
+ 	var s string
+ 	var r R
+ 	_ = r
+-	for i /* ERROR "cannot use .* in assignment" */ = range s {}
+-	for i /* ERROR "cannot use .* in assignment" */ = range "foo" {}
+-	for _, r /* ERROR "cannot use .* in assignment" */ = range s {}
+-	for _, r /* ERROR "cannot use .* in assignment" */ = range "foo" {}
++	for i /* ERRORx `cannot use .* in assignment` */ = range s {}
++	for i /* ERRORx `cannot use .* in assignment` */ = range "foo" {}
++	for _, r /* ERRORx `cannot use .* in assignment` */ = range s {}
++	for _, r /* ERRORx `cannot use .* in assignment` */ = range "foo" {}
+ }
+ 
+ func issue6766b() {
+diff --git a/src/internal/types/testdata/check/typeinference.go b/src/internal/types/testdata/check/typeinference.go
+index 17447c4ed1..0478d9390f 100644
+--- a/src/internal/types/testdata/check/typeinference.go
++++ b/src/internal/types/testdata/check/typeinference.go
+@@ -11,7 +11,7 @@ type Tb[P ~*Q, Q any] int
+ func _() {
+ 	var x Tb /* ERROR "got 1 arguments" */ [*int]
+ 	var y Tb[*int, int]
+-	x = y /* ERROR "cannot use y .* in assignment" */
++	x = y /* ERRORx `cannot use y .* in assignment` */
+ 	_ = x
+ }
+ 
+@@ -21,8 +21,8 @@ func _() {
+ 	var x Tr /* ERROR "got 1 arguments" */ [string]
+ 	var y Tr[string, ***string, **string, *string]
+ 	var z Tr[int, ***int, **int, *int]
+-	x = y /* ERROR "cannot use y .* in assignment" */
+-	x = z // ERROR "cannot use z .* as Tr"
++	x = y /* ERRORx `cannot use y .* in assignment` */
++	x = z // ERRORx `cannot use z .* as Tr`
+ 	_ = x
+ }
+ 
+diff --git a/src/internal/types/testdata/check/typeinst1.go b/src/internal/types/testdata/check/typeinst1.go
+index 63de79a4a0..0e09e70e74 100644
+--- a/src/internal/types/testdata/check/typeinst1.go
++++ b/src/internal/types/testdata/check/typeinst1.go
+@@ -230,10 +230,10 @@ type I012 interface {
+ }
+ 
+ func f012[T I012]() {}
+-var _ = f012[int /* ERROR "cannot satisfy I012.*empty type set" */ ]
+-var _ = f012[bool /* ERROR "cannot satisfy I012.*empty type set" */ ]
+-var _ = f012[string /* ERROR "cannot satisfy I012.*empty type set" */ ]
+-var _ = f012[float64 /* ERROR "cannot satisfy I012.*empty type set" */ ]
++var _ = f012[int /* ERRORx `cannot satisfy I012.*empty type set` */ ]
++var _ = f012[bool /* ERRORx `cannot satisfy I012.*empty type set` */ ]
++var _ = f012[string /* ERRORx `cannot satisfy I012.*empty type set` */ ]
++var _ = f012[float64 /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+ 
+ type I12 interface {
+ 	E1
+@@ -273,7 +273,7 @@ func gg[T any]() {}
+ func hh[T ~int]() {}
+ 
+ func _[T none]() {
+-	_ = ff[int /* ERROR "cannot satisfy none \(empty type set\)" */ ]
++	_ = ff[int /* ERROR "cannot satisfy none (empty type set)" */ ]
+ 	_ = ff[T]  // pathological but ok because T's type set is empty, too
+ 	_ = gg[int]
+ 	_ = gg[T]
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index bf18895dc4..9a570e7e66 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -35,7 +35,7 @@ var _ = reverse /* ERROR "cannot use generic function reverse" */
+ var _ = reverse[int, float32 /* ERROR "got 2 type arguments" */ ] ([]int{1, 2, 3})
+ var _ = reverse[int]([ /* ERROR "cannot use" */ ]float32{1, 2, 3})
+ var f = reverse[chan int]
+-var _ = f(0 /* ERROR "cannot use 0 .* as \[\]chan int" */ )
++var _ = f(0 /* ERRORx `cannot use 0 .* as \[\]chan int` */ )
+ 
+ func swap[A, B any](a A, b B) (B, A) { return b, a }
+ 
+@@ -75,13 +75,13 @@ func new[T any]() *T {
+ var _ = new /* ERROR "cannot use generic function new" */
+ var _ *int = new[int]()
+ 
+-func _[T any](map[T /* ERROR "invalid map key type T \(missing comparable constraint\)" */]int) {} // w/o constraint we don't know if T is comparable
++func _[T any](map[T /* ERROR "invalid map key type T (missing comparable constraint)" */]int) {} // w/o constraint we don't know if T is comparable
+ 
+-func f1[T1 any](struct{T1 /* ERROR "cannot be a .* type parameter" */ }) int { panic(0) }
++func f1[T1 any](struct{T1 /* ERRORx `cannot be a .* type parameter` */ }) int { panic(0) }
+ var _ = f1[int](struct{T1}{})
+ type T1 = int
+ 
+-func f2[t1 any](struct{t1 /* ERROR "cannot be a .* type parameter" */ ; x float32}) int { panic(0) }
++func f2[t1 any](struct{t1 /* ERRORx `cannot be a .* type parameter` */ ; x float32}) int { panic(0) }
+ var _ = f2[t1](struct{t1; x float32}{})
+ type t1 = int
+ 
+@@ -230,7 +230,7 @@ func _[
+         for _, _ = range s1 {}
+ 
+         var s2 S2
+-        for range s2 /* ERROR "cannot range over s2.*no core type" */ {}
++        for range s2 /* ERRORx `cannot range over s2.*no core type` */ {}
+ 
+         var a0 []int
+         for range a0 {}
+@@ -243,7 +243,7 @@ func _[
+         for _, _ = range a1 {}
+ 
+         var a2 A2
+-        for range a2 /* ERROR "cannot range over a2.*no core type" */ {}
++        for range a2 /* ERRORx `cannot range over a2.*no core type` */ {}
+ 
+         var p0 *[10]int
+         for range p0 {}
+@@ -256,7 +256,7 @@ func _[
+         for _, _ = range p1 {}
+ 
+         var p2 P2
+-        for range p2 /* ERROR "cannot range over p2.*no core type" */ {}
++        for range p2 /* ERRORx `cannot range over p2.*no core type` */ {}
+ 
+         var m0 map[string]int
+         for range m0 {}
+@@ -269,7 +269,7 @@ func _[
+         for _, _ = range m1 {}
+ 
+         var m2 M2
+-        for range m2 /* ERROR "cannot range over m2.*no core type" */ {}
++        for range m2 /* ERRORx `cannot range over m2.*no core type` */ {}
+ }
+ 
+ // type inference checks
+diff --git a/src/internal/types/testdata/check/vardecl.go b/src/internal/types/testdata/check/vardecl.go
+index a386fd822c..726b619361 100644
+--- a/src/internal/types/testdata/check/vardecl.go
++++ b/src/internal/types/testdata/check/vardecl.go
+@@ -25,39 +25,39 @@ var _ = f /* ERROR "used as value" */ ()
+ // Identifier and expression arity must match.
+ var _, _ = 1, 2
+ var _ = 1, 2 /* ERROR "extra init expr 2" */
+-var _, _ = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
++var _, _ = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
+ var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+ var _ = g /* ERROR "multiple-value g" */ ()
+ var _, _ = g()
+-var _, _, _ = g /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ()
++var _, _, _ = g /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ()
+ 
+ var _ = m["foo"]
+ var _, _ = m["foo"]
+-var _, _, _ = m  /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ["foo"]
++var _, _, _ = m  /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ["foo"]
+ 
+ var _, _ int = 1, 2
+ var _ int = 1, 2 /* ERROR "extra init expr 2" */
+-var _, _ int = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
++var _, _ int = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
+ var _, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+ 
+ var (
+ 	_, _ = 1, 2
+ 	_ = 1, 2 /* ERROR "extra init expr 2" */
+-	_, _ = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
++	_, _ = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
+ 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
+ 
+ 	_ = g /* ERROR "multiple-value g" */ ()
+ 	_, _ = g()
+-	_, _, _ = g /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ()
++	_, _, _ = g /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ()
+ 
+ 	_ = m["foo"]
+ 	_, _ = m["foo"]
+-	_, _, _ = m /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ["foo"]
++	_, _, _ = m /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ["foo"]
+ 
+ 	_, _ int = 1, 2
+ 	_ int = 1, 2 /* ERROR "extra init expr 2" */
+-	_, _ int = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
++	_, _ int = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
+ 	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
+ )
+ 
+@@ -171,7 +171,7 @@ func _() {
+ func _() {
+ 	var a, b, c int
+ 	var x, y int
+-	x, y = a /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ , b, c
++	x, y = a /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ , b, c
+ 	_ = x
+ 	_ = y
+ }
+diff --git a/src/internal/types/testdata/examples/constraints.go b/src/internal/types/testdata/examples/constraints.go
+index dcc3a81134..4c97a40097 100644
+--- a/src/internal/types/testdata/examples/constraints.go
++++ b/src/internal/types/testdata/examples/constraints.go
+@@ -29,7 +29,7 @@ type (
+ 
+ 	// For now we do not permit interfaces with methods in unions.
+ 	_ interface{~ /* ERROR "invalid use of ~" */ any}
+-	_ interface{int|interface /* ERROR "cannot use .* in union" */ { m() }}
++	_ interface{int|interface /* ERRORx `cannot use .* in union` */ { m() }}
+ )
+ 
+ type (
+diff --git a/src/internal/types/testdata/examples/inference.go b/src/internal/types/testdata/examples/inference.go
+index 128ad9b3fe..2b16193e9b 100644
+--- a/src/internal/types/testdata/examples/inference.go
++++ b/src/internal/types/testdata/examples/inference.go
+@@ -24,13 +24,13 @@ func _() {
+ 	_ = min(x, 1)
+ 	_ = min(x, 1.0)
+ 	_ = min(1, 2)
+-	_ = min(1, 2.3 /* ERROR "default type float64 .* does not match" */)
++	_ = min(1, 2.3 /* ERRORx `default type float64 .* does not match` */)
+ 
+ 	var y float64
+ 	_ = min(1, y)
+ 	_ = min(1.2, y)
+ 	_ = min(1.2, 3.4)
+-	_ = min(1.2, 3 /* ERROR "default type int .* does not match" */)
++	_ = min(1.2, 3 /* ERRORx `default type int .* does not match` */)
+ 
+ 	var s string
+ 	_ = min(s, "foo")
+@@ -75,7 +75,7 @@ func _() {
+ 	// and then help infer another type argument via constraint
+ 	// type inference.
+ 	related1(si, 0)
+-	related1(si, "foo" /* ERROR "cannot use "foo"" */)
++	related1(si, "foo" /* ERROR `cannot use "foo"` */)
+ }
+ 
+ func related2[Elem any, Slice interface{ []Elem }](e Elem, s Slice) {}
+diff --git a/src/internal/types/testdata/examples/methods.go b/src/internal/types/testdata/examples/methods.go
+index ffa1391d04..e92dc5028b 100644
+--- a/src/internal/types/testdata/examples/methods.go
++++ b/src/internal/types/testdata/examples/methods.go
+@@ -39,7 +39,7 @@ func (t T1[[ /* ERROR "must be an identifier" */ ]int]) m2() {}
+ // and usually should be avoided. There are some notable exceptions; e.g.,
+ // sometimes it makes sense to use the identifier "copy" which happens to
+ // also be the name of a predeclared built-in function.
+-func (t T1[int]) m3() { var _ int = 42 /* ERROR "cannot use 42 .* as int" */ }
++func (t T1[int]) m3() { var _ int = 42 /* ERRORx `cannot use 42 .* as int` */ }
+ 
+ // The names of the type parameters used in a parameterized receiver
+ // type don't have to match the type parameter names in the declaration
+@@ -58,7 +58,7 @@ func (t T1[X]) m4() X { return t.a }
+ // simply that such receiver type expressions perform two tasks simultaneously:
+ // they declare the (local) type parameters and then use them to instantiate
+ // the receiver type. Forgetting to provide a type parameter leads to an error.
+-func (t T1 /* ERROR "generic type .* without instantiation" */ ) m5() {}
++func (t T1 /* ERRORx `generic type .* without instantiation` */ ) m5() {}
+ 
+ // However, sometimes we don't need the type parameter, and thus it is
+ // inconvenient to have to choose a name. Since the receiver type expression
+diff --git a/src/internal/types/testdata/examples/types.go b/src/internal/types/testdata/examples/types.go
+index 43cb913da5..562080b928 100644
+--- a/src/internal/types/testdata/examples/types.go
++++ b/src/internal/types/testdata/examples/types.go
+@@ -106,7 +106,7 @@ var _ = T /* ERROR "cannot use generic type T" */ (0)
+ 
+ // In type context, generic (parameterized) types cannot be parenthesized before
+ // being instantiated. See also NOTES entry from 12/4/2019.
+-var _ (T /* ERROR "cannot use generic type T" */ )[ /* ERROR "unexpected \[|expected ';'" */ int]
++var _ (T /* ERROR "cannot use generic type T" */ )[ /* ERRORx `unexpected \[|expected ';'` */ int]
+ 
+ // All types may be parameterized, including interfaces.
+ type I1[T any] interface{
+@@ -114,7 +114,7 @@ type I1[T any] interface{
+ }
+ 
+ // There is no such thing as a variadic generic type.
+-type _[T ... /* ERROR "invalid use of ..." */ any] struct{}
++type _[T ... /* ERROR "invalid use of '...'" */ any] struct{}
+ 
+ // Generic interfaces may be embedded as one would expect.
+ type I2 interface {
+@@ -220,11 +220,11 @@ type B2[_, _ any] any
+ 
+ func _[T1 B0]() {}
+ func _[T1 B1[T1]]() {}
+-func _[T1 B2 /* ERROR "cannot use generic type .* without instantiation" */ ]() {}
++func _[T1 B2 /* ERRORx `cannot use generic type .* without instantiation` */ ]() {}
+ 
+ func _[T1, T2 B0]() {}
+ func _[T1 B1[T1], T2 B1[T2]]() {}
+-func _[T1, T2 B2 /* ERROR "cannot use generic type .* without instantiation" */ ]() {}
++func _[T1, T2 B2 /* ERRORx `cannot use generic type .* without instantiation` */ ]() {}
+ 
+ func _[T1 B0, T2 B1[T2]]() {} // here B1 applies to T2
+ 
+diff --git a/src/internal/types/testdata/examples/typesets.go b/src/internal/types/testdata/examples/typesets.go
+index f6e95f561a..93eada730a 100644
+--- a/src/internal/types/testdata/examples/typesets.go
++++ b/src/internal/types/testdata/examples/typesets.go
+@@ -55,5 +55,5 @@ func _[T string](x T) T {
+ }
+ 
+ func _[T int | string](x T) T {
+-	return x /* ERROR "constrained by int|string" */ * x
++	return x /* ERROR "constrained by int | string" */ * x
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/54942.go b/src/internal/types/testdata/fixedbugs/54942.go
+index 74c8d3e47f..b9a5cce478 100644
+--- a/src/internal/types/testdata/fixedbugs/54942.go
++++ b/src/internal/types/testdata/fixedbugs/54942.go
+@@ -17,7 +17,7 @@ type T struct{}
+ 
+ func (_ *T) m(a, b, c, d int) {}
+ 
+-var _ I = new /* ERROR "have m\(int, int, int, int\)\n\t\twant m\(int, int, \*int, int\)" */ (T)
++var _ I = new /* ERROR "have m(int, int, int, int)\n\t\twant m(int, int, *int, int)" */ (T)
+ 
+ // (slightly modified) test case from issue
+ 
+@@ -35,4 +35,4 @@ func (_ *myExecutor) Execute(ctx context.Context, stmt sql.Stmt, maxrows int, ar
+ 	return &Result{}, nil
+ }
+ 
+-var ex Executor = new /* ERROR "have Execute\(context\.Context, sql\.Stmt, int, \[\]sql\.NamedArg, int\) \(\*Result, error\)\n\t\twant Execute\(context\.Context, sql\.Stmt, int, \[\]sql\.NamedArg, int\) \(Result, error\)" */ (myExecutor)
++var ex Executor = new /* ERROR "have Execute(context.Context, sql.Stmt, int, []sql.NamedArg, int) (*Result, error)\n\t\twant Execute(context.Context, sql.Stmt, int, []sql.NamedArg, int) (Result, error)" */ (myExecutor)
+diff --git a/src/internal/types/testdata/fixedbugs/issue28251.go b/src/internal/types/testdata/fixedbugs/issue28251.go
+index f2b17315e9..77fd369ff9 100644
+--- a/src/internal/types/testdata/fixedbugs/issue28251.go
++++ b/src/internal/types/testdata/fixedbugs/issue28251.go
+@@ -60,6 +60,6 @@ type (
+         T11 = T
+ )
+ 
+-func (T9 /* ERROR "invalid receiver type \*\*T" */ ) m9() {}
++func (T9 /* ERROR "invalid receiver type **T" */ ) m9() {}
+ func _() { (T{}).m9 /* ERROR "has no field or method m9" */ () }
+ func _() { (&T{}).m9 /* ERROR "has no field or method m9" */ () }
+diff --git a/src/internal/types/testdata/fixedbugs/issue39634.go b/src/internal/types/testdata/fixedbugs/issue39634.go
+index 77418c2b8c..592496033b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39634.go
++++ b/src/internal/types/testdata/fixedbugs/issue39634.go
+@@ -44,7 +44,7 @@ var u /* ERROR "cycle" */ , i [func /* ERROR "used as value" */ /* ERROR "used a
+ // crash 15
+ func y15() { var a /* ERROR "declared and not used" */ interface{ p() } = G15[string]{} }
+ type G15[X any] s /* ERROR "undefined" */
+-func (G15 /* ERROR "generic type .* without instantiation" */ ) p()
++func (G15 /* ERRORx `generic type .* without instantiation` */ ) p()
+ 
+ // crash 16
+ type Foo16[T any] r16 /* ERROR "not a type" */
+diff --git a/src/internal/types/testdata/fixedbugs/issue39725.go b/src/internal/types/testdata/fixedbugs/issue39725.go
+index 7efc11c79a..0145667e0d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39725.go
++++ b/src/internal/types/testdata/fixedbugs/issue39725.go
+@@ -6,11 +6,11 @@ package p
+ 
+ func f1[T1, T2 any](T1, T2, struct{a T1; b T2}) {}
+ func _() {
+-	f1(42, string("foo"), struct /* ERROR "does not match inferred type struct\{a int; b string\}" */ {a, b int}{})
++	f1(42, string("foo"), struct /* ERROR "does not match inferred type struct{a int; b string}" */ {a, b int}{})
+ }
+ 
+ // simplified test case from issue
+ func f2[T any](_ []T, _ func(T)) {}
+ func _() {
+-	f2([]string{}, func /* ERROR "does not match inferred type func\(string\)" */ (f []byte) {})
++	f2([]string{}, func /* ERROR "does not match inferred type func(string)" */ (f []byte) {})
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue39754.go b/src/internal/types/testdata/fixedbugs/issue39754.go
+index 3afb8d3dda..a1bd5bafdd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39754.go
++++ b/src/internal/types/testdata/fixedbugs/issue39754.go
+@@ -17,5 +17,5 @@ func f[V interface{}, A, B Box[V]]() {}
+ func _() {
+ 	f[int, Optional[int], Optional[int]]()
+ 	_ = f[int, Optional[int], Optional /* ERROR "does not satisfy Box" */ [string]]
+-	_ = f[int, Optional[int], Optional /* ERROR "Optional.* does not satisfy Box.*" */ [string]]
++	_ = f[int, Optional[int], Optional /* ERRORx "Optional.* does not satisfy Box.*" */ [string]]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue39976.go b/src/internal/types/testdata/fixedbugs/issue39976.go
+index e004e3e1ff..a66eff29f2 100644
+--- a/src/internal/types/testdata/fixedbugs/issue39976.go
++++ b/src/internal/types/testdata/fixedbugs/issue39976.go
+@@ -12,5 +12,5 @@ func NewCache[K, V any](p policy[K, V]) {}
+ func _() {
+ 	var lru LRU[int, string]
+ 	NewCache[int, string](&lru)
+-	NewCache(& /* ERROR "does not match policy\[K, V\] \(cannot infer K and V\)" */ lru)
++	NewCache(& /* ERROR "does not match policy[K, V] (cannot infer K and V)" */ lru)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue40350.go b/src/internal/types/testdata/fixedbugs/issue40350.go
+index 035086ad64..b7ceb33918 100644
+--- a/src/internal/types/testdata/fixedbugs/issue40350.go
++++ b/src/internal/types/testdata/fixedbugs/issue40350.go
+@@ -12,5 +12,5 @@ type number interface {
+ func f[T number]() {}
+ 
+ func _() {
+-	_ = f[int /* ERROR "int does not satisfy number \(number mentions int, but int is not in the type set of number\)" */]
++	_ = f[int /* ERROR "int does not satisfy number (number mentions int, but int is not in the type set of number)" */]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue41124.go b/src/internal/types/testdata/fixedbugs/issue41124.go
+index 612f1d22f1..0f828dc502 100644
+--- a/src/internal/types/testdata/fixedbugs/issue41124.go
++++ b/src/internal/types/testdata/fixedbugs/issue41124.go
+@@ -31,15 +31,15 @@ type I3 interface {
+ }
+ 
+ type _ struct {
+-	f I1 // ERROR "interface is .* comparable"
++	f I1 // ERRORx `interface is .* comparable`
+ }
+ 
+ type _ struct {
+-	comparable // ERROR "interface is .* comparable"
++	comparable // ERRORx `interface is .* comparable`
+ }
+ 
+ type _ struct{
+-	I1 // ERROR "interface is .* comparable"
++	I1 // ERRORx `interface is .* comparable`
+ }
+ 
+ type _ struct{
+@@ -53,16 +53,16 @@ type _ struct{
+ // General composite types.
+ 
+ type (
+-	_ [10]I1 // ERROR "interface is .* comparable"
++	_ [10]I1 // ERRORx `interface is .* comparable`
+ 	_ [10]I2 // ERROR "interface contains type constraints"
+ 
+-	_ []I1 // ERROR "interface is .* comparable"
++	_ []I1 // ERRORx `interface is .* comparable`
+ 	_ []I2 // ERROR "interface contains type constraints"
+ 
+ 	_ *I3 // ERROR "interface contains type constraints"
+-	_ map[I1 /* ERROR "interface is .* comparable" */ ]I2 // ERROR "interface contains type constraints"
++	_ map[I1 /* ERRORx `interface is .* comparable` */ ]I2 // ERROR "interface contains type constraints"
+ 	_ chan I3 // ERROR "interface contains type constraints"
+-	_ func(I1 /* ERROR "interface is .* comparable" */ )
++	_ func(I1 /* ERRORx `interface is .* comparable` */ )
+ 	_ func() I2 // ERROR "interface contains type constraints"
+ )
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue42881.go b/src/internal/types/testdata/fixedbugs/issue42881.go
+index 9f18897dff..b766b5e5bd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue42881.go
++++ b/src/internal/types/testdata/fixedbugs/issue42881.go
+@@ -10,7 +10,7 @@ type (
+ )
+ 
+ var (
+-	_ comparable // ERROR "cannot use type comparable outside a type constraint: interface is \(or embeds\) comparable"
+-	_ T1         // ERROR "cannot use type T1 outside a type constraint: interface is \(or embeds\) comparable"
++	_ comparable // ERROR "cannot use type comparable outside a type constraint: interface is (or embeds) comparable"
++	_ T1         // ERROR "cannot use type T1 outside a type constraint: interface is (or embeds) comparable"
+ 	_ T2         // ERROR "cannot use type T2 outside a type constraint: interface contains type constraints"
+ )
+diff --git a/src/internal/types/testdata/fixedbugs/issue42987.go b/src/internal/types/testdata/fixedbugs/issue42987.go
+index 300508593c..21c14c1fbd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue42987.go
++++ b/src/internal/types/testdata/fixedbugs/issue42987.go
+@@ -5,4 +5,4 @@
+ // Check that there is only one error (no follow-on errors).
+ 
+ package p
+-var _ = [ ... /* ERROR "invalid use of \[...\] array" */ ]byte("foo")
+\ No newline at end of file
++var _ = [ ... /* ERROR "invalid use of [...] array" */ ]byte("foo")
+\ No newline at end of file
+diff --git a/src/internal/types/testdata/fixedbugs/issue43087.go b/src/internal/types/testdata/fixedbugs/issue43087.go
+index 2f40a75ee8..222fac823c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43087.go
++++ b/src/internal/types/testdata/fixedbugs/issue43087.go
+@@ -24,7 +24,7 @@ func _() {
+ 
+ func _() {
+ 	var a []int
+-	a /* ERROR "non-name .* on left side of :=" */ [0], b := 1, 2
++	a /* ERRORx `non-name .* on left side of :=` */ [0], b := 1, 2
+ 	_ = a
+ 	_ = b
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue43109.go b/src/internal/types/testdata/fixedbugs/issue43109.go
+index 3650f710f7..5d21a568db 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43109.go
++++ b/src/internal/types/testdata/fixedbugs/issue43109.go
+@@ -7,4 +7,4 @@
+ 
+ package p
+ 
+-import . "/foo" // ERROR "could not import \/foo"
++import . "/foo" // ERROR "could not import /foo"
+diff --git a/src/internal/types/testdata/fixedbugs/issue43110.go b/src/internal/types/testdata/fixedbugs/issue43110.go
+index b0b2d9b28e..1e85022611 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43110.go
++++ b/src/internal/types/testdata/fixedbugs/issue43110.go
+@@ -30,7 +30,7 @@ func _() {
+ 	}
+ 
+ 	switch (func())(nil) {
+-	case f /* ERROR "invalid case f in switch on .* \(func can only be compared to nil\)" */ :
++	case f /* ERRORx `invalid case f in switch on .* \(func can only be compared to nil\)` */ :
+ 	}
+ 
+ 	switch nil /* ERROR "use of untyped nil in switch expression" */ {
+diff --git a/src/internal/types/testdata/fixedbugs/issue43124.go b/src/internal/types/testdata/fixedbugs/issue43124.go
+index 9ddb1a54c9..ce26ae1703 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43124.go
++++ b/src/internal/types/testdata/fixedbugs/issue43124.go
+@@ -4,7 +4,7 @@
+ 
+ package p
+ 
+-var _ = int(0 /* ERROR "invalid use of \.\.\. in conversion to int" */ ...)
++var _ = int(0 /* ERROR "invalid use of ... in conversion to int" */ ...)
+ 
+ // test case from issue
+ 
+@@ -12,5 +12,5 @@ type M []string
+ 
+ var (
+ 	x = []string{"a", "b"}
+-	_ = M(x /* ERROR "invalid use of \.\.\. in conversion to M" */ ...)
++	_ = M(x /* ERROR "invalid use of ... in conversion to M" */ ...)
+ )
+diff --git a/src/internal/types/testdata/fixedbugs/issue43190.go b/src/internal/types/testdata/fixedbugs/issue43190.go
+index 83efa12751..b4d1fa4630 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43190.go
++++ b/src/internal/types/testdata/fixedbugs/issue43190.go
+@@ -8,7 +8,7 @@
+ package p
+ 
+ import ; // ERROR "missing import path"
+-import "" // ERROR "invalid import path \(empty string\)"
++import "" // ERROR "invalid import path (empty string)"
+ import
+ var /* ERROR "missing import path" */ _ int
+ import .; // ERROR "missing import path"
+diff --git a/src/internal/types/testdata/fixedbugs/issue43671.go b/src/internal/types/testdata/fixedbugs/issue43671.go
+index c72e1da63c..be4c9ee5dd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43671.go
++++ b/src/internal/types/testdata/fixedbugs/issue43671.go
+@@ -12,7 +12,7 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | <-chan T }
+ 
+ func _[T any](ch T) {
+-	<-ch // ERROR "cannot receive from ch .* \(no core type\)"
++	<-ch // ERRORx `cannot receive from ch .* \(no core type\)`
+ }
+ 
+ func _[T C0](ch T) {
+@@ -28,7 +28,7 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	<-ch // ERROR "cannot receive from ch .* \(no core type\)"
++	<-ch // ERRORx `cannot receive from ch .* \(no core type\)`
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue45114.go b/src/internal/types/testdata/fixedbugs/issue45114.go
+index d076e4f1e5..e51b3f711b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45114.go
++++ b/src/internal/types/testdata/fixedbugs/issue45114.go
+@@ -5,4 +5,4 @@
+ package p
+ 
+ var s uint
+-var _ = string(1 /* ERROR "shifted operand 1 .* must be integer" */ << s)
++var _ = string(1 /* ERRORx `shifted operand 1 .* must be integer` */ << s)
+diff --git a/src/internal/types/testdata/fixedbugs/issue45920.go b/src/internal/types/testdata/fixedbugs/issue45920.go
+index c769649b6e..716abb1768 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45920.go
++++ b/src/internal/types/testdata/fixedbugs/issue45920.go
+@@ -8,10 +8,10 @@ func f1[T any, C chan T | <-chan T](ch C) {}
+ 
+ func _(ch chan int)   { f1(ch) }
+ func _(ch <-chan int) { f1(ch) }
+-func _(ch chan<- int) { f1 /* ERROR "chan<- int does not satisfy chan int \| <-chan int" */ (ch) }
++func _(ch chan<- int) { f1 /* ERROR "chan<- int does not satisfy chan int | <-chan int" */ (ch) }
+ 
+ func f2[T any, C chan T | chan<- T](ch C) {}
+ 
+ func _(ch chan int)   { f2(ch) }
+-func _(ch <-chan int) { f2 /* ERROR "<-chan int does not satisfy chan int \| chan<- int" */ (ch) }
++func _(ch <-chan int) { f2 /* ERROR "<-chan int does not satisfy chan int | chan<- int" */ (ch) }
+ func _(ch chan<- int) { f2(ch) }
+diff --git a/src/internal/types/testdata/fixedbugs/issue46583.go b/src/internal/types/testdata/fixedbugs/issue46583.go
+index 6033c5e36a..1901bff31e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue46583.go
++++ b/src/internal/types/testdata/fixedbugs/issue46583.go
+@@ -21,8 +21,8 @@ func (T4) m(x int) {}
+ var f4 func(T4)
+ 
+ func _() {
+-	f1 = T1 /* ERROR "func\(T1, int\)" */ .m
+-	f2 = T2 /* ERROR "func\(t T2, x int\)" */ .m
+-	f3 = T3 /* ERROR "func\(T3, int\)" */ .m
+-	f4 = T4 /* ERROR "func\(_ T4, x int\)" */ .m
++	f1 = T1 /* ERROR "func(T1, int)" */ .m
++	f2 = T2 /* ERROR "func(t T2, x int)" */ .m
++	f3 = T3 /* ERROR "func(T3, int)" */ .m
++	f4 = T4 /* ERROR "func(_ T4, x int)" */ .m
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue47031.go b/src/internal/types/testdata/fixedbugs/issue47031.go
+index e9b0bb36a6..23a9c55a11 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47031.go
++++ b/src/internal/types/testdata/fixedbugs/issue47031.go
+@@ -7,7 +7,7 @@ package p
+ type Mer interface { M() }
+ 
+ func F[T Mer](p *T) {
+-	p.M /* ERROR "p\.M undefined" */ ()
++	p.M /* ERROR "p.M undefined" */ ()
+ }
+ 
+ type MyMer int
+diff --git a/src/internal/types/testdata/fixedbugs/issue47115.go b/src/internal/types/testdata/fixedbugs/issue47115.go
+index f52f1d4a62..2d2be34104 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47115.go
++++ b/src/internal/types/testdata/fixedbugs/issue47115.go
+@@ -12,7 +12,7 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | chan<- T }
+ 
+ func _[T any](ch T) {
+-	ch <- /* ERROR "cannot send to ch .* no core type" */ 0
++	ch <- /* ERRORx `cannot send to ch .* no core type` */ 0
+ }
+ 
+ func _[T C0](ch T) {
+@@ -28,7 +28,7 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	ch <- /* ERROR "cannot send to ch .* no core type" */ 0
++	ch <- /* ERRORx `cannot send to ch .* no core type` */ 0
+ }
+ 
+ func _[T C4](ch T) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue47411.go b/src/internal/types/testdata/fixedbugs/issue47411.go
+index 097c4d0a57..97b5942ff0 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47411.go
++++ b/src/internal/types/testdata/fixedbugs/issue47411.go
+@@ -19,8 +19,8 @@ func _[P comparable,
+         _ = f[R /* ERROR "R does not satisfy comparable" */ ]
+ 
+         _ = g[int]
+-        _ = g[P /* ERROR "P does not satisfy interface{interface{comparable; ~int \| ~string}" */ ]
++        _ = g[P /* ERROR "P does not satisfy interface{interface{comparable; ~int | ~string}" */ ]
+         _ = g[Q]
+-        _ = g[func /* ERROR "func\(\) does not satisfy interface{interface{comparable; ~int \| ~string}}" */ ()]
+-        _ = g[R /* ERROR "R does not satisfy interface{interface{comparable; ~int \| ~string}" */ ]
++        _ = g[func /* ERROR "func() does not satisfy interface{interface{comparable; ~int | ~string}}" */ ()]
++        _ = g[R /* ERROR "R does not satisfy interface{interface{comparable; ~int | ~string}" */ ]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue47747.go b/src/internal/types/testdata/fixedbugs/issue47747.go
+index f882b45c77..34c78d3b49 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47747.go
++++ b/src/internal/types/testdata/fixedbugs/issue47747.go
+@@ -20,7 +20,7 @@ func _[P interface{ m() }](x P) {
+         x.m()
+         // (&x).m doesn't exist because &x is of type *P
+         // and pointers to type parameters don't have methods
+-        (&x).m /* ERROR "type \*P is pointer to type parameter, not type parameter" */ ()
++        (&x).m /* ERROR "type *P is pointer to type parameter, not type parameter" */ ()
+ }
+ 
+ 
+@@ -29,7 +29,7 @@ type T2 interface{ m() }
+ func _(x *T2) {
+         // x.m doesn't exists because x is of type *T2
+         // and pointers to interfaces don't have methods
+-        x.m /* ERROR "type \*T2 is pointer to interface, not interface" */()
++        x.m /* ERROR "type *T2 is pointer to interface, not interface" */()
+ }
+ 
+ // Test case 1 from issue
+diff --git a/src/internal/types/testdata/fixedbugs/issue47818.go b/src/internal/types/testdata/fixedbugs/issue47818.go
+index 2d172f6a7d..21c85392ab 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47818.go
++++ b/src/internal/types/testdata/fixedbugs/issue47818.go
+@@ -10,36 +10,36 @@
+ 
+ package p
+ 
+-type T[P /* ERROR "type parameter requires go1\.18 or later" */ any /* ERROR "predeclared any requires go1\.18 or later" */] struct{}
++type T[P /* ERROR "type parameter requires go1.18 or later" */ any /* ERROR "predeclared any requires go1.18 or later" */] struct{}
+ 
+ // for init (and main, but we're not in package main) we should only get one error
+-func init[P /* ERROR "func init must have no type parameters" */ any /* ERROR "predeclared any requires go1\.18 or later" */]() {
++func init[P /* ERROR "func init must have no type parameters" */ any /* ERROR "predeclared any requires go1.18 or later" */]() {
+ }
+-func main[P /* ERROR "type parameter requires go1\.18 or later" */ any /* ERROR "predeclared any requires go1\.18 or later" */]() {
++func main[P /* ERROR "type parameter requires go1.18 or later" */ any /* ERROR "predeclared any requires go1.18 or later" */]() {
+ }
+ 
+-func f[P /* ERROR "type parameter requires go1\.18 or later" */ any /* ERROR "predeclared any requires go1\.18 or later" */](x P) {
+-	var _ T[ /* ERROR "type instantiation requires go1\.18 or later" */ int]
+-	var _ (T[ /* ERROR "type instantiation requires go1\.18 or later" */ int])
+-	_ = T[ /* ERROR "type instantiation requires go1\.18 or later" */ int]{}
+-	_ = T[ /* ERROR "type instantiation requires go1\.18 or later" */ int](struct{}{})
++func f[P /* ERROR "type parameter requires go1.18 or later" */ any /* ERROR "predeclared any requires go1.18 or later" */](x P) {
++	var _ T[ /* ERROR "type instantiation requires go1.18 or later" */ int]
++	var _ (T[ /* ERROR "type instantiation requires go1.18 or later" */ int])
++	_ = T[ /* ERROR "type instantiation requires go1.18 or later" */ int]{}
++	_ = T[ /* ERROR "type instantiation requires go1.18 or later" */ int](struct{}{})
+ }
+ 
+-func (T[ /* ERROR "type instantiation requires go1\.18 or later" */ P]) g(x int) {
+-	f[ /* ERROR "function instantiation requires go1\.18 or later" */ int](0)     // explicit instantiation
+-	(f[ /* ERROR "function instantiation requires go1\.18 or later" */ int])(0)   // parentheses (different code path)
+-	f( /* ERROR "implicit function instantiation requires go1\.18 or later" */ x) // implicit instantiation
++func (T[ /* ERROR "type instantiation requires go1.18 or later" */ P]) g(x int) {
++	f[ /* ERROR "function instantiation requires go1.18 or later" */ int](0)     // explicit instantiation
++	(f[ /* ERROR "function instantiation requires go1.18 or later" */ int])(0)   // parentheses (different code path)
++	f( /* ERROR "implicit function instantiation requires go1.18 or later" */ x) // implicit instantiation
+ }
+ 
+ type C1 interface {
+-	comparable // ERROR "predeclared comparable requires go1\.18 or later"
++	comparable // ERROR "predeclared comparable requires go1.18 or later"
+ }
+ 
+ type C2 interface {
+-	comparable // ERROR "predeclared comparable requires go1\.18 or later"
+-	int        // ERROR "embedding non-interface type int requires go1\.18 or later"
+-	~ /* ERROR "embedding interface element ~int requires go1\.18 or later" */ int
+-	int /* ERROR "embedding interface element int \| ~string requires go1\.18 or later" */ | ~string
++	comparable // ERROR "predeclared comparable requires go1.18 or later"
++	int        // ERROR "embedding non-interface type int requires go1.18 or later"
++	~ /* ERROR "embedding interface element ~int requires go1.18 or later" */ int
++	int /* ERROR "embedding interface element int | ~string requires go1.18 or later" */ | ~string
+ }
+ 
+ type _ interface {
+@@ -49,12 +49,12 @@ type _ interface {
+ }
+ 
+ type (
+-	_ comparable // ERROR "predeclared comparable requires go1\.18 or later"
++	_ comparable // ERROR "predeclared comparable requires go1.18 or later"
+ 	// errors for these were reported with their declaration
+ 	_ C1
+ 	_ C2
+ 
+-	_ = comparable // ERROR "predeclared comparable requires go1\.18 or later"
++	_ = comparable // ERROR "predeclared comparable requires go1.18 or later"
+ 	// errors for these were reported with their declaration
+ 	_ = C1
+ 	_ = C2
+diff --git a/src/internal/types/testdata/fixedbugs/issue47968.go b/src/internal/types/testdata/fixedbugs/issue47968.go
+index 35c7354e17..c516eee2da 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47968.go
++++ b/src/internal/types/testdata/fixedbugs/issue47968.go
+@@ -14,8 +14,8 @@ func (A1[P]) m2() {}
+ 
+ type A2 = T[int]
+ 
+-func (A2 /* ERROR "cannot define new methods on instantiated type T\[int\]" */) m3()   {}
+-func (_ /* ERROR "cannot define new methods on instantiated type T\[int\]" */ A2) m4() {}
++func (A2 /* ERROR "cannot define new methods on instantiated type T[int]" */) m3()   {}
++func (_ /* ERROR "cannot define new methods on instantiated type T[int]" */ A2) m4() {}
+ 
+ func (T[int]) m5()                                     {} // int is the type parameter name, not an instantiation
+ func (T[* /* ERROR "must be an identifier" */ int]) m6() {} // syntax error
+diff --git a/src/internal/types/testdata/fixedbugs/issue48008.go b/src/internal/types/testdata/fixedbugs/issue48008.go
+index 6615fa8c86..8d0c640c3c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48008.go
++++ b/src/internal/types/testdata/fixedbugs/issue48008.go
+@@ -21,7 +21,7 @@ func _(x interface{}) {
+ 	case map[T[int]] string:
+ 	case chan T[int]:
+ 
+-	case T /* ERROR "cannot use generic type T\[P any\] without instantiation" */ :
++	case T /* ERROR "cannot use generic type T[P any] without instantiation" */ :
+ 	case []T /* ERROR "cannot use generic type" */ :
+ 	case [10]T /* ERROR "cannot use generic type" */ :
+ 	case struct{T /* ERROR "cannot use generic type" */ }:
+diff --git a/src/internal/types/testdata/fixedbugs/issue48312.go b/src/internal/types/testdata/fixedbugs/issue48312.go
+index bf52527f80..708201b415 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48312.go
++++ b/src/internal/types/testdata/fixedbugs/issue48312.go
+@@ -8,7 +8,7 @@ type T interface{ m() }
+ type P *T
+ 
+ func _(p *T) {
+-	p.m /* ERROR "type \*T is pointer to interface, not interface" */ ()
++	p.m /* ERROR "type *T is pointer to interface, not interface" */ ()
+ }
+ 
+ func _(p P) {
+@@ -16,5 +16,5 @@ func _(p P) {
+ }
+ 
+ func _[P T](p *P) {
+-	p.m /* ERROR "type \*P is pointer to type parameter, not type parameter" */ ()
++	p.m /* ERROR "type *P is pointer to type parameter, not type parameter" */ ()
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue48472.go b/src/internal/types/testdata/fixedbugs/issue48472.go
+index f43fa3b73e..169ab0da9e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48472.go
++++ b/src/internal/types/testdata/fixedbugs/issue48472.go
+@@ -7,10 +7,10 @@ package p
+ func g() {
+ 	var s string
+ 	var i int
+-	_ = s /* ERROR "invalid operation: s \+ i \(mismatched types string and int\)" */ + i
++	_ = s /* ERROR "invalid operation: s + i (mismatched types string and int)" */ + i
+ }
+ 
+ func f(i int) int {
+-        i /* ERROR "invalid operation: i \+= "1" \(mismatched types int and untyped string\)" */ += "1"
++        i /* ERROR `invalid operation: i += "1" (mismatched types int and untyped string)` */ += "1"
+         return i
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue48827.go b/src/internal/types/testdata/fixedbugs/issue48827.go
+index aa1d12aaf5..bd08835e91 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48827.go
++++ b/src/internal/types/testdata/fixedbugs/issue48827.go
+@@ -8,12 +8,12 @@ type G[P any] int
+ 
+ type (
+ 	_ G[int]
+-	_ G[G /* ERROR "cannot use.*without instantiation" */]
+-	_ bool /* ERROR "invalid operation: bool\[int\] \(bool is not a generic type\)" */ [int]
+-	_ bool /* ERROR "invalid operation: bool\[G\] \(bool is not a generic type\)" */[G]
++	_ G[G /* ERRORx `cannot use.*without instantiation` */]
++	_ bool /* ERROR "invalid operation: bool[int] (bool is not a generic type)" */ [int]
++	_ bool /* ERROR "invalid operation: bool[G] (bool is not a generic type)" */[G]
+ )
+ 
+ // The example from the issue.
+ func _() {
+-	_ = &([10]bool /* ERROR "invalid operation.*bool is not a generic type" */ [1 /* ERROR "expected type" */ ]{})
++	_ = &([10]bool /* ERRORx `invalid operation.*bool is not a generic type` */ [1 /* ERROR "expected type" */ ]{})
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49005.go b/src/internal/types/testdata/fixedbugs/issue49005.go
+index 470312b797..d91c207873 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49005.go
++++ b/src/internal/types/testdata/fixedbugs/issue49005.go
+@@ -20,12 +20,12 @@ type T2 interface{ M() }
+ 
+ func F2() T2
+ 
+-var _ = F2 /* ERROR "impossible type assertion: F2\(\)\.\(\*X2\)\n\t\*X2 does not implement T2 \(missing method M\)" */ ().(*X2)
++var _ = F2 /* ERROR "impossible type assertion: F2().(*X2)\n\t*X2 does not implement T2 (missing method M)" */ ().(*X2)
+ 
+ type X2 struct{}
+ 
+ func _() {
+ 	switch F2().(type) {
+-	case * /* ERROR "impossible type switch case: \*X2\n\tF2\(\) \(value of type T2\) cannot have dynamic type \*X2 \(missing method M\)" */ X2:
++	case * /* ERROR "impossible type switch case: *X2\n\tF2() (value of type T2) cannot have dynamic type *X2 (missing method M)" */ X2:
+ 	}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49112.go b/src/internal/types/testdata/fixedbugs/issue49112.go
+index 4ce0442ac6..2d4c3251ee 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49112.go
++++ b/src/internal/types/testdata/fixedbugs/issue49112.go
+@@ -8,8 +8,8 @@ func f[P int](P) {}
+ 
+ func _() {
+         _ = f[int]
+-        _ = f[[ /* ERROR "\[\]int does not satisfy int" */ ]int]
++        _ = f[[ /* ERROR "[]int does not satisfy int" */ ]int]
+ 
+         f(0)
+-        f/* ERROR "\[\]int does not satisfy int" */ ([]int{})
++        f/* ERROR "[]int does not satisfy int" */ ([]int{})
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49179.go b/src/internal/types/testdata/fixedbugs/issue49179.go
+index f6d38a96f2..1f8da29595 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49179.go
++++ b/src/internal/types/testdata/fixedbugs/issue49179.go
+@@ -13,11 +13,11 @@ type myFloat float64
+ 
+ func _() {
+ 	_ = f1[int]
+-	_ = f1[myInt /* ERROR "possibly missing ~ for int in int \| string" */]
++	_ = f1[myInt /* ERROR "possibly missing ~ for int in int | string" */]
+ 	_ = f2[myInt]
+-	_ = f2[myFloat /* ERROR "possibly missing ~ for float64 in ~int \| string \| float64" */]
++	_ = f2[myFloat /* ERROR "possibly missing ~ for float64 in ~int | string | float64" */]
+ 	var x myInt
+-	f3 /* ERROR "myInt does not satisfy int \(possibly missing ~ for int in int\)" */ (x)
++	f3 /* ERROR "myInt does not satisfy int (possibly missing ~ for int in int)" */ (x)
+ }
+ 
+ // test case from the issue
+@@ -33,5 +33,5 @@ func Map[S SliceConstraint[E], E any](s S, f func(E) E) S {
+ type MySlice []int
+ 
+ func f(s MySlice) {
+-	Map[MySlice /* ERROR "MySlice does not satisfy SliceConstraint\[int\] \(possibly missing ~ for \[\]int in SliceConstraint\[int\]\)" */, int](s, nil)
++	Map[MySlice /* ERROR "MySlice does not satisfy SliceConstraint[int] (possibly missing ~ for []int in SliceConstraint[int])" */, int](s, nil)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49242.go b/src/internal/types/testdata/fixedbugs/issue49242.go
+index ed54859c4d..0415bf692e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49242.go
++++ b/src/internal/types/testdata/fixedbugs/issue49242.go
+@@ -5,23 +5,23 @@
+ package p
+ 
+ func _[P int](x P) int {
+-	return x // ERROR "cannot use x .* as int value in return statement"
++	return x // ERRORx `cannot use x .* as int value in return statement`
+ }
+ 
+ func _[P int]() int {
+-	return P /* ERROR "cannot use P\(1\) .* as int value in return statement" */ (1)
++	return P /* ERRORx `cannot use P\(1\) .* as int value in return statement` */ (1)
+ }
+ 
+ func _[P int](x int) P {
+-        return x // ERROR "cannot use x .* as P value in return statement"
++        return x // ERRORx `cannot use x .* as P value in return statement`
+ }
+ 
+ func _[P, Q any](x P) Q {
+-        return x // ERROR "cannot use x .* as Q value in return statement"
++        return x // ERRORx `cannot use x .* as Q value in return statement`
+ }
+ 
+ // test case from issue
+ func F[G interface{ uint }]() int {
+ 	f := func(uint) int { return 0 }
+-	return f(G /* ERROR "cannot use G\(1\) .* as uint value in argument to f" */ (1))
++	return f(G /* ERRORx `cannot use G\(1\) .* as uint value in argument to f` */ (1))
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49247.go b/src/internal/types/testdata/fixedbugs/issue49247.go
+index b1bd42c522..0ad2e29d9c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49247.go
++++ b/src/internal/types/testdata/fixedbugs/issue49247.go
+@@ -11,10 +11,10 @@ type integer interface {
+ 
+ func Add1024[T integer](s []T) {
+ 	for i, v := range s {
+-		s[i] = v + 1024 // ERROR "cannot convert 1024 \(untyped int constant\) to type T"
++		s[i] = v + 1024 // ERROR "cannot convert 1024 (untyped int constant) to type T"
+ 	}
+ }
+ 
+ func f[T interface{ int8 }]() {
+-	println(T(1024 /* ERROR "cannot convert 1024 \(untyped int value\) to type T" */))
++	println(T(1024 /* ERROR "cannot convert 1024 (untyped int value) to type T" */))
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49296.go b/src/internal/types/testdata/fixedbugs/issue49296.go
+index ac742ab3a3..c8c5208736 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49296.go
++++ b/src/internal/types/testdata/fixedbugs/issue49296.go
+@@ -10,8 +10,8 @@ func _[
+         T2 ~float64 | ~complex128 | chan int,
+ ]() {
+         _ = T0(nil /* ERROR "cannot convert nil to type T0" */ )
+-        _ = T1(1 /* ERROR "cannot convert 1 .* to type T1" */ )
+-        _ = T2(2 /* ERROR "cannot convert 2 .* to type T2" */ )
++        _ = T1(1 /* ERRORx `cannot convert 1 .* to type T1` */ )
++        _ = T2(2 /* ERRORx `cannot convert 2 .* to type T2` */ )
+ }
+ 
+ // test case from issue
+diff --git a/src/internal/types/testdata/fixedbugs/issue49482.go b/src/internal/types/testdata/fixedbugs/issue49482.go
+index b050be0fb8..7139baebc0 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49482.go
++++ b/src/internal/types/testdata/fixedbugs/issue49482.go
+@@ -12,7 +12,7 @@ type _[P (*int),] int
+ const P = 2 // declare P to avoid noisy 'undefined' errors below.
+ 
+ // The following parse as invalid array types due to parsing ambiguitiues.
+-type _ [P *int /* ERROR "int \(type\) is not an expression" */ ]int
++type _ [P *int /* ERROR "int (type) is not an expression" */ ]int
+ type _ [P /* ERROR "non-function P" */ (*int)]int
+ 
+ // Adding a trailing comma or an enclosing interface resolves the ambiguity.
+diff --git a/src/internal/types/testdata/fixedbugs/issue49579.go b/src/internal/types/testdata/fixedbugs/issue49579.go
+index 0d159763c0..780859c509 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49579.go
++++ b/src/internal/types/testdata/fixedbugs/issue49579.go
+@@ -9,7 +9,7 @@ type I[F any] interface {
+ }
+ 
+ func G[F any]() I[any] {
+-	return g /* ERROR "cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\)" */ [F]{}
++	return g /* ERRORx `cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\)` */ [F]{}
+ }
+ 
+ type g[F any] struct{}
+diff --git a/src/internal/types/testdata/fixedbugs/issue49602.go b/src/internal/types/testdata/fixedbugs/issue49602.go
+index 40fb2e3c1c..09cc96963b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49602.go
++++ b/src/internal/types/testdata/fixedbugs/issue49602.go
+@@ -13,7 +13,7 @@ type C interface {
+ }
+ 
+ type _ interface {
+-	int | M          // ERROR "cannot use p\.M in union \(p\.M contains methods\)"
++	int | M          // ERROR "cannot use p.M in union (p.M contains methods)"
+ 	int | comparable // ERROR "cannot use comparable in union"
+-	int | C          // ERROR "cannot use p\.C in union \(p\.C embeds comparable\)"
++	int | C          // ERROR "cannot use p.C in union (p.C embeds comparable)"
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49735.go b/src/internal/types/testdata/fixedbugs/issue49735.go
+index c1e31e9f8c..0fcc778a06 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49735.go
++++ b/src/internal/types/testdata/fixedbugs/issue49735.go
+@@ -6,6 +6,6 @@ package p
+ 
+ func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
+         _ = append(nil /* ERROR "first argument to append must be a slice; have untyped nil" */ , 0)
+-        _ = append(s1 /* ERROR "s1 .* has no core type" */ , 0)
+-        _ = append(s2 /* ERROR "s2 .* has core type byte" */ , 0)
++        _ = append(s1 /* ERRORx `s1 .* has no core type` */ , 0)
++        _ = append(s2 /* ERRORx `s2 .* has core type byte` */ , 0)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49739.go b/src/internal/types/testdata/fixedbugs/issue49739.go
+index e280ed3d0d..73825f440d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49739.go
++++ b/src/internal/types/testdata/fixedbugs/issue49739.go
+@@ -17,7 +17,7 @@ func g[_ interface{ C }]() {}
+ func h[_ C | int]()        {}
+ 
+ func _() {
+-	_ = f[int /* ERROR "cannot satisfy C \(empty type set\)" */]
+-	_ = g[int /* ERROR "cannot satisfy interface{C} \(empty type set\)" */]
++	_ = f[int /* ERROR "cannot satisfy C (empty type set)" */]
++	_ = g[int /* ERROR "cannot satisfy interface{C} (empty type set)" */]
+ 	_ = h[int]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue50372.go b/src/internal/types/testdata/fixedbugs/issue50372.go
+index e596c0a348..10d2a24a28 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50372.go
++++ b/src/internal/types/testdata/fixedbugs/issue50372.go
+@@ -11,8 +11,8 @@ func _(s []int) {
+         for range s {}
+         for i = range s {}
+         for i, j = range s {}
+-        for i, j, k /* ERROR "range clause permits at most two iteration variables|at most 2 expressions" */ = range s {}
+-        for i, j, k, l /* ERROR "range clause permits at most two iteration variables|at most 2 expressions" */ = range s {}
++        for i, j, k /* ERRORx "range clause permits at most two iteration variables|at most 2 expressions" */ = range s {}
++        for i, j, k, l /* ERRORx "range clause permits at most two iteration variables|at most 2 expressions" */ = range s {}
+ }
+ 
+ func _(s chan int) {
+@@ -21,7 +21,7 @@ func _(s chan int) {
+ 
+         for range s {}
+         for i = range s {}
+-        for i, j /* ERROR "range over .* permits only one iteration variable" */ = range s {}
+-        for i, j, k /* ERROR "range over .* permits only one iteration variable|at most 2 expressions" */ = range s {}
+-        for i, j, k, l /* ERROR "range over .* permits only one iteration variable|at most 2 expressions" */ = range s {}
++        for i, j /* ERRORx `range over .* permits only one iteration variable` */ = range s {}
++        for i, j, k /* ERRORx `range over .* permits only one iteration variable|at most 2 expressions` */ = range s {}
++        for i, j, k, l /* ERRORx `range over .* permits only one iteration variable|at most 2 expressions` */ = range s {}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue50417.go b/src/internal/types/testdata/fixedbugs/issue50417.go
+index 2a057f616f..c70898e2a8 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50417.go
++++ b/src/internal/types/testdata/fixedbugs/issue50417.go
+@@ -13,13 +13,13 @@ type Sf struct {
+ }
+ 
+ func f0[P Sf](p P) {
+-        _ = p.f // ERROR "p\.f undefined"
+-        p.f /* ERROR "p\.f undefined" */ = 0
++        _ = p.f // ERROR "p.f undefined"
++        p.f /* ERROR "p.f undefined" */ = 0
+ }
+ 
+ func f0t[P ~struct{f int}](p P) {
+-        _ = p.f // ERROR "p\.f undefined"
+-        p.f /* ERROR "p\.f undefined" */ = 0
++        _ = p.f // ERROR "p.f undefined"
++        p.f /* ERROR "p.f undefined" */ = 0
+ }
+ 
+ var _ = f0[Sf]
+@@ -29,8 +29,8 @@ var _ = f0[Sm /* ERROR "does not satisfy" */ ]
+ var _ = f0t[Sm /* ERROR "does not satisfy" */ ]
+ 
+ func f1[P interface{ Sf; m() }](p P) {
+-        _ = p.f // ERROR "p\.f undefined"
+-        p.f /* ERROR "p\.f undefined" */ = 0
++        _ = p.f // ERROR "p.f undefined"
++        p.f /* ERROR "p.f undefined" */ = 0
+         p.m()
+ }
+ 
+@@ -48,8 +48,8 @@ type Sfm struct {
+ func (Sfm) m() {}
+ 
+ func f2[P interface{ Sfm; m() }](p P) {
+-        _ = p.f // ERROR "p\.f undefined"
+-        p.f /* ERROR "p\.f undefined" */ = 0
++        _ = p.f // ERROR "p.f undefined"
++        p.f /* ERROR "p.f undefined" */ = 0
+         p.m()
+ }
+ 
+@@ -60,8 +60,8 @@ var _ = f2[Sfm]
+ type PSfm *Sfm
+ 
+ func f3[P interface{ PSfm }](p P) {
+-        _ = p.f // ERROR "p\.f undefined"
+-        p.f /* ERROR "p\.f undefined" */ = 0
++        _ = p.f // ERROR "p.f undefined"
++        p.f /* ERROR "p.f undefined" */ = 0
+         p.m /* ERROR "type P has no field or method m" */ ()
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue50782.go b/src/internal/types/testdata/fixedbugs/issue50782.go
+index 62e593610a..97e8f6cdff 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50782.go
++++ b/src/internal/types/testdata/fixedbugs/issue50782.go
+@@ -24,7 +24,7 @@ type numericAbs[T Numeric] interface {
+ func absDifference[T numericAbs[T /* ERROR "T does not satisfy Numeric" */]](a, b T) T {
+ 	// Field accesses are not permitted for now. Keep an error so
+ 	// we can find and fix this code once the situation changes.
+-	return a.Value // ERROR "a\.Value undefined"
++	return a.Value // ERROR "a.Value undefined"
+ 	// TODO: The error below should probably be positioned on the '-'.
+ 	// d := a /* ERROR "invalid operation: operator - not defined" */ .Value - b.Value
+ 	// return d.Abs()
+@@ -36,12 +36,12 @@ type T[P int] struct{ f P }
+ func _[P T[P /* ERROR "P does not satisfy int" */ ]]() {}
+ 
+ // Additional tests
+-func _[P T[T /* ERROR "T\[P\] does not satisfy int" */ [P /* ERROR "P does not satisfy int" */ ]]]() {}
++func _[P T[T /* ERROR "T[P] does not satisfy int" */ [P /* ERROR "P does not satisfy int" */ ]]]() {}
+ func _[P T[Q /* ERROR "Q does not satisfy int" */ ], Q T[P /* ERROR "P does not satisfy int" */ ]]() {}
+ func _[P T[Q], Q int]() {}
+ 
+ type C[P comparable] struct{ f P }
+ func _[P C[C[P]]]() {}
+-func _[P C[C /* ERROR "C\[Q\] does not satisfy comparable" */ [Q /* ERROR "Q does not satisfy comparable" */]], Q func()]() {}
++func _[P C[C /* ERROR "C[Q] does not satisfy comparable" */ [Q /* ERROR "Q does not satisfy comparable" */]], Q func()]() {}
+ func _[P [10]C[P]]() {}
+ func _[P struct{ f C[C[P]]}]() {}
+diff --git a/src/internal/types/testdata/fixedbugs/issue50816.go b/src/internal/types/testdata/fixedbugs/issue50816.go
+index c3d5261cb7..b7c28cdffd 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50816.go
++++ b/src/internal/types/testdata/fixedbugs/issue50816.go
+@@ -18,6 +18,6 @@ func (T2) foo() string { return "" }
+ 
+ func _() {
+ 	var i I
+-	_ = i /* ERROR "impossible type assertion: i\.\(T1\)\n\tT1 does not implement I \(missing method Foo\)\n\t\thave foo\(\)\n\t\twant Foo\(\)" */ .(T1)
+-	_ = i /* ERROR "impossible type assertion: i\.\(T2\)\n\tT2 does not implement I \(missing method Foo\)\n\t\thave foo\(\) string\n\t\twant Foo\(\)" */ .(T2)
++	_ = i /* ERROR "impossible type assertion: i.(T1)\n\tT1 does not implement I (missing method Foo)\n\t\thave foo()\n\t\twant Foo()" */ .(T1)
++	_ = i /* ERROR "impossible type assertion: i.(T2)\n\tT2 does not implement I (missing method Foo)\n\t\thave foo() string\n\t\twant Foo()" */ .(T2)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue50918.go b/src/internal/types/testdata/fixedbugs/issue50918.go
+index b70cfde456..5744fa810d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50918.go
++++ b/src/internal/types/testdata/fixedbugs/issue50918.go
+@@ -14,8 +14,8 @@ type thing2 struct {
+ 
+ func _() {
+ 	var a1, b1 thing1
+-	_ = a1 /* ERROR "struct containing \[\]string cannot be compared" */ == b1
++	_ = a1 /* ERROR "struct containing []string cannot be compared" */ == b1
+ 
+ 	var a2, b2 thing2
+-	_ = a2 /* ERROR "struct containing \[\]thing1 cannot be compared" */ == b2
++	_ = a2 /* ERROR "struct containing []thing1 cannot be compared" */ == b2
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue50929.go b/src/internal/types/testdata/fixedbugs/issue50929.go
+index 369d5e74ac..64c7cd664f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50929.go
++++ b/src/internal/types/testdata/fixedbugs/issue50929.go
+@@ -55,7 +55,7 @@ func MMD[Rc RC /* ERROR "got 1 arguments" */ [RG], RG any, G any]() M /* ERROR "
+ 	case BC /* ERROR "undefined: BC" */ :
+ 
+ 	case RSC[G]:
+-		nFn = NSG /* ERROR "cannot use NSG\[G\]" */ [G]
++		nFn = NSG /* ERROR "cannot use NSG[G]" */ [G]
+ 	}
+ 
+ 	return M /* ERROR "got 2 arguments" */ [Rc, RG]{
+diff --git a/src/internal/types/testdata/fixedbugs/issue50965.go b/src/internal/types/testdata/fixedbugs/issue50965.go
+index 5361d21460..79059e9673 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50965.go
++++ b/src/internal/types/testdata/fixedbugs/issue50965.go
+@@ -6,12 +6,12 @@ package p
+ 
+ func _(x int, c string) {
+ 	switch x {
+-	case c /* ERROR "invalid case c in switch on x \(mismatched types string and int\)" */ :
++	case c /* ERROR "invalid case c in switch on x (mismatched types string and int)" */ :
+ 	}
+ }
+ 
+ func _(x, c []int) {
+ 	switch x {
+-	case c /* ERROR "invalid case c in switch on x \(slice can only be compared to nil\)" */ :
++	case c /* ERROR "invalid case c in switch on x (slice can only be compared to nil)" */ :
+ 	}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51229.go b/src/internal/types/testdata/fixedbugs/issue51229.go
+index ae1ae03d97..22a91135df 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51229.go
++++ b/src/internal/types/testdata/fixedbugs/issue51229.go
+@@ -105,7 +105,7 @@ func ch5[P chan int | chan<- int]()      { return } // core(P) == chan<- int   (
+ 
+ func _() {
+ 	// P can be inferred as there's a single specific type and no tilde.
+-	var _ chan int = ch1 /* ERROR "cannot use ch1.*value of type chan<- int" */ ()
++	var _ chan int = ch1 /* ERRORx `cannot use ch1.*value of type chan<- int` */ ()
+ 	var _ chan<- int = ch1()
+ 
+ 	// P cannot be inferred as there's a tilde.
+diff --git a/src/internal/types/testdata/fixedbugs/issue51232.go b/src/internal/types/testdata/fixedbugs/issue51232.go
+index 637de9042f..27693a3e4d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51232.go
++++ b/src/internal/types/testdata/fixedbugs/issue51232.go
+@@ -24,7 +24,7 @@ func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "got 1 arguments" */ [RCT] {
+ 
+ func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "got 1 arguments" */ [RCT] {
+ 	// TODO(rfindley): eliminate the duplicate error below.
+-	return & /* ERROR "cannot use .* as F\[RCT\]" */ concreteF /* ERROR "got 1 arguments" */ [RCT]{
++	return & /* ERRORx `cannot use .* as F\[RCT\]` */ concreteF /* ERROR "got 1 arguments" */ [RCT]{
+ 		makeFn: nil,
+ 	}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51335.go b/src/internal/types/testdata/fixedbugs/issue51335.go
+index e2f82f09b7..04dc04e1d7 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51335.go
++++ b/src/internal/types/testdata/fixedbugs/issue51335.go
+@@ -8,9 +8,9 @@ type S1 struct{}
+ type S2 struct{}
+ 
+ func _[P *S1|*S2]() {
+-	_= []P{{ /* ERROR "invalid composite literal element type P \(no core type\)" */ }}
++	_= []P{{ /* ERROR "invalid composite literal element type P (no core type)" */ }}
+ }
+ 
+ func _[P *S1|S1]() {
+-	_= []P{{ /* ERROR "invalid composite literal element type P \(no core type\)" */ }}
++	_= []P{{ /* ERROR "invalid composite literal element type P (no core type)" */ }}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51376.go b/src/internal/types/testdata/fixedbugs/issue51376.go
+index b5402ded7f..0f2ab8ea22 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51376.go
++++ b/src/internal/types/testdata/fixedbugs/issue51376.go
+@@ -12,7 +12,7 @@ func g[M map[K]V, K comparable, V any](M) {}
+ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+         var m1 M1
+         f(m1)
+-        g /* ERROR "M1 does not satisfy map\[K\]V" */ (m1) // M1 has tilde
++        g /* ERROR "M1 does not satisfy map[K]V" */ (m1) // M1 has tilde
+ 
+         var m2 M2
+         f(m2)
+@@ -20,5 +20,5 @@ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
+ 
+         var m3 Map
+         f(m3)
+-        g /* ERROR "Map does not satisfy map\[string\]int" */ (m3) // M in g does not have tilde
++        g /* ERROR "Map does not satisfy map[string]int" */ (m3) // M in g does not have tilde
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51472.go b/src/internal/types/testdata/fixedbugs/issue51472.go
+index 081a3916f6..583c5e557f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51472.go
++++ b/src/internal/types/testdata/fixedbugs/issue51472.go
+@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
+ }
+ 
+ func _(s []byte) {
+-	f /* ERROR "\[\]byte does not satisfy interface{comparable; \[\]byte \| string}" */ (s)
++	f /* ERROR "[]byte does not satisfy interface{comparable; []byte | string}" */ (s)
+         _ = f[[ /* ERROR "does not satisfy" */ ]byte]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51610.go b/src/internal/types/testdata/fixedbugs/issue51610.go
+index ae35357909..d0bc1ace9b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51610.go
++++ b/src/internal/types/testdata/fixedbugs/issue51610.go
+@@ -5,5 +5,5 @@
+ package p
+ 
+ func _[P int | float64 | complex128]() {
+-	_ = map[P]int{1: 1, 1.0 /* ERROR "duplicate key 1" */ : 2, 1 /* ERROR "duplicate key \(1 \+ 0i\)" */ + 0i: 3}
++	_ = map[P]int{1: 1, 1.0 /* ERROR "duplicate key 1" */ : 2, 1 /* ERROR "duplicate key (1 + 0i)" */ + 0i: 3}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51658.go b/src/internal/types/testdata/fixedbugs/issue51658.go
+index cbd504813e..36e2fdd37f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51658.go
++++ b/src/internal/types/testdata/fixedbugs/issue51658.go
+@@ -8,9 +8,9 @@
+ 
+ package p
+ 
+-type F { // ERROR "expected type|type declaration"
++type F { // ERRORx "expected type|type declaration"
+ 	float64
+-} // ERROR "expected declaration|non-declaration statement"
++} // ERRORx "expected declaration|non-declaration statement"
+ 
+ func _[T F | int](x T) {
+ 	_ = x == 0 // don't crash when recording type of 0
+@@ -18,9 +18,9 @@ func _[T F | int](x T) {
+ 
+ // test case from issue
+ 
+-type FloatType { // ERROR "expected type|type declaration"
++type FloatType { // ERRORx "expected type|type declaration"
+ 	float32 | float64
+-} // ERROR "expected declaration|non-declaration statement"
++} // ERRORx "expected declaration|non-declaration statement"
+ 
+ type IntegerType interface {
+ 	int8 | int16 | int32 | int64 | int |
+diff --git a/src/internal/types/testdata/fixedbugs/issue52031.go b/src/internal/types/testdata/fixedbugs/issue52031.go
+index 448a550b25..5b75b75c0c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue52031.go
++++ b/src/internal/types/testdata/fixedbugs/issue52031.go
+@@ -25,7 +25,7 @@ const (
+ 
+ // Invalid cases.
+ var x int = 1
+-var _ = (8 << x /* ERROR "signed shift count .* requires go1.13 or later" */)
++var _ = (8 << x /* ERRORx `signed shift count .* requires go1.13 or later` */)
+ 
+ const _ = (1 << 1.2 /* ERROR "truncated to uint" */)
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue53358.go b/src/internal/types/testdata/fixedbugs/issue53358.go
+index 1b99535170..67c095c283 100644
+--- a/src/internal/types/testdata/fixedbugs/issue53358.go
++++ b/src/internal/types/testdata/fixedbugs/issue53358.go
+@@ -8,12 +8,12 @@ type A struct{}
+ 
+ func (*A) m() int { return 0 }
+ 
+-var _ = A.m /* ERROR "invalid method expression A\.m \(needs pointer receiver \(\*A\)\.m\)" */ ()
++var _ = A.m /* ERROR "invalid method expression A.m (needs pointer receiver (*A).m)" */ ()
+ var _ = (*A).m(nil)
+ 
+ type B struct{ A }
+ 
+-var _ = B.m // ERROR "invalid method expression B\.m \(needs pointer receiver \(\*B\)\.m\)"
++var _ = B.m // ERROR "invalid method expression B.m (needs pointer receiver (*B).m)"
+ var _ = (*B).m
+ 
+-var _ = struct{ A }.m // ERROR "invalid method expression struct{A}\.m \(needs pointer receiver \(\*struct{A}\)\.m\)"
++var _ = struct{ A }.m // ERROR "invalid method expression struct{A}.m (needs pointer receiver (*struct{A}).m)"
+diff --git a/src/internal/types/testdata/fixedbugs/issue56351.go b/src/internal/types/testdata/fixedbugs/issue56351.go
+index b1e27e11b6..eee142c993 100644
+--- a/src/internal/types/testdata/fixedbugs/issue56351.go
++++ b/src/internal/types/testdata/fixedbugs/issue56351.go
+@@ -7,5 +7,5 @@
+ package p
+ 
+ func _(s []int) {
+-	clear /* ERROR "clear requires go1\.21 or later" */ (s)
++	clear /* ERROR "clear requires go1.21 or later" */ (s)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57486.go b/src/internal/types/testdata/fixedbugs/issue57486.go
+index 43ba1b0440..933eeb4cf9 100644
+--- a/src/internal/types/testdata/fixedbugs/issue57486.go
++++ b/src/internal/types/testdata/fixedbugs/issue57486.go
+@@ -24,6 +24,6 @@ func F1[V [2]any](v V) {
+ 
+ func F2[V [2]any](v V) {
+ 	_ = G2[V /* ERROR "V does not satisfy C2" */]
+-	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(C2 mentions \[2\]any, but \[2\]any is not in the type set of C2\)" */ 2]any]
++	_ = G2[[ /* ERROR "[2]any does not satisfy C2 (C2 mentions [2]any, but [2]any is not in the type set of C2)" */ 2]any]
+ 	_ = G2[int]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57500.go b/src/internal/types/testdata/fixedbugs/issue57500.go
+index 0bb1d25d82..4a90d47618 100644
+--- a/src/internal/types/testdata/fixedbugs/issue57500.go
++++ b/src/internal/types/testdata/fixedbugs/issue57500.go
+@@ -12,5 +12,5 @@ type C interface {
+ func f[T C]() {}
+ 
+ func _() {
+-	_ = f[[ /* ERROR "\[2\]any does not satisfy C \(C mentions \[2\]any, but \[2\]any is not in the type set of C\)" */ 2]any]
++	_ = f[[ /* ERROR "[2]any does not satisfy C (C mentions [2]any, but [2]any is not in the type set of C)" */ 2]any]
+ }
+diff --git a/src/internal/types/testdata/spec/assignability.go b/src/internal/types/testdata/spec/assignability.go
+index c287f64f4b..6670870b32 100644
+--- a/src/internal/types/testdata/spec/assignability.go
++++ b/src/internal/types/testdata/spec/assignability.go
+@@ -37,7 +37,7 @@ func _[TP any](X TP) {
+ // and at least one of V or T is not a named type."
+ // (here a named type is a type with a name)
+ func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
+-	b = B // ERROR "cannot use B .* as int value"
++	b = B // ERRORx `cannot use B .* as int value`
+ 	a = A
+ 	l = L
+ 	s = S
+@@ -48,7 +48,7 @@ func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
+ 	c = C
+ 	d = D
+ 
+-	B = b // ERROR "cannot use b .* as Basic value"
++	B = b // ERRORx `cannot use b .* as Basic value`
+ 	A = a
+ 	L = l
+ 	S = s
+@@ -58,8 +58,8 @@ func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
+ 	M = m
+ 	C = c
+ 	D = d
+-	X1 = i  // ERROR "cannot use i .* as TP1 value"
+-	X1 = X2 // ERROR "cannot use X2 .* as TP1 value"
++	X1 = i  // ERRORx `cannot use i .* as TP1 value`
++	X1 = X2 // ERRORx `cannot use X2 .* as TP1 value`
+ }
+ 
+ // "T is an interface type and x implements T and T is not a type parameter"
+@@ -67,7 +67,7 @@ func _[TP Interface](X TP) {
+ 	i = d // ERROR "missing method m"
+ 	i = D
+ 	i = X
+-	X = i // ERROR "cannot use i .* as TP value"
++	X = i // ERRORx `cannot use i .* as TP value`
+ }
+ 
+ // "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a named type"
+@@ -102,24 +102,24 @@ func _[
+ 		_ RecvChan = c
+ 		_ Chan     = c
+ 
+-		_ SendChan = C // ERROR "cannot use C .* as SendChan value"
+-		_ RecvChan = C // ERROR "cannot use C .* as RecvChan value"
++		_ SendChan = C // ERRORx `cannot use C .* as SendChan value`
++		_ RecvChan = C // ERRORx `cannot use C .* as RecvChan value`
+ 		_ Chan     = C
+-		_ Chan     = make /* ERROR "cannot use make\(chan Basic\) .* as Chan value" */ (chan Basic)
++		_ Chan     = make /* ERRORx `cannot use make\(chan Basic\) .* as Chan value` */ (chan Basic)
+ 	)
+ 
+ 	var (
+-		_ _CC = C // ERROR "cannot use C .* as _CC value"
+-		_ _SC = C // ERROR "cannot use C .* as _SC value"
+-		_ _RC = C // ERROR "cannot use C .* as _RC value"
++		_ _CC = C // ERRORx `cannot use C .* as _CC value`
++		_ _SC = C // ERRORx `cannot use C .* as _SC value`
++		_ _RC = C // ERRORx `cannot use C .* as _RC value`
+ 
+-		_ CC = _CC /* ERROR "cannot use _CC\(nil\) .* as CC value" */ (nil)
+-		_ SC = _CC /* ERROR "cannot use _CC\(nil\) .* as SC value" */ (nil)
+-		_ RC = _CC /* ERROR "cannot use _CC\(nil\) .* as RC value" */ (nil)
++		_ CC = _CC /* ERRORx `cannot use _CC\(nil\) .* as CC value` */ (nil)
++		_ SC = _CC /* ERRORx `cannot use _CC\(nil\) .* as SC value` */ (nil)
++		_ RC = _CC /* ERRORx `cannot use _CC\(nil\) .* as RC value` */ (nil)
+ 
+-		_ CC = C // ERROR "cannot use C .* as CC value"
+-		_ SC = C // ERROR "cannot use C .* as SC value"
+-		_ RC = C // ERROR "cannot use C .* as RC value"
++		_ CC = C // ERRORx `cannot use C .* as CC value`
++		_ SC = C // ERRORx `cannot use C .* as SC value`
++		_ RC = C // ERRORx `cannot use C .* as RC value`
+ 	)
+ }
+ 
+@@ -130,11 +130,11 @@ func _[
+ 	TP2 ~chan int | ~chan byte,
+ ]() {
+ 	var (
+-		_ TP0 = c // ERROR "cannot use c .* as TP0 value"
+-		_ TP0 = C // ERROR "cannot use C .* as TP0 value"
++		_ TP0 = c // ERRORx `cannot use c .* as TP0 value`
++		_ TP0 = C // ERRORx `cannot use C .* as TP0 value`
+ 		_ TP1 = c
+-		_ TP1 = C // ERROR "cannot use C .* as TP1 value"
+-		_ TP2 = c // ERROR ".* cannot assign chan int to chan byte"
++		_ TP1 = C // ERRORx `cannot use C .* as TP1 value`
++		_ TP2 = c // ERRORx `.* cannot assign chan int to chan byte`
+ 	)
+ }
+ 
+@@ -147,8 +147,8 @@ func _[
+ 	i = X0
+ 	I = X0
+ 	c = X1
+-	C = X1 // ERROR "cannot use X1 .* as Chan value"
+-	c = X2 // ERROR ".* cannot assign chan byte \(in TP2\) to chan int"
++	C = X1 // ERRORx `cannot use X1 .* as Chan value`
++	c = X2 // ERRORx `.* cannot assign chan byte \(in TP2\) to chan int`
+ }
+ 
+ // "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"
+@@ -206,8 +206,8 @@ func _[
+ 
+ 	i8_16 = -1 << 7
+ 	i8_16 = 1<<7 - 1
+-	i8_16 = - /* ERROR "cannot use .* as Int8_16" */ 1 << 15
+-	i8_16 = 1 /* ERROR "cannot use .* as Int8_16" */ <<15 - 1
++	i8_16 = - /* ERRORx `cannot use .* as Int8_16` */ 1 << 15
++	i8_16 = 1 /* ERRORx `cannot use .* as Int8_16` */ <<15 - 1
+ }
+ 
+ // proto-types for tests
+diff --git a/src/internal/types/testdata/spec/comparable1.19.go b/src/internal/types/testdata/spec/comparable1.19.go
+index 75b9fd3103..7a4b2a0cfa 100644
+--- a/src/internal/types/testdata/spec/comparable1.19.go
++++ b/src/internal/types/testdata/spec/comparable1.19.go
+@@ -13,15 +13,15 @@ type T interface{ m() }
+ 
+ func _[P comparable, Q ~int, R any]() {
+ 	_ = f1[int]
+-	_ = f1[T /* ERROR "T to satisfy comparable requires go1\.20 or later" */]
+-	_ = f1[any /* ERROR "any to satisfy comparable requires go1\.20 or later" */]
++	_ = f1[T /* ERROR "T to satisfy comparable requires go1.20 or later" */]
++	_ = f1[any /* ERROR "any to satisfy comparable requires go1.20 or later" */]
+ 	_ = f1[P]
+ 	_ = f1[Q]
+ 	_ = f1[R /* ERROR "R does not satisfy comparable" */]
+ 
+ 	_ = f2[int]
+-	_ = f2[T /* ERROR "T to satisfy comparable requires go1\.20 or later" */]
+-	_ = f2[any /* ERROR "any to satisfy comparable requires go1\.20 or later" */]
++	_ = f2[T /* ERROR "T to satisfy comparable requires go1.20 or later" */]
++	_ = f2[any /* ERROR "any to satisfy comparable requires go1.20 or later" */]
+ 	_ = f2[P]
+ 	_ = f2[Q]
+ 	_ = f2[R /* ERROR "R does not satisfy comparable" */]
+diff --git a/src/internal/types/testdata/spec/comparisons.go b/src/internal/types/testdata/spec/comparisons.go
+index 36d8d7114c..492890e49e 100644
+--- a/src/internal/types/testdata/spec/comparisons.go
++++ b/src/internal/types/testdata/spec/comparisons.go
+@@ -31,9 +31,9 @@ var (
+ func _() {
+ 	_ = nil == nil // ERROR "operator == not defined on untyped nil"
+ 	_ = b == b
+-	_ = a /* ERROR "\[10\]func\(\) cannot be compared" */ == a
++	_ = a /* ERROR "[10]func() cannot be compared" */ == a
+ 	_ = l /* ERROR "slice can only be compared to nil" */ == l
+-	_ = s /* ERROR "struct containing \[\]byte cannot be compared" */ == s
++	_ = s /* ERROR "struct containing []byte cannot be compared" */ == s
+ 	_ = p == p
+ 	_ = f /* ERROR "func can only be compared to nil" */ == f
+ 	_ = i == i
+diff --git a/src/internal/types/testdata/spec/conversions.go b/src/internal/types/testdata/spec/conversions.go
+index 332373845a..081439e3f2 100644
+--- a/src/internal/types/testdata/spec/conversions.go
++++ b/src/internal/types/testdata/spec/conversions.go
+@@ -9,22 +9,22 @@ import "unsafe"
+ // constant conversions
+ 
+ func _[T ~byte]() T { return 255 }
+-func _[T ~byte]() T { return 256 /* ERROR "cannot use 256 .* as T value" */ }
++func _[T ~byte]() T { return 256 /* ERRORx `cannot use 256 .* as T value` */ }
+ 
+ func _[T ~byte]() {
+-	const _ = T /* ERROR "T\(0\) .* is not constant" */ (0)
++	const _ = T /* ERRORx `T\(0\) .* is not constant` */ (0)
+ 	var _ T = 255
+-	var _ T = 256 // ERROR "cannot use 256 .* as T value"
++	var _ T = 256 // ERRORx `cannot use 256 .* as T value`
+ }
+ 
+ func _[T ~string]() T                { return T('a') }
+ func _[T ~int | ~string]() T         { return T('a') }
+-func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR "cannot convert 256 .* to type T" */) }
++func _[T ~byte | ~int | ~string]() T { return T(256 /* ERRORx `cannot convert 256 .* to type T` */) }
+ 
+ // implicit conversions never convert to string
+ func _[T ~string]() {
+-	var _ string = 0 // ERROR "cannot use .* as string value"
+-	var _ T = 0      // ERROR "cannot use .* as T value"
++	var _ string = 0 // ERRORx `cannot use .* as string value`
++	var _ T = 0      // ERRORx `cannot use .* as T value`
+ }
+ 
+ // failing const conversions of constants to type parameters report a cause
+@@ -34,10 +34,10 @@ func _[
+ 	T3 ~int | ~float64 | ~bool,
+ 	T4 ~int | ~string,
+ ]() {
+-	_ = T1(0 /* ERROR "cannot convert 0 .* to type T1: T1 does not contain specific types" */)
+-	_ = T2(1 /* ERROR "cannot convert 1 .* to type T2: T2 does not contain specific types" */)
+-	_ = T3(2 /* ERROR "cannot convert 2 .* to type T3: cannot convert 2 .* to type bool \(in T3\)" */)
+-	_ = T4(3.14 /* ERROR "cannot convert 3.14 .* to type T4: cannot convert 3.14 .* to type int \(in T4\)" */)
++	_ = T1(0 /* ERRORx `cannot convert 0 .* to type T1: T1 does not contain specific types` */)
++	_ = T2(1 /* ERRORx `cannot convert 1 .* to type T2: T2 does not contain specific types` */)
++	_ = T3(2 /* ERRORx `cannot convert 2 .* to type T3: cannot convert 2 .* to type bool \(in T3\)` */)
++	_ = T4(3.14 /* ERRORx `cannot convert 3.14 .* to type T4: cannot convert 3.14 .* to type int \(in T4\)` */)
+ }
+ 
+ // "x is assignable to T"
+@@ -66,7 +66,7 @@ func _[X Foo, T Bar](x X) T       { return T(x) }
+ func _[X Foo | Bar, T Bar](x X) T { return T(x) }
+ func _[X Foo, T Foo | Bar](x X) T { return T(x) }
+ func _[X Foo, T Far](x X) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type X constrained by Foo\) to type T: cannot convert Foo \(in X\) to type Far \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type X constrained by Foo) to type T: cannot convert Foo (in X) to type Far (in T)" */)
+ }
+ 
+ // "x's type and T are unnamed pointer types and their pointer base types
+@@ -76,7 +76,7 @@ func _[X ~*Foo, T ~*Bar](x X) T         { return T(x) }
+ func _[X ~*Foo | ~*Bar, T ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Foo | ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Far](x X) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type X constrained by ~\*Foo\) to type T: cannot convert \*Foo \(in X\) to type \*Far \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type X constrained by ~*Foo) to type T: cannot convert *Foo (in X) to type *Far (in T)" */)
+ }
+ 
+ // Verify that the defined types in constraints are considered for the rule above.
+@@ -109,14 +109,14 @@ func _[X Float, T Float](x X) T    { return T(x) }
+ 
+ func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
+ func _[X, T Integer | ~string](x X) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type X constrained by Integer \| ~string\) to type T: cannot convert string \(in X\) to type int \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type X constrained by Integer | ~string) to type T: cannot convert string (in X) to type int (in T)" */)
+ }
+ 
+ // "x's type and T are both complex types"
+ 
+ func _[X, T Complex](x X) T { return T(x) }
+ func _[X, T Float | Complex](x X) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type X constrained by Float \| Complex\) to type T: cannot convert float32 \(in X\) to type complex64 \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type X constrained by Float | Complex) to type T: cannot convert float32 (in X) to type complex64 (in T)" */)
+ }
+ 
+ // "x is an integer or a slice of bytes or runes and T is a string type"
+@@ -129,7 +129,7 @@ func _[T ~string](x myInt) T    { return T(x) }
+ func _[X Integer](x X) string   { return string(x) }
+ func _[X Integer](x X) myString { return myString(x) }
+ func _[X Integer](x X) *string {
+-	return (*string)(x /* ERROR "cannot convert x \(variable of type X constrained by Integer\) to type \*string: cannot convert int \(in X\) to type \*string" */)
++	return (*string)(x /* ERROR "cannot convert x (variable of type X constrained by Integer) to type *string: cannot convert int (in X) to type *string" */)
+ }
+ 
+ func _[T ~string](x []byte) T                           { return T(x) }
+@@ -138,7 +138,7 @@ func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
+ func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to type T: cannot convert int \(in X\) to type \*string \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type X constrained by Integer | ~[]byte | ~[]rune) to type T: cannot convert int (in X) to type *string (in T)" */)
+ }
+ 
+ // "x is a string and T is a slice of bytes or runes"
+@@ -146,14 +146,14 @@ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+ func _[T ~[]byte](x string) T { return T(x) }
+ func _[T ~[]rune](x string) T { return T(x) }
+ func _[T ~[]rune](x *string) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type \*string\) to type T: cannot convert \*string to type \[\]rune \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type *string) to type T: cannot convert *string to type []rune (in T)" */)
+ }
+ 
+ func _[X ~string, T ~[]byte](x X) T           { return T(x) }
+ func _[X ~string, T ~[]rune](x X) T           { return T(x) }
+ func _[X ~string, T ~[]byte | ~[]rune](x X) T { return T(x) }
+ func _[X ~*string, T ~[]byte | ~[]rune](x X) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type X constrained by ~\*string\) to type T: cannot convert \*string \(in X\) to type \[\]byte \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type X constrained by ~*string) to type T: cannot convert *string (in X) to type []byte (in T)" */)
+ }
+ 
+ // package unsafe:
+@@ -164,7 +164,7 @@ type myUintptr uintptr
+ func _[X ~uintptr](x X) unsafe.Pointer  { return unsafe.Pointer(x) }
+ func _[T unsafe.Pointer](x myUintptr) T { return T(x) }
+ func _[T unsafe.Pointer](x int64) T {
+-	return T(x /* ERROR "cannot convert x \(variable of type int64\) to type T: cannot convert int64 to type unsafe\.Pointer \(in T\)" */)
++	return T(x /* ERROR "cannot convert x (variable of type int64) to type T: cannot convert int64 to type unsafe.Pointer (in T)" */)
+ }
+ 
+ // "and vice versa"
+@@ -173,7 +173,7 @@ func _[T ~uintptr](x unsafe.Pointer) T  { return T(x) }
+ func _[X unsafe.Pointer](x X) uintptr   { return uintptr(x) }
+ func _[X unsafe.Pointer](x X) myUintptr { return myUintptr(x) }
+ func _[X unsafe.Pointer](x X) int64 {
+-	return int64(x /* ERROR "cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to type int64: cannot convert unsafe\.Pointer \(in X\) to type int64" */)
++	return int64(x /* ERROR "cannot convert x (variable of type X constrained by unsafe.Pointer) to type int64: cannot convert unsafe.Pointer (in X) to type int64" */)
+ }
+ 
+ // "x is a slice, T is an array or pointer-to-array type,

@@ -22,10 +22,429 @@ Date:   Tue Jun 7 14:26:16 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4524075
-
+---
  src/cmd/5l/asm.c    | 30 +++++++--------------
  src/cmd/6l/asm.c    | 43 +++++++----------------------
  src/cmd/8l/asm.c    | 27 +++++++------------
  src/cmd/ld/lib.h    |  3 +--
  src/cmd/ld/symtab.c | 78 ++++++++++++++++++++++-------------------------------
  5 files changed, 61 insertions(+), 120 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 81c08e3535..011e7f8424 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -34,8 +34,6 @@
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ 
+-int32	OFFSET;
+-
+ static Prog *PP;
+ 
+ char linuxdynld[] = "/lib/ld-linux.so.2";
+@@ -295,7 +293,7 @@ asmb(void)
+ {
+ 	int32 t;
+ 	int a, dynsym;
+-	uint32 fo, symo, startva, elfsymo, elfstro, elfsymsize;
++	uint32 fo, symo, startva;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -305,10 +303,6 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
+-	elfsymsize = 0;
+-	elfstro = 0;
+-	elfsymo = 0;
+-
+ 	sect = segtext.sect;
+ 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+ 	codeblk(sect->vaddr, sect->len);
+@@ -361,27 +355,22 @@ asmb(void)
+ 			debug['s'] = 1;
+ 			break;
+ 		case Hplan9x32:
+-			OFFSET = HEADR+textsize+segdata.filelen;
+-			seek(cout, OFFSET, 0);
++			symo = HEADR+segtext.len+segdata.filelen;
+ 			break;
+ 		case Hnetbsd:
+-			OFFSET += rnd(segdata.filelen, 4096);
+-			seek(cout, OFFSET, 0);
++			symo = rnd(segdata.filelen, 4096);
+ 			break;
+ 		ElfSym:
+ 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
++		seek(cout, symo, 0);
+ 		if(iself) {
+ 			if(debug['v'])
+ 			       Bprint(&bso, "%5.2f elfsym\n", cputime());
+-			elfsymo = symo+8+symsize+lcsize;
+-			seek(cout, elfsymo, 0);
+-			asmelfsym32();
++			asmelfsym();
+ 			cflush();
+-			elfstro = seek(cout, 0, 1);
+-			elfsymsize = elfstro - elfsymo;
+ 			ewrite(cout, elfstrdat, elfstrsize);
+ 
+ 			// if(debug['v'])
+@@ -397,8 +386,7 @@ asmb(void)
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f header\n", cputime());
+ 	Bflush(&bso);
+-	OFFSET = 0;
+-	seek(cout, OFFSET, 0);
++	seek(cout, 0L, 0);
+ 	switch(HEADTYPE) {
+ 	case Hnoheader:	/* no header */
+ 		break;
+@@ -599,15 +587,15 @@ asmb(void)
+ 
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+-			sh->off = elfsymo;
+-			sh->size = elfsymsize;
++			sh->off = symo;
++			sh->size = symsize;
+ 			sh->addralign = 4;
+ 			sh->entsize = 16;
+ 			sh->link = eh->shnum;	// link to strtab
+ 
+ 			sh = newElfShdr(elfstr[ElfStrStrtab]);
+ 			sh->type = SHT_STRTAB;
+-			sh->off = elfstro;
++			sh->off = symo+symsize;
+ 			sh->size = elfstrsize;
+ 			sh->addralign = 1;
+ 
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 320f4c9e91..4c04112b76 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -698,7 +698,7 @@ asmb(void)
+ {
+ 	int32 magic;
+ 	int a, dynsym;
+-	vlong vl, startva, symo, elfsymo, elfstro, elfsymsize, machlink;
++	vlong vl, startva, symo, machlink;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -709,9 +709,6 @@ asmb(void)
+ 	Bflush(&bso);
+ 
+ 	elftextsh = 0;
+-	elfsymsize = 0;
+-	elfstro = 0;
+-	elfsymo = 0;
+ 	
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f codeblk\n", cputime());
+@@ -790,36 +787,13 @@ asmb(void)
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
++		seek(cout, symo, 0);
+ 		switch(HEADTYPE) {
+ 		default:
+ 			if(iself) {
+-				/*
+-				 * the symbol information is stored as
+-				 *	32-bit symbol table size
+-				 *	32-bit line number table size
+-				 *	symbol table
+-				 *	line number table
+-				 */
+-				seek(cout, symo+8, 0);
+-				if(debug['v'])
+-					Bprint(&bso, "%5.2f sp\n", cputime());
+-				Bflush(&bso);
+-				if(debug['v'])
+-					Bprint(&bso, "%5.2f pc\n", cputime());
+-				Bflush(&bso);
+-				if(!debug['s'])
+-					strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+-				cflush();
+ 				seek(cout, symo, 0);
+-				lputl(symsize);
+-				lputl(lcsize);
++				asmelfsym();
+ 				cflush();
+-				elfsymo = symo+8+symsize+lcsize;
+-				seek(cout, elfsymo, 0);
+-				asmelfsym64();
+-				cflush();
+-				elfstro = seek(cout, 0, 1);
+-				elfsymsize = elfstro - elfsymo;
+ 				ewrite(cout, elfstrdat, elfstrsize);
+ 
+ 				if(debug['v'])
+@@ -830,7 +804,6 @@ asmb(void)
+ 			break;
+ 		case Hdarwin:
+ 		case Hwindows:
+-			seek(cout, symo, 0);
+ 			if(debug['v'])
+ 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 
+@@ -1054,15 +1027,15 @@ asmb(void)
+ 
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+-			sh->off = elfsymo;
+-			sh->size = elfsymsize;
++			sh->off = symo;
++			sh->size = symsize;
+ 			sh->addralign = 8;
+ 			sh->entsize = 24;
+ 			sh->link = eh->shnum;	// link to strtab
+ 
+ 			sh = newElfShdr(elfstr[ElfStrStrtab]);
+ 			sh->type = SHT_STRTAB;
+-			sh->off = elfstro;
++			sh->off = symo+symsize;
+ 			sh->size = elfstrsize;
+ 			sh->addralign = 1;
+ 
+@@ -1149,6 +1122,10 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 	Auto *a;
+ 	Sym *s;
+ 
++	s = lookup("etext", 0);
++	if(s->type == STEXT)
++		put(s, s->name, 'T', s->value, s->size, s->version, 0);
++
+ 	for(s=allsym; s!=S; s=s->allsym) {
+ 		if(s->hide)
+ 			continue;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index c426a88a4e..cb900d28d0 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -663,7 +663,7 @@ asmb(void)
+ {
+ 	int32 v, magic;
+ 	int a, dynsym;
+-	uint32 symo, startva, machlink, elfsymo, elfstro, elfsymsize;
++	uint32 symo, startva, machlink;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -675,10 +675,6 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
+-	elfsymsize = 0;
+-	elfstro = 0;
+-	elfsymo = 0;
+-
+ 	sect = segtext.sect;
+ 	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
+ 	codeblk(sect->vaddr, sect->len);
+@@ -724,10 +720,10 @@ asmb(void)
+ 			if(iself)
+ 				goto Elfsym;
+ 		case Hgarbunix:
+-			seek(cout, rnd(HEADR+segtext.filelen, 8192)+segdata.filelen, 0);
++			symo = rnd(HEADR+segtext.filelen, 8192)+segdata.filelen;
+ 			break;
+ 		case Hunixcoff:
+-			seek(cout, rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen, 0);
++			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 			break;
+ 		case Hplan9x32:
+ 			symo = HEADR+segtext.filelen+segdata.filelen;
+@@ -749,17 +745,14 @@ asmb(void)
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
++		seek(cout, symo, 0);
+ 		switch(HEADTYPE) {
+ 		default:
+ 			if(iself) {
+ 				if(debug['v'])
+ 				       Bprint(&bso, "%5.2f elfsym\n", cputime());
+-				elfsymo = symo+8+symsize+lcsize;
+-				seek(cout, elfsymo, 0);
+-				asmelfsym32();
++				asmelfsym();
+ 				cflush();
+-				elfstro = seek(cout, 0, 1);
+-				elfsymsize = elfstro - elfsymo;
+ 				ewrite(cout, elfstrdat, elfstrsize);
+ 
+ 				if(debug['v'])
+@@ -768,10 +761,9 @@ asmb(void)
+ 			}
+ 			break;
+ 		case Hplan9x32:
+-			seek(cout, symo, 0);
+ 			asmplan9sym();
+ 			cflush();
+-			
++
+ 			sym = lookup("pclntab", 0);
+ 			if(sym != nil) {
+ 				lcsize = sym->np;
+@@ -783,7 +775,6 @@ asmb(void)
+ 			break;
+ 		case Hdarwin:
+ 		case Hwindows:
+-			seek(cout, symo, 0);
+ 			if(debug['v'])
+ 				Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 			dwarfemitdebugsections();
+@@ -1110,15 +1101,15 @@ asmb(void)
+ 
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+-			sh->off = elfsymo;
+-			sh->size = elfsymsize;
++			sh->off = symo;
++			sh->size = symsize;
+ 			sh->addralign = 4;
+ 			sh->entsize = 16;
+ 			sh->link = eh->shnum;	// link to strtab
+ 
+ 			sh = newElfShdr(elfstr[ElfStrStrtab]);
+ 			sh->type = SHT_STRTAB;
+-			sh->off = elfstro;
++			sh->off = symo+symsize;
+ 			sh->size = elfstrsize;
+ 			sh->addralign = 1;
+ 
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index f69f5a35d4..dfd18fbff9 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -186,8 +186,7 @@ vlong	addsize(Sym*, Sym*);
+ vlong	adduint8(Sym*, uint8);
+ vlong	adduint16(Sym*, uint16);
+ void	asmsym(void);
+-void	asmelfsym32(void);
+-void	asmelfsym64(void);
++void	asmelfsym(void);
+ void	asmplan9sym(void);
+ void	strnput(char*, int);
+ void	dodata(void);
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index da698fcc07..e3093b2aac 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -61,49 +61,35 @@ putelfstr(char *s)
+ }
+ 
+ void
+-putelfsym64(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
++putelfsyment(int off, vlong addr, vlong size, int info, int shndx)
+ {
+-	int bind, type, shndx, stroff;
+-	
+-	bind = STB_GLOBAL;
+-	switch(t) {
+-	default:
+-		return;
+-	case 'T':
+-		type = STT_FUNC;
+-		shndx = elftextsh + 0;
+-		break;
+-	case 'D':
+-		type = STT_OBJECT;
+-		shndx = elftextsh + 1;
++	switch(thechar) {
++	case '6':
++		LPUT(off);
++		cput(info);
++		cput(0);
++		WPUT(shndx);
++		VPUT(addr);
++		VPUT(size);
++		symsize += ELF64SYMSIZE;
+ 		break;
+-	case 'B':
+-		type = STT_OBJECT;
+-		shndx = elftextsh + 2;
++	default:
++		LPUT(off);
++		LPUT(addr);
++		LPUT(size);
++		cput(info);
++		cput(0);
++		WPUT(shndx);
++		symsize += ELF32SYMSIZE;
+ 		break;
+ 	}
+-	
+-	stroff = putelfstr(s);
+-	LPUT(stroff);	// string
+-	cput((bind<<4)|(type&0xF));
+-	cput(0);
+-	WPUT(shndx);
+-	VPUT(addr);
+-	VPUT(size);
+ }
+ 
+ void
+-asmelfsym64(void)
++putelfsym(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+ {
+-	genasmsym(putelfsym64);
+-}
++	int bind, type, shndx, off;
+ 
+-void
+-putelfsym32(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+-{
+-	int bind, type, shndx, stroff;
+-	
+-	bind = STB_GLOBAL;
+ 	switch(t) {
+ 	default:
+ 		return;
+@@ -113,27 +99,27 @@ putelfsym32(Sym *x, char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+ 		break;
+ 	case 'D':
+ 		type = STT_OBJECT;
+-		shndx = elftextsh + 1;
++		if((x->type&~SSUB) == SRODATA)
++			shndx = elftextsh + 1;
++		else
++			shndx = elftextsh + 2;
+ 		break;
+ 	case 'B':
+ 		type = STT_OBJECT;
+-		shndx = elftextsh + 2;
++		shndx = elftextsh + 3;
+ 		break;
+ 	}
+-	
+-	stroff = putelfstr(s);
+-	LPUT(stroff);	// string
+-	LPUT(addr);
+-	LPUT(size);
+-	cput((bind<<4)|(type&0xF));
+-	cput(0);
+-	WPUT(shndx);
++	bind = ver ? STB_LOCAL : STB_GLOBAL;
++	off = putelfstr(s);
++	putelfsyment(off, addr, size, (bind<<4)|(type&0xf), shndx);
+ }
+ 
+ void
+-asmelfsym32(void)
++asmelfsym(void)
+ {
+-	genasmsym(putelfsym32);
++	// the first symbol entry is reserved
++	putelfsyment(0, 0, 0, (STB_LOCAL<<4)|STT_NOTYPE, 0);
++	genasmsym(putelfsym);
+ }
+ 
+ void

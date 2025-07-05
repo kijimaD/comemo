@@ -14,8 +14,52 @@ Date:   Mon Dec 11 12:42:16 2023 -0500
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/go1.22.html                    | 4 +++-
  src/cmd/go/alldocs.go              | 3 ---
  src/cmd/go/internal/modcmd/init.go | 3 ---
  3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 437e86e6b6..3bc0c092ed 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -94,7 +94,9 @@ func main() {
+ 
+ <!-- CL 518776 -->
+ <p>
+-  <!-- cmd/go: remove conversion of legacy pre-module dependency configs -->
++  <code>go</code> <code>mod</code> <code>init</code> no longer attempts to import
++  module requirements from configuration files for other vendoring tools
++  (such as <code>Gopkg.lock</code>).
+ </p>
+ 
+ <!-- CL 495447 -->
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a40d0556ff..e61e865c84 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1324,9 +1324,6 @@
+ // using import comments in .go files, vendoring tool configuration files (like
+ // Gopkg.lock), and the current directory (if in GOPATH).
+ //
+-// If a configuration file for a vendoring tool is present, init will attempt to
+-// import module requirements from it.
+-//
+ // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+ //
+ // # Add missing and remove unused modules
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index e4be73fab0..facdaa9911 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -25,9 +25,6 @@ module path argument is omitted, init will attempt to infer the module path
+ using import comments in .go files, vendoring tool configuration files (like
+ Gopkg.lock), and the current directory (if in GOPATH).
+ 
+-If a configuration file for a vendoring tool is present, init will attempt to
+-import module requirements from it.
+-
+ See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+ `,
+ 	Run: runInit,

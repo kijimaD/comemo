@@ -13,6 +13,20 @@ Date:   Thu Apr 16 16:49:10 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bb401e805b..4829c5f5fc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2549,7 +2549,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.load(n.Type, addr)
+ 
+ 	case ODEREF:
+-		p := s.exprPtr(n.Left, n.Left.Bounded(), n.Pos)
++		p := s.exprPtr(n.Left, false, n.Pos)
+ 		return s.load(n.Type, p)
+ 
+ 	case ODOT:

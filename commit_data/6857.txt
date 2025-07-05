@@ -7,6 +7,20 @@ Date:   Tue Dec 7 16:14:45 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3485044
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1b4ada1f4c..1bbb7acc28 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -60,7 +60,7 @@ Cary Hull <chull@google.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>
+-Christian Himpel <chressie@googlemail.com>
++Christian Himpel <chressie@googlemail.com> <chressie@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Corey Thomasson <cthom.lists@gmail.com>

@@ -7,6 +7,19 @@ Date:   Mon Nov 5 22:04:46 2018 +0530
     Change-Id: I19ff9d231c4cc779b0737802c3c40ee2e00934dd
     Reviewed-on: https://go-review.googlesource.com/c/147477
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/addr2line/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index 267f4170a8..018802940b 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -61,6 +61,7 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
++	defer f.Close()
+ 
+ 	tab, err := f.PCLineTable()
+ 	if err != nil {

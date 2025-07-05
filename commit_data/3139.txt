@@ -7,6 +7,20 @@ Date:   Sun Aug 30 11:36:42 2009 -0700
     R=r
     OCL=34087
     CL=34087
-
+---
  src/cmd/6g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index b79cd61d86..77b85d262b 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -112,7 +112,7 @@ regopt(Prog *firstp)
+ 		nr++;
+ 	// if too big dont bother
+ 	if(nr >= 10000) {
+-		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
++//		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
+ 		return;
+ 	}
+ 

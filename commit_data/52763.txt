@@ -16,6 +16,22 @@ Date:   Tue May 24 16:13:42 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dial_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 3cce444e5c..afec31f636 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -302,8 +302,8 @@ func TestDialParallel(t *testing.T) {
+ 		// We used to always use 95 milliseconds as the slop,
+ 		// but that was flaky on Windows.  See issue 35616.
+ 		slop := 95 * time.Millisecond
+-		if fifth := tt.expectElapsed / 5; fifth > slop {
+-			slop = fifth
++		if half := tt.expectElapsed / 2; half > slop {
++			slop = half
+ 		}
+ 		expectElapsedMin := tt.expectElapsed - slop
+ 		expectElapsedMax := tt.expectElapsed + slop

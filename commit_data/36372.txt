@@ -17,8 +17,140 @@ Date:   Mon Apr 23 14:11:40 2018 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 ++++----
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 20 +++++++++++++++----
  test/fixedbugs/issue25006.go                 | 30 ++++++++++++++++++++++++++++
  3 files changed, 50 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index cab0f66079..f589d00631 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1443,10 +1443,10 @@
+ (CMPLconst x [0]) -> (TESTL x x)
+ (CMPWconst x [0]) -> (TESTW x x)
+ (CMPBconst x [0]) -> (TESTB x x)
+-(TESTQconst [-1] x) -> (TESTQ x x)
+-(TESTLconst [-1] x) -> (TESTL x x)
+-(TESTWconst [-1] x) -> (TESTW x x)
+-(TESTBconst [-1] x) -> (TESTB x x)
++(TESTQconst [-1] x) && x.Op != OpAMD64MOVQconst -> (TESTQ x x)
++(TESTLconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTL x x)
++(TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTW x x)
++(TESTBconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTB x x)
+ 
+ // Combining byte loads into larger (unaligned) loads.
+ // There are many ways these combinations could occur.  This is
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 313b6bef9c..052646a2b7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -49732,13 +49732,16 @@ func rewriteValueAMD64_OpAMD64TESTB_0(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpAMD64TESTBconst_0(v *Value) bool {
+ 	// match: (TESTBconst [-1] x)
+-	// cond:
++	// cond: x.Op != OpAMD64MOVLconst
+ 	// result: (TESTB x x)
+ 	for {
+ 		if v.AuxInt != -1 {
+ 			break
+ 		}
+ 		x := v.Args[0]
++		if !(x.Op != OpAMD64MOVLconst) {
++			break
++		}
+ 		v.reset(OpAMD64TESTB)
+ 		v.AddArg(x)
+ 		v.AddArg(x)
+@@ -49841,13 +49844,16 @@ func rewriteValueAMD64_OpAMD64TESTL_0(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpAMD64TESTLconst_0(v *Value) bool {
+ 	// match: (TESTLconst [-1] x)
+-	// cond:
++	// cond: x.Op != OpAMD64MOVLconst
+ 	// result: (TESTL x x)
+ 	for {
+ 		if v.AuxInt != -1 {
+ 			break
+ 		}
+ 		x := v.Args[0]
++		if !(x.Op != OpAMD64MOVLconst) {
++			break
++		}
+ 		v.reset(OpAMD64TESTL)
+ 		v.AddArg(x)
+ 		v.AddArg(x)
+@@ -49956,13 +49962,16 @@ func rewriteValueAMD64_OpAMD64TESTQ_0(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpAMD64TESTQconst_0(v *Value) bool {
+ 	// match: (TESTQconst [-1] x)
+-	// cond:
++	// cond: x.Op != OpAMD64MOVQconst
+ 	// result: (TESTQ x x)
+ 	for {
+ 		if v.AuxInt != -1 {
+ 			break
+ 		}
+ 		x := v.Args[0]
++		if !(x.Op != OpAMD64MOVQconst) {
++			break
++		}
+ 		v.reset(OpAMD64TESTQ)
+ 		v.AddArg(x)
+ 		v.AddArg(x)
+@@ -50065,13 +50074,16 @@ func rewriteValueAMD64_OpAMD64TESTW_0(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpAMD64TESTWconst_0(v *Value) bool {
+ 	// match: (TESTWconst [-1] x)
+-	// cond:
++	// cond: x.Op != OpAMD64MOVLconst
+ 	// result: (TESTW x x)
+ 	for {
+ 		if v.AuxInt != -1 {
+ 			break
+ 		}
+ 		x := v.Args[0]
++		if !(x.Op != OpAMD64MOVLconst) {
++			break
++		}
+ 		v.reset(OpAMD64TESTW)
+ 		v.AddArg(x)
+ 		v.AddArg(x)
+diff --git a/test/fixedbugs/issue25006.go b/test/fixedbugs/issue25006.go
+new file mode 100644
+index 0000000000..570fdca5c2
+--- /dev/null
++++ b/test/fixedbugs/issue25006.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func spin() {
++	var i int
++	var b bool
++
++	switch 1 {
++	case 0:
++		i = 1
++	}
++	switch 1 {
++	case i:
++	default:
++		i = 1
++		b = !b && (b && !b) && b
++	}
++	switch false {
++	case false:
++		i = 3 + -i
++		switch 0 {
++		case 1 - i:
++		}
++	}
++}

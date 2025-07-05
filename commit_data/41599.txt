@@ -19,9 +19,145 @@ Date:   Wed Oct 9 18:06:06 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go    | 22 ++++++++++----
  src/cmd/compile/internal/ssa/numberlines.go |  2 +-
  test/codegen/memcombine.go                  |  4 +--
  test/fixedbugs/issue33724.go                | 45 +++++++++++++++++++++++++++++
  4 files changed, 65 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 9516d58a6e..33e8dc9103 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -199,8 +199,8 @@ var faultOnLoad = objabi.GOOS != "aix"
+ // nilcheckelim2 eliminates unnecessary nil checks.
+ // Runs after lowering and scheduling.
+ func nilcheckelim2(f *Func) {
+-	unnecessary := f.newSparseSet(f.NumValues())
+-	defer f.retSparseSet(unnecessary)
++	unnecessary := f.newSparseMap(f.NumValues()) // map from pointer that will be dereferenced to index of dereferencing value in b.Values[]
++	defer f.retSparseMap(unnecessary)
+ 
+ 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+ 
+@@ -218,9 +218,21 @@ func nilcheckelim2(f *Func) {
+ 				if f.fe.Debug_checknil() && v.Pos.Line() > 1 {
+ 					f.Warnl(v.Pos, "removed nil check")
+ 				}
+-				if v.Pos.IsStmt() == src.PosIsStmt {
++				// For bug 33724, policy is that we might choose to bump an existing position
++				// off the faulting load/store in favor of the one from the nil check.
++
++				// Iteration order means that first nilcheck in the chain wins, others
++				// are bumped into the ordinary statement preservation algorithm.
++				u := b.Values[unnecessary.get(v.Args[0].ID)]
++				if !u.Pos.SameFileAndLine(v.Pos) {
++					if u.Pos.IsStmt() == src.PosIsStmt {
++						pendingLines.add(u.Pos)
++					}
++					u.Pos = v.Pos
++				} else if v.Pos.IsStmt() == src.PosIsStmt {
+ 					pendingLines.add(v.Pos)
+ 				}
++
+ 				v.reset(OpUnknown)
+ 				firstToRemove = i
+ 				continue
+@@ -294,7 +306,7 @@ func nilcheckelim2(f *Func) {
+ 				}
+ 				// This instruction is guaranteed to fault if ptr is nil.
+ 				// Any previous nil check op is unnecessary.
+-				unnecessary.add(ptr.ID)
++				unnecessary.set(ptr.ID, int32(i), src.NoXPos)
+ 			}
+ 		}
+ 		// Remove values we've clobbered with OpUnknown.
+@@ -302,7 +314,7 @@ func nilcheckelim2(f *Func) {
+ 		for j := i; j < len(b.Values); j++ {
+ 			v := b.Values[j]
+ 			if v.Op != OpUnknown {
+-				if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.contains(v.Pos) {
++				if !notStmtBoundary(v.Op) && pendingLines.contains(v.Pos) { // Late in compilation, so any remaining NotStmt values are probably okay now.
+ 					v.Pos = v.Pos.WithIsStmt()
+ 					pendingLines.remove(v.Pos)
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index 6321d61537..3d77fe5bb4 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -74,7 +74,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
+ // rewrite.
+ func notStmtBoundary(op Op) bool {
+ 	switch op {
+-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpUnknown, OpFwdRef, OpArg:
++	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg:
+ 		return true
+ 	}
+ 	return false
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index d5f3af7692..e2d703cb0c 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -321,8 +321,8 @@ func fcall_uint32(a, b uint32) (uint32, uint32) {
+ // We want to merge load+op in the first function, but not in the
+ // second. See Issue 19595.
+ func load_op_merge(p, q *int) {
+-	x := *p
+-	*q += x // amd64:`ADDQ\t\(`
++	x := *p // amd64:`ADDQ\t\(`
++	*q += x // The combined nilcheck and load would normally have this line number, but we want that combined operation to have the line number of the nil check instead (see #33724).
+ }
+ func load_op_no_merge(p, q *int) {
+ 	x := *p
+diff --git a/test/fixedbugs/issue33724.go b/test/fixedbugs/issue33724.go
+new file mode 100644
+index 0000000000..a4ecddc0b3
+--- /dev/null
++++ b/test/fixedbugs/issue33724.go
+@@ -0,0 +1,45 @@
++// run
++package main
++
++import (
++	"fmt"
++	"runtime/debug"
++	"strings"
++)
++
++type Inner struct {
++	Err int
++}
++
++func (i *Inner) NotExpectedInStackTrace() int {
++	if i == nil {
++		return 86
++	}
++	return 17 + i.Err
++}
++
++type Outer struct {
++	Inner
++}
++
++func ExpectedInStackTrace() {
++	var o *Outer
++	println(o.NotExpectedInStackTrace())
++}
++
++func main() {
++    defer func() {
++        if r := recover(); r != nil {
++        	stacktrace := string(debug.Stack())
++        	if strings.Contains(stacktrace, "NotExpectedInStackTrace") {
++        		fmt.Println("FAIL, stacktrace contains NotExpectedInStackTrace")
++        	}
++        	if !strings.Contains(stacktrace, "ExpectedInStackTrace") {
++        		fmt.Println("FAIL, stacktrace does not contain ExpectedInStackTrace")
++        	}
++        } else {
++        	fmt.Println("FAIL, should have panicked but did not")
++        }
++    }()
++    ExpectedInStackTrace()
++}

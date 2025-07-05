@@ -13,6 +13,23 @@ Date:   Mon Aug 22 23:23:57 2011 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/4936044
-
+---
  src/cmd/ld/symtab.c | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 60e146b354..00413af009 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -34,10 +34,7 @@
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ 
+-char *elfstrdat;
+-int elfstrsize;
+-int maxelfstr;
+-int elftextsh;
++static int maxelfstr;
+ 
+ int
+ putelfstr(char *s)

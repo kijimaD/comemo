@@ -24,7 +24,79 @@ Date:   Sat Jun 10 09:34:40 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/subtle/constant_time.go      | 16 ++--------------
  src/crypto/subtle/constant_time_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/src/crypto/subtle/constant_time.go b/src/crypto/subtle/constant_time.go
+index 11312b8dd4..9f5fee87e3 100644
+--- a/src/crypto/subtle/constant_time.go
++++ b/src/crypto/subtle/constant_time.go
+@@ -29,24 +29,12 @@ func ConstantTimeSelect(v, x, y int) int { return ^(v-1)&x | (v-1)&y }
+ 
+ // ConstantTimeByteEq returns 1 if x == y and 0 otherwise.
+ func ConstantTimeByteEq(x, y uint8) int {
+-	z := ^(x ^ y)
+-	z &= z >> 4
+-	z &= z >> 2
+-	z &= z >> 1
+-
+-	return int(z)
++	return int((uint32(x^y) - 1) >> 31)
+ }
+ 
+ // ConstantTimeEq returns 1 if x == y and 0 otherwise.
+ func ConstantTimeEq(x, y int32) int {
+-	z := ^(x ^ y)
+-	z &= z >> 16
+-	z &= z >> 8
+-	z &= z >> 4
+-	z &= z >> 2
+-	z &= z >> 1
+-
+-	return int(z & 1)
++	return int((uint64(uint32(x^y)) - 1) >> 63)
+ }
+ 
+ // ConstantTimeCopy copies the contents of y into x (a slice of equal length)
+diff --git a/src/crypto/subtle/constant_time_test.go b/src/crypto/subtle/constant_time_test.go
+index 619a454441..033301a6e4 100644
+--- a/src/crypto/subtle/constant_time_test.go
++++ b/src/crypto/subtle/constant_time_test.go
+@@ -125,3 +125,35 @@ func TestConstantTimeLessOrEq(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var benchmarkGlobal uint8
++
++func BenchmarkConstantTimeByteEq(b *testing.B) {
++	var x, y uint8
++
++	for i := 0; i < b.N; i++ {
++		x, y = uint8(ConstantTimeByteEq(x, y)), x
++	}
++
++	benchmarkGlobal = x
++}
++
++func BenchmarkConstantTimeEq(b *testing.B) {
++	var x, y int
++
++	for i := 0; i < b.N; i++ {
++		x, y = ConstantTimeEq(int32(x), int32(y)), x
++	}
++
++	benchmarkGlobal = uint8(x)
++}
++
++func BenchmarkConstantTimeLessOrEq(b *testing.B) {
++	var x, y int
++
++	for i := 0; i < b.N; i++ {
++		x, y = ConstantTimeLessOrEq(x, y), x
++	}
++
++	benchmarkGlobal = uint8(x)
++}

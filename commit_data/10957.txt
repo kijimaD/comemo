@@ -7,7 +7,83 @@ Date:   Thu Dec 22 09:38:57 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5504066
-
+---
  misc/dashboard/app/app.yaml         |  2 +-
  misc/dashboard/app/build/handler.go | 35 +++++++++++++++++++++++++++++------
  2 files changed, 30 insertions(+), 7 deletions(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index 7a325b497c..b7cc673a9b 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -10,6 +10,6 @@ handlers:
+   script: _go_app
+ - url: /(|commit|packages|result|tag|todo)
+   script: _go_app
+-- url: /(init|buildtest|_ah/queue/go/delay)
++- url: /(init|buildtest|key|_ah/queue/go/delay)
+   script: _go_app
+   login: admin
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index a4d52853ae..dd32365f88 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -321,12 +321,9 @@ func AuthHandler(h dashHandler) http.HandlerFunc {
+ 
+ 		// Validate key query parameter for POST requests only.
+ 		key := r.FormValue("key")
+-		if r.Method == "POST" && key != secretKey && !appengine.IsDevAppServer() {
+-			h := hmac.NewMD5([]byte(secretKey))
+-			h.Write([]byte(r.FormValue("builder")))
+-			if key != fmt.Sprintf("%x", h.Sum()) {
+-				err = os.NewError("invalid key: " + key)
+-			}
++		builder := r.FormValue("builder")
++		if r.Method == "POST" && !validKey(key, builder) {
++			err = os.NewError("invalid key: " + key)
+ 		}
+ 
+ 		// Call the original HandlerFunc and return the response.
+@@ -365,9 +362,19 @@ func initHandler(w http.ResponseWriter, r *http.Request) {
+ 	fmt.Fprint(w, "OK")
+ }
+ 
++func keyHandler(w http.ResponseWriter, r *http.Request) {
++	builder := r.FormValue("builder")
++	if builder == "" {
++		logErr(w, r, os.NewError("must supply builder in query string"))
++		return
++	}
++	fmt.Fprint(w, builderKey(builder))
++}
++
+ func init() {
+ 	// admin handlers
+ 	http.HandleFunc("/init", initHandler)
++	http.HandleFunc("/key", keyHandler)
+ 
+ 	// authenticated handlers
+ 	http.HandleFunc("/commit", AuthHandler(commitHandler))
+@@ -385,6 +392,22 @@ func validHash(hash string) bool {
+ 	return hash != ""
+ }
+ 
++func validKey(key, builder string) bool {
++	if appengine.IsDevAppServer() {
++		return true
++	}
++	if key == secretKey {
++		return true
++	}
++	return key == builderKey(builder)
++}
++
++func builderKey(builder string) string {
++	h := hmac.NewMD5([]byte(secretKey))
++	h.Write([]byte(builder))
++	return fmt.Sprintf("%x", h.Sum())
++}
++
+ func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
+ 	appengine.NewContext(r).Errorf("Error: %v", err)
+ 	w.WriteHeader(http.StatusInternalServerError)

@@ -8,7 +8,40 @@ Date:   Fri Mar 23 17:02:21 2012 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5875045
-
+---
  doc/articles/image_draw.html | 2 +-
  doc/progs/image_draw.go      | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/articles/image_draw.html b/doc/articles/image_draw.html
+index 848b659822..b1adbc53ab 100644
+--- a/doc/articles/image_draw.html
++++ b/doc/articles/image_draw.html
+@@ -178,7 +178,7 @@ To draw an image through a circular mask with center <code>p</code> and radius
+ <code>r</code>:
+ </p>
+ 
+-{{code "/doc/progs/image_draw.go" `/CIRCLE/` `/STOP/`}}
++{{code "/doc/progs/image_draw.go" `/CIRCLESTRUCT/` `/STOP/`}}
+ {{code "/doc/progs/image_draw.go" `/CIRCLE2/` `/STOP/`}}
+   
+ <p>
+diff --git a/doc/progs/image_draw.go b/doc/progs/image_draw.go
+index f3400b601b..2cc5c632f3 100644
+--- a/doc/progs/image_draw.go
++++ b/doc/progs/image_draw.go
+@@ -117,7 +117,7 @@ func Glyph() {
+ 	// STOP OMIT
+ }
+ 
+-//CIRCLE OMIT
++//CIRCLESTRUCT OMIT
+ type circle struct {
+ 	p image.Point
+ 	r int
+@@ -139,4 +139,4 @@ func (c *circle) At(x, y int) color.Color {
+ 	return color.Alpha{0}
+ }
+ 
+-//STOP
++//STOP OMIT

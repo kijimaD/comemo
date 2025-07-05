@@ -10,6 +10,27 @@ Date:   Sat Mar 5 11:14:51 2016 +1100
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/compress/flate/inflate.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 501b45b72f..6b0657b799 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -268,7 +268,6 @@ type decompressor struct {
+ 	// Input source.
+ 	r       Reader
+ 	roffset int64
+-	woffset int64
+ 
+ 	// Input bits, in top of b.
+ 	b  uint32
+@@ -352,7 +351,6 @@ func (f *decompressor) Read(b []byte) (int, error) {
+ 			return 0, f.err
+ 		}
+ 		f.step(f)
+-		f.woffset += int64(len(f.toRead))
+ 	}
+ }
+ 

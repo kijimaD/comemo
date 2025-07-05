@@ -7,6 +7,26 @@ Date:   Tue Apr 13 20:55:57 2010 -0700
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/921041
-
+---
  doc/go_spec.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 5c62d38429..7bc175adc1 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5111,9 +5111,9 @@ The following minimal alignment properties are guaranteed:
+ <ul>
+ 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
+ 	<li><span class="alert">Method expressions are partially implemented.</span></li>
+-	<li><span class="alert">Gccgo allows only one init() function per source file.</span></li>
+-	<li><span class="alert">Deferred functions cannot access the surrounding function's result parameters.</span></li>
+-	<li><span class="alert">Function results are not addressable in gccgo.</span></li>
+-	<li><span class="alert">Recover is not implemented.</span></li>
+-	<li><span class="alert">The implemented version of panic differs from its specification.</span></li>
++	<li><span class="alert">Gccgo: allows only one init() function per source file.</span></li>
++	<li><span class="alert">Gccgo: Deferred functions cannot access the surrounding function's result parameters.</span></li>
++	<li><span class="alert">Gccgo: Function results are not addressable.</span></li>
++	<li><span class="alert">Gccgo: Recover is not implemented.</span></li>
++	<li><span class="alert">Gccgo: The implemented version of panic differs from its specification.</span></li>
+ </ul>

@@ -12,7 +12,59 @@ Date:   Thu May 15 15:34:37 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/91470043
-
+---
  src/cmd/gc/typecheck.c      | 10 +++-------
  test/fixedbugs/issue7996.go | 14 ++++++++++++++
  2 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b51fc3892a..c50b2285b6 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2415,23 +2415,19 @@ keydup(Node *n, Node *hash[], ulong nhash)
+ 	for(a=hash[h]; a!=N; a=a->ntest) {
+ 		cmp.op = OEQ;
+ 		cmp.left = n;
++		b = 0;
+ 		if(a->op == OCONVIFACE && orign->op == OCONVIFACE) {
+-			if(a->left->type == n->type) {
++			if(eqtype(a->left->type, n->type)) {
+ 				cmp.right = a->left;
+ 				evconst(&cmp);
+ 				b = cmp.val.u.bval;
+ 			}
+-			else {
+-				b = 0;
+-			}
+-		}
+-		else {
++		} else if(eqtype(a->type, n->type)) {
+ 			cmp.right = a;
+ 			evconst(&cmp);
+ 			b = cmp.val.u.bval;
+ 		}
+ 		if(b) {
+-			// too lazy to print the literal
+ 			yyerror("duplicate key %N in map literal", n);
+ 			return;
+ 		}
+diff --git a/test/fixedbugs/issue7996.go b/test/fixedbugs/issue7996.go
+new file mode 100644
+index 0000000000..98289eb0cb
+--- /dev/null
++++ b/test/fixedbugs/issue7996.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// /tmp/x.go:5: illegal constant expression: bool == interface {}
++
++package p
++
++var m = map[interface{}]struct{}{
++	nil:  {},
++	true: {},
++}

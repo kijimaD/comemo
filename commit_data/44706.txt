@@ -11,6 +11,21 @@ Date:   Sat Aug 22 12:06:24 2020 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/objdump/objdump_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index d9c1660ffd..85d1a2efb0 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -226,6 +226,9 @@ func testGoAndCgoDisasm(t *testing.T, printCode bool, printGnuAsm bool) {
+ 	t.Parallel()
+ 	testDisasm(t, "fmthello.go", printCode, printGnuAsm)
+ 	if build.Default.CgoEnabled {
++		if runtime.GOOS == "aix" {
++			t.Skipf("skipping on %s, issue 40972", runtime.GOOS)
++		}
+ 		testDisasm(t, "fmthellocgo.go", printCode, printGnuAsm)
+ 	}
+ }

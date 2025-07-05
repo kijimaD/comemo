@@ -13,8 +13,57 @@ Date:   Tue May 23 12:35:48 2023 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/metrics.go             | 6 ++++++
  src/runtime/metrics/description.go | 5 +++++
  src/runtime/metrics/doc.go         | 4 ++++
  3 files changed, 15 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 356d21ae7d..4c51efaad9 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -201,6 +201,12 @@ func initMetrics() {
+ 				out.scalar = gcController.heapScan.Load()
+ 			},
+ 		},
++		"/gc/scan/total:bytes": {
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = gcController.globalsScan.Load() + gcController.heapScan.Load() + gcController.lastStackScan.Load()
++			},
++		},
+ 		"/gc/heap/allocs-by-size:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index ac6f437075..b34ffe405d 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -309,6 +309,11 @@ var allDesc = []Description{
+ 		Description: "The number of bytes of stack that were scanned last GC cycle.",
+ 		Kind:        KindUint64,
+ 	},
++	{
++		Name:        "/gc/scan/total:bytes",
++		Description: "The total amount space that is scannable. Sum of all metrics in /gc/scan.",
++		Kind:        KindUint64,
++	},
+ 	{
+ 		Name:        "/gc/stack/starting-size:bytes",
+ 		Description: "The stack size of new goroutines.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 15fba2b5d4..44e2676ac5 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -225,6 +225,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/scan/stack:bytes
+ 		The number of bytes of stack that were scanned last GC cycle.
+ 
++	/gc/scan/total:bytes
++		The total amount space that is scannable. Sum of all metrics in
++		/gc/scan.
++
+ 	/gc/stack/starting-size:bytes
+ 		The stack size of new goroutines.
+ 

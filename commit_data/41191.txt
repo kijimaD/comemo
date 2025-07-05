@@ -19,7 +19,51 @@ Date:   Wed Sep 11 15:51:28 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go             |  2 +-
  src/go/types/testdata/const0.src | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 1e2790a171..a13442c951 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -333,8 +333,8 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 	assert(obj.typ == nil)
+ 
+ 	// use the correct value of iota
++	defer func(iota constant.Value) { check.iota = iota }(check.iota)
+ 	check.iota = obj.val
+-	defer func() { check.iota = nil }()
+ 
+ 	// provide valid constant value under all circumstances
+ 	obj.val = constant.MakeUnknown()
+diff --git a/src/go/types/testdata/const0.src b/src/go/types/testdata/const0.src
+index 19fb1bdbbe..adbbf2863b 100644
+--- a/src/go/types/testdata/const0.src
++++ b/src/go/types/testdata/const0.src
+@@ -308,6 +308,8 @@ const (
+ 			_ = unsafe.Sizeof([iota-1]int{} == x) // assert types are equal
+ 			_ = unsafe.Sizeof([Two]int{} == x)    // assert types are equal
+ 		)
++		var z [iota]int                           // [2]int
++		_ = unsafe.Sizeof([2]int{} == z)          // assert types are equal
+ 	})
+ 	three = iota // the sequence continues
+ )
+@@ -334,3 +336,15 @@ var _ = []int64{
+ 	1 * 1e9,
+ 	5 * 1e9,
+ }
++
++const _ = unsafe.Sizeof(func() {
++	const _ = 0
++	_ = iota
++
++	const (
++	   zero = iota
++	   one
++	)
++	assert(one == 1)
++	assert(iota == 0)
++})

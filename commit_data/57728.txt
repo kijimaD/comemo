@@ -14,7 +14,38 @@ Date:   Thu Aug 24 10:58:51 2023 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/client.go  | 3 ++-
  src/net/http/request.go | 5 +++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 2cab53a585..5478690ecf 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -566,7 +566,8 @@ func urlErrorOp(method string) string {
+ // connection to the server for a subsequent "keep-alive" request.
+ //
+ // The request Body, if non-nil, will be closed by the underlying
+-// Transport, even on errors.
++// Transport, even on errors. The Body may be closed asynchronously after
++// Do returns.
+ //
+ // On error, any Response can be ignored. A non-nil Response with a
+ // non-nil error only occurs when CheckRedirect fails, and even then
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 0fb73c12b5..12039c9ae2 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -845,8 +845,9 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
+ // optional body.
+ //
+ // If the provided body is also an io.Closer, the returned
+-// Request.Body is set to body and will be closed by the Client
+-// methods Do, Post, and PostForm, and Transport.RoundTrip.
++// Request.Body is set to body and will be closed (possibly
++// asynchronously) by the Client methods Do, Post, and PostForm,
++// and Transport.RoundTrip.
+ //
+ // NewRequestWithContext returns a Request suitable for use with
+ // Client.Do or Transport.RoundTrip. To create a request for use with

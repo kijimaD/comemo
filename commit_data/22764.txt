@@ -11,7 +11,48 @@ Date:   Wed Apr 8 01:32:45 2015 -0400
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/nacl/testzip.proto   | 3 +++
  src/cmd/api/goapi_test.go | 8 --------
  2 files changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index b2e866c1e8..1c013c1784 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -10,6 +10,9 @@ usr	src=../misc/nacl/testdata
+ go	src=..
+ 	src
+ 		cmd
++			api
++				testdata
++					+
+ 			asm
+ 				internal
+ 					asm
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 361c294bc3..9f5b0c8bb4 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -24,13 +23,6 @@ var (
+ )
+ 
+ func TestGolden(t *testing.T) {
+-	// test fails on NaCl - skip for now
+-	// (goapi_test.go:35: open testdata/src/pkg: No such file or directory)
+-	// TODO(gri) fix this ASAP
+-	if runtime.GOOS == "nacl" {
+-		return
+-	}
+-
+ 	td, err := os.Open("testdata/src/pkg")
+ 	if err != nil {
+ 		t.Fatal(err)

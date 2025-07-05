@@ -11,7 +11,117 @@ Date:   Thu Jun 25 16:11:14 2015 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request.go      | 47 +++++++++++++++++++++++++++++++++++---------
  src/net/http/request_test.go | 32 ++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 15b73564c6..f95f774135 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -720,23 +720,52 @@ type maxBytesReader struct {
+ 	r       io.ReadCloser // underlying reader
+ 	n       int64         // max bytes remaining
+ 	stopped bool
++	sawEOF  bool
++}
++
++func (l *maxBytesReader) tooLarge() (n int, err error) {
++	if !l.stopped {
++		l.stopped = true
++		if res, ok := l.w.(*response); ok {
++			res.requestTooLarge()
++		}
++	}
++	return 0, errors.New("http: request body too large")
+ }
+ 
+ func (l *maxBytesReader) Read(p []byte) (n int, err error) {
+-	if l.n <= 0 {
+-		if !l.stopped {
+-			l.stopped = true
+-			if res, ok := l.w.(*response); ok {
+-				res.requestTooLarge()
+-			}
++	toRead := l.n
++	if l.n == 0 {
++		if l.sawEOF {
++			return l.tooLarge()
+ 		}
+-		return 0, errors.New("http: request body too large")
++		// The underlying io.Reader may not return (0, io.EOF)
++		// at EOF if the requested size is 0, so read 1 byte
++		// instead. The io.Reader docs are a bit ambiguous
++		// about the return value of Read when 0 bytes are
++		// requested, and {bytes,strings}.Reader gets it wrong
++		// too (it returns (0, nil) even at EOF).
++		toRead = 1
+ 	}
+-	if int64(len(p)) > l.n {
+-		p = p[:l.n]
++	if int64(len(p)) > toRead {
++		p = p[:toRead]
+ 	}
+ 	n, err = l.r.Read(p)
++	if err == io.EOF {
++		l.sawEOF = true
++	}
++	if l.n == 0 {
++		// If we had zero bytes to read remaining (but hadn't seen EOF)
++		// and we get a byte here, that means we went over our limit.
++		if n > 0 {
++			return l.tooLarge()
++		}
++		return 0, err
++	}
+ 	l.n -= int64(n)
++	if l.n < 0 {
++		l.n = 0
++	}
+ 	return
+ }
+ 
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 0668fff9ce..1b36c14c98 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -539,6 +539,38 @@ func TestStarRequest(t *testing.T) {
+ 	}
+ }
+ 
++type responseWriterJustWriter struct {
++	io.Writer
++}
++
++func (responseWriterJustWriter) Header() Header  { panic("should not be called") }
++func (responseWriterJustWriter) WriteHeader(int) { panic("should not be called") }
++
++// delayedEOFReader never returns (n > 0, io.EOF), instead putting
++// off the io.EOF until a subsequent Read call.
++type delayedEOFReader struct {
++	r io.Reader
++}
++
++func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
++	n, err = dr.r.Read(p)
++	if n > 0 && err == io.EOF {
++		err = nil
++	}
++	return
++}
++
++func TestIssue10884_MaxBytesEOF(t *testing.T) {
++	dst := ioutil.Discard
++	_, err := io.Copy(dst, MaxBytesReader(
++		responseWriterJustWriter{dst},
++		ioutil.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
++		5))
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func testMissingFile(t *testing.T, req *Request) {
+ 	f, fh, err := req.FormFile("missing")
+ 	if f != nil {

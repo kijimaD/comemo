@@ -11,6 +11,33 @@ Date:   Mon Sep 30 11:10:36 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198478
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 009c68afa1..9516d58a6e 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -153,12 +153,20 @@ func nilcheckelim(f *Func) {
+ 					work = append(work, bp{op: ClearPtr, ptr: ptr})
+ 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
+ 				default:
+-					if pendingLines.contains(v.Pos) && v.Pos.IsStmt() != src.PosNotStmt {
++					if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
+ 						v.Pos = v.Pos.WithIsStmt()
+ 						pendingLines.remove(v.Pos)
+ 					}
+ 				}
+ 			}
++			// This reduces the lost statement count in "go" by 5 (out of 500 total).
++			for j := 0; j < i; j++ { // is this an ordering problem?
++				v := b.Values[j]
++				if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
++					v.Pos = v.Pos.WithIsStmt()
++					pendingLines.remove(v.Pos)
++				}
++			}
+ 			if pendingLines.contains(b.Pos) {
+ 				b.Pos = b.Pos.WithIsStmt()
+ 				pendingLines.remove(b.Pos)

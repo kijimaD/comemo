@@ -22,10 +22,193 @@ Date:   Sat Aug 20 22:05:47 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27457
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go            |  2 +
  src/cmd/compile/internal/gc/testdata/sqrt_const.go | 59 ++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/generic.rules     | 21 ++++++--
  src/cmd/compile/internal/ssa/rewritegeneric.go     | 20 ++++++++
  src/cmd/compile/internal/ssa/value.go              |  1 +
  5 files changed, 100 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index c89917df88..75cd5c4d73 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -103,3 +103,5 @@ func TestSlice(t *testing.T) { runTest(t, "slice.go") }
+ func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
+ 
+ func TestDuplicateLoad(t *testing.T) { runTest(t, "dupLoad.go") }
++
++func TestSqrt(t *testing.T) { runTest(t, "sqrt_const.go") }
+diff --git a/src/cmd/compile/internal/gc/testdata/sqrt_const.go b/src/cmd/compile/internal/gc/testdata/sqrt_const.go
+new file mode 100644
+index 0000000000..1f25d9aded
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/sqrt_const.go
+@@ -0,0 +1,59 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++var tests = [...]struct {
++	name string
++	in   float64 // used for error messages, not an input
++	got  float64
++	want float64
++}{
++	{"sqrt0", 0, math.Sqrt(0), 0},
++	{"sqrt1", 1, math.Sqrt(1), 1},
++	{"sqrt2", 2, math.Sqrt(2), math.Sqrt2},
++	{"sqrt4", 4, math.Sqrt(4), 2},
++	{"sqrt100", 100, math.Sqrt(100), 10},
++	{"sqrt101", 101, math.Sqrt(101), 10.04987562112089},
++}
++
++var nanTests = [...]struct {
++	name string
++	in   float64 // used for error messages, not an input
++	got  float64
++}{
++	{"sqrtNaN", math.NaN(), math.Sqrt(math.NaN())},
++	{"sqrtNegative", -1, math.Sqrt(-1)},
++	{"sqrtNegInf", math.Inf(-1), math.Sqrt(math.Inf(-1))},
++}
++
++var failed = false
++
++func main() {
++	for _, test := range tests {
++		if test.got != test.want {
++			fmt.Printf("%s: math.Sqrt(%f): got %f, want %f\n", test.name, test.in, test.got, test.want)
++			failed = true
++		}
++	}
++	for _, test := range nanTests {
++		if math.IsNaN(test.got) != true {
++			fmt.Printf("%s: math.Sqrt(%f): got %f, want NaN\n", test.name, test.in, test.got)
++			failed = true
++		}
++	}
++	if got := math.Sqrt(math.Inf(1)); !math.IsInf(got, 1) {
++		fmt.Printf("math.Sqrt(+Inf), got %f, want +Inf\n", got)
++		failed = true
++	}
++
++	if failed {
++		panic("failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index c0fe802aaa..d75b704ccc 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -2,6 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Simplifications that apply to all backend architectures. As an example, this
++// Go source code
++//
++// y := 0 * x
++//
++// can be translated into y := 0 without losing any information, which saves a
++// pointless multiplication instruction. Other .rules files in this directory
++// (for example AMD64.rules) contain rules specific to the architecture in the
++// filename. The rules here apply to every architecture.
++//
++// The code for parsing this file lives in rulegen.go; this file generates
++// ssa/rewritegeneric.go.
++
+ // values are specified using the following format:
+ // (op <type> [auxint] {aux} arg0 arg1 ...)
+ // the type, aux, and auxint fields are optional
+@@ -46,7 +59,7 @@
+ (Add16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c+d))])
+ (Add32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c+d))])
+ (Add64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c+d])
+-(Add32F (Const32F [c]) (Const32F [d])) -> 
++(Add32F (Const32F [c]) (Const32F [d])) ->
+         (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
+ (Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
+ (AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
+@@ -55,7 +68,7 @@
+ (Sub16  (Const16 [c]) (Const16 [d]))   -> (Const16 [int64(int16(c-d))])
+ (Sub32  (Const32 [c]) (Const32 [d]))   -> (Const32 [int64(int32(c-d))])
+ (Sub64  (Const64 [c]) (Const64 [d]))   -> (Const64 [c-d])
+-(Sub32F (Const32F [c]) (Const32F [d])) -> 
++(Sub32F (Const32F [c]) (Const32F [d])) ->
+         (Const32F [f2i(float64(i2f32(c) - i2f32(d)))])
+ (Sub64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) - i2f(d))])
+ 
+@@ -63,7 +76,7 @@
+ (Mul16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c*d))])
+ (Mul32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c*d))])
+ (Mul64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c*d])
+-(Mul32F (Const32F [c]) (Const32F [d])) -> 
++(Mul32F (Const32F [c]) (Const32F [d])) ->
+         (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
+ (Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
+ 
+@@ -860,3 +873,5 @@
+ (Div64F x (Const64F [f2i(1)])) -> x
+ (Div32F x (Const32F [f2i(-1)])) -> (Neg32F x)
+ (Div64F x (Const64F [f2i(-1)])) -> (Neg32F x)
++
++(Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index f4f2b50f62..27d7c5dc7e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -316,6 +316,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
+ 		return rewriteValuegeneric_OpSliceLen(v, config)
+ 	case OpSlicePtr:
+ 		return rewriteValuegeneric_OpSlicePtr(v, config)
++	case OpSqrt:
++		return rewriteValuegeneric_OpSqrt(v, config)
+ 	case OpStore:
+ 		return rewriteValuegeneric_OpStore(v, config)
+ 	case OpStringLen:
+@@ -9032,6 +9034,24 @@ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpSqrt(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sqrt (Const64F [c]))
++	// cond:
++	// result: (Const64F [f2i(math.Sqrt(i2f(c)))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConst64F {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConst64F)
++		v.AuxInt = f2i(math.Sqrt(i2f(c)))
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 867221bf98..d30ef27182 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -26,6 +26,7 @@ type Value struct {
+ 
+ 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
+ 	// AuxInt is used for integer values, Aux is used for other values.
++	// Floats are stored in AuxInt using math.Float64bits(f).
+ 	AuxInt int64
+ 	Aux    interface{}
+ 

@@ -9,7 +9,52 @@ Date:   Fri Apr 30 13:04:16 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1040042
-
+---
  src/cmd/gc/walk.c        |  5 +----
  test/fixedbugs/bug270.go | 21 +++++++++++++++++++++
  2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5768285b84..f845638e88 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -803,11 +803,8 @@ walkexpr(Node **np, NodeList **init)
+ 		switch(et) {
+ 		case I2Isame:
+ 		case E2Esame:
+-			n->rlist = list(list1(r->left), nodbool(1));
+-			typechecklist(n->rlist, Erv);
+-			goto as2;
+ 		case I2E:
+-			n->list = list(list1(n->right), nodbool(1));
++			n->rlist = list(list1(r->left), nodbool(1));
+ 			typechecklist(n->rlist, Erv);
+ 			goto as2;
+ 		case I2T:
+diff --git a/test/fixedbugs/bug270.go b/test/fixedbugs/bug270.go
+new file mode 100644
+index 0000000000..a9cda7bd7c
+--- /dev/null
++++ b/test/fixedbugs/bug270.go
+@@ -0,0 +1,21 @@
++// $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=746
++
++package main
++
++type I interface { F() }
++
++type T struct{}
++
++func (T) F() {}
++
++func main() {
++	switch I(T{}).(type) {
++	case interface{}:
++	}
++}

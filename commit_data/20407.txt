@@ -8,8 +8,74 @@ Date:   Fri Sep 5 14:59:31 2014 -0700
     R=rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/132660043
-
+---
  src/pkg/runtime/export_test.go | 13 ++++++++++++-
  src/pkg/runtime/mgc0.c         |  4 ++--
  src/pkg/runtime/stubs.goc      |  7 -------
  3 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 35a4130ee1..fd7fd182fc 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -111,8 +111,19 @@ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+ 	return begin, end
+ }
+ 
++// in mgc0.c
+ //go:noescape
+-func GCMask(x interface{}) []byte
++func getgcmask(data unsafe.Pointer, typ *_type, array **byte, len *uint)
++
++func GCMask(x interface{}) (ret []byte) {
++	e := (*eface)(unsafe.Pointer(&x))
++	s := (*slice)(unsafe.Pointer(&ret))
++	onM(func() {
++		getgcmask(e.data, e._type, &s.array, &s.len)
++		s.cap = s.len
++	})
++	return
++}
+ 
+ func testSchedLocalQueue()
+ func testSchedLocalQueueSteal()
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 55c38a7e5b..d4c414736b 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1805,7 +1805,7 @@ getgcmaskcb(Stkframe *frame, void *ctxt)
+ 	Stkframe *frame0;
+ 
+ 	frame0 = ctxt;
+-	if(frame0->sp >= frame->varp - frame->sp && frame0->sp < frame->varp) {
++	if(frame->sp <= frame0->sp && frame0->sp < frame->varp) {
+ 		*frame0 = *frame;
+ 		return false;
+ 	}
+@@ -1865,7 +1865,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	frame.fn = nil;
+ 	frame.sp = (uintptr)p;
+ 	cb = getgcmaskcb;
+-	runtime·gentraceback((uintptr)runtime·getcallerpc(&p), (uintptr)runtime·getcallersp(&p), 0, g, 0, nil, 1000, &cb, &frame, false);
++	runtime·gentraceback(g->m->curg->sched.pc, g->m->curg->sched.sp, 0, g->m->curg, 0, nil, 1000, &cb, &frame, false);
+ 	if(frame.fn != nil) {
+ 		Func *f;
+ 		StackMap *stackmap;
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index f6bc14f2c9..34cd1b3bb9 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -54,13 +54,6 @@ func runtime·gomcache() (ret *MCache) {
+ 	ret = g->m->mcache;
+ }
+ 
+-// For testing.
+-// TODO: find a better place for this.
+-func GCMask(x Eface) (mask Slice) {
+-	runtime·getgcmask(x.data, x.type, &mask.array, &mask.len);
+-	mask.cap = mask.len;
+-}
+-
+ #pragma textflag NOSPLIT
+ func reflect·typelinks() (ret Slice) {
+         extern Type *runtime·typelink[], *runtime·etypelink[];

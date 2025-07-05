@@ -35,7 +35,7 @@ Date:   Tue Mar 27 12:23:19 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/102696
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/test/test.go              |  9 ++++----
  src/runtime/pprof/internal/profile/encode.go  | 12 ++++++++++
  src/runtime/pprof/internal/profile/profile.go | 20 ++++++++++-------
@@ -47,3 +47,385 @@ Date:   Tue Mar 27 12:23:19 2018 -0400
  src/testing/internal/testdeps/deps.go         |  4 ----
  src/testing/testing.go                        |  8 +++----
  10 files changed, 111 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index d9931a333e..b95a8c55aa 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -331,14 +331,13 @@ profile the tests during execution:
+ 	    Writes test binary as -c would.
+ 
+ 	-memprofile mem.out
+-	    Write a memory profile to the file after all tests have passed.
++	    Write an allocation profile to the file after all tests have passed.
+ 	    Writes test binary as -c would.
+ 
+ 	-memprofilerate n
+-	    Enable more precise (and expensive) memory profiles by setting
+-	    runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
+-	    To profile all memory allocations, use -test.memprofilerate=1
+-	    and pass --alloc_space flag to the pprof tool.
++	    Enable more precise (and expensive) memory allocation profiles by
++	    setting runtime.MemProfileRate. See 'go doc runtime.MemProfileRate'.
++	    To profile all memory allocations, use -test.memprofilerate=1.
+ 
+ 	-mutexprofile mutex.out
+ 	    Write a mutex contention profile to the specified file
+diff --git a/src/runtime/pprof/internal/profile/encode.go b/src/runtime/pprof/internal/profile/encode.go
+index 6b879a84ac..af319330d9 100644
+--- a/src/runtime/pprof/internal/profile/encode.go
++++ b/src/runtime/pprof/internal/profile/encode.go
+@@ -197,6 +197,10 @@ var profileDecoder = []decoder{
+ 	},
+ 	// repeated int64 period = 12
+ 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).Period) },
++	// repeated int64 comment = 13
++	func(b *buffer, m message) error { return decodeInt64s(b, &m.(*Profile).commentX) },
++	// int64 defaultSampleType = 14
++	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).defaultSampleTypeX) },
+ }
+ 
+ // postDecode takes the unexported fields populated by decode (with
+@@ -278,6 +282,14 @@ func (p *Profile) postDecode() error {
+ 		pt.Type, err = getString(p.stringTable, &pt.typeX, err)
+ 		pt.Unit, err = getString(p.stringTable, &pt.unitX, err)
+ 	}
++	for _, i := range p.commentX {
++		var c string
++		c, err = getString(p.stringTable, &i, err)
++		p.Comments = append(p.Comments, c)
++	}
++
++	p.commentX = nil
++	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
+ 	p.stringTable = nil
+ 	return nil
+ }
+diff --git a/src/runtime/pprof/internal/profile/profile.go b/src/runtime/pprof/internal/profile/profile.go
+index 9b6a6f9aa9..64c3e3f054 100644
+--- a/src/runtime/pprof/internal/profile/profile.go
++++ b/src/runtime/pprof/internal/profile/profile.go
+@@ -22,11 +22,13 @@ import (
+ 
+ // Profile is an in-memory representation of profile.proto.
+ type Profile struct {
+-	SampleType []*ValueType
+-	Sample     []*Sample
+-	Mapping    []*Mapping
+-	Location   []*Location
+-	Function   []*Function
++	SampleType        []*ValueType
++	DefaultSampleType string
++	Sample            []*Sample
++	Mapping           []*Mapping
++	Location          []*Location
++	Function          []*Function
++	Comments          []string
+ 
+ 	DropFrames string
+ 	KeepFrames string
+@@ -36,9 +38,11 @@ type Profile struct {
+ 	PeriodType    *ValueType
+ 	Period        int64
+ 
+-	dropFramesX int64
+-	keepFramesX int64
+-	stringTable []string
++	commentX           []int64
++	dropFramesX        int64
++	keepFramesX        int64
++	stringTable        []string
++	defaultSampleTypeX int64
+ }
+ 
+ // ValueType corresponds to Profile.ValueType
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b7e5a1f92f..39126ba148 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -99,7 +99,8 @@ import (
+ // Each Profile has a unique name. A few profiles are predefined:
+ //
+ //	goroutine    - stack traces of all current goroutines
+-//	heap         - a sampling of all heap allocations
++//	heap         - a sampling of memory allocations of live objects
++//	allocs       - a sampling of all past memory allocations
+ //	threadcreate - stack traces that led to the creation of new OS threads
+ //	block        - stack traces that led to blocking on synchronization primitives
+ //	mutex        - stack traces of holders of contended mutexes
+@@ -114,6 +115,16 @@ import (
+ // all known allocations. This exception helps mainly in programs running
+ // without garbage collection enabled, usually for debugging purposes.
+ //
++// The heap profile tracks both the allocation sites for all live objects in
++// the application memory and for all objects allocated since the program start.
++// Pprof's -inuse_space, -inuse_objects, -alloc_space, and -alloc_objects
++// flags select which to display, defaulting to -inuse_space (live objects,
++// scaled by size).
++//
++// The allocs profile is the same as the heap profile but changes the default
++// pprof display to -alloc_space, the total number of bytes allocated since
++// the program began (including garbage-collected bytes).
++//
+ // The CPU profile is not available as a Profile. It has a special API,
+ // the StartCPUProfile and StopCPUProfile functions, because it streams
+ // output to a writer during profiling.
+@@ -150,6 +161,12 @@ var heapProfile = &Profile{
+ 	write: writeHeap,
+ }
+ 
++var allocsProfile = &Profile{
++	name:  "allocs",
++	count: countHeap, // identical to heap profile
++	write: writeAlloc,
++}
++
+ var blockProfile = &Profile{
+ 	name:  "block",
+ 	count: countBlock,
+@@ -170,6 +187,7 @@ func lockProfiles() {
+ 			"goroutine":    goroutineProfile,
+ 			"threadcreate": threadcreateProfile,
+ 			"heap":         heapProfile,
++			"allocs":       allocsProfile,
+ 			"block":        blockProfile,
+ 			"mutex":        mutexProfile,
+ 		}
+@@ -511,6 +529,16 @@ func countHeap() int {
+ 
+ // writeHeap writes the current runtime heap profile to w.
+ func writeHeap(w io.Writer, debug int) error {
++	return writeHeapInternal(w, debug, "")
++}
++
++// writeAlloc writes the current runtime heap profile to w
++// with the total allocation space as the default sample type.
++func writeAlloc(w io.Writer, debug int) error {
++	return writeHeapInternal(w, debug, "alloc_space")
++}
++
++func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
+ 	var memStats *runtime.MemStats
+ 	if debug != 0 {
+ 		// Read mem stats first, so that our other allocations
+@@ -541,7 +569,7 @@ func writeHeap(w io.Writer, debug int) error {
+ 	}
+ 
+ 	if debug == 0 {
+-		return writeHeapProto(w, p, int64(runtime.MemProfileRate))
++		return writeHeapProto(w, p, int64(runtime.MemProfileRate), defaultSampleType)
+ 	}
+ 
+ 	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index ff75537889..d67c3a2865 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -54,18 +54,20 @@ type memMap struct {
+ 
+ const (
+ 	// message Profile
+-	tagProfile_SampleType    = 1  // repeated ValueType
+-	tagProfile_Sample        = 2  // repeated Sample
+-	tagProfile_Mapping       = 3  // repeated Mapping
+-	tagProfile_Location      = 4  // repeated Location
+-	tagProfile_Function      = 5  // repeated Function
+-	tagProfile_StringTable   = 6  // repeated string
+-	tagProfile_DropFrames    = 7  // int64 (string table index)
+-	tagProfile_KeepFrames    = 8  // int64 (string table index)
+-	tagProfile_TimeNanos     = 9  // int64
+-	tagProfile_DurationNanos = 10 // int64
+-	tagProfile_PeriodType    = 11 // ValueType (really optional string???)
+-	tagProfile_Period        = 12 // int64
++	tagProfile_SampleType        = 1  // repeated ValueType
++	tagProfile_Sample            = 2  // repeated Sample
++	tagProfile_Mapping           = 3  // repeated Mapping
++	tagProfile_Location          = 4  // repeated Location
++	tagProfile_Function          = 5  // repeated Function
++	tagProfile_StringTable       = 6  // repeated string
++	tagProfile_DropFrames        = 7  // int64 (string table index)
++	tagProfile_KeepFrames        = 8  // int64 (string table index)
++	tagProfile_TimeNanos         = 9  // int64
++	tagProfile_DurationNanos     = 10 // int64
++	tagProfile_PeriodType        = 11 // ValueType (really optional string???)
++	tagProfile_Period            = 12 // int64
++	tagProfile_Comment           = 13 // repeated int64
++	tagProfile_DefaultSampleType = 14 // int64
+ 
+ 	// message ValueType
+ 	tagValueType_Type = 1 // int64 (string table index)
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index dab929c8c3..78bb84412f 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -63,7 +63,7 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
+ 		{Type: "cpu", Unit: "nanoseconds"},
+ 	}
+ 
+-	checkProfile(t, p, 2000*1000, periodType, sampleType, nil)
++	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
+ }
+ 
+ func f1() { f1() }
+@@ -130,18 +130,23 @@ func TestConvertCPUProfile(t *testing.T) {
+ 			{ID: 4, Mapping: map2, Address: addr2 + 1},
+ 		}},
+ 	}
+-	checkProfile(t, p, period, periodType, sampleType, samples)
++	checkProfile(t, p, period, periodType, sampleType, samples, "")
+ }
+ 
+-func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *profile.ValueType, sampleType []*profile.ValueType, samples []*profile.Sample) {
++func checkProfile(t *testing.T, p *profile.Profile, period int64, periodType *profile.ValueType, sampleType []*profile.ValueType, samples []*profile.Sample, defaultSampleType string) {
++	t.Helper()
++
+ 	if p.Period != period {
+-		t.Fatalf("p.Period = %d, want %d", p.Period, period)
++		t.Errorf("p.Period = %d, want %d", p.Period, period)
+ 	}
+ 	if !reflect.DeepEqual(p.PeriodType, periodType) {
+-		t.Fatalf("p.PeriodType = %v\nwant = %v", fmtJSON(p.PeriodType), fmtJSON(periodType))
++		t.Errorf("p.PeriodType = %v\nwant = %v", fmtJSON(p.PeriodType), fmtJSON(periodType))
+ 	}
+ 	if !reflect.DeepEqual(p.SampleType, sampleType) {
+-		t.Fatalf("p.SampleType = %v\nwant = %v", fmtJSON(p.SampleType), fmtJSON(sampleType))
++		t.Errorf("p.SampleType = %v\nwant = %v", fmtJSON(p.SampleType), fmtJSON(sampleType))
++	}
++	if defaultSampleType != p.DefaultSampleType {
++		t.Errorf("p.DefaultSampleType = %v\nwant = %v", p.DefaultSampleType, defaultSampleType)
+ 	}
+ 	// Clear line info since it is not in the expected samples.
+ 	// If we used f1 and f2 above, then the samples will have line info.
+diff --git a/src/runtime/pprof/protomem.go b/src/runtime/pprof/protomem.go
+index 2756cfd28d..82565d5245 100644
+--- a/src/runtime/pprof/protomem.go
++++ b/src/runtime/pprof/protomem.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // writeHeapProto writes the current heap profile in protobuf format to w.
+-func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64) error {
++func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64, defaultSampleType string) error {
+ 	b := newProfileBuilder(w)
+ 	b.pbValueType(tagProfile_PeriodType, "space", "bytes")
+ 	b.pb.int64Opt(tagProfile_Period, rate)
+@@ -20,6 +20,9 @@ func writeHeapProto(w io.Writer, p []runtime.MemProfileRecord, rate int64) error
+ 	b.pbValueType(tagProfile_SampleType, "alloc_space", "bytes")
+ 	b.pbValueType(tagProfile_SampleType, "inuse_objects", "count")
+ 	b.pbValueType(tagProfile_SampleType, "inuse_space", "bytes")
++	if defaultSampleType != "" {
++		b.pb.int64Opt(tagProfile_DefaultSampleType, b.stringIndex(defaultSampleType))
++	}
+ 
+ 	values := []int64{0, 0, 0, 0}
+ 	var locs []uint64
+diff --git a/src/runtime/pprof/protomem_test.go b/src/runtime/pprof/protomem_test.go
+index 1e30ed93a3..315d5f0b4d 100644
+--- a/src/runtime/pprof/protomem_test.go
++++ b/src/runtime/pprof/protomem_test.go
+@@ -14,7 +14,6 @@ import (
+ func TestConvertMemProfile(t *testing.T) {
+ 	addr1, addr2, map1, map2 := testPCs(t)
+ 
+-	var buf bytes.Buffer
+ 	// MemProfileRecord stacks are return PCs, so add one to the
+ 	// addresses recorded in the "profile". The proto profile
+ 	// locations are call PCs, so conversion will subtract one
+@@ -27,15 +26,6 @@ func TestConvertMemProfile(t *testing.T) {
+ 		{AllocBytes: 512 * 1024, FreeBytes: 512 * 1024, AllocObjects: 1, FreeObjects: 1, Stack0: [32]uintptr{a1 + 1, a1 + 2, a2 + 3}},
+ 	}
+ 
+-	if err := writeHeapProto(&buf, rec, rate); err != nil {
+-		t.Fatalf("writing profile: %v", err)
+-	}
+-
+-	p, err := profile.Parse(&buf)
+-	if err != nil {
+-		t.Fatalf("profile.Parse: %v", err)
+-	}
+-
+ 	periodType := &profile.ValueType{Type: "space", Unit: "bytes"}
+ 	sampleType := []*profile.ValueType{
+ 		{Type: "alloc_objects", Unit: "count"},
+@@ -70,5 +60,25 @@ func TestConvertMemProfile(t *testing.T) {
+ 			NumLabel: map[string][]int64{"bytes": {829411}},
+ 		},
+ 	}
+-	checkProfile(t, p, rate, periodType, sampleType, samples)
++	for _, tc := range []struct {
++		name              string
++		defaultSampleType string
++	}{
++		{"heap", ""},
++		{"allocs", "alloc_space"},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			var buf bytes.Buffer
++			if err := writeHeapProto(&buf, rec, rate, tc.defaultSampleType); err != nil {
++				t.Fatalf("writing profile: %v", err)
++			}
++
++			p, err := profile.Parse(&buf)
++			if err != nil {
++				t.Fatalf("profile.Parse: %v", err)
++			}
++
++			checkProfile(t, p, rate, periodType, sampleType, samples, tc.defaultSampleType)
++		})
++	}
+ }
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 4986898a8e..14512e9632 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -46,10 +46,6 @@ func (TestDeps) StopCPUProfile() {
+ 	pprof.StopCPUProfile()
+ }
+ 
+-func (TestDeps) WriteHeapProfile(w io.Writer) error {
+-	return pprof.WriteHeapProfile(w)
+-}
+-
+ func (TestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
+ 	return pprof.Lookup(name).WriteTo(w, debug)
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 12e2a8e692..429e03676c 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -260,8 +260,8 @@ var (
+ 	coverProfile         = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
+ 	matchList            = flag.String("test.list", "", "list tests, examples, and benchmarks matching `regexp` then exit")
+ 	match                = flag.String("test.run", "", "run only tests and examples matching `regexp`")
+-	memProfile           = flag.String("test.memprofile", "", "write a memory profile to `file`")
+-	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory profiling `rate` (see runtime.MemProfileRate)")
++	memProfile           = flag.String("test.memprofile", "", "write an allocation profile to `file`")
++	memProfileRate       = flag.Int("test.memprofilerate", 0, "set memory allocation profiling `rate` (see runtime.MemProfileRate)")
+ 	cpuProfile           = flag.String("test.cpuprofile", "", "write a cpu profile to `file`")
+ 	blockProfile         = flag.String("test.blockprofile", "", "write a goroutine blocking profile to `file`")
+ 	blockProfileRate     = flag.Int("test.blockprofilerate", 1, "set blocking profile `rate` (see runtime.SetBlockProfileRate)")
+@@ -909,7 +909,6 @@ type matchStringOnly func(pat, str string) (bool, error)
+ func (f matchStringOnly) MatchString(pat, str string) (bool, error)   { return f(pat, str) }
+ func (f matchStringOnly) StartCPUProfile(w io.Writer) error           { return errMain }
+ func (f matchStringOnly) StopCPUProfile()                             {}
+-func (f matchStringOnly) WriteHeapProfile(w io.Writer) error          { return errMain }
+ func (f matchStringOnly) WriteProfileTo(string, io.Writer, int) error { return errMain }
+ func (f matchStringOnly) ImportPath() string                          { return "" }
+ func (f matchStringOnly) StartTestLog(io.Writer)                      {}
+@@ -949,7 +948,6 @@ type testDeps interface {
+ 	StopCPUProfile()
+ 	StartTestLog(io.Writer)
+ 	StopTestLog() error
+-	WriteHeapProfile(io.Writer) error
+ 	WriteProfileTo(string, io.Writer, int) error
+ }
+ 
+@@ -1188,7 +1186,7 @@ func (m *M) writeProfiles() {
+ 			os.Exit(2)
+ 		}
+ 		runtime.GC() // materialize all statistics
+-		if err = m.deps.WriteHeapProfile(f); err != nil {
++		if err = m.deps.WriteProfileTo("allocs", f, 0); err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
+ 			os.Exit(2)
+ 		}

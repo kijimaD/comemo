@@ -17,6 +17,22 @@ Date:   Sun Nov 12 22:11:51 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mbarrier.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index c071728900..c446db93d2 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -254,6 +254,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 		cgoCheckSliceCopy(typ, dst, src, n)
+ 	}
+ 
++	if dstp == srcp {
++		return n
++	}
++
+ 	// Note: No point in checking typ.kind&kindNoPointers here:
+ 	// compiler only emits calls to typedslicecopy for types with pointers,
+ 	// and growslice and reflect_typedslicecopy check for pointers

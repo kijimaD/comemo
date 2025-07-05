@@ -9,9 +9,107 @@ Date:   Thu Oct 8 22:16:08 2009 -0700
     DELTA=27  (18 added, 0 deleted, 9 changed)
     OCL=35503
     CL=35505
-
+---
  src/cmd/5l/l.h                  |  1 +
  src/cmd/5l/obj.c                | 13 ++++++++++---
  src/cmd/ld/lib.c                |  7 ++++++-
  src/pkg/syscall/asm_linux_arm.s |  9 ++++++---
  4 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 09fbda8c21..05a20bad36 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -123,6 +123,7 @@ struct	Sym
+ 	short	become;
+ 	short	frame;
+ 	uchar	subtype;
++	uchar	dupok;
+ 	uchar	reachable;
+ 	int32	value;
+ 	int32	sig;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 574d506487..45751e8c5e 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -564,6 +564,8 @@ loop:
+ 		}
+ 		if(p->to.offset > s->value)
+ 			s->value = p->to.offset;
++		if(p->reg & DUPOK)
++			s->dupok = 1;
+ 		break;
+ 
+ 	case ADYNT:
+@@ -627,10 +629,15 @@ loop:
+ 		break;
+ 
+ 	case ADATA:
++		// Assume that AGLOBL comes after ADATA.
++		// If we've seen an AGLOBL that said this sym was DUPOK,
++		// ignore any more ADATA we see, which must be
++		// redefinitions.
+ 		s = p->from.sym;
+-		if(s == S) {
+-			diag("DATA without a sym\n%P", p);
+-			break;
++		if(s != S && s->dupok) {
++			if(debug['v'])
++				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
++			goto loop;
+ 		}
+ 		if(s != S) {
+ 			p->dlink = s->data;
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0ca165417c..208a55b441 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -561,10 +561,15 @@ find1(int32 l, int c)
+ int
+ find2(int32 l, int c)
+ {
++	union {
++		int32 l;
++		short p[2];
++	} u;
+ 	short *p;
+ 	int i;
+ 
+-	p = (short*)&l;
++	u.l = l;
++	p = u.p;
+ 	for(i=0; i<4; i+=2) {
+ 		if(((*p >> 8) & 0xff) == c)
+ 			return i;
+diff --git a/src/pkg/syscall/asm_linux_arm.s b/src/pkg/syscall/asm_linux_arm.s
+index f7153d5493..8aa5f348cb 100644
+--- a/src/pkg/syscall/asm_linux_arm.s
++++ b/src/pkg/syscall/asm_linux_arm.s
+@@ -22,7 +22,8 @@ TEXT	syscall·Syscall(SB),7,$0
+ 	SWI		$SYS_syscall
+ 	MOVW	R0, 20(SP)	// r1
+ 	MOVW	R1, 24(SP)	// r2
+-	MOVW	$0, 28(SP)	// errno
++	MOVW	$0, R0
++	MOVW	R0, 28(SP)	// errno
+ 	BL		sys·exitsyscall(SB)
+ 	RET
+ 
+@@ -40,7 +41,8 @@ TEXT	syscall·Syscall6(SB),7,$0
+ 	SWI		$SYS_syscall
+ 	MOVW	R0, 32(SP)	// r1
+ 	MOVW	R1, 36(SP)	// r2
+-	MOVW	$0, 40(SP)	// errno
++	MOVW	$0, R0
++	MOVW	R0, 40(SP)	// errno
+ 	BL		sys·exitsyscall(SB)
+ 	RET
+ 
+@@ -53,5 +55,6 @@ TEXT syscall·RawSyscall(SB),7,$0
+ 	SWI		$SYS_syscall
+ 	MOVW	R0, 20(SP)	// r1
+ 	MOVW	R1, 24(SP)	// r2
+-	MOVW	$0, 28(SP)	// errno
++	MOVW	$0, R0
++	MOVW	R0, 28(SP)	// errno
+ 	RET

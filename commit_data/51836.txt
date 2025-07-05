@@ -21,6 +21,32 @@ Date:   Thu Mar 17 22:39:53 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
     Trust: Hajime Hoshi <hajimehoshi@gmail.com>
-
+---
  src/runtime/cgo/gcc_freebsd_arm.c | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_freebsd_arm.c b/src/runtime/cgo/gcc_freebsd_arm.c
+index 74f2e0ede5..5f89978379 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/runtime/cgo/gcc_freebsd_arm.c
+@@ -37,7 +37,6 @@ x_cgo_init(G *g, void (*setg)(void*))
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+@@ -50,12 +49,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	SIGFILLSET(ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize. C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;

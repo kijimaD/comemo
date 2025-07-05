@@ -17,6 +17,54 @@ Date:   Mon Jun 18 16:29:16 2018 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime-lldb_test.go | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index 9a287052ea..a036fd8480 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -82,8 +83,12 @@ target = debugger.CreateTargetWithFileAndArch("a.exe", None)
+ if target:
+   print "Created target"
+   main_bp = target.BreakpointCreateByLocation("main.go", 10)
+-  if main_bp:
++  if main_bp.GetNumLocations() != 0:
+     print "Created breakpoint"
++  else:
++    # This happens if lldb can't read the program's DWARF. See https://golang.org/issue/25925.
++    print "SKIP: no matching locations for breakpoint"
++    exit(1)
+   process = target.LaunchSimple(None, None, os.getcwd())
+   if process:
+     print "Process launched"
+@@ -98,7 +103,7 @@ if target:
+         if state in [lldb.eStateUnloaded, lldb.eStateLaunching, lldb.eStateRunning]:
+           continue
+       else:
+-        print "Timeout launching"
++        print "SKIP: Timeout launching"
+       break
+     if state == lldb.eStateStopped:
+       for t in process.threads:
+@@ -172,8 +177,9 @@ func TestLldbPython(t *testing.T) {
+ 	got, _ := cmd.CombinedOutput()
+ 
+ 	if string(got) != expectedLldbOutput {
+-		if strings.Contains(string(got), "Timeout launching") {
+-			t.Skip("Timeout launching")
++		skipReason := regexp.MustCompile("SKIP: .*\n").Find(got)
++		if skipReason != nil {
++			t.Skip(string(skipReason))
+ 		}
+ 		t.Fatalf("Unexpected lldb output:\n%s", got)
+ 	}

@@ -21,7 +21,50 @@ Date:   Tue Nov 1 14:13:34 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32536
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/test/api.go | 6 ++++++
  src/cmd/cgo/gcc.go   | 9 ++++++---
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/api.go b/misc/cgo/test/api.go
+index b4ae3dda4b..d2b09cbeff 100644
+--- a/misc/cgo/test/api.go
++++ b/misc/cgo/test/api.go
+@@ -7,6 +7,11 @@
+ package cgotest
+ 
+ // #include <stdlib.h>
++//
++// // Test for issue 17723.
++// typedef char *cstring_pointer;
++// static void cstring_pointer_fun(cstring_pointer dummy) { }
++//
+ // const char *api_hello = "hello!";
+ import "C"
+ import "unsafe"
+@@ -21,4 +26,5 @@ func testAPI() {
+ 	var b []byte
+ 	b = C.GoBytes(unsafe.Pointer(C.api_hello), C.int(6))
+ 	_, _ = s, b
++	C.cstring_pointer_fun(nil)
+ }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 450120f83c..de87df0798 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1937,9 +1937,12 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 				return nil
+ 			}
+ 
+-			// Remember the C spelling, in case the struct
+-			// has __attribute__((unavailable)) on it. See issue 2888.
+-			t.Typedef = dt.Name
++			// For a struct/union/class, remember the C spelling,
++			// in case it has __attribute__((unavailable)).
++			// See issue 2888.
++			if isStructUnionClass(t.Go) {
++				t.Typedef = dt.Name
++			}
+ 		}
+ 	}
+ 	return t

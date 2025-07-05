@@ -12,7 +12,58 @@ Date:   Wed Jun 24 19:25:51 2015 +0200
     Change-Id: I3b0de213e23cbcf5b8ef800abeded5eeeb3f8287
     Reviewed-on: https://go-review.googlesource.com/11417
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 11 ++++++++---
  src/runtime/race/testdata/slice_test.go | 12 ++++++++++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f82609733d..2664e0cd6d 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -299,8 +299,14 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		}
+ 		goto ret
+ 
+-	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
++	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
+ 		racewalknode(&n.Left, init, 0, 0)
++		racewalknode(&n.Right, init, 0, 0)
++		goto ret
++
++	case OKEY:
++		racewalknode(&n.Left, init, 0, 0)
++		racewalknode(&n.Right, init, 0, 0)
+ 		goto ret
+ 
+ 	case OADDR:
+@@ -413,8 +419,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		OTYPE,
+ 		ONONAME,
+ 		OLITERAL,
+-		OSLICESTR, // always preceded by bounds checking, avoid double instrumentation.
+-		OTYPESW:   // ignored by code generation, do not instrument.
++		OTYPESW: // ignored by code generation, do not instrument.
+ 		goto ret
+ 	}
+ 
+diff --git a/src/runtime/race/testdata/slice_test.go b/src/runtime/race/testdata/slice_test.go
+index 32ae878970..1ec52438ec 100644
+--- a/src/runtime/race/testdata/slice_test.go
++++ b/src/runtime/race/testdata/slice_test.go
+@@ -578,3 +578,15 @@ func TestRaceCompareString(t *testing.T) {
+ 	s1 = s2
+ 	<-c
+ }
++
++func TestRaceSlice3(t *testing.T) {
++	done := make(chan bool)
++	x := make([]int, 10)
++	i := 2
++	go func() {
++		i = 3
++		done <- true
++	}()
++	_ = x[:1:i]
++	<-done
++}

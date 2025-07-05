@@ -9,7 +9,7 @@ Date:   Thu Mar 28 14:58:06 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  2 +-
  src/cmd/compile/internal/arm64/ssa.go          |  1 +
  src/cmd/compile/internal/gc/ssa.go             |  7 +++
@@ -50,3 +50,941 @@ Date:   Thu Mar 28 14:58:06 2019 -0400
  src/runtime/internal/atomic/sys_linux_arm.s    | 16 +++++
  src/runtime/internal/atomic/sys_nonlinux_arm.s | 12 ++++
  39 files changed, 354 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 693316bdc7..9c91e05661 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1083,7 +1083,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+-	case ssa.OpAMD64MOVLatomicload, ssa.OpAMD64MOVQatomicload:
++	case ssa.OpAMD64MOVBatomicload, ssa.OpAMD64MOVLatomicload, ssa.OpAMD64MOVQatomicload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index d3fc89d400..fc7a60e63e 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -438,6 +438,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpARM64LDAR,
++		ssa.OpARM64LDARB,
+ 		ssa.OpARM64LDARW:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7ffa5ab882..cafff01ddc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3073,6 +3073,13 @@ func init() {
+ 			return s.newValue1(ssa.OpSelect0, types.Types[TUINT32], v)
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.MIPS64, sys.PPC64)
++	addF("runtime/internal/atomic", "Load8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			v := s.newValue2(ssa.OpAtomicLoad8, types.NewTuple(types.Types[TUINT8], types.TypeMem), args[0], s.mem())
++			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
++			return s.newValue1(ssa.OpSelect0, types.Types[TUINT8], v)
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS64, sys.PPC64)
+ 	addF("runtime/internal/atomic", "Load64",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, types.NewTuple(types.Types[TUINT64], types.TypeMem), args[0], s.mem())
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 01b8ed0564..68eff97dfa 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -495,9 +495,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
+ 		s.UseArgs(16) // space used in callee args area by assembly stubs
+-	case ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
++	case ssa.OpMIPS64LoweredAtomicLoad8, ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
+ 		as := mips.AMOVV
+-		if v.Op == ssa.OpMIPS64LoweredAtomicLoad32 {
++		switch v.Op {
++		case ssa.OpMIPS64LoweredAtomicLoad8:
++			as = mips.AMOVB
++		case ssa.OpMIPS64LoweredAtomicLoad32:
+ 			as = mips.AMOVW
+ 		}
+ 		s.Prog(mips.ASYNC)
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 4159b2fe7c..f3a49643f1 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -323,18 +323,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		pisync := s.Prog(ppc64.AISYNC)
+ 		pisync.To.Type = obj.TYPE_NONE
+ 
+-	case ssa.OpPPC64LoweredAtomicLoad32,
++	case ssa.OpPPC64LoweredAtomicLoad8,
++		ssa.OpPPC64LoweredAtomicLoad32,
+ 		ssa.OpPPC64LoweredAtomicLoad64,
+ 		ssa.OpPPC64LoweredAtomicLoadPtr:
+ 		// SYNC
+-		// MOVD/MOVW (Rarg0), Rout
++		// MOVB/MOVD/MOVW (Rarg0), Rout
+ 		// CMP Rout,Rout
+ 		// BNE 1(PC)
+ 		// ISYNC
+ 		ld := ppc64.AMOVD
+ 		cmp := ppc64.ACMP
+-		if v.Op == ssa.OpPPC64LoweredAtomicLoad32 {
+-			ld = ppc64.AMOVW
++		switch v.Op {
++		case ssa.OpPPC64LoweredAtomicLoad8:
++			ld = ppc64.AMOVBZ
++		case ssa.OpPPC64LoweredAtomicLoad32:
++			ld = ppc64.AMOVWZ
+ 			cmp = ppc64.ACMPW
+ 		}
+ 		arg0 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 47abdfa4b4..7a897ae754 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -713,7 +713,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			clear.To.Type = obj.TYPE_MEM
+ 			clear.To.Reg = v.Args[0].Reg()
+ 		}
+-	case ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
++	case ssa.OpS390XMOVBZatomicload, ssa.OpS390XMOVWZatomicload, ssa.OpS390XMOVDatomicload:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 55430e8afc..c543686b3d 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -33,7 +33,7 @@ func branchelim(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			switch v.Op {
+-			case OpLoad, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
++			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
+ 				loadAddr.add(v.Args[0].ID)
+ 			case OpMove:
+ 				loadAddr.add(v.Args[1].ID)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 91bb22f3fe..cdb0e671f7 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -527,6 +527,7 @@
+ (If cond yes no) -> (NE (TESTB cond cond) yes no)
+ 
+ // Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
++(AtomicLoad8 ptr mem) -> (MOVBatomicload ptr mem)
+ (AtomicLoad32 ptr mem) -> (MOVLatomicload ptr mem)
+ (AtomicLoad64 ptr mem) -> (MOVQatomicload ptr mem)
+ (AtomicLoadPtr ptr mem) && config.PtrSize == 8 -> (MOVQatomicload ptr mem)
+@@ -2393,14 +2394,10 @@
+ 	((ADD|SUB|AND|OR|XOR|BTC|BTR|BTS)Qmodify [off] {sym} ptr x mem)
+ 
+ // Merge ADDQconst and LEAQ into atomic loads.
+-(MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+-	(MOVQatomicload [off1+off2] {sym} ptr mem)
+-(MOVLatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+-	(MOVLatomicload [off1+off2] {sym} ptr mem)
+-(MOVQatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+-	(MOVQatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+-(MOVLatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+-	(MOVLatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++(MOV(Q|L|B)atomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
++	(MOV(Q|L|B)atomicload [off1+off2] {sym} ptr mem)
++(MOV(Q|L|B)atomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++	(MOV(Q|L|B)atomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 
+ // Merge ADDQconst and LEAQ into atomic stores.
+ (XCHGQ [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 3ce302f514..739733cf16 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -740,6 +740,7 @@ func init() {
+ 		// Atomic loads.  These are just normal loads but return <value,memory> tuples
+ 		// so they can be properly ordered with other loads.
+ 		// load from arg0+auxint+aux.  arg1=mem.
++		{name: "MOVBatomicload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+ 		{name: "MOVLatomicload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+ 		{name: "MOVQatomicload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 6a30193c78..f3f006905c 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -583,6 +583,7 @@
+ 
+ // atomic intrinsics
+ // Note: these ops do not accept offset.
++(AtomicLoad8   ptr mem) -> (LDARB ptr mem)
+ (AtomicLoad32  ptr mem) -> (LDARW ptr mem)
+ (AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
+ (AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index ece53eb750..a0c8b060c7 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -606,6 +606,7 @@ func init() {
+ 		// load from arg0. arg1=mem. auxint must be zero.
+ 		// returns <value,memory> so they can be properly ordered with other loads.
+ 		{name: "LDAR", argLength: 2, reg: gpload, asm: "LDAR", faultOnNilArg0: true},
++		{name: "LDARB", argLength: 2, reg: gpload, asm: "LDARB", faultOnNilArg0: true},
+ 		{name: "LDARW", argLength: 2, reg: gpload, asm: "LDARW", faultOnNilArg0: true},
+ 
+ 		// atomic stores.
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 97ca051d64..a3df00aa33 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -385,6 +385,7 @@
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // atomic intrinsics
++(AtomicLoad8   ptr mem) -> (LoweredAtomicLoad8  ptr mem)
+ (AtomicLoad32  ptr mem) -> (LoweredAtomicLoad32 ptr mem)
+ (AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
+ (AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad64 ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index f476c9b6fe..ba02e0fcb5 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -343,6 +343,7 @@ func init() {
+ 		// atomic loads.
+ 		// load from arg0. arg1=mem.
+ 		// returns <value,memory> so they can be properly ordered with other loads.
++		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
+ 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
+ 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index c82b884a5f..01656df610 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -924,7 +924,7 @@
+     (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
+ 
+ // atomic intrinsics
+-(AtomicLoad(32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(32|64|Ptr) [1] ptr mem)
++(AtomicLoad(8|32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
+ (AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
+ 
+ (AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 67dd3c6650..65a183dba6 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -485,6 +485,7 @@ func init() {
+ 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
+ 
++		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, typ: "UInt8", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+ 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+ 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+ 		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 03a5accba2..f3cfee7e97 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -140,6 +140,7 @@
+ (Round       x) -> (FIDBR [1] x)
+ 
+ // Atomic loads.
++(AtomicLoad8  ptr mem) -> (MOVBZatomicload ptr mem)
+ (AtomicLoad32 ptr mem) -> (MOVWZatomicload ptr mem)
+ (AtomicLoad64 ptr mem) -> (MOVDatomicload ptr mem)
+ (AtomicLoadPtr ptr mem) -> (MOVDatomicload ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index b56971a78d..fcc2c732fc 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -496,6 +496,7 @@ func init() {
+ 		// Atomic loads. These are just normal loads but return <value,memory> tuples
+ 		// so they can be properly ordered with other loads.
+ 		// load from arg0+auxint+aux.  arg1=mem.
++		{name: "MOVBZatomicload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+ 		{name: "MOVWZatomicload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+ 		{name: "MOVDatomicload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 79169c34a1..8933aa51ef 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -527,6 +527,7 @@ var genericOps = []opData{
+ 	// Atomic loads return a new memory so that the loads are properly ordered
+ 	// with respect to other loads and stores.
+ 	// TODO: use for sync/atomic at some point.
++	{name: "AtomicLoad8", argLength: 2, typ: "(UInt8,Mem)"},                                    // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},                                  // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+ 	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},                                // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 3c843a3f32..1026ab7995 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -861,6 +861,7 @@ const (
+ 	OpAMD64FlagLT_UGT
+ 	OpAMD64FlagGT_UGT
+ 	OpAMD64FlagGT_ULT
++	OpAMD64MOVBatomicload
+ 	OpAMD64MOVLatomicload
+ 	OpAMD64MOVQatomicload
+ 	OpAMD64XCHGL
+@@ -1415,6 +1416,7 @@ const (
+ 	OpARM64FlagGT_ULT
+ 	OpARM64InvertFlags
+ 	OpARM64LDAR
++	OpARM64LDARB
+ 	OpARM64LDARW
+ 	OpARM64STLR
+ 	OpARM64STLRW
+@@ -1633,6 +1635,7 @@ const (
+ 	OpMIPS64DUFFZERO
+ 	OpMIPS64LoweredZero
+ 	OpMIPS64LoweredMove
++	OpMIPS64LoweredAtomicLoad8
+ 	OpMIPS64LoweredAtomicLoad32
+ 	OpMIPS64LoweredAtomicLoad64
+ 	OpMIPS64LoweredAtomicStore32
+@@ -1828,6 +1831,7 @@ const (
+ 	OpPPC64LoweredMove
+ 	OpPPC64LoweredAtomicStore32
+ 	OpPPC64LoweredAtomicStore64
++	OpPPC64LoweredAtomicLoad8
+ 	OpPPC64LoweredAtomicLoad32
+ 	OpPPC64LoweredAtomicLoad64
+ 	OpPPC64LoweredAtomicLoadPtr
+@@ -2050,6 +2054,7 @@ const (
+ 	OpS390XFlagLT
+ 	OpS390XFlagGT
+ 	OpS390XFlagOV
++	OpS390XMOVBZatomicload
+ 	OpS390XMOVWZatomicload
+ 	OpS390XMOVDatomicload
+ 	OpS390XMOVWatomicstore
+@@ -2505,6 +2510,7 @@ const (
+ 	OpCvt64Fto64U
+ 	OpSelect0
+ 	OpSelect1
++	OpAtomicLoad8
+ 	OpAtomicLoad32
+ 	OpAtomicLoad64
+ 	OpAtomicLoadPtr
+@@ -11334,6 +11340,22 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:           "MOVBatomicload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "MOVLatomicload",
+ 		auxType:        auxSymOff,
+@@ -18766,6 +18788,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LDARB",
++		argLen:         2,
++		faultOnNilArg0: true,
++		asm:            arm64.ALDARB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372038733561855}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
++			},
++		},
++	},
+ 	{
+ 		name:           "LDARW",
+ 		argLen:         2,
+@@ -21733,6 +21769,19 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 6, // R1 R2
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicLoad8",
++		argLen:         2,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686018695823358}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 SP g R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicLoad32",
+ 		argLen:         2,
+@@ -24372,6 +24421,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredAtomicLoad8",
++		auxType:        auxInt64,
++		argLen:         2,
++		clobberFlags:   true,
++		faultOnNilArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredAtomicLoad32",
+ 		auxType:        auxInt64,
+@@ -27550,6 +27614,22 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:           "MOVBZatomicload",
++		auxType:        auxSymOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            s390x.AMOVBZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295023614}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14 SP SB
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:           "MOVWZatomicload",
+ 		auxType:        auxSymOff,
+@@ -30916,6 +30996,11 @@ var opcodeTable = [...]opInfo{
+ 		zeroWidth: true,
+ 		generic:   true,
+ 	},
++	{
++		name:    "AtomicLoad8",
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "AtomicLoad32",
+ 		argLen:  2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index b17c0a68c1..d45d23087d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -251,6 +251,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVBQSXload_0(v)
+ 	case OpAMD64MOVBQZX:
+ 		return rewriteValueAMD64_OpAMD64MOVBQZX_0(v)
++	case OpAMD64MOVBatomicload:
++		return rewriteValueAMD64_OpAMD64MOVBatomicload_0(v)
+ 	case OpAMD64MOVBload:
+ 		return rewriteValueAMD64_OpAMD64MOVBload_0(v)
+ 	case OpAMD64MOVBloadidx1:
+@@ -643,6 +645,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAtomicLoad32_0(v)
+ 	case OpAtomicLoad64:
+ 		return rewriteValueAMD64_OpAtomicLoad64_0(v)
++	case OpAtomicLoad8:
++		return rewriteValueAMD64_OpAtomicLoad8_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueAMD64_OpAtomicLoadPtr_0(v)
+ 	case OpAtomicOr8:
+@@ -12163,6 +12167,56 @@ func rewriteValueAMD64_OpAMD64MOVBQZX_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64MOVBatomicload_0(v *Value) bool {
++	// match: (MOVBatomicload [off1] {sym} (ADDQconst [off2] ptr) mem)
++	// cond: is32Bit(off1+off2)
++	// result: (MOVBatomicload [off1+off2] {sym} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym := v.Aux
++		mem := v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ADDQconst {
++			break
++		}
++		off2 := v_0.AuxInt
++		ptr := v_0.Args[0]
++		if !(is32Bit(off1 + off2)) {
++			break
++		}
++		v.reset(OpAMD64MOVBatomicload)
++		v.AuxInt = off1 + off2
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (MOVBatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// result: (MOVBatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
++	for {
++		off1 := v.AuxInt
++		sym1 := v.Aux
++		mem := v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64LEAQ {
++			break
++		}
++		off2 := v_0.AuxInt
++		sym2 := v_0.Aux
++		ptr := v_0.Args[0]
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++			break
++		}
++		v.reset(OpAMD64MOVBatomicload)
++		v.AuxInt = off1 + off2
++		v.Aux = mergeSym(sym1, sym2)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64MOVBload_0(v *Value) bool {
+ 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+@@ -56747,6 +56801,19 @@ func rewriteValueAMD64_OpAtomicLoad64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpAtomicLoad8_0(v *Value) bool {
++	// match: (AtomicLoad8 ptr mem)
++	// cond:
++	// result: (MOVBatomicload ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpAMD64MOVBatomicload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpAtomicLoadPtr_0(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a739fe93fd..7c3f3b9e0c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -431,6 +431,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpAtomicLoad32_0(v)
+ 	case OpAtomicLoad64:
+ 		return rewriteValueARM64_OpAtomicLoad64_0(v)
++	case OpAtomicLoad8:
++		return rewriteValueARM64_OpAtomicLoad8_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueARM64_OpAtomicLoadPtr_0(v)
+ 	case OpAtomicOr8:
+@@ -32315,6 +32317,19 @@ func rewriteValueARM64_OpAtomicLoad64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpAtomicLoad8_0(v *Value) bool {
++	// match: (AtomicLoad8 ptr mem)
++	// cond:
++	// result: (LDARB ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpARM64LDARB)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueARM64_OpAtomicLoadPtr_0(v *Value) bool {
+ 	// match: (AtomicLoadPtr ptr mem)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 93087fb759..db104504e9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -59,6 +59,8 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return rewriteValueMIPS64_OpAtomicLoad32_0(v)
+ 	case OpAtomicLoad64:
+ 		return rewriteValueMIPS64_OpAtomicLoad64_0(v)
++	case OpAtomicLoad8:
++		return rewriteValueMIPS64_OpAtomicLoad8_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueMIPS64_OpAtomicLoadPtr_0(v)
+ 	case OpAtomicStore32:
+@@ -913,6 +915,19 @@ func rewriteValueMIPS64_OpAtomicLoad64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS64_OpAtomicLoad8_0(v *Value) bool {
++	// match: (AtomicLoad8 ptr mem)
++	// cond:
++	// result: (LoweredAtomicLoad8 ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpMIPS64LoweredAtomicLoad8)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueMIPS64_OpAtomicLoadPtr_0(v *Value) bool {
+ 	// match: (AtomicLoadPtr ptr mem)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 33e0825489..d35cf6eeac 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -67,6 +67,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpAtomicLoad32_0(v)
+ 	case OpAtomicLoad64:
+ 		return rewriteValuePPC64_OpAtomicLoad64_0(v)
++	case OpAtomicLoad8:
++		return rewriteValuePPC64_OpAtomicLoad8_0(v)
+ 	case OpAtomicLoadAcq32:
+ 		return rewriteValuePPC64_OpAtomicLoadAcq32_0(v)
+ 	case OpAtomicLoadPtr:
+@@ -1064,6 +1066,20 @@ func rewriteValuePPC64_OpAtomicLoad64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpAtomicLoad8_0(v *Value) bool {
++	// match: (AtomicLoad8 ptr mem)
++	// cond:
++	// result: (LoweredAtomicLoad8 [1] ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpPPC64LoweredAtomicLoad8)
++		v.AuxInt = 1
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValuePPC64_OpAtomicLoadAcq32_0(v *Value) bool {
+ 	// match: (AtomicLoadAcq32 ptr mem)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 9865564427..c5b7e564bb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -59,6 +59,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpAtomicLoad32_0(v)
+ 	case OpAtomicLoad64:
+ 		return rewriteValueS390X_OpAtomicLoad64_0(v)
++	case OpAtomicLoad8:
++		return rewriteValueS390X_OpAtomicLoad8_0(v)
+ 	case OpAtomicLoadPtr:
+ 		return rewriteValueS390X_OpAtomicLoadPtr_0(v)
+ 	case OpAtomicStore32:
+@@ -1117,6 +1119,19 @@ func rewriteValueS390X_OpAtomicLoad64_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpAtomicLoad8_0(v *Value) bool {
++	// match: (AtomicLoad8 ptr mem)
++	// cond:
++	// result: (MOVBZatomicload ptr mem)
++	for {
++		mem := v.Args[1]
++		ptr := v.Args[0]
++		v.reset(OpS390XMOVBZatomicload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueS390X_OpAtomicLoadPtr_0(v *Value) bool {
+ 	// match: (AtomicLoadPtr ptr mem)
+ 	// cond:
+diff --git a/src/runtime/internal/atomic/asm_mipsx.s b/src/runtime/internal/atomic/asm_mipsx.s
+index 73d7ea3ad4..af6bce57d6 100644
+--- a/src/runtime/internal/atomic/asm_mipsx.s
++++ b/src/runtime/internal/atomic/asm_mipsx.s
+@@ -40,6 +40,14 @@ TEXT ·Load(SB),NOSPLIT,$0-8
+ 	MOVW	R1, ret+4(FP)
+ 	RET
+ 
++TEXT ·Load8(SB),NOSPLIT,$0-5
++	MOVW	ptr+0(FP), R1
++	SYNC
++	MOVB	0(R1), R1
++	SYNC
++	MOVB	R1, ret+4(FP)
++	RET
++
+ TEXT ·Xadd(SB),NOSPLIT,$0-12
+ 	MOVW	ptr+0(FP), R2
+ 	MOVW	delta+4(FP), R3
+diff --git a/src/runtime/internal/atomic/atomic_386.go b/src/runtime/internal/atomic/atomic_386.go
+index ad71ebd971..143cd45e61 100644
+--- a/src/runtime/internal/atomic/atomic_386.go
++++ b/src/runtime/internal/atomic/atomic_386.go
+@@ -47,6 +47,12 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
++//go:nosplit
++//go:noinline
++func Load8(ptr *uint8) uint8 {
++	return *ptr
++}
++
+ //go:noescape
+ func And8(ptr *uint8, val uint8)
+ 
+diff --git a/src/runtime/internal/atomic/atomic_amd64x.go b/src/runtime/internal/atomic/atomic_amd64x.go
+index d4fe461609..b7e01a3ad5 100644
+--- a/src/runtime/internal/atomic/atomic_amd64x.go
++++ b/src/runtime/internal/atomic/atomic_amd64x.go
+@@ -50,6 +50,12 @@ func Xchg64(ptr *uint64, new uint64) uint64
+ //go:noescape
+ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 
++//go:nosplit
++//go:noinline
++func Load8(ptr *uint8) uint8 {
++	return *ptr
++}
++
+ //go:noescape
+ func And8(ptr *uint8, val uint8)
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index abedee0e35..3834ce5b91 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -184,6 +184,9 @@ func Load(addr *uint32) uint32
+ // NO go:noescape annotation; *addr escapes if result escapes (#31525)
+ func Loadp(addr unsafe.Pointer) unsafe.Pointer
+ 
++//go:noescape
++func Load8(addr *uint8) uint8
++
+ //go:noescape
+ func LoadAcq(addr *uint32) uint32
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm64.go b/src/runtime/internal/atomic/atomic_arm64.go
+index 8e83cc6f53..0182f309cc 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.go
++++ b/src/runtime/internal/atomic/atomic_arm64.go
+@@ -29,6 +29,9 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func Load(ptr *uint32) uint32
+ 
++//go:noescape
++func Load8(ptr *uint8) uint8
++
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/runtime/internal/atomic/atomic_arm64.s
+index c979f2246f..a7e8c35449 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.s
++++ b/src/runtime/internal/atomic/atomic_arm64.s
+@@ -11,6 +11,13 @@ TEXT ·Load(SB),NOSPLIT,$0-12
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
++// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* addr)
++TEXT ·Load8(SB),NOSPLIT,$0-9
++	MOVD	ptr+0(FP), R0
++	LDARB	(R0), R0
++	MOVB	R0, ret+8(FP)
++	RET
++
+ // uint64 runtime∕internal∕atomic·Load64(uint64 volatile* addr)
+ TEXT ·Load64(SB),NOSPLIT,$0-16
+ 	MOVD	ptr+0(FP), R0
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.go b/src/runtime/internal/atomic/atomic_mips64x.go
+index ca2e509266..ce11e38a96 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.go
++++ b/src/runtime/internal/atomic/atomic_mips64x.go
+@@ -29,6 +29,9 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func Load(ptr *uint32) uint32
+ 
++//go:noescape
++func Load8(ptr *uint8) uint8
++
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index 5214afe2d6..1ed90937c9 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -17,6 +17,15 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVW	R1, ret+8(FP)
+ 	RET
+ 
++// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* ptr)
++TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
++	MOVV	ptr+0(FP), R1
++	SYNC
++	MOVBU	0(R1), R1
++	SYNC
++	MOVB	R1, ret+8(FP)
++	RET
++
+ // uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R1
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.go b/src/runtime/internal/atomic/atomic_mipsx.go
+index 79eb582232..210fc27d9b 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.go
++++ b/src/runtime/internal/atomic/atomic_mipsx.go
+@@ -116,6 +116,9 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func Load(ptr *uint32) uint32
+ 
++//go:noescape
++func Load8(ptr *uint8) uint8
++
+ // NO go:noescape annotation; *ptr escapes if result escapes (#31525)
+ func Loadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.go b/src/runtime/internal/atomic/atomic_ppc64x.go
+index 0e9a51f6a1..13805a5275 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.go
++++ b/src/runtime/internal/atomic/atomic_ppc64x.go
+@@ -29,6 +29,9 @@ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func Load(ptr *uint32) uint32
+ 
++//go:noescape
++func Load8(ptr *uint8) uint8
++
+ //go:noescape
+ func Load64(ptr *uint64) uint64
+ 
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index c079ea494f..c2f696fb34 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -17,6 +17,17 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVW	R3, ret+8(FP)
+ 	RET
+ 
++// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* ptr)
++TEXT ·Load8(SB),NOSPLIT|NOFRAME,$-8-9
++	MOVD	ptr+0(FP), R3
++	SYNC
++	MOVBZ	0(R3), R3
++	CMP	R3, R3, CR7
++	BC	4, 30, 1(PC) // bne- cr7,0x4
++	ISYNC
++	MOVB	R3, ret+8(FP)
++	RET
++
+ // uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD	ptr+0(FP), R3
+diff --git a/src/runtime/internal/atomic/atomic_s390x.go b/src/runtime/internal/atomic/atomic_s390x.go
+index 2ffbec0b3f..0ad96d3502 100644
+--- a/src/runtime/internal/atomic/atomic_s390x.go
++++ b/src/runtime/internal/atomic/atomic_s390x.go
+@@ -18,6 +18,12 @@ func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
+ 	return *(*unsafe.Pointer)(ptr)
+ }
+ 
++//go:nosplit
++//go:noinline
++func Load8(ptr *uint8) uint8 {
++	return *ptr
++}
++
+ //go:nosplit
+ //go:noinline
+ func Load64(ptr *uint64) uint64 {
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index 9c2193fa1b..9ce4892cb6 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -27,6 +27,12 @@ func LoadAcq(ptr *uint32) uint32 {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func Load8(ptr *uint8) uint8 {
++	return *ptr
++}
++
+ //go:nosplit
+ //go:noinline
+ func Load64(ptr *uint64) uint64 {
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index 0fd39d4ee8..df62f6c8ad 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -104,3 +104,19 @@ store:
+ native_barrier2:
+ 	DMB	MB_ISH
+ 	RET
++
++TEXT	·Load8(SB),NOSPLIT,$0-5
++	MOVW	addr+0(FP), R0
++	MOVB	(R0), R1
++
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BGE	native_barrier
++	BL	memory_barrier<>(SB)
++	B	end
++native_barrier:
++	DMB	MB_ISH
++end:
++	MOVB	R1, ret+4(FP)
++	RET
++
+diff --git a/src/runtime/internal/atomic/sys_nonlinux_arm.s b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+index e593b3c92b..9d81334791 100644
+--- a/src/runtime/internal/atomic/sys_nonlinux_arm.s
++++ b/src/runtime/internal/atomic/sys_nonlinux_arm.s
+@@ -48,3 +48,15 @@ TEXT	·Store(SB),NOSPLIT,$0-8
+ 	BLT	2(PC)
+ 	DMB	MB_ISH
+ 	RET
++
++TEXT	·Load8(SB),NOSPLIT|NOFRAME,$0-5
++	MOVW	addr+0(FP), R0
++	MOVB	(R0), R1
++
++	MOVB	runtime·goarm(SB), R11
++	CMP	$7, R11
++	BLT	2(PC)
++	DMB	MB_ISH
++
++	MOVB	R1, ret+4(FP)
++	RET

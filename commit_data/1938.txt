@@ -8,6 +8,22 @@ Date:   Wed Apr 1 16:34:25 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=27003
     CL=27003
-
+---
  src/lib/container/vector.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 673b47d021..07c7d3df0b 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -214,8 +214,8 @@ func (p *Vector) Swap(i, j int) {
+ 
+ // Iterate over all elements; driver for range
+ func (p *Vector) iterate(c chan Element) {
+-	for i := 0; i < len(p.a); i++ {
+-		c <- p.a[i]
++	for i, v := range p.a {
++		c <- v
+ 	}
+ 	close(c);
+ }

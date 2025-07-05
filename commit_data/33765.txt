@@ -19,10 +19,85 @@ Date:   Fri Aug 18 13:33:00 2017 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc.s | 4 ++--
  src/cmd/internal/obj/x86/a.out.go            | 1 +
  src/cmd/internal/obj/x86/anames.go           | 1 +
  src/cmd/internal/obj/x86/asm6.go             | 5 +++++
  src/cmd/internal/obj/x86/obj6.go             | 1 +
  5 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc.s b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+index 534854f845..ed80f6f92e 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc.s
+@@ -771,8 +771,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	//TODO: CLAC                            // 0f01ca
+ 	CLC                                     // f8
+ 	CLD                                     // fc
+-	//TODO: CLFLUSH (BX)                    // 0fae3b
+-	//TODO: CLFLUSH (R11)                   // 410fae3b
++	CLFLUSH (BX)                            // 0fae3b
++	CLFLUSH (R11)                           // 410fae3b
+ 	//TODO: CLFLUSHOPT (BX)                 // 660fae3b
+ 	//TODO: CLFLUSHOPT (R11)                // 66410fae3b
+ 	CLI                                     // fa
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 36e715933f..778bdc6383 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -76,6 +76,7 @@ const (
+ 	ABYTE
+ 	ACLC
+ 	ACLD
++	ACLFLUSH
+ 	ACLI
+ 	ACLTS
+ 	ACMC
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 8499e93b84..45b39aa552 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -38,6 +38,7 @@ var Anames = []string{
+ 	"BYTE",
+ 	"CLC",
+ 	"CLD",
++	"CLFLUSH",
+ 	"CLI",
+ 	"CLTS",
+ 	"CMC",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 48b96cd7c9..16e58ad94d 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -551,6 +551,10 @@ var ypopl = []ytab{
+ 	{Ynone, Ynone, Ym, Zo_m, 2},
+ }
+ 
++var yclflush = []ytab{
++	{Ynone, Ynone, Ym, Zo_m, 2},
++}
++
+ var ybswap = []ytab{
+ 	{Ynone, Ynone, Yrl, Z_rp, 2},
+ }
+@@ -994,6 +998,7 @@ var optab =
+ 	{ACDQ, ynone, Px, [23]uint8{0x99}},
+ 	{ACLC, ynone, Px, [23]uint8{0xf8}},
+ 	{ACLD, ynone, Px, [23]uint8{0xfc}},
++	{ACLFLUSH, yclflush, Pm, [23]uint8{0xae, 07}},
+ 	{ACLI, ynone, Px, [23]uint8{0xfa}},
+ 	{ACLTS, ynone, Pm, [23]uint8{0x06}},
+ 	{ACMC, ynone, Px, [23]uint8{0xf5}},
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 52fbaa0156..38aeb4a59d 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1183,6 +1183,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ var unaryDst = map[obj.As]bool{
+ 	ABSWAPL:    true,
+ 	ABSWAPQ:    true,
++	ACLFLUSH:   true,
+ 	ACMPXCHG8B: true,
+ 	ADECB:      true,
+ 	ADECL:      true,

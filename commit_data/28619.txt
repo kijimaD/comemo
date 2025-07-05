@@ -14,6 +14,21 @@ Date:   Tue Jun 7 09:42:48 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/crypto/x509/x509.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 9e6d67df55..9ad3cf23f6 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1796,6 +1796,9 @@ var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
+ func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawValue, error) {
+ 	var rawAttributes []asn1.RawValue
+ 	b, err := asn1.Marshal(attributes)
++	if err != nil {
++		return nil, err
++	}
+ 	rest, err := asn1.Unmarshal(b, &rawAttributes)
+ 	if err != nil {
+ 		return nil, err

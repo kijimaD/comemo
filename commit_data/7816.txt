@@ -7,6 +7,30 @@ Date:   Fri Mar 18 20:55:21 2011 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4275057
-
+---
  src/cmd/prof/gopprof | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/prof/gopprof b/src/cmd/prof/gopprof
+index 4bcfa58009..c7b242dec7 100755
+--- a/src/cmd/prof/gopprof
++++ b/src/cmd/prof/gopprof
+@@ -2416,11 +2416,17 @@ sub RemoveUninterestingFrames {
+                       'makechan',
+                       'makemap',
+                       'mal',
+-                      'mallocgc',
++                      'runtime.new',
++                      'makeslice1',
++                      'runtime.gostringsize',
++                      'runtime.malloc',
++                      'unsafe.New',
++                      'runtime.mallocgc',
+                       'runtime.catstring',
+                       'runtime.ifaceT2E',
+                       'runtime.ifaceT2I',
+                       'runtime.makechan',
++                      'runtime.makechan_c',
+                       'runtime.makemap',
+                       'runtime.makeslice',
+                       'runtime.mal',

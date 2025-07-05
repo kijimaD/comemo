@@ -11,7 +11,7 @@ Date:   Wed May 6 07:11:39 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/9715
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go           |  5 ++-
  src/cmd/go/bootstrap.go         |  2 +-
  src/cmd/go/get.go               | 41 +++++++++++++++++-------
@@ -21,3 +21,452 @@ Date:   Wed May 6 07:11:39 2015 +1000
  src/cmd/go/vcs.go               | 67 +++++++++++++++++++++++++++++++--------
  src/cmd/go/vcs_test.go          |  2 +-
  8 files changed, 173 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f18ed80eb7..f4dfed474d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -424,7 +424,7 @@ Download and install packages and dependencies
+ 
+ Usage:
+ 
+-	go get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]
++	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
+ 
+ Get downloads and installs the packages named by the import paths,
+ along with their dependencies.
+@@ -440,6 +440,9 @@ of the original.
+ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
++The -insecure flag permits fetching from repositories and resolving
++custom domains using insecure schemes such as HTTP. Use with caution.
++
+ The -t flag instructs get to also download the packages required to build
+ the tests for the specified packages.
+ 
+diff --git a/src/cmd/go/bootstrap.go b/src/cmd/go/bootstrap.go
+index 0c13380054..1686df77af 100644
+--- a/src/cmd/go/bootstrap.go
++++ b/src/cmd/go/bootstrap.go
+@@ -29,7 +29,7 @@ func httpGET(url string) ([]byte, error) {
+ 	return nil, errHTTP
+ }
+ 
+-func httpsOrHTTP(importPath string) (string, io.ReadCloser, error) {
++func httpsOrHTTP(importPath string, security securityMode) (string, io.ReadCloser, error) {
+ 	return "", nil, errHTTP
+ }
+ 
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index c7399ebfcc..940b2639a1 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -16,7 +16,7 @@ import (
+ )
+ 
+ var cmdGet = &Command{
+-	UsageLine: "get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]",
++	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
+ 	Short:     "download and install packages and dependencies",
+ 	Long: `
+ Get downloads and installs the packages named by the import paths,
+@@ -33,6 +33,9 @@ of the original.
+ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
++The -insecure flag permits fetching from repositories and resolving
++custom domains using insecure schemes such as HTTP. Use with caution.
++
+ The -t flag instructs get to also download the packages required to build
+ the tests for the specified packages.
+ 
+@@ -62,6 +65,7 @@ var getF = cmdGet.Flag.Bool("f", false, "")
+ var getT = cmdGet.Flag.Bool("t", false, "")
+ var getU = cmdGet.Flag.Bool("u", false, "")
+ var getFix = cmdGet.Flag.Bool("fix", false, "")
++var getInsecure = cmdGet.Flag.Bool("insecure", false, "")
+ 
+ func init() {
+ 	addBuildFlags(cmdGet)
+@@ -279,6 +283,12 @@ func downloadPackage(p *Package) error {
+ 		repo, rootPath string
+ 		err            error
+ 	)
++
++	security := secure
++	if *getInsecure {
++		security = insecure
++	}
++
+ 	if p.build.SrcRoot != "" {
+ 		// Directory exists.  Look for checkout along path to src.
+ 		vcs, rootPath, err = vcsForDir(p)
+@@ -288,19 +298,23 @@ func downloadPackage(p *Package) error {
+ 		repo = "<local>" // should be unused; make distinctive
+ 
+ 		// Double-check where it came from.
+-		if *getU && vcs.remoteRepo != nil && !*getF {
++		if *getU && vcs.remoteRepo != nil {
+ 			dir := filepath.Join(p.build.SrcRoot, rootPath)
+ 			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
+-				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
+-					repo := rr.repo
+-					if rr.vcs.resolveRepo != nil {
+-						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
+-						if err == nil {
+-							repo = resolved
++				repo = remote
++
++				if !*getF {
++					if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
++						repo := rr.repo
++						if rr.vcs.resolveRepo != nil {
++							resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
++							if err == nil {
++								repo = resolved
++							}
++						}
++						if remote != repo {
++							return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
+ 						}
+-					}
+-					if remote != repo {
+-						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
+ 					}
+ 				}
+ 			}
+@@ -308,12 +322,15 @@ func downloadPackage(p *Package) error {
+ 	} else {
+ 		// Analyze the import path to determine the version control system,
+ 		// repository, and the import path for the root of the repository.
+-		rr, err := repoRootForImportPath(p.ImportPath)
++		rr, err := repoRootForImportPath(p.ImportPath, security)
+ 		if err != nil {
+ 			return err
+ 		}
+ 		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
+ 	}
++	if !vcs.isSecure(repo) && !*getInsecure {
++		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
++	}
+ 
+ 	if p.build.SrcRoot == "" {
+ 		// Package not found.  Put in first directory of $GOPATH.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 450be9779c..1146a41c18 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -530,6 +530,17 @@ func (tg *testgoData) cleanup() {
+ 	}
+ }
+ 
++// failSSH puts an ssh executable in the PATH that always fails.
++// This is to stub out uses of ssh by go get.
++func (tg *testgoData) failSSH() {
++	wd, err := os.Getwd()
++	if err != nil {
++		tg.t.Fatal(err)
++	}
++	fail := filepath.Join(wd, "testdata/failssh")
++	tg.setenv("PATH", fmt.Sprintf("%v%c%v", fail, filepath.ListSeparator, os.Getenv("PATH")))
++}
++
+ func TestFileLineInErrorMessages(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1848,3 +1859,61 @@ func TestIssue4210(t *testing.T) {
+ 	tg.runFail("build", "y")
+ 	tg.grepBoth("is a program", `did not find expected error message ("is a program")`)
+ }
++
++func TestGoGetInsecure(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	tg.failSSH()
++
++	const repo = "wh3rd.net/git.git"
++
++	// Try go get -d of HTTP-only repo (should fail).
++	tg.runFail("get", "-d", repo)
++
++	// Try again with -insecure (should succeed).
++	tg.run("get", "-d", "-insecure", repo)
++
++	// Try updating without -insecure (should fail).
++	tg.runFail("get", "-d", "-u", "-f", repo)
++}
++
++func TestGoGetUpdateInsecure(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	const repo = "github.com/golang/example"
++
++	// Clone the repo via HTTP manually.
++	cmd := exec.Command("git", "clone", "-q", "http://"+repo, tg.path("src/"+repo))
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("cloning %v repo: %v\n%s", repo, err, out)
++	}
++
++	// Update without -insecure should fail.
++	// Update with -insecure should succeed.
++	// We need -f to ignore import comments.
++	const pkg = repo + "/hello"
++	tg.runFail("get", "-d", "-u", "-f", pkg)
++	tg.run("get", "-d", "-u", "-f", "-insecure", pkg)
++}
++
++func TestGoGetInsecureCustomDomain(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++
++	const repo = "wh3rd.net/repo"
++	tg.runFail("get", "-d", repo)
++	tg.run("get", "-d", "-insecure", repo)
++}
+diff --git a/src/cmd/go/http.go b/src/cmd/go/http.go
+index 8b1247bfbe..7979c41b11 100644
+--- a/src/cmd/go/http.go
++++ b/src/cmd/go/http.go
+@@ -18,11 +18,15 @@ import (
+ 	"log"
+ 	"net/http"
+ 	"net/url"
++	"time"
+ )
+ 
+ // httpClient is the default HTTP client, but a variable so it can be
+ // changed by tests, without modifying http.DefaultClient.
+ var httpClient = http.DefaultClient
++var impatientHTTPClient = &http.Client{
++	Timeout: time.Duration(5 * time.Second),
++}
+ 
+ type httpError struct {
+ 	status     string
+@@ -55,7 +59,7 @@ func httpGET(url string) ([]byte, error) {
+ 
+ // httpsOrHTTP returns the body of either the importPath's
+ // https resource or, if unavailable, the http resource.
+-func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err error) {
++func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body io.ReadCloser, err error) {
+ 	fetch := func(scheme string) (urlStr string, res *http.Response, err error) {
+ 		u, err := url.Parse(scheme + "://" + importPath)
+ 		if err != nil {
+@@ -66,7 +70,11 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
+ 		if buildV {
+ 			log.Printf("Fetching %s", urlStr)
+ 		}
+-		res, err = httpClient.Get(urlStr)
++		if security == insecure && scheme == "https" { // fail earlier
++			res, err = impatientHTTPClient.Get(urlStr)
++		} else {
++			res, err = httpClient.Get(urlStr)
++		}
+ 		return
+ 	}
+ 	closeBody := func(res *http.Response) {
+@@ -84,7 +92,9 @@ func httpsOrHTTP(importPath string) (urlStr string, body io.ReadCloser, err erro
+ 			}
+ 		}
+ 		closeBody(res)
+-		urlStr, res, err = fetch("http")
++		if security == insecure {
++			urlStr, res, err = fetch("http")
++		}
+ 	}
+ 	if err != nil {
+ 		closeBody(res)
+diff --git a/src/cmd/go/testdata/failssh/ssh b/src/cmd/go/testdata/failssh/ssh
+new file mode 100755
+index 0000000000..ecdbef95dd
+--- /dev/null
++++ b/src/cmd/go/testdata/failssh/ssh
+@@ -0,0 +1,2 @@
++#!/bin/sh
++exit 1
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 2179000afd..b1db0deba7 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/singleflight"
+ 	"log"
++	"net/url"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -40,6 +41,22 @@ type vcsCmd struct {
+ 	resolveRepo func(v *vcsCmd, rootDir, remoteRepo string) (realRepo string, err error)
+ }
+ 
++var isSecureScheme = map[string]bool{
++	"https":   true,
++	"git+ssh": true,
++	"bzr+ssh": true,
++	"svn+ssh": true,
++}
++
++func (v *vcsCmd) isSecure(repo string) bool {
++	u, err := url.Parse(repo)
++	if err != nil {
++		// If repo is not a URL, it's not secure.
++		return false
++	}
++	return isSecureScheme[u.Scheme]
++}
++
+ // A tagCmd describes a command to list available tags
+ // that can be passed to tagSyncCmd.
+ type tagCmd struct {
+@@ -134,10 +151,17 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	repoUrl := strings.TrimSpace(string(outb))
++	repoURL, err := url.Parse(strings.TrimSpace(string(outb)))
++	if err != nil {
++		return "", err
++	}
++
++	// Iterate over insecure schemes too, because this function simply
++	// reports the state of the repo. If we can't see insecure schemes then
++	// we can't report the actual repo URL.
+ 	for _, s := range vcsGit.scheme {
+-		if strings.HasPrefix(repoUrl, s) {
+-			return repoUrl, nil
++		if repoURL.Scheme == s {
++			return repoURL.String(), nil
+ 		}
+ 	}
+ 	return "", errParse
+@@ -460,10 +484,20 @@ type repoRoot struct {
+ 
+ var httpPrefixRE = regexp.MustCompile(`^https?:`)
+ 
++// securityMode specifies whether a function should make network
++// calls using insecure transports (eg, plain text HTTP).
++// The zero value is "secure".
++type securityMode int
++
++const (
++	secure securityMode = iota
++	insecure
++)
++
+ // repoRootForImportPath analyzes importPath to determine the
+ // version control system, and code repository to use.
+-func repoRootForImportPath(importPath string) (*repoRoot, error) {
+-	rr, err := repoRootForImportPathStatic(importPath, "")
++func repoRootForImportPath(importPath string, security securityMode) (*repoRoot, error) {
++	rr, err := repoRootForImportPathStatic(importPath, "", security)
+ 	if err == errUnknownSite {
+ 		// If there are wildcards, look up the thing before the wildcard,
+ 		// hoping it applies to the wildcarded parts too.
+@@ -472,7 +506,7 @@ func repoRootForImportPath(importPath string) (*repoRoot, error) {
+ 		if i := strings.Index(lookup, "/.../"); i >= 0 {
+ 			lookup = lookup[:i]
+ 		}
+-		rr, err = repoRootForImportDynamic(lookup)
++		rr, err = repoRootForImportDynamic(lookup, security)
+ 
+ 		// repoRootForImportDynamic returns error detail
+ 		// that is irrelevant if the user didn't intend to use a
+@@ -502,7 +536,7 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
+ // containing its VCS type (foo.com/repo.git/dir)
+ //
+ // If scheme is non-empty, that scheme is forced.
+-func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
++func repoRootForImportPathStatic(importPath, scheme string, security securityMode) (*repoRoot, error) {
+ 	// A common error is to use https://packagepath because that's what
+ 	// hg and git require. Diagnose this helpfully.
+ 	if loc := httpPrefixRE.FindStringIndex(importPath); loc != nil {
+@@ -552,6 +586,9 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
+ 				match["repo"] = scheme + "://" + match["repo"]
+ 			} else {
+ 				for _, scheme := range vcs.scheme {
++					if security == secure && !isSecureScheme[scheme] {
++						continue
++					}
+ 					if vcs.ping(scheme, match["repo"]) == nil {
+ 						match["repo"] = scheme + "://" + match["repo"]
+ 						break
+@@ -573,7 +610,7 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
+ // statically known by repoRootForImportPathStatic.
+ //
+ // This handles custom import paths like "name.tld/pkg/foo".
+-func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
++func repoRootForImportDynamic(importPath string, security securityMode) (*repoRoot, error) {
+ 	slash := strings.Index(importPath, "/")
+ 	if slash < 0 {
+ 		return nil, errors.New("import path does not contain a slash")
+@@ -582,9 +619,13 @@ func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
+ 	if !strings.Contains(host, ".") {
+ 		return nil, errors.New("import path does not begin with hostname")
+ 	}
+-	urlStr, body, err := httpsOrHTTP(importPath)
++	urlStr, body, err := httpsOrHTTP(importPath, security)
+ 	if err != nil {
+-		return nil, fmt.Errorf("http/https fetch: %v", err)
++		msg := "https fetch: %v"
++		if security == insecure {
++			msg = "http/" + msg
++		}
++		return nil, fmt.Errorf(msg, err)
+ 	}
+ 	defer body.Close()
+ 	imports, err := parseMetaGoImports(body)
+@@ -614,7 +655,7 @@ func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
+ 		}
+ 		urlStr0 := urlStr
+ 		var imports []metaImport
+-		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix)
++		urlStr, imports, err = metaImportsForPrefix(mmi.Prefix, security)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -652,7 +693,7 @@ var (
+ // It is an error if no imports are found.
+ // urlStr will still be valid if err != nil.
+ // The returned urlStr will be of the form "https://golang.org/x/tools?go-get=1"
+-func metaImportsForPrefix(importPrefix string) (urlStr string, imports []metaImport, err error) {
++func metaImportsForPrefix(importPrefix string, security securityMode) (urlStr string, imports []metaImport, err error) {
+ 	setCache := func(res fetchResult) (fetchResult, error) {
+ 		fetchCacheMu.Lock()
+ 		defer fetchCacheMu.Unlock()
+@@ -668,7 +709,7 @@ func metaImportsForPrefix(importPrefix string) (urlStr string, imports []metaImp
+ 		}
+ 		fetchCacheMu.Unlock()
+ 
+-		urlStr, body, err := httpsOrHTTP(importPrefix)
++		urlStr, body, err := httpsOrHTTP(importPrefix, security)
+ 		if err != nil {
+ 			return setCache(fetchResult{urlStr: urlStr, err: fmt.Errorf("fetch %s: %v", urlStr, err)})
+ 		}
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index 7c7adbe5e9..a60a7ac1a0 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -99,7 +99,7 @@ func TestRepoRootForImportPath(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		got, err := repoRootForImportPath(test.path)
++		got, err := repoRootForImportPath(test.path, secure)
+ 		want := test.want
+ 
+ 		if want == nil {

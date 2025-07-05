@@ -16,8 +16,1844 @@ Date:   Tue Apr 6 13:29:27 2010 -0700
     R=rsc, ken2, ken3
     CC=golang-dev
     https://golang.org/cl/879041
-
+---
  src/cmd/goyacc/doc.go    |  13 +
  src/cmd/goyacc/goyacc.go | 456 ++++++++++++++------------------
  src/cmd/goyacc/units.y   | 668 +++++++++++++++++++++++------------------------
  3 files changed, 532 insertions(+), 605 deletions(-)
+
+diff --git a/src/cmd/goyacc/doc.go b/src/cmd/goyacc/doc.go
+index a3cf07533e..eea70adabb 100644
+--- a/src/cmd/goyacc/doc.go
++++ b/src/cmd/goyacc/doc.go
+@@ -19,5 +19,18 @@ The file units.y in this directory is a yacc grammar for a version of
+ the Unix tool units, also written in Go and largely transliterated
+ from the Plan 9 C version.
+ 
++The generated parser is reentrant. Parse expects to be given an
++argument that conforms to the following interface:
++
++	type yyLexer interface {
++		Lex(lval *yySymType) int
++	}
++
++Lex should return the token identifier, and place other token
++information in lval (which replaces the usual yylval).
++
++Code inside the parser may refer to the variable yylex
++which holds the yyLexer passed to Parse.
++
+ */
+ package documentation
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 31ab32c7ea..118d277f6b 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -49,6 +49,8 @@ import (
+ 	"fmt"
+ 	"bufio"
+ 	"os"
++	"strings"
++	"bytes"
+ )
+ 
+ // the following are adjustable
+@@ -104,7 +106,7 @@ const (
+ )
+ 
+ // output parser flags
+-const YYFLAG = -1000
++const yyFlag = -1000
+ 
+ // parse tokens
+ const (
+@@ -147,8 +149,9 @@ func SETTYPE(i, j int) int { return i | (j << 10) }
+ // I/O descriptors
+ var finput *bufio.Reader // input file
+ var stderr *bufio.Writer
+-var ftable *bufio.Writer  // y.go file
+-var foutput *bufio.Writer // y.output file
++var ftable *bufio.Writer    // y.go file
++var fcode = &bytes.Buffer{} // saved code
++var foutput *bufio.Writer   // y.output file
+ 
+ var oflag string // -o [y.go]		- y.go file
+ var vflag string // -v [y.output]	- y.output file
+@@ -503,22 +506,20 @@ outer:
+ 	}
+ 
+ 	// put out names of token names
+-	fmt.Fprintf(ftable, "var\tToknames\t =[]string {\n")
++	fmt.Fprintf(ftable, "var\tyyToknames\t =[]string {\n")
+ 	for i := TOKSTART; i <= ntokens; i++ {
+ 		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
+ 	}
+ 	fmt.Fprintf(ftable, "}\n")
+ 
+ 	// put out names of state names
+-	fmt.Fprintf(ftable, "var\tStatenames\t =[]string {\n")
++	fmt.Fprintf(ftable, "var\tyyStatenames\t =[]string {\n")
+ 	//	for i:=TOKSTART; i<=ntokens; i++ {
+ 	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
+ 	//	}
+ 	fmt.Fprintf(ftable, "}\n")
+ 
+-	fmt.Fprintf(ftable, "\nfunc\n")
+-	fmt.Fprintf(ftable, "yyrun(p int, yypt int) {\n")
+-	fmt.Fprintf(ftable, "switch p {\n")
++	fmt.Fprintf(fcode, "switch yynt {\n")
+ 
+ 	moreprod()
+ 	prdptr[0] = []int{NTBASE, start, 1, 0}
+@@ -589,7 +590,7 @@ outer:
+ 				break
+ 			}
+ 			levprd[nprod] |= ACTFLAG
+-			fmt.Fprintf(ftable, "\ncase %v:", nprod)
++			fmt.Fprintf(fcode, "\ncase %v:", nprod)
+ 			cpyact(curprod, mem)
+ 
+ 			// action within rule...
+@@ -646,8 +647,8 @@ outer:
+ 			if tempty != nontrst[curprod[0]-NTBASE].value {
+ 				error("default action causes potential type clash")
+ 			}
+-			fmt.Fprintf(ftable, "\ncase %v:", nprod)
+-			fmt.Fprintf(ftable, "\n\tYYVAL.%v = YYS[yypt-0].%v;",
++			fmt.Fprintf(fcode, "\ncase %v:", nprod)
++			fmt.Fprintf(fcode, "\n\tYYVAL.%v = YYS[yypt-0].%v;",
+ 				typeset[tempty], typeset[tempty])
+ 		}
+ 		moreprod()
+@@ -663,12 +664,11 @@ outer:
+ 	// dump out the prefix code
+ 	//
+ 
+-	fmt.Fprintf(ftable, "\n\t}")
+-	fmt.Fprintf(ftable, "\n}\n")
++	fmt.Fprintf(fcode, "\n\t}")
+ 
+-	fmt.Fprintf(ftable, "const	YYEOFCODE	= 1\n")
+-	fmt.Fprintf(ftable, "const	YYERRCODE	= 2\n")
+-	fmt.Fprintf(ftable, "const	YYMAXDEPTH	= %v\n", stacksize)
++	fmt.Fprintf(ftable, "const	yyEofCode	= 1\n")
++	fmt.Fprintf(ftable, "const	yyErrCode	= 2\n")
++	fmt.Fprintf(ftable, "const	yyMaxDepth	= %v\n", stacksize)
+ 
+ 	//
+ 	// copy any postfix code
+@@ -682,7 +682,7 @@ outer:
+ 			if c == EOF {
+ 				break
+ 			}
+-			putrune(ftable, c)
++			ftable.WriteRune(c)
+ 		}
+ 	}
+ }
+@@ -1034,7 +1034,7 @@ func cpyunion() {
+ 	if !lflag {
+ 		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
+ 	}
+-	fmt.Fprintf(ftable, "type\tYYSTYPE\tstruct")
++	fmt.Fprintf(ftable, "type\tyySymType\tstruct")
+ 
+ 	level := 0
+ 
+@@ -1044,7 +1044,7 @@ out:
+ 		if c == EOF {
+ 			error("EOF encountered while processing %%union")
+ 		}
+-		putrune(ftable, c)
++		ftable.WriteRune(c)
+ 		switch c {
+ 		case '\n':
+ 			lineno++
+@@ -1061,9 +1061,6 @@ out:
+ 		}
+ 	}
+ 	fmt.Fprintf(ftable, "\n")
+-	fmt.Fprintf(ftable, "var\tyylval\tYYSTYPE\n")
+-	fmt.Fprintf(ftable, "var\tYYVAL\tYYSTYPE\n")
+-	fmt.Fprintf(ftable, "var\tYYS\t[%v]YYSTYPE\n", stacksize)
+ }
+ 
+ //
+@@ -1086,9 +1083,9 @@ func cpycode() {
+ 			if c == '}' {
+ 				return
+ 			}
+-			putrune(ftable, '%')
++			ftable.WriteRune('%')
+ 		}
+-		putrune(ftable, c)
++		ftable.WriteRune(c)
+ 		if c == '\n' {
+ 			lineno++
+ 		}
+@@ -1098,74 +1095,6 @@ func cpycode() {
+ 	error("eof before %%}")
+ }
+ 
+-//func
+-//addcode(k int, s string)
+-//{
+-//	for i := 0; i < len(s); i++ {
+-//		addcodec(k, int(s[i]));
+-//	}
+-//}
+-
+-//func
+-//addcodec(k, c int)
+-//{
+-//	if codehead == nil || k != codetail.kind || codetail.ndata >= NCode {
+-//		cd := new(Code);
+-//		cd.kind = k;
+-//		cd.data = make([]byte, NCode+UTFmax);
+-//		cd.ndata = 0;
+-//		cd.next = nil;
+-//
+-//		if codehead == nil {
+-//			codehead = cd;
+-//		} else
+-//			codetail.next = cd;
+-//		codetail = cd;
+-//	}
+-//
+-////!!	codetail.ndata += sys->char2byte(c, codetail.data, codetail.ndata);
+-//}
+-
+-//func
+-//dumpcode(til int)
+-//{
+-//	for ; codehead != nil; codehead = codehead.next {
+-//		if codehead.kind == til {
+-//			return;
+-//		}
+-//		if write(ftable, codehead.data, codehead.ndata) != codehead.ndata {
+-//			error("can't write output file");
+-//		}
+-//	}
+-//}
+-
+-//
+-// write out the module declaration and any token info
+-//
+-//func
+-//dumpmod()
+-//{
+-//
+-//	for ; codehead != nil; codehead = codehead.next {
+-//		if codehead.kind != CodeMod {
+-//			break;
+-//		}
+-//		if write(ftable, codehead.data, codehead.ndata) != codehead.ndata {
+-//			error("can't write output file");
+-//		}
+-//	}
+-//
+-//	for i:=TOKSTART; i<=ntokens; i++ {
+-//		// non-literals
+-//		c := tokset[i].name[0];
+-//		if c != ' ' && c != '$' {
+-//			fmt.Fprintf(ftable, "vonst	%v	%v\n",
+-//				tokset[i].name, tokset[i].value);
+-//		}
+-//	}
+-//
+-//}
+-
+ //
+ // skip over comments
+ // skipcom is called after reading a '/'
+@@ -1229,7 +1158,7 @@ func dumpprod(curprod []int, max int) {
+ func cpyact(curprod []int, max int) {
+ 
+ 	if !lflag {
+-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
++		fmt.Fprintf(fcode, "\n//line %v %v\n", lineno, infile)
+ 	}
+ 
+ 	lno := lineno
+@@ -1243,14 +1172,14 @@ loop:
+ 		switch c {
+ 		case ';':
+ 			if brac == 0 {
+-				putrune(ftable, c)
++				ftable.WriteRune(c)
+ 				return
+ 			}
+ 
+ 		case '{':
+ 			if brac == 0 {
+ 			}
+-			putrune(ftable, '\t')
++			ftable.WriteRune('\t')
+ 			brac++
+ 
+ 		case '$':
+@@ -1268,14 +1197,14 @@ loop:
+ 				c = getrune(finput)
+ 			}
+ 			if c == '$' {
+-				fmt.Fprintf(ftable, "YYVAL")
++				fmt.Fprintf(fcode, "YYVAL")
+ 
+ 				// put out the proper tag...
+ 				if ntypes != 0 {
+ 					if tok < 0 {
+ 						tok = fdtype(curprod[0])
+ 					}
+-					fmt.Fprintf(ftable, ".%v", typeset[tok])
++					fmt.Fprintf(fcode, ".%v", typeset[tok])
+ 				}
+ 				continue loop
+ 			}
+@@ -1322,14 +1251,14 @@ loop:
+ 					error("$name or $name@number not found")
+ 				}
+ 			} else {
+-				putrune(ftable, '$')
++				fcode.WriteRune('$')
+ 				if s < 0 {
+-					putrune(ftable, '-')
++					fcode.WriteRune('-')
+ 				}
+ 				ungetrune(finput, c)
+ 				continue loop
+ 			}
+-			fmt.Fprintf(ftable, "YYS[yypt-%v]", max-j-1)
++			fmt.Fprintf(fcode, "YYS[yypt-%v]", max-j-1)
+ 
+ 			// put out the proper tag
+ 			if ntypes != 0 {
+@@ -1339,7 +1268,7 @@ loop:
+ 				if tok < 0 {
+ 					tok = fdtype(curprod[j])
+ 				}
+-				fmt.Fprintf(ftable, ".%v", typeset[tok])
++				fmt.Fprintf(fcode, ".%v", typeset[tok])
+ 			}
+ 			continue loop
+ 
+@@ -1348,7 +1277,7 @@ loop:
+ 			if brac != 0 {
+ 				break
+ 			}
+-			putrune(ftable, c)
++			fcode.WriteRune(c)
+ 			return
+ 
+ 		case '/':
+@@ -1358,8 +1287,8 @@ loop:
+ 				break
+ 			}
+ 			// a comment
+-			putrune(ftable, c)
+-			putrune(ftable, nc)
++			fcode.WriteRune(c)
++			fcode.WriteRune(nc)
+ 			c = getrune(finput)
+ 			for c != EOF {
+ 				switch {
+@@ -1371,14 +1300,14 @@ loop:
+ 				case c == '*' && nc == '*': // end of /* comment?
+ 					nnc := getrune(finput)
+ 					if nnc == '/' {
+-						putrune(ftable, '*')
+-						putrune(ftable, '/')
++						fcode.WriteRune('*')
++						fcode.WriteRune('/')
+ 						c = getrune(finput)
+ 						break swt
+ 					}
+ 					ungetrune(finput, nnc)
+ 				}
+-				putrune(ftable, c)
++				fcode.WriteRune(c)
+ 				c = getrune(finput)
+ 			}
+ 			error("EOF inside comment")
+@@ -1386,11 +1315,11 @@ loop:
+ 		case '\'', '"':
+ 			// character string or constant
+ 			match := c
+-			putrune(ftable, c)
++			fcode.WriteRune(c)
+ 			c = getrune(finput)
+ 			for c != EOF {
+ 				if c == '\\' {
+-					putrune(ftable, c)
++					fcode.WriteRune(c)
+ 					c = getrune(finput)
+ 					if c == '\n' {
+ 						lineno++
+@@ -1401,7 +1330,7 @@ loop:
+ 				if c == '\n' {
+ 					error("newline in string or char const")
+ 				}
+-				putrune(ftable, c)
++				fcode.WriteRune(c)
+ 				c = getrune(finput)
+ 			}
+ 			error("EOF in string or character constant")
+@@ -1414,7 +1343,7 @@ loop:
+ 			lineno++
+ 		}
+ 
+-		putrune(ftable, c)
++		fcode.WriteRune(c)
+ 	}
+ }
+ 
+@@ -2137,7 +2066,7 @@ nextk:
+ func output() {
+ 	var c, u, v int
+ 
+-	fmt.Fprintf(ftable, "var\tYYEXCA = []int {\n")
++	fmt.Fprintf(ftable, "var\tyyExca = []int {\n")
+ 
+ 	noset := mkset()
+ 
+@@ -2210,10 +2139,10 @@ func output() {
+ 	}
+ 
+ 	fmt.Fprintf(ftable, "}\n")
+-	fmt.Fprintf(ftable, "const\tYYNPROD\t= %v\n", nprod)
+-	fmt.Fprintf(ftable, "const\tYYPRIVATE\t= %v\n", PRIVATE)
+-	fmt.Fprintf(ftable, "var\tYYTOKENNAMES []string\n")
+-	fmt.Fprintf(ftable, "var\tYYSTATES []string\n")
++	fmt.Fprintf(ftable, "const\tyyNprod\t= %v\n", nprod)
++	fmt.Fprintf(ftable, "const\tyyPrivate\t= %v\n", PRIVATE)
++	fmt.Fprintf(ftable, "var\tyyTokenNames []string\n")
++	fmt.Fprintf(ftable, "var\tyyStates []string\n")
+ }
+ 
+ //
+@@ -2616,7 +2545,7 @@ func callopt() {
+ 		if tystate[i] == 0 && adb > 1 {
+ 			fmt.Fprintf(ftable, "State %v: null\n", i)
+ 		}
+-		indgo[i] = YYFLAG
++		indgo[i] = yyFlag
+ 	}
+ 
+ 	i = nxti()
+@@ -2636,7 +2565,7 @@ func callopt() {
+ 			for i = 0; i < 10; i++ {
+ 				fmt.Fprintf(ftable, "%v  ", amem[p+i])
+ 			}
+-			putrune(ftable, '\n')
++			ftable.WriteRune('\n')
+ 		}
+ 	}
+ 
+@@ -2788,10 +2717,10 @@ nextn:
+ // write out the optimized parser
+ //
+ func aoutput() {
+-	fmt.Fprintf(ftable, "const\tYYLAST\t= %v\n", maxa+1)
+-	arout("YYACT", amem, maxa+1)
+-	arout("YYPACT", indgo, nstate)
+-	arout("YYPGO", pgo, nnonter+1)
++	fmt.Fprintf(ftable, "const\tyyLast\t= %v\n", maxa+1)
++	arout("yyAct", amem, maxa+1)
++	arout("yyPact", indgo, nstate)
++	arout("yyPgo", pgo, nnonter+1)
+ }
+ 
+ //
+@@ -2800,7 +2729,7 @@ func aoutput() {
+ func others() {
+ 	var i, j int
+ 
+-	arout("YYR1", levprd, nprod)
++	arout("yyR1", levprd, nprod)
+ 	aryfil(temp1, nprod, 0)
+ 
+ 	//
+@@ -2809,7 +2738,7 @@ func others() {
+ 	for i = 1; i < nprod; i++ {
+ 		temp1[i] = len(prdptr[i]) - 2
+ 	}
+-	arout("YYR2", temp1, nprod)
++	arout("yyR2", temp1, nprod)
+ 
+ 	aryfil(temp1, nstate, -1000)
+ 	for i = 0; i <= ntokens; i++ {
+@@ -2822,8 +2751,8 @@ func others() {
+ 			temp1[j] = -i
+ 		}
+ 	}
+-	arout("YYCHK", temp1, nstate)
+-	arout("YYDEF", defact, nstate)
++	arout("yyChk", temp1, nstate)
++	arout("yyDef", defact, nstate)
+ 
+ 	// put out token translation tables
+ 	// table 1 has 0-256
+@@ -2848,7 +2777,7 @@ func others() {
+ 			temp1[i] = YYLEXUNK
+ 		}
+ 	}
+-	arout("YYTOK1", temp1, c+1)
++	arout("yyTok1", temp1, c+1)
+ 
+ 	// table 2 has PRIVATE-PRIVATE+256
+ 	aryfil(temp1, 256, 0)
+@@ -2867,10 +2796,10 @@ func others() {
+ 			}
+ 		}
+ 	}
+-	arout("YYTOK2", temp1, c+1)
++	arout("yyTok2", temp1, c+1)
+ 
+ 	// table 3 has everything else
+-	fmt.Fprintf(ftable, "var\tYYTOK3\t= []int {\n")
++	fmt.Fprintf(ftable, "var\tyyTok3\t= []int {\n")
+ 	c = 0
+ 	for i = 1; i <= ntokens; i++ {
+ 		j = tokset[i].value
+@@ -2884,7 +2813,7 @@ func others() {
+ 		fmt.Fprintf(ftable, "%4d,%4d,", j, i)
+ 		c++
+ 		if c%5 == 0 {
+-			putrune(ftable, '\n')
++			ftable.WriteRune('\n')
+ 		}
+ 	}
+ 	fmt.Fprintf(ftable, "%4d,\n };\n", 0)
+@@ -2892,22 +2821,25 @@ func others() {
+ 	// copy parser text
+ 	c = getrune(finput)
+ 	for c != EOF {
+-		putrune(ftable, c)
++		ftable.WriteRune(c)
+ 		c = getrune(finput)
+ 	}
+ 
++	parts := strings.Split(yaccpar, "yyrun()", 2)
+ 	// copy yaccpar
+-	fmt.Fprintf(ftable, "%v", yaccpar)
++	fmt.Fprintf(ftable, "%v", parts[0])
++	ftable.Write(fcode.Bytes())
++	fmt.Fprintf(ftable, "%v", parts[1])
+ }
+ 
+ func arout(s string, v []int, n int) {
+ 	fmt.Fprintf(ftable, "var\t%v\t= []int {\n", s)
+ 	for i := 0; i < n; i++ {
+ 		if i%10 == 0 {
+-			putrune(ftable, '\n')
++			ftable.WriteRune('\n')
+ 		}
+ 		fmt.Fprintf(ftable, "%4d", v[i])
+-		putrune(ftable, ',')
++		ftable.WriteRune(',')
+ 	}
+ 	fmt.Fprintf(ftable, "\n};\n")
+ }
+@@ -2978,7 +2910,7 @@ func chcopy(q string) string {
+ }
+ 
+ func usage() {
+-	fmt.Fprintf(stderr, "usage: gacc [-o output] [-v parsetable] input\n")
++	fmt.Fprintf(stderr, "usage: goyacc [-o output] [-v parsetable] input\n")
+ 	exit(1)
+ }
+ 
+@@ -3144,224 +3076,228 @@ func exit(status int) {
+ var yaccpar = `
+ /*	parser for yacc output	*/
+ 
+-var	Nerrs		= 0		/* number of errors */
+-var	Errflag		= 0		/* error recovery flag */
+-var	Debug		= 0
+-const	YYFLAG		= -1000
++var yyDebug = 0
++
++type yyLexer interface {
++	Lex(lval *yySymType) int
++}
+ 
+-func
+-Tokname(yyc int) string {
+-	if yyc > 0 && yyc <= len(Toknames) {
+-		if Toknames[yyc-1] != "" {
+-			return Toknames[yyc-1];
++const yyFlag = -1000
++
++func yyTokname(yyc int) string {
++	if yyc > 0 && yyc <= len(yyToknames) {
++		if yyToknames[yyc-1] != "" {
++			return yyToknames[yyc-1]
+ 		}
+ 	}
+-	return fmt.Sprintf("tok-%v", yyc);
++	return fmt.Sprintf("tok-%v", yyc)
+ }
+ 
+-func
+-Statname(yys int) string {
+-	if yys >= 0 && yys < len(Statenames) {
+-		if Statenames[yys] != "" {
+-			return Statenames[yys];
++func yyStatname(yys int) string {
++	if yys >= 0 && yys < len(yyStatenames) {
++		if yyStatenames[yys] != "" {
++			return yyStatenames[yys]
+ 		}
+ 	}
+-	return fmt.Sprintf("state-%v", yys);
++	return fmt.Sprintf("state-%v", yys)
+ }
+ 
+-func
+-lex1() int {
+-	var yychar int;
+-	var c int;
++func yylex1(yylex yyLexer, lval *yySymType) int {
++	var yychar int
++	var c int
+ 
+-	yychar = Lex();
++	yychar = yylex.Lex(lval)
+ 	if yychar <= 0 {
+-		c = YYTOK1[0];
+-		goto out;
++		c = yyTok1[0]
++		goto out
+ 	}
+-	if yychar < len(YYTOK1) {
+-		c = YYTOK1[yychar];
+-		goto out;
++	if yychar < len(yyTok1) {
++		c = yyTok1[yychar]
++		goto out
+ 	}
+-	if yychar >= YYPRIVATE {
+-		if yychar < YYPRIVATE+len(YYTOK2) {
+-			c = YYTOK2[yychar-YYPRIVATE];
+-			goto out;
++	if yychar >= yyPrivate {
++		if yychar < yyPrivate+len(yyTok2) {
++			c = yyTok2[yychar-yyPrivate]
++			goto out
+ 		}
+ 	}
+-	for i:=0; i<len(YYTOK3); i+=2 {
+-		c = YYTOK3[i+0];
++	for i := 0; i < len(yyTok3); i += 2 {
++		c = yyTok3[i+0]
+ 		if c == yychar {
+-			c = YYTOK3[i+1];
+-			goto out;
++			c = yyTok3[i+1]
++			goto out
+ 		}
+ 	}
+-	c = 0;
++	c = 0
+ 
+ out:
+ 	if c == 0 {
+-		c = YYTOK2[1];	/* unknown char */
++		c = yyTok2[1] /* unknown char */
+ 	}
+-	if Debug >= 3 {
+-		fmt.Printf("lex %.4lux %s\n", yychar, Tokname(c));
++	if yyDebug >= 3 {
++		fmt.Printf("lex %.4x %s\n", uint(yychar), yyTokname(c))
+ 	}
+-	return c;
++	return c
+ }
+ 
+-func
+-Parse() int {
+-	var yyj, yystate, yyn, yyg, yyxi, yyp int;
+-	var yychar int;
+-	var yypt, yynt int;
++func yyParse(yylex yyLexer) int {
++	var yyn int
++	var yylval yySymType
++	var YYVAL yySymType
++	YYS := make([]yySymType, yyMaxDepth)
+ 
+-	yystate = 0;
+-	yychar = -1;
+-	Nerrs = 0;
+-	Errflag = 0;
+-	yyp = -1;
+-	goto yystack;
++	Nerrs := 0   /* number of errors */
++	Errflag := 0 /* error recovery flag */
++	yystate := 0
++	yychar := -1
++	yyp := -1
++	goto yystack
+ 
+ ret0:
+-	return 0;
++	return 0
+ 
+ ret1:
+-	return 1;
++	return 1
+ 
+ yystack:
+ 	/* put a state and value onto the stack */
+-	if Debug >= 4 {
+-		fmt.Printf("char %v in %v", Tokname(yychar), Statname(yystate));
++	if yyDebug >= 4 {
++		fmt.Printf("char %v in %v", yyTokname(yychar), yyStatname(yystate))
+ 	}
+ 
+-	yyp++;
++	yyp++
+ 	if yyp >= len(YYS) {
+-		Error("yacc stack overflow");
+-		goto ret1;
++		nyys := make([]yySymType, len(YYS)*2)
++		copy(nyys, YYS)
++		YYS = nyys
+ 	}
+-	YYS[yyp] = YYVAL;
+-	YYS[yyp].yys = yystate;
++	YYS[yyp] = YYVAL
++	YYS[yyp].yys = yystate
+ 
+ yynewstate:
+-	yyn = YYPACT[yystate];
+-	if yyn <= YYFLAG {
+-		goto yydefault; /* simple state */
++	yyn = yyPact[yystate]
++	if yyn <= yyFlag {
++		goto yydefault /* simple state */
+ 	}
+ 	if yychar < 0 {
+-		yychar = lex1();
++		yychar = yylex1(yylex, &yylval)
+ 	}
+-	yyn += yychar;
+-	if yyn < 0 || yyn >= YYLAST {
+-		goto yydefault;
++	yyn += yychar
++	if yyn < 0 || yyn >= yyLast {
++		goto yydefault
+ 	}
+-	yyn = YYACT[yyn];
+-	if YYCHK[yyn] == yychar { /* valid shift */
+-		yychar = -1;
+-		YYVAL = yylval;
+-		yystate = yyn;
++	yyn = yyAct[yyn]
++	if yyChk[yyn] == yychar { /* valid shift */
++		yychar = -1
++		YYVAL = yylval
++		yystate = yyn
+ 		if Errflag > 0 {
+-			Errflag--;
++			Errflag--
+ 		}
+-		goto yystack;
++		goto yystack
+ 	}
+ 
+ yydefault:
+ 	/* default state action */
+-	yyn = YYDEF[yystate];
++	yyn = yyDef[yystate]
+ 	if yyn == -2 {
+ 		if yychar < 0 {
+-			yychar = lex1();
++			yychar = yylex1(yylex, &yylval)
+ 		}
+ 
+ 		/* look through exception table */
+-		for yyxi=0;; yyxi+=2 {
+-			if YYEXCA[yyxi+0] == -1 && YYEXCA[yyxi+1] == yystate {
+-				break;
++		yyxi := 0
++		for {
++			if yyExca[yyxi+0] == -1 && yyExca[yyxi+1] == yystate {
++				break
+ 			}
++			yyxi += 2
+ 		}
+-		for yyxi += 2;; yyxi += 2 {
+-			yyn = YYEXCA[yyxi+0];
++		for yyxi += 2; ; yyxi += 2 {
++			yyn = yyExca[yyxi+0]
+ 			if yyn < 0 || yyn == yychar {
+-				break;
++				break
+ 			}
+ 		}
+-		yyn = YYEXCA[yyxi+1];
++		yyn = yyExca[yyxi+1]
+ 		if yyn < 0 {
+-			goto ret0;
++			goto ret0
+ 		}
+ 	}
+ 	if yyn == 0 {
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+-		case 0:   /* brand new error */
+-			Error("syntax error");
+-			Nerrs++;
+-			if Debug >= 1 {
+-				fmt.Printf("%s", Statname(yystate));
+-				fmt.Printf("saw %s\n", Tokname(yychar));
++		case 0: /* brand new error */
++			yyError("syntax error")
++			Nerrs++
++			if yyDebug >= 1 {
++				fmt.Printf("%s", yyStatname(yystate))
++				fmt.Printf("saw %s\n", yyTokname(yychar))
+ 			}
+-			fallthrough;
++			fallthrough
+ 
+-		case 1,2: /* incompletely recovered error ... try again */
+-			Errflag = 3;
++		case 1, 2: /* incompletely recovered error ... try again */
++			Errflag = 3
+ 
+ 			/* find a state where "error" is a legal shift action */
+ 			for yyp >= len(YYS) {
+-				yyn = YYPACT[YYS[yyp].yys] + YYERRCODE;
+-				if yyn >= 0 && yyn < YYLAST {
+-					yystate = YYACT[yyn];  /* simulate a shift of "error" */
+-					if YYCHK[yystate] == YYERRCODE {
+-						goto yystack;
++				yyn = yyPact[YYS[yyp].yys] + yyErrCode
++				if yyn >= 0 && yyn < yyLast {
++					yystate = yyAct[yyn] /* simulate a shift of "error" */
++					if yyChk[yystate] == yyErrCode {
++						goto yystack
+ 					}
+ 				}
+ 
+ 				/* the current yyp has no shift onn "error", pop stack */
+-				if Debug >= 2 {
++				if yyDebug >= 2 {
+ 					fmt.Printf("error recovery pops state %d, uncovers %d\n",
+-						YYS[yyp].yys, YYS[yyp-1].yys );
++						YYS[yyp].yys, YYS[yyp-1].yys)
+ 				}
+-				yyp--;
++				yyp--
+ 			}
+ 			/* there is no state on the stack with an error shift ... abort */
+-			goto ret1;
++			goto ret1
+ 
+-		case 3:  /* no shift yet; clobber input char */
+-			if Debug >= 2 {
+-				fmt.Printf("error recovery discards %s\n", Tokname(yychar));
++		case 3: /* no shift yet; clobber input char */
++			if yyDebug >= 2 {
++				fmt.Printf("error recovery discards %s\n", yyTokname(yychar))
+ 			}
+-			if yychar == YYEOFCODE {
+-				goto ret1;
++			if yychar == yyEofCode {
++				goto ret1
+ 			}
+-			yychar = -1;
+-			goto yynewstate;   /* try again in the same state */
++			yychar = -1
++			goto yynewstate /* try again in the same state */
+ 		}
+ 	}
+ 
+ 	/* reduction by production yyn */
+-	if Debug >= 2 {
+-		fmt.Printf("reduce %v in:\n\t%v", yyn, Statname(yystate));
++	if yyDebug >= 2 {
++		fmt.Printf("reduce %v in:\n\t%v", yyn, yyStatname(yystate))
+ 	}
+ 
+-	yynt = yyn;
+-	yypt = yyp;
++	yynt := yyn
++	yypt := yyp
++	_ = yypt		// guard against "declared and not used"
+ 
+-	yyp -= YYR2[yyn];
+-	YYVAL = YYS[yyp+1];
++	yyp -= yyR2[yyn]
++	YYVAL = YYS[yyp+1]
+ 
+ 	/* consult goto table to find next state */
+-	yyn = YYR1[yyn];
+-	yyg = YYPGO[yyn];
+-	yyj = yyg + YYS[yyp].yys + 1;
++	yyn = yyR1[yyn]
++	yyg := yyPgo[yyn]
++	yyj := yyg + YYS[yyp].yys + 1
+ 
+-	if yyj >= YYLAST {
+-		yystate = YYACT[yyg];
++	if yyj >= yyLast {
++		yystate = yyAct[yyg]
+ 	} else {
+-		yystate = YYACT[yyj];
+-		if YYCHK[yystate] != -yyn {
+-			yystate = YYACT[yyg];
++		yystate = yyAct[yyj]
++		if yyChk[yystate] != -yyn {
++			yystate = yyAct[yyg]
+ 		}
+ 	}
+-
+-	yyrun(yynt, yypt);
+-	goto yystack;  /* stack new state and value */
++	// dummy call; replaced with literal code
++	yyrun()
++	goto yystack /* stack new state and value */
+ }
+ `
+diff --git a/src/cmd/goyacc/units.y b/src/cmd/goyacc/units.y
+index 9be7fa4ae5..b909d115c6 100644
+--- a/src/cmd/goyacc/units.y
++++ b/src/cmd/goyacc/units.y
+@@ -23,48 +23,44 @@
+ 
+ package main
+ 
+-import
+-(
+-	"flag";
+-	"fmt";
+-	"bufio";
+-	"os";
+-	"math";
+-	"strconv";
+-	"utf8";
++import (
++	"flag"
++	"fmt"
++	"bufio"
++	"os"
++	"math"
++	"strconv"
++	"utf8"
+ )
+ 
+-const
+-(
+-	Ndim	= 15;				// number of dimensions
+-	Maxe	= 695;				// log of largest number
++const (
++	Ndim = 15  // number of dimensions
++	Maxe = 695 // log of largest number
+ )
+ 
+-type
+-Node struct {
+-	vval	float64;
+-	dim	[Ndim]int8;
++type Node struct {
++	vval float64
++	dim  [Ndim]int8
+ }
+ 
+-type
+-Var struct {
+-	name	string;
+-	node	Node;
++type Var struct {
++	name string
++	node Node
+ }
+ 
+-var	fi		*bufio.Reader		// input
+-var	fund		[Ndim]*Var		// names of fundamental units
+-var	line		string			// current input line
+-var	lineno		int			// current input line number
+-var	linep		int			// index to next rune in unput
+-var	nerrors		int			// error count
+-var	one		Node			// constant one
+-var	peekrune	int			// backup runt from input
+-var	retnode1	Node
+-var	retnode2	Node
+-var	retnode		Node
+-var	sym		string
+-var	vflag		bool
++var fi *bufio.Reader // input
++var fund [Ndim]*Var  // names of fundamental units
++var line string      // current input line
++var lineno int       // current input line number
++var linep int        // index to next rune in unput
++var nerrors int      // error count
++var one Node         // constant one
++var peekrune int     // backup runt from input
++var retnode1 Node
++var retnode2 Node
++var retnode Node
++var sym string
++var vflag bool
+ 
+ %}
+ 
+@@ -217,481 +213,462 @@ expr0:
+ 	}
+ %%
+ 
+-func
+-Lex() int {
+-	var c, i int;
++type UnitsLex int
++
++func (l UnitsLex) Lex(yylval *yySymType) int {
++	var c, i int
+ 
+-	c = peekrune;
+-	peekrune = ' ';
++	c = peekrune
++	peekrune = ' '
+ 
+ loop:
+ 	if (c >= '0' && c <= '9') || c == '.' {
+-		goto numb;
++		goto numb
+ 	}
+ 	if ralpha(c) {
+-		goto alpha;
++		goto alpha
+ 	}
+ 	switch c {
+ 	case ' ', '\t':
+-		c = getrune();
+-		goto loop;
++		c = getrune()
++		goto loop
+ 	case '×':
+-		return '*';
++		return '*'
+ 	case '÷':
+-		return '/';
++		return '/'
+ 	case '¹', 'ⁱ':
+-		yylval.numb = 1;
+-		return SUP;
++		yylval.numb = 1
++		return SUP
+ 	case '²', '⁲':
+-		yylval.numb = 2;
+-		return SUP;
++		yylval.numb = 2
++		return SUP
+ 	case '³', '⁳':
+-		yylval.numb = 3;
+-		return SUP;
++		yylval.numb = 3
++		return SUP
+ 	}
+-	return c;
++	return c
+ 
+ alpha:
+-	sym = "";
+-	for i=0;; i++ {
+-		sym += string(c);
+-		c = getrune();
++	sym = ""
++	for i = 0; ; i++ {
++		sym += string(c)
++		c = getrune()
+ 		if !ralpha(c) {
+-			break;
++			break
+ 		}
+ 	}
+-	peekrune = c;
+-	yylval.vvar = lookup(0);
+-	return VAR;
++	peekrune = c
++	yylval.vvar = lookup(0)
++	return VAR
+ 
+ numb:
+-	sym = "";
+-	for i=0;; i++ {
+-		sym += string(c);
+-		c = getrune();
++	sym = ""
++	for i = 0; ; i++ {
++		sym += string(c)
++		c = getrune()
+ 		if !rdigit(c) {
+-			break;
++			break
+ 		}
+ 	}
+-	peekrune = c;
+-	f, err := strconv.Atof64(sym);
++	peekrune = c
++	f, err := strconv.Atof64(sym)
+ 	if err != nil {
+-		fmt.Printf("error converting %v", sym);
+-		f = 0;
++		fmt.Printf("error converting %v\n", sym)
++		f = 0
+ 	}
+-	yylval.vval = f;
+-	return VAL;
++	yylval.vval = f
++	return VAL
+ }
+ 
+-func
+-main() {
+-	var file string;
++func main() {
++	var file string
+ 
+-	flag.BoolVar(&vflag, "v", false, "verbose");
++	flag.BoolVar(&vflag, "v", false, "verbose")
+ 
+-	flag.Parse();
++	flag.Parse()
+ 
+-	file = os.Getenv("GOROOT") + "/src/cmd/goyacc/units.txt";
++	file = os.Getenv("GOROOT") + "/src/cmd/goyacc/units.txt"
+ 	if flag.NArg() > 0 {
+-		file = flag.Arg(0);
++		file = flag.Arg(0)
+ 	}
+ 
+-	f,err := os.Open(file, os.O_RDONLY, 0);
++	f, err := os.Open(file, os.O_RDONLY, 0)
+ 	if err != nil {
+-		fmt.Printf("error opening %v: %v", file, err);
+-		os.Exit(1);
++		fmt.Printf("error opening %v: %v\n", file, err)
++		os.Exit(1)
+ 	}
+-	fi = bufio.NewReader(f);
++	fi = bufio.NewReader(f)
+ 
+-	one.vval = 1;
++	one.vval = 1
+ 
+ 	/*
+ 	 * read the 'units' file to
+ 	 * develope a database
+ 	 */
+-	lineno = 0;
++	lineno = 0
+ 	for {
+-		lineno++;
++		lineno++
+ 		if readline() {
+-			break;
++			break
+ 		}
+ 		if len(line) == 0 || line[0] == '/' {
+-			continue;
++			continue
+ 		}
+-		peekrune = ':';
+-		Parse();
++		peekrune = ':'
++		yyParse(UnitsLex(0))
+ 	}
+ 
+ 	/*
+ 	 * read the console to
+ 	 * print ratio of pairs
+ 	 */
+-	fi = bufio.NewReader(os.NewFile(0, "stdin"));
++	fi = bufio.NewReader(os.NewFile(0, "stdin"))
+ 
+-	lineno = 0;
++	lineno = 0
+ 	for {
+ 		if (lineno & 1) != 0 {
+-			fmt.Printf("you want: ");
+-		} else
+-			fmt.Printf("you have: ");
++			fmt.Printf("you want: ")
++		} else {
++			fmt.Printf("you have: ")
++		}
+ 		if readline() {
+-			break;
++			break
+ 		}
+-		peekrune = '?';
+-		nerrors = 0;
+-		Parse();
++		peekrune = '?'
++		nerrors = 0
++		yyParse(UnitsLex(0))
+ 		if nerrors != 0 {
+-			continue;
++			continue
+ 		}
+ 		if (lineno & 1) != 0 {
+ 			if specialcase(&retnode, &retnode2, &retnode1) {
+-				fmt.Printf("\tis %v\n", &retnode);
++				fmt.Printf("\tis %v\n", &retnode)
+ 			} else {
+-				div(&retnode, &retnode2, &retnode1);
+-				fmt.Printf("\t* %v\n", &retnode);
+-				div(&retnode, &retnode1, &retnode2);
+-				fmt.Printf("\t/ %v\n", &retnode);
++				div(&retnode, &retnode2, &retnode1)
++				fmt.Printf("\t* %v\n", &retnode)
++				div(&retnode, &retnode1, &retnode2)
++				fmt.Printf("\t/ %v\n", &retnode)
+ 			}
+-		} else
+-			retnode2 = retnode1;
+-		lineno++;
++		} else {
++			retnode2 = retnode1
++		}
++		lineno++
+ 	}
+-	fmt.Printf("\n");
+-	os.Exit(0);
++	fmt.Printf("\n")
++	os.Exit(0)
+ }
+ 
+ /*
+  * all characters that have some
+  * meaning. rest are usable as names
+  */
+-func
+-ralpha(c int) bool {
++func ralpha(c int) bool {
+ 	switch c {
+-	case	0, '+', '-', '*', '/', '[', ']', '(', ')',
++	case 0, '+', '-', '*', '/', '[', ']', '(', ')',
+ 		'^', ':', '?', ' ', '\t', '.', '|', '#',
+ 		'×', '÷', '¹', 'ⁱ', '²', '⁲', '³', '⁳':
+-			return false;
++		return false
+ 	}
+-	return true;
++	return true
+ }
+ 
+ /*
+  * number forming character
+  */
+-func
+-rdigit(c int) bool {
++func rdigit(c int) bool {
+ 	switch c {
+-	case	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
++	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+ 		'.', 'e', '+', '-':
+-		return true;
++		return true
+ 	}
+-	return false;
++	return false
+ }
+ 
+-func
+-Error(s string, v ...interface{}) {
++func yyError(s string) {
++	Error("syntax error, last name: %v", sym)
++}
+ 
+-	/*
+-	 * hack to intercept message from yaccpar
+-	 */
+-	if s == "syntax error" {
+-		Error("syntax error, last name: %v", sym);
+-		return;
+-	}
+-	fmt.Printf("%v: %v\n\t", lineno, line);
+-	fmt.Printf(s, v);
+-	fmt.Printf("\n");
++func Error(s string, v ...interface{}) {
++	fmt.Printf("%v: %v\n\t", lineno, line)
++	fmt.Printf(s, v)
++	fmt.Printf("\n")
+ 
+-	nerrors++;
++	nerrors++
+ 	if nerrors > 5 {
+-		fmt.Printf("too many errors\n");
+-		os.Exit(1);
++		fmt.Printf("too many errors\n")
++		os.Exit(1)
+ 	}
+ }
+ 
+-func
+-add(c,a,b *Node) {
+-	var i int;
+-	var d int8;
++func add(c, a, b *Node) {
++	var i int
++	var d int8
+ 
+-	for i=0; i<Ndim; i++ {
+-		d = a.dim[i];
+-		c.dim[i] = d;
++	for i = 0; i < Ndim; i++ {
++		d = a.dim[i]
++		c.dim[i] = d
+ 		if d != b.dim[i] {
+-			Error("add must be like units");
++			Error("add must be like units")
+ 		}
+ 	}
+-	c.vval = fadd(a.vval, b.vval);
++	c.vval = fadd(a.vval, b.vval)
+ }
+ 
+-func
+-sub(c,a,b *Node) {
+-	var i int;
+-	var d int8;
++func sub(c, a, b *Node) {
++	var i int
++	var d int8
+ 
+-	for i=0; i<Ndim; i++ {
+-		d = a.dim[i];
+-		c.dim[i] = d;
++	for i = 0; i < Ndim; i++ {
++		d = a.dim[i]
++		c.dim[i] = d
+ 		if d != b.dim[i] {
+-			Error("sub must be like units");
++			Error("sub must be like units")
+ 		}
+ 	}
+-	c.vval = fadd(a.vval, -b.vval);
++	c.vval = fadd(a.vval, -b.vval)
+ }
+ 
+-func
+-mul(c,a,b *Node) {
+-	var i int;
++func mul(c, a, b *Node) {
++	var i int
+ 
+-	for i=0; i<Ndim; i++ {
+-		c.dim[i] = a.dim[i] + b.dim[i];
++	for i = 0; i < Ndim; i++ {
++		c.dim[i] = a.dim[i] + b.dim[i]
+ 	}
+-	c.vval = fmul(a.vval, b.vval);
++	c.vval = fmul(a.vval, b.vval)
+ }
+ 
+-func
+-div(c,a,b *Node) {
+-	var i int;
++func div(c, a, b *Node) {
++	var i int
+ 
+-	for i=0; i<Ndim; i++ {
+-		c.dim[i] = a.dim[i] - b.dim[i];
++	for i = 0; i < Ndim; i++ {
++		c.dim[i] = a.dim[i] - b.dim[i]
+ 	}
+-	c.vval = fdiv(a.vval, b.vval);
++	c.vval = fdiv(a.vval, b.vval)
+ }
+ 
+-func
+-xpn(c,a *Node, b int) {
+-	var i int;
++func xpn(c, a *Node, b int) {
++	var i int
+ 
+-	*c = one;
++	*c = one
+ 	if b < 0 {
+-		b = -b;
+-		for i=0; i<b; i++ {
+-			div(c, c, a);
++		b = -b
++		for i = 0; i < b; i++ {
++			div(c, c, a)
++		}
++	} else {
++		for i = 0; i < b; i++ {
++			mul(c, c, a)
+ 		}
+-	} else
+-	for i=0; i<b; i++ {
+-		mul(c, c, a);
+ 	}
+ }
+ 
+-func
+-specialcase(c,a,b *Node) bool {
+-	var i int;
+-	var d, d1, d2 int8;
++func specialcase(c, a, b *Node) bool {
++	var i int
++	var d, d1, d2 int8
+ 
+-	d1 = 0;
+-	d2 = 0;
+-	for i=1; i<Ndim; i++ {
+-		d = a.dim[i];
++	d1 = 0
++	d2 = 0
++	for i = 1; i < Ndim; i++ {
++		d = a.dim[i]
+ 		if d != 0 {
+ 			if d != 1 || d1 != 0 {
+-				return false;
++				return false
+ 			}
+-			d1 = int8(i);
++			d1 = int8(i)
+ 		}
+-		d = b.dim[i];
++		d = b.dim[i]
+ 		if d != 0 {
+ 			if d != 1 || d2 != 0 {
+-				return false;
++				return false
+ 			}
+-			d2 = int8(i);
++			d2 = int8(i)
+ 		}
+ 	}
+ 	if d1 == 0 || d2 == 0 {
+-		return false;
++		return false
+ 	}
+ 
+ 	if fund[d1].name == "°C" && fund[d2].name == "°F" &&
+-	   b.vval == 1 {
+-		for ll:=0; ll<len(c.dim); ll++ {
+-			c.dim[ll] = b.dim[ll];
++		b.vval == 1 {
++		for ll := 0; ll < len(c.dim); ll++ {
++			c.dim[ll] = b.dim[ll]
+ 		}
+-		c.vval = a.vval * 9. / 5. + 32.;
+-		return true;
++		c.vval = a.vval*9./5. + 32.
++		return true
+ 	}
+ 
+ 	if fund[d1].name == "°F" && fund[d2].name == "°C" &&
+-	   b.vval == 1 {
+-		for ll:=0; ll<len(c.dim); ll++ {
+-			c.dim[ll] = b.dim[ll];
++		b.vval == 1 {
++		for ll := 0; ll < len(c.dim); ll++ {
++			c.dim[ll] = b.dim[ll]
+ 		}
+-		c.vval = (a.vval - 32.) * 5. / 9.;
+-		return true;
++		c.vval = (a.vval - 32.) * 5. / 9.
++		return true
+ 	}
+-	return false;
++	return false
+ }
+ 
+-func
+-printdim(str string, d, n int) string {
+-	var v *Var;
++func printdim(str string, d, n int) string {
++	var v *Var
+ 
+ 	if n != 0 {
+-		v = fund[d];
++		v = fund[d]
+ 		if v != nil {
+-			str += fmt.Sprintf("%v", v.name);
+-		} else
+-			str += fmt.Sprintf("[%d]", d);
++			str += fmt.Sprintf("%v", v.name)
++		} else {
++			str += fmt.Sprintf("[%d]", d)
++		}
+ 		switch n {
+ 		case 1:
+-			break;
++			break
+ 		case 2:
+-			str += "²";
++			str += "²"
+ 		case 3:
+-			str += "³";
++			str += "³"
+ 		default:
+-			str += fmt.Sprintf("^%d", n);
++			str += fmt.Sprintf("^%d", n)
+ 		}
+ 	}
+-	return str;
++	return str
+ }
+ 
+-func
+-(n Node) String() string {
+-	var str string;
+-	var f, i, d int;
++func (n Node) String() string {
++	var str string
++	var f, i, d int
+ 
+-	str = fmt.Sprintf("%.7e ", n.vval);
++	str = fmt.Sprintf("%.7e ", n.vval)
+ 
+-	f = 0;
+-	for i=1; i<Ndim; i++ {
+-		d = int(n.dim[i]);
++	f = 0
++	for i = 1; i < Ndim; i++ {
++		d = int(n.dim[i])
+ 		if d > 0 {
+-			str = printdim(str, i, d);
+-		} else
+-		if d < 0 {
+-			f = 1;
++			str = printdim(str, i, d)
++		} else if d < 0 {
++			f = 1
+ 		}
+ 	}
+ 
+ 	if f != 0 {
+-		str += " /";
+-		for i=1; i<Ndim; i++ {
+-			d = int(n.dim[i]);
++		str += " /"
++		for i = 1; i < Ndim; i++ {
++			d = int(n.dim[i])
+ 			if d < 0 {
+-				str = printdim(str, i, -d);
++				str = printdim(str, i, -d)
+ 			}
+ 		}
+ 	}
+ 
+-	return str;
++	return str
+ }
+ 
+-func
+-(v *Var) String() string {
+-	var str string;
+-	str = fmt.Sprintf("%v %v", v.name, v.node);
+-	return str;
++func (v *Var) String() string {
++	var str string
++	str = fmt.Sprintf("%v %v", v.name, v.node)
++	return str
+ }
+ 
+-func
+-readline() bool {
+-	s,err := fi.ReadString('\n');
++func readline() bool {
++	s, err := fi.ReadString('\n')
+ 	if err != nil {
+-		return true;
++		return true
+ 	}
+-	line = s;
+-	linep = 0;
+-	return false;
++	line = s
++	linep = 0
++	return false
+ }
+ 
+-func
+-getrune() int {
+-	var c,n int;
++func getrune() int {
++	var c, n int
+ 
+ 	if linep >= len(line) {
+-		return 0;
++		return 0
+ 	}
+-	c,n = utf8.DecodeRuneInString(line[linep:len(line)]);
+-	linep += n;
++	c, n = utf8.DecodeRuneInString(line[linep:len(line)])
++	linep += n
+ 	if c == '\n' {
+-		c = 0;
++		c = 0
+ 	}
+-	return c;
++	return c
+ }
+ 
+-var	symmap	= make(map[string]*Var);	// symbol table
++var symmap = make(map[string]*Var) // symbol table
+ 
+-func
+-lookup(f int) *Var {
+-	var p float64;
+-	var w *Var;
++func lookup(f int) *Var {
++	var p float64
++	var w *Var
+ 
+-	v,ok := symmap[sym];
++	v, ok := symmap[sym]
+ 	if ok {
+-		return v;
++		return v
+ 	}
+ 	if f != 0 {
+-		return nil;
++		return nil
+ 	}
+-	v = new(Var);
+-	v.name = sym;
+-	symmap[sym] = v;
++	v = new(Var)
++	v.name = sym
++	symmap[sym] = v
+ 
+-	p = 1;
++	p = 1
+ 	for {
+-		p = fmul(p, pname());
++		p = fmul(p, pname())
+ 		if p == 0 {
+-			break;
++			break
+ 		}
+-		w = lookup(1);
++		w = lookup(1)
+ 		if w != nil {
+-			v.node = w.node;
+-			v.node.vval = fmul(v.node.vval, p);
+-			break;
++			v.node = w.node
++			v.node.vval = fmul(v.node.vval, p)
++			break
+ 		}
+ 	}
+-	return v;
++	return v
+ }
+ 
+-type
+-Prefix struct
+-{
+-	vval	float64;
+-	name	string;
++type Prefix struct {
++	vval float64
++	name string
+ }
+ 
+-var	prefix	 = []Prefix {			// prefix table
+-	Prefix { 1e-24,		"yocto" },
+-	Prefix { 1e-21,		"zepto" },
+-	Prefix { 1e-18,		"atto"  },
+-	Prefix { 1e-15,		"femto" },
+-	Prefix { 1e-12,		"pico"  },
+-	Prefix { 1e-9,		"nano"  },
+-	Prefix { 1e-6,		"micro" },
+-	Prefix { 1e-6,		"μ"     },
+-	Prefix { 1e-3,		"milli" },
+-	Prefix { 1e-2,		"centi" },
+-	Prefix { 1e-1,		"deci"  },
+-	Prefix { 1e1,		"deka"  },
+-	Prefix { 1e2,		"hecta" },
+-	Prefix { 1e2,		"hecto" },
+-	Prefix { 1e3,		"kilo"  },
+-	Prefix { 1e6,		"mega"  },
+-	Prefix { 1e6,		"meg"   },
+-	Prefix { 1e9,		"giga"  },
+-	Prefix { 1e12,		"tera"  },
+-	Prefix { 1e15,		"peta"  },
+-	Prefix { 1e18,		"exa"   },
+-	Prefix { 1e21,		"zetta" },
+-	Prefix { 1e24,		"yotta" },
++var prefix = []Prefix{ // prefix table
++	Prefix{1e-24, "yocto"},
++	Prefix{1e-21, "zepto"},
++	Prefix{1e-18, "atto"},
++	Prefix{1e-15, "femto"},
++	Prefix{1e-12, "pico"},
++	Prefix{1e-9, "nano"},
++	Prefix{1e-6, "micro"},
++	Prefix{1e-6, "μ"},
++	Prefix{1e-3, "milli"},
++	Prefix{1e-2, "centi"},
++	Prefix{1e-1, "deci"},
++	Prefix{1e1, "deka"},
++	Prefix{1e2, "hecta"},
++	Prefix{1e2, "hecto"},
++	Prefix{1e3, "kilo"},
++	Prefix{1e6, "mega"},
++	Prefix{1e6, "meg"},
++	Prefix{1e9, "giga"},
++	Prefix{1e12, "tera"},
++	Prefix{1e15, "peta"},
++	Prefix{1e18, "exa"},
++	Prefix{1e21, "zetta"},
++	Prefix{1e24, "yotta"},
+ }
+ 
+-func
+-pname() float64 {
+-	var i, j, n int;
+-	var s string;
++func pname() float64 {
++	var i, j, n int
++	var s string
+ 
+ 	/*
+ 	 * rip off normal prefixs
+ 	 */
+-	n = len(sym);
+-	for i=0; i<len(prefix); i++ {
+-		s = prefix[i].name;
+-		j = len(s);
++	n = len(sym)
++	for i = 0; i < len(prefix); i++ {
++		s = prefix[i].name
++		j = len(s)
+ 		if j < n && sym[0:j] == s {
+-			sym = sym[j:n];
+-			return prefix[i].vval;
++			sym = sym[j:n]
++			return prefix[i].vval
+ 		}
+ 	}
+ 
+@@ -699,82 +676,83 @@ pname() float64 {
+ 	 * rip off 's' suffixes
+ 	 */
+ 	if n > 2 && sym[n-1] == 's' {
+-		sym = sym[0:n-1];
+-		return 1;
++		sym = sym[0 : n-1]
++		return 1
+ 	}
+ 
+-	return 0;
++	return 0
+ }
+ 
+ 
+ // careful multiplication
+ // exponents (log) are checked before multiply
+-func
+-fmul(a, b float64) float64 {
+-	var l float64;
++func fmul(a, b float64) float64 {
++	var l float64
+ 
+ 	if b <= 0 {
+ 		if b == 0 {
+-			return 0;
++			return 0
+ 		}
+-		l = math.Log(-b);
+-	} else
+-		l = math.Log(b);
++		l = math.Log(-b)
++	} else {
++		l = math.Log(b)
++	}
+ 
+ 	if a <= 0 {
+ 		if a == 0 {
+-			return 0;
++			return 0
+ 		}
+-		l += math.Log(-a);
+-	} else
+-		l += math.Log(a);
++		l += math.Log(-a)
++	} else {
++		l += math.Log(a)
++	}
+ 
+ 	if l > Maxe {
+-		Error("overflow in multiply");
+-		return 1;
++		Error("overflow in multiply")
++		return 1
+ 	}
+ 	if l < -Maxe {
+-		Error("underflow in multiply");
+-		return 0;
++		Error("underflow in multiply")
++		return 0
+ 	}
+-	return a*b;
++	return a * b
+ }
+ 
+ // careful division
+ // exponents (log) are checked before divide
+-func
+-fdiv(a, b float64) float64 {
+-	var l float64;
++func fdiv(a, b float64) float64 {
++	var l float64
+ 
+ 	if b <= 0 {
+ 		if b == 0 {
+-			Error("division by zero: %v %v", a, b);
+-			return 1;
++			Error("division by zero: %v %v", a, b)
++			return 1
+ 		}
+-		l = math.Log(-b);
+-	} else
+-		l = math.Log(b);
++		l = math.Log(-b)
++	} else {
++		l = math.Log(b)
++	}
+ 
+ 	if a <= 0 {
+ 		if a == 0 {
+-			return 0;
++			return 0
+ 		}
+-		l -= math.Log(-a);
+-	} else
+-		l -= math.Log(a);
++		l -= math.Log(-a)
++	} else {
++		l -= math.Log(a)
++	}
+ 
+ 	if l < -Maxe {
+-		Error("overflow in divide");
+-		return 1;
++		Error("overflow in divide")
++		return 1
+ 	}
+ 	if l > Maxe {
+-		Error("underflow in divide");
+-		return 0;
++		Error("underflow in divide")
++		return 0
+ 	}
+-	return a/b;
++	return a / b
+ }
+ 
+-func
+-fadd(a, b float64) float64 {
+-	return a + b;
++func fadd(a, b float64) float64 {
++	return a + b
+ }

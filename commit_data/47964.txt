@@ -13,6 +13,19 @@ Date:   Wed Apr 14 12:37:04 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/internal/buildcfg/exp.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index e0d02b9d46..7704efa994 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -29,6 +29,7 @@ var experimentBaseline = goexperiment.Flags{
+ 	RegabiWrappers: regabiSupported,
+ 	RegabiG:        regabiSupported,
+ 	RegabiReflect:  regabiSupported,
++	RegabiDefer:    regabiSupported,
+ }
+ 
+ // FramePointerEnabled enables the use of platform conventions for

@@ -16,9 +16,244 @@ Date:   Thu Aug 3 10:07:09 2023 -0400
     Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 23 ++++++++++++++
  src/cmd/compile/internal/types2/typeset.go  | 49 ++++++++++-------------------
  src/go/types/api_test.go                    | 23 ++++++++++++++
  src/go/types/typeset.go                     | 37 ++++++----------------
  4 files changed, 72 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index c7a24fc3e5..d76c6cdfd7 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2071,6 +2071,29 @@ func TestIdenticalUnions(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue61737(t *testing.T) {
++	// This test verifies that it is possible to construct invalid interfaces
++	// containing duplicate methods using the go/types API.
++	//
++	// It must be possible for importers to construct such invalid interfaces.
++	// Previously, this panicked.
++
++	sig1 := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, nil, "", Typ[Int])), nil, false)
++	sig2 := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, nil, "", Typ[String])), nil, false)
++
++	methods := []*Func{
++		NewFunc(nopos, nil, "M", sig1),
++		NewFunc(nopos, nil, "M", sig2),
++	}
++
++	embeddedMethods := []*Func{
++		NewFunc(nopos, nil, "M", sig2),
++	}
++	embedded := NewInterfaceType(embeddedMethods, nil)
++	iface := NewInterfaceType(methods, []Type{embedded})
++	iface.NumMethods() // unlike go/types, there is no Complete() method, so we complete implicitly
++}
++
+ func TestIssue15305(t *testing.T) {
+ 	const src = "package p; func f() int16; var _ = f(undef)"
+ 	f := mustParse(src)
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 9c1c69c40b..70b9e36aef 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -6,7 +6,6 @@ package types2
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
+-	"fmt"
+ 	. "internal/types/errors"
+ 	"sort"
+ 	"strings"
+@@ -212,7 +211,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 	// we can get rid of the mpos map below and simply use the cloned method's
+ 	// position.
+ 
+-	var todo []*Func
+ 	var seen objset
+ 	var allMethods []*Func
+ 	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
+@@ -222,36 +220,30 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			allMethods = append(allMethods, m)
+ 			mpos[m] = pos
+ 		case explicit:
+-			if check == nil {
+-				panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
++			if check != nil {
++				var err error_
++				err.code = DuplicateDecl
++				err.errorf(pos, "duplicate method %s", m.name)
++				err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
++				check.report(&err)
+ 			}
+-			// check != nil
+-			var err error_
+-			err.code = DuplicateDecl
+-			err.errorf(pos, "duplicate method %s", m.name)
+-			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+-			check.report(&err)
+ 		default:
+ 			// We have a duplicate method name in an embedded (not explicitly declared) method.
+ 			// Check method signatures after all types are computed (go.dev/issue/33656).
+ 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+ 			// error here as well (even though we could do it eagerly) because it's the same
+ 			// error message.
+-			if check == nil {
+-				// check method signatures after all locally embedded interfaces are computed
+-				todo = append(todo, m, other.(*Func))
+-				break
++			if check != nil {
++				check.later(func() {
++					if !check.allowVersion(m.pkg, pos, go1_14) || !Identical(m.typ, other.Type()) {
++						var err error_
++						err.code = DuplicateDecl
++						err.errorf(pos, "duplicate method %s", m.name)
++						err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
++						check.report(&err)
++					}
++				}).describef(pos, "duplicate method check for %s", m.name)
+ 			}
+-			// check != nil
+-			check.later(func() {
+-				if !check.allowVersion(m.pkg, pos, go1_14) || !Identical(m.typ, other.Type()) {
+-					var err error_
+-					err.code = DuplicateDecl
+-					err.errorf(pos, "duplicate method %s", m.name)
+-					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+-					check.report(&err)
+-				}
+-			}).describef(pos, "duplicate method check for %s", m.name)
+ 		}
+ 	}
+ 
+@@ -314,15 +306,6 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 	}
+ 	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+-	// process todo's (this only happens if check == nil)
+-	for i := 0; i < len(todo); i += 2 {
+-		m := todo[i]
+-		other := todo[i+1]
+-		if !Identical(m.typ, other.typ) {
+-			panic(fmt.Sprintf("%s: duplicate method %s", m.pos, m.name))
+-		}
+-	}
+-
+ 	ityp.tset.comparable = allComparable
+ 	if len(allMethods) != 0 {
+ 		sortMethods(allMethods)
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index cb1263863f..6a607829ac 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2072,6 +2072,29 @@ func TestIdenticalUnions(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue61737(t *testing.T) {
++	// This test verifies that it is possible to construct invalid interfaces
++	// containing duplicate methods using the go/types API.
++	//
++	// It must be possible for importers to construct such invalid interfaces.
++	// Previously, this panicked.
++
++	sig1 := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, nil, "", Typ[Int])), nil, false)
++	sig2 := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, nil, "", Typ[String])), nil, false)
++
++	methods := []*Func{
++		NewFunc(nopos, nil, "M", sig1),
++		NewFunc(nopos, nil, "M", sig2),
++	}
++
++	embeddedMethods := []*Func{
++		NewFunc(nopos, nil, "M", sig2),
++	}
++	embedded := NewInterfaceType(embeddedMethods, nil)
++	iface := NewInterfaceType(methods, []Type{embedded})
++	iface.Complete()
++}
++
+ func TestIssue15305(t *testing.T) {
+ 	const src = "package p; func f() int16; var _ = f(undef)"
+ 	fset := token.NewFileSet()
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 2644fa3951..206aa3da08 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -5,7 +5,6 @@
+ package types
+ 
+ import (
+-	"fmt"
+ 	"go/token"
+ 	. "internal/types/errors"
+ 	"sort"
+@@ -216,7 +215,6 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	// we can get rid of the mpos map below and simply use the cloned method's
+ 	// position.
+ 
+-	var todo []*Func
+ 	var seen objset
+ 	var allMethods []*Func
+ 	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
+@@ -226,30 +224,24 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			allMethods = append(allMethods, m)
+ 			mpos[m] = pos
+ 		case explicit:
+-			if check == nil {
+-				panic(fmt.Sprintf("%v: duplicate method %s", m.pos, m.name))
++			if check != nil {
++				check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
++				check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 			}
+-			// check != nil
+-			check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
+-			check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+ 		default:
+ 			// We have a duplicate method name in an embedded (not explicitly declared) method.
+ 			// Check method signatures after all types are computed (go.dev/issue/33656).
+ 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+ 			// error here as well (even though we could do it eagerly) because it's the same
+ 			// error message.
+-			if check == nil {
+-				// check method signatures after all locally embedded interfaces are computed
+-				todo = append(todo, m, other.(*Func))
+-				break
++			if check != nil {
++				check.later(func() {
++					if !check.allowVersion(m.pkg, atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++						check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
++						check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
++					}
++				}).describef(atPos(pos), "duplicate method check for %s", m.name)
+ 			}
+-			// check != nil
+-			check.later(func() {
+-				if !check.allowVersion(m.pkg, atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+-					check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
+-					check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+-				}
+-			}).describef(atPos(pos), "duplicate method check for %s", m.name)
+ 		}
+ 	}
+ 
+@@ -312,15 +304,6 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	}
+ 	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+-	// process todo's (this only happens if check == nil)
+-	for i := 0; i < len(todo); i += 2 {
+-		m := todo[i]
+-		other := todo[i+1]
+-		if !Identical(m.typ, other.typ) {
+-			panic(fmt.Sprintf("%v: duplicate method %s", m.pos, m.name))
+-		}
+-	}
+-
+ 	ityp.tset.comparable = allComparable
+ 	if len(allMethods) != 0 {
+ 		sortMethods(allMethods)

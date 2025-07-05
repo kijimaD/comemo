@@ -7,7 +7,40 @@ Date:   Tue Jan 17 09:47:34 2012 -0800
     R=golang-dev, duperray.olivier, r
     CC=adg, golang-dev
     https://golang.org/cl/5542054
-
+---
  doc/go1.html | 4 ++--
  doc/go1.tmpl | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 77820d0807..2168ba5628 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -701,9 +701,9 @@ Since the package's functionality is new, no updating is necessary.
+ <h3 id="http">The http package</h3>
+ 
+ <p>
+-In Go 1 the <a href="/pkg/http/"><code>http</code></a> package is refactored,
++In Go 1 the <a href="/pkg/net/http/"><code>http</code></a> package is refactored,
+ putting some of the utilities into a
+-<a href="/pkg/httputil/"><code>httputil</code></a> subdirectory.
++<a href="/pkg/net/httputil/"><code>httputil</code></a> subdirectory.
+ These pieces are only rarely needed by HTTP clients.
+ The affected items are:
+ </p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index d224e8ba0e..21256ed7f3 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -605,9 +605,9 @@ Since the package's functionality is new, no updating is necessary.
+ <h3 id="http">The http package</h3>
+ 
+ <p>
+-In Go 1 the <a href="/pkg/http/"><code>http</code></a> package is refactored,
++In Go 1 the <a href="/pkg/net/http/"><code>http</code></a> package is refactored,
+ putting some of the utilities into a
+-<a href="/pkg/httputil/"><code>httputil</code></a> subdirectory.
++<a href="/pkg/net/httputil/"><code>httputil</code></a> subdirectory.
+ These pieces are only rarely needed by HTTP clients.
+ The affected items are:
+ </p>

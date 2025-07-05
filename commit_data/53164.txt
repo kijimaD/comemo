@@ -15,6 +15,20 @@ Date:   Sun Jul 24 15:05:37 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/fuzz/mem.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/fuzz/mem.go b/src/internal/fuzz/mem.go
+index d6d45be20e..a5c3b02242 100644
+--- a/src/internal/fuzz/mem.go
++++ b/src/internal/fuzz/mem.go
+@@ -50,7 +50,7 @@ type sharedMemHeader struct {
+ 	// rawInMem is true if the region holds raw bytes, which occurs during
+ 	// minimization. If true after the worker fails during minimization, this
+ 	// indicates that an unrecoverable error occurred, and the region can be
+-	// used to retrive the raw bytes that caused the error.
++	// used to retrieve the raw bytes that caused the error.
+ 	rawInMem bool
+ }
+ 

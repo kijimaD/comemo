@@ -12,6 +12,20 @@ Date:   Wed Dec 4 22:39:44 2019 +0200
     Change-Id: I7fb7c6cc60bfb3a133a019a20eb3f9d4c7627b31
     Reviewed-on: https://go-review.googlesource.com/c/go/+/209917
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index e02c874f66..54f988a902 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -46,8 +46,6 @@ const (
+ // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
+ // some miscellany) and initializes scanning-related state.
+ //
+-// The caller must have call gcCopySpans().
+-//
+ // The world must be stopped.
+ //
+ //go:nowritebarrier

@@ -9,6 +9,19 @@ Date:   Tue Aug 27 06:38:11 2013 -0700
     R=golang-dev, khr, bradfitz
     CC=golang-dev
     https://golang.org/cl/13096045
-
+---
  src/cmd/gc/walk.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index bc0a15e1a0..98a5a8968e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2729,6 +2729,7 @@ sliceany(Node* n, NodeList **init)
+ 	if(chk0 != N || chk1 != N || chk2 != N) {
+ 		chk = nod(OIF, N, N);
+ 		chk->nbody = list1(mkcall("panicslice", T, init));
++		chk->likely = -1;
+ 		if(chk0 != N)
+ 			chk->ntest = chk0;
+ 		if(chk1 != N) {

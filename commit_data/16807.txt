@@ -7,7 +7,7 @@ Date:   Thu Jul 18 10:43:22 2013 -0400
     R=golang-dev, r, dave
     CC=golang-dev
     https://golang.org/cl/11494043
-
+---
  src/cmd/5l/obj.c                |   1 -
  src/cmd/6l/obj.c                |   1 -
  src/cmd/8l/obj.c                |   1 -
@@ -20,3 +20,837 @@ Date:   Thu Jul 18 10:43:22 2013 -0400
  src/pkg/runtime/traceback_arm.c |  12 +-
  src/pkg/runtime/traceback_x86.c |  12 +-
  11 files changed, 177 insertions(+), 249 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 1dca38099f..d087bb470c 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -278,7 +278,6 @@ main(int argc, char *argv[])
+ 	span();
+ 	addexport();
+ 	// textaddress() functionality is handled in span()
+-	functab();
+ 	pclntab();
+ 	symtab();
+ 	dodata();
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 67a7917410..d2d0459a4e 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -289,7 +289,6 @@ main(int argc, char *argv[])
+ 		dope();
+ 	addexport();
+ 	textaddress();
+-	functab();
+ 	pclntab();
+ 	symtab();
+ 	dodata();
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 55c0e2e1b2..5e8988c9cb 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -316,7 +316,6 @@ main(int argc, char *argv[])
+ 	span();
+ 	addexport();
+ 	textaddress();
+-	functab();
+ 	pclntab();
+ 	symtab();
+ 	dodata();
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 3ebdd65033..d7f4698101 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1358,103 +1358,6 @@ addsection(Segment *seg, char *name, int rwx)
+ 	return sect;
+ }
+ 
+-void
+-pclntab(void)
+-{
+-	vlong oldpc;
+-	Prog *p;
+-	int32 oldlc, v, s;
+-	Sym *sym;
+-	uchar *bp;
+-	
+-	sym = lookup("pclntab", 0);
+-	sym->type = SPCLNTAB;
+-	sym->reachable = 1;
+-	if(debug['s'])
+-		return;
+-
+-	oldpc = INITTEXT;
+-	oldlc = 0;
+-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+-		for(p = cursym->text; p != P; p = p->link) {
+-			if(p->line == oldlc || p->as == ATEXT || p->as == ANOP || p->as == AUSEFIELD) {
+-				if(debug['O'])
+-					Bprint(&bso, "%6llux %P\n",
+-						(vlong)p->pc, p);
+-				continue;
+-			}
+-			if(debug['O'])
+-				Bprint(&bso, "\t\t%6d", lcsize);
+-			v = (p->pc - oldpc) / MINLC;
+-			while(v) {
+-				s = 127;
+-				if(v < 127)
+-					s = v;
+-				symgrow(sym, lcsize+1);
+-				bp = sym->p + lcsize;
+-				*bp = s+128;	/* 129-255 +pc */
+-				if(debug['O'])
+-					Bprint(&bso, " pc+%d*%d(%d)", s, MINLC, s+128);
+-				v -= s;
+-				lcsize++;
+-			}
+-			s = p->line - oldlc;
+-			oldlc = p->line;
+-			oldpc = p->pc + MINLC;
+-			if(s > 64 || s < -64) {
+-				symgrow(sym, lcsize+5);
+-				bp = sym->p + lcsize;
+-				*bp++ = 0;	/* 0 vv +lc */
+-				*bp++ = s>>24;
+-				*bp++ = s>>16;
+-				*bp++ = s>>8;
+-				*bp = s;
+-				if(debug['O']) {
+-					if(s > 0)
+-						Bprint(&bso, " lc+%d(%d,%d)\n",
+-							s, 0, s);
+-					else
+-						Bprint(&bso, " lc%d(%d,%d)\n",
+-							s, 0, s);
+-					Bprint(&bso, "%6llux %P\n",
+-						(vlong)p->pc, p);
+-				}
+-				lcsize += 5;
+-				continue;
+-			}
+-			symgrow(sym, lcsize+1);
+-			bp = sym->p + lcsize;
+-			if(s > 0) {
+-				*bp = 0+s;	/* 1-64 +lc */
+-				if(debug['O']) {
+-					Bprint(&bso, " lc+%d(%d)\n", s, 0+s);
+-					Bprint(&bso, "%6llux %P\n",
+-						(vlong)p->pc, p);
+-				}
+-			} else {
+-				*bp = 64-s;	/* 65-128 -lc */
+-				if(debug['O']) {
+-					Bprint(&bso, " lc%d(%d)\n", s, 64-s);
+-					Bprint(&bso, "%6llux %P\n",
+-						(vlong)p->pc, p);
+-				}
+-			}
+-			lcsize++;
+-		}
+-	}
+-	if(lcsize & 1) {
+-		symgrow(sym, lcsize+1);
+-		sym->p[lcsize] = 129;
+-		lcsize++;
+-	}
+-	sym->size = lcsize;
+-	lcsize = 0;
+-
+-	if(debug['v'] || debug['O'])
+-		Bprint(&bso, "lcsize = %d\n", lcsize);
+-	Bflush(&bso);
+-}
+-
+ void
+ addvarint(Sym *s, uint32 val)
+ {
+@@ -2066,7 +1969,6 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 	Auto *a;
+ 	Sym *s;
+ 	int32 off;
+-	int32 i;
+ 
+ 	// These symbols won't show up in the first loop below because we
+ 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
+@@ -2117,33 +2019,8 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		if(s->text == nil)
+ 			continue;
+ 
+-		/* filenames first */
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_FILE)
+-				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
+-			else
+-			if(a->type == D_FILE1)
+-				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
+-
+ 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+-		/* frame, locals, args, auto, param and pointers after */
+-		put(nil, ".frame", 'm', (uint32)s->text->to.offset+PtrSize, 0, 0, 0);
+-		put(nil, ".locals", 'm', s->locals, 0, 0, 0);
+-		if((s->text->textflag & NOSPLIT) && s->args == 0 && s->nptrs < 0) {
+-			// This might be a vararg function and have no
+-			// predetermined argument size.  This check is
+-			// approximate and will also match 0 argument
+-			// nosplit functions compiled by 6c.
+-			put(nil, ".args", 'm', ArgsSizeUnknown, 0, 0, 0);
+-		} else
+-			put(nil, ".args", 'm', s->args, 0, 0, 0);
+-		if(s->nptrs >= 0) {
+-			put(nil, ".nptrs", 'm', s->nptrs, 0, 0, 0);
+-			for(i = 0; i < s->nptrs; i += 32)
+-				put(nil, ".ptrs", 'm', s->ptrs[i / 32], 0, 0, 0);
+-		}
+-
+ 		for(a=s->autom; a; a=a->link) {
+ 			// Emit a or p according to actual offset, even if label is wrong.
+ 			// This avoids negative offsets, which cannot be encoded.
+@@ -2447,36 +2324,59 @@ addpctab(Sym *f, int32 off, Sym *func, char *desc, int32 (*valfunc)(Sym*, int32,
+ 	return setuint32(f, off, start);
+ }
+ 
+-// functab initializes the functab and filetab symbols with
++static int32
++ftabaddstring(Sym *ftab, char *s)
++{
++	int32 n, start;
++	
++	n = strlen(s)+1;
++	start = ftab->np;
++	symgrow(ftab, start+n+1);
++	strcpy((char*)ftab->p + start, s);
++	ftab->np += n+1;
++	return start;
++}
++
++// pclntab initializes the pclntab symbol with
+ // runtime function and file name information.
+ void
+-functab(void)
++pclntab(void)
+ {
+ 	Prog *p;
+-	int32 i, n, start;
++	int32 i, n, nfunc, start, funcstart, nameoff;
+ 	uint32 *havepc, *havefunc;
+-	Sym *ftab, *f;
++	Sym *ftab, *s;
+ 	int32 npcdata, nfuncdata, off, end;
+-	char *q;
+ 	
+-	ftab = lookup("functab", 0);
+-	ftab->type = SRODATA;
++	ftab = lookup("pclntab", 0);
++	ftab->type = SPCLNTAB;
+ 	ftab->reachable = 1;
+ 
+ 	if(debug['s'])
+ 		return;
+ 
+-	adduintxx(ftab, 0, PtrSize);
+-
+-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+-		q = smprint("go.func.%s", cursym->name);
+-		f = lookup(q, cursym->version);
+-		f->type = SRODATA;
+-		f->reachable = 1;
+-		free(q);
+-
+-		addaddrplus(ftab, cursym, 0);
+-		addaddrplus(ftab, f, 0);
++	// See golang.org/s/go12symtab for the format. Briefly:
++	//	8-byte header
++	//	nfunc [PtrSize bytes]
++	//	function table, alternating PC and offset to func struct [each entry PtrSize bytes]
++	//	end PC [PtrSize bytes]
++	//	offset to file table [4 bytes]
++	nfunc = 0;
++	for(cursym = textp; cursym != nil; cursym = cursym->next)
++		nfunc++;
++	symgrow(ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize+4);
++	setuint32(ftab, 0, 0xfffffffb);
++	setuint8(ftab, 6, MINLC);
++	setuint8(ftab, 7, PtrSize);
++	setuintxx(ftab, 8, nfunc, PtrSize);
++
++	nfunc = 0;
++	for(cursym = textp; cursym != nil; cursym = cursym->next, nfunc++) {
++		funcstart = ftab->np;
++		funcstart += -ftab->np & (PtrSize-1);
++
++		setaddr(ftab, 8+PtrSize+nfunc*2*PtrSize, cursym);
++		setuintxx(ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, funcstart, PtrSize);
+ 
+ 		npcdata = 0;
+ 		nfuncdata = 0;
+@@ -2487,19 +2387,21 @@ functab(void)
+ 				nfuncdata = p->from.offset+1;
+ 		}
+ 
+-		off = 0;
+ 		// fixed size of struct, checked below
+-		end = 2*PtrSize + 5*4 + 5*4 + npcdata*4 + nfuncdata*PtrSize;
++		off = funcstart;
++		end = funcstart + PtrSize + 6*4 + 5*4 + npcdata*4 + nfuncdata*PtrSize;
+ 		if(nfuncdata > 0 && (end&(PtrSize-1)))
+ 			end += 4;
+-		symgrow(f, end);
++		symgrow(ftab, end);
+ 
+-		// name *string
+-		off = setaddr(f, off, defgostring(cursym->name));
+-		
+ 		// entry uintptr
+-		off = setaddr(f, off, cursym);
++		off = setaddr(ftab, off, cursym);
+ 
++		// name int32
++		// Filled in below, after we emit the ptrs.
++		nameoff = off;
++		off += 4;
++		
+ 		// args int32
+ 		// TODO: Move into funcinfo.
+ 		if(cursym->text == nil || (cursym->text->textflag & NOSPLIT) && cursym->args == 0 && cursym->nptrs < 0) {
+@@ -2507,13 +2409,13 @@ functab(void)
+ 			// predetermined argument size.  This check is
+ 			// approximate and will also match 0 argument
+ 			// nosplit functions compiled by 6c.
+-			off = setuint32(f, off, ArgsSizeUnknown);
++			off = setuint32(ftab, off, ArgsSizeUnknown);
+ 		} else
+-			off = setuint32(f, off, cursym->args);
++			off = setuint32(ftab, off, cursym->args);
+ 
+ 		// locals int32
+ 		// TODO: Move into funcinfo.
+-		off = setuint32(f, off, cursym->locals);
++		off = setuint32(ftab, off, cursym->locals);
+ 	
+ 		// frame int32
+ 		// TODO: Remove entirely. The pcsp table is more precise.
+@@ -2522,32 +2424,42 @@ functab(void)
+ 		// We need to make sure everything has argument information
+ 		// and then remove this.
+ 		if(cursym->text == nil)
+-			off = setuint32(f, off, 0);
++			off = setuint32(ftab, off, 0);
+ 		else
+-			off = setuint32(f, off, (uint32)cursym->text->to.offset+PtrSize);
++			off = setuint32(ftab, off, (uint32)cursym->text->to.offset+PtrSize);
+ 
+ 		// TODO: Move into funcinfo.
+ 		// ptrsoff, ptrslen int32
+-		start = f->np;
++		start = ftab->np;
++		if(start&3) {
++			diag("bad math in functab: ptrs misaligned");
++			errorexit();
++		}
++		ftab->size = ftab->np; // for adduint32
+ 		for(i = 0; i < cursym->nptrs; i += 32)
+-			adduint32(f, cursym->ptrs[i/32]);
+-		off = setuint32(f, off, start);
+-		off = setuint32(f, off, (f->np - start)/4);
++			adduint32(ftab, cursym->ptrs[i/32]);
++		off = setuint32(ftab, off, start);
++		off = setuint32(ftab, off, i/32);
++
++		// Now that ptrs are emitted, can fill in function name.
++		// The string is appended to ftab; we waited until now
++		// to avoid misaligning the ptrs data.
++		setuint32(ftab, nameoff, ftabaddstring(ftab, cursym->name));
+ 
+ 		// pcsp table (offset int32)
+-		off = addpctab(f, off, cursym, "pctospadj", pctospadj, 0);
++		off = addpctab(ftab, off, cursym, "pctospadj", pctospadj, 0);
+ 
+ 		// pcfile table (offset int32)
+-		off = addpctab(f, off, cursym, "pctofileline file", pctofileline, 0);
++		off = addpctab(ftab, off, cursym, "pctofileline file", pctofileline, 0);
+ 
+ 		// pcln table (offset int32)
+-		off = addpctab(f, off, cursym, "pctofileline line", pctofileline, 1);
++		off = addpctab(ftab, off, cursym, "pctofileline line", pctofileline, 1);
+ 		
+ 		// npcdata int32
+-		off = setuint32(f, off, npcdata);
++		off = setuint32(ftab, off, npcdata);
+ 		
+ 		// nfuncdata int32
+-		off = setuint32(f, off, nfuncdata);
++		off = setuint32(ftab, off, nfuncdata);
+ 		
+ 		// tabulate which pc and func data we have.
+ 		n = ((npcdata+31)/32 + (nfuncdata+31)/32)*4;
+@@ -2566,10 +2478,10 @@ functab(void)
+ 		// pcdata.
+ 		for(i=0; i<npcdata; i++) {
+ 			if(!(havepc[i/32]>>(i%32))&1) {
+-				off = setuint32(f, off, 0);
++				off = setuint32(ftab, off, 0);
+ 				continue;
+ 			}
+-			off = addpctab(f, off, cursym, "pctopcdata", pctopcdata, i);
++			off = addpctab(ftab, off, cursym, "pctopcdata", pctopcdata, i);
+ 		}
+ 		
+ 		unmal(havepc, n);
+@@ -2584,37 +2496,33 @@ functab(void)
+ 				if(p->as == AFUNCDATA) {
+ 					i = p->from.offset;
+ 					if(p->to.type == D_CONST)
+-						setuintxx(f, off+PtrSize*i, p->to.offset, PtrSize);
++						setuintxx(ftab, off+PtrSize*i, p->to.offset, PtrSize);
+ 					else
+-						setaddrplus(f, off+PtrSize*i, p->to.sym, p->to.offset);
++						setaddrplus(ftab, off+PtrSize*i, p->to.sym, p->to.offset);
+ 				}
+ 			}
+ 			off += nfuncdata*PtrSize;
+ 		}
+ 
+ 		if(off != end) {
+-			diag("bad math in functab: off=%d but end=%d (npcdata=%d nfuncdata=%d)", off, end, npcdata, nfuncdata);
++			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d)", funcstart, off, end, npcdata, nfuncdata);
+ 			errorexit();
+ 		}
+-		
+-		f->size = f->np;
+ 	
+ 		// Final entry of table is just end pc.
+-		if(cursym->next == nil) {
+-			addaddrplus(ftab, cursym, cursym->size);
+-			adduintxx(ftab, 0, PtrSize);
+-		}
++		if(cursym->next == nil)
++			setaddrplus(ftab, 8+PtrSize+(nfunc+1)*2*PtrSize, cursym, cursym->size);
+ 	}
++	
++	// Start file table.
++	start = ftab->np;
++	start += -ftab->np & (PtrSize-1);
++	setuint32(ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, start);
+ 
+-	setuintxx(ftab, 0, (ftab->np-PtrSize)/(2*PtrSize) - 1, PtrSize);
+-	ftab->size = ftab->np;
++	symgrow(ftab, start+(nhistfile+1)*4);
++	setuint32(ftab, start, nhistfile);
++	for(s = filesyms; s != S; s = s->next)
++		setuint32(ftab, start + s->value*4, ftabaddstring(ftab, s->name));
+ 
+-	ftab = lookup("filetab", 0);
+-	ftab->type = SRODATA;
+-	ftab->reachable = 1;
+-	symgrow(ftab, (nhistfile+1)*PtrSize);
+-	setuintxx(ftab, 0, nhistfile+1, PtrSize);
+-	for(f = filesyms; f != S; f = f->next)
+-		setaddr(ftab, f->value*PtrSize, defgostring(f->name));
+ 	ftab->size = ftab->np;
+ }	
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index b85149f360..ce920b0ef3 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -46,7 +46,7 @@ enum
+ 	SFUNCTAB,
+ 	STYPELINK,
+ 	SSYMTAB, // TODO: move to unmapped section
+-	SPCLNTAB, // TODO: move to unmapped section
++	SPCLNTAB,
+ 	SELFROSECT,
+ 	
+ 	/* writable, non-executable */
+@@ -227,7 +227,6 @@ void	objfile(char *file, char *pkg);
+ void	libinit(void);
+ void	pclntab(void);
+ void	symtab(void);
+-void	functab(void);
+ void	Lflag(char *arg);
+ void	usage(void);
+ void	adddynrel(Sym*, Reloc*);
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index 5f1864d2e4..46d79ea016 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -371,7 +371,7 @@ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ 	Reloc *rel;
+ 
+ 	USED(size);
+-	
++
+ 	// type byte
+ 	if('A' <= t && t <= 'Z')
+ 		c = t - 'A' + (ver ? 26 : 0);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 44262abbba..f2c5939e0a 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1383,6 +1383,8 @@ addroot(Obj obj)
+ 	work.nroot++;
+ }
+ 
++extern byte pclntab[]; // base for f->ptrsoff
++
+ // Scan a stack frame: local variables and function arguments/results.
+ static void
+ addframeroots(Stkframe *frame, void*)
+@@ -1402,7 +1404,7 @@ addframeroots(Stkframe *frame, void*)
+ 	if(f->args > 0 && f->ptrslen > 0) {
+ 		ap = frame->argp;
+ 		nuintptr = f->args / sizeof(uintptr);
+-		ptrs = (uint32*)((byte*)f + f->ptrsoff);
++		ptrs = (uint32*)(pclntab + f->ptrsoff);
+ 		for(i = 0; i < f->ptrslen; i++) {
+ 			w = ptrs[i];
+ 			b = 1;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 34d9541e98..3a11f88954 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -402,12 +402,14 @@ enum
+ 	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
+ };
+ 
+-// layout of in-memory per-function information prepared by linker
++// Layout of in-memory per-function information prepared by linker
+ // See http://golang.org/s/go12symtab.
++// Keep in sync with linker and with ../../libmach/sym.c
++// and with package debug/gosym.
+ struct	Func
+ {
+-	String	*name;	// function name
+ 	uintptr	entry;	// start pc
++	int32	nameoff;	// function name
+ 	
+ 	// TODO: Remove these fields.
+ 	int32	args;	// in/out args size
+@@ -799,6 +801,7 @@ Func*	runtime·findfunc(uintptr);
+ int32	runtime·funcline(Func*, uintptr, String*);
+ int32	runtime·funcarglen(Func*, uintptr);
+ int32	runtime·funcspdelta(Func*, uintptr);
++int8*	runtime·funcname(Func*);
+ void*	runtime·stackalloc(uint32);
+ void	runtime·stackfree(void*, uintptr);
+ MCache*	runtime·allocmcache(void);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 7911f118bd..e877a60cd9 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -16,15 +16,15 @@ typedef struct Ftab Ftab;
+ struct Ftab
+ {
+ 	uintptr	entry;
+-	Func	*func;
++	uintptr	funcoff;
+ };
+ 
+-extern uintptr functab[];
++extern byte pclntab[];
+ 
+ static Ftab *ftab;
+ static uintptr nftab;
+-extern String *filetab[];
+-static uintptr nfiletab;
++static uint32 *filetab;
++static uint32 nfiletab;
+ 
+ static String end = { (uint8*)"end", 3 };
+ 
+@@ -32,20 +32,32 @@ void
+ runtime·symtabinit(void)
+ {
+ 	int32 i, j;
+-
+-	ftab = (Ftab*)(functab+1);
+-	nftab = functab[0];
++	Func *f1, *f2;
+ 	
++	// See golang.org/s/go12symtab for header: 0xfffffffb,
++	// two zero bytes, a byte giving the PC quantum,
++	// and a byte giving the pointer width in bytes.
++	if(*(uint32*)pclntab != 0xfffffffb || pclntab[4] != 0 || pclntab[5] != 0 || pclntab[6] != PCQuantum || pclntab[7] != sizeof(void*)) {
++		runtime·printf("runtime: function symbol table header: 0x%x 0x%x\n", *(uint32*)pclntab, *(uint32*)(pclntab+4));
++		runtime·throw("invalid function symbol table\n");
++	}
++
++	nftab = *(uintptr*)(pclntab+8);
++	ftab = (Ftab*)(pclntab+8+sizeof(void*));
+ 	for(i=0; i<nftab; i++) {
+ 		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
+ 		if(ftab[i].entry > ftab[i+1].entry) {
+-			runtime·printf("function symbol table not sorted by program counter: %p %S > %p %S", ftab[i].entry, *ftab[i].func->name, ftab[i+1].entry, i+1 == nftab ? end : *ftab[i+1].func->name);
++			f1 = (Func*)(pclntab + ftab[i].funcoff);
++			f2 = (Func*)(pclntab + ftab[i+1].funcoff);
++			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == nftab ? "end" : runtime·funcname(f2));
+ 			for(j=0; j<=i; j++)
+-				runtime·printf("\t%p %S\n", ftab[j].entry, *ftab[j].func->name);
++				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(pclntab + ftab[j].funcoff)));
+ 			runtime·throw("invalid runtime symbol table");
+ 		}
+ 	}
+-	nfiletab = (uintptr)filetab[0];
++	
++	filetab = (uint32*)(pclntab + *(uint32*)&ftab[nftab].funcoff);
++	nfiletab = filetab[0];
+ }
+ 
+ static uint32
+@@ -79,6 +91,26 @@ funcdata(Func *f, int32 i)
+ 	return ((uintptr*)p)[i];
+ }
+ 
++static bool
++step(byte **pp, uintptr *pc, int32 *value, bool first)
++{
++	uint32 uvdelta, pcdelta;
++	int32 vdelta;
++
++	uvdelta = readvarint(pp);
++	if(uvdelta == 0 && !first)
++		return 0;
++	if(uvdelta&1)
++		uvdelta = ~(uvdelta>>1);
++	else
++		uvdelta >>= 1;
++	vdelta = (int32)uvdelta;
++	pcdelta = readvarint(pp) * PCQuantum;
++	*value += vdelta;
++	*pc += pcdelta;
++	return 1;
++}
++
+ // Return associated data value for targetpc in func f.
+ // (Source file is f->src.)
+ static int32
+@@ -86,8 +118,7 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+ {
+ 	byte *p;
+ 	uintptr pc;
+-	int32 value, vdelta;
+-	uint32 uvdelta, pcdelta;
++	int32 value;
+ 
+ 	enum {
+ 		debug = 0
+@@ -101,26 +132,15 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+ 	// The table ends at a value delta of 0 except in the first pair.
+ 	if(off == 0)
+ 		return -1;
+-	p = (byte*)f + off;
++	p = pclntab + off;
+ 	pc = f->entry;
+ 	value = -1;
+ 
+ 	if(debug && !runtime·panicking)
+-		runtime·printf("pcvalue start f=%S [%p] pc=%p targetpc=%p value=%d tab=%p\n",
+-			*f->name, f, pc, targetpc, value, p);
++		runtime·printf("pcvalue start f=%s [%p] pc=%p targetpc=%p value=%d tab=%p\n",
++			runtime·funcname(f), f, pc, targetpc, value, p);
+ 	
+-	for(;;) {
+-		uvdelta = readvarint(&p);
+-		if(uvdelta == 0 && pc != f->entry)
+-			break;
+-		if(uvdelta&1)
+-			uvdelta = ~(uvdelta>>1);
+-		else
+-			uvdelta >>= 1;
+-		vdelta = (int32)uvdelta;
+-		pcdelta = readvarint(&p) * PCQuantum;
+-		value += vdelta;
+-		pc += pcdelta;
++	while(step(&p, &pc, &value, pc == f->entry)) {
+ 		if(debug)
+ 			runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
+ 		if(targetpc < pc)
+@@ -131,25 +151,14 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+ 	// If not, something is wrong.
+ 	if(runtime·panicking || !strict)
+ 		return -1;
+-	runtime·printf("runtime: invalid pc-encoded table f=%S pc=%p targetpc=%p tab=%p\n",
+-		*f->name, pc, targetpc, p);
++	runtime·printf("runtime: invalid pc-encoded table f=%s pc=%p targetpc=%p tab=%p\n",
++		runtime·funcname(f), pc, targetpc, p);
+ 	p = (byte*)f + off;
+ 	pc = f->entry;
+ 	value = -1;
+-	for(;;) {
+-		uvdelta = readvarint(&p);
+-		if(uvdelta == 0 && pc != f->entry)
+-			break;
+-		if(uvdelta&1)
+-			uvdelta = ~(uvdelta>>1);
+-		else
+-			uvdelta >>= 1;
+-		vdelta = (int32)uvdelta;
+-		pcdelta = readvarint(&p) * PCQuantum;
+-		value += vdelta;
+-		pc += pcdelta;
++	
++	while(step(&p, &pc, &value, pc == f->entry))
+ 		runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
+-	}
+ 	
+ 	runtime·throw("invalid runtime symbol table");
+ 	return -1;
+@@ -157,6 +166,14 @@ pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+ 
+ static String unknown = { (uint8*)"?", 1 };
+ 
++int8*
++runtime·funcname(Func *f)
++{
++	if(f == nil || f->nameoff == 0)
++		return nil;
++	return (int8*)(pclntab + f->nameoff);
++}
++
+ static int32
+ funcline(Func *f, uintptr targetpc, String *file, bool strict)
+ {
+@@ -170,7 +187,7 @@ funcline(Func *f, uintptr targetpc, String *file, bool strict)
+ 		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
+ 		return 0;
+ 	}
+-	*file = *filetab[fileno];
++	*file = runtime·gostringnocopy(pclntab + filetab[fileno]);
+ 	return line;
+ }
+ 
+@@ -219,7 +236,7 @@ runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
+ void
+ runtime·funcname_go(Func *f, String ret)
+ {
+-	ret = *f->name;
++	ret = runtime·gostringnocopy((uint8*)runtime·funcname(f));
+ 	FLUSH(&ret);
+ }
+ 
+@@ -247,7 +264,7 @@ runtime·findfunc(uintptr addr)
+ 	while(nf > 0) {
+ 		n = nf/2;
+ 		if(f[n].entry <= addr && addr < f[n+1].entry)
+-			return f[n].func;
++			return (Func*)(pclntab + f[n].funcoff);
+ 		else if(addr < f[n].entry)
+ 			nf = n;
+ 		else {
+@@ -298,10 +315,12 @@ bool
+ runtime·showframe(Func *f, G *gp)
+ {
+ 	static int32 traceback = -1;
++	String name;
+ 
+ 	if(m->throwing && gp != nil && (gp == m->curg || gp == m->caughtsig))
+ 		return 1;
+ 	if(traceback < 0)
+ 		traceback = runtime·gotraceback(nil);
+-	return traceback > 1 || f != nil && contains(*f->name, ".") && !hasprefix(*f->name, "runtime.");
++	name = runtime·gostringnocopy((uint8*)runtime·funcname(f));
++	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.");
+ }
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 6cd924da0d..43dcd1cf8c 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -88,7 +88,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				frame.lr = *(uintptr*)frame.sp;
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {
+-				runtime·printf("runtime: unexpected return pc for %S called from %p", *f->name, frame.lr);
++				runtime·printf("runtime: unexpected return pc for %s called from %p\n", runtime·funcname(f), frame.lr);
+ 				runtime·throw("unknown caller pc");
+ 			}
+ 		}
+@@ -110,8 +110,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
+ 				frame.arglen = i;
+ 			else {
+-				runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n",
+-					*f->name, frame.lr, flr ? *flr->name : unknown);
++				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
++					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
+ 				if(!printing)
+ 					runtime·throw("invalid stack");
+ 				frame.arglen = 0;
+@@ -130,7 +130,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.varlen = frame.fp - frame.sp;
+ 		} else {
+ 			if(f->locals > frame.fp - frame.sp) {
+-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, *f->name);
++				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
+ 				runtime·throw("invalid stack");
+ 			}
+ 			frame.varp = (byte*)frame.fp - f->locals;
+@@ -155,7 +155,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
+ 				if(n > 0 && frame.pc > f->entry && !waspanic)
+ 					tracepc -= sizeof(uintptr);
+-				runtime·printf("%S(", *f->name);
++				runtime·printf("%s(", runtime·funcname(f));
+ 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+ 					if(i >= 5) {
+ 						runtime·prints(", ...");
+@@ -220,7 +220,7 @@ printcreatedby(G *gp)
+ 
+ 	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
+ 		&& runtime·showframe(f, gp) && gp->goid != 1) {
+-		runtime·printf("created by %S\n", *f->name);
++		runtime·printf("created by %s\n", runtime·funcname(f));
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(pc > f->entry)
+ 			tracepc -= sizeof(uintptr);
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 7c2cffb125..e99adf5756 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -104,7 +104,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				frame.lr = ((uintptr*)frame.fp)[-1];
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {
+-				runtime·printf("runtime: unexpected return pc for %S called from %p", *f->name, frame.lr);
++				runtime·printf("runtime: unexpected return pc for %s called from %p", runtime·funcname(f), frame.lr);
+ 				runtime·throw("unknown caller pc");
+ 			}
+ 		}
+@@ -126,8 +126,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			else if((i = runtime·funcarglen(flr, frame.lr)) >= 0)
+ 				frame.arglen = i;
+ 			else {
+-				runtime·printf("runtime: unknown argument frame size for %S called from %p [%S]\n",
+-					*f->name, frame.lr, flr ? *flr->name : unknown);
++				runtime·printf("runtime: unknown argument frame size for %s called from %p [%s]\n",
++					runtime·funcname(f), frame.lr, flr ? runtime·funcname(flr) : "?");
+ 				if(!printing)
+ 					runtime·throw("invalid stack");
+ 				frame.arglen = 0;
+@@ -146,7 +146,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.varlen = frame.fp - sizeof(uintptr) - frame.sp;
+ 		} else {
+ 			if(f->locals > frame.fp - sizeof(uintptr) - frame.sp) {
+-				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %S\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, *f->name);
++				runtime·printf("runtime: inconsistent locals=%p frame=%p fp=%p sp=%p for %s\n", (uintptr)f->locals, (uintptr)f->frame, frame.fp, frame.sp, runtime·funcname(f));
+ 				runtime·throw("invalid stack");
+ 			}
+ 			frame.varp = (byte*)frame.fp - sizeof(uintptr) - f->locals;
+@@ -171,7 +171,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				tracepc = frame.pc;	// back up to CALL instruction for funcline.
+ 				if(n > 0 && frame.pc > f->entry && !waspanic)
+ 					tracepc--;
+-				runtime·printf("%S(", *f->name);
++				runtime·printf("%s(", runtime·funcname(f));
+ 				for(i = 0; i < frame.arglen/sizeof(uintptr); i++) {
+ 					if(i >= 5) {
+ 						runtime·prints(", ...");
+@@ -225,7 +225,7 @@ printcreatedby(G *gp)
+ 
+ 	// Show what created goroutine, except main goroutine (goid 1).
+ 	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
+-		runtime·printf("created by %S\n", *f->name);
++		runtime·printf("created by %s\n", runtime·funcname(f));
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(pc > f->entry)
+ 			tracepc--;

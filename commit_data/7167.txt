@@ -7,7 +7,342 @@ Date:   Wed Jan 19 15:13:42 2011 -0500
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/4002041
-
+---
  src/pkg/http/url.go      | 152 ++++++++++++++++++++++++++++++-----------------
  src/pkg/http/url_test.go | 152 +++++++++++++++++++++++++++++++++++------------
  2 files changed, 210 insertions(+), 94 deletions(-)
+
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index e4aa077e52..efd90d81eb 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -114,62 +114,6 @@ func shouldEscape(c byte, mode encoding) bool {
+ 	return true
+ }
+ 
+-// CanonicalPath applies the algorithm specified in RFC 2396 to
+-// simplify the path, removing unnecessary  . and .. elements.
+-func CanonicalPath(path string) string {
+-	buf := []byte(path)
+-	a := buf[0:0]
+-	// state helps to find /.. ^.. ^. and /. patterns.
+-	// state == 1 - prev char is '/' or beginning of the string.
+-	// state > 1  - prev state > 0 and prev char was '.'
+-	// state == 0 - otherwise
+-	state := 1
+-	cnt := 0
+-	for _, v := range buf {
+-		switch v {
+-		case '/':
+-			s := state
+-			state = 1
+-			switch s {
+-			case 2:
+-				a = a[0 : len(a)-1]
+-				continue
+-			case 3:
+-				if cnt > 0 {
+-					i := len(a) - 4
+-					for ; i >= 0 && a[i] != '/'; i-- {
+-					}
+-					a = a[0 : i+1]
+-					cnt--
+-					continue
+-				}
+-			default:
+-				if len(a) > 0 {
+-					cnt++
+-				}
+-			}
+-		case '.':
+-			if state > 0 {
+-				state++
+-			}
+-		default:
+-			state = 0
+-		}
+-		l := len(a)
+-		a = a[0 : l+1]
+-		a[l] = v
+-	}
+-	switch {
+-	case state == 2:
+-		a = a[0 : len(a)-1]
+-	case state == 3 && cnt > 0:
+-		i := len(a) - 4
+-		for ; i >= 0 && a[i] != '/'; i-- {
+-		}
+-		a = a[0 : i+1]
+-	}
+-	return string(a)
+-}
+ 
+ // URLUnescape unescapes a string in ``URL encoded'' form,
+ // converting %AB into the byte 0xAB and '+' into ' ' (space).
+@@ -553,3 +497,99 @@ func EncodeQuery(m map[string][]string) string {
+ 	}
+ 	return strings.Join(parts, "&")
+ }
++
++// resolvePath applies special path segments from refs and applies
++// them to base, per RFC 2396.
++func resolvePath(basepath string, refpath string) string {
++	base := strings.Split(basepath, "/", -1)
++	refs := strings.Split(refpath, "/", -1)
++	if len(base) == 0 {
++		base = []string{""}
++	}
++	for idx, ref := range refs {
++		switch {
++		case ref == ".":
++			base[len(base)-1] = ""
++		case ref == "..":
++			newLen := len(base) - 1
++			if newLen < 1 {
++				newLen = 1
++			}
++			base = base[0:newLen]
++			base[len(base)-1] = ""
++		default:
++			if idx == 0 || base[len(base)-1] == "" {
++				base[len(base)-1] = ref
++			} else {
++				base = append(base, ref)
++			}
++		}
++	}
++	return strings.Join(base, "/")
++}
++
++// IsAbs returns true if the URL is absolute.
++func (url *URL) IsAbs() bool {
++	return url.Scheme != ""
++}
++
++// ParseURL parses a URL in the context of a base URL.  The URL in ref
++// may be relative or absolute.  ParseURL returns nil, err on parse
++// failure, otherwise its return value is the same as ResolveReference.
++func (base *URL) ParseURL(ref string) (*URL, os.Error) {
++	refurl, err := ParseURL(ref)
++	if err != nil {
++		return nil, err
++	}
++	return base.ResolveReference(refurl), nil
++}
++
++// ResolveReference resolves a URI reference to an absolute URI from
++// an absolute base URI, per RFC 2396 Section 5.2.  The URI reference
++// may be relative or absolute.  ResolveReference always returns a new
++// URL instance, even if the returned URL is identical to either the
++// base or reference. If ref is an absolute URL, then ResolveReference
++// ignores base and returns a copy of ref.
++func (base *URL) ResolveReference(ref *URL) *URL {
++	url := new(URL)
++	switch {
++	case ref.IsAbs():
++		*url = *ref
++	default:
++		// relativeURI   = ( net_path | abs_path | rel_path ) [ "?" query ]
++		*url = *base
++		if ref.RawAuthority != "" {
++			// The "net_path" case.
++			url.RawAuthority = ref.RawAuthority
++			url.Host = ref.Host
++			url.RawUserinfo = ref.RawUserinfo
++		}
++		switch {
++		case url.OpaquePath:
++			url.Path = ref.Path
++			url.RawPath = ref.RawPath
++			url.RawQuery = ref.RawQuery
++		case strings.HasPrefix(ref.Path, "/"):
++			// The "abs_path" case.
++			url.Path = ref.Path
++			url.RawPath = ref.RawPath
++			url.RawQuery = ref.RawQuery
++		default:
++			// The "rel_path" case.
++			path := resolvePath(base.Path, ref.Path)
++			if !strings.HasPrefix(path, "/") {
++				path = "/" + path
++			}
++			url.Path = path
++			url.RawPath = url.Path
++			url.RawQuery = ref.RawQuery
++			if ref.RawQuery != "" {
++				url.RawPath += "?" + url.RawQuery
++			}
++		}
++
++		url.Fragment = ref.Fragment
++	}
++	url.Raw = url.String()
++	return url
++}
+diff --git a/src/pkg/http/url_test.go b/src/pkg/http/url_test.go
+index 9a67185d24..0801f7ff3e 100644
+--- a/src/pkg/http/url_test.go
++++ b/src/pkg/http/url_test.go
+@@ -510,44 +510,6 @@ func TestURLEscape(t *testing.T) {
+ 	}
+ }
+ 
+-type CanonicalPathTest struct {
+-	in  string
+-	out string
+-}
+-
+-var canonicalTests = []CanonicalPathTest{
+-	{"", ""},
+-	{"/", "/"},
+-	{".", ""},
+-	{"./", ""},
+-	{"/a/", "/a/"},
+-	{"a/", "a/"},
+-	{"a/./", "a/"},
+-	{"./a", "a"},
+-	{"/a/../b", "/b"},
+-	{"a/../b", "b"},
+-	{"a/../../b", "../b"},
+-	{"a/.", "a/"},
+-	{"../.././a", "../../a"},
+-	{"/../.././a", "/../../a"},
+-	{"a/b/g/../..", "a/"},
+-	{"a/b/..", "a/"},
+-	{"a/b/.", "a/b/"},
+-	{"a/b/../../../..", "../.."},
+-	{"a./", "a./"},
+-	{"/../a/b/../../../", "/../../"},
+-	{"../a/b/../../../", "../../"},
+-}
+-
+-func TestCanonicalPath(t *testing.T) {
+-	for _, tt := range canonicalTests {
+-		actual := CanonicalPath(tt.in)
+-		if tt.out != actual {
+-			t.Errorf("CanonicalPath(%q) = %q, want %q", tt.in, actual, tt.out)
+-		}
+-	}
+-}
+-
+ type UserinfoTest struct {
+ 	User     string
+ 	Password string
+@@ -597,3 +559,117 @@ func TestEncodeQuery(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var resolvePathTests = []struct {
++	base, ref, expected string
++}{
++	{"a/b", ".", "a/"},
++	{"a/b", "c", "a/c"},
++	{"a/b", "..", ""},
++	{"a/", "..", ""},
++	{"a/", "../..", ""},
++	{"a/b/c", "..", "a/"},
++	{"a/b/c", "../d", "a/d"},
++	{"a/b/c", ".././d", "a/d"},
++	{"a/b", "./..", ""},
++	{"a/./b", ".", "a/./"},
++	{"a/../", ".", "a/../"},
++	{"a/.././b", "c", "a/.././c"},
++}
++
++func TestResolvePath(t *testing.T) {
++	for _, test := range resolvePathTests {
++		got := resolvePath(test.base, test.ref)
++		if got != test.expected {
++			t.Errorf("For %q + %q got %q; expected %q", test.base, test.ref, got, test.expected)
++		}
++	}
++}
++
++var resolveReferenceTests = []struct {
++	base, rel, expected string
++}{
++	// Absolute URL references
++	{"http://foo.com?a=b", "https://bar.com/", "https://bar.com/"},
++	{"http://foo.com/", "https://bar.com/?a=b", "https://bar.com/?a=b"},
++	{"http://foo.com/bar", "mailto:foo@example.com", "mailto:foo@example.com"},
++
++	// Path-absolute references
++	{"http://foo.com/bar", "/baz", "http://foo.com/baz"},
++	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
++	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
++
++	// Scheme-relative
++	{"https://foo.com/bar?a=b", "//bar.com/quux", "https://bar.com/quux"},
++
++	// Path-relative references:
++
++	// ... current directory
++	{"http://foo.com", ".", "http://foo.com/"},
++	{"http://foo.com/bar", ".", "http://foo.com/"},
++	{"http://foo.com/bar/", ".", "http://foo.com/bar/"},
++
++	// ... going down
++	{"http://foo.com", "bar", "http://foo.com/bar"},
++	{"http://foo.com/", "bar", "http://foo.com/bar"},
++	{"http://foo.com/bar/baz", "quux", "http://foo.com/bar/quux"},
++
++	// ... going up
++	{"http://foo.com/bar/baz", "../quux", "http://foo.com/quux"},
++	{"http://foo.com/bar/baz", "../../../../../quux", "http://foo.com/quux"},
++	{"http://foo.com/bar", "..", "http://foo.com/"},
++	{"http://foo.com/bar/baz", "./..", "http://foo.com/"},
++
++	// "." and ".." in the base aren't special
++	{"http://foo.com/dot/./dotdot/../foo/bar", "../baz", "http://foo.com/dot/./dotdot/../baz"},
++
++	// Triple dot isn't special
++	{"http://foo.com/bar", "...", "http://foo.com/..."},
++
++	// Fragment
++	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
++}
++
++func TestResolveReference(t *testing.T) {
++	mustParseURL := func(url string) *URL {
++		u, err := ParseURLReference(url)
++		if err != nil {
++			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
++		}
++		return u
++	}
++	for _, test := range resolveReferenceTests {
++		base := mustParseURL(test.base)
++		rel := mustParseURL(test.rel)
++		url := base.ResolveReference(rel)
++		urlStr := url.String()
++		if urlStr != test.expected {
++			t.Errorf("Resolving %q + %q != %q; got %q", test.base, test.rel, test.expected, urlStr)
++		}
++	}
++
++	// Test that new instances are returned.
++	base := mustParseURL("http://foo.com/")
++	abs := base.ResolveReference(mustParseURL("."))
++	if base == abs {
++		t.Errorf("Expected no-op reference to return new URL instance.")
++	}
++	barRef := mustParseURL("http://bar.com/")
++	abs = base.ResolveReference(barRef)
++	if abs == barRef {
++		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
++	}
++
++	// Test the convenience wrapper too
++	base = mustParseURL("http://foo.com/path/one/")
++	abs, _ = base.ParseURL("../two")
++	expected := "http://foo.com/path/two"
++	if abs.String() != expected {
++		t.Errorf("ParseURL wrapper got %q; expected %q", abs.String(), expected)
++	}
++	_, err := base.ParseURL("")
++	if err == nil {
++		t.Errorf("Expected an error from ParseURL wrapper parsing an empty string.")
++	}
++
++}

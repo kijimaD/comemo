@@ -9,7 +9,65 @@ Date:   Fri Feb 11 17:47:58 2011 -0500
     R=rsc1, r, rsc
     CC=golang-dev
     https://golang.org/cl/3435042
-
+---
  src/cmd/gc/typecheck.c   |  5 +++--
  test/fixedbugs/bug322.go | 20 ++++++++++++++++++++
  2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 931d0327a4..5edca964aa 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -96,7 +96,7 @@ typecheck(Node **np, int top)
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+ 	int lno, ok, ntop;
+-	Type *t, *missing, *have;
++	Type *t, *tp, *missing, *have;
+ 	Sym *sym;
+ 	Val v;
+ 	char *why;
+@@ -552,6 +552,7 @@ reswitch:
+ 			ok = Erv;
+ 			goto ret;
+ 		}
++		tp = t;
+ 		if(isptr[t->etype] && t->type->etype != TINTER) {
+ 			t = t->type;
+ 			if(t == T)
+@@ -563,7 +564,7 @@ reswitch:
+ 			if(lookdot(n, t, 1))
+ 				yyerror("%#N undefined (cannot refer to unexported field or method %S)", n, n->right->sym);
+ 			else
+-				yyerror("%#N undefined (type %T has no field or method %S)", n, t, n->right->sym);
++				yyerror("%#N undefined (type %T has no field or method %S)", n, tp, n->right->sym);
+ 			goto error;
+ 		}
+ 		switch(n->op) {
+diff --git a/test/fixedbugs/bug322.go b/test/fixedbugs/bug322.go
+new file mode 100644
+index 0000000000..bfb528318a
+--- /dev/null
++++ b/test/fixedbugs/bug322.go
+@@ -0,0 +1,20 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct{}
++type P *T
++
++func (t *T) Meth() {}
++func (t T) Meth2() {}
++
++func main() {
++	t := &T{}
++	p := P(t)
++	p.Meth()  // ERROR "undefined \(type P"
++	p.Meth2() // ERROR "undefined \(type P"
++}
+\ No newline at end of file

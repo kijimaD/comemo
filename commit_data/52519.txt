@@ -15,6 +15,23 @@ Date:   Wed Jul 22 08:59:30 2020 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Joe Tsai <joetsai@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/compress/flate/huffman_code.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/compress/flate/huffman_code.go b/src/compress/flate/huffman_code.go
+index 07b7827e1a..9b64d15e75 100644
+--- a/src/compress/flate/huffman_code.go
++++ b/src/compress/flate/huffman_code.go
+@@ -288,11 +288,9 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
+ 			list[count] = literalNode{uint16(i), f}
+ 			count++
+ 		} else {
+-			list[count] = literalNode{}
+ 			h.codes[i].len = 0
+ 		}
+ 	}
+-	list[len(freq)] = literalNode{}
+ 
+ 	list = list[:count]
+ 	if count <= 2 {

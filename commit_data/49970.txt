@@ -15,8 +15,254 @@ Date:   Mon Sep 13 15:40:11 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/constraints/constraints.go      |  65 +++++++++++++++
  src/constraints/constraints_test.go | 155 ++++++++++++++++++++++++++++++++++++
  src/go/build/deps_test.go           |   2 +-
  3 files changed, 221 insertions(+), 1 deletion(-)
+
+diff --git a/src/constraints/constraints.go b/src/constraints/constraints.go
+new file mode 100644
+index 0000000000..2a5f673a7e
+--- /dev/null
++++ b/src/constraints/constraints.go
+@@ -0,0 +1,65 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package constraints defines a set of useful constraints to be used
++// with type parameters.
++package constraints
++
++// Signed is a constraint that permits any signed integer type.
++// If future releases of Go add new predeclared signed integer types,
++// this constraint will be modified to include them.
++type Signed interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64
++}
++
++// Unsigned is a constraint that permits any unsigned integer type.
++// If future releases of Go add new predeclared unsigned integer types,
++// this constraint will be modified to include them.
++type Unsigned interface {
++	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
++
++// Integer is a constraint that permits any integer type.
++// If future releases of Go add new predeclared integer types,
++// this constraint will be modified to include them.
++type Integer interface {
++	Signed | Unsigned
++}
++
++// Float is a constraint that permits any floating-point type.
++// If future releases of Go add new predeclared floating-point types,
++// this constraint will be modified to include them.
++type Float interface {
++	~float32 | ~float64
++}
++
++// Complex is a constraint that permits any complex numeric type.
++// If future releases of Go add new predeclared complex numeric types,
++// this constraint will be modified to include them.
++type Complex interface {
++	~complex64 | ~complex128
++}
++
++// Ordered is a constraint that permits any ordered type: any type
++// that supports the operators < <= >= >.
++// If future releases of Go add new ordered types,
++// this constraint will be modified to include them.
++type Ordered interface {
++	Integer | Float | ~string
++}
++
++// Slice is a constraint that matches slices of any element type.
++type Slice[Elem any] interface {
++	~[]Elem
++}
++
++// Map is a constraint that matches maps of any element and value type.
++type Map[Key comparable, Val any] interface {
++	~map[Key]Val
++}
++
++// Chan is a constraint that matches channels of any element type.
++type Chan[Elem any] interface {
++	~chan Elem
++}
+diff --git a/src/constraints/constraints_test.go b/src/constraints/constraints_test.go
+new file mode 100644
+index 0000000000..db5a957313
+--- /dev/null
++++ b/src/constraints/constraints_test.go
+@@ -0,0 +1,155 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package constraints
++
++import (
++	"bytes"
++	"fmt"
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++type (
++	testSigned[T Signed]                      struct{ f T }
++	testUnsigned[T Unsigned]                  struct{ f T }
++	testInteger[T Integer]                    struct{ f T }
++	testFloat[T Float]                        struct{ f T }
++	testComplex[T Complex]                    struct{ f T }
++	testOrdered[T Ordered]                    struct{ f T }
++	testSlice[T Slice[E], E any]              struct{ f T }
++	testMap[T Map[K, V], K comparable, V any] struct{ f T }
++	testChan[T Chan[E], E any]                struct{ f T }
++)
++
++// TestTypes passes if it compiles.
++type TestTypes struct {
++	_ testSigned[int]
++	_ testSigned[int64]
++	_ testUnsigned[uint]
++	_ testUnsigned[uintptr]
++	_ testInteger[int8]
++	_ testInteger[uint8]
++	_ testInteger[uintptr]
++	_ testFloat[float32]
++	_ testComplex[complex64]
++	_ testOrdered[int]
++	_ testOrdered[float64]
++	_ testOrdered[string]
++	_ testSlice[[]int, int]
++	_ testMap[map[int]bool, int, bool]
++	_ testChan[chan int, int]
++}
++
++func infer1[S Slice[E], E any](s S, v E) S                     { return s }
++func infer2[M Map[K, V], K comparable, V any](m M, k K, v V) M { return m }
++func infer3[C Chan[E], E any](c C, v E) C                      { return c }
++
++func TestInference(t *testing.T) {
++	var empty interface{}
++
++	type S []int
++	empty = infer1(S{}, 0)
++	if _, ok := empty.(S); !ok {
++		t.Errorf("infer1(S) returned %T, expected S", empty)
++	}
++
++	type M map[int]bool
++	empty = infer2(M{}, 0, false)
++	if _, ok := empty.(M); !ok {
++		t.Errorf("infer2(M) returned %T, expected M", empty)
++	}
++
++	type C chan bool
++	empty = infer3(make(C), true)
++	if _, ok := empty.(C); !ok {
++		t.Errorf("infer3(C) returned %T, expected C", empty)
++	}
++}
++
++var prolog = []byte(`
++package constrainttest
++
++import "constraints"
++
++type (
++	testSigned[T constraints.Signed]                      struct{ f T }
++	testUnsigned[T constraints.Unsigned]                  struct{ f T }
++	testInteger[T constraints.Integer]                    struct{ f T }
++	testFloat[T constraints.Float]                        struct{ f T }
++	testComplex[T constraints.Complex]                    struct{ f T }
++	testOrdered[T constraints.Ordered]                    struct{ f T }
++	testSlice[T constraints.Slice[E], E any]              struct{ f T }
++	testMap[T constraints.Map[K, V], K comparable, V any] struct{ f T }
++	testChan[T constraints.Chan[E], E any]                struct{ f T }
++)
++`)
++
++func TestFailure(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	gocmd := testenv.GoToolPath(t)
++	tmpdir := t.TempDir()
++
++	if err := os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte("module constraintest"), 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	// Test for types that should not satisfy a constraint.
++	// For each pair of constraint and type, write a Go file
++	//     var V constraint[type]
++	// For example,
++	//     var V testSigned[uint]
++	// This should not compile, as testSigned (above) uses
++	// constraints.Signed, and uint does not satisfy that constraint.
++	// Therefore, the build of that code should fail.
++	for i, test := range []struct {
++		constraint, typ string
++	}{
++		{"testSigned", "uint"},
++		{"testUnsigned", "int"},
++		{"testInteger", "float32"},
++		{"testFloat", "int8"},
++		{"testComplex", "float64"},
++		{"testOrdered", "bool"},
++		{"testSlice", "int, int"},
++		{"testMap", "string, string, string"},
++		{"testChan", "[]int, int"},
++	} {
++		i := i
++		test := test
++		t.Run(fmt.Sprintf("%s %d", test.constraint, i), func(t *testing.T) {
++			t.Parallel()
++			name := fmt.Sprintf("go%d.go", i)
++			f, err := os.Create(filepath.Join(tmpdir, name))
++			if err != nil {
++				t.Fatal(err)
++			}
++			if _, err := f.Write(prolog); err != nil {
++				t.Fatal(err)
++			}
++			if _, err := fmt.Fprintf(f, "var V %s[%s]\n", test.constraint, test.typ); err != nil {
++				t.Fatal(err)
++			}
++			if err := f.Close(); err != nil {
++				t.Fatal(err)
++			}
++			cmd := exec.Command(gocmd, "build", name)
++			cmd.Dir = tmpdir
++			if out, err := cmd.CombinedOutput(); err == nil {
++				t.Error("build succeeded, but expected to fail")
++			} else if len(out) > 0 {
++				t.Logf("%s", out)
++				const want = "does not satisfy"
++				if !bytes.Contains(out, []byte(want)) {
++					t.Errorf("output does not include %q", want)
++				}
++			} else {
++				t.Error("no error output, expected something")
++			}
++		})
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a9939dfcf3..3c3819f3b3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -70,7 +70,7 @@ import (
+ var depsRules = `
+ 	# No dependencies allowed for any of these packages.
+ 	NONE
+-	< container/list, container/ring,
++	< constraints, container/list, container/ring,
+ 	  internal/cfg, internal/cpu, internal/goarch,
+ 	  internal/goexperiment, internal/goos,
+ 	  internal/goversion, internal/nettrace,

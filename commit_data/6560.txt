@@ -33,7 +33,7 @@ Date:   Tue Oct 19 18:07:19 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2587041
-
+---
  src/cmd/5l/asm.c                 | 119 ++++++++++++++----------
  src/cmd/5l/l.h                   |   5 +-
  src/cmd/5l/obj.c                 |   3 +-
@@ -61,3 +61,1992 @@ Date:   Tue Oct 19 18:07:19 2010 -0400
  src/pkg/runtime/symtab.c         |  42 +++------
  src/pkg/runtime/windows/thread.c |  20 ----
  26 files changed, 421 insertions(+), 736 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 5bfb285ef1..790228c25f 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -293,8 +293,7 @@ asmb(void)
+ {
+ 	int32 t;
+ 	int a, dynsym;
+-	uint32 va, fo, w, symo, startva;
+-	uint32 symdatva = SYMDATVA;
++	uint32 va, fo, w, startva;
+ 	int strtabsize;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+@@ -302,7 +301,6 @@ asmb(void)
+ 	Section *sect;
+ 
+ 	strtabsize = 0;
+-	symo = 0;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+@@ -333,6 +331,7 @@ asmb(void)
+ 	symsize = 0;
+ 	lcsize = 0;
+ 	if(!debug['s']) {
++		// TODO: rationalize
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f sym\n", cputime());
+ 		Bflush(&bso);
+@@ -353,25 +352,11 @@ asmb(void)
+ 			break;
+ 		case 6:
+ 			OFFSET += segdata.filelen;
+-			symo = rnd(OFFSET, INITRND);
+-			seek(cout, symo + 8, 0);
++			seek(cout, rnd(OFFSET, INITRND), 0);
+ 			break;
+ 		}
+-		if(!debug['s'])
+-			asmsym();
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f pc\n", cputime());
+-		Bflush(&bso);
+-		if(!debug['s'])
+-			asmlc();
+ 		if(!debug['s'])
+ 			asmthumbmap();
+-		if(!debug['s'])
+-			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+-		cflush();
+-		seek(cout, symo, 0);
+-		lputl(symsize);
+-		lputl(lcsize);
+ 		cflush();
+ 	}
+ 
+@@ -479,15 +464,6 @@ asmb(void)
+ 		elfphload(&segtext);
+ 		elfphload(&segdata);
+ 
+-		if(!debug['s']) {
+-			segsym.rwx = 04;
+-			segsym.vaddr = symdatva;
+-			segsym.len = rnd(8+symsize+lcsize, INITRND);
+-			segsym.fileoff = symo;
+-			segsym.filelen = segsym.len;
+-			elfphload(&segsym);
+-		}
+-
+ 		/* Dynamic linking sections */
+ 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
+@@ -576,38 +552,17 @@ asmb(void)
+ 			elfshbits(sect);
+ 
+ 		if (!debug['s']) {
+-			fo = symo;
+-			w = 8;
+-
+ 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+-			sh->addralign = INITRND;
+-			sh->addr = symdatva;
+-
+-			fo += w;
+-			w = symsize;
+-
+-			sh = newElfShdr(elfstr[ElfStrGosymtab]);
+-			sh->type = SHT_PROGBITS;
+-			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+ 			sh->addralign = 1;
+-			sh->addr = symdatva + 8;
+-
+-			fo += w;
+-			w = lcsize;
++			shsym(sh, lookup("symtab", 0));
+ 
+ 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+ 			sh->addralign = 1;
+-			sh->addr = symdatva + 8 + lcsize;
++			shsym(sh, lookup("pclntab", 0));
+ 		}
+ 
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+@@ -833,7 +788,7 @@ if(debug['P']) print("%ux: %P	type %d\n", (uint32)(p->pc), p, o->type);
+ 		break;
+ 
+ 	case 0:		/* pseudo ops */
+-if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
++if(debug['G']) print("%ux: %s: arm %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr);
+ 		break;
+ 
+ 	case 1:		/* op R,[R],R */
+@@ -1914,3 +1869,65 @@ chipfloat(Ieee *e)
+ 	return -1;
+ }
+ 
++
++void
++genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
++{
++	Auto *a;
++	Sym *s;
++	int h;
++
++	s = lookup("etext", 0);
++	if(s->type == STEXT)
++		put(s, s->name, 'T', s->value, s->size, s->version, 0);
++
++	for(h=0; h<NHASH; h++) {
++		for(s=hash[h]; s!=S; s=s->hash) {
++			switch(s->type) {
++			case SCONST:
++			case SRODATA:
++			case SDATA:
++			case SELFDATA:
++				if(!s->reachable)
++					continue;
++				put(s, s->name, 'D', s->value, s->size, s->version, s->gotype);
++				continue;
++
++			case SBSS:
++				if(!s->reachable)
++					continue;
++				put(s, s->name, 'B', s->value, s->size, s->version, s->gotype);
++				continue;
++
++			case SFILE:
++				put(nil, s->name, 'f', s->value, 0, s->version, 0);
++				continue;
++			}
++		}
++	}
++
++	for(s = textp; s != nil; s = s->next) {
++		/* filenames first */
++		for(a=s->autom; a; a=a->link)
++			if(a->type == D_FILE)
++				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
++			else
++			if(a->type == D_FILE1)
++				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
++
++		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
++
++		/* frame, auto and param after */
++		put(nil, ".frame", 'm', s->text->to.offset+4, 0, 0, 0);
++
++		for(a=s->autom; a; a=a->link)
++			if(a->type == D_AUTO)
++				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
++			else
++			if(a->type == D_PARAM)
++				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
++	}
++	if(debug['v'] || debug['n'])
++		Bprint(&bso, "symsize = %ud\n", symsize);
++	Bflush(&bso);
++}
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index fd829e4e50..e3ca88a943 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -135,7 +135,7 @@ struct	Sym
+ 	int32	value;
+ 	int32	sig;
+ 	int32	size;
+-	uchar	used;
++	uchar	special;
+ 	uchar	thumb;	// thumb code
+ 	uchar	foreign;	// called by arm if thumb, by thumb if arm
+ 	uchar	fnptr;	// used as fn ptr
+@@ -212,7 +212,6 @@ enum
+ 	SXREF,
+ 	SFILE,
+ 	SCONST,
+-	SFIXED,
+ 
+ 	LFROM		= 1<<0,
+ 	LTO		= 1<<1,
+@@ -384,7 +383,6 @@ void	asmb(void);
+ void	asmthumbmap(void);
+ void	asmout(Prog*, Optab*, int32*);
+ void	thumbasmout(Prog*, Optab*);
+-void	asmsym(void);
+ int32	atolwhex(char*);
+ Prog*	brloop(Prog*);
+ void	buildop(void);
+@@ -433,7 +431,6 @@ void	prasm(Prog*);
+ void	prepend(Prog*, Prog*);
+ Prog*	prg(void);
+ int	pseudo(Prog*);
+-void	putsymb(char*, int, int32, int);
+ int32	regoff(Adr*);
+ int	relinv(int);
+ int32	rnd(int32, int32);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 0486b763b4..763ddd758b 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -70,7 +70,6 @@ main(int argc, char *argv[])
+ {
+ 	int c, i;
+ 
+-//debug['s'] = 1;  // qemu cannot handle symdat load
+ 	Binit(&bso, 1, OWRITE);
+ 	cout = -1;
+ 	listinit();
+@@ -259,6 +258,8 @@ main(int argc, char *argv[])
+ 	softfloat();
+ 	noops();
+ 	span();
++	pclntab();
++	symtab();
+ 	dodata();
+ 	address();
+ 	reloc();
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index f8781604bd..6ee432c382 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -102,7 +102,7 @@ fnpinc(Sym *s)
+ 		if(!debug['f'])
+ 			diag("fnptr == 0 in fnpinc");
+ 		if(s->foreign)
+-			diag("bad usage in fnpinc %s %d %d %d", s->name, s->used, s->foreign, s->thumb);
++			diag("bad usage in fnpinc %s %d %d", s->name, s->foreign, s->thumb);
+ 		return 0;
+ 	}
+ 	/* 0, 1, 2, 3 squared */
+@@ -524,6 +524,7 @@ xdefine(char *p, int t, int32 v)
+ 	s->type = t;
+ 	s->value = v;
+ 	s->reachable = 1;
++	s->special = 1;
+ }
+ 
+ int32
+@@ -592,19 +593,20 @@ symaddr(Sym *s)
+ 		return 0;
+ 	
+ 	case STEXT:
++/* TODO(rsc): what is this for?
+ #ifdef CALLEEBX
+ 		v += fnpinc(s);
+ #else
+ 		if(s->thumb)
+ 			v++;	// T bit
+ #endif
++*/
+ 		break;
+ 	
+ 	case SELFDATA:
+ 	case SRODATA:
+ 	case SDATA:
+ 	case SBSS:
+-	case SFIXED:
+ 	case SCONST:
+ 		break;
+ 	}
+diff --git a/src/cmd/5l/symtab.c b/src/cmd/5l/symtab.c
+deleted file mode 100644
+index 247024c33f..0000000000
+--- a/src/cmd/5l/symtab.c
++++ /dev/null
+@@ -1,153 +0,0 @@
+-// Inferno utils/5l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/5l/asm.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-// Symbol table.
+-
+-#include "l.h"
+-#include "../ld/lib.h"
+-
+-void
+-asmsym(void)
+-{
+-	Prog *p;
+-	Auto *a;
+-	Sym *s;
+-	int h;
+-
+-	s = lookup("etext", 0);
+-	if(s->type == STEXT)
+-		putsymb(s->name, 'T', s->value, s->version);
+-
+-	for(h=0; h<NHASH; h++)
+-		for(s=hash[h]; s!=S; s=s->hash) {
+-			if(!s->reachable)
+-				continue;
+-			switch(s->type) {
+-			case SCONST:
+-			case SDATA:
+-			case SELFDATA:
+-				putsymb(s->name, 'D', s->value, s->version);
+-				continue;
+-
+-			case SBSS:
+-			case SFIXED:
+-				putsymb(s->name, 'B', s->value, s->version);
+-				continue;
+-
+-			case SFILE:
+-				putsymb(s->name, 'f', s->value, s->version);
+-				continue;
+-			}
+-		}
+-
+-	for(s=textp; s!=nil; s=s->next) {
+-		p = s->text;
+-		if(s->type != STEXT)
+-			continue;
+-
+-		/* filenames first */
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_FILE)
+-				putsymb(a->asym->name, 'z', a->aoffset, 0);
+-			else
+-			if(a->type == D_FILE1)
+-				putsymb(a->asym->name, 'Z', a->aoffset, 0);
+-
+-		if(!s->reachable)
+-			continue;
+-
+-		if(s->leaf == 0)
+-			putsymb(s->name, 'T', s->value, s->version);
+-		else
+-			putsymb(s->name, 'L', s->value, s->version);
+-
+-		/* frame, auto and param after */
+-		putsymb(".frame", 'm', p->to.offset+4, 0);
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_AUTO)
+-				putsymb(a->asym->name, 'a', -a->aoffset, 0);
+-			else
+-			if(a->type == D_PARAM)
+-				putsymb(a->asym->name, 'p', a->aoffset, 0);
+-	}
+-	if(debug['v'] || debug['n'])
+-		Bprint(&bso, "symsize = %ud\n", symsize);
+-	Bflush(&bso);
+-}
+-
+-void
+-putsymb(char *s, int t, int32 v, int ver)
+-{
+-	int i, f;
+-
+-	if(t == 'f')
+-		s++;
+-	lput(v);
+-	if(ver)
+-		t += 'a' - 'A';
+-	cput(t+0x80);			/* 0x80 is variable length */
+-
+-	if(t == 'Z' || t == 'z') {
+-		cput(s[0]);
+-		for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
+-			cput(s[i]);
+-			cput(s[i+1]);
+-		}
+-		cput(0);
+-		cput(0);
+-		i++;
+-	}
+-	else {
+-		for(i=0; s[i]; i++)
+-			cput(s[i]);
+-		cput(0);
+-	}
+-	// TODO(rsc): handle go parameter
+-	lput(0);
+-
+-	symsize += 4 + 1 + i + 1 + 4;
+-
+-	if(debug['n']) {
+-		if(t == 'z' || t == 'Z') {
+-			Bprint(&bso, "%c %.8ux ", t, v);
+-			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
+-				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
+-				Bprint(&bso, "/%x", f);
+-			}
+-			Bprint(&bso, "\n");
+-			return;
+-		}
+-		if(ver)
+-			Bprint(&bso, "%c %.8ux %s<%d>\n", t, v, s, ver);
+-		else
+-			Bprint(&bso, "%c %.8ux %s\n", t, v, s);
+-	}
+-}
+-
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 0f010f617f..83cb4906ac 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -347,7 +347,6 @@ asmb(void)
+ 	int32 magic;
+ 	int a, dynsym;
+ 	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
+-	vlong symdatva = SYMDATVA;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+@@ -438,16 +437,12 @@ asmb(void)
+ 		 *	line number table
+ 		 */
+ 		seek(cout, symo+8, 0);
+-		if(!debug['s'])
+-			asmsym();
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f sp\n", cputime());
+ 		Bflush(&bso);
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f pc\n", cputime());
+ 		Bflush(&bso);
+-		if(!debug['s'])
+-			asmlc();
+ 		if(!debug['s'])
+ 			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+ 		cflush();
+@@ -458,7 +453,7 @@ asmb(void)
+ 		if(!debug['s']) {
+ 			elfsymo = symo+8+symsize+lcsize;
+ 			seek(cout, elfsymo, 0);
+-			asmelfsym();
++			asmelfsym64();
+ 			cflush();
+ 			elfstro = seek(cout, 0, 1);
+ 			elfsymsize = elfstro - elfsymo;
+@@ -503,7 +498,7 @@ asmb(void)
+ 		lputb(lcsize);			/* line offsets */
+ 		break;
+ 	case 6:
+-		asmbmacho(symdatva, symo);
++		asmbmacho();
+ 		break;
+ 	case 7:
+ 	case 9:
+@@ -551,15 +546,6 @@ asmb(void)
+ 		elfphload(&segtext);
+ 		elfphload(&segdata);
+ 
+-		if(!debug['s']) {
+-			segsym.rwx = 04;
+-			segsym.vaddr = symdatva;
+-			segsym.len = rnd(8+symsize+lcsize, INITRND);
+-			segsym.fileoff = symo;
+-			segsym.filelen = segsym.len;
+-			elfphload(&segsym);
+-		}
+-
+ 		/* Dynamic linking sections */
+ 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
+@@ -649,38 +635,17 @@ asmb(void)
+ 			elfshbits(sect);
+ 
+ 		if (!debug['s']) {
+-			fo = symo;
+-			w = 8;
+-
+-			sh = newElfShdr(elfstr[ElfStrGosymcounts]);
+-			sh->type = SHT_PROGBITS;
+-			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+-			sh->addralign = 1;
+-			sh->addr = symdatva;
+-
+-			fo += w;
+-			w = symsize;
+-
+ 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+ 			sh->addralign = 1;
+-			sh->addr = symdatva + 8;
+-
+-			fo += w;
+-			w = lcsize;
++			shsym(sh, lookup("symtab", 0));
+ 
+ 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+ 			sh->addralign = 1;
+-			sh->addr = symdatva + 8 + symsize;
++			shsym(sh, lookup("pclntab", 0));
+ 
+ 			sh = newElfShdr(elfstr[ElfStrSymtab]);
+ 			sh->type = SHT_SYMTAB;
+@@ -769,3 +734,62 @@ rnd(vlong v, vlong r)
+ 	v -= c;
+ 	return v;
+ }
++
++void
++genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
++{
++	Auto *a;
++	Sym *s;
++	int h;
++
++	for(h=0; h<NHASH; h++) {
++		for(s=hash[h]; s!=S; s=s->hash) {
++			switch(s->type) {
++			case SCONST:
++			case SRODATA:
++			case SDATA:
++			case SELFDATA:
++			case SMACHO:
++				if(!s->reachable)
++					continue;
++				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
++				continue;
++
++			case SBSS:
++				if(!s->reachable)
++					continue;
++				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
++				continue;
++
++			case SFILE:
++				put(nil, s->name, 'f', s->value, 0, s->version, 0);
++				continue;
++			}
++		}
++	}
++
++	for(s = textp; s != nil; s = s->next) {
++		/* filenames first */
++		for(a=s->autom; a; a=a->link)
++			if(a->type == D_FILE)
++				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
++			else
++			if(a->type == D_FILE1)
++				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
++
++		put(s, s->name, 'T', 0, s->size, s->version, s->gotype);
++
++		/* frame, auto and param after */
++		put(nil, ".frame", 'm', s->text->to.offset+8, 0, 0, 0);
++
++		for(a=s->autom; a; a=a->link)
++			if(a->type == D_AUTO)
++				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
++			else
++			if(a->type == D_PARAM)
++				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
++	}
++	if(debug['v'] || debug['n'])
++		Bprint(&bso, "symsize = %ud\n", symsize);
++	Bflush(&bso);
++}
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index b33c69ae60..ae40d135be 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -127,6 +127,7 @@ struct	Sym
+ 	uchar	dupok;
+ 	uchar	reachable;
+ 	uchar	dynexport;
++	uchar	special;
+ 	int32	sig;
+ 	Sym*	hash;	// in hash table
+ 	Sym*	next;	// in text or data list
+@@ -180,7 +181,6 @@ enum
+ 	SMACHO,
+ 	SFILE,
+ 	SCONST,
+-	SFIXED,
+ 
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+@@ -397,7 +397,6 @@ void	doprof2(void);
+ void	dostkoff(void);
+ vlong	entryvalue(void);
+ void	follow(void);
+-void	genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
+ void	gethunk(void);
+ void	gotypestrings(void);
+ void	listinit(void);
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index c5fb3ee9ac..f39efa2e83 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -413,7 +413,7 @@ Iconv(Fmt *fp)
+ 	// call fmtstrcpy to handle padding.
+ 	fmtstrinit(&fmt);
+ 	for(i=0; i<n; i++)
+-		fmtprint(&fmt, "%.8ux", *p++);
++		fmtprint(&fmt, "%.2ux", *p++);
+ 	s = fmtstrflush(&fmt);
+ 	fmtstrcpy(fp, s);
+ 	free(s);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index a16fdc1c61..fb2d35cd6c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -245,6 +245,8 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	pclntab();
++	symtab();
+ 	dodata();
+ 	address();
+ 	reloc();
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 37ca8ac1b4..605a1a627e 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -196,6 +196,7 @@ xdefine(char *p, int t, vlong v)
+ 	s->type = t;
+ 	s->value = v;
+ 	s->reachable = 1;
++	s->special = 1;
+ }
+ 
+ void
+@@ -671,9 +672,6 @@ vlong
+ symaddr(Sym *s)
+ {
+ 	switch(s->type) {
+-	case SFIXED:
+-		return s->value;
+-	
+ 	case SMACHO:
+ 		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
+ 
+@@ -702,25 +700,18 @@ vaddr(Adr *a, Reloc *r)
+ 	case D_STATIC:
+ 	case D_EXTERN:
+ 		s = a->sym;
+-		switch(s->type) {
+-		case SFIXED:
+-			v += s->value;
+-			break;
+-		default:
+-			if(!s->reachable)
+-				diag("unreachable symbol in vaddr - %s", s->name);
+-			if(r == nil) {
+-				diag("need reloc for %D", a);
+-				errorexit();
+-			}
+-			r->type = D_ADDR;
+-			r->siz = 4;	// TODO: 8 for external symbols
+-			r->off = -1;	// caller must fill in
+-			r->sym = s;
+-			r->add = v;
+-			v = 0;
+-			break;
++		if(!s->reachable)
++			diag("unreachable symbol in vaddr - %s", s->name);
++		if(r == nil) {
++			diag("need reloc for %D", a);
++			errorexit();
+ 		}
++		r->type = D_ADDR;
++		r->siz = 4;	// TODO: 8 for external symbols
++		r->off = -1;	// caller must fill in
++		r->sym = s;
++		r->add = v;
++		v = 0;
+ 	}
+ 	return v;
+ }
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index a2c09b4334..01a1c38019 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -41,7 +41,6 @@
+ 
+ char linuxdynld[] = "/lib/ld-linux.so.2";
+ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+-uint32 symdatva = SYMDATVA;
+ 
+ int32
+ entryvalue(void)
+@@ -371,6 +370,7 @@ asmb(void)
+ 	lcsize = 0;
+ 	symo = 0;
+ 	if(!debug['s']) {
++		// TODO: rationalize
+ 		if(debug['v'])
+ 			Bprint(&bso, "%5.2f sym\n", cputime());
+ 		Bflush(&bso);
+@@ -402,26 +402,8 @@ asmb(void)
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+-		seek(cout, symo+8, 0);
+-		if(!debug['s'])
+-			asmsym();
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f sp\n", cputime());
+-		Bflush(&bso);
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f pc\n", cputime());
+-		Bflush(&bso);
+-		if(!debug['s'])
+-			asmlc();
+-		if(HEADTYPE == 10 || (iself && !debug['s']))
+-			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+-		cflush();
+-		seek(cout, symo, 0);
+-		lputl(symsize);
+-		lputl(lcsize);
+-		cflush();
+ 		if(HEADTYPE != 10 && !debug['s']) {
+-			seek(cout, symo+8+symsize+lcsize, 0);
++			seek(cout, symo, 0);
+ 			if(debug['v'])
+ 				Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 			dwarfemitdebugsections();
+@@ -563,7 +545,7 @@ asmb(void)
+ 		break;
+ 
+ 	case 6:
+-		asmbmacho(symdatva, symo);
++		asmbmacho();
+ 		break;
+ 
+ 	Elfput:
+@@ -618,15 +600,6 @@ asmb(void)
+ 			elfphload(&segrodata);
+ 		elfphload(&segdata);
+ 
+-		if(!debug['s'] && HEADTYPE != 8 && HEADTYPE != 11) {
+-			segsym.rwx = 04;
+-			segsym.vaddr = symdatva;
+-			segsym.len = rnd(8+symsize+lcsize, INITRND);
+-			segsym.fileoff = symo;
+-			segsym.filelen = segsym.len;
+-			elfphload(&segsym);
+-		}
+-
+ 		/* Dynamic linking sections */
+ 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
+@@ -714,38 +687,17 @@ asmb(void)
+ 			elfshbits(sect);
+ 
+ 		if (!debug['s']) {
+-			fo = symo;
+-			w = 8;
+-
+-			sh = newElfShdr(elfstr[ElfStrGosymcounts]);
+-			sh->type = SHT_PROGBITS;
+-			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+-			sh->addralign = 1;
+-			sh->addr = symdatva;
+-
+-			fo += w;
+-			w = symsize;
+-
+ 			sh = newElfShdr(elfstr[ElfStrGosymtab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+ 			sh->addralign = 1;
+-			sh->addr = symdatva + 8;
+-
+-			fo += w;
+-			w = lcsize;
++			shsym(sh, lookup("symtab", 0));
+ 
+ 			sh = newElfShdr(elfstr[ElfStrGopclntab]);
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+-			sh->off = fo;
+-			sh->size = w;
+ 			sh->addralign = 1;
+-			sh->addr = symdatva + 8 + symsize;
++			shsym(sh, lookup("pclntab", 0));
+ 
+ 			dwarfaddelfheaders();
+ 		}
+@@ -845,3 +797,66 @@ rnd(int32 v, int32 r)
+ 	v -= c;
+ 	return v;
+ }
++
++void
++genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
++{
++	Auto *a;
++	Sym *s;
++	int h;
++
++	s = lookup("etext", 0);
++	if(s->type == STEXT)
++		put(s, s->name, 'T', s->value, s->size, s->version, 0);
++
++	for(h=0; h<NHASH; h++) {
++		for(s=hash[h]; s!=S; s=s->hash) {
++			switch(s->type) {
++			case SCONST:
++			case SRODATA:
++			case SDATA:
++			case SELFDATA:
++			case SMACHO:
++				if(!s->reachable)
++					continue;
++				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
++				continue;
++
++			case SBSS:
++				if(!s->reachable)
++					continue;
++				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
++				continue;
++
++			case SFILE:
++				put(nil, s->name, 'f', s->value, 0, s->version, 0);
++				continue;
++			}
++		}
++	}
++
++	for(s = textp; s != nil; s = s->next) {
++		/* filenames first */
++		for(a=s->autom; a; a=a->link)
++			if(a->type == D_FILE)
++				put(nil, a->asym->name, 'z', a->aoffset, 0, 0, 0);
++			else
++			if(a->type == D_FILE1)
++				put(nil, a->asym->name, 'Z', a->aoffset, 0, 0, 0);
++
++		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
++
++		/* frame, auto and param after */
++		put(nil, ".frame", 'm', s->text->to.offset+4, 0, 0, 0);
++
++		for(a=s->autom; a; a=a->link)
++			if(a->type == D_AUTO)
++				put(nil, a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
++			else
++			if(a->type == D_PARAM)
++				put(nil, a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
++	}
++	if(debug['v'] || debug['n'])
++		Bprint(&bso, "symsize = %ud\n", symsize);
++	Bflush(&bso);
++}
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 3e0c3b04af..8545641c0f 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -126,6 +126,7 @@ struct	Sym
+ 	uchar	dupok;
+ 	uchar	reachable;
+ 	uchar	dynexport;
++	uchar	special;
+ 	int32	value;
+ 	int32	size;
+ 	int32	sig;
+@@ -171,7 +172,6 @@ enum
+ 	SMACHO,	// TODO(rsc): maybe move between DATA1 and BSS?
+ 	SFILE,
+ 	SCONST,
+-	SFIXED,
+ 
+ 	NHASH		= 10007,
+ 	NHUNK		= 100000,
+@@ -347,7 +347,6 @@ void	doprof2(void);
+ void	dostkoff(void);
+ int32	entryvalue(void);
+ void	follow(void);
+-void	genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
+ void	instinit(void);
+ void	listinit(void);
+ Sym*	lookup(char*, int);
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 8e28bd1249..4e199d7675 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -337,7 +337,7 @@ Iconv(Fmt *fp)
+ 	// call fmtstrcpy to handle padding.
+ 	fmtstrinit(&fmt);
+ 	for(i=0; i<n; i++)
+-		fmtprint(&fmt, "%.8ux", *p++);
++		fmtprint(&fmt, "%.2ux", *p++);
+ 	s = fmtstrflush(&fmt);
+ 	fmtstrcpy(fp, s);
+ 	free(s);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 20002b4857..aae5ff8587 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -327,6 +327,8 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	pclntab();
++	symtab();
+ 	dodata();
+ 	address();
+ 	reloc();
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 07b30a3913..3aab95874a 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -193,6 +193,7 @@ xdefine(char *p, int t, int32 v)
+ 	s->type = t;
+ 	s->value = v;
+ 	s->reachable = 1;
++	s->special = 1;
+ }
+ 
+ void
+@@ -503,9 +504,6 @@ int32
+ symaddr(Sym *s)
+ {
+ 	switch(s->type) {
+-	case SFIXED:
+-		return s->value;
+-	
+ 	case SMACHO:
+ 		return segdata.vaddr + segdata.filelen - dynptrsize + s->value;
+ 	
+@@ -535,25 +533,18 @@ vaddr(Adr *a, Reloc *r)
+ 	case D_EXTERN:
+ 		s = a->sym;
+ 		if(s != nil) {
+-			switch(s->type) {
+-			case SFIXED:
+-				v += s->value;
+-				break;
+-			default:
+-				if(!s->reachable)
+-					sysfatal("unreachable symbol in vaddr - %s", s->name);
+-				if(r == nil) {
+-					diag("need reloc for %D", a);
+-					errorexit();
+-				}
+-				r->type = D_ADDR;
+-				r->siz = 4;
+-				r->off = -1;
+-				r->sym = s;
+-				r->add = v;
+-				v = 0;
+-				break;
++			if(!s->reachable)
++				sysfatal("unreachable symbol in vaddr - %s", s->name);
++			if(r == nil) {
++				diag("need reloc for %D", a);
++				errorexit();
+ 			}
++			r->type = D_ADDR;
++			r->siz = 4;
++			r->off = -1;
++			r->sym = s;
++			r->add = v;
++			v = 0;
+ 		}
+ 	}
+ 	return v;
+diff --git a/src/cmd/8l/symtab.c b/src/cmd/8l/symtab.c
+deleted file mode 100644
+index 96aa84d1bc..0000000000
+--- a/src/cmd/8l/symtab.c
++++ /dev/null
+@@ -1,167 +0,0 @@
+-// Inferno utils/8l/span.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/span.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-// Symbol table.
+-
+-#include	"l.h"
+-#include	"../ld/lib.h"
+-
+-void
+-putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
+-{
+-	int i, f;
+-	vlong gv;
+-
+-	if(t == 'f')
+-		s++;
+-	lput(v);
+-	if(ver)
+-		t += 'a' - 'A';
+-	cput(t+0x80);			/* 0x80 is variable length */
+-
+-	if(t == 'Z' || t == 'z') {
+-		cput(s[0]);
+-		for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
+-			cput(s[i]);
+-			cput(s[i+1]);
+-		}
+-		cput(0);
+-		cput(0);
+-		i++;
+-	}
+-	else {
+-		for(i=0; s[i]; i++)
+-			cput(s[i]);
+-		cput(0);
+-	}
+-	gv = 0;
+-	if(go) {
+-		if(!go->reachable)
+-			sysfatal("unreachable type %s", go->name);
+-		gv = symaddr(go);
+-	}
+-	lput(gv);
+-
+-	symsize += 4 + 1 + i+1 + 4;
+-
+-	if(debug['n']) {
+-		if(t == 'z' || t == 'Z') {
+-			Bprint(&bso, "%c %.8ux ", t, v);
+-			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
+-				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
+-				Bprint(&bso, "/%x", f);
+-			}
+-			Bprint(&bso, "\n");
+-			return;
+-		}
+-		if(ver)
+-			Bprint(&bso, "%c %.8ux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
+-		else
+-			Bprint(&bso, "%c %.8ux %s\n", t, v, s, go ? go->name : "", gv);
+-	}
+-}
+-
+-void
+-genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
+-{
+-	Auto *a;
+-	Sym *s;
+-	int h;
+-
+-	s = lookup("etext", 0);
+-	if(s->type == STEXT)
+-		put(s->name, 'T', s->value, s->size, s->version, 0);
+-
+-	for(h=0; h<NHASH; h++) {
+-		for(s=hash[h]; s!=S; s=s->hash) {
+-			switch(s->type) {
+-			case SCONST:
+-			case SRODATA:
+-			case SDATA:
+-			case SELFDATA:
+-				if(!s->reachable)
+-					continue;
+-				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SMACHO:
+-				if(!s->reachable)
+-					continue;
+-				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SBSS:
+-				if(!s->reachable)
+-					continue;
+-				put(s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SFIXED:
+-				put(s->name, 'B', s->value, s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SFILE:
+-				put(s->name, 'f', s->value, 0, s->version, 0);
+-				continue;
+-			}
+-		}
+-	}
+-
+-	for(s = textp; s != nil; s = s->next) {
+-		/* filenames first */
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_FILE)
+-				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
+-			else
+-			if(a->type == D_FILE1)
+-				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
+-
+-		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
+-
+-		/* frame, auto and param after */
+-		put(".frame", 'm', s->text->to.offset+4, 0, 0, 0);
+-
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_AUTO)
+-				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
+-			else
+-			if(a->type == D_PARAM)
+-				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+-	}
+-	if(debug['v'] || debug['n'])
+-		Bprint(&bso, "symsize = %ud\n", symsize);
+-	Bflush(&bso);
+-}
+-
+-void
+-asmsym(void)
+-{
+-	genasmsym(putsymb);
+-}
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 5d642db108..ea806c9107 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -607,7 +607,7 @@ dodata(void)
+ 	datap = nil;
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->hash){
+-			if(!s->reachable)
++			if(!s->reachable || s->special)
+ 				continue;
+ 			if(STEXT < s->type && s->type < SXREF) {
+ 				if(last == nil)
+@@ -723,6 +723,8 @@ address(void)
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
++		if(s == segdata.sect)
++			va += dynptrsize;
+ 		segdata.len = va - segdata.vaddr;
+ 	}
+ 	segdata.filelen = segdata.sect->len + dynptrsize;	// assume .data is first
+@@ -748,8 +750,8 @@ address(void)
+ 	xdefine("edata", SBSS, data->vaddr + data->len);
+ 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
+ 
+-	if(debug['s'])
+-		xdefine("symdat", SFIXED, 0);
+-	else
+-		xdefine("symdat", SFIXED, SYMDATVA);
++	sym = lookup("pclntab", 0);
++	xdefine("epclntab", SRODATA, sym->value + sym->size);
++	sym = lookup("symtab", 0);
++	xdefine("esymtab", SRODATA, sym->value + sym->size);
+ }
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 49d398a3c5..cb1d6deaf8 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -889,11 +889,19 @@ ewrite(int fd, void *buf, int n)
+ }
+ 
+ void
+-asmlc(void)
++pclntab(void)
+ {
+ 	vlong oldpc;
+ 	Prog *p;
+ 	int32 oldlc, v, s;
++	Sym *sym;
++	uchar *bp;
++	
++	sym = lookup("pclntab", 0);
++	sym->type = SRODATA;
++	sym->reachable = 1;
++	if(debug['s'])
++		return;
+ 
+ 	oldpc = INITTEXT;
+ 	oldlc = 0;
+@@ -912,7 +920,9 @@ asmlc(void)
+ 				s = 127;
+ 				if(v < 127)
+ 					s = v;
+-				cput(s+128);	/* 129-255 +pc */
++				symgrow(sym, lcsize+1);
++				bp = sym->p + lcsize;
++				*bp = s+128;	/* 129-255 +pc */
+ 				if(debug['O'])
+ 					Bprint(&bso, " pc+%d*%d(%d)", s, MINLC, s+128);
+ 				v -= s;
+@@ -922,11 +932,13 @@ asmlc(void)
+ 			oldlc = p->line;
+ 			oldpc = p->pc + MINLC;
+ 			if(s > 64 || s < -64) {
+-				cput(0);	/* 0 vv +lc */
+-				cput(s>>24);
+-				cput(s>>16);
+-				cput(s>>8);
+-				cput(s);
++				symgrow(sym, lcsize+5);
++				bp = sym->p + lcsize;
++				*bp++ = 0;	/* 0 vv +lc */
++				*bp++ = s>>24;
++				*bp++ = s>>16;
++				*bp++ = s>>8;
++				*bp = s;
+ 				if(debug['O']) {
+ 					if(s > 0)
+ 						Bprint(&bso, " lc+%d(%d,%d)\n",
+@@ -940,15 +952,17 @@ asmlc(void)
+ 				lcsize += 5;
+ 				continue;
+ 			}
++			symgrow(sym, lcsize+1);
++			bp = sym->p + lcsize;
+ 			if(s > 0) {
+-				cput(0+s);	/* 1-64 +lc */
++				*bp = 0+s;	/* 1-64 +lc */
+ 				if(debug['O']) {
+ 					Bprint(&bso, " lc+%d(%d)\n", s, 0+s);
+ 					Bprint(&bso, "%6llux %P\n",
+ 						p->pc, p);
+ 				}
+ 			} else {
+-				cput(64-s);	/* 65-128 -lc */
++				*bp = 64-s;	/* 65-128 -lc */
+ 				if(debug['O']) {
+ 					Bprint(&bso, " lc%d(%d)\n", s, 64-s);
+ 					Bprint(&bso, "%6llux %P\n",
+@@ -958,11 +972,14 @@ asmlc(void)
+ 			lcsize++;
+ 		}
+ 	}
+-	while(lcsize & 1) {
+-		s = 129;
+-		cput(s);
++	if(lcsize & 1) {
++		symgrow(sym, lcsize+1);
++		sym->p[lcsize] = 129;
+ 		lcsize++;
+ 	}
++	sym->size = lcsize;
++	lcsize = 0;
++
+ 	if(debug['v'] || debug['O'])
+ 		Bprint(&bso, "lcsize = %d\n", lcsize);
+ 	Bflush(&bso);
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 1f9f26cd07..57a565e808 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -121,6 +121,8 @@ void	errorexit(void);
+ void	mangle(char*);
+ void	objfile(char *file, char *pkg);
+ void	libinit(void);
++void	pclntab(void);
++void	symtab(void);
+ void	Lflag(char *arg);
+ void	usage(void);
+ void	ldobj1(Biobuf *f, char*, int64 len, char *pn);
+@@ -145,9 +147,13 @@ vlong	addaddr(Sym*, Sym*);
+ vlong	addsize(Sym*, Sym*);
+ vlong	adduint8(Sym*, uint8);
+ vlong	adduint16(Sym*, uint16);
++void	asmsym(void);
++void	asmelfsym64(void);
+ void	strnput(char*, int);
+ void	dodata(void);
+ void	address(void);
++void	genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*));
++vlong	datoff(vlong);
+ 
+ int	pathchar(void);
+ void*	mal(uint32);
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 3098370d6c..75c3ad865a 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -441,7 +441,7 @@ domacholink(void)
+ }
+ 
+ void
+-asmbmacho(vlong symdatva, vlong symo)
++asmbmacho(void)
+ {
+ 	vlong v, w;
+ 	vlong va;
+@@ -608,21 +608,17 @@ asmbmacho(vlong symdatva, vlong symo)
+ 	}
+ 
+ 	if(!debug['s']) {
+-		ms = newMachoSeg("__SYMDAT", 1);
+-		ms->vaddr = symdatva;
+-		ms->vsize = 8+symsize+lcsize;
+-		ms->fileoffset = symo;
+-		ms->filesize = 8+symsize+lcsize;
+-		ms->prot1 = 7;
+-		ms->prot2 = 5;
++		Sym *s;
+ 
+ 		md = newMachoDebug();
+-		md->fileoffset = symo+8;
+-		md->filesize = symsize;
++		s = lookup("symtab", 0);
++		md->fileoffset = datoff(s->value);
++		md->filesize = s->size;
+ 
+ 		md = newMachoDebug();
+-		md->fileoffset = symo+8+symsize;
+-		md->filesize = lcsize;
++		s = lookup("pclntab", 0);
++		md->fileoffset = datoff(s->value);
++		md->filesize = s->size;
+ 
+ 		dwarfaddmachoheaders();
+ 	}
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index a96b2a3835..524e7ae4e8 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -74,4 +74,4 @@ enum {
+ 
+ void	domacho(void);
+ vlong	domacholink(void);
+-void	asmbmacho(vlong, vlong);
++void	asmbmacho(void);
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index ea978a3564..da7bb72923 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -205,13 +205,6 @@ asmbpe(void)
+ 		break;
+ 	}
+ 
+-	if(!debug['s']) {
+-		IMAGE_SECTION_HEADER *symsect;
+-		symsect = new_section(".symdat", 8+symsize+lcsize, 0);
+-		symsect->Characteristics = IMAGE_SCN_MEM_READ|
+-			IMAGE_SCN_CNT_INITIALIZED_DATA;
+-	}
+-
+ 	add_import_table();
+ 
+ 	fh.NumberOfSections = nsect;
+diff --git a/src/cmd/6l/symtab.c b/src/cmd/ld/symtab.c
+similarity index 54%
+rename from src/cmd/6l/symtab.c
+rename to src/cmd/ld/symtab.c
+index f2ffa269e3..184b7c5282 100644
+--- a/src/cmd/6l/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -37,8 +37,7 @@
+ char *elfstrdat;
+ int elfstrsize;
+ int maxelfstr;
+-
+-void genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*));
++int elftextsh;
+ 
+ int
+ putelfstr(char *s)
+@@ -85,151 +84,137 @@ putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+ 	}
+ 	
+ 	stroff = putelfstr(s);
+-	lputl(stroff);	// string
++	LPUT(stroff);	// string
+ 	cput((bind<<4)|(type&0xF));
+ 	cput(0);
+-	wputl(shndx);
+-	vputl(addr);
+-	vputl(size);
++	WPUT(shndx);
++	VPUT(addr);
++	VPUT(size);
+ }
+ 
+ void
+-asmelfsym(void)
++asmelfsym64(void)
++{
++//	genasmsym(putelfsymb64);
++}
++
++static Sym *symt;
++
++static void
++scput(int b)
+ {
+-	genasmsym(putelfsymb);
++	uchar *p;
++
++	symgrow(symt, symt->size+1);
++	p = symt->p + symt->size;
++	*p = b;
++	symt->size++;
+ }
+ 
++static void
++slputb(int32 v)
++{
++	uchar *p;
++	
++	symgrow(symt, symt->size+4);
++	p = symt->p + symt->size;
++	*p++ = v>>24;
++	*p++ = v>>16;
++	*p++ = v>>8;
++	*p = v;
++	symt->size += 4;
++}
+ 
+ void
+-putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
++putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ {
+ 	int i, f, l;
+-	vlong gv;
++	Reloc *rel;
+ 
+ 	if(t == 'f')
+-		s++;
++		name++;
+ 	l = 4;
+-	if(!debug['8']){
+-		lputb(v>>32);
+-		l = 8;
+-	}
+-	lputb(v);
++//	if(!debug['8'])
++//		l = 8;
++	if(s != nil) {
++		rel = addrel(symt);
++		rel->siz = l + Rbig;
++		rel->sym = s;
++		rel->type = D_ADDR;
++		rel->off = symt->size;
++		v = 0;
++	}	
++	if(l == 8)
++		slputb(v>>32);
++	slputb(v);
+ 	if(ver)
+ 		t += 'a' - 'A';
+-	cput(t+0x80);			/* 0x80 is variable length */
++	scput(t+0x80);			/* 0x80 is variable length */
+ 
+ 	if(t == 'Z' || t == 'z') {
+-		cput(s[0]);
+-		for(i=1; s[i] != 0 || s[i+1] != 0; i += 2) {
+-			cput(s[i]);
+-			cput(s[i+1]);
++		scput(name[0]);
++		for(i=1; name[i] != 0 || name[i+1] != 0; i += 2) {
++			scput(name[i]);
++			scput(name[i+1]);
+ 		}
+-		cput(0);
+-		cput(0);
++		scput(0);
++		scput(0);
+ 		i++;
+ 	}
+ 	else {
+-		for(i=0; s[i]; i++)
+-			cput(s[i]);
+-		cput(0);
++		for(i=0; name[i]; i++)
++			scput(name[i]);
++		scput(0);
+ 	}
+-	gv = 0;
+-	if(go) {
+-		if(!go->reachable)
+-			diag("unreachable type %s", go->name);
+-		gv = go->value+INITDAT;
++	if(typ) {
++		if(!typ->reachable)
++			diag("unreachable type %s", typ->name);
++		rel = addrel(symt);
++		rel->siz = l;
++		rel->sym = typ;
++		rel->type = D_ADDR;
++		rel->off = symt->size;
+ 	}
+ 	if(l == 8)
+-		lputb(gv>>32);
+-	lputb(gv);
+-	symsize += l + 1 + i+1 + l;
++		slputb(0);
++	slputb(0);
+ 
+ 	if(debug['n']) {
+ 		if(t == 'z' || t == 'Z') {
+ 			Bprint(&bso, "%c %.8llux ", t, v);
+-			for(i=1; s[i] != 0 || s[i+1] != 0; i+=2) {
+-				f = ((s[i]&0xff) << 8) | (s[i+1]&0xff);
++			for(i=1; name[i] != 0 || name[i+1] != 0; i+=2) {
++				f = ((name[i]&0xff) << 8) | (name[i+1]&0xff);
+ 				Bprint(&bso, "/%x", f);
+ 			}
+ 			Bprint(&bso, "\n");
+ 			return;
+ 		}
+ 		if(ver)
+-			Bprint(&bso, "%c %.8llux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
++			Bprint(&bso, "%c %.8llux %s<%d> %s\n", t, v, s, ver, typ ? typ->name : "");
+ 		else
+-			Bprint(&bso, "%c %.8llux %s %s (%.8llux)\n", t, v, s, go ? go->name : "", gv);
++			Bprint(&bso, "%c %.8llux %s %s\n", t, v, s, typ ? typ->name : "");
+ 	}
+ }
+ 
+ void
+-genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
++symtab(void)
+ {
+-	Auto *a;
+-	Sym *s;
+-	int h;
+-
+-	s = lookup("etext", 0);
+-	if(s->type == STEXT)
+-		put(s->name, 'T', s->value, s->size, s->version, 0);
+-
+-	for(h=0; h<NHASH; h++) {
+-		for(s=hash[h]; s!=S; s=s->hash) {
+-			switch(s->type) {
+-			case SCONST:
+-			case SRODATA:
+-			case SDATA:
+-			case SELFDATA:
+-				if(!s->reachable)
+-					continue;
+-				put(s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SBSS:
+-				if(!s->reachable)
+-					continue;
+-				put(s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SFIXED:
+-				put(s->name, 'B', s->value, s->size, s->version, s->gotype);
+-				continue;
+-
+-			case SFILE:
+-				put(s->name, 'f', s->value, 0, s->version, 0);
+-				continue;
+-			}
+-		}
+-	}
+-
+-	for(s = textp; s != nil; s = s->next) {
+-		/* filenames first */
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_FILE)
+-				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
+-			else
+-			if(a->type == D_FILE1)
+-				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
+-
+-		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
+-
+-		/* frame, auto and param after */
+-		put(".frame", 'm', s->text->to.offset+8, 0, 0, 0);
+-
+-		for(a=s->autom; a; a=a->link)
+-			if(a->type == D_AUTO)
+-				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
+-			else
+-			if(a->type == D_PARAM)
+-				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+-	}
+-	if(debug['v'] || debug['n'])
+-		Bprint(&bso, "symsize = %ud\n", symsize);
+-	Bflush(&bso);
+-}
++	// Define these so that they'll get put into the symbol table.
++	// data.c:/^address will provide the actual values.
++	xdefine("text", STEXT, 0);
++	xdefine("etext", STEXT, 0);
++	xdefine("rodata", SRODATA, 0);
++	xdefine("erodata", SRODATA, 0);
++	xdefine("data", SBSS, 0);
++	xdefine("edata", SBSS, 0);
++	xdefine("end", SBSS, 0);
++	xdefine("epclntab", SRODATA, 0);
++	xdefine("esymtab", SRODATA, 0);
++
++	symt = lookup("symtab", 0);
++	symt->type = SRODATA;
++	symt->size = 0;
++	symt->reachable = 1;
+ 
+-void
+-asmsym(void)
+-{
+ 	genasmsym(putsymb);
+ }
+-
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 98aae3e529..33000ed07f 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -66,7 +66,7 @@ static	int	adotout(int, Fhdr*, ExecHdr*);
+ static	int	elfdotout(int, Fhdr*, ExecHdr*);
+ static	int	machdotout(int, Fhdr*, ExecHdr*);
+ static	int	armdotout(int, Fhdr*, ExecHdr*);
+-static	void	setsym(Fhdr*, int32, int32, int32, vlong);
++static	void	setsym(Fhdr*, vlong, int32, vlong, int32, vlong, int32);
+ static	void	setdata(Fhdr*, uvlong, int32, vlong, int32);
+ static	void	settext(Fhdr*, uvlong, uvlong, int32, vlong);
+ static	void	hswal(void*, int, uint32(*)(uint32));
+@@ -427,7 +427,7 @@ adotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 			hp->e.exechdr.text, sizeof(Exec));
+ 	setdata(fp, _round(pgsize+fp->txtsz+sizeof(Exec), pgsize),
+ 		hp->e.exechdr.data, fp->txtsz+sizeof(Exec), hp->e.exechdr.bss);
+-	setsym(fp, hp->e.exechdr.syms, hp->e.exechdr.spsz, hp->e.exechdr.pcsz, fp->datoff+fp->datsz);
++	setsym(fp, fp->datoff+fp->datsz, hp->e.exechdr.syms, 0, hp->e.exechdr.spsz, 0, hp->e.exechdr.pcsz);
+ 	return 1;
+ }
+ 
+@@ -525,7 +525,7 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
+ 	settext(fp, entry, pgsize+fp->hdrsz, hp->e.exechdr.text, fp->hdrsz);
+ 	setdata(fp, _round(pgsize+fp->txtsz+fp->hdrsz, pgsize),
+ 		hp->e.exechdr.data, fp->txtsz+fp->hdrsz, hp->e.exechdr.bss);
+-	setsym(fp, hp->e.exechdr.syms, hp->e.exechdr.spsz, hp->e.exechdr.pcsz, fp->datoff+fp->datsz);
++	setsym(fp, fp->datoff+fp->datsz, hp->e.exechdr.syms, 0, hp->e.exechdr.spsz, 0, hp->e.exechdr.pcsz);
+ 
+ 	if(hp->e.exechdr.magic & DYN_MAGIC) {
+ 		fp->txtaddr = 0;
+@@ -758,13 +758,12 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 			bsssz = ph[0].memsz - ph[0].filesz;
+ 			settext(fp, ep->elfentry | 0x80000000, txtaddr, txtsz, ph[0].offset);
+ 			setdata(fp, dataddr, ph[0].paddr, ph[0].offset + txtsz, bsssz);
+-			setsym(fp, ph[1].filesz, 0, ph[1].memsz, ph[1].offset);
++			setsym(fp, ph[1].offset, ph[1].filesz, 0, 0, 0, ph[1].memsz);
+ 			free(ph);
+ 			return 1;
+ 		}
+ 
+ 		werrstr("No TEXT or DATA sections");
+-error:
+ 		free(ph);
+ 		free(sh);
+ 		return 0;
+@@ -773,12 +772,13 @@ error:
+ 	settext(fp, ep->elfentry, ph[it].vaddr, ph[it].memsz, ph[it].offset);
+ 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
+ 	if(is != -1)
+-		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
++		setsym(fp, ph[is].offset, ph[is].filesz, 0, 0, 0, ph[is].memsz);
+ 	else if(sh != 0){
+ 		char *buf;
+ 		uvlong symsize = 0;
+ 		uvlong symoff = 0;
+ 		uvlong pclnsz = 0;
++		uvlong pclnoff = 0;
+ 
+ 		/* load shstrtab names */
+ 		buf = malloc(sh[ep->shstrndx].size);
+@@ -795,15 +795,11 @@ error:
+ 				symoff = sh[i].offset;
+ 			}
+ 			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
+-				if (sh[i].offset != symoff+symsize) {
+-					werrstr("pc line table not contiguous with symbol table");
+-					free(buf);
+-					goto error;
+-				}
+ 				pclnsz = sh[i].size;
++				pclnoff = sh[i].offset;
+ 			}
+ 		}
+-		setsym(fp, symsize, 0, pclnsz, symoff);
++		setsym(fp, symoff, symsize, 0, 0, pclnoff, pclnsz);
+ 		free(buf);
+ 	}
+ done:
+@@ -940,13 +936,12 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 			bsssz = ph[0].memsz - ph[0].filesz;
+ 			settext(fp, ep->elfentry | 0x80000000, txtaddr, txtsz, ph[0].offset);
+ 			setdata(fp, dataddr, ph[0].paddr, ph[0].offset + txtsz, bsssz);
+-			setsym(fp, ph[1].filesz, 0, ph[1].memsz, ph[1].offset);
++			setsym(fp, ph[1].offset, ph[1].filesz, 0, 0, 0, ph[1].memsz);
+ 			free(ph);
+ 			return 1;
+ 		}
+ 
+ 		werrstr("No TEXT or DATA sections");
+-error:
+ 		free(sh);
+ 		free(ph);
+ 		return 0;
+@@ -955,12 +950,13 @@ error:
+ 	settext(fp, ep->elfentry, ph[it].vaddr, ph[it].memsz, ph[it].offset);
+ 	setdata(fp, ph[id].vaddr, ph[id].filesz, ph[id].offset, ph[id].memsz - ph[id].filesz);
+ 	if(is != -1)
+-		setsym(fp, ph[is].filesz, 0, ph[is].memsz, ph[is].offset);
++		setsym(fp, ph[is].offset, ph[is].filesz, 0, 0, 0, ph[is].memsz);
+ 	else if(sh != 0){
+ 		char *buf;
+ 		uvlong symsize = 0;
+ 		uvlong symoff = 0;
+-		uvlong pclnsz = 0;
++		uvlong pclnsize = 0;
++		uvlong pclnoff = 0;
+ 
+ 		/* load shstrtab names */
+ 		buf = malloc(sh[ep->shstrndx].size);
+@@ -977,15 +973,11 @@ error:
+ 				symoff = sh[i].offset;
+ 			}
+ 			if (strcmp(&buf[sh[i].name], ".gopclntab") == 0) {
+-				if (sh[i].offset != symoff+symsize) {
+-					werrstr("pc line table not contiguous with symbol table");
+-					free(buf);
+-					goto error;
+-				}
+-				pclnsz = sh[i].size;
++				pclnsize = sh[i].size;
++				pclnoff = sh[i].offset;
+ 			}
+ 		}
+-		setsym(fp, symsize, 0, pclnsz, symoff);
++		setsym(fp, symoff, symsize, 0, 0, pclnoff, pclnsize);
+ 		free(buf);
+ 	}
+ done:
+@@ -1209,7 +1201,7 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	settext(fp, textva+sizeof(Machhdr) + mp->sizeofcmds, textva, textsize, textoff);
+ 	setdata(fp, datava, datasize, dataoff, bsssize);
+ 	if(symtab != 0)
+-		setsym(fp, symtab->filesize, 0, pclntab? pclntab->filesize : 0, symtab->fileoff);
++		setsym(fp, symtab->fileoff, symtab->filesize, 0, 0, 0, pclntab? pclntab->filesize : 0);
+ 	free(cmd);
+ 	free(cmdbuf);
+ 	return 1;
+@@ -1230,7 +1222,7 @@ armdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	USED(fd);
+ 	settext(fp, hp->e.exechdr.entry, sizeof(Exec), hp->e.exechdr.text, sizeof(Exec));
+ 	setdata(fp, fp->txtsz, hp->e.exechdr.data, fp->txtsz, hp->e.exechdr.bss);
+-	setsym(fp, hp->e.exechdr.syms, hp->e.exechdr.spsz, hp->e.exechdr.pcsz, fp->datoff+fp->datsz);
++	setsym(fp, fp->datoff+fp->datsz, hp->e.exechdr.syms, 0, hp->e.exechdr.spsz, 0, hp->e.exechdr.pcsz);
+ 
+ 	kbase = 0xF0000000;
+ 	if ((fp->entry & kbase) == kbase) {		/* Boot image */
+@@ -1261,14 +1253,20 @@ setdata(Fhdr *fp, uvlong a, int32 s, vlong off, int32 bss)
+ }
+ 
+ static void
+-setsym(Fhdr *fp, int32 symsz, int32 sppcsz, int32 lnpcsz, vlong symoff)
++setsym(Fhdr *fp, vlong symoff, int32 symsz, vlong sppcoff, int32 sppcsz, vlong lnpcoff, int32 lnpcsz)
+ {
+-	fp->symsz = symsz;
+ 	fp->symoff = symoff;
++	fp->symsz = symsz;
++	
++	if(sppcoff == 0)
++		sppcoff = symoff+symsz;
++	fp->sppcoff = symoff;
+ 	fp->sppcsz = sppcsz;
+-	fp->sppcoff = fp->symoff+fp->symsz;
++
++	if(lnpcoff == 0)
++		lnpcoff = sppcoff + sppcsz;
++	fp->lnpcoff = lnpcoff;
+ 	fp->lnpcsz = lnpcsz;
+-	fp->lnpcoff = fp->sppcoff+fp->sppcsz;
+ }
+ 
+ 
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 5a35f635b7..ea9ac5ec68 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -17,7 +17,7 @@
+ #include "os.h"
+ #include "arch.h"
+ 
+-extern int32 symdat[];
++extern byte pclntab[], epclntab[], symtab[], esymtab[];
+ 
+ typedef struct Sym Sym;
+ struct Sym
+@@ -32,25 +32,16 @@ struct Sym
+ static void
+ walksymtab(void (*fn)(Sym*))
+ {
+-	int32 *v;
+ 	byte *p, *ep, *q;
+ 	Sym s;
+ 
+-	if(symdat == nil)
+-		return;
+-
+-#ifdef __WINDOWS__
+-	v = get_symdat_addr();
+-	p = (byte*)v+8;
+-#else
+-	v = symdat;
+-	p = (byte*)(symdat+2);
+-#endif
+-	ep = p + v[0];
++	p = symtab;
++	ep = esymtab;
+ 	while(p < ep) {
+ 		if(p + 7 > ep)
+ 			break;
+ 		s.value = ((uint32)p[0]<<24) | ((uint32)p[1]<<16) | ((uint32)p[2]<<8) | ((uint32)p[3]);
++
+ 		if(!(p[4]&0x80))
+ 			break;
+ 		s.symtype = p[4] & ~0x80;
+@@ -127,8 +118,13 @@ dofunc(Sym *sym)
+ 		break;
+ 	case 'f':
+ 		if(fname == nil) {
+-			if(sym->value >= nfname)
++			if(sym->value >= nfname) {
++				if(sym->value >= 0x10000) {
++					printf("invalid symbol file index %p\n", sym->value);
++					throw("mangled symbol table");
++				}
+ 				nfname = sym->value+1;
++			}
+ 			break;
+ 		}
+ 		fname[sym->value] = sym->name;
+@@ -240,9 +236,11 @@ splitpcln(void)
+ 	uintptr pc;
+ 	byte *p, *ep;
+ 	Func *f, *ef;
+-	int32 *v;
+ 	int32 pcquant;
+ 
++	if(pclntab == epclntab || nfunc == 0)
++		return;
++
+ 	switch(thechar) {
+ 	case '5':
+ 		pcquant = 4;
+@@ -252,19 +250,9 @@ splitpcln(void)
+ 		break;
+ 	}
+ 
+-	if(symdat == nil)
+-		return;
+-
+ 	// pc/ln table bounds
+-#ifdef __WINDOWS__
+-	v = get_symdat_addr();
+-	p = (byte*)v+8;
+-#else
+-	v = symdat;
+-	p = (byte*)(symdat+2);
+-#endif
+-	p += v[0];
+-	ep = p+v[1];
++	p = pclntab;
++	ep = epclntab;
+ 
+ 	f = func;
+ 	ef = func + nfunc;
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 82d1fa84e5..decea96781 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -22,7 +22,6 @@ void *SetLastError;
+ 
+ static void *CreateEvent;
+ static void *CreateThread;
+-static void *GetModuleHandle;
+ static void *WaitForSingleObject;
+ 
+ static void*
+@@ -60,7 +59,6 @@ osinit(void)
+ 	CreateEvent = get_proc_addr("kernel32.dll", "CreateEventA");
+ 	CreateThread = get_proc_addr("kernel32.dll", "CreateThread");
+ 	ExitProcess = get_proc_addr("kernel32.dll", "ExitProcess");
+-	GetModuleHandle = get_proc_addr("kernel32.dll", "GetModuleHandleA");
+ 	GetStdHandle = get_proc_addr("kernel32.dll", "GetStdHandle");
+ 	SetEvent = get_proc_addr("kernel32.dll", "SetEvent");
+ 	VirtualAlloc = get_proc_addr("kernel32.dll", "VirtualAlloc");
+@@ -155,24 +153,6 @@ write(int32 fd, void *buf, int32 n)
+ 	return written;
+ }
+ 
+-void*
+-get_symdat_addr(void)
+-{
+-	byte *mod, *p;
+-	uint32 peh, add;
+-	uint16 oph;
+-
+-	mod = stdcall(GetModuleHandle, 1, 0);
+-	peh = *(uint32*)(mod+0x3c);
+-	p = mod+peh+4;
+-	oph = *(uint16*)(p+0x10);
+-	p += 0x14+oph;
+-	while(strcmp(p, (byte*)".symdat"))
+-		p += 40;
+-	add = *(uint32*)(p+0x0c);
+-	return mod+add;
+-}
+-
+ // Thread-safe allocation of an event.
+ static void
+ initevent(void **pevent)

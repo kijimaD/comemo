@@ -7,6 +7,20 @@ Date:   Mon Dec 29 22:28:02 2014 -0800
     Change-Id: I72f6d0fc66dbee3f832d2d960b99a166a5bb10c3
     Reviewed-on: https://go-review.googlesource.com/2191
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/archive/tar/reader.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index a27559d0f0..abd8f148a7 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -85,6 +85,8 @@ const (
+ func NewReader(r io.Reader) *Reader { return &Reader{r: r} }
+ 
+ // Next advances to the next entry in the tar archive.
++//
++// io.EOF is returned at the end of the input.
+ func (tr *Reader) Next() (*Header, error) {
+ 	var hdr *Header
+ 	if tr.err == nil {

@@ -13,8 +13,199 @@ Date:   Wed Apr 22 00:52:19 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules | 16 +++++++-------
  src/cmd/compile/internal/ssa/rewrite.go      |  3 +--
  src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++--------------
  3 files changed, 25 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 2eab67701a..8478c1c678 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -672,14 +672,14 @@
+ (GT (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 -> (GT (CMPW a (MULW <x.Type> x y)) yes no)
+ 
+ // Absorb bit-tests into block
+-(Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
+-(NZ (ANDconst [c] x) yes no) && oneBit(c) -> (TBNZ {ntz(c)} x yes no)
+-(ZW  (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {ntz(int64(uint32(c)))} x yes no)
+-(NZW (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {ntz(int64(uint32(c)))} x yes no)
+-(EQ (TSTconst [c] x) yes no) && oneBit(c) -> (TBZ  {ntz(c)} x yes no)
+-(NE (TSTconst [c] x) yes no) && oneBit(c) -> (TBNZ {ntz(c)} x yes no)
+-(EQ (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {ntz(int64(uint32(c)))} x yes no)
+-(NE (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {ntz(int64(uint32(c)))} x yes no)
++(Z  (ANDconst [c] x) yes no) && oneBit(c) -> (TBZ  {int64(ntz64(c))} x yes no)
++(NZ (ANDconst [c] x) yes no) && oneBit(c) -> (TBNZ {int64(ntz64(c))} x yes no)
++(ZW  (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {int64(ntz64(int64(uint32(c))))} x yes no)
++(NZW (ANDconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {int64(ntz64(int64(uint32(c))))} x yes no)
++(EQ (TSTconst [c] x) yes no) && oneBit(c) -> (TBZ  {int64(ntz64(c))} x yes no)
++(NE (TSTconst [c] x) yes no) && oneBit(c) -> (TBNZ {int64(ntz64(c))} x yes no)
++(EQ (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBZ  {int64(ntz64(int64(uint32(c))))} x yes no)
++(NE (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) -> (TBNZ {int64(ntz64(int64(uint32(c))))} x yes no)
+ 
+ // Test sign-bit for signed comparisons against zero
+ (GE (CMPWconst [0] x) yes no) -> (TBZ  {int64(31)} x yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 40cb750d83..adda7fae93 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -392,7 +392,6 @@ func nlz16(x int16) int { return bits.LeadingZeros16(uint16(x)) }
+ func nlz8(x int8) int   { return bits.LeadingZeros8(uint8(x)) }
+ 
+ // ntzX returns the number of trailing zeros.
+-func ntz(x int64) int64 { return int64(bits.TrailingZeros64(uint64(x))) } // TODO: remove when no longer used
+ func ntz64(x int64) int { return bits.TrailingZeros64(uint64(x)) }
+ func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
+ func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
+@@ -406,7 +405,7 @@ func oneBit64(x int64) bool { return x&(x-1) == 0 && x != 0 }
+ 
+ // nto returns the number of trailing ones.
+ func nto(x int64) int64 {
+-	return ntz(^x)
++	return int64(ntz64(^x))
+ }
+ 
+ // log2 returns logarithm in base 2 of uint64(n), with log2(0) = -1.
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 768c179124..c77cf8978a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -26073,7 +26073,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (EQ (TSTconst [c] x) yes no)
+ 		// cond: oneBit(c)
+-		// result: (TBZ {ntz(c)} x yes no)
++		// result: (TBZ {int64(ntz64(c))} x yes no)
+ 		for b.Controls[0].Op == OpARM64TSTconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -26082,12 +26082,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBZ, x)
+-			b.Aux = ntz(c)
++			b.Aux = int64(ntz64(c))
+ 			return true
+ 		}
+ 		// match: (EQ (TSTWconst [c] x) yes no)
+ 		// cond: oneBit(int64(uint32(c)))
+-		// result: (TBZ {ntz(int64(uint32(c)))} x yes no)
++		// result: (TBZ {int64(ntz64(int64(uint32(c))))} x yes no)
+ 		for b.Controls[0].Op == OpARM64TSTWconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -26096,7 +26096,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBZ, x)
+-			b.Aux = ntz(int64(uint32(c)))
++			b.Aux = int64(ntz64(int64(uint32(c))))
+ 			return true
+ 		}
+ 		// match: (EQ (FlagEQ) yes no)
+@@ -28256,7 +28256,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (NE (TSTconst [c] x) yes no)
+ 		// cond: oneBit(c)
+-		// result: (TBNZ {ntz(c)} x yes no)
++		// result: (TBNZ {int64(ntz64(c))} x yes no)
+ 		for b.Controls[0].Op == OpARM64TSTconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -28265,12 +28265,12 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBNZ, x)
+-			b.Aux = ntz(c)
++			b.Aux = int64(ntz64(c))
+ 			return true
+ 		}
+ 		// match: (NE (TSTWconst [c] x) yes no)
+ 		// cond: oneBit(int64(uint32(c)))
+-		// result: (TBNZ {ntz(int64(uint32(c)))} x yes no)
++		// result: (TBNZ {int64(ntz64(int64(uint32(c))))} x yes no)
+ 		for b.Controls[0].Op == OpARM64TSTWconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -28279,7 +28279,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBNZ, x)
+-			b.Aux = ntz(int64(uint32(c)))
++			b.Aux = int64(ntz64(int64(uint32(c))))
+ 			return true
+ 		}
+ 		// match: (NE (FlagEQ) yes no)
+@@ -28436,7 +28436,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 		}
+ 		// match: (NZ (ANDconst [c] x) yes no)
+ 		// cond: oneBit(c)
+-		// result: (TBNZ {ntz(c)} x yes no)
++		// result: (TBNZ {int64(ntz64(c))} x yes no)
+ 		for b.Controls[0].Op == OpARM64ANDconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -28445,7 +28445,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBNZ, x)
+-			b.Aux = ntz(c)
++			b.Aux = int64(ntz64(c))
+ 			return true
+ 		}
+ 		// match: (NZ (MOVDconst [0]) yes no)
+@@ -28474,7 +28474,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 	case BlockARM64NZW:
+ 		// match: (NZW (ANDconst [c] x) yes no)
+ 		// cond: oneBit(int64(uint32(c)))
+-		// result: (TBNZ {ntz(int64(uint32(c)))} x yes no)
++		// result: (TBNZ {int64(ntz64(int64(uint32(c))))} x yes no)
+ 		for b.Controls[0].Op == OpARM64ANDconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -28483,7 +28483,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBNZ, x)
+-			b.Aux = ntz(int64(uint32(c)))
++			b.Aux = int64(ntz64(int64(uint32(c))))
+ 			return true
+ 		}
+ 		// match: (NZW (MOVDconst [c]) yes no)
+@@ -28680,7 +28680,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 	case BlockARM64Z:
+ 		// match: (Z (ANDconst [c] x) yes no)
+ 		// cond: oneBit(c)
+-		// result: (TBZ {ntz(c)} x yes no)
++		// result: (TBZ {int64(ntz64(c))} x yes no)
+ 		for b.Controls[0].Op == OpARM64ANDconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -28689,7 +28689,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBZ, x)
+-			b.Aux = ntz(c)
++			b.Aux = int64(ntz64(c))
+ 			return true
+ 		}
+ 		// match: (Z (MOVDconst [0]) yes no)
+@@ -28718,7 +28718,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 	case BlockARM64ZW:
+ 		// match: (ZW (ANDconst [c] x) yes no)
+ 		// cond: oneBit(int64(uint32(c)))
+-		// result: (TBZ {ntz(int64(uint32(c)))} x yes no)
++		// result: (TBZ {int64(ntz64(int64(uint32(c))))} x yes no)
+ 		for b.Controls[0].Op == OpARM64ANDconst {
+ 			v_0 := b.Controls[0]
+ 			c := v_0.AuxInt
+@@ -28727,7 +28727,7 @@ func rewriteBlockARM64(b *Block) bool {
+ 				break
+ 			}
+ 			b.resetWithControl(BlockARM64TBZ, x)
+-			b.Aux = ntz(int64(uint32(c)))
++			b.Aux = int64(ntz64(int64(uint32(c))))
+ 			return true
+ 		}
+ 		// match: (ZW (MOVDconst [c]) yes no)

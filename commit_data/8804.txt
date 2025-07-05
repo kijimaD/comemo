@@ -7,7 +7,43 @@ Date:   Mon Jun 20 14:36:03 2011 -0700
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/4630052
-
+---
  src/pkg/http/header.go      |  3 ---
  src/pkg/http/header_test.go | 10 ++++++++++
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/header.go b/src/pkg/http/header.go
+index 95140b01f2..95a25a814b 100644
+--- a/src/pkg/http/header.go
++++ b/src/pkg/http/header.go
+@@ -62,9 +62,6 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) os.Error {
+ 			v = strings.Replace(v, "\n", " ", -1)
+ 			v = strings.Replace(v, "\r", " ", -1)
+ 			v = strings.TrimSpace(v)
+-			if v == "" {
+-				continue
+-			}
+ 			if _, err := fmt.Fprintf(w, "%s: %s\r\n", k, v); err != nil {
+ 				return err
+ 			}
+diff --git a/src/pkg/http/header_test.go b/src/pkg/http/header_test.go
+index 7e24cb069c..ccdee8a97b 100644
+--- a/src/pkg/http/header_test.go
++++ b/src/pkg/http/header_test.go
+@@ -57,6 +57,16 @@ var headerWriteTests = []struct {
+ 		map[string]bool{"Content-Length": true, "Expires": true, "Content-Encoding": true},
+ 		"",
+ 	},
++	{
++		Header{
++			"Nil":          nil,
++			"Empty":        {},
++			"Blank":        {""},
++			"Double-Blank": {"", ""},
++		},
++		nil,
++		"Blank: \r\nDouble-Blank: \r\nDouble-Blank: \r\n",
++	},
+ }
+ 
+ func TestHeaderWrite(t *testing.T) {

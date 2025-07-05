@@ -14,7 +14,41 @@ Date:   Mon Jun 26 11:12:43 2017 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  2 +-
  test/fixedbugs/issue20789.go              | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index fee52c8c36..bcf56d5faa 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -654,7 +654,7 @@ func (p *parser) callStmt() *CallStmt {
+ 	if !ok {
+ 		p.error(fmt.Sprintf("expression in %s must be function call", s.Tok))
+ 		// already progressed, no need to advance
+-		cx := new(CallExpr)
++		cx = new(CallExpr)
+ 		cx.pos = x.Pos()
+ 		cx.Fun = p.bad()
+ 	}
+diff --git a/test/fixedbugs/issue20789.go b/test/fixedbugs/issue20789.go
+new file mode 100644
+index 0000000000..abc7725ca0
+--- /dev/null
++++ b/test/fixedbugs/issue20789.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure this doesn't crash the compiler.
++// (This test should be part of the internal/syntax
++// package, but we don't have a general test framework
++// there yet, so put it here for now. See also #20800.
++
++package e
++func([<-chan<-[func u){go // ERROR "unexpected u", ERROR "must be function call"
+\ No newline at end of file

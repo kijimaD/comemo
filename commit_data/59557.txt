@@ -12,6 +12,20 @@ Date:   Mon Mar 25 02:21:10 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/stress/runstress.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/stress/runstress.go b/test/stress/runstress.go
+index b752fa8dbb..561cdf9d4d 100644
+--- a/test/stress/runstress.go
++++ b/test/stress/runstress.go
+@@ -49,7 +49,7 @@ func dialStress(a net.Addr) {
+ 				Println("closed dial")
+ 			}()
+ 		}
+-		// Don't run out of ephermeral ports too quickly:
++		// Don't run out of ephemeral ports too quickly:
+ 		time.Sleep(250 * time.Millisecond)
+ 	}
+ }

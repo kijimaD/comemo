@@ -13,9 +13,135 @@ Date:   Sat Dec 22 16:46:01 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6997047
-
+---
  src/cmd/gc/order.c          |  6 +++---
  src/cmd/gc/select.c         | 14 +++++++-------
  src/cmd/gc/subr.c           |  4 +++-
  test/fixedbugs/issue4313.go | 28 ++++++++++++++++++++++++++++
  4 files changed, 41 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/order.c b/src/cmd/gc/order.c
+index 2cab5fb956..499a4e746e 100644
+--- a/src/cmd/gc/order.c
++++ b/src/cmd/gc/order.c
+@@ -276,11 +276,11 @@ orderstmt(Node *n, NodeList **out)
+ 			case OSELRECV2:
+ 				orderexprinplace(&r->left);
+ 				orderexprinplace(&r->ntest);
+-				orderexpr(&r->right->left, out);
++				orderexpr(&r->right->left, &l->n->ninit);
+ 				break;
+ 			case OSEND:
+-				orderexpr(&r->left, out);
+-				orderexpr(&r->right, out);
++				orderexpr(&r->left, &l->n->ninit);
++				orderexpr(&r->right, &l->n->ninit);
+ 				break;
+ 			}
+ 		}
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 6d8793b89b..cd3de8c7be 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -297,15 +297,15 @@ walkselect(Node *sel)
+ 		setlineno(cas);
+ 		n = cas->left;
+ 		r = nod(OIF, N, N);
+-		r->nbody = cas->ninit;
++		r->ninit = cas->ninit;
+ 		cas->ninit = nil;
+ 		if(n != nil) {
+-			r->nbody = concat(r->nbody, n->ninit);
++			r->ninit = concat(r->ninit, n->ninit);
+ 			n->ninit = nil;
+ 		}
+ 		if(n == nil) {
+ 			// selectdefault(sel *byte);
+-			r->ntest = mkcall("selectdefault", types[TBOOL], &init, var);
++			r->ntest = mkcall("selectdefault", types[TBOOL], &r->ninit, var);
+ 		} else {
+ 			switch(n->op) {
+ 			default:
+@@ -313,25 +313,25 @@ walkselect(Node *sel)
+ 	
+ 			case OSEND:
+ 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+-				n->left = safeexpr(n->left, &r->ninit);
++				n->left = localexpr(safeexpr(n->left, &r->ninit), n->left->type, &r->ninit);
+ 				n->right = localexpr(n->right, n->left->type->type, &r->ninit);
+ 				n->right = nod(OADDR, n->right, N);
+ 				n->right->etype = 1;  // pointer does not escape
+ 				typecheck(&n->right, Erv);
+ 				r->ntest = mkcall1(chanfn("selectsend", 2, n->left->type), types[TBOOL],
+-					&init, var, n->left, n->right);
++					&r->ninit, var, n->left, n->right);
+ 				break;
+ 
+ 			case OSELRECV:
+ 				// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 				r->ntest = mkcall1(chanfn("selectrecv", 2, n->right->left->type), types[TBOOL],
+-					&init, var, n->right->left, n->left);
++					&r->ninit, var, n->right->left, n->left);
+ 				break;
+ 
+ 			case OSELRECV2:
+ 				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
+ 				r->ntest = mkcall1(chanfn("selectrecv2", 2, n->right->left->type), types[TBOOL],
+-					&init, var, n->right->left, n->left, n->ntest);
++					&r->ninit, var, n->right->left, n->left, n->ntest);
+ 				break;
+ 			}
+ 		}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b302c49816..e42feab3be 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2040,11 +2040,13 @@ cheapexpr(Node *n, NodeList **init)
+ 
+ /*
+  * return n in a local variable of type t if it is not already.
++ * the value is guaranteed not to change except by direct
++ * assignment to it.
+  */
+ Node*
+ localexpr(Node *n, Type *t, NodeList **init)
+ {
+-	if(n->op == ONAME &&
++	if(n->op == ONAME && !n->addrtaken &&
+ 		(n->class == PAUTO || n->class == PPARAM || n->class == PPARAMOUT) &&
+ 		convertop(n->type, t, nil) == OCONVNOP)
+ 		return n;
+diff --git a/test/fixedbugs/issue4313.go b/test/fixedbugs/issue4313.go
+new file mode 100644
+index 0000000000..b2f69dbfa4
+--- /dev/null
++++ b/test/fixedbugs/issue4313.go
+@@ -0,0 +1,28 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Order of operations in select.
++
++package main
++
++func main() {
++	c := make(chan int, 1)
++	x := 0
++	select {
++	case c <- x: // should see x = 0, not x = 42 (after makec)
++	case <-makec(&x): // should be evaluated only after c and x on previous line
++	}
++	y := <-c
++	if y != 0 {
++		panic(y)
++	}
++}
++
++func makec(px *int) chan bool {
++	if false { for {} }
++	*px = 42
++	return make(chan bool, 0)
++}

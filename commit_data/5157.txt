@@ -7,6 +7,33 @@ Date:   Mon Mar 29 10:02:37 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/763042
-
+---
  src/pkg/http/server.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index dff0d1746e..bd1d0a703f 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -524,10 +524,21 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
+ 	}
+ }
+ 
++// HandleFunc registers the handler function for the given pattern.
++func (mux *ServeMux) HandleFunc(pattern string, handler func(*Conn, *Request)) {
++	mux.Handle(pattern, HandlerFunc(handler))
++}
++
+ // Handle registers the handler for the given pattern
+ // in the DefaultServeMux.
+ func Handle(pattern string, handler Handler) { DefaultServeMux.Handle(pattern, handler) }
+ 
++// HandleFunc registers the handler function for the given pattern
++// in the DefaultServeMux.
++func HandleFunc(pattern string, handler func(*Conn, *Request)) {
++	DefaultServeMux.HandleFunc(pattern, handler)
++}
++
+ // Serve accepts incoming HTTP connections on the listener l,
+ // creating a new service thread for each.  The service threads
+ // read requests and then call handler to reply to them.

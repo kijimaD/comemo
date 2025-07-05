@@ -12,6 +12,20 @@ Date:   Tue Jan 27 14:53:14 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3352
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/liblink/objfile.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index aa701f459e..f29ebbc517 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -143,7 +143,7 @@ writeobj(Link *ctxt, Biobuf *b)
+ 	for(pl = ctxt->plist; pl != nil; pl = pl->link) {
+ 		for(p = pl->firstpc; p != nil; p = plink) {
+ 			if(ctxt->debugasm && ctxt->debugvlog)
+-				print("obj: %p %P\n", p, p);
++				print("obj: %P\n", p);
+ 			plink = p->link;
+ 			p->link = nil;
+ 

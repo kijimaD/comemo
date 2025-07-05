@@ -17,7 +17,7 @@ Date:   Fri Jul 12 00:03:32 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/10909045
-
+---
  src/pkg/runtime/asm_amd64.s  |  5 +----
  src/pkg/runtime/atomic_386.c | 16 ++++++++--------
  src/pkg/runtime/atomic_arm.c |  5 ++---
@@ -26,3 +26,207 @@ Date:   Fri Jul 12 00:03:32 2013 -0400
  src/pkg/runtime/runtime.c    | 20 ++++++++++++++++----
  src/pkg/runtime/runtime.h    |  2 +-
  7 files changed, 34 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index d43eb02835..363e680db9 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -374,13 +374,11 @@ TEXT runtime·cas(SB), 7, $0
+ //		*val = new;
+ //		return 1;
+ //	} else {
+-//		*old = *val
+ //		return 0;
+ //	}
+ TEXT runtime·cas64(SB), 7, $0
+ 	MOVQ	8(SP), BX
+-	MOVQ	16(SP), BP
+-	MOVQ	0(BP), AX
++	MOVQ	16(SP), AX
+ 	MOVQ	24(SP), CX
+ 	LOCK
+ 	CMPXCHGQ	CX, 0(BX)
+@@ -388,7 +386,6 @@ TEXT runtime·cas64(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ cas64_fail:
+-	MOVQ	AX, 0(BP)
+ 	MOVL	$0, AX
+ 	RET
+ 
+diff --git a/src/pkg/runtime/atomic_386.c b/src/pkg/runtime/atomic_386.c
+index 1046eb81e3..fbbe9b58e9 100644
+--- a/src/pkg/runtime/atomic_386.c
++++ b/src/pkg/runtime/atomic_386.c
+@@ -24,10 +24,10 @@ runtime·xadd64(uint64 volatile* addr, int64 v)
+ {
+ 	uint64 old;
+ 
+-	old = *addr;
+-	while(!runtime·cas64(addr, &old, old+v)) {
+-		// nothing
+-	}
++	do
++		old = *addr;
++	while(!runtime·cas64(addr, old, old+v));
++
+ 	return old+v;
+ }
+ 
+@@ -37,9 +37,9 @@ runtime·xchg64(uint64 volatile* addr, uint64 v)
+ {
+ 	uint64 old;
+ 
+-	old = *addr;
+-	while(!runtime·cas64(addr, &old, v)) {
+-		// nothing
+-	}
++	do
++		old = addr;
++	while(!runtime·cas64(addr, old, v));
++
+ 	return old;
+ }
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index a78b1dfe2c..b186d1b704 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -92,16 +92,15 @@ runtime·atomicstore(uint32 volatile* addr, uint32 v)
+ 
+ #pragma textflag 7
+ bool
+-runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
++runtime·cas64(uint64 volatile *addr, uint64 old, uint64 new)
+ {
+ 	bool res;
+ 	
+ 	runtime·lock(LOCK(addr));
+-	if(*addr == *old) {
++	if(*addr == old) {
+ 		*addr = new;
+ 		res = true;
+ 	} else {
+-		*old = *addr;
+ 		res = false;
+ 	}
+ 	runtime·unlock(LOCK(addr));
+diff --git a/src/pkg/runtime/lfstack.c b/src/pkg/runtime/lfstack.c
+index 1d48491aac..140384d3dc 100644
+--- a/src/pkg/runtime/lfstack.c
++++ b/src/pkg/runtime/lfstack.c
+@@ -29,10 +29,10 @@ runtime·lfstackpush(uint64 *head, LFNode *node)
+ 
+ 	node->pushcnt++;
+ 	new = (uint64)(uintptr)node|(((uint64)node->pushcnt&CNT_MASK)<<PTR_BITS);
+-	old = runtime·atomicload64(head);
+ 	for(;;) {
++		old = runtime·atomicload64(head);
+ 		node->next = (LFNode*)(uintptr)(old&PTR_MASK);
+-		if(runtime·cas64(head, &old, new))
++		if(runtime·cas64(head, old, new))
+ 			break;
+ 	}
+ }
+@@ -43,8 +43,8 @@ runtime·lfstackpop(uint64 *head)
+ 	LFNode *node, *node2;
+ 	uint64 old, new;
+ 
+-	old = runtime·atomicload64(head);
+ 	for(;;) {
++		old = runtime·atomicload64(head);
+ 		if(old == 0)
+ 			return nil;
+ 		node = (LFNode*)(uintptr)(old&PTR_MASK);
+@@ -52,7 +52,7 @@ runtime·lfstackpop(uint64 *head)
+ 		new = 0;
+ 		if(node2 != nil)
+ 			new = (uint64)(uintptr)node2|(((uint64)node2->pushcnt&CNT_MASK)<<PTR_BITS);
+-		if(runtime·cas64(head, &old, new))
++		if(runtime·cas64(head, old, new))
+ 			return node;
+ 	}
+ }
+diff --git a/src/pkg/runtime/parfor.c b/src/pkg/runtime/parfor.c
+index a4468c2afc..ceaac8bc92 100644
+--- a/src/pkg/runtime/parfor.c
++++ b/src/pkg/runtime/parfor.c
+@@ -144,9 +144,9 @@ runtime·parfordo(ParFor *desc)
+ 			if(victim >= tid)
+ 				victim++;
+ 			victimpos = &desc->thr[victim].pos;
+-			pos = runtime·atomicload64(victimpos);
+ 			for(;;) {
+ 				// See if it has any work.
++				pos = runtime·atomicload64(victimpos);
+ 				begin = (uint32)pos;
+ 				end = (uint32)(pos>>32);
+ 				if(begin+1 >= end) {
+@@ -159,7 +159,7 @@ runtime·parfordo(ParFor *desc)
+ 				}
+ 				begin2 = begin + (end-begin)/2;
+ 				newpos = (uint64)begin | (uint64)begin2<<32;
+-				if(runtime·cas64(victimpos, &pos, newpos)) {
++				if(runtime·cas64(victimpos, pos, newpos)) {
+ 					begin = begin2;
+ 					break;
+ 				}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index f59a3f4e80..f0571f1899 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -157,11 +157,12 @@ TestAtomic64(void)
+ 	z64 = 42;
+ 	x64 = 0;
+ 	PREFETCH(&z64);
+-	if(runtime·cas64(&z64, &x64, 1))
++	if(runtime·cas64(&z64, x64, 1))
+ 		runtime·throw("cas64 failed");
+-	if(x64 != 42)
++	if(x64 != 0)
+ 		runtime·throw("cas64 failed");
+-	if(!runtime·cas64(&z64, &x64, 1))
++	x64 = 42;
++	if(!runtime·cas64(&z64, x64, 1))
+ 		runtime·throw("cas64 failed");
+ 	if(x64 != 42 || z64 != 1)
+ 		runtime·throw("cas64 failed");
+@@ -193,7 +194,7 @@ runtime·check(void)
+ 	uint64 h;
+ 	float32 i, i1;
+ 	float64 j, j1;
+-	void* k;
++	byte *k, *k1;
+ 	uint16* l;
+ 	struct x1 {
+ 		byte x;
+@@ -232,6 +233,17 @@ runtime·check(void)
+ 	if(z != 4)
+ 		runtime·throw("cas4");
+ 
++	k = (byte*)0xfedcb123;
++	if(sizeof(void*) == 8)
++		k = (byte*)((uintptr)k<<10);
++	if(runtime·casp((void**)&k, nil, nil))
++		runtime·throw("casp1");
++	k1 = k+1;
++	if(!runtime·casp((void**)&k, k, k1))
++		runtime·throw("casp2");
++	if(k != k1)
++		runtime·throw("casp3");
++
+ 	*(uint64*)&j = ~0ULL;
+ 	if(j == j)
+ 		runtime·throw("float64nan");
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 6c590be633..49503ab41b 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -761,7 +761,7 @@ int32	runtime·write(int32, void*, int32);
+ int32	runtime·close(int32);
+ int32	runtime·mincore(void*, uintptr, byte*);
+ bool	runtime·cas(uint32*, uint32, uint32);
+-bool	runtime·cas64(uint64*, uint64*, uint64);
++bool	runtime·cas64(uint64*, uint64, uint64);
+ bool	runtime·casp(void**, void*, void*);
+ // Don't confuse with XADD x86 instruction,
+ // this one is actually 'addx', that is, add-and-fetch.

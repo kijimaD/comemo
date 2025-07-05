@@ -8,7 +8,56 @@ Date:   Fri Feb 13 13:42:43 2009 -0800
     DELTA=27  (27 added, 0 deleted, 0 changed)
     OCL=25015
     CL=25015
-
+---
  test/bugs/bug137.go | 26 ++++++++++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 31 insertions(+)
+
+diff --git a/test/bugs/bug137.go b/test/bugs/bug137.go
+new file mode 100644
+index 0000000000..1527924116
+--- /dev/null
++++ b/test/bugs/bug137.go
+@@ -0,0 +1,26 @@
++// $G $D/$F.go || echo BUG should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++L1:
++L2:	for i := 0; i < 10; i++ {
++		print(i);
++		break L2;
++	}
++
++L3: ;
++L4:	for i := 0; i < 10; i++ {
++		print(i);
++		break L4;
++	}
++}
++
++/*
++bug137.go:9: break label is not defined: L2
++bug137.go:15: break label is not defined: L4
++*/
+diff --git a/test/golden.out b/test/golden.out
+index c427f423dc..128c71f4df 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -166,6 +166,11 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug136.go
+ BUG: should not compile
+ 
++=========== bugs/bug137.go
++bugs/bug137.go:9: break label is not defined: L2
++bugs/bug137.go:15: break label is not defined: L4
++BUG should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

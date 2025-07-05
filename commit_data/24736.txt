@@ -12,7 +12,7 @@ Date:   Thu Aug 27 10:59:43 2015 +1200
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_386.s         |  7 -------
  src/runtime/asm_amd64.s       |  7 -------
  src/runtime/asm_amd64p32.s    |  7 -------
@@ -24,3 +24,176 @@ Date:   Thu Aug 27 10:59:43 2015 +1200
  src/runtime/atomic_pointer.go |  9 +--------
  src/runtime/atomic_ppc64x.go  |  3 ---
  10 files changed, 1 insertion(+), 54 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index eb9ca6350a..2bc5d8b658 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -551,13 +551,6 @@ TEXT runtime·xchg(SB), NOSPLIT, $0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
+-	MOVL	ptr+0(FP), BX
+-	MOVL	new+4(FP), AX
+-	XCHGL	AX, 0(BX)
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	runtime·xchg(SB)
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ff2da3a858..d165e08333 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -563,13 +563,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	new+8(FP), AX
+-	XCHGQ	AX, 0(BX)
+-	MOVQ	AX, ret+16(FP)
+-	RET
+-
+ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+ 	JMP	runtime·xchg64(SB)
+ 
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index a5d6e8155a..e393431f26 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -517,13 +517,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVQ	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
+-	MOVL	ptr+0(FP), BX
+-	MOVL	new+4(FP), AX
+-	XCHGL	AX, 0(BX)
+-	MOVL	AX, ret+8(FP)
+-	RET
+-
+ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	runtime·xchg(SB)
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 0404124506..60e6b8c4a4 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -584,9 +584,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
+ 	MOVD	R3, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
+-	BR	runtime·xchg64(SB)
+-
+ TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
+ 	BR	runtime·xchg64(SB)
+ 
+diff --git a/src/runtime/atomic_386.go b/src/runtime/atomic_386.go
+index f8d589e33b..204a0eb0bc 100644
+--- a/src/runtime/atomic_386.go
++++ b/src/runtime/atomic_386.go
+@@ -52,9 +52,6 @@ func xadd(ptr *uint32, delta int32) uint32
+ //go:noescape
+ func xchg(ptr *uint32, new uint32) uint32
+ 
+-// NO go:noescape annotation; see atomic_pointer.go.
+-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+-
+ //go:noescape
+ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 
+diff --git a/src/runtime/atomic_amd64x.go b/src/runtime/atomic_amd64x.go
+index edcc6d665e..256b30bb5f 100644
+--- a/src/runtime/atomic_amd64x.go
++++ b/src/runtime/atomic_amd64x.go
+@@ -45,9 +45,6 @@ func xchg(ptr *uint32, new uint32) uint32
+ //go:noescape
+ func xchg64(ptr *uint64, new uint64) uint64
+ 
+-// NO go:noescape annotation; see atomic_pointer.go.
+-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+-
+ //go:noescape
+ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 
+diff --git a/src/runtime/atomic_arm.go b/src/runtime/atomic_arm.go
+index 02a1f35ffa..0c53b102c1 100644
+--- a/src/runtime/atomic_arm.go
++++ b/src/runtime/atomic_arm.go
+@@ -41,16 +41,6 @@ func xchg(addr *uint32, v uint32) uint32 {
+ 	}
+ }
+ 
+-//go:nosplit
+-func xchgp1(addr unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
+-	for {
+-		old := *(*unsafe.Pointer)(addr)
+-		if casp1((*unsafe.Pointer)(addr), old, v) {
+-			return old
+-		}
+-	}
+-}
+-
+ //go:nosplit
+ func xchguintptr(addr *uintptr, v uintptr) uintptr {
+ 	return uintptr(xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
+diff --git a/src/runtime/atomic_arm64.go b/src/runtime/atomic_arm64.go
+index a377e3e4b3..b3af4002c4 100644
+--- a/src/runtime/atomic_arm64.go
++++ b/src/runtime/atomic_arm64.go
+@@ -22,9 +22,6 @@ func xchg(ptr *uint32, new uint32) uint32
+ //go:noescape
+ func xchg64(ptr *uint64, new uint64) uint64
+ 
+-// NO go:noescape annotation; see atomic_pointer.go.
+-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+-
+ //go:noescape
+ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index f84afe0362..ec2ea8a338 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -10,7 +10,7 @@ import "unsafe"
+ // because while ptr does not escape, new does.
+ // If new is marked as not escaping, the compiler will make incorrect
+ // escape analysis decisions about the pointer value being stored.
+-// Instead, these are wrappers around the actual atomics (xchgp1 and so on)
++// Instead, these are wrappers around the actual atomics (casp1 and so on)
+ // that use noescape to convey which arguments do not escape.
+ //
+ // Additionally, these functions must update the shadow heap for
+@@ -22,13 +22,6 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+ }
+ 
+-//go:nosplit
+-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+-	old := xchgp1(noescape(ptr), new)
+-	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+-	return old
+-}
+-
+ //go:nosplit
+ func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
+ 	if !casp1((*unsafe.Pointer)(noescape(unsafe.Pointer(ptr))), noescape(old), new) {
+diff --git a/src/runtime/atomic_ppc64x.go b/src/runtime/atomic_ppc64x.go
+index b58ee5ae33..9273ddf03e 100644
+--- a/src/runtime/atomic_ppc64x.go
++++ b/src/runtime/atomic_ppc64x.go
+@@ -24,9 +24,6 @@ func xchg(ptr *uint32, new uint32) uint32
+ //go:noescape
+ func xchg64(ptr *uint64, new uint64) uint64
+ 
+-// NO go:noescape annotation; see atomic_pointer.go.
+-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+-
+ //go:noescape
+ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 

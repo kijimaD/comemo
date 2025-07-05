@@ -7,6 +7,38 @@ Date:   Fri Jul 30 10:35:07 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1742050
-
+---
  misc/arm/a | 21 +++++++++++++++------
  1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/misc/arm/a b/misc/arm/a
+index 7d810a30f7..701f4941ff 100755
+--- a/misc/arm/a
++++ b/misc/arm/a
+@@ -39,11 +39,20 @@ echo RETVAL: $?'
+ fi
+ 
+ # run the main binary
+-if [ "$*" != "$1" ]; then
+-	args=$(echo $*| cut -d' ' -f2-)
++if [ "-g" == "$1" ]; then
++	adb forward tcp:$2 tcp:$2
++	args=$(echo $*| cut -d' ' -f4-)
++	adb push $3 /data/local/tmp/$3 >/dev/null 2>&1
++	adb shell "$(exp GOARCH) $(exp GOTRACEBACK) $(exp GOGC) \
++		gdbserver :$2 /data/local/tmp/retval /data/local/tmp/$3 $args" \
++		2>&1|tr -d '\r' |tee /tmp/adb.out|grep -v RETVAL
++else
++	if [ "$*" != "$1" ]; then
++		args=$(echo $*| cut -d' ' -f2-)
++	fi
++	adb push $1 /data/local/tmp/$1 >/dev/null 2>&1
++	adb shell "$(exp GOARCH) $(exp GOTRACEBACK) $(exp GOGC) \
++		/data/local/tmp/retval /data/local/tmp/$1 $args" \
++		2>&1|tr -d '\r' |tee /tmp/adb.out|grep -v RETVAL
+ fi
+-adb push $1 /data/local/tmp/$1 >/dev/null 2>&1
+-adb shell "$(exp GOARCH) $(exp GOTRACEBACK) $(exp GOGC) \
+-	/data/local/tmp/retval /data/local/tmp/$1 $args" \
+-	2>&1|tr -d '\r' |tee /tmp/adb.out|grep -v RETVAL
+ exit $(grep RETVAL /tmp/adb.out|tr -d '\n\r'| cut -d' ' -f2)

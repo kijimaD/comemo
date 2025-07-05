@@ -12,7 +12,188 @@ Date:   Wed Feb 15 11:06:16 2012 +1100
     R=adg, rsc, r
     CC=golang-dev
     https://golang.org/cl/5666044
-
+---
  src/pkg/bytes/reader.go      | 110 +++++++++++++++++++++++++++++++++++++++++++
  src/pkg/bytes/reader_test.go |  58 +++++++++++++++++++++++
  2 files changed, 168 insertions(+)
+
+diff --git a/src/pkg/bytes/reader.go b/src/pkg/bytes/reader.go
+new file mode 100644
+index 0000000000..b2f7a44dc4
+--- /dev/null
++++ b/src/pkg/bytes/reader.go
+@@ -0,0 +1,110 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytes
++
++import (
++	"errors"
++	"io"
++	"unicode/utf8"
++)
++
++// A Reader implements the io.Reader, io.Seeker, io.ByteScanner, and
++// io.RuneScanner interfaces by reading from a byte slice.
++// Unlike a Buffer, a Reader is read-only and supports seeking.
++type Reader struct {
++	s        []byte
++	i        int // current reading index
++	prevRune int // index of previous rune; or < 0
++}
++
++// Len returns the number of bytes of the unread portion of the
++// slice.
++func (r *Reader) Len() int {
++	if r.i >= len(r.s) {
++		return 0
++	}
++	return len(r.s) - r.i
++}
++
++func (r *Reader) Read(b []byte) (n int, err error) {
++	if len(b) == 0 {
++		return 0, nil
++	}
++	if r.i >= len(r.s) {
++		return 0, io.EOF
++	}
++	n = copy(b, r.s[r.i:])
++	r.i += n
++	r.prevRune = -1
++	return
++}
++
++func (r *Reader) ReadByte() (b byte, err error) {
++	if r.i >= len(r.s) {
++		return 0, io.EOF
++	}
++	b = r.s[r.i]
++	r.i++
++	r.prevRune = -1
++	return
++}
++
++func (r *Reader) UnreadByte() error {
++	if r.i <= 0 {
++		return errors.New("bytes.Reader: at beginning of slice")
++	}
++	r.i--
++	r.prevRune = -1
++	return nil
++}
++
++func (r *Reader) ReadRune() (ch rune, size int, err error) {
++	if r.i >= len(r.s) {
++		return 0, 0, io.EOF
++	}
++	r.prevRune = r.i
++	if c := r.s[r.i]; c < utf8.RuneSelf {
++		r.i++
++		return rune(c), 1, nil
++	}
++	ch, size = utf8.DecodeRune(r.s[r.i:])
++	r.i += size
++	return
++}
++
++func (r *Reader) UnreadRune() error {
++	if r.prevRune < 0 {
++		return errors.New("bytes.Reader: previous operation was not ReadRune")
++	}
++	r.i = r.prevRune
++	r.prevRune = -1
++	return nil
++}
++
++// Seek implements the io.Seeker interface.
++func (r *Reader) Seek(offset int64, whence int) (int64, error) {
++	var abs int64
++	switch whence {
++	case 0:
++		abs = offset
++	case 1:
++		abs = int64(r.i) + offset
++	case 2:
++		abs = int64(len(r.s)) + offset
++	default:
++		return 0, errors.New("bytes: invalid whence")
++	}
++	if abs < 0 {
++		return 0, errors.New("bytes: negative position")
++	}
++	if abs >= 1<<31 {
++		return 0, errors.New("bytes: position out of range")
++	}
++	r.i = int(abs)
++	return abs, nil
++}
++
++// NewReader returns a new Reader reading from b.
++func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }
+diff --git a/src/pkg/bytes/reader_test.go b/src/pkg/bytes/reader_test.go
+new file mode 100644
+index 0000000000..52a63f1b07
+--- /dev/null
++++ b/src/pkg/bytes/reader_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytes_test
++
++import (
++	. "bytes"
++	"os"
++	"testing"
++)
++
++func TestReader(t *testing.T) {
++	r := NewReader([]byte("0123456789"))
++	tests := []struct {
++		off     int64
++		seek    int
++		n       int
++		want    string
++		wantpos int64
++		seekerr string
++	}{
++		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
++		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
++		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
++		{seek: os.SEEK_SET, off: -1, seekerr: "bytes: negative position"},
++		{seek: os.SEEK_SET, off: 1<<31 - 1},
++		{seek: os.SEEK_CUR, off: 1, seekerr: "bytes: position out of range"},
++		{seek: os.SEEK_SET, n: 5, want: "01234"},
++		{seek: os.SEEK_CUR, n: 5, want: "56789"},
++		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
++	}
++
++	for i, tt := range tests {
++		pos, err := r.Seek(tt.off, tt.seek)
++		if err == nil && tt.seekerr != "" {
++			t.Errorf("%d. want seek error %q", i, tt.seekerr)
++			continue
++		}
++		if err != nil && err.Error() != tt.seekerr {
++			t.Errorf("%d. seek error = %q; want %q", i, err.Error(), tt.seekerr)
++			continue
++		}
++		if tt.wantpos != 0 && tt.wantpos != pos {
++			t.Errorf("%d. pos = %d, want %d", i, pos, tt.wantpos)
++		}
++		buf := make([]byte, tt.n)
++		n, err := r.Read(buf)
++		if err != nil {
++			t.Errorf("%d. read = %v", i, err)
++			continue
++		}
++		got := string(buf[:n])
++		if got != tt.want {
++			t.Errorf("%d. got %q; want %q", i, got, tt.want)
++		}
++	}
++}

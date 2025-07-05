@@ -7,6 +7,23 @@ Date:   Wed Jan 18 14:59:58 2012 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5554055
-
+---
  src/pkg/go/doc/doc_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index cb9fffc896..0a4830148a 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -77,6 +77,11 @@ func Test(t *testing.T) {
+ 		importpath := dataDir + "/" + pkg.Name
+ 		doc := New(pkg, importpath, 0)
+ 
++		// golden files always use / in filenames - canonicalize them
++		for i, filename := range doc.Filenames {
++			doc.Filenames[i] = filepath.ToSlash(filename)
++		}
++
+ 		// print documentation
+ 		var buf bytes.Buffer
+ 		if err := templateTxt.Execute(&buf, bundle{doc, fset}); err != nil {

@@ -11,6 +11,22 @@ Date:   Thu Jan 6 15:15:31 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3880041
-
+---
  src/cmd/cgo/ast.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 7c64a5d246..8689ac3dac 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -141,6 +141,10 @@ func (f *File) saveRef(x interface{}, context string) {
+ 				context = "expr"
+ 			}
+ 			goname := sel.Sel.Name
++			if goname == "errno" {
++				error(sel.Pos(), "cannot refer to errno directly; see documentation")
++				return
++			}
+ 			name := f.Name[goname]
+ 			if name == nil {
+ 				name = &Name{

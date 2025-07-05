@@ -7,6 +7,22 @@ Date:   Fri Feb 20 12:23:27 2015 -0500
     Change-Id: I780ed76c9217d387a73fd7530af2f40948aa1fe4
     Reviewed-on: https://go-review.googlesource.com/5452
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index a7bffee4fa..eeed4700ba 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -75,6 +75,10 @@ func Set(GOARCH string) *Arch {
+ 		a := archPPC64()
+ 		a.LinkArch = &ppc64.Linkppc64
+ 		return a
++	case "ppc64le":
++		a := archPPC64()
++		a.LinkArch = &ppc64.Linkppc64le
++		return a
+ 	}
+ 	return nil
+ }

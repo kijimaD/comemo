@@ -13,6 +13,39 @@ Date:   Sun Oct 18 09:49:16 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/263417
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/example_test.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/net/example_test.go b/src/net/example_test.go
+index ef8c38f9f4..72c7183c13 100644
+--- a/src/net/example_test.go
++++ b/src/net/example_test.go
+@@ -55,6 +55,27 @@ func ExampleDialer() {
+ 	}
+ }
+ 
++func ExampleDialer_unix() {
++	// DialUnix does not take a context.Context parameter. This example shows
++	// how to dial a Unix socket with a Context. Note that the Context only
++	// applies to the dial operation; it does not apply to the connection once
++	// it has been established.
++	var d net.Dialer
++	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
++	defer cancel()
++
++	d.LocalAddr = nil // if you have a local addr, add it here
++	raddr := net.UnixAddr{Name: "/path/to/unix.sock", Net: "unix"}
++	conn, err := d.DialContext(ctx, "unix", raddr.String())
++	if err != nil {
++		log.Fatalf("Failed to dial: %v", err)
++	}
++	defer conn.Close()
++	if _, err := conn.Write([]byte("Hello, socket!")); err != nil {
++		log.Fatal(err)
++	}
++}
++
+ func ExampleIPv4() {
+ 	fmt.Println(net.IPv4(8, 8, 8, 8))
+ 

@@ -7,6 +7,19 @@ Date:   Fri Jan 7 16:17:47 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3909041
-
+---
  src/pkg/crypto/block/cipher.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/crypto/block/cipher.go b/src/pkg/crypto/block/cipher.go
+index a50d05c294..e1099e9a10 100644
+--- a/src/pkg/crypto/block/cipher.go
++++ b/src/pkg/crypto/block/cipher.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// The block package is deprecated, use cipher instead.
+ // The block package implements standard block cipher modes
+ // that can be wrapped around low-level block cipher implementations.
+ // See http://csrc.nist.gov/groups/ST/toolkit/BCM/current_modes.html

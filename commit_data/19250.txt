@@ -13,8 +13,72 @@ Date:   Mon Apr 28 12:47:09 2014 -0400
     R=rsc, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/89360043
-
+---
  src/pkg/runtime/malloc.h |  1 +
  src/pkg/runtime/mgc0.go  |  5 +++++
  src/pkg/runtime/proc.c   | 17 ++++++++++++++++-
  3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 62e1f8f56e..dbea7ad135 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -631,6 +631,7 @@ BitVector	runtime·stackmapdata(StackMap *stackmap, int32 n);
+ 
+ // defined in mgc0.go
+ void	runtime·gc_m_ptr(Eface*);
++void	runtime·gc_g_ptr(Eface*);
+ void	runtime·gc_itab_ptr(Eface*);
+ 
+ void	runtime·memorydump(void);
+diff --git a/src/pkg/runtime/mgc0.go b/src/pkg/runtime/mgc0.go
+index b150546622..00b2710166 100644
+--- a/src/pkg/runtime/mgc0.go
++++ b/src/pkg/runtime/mgc0.go
+@@ -9,6 +9,11 @@ func gc_m_ptr(ret *interface{}) {
+ 	*ret = (*m)(nil)
+ }
+ 
++// Called from C. Returns the Go type *g.
++func gc_g_ptr(ret *interface{}) {
++	*ret = (*g)(nil)
++}
++
+ // Called from C. Returns the Go type *itab.
+ func gc_itab_ptr(ret *interface{}) {
+ 	*ret = (*itab)(nil)
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 52b02d94bb..7500e8a5f9 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -687,6 +687,21 @@ runtime·allocm(P *p)
+ 	return mp;
+ }
+ 
++static G*
++allocg(void)
++{
++	G *gp;
++	static Type *gtype;
++	
++	if(gtype == nil) {
++		Eface e;
++		runtime·gc_g_ptr(&e);
++		gtype = ((PtrType*)e.type)->elem;
++	}
++	gp = runtime·cnew(gtype);
++	return gp;
++}
++
+ static M* lockextra(bool nilokay);
+ static void unlockextra(M*);
+ 
+@@ -1746,7 +1761,7 @@ runtime·malg(int32 stacksize)
+ 		runtime·throw("runtime: bad stack.h");
+ 	}
+ 
+-	newg = runtime·malloc(sizeof(G));
++	newg = allocg();
+ 	if(stacksize >= 0) {
+ 		stacksize = runtime·round2(StackSystem + stacksize);
+ 		if(g == m->g0) {

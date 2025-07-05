@@ -9,7 +9,32 @@ Date:   Wed Dec 18 15:48:05 2013 +1100
     R=gobot, nikai
     CC=golang-dev
     https://golang.org/cl/43620043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 223f30966f..745ef7580a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -254,6 +254,7 @@ Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
+ Nicholas Sullivan <nicholas.sullivan@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
++Nicolas Kaiser <nikai@nikai.net>
+ Nicolas Owens <mischief@offblast.org>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Noah Campbell <noahcampbell@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7d0f7ad58f..291272592b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -368,6 +368,7 @@ Nicholas Presta <nick@nickpresta.ca> <nick1presta@gmail.com>
+ Nicholas Sullivan <nicholas.sullivan@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+ Nick Craig-Wood <nick@craig-wood.com> <nickcw@gmail.com>
++Nicolas Kaiser <nikai@nikai.net>
+ Nicolas Owens <mischief@offblast.org>
+ Nigel Kerr <nigel.kerr@gmail.com>
+ Nigel Tao <nigeltao@golang.org>

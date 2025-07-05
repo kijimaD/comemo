@@ -16,7 +16,7 @@ Date:   Sun Aug 23 22:08:27 2015 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../syscall/windows/registry/registry_test.go      | 72 ++++++++++++++++++++++
  src/internal/syscall/windows/registry/syscall.go   |  5 ++
  src/internal/syscall/windows/registry/value.go     | 47 ++++++++++++++
@@ -24,3 +24,284 @@ Date:   Sun Aug 23 22:08:27 2015 +0200
  src/time/zoneinfo_windows.go                       | 32 ++++++----
  src/time/zoneinfo_windows_test.go                  | 22 +++++--
  6 files changed, 170 insertions(+), 17 deletions(-)
+
+diff --git a/src/internal/syscall/windows/registry/registry_test.go b/src/internal/syscall/windows/registry/registry_test.go
+index 07eccb23d8..f63248cc3a 100644
+--- a/src/internal/syscall/windows/registry/registry_test.go
++++ b/src/internal/syscall/windows/registry/registry_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"syscall"
+ 	"testing"
++	"unsafe"
+ 
+ 	"internal/syscall/windows/registry"
+ )
+@@ -676,3 +677,74 @@ func TestInvalidValues(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestGetMUIStringValue(t *testing.T) {
++	if err := registry.LoadRegLoadMUIString(); err != nil {
++		t.Skip("regLoadMUIString not supported; skipping")
++	}
++	if err := procGetDynamicTimeZoneInformation.Find(); err != nil {
++		t.Skipf("%s not supported; skipping", procGetDynamicTimeZoneInformation.Name)
++	}
++	var dtzi DynamicTimezoneinformation
++	if _, err := GetDynamicTimeZoneInformation(&dtzi); err != nil {
++		t.Fatal(err)
++	}
++	tzKeyName := syscall.UTF16ToString(dtzi.TimeZoneKeyName[:])
++	timezoneK, err := registry.OpenKey(registry.LOCAL_MACHINE,
++		`SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\`+tzKeyName, registry.READ)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer timezoneK.Close()
++
++	var tests = []struct {
++		key  registry.Key
++		name string
++		want string
++	}{
++		{key: timezoneK, name: "MUI_Std", want: syscall.UTF16ToString(dtzi.StandardName[:])},
++		{key: timezoneK, name: "MUI_Dlt", want: syscall.UTF16ToString(dtzi.DaylightName[:])},
++	}
++
++	for _, test := range tests {
++		got, err := test.key.GetMUIStringValue(test.name)
++		if err != nil {
++			t.Error("GetMUIStringValue:", err)
++		}
++
++		if got != test.want {
++			t.Errorf("GetMUIStringValue: %s: Got %q, want %q", test.name, got, test.want)
++		}
++	}
++}
++
++type DynamicTimezoneinformation struct {
++	Bias                        int32
++	StandardName                [32]uint16
++	StandardDate                syscall.Systemtime
++	StandardBias                int32
++	DaylightName                [32]uint16
++	DaylightDate                syscall.Systemtime
++	DaylightBias                int32
++	TimeZoneKeyName             [128]uint16
++	DynamicDaylightTimeDisabled uint8
++}
++
++var (
++	kernel32DLL = syscall.NewLazyDLL("kernel32")
++
++	procGetDynamicTimeZoneInformation = kernel32DLL.NewProc("GetDynamicTimeZoneInformation")
++)
++
++func GetDynamicTimeZoneInformation(dtzi *DynamicTimezoneinformation) (rc uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetDynamicTimeZoneInformation.Addr(), 1, uintptr(unsafe.Pointer(dtzi)), 0, 0)
++	rc = uint32(r0)
++	if rc == 0xffffffff {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/internal/syscall/windows/registry/syscall.go b/src/internal/syscall/windows/registry/syscall.go
+index 38e573fd22..5426cae909 100644
+--- a/src/internal/syscall/windows/registry/syscall.go
++++ b/src/internal/syscall/windows/registry/syscall.go
+@@ -19,10 +19,15 @@ const (
+ 	_ERROR_NO_MORE_ITEMS syscall.Errno = 259
+ )
+ 
++func LoadRegLoadMUIString() error {
++	return procRegLoadMUIStringW.Find()
++}
++
+ //sys	regCreateKeyEx(key syscall.Handle, subkey *uint16, reserved uint32, class *uint16, options uint32, desired uint32, sa *syscall.SecurityAttributes, result *syscall.Handle, disposition *uint32) (regerrno error) = advapi32.RegCreateKeyExW
+ //sys	regDeleteKey(key syscall.Handle, subkey *uint16) (regerrno error) = advapi32.RegDeleteKeyW
+ //sys	regSetValueEx(key syscall.Handle, valueName *uint16, reserved uint32, vtype uint32, buf *byte, bufsize uint32) (regerrno error) = advapi32.RegSetValueExW
+ //sys	regEnumValue(key syscall.Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegEnumValueW
+ //sys	regDeleteValue(key syscall.Handle, name *uint16) (regerrno error) = advapi32.RegDeleteValueW
++//sys   regLoadMUIString(key syscall.Handle, name *uint16, buf *uint16, buflen uint32, buflenCopied *uint32, flags uint32, dir *uint16) (regerrno error) = advapi32.RegLoadMUIStringW
+ 
+ //sys	expandEnvironmentStrings(src *uint16, dst *uint16, size uint32) (n uint32, err error) = kernel32.ExpandEnvironmentStringsW
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+index f4bb1b35a5..322b941593 100644
+--- a/src/internal/syscall/windows/registry/value.go
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -112,6 +112,53 @@ func (k Key) GetStringValue(name string) (val string, valtype uint32, err error)
+ 	return syscall.UTF16ToString(u), typ, nil
+ }
+ 
++// GetMUIStringValue retrieves the localized string value for
++// the specified value name associated with an open key k.
++// If the value name doesn't exist or the localized string value
++// can't be resolved, GetMUIStringValue returns ErrNotExist.
++// GetMUIStringValue panics if the system doesn't support
++// regLoadMUIString; use LoadRegLoadMUIString to check if
++// regLoadMUIString is supported before calling this function.
++func (k Key) GetMUIStringValue(name string) (string, error) {
++	pname, err := syscall.UTF16PtrFromString(name)
++	if err != nil {
++		return "", err
++	}
++
++	buf := make([]uint16, 1024)
++	var buflen uint32
++	var pdir *uint16
++
++	err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
++	if err == syscall.ERROR_FILE_NOT_FOUND { // Try fallback path
++		var s string
++		s, err = ExpandString("%SystemRoot%\\system32\\")
++		if err != nil {
++			return "", err
++		}
++		pdir, err = syscall.UTF16PtrFromString(s)
++		if err != nil {
++			return "", err
++		}
++
++		err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
++	}
++
++	for err == syscall.ERROR_MORE_DATA { // Grow buffer if needed
++		if buflen <= uint32(len(buf)) {
++			break // Buffer not growing, assume race; break
++		}
++		buf = make([]uint16, buflen)
++		err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
++	}
++
++	if err != nil {
++		return "", err
++	}
++
++	return syscall.UTF16ToString(buf), nil
++}
++
+ // ExpandString expands environment-variable strings and replaces
+ // them with the values defined for the current user.
+ // Use ExpandString to expand EXPAND_SZ strings.
+diff --git a/src/internal/syscall/windows/registry/zsyscall_windows.go b/src/internal/syscall/windows/registry/zsyscall_windows.go
+index 2b3de633c9..9c17675a24 100644
+--- a/src/internal/syscall/windows/registry/zsyscall_windows.go
++++ b/src/internal/syscall/windows/registry/zsyscall_windows.go
+@@ -16,6 +16,7 @@ var (
+ 	procRegSetValueExW            = modadvapi32.NewProc("RegSetValueExW")
+ 	procRegEnumValueW             = modadvapi32.NewProc("RegEnumValueW")
+ 	procRegDeleteValueW           = modadvapi32.NewProc("RegDeleteValueW")
++	procRegLoadMUIStringW         = modadvapi32.NewProc("RegLoadMUIStringW")
+ 	procExpandEnvironmentStringsW = modkernel32.NewProc("ExpandEnvironmentStringsW")
+ )
+ 
+@@ -59,6 +60,14 @@ func regDeleteValue(key syscall.Handle, name *uint16) (regerrno error) {
+ 	return
+ }
+ 
++func regLoadMUIString(key syscall.Handle, name *uint16, buf *uint16, buflen uint32, buflenCopied *uint32, flags uint32, dir *uint16) (regerrno error) {
++	r0, _, _ := syscall.Syscall9(procRegLoadMUIStringW.Addr(), 7, uintptr(key), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buf)), uintptr(buflen), uintptr(unsafe.Pointer(buflenCopied)), uintptr(flags), uintptr(unsafe.Pointer(dir)), 0, 0)
++	if r0 != 0 {
++		regerrno = syscall.Errno(r0)
++	}
++	return
++}
++
+ func expandEnvironmentStrings(src *uint16, dst *uint16, size uint32) (n uint32, err error) {
+ 	r0, _, e1 := syscall.Syscall(procExpandEnvironmentStringsW.Addr(), 3, uintptr(unsafe.Pointer(src)), uintptr(unsafe.Pointer(dst)), uintptr(size))
+ 	n = uint32(r0)
+diff --git a/src/time/zoneinfo_windows.go b/src/time/zoneinfo_windows.go
+index d04ebec614..bcb8ccd563 100644
+--- a/src/time/zoneinfo_windows.go
++++ b/src/time/zoneinfo_windows.go
+@@ -20,8 +20,9 @@ import (
+ // The implementation assumes that this year's rules for daylight savings
+ // time apply to all previous and future years as well.
+ 
+-// matchZoneKey checks if stdname and dstname match the corresponding "Std"
+-// and "Dlt" key values in the kname key stored under the open registry key zones.
++// matchZoneKey checks if stdname and dstname match the corresponding key
++// values "MUI_Std" and MUI_Dlt" or "Std" and "Dlt" (the latter down-level
++// from Vista) in the kname key stored under the open registry key zones.
+ func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
+ 	k, err := registry.OpenKey(zones, kname, registry.READ)
+ 	if err != nil {
+@@ -29,18 +30,27 @@ func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (ma
+ 	}
+ 	defer k.Close()
+ 
+-	s, _, err := k.GetStringValue("Std")
+-	if err != nil {
+-		return false, err
++	var std, dlt string
++	if err = registry.LoadRegLoadMUIString(); err == nil {
++		// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
++		std, err = k.GetMUIStringValue("MUI_Std")
++		if err == nil {
++			dlt, err = k.GetMUIStringValue("MUI_Dlt")
++		}
+ 	}
+-	if s != stdname {
+-		return false, nil
++	if err != nil { // Fallback to Std and Dlt
++		if std, _, err = k.GetStringValue("Std"); err != nil {
++			return false, err
++		}
++		if dlt, _, err = k.GetStringValue("Dlt"); err != nil {
++			return false, err
++		}
+ 	}
+-	s, _, err = k.GetStringValue("Dlt")
+-	if err != nil {
+-		return false, err
++
++	if std != stdname {
++		return false, nil
+ 	}
+-	if s != dstname && dstname != stdname {
++	if dlt != dstname && dstname != stdname {
+ 		return false, nil
+ 	}
+ 	return true, nil
+diff --git a/src/time/zoneinfo_windows_test.go b/src/time/zoneinfo_windows_test.go
+index 5f1141d3ca..7ac1e86822 100644
+--- a/src/time/zoneinfo_windows_test.go
++++ b/src/time/zoneinfo_windows_test.go
+@@ -42,14 +42,24 @@ func TestToEnglishName(t *testing.T) {
+ 		t.Fatalf("cannot open CEST time zone information from registry: %s", err)
+ 	}
+ 	defer k.Close()
+-	std, _, err := k.GetStringValue("Std")
+-	if err != nil {
+-		t.Fatalf("cannot read CEST Std registry key: %s", err)
++
++	var std, dlt string
++	if err = registry.LoadRegLoadMUIString(); err == nil {
++		// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
++		std, err = k.GetMUIStringValue("MUI_Std")
++		if err == nil {
++			dlt, err = k.GetMUIStringValue("MUI_Dlt")
++		}
+ 	}
+-	dlt, _, err := k.GetStringValue("Dlt")
+-	if err != nil {
+-		t.Fatalf("cannot read CEST Dlt registry key: %s", err)
++	if err != nil { // Fallback to Std and Dlt
++		if std, _, err = k.GetStringValue("Std"); err != nil {
++			t.Fatalf("cannot read CEST Std registry key: %s", err)
++		}
++		if dlt, _, err = k.GetStringValue("Dlt"); err != nil {
++			t.Fatalf("cannot read CEST Dlt registry key: %s", err)
++		}
+ 	}
++
+ 	name, err := ToEnglishName(std, dlt)
+ 	if err != nil {
+ 		t.Fatalf("toEnglishName failed: %s", err)

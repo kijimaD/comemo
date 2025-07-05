@@ -10,6 +10,20 @@ Date:   Thu Jan 23 16:26:42 2014 -0800
     R=golang-codereviews, dsymonds
     CC=golang-codereviews
     https://golang.org/cl/55980046
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 094ab3d921..74f9f3db9f 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -850,7 +850,7 @@ func Compare(a, b []byte) int {
+ }
+ </pre>
+ 
+-<h2 id="type_switch">Type switch</h2>
++<h3 id="type_switch">Type switch</h3>
+ 
+ <p>
+ A switch can also be used to discover the dynamic type of an interface

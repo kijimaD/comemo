@@ -17,6 +17,38 @@ Date:   Mon Jul 6 09:42:52 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 79836c0d67..96e239ad77 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -99,6 +99,7 @@ var depsRules = `
+ 	RUNTIME
+ 	< io;
+ 
++	syscall !< io;
+ 	reflect !< sort;
+ 
+ 	RUNTIME, unicode/utf8
+@@ -121,6 +122,9 @@ var depsRules = `
+ 	< context
+ 	< TIME;
+ 
++	TIME, io, sort
++	< io/fs;
++
+ 	# MATH is RUNTIME plus the basic math packages.
+ 	RUNTIME
+ 	< math
+@@ -150,7 +154,7 @@ var depsRules = `
+ 	# OS is basic OS access, including helpers (path/filepath, os/exec, etc).
+ 	# OS includes string routines, but those must be layered above package os.
+ 	# OS does not include reflection.
+-	TIME, io, sort
++	io/fs
+ 	< internal/testlog
+ 	< internal/poll
+ 	< os

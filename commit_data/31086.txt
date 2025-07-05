@@ -12,7 +12,70 @@ Date:   Thu Jan 26 09:00:56 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  6 ++++--
  test/fixedbugs/issue18640.go        | 26 ++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a861a3556b..11f0547d5e 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -339,13 +339,15 @@ func Main() {
+ 	// Phase 1: const, type, and names and types of funcs.
+ 	//   This will gather all the information about types
+ 	//   and methods but doesn't depend on any of it.
++	//   We also defer type alias declarations until phase 2
++	//   to avoid cycles like #18640.
+ 	defercheckwidth()
+ 
+ 	// Don't use range--typecheck can add closures to xtop.
+ 	timings.Start("fe", "typecheck", "top1")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op != ODCL && op != OAS && op != OAS2 {
++		if op := n.Op; op != ODCL && op != OAS && op != OAS2 && (op != ODCLTYPE || !n.Left.Name.Param.Alias) {
+ 			xtop[i] = typecheck(n, Etop)
+ 		}
+ 	}
+@@ -357,7 +359,7 @@ func Main() {
+ 	timings.Start("fe", "typecheck", "top2")
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op == ODCL || op == OAS || op == OAS2 {
++		if op := n.Op; op == ODCL || op == OAS || op == OAS2 || op == ODCLTYPE && n.Left.Name.Param.Alias {
+ 			xtop[i] = typecheck(n, Etop)
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue18640.go b/test/fixedbugs/issue18640.go
+new file mode 100644
+index 0000000000..c4f948b706
+--- /dev/null
++++ b/test/fixedbugs/issue18640.go
+@@ -0,0 +1,26 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	a = b
++	b struct {
++		*a
++	}
++
++	c struct {
++		*d
++	}
++	d = c
++
++	e = f
++	f = g
++	g = []h
++	h i
++	i = j
++	j = e
++)

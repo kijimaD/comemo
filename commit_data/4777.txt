@@ -11,8 +11,106 @@ Date:   Thu Feb 4 15:39:27 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/196090
-
+---
  src/pkg/time/format.go    | 27 ++++++++++++++++++++++-----
  src/pkg/time/time_test.go | 15 +++++++++++++++
  src/pkg/time/zoneinfo.go  |  1 +
  3 files changed, 38 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 22d92ebdbe..2c6406ebc9 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -28,9 +28,12 @@ const (
+ 	ANSIC    = "Mon Jan _2 15:04:05 2006"
+ 	UnixDate = "Mon Jan _2 15:04:05 MST 2006"
+ 	RubyDate = "Mon Jan 02 15:04:05 -0700 2006"
+-	RFC850   = "Monday, 02-Jan-06 15:04:05 MST"
+-	RFC1123  = "Mon, 02 Jan 2006 15:04:05 MST"
+-	Kitchen  = "3:04PM"
++	RFC822   = "02 Jan 06 1504 MST"
++	// RFC822 with Zulu time.
++	RFC822Z = "02 Jan 06 1504 -0700"
++	RFC850  = "Monday, 02-Jan-06 15:04:05 MST"
++	RFC1123 = "Mon, 02 Jan 2006 15:04:05 MST"
++	Kitchen = "3:04PM"
+ 	// Special case: use Z to get the time zone formatted according to ISO 8601,
+ 	// which is -0700 or Z for UTC
+ 	ISO8601 = "2006-01-02T15:04:05Z"
+@@ -209,7 +212,7 @@ func (t *Time) Format(layout string) string {
+ 		case stdISO8601TZ, stdNumTZ:
+ 			// Ugly special case.  We cheat and take "Z" to mean "the time
+ 			// zone as formatted for ISO 8601".
+-			zone := t.ZoneOffset / 60 // conver to minutes
++			zone := t.ZoneOffset / 60 // convert to minutes
+ 			if p == stdISO8601TZ && t.ZoneOffset == 0 {
+ 				p = "Z"
+ 			} else {
+@@ -248,7 +251,21 @@ func (t *Time) Format(layout string) string {
+ 				p = "am"
+ 			}
+ 		case stdTZ:
+-			p = t.Zone
++			if t.Zone != "" {
++				p = t.Zone
++			} else {
++				// No time zone known for this time, but we must print one.
++				// Use the -0700 format.
++				zone := t.ZoneOffset / 60 // convert to minutes
++				if zone < 0 {
++					p = "-"
++					zone = -zone
++				} else {
++					p = "+"
++				}
++				p += zeroPad(zone / 60)
++				p += zeroPad(zone % 60)
++			}
+ 		}
+ 		b.WriteString(p)
+ 	}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 2fb5b668ca..ab0da37e98 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -133,6 +133,7 @@ var formatTests = []FormatTest{
+ 	FormatTest{"ANSIC", ANSIC, "Thu Feb  4 21:00:57 2010"},
+ 	FormatTest{"UnixDate", UnixDate, "Thu Feb  4 21:00:57 PST 2010"},
+ 	FormatTest{"RubyDate", RubyDate, "Thu Feb 04 21:00:57 -0800 2010"},
++	FormatTest{"RFC822", RFC822, "04 Feb 10 2100 PST"},
+ 	FormatTest{"RFC850", RFC850, "Thursday, 04-Feb-10 21:00:57 PST"},
+ 	FormatTest{"RFC1123", RFC1123, "Thu, 04 Feb 2010 21:00:57 PST"},
+ 	FormatTest{"ISO8601", ISO8601, "2010-02-04T21:00:57-0800"},
+@@ -286,6 +287,20 @@ func TestParseErrors(t *testing.T) {
+ 	}
+ }
+ 
++// Check that a time without a Zone still produces a (numeric) time zone
++// when formatted with MST as a requested zone.
++func TestMissingZone(t *testing.T) {
++	time, err := Parse(RubyDate, "Tue Feb 02 16:10:03 -0500 2006")
++	if err != nil {
++		t.Fatal("error parsing date:", err)
++	}
++	expect := "Tue Feb  2 16:10:03 -0500 2006" // -0500 not EST
++	str := time.Format(UnixDate)               // uses MST as its time zone
++	if str != expect {
++		t.Errorf("expected %q got %q", expect, str)
++	}
++}
++
+ func BenchmarkSeconds(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Seconds()
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index 98d816b101..7884898f72 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -221,6 +221,7 @@ func setupZone() {
+ 	}
+ }
+ 
++// Look up the correct time zone (daylight savings or not) for the given unix time, in the current location.
+ func lookupTimezone(sec int64) (zone string, offset int) {
+ 	once.Do(setupZone)
+ 	if len(zones) == 0 {

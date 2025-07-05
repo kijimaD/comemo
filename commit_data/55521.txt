@@ -17,8 +17,631 @@ Date:   Mon Jan 9 14:29:49 2023 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/allocators.go | 133 +++++----
  src/cmd/compile/internal/ssa/allocators.go      | 378 +++++++++++-------------
  src/cmd/compile/internal/ssa/cache.go           |   7 +-
  3 files changed, 254 insertions(+), 264 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/allocators.go b/src/cmd/compile/internal/ssa/_gen/allocators.go
+index 48a2598d05..5c72fe8be1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/allocators.go
++++ b/src/cmd/compile/internal/ssa/_gen/allocators.go
+@@ -23,6 +23,12 @@ type allocator struct {
+ 	maxLog   int    // log_2 of maximum allocation size
+ }
+ 
++type derived struct {
++	name string // name for alloc/free functions
++	typ  string // the type they return/accept
++	base string // underlying allocator
++}
++
+ func genAllocators() {
+ 	allocators := []allocator{
+ 		{
+@@ -36,65 +42,15 @@ func genAllocators() {
+ 			maxLog:   32,
+ 		},
+ 		{
+-			name:     "BlockSlice",
+-			typ:      "[]*Block",
++			name:     "Int64Slice",
++			typ:      "[]int64",
+ 			capacity: "cap(%s)",
+-			mak:      "make([]*Block, %s)",
+-			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = nil\n}",
+-			minLog:   5,
+-			maxLog:   32,
+-		},
+-		{
+-			name:     "BoolSlice",
+-			typ:      "[]bool",
+-			capacity: "cap(%s)",
+-			mak:      "make([]bool, %s)",
+-			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = false\n}",
+-			minLog:   8,
+-			maxLog:   32,
+-		},
+-		{
+-			name:     "IntSlice",
+-			typ:      "[]int",
+-			capacity: "cap(%s)",
+-			mak:      "make([]int, %s)",
++			mak:      "make([]int64, %s)",
+ 			resize:   "%s[:%s]",
+ 			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
+ 			minLog:   5,
+ 			maxLog:   32,
+ 		},
+-		{
+-			name:     "Int32Slice",
+-			typ:      "[]int32",
+-			capacity: "cap(%s)",
+-			mak:      "make([]int32, %s)",
+-			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
+-			minLog:   6,
+-			maxLog:   32,
+-		},
+-		{
+-			name:     "Int8Slice",
+-			typ:      "[]int8",
+-			capacity: "cap(%s)",
+-			mak:      "make([]int8, %s)",
+-			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
+-			minLog:   8,
+-			maxLog:   32,
+-		},
+-		{
+-			name:     "IDSlice",
+-			typ:      "[]ID",
+-			capacity: "cap(%s)",
+-			mak:      "make([]ID, %s)",
+-			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
+-			minLog:   6,
+-			maxLog:   32,
+-		},
+ 		{
+ 			name:     "SparseSet",
+ 			typ:      "*sparseSet",
+@@ -126,6 +82,38 @@ func genAllocators() {
+ 			maxLog:   32,
+ 		},
+ 	}
++	deriveds := []derived{
++		{
++			name: "BlockSlice",
++			typ:  "[]*Block",
++			base: "ValueSlice",
++		},
++		{
++			name: "IntSlice",
++			typ:  "[]int",
++			base: "Int64Slice",
++		},
++		{
++			name: "Int32Slice",
++			typ:  "[]int32",
++			base: "Int64Slice",
++		},
++		{
++			name: "Int8Slice",
++			typ:  "[]int8",
++			base: "Int64Slice",
++		},
++		{
++			name: "BoolSlice",
++			typ:  "[]bool",
++			base: "Int64Slice",
++		},
++		{
++			name: "IDSlice",
++			typ:  "[]ID",
++			base: "Int64Slice",
++		},
++	}
+ 
+ 	w := new(bytes.Buffer)
+ 	fmt.Fprintf(w, "// Code generated from _gen/allocators.go using 'go generate'; DO NOT EDIT.\n")
+@@ -133,12 +121,22 @@ func genAllocators() {
+ 	fmt.Fprintln(w, "package ssa")
+ 
+ 	fmt.Fprintln(w, "import (")
++	fmt.Fprintln(w, "\"internal/unsafeheader\"")
+ 	fmt.Fprintln(w, "\"math/bits\"")
+ 	fmt.Fprintln(w, "\"sync\"")
++	fmt.Fprintln(w, "\"unsafe\"")
+ 	fmt.Fprintln(w, ")")
+ 	for _, a := range allocators {
+ 		genAllocator(w, a)
+ 	}
++	for _, d := range deriveds {
++		for _, base := range allocators {
++			if base.name == d.base {
++				genDerived(w, d, base)
++				break
++			}
++		}
++	}
+ 	// gofmt result
+ 	b := w.Bytes()
+ 	var err error
+@@ -196,3 +194,32 @@ func genAllocator(w io.Writer, a allocator) {
+ 	}
+ 	fmt.Fprintf(w, "}\n")
+ }
++func genDerived(w io.Writer, d derived, base allocator) {
++	fmt.Fprintf(w, "func (c *Cache) alloc%s(n int) %s {\n", d.name, d.typ)
++	if d.typ[:2] != "[]" || base.typ[:2] != "[]" {
++		panic(fmt.Sprintf("bad derived types: %s %s", d.typ, base.typ))
++	}
++	fmt.Fprintf(w, "var base %s\n", base.typ[2:])
++	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
++	fmt.Fprintf(w, "if unsafe.Sizeof(base)%%unsafe.Sizeof(derived) != 0 { panic(\"bad\") }\n")
++	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
++	fmt.Fprintf(w, "b := c.alloc%s(int((uintptr(n)+scale-1)/scale))\n", base.name)
++	fmt.Fprintf(w, "s := unsafeheader.Slice {\n")
++	fmt.Fprintf(w, "  Data: unsafe.Pointer(&b[0]),\n")
++	fmt.Fprintf(w, "  Len: n,\n")
++	fmt.Fprintf(w, "  Cap: cap(b)*int(scale),\n")
++	fmt.Fprintf(w, "  }\n")
++	fmt.Fprintf(w, "return *(*%s)(unsafe.Pointer(&s))\n", d.typ)
++	fmt.Fprintf(w, "}\n")
++	fmt.Fprintf(w, "func (c *Cache) free%s(s %s) {\n", d.name, d.typ)
++	fmt.Fprintf(w, "var base %s\n", base.typ[2:])
++	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
++	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
++	fmt.Fprintf(w, "b := unsafeheader.Slice {\n")
++	fmt.Fprintf(w, "  Data: unsafe.Pointer(&s[0]),\n")
++	fmt.Fprintf(w, "  Len: int((uintptr(len(s))+scale-1)/scale),\n")
++	fmt.Fprintf(w, "  Cap: int((uintptr(cap(s))+scale-1)/scale),\n")
++	fmt.Fprintf(w, "  }\n")
++	fmt.Fprintf(w, "c.free%s(*(*%s)(unsafe.Pointer(&b)))\n", base.name, base.typ)
++	fmt.Fprintf(w, "}\n")
++}
+diff --git a/src/cmd/compile/internal/ssa/allocators.go b/src/cmd/compile/internal/ssa/allocators.go
+index d782464c02..ff70795f82 100644
+--- a/src/cmd/compile/internal/ssa/allocators.go
++++ b/src/cmd/compile/internal/ssa/allocators.go
+@@ -3,8 +3,10 @@
+ package ssa
+ 
+ import (
++	"internal/unsafeheader"
+ 	"math/bits"
+ 	"sync"
++	"unsafe"
+ )
+ 
+ var poolFreeValueSlice [27]sync.Pool
+@@ -45,232 +47,42 @@ func (c *Cache) freeValueSlice(s []*Value) {
+ 	poolFreeValueSlice[b-5].Put(sp)
+ }
+ 
+-var poolFreeBlockSlice [27]sync.Pool
++var poolFreeInt64Slice [27]sync.Pool
+ 
+-func (c *Cache) allocBlockSlice(n int) []*Block {
+-	var s []*Block
++func (c *Cache) allocInt64Slice(n int) []int64 {
++	var s []int64
+ 	n2 := n
+ 	if n2 < 32 {
+ 		n2 = 32
+ 	}
+ 	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeBlockSlice[b-5].Get()
+-	if v == nil {
+-		s = make([]*Block, 1<<b)
+-	} else {
+-		sp := v.(*[]*Block)
+-		s = *sp
+-		*sp = nil
+-		c.hdrBlockSlice = append(c.hdrBlockSlice, sp)
+-	}
+-	s = s[:n]
+-	return s
+-}
+-func (c *Cache) freeBlockSlice(s []*Block) {
+-	for i := range s {
+-		s[i] = nil
+-	}
+-	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]*Block
+-	if len(c.hdrBlockSlice) == 0 {
+-		sp = new([]*Block)
+-	} else {
+-		sp = c.hdrBlockSlice[len(c.hdrBlockSlice)-1]
+-		c.hdrBlockSlice[len(c.hdrBlockSlice)-1] = nil
+-		c.hdrBlockSlice = c.hdrBlockSlice[:len(c.hdrBlockSlice)-1]
+-	}
+-	*sp = s
+-	poolFreeBlockSlice[b-5].Put(sp)
+-}
+-
+-var poolFreeBoolSlice [24]sync.Pool
+-
+-func (c *Cache) allocBoolSlice(n int) []bool {
+-	var s []bool
+-	n2 := n
+-	if n2 < 256 {
+-		n2 = 256
+-	}
+-	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeBoolSlice[b-8].Get()
+-	if v == nil {
+-		s = make([]bool, 1<<b)
+-	} else {
+-		sp := v.(*[]bool)
+-		s = *sp
+-		*sp = nil
+-		c.hdrBoolSlice = append(c.hdrBoolSlice, sp)
+-	}
+-	s = s[:n]
+-	return s
+-}
+-func (c *Cache) freeBoolSlice(s []bool) {
+-	for i := range s {
+-		s[i] = false
+-	}
+-	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]bool
+-	if len(c.hdrBoolSlice) == 0 {
+-		sp = new([]bool)
+-	} else {
+-		sp = c.hdrBoolSlice[len(c.hdrBoolSlice)-1]
+-		c.hdrBoolSlice[len(c.hdrBoolSlice)-1] = nil
+-		c.hdrBoolSlice = c.hdrBoolSlice[:len(c.hdrBoolSlice)-1]
+-	}
+-	*sp = s
+-	poolFreeBoolSlice[b-8].Put(sp)
+-}
+-
+-var poolFreeIntSlice [27]sync.Pool
+-
+-func (c *Cache) allocIntSlice(n int) []int {
+-	var s []int
+-	n2 := n
+-	if n2 < 32 {
+-		n2 = 32
+-	}
+-	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeIntSlice[b-5].Get()
+-	if v == nil {
+-		s = make([]int, 1<<b)
+-	} else {
+-		sp := v.(*[]int)
+-		s = *sp
+-		*sp = nil
+-		c.hdrIntSlice = append(c.hdrIntSlice, sp)
+-	}
+-	s = s[:n]
+-	return s
+-}
+-func (c *Cache) freeIntSlice(s []int) {
+-	for i := range s {
+-		s[i] = 0
+-	}
+-	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]int
+-	if len(c.hdrIntSlice) == 0 {
+-		sp = new([]int)
+-	} else {
+-		sp = c.hdrIntSlice[len(c.hdrIntSlice)-1]
+-		c.hdrIntSlice[len(c.hdrIntSlice)-1] = nil
+-		c.hdrIntSlice = c.hdrIntSlice[:len(c.hdrIntSlice)-1]
+-	}
+-	*sp = s
+-	poolFreeIntSlice[b-5].Put(sp)
+-}
+-
+-var poolFreeInt32Slice [26]sync.Pool
+-
+-func (c *Cache) allocInt32Slice(n int) []int32 {
+-	var s []int32
+-	n2 := n
+-	if n2 < 64 {
+-		n2 = 64
+-	}
+-	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeInt32Slice[b-6].Get()
++	v := poolFreeInt64Slice[b-5].Get()
+ 	if v == nil {
+-		s = make([]int32, 1<<b)
++		s = make([]int64, 1<<b)
+ 	} else {
+-		sp := v.(*[]int32)
++		sp := v.(*[]int64)
+ 		s = *sp
+ 		*sp = nil
+-		c.hdrInt32Slice = append(c.hdrInt32Slice, sp)
++		c.hdrInt64Slice = append(c.hdrInt64Slice, sp)
+ 	}
+ 	s = s[:n]
+ 	return s
+ }
+-func (c *Cache) freeInt32Slice(s []int32) {
+-	for i := range s {
+-		s[i] = 0
+-	}
+-	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]int32
+-	if len(c.hdrInt32Slice) == 0 {
+-		sp = new([]int32)
+-	} else {
+-		sp = c.hdrInt32Slice[len(c.hdrInt32Slice)-1]
+-		c.hdrInt32Slice[len(c.hdrInt32Slice)-1] = nil
+-		c.hdrInt32Slice = c.hdrInt32Slice[:len(c.hdrInt32Slice)-1]
+-	}
+-	*sp = s
+-	poolFreeInt32Slice[b-6].Put(sp)
+-}
+-
+-var poolFreeInt8Slice [24]sync.Pool
+-
+-func (c *Cache) allocInt8Slice(n int) []int8 {
+-	var s []int8
+-	n2 := n
+-	if n2 < 256 {
+-		n2 = 256
+-	}
+-	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeInt8Slice[b-8].Get()
+-	if v == nil {
+-		s = make([]int8, 1<<b)
+-	} else {
+-		sp := v.(*[]int8)
+-		s = *sp
+-		*sp = nil
+-		c.hdrInt8Slice = append(c.hdrInt8Slice, sp)
+-	}
+-	s = s[:n]
+-	return s
+-}
+-func (c *Cache) freeInt8Slice(s []int8) {
++func (c *Cache) freeInt64Slice(s []int64) {
+ 	for i := range s {
+ 		s[i] = 0
+ 	}
+ 	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]int8
+-	if len(c.hdrInt8Slice) == 0 {
+-		sp = new([]int8)
++	var sp *[]int64
++	if len(c.hdrInt64Slice) == 0 {
++		sp = new([]int64)
+ 	} else {
+-		sp = c.hdrInt8Slice[len(c.hdrInt8Slice)-1]
+-		c.hdrInt8Slice[len(c.hdrInt8Slice)-1] = nil
+-		c.hdrInt8Slice = c.hdrInt8Slice[:len(c.hdrInt8Slice)-1]
++		sp = c.hdrInt64Slice[len(c.hdrInt64Slice)-1]
++		c.hdrInt64Slice[len(c.hdrInt64Slice)-1] = nil
++		c.hdrInt64Slice = c.hdrInt64Slice[:len(c.hdrInt64Slice)-1]
+ 	}
+ 	*sp = s
+-	poolFreeInt8Slice[b-8].Put(sp)
+-}
+-
+-var poolFreeIDSlice [26]sync.Pool
+-
+-func (c *Cache) allocIDSlice(n int) []ID {
+-	var s []ID
+-	n2 := n
+-	if n2 < 64 {
+-		n2 = 64
+-	}
+-	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeIDSlice[b-6].Get()
+-	if v == nil {
+-		s = make([]ID, 1<<b)
+-	} else {
+-		sp := v.(*[]ID)
+-		s = *sp
+-		*sp = nil
+-		c.hdrIDSlice = append(c.hdrIDSlice, sp)
+-	}
+-	s = s[:n]
+-	return s
+-}
+-func (c *Cache) freeIDSlice(s []ID) {
+-	for i := range s {
+-		s[i] = 0
+-	}
+-	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]ID
+-	if len(c.hdrIDSlice) == 0 {
+-		sp = new([]ID)
+-	} else {
+-		sp = c.hdrIDSlice[len(c.hdrIDSlice)-1]
+-		c.hdrIDSlice[len(c.hdrIDSlice)-1] = nil
+-		c.hdrIDSlice = c.hdrIDSlice[:len(c.hdrIDSlice)-1]
+-	}
+-	*sp = s
+-	poolFreeIDSlice[b-6].Put(sp)
++	poolFreeInt64Slice[b-5].Put(sp)
+ }
+ 
+ var poolFreeSparseSet [27]sync.Pool
+@@ -341,3 +153,159 @@ func (c *Cache) freeSparseMapPos(s *sparseMapPos) {
+ 	b := bits.Len(uint(s.cap()) - 1)
+ 	poolFreeSparseMapPos[b-5].Put(s)
+ }
++func (c *Cache) allocBlockSlice(n int) []*Block {
++	var base *Value
++	var derived *Block
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocValueSlice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]*Block)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeBlockSlice(s []*Block) {
++	var base *Value
++	var derived *Block
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeValueSlice(*(*[]*Value)(unsafe.Pointer(&b)))
++}
++func (c *Cache) allocIntSlice(n int) []int {
++	var base int64
++	var derived int
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]int)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeIntSlice(s []int) {
++	var base int64
++	var derived int
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++}
++func (c *Cache) allocInt32Slice(n int) []int32 {
++	var base int64
++	var derived int32
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]int32)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeInt32Slice(s []int32) {
++	var base int64
++	var derived int32
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++}
++func (c *Cache) allocInt8Slice(n int) []int8 {
++	var base int64
++	var derived int8
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]int8)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeInt8Slice(s []int8) {
++	var base int64
++	var derived int8
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++}
++func (c *Cache) allocBoolSlice(n int) []bool {
++	var base int64
++	var derived bool
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]bool)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeBoolSlice(s []bool) {
++	var base int64
++	var derived bool
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++}
++func (c *Cache) allocIDSlice(n int) []ID {
++	var base int64
++	var derived ID
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]ID)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeIDSlice(s []ID) {
++	var base int64
++	var derived ID
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++}
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index dd17f5fa15..ba36edd390 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -34,12 +34,7 @@ type Cache struct {
+ 	// Free "headers" for use by the allocators in allocators.go.
+ 	// Used to put slices in sync.Pools without allocation.
+ 	hdrValueSlice []*[]*Value
+-	hdrBlockSlice []*[]*Block
+-	hdrBoolSlice  []*[]bool
+-	hdrIntSlice   []*[]int
+-	hdrInt32Slice []*[]int32
+-	hdrInt8Slice  []*[]int8
+-	hdrIDSlice    []*[]ID
++	hdrInt64Slice []*[]int64
+ }
+ 
+ func (c *Cache) Reset() {

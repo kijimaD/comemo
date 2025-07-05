@@ -15,9 +15,410 @@ Date:   Thu Mar 14 17:39:01 2024 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types/alg.go            | 122 +++++------------------
  src/cmd/compile/internal/types/algkind_string.go |  53 ++++------
  src/cmd/compile/internal/types/size.go           |  62 +++++++++++-
  src/cmd/compile/internal/types/type.go           |   4 +
  4 files changed, 111 insertions(+), 130 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index 6ebfd4c6e4..63e2ea40b1 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -8,13 +8,16 @@ import "cmd/compile/internal/base"
+ 
+ // AlgKind describes the kind of algorithms used for comparing and
+ // hashing a Type.
+-type AlgKind int
++type AlgKind int8
+ 
+ //go:generate stringer -type AlgKind -trimprefix A alg.go
+ 
+ const (
+-	ANOEQ AlgKind = iota
+-	AMEM0
++	AUNK   AlgKind = iota
++	ANOEQ          // Types cannot be compared
++	ANOALG         // implies ANOEQ, and in addition has a part that is marked Noalg
++	AMEM           // Type can be compared/hashed as regular memory.
++	AMEM0          // Specific subvariants of AMEM (TODO: move to ../reflectdata?)
+ 	AMEM8
+ 	AMEM16
+ 	AMEM32
+@@ -27,105 +30,30 @@ const (
+ 	AFLOAT64
+ 	ACPLX64
+ 	ACPLX128
+-	ANOALG // implies ANOEQ, and in addition has a part that is marked Noalg
+-
+-	// Type can be compared/hashed as regular memory.
+-	AMEM AlgKind = 100
+-
+-	// Type needs special comparison/hashing functions.
+-	ASPECIAL AlgKind = -1
++	ASPECIAL // Type needs special comparison/hashing functions.
+ )
+ 
+-// AlgType returns the AlgKind used for comparing and hashing Type t.
+-func AlgType(t *Type) AlgKind {
+-	if t.Noalg() {
+-		return ANOALG
+-	}
+-
+-	switch t.Kind() {
+-	case TANY, TFORW:
+-		// will be defined later.
+-		return ANOEQ
+-
+-	case TINT8, TUINT8, TINT16, TUINT16,
+-		TINT32, TUINT32, TINT64, TUINT64,
+-		TINT, TUINT, TUINTPTR,
+-		TBOOL, TPTR,
+-		TCHAN, TUNSAFEPTR:
+-		return AMEM
+-
+-	case TFUNC, TMAP:
+-		return ANOEQ
+-
+-	case TFLOAT32:
+-		return AFLOAT32
+-
+-	case TFLOAT64:
+-		return AFLOAT64
+-
+-	case TCOMPLEX64:
+-		return ACPLX64
+-
+-	case TCOMPLEX128:
+-		return ACPLX128
+-
+-	case TSTRING:
+-		return ASTRING
+-
+-	case TINTER:
+-		if t.IsEmptyInterface() {
+-			return ANILINTER
+-		}
+-		return AINTER
+-
+-	case TSLICE:
+-		return ANOEQ
++// Most kinds are priority 0. Higher numbers are higher priority, in that
++// the higher priority kinds override lower priority kinds.
++var algPriority = [ASPECIAL + 1]int8{ASPECIAL: 1, ANOEQ: 2, ANOALG: 3, AMEM: -1}
+ 
+-	case TARRAY:
+-		a := AlgType(t.Elem())
+-		if a == AMEM || a == ANOEQ || a == ANOALG {
+-			return a
+-		}
+-
+-		switch t.NumElem() {
+-		case 0:
+-			// We checked above that the element type is comparable.
+-			return AMEM
+-		case 1:
+-			// Single-element array is same as its lone element.
+-			return a
+-		}
+-
+-		return ASPECIAL
+-
+-	case TSTRUCT:
+-		fields := t.Fields()
+-
+-		// One-field struct is same as that one field alone.
+-		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
+-			return AlgType(fields[0].Type)
+-		}
+-
+-		ret := AMEM
+-		for i, f := range fields {
+-			// All fields must be comparable.
+-			a := AlgType(f.Type)
+-			if a == ANOEQ || a == ANOALG {
+-				return a
+-			}
+-
+-			// Blank fields, padded fields, fields with non-memory
+-			// equality need special compare.
+-			if a != AMEM || f.Sym.IsBlank() || IsPaddedField(t, i) {
+-				ret = ASPECIAL
+-			}
+-		}
+-
+-		return ret
++// setAlg sets the algorithm type of t to a, if it is of higher
++// priority to the current algorithm type.
++func (t *Type) setAlg(a AlgKind) {
++	if t.alg == AUNK {
++		base.Fatalf("setAlg(%v,%s) starting with unknown priority", t, a)
++	}
++	if algPriority[a] > algPriority[t.alg] {
++		t.alg = a
++	} else if a != t.alg && algPriority[a] == algPriority[t.alg] {
++		base.Fatalf("ambiguous priority %s and %s", a, t.alg)
+ 	}
++}
+ 
+-	base.Fatalf("AlgType: unexpected type %v", t)
+-	return 0
++// AlgType returns the AlgKind used for comparing and hashing Type t.
++func AlgType(t *Type) AlgKind {
++	CalcSize(t)
++	return t.alg
+ }
+ 
+ // TypeHasNoAlg reports whether t does not have any associated hash/eq
+diff --git a/src/cmd/compile/internal/types/algkind_string.go b/src/cmd/compile/internal/types/algkind_string.go
+index f38f5ad8e2..ca65a72c29 100644
+--- a/src/cmd/compile/internal/types/algkind_string.go
++++ b/src/cmd/compile/internal/types/algkind_string.go
+@@ -8,42 +8,33 @@ func _() {
+ 	// An "invalid array index" compiler error signifies that the constant values have changed.
+ 	// Re-run the stringer command to generate them again.
+ 	var x [1]struct{}
+-	_ = x[ANOEQ-0]
+-	_ = x[AMEM0-1]
+-	_ = x[AMEM8-2]
+-	_ = x[AMEM16-3]
+-	_ = x[AMEM32-4]
+-	_ = x[AMEM64-5]
+-	_ = x[AMEM128-6]
+-	_ = x[ASTRING-7]
+-	_ = x[AINTER-8]
+-	_ = x[ANILINTER-9]
+-	_ = x[AFLOAT32-10]
+-	_ = x[AFLOAT64-11]
+-	_ = x[ACPLX64-12]
+-	_ = x[ACPLX128-13]
+-	_ = x[ANOALG-14]
+-	_ = x[AMEM-100]
+-	_ = x[ASPECIAL - -1]
++	_ = x[AUNK-0]
++	_ = x[ANOEQ-1]
++	_ = x[ANOALG-2]
++	_ = x[AMEM-3]
++	_ = x[AMEM0-4]
++	_ = x[AMEM8-5]
++	_ = x[AMEM16-6]
++	_ = x[AMEM32-7]
++	_ = x[AMEM64-8]
++	_ = x[AMEM128-9]
++	_ = x[ASTRING-10]
++	_ = x[AINTER-11]
++	_ = x[ANILINTER-12]
++	_ = x[AFLOAT32-13]
++	_ = x[AFLOAT64-14]
++	_ = x[ACPLX64-15]
++	_ = x[ACPLX128-16]
++	_ = x[ASPECIAL-17]
+ }
+ 
+-const (
+-	_AlgKind_name_0 = "SPECIALNOEQMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128NOALG"
+-	_AlgKind_name_1 = "MEM"
+-)
++const _AlgKind_name = "UNKNOEQNOALGMEMMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNILINTERFLOAT32FLOAT64CPLX64CPLX128SPECIAL"
+ 
+-var (
+-	_AlgKind_index_0 = [...]uint8{0, 7, 11, 15, 19, 24, 29, 34, 40, 46, 51, 59, 66, 73, 79, 86, 91}
+-)
++var _AlgKind_index = [...]uint8{0, 3, 7, 12, 15, 19, 23, 28, 33, 38, 44, 50, 55, 63, 70, 77, 83, 90, 97}
+ 
+ func (i AlgKind) String() string {
+-	switch {
+-	case -1 <= i && i <= 14:
+-		i -= -1
+-		return _AlgKind_name_0[_AlgKind_index_0[i]:_AlgKind_index_0[i+1]]
+-	case i == 100:
+-		return _AlgKind_name_1
+-	default:
++	if i < 0 || i >= AlgKind(len(_AlgKind_index)-1) {
+ 		return "AlgKind(" + strconv.FormatInt(int64(i), 10) + ")"
+ 	}
++	return _AlgKind_name[_AlgKind_index[i]:_AlgKind_index[i+1]]
+ }
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 6ba2b9153b..a8fff0a84f 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -202,7 +202,7 @@ func isAtomicStdPkg(p *Pkg) bool {
+ 	return p.Prefix == "sync/atomic" || p.Prefix == "runtime/internal/atomic"
+ }
+ 
+-// CalcSize calculates and stores the size and alignment for t.
++// CalcSize calculates and stores the size, alignment, and eq/hash algorithm for t.
+ // If CalcSizeDisabled is set, and the size/alignment
+ // have not already been calculated, it calls Fatal.
+ // This is used to prevent data races in the back end.
+@@ -245,7 +245,11 @@ func CalcSize(t *Type) {
+ 	}
+ 
+ 	t.width = -2
+-	t.align = 0 // 0 means use t.Width, below
++	t.align = 0  // 0 means use t.Width, below
++	t.alg = AMEM // default
++	if t.Noalg() {
++		t.setAlg(ANOALG)
++	}
+ 
+ 	et := t.Kind()
+ 	switch et {
+@@ -286,21 +290,25 @@ func CalcSize(t *Type) {
+ 	case TFLOAT32:
+ 		w = 4
+ 		t.floatRegs = 1
++		t.setAlg(AFLOAT32)
+ 
+ 	case TFLOAT64:
+ 		w = 8
+ 		t.align = uint8(RegSize)
+ 		t.floatRegs = 1
++		t.setAlg(AFLOAT64)
+ 
+ 	case TCOMPLEX64:
+ 		w = 8
+ 		t.align = 4
+ 		t.floatRegs = 2
++		t.setAlg(ACPLX64)
+ 
+ 	case TCOMPLEX128:
+ 		w = 16
+ 		t.align = uint8(RegSize)
+ 		t.floatRegs = 2
++		t.setAlg(ACPLX128)
+ 
+ 	case TPTR:
+ 		w = int64(PtrSize)
+@@ -316,6 +324,11 @@ func CalcSize(t *Type) {
+ 		t.align = uint8(PtrSize)
+ 		t.intRegs = 2
+ 		expandiface(t)
++		if len(t.allMethods.Slice()) == 0 {
++			t.setAlg(ANILINTER)
++		} else {
++			t.setAlg(AINTER)
++		}
+ 
+ 	case TCHAN: // implemented as pointer
+ 		w = int64(PtrSize)
+@@ -346,6 +359,7 @@ func CalcSize(t *Type) {
+ 		t.intRegs = 1
+ 		CheckSize(t.Elem())
+ 		CheckSize(t.Key())
++		t.setAlg(ANOEQ)
+ 
+ 	case TFORW: // should have been filled in
+ 		base.Fatalf("invalid recursive type %v", t)
+@@ -360,6 +374,7 @@ func CalcSize(t *Type) {
+ 		w = StringSize
+ 		t.align = uint8(PtrSize)
+ 		t.intRegs = 2
++		t.setAlg(ASTRING)
+ 
+ 	case TARRAY:
+ 		if t.Elem() == nil {
+@@ -390,6 +405,21 @@ func CalcSize(t *Type) {
+ 			t.intRegs = math.MaxUint8
+ 			t.floatRegs = math.MaxUint8
+ 		}
++		switch a := t.Elem().alg; a {
++		case AMEM, ANOEQ, ANOALG:
++			t.setAlg(a)
++		default:
++			switch t.NumElem() {
++			case 0:
++				// We checked above that the element type is comparable.
++				t.setAlg(AMEM)
++			case 1:
++				// Single-element array is same as its lone element.
++				t.setAlg(a)
++			default:
++				t.setAlg(ASPECIAL)
++			}
++		}
+ 
+ 	case TSLICE:
+ 		if t.Elem() == nil {
+@@ -399,6 +429,7 @@ func CalcSize(t *Type) {
+ 		CheckSize(t.Elem())
+ 		t.align = uint8(PtrSize)
+ 		t.intRegs = 3
++		t.setAlg(ANOEQ)
+ 
+ 	case TSTRUCT:
+ 		if t.IsFuncArgStruct() {
+@@ -414,6 +445,7 @@ func CalcSize(t *Type) {
+ 		CheckSize(t1)
+ 		w = int64(PtrSize) // width of func type is pointer
+ 		t.intRegs = 1
++		t.setAlg(ANOEQ)
+ 
+ 	// function is 3 cated structures;
+ 	// compute their widths as side-effect.
+@@ -502,6 +534,32 @@ func CalcStructSize(t *Type) {
+ 	t.align = maxAlign
+ 	t.intRegs = uint8(intRegs)
+ 	t.floatRegs = uint8(floatRegs)
++
++	// Compute eq/hash algorithm type.
++	t.alg = AMEM // default
++	if t.Noalg() {
++		t.setAlg(ANOALG)
++	}
++	if len(fields) == 1 && !fields[0].Sym.IsBlank() {
++		// One-field struct is same as that one field alone.
++		t.setAlg(fields[0].Type.alg)
++	} else {
++		for i, f := range fields {
++			a := f.Type.alg
++			switch a {
++			case ANOEQ, ANOALG:
++			case AMEM:
++				// Blank fields and padded fields need a special compare.
++				if f.Sym.IsBlank() || IsPaddedField(t, i) {
++					a = ASPECIAL
++				}
++			default:
++				// Fields with non-memory equality need a special compare.
++				a = ASPECIAL
++			}
++			t.setAlg(a)
++		}
++	}
+ }
+ 
+ func (t *Type) widthCalculated() bool {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c2b0ca3a44..0ea20ae262 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -201,6 +201,7 @@ type Type struct {
+ 	intRegs, floatRegs uint8 // registers needed for ABIInternal
+ 
+ 	flags bitset8
++	alg   AlgKind // valid if Align > 0
+ 
+ 	// For defined (named) generic types, a pointer to the list of type params
+ 	// (in order) of this type that need to be instantiated. For instantiated
+@@ -657,8 +658,10 @@ func NewPtr(elem *Type) *Type {
+ 	if elem.HasShape() {
+ 		t.SetHasShape(true)
+ 	}
++	t.alg = AMEM
+ 	if elem.Noalg() {
+ 		t.SetNoalg(true)
++		t.alg = ANOALG
+ 	}
+ 	return t
+ }
+@@ -1660,6 +1663,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
+ 	t.extra = underlying.extra
+ 	t.width = underlying.width
+ 	t.align = underlying.align
++	t.alg = underlying.alg
+ 	t.intRegs = underlying.intRegs
+ 	t.floatRegs = underlying.floatRegs
+ 	t.underlying = underlying.underlying

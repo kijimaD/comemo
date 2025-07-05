@@ -12,6 +12,20 @@ Date:   Thu Jan 10 05:14:40 2019 +0900
     Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/sockopt_aix.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/net/sockopt_aix.go b/src/net/sockopt_aix.go
+index 6fb207fc92..b49c4d5c7c 100644
+--- a/src/net/sockopt_aix.go
++++ b/src/net/sockopt_aix.go
+@@ -9,8 +9,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// This was copied from sockopt_linux.go
+-
+ func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
+ 	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
+ 		// Allow both IP versions even if the OS default

@@ -22,7 +22,7 @@ Date:   Tue Dec 19 09:21:45 2023 -0500
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/base/goflags.go                | 10 ++--
  src/cmd/go/internal/modfetch/fetch.go              | 20 ++++----
  src/cmd/go/internal/test/testflag.go               |  2 +-
@@ -34,3 +34,465 @@ Date:   Tue Dec 19 09:21:45 2023 -0500
  .../testdata/script/malformed_gosum_issue62345.txt |  2 +-
  src/cmd/go/testdata/script/work_sum_mismatch.txt   |  4 +-
  10 files changed, 45 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/goflags.go b/src/cmd/go/internal/base/goflags.go
+index 3d5a76d54b..eced2c5d58 100644
+--- a/src/cmd/go/internal/base/goflags.go
++++ b/src/cmd/go/internal/base/goflags.go
+@@ -88,7 +88,7 @@ type boolFlag interface {
+ }
+ 
+ // SetFromGOFLAGS sets the flags in the given flag set using settings in $GOFLAGS.
+-func SetFromGOFLAGS(flags *flag.FlagSet, ignoreErrors bool) {
++func SetFromGOFLAGS(flags *flag.FlagSet) {
+ 	InitGOFLAGS()
+ 
+ 	// This loop is similar to flag.Parse except that it ignores
+@@ -121,22 +121,22 @@ func SetFromGOFLAGS(flags *flag.FlagSet, ignoreErrors bool) {
+ 
+ 		if fb, ok := f.Value.(boolFlag); ok && fb.IsBoolFlag() {
+ 			if hasValue {
+-				if err := flags.Set(f.Name, value); err != nil && !ignoreErrors {
++				if err := flags.Set(f.Name, value); err != nil {
+ 					fmt.Fprintf(flags.Output(), "go: invalid boolean value %q for flag %s (from %s): %v\n", value, name, where, err)
+ 					flags.Usage()
+ 				}
+ 			} else {
+-				if err := flags.Set(f.Name, "true"); err != nil && !ignoreErrors {
++				if err := flags.Set(f.Name, "true"); err != nil {
+ 					fmt.Fprintf(flags.Output(), "go: invalid boolean flag %s (from %s): %v\n", name, where, err)
+ 					flags.Usage()
+ 				}
+ 			}
+ 		} else {
+-			if !hasValue && !ignoreErrors {
++			if !hasValue {
+ 				fmt.Fprintf(flags.Output(), "go: flag needs an argument: %s (from %s)\n", name, where)
+ 				flags.Usage()
+ 			}
+-			if err := flags.Set(f.Name, value); err != nil && !ignoreErrors {
++			if err := flags.Set(f.Name, value); err != nil {
+ 				fmt.Fprintf(flags.Output(), "go: invalid value %q for flag %s (from %s): %v\n", value, name, where, err)
+ 				flags.Usage()
+ 			}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index b3c77dfbc2..eeab6da62a 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -525,7 +525,7 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) {
+ 				// ignore malformed line so that go mod tidy can fix go.sum
+ 				continue
+ 			} else {
+-				base.Fatalf("go: malformed go.sum:\n%s:%d: wrong number of fields %v\n", file, lineno, len(f))
++				base.Fatalf("malformed go.sum:\n%s:%d: wrong number of fields %v\n", file, lineno, len(f))
+ 			}
+ 		}
+ 		if f[2] == emptyGoModHash {
+@@ -574,32 +574,32 @@ func checkMod(ctx context.Context, mod module.Version) {
+ 	// Do the file I/O before acquiring the go.sum lock.
+ 	ziphash, err := CachePath(ctx, mod, "ziphash")
+ 	if err != nil {
+-		base.Fatalf("go: verifying %v", module.VersionError(mod, err))
++		base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 	}
+ 	data, err := lockedfile.Read(ziphash)
+ 	if err != nil {
+-		base.Fatalf("go: verifying %v", module.VersionError(mod, err))
++		base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 	}
+ 	data = bytes.TrimSpace(data)
+ 	if !isValidSum(data) {
+ 		// Recreate ziphash file from zip file and use that to check the mod sum.
+ 		zip, err := CachePath(ctx, mod, "zip")
+ 		if err != nil {
+-			base.Fatalf("go: verifying %v", module.VersionError(mod, err))
++			base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 		}
+ 		err = hashZip(mod, zip, ziphash)
+ 		if err != nil {
+-			base.Fatalf("go: verifying %v", module.VersionError(mod, err))
++			base.Fatalf("verifying %v", module.VersionError(mod, err))
+ 		}
+ 		return
+ 	}
+ 	h := string(data)
+ 	if !strings.HasPrefix(h, "h1:") {
+-		base.Fatalf("go: verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
++		base.Fatalf("verifying %v", module.VersionError(mod, fmt.Errorf("unexpected ziphash: %q", h)))
+ 	}
+ 
+ 	if err := checkModSum(mod, h); err != nil {
+-		base.Fatal(err)
++		base.Fatalf("%s", err)
+ 	}
+ }
+ 
+@@ -684,7 +684,7 @@ func haveModSumLocked(mod module.Version, h string) bool {
+ 			return true
+ 		}
+ 		if strings.HasPrefix(vh, "h1:") {
+-			base.Fatalf("go: verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, sumFileName, vh)
++			base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, sumFileName, vh)
+ 		}
+ 	}
+ 	// Also check workspace sums.
+@@ -696,7 +696,7 @@ func haveModSumLocked(mod module.Version, h string) bool {
+ 			if h == vh {
+ 				foundMatch = true
+ 			} else if strings.HasPrefix(vh, "h1:") {
+-				base.Fatalf("go: verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, goSumFile, vh)
++				base.Fatalf("verifying %s@%s: checksum mismatch\n\tdownloaded: %v\n\t%s:     %v"+goSumMismatch, mod.Path, mod.Version, h, goSumFile, vh)
+ 			}
+ 		}
+ 	}
+@@ -895,7 +895,7 @@ func TrimGoSum(keep map[module.Version]bool) {
+ 	defer goSum.mu.Unlock()
+ 	inited, err := initGoSum()
+ 	if err != nil {
+-		base.Fatal(err)
++		base.Fatalf("%s", err)
+ 	}
+ 	if !inited {
+ 		return
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 22c3ab1302..425378889d 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -222,7 +222,7 @@ func (f *shuffleFlag) Set(value string) error {
+ //	go test fmt -custom-flag-for-fmt-test
+ //	go test -x math
+ func testFlags(args []string) (packageNames, passToTest []string) {
+-	base.SetFromGOFLAGS(&CmdTest.Flag, false)
++	base.SetFromGOFLAGS(&CmdTest.Flag)
+ 	addFromGOFLAGS := map[string]bool{}
+ 	CmdTest.Flag.Visit(func(f *flag.Flag) {
+ 		if short := strings.TrimPrefix(f.Name, "test."); passFlagToTest[short] {
+diff --git a/src/cmd/go/internal/toolchain/exec.go b/src/cmd/go/internal/toolchain/exec.go
+index acfb9e943c..820fe93e87 100644
+--- a/src/cmd/go/internal/toolchain/exec.go
++++ b/src/cmd/go/internal/toolchain/exec.go
+@@ -44,12 +44,12 @@ func execGoToolchain(gotoolchain, dir, exe string) {
+ 				if e.ProcessState.Exited() {
+ 					os.Exit(e.ProcessState.ExitCode())
+ 				}
+-				base.Fatalf("go: exec %s: %s", gotoolchain, e.ProcessState)
++				base.Fatalf("exec %s: %s", gotoolchain, e.ProcessState)
+ 			}
+-			base.Fatalf("go: exec %s: %s", exe, err)
++			base.Fatalf("exec %s: %s", exe, err)
+ 		}
+ 		os.Exit(0)
+ 	}
+ 	err := syscall.Exec(exe, os.Args, os.Environ())
+-	base.Fatalf("go: exec %s: %v", gotoolchain, err)
++	base.Fatalf("exec %s: %v", gotoolchain, err)
+ }
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index 84fa7f685c..9fd1549a61 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -8,10 +8,10 @@ package toolchain
+ import (
+ 	"context"
+ 	"errors"
+-	"flag"
+ 	"fmt"
+ 	"go/build"
+ 	"io/fs"
++	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+@@ -20,12 +20,10 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/cmdflag"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/run"
+-	"cmd/go/internal/work"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -87,6 +85,9 @@ func FilterEnv(env []string) []string {
+ // It must be called early in startup.
+ // See https://go.dev/doc/toolchain#select.
+ func Select() {
++	log.SetPrefix("go: ")
++	defer log.SetPrefix("")
++
+ 	if !modload.WillBeEnabled() {
+ 		return
+ 	}
+@@ -132,15 +133,15 @@ func Select() {
+ 			v := gover.FromToolchain(min)
+ 			if v == "" {
+ 				if plus {
+-					base.Fatalf("go: invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", gotoolchain, min)
++					base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum toolchain %q", gotoolchain, min)
+ 				}
+-				base.Fatalf("go: invalid GOTOOLCHAIN %q", gotoolchain)
++				base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
+ 			}
+ 			minToolchain = min
+ 			minVers = v
+ 		}
+ 		if plus && suffix != "auto" && suffix != "path" {
+-			base.Fatalf("go: invalid GOTOOLCHAIN %q: only version suffixes are +auto and +path", gotoolchain)
++			base.Fatalf("invalid GOTOOLCHAIN %q: only version suffixes are +auto and +path", gotoolchain)
+ 		}
+ 		mode = suffix
+ 	}
+@@ -171,7 +172,7 @@ func Select() {
+ 				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
+ 				toolVers := gover.FromToolchain(toolchain)
+ 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
+-					base.Fatalf("go: invalid toolchain %q in %s", toolchain, base.ShortPath(file))
++					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
+ 				}
+ 				if gover.Compare(toolVers, minVers) > 0 {
+ 					gotoolchain = toolchain
+@@ -193,7 +194,7 @@ func Select() {
+ 	// so that we have initialized gover.Startup for use in error messages.
+ 	if target := os.Getenv(targetEnv); target != "" && TestVersionSwitch != "loop" {
+ 		if gover.LocalToolchain() != target {
+-			base.Fatalf("go: toolchain %v invoked to provide %v", gover.LocalToolchain(), target)
++			base.Fatalf("toolchain %v invoked to provide %v", gover.LocalToolchain(), target)
+ 		}
+ 		os.Unsetenv(targetEnv)
+ 
+@@ -224,7 +225,7 @@ func Select() {
+ 	// We want to disallow mistakes / bad ideas like GOTOOLCHAIN=bash,
+ 	// since we will find that in the path lookup.
+ 	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
+-		base.Fatalf("go: invalid GOTOOLCHAIN %q", gotoolchain)
++		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
+ 	}
+ 
+ 	Exec(gotoolchain)
+@@ -243,6 +244,8 @@ var TestVersionSwitch string
+ // as a source of Go toolchains. Otherwise Exec tries the PATH but then downloads
+ // a toolchain if necessary.
+ func Exec(gotoolchain string) {
++	log.SetPrefix("go: ")
++
+ 	writeBits = sysWriteBits()
+ 
+ 	count, _ := strconv.Atoi(os.Getenv(countEnv))
+@@ -250,7 +253,7 @@ func Exec(gotoolchain string) {
+ 		fmt.Fprintf(os.Stderr, "go: switching from go%v to %v [depth %d]\n", gover.Local(), gotoolchain, count)
+ 	}
+ 	if count >= maxSwitch {
+-		base.Fatalf("go: too many toolchain switches")
++		base.Fatalf("too many toolchain switches")
+ 	}
+ 	os.Setenv(countEnv, fmt.Sprint(count+1))
+ 
+@@ -273,7 +276,7 @@ func Exec(gotoolchain string) {
+ 	case "loop", "mismatch":
+ 		exe, err := os.Executable()
+ 		if err != nil {
+-			base.Fatal(err)
++			base.Fatalf("%v", err)
+ 		}
+ 		execGoToolchain(gotoolchain, os.Getenv("GOROOT"), exe)
+ 	}
+@@ -288,7 +291,7 @@ func Exec(gotoolchain string) {
+ 	// GOTOOLCHAIN=auto looks in PATH and then falls back to download.
+ 	// GOTOOLCHAIN=path only looks in PATH.
+ 	if pathOnly {
+-		base.Fatalf("go: cannot find %q in PATH", gotoolchain)
++		base.Fatalf("cannot find %q in PATH", gotoolchain)
+ 	}
+ 
+ 	// Set up modules without an explicit go.mod, to download distribution.
+@@ -307,9 +310,9 @@ func Exec(gotoolchain string) {
+ 	dir, err := modfetch.Download(context.Background(), m)
+ 	if err != nil {
+ 		if errors.Is(err, fs.ErrNotExist) {
+-			base.Fatalf("go: download %s for %s/%s: toolchain not available", gotoolchain, runtime.GOOS, runtime.GOARCH)
++			base.Fatalf("download %s for %s/%s: toolchain not available", gotoolchain, runtime.GOOS, runtime.GOARCH)
+ 		}
+-		base.Fatalf("go: download %s: %v", gotoolchain, err)
++		base.Fatalf("download %s: %v", gotoolchain, err)
+ 	}
+ 
+ 	// On first use after download, set the execute bits on the commands
+@@ -318,7 +321,7 @@ func Exec(gotoolchain string) {
+ 	if runtime.GOOS != "windows" {
+ 		info, err := os.Stat(filepath.Join(dir, "bin/go"))
+ 		if err != nil {
+-			base.Fatalf("go: download %s: %v", gotoolchain, err)
++			base.Fatalf("download %s: %v", gotoolchain, err)
+ 		}
+ 		if info.Mode()&0111 == 0 {
+ 			// allowExec sets the exec permission bits on all files found in dir.
+@@ -339,7 +342,7 @@ func Exec(gotoolchain string) {
+ 					return nil
+ 				})
+ 				if err != nil {
+-					base.Fatalf("go: download %s: %v", gotoolchain, err)
++					base.Fatalf("download %s: %v", gotoolchain, err)
+ 				}
+ 			}
+ 
+@@ -381,7 +384,7 @@ func Exec(gotoolchain string) {
+ 			err = raceSafeCopy(srcUGoMod, srcGoMod)
+ 		}
+ 		if err != nil {
+-			base.Fatalf("go: download %s: %v", gotoolchain, err)
++			base.Fatalf("download %s: %v", gotoolchain, err)
+ 		}
+ 	}
+ 
+@@ -472,7 +475,7 @@ func modGoToolchain() (file, goVers, toolchain string) {
+ 
+ 	data, err := os.ReadFile(file)
+ 	if err != nil {
+-		base.Fatal(err)
++		base.Fatalf("%v", err)
+ 	}
+ 	return file, gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
+ }
+@@ -489,7 +492,6 @@ func goInstallVersion() bool {
+ 
+ 	// Check for pkg@version.
+ 	var arg string
+-	var cmdFlags *flag.FlagSet
+ 	switch os.Args[1] {
+ 	default:
+ 		return false
+@@ -498,7 +500,6 @@ func goInstallVersion() bool {
+ 		// across a toolchain switch. To make that work, assume the pkg@version
+ 		// is the last argument and skip the flag parsing.
+ 		arg = os.Args[len(os.Args)-1]
+-		cmdFlags = &work.CmdInstall.Flag
+ 	case "run":
+ 		// For run, the pkg@version can be anywhere on the command line,
+ 		// because it is preceded by run flags and followed by arguments to the
+@@ -506,7 +507,6 @@ func goInstallVersion() bool {
+ 		// flags a little bit, to know whether each flag takes an optional argument.
+ 		// We can still allow unknown flags as long as they have an explicit =value.
+ 		args := os.Args[2:]
+-		cmdFlags = &run.CmdRun.Flag
+ 		for i := 0; i < len(args); i++ {
+ 			a := args[i]
+ 			if !strings.HasPrefix(a, "-") {
+@@ -554,20 +554,6 @@ func goInstallVersion() bool {
+ 		return false
+ 	}
+ 
+-	// Make a best effort to parse flags so that module flags like -modcacherw
+-	// will take effect (see https://go.dev/issue/64282).
+-	args := os.Args[2:]
+-	for len(args) > 0 {
+-		var err error
+-		_, args, err = cmdflag.ParseOne(cmdFlags, args)
+-		if errors.Is(err, cmdflag.ErrFlagTerminator) {
+-			break
+-		}
+-		// Ignore all other errors: they may be new flags — or updated syntax for
+-		// existing flags — intended for a newer Go toolchain.
+-	}
+-	base.SetFromGOFLAGS(cmdFlags, true)
+-
+ 	// It would be correct to simply return true here, bypassing use
+ 	// of the current go.mod or go.work, and let "go run" or "go install"
+ 	// do the rest, including a toolchain switch.
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 601ae9aa64..eb7af6508d 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -116,7 +116,7 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 
+ 	// Record the set of vet tool flags set by GOFLAGS. We want to pass them to
+ 	// the vet tool, but only if they aren't overridden by an explicit argument.
+-	base.SetFromGOFLAGS(&CmdVet.Flag, false)
++	base.SetFromGOFLAGS(&CmdVet.Flag)
+ 	addFromGOFLAGS := map[string]bool{}
+ 	CmdVet.Flag.Visit(func(f *flag.Flag) {
+ 		if isVetFlag[f.Name] {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index b309cb867a..d380aae489 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -234,7 +234,7 @@ func invoke(cmd *base.Command, args []string) {
+ 	if cmd.CustomFlags {
+ 		args = args[1:]
+ 	} else {
+-		base.SetFromGOFLAGS(&cmd.Flag, false)
++		base.SetFromGOFLAGS(&cmd.Flag)
+ 		cmd.Flag.Parse(args[1:])
+ 		args = cmd.Flag.Args()
+ 	}
+diff --git a/src/cmd/go/testdata/script/install_modcacherw_issue64282.txt b/src/cmd/go/testdata/script/install_modcacherw_issue64282.txt
+deleted file mode 100644
+index ea644f789e..0000000000
+--- a/src/cmd/go/testdata/script/install_modcacherw_issue64282.txt
++++ /dev/null
+@@ -1,32 +0,0 @@
+-# Regression test for https://go.dev/issue/64282:
+-# 'go install' and 'go run' with pkg@version arguments should make
+-# a best effort to parse flags before they download modules to
+-# identify which toolchain version to use, because those flags
+-# may affect the downloaded contents.
+-
+-# However, the best-effort flag parsing should not interfere with
+-# actual flag parsing if we don't switch toolchains. In particular,
+-# unrecognized flags should still be diagnosed after the module for
+-# the requested package has been downloaded and checked for toolchain
+-# upgrades.
+-
+-! go install -cake=delicious -modcacherw example.com/printversion@v0.1.0
+-stderr '^flag provided but not defined: -cake$'
+-
+-[!short] go install -modcacherw example.com/printversion@v0.1.0
+-	# Because the -modcacherw flag was set, we should be able to modify the contents
+-	# of a directory within the module cache.
+-cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/printversion@v0.1.0/extraneous_file.go
+-
+-
+-# We should also apply flags from GOFLAGS at this step.
+-
+-go clean -modcache
+-env GOFLAGS=-modcacherw
+-! go install -cake=delicious example.com/printversion@v0.1.0
+-stderr '^flag provided but not defined: -cake$'
+-cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/printversion@v0.1.0/extraneous_file.go
+-
+-
+--- $WORK/extraneous.txt --
+-This is not a Go source file.
+diff --git a/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt b/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt
+index 35fad29193..23c41beae9 100644
+--- a/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt
++++ b/src/cmd/go/testdata/script/malformed_gosum_issue62345.txt
+@@ -1,5 +1,5 @@
+ ! go mod download
+-stderr '^go: malformed go.sum:\n.*go.sum:3: wrong number of fields 5\n$'
++stderr '^malformed go.sum:\n.*go.sum:3: wrong number of fields 5\n$'
+ 
+ go mod tidy
+ cmp go.sum go.sum.after-tidy
+diff --git a/src/cmd/go/testdata/script/work_sum_mismatch.txt b/src/cmd/go/testdata/script/work_sum_mismatch.txt
+index d4997aa372..ca5d71dc5e 100644
+--- a/src/cmd/go/testdata/script/work_sum_mismatch.txt
++++ b/src/cmd/go/testdata/script/work_sum_mismatch.txt
+@@ -4,7 +4,7 @@
+ cmpenv stderr want-error
+ 
+ -- want-error --
+-go: verifying rsc.io/sampler@v1.3.0/go.mod: checksum mismatch
++verifying rsc.io/sampler@v1.3.0/go.mod: checksum mismatch
+ 	downloaded: h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+ 	$WORK${/}gopath${/}src${/}a${/}go.sum:     h1:U1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+ 
+@@ -58,4 +58,4 @@ import (
+ 
+ func main() {
+ 	fmt.Println(quote.Hello())
+-}
++}
+\ No newline at end of file

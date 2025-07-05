@@ -9,7 +9,7 @@ Date:   Tue Feb 17 15:44:42 2015 -0800
     Change-Id: I56848814564c4aa0988b451df18bebdfc88d6d94
     Reviewed-on: https://go-review.googlesource.com/7721
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/archive/zip/struct.go          |  2 +-
  src/cmd/cgo/gcc.go                 |  2 +-
  src/cmd/cgo/main.go                |  2 +-
@@ -58,3 +58,1037 @@ Date:   Tue Feb 17 15:44:42 2015 -0800
  src/time/format.go                 |  5 ++---
  src/unicode/utf16/utf16.go         |  2 +-
  47 files changed, 100 insertions(+), 102 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index cb28e83242..793d5da48d 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -233,7 +233,7 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
+ 	}
+ }
+ 
+-// isZip64 returns true if the file size exceeds the 32 bit limit
++// isZip64 reports whether the file size exceeds the 32 bit limit
+ func (fh *FileHeader) isZip64() bool {
+ 	return fh.CompressedSize64 > uint32max || fh.UncompressedSize64 > uint32max
+ }
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 4bc4d794c8..3ec753f55e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1042,7 +1042,7 @@ func (tr *TypeRepr) String() string {
+ 	return fmt.Sprintf(tr.Repr, tr.FormatArgs...)
+ }
+ 
+-// Empty returns true if the result of String would be "".
++// Empty reports whether the result of String would be "".
+ func (tr *TypeRepr) Empty() bool {
+ 	return len(tr.Repr) == 0
+ }
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 013fed3746..41abb2c672 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -87,7 +87,7 @@ type Name struct {
+ 	Const    string // constant definition
+ }
+ 
+-// IsVar returns true if Kind is either "var" or "fpvar"
++// IsVar reports whether Kind is either "var" or "fpvar"
+ func (n *Name) IsVar() bool {
+ 	return n.Kind == "var" || n.Kind == "fpvar"
+ }
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 4e7800d127..3adb8e8783 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -55,7 +55,7 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, "\n")
+ }
+ 
+-// isName returns true if s is a valid C identifier
++// isName reports whether s is a valid C identifier
+ func isName(s string) bool {
+ 	for i, v := range s {
+ 		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index a07bbac790..160336cdbd 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -282,7 +282,7 @@ func walkBeforeAfter(x interface{}, before, after func(interface{})) {
+ 	after(x)
+ }
+ 
+-// imports returns true if f imports path.
++// imports reports whether f imports path.
+ func imports(f *ast.File, path string) bool {
+ 	return importSpec(f, path) != nil
+ }
+@@ -322,33 +322,33 @@ func declImports(gen *ast.GenDecl, path string) bool {
+ 	return false
+ }
+ 
+-// isPkgDot returns true if t is the expression "pkg.name"
++// isPkgDot reports whether t is the expression "pkg.name"
+ // where pkg is an imported identifier.
+ func isPkgDot(t ast.Expr, pkg, name string) bool {
+ 	sel, ok := t.(*ast.SelectorExpr)
+ 	return ok && isTopName(sel.X, pkg) && sel.Sel.String() == name
+ }
+ 
+-// isPtrPkgDot returns true if f is the expression "*pkg.name"
++// isPtrPkgDot reports whether f is the expression "*pkg.name"
+ // where pkg is an imported identifier.
+ func isPtrPkgDot(t ast.Expr, pkg, name string) bool {
+ 	ptr, ok := t.(*ast.StarExpr)
+ 	return ok && isPkgDot(ptr.X, pkg, name)
+ }
+ 
+-// isTopName returns true if n is a top-level unresolved identifier with the given name.
++// isTopName reports whether n is a top-level unresolved identifier with the given name.
+ func isTopName(n ast.Expr, name string) bool {
+ 	id, ok := n.(*ast.Ident)
+ 	return ok && id.Name == name && id.Obj == nil
+ }
+ 
+-// isName returns true if n is an identifier with the given name.
++// isName reports whether n is an identifier with the given name.
+ func isName(n ast.Expr, name string) bool {
+ 	id, ok := n.(*ast.Ident)
+ 	return ok && id.String() == name
+ }
+ 
+-// isCall returns true if t is a call to pkg.name.
++// isCall reports whether t is a call to pkg.name.
+ func isCall(t ast.Expr, pkg, name string) bool {
+ 	call, ok := t.(*ast.CallExpr)
+ 	return ok && isPkgDot(call.Fun, pkg, name)
+@@ -360,7 +360,7 @@ func isIdent(n interface{}) *ast.Ident {
+ 	return id
+ }
+ 
+-// refersTo returns true if n is a reference to the same object as x.
++// refersTo reports whether n is a reference to the same object as x.
+ func refersTo(n ast.Node, x *ast.Ident) bool {
+ 	id, ok := n.(*ast.Ident)
+ 	// The test of id.Name == x.Name handles top-level unresolved
+@@ -368,12 +368,12 @@ func refersTo(n ast.Node, x *ast.Ident) bool {
+ 	return ok && id.Obj == x.Obj && id.Name == x.Name
+ }
+ 
+-// isBlank returns true if n is the blank identifier.
++// isBlank reports whether n is the blank identifier.
+ func isBlank(n ast.Expr) bool {
+ 	return isName(n, "_")
+ }
+ 
+-// isEmptyString returns true if n is an empty string literal.
++// isEmptyString reports whether n is an empty string literal.
+ func isEmptyString(n ast.Expr) bool {
+ 	lit, ok := n.(*ast.BasicLit)
+ 	return ok && lit.Kind == token.STRING && len(lit.Value) == 2
+@@ -430,7 +430,7 @@ func rewriteUses(x *ast.Ident, f, fnot func(token.Pos) ast.Expr, scope []ast.Stm
+ 	}
+ }
+ 
+-// assignsTo returns true if any of the code in scope assigns to or takes the address of x.
++// assignsTo reports whether any of the code in scope assigns to or takes the address of x.
+ func assignsTo(x *ast.Ident, scope []ast.Stmt) bool {
+ 	assigned := false
+ 	ff := func(n interface{}) {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 9b2e44c61b..6c157932fb 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -176,7 +176,7 @@ func (s *importStack) copy() []string {
+ 	return append([]string{}, *s...)
+ }
+ 
+-// shorterThan returns true if sp is shorter than t.
++// shorterThan reports whether sp is shorter than t.
+ // We use this to record the shortest import sequence
+ // that leads to a particular package.
+ func (sp *importStack) shorterThan(t []string) bool {
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index d267cfcc1d..069f96622c 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -154,7 +154,7 @@ func isWildcard(s string) bool {
+ 	return size == len(s) && unicode.IsLower(rune)
+ }
+ 
+-// match returns true if pattern matches val,
++// match reports whether pattern matches val,
+ // recording wildcard submatches in m.
+ // If m == nil, match checks whether pattern == val.
+ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index fa987acf0b..396bb5caf5 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -24,7 +24,7 @@ import (
+ type Curve interface {
+ 	// Params returns the parameters for the curve.
+ 	Params() *CurveParams
+-	// IsOnCurve returns true if the given (x,y) lies on the curve.
++	// IsOnCurve reports whether the given (x,y) lies on the curve.
+ 	IsOnCurve(x, y *big.Int) bool
+ 	// Add returns the sum of (x1,y1) and (x2,y2)
+ 	Add(x1, y1, x2, y2 *big.Int) (x, y *big.Int)
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index b6f4919a7c..e0cc1d6d22 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -11,7 +11,7 @@ The receiver verifies the hash by recomputing it using the same key.
+ Receivers should be careful to use Equal to compare MACs in order to avoid
+ timing side-channels:
+ 
+-	// CheckMAC returns true if messageMAC is a valid HMAC tag for message.
++	// CheckMAC reports whether messageMAC is a valid HMAC tag for message.
+ 	func CheckMAC(message, messageMAC, key []byte) bool {
+ 		mac := hmac.New(sha256.New, key)
+ 		mac.Write(message)
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 7675770ded..c7c1f1e1f5 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -238,7 +238,7 @@ Curves:
+ 	return false, nil
+ }
+ 
+-// checkForResumption returns true if we should perform resumption on this connection.
++// checkForResumption reports whether we should perform resumption on this connection.
+ func (hs *serverHandshakeState) checkForResumption() bool {
+ 	c := hs.c
+ 
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index babe94d41c..2362e84688 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -77,7 +77,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
+ }
+ 
+ // AppendCertsFromPEM attempts to parse a series of PEM encoded certificates.
+-// It appends any certificates found to s and returns true if any certificates
++// It appends any certificates found to s and reports whether any certificates
+ // were successfully parsed.
+ //
+ // On many Linux systems, /etc/ssl/cert.pem will contain the system wide set
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 8b3d1b3412..aa99ca5cc5 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -320,7 +320,7 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
+ 	return
+ }
+ 
+-// isPrintable returns true iff the given b is in the ASN.1 PrintableString set.
++// isPrintable reports whether the given b is in the ASN.1 PrintableString set.
+ func isPrintable(b byte) bool {
+ 	return 'a' <= b && b <= 'z' ||
+ 		'A' <= b && b <= 'Z' ||
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index 17e7bb7f5c..db2dc79a9e 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -114,7 +114,7 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
+ 	return w.w.Flush()
+ }
+ 
+-// fieldNeedsQuotes returns true if our field must be enclosed in quotes.
++// fieldNeedsQuotes reports whether our field must be enclosed in quotes.
+ // Fields with a Comma, fields with a quote or newline, and
+ // fields which start with a space must be enclosed in quotes.
+ // We used to quote empty strings, but we do not anymore (as of Go 1.4).
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 92bad794ed..4e4279069f 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -923,7 +923,7 @@ func Parse() {
+ 	CommandLine.Parse(os.Args[1:])
+ }
+ 
+-// Parsed returns true if the command-line flags have been parsed.
++// Parsed reports whether the command-line flags have been parsed.
+ func Parsed() bool {
+ 	return CommandLine.Parsed()
+ }
+diff --git a/src/go/ast/filter.go b/src/go/ast/filter.go
+index 50e576ec04..bb571166f4 100644
+--- a/src/go/ast/filter.go
++++ b/src/go/ast/filter.go
+@@ -23,8 +23,7 @@ func exportFilter(name string) bool {
+ // body) are removed. Non-exported fields and methods of exported types are
+ // stripped. The File.Comments list is not changed.
+ //
+-// FileExports returns true if there are exported declarations;
+-// it returns false otherwise.
++// FileExports reports whether there are exported declarations.
+ //
+ func FileExports(src *File) bool {
+ 	return filterFile(src, exportFilter, true)
+@@ -34,7 +33,7 @@ func FileExports(src *File) bool {
+ // only exported nodes remain. The pkg.Files list is not changed, so that
+ // file names and top-level package comments don't get lost.
+ //
+-// PackageExports returns true if there are exported declarations;
++// PackageExports reports whether there are exported declarations;
+ // it returns false otherwise.
+ //
+ func PackageExports(pkg *Package) bool {
+@@ -199,8 +198,8 @@ func filterSpecList(list []Spec, f Filter, export bool) []Spec {
+ // all names (including struct field and interface method names, but
+ // not from parameter lists) that don't pass through the filter f.
+ //
+-// FilterDecl returns true if there are any declared names left after
+-// filtering; it returns false otherwise.
++// FilterDecl reports whether there are any declared names left after
++// filtering.
+ //
+ func FilterDecl(decl Decl, f Filter) bool {
+ 	return filterDecl(decl, f, false)
+@@ -224,8 +223,8 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
+ // the declaration is removed from the AST. Import declarations are
+ // always removed. The File.Comments list is not changed.
+ //
+-// FilterFile returns true if there are any top-level declarations
+-// left after filtering; it returns false otherwise.
++// FilterFile reports whether there are any top-level declarations
++// left after filtering.
+ //
+ func FilterFile(src *File, f Filter) bool {
+ 	return filterFile(src, f, false)
+@@ -251,8 +250,8 @@ func filterFile(src *File, f Filter, export bool) bool {
+ // changed, so that file names and top-level package comments don't get
+ // lost.
+ //
+-// FilterPackage returns true if there are any top-level declarations
+-// left after filtering; it returns false otherwise.
++// FilterPackage reports whether there are any top-level declarations
++// left after filtering.
+ //
+ func FilterPackage(pkg *Package, f Filter) bool {
+ 	return filterPackage(pkg, f, false)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index b1fb9ef94f..b590105a5c 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1228,7 +1228,7 @@ func splitQuoted(s string) (r []string, err error) {
+ 	return args, err
+ }
+ 
+-// match returns true if the name is one of:
++// match reports whether the name is one of:
+ //
+ //	$GOOS
+ //	$GOARCH
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 6aa38f1528..4a12b1e55f 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -63,7 +63,7 @@ func removeErrorField(ityp *ast.InterfaceType) {
+ }
+ 
+ // filterFieldList removes unexported fields (field names) from the field list
+-// in place and returns true if fields were removed. Anonymous fields are
++// in place and reports whether fields were removed. Anonymous fields are
+ // recorded with the parent type. filterType is called with the types of
+ // all remaining fields.
+ //
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index d1b766cfbb..f2df9a76d1 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1365,7 +1365,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	return x
+ }
+ 
+-// isTypeName returns true iff x is a (qualified) TypeName.
++// isTypeName reports whether x is a (qualified) TypeName.
+ func isTypeName(x ast.Expr) bool {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+@@ -1379,7 +1379,7 @@ func isTypeName(x ast.Expr) bool {
+ 	return true
+ }
+ 
+-// isLiteralType returns true iff x is a legal composite literal type.
++// isLiteralType reports whether x is a legal composite literal type.
+ func isLiteralType(x ast.Expr) bool {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 36f9439a28..f9343d3af0 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -144,7 +144,7 @@ func (p *printer) nextComment() {
+ 	p.commentOffset = infinity
+ }
+ 
+-// commentBefore returns true iff the current comment group occurs
++// commentBefore reports whether the current comment group occurs
+ // before the next position in the source code and printing it does
+ // not introduce implicit semicolons.
+ //
+diff --git a/src/go/printer/testdata/parser.go b/src/go/printer/testdata/parser.go
+index dba8bbd435..44dfa19ff3 100644
+--- a/src/go/printer/testdata/parser.go
++++ b/src/go/printer/testdata/parser.go
+@@ -1165,7 +1165,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	return x
+ }
+ 
+-// isTypeName returns true iff x is a (qualified) TypeName.
++// isTypeName reports whether x is a (qualified) TypeName.
+ func isTypeName(x ast.Expr) bool {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+@@ -1179,7 +1179,7 @@ func isTypeName(x ast.Expr) bool {
+ 	return true
+ }
+ 
+-// isLiteralType returns true iff x is a legal composite literal type.
++// isLiteralType reports whether x is a legal composite literal type.
+ func isLiteralType(x ast.Expr) bool {
+ 	switch t := x.(type) {
+ 	case *ast.BadExpr:
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 17452bb3d5..33751779a3 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -24,7 +24,7 @@ type Position struct {
+ 	Column   int    // column number, starting at 1 (byte count)
+ }
+ 
+-// IsValid returns true if the position is valid.
++// IsValid reports whether the position is valid.
+ func (pos *Position) IsValid() bool { return pos.Line > 0 }
+ 
+ // String returns a string in one of several forms:
+@@ -77,7 +77,7 @@ type Pos int
+ //
+ const NoPos Pos = 0
+ 
+-// IsValid returns true if the position is valid.
++// IsValid reports whether the position is valid.
+ func (p Pos) IsValid() bool {
+ 	return p != NoPos
+ }
+@@ -157,7 +157,7 @@ func (f *File) MergeLine(line int) {
+ 	f.lines = f.lines[:len(f.lines)-1]
+ }
+ 
+-// SetLines sets the line offsets for a file and returns true if successful.
++// SetLines sets the line offsets for a file and reports whether it succeeded.
+ // The line offsets are the offsets of the first character of each line;
+ // for instance for the content "ab\nc\n" the line offsets are {0, 3}.
+ // An empty file has an empty line offset table.
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index db730d1356..2a279d186c 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -335,7 +335,7 @@ func karatsuba(z, x, y nat) {
+ 	}
+ }
+ 
+-// alias returns true if x and y share the same base array.
++// alias reports whether x and y share the same base array.
+ func alias(x, y nat) bool {
+ 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+ }
+@@ -819,7 +819,7 @@ func (z nat) xor(x, y nat) nat {
+ 	return z.norm()
+ }
+ 
+-// greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
++// greaterThan reports whether (x1<<_W + x2) > (y1<<_W + y2)
+ func greaterThan(x1, x2, y1, y2 Word) bool {
+ 	return x1 > y1 || x1 == y1 && x2 > y2
+ }
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index b73377ea3f..748796c8ca 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -385,7 +385,7 @@ func (x *Rat) Sign() int {
+ 	return x.a.Sign()
+ }
+ 
+-// IsInt returns true if the denominator of x is 1.
++// IsInt reports whether the denominator of x is 1.
+ func (x *Rat) IsInt() bool {
+ 	return len(x.b.abs) == 0 || x.b.abs.cmp(natOne) == 0
+ }
+diff --git a/src/mime/grammar.go b/src/mime/grammar.go
+index 2347324aa5..31b66e8f03 100644
+--- a/src/mime/grammar.go
++++ b/src/mime/grammar.go
+@@ -8,13 +8,13 @@ import (
+ 	"strings"
+ )
+ 
+-// isTSpecial returns true if rune is in 'tspecials' as defined by RFC
++// isTSpecial reports whether rune is in 'tspecials' as defined by RFC
+ // 1521 and RFC 2045.
+ func isTSpecial(r rune) bool {
+ 	return strings.IndexRune(`()<>@,;:\"/[]?=`, r) != -1
+ }
+ 
+-// isTokenChar returns true if rune is in 'token' as defined by RFC
++// isTokenChar reports whether rune is in 'token' as defined by RFC
+ // 1521 and RFC 2045.
+ func isTokenChar(r rune) bool {
+ 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
+@@ -22,7 +22,7 @@ func isTokenChar(r rune) bool {
+ 	return r > 0x20 && r < 0x7f && !isTSpecial(r)
+ }
+ 
+-// isToken returns true if s is a 'token' as defined by RFC 1521
++// isToken reports whether s is a 'token' as defined by RFC 1521
+ // and RFC 2045.
+ func isToken(s string) bool {
+ 	if s == "" {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c68aa2c985..565c87d392 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -981,7 +981,7 @@ func statusLine(req *Request, code int) string {
+ 	return line
+ }
+ 
+-// bodyAllowed returns true if a Write is allowed for this response type.
++// bodyAllowed reports whether a Write is allowed for this response type.
+ // It's illegal to call this before the header has been flushed.
+ func (w *response) bodyAllowed() bool {
+ 	if !w.wroteHeader {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index afeaa8da76..b18e445cbc 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -662,7 +662,7 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
+ 	return pconn, nil
+ }
+ 
+-// useProxy returns true if requests to addr should use a proxy,
++// useProxy reports whether requests to addr should use a proxy,
+ // according to the NO_PROXY or no_proxy environment variable.
+ // addr is always a canonicalAddr with a host and port.
+ func useProxy(addr string) bool {
+diff --git a/src/net/ip.go b/src/net/ip.go
+index f83658ccb9..a554165af7 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -108,7 +108,7 @@ var (
+ 	IPv6linklocalallrouters    = IP{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02}
+ )
+ 
+-// IsUnspecified returns true if ip is an unspecified address.
++// IsUnspecified reports whether ip is an unspecified address.
+ func (ip IP) IsUnspecified() bool {
+ 	if ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified) {
+ 		return true
+@@ -116,7 +116,7 @@ func (ip IP) IsUnspecified() bool {
+ 	return false
+ }
+ 
+-// IsLoopback returns true if ip is a loopback address.
++// IsLoopback reports whether ip is a loopback address.
+ func (ip IP) IsLoopback() bool {
+ 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 127 {
+ 		return true
+@@ -124,7 +124,7 @@ func (ip IP) IsLoopback() bool {
+ 	return ip.Equal(IPv6loopback)
+ }
+ 
+-// IsMulticast returns true if ip is a multicast address.
++// IsMulticast reports whether ip is a multicast address.
+ func (ip IP) IsMulticast() bool {
+ 	if ip4 := ip.To4(); ip4 != nil && ip4[0]&0xf0 == 0xe0 {
+ 		return true
+@@ -132,13 +132,13 @@ func (ip IP) IsMulticast() bool {
+ 	return ip[0] == 0xff
+ }
+ 
+-// IsInterfaceLocalMulticast returns true if ip is
++// IsInterfaceLocalMulticast reports whether ip is
+ // an interface-local multicast address.
+ func (ip IP) IsInterfaceLocalMulticast() bool {
+ 	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x01
+ }
+ 
+-// IsLinkLocalMulticast returns true if ip is a link-local
++// IsLinkLocalMulticast reports whether ip is a link-local
+ // multicast address.
+ func (ip IP) IsLinkLocalMulticast() bool {
+ 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0 {
+@@ -147,7 +147,7 @@ func (ip IP) IsLinkLocalMulticast() bool {
+ 	return ip[0] == 0xff && ip[1]&0x0f == 0x02
+ }
+ 
+-// IsLinkLocalUnicast returns true if ip is a link-local
++// IsLinkLocalUnicast reports whether ip is a link-local
+ // unicast address.
+ func (ip IP) IsLinkLocalUnicast() bool {
+ 	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {
+@@ -156,7 +156,7 @@ func (ip IP) IsLinkLocalUnicast() bool {
+ 	return ip[0] == 0xfe && ip[1]&0xc0 == 0x80
+ }
+ 
+-// IsGlobalUnicast returns true if ip is a global unicast
++// IsGlobalUnicast reports whether ip is a global unicast
+ // address.
+ func (ip IP) IsGlobalUnicast() bool {
+ 	return !ip.IsUnspecified() &&
+@@ -352,7 +352,7 @@ func (ip *IP) UnmarshalText(text []byte) error {
+ 	return nil
+ }
+ 
+-// Equal returns true if ip and x are the same IP address.
++// Equal reports whether ip and x are the same IP address.
+ // An IPv4 address and that same address in IPv6 form are
+ // considered to be equal.
+ func (ip IP) Equal(x IP) bool {
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 71fe74b9ca..f3f698cf23 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -428,7 +428,7 @@ var atextChars = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+ 	"0123456789" +
+ 	"!#$%&'*+-/=?^_`{|}~")
+ 
+-// isAtext returns true if c is an RFC 5322 atext character.
++// isAtext reports whether c is an RFC 5322 atext character.
+ // If dot is true, period is included.
+ func isAtext(c byte, dot bool) bool {
+ 	if dot && c == '.' {
+@@ -437,7 +437,7 @@ func isAtext(c byte, dot bool) bool {
+ 	return bytes.IndexByte(atextChars, c) >= 0
+ }
+ 
+-// isQtext returns true if c is an RFC 5322 qtext character.
++// isQtext reports whether c is an RFC 5322 qtext character.
+ func isQtext(c byte) bool {
+ 	// Printable US-ASCII, excluding backslash or quote.
+ 	if c == '\\' || c == '"' {
+@@ -446,13 +446,13 @@ func isQtext(c byte) bool {
+ 	return '!' <= c && c <= '~'
+ }
+ 
+-// isVchar returns true if c is an RFC 5322 VCHAR character.
++// isVchar reports whether c is an RFC 5322 VCHAR character.
+ func isVchar(c byte) bool {
+ 	// Visible (printing) characters.
+ 	return '!' <= c && c <= '~'
+ }
+ 
+-// isWSP returns true if c is a WSP (white space).
++// isWSP reports whether c is a WSP (white space).
+ // WSP is a space or horizontal tab (RFC5234 Appendix B).
+ func isWSP(c byte) bool {
+ 	return c == ' ' || c == '\t'
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index f167408fab..737c95bab9 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -639,7 +639,7 @@ func resolvePath(base, ref string) string {
+ 	return "/" + strings.TrimLeft(strings.Join(dst, "/"), "/")
+ }
+ 
+-// IsAbs returns true if the URL is absolute.
++// IsAbs reports whether the URL is absolute.
+ func (u *URL) IsAbs() bool {
+ 	return u.Scheme != ""
+ }
+diff --git a/src/os/path_plan9.go b/src/os/path_plan9.go
+index 64bad500a6..b09b53a3d8 100644
+--- a/src/os/path_plan9.go
++++ b/src/os/path_plan9.go
+@@ -9,7 +9,7 @@ const (
+ 	PathListSeparator = '\000' // OS-specific path list separator
+ )
+ 
+-// IsPathSeparator returns true if c is a directory separator character.
++// IsPathSeparator reports whether c is a directory separator character.
+ func IsPathSeparator(c uint8) bool {
+ 	return PathSeparator == c
+ }
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index 0211107ddf..36f8e61bf9 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -11,7 +11,7 @@ const (
+ 	PathListSeparator = ':' // OS-specific path list separator
+ )
+ 
+-// IsPathSeparator returns true if c is a directory separator character.
++// IsPathSeparator reports whether c is a directory separator character.
+ func IsPathSeparator(c uint8) bool {
+ 	return PathSeparator == c
+ }
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 61f2ca59ff..c96f137686 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -9,7 +9,7 @@ const (
+ 	PathListSeparator = ';'  // OS-specific path list separator
+ )
+ 
+-// IsPathSeparator returns true if c is a directory separator character.
++// IsPathSeparator reports whether c is a directory separator character.
+ func IsPathSeparator(c uint8) bool {
+ 	// NOTE: Windows accept / as path separator.
+ 	return c == '\\' || c == '/'
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index ecc07aa5da..89f16de355 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -16,7 +16,7 @@ import (
+ // ErrBadPattern indicates a globbing pattern was malformed.
+ var ErrBadPattern = errors.New("syntax error in pattern")
+ 
+-// Match returns true if name matches the shell file name pattern.
++// Match reports whether name matches the shell file name pattern.
+ // The pattern syntax is:
+ //
+ //	pattern:
+@@ -301,7 +301,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ 	return
+ }
+ 
+-// hasMeta returns true if path contains any of the magic characters
++// hasMeta reports whether path contains any of the magic characters
+ // recognized by Match.
+ func hasMeta(path string) bool {
+ 	// TODO(niemeyer): Should other magic characters be added here?
+diff --git a/src/path/filepath/path_plan9.go b/src/path/filepath/path_plan9.go
+index da5f5fdac7..962774efd5 100644
+--- a/src/path/filepath/path_plan9.go
++++ b/src/path/filepath/path_plan9.go
+@@ -6,7 +6,7 @@ package filepath
+ 
+ import "strings"
+ 
+-// IsAbs returns true if the path is absolute.
++// IsAbs reports whether the path is absolute.
+ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
+ }
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index 008b76e19e..d241d78fa7 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -8,7 +8,7 @@ package filepath
+ 
+ import "strings"
+ 
+-// IsAbs returns true if the path is absolute.
++// IsAbs reports whether the path is absolute.
+ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/")
+ }
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index d6ed3d142d..bcfe0a34b0 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -13,7 +13,7 @@ func isSlash(c uint8) bool {
+ 	return c == '\\' || c == '/'
+ }
+ 
+-// IsAbs returns true if the path is absolute.
++// IsAbs reports whether the path is absolute.
+ func IsAbs(path string) (b bool) {
+ 	l := volumeNameLen(path)
+ 	if l == 0 {
+@@ -141,7 +141,7 @@ func joinNonEmpty(elem []string) string {
+ 	return head + string(Separator) + tail
+ }
+ 
+-// isUNC returns true if path is a UNC path.
++// isUNC reports whether path is a UNC path.
+ func isUNC(path string) bool {
+ 	return volumeNameLen(path) > 2
+ }
+diff --git a/src/path/match.go b/src/path/match.go
+index 8154bf6025..75dd3b38e7 100644
+--- a/src/path/match.go
++++ b/src/path/match.go
+@@ -13,7 +13,7 @@ import (
+ // ErrBadPattern indicates a globbing pattern was malformed.
+ var ErrBadPattern = errors.New("syntax error in pattern")
+ 
+-// Match returns true if name matches the shell file name pattern.
++// Match reports whether name matches the shell file name pattern.
+ // The pattern syntax is:
+ //
+ //	pattern:
+diff --git a/src/path/path.go b/src/path/path.go
+index 98a6d52922..3f0828c44a 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -192,7 +192,7 @@ func Base(path string) string {
+ 	return path
+ }
+ 
+-// IsAbs returns true if the path is absolute.
++// IsAbs reports whether the path is absolute.
+ func IsAbs(path string) bool {
+ 	return len(path) > 0 && path[0] == '/'
+ }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index bf1148fd07..ccd145499e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -87,16 +87,16 @@ type Type interface {
+ 	// Kind returns the specific kind of this type.
+ 	Kind() Kind
+ 
+-	// Implements returns true if the type implements the interface type u.
++	// Implements reports whether the type implements the interface type u.
+ 	Implements(u Type) bool
+ 
+-	// AssignableTo returns true if a value of the type is assignable to type u.
++	// AssignableTo reports whether a value of the type is assignable to type u.
+ 	AssignableTo(u Type) bool
+ 
+-	// ConvertibleTo returns true if a value of the type is convertible to type u.
++	// ConvertibleTo reports whether a value of the type is convertible to type u.
+ 	ConvertibleTo(u Type) bool
+ 
+-	// Comparable returns true if values of this type are comparable.
++	// Comparable reports whether values of this type are comparable.
+ 	Comparable() bool
+ 
+ 	// Methods applicable only to some types, depending on Kind.
+@@ -120,7 +120,7 @@ type Type interface {
+ 	// It panics if the type's Kind is not Chan.
+ 	ChanDir() ChanDir
+ 
+-	// IsVariadic returns true if a function type's final input parameter
++	// IsVariadic reports whether a function type's final input parameter
+ 	// is a "..." parameter.  If so, t.In(t.NumIn() - 1) returns the parameter's
+ 	// implicit actual type []T.
+ 	//
+@@ -1122,7 +1122,7 @@ func (t *rtype) Comparable() bool {
+ 	return t.alg != nil && t.alg.equal != nil
+ }
+ 
+-// implements returns true if the type V implements the interface type T.
++// implements reports whether the type V implements the interface type T.
+ func implements(T, V *rtype) bool {
+ 	if T.Kind() != Interface {
+ 		return false
+@@ -1176,7 +1176,7 @@ func implements(T, V *rtype) bool {
+ 	return false
+ }
+ 
+-// directlyAssignable returns true if a value x of type V can be directly
++// directlyAssignable reports whether a value x of type V can be directly
+ // assigned (using memmove) to a value of type T.
+ // http://golang.org/doc/go_spec.html#Assignability
+ // Ignoring the interface rules (implemented elsewhere)
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ad106f53dd..27f9c2dc8c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -268,7 +268,7 @@ func (v Value) runes() []rune {
+ 	return *(*[]rune)(v.ptr)
+ }
+ 
+-// CanAddr returns true if the value's address can be obtained with Addr.
++// CanAddr reports whether the value's address can be obtained with Addr.
+ // Such values are called addressable.  A value is addressable if it is
+ // an element of a slice, an element of an addressable array,
+ // a field of an addressable struct, or the result of dereferencing a pointer.
+@@ -277,7 +277,7 @@ func (v Value) CanAddr() bool {
+ 	return v.flag&flagAddr != 0
+ }
+ 
+-// CanSet returns true if the value of v can be changed.
++// CanSet reports whether the value of v can be changed.
+ // A Value can be changed only if it is addressable and was not
+ // obtained by the use of unexported struct fields.
+ // If CanSet returns false, calling Set or any type-specific
+@@ -884,7 +884,7 @@ func (v Value) Int() int64 {
+ 	panic(&ValueError{"reflect.Value.Int", v.kind()})
+ }
+ 
+-// CanInterface returns true if Interface can be used without panicking.
++// CanInterface reports whether Interface can be used without panicking.
+ func (v Value) CanInterface() bool {
+ 	if v.flag == 0 {
+ 		panic(&ValueError{"reflect.Value.CanInterface", Invalid})
+@@ -971,7 +971,7 @@ func (v Value) IsNil() bool {
+ 	panic(&ValueError{"reflect.Value.IsNil", v.kind()})
+ }
+ 
+-// IsValid returns true if v represents a value.
++// IsValid reports whether v represents a value.
+ // It returns false if v is the zero Value.
+ // If IsValid returns false, all other methods except String panic.
+ // Most functions and methods never return an invalid value.
+@@ -1148,7 +1148,7 @@ func (v Value) NumField() int {
+ 	return len(tt.fields)
+ }
+ 
+-// OverflowComplex returns true if the complex128 x cannot be represented by v's type.
++// OverflowComplex reports whether the complex128 x cannot be represented by v's type.
+ // It panics if v's Kind is not Complex64 or Complex128.
+ func (v Value) OverflowComplex(x complex128) bool {
+ 	k := v.kind()
+@@ -1161,7 +1161,7 @@ func (v Value) OverflowComplex(x complex128) bool {
+ 	panic(&ValueError{"reflect.Value.OverflowComplex", v.kind()})
+ }
+ 
+-// OverflowFloat returns true if the float64 x cannot be represented by v's type.
++// OverflowFloat reports whether the float64 x cannot be represented by v's type.
+ // It panics if v's Kind is not Float32 or Float64.
+ func (v Value) OverflowFloat(x float64) bool {
+ 	k := v.kind()
+@@ -1181,7 +1181,7 @@ func overflowFloat32(x float64) bool {
+ 	return math.MaxFloat32 < x && x <= math.MaxFloat64
+ }
+ 
+-// OverflowInt returns true if the int64 x cannot be represented by v's type.
++// OverflowInt reports whether the int64 x cannot be represented by v's type.
+ // It panics if v's Kind is not Int, Int8, int16, Int32, or Int64.
+ func (v Value) OverflowInt(x int64) bool {
+ 	k := v.kind()
+@@ -1194,7 +1194,7 @@ func (v Value) OverflowInt(x int64) bool {
+ 	panic(&ValueError{"reflect.Value.OverflowInt", v.kind()})
+ }
+ 
+-// OverflowUint returns true if the uint64 x cannot be represented by v's type.
++// OverflowUint reports whether the uint64 x cannot be represented by v's type.
+ // It panics if v's Kind is not Uint, Uintptr, Uint8, Uint16, Uint32, or Uint64.
+ func (v Value) OverflowUint(x uint64) bool {
+ 	k := v.kind()
+@@ -1647,7 +1647,7 @@ func (v Value) TryRecv() (x Value, ok bool) {
+ 
+ // TrySend attempts to send x on the channel v but will not block.
+ // It panics if v's Kind is not Chan.
+-// It returns true if the value was sent, false otherwise.
++// It reports whether the value was sent.
+ // As in Go, x's value must be assignable to the channel's element type.
+ func (v Value) TrySend(x Value) bool {
+ 	v.mustBe(Chan)
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index 29bd282d0d..ae6db31a44 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -189,7 +189,7 @@ Loop:
+ 
+ const noMatch = -1
+ 
+-// MatchRune returns true if the instruction matches (and consumes) r.
++// MatchRune reports whether the instruction matches (and consumes) r.
+ // It should only be called when i.Op == InstRune.
+ func (i *Inst) MatchRune(r rune) bool {
+ 	return i.MatchRunePos(r) != noMatch
+@@ -256,7 +256,7 @@ func wordRune(r rune) bool {
+ 		('0' <= r && r <= '9')
+ }
+ 
+-// MatchEmptyWidth returns true if the instruction matches
++// MatchEmptyWidth reports whether the instruction matches
+ // an empty string between the runes before and after.
+ // It should only be called when i.Op == InstEmptyWidth.
+ func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 9db5faf348..b6f43747d6 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -646,7 +646,7 @@ func topofstack(f *_func) bool {
+ 		externalthreadhandlerp != 0 && pc == externalthreadhandlerp
+ }
+ 
+-// isSystemGoroutine returns true if the goroutine g must be omitted in
++// isSystemGoroutine reports whether the goroutine g must be omitted in
+ // stack dumps and deadlock detector.
+ func isSystemGoroutine(gp *g) bool {
+ 	pc := gp.startpc
+diff --git a/src/strconv/extfloat.go b/src/strconv/extfloat.go
+index bed8b16bda..019b4eebdc 100644
+--- a/src/strconv/extfloat.go
++++ b/src/strconv/extfloat.go
+@@ -256,7 +256,7 @@ var uint64pow10 = [...]uint64{
+ }
+ 
+ // AssignDecimal sets f to an approximate value mantissa*10^exp. It
+-// returns true if the value represented by f is guaranteed to be the
++// reports whether the value represented by f is guaranteed to be the
+ // best approximation of d after being rounded to a float64 or
+ // float32 depending on flt.
+ func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index f362f185a9..f81a1e2b52 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -126,17 +126,17 @@ func Count(s, sep string) int {
+ 	return n
+ }
+ 
+-// Contains returns true if substr is within s.
++// Contains reports whether substr is within s.
+ func Contains(s, substr string) bool {
+ 	return Index(s, substr) >= 0
+ }
+ 
+-// ContainsAny returns true if any Unicode code points in chars are within s.
++// ContainsAny reports whether any Unicode code points in chars are within s.
+ func ContainsAny(s, chars string) bool {
+ 	return IndexAny(s, chars) >= 0
+ }
+ 
+-// ContainsRune returns true if the Unicode code point r is within s.
++// ContainsRune reports whether the Unicode code point r is within s.
+ func ContainsRune(s string, r rune) bool {
+ 	return IndexRune(s, r) >= 0
+ }
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 5199ee4fc7..9638577bcf 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -43,7 +43,7 @@ type Position struct {
+ 	Column   int    // column number, starting at 1 (character count per line)
+ }
+ 
+-// IsValid returns true if the position is valid.
++// IsValid reports whether the position is valid.
+ func (pos *Position) IsValid() bool { return pos.Line > 0 }
+ 
+ func (pos Position) String() string {
+diff --git a/src/time/format.go b/src/time/format.go
+index 0325399132..3d2ff37df0 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -288,7 +288,7 @@ var longMonthNames = []string{
+ 	"December",
+ }
+ 
+-// match returns true if s1 and s2 match ignoring case.
++// match reports whether s1 and s2 match ignoring case.
+ // It is assumed s1 and s2 are the same length.
+ func match(s1, s2 string) bool {
+ 	for i := 0; i < len(s1); i++ {
+@@ -620,8 +620,7 @@ func (e *ParseError) Error() string {
+ 		quote(e.Value) + e.Message
+ }
+ 
+-// isDigit returns true if s[i] is a decimal digit, false if not or
+-// if s[i] is out of range.
++// isDigit reports whether s[i] is in range and is a decimal digit.
+ func isDigit(s string, i int) bool {
+ 	if len(s) <= i {
+ 		return false
+diff --git a/src/unicode/utf16/utf16.go b/src/unicode/utf16/utf16.go
+index c0e47c535a..b497500778 100644
+--- a/src/unicode/utf16/utf16.go
++++ b/src/unicode/utf16/utf16.go
+@@ -25,7 +25,7 @@ const (
+ 	surrSelf = 0x10000
+ )
+ 
+-// IsSurrogate returns true if the specified Unicode code point
++// IsSurrogate reports whether the specified Unicode code point
+ // can appear in a surrogate pair.
+ func IsSurrogate(r rune) bool {
+ 	return surr1 <= r && r < surr3

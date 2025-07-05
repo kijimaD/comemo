@@ -15,8 +15,888 @@ Date:   Fri Apr 23 19:50:42 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/313250
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/os_darwin.go       | 13 +++---
  src/runtime/sys_darwin.go      | 97 +++++++++++++++++++++--------------------
  src/runtime/sys_darwin_amd64.s | 98 +++++++++++++++++++++---------------------
  3 files changed, 106 insertions(+), 102 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 470698d0a3..00139351ab 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ type mOS struct {
+ 	initialized bool
+@@ -221,7 +224,7 @@ func newosproc(mp *m) {
+ 	// setup and then calls mstart.
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	err = pthread_create(&attr, funcPC(mstart_stub), unsafe.Pointer(mp))
++	err = pthread_create(&attr, abi.FuncPCABI0(mstart_stub), unsafe.Pointer(mp))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 	if err != 0 {
+ 		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+@@ -361,11 +364,11 @@ func setsig(i uint32, fn uintptr) {
+ 	var sa usigactiont
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = ^uint32(0)
+-	if fn == funcPC(sighandler) {
++	if fn == funcPC(sighandler) { // funcPC(sighandler) matches the callers in signal_unix.go
+ 		if iscgo {
+-			fn = funcPC(cgoSigtramp)
++			fn = abi.FuncPCABI0(cgoSigtramp)
+ 		} else {
+-			fn = funcPC(sigtramp)
++			fn = abi.FuncPCABI0(sigtramp)
+ 		}
+ 	}
+ 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 4ae259ac63..6d7460fae2 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ // The X versions of syscall expect the libc call to return a 64-bit result.
+ // Otherwise (the non-X version) expects a 32-bit result.
+@@ -17,7 +20,7 @@ import "unsafe"
+ //go:cgo_unsafe_args
+ func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+@@ -28,7 +31,7 @@ func syscall()
+ //go:cgo_unsafe_args
+ func syscall_syscallX(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(funcPC(syscallX)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallX)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+@@ -39,7 +42,7 @@ func syscallX()
+ //go:cgo_unsafe_args
+ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+@@ -50,7 +53,7 @@ func syscall6()
+ //go:cgo_unsafe_args
+ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(funcPC(syscall6X)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6X)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+@@ -61,7 +64,7 @@ func syscall6X()
+ //go:cgo_unsafe_args
+ func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallPtr)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+@@ -71,7 +74,7 @@ func syscallPtr()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall)), unsafe.Pointer(&fn))
+ 	return
+ }
+ 
+@@ -79,7 +82,7 @@ func syscall_rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall6)), unsafe.Pointer(&fn))
+ 	return
+ }
+ 
+@@ -90,7 +93,7 @@ func syscall_rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintpt
+ //go:cgo_unsafe_args
+ func crypto_x509_syscall(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1 uintptr) {
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(funcPC(syscallNoErr)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallNoErr)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+ }
+@@ -102,42 +105,42 @@ func syscallNoErr()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_attr_init(attr *pthreadattr) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_init_trampoline)), unsafe.Pointer(&attr))
+ }
+ func pthread_attr_init_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_attr_getstacksize(attr *pthreadattr, size *uintptr) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
+ }
+ func pthread_attr_getstacksize_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_attr_setdetachstate(attr *pthreadattr, state int) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_attr_setdetachstate_trampoline)), unsafe.Pointer(&attr))
+ }
+ func pthread_attr_setdetachstate_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_create_trampoline)), unsafe.Pointer(&attr))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_create_trampoline)), unsafe.Pointer(&attr))
+ }
+ func pthread_create_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func raise(sig uint32) {
+-	libcCall(unsafe.Pointer(funcPC(raise_trampoline)), unsafe.Pointer(&sig))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(raise_trampoline)), unsafe.Pointer(&sig))
+ }
+ func raise_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_self() (t pthread) {
+-	libcCall(unsafe.Pointer(funcPC(pthread_self_trampoline)), unsafe.Pointer(&t))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_self_trampoline)), unsafe.Pointer(&t))
+ 	return
+ }
+ func pthread_self_trampoline()
+@@ -145,7 +148,7 @@ func pthread_self_trampoline()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_kill(t pthread, sig uint32) {
+-	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_kill_trampoline)), unsafe.Pointer(&t))
+ 	return
+ }
+ func pthread_kill_trampoline()
+@@ -163,7 +166,7 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
+ 		ret1            unsafe.Pointer
+ 		ret2            int
+ 	}{addr, n, prot, flags, fd, off, nil, 0}
+-	libcCall(unsafe.Pointer(funcPC(mmap_trampoline)), unsafe.Pointer(&args))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(mmap_trampoline)), unsafe.Pointer(&args))
+ 	return args.ret1, args.ret2
+ }
+ func mmap_trampoline()
+@@ -171,34 +174,34 @@ func mmap_trampoline()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func munmap(addr unsafe.Pointer, n uintptr) {
+-	libcCall(unsafe.Pointer(funcPC(munmap_trampoline)), unsafe.Pointer(&addr))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(munmap_trampoline)), unsafe.Pointer(&addr))
+ }
+ func munmap_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
+-	libcCall(unsafe.Pointer(funcPC(madvise_trampoline)), unsafe.Pointer(&addr))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(madvise_trampoline)), unsafe.Pointer(&addr))
+ }
+ func madvise_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func mlock(addr unsafe.Pointer, n uintptr) {
+-	libcCall(unsafe.Pointer(funcPC(mlock_trampoline)), unsafe.Pointer(&addr))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(mlock_trampoline)), unsafe.Pointer(&addr))
+ }
+ func mlock_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func read(fd int32, p unsafe.Pointer, n int32) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(read_trampoline)), unsafe.Pointer(&fd))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(read_trampoline)), unsafe.Pointer(&fd))
+ }
+ func read_trampoline()
+ 
+ func pipe() (r, w int32, errno int32) {
+ 	var p [2]int32
+-	errno = libcCall(unsafe.Pointer(funcPC(pipe_trampoline)), noescape(unsafe.Pointer(&p)))
++	errno = libcCall(unsafe.Pointer(abi.FuncPCABI0(pipe_trampoline)), noescape(unsafe.Pointer(&p)))
+ 	return p[0], p[1], errno
+ }
+ func pipe_trampoline()
+@@ -206,7 +209,7 @@ func pipe_trampoline()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func closefd(fd int32) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(close_trampoline)), unsafe.Pointer(&fd))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(close_trampoline)), unsafe.Pointer(&fd))
+ }
+ func close_trampoline()
+ 
+@@ -216,34 +219,34 @@ func close_trampoline()
+ // This is exported via linkname to assembly in runtime/cgo.
+ //go:linkname exit
+ func exit(code int32) {
+-	libcCall(unsafe.Pointer(funcPC(exit_trampoline)), unsafe.Pointer(&code))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(exit_trampoline)), unsafe.Pointer(&code))
+ }
+ func exit_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func usleep(usec uint32) {
+-	libcCall(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(usleep_trampoline)), unsafe.Pointer(&usec))
+ }
+ func usleep_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func usleep_no_g(usec uint32) {
+-	asmcgocall_no_g(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
++	asmcgocall_no_g(unsafe.Pointer(abi.FuncPCABI0(usleep_trampoline)), unsafe.Pointer(&usec))
+ }
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(write_trampoline)), unsafe.Pointer(&fd))
+ }
+ func write_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func open(name *byte, mode, perm int32) (ret int32) {
+-	return libcCall(unsafe.Pointer(funcPC(open_trampoline)), unsafe.Pointer(&name))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(open_trampoline)), unsafe.Pointer(&name))
+ }
+ func open_trampoline()
+ 
+@@ -254,7 +257,7 @@ func nanotime1() int64 {
+ 		t            int64  // raw timer
+ 		numer, denom uint32 // conversion factors. nanoseconds = t * numer / denom.
+ 	}
+-	libcCall(unsafe.Pointer(funcPC(nanotime_trampoline)), unsafe.Pointer(&r))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(nanotime_trampoline)), unsafe.Pointer(&r))
+ 	// Note: Apple seems unconcerned about overflow here. See
+ 	// https://developer.apple.com/library/content/qa/qa1398/_index.html
+ 	// Note also, numer == denom == 1 is common.
+@@ -273,7 +276,7 @@ func nanotime_trampoline()
+ //go:cgo_unsafe_args
+ func walltime1() (int64, int32) {
+ 	var t timespec
+-	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(walltime_trampoline)), unsafe.Pointer(&t))
+ 	return t.tv_sec, int32(t.tv_nsec)
+ }
+ func walltime_trampoline()
+@@ -281,14 +284,14 @@ func walltime_trampoline()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func sigaction(sig uint32, new *usigactiont, old *usigactiont) {
+-	libcCall(unsafe.Pointer(funcPC(sigaction_trampoline)), unsafe.Pointer(&sig))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(sigaction_trampoline)), unsafe.Pointer(&sig))
+ }
+ func sigaction_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func sigprocmask(how uint32, new *sigset, old *sigset) {
+-	libcCall(unsafe.Pointer(funcPC(sigprocmask_trampoline)), unsafe.Pointer(&how))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(sigprocmask_trampoline)), unsafe.Pointer(&how))
+ }
+ func sigprocmask_trampoline()
+ 
+@@ -302,49 +305,49 @@ func sigaltstack(new *stackt, old *stackt) {
+ 		// ref: http://lists.llvm.org/pipermail/llvm-commits/Week-of-Mon-20140421/214296.html
+ 		new.ss_size = 32768
+ 	}
+-	libcCall(unsafe.Pointer(funcPC(sigaltstack_trampoline)), unsafe.Pointer(&new))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(sigaltstack_trampoline)), unsafe.Pointer(&new))
+ }
+ func sigaltstack_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func raiseproc(sig uint32) {
+-	libcCall(unsafe.Pointer(funcPC(raiseproc_trampoline)), unsafe.Pointer(&sig))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(raiseproc_trampoline)), unsafe.Pointer(&sig))
+ }
+ func raiseproc_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func setitimer(mode int32, new, old *itimerval) {
+-	libcCall(unsafe.Pointer(funcPC(setitimer_trampoline)), unsafe.Pointer(&mode))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(setitimer_trampoline)), unsafe.Pointer(&mode))
+ }
+ func setitimer_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func sysctl(mib *uint32, miblen uint32, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(sysctl_trampoline)), unsafe.Pointer(&mib))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(sysctl_trampoline)), unsafe.Pointer(&mib))
+ }
+ func sysctl_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func sysctlbyname(name *byte, oldp *byte, oldlenp *uintptr, newp *byte, newlen uintptr) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(sysctlbyname_trampoline)), unsafe.Pointer(&name))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(sysctlbyname_trampoline)), unsafe.Pointer(&name))
+ }
+ func sysctlbyname_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func fcntl(fd, cmd, arg int32) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(fcntl_trampoline)), unsafe.Pointer(&fd))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+ }
+ func fcntl_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func kqueue() int32 {
+-	v := libcCall(unsafe.Pointer(funcPC(kqueue_trampoline)), nil)
++	v := libcCall(unsafe.Pointer(abi.FuncPCABI0(kqueue_trampoline)), nil)
+ 	return v
+ }
+ func kqueue_trampoline()
+@@ -352,56 +355,56 @@ func kqueue_trampoline()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(kevent_trampoline)), unsafe.Pointer(&kq))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(kevent_trampoline)), unsafe.Pointer(&kq))
+ }
+ func kevent_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_mutex_init(m *pthreadmutex, attr *pthreadmutexattr) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_mutex_init_trampoline)), unsafe.Pointer(&m))
+ }
+ func pthread_mutex_init_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_mutex_lock(m *pthreadmutex) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_mutex_lock_trampoline)), unsafe.Pointer(&m))
+ }
+ func pthread_mutex_lock_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_mutex_unlock(m *pthreadmutex) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_mutex_unlock_trampoline)), unsafe.Pointer(&m))
+ }
+ func pthread_mutex_unlock_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_cond_init(c *pthreadcond, attr *pthreadcondattr) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_cond_init_trampoline)), unsafe.Pointer(&c))
+ }
+ func pthread_cond_init_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_cond_wait(c *pthreadcond, m *pthreadmutex) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_cond_wait_trampoline)), unsafe.Pointer(&c))
+ }
+ func pthread_cond_wait_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
+ }
+ func pthread_cond_timedwait_relative_np_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func pthread_cond_signal(c *pthreadcond) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(pthread_cond_signal_trampoline)), unsafe.Pointer(&c))
+ }
+ func pthread_cond_signal_trampoline()
+ 
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 803d95bcca..3bd027f982 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -5,8 +5,6 @@
+ // System calls and other sys.stuff for AMD64, Darwin
+ // System calls are implemented in libSystem, this file contains
+ // trampolines that convert from Go to C calling convention.
+-// The trampolines are ABIInternal as they are referenced from
+-// Go code with funcPC.
+ 
+ #include "go_asm.h"
+ #include "go_tls.h"
+@@ -16,7 +14,7 @@
+ #define CLOCK_REALTIME		0
+ 
+ // Exit the entire program (like C exit)
+-TEXT runtime·exit_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI		// arg 1 exit status
+@@ -25,7 +23,7 @@ TEXT runtime·exit_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·open_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·open_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	8(DI), SI		// arg 2 flags
+@@ -36,7 +34,7 @@ TEXT runtime·open_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·close_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·close_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI		// arg 1 fd
+@@ -44,7 +42,7 @@ TEXT runtime·close_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·read_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 buf
+@@ -60,7 +58,7 @@ noerr:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·write_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 buf
+@@ -76,7 +74,7 @@ noerr:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pipe_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	CALL	libc_pipe(SB)		// pointer already in DI
+@@ -87,7 +85,7 @@ TEXT runtime·pipe_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·setitimer_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·setitimer_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 new
+@@ -97,7 +95,7 @@ TEXT runtime·setitimer_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·madvise_trampoline<ABIInternal>(SB), NOSPLIT, $0
++TEXT runtime·madvise_trampoline(SB), NOSPLIT, $0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 len
+@@ -108,12 +106,12 @@ TEXT runtime·madvise_trampoline<ABIInternal>(SB), NOSPLIT, $0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·mlock_trampoline<ABIInternal>(SB), NOSPLIT, $0
++TEXT runtime·mlock_trampoline(SB), NOSPLIT, $0
+ 	UNDEF // unimplemented
+ 
+ GLOBL timebase<>(SB),NOPTR,$(machTimebaseInfo__size)
+ 
+-TEXT runtime·nanotime_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·nanotime_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, BX
+@@ -142,7 +140,7 @@ initialized:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·walltime_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·walltime_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, SI			// arg 2 timespec
+@@ -151,7 +149,7 @@ TEXT runtime·walltime_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigaction_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 new
+@@ -164,7 +162,7 @@ TEXT runtime·sigaction_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigprocmask_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sigprocmask_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 new
+@@ -177,7 +175,7 @@ TEXT runtime·sigprocmask_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sigaltstack_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sigaltstack_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 old
+@@ -189,7 +187,7 @@ TEXT runtime·sigaltstack_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·raiseproc_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·raiseproc_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), BX	// signal
+@@ -216,7 +214,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ // This is the function registered during sigaction and is invoked when
+ // a signal is received. It just redirects to the Go function sigtrampgo.
+ // Called using C ABI.
+-TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+@@ -234,7 +232,7 @@ TEXT runtime·sigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 
+ // Used instead of sigtramp in programs that use cgo.
+ // Arguments from kernel are in DI, SI, DX.
+-TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+ 	// If no traceback function, do usual sigtramp.
+ 	MOVQ	runtime·cgoTraceback(SB), AX
+ 	TESTQ	AX, AX
+@@ -277,12 +275,12 @@ TEXT runtime·cgoSigtramp<ABIInternal>(SB),NOSPLIT,$0
+ 	// The first three arguments, and the fifth, are already in registers.
+ 	// Set the two remaining arguments now.
+ 	MOVQ	runtime·cgoTraceback(SB), CX
+-	MOVQ	$runtime·sigtramp<ABIInternal>(SB), R9
++	MOVQ	$runtime·sigtramp(SB), R9
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+ sigtramp:
+-	JMP	runtime·sigtramp<ABIInternal>(SB)
++	JMP	runtime·sigtramp(SB)
+ 
+ sigtrampnog:
+ 	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+@@ -308,7 +306,7 @@ sigtrampnog:
+ 	MOVQ	_cgo_callers(SB), AX
+ 	JMP	AX
+ 
+-TEXT runtime·mmap_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·mmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP			// make a frame; keep stack aligned
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, BX
+@@ -331,7 +329,7 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·munmap_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 len
+@@ -343,7 +341,7 @@ TEXT runtime·munmap_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·usleep_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·usleep_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI	// arg 1 usec
+@@ -355,7 +353,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
+ 	// Nothing to do on Darwin, pthread already set thread-local storage up.
+ 	RET
+ 
+-TEXT runtime·sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sysctl_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	8(DI), SI		// arg 2 miblen
+@@ -368,7 +366,7 @@ TEXT runtime·sysctl_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·sysctlbyname_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·sysctlbyname_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 oldp
+@@ -380,14 +378,14 @@ TEXT runtime·sysctlbyname_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·kqueue_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·kqueue_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	CALL	libc_kqueue(SB)
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·kevent_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·kevent_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI		// arg 2 keventt
+@@ -406,7 +404,7 @@ ok:
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	4(DI), SI		// arg 2 cmd
+@@ -420,7 +418,7 @@ TEXT runtime·fcntl_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ // mstart_stub is the first function executed on a new thread started by pthread_create.
+ // It just does some low-level setup and then calls mstart.
+ // Note: called with the C calling convention.
+-TEXT runtime·mstart_stub<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·mstart_stub(SB),NOSPLIT,$0
+ 	// DI points to the m.
+ 	// We are already on m's g0 stack.
+ 
+@@ -448,7 +446,7 @@ TEXT runtime·mstart_stub<ABIInternal>(SB),NOSPLIT,$0
+ // A pointer to the arguments is passed in DI.
+ // A single int32 result is returned in AX.
+ // (For more results, make an args/results structure.)
+-TEXT runtime·pthread_attr_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP	// make frame, keep stack 16-byte aligned.
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI // arg 1 attr
+@@ -456,7 +454,7 @@ TEXT runtime·pthread_attr_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_attr_getstacksize_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 size
+@@ -465,7 +463,7 @@ TEXT runtime·pthread_attr_getstacksize_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_attr_setdetachstate_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_attr_setdetachstate_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 state
+@@ -474,7 +472,7 @@ TEXT runtime·pthread_attr_setdetachstate_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_create_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -487,7 +485,7 @@ TEXT runtime·pthread_create_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·raise_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·raise_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVL	0(DI), DI	// arg 1 signal
+@@ -495,7 +493,7 @@ TEXT runtime·raise_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_mutex_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 attr
+@@ -504,7 +502,7 @@ TEXT runtime·pthread_mutex_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_mutex_lock_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_lock_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI	// arg 1 mutex
+@@ -512,7 +510,7 @@ TEXT runtime·pthread_mutex_lock_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_mutex_unlock_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_mutex_unlock_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI	// arg 1 mutex
+@@ -520,7 +518,7 @@ TEXT runtime·pthread_mutex_unlock_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_init_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 attr
+@@ -529,7 +527,7 @@ TEXT runtime·pthread_cond_init_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_wait_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 mutex
+@@ -538,7 +536,7 @@ TEXT runtime·pthread_cond_wait_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_timedwait_relative_np_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 mutex
+@@ -548,7 +546,7 @@ TEXT runtime·pthread_cond_timedwait_relative_np_trampoline<ABIInternal>(SB),NOS
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_signal_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	0(DI), DI	// arg 1 cond
+@@ -556,7 +554,7 @@ TEXT runtime·pthread_cond_signal_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_self_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	DI, BX		// BX is caller-save
+@@ -565,7 +563,7 @@ TEXT runtime·pthread_self_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 sig
+@@ -590,7 +588,7 @@ TEXT runtime·pthread_kill_trampoline<ABIInternal>(SB),NOSPLIT,$0
+ //
+ // syscall expects a 32-bit result and tests for 32-bit -1
+ // to decide there was an error.
+-TEXT runtime·syscall<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·syscall(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -640,7 +638,7 @@ ok:
+ //
+ // syscallX is like syscall but expects a 64-bit result
+ // and tests for 64-bit -1 to decide there was an error.
+-TEXT runtime·syscallX<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·syscallX(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -676,7 +674,7 @@ ok:
+ 
+ // syscallPtr is like syscallX except that the libc function reports an
+ // error by returning NULL and setting errno.
+-TEXT runtime·syscallPtr<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·syscallPtr(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -729,7 +727,7 @@ ok:
+ //
+ // syscall6 expects a 32-bit result and tests for 32-bit -1
+ // to decide there was an error.
+-TEXT runtime·syscall6<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·syscall6(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -782,7 +780,7 @@ ok:
+ //
+ // syscall6X is like syscall6 but expects a 64-bit result
+ // and tests for 64-bit -1 to decide there was an error.
+-TEXT runtime·syscall6X<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·syscall6X(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP
+@@ -818,7 +816,7 @@ ok:
+ 
+ // syscallNoErr is like syscall6 but does not check for errors, and
+ // only returns one value, for use with standard C ABI library functions.
+-TEXT runtime·syscallNoErr<ABIInternal>(SB),NOSPLIT,$0
++TEXT runtime·syscallNoErr(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	SUBQ	$16, SP

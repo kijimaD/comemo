@@ -13,7 +13,7 @@ Date:   Thu Sep 24 08:25:14 2009 -0700
     DELTA=58  (16 added, 23 deleted, 19 changed)
     OCL=34853
     CL=34963
-
+---
  usr/austin/eval/compiler.go |  1 -
  usr/austin/eval/expr.go     | 42 +++++++++++++++++++-----------------------
  usr/austin/eval/scope.go    |  1 -
@@ -23,3 +23,293 @@ Date:   Thu Sep 24 08:25:14 2009 -0700
  usr/austin/eval/util.go     |  2 --
  usr/austin/eval/world.go    | 10 +++++++---
  8 files changed, 35 insertions(+), 42 deletions(-)
+
+diff --git a/usr/austin/eval/compiler.go b/usr/austin/eval/compiler.go
+index 12cace9e0c..f3c962c2b7 100644
+--- a/usr/austin/eval/compiler.go
++++ b/usr/austin/eval/compiler.go
+@@ -6,7 +6,6 @@ package eval
+ 
+ import (
+ 	"fmt";
+-	"go/ast";
+ 	"go/scanner";
+ 	"go/token";
+ )
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 472db83c18..5c4e792491 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -7,10 +7,8 @@ package eval
+ import (
+ 	"bignum";
+ 	"go/ast";
+-	"go/scanner";
+ 	"go/token";
+ 	"log";
+-	"os";
+ 	"strconv";
+ 	"strings";
+ )
+@@ -191,7 +189,7 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
+ // expression.
+ func (a *expr) derefArray() *expr {
+ 	if pt, ok := a.t.lit().(*PtrType); ok {
+-		if at, ok := pt.Elem.lit().(*ArrayType); ok {
++		if _, ok := pt.Elem.lit().(*ArrayType); ok {
+ 			deref := a.compileStarExpr(a);
+ 			if deref == nil {
+ 				log.Crashf("failed to dereference *array");
+@@ -481,15 +479,23 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 
+ 	switch x := x.(type) {
+ 	// Literals
+-	case *ast.CharLit:
+-		return ei.compileCharLit(string(x.Value));
++	case *ast.BasicLit:
++		switch x.Kind {
++		case token.INT:
++			return ei.compileIntLit(string(x.Value));
++		case token.FLOAT:
++			return ei.compileFloatLit(string(x.Value));
++		case token.CHAR:
++			return ei.compileCharLit(string(x.Value));
++		case token.STRING:
++			return ei.compileStringLit(string(x.Value));
++		default:
++			log.Crashf("unexpected basic literal type %v", x.Kind);
++		}
+ 
+ 	case *ast.CompositeLit:
+ 		goto notimpl;
+ 
+-	case *ast.FloatLit:
+-		return ei.compileFloatLit(string(x.Value));
+-
+ 	case *ast.FuncLit:
+ 		decl := ei.compileFuncType(a.block, x.Type);
+ 		if decl == nil {
+@@ -507,12 +513,6 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		}
+ 		return ei.compileFuncLit(decl, fn);
+ 
+-	case *ast.IntLit:
+-		return ei.compileIntLit(string(x.Value));
+-
+-	case *ast.StringLit:
+-		return ei.compileStringLit(string(x.Value));
+-
+ 	// Types
+ 	case *ast.ArrayType:
+ 		// TODO(austin) Use a multi-type case
+@@ -744,7 +744,7 @@ func (a *exprInfo) compileIdealInt(i *bignum.Integer, desc string) *expr {
+ }
+ 
+ func (a *exprInfo) compileIntLit(lit string) *expr {
+-	i, _, _2 := bignum.IntFromString(lit, 0);
++	i, _, _ := bignum.IntFromString(lit, 0);
+ 	return a.compileIdealInt(i, "integer literal");
+ }
+ 
+@@ -754,7 +754,7 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
+ 		a.silentErrors++;
+ 		return nil;
+ 	}
+-	v, mb, tail, err := strconv.UnquoteChar(lit[1:len(lit)], '\'');
++	v, _, tail, err := strconv.UnquoteChar(lit[1:len(lit)], '\'');
+ 	if err != nil || tail != "'" {
+ 		// Caught by parser
+ 		a.silentErrors++;
+@@ -863,7 +863,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 
+ 		// If it's a named type, look for methods
+ 		if ti, ok := t.(*NamedType); ok {
+-			method, ok := ti.methods[name];
++			_, ok := ti.methods[name];
+ 			if ok {
+ 				mark(depth, pathName + "." + name);
+ 				log.Crash("Methods not implemented");
+@@ -1638,12 +1638,8 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
+ 			return nil;
+ 		}
+ 		// Arrays and structs may not be compared to anything.
+-		// TODO(austin) Use a multi-type switch
+-		if _, ok := l.t.(*ArrayType); ok {
+-			a.diagOpTypes(op, origlt, origrt);
+-			return nil;
+-		}
+-		if _, ok := l.t.(*StructType); ok {
++		switch l.t.(type) {
++		case *ArrayType, *StructType:
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return nil;
+ 		}
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index 7e10293d5d..7ee4a8915e 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -5,7 +5,6 @@
+ package eval
+ 
+ import (
+-	"fmt";
+ 	"go/token";
+ 	"log";
+ )
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 758157827c..9ec6fb83df 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -7,11 +7,8 @@ package eval
+ import (
+ 	"bignum";
+ 	"log";
+-	"os";
+ 	"go/ast";
+-	"go/scanner";
+ 	"go/token";
+-	"strconv";
+ )
+ 
+ const (
+@@ -1018,7 +1015,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
+ 	// Count cases
+ 	ncases := 0;
+ 	hasDefault := false;
+-	for i, c := range s.Body.List {
++	for _, c := range s.Body.List {
+ 		clause, ok := c.(*ast.CaseClause);
+ 		if !ok {
+ 			a.diagAt(clause, "switch statement must contain case clauses");
+@@ -1090,7 +1087,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
+ 		// Save jump PC's
+ 		pc := a.nextPC();
+ 		if clause.Values != nil {
+-			for _, v := range clause.Values {
++			for _ = range clause.Values {
+ 				casePCs[i] = &pc;
+ 				i++;
+ 			}
+@@ -1215,7 +1212,7 @@ func (a *blockCompiler) compileStmt(s ast.Stmt) {
+ }
+ 
+ func (a *blockCompiler) compileStmts(block *ast.BlockStmt) {
+-	for i, sub := range block.List {
++	for _, sub := range block.List {
+ 		a.compileStmt(sub);
+ 	}
+ }
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index 6561084454..b73f921638 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -165,7 +165,7 @@ type boolType struct {
+ var BoolType = universe.DefineType("bool", universePos, &boolType{})
+ 
+ func (t *boolType) compat(o Type, conv bool) bool {
+-	t2, ok := o.lit().(*boolType);
++	_, ok := o.lit().(*boolType);
+ 	return ok;
+ }
+ 
+@@ -364,7 +364,7 @@ type idealIntType struct {
+ var IdealIntType Type = &idealIntType{}
+ 
+ func (t *idealIntType) compat(o Type, conv bool) bool {
+-	t2, ok := o.lit().(*idealIntType);
++	_, ok := o.lit().(*idealIntType);
+ 	return ok;
+ }
+ 
+@@ -485,7 +485,7 @@ type idealFloatType struct {
+ var IdealFloatType Type = &idealFloatType{};
+ 
+ func (t *idealFloatType) compat(o Type, conv bool) bool {
+-	t2, ok := o.lit().(*idealFloatType);
++	_, ok := o.lit().(*idealFloatType);
+ 	return ok;
+ }
+ 
+@@ -520,7 +520,7 @@ type stringType struct {
+ var StringType = universe.DefineType("string", universePos, &stringType{})
+ 
+ func (t *stringType) compat(o Type, conv bool) bool {
+-	t2, ok := o.lit().(*stringType);
++	_, ok := o.lit().(*stringType);
+ 	return ok;
+ }
+ 
+diff --git a/usr/austin/eval/typec.go b/usr/austin/eval/typec.go
+index a4d055fb59..dcff93ccb4 100644
+--- a/usr/austin/eval/typec.go
++++ b/usr/austin/eval/typec.go
+@@ -26,7 +26,7 @@ type typeCompiler struct {
+ }
+ 
+ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
+-	_bl, _index, def := a.block.Lookup(x.Value);
++	_, _, def := a.block.Lookup(x.Value);
+ 	if def == nil {
+ 		a.diagAt(x, "%s: undefined", x.Value);
+ 		return nil;
+@@ -106,7 +106,7 @@ func (a *typeCompiler) compileFields(fs []*ast.Field, allowRec bool) ([]Type, []
+ 
+ 	bad := false;
+ 	i := 0;
+-	for fi, f := range fs {
++	for _, f := range fs {
+ 		t := a.compileType(f.Type, allowRec);
+ 		if t == nil {
+ 			bad = true;
+diff --git a/usr/austin/eval/util.go b/usr/austin/eval/util.go
+index 68f58842d4..9cdf237221 100644
+--- a/usr/austin/eval/util.go
++++ b/usr/austin/eval/util.go
+@@ -6,8 +6,6 @@ package eval
+ 
+ import (
+ 	"bignum";
+-	"fmt";
+-	"go/token";
+ )
+ 
+ // TODO(austin): Maybe add to bignum in more general form
+diff --git a/usr/austin/eval/world.go b/usr/austin/eval/world.go
+index 6738f6b50c..4eba216bb9 100644
+--- a/usr/austin/eval/world.go
++++ b/usr/austin/eval/world.go
+@@ -5,7 +5,6 @@
+ package eval
+ 
+ import (
+-	"fmt";
+ 	"go/ast";
+ 	"go/parser";
+ 	"go/scanner";
+@@ -64,7 +63,7 @@ func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
+ 		block: w.scope.block,
+ 	};
+ 	nerr := cc.numError();
+-	for i, stmt := range stmts {
++	for _, stmt := range stmts {
+ 		bc.compileStmt(stmt);
+ 	}
+ 	fc.checkLabels();
+@@ -107,11 +106,16 @@ func (w *World) compileExpr(e ast.Expr) (Code, os.Error) {
+ 		return nil, errors.GetError(scanner.Sorted);
+ 	}
+ 	var eval func(Value, *Thread);
+-	switch _ := ec.t.(type) {
++	switch t := ec.t.(type) {
+ 	case *idealIntType:
+ 		// nothing
+ 	case *idealFloatType:
+ 		// nothing
++	case *MultiType:
++		if len(t.Elems) == 0 {
++			return &stmtCode{w, code{ec.exec}}, nil;
++		}
++		fallthrough;
+ 	default:
+ 		eval = genAssign(ec.t, ec);
+ 	}

@@ -7,6 +7,24 @@ Date:   Thu Jan 12 15:27:49 2012 -0800
     TBR=gri
     CC=golang-dev
     https://golang.org/cl/5528090
-
+---
  src/Make.pkg | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 3a7ffd812b..4a61cf98c6 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -149,10 +149,10 @@ endif
+ 
+ # Compile rules for gcc source files.
+ %.o: %.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c -I_obj $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
+ 
+ %.o: _obj/%.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $(_CGO_CFLAGS) $^
++	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c -I_obj $(CGO_CFLAGS) $(_CGO_CFLAGS) $^
+ 
+ # To find out which symbols are needed from external libraries
+ # and which libraries are needed, we build a simple a.out that

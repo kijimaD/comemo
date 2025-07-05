@@ -7,6 +7,22 @@ Date:   Tue Mar 24 16:47:33 2009 -0700
     R=r
     OCL=26699
     CL=26699
-
+---
  test/golden.out | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index c41d2d9e17..879b9f0ac0 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -106,10 +106,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug115.go
+-bugs/bug115.go:8: constant -1 overflows uint
+-BUG: bug115 should compile
+-
+ =========== bugs/bug117.go
+ bugs/bug117.go:9: undefined DOT get on PS
+ bugs/bug117.go:9: illegal types for operand: RETURN

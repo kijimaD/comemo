@@ -14,9 +14,846 @@ Date:   Sun Mar 14 13:46:23 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go |   7 +
  test/typeparam/metrics.go                 | 196 ++++++++++++++++++
  test/typeparam/orderedmap.go              | 286 +++++++++++++++++++++++++++
  test/typeparam/slices.go                  | 318 ++++++++++++++++++++++++++++++
  4 files changed, 807 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 78c7ddeabe..64b3a942e2 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -389,6 +389,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				typecheck.Callee(call.X)
+ 				call.SetTypecheck(0)
+ 				typecheck.Call(call)
++			} else if call.X.Op() == ir.ODOT || call.X.Op() == ir.ODOTPTR {
++				// An OXDOT for a generic receiver was resolved to
++				// an access to a field which has a function
++				// value. Typecheck the call to that function, now
++				// that the OXDOT was resolved.
++				call.SetTypecheck(0)
++				typecheck.Call(call)
+ 			} else if call.X.Op() != ir.OFUNCINST {
+ 				// A call with an OFUNCINST will get typechecked
+ 				// in stencil() once we have created & attached the
+diff --git a/test/typeparam/metrics.go b/test/typeparam/metrics.go
+new file mode 100644
+index 0000000000..8a39d9945d
+--- /dev/null
++++ b/test/typeparam/metrics.go
+@@ -0,0 +1,196 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package metrics provides tracking arbitrary metrics composed of
++// values of comparable types.
++package main
++
++import (
++	"fmt"
++	"sort"
++	"sync"
++)
++
++// _Metric1 tracks metrics of values of some type.
++type _Metric1[T comparable] struct {
++	mu sync.Mutex
++	m  map[T]int
++}
++
++// Add adds another instance of some value.
++func (m *_Metric1[T]) Add(v T) {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	if m.m == nil {
++		m.m = make(map[T]int)
++	}
++	m.m[v]++
++}
++
++// Count returns the number of instances we've seen of v.
++func (m *_Metric1[T]) Count(v T) int {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	return m.m[v]
++}
++
++// Metrics returns all the values we've seen, in an indeterminate order.
++func (m *_Metric1[T]) Metrics() []T {
++	return _Keys(m.m)
++}
++
++type key2[T1, T2 comparable] struct {
++	f1 T1
++	f2 T2
++}
++
++// _Metric2 tracks metrics of pairs of values.
++type _Metric2[T1, T2 comparable] struct {
++	mu sync.Mutex
++	m  map[key2[T1, T2]]int
++}
++
++// Add adds another instance of some pair of values.
++func (m *_Metric2[T1, T2]) Add(v1 T1, v2 T2) {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	if m.m == nil {
++		m.m = make(map[key2[T1, T2]]int)
++	}
++	m.m[key2[T1, T2]{v1, v2}]++
++}
++
++// Count returns the number of instances we've seen of v1/v2.
++func (m *_Metric2[T1, T2]) Count(v1 T1, v2 T2) int {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	return m.m[key2[T1, T2]{v1, v2}]
++}
++
++// Metrics returns all the values we've seen, in an indeterminate order.
++func (m *_Metric2[T1, T2]) Metrics() (r1 []T1, r2 []T2) {
++	for _, k := range _Keys(m.m) {
++		r1 = append(r1, k.f1)
++		r2 = append(r2, k.f2)
++	}
++	return r1, r2
++}
++
++type key3[T1, T2, T3 comparable] struct {
++	f1 T1
++	f2 T2
++	f3 T3
++}
++
++// _Metric3 tracks metrics of triplets of values.
++type _Metric3[T1, T2, T3 comparable] struct {
++	mu sync.Mutex
++	m  map[key3[T1, T2, T3]]int
++}
++
++// Add adds another instance of some triplet of values.
++func (m *_Metric3[T1, T2, T3]) Add(v1 T1, v2 T2, v3 T3) {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	if m.m == nil {
++		m.m = make(map[key3[T1, T2, T3]]int)
++	}
++	m.m[key3[T1, T2, T3]{v1, v2, v3}]++
++}
++
++// Count returns the number of instances we've seen of v1/v2/v3.
++func (m *_Metric3[T1, T2, T3]) Count(v1 T1, v2 T2, v3 T3) int {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	return m.m[key3[T1, T2, T3]{v1, v2, v3}]
++}
++
++// Metrics returns all the values we've seen, in an indeterminate order.
++func (m *_Metric3[T1, T2, T3]) Metrics() (r1 []T1, r2 []T2, r3 []T3) {
++	for k := range m.m {
++		r1 = append(r1, k.f1)
++		r2 = append(r2, k.f2)
++		r3 = append(r3, k.f3)
++	}
++	return r1, r2, r3
++}
++
++type S struct{ a, b, c string }
++
++func TestMetrics() {
++	m1 := _Metric1[string]{}
++	if got := m1.Count("a"); got != 0 {
++		panic(fmt.Sprintf("Count(%q) = %d, want 0", "a", got))
++	}
++	m1.Add("a")
++	m1.Add("a")
++	if got := m1.Count("a"); got != 2 {
++		panic(fmt.Sprintf("Count(%q) = %d, want 2", "a", got))
++	}
++	if got, want := m1.Metrics(), []string{"a"}; !_SlicesEqual(got, want) {
++		panic(fmt.Sprintf("Metrics = %v, want %v", got, want))
++	}
++
++	m2 := _Metric2[int, float64]{}
++	m2.Add(1, 1)
++	m2.Add(2, 2)
++	m2.Add(3, 3)
++	m2.Add(3, 3)
++	k1, k2 := m2.Metrics()
++
++	sort.Ints(k1)
++	w1 := []int{1, 2, 3}
++	if !_SlicesEqual(k1, w1) {
++		panic(fmt.Sprintf("_Metric2.Metrics first slice = %v, want %v", k1, w1))
++	}
++
++	sort.Float64s(k2)
++	w2 := []float64{1, 2, 3}
++	if !_SlicesEqual(k2, w2) {
++		panic(fmt.Sprintf("_Metric2.Metrics first slice = %v, want %v", k2, w2))
++	}
++
++	m3 := _Metric3[string, S, S]{}
++	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
++	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
++	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
++	m3.Add("b", S{"d", "e", "f"}, S{"g", "h", "i"})
++	if got := m3.Count("a", S{"d", "e", "f"}, S{"g", "h", "i"}); got != 3 {
++		panic(fmt.Sprintf("Count(%v, %v, %v) = %d, want 3", "a", S{"d", "e", "f"}, S{"g", "h", "i"}, got))
++	}
++}
++
++func main() {
++	TestMetrics()
++}
++
++// _Equal reports whether two slices are equal: the same length and all
++// elements equal. All floating point NaNs are considered equal.
++func _SlicesEqual[Elem comparable](s1, s2 []Elem) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i, v1 := range s1 {
++		v2 := s2[i]
++		if v1 != v2 {
++			isNaN := func(f Elem) bool { return f != f }
++			if !isNaN(v1) || !isNaN(v2) {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// _Keys returns the keys of the map m.
++// The keys will be an indeterminate order.
++func _Keys[K comparable, V any](m map[K]V) []K {
++	r := make([]K, 0, len(m))
++	for k := range m {
++		r = append(r, k)
++	}
++	return r
++}
+diff --git a/test/typeparam/orderedmap.go b/test/typeparam/orderedmap.go
+new file mode 100644
+index 0000000000..db1b374267
+--- /dev/null
++++ b/test/typeparam/orderedmap.go
+@@ -0,0 +1,286 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package orderedmap provides an ordered map, implemented as a binary tree.
++package main
++
++import (
++	"bytes"
++	"context"
++	"fmt"
++	"runtime"
++)
++
++type Ordered interface {
++        type int, int8, int16, int32, int64,
++                uint, uint8, uint16, uint32, uint64, uintptr,
++                float32, float64,
++                string
++}
++
++// _Map is an ordered map.
++type _Map[K, V any] struct {
++	root    *node[K, V]
++	compare func(K, K) int
++}
++
++// node is the type of a node in the binary tree.
++type node[K, V any] struct {
++	key         K
++	val         V
++	left, right *node[K, V]
++}
++
++// _New returns a new map. It takes a comparison function that compares two
++// keys and returns < 0 if the first is less, == 0 if they are equal,
++// > 0 if the first is greater.
++func _New[K, V any](compare func(K, K) int) *_Map[K, V] {
++	return &_Map[K, V]{compare: compare}
++}
++
++// _NewOrdered returns a new map whose key is an ordered type.
++// This is like _New, but does not require providing a compare function.
++// The map compare function uses the obvious key ordering.
++func _NewOrdered[K Ordered, V any]() *_Map[K, V] {
++	return _New[K, V](func(k1, k2 K) int {
++		switch {
++		case k1 < k2:
++			return -1
++		case k1 == k2:
++			return 0
++		default:
++			return 1
++		}
++	})
++}
++
++// find looks up key in the map, returning either a pointer to the slot of the
++// node holding key, or a pointer to the slot where should a node would go.
++func (m *_Map[K, V]) find(key K) **node[K, V] {
++	pn := &m.root
++	for *pn != nil {
++		switch cmp := m.compare(key, (*pn).key); {
++		case cmp < 0:
++			pn = &(*pn).left
++		case cmp > 0:
++			pn = &(*pn).right
++		default:
++			return pn
++		}
++	}
++	return pn
++}
++
++// Insert inserts a new key/value into the map.
++// If the key is already present, the value is replaced.
++// Reports whether this is a new key.
++func (m *_Map[K, V]) Insert(key K, val V) bool {
++	pn := m.find(key)
++	if *pn != nil {
++		(*pn).val = val
++		return false
++	}
++	*pn = &node[K, V]{key: key, val: val}
++	return true
++}
++
++// Find returns the value associated with a key, or the zero value
++// if not present. The found result reports whether the key was found.
++func (m *_Map[K, V]) Find(key K) (V, bool) {
++	pn := m.find(key)
++	if *pn == nil {
++		var zero V
++		return zero, false
++	}
++	return (*pn).val, true
++}
++
++// keyValue is a pair of key and value used while iterating.
++type keyValue[K, V any] struct {
++	key K
++	val V
++}
++
++// iterate returns an iterator that traverses the map.
++func (m *_Map[K, V]) Iterate() *_Iterator[K, V] {
++	sender, receiver := _Ranger[keyValue[K, V]]()
++	var f func(*node[K, V]) bool
++	f = func(n *node[K, V]) bool {
++		if n == nil {
++			return true
++		}
++		// Stop the traversal if Send fails, which means that
++		// nothing is listening to the receiver.
++		return f(n.left) &&
++			sender.Send(context.Background(), keyValue[K, V]{n.key, n.val}) &&
++			f(n.right)
++	}
++	go func() {
++		f(m.root)
++		sender.Close()
++	}()
++	return &_Iterator[K, V]{receiver}
++}
++
++// _Iterator is used to iterate over the map.
++type _Iterator[K, V any] struct {
++	r *_Receiver[keyValue[K, V]]
++}
++
++// Next returns the next key and value pair, and a boolean that reports
++// whether they are valid. If not valid, we have reached the end of the map.
++func (it *_Iterator[K, V]) Next() (K, V, bool) {
++	keyval, ok := it.r.Next(context.Background())
++	if !ok {
++		var zerok K
++		var zerov V
++		return zerok, zerov, false
++	}
++	return keyval.key, keyval.val, true
++}
++
++func TestMap() {
++	m := _New[[]byte, int](bytes.Compare)
++
++	if _, found := m.Find([]byte("a")); found {
++		panic(fmt.Sprintf("unexpectedly found %q in empty map", []byte("a")))
++	}
++	if !m.Insert([]byte("a"), 'a') {
++		panic(fmt.Sprintf("key %q unexpectedly already present", []byte("a")))
++	}
++	if !m.Insert([]byte("c"), 'c') {
++		panic(fmt.Sprintf("key %q unexpectedly already present", []byte("c")))
++	}
++	if !m.Insert([]byte("b"), 'b') {
++		panic(fmt.Sprintf("key %q unexpectedly already present", []byte("b")))
++	}
++	if m.Insert([]byte("c"), 'x') {
++		panic(fmt.Sprintf("key %q unexpectedly not present", []byte("c")))
++	}
++
++	if v, found := m.Find([]byte("a")); !found {
++		panic(fmt.Sprintf("did not find %q", []byte("a")))
++	} else if v != 'a' {
++		panic(fmt.Sprintf("key %q returned wrong value %c, expected %c", []byte("a"), v, 'a'))
++	}
++	if v, found := m.Find([]byte("c")); !found {
++		panic(fmt.Sprintf("did not find %q", []byte("c")))
++	} else if v != 'x' {
++		panic(fmt.Sprintf("key %q returned wrong value %c, expected %c", []byte("c"), v, 'x'))
++	}
++
++	if _, found := m.Find([]byte("d")); found {
++		panic(fmt.Sprintf("unexpectedly found %q", []byte("d")))
++	}
++
++	gather := func(it *_Iterator[[]byte, int]) []int {
++		var r []int
++		for {
++			_, v, ok := it.Next()
++			if !ok {
++				return r
++			}
++			r = append(r, v)
++		}
++	}
++	got := gather(m.Iterate())
++	want := []int{'a', 'b', 'x'}
++	if !_SliceEqual(got, want) {
++		panic(fmt.Sprintf("Iterate returned %v, want %v", got, want))
++	}
++}
++
++func main() {
++	TestMap()
++}
++
++// _Equal reports whether two slices are equal: the same length and all
++// elements equal. All floating point NaNs are considered equal.
++func _SliceEqual[Elem comparable](s1, s2 []Elem) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i, v1 := range s1 {
++		v2 := s2[i]
++		if v1 != v2 {
++			isNaN := func(f Elem) bool { return f != f }
++			if !isNaN(v1) || !isNaN(v2) {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// Ranger returns a Sender and a Receiver. The Receiver provides a
++// Next method to retrieve values. The Sender provides a Send method
++// to send values and a Close method to stop sending values. The Next
++// method indicates when the Sender has been closed, and the Send
++// method indicates when the Receiver has been freed.
++//
++// This is a convenient way to exit a goroutine sending values when
++// the receiver stops reading them.
++func _Ranger[Elem any]() (*_Sender[Elem], *_Receiver[Elem]) {
++	c := make(chan Elem)
++	d := make(chan struct{})
++	s := &_Sender[Elem]{
++		values: c,
++		done:   d,
++	}
++	r := &_Receiver[Elem] {
++		values: c,
++		done:   d,
++	}
++	runtime.SetFinalizer(r, (*_Receiver[Elem]).finalize)
++	return s, r
++}
++
++// A _Sender is used to send values to a Receiver.
++type _Sender[Elem any] struct {
++	values chan<- Elem
++	done   <-chan struct{}
++}
++
++// Send sends a value to the receiver. It reports whether the value was sent.
++// The value will not be sent if the context is closed or the receiver
++// is freed.
++func (s *_Sender[Elem]) Send(ctx context.Context, v Elem) bool {
++	select {
++	case <-ctx.Done():
++		return false
++	case s.values <- v:
++		return true
++	case <-s.done:
++		return false
++	}
++}
++
++// Close tells the receiver that no more values will arrive.
++// After Close is called, the _Sender may no longer be used.
++func (s *_Sender[Elem]) Close() {
++	close(s.values)
++}
++
++// A _Receiver receives values from a _Sender.
++type _Receiver[Elem any] struct {
++	values <-chan Elem
++	done   chan<- struct{}
++}
++
++// Next returns the next value from the channel. The bool result indicates
++// whether the value is valid.
++func (r *_Receiver[Elem]) Next(ctx context.Context) (v Elem, ok bool) {
++	select {
++	case <-ctx.Done():
++	case v, ok = <-r.values:
++	}
++	return v, ok
++}
++
++// finalize is a finalizer for the receiver.
++func (r *_Receiver[Elem]) finalize() {
++	close(r.done)
++}
+diff --git a/test/typeparam/slices.go b/test/typeparam/slices.go
+new file mode 100644
+index 0000000000..149199eb64
+--- /dev/null
++++ b/test/typeparam/slices.go
+@@ -0,0 +1,318 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package slices provides functions for basic operations on
++// slices of any element type.
++package main
++
++import (
++	"fmt"
++	"math"
++	"strings"
++)
++
++type Ordered interface {
++        type int, int8, int16, int32, int64,
++                uint, uint8, uint16, uint32, uint64, uintptr,
++                float32, float64,
++                string
++}
++
++type Integer interface {
++        type int, int8, int16, int32, int64,
++                uint, uint8, uint16, uint32, uint64, uintptr
++}
++
++// Max returns the maximum of two values of some ordered type.
++func _Max[T Ordered](a, b T) T {
++        if a > b {
++                return a
++        }
++        return b
++}
++
++// Min returns the minimum of two values of some ordered type.
++func _Min[T Ordered](a, b T) T {
++        if a < b {
++                return a
++        }
++        return b
++}
++
++// _Equal reports whether two slices are equal: the same length and all
++// elements equal. All floating point NaNs are considered equal.
++func _Equal[Elem comparable](s1, s2 []Elem) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i, v1 := range s1 {
++		v2 := s2[i]
++		if v1 != v2 {
++			isNaN := func(f Elem) bool { return f != f }
++			if !isNaN(v1) || !isNaN(v2) {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// _EqualFn reports whether two slices are equal using a comparision
++// function on each element.
++func _EqualFn[Elem any](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
++	if len(s1) != len(s2) {
++		return false
++	}
++	for i, v1 := range s1 {
++		v2 := s2[i]
++		if !eq(v1, v2) {
++			return false
++		}
++	}
++	return true
++}
++
++// _Map turns a []Elem1 to a []Elem2 using a mapping function.
++func _Map[Elem1, Elem2 any](s []Elem1, f func(Elem1) Elem2) []Elem2 {
++	r := make([]Elem2, len(s))
++	for i, v := range s {
++		r[i] = f(v)
++	}
++	return r
++}
++
++// _Reduce reduces a []Elem1 to a single value of type Elem2 using
++// a reduction function.
++func _Reduce[Elem1, Elem2 any](s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 {
++	r := initializer
++	for _, v := range s {
++		r = f(r, v)
++	}
++	return r
++}
++
++// _Filter filters values from a slice using a filter function.
++func _Filter[Elem any](s []Elem, f func(Elem) bool) []Elem {
++	var r []Elem
++	for _, v := range s {
++		if f(v) {
++			r = append(r, v)
++		}
++	}
++	return r
++}
++
++// _Max returns the maximum element in a slice of some ordered type.
++// If the slice is empty it returns the zero value of the element type.
++func _SliceMax[Elem Ordered](s []Elem) Elem {
++	if len(s) == 0 {
++		var zero Elem
++		return zero
++	}
++	return _Reduce(s[1:], s[0], _Max[Elem])
++}
++
++// _Min returns the minimum element in a slice of some ordered type.
++// If the slice is empty it returns the zero value of the element type.
++func _SliceMin[Elem Ordered](s []Elem) Elem {
++	if len(s) == 0 {
++		var zero Elem
++		return zero
++	}
++	return _Reduce(s[1:], s[0], _Min[Elem])
++}
++
++// _Append adds values to the end of a slice, returning a new slice.
++// This is like the predeclared append function; it's an example
++// of how to write it using generics. We used to write code like
++// this before append was added to the language, but we had to write
++// a separate copy for each type.
++func _Append[T any](s []T, t ...T) []T {
++	lens := len(s)
++	tot := lens + len(t)
++	if tot <= cap(s) {
++		s = s[:tot]
++	} else {
++		news := make([]T, tot, tot + tot/2)
++		_Copy(news, s)
++		s = news
++	}
++	_Copy(s[lens:tot], t)
++	return s
++}
++
++// _Copy copies values from t to s, stopping when either slice is full,
++// returning the number of values copied. This is like the predeclared
++// copy function; it's an example of how to write it using generics.
++func _Copy[T any](s, t []T) int {
++	i := 0
++	for ; i < len(s) && i < len(t); i++ {
++		s[i] = t[i]
++	}
++	return i
++}
++
++func TestEqual() {
++        s1 := []int{1, 2, 3}
++        if !_Equal(s1, s1) {
++                panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s1))
++        }
++        s2 := []int{1, 2, 3}
++        if !_Equal(s1, s2) {
++                panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s1, s2))
++        }
++        s2 = append(s2, 4)
++        if _Equal(s1, s2) {
++                panic(fmt.Sprintf("_Equal(%v, %v) = true, want false", s1, s2))
++        }
++
++        s3 := []float64{1, 2, math.NaN()}
++        if !_Equal(s3, s3) {
++                panic(fmt.Sprintf("_Equal(%v, %v) = false, want true", s3, s3))
++        }
++
++        if _Equal(s1, nil) {
++                panic(fmt.Sprintf("_Equal(%v, nil) = true, want false", s1))
++        }
++        if _Equal(nil, s1) {
++                panic(fmt.Sprintf("_Equal(nil, %v) = true, want false", s1))
++        }
++        if !_Equal(s1[:0], nil) {
++                panic(fmt.Sprintf("_Equal(%v, nil = false, want true", s1[:0]))
++        }
++}
++
++func offByOne[Elem Integer](a, b Elem) bool {
++	return a == b + 1 || a == b - 1
++}
++
++func TestEqualFn() {
++	s1 := []int{1, 2, 3}
++	s2 := []int{2, 3, 4}
++	if _EqualFn(s1, s1, offByOne[int]) {
++		panic(fmt.Sprintf("_EqualFn(%v, %v, offByOne) = true, want false", s1, s1))
++	}
++	if !_EqualFn(s1, s2, offByOne[int]) {
++		panic(fmt.Sprintf("_EqualFn(%v, %v, offByOne) = false, want true", s1, s2))
++	}
++
++	if !_EqualFn(s1[:0], nil, offByOne[int]) {
++		panic(fmt.Sprintf("_EqualFn(%v, nil, offByOne) = false, want true", s1[:0]))
++	}
++
++	s3 := []string{"a", "b", "c"}
++	s4 := []string{"A", "B", "C"}
++	if !_EqualFn(s3, s4, strings.EqualFold) {
++		panic(fmt.Sprintf("_EqualFn(%v, %v, strings.EqualFold) = false, want true", s3, s4))
++	}
++}
++
++func TestMap() {
++	s1 := []int{1, 2, 3}
++	s2 := _Map(s1, func(i int) float64 { return float64(i) * 2.5 })
++	if want := []float64{2.5, 5, 7.5}; !_Equal(s2, want) {
++		panic(fmt.Sprintf("_Map(%v, ...) = %v, want %v", s1, s2, want))
++	}
++
++	s3 := []string{"Hello", "World"}
++	s4 := _Map(s3, strings.ToLower)
++	if want := []string{"hello", "world"}; !_Equal(s4, want) {
++		panic(fmt.Sprintf("_Map(%v, strings.ToLower) = %v, want %v", s3, s4, want))
++	}
++
++	s5 := _Map(nil, func(i int) int { return i })
++	if len(s5) != 0 {
++		panic(fmt.Sprintf("_Map(nil, identity) = %v, want empty slice", s5))
++	}
++}
++
++func TestReduce() {
++	s1 := []int{1, 2, 3}
++	r := _Reduce(s1, 0, func(f float64, i int) float64 { return float64(i) * 2.5 + f })
++	if want := 15.0; r != want {
++		panic(fmt.Sprintf("_Reduce(%v, 0, ...) = %v, want %v", s1, r, want))
++	}
++
++	if got := _Reduce(nil, 0, func(i, j int) int { return i + j}); got != 0 {
++		panic(fmt.Sprintf("_Reduce(nil, 0, add) = %v, want 0", got))
++	}
++}
++
++func TestFilter() {
++	s1 := []int{1, 2, 3}
++	s2 := _Filter(s1, func(i int) bool { return i%2 == 0 })
++	if want := []int{2}; !_Equal(s2, want) {
++		panic(fmt.Sprintf("_Filter(%v, even) = %v, want %v", s1, s2, want))
++	}
++
++	if s3 := _Filter(s1[:0], func(i int) bool { return true }); len(s3) > 0 {
++		panic(fmt.Sprintf("_Filter(%v, identity) = %v, want empty slice", s1[:0], s3))
++	}
++}
++
++func TestMax() {
++	s1 := []int{1, 2, 3, -5}
++	if got, want := _SliceMax(s1), 3; got != want {
++		panic(fmt.Sprintf("_Max(%v) = %d, want %d", s1, got, want))
++	}
++
++	s2 := []string{"aaa", "a", "aa", "aaaa"}
++	if got, want := _SliceMax(s2), "aaaa"; got != want {
++		panic(fmt.Sprintf("_Max(%v) = %q, want %q", s2, got, want))
++	}
++
++	if got, want := _SliceMax(s2[:0]), ""; got != want {
++		panic(fmt.Sprintf("_Max(%v) = %q, want %q", s2[:0], got, want))
++	}
++}
++
++func TestMin() {
++	s1 := []int{1, 2, 3, -5}
++	if got, want := _SliceMin(s1), -5; got != want {
++		panic(fmt.Sprintf("_Min(%v) = %d, want %d", s1, got, want))
++	}
++
++	s2 := []string{"aaa", "a", "aa", "aaaa"}
++	if got, want := _SliceMin(s2), "a"; got != want {
++		panic(fmt.Sprintf("_Min(%v) = %q, want %q", s2, got, want))
++	}
++
++	if got, want := _SliceMin(s2[:0]), ""; got != want {
++		panic(fmt.Sprintf("_Min(%v) = %q, want %q", s2[:0], got, want))
++	}
++}
++
++func TestAppend() {
++	s := []int{1, 2, 3}
++	s = _Append(s, 4, 5, 6)
++	want := []int{1, 2, 3, 4, 5, 6}
++	if !_Equal(s, want) {
++		panic(fmt.Sprintf("after _Append got %v, want %v", s, want))
++	}
++}
++
++func TestCopy() {
++	s1 := []int{1, 2, 3}
++	s2 := []int{4, 5}
++	if got := _Copy(s1, s2); got != 2 {
++		panic(fmt.Sprintf("_Copy returned %d, want 2", got))
++	}
++	want := []int{4, 5, 3}
++	if !_Equal(s1, want) {
++		panic(fmt.Sprintf("after _Copy got %v, want %v", s1, want))
++	}
++}
++func main() {
++	TestEqual()
++	TestEqualFn()
++	TestMap()
++	TestReduce()
++	TestFilter()
++	TestMax()
++	TestMin()
++	TestAppend()
++	TestCopy()
++}

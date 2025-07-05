@@ -7,9 +7,186 @@ Date:   Thu Sep 23 12:36:52 2010 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/2215044
-
+---
  src/pkg/os/stat_windows.go              |  6 +++---
  src/pkg/syscall/syscall_windows.go      | 30 ++++++++++++++++-----------
  src/pkg/syscall/zsyscall_windows_386.go | 16 +++++++++++++++
  src/pkg/syscall/ztypes_windows_386.go   | 36 ++++++++++++++++++++++++++-------
  4 files changed, 66 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index d7ff6faf4c..b5699d9937 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -39,8 +39,8 @@ func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, at
+ 	fi.Size = int64(sizehi)<<32 + int64(sizelo)
+ 	fi.Name = name
+ 	fi.FollowedSymlink = false
+-	fi.Atime_ns = atime.Microseconds() * 1000
+-	fi.Mtime_ns = wtime.Microseconds() * 1000
+-	fi.Ctime_ns = ctime.Microseconds() * 1000
++	fi.Atime_ns = atime.Nanoseconds()
++	fi.Mtime_ns = wtime.Nanoseconds()
++	fi.Ctime_ns = ctime.Nanoseconds()
+ 	return fi
+ }
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index e2a29202ff..54859f46d6 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -70,12 +70,6 @@ func UTF16ToString(s []uint16) string {
+ // the UTF-8 string s, with a terminating NUL added.
+ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+ 
+-func NsecToTimeval(nsec int64) (tv Timeval) {
+-	tv.Sec = int32(nsec / 1e9)
+-	tv.Usec = int32(nsec % 1e9 / 1e3)
+-	return
+-}
+-
+ // dll helpers
+ 
+ // implemented in ../pkg/runtime/windows/syscall.cgo
+@@ -147,6 +141,7 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
+ //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
+ //sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
++//sys	SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int)
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -394,10 +389,7 @@ func Ftruncate(fd int, length int64) (errno int) {
+ func Gettimeofday(tv *Timeval) (errno int) {
+ 	var ft Filetime
+ 	GetSystemTimeAsFileTime(&ft)
+-	ms := ft.Microseconds()
+-	// split into sec / usec
+-	tv.Sec = int32(ms / 1e6)
+-	tv.Usec = int32(ms) - tv.Sec*1e6
++	*tv = NsecToTimeval(ft.Nanoseconds())
+ 	return 0
+ }
+ 
+@@ -419,9 +411,23 @@ func Pipe(p []int) (errno int) {
+ 	return 0
+ }
+ 
+-// TODO(brainman): implement Utimes, or rewrite os.file.Chtimes() instead
+ func Utimes(path string, tv []Timeval) (errno int) {
+-	return EWINDOWS
++	if len(tv) != 2 {
++		return EINVAL
++	}
++	h, e := CreateFile(StringToUTF16Ptr(path),
++		FILE_WRITE_ATTRIBUTES, FILE_SHARE_WRITE, nil,
++		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
++	if e != 0 {
++		return e
++	}
++	defer Close(int(h))
++	a := NsecToFiletime(tv[0].Nanoseconds())
++	w := NsecToFiletime(tv[1].Nanoseconds())
++	if ok, e := SetFileTime(h, nil, &a, &w); !ok {
++		return e
++	}
++	return 0
+ }
+ 
+ // net api calls
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index e990fcb4d4..464a4e6d5a 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -57,6 +57,7 @@ var (
+ 	procFreeEnvironmentStringsW    = getSysProcAddr(modkernel32, "FreeEnvironmentStringsW")
+ 	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
+ 	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
++	procSetFileTime                = getSysProcAddr(modkernel32, "SetFileTime")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -738,6 +739,21 @@ func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
+ 	return
+ }
+ 
++func SetFileTime(handle int32, ctime *Filetime, atime *Filetime, wtime *Filetime) (ok bool, errno int) {
++	r0, _, e1 := Syscall6(procSetFileTime, uintptr(handle), uintptr(unsafe.Pointer(ctime)), uintptr(unsafe.Pointer(atime)), uintptr(unsafe.Pointer(wtime)), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 6b1ac27aa0..44a7da1942 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -56,7 +56,8 @@ const (
+ 	GENERIC_EXECUTE = 0x20000000
+ 	GENERIC_ALL     = 0x10000000
+ 
+-	FILE_APPEND_DATA = 0x00000004
++	FILE_APPEND_DATA      = 0x00000004
++	FILE_WRITE_ATTRIBUTES = 0x00000100
+ 
+ 	FILE_SHARE_READ          = 0x00000001
+ 	FILE_SHARE_WRITE         = 0x00000002
+@@ -155,6 +156,16 @@ type Timeval struct {
+ 	Usec int32
+ }
+ 
++func (tv *Timeval) Nanoseconds() int64 {
++	return (int64(tv.Sec)*1e6 + int64(tv.Usec)) * 1e3
++}
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	tv.Sec = int32(nsec / 1e9)
++	tv.Usec = int32(nsec % 1e9 / 1e3)
++	return
++}
++
+ type Overlapped struct {
+ 	Internal     uint32
+ 	InternalHigh uint32
+@@ -168,14 +179,25 @@ type Filetime struct {
+ 	HighDateTime uint32
+ }
+ 
+-func (ft *Filetime) Microseconds() int64 {
++func (ft *Filetime) Nanoseconds() int64 {
+ 	// 100-nanosecond intervals since January 1, 1601
+-	ms := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime)
+-	// convert into microseconds
+-	ms /= 10
++	nsec := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime)
+ 	// change starting time to the Epoch (00:00:00 UTC, January 1, 1970)
+-	ms -= 11644473600000000
+-	return ms
++	nsec -= 116444736000000000
++	// convert into nanoseconds
++	nsec *= 100
++	return nsec
++}
++
++func NsecToFiletime(nsec int64) (ft Filetime) {
++	// convert into 100-nanosecond
++	nsec /= 100
++	// change starting time to January 1, 1601
++	nsec += 116444736000000000
++	// split into high / low
++	ft.LowDateTime = uint32(nsec & 0xffffffff)
++	ft.HighDateTime = uint32(nsec >> 32 & 0xffffffff)
++	return ft
+ }
+ 
+ type Win32finddata struct {

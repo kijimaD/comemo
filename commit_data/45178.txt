@@ -10,6 +10,20 @@ Date:   Mon Oct 12 07:13:18 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/261437
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/func.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 0df7b4a5d7..ec2c67c1fa 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -672,7 +672,7 @@ func (f *Func) Idom() []*Block {
+ 	return f.cachedIdom
+ }
+ 
+-// sdom returns a sparse tree representing the dominator relationships
++// Sdom returns a sparse tree representing the dominator relationships
+ // among the blocks of f.
+ func (f *Func) Sdom() SparseTree {
+ 	if f.cachedSdom == nil {

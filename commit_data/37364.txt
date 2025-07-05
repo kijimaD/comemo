@@ -19,8 +19,130 @@ Date:   Sat Jul 14 12:19:36 2018 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js     | 28 ++++++++++++++--------------
  src/syscall/js/callback.go |  8 ++++----
  src/syscall/js/js.go       | 16 ++++++++--------
  3 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 233c5aa187..02a753c823 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -333,14 +333,10 @@
+ 				false,
+ 				global,
+ 				this._inst.exports.mem,
+-				() => { // resolveCallbackPromise
+-					if (this.exited) {
+-						throw new Error("bad callback: Go program has already exited");
+-					}
+-					setTimeout(this._resolveCallbackPromise, 0); // make sure it is asynchronous
+-				},
++				this,
+ 			];
+ 			this._refs = new Map();
++			this._callbackShutdown = false;
+ 			this.exited = false;
+ 
+ 			const mem = new DataView(this._inst.exports.mem.buffer)
+@@ -377,7 +373,12 @@
+ 
+ 			while (true) {
+ 				const callbackPromise = new Promise((resolve) => {
+-					this._resolveCallbackPromise = resolve;
++					this._resolveCallbackPromise = () => {
++						if (this.exited) {
++							throw new Error("bad callback: Go program has already exited");
++						}
++						setTimeout(resolve, 0); // make sure it is asynchronous
++					};
+ 				});
+ 				this._inst.exports.run(argc, argv);
+ 				if (this.exited) {
+@@ -399,17 +400,16 @@
+ 		go.env = process.env;
+ 		go.exit = process.exit;
+ 		WebAssembly.instantiate(fs.readFileSync(process.argv[2]), go.importObject).then((result) => {
+-			process.on("exit", () => { // Node.js exits if no callback is pending
+-				if (!go.exited) {
+-					console.error("error: all goroutines asleep and no JavaScript callback pending - deadlock!");
+-					process.exit(1);
++			process.on("exit", (code) => { // Node.js exits if no callback is pending
++				if (code === 0 && !go.exited) {
++					// deadlock, make Go print error and stack traces
++					go._callbackShutdown = true;
++					go._inst.exports.run();
+ 				}
+ 			});
+ 			return go.run(result.instance);
+ 		}).catch((err) => {
+-			console.error(err);
+-			go.exited = true;
+-			process.exit(1);
++			throw err;
+ 		});
+ 	}
+ })();
+diff --git a/src/syscall/js/callback.go b/src/syscall/js/callback.go
+index fa8a03ab0c..de9da888fd 100644
+--- a/src/syscall/js/callback.go
++++ b/src/syscall/js/callback.go
+@@ -11,10 +11,10 @@ import "sync"
+ var pendingCallbacks = Global().Get("Array").New()
+ 
+ var makeCallbackHelper = Global().Call("eval", `
+-	(function(id, pendingCallbacks, resolveCallbackPromise) {
++	(function(id, pendingCallbacks, go) {
+ 		return function() {
+ 			pendingCallbacks.push({ id: id, args: arguments });
+-			resolveCallbackPromise();
++			go._resolveCallbackPromise();
+ 		};
+ 	})
+ `)
+@@ -71,7 +71,7 @@ func NewCallback(fn func(args []Value)) Callback {
+ 	callbacks[id] = fn
+ 	callbacksMu.Unlock()
+ 	return Callback{
+-		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, resolveCallbackPromise),
++		Value: makeCallbackHelper.Invoke(id, pendingCallbacks, jsGo),
+ 		id:    id,
+ 	}
+ }
+@@ -116,7 +116,7 @@ func (c Callback) Release() {
+ var callbackLoopOnce sync.Once
+ 
+ func callbackLoop() {
+-	for {
++	for !jsGo.Get("_callbackShutdown").Bool() {
+ 		sleepUntilCallback()
+ 		for {
+ 			cb := pendingCallbacks.Call("shift")
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 0cc98bd52c..4b55193c41 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -56,14 +56,14 @@ func (e Error) Error() string {
+ }
+ 
+ var (
+-	valueNaN               = predefValue(0)
+-	valueUndefined         = predefValue(1)
+-	valueNull              = predefValue(2)
+-	valueTrue              = predefValue(3)
+-	valueFalse             = predefValue(4)
+-	valueGlobal            = predefValue(5)
+-	memory                 = predefValue(6) // WebAssembly linear memory
+-	resolveCallbackPromise = predefValue(7) // function that the callback helper uses to resume the execution of Go's WebAssembly code
++	valueNaN       = predefValue(0)
++	valueUndefined = predefValue(1)
++	valueNull      = predefValue(2)
++	valueTrue      = predefValue(3)
++	valueFalse     = predefValue(4)
++	valueGlobal    = predefValue(5)
++	memory         = predefValue(6) // WebAssembly linear memory
++	jsGo           = predefValue(7) // instance of the Go class in JavaScript
+ )
+ 
+ // Undefined returns the JavaScript value "undefined".

@@ -46,7 +46,7 @@ Date:   Tue Jan 8 22:23:52 2019 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go   |  5 -----
  src/cmd/compile/internal/gc/ssa.go    |  2 +-
  src/cmd/compile/internal/types/sym.go |  4 +---
@@ -60,3 +60,237 @@ Date:   Tue Jan 8 22:23:52 2019 -0500
  test/fixedbugs/issue29610.dir/main.go | 11 +++++++++++
  test/fixedbugs/issue29610.go          | 13 +++++++++++++
  12 files changed, 94 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f44d19b439..98ff2a3d27 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -563,11 +563,6 @@ func Main(archInit func(*Arch)) {
+ 		errorexit()
+ 	}
+ 
+-	// The "init" function is the only user-spellable symbol that
+-	// we construct later. Mark it as a function now before
+-	// anything can ask for its Linksym.
+-	lookup("init").SetFunc(true)
+-
+ 	// Phase 4: Decide how to capture closed variables.
+ 	// This needs to run before escape analysis,
+ 	// because variables captured by value do not escape.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index db26f135f5..e20137669a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -106,7 +106,7 @@ func initssaconfig() {
+ 	WasmDiv = sysvar("wasmDiv")
+ 	WasmTruncS = sysvar("wasmTruncS")
+ 	WasmTruncU = sysvar("wasmTruncU")
+-	SigPanic = sysvar("sigpanic")
++	SigPanic = sysfunc("sigpanic")
+ }
+ 
+ // buildssa builds an SSA function for fn.
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 86f5022b5c..13761c7615 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -79,9 +79,7 @@ func (sym *Sym) Linksym() *obj.LSym {
+ 	}
+ 	if sym.Func() {
+ 		// This is a function symbol. Mark it as "internal ABI".
+-		return Ctxt.LookupInit(sym.LinksymName(), func(s *obj.LSym) {
+-			s.SetABI(obj.ABIInternal)
+-		})
++		return Ctxt.LookupABI(sym.LinksymName(), obj.ABIInternal)
+ 	}
+ 	return Ctxt.Lookup(sym.LinksymName())
+ }
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 316937bde0..b1fb1d3944 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1529,8 +1529,7 @@ func buildop(ctxt *obj.Link) {
+ 		return
+ 	}
+ 
+-	deferreturn = ctxt.Lookup("runtime.deferreturn")
+-	deferreturn.SetABI(obj.ABIInternal)
++	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+ 
+ 	symdiv = ctxt.Lookup("runtime._div")
+ 	symdivu = ctxt.Lookup("runtime._divu")
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 7df8e2e516..f506f60d06 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -626,8 +626,9 @@ type Link struct {
+ 	Flag_locationlists bool
+ 	Bso                *bufio.Writer
+ 	Pathname           string
+-	hashmu             sync.Mutex       // protects hash
++	hashmu             sync.Mutex       // protects hash, funchash
+ 	hash               map[string]*LSym // name -> sym mapping
++	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
+ 	statichash         map[string]*LSym // name -> sym mapping for static syms
+ 	PosTable           src.PosTable
+ 	InlTree            InlTree // global inlining tree used by gc/inl.go
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 3fc17fa850..15a501c3aa 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -41,6 +41,7 @@ import (
+ func Linknew(arch *LinkArch) *Link {
+ 	ctxt := new(Link)
+ 	ctxt.hash = make(map[string]*LSym)
++	ctxt.funchash = make(map[string]*LSym)
+ 	ctxt.statichash = make(map[string]*LSym)
+ 	ctxt.Arch = arch
+ 	ctxt.Pathname = objabi.WorkingDir()
+@@ -74,6 +75,30 @@ func (ctxt *Link) LookupStatic(name string) *LSym {
+ 	return s
+ }
+ 
++// LookupABI looks up a symbol with the given ABI.
++// If it does not exist, it creates it.
++func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
++	var hash map[string]*LSym
++	switch abi {
++	case ABI0:
++		hash = ctxt.hash
++	case ABIInternal:
++		hash = ctxt.funchash
++	default:
++		panic("unknown ABI")
++	}
++
++	ctxt.hashmu.Lock()
++	s := hash[name]
++	if s == nil {
++		s = &LSym{Name: name}
++		s.SetABI(abi)
++		hash[name] = s
++	}
++	ctxt.hashmu.Unlock()
++	return s
++}
++
+ // Lookup looks up the symbol with name name.
+ // If it does not exist, it creates it.
+ func (ctxt *Link) Lookup(name string) *LSym {
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 23283a12cf..fbea103dcb 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -125,11 +125,13 @@ func instinit(ctxt *obj.Link) {
+ 	morestack = ctxt.Lookup("runtime.morestack")
+ 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
+ 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
+-	sigpanic = ctxt.Lookup("runtime.sigpanic")
+-	sigpanic.SetABI(obj.ABIInternal)
+-	deferreturn = ctxt.Lookup("runtime.deferreturn")
+-	deferreturn.SetABI(obj.ABIInternal)
+-	jmpdefer = ctxt.Lookup(`"".jmpdefer`)
++	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
++	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
++	// jmpdefer is defined in assembly as ABI0, but what we're
++	// looking for is the *call* to jmpdefer from the Go function
++	// deferreturn, so we're looking for the ABIInternal version
++	// of jmpdefer that's called by Go.
++	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABIInternal)
+ }
+ 
+ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 520f4be8f5..c3da29ce2c 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2064,8 +2064,7 @@ func instinit(ctxt *obj.Link) {
+ 	case objabi.Hplan9:
+ 		plan9privates = ctxt.Lookup("_privates")
+ 	case objabi.Hnacl:
+-		deferreturn = ctxt.Lookup("runtime.deferreturn")
+-		deferreturn.SetABI(obj.ABIInternal)
++		deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
+ 	}
+ 
+ 	for i := range avxOptab {
+diff --git a/test/fixedbugs/issue29610.dir/a.go b/test/fixedbugs/issue29610.dir/a.go
+new file mode 100644
+index 0000000000..ccbe451bca
+--- /dev/null
++++ b/test/fixedbugs/issue29610.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I interface {
++	M(init bool)
++}
++
++var V I
++
++func init() {
++	V = nil
++}
+diff --git a/test/fixedbugs/issue29610.dir/b.go b/test/fixedbugs/issue29610.dir/b.go
+new file mode 100644
+index 0000000000..c2016de3d0
+--- /dev/null
++++ b/test/fixedbugs/issue29610.dir/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type S struct {
++	a.I
++}
++
++var V a.I
++
++func init() {
++	V = S{}
++}
+diff --git a/test/fixedbugs/issue29610.dir/main.go b/test/fixedbugs/issue29610.dir/main.go
+new file mode 100644
+index 0000000000..29437bfa61
+--- /dev/null
++++ b/test/fixedbugs/issue29610.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./b"
++
++var v b.S
++
++func main() {}
+diff --git a/test/fixedbugs/issue29610.go b/test/fixedbugs/issue29610.go
+new file mode 100644
+index 0000000000..8d49ba6b8c
+--- /dev/null
++++ b/test/fixedbugs/issue29610.go
+@@ -0,0 +1,13 @@
++// rundir
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 29610: Symbol import and initialization order caused function
++// symbols to be recorded as non-function symbols.
++
++// This uses rundir not because we actually want to run the final
++// binary, but because we need to at least link it.
++
++package ignored

@@ -7,7 +7,7 @@ Date:   Sat Apr 2 14:28:58 2011 -0700
     R=rsc, ality, r, r2
     CC=golang-dev
     https://golang.org/cl/4149046
-
+---
  src/pkg/os/Makefile       |  19 +++
  src/pkg/os/dir_plan9.go   | 300 ++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/os/env_plan9.go   |  91 ++++++++++++++
@@ -25,3 +25,2071 @@ Date:   Sat Apr 2 14:28:58 2011 -0700
  src/pkg/os/sys_plan9.go   |  27 +++++
  src/pkg/os/time.go        |   4 +-
  16 files changed, 1400 insertions(+), 447 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 3a81afe39a..985fd11d15 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -19,29 +19,48 @@ GOFILES=\
+ 	types.go\
+ 
+ GOFILES_freebsd=\
++	error_posix.go\
+ 	env_unix.go\
++	file_posix.go\
+ 	file_unix.go\
+ 	sys_bsd.go\
++	exec_posix.go\
+ 	exec_unix.go\
+ 
+ GOFILES_darwin=\
++	error_posix.go\
+ 	env_unix.go\
++	file_posix.go\
+ 	file_unix.go\
+ 	sys_bsd.go\
++	exec_posix.go\
+ 	exec_unix.go\
+ 
+ GOFILES_linux=\
++	error_posix.go\
+ 	env_unix.go\
++	file_posix.go\
+ 	file_unix.go\
+ 	sys_linux.go\
++	exec_posix.go\
+ 	exec_unix.go\
+ 
+ GOFILES_windows=\
++	error_posix.go\
+ 	env_windows.go\
++	file_posix.go\
+ 	file_windows.go\
+ 	sys_windows.go\
++	exec_posix.go\
+ 	exec_windows.go\
+ 
++GOFILES_plan9=\
++	error_plan9.go\
++	env_plan9.go\
++	file_plan9.go\
++	sys_plan9.go\
++	exec_plan9.go\
++
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+new file mode 100644
+index 0000000000..7bb0642e47
+--- /dev/null
++++ b/src/pkg/os/dir_plan9.go
+@@ -0,0 +1,300 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"syscall"
++)
++
++type dirInfo int
++
++var markDirectory dirInfo = ^0
++
++// Readdir reads the contents of the directory associated with file and
++// returns an array of up to count FileInfo structures, as would be returned
++// by Lstat, in directory order.  Subsequent calls on the same file will yield
++// further FileInfos. A negative count means to read the entire directory.
++// Readdir returns the array and an Error, if any.
++func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
++	// If this file has no dirinfo, create one.
++	if file.dirinfo == nil {
++		file.dirinfo = &markDirectory
++	}
++
++	size := count
++	if size < 0 {
++		size = 100
++	}
++
++	result := make([]FileInfo, 0, size)
++	var buf [syscall.STATMAX]byte
++
++	for {
++		n, e := file.Read(buf[:])
++
++		if e != nil {
++			if e == EOF {
++				break
++			}
++
++			return []FileInfo{}, &PathError{"readdir", file.name, e}
++		}
++
++		if n < syscall.STATFIXLEN {
++			return []FileInfo{}, &PathError{"readdir", file.name, Eshortstat}
++		}
++
++		for i := 0; i < n; {
++			m, _ := gbit16(buf[i:])
++			m += 2
++
++			if m < syscall.STATFIXLEN {
++				return []FileInfo{}, &PathError{"readdir", file.name, Eshortstat}
++			}
++
++			d, e := UnmarshalDir(buf[i : i+int(m)])
++
++			if e != nil {
++				return []FileInfo{}, &PathError{"readdir", file.name, e}
++			}
++
++			var f FileInfo
++			fileInfoFromStat(&f, d)
++
++			result = append(result, f)
++
++			// a negative count means to read until EOF.
++			if count > 0 && len(result) >= count {
++				break
++			}
++
++			i += int(m)
++		}
++	}
++
++	return result, nil
++}
++
++// Readdirnames returns an array of up to count file names residing in the 
++// directory associated with file. A negative count will return all of them.
++// Readdir returns the array and an Error, if any.
++func (file *File) Readdirnames(count int) (names []string, err Error) {
++	fi, e := file.Readdir(count)
++
++	if e != nil {
++		return []string{}, e
++	}
++
++	names = make([]string, len(fi))
++	err = nil
++
++	for i, _ := range fi {
++		names[i] = fi[i].Name
++	}
++
++	return
++}
++
++type Dir struct {
++	// system-modified data
++	Type uint16 // server type
++	Dev  uint32 // server subtype
++	// file data
++	Qid    Qid    // unique id from server
++	Mode   uint32 // permissions
++	Atime  uint32 // last read time
++	Mtime  uint32 // last write time
++	Length uint64 // file length
++	Name   string // last element of path
++	Uid    string // owner name
++	Gid    string // group name
++	Muid   string // last modifier name
++}
++
++type Qid struct {
++	Path uint64 // the file server's unique identification for the file
++	Vers uint32 // version number for given Path
++	Type uint8  // the type of the file (syscall.QTDIR for example)
++}
++
++var nullDir = Dir{
++	^uint16(0),
++	^uint32(0),
++	Qid{^uint64(0), ^uint32(0), ^uint8(0)},
++	^uint32(0),
++	^uint32(0),
++	^uint32(0),
++	^uint64(0),
++	"",
++	"",
++	"",
++	"",
++}
++
++// Null assigns members of d with special "don't care" values indicating
++// they should not be written by syscall.Wstat. 
++func (d *Dir) Null() {
++	*d = nullDir
++}
++
++// pdir appends a 9P Stat message based on the contents of Dir d to a byte slice b.
++func pdir(b []byte, d *Dir) []byte {
++	n := len(b)
++	b = pbit16(b, 0) // length, filled in later	
++	b = pbit16(b, d.Type)
++	b = pbit32(b, d.Dev)
++	b = pqid(b, d.Qid)
++	b = pbit32(b, d.Mode)
++	b = pbit32(b, d.Atime)
++	b = pbit32(b, d.Mtime)
++	b = pbit64(b, d.Length)
++	b = pstring(b, d.Name)
++	b = pstring(b, d.Uid)
++	b = pstring(b, d.Gid)
++	b = pstring(b, d.Muid)
++	pbit16(b[0:n], uint16(len(b)-(n+2)))
++	return b
++}
++
++// UnmarshalDir reads a 9P Stat message from a 9P protocol message strored in b,
++// returning the corresponding Dir struct.
++func UnmarshalDir(b []byte) (d *Dir, err Error) {
++	n := uint16(0)
++	n, b = gbit16(b)
++
++	if int(n) != len(b) {
++		return nil, Ebadstat
++	}
++
++	d = new(Dir)
++	d.Type, b = gbit16(b)
++	d.Dev, b = gbit32(b)
++	d.Qid, b = gqid(b)
++	d.Mode, b = gbit32(b)
++	d.Atime, b = gbit32(b)
++	d.Mtime, b = gbit32(b)
++	d.Length, b = gbit64(b)
++	d.Name, b = gstring(b)
++	d.Uid, b = gstring(b)
++	d.Gid, b = gstring(b)
++	d.Muid, b = gstring(b)
++
++	if len(b) != 0 {
++		return nil, Ebadstat
++	}
++
++	return d, nil
++}
++
++// gqid reads the qid part of a 9P Stat message from a 9P protocol message strored in b,
++// returning the corresponding Qid struct and the remaining slice of b.
++func gqid(b []byte) (Qid, []byte) {
++	var q Qid
++	q.Path, b = gbit64(b)
++	q.Vers, b = gbit32(b)
++	q.Type, b = gbit8(b)
++	return q, b
++}
++
++// pqid appends a Qid struct q to a 9P message b.
++func pqid(b []byte, q Qid) []byte {
++	b = pbit64(b, q.Path)
++	b = pbit32(b, q.Vers)
++	b = pbit8(b, q.Type)
++	return b
++}
++
++// gbit8 reads a byte-sized numeric value from a 9P protocol message strored in b,
++// returning the value and the remaining slice of b.
++func gbit8(b []byte) (uint8, []byte) {
++	return uint8(b[0]), b[1:]
++}
++
++// gbit16 reads a 16-bit numeric value from a 9P protocol message strored in b,
++// returning the value and the remaining slice of b.
++func gbit16(b []byte) (uint16, []byte) {
++	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
++}
++
++// gbit32 reads a 32-bit numeric value from a 9P protocol message strored in b,
++// returning the value and the remaining slice of b.
++func gbit32(b []byte) (uint32, []byte) {
++	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, b[4:]
++}
++
++// gbit64 reads a 64-bit numeric value from a 9P protocol message strored in b,
++// returning the value and the remaining slice of b.
++func gbit64(b []byte) (uint64, []byte) {
++	lo, b := gbit32(b)
++	hi, b := gbit32(b)
++	return uint64(hi)<<32 | uint64(lo), b
++}
++
++// gstring reads a string from a 9P protocol message strored in b,
++// returning the value as a Go string and the remaining slice of b.
++func gstring(b []byte) (string, []byte) {
++	n, b := gbit16(b)
++	return string(b[0:n]), b[n:]
++}
++
++// pbit8 appends a byte-sized numeric value x to a 9P message b.
++func pbit8(b []byte, x uint8) []byte {
++	n := len(b)
++	if n+1 > cap(b) {
++		nb := make([]byte, n, 100+2*cap(b))
++		copy(nb, b)
++		b = nb
++	}
++	b = b[0 : n+1]
++	b[n] = x
++	return b
++}
++
++// pbit16 appends a 16-bit numeric value x to a 9P message b.
++func pbit16(b []byte, x uint16) []byte {
++	n := len(b)
++	if n+2 > cap(b) {
++		nb := make([]byte, n, 100+2*cap(b))
++		copy(nb, b)
++		b = nb
++	}
++	b = b[0 : n+2]
++	b[n] = byte(x)
++	b[n+1] = byte(x >> 8)
++	return b
++}
++
++// pbit32 appends a 32-bit numeric value x to a 9P message b.
++func pbit32(b []byte, x uint32) []byte {
++	n := len(b)
++	if n+4 > cap(b) {
++		nb := make([]byte, n, 100+2*cap(b))
++		copy(nb, b)
++		b = nb
++	}
++	b = b[0 : n+4]
++	b[n] = byte(x)
++	b[n+1] = byte(x >> 8)
++	b[n+2] = byte(x >> 16)
++	b[n+3] = byte(x >> 24)
++	return b
++}
++
++// pbit64 appends a 64-bit numeric value x to a 9P message b.
++func pbit64(b []byte, x uint64) []byte {
++	b = pbit32(b, uint32(x))
++	b = pbit32(b, uint32(x>>32))
++	return b
++}
++
++// pstring appends a Go string s to a 9P message b.
++func pstring(b []byte, s string) []byte {
++	if len(s) >= 1<<16 {
++		panic(NewError("string too long"))
++	}
++	b = pbit16(b, uint16(len(s)))
++	b = append(b, []byte(s)...)
++	return b
++}
+diff --git a/src/pkg/os/env_plan9.go b/src/pkg/os/env_plan9.go
+new file mode 100644
+index 0000000000..a73f5d8079
+--- /dev/null
++++ b/src/pkg/os/env_plan9.go
+@@ -0,0 +1,91 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Plan 9 environment variables.
++
++package os
++
++import "syscall"
++
++// ENOENV is the Error indicating that an environment variable does not exist.
++var ENOENV = NewError("no such environment variable")
++
++// Getenverror retrieves the value of the environment variable named by the key.
++// It returns the value and an error, if any.
++func Getenverror(key string) (value string, err Error) {
++	if len(key) == 0 {
++		return "", EINVAL
++	}
++	f, e := Open("/env/"+key, O_RDONLY, 0)
++	if iserror(e) {
++		return "", ENOENV
++	}
++	defer f.Close()
++
++	var buf [4096]byte
++	n, e := f.Read(buf[:len(buf)-1])
++	if iserror(e) {
++		return "", ENOENV
++	}
++	buf[n] = 0
++	return string(buf[0:n]), nil
++}
++
++// Getenv retrieves the value of the environment variable named by the key.
++// It returns the value, which will be empty if the variable is not present.
++func Getenv(key string) string {
++	v, _ := Getenverror(key)
++	return v
++}
++
++// Setenv sets the value of the environment variable named by the key.
++// It returns an Error, if any.
++func Setenv(key, value string) Error {
++	if len(key) == 0 {
++		return EINVAL
++	}
++
++	f, e := Open("/env/"+key, O_WRONLY|O_CREAT, 0666)
++	if iserror(e) {
++		return e
++	}
++	defer f.Close()
++
++	_, e = f.Write(syscall.StringByteSlice(value))
++	return nil
++}
++
++// Clearenv deletes all environment variables.
++func Clearenv() {
++	syscall.RawSyscall(syscall.SYS_RFORK, syscall.RFCENVG, 0, 0)
++}
++
++// Environ returns an array of strings representing the environment,
++// in the form "key=value".
++func Environ() []string {
++	env := make([]string, 0, 100)
++
++	f, e := Open("/env", O_RDONLY, 0)
++	if iserror(e) {
++		panic(e)
++	}
++	defer f.Close()
++
++	names, e := f.Readdirnames(-1)
++	if iserror(e) {
++		panic(e)
++	}
++
++	for _, k := range names {
++		if v, e := Getenverror(k); !iserror(e) {
++			env = append(env, k+"="+v)
++		}
++	}
++	return env[0:len(env)]
++}
++
++// TempDir returns the default directory to use for temporary files.
++func TempDir() string {
++	return "/tmp"
++}
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 635a3fe50a..2c4516ca7d 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -4,8 +4,6 @@
+ 
+ package os
+ 
+-import syscall "syscall"
+-
+ // An Error can represent any printable error condition.
+ type Error interface {
+ 	String() string
+@@ -26,63 +24,6 @@ func (e ErrorString) Timeout() bool   { return false }
+ // NewError converts s to an ErrorString, which satisfies the Error interface.
+ func NewError(s string) Error { return ErrorString(s) }
+ 
+-// Errno is the Unix error number.  Names such as EINVAL are simple
+-// wrappers to convert the error number into an Error.
+-type Errno int64
+-
+-func (e Errno) String() string { return syscall.Errstr(int(e)) }
+-
+-func (e Errno) Temporary() bool {
+-	return e == Errno(syscall.EINTR) || e.Timeout()
+-}
+-
+-func (e Errno) Timeout() bool {
+-	return e == Errno(syscall.EAGAIN) || e == Errno(syscall.EWOULDBLOCK) || e == Errno(syscall.ETIMEDOUT)
+-}
+-
+-// Commonly known Unix errors.
+-var (
+-	EPERM        Error = Errno(syscall.EPERM)
+-	ENOENT       Error = Errno(syscall.ENOENT)
+-	ESRCH        Error = Errno(syscall.ESRCH)
+-	EINTR        Error = Errno(syscall.EINTR)
+-	EIO          Error = Errno(syscall.EIO)
+-	ENXIO        Error = Errno(syscall.ENXIO)
+-	E2BIG        Error = Errno(syscall.E2BIG)
+-	ENOEXEC      Error = Errno(syscall.ENOEXEC)
+-	EBADF        Error = Errno(syscall.EBADF)
+-	ECHILD       Error = Errno(syscall.ECHILD)
+-	EDEADLK      Error = Errno(syscall.EDEADLK)
+-	ENOMEM       Error = Errno(syscall.ENOMEM)
+-	EACCES       Error = Errno(syscall.EACCES)
+-	EFAULT       Error = Errno(syscall.EFAULT)
+-	EBUSY        Error = Errno(syscall.EBUSY)
+-	EEXIST       Error = Errno(syscall.EEXIST)
+-	EXDEV        Error = Errno(syscall.EXDEV)
+-	ENODEV       Error = Errno(syscall.ENODEV)
+-	ENOTDIR      Error = Errno(syscall.ENOTDIR)
+-	EISDIR       Error = Errno(syscall.EISDIR)
+-	EINVAL       Error = Errno(syscall.EINVAL)
+-	ENFILE       Error = Errno(syscall.ENFILE)
+-	EMFILE       Error = Errno(syscall.EMFILE)
+-	ENOTTY       Error = Errno(syscall.ENOTTY)
+-	EFBIG        Error = Errno(syscall.EFBIG)
+-	ENOSPC       Error = Errno(syscall.ENOSPC)
+-	ESPIPE       Error = Errno(syscall.ESPIPE)
+-	EROFS        Error = Errno(syscall.EROFS)
+-	EMLINK       Error = Errno(syscall.EMLINK)
+-	EPIPE        Error = Errno(syscall.EPIPE)
+-	EAGAIN       Error = Errno(syscall.EAGAIN)
+-	EDOM         Error = Errno(syscall.EDOM)
+-	ERANGE       Error = Errno(syscall.ERANGE)
+-	EADDRINUSE   Error = Errno(syscall.EADDRINUSE)
+-	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED)
+-	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
+-	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
+-	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
+-	ENOTCONN     Error = Errno(syscall.ENOTCONN)
+-)
+-
+ // PathError records an error and the operation and file path that caused it.
+ type PathError struct {
+ 	Op    string
+@@ -91,25 +32,3 @@ type PathError struct {
+ }
+ 
+ func (e *PathError) String() string { return e.Op + " " + e.Path + ": " + e.Error.String() }
+-
+-// SyscallError records an error from a specific system call.
+-type SyscallError struct {
+-	Syscall string
+-	Errno   Errno
+-}
+-
+-func (e *SyscallError) String() string { return e.Syscall + ": " + e.Errno.String() }
+-
+-// Note: If the name of the function NewSyscallError changes,
+-// pkg/go/doc/doc.go should be adjusted since it hardwires
+-// this name in a heuristic.
+-
+-// NewSyscallError returns, as an Error, a new SyscallError
+-// with the given system call name and error number.
+-// As a convenience, if errno is 0, NewSyscallError returns nil.
+-func NewSyscallError(syscall string, errno int) Error {
+-	if errno == 0 {
+-		return nil
+-	}
+-	return &SyscallError{syscall, Errno(errno)}
+-}
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+new file mode 100644
+index 0000000000..0f34f04a4d
+--- /dev/null
++++ b/src/pkg/os/error_plan9.go
+@@ -0,0 +1,53 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import syscall "syscall"
++
++// SyscallError records an error from a specific system call.
++type SyscallError struct {
++	Syscall string
++	Err     string
++}
++
++func (e *SyscallError) String() string { return e.Syscall + ": " + e.Err }
++
++// Note: If the name of the function NewSyscallError changes,
++// pkg/go/doc/doc.go should be adjusted since it hardwires
++// this name in a heuristic.
++
++// NewSyscallError returns, as an Error, a new SyscallError
++// with the given system call name and error details.
++// As a convenience, if err is nil, NewSyscallError returns nil.
++func NewSyscallError(syscall string, err syscall.Error) Error {
++	if err == nil {
++		return nil
++	}
++	return &SyscallError{syscall, err.String()}
++}
++
++var (
++	Eshortstat = NewError("stat buffer too small")
++	Ebadstat   = NewError("malformed stat buffer")
++	Ebadfd     = NewError("fd out of range or not open")
++	Ebadarg    = NewError("bad arg in system call")
++	Enotdir    = NewError("not a directory")
++	Enonexist  = NewError("file does not exist")
++
++	EINVAL  = Ebadarg
++	ENOTDIR = Enotdir
++	ENOENT  = Enonexist
++
++	ENAMETOOLONG = NewError("file name too long")
++	ERANGE       = NewError("math result not representable")
++	EPIPE        = NewError("Broken Pipe")
++	EPLAN9       = NewError("not supported by plan 9")
++)
++
++func iserror(err syscall.Error) bool {
++	return err != nil
++}
++
++func Errno(e syscall.Error) syscall.Error { return e }
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+new file mode 100644
+index 0000000000..0ee34e4b0e
+--- /dev/null
++++ b/src/pkg/os/error_posix.go
+@@ -0,0 +1,90 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import syscall "syscall"
++
++// Errno is the Unix error number.  Names such as EINVAL are simple
++// wrappers to convert the error number into an Error.
++type Errno int64
++
++func (e Errno) String() string { return syscall.Errstr(int(e)) }
++
++func (e Errno) Temporary() bool {
++	return e == Errno(syscall.EINTR) || e.Timeout()
++}
++
++func (e Errno) Timeout() bool {
++	return e == Errno(syscall.EAGAIN) || e == Errno(syscall.EWOULDBLOCK) || e == Errno(syscall.ETIMEDOUT)
++}
++
++// Commonly known Unix errors.
++var (
++	EPERM        Error = Errno(syscall.EPERM)
++	ENOENT       Error = Errno(syscall.ENOENT)
++	ESRCH        Error = Errno(syscall.ESRCH)
++	EINTR        Error = Errno(syscall.EINTR)
++	EIO          Error = Errno(syscall.EIO)
++	ENXIO        Error = Errno(syscall.ENXIO)
++	E2BIG        Error = Errno(syscall.E2BIG)
++	ENOEXEC      Error = Errno(syscall.ENOEXEC)
++	EBADF        Error = Errno(syscall.EBADF)
++	ECHILD       Error = Errno(syscall.ECHILD)
++	EDEADLK      Error = Errno(syscall.EDEADLK)
++	ENOMEM       Error = Errno(syscall.ENOMEM)
++	EACCES       Error = Errno(syscall.EACCES)
++	EFAULT       Error = Errno(syscall.EFAULT)
++	EBUSY        Error = Errno(syscall.EBUSY)
++	EEXIST       Error = Errno(syscall.EEXIST)
++	EXDEV        Error = Errno(syscall.EXDEV)
++	ENODEV       Error = Errno(syscall.ENODEV)
++	ENOTDIR      Error = Errno(syscall.ENOTDIR)
++	EISDIR       Error = Errno(syscall.EISDIR)
++	EINVAL       Error = Errno(syscall.EINVAL)
++	ENFILE       Error = Errno(syscall.ENFILE)
++	EMFILE       Error = Errno(syscall.EMFILE)
++	ENOTTY       Error = Errno(syscall.ENOTTY)
++	EFBIG        Error = Errno(syscall.EFBIG)
++	ENOSPC       Error = Errno(syscall.ENOSPC)
++	ESPIPE       Error = Errno(syscall.ESPIPE)
++	EROFS        Error = Errno(syscall.EROFS)
++	EMLINK       Error = Errno(syscall.EMLINK)
++	EPIPE        Error = Errno(syscall.EPIPE)
++	EAGAIN       Error = Errno(syscall.EAGAIN)
++	EDOM         Error = Errno(syscall.EDOM)
++	ERANGE       Error = Errno(syscall.ERANGE)
++	EADDRINUSE   Error = Errno(syscall.EADDRINUSE)
++	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED)
++	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG)
++	EAFNOSUPPORT Error = Errno(syscall.EAFNOSUPPORT)
++	ETIMEDOUT    Error = Errno(syscall.ETIMEDOUT)
++	ENOTCONN     Error = Errno(syscall.ENOTCONN)
++)
++
++// SyscallError records an error from a specific system call.
++type SyscallError struct {
++	Syscall string
++	Errno   Errno
++}
++
++func (e *SyscallError) String() string { return e.Syscall + ": " + e.Errno.String() }
++
++// Note: If the name of the function NewSyscallError changes,
++// pkg/go/doc/doc.go should be adjusted since it hardwires
++// this name in a heuristic.
++
++// NewSyscallError returns, as an Error, a new SyscallError
++// with the given system call name and error details.
++// As a convenience, if errno is 0, NewSyscallError returns nil.
++func NewSyscallError(syscall string, errno int) Error {
++	if errno == 0 {
++		return nil
++	}
++	return &SyscallError{syscall, Errno(errno)}
++}
++
++func iserror(errno int) bool {
++	return errno != 0
++}
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index 9d80ccfbed..f62caf9a06 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -39,126 +39,6 @@ type ProcAttr struct {
+ 	Files []*File
+ }
+ 
+-// StartProcess starts a new process with the program, arguments and attributes
+-// specified by name, argv and attr.
+-func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
+-	sysattr := &syscall.ProcAttr{
+-		Dir: attr.Dir,
+-		Env: attr.Env,
+-	}
+-	if sysattr.Env == nil {
+-		sysattr.Env = Environ()
+-	}
+-	// Create array of integer (system) fds.
+-	intfd := make([]int, len(attr.Files))
+-	for i, f := range attr.Files {
+-		if f == nil {
+-			intfd[i] = -1
+-		} else {
+-			intfd[i] = f.Fd()
+-		}
+-	}
+-	sysattr.Files = intfd
+-
+-	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+-	if e != 0 {
+-		return nil, &PathError{"fork/exec", name, Errno(e)}
+-	}
+-	return newProcess(pid, h), nil
+-}
+-
+-// Exec replaces the current process with an execution of the
+-// named binary, with arguments argv and environment envv.
+-// If successful, Exec never returns.  If it fails, it returns an Error.
+-// StartProcess is almost always a better way to execute a program.
+-func Exec(name string, argv []string, envv []string) Error {
+-	if envv == nil {
+-		envv = Environ()
+-	}
+-	e := syscall.Exec(name, argv, envv)
+-	if e != 0 {
+-		return &PathError{"exec", name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// TODO(rsc): Should os implement its own syscall.WaitStatus
+-// wrapper with the methods, or is exposing the underlying one enough?
+-//
+-// TODO(rsc): Certainly need to have Rusage struct,
+-// since syscall one might have different field types across
+-// different OS.
+-
+-// Waitmsg stores the information about an exited process as reported by Wait.
+-type Waitmsg struct {
+-	Pid                int             // The process's id.
+-	syscall.WaitStatus                 // System-dependent status info.
+-	Rusage             *syscall.Rusage // System-dependent resource usage info.
+-}
+-
+-// Wait waits for process pid to exit or stop, and then returns a
+-// Waitmsg describing its status and an Error, if any. The options
+-// (WNOHANG etc.) affect the behavior of the Wait call.
+-// Wait is equivalent to calling FindProcess and then Wait
+-// and Release on the result.
+-func Wait(pid int, options int) (w *Waitmsg, err Error) {
+-	p, e := FindProcess(pid)
+-	if e != nil {
+-		return nil, e
+-	}
+-	defer p.Release()
+-	return p.Wait(options)
+-}
+-
+-// Convert i to decimal string.
+-func itod(i int) string {
+-	if i == 0 {
+-		return "0"
+-	}
+-
+-	u := uint64(i)
+-	if i < 0 {
+-		u = -u
+-	}
+-
+-	// Assemble decimal in reverse order.
+-	var b [32]byte
+-	bp := len(b)
+-	for ; u > 0; u /= 10 {
+-		bp--
+-		b[bp] = byte(u%10) + '0'
+-	}
+-
+-	if i < 0 {
+-		bp--
+-		b[bp] = '-'
+-	}
+-
+-	return string(b[bp:])
+-}
+-
+-func (w Waitmsg) String() string {
+-	// TODO(austin) Use signal names when possible?
+-	res := ""
+-	switch {
+-	case w.Exited():
+-		res = "exit status " + itod(w.ExitStatus())
+-	case w.Signaled():
+-		res = "signal " + itod(w.Signal())
+-	case w.Stopped():
+-		res = "stop signal " + itod(w.StopSignal())
+-		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
+-			res += " (trap " + itod(w.TrapCause()) + ")"
+-		}
+-	case w.Continued():
+-		res = "continued"
+-	}
+-	if w.CoreDump() {
+-		res += " (core dumped)"
+-	}
+-	return res
+-}
+-
+ // Getpid returns the process id of the caller.
+ func Getpid() int { return syscall.Getpid() }
+ 
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+new file mode 100644
+index 0000000000..11874aba67
+--- /dev/null
++++ b/src/pkg/os/exec_plan9.go
+@@ -0,0 +1,114 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"runtime"
++	"syscall"
++)
++
++// StartProcess starts a new process with the program, arguments and attributes
++// specified by name, argv and attr.
++func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
++	sysattr := &syscall.ProcAttr{
++		Dir: attr.Dir,
++		Env: attr.Env,
++	}
++
++	// Create array of integer (system) fds.
++	intfd := make([]int, len(attr.Files))
++	for i, f := range attr.Files {
++		if f == nil {
++			intfd[i] = -1
++		} else {
++			intfd[i] = f.Fd()
++		}
++	}
++
++	sysattr.Files = intfd
++
++	pid, h, e := syscall.StartProcess(name, argv, sysattr)
++	if iserror(e) {
++		return nil, &PathError{"fork/exec", name, e}
++	}
++
++	return newProcess(pid, h), nil
++}
++
++// Exec replaces the current process with an execution of the
++// named binary, with arguments argv and environment envv.
++// If successful, Exec never returns.  If it fails, it returns an Error.
++// ForkExec is almost always a better way to execute a program.
++func Exec(name string, argv []string, envv []string) Error {
++	e := syscall.Exec(name, argv, envv)
++	if iserror(e) {
++		return &PathError{"exec", name, e}
++	}
++
++	return nil
++}
++
++// Waitmsg stores the information about an exited process as reported by Wait.
++type Waitmsg syscall.Waitmsg
++
++// Wait waits for the Process to exit or stop, and then returns a
++// Waitmsg describing its status and an Error, if any. The options
++// (WNOHANG etc.) affect the behavior of the Wait call.
++func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
++	var waitmsg syscall.Waitmsg
++
++	if p.Pid == -1 {
++		return nil, EINVAL
++	}
++
++	for true {
++		err = syscall.Await(&waitmsg)
++
++		if iserror(err) {
++			return nil, NewSyscallError("wait", err)
++		}
++
++		if waitmsg.Pid == p.Pid {
++			break
++		}
++	}
++
++	return (*Waitmsg)(&waitmsg), nil
++}
++
++// Wait waits for process pid to exit or stop, and then returns a
++// Waitmsg describing its status and an Error, if any. The options
++// (WNOHANG etc.) affect the behavior of the Wait call.
++// Wait is equivalent to calling FindProcess and then Wait
++// and Release on the result.
++func Wait(pid int, options int) (w *Waitmsg, err Error) {
++	p, e := FindProcess(pid)
++	if e != nil {
++		return nil, e
++	}
++	defer p.Release()
++	return p.Wait(options)
++}
++
++// Release releases any resources associated with the Process.
++func (p *Process) Release() Error {
++	// NOOP for Plan 9.
++	p.Pid = -1
++	// no need for a finalizer anymore
++	runtime.SetFinalizer(p, nil)
++	return nil
++}
++
++// FindProcess looks for a running process by its pid.
++// The Process it returns can be used to obtain information
++// about the underlying operating system process.
++func FindProcess(pid int) (p *Process, err Error) {
++	// NOOP for Plan 9.
++	return newProcess(pid, 0), nil
++}
++
++func (w Waitmsg) String() string {
++	return "exit status: " + w.Msg
++}
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+new file mode 100644
+index 0000000000..9102dc0a4c
+--- /dev/null
++++ b/src/pkg/os/exec_posix.go
+@@ -0,0 +1,127 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++// StartProcess starts a new process with the program, arguments and attributes
++// specified by name, argv and attr.
++func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err Error) {
++	sysattr := &syscall.ProcAttr{
++		Dir: attr.Dir,
++		Env: attr.Env,
++	}
++	if sysattr.Env == nil {
++		sysattr.Env = Environ()
++	}
++	// Create array of integer (system) fds.
++	intfd := make([]int, len(attr.Files))
++	for i, f := range attr.Files {
++		if f == nil {
++			intfd[i] = -1
++		} else {
++			intfd[i] = f.Fd()
++		}
++	}
++	sysattr.Files = intfd
++
++	pid, h, e := syscall.StartProcess(name, argv, sysattr)
++	if iserror(e) {
++		return nil, &PathError{"fork/exec", name, Errno(e)}
++	}
++	return newProcess(pid, h), nil
++}
++
++// Exec replaces the current process with an execution of the
++// named binary, with arguments argv and environment envv.
++// If successful, Exec never returns.  If it fails, it returns an Error.
++// StartProcess is almost always a better way to execute a program.
++func Exec(name string, argv []string, envv []string) Error {
++	if envv == nil {
++		envv = Environ()
++	}
++	e := syscall.Exec(name, argv, envv)
++	if iserror(e) {
++		return &PathError{"exec", name, Errno(e)}
++	}
++	return nil
++}
++
++// TODO(rsc): Should os implement its own syscall.WaitStatus
++// wrapper with the methods, or is exposing the underlying one enough?
++//
++// TODO(rsc): Certainly need to have Rusage struct,
++// since syscall one might have different field types across
++// different OS.
++
++// Waitmsg stores the information about an exited process as reported by Wait.
++type Waitmsg struct {
++	Pid                int             // The process's id.
++	syscall.WaitStatus                 // System-dependent status info.
++	Rusage             *syscall.Rusage // System-dependent resource usage info.
++}
++
++// Wait waits for process pid to exit or stop, and then returns a
++// Waitmsg describing its status and an Error, if any. The options
++// (WNOHANG etc.) affect the behavior of the Wait call.
++// Wait is equivalent to calling FindProcess and then Wait
++// and Release on the result.
++func Wait(pid int, options int) (w *Waitmsg, err Error) {
++	p, e := FindProcess(pid)
++	if e != nil {
++		return nil, e
++	}
++	defer p.Release()
++	return p.Wait(options)
++}
++
++// Convert i to decimal string.
++func itod(i int) string {
++	if i == 0 {
++		return "0"
++	}
++
++	u := uint64(i)
++	if i < 0 {
++		u = -u
++	}
++
++	// Assemble decimal in reverse order.
++	var b [32]byte
++	bp := len(b)
++	for ; u > 0; u /= 10 {
++		bp--
++		b[bp] = byte(u%10) + '0'
++	}
++
++	if i < 0 {
++		bp--
++		b[bp] = '-'
++	}
++
++	return string(b[bp:])
++}
++
++func (w Waitmsg) String() string {
++	// TODO(austin) Use signal names when possible?
++	res := ""
++	switch {
++	case w.Exited():
++		res = "exit status " + itod(w.ExitStatus())
++	case w.Signaled():
++		res = "signal " + itod(w.Signal())
++	case w.Stopped():
++		res = "stop signal " + itod(w.StopSignal())
++		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
++			res += " (trap " + itod(w.TrapCause()) + ")"
++		}
++	case w.Continued():
++		res = "continued"
++	}
++	if w.CoreDump() {
++		res += " (core dumped)"
++	}
++	return res
++}
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 3f73f1dffe..e916d16058 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -83,10 +83,10 @@ func (file *File) Read(b []byte) (n int, err Error) {
+ 	if n < 0 {
+ 		n = 0
+ 	}
+-	if n == 0 && e == 0 {
++	if n == 0 && !iserror(e) {
+ 		return 0, EOF
+ 	}
+-	if e != 0 {
++	if iserror(e) {
+ 		err = &PathError{"read", file.name, Errno(e)}
+ 	}
+ 	return n, err
+@@ -102,10 +102,10 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := syscall.Pread(file.fd, b, off)
+-		if m == 0 && e == 0 {
++		if m == 0 && !iserror(e) {
+ 			return n, EOF
+ 		}
+-		if e != 0 {
++		if iserror(e) {
+ 			err = &PathError{"read", file.name, Errno(e)}
+ 			break
+ 		}
+@@ -127,15 +127,10 @@ func (file *File) Write(b []byte) (n int, err Error) {
+ 	if n < 0 {
+ 		n = 0
+ 	}
+-	if e == syscall.EPIPE {
+-		file.nepipe++
+-		if file.nepipe >= 10 {
+-			Exit(syscall.EPIPE)
+-		}
+-	} else {
+-		file.nepipe = 0
+-	}
+-	if e != 0 {
++
++	epipecheck(file, e)
++
++	if iserror(e) {
+ 		err = &PathError{"write", file.name, Errno(e)}
+ 	}
+ 	return n, err
+@@ -150,7 +145,7 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := syscall.Pwrite(file.fd, b, off)
+-		if e != 0 {
++		if iserror(e) {
+ 			err = &PathError{"write", file.name, Errno(e)}
+ 			break
+ 		}
+@@ -167,10 +162,10 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
+ // It returns the new offset and an Error, if any.
+ func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
+ 	r, e := syscall.Seek(file.fd, offset, whence)
+-	if e == 0 && file.dirinfo != nil && r != 0 {
++	if !iserror(e) && file.dirinfo != nil && r != 0 {
+ 		e = syscall.EISDIR
+ 	}
+-	if e != 0 {
++	if iserror(e) {
+ 		return 0, &PathError{"seek", file.name, Errno(e)}
+ 	}
+ 	return r, nil
+@@ -187,71 +182,19 @@ func (file *File) WriteString(s string) (ret int, err Error) {
+ 	return file.Write(b)
+ }
+ 
+-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
+-// It returns the files and an Error, if any.
+-func Pipe() (r *File, w *File, err Error) {
+-	var p [2]int
+-
+-	// See ../syscall/exec.go for description of lock.
+-	syscall.ForkLock.RLock()
+-	e := syscall.Pipe(p[0:])
+-	if e != 0 {
+-		syscall.ForkLock.RUnlock()
+-		return nil, nil, NewSyscallError("pipe", e)
+-	}
+-	syscall.CloseOnExec(p[0])
+-	syscall.CloseOnExec(p[1])
+-	syscall.ForkLock.RUnlock()
+-
+-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
+-}
+-
+ // Mkdir creates a new directory with the specified name and permission bits.
+ // It returns an error, if any.
+ func Mkdir(name string, perm uint32) Error {
+ 	e := syscall.Mkdir(name, perm)
+-	if e != 0 {
++	if iserror(e) {
+ 		return &PathError{"mkdir", name, Errno(e)}
+ 	}
+ 	return nil
+ }
+ 
+-// Stat returns a FileInfo structure describing the named file and an error, if any.
+-// If name names a valid symbolic link, the returned FileInfo describes
+-// the file pointed at by the link and has fi.FollowedSymlink set to true.
+-// If name names an invalid symbolic link, the returned FileInfo describes
+-// the link itself and has fi.FollowedSymlink set to false.
+-func Stat(name string) (fi *FileInfo, err Error) {
+-	var lstat, stat syscall.Stat_t
+-	e := syscall.Lstat(name, &lstat)
+-	if e != 0 {
+-		return nil, &PathError{"stat", name, Errno(e)}
+-	}
+-	statp := &lstat
+-	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
+-		e := syscall.Stat(name, &stat)
+-		if e == 0 {
+-			statp = &stat
+-		}
+-	}
+-	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
+-}
+-
+-// Lstat returns the FileInfo structure describing the named file and an
+-// error, if any.  If the file is a symbolic link, the returned FileInfo
+-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+-func Lstat(name string) (fi *FileInfo, err Error) {
+-	var stat syscall.Stat_t
+-	e := syscall.Lstat(name, &stat)
+-	if e != 0 {
+-		return nil, &PathError{"lstat", name, Errno(e)}
+-	}
+-	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
+-}
+-
+ // Chdir changes the current working directory to the named directory.
+ func Chdir(dir string) Error {
+-	if e := syscall.Chdir(dir); e != 0 {
++	if e := syscall.Chdir(dir); iserror(e) {
+ 		return &PathError{"chdir", dir, Errno(e)}
+ 	}
+ 	return nil
+@@ -260,179 +203,8 @@ func Chdir(dir string) Error {
+ // Chdir changes the current working directory to the file,
+ // which must be a directory.
+ func (f *File) Chdir() Error {
+-	if e := syscall.Fchdir(f.fd); e != 0 {
++	if e := syscall.Fchdir(f.fd); iserror(e) {
+ 		return &PathError{"chdir", f.name, Errno(e)}
+ 	}
+ 	return nil
+ }
+-
+-// Remove removes the named file or directory.
+-func Remove(name string) Error {
+-	// System call interface forces us to know
+-	// whether name is a file or directory.
+-	// Try both: it is cheaper on average than
+-	// doing a Stat plus the right one.
+-	e := syscall.Unlink(name)
+-	if e == 0 {
+-		return nil
+-	}
+-	e1 := syscall.Rmdir(name)
+-	if e1 == 0 {
+-		return nil
+-	}
+-
+-	// Both failed: figure out which error to return.
+-	// OS X and Linux differ on whether unlink(dir)
+-	// returns EISDIR, so can't use that.  However,
+-	// both agree that rmdir(file) returns ENOTDIR,
+-	// so we can use that to decide which error is real.
+-	// Rmdir might also return ENOTDIR if given a bad
+-	// file path, like /etc/passwd/foo, but in that case,
+-	// both errors will be ENOTDIR, so it's okay to
+-	// use the error from unlink.
+-	// For windows syscall.ENOTDIR is set
+-	// to syscall.ERROR_DIRECTORY, hopefully it should
+-	// do the trick.
+-	if e1 != syscall.ENOTDIR {
+-		e = e1
+-	}
+-	return &PathError{"remove", name, Errno(e)}
+-}
+-
+-// LinkError records an error during a link or symlink or rename
+-// system call and the paths that caused it.
+-type LinkError struct {
+-	Op    string
+-	Old   string
+-	New   string
+-	Error Error
+-}
+-
+-func (e *LinkError) String() string {
+-	return e.Op + " " + e.Old + " " + e.New + ": " + e.Error.String()
+-}
+-
+-// Link creates a hard link.
+-func Link(oldname, newname string) Error {
+-	e := syscall.Link(oldname, newname)
+-	if e != 0 {
+-		return &LinkError{"link", oldname, newname, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Symlink creates a symbolic link.
+-func Symlink(oldname, newname string) Error {
+-	e := syscall.Symlink(oldname, newname)
+-	if e != 0 {
+-		return &LinkError{"symlink", oldname, newname, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Readlink reads the contents of a symbolic link: the destination of
+-// the link.  It returns the contents and an Error, if any.
+-func Readlink(name string) (string, Error) {
+-	for len := 128; ; len *= 2 {
+-		b := make([]byte, len)
+-		n, e := syscall.Readlink(name, b)
+-		if e != 0 {
+-			return "", &PathError{"readlink", name, Errno(e)}
+-		}
+-		if n < len {
+-			return string(b[0:n]), nil
+-		}
+-	}
+-	// Silence 6g.
+-	return "", nil
+-}
+-
+-// Rename renames a file.
+-func Rename(oldname, newname string) Error {
+-	e := syscall.Rename(oldname, newname)
+-	if e != 0 {
+-		return &LinkError{"rename", oldname, newname, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Chmod changes the mode of the named file to mode.
+-// If the file is a symbolic link, it changes the mode of the link's target.
+-func Chmod(name string, mode uint32) Error {
+-	if e := syscall.Chmod(name, mode); e != 0 {
+-		return &PathError{"chmod", name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Chmod changes the mode of the file to mode.
+-func (f *File) Chmod(mode uint32) Error {
+-	if e := syscall.Fchmod(f.fd, mode); e != 0 {
+-		return &PathError{"chmod", f.name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Chown changes the numeric uid and gid of the named file.
+-// If the file is a symbolic link, it changes the uid and gid of the link's target.
+-func Chown(name string, uid, gid int) Error {
+-	if e := syscall.Chown(name, uid, gid); e != 0 {
+-		return &PathError{"chown", name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Lchown changes the numeric uid and gid of the named file.
+-// If the file is a symbolic link, it changes the uid and gid of the link itself.
+-func Lchown(name string, uid, gid int) Error {
+-	if e := syscall.Lchown(name, uid, gid); e != 0 {
+-		return &PathError{"lchown", name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Chown changes the numeric uid and gid of the named file.
+-func (f *File) Chown(uid, gid int) Error {
+-	if e := syscall.Fchown(f.fd, uid, gid); e != 0 {
+-		return &PathError{"chown", f.name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Truncate changes the size of the file.
+-// It does not change the I/O offset.
+-func (f *File) Truncate(size int64) Error {
+-	if e := syscall.Ftruncate(f.fd, size); e != 0 {
+-		return &PathError{"truncate", f.name, Errno(e)}
+-	}
+-	return nil
+-}
+-
+-// Sync commits the current contents of the file to stable storage.
+-// Typically, this means flushing the file system's in-memory copy
+-// of recently written data to disk.
+-func (file *File) Sync() (err Error) {
+-	if file == nil {
+-		return EINVAL
+-	}
+-	if e := syscall.Fsync(file.fd); e != 0 {
+-		return NewSyscallError("fsync", e)
+-	}
+-	return nil
+-}
+-
+-// Chtimes changes the access and modification times of the named
+-// file, similar to the Unix utime() or utimes() functions.
+-//
+-// The argument times are in nanoseconds, although the underlying
+-// filesystem may truncate or round the values to a more
+-// coarse time unit.
+-func Chtimes(name string, atime_ns int64, mtime_ns int64) Error {
+-	var utimes [2]syscall.Timeval
+-	utimes[0] = syscall.NsecToTimeval(atime_ns)
+-	utimes[1] = syscall.NsecToTimeval(mtime_ns)
+-	if e := syscall.Utimes(name, utimes[0:]); e != 0 {
+-		return &PathError{"chtimes", name, Errno(e)}
+-	}
+-	return nil
+-}
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+new file mode 100644
+index 0000000000..2de9efc643
+--- /dev/null
++++ b/src/pkg/os/file_plan9.go
+@@ -0,0 +1,231 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"runtime"
++	"syscall"
++)
++
++func epipecheck(file *File, e syscall.Error) {
++}
++
++
++// DevNull is the name of the operating system's ``null device.''
++// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
++const DevNull = "/dev/null"
++
++// Open opens the named file with specified flag (O_RDONLY etc.) and perm.
++// If successful, methods on the returned File can be used for I/O.
++// It returns the File and an Error, if any.
++func Open(name string, flag int, perm uint32) (file *File, err Error) {
++	var fd int
++	var e syscall.Error
++
++	syscall.ForkLock.RLock()
++	if flag&O_CREAT == O_CREAT {
++		fd, e = syscall.Create(name, flag & ^O_CREAT, perm)
++	} else {
++		fd, e = syscall.Open(name, flag)
++	}
++	syscall.ForkLock.RUnlock()
++
++	if e != nil {
++		return nil, &PathError{"open", name, e}
++	}
++
++	return NewFile(fd, name), nil
++}
++
++// Close closes the File, rendering it unusable for I/O.
++// It returns an Error, if any.
++func (file *File) Close() Error {
++	if file == nil || file.fd < 0 {
++		return Ebadfd
++	}
++	var err Error
++	syscall.ForkLock.RLock()
++	if e := syscall.Close(file.fd); e != nil {
++		err = &PathError{"close", file.name, e}
++	}
++	syscall.ForkLock.RUnlock()
++	file.fd = -1 // so it can't be closed again
++
++	// no need for a finalizer anymore
++	runtime.SetFinalizer(file, nil)
++	return err
++}
++
++// Stat returns the FileInfo structure describing file.
++// It returns the FileInfo and an error, if any.
++func (file *File) Stat() (fi *FileInfo, err Error) {
++	return dirstat(file)
++}
++
++// Truncate changes the size of the file.
++// It does not change the I/O offset.
++func (f *File) Truncate(size int64) Error {
++	var d Dir
++	d.Null()
++
++	d.Length = uint64(size)
++
++	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
++		return &PathError{"truncate", f.name, e}
++	}
++	return nil
++}
++
++// Chmod changes the mode of the file to mode.
++func (f *File) Chmod(mode uint32) Error {
++	var d Dir
++	d.Null()
++
++	d.Mode = mode & 0777
++
++	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
++		return &PathError{"chmod", f.name, e}
++	}
++	return nil
++}
++
++// Sync commits the current contents of the file to stable storage.
++// Typically, this means flushing the file system's in-memory copy
++// of recently written data to disk.
++func (f *File) Sync() (err Error) {
++	if f == nil {
++		return EINVAL
++	}
++
++	var d Dir
++	d.Null()
++
++	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); iserror(e) {
++		return NewSyscallError("fsync", e)
++	}
++	return nil
++}
++
++// Truncate changes the size of the named file.
++// If the file is a symbolic link, it changes the size of the link's target.
++func Truncate(name string, size int64) Error {
++	var d Dir
++	d.Null()
++
++	d.Length = uint64(size)
++
++	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
++		return &PathError{"truncate", name, e}
++	}
++	return nil
++}
++
++// Remove removes the named file or directory.
++func Remove(name string) Error {
++	if e := syscall.Remove(name); iserror(e) {
++		return &PathError{"remove", name, e}
++	}
++	return nil
++}
++
++// Rename renames a file.
++func Rename(oldname, newname string) Error {
++	var d Dir
++	d.Null()
++
++	d.Name = newname
++
++	if e := syscall.Wstat(oldname, pdir(nil, &d)); iserror(e) {
++		return &PathError{"rename", oldname, e}
++	}
++	return nil
++}
++
++// Chmod changes the mode of the named file to mode.
++func Chmod(name string, mode uint32) Error {
++	var d Dir
++	d.Null()
++
++	d.Mode = mode & 0777
++
++	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
++		return &PathError{"chmod", name, e}
++	}
++	return nil
++}
++
++// ChownPlan9 changes the uid and gid strings of the named file.
++func ChownPlan9(name, uid, gid string) Error {
++	var d Dir
++	d.Null()
++
++	d.Uid = uid
++	d.Gid = gid
++
++	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
++		return &PathError{"chown_plan9", name, e}
++	}
++	return nil
++}
++
++// Chtimes changes the access and modification times of the named
++// file, similar to the Unix utime() or utimes() functions.
++//
++// The argument times are in nanoseconds, although the underlying
++// filesystem may truncate or round the values to a more
++// coarse time unit.
++func Chtimes(name string, atimeNs int64, mtimeNs int64) Error {
++	var d Dir
++	d.Null()
++
++	d.Atime = uint32(atimeNs / 1e9)
++	d.Mtime = uint32(mtimeNs / 1e9)
++
++	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
++		return &PathError{"chtimes", name, e}
++	}
++	return nil
++}
++
++func Pipe() (r *File, w *File, err Error) {
++	var p [2]int
++
++	syscall.ForkLock.RLock()
++	if e := syscall.Pipe(p[0:]); iserror(e) {
++		syscall.ForkLock.RUnlock()
++		return nil, nil, NewSyscallError("pipe", e)
++	}
++	syscall.ForkLock.RUnlock()
++
++	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
++}
++
++
++// not supported on Plan 9
++
++// Link creates a hard link.
++func Link(oldname, newname string) Error {
++	return EPLAN9
++}
++
++func Symlink(oldname, newname string) Error {
++	return EPLAN9
++}
++
++func Readlink(name string) (string, Error) {
++	return "", EPLAN9
++}
++
++func Chown(name string, uid, gid int) Error {
++	return EPLAN9
++}
++
++func Lchown(name string, uid, gid int) Error {
++	return EPLAN9
++}
++
++func (f *File) Chown(uid, gid int) Error {
++	return EPLAN9
++}
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+new file mode 100644
+index 0000000000..5151df4987
+--- /dev/null
++++ b/src/pkg/os/file_posix.go
+@@ -0,0 +1,246 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The os package provides a platform-independent interface to operating
++// system functionality.  The design is Unix-like.
++package os
++
++import (
++	"syscall"
++)
++
++func epipecheck(file *File, e int) {
++	if e == syscall.EPIPE {
++		file.nepipe++
++		if file.nepipe >= 10 {
++			Exit(syscall.EPIPE)
++		}
++	} else {
++		file.nepipe = 0
++	}
++}
++
++
++// Pipe returns a connected pair of Files; reads from r return bytes written to w.
++// It returns the files and an Error, if any.
++func Pipe() (r *File, w *File, err Error) {
++	var p [2]int
++
++	// See ../syscall/exec.go for description of lock.
++	syscall.ForkLock.RLock()
++	e := syscall.Pipe(p[0:])
++	if iserror(e) {
++		syscall.ForkLock.RUnlock()
++		return nil, nil, NewSyscallError("pipe", e)
++	}
++	syscall.CloseOnExec(p[0])
++	syscall.CloseOnExec(p[1])
++	syscall.ForkLock.RUnlock()
++
++	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
++}
++
++// Stat returns a FileInfo structure describing the named file and an error, if any.
++// If name names a valid symbolic link, the returned FileInfo describes
++// the file pointed at by the link and has fi.FollowedSymlink set to true.
++// If name names an invalid symbolic link, the returned FileInfo describes
++// the link itself and has fi.FollowedSymlink set to false.
++func Stat(name string) (fi *FileInfo, err Error) {
++	var lstat, stat syscall.Stat_t
++	e := syscall.Lstat(name, &lstat)
++	if iserror(e) {
++		return nil, &PathError{"stat", name, Errno(e)}
++	}
++	statp := &lstat
++	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
++		e := syscall.Stat(name, &stat)
++		if !iserror(e) {
++			statp = &stat
++		}
++	}
++	return fileInfoFromStat(name, new(FileInfo), &lstat, statp), nil
++}
++
++// Lstat returns the FileInfo structure describing the named file and an
++// error, if any.  If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.  Lstat makes no attempt to follow the link.
++func Lstat(name string) (fi *FileInfo, err Error) {
++	var stat syscall.Stat_t
++	e := syscall.Lstat(name, &stat)
++	if iserror(e) {
++		return nil, &PathError{"lstat", name, Errno(e)}
++	}
++	return fileInfoFromStat(name, new(FileInfo), &stat, &stat), nil
++}
++
++// Remove removes the named file or directory.
++func Remove(name string) Error {
++	// System call interface forces us to know
++	// whether name is a file or directory.
++	// Try both: it is cheaper on average than
++	// doing a Stat plus the right one.
++	e := syscall.Unlink(name)
++	if !iserror(e) {
++		return nil
++	}
++	e1 := syscall.Rmdir(name)
++	if !iserror(e1) {
++		return nil
++	}
++
++	// Both failed: figure out which error to return.
++	// OS X and Linux differ on whether unlink(dir)
++	// returns EISDIR, so can't use that.  However,
++	// both agree that rmdir(file) returns ENOTDIR,
++	// so we can use that to decide which error is real.
++	// Rmdir might also return ENOTDIR if given a bad
++	// file path, like /etc/passwd/foo, but in that case,
++	// both errors will be ENOTDIR, so it's okay to
++	// use the error from unlink.
++	// For windows syscall.ENOTDIR is set
++	// to syscall.ERROR_DIRECTORY, hopefully it should
++	// do the trick.
++	if e1 != syscall.ENOTDIR {
++		e = e1
++	}
++	return &PathError{"remove", name, Errno(e)}
++}
++
++// LinkError records an error during a link or symlink or rename
++// system call and the paths that caused it.
++type LinkError struct {
++	Op    string
++	Old   string
++	New   string
++	Error Error
++}
++
++func (e *LinkError) String() string {
++	return e.Op + " " + e.Old + " " + e.New + ": " + e.Error.String()
++}
++
++// Link creates a hard link.
++func Link(oldname, newname string) Error {
++	e := syscall.Link(oldname, newname)
++	if iserror(e) {
++		return &LinkError{"link", oldname, newname, Errno(e)}
++	}
++	return nil
++}
++
++// Symlink creates a symbolic link.
++func Symlink(oldname, newname string) Error {
++	e := syscall.Symlink(oldname, newname)
++	if iserror(e) {
++		return &LinkError{"symlink", oldname, newname, Errno(e)}
++	}
++	return nil
++}
++
++// Readlink reads the contents of a symbolic link: the destination of
++// the link.  It returns the contents and an Error, if any.
++func Readlink(name string) (string, Error) {
++	for len := 128; ; len *= 2 {
++		b := make([]byte, len)
++		n, e := syscall.Readlink(name, b)
++		if iserror(e) {
++			return "", &PathError{"readlink", name, Errno(e)}
++		}
++		if n < len {
++			return string(b[0:n]), nil
++		}
++	}
++	// Silence 6g.
++	return "", nil
++}
++
++// Rename renames a file.
++func Rename(oldname, newname string) Error {
++	e := syscall.Rename(oldname, newname)
++	if iserror(e) {
++		return &LinkError{"rename", oldname, newname, Errno(e)}
++	}
++	return nil
++}
++
++// Chmod changes the mode of the named file to mode.
++// If the file is a symbolic link, it changes the mode of the link's target.
++func Chmod(name string, mode uint32) Error {
++	if e := syscall.Chmod(name, mode); iserror(e) {
++		return &PathError{"chmod", name, Errno(e)}
++	}
++	return nil
++}
++
++// Chmod changes the mode of the file to mode.
++func (f *File) Chmod(mode uint32) Error {
++	if e := syscall.Fchmod(f.fd, mode); iserror(e) {
++		return &PathError{"chmod", f.name, Errno(e)}
++	}
++	return nil
++}
++
++// Chown changes the numeric uid and gid of the named file.
++// If the file is a symbolic link, it changes the uid and gid of the link's target.
++func Chown(name string, uid, gid int) Error {
++	if e := syscall.Chown(name, uid, gid); iserror(e) {
++		return &PathError{"chown", name, Errno(e)}
++	}
++	return nil
++}
++
++// Lchown changes the numeric uid and gid of the named file.
++// If the file is a symbolic link, it changes the uid and gid of the link itself.
++func Lchown(name string, uid, gid int) Error {
++	if e := syscall.Lchown(name, uid, gid); iserror(e) {
++		return &PathError{"lchown", name, Errno(e)}
++	}
++	return nil
++}
++
++// Chown changes the numeric uid and gid of the named file.
++func (f *File) Chown(uid, gid int) Error {
++	if e := syscall.Fchown(f.fd, uid, gid); iserror(e) {
++		return &PathError{"chown", f.name, Errno(e)}
++	}
++	return nil
++}
++
++// Truncate changes the size of the file.
++// It does not change the I/O offset.
++func (f *File) Truncate(size int64) Error {
++	if e := syscall.Ftruncate(f.fd, size); iserror(e) {
++		return &PathError{"truncate", f.name, Errno(e)}
++	}
++	return nil
++}
++
++// Sync commits the current contents of the file to stable storage.
++// Typically, this means flushing the file system's in-memory copy
++// of recently written data to disk.
++func (file *File) Sync() (err Error) {
++	if file == nil {
++		return EINVAL
++	}
++	if e := syscall.Fsync(file.fd); iserror(e) {
++		return NewSyscallError("fsync", e)
++	}
++	return nil
++}
++
++// Chtimes changes the access and modification times of the named
++// file, similar to the Unix utime() or utimes() functions.
++//
++// The argument times are in nanoseconds, although the underlying
++// filesystem may truncate or round the values to a more
++// coarse time unit.
++func Chtimes(name string, atime_ns int64, mtime_ns int64) Error {
++	var utimes [2]syscall.Timeval
++	utimes[0] = syscall.NsecToTimeval(atime_ns)
++	utimes[1] = syscall.NsecToTimeval(mtime_ns)
++	if e := syscall.Utimes(name, utimes[0:]); iserror(e) {
++		return &PathError{"chtimes", name, Errno(e)}
++	}
++	return nil
++}
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index dfddab6cb8..481ef60337 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -26,8 +26,8 @@ func Getegid() int { return syscall.Getegid() }
+ 
+ // Getgroups returns a list of the numeric ids of groups that the caller belongs to.
+ func Getgroups() ([]int, Error) {
+-	gids, errno := syscall.Getgroups()
+-	return gids, NewSyscallError("getgroups", errno)
++	gids, e := syscall.Getgroups()
++	return gids, NewSyscallError("getgroups", e)
+ }
+ 
+ // Exit causes the current program to exit with the given status code.
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+new file mode 100644
+index 0000000000..e96749d33f
+--- /dev/null
++++ b/src/pkg/os/stat_plan9.go
+@@ -0,0 +1,84 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import "syscall"
++
++func fileInfoFromStat(fi *FileInfo, d *Dir) *FileInfo {
++	fi.Dev = uint64(d.Qid.Vers) | uint64(d.Qid.Type<<32)
++	fi.Ino = d.Qid.Path
++
++	fi.Mode = uint32(d.Mode) & 0777
++	if (d.Mode & syscall.DMDIR) == syscall.DMDIR {
++		fi.Mode |= syscall.S_IFDIR
++	} else {
++		fi.Mode |= syscall.S_IFREG
++	}
++
++	fi.Size = int64(d.Length)
++	fi.Atime_ns = 1e9 * int64(d.Atime)
++	fi.Mtime_ns = 1e9 * int64(d.Mtime)
++	fi.Name = d.Name
++	fi.FollowedSymlink = false
++	return fi
++}
++
++// arg is an open *File or a path string. 
++func dirstat(arg interface{}) (fi *FileInfo, err Error) {
++	var name string
++	nd := syscall.STATFIXLEN + 16*4
++
++	for i := 0; i < 2; i++ { /* should work by the second try */
++		buf := make([]byte, nd)
++
++		var n int
++		var e syscall.Error
++
++		switch syscallArg := arg.(type) {
++		case *File:
++			name = syscallArg.name
++			n, e = syscall.Fstat(syscallArg.fd, buf)
++		case string:
++			name = syscallArg
++			n, e = syscall.Stat(name, buf)
++		}
++
++		if e != nil {
++			return nil, &PathError{"stat", name, e}
++		}
++
++		if n < syscall.STATFIXLEN {
++			return nil, &PathError{"stat", name, Eshortstat}
++		}
++
++		ntmp, _ := gbit16(buf)
++		nd = int(ntmp)
++
++		if nd <= n {
++			d, e := UnmarshalDir(buf[:n])
++
++			if e != nil {
++				return nil, &PathError{"stat", name, e}
++			}
++
++			return fileInfoFromStat(new(FileInfo), d), nil
++		}
++	}
++
++	return nil, &PathError{"stat", name, Ebadstat}
++}
++
++
++// Stat returns a FileInfo structure describing the named file and an error, if any.
++func Stat(name string) (fi *FileInfo, err Error) {
++	return dirstat(name)
++}
++
++// Lstat returns the FileInfo structure describing the named file and an
++// error, if any.  If the file is a symbolic link (though Plan 9 does not have symbolic links), 
++// the returned FileInfo describes the symbolic link.  Lstat makes no attempt to follow the link.
++func Lstat(name string) (fi *FileInfo, err Error) {
++	return dirstat(name)
++}
+diff --git a/src/pkg/os/sys_plan9.go b/src/pkg/os/sys_plan9.go
+new file mode 100644
+index 0000000000..ac44445af3
+--- /dev/null
++++ b/src/pkg/os/sys_plan9.go
+@@ -0,0 +1,27 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Plan 9-specific
++
++package os
++
++
++func Hostname() (name string, err Error) {
++	f, err := Open("#c/sysname", O_RDONLY, 0)
++	if err != nil {
++		return "", err
++	}
++	defer f.Close()
++
++	var buf [128]byte
++	n, err := f.Read(buf[:len(buf)-1])
++
++	if err != nil {
++		return "", err
++	}
++	if n > 0 {
++		buf[n] = 0
++	}
++	return string(buf[0:n]), nil
++}
+diff --git a/src/pkg/os/time.go b/src/pkg/os/time.go
+index 380345f1b1..8e87a49e16 100644
+--- a/src/pkg/os/time.go
++++ b/src/pkg/os/time.go
+@@ -13,8 +13,8 @@ import "syscall"
+ // time is the Unix epoch.
+ func Time() (sec int64, nsec int64, err Error) {
+ 	var tv syscall.Timeval
+-	if errno := syscall.Gettimeofday(&tv); errno != 0 {
+-		return 0, 0, NewSyscallError("gettimeofday", errno)
++	if e := syscall.Gettimeofday(&tv); iserror(e) {
++		return 0, 0, NewSyscallError("gettimeofday", e)
+ 	}
+ 	return int64(tv.Sec), int64(tv.Usec) * 1000, err
+ }

@@ -9,6 +9,20 @@ Date:   Fri Feb 13 17:19:33 2015 +0300
     Change-Id: I2828bc737a8be3feae5288ccf034c52883f224d8
     Reviewed-on: https://go-review.googlesource.com/4811
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/race/race_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 7e0ee866a6..f4caff0ed4 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -152,7 +152,7 @@ func runTests() ([]byte, error) {
+ 		}
+ 		cmd.Env = append(cmd.Env, env)
+ 	}
+-	cmd.Env = append(cmd.Env, `GORACE="suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0"`)
++	cmd.Env = append(cmd.Env, `GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0`)
+ 	return cmd.CombinedOutput()
+ }
+ 

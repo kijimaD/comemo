@@ -17,9 +17,186 @@ Date:   Wed Sep 28 01:54:38 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go          | 13 ++++++++++++
  src/bytes/bytes_test.go     | 48 ++++++++++++++++++++++++++++++++++++++++++++
  src/strings/strings.go      | 13 ++++++++++++
  src/strings/strings_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 123 insertions(+)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 3286ca3fe9..21405d6004 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -365,7 +365,20 @@ func Map(mapping func(r rune) rune, s []byte) []byte {
+ }
+ 
+ // Repeat returns a new byte slice consisting of count copies of b.
++//
++// It panics if count is negative or if
++// the result of (len(b) * count) overflows.
+ func Repeat(b []byte, count int) []byte {
++	// Since we cannot return an error on overflow,
++	// we should panic if the repeat will generate
++	// an overflow.
++	// See Issue golang.org/issue/16237.
++	if count < 0 {
++		panic("bytes: negative Repeat count")
++	} else if count > 0 && len(b)*count/count != len(b) {
++		panic("bytes: Repeat count causes overflow")
++	}
++
+ 	nb := make([]byte, len(b)*count)
+ 	bp := copy(nb, b)
+ 	for bp < len(nb) {
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index a4c701c8e8..91f87bbc1c 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -903,6 +903,54 @@ func TestRepeat(t *testing.T) {
+ 	}
+ }
+ 
++func repeat(b []byte, count int) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			switch v := r.(type) {
++			case error:
++				err = v
++			default:
++				err = fmt.Errorf("%s", v)
++			}
++		}
++	}()
++
++	Repeat(b, count)
++
++	return
++}
++
++// See Issue golang.org/issue/16237
++func TestRepeatCatchesOverflow(t *testing.T) {
++	tests := [...]struct {
++		s      string
++		count  int
++		errStr string
++	}{
++		0: {"--", -2147483647, "negative"},
++		1: {"", int(^uint(0) >> 1), ""},
++		2: {"-", 10, ""},
++		3: {"gopher", 0, ""},
++		4: {"-", -1, "negative"},
++		5: {"--", -102, "negative"},
++		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
++	}
++
++	for i, tt := range tests {
++		err := repeat([]byte(tt.s), tt.count)
++		if tt.errStr == "" {
++			if err != nil {
++				t.Errorf("#%d panicked %v", i, err)
++			}
++			continue
++		}
++
++		if err == nil || !strings.Contains(err.Error(), tt.errStr) {
++			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
++		}
++	}
++}
++
+ func runesEqual(a, b []rune) bool {
+ 	if len(a) != len(b) {
+ 		return false
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index c5355db9a2..10922f3c1d 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -418,7 +418,20 @@ func Map(mapping func(rune) rune, s string) string {
+ }
+ 
+ // Repeat returns a new string consisting of count copies of the string s.
++//
++// It panics if count is negative or if
++// the result of (len(s) * count) overflows.
+ func Repeat(s string, count int) string {
++	// Since we cannot return an error on overflow,
++	// we should panic if the repeat will generate
++	// an overflow.
++	// See Issue golang.org/issue/16237
++	if count < 0 {
++		panic("strings: negative Repeat count")
++	} else if count > 0 && len(s)*count/count != len(s) {
++		panic("strings: Repeat count causes overflow")
++	}
++
+ 	b := make([]byte, len(s)*count)
+ 	bp := copy(b, s)
+ 	for bp < len(b) {
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index cf7fde5bbd..738185e5dd 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -6,6 +6,7 @@ package strings_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"math/rand"
+ 	"reflect"
+@@ -892,6 +893,54 @@ func TestRepeat(t *testing.T) {
+ 	}
+ }
+ 
++func repeat(s string, count int) (err error) {
++	defer func() {
++		if r := recover(); r != nil {
++			switch v := r.(type) {
++			case error:
++				err = v
++			default:
++				err = fmt.Errorf("%s", v)
++			}
++		}
++	}()
++
++	Repeat(s, count)
++
++	return
++}
++
++// See Issue golang.org/issue/16237
++func TestRepeatCatchesOverflow(t *testing.T) {
++	tests := [...]struct {
++		s      string
++		count  int
++		errStr string
++	}{
++		0: {"--", -2147483647, "negative"},
++		1: {"", int(^uint(0) >> 1), ""},
++		2: {"-", 10, ""},
++		3: {"gopher", 0, ""},
++		4: {"-", -1, "negative"},
++		5: {"--", -102, "negative"},
++		6: {string(make([]byte, 255)), int((^uint(0))/255 + 1), "overflow"},
++	}
++
++	for i, tt := range tests {
++		err := repeat(tt.s, tt.count)
++		if tt.errStr == "" {
++			if err != nil {
++				t.Errorf("#%d panicked %v", i, err)
++			}
++			continue
++		}
++
++		if err == nil || !Contains(err.Error(), tt.errStr) {
++			t.Errorf("#%d expected %q got %q", i, tt.errStr, err)
++		}
++	}
++}
++
+ func runesEqual(a, b []rune) bool {
+ 	if len(a) != len(b) {
+ 		return false

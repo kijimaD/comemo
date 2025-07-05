@@ -11,6 +11,20 @@ Date:   Sun Sep 4 19:20:31 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/unicode/utf8/utf8_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index e7c31222cc..19a04dc92e 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -626,7 +626,7 @@ var longStringJapanese string    // ~100KB, non-ASCII
+ 
+ func init() {
+ 	const japanese = "日本語日本語日本語日"
+-	var b bytes.Buffer
++	var b strings.Builder
+ 	for i := 0; b.Len() < 100_000; i++ {
+ 		if i%100 == 0 {
+ 			b.WriteString(japanese)

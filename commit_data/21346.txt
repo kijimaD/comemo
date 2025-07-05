@@ -7,6 +7,20 @@ Date:   Sun Dec 14 07:59:11 2014 -0800
     Change-Id: I90a8ca51269528a307e0d6f52436fc7913cd7900
     Reviewed-on: https://go-review.googlesource.com/1541
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mem_linux.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 85b55ef49a..0cb4b78f6b 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -88,7 +88,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// if we can reserve at least 64K and check the assumption in SysMap.
+ 	// Only user-mode Linux (UML) rejects these requests.
+-	if ptrSize == 7 && uint64(n) > 1<<32 {
++	if ptrSize == 8 && uint64(n) > 1<<32 {
+ 		p := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 		if p != v {
+ 			if uintptr(p) >= 4096 {

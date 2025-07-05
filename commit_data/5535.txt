@@ -9,7 +9,40 @@ Date:   Mon May 24 15:25:09 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1273042
-
+---
  src/cmd/gc/align.c       |  2 ++
  test/fixedbugs/bug280.go | 13 +++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 00dd9d88ea..0d4fa991f3 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -239,6 +239,8 @@ dowidth(Type *t)
+ 			w = sizeof_Array;
+ 			checkwidth(t->type);
+ 		}
++		else if(t->bound == -100)
++			yyerror("use of [...] array outside of array literal");
+ 		else
+ 			fatal("dowidth %T", t);	// probably [...]T
+ 		break;
+diff --git a/test/fixedbugs/bug280.go b/test/fixedbugs/bug280.go
+new file mode 100644
+index 0000000000..869d446268
+--- /dev/null
++++ b/test/fixedbugs/bug280.go
+@@ -0,0 +1,13 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// http://code.google.com/p/go/issues/detail?id=808
++
++package main
++
++type A [...]int	// ERROR "outside of array literal"
++
++

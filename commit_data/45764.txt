@@ -19,9 +19,143 @@ Date:   Sat Nov 14 13:33:32 2020 +0100
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/MIPS.rules |  7 +++----
  src/cmd/compile/internal/ssa/gen/MIPSOps.go |  6 +++---
  src/cmd/compile/internal/ssa/rewriteMIPS.go | 29 ++++++-----------------------
  test/fixedbugs/issue42587.go                | 15 +++++++++++++++
  4 files changed, 27 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index aff12b4e36..7dcac9cf53 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -567,10 +567,9 @@
+ (XOR x (MOVWconst [c])) => (XORconst [c] x)
+ (NOR x (MOVWconst [c])) => (NORconst [c] x)
+ 
+-(SRA x (MOVWconst [c])) && c >= 32 => (SRAconst x [31])
+-(SLL x (MOVWconst [c])) => (SLLconst x [c])
+-(SRL x (MOVWconst [c])) => (SRLconst x [c])
+-(SRA x (MOVWconst [c])) => (SRAconst x [c])
++(SLL x (MOVWconst [c])) => (SLLconst x [c&31])
++(SRL x (MOVWconst [c])) => (SRLconst x [c&31])
++(SRA x (MOVWconst [c])) => (SRAconst x [c&31])
+ 
+ (SGT  (MOVWconst [c]) x) => (SGTconst  [c] x)
+ (SGTU (MOVWconst [c]) x) => (SGTUconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index cd7357f62b..75ab99ea26 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -185,11 +185,11 @@ func init() {
+ 
+ 		// shifts
+ 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                    // arg0 << arg1, shift amount is mod 32
+-		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int32"}, // arg0 << auxInt
++		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int32"}, // arg0 << auxInt, shift amount must be 0 through 31 inclusive
+ 		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                    // arg0 >> arg1, unsigned, shift amount is mod 32
+-		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
++		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, shift amount must be 0 through 31 inclusive
+ 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                    // arg0 >> arg1, signed, shift amount is mod 32
+-		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
++		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed, shift amount must be 0 through 31 inclusive
+ 
+ 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 970bd7b52e..cfe39d7842 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -4431,7 +4431,7 @@ func rewriteValueMIPS_OpMIPSSLL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SLL x (MOVWconst [c]))
+-	// result: (SLLconst x [c])
++	// result: (SLLconst x [c&31])
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpMIPSMOVWconst {
+@@ -4439,7 +4439,7 @@ func rewriteValueMIPS_OpMIPSSLL(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_1.AuxInt)
+ 		v.reset(OpMIPSSLLconst)
+-		v.AuxInt = int32ToAuxInt(c)
++		v.AuxInt = int32ToAuxInt(c & 31)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -4465,24 +4465,7 @@ func rewriteValueMIPS_OpMIPSSRA(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SRA x (MOVWconst [c]))
+-	// cond: c >= 32
+-	// result: (SRAconst x [31])
+-	for {
+-		x := v_0
+-		if v_1.Op != OpMIPSMOVWconst {
+-			break
+-		}
+-		c := auxIntToInt32(v_1.AuxInt)
+-		if !(c >= 32) {
+-			break
+-		}
+-		v.reset(OpMIPSSRAconst)
+-		v.AuxInt = int32ToAuxInt(31)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (SRA x (MOVWconst [c]))
+-	// result: (SRAconst x [c])
++	// result: (SRAconst x [c&31])
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpMIPSMOVWconst {
+@@ -4490,7 +4473,7 @@ func rewriteValueMIPS_OpMIPSSRA(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_1.AuxInt)
+ 		v.reset(OpMIPSSRAconst)
+-		v.AuxInt = int32ToAuxInt(c)
++		v.AuxInt = int32ToAuxInt(c & 31)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -4516,7 +4499,7 @@ func rewriteValueMIPS_OpMIPSSRL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (SRL x (MOVWconst [c]))
+-	// result: (SRLconst x [c])
++	// result: (SRLconst x [c&31])
+ 	for {
+ 		x := v_0
+ 		if v_1.Op != OpMIPSMOVWconst {
+@@ -4524,7 +4507,7 @@ func rewriteValueMIPS_OpMIPSSRL(v *Value) bool {
+ 		}
+ 		c := auxIntToInt32(v_1.AuxInt)
+ 		v.reset(OpMIPSSRLconst)
+-		v.AuxInt = int32ToAuxInt(c)
++		v.AuxInt = int32ToAuxInt(c & 31)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue42587.go b/test/fixedbugs/issue42587.go
+new file mode 100644
+index 0000000000..d10ba979d5
+--- /dev/null
++++ b/test/fixedbugs/issue42587.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package p
++
++func f() {
++	var i, j int
++	_ = func() {
++		i = 32
++		j = j>>i | len([]int{})
++	}
++}

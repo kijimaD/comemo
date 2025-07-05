@@ -17,9 +17,93 @@ Date:   Tue Jun 23 18:59:52 2015 -0500
     Change-Id: If42a98c6830d07fe065d5ca57717704fb8cfbd33
     Reviewed-on: https://go-review.googlesource.com/11400
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go     |  1 +
  src/cmd/compile/internal/gc/typecheck.go |  1 +
  src/cmd/compile/internal/gc/walk.go      |  6 ++----
  test/fixedbugs/issue11369.go             | 27 +++++++++++++++++++++++++++
  4 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 0fc3c2b97c..60c59fc32b 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -554,6 +554,7 @@ func typeinit() {
+ 	okfor[OLE] = okforcmp[:]
+ 	okfor[OLT] = okforcmp[:]
+ 	okfor[OMOD] = okforand[:]
++	okfor[OHMUL] = okforarith[:]
+ 	okfor[OMUL] = okforarith[:]
+ 	okfor[ONE] = okforeq[:]
+ 	okfor[OOR] = okforand[:]
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c6626048dc..65fd29d266 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -524,6 +524,7 @@ OpSwitch:
+ 		OEQ,
+ 		OGE,
+ 		OGT,
++		OHMUL,
+ 		OLE,
+ 		OLT,
+ 		OLSH,
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c0fbc75108..bbbc990cb1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3599,9 +3599,8 @@ func walkdiv(np **Node, init **NodeList) {
+ 			nc := Nod(OXXX, nil, nil)
+ 
+ 			Nodconst(nc, nl.Type, int64(m.Um))
+-			n1 := Nod(OMUL, nl, nc)
++			n1 := Nod(OHMUL, nl, nc)
+ 			typecheck(&n1, Erv)
+-			n1.Op = OHMUL
+ 			if m.Ua != 0 {
+ 				// Select a Go type with (at least) twice the width.
+ 				var twide *Type
+@@ -3644,9 +3643,8 @@ func walkdiv(np **Node, init **NodeList) {
+ 			nc := Nod(OXXX, nil, nil)
+ 
+ 			Nodconst(nc, nl.Type, m.Sm)
+-			n1 := Nod(OMUL, nl, nc)
++			n1 := Nod(OHMUL, nl, nc)
+ 			typecheck(&n1, Erv)
+-			n1.Op = OHMUL
+ 			if m.Sm < 0 {
+ 				// add the numerator.
+ 				n1 = Nod(OADD, n1, nl)
+diff --git a/test/fixedbugs/issue11369.go b/test/fixedbugs/issue11369.go
+new file mode 100644
+index 0000000000..9df37c3649
+--- /dev/null
++++ b/test/fixedbugs/issue11369.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the half multiply resulting from a division
++// by a constant generates correct code.
++
++package main
++
++func main() {
++	var _ = 7 / "0"[0] // test case from #11369
++	var _ = 1 / "."[0] // test case from #11358
++	var x = 0 / "0"[0]
++	var y = 48 / "0"[0]
++	var z = 5 * 48 / "0"[0]
++	if x != 0 {
++		panic("expected 0")
++	}
++	if y != 1 {
++		panic("expected 1")
++	}
++	if z != 5 {
++		panic("expected 5")
++	}
++}

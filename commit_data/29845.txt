@@ -39,7 +39,7 @@ Date:   Tue Oct 11 08:36:38 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 92 +++++++++++++-------------
  src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
  src/cmd/compile/internal/gc/order.go           | 32 ++++-----
@@ -49,3 +49,510 @@ Date:   Tue Oct 11 08:36:38 2016 -0700
  src/runtime/hashmap.go                         | 38 +++++------
  test/live.go                                   | 33 ++++-----
  8 files changed, 137 insertions(+), 150 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index e78b1ace74..a5d433140d 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -57,52 +57,52 @@ const runtimeimport = "" +
+ 	"ast64\x00\x06\x17\"\xc2\x01\x00\x00\x1d::\xc4\x01\x00\x00:\xc6\x01\x00\x00\x04\x17:\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t#m" +
+ 	"apaccess2_faststr\x00\x06\x17\"\xc2\x01\x00\x00\x1d::\xc4\x01\x00\x00:\xc6\x01\x00\x00\x04\x17:" +
+ 	"\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t\x1bmapaccess2_fat\x00\b\x17\"\xc2\x01\x00\x00\x1d::\xc4\x01\x00\x00" +
+-	"\x17:\xc6\x01\x00\x00\x17\"\rzero·6\x00\x00\x04\x17:\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t\x13mapassig" +
+-	"n1\x00\b\x17\"\x13mapType·1\x00\x00\x1d::\rhmap·2\x00\x00\x17:\vkey·" +
+-	"3\x00\x00\x17:\vval·4\x00\x00\x00\t\x15mapiterinit\x00\x06\x17\"\xd6\x01\x00\x00\x1d::\xd8" +
+-	"\x01\x00\x00\x17:\x0fhiter·3\x00\x00\x00\t\x11mapdelete\x00\x06\x17\"\xd6\x01\x00\x00\x1d::\xd8" +
+-	"\x01\x00\x00\x17:\xda\x01\x00\x00\x00\t\x15mapiternext\x00\x02\x17:\x0fhiter·1\x00\x00\x00\t" +
+-	"\x0fmakechan\x00\x04\x17\"\x15chanType·2\x00\x00\n\xa6\x01\x00\x00\x02\x1f\x06:\x0fhch" +
+-	"an·1\x00\x00\t\x11chanrecv1\x00\x06\x17\"\x15chanType·1\x00\x00\x1f\x02:\x0f" +
+-	"hchan·2\x00\x00\x17:j\x00\x00\x00\t\x11chanrecv2\x00\x06\x17\"\xea\x01\x00\x00\x1f\x02:\x0fh" +
+-	"chan·3\x00\x00\x17:\relem·4\x00\x00\x01\x00\x00\t\x11chansend1\x00\x06\x17\"\xf0" +
+-	"\x01\x00\x00\x1f\x04:\xf2\x01\x00\x00\x17:j\x00\x00\x00\t\x11closechan\x00\x02:\xec\x01\x00\x00\x00\a\x17wri" +
+-	"teBarrier\x00\x15\x06\renabled\x00\x00\x00\vneeded\x00\x00\x00\x05cgo\x00\x00\x00" +
+-	"\t\x1dwritebarrierptr\x00\x04\x17:\vdst·1\x00\x00:\vsrc·2\x00\x00" +
+-	"\x00\t\x17typedmemmove\x00\x06\x17\"t\x00\x00\x17:\vdst·2\x00\x00\x17:\vsrc\xc2" +
+-	"\xb73\x00\x00\x00\t\x1btypedslicecopy\x00\x06\x17\"\x06\x00\x00:\vdst·3\x00\x00:\v" +
+-	"src·4\x00\x00\x01\x02\x00\t\x17selectnbsend\x00\x06\x17\"\xea\x01\x00\x00\x1f\x04:\xf6\x01\x00\x00" +
+-	"\x17:\xf8\x01\x00\x00\x01\x00\x00\t\x17selectnbrecv\x00\x06\x17\"\xea\x01\x00\x00\x17:j\x00\x00\x1f\x02:\x0f" +
+-	"hchan·4\x00\x00\x01\x00\x00\t\x19selectnbrecv2\x00\b\x17\"\xea\x01\x00\x00\x17:j\x00" +
+-	"\x00\x17\x00\x15received·4\x00\x00\x1f\x02:\x0fhchan·5\x00\x00\x01\x00\x00\t\x11news" +
+-	"elect\x00\x06\x17\"\vsel·1\x00\x00\n\x13selsize·2\x00\x00\b\rsize·" +
+-	"3\x00\x00\x00\t\x13selectsend\x00\x06\x17\"\vsel·2\x00\x00\x1f\x04:\xf6\x01\x00\x00\x17:\xf8\x01" +
+-	"\x00\x00\x02\x00\x15selected·1\x00\x00\t\x13selectrecv\x00\x06\x17\"\xae\x02\x00\x00\x1f\x02" +
+-	":\xf6\x01\x00\x00\x17:\xf8\x01\x00\x00\x02\x00\xb0\x02\x00\x00\t\x15selectrecv2\x00\b\x17\"\xae\x02\x00\x00\x1f\x02" +
+-	":\xf6\x01\x00\x00\x17:\xf8\x01\x00\x00\x17\x00\x15received·5\x00\x00\x02\x00\xb0\x02\x00\x00\t\x19selec" +
+-	"tdefault\x00\x02\x17\"\xae\x02\x00\x00\x02\x00\xb0\x02\x00\x00\t\x0fselectgo\x00\x02\x17\"\xa6\x02\x00\x00" +
+-	"\x00\t\tblock\x00\x00\x00\t\x11makeslice\x00\x06\x17\"\x06\x00\x00\x02\vlen·3\x00\x00\x02" +
+-	"\vcap·4\x00\x00\x02\x11:\vary·1\x00\x00\t\x15makeslice64\x00\x06\x17\"\x06\x00" +
+-	"\x00\n\xc0\x02\x00\x00\n\xc2\x02\x00\x00\x02\x11:\xc4\x02\x00\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:\vo" +
+-	"ld·3\x00\x00\x02\xc2\x02\x00\x00\x02\x11:\xc4\x02\x00\x00\t\rmemmove\x00\x06\x17:\tto·1\x00\x00" +
+-	"\x17:\vfrm·2\x00\x00\x16\x11length·3\x00^\x00\t\vmemclr\x00\x04\x17\"\vpt" +
+-	"r·1\x00\x00\x16\x11length·2\x00^\x00\t\x0fmemequal\x00\x06\x17:\ax·2\x00" +
+-	"\x00\x17:\ay·3\x00\x00\x16\rsize·4\x00^\x01\x00\x00\t\x11memequal8\x00\x04\x17:\xdc" +
+-	"\x02\x00\x00\x17:\xde\x02\x00\x00\x01\x00\x00\t\x13memequal16\x00\x04\x17:\xdc\x02\x00\x00\x17:\xde\x02\x00\x00\x01\x00" +
+-	"\x00\t\x13memequal32\x00\x04\x17:\xdc\x02\x00\x00\x17:\xde\x02\x00\x00\x01\x00\x00\t\x13memequal" +
+-	"64\x00\x04\x17:\xdc\x02\x00\x00\x17:\xde\x02\x00\x00\x01\x00\x00\t\x15memequal128\x00\x04\x17:\xdc\x02\x00\x00" +
+-	"\x17:\xde\x02\x00\x00\x01\x00\x00\t\x0fint64div\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00" +
+-	"\x03\x14\x00\x14\x00\x01\x14\x00\t\x0fint64mod\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03" +
+-	"\x14\x00\x14\x00\x01\x14\x00\t\x1bfloat64toint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64t" +
+-	"ouint64\x00\x01\x1a\x00\x01\x14\x00\t\x1dfloat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1b" +
+-	"int64tofloat64\x00\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01" +
+-	"\x14\x00\x01\x1a\x00\t\x1duint32tofloat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex12" +
+-	"8div\x00\x04\x1e\vnum·2\x00\x00\x1e\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19r" +
+-	"acefuncenter\x00\x01\x16^\x00\t\x17racefuncexit\x00\x00\x00\t\x0frace" +
+-	"read\x00\x01\x16^\x00\t\x11racewrite\x00\x01\x16^\x00\t\x19racereadrange" +
+-	"\x00\x04\x16\raddr·1\x00^\x16\rsize·2\x00^\x00\t\x1bracewriterang" +
+-	"e\x00\x04\x16\x92\x03\x00^\x16\x94\x03\x00^\x00\t\x0fmsanread\x00\x04\x16\x92\x03\x00^\x16\x94\x03\x00^\x00\t\x11m" +
+-	"sanwrite\x00\x04\x16\x92\x03\x00^\x16\x94\x03\x00^\x00\v\xf6\x01\v\x00\x01\x00\n$$\n"
++	"\x17:\xc6\x01\x00\x00\x17\"\rzero·6\x00\x00\x04\x17:\xb4\x01\x00\x00\x00\xc8\x01\x00\x00\t\x11mapassig" +
++	"n\x00\x06\x17\"\xa4\x01\x00\x00\x1d::\xb0\x01\x00\x00\x17:\xb2\x01\x00\x00\x02\x17:\xb4\x01\x00\x00\t\x15mapiterin" +
++	"it\x00\x06\x17\"\x13mapType·1\x00\x00\x1d::\rhmap·2\x00\x00\x17:\x0fhiter" +
++	"·3\x00\x00\x00\t\x11mapdelete\x00\x06\x17\"\xd8\x01\x00\x00\x1d::\xda\x01\x00\x00\x17:\vkey·" +
++	"3\x00\x00\x00\t\x15mapiternext\x00\x02\x17:\x0fhiter·1\x00\x00\x00\t\x0fmakec" +
++	"han\x00\x04\x17\"\x15chanType·2\x00\x00\n\xa6\x01\x00\x00\x02\x1f\x06:\x0fhchan·1\x00" +
++	"\x00\t\x11chanrecv1\x00\x06\x17\"\x15chanType·1\x00\x00\x1f\x02:\x0fhchan\xc2" +
++	"\xb72\x00\x00\x17:j\x00\x00\x00\t\x11chanrecv2\x00\x06\x17\"\xe8\x01\x00\x00\x1f\x02:\x0fhchan·" +
++	"3\x00\x00\x17:\relem·4\x00\x00\x01\x00\x00\t\x11chansend1\x00\x06\x17\"\xee\x01\x00\x00\x1f\x04:" +
++	"\xf0\x01\x00\x00\x17:j\x00\x00\x00\t\x11closechan\x00\x02:\xea\x01\x00\x00\x00\a\x17writeBarr" +
++	"ier\x00\x15\x06\renabled\x00\x00\x00\vneeded\x00\x00\x00\x05cgo\x00\x00\x00\t\x1dwrit" +
++	"ebarrierptr\x00\x04\x17:\vdst·1\x00\x00:\vsrc·2\x00\x00\x00\t\x17typ" +
++	"edmemmove\x00\x06\x17\"t\x00\x00\x17:\vdst·2\x00\x00\x17:\vsrc·3\x00\x00\x00\t" +
++	"\x1btypedslicecopy\x00\x06\x17\"\x06\x00\x00:\vdst·3\x00\x00:\vsrc·4" +
++	"\x00\x00\x01\x02\x00\t\x17selectnbsend\x00\x06\x17\"\xe8\x01\x00\x00\x1f\x04:\xf4\x01\x00\x00\x17:\xf6\x01\x00\x00" +
++	"\x01\x00\x00\t\x17selectnbrecv\x00\x06\x17\"\xe8\x01\x00\x00\x17:j\x00\x00\x1f\x02:\x0fhchan\xc2" +
++	"\xb74\x00\x00\x01\x00\x00\t\x19selectnbrecv2\x00\b\x17\"\xe8\x01\x00\x00\x17:j\x00\x00\x17\x00\x15re" +
++	"ceived·4\x00\x00\x1f\x02:\x0fhchan·5\x00\x00\x01\x00\x00\t\x11newselect\x00" +
++	"\x06\x17\"\vsel·1\x00\x00\n\x13selsize·2\x00\x00\b\rsize·3\x00\x00\x00\t\x13" +
++	"selectsend\x00\x06\x17\"\vsel·2\x00\x00\x1f\x04:\xf4\x01\x00\x00\x17:\xf6\x01\x00\x00\x02\x00\x15s" +
++	"elected·1\x00\x00\t\x13selectrecv\x00\x06\x17\"\xac\x02\x00\x00\x1f\x02:\xf4\x01\x00\x00\x17" +
++	":\xf6\x01\x00\x00\x02\x00\xae\x02\x00\x00\t\x15selectrecv2\x00\b\x17\"\xac\x02\x00\x00\x1f\x02:\xf4\x01\x00\x00\x17" +
++	":\xf6\x01\x00\x00\x17\x00\x15received·5\x00\x00\x02\x00\xae\x02\x00\x00\t\x19selectdefau" +
++	"lt\x00\x02\x17\"\xac\x02\x00\x00\x02\x00\xae\x02\x00\x00\t\x0fselectgo\x00\x02\x17\"\xa4\x02\x00\x00\x00\t\tblo" +
++	"ck\x00\x00\x00\t\x11makeslice\x00\x06\x17\"\x06\x00\x00\x02\vlen·3\x00\x00\x02\vcap·" +
++	"4\x00\x00\x02\x11:\vary·1\x00\x00\t\x15makeslice64\x00\x06\x17\"\x06\x00\x00\n\xbe\x02\x00\x00" +
++	"\n\xc0\x02\x00\x00\x02\x11:\xc2\x02\x00\x00\t\x11growslice\x00\x06\x17\"\x06\x00\x00\x11:\vold·3\x00" +
++	"\x00\x02\xc0\x02\x00\x00\x02\x11:\xc2\x02\x00\x00\t\rmemmove\x00\x06\x17:\tto·1\x00\x00\x17:\vfrm" +
++	"·2\x00\x00\x16\x11length·3\x00^\x00\t\vmemclr\x00\x04\x17\"\vptr·1\x00\x00" +
++	"\x16\x11length·2\x00^\x00\t\x0fmemequal\x00\x06\x17:\ax·2\x00\x00\x17:\ay\xc2" +
++	"\xb73\x00\x00\x16\rsize·4\x00^\x01\x00\x00\t\x11memequal8\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc" +
++	"\x02\x00\x00\x01\x00\x00\t\x13memequal16\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02\x00\x00\x01\x00\x00\t\x13mem" +
++	"equal32\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02\x00\x00\x01\x00\x00\t\x13memequal64\x00\x04\x17:" +
++	"\xda\x02\x00\x00\x17:\xdc\x02\x00\x00\x01\x00\x00\t\x15memequal128\x00\x04\x17:\xda\x02\x00\x00\x17:\xdc\x02\x00\x00" +
++	"\x01\x00\x00\t\x0fint64div\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64div\x00\x03\x14\x00\x14\x00\x01" +
++	"\x14\x00\t\x0fint64mod\x00\x03\n\x00\n\x00\x01\n\x00\t\x11uint64mod\x00\x03\x14\x00\x14\x00\x01\x14" +
++	"\x00\t\x1bfloat64toint64\x00\x01\x1a\x00\x01\n\x00\t\x1dfloat64touint6" +
++	"4\x00\x01\x1a\x00\x01\x14\x00\t\x1dfloat64touint32\x00\x01\x1a\x00\x01\x12\x00\t\x1bint64t" +
++	"ofloat64\x00\x01\n\x00\x01\x1a\x00\t\x1duint64tofloat64\x00\x01\x14\x00\x01\x1a\x00\t" +
++	"\x1duint32tofloat64\x00\x01\x12\x00\x01\x1a\x00\t\x19complex128div\x00\x04" +
++	"\x1e\vnum·2\x00\x00\x1e\vden·3\x00\x00\x02\x1e\vquo·1\x00\x00\t\x19racefun" +
++	"center\x00\x01\x16^\x00\t\x17racefuncexit\x00\x00\x00\t\x0fraceread\x00\x01" +
++	"\x16^\x00\t\x11racewrite\x00\x01\x16^\x00\t\x19racereadrange\x00\x04\x16\rad" +
++	"dr·1\x00^\x16\rsize·2\x00^\x00\t\x1bracewriterange\x00\x04\x16\x90\x03" +
++	"\x00^\x16\x92\x03\x00^\x00\t\x0fmsanread\x00\x04\x16\x90\x03\x00^\x16\x92\x03\x00^\x00\t\x11msanwri" +
++	"te\x00\x04\x16\x90\x03\x00^\x16\x92\x03\x00^\x00\v\xf6\x01\v\x00\x01\x00\n$$\n"
+ 
+ const unsafeimport = "" +
+ 	"version 2\n\n\x00\x00\x01\vunsafe\x00\t\x0fOffsetof\x00\x01:\x00\x01\x16\x00\t" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 4d71e4eec3..c6afce9e70 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -93,7 +93,7 @@ func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres
+ func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
+-func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
++func mapassign(mapType *byte, hmap map[any]any, key *any) (val *any)
+ func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+ func mapdelete(mapType *byte, hmap map[any]any, key *any)
+ func mapiternext(hiter *any)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4f34049d6a..6d23566782 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -188,9 +188,9 @@ func isaddrokay(n *Node) bool {
+ 	return islvalue(n) && (n.Op != ONAME || n.Class == PEXTERN || istemp(n))
+ }
+ 
+-// Orderaddrtemp ensures that *np is okay to pass by address to runtime routines.
+-// If the original argument *np is not okay, orderaddrtemp creates a tmp, emits
+-// tmp = *np, and then sets *np to the tmp variable.
++// Orderaddrtemp ensures that n is okay to pass by address to runtime routines.
++// If the original argument n is not okay, orderaddrtemp creates a tmp, emits
++// tmp = n, and then returns tmp.
+ func orderaddrtemp(n *Node, order *Order) *Node {
+ 	if isaddrokay(n) {
+ 		return n
+@@ -395,13 +395,8 @@ func ordercall(n *Node, order *Order) {
+ }
+ 
+ // Ordermapassign appends n to order->out, introducing temporaries
+-// to make sure that all map assignments have the form m[k] = x,
+-// where x is addressable.
+-// (Orderexpr has already been called on n, so we know k is addressable.)
+-//
+-// If n is m[k] = x where x is not addressable, the rewrite is:
+-//	tmp = x
+-//	m[k] = tmp
++// to make sure that all map assignments have the form m[k] = x.
++// (Note: orderexpr has already been called on n, so we know k is addressable.)
+ //
+ // If n is the multiple assignment form ..., m[k], ... = ..., the rewrite is
+ //	t1 = m
+@@ -428,7 +423,7 @@ func ordermapassign(n *Node, order *Order) {
+ 		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
+ 		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
+ 		// logic causes net/http's tests to become flaky; see CL 21242.
+-		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
++		if needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr) && !isaddrokay(n.Right) {
+ 			m := n.Left
+ 			n.Left = ordertemp(m.Type, order, false)
+ 			a := nod(OAS, m, n.Left)
+@@ -1061,8 +1056,14 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		// key must be addressable
+ 	case OINDEXMAP:
+ 		n.Left = orderexpr(n.Left, order, nil)
+-
+ 		n.Right = orderexpr(n.Right, order, nil)
++		needCopy := false
++
++		if n.Etype == 0 && instrumenting {
++			// Race detector needs the copy so it can
++			// call treecopy on the result.
++			needCopy = true
++		}
+ 
+ 		// For x = m[string(k)] where k is []byte, the allocation of
+ 		// backing bytes for the string can be avoided by reusing
+@@ -1076,12 +1077,13 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 		// conversion (by the ordercopyexpr a few lines below).
+ 		if n.Etype == 0 && n.Right.Op == OARRAYBYTESTR {
+ 			n.Right.Op = OARRAYBYTESTRTMP
++			needCopy = true
+ 		}
+ 
++		// Map calls need to take the address of the key.
+ 		n.Right = orderaddrtemp(n.Right, order)
+-		if n.Etype == 0 {
+-			// use of value (not being assigned);
+-			// make copy in temporary.
++
++		if needCopy {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index effdcf9ea4..74fa53da73 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -474,8 +474,8 @@ func isartificial(n *Node) bool {
+ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
+ 	n := *np
+ 
+-	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
+-	//	  n, n->op, n->type ? n->type->etype : -1, n->class);
++	//fmt.Printf("callinstr for %v [ %v ] etype=%v class=%v\n",
++	//	n, n.Op, n.Type.Etype, n.Class)
+ 
+ 	if skip != 0 || n.Type == nil || n.Type.Etype >= TIDEAL {
+ 		return false
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7a230c0b74..7a33fc0708 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -52,7 +52,7 @@ type Node struct {
+ 	Op        Op
+ 	Ullman    uint8 // sethi/ullman number
+ 	Addable   bool  // addressable
+-	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN
++	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+ 	Bounded   bool  // bounds check unnecessary
+ 	NonNil    bool  // guaranteed to be non-nil
+ 	Class     Class // PPARAM, PAUTO, PEXTERN, etc
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ddd36e7b18..dcb80f72c9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1292,44 +1292,48 @@ opswitch:
+ 		}
+ 
+ 	case OINDEXMAP:
+-		if n.Etype == 1 {
+-			break
+-		}
++		// Replace m[k] with *map{access1,assign}(maptype, m, &k)
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+-
+-		t := n.Left.Type
+-		p := ""
+-		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+-			switch algtype(t.Key()) {
+-			case AMEM32:
+-				p = "mapaccess1_fast32"
+-			case AMEM64:
+-				p = "mapaccess1_fast64"
+-			case ASTRING:
+-				p = "mapaccess1_faststr"
++		map_ := n.Left
++		key := n.Right
++		t := map_.Type
++		if n.Etype == 1 {
++			// This m[k] expression is on the left-hand side of an assignment.
++			// orderexpr made sure key is addressable.
++			key = nod(OADDR, key, nil)
++			n = mkcall1(mapfn("mapassign", t), nil, init, typename(t), map_, key)
++		} else {
++			// m[k] is not the target of an assignment.
++			p := ""
++			if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
++				switch algtype(t.Key()) {
++				case AMEM32:
++					p = "mapaccess1_fast32"
++				case AMEM64:
++					p = "mapaccess1_fast64"
++				case ASTRING:
++					p = "mapaccess1_faststr"
++				}
+ 			}
+-		}
+ 
+-		var key *Node
+-		if p != "" {
+-			// fast versions take key by value
+-			key = n.Right
+-		} else {
+-			// standard version takes key by reference.
+-			// orderexpr made sure key is addressable.
+-			key = nod(OADDR, n.Right, nil)
+-			p = "mapaccess1"
+-		}
++			if p == "" {
++				// standard version takes key by reference.
++				// orderexpr made sure key is addressable.
++				key = nod(OADDR, key, nil)
++				p = "mapaccess1"
++			}
+ 
+-		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
+-			n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), n.Left, key)
+-		} else {
+-			p = "mapaccess1_fat"
+-			z := zeroaddr(w)
+-			n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), n.Left, key, z)
++			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
++				n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), map_, key)
++			} else {
++				p = "mapaccess1_fat"
++				z := zeroaddr(w)
++				n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), map_, key, z)
++			}
+ 		}
+-		n.NonNil = true // mapaccess always returns a non-nil pointer
++		n.Type = ptrto(t.Val())
++		n.NonNil = true // mapaccess1* and mapassign always return non-nil pointers.
+ 		n = nod(OIND, n, nil)
+ 		n.Type = t.Val()
+ 		n.Typecheck = 1
+@@ -2306,22 +2310,6 @@ func convas(n *Node, init *Nodes) *Node {
+ 		goto out
+ 	}
+ 
+-	if n.Left.Op == OINDEXMAP {
+-		map_ := n.Left.Left
+-		key := n.Left.Right
+-		val := n.Right
+-		map_ = walkexpr(map_, init)
+-		key = walkexpr(key, init)
+-		val = walkexpr(val, init)
+-
+-		// orderexpr made sure key and val are addressable.
+-		key = nod(OADDR, key, nil)
+-
+-		val = nod(OADDR, val, nil)
+-		n = mkcall1(mapfn("mapassign1", map_.Type), nil, init, typename(map_.Type), map_, key, val)
+-		goto out
+-	}
+-
+ 	if !eqtype(lt, rt) {
+ 		n.Right = assignconv(n.Right, lt, "assignment")
+ 		n.Right = walkexpr(n.Right, init)
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index ab99d24c35..68f4c8b841 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -481,20 +481,19 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
+ 	return v, true
+ }
+ 
+-func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
++// Like mapaccess, but allocates a slot for the key if it is not present in the map.
++func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 	if h == nil {
+ 		panic(plainError("assignment to entry in nil map"))
+ 	}
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))
+-		pc := funcPC(mapassign1)
++		pc := funcPC(mapassign)
+ 		racewritepc(unsafe.Pointer(h), callerpc, pc)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+-		raceReadObjectPC(t.elem, val, callerpc, pc)
+ 	}
+ 	if msanenabled {
+ 		msanread(key, t.key.size)
+-		msanread(val, t.elem.size)
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map writes")
+@@ -521,35 +520,29 @@ again:
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+-	var insertv unsafe.Pointer
++	var val unsafe.Pointer
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+ 			if b.tophash[i] != top {
+ 				if b.tophash[i] == empty && inserti == nil {
+ 					inserti = &b.tophash[i]
+ 					insertk = add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
+-					insertv = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
++					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 				}
+ 				continue
+ 			}
+ 			k := add(unsafe.Pointer(b), dataOffset+i*uintptr(t.keysize))
+-			k2 := k
+ 			if t.indirectkey {
+-				k2 = *((*unsafe.Pointer)(k2))
++				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if !alg.equal(key, k2) {
++			if !alg.equal(key, k) {
+ 				continue
+ 			}
+ 			// already have a mapping for key. Update it.
+ 			if t.needkeyupdate {
+-				typedmemmove(t.key, k2, key)
++				typedmemmove(t.key, k, key)
+ 			}
+-			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+-			v2 := v
+-			if t.indirectvalue {
+-				v2 = *((*unsafe.Pointer)(v2))
+-			}
+-			typedmemmove(t.elem, v2, val)
++			val = add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+ 			goto done
+ 		}
+ 		ovf := b.overflow(t)
+@@ -574,7 +567,7 @@ again:
+ 		h.setoverflow(t, b, newb)
+ 		inserti = &newb.tophash[0]
+ 		insertk = add(unsafe.Pointer(newb), dataOffset)
+-		insertv = add(insertk, bucketCnt*uintptr(t.keysize))
++		val = add(insertk, bucketCnt*uintptr(t.keysize))
+ 	}
+ 
+ 	// store new key/value at insert position
+@@ -585,11 +578,9 @@ again:
+ 	}
+ 	if t.indirectvalue {
+ 		vmem := newobject(t.elem)
+-		*(*unsafe.Pointer)(insertv) = vmem
+-		insertv = vmem
++		*(*unsafe.Pointer)(val) = vmem
+ 	}
+ 	typedmemmove(t.key, insertk, key)
+-	typedmemmove(t.elem, insertv, val)
+ 	*inserti = top
+ 	h.count++
+ 
+@@ -598,6 +589,10 @@ done:
+ 		throw("concurrent map writes")
+ 	}
+ 	h.flags &^= hashWriting
++	if t.indirectvalue {
++		val = *((*unsafe.Pointer)(val))
++	}
++	return val
+ }
+ 
+ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+@@ -1128,7 +1123,8 @@ func reflect_mapaccess(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 
+ //go:linkname reflect_mapassign reflect.mapassign
+ func reflect_mapassign(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+-	mapassign1(t, h, key, val)
++	p := mapassign(t, h, key)
++	typedmemmove(t.elem, p, val)
+ }
+ 
+ //go:linkname reflect_mapdelete reflect.mapdelete
+diff --git a/test/live.go b/test/live.go
+index 74548231dd..9ec251aa61 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -268,33 +268,34 @@ var m2 map[[2]string]*byte
+ var x2 [2]string
+ var bp *byte
+ 
+-func f17a() {
+-	// value temporary only
++func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
+ 	if b {
+-		m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++		m2[x2] = p // ERROR "live at call to mapassign: p$"
+ 	}
+-	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+-	m2[x2] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++	m2[x2] = p // ERROR "live at call to mapassign: p$"
++	m2[x2] = p // ERROR "live at call to mapassign: p$"
+ }
+ 
+-func f17b() {
+-	// key temporary only
++func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
++	// key temporary
+ 	if b {
+-		m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++		m2s["x"] = p // ERROR "live at call to mapassign: p autotmp_[0-9]+$"
+ 	}
+-	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
+-	m2s["x"] = bp // ERROR "live at call to mapassign1: autotmp_[0-9]+$"
++	m2s["x"] = p // ERROR "live at call to mapassign: p autotmp_[0-9]+$"
++	m2s["x"] = p // ERROR "live at call to mapassign: p autotmp_[0-9]+$"
+ }
+ 
+ func f17c() {
+ 	// key and value temporaries
+ 	if b {
+-		m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++		m2s["x"] = f17d() // ERROR "live at call to f17d: autotmp_[0-9]+$" "live at call to mapassign: autotmp_[0-9]+ autotmp_[0-9]+$"
+ 	}
+-	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+-	m2s["x"] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++	m2s["x"] = f17d() // ERROR "live at call to f17d: autotmp_[0-9]+$" "live at call to mapassign: autotmp_[0-9]+ autotmp_[0-9]+$"
++	m2s["x"] = f17d() // ERROR "live at call to f17d: autotmp_[0-9]+$" "live at call to mapassign: autotmp_[0-9]+ autotmp_[0-9]+$"
+ }
+ 
++func f17d() *byte
++
+ func g18() [2]string
+ 
+ func f18() {
+@@ -360,10 +361,10 @@ func f24() {
+ 	// key temporary for map access using array literal key.
+ 	// value temporary too.
+ 	if b {
+-		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++		m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: autotmp_[0-9]+$"
+ 	}
+-	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
+-	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign1: autotmp_[0-9]+ autotmp_[0-9]+$"
++	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: autotmp_[0-9]+$"
++	m2[[2]string{"x", "y"}] = nil // ERROR "live at call to mapassign: autotmp_[0-9]+$"
+ }
+ 
+ // defer should not cause spurious ambiguously live variables

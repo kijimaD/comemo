@@ -7,9 +7,91 @@ Date:   Thu Apr 21 10:22:53 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4442072
-
+---
  src/pkg/net/Makefile     |  3 +++
  src/pkg/net/cgo_bsd.go   | 14 ++++++++++++++
  src/pkg/net/cgo_linux.go | 14 ++++++++++++++
  src/pkg/net/cgo_unix.go  |  2 +-
  4 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index a14027eb90..221871cb17 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -31,6 +31,7 @@ GOFILES_freebsd=\
+ 	port.go\
+ 
+ CGOFILES_freebsd=\
++	cgo_bsd.go\
+ 	cgo_unix.go\
+ 
+ GOFILES_darwin=\
+@@ -42,6 +43,7 @@ GOFILES_darwin=\
+ 	port.go\
+ 
+ CGOFILES_darwin=\
++	cgo_bsd.go\
+ 	cgo_unix.go\
+ 	
+ GOFILES_linux=\
+@@ -57,6 +59,7 @@ ifeq ($(GOARCH),arm)
+ GOFILES_linux+=cgo_stub.go
+ else
+ CGOFILES_linux=\
++	cgo_linux.go\
+ 	cgo_unix.go
+ endif
+ 
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+new file mode 100644
+index 0000000000..4984df4a2c
+--- /dev/null
++++ b/src/pkg/net/cgo_bsd.go
+@@ -0,0 +1,14 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++/*
++#include <netdb.h>
++*/
++import "C"
++
++func cgoAddrInfoMask() C.int {
++	return C.AI_MASK
++}
+diff --git a/src/pkg/net/cgo_linux.go b/src/pkg/net/cgo_linux.go
+new file mode 100644
+index 0000000000..8d4413d2da
+--- /dev/null
++++ b/src/pkg/net/cgo_linux.go
+@@ -0,0 +1,14 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++/*
++#include <netdb.h>
++*/
++import "C"
++
++func cgoAddrInfoMask() C.int {
++	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
++}
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index fdf061ccf1..a3711d6012 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -86,7 +86,7 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err os.Error, comp
+ 	// and similarly for IPv6), but in practice setting it causes
+ 	// getaddrinfo to return the wrong canonical name on Linux.
+ 	// So definitely leave it out.
+-	hints.ai_flags = C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME
++	hints.ai_flags = (C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME) & cgoAddrInfoMask()
+ 
+ 	h := C.CString(name)
+ 	defer C.free(unsafe.Pointer(h))

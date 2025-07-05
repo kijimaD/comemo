@@ -13,7 +13,42 @@ Date:   Mon Dec 9 14:29:29 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210577
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go               | 6 ++++--
  src/cmd/go/internal/help/helpdoc.go | 6 ++++--
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 87c82b16de..54e7a8b5b3 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1726,8 +1726,10 @@
+ // 	GOHOSTOS
+ // 		The operating system (GOOS) of the Go toolchain binaries.
+ // 	GOMOD
+-// 		The absolute path to the go.mod of the main module,
+-// 		or the empty string if not using modules.
++// 		The absolute path to the go.mod of the main module.
++// 		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
++// 		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
++// 		If module-aware mode is disabled, GOMOD will be the empty string.
+ // 	GOTOOLDIR
+ // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index ac16312aaf..6a843f459a 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -621,8 +621,10 @@ Additional information available from 'go env' but not read from the environment
+ 	GOHOSTOS
+ 		The operating system (GOOS) of the Go toolchain binaries.
+ 	GOMOD
+-		The absolute path to the go.mod of the main module,
+-		or the empty string if not using modules.
++		The absolute path to the go.mod of the main module.
++		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
++		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
++		If module-aware mode is disabled, GOMOD will be the empty string.
+ 	GOTOOLDIR
+ 		The directory where the go tools (compile, cover, doc, etc...) are installed.
+ 	`,

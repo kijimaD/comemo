@@ -9,7 +9,42 @@ Date:   Wed Sep 2 12:03:33 2009 -0700
     DELTA=5  (5 added, 0 deleted, 0 changed)
     OCL=34222
     CL=34261
-
+---
  src/pkg/Make.deps | 2 ++
  src/pkg/Makefile  | 3 +++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 02dfd20d37..38e3dd621d 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -18,6 +18,8 @@ crypto/sha1.install: hash.install os.install
+ datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ debug/binary.install: io.install math.install os.install reflect.install
+ debug/elf.install: debug/binary.install fmt.install io.install os.install strconv.install
++debug/gosym.install: debug/binary.install fmt.install io.install os.install strconv.install strings.install
++debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
+ ebnf.install: container/vector.install fmt.install go/scanner.install go/token.install os.install strconv.install strings.install unicode.install utf8.install
+ exec.install: os.install strings.install
+ exvar.install: bytes.install fmt.install http.install io.install log.install strconv.install sync.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 35087daf06..7d0b76e115 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -32,6 +32,8 @@ DIRS=\
+ 	datafmt\
+ 	debug/binary\
+ 	debug/elf\
++	debug/gosym\
++	debug/proc\
+ 	ebnf\
+ 	exec\
+ 	exvar\
+@@ -77,6 +79,7 @@ DIRS=\
+ 	utf8\
+ 
+ NOTEST=\
++	debug/proc\
+ 	go/ast\
+ 	go/doc\
+ 	go/token\

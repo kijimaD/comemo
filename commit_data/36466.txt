@@ -7,6 +7,25 @@ Date:   Mon Apr 30 13:54:35 2018 -0400
     Change-Id: I84334dfd02ad9a27b3fb6d46a6b1c015a3f03511
     Reviewed-on: https://go-review.googlesource.com/110335
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 082fc74f48..30d1611509 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -41,6 +41,13 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.1">Go
+ 1.10.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.10.2 (released 2018/05/01) includes fixes to the compiler, linker, and go
++command.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.10.2">Go
++1.10.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.9">go1.9 (released 2017/08/24)</h2>
+ 
+ <p>

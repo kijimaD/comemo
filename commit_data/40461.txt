@@ -18,10 +18,121 @@ Date:   Tue May 7 17:56:49 2019 +1000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/asm_linux_ppc64x.s      | 20 ++++++++++++++++++++
  src/syscall/asm_linux_s390x.s       | 21 +++++++++++++++++++++
  src/syscall/exec_linux.go           |  4 +++-
  src/syscall/syscall_linux_ppc64x.go |  4 +---
  src/syscall/syscall_linux_s390x.go  |  4 +---
  5 files changed, 46 insertions(+), 7 deletions(-)
+
+diff --git a/src/syscall/asm_linux_ppc64x.s b/src/syscall/asm_linux_ppc64x.s
+index 424efbbdc9..8be0d68d70 100644
+--- a/src/syscall/asm_linux_ppc64x.s
++++ b/src/syscall/asm_linux_ppc64x.s
+@@ -102,6 +102,26 @@ ok2:
+ 	MOVD	R0, err+72(FP)	// errno
+ 	RET
+ 
++// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	a1+8(FP), R3
++	MOVD	R0, R4
++	MOVD	R0, R5
++	MOVD	R0, R6
++	MOVD	R0, R7
++	MOVD	R0, R8
++	MOVD	trap+0(FP), R9	// syscall entry
++	SYSCALL R9
++	BVC	ok
++	MOVD	$-1, R4
++	MOVD	R4, r1+16(FP)	// r1
++	MOVD	R3, err+24(FP)	// errno
++	RET
++ok:
++	MOVD	R3, r1+16(FP)	// r1
++	MOVD	R0, err+24(FP)	// errno
++	RET
++
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+ 	MOVD	a1+8(FP), R3
+ 	MOVD	a2+16(FP), R4
+diff --git a/src/syscall/asm_linux_s390x.s b/src/syscall/asm_linux_s390x.s
+index 62125f2610..86a5c51ee2 100644
+--- a/src/syscall/asm_linux_s390x.s
++++ b/src/syscall/asm_linux_s390x.s
+@@ -106,6 +106,27 @@ ok2:
+ 	MOVD	$0, err+72(FP)	// errno
+ 	RET
+ 
++// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++	MOVD	$0, R2
++	MOVD	a1+8(FP), R3
++	MOVD	$0, R4
++	MOVD	$0, R5
++	MOVD	$0, R6
++	MOVD	$0, R7
++	MOVD	trap+0(FP), R1	// syscall entry
++	SYSCALL
++	MOVD	$0xfffffffffffff001, R8
++	CMPUBLT	R2, R8, ok2
++	MOVD	$-1, r1+16(FP)
++	NEG	R2, R2
++	MOVD	R2, err+24(FP)	// errno
++	RET
++ok2:
++	MOVD	R2, r1+16(FP)
++	MOVD	$0, err+24(FP)	// errno
++	RET
++
+ // func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+ 	MOVD	a1+8(FP), R2
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 3493f4b32b..a2242b2057 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -196,12 +196,14 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 	}
+ 
++	hasRawVforkSyscall := runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "s390x"
++
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+ 	runtime_BeforeFork()
+ 	locked = true
+ 	switch {
+-	case runtime.GOARCH == "amd64" && (sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0):
++	case hasRawVforkSyscall && (sys.Cloneflags&CLONE_NEWUSER == 0 && sys.Unshareflags&CLONE_NEWUSER == 0):
+ 		r1, err1 = rawVforkSyscall(SYS_CLONE, uintptr(SIGCHLD|CLONE_VFORK|CLONE_VM)|sys.Cloneflags)
+ 	case runtime.GOARCH == "s390x":
+ 		r1, _, err1 = RawSyscall6(SYS_CLONE, 0, uintptr(SIGCHLD)|sys.Cloneflags, 0, 0, 0, 0)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 1cdc5f9a44..47d8820ba6 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -116,9 +116,7 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
+ 
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
+-	panic("not implemented")
+-}
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)
+ 
+ //sys	syncFileRange2(fd int, flags int, off int64, n int64) (err error) = SYS_SYNC_FILE_RANGE2
+ 
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index e53b63c6a4..c6d71c492a 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -288,6 +288,4 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint64(length)
+ }
+ 
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
+-	panic("not implemented")
+-}
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

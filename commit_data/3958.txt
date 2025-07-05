@@ -6,6 +6,32 @@ Date:   Tue Nov 10 15:18:40 2009 -0800
     
     R=r
     http://codereview.prom.corp.google.com/1026040
-
+---
  lib/codereview/codereview.py | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 9bf3738303..5f2e17d8d4 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -634,9 +634,7 @@ def CheckGofmt(ui, repo, files, just_warn=False):
+ #######################################################################
+ # Mercurial commands
+ 
+-# until done debugging
+-server = "localhost:1"
+-# server = "codereview.appspot.com"
++server = "codereview.appspot.com"
+ 
+ server_url_base = None
+ 
+@@ -1569,9 +1567,6 @@ def RietveldSetup(ui, repo):
+ 
+ 	server_url_base = "http://" + server + "/"
+ 
+-	# TODO(rsc): Remove after release
+-	server_url_base = "http://go/go-review/"
+-
+ 	testing = ui.config("codereview", "testing")
+ 	force_google_account = ui.configbool("codereview", "force_google_account", False)
+ 

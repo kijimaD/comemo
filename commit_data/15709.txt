@@ -12,7 +12,73 @@ Date:   Mon Mar 11 23:58:20 2013 -0400
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7743043
-
+---
  src/pkg/encoding/xml/marshal_test.go | 12 ++++++++++++
  src/pkg/encoding/xml/typeinfo.go     | 21 ++++++++++-----------
  2 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 3a190def6c..1373e01d89 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -266,6 +266,12 @@ type Plain struct {
+ 	V interface{}
+ }
+ 
++type MyInt int
++
++type EmbedInt struct {
++	MyInt
++}
++
+ // Unless explicitly stated as such (or *Plain), all of the
+ // tests below are two-way tests. When introducing new tests,
+ // please try to make them two-way as well to ensure that
+@@ -790,6 +796,12 @@ var marshalTests = []struct {
+ 		},
+ 		UnmarshalOnly: true,
+ 	},
++	{
++		ExpectXML: `<EmbedInt><MyInt>42</MyInt></EmbedInt>`,
++		Value: &EmbedInt{
++			MyInt: 42,
++		},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index bbeb28d87e..f9c559c04d 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -70,20 +70,19 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 				if t.Kind() == reflect.Ptr {
+ 					t = t.Elem()
+ 				}
+-				if t.Kind() != reflect.Struct {
+-					continue
+-				}
+-				inner, err := getTypeInfo(t)
+-				if err != nil {
+-					return nil, err
+-				}
+-				for _, finfo := range inner.fields {
+-					finfo.idx = append([]int{i}, finfo.idx...)
+-					if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
++				if t.Kind() == reflect.Struct {
++					inner, err := getTypeInfo(t)
++					if err != nil {
+ 						return nil, err
+ 					}
++					for _, finfo := range inner.fields {
++						finfo.idx = append([]int{i}, finfo.idx...)
++						if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
++							return nil, err
++						}
++					}
++					continue
+ 				}
+-				continue
+ 			}
+ 
+ 			finfo, err := structFieldInfo(typ, &f)

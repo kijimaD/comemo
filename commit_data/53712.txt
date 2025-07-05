@@ -13,7 +13,88 @@ Date:   Thu Aug 25 21:08:02 2022 +0800
     Run-TryBot: hopehook <hopehook@golangcn.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/cgocall.go |  3 +--
  src/runtime/proc.go    | 14 +++++++-------
  2 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index dd9de9d247..0a25cb6562 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -86,7 +86,6 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
+-	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -259,7 +258,7 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	// We must still stay on the same m.
+ 	defer unlockOSThread()
+ 
+-	if gp.m.needextram || atomic.Load(&extraMWaiters) > 0 {
++	if gp.m.needextram || extraMWaiters.Load() > 0 {
+ 		gp.m.needextram = false
+ 		systemstack(newextram)
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b72e8b4d19..b5e04e93ae 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1878,7 +1878,7 @@ var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
+ // It is called with a working local m, so that it can do things
+ // like call schedlock and allocate.
+ func newextram() {
+-	c := atomic.Xchg(&extraMWaiters, 0)
++	c := extraMWaiters.Swap(0)
+ 	if c > 0 {
+ 		for i := uint32(0); i < c; i++ {
+ 			oneNewExtraM()
+@@ -1999,9 +1999,9 @@ func getm() uintptr {
+ 	return uintptr(unsafe.Pointer(getg().m))
+ }
+ 
+-var extram uintptr
++var extram atomic.Uintptr
+ var extraMCount uint32 // Protected by lockextra
+-var extraMWaiters uint32
++var extraMWaiters atomic.Uint32
+ 
+ // lockextra locks the extra list and returns the list head.
+ // The caller must unlock the list by storing a new list head
+@@ -2015,7 +2015,7 @@ func lockextra(nilokay bool) *m {
+ 
+ 	incr := false
+ 	for {
+-		old := atomic.Loaduintptr(&extram)
++		old := extram.Load()
+ 		if old == locked {
+ 			osyield_no_g()
+ 			continue
+@@ -2025,13 +2025,13 @@ func lockextra(nilokay bool) *m {
+ 				// Add 1 to the number of threads
+ 				// waiting for an M.
+ 				// This is cleared by newextram.
+-				atomic.Xadd(&extraMWaiters, 1)
++				extraMWaiters.Add(1)
+ 				incr = true
+ 			}
+ 			usleep_no_g(1)
+ 			continue
+ 		}
+-		if atomic.Casuintptr(&extram, old, locked) {
++		if extram.CompareAndSwap(old, locked) {
+ 			return (*m)(unsafe.Pointer(old))
+ 		}
+ 		osyield_no_g()
+@@ -2041,7 +2041,7 @@ func lockextra(nilokay bool) *m {
+ 
+ //go:nosplit
+ func unlockextra(mp *m) {
+-	atomic.Storeuintptr(&extram, uintptr(unsafe.Pointer(mp)))
++	extram.Store(uintptr(unsafe.Pointer(mp)))
+ }
+ 
+ var (

@@ -29,7 +29,55 @@ Date:   Sun Dec 18 07:24:58 2016 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/doc/comment.go      | 19 +++++++++++++------
  src/go/doc/comment_test.go |  6 ++++++
  2 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index 15e034b6df..4228e8cd9c 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -48,12 +48,19 @@ const (
+ 	identRx = `[\pL_][\pL_0-9]*`
+ 
+ 	// Regexp for URLs
+-	protocol = `https?|ftp|file|gopher|mailto|news|nntp|telnet|wais|prospero`
+-	hostPart = `[a-zA-Z0-9_@\-]+`
+-	filePart = `[a-zA-Z0-9_?%#~&/\-+=()]+` // parentheses may not be matching; see pairedParensPrefixLen
+-	urlRx    = `(` + protocol + `)://` +   // http://
+-		hostPart + `([.:]` + hostPart + `)*/?` + // //www.google.com:8080/
+-		filePart + `([:.,;]` + filePart + `)*`
++	// Match parens, and check in pairedParensPrefixLen for balance - see #5043
++	// Match .,:;?! within path, but not at end - see #18139, #16565
++	// This excludes some rare yet valid urls ending in common punctuation
++	// in order to allow sentences ending in URLs.
++
++	// protocol (required) e.g. http
++	protoPart = `(https?|ftp|file|gopher|mailto|nntp)`
++	// host (required) e.g. www.example.com or [::1]:8080
++	hostPart = `([a-zA-Z0-9_@\-.\[\]:]+)`
++	// path+query+fragment (optional) e.g. /path/index.html?q=foo#bar
++	pathPart = `([.,:;?!]*[a-zA-Z0-9$'()*+&#=@~_/\-\[\]%])*`
++
++	urlRx = protoPart + `://` + hostPart + pathPart
+ )
+ 
+ var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
+diff --git a/src/go/doc/comment_test.go b/src/go/doc/comment_test.go
+index 76dfbeac79..0523ab899e 100644
+--- a/src/go/doc/comment_test.go
++++ b/src/go/doc/comment_test.go
+@@ -150,6 +150,12 @@ func TestToText(t *testing.T) {
+ var emphasizeTests = []struct {
+ 	in, out string
+ }{
++	{"http://[::1]:8080/foo.txt", `<a href="http://[::1]:8080/foo.txt">http://[::1]:8080/foo.txt</a>`},
++	{"before (https://www.google.com) after", `before (<a href="https://www.google.com">https://www.google.com</a>) after`},
++	{"before https://www.google.com:30/x/y/z:b::c. After", `before <a href="https://www.google.com:30/x/y/z:b::c">https://www.google.com:30/x/y/z:b::c</a>. After`},
++	{"http://www.google.com/path/:;!-/?query=%34b#093124", `<a href="http://www.google.com/path/:;!-/?query=%34b#093124">http://www.google.com/path/:;!-/?query=%34b#093124</a>`},
++	{"http://www.google.com/path/:;!-/?query=%34bar#093124", `<a href="http://www.google.com/path/:;!-/?query=%34bar#093124">http://www.google.com/path/:;!-/?query=%34bar#093124</a>`},
++	{"http://www.google.com/index.html! After", `<a href="http://www.google.com/index.html">http://www.google.com/index.html</a>! After`},
+ 	{"http://www.google.com/", `<a href="http://www.google.com/">http://www.google.com/</a>`},
+ 	{"https://www.google.com/", `<a href="https://www.google.com/">https://www.google.com/</a>`},
+ 	{"http://www.google.com/path.", `<a href="http://www.google.com/path">http://www.google.com/path</a>.`},

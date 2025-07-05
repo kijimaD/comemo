@@ -8,7 +8,70 @@ Date:   Tue Jul 7 11:04:51 2009 -0700
     DELTA=12  (0 added, 0 deleted, 12 changed)
     OCL=31240
     CL=31290
-
+---
  test/golden.out        |  4 ++--
  test/interface/fake.go | 20 ++++++++++----------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 9b4bf47172..28083668a0 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -74,13 +74,13 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ PASS
+ 
+ =========== interface/fail.go
+-cannot convert type *main.S to interface main.I: missing method Foo
++*main.S is not main.I: missing method Foo
+ throw: interface conversion
+ 
+ panic PC=xxx
+ 
+ =========== interface/returntype.go
+-cannot convert type *main.S to interface main.I2: missing method Name
++*main.S is not main.I2: missing method Name
+ throw: interface conversion
+ 
+ panic PC=xxx
+diff --git a/test/interface/fake.go b/test/interface/fake.go
+index a52d7a5a11..687b3ff0cb 100644
+--- a/test/interface/fake.go
++++ b/test/interface/fake.go
+@@ -53,27 +53,27 @@ func main() {
+ 
+ 	// check mem and string
+ 	v := reflect.NewValue(x);
+-	i := v.(reflect.StructValue).Field(0);
+-	j := v.(reflect.StructValue).Field(1);
++	i := v.(*reflect.StructValue).Field(0);
++	j := v.(*reflect.StructValue).Field(1);
+ 	assert(i.Interface() == j.Interface());
+ 
+-	s := v.(reflect.StructValue).Field(2);
+-	t := v.(reflect.StructValue).Field(3);
++	s := v.(*reflect.StructValue).Field(2);
++	t := v.(*reflect.StructValue).Field(3);
+ 	assert(s.Interface() == t.Interface());
+ 
+ 	// make sure different values are different.
+ 	// make sure whole word is being compared,
+ 	// not just a single byte.
+-	i = v.(reflect.StructValue).Field(4);
+-	j = v.(reflect.StructValue).Field(5);
++	i = v.(*reflect.StructValue).Field(4);
++	j = v.(*reflect.StructValue).Field(5);
+ 	assert(i.Interface() != j.Interface());
+ 
+-	i = v.(reflect.StructValue).Field(6);
+-	j = v.(reflect.StructValue).Field(7);
++	i = v.(*reflect.StructValue).Field(6);
++	j = v.(*reflect.StructValue).Field(7);
+ 	assert(i.Interface() != j.Interface());
+ 
+-	i = v.(reflect.StructValue).Field(8);
+-	j = v.(reflect.StructValue).Field(9);
++	i = v.(*reflect.StructValue).Field(8);
++	j = v.(*reflect.StructValue).Field(9);
+ 	assert(i.Interface() == j.Interface());
+ }
+ 

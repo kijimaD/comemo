@@ -8,6 +8,29 @@ Date:   Mon Jul 18 11:34:13 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4759050
-
+---
  src/pkg/reflect/type.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 76a65effcd..28d94eb408 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -446,7 +446,7 @@ func (t *commonType) common() *commonType { return t }
+ 
+ func (t *uncommonType) Method(i int) (m Method) {
+ 	if t == nil || i < 0 || i >= len(t.methods) {
+-		return
++		panic("reflect: Method index out of range")
+ 	}
+ 	p := &t.methods[i]
+ 	if p.name != nil {
+@@ -904,7 +904,7 @@ func toCommonType(p *runtime.Type) *commonType {
+ 	}
+ 	x := unsafe.Pointer(p)
+ 	if uintptr(x)&reflectFlags != 0 {
+-		panic("invalid interface value")
++		panic("reflect: invalid interface value")
+ 	}
+ 	return &(*hdr)(x).t
+ }

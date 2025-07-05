@@ -7,6 +7,20 @@ Date:   Wed Jan 18 09:33:50 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5532085
-
+---
  src/pkg/go/scanner/scanner.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 59a796574f..05665b2548 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -6,7 +6,7 @@
+ // source which can then be tokenized through repeated calls to the Scan
+ // function. Typical use:
+ //
+-//	var s Scanner
++//	var s scanner.Scanner
+ //	fset := token.NewFileSet()  // position information is relative to fset
+ //      file := fset.AddFile(filename, fset.Base(), len(src))  // register file
+ //	s.Init(file, src, nil /* no error handler */, 0)

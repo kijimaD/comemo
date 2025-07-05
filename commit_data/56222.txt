@@ -14,8 +14,89 @@ Date:   Tue Apr 18 14:48:36 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/cgo_unix.go         | 22 ++++++++++++++--------
  src/net/cgo_unix_cgo.go     |  1 -
  src/net/cgo_unix_syscall.go |  6 ------
  3 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index c5281ad3a5..de6a64b23b 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -94,8 +94,10 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err
+ }
+ 
+ func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
+-	cservice := make([]byte, len(service)+1)
+-	copy(cservice, service)
++	cservice, err := syscall.ByteSliceFromString(service)
++	if err != nil {
++		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
++	}
+ 	// Lowercase the C service name.
+ 	for i, b := range cservice[:len(service)] {
+ 		cservice[i] = lowerASCII(b)
+@@ -147,10 +149,12 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
+ 		*_C_ai_family(&hints) = _C_AF_INET6
+ 	}
+ 
+-	h := make([]byte, len(name)+1)
+-	copy(h, name)
++	h, err := syscall.BytePtrFromString(name)
++	if err != nil {
++		return nil, &DNSError{Err: err.Error(), Name: name}
++	}
+ 	var res *_C_struct_addrinfo
+-	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
++	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(h)), nil, &hints, &res)
+ 	if gerrno != 0 {
+ 		isErrorNoSuchHost := false
+ 		isTemporary := false
+@@ -325,12 +329,14 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
+ 	buf := (*_C_uchar)(_C_malloc(uintptr(bufSize)))
+ 	defer _C_free(unsafe.Pointer(buf))
+ 
+-	s := _C_CString(hostname)
+-	defer _C_FreeCString(s)
++	s, err := syscall.BytePtrFromString(hostname)
++	if err != nil {
++		return nil, err
++	}
+ 
+ 	var size int
+ 	for {
+-		size, _ = _C_res_nsearch(state, s, class, rtype, buf, bufSize)
++		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
+ 		if size <= 0 || size > 0xffff {
+ 			return nil, errors.New("res_nsearch failure")
+ 		}
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index c0aa373a9b..7520c5d95c 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -56,7 +56,6 @@ type (
+ )
+ 
+ func _C_GoString(p *_C_char) string      { return C.GoString(p) }
+-func _C_CString(s string) *_C_char       { return C.CString(s) }
+ func _C_FreeCString(p *_C_char)          { C.free(unsafe.Pointer(p)) }
+ func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
+ func _C_free(p unsafe.Pointer)           { C.free(p) }
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index cbdeb47714..332ca6bc2f 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -43,12 +43,6 @@ func _C_GoString(p *_C_char) string {
+ 	return unix.GoString(p)
+ }
+ 
+-func _C_CString(s string) *_C_char {
+-	p := make([]byte, len(s)+1)
+-	copy(p, s)
+-	return &p[0]
+-}
+-
+ func _C_FreeCString(p *_C_char) { _C_free(unsafe.Pointer(p)) }
+ func _C_free(p unsafe.Pointer)  { runtime.KeepAlive(p) }
+ 

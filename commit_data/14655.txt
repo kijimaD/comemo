@@ -9,7 +9,49 @@ Date:   Sat Dec 15 19:37:59 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6937058
-
+---
  src/cmd/gc/const.c          |  5 +++++
  test/fixedbugs/issue4545.go | 19 +++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 5720efc8e9..31ea3a251c 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1052,6 +1052,11 @@ defaultlit(Node **np, Type *t)
+ 		// When compiling x := 1<<i + 3.14, this means we try to push
+ 		// the float64 down into the 1<<i, producing the correct error
+ 		// (cannot shift float64).
++		//
++		// If t is an interface type, we want the default type for the
++		// value, so just do as if no type was given.
++		if(t && t->etype == TINTER)
++			t = T;
+ 		if(t == T && (n->right->op == OLSH || n->right->op == ORSH)) {
+ 			defaultlit(&n->left, T);
+ 			defaultlit(&n->right, n->left->type);
+diff --git a/test/fixedbugs/issue4545.go b/test/fixedbugs/issue4545.go
+new file mode 100644
+index 0000000000..3f2de16d20
+--- /dev/null
++++ b/test/fixedbugs/issue4545.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4545: untyped constants are incorrectly coerced
++// to concrete types when used in interface{} context.
++
++package main
++
++import "fmt"
++
++func main() {
++	var s uint
++	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation"
++	x := 1.0 + 1<<s         // ERROR "invalid operation"
++	_ = x
++}

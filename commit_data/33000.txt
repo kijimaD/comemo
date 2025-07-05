@@ -20,6 +20,20 @@ Date:   Thu Jun 22 15:49:42 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 20f3952d4a..a7949b6ff3 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -288,7 +288,7 @@ func BuildModeInit() {
+ 		cfg.ExeSuffix = ".a"
+ 		ldBuildmode = "c-archive"
+ 	case "c-shared":
+-		pkgsFilter = pkgsMain
++		pkgsFilter = oneMainPkg
+ 		if gccgo {
+ 			codegenArg = "-fPIC"
+ 		} else {

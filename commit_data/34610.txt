@@ -13,7 +13,7 @@ Date:   Mon Oct 30 20:00:54 2017 +1100
     Reviewed-on: https://go-review.googlesource.com/74490
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/pe.go                    | 11 ++++-
  src/internal/syscall/windows/mksyscall.go         |  2 +-
  src/internal/syscall/windows/psapi_windows.go     | 20 +++++++++
@@ -23,3 +23,277 @@ Date:   Mon Oct 30 20:00:54 2017 +1100
  src/runtime/testdata/testprog/syscall_windows.go  | 45 ++++++++++++++++++-
  src/runtime/testdata/testprogcgo/stack_windows.go | 54 +++++++++++++++++++++++
  8 files changed, 164 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 550ffc1659..f48b35c6f9 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -848,7 +848,14 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
+ 	// CreateThread parameter in runtime.newosproc.
+ 	oh64.SizeOfStackReserve = 0x00200000
+-	oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
++	if !iscgo {
++		oh64.SizeOfStackCommit = 0x00001000
++	} else {
++		// TODO(brainman): Maybe remove optional header writing altogether for cgo.
++		// For cgo it is the external linker that is building final executable.
++		// And it probably does not use any information stored in optional header.
++		oh64.SizeOfStackCommit = 0x00200000 - 0x2000 // account for 2 guard pages
++	}
+ 
+ 	// 32-bit is trickier since there much less address space to
+ 	// work with. Here we use large stacks only in cgo binaries as
+@@ -858,7 +865,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
+ 		oh.SizeOfStackCommit = 0x00001000
+ 	} else {
+ 		oh.SizeOfStackReserve = 0x00100000
+-		oh.SizeOfStackCommit = 0x00100000 - 0x2000
++		oh.SizeOfStackCommit = 0x00100000 - 0x2000 // account for 2 guard pages
+ 	}
+ 
+ 	oh64.SizeOfHeapReserve = 0x00100000
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 91fa2b3b81..23efb6a01a 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -4,4 +4,4 @@
+ 
+ package windows
+ 
+-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go
++//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go
+diff --git a/src/internal/syscall/windows/psapi_windows.go b/src/internal/syscall/windows/psapi_windows.go
+new file mode 100644
+index 0000000000..b138e658a9
+--- /dev/null
++++ b/src/internal/syscall/windows/psapi_windows.go
+@@ -0,0 +1,20 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows
++
++type PROCESS_MEMORY_COUNTERS struct {
++	CB                         uint32
++	PageFaultCount             uint32
++	PeakWorkingSetSize         uintptr
++	WorkingSetSize             uintptr
++	QuotaPeakPagedPoolUsage    uintptr
++	QuotaPagedPoolUsage        uintptr
++	QuotaPeakNonPagedPoolUsage uintptr
++	QuotaNonPagedPoolUsage     uintptr
++	PagefileUsage              uintptr
++	PeakPagefileUsage          uintptr
++}
++
++//sys	GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COUNTERS, cb uint32) (err error) = psapi.GetProcessMemoryInfo
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index e882c89742..2af42c314f 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -40,6 +40,7 @@ var (
+ 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
+ 	modnetapi32 = syscall.NewLazyDLL(sysdll.Add("netapi32.dll"))
+ 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
++	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
+ 
+ 	procGetAdaptersAddresses      = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetComputerNameExW        = modkernel32.NewProc("GetComputerNameExW")
+@@ -57,6 +58,7 @@ var (
+ 	procOpenThreadToken           = modadvapi32.NewProc("OpenThreadToken")
+ 	procLookupPrivilegeValueW     = modadvapi32.NewProc("LookupPrivilegeValueW")
+ 	procAdjustTokenPrivileges     = modadvapi32.NewProc("AdjustTokenPrivileges")
++	procGetProcessMemoryInfo      = modpsapi.NewProc("GetProcessMemoryInfo")
+ )
+ 
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+@@ -243,3 +245,15 @@ func adjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
+ 	}
+ 	return
+ }
++
++func GetProcessMemoryInfo(handle syscall.Handle, memCounters *PROCESS_MEMORY_COUNTERS, cb uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procGetProcessMemoryInfo.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(memCounters)), uintptr(cb))
++	if r1 == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = syscall.EINVAL
++		}
++	}
++	return
++}
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index cad2b2ac22..434dd58ac3 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -452,3 +453,20 @@ func TestCgoLockOSThreadExit(t *testing.T) {
+ 	t.Parallel()
+ 	testLockOSThreadExit(t, "testprogcgo")
+ }
++
++func testWindowsStackMemory(t *testing.T, o string) {
++	stackUsage, err := strconv.Atoi(o)
++	if err != nil {
++		t.Fatalf("Failed to read stack usage: %v", err)
++	}
++	if expected, got := 100<<10, stackUsage; got > expected {
++		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
++	}
++}
++
++func TestWindowsStackMemoryCgo(t *testing.T) {
++	if runtime.GOOS != "windows" {
++		t.Skip("skipping windows specific test")
++	}
++	testWindowsStackMemory(t, runTestProg(t, "testprogcgo", "StackMemory"))
++}
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index f5b43a8e3e..20acf1b626 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -537,6 +537,10 @@ func TestWERDialogue(t *testing.T) {
+ 	cmd.CombinedOutput()
+ }
+ 
++func TestWindowsStackMemory(t *testing.T) {
++	testWindowsStackMemory(t, runTestProg(t, "testprog", "StackMemory"))
++}
++
+ var used byte
+ 
+ func use(buf []byte) {
+diff --git a/src/runtime/testdata/testprog/syscall_windows.go b/src/runtime/testdata/testprog/syscall_windows.go
+index 6e6782e987..b4b66441b8 100644
+--- a/src/runtime/testdata/testprog/syscall_windows.go
++++ b/src/runtime/testdata/testprog/syscall_windows.go
+@@ -4,11 +4,18 @@
+ 
+ package main
+ 
+-import "syscall"
++import (
++	"internal/syscall/windows"
++	"runtime"
++	"sync"
++	"syscall"
++	"unsafe"
++)
+ 
+ func init() {
+ 	register("RaiseException", RaiseException)
+ 	register("ZeroDivisionException", ZeroDivisionException)
++	register("StackMemory", StackMemory)
+ }
+ 
+ func RaiseException() {
+@@ -25,3 +32,39 @@ func ZeroDivisionException() {
+ 	z := x / y
+ 	println(z)
+ }
++
++func getPagefileUsage() (uintptr, error) {
++	p, err := syscall.GetCurrentProcess()
++	if err != nil {
++		return 0, err
++	}
++	var m windows.PROCESS_MEMORY_COUNTERS
++	err = windows.GetProcessMemoryInfo(p, &m, uint32(unsafe.Sizeof(m)))
++	if err != nil {
++		return 0, err
++	}
++	return m.PagefileUsage, nil
++}
++
++func StackMemory() {
++	mem1, err := getPagefileUsage()
++	if err != nil {
++		panic(err)
++	}
++	const threadCount = 100
++	var wg sync.WaitGroup
++	for i := 0; i < threadCount; i++ {
++		wg.Add(1)
++		go func() {
++			runtime.LockOSThread()
++			wg.Done()
++			select {}
++		}()
++	}
++	wg.Wait()
++	mem2, err := getPagefileUsage()
++	if err != nil {
++		panic(err)
++	}
++	print((mem2 - mem1) / threadCount)
++}
+diff --git a/src/runtime/testdata/testprogcgo/stack_windows.go b/src/runtime/testdata/testprogcgo/stack_windows.go
+new file mode 100644
+index 0000000000..846297a960
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/stack_windows.go
+@@ -0,0 +1,54 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "C"
++import (
++	"internal/syscall/windows"
++	"runtime"
++	"sync"
++	"syscall"
++	"unsafe"
++)
++
++func init() {
++	register("StackMemory", StackMemory)
++}
++
++func getPagefileUsage() (uintptr, error) {
++	p, err := syscall.GetCurrentProcess()
++	if err != nil {
++		return 0, err
++	}
++	var m windows.PROCESS_MEMORY_COUNTERS
++	err = windows.GetProcessMemoryInfo(p, &m, uint32(unsafe.Sizeof(m)))
++	if err != nil {
++		return 0, err
++	}
++	return m.PagefileUsage, nil
++}
++
++func StackMemory() {
++	mem1, err := getPagefileUsage()
++	if err != nil {
++		panic(err)
++	}
++	const threadCount = 100
++	var wg sync.WaitGroup
++	for i := 0; i < threadCount; i++ {
++		wg.Add(1)
++		go func() {
++			runtime.LockOSThread()
++			wg.Done()
++			select {}
++		}()
++	}
++	wg.Wait()
++	mem2, err := getPagefileUsage()
++	if err != nil {
++		panic(err)
++	}
++	print((mem2 - mem1) / threadCount)
++}

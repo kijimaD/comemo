@@ -22,10 +22,497 @@ Date:   Tue Nov 7 04:40:56 2017 -0500
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/s390x/ssa.go        |  8 +++-
  src/cmd/compile/internal/ssa/gen/S390X.rules | 26 +++++-----
  src/cmd/compile/internal/ssa/gen/S390XOps.go | 10 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 10 ++--
  src/cmd/compile/internal/ssa/rewriteS390X.go | 72 ++++++++++++++--------------
  5 files changed, 66 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 6612407d52..c9d1f52c8f 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -337,12 +337,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		opregreg(s, v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
+ 	case ssa.OpS390XFCMPS, ssa.OpS390XFCMP:
+ 		opregreg(s, v.Op.Asm(), v.Args[1].Reg(), v.Args[0].Reg())
+-	case ssa.OpS390XCMPconst, ssa.OpS390XCMPWconst, ssa.OpS390XCMPUconst, ssa.OpS390XCMPWUconst:
++	case ssa.OpS390XCMPconst, ssa.OpS390XCMPWconst:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_CONST
+ 		p.To.Offset = v.AuxInt
++	case ssa.OpS390XCMPUconst, ssa.OpS390XCMPWUconst:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_CONST
++		p.To.Offset = int64(uint32(v.AuxInt))
+ 	case ssa.OpS390XMOVDconst:
+ 		x := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index de8d7b6bbc..6b997bd46d 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -520,31 +520,31 @@
+ 
+ // Fold constants into instructions.
+ (ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
+-(ADDW x (MOVDconst [c])) -> (ADDWconst [c] x)
++(ADDW x (MOVDconst [c])) -> (ADDWconst [int64(int32(c))] x)
+ 
+ (SUB x (MOVDconst [c])) && is32Bit(c) -> (SUBconst x [c])
+ (SUB (MOVDconst [c]) x) && is32Bit(c) -> (NEG (SUBconst <v.Type> x [c]))
+-(SUBW x (MOVDconst [c])) -> (SUBWconst x [c])
+-(SUBW (MOVDconst [c]) x) -> (NEGW (SUBWconst <v.Type> x [c]))
++(SUBW x (MOVDconst [c])) -> (SUBWconst x [int64(int32(c))])
++(SUBW (MOVDconst [c]) x) -> (NEGW (SUBWconst <v.Type> x [int64(int32(c))]))
+ 
+ (MULLD x (MOVDconst [c])) && is32Bit(c) -> (MULLDconst [c] x)
+-(MULLW x (MOVDconst [c])) -> (MULLWconst [c] x)
++(MULLW x (MOVDconst [c])) -> (MULLWconst [int64(int32(c))] x)
+ 
+ // NILF instructions leave the high 32 bits unchanged which is
+ // equivalent to the leftmost 32 bits being set.
+ // TODO(mundaym): modify the assembler to accept 64-bit values
+ // and use isU32Bit(^c).
+ (AND x (MOVDconst [c])) && is32Bit(c) && c < 0 -> (ANDconst [c] x)
+-(ANDW x (MOVDconst [c])) -> (ANDWconst [c] x)
++(ANDW x (MOVDconst [c])) -> (ANDWconst [int64(int32(c))] x)
+ 
+ (ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
+ (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c & d] x)
+ 
+ (OR x (MOVDconst [c])) && isU32Bit(c) -> (ORconst [c] x)
+-(ORW x (MOVDconst [c])) -> (ORWconst [c] x)
++(ORW x (MOVDconst [c])) -> (ORWconst [int64(int32(c))] x)
+ 
+ (XOR x (MOVDconst [c])) && isU32Bit(c) -> (XORconst [c] x)
+-(XORW x (MOVDconst [c])) -> (XORWconst [c] x)
++(XORW x (MOVDconst [c])) -> (XORWconst [int64(int32(c))] x)
+ 
+ (SLD x (MOVDconst [c])) -> (SLDconst [c&63] x)
+ (SLW x (MOVDconst [c])) -> (SLWconst [c&63] x)
+@@ -571,12 +571,12 @@
+ 
+ (CMP x (MOVDconst [c])) && is32Bit(c) -> (CMPconst x [c])
+ (CMP (MOVDconst [c]) x) && is32Bit(c) -> (InvertFlags (CMPconst x [c]))
+-(CMPW x (MOVDconst [c])) -> (CMPWconst x [c])
+-(CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst x [c]))
+-(CMPU x (MOVDconst [c])) && isU32Bit(c) -> (CMPUconst x [int64(uint32(c))])
+-(CMPU (MOVDconst [c]) x) && isU32Bit(c) -> (InvertFlags (CMPUconst x [int64(uint32(c))]))
+-(CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(uint32(c))])
+-(CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(uint32(c))]))
++(CMPW x (MOVDconst [c])) -> (CMPWconst x [int64(int32(c))])
++(CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst x [int64(int32(c))]))
++(CMPU x (MOVDconst [c])) && isU32Bit(c) -> (CMPUconst x [int64(int32(c))])
++(CMPU (MOVDconst [c]) x) && isU32Bit(c) -> (InvertFlags (CMPUconst x [int64(int32(c))]))
++(CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(int32(c))])
++(CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(int32(c))]))
+ 
+ // Using MOV{W,H,B}Zreg instead of AND is cheaper.
+ (AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index cbee9c9e1a..ab781cee90 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -235,21 +235,21 @@ func init() {
+ 		// binary ops
+ 		{name: "ADD", argLength: 2, reg: gp21sp, asm: "ADD", commutative: true, clobberFlags: true},                                                                  // arg0 + arg1
+ 		{name: "ADDW", argLength: 2, reg: gp21sp, asm: "ADDW", commutative: true, clobberFlags: true},                                                                // arg0 + arg1
+-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64", typ: "UInt64", clobberFlags: true},                                                   // arg0 + auxint
++		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int32", typ: "UInt64", clobberFlags: true},                                                   // arg0 + auxint
+ 		{name: "ADDWconst", argLength: 1, reg: gp11sp, asm: "ADDW", aux: "Int32", clobberFlags: true},                                                                // arg0 + auxint
+ 		{name: "ADDload", argLength: 3, reg: gpopload, asm: "ADD", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},   // arg0 + *arg1. arg2=mem
+ 		{name: "ADDWload", argLength: 3, reg: gpopload, asm: "ADDW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 + *arg1. arg2=mem
+ 
+ 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB", clobberFlags: true},                                                                                       // arg0 - arg1
+ 		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW", clobberFlags: true},                                                                                     // arg0 - arg1
+-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64", resultInArg0: true, clobberFlags: true},                                                // arg0 - auxint
++		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32", resultInArg0: true, clobberFlags: true},                                                // arg0 - auxint
+ 		{name: "SUBWconst", argLength: 1, reg: gp11, asm: "SUBW", aux: "Int32", resultInArg0: true, clobberFlags: true},                                              // arg0 - auxint
+ 		{name: "SUBload", argLength: 3, reg: gpopload, asm: "SUB", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"},   // arg0 - *arg1. arg2=mem
+ 		{name: "SUBWload", argLength: 3, reg: gpopload, asm: "SUBW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 - *arg1. arg2=mem
+ 
+ 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true},                                // arg0 * arg1
+ 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true, resultInArg0: true, clobberFlags: true},                                // arg0 * arg1
+-		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int64", typ: "Int64", resultInArg0: true, clobberFlags: true},                                // arg0 * auxint
++		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int32", typ: "Int64", resultInArg0: true, clobberFlags: true},                                // arg0 * auxint
+ 		{name: "MULLWconst", argLength: 1, reg: gp11, asm: "MULLW", aux: "Int32", typ: "Int32", resultInArg0: true, clobberFlags: true},                                // arg0 * auxint
+ 		{name: "MULLDload", argLength: 3, reg: gpopload, asm: "MULLD", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * *arg1. arg2=mem
+ 		{name: "MULLWload", argLength: 3, reg: gpopload, asm: "MULLW", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 * *arg1. arg2=mem
+@@ -295,9 +295,9 @@ func init() {
+ 		{name: "CMPU", argLength: 2, reg: gp2flags, asm: "CMPU", typ: "Flags"},   // arg0 compare to arg1
+ 		{name: "CMPWU", argLength: 2, reg: gp2flags, asm: "CMPWU", typ: "Flags"}, // arg0 compare to arg1
+ 
+-		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", typ: "Flags", aux: "Int64"},     // arg0 compare to auxint
++		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", typ: "Flags", aux: "Int32"},     // arg0 compare to auxint
+ 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
+-		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int64"},   // arg0 compare to auxint
++		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
+ 		{name: "CMPWUconst", argLength: 1, reg: gp1flags, asm: "CMPWU", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
+ 
+ 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"}, // arg0 compare to arg1, f32
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index c4d71d235b..0beabb0b84 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -19641,7 +19641,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "ADDconst",
+-		auxType:      auxInt64,
++		auxType:      auxInt32,
+ 		argLen:       1,
+ 		clobberFlags: true,
+ 		asm:          s390x.AADD,
+@@ -19739,7 +19739,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "SUBconst",
+-		auxType:      auxInt64,
++		auxType:      auxInt32,
+ 		argLen:       1,
+ 		resultInArg0: true,
+ 		clobberFlags: true,
+@@ -19843,7 +19843,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:         "MULLDconst",
+-		auxType:      auxInt64,
++		auxType:      auxInt32,
+ 		argLen:       1,
+ 		resultInArg0: true,
+ 		clobberFlags: true,
+@@ -20425,7 +20425,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "CMPconst",
+-		auxType: auxInt64,
++		auxType: auxInt32,
+ 		argLen:  1,
+ 		asm:     s390x.ACMP,
+ 		reg: regInfo{
+@@ -20447,7 +20447,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "CMPUconst",
+-		auxType: auxInt64,
++		auxType: auxInt32,
+ 		argLen:  1,
+ 		asm:     s390x.ACMPU,
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 64399892af..fe9b2bd001 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -6299,7 +6299,7 @@ func rewriteValueS390X_OpS390XADD_10(v *Value) bool {
+ func rewriteValueS390X_OpS390XADDW_0(v *Value) bool {
+ 	// match: (ADDW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (ADDWconst [c] x)
++	// result: (ADDWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -6309,13 +6309,13 @@ func rewriteValueS390X_OpS390XADDW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XADDWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (ADDW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (ADDWconst [c] x)
++	// result: (ADDWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -6325,7 +6325,7 @@ func rewriteValueS390X_OpS390XADDW_0(v *Value) bool {
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+ 		v.reset(OpS390XADDWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -7269,7 +7269,7 @@ func rewriteValueS390X_OpS390XAND_10(v *Value) bool {
+ func rewriteValueS390X_OpS390XANDW_0(v *Value) bool {
+ 	// match: (ANDW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (ANDWconst [c] x)
++	// result: (ANDWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -7279,13 +7279,13 @@ func rewriteValueS390X_OpS390XANDW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XANDWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (ANDW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (ANDWconst [c] x)
++	// result: (ANDWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -7295,7 +7295,7 @@ func rewriteValueS390X_OpS390XANDW_0(v *Value) bool {
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+ 		v.reset(OpS390XANDWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -7879,7 +7879,7 @@ func rewriteValueS390X_OpS390XCMPU_0(v *Value) bool {
+ 	_ = b
+ 	// match: (CMPU x (MOVDconst [c]))
+ 	// cond: isU32Bit(c)
+-	// result: (CMPUconst x [int64(uint32(c))])
++	// result: (CMPUconst x [int64(int32(c))])
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -7892,13 +7892,13 @@ func rewriteValueS390X_OpS390XCMPU_0(v *Value) bool {
+ 			break
+ 		}
+ 		v.reset(OpS390XCMPUconst)
+-		v.AuxInt = int64(uint32(c))
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (CMPU (MOVDconst [c]) x)
+ 	// cond: isU32Bit(c)
+-	// result: (InvertFlags (CMPUconst x [int64(uint32(c))]))
++	// result: (InvertFlags (CMPUconst x [int64(int32(c))]))
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -7912,7 +7912,7 @@ func rewriteValueS390X_OpS390XCMPU_0(v *Value) bool {
+ 		}
+ 		v.reset(OpS390XInvertFlags)
+ 		v0 := b.NewValue0(v.Pos, OpS390XCMPUconst, types.TypeFlags)
+-		v0.AuxInt = int64(uint32(c))
++		v0.AuxInt = int64(int32(c))
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+@@ -7975,7 +7975,7 @@ func rewriteValueS390X_OpS390XCMPW_0(v *Value) bool {
+ 	_ = b
+ 	// match: (CMPW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (CMPWconst x [c])
++	// result: (CMPWconst x [int64(int32(c))])
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -7985,13 +7985,13 @@ func rewriteValueS390X_OpS390XCMPW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XCMPWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (CMPW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (InvertFlags (CMPWconst x [c]))
++	// result: (InvertFlags (CMPWconst x [int64(int32(c))]))
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -8002,7 +8002,7 @@ func rewriteValueS390X_OpS390XCMPW_0(v *Value) bool {
+ 		x := v.Args[1]
+ 		v.reset(OpS390XInvertFlags)
+ 		v0 := b.NewValue0(v.Pos, OpS390XCMPWconst, types.TypeFlags)
+-		v0.AuxInt = c
++		v0.AuxInt = int64(int32(c))
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+@@ -8014,7 +8014,7 @@ func rewriteValueS390X_OpS390XCMPWU_0(v *Value) bool {
+ 	_ = b
+ 	// match: (CMPWU x (MOVDconst [c]))
+ 	// cond:
+-	// result: (CMPWUconst x [int64(uint32(c))])
++	// result: (CMPWUconst x [int64(int32(c))])
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -8024,13 +8024,13 @@ func rewriteValueS390X_OpS390XCMPWU_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XCMPWUconst)
+-		v.AuxInt = int64(uint32(c))
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (CMPWU (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (InvertFlags (CMPWUconst x [int64(uint32(c))]))
++	// result: (InvertFlags (CMPWUconst x [int64(int32(c))]))
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -8041,7 +8041,7 @@ func rewriteValueS390X_OpS390XCMPWU_0(v *Value) bool {
+ 		x := v.Args[1]
+ 		v.reset(OpS390XInvertFlags)
+ 		v0 := b.NewValue0(v.Pos, OpS390XCMPWUconst, types.TypeFlags)
+-		v0.AuxInt = int64(uint32(c))
++		v0.AuxInt = int64(int32(c))
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+@@ -21277,7 +21277,7 @@ func rewriteValueS390X_OpS390XMULLDload_0(v *Value) bool {
+ func rewriteValueS390X_OpS390XMULLW_0(v *Value) bool {
+ 	// match: (MULLW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (MULLWconst [c] x)
++	// result: (MULLWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -21287,13 +21287,13 @@ func rewriteValueS390X_OpS390XMULLW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XMULLWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MULLW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (MULLWconst [c] x)
++	// result: (MULLWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -21303,7 +21303,7 @@ func rewriteValueS390X_OpS390XMULLW_0(v *Value) bool {
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+ 		v.reset(OpS390XMULLWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -31427,7 +31427,7 @@ func rewriteValueS390X_OpS390XOR_150(v *Value) bool {
+ func rewriteValueS390X_OpS390XORW_0(v *Value) bool {
+ 	// match: (ORW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (ORWconst [c] x)
++	// result: (ORWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -31437,13 +31437,13 @@ func rewriteValueS390X_OpS390XORW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XORWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (ORW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (ORWconst [c] x)
++	// result: (ORWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -31453,7 +31453,7 @@ func rewriteValueS390X_OpS390XORW_0(v *Value) bool {
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+ 		v.reset(OpS390XORWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -37604,7 +37604,7 @@ func rewriteValueS390X_OpS390XSUBW_0(v *Value) bool {
+ 	_ = b
+ 	// match: (SUBW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (SUBWconst x [c])
++	// result: (SUBWconst x [int64(int32(c))])
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -37614,13 +37614,13 @@ func rewriteValueS390X_OpS390XSUBW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XSUBWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (SUBW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (NEGW (SUBWconst <v.Type> x [c]))
++	// result: (NEGW (SUBWconst <v.Type> x [int64(int32(c))]))
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -37631,7 +37631,7 @@ func rewriteValueS390X_OpS390XSUBW_0(v *Value) bool {
+ 		x := v.Args[1]
+ 		v.reset(OpS390XNEGW)
+ 		v0 := b.NewValue0(v.Pos, OpS390XSUBWconst, v.Type)
+-		v0.AuxInt = c
++		v0.AuxInt = int64(int32(c))
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+@@ -38208,7 +38208,7 @@ func rewriteValueS390X_OpS390XXOR_10(v *Value) bool {
+ func rewriteValueS390X_OpS390XXORW_0(v *Value) bool {
+ 	// match: (XORW x (MOVDconst [c]))
+ 	// cond:
+-	// result: (XORWconst [c] x)
++	// result: (XORWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -38218,13 +38218,13 @@ func rewriteValueS390X_OpS390XXORW_0(v *Value) bool {
+ 		}
+ 		c := v_1.AuxInt
+ 		v.reset(OpS390XXORWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (XORW (MOVDconst [c]) x)
+ 	// cond:
+-	// result: (XORWconst [c] x)
++	// result: (XORWconst [int64(int32(c))] x)
+ 	for {
+ 		_ = v.Args[1]
+ 		v_0 := v.Args[0]
+@@ -38234,7 +38234,7 @@ func rewriteValueS390X_OpS390XXORW_0(v *Value) bool {
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+ 		v.reset(OpS390XXORWconst)
+-		v.AuxInt = c
++		v.AuxInt = int64(int32(c))
+ 		v.AddArg(x)
+ 		return true
+ 	}

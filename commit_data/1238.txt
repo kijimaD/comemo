@@ -9,7 +9,7 @@ Date:   Mon Nov 24 15:17:47 2008 -0800
     DELTA=1590  (745 added, 844 deleted, 1 changed)
     OCL=19903
     CL=19936
-
+---
  src/cmd/gotest/gotest                     |   5 +-
  test/bufiolib.go => src/lib/bufio_test.go | 183 ++++++++------------
  src/lib/sort_test.go                      | 238 +++++++++++++++++++++++++
@@ -19,3 +19,1271 @@ Date:   Mon Nov 24 15:17:47 2008 -0800
  test/stringslib.go                        | 120 -------------
  test/timelib.go                           |  86 ----------
  8 files changed, 494 insertions(+), 593 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 988e6f4eec..55d22e7299 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -55,7 +55,10 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ 	# test array
+ 	echo
+ 	echo 'var tests = &[]testing.Test {'
+-	for i in $(6nm -s $ofiles | grep ' T .*·Test' | sed 's/.* //; s/·/./')
++	# test functions are named TestFoo
++	# the grep -v eliminates methods and other special names
++	# that have multiple dots.
++	for i in $(6nm -s $ofiles | grep ' T .*·Test[A-Z]' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+ 	do
+ 		echo '	testing.Test{ "'$i'", &'$i' },'
+ 	done
+diff --git a/test/bufiolib.go b/src/lib/bufio_test.go
+similarity index 60%
+rename from test/bufiolib.go
+rename to src/lib/bufio_test.go
+index d27bda655d..8265c0a552 100644
+--- a/test/bufiolib.go
++++ b/src/lib/bufio_test.go
+@@ -2,16 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// $G $F.go && $L $F.$A && ./$A.out
+-
+-package main
++package bufio
+ 
+ import (
+-	"os";
+-	"io";
+ 	"bufio";
++	"fmt";
++	"io";
++	"os";
+ 	"syscall";
+-	"rand"
++	"testing";
+ )
+ 
+ func StringToBytes(s string) *[]byte {
+@@ -103,26 +102,22 @@ func (r13 *Rot13Reader) Read(p *[]byte) (int, *os.Error) {
+ 	return n, nil
+ }
+ 
+-func MakeByteReader(p *[]byte) io.Read {
+-	return NewByteReader(p)
++type Readmaker struct {
++	name string;
++	fn *(*[]byte) io.Read;
+ }
+-func MakeHalfByteReader(p *[]byte) io.Read {
+-	return NewHalfByteReader(p)
++var readmakers = []Readmaker {
++	Readmaker{ "full", func(p *[]byte) io.Read { return NewByteReader(p) } },
++	Readmaker{ "half", func(p *[]byte) io.Read { return NewHalfByteReader(p) } },
+ }
+ 
+-var readmakers = []*(p *[]byte) io.Read {
+-	&NewByteReader,
+-	&NewHalfByteReader
+-}
+-
+-
+ // Call ReadLineString (which ends up calling everything else)
+ // to accumulate the text of a file.
+-func ReadLines(b *bufio.BufRead) string {
++func ReadLines(b *BufRead) string {
+ 	s := "";
+ 	for {
+ 		s1, e := b.ReadLineString('\n', true);
+-		if e == bufio.EndOfFile {
++		if e == EndOfFile {
+ 			break
+ 		}
+ 		if e != nil {
+@@ -134,12 +129,12 @@ func ReadLines(b *bufio.BufRead) string {
+ }
+ 
+ // Call ReadByte to accumulate the text of a file
+-func ReadBytes(buf *bufio.BufRead) string {
++func ReadBytes(buf *BufRead) string {
+ 	var b [1000]byte;
+ 	nb := 0;
+ 	for {
+ 		c, e := buf.ReadByte();
+-		if e == bufio.EndOfFile {
++		if e == EndOfFile {
+ 			break
+ 		}
+ 		if e != nil {
+@@ -153,32 +148,33 @@ func ReadBytes(buf *bufio.BufRead) string {
+ }
+ 
+ // Call Read to accumulate the text of a file
+-func Reads(buf *bufio.BufRead, m int) string {
++func Reads(buf *BufRead, m int) string {
+ 	var b [1000]byte;
+ 	nb := 0;
+ 	for {
+ 		// BUG parens around (&b) should not be needed
+ 		n, e := buf.Read((&b)[nb:nb+m]);
+ 		nb += n;
+-		if e == bufio.EndOfFile {
++		if e == EndOfFile {
+ 			break
+ 		}
+ 	}
+-	// BUG 6g bug102 - out of bounds error on empty byte array -> string
+-	if nb == 0 { return "" }
+ 	return string((&b)[0:nb])
+ }
+ 
+-func Read1(b *bufio.BufRead) string { return Reads(b, 1) }
+-func Read2(b *bufio.BufRead) string { return Reads(b, 2) }
+-func Read3(b *bufio.BufRead) string { return Reads(b, 3) }
+-func Read4(b *bufio.BufRead) string { return Reads(b, 4) }
+-func Read5(b *bufio.BufRead) string { return Reads(b, 5) }
+-func Read7(b *bufio.BufRead) string { return Reads(b, 7) }
+-
+-var bufreaders = []*(b *bufio.BufRead) string {
+-	&Read1, &Read2, &Read3, &Read4, &Read5, &Read7,
+-	&ReadBytes, &ReadLines
++type Bufreader struct {
++	name string;
++	fn *(*BufRead) string;
++}
++var bufreaders = []Bufreader {
++	Bufreader{ "1", func(b *BufRead) string { return Reads(b, 1) } },
++	Bufreader{ "2", func(b *BufRead) string { return Reads(b, 2) } },
++	Bufreader{ "3", func(b *BufRead) string { return Reads(b, 3) } },
++	Bufreader{ "4", func(b *BufRead) string { return Reads(b, 4) } },
++	Bufreader{ "5", func(b *BufRead) string { return Reads(b, 5) } },
++	Bufreader{ "7", func(b *BufRead) string { return Reads(b, 7) } },
++	Bufreader{ "bytes", &ReadBytes },
++	Bufreader{ "lines", &ReadLines },
+ }
+ 
+ var bufsizes = []int {
+@@ -186,39 +182,19 @@ var bufsizes = []int {
+ 	23, 32, 46, 64, 93, 128, 1024, 4096
+ }
+ 
+-func TestBufRead() {
+-	// work around 6g bug101
+-	readmakers[0] = &NewByteReader;
+-	readmakers[1] = &NewHalfByteReader;
+-
+-	bufreaders[0] = &Read1;
+-	bufreaders[1] = &Read2;
+-	bufreaders[2] = &Read3;
+-	bufreaders[3] = &Read4;
+-	bufreaders[4] = &Read5;
+-	bufreaders[5] = &Read7;
+-	bufreaders[6] = &ReadBytes;
+-	bufreaders[7] = &ReadLines;
+-
+-	bufsizes[0] = 1;
+-	bufsizes[1] = 2;
+-	bufsizes[2] = 3;
+-	bufsizes[3] = 4;
+-	bufsizes[4] = 5;
+-	bufsizes[5] = 6;
+-	bufsizes[6] = 7;
+-	bufsizes[7] = 8;
+-	bufsizes[8] = 9;
+-	bufsizes[9] = 10;
+-	bufsizes[10] = 23;
+-	bufsizes[11] = 32;
+-	bufsizes[12] = 46;
+-	bufsizes[13] = 64;
+-	bufsizes[14] = 93;
+-	bufsizes[15] = 128;
+-	bufsizes[16] = 1024;
+-	bufsizes[17] = 4096;
++export func TestBufReadSimple(t *testing.T) {
++	b, e := NewBufRead(NewByteReader(StringToBytes("hello world")));
++	if s := ReadBytes(b); s != "hello world" {
++		t.Errorf("simple hello world test failed: got %q", s);
++	}
++
++	b, e = NewBufRead(NewRot13Reader(NewByteReader(StringToBytes("hello world"))));
++	if s := ReadBytes(b); s != "uryyb jbeyq" {
++		t.Error("rot13 hello world test failed: got %q", s);
++	}
++}
+ 
++export func TestBufRead(t *testing.T) {
+ 	var texts [31]string;
+ 	str := "";
+ 	all := "";
+@@ -229,33 +205,21 @@ func TestBufRead() {
+ 	}
+ 	texts[len(texts)-1] = all;
+ 
+-	// BUG 6g should not need nbr temporary (bug099)
+-	nbr := NewByteReader(StringToBytes("hello world"));
+-	b, e := bufio.NewBufRead(nbr);
+-	if ReadBytes(b) != "hello world" { panic("hello world") }
+-
+-	// BUG 6g should not need nbr nor nbr1 (bug009)
+-	nbr = NewByteReader(StringToBytes("hello world"));
+-	nbr1 := NewRot13Reader(nbr);
+-	b, e = bufio.NewBufRead(nbr1);
+-	if ReadBytes(b) != "uryyb jbeyq" { panic("hello world") }
+-
+ 	for h := 0; h < len(texts); h++ {
+ 		text := texts[h];
+ 		textbytes := StringToBytes(text);
+ 		for i := 0; i < len(readmakers); i++ {
+-			readmaker := readmakers[i];
+ 			for j := 0; j < len(bufreaders); j++ {
+-				bufreader := bufreaders[j];
+ 				for k := 0; k < len(bufsizes); k++ {
++					readmaker := readmakers[i];
++					bufreader := bufreaders[j];
+ 					bufsize := bufsizes[k];
+-					read := readmaker(textbytes);
+-					buf, e := bufio.NewBufReadSize(read, bufsize);
+-					s := bufreader(buf);
++					read := readmaker.fn(textbytes);
++					buf, e := NewBufReadSize(read, bufsize);
++					s := bufreader.fn(buf);
+ 					if s != text {
+-						print("Failed: ", h, " ", i, " ", j, " ", k, " ", len(s), " ", len(text), "\n");
+-						print("<", s, ">\nshould be <", text, ">\n");
+-						panic("bufio result")
++						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
++							readmaker.name, bufreader.name, bufsize, text, s);
+ 					}
+ 				}
+ 			}
+@@ -263,7 +227,6 @@ func TestBufRead() {
+ 	}
+ }
+ 
+-
+ type WriteBuffer interface {
+ 	Write(p *[]byte) (int, *os.Error);
+ 	GetBytes() *[]byte
+@@ -298,6 +261,7 @@ func (w *ByteWriter) GetBytes() *[]byte {
+ 
+ // Accumulates bytes written into a byte array
+ // but Write only takes half of what you give it.
++// TODO: Could toss this -- Write() is not supposed to do that.
+ type HalfByteWriter struct {
+ 	bw WriteBuffer
+ }
+@@ -319,15 +283,20 @@ func (w *HalfByteWriter) GetBytes() *[]byte {
+ 	return w.bw.GetBytes()
+ }
+ 
+-func TestBufWrite() {
++type Writemaker struct {
++	name string;
++	fn *()WriteBuffer;
++}
++export func TestBufWrite(t *testing.T) {
+ 	var data [8192]byte;
+ 
+-	var writers [2]*()WriteBuffer;
+-	writers[0] = &NewByteWriter;
+-	writers[1] = &NewHalfByteWriter;
++	var writers = []Writemaker {
++		Writemaker{ "full", &NewByteWriter },
++		Writemaker{ "half", &NewHalfByteWriter },
++	};
+ 
+ 	for i := 0; i < len(data); i++ {
+-		data[i] = byte(rand.rand())
++		data[i] = byte(' '+ i%('~'-' '));
+ 	}
+ 	for i := 0; i < len(bufsizes); i++ {
+ 		for j := 0; j < len(bufsizes); j++ {
+@@ -339,30 +308,31 @@ func TestBufWrite() {
+ 				// Check that the right amount makes it out
+ 				// and that the data is correct.
+ 
+-				write := writers[k]();
+-				buf, e := bufio.NewBufWriteSize(write, bs);
++				write := writers[k].fn();
++				buf, e := NewBufWriteSize(write, bs);
++				context := fmt.sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
+ 				if e != nil {
+-					panic("NewBufWriteSize error: "+e.String())
++					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
++					continue;
+ 				}
+ 				n, e1 := buf.Write((&data)[0:nwrite]);
+-				if e1 != nil {
+-					panic("buf.Write error "+e1.String())
+-				}
+-				if n != nwrite {
+-					panic("buf.Write wrong count")
++				if e1 != nil || n != nwrite {
++					t.Errorf("%s: buf.Write %d = %d, %v", context, nwrite, n, e1);
++					continue;
+ 				}
+-				e = buf.Flush();
+-				if e != nil {
+-					panic("buf.Flush error "+e.String())
++				if e = buf.Flush(); e != nil {
++					t.Errorf("%s: buf.Flush = %v", context, e);
+ 				}
+ 
+ 				written := write.GetBytes();
+ 				if len(written) != nwrite {
+-					panic("wrong amount written")
++					t.Errorf("%s: %d bytes written", context, len(written));
+ 				}
+ 				for l := 0; l < len(written); l++ {
+ 					if written[i] != data[i] {
+-						panic("wrong bytes written")
++						t.Errorf("%s: wrong bytes written");
++						t.Errorf("want=%s", (&data)[0:len(written)]);
++						t.Errorf("have=%s", written);
+ 					}
+ 				}
+ 			}
+@@ -370,8 +340,3 @@ func TestBufWrite() {
+ 	}
+ }
+ 
+-
+-func main() {
+-	TestBufRead();
+-	TestBufWrite()
+-}
+diff --git a/src/lib/sort_test.go b/src/lib/sort_test.go
+new file mode 100644
+index 0000000000..5afced6992
+--- /dev/null
++++ b/src/lib/sort_test.go
+@@ -0,0 +1,238 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sort
++
++import (
++	"fmt";
++	"rand";
++	"sort";
++	"testing";
++)
++
++func BentleyMcIlroyTests();
++
++
++var ints = []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
++var floats = []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8}
++var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
++
++export func TestSortIntArray(t *testing.T) {
++	data := ints;
++	a := sort.IntArray{&data};
++	sort.Sort(&a);
++	if !sort.IsSorted(&a) {
++		t.Errorf("sorted %v", ints);
++		t.Errorf("   got %v", data);
++	}
++}
++
++export func TestSortFloatArray(t *testing.T) {
++	data := floats;
++	a := sort.FloatArray{&data};
++	sort.Sort(&a);
++	if !sort.IsSorted(&a) {
++		t.Errorf("sorted %v", floats);
++		t.Errorf("   got %v", data);
++	}
++}
++
++export func TestSortStringArray(t *testing.T) {
++	data := strings;
++	a := sort.StringArray{&data};
++	sort.Sort(&a);
++	if !sort.IsSorted(&a) {
++		t.Errorf("sorted %v", strings);
++		t.Errorf("   got %v", data);
++	}
++}
++
++export func TestSortInts(t *testing.T) {
++	data := ints;
++	sort.SortInts(&data);
++	if !sort.IntsAreSorted(&data) {
++		t.Errorf("sorted %v", ints);
++		t.Errorf("   got %v", data);
++	}
++}
++
++export func TestSortFloats(t *testing.T) {
++	data := floats;
++	sort.SortFloats(&data);
++	if !sort.FloatsAreSorted(&data) {
++		t.Errorf("sorted %v", floats);
++		t.Errorf("   got %v", data);
++	}
++}
++
++export func TestSortStrings(t *testing.T) {
++	data := strings;
++	sort.SortStrings(&data);
++	if !sort.StringsAreSorted(&data) {
++		t.Errorf("sorted %v", strings);
++		t.Errorf("   got %v", data);
++	}
++}
++
++export func TestSortLargeRandom(t *testing.T) {
++	data := new([]int, 1000000);
++	for i := 0; i < len(data); i++ {
++		data[i] = rand.rand() % 100;
++	}
++	if sort.IntsAreSorted(data) {
++		t.Fatalf("terrible rand.rand");
++	}
++	sort.SortInts(data);
++	if !sort.IntsAreSorted(data) {
++		t.Errorf("sort didn't sort - 1M ints");
++	}
++}
++
++const (
++	Sawtooth = iota;
++	Rand;
++	Stagger;
++	Plateau;
++	Shuffle;
++	NDist;
++)
++
++const (
++	Copy = iota;
++	Reverse;
++	ReverseFirstHalf;
++	ReverseSecondHalf;
++	Sorted;
++	Dither;
++	NMode;
++);
++
++type TestingData struct {
++	desc string;
++	t *testing.T;
++	data *[]int;
++	maxswap int;	// number of swaps allowed
++	nswap int;
++}
++
++func (d *TestingData) Len() int { return len(d.data); }
++func (d *TestingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
++func (d *TestingData) Swap(i, j int) {
++	if d.nswap >= d.maxswap {
++		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data));
++		d.t.FailNow();
++	}
++	d.nswap++;
++	d.data[i], d.data[j] = d.data[j], d.data[i];
++}
++
++func Lg(n int) int {
++	i := 0;
++	for 1<<uint(i) < n {
++		i++;
++	}
++	return i;
++}
++
++func Min(a, b int) int {
++	if a < b {
++		return a;
++	}
++	return b;
++}
++
++export func TestBentleyMcIlroy(t *testing.T) {
++	sizes := []int{100, 1023, 1024, 1025};
++	dists := []string{"sawtooth", "rand", "stagger", "plateau", "shuffle"};
++	modes := []string{"copy", "reverse", "reverse1", "reverse2", "sort", "dither"};
++	var tmp1, tmp2 [1025]int;
++	for ni := 0; ni < len(sizes); ni++ {
++		n := sizes[ni];
++		for m := 1; m < 2*n; m *= 2 {
++			for dist := 0; dist < NDist; dist++ {
++				j := 0;
++				k := 1;
++				data := (&tmp1)[0:n];
++				for i := 0; i < n; i++ {
++					switch dist {
++					case Sawtooth:
++						data[i] = i % m;
++					case Rand:
++						data[i] = rand.rand() % m;
++					case Stagger:
++						data[i] = (i*m + i) % n;
++					case Plateau:
++						data[i] = Min(i, m);
++					case Shuffle:
++						if rand.rand() % m != 0 {
++							j += 2;
++							data[i] = j;
++						} else {
++							k += 2;
++							data[i] = k;
++						}
++					}
++				}
++
++				mdata := (&tmp2)[0:n];
++				for mode := 0; mode < NMode; mode++ {
++					switch mode {
++					case Copy:
++						for i := 0; i < n; i++ {
++							mdata[i] = data[i];
++						}
++					case Reverse:
++						for i := 0; i < n; i++ {
++							mdata[i] = data[n-i-1];
++						}
++					case ReverseFirstHalf:
++						for i := 0; i < n/2; i++ {
++							mdata[i] = data[n/2-i-1];
++						}
++						for i := n/2; i < n; i++ {
++							mdata[i] = data[i];
++						}
++					case ReverseSecondHalf:
++						for i := 0; i < n/2; i++ {
++							mdata[i] = data[i];
++						}
++						for i := n/2; i < n; i++ {
++							mdata[i] = data[n-(i-n/2)-1];
++						}
++					case Sorted:
++						for i := 0; i < n; i++ {
++							mdata[i] = data[i];
++						}
++						// sort.SortInts is known to be correct
++						// because mode Sort runs after mode Copy.
++						sort.SortInts(mdata);
++					case Dither:
++						for i := 0; i < n; i++ {
++							mdata[i] = data[i] + i%5;
++						}
++					}
++
++					desc := fmt.sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
++					d := &TestingData{desc, t, mdata[0:n], n*Lg(n)*12/10, 0};
++					sort.Sort(d);
++
++					// If we were testing C qsort, we'd have to make a copy
++					// of the array and sort it ourselves and then compare
++					// x against it, to ensure that qsort was only permuting
++					// the data, not (for example) overwriting it with zeros.
++					//
++					// In go, we don't have to be so paranoid: since the only
++					// mutating method sort.Sort can call is TestingData.swap,
++					// it suffices here just to check that the final array is sorted.
++					if !sort.IntsAreSorted(mdata) {
++						t.Errorf("%s: ints not sorted", desc);
++						t.Errorf("\t%v", mdata);
++						t.FailNow();
++					}
++				}
++			}
++		}
++	}
++}
++
+diff --git a/src/lib/strings_test.go b/src/lib/strings_test.go
+new file mode 100644
+index 0000000000..a7b63738b5
+--- /dev/null
++++ b/src/lib/strings_test.go
+@@ -0,0 +1,99 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++import (
++	"strings";
++	"testing";
++)
++
++func eq(a, b *[]string) bool {
++	if len(a) != len(b) {
++		return false;
++	}
++	for i := 0; i < len(a); i++ {
++		if a[i] != b[i] {
++			return false;
++		}
++	}
++	return true;
++}
++
++var abcd = "abcd";
++var faces = "☺☻☹";
++var commas = "1,2,3,4";
++var dots = "1....2....3....4";
++
++type ExplodeTest struct {
++	s string;
++	a *[]string;
++}
++var explodetests = []ExplodeTest {
++	ExplodeTest{ abcd,	&[]string{"a", "b", "c", "d"} },
++	ExplodeTest{ faces,	&[]string{"☺", "☻", "☹" } },
++}
++export func TestExplode(t *testing.T) {
++	for i := 0; i < len(explodetests); i++ {
++		tt := explodetests[i];
++		a := explode(tt.s);
++		if !eq(a, tt.a) {
++			t.Errorf("Explode(%q) = %v; want %v", tt.s, a, tt.a);
++			continue;
++		}
++		s := join(a, "");
++		if s != tt.s {
++			t.Errorf(`Join(Explode(%q), "") = %q`, tt.s, s);
++		}
++	}
++}
++
++type SplitTest struct {
++	s string;
++	sep string;
++	a *[]string;
++}
++var splittests = []SplitTest {
++	SplitTest{ abcd,	"a",	&[]string{"", "bcd"} },
++	SplitTest{ abcd,	"z",	&[]string{"abcd"} },
++	SplitTest{ abcd,	"",	&[]string{"a", "b", "c", "d"} },
++	SplitTest{ commas,	",",	&[]string{"1", "2", "3", "4"} },
++	SplitTest{ dots,	"...",	&[]string{"1", ".2", ".3", ".4"} },
++	SplitTest{ faces,	"☹",	&[]string{"☺☻", ""} },
++	SplitTest{ faces,	"~",	&[]string{faces} },
++	SplitTest{ faces,	"",	&[]string{"☺", "☻", "☹"} },
++}
++export func TestSplit(t *testing.T) {
++	for i := 0; i < len(splittests); i++ {
++		tt := splittests[i];
++		a := split(tt.s, tt.sep);
++		if !eq(a, tt.a) {
++			t.Errorf("Split(%q, %q) = %v; want %v", tt.s, tt.sep, a, tt.a);
++			continue;
++		}
++		s := join(a, tt.sep);
++		if s != tt.s {
++			t.Errorf("Join(Split(%q, %q), %q) = %q", tt.s, tt.sep, tt.sep, s);
++		}
++	}
++}
++
++// TODO: utflen shouldn't even be in strings.
++type UtflenTest struct {
++	in string;
++	out int;
++}
++var utflentests = []UtflenTest {
++	UtflenTest{ abcd, 4 },
++	UtflenTest{ faces, 3 },
++	UtflenTest{ commas, 7 },
++}
++export func TestUtflen(t *testing.T) {
++	for i := 0; i < len(utflentests); i++ {
++		tt := utflentests[i];
++		if out := strings.utflen(tt.in); out != tt.out {
++			t.Errorf("utflen(%q) = %d, want %d", tt.in, out, tt.out);
++		}
++	}
++}
+diff --git a/src/lib/time/time_test.go b/src/lib/time/time_test.go
+new file mode 100644
+index 0000000000..f771ec03cb
+--- /dev/null
++++ b/src/lib/time/time_test.go
+@@ -0,0 +1,79 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && ./$A.out
++
++package time
++
++import (
++	"testing";
++	"time";
++)
++
++type TimeTest struct {
++	seconds int64;
++	golden Time;
++}
++
++var utctests = []TimeTest {
++	TimeTest{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "GMT"}},
++	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "GMT"}},
++	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "GMT"}},
++	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "GMT"}},
++	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "GMT"}},
++	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "GMT"}},
++	TimeTest{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "GMT"}}
++}
++
++var localtests = []TimeTest {
++	TimeTest{0, Time{1969, 12, 31, 16, 0, 0, Wednesday, -8*60*60, "PST"}},
++	TimeTest{1221681866, Time{2008, 9, 17, 13, 4, 26, Wednesday, -7*60*60, "PDT"}}
++}
++
++func Same(t, u *Time) bool {
++	return t.year == u.year
++		&& t.month == u.month
++		&& t.day == u.day
++		&& t.hour == u.hour
++		&& t.minute == u.minute
++		&& t.second == u.second
++		&& t.weekday == u.weekday
++		&& t.zoneoffset == u.zoneoffset
++		&& t.zone == u.zone
++}
++
++export func TestSecondsToUTC(t *testing.T) {
++	for i := 0; i < len(utctests); i++ {
++		sec := utctests[i].seconds;
++		golden := &utctests[i].golden;
++		tm := SecondsToUTC(sec);
++		newsec := tm.Seconds();
++		if newsec != sec {
++			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec);
++		}
++		if !Same(tm, golden) {
++			t.Errorf("SecondsToUTC(%d):", sec);
++			t.Errorf("  want=%v", *golden);
++			t.Errorf("  have=%v", *tm);
++		}
++	}
++}
++
++export func TestSecondsToLocalTime(t *testing.T) {
++	for i := 0; i < len(localtests); i++ {
++		sec := localtests[i].seconds;
++		golden := &localtests[i].golden;
++		tm := SecondsToLocalTime(sec);
++		newsec := tm.Seconds();
++		if newsec != sec {
++			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec);
++		}
++		if !Same(tm, golden) {
++			t.Errorf("SecondsToLocalTime(%d):", sec);
++			t.Errorf("  want=%v", *golden);
++			t.Errorf("  have=%v", *tm);
++		}
++	}
++}
++
+diff --git a/test/sorting.go b/test/sorting.go
+deleted file mode 100644
+index e463d0003c..0000000000
+--- a/test/sorting.go
++++ /dev/null
+@@ -1,277 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $F.go && $L $F.$A && ./$A.out
+-
+-package main
+-
+-import (
+-	"fmt";
+-	"rand";
+-	"sort";
+-)
+-
+-func BentleyMcIlroyTests();
+-
+-func main() {
+-	{	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
+-		a := sort.IntArray{&data};
+-
+-		sort.Sort(&a);
+-
+-		/*
+-		for i := 0; i < len(data); i++ {
+-			print(data[i], " ");
+-		}
+-		print("\n");
+-		*/
+-
+-		if !sort.IsSorted(&a) {
+-			panic();
+-		}
+-	}
+-
+-	{	data := []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8};
+-		a := sort.FloatArray{&data};
+-
+-		sort.Sort(&a);
+-
+-		/*
+-		for i := 0; i < len(data); i++ {
+-			print(data[i], " ");
+-		}
+-		print("\n");
+-		*/
+-
+-		if !sort.IsSorted(&a) {
+-			panic();
+-		}
+-	}
+-
+-	{	data := []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"};
+-		a := sort.StringArray{&data};
+-
+-		sort.Sort(&a);
+-
+-		/*
+-		for i := 0; i < len(data); i++ {
+-			print(data[i], " ");
+-		}
+-		print("\n");
+-		*/
+-
+-		if !sort.IsSorted(&a) {
+-			panic();
+-		}
+-	}
+-
+-	// Same tests again, this time using the convenience wrappers
+-
+-	{	data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
+-
+-		sort.SortInts(&data);
+-
+-		/*
+-		for i := 0; i < len(data); i++ {
+-			print(data[i], " ");
+-		}
+-		print("\n");
+-		*/
+-
+-		if !sort.IntsAreSorted(&data) {
+-			panic();
+-		}
+-	}
+-
+-	{	data := []float{74.3, 59.0, 238.2, -784.0, 2.3, 9845.768, -959.7485, 905, 7.8, 7.8};
+-
+-		sort.SortFloats(&data);
+-
+-		/*
+-		for i := 0; i < len(data); i++ {
+-			print(data[i], " ");
+-		}
+-		print("\n");
+-		*/
+-
+-		if !sort.FloatsAreSorted(&data) {
+-			panic();
+-		}
+-	}
+-
+-	{	data := []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"};
+-
+-		sort.SortStrings(&data);
+-
+-		/*
+-		for i := 0; i < len(data); i++ {
+-			print(data[i], " ");
+-		}
+-		print("\n");
+-		*/
+-
+-		if !sort.StringsAreSorted(&data) {
+-			panic();
+-		}
+-	}
+-
+-	{
+-		data := new([]int, 100000);
+-		for i := 0; i < len(data); i++ {
+-			data[i] = rand.rand() % 100;
+-		}
+-		if sort.IntsAreSorted(data) {
+-			panic("terrible rand.rand");
+-		}
+-		sort.SortInts(data);
+-		if !sort.IntsAreSorted(data) {
+-			panic();
+-		}
+-	}
+-
+-	BentleyMcIlroyTests();
+-}
+-
+-const (
+-	Sawtooth = iota;
+-	Rand;
+-	Stagger;
+-	Plateau;
+-	Shuffle;
+-	NDist;
+-)
+-
+-const (
+-	Copy = iota;
+-	Reverse;
+-	ReverseFirstHalf;
+-	ReverseSecondHalf;
+-	Sort;
+-	Dither;
+-	NMode;
+-);
+-
+-type TestingData struct {
+-	data *[]int;
+-	maxswap int;	// number of swaps allowed
+-	nswap int;
+-}
+-
+-func (d *TestingData) Len() int { return len(d.data); }
+-func (d *TestingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
+-func (d *TestingData) Swap(i, j int) {
+-	if d.nswap >= d.maxswap {
+-		panicln("used", d.nswap, "swaps sorting", len(d.data), "array");
+-	}
+-	d.nswap++;
+-	d.data[i], d.data[j] = d.data[j], d.data[i];
+-}
+-
+-func Lg(n int) int {
+-	i := 0;
+-	for 1<<uint(i) < n {
+-		i++;
+-	}
+-	return i;
+-}
+-
+-func Min(a, b int) int {
+-	if a < b {
+-		return a;
+-	}
+-	return b;
+-}
+-
+-func SortIntsTest(mode int, data, x *[]int) {
+-	switch mode {
+-	case Copy:
+-		for i := 0; i < len(data); i++ {
+-			x[i] = data[i];
+-		}
+-	case Reverse:
+-		for i := 0; i < len(data); i++ {
+-			x[i] = data[len(data)-i-1];
+-		}
+-	case ReverseFirstHalf:
+-		n := len(data)/2;
+-		for i := 0; i < n; i++ {
+-			x[i] = data[n-i-1];
+-		}
+-		for i := n; i < len(data); i++ {
+-			x[i] = data[i];
+-		}
+-	case ReverseSecondHalf:
+-		n := len(data)/2;
+-		for i := 0; i < n; i++ {
+-			x[i] = data[i];
+-		}
+-		for i := n; i < len(data); i++ {
+-			x[i] = data[len(data)-(i-n)-1];
+-		}
+-	case Sort:
+-		for i := 0; i < len(data); i++ {
+-			x[i] = data[i];
+-		}
+-		// sort.SortInts is known to be correct
+-		// because mode Sort runs after mode Copy.
+-		sort.SortInts(x[0:len(data)]);
+-	case Dither:
+-		for i := 0; i < len(data); i++ {
+-			x[i] = data[i] + i%5;
+-		}
+-	}
+-	d := &TestingData{x[0:len(data)], len(data)*Lg(len(data))*12/10, 0};
+-	sort.Sort(d);
+-
+-	// If we were testing C qsort, we'd have to make a copy
+-	// of the array and sort it ourselves and then compare
+-	// x against it, to ensure that qsort was only permuting
+-	// the data, not (for example) overwriting it with zeros.
+-	//
+-	// In go, we don't have to be so paranoid: since the only
+-	// mutating method sort.Sort can call is TestingData.swap,
+-	// it suffices here just to check that the final array is sorted.
+-	if !sort.IntsAreSorted(x[0:len(data)]) {
+-		panicln("incorrect sort");
+-	}
+-}
+-
+-func BentleyMcIlroyTests() {
+-	sizes := []int{100, 1023, 1024, 1025};
+-	var x, tmp [1025]int;
+-	for ni := 0; ni < len(sizes); ni++ {
+-		n := sizes[ni];
+-		for m := 1; m < 2*n; m *= 2 {
+-			for dist := 0; dist < NDist; dist++ {
+-				j := 0;
+-				k := 1;
+-				for i := 0; i < n; i++ {
+-					switch dist {
+-					case Sawtooth:
+-						x[i] = i % m;
+-					case Rand:
+-						x[i] = rand.rand() % m;
+-					case Stagger:
+-						x[i] = (i*m + i) % n;
+-					case Plateau:
+-						x[i] = Min(i, m);
+-					case Shuffle:
+-						if rand.rand() % m != 0 {
+-							j += 2;
+-							x[i] = j;
+-						} else {
+-							k += 2;
+-							x[i] = k;
+-						}
+-					}
+-				}
+-				data := (&x)[0:n];
+-				for i := 0; i < NMode; i++ {
+-					SortIntsTest(i, data, &tmp);
+-				}
+-			}
+-		}
+-	}
+-}
+-
+diff --git a/test/stringslib.go b/test/stringslib.go
+deleted file mode 100644
+index c44c1397b6..0000000000
+--- a/test/stringslib.go
++++ /dev/null
+@@ -1,120 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $F.go && $L $F.$A && ./$A.out
+-
+-package main
+-
+-import (
+-	"strconv";
+-	"strings";
+-)
+-
+-func split(s, sep string) *[]string {
+-	a := strings.split(s, sep);
+-	b := strings.join(a, sep);
+-	if b != s {
+-		print("Split: ", s, " ", sep, " got ", len(a), "\n");
+-		for i := 0; i < len(a); i++ {
+-			print(" a[", i, "] = ", a[i], "\n")
+-		}
+-		panic("split / join "+s+" "+sep)
+-	}
+-	return a
+-}
+-
+-func explode(s string) *[]string {
+-	a := strings.explode(s);
+-	b := strings.join(a, "");
+-	if b != s {
+-		panic("explode / join "+s)
+-	}
+-	return a
+-}
+-
+-func itoa(i int) string {
+-	s := strconv.itoa(i);
+-	n, err := strconv.atoi(s);
+-	if n != i {
+-		print("itoa: ", i, " ", s, "\n");
+-		panic("itoa")
+-	}
+-	return s
+-}
+-
+-func main() {
+-	abcd := "abcd";
+-	faces := "☺☻☹";
+-	commas := "1,2,3,4";
+-	dots := "1....2....3....4";
+-	if strings.utflen(abcd) != 4 { panic("utflen abcd") }
+-	if strings.utflen(faces) != 3 { panic("utflen faces") }
+-	if strings.utflen(commas) != 7 { panic("utflen commas") }
+-	{
+-		a := split(abcd, "a");
+-		if len(a) != 2 || a[0] != "" || a[1] != "bcd" { panic("split abcd a") }
+-	}
+-	{
+-		a := split(abcd, "z");
+-		if len(a) != 1 || a[0] != "abcd" { panic("split abcd z") }
+-	}
+-	{
+-		a := split(abcd, "");
+-		if len(a) != 4 || a[0] != "a" || a[1] != "b" || a[2] != "c" || a[3] != "d" { panic("split abcd empty") }
+-	}
+-	{
+-		a := explode(abcd);
+-		if len(a) != 4 || a[0] != "a" || a[1] != "b" || a[2] != "c" || a[3] != "d" { panic("explode abcd") }
+-	}
+-	{
+-		a := split(commas, ",");
+-		if len(a) != 4 || a[0] != "1" || a[1] != "2" || a[2] != "3" || a[3] != "4" { panic("split commas") }
+-	}
+-	{
+-		a := split(dots, "...");
+-		if len(a) != 4 || a[0] != "1" || a[1] != ".2" || a[2] != ".3" || a[3] != ".4" { panic("split dots") }
+-	}
+-
+-	{
+-		a := split(faces, "☹");
+-		if len(a) != 2 || a[0] != "☺☻" || a[1] != "" { panic("split faces 1") }
+-	}
+-	{
+-		a := split(faces, "~");
+-		if len(a) != 1 || a[0] != faces { panic("split faces ~") }
+-	}
+-	{
+-		a := explode(faces);
+-		if len(a) != 3 || a[0] != "☺" || a[1] != "☻" || a[2] != "☹" { panic("explode faces") }
+-	}
+-	{
+-		a := split(faces, "");
+-		if len(a) != 3 || a[0] != "☺" || a[1] != "☻" || a[2] != "☹" { panic("split faces empty") }
+-	}
+-
+-	{
+-		n, err := strconv.atoi("0"); if n != 0 || err != nil { panic("atoi 0") }
+-		n, err = strconv.atoi("-1"); if n != -1 || err != nil { panic("atoi -1") }
+-		n, err = strconv.atoi("+345"); if n != 345 || err != nil { panic("atoi +345") }
+-		n, err = strconv.atoi("9999"); if n != 9999 || err != nil { panic("atoi 9999") }
+-		n, err = strconv.atoi("20ba"); if n != 0 || err == nil { panic("atoi 20ba") }
+-		n, err = strconv.atoi("hello"); if n != 0 || err == nil { panic("hello") }
+-	}
+-
+-	if strconv.ftoa(1e6, 'e', 6) != "1.000000e+06" { panic("ftoa 1e6") }
+-	if strconv.ftoa(-1e-6, 'e', 6) != "-1.000000e-06" { panic("ftoa -1e-6") }
+-	if strconv.ftoa(-1.234567e-6, 'e', 6) != "-1.234567e-06" { panic("ftoa -1.234567e-6") }
+-
+-	if itoa(0) != "0" { panic("itoa 0") }
+-	if itoa(12345) != "12345" { panic("itoa 12345") }
+-	if itoa(-1<<31) != "-2147483648" { panic("itoa 1<<31") }
+-
+-	// should work if int == int64: is there some way to know?
+-	// if itoa(-1<<63) != "-9223372036854775808" { panic("itoa 1<<63") }
+-
+-	{
+-		a, err := strconv.atof64("-1.2345e4");
+-		if err != nil || a != -12345. { panic(a, "atof64 -1.2345e4") }
+-	}
+-}
+diff --git a/test/timelib.go b/test/timelib.go
+deleted file mode 100644
+index aeb44b1a5d..0000000000
+--- a/test/timelib.go
++++ /dev/null
+@@ -1,86 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// $G $F.go && $L $F.$A && ./$A.out
+-
+-package main
+-
+-import "time"
+-
+-type Test struct {
+-	seconds int64;
+-	golden time.Time;
+-}
+-
+-var UTCTests = []Test {
+-	Test{0, time.Time{1970, 1, 1, 0, 0, 0, time.Thursday, 0, "GMT"}},
+-	Test{1221681866, time.Time{2008, 9, 17, 20, 4, 26, time.Wednesday, 0, "GMT"}},
+-	Test{-1221681866, time.Time{1931, 4, 16, 3, 55, 34, time.Thursday, 0, "GMT"}},
+-	Test{1e18, time.Time{31688740476, 10, 23, 1, 46, 40, time.Friday, 0, "GMT"}},
+-	Test{-1e18, time.Time{-31688736537, 3, 10, 22, 13, 20, time.Tuesday, 0, "GMT"}},
+-	Test{0x7fffffffffffffff, time.Time{292277026596, 12, 4, 15, 30, 7, time.Sunday, 0, "GMT"}},
+-	Test{-0x8000000000000000, time.Time{-292277022657, 1, 27, 8, 29, 52, time.Sunday, 0, "GMT"}}
+-}
+-
+-var LocalTests = []Test {
+-	Test{0, time.Time{1969, 12, 31, 16, 0, 0, time.Wednesday, -8*60*60, "PST"}},
+-	Test{1221681866, time.Time{2008, 9, 17, 13, 4, 26, time.Wednesday, -7*60*60, "PDT"}}
+-}
+-
+-func Same(t, u *time.Time) bool {
+-	return t.year == u.year
+-		&& t.month == u.month
+-		&& t.day == u.day
+-		&& t.hour == u.hour
+-		&& t.minute == u.minute
+-		&& t.second == u.second
+-		&& t.weekday == u.weekday
+-		&& t.zoneoffset == u.zoneoffset
+-		&& t.zone == u.zone
+-}
+-
+-func Diff(t, u *time.Time) {
+-	if t.year != u.year { print("year: ", t.year, " ", u.year, "\n") }
+-	if t.month != u.month { print("month: ", t.month, " ", u.month, "\n") }
+-	if t.day != u.day { print("day: ", t.day, " ", u.day, "\n") }
+-	if t.hour != u.hour { print("hour: ", t.hour, " ", u.hour, "\n") }
+-	if t.minute != u.minute { print("minute: ", t.minute, " ", u.minute, "\n") }
+-	if t.second != u.second { print("second: ", t.second, " ", u.second, "\n") }
+-	if t.weekday != u.weekday { print("weekday: ", t.weekday, " ", u.weekday, "\n") }
+-	if t.zoneoffset != u.zoneoffset { print("zoneoffset: ", t.zoneoffset, " ", u.zoneoffset, "\n") }
+-	if t.zone != u.zone { print("zone: ", t.zone, " ", u.zone, "\n") }
+-}
+-
+-func main() {
+-	for i := 0; i < len(UTCTests); i++ {
+-		sec := UTCTests[i].seconds;
+-		golden := &UTCTests[i].golden;
+-		t := time.SecondsToUTC(sec);
+-		newsec := t.Seconds();
+-		if newsec != sec {
+-			panic("SecondsToUTC and back ", sec, " ", newsec)
+-		}
+-		if !Same(t, golden) {
+-			Diff(t, golden);
+-			panic("SecondsToUTC ", sec, " ", t.String(), " ", t.year, " golden=", golden.String(), " ", golden.year)
+-		}
+-	//	print(t.String(), "\n")
+-	}
+-
+-	for i := 0; i < len(LocalTests); i++ {
+-		sec := LocalTests[i].seconds;
+-		golden := &LocalTests[i].golden;
+-		t := time.SecondsToLocalTime(sec);
+-		newsec := t.Seconds();
+-		if newsec != sec {
+-			panic("SecondsToLocalTime and back ", sec, " ", newsec)
+-		}
+-		if !Same(t, golden) {
+-			Diff(t, golden);
+-			panic("SecondsToLocalTime ", sec, " ", t.String(), " ", len(t.zone), " golden=", golden.String(), " ", len(t.zone))
+-		}
+-	//	print(t.String(), "\n")
+-	}
+-}
+-

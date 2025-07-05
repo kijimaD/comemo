@@ -10,9 +10,82 @@ Date:   Wed Jun 30 12:45:51 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/332089
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/interface.go | 2 +-
  src/cmd/compile/internal/types2/type.go      | 4 ++--
  src/cmd/compile/internal/types2/typeset.go   | 6 +++---
  src/cmd/compile/internal/types2/typexpr.go   | 2 +-
  4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 18dc573340..1f4e80951a 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -114,7 +114,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 	// Compute type set with a non-nil *Checker as soon as possible
+ 	// to report any errors. Subsequent uses of type sets should be
+ 	// using this computed type set and won't need to pass in a *Checker.
+-	check.later(func() { newTypeSet(check, iface.Pos(), ityp) })
++	check.later(func() { computeTypeSet(check, iface.Pos(), ityp) })
+ }
+ 
+ func flattenUnion(list []syntax.Expr, x syntax.Expr) []syntax.Expr {
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index f8aa453d5c..b41dceea70 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -274,7 +274,7 @@ type Interface struct {
+ }
+ 
+ // typeSet returns the type set for interface t.
+-func (t *Interface) typeSet() *TypeSet { return newTypeSet(nil, nopos, t) }
++func (t *Interface) typeSet() *TypeSet { return computeTypeSet(nil, nopos, t) }
+ 
+ // is reports whether interface t represents types that all satisfy f.
+ func (t *Interface) is(f func(Type, bool) bool) bool {
+@@ -637,7 +637,7 @@ func (t *TypeParam) Bound() *Interface {
+ 		pos = n.obj.pos
+ 	}
+ 	// TODO(gri) switch this to an unexported method on Checker.
+-	newTypeSet(t.check, pos, iface)
++	computeTypeSet(t.check, pos, iface)
+ 	return iface
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index ce4a776f8f..265221501f 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -78,8 +78,8 @@ func (s *TypeSet) String() string {
+ // topTypeSet may be used as type set for the empty interface.
+ var topTypeSet TypeSet
+ 
+-// newTypeSet may be called with check == nil.
+-func newTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
++// computeTypeSet may be called with check == nil.
++func computeTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
+ 	if ityp.tset != nil {
+ 		return ityp.tset
+ 	}
+@@ -188,7 +188,7 @@ func newTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
+ 		var types Type
+ 		switch t := under(typ).(type) {
+ 		case *Interface:
+-			tset := newTypeSet(check, pos, t)
++			tset := computeTypeSet(check, pos, t)
+ 			for _, m := range tset.methods {
+ 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 			}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 5626fed756..e861f7e784 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -141,7 +141,7 @@ func (check *Checker) ordinaryType(pos syntax.Pos, typ Type) {
+ 	// interface methods. Delay this check to the end of type-checking.
+ 	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+-			tset := newTypeSet(check, pos, t) // TODO(gri) is this the correct position?
++			tset := computeTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+ 			if tset.types != nil {
+ 				check.softErrorf(pos, "interface contains type constraints (%s)", tset.types)
+ 				return

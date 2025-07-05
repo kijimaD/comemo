@@ -11,7 +11,49 @@ Date:   Wed Sep 28 18:04:25 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/resolverdialfunc_test.go |  1 -
  src/net/timeout_test.go          | 14 --------------
  2 files changed, 15 deletions(-)
+
+diff --git a/src/net/resolverdialfunc_test.go b/src/net/resolverdialfunc_test.go
+index 034c636eb6..1fb02b1737 100644
+--- a/src/net/resolverdialfunc_test.go
++++ b/src/net/resolverdialfunc_test.go
+@@ -213,7 +213,6 @@ var (
+ 
+ type resolverFuncConn struct {
+ 	h       *resolverDialHandler
+-	ctx     context.Context
+ 	network string
+ 	address string
+ 	builder *dnsmessage.Builder
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 52ddf8c429..832f40f9a8 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -908,24 +908,10 @@ func TestVariousDeadlines4Proc(t *testing.T) {
+ 	testVariousDeadlines(t)
+ }
+ 
+-type neverEnding byte
+-
+-func (b neverEnding) Read(p []byte) (int, error) {
+-	for i := range p {
+-		p[i] = byte(b)
+-	}
+-	return len(p), nil
+-}
+-
+ func testVariousDeadlines(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test on plan9; see golang.org/issue/26945")
+ 	}
+-	type result struct {
+-		n   int64
+-		err error
+-		d   time.Duration
+-	}
+ 
+ 	handler := func(ls *localServer, ln Listener) {
+ 		for {

@@ -7,6 +7,21 @@ Date:   Thu Apr 29 11:02:10 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1019043
-
+---
  src/pkg/net/parse_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index d011c00763..f53df3b683 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -19,8 +19,7 @@ func TestReadLine(t *testing.T) {
+ 	}
+ 	br := bufio.NewReader(fd)
+ 
+-	var file *file
+-	file, err = open(filename)
++	file, err := open(filename)
+ 	if file == nil {
+ 		t.Fatalf("net.open(%s) = nil", filename)
+ 	}

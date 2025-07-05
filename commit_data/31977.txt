@@ -29,8 +29,93 @@ Date:   Thu Mar 23 11:29:37 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go | 16 ++++++----------
  src/cmd/compile/internal/gc/type.go  |  4 ++++
  test/fixedbugs/issue11354.go         | 15 +++++++++++++++
  3 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 10d86f5fdb..935e012194 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -159,14 +159,6 @@ func dowidth(t *Type) {
+ 		return
+ 	}
+ 
+-	if t.Width > 0 {
+-		if t.Align == 0 {
+-			// See issue 11354
+-			Fatalf("zero alignment with nonzero size %v", t)
+-		}
+-		return
+-	}
+-
+ 	if t.Width == -2 {
+ 		if !t.Broke() {
+ 			t.SetBroke(true)
+@@ -177,6 +169,10 @@ func dowidth(t *Type) {
+ 		return
+ 	}
+ 
++	if t.WidthCalculated() {
++		return
++	}
++
+ 	// break infinite recursion if the broken recursive type
+ 	// is referenced again
+ 	if t.Broke() && t.Width == 0 {
+@@ -266,7 +262,7 @@ func dowidth(t *Type) {
+ 		if t1.Elem().Width >= 1<<16 {
+ 			yyerror("channel element type too large (>64kB)")
+ 		}
+-		t.Width = 1
++		w = 1 // anything will do
+ 
+ 	case TMAP: // implemented as pointer
+ 		w = int64(Widthptr)
+@@ -353,7 +349,7 @@ func dowidth(t *Type) {
+ 
+ 	t.Width = w
+ 	if t.Align == 0 {
+-		if w > 8 || w&(w-1) != 0 {
++		if w > 8 || w&(w-1) != 0 || w == 0 {
+ 			Fatalf("invalid alignment for %v", t)
+ 		}
+ 		t.Align = uint8(w)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 49d222507b..476a80b1b9 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -891,6 +891,10 @@ func (t *Type) isDDDArray() bool {
+ 	return t.Extra.(*ArrayType).Bound < 0
+ }
+ 
++func (t *Type) WidthCalculated() bool {
++	return t.Align > 0
++}
++
+ // ArgWidth returns the total aligned argument size for a function.
+ // It includes the receiver, parameters, and results.
+ func (t *Type) ArgWidth() int64 {
+diff --git a/test/fixedbugs/issue11354.go b/test/fixedbugs/issue11354.go
+new file mode 100644
+index 0000000000..3980e8fcae
+--- /dev/null
++++ b/test/fixedbugs/issue11354.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type X int
++
++var foo = map[int]X{}
++
++var bar = map[int][8]X{}
++
++func main() {}

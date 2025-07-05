@@ -12,6 +12,27 @@ Date:   Tue Mar 15 21:05:11 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/signal_windows_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index 7c88ab573e..ebe94797fb 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -24,6 +24,7 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 		t.Skip("this test can only run on windows/amd64")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveExecPath(t, "gcc")
+ 	testprog.Lock()
+ 	defer testprog.Unlock()
+@@ -148,6 +149,7 @@ func TestLibraryCtrlHandler(t *testing.T) {
+ 		t.Skip("this test can only run on windows/amd64")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveExecPath(t, "gcc")
+ 	testprog.Lock()
+ 	defer testprog.Unlock()

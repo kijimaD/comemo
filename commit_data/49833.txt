@@ -15,7 +15,70 @@ Date:   Tue Sep 14 20:40:09 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go | 6 +++---
  src/go/internal/gcimporter/iimport.go        | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 7f7143dcfe..a92720d52e 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -72,7 +72,7 @@ const (
+ 	structType
+ 	interfaceType
+ 	typeParamType
+-	instType
++	instanceType
+ 	unionType
+ )
+ 
+@@ -646,7 +646,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		r.p.doDecl(pkg, name)
+ 		return r.p.tparamIndex[id]
+ 
+-	case instType:
++	case instanceType:
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected instantiation type")
+ 		}
+@@ -661,7 +661,7 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		baseType := r.typ()
+ 		// The imported instantiated type doesn't include any methods, so
+ 		// we must always use the methods of the base (orig) type.
+-		// TODO provide a non-nil *Checker
++		// TODO provide a non-nil *Environment
+ 		t, _ := types2.Instantiate(nil, baseType, targs, false)
+ 		return t
+ 
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index d9174d470b..f570aab2bf 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -72,7 +72,7 @@ const (
+ 	structType
+ 	interfaceType
+ 	typeParamType
+-	instType
++	instanceType
+ 	unionType
+ )
+ 
+@@ -638,7 +638,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 		r.p.doDecl(pkg, name)
+ 		return r.p.tparamIndex[id]
+ 
+-	case instType:
++	case instanceType:
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected instantiation type")
+ 		}
+@@ -653,7 +653,7 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 		baseType := r.typ()
+ 		// The imported instantiated type doesn't include any methods, so
+ 		// we must always use the methods of the base (orig) type.
+-		// TODO provide a non-nil *Checker
++		// TODO provide a non-nil *Environment
+ 		t, _ := types.Instantiate(nil, baseType, targs, false)
+ 		return t
+ 

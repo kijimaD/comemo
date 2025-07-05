@@ -8,10 +8,122 @@ Date:   Wed Dec 10 13:55:47 2008 -0800
     DELTA=56  (17 added, 32 deleted, 7 changed)
     OCL=20876
     CL=20916
-
+---
  test/bugs/bug119.go                |  6 +++---
  test/bugs/bug124.go                | 12 ------------
  test/{bugs => fixedbugs}/bug126.go |  2 +-
  test/{bugs => fixedbugs}/bug127.go |  0
  test/golden.out                    | 19 ++++++-------------
  5 files changed, 10 insertions(+), 29 deletions(-)
+
+diff --git a/test/bugs/bug119.go b/test/bugs/bug119.go
+index 0934a43070..7969379472 100644
+--- a/test/bugs/bug119.go
++++ b/test/bugs/bug119.go
+@@ -12,9 +12,9 @@ func foo(a *[]int) int {
+ 
+ func main() {
+ 	a := &[]int{12};
+-	if x := a[0]   ; x != 12 { panicln(1, x) }
+-	if x := (*a)[0]; x != 12 { panicln(2, x) }
+-	if x := foo(a) ; x != 12 { panicln(3, x) }  // fails (x is incorrect)
++	if x := a[0]   ; x != 12 { panicln(1) }
++	if x := (*a)[0]; x != 12 { panicln(2) }
++	if x := foo(a) ; x != 12 { panicln(3) }  // fails (x is incorrect)
+ }
+ 
+ /*
+diff --git a/test/bugs/bug124.go b/test/bugs/bug124.go
+deleted file mode 100644
+index 62ea5172b7..0000000000
+--- a/test/bugs/bug124.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// ! errchk $G $D/$F.go
+-package main
+-func fn(i int) bool {
+-  if i == nil {		// ERROR "type"
+-    return true
+-  }
+-  return false 
+-}
+diff --git a/test/bugs/bug126.go b/test/fixedbugs/bug126.go
+similarity index 87%
+rename from test/bugs/bug126.go
+rename to test/fixedbugs/bug126.go
+index 8fde08aa31..a8d56e1221 100644
+--- a/test/bugs/bug126.go
++++ b/test/fixedbugs/bug126.go
+@@ -8,4 +8,4 @@ package main
+ 
+ // same const identifier declared twice should not be accepted
+ const none = 0  // GCCGO_ERROR "previous"
+-const none = 1  // ERROR "redeclared|redef"
++const none = 1;  // ERROR "redeclared|redef"
+diff --git a/test/bugs/bug127.go b/test/fixedbugs/bug127.go
+similarity index 100%
+rename from test/bugs/bug127.go
+rename to test/fixedbugs/bug127.go
+diff --git a/test/golden.out b/test/golden.out
+index 3e70b991ae..0e8aca4735 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -147,7 +147,7 @@ bugs/bug117.go:9: illegal types for operand: RETURN
+ BUG: should compile
+ 
+ =========== bugs/bug119.go
+-3 74256
++3
+ 
+ panic PC=xxx
+ BUG: should not fail
+@@ -167,18 +167,9 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug123.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug123.go
+ 
+-=========== bugs/bug124.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug124.go
+-
+ =========== bugs/bug125.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ 
+-=========== bugs/bug126.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug126.go
+-
+-=========== bugs/bug127.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug127.go
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 
+@@ -204,9 +195,9 @@ fixedbugs/bug029.go:6: syntax error near func
+ fixedbugs/bug029.go:6: syntax error near int
+ 
+ =========== fixedbugs/bug035.go
+-fixedbugs/bug035.go:6: var i redeclared in this block
++fixedbugs/bug035.go:6: variable i redeclared in this block
+ 	previous declaration at fixedbugs/bug035.go:5
+-fixedbugs/bug035.go:7: var f redeclared in this block
++fixedbugs/bug035.go:7: variable f redeclared in this block
+ 	previous declaration at fixedbugs/bug035.go:5
+ 
+ =========== fixedbugs/bug037.go
+@@ -215,7 +206,7 @@ fixedbugs/bug037.go:6: illegal types for operand: AS
+ 	undefined
+ 
+ =========== fixedbugs/bug039.go
+-fixedbugs/bug039.go:6: var x redeclared in this block
++fixedbugs/bug039.go:6: variable x redeclared in this block
+ 	previous declaration at fixedbugs/bug039.go:5
+ 
+ =========== fixedbugs/bug049.go
+@@ -300,3 +291,5 @@ SIGSEGV: segmentation violation
+ Faulting address: 0x0
+ pc: xxx
+ 
++
++=========== fixedbugs/bug126.go

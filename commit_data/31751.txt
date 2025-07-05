@@ -10,6 +10,44 @@ Date:   Mon Nov 7 11:52:21 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/38144
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 73d5c086d4..ba3c1d8bb9 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -16,14 +16,11 @@ import (
+ // See the respective function's documentation for details.
+ type FmtFlag int
+ 
+-// TODO(gri) The ' ' flag is not used anymore in %-formats.
+-//           Eliminate eventually.
+-
+ const ( //                                 fmt.Format flag/prec or verb
+ 	FmtLeft     FmtFlag = 1 << iota // '-'
+ 	FmtSharp                        // '#'
+ 	FmtSign                         // '+'
+-	FmtUnsigned                     // ' '               (historic: u flag)
++	FmtUnsigned                     // internal use only (historic: u flag)
+ 	FmtShort                        // verb == 'S'       (historic: h flag)
+ 	FmtLong                         // verb == 'L'       (historic: l flag)
+ 	FmtComma                        // '.' (== hasPrec)  (historic: , flag)
+@@ -44,7 +41,7 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
+ 		flag |= FmtSign
+ 	}
+ 	if s.Flag(' ') {
+-		flag |= FmtUnsigned
++		Fatalf("FmtUnsigned in format string")
+ 	}
+ 	if _, ok := s.Precision(); ok {
+ 		flag |= FmtComma
+@@ -1701,7 +1698,6 @@ func fldconv(f *Field, flag FmtFlag) string {
+ 
+ // "%L"  print definition, not name
+ // "%S"  omit 'func' and receiver from function types, short type names
+-// "% v" package name, not prefix (FTypeId mode, sticky)
+ func (t *Type) Format(s fmt.State, verb rune) {
+ 	switch verb {
+ 	case 'v', 'S', 'L':

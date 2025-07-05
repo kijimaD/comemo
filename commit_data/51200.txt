@@ -27,7 +27,7 @@ Date:   Tue Dec 14 11:33:10 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/check.go       |  2 ++
  src/go/types/predicates.go  |  7 +++++--
  src/go/types/sizeof_test.go |  2 +-
@@ -35,3 +35,164 @@ Date:   Tue Dec 14 11:33:10 2021 -0500
  src/go/types/typeset.go     | 28 +++++++++++++++++++---------
  src/go/types/union.go       |  7 +++----
  6 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 2dd38e2e1e..bad4d5c9cd 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -136,6 +136,7 @@ type Checker struct {
+ 	imports       []*PkgName                // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
++	unionTypeSets map[*Union]*_TypeSet      // computed type sets for union types
+ 	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
+ 
+ 	firstErr error                 // first error encountered
+@@ -323,6 +324,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.pkgPathMap = nil
+ 	check.seenPkgMap = nil
+ 	check.recvTParamMap = nil
++	check.unionTypeSets = nil
+ 	check.defTypes = nil
+ 	check.ctxt = nil
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 22ccdd7744..1202db4049 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -289,8 +289,11 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 
+ 	case *Union:
+ 		if y, _ := y.(*Union); y != nil {
+-			xset := computeUnionTypeSet(nil, token.NoPos, x)
+-			yset := computeUnionTypeSet(nil, token.NoPos, y)
++			// TODO(rfindley): can this be reached during type checking? If so,
++			// consider passing a type set map.
++			unionSets := make(map[*Union]*_TypeSet)
++			xset := computeUnionTypeSet(nil, unionSets, token.NoPos, x)
++			yset := computeUnionTypeSet(nil, unionSets, token.NoPos, y)
+ 			return xset.terms.equal(yset.terms)
+ 		}
+ 
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 69571d1159..24cbc22839 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
+ 		{Pointer{}, 8, 16},
+ 		{Tuple{}, 12, 24},
+ 		{Signature{}, 28, 56},
+-		{Union{}, 16, 32},
++		{Union{}, 12, 24},
+ 		{Interface{}, 44, 88},
+ 		{Map{}, 16, 32},
+ 		{Chan{}, 12, 24},
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 169540365b..b7e3b12779 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -130,7 +130,7 @@ func (subst *subster) typ(typ Type) Type {
+ 			// term list substitution may introduce duplicate terms (unlikely but possible).
+ 			// This is ok; lazy type set computation will determine the actual type set
+ 			// in normal form.
+-			return &Union{terms, nil}
++			return &Union{terms}
+ 		}
+ 
+ 	case *Interface:
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d39483f254..0f2897b8c6 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -201,6 +201,16 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	// reason.
+ 	ityp.tset = &_TypeSet{terms: allTermlist} // TODO(gri) is this sufficient?
+ 
++	var unionSets map[*Union]*_TypeSet
++	if check != nil {
++		if check.unionTypeSets == nil {
++			check.unionTypeSets = make(map[*Union]*_TypeSet)
++		}
++		unionSets = check.unionTypeSets
++	} else {
++		unionSets = make(map[*Union]*_TypeSet)
++	}
++
+ 	// Methods of embedded interfaces are collected unchanged; i.e., the identity
+ 	// of a method I.m's Func Object of an interface I is the same as that of
+ 	// the method m in an interface that embeds interface I. On the other hand,
+@@ -288,7 +298,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 				check.errorf(atPos(pos), _InvalidIfaceEmbed, "embedding interface element %s requires go1.18 or later", u)
+ 				continue
+ 			}
+-			tset := computeUnionTypeSet(check, pos, u)
++			tset := computeUnionTypeSet(check, unionSets, pos, u)
+ 			if tset == &invalidTypeSet {
+ 				continue // ignore invalid unions
+ 			}
+@@ -356,13 +366,13 @@ var invalidTypeSet _TypeSet
+ 
+ // computeUnionTypeSet may be called with check == nil.
+ // The result is &invalidTypeSet if the union overflows.
+-func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
+-	if utyp.tset != nil {
+-		return utyp.tset
++func computeUnionTypeSet(check *Checker, unionSets map[*Union]*_TypeSet, pos token.Pos, utyp *Union) *_TypeSet {
++	if tset, _ := unionSets[utyp]; tset != nil {
++		return tset
+ 	}
+ 
+ 	// avoid infinite recursion (see also computeInterfaceTypeSet)
+-	utyp.tset = new(_TypeSet)
++	unionSets[utyp] = new(_TypeSet)
+ 
+ 	var allTerms termlist
+ 	for _, t := range utyp.terms {
+@@ -389,11 +399,11 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
+ 			if check != nil {
+ 				check.errorf(atPos(pos), _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+ 			}
+-			utyp.tset = &invalidTypeSet
+-			return utyp.tset
++			unionSets[utyp] = &invalidTypeSet
++			return unionSets[utyp]
+ 		}
+ 	}
+-	utyp.tset.terms = allTerms
++	unionSets[utyp].terms = allTerms
+ 
+-	return utyp.tset
++	return unionSets[utyp]
+ }
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 1437bd4624..9dd67a0db4 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -14,8 +14,7 @@ import (
+ 
+ // A Union represents a union of terms embedded in an interface.
+ type Union struct {
+-	terms []*Term   // list of syntactical terms (not a canonicalized termlist)
+-	tset  *_TypeSet // type set described by this union, computed lazily
++	terms []*Term // list of syntactical terms (not a canonicalized termlist)
+ }
+ 
+ // NewUnion returns a new Union type with the given terms.
+@@ -24,7 +23,7 @@ func NewUnion(terms []*Term) *Union {
+ 	if len(terms) == 0 {
+ 		panic("empty union")
+ 	}
+-	return &Union{terms, nil}
++	return &Union{terms}
+ }
+ 
+ func (u *Union) Len() int         { return len(u.terms) }
+@@ -110,7 +109,7 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 		}
+ 	})
+ 
+-	u := &Union{terms, nil}
++	u := &Union{terms}
+ 	check.recordTypeAndValue(uexpr, typexpr, u, nil)
+ 	return u
+ }

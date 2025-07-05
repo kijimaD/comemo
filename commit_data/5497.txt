@@ -7,6 +7,24 @@ Date:   Thu May 20 14:33:50 2010 -0700
     R=rsc, r, gri
     CC=golang-dev
     https://golang.org/cl/1239043
-
+---
  src/pkg/exp/draw/arith.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/draw/arith.go b/src/pkg/exp/draw/arith.go
+index 6ed1c4a5a5..2b9033b8c0 100644
+--- a/src/pkg/exp/draw/arith.go
++++ b/src/pkg/exp/draw/arith.go
+@@ -59,10 +59,10 @@ func (r Rectangle) Sub(p Point) Rectangle { return Rectangle{r.Min.Sub(p), r.Max
+ // has Min.X <= Max.X and Min.Y <= Max.Y.
+ func (r Rectangle) Canon() Rectangle {
+ 	if r.Max.X < r.Min.X {
+-		r.Max.X = r.Min.X
++		r.Min.X, r.Max.X = r.Max.X, r.Min.X
+ 	}
+ 	if r.Max.Y < r.Min.Y {
+-		r.Max.Y = r.Min.Y
++		r.Min.Y, r.Max.Y = r.Max.Y, r.Min.Y
+ 	}
+ 	return r
+ }

@@ -10,7 +10,228 @@ Date:   Fri Feb 4 08:43:21 2011 -0800
     R=r, rsc, iant, ken2
     CC=golang-dev
     https://golang.org/cl/4128058
-
+---
  doc/effective_go.html |  19 +++++---
  doc/go_spec.html      | 121 +++++++++-----------------------------------------
  2 files changed, 34 insertions(+), 106 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 9ca5e7eb3b..71d50c02b7 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -824,7 +824,7 @@ executions.  Here's a silly example.
+ </p>
+ 
+ <pre>
+-for i := 0; i < 5; i++ {
++for i := 0; i &lt; 5; i++ {
+     defer fmt.Printf("%d ", i)
+ }
+ </pre>
+@@ -1486,7 +1486,7 @@ for a min function that chooses the least of a list of integers:
+ func Min(a ...int) int {
+     min := int(^uint(0) >> 1)  // largest int
+     for _, i := range a {
+-        if i < min {
++        if i &lt; min {
+             min = i
+         }
+     }
+@@ -2670,7 +2670,7 @@ suppresses the usual check for a <code>return</code> statement.
+ // A toy implementation of cube root using Newton's method.
+ func CubeRoot(x float64) float64 {
+     z := x/3   // Arbitrary intitial value
+-    for i := 0; i < 1e6; i++ {
++    for i := 0; i &lt; 1e6; i++ {
+         prevz := z
+         z -= (z*z*z-x) / (3*z*z)
+         if veryClose(z, prevz) {
+@@ -2727,7 +2727,7 @@ inside a server without killing the other executing goroutines.
+ </p>
+ 
+ <pre>
+-func server(workChan <-chan *Work) {
++func server(workChan &lt;-chan *Work) {
+     for work := range workChan {
+         go safelyDo(work)
+     }
+@@ -2751,7 +2751,16 @@ calling <code>recover</code> handles the condition completely.
+ </p>
+ 
+ <p>
+-Note that with this recovery pattern in place, the <code>do</code>
++Because <code>recover</code> always returns <code>nil</code> unless called directly
++from a deferred function, deferred code can call library routines that themselves
++use <code>panic</code> and <code>recover</code> without failing.  As an example,
++the deferred function in <code>safelyDo</code> might call a logging function before
++calling <code>recover</code>, and that logging code would run unaffected
++by the panicking state.
++</p>
++
++<p>
++With our recovery pattern in place, the <code>do</code>
+ function (and anything it calls) can get out of any bad situation
+ cleanly by calling <code>panic</code>.  We can use that idea to
+ simplify error handling in complex software.  Let's look at an
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9784222195..2c6046a7c5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of February 3, 2011 -->
++<!-- subtitle Version of February 4, 2011 -->
+ 
+ <!--
+ TODO
+@@ -4646,13 +4646,6 @@ func panic(interface{})
+ func recover() interface{}
+ </pre>
+ 
+-<p>
+-<span class="alert">TODO: Most of this text could move to the respective
+-comments in <code>runtime.go</code> once the functions are implemented.
+-They are here, at least for now, for reference and discussion.
+-</span>
+-</p>
+-
+ <p>
+ When a function <code>F</code> calls <code>panic</code>, normal
+ execution of <code>F</code> stops immediately.  Any functions whose
+@@ -4668,117 +4661,43 @@ the argument to <code>panic</code>.  This termination sequence is
+ called <i>panicking</i>.
+ </p>
+ 
++<pre>
++panic(42)
++panic("unreachable")
++panic(Error("cannot parse"))
++</pre>
++
+ <p>
+ The <code>recover</code> function allows a program to manage behavior
+ of a panicking goroutine.  Executing a <code>recover</code> call
+-inside a deferred function (but not any function called by it) stops
++<i>inside</i> a deferred function (but not any function called by it) stops
+ the panicking sequence by restoring normal execution, and retrieves
+ the error value passed to the call of <code>panic</code>.  If
+ <code>recover</code> is called outside the deferred function it will
+-not stop a panicking sequence.  In this case, and when the goroutine
+-is not panicking, <code>recover</code> returns <code>nil</code>.
++not stop a panicking sequence.  In this case, or when the goroutine
++is not panicking, or if the argument supplied to <code>panic</code>
++was <code>nil</code>, <code>recover</code> returns <code>nil</code>.
+ </p>
+ 
+ <p>
+-If the function defined here,
++The <code>protect</code> function in the example below invokes
++the function argument <code>g</code> and protects callers from
++run-time panics raised by <code>g</code>.
+ </p>
+ 
+ <pre>
+-func f(hideErrors bool) {
++func protect(g func()) {
+ 	defer func() {
++		log.Println("done")  // Println executes normally even in there is a panic
+ 		if x := recover(); x != nil {
+-			println("panicking with value", x)
+-			if !hideErrors {
+-				panic(x)  // go back to panicking
+-			}
++			log.Printf("runtime panic: %v", x)
+ 		}
+-		println("function returns normally") // executes only when hideErrors==true
+-	}()
+-	println("before")
+-	p()
+-	println("after")	// never executes
+-}
+-
+-func p() {
+-	panic(3)
+-}
+-</pre>
+-
+-<p>
+-is called with <code>hideErrors=true</code>, it prints
+-</p>
+-
+-<pre>
+-before
+-panicking with value 3
+-function returns normally
+-</pre>
+-
+-<p>
+-and resumes normal execution in the function that called <code>f</code>. Otherwise, it prints
+-</p>
+-
+-<pre>
+-before
+-panicking with value 3
+-</pre>
+-
+-<p>
+-and, absent further <code>recover</code> calls, terminates the program.
+-</p>
+-
+-<p>
+-Since deferred functions run before assigning the return values to the caller
+-of the deferring function, a deferred invocation of a function literal may modify the
+-invoking function's return values in the event of a panic. This permits a function to protect its
+-caller from panics that occur in functions it calls.
+-</p>
+-
+-<pre>
+-func IsPrintable(s string) (ok bool) {
+-	ok = true
+-	defer func() {
+-		if recover() != nil {
+-			println("input is not printable")
+-			ok = false
+-		}
+-		// Panicking has stopped; execution will resume normally in caller.
+-		// The return value will be true normally, false if a panic occurred.
+-	}()
+-	panicIfNotPrintable(s)	// will panic if validations fails.
+-	return
+-}
+-</pre>
+-
+-<!---
+-<p>
+-A deferred function that calls <code>recover</code> will see the
+-argument passed to <code>panic</code>.  However, functions called
+-<i>from</i> the deferred function run normally, without behaving as
+-though they are panicking.  This allows deferred code to run normally
+-in case recovery is necessary and guarantees that functions that manage
+-their own panics will not fail incorrectly.  The function
+-</p>
+-
+-<pre>
+-func g() {
+-	s := ReadString()
+-	defer func() {
+-		if IsPrintable(s) {
+-			println("finished processing", s)
+-		} else {
+-			println("finished processing unprintable string")
+-		}
+-	}()
+-	Analyze(s)
++	}
++	log.Println("start")
++	g()
+ }
+ </pre>
+ 
+-<p>
+-will not cause <code>IsPrintable</code> to print <code>"input is not printable"</code>
+-due to a <code>panic</code> triggered by the call to <code>Analyze</code>.
+-</p>
+--->
+ 
+ <h3 id="Bootstrapping">Bootstrapping</h3>
+ 

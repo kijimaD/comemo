@@ -11,8 +11,47 @@ Date:   Wed Sep 9 16:25:48 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  test/ddd1.go                             | 2 +-
  test/fixedbugs/issue38745.go             | 3 +--
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index dec4b96fc4..fb169cfec8 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2667,7 +2667,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *types.Type, nl Nodes,
+ 	return
+ 
+ notenough:
+-	if n == nil || !n.Diag() {
++	if n == nil || (!n.Diag() && n.Type != nil) {
+ 		details := errorDetails(nl, tstruct, isddd)
+ 		if call != nil {
+ 			// call is the expression being called, not the overall call.
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 2c7e83e374..9857814648 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -29,7 +29,7 @@ var (
+ 	_ = sum(tuple())
+ 	_ = sum(tuple()...) // ERROR "multiple-value"
+ 	_ = sum3(tuple())
+-	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
++	_ = sum3(tuple()...) // ERROR "multiple-value"
+ )
+ 
+ type T []T
+diff --git a/test/fixedbugs/issue38745.go b/test/fixedbugs/issue38745.go
+index 21bd1ff3a7..83a3bc6fad 100644
+--- a/test/fixedbugs/issue38745.go
++++ b/test/fixedbugs/issue38745.go
+@@ -14,6 +14,5 @@ func f1() {
+ }
+ 
+ func f2() (*t, error) {
+-	// BAD: should report undefined error only.
+-	return t{}.M() // ERROR "t{}.M undefined \(type t has no field or method M\)" "not enough arguments to return"
++	return t{}.M() // ERROR "t{}.M undefined \(type t has no field or method M\)"
+ }

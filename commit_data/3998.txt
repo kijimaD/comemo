@@ -8,6 +8,20 @@ Date:   Wed Nov 11 14:52:38 2009 -0800
     
     R=r
     https://golang.org/cl/152082
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index e8acf08dfb..c4a573a54b 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1467,7 +1467,7 @@ func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
+ 	slice := *p;
+ 	// Again as above.
+ 	*p = slice;
+-	return len(data), nil)
++	return len(data), nil;
+ }
+ </pre>
+ <p>

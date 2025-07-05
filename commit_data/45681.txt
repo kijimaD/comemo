@@ -17,6 +17,25 @@ Date:   Tue Nov 3 13:12:19 2020 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/script_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index d81f299c3c..e301f2fb06 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -1255,7 +1255,12 @@ func (ts *testScript) parse(line string) command {
+ 
+ 		if cmd.name != "" {
+ 			cmd.args = append(cmd.args, arg)
+-			isRegexp = false // Commands take only one regexp argument, so no subsequent args are regexps.
++			// Commands take only one regexp argument (after the optional flags),
++			// so no subsequent args are regexps. Liberally assume an argument that
++			// starts with a '-' is a flag.
++			if len(arg) == 0 || arg[0] != '-' {
++				isRegexp = false
++			}
+ 			return
+ 		}
+ 

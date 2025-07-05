@@ -11,6 +11,19 @@ Date:   Mon Mar 6 19:43:21 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/fmt_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index fa5ea38612..544179e414 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -656,6 +656,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.token %s":            "",
+ 	"cmd/internal/obj.As %v":                          "",
+ 	"cmd/internal/src.Pos %s":                         "",
++	"cmd/internal/src.Pos %v":                         "",
+ 	"error %v":                                        "",
+ 	"float64 %.2f":                                    "",
+ 	"float64 %.3f":                                    "",

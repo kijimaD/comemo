@@ -9,7 +9,7 @@ Date:   Sat Aug 24 02:18:22 2013 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/13173044
-
+---
  src/pkg/net/cgo_bsd.go             |   2 +-
  src/pkg/net/cgo_unix.go            |   2 +-
  src/pkg/net/dial_test.go           |   2 +-
@@ -45,3 +45,547 @@ Date:   Sat Aug 24 02:18:22 2013 +1000
  src/pkg/net/udpsock_posix.go       |   2 +-
  src/pkg/net/unixsock_posix.go      |   2 +-
  34 files changed, 147 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+index 53f8c38e3b..388eab4fe1 100644
+--- a/src/pkg/net/cgo_bsd.go
++++ b/src/pkg/net/cgo_bsd.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !netgo
+-// +build darwin freebsd
++// +build darwin dragonfly freebsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index ade84162f2..1d736257f5 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !netgo
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index c7bd4d7bfa..59cd9cbe53 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -137,7 +137,7 @@ func TestSelfConnect(t *testing.T) {
+ 		n = 1000
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "freebsd", "netbsd", "openbsd", "plan9", "windows":
++	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "windows":
+ 		// Non-Linux systems take a long time to figure
+ 		// out that there is nothing listening on localhost.
+ 		n = 100
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index 8548f50354..f42e9d321f 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+diff --git a/src/pkg/net/dnsclient_unix_test.go b/src/pkg/net/dnsclient_unix_test.go
+index e8edc862da..47dcb563bc 100644
+--- a/src/pkg/net/dnsclient_unix_test.go
++++ b/src/pkg/net/dnsclient_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/dnsconfig_unix.go b/src/pkg/net/dnsconfig_unix.go
+index bb46cc9007..2f0f6c031f 100644
+--- a/src/pkg/net/dnsconfig_unix.go
++++ b/src/pkg/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/pkg/net/fd_poll_runtime.go b/src/pkg/net/fd_poll_runtime.go
+index 97dbcf6f71..e2b2768864 100644
+--- a/src/pkg/net/fd_poll_runtime.go
++++ b/src/pkg/net/fd_poll_runtime.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/fd_posix_test.go b/src/pkg/net/fd_posix_test.go
+index 11a7eb1b80..6d2794b712 100644
+--- a/src/pkg/net/fd_posix_test.go
++++ b/src/pkg/net/fd_posix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index f475cf45db..58cfd04f35 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/fd_unix_test.go b/src/pkg/net/fd_unix_test.go
+index 664ef1bf19..65d3e69a76 100644
+--- a/src/pkg/net/fd_unix_test.go
++++ b/src/pkg/net/fd_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index fe01918a1f..8fe1b0eb03 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index 716b60a97f..16775579d0 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/interface_bsd_test.go b/src/pkg/net/interface_bsd_test.go
+index aa1141903b..88daf73935 100644
+--- a/src/pkg/net/interface_bsd_test.go
++++ b/src/pkg/net/interface_bsd_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/interface_dragonfly.go b/src/pkg/net/interface_dragonfly.go
+new file mode 100644
+index 0000000000..c9ce5a7ac1
+--- /dev/null
++++ b/src/pkg/net/interface_dragonfly.go
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++// interfaceMulticastAddrTable returns addresses for a specific
++// interface.
++func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
++	// TODO(mikio): Implement this like other platforms.
++	return nil, nil
++}
+diff --git a/src/pkg/net/interface_unix_test.go b/src/pkg/net/interface_unix_test.go
+index 0a453c0955..01f609f15e 100644
+--- a/src/pkg/net/interface_unix_test.go
++++ b/src/pkg/net/interface_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 1df661c37d..a73939fe93 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 86cad58059..82a2a02edb 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ // Internet protocol family sockets for POSIX
+ 
+diff --git a/src/pkg/net/lookup_unix.go b/src/pkg/net/lookup_unix.go
+index a39e726192..59e9f63210 100644
+--- a/src/pkg/net/lookup_unix.go
++++ b/src/pkg/net/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 8ff02a3c93..5660fd42f8 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -158,7 +158,7 @@ func checkMulticastListener(c *UDPConn, ip IP) error {
+ 
+ func multicastRIBContains(ip IP) (bool, error) {
+ 	switch runtime.GOOS {
+-	case "netbsd", "openbsd", "plan9", "solaris", "windows":
++	case "dragonfly", "netbsd", "openbsd", "plan9", "solaris", "windows":
+ 		return true, nil // not implemented yet
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
+diff --git a/src/pkg/net/port_unix.go b/src/pkg/net/port_unix.go
+index 16780da116..3cd9ca2aa7 100644
+--- a/src/pkg/net/port_unix.go
++++ b/src/pkg/net/port_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // Read system port mappings from /etc/services
+ 
+diff --git a/src/pkg/net/sendfile_dragonfly.go b/src/pkg/net/sendfile_dragonfly.go
+new file mode 100644
+index 0000000000..a2219c1633
+--- /dev/null
++++ b/src/pkg/net/sendfile_dragonfly.go
+@@ -0,0 +1,103 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"io"
++	"os"
++	"syscall"
++)
++
++// maxSendfileSize is the largest chunk size we ask the kernel to copy
++// at a time.
++const maxSendfileSize int = 4 << 20
++
++// sendFile copies the contents of r to c using the sendfile
++// system call to minimize copies.
++//
++// if handled == true, sendFile returns the number of bytes copied and any
++// non-EOF error.
++//
++// if handled == false, sendFile performed no work.
++func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
++	// DragonFly uses 0 as the "until EOF" value. If you pass in more bytes than the
++	// file contains, it will loop back to the beginning ad nauseum until it's sent
++	// exactly the number of bytes told to. As such, we need to know exactly how many
++	// bytes to send.
++	var remain int64 = 0
++
++	lr, ok := r.(*io.LimitedReader)
++	if ok {
++		remain, r = lr.N, lr.R
++		if remain <= 0 {
++			return 0, nil, true
++		}
++	}
++	f, ok := r.(*os.File)
++	if !ok {
++		return 0, nil, false
++	}
++
++	if remain == 0 {
++		fi, err := f.Stat()
++		if err != nil {
++			return 0, err, false
++		}
++
++		remain = fi.Size()
++	}
++
++	// The other quirk with DragonFly's sendfile implementation is that it doesn't
++	// use the current position of the file -- if you pass it offset 0, it starts
++	// from offset 0. There's no way to tell it "start from current position", so
++	// we have to manage that explicitly.
++	pos, err := f.Seek(0, os.SEEK_CUR)
++	if err != nil {
++		return 0, err, false
++	}
++
++	if err := c.writeLock(); err != nil {
++		return 0, err, true
++	}
++	defer c.writeUnlock()
++
++	dst := c.sysfd
++	src := int(f.Fd())
++	for remain > 0 {
++		n := maxSendfileSize
++		if int64(n) > remain {
++			n = int(remain)
++		}
++		pos1 := pos
++		n, err1 := syscall.Sendfile(dst, src, &pos1, n)
++		if n > 0 {
++			pos += int64(n)
++			written += int64(n)
++			remain -= int64(n)
++		}
++		if n == 0 && err1 == nil {
++			break
++		}
++		if err1 == syscall.EAGAIN {
++			if err1 = c.pd.WaitWrite(); err1 == nil {
++				continue
++			}
++		}
++		if err1 == syscall.EINTR {
++			continue
++		}
++		if err1 != nil {
++			// This includes syscall.ENOSYS (no kernel
++			// support) and syscall.EINVAL (fd types which
++			// don't implement sendfile together)
++			err = &OpError{"sendfile", c.net, c.raddr, err1}
++			break
++		}
++	}
++	if lr != nil {
++		lr.N = remain
++	}
++	return written, err, written > 0
++}
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sock_bsd.go
+index d99349265e..6c37109f5e 100644
+--- a/src/pkg/net/sock_bsd.go
++++ b/src/pkg/net/sock_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 7abf79a771..a6a6b4e913 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index 6cedc3870e..ef6eb85053 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockopt_posix.go b/src/pkg/net/sockopt_posix.go
+index da2742c9a4..ff3bc68994 100644
+--- a/src/pkg/net/sockopt_posix.go
++++ b/src/pkg/net/sockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockoptip_bsd.go b/src/pkg/net/sockoptip_bsd.go
+index ca080fd7e4..2199e480d4 100644
+--- a/src/pkg/net/sockoptip_bsd.go
++++ b/src/pkg/net/sockoptip_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sockoptip_posix.go b/src/pkg/net/sockoptip_posix.go
+index 5c2a5872f4..c2579be911 100644
+--- a/src/pkg/net/sockoptip_posix.go
++++ b/src/pkg/net/sockoptip_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/sys_cloexec.go b/src/pkg/net/sys_cloexec.go
+index 17e8749087..bbfcc1a4fc 100644
+--- a/src/pkg/net/sys_cloexec.go
++++ b/src/pkg/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 7d72faade1..39a1656b30 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/tcpsockopt_posix.go b/src/pkg/net/tcpsockopt_posix.go
+index 8b41b2117d..e03476ac63 100644
+--- a/src/pkg/net/tcpsockopt_posix.go
++++ b/src/pkg/net/tcpsockopt_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/tcpsockopt_unix.go b/src/pkg/net/tcpsockopt_unix.go
+index fba2acdb60..89d9143b52 100644
+--- a/src/pkg/net/tcpsockopt_unix.go
++++ b/src/pkg/net/tcpsockopt_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux netbsd
++// +build dragonfly freebsd linux netbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 4278f6dd4b..f6a61ceb93 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -224,7 +224,7 @@ func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
+ 		{"udp6", "[" + laddr + "%" + ifi.Name + "]:0", false},
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "freebsd", "openbsd", "netbsd":
++	case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
+ 		tests = append(tests, []test{
+ 			{"udp", "[localhost%" + ifi.Name + "]:0", true},
+ 			{"udp6", "[localhost%" + ifi.Name + "]:0", true},
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 3f9230b283..1101e3e7db 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 94296b92c7..86dcbc1a0f 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd windows
++// +build darwin dragonfly freebsd linux netbsd openbsd windows
+ 
+ package net
+ 

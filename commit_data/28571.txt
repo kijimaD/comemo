@@ -22,7 +22,154 @@ Date:   Fri Jun 3 02:12:17 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23732
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/vcs.go      | 18 +++++++++-
  src/cmd/go/vcs_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 111 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 10b8cf8c49..f7c34de576 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -779,15 +779,31 @@ type metaImport struct {
+ // errNoMatch is returned from matchGoImport when there's no applicable match.
+ var errNoMatch = errors.New("no import match")
+ 
++func splitPathHasPrefix(path, prefix []string) bool {
++	if len(path) < len(prefix) {
++		return false
++	}
++	for i, p := range prefix {
++		if path[i] != p {
++			return false
++		}
++	}
++	return true
++}
++
+ // matchGoImport returns the metaImport from imports matching importPath.
+ // An error is returned if there are multiple matches.
+ // errNoMatch is returned if none match.
+ func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
+ 	match := -1
++	imp := strings.Split(importPath, "/")
+ 	for i, im := range imports {
+-		if !strings.HasPrefix(importPath, im.Prefix) {
++		pre := strings.Split(im.Prefix, "/")
++
++		if !splitPathHasPrefix(imp, pre) {
+ 			continue
+ 		}
++
+ 		if match != -1 {
+ 			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
+ 			return
+diff --git a/src/cmd/go/vcs_test.go b/src/cmd/go/vcs_test.go
+index 06650608ba..25e3866df0 100644
+--- a/src/cmd/go/vcs_test.go
++++ b/src/cmd/go/vcs_test.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"errors"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -227,3 +228,96 @@ func TestIsSecure(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestMatchGoImport(t *testing.T) {
++	tests := []struct {
++		imports []metaImport
++		path    string
++		mi      metaImport
++		err     error
++	}{
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo",
++			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo/",
++			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo",
++			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/fooa",
++			mi:   metaImport{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo/bar",
++			err:  errors.New("should not be allowed to create nested repo"),
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo/bar/baz",
++			err:  errors.New("should not be allowed to create nested repo"),
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo/bar/baz/qux",
++			err:  errors.New("should not be allowed to create nested repo"),
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com/user/foo/bar/baz/",
++			err:  errors.New("should not be allowed to create nested repo"),
++		},
++		{
++			imports: []metaImport{
++				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
++			},
++			path: "example.com",
++			err:  errors.New("pathologically short path"),
++		},
++	}
++
++	for _, test := range tests {
++		mi, err := matchGoImport(test.imports, test.path)
++		if mi != test.mi {
++			t.Errorf("unexpected metaImport; got %v, want %v", mi, test.mi)
++		}
++
++		got := err
++		want := test.err
++		if (got == nil) != (want == nil) {
++			t.Errorf("unexpected error; got %v, want %v", got, want)
++		}
++	}
++}

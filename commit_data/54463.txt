@@ -46,10 +46,357 @@ Date:   Wed Sep 28 11:06:08 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/export_test.go    |  2 +-
  src/time/format.go         | 16 +++++-----
  src/time/format_rfc3339.go | 58 +++++++++++++++++++++++++++++++++--
  src/time/time.go           | 47 ++++++++++++++--------------
  src/time/time_test.go      | 76 +++++++++++++++++++++++++++++++++++-----------
  5 files changed, 147 insertions(+), 52 deletions(-)
+
+diff --git a/src/time/export_test.go b/src/time/export_test.go
+index b75d06c6b7..fb103fcbf7 100644
+--- a/src/time/export_test.go
++++ b/src/time/export_test.go
+@@ -136,4 +136,4 @@ var Quote = quote
+ var AppendFormatAny = Time.appendFormat
+ var AppendFormatRFC3339 = Time.appendFormatRFC3339
+ var ParseAny = parse
+-var ParseRFC3339 = parseRFC3339
++var ParseRFC3339 = parseRFC3339[string]
+diff --git a/src/time/format.go b/src/time/format.go
+index 485563ede4..6b35d30228 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -427,15 +427,15 @@ func appendInt(b []byte, x int, width int) []byte {
+ var atoiError = errors.New("time: invalid number")
+ 
+ // Duplicates functionality in strconv, but avoids dependency.
+-func atoi(s string) (x int, err error) {
++func atoi[bytes []byte | string](s bytes) (x int, err error) {
+ 	neg := false
+-	if s != "" && (s[0] == '-' || s[0] == '+') {
++	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
+ 		neg = s[0] == '-'
+ 		s = s[1:]
+ 	}
+ 	q, rem, err := leadingInt(s)
+ 	x = int(q)
+-	if err != nil || rem != "" {
++	if err != nil || len(rem) > 0 {
+ 		return 0, atoiError
+ 	}
+ 	if neg {
+@@ -880,7 +880,7 @@ func (e *ParseError) Error() string {
+ }
+ 
+ // isDigit reports whether s[i] is in range and is a decimal digit.
+-func isDigit(s string, i int) bool {
++func isDigit[bytes []byte | string](s bytes, i int) bool {
+ 	if len(s) <= i {
+ 		return false
+ 	}
+@@ -1474,7 +1474,7 @@ func commaOrPeriod(b byte) bool {
+ 	return b == '.' || b == ','
+ }
+ 
+-func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string, err error) {
++func parseNanoseconds[bytes []byte | string](value bytes, nbytes int) (ns int, rangeErrString string, err error) {
+ 	if !commaOrPeriod(value[0]) {
+ 		err = errBad
+ 		return
+@@ -1502,7 +1502,7 @@ func parseNanoseconds(value string, nbytes int) (ns int, rangeErrString string,
+ var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
+ 
+ // leadingInt consumes the leading [0-9]* from s.
+-func leadingInt(s string) (x uint64, rem string, err error) {
++func leadingInt[bytes []byte | string](s bytes) (x uint64, rem bytes, err error) {
+ 	i := 0
+ 	for ; i < len(s); i++ {
+ 		c := s[i]
+@@ -1511,12 +1511,12 @@ func leadingInt(s string) (x uint64, rem string, err error) {
+ 		}
+ 		if x > 1<<63/10 {
+ 			// overflow
+-			return 0, "", errLeadingInt
++			return 0, rem, errLeadingInt
+ 		}
+ 		x = x*10 + uint64(c) - '0'
+ 		if x > 1<<63 {
+ 			// overflow
+-			return 0, "", errLeadingInt
++			return 0, rem, errLeadingInt
+ 		}
+ 	}
+ 	return x, s[i:], nil
+diff --git a/src/time/format_rfc3339.go b/src/time/format_rfc3339.go
+index 3d0a9ca39f..7538de87c7 100644
+--- a/src/time/format_rfc3339.go
++++ b/src/time/format_rfc3339.go
+@@ -4,6 +4,8 @@
+ 
+ package time
+ 
++import "errors"
++
+ // RFC 3339 is the most commonly used format.
+ //
+ // It is implicitly used by the Time.(Marshal|Unmarshal)(Text|JSON) methods.
+@@ -57,13 +59,33 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
+ 	return b
+ }
+ 
+-func parseRFC3339(s string, local *Location) (Time, bool) {
++func (t Time) appendStrictRFC3339(b []byte) ([]byte, error) {
++	n0 := len(b)
++	b = t.appendFormatRFC3339(b, true)
++
++	// Not all valid Go timestamps can be serialized as valid RFC 3339.
++	// Explicitly check for these edge cases.
++	// See https://go.dev/issue/4556 and https://go.dev/issue/54580.
++	num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
++	switch {
++	case b[n0+len("9999")] != '-': // year must be exactly 4 digits wide
++		return b, errors.New("year outside of range [0,9999]")
++	case b[len(b)-1] != 'Z':
++		c := b[len(b)-len("Z07:00")]
++		if ('0' <= c && c <= '9') || num2(b[len(b)-len("07:00"):]) >= 24 {
++			return b, errors.New("timezone hour outside of range [0,23]")
++		}
++	}
++	return b, nil
++}
++
++func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) {
+ 	// parseUint parses s as an unsigned decimal integer and
+ 	// verifies that it is within some range.
+ 	// If it is invalid or out-of-range,
+ 	// it sets ok to false and returns the min value.
+ 	ok := true
+-	parseUint := func(s string, min, max int) (x int) {
++	parseUint := func(s bytes, min, max int) (x int) {
+ 		for _, c := range []byte(s) {
+ 			if c < '0' || '9' < c {
+ 				ok = false
+@@ -105,7 +127,7 @@ func parseRFC3339(s string, local *Location) (Time, bool) {
+ 
+ 	// Parse the time zone.
+ 	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
+-	if s != "Z" {
++	if len(s) != 1 || s[0] != 'Z' {
+ 		if len(s) != len("-07:00") {
+ 			return Time{}, false
+ 		}
+@@ -129,3 +151,33 @@ func parseRFC3339(s string, local *Location) (Time, bool) {
+ 	}
+ 	return t, true
+ }
++
++func parseStrictRFC3339(b []byte) (Time, error) {
++	t, ok := parseRFC3339(b, Local)
++	if !ok {
++		if _, err := Parse(RFC3339, string(b)); err != nil {
++			return Time{}, err
++		}
++
++		// The parse template syntax cannot correctly validate RFC 3339.
++		// Explicitly check for cases that Parse is unable to validate for.
++		// See https://go.dev/issue/54580.
++		num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
++		switch {
++		case b[len("2006-01-02T")+1] == ':': // hour must be two digits
++			return Time{}, &ParseError{RFC3339, string(b), "15", string(b[len("2006-01-02T"):][:1]), ""}
++		case b[len("2006-01-02T15:04:05")] == ',': // sub-second separator must be a period
++			return Time{}, &ParseError{RFC3339, string(b), ".", ",", ""}
++		case b[len(b)-1] != 'Z':
++			switch {
++			case num2(b[len(b)-len("07:00"):]) >= 24: // timezone hour must be in range
++				return Time{}, &ParseError{RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone hour out of range"}
++			case num2(b[len(b)-len("00"):]) >= 60: // timezone minute must be in range
++				return Time{}, &ParseError{RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone minute out of range"}
++			}
++		default: // unknown error; should not occur
++			return Time{}, &ParseError{RFC3339, string(b), RFC3339, string(b), ""}
++		}
++	}
++	return t, nil
++}
+diff --git a/src/time/time.go b/src/time/time.go
+index 5da61510c1..e8aac5999a 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1337,51 +1337,54 @@ func (t *Time) GobDecode(data []byte) error {
+ }
+ 
+ // MarshalJSON implements the json.Marshaler interface.
+-// The time is a quoted string in RFC 3339 format, with sub-second precision added if present.
++// The time is a quoted string in the RFC 3339 format with sub-second precision.
++// If the timestamp cannot be represented as valid RFC 3339
++// (e.g., the year is out of range), then an error is reported.
+ func (t Time) MarshalJSON() ([]byte, error) {
+-	if y := t.Year(); y < 0 || y >= 10000 {
+-		// RFC 3339 is clear that years are 4 digits exactly.
+-		// See golang.org/issue/4556#c15 for more discussion.
+-		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
+-	}
+-
+-	b := make([]byte, 0, len(RFC3339Nano)+2)
++	b := make([]byte, 0, len(RFC3339Nano)+len(`""`))
+ 	b = append(b, '"')
+-	b = t.AppendFormat(b, RFC3339Nano)
++	b, err := t.appendStrictRFC3339(b)
+ 	b = append(b, '"')
++	if err != nil {
++		return nil, errors.New("Time.MarshalJSON: " + err.Error())
++	}
+ 	return b, nil
+ }
+ 
+ // UnmarshalJSON implements the json.Unmarshaler interface.
+-// The time is expected to be a quoted string in RFC 3339 format.
++// The time must be a quoted string in the RFC 3339 format.
+ func (t *Time) UnmarshalJSON(data []byte) error {
+-	// Ignore null, like in the main JSON package.
+ 	if string(data) == "null" {
+ 		return nil
+ 	}
+-	// Fractional seconds are handled implicitly by Parse.
++	// TODO(https://go.dev/issue/47353): Properly unescape a JSON string.
++	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
++		return errors.New("Time.UnmarshalJSON: input is not a JSON string")
++	}
++	data = data[len(`"`) : len(data)-len(`"`)]
+ 	var err error
+-	*t, err = Parse(`"`+RFC3339+`"`, string(data))
++	*t, err = parseStrictRFC3339(data)
+ 	return err
+ }
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+-// The time is formatted in RFC 3339 format, with sub-second precision added if present.
++// The time is formatted in RFC 3339 format with sub-second precision.
++// If the timestamp cannot be represented as valid RFC 3339
++// (e.g., the year is out of range), then an error is reported.
+ func (t Time) MarshalText() ([]byte, error) {
+-	if y := t.Year(); y < 0 || y >= 10000 {
+-		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
+-	}
+-
+ 	b := make([]byte, 0, len(RFC3339Nano))
+-	return t.AppendFormat(b, RFC3339Nano), nil
++	b, err := t.appendStrictRFC3339(b)
++	if err != nil {
++		return nil, errors.New("Time.MarshalText: " + err.Error())
++	}
++	return b, nil
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+-// The time is expected to be in RFC 3339 format.
++// The time must be in the RFC 3339 format.
+ func (t *Time) UnmarshalText(data []byte) error {
+-	// Fractional seconds are handled implicitly by Parse.
+ 	var err error
+-	*t, err = Parse(RFC3339, string(data))
++	*t, err = parseStrictRFC3339(data)
+ 	return err
+ }
+ 
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 6d9a8fae2f..ddf77cccb4 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -804,6 +804,7 @@ var jsonTests = []struct {
+ 	{Date(9999, 4, 12, 23, 20, 50, 520*1e6, UTC), `"9999-04-12T23:20:50.52Z"`},
+ 	{Date(1996, 12, 19, 16, 39, 57, 0, Local), `"1996-12-19T16:39:57-08:00"`},
+ 	{Date(0, 1, 1, 0, 0, 0, 1, FixedZone("", 1*60)), `"0000-01-01T00:00:00.000000001+00:01"`},
++	{Date(2020, 1, 1, 0, 0, 0, 0, FixedZone("", 23*60*60+59*60)), `"2020-01-01T00:00:00+23:59"`},
+ }
+ 
+ func TestTimeJSON(t *testing.T) {
+@@ -822,28 +823,67 @@ func TestTimeJSON(t *testing.T) {
+ 	}
+ }
+ 
+-func TestInvalidTimeJSON(t *testing.T) {
+-	var tt Time
+-	err := json.Unmarshal([]byte(`{"now is the time":"buddy"}`), &tt)
+-	_, isParseErr := err.(*ParseError)
+-	if !isParseErr {
+-		t.Errorf("expected *time.ParseError unmarshaling JSON, got %v", err)
++func TestUnmarshalInvalidTimes(t *testing.T) {
++	tests := []struct {
++		in   string
++		want string
++	}{
++		{`{}`, "Time.UnmarshalJSON: input is not a JSON string"},
++		{`[]`, "Time.UnmarshalJSON: input is not a JSON string"},
++		{`"2000-01-01T1:12:34Z"`, `parsing time "2000-01-01T1:12:34Z" as "2006-01-02T15:04:05Z07:00": cannot parse "1" as "15"`},
++		{`"2000-01-01T00:00:00,000Z"`, `parsing time "2000-01-01T00:00:00,000Z" as "2006-01-02T15:04:05Z07:00": cannot parse "," as "."`},
++		{`"2000-01-01T00:00:00+24:00"`, `parsing time "2000-01-01T00:00:00+24:00": timezone hour out of range`},
++		{`"2000-01-01T00:00:00+00:60"`, `parsing time "2000-01-01T00:00:00+00:60": timezone minute out of range`},
++		{`"2000-01-01T00:00:00+123:45"`, `parsing time "2000-01-01T00:00:00+123:45" as "2006-01-02T15:04:05Z07:00": cannot parse "+123:45" as "Z07:00"`},
++	}
++
++	for _, tt := range tests {
++		var ts Time
++
++		want := tt.want
++		err := json.Unmarshal([]byte(tt.in), &ts)
++		if err == nil || err.Error() != want {
++			t.Errorf("Time.UnmarshalJSON(%s) = %v, want %v", tt.in, err, want)
++		}
++
++		if strings.HasPrefix(tt.in, `"`) && strings.HasSuffix(tt.in, `"`) {
++			err = ts.UnmarshalText([]byte(strings.Trim(tt.in, `"`)))
++			if err == nil || err.Error() != want {
++				t.Errorf("Time.UnmarshalText(%s) = %v, want %v", tt.in, err, want)
++			}
++		}
+ 	}
+ }
+ 
+-var notJSONEncodableTimes = []struct {
+-	time Time
+-	want string
+-}{
+-	{Date(10000, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
+-	{Date(-1, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
+-}
++func TestMarshalInvalidTimes(t *testing.T) {
++	tests := []struct {
++		time Time
++		want string
++	}{
++		{Date(10000, 1, 1, 0, 0, 0, 0, UTC), "Time.MarshalJSON: year outside of range [0,9999]"},
++		{Date(-998, 1, 1, 0, 0, 0, 0, UTC).Add(-Second), "Time.MarshalJSON: year outside of range [0,9999]"},
++		{Date(0, 1, 1, 0, 0, 0, 0, UTC).Add(-Nanosecond), "Time.MarshalJSON: year outside of range [0,9999]"},
++		{Date(2020, 1, 1, 0, 0, 0, 0, FixedZone("", 24*60*60)), "Time.MarshalJSON: timezone hour outside of range [0,23]"},
++		{Date(2020, 1, 1, 0, 0, 0, 0, FixedZone("", 123*60*60)), "Time.MarshalJSON: timezone hour outside of range [0,23]"},
++	}
++
++	for _, tt := range tests {
++		want := tt.want
++		b, err := tt.time.MarshalJSON()
++		switch {
++		case b != nil:
++			t.Errorf("(%v).MarshalText() = %q, want nil", tt.time, b)
++		case err == nil || err.Error() != want:
++			t.Errorf("(%v).MarshalJSON() error = %v, want %v", tt.time, err, want)
++		}
+ 
+-func TestNotJSONEncodableTime(t *testing.T) {
+-	for _, tt := range notJSONEncodableTimes {
+-		_, err := tt.time.MarshalJSON()
+-		if err == nil || err.Error() != tt.want {
+-			t.Errorf("%v MarshalJSON error = %v, want %v", tt.time, err, tt.want)
++		want = strings.ReplaceAll(tt.want, "JSON", "Text")
++		b, err = tt.time.MarshalText()
++		switch {
++		case b != nil:
++			t.Errorf("(%v).MarshalText() = %q, want nil", tt.time, b)
++		case err == nil || err.Error() != want:
++			t.Errorf("(%v).MarshalText() error = %v, want %v", tt.time, err, want)
+ 		}
+ 	}
+ }

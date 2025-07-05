@@ -8,7 +8,44 @@ Date:   Thu Oct 23 17:39:15 2008 -0700
     DELTA=9  (4 added, 4 deleted, 1 changed)
     OCL=17753
     CL=17755
-
+---
  src/lib/reflect/type.go  | 2 +-
  src/lib/reflect/value.go | 8 ++++----
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index cf27da9d4b..506a1a0ca3 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -243,7 +243,7 @@ type ChanTypeStruct struct {
+ }
+ 
+ func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
+-	return &NewChanTypeStruct{name, elem, dir}
++	return &ChanTypeStruct{name, elem, dir}
+ }
+ 
+ func (t *ChanTypeStruct) Kind() int {
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index 32e6211773..7d6172dada 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -148,14 +148,14 @@ export type Int64Value interface {
+ 	Type()	Type;
+ }
+ 
+-func Int64Creator(typ Type, addr Addr) Value {
+-	return &Int64ValueStruct{addr}
+-}
+-
+ type Int64ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Int64Creator(typ Type, addr Addr) Value {
++	return &Int64ValueStruct{addr}
++}
++
+ func (v *Int64ValueStruct) Kind() int {
+ 	return Int64Kind
+ }

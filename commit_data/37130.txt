@@ -19,7 +19,39 @@ Date:   Fri Jun 29 23:09:34 2018 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Richard Musiol <neelance@gmail.com>
-
+---
  misc/wasm/wasm_exec.js    | 2 +-
  src/syscall/js/js_test.go | 7 +++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index ecb096509f..3617c49866 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -141,7 +141,7 @@
+ 				}
+ 
+ 				let ref = v[this._refProp];
+-				if (ref === undefined) {
++				if (ref === undefined || this._values[ref] !== v) {
+ 					ref = this._values.length;
+ 					this._values.push(v);
+ 					v[this._refProp] = ref;
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 497b9467bb..c4141c2196 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -107,6 +107,13 @@ func TestObject(t *testing.T) {
+ 	if dummys.Get("someArray") != dummys.Get("someArray") {
+ 		t.Errorf("same value not equal")
+ 	}
++
++	// An object and its prototype should not be equal.
++	proto := js.Global().Get("Object").Get("prototype")
++	o := js.Global().Call("eval", "new Object()")
++	if proto == o {
++		t.Errorf("object equals to its prototype")
++	}
+ }
+ 
+ func TestTypedArrayOf(t *testing.T) {

@@ -14,6 +14,32 @@ Date:   Sun Sep 23 19:12:15 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/malloc.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index dd88d353dd..5755c9e263 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -733,6 +733,9 @@ func nextFreeFast(s *mspan) gclinkptr {
+ // weight allocation. If it is a heavy weight allocation the caller must
+ // determine whether a new GC cycle needs to be started or if the GC is active
+ // whether this goroutine needs to assist the GC.
++//
++// Must run in a non-preemptible context since otherwise the owner of
++// c could change.
+ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+ 	s = c.alloc[spc]
+ 	shouldhelpgc = false
+@@ -743,9 +746,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
+ 			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+ 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+ 		}
+-		systemstack(func() {
+-			c.refill(spc)
+-		})
++		c.refill(spc)
+ 		shouldhelpgc = true
+ 		s = c.alloc[spc]
+ 

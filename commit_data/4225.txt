@@ -7,6 +7,35 @@ Date:   Wed Nov 25 11:39:34 2009 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/160069
-
+---
  src/pkg/utf8/utf8.go | 16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 969d10ab44..4b2e08c4dd 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -273,19 +273,11 @@ func RuneCount(p []byte) int {
+ }
+ 
+ // RuneCountInString is like RuneCount but its input is a string.
+-func RuneCountInString(s string) int {
+-	ei := len(s);
+-	i := 0;
+-	var n int;
+-	for n = 0; i < ei; n++ {
+-		if s[i] < RuneSelf {
+-			i++
+-		} else {
+-			_, size, _ := decodeRuneInStringInternal(s[i:ei]);
+-			i += size;
+-		}
++func RuneCountInString(s string) (n int) {
++	for _ = range s {
++		n++
+ 	}
+-	return n;
++	return;
+ }
+ 
+ // RuneStart reports whether the byte could be the first byte of

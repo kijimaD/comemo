@@ -21,7 +21,7 @@ Date:   Wed Apr 25 10:49:27 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6117048
-
+---
  src/pkg/exp/html/parse.go                       | 52 ++++++++++++++++++-------
  src/pkg/exp/html/testlogs/html5test-com.dat.log |  2 +-
  src/pkg/exp/html/testlogs/tables01.dat.log      |  2 +-
@@ -33,3 +33,241 @@ Date:   Wed Apr 25 10:49:27 2012 +1000
  src/pkg/exp/html/testlogs/tests7.dat.log        | 16 ++++----
  src/pkg/exp/html/testlogs/tricky01.dat.log      |  4 +-
  10 files changed, 57 insertions(+), 35 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index e3b3c95b59..08f029c63e 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -1139,7 +1139,14 @@ func inTableIM(p *parser) bool {
+ 		// Stop parsing.
+ 		return true
+ 	case TextToken:
+-		// TODO.
++		p.tok.Data = strings.Replace(p.tok.Data, "\x00", "", -1)
++		switch p.oe.top().Data {
++		case "table", "tbody", "tfoot", "thead", "tr":
++			if strings.Trim(p.tok.Data, whitespace) == "" {
++				p.addText(p.tok.Data)
++				return true
++			}
++		}
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+ 		case "caption":
+@@ -1148,15 +1155,21 @@ func inTableIM(p *parser) bool {
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.im = inCaptionIM
+ 			return true
++		case "colgroup":
++			p.clearStackToContext(tableScope)
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.im = inColumnGroupIM
++			return true
++		case "col":
++			p.parseImpliedToken(StartTagToken, "colgroup", nil)
++			return false
+ 		case "tbody", "tfoot", "thead":
+ 			p.clearStackToContext(tableScope)
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.im = inTableBodyIM
+ 			return true
+ 		case "td", "th", "tr":
+-			p.clearStackToContext(tableScope)
+-			p.addElement("tbody", nil)
+-			p.im = inTableBodyIM
++			p.parseImpliedToken(StartTagToken, "tbody", nil)
+ 			return false
+ 		case "table":
+ 			if p.popUntil(tableScope, "table") {
+@@ -1165,16 +1178,24 @@ func inTableIM(p *parser) bool {
+ 			}
+ 			// Ignore the token.
+ 			return true
+-		case "colgroup":
+-			p.clearStackToContext(tableScope)
++		case "style", "script":
++			return inHeadIM(p)
++		case "input":
++			for _, a := range p.tok.Attr {
++				if a.Key == "type" && strings.ToLower(a.Val) == "hidden" {
++					p.addElement(p.tok.Data, p.tok.Attr)
++					p.oe.pop()
++					return true
++				}
++			}
++			// Otherwise drop down to the default action.
++		case "form":
++			if p.form != nil {
++				// Ignore the token.
++				return true
++			}
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.im = inColumnGroupIM
+-			return true
+-		case "col":
+-			p.clearStackToContext(tableScope)
+-			p.addElement("colgroup", p.tok.Attr)
+-			p.im = inColumnGroupIM
+-			return false
++			p.form = p.oe.pop()
+ 		case "select":
+ 			p.reconstructActiveFormattingElements()
+ 			switch p.top().Data {
+@@ -1186,8 +1207,6 @@ func inTableIM(p *parser) bool {
+ 			p.framesetOK = false
+ 			p.im = inSelectInTableIM
+ 			return true
+-		default:
+-			// TODO.
+ 		}
+ 	case EndTagToken:
+ 		switch p.tok.Data {
+@@ -1208,6 +1227,9 @@ func inTableIM(p *parser) bool {
+ 			Data: p.tok.Data,
+ 		})
+ 		return true
++	case DoctypeToken:
++		// Ignore the token.
++		return true
+ 	}
+ 
+ 	switch p.top().Data {
+diff --git a/src/pkg/exp/html/testlogs/html5test-com.dat.log b/src/pkg/exp/html/testlogs/html5test-com.dat.log
+index 0742940268..5b921de88c 100644
+--- a/src/pkg/exp/html/testlogs/html5test-com.dat.log
++++ b/src/pkg/exp/html/testlogs/html5test-com.dat.log
+@@ -17,7 +17,7 @@ PASS "<textarea><!--</textarea>-->"
+ PASS "<style><!--</style>--></style>"
+ PASS "<style><!--</style>-->"
+ PASS "<ul><li>A </li> <li>B</li></ul>"
+-FAIL "<table><form><input type=hidden><input></form><div></div></table>"
++PASS "<table><form><input type=hidden><input></form><div></div></table>"
+ PASS "<i>A<b>B<p></i>C</b>D"
+ PASS "<div></div>"
+ PASS "<svg></svg>"
+diff --git a/src/pkg/exp/html/testlogs/tables01.dat.log b/src/pkg/exp/html/testlogs/tables01.dat.log
+index 16a08c6d92..a95223cff0 100644
+--- a/src/pkg/exp/html/testlogs/tables01.dat.log
++++ b/src/pkg/exp/html/testlogs/tables01.dat.log
+@@ -1,6 +1,6 @@
+ PASS "<table><th>"
+ PASS "<table><td>"
+-FAIL "<table><col foo='bar'>"
++PASS "<table><col foo='bar'>"
+ PASS "<table><colgroup></html>foo"
+ PASS "<table></table><p>foo"
+ PASS "<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr><td>"
+diff --git a/src/pkg/exp/html/testlogs/tests15.dat.log b/src/pkg/exp/html/testlogs/tests15.dat.log
+index d8ff9dd205..7129223196 100644
+--- a/src/pkg/exp/html/testlogs/tests15.dat.log
++++ b/src/pkg/exp/html/testlogs/tests15.dat.log
+@@ -8,7 +8,7 @@ PASS "<!doctype html><table> X<meta></table>"
+ PASS "<!doctype html><table> x</table>"
+ PASS "<!doctype html><table> x </table>"
+ PASS "<!doctype html><table><tr> x</table>"
+-FAIL "<!doctype html><table>X<style> <tr>x </style> </table>"
+-FAIL "<!doctype html><div><table><a>foo</a> <tr><td>bar</td> </tr></table></div>"
++PASS "<!doctype html><table>X<style> <tr>x </style> </table>"
++PASS "<!doctype html><div><table><a>foo</a> <tr><td>bar</td> </tr></table></div>"
+ PASS "<frame></frame></frame><frameset><frame><frameset><frame></frameset><noframes></frameset><noframes>"
+ PASS "<!DOCTYPE html><object></html>"
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+index b07eaea5d9..902c684841 100644
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ b/src/pkg/exp/html/testlogs/tests16.dat.log
+@@ -186,4 +186,4 @@ PASS "<xmp><!--<xmp></xmp>--></xmp>"
+ PASS "<noembed><!--<noembed></noembed>--></noembed>"
+ FAIL "<!doctype html><table>"
+ PASS "<!doctype html><table><td><span><font></span><span>"
+-FAIL "<!doctype html><form><table></form><form></table></form>"
++PARSE "<!doctype html><form><table></form><form></table></form>"
+diff --git a/src/pkg/exp/html/testlogs/tests18.dat.log b/src/pkg/exp/html/testlogs/tests18.dat.log
+index c288ead89a..8fdc01d515 100644
+--- a/src/pkg/exp/html/testlogs/tests18.dat.log
++++ b/src/pkg/exp/html/testlogs/tests18.dat.log
+@@ -5,8 +5,8 @@ PARSE "<!doctype html><table><tbody><tr><plaintext></plaintext>"
+ PARSE "<!doctype html><table><tbody><tr><plaintext></plaintext>"
+ PASS "<!doctype html><table><td><plaintext></plaintext>"
+ PASS "<!doctype html><table><caption><plaintext></plaintext>"
+-FAIL "<!doctype html><table><tr><style></script></style>abc"
+-FAIL "<!doctype html><table><tr><script></style></script>abc"
++PASS "<!doctype html><table><tr><style></script></style>abc"
++PASS "<!doctype html><table><tr><script></style></script>abc"
+ PASS "<!doctype html><table><caption><style></script></style>abc"
+ PASS "<!doctype html><table><td><style></script></style>abc"
+ FAIL "<!doctype html><select><script></style></script>abc"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index bca9478848..2b9dd1f44e 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -23,7 +23,7 @@ PASS "<!doctype html><h1><div><h3><span></h1>foo"
+ PASS "<!doctype html><p></h3>foo"
+ PASS "<!doctype html><h3><li>abc</h2>foo"
+ PASS "<!doctype html><table>abc<!--foo-->"
+-FAIL "<!doctype html><table>  <!--foo-->"
++PASS "<!doctype html><table>  <!--foo-->"
+ PASS "<!doctype html><table> b <!--foo-->"
+ PASS "<!doctype html><select><option><option>"
+ PASS "<!doctype html><select><option></optgroup>"
+diff --git a/src/pkg/exp/html/testlogs/tests20.dat.log b/src/pkg/exp/html/testlogs/tests20.dat.log
+index abf5f57a47..4f4cb0360e 100644
+--- a/src/pkg/exp/html/testlogs/tests20.dat.log
++++ b/src/pkg/exp/html/testlogs/tests20.dat.log
+@@ -24,8 +24,8 @@ PASS "<!doctype html><svg>"
+ PASS "<!doctype html><p><figcaption>"
+ PASS "<!doctype html><p><summary>"
+ PASS "<!doctype html><form><table><form>"
+-FAIL "<!doctype html><table><form><form>"
+-FAIL "<!doctype html><table><form></table><form>"
++PASS "<!doctype html><table><form><form>"
++PASS "<!doctype html><table><form></table><form>"
+ PASS "<!doctype html><svg><foreignObject><p>"
+ PASS "<!doctype html><svg><title>abc"
+ PASS "<option><span><option>"
+diff --git a/src/pkg/exp/html/testlogs/tests7.dat.log b/src/pkg/exp/html/testlogs/tests7.dat.log
+index 7263541414..c18848acb6 100644
+--- a/src/pkg/exp/html/testlogs/tests7.dat.log
++++ b/src/pkg/exp/html/testlogs/tests7.dat.log
+@@ -3,20 +3,20 @@ PASS "<!doctype html><table><title>X</title></table>"
+ FAIL "<!doctype html><head></head><title>X</title>"
+ FAIL "<!doctype html></head><title>X</title>"
+ PASS "<!doctype html><table><meta></table>"
+-FAIL "<!doctype html><table>X<tr><td><table> <meta></table></table>"
++PASS "<!doctype html><table>X<tr><td><table> <meta></table></table>"
+ PASS "<!doctype html><html> <head>"
+ PASS "<!doctype html> <head>"
+-FAIL "<!doctype html><table><style> <tr>x </style> </table>"
+-FAIL "<!doctype html><table><TBODY><script> <tr>x </script> </table>"
++PASS "<!doctype html><table><style> <tr>x </style> </table>"
++PASS "<!doctype html><table><TBODY><script> <tr>x </script> </table>"
+ PASS "<!doctype html><p><applet><p>X</p></applet>"
+ PASS "<!doctype html><listing>\nX</listing>"
+ FAIL "<!doctype html><select><input>X"
+ PASS "<!doctype html><select><select>X"
+-FAIL "<!doctype html><table><input type=hidDEN></table>"
+-FAIL "<!doctype html><table>X<input type=hidDEN></table>"
+-FAIL "<!doctype html><table>  <input type=hidDEN></table>"
+-FAIL "<!doctype html><table>  <input type='hidDEN'></table>"
+-FAIL "<!doctype html><table><input type=\" hidden\"><input type=hidDEN></table>"
++PASS "<!doctype html><table><input type=hidDEN></table>"
++PASS "<!doctype html><table>X<input type=hidDEN></table>"
++PASS "<!doctype html><table>  <input type=hidDEN></table>"
++PASS "<!doctype html><table>  <input type='hidDEN'></table>"
++PASS "<!doctype html><table><input type=\" hidden\"><input type=hidDEN></table>"
+ PASS "<!doctype html><table><select>X<tr>"
+ PASS "<!doctype html><select>X</select>"
+ PASS "<!DOCTYPE hTmL><html></html>"
+diff --git a/src/pkg/exp/html/testlogs/tricky01.dat.log b/src/pkg/exp/html/testlogs/tricky01.dat.log
+index dc411e547a..fb0390f818 100644
+--- a/src/pkg/exp/html/testlogs/tricky01.dat.log
++++ b/src/pkg/exp/html/testlogs/tricky01.dat.log
+@@ -3,7 +3,7 @@ PASS "<html>\n<font color=red><i>Italic and Red<p>Italic and Red </font> Just it
+ PASS "<html><body>\n<p><font size=\"7\">First paragraph.</p>\n<p>Second paragraph.</p></font>\n<b><p><i>Bold and Italic</b> Italic</p>"
+ PASS "<html>\n<dl>\n<dt><b>Boo\n<dd>Goo?\n</dl>\n</html>"
+ PASS "<html><body>\n<label><a><div>Hello<div>World</div></a></label>  \n</body></html>"
+-FAIL "<table><center> <font>a</center> <img> <tr><td> </td> </tr> </table>"
++PASS "<table><center> <font>a</center> <img> <tr><td> </td> </tr> </table>"
+ FAIL "<table><tr><p><a><p>You should see this text."
+-FAIL "<TABLE>\n<TR>\n<CENTER><CENTER><TD></TD></TR><TR>\n<FONT>\n<TABLE><tr></tr></TABLE>\n</P>\n<a></font><font></a>\nThis page contains an insanely badly-nested tag sequence."
++PASS "<TABLE>\n<TR>\n<CENTER><CENTER><TD></TD></TR><TR>\n<FONT>\n<TABLE><tr></tr></TABLE>\n</P>\n<a></font><font></a>\nThis page contains an insanely badly-nested tag sequence."
+ PASS "<html>\n<body>\n<b><nobr><div>This text is in a div inside a nobr</nobr>More text that should not be in the nobr, i.e., the\nnobr should have closed the div inside it implicitly. </b><pre>A pre tag outside everything else.</pre>\n</body>\n</html>"

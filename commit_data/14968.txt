@@ -7,6 +7,23 @@ Date:   Tue Jan 22 17:50:12 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7183046
-
+---
  src/pkg/go/build/build_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 77f55ad409..56e2786b8f 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -94,9 +94,9 @@ func TestLocalDirectory(t *testing.T) {
+ func TestBogusDirectory(t *testing.T) {
+ 	const dir = "/foo/bar/baz/gopher"
+ 	_, err := ImportDir(dir, FindOnly)
+-	want := fmt.Sprintf("%q is not a directory", dir)
++	want := fmt.Sprintf("%q is not a directory", filepath.FromSlash(dir))
+ 	if err == nil || err.Error() != want {
+-		t.Error("got error %q, want %q", err, want)
++		t.Errorf("got error %q, want %q", err, want)
+ 	}
+ }
+ 

@@ -9,6 +9,20 @@ Date:   Mon Jan 18 19:56:26 2021 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/net/http/httptrace/trace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 6a5cbac9d8..5777c91747 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -127,7 +127,7 @@ type ClientTrace struct {
+ 
+ 	// ConnectDone is called when a new connection's Dial
+ 	// completes. The provided err indicates whether the
+-	// connection completedly successfully.
++	// connection completed successfully.
+ 	// If net.Dialer.DualStack ("Happy Eyeballs") support is
+ 	// enabled, this may be called multiple times.
+ 	ConnectDone func(network, addr string, err error)

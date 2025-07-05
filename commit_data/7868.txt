@@ -25,7 +25,113 @@ Date:   Fri Mar 25 10:36:46 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4275078
-
+---
  test/label.go  | 16 ++++++++--------
  test/label1.go | 16 ++++++++--------
  2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/test/label.go b/test/label.go
+index ab231232a8..e3d853266e 100644
+--- a/test/label.go
++++ b/test/label.go
+@@ -11,23 +11,23 @@ package main
+ var x int
+ 
+ func f() {
+-L1: // ERROR "label L1 defined and not used"
++L1: // ERROR "label .*L1.* defined and not used"
+ 	for {
+ 	}
+-L2: // ERROR "label L2 defined and not used"
++L2: // ERROR "label .*L2.* defined and not used"
+ 	select {
+ 	}
+-L3: // ERROR "label L3 defined and not used"
++L3: // ERROR "label .*L3.* defined and not used"
+ 	switch {
+ 	}
+-L4: // ERROR "label L4 defined and not used"
++L4: // ERROR "label .*L4.* defined and not used"
+ 	if true {
+ 	}
+-L5: // ERROR "label L5 defined and not used"
++L5: // ERROR "label .*L5.* defined and not used"
+ 	f()
+-L6:
++L6: // GCCGO_ERROR "previous"
+ 	f()
+-L6: // ERROR "label L6 already defined at"
++L6: // ERROR "label .*L6.* already defined"
+ 	f()
+ 	if x == 20 {
+ 		goto L6
+@@ -49,7 +49,7 @@ L9:
+ 	switch {
+ 	case true:
+ 		break L9
+-	defalt: // ERROR "label defalt defined and not used"
++	defalt: // ERROR "label .*defalt.* defined and not used"
+ 	}
+ 
+ L10:
+diff --git a/test/label1.go b/test/label1.go
+index bba63f23d2..656daaeea5 100644
+--- a/test/label1.go
++++ b/test/label1.go
+@@ -29,7 +29,7 @@ L2:
+ 			break L2
+ 		}
+ 		if x == 1 {
+-			continue L2 // ERROR "invalid continue label L2"
++			continue L2 // ERROR "invalid continue label .*L2"
+ 		}
+ 		goto L2
+ 	}
+@@ -41,7 +41,7 @@ L3:
+ 			break L3
+ 		}
+ 		if x == 12 {
+-			continue L3 // ERROR "invalid continue label L3"
++			continue L3 // ERROR "invalid continue label .*L3"
+ 		}
+ 		goto L3
+ 	}
+@@ -49,10 +49,10 @@ L3:
+ L4:
+ 	if true {
+ 		if x == 13 {
+-			break L4 // ERROR "invalid break label L4"
++			break L4 // ERROR "invalid break label .*L4"
+ 		}
+ 		if x == 14 {
+-			continue L4 // ERROR "invalid continue label L4"
++			continue L4 // ERROR "invalid continue label .*L4"
+ 		}
+ 		if x == 15 {
+ 			goto L4
+@@ -62,10 +62,10 @@ L4:
+ L5:
+ 	f()
+ 	if x == 16 {
+-		break L5 // ERROR "invalid break label L5"
++		break L5 // ERROR "invalid break label .*L5"
+ 	}
+ 	if x == 17 {
+-		continue L5 // ERROR "invalid continue label L5"
++		continue L5 // ERROR "invalid continue label .*L5"
+ 	}
+ 	if x == 18 {
+ 		goto L5
+@@ -73,10 +73,10 @@ L5:
+ 
+ 	for {
+ 		if x == 19 {
+-			break L1 // ERROR "invalid break label L1"
++			break L1 // ERROR "invalid break label .*L1"
+ 		}
+ 		if x == 20 {
+-			continue L1 // ERROR "invalid continue label L1"
++			continue L1 // ERROR "invalid continue label .*L1"
+ 		}
+ 		if x == 21 {
+ 			goto L1

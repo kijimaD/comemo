@@ -13,6 +13,22 @@ Date:   Sun Jun 14 22:58:54 2015 +0200
     Change-Id: If94e93b5653c5816c0a8dcdd920f15df97616835
     Reviewed-on: https://go-review.googlesource.com/11100
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/trace/trace.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 6b5cfe30e5..29fae015ed 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -322,10 +322,6 @@ func (ctx *traceContext) emit(e *ViewerEvent) {
+ }
+ 
+ func (ctx *traceContext) time(ev *trace.Event) int64 {
+-	if ev.Ts < ctx.startTime || ev.Ts > ctx.endTime {
+-		fmt.Printf("ts=%v startTime=%v endTime=%v\n", ev.Ts, ctx.startTime, ctx.endTime)
+-		panic("timestamp is outside of trace range")
+-	}
+ 	// NOTE: trace viewer wants timestamps in microseconds and it does not
+ 	// handle fractional timestamps (rounds them). We give it timestamps
+ 	// in nanoseconds to avoid rounding. See:

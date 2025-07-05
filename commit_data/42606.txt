@@ -14,6 +14,33 @@ Date:   Fri Jan 24 16:50:53 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mgc.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bda8eadc9d..0bc5568442 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1368,13 +1368,6 @@ func gcStart(trigger gcTrigger) {
+ 		work.pauseNS += now - work.pauseStart
+ 		work.tMark = now
+ 	})
+-
+-	// Release the world sema before Gosched() in STW mode
+-	// because we will need to reacquire it later but before
+-	// this goroutine becomes runnable again, and we could
+-	// self-deadlock otherwise.
+-	semrelease(&worldsema)
+-
+ 	// In STW mode, we could block the instant systemstack
+ 	// returns, so don't do anything important here. Make sure we
+ 	// block rather than returning to user code.
+@@ -1382,6 +1375,7 @@ func gcStart(trigger gcTrigger) {
+ 		Gosched()
+ 	}
+ 
++	semrelease(&worldsema)
+ 	semrelease(&work.startSema)
+ }
+ 

@@ -16,6 +16,23 @@ Date:   Sun Jul 12 11:52:09 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12093
     Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2eb0402f69..d47680bf8a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -316,6 +316,11 @@ func (s *state) stmt(n *Node) {
+ 		s.assign(OAS, n.Left.Name.Heapaddr, palloc)
+ 
+ 	case OLABEL, OGOTO:
++		if n.Op == OLABEL && isblanksym(n.Left.Sym) {
++			// Empty identifier is valid but useless.
++			// See issues 11589, 11593.
++			return
++		}
+ 		// get block at label, or make one
+ 		t := s.labels[n.Left.Sym.Name]
+ 		if t == nil {

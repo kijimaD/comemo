@@ -12,7 +12,7 @@ Date:   Thu Sep 22 17:38:17 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/433195
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 1 +
  src/cmd/compile/internal/types2/call.go        | 1 +
  src/cmd/compile/internal/types2/conversions.go | 1 +
@@ -29,3 +29,222 @@ Date:   Thu Sep 22 17:38:17 2022 -0700
  src/go/types/stmt.go                           | 1 +
  src/go/types/typexpr.go                        | 2 +-
  15 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 52b724c456..1396284bad 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -346,6 +346,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 				at = rhs[len(rhs)-1].expr // report at last value
+ 			}
+ 			var err error_
++			err.code = _WrongResultCount
+ 			err.errorf(at, "%s return values", qualifier)
+ 			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+ 			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ee63708ea1..87b29d7260 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -365,6 +365,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 			params = sig.params.vars
+ 		}
+ 		var err error_
++		err.code = _WrongArgCount
+ 		err.errorf(at, "%s arguments in call to %s", qualifier, call.Fun)
+ 		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+ 		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index da3a31736a..eb12b63262 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -71,6 +71,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 
+ 	if !ok {
+ 		var err error_
++		err.code = _InvalidConversion
+ 		if check.conf.CompilerErrorMessages {
+ 			if cause != "" {
+ 				// Add colon at end of line if we have a following cause.
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 5e3bb28e70..bc92b64b7e 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -28,6 +28,7 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
+ 	if obj.Name() != "_" {
+ 		if alt := scope.Insert(obj); alt != nil {
+ 			var err error_
++			err.code = _DuplicateDecl
+ 			err.errorf(obj, "%s redeclared in this block", obj.Name())
+ 			err.recordAltDecl(alt)
+ 			check.report(&err)
+diff --git a/src/cmd/compile/internal/types2/initorder.go b/src/cmd/compile/internal/types2/initorder.go
+index 5f5334e1b8..af43f53c16 100644
+--- a/src/cmd/compile/internal/types2/initorder.go
++++ b/src/cmd/compile/internal/types2/initorder.go
+@@ -153,6 +153,7 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
+ func (check *Checker) reportCycle(cycle []Object) {
+ 	obj := cycle[0]
+ 	var err error_
++	err.code = _InvalidInitCycle
+ 	err.errorf(obj, "initialization cycle for %s", obj.Name())
+ 	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+ 	for i := len(cycle) - 1; i >= 0; i-- {
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 7cb3ec8465..24349e3c57 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -133,6 +133,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 				lbl := NewLabel(s.Label.Pos(), check.pkg, name)
+ 				if alt := all.Insert(lbl); alt != nil {
+ 					var err error_
++					err.code = _DuplicateLabel
+ 					err.soft = true
+ 					err.errorf(lbl.pos, "label %s already declared", name)
+ 					err.recordAltDecl(alt)
+diff --git a/src/cmd/compile/internal/types2/mono.go b/src/cmd/compile/internal/types2/mono.go
+index 7bd79f4282..b25f6b0165 100644
+--- a/src/cmd/compile/internal/types2/mono.go
++++ b/src/cmd/compile/internal/types2/mono.go
+@@ -137,6 +137,7 @@ func (check *Checker) reportInstanceLoop(v int) {
+ 	// TODO(mdempsky): Pivot stack so we report the cycle from the top?
+ 
+ 	var err error_
++	err.code = _InvalidInstanceCycle
+ 	obj0 := check.mono.vertices[v].obj
+ 	err.errorf(obj0, "instantiation cycle:")
+ 
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 5301b64790..ac89124fbb 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -314,6 +314,7 @@ func (check *Checker) collectObjects() {
+ 							// concurrently. See issue #32154.)
+ 							if alt := fileScope.Lookup(name); alt != nil {
+ 								var err error_
++								err.code = _DuplicateDecl
+ 								err.errorf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
+ 								err.recordAltDecl(alt)
+ 								check.report(&err)
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 07399f77aa..47454a3adf 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -178,6 +178,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 	results, _ := check.collectParams(scope, ftyp.ResultList, false)
+ 	scope.Squash(func(obj, alt Object) {
+ 		var err error_
++		err.code = _DuplicateDecl
+ 		err.errorf(obj, "%s redeclared in this block", obj.Name())
+ 		err.recordAltDecl(alt)
+ 		check.report(&err)
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e02217fb88..6502315e99 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -263,6 +263,7 @@ L:
+ 			for _, vt := range seen[val] {
+ 				if Identical(v.typ, vt.typ) {
+ 					var err error_
++					err.code = _DuplicateCase
+ 					err.errorf(&v, "duplicate case %s in expression switch", &v)
+ 					err.errorf(vt.pos, "previous case")
+ 					check.report(&err)
+@@ -309,6 +310,7 @@ L:
+ 					Ts = TypeString(T, check.qualifier)
+ 				}
+ 				var err error_
++				err.code = _DuplicateCase
+ 				err.errorf(e, "duplicate case %s in type switch", Ts)
+ 				err.errorf(other, "previous case")
+ 				check.report(&err)
+@@ -351,6 +353,7 @@ L:
+ // 				Ts = TypeString(T, check.qualifier)
+ // 			}
+ // 			var err error_
++//			err.code = _DuplicateCase
+ // 			err.errorf(e, "duplicate case %s in type switch", Ts)
+ // 			err.errorf(other, "previous case")
+ // 			check.report(&err)
+@@ -501,6 +504,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			for _, obj := range res.vars {
+ 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+ 					var err error_
++					err.code = _OutOfScopeResult
+ 					err.errorf(s, "result parameter %s not in scope at return", obj.name)
+ 					err.errorf(alt, "inner declaration of %s", obj)
+ 					check.report(&err)
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 00cae4c800..77f8b6d93b 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -199,6 +199,7 @@ func embeddedFieldIdent(e syntax.Expr) *syntax.Name {
+ func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) bool {
+ 	if alt := oset.insert(obj); alt != nil {
+ 		var err error_
++		err.code = _DuplicateDecl
+ 		err.errorf(pos, "%s redeclared", obj.Name())
+ 		err.recordAltDecl(alt)
+ 		check.report(&err)
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 9bbe0bef90..79fab12be8 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -226,6 +226,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			}
+ 			// check != nil
+ 			var err error_
++			err.code = _DuplicateDecl
+ 			err.errorf(pos, "duplicate method %s", m.name)
+ 			err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+ 			check.report(&err)
+@@ -244,6 +245,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			check.later(func() {
+ 				if !check.allowVersion(m.pkg, 1, 14) || !Identical(m.typ, other.Type()) {
+ 					var err error_
++					err.code = _DuplicateDecl
+ 					err.errorf(pos, "duplicate method %s", m.name)
+ 					err.errorf(mpos[other.(*Func)], "other declaration of %s", m.name)
+ 					check.report(&err)
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index c6a6971495..28ee276272 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -292,10 +292,10 @@ func (check *Checker) softErrorf(at positioner, code errorCode, format string, a
+ 	check.report(err)
+ }
+ 
+-func (check *Checker) versionErrorf(at positioner, code errorCode, goVersion string, format string, args ...interface{}) {
++func (check *Checker) versionErrorf(at positioner, goVersion string, format string, args ...interface{}) {
+ 	msg := check.sprintf(format, args...)
+ 	var err *error_
+-	err = newErrorf(at, code, "%s requires %s or later", msg, goVersion)
++	err = newErrorf(at, _UnsupportedFeature, "%s requires %s or later", msg, goVersion)
+ 	check.report(err)
+ }
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 0fab70719e..9bfc1cd216 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -344,6 +344,7 @@ L:
+ // 				Ts = TypeString(T, check.qualifier)
+ // 			}
+ // 			var err error_
++//			err.code = _DuplicateCase
+ // 			err.errorf(e, "duplicate case %s in type switch", Ts)
+ // 			err.errorf(other, "previous case")
+ // 			check.report(&err)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index ff6bb36255..fb34bcc2b2 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -43,7 +43,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
+ 		return
+ 	case universeAny, universeComparable:
+ 		if !check.allowVersion(check.pkg, 1, 18) {
+-			check.versionErrorf(e, _UndeclaredName, "go1.18", "predeclared %s", e.Name)
++			check.versionErrorf(e, "go1.18", "predeclared %s", e.Name)
+ 			return // avoid follow-on errors
+ 		}
+ 	}

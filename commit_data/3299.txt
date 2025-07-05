@@ -7,7 +7,7 @@ Date:   Thu Sep 17 10:27:04 2009 -0700
     R=r
     OCL=34731
     CL=34731
-
+---
  src/cmd/ebnflint/ebnflint.go         |  3 +--
  src/cmd/godoc/godoc.go               |  2 --
  src/cmd/gofmt/gofmt.go               |  2 --
@@ -92,3 +92,1170 @@ Date:   Thu Sep 17 10:27:04 2009 -0700
  test/fixedbugs/bug191.go             |  3 +++
  test/initsyscall.go                  |  1 -
  83 files changed, 45 insertions(+), 159 deletions(-)
+
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index 7628159727..606961e7d8 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -13,7 +13,6 @@ import (
+ 	"io";
+ 	"os";
+ 	"path";
+-	"sort";
+ 	"strings";
+ )
+ 
+@@ -47,7 +46,7 @@ func extractEBNF(src []byte) []byte {
+ 		i += len(open);
+ 
+ 		// write as many newlines as found in the excluded text
+-		// to maintain correct line numbers in error messages 
++		// to maintain correct line numbers in error messages
+ 		for _, ch := range src[0 : i] {
+ 			if ch == '\n' {
+ 				buf.WriteByte('\n');
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 36e66a2110..5164c39c2d 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -40,13 +40,11 @@ import (
+ 	"http";
+ 	"io";
+ 	"log";
+-	"net";
+ 	"os";
+ 	pathutil "path";
+ 	"sort";
+ 	"strings";
+ 	"sync";
+-	"syscall";
+ 	"template";
+ 	"time";
+ )
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 53fe46d24c..9442957a90 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -11,10 +11,8 @@ import (
+ 	"go/parser";
+ 	"go/printer";
+ 	"go/scanner";
+-	"io";
+ 	"os";
+ 	pathutil "path";
+-	"sort";
+ 	"strings";
+ )
+ 
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index e07932b520..5ee3eb0a86 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -86,11 +86,23 @@ MAKELEVEL=
+ 
+ importpath=$(make -s importpath)
+ {
++	# test functions are named TestFoo
++	# the grep -v eliminates methods and other special names
++	# that have multiple dots.
++	pattern='Test([^a-z].*)?'
++	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	if [ "x$tests" = x ]; then
++		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
++		exit 2
++	fi
++
+ 	# package spec
+ 	echo 'package main'
+ 	echo
+ 	# imports
+-	echo 'import "'$importpath'"'
++	if echo "$tests" | egrep -v '_test\.' >/dev/null; then
++		echo 'import "'$importpath'"'
++	fi
+ 	if $havex; then
+ 		echo 'import "./_xtest_"'
+ 	fi
+@@ -98,20 +110,10 @@ importpath=$(make -s importpath)
+ 	# test array
+ 	echo
+ 	echo 'var tests = []testing.Test {'
+-
+-	# test functions are named TestFoo
+-	# the grep -v eliminates methods and other special names
+-	# that have multiple dots.
+-	pattern='Test([^a-z].*)?'
+-	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+-	if [ "x$tests" = x ]; then
+-		echo 'gotest: warning: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+-	else
+-		for i in $tests
+-		do
+-			echo '	testing.Test{ "'$i'", '$i' },'
+-		done
+-	fi
++	for i in $tests
++	do
++		echo '	testing.Test{ "'$i'", '$i' },'
++	done
+ 	echo '}'
+ 	# body
+ 	echo
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 4e546cebdd..85bfef1708 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -6,7 +6,6 @@ package tar
+ 
+ import (
+ 	"bytes";
+-	"fmt";
+ 	"io";
+ 	"os";
+ 	"reflect";
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 40b78bb322..69f069ff3e 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -8,9 +8,6 @@ import (
+ 	"bytes";
+ 	"fmt";
+ 	"io";
+-	"os";
+-	"reflect";
+-	"strings";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/compress/flate/flate_test.go b/src/pkg/compress/flate/flate_test.go
+index 01d875c0a1..2d1255f3ca 100644
+--- a/src/pkg/compress/flate/flate_test.go
++++ b/src/pkg/compress/flate/flate_test.go
+@@ -10,11 +10,7 @@ package flate
+ 
+ import (
+ 	"bytes";
+-	"bufio";
+-	"io";
+-	"os";
+ 	"reflect";
+-	"strconv";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index aef79244dc..99e9a75d64 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -6,7 +6,6 @@ package gzip
+ 
+ import (
+ 	"bytes";
+-	"fmt";
+ 	"io";
+ 	"os";
+ 	"testing";
+diff --git a/src/pkg/crypto/aes/aes_test.go b/src/pkg/crypto/aes/aes_test.go
+index 95e43f1173..b2e0c7bb56 100644
+--- a/src/pkg/crypto/aes/aes_test.go
++++ b/src/pkg/crypto/aes/aes_test.go
+@@ -5,7 +5,6 @@
+ package aes
+ 
+ import (
+-	"fmt";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+index 8f7d5b4421..23cf21a5f6 100644
+--- a/src/pkg/crypto/block/cbc_aes_test.go
++++ b/src/pkg/crypto/block/cbc_aes_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes";
+ 	"crypto/aes";
+ 	"io";
+-	"os";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/crypto/block/cfb_aes_test.go b/src/pkg/crypto/block/cfb_aes_test.go
+index ce8627ed02..6e948d33de 100644
+--- a/src/pkg/crypto/block/cfb_aes_test.go
++++ b/src/pkg/crypto/block/cfb_aes_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes";
+ 	"crypto/aes";
+ 	"io";
+-	"os";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/crypto/block/cmac.go b/src/pkg/crypto/block/cmac.go
+index b567f0e56b..112dcc2384 100644
+--- a/src/pkg/crypto/block/cmac.go
++++ b/src/pkg/crypto/block/cmac.go
+@@ -7,10 +7,7 @@
+ 
+ package block
+ 
+-import (
+-	"io";
+-	"os";
+-)
++import "os"
+ 
+ const (
+ 	// minimal irreducible polynomial of degree b
+diff --git a/src/pkg/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+index d9c9c4b2ff..2e800fe163 100644
+--- a/src/pkg/crypto/block/ctr_aes_test.go
++++ b/src/pkg/crypto/block/ctr_aes_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes";
+ 	"crypto/aes";
+ 	"io";
+-	"os";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/crypto/block/ecb_aes_test.go b/src/pkg/crypto/block/ecb_aes_test.go
+index 65f093d84b..f823d2fe2b 100644
+--- a/src/pkg/crypto/block/ecb_aes_test.go
++++ b/src/pkg/crypto/block/ecb_aes_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes";
+ 	"crypto/aes";
+ 	"io";
+-	"os";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/crypto/block/ofb_aes_test.go b/src/pkg/crypto/block/ofb_aes_test.go
+index d9a1092795..85d32bd724 100644
+--- a/src/pkg/crypto/block/ofb_aes_test.go
++++ b/src/pkg/crypto/block/ofb_aes_test.go
+@@ -14,7 +14,6 @@ import (
+ 	"bytes";
+ 	"crypto/aes";
+ 	"io";
+-	"os";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 8918d5e97f..7f245694e4 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -203,15 +203,12 @@ package datafmt
+ 
+ import (
+ 	"bytes";
+-	"container/vector";
+ 	"fmt";
+ 	"go/token";
+ 	"io";
+ 	"os";
+ 	"reflect";
+ 	"runtime";
+-	"strconv";
+-	"strings";
+ )
+ 
+ 
+diff --git a/src/pkg/datafmt/datafmt_test.go b/src/pkg/datafmt/datafmt_test.go
+index e1355dd36c..949f3551f5 100644
+--- a/src/pkg/datafmt/datafmt_test.go
++++ b/src/pkg/datafmt/datafmt_test.go
+@@ -6,7 +6,6 @@ package datafmt
+ 
+ import (
+ 	"fmt";
+-	"os";
+ 	"strings";
+ 	"testing";
+ )
+diff --git a/src/pkg/datafmt/parser.go b/src/pkg/datafmt/parser.go
+index d1fa3f2cbb..5458991321 100644
+--- a/src/pkg/datafmt/parser.go
++++ b/src/pkg/datafmt/parser.go
+@@ -6,7 +6,6 @@ package datafmt
+ 
+ import (
+ 	"container/vector";
+-	"fmt";
+ 	"go/scanner";
+ 	"go/token";
+ 	"os";
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index 98a8b2ea04..986e098a80 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -10,10 +10,7 @@
+ 
+ package dwarf
+ 
+-import (
+-	"os";
+-	"strconv";
+-)
++import "os"
+ 
+ // a single entry's description: a sequence of attributes
+ type abbrev struct {
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index e252ce5f4e..15d0b6ea6b 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -9,7 +9,6 @@ package dwarf
+ 
+ import (
+ 	"debug/binary";
+-	"fmt";
+ 	"os";
+ )
+ 
+diff --git a/src/pkg/debug/gosym/pclntab.go b/src/pkg/debug/gosym/pclntab.go
+index b687cccf26..ee6359f9dc 100644
+--- a/src/pkg/debug/gosym/pclntab.go
++++ b/src/pkg/debug/gosym/pclntab.go
+@@ -8,10 +8,7 @@
+ 
+ package gosym
+ 
+-import (
+-	"debug/binary";
+-	"io";
+-)
++import "debug/binary"
+ 
+ type LineTable struct {
+ 	Data []byte;
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 9a32d050ce..4345112ccb 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -6,8 +6,6 @@ package gosym
+ 
+ import (
+ 	"debug/elf";
+-	"exec";
+-	"io";
+ 	"os";
+ 	"testing";
+ 	"syscall";
+diff --git a/src/pkg/debug/proc/proc.go b/src/pkg/debug/proc/proc.go
+index e8c62f22b5..c67e02fea6 100644
+--- a/src/pkg/debug/proc/proc.go
++++ b/src/pkg/debug/proc/proc.go
+@@ -13,15 +13,15 @@ package proc
+ // and proc_darwin.go do, because deps.bash only looks at
+ // this file.
+ import (
+-	"container/vector";
+-	"fmt";
+-	"io";
++	_ "container/vector";
++	_ "fmt";
++	_ "io";
+ 	"os";
+-	"runtime";
++	_ "runtime";
+ 	"strconv";
+-	"strings";
+-	"sync";
+-	"syscall";
++	_ "strings";
++	_ "sync";
++	_ "syscall";
+ )
+ 
+ type Word uint64
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index f71ccc72b0..ad630fca52 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -24,12 +24,9 @@ package ebnf
+ 
+ import (
+ 	"container/vector";
+-	"fmt";
+ 	"go/scanner";
+ 	"go/token";
+ 	"os";
+-	"strconv";
+-	"strings";
+ 	"unicode";
+ 	"utf8";
+ )
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index 84afd382a8..a3fbe6f605 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -6,14 +6,10 @@ package ebnf
+ 
+ import (
+ 	"container/vector";
+-	"fmt";
+ 	"go/scanner";
+ 	"go/token";
+ 	"os";
+ 	"strconv";
+-	"strings";
+-	"unicode";
+-	"utf8";
+ )
+ 
+ 
+diff --git a/src/pkg/exvar/exvar.go b/src/pkg/exvar/exvar.go
+index abeeea7258..0765a80eea 100644
+--- a/src/pkg/exvar/exvar.go
++++ b/src/pkg/exvar/exvar.go
+@@ -11,7 +11,6 @@ import (
+ 	"bytes";
+ 	"fmt";
+ 	"http";
+-	"io";
+ 	"log";
+ 	"strconv";
+ 	"sync";
+diff --git a/src/pkg/exvar/exvar_test.go b/src/pkg/exvar/exvar_test.go
+index 34b87acfd9..eddbbf9e28 100644
+--- a/src/pkg/exvar/exvar_test.go
++++ b/src/pkg/exvar/exvar_test.go
+@@ -5,7 +5,6 @@
+ package exvar
+ 
+ import (
+-	"fmt";
+ 	"json";
+ 	"testing";
+ )
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index 259d507ed7..7b796cb147 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -6,7 +6,6 @@ package flag_test
+ 
+ import (
+ 	. "flag";
+-	"fmt";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b294ec4f40..65e76b9641 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"math";
+ 	"strings";
+ 	"testing";
+-	"unsafe";
+ )
+ 
+ func TestFmtInterface(t *testing.T) {
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index f8baa71895..9a62686e33 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -4,9 +4,6 @@
+ 
+ package ast
+ 
+-import "go/token";
+-
+-
+ type Scope struct {
+ 	Outer *Scope;
+ 	Names map[string]*Ident
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index ae6ab53c31..90212780d0 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -7,7 +7,6 @@
+ package doc
+ 
+ import (
+-	"fmt";
+ 	"go/ast";
+ 	"io";
+ 	"once";
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 5f9429bb1a..9357830b57 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -6,13 +6,10 @@ package doc
+ 
+ import (
+ 	"container/vector";
+-	"fmt";
+ 	"go/ast";
+ 	"go/token";
+-	"io";
+ 	"regexp";
+ 	"sort";
+-	"strings";
+ )
+ 
+ 
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 3ec75637b8..f0a323b7ab 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -8,11 +8,9 @@ package parser
+ 
+ import (
+ 	"bytes";
+-	"container/vector";
+ 	"fmt";
+ 	"go/ast";
+ 	"go/scanner";
+-	"go/token";
+ 	"io";
+ 	"os";
+ 	pathutil "path";
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index e8a981e8df..d3be849b51 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -10,15 +10,11 @@
+ package parser
+ 
+ import (
+-	"bytes";
+ 	"container/vector";
+ 	"fmt";
+ 	"go/ast";
+ 	"go/scanner";
+ 	"go/token";
+-	"io";
+-	"os";
+-	"strings";
+ )
+ 
+ 
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 03a92d1660..bb07f2928c 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,7 +5,6 @@
+ package parser
+ 
+ import (
+-	"go/ast";
+ 	"os";
+ 	"testing";
+ )
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index f9019fdacf..b71c79124d 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"io";
+ 	"go/ast";
+ 	"go/parser";
+-	"os";
+ 	"path";
+ 	"testing";
+ )
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 52a5015317..bc3564dbc5 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes";
+ 	"io";
+ 	"os";
+-	"reflect";
+ 	"sync";
+ )
+ 
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 45247d5ecc..be0fc9b592 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -10,7 +10,6 @@ import (
+ 	"math";
+ 	"os";
+ 	"reflect";
+-	"sync";
+ 	"unsafe";
+ )
+ 
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index 4cad834d09..178d30f71b 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"reflect";
+ 	"strings";
+ 	"testing";
+-	"unsafe";
+ )
+ 
+ type ET2 struct {
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 21da8771d9..79dbd7e487 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -8,9 +8,7 @@ import (
+ 	"fmt";
+ 	"os";
+ 	"reflect";
+-	"strings";
+ 	"sync";
+-	"unicode";
+ )
+ 
+ type kind reflect.Type
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index ed33487ca6..72149a60bd 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -5,7 +5,6 @@
+ package gob
+ 
+ import (
+-	"os";
+ 	"reflect";
+ 	"testing";
+ )
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 284106c1a8..71f9aa7101 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -10,7 +10,6 @@ import (
+ 	"bufio";
+ 	"fmt";
+ 	"io";
+-	"log";
+ 	"net";
+ 	"os";
+ 	"strconv";
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index 32f2c17b21..9e353dc26a 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -7,7 +7,6 @@
+ package http
+ 
+ import (
+-	"fmt";
+ 	"io";
+ 	"strings";
+ 	"testing";
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 4c3cbf8a5c..c5762ab296 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -4,11 +4,7 @@
+ 
+ package http
+ 
+-import (
+-	"fmt";
+-	"os";
+-	"testing";
+-)
++import "testing"
+ 
+ type stringMultimap map[string] []string
+ 
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index be6614b643..070a428f6a 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -10,7 +10,6 @@
+ package io
+ 
+ import (
+-	"bytes";
+ 	"os";
+ 	"strings";
+ )
+diff --git a/src/pkg/json/parse.go b/src/pkg/json/parse.go
+index 9ebf1a3919..1607013b22 100644
+--- a/src/pkg/json/parse.go
++++ b/src/pkg/json/parse.go
+@@ -12,10 +12,7 @@ package json
+ 
+ import (
+ 	"bytes";
+-	"fmt";
+-	"math";
+ 	"strconv";
+-	"strings";
+ 	"utf8";
+ )
+ 
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index cb5389aadc..810277713c 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -7,7 +7,6 @@ package net
+ import (
+ 	"flag";
+ 	"io";
+-	"os";
+ 	"strings";
+ 	"syscall";
+ 	"testing";
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 4eade10462..a97f75cd50 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -16,7 +16,6 @@
+ package net
+ 
+ import (
+-	"io";
+ 	"once";
+ 	"os";
+ 	"strings";
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index 063c8e9b16..e2d36f97ea 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -6,11 +6,7 @@
+ 
+ package net
+ 
+-import (
+-	"io";
+-	"os";
+-	"strconv";
+-)
++import "os"
+ 
+ type _DNS_Config struct {
+ 	servers []string;	// servers to use
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 15ab2d5474..4efb8bf8e0 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"os";
+ 	"regexp";
+ 	"testing";
+ )
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index c5789adc9d..b806a07f61 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"io";
+ 	"once";
+ 	"os";
+ )
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 76fc045e51..d961ae0687 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"io";
+-	"os";
+ 	"strings";
+ 	"syscall";
+ 	"testing";
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index bc49dadf45..d2edbfaae1 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -5,7 +5,6 @@
+ package net
+ 
+ import (
+-	"os";
+ 	"testing";
+ 	"time";
+ )
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index 39d5515bac..3a6f5a16f9 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -6,10 +6,7 @@
+ 
+ package os
+ 
+-import (
+-	"syscall";
+-	"unsafe";
+-)
++import "syscall"
+ 
+ var Args []string;	// provided by runtime
+ var Envs []string;	// provided by runtime
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 27c28394c5..2466287522 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -7,7 +7,6 @@ package reflect
+ import (
+ 	"runtime";
+ 	"strconv";
+-	"strings";
+ 	"unsafe";
+ )
+ 
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 4c6dd89edc..216ea5d5c8 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -12,7 +12,6 @@ import (
+ 	"log";
+ 	"net";
+ 	"os";
+-	"strconv";
+ 	"sync";
+ )
+ 
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index 990bd1f9cb..0bf39a227b 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -11,10 +11,7 @@ package rpc
+ 
+ import (
+ 	"fmt";
+-	"gob";
+ 	"http";
+-	"io";
+-	"log";
+ 	"os";
+ 	"sort";
+ 	"template";
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index ff5de90c8b..af58b538a6 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -5,9 +5,7 @@
+ package rpc
+ 
+ import (
+-	"gob";
+ 	"http";
+-	"io";
+ 	"log";
+ 	"net";
+ 	"once";
+diff --git a/src/pkg/strconv/atof_test.go b/src/pkg/strconv/atof_test.go
+index e78244ea0a..a2894fc75c 100644
+--- a/src/pkg/strconv/atof_test.go
++++ b/src/pkg/strconv/atof_test.go
+@@ -5,7 +5,6 @@
+ package strconv_test
+ 
+ import (
+-	"fmt";
+ 	"os";
+ 	"reflect";
+ 	. "strconv";
+diff --git a/src/pkg/strconv/atoi_test.go b/src/pkg/strconv/atoi_test.go
+index ab46e50f40..2632e572a7 100644
+--- a/src/pkg/strconv/atoi_test.go
++++ b/src/pkg/strconv/atoi_test.go
+@@ -5,7 +5,6 @@
+ package strconv_test
+ 
+ import (
+-	"fmt";
+ 	"os";
+ 	"reflect";
+ 	. "strconv";
+diff --git a/src/pkg/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+index 35fc795ae1..5254cf9a8b 100644
+--- a/src/pkg/strconv/decimal_test.go
++++ b/src/pkg/strconv/decimal_test.go
+@@ -5,7 +5,6 @@
+ package strconv_test
+ 
+ import (
+-	"fmt";
+ 	. "strconv";
+ 	"testing";
+ )
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index c38762dfb7..89092a6342 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -6,7 +6,6 @@ package strconv_test
+ import (
+ 	"bufio";
+ 	"fmt";
+-	"io";
+ 	"os";
+ 	"strconv";
+ 	"strings";
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index 554c10b8b8..56f5fb97c8 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -5,8 +5,6 @@
+ package strconv_test
+ 
+ import (
+-	"fmt";
+-	"os";
+ 	. "strconv";
+ 	"testing";
+ )
+diff --git a/src/pkg/syscall/syscall.go b/src/pkg/syscall/syscall.go
+index 59f35b2bfb..c191352558 100644
+--- a/src/pkg/syscall/syscall.go
++++ b/src/pkg/syscall/syscall.go
+@@ -11,8 +11,6 @@
+ // the manuals for the appropriate operating system.
+ package syscall
+ 
+-import "unsafe"
+-
+ func Syscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index 130a26427f..bbdfcb4bb8 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes";
+ 	"fmt";
+ 	"io";
+-	"reflect";
+ 	"strings";
+ )
+ 
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index d3ce37863a..11996f609b 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -9,8 +9,6 @@ import (
+ 	"container/vector";
+ 	"fmt";
+ 	"io";
+-	"os";
+-	"reflect";
+ 	"testing";
+ )
+ 
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 6f9ab12cb4..ee57edd454 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -7,7 +7,6 @@ package time
+ import (
+ 	"os";
+ 	"syscall";
+-	"unsafe";
+ )
+ 
+ // Sleep pauses the current goroutine for ns nanoseconds.
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 47ee84fc7e..e716ba57a3 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -4,11 +4,6 @@
+ 
+ package time
+ 
+-import (
+-	"syscall";
+-	"unsafe";
+-)
+-
+ // TODO(rsc): This implementation of Tick is a
+ // simple placeholder.  Eventually, there will need to be
+ // a single central time server no matter how many tickers
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 9c689ca2db..3f06a74a2f 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -6,7 +6,6 @@ package utf8_test
+ 
+ import (
+ 	"bytes";
+-	"fmt";
+ 	"strings";
+ 	"testing";
+ 	. "utf8";
+diff --git a/test/bench/binary-tree-freelist.go b/test/bench/binary-tree-freelist.go
+index 7babb15fc2..0d58d9adda 100644
+--- a/test/bench/binary-tree-freelist.go
++++ b/test/bench/binary-tree-freelist.go
+@@ -39,7 +39,6 @@ package main
+ import (
+ 	"flag";
+ 	"fmt";
+-	"os";
+ )
+ 
+ var n = flag.Int("n", 15, "depth")
+diff --git a/test/bench/binary-tree.go b/test/bench/binary-tree.go
+index 4e25a357be..827fe463ee 100644
+--- a/test/bench/binary-tree.go
++++ b/test/bench/binary-tree.go
+@@ -39,7 +39,6 @@ package main
+ import (
+ 	"flag";
+ 	"fmt";
+-	"os";
+ )
+ 
+ var n = flag.Int("n", 15, "depth")
+diff --git a/test/bigalg.go b/test/bigalg.go
+index 89ece01b98..31ce222d61 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -6,11 +6,6 @@
+ 
+ package main
+ 
+-import (
+-	"fmt";
+-	"os";
+-)
+-
+ type T struct {
+ 	a float64;
+ 	b int64;
+diff --git a/test/fixedbugs/bug106.dir/bug1.go b/test/fixedbugs/bug106.dir/bug1.go
+index 87f4fbb9db..0f1d20e47d 100644
+--- a/test/fixedbugs/bug106.dir/bug1.go
++++ b/test/fixedbugs/bug106.dir/bug1.go
+@@ -4,5 +4,5 @@
+ 
+ package bug1
+ 
+-import "./bug0"
++import _ "./bug0"
+ 
+diff --git a/test/fixedbugs/bug107.go b/test/fixedbugs/bug107.go
+index 87cdca7fc3..d0b062a659 100644
+--- a/test/fixedbugs/bug107.go
++++ b/test/fixedbugs/bug107.go
+@@ -6,6 +6,7 @@
+ 
+ package main
+ import os "os"
++type _ os.Error
+ func f() (os int) {
+ 	 // In the next line "os" should refer to the result variable, not
+ 	 // to the package.
+diff --git a/test/fixedbugs/bug129.go b/test/fixedbugs/bug129.go
+index f9f6dd0313..d1e2d8b563 100644
+--- a/test/fixedbugs/bug129.go
++++ b/test/fixedbugs/bug129.go
+@@ -6,7 +6,9 @@
+ 
+ package foo
+ import "fmt"
++
+ func f() {
++	fmt.Println();
+ 	fmt := 1;
+ 	_ = fmt;
+ }
+diff --git a/test/fixedbugs/bug133.dir/bug2.go b/test/fixedbugs/bug133.dir/bug2.go
+index cfbb558bfd..e531001120 100644
+--- a/test/fixedbugs/bug133.dir/bug2.go
++++ b/test/fixedbugs/bug133.dir/bug2.go
+@@ -4,7 +4,7 @@
+ 
+ package bug2
+ 
+-import "./bug1"
++import _ "./bug1"
+ import "./bug0"
+ 
+ type T2 struct { t bug0.T }
+diff --git a/test/fixedbugs/bug163.go b/test/fixedbugs/bug163.go
+index ac47267fa8..919298e6f7 100644
+--- a/test/fixedbugs/bug163.go
++++ b/test/fixedbugs/bug163.go
+@@ -6,8 +6,6 @@
+ 
+ package main
+ 
+-import "fmt"
+-
+ func main() {
+ 	x⊛y := 1;	// ERROR "identifier"
+ }
+diff --git a/test/fixedbugs/bug177.go b/test/fixedbugs/bug177.go
+index b2c68a0fe8..84ff59d2f5 100644
+--- a/test/fixedbugs/bug177.go
++++ b/test/fixedbugs/bug177.go
+@@ -5,7 +5,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-import "fmt"
+ import "reflect"
+ type S1 struct { i int }
+ type S2 struct { S1 }
+diff --git a/test/fixedbugs/bug188.go b/test/fixedbugs/bug188.go
+index 3851cb672c..e1cbce05dc 100644
+--- a/test/fixedbugs/bug188.go
++++ b/test/fixedbugs/bug188.go
+@@ -9,6 +9,7 @@ package main
+ import "sort"
+ 
+ func main() {
++	sort.Sort(nil);
+ 	var x int;
+ 	sort(x);	// ERROR "package"
+ }
+diff --git a/test/fixedbugs/bug191.dir/a.go b/test/fixedbugs/bug191.dir/a.go
+index 67340359d6..b87ad6f4fe 100644
+--- a/test/fixedbugs/bug191.dir/a.go
++++ b/test/fixedbugs/bug191.dir/a.go
+@@ -7,3 +7,6 @@ package a
+ func init() {
+ 	println("a");
+ }
++
++type T int;
++
+diff --git a/test/fixedbugs/bug191.dir/b.go b/test/fixedbugs/bug191.dir/b.go
+index a2d559630f..3e780ac0dd 100644
+--- a/test/fixedbugs/bug191.dir/b.go
++++ b/test/fixedbugs/bug191.dir/b.go
+@@ -7,3 +7,5 @@ package b
+ func init() {
+ 	println("b");
+ }
++
++type V int;
+diff --git a/test/fixedbugs/bug191.go b/test/fixedbugs/bug191.go
+index fe03f646d6..44fcccfc00 100644
+--- a/test/fixedbugs/bug191.go
++++ b/test/fixedbugs/bug191.go
+@@ -9,5 +9,8 @@ package main
+ import . "./a"
+ import . "./b"
+ 
++var _ T
++var _ V
++
+ func main() {
+ }
+diff --git a/test/initsyscall.go b/test/initsyscall.go
+index 7765de84db..139bb0acb6 100644
+--- a/test/initsyscall.go
++++ b/test/initsyscall.go
+@@ -12,7 +12,6 @@
+ 
+ package main
+ 
+-import "log"
+ import "time"
+ 
+ func f() {

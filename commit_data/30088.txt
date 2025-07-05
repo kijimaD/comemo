@@ -20,6 +20,69 @@ Date:   Mon Oct 24 08:52:04 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/31790
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path_windows_test.go | 29 +++++++++++++++++++----------
  1 file changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 6393629ccc..73e74be8d3 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -352,38 +352,47 @@ func TestToNorm(t *testing.T) {
+ 		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+ 	}
+ 
+-	cwd, err := os.Getwd()
++	tmp, err := ioutil.TempDir("", "testToNorm")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer func() {
+-		err := os.Chdir(cwd)
++		err := os.RemoveAll(tmp)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}()
+ 
+-	tmp, err := ioutil.TempDir("", "testToNorm")
++	// ioutil.TempDir might return "non-canonical" name.
++	ctmp, err := filepath.EvalSymlinks(tmp)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	defer os.RemoveAll(tmp)
+ 
+-	// ioutil.TempDir might return "non-canonical" name.
+-	tmp, err = filepath.EvalSymlinks(tmp)
++	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", ctmp, -1), 0777)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
+-	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", tmp, -1), 0777)
++	cwd, err := os.Getwd()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	defer func() {
++		err := os.Chdir(cwd)
++		if err != nil {
++			t.Fatal(err)
++		}
++	}()
++
++	tmpVol := filepath.VolumeName(ctmp)
++	if len(tmpVol) != 2 {
++		t.Fatalf("unexpected temp volume name %q", tmpVol)
++	}
+ 
+-	tmpVol := filepath.VolumeName(tmp)
+-	tmpNoVol := tmp[len(tmpVol):]
++	tmpNoVol := ctmp[len(tmpVol):]
+ 
+-	replacer := strings.NewReplacer("{{tmp}}", tmp, "{{tmpvol}}", tmpVol, "{{tmpnovol}}", tmpNoVol)
++	replacer := strings.NewReplacer("{{tmp}}", ctmp, "{{tmpvol}}", tmpVol, "{{tmpnovol}}", tmpNoVol)
+ 
+ 	for _, test := range testsDir {
+ 		wd := replacer.Replace(test.wd)

@@ -9,8 +9,78 @@ Date:   Wed Oct 7 18:23:28 2015 -0400
     Change-Id: I8ba81c622bce2a77a6142f941603198582eaf8a4
     Reviewed-on: https://go-review.googlesource.com/15570
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/all_test.go |  4 +++-
  src/math/modf.go     |  5 ++++-
  src/math/modf_386.s  | 13 +++++++++++++
  3 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index e18e45e020..53e84765cb 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -447,7 +447,7 @@ var log2 = []float64{
+ var modf = [][2]float64{
+ 	{4.0000000000000000e+00, 9.7901192488367350108546816e-01},
+ 	{7.0000000000000000e+00, 7.3887247457810456552351752e-01},
+-	{0.0000000000000000e+00, -2.7688005719200159404635997e-01},
++	{Copysign(0, -1), -2.7688005719200159404635997e-01},
+ 	{-5.0000000000000000e+00, -1.060361827107492160848778e-02},
+ 	{9.0000000000000000e+00, 6.3629370719841737980004837e-01},
+ 	{2.0000000000000000e+00, 9.2637723924396464525443662e-01},
+@@ -1356,11 +1356,13 @@ var log1pSC = []float64{
+ 
+ var vfmodfSC = []float64{
+ 	Inf(-1),
++	Copysign(0, -1),
+ 	Inf(1),
+ 	NaN(),
+ }
+ var modfSC = [][2]float64{
+ 	{Inf(-1), NaN()}, // [2]float64{Copysign(0, -1), Inf(-1)},
++	{Copysign(0, -1), Copysign(0, -1)},
+ 	{Inf(1), NaN()},  // [2]float64{0, Inf(1)},
+ 	{NaN(), NaN()},
+ }
+diff --git a/src/math/modf.go b/src/math/modf.go
+index 1e8376a938..81cb8b5a9c 100644
+--- a/src/math/modf.go
++++ b/src/math/modf.go
+@@ -14,9 +14,12 @@ func Modf(f float64) (int float64, frac float64)
+ 
+ func modf(f float64) (int float64, frac float64) {
+ 	if f < 1 {
+-		if f < 0 {
++		switch {
++		case f < 0:
+ 			int, frac = Modf(-f)
+ 			return -int, -frac
++		case f == 0:
++			return f, f // Return -0, -0 when f == -0
+ 		}
+ 		return 0, f
+ 	}
+diff --git a/src/math/modf_386.s b/src/math/modf_386.s
+index 3debd3b95d..d549f1d1a0 100644
+--- a/src/math/modf_386.s
++++ b/src/math/modf_386.s
+@@ -6,6 +6,19 @@
+ 
+ // func Modf(f float64) (int float64, frac float64)
+ TEXT ·Modf(SB),NOSPLIT,$0
++	// special case for f == -0.0
++	MOVL f+4(FP), DX	// high word
++	MOVL f+0(FP), AX	// low word
++	CMPL DX, $(1<<31)	// beginning of -0.0
++	JNE notNegativeZero
++	CMPL AX, $0			// could be denormalized
++	JNE notNegativeZero
++	MOVL AX, int+8(FP)
++	MOVL DX, int+12(FP)
++	MOVL AX, frac+16(FP)
++	MOVL DX, frac+20(FP)
++	RET
++notNegativeZero:
+ 	FMOVD   f+0(FP), F0  // F0=f
+ 	FMOVD   F0, F1       // F0=f, F1=f
+ 	FSTCW   -2(SP)       // save old Control Word

@@ -13,6 +13,21 @@ Date:   Sun May 8 08:32:07 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index e14f080a85..1e8ab54a4c 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -281,7 +281,8 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// below to handle the receiver. Panic if we see this scenario.
+ 	ft := f.Nname.Type()
+ 	if ft.NumRecvs() != 0 {
+-		panic("makeABIWrapper support for wrapping methods not implemented")
++		base.ErrorfAt(f.Pos(), "makeABIWrapper support for wrapping methods not implemented")
++		return
+ 	}
+ 
+ 	// Reuse f's types.Sym to create a new ODCLFUNC/function.

@@ -14,6 +14,19 @@ Date:   Sat May 18 20:15:38 2024 +0200
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/tls/common.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 14a8daedad..1b0f19da9e 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -93,7 +93,6 @@ const (
+ 	typeFinished            uint8 = 20
+ 	typeCertificateStatus   uint8 = 22
+ 	typeKeyUpdate           uint8 = 24
+-	typeNextProtocol        uint8 = 67  // Not IANA assigned
+ 	typeMessageHash         uint8 = 254 // synthetic message
+ )
+ 

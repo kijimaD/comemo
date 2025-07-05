@@ -28,7 +28,47 @@ Date:   Wed Apr 27 23:20:53 2011 -0400
     R=iant, r
     CC=golang-dev
     https://golang.org/cl/4444073
-
+---
  src/pkg/runtime/malloc.goc | 2 +-
  src/pkg/runtime/mheap.c    | 8 ++------
  2 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 41060682eb..1f2d6da404 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -346,7 +346,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		return nil;
+ 
+ 	if(p < h->arena_start || p+n - h->arena_start >= MaxArena32) {
+-		runtime·printf("runtime: memory allocated by OS not in usable range");
++		runtime·printf("runtime: memory allocated by OS not in usable range\n");
+ 		runtime·SysFree(p, n);
+ 		return nil;
+ 	}
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index a36ac15ba1..dde31ce345 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -180,11 +180,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	// Allocate a multiple of 64kB (16 pages).
+ 	npage = (npage+15)&~15;
+ 	ask = npage<<PageShift;
+-	if(ask > h->arena_end - h->arena_used) {
+-		runtime·printf("runtime: out of memory: no room in arena for %D-byte allocation (%D in use)\n", (uint64)ask, (uint64)(h->arena_used - h->arena_start));
+-		return false;
+-	}
+-	if(ask < HeapAllocChunk && HeapAllocChunk <= h->arena_end - h->arena_used)
++	if(ask < HeapAllocChunk)
+ 		ask = HeapAllocChunk;
+ 
+ 	v = runtime·MHeap_SysAlloc(h, ask);
+@@ -194,7 +190,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 			v = runtime·MHeap_SysAlloc(h, ask);
+ 		}
+ 		if(v == nil) {
+-			runtime·printf("runtime: out of memory: operating system refused %D-byte allocation\n", (uint64)ask);
++			runtime·printf("runtime: out of memory: cannot allocate %D-byte block (%D in use)\n", (uint64)ask, mstats.heap_sys);
+ 			return false;
+ 		}
+ 	}

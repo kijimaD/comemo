@@ -10,7 +10,69 @@ Date:   Tue Mar 23 15:24:27 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 10 +++++++++-
  test/fixedbugs/bug513.go              | 20 ++++++++++++++++++++
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index eb46ed99af..33c2c862b0 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -161,6 +161,8 @@ func ParseFlags() {
+ 	Flag.WB = true
+ 	Debug.InlFuncsWithClosures = 1
+ 
++	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
++
+ 	Flag.Cfg.ImportMap = make(map[string]string)
+ 
+ 	objabi.AddVersionFlag() // -V
+@@ -216,7 +218,9 @@ func ParseFlags() {
+ 	}
+ 	if Flag.Race || Flag.MSan {
+ 		// -race and -msan imply -d=checkptr for now.
+-		Debug.Checkptr = 1
++		if Debug.Checkptr == -1 { // if not set explicitly
++			Debug.Checkptr = 1
++		}
+ 	}
+ 
+ 	if Flag.CompilingRuntime && Flag.N != 0 {
+@@ -237,6 +241,10 @@ func ParseFlags() {
+ 		Debug.Libfuzzer = 0
+ 	}
+ 
++	if Debug.Checkptr == -1 { // if not set explicitly
++		Debug.Checkptr = 0
++	}
++
+ 	// set via a -d flag
+ 	Ctxt.Debugpcln = Debug.PCTab
+ }
+diff --git a/test/fixedbugs/bug513.go b/test/fixedbugs/bug513.go
+new file mode 100644
+index 0000000000..f7604f681c
+--- /dev/null
++++ b/test/fixedbugs/bug513.go
+@@ -0,0 +1,20 @@
++// run -race -gcflags=all=-d=checkptr=0
++// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Although -race turns on -d=checkptr, the explicit -d=checkptr=0
++// should override it.
++
++package main
++
++import "unsafe"
++
++var v1 = new([2]int16)
++var v2 *[3]int64
++
++func main() {
++	v2 = (*[3]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(&(*v1)[0]))))
++}

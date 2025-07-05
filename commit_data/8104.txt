@@ -11,6 +11,19 @@ Date:   Thu Apr 14 16:33:29 2011 -0700
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4419045
-
+---
  src/cmd/gofmt/rewrite.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 631c513310..47d1ac46ce 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -19,6 +19,7 @@ import (
+ 
+ func initRewrite() {
+ 	if *rewriteRule == "" {
++		rewrite = nil // disable any previous rewrite
+ 		return
+ 	}
+ 	f := strings.Split(*rewriteRule, "->", -1)

@@ -19,6 +19,29 @@ Date:   Wed Sep 8 14:03:53 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
-
+---
  test/run.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 76621d9242..790b54bfd2 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -780,11 +780,13 @@ func (t *test) run() {
+ 			}
+ 
+ 		default:
+-			// we don't know how to add -G for this test yet
+-			if *verbose {
+-				fmt.Printf("excl\t%s\n", t.goFileName())
++			if t.glevel != CompilerDefaultGLevel {
++				// we don't know how to add -G for this test yet
++				if *verbose {
++					fmt.Printf("excl\t%s\n", t.goFileName())
++				}
++				return false
+ 			}
+-			return false
+ 		}
+ 
+ 		return true

@@ -7,6 +7,19 @@ Date:   Fri Mar 13 08:34:00 2015 +1100
     Change-Id: I9f5ca101e0d2fe71cb1ca810cfeeb82c12f5f8e7
     Reviewed-on: https://go-review.googlesource.com/7491
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 5aa34b80d2..3f22496696 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -7,6 +7,7 @@ Darwin/ARM, a.k.a iOS. (https://golang.org/cl/2118, 2119, 3273, 2121, 2122, ...,
+ 
+ API additions and behavior changes:
+ 
++archive/zip: add WriterAt function (https://golang.org/cl/7445)
+ bufio: add Reader.Discard (https://golang.org/cl/2260)
+ crypto/cipher: clarify what will happen if len(src) != len(dst) for the Stream interface. (https://golang.org/cl/1754)
+ crypto/elliptic: add Name field to CurveParams struct (https://golang.org/cl/2133)

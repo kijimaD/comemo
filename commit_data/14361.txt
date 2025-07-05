@@ -7,6 +7,25 @@ Date:   Fri Nov 9 02:09:09 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6813101
-
+---
  src/pkg/net/ipsock.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index d1fcb4852f..9d48e8c103 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -8,7 +8,12 @@ package net
+ 
+ import "time"
+ 
+-var supportsIPv6, supportsIPv4map = probeIPv6Stack()
++var supportsIPv6, supportsIPv4map bool
++
++func init() {
++	sysInit()
++	supportsIPv6, supportsIPv4map = probeIPv6Stack()
++}
+ 
+ func firstFavoriteAddr(filter func(IP) IP, addrs []string) (addr IP) {
+ 	if filter == nil {

@@ -16,7 +16,83 @@ Date:   Sat Feb 20 21:36:12 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go      | 22 +++++-----------------
  src/cmd/compile/internal/gc/pgen_test.go | 14 ++++++++++++++
  2 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index ffc0ab9cfb..3471b977ed 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -186,21 +186,12 @@ func emitptrargsmap() {
+ // the top of the stack and increasing in size.
+ // Non-autos sort on offset.
+ func cmpstackvarlt(a, b *Node) bool {
+-	if a.Class != b.Class {
+-		if a.Class == PAUTO {
+-			return false
+-		}
+-		return true
++	if (a.Class == PAUTO) != (b.Class == PAUTO) {
++		return b.Class == PAUTO
+ 	}
+ 
+ 	if a.Class != PAUTO {
+-		if a.Xoffset < b.Xoffset {
+-			return true
+-		}
+-		if a.Xoffset > b.Xoffset {
+-			return false
+-		}
+-		return false
++		return a.Xoffset < b.Xoffset
+ 	}
+ 
+ 	if a.Used != b.Used {
+@@ -219,11 +210,8 @@ func cmpstackvarlt(a, b *Node) bool {
+ 		return ap
+ 	}
+ 
+-	if a.Type.Width < b.Type.Width {
+-		return false
+-	}
+-	if a.Type.Width > b.Type.Width {
+-		return true
++	if a.Type.Width != b.Type.Width {
++		return a.Type.Width > b.Type.Width
+ 	}
+ 
+ 	return a.Sym.Name < b.Sym.Name
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index ebc9101135..909b8a9507 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -40,6 +40,16 @@ func TestCmpstackvar(t *testing.T) {
+ 			Node{Class: PFUNC, Xoffset: 10},
+ 			false,
+ 		},
++		{
++			Node{Class: PPARAM, Xoffset: 10},
++			Node{Class: PPARAMOUT, Xoffset: 20},
++			true,
++		},
++		{
++			Node{Class: PPARAMOUT, Xoffset: 10},
++			Node{Class: PPARAM, Xoffset: 20},
++			true,
++		},
+ 		{
+ 			Node{Class: PAUTO, Used: true},
+ 			Node{Class: PAUTO, Used: false},
+@@ -101,6 +111,10 @@ func TestCmpstackvar(t *testing.T) {
+ 		if got != d.lt {
+ 			t.Errorf("want %#v < %#v", d.a, d.b)
+ 		}
++		// If we expect a < b to be true, check that b < a is false.
++		if d.lt && cmpstackvarlt(&d.b, &d.a) {
++			t.Errorf("unexpected %#v < %#v", d.b, d.a)
++		}
+ 	}
+ }
+ 

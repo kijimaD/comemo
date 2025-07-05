@@ -11,9 +11,96 @@ Date:   Sun Feb 23 16:20:40 2014 -0500
     R=jsing, iant, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/64340043
-
+---
  misc/cgo/testso/cgoso_c.c     |  1 +
  misc/cgo/testso/cgoso_unix.go | 20 ++++++++++++++++++++
  src/cmd/ld/data.c             |  9 +++++++--
  src/cmd/ld/symtab.c           |  2 +-
  4 files changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testso/cgoso_c.c b/misc/cgo/testso/cgoso_c.c
+index 27155c27f7..9b77a76fcf 100644
+--- a/misc/cgo/testso/cgoso_c.c
++++ b/misc/cgo/testso/cgoso_c.c
+@@ -17,6 +17,7 @@ __declspec(dllexport) void sofunc(void);
+ #else
+ extern void goCallback(void);
+ void setCallback(void *f) { (void)f; }
++__thread int tlsvar = 12345;
+ #endif
+ 
+ void sofunc(void)
+diff --git a/misc/cgo/testso/cgoso_unix.go b/misc/cgo/testso/cgoso_unix.go
+new file mode 100644
+index 0000000000..e86f992642
+--- /dev/null
++++ b/misc/cgo/testso/cgoso_unix.go
+@@ -0,0 +1,20 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd
++
++package cgosotest
++
++/*
++extern int __thread tlsvar;
++int *getTLS() { return &tlsvar; }
++*/
++import "C"
++
++func init() {
++	if v := *C.getTLS(); v != 12345 {
++		println("got", v)
++		panic("BAD TLS value")
++	}
++}
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 8acb72331c..8c6cfed862 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -303,7 +303,7 @@ void
+ dynrelocsym(LSym *s)
+ {
+ 	Reloc *r;
+-	
++
+ 	if(HEADTYPE == Hwindows) {
+ 		LSym *rel, *targ;
+ 
+@@ -312,6 +312,8 @@ dynrelocsym(LSym *s)
+ 			return;
+ 		for(r=s->r; r<s->r+s->nr; r++) {
+ 			targ = r->sym;
++			if(!targ->reachable)
++				diag("internal inconsistency: dynamic symbol %s is not reachable.", targ->name);
+ 			if(r->sym->plt == -2 && r->sym->got != -2) { // make dynimport JMP table for PE object files.
+ 				targ->plt = rel->size;
+ 				r->sym = rel;
+@@ -340,8 +342,11 @@ dynrelocsym(LSym *s)
+ 	}
+ 
+ 	for(r=s->r; r<s->r+s->nr; r++) {
+-		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
++		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256) {
++			if(!r->sym->reachable)
++				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
+ 			adddynrel(s, r);
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index c585f96e0f..d26ea0d04e 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -197,7 +197,7 @@ asmelfsym(void)
+ 	genasmsym(putelfsym);
+ 	
+ 	for(s=ctxt->allsym; s!=S; s=s->allsym) {
+-		if(s->type != SHOSTOBJ && s->type != SDYNIMPORT)
++		if(s->type != SHOSTOBJ && !(s->type == SDYNIMPORT && s->reachable))
+ 			continue;
+ 		if(s->type == SDYNIMPORT)
+ 			name = s->extname;

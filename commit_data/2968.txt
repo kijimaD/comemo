@@ -35,7 +35,7 @@ Date:   Thu Aug 13 09:42:28 2009 -0700
     DELTA=15  (0 added, 0 deleted, 15 changed)
     OCL=33168
     CL=33175
-
+---
  test/fixedbugs/bug039.go | 4 ++--
  test/fixedbugs/bug049.go | 2 +-
  test/fixedbugs/bug062.go | 2 +-
@@ -49,3 +49,156 @@ Date:   Thu Aug 13 09:42:28 2009 -0700
  test/fixedbugs/bug182.go | 2 +-
  test/fixedbugs/bug183.go | 4 ++--
  12 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/test/fixedbugs/bug039.go b/test/fixedbugs/bug039.go
+index 712e843326..591b7fe7db 100644
+--- a/test/fixedbugs/bug039.go
++++ b/test/fixedbugs/bug039.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ 
+-func main (x int) {
+-  var x int;  // ERROR "redecl"
++func main (x int) {	// GCCGO_ERROR "previous"
++  var x int;  // ERROR "redecl|redefinition"
+ }
+diff --git a/test/fixedbugs/bug049.go b/test/fixedbugs/bug049.go
+index 13527e8722..8fd67ccd51 100644
+--- a/test/fixedbugs/bug049.go
++++ b/test/fixedbugs/bug049.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func atom(s string) {
+-	if s == nil {	// ERROR "nil"
++	if s == nil {	// ERROR "nil|incompatible"
+ 		return;
+ 	}
+ }
+diff --git a/test/fixedbugs/bug062.go b/test/fixedbugs/bug062.go
+index 4346c5a5f9..c869eb2224 100644
+--- a/test/fixedbugs/bug062.go
++++ b/test/fixedbugs/bug062.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-  var s string = nil;  // ERROR "illegal|invalid|cannot"
++  var s string = nil;  // ERROR "illegal|invalid|incompatible|cannot"
+ }
+diff --git a/test/fixedbugs/bug086.go b/test/fixedbugs/bug086.go
+index 7d85063f1b..f96472fbb3 100644
+--- a/test/fixedbugs/bug086.go
++++ b/test/fixedbugs/bug086.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-func f() int {	// ERROR "return"
++func f() int {	// ERROR "return|control"
+ 	if false {
+ 		return 0;
+ 	}
+diff --git a/test/fixedbugs/bug103.go b/test/fixedbugs/bug103.go
+index da212121c4..b789be1c45 100644
+--- a/test/fixedbugs/bug103.go
++++ b/test/fixedbugs/bug103.go
+@@ -9,6 +9,6 @@ package main
+ func f() /* no return type */ {}
+ 
+ func main() {
+-	x := f();  // ERROR "mismatch|as value"
++	x := f();  // ERROR "mismatch|as value|no type"
+ }
+ 
+diff --git a/test/fixedbugs/bug121.go b/test/fixedbugs/bug121.go
+index 6473fa995a..7bd721815d 100644
+--- a/test/fixedbugs/bug121.go
++++ b/test/fixedbugs/bug121.go
+@@ -10,6 +10,6 @@ type T func()
+ 
+ type I interface {
+ 	f, g ();
+-	h T;  // ERROR "syntax"
++	h T;  // ERROR "syntax|signature"
+ }
+ 
+diff --git a/test/fixedbugs/bug131.go b/test/fixedbugs/bug131.go
+index c2644c4a3f..8205aa56f3 100644
+--- a/test/fixedbugs/bug131.go
++++ b/test/fixedbugs/bug131.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+   const a uint64 = 10;
+-  var b int64 = a;	// ERROR "convert|cannot"
++  var b int64 = a;	// ERROR "convert|cannot|incompatible"
+ }
+diff --git a/test/fixedbugs/bug165.go b/test/fixedbugs/bug165.go
+index 8ce67a46db..a4fe715c2c 100644
+--- a/test/fixedbugs/bug165.go
++++ b/test/fixedbugs/bug165.go
+@@ -11,5 +11,5 @@ type I interface {
+ }
+ 
+ type S struct {
+-	m map[S] bool;	// ERROR "map key type"
++	m map[S] bool;	// ERROR "map key type|complete"
+ }
+diff --git a/test/fixedbugs/bug171.go b/test/fixedbugs/bug171.go
+index 03f47e99e5..5357b2adc6 100644
+--- a/test/fixedbugs/bug171.go
++++ b/test/fixedbugs/bug171.go
+@@ -6,5 +6,5 @@
+ 
+ package main
+ 
+-func f() int { }	// ERROR "return"
+-func g() (foo int) { }	// ERROR "return"
++func f() int { }	// ERROR "return|control"
++func g() (foo int) { }	// ERROR "return|control"
+diff --git a/test/fixedbugs/bug172.go b/test/fixedbugs/bug172.go
+index d4ce65ec62..1837a1158a 100644
+--- a/test/fixedbugs/bug172.go
++++ b/test/fixedbugs/bug172.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func f() {
+ 	a := true;
+-	a |= a;	// ERROR "illegal.*OR|bool"
++	a |= a;	// ERROR "illegal.*OR|bool|expected"
+ }
+diff --git a/test/fixedbugs/bug182.go b/test/fixedbugs/bug182.go
+index 3e3d3c4b1e..81df2ca13c 100644
+--- a/test/fixedbugs/bug182.go
++++ b/test/fixedbugs/bug182.go
+@@ -8,6 +8,6 @@ package main
+ 
+ func main() {
+ 	x := 0;
+-	if x {	// ERROR "x.*int"
++	if x {	// ERROR "x.*int|bool"
+ 	}
+ }
+diff --git a/test/fixedbugs/bug183.go b/test/fixedbugs/bug183.go
+index 5c3ef49341..47f8bfe746 100644
+--- a/test/fixedbugs/bug183.go
++++ b/test/fixedbugs/bug183.go
+@@ -11,7 +11,7 @@ type T int
+ func f() {
+ 	var x struct { T };
+ 	var y struct { T T };
+-	x = y	// ERROR "cannot"
++	x = y	// ERROR "cannot|incompatible"
+ }
+ 
+ type T1 struct { T }
+@@ -20,6 +20,6 @@ type T2 struct { T T }
+ func g() {
+ 	var x T1;
+ 	var y T2;
+-	x = y	// ERROR "cannot"
++	x = y	// ERROR "cannot|incompatible"
+ }
+ 

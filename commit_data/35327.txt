@@ -19,9 +19,109 @@ Date:   Thu Dec 21 14:15:20 2017 -0800
     Change-Id: I35eaf010e5cb8e43696efba7d77cefffb6f3deb2
     Reviewed-on: https://go-review.googlesource.com/85198
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/builtins.go        | 13 +++++++++++++
  src/go/types/check.go           | 15 ++++++++-------
  src/go/types/return.go          | 12 +++---------
  src/go/types/testdata/stmt1.src | 18 ++++++++++++++++++
  4 files changed, 42 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 66548231fe..f22851e240 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -470,6 +470,19 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Panic:
+ 		// panic(x)
++		// record panic call if inside a function with result parameters
++		// (for use in Checker.isTerminating)
++		if check.sig.results.Len() > 0 {
++			// function has result parameters
++			p := check.isPanic
++			if p == nil {
++				// allocate lazily
++				p = make(map[*ast.CallExpr]bool)
++				check.isPanic = p
++			}
++			p[call] = true
++		}
++
+ 		check.assignment(x, &emptyInterface, "argument to panic")
+ 		if x.mode == invalid {
+ 			return
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index aa0fd123e6..d1b7155cf5 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -41,13 +41,14 @@ type exprInfo struct {
+ 
+ // A context represents the context within which an object is type-checked.
+ type context struct {
+-	decl          *declInfo      // package-level declaration whose init expression/function body is checked
+-	scope         *Scope         // top-most scope for lookups
+-	pos           token.Pos      // if valid, identifiers are looked up as if at position pos (used by Eval)
+-	iota          constant.Value // value of iota in a constant declaration; nil otherwise
+-	sig           *Signature     // function signature if inside a function; nil otherwise
+-	hasLabel      bool           // set if a function makes use of labels (only ~1% of functions); unused outside functions
+-	hasCallOrRecv bool           // set if an expression contains a function call or channel receive operation
++	decl          *declInfo              // package-level declaration whose init expression/function body is checked
++	scope         *Scope                 // top-most scope for lookups
++	pos           token.Pos              // if valid, identifiers are looked up as if at position pos (used by Eval)
++	iota          constant.Value         // value of iota in a constant declaration; nil otherwise
++	sig           *Signature             // function signature if inside a function; nil otherwise
++	isPanic       map[*ast.CallExpr]bool // set of panic call expressions (used for termination check)
++	hasLabel      bool                   // set if a function makes use of labels (only ~1% of functions); unused outside functions
++	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
+ }
+ 
+ // lookup looks up name in the current context and returns the matching object, or nil.
+diff --git a/src/go/types/return.go b/src/go/types/return.go
+index 0c1447f89b..2d34a70b98 100644
+--- a/src/go/types/return.go
++++ b/src/go/types/return.go
+@@ -28,15 +28,9 @@ func (check *Checker) isTerminating(s ast.Stmt, label string) bool {
+ 		return check.isTerminating(s.Stmt, s.Label.Name)
+ 
+ 	case *ast.ExprStmt:
+-		// the predeclared (possibly parenthesized) panic() function is terminating
+-		if call, _ := unparen(s.X).(*ast.CallExpr); call != nil {
+-			if id, _ := call.Fun.(*ast.Ident); id != nil {
+-				if _, obj := check.scope.LookupParent(id.Name, token.NoPos); obj != nil {
+-					if b, _ := obj.(*Builtin); b != nil && b.id == _Panic {
+-						return true
+-					}
+-				}
+-			}
++		// calling the predeclared (possibly parenthesized) panic() function is terminating
++		if call, ok := unparen(s.X).(*ast.CallExpr); ok && check.isPanic[call] {
++			return true
+ 		}
+ 
+ 	case *ast.ReturnStmt:
+diff --git a/src/go/types/testdata/stmt1.src b/src/go/types/testdata/stmt1.src
+index 24ad6ebdf1..f79f92058b 100644
+--- a/src/go/types/testdata/stmt1.src
++++ b/src/go/types/testdata/stmt1.src
+@@ -239,3 +239,21 @@ L:	select {
+ 	}
+ 	; ; ;
+ } /* ERROR "missing return" */
++
++func parenPanic() int {
++	((((((panic)))(0))))
++}
++
++func issue23218a() int {
++	{
++		panic := func(interface{}){}
++		panic(0)
++	}
++} /* ERROR "missing return" */
++
++func issue23218b() int {
++	{
++		panic := func(interface{}){}
++		((((panic))))(0)
++	}
++} /* ERROR "missing return" */

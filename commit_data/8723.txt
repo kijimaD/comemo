@@ -9,10 +9,344 @@ Date:   Tue Jun 14 13:32:52 2011 -0400
     R=fullung, rsc
     CC=golang-dev
     https://golang.org/cl/4602044
-
+---
  src/pkg/net/interface.go       | 36 ++++++++++++++++++++++-
  src/pkg/net/interface_bsd.go   | 65 +++++++++++++---------------------------
  src/pkg/net/interface_linux.go | 67 ++++++++++++++----------------------------
  src/pkg/net/interface_stub.go  | 28 ------------------
  src/pkg/net/interface_test.go  | 32 +++-----------------
  5 files changed, 82 insertions(+), 146 deletions(-)
+
+diff --git a/src/pkg/net/interface.go b/src/pkg/net/interface.go
+index f622487ab0..f6de36f645 100644
+--- a/src/pkg/net/interface.go
++++ b/src/pkg/net/interface.go
+@@ -34,7 +34,41 @@ type Interface struct {
+ 	MTU          int          // maximum transmission unit
+ 	Name         string       // e.g., "en0", "lo0", "eth0.100"
+ 	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
+-	rawFlags     int
++	Flags        Flags        // e.g., FlagUp, FlagLoopback, FlagMulticast
++}
++
++type Flags uint
++
++const (
++	FlagUp           Flags = 1 << iota // interface is up
++	FlagBroadcast                      // interface supports broadcast access capability
++	FlagLoopback                       // interface is a loopback interface
++	FlagPointToPoint                   // interface belongs to a point-to-point link
++	FlagMulticast                      // interface supports multicast access capability
++)
++
++var flagNames = []string{
++	"up",
++	"broadcast",
++	"loopback",
++	"pointtopoint",
++	"multicast",
++}
++
++func (f Flags) String() string {
++	s := ""
++	for i, name := range flagNames {
++		if f&(1<<uint(i)) != 0 {
++			if s != "" {
++				s += "|"
++			}
++			s += name
++		}
++	}
++	if s == "" {
++		s = "0"
++	}
++	return s
+ }
+ 
+ // Addrs returns interface addresses for a specific interface.
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index 141b95b381..a4c3e71feb 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -12,49 +12,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// IsUp returns true if ifi is up.
+-func (ifi *Interface) IsUp() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_UP != 0
+-}
+-
+-// IsLoopback returns true if ifi is a loopback interface.
+-func (ifi *Interface) IsLoopback() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_LOOPBACK != 0
+-}
+-
+-// CanBroadcast returns true if ifi supports a broadcast access
+-// capability.
+-func (ifi *Interface) CanBroadcast() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_BROADCAST != 0
+-}
+-
+-// IsPointToPoint returns true if ifi belongs to a point-to-point
+-// link.
+-func (ifi *Interface) IsPointToPoint() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_POINTOPOINT != 0
+-}
+-
+-// CanMulticast returns true if ifi supports a multicast access
+-// capability.
+-func (ifi *Interface) CanMulticast() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_MULTICAST != 0
+-}
+-
+ // If the ifindex is zero, interfaceTable returns mappings of all
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+@@ -106,7 +63,7 @@ func newLink(m *syscall.InterfaceMessage) ([]Interface, os.Error) {
+ 			// NOTE: SockaddrDatalink.Data is minimum work area,
+ 			// can be larger.
+ 			m.Data = m.Data[unsafe.Offsetof(v.Data):]
+-			ifi := Interface{Index: int(m.Header.Index), rawFlags: int(m.Header.Flags)}
++			ifi := Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
+ 			var name [syscall.IFNAMSIZ]byte
+ 			for i := 0; i < int(v.Nlen); i++ {
+ 				name[i] = byte(m.Data[i])
+@@ -125,6 +82,26 @@ func newLink(m *syscall.InterfaceMessage) ([]Interface, os.Error) {
+ 	return ift, nil
+ }
+ 
++func linkFlags(rawFlags int32) Flags {
++	var f Flags
++	if rawFlags&syscall.IFF_UP != 0 {
++		f |= FlagUp
++	}
++	if rawFlags&syscall.IFF_BROADCAST != 0 {
++		f |= FlagBroadcast
++	}
++	if rawFlags&syscall.IFF_LOOPBACK != 0 {
++		f |= FlagLoopback
++	}
++	if rawFlags&syscall.IFF_POINTOPOINT != 0 {
++		f |= FlagPointToPoint
++	}
++	if rawFlags&syscall.IFF_MULTICAST != 0 {
++		f |= FlagMulticast
++	}
++	return f
++}
++
+ // If the ifindex is zero, interfaceAddrTable returns addresses
+ // for all network interfaces.  Otherwise it returns addresses
+ // for a specific interface.
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index 5c9657834e..e869cd6304 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -12,49 +12,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-// IsUp returns true if ifi is up.
+-func (ifi *Interface) IsUp() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_UP != 0
+-}
+-
+-// IsLoopback returns true if ifi is a loopback interface.
+-func (ifi *Interface) IsLoopback() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_LOOPBACK != 0
+-}
+-
+-// CanBroadcast returns true if ifi supports a broadcast access
+-// capability.
+-func (ifi *Interface) CanBroadcast() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_BROADCAST != 0
+-}
+-
+-// IsPointToPoint returns true if ifi belongs to a point-to-point
+-// link.
+-func (ifi *Interface) IsPointToPoint() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_POINTOPOINT != 0
+-}
+-
+-// CanMulticast returns true if ifi supports a multicast access
+-// capability.
+-func (ifi *Interface) CanMulticast() bool {
+-	if ifi == nil {
+-		return false
+-	}
+-	return ifi.rawFlags&syscall.IFF_MULTICAST != 0
+-}
+-
+ // If the ifindex is zero, interfaceTable returns mappings of all
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+@@ -98,7 +55,7 @@ done:
+ }
+ 
+ func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interface {
+-	ifi := Interface{Index: int(ifim.Index), rawFlags: int(ifim.Flags)}
++	ifi := Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
+ 	for _, a := range attrs {
+ 		switch a.Attr.Type {
+ 		case syscall.IFLA_ADDRESS:
+@@ -112,7 +69,7 @@ func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interfac
+ 				ifi.HardwareAddr = a.Value[:]
+ 			}
+ 		case syscall.IFLA_IFNAME:
+-			ifi.Name = string(a.Value[:])
++			ifi.Name = string(a.Value[:len(a.Value)-1])
+ 		case syscall.IFLA_MTU:
+ 			ifi.MTU = int(uint32(a.Value[3])<<24 | uint32(a.Value[2])<<16 | uint32(a.Value[1])<<8 | uint32(a.Value[0]))
+ 		}
+@@ -120,6 +77,26 @@ func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interfac
+ 	return ifi
+ }
+ 
++func linkFlags(rawFlags uint32) Flags {
++	var f Flags
++	if rawFlags&syscall.IFF_UP != 0 {
++		f |= FlagUp
++	}
++	if rawFlags&syscall.IFF_BROADCAST != 0 {
++		f |= FlagBroadcast
++	}
++	if rawFlags&syscall.IFF_LOOPBACK != 0 {
++		f |= FlagLoopback
++	}
++	if rawFlags&syscall.IFF_POINTOPOINT != 0 {
++		f |= FlagPointToPoint
++	}
++	if rawFlags&syscall.IFF_MULTICAST != 0 {
++		f |= FlagMulticast
++	}
++	return f
++}
++
+ // If the ifindex is zero, interfaceAddrTable returns addresses
+ // for all network interfaces.  Otherwise it returns addresses
+ // for a specific interface.
+diff --git a/src/pkg/net/interface_stub.go b/src/pkg/net/interface_stub.go
+index feb871bb5b..24a7431c56 100644
+--- a/src/pkg/net/interface_stub.go
++++ b/src/pkg/net/interface_stub.go
+@@ -8,34 +8,6 @@ package net
+ 
+ import "os"
+ 
+-// IsUp returns true if ifi is up.
+-func (ifi *Interface) IsUp() bool {
+-	return false
+-}
+-
+-// IsLoopback returns true if ifi is a loopback interface.
+-func (ifi *Interface) IsLoopback() bool {
+-	return false
+-}
+-
+-// CanBroadcast returns true if ifi supports a broadcast access
+-// capability.
+-func (ifi *Interface) CanBroadcast() bool {
+-	return false
+-}
+-
+-// IsPointToPoint returns true if ifi belongs to a point-to-point
+-// link.
+-func (ifi *Interface) IsPointToPoint() bool {
+-	return false
+-}
+-
+-// CanMulticast returns true if ifi supports a multicast access
+-// capability.
+-func (ifi *Interface) CanMulticast() bool {
+-	return false
+-}
+-
+ // If the ifindex is zero, interfaceTable returns mappings of all
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+index 9384346237..ac523a0490 100644
+--- a/src/pkg/net/interface_test.go
++++ b/src/pkg/net/interface_test.go
+@@ -19,30 +19,6 @@ func sameInterface(i, j *Interface) bool {
+ 	return false
+ }
+ 
+-func interfaceFlagsString(ifi *Interface) string {
+-	fs := "<"
+-	if ifi.IsUp() {
+-		fs += "UP,"
+-	}
+-	if ifi.CanBroadcast() {
+-		fs += "BROADCAST,"
+-	}
+-	if ifi.IsLoopback() {
+-		fs += "LOOPBACK,"
+-	}
+-	if ifi.IsPointToPoint() {
+-		fs += "POINTOPOINT,"
+-	}
+-	if ifi.CanMulticast() {
+-		fs += "MULTICAST,"
+-	}
+-	if len(fs) > 1 {
+-		fs = fs[:len(fs)-1]
+-	}
+-	fs += ">"
+-	return fs
+-}
+-
+ func TestInterfaces(t *testing.T) {
+ 	ift, err := Interfaces()
+ 	if err != nil {
+@@ -69,11 +45,11 @@ func TestInterfaces(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("Interface.Addrs() failed: %v", err)
+ 		}
+-		t.Logf("%s: flags %s, ifindex %v, mtu %v\n", ifi.Name, interfaceFlagsString(&ifi), ifi.Index, ifi.MTU)
++		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
+ 		for _, ifa := range ifat {
+-			t.Logf("\tinterface address %s\n", ifa.String())
++			t.Logf("\tinterface address %q\n", ifa.String())
+ 		}
+-		t.Logf("\thardware address %v", ifi.HardwareAddr.String())
++		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
+ 	}
+ }
+ 
+@@ -85,6 +61,6 @@ func TestInterfaceAddrs(t *testing.T) {
+ 	t.Logf("table: len/cap = %v/%v\n", len(ifat), cap(ifat))
+ 
+ 	for _, ifa := range ifat {
+-		t.Logf("interface address %s\n", ifa.String())
++		t.Logf("interface address %q\n", ifa.String())
+ 	}
+ }

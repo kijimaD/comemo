@@ -9,6 +9,21 @@ Date:   Tue Jun 24 17:19:10 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/110150045
-
+---
  src/pkg/regexp/all_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 301a1dfcd8..5fadb67c09 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -475,6 +475,9 @@ func TestSplit(t *testing.T) {
+ 
+ // This ran out of stack before issue 7608 was fixed.
+ func TestOnePassCutoff(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
+ 	MustCompile(`^(?:x{1,1000}){1,1000}$`)
+ }
+ 

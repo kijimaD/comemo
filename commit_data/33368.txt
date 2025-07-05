@@ -12,7 +12,7 @@ Date:   Sat Aug 12 22:52:17 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go | 6 +++---
  src/cmd/link/internal/arm/asm.go   | 4 ++--
  src/cmd/link/internal/arm64/asm.go | 4 ++--
@@ -21,3 +21,169 @@ Date:   Sat Aug 12 22:52:17 2017 +0900
  src/cmd/link/internal/ld/pe.go     | 4 ++--
  src/cmd/link/internal/x86/asm.go   | 6 +++---
  7 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index d2f63d3d05..5f2a74d8cf 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -434,7 +434,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 
+ 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_PCREL || r.Type == objabi.R_GOTPCREL {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -443,7 +443,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 	}
+@@ -496,7 +496,7 @@ func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	rs := r.Xsym
+ 
+ 	if rs.Dynid < 0 {
+-		ld.Errorf(s, "reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
++		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 0f281c1599..2fc9329b61 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -363,7 +363,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 
+ 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -372,7 +372,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 92a87f99f7..8d3c6fcb57 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -158,7 +158,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	// UNSIGNED relocation at all.
+ 	if rs.Type == ld.SHOSTOBJ || r.Type == objabi.R_CALLARM64 || r.Type == objabi.R_ADDRARM64 || r.Type == objabi.R_ADDR {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -167,7 +167,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 23e0e4f2b0..691e74cc97 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -432,7 +432,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		// shared libraries, and Solaris needs it always
+ 		if Headtype != objabi.Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT && !ctxt.DynlinkingGo() {
+ 			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
+-				Errorf(s, "unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
++				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, r.Type)
+ 			}
+ 		}
+ 		if r.Sym != nil && r.Sym.Type != STLSBSS && r.Type != objabi.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
+@@ -828,7 +828,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
+ 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
+ 			}
+ 			if !Thearch.Adddynrel(ctxt, s, r) {
+-				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d stype=%d)", r.Sym.Name, r.Type, r.Sym.Type)
++				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, r.Type, r.Sym.Type, r.Sym.Type)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 78f8d6e70e..9ac55ada1d 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1812,13 +1812,13 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
+ 				continue
+ 			}
+ 			if r.Xsym.ElfsymForReloc() == 0 {
+-				Errorf(sym, "reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
++				Errorf(sym, "reloc %d (%s) to non-elf symbol %s (outer=%s) %d (%s)", r.Type, r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+ 			}
+ 			if !r.Xsym.Attr.Reachable() {
+ 				Errorf(sym, "unreachable reloc %v target %v", r.Type, r.Xsym.Name)
+ 			}
+ 			if Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
+-				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
++				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, r.Type, r.Siz, r.Sym.Name)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index f26c83ee30..caa3eabb51 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -839,10 +839,10 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol, base uint64) int {
+ 			}
+ 
+ 			if r.Xsym.Dynid < 0 {
+-				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
++				Errorf(sym, "reloc %d (%s) to non-coff symbol %s (outer=%s) %d (%s)", r.Type, r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type, r.Sym.Type)
+ 			}
+ 			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-base)) {
+-				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
++				Errorf(sym, "unsupported obj reloc %d (%s)/%d to %s", r.Type, r.Type, r.Siz, r.Sym.Name)
+ 			}
+ 
+ 			relocs++
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 3649e6a8f8..157b426971 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -416,7 +416,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 
+ 	if rs.Type == ld.SHOSTOBJ {
+ 		if rs.Dynid < 0 {
+-			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 
+@@ -425,7 +425,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	} else {
+ 		v = uint32(rs.Sect.Extnum)
+ 		if v == 0 {
+-			ld.Errorf(s, "reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
++			ld.Errorf(s, "reloc %d (%s) to symbol %s in non-macho section %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Sect.Name, rs.Type, rs.Type)
+ 			return -1
+ 		}
+ 	}
+@@ -471,7 +471,7 @@ func pereloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) bool {
+ 	rs := r.Xsym
+ 
+ 	if rs.Dynid < 0 {
+-		ld.Errorf(s, "reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
++		ld.Errorf(s, "reloc %d (%s) to non-coff symbol %s type=%d (%s)", r.Type, r.Type, rs.Name, rs.Type, rs.Type)
+ 		return false
+ 	}
+ 

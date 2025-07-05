@@ -13,9 +13,381 @@ Date:   Thu Jan 19 13:51:37 2012 -0800
     R=rsc, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5553066
-
+---
  src/pkg/html/template/escape_test.go      | 26 ++++++------
  src/pkg/text/template/multi_test.go       |  4 +-
  src/pkg/text/template/parse/node.go       | 67 +++++++++++++++++++++++--------
  src/pkg/text/template/parse/parse_test.go | 56 +++++++++++++-------------
  4 files changed, 92 insertions(+), 61 deletions(-)
+
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 2ce1fb566a..0e31674f05 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -899,7 +899,7 @@ func TestErrors(t *testing.T) {
+ 		},
+ 		{
+ 			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
+-			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
++			"z:1: {{.H}} appears in an ambiguous URL context",
+ 		},
+ 		{
+ 			`<a onclick="alert('Hello \`,
+@@ -1490,62 +1490,62 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 	}{
+ 		{
+ 			"{{.X}}",
+-			"[(command: [F=[X]])]",
++			".X",
+ 			[]string{},
+ 		},
+ 		{
+ 			"{{.X | html}}",
+-			"[(command: [F=[X]]) (command: [I=html])]",
++			".X | html",
+ 			[]string{},
+ 		},
+ 		{
+ 			"{{.X}}",
+-			"[(command: [F=[X]]) (command: [I=html])]",
++			".X | html",
+ 			[]string{"html"},
+ 		},
+ 		{
+ 			"{{.X | html}}",
+-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			".X | html | urlquery",
+ 			[]string{"urlquery"},
+ 		},
+ 		{
+ 			"{{.X | html | urlquery}}",
+-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			".X | html | urlquery",
+ 			[]string{"urlquery"},
+ 		},
+ 		{
+ 			"{{.X | html | urlquery}}",
+-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			".X | html | urlquery",
+ 			[]string{"html", "urlquery"},
+ 		},
+ 		{
+ 			"{{.X | html | urlquery}}",
+-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			".X | html | urlquery",
+ 			[]string{"html"},
+ 		},
+ 		{
+ 			"{{.X | urlquery}}",
+-			"[(command: [F=[X]]) (command: [I=html]) (command: [I=urlquery])]",
++			".X | html | urlquery",
+ 			[]string{"html", "urlquery"},
+ 		},
+ 		{
+ 			"{{.X | html | print}}",
+-			"[(command: [F=[X]]) (command: [I=urlquery]) (command: [I=html]) (command: [I=print])]",
++			".X | urlquery | html | print",
+ 			[]string{"urlquery", "html"},
+ 		},
+ 	}
+-	for _, test := range tests {
++	for i, test := range tests {
+ 		tmpl := template.Must(template.New("test").Parse(test.input))
+ 		action, ok := (tmpl.Tree.Root.Nodes[0].(*parse.ActionNode))
+ 		if !ok {
+-			t.Errorf("First node is not an action: %s", test.input)
++			t.Errorf("#%d: First node is not an action: %s", i, test.input)
+ 			continue
+ 		}
+ 		pipe := action.Pipe
+ 		ensurePipelineContains(pipe, test.ids)
+ 		got := pipe.String()
+ 		if got != test.output {
+-			t.Errorf("%s, %v: want\n\t%s\ngot\n\t%s", test.input, test.ids, test.output, got)
++			t.Errorf("#%d: %s, %v: want\n\t%s\ngot\n\t%s", i, test.input, test.ids, test.output, got)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index 0f2b75d4c7..274f5ef147 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -33,10 +33,10 @@ var multiParseTests = []multiParseTest{
+ 		nil},
+ 	{"one", `{{define "foo"}} FOO {{end}}`, noError,
+ 		[]string{"foo"},
+-		[]string{`[(text: " FOO ")]`}},
++		[]string{`" FOO "`}},
+ 	{"two", `{{define "foo"}} FOO {{end}}{{define "bar"}} BAR {{end}}`, noError,
+ 		[]string{"foo", "bar"},
+-		[]string{`[(text: " FOO ")]`, `[(text: " BAR ")]`}},
++		[]string{`" FOO "`, `" BAR "`}},
+ 	// errors
+ 	{"missing end", `{{define "foo"}} FOO `, hasError,
+ 		nil,
+diff --git a/src/pkg/text/template/parse/node.go b/src/pkg/text/template/parse/node.go
+index 4f43424239..0d030b8b4b 100644
+--- a/src/pkg/text/template/parse/node.go
++++ b/src/pkg/text/template/parse/node.go
+@@ -67,11 +67,9 @@ func (l *ListNode) append(n Node) {
+ 
+ func (l *ListNode) String() string {
+ 	b := new(bytes.Buffer)
+-	fmt.Fprint(b, "[")
+ 	for _, n := range l.Nodes {
+ 		fmt.Fprint(b, n)
+ 	}
+-	fmt.Fprint(b, "]")
+ 	return b.String()
+ }
+ 
+@@ -86,7 +84,7 @@ func newText(text string) *TextNode {
+ }
+ 
+ func (t *TextNode) String() string {
+-	return fmt.Sprintf("(text: %q)", t.Text)
++	return fmt.Sprintf("%q", t.Text)
+ }
+ 
+ // PipeNode holds a pipeline with optional declaration
+@@ -106,10 +104,23 @@ func (p *PipeNode) append(command *CommandNode) {
+ }
+ 
+ func (p *PipeNode) String() string {
+-	if p.Decl != nil {
+-		return fmt.Sprintf("%v := %v", p.Decl, p.Cmds)
++	s := ""
++	if len(p.Decl) > 0 {
++		for i, v := range p.Decl {
++			if i > 0 {
++				s += ", "
++			}
++			s += v.String()
++		}
++		s += " := "
++	}
++	for i, c := range p.Cmds {
++		if i > 0 {
++			s += " | "
++		}
++		s += c.String()
+ 	}
+-	return fmt.Sprintf("%v", p.Cmds)
++	return s
+ }
+ 
+ // ActionNode holds an action (something bounded by delimiters).
+@@ -126,7 +137,8 @@ func newAction(line int, pipe *PipeNode) *ActionNode {
+ }
+ 
+ func (a *ActionNode) String() string {
+-	return fmt.Sprintf("(action: %v)", a.Pipe)
++	return fmt.Sprintf("{{%s}}", a.Pipe)
++
+ }
+ 
+ // CommandNode holds a command (a pipeline inside an evaluating action).
+@@ -144,7 +156,14 @@ func (c *CommandNode) append(arg Node) {
+ }
+ 
+ func (c *CommandNode) String() string {
+-	return fmt.Sprintf("(command: %v)", c.Args)
++	s := ""
++	for i, arg := range c.Args {
++		if i > 0 {
++			s += " "
++		}
++		s += arg.String()
++	}
++	return s
+ }
+ 
+ // IdentifierNode holds an identifier.
+@@ -159,7 +178,7 @@ func NewIdentifier(ident string) *IdentifierNode {
+ }
+ 
+ func (i *IdentifierNode) String() string {
+-	return fmt.Sprintf("I=%s", i.Ident)
++	return i.Ident
+ }
+ 
+ // VariableNode holds a list of variable names. The dollar sign is
+@@ -174,7 +193,14 @@ func newVariable(ident string) *VariableNode {
+ }
+ 
+ func (v *VariableNode) String() string {
+-	return fmt.Sprintf("V=%s", v.Ident)
++	s := ""
++	for i, id := range v.Ident {
++		if i > 0 {
++			s += "."
++		}
++		s += id
++	}
++	return s
+ }
+ 
+ // DotNode holds the special identifier '.'. It is represented by a nil pointer.
+@@ -189,7 +215,7 @@ func (d *DotNode) Type() NodeType {
+ }
+ 
+ func (d *DotNode) String() string {
+-	return "{{<.>}}"
++	return "."
+ }
+ 
+ // FieldNode holds a field (identifier starting with '.').
+@@ -205,7 +231,11 @@ func newField(ident string) *FieldNode {
+ }
+ 
+ func (f *FieldNode) String() string {
+-	return fmt.Sprintf("F=%s", f.Ident)
++	s := ""
++	for _, id := range f.Ident {
++		s += "." + id
++	}
++	return s
+ }
+ 
+ // BoolNode holds a boolean constant.
+@@ -219,7 +249,10 @@ func newBool(true bool) *BoolNode {
+ }
+ 
+ func (b *BoolNode) String() string {
+-	return fmt.Sprintf("B=%t", b.True)
++	if b.True {
++		return "true"
++	}
++	return "false"
+ }
+ 
+ // NumberNode holds a number: signed or unsigned integer, float, or complex.
+@@ -337,7 +370,7 @@ func (n *NumberNode) simplifyComplex() {
+ }
+ 
+ func (n *NumberNode) String() string {
+-	return fmt.Sprintf("N=%s", n.Text)
++	return n.Text
+ }
+ 
+ // StringNode holds a string constant. The value has been "unquoted".
+@@ -352,7 +385,7 @@ func newString(orig, text string) *StringNode {
+ }
+ 
+ func (s *StringNode) String() string {
+-	return fmt.Sprintf("S=%#q", s.Text)
++	return s.Quoted
+ }
+ 
+ // endNode represents an {{end}} action. It is represented by a nil pointer.
+@@ -411,9 +444,9 @@ func (b *BranchNode) String() string {
+ 		panic("unknown branch type")
+ 	}
+ 	if b.ElseList != nil {
+-		return fmt.Sprintf("({{%s %s}} %s {{else}} %s)", name, b.Pipe, b.List, b.ElseList)
++		return fmt.Sprintf("{{%s %s}}%s{{else}}%s{{end}}", name, b.Pipe, b.List, b.ElseList)
+ 	}
+-	return fmt.Sprintf("({{%s %s}} %s)", name, b.Pipe, b.List)
++	return fmt.Sprintf("{{%s %s}}%s{{end}}", name, b.Pipe, b.List)
+ }
+ 
+ // IfNode represents an {{if}} action and its commands.
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index b70c2143d3..13c5548abb 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -150,7 +150,7 @@ type parseTest struct {
+ 	name   string
+ 	input  string
+ 	ok     bool
+-	result string
++	result string // what the user would see in an error message.
+ }
+ 
+ const (
+@@ -160,59 +160,57 @@ const (
+ 
+ var parseTests = []parseTest{
+ 	{"empty", "", noError,
+-		`[]`},
++		``},
+ 	{"comment", "{{/*\n\n\n*/}}", noError,
+-		`[]`},
++		``},
+ 	{"spaces", " \t\n", noError,
+-		`[(text: " \t\n")]`},
++		`" \t\n"`},
+ 	{"text", "some text", noError,
+-		`[(text: "some text")]`},
++		`"some text"`},
+ 	{"emptyAction", "{{}}", hasError,
+-		`[(action: [])]`},
++		`{{}}`},
+ 	{"field", "{{.X}}", noError,
+-		`[(action: [(command: [F=[X]])])]`},
++		`{{.X}}`},
+ 	{"simple command", "{{printf}}", noError,
+-		`[(action: [(command: [I=printf])])]`},
++		`{{printf}}`},
+ 	{"$ invocation", "{{$}}", noError,
+-		"[(action: [(command: [V=[$]])])]"},
++		"{{$}}"},
+ 	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
+-		"[({{with [V=[$x]] := [(command: [N=3])]}} [(action: [(command: [V=[$x] N=23])])])]"},
++		"{{with $x := 3}}{{$x 23}}{{end}}"},
+ 	{"variable with fields", "{{$.I}}", noError,
+-		"[(action: [(command: [V=[$ I]])])]"},
++		"{{$.I}}"},
+ 	{"multi-word command", "{{printf `%d` 23}}", noError,
+-		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
++		"{{printf `%d` 23}}"},
+ 	{"pipeline", "{{.X|.Y}}", noError,
+-		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
++		`{{.X | .Y}}`},
+ 	{"pipeline with decl", "{{$x := .X|.Y}}", noError,
+-		`[(action: [V=[$x]] := [(command: [F=[X]]) (command: [F=[Y]])])]`},
+-	{"declaration", "{{.X|.Y}}", noError,
+-		`[(action: [(command: [F=[X]]) (command: [F=[Y]])])]`},
++		`{{$x := .X | .Y}}`},
+ 	{"simple if", "{{if .X}}hello{{end}}", noError,
+-		`[({{if [(command: [F=[X]])]}} [(text: "hello")])]`},
++		`{{if .X}}"hello"{{end}}`},
+ 	{"if with else", "{{if .X}}true{{else}}false{{end}}", noError,
+-		`[({{if [(command: [F=[X]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
++		`{{if .X}}"true"{{else}}"false"{{end}}`},
+ 	{"simple range", "{{range .X}}hello{{end}}", noError,
+-		`[({{range [(command: [F=[X]])]}} [(text: "hello")])]`},
++		`{{range .X}}"hello"{{end}}`},
+ 	{"chained field range", "{{range .X.Y.Z}}hello{{end}}", noError,
+-		`[({{range [(command: [F=[X Y Z]])]}} [(text: "hello")])]`},
++		`{{range .X.Y.Z}}"hello"{{end}}`},
+ 	{"nested range", "{{range .X}}hello{{range .Y}}goodbye{{end}}{{end}}", noError,
+-		`[({{range [(command: [F=[X]])]}} [(text: "hello")({{range [(command: [F=[Y]])]}} [(text: "goodbye")])])]`},
++		`{{range .X}}"hello"{{range .Y}}"goodbye"{{end}}{{end}}`},
+ 	{"range with else", "{{range .X}}true{{else}}false{{end}}", noError,
+-		`[({{range [(command: [F=[X]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
++		`{{range .X}}"true"{{else}}"false"{{end}}`},
+ 	{"range over pipeline", "{{range .X|.M}}true{{else}}false{{end}}", noError,
+-		`[({{range [(command: [F=[X]]) (command: [F=[M]])]}} [(text: "true")] {{else}} [(text: "false")])]`},
++		`{{range .X | .M}}"true"{{else}}"false"{{end}}`},
+ 	{"range []int", "{{range .SI}}{{.}}{{end}}", noError,
+-		`[({{range [(command: [F=[SI]])]}} [(action: [(command: [{{<.>}}])])])]`},
++		`{{range .SI}}{{.}}{{end}}`},
+ 	{"constants", "{{range .SI 1 -3.2i true false 'a'}}{{end}}", noError,
+-		`[({{range [(command: [F=[SI] N=1 N=-3.2i B=true B=false N='a'])]}} [])]`},
++		`{{range .SI 1 -3.2i true false 'a'}}{{end}}`},
+ 	{"template", "{{template `x`}}", noError,
+-		`[{{template "x"}}]`},
++		`{{template "x"}}`},
+ 	{"template with arg", "{{template `x` .Y}}", noError,
+-		`[{{template "x" [(command: [F=[Y]])]}}]`},
++		`{{template "x" .Y}}`},
+ 	{"with", "{{with .X}}hello{{end}}", noError,
+-		`[({{with [(command: [F=[X]])]}} [(text: "hello")])]`},
++		`{{with .X}}"hello"{{end}}`},
+ 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
+-		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
++		`{{with .X}}"hello"{{else}}"goodbye"{{end}}`},
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
+ 	{"unmatched end", "{{end}}", hasError, ""},

@@ -15,7 +15,7 @@ Date:   Tue Apr 10 22:33:03 2018 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go |  2 +-
  src/internal/cpu/cpu.go                 |  7 +++++++
  src/internal/cpu/cpu_arm64.go           |  2 +-
@@ -23,3 +23,107 @@ Date:   Tue Apr 10 22:33:03 2018 +0800
  src/internal/cpu/cpu_x86.go             |  2 +-
  src/runtime/proc.go                     | 12 ++++++++----
  6 files changed, 31 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 3b8e1bdc58..8ae080ab40 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -27,7 +27,7 @@ import (
+ 
+ // Do not instrument the following packages at all,
+ // at best instrumentation would cause infinite recursion.
+-var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan"}
++var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan", "internal/cpu"}
+ 
+ // Only insert racefuncenterfp/racefuncexit into the following packages.
+ // Memory accesses in the packages are either uninteresting or will cause false positives.
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index eebbf1a5d7..4000530059 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -98,3 +98,10 @@ type s390x struct {
+ 	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
+ 	_     [CacheLineSize]byte
+ }
++
++// initialize examines the processor and sets the relevant variables above.
++// This is called by the runtime package early in program initialization,
++// before normal init functions are run.
++func initialize() {
++	doinit()
++}
+diff --git a/src/internal/cpu/cpu_arm64.go b/src/internal/cpu/cpu_arm64.go
+index 3809a1d854..b1c2ace0e6 100644
+--- a/src/internal/cpu/cpu_arm64.go
++++ b/src/internal/cpu/cpu_arm64.go
+@@ -42,7 +42,7 @@ const (
+ 	hwcap_ASIMDFHM = (1 << 23)
+ )
+ 
+-func init() {
++func doinit() {
+ 	// HWCAP feature bits
+ 	ARM64.HasFP = isSet(arm64_hwcap, hwcap_FP)
+ 	ARM64.HasASIMD = isSet(arm64_hwcap, hwcap_ASIMD)
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+new file mode 100644
+index 0000000000..50f6232947
+--- /dev/null
++++ b/src/internal/cpu/cpu_no_init.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !386
++// +build !amd64
++// +build !amd64p32
++// +build !arm64
++
++package cpu
++
++func doinit() {
++}
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 34c632f2f9..239e728900 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -14,7 +14,7 @@ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
+ // xgetbv with ecx = 0 is implemented in cpu_x86.s.
+ func xgetbv() (eax, edx uint32)
+ 
+-func init() {
++func doinit() {
+ 	maxID, _, _, _ := cpuid(0, 0)
+ 
+ 	if maxID < 1 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8f32320e0c..98d78f0c82 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -466,6 +466,9 @@ const (
+ 	_GoidCacheBatch = 16
+ )
+ 
++//go:linkname internal_cpu_initialize internal/cpu.initialize
++func internal_cpu_initialize()
++
+ // The bootstrap sequence is:
+ //
+ //	call osinit
+@@ -489,10 +492,11 @@ func schedinit() {
+ 	stackinit()
+ 	mallocinit()
+ 	mcommoninit(_g_.m)
+-	alginit()       // maps must not be used before this call
+-	modulesinit()   // provides activeModules
+-	typelinksinit() // uses maps, activeModules
+-	itabsinit()     // uses activeModules
++	internal_cpu_initialize() // must run before alginit
++	alginit()                 // maps must not be used before this call
++	modulesinit()             // provides activeModules
++	typelinksinit()           // uses maps, activeModules
++	itabsinit()               // uses activeModules
+ 
+ 	msigsave(_g_.m)
+ 	initSigmask = _g_.m.sigmask

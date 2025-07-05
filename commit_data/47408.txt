@@ -12,8 +12,919 @@ Date:   Sun Mar 14 18:55:59 2021 +0000
     Trust: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/redblack32.go      | 429 ------------------------
  src/cmd/compile/internal/ssa/redblack32_test.go | 274 ---------------
  src/cmd/compile/internal/ssa/sparsetreemap.go   | 189 -----------
  3 files changed, 892 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/redblack32.go b/src/cmd/compile/internal/ssa/redblack32.go
+deleted file mode 100644
+index fc9cc71ba0..0000000000
+--- a/src/cmd/compile/internal/ssa/redblack32.go
++++ /dev/null
+@@ -1,429 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ssa
+-
+-import "fmt"
+-
+-const (
+-	rankLeaf rbrank = 1
+-	rankZero rbrank = 0
+-)
+-
+-type rbrank int8
+-
+-// RBTint32 is a red-black tree with data stored at internal nodes,
+-// following Tarjan, Data Structures and Network Algorithms,
+-// pp 48-52, using explicit rank instead of red and black.
+-// Deletion is not yet implemented because it is not yet needed.
+-// Extra operations glb, lub, glbEq, lubEq are provided for
+-// use in sparse lookup algorithms.
+-type RBTint32 struct {
+-	root *node32
+-	// An extra-clever implementation will have special cases
+-	// for small sets, but we are not extra-clever today.
+-}
+-
+-func (t *RBTint32) String() string {
+-	if t.root == nil {
+-		return "[]"
+-	}
+-	return "[" + t.root.String() + "]"
+-}
+-
+-func (t *node32) String() string {
+-	s := ""
+-	if t.left != nil {
+-		s = t.left.String() + " "
+-	}
+-	s = s + fmt.Sprintf("k=%d,d=%v", t.key, t.data)
+-	if t.right != nil {
+-		s = s + " " + t.right.String()
+-	}
+-	return s
+-}
+-
+-type node32 struct {
+-	// Standard conventions hold for left = smaller, right = larger
+-	left, right, parent *node32
+-	data                interface{}
+-	key                 int32
+-	rank                rbrank // From Tarjan pp 48-49:
+-	// If x is a node with a parent, then x.rank <= x.parent.rank <= x.rank+1.
+-	// If x is a node with a grandparent, then x.rank < x.parent.parent.rank.
+-	// If x is an "external [null] node", then x.rank = 0 && x.parent.rank = 1.
+-	// Any node with one or more null children should have rank = 1.
+-}
+-
+-// makeNode returns a new leaf node with the given key and nil data.
+-func (t *RBTint32) makeNode(key int32) *node32 {
+-	return &node32{key: key, rank: rankLeaf}
+-}
+-
+-// IsEmpty reports whether t is empty.
+-func (t *RBTint32) IsEmpty() bool {
+-	return t.root == nil
+-}
+-
+-// IsSingle reports whether t is a singleton (leaf).
+-func (t *RBTint32) IsSingle() bool {
+-	return t.root != nil && t.root.isLeaf()
+-}
+-
+-// VisitInOrder applies f to the key and data pairs in t,
+-// with keys ordered from smallest to largest.
+-func (t *RBTint32) VisitInOrder(f func(int32, interface{})) {
+-	if t.root == nil {
+-		return
+-	}
+-	t.root.visitInOrder(f)
+-}
+-
+-func (n *node32) Data() interface{} {
+-	if n == nil {
+-		return nil
+-	}
+-	return n.data
+-}
+-
+-func (n *node32) keyAndData() (k int32, d interface{}) {
+-	if n == nil {
+-		k = 0
+-		d = nil
+-	} else {
+-		k = n.key
+-		d = n.data
+-	}
+-	return
+-}
+-
+-func (n *node32) Rank() rbrank {
+-	if n == nil {
+-		return 0
+-	}
+-	return n.rank
+-}
+-
+-// Find returns the data associated with key in the tree, or
+-// nil if key is not in the tree.
+-func (t *RBTint32) Find(key int32) interface{} {
+-	return t.root.find(key).Data()
+-}
+-
+-// Insert adds key to the tree and associates key with data.
+-// If key was already in the tree, it updates the associated data.
+-// Insert returns the previous data associated with key,
+-// or nil if key was not present.
+-// Insert panics if data is nil.
+-func (t *RBTint32) Insert(key int32, data interface{}) interface{} {
+-	if data == nil {
+-		panic("Cannot insert nil data into tree")
+-	}
+-	n := t.root
+-	var newroot *node32
+-	if n == nil {
+-		n = t.makeNode(key)
+-		newroot = n
+-	} else {
+-		newroot, n = n.insert(key, t)
+-	}
+-	r := n.data
+-	n.data = data
+-	t.root = newroot
+-	return r
+-}
+-
+-// Min returns the minimum element of t and its associated data.
+-// If t is empty, then (0, nil) is returned.
+-func (t *RBTint32) Min() (k int32, d interface{}) {
+-	return t.root.min().keyAndData()
+-}
+-
+-// Max returns the maximum element of t and its associated data.
+-// If t is empty, then (0, nil) is returned.
+-func (t *RBTint32) Max() (k int32, d interface{}) {
+-	return t.root.max().keyAndData()
+-}
+-
+-// Glb returns the greatest-lower-bound-exclusive of x and its associated
+-// data.  If x has no glb in the tree, then (0, nil) is returned.
+-func (t *RBTint32) Glb(x int32) (k int32, d interface{}) {
+-	return t.root.glb(x, false).keyAndData()
+-}
+-
+-// GlbEq returns the greatest-lower-bound-inclusive of x and its associated
+-// data.  If x has no glbEQ in the tree, then (0, nil) is returned.
+-func (t *RBTint32) GlbEq(x int32) (k int32, d interface{}) {
+-	return t.root.glb(x, true).keyAndData()
+-}
+-
+-// Lub returns the least-upper-bound-exclusive of x and its associated
+-// data.  If x has no lub in the tree, then (0, nil) is returned.
+-func (t *RBTint32) Lub(x int32) (k int32, d interface{}) {
+-	return t.root.lub(x, false).keyAndData()
+-}
+-
+-// LubEq returns the least-upper-bound-inclusive of x and its associated
+-// data.  If x has no lubEq in the tree, then (0, nil) is returned.
+-func (t *RBTint32) LubEq(x int32) (k int32, d interface{}) {
+-	return t.root.lub(x, true).keyAndData()
+-}
+-
+-func (t *node32) isLeaf() bool {
+-	return t.left == nil && t.right == nil
+-}
+-
+-func (t *node32) visitInOrder(f func(int32, interface{})) {
+-	if t.left != nil {
+-		t.left.visitInOrder(f)
+-	}
+-	f(t.key, t.data)
+-	if t.right != nil {
+-		t.right.visitInOrder(f)
+-	}
+-}
+-
+-func (t *node32) maxChildRank() rbrank {
+-	if t.left == nil {
+-		if t.right == nil {
+-			return rankZero
+-		}
+-		return t.right.rank
+-	}
+-	if t.right == nil {
+-		return t.left.rank
+-	}
+-	if t.right.rank > t.left.rank {
+-		return t.right.rank
+-	}
+-	return t.left.rank
+-}
+-
+-func (t *node32) minChildRank() rbrank {
+-	if t.left == nil || t.right == nil {
+-		return rankZero
+-	}
+-	if t.right.rank < t.left.rank {
+-		return t.right.rank
+-	}
+-	return t.left.rank
+-}
+-
+-func (t *node32) find(key int32) *node32 {
+-	for t != nil {
+-		if key < t.key {
+-			t = t.left
+-		} else if key > t.key {
+-			t = t.right
+-		} else {
+-			return t
+-		}
+-	}
+-	return nil
+-}
+-
+-func (t *node32) min() *node32 {
+-	if t == nil {
+-		return t
+-	}
+-	for t.left != nil {
+-		t = t.left
+-	}
+-	return t
+-}
+-
+-func (t *node32) max() *node32 {
+-	if t == nil {
+-		return t
+-	}
+-	for t.right != nil {
+-		t = t.right
+-	}
+-	return t
+-}
+-
+-func (t *node32) glb(key int32, allow_eq bool) *node32 {
+-	var best *node32
+-	for t != nil {
+-		if key <= t.key {
+-			if key == t.key && allow_eq {
+-				return t
+-			}
+-			// t is too big, glb is to left.
+-			t = t.left
+-		} else {
+-			// t is a lower bound, record it and seek a better one.
+-			best = t
+-			t = t.right
+-		}
+-	}
+-	return best
+-}
+-
+-func (t *node32) lub(key int32, allow_eq bool) *node32 {
+-	var best *node32
+-	for t != nil {
+-		if key >= t.key {
+-			if key == t.key && allow_eq {
+-				return t
+-			}
+-			// t is too small, lub is to right.
+-			t = t.right
+-		} else {
+-			// t is a upper bound, record it and seek a better one.
+-			best = t
+-			t = t.left
+-		}
+-	}
+-	return best
+-}
+-
+-func (t *node32) insert(x int32, w *RBTint32) (newroot, newnode *node32) {
+-	// defaults
+-	newroot = t
+-	newnode = t
+-	if x == t.key {
+-		return
+-	}
+-	if x < t.key {
+-		if t.left == nil {
+-			n := w.makeNode(x)
+-			n.parent = t
+-			t.left = n
+-			newnode = n
+-			return
+-		}
+-		var new_l *node32
+-		new_l, newnode = t.left.insert(x, w)
+-		t.left = new_l
+-		new_l.parent = t
+-		newrank := 1 + new_l.maxChildRank()
+-		if newrank > t.rank {
+-			if newrank > 1+t.right.Rank() { // rotations required
+-				if new_l.left.Rank() < new_l.right.Rank() {
+-					// double rotation
+-					t.left = new_l.rightToRoot()
+-				}
+-				newroot = t.leftToRoot()
+-				return
+-			} else {
+-				t.rank = newrank
+-			}
+-		}
+-	} else { // x > t.key
+-		if t.right == nil {
+-			n := w.makeNode(x)
+-			n.parent = t
+-			t.right = n
+-			newnode = n
+-			return
+-		}
+-		var new_r *node32
+-		new_r, newnode = t.right.insert(x, w)
+-		t.right = new_r
+-		new_r.parent = t
+-		newrank := 1 + new_r.maxChildRank()
+-		if newrank > t.rank {
+-			if newrank > 1+t.left.Rank() { // rotations required
+-				if new_r.right.Rank() < new_r.left.Rank() {
+-					// double rotation
+-					t.right = new_r.leftToRoot()
+-				}
+-				newroot = t.rightToRoot()
+-				return
+-			} else {
+-				t.rank = newrank
+-			}
+-		}
+-	}
+-	return
+-}
+-
+-func (t *node32) rightToRoot() *node32 {
+-	//    this
+-	// left  right
+-	//      rl   rr
+-	//
+-	// becomes
+-	//
+-	//       right
+-	//    this   rr
+-	// left  rl
+-	//
+-	right := t.right
+-	rl := right.left
+-	right.parent = t.parent
+-	right.left = t
+-	t.parent = right
+-	// parent's child ptr fixed in caller
+-	t.right = rl
+-	if rl != nil {
+-		rl.parent = t
+-	}
+-	return right
+-}
+-
+-func (t *node32) leftToRoot() *node32 {
+-	//     this
+-	//  left  right
+-	// ll  lr
+-	//
+-	// becomes
+-	//
+-	//    left
+-	//   ll  this
+-	//      lr  right
+-	//
+-	left := t.left
+-	lr := left.right
+-	left.parent = t.parent
+-	left.right = t
+-	t.parent = left
+-	// parent's child ptr fixed in caller
+-	t.left = lr
+-	if lr != nil {
+-		lr.parent = t
+-	}
+-	return left
+-}
+-
+-// next returns the successor of t in a left-to-right
+-// walk of the tree in which t is embedded.
+-func (t *node32) next() *node32 {
+-	// If there is a right child, it is to the right
+-	r := t.right
+-	if r != nil {
+-		return r.min()
+-	}
+-	// if t is p.left, then p, else repeat.
+-	p := t.parent
+-	for p != nil {
+-		if p.left == t {
+-			return p
+-		}
+-		t = p
+-		p = t.parent
+-	}
+-	return nil
+-}
+-
+-// prev returns the predecessor of t in a left-to-right
+-// walk of the tree in which t is embedded.
+-func (t *node32) prev() *node32 {
+-	// If there is a left child, it is to the left
+-	l := t.left
+-	if l != nil {
+-		return l.max()
+-	}
+-	// if t is p.right, then p, else repeat.
+-	p := t.parent
+-	for p != nil {
+-		if p.right == t {
+-			return p
+-		}
+-		t = p
+-		p = t.parent
+-	}
+-	return nil
+-}
+diff --git a/src/cmd/compile/internal/ssa/redblack32_test.go b/src/cmd/compile/internal/ssa/redblack32_test.go
+deleted file mode 100644
+index 376e8cff8d..0000000000
+--- a/src/cmd/compile/internal/ssa/redblack32_test.go
++++ /dev/null
+@@ -1,274 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ssa
+-
+-import (
+-	"fmt"
+-	"testing"
+-)
+-
+-type sstring string
+-
+-func (s sstring) String() string {
+-	return string(s)
+-}
+-
+-// wellFormed ensures that a red-black tree meets
+-// all of its invariants and returns a string identifying
+-// the first problem encountered. If there is no problem
+-// then the returned string is empty. The size is also
+-// returned to allow comparison of calculated tree size
+-// with expected.
+-func (t *RBTint32) wellFormed() (s string, i int) {
+-	if t.root == nil {
+-		s = ""
+-		i = 0
+-		return
+-	}
+-	return t.root.wellFormedSubtree(nil, -0x80000000, 0x7fffffff)
+-}
+-
+-// wellFormedSubtree ensures that a red-black subtree meets
+-// all of its invariants and returns a string identifying
+-// the first problem encountered. If there is no problem
+-// then the returned string is empty. The size is also
+-// returned to allow comparison of calculated tree size
+-// with expected.
+-func (t *node32) wellFormedSubtree(parent *node32, min, max int32) (s string, i int) {
+-	i = -1 // initialize to a failing value
+-	s = "" // s is the reason for failure; empty means okay.
+-
+-	if t.parent != parent {
+-		s = "t.parent != parent"
+-		return
+-	}
+-
+-	if min >= t.key {
+-		s = "min >= t.key"
+-		return
+-	}
+-
+-	if max <= t.key {
+-		s = "max <= t.key"
+-		return
+-	}
+-
+-	l := t.left
+-	r := t.right
+-	if l == nil && r == nil {
+-		if t.rank != rankLeaf {
+-			s = "leaf rank wrong"
+-			return
+-		}
+-	}
+-	if l != nil {
+-		if t.rank < l.rank {
+-			s = "t.rank < l.rank"
+-		} else if t.rank > 1+l.rank {
+-			s = "t.rank > 1+l.rank"
+-		} else if t.rank <= l.maxChildRank() {
+-			s = "t.rank <= l.maxChildRank()"
+-		} else if t.key <= l.key {
+-			s = "t.key <= l.key"
+-		}
+-		if s != "" {
+-			return
+-		}
+-	} else {
+-		if t.rank != 1 {
+-			s = "t w/ left nil has rank != 1"
+-			return
+-		}
+-	}
+-	if r != nil {
+-		if t.rank < r.rank {
+-			s = "t.rank < r.rank"
+-		} else if t.rank > 1+r.rank {
+-			s = "t.rank > 1+r.rank"
+-		} else if t.rank <= r.maxChildRank() {
+-			s = "t.rank <= r.maxChildRank()"
+-		} else if t.key >= r.key {
+-			s = "t.key >= r.key"
+-		}
+-		if s != "" {
+-			return
+-		}
+-	} else {
+-		if t.rank != 1 {
+-			s = "t w/ right nil has rank != 1"
+-			return
+-		}
+-	}
+-	ii := 1
+-	if l != nil {
+-		res, il := l.wellFormedSubtree(t, min, t.key)
+-		if res != "" {
+-			s = "L." + res
+-			return
+-		}
+-		ii += il
+-	}
+-	if r != nil {
+-		res, ir := r.wellFormedSubtree(t, t.key, max)
+-		if res != "" {
+-			s = "R." + res
+-			return
+-		}
+-		ii += ir
+-	}
+-	i = ii
+-	return
+-}
+-
+-func (t *RBTint32) DebugString() string {
+-	if t.root == nil {
+-		return ""
+-	}
+-	return t.root.DebugString()
+-}
+-
+-// DebugString prints the tree with nested information
+-// to allow an eyeball check on the tree balance.
+-func (t *node32) DebugString() string {
+-	s := ""
+-	if t.left != nil {
+-		s += "["
+-		s += t.left.DebugString()
+-		s += "]"
+-	}
+-	s += fmt.Sprintf("%v=%v:%d", t.key, t.data, t.rank)
+-	if t.right != nil {
+-		s += "["
+-		s += t.right.DebugString()
+-		s += "]"
+-	}
+-	return s
+-}
+-
+-func allRBT32Ops(te *testing.T, x []int32) {
+-	t := &RBTint32{}
+-	for i, d := range x {
+-		x[i] = d + d // Double everything for glb/lub testing
+-	}
+-
+-	// fmt.Printf("Inserting double of %v", x)
+-	k := 0
+-	min := int32(0x7fffffff)
+-	max := int32(-0x80000000)
+-	for _, d := range x {
+-		if d < min {
+-			min = d
+-		}
+-
+-		if d > max {
+-			max = d
+-		}
+-
+-		t.Insert(d, sstring(fmt.Sprintf("%v", d)))
+-		k++
+-		s, i := t.wellFormed()
+-		if i != k {
+-			te.Errorf("Wrong tree size %v, expected %v for %v", i, k, t.DebugString())
+-		}
+-		if s != "" {
+-			te.Errorf("Tree consistency problem at %v", s)
+-			return
+-		}
+-	}
+-
+-	oops := false
+-
+-	for _, d := range x {
+-		s := fmt.Sprintf("%v", d)
+-		f := t.Find(d)
+-
+-		// data
+-		if s != fmt.Sprintf("%v", f) {
+-			te.Errorf("s(%v) != f(%v)", s, f)
+-			oops = true
+-		}
+-	}
+-
+-	if !oops {
+-		for _, d := range x {
+-			s := fmt.Sprintf("%v", d)
+-
+-			kg, g := t.Glb(d + 1)
+-			kge, ge := t.GlbEq(d)
+-			kl, l := t.Lub(d - 1)
+-			kle, le := t.LubEq(d)
+-
+-			// keys
+-			if d != kg {
+-				te.Errorf("d(%v) != kg(%v)", d, kg)
+-			}
+-			if d != kl {
+-				te.Errorf("d(%v) != kl(%v)", d, kl)
+-			}
+-			if d != kge {
+-				te.Errorf("d(%v) != kge(%v)", d, kge)
+-			}
+-			if d != kle {
+-				te.Errorf("d(%v) != kle(%v)", d, kle)
+-			}
+-			// data
+-			if s != fmt.Sprintf("%v", g) {
+-				te.Errorf("s(%v) != g(%v)", s, g)
+-			}
+-			if s != fmt.Sprintf("%v", l) {
+-				te.Errorf("s(%v) != l(%v)", s, l)
+-			}
+-			if s != fmt.Sprintf("%v", ge) {
+-				te.Errorf("s(%v) != ge(%v)", s, ge)
+-			}
+-			if s != fmt.Sprintf("%v", le) {
+-				te.Errorf("s(%v) != le(%v)", s, le)
+-			}
+-		}
+-
+-		for _, d := range x {
+-			s := fmt.Sprintf("%v", d)
+-			kge, ge := t.GlbEq(d + 1)
+-			kle, le := t.LubEq(d - 1)
+-			if d != kge {
+-				te.Errorf("d(%v) != kge(%v)", d, kge)
+-			}
+-			if d != kle {
+-				te.Errorf("d(%v) != kle(%v)", d, kle)
+-			}
+-			if s != fmt.Sprintf("%v", ge) {
+-				te.Errorf("s(%v) != ge(%v)", s, ge)
+-			}
+-			if s != fmt.Sprintf("%v", le) {
+-				te.Errorf("s(%v) != le(%v)", s, le)
+-			}
+-		}
+-
+-		kg, g := t.Glb(min)
+-		kge, ge := t.GlbEq(min - 1)
+-		kl, l := t.Lub(max)
+-		kle, le := t.LubEq(max + 1)
+-		fmin := t.Find(min - 1)
+-		fmax := t.Find(min + 11)
+-
+-		if kg != 0 || kge != 0 || kl != 0 || kle != 0 {
+-			te.Errorf("Got non-zero-key for missing query")
+-		}
+-
+-		if g != nil || ge != nil || l != nil || le != nil || fmin != nil || fmax != nil {
+-			te.Errorf("Got non-error-data for missing query")
+-		}
+-
+-	}
+-}
+-
+-func TestAllRBTreeOps(t *testing.T) {
+-	allRBT32Ops(t, []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25})
+-	allRBT32Ops(t, []int32{22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 3, 2, 1, 25, 24, 23, 12, 11, 10, 9, 8, 7, 6, 5, 4})
+-	allRBT32Ops(t, []int32{25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1})
+-	allRBT32Ops(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24})
+-	allRBT32Ops(t, []int32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2})
+-	allRBT32Ops(t, []int32{24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25})
+-}
+diff --git a/src/cmd/compile/internal/ssa/sparsetreemap.go b/src/cmd/compile/internal/ssa/sparsetreemap.go
+deleted file mode 100644
+index d26467517e..0000000000
+--- a/src/cmd/compile/internal/ssa/sparsetreemap.go
++++ /dev/null
+@@ -1,189 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ssa
+-
+-import "fmt"
+-
+-// A SparseTreeMap encodes a subset of nodes within a tree
+-// used for sparse-ancestor queries.
+-//
+-// Combined with a SparseTreeHelper, this supports an Insert
+-// to add a tree node to the set and a Find operation to locate
+-// the nearest tree ancestor of a given node such that the
+-// ancestor is also in the set.
+-//
+-// Given a set of blocks {B1, B2, B3} within the dominator tree, established
+-// by stm.Insert()ing B1, B2, B3, etc, a query at block B
+-// (performed with stm.Find(stm, B, adjust, helper))
+-// will return the member of the set that is the nearest strict
+-// ancestor of B within the dominator tree, or nil if none exists.
+-// The expected complexity of this operation is the log of the size
+-// the set, given certain assumptions about sparsity (the log complexity
+-// could be guaranteed with additional data structures whose constant-
+-// factor overhead has not yet been justified.)
+-//
+-// The adjust parameter allows positioning of the insertion
+-// and lookup points within a block -- one of
+-// AdjustBefore, AdjustWithin, AdjustAfter,
+-// where lookups at AdjustWithin can find insertions at
+-// AdjustBefore in the same block, and lookups at AdjustAfter
+-// can find insertions at either AdjustBefore or AdjustWithin
+-// in the same block.  (Note that this assumes a gappy numbering
+-// such that exit number or exit number is separated from its
+-// nearest neighbor by at least 3).
+-//
+-// The Sparse Tree lookup algorithm is described by
+-// Paul F. Dietz. Maintaining order in a linked list. In
+-// Proceedings of the Fourteenth Annual ACM Symposium on
+-// Theory of Computing, pages 122–127, May 1982.
+-// and by
+-// Ben Wegbreit. Faster retrieval from context trees.
+-// Communications of the ACM, 19(9):526–529, September 1976.
+-type SparseTreeMap RBTint32
+-
+-// A SparseTreeHelper contains indexing and allocation data
+-// structures common to a collection of SparseTreeMaps, as well
+-// as exposing some useful control-flow-related data to other
+-// packages, such as gc.
+-type SparseTreeHelper struct {
+-	Sdom   []SparseTreeNode // indexed by block.ID
+-	Po     []*Block         // exported data; the blocks, in a post-order
+-	Dom    []*Block         // exported data; the dominator of this block.
+-	Ponums []int32          // exported data; Po[Ponums[b.ID]] == b; the index of b in Po
+-}
+-
+-// NewSparseTreeHelper returns a SparseTreeHelper for use
+-// in the gc package, for example in phi-function placement.
+-func NewSparseTreeHelper(f *Func) *SparseTreeHelper {
+-	dom := f.Idom()
+-	ponums := make([]int32, f.NumBlocks())
+-	po := postorderWithNumbering(f, ponums)
+-	return makeSparseTreeHelper(newSparseTree(f, dom), dom, po, ponums)
+-}
+-
+-func (h *SparseTreeHelper) NewTree() *SparseTreeMap {
+-	return &SparseTreeMap{}
+-}
+-
+-func makeSparseTreeHelper(sdom SparseTree, dom, po []*Block, ponums []int32) *SparseTreeHelper {
+-	helper := &SparseTreeHelper{Sdom: []SparseTreeNode(sdom),
+-		Dom:    dom,
+-		Po:     po,
+-		Ponums: ponums,
+-	}
+-	return helper
+-}
+-
+-// A sparseTreeMapEntry contains the data stored in a binary search
+-// data structure indexed by (dominator tree walk) entry and exit numbers.
+-// Each entry is added twice, once keyed by entry-1/entry/entry+1 and
+-// once keyed by exit+1/exit/exit-1.
+-//
+-// Within a sparse tree, the two entries added bracket all their descendant
+-// entries within the tree; the first insertion is keyed by entry number,
+-// which comes before all the entry and exit numbers of descendants, and
+-// the second insertion is keyed by exit number, which comes after all the
+-// entry and exit numbers of the descendants.
+-type sparseTreeMapEntry struct {
+-	index        *SparseTreeNode // references the entry and exit numbers for a block in the sparse tree
+-	block        *Block          // TODO: store this in a separate index.
+-	data         interface{}
+-	sparseParent *sparseTreeMapEntry // references the nearest ancestor of this block in the sparse tree.
+-	adjust       int32               // at what adjustment was this node entered into the sparse tree? The same block may be entered more than once, but at different adjustments.
+-}
+-
+-// Insert creates a definition within b with data x.
+-// adjust indicates where in the block should be inserted:
+-// AdjustBefore means defined at a phi function (visible Within or After in the same block)
+-// AdjustWithin means defined within the block (visible After in the same block)
+-// AdjustAfter means after the block (visible within child blocks)
+-func (m *SparseTreeMap) Insert(b *Block, adjust int32, x interface{}, helper *SparseTreeHelper) {
+-	rbtree := (*RBTint32)(m)
+-	blockIndex := &helper.Sdom[b.ID]
+-	if blockIndex.entry == 0 {
+-		// assert unreachable
+-		return
+-	}
+-	// sp will be the sparse parent in this sparse tree (nearest ancestor in the larger tree that is also in this sparse tree)
+-	sp := m.findEntry(b, adjust, helper)
+-	entry := &sparseTreeMapEntry{index: blockIndex, block: b, data: x, sparseParent: sp, adjust: adjust}
+-
+-	right := blockIndex.exit - adjust
+-	_ = rbtree.Insert(right, entry)
+-
+-	left := blockIndex.entry + adjust
+-	_ = rbtree.Insert(left, entry)
+-
+-	// This newly inserted block may now be the sparse parent of some existing nodes (the new sparse children of this block)
+-	// Iterate over nodes bracketed by this new node to correct their parent, but not over the proper sparse descendants of those nodes.
+-	_, d := rbtree.Lub(left) // Lub (not EQ) of left is either right or a sparse child
+-	for tme := d.(*sparseTreeMapEntry); tme != entry; tme = d.(*sparseTreeMapEntry) {
+-		tme.sparseParent = entry
+-		// all descendants of tme are unchanged;
+-		// next sparse sibling (or right-bracketing sparse parent == entry) is first node after tme.index.exit - tme.adjust
+-		_, d = rbtree.Lub(tme.index.exit - tme.adjust)
+-	}
+-}
+-
+-// Find returns the definition visible from block b, or nil if none can be found.
+-// Adjust indicates where the block should be searched.
+-// AdjustBefore searches before the phi functions of b.
+-// AdjustWithin searches starting at the phi functions of b.
+-// AdjustAfter searches starting at the exit from the block, including normal within-block definitions.
+-//
+-// Note that Finds are properly nested with Inserts:
+-// m.Insert(b, a) followed by m.Find(b, a) will not return the result of the insert,
+-// but m.Insert(b, AdjustBefore) followed by m.Find(b, AdjustWithin) will.
+-//
+-// Another way to think of this is that Find searches for inputs, Insert defines outputs.
+-func (m *SparseTreeMap) Find(b *Block, adjust int32, helper *SparseTreeHelper) interface{} {
+-	v := m.findEntry(b, adjust, helper)
+-	if v == nil {
+-		return nil
+-	}
+-	return v.data
+-}
+-
+-func (m *SparseTreeMap) findEntry(b *Block, adjust int32, helper *SparseTreeHelper) *sparseTreeMapEntry {
+-	rbtree := (*RBTint32)(m)
+-	if rbtree == nil {
+-		return nil
+-	}
+-	blockIndex := &helper.Sdom[b.ID]
+-
+-	// The Glb (not EQ) of this probe is either the entry-indexed end of a sparse parent
+-	// or the exit-indexed end of a sparse sibling
+-	_, v := rbtree.Glb(blockIndex.entry + adjust)
+-
+-	if v == nil {
+-		return nil
+-	}
+-
+-	otherEntry := v.(*sparseTreeMapEntry)
+-	if otherEntry.index.exit >= blockIndex.exit { // otherEntry exit after blockIndex exit; therefore, brackets
+-		return otherEntry
+-	}
+-	// otherEntry is a sparse Sibling, and shares the same sparse parent (nearest ancestor within larger tree)
+-	sp := otherEntry.sparseParent
+-	if sp != nil {
+-		if sp.index.exit < blockIndex.exit { // no ancestor found
+-			return nil
+-		}
+-		return sp
+-	}
+-	return nil
+-}
+-
+-func (m *SparseTreeMap) String() string {
+-	tree := (*RBTint32)(m)
+-	return tree.String()
+-}
+-
+-func (e *sparseTreeMapEntry) String() string {
+-	if e == nil {
+-		return "nil"
+-	}
+-	return fmt.Sprintf("(index=%v, block=%v, data=%v)->%v", e.index, e.block, e.data, e.sparseParent)
+-}

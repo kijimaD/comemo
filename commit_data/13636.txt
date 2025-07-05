@@ -12,7 +12,7 @@ Date:   Thu Aug 16 09:31:22 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6453124
-
+---
  src/pkg/exp/html/parse_test.go                     | 101 ++---------
  src/pkg/exp/html/testlogs/adoption01.dat.log       |  13 --
  src/pkg/exp/html/testlogs/adoption02.dat.log       |   2 -
@@ -58,3 +58,1746 @@ Date:   Thu Aug 16 09:31:22 2012 +1000
  src/pkg/exp/html/testlogs/webkit01.dat.log         |  49 ------
  src/pkg/exp/html/testlogs/webkit02.dat.log         |  13 --
  44 files changed, 14 insertions(+), 1379 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index a68ef12d40..b24f8f4e68 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"exp/html/atom"
+-	"flag"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -21,8 +20,6 @@ import (
+ 	"testing"
+ )
+ 
+-var updateLogs = flag.Bool("update-logs", false, "Update the log files that show the test results")
+-
+ // readParseTest reads a single test case from r.
+ func readParseTest(r *bufio.Reader) (text, want, context string, err error) {
+ 	line, err := r.ReadSlice('\n')
+@@ -202,32 +199,6 @@ func dump(n *Node) (string, error) {
+ }
+ 
+ const testDataDir = "testdata/webkit/"
+-const testLogDir = "testlogs/"
+-
+-type parseTestResult int
+-
+-const (
+-	// parseTestFailed indicates that an error occurred during parsing or that
+-	// the parse tree did not match the expected result.
+-	parseTestFailed parseTestResult = iota
+-	// parseTestParseOnly indicates that the first stage of the test (parsing)
+-	// passed, but rendering and re-parsing did not.
+-	parseTestParseOnly
+-	// parseTestPassed indicates that both stages of the test passed.
+-	parseTestPassed
+-)
+-
+-func (r parseTestResult) String() string {
+-	switch r {
+-	case parseTestFailed:
+-		return "FAIL"
+-	case parseTestParseOnly:
+-		return "PARSE"
+-	case parseTestPassed:
+-		return "PASS"
+-	}
+-	return "invalid parseTestResult value"
+-}
+ 
+ func TestParser(t *testing.T) {
+ 	testFiles, err := filepath.Glob(testDataDir + "*.dat")
+@@ -242,20 +213,6 @@ func TestParser(t *testing.T) {
+ 		defer f.Close()
+ 		r := bufio.NewReader(f)
+ 
+-		logName := testLogDir + tf[len(testDataDir):] + ".log"
+-		var lf *os.File
+-		var lbr *bufio.Reader
+-		if *updateLogs {
+-			lf, err = os.Create(logName)
+-		} else {
+-			lf, err = os.Open(logName)
+-			lbr = bufio.NewReader(lf)
+-		}
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		defer lf.Close()
+-
+ 		for i := 0; ; i++ {
+ 			text, want, context, err := readParseTest(r)
+ 			if err == io.EOF {
+@@ -265,46 +222,20 @@ func TestParser(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 
+-			var expectedResult parseTestResult
+-			if !*updateLogs {
+-				var expectedText, expectedResultString string
+-				_, err = fmt.Fscanf(lbr, "%s %q\n", &expectedResultString, &expectedText)
+-				if err != nil {
+-					t.Fatal(err)
+-				}
+-				if expectedText != text {
+-					t.Fatalf("Log does not match tests: log has %q, tests have %q", expectedText, text)
+-				}
+-				switch expectedResultString {
+-				case "FAIL":
+-					// Skip this test.
+-					continue
+-				case "PARSE":
+-					expectedResult = parseTestParseOnly
+-				case "PASS":
+-					expectedResult = parseTestPassed
+-				default:
+-					t.Fatalf("Log has invalid test result: %q", expectedResultString)
+-				}
+-			}
+-
+-			result, err := testParseCase(text, want, context)
++			err = testParseCase(text, want, context)
+ 
+-			if *updateLogs {
+-				fmt.Fprintf(lf, "%s %q\n", result, text)
+-			} else if result < expectedResult {
++			if err != nil {
+ 				t.Errorf("%s test #%d %q, %s", tf, i, text, err)
+ 			}
+ 		}
+ 	}
+ }
+ 
+-// testParseCase tests one test case from the test files. It returns a 
+-// parseTestResult indicating how much of the test passed. If the result
+-// is not parseTestPassed, it also returns an error that explains the failure.
++// testParseCase tests one test case from the test files. If the test does not
++// pass, it returns an error that explains the failure.
+ // text is the HTML to be parsed, want is a dump of the correct parse tree,
+ // and context is the name of the context node, if any.
+-func testParseCase(text, want, context string) (result parseTestResult, err error) {
++func testParseCase(text, want, context string) (err error) {
+ 	defer func() {
+ 		if x := recover(); x != nil {
+ 			switch e := x.(type) {
+@@ -320,7 +251,7 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
+ 	if context == "" {
+ 		doc, err = Parse(strings.NewReader(text))
+ 		if err != nil {
+-			return parseTestFailed, err
++			return err
+ 		}
+ 	} else {
+ 		contextNode := &Node{
+@@ -330,7 +261,7 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
+ 		}
+ 		nodes, err := ParseFragment(strings.NewReader(text), contextNode)
+ 		if err != nil {
+-			return parseTestFailed, err
++			return err
+ 		}
+ 		doc = &Node{
+ 			Type: DocumentNode,
+@@ -342,21 +273,17 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
+ 
+ 	got, err := dump(doc)
+ 	if err != nil {
+-		return parseTestFailed, err
++		return err
+ 	}
+ 	// Compare the parsed tree to the #document section.
+ 	if got != want {
+-		return parseTestFailed, fmt.Errorf("got vs want:\n----\n%s----\n%s----", got, want)
++		return fmt.Errorf("got vs want:\n----\n%s----\n%s----", got, want)
+ 	}
+ 
+ 	if renderTestBlacklist[text] || context != "" {
+-		return parseTestPassed, nil
++		return nil
+ 	}
+ 
+-	// Set result so that if a panic occurs during the render and re-parse
+-	// the calling function will know that the parsing phase was successful.
+-	result = parseTestParseOnly
+-
+ 	// Check that rendering and re-parsing results in an identical tree.
+ 	pr, pw := io.Pipe()
+ 	go func() {
+@@ -364,17 +291,17 @@ func testParseCase(text, want, context string) (result parseTestResult, err erro
+ 	}()
+ 	doc1, err := Parse(pr)
+ 	if err != nil {
+-		return parseTestParseOnly, err
++		return err
+ 	}
+ 	got1, err := dump(doc1)
+ 	if err != nil {
+-		return parseTestParseOnly, err
++		return err
+ 	}
+ 	if got != got1 {
+-		return parseTestParseOnly, fmt.Errorf("got vs got1:\n----\n%s----\n%s----", got, got1)
++		return fmt.Errorf("got vs got1:\n----\n%s----\n%s----", got, got1)
+ 	}
+ 
+-	return parseTestPassed, nil
++	return nil
+ }
+ 
+ // Some test input result in parse trees are not 'well-formed' despite
+diff --git a/src/pkg/exp/html/testlogs/adoption01.dat.log b/src/pkg/exp/html/testlogs/adoption01.dat.log
+deleted file mode 100644
+index e710d38be6..0000000000
+--- a/src/pkg/exp/html/testlogs/adoption01.dat.log
++++ /dev/null
+@@ -1,13 +0,0 @@
+-PASS "<a><p></a></p>"
+-PASS "<a>1<p>2</a>3</p>"
+-PASS "<a>1<button>2</a>3</button>"
+-PASS "<a>1<b>2</a>3</b>"
+-PASS "<a>1<div>2<div>3</a>4</div>5</div>"
+-PASS "<table><a>1<p>2</a>3</p>"
+-PASS "<b><b><a><p></a>"
+-PASS "<b><a><b><p></a>"
+-PASS "<a><b><b><p></a>"
+-PASS "<p>1<s id=\"A\">2<b id=\"B\">3</p>4</s>5</b>"
+-PASS "<table><a>1<td>2</td>3</table>"
+-PASS "<table>A<td>B</td>C</table>"
+-PASS "<a><svg><tr><input></a>"
+diff --git a/src/pkg/exp/html/testlogs/adoption02.dat.log b/src/pkg/exp/html/testlogs/adoption02.dat.log
+deleted file mode 100644
+index 288019434a..0000000000
+--- a/src/pkg/exp/html/testlogs/adoption02.dat.log
++++ /dev/null
+@@ -1,2 +0,0 @@
+-PASS "<b>1<i>2<p>3</b>4"
+-PASS "<a><div><style></style><address><a>"
+diff --git a/src/pkg/exp/html/testlogs/comments01.dat.log b/src/pkg/exp/html/testlogs/comments01.dat.log
+deleted file mode 100644
+index a72fc7a67e..0000000000
+--- a/src/pkg/exp/html/testlogs/comments01.dat.log
++++ /dev/null
+@@ -1,13 +0,0 @@
+-PASS "FOO<!-- BAR -->BAZ"
+-PASS "FOO<!-- BAR --!>BAZ"
+-PASS "FOO<!-- BAR --   >BAZ"
+-PASS "FOO<!-- BAR -- <QUX> -- MUX -->BAZ"
+-PASS "FOO<!-- BAR -- <QUX> -- MUX --!>BAZ"
+-PASS "FOO<!-- BAR -- <QUX> -- MUX -- >BAZ"
+-PASS "FOO<!---->BAZ"
+-PASS "FOO<!--->BAZ"
+-PASS "FOO<!-->BAZ"
+-PASS "<?xml version=\"1.0\">Hi"
+-PASS "<?xml version=\"1.0\">"
+-PASS "<?xml version"
+-PASS "FOO<!----->BAZ"
+diff --git a/src/pkg/exp/html/testlogs/doctype01.dat.log b/src/pkg/exp/html/testlogs/doctype01.dat.log
+deleted file mode 100644
+index 9654bca5f8..0000000000
+--- a/src/pkg/exp/html/testlogs/doctype01.dat.log
++++ /dev/null
+@@ -1,37 +0,0 @@
+-PASS "<!DOCTYPE html>Hello"
+-PASS "<!dOctYpE HtMl>Hello"
+-PASS "<!DOCTYPEhtml>Hello"
+-PASS "<!DOCTYPE>Hello"
+-PASS "<!DOCTYPE >Hello"
+-PASS "<!DOCTYPE potato>Hello"
+-PASS "<!DOCTYPE potato >Hello"
+-PASS "<!DOCTYPE potato taco>Hello"
+-PASS "<!DOCTYPE potato taco \"ddd>Hello"
+-PASS "<!DOCTYPE potato sYstEM>Hello"
+-PASS "<!DOCTYPE potato sYstEM    >Hello"
+-PASS "<!DOCTYPE   potato       sYstEM  ggg>Hello"
+-PASS "<!DOCTYPE potato SYSTEM taco  >Hello"
+-PASS "<!DOCTYPE potato SYSTEM 'taco\"'>Hello"
+-PASS "<!DOCTYPE potato SYSTEM \"taco\">Hello"
+-PASS "<!DOCTYPE potato SYSTEM \"tai'co\">Hello"
+-PASS "<!DOCTYPE potato SYSTEMtaco \"ddd\">Hello"
+-PASS "<!DOCTYPE potato grass SYSTEM taco>Hello"
+-PASS "<!DOCTYPE potato pUbLIc>Hello"
+-PASS "<!DOCTYPE potato pUbLIc >Hello"
+-PASS "<!DOCTYPE potato pUbLIcgoof>Hello"
+-PASS "<!DOCTYPE potato PUBLIC goof>Hello"
+-PASS "<!DOCTYPE potato PUBLIC \"go'of\">Hello"
+-PASS "<!DOCTYPE potato PUBLIC 'go'of'>Hello"
+-PASS "<!DOCTYPE potato PUBLIC 'go:hh   of' >Hello"
+-PASS "<!DOCTYPE potato PUBLIC \"W3C-//dfdf\" SYSTEM ggg>Hello"
+-PASS "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"\n   \"http://www.w3.org/TR/html4/strict.dtd\">Hello"
+-PASS "<!DOCTYPE ...>Hello"
+-PASS "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"\n\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">"
+-PASS "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Frameset//EN\"\n\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd\">"
+-PASS "<!DOCTYPE root-element [SYSTEM OR PUBLIC FPI] \"uri\" [ \n<!-- internal declarations -->\n]>"
+-PASS "<!DOCTYPE html PUBLIC\n  \"-//WAPFORUM//DTD XHTML Mobile 1.0//EN\"\n    \"http://www.wapforum.org/DTD/xhtml-mobile10.dtd\">"
+-PASS "<!DOCTYPE HTML SYSTEM \"http://www.w3.org/DTD/HTML4-strict.dtd\"><body><b>Mine!</b></body>"
+-PASS "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"\"http://www.w3.org/TR/html4/strict.dtd\">"
+-PASS "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"'http://www.w3.org/TR/html4/strict.dtd'>"
+-PASS "<!DOCTYPE HTML PUBLIC\"-//W3C//DTD HTML 4.01//EN\"'http://www.w3.org/TR/html4/strict.dtd'>"
+-PASS "<!DOCTYPE HTML PUBLIC'-//W3C//DTD HTML 4.01//EN''http://www.w3.org/TR/html4/strict.dtd'>"
+diff --git a/src/pkg/exp/html/testlogs/entities01.dat.log b/src/pkg/exp/html/testlogs/entities01.dat.log
+deleted file mode 100644
+index 2f10bfe08d..0000000000
+--- a/src/pkg/exp/html/testlogs/entities01.dat.log
++++ /dev/null
+@@ -1,67 +0,0 @@
+-PASS "FOO&gt;BAR"
+-PASS "FOO&gtBAR"
+-PASS "FOO&gt BAR"
+-PASS "FOO&gt;;;BAR"
+-PASS "I'm &notit; I tell you"
+-PASS "I'm &notin; I tell you"
+-PASS "FOO& BAR"
+-PASS "FOO&<BAR>"
+-PASS "FOO&&&&gt;BAR"
+-PASS "FOO&#41;BAR"
+-PASS "FOO&#x41;BAR"
+-PASS "FOO&#X41;BAR"
+-PASS "FOO&#BAR"
+-PASS "FOO&#ZOO"
+-PASS "FOO&#xBAR"
+-PASS "FOO&#xZOO"
+-PASS "FOO&#XZOO"
+-PASS "FOO&#41BAR"
+-PASS "FOO&#x41BAR"
+-PASS "FOO&#x41ZOO"
+-PASS "FOO&#x0000;ZOO"
+-PASS "FOO&#x0078;ZOO"
+-PASS "FOO&#x0079;ZOO"
+-PASS "FOO&#x0080;ZOO"
+-PASS "FOO&#x0081;ZOO"
+-PASS "FOO&#x0082;ZOO"
+-PASS "FOO&#x0083;ZOO"
+-PASS "FOO&#x0084;ZOO"
+-PASS "FOO&#x0085;ZOO"
+-PASS "FOO&#x0086;ZOO"
+-PASS "FOO&#x0087;ZOO"
+-PASS "FOO&#x0088;ZOO"
+-PASS "FOO&#x0089;ZOO"
+-PASS "FOO&#x008A;ZOO"
+-PASS "FOO&#x008B;ZOO"
+-PASS "FOO&#x008C;ZOO"
+-PASS "FOO&#x008D;ZOO"
+-PASS "FOO&#x008E;ZOO"
+-PASS "FOO&#x008F;ZOO"
+-PASS "FOO&#x0090;ZOO"
+-PASS "FOO&#x0091;ZOO"
+-PASS "FOO&#x0092;ZOO"
+-PASS "FOO&#x0093;ZOO"
+-PASS "FOO&#x0094;ZOO"
+-PASS "FOO&#x0095;ZOO"
+-PASS "FOO&#x0096;ZOO"
+-PASS "FOO&#x0097;ZOO"
+-PASS "FOO&#x0098;ZOO"
+-PASS "FOO&#x0099;ZOO"
+-PASS "FOO&#x009A;ZOO"
+-PASS "FOO&#x009B;ZOO"
+-PASS "FOO&#x009C;ZOO"
+-PASS "FOO&#x009D;ZOO"
+-PASS "FOO&#x009E;ZOO"
+-PASS "FOO&#x009F;ZOO"
+-PASS "FOO&#x00A0;ZOO"
+-PASS "FOO&#xD7FF;ZOO"
+-PASS "FOO&#xD800;ZOO"
+-PASS "FOO&#xD801;ZOO"
+-PASS "FOO&#xDFFE;ZOO"
+-PASS "FOO&#xDFFF;ZOO"
+-PASS "FOO&#xE000;ZOO"
+-PASS "FOO&#x10FFFE;ZOO"
+-PASS "FOO&#x1087D4;ZOO"
+-PASS "FOO&#x10FFFF;ZOO"
+-PASS "FOO&#x110000;ZOO"
+-PASS "FOO&#xFFFFFF;ZOO"
+diff --git a/src/pkg/exp/html/testlogs/entities02.dat.log b/src/pkg/exp/html/testlogs/entities02.dat.log
+deleted file mode 100644
+index 9321b0f0f9..0000000000
+--- a/src/pkg/exp/html/testlogs/entities02.dat.log
++++ /dev/null
+@@ -1,25 +0,0 @@
+-PASS "<div bar=\"ZZ&gt;YY\"></div>"
+-PASS "<div bar=\"ZZ&\"></div>"
+-PASS "<div bar='ZZ&'></div>"
+-PASS "<div bar=ZZ&></div>"
+-PASS "<div bar=\"ZZ&gt=YY\"></div>"
+-PASS "<div bar=\"ZZ&gt0YY\"></div>"
+-PASS "<div bar=\"ZZ&gt9YY\"></div>"
+-PASS "<div bar=\"ZZ&gtaYY\"></div>"
+-PASS "<div bar=\"ZZ&gtZYY\"></div>"
+-PASS "<div bar=\"ZZ&gt YY\"></div>"
+-PASS "<div bar=\"ZZ&gt\"></div>"
+-PASS "<div bar='ZZ&gt'></div>"
+-PASS "<div bar=ZZ&gt></div>"
+-PASS "<div bar=\"ZZ&pound_id=23\"></div>"
+-PASS "<div bar=\"ZZ&prod_id=23\"></div>"
+-PASS "<div bar=\"ZZ&pound;_id=23\"></div>"
+-PASS "<div bar=\"ZZ&prod;_id=23\"></div>"
+-PASS "<div bar=\"ZZ&pound=23\"></div>"
+-PASS "<div bar=\"ZZ&prod=23\"></div>"
+-PASS "<div>ZZ&pound_id=23</div>"
+-PASS "<div>ZZ&prod_id=23</div>"
+-PASS "<div>ZZ&pound;_id=23</div>"
+-PASS "<div>ZZ&prod;_id=23</div>"
+-PASS "<div>ZZ&pound=23</div>"
+-PASS "<div>ZZ&prod=23</div>"
+diff --git a/src/pkg/exp/html/testlogs/html5test-com.dat.log b/src/pkg/exp/html/testlogs/html5test-com.dat.log
+deleted file mode 100644
+index 5b921de88c..0000000000
+--- a/src/pkg/exp/html/testlogs/html5test-com.dat.log
++++ /dev/null
+@@ -1,24 +0,0 @@
+-PASS "<div<div>"
+-PASS "<div foo<bar=''>"
+-PASS "<div foo=`bar`>"
+-PASS "<div \\\"foo=''>"
+-PASS "<a href='\\nbar'></a>"
+-PASS "<!DOCTYPE html>"
+-PASS "&lang;&rang;"
+-PASS "&apos;"
+-PASS "&ImaginaryI;"
+-PASS "&Kopf;"
+-PASS "&notinva;"
+-PASS "<?import namespace=\"foo\" implementation=\"#bar\">"
+-PASS "<!--foo--bar-->"
+-PASS "<![CDATA[x]]>"
+-PASS "<textarea><!--</textarea>--></textarea>"
+-PASS "<textarea><!--</textarea>-->"
+-PASS "<style><!--</style>--></style>"
+-PASS "<style><!--</style>-->"
+-PASS "<ul><li>A </li> <li>B</li></ul>"
+-PASS "<table><form><input type=hidden><input></form><div></div></table>"
+-PASS "<i>A<b>B<p></i>C</b>D"
+-PASS "<div></div>"
+-PASS "<svg></svg>"
+-PASS "<math></math>"
+diff --git a/src/pkg/exp/html/testlogs/inbody01.dat.log b/src/pkg/exp/html/testlogs/inbody01.dat.log
+deleted file mode 100644
+index f0695812ba..0000000000
+--- a/src/pkg/exp/html/testlogs/inbody01.dat.log
++++ /dev/null
+@@ -1,4 +0,0 @@
+-PASS "<button>1</foo>"
+-PASS "<foo>1<p>2</foo>"
+-PASS "<dd>1</foo>"
+-PASS "<foo>1<dd>2</foo>"
+diff --git a/src/pkg/exp/html/testlogs/isindex.dat.log b/src/pkg/exp/html/testlogs/isindex.dat.log
+deleted file mode 100644
+index 110068c54a..0000000000
+--- a/src/pkg/exp/html/testlogs/isindex.dat.log
++++ /dev/null
+@@ -1,3 +0,0 @@
+-PASS "<isindex>"
+-PASS "<isindex name=\"A\" action=\"B\" prompt=\"C\" foo=\"D\">"
+-PASS "<form><isindex>"
+diff --git a/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log
+deleted file mode 100644
+index bbcad900aa..0000000000
+--- a/src/pkg/exp/html/testlogs/pending-spec-changes-plain-text-unsafe.dat.log
++++ /dev/null
+@@ -1 +0,0 @@
+-PASS "<body><table>\x00filler\x00text\x00"
+diff --git a/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log b/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
+deleted file mode 100644
+index 71d0170399..0000000000
+--- a/src/pkg/exp/html/testlogs/pending-spec-changes.dat.log
++++ /dev/null
+@@ -1,3 +0,0 @@
+-PASS "<input type=\"hidden\"><frameset>"
+-PASS "<!DOCTYPE html><table><caption><svg>foo</table>bar"
+-PASS "<table><tr><td><svg><desc><td></desc><circle>"
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+deleted file mode 100644
+index f2d18d4711..0000000000
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ /dev/null
+@@ -1,33 +0,0 @@
+-PASS "FOO&#x000D;ZOO"
+-PASS "<html>\x00<frameset></frameset>"
+-PASS "<html> \x00 <frameset></frameset>"
+-PASS "<html>a\x00a<frameset></frameset>"
+-PASS "<html>\x00\x00<frameset></frameset>"
+-PASS "<html>\x00\n <frameset></frameset>"
+-PASS "<html><select>\x00"
+-PASS "\x00"
+-PASS "<body>\x00"
+-PASS "<plaintext>\x00filler\x00text\x00"
+-PASS "<svg><![CDATA[\x00filler\x00text\x00]]>"
+-PASS "<body><!\x00>"
+-PASS "<body><!\x00filler\x00text>"
+-PASS "<body><svg><foreignObject>\x00filler\x00text"
+-PASS "<svg>\x00filler\x00text"
+-PASS "<svg>\x00<frameset>"
+-PASS "<svg>\x00 <frameset>"
+-PASS "<svg>\x00a<frameset>"
+-PASS "<svg>\x00</svg><frameset>"
+-PASS "<svg>\x00 </svg><frameset>"
+-PASS "<svg>\x00a</svg><frameset>"
+-PASS "<svg><path></path></svg><frameset>"
+-PASS "<svg><p><frameset>"
+-PASS "<!DOCTYPE html><pre>\r\n\r\nA</pre>"
+-PASS "<!DOCTYPE html><pre>\r\rA</pre>"
+-PASS "<!DOCTYPE html><pre>\rA</pre>"
+-PASS "<!DOCTYPE html><table><tr><td><math><mtext>\x00a"
+-PASS "<!DOCTYPE html><table><tr><td><svg><foreignObject>\x00a"
+-PASS "<!DOCTYPE html><math><mi>a\x00b"
+-PASS "<!DOCTYPE html><math><mo>a\x00b"
+-PASS "<!DOCTYPE html><math><mn>a\x00b"
+-PASS "<!DOCTYPE html><math><ms>a\x00b"
+-PASS "<!DOCTYPE html><math><mtext>a\x00b"
+diff --git a/src/pkg/exp/html/testlogs/scriptdata01.dat.log b/src/pkg/exp/html/testlogs/scriptdata01.dat.log
+deleted file mode 100644
+index ff74927df4..0000000000
+--- a/src/pkg/exp/html/testlogs/scriptdata01.dat.log
++++ /dev/null
+@@ -1,26 +0,0 @@
+-PASS "FOO<script>'Hello'</script>BAR"
+-PASS "FOO<script></script>BAR"
+-PASS "FOO<script></script >BAR"
+-PASS "FOO<script></script/>BAR"
+-PASS "FOO<script></script/ >BAR"
+-PASS "FOO<script type=\"text/plain\"></scriptx>BAR"
+-PASS "FOO<script></script foo=\">\" dd>BAR"
+-PASS "FOO<script>'<'</script>BAR"
+-PASS "FOO<script>'<!'</script>BAR"
+-PASS "FOO<script>'<!-'</script>BAR"
+-PASS "FOO<script>'<!--'</script>BAR"
+-PASS "FOO<script>'<!---'</script>BAR"
+-PASS "FOO<script>'<!-->'</script>BAR"
+-PASS "FOO<script>'<!-->'</script>BAR"
+-PASS "FOO<script>'<!-- potato'</script>BAR"
+-PASS "FOO<script>'<!-- <sCrIpt'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt>'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> -'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> --'</script>BAR"
+-PASS "FOO<script>'<!-- <sCrIpt> -->'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> --!>'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> -- >'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt '</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt/'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt\\'</script>BAR"
+-PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt/'</script>BAR</script>QUX"
+diff --git a/src/pkg/exp/html/testlogs/tables01.dat.log b/src/pkg/exp/html/testlogs/tables01.dat.log
+deleted file mode 100644
+index 3d8534dee2..0000000000
+--- a/src/pkg/exp/html/testlogs/tables01.dat.log
++++ /dev/null
+@@ -1,17 +0,0 @@
+-PASS "<table><th>"
+-PASS "<table><td>"
+-PASS "<table><col foo='bar'>"
+-PASS "<table><colgroup></html>foo"
+-PASS "<table></table><p>foo"
+-PASS "<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr><td>"
+-PASS "<table><select><option>3</select></table>"
+-PASS "<table><select><table></table></select></table>"
+-PASS "<table><select></table>"
+-PASS "<table><select><option>A<tr><td>B</td></tr></table>"
+-PASS "<table><td></body></caption></col></colgroup></html>foo"
+-PASS "<table><td>A</table>B"
+-PASS "<table><tr><caption>"
+-PASS "<table><tr></body></caption></col></colgroup></html></td></th><td>foo"
+-PASS "<table><td><tr>"
+-PASS "<table><td><button><td>"
+-PASS "<table><tr><td><svg><desc><td>"
+diff --git a/src/pkg/exp/html/testlogs/tests1.dat.log b/src/pkg/exp/html/testlogs/tests1.dat.log
+deleted file mode 100644
+index a6306d3841..0000000000
+--- a/src/pkg/exp/html/testlogs/tests1.dat.log
++++ /dev/null
+@@ -1,114 +0,0 @@
+-PASS "Test"
+-PASS "<p>One<p>Two"
+-PASS "Line1<br>Line2<br>Line3<br>Line4"
+-PASS "<html>"
+-PASS "<head>"
+-PASS "<body>"
+-PASS "<html><head>"
+-PASS "<html><head></head>"
+-PASS "<html><head></head><body>"
+-PASS "<html><head></head><body></body>"
+-PASS "<html><head><body></body></html>"
+-PASS "<html><head></body></html>"
+-PASS "<html><head><body></html>"
+-PASS "<html><body></html>"
+-PASS "<body></html>"
+-PASS "<head></html>"
+-PASS "</head>"
+-PASS "</body>"
+-PASS "</html>"
+-PASS "<b><table><td><i></table>"
+-PASS "<b><table><td></b><i></table>X"
+-PASS "<h1>Hello<h2>World"
+-PASS "<a><p>X<a>Y</a>Z</p></a>"
+-PASS "<b><button>foo</b>bar"
+-PASS "<!DOCTYPE html><span><button>foo</span>bar"
+-PASS "<p><b><div><marquee></p></b></div>X"
+-PASS "<script><div></script></div><title><p></title><p><p>"
+-PASS "<!--><div>--<!-->"
+-PASS "<p><hr></p>"
+-PASS "<select><b><option><select><option></b></select>X"
+-PASS "<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y"
+-PASS "<a X>0<b>1<a Y>2"
+-PASS "<!-----><font><div>hello<table>excite!<b>me!<th><i>please!</tr><!--X-->"
+-PASS "<!DOCTYPE html><li>hello<li>world<ul>how<li>do</ul>you</body><!--do-->"
+-PASS "<!DOCTYPE html>A<option>B<optgroup>C<select>D</option>E"
+-PASS "<"
+-PASS "<#"
+-PASS "</"
+-PASS "</#"
+-PASS "<?"
+-PASS "<?#"
+-PASS "<!"
+-PASS "<!#"
+-PASS "<?COMMENT?>"
+-PASS "<!COMMENT>"
+-PASS "</ COMMENT >"
+-PASS "<?COM--MENT?>"
+-PASS "<!COM--MENT>"
+-PASS "</ COM--MENT >"
+-PASS "<!DOCTYPE html><style> EOF"
+-PASS "<!DOCTYPE html><script> <!-- </script> --> </script> EOF"
+-PASS "<b><p></b>TEST"
+-PASS "<p id=a><b><p id=b></b>TEST"
+-PASS "<b id=a><p><b id=b></p></b>TEST"
+-PASS "<!DOCTYPE html><title>U-test</title><body><div><p>Test<u></p></div></body>"
+-PASS "<!DOCTYPE html><font><table></font></table></font>"
+-PASS "<font><p>hello<b>cruel</font>world"
+-PASS "<b>Test</i>Test"
+-PASS "<b>A<cite>B<div>C"
+-PASS "<b>A<cite>B<div>C</cite>D"
+-PASS "<b>A<cite>B<div>C</b>D"
+-PASS ""
+-PASS "<DIV>"
+-PASS "<DIV> abc"
+-PASS "<DIV> abc <B>"
+-PASS "<DIV> abc <B> def"
+-PASS "<DIV> abc <B> def <I>"
+-PASS "<DIV> abc <B> def <I> ghi"
+-PASS "<DIV> abc <B> def <I> ghi <P>"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl </B>"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl </B> mno"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I>"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I> pqr"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I> pqr </P>"
+-PASS "<DIV> abc <B> def <I> ghi <P> jkl </B> mno </I> pqr </P> stu"
+-PASS "<test attribute---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->"
+-PASS "<a href=\"blah\">aba<table><a href=\"foo\">br<tr><td></td></tr>x</table>aoe"
+-PASS "<a href=\"blah\">aba<table><tr><td><a href=\"foo\">br</td></tr>x</table>aoe"
+-PASS "<table><a href=\"blah\">aba<tr><td><a href=\"foo\">br</td></tr>x</table>aoe"
+-PASS "<a href=a>aa<marquee>aa<a href=b>bb</marquee>aa"
+-PASS "<wbr><strike><code></strike><code><strike></code>"
+-PASS "<!DOCTYPE html><spacer>foo"
+-PASS "<title><meta></title><link><title><meta></title>"
+-PASS "<style><!--</style><meta><script>--><link></script>"
+-PASS "<head><meta></head><link>"
+-PASS "<table><tr><tr><td><td><span><th><span>X</table>"
+-PASS "<body><body><base><link><meta><title><p></title><body><p></body>"
+-PASS "<textarea><p></textarea>"
+-PASS "<p><image></p>"
+-PASS "<a><table><a></table><p><a><div><a>"
+-PASS "<head></p><meta><p>"
+-PASS "<head></html><meta><p>"
+-PASS "<b><table><td><i></table>"
+-PASS "<b><table><td></b><i></table>"
+-PASS "<h1><h2>"
+-PASS "<a><p><a></a></p></a>"
+-PASS "<b><button></b></button></b>"
+-PASS "<p><b><div><marquee></p></b></div>"
+-PASS "<script></script></div><title></title><p><p>"
+-PASS "<p><hr></p>"
+-PASS "<select><b><option><select><option></b></select>"
+-PASS "<html><head><title></title><body></body></html>"
+-PASS "<a><table><td><a><table></table><a></tr><a></table><a>"
+-PASS "<ul><li></li><div><li></div><li><li><div><li><address><li><b><em></b><li></ul>"
+-PASS "<ul><li><ul></li><li>a</li></ul></li></ul>"
+-PASS "<frameset><frame><frameset><frame></frameset><noframes></noframes></frameset>"
+-PASS "<h1><table><td><h3></table><h3></h1>"
+-PASS "<table><colgroup><col><colgroup><col><col><col><colgroup><col><col><thead><tr><td></table>"
+-PASS "<table><col><tbody><col><tr><col><td><col></table><col>"
+-PASS "<table><colgroup><tbody><colgroup><tr><colgroup><td><colgroup></table><colgroup>"
+-PASS "</strong></b></em></i></u></strike></s></blink></tt></pre></big></small></font></select></h1></h2></h3></h4></h5></h6></body></br></a></img></title></span></style></script></table></th></td></tr></frame></area></link></param></hr></input></col></base></meta></basefont></bgsound></embed></spacer></p></dd></dt></caption></colgroup></tbody></tfoot></thead></address></blockquote></center></dir></div></dl></fieldset></listing></menu></ol></ul></li></nobr></wbr></form></button></marquee></object></html></frameset></head></iframe></image></isindex></noembed></noframes></noscript></optgroup></option></plaintext></textarea>"
+-PASS "<table><tr></strong></b></em></i></u></strike></s></blink></tt></pre></big></small></font></select></h1></h2></h3></h4></h5></h6></body></br></a></img></title></span></style></script></table></th></td></tr></frame></area></link></param></hr></input></col></base></meta></basefont></bgsound></embed></spacer></p></dd></dt></caption></colgroup></tbody></tfoot></thead></address></blockquote></center></dir></div></dl></fieldset></listing></menu></ol></ul></li></nobr></wbr></form></button></marquee></object></html></frameset></head></iframe></image></isindex></noembed></noframes></noscript></optgroup></option></plaintext></textarea>"
+-PASS "<frameset>"
+diff --git a/src/pkg/exp/html/testlogs/tests10.dat.log b/src/pkg/exp/html/testlogs/tests10.dat.log
+deleted file mode 100644
+index bf9434b257..0000000000
+--- a/src/pkg/exp/html/testlogs/tests10.dat.log
++++ /dev/null
+@@ -1,54 +0,0 @@
+-PASS "<!DOCTYPE html><svg></svg>"
+-PASS "<!DOCTYPE html><svg></svg><![CDATA[a]]>"
+-PASS "<!DOCTYPE html><body><svg></svg>"
+-PASS "<!DOCTYPE html><body><select><svg></svg></select>"
+-PASS "<!DOCTYPE html><body><select><option><svg></svg></option></select>"
+-PASS "<!DOCTYPE html><body><table><svg></svg></table>"
+-PASS "<!DOCTYPE html><body><table><svg><g>foo</g></svg></table>"
+-PASS "<!DOCTYPE html><body><table><svg><g>foo</g><g>bar</g></svg></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><svg><g>foo</g><g>bar</g></svg></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><tr><svg><g>foo</g><g>bar</g></svg></tr></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><tr><td><svg><g>foo</g><g>bar</g></svg></td></tr></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><tr><td><svg><g>foo</g><g>bar</g></svg><p>baz</td></tr></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g></svg><p>baz</caption></table>"
+-PASS "<!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><caption><svg><g>foo</g><g>bar</g>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><colgroup><svg><g>foo</g><g>bar</g><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><tr><td><select><svg><g>foo</g><g>bar</g><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><select><svg><g>foo</g><g>bar</g><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body></body></html><svg><g>foo</g><g>bar</g><p>baz"
+-PASS "<!DOCTYPE html><body></body><svg><g>foo</g><g>bar</g><p>baz"
+-PASS "<!DOCTYPE html><frameset><svg><g></g><g></g><p><span>"
+-PASS "<!DOCTYPE html><frameset></frameset><svg><g></g><g></g><p><span>"
+-PASS "<!DOCTYPE html><body xlink:href=foo><svg xlink:href=foo></svg>"
+-PASS "<!DOCTYPE html><body xlink:href=foo xml:lang=en><svg><g xml:lang=en xlink:href=foo></g></svg>"
+-PASS "<!DOCTYPE html><body xlink:href=foo xml:lang=en><svg><g xml:lang=en xlink:href=foo /></svg>"
+-PASS "<!DOCTYPE html><body xlink:href=foo xml:lang=en><svg><g xml:lang=en xlink:href=foo />bar</svg>"
+-PASS "<svg></path>"
+-PASS "<div><svg></div>a"
+-PASS "<div><svg><path></div>a"
+-PASS "<div><svg><path></svg><path>"
+-PASS "<div><svg><path><foreignObject><math></div>a"
+-PASS "<div><svg><path><foreignObject><p></div>a"
+-PASS "<!DOCTYPE html><svg><desc><div><svg><ul>a"
+-PASS "<!DOCTYPE html><svg><desc><svg><ul>a"
+-PASS "<!DOCTYPE html><p><svg><desc><p>"
+-PASS "<!DOCTYPE html><p><svg><title><p>"
+-PASS "<div><svg><path><foreignObject><p></foreignObject><p>"
+-PASS "<math><mi><div><object><div><span></span></div></object></div></mi><mi>"
+-PASS "<math><mi><svg><foreignObject><div><div></div></div></foreignObject></svg></mi><mi>"
+-PASS "<svg><script></script><path>"
+-PASS "<table><svg></svg><tr>"
+-PASS "<math><mi><mglyph>"
+-PASS "<math><mi><malignmark>"
+-PASS "<math><mo><mglyph>"
+-PASS "<math><mo><malignmark>"
+-PASS "<math><mn><mglyph>"
+-PASS "<math><mn><malignmark>"
+-PASS "<math><ms><mglyph>"
+-PASS "<math><ms><malignmark>"
+-PASS "<math><mtext><mglyph>"
+-PASS "<math><mtext><malignmark>"
+-PASS "<math><annotation-xml><svg></svg></annotation-xml><mi>"
+-PASS "<math><annotation-xml><svg><foreignObject><div><math><mi></mi></math><span></span></div></foreignObject><path></path></svg></annotation-xml><mi>"
+-PASS "<math><annotation-xml><svg><foreignObject><math><mi><svg></svg></mi><mo></mo></math><span></span></foreignObject><path></path></svg></annotation-xml><mi>"
+diff --git a/src/pkg/exp/html/testlogs/tests11.dat.log b/src/pkg/exp/html/testlogs/tests11.dat.log
+deleted file mode 100644
+index 739a7e7755..0000000000
+--- a/src/pkg/exp/html/testlogs/tests11.dat.log
++++ /dev/null
+@@ -1,9 +0,0 @@
+-PASS "<!DOCTYPE html><body><svg attributeName='' attributeType='' baseFrequency='' baseProfile='' calcMode='' clipPathUnits='' contentScriptType='' contentStyleType='' diffuseConstant='' edgeMode='' externalResourcesRequired='' filterRes='' filterUnits='' glyphRef='' gradientTransform='' gradientUnits='' kernelMatrix='' kernelUnitLength='' keyPoints='' keySplines='' keyTimes='' lengthAdjust='' limitingConeAngle='' markerHeight='' markerUnits='' markerWidth='' maskContentUnits='' maskUnits='' numOctaves='' pathLength='' patternContentUnits='' patternTransform='' patternUnits='' pointsAtX='' pointsAtY='' pointsAtZ='' preserveAlpha='' preserveAspectRatio='' primitiveUnits='' refX='' refY='' repeatCount='' repeatDur='' requiredExtensions='' requiredFeatures='' specularConstant='' specularExponent='' spreadMethod='' startOffset='' stdDeviation='' stitchTiles='' surfaceScale='' systemLanguage='' tableValues='' targetX='' targetY='' textLength='' viewBox='' viewTarget='' xChannelSelector='' yChannelSelector='' zoomAndPan=''></svg>"
+-PASS "<!DOCTYPE html><BODY><SVG ATTRIBUTENAME='' ATTRIBUTETYPE='' BASEFREQUENCY='' BASEPROFILE='' CALCMODE='' CLIPPATHUNITS='' CONTENTSCRIPTTYPE='' CONTENTSTYLETYPE='' DIFFUSECONSTANT='' EDGEMODE='' EXTERNALRESOURCESREQUIRED='' FILTERRES='' FILTERUNITS='' GLYPHREF='' GRADIENTTRANSFORM='' GRADIENTUNITS='' KERNELMATRIX='' KERNELUNITLENGTH='' KEYPOINTS='' KEYSPLINES='' KEYTIMES='' LENGTHADJUST='' LIMITINGCONEANGLE='' MARKERHEIGHT='' MARKERUNITS='' MARKERWIDTH='' MASKCONTENTUNITS='' MASKUNITS='' NUMOCTAVES='' PATHLENGTH='' PATTERNCONTENTUNITS='' PATTERNTRANSFORM='' PATTERNUNITS='' POINTSATX='' POINTSATY='' POINTSATZ='' PRESERVEALPHA='' PRESERVEASPECTRATIO='' PRIMITIVEUNITS='' REFX='' REFY='' REPEATCOUNT='' REPEATDUR='' REQUIREDEXTENSIONS='' REQUIREDFEATURES='' SPECULARCONSTANT='' SPECULAREXPONENT='' SPREADMETHOD='' STARTOFFSET='' STDDEVIATION='' STITCHTILES='' SURFACESCALE='' SYSTEMLANGUAGE='' TABLEVALUES='' TARGETX='' TARGETY='' TEXTLENGTH='' VIEWBOX='' VIEWTARGET='' XCHANNELSELECTOR='' YCHANNELSELECTOR='' ZOOMANDPAN=''></SVG>"
+-PASS "<!DOCTYPE html><body><svg attributename='' attributetype='' basefrequency='' baseprofile='' calcmode='' clippathunits='' contentscripttype='' contentstyletype='' diffuseconstant='' edgemode='' externalresourcesrequired='' filterres='' filterunits='' glyphref='' gradienttransform='' gradientunits='' kernelmatrix='' kernelunitlength='' keypoints='' keysplines='' keytimes='' lengthadjust='' limitingconeangle='' markerheight='' markerunits='' markerwidth='' maskcontentunits='' maskunits='' numoctaves='' pathlength='' patterncontentunits='' patterntransform='' patternunits='' pointsatx='' pointsaty='' pointsatz='' preservealpha='' preserveaspectratio='' primitiveunits='' refx='' refy='' repeatcount='' repeatdur='' requiredextensions='' requiredfeatures='' specularconstant='' specularexponent='' spreadmethod='' startoffset='' stddeviation='' stitchtiles='' surfacescale='' systemlanguage='' tablevalues='' targetx='' targety='' textlength='' viewbox='' viewtarget='' xchannelselector='' ychannelselector='' zoomandpan=''></svg>"
+-PASS "<!DOCTYPE html><body><math attributeName='' attributeType='' baseFrequency='' baseProfile='' calcMode='' clipPathUnits='' contentScriptType='' contentStyleType='' diffuseConstant='' edgeMode='' externalResourcesRequired='' filterRes='' filterUnits='' glyphRef='' gradientTransform='' gradientUnits='' kernelMatrix='' kernelUnitLength='' keyPoints='' keySplines='' keyTimes='' lengthAdjust='' limitingConeAngle='' markerHeight='' markerUnits='' markerWidth='' maskContentUnits='' maskUnits='' numOctaves='' pathLength='' patternContentUnits='' patternTransform='' patternUnits='' pointsAtX='' pointsAtY='' pointsAtZ='' preserveAlpha='' preserveAspectRatio='' primitiveUnits='' refX='' refY='' repeatCount='' repeatDur='' requiredExtensions='' requiredFeatures='' specularConstant='' specularExponent='' spreadMethod='' startOffset='' stdDeviation='' stitchTiles='' surfaceScale='' systemLanguage='' tableValues='' targetX='' targetY='' textLength='' viewBox='' viewTarget='' xChannelSelector='' yChannelSelector='' zoomAndPan=''></math>"
+-PASS "<!DOCTYPE html><body><svg><altGlyph /><altGlyphDef /><altGlyphItem /><animateColor /><animateMotion /><animateTransform /><clipPath /><feBlend /><feColorMatrix /><feComponentTransfer /><feComposite /><feConvolveMatrix /><feDiffuseLighting /><feDisplacementMap /><feDistantLight /><feFlood /><feFuncA /><feFuncB /><feFuncG /><feFuncR /><feGaussianBlur /><feImage /><feMerge /><feMergeNode /><feMorphology /><feOffset /><fePointLight /><feSpecularLighting /><feSpotLight /><feTile /><feTurbulence /><foreignObject /><glyphRef /><linearGradient /><radialGradient /><textPath /></svg>"
+-PASS "<!DOCTYPE html><body><svg><altglyph /><altglyphdef /><altglyphitem /><animatecolor /><animatemotion /><animatetransform /><clippath /><feblend /><fecolormatrix /><fecomponenttransfer /><fecomposite /><feconvolvematrix /><fediffuselighting /><fedisplacementmap /><fedistantlight /><feflood /><fefunca /><fefuncb /><fefuncg /><fefuncr /><fegaussianblur /><feimage /><femerge /><femergenode /><femorphology /><feoffset /><fepointlight /><fespecularlighting /><fespotlight /><fetile /><feturbulence /><foreignobject /><glyphref /><lineargradient /><radialgradient /><textpath /></svg>"
+-PASS "<!DOCTYPE html><BODY><SVG><ALTGLYPH /><ALTGLYPHDEF /><ALTGLYPHITEM /><ANIMATECOLOR /><ANIMATEMOTION /><ANIMATETRANSFORM /><CLIPPATH /><FEBLEND /><FECOLORMATRIX /><FECOMPONENTTRANSFER /><FECOMPOSITE /><FECONVOLVEMATRIX /><FEDIFFUSELIGHTING /><FEDISPLACEMENTMAP /><FEDISTANTLIGHT /><FEFLOOD /><FEFUNCA /><FEFUNCB /><FEFUNCG /><FEFUNCR /><FEGAUSSIANBLUR /><FEIMAGE /><FEMERGE /><FEMERGENODE /><FEMORPHOLOGY /><FEOFFSET /><FEPOINTLIGHT /><FESPECULARLIGHTING /><FESPOTLIGHT /><FETILE /><FETURBULENCE /><FOREIGNOBJECT /><GLYPHREF /><LINEARGRADIENT /><RADIALGRADIENT /><TEXTPATH /></SVG>"
+-PASS "<!DOCTYPE html><body><math><altGlyph /><altGlyphDef /><altGlyphItem /><animateColor /><animateMotion /><animateTransform /><clipPath /><feBlend /><feColorMatrix /><feComponentTransfer /><feComposite /><feConvolveMatrix /><feDiffuseLighting /><feDisplacementMap /><feDistantLight /><feFlood /><feFuncA /><feFuncB /><feFuncG /><feFuncR /><feGaussianBlur /><feImage /><feMerge /><feMergeNode /><feMorphology /><feOffset /><fePointLight /><feSpecularLighting /><feSpotLight /><feTile /><feTurbulence /><foreignObject /><glyphRef /><linearGradient /><radialGradient /><textPath /></math>"
+-PASS "<!DOCTYPE html><body><svg><solidColor /></svg>"
+diff --git a/src/pkg/exp/html/testlogs/tests12.dat.log b/src/pkg/exp/html/testlogs/tests12.dat.log
+deleted file mode 100644
+index 6fd0d1ea26..0000000000
+--- a/src/pkg/exp/html/testlogs/tests12.dat.log
++++ /dev/null
+@@ -1,2 +0,0 @@
+-PASS "<!DOCTYPE html><body><p>foo<math><mtext><i>baz</i></mtext><annotation-xml><svg><desc><b>eggs</b></desc><g><foreignObject><P>spam<TABLE><tr><td><img></td></table></foreignObject></g><g>quux</g></svg></annotation-xml></math>bar"
+-PASS "<!DOCTYPE html><body>foo<math><mtext><i>baz</i></mtext><annotation-xml><svg><desc><b>eggs</b></desc><g><foreignObject><P>spam<TABLE><tr><td><img></td></table></foreignObject></g><g>quux</g></svg></annotation-xml></math>bar"
+diff --git a/src/pkg/exp/html/testlogs/tests14.dat.log b/src/pkg/exp/html/testlogs/tests14.dat.log
+deleted file mode 100644
+index c8ceaf0127..0000000000
+--- a/src/pkg/exp/html/testlogs/tests14.dat.log
++++ /dev/null
+@@ -1,7 +0,0 @@
+-PASS "<!DOCTYPE html><html><body><xyz:abc></xyz:abc>"
+-PASS "<!DOCTYPE html><html><body><xyz:abc></xyz:abc><span></span>"
+-PASS "<!DOCTYPE html><html><html abc:def=gh><xyz:abc></xyz:abc>"
+-PASS "<!DOCTYPE html><html xml:lang=bar><html xml:lang=foo>"
+-PASS "<!DOCTYPE html><html 123=456>"
+-PASS "<!DOCTYPE html><html 123=456><html 789=012>"
+-PASS "<!DOCTYPE html><html><body 789=012>"
+diff --git a/src/pkg/exp/html/testlogs/tests15.dat.log b/src/pkg/exp/html/testlogs/tests15.dat.log
+deleted file mode 100644
+index 7129223196..0000000000
+--- a/src/pkg/exp/html/testlogs/tests15.dat.log
++++ /dev/null
+@@ -1,14 +0,0 @@
+-PASS "<!DOCTYPE html><p><b><i><u></p> <p>X"
+-PASS "<p><b><i><u></p>\n<p>X"
+-PASS "<!doctype html></html> <head>"
+-PASS "<!doctype html></body><meta>"
+-PASS "<html></html><!-- foo -->"
+-PASS "<!doctype html></body><title>X</title>"
+-PASS "<!doctype html><table> X<meta></table>"
+-PASS "<!doctype html><table> x</table>"
+-PASS "<!doctype html><table> x </table>"
+-PASS "<!doctype html><table><tr> x</table>"
+-PASS "<!doctype html><table>X<style> <tr>x </style> </table>"
+-PASS "<!doctype html><div><table><a>foo</a> <tr><td>bar</td> </tr></table></div>"
+-PASS "<frame></frame></frame><frameset><frame><frameset><frame></frameset><noframes></frameset><noframes>"
+-PASS "<!DOCTYPE html><object></html>"
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+deleted file mode 100644
+index 6bb850adcc..0000000000
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ /dev/null
+@@ -1,191 +0,0 @@
+-PASS "<!doctype html><script>"
+-PASS "<!doctype html><script>a"
+-PASS "<!doctype html><script><"
+-PASS "<!doctype html><script></"
+-PASS "<!doctype html><script></S"
+-PASS "<!doctype html><script></SC"
+-PASS "<!doctype html><script></SCR"
+-PASS "<!doctype html><script></SCRI"
+-PASS "<!doctype html><script></SCRIP"
+-PASS "<!doctype html><script></SCRIPT"
+-PASS "<!doctype html><script></SCRIPT "
+-PASS "<!doctype html><script></s"
+-PASS "<!doctype html><script></sc"
+-PASS "<!doctype html><script></scr"
+-PASS "<!doctype html><script></scri"
+-PASS "<!doctype html><script></scrip"
+-PASS "<!doctype html><script></script"
+-PASS "<!doctype html><script></script "
+-PASS "<!doctype html><script><!"
+-PASS "<!doctype html><script><!a"
+-PASS "<!doctype html><script><!-"
+-PASS "<!doctype html><script><!-a"
+-PASS "<!doctype html><script><!--"
+-PASS "<!doctype html><script><!--a"
+-PASS "<!doctype html><script><!--<"
+-PASS "<!doctype html><script><!--<a"
+-PASS "<!doctype html><script><!--</"
+-PASS "<!doctype html><script><!--</script"
+-PASS "<!doctype html><script><!--</script "
+-PASS "<!doctype html><script><!--<s"
+-PASS "<!doctype html><script><!--<script"
+-PASS "<!doctype html><script><!--<script "
+-PASS "<!doctype html><script><!--<script <"
+-PASS "<!doctype html><script><!--<script <a"
+-PASS "<!doctype html><script><!--<script </"
+-PASS "<!doctype html><script><!--<script </s"
+-PASS "<!doctype html><script><!--<script </script"
+-PASS "<!doctype html><script><!--<script </scripta"
+-PASS "<!doctype html><script><!--<script </script "
+-PASS "<!doctype html><script><!--<script </script>"
+-PASS "<!doctype html><script><!--<script </script/"
+-PASS "<!doctype html><script><!--<script </script <"
+-PASS "<!doctype html><script><!--<script </script <a"
+-PASS "<!doctype html><script><!--<script </script </"
+-PASS "<!doctype html><script><!--<script </script </script"
+-PASS "<!doctype html><script><!--<script </script </script "
+-PASS "<!doctype html><script><!--<script </script </script/"
+-PASS "<!doctype html><script><!--<script </script </script>"
+-PASS "<!doctype html><script><!--<script -"
+-PASS "<!doctype html><script><!--<script -a"
+-PASS "<!doctype html><script><!--<script -<"
+-PASS "<!doctype html><script><!--<script --"
+-PASS "<!doctype html><script><!--<script --a"
+-PASS "<!doctype html><script><!--<script --<"
+-PASS "<!doctype html><script><!--<script -->"
+-PASS "<!doctype html><script><!--<script --><"
+-PASS "<!doctype html><script><!--<script --></"
+-PASS "<!doctype html><script><!--<script --></script"
+-PASS "<!doctype html><script><!--<script --></script "
+-PASS "<!doctype html><script><!--<script --></script/"
+-PASS "<!doctype html><script><!--<script --></script>"
+-PASS "<!doctype html><script><!--<script><\\/script>--></script>"
+-PASS "<!doctype html><script><!--<script></scr'+'ipt>--></script>"
+-PASS "<!doctype html><script><!--<script></script><script></script></script>"
+-PASS "<!doctype html><script><!--<script></script><script></script>--><!--</script>"
+-PASS "<!doctype html><script><!--<script></script><script></script>-- ></script>"
+-PASS "<!doctype html><script><!--<script></script><script></script>- -></script>"
+-PASS "<!doctype html><script><!--<script></script><script></script>- - ></script>"
+-PASS "<!doctype html><script><!--<script></script><script></script>-></script>"
+-PASS "<!doctype html><script><!--<script>--!></script>X"
+-PASS "<!doctype html><script><!--<scr'+'ipt></script>--></script>"
+-PASS "<!doctype html><script><!--<script></scr'+'ipt></script>X"
+-PASS "<!doctype html><style><!--<style></style>--></style>"
+-PASS "<!doctype html><style><!--</style>X"
+-PASS "<!doctype html><style><!--...</style>...--></style>"
+-PASS "<!doctype html><style><!--<br><html xmlns:v=\"urn:schemas-microsoft-com:vml\"><!--[if !mso]><style></style>X"
+-PASS "<!doctype html><style><!--...<style><!--...--!></style>--></style>"
+-PASS "<!doctype html><style><!--...</style><!-- --><style>@import ...</style>"
+-PASS "<!doctype html><style>...<style><!--...</style><!-- --></style>"
+-PASS "<!doctype html><style>...<!--[if IE]><style>...</style>X"
+-PASS "<!doctype html><title><!--<title></title>--></title>"
+-PASS "<!doctype html><title>&lt;/title></title>"
+-PASS "<!doctype html><title>foo/title><link></head><body>X"
+-PASS "<!doctype html><noscript><!--<noscript></noscript>--></noscript>"
+-PASS "<!doctype html><noscript><!--</noscript>X<noscript>--></noscript>"
+-PASS "<!doctype html><noscript><iframe></noscript>X"
+-PASS "<!doctype html><noframes><!--<noframes></noframes>--></noframes>"
+-PASS "<!doctype html><noframes><body><script><!--...</script></body></noframes></html>"
+-PASS "<!doctype html><textarea><!--<textarea></textarea>--></textarea>"
+-PASS "<!doctype html><textarea>&lt;/textarea></textarea>"
+-PASS "<!doctype html><textarea>&lt;</textarea>"
+-PASS "<!doctype html><textarea>a&lt;b</textarea>"
+-PASS "<!doctype html><iframe><!--<iframe></iframe>--></iframe>"
+-PASS "<!doctype html><iframe>...<!--X->...<!--/X->...</iframe>"
+-PASS "<!doctype html><xmp><!--<xmp></xmp>--></xmp>"
+-PASS "<!doctype html><noembed><!--<noembed></noembed>--></noembed>"
+-PASS "<script>"
+-PASS "<script>a"
+-PASS "<script><"
+-PASS "<script></"
+-PASS "<script></S"
+-PASS "<script></SC"
+-PASS "<script></SCR"
+-PASS "<script></SCRI"
+-PASS "<script></SCRIP"
+-PASS "<script></SCRIPT"
+-PASS "<script></SCRIPT "
+-PASS "<script></s"
+-PASS "<script></sc"
+-PASS "<script></scr"
+-PASS "<script></scri"
+-PASS "<script></scrip"
+-PASS "<script></script"
+-PASS "<script></script "
+-PASS "<script><!"
+-PASS "<script><!a"
+-PASS "<script><!-"
+-PASS "<script><!-a"
+-PASS "<script><!--"
+-PASS "<script><!--a"
+-PASS "<script><!--<"
+-PASS "<script><!--<a"
+-PASS "<script><!--</"
+-PASS "<script><!--</script"
+-PASS "<script><!--</script "
+-PASS "<script><!--<s"
+-PASS "<script><!--<script"
+-PASS "<script><!--<script "
+-PASS "<script><!--<script <"
+-PASS "<script><!--<script <a"
+-PASS "<script><!--<script </"
+-PASS "<script><!--<script </s"
+-PASS "<script><!--<script </script"
+-PASS "<script><!--<script </scripta"
+-PASS "<script><!--<script </script "
+-PASS "<script><!--<script </script>"
+-PASS "<script><!--<script </script/"
+-PASS "<script><!--<script </script <"
+-PASS "<script><!--<script </script <a"
+-PASS "<script><!--<script </script </"
+-PASS "<script><!--<script </script </script"
+-PASS "<script><!--<script </script </script "
+-PASS "<script><!--<script </script </script/"
+-PASS "<script><!--<script </script </script>"
+-PASS "<script><!--<script -"
+-PASS "<script><!--<script -a"
+-PASS "<script><!--<script --"
+-PASS "<script><!--<script --a"
+-PASS "<script><!--<script -->"
+-PASS "<script><!--<script --><"
+-PASS "<script><!--<script --></"
+-PASS "<script><!--<script --></script"
+-PASS "<script><!--<script --></script "
+-PASS "<script><!--<script --></script/"
+-PASS "<script><!--<script --></script>"
+-PASS "<script><!--<script><\\/script>--></script>"
+-PASS "<script><!--<script></scr'+'ipt>--></script>"
+-PASS "<script><!--<script></script><script></script></script>"
+-PASS "<script><!--<script></script><script></script>--><!--</script>"
+-PASS "<script><!--<script></script><script></script>-- ></script>"
+-PASS "<script><!--<script></script><script></script>- -></script>"
+-PASS "<script><!--<script></script><script></script>- - ></script>"
+-PASS "<script><!--<script></script><script></script>-></script>"
+-PASS "<script><!--<script>--!></script>X"
+-PASS "<script><!--<scr'+'ipt></script>--></script>"
+-PASS "<script><!--<script></scr'+'ipt></script>X"
+-PASS "<style><!--<style></style>--></style>"
+-PASS "<style><!--</style>X"
+-PASS "<style><!--...</style>...--></style>"
+-PASS "<style><!--<br><html xmlns:v=\"urn:schemas-microsoft-com:vml\"><!--[if !mso]><style></style>X"
+-PASS "<style><!--...<style><!--...--!></style>--></style>"
+-PASS "<style><!--...</style><!-- --><style>@import ...</style>"
+-PASS "<style>...<style><!--...</style><!-- --></style>"
+-PASS "<style>...<!--[if IE]><style>...</style>X"
+-PASS "<title><!--<title></title>--></title>"
+-PASS "<title>&lt;/title></title>"
+-PASS "<title>foo/title><link></head><body>X"
+-PASS "<noscript><!--<noscript></noscript>--></noscript>"
+-PASS "<noscript><!--</noscript>X<noscript>--></noscript>"
+-PASS "<noscript><iframe></noscript>X"
+-PASS "<noframes><!--<noframes></noframes>--></noframes>"
+-PASS "<noframes><body><script><!--...</script></body></noframes></html>"
+-PASS "<textarea><!--<textarea></textarea>--></textarea>"
+-PASS "<textarea>&lt;/textarea></textarea>"
+-PASS "<iframe><!--<iframe></iframe>--></iframe>"
+-PASS "<iframe>...<!--X->...<!--/X->...</iframe>"
+-PASS "<xmp><!--<xmp></xmp>--></xmp>"
+-PASS "<noembed><!--<noembed></noembed>--></noembed>"
+-PASS "<!doctype html><table>\n"
+-PASS "<!doctype html><table><td><span><font></span><span>"
+-PASS "<!doctype html><form><table></form><form></table></form>"
+diff --git a/src/pkg/exp/html/testlogs/tests17.dat.log b/src/pkg/exp/html/testlogs/tests17.dat.log
+deleted file mode 100644
+index 0c96f70240..0000000000
+--- a/src/pkg/exp/html/testlogs/tests17.dat.log
++++ /dev/null
+@@ -1,13 +0,0 @@
+-PASS "<!doctype html><table><tbody><select><tr>"
+-PASS "<!doctype html><table><tr><select><td>"
+-PASS "<!doctype html><table><tr><td><select><td>"
+-PASS "<!doctype html><table><tr><th><select><td>"
+-PASS "<!doctype html><table><caption><select><tr>"
+-PASS "<!doctype html><select><tr>"
+-PASS "<!doctype html><select><td>"
+-PASS "<!doctype html><select><th>"
+-PASS "<!doctype html><select><tbody>"
+-PASS "<!doctype html><select><thead>"
+-PASS "<!doctype html><select><tfoot>"
+-PASS "<!doctype html><select><caption>"
+-PASS "<!doctype html><table><tr></table>a"
+diff --git a/src/pkg/exp/html/testlogs/tests18.dat.log b/src/pkg/exp/html/testlogs/tests18.dat.log
+deleted file mode 100644
+index 376a483b38..0000000000
+--- a/src/pkg/exp/html/testlogs/tests18.dat.log
++++ /dev/null
+@@ -1,20 +0,0 @@
+-PASS "<!doctype html><plaintext></plaintext>"
+-PASS "<!doctype html><table><plaintext></plaintext>"
+-PASS "<!doctype html><table><tbody><plaintext></plaintext>"
+-PASS "<!doctype html><table><tbody><tr><plaintext></plaintext>"
+-PASS "<!doctype html><table><tbody><tr><plaintext></plaintext>"
+-PASS "<!doctype html><table><td><plaintext></plaintext>"
+-PASS "<!doctype html><table><caption><plaintext></plaintext>"
+-PASS "<!doctype html><table><tr><style></script></style>abc"
+-PASS "<!doctype html><table><tr><script></style></script>abc"
+-PASS "<!doctype html><table><caption><style></script></style>abc"
+-PASS "<!doctype html><table><td><style></script></style>abc"
+-PASS "<!doctype html><select><script></style></script>abc"
+-PASS "<!doctype html><table><select><script></style></script>abc"
+-PASS "<!doctype html><table><tr><select><script></style></script>abc"
+-PASS "<!doctype html><frameset></frameset><noframes>abc"
+-PASS "<!doctype html><frameset></frameset><noframes>abc</noframes><!--abc-->"
+-PASS "<!doctype html><frameset></frameset></html><noframes>abc"
+-PASS "<!doctype html><frameset></frameset></html><noframes>abc</noframes><!--abc-->"
+-PASS "<!doctype html><table><tr></tbody><tfoot>"
+-PASS "<!doctype html><table><td><svg></svg>abc<td>"
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+deleted file mode 100644
+index b394c2528f..0000000000
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ /dev/null
+@@ -1,104 +0,0 @@
+-PASS "<!doctype html><math><mn DefinitionUrl=\"foo\">"
+-PASS "<!doctype html><html></p><!--foo-->"
+-PASS "<!doctype html><head></head></p><!--foo-->"
+-PASS "<!doctype html><body><p><pre>"
+-PASS "<!doctype html><body><p><listing>"
+-PASS "<!doctype html><p><plaintext>"
+-PASS "<!doctype html><p><h1>"
+-PASS "<!doctype html><form><isindex>"
+-PASS "<!doctype html><isindex action=\"POST\">"
+-PASS "<!doctype html><isindex prompt=\"this is isindex\">"
+-PASS "<!doctype html><isindex type=\"hidden\">"
+-PASS "<!doctype html><isindex name=\"foo\">"
+-PASS "<!doctype html><ruby><p><rp>"
+-PASS "<!doctype html><ruby><div><span><rp>"
+-PASS "<!doctype html><ruby><div><p><rp>"
+-PASS "<!doctype html><ruby><p><rt>"
+-PASS "<!doctype html><ruby><div><span><rt>"
+-PASS "<!doctype html><ruby><div><p><rt>"
+-PASS "<!doctype html><math/><foo>"
+-PASS "<!doctype html><svg/><foo>"
+-PASS "<!doctype html><div></body><!--foo-->"
+-PASS "<!doctype html><h1><div><h3><span></h1>foo"
+-PASS "<!doctype html><p></h3>foo"
+-PASS "<!doctype html><h3><li>abc</h2>foo"
+-PASS "<!doctype html><table>abc<!--foo-->"
+-PASS "<!doctype html><table>  <!--foo-->"
+-PASS "<!doctype html><table> b <!--foo-->"
+-PASS "<!doctype html><select><option><option>"
+-PASS "<!doctype html><select><option></optgroup>"
+-PASS "<!doctype html><select><option></optgroup>"
+-PASS "<!doctype html><p><math><mi><p><h1>"
+-PASS "<!doctype html><p><math><mo><p><h1>"
+-PASS "<!doctype html><p><math><mn><p><h1>"
+-PASS "<!doctype html><p><math><ms><p><h1>"
+-PASS "<!doctype html><p><math><mtext><p><h1>"
+-PASS "<!doctype html><frameset></noframes>"
+-PASS "<!doctype html><html c=d><body></html><html a=b>"
+-PASS "<!doctype html><html c=d><frameset></frameset></html><html a=b>"
+-PASS "<!doctype html><html><frameset></frameset></html><!--foo-->"
+-PASS "<!doctype html><html><frameset></frameset></html>  "
+-PASS "<!doctype html><html><frameset></frameset></html>abc"
+-PASS "<!doctype html><html><frameset></frameset></html><p>"
+-PASS "<!doctype html><html><frameset></frameset></html></p>"
+-PASS "<html><frameset></frameset></html><!doctype html>"
+-PASS "<!doctype html><body><frameset>"
+-PASS "<!doctype html><p><frameset><frame>"
+-PASS "<!doctype html><p>a<frameset>"
+-PASS "<!doctype html><p> <frameset><frame>"
+-PASS "<!doctype html><pre><frameset>"
+-PASS "<!doctype html><listing><frameset>"
+-PASS "<!doctype html><li><frameset>"
+-PASS "<!doctype html><dd><frameset>"
+-PASS "<!doctype html><dt><frameset>"
+-PASS "<!doctype html><button><frameset>"
+-PASS "<!doctype html><applet><frameset>"
+-PASS "<!doctype html><marquee><frameset>"
+-PASS "<!doctype html><object><frameset>"
+-PASS "<!doctype html><table><frameset>"
+-PASS "<!doctype html><area><frameset>"
+-PASS "<!doctype html><basefont><frameset>"
+-PASS "<!doctype html><bgsound><frameset>"
+-PASS "<!doctype html><br><frameset>"
+-PASS "<!doctype html><embed><frameset>"
+-PASS "<!doctype html><img><frameset>"
+-PASS "<!doctype html><input><frameset>"
+-PASS "<!doctype html><keygen><frameset>"
+-PASS "<!doctype html><wbr><frameset>"
+-PASS "<!doctype html><hr><frameset>"
+-PASS "<!doctype html><textarea></textarea><frameset>"
+-PASS "<!doctype html><xmp></xmp><frameset>"
+-PASS "<!doctype html><iframe></iframe><frameset>"
+-PASS "<!doctype html><select></select><frameset>"
+-PASS "<!doctype html><svg></svg><frameset><frame>"
+-PASS "<!doctype html><math></math><frameset><frame>"
+-PASS "<!doctype html><svg><foreignObject><div> <frameset><frame>"
+-PASS "<!doctype html><svg>a</svg><frameset><frame>"
+-PASS "<!doctype html><svg> </svg><frameset><frame>"
+-PASS "<html>aaa<frameset></frameset>"
+-PASS "<html> a <frameset></frameset>"
+-PASS "<!doctype html><div><frameset>"
+-PASS "<!doctype html><div><body><frameset>"
+-PASS "<!doctype html><p><math></p>a"
+-PASS "<!doctype html><p><math><mn><span></p>a"
+-PASS "<!doctype html><math></html>"
+-PASS "<!doctype html><meta charset=\"ascii\">"
+-PASS "<!doctype html><meta http-equiv=\"content-type\" content=\"text/html;charset=ascii\">"
+-PASS "<!doctype html><head><!--aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa--><meta charset=\"utf8\">"
+-PASS "<!doctype html><html a=b><head></head><html c=d>"
+-PASS "<!doctype html><image/>"
+-PASS "<!doctype html>a<i>b<table>c<b>d</i>e</b>f"
+-PASS "<!doctype html><table><i>a<b>b<div>c<a>d</i>e</b>f"
+-PASS "<!doctype html><i>a<b>b<div>c<a>d</i>e</b>f"
+-PASS "<!doctype html><table><i>a<b>b<div>c</i>"
+-PASS "<!doctype html><table><i>a<b>b<div>c<a>d</i>e</b>f"
+-PASS "<!doctype html><table><i>a<div>b<tr>c<b>d</i>e"
+-PASS "<!doctype html><table><td><table><i>a<div>b<b>c</i>d"
+-PASS "<!doctype html><body><bgsound>"
+-PASS "<!doctype html><body><basefont>"
+-PASS "<!doctype html><a><b></a><basefont>"
+-PASS "<!doctype html><a><b></a><bgsound>"
+-PASS "<!doctype html><figcaption><article></figcaption>a"
+-PASS "<!doctype html><summary><article></summary>a"
+-PASS "<!doctype html><p><a><plaintext>b"
+-PASS "<!DOCTYPE html><div>a<a></div>b<p>c</p>d"
+diff --git a/src/pkg/exp/html/testlogs/tests2.dat.log b/src/pkg/exp/html/testlogs/tests2.dat.log
+deleted file mode 100644
+index 307a711c08..0000000000
+--- a/src/pkg/exp/html/testlogs/tests2.dat.log
++++ /dev/null
+@@ -1,61 +0,0 @@
+-PASS "<!DOCTYPE html>Test"
+-PASS "<textarea>test</div>test"
+-PASS "<table><td>"
+-PASS "<table><td>test</tbody></table>"
+-PASS "<frame>test"
+-PASS "<!DOCTYPE html><frameset>test"
+-PASS "<!DOCTYPE html><frameset><!DOCTYPE html>"
+-PASS "<!DOCTYPE html><font><p><b>test</font>"
+-PASS "<!DOCTYPE html><dt><div><dd>"
+-PASS "<script></x"
+-PASS "<table><plaintext><td>"
+-PASS "<plaintext></plaintext>"
+-PASS "<!DOCTYPE html><table><tr>TEST"
+-PASS "<!DOCTYPE html><body t1=1><body t2=2><body t3=3 t4=4>"
+-PASS "</b test"
+-PASS "<!DOCTYPE html></b test<b &=&amp>X"
+-PASS "<!doctypehtml><scrIPt type=text/x-foobar;baz>X</SCRipt"
+-PASS "&"
+-PASS "&#"
+-PASS "&#X"
+-PASS "&#x"
+-PASS "&#45"
+-PASS "&x-test"
+-PASS "<!doctypehtml><p><li>"
+-PASS "<!doctypehtml><p><dt>"
+-PASS "<!doctypehtml><p><dd>"
+-PASS "<!doctypehtml><p><form>"
+-PASS "<!DOCTYPE html><p></P>X"
+-PASS "&AMP"
+-PASS "&AMp;"
+-PASS "<!DOCTYPE html><html><head></head><body><thisISasillyTESTelementNameToMakeSureCrazyTagNamesArePARSEDcorrectLY>"
+-PASS "<!DOCTYPE html>X</body>X"
+-PASS "<!DOCTYPE html><!-- X"
+-PASS "<!DOCTYPE html><table><caption>test TEST</caption><td>test"
+-PASS "<!DOCTYPE html><select><option><optgroup>"
+-PASS "<!DOCTYPE html><select><optgroup><option></optgroup><option><select><option>"
+-PASS "<!DOCTYPE html><select><optgroup><option><optgroup>"
+-PASS "<!DOCTYPE html><datalist><option>foo</datalist>bar"
+-PASS "<!DOCTYPE html><font><input><input></font>"
+-PASS "<!DOCTYPE html><!-- XXX - XXX -->"
+-PASS "<!DOCTYPE html><!-- XXX - XXX"
+-PASS "<!DOCTYPE html><!-- XXX - XXX - XXX -->"
+-PASS "<isindex test=x name=x>"
+-PASS "test\ntest"
+-PASS "<!DOCTYPE html><body><title>test</body></title>"
+-PASS "<!DOCTYPE html><body><title>X</title><meta name=z><link rel=foo><style>\nx { content:\"</style\" } </style>"
+-PASS "<!DOCTYPE html><select><optgroup></optgroup></select>"
+-PASS " \n "
+-PASS "<!DOCTYPE html>  <html>"
+-PASS "<!DOCTYPE html><script>\n</script>  <title>x</title>  </head>"
+-PASS "<!DOCTYPE html><html><body><html id=x>"
+-PASS "<!DOCTYPE html>X</body><html id=\"x\">"
+-PASS "<!DOCTYPE html><head><html id=x>"
+-PASS "<!DOCTYPE html>X</html>X"
+-PASS "<!DOCTYPE html>X</html> "
+-PASS "<!DOCTYPE html>X</html><p>X"
+-PASS "<!DOCTYPE html>X<p/x/y/z>"
+-PASS "<!DOCTYPE html><!--x--"
+-PASS "<!DOCTYPE html><table><tr><td></p></table>"
+-PASS "<!DOCTYPE <!DOCTYPE HTML>><!--<!--x-->-->"
+-PASS "<!doctype html><div><form></form><div></div></div>"
+diff --git a/src/pkg/exp/html/testlogs/tests20.dat.log b/src/pkg/exp/html/testlogs/tests20.dat.log
+deleted file mode 100644
+index 7537201161..0000000000
+--- a/src/pkg/exp/html/testlogs/tests20.dat.log
++++ /dev/null
+@@ -1,39 +0,0 @@
+-PASS "<!doctype html><p><button><button>"
+-PASS "<!doctype html><p><button><address>"
+-PASS "<!doctype html><p><button><blockquote>"
+-PASS "<!doctype html><p><button><menu>"
+-PASS "<!doctype html><p><button><p>"
+-PASS "<!doctype html><p><button><ul>"
+-PASS "<!doctype html><p><button><h1>"
+-PASS "<!doctype html><p><button><h6>"
+-PASS "<!doctype html><p><button><listing>"
+-PASS "<!doctype html><p><button><pre>"
+-PASS "<!doctype html><p><button><form>"
+-PASS "<!doctype html><p><button><li>"
+-PASS "<!doctype html><p><button><dd>"
+-PASS "<!doctype html><p><button><dt>"
+-PASS "<!doctype html><p><button><plaintext>"
+-PASS "<!doctype html><p><button><table>"
+-PASS "<!doctype html><p><button><hr>"
+-PASS "<!doctype html><p><button><xmp>"
+-PASS "<!doctype html><p><button></p>"
+-PASS "<!doctype html><address><button></address>a"
+-PASS "<!doctype html><address><button></address>a"
+-PASS "<p><table></p>"
+-PASS "<!doctype html><svg>"
+-PASS "<!doctype html><p><figcaption>"
+-PASS "<!doctype html><p><summary>"
+-PASS "<!doctype html><form><table><form>"
+-PASS "<!doctype html><table><form><form>"
+-PASS "<!doctype html><table><form></table><form>"
+-PASS "<!doctype html><svg><foreignObject><p>"
+-PASS "<!doctype html><svg><title>abc"
+-PASS "<option><span><option>"
+-PASS "<option><option>"
+-PASS "<math><annotation-xml><div>"
+-PASS "<math><annotation-xml encoding=\"application/svg+xml\"><div>"
+-PASS "<math><annotation-xml encoding=\"application/xhtml+xml\"><div>"
+-PASS "<math><annotation-xml encoding=\"aPPlication/xhtmL+xMl\"><div>"
+-PASS "<math><annotation-xml encoding=\"text/html\"><div>"
+-PASS "<math><annotation-xml encoding=\"Text/htmL\"><div>"
+-PASS "<math><annotation-xml encoding=\" text/html \"><div>"
+diff --git a/src/pkg/exp/html/testlogs/tests21.dat.log b/src/pkg/exp/html/testlogs/tests21.dat.log
+deleted file mode 100644
+index 98a1da886c..0000000000
+--- a/src/pkg/exp/html/testlogs/tests21.dat.log
++++ /dev/null
+@@ -1,22 +0,0 @@
+-PASS "<svg><![CDATA[foo]]>"
+-PASS "<math><![CDATA[foo]]>"
+-PASS "<div><![CDATA[foo]]>"
+-PASS "<svg><![CDATA[foo"
+-PASS "<svg><![CDATA[foo"
+-PASS "<svg><![CDATA["
+-PASS "<svg><![CDATA[]]>"
+-PASS "<svg><![CDATA[]] >]]>"
+-PASS "<svg><![CDATA[]] >]]>"
+-PASS "<svg><![CDATA[]]"
+-PASS "<svg><![CDATA[]"
+-PASS "<svg><![CDATA[]>a"
+-PASS "<svg><foreignObject><div><![CDATA[foo]]>"
+-PASS "<svg><![CDATA[<svg>]]>"
+-PASS "<svg><![CDATA[</svg>a]]>"
+-PASS "<svg><![CDATA[<svg>a"
+-PASS "<svg><![CDATA[</svg>a"
+-PASS "<svg><![CDATA[<svg>]]><path>"
+-PASS "<svg><![CDATA[<svg>]]></path>"
+-PASS "<svg><![CDATA[<svg>]]><!--path-->"
+-PASS "<svg><![CDATA[<svg>]]>path"
+-PASS "<svg><![CDATA[<!--svg-->]]>"
+diff --git a/src/pkg/exp/html/testlogs/tests22.dat.log b/src/pkg/exp/html/testlogs/tests22.dat.log
+deleted file mode 100644
+index 12535a0aba..0000000000
+--- a/src/pkg/exp/html/testlogs/tests22.dat.log
++++ /dev/null
+@@ -1,5 +0,0 @@
+-PASS "<a><b><big><em><strong><div>X</a>"
+-PASS "<a><b><div id=1><div id=2><div id=3><div id=4><div id=5><div id=6><div id=7><div id=8>A</a>"
+-PASS "<a><b><div id=1><div id=2><div id=3><div id=4><div id=5><div id=6><div id=7><div id=8><div id=9>A</a>"
+-PASS "<a><b><div id=1><div id=2><div id=3><div id=4><div id=5><div id=6><div id=7><div id=8><div id=9><div id=10>A</a>"
+-PASS "<cite><b><cite><i><cite><i><cite><i><div>X</b>TEST"
+diff --git a/src/pkg/exp/html/testlogs/tests23.dat.log b/src/pkg/exp/html/testlogs/tests23.dat.log
+deleted file mode 100644
+index 5eab83062e..0000000000
+--- a/src/pkg/exp/html/testlogs/tests23.dat.log
++++ /dev/null
+@@ -1,5 +0,0 @@
+-PASS "<p><font size=4><font color=red><font size=4><font size=4><font size=4><font size=4><font size=4><font color=red><p>X"
+-PASS "<p><font size=4><font size=4><font size=4><font size=4><p>X"
+-PASS "<p><font size=4><font size=4><font size=4><font size=\"5\"><font size=4><p>X"
+-PASS "<p><font size=4 id=a><font size=4 id=b><font size=4><font size=4><p>X"
+-PASS "<p><b id=a><b id=a><b id=a><b><object><b id=a><b id=a>X</object><p>Y"
+diff --git a/src/pkg/exp/html/testlogs/tests24.dat.log b/src/pkg/exp/html/testlogs/tests24.dat.log
+deleted file mode 100644
+index 91edae80b8..0000000000
+--- a/src/pkg/exp/html/testlogs/tests24.dat.log
++++ /dev/null
+@@ -1,8 +0,0 @@
+-PASS "<!DOCTYPE html>&NotEqualTilde;"
+-PASS "<!DOCTYPE html>&NotEqualTilde;A"
+-PASS "<!DOCTYPE html>&ThickSpace;"
+-PASS "<!DOCTYPE html>&ThickSpace;A"
+-PASS "<!DOCTYPE html>&NotSubset;"
+-PASS "<!DOCTYPE html>&NotSubset;A"
+-PASS "<!DOCTYPE html>&Gopf;"
+-PASS "<!DOCTYPE html>&Gopf;A"
+diff --git a/src/pkg/exp/html/testlogs/tests25.dat.log b/src/pkg/exp/html/testlogs/tests25.dat.log
+deleted file mode 100644
+index 95f96c304d..0000000000
+--- a/src/pkg/exp/html/testlogs/tests25.dat.log
++++ /dev/null
+@@ -1,20 +0,0 @@
+-PASS "<!DOCTYPE html><body><foo>A"
+-PASS "<!DOCTYPE html><body><area>A"
+-PASS "<!DOCTYPE html><body><base>A"
+-PASS "<!DOCTYPE html><body><basefont>A"
+-PASS "<!DOCTYPE html><body><bgsound>A"
+-PASS "<!DOCTYPE html><body><br>A"
+-PASS "<!DOCTYPE html><body><col>A"
+-PASS "<!DOCTYPE html><body><command>A"
+-PASS "<!DOCTYPE html><body><embed>A"
+-PASS "<!DOCTYPE html><body><frame>A"
+-PASS "<!DOCTYPE html><body><hr>A"
+-PASS "<!DOCTYPE html><body><img>A"
+-PASS "<!DOCTYPE html><body><input>A"
+-PASS "<!DOCTYPE html><body><keygen>A"
+-PASS "<!DOCTYPE html><body><link>A"
+-PASS "<!DOCTYPE html><body><meta>A"
+-PASS "<!DOCTYPE html><body><param>A"
+-PASS "<!DOCTYPE html><body><source>A"
+-PASS "<!DOCTYPE html><body><track>A"
+-PASS "<!DOCTYPE html><body><wbr>A"
+diff --git a/src/pkg/exp/html/testlogs/tests26.dat.log b/src/pkg/exp/html/testlogs/tests26.dat.log
+deleted file mode 100644
+index 8f4d545abb..0000000000
+--- a/src/pkg/exp/html/testlogs/tests26.dat.log
++++ /dev/null
+@@ -1,15 +0,0 @@
+-PASS "<!DOCTYPE html><body><a href='#1'><nobr>1<nobr></a><br><a href='#2'><nobr>2<nobr></a><br><a href='#3'><nobr>3<nobr></a>"
+-PASS "<!DOCTYPE html><body><b><nobr>1<nobr></b><i><nobr>2<nobr></i>3"
+-PASS "<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3"
+-PASS "<!DOCTYPE html><body><b><nobr>1<table><tr><td><nobr></b><i><nobr>2<nobr></i>3"
+-PASS "<!DOCTYPE html><body><b><nobr>1<div><nobr></b><i><nobr>2<nobr></i>3"
+-PASS "<!DOCTYPE html><body><b><nobr>1<nobr></b><div><i><nobr>2<nobr></i>3"
+-PASS "<!DOCTYPE html><body><b><nobr>1<nobr><ins></b><i><nobr>"
+-PASS "<!DOCTYPE html><body><b><nobr>1<ins><nobr></b><i>2"
+-PASS "<!DOCTYPE html><body><b>1<nobr></b><i><nobr>2</i>"
+-PASS "<p><code x</code></p>\n"
+-PASS "<!DOCTYPE html><svg><foreignObject><p><i></p>a"
+-PASS "<!DOCTYPE html><table><tr><td><svg><foreignObject><p><i></p>a"
+-PASS "<!DOCTYPE html><math><mtext><p><i></p>a"
+-PASS "<!DOCTYPE html><table><tr><td><math><mtext><p><i></p>a"
+-PASS "<!DOCTYPE html><body><div><!/div>a"
+diff --git a/src/pkg/exp/html/testlogs/tests3.dat.log b/src/pkg/exp/html/testlogs/tests3.dat.log
+deleted file mode 100644
+index 9053bd1f6c..0000000000
+--- a/src/pkg/exp/html/testlogs/tests3.dat.log
++++ /dev/null
+@@ -1,24 +0,0 @@
+-PASS "<head></head><style></style>"
+-PASS "<head></head><script></script>"
+-PASS "<head></head><!-- --><style></style><!-- --><script></script>"
+-PASS "<head></head><!-- -->x<style></style><!-- --><script></script>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>\n</pre></body></html>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>\nfoo</pre></body></html>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>\n\nfoo</pre></body></html>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>\nfoo\n</pre></body></html>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>x</pre><span>\n</span></body></html>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>x\ny</pre></body></html>"
+-PASS "<!DOCTYPE html><html><head></head><body><pre>x<div>\ny</pre></body></html>"
+-PASS "<!DOCTYPE html><pre>&#x0a;&#x0a;A</pre>"
+-PASS "<!DOCTYPE html><HTML><META><HEAD></HEAD></HTML>"
+-PASS "<!DOCTYPE html><HTML><HEAD><head></HEAD></HTML>"
+-PASS "<textarea>foo<span>bar</span><i>baz"
+-PASS "<title>foo<span>bar</em><i>baz"
+-PASS "<!DOCTYPE html><textarea>\n</textarea>"
+-PASS "<!DOCTYPE html><textarea>\nfoo</textarea>"
+-PASS "<!DOCTYPE html><textarea>\n\nfoo</textarea>"
+-PASS "<!DOCTYPE html><html><head></head><body><ul><li><div><p><li></ul></body></html>"
+-PASS "<!doctype html><nobr><nobr><nobr>"
+-PASS "<!doctype html><nobr><nobr></nobr><nobr>"
+-PASS "<!doctype html><html><body><p><table></table></body></html>"
+-PASS "<p><table></table>"
+diff --git a/src/pkg/exp/html/testlogs/tests4.dat.log b/src/pkg/exp/html/testlogs/tests4.dat.log
+deleted file mode 100644
+index 701047e289..0000000000
+--- a/src/pkg/exp/html/testlogs/tests4.dat.log
++++ /dev/null
+@@ -1,7 +0,0 @@
+-PASS "direct div content"
+-PASS "direct textarea content"
+-PASS "textarea content with <em>pseudo</em> <foo>markup"
+-PASS "this is &#x0043;DATA inside a <style> element"
+-PASS "</plaintext>"
+-PASS "setting html's innerHTML"
+-PASS "<title>setting head's innerHTML</title>"
+diff --git a/src/pkg/exp/html/testlogs/tests5.dat.log b/src/pkg/exp/html/testlogs/tests5.dat.log
+deleted file mode 100644
+index 84adf6d015..0000000000
+--- a/src/pkg/exp/html/testlogs/tests5.dat.log
++++ /dev/null
+@@ -1,16 +0,0 @@
+-PASS "<style> <!-- </style>x"
+-PASS "<style> <!-- </style> --> </style>x"
+-PASS "<style> <!--> </style>x"
+-PASS "<style> <!---> </style>x"
+-PASS "<iframe> <!---> </iframe>x"
+-PASS "<iframe> <!--- </iframe>->x</iframe> --> </iframe>x"
+-PASS "<script> <!-- </script> --> </script>x"
+-PASS "<title> <!-- </title> --> </title>x"
+-PASS "<textarea> <!--- </textarea>->x</textarea> --> </textarea>x"
+-PASS "<style> <!</-- </style>x"
+-PASS "<p><xmp></xmp>"
+-PASS "<xmp> <!-- > --> </xmp>"
+-PASS "<title>&amp;</title>"
+-PASS "<title><!--&amp;--></title>"
+-PASS "<title><!--</title>"
+-PASS "<noscript><!--</noscript>--></noscript>"
+diff --git a/src/pkg/exp/html/testlogs/tests6.dat.log b/src/pkg/exp/html/testlogs/tests6.dat.log
+deleted file mode 100644
+index 69e6150059..0000000000
+--- a/src/pkg/exp/html/testlogs/tests6.dat.log
++++ /dev/null
+@@ -1,52 +0,0 @@
+-PASS "<!doctype html></head> <head>"
+-PASS "<!doctype html><form><div></form><div>"
+-PASS "<!doctype html><title>&amp;</title>"
+-PASS "<!doctype html><title><!--&amp;--></title>"
+-PASS "<!doctype>"
+-PASS "<!---x"
+-PASS "<body>\n<div>"
+-PASS "<frameset></frameset>\nfoo"
+-PASS "<frameset></frameset>\n<noframes>"
+-PASS "<frameset></frameset>\n<div>"
+-PASS "<frameset></frameset>\n</html>"
+-PASS "<frameset></frameset>\n</div>"
+-PASS "<form><form>"
+-PASS "<button><button>"
+-PASS "<table><tr><td></th>"
+-PASS "<table><caption><td>"
+-PASS "<table><caption><div>"
+-PASS "</caption><div>"
+-PASS "<table><caption><div></caption>"
+-PASS "<table><caption></table>"
+-PASS "</table><div>"
+-PASS "<table><caption></body></col></colgroup></html></tbody></td></tfoot></th></thead></tr>"
+-PASS "<table><caption><div></div>"
+-PASS "<table><tr><td></body></caption></col></colgroup></html>"
+-PASS "</table></tbody></tfoot></thead></tr><div>"
+-PASS "<table><colgroup>foo"
+-PASS "foo<col>"
+-PASS "<table><colgroup></col>"
+-PASS "<frameset><div>"
+-PASS "</frameset><frame>"
+-PASS "<frameset></div>"
+-PASS "</body><div>"
+-PASS "<table><tr><div>"
+-PASS "</tr><td>"
+-PASS "</tbody></tfoot></thead><td>"
+-PASS "<table><tr><div><td>"
+-PASS "<caption><col><colgroup><tbody><tfoot><thead><tr>"
+-PASS "<table><tbody></thead>"
+-PASS "</table><tr>"
+-PASS "<table><tbody></body></caption></col></colgroup></html></td></th></tr>"
+-PASS "<table><tbody></div>"
+-PASS "<table><table>"
+-PASS "<table></body></caption></col></colgroup></html></tbody></td></tfoot></th></thead></tr>"
+-PASS "</table><tr>"
+-PASS "<body></body></html>"
+-PASS "<html><frameset></frameset></html> "
+-PASS "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\"><html></html>"
+-PASS "<param><frameset></frameset>"
+-PASS "<source><frameset></frameset>"
+-PASS "<track><frameset></frameset>"
+-PASS "</html><frameset></frameset>"
+-PASS "</body><frameset></frameset>"
+diff --git a/src/pkg/exp/html/testlogs/tests7.dat.log b/src/pkg/exp/html/testlogs/tests7.dat.log
+deleted file mode 100644
+index c19af1c822..0000000000
+--- a/src/pkg/exp/html/testlogs/tests7.dat.log
++++ /dev/null
+@@ -1,30 +0,0 @@
+-PASS "<!doctype html><body><title>X</title>"
+-PASS "<!doctype html><table><title>X</title></table>"
+-PASS "<!doctype html><head></head><title>X</title>"
+-PASS "<!doctype html></head><title>X</title>"
+-PASS "<!doctype html><table><meta></table>"
+-PASS "<!doctype html><table>X<tr><td><table> <meta></table></table>"
+-PASS "<!doctype html><html> <head>"
+-PASS "<!doctype html> <head>"
+-PASS "<!doctype html><table><style> <tr>x </style> </table>"
+-PASS "<!doctype html><table><TBODY><script> <tr>x </script> </table>"
+-PASS "<!doctype html><p><applet><p>X</p></applet>"
+-PASS "<!doctype html><listing>\nX</listing>"
+-PASS "<!doctype html><select><input>X"
+-PASS "<!doctype html><select><select>X"
+-PASS "<!doctype html><table><input type=hidDEN></table>"
+-PASS "<!doctype html><table>X<input type=hidDEN></table>"
+-PASS "<!doctype html><table>  <input type=hidDEN></table>"
+-PASS "<!doctype html><table>  <input type='hidDEN'></table>"
+-PASS "<!doctype html><table><input type=\" hidden\"><input type=hidDEN></table>"
+-PASS "<!doctype html><table><select>X<tr>"
+-PASS "<!doctype html><select>X</select>"
+-PASS "<!DOCTYPE hTmL><html></html>"
+-PASS "<!DOCTYPE HTML><html></html>"
+-PASS "<body>X</body></body>"
+-PASS "<div><p>a</x> b"
+-PASS "<table><tr><td><code></code> </table>"
+-PASS "<table><b><tr><td>aaa</td></tr>bbb</table>ccc"
+-PASS "A<table><tr> B</tr> B</table>"
+-PASS "A<table><tr> B</tr> </em>C</table>"
+-PASS "<select><keygen>"
+diff --git a/src/pkg/exp/html/testlogs/tests8.dat.log b/src/pkg/exp/html/testlogs/tests8.dat.log
+deleted file mode 100644
+index c810c30a8a..0000000000
+--- a/src/pkg/exp/html/testlogs/tests8.dat.log
++++ /dev/null
+@@ -1,9 +0,0 @@
+-PASS "<div>\n<div></div>\n</span>x"
+-PASS "<div>x<div></div>\n</span>x"
+-PASS "<div>x<div></div>x</span>x"
+-PASS "<div>x<div></div>y</span>z"
+-PASS "<table><div>x<div></div>x</span>x"
+-PASS "x<table>x"
+-PASS "x<table><table>x"
+-PASS "<b>a<div></div><div></b>y"
+-PASS "<a><div><p></a>"
+diff --git a/src/pkg/exp/html/testlogs/tests9.dat.log b/src/pkg/exp/html/testlogs/tests9.dat.log
+deleted file mode 100644
+index ab4b8c305e..0000000000
+--- a/src/pkg/exp/html/testlogs/tests9.dat.log
++++ /dev/null
+@@ -1,27 +0,0 @@
+-PASS "<!DOCTYPE html><math></math>"
+-PASS "<!DOCTYPE html><body><math></math>"
+-PASS "<!DOCTYPE html><math><mi>"
+-PASS "<!DOCTYPE html><math><annotation-xml><svg><u>"
+-PASS "<!DOCTYPE html><body><select><math></math></select>"
+-PASS "<!DOCTYPE html><body><select><option><math></math></option></select>"
+-PASS "<!DOCTYPE html><body><table><math></math></table>"
+-PASS "<!DOCTYPE html><body><table><math><mi>foo</mi></math></table>"
+-PASS "<!DOCTYPE html><body><table><math><mi>foo</mi><mi>bar</mi></math></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><math><mi>foo</mi><mi>bar</mi></math></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><tr><math><mi>foo</mi><mi>bar</mi></math></tr></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><tr><td><math><mi>foo</mi><mi>bar</mi></math></td></tr></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><tbody><tr><td><math><mi>foo</mi><mi>bar</mi></math><p>baz</td></tr></tbody></table>"
+-PASS "<!DOCTYPE html><body><table><caption><math><mi>foo</mi><mi>bar</mi></math><p>baz</caption></table>"
+-PASS "<!DOCTYPE html><body><table><caption><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><caption><math><mi>foo</mi><mi>bar</mi>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><colgroup><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><tr><td><select><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body><table><select><math><mi>foo</mi><mi>bar</mi><p>baz</table><p>quux"
+-PASS "<!DOCTYPE html><body></body></html><math><mi>foo</mi><mi>bar</mi><p>baz"
+-PASS "<!DOCTYPE html><body></body><math><mi>foo</mi><mi>bar</mi><p>baz"
+-PASS "<!DOCTYPE html><frameset><math><mi></mi><mi></mi><p><span>"
+-PASS "<!DOCTYPE html><frameset></frameset><math><mi></mi><mi></mi><p><span>"
+-PASS "<!DOCTYPE html><body xlink:href=foo><math xlink:href=foo></math>"
+-PASS "<!DOCTYPE html><body xlink:href=foo xml:lang=en><math><mi xml:lang=en xlink:href=foo></mi></math>"
+-PASS "<!DOCTYPE html><body xlink:href=foo xml:lang=en><math><mi xml:lang=en xlink:href=foo /></math>"
+-PASS "<!DOCTYPE html><body xlink:href=foo xml:lang=en><math><mi xml:lang=en xlink:href=foo />bar</math>"
+diff --git a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log b/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
+deleted file mode 100644
+index 392483ce79..0000000000
+--- a/src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log
++++ /dev/null
+@@ -1,85 +0,0 @@
+-PASS "<body><span>"
+-PASS "<span><body>"
+-PASS "<span><body>"
+-PASS "<body><span>"
+-PASS "<frameset><span>"
+-PASS "<span><frameset>"
+-PASS "<span><frameset>"
+-PASS "<frameset><span>"
+-PASS "<table><tr>"
+-PASS "</table><tr>"
+-PASS "<a>"
+-PASS "<a>"
+-PASS "<a><caption>a"
+-PASS "<a><colgroup><col>"
+-PASS "<a><tbody><tr>"
+-PASS "<a><tfoot><tr>"
+-PASS "<a><thead><tr>"
+-PASS "<a><tr>"
+-PASS "<a><th>"
+-PASS "<a><td>"
+-PASS "<table></table><tbody>"
+-PASS "</table><span>"
+-PASS "<span></table>"
+-PASS "</caption><span>"
+-PASS "<span></caption><span>"
+-PASS "<span><caption><span>"
+-PASS "<span><col><span>"
+-PASS "<span><colgroup><span>"
+-PASS "<span><html><span>"
+-PASS "<span><tbody><span>"
+-PASS "<span><td><span>"
+-PASS "<span><tfoot><span>"
+-PASS "<span><thead><span>"
+-PASS "<span><th><span>"
+-PASS "<span><tr><span>"
+-PASS "<span></table><span>"
+-PASS "</colgroup><col>"
+-PASS "<a><col>"
+-PASS "<caption><a>"
+-PASS "<col><a>"
+-PASS "<colgroup><a>"
+-PASS "<tbody><a>"
+-PASS "<tfoot><a>"
+-PASS "<thead><a>"
+-PASS "</table><a>"
+-PASS "<a><tr>"
+-PASS "<a><td>"
+-PASS "<a><td>"
+-PASS "<a><td>"
+-PASS "<td><table><tbody><a><tr>"
+-PASS "</tr><td>"
+-PASS "<td><table><a><tr></tr><tr>"
+-PASS "<caption><td>"
+-PASS "<col><td>"
+-PASS "<colgroup><td>"
+-PASS "<tbody><td>"
+-PASS "<tfoot><td>"
+-PASS "<thead><td>"
+-PASS "<tr><td>"
+-PASS "</table><td>"
+-PASS "<td><table></table><td>"
+-PASS "<td><table></table><td>"
+-PASS "<caption><a>"
+-PASS "<col><a>"
+-PASS "<colgroup><a>"
+-PASS "<tbody><a>"
+-PASS "<tfoot><a>"
+-PASS "<th><a>"
+-PASS "<thead><a>"
+-PASS "<tr><a>"
+-PASS "</table><a>"
+-PASS "</tbody><a>"
+-PASS "</td><a>"
+-PASS "</tfoot><a>"
+-PASS "</thead><a>"
+-PASS "</th><a>"
+-PASS "</tr><a>"
+-PASS "<table><td><td>"
+-PASS "</select><option>"
+-PASS "<input><option>"
+-PASS "<keygen><option>"
+-PASS "<textarea><option>"
+-PASS "</html><!--abc-->"
+-PASS "</frameset><frame>"
+-PASS ""
+diff --git a/src/pkg/exp/html/testlogs/tricky01.dat.log b/src/pkg/exp/html/testlogs/tricky01.dat.log
+deleted file mode 100644
+index 4d4cd0de93..0000000000
+--- a/src/pkg/exp/html/testlogs/tricky01.dat.log
++++ /dev/null
+@@ -1,9 +0,0 @@
+-PASS "<b><p>Bold </b> Not bold</p>\nAlso not bold."
+-PASS "<html>\n<font color=red><i>Italic and Red<p>Italic and Red </font> Just italic.</p> Italic only.</i> Plain\n<p>I should not be red. <font color=red>Red. <i>Italic and red.</p>\n<p>Italic and red. </i> Red.</font> I should not be red.</p>\n<b>Bold <i>Bold and italic</b> Only Italic </i> Plain"
+-PASS "<html><body>\n<p><font size=\"7\">First paragraph.</p>\n<p>Second paragraph.</p></font>\n<b><p><i>Bold and Italic</b> Italic</p>"
+-PASS "<html>\n<dl>\n<dt><b>Boo\n<dd>Goo?\n</dl>\n</html>"
+-PASS "<html><body>\n<label><a><div>Hello<div>World</div></a></label>  \n</body></html>"
+-PASS "<table><center> <font>a</center> <img> <tr><td> </td> </tr> </table>"
+-PASS "<table><tr><p><a><p>You should see this text."
+-PASS "<TABLE>\n<TR>\n<CENTER><CENTER><TD></TD></TR><TR>\n<FONT>\n<TABLE><tr></tr></TABLE>\n</P>\n<a></font><font></a>\nThis page contains an insanely badly-nested tag sequence."
+-PASS "<html>\n<body>\n<b><nobr><div>This text is in a div inside a nobr</nobr>More text that should not be in the nobr, i.e., the\nnobr should have closed the div inside it implicitly. </b><pre>A pre tag outside everything else.</pre>\n</body>\n</html>"
+diff --git a/src/pkg/exp/html/testlogs/webkit01.dat.log b/src/pkg/exp/html/testlogs/webkit01.dat.log
+deleted file mode 100644
+index 9fd91dfb99..0000000000
+--- a/src/pkg/exp/html/testlogs/webkit01.dat.log
++++ /dev/null
+@@ -1,49 +0,0 @@
+-PASS "Test"
+-PASS "<div></div>"
+-PASS "<div>Test</div>"
+-PASS "<di"
+-PASS "<div>Hello</div>\n<script>\nconsole.log(\"PASS\");\n</script>\n<div>Bye</div>"
+-PASS "<div foo=\"bar\">Hello</div>"
+-PASS "<div>Hello</div>\n<script>\nconsole.log(\"FOO<span>BAR</span>BAZ\");\n</script>\n<div>Bye</div>"
+-PASS "<foo bar=\"baz\"></foo><potato quack=\"duck\"></potato>"
+-PASS "<foo bar=\"baz\"><potato quack=\"duck\"></potato></foo>"
+-PASS "<foo></foo bar=\"baz\"><potato></potato quack=\"duck\">"
+-PASS "</ tttt>"
+-PASS "<div FOO ><img><img></div>"
+-PASS "<p>Test</p<p>Test2</p>"
+-PASS "<rdar://problem/6869687>"
+-PASS "<A>test< /A>"
+-PASS "&lt;"
+-PASS "<body foo='bar'><body foo='baz' yo='mama'>"
+-PASS "<body></br foo=\"bar\"></body>"
+-PASS "<bdy><br foo=\"bar\"></body>"
+-PASS "<body></body></br foo=\"bar\">"
+-PASS "<bdy></body><br foo=\"bar\">"
+-PASS "<html><body></body></html><!-- Hi there -->"
+-PASS "<html><body></body></html>x<!-- Hi there -->"
+-PASS "<html><body></body></html>x<!-- Hi there --></html><!-- Again -->"
+-PASS "<html><body></body></html>x<!-- Hi there --></body></html><!-- Again -->"
+-PASS "<html><body><ruby><div><rp>xx</rp></div></ruby></body></html>"
+-PASS "<html><body><ruby><div><rt>xx</rt></div></ruby></body></html>"
+-PASS "<html><frameset><!--1--><noframes>A</noframes><!--2--></frameset><!--3--><noframes>B</noframes><!--4--></html><!--5--><noframes>C</noframes><!--6-->"
+-PASS "<select><option>A<select><option>B<select><option>C<select><option>D<select><option>E<select><option>F<select><option>G<select>"
+-PASS "<dd><dd><dt><dt><dd><li><li>"
+-PASS "<div><b></div><div><nobr>a<nobr>"
+-PASS "<head></head>\n<body></body>"
+-PASS "<head></head> <style></style>ddd"
+-PASS "<kbd><table></kbd><col><select><tr>"
+-PASS "<kbd><table></kbd><col><select><tr></table><div>"
+-PASS "<a><li><style></style><title></title></a>"
+-PASS "<font></p><p><meta><title></title></font>"
+-PASS "<a><center><title></title><a>"
+-PASS "<svg><title><div>"
+-PASS "<svg><title><rect><div>"
+-PASS "<svg><title><svg><div>"
+-PASS "<img <=\"\" FAIL>"
+-PASS "<ul><li><div id='foo'/>A</li><li>B<div>C</div></li></ul>"
+-PASS "<svg><em><desc></em>"
+-PASS "<table><tr><td><svg><desc><td></desc><circle>"
+-PASS "<svg><tfoot></mi><td>"
+-PASS "<math><mrow><mrow><mn>1</mn></mrow><mi>a</mi></mrow></math>"
+-PASS "<!doctype html><input type=\"hidden\"><frameset>"
+-PASS "<!doctype html><input type=\"button\"><frameset>"
+diff --git a/src/pkg/exp/html/testlogs/webkit02.dat.log b/src/pkg/exp/html/testlogs/webkit02.dat.log
+deleted file mode 100644
+index 1aa0b39a61..0000000000
+--- a/src/pkg/exp/html/testlogs/webkit02.dat.log
++++ /dev/null
+@@ -1,13 +0,0 @@
+-PASS "<foo bar=qux/>"
+-PASS "<p id=\"status\"><noscript><strong>A</strong></noscript><span>B</span></p>"
+-PASS "<div><sarcasm><div></div></sarcasm></div>"
+-PASS "<html><body><img src=\"\" border=\"0\" alt=\"><div>A</div></body></html>"
+-PASS "<table><td></tbody>A"
+-PASS "<table><td></thead>A"
+-PASS "<table><td></tfoot>A"
+-PASS "<table><thead><td></tbody>A"
+-PASS "<legend>test</legend>"
+-PASS "<table><input>"
+-PASS "<b><em><dcell><postfield><postfield><postfield><postfield><missing_glyph><missing_glyph><missing_glyph><missing_glyph><hkern><aside></b></em>"
+-PASS "<isindex action=\"x\">"
+-PASS "<option><XH<optgroup></optgroup>"

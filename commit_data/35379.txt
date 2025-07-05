@@ -9,6 +9,23 @@ Date:   Thu Feb 8 21:19:42 2018 +0000
     Change-Id: Iacdbd57c53492175cf1d3045640db61151e10731
     Reviewed-on: https://go-review.googlesource.com/92955
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/fcgi/fcgi.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/fcgi/fcgi.go b/src/net/http/fcgi/fcgi.go
+index 8f3449a991..fb822f8a6d 100644
+--- a/src/net/http/fcgi/fcgi.go
++++ b/src/net/http/fcgi/fcgi.go
+@@ -4,9 +4,8 @@
+ 
+ // Package fcgi implements the FastCGI protocol.
+ //
+-// The protocol is not an official standard and the original
+-// documentation is no longer online. See the Internet Archive's
+-// mirror at: https://web.archive.org/web/20150420080736/http://www.fastcgi.com/drupal/node/6?q=node/22
++// See https://fast-cgi.github.io/ for an unofficial mirror of the
++// original documentation.
+ //
+ // Currently only the responder role is supported.
+ package fcgi

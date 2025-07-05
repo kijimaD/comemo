@@ -11,7 +11,7 @@ Date:   Wed Mar 16 14:10:51 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm/asm5.go   | 2 +-
  src/cmd/internal/obj/arm64/asm7.go | 2 +-
  src/cmd/internal/obj/data.go       | 9 +++++----
@@ -19,3 +19,132 @@ Date:   Wed Mar 16 14:10:51 2016 -0700
  src/cmd/internal/obj/ppc64/asm9.go | 2 +-
  src/cmd/internal/obj/x86/asm6.go   | 8 ++++----
  6 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 1a56047a1d..f235751cb6 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -737,7 +737,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 	p = cursym.Text
+ 	ctxt.Autosize = int32(p.To.Offset + 4)
+-	obj.Symgrow(ctxt, cursym, cursym.Size)
++	cursym.Grow(cursym.Size)
+ 
+ 	bp := cursym.P
+ 	c = int32(p.Pc) // even p->link might need extra padding
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index fd337eab73..ff8d4fdf60 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -629,7 +629,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.
+ 	 */
+-	obj.Symgrow(ctxt, cursym, cursym.Size)
++	cursym.Grow(cursym.Size)
+ 	bp := cursym.P
+ 	psz := int32(0)
+ 	var i int
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index ade79faac7..0bb8aa2a7e 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -36,10 +36,11 @@ import (
+ 	"math"
+ )
+ 
+-func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
++// Grow increases the length of s.P to lsiz.
++func (s *LSym) Grow(lsiz int64) {
+ 	siz := int(lsiz)
+ 	if int64(siz) != lsiz {
+-		log.Fatalf("Symgrow size %d too long", lsiz)
++		log.Fatalf("LSym.Grow size %d too long", lsiz)
+ 	}
+ 	if len(s.P) >= siz {
+ 		return
+@@ -60,7 +61,7 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+ 	if s.Type == SBSS || s.Type == STLSBSS {
+ 		ctxt.Diag("cannot supply data for BSS var")
+ 	}
+-	Symgrow(ctxt, s, off+int64(siz))
++	s.Grow(off + int64(siz))
+ }
+ 
+ // WriteFloat32 writes f into s at offset off.
+@@ -127,7 +128,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+ 	}
+ 	if s.Size < off+wid {
+ 		s.Size = off + wid
+-		Symgrow(ctxt, s, s.Size)
++		s.Grow(s.Size)
+ 	}
+ 
+ 	switch wid {
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index e9dd34e0a3..521cb66dec 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -415,7 +415,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * lay out the code, emitting code and data relocations.
+ 	 */
+ 
+-	obj.Symgrow(ctxt, cursym, cursym.Size)
++	cursym.Grow(cursym.Size)
+ 
+ 	bp := cursym.P
+ 	var i int32
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 722d179e66..5010873ef7 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -506,7 +506,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * lay out the code, emitting code and data relocations.
+ 	 */
+ 
+-	obj.Symgrow(ctxt, cursym, cursym.Size)
++	cursym.Grow(cursym.Size)
+ 
+ 	bp := cursym.P
+ 	var i int32
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 4919d1344d..9f2a32724f 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1748,7 +1748,7 @@ func fillnop(p []byte, n int) {
+ }
+ 
+ func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
+-	obj.Symgrow(ctxt, s, int64(c)+int64(pad))
++	s.Grow(int64(c) + int64(pad))
+ 	fillnop(s.P[c:], int(pad))
+ 	return c + pad
+ }
+@@ -1878,7 +1878,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 				v := -c & (LoopAlign - 1)
+ 
+ 				if v <= MaxLoopPad {
+-					obj.Symgrow(ctxt, s, int64(c)+int64(v))
++					s.Grow(int64(c) + int64(v))
+ 					fillnop(s.P[c:], int(v))
+ 					c += v
+ 				}
+@@ -1915,7 +1915,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 				loop++
+ 			}
+ 
+-			obj.Symgrow(ctxt, s, p.Pc+int64(m))
++			s.Grow(p.Pc + int64(m))
+ 			copy(s.P[p.Pc:], ctxt.AsmBuf.Bytes())
+ 			c += int32(m)
+ 		}
+@@ -1940,7 +1940,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 	// Pad functions with trap instruction, to catch invalid jumps
+ 	if c&(FuncAlign-1) != 0 {
+ 		v := -c & (FuncAlign - 1)
+-		obj.Symgrow(ctxt, s, int64(c)+int64(v))
++		s.Grow(int64(c) + int64(v))
+ 		for i := c; i < c+v; i++ {
+ 			// 0xCC is INT $3 - breakpoint instruction
+ 			s.P[i] = uint8(0xCC)

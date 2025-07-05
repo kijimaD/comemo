@@ -14,7 +14,72 @@ Date:   Thu Dec 1 11:07:11 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go      |  6 +++---
  src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index e11a9dadd0..3d957e1450 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1449,14 +1449,14 @@ func (tx *Tx) closePrepared() {
+ 
+ // Commit commits the transaction.
+ func (tx *Tx) Commit() error {
++	if tx.isDone() {
++		return ErrTxDone
++	}
+ 	select {
+ 	default:
+ 	case <-tx.ctx.Done():
+ 		return tx.ctx.Err()
+ 	}
+-	if tx.isDone() {
+-		return ErrTxDone
+-	}
+ 	var err error
+ 	withLock(tx.dc, func() {
+ 		err = tx.txi.Commit()
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 02746a2e30..1ec6217858 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -683,6 +683,37 @@ func TestQueryRow(t *testing.T) {
+ 	}
+ }
+ 
++func TestTxRollbackCommitErr(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	tx, err := db.Begin()
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = tx.Rollback()
++	if err != nil {
++		t.Errorf("expected nil error from Rollback; got %v", err)
++	}
++	err = tx.Commit()
++	if err != ErrTxDone {
++		t.Errorf("expected %q from Commit; got %q", ErrTxDone, err)
++	}
++
++	tx, err = db.Begin()
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = tx.Commit()
++	if err != nil {
++		t.Errorf("expected nil error from Commit; got %v", err)
++	}
++	err = tx.Rollback()
++	if err != ErrTxDone {
++		t.Errorf("expected %q from Rollback; got %q", ErrTxDone, err)
++	}
++}
++
+ func TestStatementErrorAfterClose(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)

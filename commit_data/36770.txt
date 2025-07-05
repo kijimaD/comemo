@@ -12,6 +12,38 @@ Date:   Thu May 24 13:31:40 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/114520
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7ae0a1707b..f42d1e43db 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -20,7 +20,7 @@ func walk(fn *Node) {
+ 	Curfn = fn
+ 
+ 	if Debug['W'] != 0 {
+-		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
++		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func.Nname.Sym)
+ 		dumplist(s, Curfn.Nbody)
+ 	}
+ 
+@@ -473,7 +473,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
+ 	lno := setlineno(n)
+ 
+ 	if Debug['w'] > 1 {
+-		Dump("walk-before", n)
++		Dump("before walk expr", n)
+ 	}
+ 
+ 	if n.Typecheck() != 1 {
+@@ -1763,7 +1763,7 @@ opswitch:
+ 	updateHasCall(n)
+ 
+ 	if Debug['w'] != 0 && n != nil {
+-		Dump("walk", n)
++		Dump("after walk expr", n)
+ 	}
+ 
+ 	lineno = lno

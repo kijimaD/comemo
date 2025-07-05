@@ -13,6 +13,61 @@ Date:   Thu Jul 23 02:04:01 2015 -0400
     Change-Id: I35c6677deaf84e2fa9bdb98b62d80d388b5248ae
     Reviewed-on: https://go-review.googlesource.com/12557
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/get.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 78088b3267..90ac832a4b 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -166,9 +166,9 @@ var downloadRootCache = map[string]bool{}
+ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 	load := func(path string) *Package {
+ 		if parent == nil {
+-			return loadPackage(arg, stk)
++			return loadPackage(path, stk)
+ 		}
+-		return loadImport(arg, parent.Dir, nil, stk, nil)
++		return loadImport(path, parent.Dir, nil, stk, nil)
+ 	}
+ 
+ 	p := load(arg)
+@@ -204,15 +204,17 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 	wildcardOkay := len(*stk) == 0
+ 	isWildcard := false
+ 
+-	stk.push(arg)
+-	defer stk.pop()
++	// Note: Do not stk.push(arg) and defer stk.pop() here.
++	// The push/pop below are using updated values of arg in some cases.
+ 
+ 	// Download if the package is missing, or update if we're using -u.
+ 	if p.Dir == "" || *getU {
+ 		// The actual download.
++		stk.push(arg)
+ 		err := downloadPackage(p)
+ 		if err != nil {
+ 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
++			stk.pop()
+ 			return
+ 		}
+ 
+@@ -225,6 +227,7 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 				fmt.Fprintf(os.Stderr, "warning: package %v\n", strings.Join(*stk, "\n\timports "))
+ 			}
+ 		}
++		stk.pop()
+ 
+ 		args := []string{arg}
+ 		// If the argument has a wildcard in it, re-evaluate the wildcard.
+@@ -251,7 +254,9 @@ func download(arg string, parent *Package, stk *importStack, getTestDeps bool) {
+ 
+ 		pkgs = pkgs[:0]
+ 		for _, arg := range args {
++			stk.push(arg)
+ 			p := load(arg)
++			stk.pop()
+ 			if p.Error != nil {
+ 				errorf("%s", p.Error)
+ 				continue

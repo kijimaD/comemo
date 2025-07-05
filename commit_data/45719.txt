@@ -35,9 +35,357 @@ Date:   Tue Nov 3 13:12:19 2020 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/exec.go                  | 48 +++++++++++--
  src/cmd/go/internal/work/gc.go                    | 45 ++++++++++--
  src/cmd/go/testdata/script/build_overlay.txt      | 83 ++++++++++++++++++++++-
  src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 ++++++++
  4 files changed, 189 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 838b00a00d..a1a357e2ac 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -8,6 +8,7 @@ package work
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/fsys"
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
+@@ -2242,8 +2243,6 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 	// when -trimpath is enabled.
+ 	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
+ 		if cfg.BuildTrimpath {
+-			// TODO(#39958): handle overlays
+-
+ 			// Keep in sync with Action.trimpath.
+ 			// The trimmed paths are a little different, but we need to trim in the
+ 			// same situations.
+@@ -2313,7 +2312,8 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
+ 
+ 	cmdargs := []interface{}{cmd, "-o", outfile, objs, flags}
+ 	dir := p.Dir
+-	out, err := b.runOut(a, dir, b.cCompilerEnv(), cmdargs...)
++	out, err := b.runOut(a, base.Cwd, b.cCompilerEnv(), cmdargs...)
++
+ 	if len(out) > 0 {
+ 		// Filter out useless linker warnings caused by bugs outside Go.
+ 		// See also cmd/link/internal/ld's hostlink method.
+@@ -2641,7 +2641,8 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cgoLDFLAGS = append([]string{"-fsanitize=memory"}, cgoLDFLAGS...)
+ 	}
+ 
+-	// Allows including _cgo_export.h from .[ch] files in the package.
++	// Allows including _cgo_export.h, as well as the user's .h files,
++	// from .[ch] files in the package.
+ 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", objdir)
+ 
+ 	// cgo
+@@ -2654,6 +2655,8 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cfiles = append(cfiles, f+".cgo2.c")
+ 	}
+ 
++	hfiles := append([]string{}, p.HFiles...)
++
+ 	// TODO: make cgo not depend on $GOARCH?
+ 
+ 	cgoflags := []string{}
+@@ -2698,7 +2701,38 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		cgoflags = append(cgoflags, "-exportheader="+objdir+"_cgo_install.h")
+ 	}
+ 
+-	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
++	execdir := p.Dir
++
++	// If any of the Cgo, C, or H files are overlaid, copy them all to
++	// objdir to ensure that they refer to the right header files.
++	// TODO(#39958): Ideally, we'd always do this, but this could
++	// subtly break some cgo files that include .h files across directory
++	// boundaries, even though they shouldn't.
++	hasOverlay := false
++	cgoFileLists := [][]string{cgofiles, gccfiles, gxxfiles, mfiles, ffiles, hfiles}
++OverlayLoop:
++	for _, fs := range cgoFileLists {
++		for _, f := range fs {
++			if _, ok := fsys.OverlayPath(mkAbs(p.Dir, f)); ok {
++				hasOverlay = true
++				break OverlayLoop
++			}
++		}
++	}
++	if hasOverlay {
++		execdir = objdir
++		for _, fs := range cgoFileLists {
++			for i := range fs {
++				opath, _ := fsys.OverlayPath(mkAbs(p.Dir, fs[i]))
++				fs[i] = objdir + filepath.Base(fs[i])
++				if err := b.copyFile(fs[i], opath, 0666, false); err != nil {
++					return nil, nil, err
++				}
++			}
++		}
++	}
++
++	if err := b.run(a, execdir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+@@ -2792,7 +2826,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
+ 		return err
+ 	}
+ 
+-	linkobj := str.StringList(ofile, outObj, p.SysoFiles)
++	linkobj := str.StringList(ofile, outObj, mkAbsFiles(p.Dir, p.SysoFiles))
+ 	dynobj := objdir + "_cgo_.o"
+ 
+ 	// we need to use -pie for Linux/ARM to get accurate imported sym
+@@ -2817,7 +2851,7 @@ func (b *Builder) dynimport(a *Action, p *load.Package, objdir, importGo, cgoExe
+ 	if p.Standard && p.ImportPath == "runtime/cgo" {
+ 		cgoflags = []string{"-dynlinker"} // record path to dynamic linker
+ 	}
+-	return b.run(a, p.Dir, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
++	return b.run(a, base.Cwd, p.ImportPath, b.cCompilerEnv(), cfg.BuildToolexec, cgoExe, "-dynpackage", p.Name, "-dynimport", dynobj, "-dynout", importGo, cgoflags)
+ }
+ 
+ // Run SWIG on all SWIG input files.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index e79173485d..56711b52d8 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -262,7 +262,7 @@ func (a *Action) trimpath() string {
+ 	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
+ 		objdir = objdir[:len(objdir)-1]
+ 	}
+-	rewrite := objdir + "=>"
++	rewrite := ""
+ 
+ 	rewriteDir := a.Package.Dir
+ 	if cfg.BuildTrimpath {
+@@ -271,21 +271,54 @@ func (a *Action) trimpath() string {
+ 		} else {
+ 			rewriteDir = a.Package.ImportPath
+ 		}
+-		rewrite += ";" + a.Package.Dir + "=>" + rewriteDir
++		rewrite += a.Package.Dir + "=>" + rewriteDir + ";"
+ 	}
+ 
+ 	// Add rewrites for overlays. The 'from' and 'to' paths in overlays don't need to have
+ 	// same basename, so go from the overlay contents file path (passed to the compiler)
+ 	// to the path the disk path would be rewritten to.
++
++	cgoFiles := make(map[string]bool)
++	for _, f := range a.Package.CgoFiles {
++		cgoFiles[f] = true
++	}
++
++	// TODO(matloob): Higher up in the stack, when the logic for deciding when to make copies
++	// of c/c++/m/f/hfiles is consolidated, use the same logic that Build uses to determine
++	// whether to create the copies in objdir to decide whether to rewrite objdir to the
++	// package directory here.
++	var overlayNonGoRewrites string // rewrites for non-go files
++	hasCgoOverlay := false
+ 	if fsys.OverlayFile != "" {
+ 		for _, filename := range a.Package.AllFiles() {
+-			overlayPath, ok := fsys.OverlayPath(filepath.Join(a.Package.Dir, filename))
+-			if !ok {
+-				continue
++			path := filename
++			if !filepath.IsAbs(path) {
++				path = filepath.Join(a.Package.Dir, path)
++			}
++			base := filepath.Base(path)
++			isGo := strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, ".s")
++			isCgo := cgoFiles[filename] || !isGo
++			overlayPath, isOverlay := fsys.OverlayPath(path)
++			if isCgo && isOverlay {
++				hasCgoOverlay = true
++			}
++			if !isCgo && isOverlay {
++				rewrite += overlayPath + "=>" + filepath.Join(rewriteDir, base) + ";"
++			} else if isCgo {
++				// Generate rewrites for non-Go files copied to files in objdir.
++				if filepath.Dir(path) == a.Package.Dir {
++					// This is a file copied to objdir.
++					overlayNonGoRewrites += filepath.Join(objdir, base) + "=>" + filepath.Join(rewriteDir, base) + ";"
++				}
++			} else {
++				// Non-overlay Go files are covered by the a.Package.Dir rewrite rule above.
+ 			}
+-			rewrite += ";" + overlayPath + "=>" + filepath.Join(rewriteDir, filename)
+ 		}
+ 	}
++	if hasCgoOverlay {
++		rewrite += overlayNonGoRewrites
++	}
++	rewrite += objdir + "=>"
+ 
+ 	return rewrite
+ }
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index 0602e706e9..e18a8f5b28 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -1,9 +1,11 @@
+ [short] skip
+ 
+ # Test building in overlays.
+-# TODO(matloob): add a test case where the destination file in the replace map
++# TODO(#39958): add a test case where the destination file in the replace map
+ #   isn't a go file. Either completely exclude that case in fs.IsDirWithGoFiles
+ #   if the compiler doesn't allow it, or test that it works all the way.
++# TODO(#39958): add a test that both gc and gccgo assembly files can include .h
++#   files.
+ 
+ # The main package (m) is contained in an overlay. It imports m/dir2 which has one
+ # file in an overlay and one file outside the overlay, which in turn imports m/dir,
+@@ -29,6 +31,18 @@ exec ./print_trimpath_two_files$GOEXE
+ stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+ stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
+ 
++go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
++exec ./main_cgo_replace$GOEXE
++stdout '^hello cgo\r?\n'
++
++go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
++exec ./main_cgo_quote$GOEXE
++stdout '^hello cgo\r?\n'
++
++go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
++exec ./main_cgo_angle$GOEXE
++stdout '^hello cgo\r?\n'
++
+ # Run same tests but with gccgo.
+ env GO111MODULE=off
+ [!exec:gccgo] stop
+@@ -46,6 +60,19 @@ go build -compiler=gccgo -overlay overlay.json -o print_trimpath_gccgo$GOEXE -tr
+ exec ./print_trimpath_gccgo$GOEXE
+ stdout ^\.[/\\]printpath[/\\]main.go
+ 
++
++go build -compiler=gccgo  -overlay overlay.json -o main_cgo_replace_gccgo$GOEXE ./cgo_hello_replace
++exec ./main_cgo_replace_gccgo$GOEXE
++stdout '^hello cgo\r?\n'
++
++go build -compiler=gccgo  -overlay overlay.json -o main_cgo_quote_gccgo$GOEXE ./cgo_hello_quote
++exec ./main_cgo_quote_gccgo$GOEXE
++stdout '^hello cgo\r?\n'
++
++go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./cgo_hello_angle
++exec ./main_cgo_angle_gccgo$GOEXE
++stdout '^hello cgo\r?\n'
++
+ -- m/go.mod --
+ // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)
+ module m
+@@ -71,9 +98,32 @@ the actual code is in the overlay
+ 		"dir/g.go": "overlay/dir_g.go",
+ 		"dir2/i.go": "overlay/dir2_i.go",
+ 		"printpath/main.go": "overlay/printpath.go",
+-		"printpath/other.go": "overlay2/printpath2.go"
++		"printpath/other.go": "overlay2/printpath2.go",
++		"cgo_hello_replace/cgo_header.h": "overlay/cgo_head.h",
++		"cgo_hello_quote/cgo_hello.go": "overlay/cgo_hello_quote.go",
++		"cgo_hello_quote/cgo_header.h": "overlay/cgo_head.h",
++		"cgo_hello_angle/cgo_hello.go": "overlay/cgo_hello_angle.go",
++		"cgo_hello_angle/cgo_header.h": "overlay/cgo_head.h"
+ 	}
+ }
++-- m/cgo_hello_replace/cgo_hello_replace.go --
++package main
++
++// #include "cgo_header.h"
++import "C"
++
++func main() {
++	C.say_hello()
++}
++-- m/cgo_hello_replace/cgo_header.h --
++ // Test that this header is replaced with one that has the proper declaration.
++void say_goodbye();
++
++-- m/cgo_hello_replace/goodbye.c --
++#include <stdio.h>
++
++void say_hello() { puts("hello cgo\n"); fflush(stdout); }
++
+ -- m/overlay/f.go --
+ package main
+ 
+@@ -128,3 +178,32 @@ import "m/dir"
+ func printMessage() {
+ 	dir.PrintMessage()
+ }
++-- m/overlay/cgo_hello_quote.go --
++package main
++
++// #include "cgo_header.h"
++import "C"
++
++func main() {
++	C.say_hello()
++}
++-- m/overlay/cgo_hello_angle.go --
++package main
++
++// #include <cgo_header.h>
++import "C"
++
++func main() {
++	C.say_hello()
++}
++-- m/overlay/cgo_head.h --
++void say_hello();
++-- m/cgo_hello_quote/hello.c --
++#include <stdio.h>
++
++void say_hello() { puts("hello cgo\n"); fflush(stdout); }
++-- m/cgo_hello_angle/hello.c --
++#include <stdio.h>
++
++void say_hello() { puts("hello cgo\n"); fflush(stdout); }
++
+diff --git a/src/cmd/go/testdata/script/build_trimpath_cgo.txt b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+index 4608d9ac6b..3187b4d643 100644
+--- a/src/cmd/go/testdata/script/build_trimpath_cgo.txt
++++ b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+@@ -20,10 +20,38 @@ go build -trimpath -o hello.exe .
+ go run ./list-dwarf hello.exe
+ ! stdout gopath/src
+ 
++
++# Do the above, with the cgo (but not .c) sources in an overlay
++# Check that the source path appears when -trimpath is not used.
++mkdir $WORK/overlay
++cp hello.go $WORK/overlay/hello.go
++mkdir hello_overlay
++cp hello.c hello_overlay/hello.c
++go build -overlay overlay.json -o hello_overlay.exe ./hello_overlay
++grep -q gopath[/\\]src hello_overlay.exe
++! grep -q $WORK[/\\]overlay hello_overlay.exe
++go run ./list-dwarf hello_overlay.exe
++stdout gopath[/\\]src
++! stdout $WORK[/\\]overlay
++
++# Check that the source path does not appear when -trimpath is used.
++go build -overlay overlay.json -trimpath -o hello_overlay.exe ./hello_overlay
++! grep -q gopath[/\\]src hello_overlay.exe
++! grep -q $WORK[/\\]overlay hello_overlay.exe
++go run ./list-dwarf hello_overlay.exe
++! stdout gopath/src
++! stdout $WORK[/\\]overlay
++
+ -- go.mod --
+ module m
+ 
+ go 1.14
++-- overlay.json --
++{
++	"Replace": {
++		"hello_overlay/hello.go": "../../overlay/hello.go"
++	}
++}
+ -- hello.c --
+ #include <stdio.h>
+ 

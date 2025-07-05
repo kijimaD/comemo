@@ -17,7 +17,7 @@ Date:   Mon Mar 7 15:10:01 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4264050
-
+---
  src/cmd/gc/align.c        | 12 ++++++++++++
  src/cmd/gc/builtin.c.boot |  2 +-
  src/cmd/gc/const.c        |  1 +
@@ -29,3 +29,288 @@ Date:   Mon Mar 7 15:10:01 2011 -0500
  src/cmd/gc/unsafe.go      |  2 +-
  test/fixedbugs/bug325.go  |  1 +
  10 files changed, 48 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 833eba19ae..a01e2ea46b 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -172,6 +172,9 @@ dowidth(Type *t)
+ 		w = 8;
+ 		checkwidth(t->type);
+ 		break;
++	case TUNSAFEPTR:
++		w = widthptr;
++		break;
+ 	case TINTER:		// implemented as 2 pointers
+ 		w = 2*widthptr;
+ 		t->align = widthptr;
+@@ -400,6 +403,13 @@ typeinit(void)
+ 
+ 	types[TPTR64] = typ(TPTR64);
+ 	dowidth(types[TPTR64]);
++	
++	t = typ(TUNSAFEPTR);
++	types[TUNSAFEPTR] = t;
++	t->sym = pkglookup("Pointer", unsafepkg);
++	t->sym->def = typenod(t);
++	
++	dowidth(types[TUNSAFEPTR]);
+ 
+ 	tptr = TPTR32;
+ 	if(widthptr == 8)
+@@ -481,6 +491,7 @@ typeinit(void)
+ 
+ 	okforeq[TPTR32] = 1;
+ 	okforeq[TPTR64] = 1;
++	okforeq[TUNSAFEPTR] = 1;
+ 	okforeq[TINTER] = 1;
+ 	okforeq[TMAP] = 1;
+ 	okforeq[TCHAN] = 1;
+@@ -570,6 +581,7 @@ typeinit(void)
+ 	simtype[TMAP] = tptr;
+ 	simtype[TCHAN] = tptr;
+ 	simtype[TFUNC] = tptr;
++	simtype[TUNSAFEPTR] = tptr;
+ 
+ 	/* pick up the backend typedefs */
+ 	for(i=0; typedefs[i].name; i++) {
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 48f45293fc..6fe2c8b69b 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -96,7 +96,7 @@ char *runtimeimport =
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+-	"type \"\".Pointer *any\n"
++	"type \"\".Pointer uintptr\n"
+ 	"func \"\".Offsetof (? any) int\n"
+ 	"func \"\".Sizeof (? any) int\n"
+ 	"func \"\".Alignof (? any) int\n"
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index a54c40f6cc..0cc26fc3b5 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -155,6 +155,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 		case TMAP:
+ 		case TCHAN:
+ 		case TFUNC:
++		case TUNSAFEPTR:
+ 			break;
+ 		}
+ 		break;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index a71272aa22..2aa1bc8170 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -656,10 +656,19 @@ typedcl2(Type *pt, Type *t)
+ {
+ 	Node *n;
+ 
++	// override declaration in unsafe.go for Pointer.
++	// there is no way in Go code to define unsafe.Pointer
++	// so we have to supply it.
++	if(incannedimport &&
++	   strcmp(importpkg->name, "unsafe") == 0 &&
++	   strcmp(pt->nod->sym->name, "Pointer") == 0) {
++		t = types[TUNSAFEPTR];
++	}
++
+ 	if(pt->etype == TFORW)
+ 		goto ok;
+ 	if(!eqtype(pt->orig, t))
+-		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
++		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt->orig, t);
+ 	return;
+ 
+ ok:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bf84c12a13..abc9e829c7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -459,9 +459,10 @@ enum
+ 	TFIELD,
+ 	TANY,
+ 	TSTRING,
++	TUNSAFEPTR,
+ 
+ 	// pseudo-types for literals
+-	TIDEAL,			// 32
++	TIDEAL,			// 33
+ 	TNIL,
+ 	TBLANK,
+ 
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 8129bf1ce7..6b86462c44 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -466,6 +466,7 @@ kinds[] =
+ 	[TFUNC]		= KindFunc,
+ 	[TCOMPLEX64]	= KindComplex64,
+ 	[TCOMPLEX128]	= KindComplex128,
++	[TUNSAFEPTR]	= KindUnsafePointer,
+ };
+ 
+ static char*
+@@ -488,6 +489,7 @@ structnames[] =
+ 	[TFLOAT64]	= "*runtime.FloatType",
+ 	[TBOOL]		= "*runtime.BoolType",
+ 	[TSTRING]	= "*runtime.StringType",
++	[TUNSAFEPTR] =	"*runtime.UnsafePointerType",
+ 
+ 	[TPTR32]	= "*runtime.PtrType",
+ 	[TPTR64]	= "*runtime.PtrType",
+@@ -514,9 +516,6 @@ typestruct(Type *t)
+ 	if(isslice(t))
+ 		name = "*runtime.SliceType";
+ 
+-	if(isptr[et] && t->type->etype == TANY)
+-		name = "*runtime.UnsafePointerType";
+-
+ 	return pkglookup(name, typepkg);
+ }
+ 
+@@ -553,6 +552,7 @@ haspointers(Type *t)
+ 	case TSTRING:
+ 	case TPTR32:
+ 	case TPTR64:
++	case TUNSAFEPTR:
+ 	case TINTER:
+ 	case TCHAN:
+ 	case TMAP:
+@@ -612,8 +612,6 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	i = kinds[t->etype];
+ 	if(t->etype == TARRAY && t->bound < 0)
+ 		i = KindSlice;
+-	if(isptr[t->etype] && t->type->etype == TANY)
+-		i = KindUnsafePointer;
+ 	if(!haspointers(t))
+ 		i |= KindNoPointers;
+ 	ot = duint8(s, ot, i);  // kind
+@@ -714,12 +712,8 @@ dtypesym(Type *t)
+ 		tbase = t->type;
+ 	dupok = tbase->sym == S;
+ 
+-	if(compiling_runtime) {
+-		if(tbase == types[tbase->etype])	// int, float, etc
+-			goto ok;
+-		if(tbase->etype == tptr && tbase->type->etype == TANY)	// unsafe.Pointer
+-			goto ok;
+-	}
++	if(compiling_runtime && tbase == types[tbase->etype])	// int, float, etc
++		goto ok;
+ 
+ 	// named types from other files are defined only by those files
+ 	if(tbase->sym && !tbase->local)
+@@ -908,7 +902,7 @@ dumptypestructs(void)
+ 		for(i=1; i<=TBOOL; i++)
+ 			dtypesym(ptrto(types[i]));
+ 		dtypesym(ptrto(types[TSTRING]));
+-		dtypesym(ptrto(pkglookup("Pointer", unsafepkg)->def->type));
++		dtypesym(ptrto(types[TUNSAFEPTR]));
+ 		
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(runtimepkg);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 142e5ba41e..54051598d7 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1144,7 +1144,7 @@ Tpretty(Fmt *fp, Type *t)
+ 	&& t->sym != S
+ 	&& !(fp->flags&FmtLong)) {
+ 		s = t->sym;
+-		if(t == types[t->etype])
++		if(t == types[t->etype] && t->etype != TUNSAFEPTR)
+ 			return fmtprint(fp, "%s", s->name);
+ 		if(exporting) {
+ 			if(fp->flags & FmtShort)
+@@ -1304,6 +1304,11 @@ Tpretty(Fmt *fp, Type *t)
+ 		if(t->sym)
+ 			return fmtprint(fp, "undefined %S", t->sym);
+ 		return fmtprint(fp, "undefined");
++	
++	case TUNSAFEPTR:
++		if(exporting)
++			return fmtprint(fp, "\"unsafe\".Pointer");
++		return fmtprint(fp, "unsafe.Pointer");
+ 	}
+ 
+ 	// Don't know how to handle - fall back to detailed prints.
+@@ -1346,6 +1351,9 @@ Tconv(Fmt *fp)
+ 		}
+ 	}
+ 
++	if(sharp || exporting)
++		fatal("missing %E case during export", t->etype);
++
+ 	et = t->etype;
+ 	fmtprint(fp, "%E ", et);
+ 	if(t->sym != S)
+@@ -1864,7 +1872,7 @@ assignop(Type *src, Type *dst, char **why)
+ 	if(why != nil)
+ 		*why = "";
+ 
+-	if(safemode && (isptrto(src, TANY) || isptrto(dst, TANY))) {
++	if(safemode && src != T && src->etype == TUNSAFEPTR) {
+ 		yyerror("cannot use unsafe.Pointer");
+ 		errorexit();
+ 	}
+@@ -2028,11 +2036,11 @@ convertop(Type *src, Type *dst, char **why)
+ 	}
+ 	
+ 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
+-	if((isptr[src->etype] || src->etype == TUINTPTR) && isptrto(dst, TANY))
++	if((isptr[src->etype] || src->etype == TUINTPTR) && dst->etype == TUNSAFEPTR)
+ 		return OCONVNOP;
+ 
+ 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
+-	if(isptrto(src, TANY) && (isptr[dst->etype] || dst->etype == TUINTPTR))
++	if(src->etype == TUNSAFEPTR && (isptr[dst->etype] || dst->etype == TUINTPTR))
+ 		return OCONVNOP;
+ 
+ 	return 0;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 3e8f358770..2c4f4dbbff 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -318,7 +318,7 @@ reswitch:
+ 			n->left = N;
+ 			goto ret;
+ 		}
+-		if(!isptr[t->etype] || (t->type != T && t->type->etype == TANY) /* unsafe.Pointer */) {
++		if(!isptr[t->etype]) {
+ 			yyerror("invalid indirect of %+N", n->left);
+ 			goto error;
+ 		}
+@@ -1316,7 +1316,7 @@ ret:
+ 
+ 	// TODO(rsc): should not need to check importpkg,
+ 	// but reflect mentions unsafe.Pointer.
+-	if(safemode && !incannedimport && !importpkg && isptrto(t, TANY))
++	if(safemode && !incannedimport && !importpkg && t->etype == TUNSAFEPTR)
+ 		yyerror("cannot use unsafe.Pointer");
+ 
+ 	evconst(n);
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index bd7b7771a7..b2a341d391 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -8,7 +8,7 @@
+ 
+ package PACKAGE
+ 
+-type Pointer *any
++type Pointer uintptr // not really; filled in by compiler
+ 
+ func Offsetof(any) int
+ func Sizeof(any) int
+diff --git a/test/fixedbugs/bug325.go b/test/fixedbugs/bug325.go
+index 23dbc8b3cb..205b836b08 100644
+--- a/test/fixedbugs/bug325.go
++++ b/test/fixedbugs/bug325.go
+@@ -11,4 +11,5 @@ import "unsafe"
+ func main() {
+ 	var x unsafe.Pointer
+ 	println(*x) // ERROR "invalid indirect.*unsafe.Pointer"
++	var _ = (unsafe.Pointer)(nil).foo  // ERROR "no field or method foo"
+ }

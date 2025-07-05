@@ -19,9 +19,93 @@ Date:   Sun Dec 8 22:24:10 2019 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/defs_linux_386.go                      | 11 +++++++++++
  src/runtime/os_linux_386.go                        |  7 -------
  src/runtime/{os_linux_amd64.go => os_linux_x86.go} |  3 +++
  src/runtime/sys_linux_386.s                        | 19 +++++++++++++++++++
  4 files changed, 33 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index ba349845cf..ba5ef18e02 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -227,3 +227,14 @@ type sockaddr_un struct {
+ 	family uint16
+ 	path   [108]byte
+ }
++
++const __NEW_UTS_LEN = 64
++
++type new_utsname struct {
++	sysname    [__NEW_UTS_LEN + 1]byte
++	nodename   [__NEW_UTS_LEN + 1]byte
++	release    [__NEW_UTS_LEN + 1]byte
++	version    [__NEW_UTS_LEN + 1]byte
++	machine    [__NEW_UTS_LEN + 1]byte
++	domainname [__NEW_UTS_LEN + 1]byte
++}
+diff --git a/src/runtime/os_linux_386.go b/src/runtime/os_linux_386.go
+deleted file mode 100644
+index 9be88a5ad2..0000000000
+--- a/src/runtime/os_linux_386.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-func osArchInit() {}
+diff --git a/src/runtime/os_linux_amd64.go b/src/runtime/os_linux_x86.go
+similarity index 98%
+rename from src/runtime/os_linux_amd64.go
+rename to src/runtime/os_linux_x86.go
+index cbfcf2e40a..61c51f2327 100644
+--- a/src/runtime/os_linux_amd64.go
++++ b/src/runtime/os_linux_x86.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build linux
++// +build 386 amd64
++
+ package runtime
+ 
+ //go:noescape
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 373d9d3bc2..8e05acf894 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -39,6 +39,8 @@
+ #define SYS_socketcall		102
+ #define SYS_setittimer		104
+ #define SYS_clone		120
++#define SYS_uname		122
++#define SYS_mlock		150
+ #define SYS_sched_yield 	158
+ #define SYS_nanosleep		162
+ #define SYS_rt_sigreturn	173
+@@ -776,3 +778,20 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
+ 	INVOKE_SYSCALL
+ 	MOVL	AX, ret+0(FP)
+ 	RET
++
++// func uname(utsname *new_utsname) int
++TEXT ·uname(SB),NOSPLIT,$0-8
++	MOVL    $SYS_uname, AX
++	MOVL    utsname+0(FP), BX
++	INVOKE_SYSCALL
++	MOVL	AX, ret+4(FP)
++	RET
++
++// func mlock(addr, len uintptr) int
++TEXT ·mlock(SB),NOSPLIT,$0-12
++	MOVL    $SYS_mlock, AX
++	MOVL    addr+0(FP), BX
++	MOVL    len+4(FP), CX
++	INVOKE_SYSCALL
++	MOVL	AX, ret+8(FP)
++	RET

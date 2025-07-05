@@ -7,7 +7,7 @@ Date:   Tue Nov 1 21:48:52 2011 -0400
     R=r, r
     CC=golang-dev
     https://golang.org/cl/5311068
-
+---
  src/pkg/io/io.go         | 102 +++++++++++++++++++++++++----------------------
  src/pkg/io/io_test.go    |  19 +++++----
  src/pkg/io/multi.go      |  14 +++----
@@ -15,3 +15,763 @@ Date:   Tue Nov 1 21:48:52 2011 -0400
  src/pkg/io/pipe.go       |  50 +++++++++++------------
  src/pkg/io/pipe_test.go  |  25 ++++++------
  6 files changed, 110 insertions(+), 107 deletions(-)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 07e2bce76a..098d2234b4 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -8,25 +8,30 @@
+ // abstract the functionality, plus some other related primitives.
+ package io
+ 
+-import "os"
+-
+ // Error represents an unexpected I/O behavior.
+ type Error struct {
+ 	ErrorString string
+ }
+ 
+-func (err *Error) String() string { return err.ErrorString }
++func (err *Error) Error() string { return err.ErrorString }
+ 
+ // ErrShortWrite means that a write accepted fewer bytes than requested
+ // but failed to return an explicit error.
+-var ErrShortWrite os.Error = &Error{"short write"}
++var ErrShortWrite error = &Error{"short write"}
+ 
+ // ErrShortBuffer means that a read required a longer buffer than was provided.
+-var ErrShortBuffer os.Error = &Error{"short buffer"}
++var ErrShortBuffer error = &Error{"short buffer"}
++
++// EOF is the error returned by Read when no more input is available.
++// Functions should return EOF only to signal a graceful end of input.
++// If the EOF occurs unexpectedly in a structured data stream,
++// the appropriate error is either ErrUnexpectedEOF or some other error
++// giving more detail.
++var EOF error = &Error{"EOF"}
+ 
+-// ErrUnexpectedEOF means that os.EOF was encountered in the
++// ErrUnexpectedEOF means that EOF was encountered in the
+ // middle of reading a fixed-size block or data structure.
+-var ErrUnexpectedEOF os.Error = &Error{"unexpected EOF"}
++var ErrUnexpectedEOF error = &Error{"unexpected EOF"}
+ 
+ // Reader is the interface that wraps the basic Read method.
+ //
+@@ -42,15 +47,15 @@ var ErrUnexpectedEOF os.Error = &Error{"unexpected EOF"}
+ // or return the error (and n == 0) from a subsequent call.
+ // An instance of this general case is that a Reader returning
+ // a non-zero number of bytes at the end of the input stream may
+-// return either err == os.EOF or err == nil.  The next Read should
+-// return 0, os.EOF regardless.
++// return either err == EOF or err == nil.  The next Read should
++// return 0, EOF regardless.
+ //
+ // Callers should always process the n > 0 bytes returned before
+ // considering the error err.  Doing so correctly handles I/O errors
+ // that happen after reading some bytes and also both of the
+ // allowed EOF behaviors.
+ type Reader interface {
+-	Read(p []byte) (n int, err os.Error)
++	Read(p []byte) (n int, err error)
+ }
+ 
+ // Writer is the interface that wraps the basic Write method.
+@@ -60,12 +65,12 @@ type Reader interface {
+ // and any error encountered that caused the write to stop early.
+ // Write must return a non-nil error if it returns n < len(p).
+ type Writer interface {
+-	Write(p []byte) (n int, err os.Error)
++	Write(p []byte) (n int, err error)
+ }
+ 
+ // Closer is the interface that wraps the basic Close method.
+ type Closer interface {
+-	Close() os.Error
++	Close() error
+ }
+ 
+ // Seeker is the interface that wraps the basic Seek method.
+@@ -76,7 +81,7 @@ type Closer interface {
+ // relative to the end.  Seek returns the new offset and an Error, if
+ // any.
+ type Seeker interface {
+-	Seek(offset int64, whence int) (ret int64, err os.Error)
++	Seek(offset int64, whence int) (ret int64, err error)
+ }
+ 
+ // ReadWriter is the interface that groups the basic Read and Write methods.
+@@ -125,12 +130,12 @@ type ReadWriteSeeker interface {
+ 
+ // ReaderFrom is the interface that wraps the ReadFrom method.
+ type ReaderFrom interface {
+-	ReadFrom(r Reader) (n int64, err os.Error)
++	ReadFrom(r Reader) (n int64, err error)
+ }
+ 
+ // WriterTo is the interface that wraps the WriteTo method.
+ type WriterTo interface {
+-	WriteTo(w Writer) (n int64, err os.Error)
++	WriteTo(w Writer) (n int64, err error)
+ }
+ 
+ // ReaderAt is the interface that wraps the basic ReadAt method.
+@@ -149,13 +154,13 @@ type WriterTo interface {
+ // In this respect ReadAt is different from Read.
+ //
+ // If the n = len(p) bytes returned by ReadAt are at the end of the
+-// input source, ReadAt may return either err == os.EOF or err == nil.
++// input source, ReadAt may return either err == EOF or err == nil.
+ //
+ // If ReadAt is reading from an input source with a seek offset,
+ // ReadAt should not affect nor be affected by the underlying
+ // seek offset.
+ type ReaderAt interface {
+-	ReadAt(p []byte, off int64) (n int, err os.Error)
++	ReadAt(p []byte, off int64) (n int, err error)
+ }
+ 
+ // WriterAt is the interface that wraps the basic WriteAt method.
+@@ -165,7 +170,7 @@ type ReaderAt interface {
+ // and any error encountered that caused the write to stop early.
+ // WriteAt must return a non-nil error if it returns n < len(p).
+ type WriterAt interface {
+-	WriteAt(p []byte, off int64) (n int, err os.Error)
++	WriteAt(p []byte, off int64) (n int, err error)
+ }
+ 
+ // ByteReader is the interface that wraps the ReadByte method.
+@@ -173,7 +178,7 @@ type WriterAt interface {
+ // ReadByte reads and returns the next byte from the input.
+ // If no byte is available, err will be set.
+ type ByteReader interface {
+-	ReadByte() (c byte, err os.Error)
++	ReadByte() (c byte, err error)
+ }
+ 
+ // ByteScanner is the interface that adds the UnreadByte method to the
+@@ -185,7 +190,7 @@ type ByteReader interface {
+ // call to ReadByte.
+ type ByteScanner interface {
+ 	ByteReader
+-	UnreadByte() os.Error
++	UnreadByte() error
+ }
+ 
+ // RuneReader is the interface that wraps the ReadRune method.
+@@ -194,7 +199,7 @@ type ByteScanner interface {
+ // and returns the rune and its size in bytes. If no character is
+ // available, err will be set.
+ type RuneReader interface {
+-	ReadRune() (r rune, size int, err os.Error)
++	ReadRune() (r rune, size int, err error)
+ }
+ 
+ // RuneScanner is the interface that adds the UnreadRune method to the
+@@ -206,16 +211,16 @@ type RuneReader interface {
+ // call to ReadRune.
+ type RuneScanner interface {
+ 	RuneReader
+-	UnreadRune() os.Error
++	UnreadRune() error
+ }
+ 
+ // stringWriter is the interface that wraps the WriteString method.
+ type stringWriter interface {
+-	WriteString(s string) (n int, err os.Error)
++	WriteString(s string) (n int, err error)
+ }
+ 
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+-func WriteString(w Writer, s string) (n int, err os.Error) {
++func WriteString(w Writer, s string) (n int, err error) {
+ 	if sw, ok := w.(stringWriter); ok {
+ 		return sw.WriteString(s)
+ 	}
+@@ -224,11 +229,11 @@ func WriteString(w Writer, s string) (n int, err os.Error) {
+ 
+ // ReadAtLeast reads from r into buf until it has read at least min bytes.
+ // It returns the number of bytes copied and an error if fewer bytes were read.
+-// The error is os.EOF only if no bytes were read.
++// The error is EOF only if no bytes were read.
+ // If an EOF happens after reading fewer than min bytes,
+ // ReadAtLeast returns ErrUnexpectedEOF.
+ // If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
+-func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
++func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
+ 	if len(buf) < min {
+ 		return 0, ErrShortBuffer
+ 	}
+@@ -237,7 +242,7 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 		nn, err = r.Read(buf[n:])
+ 		n += nn
+ 	}
+-	if err == os.EOF {
++	if err == EOF {
+ 		if n >= min {
+ 			err = nil
+ 		} else if n > 0 {
+@@ -249,10 +254,10 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
+ 
+ // ReadFull reads exactly len(buf) bytes from r into buf.
+ // It returns the number of bytes copied and an error if fewer bytes were read.
+-// The error is os.EOF only if no bytes were read.
++// The error is EOF only if no bytes were read.
+ // If an EOF happens after reading some but not all the bytes,
+ // ReadFull returns ErrUnexpectedEOF.
+-func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
++func ReadFull(r Reader, buf []byte) (n int, err error) {
+ 	return ReadAtLeast(r, buf, len(buf))
+ }
+ 
+@@ -260,18 +265,18 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+ // It returns the number of bytes copied and the earliest
+ // error encountered while copying.  Because Read can
+ // return the full amount requested as well as an error
+-// (including os.EOF), so can CopyN.
++// (including EOF), so can CopyN.
+ //
+ // If dst implements the ReaderFrom interface,
+ // the copy is implemented by calling dst.ReadFrom(src).
+-func CopyN(dst Writer, src Reader, n int64) (written int64, err os.Error) {
++func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
+ 	// If the writer has a ReadFrom method, use it to do the copy.
+ 	// Avoids a buffer allocation and a copy.
+ 	if rt, ok := dst.(ReaderFrom); ok {
+ 		written, err = rt.ReadFrom(LimitReader(src, n))
+ 		if written < n && err == nil {
+ 			// rt stopped early; must have been EOF.
+-			err = os.EOF
++			err = EOF
+ 		}
+ 		return
+ 	}
+@@ -308,7 +313,7 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+ // on src or an error occurs.  It returns the number of bytes
+ // copied and the first error encountered while copying, if any.
+ //
+-// A successful Copy returns err == nil, not err == os.EOF.
++// A successful Copy returns err == nil, not err == EOF.
+ // Because Copy is defined to read from src until EOF, it does
+ // not treat an EOF from Read as an error to be reported.
+ //
+@@ -316,7 +321,7 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+ // the copy is implemented by calling dst.ReadFrom(src).
+ // Otherwise, if src implements the WriterTo interface,
+ // the copy is implemented by calling src.WriteTo(dst).
+-func Copy(dst Writer, src Reader) (written int64, err os.Error) {
++func Copy(dst Writer, src Reader) (written int64, err error) {
+ 	// If the writer has a ReadFrom method, use it to do the copy.
+ 	// Avoids an allocation and a copy.
+ 	if rt, ok := dst.(ReaderFrom); ok {
+@@ -343,7 +348,7 @@ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
+ 				break
+ 			}
+ 		}
+-		if er == os.EOF {
++		if er == EOF {
+ 			break
+ 		}
+ 		if er != nil {
+@@ -355,7 +360,7 @@ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
+ }
+ 
+ // LimitReader returns a Reader that reads from r
+-// but stops with os.EOF after n bytes.
++// but stops with EOF after n bytes.
+ // The underlying implementation is a *LimitedReader.
+ func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+ 
+@@ -367,9 +372,9 @@ type LimitedReader struct {
+ 	N int64  // max bytes remaining
+ }
+ 
+-func (l *LimitedReader) Read(p []byte) (n int, err os.Error) {
++func (l *LimitedReader) Read(p []byte) (n int, err error) {
+ 	if l.N <= 0 {
+-		return 0, os.EOF
++		return 0, EOF
+ 	}
+ 	if int64(len(p)) > l.N {
+ 		p = p[0:l.N]
+@@ -380,7 +385,7 @@ func (l *LimitedReader) Read(p []byte) (n int, err os.Error) {
+ }
+ 
+ // NewSectionReader returns a SectionReader that reads from r
+-// starting at offset off and stops with os.EOF after n bytes.
++// starting at offset off and stops with EOF after n bytes.
+ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+ 	return &SectionReader{r, off, off, off + n}
+ }
+@@ -394,9 +399,9 @@ type SectionReader struct {
+ 	limit int64
+ }
+ 
+-func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
++func (s *SectionReader) Read(p []byte) (n int, err error) {
+ 	if s.off >= s.limit {
+-		return 0, os.EOF
++		return 0, EOF
+ 	}
+ 	if max := s.limit - s.off; int64(len(p)) > max {
+ 		p = p[0:max]
+@@ -406,10 +411,13 @@ func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
+ 	return
+ }
+ 
+-func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error) {
++var errWhence = &Error{"Seek: invalid whence"}
++var errOffset = &Error{"Seek: invalid offset"}
++
++func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err error) {
+ 	switch whence {
+ 	default:
+-		return 0, os.EINVAL
++		return 0, errWhence
+ 	case 0:
+ 		offset += s.base
+ 	case 1:
+@@ -418,15 +426,15 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error)
+ 		offset += s.limit
+ 	}
+ 	if offset < s.base || offset > s.limit {
+-		return 0, os.EINVAL
++		return 0, errOffset
+ 	}
+ 	s.off = offset
+ 	return offset - s.base, nil
+ }
+ 
+-func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
++func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
+ 	if off < 0 || off >= s.limit-s.base {
+-		return 0, os.EOF
++		return 0, EOF
+ 	}
+ 	off += s.base
+ 	if max := s.limit - off; int64(len(p)) > max {
+@@ -452,7 +460,7 @@ type teeReader struct {
+ 	w Writer
+ }
+ 
+-func (t *teeReader) Read(p []byte) (n int, err os.Error) {
++func (t *teeReader) Read(p []byte) (n int, err error) {
+ 	n, err = t.r.Read(p)
+ 	if n > 0 {
+ 		if n, err := t.w.Write(p[:n]); err != nil {
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index f1b23e9461..1e671b59b3 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -7,7 +7,6 @@ package io_test
+ import (
+ 	"bytes"
+ 	. "io"
+-	"os"
+ 	"strings"
+ 	"testing"
+ )
+@@ -85,7 +84,7 @@ type noReadFrom struct {
+ 	w Writer
+ }
+ 
+-func (w *noReadFrom) Write(p []byte) (n int, err os.Error) {
++func (w *noReadFrom) Write(p []byte) (n int, err error) {
+ 	return w.w.Write(p)
+ }
+ 
+@@ -101,7 +100,7 @@ func TestCopyNEOF(t *testing.T) {
+ 	}
+ 
+ 	n, err = CopyN(&noReadFrom{b}, strings.NewReader("foo"), 4)
+-	if n != 3 || err != os.EOF {
++	if n != 3 || err != EOF {
+ 		t.Errorf("CopyN(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
+ 	}
+ 
+@@ -111,7 +110,7 @@ func TestCopyNEOF(t *testing.T) {
+ 	}
+ 
+ 	n, err = CopyN(b, strings.NewReader("foo"), 4) // b has read from
+-	if n != 3 || err != os.EOF {
++	if n != 3 || err != EOF {
+ 		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
+ 	}
+ }
+@@ -121,16 +120,16 @@ func TestReadAtLeast(t *testing.T) {
+ 	testReadAtLeast(t, &rb)
+ }
+ 
+-// A version of bytes.Buffer that returns n > 0, os.EOF on Read
++// A version of bytes.Buffer that returns n > 0, EOF on Read
+ // when the input is exhausted.
+ type dataAndEOFBuffer struct {
+ 	bytes.Buffer
+ }
+ 
+-func (r *dataAndEOFBuffer) Read(p []byte) (n int, err os.Error) {
++func (r *dataAndEOFBuffer) Read(p []byte) (n int, err error) {
+ 	n, err = r.Buffer.Read(p)
+ 	if n > 0 && r.Buffer.Len() == 0 && err == nil {
+-		err = os.EOF
++		err = EOF
+ 	}
+ 	return
+ }
+@@ -162,7 +161,7 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
+ 		t.Errorf("expected to have read 2 bytes, got %v", n)
+ 	}
+ 	n, err = ReadAtLeast(rb, buf, 2)
+-	if err != os.EOF {
++	if err != EOF {
+ 		t.Errorf("expected EOF, got %v", err)
+ 	}
+ 	if n != 0 {
+@@ -193,14 +192,14 @@ func TestTeeReader(t *testing.T) {
+ 	if !bytes.Equal(wb.Bytes(), src) {
+ 		t.Errorf("bytes written = %q want %q", wb.Bytes(), src)
+ 	}
+-	if n, err := r.Read(dst); n != 0 || err != os.EOF {
++	if n, err := r.Read(dst); n != 0 || err != EOF {
+ 		t.Errorf("r.Read at EOF = %d, %v want 0, EOF", n, err)
+ 	}
+ 	rb = bytes.NewBuffer(src)
+ 	pr, pw := Pipe()
+ 	pr.Close()
+ 	r = TeeReader(rb, pw)
+-	if n, err := ReadFull(r, dst); n != 0 || err != os.EPIPE {
++	if n, err := ReadFull(r, dst); n != 0 || err != ErrClosedPipe {
+ 		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
+ 	}
+ }
+diff --git a/src/pkg/io/multi.go b/src/pkg/io/multi.go
+index d702d46c72..2c7e816cff 100644
+--- a/src/pkg/io/multi.go
++++ b/src/pkg/io/multi.go
+@@ -4,17 +4,15 @@
+ 
+ package io
+ 
+-import "os"
+-
+ type multiReader struct {
+ 	readers []Reader
+ }
+ 
+-func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
++func (mr *multiReader) Read(p []byte) (n int, err error) {
+ 	for len(mr.readers) > 0 {
+ 		n, err = mr.readers[0].Read(p)
+-		if n > 0 || err != os.EOF {
+-			if err == os.EOF {
++		if n > 0 || err != EOF {
++			if err == EOF {
+ 				// Don't return EOF yet. There may be more bytes
+ 				// in the remaining readers.
+ 				err = nil
+@@ -23,12 +21,12 @@ func (mr *multiReader) Read(p []byte) (n int, err os.Error) {
+ 		}
+ 		mr.readers = mr.readers[1:]
+ 	}
+-	return 0, os.EOF
++	return 0, EOF
+ }
+ 
+ // MultiReader returns a Reader that's the logical concatenation of
+ // the provided input readers.  They're read sequentially.  Once all
+-// inputs are drained, Read will return os.EOF.
++// inputs are drained, Read will return EOF.
+ func MultiReader(readers ...Reader) Reader {
+ 	return &multiReader{readers}
+ }
+@@ -37,7 +35,7 @@ type multiWriter struct {
+ 	writers []Writer
+ }
+ 
+-func (t *multiWriter) Write(p []byte) (n int, err os.Error) {
++func (t *multiWriter) Write(p []byte) (n int, err error) {
+ 	for _, w := range t.writers {
+ 		n, err = w.Write(p)
+ 		if err != nil {
+diff --git a/src/pkg/io/multi_test.go b/src/pkg/io/multi_test.go
+index 1b3589ddeb..bb439f04b8 100644
+--- a/src/pkg/io/multi_test.go
++++ b/src/pkg/io/multi_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"bytes"
+ 	"crypto/sha1"
+ 	"fmt"
+-	"os"
+ 	"strings"
+ 	"testing"
+ )
+@@ -26,7 +25,7 @@ func TestMultiReader(t *testing.T) {
+ 		buf = make([]byte, 20)
+ 		tests()
+ 	}
+-	expectRead := func(size int, expected string, eerr os.Error) {
++	expectRead := func(size int, expected string, eerr error) {
+ 		nread++
+ 		n, gerr := mr.Read(buf[0:size])
+ 		if n != len(expected) {
+@@ -48,13 +47,13 @@ func TestMultiReader(t *testing.T) {
+ 		expectRead(2, "fo", nil)
+ 		expectRead(5, "o ", nil)
+ 		expectRead(5, "bar", nil)
+-		expectRead(5, "", os.EOF)
++		expectRead(5, "", EOF)
+ 	})
+ 	withFooBar(func() {
+ 		expectRead(4, "foo ", nil)
+ 		expectRead(1, "b", nil)
+ 		expectRead(3, "ar", nil)
+-		expectRead(1, "", os.EOF)
++		expectRead(1, "", EOF)
+ 	})
+ 	withFooBar(func() {
+ 		expectRead(5, "foo ", nil)
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index 00be8efa2e..3dcff0d62a 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -7,14 +7,14 @@
+ 
+ package io
+ 
+-import (
+-	"os"
+-	"sync"
+-)
++import "sync"
++
++// ErrClosedPipe is the error used for read or write operations on a closed pipe.
++var ErrClosedPipe = &Error{"io: read/write on closed pipe"}
+ 
+ type pipeResult struct {
+ 	n   int
+-	err os.Error
++	err error
+ }
+ 
+ // A pipe is the shared pipe structure underlying PipeReader and PipeWriter.
+@@ -25,11 +25,11 @@ type pipe struct {
+ 	data  []byte     // data remaining in pending write
+ 	rwait sync.Cond  // waiting reader
+ 	wwait sync.Cond  // waiting writer
+-	rerr  os.Error   // if reader closed, error to give writes
+-	werr  os.Error   // if writer closed, error to give reads
++	rerr  error      // if reader closed, error to give writes
++	werr  error      // if writer closed, error to give reads
+ }
+ 
+-func (p *pipe) read(b []byte) (n int, err os.Error) {
++func (p *pipe) read(b []byte) (n int, err error) {
+ 	// One reader at a time.
+ 	p.rl.Lock()
+ 	defer p.rl.Unlock()
+@@ -38,7 +38,7 @@ func (p *pipe) read(b []byte) (n int, err os.Error) {
+ 	defer p.l.Unlock()
+ 	for {
+ 		if p.rerr != nil {
+-			return 0, os.EINVAL
++			return 0, ErrClosedPipe
+ 		}
+ 		if p.data != nil {
+ 			break
+@@ -59,7 +59,7 @@ func (p *pipe) read(b []byte) (n int, err os.Error) {
+ 
+ var zero [0]byte
+ 
+-func (p *pipe) write(b []byte) (n int, err os.Error) {
++func (p *pipe) write(b []byte) (n int, err error) {
+ 	// pipe uses nil to mean not available
+ 	if b == nil {
+ 		b = zero[:]
+@@ -82,7 +82,7 @@ func (p *pipe) write(b []byte) (n int, err os.Error) {
+ 			break
+ 		}
+ 		if p.werr != nil {
+-			err = os.EINVAL
++			err = ErrClosedPipe
+ 		}
+ 		p.wwait.Wait()
+ 	}
+@@ -91,9 +91,9 @@ func (p *pipe) write(b []byte) (n int, err os.Error) {
+ 	return
+ }
+ 
+-func (p *pipe) rclose(err os.Error) {
++func (p *pipe) rclose(err error) {
+ 	if err == nil {
+-		err = os.EPIPE
++		err = ErrClosedPipe
+ 	}
+ 	p.l.Lock()
+ 	defer p.l.Unlock()
+@@ -102,9 +102,9 @@ func (p *pipe) rclose(err os.Error) {
+ 	p.wwait.Signal()
+ }
+ 
+-func (p *pipe) wclose(err os.Error) {
++func (p *pipe) wclose(err error) {
+ 	if err == nil {
+-		err = os.EOF
++		err = EOF
+ 	}
+ 	p.l.Lock()
+ 	defer p.l.Unlock()
+@@ -122,20 +122,20 @@ type PipeReader struct {
+ // it reads data from the pipe, blocking until a writer
+ // arrives or the write end is closed.
+ // If the write end is closed with an error, that error is
+-// returned as err; otherwise err is os.EOF.
+-func (r *PipeReader) Read(data []byte) (n int, err os.Error) {
++// returned as err; otherwise err is EOF.
++func (r *PipeReader) Read(data []byte) (n int, err error) {
+ 	return r.p.read(data)
+ }
+ 
+ // Close closes the reader; subsequent writes to the
+-// write half of the pipe will return the error os.EPIPE.
+-func (r *PipeReader) Close() os.Error {
++// write half of the pipe will return the error ErrClosedPipe.
++func (r *PipeReader) Close() error {
+ 	return r.CloseWithError(nil)
+ }
+ 
+ // CloseWithError closes the reader; subsequent writes
+ // to the write half of the pipe will return the error err.
+-func (r *PipeReader) CloseWithError(err os.Error) os.Error {
++func (r *PipeReader) CloseWithError(err error) error {
+ 	r.p.rclose(err)
+ 	return nil
+ }
+@@ -149,20 +149,20 @@ type PipeWriter struct {
+ // it writes data to the pipe, blocking until readers
+ // have consumed all the data or the read end is closed.
+ // If the read end is closed with an error, that err is
+-// returned as err; otherwise err is os.EPIPE.
+-func (w *PipeWriter) Write(data []byte) (n int, err os.Error) {
++// returned as err; otherwise err is ErrClosedPipe.
++func (w *PipeWriter) Write(data []byte) (n int, err error) {
+ 	return w.p.write(data)
+ }
+ 
+ // Close closes the writer; subsequent reads from the
+-// read half of the pipe will return no bytes and os.EOF.
+-func (w *PipeWriter) Close() os.Error {
++// read half of the pipe will return no bytes and EOF.
++func (w *PipeWriter) Close() error {
+ 	return w.CloseWithError(nil)
+ }
+ 
+ // CloseWithError closes the writer; subsequent reads from the
+ // read half of the pipe will return no bytes and the error err.
+-func (w *PipeWriter) CloseWithError(err os.Error) os.Error {
++func (w *PipeWriter) CloseWithError(err error) error {
+ 	w.p.wclose(err)
+ 	return nil
+ }
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index bd4b94f0ad..fabf79bd61 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -7,7 +7,6 @@ package io_test
+ import (
+ 	"fmt"
+ 	. "io"
+-	"os"
+ 	"testing"
+ 	"time"
+ )
+@@ -44,7 +43,7 @@ func reader(t *testing.T, r Reader, c chan int) {
+ 	var buf = make([]byte, 64)
+ 	for {
+ 		n, err := r.Read(buf)
+-		if err == os.EOF {
++		if err == EOF {
+ 			c <- 0
+ 			break
+ 		}
+@@ -84,7 +83,7 @@ func TestPipe2(t *testing.T) {
+ 
+ type pipeReturn struct {
+ 	n   int
+-	err os.Error
++	err error
+ }
+ 
+ // Test a large write that requires multiple reads to satisfy.
+@@ -106,7 +105,7 @@ func TestPipe3(t *testing.T) {
+ 	tot := 0
+ 	for n := 1; n <= 256; n *= 2 {
+ 		nn, err := r.Read(rdat[tot : tot+n])
+-		if err != nil && err != os.EOF {
++		if err != nil && err != EOF {
+ 			t.Fatalf("read: %v", err)
+ 		}
+ 
+@@ -116,7 +115,7 @@ func TestPipe3(t *testing.T) {
+ 			expect = 1
+ 		} else if n == 256 {
+ 			expect = 0
+-			if err != os.EOF {
++			if err != EOF {
+ 				t.Fatalf("read at end: %v", err)
+ 			}
+ 		}
+@@ -142,13 +141,13 @@ func TestPipe3(t *testing.T) {
+ // Test read after/before writer close.
+ 
+ type closer interface {
+-	CloseWithError(os.Error) os.Error
+-	Close() os.Error
++	CloseWithError(error) error
++	Close() error
+ }
+ 
+ type pipeTest struct {
+ 	async          bool
+-	err            os.Error
++	err            error
+ 	closeWithError bool
+ }
+ 
+@@ -167,7 +166,7 @@ var pipeTests = []pipeTest{
+ 
+ func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
+ 	time.Sleep(1e6) // 1 ms
+-	var err os.Error
++	var err error
+ 	if tt.closeWithError {
+ 		err = cl.CloseWithError(tt.err)
+ 	} else {
+@@ -193,7 +192,7 @@ func TestPipeReadClose(t *testing.T) {
+ 		<-c
+ 		want := tt.err
+ 		if want == nil {
+-			want = os.EOF
++			want = EOF
+ 		}
+ 		if err != want {
+ 			t.Errorf("read from closed pipe: %v want %v", err, want)
+@@ -214,8 +213,8 @@ func TestPipeReadClose2(t *testing.T) {
+ 	go delayClose(t, r, c, pipeTest{})
+ 	n, err := r.Read(make([]byte, 64))
+ 	<-c
+-	if n != 0 || err != os.EINVAL {
+-		t.Errorf("read from closed pipe: %v, %v want %v, %v", n, err, 0, os.EINVAL)
++	if n != 0 || err != ErrClosedPipe {
++		t.Errorf("read from closed pipe: %v, %v want %v, %v", n, err, 0, ErrClosedPipe)
+ 	}
+ }
+ 
+@@ -234,7 +233,7 @@ func TestPipeWriteClose(t *testing.T) {
+ 		<-c
+ 		expect := tt.err
+ 		if expect == nil {
+-			expect = os.EPIPE
++			expect = ErrClosedPipe
+ 		}
+ 		if err != expect {
+ 			t.Errorf("write on closed pipe: %v want %v", err, expect)

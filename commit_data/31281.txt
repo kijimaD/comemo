@@ -17,7 +17,7 @@ Date:   Tue Dec 6 20:54:41 2016 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  misc/cgo/testcarchive/carchive_test.go      | 35 ++++++++++++++++++++++++
  misc/cgo/testcarchive/main6.c               | 34 ++++++++++++++++++++++++
  misc/cgo/testcarchive/src/libgo6/sigprof.go | 25 ++++++++++++++++++
@@ -27,3 +27,306 @@ Date:   Tue Dec 6 20:54:41 2016 -0800
  src/runtime/proc.go                         | 15 ++++++-----
  src/runtime/signal_unix.go                  | 41 ++++++++++++++++++++++++++++-
  8 files changed, 152 insertions(+), 14 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 3c768a0ef3..159d4f8300 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -557,3 +557,38 @@ func hasDynTag(t *testing.T, f *elf.File, tag elf.DynTag) bool {
+ 	}
+ 	return false
+ }
++
++func TestSIGPROF(t *testing.T) {
++	switch GOOS {
++	case "windows", "plan9":
++		t.Skipf("skipping SIGPROF test on %s", GOOS)
++	}
++
++	t.Parallel()
++
++	defer func() {
++		os.Remove("testp6" + exeSuffix)
++		os.Remove("libgo6.a")
++		os.Remove("libgo6.h")
++	}()
++
++	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo6.a", "libgo6")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-o", "testp6"+exeSuffix, "main6.c", "libgo6.a")
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	argv := cmdToRun("./testp6")
++	cmd = exec.Command(argv[0], argv[1:]...)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++}
+diff --git a/misc/cgo/testcarchive/main6.c b/misc/cgo/testcarchive/main6.c
+new file mode 100644
+index 0000000000..2745eb9dc5
+--- /dev/null
++++ b/misc/cgo/testcarchive/main6.c
+@@ -0,0 +1,34 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that using the Go profiler in a C program does not crash.
++
++#include <stddef.h>
++#include <sys/time.h>
++
++#include "libgo6.h"
++
++int main(int argc, char **argv) {
++	struct timeval tvstart, tvnow;
++	int diff;
++
++	gettimeofday(&tvstart, NULL);
++
++	go_start_profile();
++
++	// Busy wait so we have something to profile.
++	// If we just sleep the profiling signal will never fire.
++	while (1) {
++		gettimeofday(&tvnow, NULL);
++		diff = (tvnow.tv_sec - tvstart.tv_sec) * 1000 * 1000 + (tvnow.tv_usec - tvstart.tv_usec);
++
++		// Profile frequency is 100Hz so we should definitely
++		// get a signal in 50 milliseconds.
++		if (diff > 50 * 1000)
++			break;
++	}
++
++	go_stop_profile();
++	return 0;
++}
+diff --git a/misc/cgo/testcarchive/src/libgo6/sigprof.go b/misc/cgo/testcarchive/src/libgo6/sigprof.go
+new file mode 100644
+index 0000000000..4cb05dc617
+--- /dev/null
++++ b/misc/cgo/testcarchive/src/libgo6/sigprof.go
+@@ -0,0 +1,25 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"io/ioutil"
++	"runtime/pprof"
++)
++
++import "C"
++
++//export go_start_profile
++func go_start_profile() {
++	pprof.StartCPUProfile(ioutil.Discard)
++}
++
++//export go_stop_profile
++func go_stop_profile() {
++	pprof.StopCPUProfile()
++}
++
++func main() {
++}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 26b4acd89a..5aa6b67a85 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -146,7 +146,10 @@ func sigdisable(sig uint32) {
+ func sigignore(sig uint32) {
+ }
+ 
+-func resetcpuprofiler(hz int32) {
++func setProcessCPUProfiler(hz int32) {
++}
++
++func setThreadCPUProfiler(hz int32) {
+ 	// TODO: Enable profiling interrupts.
+ 	getg().m.profilehz = hz
+ }
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 7015316414..ee632d9813 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -273,7 +273,8 @@ func raisebadsignal(sig uint32) {
+ 
+ func madvise(addr unsafe.Pointer, n uintptr, flags int32) {}
+ func munmap(addr unsafe.Pointer, n uintptr)               {}
+-func resetcpuprofiler(hz int32)                           {}
++func setProcessCPUProfiler(hz int32)                      {}
++func setThreadCPUProfiler(hz int32)                       {}
+ func sigdisable(uint32)                                   {}
+ func sigenable(uint32)                                    {}
+ func sigignore(uint32)                                    {}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 8b76c2bf09..44c982ba2e 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -744,10 +744,7 @@ func profileloop1(param uintptr) uint32 {
+ 	}
+ }
+ 
+-var cpuprofilerlock mutex
+-
+-func resetcpuprofiler(hz int32) {
+-	lock(&cpuprofilerlock)
++func setProcessCPUProfiler(hz int32) {
+ 	if profiletimer == 0 {
+ 		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
+ 		atomic.Storeuintptr(&profiletimer, timer)
+@@ -755,8 +752,9 @@ func resetcpuprofiler(hz int32) {
+ 		stdcall2(_SetThreadPriority, thread, _THREAD_PRIORITY_HIGHEST)
+ 		stdcall1(_CloseHandle, thread)
+ 	}
+-	unlock(&cpuprofilerlock)
++}
+ 
++func setThreadCPUProfiler(hz int32) {
+ 	ms := int32(0)
+ 	due := ^int64(^uint64(1 << 63))
+ 	if hz > 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a7b12531fc..23626f19a9 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1879,7 +1879,7 @@ func execute(gp *g, inheritTime bool) {
+ 	// Check whether the profiler needs to be turned on or off.
+ 	hz := sched.profilehz
+ 	if _g_.m.profilehz != hz {
+-		resetcpuprofiler(hz)
++		setThreadCPUProfiler(hz)
+ 	}
+ 
+ 	if trace.enabled {
+@@ -2780,7 +2780,7 @@ func beforefork() {
+ 	// Ensure that we stay on the same M where we disable profiling.
+ 	gp.m.locks++
+ 	if gp.m.profilehz != 0 {
+-		resetcpuprofiler(0)
++		setThreadCPUProfiler(0)
+ 	}
+ 
+ 	// This function is called before fork in syscall package.
+@@ -2805,7 +2805,7 @@ func afterfork() {
+ 
+ 	hz := sched.profilehz
+ 	if hz != 0 {
+-		resetcpuprofiler(hz)
++		setThreadCPUProfiler(hz)
+ 	}
+ 	gp.m.locks--
+ }
+@@ -3439,12 +3439,15 @@ func setcpuprofilerate_m(hz int32) {
+ 	// Stop profiler on this thread so that it is safe to lock prof.
+ 	// if a profiling signal came in while we had prof locked,
+ 	// it would deadlock.
+-	resetcpuprofiler(0)
++	setThreadCPUProfiler(0)
+ 
+ 	for !atomic.Cas(&prof.lock, 0, 1) {
+ 		osyield()
+ 	}
+-	prof.hz = hz
++	if prof.hz != hz {
++		setProcessCPUProfiler(hz)
++		prof.hz = hz
++	}
+ 	atomic.Store(&prof.lock, 0)
+ 
+ 	lock(&sched.lock)
+@@ -3452,7 +3455,7 @@ func setcpuprofilerate_m(hz int32) {
+ 	unlock(&sched.lock)
+ 
+ 	if hz != 0 {
+-		resetcpuprofiler(hz)
++		setThreadCPUProfiler(hz)
+ 	}
+ 
+ 	_g_.m.locks--
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 040b5e38dc..9a33269367 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -138,6 +138,11 @@ func sigenable(sig uint32) {
+ 		return
+ 	}
+ 
++	// SIGPROF is handled specially for profiling.
++	if sig == _SIGPROF {
++		return
++	}
++
+ 	t := &sigtable[sig]
+ 	if t.flags&_SigNotify != 0 {
+ 		ensureSigM()
+@@ -158,6 +163,11 @@ func sigdisable(sig uint32) {
+ 		return
+ 	}
+ 
++	// SIGPROF is handled specially for profiling.
++	if sig == _SIGPROF {
++		return
++	}
++
+ 	t := &sigtable[sig]
+ 	if t.flags&_SigNotify != 0 {
+ 		ensureSigM()
+@@ -182,6 +192,11 @@ func sigignore(sig uint32) {
+ 		return
+ 	}
+ 
++	// SIGPROF is handled specially for profiling.
++	if sig == _SIGPROF {
++		return
++	}
++
+ 	t := &sigtable[sig]
+ 	if t.flags&_SigNotify != 0 {
+ 		atomic.Store(&handlingSig[sig], 0)
+@@ -189,7 +204,31 @@ func sigignore(sig uint32) {
+ 	}
+ }
+ 
+-func resetcpuprofiler(hz int32) {
++// setProcessCPUProfiler is called when the profiling timer changes.
++// It is called with prof.lock held. hz is the new timer, and is 0 if
++// profiling is being disabled. Enable or disable the signal as
++// required for -buildmode=c-archive.
++func setProcessCPUProfiler(hz int32) {
++	if hz != 0 {
++		// Enable the Go signal handler if not enabled.
++		if atomic.Cas(&handlingSig[_SIGPROF], 0, 1) {
++			atomic.Storeuintptr(&fwdSig[_SIGPROF], getsig(_SIGPROF))
++			setsig(_SIGPROF, funcPC(sighandler))
++		}
++	} else {
++		// If the Go signal handler should be disabled by default,
++		// disable it if it is enabled.
++		if !sigInstallGoHandler(_SIGPROF) {
++			if atomic.Cas(&handlingSig[_SIGPROF], 1, 0) {
++				setsig(_SIGPROF, atomic.Loaduintptr(&fwdSig[_SIGPROF]))
++			}
++		}
++	}
++}
++
++// setThreadCPUProfiler makes any thread-specific changes required to
++// implement profiling at a rate of hz.
++func setThreadCPUProfiler(hz int32) {
+ 	var it itimerval
+ 	if hz == 0 {
+ 		setitimer(_ITIMER_PROF, &it, nil)

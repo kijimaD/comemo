@@ -16,7 +16,7 @@ Date:   Tue Feb 22 16:53:17 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/387774
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go         | 21 ++++++++++++-----
  src/cmd/compile/internal/types2/termlist.go      |  9 --------
  src/cmd/compile/internal/types2/termlist_test.go | 29 ------------------------
@@ -28,3 +28,264 @@ Date:   Tue Feb 22 16:53:17 2022 -0800
  src/go/types/typeparam.go                        | 10 --------
  src/go/types/typeset.go                          |  3 ---
  10 files changed, 30 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 2d6f26c0c9..617f3edad7 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -591,15 +591,24 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ 	return
+ }
+ 
++// adjCoreType returns the core type of tpar unless the
++// type parameter embeds a single, possibly named type,
++// in which case it returns that single type instead.
++// (The core type is always the underlying type of that
++// single type.)
+ func adjCoreType(tpar *TypeParam) Type {
+-	// If the type parameter embeds a single, possibly named
+-	// type, use that one instead of the core type (which is
+-	// always the underlying type of that single type).
+-	if single := tpar.singleType(); single != nil {
++	var single *term
++	if tpar.is(func(t *term) bool {
++		if single == nil && t != nil {
++			single = t
++			return true
++		}
++		return false // zero or more than one terms
++	}) {
+ 		if debug {
+-			assert(under(single) == coreType(tpar))
++			assert(under(single.typ) == coreType(tpar))
+ 		}
+-		return single
++		return single.typ
+ 	}
+ 	return coreType(tpar)
+ }
+diff --git a/src/cmd/compile/internal/types2/termlist.go b/src/cmd/compile/internal/types2/termlist.go
+index 844e39e3bf..a0108c4638 100644
+--- a/src/cmd/compile/internal/types2/termlist.go
++++ b/src/cmd/compile/internal/types2/termlist.go
+@@ -92,15 +92,6 @@ func (xl termlist) norm() termlist {
+ 	return rl
+ }
+ 
+-// If the type set represented by xl is specified by a single (non-𝓤) term,
+-// singleType returns that type. Otherwise it returns nil.
+-func (xl termlist) singleType() Type {
+-	if nl := xl.norm(); len(nl) == 1 {
+-		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
+-	}
+-	return nil
+-}
+-
+ // union returns the union xl ∪ yl.
+ func (xl termlist) union(yl termlist) termlist {
+ 	return append(xl, yl...).norm()
+diff --git a/src/cmd/compile/internal/types2/termlist_test.go b/src/cmd/compile/internal/types2/termlist_test.go
+index 1bdf9e1386..d1e3bdf88e 100644
+--- a/src/cmd/compile/internal/types2/termlist_test.go
++++ b/src/cmd/compile/internal/types2/termlist_test.go
+@@ -106,35 +106,6 @@ func TestTermlistNorm(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTermlistSingleType(t *testing.T) {
+-	// helper to deal with nil types
+-	tstring := func(typ Type) string {
+-		if typ == nil {
+-			return "nil"
+-		}
+-		return typ.String()
+-	}
+-
+-	for test, want := range map[string]string{
+-		"∅":                 "nil",
+-		"𝓤":                 "nil",
+-		"int":               "int",
+-		"myInt":             "myInt",
+-		"~int":              "int",
+-		"~int ∪ string":     "nil",
+-		"~int ∪ myInt":      "int",
+-		"∅ ∪ int":           "int",
+-		"∅ ∪ ~int":          "int",
+-		"∅ ∪ ~int ∪ string": "nil",
+-	} {
+-		xl := maketl(test)
+-		got := tstring(xl.singleType())
+-		if got != want {
+-			t.Errorf("(%v).singleType() == %v; want %v", test, got, want)
+-		}
+-	}
+-}
+-
+ func TestTermlistUnion(t *testing.T) {
+ 	for _, test := range []struct {
+ 		xl, yl, want string
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 57613706f7..9ed3369ff4 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -138,16 +138,6 @@ func (t *TypeParam) iface() *Interface {
+ 	return ityp
+ }
+ 
+-// singleType returns the single type of the type parameter constraint; or nil.
+-func (t *TypeParam) singleType() Type {
+-	return t.iface().typeSet().singleType()
+-}
+-
+-// hasTerms reports whether the type parameter constraint has specific type terms.
+-func (t *TypeParam) hasTerms() bool {
+-	return t.iface().typeSet().hasTerms()
+-}
+-
+ // is calls f with the specific type terms of t's constraint and reports whether
+ // all calls to f returned true. If there are no specific terms, is
+ // returns the result of f(nil).
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 2c3e826a3f..65ae04819e 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -103,9 +103,6 @@ func (s *_TypeSet) String() string {
+ // hasTerms reports whether the type set has specific type terms.
+ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
+ 
+-// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
+-func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
+-
+ // subsetOf reports whether s1 ⊆ s2.
+ func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 8f22144c83..d481aaa877 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -590,15 +590,24 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 	return
+ }
+ 
++// adjCoreType returns the core type of tpar unless the
++// type parameter embeds a single, possibly named type,
++// in which case it returns that single type instead.
++// (The core type is always the underlying type of that
++// single type.)
+ func adjCoreType(tpar *TypeParam) Type {
+-	// If the type parameter embeds a single, possibly named
+-	// type, use that one instead of the core type (which is
+-	// always the underlying type of that single type).
+-	if single := tpar.singleType(); single != nil {
++	var single *term
++	if tpar.is(func(t *term) bool {
++		if single == nil && t != nil {
++			single = t
++			return true
++		}
++		return false // zero or more than one terms
++	}) {
+ 		if debug {
+-			assert(under(single) == coreType(tpar))
++			assert(under(single.typ) == coreType(tpar))
+ 		}
+-		return single
++		return single.typ
+ 	}
+ 	return coreType(tpar)
+ }
+diff --git a/src/go/types/termlist.go b/src/go/types/termlist.go
+index c4ab0e037e..94e49caee0 100644
+--- a/src/go/types/termlist.go
++++ b/src/go/types/termlist.go
+@@ -92,15 +92,6 @@ func (xl termlist) norm() termlist {
+ 	return rl
+ }
+ 
+-// If the type set represented by xl is specified by a single (non-𝓤) term,
+-// singleType returns that type. Otherwise it returns nil.
+-func (xl termlist) singleType() Type {
+-	if nl := xl.norm(); len(nl) == 1 {
+-		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
+-	}
+-	return nil
+-}
+-
+ // union returns the union xl ∪ yl.
+ func (xl termlist) union(yl termlist) termlist {
+ 	return append(xl, yl...).norm()
+diff --git a/src/go/types/termlist_test.go b/src/go/types/termlist_test.go
+index dddca7a682..f0d58ac1bc 100644
+--- a/src/go/types/termlist_test.go
++++ b/src/go/types/termlist_test.go
+@@ -106,35 +106,6 @@ func TestTermlistNorm(t *testing.T) {
+ 	}
+ }
+ 
+-func TestTermlistSingleType(t *testing.T) {
+-	// helper to deal with nil types
+-	tstring := func(typ Type) string {
+-		if typ == nil {
+-			return "nil"
+-		}
+-		return typ.String()
+-	}
+-
+-	for test, want := range map[string]string{
+-		"∅":                 "nil",
+-		"𝓤":                 "nil",
+-		"int":               "int",
+-		"myInt":             "myInt",
+-		"~int":              "int",
+-		"~int ∪ string":     "nil",
+-		"~int ∪ myInt":      "int",
+-		"∅ ∪ int":           "int",
+-		"∅ ∪ ~int":          "int",
+-		"∅ ∪ ~int ∪ string": "nil",
+-	} {
+-		xl := maketl(test)
+-		got := tstring(xl.singleType())
+-		if got != want {
+-			t.Errorf("(%v).singleType() == %v; want %v", test, got, want)
+-		}
+-	}
+-}
+-
+ func TestTermlistUnion(t *testing.T) {
+ 	for _, test := range []struct {
+ 		xl, yl, want string
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 5505372cff..778c687d43 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -140,16 +140,6 @@ func (t *TypeParam) iface() *Interface {
+ 	return ityp
+ }
+ 
+-// singleType returns the single type of the type parameter constraint; or nil.
+-func (t *TypeParam) singleType() Type {
+-	return t.iface().typeSet().singleType()
+-}
+-
+-// hasTerms reports whether the type parameter constraint has specific type terms.
+-func (t *TypeParam) hasTerms() bool {
+-	return t.iface().typeSet().hasTerms()
+-}
+-
+ // is calls f with the specific type terms of t's constraint and reports whether
+ // all calls to f returned true. If there are no specific terms, is
+ // returns the result of f(nil).
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 3bc9474660..4c3f018cfe 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -101,9 +101,6 @@ func (s *_TypeSet) String() string {
+ // hasTerms reports whether the type set has specific type terms.
+ func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
+ 
+-// singleType returns the single type in s if there is exactly one; otherwise the result is nil.
+-func (s *_TypeSet) singleType() Type { return s.terms.singleType() }
+-
+ // subsetOf reports whether s1 ⊆ s2.
+ func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
+ 

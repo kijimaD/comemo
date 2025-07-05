@@ -16,6 +16,28 @@ Date:   Thu Apr 25 10:55:49 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 29427d91e5..a1d88e6eac 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -415,9 +415,13 @@
+ 			let offset = 4096;
+ 
+ 			const strPtr = (str) => {
+-				let ptr = offset;
+-				new Uint8Array(mem.buffer, offset, str.length + 1).set(encoder.encode(str + "\0"));
+-				offset += str.length + (8 - (str.length % 8));
++				const ptr = offset;
++				const bytes = encoder.encode(str + "\0");
++				new Uint8Array(mem.buffer, offset, bytes.length).set(bytes);
++				offset += bytes.length;
++				if (offset % 8 !== 0) {
++					offset += 8 - (offset % 8);
++				}
+ 				return ptr;
+ 			};
+ 

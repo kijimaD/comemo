@@ -7,6 +7,34 @@ Date:   Wed Feb 15 14:25:27 2012 +1100
     R=golang-dev, mpimenov, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5667045
-
+---
  src/cmd/dist/windows.c | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index 1655f77704..aa961eb6cf 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -833,14 +833,17 @@ void
+ xprintf(char *fmt, ...)
+ {
+ 	va_list arg;
+-	static char buf[1024];
+-	DWORD n;
++	char *p;
++	DWORD n, w;
+ 
+ 	va_start(arg, fmt);
+-	vsnprintf(buf, sizeof buf, fmt, arg);
++	n = vsnprintf(NULL, 0, fmt, arg);
++	p = xmalloc(n+1);
++	vsnprintf(p, n+1, fmt, arg);
+ 	va_end(arg);
+-	n = 0;
+-	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), buf, strlen(buf), &n, 0);
++	w = 0;
++	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), p, n, &w, 0);
++	xfree(p);
+ }
+ 
+ int

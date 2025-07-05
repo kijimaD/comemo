@@ -7,6 +7,80 @@ Date:   Tue Sep 23 12:48:52 2008 -0700
     R=r
     OCL=15699
     CL=15699
-
+---
  src/cmd/gc/export.c | 43 +++++++++++++++++++++++++++++++++++--------
  1 file changed, 35 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 0fef1144e9..57b1f31e8a 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -236,13 +236,6 @@ dumpexporttype(Sym *s)
+ 		Bprint(bout, "%lS %d %lS\n", s, t->chan, t->type->sym);
+ 		break;
+ 	}
+-
+-	for(f=t->method; f!=T; f=f->down) {
+-		if(f->etype != TFIELD)
+-			fatal("dumpexporttype: method not field: %lT", f);
+-		reexport(f->type);
+-		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
+-	}
+ }
+ 
+ void
+@@ -268,6 +261,34 @@ dumpe(Sym *s)
+ 	}
+ }
+ 
++void
++dumpm(Sym *s)
++{
++	Type *t, *f;
++
++	switch(s->lexical) {
++	default:
++		return;
++
++	case LATYPE:
++	case LBASETYPE:
++		break;
++	}
++
++	t = s->otype;
++	if(t == T) {
++		yyerror("type exported but not defined: %S", s);
++		return;
++	}
++
++	for(f=t->method; f!=T; f=f->down) {
++		if(f->etype != TFIELD)
++			fatal("dumpexporttype: method not field: %lT", f);
++		reexport(f->type);
++		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
++	}
++}
++
+ void
+ dumpexport(void)
+ {
+@@ -281,12 +302,18 @@ dumpexport(void)
+ 
+ 	Bprint(bout, "    package %s\n", package);
+ 
+-	// print it depth first
++	// first pass dump vars/types depth first
+ 	for(d=exportlist->forw; d!=D; d=d->forw) {
+ 		lineno = d->lineno;
+ 		dumpe(d->dsym);
+ 	}
+ 
++	// second pass dump methods
++	for(d=exportlist->forw; d!=D; d=d->forw) {
++		lineno = d->lineno;
++		dumpm(d->dsym);
++	}
++
+ 	Bprint(bout, "   ))\n");
+ 
+ 	lineno = lno;

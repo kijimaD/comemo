@@ -14,8 +14,90 @@ Date:   Wed Aug 6 01:50:37 2014 +0400
     R=golang-codereviews, rlh
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/121250043
-
+---
  src/pkg/runtime/malloc.h |  3 +++
  src/pkg/runtime/mcache.c |  1 +
  src/pkg/runtime/mgc0.c   | 25 ++++++++++++++++++++++++-
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 958c540361..810d4ac402 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -334,6 +334,8 @@ struct MCache
+ 
+ 	StackFreeList stackcache[NumStackOrders];
+ 
++	void*	gcworkbuf;
++
+ 	// Local allocator stats, flushed during GC.
+ 	uintptr local_nlookup;		// number of pointer lookups
+ 	uintptr local_largefree;	// bytes freed for large objects (>MaxSmallSize)
+@@ -344,6 +346,7 @@ struct MCache
+ MSpan*	runtime·MCache_Refill(MCache *c, int32 sizeclass);
+ void	runtime·MCache_ReleaseAll(MCache *c);
+ void	runtime·stackcache_clear(MCache *c);
++void	runtime·gcworkbuffree(void *b);
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index cae4176482..ef31e76a36 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -44,6 +44,7 @@ freemcache(MCache *c)
+ {
+ 	runtime·MCache_ReleaseAll(c);
+ 	runtime·stackcache_clear(c);
++	runtime·gcworkbuffree(c->gcworkbuf);
+ 	runtime·lock(&runtime·mheap);
+ 	runtime·purgecachedstats(c);
+ 	runtime·FixAlloc_Free(&runtime·mheap.cachealloc, c);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index d2a87edd14..e7955151ce 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -570,9 +570,18 @@ markroot(ParFor *desc, uint32 i)
+ static Workbuf*
+ getempty(Workbuf *b)
+ {
++	MCache *c;
++
+ 	if(b != nil)
+ 		runtime·lfstackpush(&work.full, &b->node);
+-	b = (Workbuf*)runtime·lfstackpop(&work.empty);
++	b = nil;
++	c = g->m->mcache;
++	if(c->gcworkbuf != nil) {
++		b = c->gcworkbuf;
++		c->gcworkbuf = nil;
++	}
++	if(b == nil)
++		b = (Workbuf*)runtime·lfstackpop(&work.empty);
+ 	if(b == nil)
+ 		b = runtime·persistentalloc(sizeof(*b), CacheLineSize, &mstats.gc_sys);
+ 	b->nobj = 0;
+@@ -582,9 +591,23 @@ getempty(Workbuf *b)
+ static void
+ putempty(Workbuf *b)
+ {
++	MCache *c;
++
++	c = g->m->mcache;
++	if(c->gcworkbuf == nil) {
++		c->gcworkbuf = b;
++		return;
++	}
+ 	runtime·lfstackpush(&work.empty, &b->node);
+ }
+ 
++void
++runtime·gcworkbuffree(void *b)
++{
++	if(b != nil)
++		putempty(b);
++}
++
+ // Get a full work buffer off the work.full list, or return nil.
+ static Workbuf*
+ getfull(Workbuf *b)

@@ -10,7 +10,7 @@ Date:   Thu Sep 29 09:54:20 2011 -0700
     R=golang-dev, gri, dsymonds
     CC=golang-dev
     https://golang.org/cl/5158043
-
+---
  src/cmd/gofix/Makefile                     |  1 +
  src/cmd/gofix/math.go                      | 57 ++++++++++++++++++++++
  src/cmd/gofix/math_test.go                 | 47 ++++++++++++++++++
@@ -39,3 +39,910 @@ Date:   Thu Sep 29 09:54:20 2011 -0700
  src/pkg/math/remainder.go                  |  4 +-
  src/pkg/rand/rand_test.go                  |  4 +-
  27 files changed, 210 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index b2725c572a..8b0a2a7743 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -14,6 +14,7 @@ GOFILES=\
+ 	httpserver.go\
+ 	imagenew.go\
+ 	main.go\
++	math.go\
+ 	netdial.go\
+ 	netudpgroup.go\
+ 	oserrorstring.go\
+diff --git a/src/cmd/gofix/math.go b/src/cmd/gofix/math.go
+new file mode 100644
+index 0000000000..7d725bcd5b
+--- /dev/null
++++ b/src/cmd/gofix/math.go
+@@ -0,0 +1,57 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"go/ast"
++)
++
++var _ fmt.Stringer
++var _ os.Error
++
++var mathFix = fix{
++	"math",
++	math,
++	`Remove the leading F from math functions such as Fabs.
++
++http://codereview.appspot.com/5158043
++`,
++}
++
++func init() {
++	register(mathFix)
++}
++
++var mathRenames = []struct{ in, out string }{
++	{"Fabs", "Abs"},
++	{"Fdim", "Dim"},
++	{"Fmax", "Max"},
++	{"Fmin", "Min"},
++	{"Fmod", "Mod"},
++}
++
++func math(f *ast.File) bool {
++	if !imports(f, "math") {
++		return false
++	}
++
++	fixed := false
++
++	walk(f, func(n interface{}) {
++		// Rename functions.
++		if expr, ok := n.(ast.Expr); ok {
++			for _, s := range mathRenames {
++				if isPkgDot(expr, "math", s.in) {
++					expr.(*ast.SelectorExpr).Sel.Name = s.out
++					fixed = true
++					return
++				}
++			}
++		}
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/math_test.go b/src/cmd/gofix/math_test.go
+new file mode 100644
+index 0000000000..d7d5f56538
+--- /dev/null
++++ b/src/cmd/gofix/math_test.go
+@@ -0,0 +1,47 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(mathTests)
++}
++
++var mathTests = []testCase{
++	{
++		Name: "math.0",
++		In: `package main
++
++import (
++	"math"
++)
++
++func f() {
++	math.Fabs(1)
++	math.Fdim(1)
++	math.Fmax(1)
++	math.Fmin(1)
++	math.Fmod(1)
++	math.Abs(1)
++	foo.Fabs(1)
++}
++`,
++		Out: `package main
++
++import (
++	"math"
++)
++
++func f() {
++	math.Abs(1)
++	math.Dim(1)
++	math.Max(1)
++	math.Min(1)
++	math.Mod(1)
++	math.Abs(1)
++	foo.Fabs(1)
++}
++`,
++	},
++}
+diff --git a/src/pkg/cmath/asin.go b/src/pkg/cmath/asin.go
+index d6a3ca4802..01ce80a194 100644
+--- a/src/pkg/cmath/asin.go
++++ b/src/pkg/cmath/asin.go
+@@ -50,7 +50,7 @@ import "math"
+ // Asin returns the inverse sine of x.
+ func Asin(x complex128) complex128 {
+ 	if imag(x) == 0 {
+-		if math.Fabs(real(x)) > 1 {
++		if math.Abs(real(x)) > 1 {
+ 			return complex(math.Pi/2, 0) // DOMAIN error
+ 		}
+ 		return complex(math.Asin(real(x)), 0)
+@@ -67,7 +67,7 @@ func Asin(x complex128) complex128 {
+ func Asinh(x complex128) complex128 {
+ 	// TODO check range
+ 	if imag(x) == 0 {
+-		if math.Fabs(real(x)) > 1 {
++		if math.Abs(real(x)) > 1 {
+ 			return complex(math.Pi/2, 0) // DOMAIN error
+ 		}
+ 		return complex(math.Asinh(real(x)), 0)
+diff --git a/src/pkg/cmath/sin.go b/src/pkg/cmath/sin.go
+index 8900ecddea..486b717877 100644
+--- a/src/pkg/cmath/sin.go
++++ b/src/pkg/cmath/sin.go
+@@ -122,7 +122,7 @@ func Cosh(x complex128) complex128 {
+ 
+ // calculate sinh and cosh
+ func sinhcosh(x float64) (sh, ch float64) {
+-	if math.Fabs(x) <= 0.5 {
++	if math.Abs(x) <= 0.5 {
+ 		return math.Sinh(x), math.Cosh(x)
+ 	}
+ 	e := math.Exp(x)
+diff --git a/src/pkg/cmath/sqrt.go b/src/pkg/cmath/sqrt.go
+index e77a9b9df2..4e7e8050f9 100644
+--- a/src/pkg/cmath/sqrt.go
++++ b/src/pkg/cmath/sqrt.go
+@@ -76,7 +76,7 @@ func Sqrt(x complex128) complex128 {
+ 	b := imag(x)
+ 	var scale float64
+ 	// Rescale to avoid internal overflow or underflow.
+-	if math.Fabs(a) > 4 || math.Fabs(b) > 4 {
++	if math.Abs(a) > 4 || math.Abs(b) > 4 {
+ 		a *= 0.25
+ 		b *= 0.25
+ 		scale = 2
+@@ -89,11 +89,11 @@ func Sqrt(x complex128) complex128 {
+ 	var t float64
+ 	if a > 0 {
+ 		t = math.Sqrt(0.5*r + 0.5*a)
+-		r = scale * math.Fabs((0.5*b)/t)
++		r = scale * math.Abs((0.5*b)/t)
+ 		t *= scale
+ 	} else {
+ 		r = math.Sqrt(0.5*r - 0.5*a)
+-		t = scale * math.Fabs((0.5*b)/r)
++		t = scale * math.Abs((0.5*b)/r)
+ 		r *= scale
+ 	}
+ 	if b < 0 {
+diff --git a/src/pkg/cmath/tan.go b/src/pkg/cmath/tan.go
+index 94b517521e..67dc22ad0f 100644
+--- a/src/pkg/cmath/tan.go
++++ b/src/pkg/cmath/tan.go
+@@ -58,7 +58,7 @@ import "math"
+ // Tan returns the tangent of x.
+ func Tan(x complex128) complex128 {
+ 	d := math.Cos(2*real(x)) + math.Cosh(2*imag(x))
+-	if math.Fabs(d) < 0.25 {
++	if math.Abs(d) < 0.25 {
+ 		d = tanSeries(x)
+ 	}
+ 	if d == 0 {
+@@ -109,8 +109,8 @@ func reducePi(x float64) float64 {
+ // Taylor series expansion for cosh(2y) - cos(2x)
+ func tanSeries(z complex128) float64 {
+ 	const MACHEP = 1.0 / (1 << 53)
+-	x := math.Fabs(2 * real(z))
+-	y := math.Fabs(2 * imag(z))
++	x := math.Abs(2 * real(z))
++	y := math.Abs(2 * imag(z))
+ 	x = reducePi(x)
+ 	x = x * x
+ 	y = y * y
+@@ -139,7 +139,7 @@ func tanSeries(z complex128) float64 {
+ 		t = y2 - x2
+ 		t /= f
+ 		d += t
+-		if math.Fabs(t/d) <= MACHEP {
++		if math.Abs(t/d) <= MACHEP {
+ 			break
+ 		}
+ 	}
+@@ -174,7 +174,7 @@ func tanSeries(z complex128) float64 {
+ // Cot returns the cotangent of x.
+ func Cot(x complex128) complex128 {
+ 	d := math.Cosh(2*imag(x)) - math.Cos(2*real(x))
+-	if math.Fabs(d) < 0.25 {
++	if math.Abs(d) < 0.25 {
+ 		d = tanSeries(x)
+ 	}
+ 	if d == 0 {
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 67d4a28c75..404cbd0ea9 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -260,10 +260,10 @@ func genValue(n int) interface{} {
+ }
+ 
+ func genString(stddev float64) string {
+-	n := int(math.Fabs(rand.NormFloat64()*stddev + stddev/2))
++	n := int(math.Abs(rand.NormFloat64()*stddev + stddev/2))
+ 	c := make([]int, n)
+ 	for i := range c {
+-		f := math.Fabs(rand.NormFloat64()*64 + 32)
++		f := math.Abs(rand.NormFloat64()*64 + 32)
+ 		if f > 0x10ffff {
+ 			f = 0x10ffff
+ 		}
+@@ -273,7 +273,7 @@ func genString(stddev float64) string {
+ }
+ 
+ func genArray(n int) []interface{} {
+-	f := int(math.Fabs(rand.NormFloat64()) * math.Fmin(10, float64(n/2)))
++	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
+ 	if f > n {
+ 		f = n
+ 	}
+@@ -288,7 +288,7 @@ func genArray(n int) []interface{} {
+ }
+ 
+ func genMap(n int) map[string]interface{} {
+-	f := int(math.Fabs(rand.NormFloat64()) * math.Fmin(10, float64(n/2)))
++	f := int(math.Abs(rand.NormFloat64()) * math.Min(10, float64(n/2)))
+ 	if f > n {
+ 		f = n
+ 	}
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index 8e8e74ae4c..5472dc1ace 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -10,30 +10,30 @@ OFILES_arm=\
+ 	sqrt_arm.$O\
+ 
+ OFILES_amd64=\
++	abs_amd64.$O\
++	dim_amd64.$O\
+ 	exp_amd64.$O\
+-	fabs_amd64.$O\
+-	fdim_amd64.$O\
+ 	hypot_amd64.$O\
+ 	log_amd64.$O\
+ 	sincos_amd64.$O\
+ 	sqrt_amd64.$O\
+ 
+ OFILES_386=\
++	abs_386.$O\
+ 	asin_386.$O\
+ 	atan_386.$O\
+ 	atan2_386.$O\
+ 	exp_386.$O\
+ 	exp2_386.$O\
+ 	expm1_386.$O\
+-	fabs_386.$O\
+ 	floor_386.$O\
+ 	frexp_386.$O\
+-	fmod_386.$O\
+ 	hypot_386.$O\
+ 	ldexp_386.$O\
+ 	log_386.$O\
+ 	log10_386.$O\
+ 	log1p_386.$O\
++	mod_386.$O\
+ 	modf_386.$O\
+ 	remainder_386.$O\
+ 	sin_386.$O\
+@@ -45,6 +45,7 @@ OFILES=\
+ 	$(OFILES_$(GOARCH))
+ 
+ ALLGOFILES=\
++	abs.go\
+ 	acosh.go\
+ 	asin.go\
+ 	asinh.go\
+@@ -55,15 +56,13 @@ ALLGOFILES=\
+ 	cbrt.go\
+ 	const.go\
+ 	copysign.go\
++	dim.go\
+ 	erf.go\
+ 	exp.go\
+ 	exp_port.go\
+ 	exp2.go\
+ 	expm1.go\
+-	fabs.go\
+-	fdim.go\
+ 	floor.go\
+-	fmod.go\
+ 	frexp.go\
+ 	gamma.go\
+ 	hypot.go\
+@@ -77,6 +76,7 @@ ALLGOFILES=\
+ 	log10.go\
+ 	log1p.go\
+ 	logb.go\
++	mod.go\
+ 	modf.go\
+ 	nextafter.go\
+ 	pow.go\
+diff --git a/src/pkg/math/fabs.go b/src/pkg/math/abs.go
+similarity index 60%
+rename from src/pkg/math/fabs.go
+rename to src/pkg/math/abs.go
+index 343123126d..eb3e4c72b3 100644
+--- a/src/pkg/math/fabs.go
++++ b/src/pkg/math/abs.go
+@@ -4,18 +4,18 @@
+ 
+ package math
+ 
+-// Fabs returns the absolute value of x.
++// Abs returns the absolute value of x.
+ //
+ // Special cases are:
+-//	Fabs(+Inf) = +Inf
+-//	Fabs(-Inf) = +Inf
+-//	Fabs(NaN) = NaN
+-func Fabs(x float64) float64 {
++//	Abs(+Inf) = +Inf
++//	Abs(-Inf) = +Inf
++//	Abs(NaN) = NaN
++func Abs(x float64) float64 {
+ 	switch {
+ 	case x < 0:
+ 		return -x
+ 	case x == 0:
+-		return 0 // return correctly fabs(-0)
++		return 0 // return correctly abs(-0)
+ 	}
+ 	return x
+ }
+diff --git a/src/pkg/math/fabs_386.s b/src/pkg/math/abs_386.s
+similarity index 82%
+rename from src/pkg/math/fabs_386.s
+rename to src/pkg/math/abs_386.s
+index 55de4e6b8f..889e801818 100644
+--- a/src/pkg/math/fabs_386.s
++++ b/src/pkg/math/abs_386.s
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// func Fabs(x float64) float64
+-TEXT ·Fabs(SB),7,$0
++// func Abs(x float64) float64
++TEXT ·Abs(SB),7,$0
+ 	FMOVD   x+0(FP), F0  // F0=x
+ 	FABS                 // F0=|x|
+ 	FMOVDP  F0, r+8(FP)
+diff --git a/src/pkg/math/fabs_amd64.s b/src/pkg/math/abs_amd64.s
+similarity index 83%
+rename from src/pkg/math/fabs_amd64.s
+rename to src/pkg/math/abs_amd64.s
+index 8a9aedbd75..32b78539a8 100644
+--- a/src/pkg/math/fabs_amd64.s
++++ b/src/pkg/math/abs_amd64.s
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// func Fabs(x float64) float64
+-TEXT ·Fabs(SB),7,$0
++// func Abs(x float64) float64
++TEXT ·Abs(SB),7,$0
+ 	MOVQ   $(1<<63), BX
+ 	MOVQ   BX, X0 // movsd $(-0.0), x0
+ 	MOVSD  x+0(FP), X1
+diff --git a/src/pkg/math/fabs_decl.go b/src/pkg/math/abs_decl.go
+similarity index 85%
+rename from src/pkg/math/fabs_decl.go
+rename to src/pkg/math/abs_decl.go
+index 9071f49d8c..6be9305ac5 100644
+--- a/src/pkg/math/fabs_decl.go
++++ b/src/pkg/math/abs_decl.go
+@@ -4,4 +4,4 @@
+ 
+ package math
+ 
+-func Fabs(x float64) float64
++func Abs(x float64) float64
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 1fe4513c18..94ddea2bfc 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -1584,7 +1584,7 @@ func TestAcos(t *testing.T) {
+ 
+ func TestAcosh(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := 1 + Fabs(vf[i])
++		a := 1 + Abs(vf[i])
+ 		if f := Acosh(a); !veryclose(acosh[i], f) {
+ 			t.Errorf("Acosh(%g) = %g, want %g", a, f, acosh[i])
+ 		}
+@@ -1818,23 +1818,23 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
+ 	}
+ }
+ 
+-func TestFabs(t *testing.T) {
++func TestAbs(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Fabs(vf[i]); fabs[i] != f {
+-			t.Errorf("Fabs(%g) = %g, want %g", vf[i], f, fabs[i])
++		if f := Abs(vf[i]); fabs[i] != f {
++			t.Errorf("Abs(%g) = %g, want %g", vf[i], f, fabs[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffabsSC); i++ {
+-		if f := Fabs(vffabsSC[i]); !alike(fabsSC[i], f) {
+-			t.Errorf("Fabs(%g) = %g, want %g", vffabsSC[i], f, fabsSC[i])
++		if f := Abs(vffabsSC[i]); !alike(fabsSC[i], f) {
++			t.Errorf("Abs(%g) = %g, want %g", vffabsSC[i], f, fabsSC[i])
+ 		}
+ 	}
+ }
+ 
+-func TestFdim(t *testing.T) {
++func TestDim(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Fdim(vf[i], 0); fdim[i] != f {
+-			t.Errorf("Fdim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
++		if f := Dim(vf[i], 0); fdim[i] != f {
++			t.Errorf("Dim(%g, %g) = %g, want %g", vf[i], 0.0, f, fdim[i])
+ 		}
+ 	}
+ }
+@@ -1852,31 +1852,31 @@ func TestFloor(t *testing.T) {
+ 	}
+ }
+ 
+-func TestFmax(t *testing.T) {
++func TestMax(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Fmax(vf[i], ceil[i]); ceil[i] != f {
+-			t.Errorf("Fmax(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
++		if f := Max(vf[i], ceil[i]); ceil[i] != f {
++			t.Errorf("Max(%g, %g) = %g, want %g", vf[i], ceil[i], f, ceil[i])
+ 		}
+ 	}
+ }
+ 
+-func TestFmin(t *testing.T) {
++func TestMin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Fmin(vf[i], floor[i]); floor[i] != f {
+-			t.Errorf("Fmin(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
++		if f := Min(vf[i], floor[i]); floor[i] != f {
++			t.Errorf("Min(%g, %g) = %g, want %g", vf[i], floor[i], f, floor[i])
+ 		}
+ 	}
+ }
+ 
+-func TestFmod(t *testing.T) {
++func TestMod(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Fmod(10, vf[i]); fmod[i] != f {
+-			t.Errorf("Fmod(10, %g) = %g, want %g", vf[i], f, fmod[i])
++		if f := Mod(10, vf[i]); fmod[i] != f {
++			t.Errorf("Mod(10, %g) = %g, want %g", vf[i], f, fmod[i])
+ 		}
+ 	}
+ 	for i := 0; i < len(vffmodSC); i++ {
+-		if f := Fmod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
+-			t.Errorf("Fmod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
++		if f := Mod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
++			t.Errorf("Mod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
+ 		}
+ 	}
+ }
+@@ -1914,7 +1914,7 @@ func TestGamma(t *testing.T) {
+ 
+ func TestHypot(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(1e200 * tanh[i] * Sqrt(2))
++		a := Abs(1e200 * tanh[i] * Sqrt(2))
+ 		if f := Hypot(1e200*tanh[i], 1e200*tanh[i]); !veryclose(a, f) {
+ 			t.Errorf("Hypot(%g, %g) = %g, want %g", 1e200*tanh[i], 1e200*tanh[i], f, a)
+ 		}
+@@ -2033,7 +2033,7 @@ func TestLgamma(t *testing.T) {
+ 
+ func TestLog(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := Log(a); log[i] != f {
+ 			t.Errorf("Log(%g) = %g, want %g", a, f, log[i])
+ 		}
+@@ -2068,7 +2068,7 @@ func TestLogb(t *testing.T) {
+ 
+ func TestLog10(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := Log10(a); !veryclose(log10[i], f) {
+ 			t.Errorf("Log10(%g) = %g, want %g", a, f, log10[i])
+ 		}
+@@ -2103,7 +2103,7 @@ func TestLog1p(t *testing.T) {
+ 
+ func TestLog2(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := Log2(a); !veryclose(log2[i], f) {
+ 			t.Errorf("Log2(%g) = %g, want %g", a, f, log2[i])
+ 		}
+@@ -2226,11 +2226,11 @@ func TestSinh(t *testing.T) {
+ 
+ func TestSqrt(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := SqrtGo(a); sqrt[i] != f {
+ 			t.Errorf("SqrtGo(%g) = %g, want %g", a, f, sqrt[i])
+ 		}
+-		a = Fabs(vf[i])
++		a = Abs(vf[i])
+ 		if f := Sqrt(a); sqrt[i] != f {
+ 			t.Errorf("Sqrt(%g) = %g, want %g", a, f, sqrt[i])
+ 		}
+@@ -2297,7 +2297,7 @@ func TestTrunc(t *testing.T) {
+ 
+ func TestY0(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := Y0(a); !close(y0[i], f) {
+ 			t.Errorf("Y0(%g) = %g, want %g", a, f, y0[i])
+ 		}
+@@ -2311,7 +2311,7 @@ func TestY0(t *testing.T) {
+ 
+ func TestY1(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := Y1(a); !soclose(y1[i], f, 2e-14) {
+ 			t.Errorf("Y1(%g) = %g, want %g", a, f, y1[i])
+ 		}
+@@ -2325,7 +2325,7 @@ func TestY1(t *testing.T) {
+ 
+ func TestYn(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		a := Fabs(vf[i])
++		a := Abs(vf[i])
+ 		if f := Yn(2, a); !close(y2[i], f) {
+ 			t.Errorf("Yn(2, %g) = %g, want %g", a, f, y2[i])
+ 		}
+@@ -2531,15 +2531,15 @@ func BenchmarkExp2Go(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkFabs(b *testing.B) {
++func BenchmarkAbs(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Fabs(.5)
++		Abs(.5)
+ 	}
+ }
+ 
+-func BenchmarkFdim(b *testing.B) {
++func BenchmarkDim(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Fdim(10, 3)
++		Dim(10, 3)
+ 	}
+ }
+ 
+@@ -2549,21 +2549,21 @@ func BenchmarkFloor(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkFmax(b *testing.B) {
++func BenchmarkMax(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Fmax(10, 3)
++		Max(10, 3)
+ 	}
+ }
+ 
+-func BenchmarkFmin(b *testing.B) {
++func BenchmarkMin(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Fmin(10, 3)
++		Min(10, 3)
+ 	}
+ }
+ 
+-func BenchmarkFmod(b *testing.B) {
++func BenchmarkMod(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Fmod(10, 3)
++		Mod(10, 3)
+ 	}
+ }
+ 
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+index a1dca3ed69..1cf60ce7df 100644
+--- a/src/pkg/math/bits.go
++++ b/src/pkg/math/bits.go
+@@ -52,7 +52,7 @@ func IsInf(f float64, sign int) bool {
+ // satisfying x == y × 2**exp. It assumes x is finite and non-zero.
+ func normalize(x float64) (y float64, exp int) {
+ 	const SmallestNormal = 2.2250738585072014e-308 // 2**-1022
+-	if Fabs(x) < SmallestNormal {
++	if Abs(x) < SmallestNormal {
+ 		return x * (1 << 52), -52
+ 	}
+ 	return x, 0
+diff --git a/src/pkg/math/fdim.go b/src/pkg/math/dim.go
+similarity index 57%
+rename from src/pkg/math/fdim.go
+rename to src/pkg/math/dim.go
+index 18993137a2..d2eb52f3bf 100644
+--- a/src/pkg/math/fdim.go
++++ b/src/pkg/math/dim.go
+@@ -4,24 +4,24 @@
+ 
+ package math
+ 
+-// Fdim returns the maximum of x-y or 0.
+-func Fdim(x, y float64) float64 {
++// Dim returns the maximum of x-y or 0.
++func Dim(x, y float64) float64 {
+ 	if x > y {
+ 		return x - y
+ 	}
+ 	return 0
+ }
+ 
+-// Fmax returns the larger of x or y.
+-func Fmax(x, y float64) float64 {
++// Max returns the larger of x or y.
++func Max(x, y float64) float64 {
+ 	if x > y {
+ 		return x
+ 	}
+ 	return y
+ }
+ 
+-// Fmin returns the smaller of x or y.
+-func Fmin(x, y float64) float64 {
++// Min returns the smaller of x or y.
++func Min(x, y float64) float64 {
+ 	if x < y {
+ 		return x
+ 	}
+diff --git a/src/pkg/math/fdim_amd64.s b/src/pkg/math/dim_amd64.s
+similarity index 69%
+rename from src/pkg/math/fdim_amd64.s
+rename to src/pkg/math/dim_amd64.s
+index 1f45ef8b97..cfc8e05497 100644
+--- a/src/pkg/math/fdim_amd64.s
++++ b/src/pkg/math/dim_amd64.s
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// func Fdim(x, y float64) float64
+-TEXT ·Fdim(SB),7,$0
++// func Dim(x, y float64) float64
++TEXT ·Dim(SB),7,$0
+ 	MOVSD x+0(FP), X0
+ 	SUBSD y+8(FP), X0
+ 	MOVSD $(0.0), X1
+@@ -11,15 +11,15 @@ TEXT ·Fdim(SB),7,$0
+ 	MOVSD X0, r+16(FP)
+ 	RET
+ 
+-// func Fmax(x, y float64) float64
+-TEXT ·Fmax(SB),7,$0
++// func ·Max(x, y float64) float64
++TEXT ·Max(SB),7,$0
+ 	MOVSD x+0(FP), X0
+ 	MAXSD y+8(FP), X0
+ 	MOVSD X0, r+16(FP)
+ 	RET
+ 
+-// func Fmin(x, y float64) float64
+-TEXT ·Fmin(SB),7,$0
++// func Min(x, y float64) float64
++TEXT ·Min(SB),7,$0
+ 	MOVSD x+0(FP), X0
+ 	MINSD y+8(FP), X0
+ 	MOVSD X0, r+16(FP)
+diff --git a/src/pkg/math/fdim_decl.go b/src/pkg/math/dim_decl.go
+similarity index 64%
+rename from src/pkg/math/fdim_decl.go
+rename to src/pkg/math/dim_decl.go
+index 88dea3de40..196f84fd79 100644
+--- a/src/pkg/math/fdim_decl.go
++++ b/src/pkg/math/dim_decl.go
+@@ -4,6 +4,6 @@
+ 
+ package math
+ 
+-func Fdim(x, y float64) float64
+-func Fmax(x, y float64) float64
+-func Fmin(x, y float64) float64
++func Dim(x, y float64) float64
++func Max(x, y float64) float64
++func Min(x, y float64) float64
+diff --git a/src/pkg/math/gamma.go b/src/pkg/math/gamma.go
+index 73ca0e53ad..01365070eb 100644
+--- a/src/pkg/math/gamma.go
++++ b/src/pkg/math/gamma.go
+@@ -127,7 +127,7 @@ func Gamma(x float64) float64 {
+ 	case x < -170.5674972726612 || x > 171.61447887182298:
+ 		return Inf(1)
+ 	}
+-	q := Fabs(x)
++	q := Abs(x)
+ 	p := Floor(q)
+ 	if q > 33 {
+ 		if x >= 0 {
+@@ -146,7 +146,7 @@ func Gamma(x float64) float64 {
+ 		if z == 0 {
+ 			return Inf(signgam)
+ 		}
+-		z = Pi / (Fabs(z) * stirling(q))
++		z = Pi / (Abs(z) * stirling(q))
+ 		return float64(signgam) * z
+ 	}
+ 
+diff --git a/src/pkg/math/jn.go b/src/pkg/math/jn.go
+index 9024af3c22..1878df5b5a 100644
+--- a/src/pkg/math/jn.go
++++ b/src/pkg/math/jn.go
+@@ -197,7 +197,7 @@ func Jn(n int, x float64) float64 {
+ 
+ 			tmp := float64(n)
+ 			v := 2 / x
+-			tmp = tmp * Log(Fabs(v*tmp))
++			tmp = tmp * Log(Abs(v*tmp))
+ 			if tmp < 7.09782712893383973096e+02 {
+ 				for i := n - 1; i > 0; i-- {
+ 					di := float64(i + i)
+diff --git a/src/pkg/math/lgamma.go b/src/pkg/math/lgamma.go
+index dc30f468f4..8f6d7b99fc 100644
+--- a/src/pkg/math/lgamma.go
++++ b/src/pkg/math/lgamma.go
+@@ -206,7 +206,7 @@ func Lgamma(x float64) (lgamma float64, sign int) {
+ 			lgamma = Inf(1) // -integer
+ 			return
+ 		}
+-		nadj = Log(Pi / Fabs(t*x))
++		nadj = Log(Pi / Abs(t*x))
+ 		if t < 0 {
+ 			sign = -1
+ 		}
+@@ -319,7 +319,7 @@ func sinPi(x float64) float64 {
+ 	z := Floor(x)
+ 	var n int
+ 	if z != x { // inexact
+-		x = Fmod(x, 2)
++		x = Mod(x, 2)
+ 		n = int(x * 4)
+ 	} else {
+ 		if x >= Two53 { // x must be even
+diff --git a/src/pkg/math/fmod.go b/src/pkg/math/mod.go
+similarity index 83%
+rename from src/pkg/math/fmod.go
+rename to src/pkg/math/mod.go
+index 75c614629d..6b16abe5d1 100644
+--- a/src/pkg/math/fmod.go
++++ b/src/pkg/math/mod.go
+@@ -8,14 +8,14 @@ package math
+ 	Floating-point mod function.
+ */
+ 
+-// Fmod returns the floating-point remainder of x/y.
++// Mod returns the floating-point remainder of x/y.
+ // The magnitude of the result is less than y and its
+ // sign agrees with that of x.
+ //
+ // Special cases are:
+-//	if x is not finite, Fmod returns NaN
+-//	if y is 0 or NaN, Fmod returns NaN
+-func Fmod(x, y float64) float64 {
++//	if x is not finite, Mod returns NaN
++//	if y is 0 or NaN, Mod returns NaN
++func Mod(x, y float64) float64 {
+ 	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+ 	// when compiler does it for us.
+ 	if y == 0 || x > MaxFloat64 || x < -MaxFloat64 || x != x || y != y { // y == 0 || IsInf(x, 0) || IsNaN(x) || IsNan(y)
+diff --git a/src/pkg/math/fmod_386.s b/src/pkg/math/mod_386.s
+similarity index 88%
+rename from src/pkg/math/fmod_386.s
+rename to src/pkg/math/mod_386.s
+index eb37bef406..6b9c28d4fe 100644
+--- a/src/pkg/math/fmod_386.s
++++ b/src/pkg/math/mod_386.s
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// func Fmod(x, y float64) float64
+-TEXT ·Fmod(SB),7,$0
++// func Mod(x, y float64) float64
++TEXT ·Mod(SB),7,$0
+ 	FMOVD   y+8(FP), F0  // F0=y
+ 	FMOVD   x+0(FP), F0  // F0=x, F1=y
+ 	FPREM                // F0=reduced_x, F1=y
+diff --git a/src/pkg/math/fmod_decl.go b/src/pkg/math/mod_decl.go
+similarity index 84%
+rename from src/pkg/math/fmod_decl.go
+rename to src/pkg/math/mod_decl.go
+index 8d97cdf4a0..d5047a754a 100644
+--- a/src/pkg/math/fmod_decl.go
++++ b/src/pkg/math/mod_decl.go
+@@ -4,4 +4,4 @@
+ 
+ package math
+ 
+-func Fmod(x, y float64) float64
++func Mod(x, y float64) float64
+diff --git a/src/pkg/math/pow.go b/src/pkg/math/pow.go
+index 06b107401b..f0f52c5cd4 100644
+--- a/src/pkg/math/pow.go
++++ b/src/pkg/math/pow.go
+@@ -66,7 +66,7 @@ func Pow(x, y float64) float64 {
+ 		switch {
+ 		case x == -1:
+ 			return 1
+-		case (Fabs(x) < 1) == IsInf(y, 1):
++		case (Abs(x) < 1) == IsInf(y, 1):
+ 			return 0
+ 		default:
+ 			return Inf(1)
+diff --git a/src/pkg/math/remainder.go b/src/pkg/math/remainder.go
+index be8724c7f3..7fb8a12f9e 100644
+--- a/src/pkg/math/remainder.go
++++ b/src/pkg/math/remainder.go
+@@ -24,7 +24,7 @@ package math
+ //      precision arithmetic, where [x/y] is the (infinite bit)
+ //      integer nearest x/y (in half way cases, choose the even one).
+ // Method :
+-//      Based on fmod() returning  x - [x/y]chopped * y  exactly.
++//      Based on Mod() returning  x - [x/y]chopped * y  exactly.
+ 
+ // Remainder returns the IEEE 754 floating-point remainder of x/y.
+ //
+@@ -60,7 +60,7 @@ func Remainder(x, y float64) float64 {
+ 		return 0
+ 	}
+ 	if y <= HalfMax {
+-		x = Fmod(x, y+y) // now x < 2y
++		x = Mod(x, y+y) // now x < 2y
+ 	}
+ 	if y < Tiny {
+ 		if x+x > y {
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index 3ebc1141d1..f997ff56c7 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -30,11 +30,11 @@ func max(a, b float64) float64 {
+ }
+ 
+ func nearEqual(a, b, closeEnough, maxError float64) bool {
+-	absDiff := math.Fabs(a - b)
++	absDiff := math.Abs(a - b)
+ 	if absDiff < closeEnough { // Necessary when one value is zero and one value is close to zero.
+ 		return true
+ 	}
+-	return absDiff/max(math.Fabs(a), math.Fabs(b)) < maxError
++	return absDiff/max(math.Abs(a), math.Abs(b)) < maxError
+ }
+ 
+ var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}

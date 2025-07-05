@@ -16,7 +16,7 @@ Date:   Tue Nov 10 11:25:15 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/16775
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/gcc68255.go   | 17 +++++++++++++++++
  misc/cgo/test/gcc68255/a.go | 17 +++++++++++++++++
@@ -24,3 +24,110 @@ Date:   Tue Nov 10 11:25:15 2015 -0800
  misc/cgo/test/gcc68255/c.h  |  5 +++++
  src/cmd/go/build.go         | 12 ++----------
  6 files changed, 50 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 4060338b65..948a0eab64 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -66,5 +66,6 @@ func Test9557(t *testing.T)                  { test9557(t) }
+ func Test10303(t *testing.T)                 { test10303(t, 10) }
+ func Test11925(t *testing.T)                 { test11925(t) }
+ func Test12030(t *testing.T)                 { test12030(t) }
++func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/gcc68255.go b/misc/cgo/test/gcc68255.go
+new file mode 100644
+index 0000000000..2c4f931d6f
+--- /dev/null
++++ b/misc/cgo/test/gcc68255.go
+@@ -0,0 +1,17 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import (
++	"testing"
++
++	"./gcc68255"
++)
++
++func testGCC68255(t *testing.T) {
++	if !gcc68255.F() {
++		t.Error("C global variable was not initialized")
++	}
++}
+diff --git a/misc/cgo/test/gcc68255/a.go b/misc/cgo/test/gcc68255/a.go
+new file mode 100644
+index 0000000000..02e5494073
+--- /dev/null
++++ b/misc/cgo/test/gcc68255/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that it's OK to have C code that does nothing other than
++// initialize a global variable.  This used to fail with gccgo.
++
++package gcc68255
++
++/*
++#include "c.h"
++*/
++import "C"
++
++func F() bool {
++	return C.v != nil
++}
+diff --git a/misc/cgo/test/gcc68255/c.c b/misc/cgo/test/gcc68255/c.c
+new file mode 100644
+index 0000000000..28cfe7297b
+--- /dev/null
++++ b/misc/cgo/test/gcc68255/c.c
+@@ -0,0 +1,8 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++static void f(void) {
++}
++
++void (*v)(void) = f;
+diff --git a/misc/cgo/test/gcc68255/c.h b/misc/cgo/test/gcc68255/c.h
+new file mode 100644
+index 0000000000..644003eb05
+--- /dev/null
++++ b/misc/cgo/test/gcc68255/c.h
+@@ -0,0 +1,5 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern void (*v)(void);
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index ea27ae1dd1..7e48c17f6c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2599,17 +2599,9 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions
+ 		}
+ 	}
+ 
+-	switch ldBuildmode {
+-	case "c-archive", "c-shared":
+-		ldflags = append(ldflags, "-Wl,--whole-archive")
+-	}
+-
++	ldflags = append(ldflags, "-Wl,--whole-archive")
+ 	ldflags = append(ldflags, afiles...)
+-
+-	switch ldBuildmode {
+-	case "c-archive", "c-shared":
+-		ldflags = append(ldflags, "-Wl,--no-whole-archive")
+-	}
++	ldflags = append(ldflags, "-Wl,--no-whole-archive")
+ 
+ 	ldflags = append(ldflags, cgoldflags...)
+ 	ldflags = append(ldflags, envList("CGO_LDFLAGS", "")...)

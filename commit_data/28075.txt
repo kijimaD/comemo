@@ -9,6 +9,23 @@ Date:   Wed Apr 27 16:32:37 2016 -0500
     Change-Id: I60137ecf27e236e97734b1730ce29ab23e9fe07f
     Reviewed-on: https://go-review.googlesource.com/22509
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 3443161004..05d7e98027 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -284,7 +284,10 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ // DialContext connects to the address on the named network using
+ // the provided context.
+ //
+-// The provided Context must be non-nil.
++// The provided Context must be non-nil. If the context expires before
++// the connection is complete, an error is returned. Once successfully
++// connected, any expiration of the context will not affect the
++// connection.
+ //
+ // See func Dial for a description of the network and address
+ // parameters.

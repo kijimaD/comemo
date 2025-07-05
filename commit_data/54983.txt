@@ -19,7 +19,58 @@ Date:   Thu Nov 24 12:43:22 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Gabriel Morency (Amgc63spaming) <morencyvincent8@gmail.com>
-
+---
  src/cmd/compile/internal/staticinit/sched.go |  5 +++++
  test/fixedbugs/issue56923.go                 | 28 ++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 12bf932a7b..fde128ec86 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -333,6 +333,11 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 			return val.Op() == ir.ONIL
+ 		}
+ 
++		if base.Debug.Unified != 0 && val.Type().HasShape() {
++			// See comment in cmd/compile/internal/walk/convert.go:walkConvInterface
++			return false
++		}
++
+ 		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Linksym())
+ 
+ 		var itab *ir.AddrExpr
+diff --git a/test/fixedbugs/issue56923.go b/test/fixedbugs/issue56923.go
+new file mode 100644
+index 0000000000..700a1046a9
+--- /dev/null
++++ b/test/fixedbugs/issue56923.go
+@@ -0,0 +1,28 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Eq[T any] interface {
++	Eqv(a T, b T) bool
++}
++
++type EqFunc[T any] func(a, b T) bool
++
++func (r EqFunc[T]) Eqv(a, b T) bool {
++	return r(a, b)
++}
++
++func New[T any](f func(a, b T) bool) Eq[T] {
++	return EqFunc[T](f)
++
++}
++
++func Equal(a, b []byte) bool {
++	return string(a) == string(b)
++}
++
++var Bytes Eq[[]byte] = New(Equal)

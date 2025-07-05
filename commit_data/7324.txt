@@ -7,6 +7,22 @@ Date:   Tue Feb 1 16:57:45 2011 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/4044048
-
+---
  src/pkg/go/ast/walk.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index d90c789363..a77f8ee5e0 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -195,6 +195,10 @@ func Walk(v Visitor, node Node) {
+ 	case *ExprStmt:
+ 		Walk(v, n.X)
+ 
++	case *SendStmt:
++		Walk(v, n.Chan)
++		Walk(v, n.Value)
++
+ 	case *IncDecStmt:
+ 		Walk(v, n.X)
+ 

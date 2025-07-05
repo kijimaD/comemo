@@ -7,6 +7,27 @@ Date:   Thu Jun 16 13:39:16 2016 -0700
     Change-Id: If443ffb50b140c466dcf4cc5340f44948bfa46a9
     Reviewed-on: https://go-review.googlesource.com/26765
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue9608.dir/issue9608.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/test/fixedbugs/issue9608.dir/issue9608.go b/test/fixedbugs/issue9608.dir/issue9608.go
+index 56b52cc606..ca82ded4cd 100644
+--- a/test/fixedbugs/issue9608.dir/issue9608.go
++++ b/test/fixedbugs/issue9608.dir/issue9608.go
+@@ -67,6 +67,15 @@ func init() {
+ 	case true:
+ 		fail()
+ 	}
++
++	// Test dead code elimination in large ranges.
++	switch 5 {
++	case 3, 4, 5, 6, 7:
++	case 0, 1, 2:
++		fail()
++	default:
++		fail()
++	}
+ }
+ 
+ func main() {

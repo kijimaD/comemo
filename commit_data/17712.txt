@@ -7,6 +7,23 @@ Date:   Sat Sep 28 11:06:50 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/14038044
-
+---
  src/pkg/syscall/exec_linux.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/pkg/syscall/exec_linux.go b/src/pkg/syscall/exec_linux.go
+index 81dc80800b..a1656e8dce 100644
+--- a/src/pkg/syscall/exec_linux.go
++++ b/src/pkg/syscall/exec_linux.go
+@@ -242,11 +242,6 @@ childerror:
+ 	for {
+ 		RawSyscall(SYS_EXIT, 253, 0, 0)
+ 	}
+-
+-	// Calling panic is not actually safe,
+-	// but the for loop above won't break
+-	// and this shuts up the compiler.
+-	panic("unreached")
+ }
+ 
+ // Try to open a pipe with O_CLOEXEC set on both file descriptors.

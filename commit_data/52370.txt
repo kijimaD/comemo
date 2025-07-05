@@ -20,7 +20,7 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  api/go1.9.txt                      |   1 -
  src/crypto/internal/boring/stub.s  |   6 ++
  src/crypto/tls/boring.go           |  30 --------
@@ -33,3 +33,408 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
  src/crypto/x509/notboring.go       |   9 +++
  src/crypto/x509/verify.go          |   7 +-
  11 files changed, 197 insertions(+), 66 deletions(-)
+
+diff --git a/api/go1.9.txt b/api/go1.9.txt
+index bde9db1c60..87fae57920 100644
+--- a/api/go1.9.txt
++++ b/api/go1.9.txt
+@@ -7,7 +7,6 @@ pkg crypto, const BLAKE2b_512 Hash
+ pkg crypto, const BLAKE2s_256 = 16
+ pkg crypto, const BLAKE2s_256 Hash
+ pkg crypto/x509, type Certificate struct, ExcludedDNSDomains []string
+-pkg crypto/x509, type VerifyOptions struct, IsBoring func(*Certificate) bool
+ pkg database/sql, method (*Conn) BeginTx(context.Context, *TxOptions) (*Tx, error)
+ pkg database/sql, method (*Conn) Close() error
+ pkg database/sql, method (*Conn) ExecContext(context.Context, string, ...interface{}) (Result, error)
+diff --git a/src/crypto/internal/boring/stub.s b/src/crypto/internal/boring/stub.s
+new file mode 100644
+index 0000000000..59f2deeb60
+--- /dev/null
++++ b/src/crypto/internal/boring/stub.s
+@@ -0,0 +1,6 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is here to silence an error about registerCache not having a body.
++// (The body is provided by package runtime.)
+diff --git a/src/crypto/tls/boring.go b/src/crypto/tls/boring.go
+index c40d4a0e48..1827f76458 100644
+--- a/src/crypto/tls/boring.go
++++ b/src/crypto/tls/boring.go
+@@ -7,11 +7,7 @@
+ package tls
+ 
+ import (
+-	"crypto/ecdsa"
+-	"crypto/elliptic"
+ 	"crypto/internal/boring/fipstls"
+-	"crypto/rsa"
+-	"crypto/x509"
+ )
+ 
+ // needFIPS returns fipstls.Required(); it avoids a new import in common.go.
+@@ -79,32 +75,6 @@ func fipsCipherSuites(c *Config) []uint16 {
+ 	return list
+ }
+ 
+-// isBoringCertificate reports whether a certificate may be used
+-// when constructing a verified chain.
+-// It is called for each leaf, intermediate, and root certificate.
+-func isBoringCertificate(c *x509.Certificate) bool {
+-	if !needFIPS() {
+-		// Everything is OK if we haven't forced FIPS-only mode.
+-		return true
+-	}
+-
+-	// Otherwise the key must be RSA 2048, RSA 3072, or ECDSA P-256, P-384, or P-521.
+-	switch k := c.PublicKey.(type) {
+-	default:
+-		return false
+-	case *rsa.PublicKey:
+-		if size := k.N.BitLen(); size != 2048 && size != 3072 {
+-			return false
+-		}
+-	case *ecdsa.PublicKey:
+-		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() && k.Curve != elliptic.P521() {
+-			return false
+-		}
+-	}
+-
+-	return true
+-}
+-
+ // fipsSupportedSignatureAlgorithms currently are a subset of
+ // defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
+ var fipsSupportedSignatureAlgorithms = []SignatureScheme{
+diff --git a/src/crypto/tls/boring_test.go b/src/crypto/tls/boring_test.go
+index 12a7d937cb..f743fc8e9f 100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/boring_test.go
+@@ -324,12 +324,6 @@ func TestBoringCertAlgs(t *testing.T) {
+ 	L1_I := boringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
+ 	L2_I := boringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
+ 
+-	// boringCert checked that isBoringCertificate matches the caller's boringCertFIPSOK bit.
+-	// If not, no point in building bigger end-to-end tests.
+-	if t.Failed() {
+-		t.Fatalf("isBoringCertificate failures; not continuing")
+-	}
+-
+ 	// client verifying server cert
+ 	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+ 		clientConfig := testConfig.Clone()
+@@ -534,14 +528,11 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
+ 	}
+ 
+ 	var pub interface{}
+-	var desc string
+ 	switch k := key.(type) {
+ 	case *rsa.PrivateKey:
+ 		pub = &k.PublicKey
+-		desc = fmt.Sprintf("RSA-%d", k.N.BitLen())
+ 	case *ecdsa.PrivateKey:
+ 		pub = &k.PublicKey
+-		desc = "ECDSA-" + k.Curve.Params().Name
+ 	default:
+ 		t.Fatalf("invalid key %T", key)
+ 	}
+@@ -555,14 +546,7 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
+ 		t.Fatal(err)
+ 	}
+ 
+-	// Tell isBoringCertificate to enforce FIPS restrictions for this check.
+-	fipstls.Force()
+-	defer fipstls.Abandon()
+-
+ 	fipsOK := mode&boringCertFIPSOK != 0
+-	if isBoringCertificate(cert) != fipsOK {
+-		t.Errorf("isBoringCertificate(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
+-	}
+ 	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
+ }
+ 
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index de19b7ede5..e61e3eb540 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -866,9 +866,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 			DNSName:       c.config.ServerName,
+ 			Intermediates: x509.NewCertPool(),
+ 		}
+-		if needFIPS() {
+-			opts.IsBoring = isBoringCertificate
+-		}
++
+ 		for _, cert := range certs[1:] {
+ 			opts.Intermediates.AddCert(cert)
+ 		}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 2d71d0869a..7606305c1d 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -817,9 +817,6 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 			Intermediates: x509.NewCertPool(),
+ 			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+ 		}
+-		if needFIPS() {
+-			opts.IsBoring = isBoringCertificate
+-		}
+ 
+ 		for _, cert := range certs[1:] {
+ 			opts.Intermediates.AddCert(cert)
+diff --git a/src/crypto/tls/notboring.go b/src/crypto/tls/notboring.go
+index d79ea21a0b..7d85b39c59 100644
+--- a/src/crypto/tls/notboring.go
++++ b/src/crypto/tls/notboring.go
+@@ -6,18 +6,15 @@
+ 
+ package tls
+ 
+-import "crypto/x509"
+-
+ func needFIPS() bool { return false }
+ 
+ func supportedSignatureAlgorithms() []SignatureScheme {
+ 	return defaultSupportedSignatureAlgorithms
+ }
+ 
+-func fipsMinVersion(c *Config) uint16              { panic("fipsMinVersion") }
+-func fipsMaxVersion(c *Config) uint16              { panic("fipsMaxVersion") }
+-func fipsCurvePreferences(c *Config) []CurveID     { panic("fipsCurvePreferences") }
+-func fipsCipherSuites(c *Config) []uint16          { panic("fipsCipherSuites") }
+-func isBoringCertificate(c *x509.Certificate) bool { panic("isBoringCertificate") }
++func fipsMinVersion(c *Config) uint16          { panic("fipsMinVersion") }
++func fipsMaxVersion(c *Config) uint16          { panic("fipsMaxVersion") }
++func fipsCurvePreferences(c *Config) []CurveID { panic("fipsCurvePreferences") }
++func fipsCipherSuites(c *Config) []uint16      { panic("fipsCipherSuites") }
+ 
+ var fipsSupportedSignatureAlgorithms []SignatureScheme
+diff --git a/src/crypto/x509/boring.go b/src/crypto/x509/boring.go
+new file mode 100644
+index 0000000000..4aae90570d
+--- /dev/null
++++ b/src/crypto/x509/boring.go
+@@ -0,0 +1,38 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build boringcrypto
++
++package x509
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/internal/boring/fipstls"
++	"crypto/rsa"
++)
++
++// boringAllowCert reports whether c is allowed to be used
++// in a certificate chain by the current fipstls enforcement setting.
++// It is called for each leaf, intermediate, and root certificate.
++func boringAllowCert(c *Certificate) bool {
++	if !fipstls.Required() {
++		return true
++	}
++
++	// The key must be RSA 2048, RSA 3072, or ECDSA P-256, P-384, or P-521.
++	switch k := c.PublicKey.(type) {
++	default:
++		return false
++	case *rsa.PublicKey:
++		if size := k.N.BitLen(); size != 2048 && size != 3072 {
++			return false
++		}
++	case *ecdsa.PublicKey:
++		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() && k.Curve != elliptic.P521() {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/crypto/x509/boring_test.go b/src/crypto/x509/boring_test.go
+new file mode 100644
+index 0000000000..7010f44b32
+--- /dev/null
++++ b/src/crypto/x509/boring_test.go
+@@ -0,0 +1,138 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build boringcrypto
++
++package x509
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/internal/boring/fipstls"
++	"crypto/rand"
++	"crypto/rsa"
++	"crypto/x509/pkix"
++	"fmt"
++	"math/big"
++	"strings"
++	"testing"
++	"time"
++)
++
++const (
++	boringCertCA = iota
++	boringCertLeaf
++	boringCertFIPSOK = 0x80
++)
++
++func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
++	k, err := rsa.GenerateKey(rand.Reader, size)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return k
++}
++
++func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
++	k, err := ecdsa.GenerateKey(curve, rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return k
++}
++
++type boringCertificate struct {
++	name      string
++	org       string
++	parentOrg string
++	der       []byte
++	cert      *Certificate
++	key       interface{}
++	fipsOK    bool
++}
++
++func TestBoringAllowCert(t *testing.T) {
++	R1 := testBoringCert(t, "R1", boringRSAKey(t, 2048), nil, boringCertCA|boringCertFIPSOK)
++	R2 := testBoringCert(t, "R2", boringRSAKey(t, 4096), nil, boringCertCA)
++
++	M1_R1 := testBoringCert(t, "M1_R1", boringECDSAKey(t, elliptic.P256()), R1, boringCertCA|boringCertFIPSOK)
++	M2_R1 := testBoringCert(t, "M2_R1", boringECDSAKey(t, elliptic.P224()), R1, boringCertCA)
++
++	I_R1 := testBoringCert(t, "I_R1", boringRSAKey(t, 3072), R1, boringCertCA|boringCertFIPSOK)
++	testBoringCert(t, "I_R2", I_R1.key, R2, boringCertCA|boringCertFIPSOK)
++	testBoringCert(t, "I_M1", I_R1.key, M1_R1, boringCertCA|boringCertFIPSOK)
++	testBoringCert(t, "I_M2", I_R1.key, M2_R1, boringCertCA|boringCertFIPSOK)
++
++	testBoringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
++	testBoringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
++}
++
++func testBoringCert(t *testing.T, name string, key interface{}, parent *boringCertificate, mode int) *boringCertificate {
++	org := name
++	parentOrg := ""
++	if i := strings.Index(org, "_"); i >= 0 {
++		org = org[:i]
++		parentOrg = name[i+1:]
++	}
++	tmpl := &Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject: pkix.Name{
++			Organization: []string{org},
++		},
++		NotBefore: time.Unix(0, 0),
++		NotAfter:  time.Unix(0, 0),
++
++		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature,
++		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
++		BasicConstraintsValid: true,
++	}
++	if mode&^boringCertFIPSOK == boringCertLeaf {
++		tmpl.DNSNames = []string{"example.com"}
++	} else {
++		tmpl.IsCA = true
++		tmpl.KeyUsage |= KeyUsageCertSign
++	}
++
++	var pcert *Certificate
++	var pkey interface{}
++	if parent != nil {
++		pcert = parent.cert
++		pkey = parent.key
++	} else {
++		pcert = tmpl
++		pkey = key
++	}
++
++	var pub interface{}
++	var desc string
++	switch k := key.(type) {
++	case *rsa.PrivateKey:
++		pub = &k.PublicKey
++		desc = fmt.Sprintf("RSA-%d", k.N.BitLen())
++	case *ecdsa.PrivateKey:
++		pub = &k.PublicKey
++		desc = "ECDSA-" + k.Curve.Params().Name
++	default:
++		t.Fatalf("invalid key %T", key)
++	}
++
++	der, err := CreateCertificate(rand.Reader, tmpl, pcert, pub, pkey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	cert, err := ParseCertificate(der)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Tell isBoringCertificate to enforce FIPS restrictions for this check.
++	fipstls.Force()
++	defer fipstls.Abandon()
++
++	fipsOK := mode&boringCertFIPSOK != 0
++	if boringAllowCert(cert) != fipsOK {
++		t.Errorf("boringAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
++	}
++	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
++}
+diff --git a/src/crypto/x509/notboring.go b/src/crypto/x509/notboring.go
+new file mode 100644
+index 0000000000..c83a7272c9
+--- /dev/null
++++ b/src/crypto/x509/notboring.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !boringcrypto
++
++package x509
++
++func boringAllowCert(c *Certificate) bool { return true }
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index a44f5d6326..b08655d3da 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -174,11 +174,6 @@ var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificat
+ 
+ // VerifyOptions contains parameters for Certificate.Verify.
+ type VerifyOptions struct {
+-	// IsBoring is a validity check for BoringCrypto.
+-	// If not nil, it will be called to check whether a given certificate
+-	// can be used for constructing verification chains.
+-	IsBoring func(*Certificate) bool
+-
+ 	// DNSName, if set, is checked against the leaf certificate with
+ 	// Certificate.VerifyHostname or the platform verifier.
+ 	DNSName string
+@@ -730,7 +725,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		}
+ 	}
+ 
+-	if opts.IsBoring != nil && !opts.IsBoring(c) {
++	if !boringAllowCert(c) {
+ 		// IncompatibleUsage is not quite right here,
+ 		// but it's also the "no chains found" error
+ 		// and is close enough.

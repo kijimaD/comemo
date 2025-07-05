@@ -21,9 +21,234 @@ Date:   Sun Oct 31 19:45:21 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 49 ++++++++++++++++-
  src/cmd/compile/internal/noder/helpers.go | 89 -------------------------------
  src/cmd/compile/internal/noder/stencil.go | 11 +---
  test/typeparam/issue51236.go              | 22 ++++++++
  4 files changed, 71 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index a4e144554c..4b5ae706c1 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -114,7 +114,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.CallExpr:
+ 		fun := g.expr(expr.Fun)
+-		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
++		return g.callExpr(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
+ 
+ 	case *syntax.IndexExpr:
+ 		args := unpackListExpr(expr.Index)
+@@ -206,6 +206,53 @@ func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node)
+ 	return newt
+ }
+ 
++// callExpr creates a call expression (which might be a type conversion, built-in
++// call, or a regular call) and does standard transforms, unless we are in a generic
++// function.
++func (g *irgen) callExpr(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
++	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
++	n.IsDDD = dots
++	typed(typ, n)
++
++	if fun.Op() == ir.OTYPE {
++		// Actually a type conversion, not a function call.
++		if !g.delayTransform() {
++			return transformConvCall(n)
++		}
++		return n
++	}
++
++	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
++		if !g.delayTransform() {
++			return transformBuiltin(n)
++		}
++		return n
++	}
++
++	// Add information, now that we know that fun is actually being called.
++	switch fun := fun.(type) {
++	case *ir.SelectorExpr:
++		if fun.Op() == ir.OMETHVALUE {
++			op := ir.ODOTMETH
++			if fun.X.Type().IsInterface() {
++				op = ir.ODOTINTER
++			}
++			fun.SetOp(op)
++			// Set the type to include the receiver, since that's what
++			// later parts of the compiler expect
++			fun.SetType(fun.Selection.Type)
++		}
++	}
++
++	// A function instantiation (even if fully concrete) shouldn't be
++	// transformed yet, because we need to add the dictionary during the
++	// transformation.
++	if fun.Op() != ir.OFUNCINST && !g.delayTransform() {
++		transformCall(n)
++	}
++	return n
++}
++
+ // selectorExpr resolves the choice of ODOT, ODOTPTR, OMETHVALUE (eventually
+ // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
+ // than in typecheck.go.
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 5524673e66..33acd6051a 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -98,95 +98,6 @@ func Binary(pos src.XPos, op ir.Op, typ *types.Type, x, y ir.Node) *ir.BinaryExp
+ 	}
+ }
+ 
+-func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+-	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+-	n.IsDDD = dots
+-
+-	if fun.Op() == ir.OTYPE {
+-		// Actually a type conversion, not a function call.
+-		if !fun.Type().IsInterface() &&
+-			(fun.Type().HasTParam() || args[0].Type().HasTParam()) {
+-			// For type params, we can transform if fun.Type() is known
+-			// to be an interface (in which case a CONVIFACE node will be
+-			// inserted). Otherwise, don't typecheck until we actually
+-			// know the type.
+-			return typed(typ, n)
+-		}
+-		typed(typ, n)
+-		return transformConvCall(n)
+-	}
+-
+-	if fun, ok := fun.(*ir.Name); ok && fun.BuiltinOp != 0 {
+-		// For most Builtin ops, we delay doing transformBuiltin if any of the
+-		// args have type params, for a variety of reasons:
+-		//
+-		// OMAKE: transformMake can't choose specific ops OMAKESLICE, etc.
+-		//    until arg type is known
+-		// OREAL/OIMAG: transformRealImag can't determine type float32/float64
+-		//    until arg type known
+-		// OAPPEND: transformAppend requires that the arg is a slice
+-		// ODELETE: transformDelete requires that the arg is a map
+-		// OALIGNOF, OSIZEOF: can be eval'ed to a constant until types known.
+-		switch fun.BuiltinOp {
+-		case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+-			hasTParam := false
+-			for _, arg := range args {
+-				if fun.BuiltinOp == ir.OOFFSETOF {
+-					// It's the type of left operand of the
+-					// selection that matters, not the type of
+-					// the field itself (which is irrelevant for
+-					// offsetof).
+-					arg = arg.(*ir.SelectorExpr).X
+-				}
+-				if arg.Type().HasTParam() {
+-					hasTParam = true
+-					break
+-				}
+-			}
+-			if hasTParam {
+-				return typed(typ, n)
+-			}
+-		}
+-
+-		typed(typ, n)
+-		return transformBuiltin(n)
+-	}
+-
+-	// Add information, now that we know that fun is actually being called.
+-	switch fun := fun.(type) {
+-	case *ir.SelectorExpr:
+-		if fun.Op() == ir.OMETHVALUE {
+-			op := ir.ODOTMETH
+-			if fun.X.Type().IsInterface() {
+-				op = ir.ODOTINTER
+-			}
+-			fun.SetOp(op)
+-			// Set the type to include the receiver, since that's what
+-			// later parts of the compiler expect
+-			fun.SetType(fun.Selection.Type)
+-		}
+-	}
+-
+-	if fun.Type().HasTParam() || fun.Op() == ir.OXDOT || fun.Op() == ir.OFUNCINST {
+-		// If the fun arg is or has a type param, we can't do all the
+-		// transformations, since we may not have needed properties yet
+-		// (e.g. number of return values, etc). The same applies if a fun
+-		// which is an XDOT could not be transformed yet because of a generic
+-		// type in the X of the selector expression.
+-		//
+-		// A function instantiation (even if fully concrete) shouldn't be
+-		// transformed yet, because we need to add the dictionary during the
+-		// transformation.
+-		return typed(typ, n)
+-	}
+-
+-	// If no type params, do the normal call transformations. This
+-	// will convert OCALL to OCALLFUNC.
+-	typed(typ, n)
+-	transformCall(n)
+-	return n
+-}
+-
+ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) *ir.BinaryExpr {
+ 	n := ir.NewBinaryExpr(pos, op, x, y)
+ 	typed(typ, n)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 50b6c0efcd..03937094e1 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1055,8 +1055,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				// Transform the conversion, now that we know the
+ 				// type argument.
+ 				m = transformConvCall(call)
+-				// CONVIFACE transformation was already done in noder2
+-				assert(m.Op() != ir.OCONVIFACE)
+ 
+ 			case ir.OMETHVALUE, ir.OMETHEXPR:
+ 				// Redo the transformation of OXDOT, now that we
+@@ -1076,14 +1074,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			case ir.ONAME:
+ 				name := call.X.Name()
+ 				if name.BuiltinOp != ir.OXXX {
+-					switch name.BuiltinOp {
+-					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.ODELETE, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
+-						// Transform these builtins now that we
+-						// know the type of the args.
+-						m = transformBuiltin(call)
+-					default:
+-						base.FatalfAt(call.Pos(), "Unexpected builtin op")
+-					}
++					m = transformBuiltin(call)
+ 				} else {
+ 					// This is the case of a function value that was a
+ 					// type parameter (implied to be a function via a
+diff --git a/test/typeparam/issue51236.go b/test/typeparam/issue51236.go
+new file mode 100644
+index 0000000000..779c74ee6c
+--- /dev/null
++++ b/test/typeparam/issue51236.go
+@@ -0,0 +1,22 @@
++// run -gcflags=-G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I interface {
++	[]byte
++}
++
++func F[T I]() {
++	var t T
++	explodes(t)
++}
++
++func explodes(b []byte) {}
++
++func main() {
++
++}

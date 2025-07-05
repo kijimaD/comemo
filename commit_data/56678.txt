@@ -17,7 +17,7 @@ Date:   Fri May 19 17:44:35 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/defs1_solaris_amd64.go            |  2 --
  src/runtime/defs_aix.go                       |  8 +++-----
  src/runtime/defs_aix_ppc64.go                 |  8 +++-----
@@ -57,3 +57,715 @@ Date:   Fri May 19 17:44:35 2023 -0700
  src/runtime/sys_openbsd2.go                   |  5 -----
  src/runtime/sys_openbsd_mips64.s              |  9 ---------
  38 files changed, 43 insertions(+), 221 deletions(-)
+
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+index bb53c22e06..4e541a913b 100644
+--- a/src/runtime/defs1_solaris_amd64.go
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -96,10 +96,8 @@ const (
+ 	_O_TRUNC    = 0x200
+ 	_O_CREAT    = 0x100
+ 	_O_CLOEXEC  = 0x800000
+-	_FD_CLOEXEC = 0x1
+ 	_F_GETFL    = 0x3
+ 	_F_SETFL    = 0x4
+-	_F_SETFD    = 0x2
+ 
+ 	_POLLIN  = 0x1
+ 	_POLLOUT = 0x4
+diff --git a/src/runtime/defs_aix.go b/src/runtime/defs_aix.go
+index 389598966a..2f28e53468 100644
+--- a/src/runtime/defs_aix.go
++++ b/src/runtime/defs_aix.go
+@@ -144,11 +144,9 @@ const (
+ 	__SC_PAGE_SIZE        = C._SC_PAGE_SIZE
+ 	__SC_NPROCESSORS_ONLN = C._SC_NPROCESSORS_ONLN
+ 
+-	_F_SETFD    = C.F_SETFD
+-	_F_SETFL    = C.F_SETFL
+-	_F_GETFD    = C.F_GETFD
+-	_F_GETFL    = C.F_GETFL
+-	_FD_CLOEXEC = C.FD_CLOEXEC
++	_F_SETFL = C.F_SETFL
++	_F_GETFD = C.F_GETFD
++	_F_GETFL = C.F_GETFL
+ )
+ 
+ type sigset C.sigset_t
+diff --git a/src/runtime/defs_aix_ppc64.go b/src/runtime/defs_aix_ppc64.go
+index 2d25b7ce3c..8e85096939 100644
+--- a/src/runtime/defs_aix_ppc64.go
++++ b/src/runtime/defs_aix_ppc64.go
+@@ -101,11 +101,9 @@ const (
+ 	__SC_PAGE_SIZE        = 0x30
+ 	__SC_NPROCESSORS_ONLN = 0x48
+ 
+-	_F_SETFD    = 0x2
+-	_F_SETFL    = 0x4
+-	_F_GETFD    = 0x1
+-	_F_GETFL    = 0x3
+-	_FD_CLOEXEC = 0x1
++	_F_SETFL = 0x4
++	_F_GETFD = 0x1
++	_F_GETFL = 0x3
+ )
+ 
+ type sigset [4]uint64
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index 89e4253f33..9c6eeee45a 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -115,10 +115,8 @@ const (
+ 
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+ 
+-	F_SETFD    = C.F_SETFD
+-	F_GETFL    = C.F_GETFL
+-	F_SETFL    = C.F_SETFL
+-	FD_CLOEXEC = C.FD_CLOEXEC
++	F_GETFL = C.F_GETFL
++	F_SETFL = C.F_SETFL
+ 
+ 	O_WRONLY   = C.O_WRONLY
+ 	O_NONBLOCK = C.O_NONBLOCK
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index 84e6f37203..fc7de3330a 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -94,10 +94,8 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+-	_F_SETFD    = 0x2
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+-	_FD_CLOEXEC = 0x1
++	_F_GETFL = 0x3
++	_F_SETFL = 0x4
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index 30d7443f2e..e26df02959 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -96,10 +96,8 @@ const (
+ 
+ 	_PTHREAD_KEYS_MAX = 512
+ 
+-	_F_SETFD    = 0x2
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+-	_FD_CLOEXEC = 0x1
++	_F_GETFL = 0x3
++	_F_SETFL = 0x4
+ 
+ 	_O_WRONLY   = 0x1
+ 	_O_NONBLOCK = 0x4
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 4161e216db..2ca6a88eca 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -57,10 +57,8 @@ const (
+ 
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+ 
+-	F_SETFD    = C.F_SETFD
+-	F_GETFL    = C.F_GETFL
+-	F_SETFL    = C.F_SETFL
+-	FD_CLOEXEC = C.FD_CLOEXEC
++	F_GETFL = C.F_GETFL
++	F_SETFL = C.F_SETFL
+ 
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index 25524c5982..d38a632577 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -35,10 +35,8 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_SETFD    = 0x2
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+-	_FD_CLOEXEC = 0x1
++	_F_GETFL = 0x3
++	_F_SETFL = 0x4
+ 
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index a31d03bce5..ed3c067989 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -35,10 +35,8 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_SETFD    = 0x2
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+-	_FD_CLOEXEC = 0x1
++	_F_GETFL = 0x3
++	_F_SETFL = 0x4
+ 
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index 1d1767bd3b..00b265e538 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -35,10 +35,8 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_SETFD    = 0x2
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+-	_FD_CLOEXEC = 0x1
++	_F_GETFL = 0x3
++	_F_SETFL = 0x4
+ 
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+diff --git a/src/runtime/defs_openbsd_arm64.go b/src/runtime/defs_openbsd_arm64.go
+index 745d0d3923..894fd39b75 100644
+--- a/src/runtime/defs_openbsd_arm64.go
++++ b/src/runtime/defs_openbsd_arm64.go
+@@ -36,10 +36,8 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_SETFD    = 0x2
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+-	_FD_CLOEXEC = 0x1
++	_F_GETFL = 0x3
++	_F_SETFL = 0x4
+ 
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+diff --git a/src/runtime/defs_solaris.go b/src/runtime/defs_solaris.go
+index 406304de5a..11708ee23a 100644
+--- a/src/runtime/defs_solaris.go
++++ b/src/runtime/defs_solaris.go
+@@ -125,10 +125,8 @@ const (
+ 	O_CREAT    = C.O_CREAT
+ 	O_TRUNC    = C.O_TRUNC
+ 	O_CLOEXEC  = C.O_CLOEXEC
+-	FD_CLOEXEC = C.FD_CLOEXEC
+ 	F_GETFL    = C.F_GETFL
+ 	F_SETFL    = C.F_SETFL
+-	F_SETFD    = C.F_SETFD
+ 
+ 	POLLIN  = C.POLLIN
+ 	POLLOUT = C.POLLOUT
+diff --git a/src/runtime/export_linux_test.go b/src/runtime/export_linux_test.go
+index a441c0efa2..426fd1e109 100644
+--- a/src/runtime/export_linux_test.go
++++ b/src/runtime/export_linux_test.go
+@@ -6,14 +6,9 @@
+ 
+ package runtime
+ 
+-import (
+-	"runtime/internal/syscall"
+-)
+-
+ const SiginfoMaxSize = _si_max_size
+ const SigeventMaxSize = _sigev_max_size
+ 
+-var Closeonexec = syscall.CloseOnExec
+ var NewOSProc0 = newosproc0
+ var Mincore = mincore
+ var Add = add
+diff --git a/src/runtime/export_unix2_test.go b/src/runtime/export_unix2_test.go
+deleted file mode 100644
+index 360565f272..0000000000
+--- a/src/runtime/export_unix2_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build unix && !linux
+-
+-package runtime
+-
+-// for linux close-on-exec implemented in runtime/internal/syscall
+-var Closeonexec = closeonexec
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+index 6967e7645c..56ff771620 100644
+--- a/src/runtime/export_unix_test.go
++++ b/src/runtime/export_unix_test.go
+@@ -10,6 +10,7 @@ import "unsafe"
+ 
+ var NonblockingPipe = nonblockingPipe
+ var Fcntl = fcntl
++var Closeonexec = closeonexec
+ 
+ func sigismember(mask *sigset, i int) bool {
+ 	clear := *mask
+diff --git a/src/runtime/internal/syscall/defs_linux.go b/src/runtime/internal/syscall/defs_linux.go
+deleted file mode 100644
+index 71f1fa1453..0000000000
+--- a/src/runtime/internal/syscall/defs_linux.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-const (
+-	F_SETFD    = 2
+-	FD_CLOEXEC = 1
+-)
+diff --git a/src/runtime/internal/syscall/syscall_linux.go b/src/runtime/internal/syscall/syscall_linux.go
+index a103d318c4..7209634edb 100644
+--- a/src/runtime/internal/syscall/syscall_linux.go
++++ b/src/runtime/internal/syscall/syscall_linux.go
+@@ -60,7 +60,3 @@ func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
+ 	_, _, e := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
+ 	return e
+ }
+-
+-func CloseOnExec(fd int32) {
+-	Syscall6(SYS_FCNTL, uintptr(fd), F_SETFD, FD_CLOEXEC, 0, 0, 0)
+-}
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 41b2f474ac..13c7ffc2ca 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -121,7 +121,7 @@ var portfd int32 = -1
+ func netpollinit() {
+ 	portfd = port_create()
+ 	if portfd >= 0 {
+-		fcntl(portfd, _F_SETFD, _FD_CLOEXEC)
++		closeonexec(portfd)
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index d03f30dc9e..046d173c24 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -575,11 +575,6 @@ func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+ 	return int32(r1), int32(err)
+ }
+ 
+-//go:nosplit
+-func closeonexec(fd int32) {
+-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+-}
+-
+ func osyield1()
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_aix.go b/src/runtime/os_aix.go
+index 7845de1470..8f10eb7380 100644
+--- a/src/runtime/os_aix.go
++++ b/src/runtime/os_aix.go
+@@ -357,11 +357,6 @@ func fcntl(fd, cmd, arg int32) (int32, int32) {
+ 	return int32(r), int32(errno)
+ }
+ 
+-//go:nosplit
+-func closeonexec(fd int32) {
+-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+-}
+-
+ //go:nosplit
+ func setNonblock(fd int32) {
+ 	flags, _ := fcntl(fd, _F_GETFL, 0)
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index fb45de3c71..bb53f4a157 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -64,7 +64,6 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
+-func closeonexec(fd int32)
+ 
+ // From DragonFly's <sys/sysctl.h>
+ const (
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index ad9e58c062..b53a70bef0 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -49,7 +49,6 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
+-func closeonexec(fd int32)
+ 
+ // From FreeBSD's <sys/sysctl.h>
+ const (
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 1688049ee7..92c02c193f 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -80,7 +80,6 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
+ 
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
+-func closeonexec(fd int32)
+ 
+ const (
+ 	_ESRCH     = 3
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index dcf3b09e67..bba89f3cb1 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -96,6 +96,5 @@ func nanotime1() int64
+ func sigaltstack(new, old *stackt)
+ 
+ func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
+-func closeonexec(fd int32)
+ 
+ func walltime() (sec int64, nsec int32)
+diff --git a/src/runtime/os_unix.go b/src/runtime/os_unix.go
+new file mode 100644
+index 0000000000..fdbeba70cc
+--- /dev/null
++++ b/src/runtime/os_unix.go
+@@ -0,0 +1,19 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package runtime
++
++const (
++	// These values are the same on all known Unix systems.
++	// If we find a discrepancy some day, we can split them out.
++	_F_SETFD    = 2
++	_FD_CLOEXEC = 1
++)
++
++//go:nosplit
++func closeonexec(fd int32) {
++	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
++}
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index a56a9373b9..2229ee87ed 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -536,11 +536,6 @@ func exitThread(wait *atomic.Uint32) {
+ 	throw("exitThread")
+ }
+ 
+-//go:nosplit
+-func closeonexec(fd int32) {
+-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+-}
+-
+ //go:nosplit
+ func setNonblock(fd int32) {
+ 	flags, _ := fcntl(fd, _F_GETFL, 0)
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 28bc0a70eb..4e16c9d662 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -400,12 +400,3 @@ noerr:
+ 	MOVL	AX, ret+16(FP)
+ 	MOVL	$0, errno+20(FP)
+ 	RET
+-
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI	// fd
+-	MOVQ	$2, SI		// F_SETFD
+-	MOVQ	$1, DX		// FD_CLOEXEC
+-	MOVL	$92, AX		// fcntl
+-	SYSCALL
+-	RET
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index a5a668cb70..3d5531fecb 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -12,8 +12,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		4
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ 
+ #define SYS_exit		1
+ #define SYS_read		3
+@@ -464,19 +462,6 @@ noerr:
+ 	MOVL	$0, errno+16(FP)
+ 	RET
+ 
+-// int32 runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$32
+-	MOVL	$SYS_fcntl, AX
+-	// 0(SP) is where the caller PC would be; kernel skips it
+-	MOVL	fd+0(FP), BX
+-	MOVL	BX, 4(SP)	// fd
+-	MOVL	$F_SETFD, 8(SP)
+-	MOVL	$FD_CLOEXEC, 12(SP)
+-	INT	$0x80
+-	JAE	2(PC)
+-	NEGL	AX
+-	RET
+-
+ // func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
+ 	MOVL	$SYS_cpuset_getaffinity, AX
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 2f600ea678..ff39d15a03 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -13,8 +13,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		4
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ #define AMD64_SET_FSBASE	129
+ 
+ #define SYS_exit		1
+@@ -564,15 +562,6 @@ noerr:
+ 	MOVL	$0, errno+20(FP)
+ 	RET
+ 
+-// void runtime·closeonexec(int32 fd);
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI	// fd
+-	MOVQ	$F_SETFD, SI
+-	MOVQ	$FD_CLOEXEC, DX
+-	MOVL	$SYS_fcntl, AX
+-	SYSCALL
+-	RET
+-
+ // func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
+ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-44
+ 	MOVQ	level+0(FP), DI
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 9b09d9d349..3b76cc84a7 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -401,15 +401,6 @@ TEXT runtime·fcntl(SB),NOSPLIT,$0
+ 	MOVW R1, errno+16(FP)
+ 	RET
+ 
+-// void runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVW fd+0(FP), R0	// fd
+-	MOVW $2, R1	// F_SETFD
+-	MOVW $1, R2	// FD_CLOEXEC
+-	MOVW $SYS_fcntl, R7
+-	SWI $0
+-	RET
+-
+ // TODO: this is only valid for ARMv7+
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+diff --git a/src/runtime/sys_freebsd_arm64.s b/src/runtime/sys_freebsd_arm64.s
+index dcf32a26e7..ef0366277f 100644
+--- a/src/runtime/sys_freebsd_arm64.s
++++ b/src/runtime/sys_freebsd_arm64.s
+@@ -14,8 +14,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		4
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ #define F_GETFL			3
+ #define F_SETFL			4
+ #define O_NONBLOCK		4
+@@ -456,15 +454,6 @@ noerr:
+ 	MOVW	$0, errno+20(FP)
+ 	RET
+ 
+-// func closeonexec(fd int32)
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	fd+0(FP), R0
+-	MOVD	$F_SETFD, R1
+-	MOVD	$FD_CLOEXEC, R2
+-	MOVD	$SYS_fcntl, R8
+-	SVC
+-	RET
+-
+ // func getCntxct(physical bool) uint32
+ TEXT runtime·getCntxct(SB),NOSPLIT,$0
+ 	MOVB	physical+0(FP), R0
+diff --git a/src/runtime/sys_freebsd_riscv64.s b/src/runtime/sys_freebsd_riscv64.s
+index 58173c2cb6..be6966b9aa 100644
+--- a/src/runtime/sys_freebsd_riscv64.s
++++ b/src/runtime/sys_freebsd_riscv64.s
+@@ -13,8 +13,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		4
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ #define F_GETFL			3
+ #define F_SETFL			4
+ #define O_NONBLOCK		4
+@@ -437,15 +435,6 @@ noerr:
+ 	MOVW	ZERO, errno+20(FP)
+ 	RET
+ 
+-// func closeonexec(fd int32)
+-TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
+-	MOVW	fd+0(FP), A0
+-	MOV	$F_SETFD, A1
+-	MOV	$FD_CLOEXEC, A2
+-	MOV	$SYS_fcntl, T0
+-	ECALL
+-	RET
+-
+ // func getCntxct() uint32
+ TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0
+ 	RDTIME	A0
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index e649fb13cb..dbfc4b552e 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -12,8 +12,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		3
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ 
+ #define SYS_exit			1
+ #define SYS_read			3
+@@ -469,16 +467,3 @@ noerr:
+ 	MOVL	AX, ret+12(FP)
+ 	MOVL	$0, errno+16(FP)
+ 	RET
+-
+-// int32 runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$32
+-	MOVL	$SYS_fcntl, AX
+-	// 0(SP) is where the caller PC would be; kernel skips it
+-	MOVL	fd+0(FP), BX
+-	MOVL	BX, 4(SP)	// fd
+-	MOVL	$F_SETFD, 8(SP)
+-	MOVL	$FD_CLOEXEC, 12(SP)
+-	INT	$0x80
+-	JAE	2(PC)
+-	NEGL	AX
+-	RET
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index c01473a0cf..948f62b8c5 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -13,8 +13,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		3
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ 
+ #define SYS_exit			1
+ #define SYS_read			3
+@@ -447,12 +445,3 @@ noerr:
+ 	MOVL	AX, ret+16(FP)
+ 	MOVL	$0, errno+20(FP)
+ 	RET
+-
+-// void runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVL	fd+0(FP), DI	// fd
+-	MOVQ	$F_SETFD, SI
+-	MOVQ	$FD_CLOEXEC, DX
+-	MOVL	$SYS_fcntl, AX
+-	SYSCALL
+-	RET
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 9d969592c4..91ec00e424 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -12,8 +12,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		3
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ 
+ #define SWI_OS_NETBSD			0xa00000
+ #define SYS_exit			SWI_OS_NETBSD | 1
+@@ -411,14 +409,6 @@ TEXT runtime·fcntl(SB),NOSPLIT,$0
+ 	MOVW R1, errno+16(FP)
+ 	RET
+ 
+-// void runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVW fd+0(FP), R0	// fd
+-	MOVW $F_SETFD, R1	// F_SETFD
+-	MOVW $FD_CLOEXEC, R2	// FD_CLOEXEC
+-	SWI $SYS_fcntl
+-	RET
+-
+ // TODO: this is only valid for ARMv7+
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index 34523530d5..611b9e1d74 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -13,8 +13,6 @@
+ 
+ #define CLOCK_REALTIME		0
+ #define CLOCK_MONOTONIC		3
+-#define FD_CLOEXEC		1
+-#define F_SETFD			2
+ #define F_GETFL			3
+ #define F_SETFL			4
+ #define O_NONBLOCK		4
+@@ -431,11 +429,3 @@ noerr:
+ 	MOVW	R0, ret+16(FP)
+ 	MOVW	$0, errno+20(FP)
+ 	RET
+-
+-// void runtime·closeonexec(int32 fd)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVW	fd+0(FP), R0		// arg 1 - fd
+-	MOVW	$F_SETFD, R1
+-	MOVW	$FD_CLOEXEC, R2
+-	SVC	$SYS_fcntl
+-	RET
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index 12a53dfc6d..e69bfc3348 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -258,11 +258,6 @@ func exitThread(wait *atomic.Uint32) {
+ 	throw("exitThread")
+ }
+ 
+-//go:nosplit
+-func closeonexec(fd int32) {
+-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+-}
+-
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+diff --git a/src/runtime/sys_openbsd_mips64.s b/src/runtime/sys_openbsd_mips64.s
+index 9238e7d0b0..bea20f2433 100644
+--- a/src/runtime/sys_openbsd_mips64.s
++++ b/src/runtime/sys_openbsd_mips64.s
+@@ -379,12 +379,3 @@ noerr:
+ 	MOVW	R2, ret+16(FP)
+ 	MOVW	R4, errno+20(FP)
+ 	RET
+-
+-// func closeonexec(fd int32)
+-TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVW	fd+0(FP), R4		// arg 1 - fd
+-	MOVV	$2, R5			// arg 2 - cmd (F_SETFD)
+-	MOVV	$1, R6			// arg 3 - arg (FD_CLOEXEC)
+-	MOVV	$92, R2			// sys_fcntl
+-	SYSCALL
+-	RET

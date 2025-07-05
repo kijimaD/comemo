@@ -15,6 +15,28 @@ Date:   Fri Oct 16 13:39:50 2020 -0400
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index def5c424f0..439818bb2f 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1009,8 +1009,14 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
+ 			defer wg.Done()
+ 			resp, err := c.Get(cst.ts.URL)
+ 			if err != nil {
+-				t.Errorf("Get: %v", err)
+-				return
++				// Try to work around spurious connection reset on loaded system.
++				// See golang.org/issue/33585 and golang.org/issue/36797.
++				time.Sleep(10 * time.Millisecond)
++				resp, err = c.Get(cst.ts.URL)
++				if err != nil {
++					t.Errorf("Get: %v", err)
++					return
++				}
+ 			}
+ 			defer resp.Body.Close()
+ 			slurp, err := ioutil.ReadAll(resp.Body)

@@ -8,9 +8,104 @@ Date:   Mon Jul 6 17:20:48 2009 -0700
     R=ken
     OCL=31225
     CL=31227
-
+---
  src/cmd/gc/subr.c          |  4 ++--
  src/cmd/gc/walk.c          |  9 ++++++++-
  src/pkg/http/client.go     |  4 +---
  test/interface/explicit.go | 15 +++++++++++----
  4 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3ceaa4e964..88180f59eb 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3136,10 +3136,10 @@ runifacechecks(void)
+ 				t, iface, m->sym, m->type);
+ 		else if(!p->explicit && needexplicit) {
+ 			if(m)
+-				yyerror("need explicit conversion to use %T as %T\n\tmissing %S%hhT",
++				yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
+ 					p->src, p->dst, m->sym, m->type);
+ 			else
+-				yyerror("need explicit conversion to use %T as %T",
++				yyerror("need type assertion to use %T as %T",
+ 					p->src, p->dst);
+ 		}
+ 	}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 30c864df63..d986e4b43c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1275,7 +1275,6 @@ walkconv(Node *n)
+ 
+ 	// if using .(T), interface assertion.
+ 	if(n->op == ODOTTYPE) {
+-		// interface conversion
+ 		defaultlit(l, T);
+ 		if(!isinter(l->type))
+ 			yyerror("type assertion requires interface on left, have %T", l->type);
+@@ -1308,6 +1307,14 @@ walkconv(Node *n)
+ 		n->op = OCONVNOP;
+ 		return;
+ 	}
++	
++	// to/from interface.
++	// ifaceas1 will generate a good error
++	// if the conversion is invalid.
++	if(t->etype == TINTER || l->type->etype == TINTER) {
++		indir(n, ifacecvt(t, l, ifaceas1(t, l->type, 0)));
++		return;
++	}
+ 
+ 	// simple fix-float
+ 	if(isint[l->type->etype] || isfloat[l->type->etype])
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 14131ec8ee..8a60967a4c 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -130,9 +130,7 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 		resp.AddHeader(key, value);
+ 	}
+ 
+-	// TODO(rsc): Make this work:
+-	//   r := io.Reader(reader);
+-	var r io.Reader = reader;
++	r := io.Reader(reader);
+ 	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
+ 		r = newChunkedReader(reader);
+ 	}
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index 3b5ed01ca4..9b90cb7a5e 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -15,13 +15,14 @@ type I interface { M() }
+ var i I
+ 
+ type I2 interface { M(); N(); }
+-var i2 I2;
++var i2 I2
+ 
+-var e interface { };
++type E interface { }
++var e E
+ 
+ func main() {
+ 	e = t;	// ok
+-	t = e;	// ERROR "need explicit"
++	t = e;	// ERROR "need explicit|need type assertion"
+ 
+ 	// neither of these can work,
+ 	// because i has an extra method
+@@ -30,5 +31,11 @@ func main() {
+ 	t = i;	// ERROR "missing|incompatible|is not"
+ 
+ 	i = i2;	// ok
+-	i2 = i;	// ERROR "need explicit"
++	i2 = i;	// ERROR "need explicit|need type assertion"
++	
++	i = I(i2);	// ok
++	i2 = I2(i);	// ERROR "need explicit|need type assertion"
++
++	e = E(t);	// ok
++	t = T(e);	// ERROR "need explicit|need type assertion"
+ }

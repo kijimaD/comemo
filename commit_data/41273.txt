@@ -33,9 +33,183 @@ Date:   Wed Sep 4 14:32:28 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go           |  2 +-
  src/cmd/go/internal/mvs/mvs.go                | 13 +++--
  src/cmd/go/internal/mvs/mvs_test.go           | 30 ++++++++---
  src/cmd/go/testdata/script/mod_tidy_cycle.txt | 75 +++++++++++++++++++++++++++
  4 files changed, 109 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 807ce8d5dc..cd57d99de7 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -634,7 +634,7 @@ func MinReqs() mvs.Reqs {
+ 			direct = append(direct, m.Path)
+ 		}
+ 	}
+-	min, err := mvs.Req(Target, buildList, direct, Reqs())
++	min, err := mvs.Req(Target, direct, Reqs())
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 4e7a828c24..8855d44f21 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -250,10 +250,15 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
+ 	return list, nil
+ }
+ 
+-// Req returns the minimal requirement list for the target module
+-// that results in the given build list, with the constraint that all
+-// module paths listed in base must appear in the returned list.
+-func Req(target module.Version, list []module.Version, base []string, reqs Reqs) ([]module.Version, error) {
++// Req returns the minimal requirement list for the target module,
++// with the constraint that all module paths listed in base must
++// appear in the returned list.
++func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, error) {
++	list, err := BuildList(target, reqs)
++	if err != nil {
++		return nil, err
++	}
++
+ 	// Note: Not running in parallel because we assume
+ 	// that list came from a previous operation that paged
+ 	// in all the requirements, so there's no I/O to overlap now.
+diff --git a/src/cmd/go/internal/mvs/mvs_test.go b/src/cmd/go/internal/mvs/mvs_test.go
+index 72d3ea95b7..e195e857b8 100644
+--- a/src/cmd/go/internal/mvs/mvs_test.go
++++ b/src/cmd/go/internal/mvs/mvs_test.go
+@@ -280,6 +280,20 @@ D2:
+ build A: A B1 C1 D1
+ upgrade* A: A B2 C2 D2
+ 
++# Cycles with multiple possible solutions.
++# (golang.org/issue/34086)
++name: cycle3
++M: A1 C2
++A1: B1
++B1: C1
++B2: C2
++C1:
++C2: B2
++build M: M A1 B2 C2
++req M: A1 B2
++req M A: A1 B2
++req M C: A1 C2
++
+ # Requirement minimization.
+ 
+ name: req1
+@@ -390,7 +404,15 @@ func Test(t *testing.T) {
+ 			fns = append(fns, func(t *testing.T) {
+ 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
+ 				if err == nil {
+-					list, err = Req(m(kf[1]), list, nil, reqs)
++					// Copy the reqs map, but substitute the upgraded requirements in
++					// place of the target's original requirements.
++					upReqs := make(reqsMap, len(reqs))
++					for m, r := range reqs {
++						upReqs[m] = r
++					}
++					upReqs[m(kf[1])] = list
++
++					list, err = Req(m(kf[1]), nil, upReqs)
+ 				}
+ 				checkList(t, key, list, err, val)
+ 			})
+@@ -418,11 +440,7 @@ func Test(t *testing.T) {
+ 				t.Fatalf("req takes at least one argument: %q", line)
+ 			}
+ 			fns = append(fns, func(t *testing.T) {
+-				list, err := BuildList(m(kf[1]), reqs)
+-				if err != nil {
+-					t.Fatal(err)
+-				}
+-				list, err = Req(m(kf[1]), list, kf[2:], reqs)
++				list, err := Req(m(kf[1]), kf[2:], reqs)
+ 				checkList(t, key, list, err, val)
+ 			})
+ 			continue
+diff --git a/src/cmd/go/testdata/script/mod_tidy_cycle.txt b/src/cmd/go/testdata/script/mod_tidy_cycle.txt
+new file mode 100644
+index 0000000000..e46f37d7fa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_cycle.txt
+@@ -0,0 +1,75 @@
++# Regression test for https://golang.org/issue/34086:
++# 'go mod tidy' produced different go.mod file from other
++# subcommands when certain kinds of cycles were present
++# in the build graph.
++
++env GO111MODULE=on
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod go.mod.orig
++
++# If the go.mod file is already tidy, 'go mod graph' should not modify it.
++go mod graph
++cmp go.mod go.mod.orig
++
++-- go.mod --
++module root
++
++go 1.13
++
++replace (
++	a v0.1.0 => ./a1
++	b v0.1.0 => ./b1
++	b v0.2.0 => ./b2
++	c v0.1.0 => ./c1
++	c v0.2.0 => ./c2
++)
++
++require (
++	a v0.1.0
++	b v0.2.0 // indirect
++)
++-- main.go --
++package main
++
++import _ "a"
++
++func main() {}
++
++-- a1/go.mod --
++module a
++
++go 1.13
++
++require b v0.1.0
++-- a1/a.go --
++package a
++
++import _ "c"
++-- b1/go.mod --
++module b
++
++go 1.13
++
++require c v0.1.0
++-- b2/go.mod --
++module b
++
++go 1.13
++
++require c v0.2.0
++-- c1/go.mod --
++module c
++
++go 1.13
++-- c2/c.go --
++package c
++-- c2/go.mod --
++module c
++
++go 1.13
++
++require b v0.2.0
++-- c2/c.go --
++package c

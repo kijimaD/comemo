@@ -9,6 +9,29 @@ Date:   Tue Apr 2 15:08:28 2013 +1100
     R=golang-dev, dvyukov, r, minux.ma, adg, bradfitz, adg
     CC=golang-dev
     https://golang.org/cl/8152043
-
+---
  doc/go1.1.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 6d9256c0c6..dcbd5e7872 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -352,6 +352,17 @@ To update pre-Go 1 code to Go 1.1, use a Go 1.0 tool chain
+ to convert the code to Go 1.0 first.
+ </p>
+ 
++<h3 id="platforms">Additional platforms</h3>
++
++<p>
++The Go 1.1 tool chain adds experimental support for <code>freebsd/arm</code>,
++<code>netbsd/386</code>, <code>netbsd/amd64</code>, <code>netbsd/arm</code>, 
++<code>openbsd/386</code> and <code>openbsd/amd64</code> platforms.
++<code>freebsd/arm</code> and <code>netbsd/arm</code> require an ARMv6 or
++better processor. Go 1.1 adds experimental support for <code>cgo</code> on
++<code>linux/arm</code>.
++</p>
++
+ <h2 id="performance">Performance</h2>
+ 
+ <p>

@@ -21,8 +21,145 @@ Date:   Sun Jun 5 17:28:28 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/26766
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 21 ++++++++++++
  src/cmd/compile/internal/gc/swt.go   | 64 ++++++++++++++++++++++++++++--------
  test/switch5.go                      | 11 +++++++
  3 files changed, 82 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 4b4cffdc06..078e991758 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -89,6 +89,27 @@ func eqval(a, b Val) bool {
+ 	}
+ }
+ 
++// Interface returns the constant value stored in v as an interface{}.
++// It returns int64s for ints and runes, float64s for floats,
++// complex128s for complex values, and nil for constant nils.
++func (v Val) Interface() interface{} {
++	switch x := v.U.(type) {
++	default:
++		Fatalf("unexpected Interface for %T", v.U)
++		panic("not reached")
++	case *NilVal:
++		return nil
++	case bool, string:
++		return x
++	case *Mpint:
++		return x.Int64()
++	case *Mpflt:
++		return x.Float64()
++	case *Mpcplx:
++		return complex(x.Real.Float64(), x.Imag.Float64())
++	}
++}
++
+ type NilVal struct{}
+ 
+ // IntLiteral returns the Node's literal value as an integer.
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 5c756dfa81..c053099681 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -517,17 +517,59 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
+ 	if len(cc) < 2 {
+ 		return
+ 	}
+-	sort.Sort(caseClauseByExpr(cc))
+-	for i, c1 := range cc[:len(cc)-1] {
+-		c2 := cc[i+1]
+-		if exprcmp(c1, c2) != 0 {
++	// The common case is that s's expression is not an interface.
++	// In that case, all constant clauses have the same type,
++	// so checking for duplicates can be done solely by value.
++	if !s.exprname.Type.IsInterface() {
++		seen := make(map[interface{}]*Node)
++		for _, c := range cc {
++			// Can't check for duplicates that aren't constants, per the spec. Issue 15896.
++			// Don't check for duplicate bools. Although the spec allows it,
++			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
++			// (2) it would disallow useful things like
++			//       case GOARCH == "arm" && GOARM == "5":
++			//       case GOARCH == "arm":
++			//     which would both evaluate to false for non-ARM compiles.
++			if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
++				continue
++			}
++			val := c.node.Left.Val().Interface()
++			prev, dup := seen[val]
++			if !dup {
++				seen[val] = c.node
++				continue
++			}
++			setlineno(c.node)
++			Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
++		}
++		return
++	}
++	// s's expression is an interface. This is fairly rare, so keep this simple.
++	// Duplicates are only duplicates if they have the same type and the same value.
++	type typeVal struct {
++		typ string
++		val interface{}
++	}
++	seen := make(map[typeVal]*Node)
++	for _, c := range cc {
++		if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
++			continue
++		}
++		n := c.node.Left
++		tv := typeVal{
++			// Tconv here serves to completely describe the type.
++			// See the comments in func typehash.
++			typ: Tconv(n.Type, FmtLeft|FmtUnsigned),
++			val: n.Val().Interface(),
++		}
++		prev, dup := seen[tv]
++		if !dup {
++			seen[tv] = c.node
+ 			continue
+ 		}
+-		setlineno(c2.node)
+-		Yyerror("duplicate case %v in switch\n\tprevious case at %v", c1.node.Left, c1.node.Line())
++		setlineno(c.node)
++		Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+ 	}
+-	// put list back in processing order
+-	sort.Sort(caseClauseByOrd(cc))
+ }
+ 
+ // walk generates an AST that implements sw,
+@@ -736,12 +778,6 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
+ 	return a
+ }
+ 
+-type caseClauseByOrd []caseClause
+-
+-func (x caseClauseByOrd) Len() int           { return len(x) }
+-func (x caseClauseByOrd) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x caseClauseByOrd) Less(i, j int) bool { return x[i].ordinal < x[j].ordinal }
+-
+ type caseClauseByExpr []caseClause
+ 
+ func (x caseClauseByExpr) Len() int      { return len(x) }
+diff --git a/test/switch5.go b/test/switch5.go
+index bb0f5e33ad..54a11b5c9a 100644
+--- a/test/switch5.go
++++ b/test/switch5.go
+@@ -79,3 +79,14 @@ func f5(a [1]int) {
+ 	case [1]int{0}: // OK -- see issue 15896
+ 	}
+ }
++
++// Ensure duplicate const bool clauses are accepted.
++func f6() int {
++	switch {
++	case 0 == 0:
++		return 0
++	case 1 == 1: // Intentionally OK, even though a duplicate of the above const true
++		return 1
++	}
++	return 2
++}

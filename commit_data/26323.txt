@@ -12,6 +12,24 @@ Date:   Sat Jan 9 19:10:33 2016 -0800
     Change-Id: I2daa08a62775bbc209f0f4cbeae21b8184ce7609
     Reviewed-on: https://go-review.googlesource.com/18481
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.6.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 7fdf17c0fa..c88271bdcc 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -514,6 +514,12 @@ now report
+ <a href="/pkg/io/#EOF"><code>io.EOF</code></a>.
+ </li>
+ 
++<li>
++The <a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a> package now
++overwrites the destination buffer in the event of a GCM decryption failure.
++This is to allow the AESNI code to avoid using a temporary buffer.
++</li>
++
+ <li>
+ The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
+ has a variety of minor changes.

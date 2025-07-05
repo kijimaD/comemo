@@ -201,9 +201,506 @@ Date:   Wed Sep 28 14:07:48 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5119041
-
+---
  src/pkg/exp/template/html/attr.go        | 331 +++++++++++++++----------------
  src/pkg/exp/template/html/escape_test.go |  60 ++++++
  src/pkg/exp/template/html/html.go        |   2 +-
  src/pkg/exp/template/html/transition.go  |  37 ++--
  4 files changed, 247 insertions(+), 183 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/attr.go b/src/pkg/exp/template/html/attr.go
+index cc57f8bd8a..6a36c7b718 100644
+--- a/src/pkg/exp/template/html/attr.go
++++ b/src/pkg/exp/template/html/attr.go
+@@ -4,181 +4,172 @@
+ 
+ package html
+ 
+-// attrType[n] describes the value of the given attribute.
++import (
++	"strings"
++)
++
++// attrTypeMap[n] describes the value of the given attribute.
+ // If an attribute affects (or can mask) the encoding or interpretation of
+ // other content, or affects the contents, idempotency, or credentials of a
+ // network message, then the value in this map is contentTypeUnsafe.
+ // This map is derived from HTML5, specifically
+-// http://www.w3.org/TR/html5/Overview.html#attributes-1 and
+-// http://www.w3.org/TR/html5/Overview.html#event-handlers-on-elements-document-objects-and-window-objects
++// http://www.w3.org/TR/html5/Overview.html#attributes-1
+ // as well as "%URI"-typed attributes from
+ // http://www.w3.org/TR/html4/index/attributes.html
+-var attrType = map[string]contentType{
+-	"accept":             contentTypePlain,
+-	"accept-charset":     contentTypeUnsafe,
+-	"action":             contentTypeURL,
+-	"alt":                contentTypePlain,
+-	"archive":            contentTypeURL,
+-	"async":              contentTypeUnsafe,
+-	"autocomplete":       contentTypePlain,
+-	"autofocus":          contentTypePlain,
+-	"autoplay":           contentTypePlain,
+-	"background":         contentTypeURL,
+-	"border":             contentTypePlain,
+-	"checked":            contentTypePlain,
+-	"cite":               contentTypeURL,
+-	"challenge":          contentTypeUnsafe,
+-	"charset":            contentTypeUnsafe,
+-	"class":              contentTypePlain,
+-	"classid":            contentTypeURL,
+-	"codebase":           contentTypeURL,
+-	"cols":               contentTypePlain,
+-	"colspan":            contentTypePlain,
+-	"content":            contentTypeUnsafe,
+-	"contenteditable":    contentTypePlain,
+-	"contextmenu":        contentTypePlain,
+-	"controls":           contentTypePlain,
+-	"coords":             contentTypePlain,
+-	"crossorigin":        contentTypeUnsafe,
+-	"data":               contentTypeURL,
+-	"datetime":           contentTypePlain,
+-	"default":            contentTypePlain,
+-	"defer":              contentTypeUnsafe,
+-	"dir":                contentTypePlain,
+-	"dirname":            contentTypePlain,
+-	"disabled":           contentTypePlain,
+-	"draggable":          contentTypePlain,
+-	"dropzone":           contentTypePlain,
+-	"enctype":            contentTypeUnsafe,
+-	"for":                contentTypePlain,
+-	"form":               contentTypeUnsafe,
+-	"formaction":         contentTypeURL,
+-	"formenctype":        contentTypeUnsafe,
+-	"formmethod":         contentTypeUnsafe,
+-	"formnovalidate":     contentTypeUnsafe,
+-	"formtarget":         contentTypePlain,
+-	"headers":            contentTypePlain,
+-	"height":             contentTypePlain,
+-	"hidden":             contentTypePlain,
+-	"high":               contentTypePlain,
+-	"href":               contentTypeURL,
+-	"hreflang":           contentTypePlain,
+-	"http-equiv":         contentTypeUnsafe,
+-	"icon":               contentTypeURL,
+-	"id":                 contentTypePlain,
+-	"ismap":              contentTypePlain,
+-	"keytype":            contentTypeUnsafe,
+-	"kind":               contentTypePlain,
+-	"label":              contentTypePlain,
+-	"lang":               contentTypePlain,
+-	"language":           contentTypeUnsafe,
+-	"list":               contentTypePlain,
+-	"longdesc":           contentTypeURL,
+-	"loop":               contentTypePlain,
+-	"low":                contentTypePlain,
+-	"manifest":           contentTypeURL,
+-	"max":                contentTypePlain,
+-	"maxlength":          contentTypePlain,
+-	"media":              contentTypePlain,
+-	"mediagroup":         contentTypePlain,
+-	"method":             contentTypeUnsafe,
+-	"min":                contentTypePlain,
+-	"multiple":           contentTypePlain,
+-	"name":               contentTypePlain,
+-	"novalidate":         contentTypeUnsafe,
+-	"onabort":            contentTypeJS,
+-	"onblur":             contentTypeJS,
+-	"oncanplay":          contentTypeJS,
+-	"oncanplaythrough":   contentTypeJS,
+-	"onchange":           contentTypeJS,
+-	"onclick":            contentTypeJS,
+-	"oncontextmenu":      contentTypeJS,
+-	"oncuechange":        contentTypeJS,
+-	"ondblclick":         contentTypeJS,
+-	"ondrag":             contentTypeJS,
+-	"ondragend":          contentTypeJS,
+-	"ondragenter":        contentTypeJS,
+-	"ondragleave":        contentTypeJS,
+-	"ondragover":         contentTypeJS,
+-	"ondragstart":        contentTypeJS,
+-	"ondrop":             contentTypeJS,
+-	"ondurationchange":   contentTypeJS,
+-	"onemptied":          contentTypeJS,
+-	"onended":            contentTypeJS,
+-	"onerror":            contentTypeJS,
+-	"onfocus":            contentTypeJS,
+-	"oninput":            contentTypeJS,
+-	"oninvalid":          contentTypeJS,
+-	"onkeydown":          contentTypeJS,
+-	"onkeypress":         contentTypeJS,
+-	"onkeyup":            contentTypeJS,
+-	"onload":             contentTypeJS,
+-	"onloadeddata":       contentTypeJS,
+-	"onloadedmetadata":   contentTypeJS,
+-	"onloadstart":        contentTypeJS,
+-	"onmousedown":        contentTypeJS,
+-	"onmousemove":        contentTypeJS,
+-	"onmouseout":         contentTypeJS,
+-	"onmouseover":        contentTypeJS,
+-	"onmouseup":          contentTypeJS,
+-	"onmousewheel":       contentTypeJS,
+-	"onpause":            contentTypeJS,
+-	"onplay":             contentTypeJS,
+-	"onplaying":          contentTypeJS,
+-	"onprogress":         contentTypeJS,
+-	"onratechange":       contentTypeJS,
+-	"onreadystatechange": contentTypeJS,
+-	"onreset":            contentTypeJS,
+-	"onscroll":           contentTypeJS,
+-	"onseeked":           contentTypeJS,
+-	"onseeking":          contentTypeJS,
+-	"onselect":           contentTypeJS,
+-	"onshow":             contentTypeJS,
+-	"onstalled":          contentTypeJS,
+-	"onsubmit":           contentTypeJS,
+-	"onsuspend":          contentTypeJS,
+-	"ontimeupdate":       contentTypeJS,
+-	"onvolumechange":     contentTypeJS,
+-	"onwaiting":          contentTypeJS,
+-	"open":               contentTypePlain,
+-	"optimum":            contentTypePlain,
+-	"pattern":            contentTypeUnsafe,
+-	"placeholder":        contentTypePlain,
+-	"poster":             contentTypeURL,
+-	"profile":            contentTypeURL,
+-	"preload":            contentTypePlain,
+-	"pubdate":            contentTypePlain,
+-	"radiogroup":         contentTypePlain,
+-	"readonly":           contentTypePlain,
+-	"rel":                contentTypeUnsafe,
+-	"required":           contentTypePlain,
+-	"reversed":           contentTypePlain,
+-	"rows":               contentTypePlain,
+-	"rowspan":            contentTypePlain,
+-	"sandbox":            contentTypeUnsafe,
+-	"spellcheck":         contentTypePlain,
+-	"scope":              contentTypePlain,
+-	"scoped":             contentTypePlain,
+-	"seamless":           contentTypePlain,
+-	"selected":           contentTypePlain,
+-	"shape":              contentTypePlain,
+-	"size":               contentTypePlain,
+-	"sizes":              contentTypePlain,
+-	"span":               contentTypePlain,
+-	"src":                contentTypeURL,
+-	"srcdoc":             contentTypeHTML,
+-	"srclang":            contentTypePlain,
+-	"start":              contentTypePlain,
+-	"step":               contentTypePlain,
+-	"style":              contentTypeCSS,
+-	"tabindex":           contentTypePlain,
+-	"target":             contentTypePlain,
+-	"title":              contentTypePlain,
+-	"type":               contentTypeUnsafe,
+-	"usemap":             contentTypeURL,
+-	"value":              contentTypeUnsafe,
+-	"width":              contentTypePlain,
+-	"wrap":               contentTypePlain,
++var attrTypeMap = map[string]contentType{
++	"accept":          contentTypePlain,
++	"accept-charset":  contentTypeUnsafe,
++	"action":          contentTypeURL,
++	"alt":             contentTypePlain,
++	"archive":         contentTypeURL,
++	"async":           contentTypeUnsafe,
++	"autocomplete":    contentTypePlain,
++	"autofocus":       contentTypePlain,
++	"autoplay":        contentTypePlain,
++	"background":      contentTypeURL,
++	"border":          contentTypePlain,
++	"checked":         contentTypePlain,
++	"cite":            contentTypeURL,
++	"challenge":       contentTypeUnsafe,
++	"charset":         contentTypeUnsafe,
++	"class":           contentTypePlain,
++	"classid":         contentTypeURL,
++	"codebase":        contentTypeURL,
++	"cols":            contentTypePlain,
++	"colspan":         contentTypePlain,
++	"content":         contentTypeUnsafe,
++	"contenteditable": contentTypePlain,
++	"contextmenu":     contentTypePlain,
++	"controls":        contentTypePlain,
++	"coords":          contentTypePlain,
++	"crossorigin":     contentTypeUnsafe,
++	"data":            contentTypeURL,
++	"datetime":        contentTypePlain,
++	"default":         contentTypePlain,
++	"defer":           contentTypeUnsafe,
++	"dir":             contentTypePlain,
++	"dirname":         contentTypePlain,
++	"disabled":        contentTypePlain,
++	"draggable":       contentTypePlain,
++	"dropzone":        contentTypePlain,
++	"enctype":         contentTypeUnsafe,
++	"for":             contentTypePlain,
++	"form":            contentTypeUnsafe,
++	"formaction":      contentTypeURL,
++	"formenctype":     contentTypeUnsafe,
++	"formmethod":      contentTypeUnsafe,
++	"formnovalidate":  contentTypeUnsafe,
++	"formtarget":      contentTypePlain,
++	"headers":         contentTypePlain,
++	"height":          contentTypePlain,
++	"hidden":          contentTypePlain,
++	"high":            contentTypePlain,
++	"href":            contentTypeURL,
++	"hreflang":        contentTypePlain,
++	"http-equiv":      contentTypeUnsafe,
++	"icon":            contentTypeURL,
++	"id":              contentTypePlain,
++	"ismap":           contentTypePlain,
++	"keytype":         contentTypeUnsafe,
++	"kind":            contentTypePlain,
++	"label":           contentTypePlain,
++	"lang":            contentTypePlain,
++	"language":        contentTypeUnsafe,
++	"list":            contentTypePlain,
++	"longdesc":        contentTypeURL,
++	"loop":            contentTypePlain,
++	"low":             contentTypePlain,
++	"manifest":        contentTypeURL,
++	"max":             contentTypePlain,
++	"maxlength":       contentTypePlain,
++	"media":           contentTypePlain,
++	"mediagroup":      contentTypePlain,
++	"method":          contentTypeUnsafe,
++	"min":             contentTypePlain,
++	"multiple":        contentTypePlain,
++	"name":            contentTypePlain,
++	"novalidate":      contentTypeUnsafe,
++	// Skip handler names from
++	// http://www.w3.org/TR/html5/Overview.html#event-handlers-on-elements-document-objects-and-window-objects
++	// since we have special handling in attrType.
++	"open":        contentTypePlain,
++	"optimum":     contentTypePlain,
++	"pattern":     contentTypeUnsafe,
++	"placeholder": contentTypePlain,
++	"poster":      contentTypeURL,
++	"profile":     contentTypeURL,
++	"preload":     contentTypePlain,
++	"pubdate":     contentTypePlain,
++	"radiogroup":  contentTypePlain,
++	"readonly":    contentTypePlain,
++	"rel":         contentTypeUnsafe,
++	"required":    contentTypePlain,
++	"reversed":    contentTypePlain,
++	"rows":        contentTypePlain,
++	"rowspan":     contentTypePlain,
++	"sandbox":     contentTypeUnsafe,
++	"spellcheck":  contentTypePlain,
++	"scope":       contentTypePlain,
++	"scoped":      contentTypePlain,
++	"seamless":    contentTypePlain,
++	"selected":    contentTypePlain,
++	"shape":       contentTypePlain,
++	"size":        contentTypePlain,
++	"sizes":       contentTypePlain,
++	"span":        contentTypePlain,
++	"src":         contentTypeURL,
++	"srcdoc":      contentTypeHTML,
++	"srclang":     contentTypePlain,
++	"start":       contentTypePlain,
++	"step":        contentTypePlain,
++	"style":       contentTypeCSS,
++	"tabindex":    contentTypePlain,
++	"target":      contentTypePlain,
++	"title":       contentTypePlain,
++	"type":        contentTypeUnsafe,
++	"usemap":      contentTypeURL,
++	"value":       contentTypeUnsafe,
++	"width":       contentTypePlain,
++	"wrap":        contentTypePlain,
++	"xmlns":       contentTypeURL,
++}
++
++// attrType returns a conservative (upper-bound on authority) guess at the
++// type of the named attribute.
++func attrType(name string) contentType {
++	name = strings.ToLower(name)
++	if strings.HasPrefix(name, "data-") {
++		// Strip data- so that custom attribute heuristics below are
++		// widely applied.
++		// Treat data-action as URL below.
++		name = name[5:]
++	} else if colon := strings.IndexRune(name, ':'); colon != -1 {
++		if name[:colon] == "xmlns" {
++			return contentTypeURL
++		}
++		// Treat svg:href and xlink:href as href below.
++		name = name[colon+1:]
++	}
++	if t, ok := attrTypeMap[name]; ok {
++		return t
++	}
++	// Treat partial event handler names as script.
++	if strings.HasPrefix(name, "on") {
++		return contentTypeJS
++	}
+ 
+-	// TODO: data-* attrs?  Recognize data-foo-url and similar.
++	// Heuristics to prevent "javascript:..." injection in custom
++	// data attributes and custom attributes like g:tweetUrl.
++	// http://www.w3.org/TR/html5/elements.html#embedding-custom-non-visible-data-with-the-data-attributes:
++	// "Custom data attributes are intended to store custom data
++	//  private to the page or application, for which there are no
++	//  more appropriate attributes or elements."
++	// Developers seem to store URL content in data URLs that start
++	// or end with "URI" or "URL".
++	if strings.Contains(name, "src") ||
++		strings.Contains(name, "uri") ||
++		strings.Contains(name, "url") {
++		return contentTypeURL
++	}
++	return contentTypePlain
+ }
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 0ca3c56619..169cb76267 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -1400,6 +1400,66 @@ func TestEscapeText(t *testing.T) {
+ 			`<style>value`,
+ 			context{state: stateCSS, element: elementStyle},
+ 		},
++		{
++			`<a xlink:href`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a xmlns`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a xmlns:foo`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a xmlnsxyz`,
++			context{state: stateAttrName},
++		},
++		{
++			`<a data-url`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a data-iconUri`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a data-urlItem`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a g:`,
++			context{state: stateAttrName},
++		},
++		{
++			`<a g:url`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a g:iconUri`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a g:urlItem`,
++			context{state: stateAttrName, attr: attrURL},
++		},
++		{
++			`<a g:value`,
++			context{state: stateAttrName},
++		},
++		{
++			`<a svg:style='`,
++			context{state: stateCSS, delim: delimSingleQuote},
++		},
++		{
++			`<svg:font-face`,
++			context{state: stateTag},
++		},
++		{
++			`<svg:a svg:onclick="`,
++			context{state: stateJS, delim: delimDoubleQuote},
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/pkg/exp/template/html/html.go b/src/pkg/exp/template/html/html.go
+index 6ef66dd6c3..91bb1b1704 100644
+--- a/src/pkg/exp/template/html/html.go
++++ b/src/pkg/exp/template/html/html.go
+@@ -230,7 +230,7 @@ func htmlNameFilter(args ...interface{}) string {
+ 		return filterFailsafe
+ 	}
+ 	s = strings.ToLower(s)
+-	if t := attrType[s]; t != contentTypePlain && attrType["on"+s] != contentTypeJS {
++	if t := attrType(s); t != contentTypePlain {
+ 		// TODO: Split attr and element name part filters so we can whitelist
+ 		// attributes.
+ 		return filterFailsafe
+diff --git a/src/pkg/exp/template/html/transition.go b/src/pkg/exp/template/html/transition.go
+index d3c8a05291..49a1451174 100644
+--- a/src/pkg/exp/template/html/transition.go
++++ b/src/pkg/exp/template/html/transition.go
+@@ -106,18 +106,13 @@ func tTag(c context, s []byte) (context, int) {
+ 			err:   errorf(ErrBadHTML, 0, "expected space, attr name, or end of tag, but got %q", s[i:]),
+ 		}, len(s)
+ 	}
+-	canonAttrName := strings.ToLower(string(s[i:j]))
+-	switch attrType[canonAttrName] {
++	switch attrType(string(s[i:j])) {
+ 	case contentTypeURL:
+ 		attr = attrURL
+ 	case contentTypeCSS:
+ 		attr = attrStyle
+ 	case contentTypeJS:
+ 		attr = attrScript
+-	default:
+-		if strings.HasPrefix(canonAttrName, "on") {
+-			attr = attrScript
+-		}
+ 	}
+ 	if j == len(s) {
+ 		state = stateAttrName
+@@ -512,16 +507,34 @@ var elementNameMap = map[string]element{
+ 	"title":    elementTitle,
+ }
+ 
++// asciiAlpha returns whether c is an ASCII letter.
++func asciiAlpha(c byte) bool {
++	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
++}
++
++// asciiAlphaNum returns whether c is an ASCII letter or digit.
++func asciiAlphaNum(c byte) bool {
++	return asciiAlpha(c) || '0' <= c && c <= '9'
++}
++
+ // eatTagName returns the largest j such that s[i:j] is a tag name and the tag type.
+ func eatTagName(s []byte, i int) (int, element) {
+-	j := i
+-	for ; j < len(s); j++ {
++	if i == len(s) || !asciiAlpha(s[i]) {
++		return i, elementNone
++	}
++	j := i + 1
++	for j < len(s) {
+ 		x := s[j]
+-		if !(('a' <= x && x <= 'z') ||
+-			('A' <= x && x <= 'Z') ||
+-			('0' <= x && x <= '9' && i != j)) {
+-			break
++		if asciiAlphaNum(x) {
++			j++
++			continue
++		}
++		// Allow "x-y" or "x:y" but not "x-", "-y", or "x--y".
++		if (x == ':' || x == '-') && j+1 < len(s) && asciiAlphaNum(s[j+1]) {
++			j += 2
++			continue
+ 		}
++		break
+ 	}
+ 	return j, elementNameMap[strings.ToLower(string(s[i:j]))]
+ }

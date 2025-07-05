@@ -8,6 +8,20 @@ Date:   Thu Sep 25 17:07:24 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=15906
     CL=15909
-
+---
  src/cmd/prof/main.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index a268edc65e..c90bf85aed 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -31,7 +31,7 @@ int registers;	// print registers
+ int stacks;		// print stack traces
+ 
+ void
+-Usage()
++Usage(void)
+ {
+ 	fprint(2, "Usage: prof -p pid [-t total_secs] [-d delta_msec] [6.out]\n");
+ 	fprint(2, "\tformats (default -h):\n");

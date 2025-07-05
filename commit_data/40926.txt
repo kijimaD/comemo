@@ -11,6 +11,28 @@ Date:   Fri Aug 23 15:24:26 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/README.vendor | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/README.vendor b/src/README.vendor
+index c80265344e..e74fc2f316 100644
+--- a/src/README.vendor
++++ b/src/README.vendor
+@@ -41,13 +41,13 @@ The vendor directory may be updated with 'go mod vendor'.
+ A typical sequence might be:
+ 
+     cd src
+-    go get -m golang.org/x/net@latest
++    go get -d golang.org/x/net@latest
+     go mod tidy
+     go mod vendor
+ 
+ Use caution when passing '-u' to 'go get'. The '-u' flag updates
+-modules providing all transitively imported packages, not just
+-the target module.
++modules providing all transitively imported packages, not only
++the module providing the target package.
+ 
+ Note that 'go mod vendor' only copies packages that are transitively
+ imported by packages in the current module. If a new package is needed,

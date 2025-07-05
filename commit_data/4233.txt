@@ -8,6 +8,23 @@ Date:   Sun Nov 29 20:30:02 2009 -0800
     
     R=r, ukai, sergio
     https://golang.org/cl/162057
-
+---
  src/pkg/websocket/Makefile | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/websocket/Makefile b/src/pkg/websocket/Makefile
+index ba1b7265d2..145d8f4291 100644
+--- a/src/pkg/websocket/Makefile
++++ b/src/pkg/websocket/Makefile
+@@ -1,4 +1,4 @@
+-include $(GOROOT)/src/Make.$(GOARCH)
++include ../../Make.$(GOARCH)
+ 
+ TARG=websocket
+ GOFILES=\
+@@ -6,4 +6,4 @@ GOFILES=\
+ 	server.go\
+ 	websocket.go\
+ 
+-include $(GOROOT)/src/Make.pkg
++include ../../Make.pkg

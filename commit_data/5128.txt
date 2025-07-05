@@ -7,6 +7,20 @@ Date:   Wed Mar 24 19:52:07 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/725042
-
+---
  test/mallocfin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index 918b806337..da3253a04f 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -54,7 +54,7 @@ func main() {
+ 		runtime.GC()
+ 		runtime.Gosched()
+ 	}
+-	if nfinal < N*9/10 {
++	if nfinal < N*8/10 {
+ 		panic("not enough finalizing:", nfinal, "/", N)
+ 	}
+ }

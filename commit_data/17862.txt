@@ -30,8 +30,109 @@ Date:   Thu Oct 31 18:15:55 2013 +0000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/19910044
-
+---
  src/cmd/5l/noop.c                   | 23 ++++++++++++++++++-----
  src/pkg/runtime/pprof/pprof_test.go | 25 +++++++++++++++++++++++++
  src/pkg/runtime/traceback_arm.c     |  2 +-
  3 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index fb70599b51..305ed684ee 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -472,14 +472,27 @@ noops(void)
+ 				p->to.reg = REGSP;
+ 				p->spadj = -8;
+ 	
+-				/* SUB $8,SP */
+-				q1->as = ASUB;
+-				q1->from.type = D_CONST;
+-				q1->from.offset = 8;
+-				q1->from.reg = NREG;
++				/* Keep saved LR at 0(SP) after SP change. */
++				/* MOVW 0(SP), REGTMP; MOVW REGTMP, -8!(SP) */
++				/* TODO: Remove SP adjustments; see issue 6699. */
++				q1->as = AMOVW;
++				q1->from.type = D_OREG;
++				q1->from.reg = REGSP;
++				q1->from.offset = 0;
+ 				q1->reg = NREG;
+ 				q1->to.type = D_REG;
++				q1->to.reg = REGTMP;
++
++				/* SUB $8,SP */
++				q1 = appendp(q1);
++				q1->as = AMOVW;
++				q1->from.type = D_REG;
++				q1->from.reg = REGTMP;
++				q1->reg = NREG;
++				q1->to.type = D_OREG;
+ 				q1->to.reg = REGSP;
++				q1->to.offset = -8;
++				q1->scond |= C_WBIT;
+ 				q1->spadj = 8;
+ 	
+ 				break;
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index f1fc5faec6..eb76b93c44 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"hash/crc32"
++	"math/big"
+ 	"os/exec"
+ 	"regexp"
+ 	"runtime"
+@@ -123,6 +124,10 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
+ 		}
+ 	})
+ 
++	if len(need) == 0 {
++		return
++	}
++
+ 	var total uintptr
+ 	for i, name := range need {
+ 		total += have[i]
+@@ -237,6 +242,26 @@ func TestGoroutineSwitch(t *testing.T) {
+ 	}
+ }
+ 
++// Test that profiling of division operations is okay, especially on ARM. See issue 6681.
++func TestMathBigDivide(t *testing.T) {
++	testCPUProfile(t, nil, func() {
++		t := time.After(5 * time.Second)
++		pi := new(big.Int)
++		for {
++			for i := 0; i < 100; i++ {
++				n := big.NewInt(2646693125139304345)
++				d := big.NewInt(842468587426513207)
++				pi.Div(n, d)
++			}
++			select {
++			case <-t:
++				return
++			default:
++			}
++		}
++	})
++}
++
+ // Operating systems that are expected to fail the tests. See issue 6047.
+ var badOS = map[string]bool{
+ 	"darwin":  true,
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 02586f036b..341aa20588 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -84,7 +84,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.lr = 0;
+ 			flr = nil;
+ 		} else {
+-			if(frame.lr == 0)
++			if((n == 0 && frame.sp < frame.fp) || frame.lr == 0)
+ 				frame.lr = *(uintptr*)frame.sp;
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {

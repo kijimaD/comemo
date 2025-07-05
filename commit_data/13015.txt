@@ -7,10 +7,71 @@ Date:   Thu May 3 09:22:45 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6177043
-
+---
  misc/dashboard/codereview/dashboard/cl.go     | 4 ++++
  misc/dashboard/codereview/dashboard/front.go  | 4 ++++
  misc/dashboard/codereview/dashboard/gc.go     | 4 ++++
  misc/dashboard/codereview/dashboard/mail.go   | 4 ++++
  misc/dashboard/codereview/dashboard/people.go | 4 ++++
  5 files changed, 20 insertions(+)
+
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index 13ff8f645c..669c49cdb5 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package dashboard
+ 
+ // This file handles operations on the CL entity kind.
+diff --git a/misc/dashboard/codereview/dashboard/front.go b/misc/dashboard/codereview/dashboard/front.go
+index 475a663516..21d4d3cda9 100644
+--- a/misc/dashboard/codereview/dashboard/front.go
++++ b/misc/dashboard/codereview/dashboard/front.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package dashboard
+ 
+ // This file handles the front page.
+diff --git a/misc/dashboard/codereview/dashboard/gc.go b/misc/dashboard/codereview/dashboard/gc.go
+index d196ac9c57..a80b375f6a 100644
+--- a/misc/dashboard/codereview/dashboard/gc.go
++++ b/misc/dashboard/codereview/dashboard/gc.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package dashboard
+ 
+ // This file handles garbage collection of old CLs.
+diff --git a/misc/dashboard/codereview/dashboard/mail.go b/misc/dashboard/codereview/dashboard/mail.go
+index 7d91078443..838d082228 100644
+--- a/misc/dashboard/codereview/dashboard/mail.go
++++ b/misc/dashboard/codereview/dashboard/mail.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package dashboard
+ 
+ // This file handles receiving mail.
+diff --git a/misc/dashboard/codereview/dashboard/people.go b/misc/dashboard/codereview/dashboard/people.go
+index d4a8a8aa58..779889a9e6 100644
+--- a/misc/dashboard/codereview/dashboard/people.go
++++ b/misc/dashboard/codereview/dashboard/people.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package dashboard
+ 
+ // This file handles identities of people.

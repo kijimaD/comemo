@@ -16,7 +16,7 @@ Date:   Tue Mar 12 10:47:44 2013 -0700
     R=rsc, r, bradfitz, remyoudompheng, khr, dsymonds, minux.ma, elias.naur
     CC=golang-dev
     https://golang.org/cl/7543043
-
+---
  src/pkg/runtime/alg.c               |  35 +++++
  src/pkg/runtime/asm_386.s           | 270 ++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/asm_amd64.s         | 174 +++++++++++++++++++++++
@@ -41,3 +41,1242 @@ Date:   Tue Mar 12 10:47:44 2013 -0700
  src/pkg/runtime/thread_windows.c    |  24 ++++
  src/pkg/runtime/vdso_linux_amd64.c  |  10 +-
  23 files changed, 891 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.c b/src/pkg/runtime/alg.c
+index ad85b43aef..124723333f 100644
+--- a/src/pkg/runtime/alg.c
++++ b/src/pkg/runtime/alg.c
+@@ -467,6 +467,41 @@ runtime·algarray[] =
+ 
+ // Runtime helpers.
+ 
++// used in asm_{386,amd64}.s
++byte runtime·aeskeysched[HashRandomBytes];
++
++void
++runtime·hashinit(void)
++{
++	// Install aes hash algorithm if we have the instructions we need
++	if((runtime·cpuid_ecx & (1 << 25)) != 0 &&  // aes (aesenc)
++	   (runtime·cpuid_ecx & (1 << 9)) != 0 &&   // sse3 (pshufb)
++	   (runtime·cpuid_ecx & (1 << 19)) != 0) {  // sse4.1 (pinsr{d,q})
++		byte *rnd;
++		int32 n;
++		runtime·algarray[AMEM].hash = runtime·aeshash;
++		runtime·algarray[AMEM8].hash = runtime·aeshash;
++		runtime·algarray[AMEM16].hash = runtime·aeshash;
++		runtime·algarray[AMEM32].hash = runtime·aeshash32;
++		runtime·algarray[AMEM64].hash = runtime·aeshash64;
++		runtime·algarray[AMEM128].hash = runtime·aeshash;
++		runtime·algarray[ASTRING].hash = runtime·aeshashstr;
++
++		// Initialize with random data so hash collisions will be hard to engineer.
++		runtime·get_random_data(&rnd, &n);
++		if(n > HashRandomBytes)
++			n = HashRandomBytes;
++		runtime·memmove(runtime·aeskeysched, rnd, n);
++		if(n < HashRandomBytes) {
++			// Not very random, but better than nothing.
++			int64 t = runtime·nanotime();
++			while (n < HashRandomBytes) {
++				runtime·aeskeysched[n++] = (int8)(t >> (8 * (n % 8)));
++			}
++		}
++	}
++}
++
+ // func equal(t *Type, x T, y T) (ret bool)
+ #pragma textflag 7
+ void
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 15f1ce804f..10f655bfe2 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -20,6 +20,17 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	BX, g_stackguard(BP)
+ 	MOVL	SP, g_stackbase(BP)
+ 	
++	// find out information about the processor we're on
++	MOVL	$0, AX
++	CPUID
++	CMPL	AX, $0
++	JE	nocpuinfo
++	MOVL	$1, AX
++	CPUID
++	MOVL	CX, runtime·cpuid_ecx(SB)
++	MOVL	DX, runtime·cpuid_edx(SB)
++nocpuinfo:	
++
+ 	// if there is an _cgo_init, call it to let it
+ 	// initialize and to set up GS.  if not,
+ 	// we set up GS ourselves.
+@@ -71,6 +82,7 @@ ok:
+ 	MOVL	AX, 4(SP)
+ 	CALL	runtime·args(SB)
+ 	CALL	runtime·osinit(SB)
++	CALL	runtime·hashinit(SB)
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+@@ -709,3 +721,261 @@ TEXT runtime·stackguard(SB),7,$0
+ 	RET
+ 
+ GLOBL runtime·tls0(SB), $32
++
++// hash function using AES hardware instructions
++TEXT runtime·aeshash(SB),7,$0
++	MOVL	4(SP), DX	// ptr to hash value
++	MOVL	8(SP), CX	// size
++	MOVL	12(SP), AX	// ptr to data
++	JMP	runtime·aeshashbody(SB)
++
++TEXT runtime·aeshashstr(SB),7,$0
++	MOVL	4(SP), DX	// ptr to hash value
++	MOVL	12(SP), AX	// ptr to string struct
++	MOVL	4(AX), CX	// length of string
++	MOVL	(AX), AX	// string data
++	JMP	runtime·aeshashbody(SB)
++
++// AX: data
++// CX: length
++// DX: ptr to seed input / hash output
++TEXT runtime·aeshashbody(SB),7,$0
++	MOVL	(DX), X0	// seed to low 32 bits of xmm0
++	PINSRD	$1, CX, X0	// size to next 32 bits of xmm0
++	MOVOU	runtime·aeskeysched+0(SB), X2
++	MOVOU	runtime·aeskeysched+16(SB), X3
++aesloop:
++	CMPL	CX, $16
++	JB	aesloopend
++	MOVOU	(AX), X1
++	AESENC	X2, X0
++	AESENC	X1, X0
++	SUBL	$16, CX
++	ADDL	$16, AX
++	JMP	aesloop
++aesloopend:
++	TESTL	CX, CX
++	JE	finalize	// no partial block
++
++	TESTL	$16, AX
++	JNE	highpartial
++
++	// address ends in 0xxxx.  16 bytes loaded
++	// at this address won't cross a page boundary, so
++	// we can load it directly.
++	MOVOU	(AX), X1
++	ADDL	CX, CX
++	PAND	masks(SB)(CX*8), X1
++	JMP	partial
++highpartial:
++	// address ends in 1xxxx.  Might be up against
++	// a page boundary, so load ending at last byte.
++	// Then shift bytes down using pshufb.
++	MOVOU	-16(AX)(CX*1), X1
++	ADDL	CX, CX
++	PSHUFB	shifts(SB)(CX*8), X1
++partial:
++	// incorporate partial block into hash
++	AESENC	X3, X0
++	AESENC	X1, X0
++finalize:	
++	// finalize hash
++	AESENC	X2, X0
++	AESENC	X3, X0
++	AESENC	X2, X0
++	MOVL	X0, (DX)
++	RET
++
++TEXT runtime·aeshash32(SB),7,$0
++	MOVL	4(SP), DX	// ptr to hash value
++	MOVL	12(SP), AX	// ptr to data
++	MOVL	(DX), X0	// seed
++	PINSRD	$1, (AX), X0	// data
++	MOVOU	runtime·aeskeysched+0(SB), X2
++	MOVOU	runtime·aeskeysched+16(SB), X3
++	AESENC	X2, X0
++	AESENC	X3, X0
++	AESENC	X2, X0
++	MOVL	X0, (DX)
++	RET
++
++TEXT runtime·aeshash64(SB),7,$0
++	MOVL	4(SP), DX	// ptr to hash value
++	MOVL	12(SP), AX	// ptr to data
++	MOVQ	(AX), X0	// data
++	PINSRD	$2, (DX), X0	// seed
++	MOVOU	runtime·aeskeysched+0(SB), X2
++	MOVOU	runtime·aeskeysched+16(SB), X3
++	AESENC	X2, X0
++	AESENC	X3, X0
++	AESENC	X2, X0
++	MOVL	X0, (DX)
++	RET
++
++
++// simple mask to get rid of data in the high part of the register.
++TEXT masks(SB),7,$0
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0x000000ff
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0x0000ffff
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0x00ffffff
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0x000000ff
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0x0000ffff
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0x00ffffff
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x000000ff
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x0000ffff
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x00ffffff
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x00000000
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x000000ff
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x0000ffff
++	
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0x00ffffff
++
++	// these are arguments to pshufb.  They move data down from
++	// the high bytes of the register to the low bytes of the register.
++	// index is how many bytes to move.
++TEXT shifts(SB),7,$0
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	LONG $0x00000000
++	
++	LONG $0xffffff0f
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0xffff0f0e
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0xff0f0e0d
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0x0f0e0d0c
++	LONG $0xffffffff
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0x0e0d0c0b
++	LONG $0xffffff0f
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0x0d0c0b0a
++	LONG $0xffff0f0e
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0x0c0b0a09
++	LONG $0xff0f0e0d
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0x0b0a0908
++	LONG $0x0f0e0d0c
++	LONG $0xffffffff
++	LONG $0xffffffff
++	
++	LONG $0x0a090807
++	LONG $0x0e0d0c0b
++	LONG $0xffffff0f
++	LONG $0xffffffff
++	
++	LONG $0x09080706
++	LONG $0x0d0c0b0a
++	LONG $0xffff0f0e
++	LONG $0xffffffff
++	
++	LONG $0x08070605
++	LONG $0x0c0b0a09
++	LONG $0xff0f0e0d
++	LONG $0xffffffff
++	
++	LONG $0x07060504
++	LONG $0x0b0a0908
++	LONG $0x0f0e0d0c
++	LONG $0xffffffff
++	
++	LONG $0x06050403
++	LONG $0x0a090807
++	LONG $0x0e0d0c0b
++	LONG $0xffffff0f
++	
++	LONG $0x05040302
++	LONG $0x09080706
++	LONG $0x0d0c0b0a
++	LONG $0xffff0f0e
++	
++	LONG $0x04030201
++	LONG $0x08070605
++	LONG $0x0c0b0a09
++	LONG $0xff0f0e0d
++
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index a671f39925..f31508de18 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -20,6 +20,17 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	MOVQ	BX, g_stackguard(DI)
+ 	MOVQ	SP, g_stackbase(DI)
+ 
++	// find out information about the processor we're on
++	MOVQ	$0, AX
++	CPUID
++	CMPQ	AX, $0
++	JE	nocpuinfo
++	MOVQ	$1, AX
++	CPUID
++	MOVL	CX, runtime·cpuid_ecx(SB)
++	MOVL	DX, runtime·cpuid_edx(SB)
++nocpuinfo:	
++	
+ 	// if there is an _cgo_init, call it.
+ 	MOVQ	_cgo_init(SB), AX
+ 	TESTQ	AX, AX
+@@ -65,6 +76,7 @@ ok:
+ 	MOVQ	AX, 8(SP)
+ 	CALL	runtime·args(SB)
+ 	CALL	runtime·osinit(SB)
++	CALL	runtime·hashinit(SB)
+ 	CALL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+@@ -729,3 +741,165 @@ TEXT runtime·stackguard(SB),7,$0
+ 	RET
+ 
+ GLOBL runtime·tls0(SB), $64
++
++// hash function using AES hardware instructions
++TEXT runtime·aeshash(SB),7,$0
++	MOVQ	8(SP), DX	// ptr to hash value
++	MOVQ	16(SP), CX	// size
++	MOVQ	24(SP), AX	// ptr to data
++	JMP	runtime·aeshashbody(SB)
++
++TEXT runtime·aeshashstr(SB),7,$0
++	MOVQ	8(SP), DX	// ptr to hash value
++	MOVQ	24(SP), AX	// ptr to string struct
++	MOVQ	8(AX), CX	// length of string
++	MOVQ	(AX), AX	// string data
++	JMP	runtime·aeshashbody(SB)
++
++// AX: data
++// CX: length
++// DX: ptr to seed input / hash output
++TEXT runtime·aeshashbody(SB),7,$0
++	MOVQ	(DX), X0	// seed to low 64 bits of xmm0
++	PINSRQ	$1, CX, X0	// size to high 64 bits of xmm0
++	MOVOU	runtime·aeskeysched+0(SB), X2
++	MOVOU	runtime·aeskeysched+16(SB), X3
++aesloop:
++	CMPQ	CX, $16
++	JB	aesloopend
++	MOVOU	(AX), X1
++	AESENC	X2, X0
++	AESENC	X1, X0
++	SUBQ	$16, CX
++	ADDQ	$16, AX
++	JMP	aesloop
++aesloopend:
++	TESTQ	CX, CX
++	JE	finalize	// no partial block
++
++	TESTQ	$16, AX
++	JNE	highpartial
++
++	// address ends in 0xxxx.  16 bytes loaded
++	// at this address won't cross a page boundary, so
++	// we can load it directly.
++	MOVOU	(AX), X1
++	ADDQ	CX, CX
++	PAND	masks(SB)(CX*8), X1
++	JMP	partial
++highpartial:
++	// address ends in 1xxxx.  Might be up against
++	// a page boundary, so load ending at last byte.
++	// Then shift bytes down using pshufb.
++	MOVOU	-16(AX)(CX*1), X1
++	ADDQ	CX, CX
++	PSHUFB	shifts(SB)(CX*8), X1
++partial:
++	// incorporate partial block into hash
++	AESENC	X3, X0
++	AESENC	X1, X0
++finalize:	
++	// finalize hash
++	AESENC	X2, X0
++	AESENC	X3, X0
++	AESENC	X2, X0
++	MOVQ	X0, (DX)
++	RET
++
++TEXT runtime·aeshash32(SB),7,$0
++	MOVQ	8(SP), DX	// ptr to hash value
++	MOVQ	24(SP), AX	// ptr to data
++	MOVQ	(DX), X0	// seed
++	PINSRD	$2, (AX), X0	// data
++	MOVOU	runtime·aeskeysched+0(SB), X2
++	MOVOU	runtime·aeskeysched+16(SB), X3
++	AESENC	X2, X0
++	AESENC	X3, X0
++	AESENC	X2, X0
++	MOVQ	X0, (DX)
++	RET
++
++TEXT runtime·aeshash64(SB),7,$0
++	MOVQ	8(SP), DX	// ptr to hash value
++	MOVQ	24(SP), AX	// ptr to data
++	MOVQ	(DX), X0	// seed
++	PINSRQ	$1, (AX), X0	// data
++	MOVOU	runtime·aeskeysched+0(SB), X2
++	MOVOU	runtime·aeskeysched+16(SB), X3
++	AESENC	X2, X0
++	AESENC	X3, X0
++	AESENC	X2, X0
++	MOVQ	X0, (DX)
++	RET
++
++// simple mask to get rid of data in the high part of the register.
++TEXT masks(SB),7,$0
++	QUAD $0x0000000000000000
++	QUAD $0x0000000000000000
++	QUAD $0x00000000000000ff
++	QUAD $0x0000000000000000
++	QUAD $0x000000000000ffff
++	QUAD $0x0000000000000000
++	QUAD $0x0000000000ffffff
++	QUAD $0x0000000000000000
++	QUAD $0x00000000ffffffff
++	QUAD $0x0000000000000000
++	QUAD $0x000000ffffffffff
++	QUAD $0x0000000000000000
++	QUAD $0x0000ffffffffffff
++	QUAD $0x0000000000000000
++	QUAD $0x00ffffffffffffff
++	QUAD $0x0000000000000000
++	QUAD $0xffffffffffffffff
++	QUAD $0x0000000000000000
++	QUAD $0xffffffffffffffff
++	QUAD $0x00000000000000ff
++	QUAD $0xffffffffffffffff
++	QUAD $0x000000000000ffff
++	QUAD $0xffffffffffffffff
++	QUAD $0x0000000000ffffff
++	QUAD $0xffffffffffffffff
++	QUAD $0x00000000ffffffff
++	QUAD $0xffffffffffffffff
++	QUAD $0x000000ffffffffff
++	QUAD $0xffffffffffffffff
++	QUAD $0x0000ffffffffffff
++	QUAD $0xffffffffffffffff
++	QUAD $0x00ffffffffffffff
++
++	// these are arguments to pshufb.  They move data down from
++	// the high bytes of the register to the low bytes of the register.
++	// index is how many bytes to move.
++TEXT shifts(SB),7,$0
++	QUAD $0x0000000000000000
++	QUAD $0x0000000000000000
++	QUAD $0xffffffffffffff0f
++	QUAD $0xffffffffffffffff
++	QUAD $0xffffffffffff0f0e
++	QUAD $0xffffffffffffffff
++	QUAD $0xffffffffff0f0e0d
++	QUAD $0xffffffffffffffff
++	QUAD $0xffffffff0f0e0d0c
++	QUAD $0xffffffffffffffff
++	QUAD $0xffffff0f0e0d0c0b
++	QUAD $0xffffffffffffffff
++	QUAD $0xffff0f0e0d0c0b0a
++	QUAD $0xffffffffffffffff
++	QUAD $0xff0f0e0d0c0b0a09
++	QUAD $0xffffffffffffffff
++	QUAD $0x0f0e0d0c0b0a0908
++	QUAD $0xffffffffffffffff
++	QUAD $0x0e0d0c0b0a090807
++	QUAD $0xffffffffffffff0f
++	QUAD $0x0d0c0b0a09080706
++	QUAD $0xffffffffffff0f0e
++	QUAD $0x0c0b0a0908070605
++	QUAD $0xffffffffff0f0e0d
++	QUAD $0x0b0a090807060504
++	QUAD $0xffffffff0f0e0d0c
++	QUAD $0x0a09080706050403
++	QUAD $0xffffff0f0e0d0c0b
++	QUAD $0x0908070605040302
++	QUAD $0xffff0f0e0d0c0b0a
++	QUAD $0x0807060504030201
++	QUAD $0xff0f0e0d0c0b0a09
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 45b53541b6..6b2d6afda0 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -47,6 +47,7 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW	R1, 8(R13)
+ 	BL	runtime·args(SB)
+ 	BL	runtime·osinit(SB)
++	BL	runtime·hashinit(SB)
+ 	BL	runtime·schedinit(SB)
+ 
+ 	// create a new goroutine to start program
+@@ -489,3 +490,17 @@ TEXT runtime·stackguard(SB),7,$0
+ 	MOVW	R1, sp+0(FP)
+ 	MOVW	R2, limit+4(FP)
+ 	RET
++
++// not implemented for ARM
++TEXT runtime·aeshash(SB),7,$-4
++	MOVW	$0, R0
++	MOVW	(R0), R1
++TEXT runtime·aeshash32(SB),7,$-4
++	MOVW	$0, R0
++	MOVW	(R0), R1
++TEXT runtime·aeshash64(SB),7,$-4
++	MOVW	$0, R0
++	MOVW	(R0), R1
++TEXT runtime·aeshashstr(SB),7,$-4
++	MOVW	$0, R0
++	MOVW	(R0), R1
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+new file mode 100644
+index 0000000000..c6a83113a6
+--- /dev/null
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -0,0 +1,96 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package runtime_test
++
++import (
++	"fmt"
++	"testing"
++)
++
++const size = 10
++
++func BenchmarkHashStringSpeed(b *testing.B) {
++	strings := make([]string, size)
++	for i := 0; i < size; i++ {
++		strings[i] = fmt.Sprintf("string#%d", i)
++	}
++	sum := 0
++	m := make(map[string]int, size)
++	for i := 0; i < size; i++ {
++		m[strings[i]] = 0
++	}
++	idx := 0
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		sum += m[strings[idx]]
++		idx++
++		if idx == size {
++			idx = 0
++		}
++	}
++}
++
++func BenchmarkHashInt32Speed(b *testing.B) {
++	ints := make([]int32, size)
++	for i := 0; i < size; i++ {
++		ints[i] = int32(i)
++	}
++	sum := 0
++	m := make(map[int32]int, size)
++	for i := 0; i < size; i++ {
++		m[ints[i]] = 0
++	}
++	idx := 0
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		sum += m[ints[idx]]
++		idx++
++		if idx == size {
++			idx = 0
++		}
++	}
++}
++
++func BenchmarkHashInt64Speed(b *testing.B) {
++	ints := make([]int64, size)
++	for i := 0; i < size; i++ {
++		ints[i] = int64(i)
++	}
++	sum := 0
++	m := make(map[int64]int, size)
++	for i := 0; i < size; i++ {
++		m[ints[i]] = 0
++	}
++	idx := 0
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		sum += m[ints[idx]]
++		idx++
++		if idx == size {
++			idx = 0
++		}
++	}
++}
++func BenchmarkHashStringArraySpeed(b *testing.B) {
++	stringpairs := make([][2]string, size)
++	for i := 0; i < size; i++ {
++		for j := 0; j < 2; j++ {
++			stringpairs[i][j] = fmt.Sprintf("string#%d/%d", i, j)
++		}
++	}
++	sum := 0
++	m := make(map[[2]string]int, size)
++	for i := 0; i < size; i++ {
++		m[stringpairs[i]] = 0
++	}
++	idx := 0
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		sum += m[stringpairs[idx]]
++		idx++
++		if idx == size {
++			idx = 0
++		}
++	}
++}
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index d3ee2a0ec9..3ff4d7fa7e 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -75,6 +75,11 @@ runtime·args(int32 c, uint8 **v)
+ int32 runtime·isplan9;
+ int32 runtime·iswindows;
+ 
++// Information about what cpu features are available.
++// Set on startup in asm_{x86/amd64}.s.
++uint32 runtime·cpuid_ecx;
++uint32 runtime·cpuid_edx;
++
+ void
+ runtime·goargs(void)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ffbd5c219d..026c7a5375 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -558,11 +558,25 @@ struct	Alg
+ 
+ extern	Alg	runtime·algarray[Amax];
+ 
++byte*	runtime·startup_random_data;
++uint32	runtime·startup_random_data_len;
++void	runtime·get_random_data(byte**, int32*);
++
++enum {
++	// hashinit wants this many random bytes
++	HashRandomBytes = 32
++};
++void	runtime·hashinit(void);
++
+ void	runtime·memhash(uintptr*, uintptr, void*);
+ void	runtime·nohash(uintptr*, uintptr, void*);
+ void	runtime·strhash(uintptr*, uintptr, void*);
+ void	runtime·interhash(uintptr*, uintptr, void*);
+ void	runtime·nilinterhash(uintptr*, uintptr, void*);
++void	runtime·aeshash(uintptr*, uintptr, void*);
++void	runtime·aeshash32(uintptr*, uintptr, void*);
++void	runtime·aeshash64(uintptr*, uintptr, void*);
++void	runtime·aeshashstr(uintptr*, uintptr, void*);
+ 
+ void	runtime·memequal(bool*, uintptr, void*, void*);
+ void	runtime·noequal(bool*, uintptr, void*, void*);
+@@ -581,7 +595,6 @@ void	runtime·memcopy16(uintptr, void*, void*);
+ void	runtime·memcopy32(uintptr, void*, void*);
+ void	runtime·memcopy64(uintptr, void*, void*);
+ void	runtime·memcopy128(uintptr, void*, void*);
+-void	runtime·memcopy(uintptr, void*, void*);
+ void	runtime·strcopy(uintptr, void*, void*);
+ void	runtime·algslicecopy(uintptr, void*, void*);
+ void	runtime·intercopy(uintptr, void*, void*);
+@@ -638,6 +651,8 @@ extern	bool	runtime·iscgo;
+ extern 	void	(*runtime·sysargs)(int32, uint8**);
+ extern	uint32	runtime·maxstring;
+ extern	uint32	runtime·Hchansize;
++extern	uint32	runtime·cpuid_ecx;
++extern	uint32	runtime·cpuid_edx;
+ 
+ /*
+  * common functions and data
+@@ -684,7 +699,10 @@ int32	runtime·gotraceback(void);
+ void	runtime·goroutineheader(G*);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+ void	runtime·tracebackothers(G*);
++int32	runtime·open(int8*, int32, int32);
++int32	runtime·read(int32, void*, int32);
+ int32	runtime·write(int32, void*, int32);
++int32	runtime·close(int32);
+ int32	runtime·mincore(void*, uintptr, byte*);
+ bool	runtime·cas(uint32*, uint32, uint32);
+ bool	runtime·cas64(uint64*, uint64*, uint64);
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index ed9ae3a8e5..07aed332b9 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -150,6 +150,7 @@ runtime·setsig(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ }
+ 
+ #define AT_NULL		0
++#define AT_RANDOM	25
+ #define AT_SYSINFO	32
+ extern uint32 runtime·_vdso;
+ 
+@@ -168,7 +169,12 @@ runtime·linux_setup_vdso(int32 argc, byte **argv)
+ 	for(auxv=(uint32*)envp; auxv[0] != AT_NULL; auxv += 2) {
+ 		if(auxv[0] == AT_SYSINFO) {
+ 			runtime·_vdso = auxv[1];
+-			break;
++			continue;
++		}
++		if(auxv[0] == AT_RANDOM) {
++			runtime·startup_random_data = (byte*)auxv[1];
++			runtime·startup_random_data_len = 16;
++			continue;
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 8a938f9f4c..d27abc7bae 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -24,6 +24,21 @@ TEXT runtime·exit1(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$0
++	MOVL	$5, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·close(SB),7,$0
++	MOVL	$6, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·read(SB),7,$0
++	MOVL	$3, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·write(SB),7,$0
+ 	MOVL	$4, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 4e43a76c3c..b8ae01aa20 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -30,6 +30,28 @@ TEXT runtime·exit1(SB),7,$0
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 pathname
++	MOVL	16(SP), SI		// arg 2 flags
++	MOVL	20(SP), DX		// arg 3 mode
++	MOVL	$(0x2000000+5), AX	// syscall entry
++	SYSCALL
++	RET
++
++TEXT runtime·close(SB),7,$0
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	$(0x2000000+6), AX	// syscall entry
++	SYSCALL
++	RET
++
++TEXT runtime·read(SB),7,$0
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$(0x2000000+3), AX	// syscall entry
++	SYSCALL
++	RET
++
+ TEXT runtime·write(SB),7,$0
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index d5370267a9..34af307816 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -56,6 +56,21 @@ TEXT runtime·exit1(SB),7,$-4
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$-4
++	MOVL	$5, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·close(SB),7,$-4
++	MOVL	$6, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·read(SB),7,$-4
++	MOVL	$3, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·write(SB),7,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 40c6237e23..f393b87000 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -58,6 +58,28 @@ TEXT runtime·exit1(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 pathname
++	MOVL	16(SP), SI		// arg 2 flags
++	MOVL	20(SP), DX		// arg 3 mode
++	MOVL	$5, AX
++	SYSCALL
++	RET
++
++TEXT runtime·close(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	$6, AX
++	SYSCALL
++	RET
++
++TEXT runtime·read(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$3, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·write(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 fd
+ 	MOVQ	16(SP), SI		// arg 2 buf
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 3d3d312736..475f875421 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -22,6 +22,21 @@ TEXT runtime·exit1(SB),7,$-4
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$-4
++	MOVL	$5, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·close(SB),7,$-4
++	MOVL	$6, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·read(SB),7,$-4
++	MOVL	$3, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·write(SB),7,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index e73e83ded2..329373c858 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -79,6 +79,28 @@ TEXT runtime·exit1(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 pathname
++	MOVL	16(SP), SI		// arg 2 flags
++	MOVL	20(SP), DX		// arg 3 mode
++	MOVL	$5, AX
++	SYSCALL
++	RET
++
++TEXT runtime·close(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	$6, AX
++	SYSCALL
++	RET
++
++TEXT runtime·read(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$3, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·write(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 - fd
+ 	MOVQ	16(SP), SI		// arg 2 - buf
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index c62e0f9499..ab2f68037a 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -24,6 +24,21 @@ TEXT runtime·exit1(SB),7,$8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$-4
++	MOVL	$5, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·close(SB),7,$-4
++	MOVL	$6, AX
++	INT	$0x80
++	RET
++
++TEXT runtime·read(SB),7,$-4
++	MOVL	$3, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·write(SB),7,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 8a736507ff..5ec52dfccf 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -87,6 +87,28 @@ TEXT runtime·exit1(SB),7,$-8
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
++TEXT runtime·open(SB),7,$-8
++	MOVQ	8(SP), DI		// arg 1 pathname
++	MOVL	16(SP), SI		// arg 2 flags
++	MOVL	20(SP), DX		// arg 3 mode
++	MOVL	$5, AX
++	SYSCALL
++	RET
++
++TEXT runtime·close(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVL	$6, AX
++	SYSCALL
++	RET
++
++TEXT runtime·read(SB),7,$-8
++	MOVL	8(SP), DI		// arg 1 fd
++	MOVQ	16(SP), SI		// arg 2 buf
++	MOVL	24(SP), DX		// arg 3 count
++	MOVL	$3, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·write(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 - fd
+ 	MOVQ	16(SP), SI		// arg 2 - buf
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index adb1ffe6ac..4394cbcdfd 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -68,6 +68,22 @@ runtime·osinit(void)
+ 		runtime·ncpu = out;
+ }
+ 
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	static byte urandom_data[HashRandomBytes];
++	int32 fd;
++	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
++	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
++		*rnd = urandom_data;
++		*rnd_len = HashRandomBytes;
++	} else {
++		*rnd = nil;
++		*rnd_len = 0;
++	}
++	runtime·close(fd);
++}
++
+ void
+ runtime·goenvs(void)
+ {
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 3ae14ee0a0..7ead04468f 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -115,6 +115,22 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	static byte urandom_data[HashRandomBytes];
++	int32 fd;
++	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
++	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
++		*rnd = urandom_data;
++		*rnd_len = HashRandomBytes;
++	} else {
++		*rnd = nil;
++		*rnd_len = 0;
++	}
++	runtime·close(fd);
++}
++
+ void
+ runtime·goenvs(void)
+ {
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index 78ddef878b..fe924b264a 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -9,10 +9,6 @@
+ 
+ extern SigTab runtime·sigtab[];
+ 
+-int32 runtime·open(uint8*, int32, int32);
+-int32 runtime·close(int32);
+-int32 runtime·read(int32, void*, int32);
+-
+ static Sigset sigset_none;
+ static Sigset sigset_all = { ~(uint32)0, ~(uint32)0 };
+ 
+@@ -164,6 +160,32 @@ runtime·osinit(void)
+ 	runtime·ncpu = getproccount();
+ }
+ 
++// Random bytes initialized at startup.  These come
++// from the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.c).
++byte*	runtime·startup_random_data;
++uint32	runtime·startup_random_data_len;
++
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	if(runtime·startup_random_data != nil) {
++		*rnd = runtime·startup_random_data;
++		*rnd_len = runtime·startup_random_data_len;
++	} else {
++		static byte urandom_data[HashRandomBytes];
++		int32 fd;
++		fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
++		if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
++			*rnd = urandom_data;
++			*rnd_len = HashRandomBytes;
++		} else {
++			*rnd = nil;
++			*rnd_len = 0;
++		}
++		runtime·close(fd);
++	}
++}
++
+ void
+ runtime·goenvs(void)
+ {
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index f333c6dd8e..58bc0a8a33 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -180,6 +180,22 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	static byte urandom_data[HashRandomBytes];
++	int32 fd;
++	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
++	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
++		*rnd = urandom_data;
++		*rnd_len = HashRandomBytes;
++	} else {
++		*rnd = nil;
++		*rnd_len = 0;
++	}
++	runtime·close(fd);
++}
++
+ void
+ runtime·goenvs(void)
+ {
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 700c481475..f2d17404fd 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -159,6 +159,22 @@ runtime·osinit(void)
+ 	runtime·ncpu = getncpu();
+ }
+ 
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	static byte urandom_data[HashRandomBytes];
++	int32 fd;
++	fd = runtime·open("/dev/urandom", 0 /* O_RDONLY */, 0);
++	if(runtime·read(fd, urandom_data, HashRandomBytes) == HashRandomBytes) {
++		*rnd = urandom_data;
++		*rnd_len = HashRandomBytes;
++	} else {
++		*rnd = nil;
++		*rnd_len = 0;
++	}
++	runtime·close(fd);
++}
++
+ void
+ runtime·goenvs(void)
+ {
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index a7607a470a..c80a38a374 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -11,6 +11,9 @@
+ #pragma dynimport runtime·CreateEvent CreateEventA "kernel32.dll"
+ #pragma dynimport runtime·CreateThread CreateThread "kernel32.dll"
+ #pragma dynimport runtime·CreateWaitableTimer CreateWaitableTimerA "kernel32.dll"
++#pragma dynimport runtime·CryptAcquireContextW CryptAcquireContextW "advapi32.dll"
++#pragma dynimport runtime·CryptGenRandom CryptGenRandom "advapi32.dll"
++#pragma dynimport runtime·CryptReleaseContext CryptReleaseContext "advapi32.dll"
+ #pragma dynimport runtime·DuplicateHandle DuplicateHandle "kernel32.dll"
+ #pragma dynimport runtime·ExitProcess ExitProcess "kernel32.dll"
+ #pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW "kernel32.dll"
+@@ -39,6 +42,9 @@ extern void *runtime·CloseHandle;
+ extern void *runtime·CreateEvent;
+ extern void *runtime·CreateThread;
+ extern void *runtime·CreateWaitableTimer;
++extern void *runtime·CryptAcquireContextW;
++extern void *runtime·CryptGenRandom;
++extern void *runtime·CryptReleaseContext;
+ extern void *runtime·DuplicateHandle;
+ extern void *runtime·ExitProcess;
+ extern void *runtime·FreeEnvironmentStringsW;
+@@ -81,6 +87,24 @@ runtime·osinit(void)
+ 	runtime·ncpu = getproccount();
+ }
+ 
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	uintptr handle;
++	*rnd = nil;
++	*rnd_len = 0;
++	if(runtime·stdcall(runtime·CryptAcquireContextW, 5, &handle, nil, nil,
++			   (uintptr)1 /* PROV_RSA_FULL */,
++			   (uintptr)0xf0000000U /* CRYPT_VERIFYCONTEXT */) != 0) {
++		static byte random_data[HashRandomBytes];
++		if(runtime·stdcall(runtime·CryptGenRandom, 3, handle, (uintptr)HashRandomBytes, random_data)) {
++			*rnd = random_data;
++			*rnd_len = HashRandomBytes;
++		}
++		runtime·stdcall(runtime·CryptReleaseContext, 2, handle, (uintptr)0);
++	}
++}
++
+ void
+ runtime·goenvs(void)
+ {
+diff --git a/src/pkg/runtime/vdso_linux_amd64.c b/src/pkg/runtime/vdso_linux_amd64.c
+index ab68c23c34..f55d312a0a 100644
+--- a/src/pkg/runtime/vdso_linux_amd64.c
++++ b/src/pkg/runtime/vdso_linux_amd64.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ 
++#define AT_RANDOM 25
+ #define AT_SYSINFO_EHDR 33
+ #define AT_NULL	0    /* End of vector */
+ #define PT_LOAD	1    /* Loadable program segment */
+@@ -319,11 +320,16 @@ runtime·linux_setup_vdso(int32 argc, uint8** argv)
+ 		if(elf_auxv[i].a_type == AT_SYSINFO_EHDR) {
+ 			if(elf_auxv[i].a_un.a_val == 0) {
+ 				// Something went wrong
+-				return;
++				continue;
+ 			}
+ 			vdso_init_from_sysinfo_ehdr(&vdso_info, (Elf64_Ehdr*)elf_auxv[i].a_un.a_val);
+ 			vdso_parse_symbols(&vdso_info, vdso_find_version(&vdso_info, &linux26));
+-			return;
++			continue;
++		}
++		if(elf_auxv[i].a_type == AT_RANDOM) {
++		        runtime·startup_random_data = (byte*)elf_auxv[i].a_un.a_val;
++		        runtime·startup_random_data_len = 16;
++			continue;
+ 		}
+ 	}
+ }

@@ -13,8 +13,50 @@ Date:   Wed Jun 21 11:14:34 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/index.go            |  1 +
  src/go/types/index.go                               |  1 +
  src/internal/types/testdata/fixedbugs/issue60906.go | 11 +++++++++++
  3 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 4fbe064da6..3ebe851355 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -184,6 +184,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 
+ 	if !valid {
+ 		check.errorf(e.Pos(), NonSliceableOperand, invalidOp+"cannot index %s", x)
++		check.use(e.Index)
+ 		x.mode = invalid
+ 		return false
+ 	}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 1bcfb38feb..c1c0f40e87 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -186,6 +186,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 	if !valid {
+ 		// types2 uses the position of '[' for the error
+ 		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
++		check.use(e.Indices...)
+ 		x.mode = invalid
+ 		return false
+ 	}
+diff --git a/src/internal/types/testdata/fixedbugs/issue60906.go b/src/internal/types/testdata/fixedbugs/issue60906.go
+new file mode 100644
+index 0000000000..2744e89455
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60906.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var x int
++	var f func() []int
++	_ = f /* ERROR "cannot index f" */ [x]
++}

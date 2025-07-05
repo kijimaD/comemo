@@ -21,9 +21,173 @@ Date:   Mon Sep 27 15:35:46 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/internal/obj/link.go    |  4 ++++
  src/cmd/internal/obj/objfile.go | 24 ++++++++----------------
  src/cmd/internal/obj/pcln.go    |  4 ++--
  src/cmd/internal/obj/sym.go     | 28 ++++++++++++++++++++--------
  4 files changed, 34 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 9be173ff98..82ff5994d1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -700,6 +700,9 @@ const (
+ 	// convert between ABI0 and ABIInternal calling conventions.
+ 	AttrABIWrapper
+ 
++	// IsPcdata indicates this is a pcdata symbol.
++	AttrPcdata
++
+ 	// attrABIBase is the value at which the ABI is encoded in
+ 	// Attribute. This must be last; all bits after this are
+ 	// assumed to be an ABI value.
+@@ -727,6 +730,7 @@ func (a *Attribute) Indexed() bool            { return a.load()&AttrIndexed != 0
+ func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface != 0 }
+ func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
+ func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
++func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
+ 
+ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	for {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 1a8a9635d6..030a02b499 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -391,7 +391,9 @@ func (w *writer) Hash(s *LSym) {
+ // TODO: instead of duplicating them, have the compiler decide where symbols go.
+ func contentHashSection(s *LSym) byte {
+ 	name := s.Name
+-	if strings.HasPrefix(name, "type.") {
++	if s.IsPcdata() {
++		return 'P'
++	} else if strings.HasPrefix(name, "type.") {
+ 		return 'T'
+ 	}
+ 	return 0
+@@ -655,16 +657,6 @@ func nAuxSym(s *LSym) int {
+ func genFuncInfoSyms(ctxt *Link) {
+ 	infosyms := make([]*LSym, 0, len(ctxt.Text))
+ 	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
+-	preparePcSym := func(s *LSym) *LSym {
+-		if s == nil {
+-			return s
+-		}
+-		s.PkgIdx = goobj.PkgIdxHashed
+-		s.SymIdx = int32(len(hashedsyms) + len(ctxt.hasheddefs))
+-		s.Set(AttrIndexed, true)
+-		hashedsyms = append(hashedsyms, s)
+-		return s
+-	}
+ 	var b bytes.Buffer
+ 	symidx := int32(len(ctxt.defs))
+ 	for _, s := range ctxt.Text {
+@@ -679,13 +671,13 @@ func genFuncInfoSyms(ctxt *Link) {
+ 			FuncFlag: fn.FuncFlag,
+ 		}
+ 		pc := &fn.Pcln
+-		o.Pcsp = makeSymRef(preparePcSym(pc.Pcsp))
+-		o.Pcfile = makeSymRef(preparePcSym(pc.Pcfile))
+-		o.Pcline = makeSymRef(preparePcSym(pc.Pcline))
+-		o.Pcinline = makeSymRef(preparePcSym(pc.Pcinline))
++		o.Pcsp = makeSymRef(pc.Pcsp)
++		o.Pcfile = makeSymRef(pc.Pcfile)
++		o.Pcline = makeSymRef(pc.Pcline)
++		o.Pcinline = makeSymRef(pc.Pcinline)
+ 		o.Pcdata = make([]goobj.SymRef, len(pc.Pcdata))
+ 		for i, pcSym := range pc.Pcdata {
+-			o.Pcdata[i] = makeSymRef(preparePcSym(pcSym))
++			o.Pcdata[i] = makeSymRef(pcSym)
+ 		}
+ 		o.Funcdataoff = make([]uint32, len(pc.Funcdataoff))
+ 		for i, x := range pc.Funcdataoff {
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 7af81335fb..42c4a2a9d9 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -26,7 +26,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym,
+ 	dst := []byte{}
+ 	sym := &LSym{
+ 		Type:      objabi.SRODATA,
+-		Attribute: AttrContentAddressable,
++		Attribute: AttrContentAddressable | AttrPcdata,
+ 	}
+ 
+ 	if dbg {
+@@ -337,7 +337,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 			// use an empty symbol.
+ 			pcln.Pcdata[i] = &LSym{
+ 				Type:      objabi.SRODATA,
+-				Attribute: AttrContentAddressable,
++				Attribute: AttrContentAddressable | AttrPcdata,
+ 			}
+ 		} else {
+ 			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 6cd8bb3c3f..a272c517b3 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -201,7 +201,7 @@ func (ctxt *Link) NumberSyms() {
+ 	ctxt.nonpkgdefs = []*LSym{}
+ 
+ 	var idx, hashedidx, hashed64idx, nonpkgidx int32
+-	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
++	ctxt.traverseSyms(traverseDefs|traversePcdata, func(s *LSym) {
+ 		// if Pkgpath is unknown, cannot hash symbols with relocations, as it
+ 		// may reference named symbols whose names are not fully expanded.
+ 		if s.ContentAddressable() && (ctxt.Pkgpath != "" || len(s.R) == 0) {
+@@ -324,12 +324,18 @@ const (
+ 	traverseDefs traverseFlag = 1 << iota
+ 	traverseRefs
+ 	traverseAux
++	traversePcdata
+ 
+-	traverseAll = traverseDefs | traverseRefs | traverseAux
++	traverseAll = traverseDefs | traverseRefs | traverseAux | traversePcdata
+ )
+ 
+ // Traverse symbols based on flag, call fn for each symbol.
+ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
++	fnNoNil := func(s *LSym) {
++		if s != nil {
++			fn(s)
++		}
++	}
+ 	lists := [][]*LSym{ctxt.Text, ctxt.Data}
+ 	for _, list := range lists {
+ 		for _, s := range list {
+@@ -338,15 +344,11 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 			}
+ 			if flag&traverseRefs != 0 {
+ 				for _, r := range s.R {
+-					if r.Sym != nil {
+-						fn(r.Sym)
+-					}
++					fnNoNil(r.Sym)
+ 				}
+ 			}
+ 			if flag&traverseAux != 0 {
+-				if s.Gotype != nil {
+-					fn(s.Gotype)
+-				}
++				fnNoNil(s.Gotype)
+ 				if s.Type == objabi.STEXT {
+ 					f := func(parent *LSym, aux *LSym) {
+ 						fn(aux)
+@@ -354,6 +356,16 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 					ctxt.traverseFuncAux(flag, s, f)
+ 				}
+ 			}
++			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
++				fi := s.Func().Pcln
++				fnNoNil(fi.Pcsp)
++				fnNoNil(fi.Pcfile)
++				fnNoNil(fi.Pcline)
++				fnNoNil(fi.Pcinline)
++				for _, d := range fi.Pcdata {
++					fnNoNil(d)
++				}
++			}
+ 		}
+ 	}
+ }

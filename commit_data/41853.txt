@@ -12,6 +12,20 @@ Date:   Mon Oct 28 16:55:06 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203889
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index 3cf55defc7..673339d667 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -96,7 +96,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
+ 			}
+ 		} else if fi.IsDir() && fi.Name() != "testdata" {
+ 			path := filepath.Join(dir, fi.Name())
+-			if !strings.HasSuffix(path, "/test") {
++			if !strings.HasSuffix(path, string(filepath.Separator)+"test") {
+ 				dirs = append(dirs, path)
+ 			}
+ 		}

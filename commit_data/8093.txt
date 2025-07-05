@@ -10,7 +10,7 @@ Date:   Thu Apr 14 10:42:48 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4419041
-
+---
  src/cmd/5l/obj.c  |  2 +-
  src/cmd/6l/obj.c  | 11 ++++++++++-
  src/cmd/8l/obj.c  |  2 +-
@@ -18,3 +18,110 @@ Date:   Thu Apr 14 10:42:48 2011 -0400
  src/cmd/ld/lib.c  |  2 +-
  src/cmd/ld/lib.h  |  2 +-
  6 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index f252f9fc56..c82494bc53 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -581,7 +581,7 @@ loop:
+ 			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+ 			errorexit();
+ 		}
+-		savedata(s, p);
++		savedata(s, p, pn);
+ 		unmal(p, sizeof *p);
+ 		break;
+ 
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 6b43d2df43..9e35fa5630 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -356,6 +356,15 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 			return;
+ 		}
+ 	}
++	
++	switch(t) {
++	case D_FILE:
++	case D_FILE1:
++	case D_AUTO:
++	case D_PARAM:
++		if(s == S)
++			mangle(pn);
++	}
+ 
+ 	u = mal(sizeof(*u));
+ 	u->link = curauto;
+@@ -559,7 +568,7 @@ loop:
+ 			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+ 			errorexit();
+ 		}
+-		savedata(s, p);
++		savedata(s, p, pn);
+ 		unmal(p, sizeof *p);
+ 		goto loop;
+ 
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index d505dc10e5..d512304b4e 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -600,7 +600,7 @@ loop:
+ 			diag("multiple initialization for %s: in both %s and %s", s->name, s->file, pn);
+ 			errorexit();
+ 		}
+-		savedata(s, p);
++		savedata(s, p, pn);
+ 		unmal(p, sizeof *p);
+ 		goto loop;
+ 
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index d27416dac1..14f1e9fe85 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -312,7 +312,7 @@ symgrow(Sym *s, int32 siz)
+ }
+ 
+ void
+-savedata(Sym *s, Prog *p)
++savedata(Sym *s, Prog *p, char *pn)
+ {
+ 	int32 off, siz, i, fl;
+ 	uchar *cast;
+@@ -321,8 +321,10 @@ savedata(Sym *s, Prog *p)
+ 
+ 	off = p->from.offset;
+ 	siz = p->datasize;
++	if(off < 0 || siz < 0 || off >= 1<<30 || siz >= 100)
++		mangle(pn);
+ 	symgrow(s, off+siz);
+-	
++
+ 	switch(p->to.type) {
+ 	default:
+ 		diag("bad data: %P", p);
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 8cd570463c..2b1674ff29 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -438,7 +438,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 		return;
+ 	}
+ 	t = smprint("%s %s %s", getgoos(), thestring, getgoversion());
+-	if(strcmp(line+10, t) != 0) {
++	if(strcmp(line+10, t) != 0 && !debug['f']) {
+ 		diag("%s: object is [%s] expected [%s]", pn, line+10, t);
+ 		free(t);
+ 		return;
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 646aeb5356..8b603a04a6 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -173,7 +173,7 @@ void	datblk(int32, int32);
+ Sym*	datsort(Sym*);
+ void	reloc(void);
+ void	relocsym(Sym*);
+-void	savedata(Sym*, Prog*);
++void	savedata(Sym*, Prog*, char*);
+ void	symgrow(Sym*, int32);
+ vlong	addstring(Sym*, char*);
+ vlong	adduint32(Sym*, uint32);

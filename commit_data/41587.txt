@@ -9,9 +9,68 @@ Date:   Mon Oct 14 12:16:52 2019 -0700
     Change-Id: I19e1f30fbf04f0d1bfe6648fae26beaf3a06ee92
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201077
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go | 2 +-
  src/cmd/compile/internal/gc/esc.go     | 2 +-
  src/cmd/compile/internal/gc/walk.go    | 2 +-
  test/fixedbugs/issue14999.go           | 6 +++---
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 055ddbae33..f00fd59f86 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -345,7 +345,7 @@ func closuredebugruntimecheck(clo *Node) {
+ 		}
+ 	}
+ 	if compiling_runtime && clo.Esc == EscHeap {
+-		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime.")
++		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime")
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index ee2a27cb7e..725e7410c4 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -251,7 +251,7 @@ func moveToHeap(n *Node) {
+ 		Dump("MOVE", n)
+ 	}
+ 	if compiling_runtime {
+-		yyerror("%v escapes to heap, not allowed in runtime.", n)
++		yyerror("%v escapes to heap, not allowed in runtime", n)
+ 	}
+ 	if n.Class() == PAUTOHEAP {
+ 		Dump("n", n)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index bebb9b6afe..39d1ab689d 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
+ 		v := n.Left
+ 		if v.Class() == PAUTOHEAP {
+ 			if compiling_runtime {
+-				yyerror("%v escapes to heap, not allowed in runtime.", v)
++				yyerror("%v escapes to heap, not allowed in runtime", v)
+ 			}
+ 			if prealloc[v] == nil {
+ 				prealloc[v] = callnew(v.Type)
+diff --git a/test/fixedbugs/issue14999.go b/test/fixedbugs/issue14999.go
+index 6ce768e23b..b648441fc2 100644
+--- a/test/fixedbugs/issue14999.go
++++ b/test/fixedbugs/issue14999.go
+@@ -7,11 +7,11 @@
+ package p
+ 
+ func f(x int) func(int) int {
+-	return func(y int) int { return x + y } // ERROR "heap-allocated closure, not allowed in runtime."
++	return func(y int) int { return x + y } // ERROR "heap-allocated closure, not allowed in runtime"
+ }
+ 
+-func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtime."
+-	return func(y int) int { // ERROR "heap-allocated closure, not allowed in runtime."
++func g(x int) func(int) int { // ERROR "x escapes to heap, not allowed in runtime"
++	return func(y int) int { // ERROR "heap-allocated closure, not allowed in runtime"
+ 		x += y
+ 		return x + y
+ 	}

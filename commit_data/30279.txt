@@ -15,6 +15,22 @@ Date:   Sat Oct 29 00:53:49 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/race/race_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 9323168299..8f910bf008 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -154,7 +154,9 @@ func runTests(t *testing.T) ([]byte, error) {
+ 	// It is required because the tests contain a lot of data races on the same addresses
+ 	// (the tests are simple and the memory is constantly reused).
+ 	for _, env := range os.Environ() {
+-		if strings.HasPrefix(env, "GOMAXPROCS=") || strings.HasPrefix(env, "GODEBUG=") {
++		if strings.HasPrefix(env, "GOMAXPROCS=") ||
++			strings.HasPrefix(env, "GODEBUG=") ||
++			strings.HasPrefix(env, "GORACE=") {
+ 			continue
+ 		}
+ 		cmd.Env = append(cmd.Env, env)

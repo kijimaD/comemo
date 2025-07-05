@@ -10,8 +10,65 @@ Date:   Thu Oct 27 20:20:59 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5308060
-
+---
  src/pkg/gob/codec_test.go | 2 +-
  src/pkg/gob/decoder.go    | 2 +-
  src/pkg/gob/error.go      | 6 +++---
  3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 2bcbf82a30..5306354bf2 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -41,7 +41,7 @@ var encodeT = []EncodeT{
+ // plain test.Error call.
+ func testError(t *testing.T) {
+ 	if e := recover(); e != nil {
+-		t.Error(e.(gobError).Error) // Will re-panic if not one of our errors, such as a runtime error.
++		t.Error(e.(gobError).err) // Will re-panic if not one of our errors, such as a runtime error.
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 5efcea8bc1..1d526e35c0 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -64,7 +64,7 @@ func (dec *Decoder) recvType(id typeId) {
+ 	dec.wireType[id] = wire
+ }
+ 
+-var errBadCount = gobError{os.NewError("invalid message length")}
++var errBadCount = os.NewError("invalid message length")
+ 
+ // recvMessage reads the next count-delimited item from the input. It is the converse
+ // of Encoder.writeMessage. It returns false on EOF or other error reading the message.
+diff --git a/src/pkg/gob/error.go b/src/pkg/gob/error.go
+index bfd38fc16d..106543d736 100644
+--- a/src/pkg/gob/error.go
++++ b/src/pkg/gob/error.go
+@@ -18,7 +18,7 @@ import (
+ 
+ // A gobError wraps an os.Error and is used to distinguish errors (panics) generated in this package.
+ type gobError struct {
+-	os.Error
++	err os.Error
+ }
+ 
+ // errorf is like error but takes Printf-style arguments to construct an os.Error.
+@@ -29,14 +29,14 @@ func errorf(format string, args ...interface{}) {
+ 
+ // error wraps the argument error and uses it as the argument to panic.
+ func error(err os.Error) {
+-	panic(gobError{Error: err})
++	panic(gobError{err})
+ }
+ 
+ // catchError is meant to be used as a deferred function to turn a panic(gobError) into a
+ // plain os.Error.  It overwrites the error return of the function that deferred its call.
+ func catchError(err *os.Error) {
+ 	if e := recover(); e != nil {
+-		*err = e.(gobError).Error // Will re-panic if not one of our errors, such as a runtime error.
++		*err = e.(gobError).err // Will re-panic if not one of our errors, such as a runtime error.
+ 	}
+ 	return
+ }

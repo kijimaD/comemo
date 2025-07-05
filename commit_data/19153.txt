@@ -12,6 +12,29 @@ Date:   Tue Apr 15 20:05:56 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/87770047
-
+---
  src/cmd/pack/pack.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index ce73164171..468104deb6 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -52,6 +52,8 @@ func main() {
+ 	log.SetPrefix("pack: ")
+ 	// need "pack op archive" at least.
+ 	if len(os.Args) < 3 {
++		log.Print("not enough arguments")
++		fmt.Fprintln(os.Stderr)
+ 		usage()
+ 	}
+ 	setOp(os.Args[1])
+@@ -75,6 +77,8 @@ func main() {
+ 		ar = archive(os.Args[2], os.O_RDONLY, os.Args[3:])
+ 		ar.scan(ar.extractContents)
+ 	default:
++		log.Printf("invalid operation %q", os.Args[1])
++		fmt.Fprintln(os.Stderr)
+ 		usage()
+ 	}
+ 	if len(ar.files) > 0 {

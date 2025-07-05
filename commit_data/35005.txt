@@ -17,7 +17,115 @@ Date:   Mon Dec 4 14:47:32 2017 -0800
     Change-Id: I42a62870ff4bf480568c9bdbf0bb18958962bdf0
     Reviewed-on: https://go-review.googlesource.com/81817
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go |  9 ++++-
  test/fixedbugs/issue22881.go         | 72 ++++++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 517aa5a8bf..de89adf0e0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -427,10 +427,10 @@ func ordercall(n *Node, order *Order) {
+ // to make sure that all map assignments have the form m[k] = x.
+ // (Note: orderexpr has already been called on n, so we know k is addressable.)
+ //
+-// If n is the multiple assignment form ..., m[k], ... = ..., the rewrite is
++// If n is the multiple assignment form ..., m[k], ... = ..., x, ..., the rewrite is
+ //	t1 = m
+ //	t2 = k
+-//	...., t3, ... = x
++//	...., t3, ... = ..., x, ...
+ //	t1[t2] = t3
+ //
+ // The temporaries t1, t2 are needed in case the ... being assigned
+@@ -444,6 +444,11 @@ func ordermapassign(n *Node, order *Order) {
+ 		Fatalf("ordermapassign %v", n.Op)
+ 
+ 	case OAS:
++		if n.Left.Op == OINDEXMAP {
++			// Make sure we evaluate the RHS before starting the map insert.
++			// We need to make sure the RHS won't panic.  See issue 22881.
++			n.Right = ordercheapexpr(n.Right, order)
++		}
+ 		order.out = append(order.out, n)
+ 
+ 	case OAS2, OAS2DOTTYPE, OAS2MAPR, OAS2FUNC:
+diff --git a/test/fixedbugs/issue22881.go b/test/fixedbugs/issue22881.go
+new file mode 100644
+index 0000000000..61e99a288c
+--- /dev/null
++++ b/test/fixedbugs/issue22881.go
+@@ -0,0 +1,72 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test to make sure RHS is evaluated before map insert is started.
++// The RHS panics in all of these cases.
++
++package main
++
++import "fmt"
++
++func main() {
++	for i, f := range []func(map[int]int){
++		f0, f1, f2, f3, f4, f5, f6, f7,
++	} {
++		m := map[int]int{}
++		func() { // wrapper to scope the defer.
++			defer func() {
++				recover()
++			}()
++			f(m) // Will panic. Shouldn't modify m.
++			fmt.Printf("RHS didn't panic, case f%d\n", i)
++		}()
++		if len(m) != 0 {
++			fmt.Printf("map insert happened, case f%d\n", i)
++		}
++	}
++}
++
++func f0(m map[int]int) {
++	var p *int
++	m[0] = *p
++}
++
++func f1(m map[int]int) {
++	var p *int
++	m[0] += *p
++}
++
++func f2(m map[int]int) {
++	var p *int
++	sink, m[0] = sink, *p
++}
++
++func f3(m map[int]int) {
++	var p *chan int
++	m[0], sink = <-(*p)
++}
++
++func f4(m map[int]int) {
++	var p *interface{}
++	m[0], sink = (*p).(int)
++}
++
++func f5(m map[int]int) {
++	var p *map[int]int
++	m[0], sink = (*p)[0]
++}
++
++func f6(m map[int]int) {
++	var z int
++	m[0] /= z
++}
++
++func f7(m map[int]int) {
++	var a []int
++	m[0] = a[0]
++}
++
++var sink bool

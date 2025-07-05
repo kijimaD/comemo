@@ -8,7 +8,7 @@ Date:   Mon Dec 7 15:51:58 2009 -0800
     
     R=r
     https://golang.org/cl/165076
-
+---
  src/cmd/gc/builtin.c.boot |  2 ++
  src/cmd/gc/unsafe.go      |  2 ++
  src/pkg/gob/decode.go     | 26 +++++++++++---------------
@@ -17,3 +17,246 @@ Date:   Mon Dec 7 15:51:58 2009 -0800
  src/pkg/runtime/slice.c   |  5 ++---
  src/pkg/unsafe/unsafe.go  | 14 +++++++++++++-
  7 files changed, 79 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 98c2b8a7ba..4324c890fa 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -86,5 +86,7 @@ char *unsafeimport =
+ 	"func unsafe.Typeof (i interface { }) (typ interface { })\n"
+ 	"func unsafe.Reflect (i interface { }) (typ interface { }, addr unsafe.Pointer)\n"
+ 	"func unsafe.Unreflect (typ interface { }, addr unsafe.Pointer) (ret interface { })\n"
++	"func unsafe.New (typ interface { }) (? unsafe.Pointer)\n"
++	"func unsafe.NewArray (typ interface { }, n int) (? unsafe.Pointer)\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index 0511262072..00fae062e5 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -12,3 +12,5 @@ func Alignof(any) int
+ func Typeof(i interface{}) (typ interface{})
+ func Reflect(i interface{}) (typ interface{}, addr Pointer)
+ func Unreflect(typ interface{}, addr Pointer) (ret interface{})
++func New(typ interface{}) Pointer
++func NewArray(typ interface{}, n int) Pointer
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 3cf1233539..a3294ac50b 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -13,6 +13,7 @@ import (
+ 	"math";
+ 	"os";
+ 	"reflect";
++	"runtime";
+ 	"unsafe";
+ )
+ 
+@@ -361,10 +362,8 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer,
+ 			up = decIndirect(up, indir)
+ 		}
+ 		if *(*unsafe.Pointer)(up) == nil {
+-			// Allocate object by making a slice of bytes and recording the
+-			// address of the beginning of the array. TODO(rsc).
+-			b := make([]byte, rtyp.Size());
+-			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
++			// Allocate object.
++			*(*unsafe.Pointer)(up) = unsafe.New((*runtime.StructType)(unsafe.Pointer(rtyp)))
+ 		}
+ 		p = *(*uintptr)(up);
+ 	}
+@@ -437,10 +436,8 @@ func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+ 		if *(*unsafe.Pointer)(up) == nil {
+-			// Allocate the array by making a slice of bytes of the correct size
+-			// and taking the address of the beginning of the array. TODO(rsc).
+-			b := make([]byte, atyp.Size());
+-			*(**byte)(up) = &b[0];
++			// Allocate object.
++			*(*unsafe.Pointer)(up) = unsafe.New(atyp)
+ 		}
+ 		p = *(*uintptr)(up);
+ 	}
+@@ -466,23 +463,22 @@ func ignoreArray(state *decodeState, elemOp decOp, length int) os.Error {
+ }
+ 
+ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) os.Error {
+-	length := uintptr(decodeUint(state));
++	n := int(uintptr(decodeUint(state)));
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p);
+ 		if *(*unsafe.Pointer)(up) == nil {
+ 			// Allocate the slice header.
+-			*(*unsafe.Pointer)(up) = unsafe.Pointer(new(reflect.SliceHeader))
++			*(*unsafe.Pointer)(up) = unsafe.Pointer(new([]unsafe.Pointer))
+ 		}
+ 		p = *(*uintptr)(up);
+ 	}
+ 	// Allocate storage for the slice elements, that is, the underlying array.
+-	data := make([]byte, length*atyp.Elem().Size());
+ 	// Always write a header at p.
+ 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
+-	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
+-	hdrp.Len = int(length);
+-	hdrp.Cap = int(length);
+-	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir, ovfl);
++	hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n));
++	hdrp.Len = n;
++	hdrp.Cap = n;
++	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl);
+ }
+ 
+ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index c71f4dd693..34393f953d 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -595,15 +595,11 @@ func (v *SliceValue) Elem(i int) Value {
+ // MakeSlice creates a new zero-initialized slice value
+ // for the specified slice type, length, and capacity.
+ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
+-	s := new(SliceHeader);
+-	size := typ.Elem().Size() * uintptr(cap);
+-	if size == 0 {
+-		size = 1
+-	}
+-	data := make([]uint8, size);
+-	s.Data = uintptr(addr(&data[0]));
+-	s.Len = len;
+-	s.Cap = cap;
++	s := &SliceHeader{
++		Data: uintptr(unsafe.NewArray(typ.Elem(), cap)),
++		Len: len,
++		Cap: cap,
++	};
+ 	return newValue(typ, addr(s), true).(*SliceValue);
+ }
+ 
+@@ -1270,13 +1266,8 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 
+ // MakeZero returns a zero Value for the specified Type.
+ func MakeZero(typ Type) Value {
+-	// TODO: this will have to move into
+-	// the runtime proper in order to play nicely
+-	// with the garbage collector.
+-	size := typ.Size();
+-	if size == 0 {
+-		size = 1
+-	}
+-	data := make([]uint8, size);
+-	return newValue(typ, addr(&data[0]), true);
++	if typ == nil {
++		return nil
++	}
++	return newValue(typ, addr(unsafe.New(typ)), true);
+ }
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index a48f504c29..4a961ceae0 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "type.h"
++#include "malloc.h"
+ 
+ static void
+ printiface(Iface i)
+@@ -605,7 +606,7 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
+ }
+ 
+ void
+-unsafe·Unreflect(Iface typ, void *addr, Eface e)
++unsafe·Unreflect(Eface typ, void *addr, Eface e)
+ {
+ 	// Reflect library has reinterpreted typ
+ 	// as its own kind of type structure.
+@@ -625,3 +626,41 @@ unsafe·Unreflect(Iface typ, void *addr, Eface e)
+ 
+ 	FLUSH(&e);
+ }
++
++void
++unsafe·New(Eface typ, void *ret)
++{
++	Type *t;
++
++	// Reflect library has reinterpreted typ
++	// as its own kind of type structure.
++	// We know that the pointer to the original
++	// type structure sits before the data pointer.
++	t = (Type*)((Eface*)typ.data-1);
++
++	if(t->kind&KindNoPointers)
++		ret = mallocgc(t->size, RefNoPointers, 1);
++	else
++		ret = mal(t->size);
++	FLUSH(&ret);
++}
++
++void
++unsafe·NewArray(Eface typ, uint32 n, void *ret)
++{
++	uint64 size;
++	Type *t;
++
++	// Reflect library has reinterpreted typ
++	// as its own kind of type structure.
++	// We know that the pointer to the original
++	// type structure sits before the data pointer.
++	t = (Type*)((Eface*)typ.data-1);
++	
++	size = n*t->size;
++	if(t->kind&KindNoPointers)
++		ret = mallocgc(size, RefNoPointers, 1);
++	else
++		ret = mal(size);
++	FLUSH(&ret);
++}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 1d7a56e7ba..4d5840c21c 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -8,6 +8,7 @@
+ 
+ static	int32	debug	= 0;
+ 
++// see also unsafe·NewArray
+ // makeslice(typ *Type, nel int, cap int) (ary []any);
+ void
+ runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
+@@ -21,9 +22,7 @@ runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
+ 	ret.len = nel;
+ 	ret.cap = cap;
+ 
+-	// TODO(rsc): Disabled because reflect and gob cast []byte
+-	// to data structures with pointers.
+-	if(0 && (t->elem->kind&KindNoPointers))
++	if((t->elem->kind&KindNoPointers))
+ 		ret.array = mallocgc(size, RefNoPointers, 1);
+ 	else
+ 		ret.array = mal(size);
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index d55aa2446d..fc583fe95b 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -43,5 +43,17 @@ func Typeof(i interface{}) (typ interface{})
+ func Reflect(i interface{}) (typ interface{}, addr uintptr)
+ 
+ // Unreflect inverts Reflect: Given a type and a pointer, it returns an empty interface value
+-// with those contents.
++// with those contents.  The typ is assumed to contain a pointer to a runtime type;
++// the type information in the interface{} is ignored, so that, for example, both
++// *reflect.StructType and *runtime.StructType can be passed for typ.
+ func Unreflect(typ interface{}, addr uintptr) (ret interface{})
++
++// New allocates and returns a pointer to memory for a new value of the given type.
++// The typ is assumed to hold a pointer to a runtime type.
++// Callers should use reflect.MakeZero instead of invoking unsafe.New directly.
++func New(typ interface{}) Pointer
++
++// NewArray allocates and returns a pointer to an array of n elements of the given type.
++// The typ is assumed to hold a pointer to a runtime type.
++// Callers should use reflect.MakeSlice instead of invoking unsafe.NewArray directly.
++func NewArray(typ interface{}, n int) Pointer

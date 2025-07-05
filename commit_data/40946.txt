@@ -13,7 +13,66 @@ Date:   Thu Aug 1 11:45:21 2019 -0700
     Change-Id: Ic0abc2037ec339a345ec357ccc724b7ad2a64c00
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188502
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  5 ++++-
  test/fixedbugs/issue33386.go              | 29 +++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index d4e9bf2f96..6ad1e5b9a5 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -869,7 +869,7 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 	default:
+ 		x := p.bad()
+ 		p.syntaxError("expecting expression")
+-		p.advance()
++		p.advance(_Rparen, _Rbrack, _Rbrace)
+ 		return x
+ 	}
+ 
+@@ -1840,6 +1840,9 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 		} else {
+ 			// asking for a '{' rather than a ';' here leads to a better error message
+ 			p.want(_Lbrace)
++			if p.tok != _Lbrace {
++				p.advance(_Lbrace, _Rbrace) // for better synchronization (e.g., issue #22581)
++			}
+ 		}
+ 		if keyword == _For {
+ 			if p.tok != _Semi {
+diff --git a/test/fixedbugs/issue33386.go b/test/fixedbugs/issue33386.go
+new file mode 100644
+index 0000000000..afc27e62f3
+--- /dev/null
++++ b/test/fixedbugs/issue33386.go
+@@ -0,0 +1,29 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we don't get spurious follow-on errors
++// after a missing expression. Specifically, the parser
++// shouldn't skip over closing parentheses of any kind.
++
++package p
++
++func _() {
++	go func() { // no error here about goroutine
++		send <-
++	}() // ERROR "expecting expression"
++}
++
++func _() {
++	defer func() { // no error here about deferred function
++		1 +
++	}() // ERROR "expecting expression"
++}
++
++func _() {
++	_ = (1 +)             // ERROR "expecting expression"
++	_ = a[2 +]            // ERROR "expecting expression"
++	_ = []int{1, 2, 3 + } // ERROR "expecting expression"
++}

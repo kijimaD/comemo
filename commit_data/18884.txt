@@ -10,7 +10,92 @@ Date:   Mon Mar 17 15:52:52 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/76320043
-
+---
  src/pkg/net/http/requestwrite_test.go | 40 +++++++++++++++++++++++++++++++++++
  src/pkg/net/http/transfer.go          | 15 +++++++++++--
  2 files changed, 53 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index 561eea28e5..dc0e204cac 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -310,6 +310,46 @@ var reqWriteTests = []reqWriteTest{
+ 		WantError: errors.New("http: Request.ContentLength=5 with nil Body"),
+ 	},
+ 
++	// Request with a 0 ContentLength and a body with 1 byte content and an error.
++	{
++		Req: Request{
++			Method:        "POST",
++			URL:           mustParseURL("/"),
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 0, // as if unset by user
++		},
++
++		Body: func() io.ReadCloser {
++			err := errors.New("Custom reader error")
++			errReader := &errorReader{err}
++			return ioutil.NopCloser(io.MultiReader(strings.NewReader("x"), errReader))
++		},
++
++		WantError: errors.New("Custom reader error"),
++	},
++
++	// Request with a 0 ContentLength and a body without content and an error.
++	{
++		Req: Request{
++			Method:        "POST",
++			URL:           mustParseURL("/"),
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 0, // as if unset by user
++		},
++
++		Body: func() io.ReadCloser {
++			err := errors.New("Custom reader error")
++			errReader := &errorReader{err}
++			return ioutil.NopCloser(errReader)
++		},
++
++		WantError: errors.New("Custom reader error"),
++	},
++
+ 	// Verify that DumpRequest preserves the HTTP version number, doesn't add a Host,
+ 	// and doesn't add a User-Agent.
+ 	{
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 2eec9d9abc..d509e14419 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -17,6 +17,14 @@ import (
+ 	"sync"
+ )
+ 
++type errorReader struct {
++	err error
++}
++
++func (r *errorReader) Read(p []byte) (n int, err error) {
++	return 0, r.err
++}
++
+ // transferWriter inspects the fields of a user-supplied Request or Response,
+ // sanitizes them without changing the user object and provides methods for
+ // writing the respective header, body and trailer in wire format.
+@@ -53,8 +61,11 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 			if t.ContentLength == 0 {
+ 				// Test to see if it's actually zero or just unset.
+ 				var buf [1]byte
+-				n, _ := io.ReadFull(t.Body, buf[:])
+-				if n == 1 {
++				n, rerr := io.ReadFull(t.Body, buf[:])
++				if rerr != nil && rerr != io.EOF {
++					t.ContentLength = -1
++					t.Body = &errorReader{rerr}
++				} else if n == 1 {
+ 					// Oh, guess there is data in this Body Reader after all.
+ 					// The ContentLength field just wasn't set.
+ 					// Stich the Body back together again, re-attaching our

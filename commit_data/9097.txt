@@ -7,6 +7,20 @@ Date:   Mon Jul 18 08:46:47 2011 +1000
     R=golang-dev, r
     CC=golang-dev, rsc
     https://golang.org/cl/4755046
-
+---
  src/cmd/5l/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index 9f4a192aa9..8489abc649 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -29,7 +29,7 @@ OFILES=\
+ 
+ HFILES=\
+ 	l.h\
+-	../5l/5.out.h\
++	5.out.h\
+ 	../ld/elf.h\
+ 
+ include ../../Make.ccmd

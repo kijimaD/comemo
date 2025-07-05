@@ -11,7 +11,7 @@ Date:   Wed Oct 12 13:42:04 2011 -0700
     R=rsc, dvyukov
     CC=golang-dev
     https://golang.org/cl/5247058
-
+---
  src/pkg/bytes/bytes_test.go         | 2 +-
  src/pkg/exp/norm/normregtest.go     | 2 +-
  src/pkg/exp/norm/readwriter_test.go | 4 ++--
@@ -20,3 +20,115 @@ Date:   Wed Oct 12 13:42:04 2011 -0700
  src/pkg/os/dir_plan9.go             | 2 +-
  src/pkg/os/env.go                   | 4 ++--
  7 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 55aa0a065c..ce3f37e4de 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -829,7 +829,7 @@ var ReplaceTests = []ReplaceTest{
+ 
+ func TestReplace(t *testing.T) {
+ 	for _, tt := range ReplaceTests {
+-		in := append([]byte(tt.in), []byte("<spare>")...)
++		in := append([]byte(tt.in), "<spare>"...)
+ 		in = in[:len(tt.in)]
+ 		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
+ 		if s := string(out); s != tt.out {
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 3c17741d20..cbd73ffa75 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -280,7 +280,7 @@ func PerformanceTest() {
+ 	success := make(chan bool, 1)
+ 	go func() {
+ 		buf := bytes.Repeat([]byte("\u035D"), 1024*1024)
+-		buf = append(buf, []byte("\u035B")...)
++		buf = append(buf, "\u035B"...)
+ 		norm.NFC.Append(nil, buf...)
+ 		success <- true
+ 	}()
+diff --git a/src/pkg/exp/norm/readwriter_test.go b/src/pkg/exp/norm/readwriter_test.go
+index b415f2b8cc..68652efa65 100644
+--- a/src/pkg/exp/norm/readwriter_test.go
++++ b/src/pkg/exp/norm/readwriter_test.go
+@@ -23,7 +23,7 @@ var bufSizes = []int{1, 2, 3, 4, 5, 6, 7, 8, 100, 101, 102, 103, 4000, 4001, 400
+ 
+ func readFunc(size int) appendFunc {
+ 	return func(f Form, out []byte, s string) []byte {
+-		out = append(out, []byte(s)...)
++		out = append(out, s...)
+ 		r := f.Reader(bytes.NewBuffer(out))
+ 		buf := make([]byte, size)
+ 		result := []byte{}
+@@ -46,7 +46,7 @@ func TestReader(t *testing.T) {
+ 
+ func writeFunc(size int) appendFunc {
+ 	return func(f Form, out []byte, s string) []byte {
+-		in := append(out, []byte(s)...)
++		in := append(out, s...)
+ 		result := new(bytes.Buffer)
+ 		w := f.Writer(result)
+ 		buf := make([]byte, size)
+diff --git a/src/pkg/exp/ssh/messages.go b/src/pkg/exp/ssh/messages.go
+index def294543c..851c89747d 100644
+--- a/src/pkg/exp/ssh/messages.go
++++ b/src/pkg/exp/ssh/messages.go
+@@ -323,7 +323,7 @@ func marshal(msgType uint8, msg interface{}) []byte {
+ 			out = append(out, byte(len(s)>>16))
+ 			out = append(out, byte(len(s)>>8))
+ 			out = append(out, byte(len(s)))
+-			out = append(out, []byte(s)...)
++			out = append(out, s...)
+ 		case reflect.Slice:
+ 			switch t.Elem().Kind() {
+ 			case reflect.Uint8:
+@@ -354,7 +354,7 @@ func marshal(msgType uint8, msg interface{}) []byte {
+ 					if j != 0 {
+ 						out = append(out, ',')
+ 					}
+-					out = append(out, []byte(field.Index(j).String())...)
++					out = append(out, field.Index(j).String()...)
+ 				}
+ 			default:
+ 				panic("slice of unknown type")
+diff --git a/src/pkg/json/scanner_test.go b/src/pkg/json/scanner_test.go
+index 404cbd0ea9..4d73eac8aa 100644
+--- a/src/pkg/json/scanner_test.go
++++ b/src/pkg/json/scanner_test.go
+@@ -175,7 +175,7 @@ func TestNextValueBig(t *testing.T) {
+ 		t.Errorf("invalid rest: %d", len(rest))
+ 	}
+ 
+-	item, rest, err = nextValue(append(jsonBig, []byte("HELLO WORLD")...), &scan)
++	item, rest, err = nextValue(append(jsonBig, "HELLO WORLD"...), &scan)
+ 	if err != nil {
+ 		t.Fatalf("nextValue extra: %s", err)
+ 	}
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index bbc2cb6472..bf17005dd5 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -295,6 +295,6 @@ func pstring(b []byte, s string) []byte {
+ 		panic(NewError("string too long"))
+ 	}
+ 	b = pbit16(b, uint16(len(s)))
+-	b = append(b, []byte(s)...)
++	b = append(b, s...)
+ 	return b
+ }
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 3772c090b8..4844fa3e26 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -16,9 +16,9 @@ func Expand(s string, mapping func(string) string) string {
+ 	i := 0
+ 	for j := 0; j < len(s); j++ {
+ 		if s[j] == '$' && j+1 < len(s) {
+-			buf = append(buf, []byte(s[i:j])...)
++			buf = append(buf, s[i:j]...)
+ 			name, w := getShellName(s[j+1:])
+-			buf = append(buf, []byte(mapping(name))...)
++			buf = append(buf, mapping(name)...)
+ 			j += w
+ 			i = j + 1
+ 		}

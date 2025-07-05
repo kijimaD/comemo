@@ -15,6 +15,20 @@ Date:   Sat Oct 28 16:30:57 2023 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/reflect/all_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index c2a987f45e..5bff2efbc4 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7042,7 +7042,7 @@ func verifyGCBitsSlice(t *testing.T, typ Type, cap int, bits []byte) {
+ 	// repeat a bitmap for a small array or executing a repeat in
+ 	// a GC program.
+ 	val := MakeSlice(typ, 0, cap)
+-	data := NewAt(ArrayOf(cap, typ), val.UnsafePointer())
++	data := NewAt(ArrayOf(cap, typ.Elem()), val.UnsafePointer())
+ 	heapBits := GCBits(data.Interface())
+ 	// Repeat the bitmap for the slice size, trimming scalars in
+ 	// the last element.

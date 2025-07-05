@@ -9,7 +9,7 @@ Date:   Thu Sep 18 15:56:46 2008 -0700
     DELTA=161  (124 added, 23 deleted, 14 changed)
     OCL=15490
     CL=15497
-
+---
  src/runtime/proc.c             | 76 +++++++++++++++++++++++++-----------------
  src/runtime/rt0_amd64.s        | 11 ++++--
  src/runtime/rt1_amd64_darwin.c | 28 +++++++++++++++-
@@ -19,3 +19,407 @@ Date:   Thu Sep 18 15:56:46 2008 -0700
  src/runtime/sys_amd64_darwin.s | 10 ++++++
  src/runtime/sys_amd64_linux.s  | 10 ++++++
  8 files changed, 137 insertions(+), 36 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 62efd45691..84f5a06ed6 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -70,7 +70,18 @@ static void readylocked(G*);	// ready, but sched is locked
+ // Scheduler loop.
+ static void scheduler(void);
+ 
+-// Called before main·init_function.
++// The bootstrap sequence is:
++//
++//	call osinit
++//	call schedinit
++//	make & queue new G
++//	call mstart
++//
++// The new G does:
++//
++//	call main·init_function
++//	call initdone
++//	call main·main
+ void
+ schedinit(void)
+ {
+@@ -85,9 +96,9 @@ schedinit(void)
+ 	sched.predawn = 1;
+ }
+ 
+-// Called after main·init_function; main·main is on ready queue.
++// Called after main·init_function; main·main will be called on return.
+ void
+-m0init(void)
++initdone(void)
+ {
+ 	int32 i;
+ 
+@@ -100,8 +111,6 @@ m0init(void)
+ 	// would have, had it not been pre-dawn.
+ 	for(i=1; i<sched.gcount && i<sched.mmax; i++)
+ 		mnew();
+-
+-	scheduler();
+ }
+ 
+ void
+@@ -116,6 +125,21 @@ sys·goexit(void)
+ 	sys·gosched();
+ }
+ 
++G*
++malg(int32 stacksize)
++{
++	G *g;
++	byte *stk;
++
++	// 160 is the slop amount known to the stack growth code
++	g = mal(sizeof(G));
++	stk = mal(160 + stacksize);
++	g->stack0 = stk;
++	g->stackguard = stk + 160;
++	g->stackbase = stk + 160 + stacksize;
++	return g;
++}
++
+ void
+ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ {
+@@ -135,15 +159,13 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 
+ 	if((newg = gfget()) != nil){
+ 		newg->status = Gwaiting;
+-		stk = newg->stack0;
+ 	}else{
+-		newg = mal(sizeof(G));
+-		stk = mal(4096);
+-		newg->stack0 = stk;
++		newg = malg(4096);
+ 		newg->status = Gwaiting;
+ 		newg->alllink = allg;
+ 		allg = newg;
+ 	}
++	stk = newg->stack0;
+ 
+ 	newg->stackguard = stk+160;
+ 
+@@ -335,6 +357,14 @@ nextgandunlock(void)
+ 	return gp;
+ }
+ 
++// Called to start an M.
++void
++mstart(void)
++{
++	minit();
++	scheduler();
++}
++
+ // Scheduler loop: find g to run, run it, repeat.
+ static void
+ scheduler(void)
+@@ -342,11 +372,13 @@ scheduler(void)
+ 	G* gp;
+ 
+ 	lock(&sched);
+-
+ 	if(gosave(&m->sched)){
+-		// Jumped here via gosave/gogo, so didn'
++		// Jumped here via gosave/gogo, so didn't
+ 		// execute lock(&sched) above.
+ 		lock(&sched);
++		
++		if(sched.predawn)
++			throw("init sleeping");
+ 
+ 		// Just finished running m->curg.
+ 		gp = m->curg;
+@@ -371,7 +403,6 @@ scheduler(void)
+ 
+ 	// Find (or wait for) g to run.  Unlocks sched.
+ 	gp = nextgandunlock();
+-
+ 	noteclear(&gp->stopped);
+ 	gp->status = Grunning;
+ 	m->curg = gp;
+@@ -388,10 +419,6 @@ void
+ sys·gosched(void)
+ {
+ 	if(gosave(&g->sched) == 0){
+-		// TODO(rsc) signal race here?
+-		// If a signal comes in between
+-		// changing g and changing SP,
+-		// growing the stack will fail.
+ 		g = m->g0;
+ 		gogo(&m->sched);
+ 	}
+@@ -402,8 +429,6 @@ static void
+ mnew(void)
+ {
+ 	M *m;
+-	G *g;
+-	byte *stk, *stktop;
+ 
+ 	sched.mcount++;
+ 	if(debug){
+@@ -411,18 +436,9 @@ mnew(void)
+ 		prints(" threads\n");
+ 	}
+ 
+-	// Allocate m, g, stack in one chunk.
+-	// 1024 and 104 are the magic constants
+-	// use in rt0_amd64.s when setting up g0.
+-	m = mal(sizeof(M)+sizeof(G)+104+1024);
+-	g = (G*)(m+1);
+-	stk = (byte*)g + 104;
+-	stktop = stk + 1024;
+-
+-	m->g0 = g;
+-	g->stackguard = stk;
+-	g->stackbase = stktop;
+-	newosproc(m, g, stktop, scheduler);
++	m = mal(sizeof(M));
++	m->g0 = malg(1024);
++	newosproc(m, m->g0, m->g0->stackbase, mstart);
+ }
+ 
+ //
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index 0200f35f48..9f354a71ae 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -35,20 +35,25 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	CALL	args(SB)
+ 	CALL	osinit(SB)
+ 	CALL	schedinit(SB)
+-	CALL	main·init_function(SB) // initialization
+ 
+ 	// create a new goroutine to start program
+ 
+-	PUSHQ	$main·main(SB)		// entry
++	PUSHQ	$mainstart(SB)		// entry
+ 	PUSHQ	$16			// arg size
+ 	CALL	sys·newproc(SB)
+-	CALL	m0init(SB)
++	CALL	mstart(SB)
+ 	POPQ	AX
+ 	POPQ	AX
+ 
+ 	CALL	notok(SB)		// never returns
+ 	RET
+ 
++TEXT mainstart(SB),7,$0
++	CALL	main·init_function(SB)
++	CALL	initdone(SB)
++	CALL	main·main(SB)
++	RET
++
+ TEXT	sys·breakpoint(SB),7,$0
+ 	BYTE	$0xcc
+ 	RET
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index f8718aed3b..cf4f3bcdad 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -157,16 +157,33 @@ sighandler(int32 sig, siginfo *info, void *context)
+ 	sys·exit(2);
+ }
+ 
++struct stack_t {
++	byte *sp;
++	int64 size;
++	int32 flags;
++};
+ 
+ sigaction a;
+ extern void sigtramp(void);
+ 
++void
++signalstack(byte *p, int32 n)
++{
++	struct stack_t st;
++
++	st.sp = p;
++	st.size = n;
++	st.flags = 0;
++	sigaltstack(&st, nil);
++}
++
+ void
+ initsig(void)
+ {
+ 	int32 i;
++
+ 	a.u.sa_sigaction = (void*)sigtramp;
+-	a.sa_flags |= 0x40;  /* SA_SIGINFO */
++	a.sa_flags |= 0x41;  /* SA_SIGINFO, SA_ONSTACK */
+ 	for(i=0; i<sizeof(a.sa_mask); i++)
+ 		a.sa_mask[i] = 0xFF;
+ 	a.sa_trampoline = sigtramp;
+@@ -308,6 +325,15 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	bsdthread_create(stk, m, g, fn);
+ }
+ 
++// Called to initialize a new m (including the bootstrap m).
++void
++minit(void)
++{
++	// Initialize signal handling.
++	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	signalstack(m->gsignal->stackguard, 32*1024);
++}
++
+ 
+ // Mach IPC, to get at semaphores
+ // Definitions are in /usr/include/mach on a Mac.
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index 54b6496d1c..c62db5ce95 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -161,6 +161,25 @@ sighandler(int32 sig, siginfo* info, void** context)
+ 	sys·exit(2);
+ }
+ 
++struct stack_t {
++	void *sp;
++	int32 flags;
++	int32 pad;
++	int64 size;
++};
++
++void
++signalstack(byte *p, int32 n)
++{
++	struct stack_t st;
++
++	st.sp = p;
++	st.size = n;
++	st.pad = 0;
++	st.flags = 0;
++	sigaltstack(&st, nil);
++}
++
+ static sigaction a;
+ 
+ void
+@@ -168,7 +187,7 @@ initsig(void)
+ {
+ 	int32 i;
+ 	a.u.sa_sigaction = (void*)sigtramp;
+-	a.sa_flags = 0x04;  /* SA_SIGINFO */
++	a.sa_flags = 0x08000004;  /* SA_ONSTACK,  SA_SIGINFO */
+ 	for(i=0; i<sizeof(a.sa_mask); i++)
+ 		a.sa_mask[i] = 0xFF;
+ 
+@@ -178,6 +197,7 @@ initsig(void)
+ 		}
+ }
+ 
++
+ // Linux futex.
+ //
+ //	futexsleep(uint32 *addr, uint32 val)
+@@ -432,3 +452,12 @@ void
+ osinit(void)
+ {
+ }
++
++// Called to initialize a new m (including the bootstrap m).
++void
++minit(void)
++{
++	// Initialize signal handling.
++	m->gsignal = malg(32*1024);	// OS X wants >=8K, Linux >=2K
++	signalstack(m->gsignal->stackguard, 32*1024);
++}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 022789234d..8ead7dd237 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -157,6 +157,7 @@ struct	M
+ 	uint64	morearg;	// arg to morestack - must not move
+ 	uint64	cret;		// return value from C - must not move
+ 	uint64	procid;	// for debuggers - must not move
++	G*	gsignal;		// signal-handling G - must not move
+ 	G*	curg;		// current running goroutine
+ 	G*	lastg;		// last running goroutine - to emulate fifo
+ 	Gobuf	sched;
+@@ -248,6 +249,10 @@ void	ready(G*);
+ byte*	getenv(int8*);
+ int32	atoi(byte*);
+ void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
++void	sigaltstack(void*, void*);
++void	signalstack(byte*, int32);
++G*	malg(int32);
++void	minit(void);
+ 
+ /*
+  * mutual exclusion locks.  in the uncontended case,
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 099d7aa1d1..27a7581094 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -53,7 +53,7 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
+ 	prints(">");
+ 	sys·printint(c);
+ 	prints("\n");
+-	throw("bounds");
++	throw("string bounds");
+ }
+ 
+ uint32
+diff --git a/src/runtime/sys_amd64_darwin.s b/src/runtime/sys_amd64_darwin.s
+index 19d8184efb..b690e3108a 100644
+--- a/src/runtime/sys_amd64_darwin.s
++++ b/src/runtime/sys_amd64_darwin.s
+@@ -86,6 +86,7 @@ TEXT	sys·sigaction(SB),7,$-8
+ 	RET
+ 
+ TEXT sigtramp(SB),7,$24
++	MOVQ	32(R14), R15	// g = m->gsignal
+ 	MOVL	DX,0(SP)
+ 	MOVQ	CX,8(SP)
+ 	MOVQ	R8,16(SP)
+@@ -132,6 +133,15 @@ TEXT	sys·setcallerpc+0(SB),7,$0
+ 	MOVQ	BX, -8(AX)		// set calling pc
+ 	RET
+ 
++TEXT sigaltstack(SB),7,$-8
++	MOVQ	new+8(SP), DI
++	MOVQ	old+16(SP), SI
++	MOVQ	$(0x2000000+53), AX
++	SYSCALL
++	JCC	2(PC)
++	CALL	notok(SB)
++	RET
++
+ // void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+ TEXT bsdthread_create(SB),7,$-8
+ 	// Set up arguments to bsdthread_create system call.
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index 01f6f6280d..766ee8c9f5 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -73,6 +73,7 @@ TEXT	sys·rt_sigaction(SB),7,$0-32
+ 	RET
+ 
+ TEXT	sigtramp(SB),7,$24-16
++	MOVQ	32(R14), R15	// g = m->gsignal
+ 	MOVQ	DI,0(SP)
+ 	MOVQ	SI,8(SP)
+ 	MOVQ	DX,16(SP)
+@@ -192,3 +193,12 @@ TEXT select(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT sigaltstack(SB),7,$-8
++	MOVQ	new+8(SP), DI
++	MOVQ	old+16(SP), SI
++	MOVQ	$131, AX
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	CALL	notok(SB)
++	RET

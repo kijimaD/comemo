@@ -7,7 +7,7 @@ Date:   Mon Apr 26 22:35:12 2010 -0700
     R=adg, gri
     CC=golang-dev, r
     https://golang.org/cl/1008042
-
+---
  doc/codewalk/codewalk.css  | 234 +++++++++++++++++++++
  doc/codewalk/codewalk.js   | 305 ++++++++++++++++++++++++++++
  doc/codewalk/codewalk.xml  | 124 ++++++++++++
@@ -19,3 +19,1357 @@ Date:   Mon Apr 26 22:35:12 2010 -0700
  src/cmd/godoc/codewalk.go  | 493 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/godoc/godoc.go     |   9 +-
  10 files changed, 1244 insertions(+), 3 deletions(-)
+
+diff --git a/doc/codewalk/codewalk.css b/doc/codewalk/codewalk.css
+new file mode 100644
+index 0000000000..a0814e4d2d
+--- /dev/null
++++ b/doc/codewalk/codewalk.css
+@@ -0,0 +1,234 @@
++/*
++   Copyright 2010 The Go Authors. All rights reserved.
++   Use of this source code is governed by a BSD-style
++   license that can be found in the LICENSE file.
++*/
++
++#codewalk-main {
++  text-align: left;
++  width: 100%;
++  overflow: auto;
++}
++
++#code-display {
++  border: 0;
++  width: 100%;
++}
++
++.setting {
++  font-size: 8pt;
++  color: #888888;
++  padding: 5px;
++}
++
++.hotkey {
++  text-decoration: underline;
++}
++
++/* Style for Comments (the left-hand column) */
++
++#comment-column {
++  margin: 0pt;
++  width: 30%;
++}
++
++#comment-column.right {
++  float: right;
++}
++
++#comment-column.left {
++  float: left;
++}
++
++#comment-area {
++  overflow-x: hidden;
++  overflow-y: auto;
++}
++
++.comment {
++  cursor: pointer;
++  font-size: 16px;
++  border: 2px solid #ba9836;
++  margin-bottom: 10px;
++  margin-right: 10px;  /* yes, for both .left and .right */
++}
++
++.comment:last-child {
++  margin-bottom: 0px;
++}
++
++.right .comment {
++  margin-left: 10px;
++}
++
++.right .comment.first {
++}
++
++.right .comment.last {
++}
++
++.left .comment.first {
++}
++
++.left .comment.last {
++}
++
++.comment.selected {
++  border-color: #99b2cb;
++}
++
++.right .comment.selected {
++  border-left-width: 12px;
++  margin-left: 0px;
++}
++
++.left .comment.selected {
++  border-right-width: 12px;
++  margin-right: 0px;
++}
++
++.comment-link {
++  display: none;
++}
++
++.comment-title {
++  font-size: small;
++  font-weight: bold;
++  background-color: #fffff0;
++  padding-right: 10px;
++  padding-left: 10px;
++  padding-top: 5px;
++  padding-bottom: 5px;
++}
++
++.right .comment-title {
++}
++
++.left .comment-title {
++}
++
++.comment.selected .comment-title {
++  background-color: #f8f8ff;
++}
++
++.comment-text {
++  overflow: auto;
++  padding-left: 10px;
++  padding-right: 10px;
++  padding-top: 10px;
++  padding-bottom: 5px;
++  font-size: small;
++  line-height: 1.3em;
++}
++
++.comment-text p {
++  margin-top: 0em;
++  margin-bottom: 0.5em;
++}
++
++.comment-text p:last-child {
++  margin-bottom: 0em;
++}
++
++.file-name {
++  font-size: x-small;
++  padding-top: 0px;
++  padding-bottom: 5px;
++}
++
++.hidden-filepaths .file-name {
++  display: none;
++}
++
++.path-dir {
++  color: #555;
++}
++
++.path-file {
++  color: #555;
++}
++
++
++/* Style for Code (the right-hand column) */
++
++/* Wrapper for the code column to make widths get calculated correctly */
++#code-column {
++  display: block;
++  position: relative;
++  margin: 0pt;
++  width: 70%;
++}
++
++#code-column.left {
++  float: left;
++}
++
++#code-column.right {
++  float: right;
++}
++
++#code-area {
++  background-color: #f8f8ff;
++  border: 2px solid #99b2cb;
++  padding: 5px;
++}
++
++.left #code-area {
++  margin-right: -1px;
++}
++
++.right #code-area {
++  margin-left: -1px;
++}
++
++#code-header {
++  margin-bottom: 5px;
++}
++
++#code {
++  background-color: white;
++}
++
++code {
++  font-size: 100%;
++}
++
++.codewalkhighlight {
++  font-weight: bold;
++  background-color: #f8f8ff;
++}
++
++#code-display {
++  margin-top: 0px;
++  margin-bottom: 0px;
++}
++
++#sizer {
++  position: absolute;
++  cursor: col-resize;
++  left: 0px;
++  top: 0px;
++  width: 8px;
++}
++
++/* Style for options (bottom strip) */
++
++#code-options {
++  display: none;
++}
++
++#code-options > span {
++  padding-right: 20px;
++}
++
++#code-options .selected {
++  border-bottom: 1px dotted;
++}
++
++#comment-options {
++  text-align: center;
++}
++
++div#content {
++  padding-bottom: 0em;
++}
+diff --git a/doc/codewalk/codewalk.js b/doc/codewalk/codewalk.js
+new file mode 100644
+index 0000000000..f780bc7a57
+--- /dev/null
++++ b/doc/codewalk/codewalk.js
+@@ -0,0 +1,305 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/**
++ * A class to hold information about the Codewalk Viewer.
++ * @param {jQuery} context The top element in whose context the viewer should
++ *     operate.  It will not touch any elements above this one.
++ * @constructor
++ */
++ var CodewalkViewer = function(context) {
++  this.context = context;
++
++  /**
++   * The div that contains all of the comments and their controls.
++   */
++  this.commentColumn = this.context.find('#comment-column');
++
++  /**
++   * The div that contains the comments proper.
++   */
++  this.commentArea = this.context.find('#comment-area');
++
++  /**
++   * The div that wraps the iframe with the code, as well as the drop down menu
++   * listing the different files.
++   * @type {jQuery}
++   */
++  this.codeColumn = this.context.find('#code-column');
++
++  /**
++   * The div that contains the code but excludes the options strip.
++   * @type {jQuery}
++   */
++  this.codeArea = this.context.find('#code-area');
++
++  /**
++   * The iframe that holds the code (from Sourcerer).
++   * @type {jQuery}
++   */
++  this.codeDisplay = this.context.find('#code-display');
++
++  /**
++   * The overlaid div used as a grab handle for sizing the code/comment panes.
++   * @type {jQuery}
++   */
++  this.sizer = this.context.find('#sizer');
++
++  /**
++   * The full-screen overlay that ensures we don't lose track of the mouse
++   * while dragging.
++   * @type {jQuery}
++   */
++  this.overlay = this.context.find('#overlay');
++
++  /**
++   * The hidden input field that we use to hold the focus so that we can detect
++   * shortcut keypresses.
++   * @type {jQuery}
++   */
++  this.shortcutInput = this.context.find('#shortcut-input');
++
++  /**
++   * The last comment that was selected.
++   * @type {jQuery}
++   */
++  this.lastSelected = null;
++};
++
++/**
++ * Minimum width of the comments or code pane, in pixels.
++ * @type {number}
++ */
++CodewalkViewer.MIN_PANE_WIDTH = 200;
++
++/**
++ * Navigate the code iframe to the given url and update the code popout link.
++ * @param {string} url The target URL.
++ * @param {Object} opt_window Window dependency injection for testing only.
++ */
++CodewalkViewer.prototype.navigateToCode = function(url, opt_window) {
++  if (!opt_window) opt_window = window;
++  // Each iframe is represented by two distinct objects in the DOM:  an iframe
++  // object and a window object.  These do not expose the same capabilities.
++  // Here we need to get the window representation to get the location member,
++  // so we access it directly through window[] since jQuery returns the iframe
++  // representation.
++  // We replace location rather than set so as not to create a history for code
++  // navigation.
++  opt_window['code-display'].location.replace(url);
++  var k = url.indexOf('&');
++  if (k != -1) url = url.slice(0, k);
++  k = url.indexOf('fileprint=');
++  if (k != -1) url = url.slice(k+10, url.length);
++  this.context.find('#code-popout-link').attr('href', url);
++};
++
++/**
++ * Selects the first comment from the list and forces a refresh of the code
++ * view.
++ */
++CodewalkViewer.prototype.selectFirstComment = function() {
++  // TODO(rsc): handle case where there are no comments
++  var firstSourcererLink = this.context.find('.comment:first');
++  this.changeSelectedComment(firstSourcererLink);
++};
++
++/**
++ * Sets the target on all links nested inside comments to be _blank.
++ */
++CodewalkViewer.prototype.targetCommentLinksAtBlank = function() {
++  this.context.find('.comment a[href], #description a[href]').each(function() {
++    if (!this.target) this.target = '_blank';
++  });
++};
++
++/**
++ * Installs event handlers for all the events we care about.
++ */
++CodewalkViewer.prototype.installEventHandlers = function() {
++  var self = this;
++
++  this.context.find('.comment')
++      .click(function(event) {
++        if (jQuery(event.target).is('a[href]')) return true;
++        self.changeSelectedComment(jQuery(this));
++        return false;
++      });
++
++  this.context.find('#code-selector')
++      .change(function() {self.navigateToCode(jQuery(this).val());});
++
++  this.context.find('#description-table .quote-feet.setting')
++      .click(function() {self.toggleDescription(jQuery(this)); return false;});
++
++  this.sizer
++      .mousedown(function(ev) {self.startSizerDrag(ev); return false;});
++  this.overlay
++      .mouseup(function(ev) {self.endSizerDrag(ev); return false;})
++      .mousemove(function(ev) {self.handleSizerDrag(ev); return false;});
++
++  this.context.find('#prev-comment')
++      .click(function() {
++          self.changeSelectedComment(self.lastSelected.prev()); return false;
++      });
++
++  this.context.find('#next-comment')
++      .click(function() {
++          self.changeSelectedComment(self.lastSelected.next()); return false;
++      });
++
++  // Workaround for Firefox 2 and 3, which steal focus from the main document
++  // whenever the iframe content is (re)loaded.  The input field is not shown,
++  // but is a way for us to bring focus back to a place where we can detect
++  // keypresses.
++  this.context.find('#code-display')
++      .load(function(ev) {self.shortcutInput.focus();});
++
++  jQuery(document).keypress(function(ev) {
++    switch(ev.which) {
++      case 110:  // 'n'
++          self.changeSelectedComment(self.lastSelected.next());
++          return false;
++      case 112:  // 'p'
++          self.changeSelectedComment(self.lastSelected.prev());
++          return false;
++      default:  // ignore
++    }
++  });
++
++  window.onresize = function() {self.updateHeight();};
++};
++
++/**
++ * Starts dragging the pane sizer.
++ * @param {Object} ev The mousedown event that started us dragging.
++ */
++CodewalkViewer.prototype.startSizerDrag = function(ev) {
++  this.initialCodeWidth = this.codeColumn.width();
++  this.initialCommentsWidth = this.commentColumn.width();
++  this.initialMouseX = ev.pageX;
++  this.overlay.show();
++};
++
++/**
++ * Handles dragging the pane sizer.
++ * @param {Object} ev The mousemove event updating dragging position.
++ */
++CodewalkViewer.prototype.handleSizerDrag = function(ev) {
++  var delta = ev.pageX - this.initialMouseX;
++  if (this.codeColumn.is('.right')) delta = -delta;
++  var proposedCodeWidth = this.initialCodeWidth + delta;
++  var proposedCommentWidth = this.initialCommentsWidth - delta;
++  var mw = CodewalkViewer.MIN_PANE_WIDTH;
++  if (proposedCodeWidth < mw) delta = mw - this.initialCodeWidth;
++  if (proposedCommentWidth < mw) delta = this.initialCommentsWidth - mw;
++  proposedCodeWidth = this.initialCodeWidth + delta;
++  proposedCommentWidth = this.initialCommentsWidth - delta;
++  // If window is too small, don't even try to resize.
++  if (proposedCodeWidth < mw || proposedCommentWidth < mw) return;
++  this.codeColumn.width(proposedCodeWidth);
++  this.commentColumn.width(proposedCommentWidth);
++  this.options.codeWidth = parseInt(
++      this.codeColumn.width() /
++      (this.codeColumn.width() + this.commentColumn.width()) * 100);
++  this.context.find('#code-column-width').text(this.options.codeWidth + '%');
++};
++
++/**
++ * Ends dragging the pane sizer.
++ * @param {Object} ev The mouseup event that caused us to stop dragging.
++ */
++CodewalkViewer.prototype.endSizerDrag = function(ev) {
++  this.overlay.hide();
++  this.updateHeight();
++};
++
++/**
++ * Toggles the Codewalk description between being shown and hidden.
++ * @param {jQuery} target The target that was clicked to trigger this function.
++ */
++CodewalkViewer.prototype.toggleDescription = function(target) {
++  var description = this.context.find('#description');
++  description.toggle();
++  target.find('span').text(description.is(':hidden') ? 'show' : 'hide');
++  this.updateHeight();
++};
++
++/**
++ * Changes the side of the window on which the code is shown and saves the
++ * setting in a cookie.
++ * @param {string?} codeSide The side on which the code should be, either
++ *     'left' or 'right'.
++ */
++CodewalkViewer.prototype.changeCodeSide = function(codeSide) {
++  var commentSide = codeSide == 'left' ? 'right' : 'left';
++  this.context.find('#set-code-' + codeSide).addClass('selected');
++  this.context.find('#set-code-' + commentSide).removeClass('selected');
++  // Remove previous side class and add new one.
++  this.codeColumn.addClass(codeSide).removeClass(commentSide);
++  this.commentColumn.addClass(commentSide).removeClass(codeSide);
++  this.sizer.css(codeSide, 'auto').css(commentSide, 0);
++  this.options.codeSide = codeSide;
++};
++
++/**
++ * Adds selected class to newly selected comment, removes selected style from
++ * previously selected comment, changes drop down options so that the correct
++ * file is selected, and updates the code popout link.
++ * @param {jQuery} target The target that was clicked to trigger this function.
++ */
++CodewalkViewer.prototype.changeSelectedComment = function(target) {
++  var currentFile = target.find('.comment-link').attr('href');
++  if (!currentFile) return;
++
++  if (!(this.lastSelected && this.lastSelected.get(0) === target.get(0))) {
++    if (this.lastSelected) this.lastSelected.removeClass('selected');
++    target.addClass('selected');
++    this.lastSelected = target;
++    var targetTop = target.position().top;
++    var parentTop = target.parent().position().top;
++    if (targetTop + target.height() > parentTop + target.parent().height() ||
++        targetTop < parentTop) {
++      var delta = targetTop - parentTop;
++      target.parent().animate(
++          {'scrollTop': target.parent().scrollTop() + delta},
++          Math.max(delta / 2, 200), 'swing');
++    }
++    var fname = currentFile.match(/(?:select=|fileprint=)\/[^&]+/)[0];
++    fname = fname.slice(fname.indexOf('=')+2, fname.length);
++    this.context.find('#code-selector').val(fname);
++    this.context.find('#prev-comment').toggleClass(
++        'disabled', !target.prev().length);
++    this.context.find('#next-comment').toggleClass(
++        'disabled', !target.next().length);
++  }
++
++  // Force original file even if user hasn't changed comments since they may
++  // have nagivated away from it within the iframe without us knowing.
++  this.navigateToCode(currentFile);
++};
++
++/**
++ * Updates the viewer by changing the height of the comments and code so that
++ * they fit within the height of the window.  The function is typically called
++ * after the user changes the window size.
++ */
++CodewalkViewer.prototype.updateHeight = function() {
++  var windowHeight = jQuery(window).height() - 5  // GOK
++  var areaHeight = windowHeight - this.codeArea.offset().top
++  var footerHeight = this.context.find('#footer').outerHeight(true)
++  this.commentArea.height(areaHeight - footerHeight - this.context.find('#comment-options').outerHeight(true))
++  var codeHeight = areaHeight - footerHeight - 15  // GOK
++  this.codeArea.height(codeHeight)
++  this.codeDisplay.height(codeHeight - this.codeDisplay.offset().top + this.codeArea.offset().top);
++  this.sizer.height(codeHeight);
++};
++
++jQuery(document).ready(function() {
++  var viewer = new CodewalkViewer(jQuery());
++  viewer.selectFirstComment();
++  viewer.targetCommentLinksAtBlank();
++  viewer.installEventHandlers();
++  viewer.updateHeight();
++});
+diff --git a/doc/codewalk/codewalk.xml b/doc/codewalk/codewalk.xml
+new file mode 100644
+index 0000000000..9cd8361e84
+--- /dev/null
++++ b/doc/codewalk/codewalk.xml
+@@ -0,0 +1,124 @@
++<codewalk title="How to Write a Codewalk">
++
++<step title="Introduction" src="doc/codewalk/codewalk.xml">
++	A codewalk is a guided tour through a piece of code.
++	It consists of a sequence of steps, each typically explaining
++	a highlighted section of code.
++	<br/><br/>
++	
++	The <a href="/cmd/godoc">godoc</a> web server translates
++	an XML file like the one in the main window pane into the HTML
++	page that you're viewing now.
++	<br/><br/>
++	
++	The codewalk with URL path <code>/doc/codewalk/</code><i>name</i>
++	is loaded from the input file <code>$GOROOT/doc/codewalk/</code><i>name</i><code>.xml</code>.
++	<br/><br/>
++	
++	This codewalk explains how to write a codewalk by examining
++	its own source code,
++	<code><a href="/doc/codewalk/codewalk.xml">$GOROOT/doc/codewalk/codewalk.xml</a></code>,
++	shown in the main window pane to the left.	
++</step>
++
++<step title="Title" src="doc/codewalk/codewalk.xml:/title=/">
++	The codewalk input file is an XML file containing a single
++	<code>&lt;codewalk&gt;</code> element.
++	That element's <code>title</code> attribute gives the title
++	that is used both on the codewalk page and in the codewalk list.
++</step>
++
++<step title="Steps" src="doc/codewalk/codewalk.xml:/&lt;step/,/step&gt;/">
++	Each step in the codewalk is a <code>&lt;step&gt;</code> element 
++	nested inside the main <code>&lt;codewalk&gt;</code>.
++	The step element's <code>title</code> attribute gives the step's title,
++	which is shown in a shaded bar above the main step text.
++	The element's <code>src</code> attribute specifies the source
++	code to show in the main window pane and, optionally, a range of 
++	lines to highlight.
++	<br/><br/>
++	
++	The first step in this codewalk does not highlight any lines:
++	its <code>src</code> is just a file name.
++</step>
++
++<step title="Specifiying a source line" src='doc/codewalk/codewalk.xml:/title="Title"/'>
++	The most complex part of the codewalk specification is
++	saying what lines to highlight.
++	Instead of ordinary line numbers,
++	the codewalk uses an address syntax that makes it possible
++	to describe the match by its content.
++	As the file gets edited, this descriptive address has a better
++	chance to continue to refer to the right section of the file.
++	<br/><br/>
++
++	To specify a source line, use a <code>src</code> attribute of the form
++	<i>filename</i><code>:</code><i>address</i>,
++	where <i>address</i> is an address in the syntax used by the text editors <i>sam</i> and <i>acme</i>.
++	<br/><br/>
++	
++	The simplest address is a single regular expression.
++	The highlighted line in the main window pane shows that the
++	address for the &ldquo;Title&rdquo; step was <code>/title=/</code>,
++	which matches the first instance of that <a href="/pkg/regexp">regular expression</a> (<code>title=</code>) in the file.
++</step>
++
++<step title="Specifying a source range" src='doc/codewalk/codewalk.xml:/title="Steps"/'>
++	To highlight a range of source lines, the simplest address to use is
++	a pair of regular expressions
++	<code>/</code><i>regexp1</i><code>/,/</code><i>regexp2</i><code>/</code>.
++	The highlight begins with the line containing the first match for <i>regexp1</i>
++	and ends with the line containing the first match for <i>regexp2</i>
++	after the end of the match for <i>regexp1</i>.
++	Ignoring the HTML quoting, 
++	The line containing the first match for <i>regexp1</i> will be the first one highlighted,
++	and the line containing the first match for <i>regexp2</i>.
++	<br/><br/>
++	
++	The address <code>/&lt;step/,/step&gt;/</code> looks for the first instance of
++	<code>&lt;step</code> in the file, and then starting after that point,
++	looks for the first instance of <code>step&gt;</code>.
++	(Click on the &ldquo;Steps&rdquo; step above to see the highlight in action.)
++	Note that the <code>&lt;</code> and <code>&gt;</code> had to be written
++	using XML escapes in order to be valid XML.
++</step>
++
++<step title="Advanced addressing" src="doc/codewalk/codewalk.xml:/Advanced/,/step&gt;/">
++	The <code>/</code><i>regexp</i><code>/</code>
++ 	and <code>/</code><i>regexp1</i><code>/,/</code><i>regexp2</i><code>/</code>
++ 	forms suffice for most highlighting.
++ 	<br/><br/>
++
++	The full address syntax is summarized in this table
++	(an excerpt of Table II from
++	<a href="http://plan9.bell-labs.com/sys/doc/sam/sam.html">The text editor <code>sam</code></a>):
++	<br/><br/>
++
++	<table>
++	<tr><td colspan="2"><b>Simple addresses</b></td></tr>
++	<tr><td><code>#</code><i>n</i></td>
++	    <td>The empty string after character <i>n</i></td></tr>
++	<tr><td><i>n</i></td>
++	    <td>Line <i>n</i></td></tr>
++	<tr><td><code>/</code><i>regexp</i><code>/</code></td>
++	    <td>The first following match of the regular expression</td></tr>
++	<!-- not supported (yet?)
++	<tr><td><code>–/</code><i>regexp</i><code>/</code></td>
++	    <td>The first previous match of the regular expression</td></tr>
++	-->
++	<tr><td><code>$</code></td>
++	    <td>The null string at the end of the file</td></tr>
++
++	<tr><td colspan="2"><b>Compound addresses</b></td></tr>
++	<tr><td><i>a1</i><code>+</code><i>a2</i></td>
++	    <td>The address <i>a2</i> evaluated starting at the right of <i>a1</i></td></tr>
++	<tr><td><i>a1</i><code>-</code><i>a2</i></td>
++	    <td>The address <i>a2</i> evaluated in the reverse direction starting at the left of <i>a1</i></td></tr>
++	<tr><td><i>a1</i><code>,</code><i>a2</i></td>
++	    <td>From the left of <i>a1</i> to the right of <i>a2</i> (default <code>0,$</code>).</td></tr>
++	</table>
++</step>
++
++
++	
++</codewalk>
+diff --git a/doc/codewalk/popout.png b/doc/codewalk/popout.png
+new file mode 100644
+index 0000000000..9c0c23638b
+Binary files /dev/null and b/doc/codewalk/popout.png differ
+diff --git a/doc/style.css b/doc/style.css
+index 38cf68d61d..7701842774 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -45,6 +45,7 @@ span.alert {
+ 
+ body {
+   font: 13px Helvetica, Arial, sans-serif;
++  margin-bottom: 0px;
+ }
+ 
+ h1 {
+@@ -102,6 +103,7 @@ div#content {
+   margin-left: 20%;
+   padding: 0 1em 2em 1em;
+   margin-top: 0px;
++  margin-bottom: 0px;
+ /*
+   border-left: 2px solid #e5ecf9;
+   border-right: 2px solid #e5ecf9;
+@@ -156,12 +158,16 @@ div#linkList li.navhead {
+ }
+ 
+ #footer {
+-  margin: 2em;
++  margin: 2em 0 0 0;
+   text-align: center;
+   color: #555;
+   font-size: small;
+ }
+ 
++#footer p {
++  margin: 0px;
++}
++
+ #footer a {
+   color: #555;
+ }
+diff --git a/lib/godoc/codewalk.html b/lib/godoc/codewalk.html
+new file mode 100644
+index 0000000000..1ce6393ec6
+--- /dev/null
++++ b/lib/godoc/codewalk.html
+@@ -0,0 +1,58 @@
++<!--
++	Copyright 2010 The Go Authors. All rights reserved.
++	Use of this source code is governed by a BSD-style
++	license that can be found in the LICENSE file.
++-->
++
++<script src="http://www.google.com/jsapi"></script>
++<script>google.load("jquery", "1.3.2");</script>
++<style type='text/css'>@import "/doc/codewalk/codewalk.css";</style>
++<script type="text/javascript" src="/doc/codewalk/codewalk.js"></script>
++
++<div id="codewalk-main">
++  <div class="left" id="code-column">
++    <div id='sizer'></div>
++    <div id="code-area">
++      <div id="code-header" align="center">
++        <a id="code-popout-link" href="" target="_blank">
++          <img title="View code in new window" alt="Pop Out Code" src="popout.png" style="display: block; float: right;"/>
++        </a>
++        <select id="code-selector">
++          {.repeated section File}
++          <option value="/doc/codewalk/?fileprint=/{@|html-esc}">{@|html-esc}</option>
++          {.end}
++        </select>
++      </div>
++      <div id="code">
++        <iframe class="code-display" name="code-display" id="code-display"></iframe>
++      </div>
++    </div>
++    <div id="code-options" class="setting">
++      <span>code on <a id="set-code-left" class="selected" href="#">left</a> &bull; <a id="set-code-right" href="#">right</a></span>
++      <span>code width <span id="code-column-width">70%</span></span>
++      <span>filepaths <a id="show-filepaths" class="selected" href="#">shown</a> &bull; <a id="hide-filepaths" href="#">hidden</a></span>
++    </div>
++  </div>
++  <div class="right" id="comment-column">
++    <div id="comment-area">
++      {.repeated section Step}
++      <div class="comment first last">
++        <a class="comment-link" href="/doc/codewalk/?fileprint=/{File|html-esc}&lo={Lo|html-esc}&hi={Hi|html-esc}#mark" target="code-display"></a>
++        <div class="comment-title">{Title|html-esc}</div>
++        <div class="comment-text">
++        {.section Err}
++        ERROR LOADING FILE: {Err|html-esc}<br/><br/>
++        {.end}
++        {XML}
++        </div>
++        <div class="comment-text file-name"><span class="path-file">{@|html-esc}</span></div>
++      </div>
++      {.end}
++    </div>
++    <div id="comment-options" class="setting">
++      <a id="prev-comment" href="#"><span class="hotkey">p</span>revious step</a>
++      &bull;
++      <a id="next-comment" href="#"><span class="hotkey">n</span>ext step</a>
++    </div>
++  </div>
++</div>
+diff --git a/lib/godoc/codewalkdir.html b/lib/godoc/codewalkdir.html
+new file mode 100644
+index 0000000000..61a9a8b3b4
+--- /dev/null
++++ b/lib/godoc/codewalkdir.html
+@@ -0,0 +1,15 @@
++<!--
++	Copyright 2010 The Go Authors. All rights reserved.
++	Use of this source code is governed by a BSD-style
++	license that can be found in the LICENSE file.
++-->
++
++<table class="layout">
++{.repeated section @}
++<tr>
++    <td><a href="{Name|html-esc}">{Name|html-esc}</a></td>
++    <td width="25">&nbsp;</td>
++    <td>{Title|html-esc}</td>
++</tr>
++{.end}
++</table>
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index 8928221f09..d799219dd2 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.$(GOARCH)
+ 
+ TARG=godoc
+ GOFILES=\
++	codewalk.go\
+ 	godoc.go\
+ 	index.go\
+ 	main.go\
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+new file mode 100644
+index 0000000000..412214b8f5
+--- /dev/null
++++ b/src/cmd/godoc/codewalk.go
+@@ -0,0 +1,493 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The /doc/codewalk/ tree is synthesized from codewalk descriptions,
++// files named $GOROOT/doc/codewalk/*.xml.
++// For an example and a description of the format, see
++// http://golang.org/doc/codewalk/codewalk or run godoc -http=:6060
++// and see http://localhost:6060/doc/codewalk/codewalk .
++// That page is itself a codewalk; the source code for it is
++// $GOROOT/doc/codewalk/codewalk.xml.
++
++package main
++
++import (
++	"container/vector"
++	"fmt"
++	"http"
++	"io"
++	"io/ioutil"
++	"log"
++	"os"
++	"regexp"
++	"sort"
++	"strconv"
++	"strings"
++	"template"
++	"utf8"
++	"xml"
++)
++
++
++// Handler for /doc/codewalk/ and below.
++func codewalk(c *http.Conn, r *http.Request) {
++	relpath := r.URL.Path[len("/doc/codewalk/"):]
++	abspath := absolutePath(r.URL.Path[1:], *goroot)
++
++	r.ParseForm()
++	if f := r.FormValue("fileprint"); f != "" {
++		codewalkFileprint(c, r, f)
++		return
++	}
++
++	// If directory exists, serve list of code walks.
++	dir, err := os.Lstat(abspath)
++	if err == nil && dir.IsDirectory() {
++		codewalkDir(c, r, relpath, abspath)
++		return
++	}
++
++	// If file exists, serve using standard file server.
++	if err == nil {
++		serveFile(c, r)
++		return
++	}
++
++	// Otherwise append .xml and hope to find
++	// a codewalk description.
++	cw, err := loadCodewalk(abspath + ".xml")
++	if err != nil {
++		log.Stderr(err)
++		serveError(c, r, relpath, err)
++		return
++	}
++
++	b := applyTemplate(codewalkHTML, "codewalk", cw)
++	servePage(c, "Codewalk: "+cw.Title, "", "", b)
++}
++
++
++// A Codewalk represents a single codewalk read from an XML file.
++type Codewalk struct {
++	Title string "attr"
++	File  []string
++	Step  []*Codestep
++}
++
++
++// A Codestep is a single step in a codewalk.
++type Codestep struct {
++	// Filled in from XML
++	Src   string "attr"
++	Title string "attr"
++	XML   string "innerxml"
++
++	// Derived from Src; not in XML.
++	Err    os.Error
++	File   string
++	Lo     int
++	LoByte int
++	Hi     int
++	HiByte int
++	Data   []byte
++}
++
++
++// String method for printing in template.
++// Formats file address nicely.
++func (st *Codestep) String() string {
++	s := st.File
++	if st.Lo != 0 || st.Hi != 0 {
++		s += fmt.Sprintf(":%d", st.Lo)
++		if st.Lo != st.Hi {
++			s += fmt.Sprintf(",%d", st.Hi)
++		}
++	}
++	return s
++}
++
++
++// loadCodewalk reads a codewalk from the named XML file.
++func loadCodewalk(file string) (*Codewalk, os.Error) {
++	f, err := os.Open(file, os.O_RDONLY, 0)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	cw := new(Codewalk)
++	p := xml.NewParser(f)
++	p.Entity = xml.HTMLEntity
++	err = p.Unmarshal(cw, nil)
++	if err != nil {
++		return nil, &os.PathError{"parsing", file, err}
++	}
++
++	// Compute file list, evaluate line numbers for addresses.
++	m := make(map[string]bool)
++	for _, st := range cw.Step {
++		i := strings.Index(st.Src, ":")
++		if i < 0 {
++			i = len(st.Src)
++		}
++		file := st.Src[0:i]
++		data, err := ioutil.ReadFile(absolutePath(file, *goroot))
++		if err != nil {
++			st.Err = err
++			continue
++		}
++		if i < len(st.Src) {
++			lo, hi, err := addrToByteRange(st.Src[i+1:], 0, data)
++			if err != nil {
++				st.Err = err
++				continue
++			}
++			// Expand match to line boundaries.
++			for lo > 0 && data[lo-1] != '\n' {
++				lo--
++			}
++			for hi < len(data) && (hi == 0 || data[hi-1] != '\n') {
++				hi++
++			}
++			st.Lo = byteToLine(data, lo)
++			st.Hi = byteToLine(data, hi-1)
++		}
++		st.Data = data
++		st.File = file
++		m[file] = true
++	}
++
++	// Make list of files
++	cw.File = make([]string, len(m))
++	i := 0
++	for f := range m {
++		cw.File[i] = f
++		i++
++	}
++	sort.SortStrings(cw.File)
++
++	return cw, nil
++}
++
++
++// codewalkDir serves the codewalk directory listing.
++// It scans the directory for subdirectories or files named *.xml
++// and prepares a table.
++func codewalkDir(c *http.Conn, r *http.Request, relpath, abspath string) {
++	type elem struct {
++		Name  string
++		Title string
++	}
++
++	dir, err := ioutil.ReadDir(abspath)
++	if err != nil {
++		log.Stderr(err)
++		serveError(c, r, relpath, err)
++		return
++	}
++	var v vector.Vector
++	for _, fi := range dir {
++		if fi.IsDirectory() {
++			v.Push(&elem{fi.Name + "/", ""})
++		} else if strings.HasSuffix(fi.Name, ".xml") {
++			cw, err := loadCodewalk(abspath + "/" + fi.Name)
++			if err != nil {
++				continue
++			}
++			v.Push(&elem{fi.Name[0 : len(fi.Name)-len(".xml")], cw.Title})
++		}
++	}
++
++	b := applyTemplate(codewalkdirHTML, "codewalkdir", v)
++	servePage(c, "Codewalks", "", "", b)
++}
++
++
++// codewalkFileprint serves requests with ?fileprint=f&lo=lo&hi=hi.
++// The filename f has already been retrieved and is passed as an argument.
++// Lo and hi are the numbers of the first and last line to highlight
++// in the response.  This format is used for the middle window pane
++// of the codewalk pages.  It is a separate iframe and does not get
++// the usual godoc HTML wrapper.
++func codewalkFileprint(c *http.Conn, r *http.Request, f string) {
++	abspath := absolutePath(f, *goroot)
++	data, err := ioutil.ReadFile(abspath)
++	if err != nil {
++		serveError(c, r, f, err)
++		return
++	}
++	lo, _ := strconv.Atoi(r.FormValue("lo"))
++	hi, _ := strconv.Atoi(r.FormValue("hi"))
++	if hi < lo {
++		hi = lo
++	}
++	lo = lineToByte(data, lo)
++	hi = lineToByte(data, hi+1)
++
++	// Put the mark 4 lines before lo, so that the iframe
++	// shows a few lines of context before the highlighted
++	// section.
++	n := 4
++	mark := lo
++	for ; mark > 0 && n > 0; mark-- {
++		if data[mark-1] == '\n' {
++			if n--; n == 0 {
++				break
++			}
++		}
++	}
++
++	io.WriteString(c, `<style type="text/css">@import "/doc/codewalk/codewalk.css";</style><pre>`)
++	template.HTMLEscape(c, data[0:mark])
++	io.WriteString(c, "<a name='mark'></a>")
++	template.HTMLEscape(c, data[mark:lo])
++	if lo < hi {
++		io.WriteString(c, "<div class='codewalkhighlight'>")
++		template.HTMLEscape(c, data[lo:hi])
++		io.WriteString(c, "</div>")
++	}
++	template.HTMLEscape(c, data[hi:])
++	io.WriteString(c, "</pre>")
++}
++
++
++// addrToByte evaluates the given address starting at offset start in data.
++// It returns the lo and hi byte offset of the matched region within data.
++// See http://plan9.bell-labs.com/sys/doc/sam/sam.html Table II
++// for details on the syntax.
++func addrToByteRange(addr string, start int, data []byte) (lo, hi int, err os.Error) {
++	var (
++		dir        byte
++		prevc      byte
++		charOffset bool
++	)
++	lo = start
++	hi = start
++	for addr != "" && err == nil {
++		c := addr[0]
++		switch c {
++		default:
++			err = os.NewError("invalid address syntax near " + string(c))
++		case ',':
++			if len(addr) == 1 {
++				hi = len(data)
++			} else {
++				_, hi, err = addrToByteRange(addr[1:], hi, data)
++			}
++			return
++
++		case '+', '-':
++			if prevc == '+' || prevc == '-' {
++				lo, hi, err = addrNumber(data, lo, hi, prevc, 1, charOffset)
++			}
++			dir = c
++
++		case '$':
++			lo = len(data)
++			hi = len(data)
++			if len(addr) > 1 {
++				dir = '+'
++			}
++
++		case '#':
++			charOffset = true
++
++		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
++			var i int
++			for i = 1; i < len(addr); i++ {
++				if addr[i] < '0' || addr[i] > '9' {
++					break
++				}
++			}
++			var n int
++			n, err = strconv.Atoi(addr[0:i])
++			if err != nil {
++				break
++			}
++			lo, hi, err = addrNumber(data, lo, hi, dir, n, charOffset)
++			dir = 0
++			charOffset = false
++			prevc = c
++			addr = addr[i:]
++			continue
++
++		case '/':
++			var i, j int
++		Regexp:
++			for i = 1; i < len(addr); i++ {
++				switch addr[i] {
++				case '\\':
++					i++
++				case '/':
++					j = i + 1
++					break Regexp
++				}
++			}
++			if j == 0 {
++				j = i
++			}
++			pattern := addr[1:i]
++			lo, hi, err = addrRegexp(data, lo, hi, dir, pattern)
++			prevc = c
++			addr = addr[j:]
++			continue
++		}
++		prevc = c
++		addr = addr[1:]
++	}
++
++	if err == nil && dir != 0 {
++		lo, hi, err = addrNumber(data, lo, hi, dir, 1, charOffset)
++	}
++	if err != nil {
++		return 0, 0, err
++	}
++	return lo, hi, nil
++}
++
++
++// addrNumber applies the given dir, n, and charOffset to the address lo, hi.
++// dir is '+' or '-', n is the count, and charOffset is true if the syntax
++// used was #n.  Applying +n (or +#n) means to advance n lines
++// (or characters) after hi.  Applying -n (or -#n) means to back up n lines
++// (or characters) before lo.
++// The return value is the new lo, hi.
++func addrNumber(data []byte, lo, hi int, dir byte, n int, charOffset bool) (int, int, os.Error) {
++	switch dir {
++	case 0:
++		lo = 0
++		hi = 0
++		fallthrough
++
++	case '+':
++		if charOffset {
++			pos := hi
++			for ; n > 0 && pos < len(data); n-- {
++				_, size := utf8.DecodeRune(data[pos:])
++				pos += size
++			}
++			if n == 0 {
++				return pos, pos, nil
++			}
++			break
++		}
++		// find next beginning of line
++		if hi > 0 {
++			for hi < len(data) && data[hi-1] != '\n' {
++				hi++
++			}
++		}
++		lo = hi
++		if n == 0 {
++			return lo, hi, nil
++		}
++		for ; hi < len(data); hi++ {
++			if data[hi] != '\n' {
++				continue
++			}
++			switch n--; n {
++			case 1:
++				lo = hi + 1
++			case 0:
++				return lo, hi + 1, nil
++			}
++		}
++
++	case '-':
++		if charOffset {
++			// Scan backward for bytes that are not UTF-8 continuation bytes.
++			pos := lo
++			for ; pos > 0 && n > 0; pos-- {
++				if data[pos]&0xc0 != 0x80 {
++					n--
++				}
++			}
++			if n == 0 {
++				return pos, pos, nil
++			}
++			break
++		}
++		// find earlier beginning of line
++		for lo > 0 && data[lo-1] != '\n' {
++			lo--
++		}
++		hi = lo
++		if n == 0 {
++			return lo, hi, nil
++		}
++		for ; lo >= 0; lo-- {
++			if lo > 0 && data[lo-1] != '\n' {
++				continue
++			}
++			switch n--; n {
++			case 1:
++				hi = lo
++			case 0:
++				return lo, hi, nil
++			}
++		}
++	}
++
++	return 0, 0, os.NewError("address out of range")
++}
++
++
++// addrRegexp searches for pattern in the given direction starting at lo, hi.
++// The direction dir is '+' (search forward from hi) or '-' (search backward from lo).
++// Backward searches are unimplemented.
++func addrRegexp(data []byte, lo, hi int, dir byte, pattern string) (int, int, os.Error) {
++	re, err := regexp.Compile(pattern)
++	if err != nil {
++		return 0, 0, err
++	}
++	if dir == '-' {
++		// Could implement reverse search using binary search
++		// through file, but that seems like overkill.
++		return 0, 0, os.NewError("reverse search not implemented")
++	}
++	m := re.Execute(data[hi:])
++	if len(m) > 0 {
++		m[0] += hi
++		m[1] += hi
++	} else if hi > 0 {
++		// No match.  Wrap to beginning of data.
++		m = re.Execute(data)
++	}
++	if len(m) == 0 {
++		return 0, 0, os.NewError("no match for " + pattern)
++	}
++	return m[0], m[1], nil
++}
++
++
++// lineToByte returns the byte index of the first byte of line n.
++// Line numbers begin at 1.
++func lineToByte(data []byte, n int) int {
++	if n <= 1 {
++		return 0
++	}
++	n--
++	for i, c := range data {
++		if c == '\n' {
++			if n--; n == 0 {
++				return i + 1
++			}
++		}
++	}
++	return len(data)
++}
++
++
++// byteToLine returns the number of the line containing the byte at index i.
++func byteToLine(data []byte, i int) int {
++	l := 1
++	for j, c := range data {
++		if j == i {
++			return l
++		}
++		if c == '\n' {
++			l++
++		}
++	}
++	return l
++}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index df555281ba..daadef8c4d 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -108,8 +108,9 @@ func initHandlers() {
+ func registerPublicHandlers(mux *http.ServeMux) {
+ 	mux.Handle(cmdHandler.pattern, &cmdHandler)
+ 	mux.Handle(pkgHandler.pattern, &pkgHandler)
+-	mux.Handle("/search", http.HandlerFunc(search))
+-	mux.Handle("/", http.HandlerFunc(serveFile))
++	mux.HandleFunc("/doc/codewalk/", codewalk)
++	mux.HandleFunc("/search", search)
++	mux.HandleFunc("/", serveFile)
+ }
+ 
+ 
+@@ -849,6 +850,8 @@ func readTemplate(name string) *template.Template {
+ 
+ 
+ var (
++	codewalkHTML,
++	codewalkdirHTML,
+ 	dirlistHTML,
+ 	errorHTML,
+ 	godocHTML,
+@@ -861,6 +864,8 @@ var (
+ 
+ func readTemplates() {
+ 	// have to delay until after flags processing since paths depend on goroot
++	codewalkHTML = readTemplate("codewalk.html")
++	codewalkdirHTML = readTemplate("codewalkdir.html")
+ 	dirlistHTML = readTemplate("dirlist.html")
+ 	errorHTML = readTemplate("error.html")
+ 	godocHTML = readTemplate("godoc.html")

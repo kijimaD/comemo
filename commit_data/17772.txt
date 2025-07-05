@@ -7,9 +7,104 @@ Date:   Wed Oct 9 08:44:47 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/14448044
-
+---
  misc/cgo/test/callback.go       | 14 ++++++++++++++
  misc/cgo/test/callback_c.c      | 14 ++++++++++++++
  misc/cgo/test/cgo_test.go       |  1 +
  src/pkg/runtime/cgo/callbacks.c |  3 +++
  4 files changed, 32 insertions(+)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 838105155a..82ed015bd8 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -8,6 +8,7 @@ package cgotest
+ void callback(void *f);
+ void callGoFoo(void);
+ void callGoStackCheck(void);
++void callPanic(void);
+ */
+ import "C"
+ 
+@@ -186,6 +187,19 @@ func testCallbackCallers(t *testing.T) {
+ 	}
+ }
+ 
++func testPanicFromC(t *testing.T) {
++	defer func() {
++		r := recover()
++		if r == nil {
++			t.Fatal("did not panic")
++		}
++		if r.(string) != "panic from C" {
++			t.Fatal("wrong panic:", r)
++		}
++	}()
++	C.callPanic()
++}
++
+ func testCallbackStack(t *testing.T) {
+ 	// Make cgo call and callback with different amount of stack stack available.
+ 	// We do not do any explicit checks, just ensure that it does not crash.
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index dcd4ddd4ee..4bfeb7163e 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -64,3 +64,17 @@ callGoStackCheck(void)
+ 	extern void goStackCheck(void);
+ 	goStackCheck();
+ }
++
++/* Test calling panic from C.  This is what SWIG does.  */
++
++extern void crosscall2(void (*fn)(void *, int), void *, int);
++extern void _cgo_panic(void *, int);
++
++void
++callPanic(void)
++{
++	struct { const char *p; } a;
++	a.p = "panic from C";
++	crosscall2(_cgo_panic, &a, sizeof a);
++	*(int*)1 = 1;
++}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 799536c544..45572bad1a 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -22,6 +22,7 @@ func TestCallbackGC(t *testing.T)          { testCallbackGC(t) }
+ func TestCallbackPanic(t *testing.T)       { testCallbackPanic(t) }
+ func TestCallbackPanicLoop(t *testing.T)   { testCallbackPanicLoop(t) }
+ func TestCallbackPanicLocked(t *testing.T) { testCallbackPanicLocked(t) }
++func TestPanicFromC(t *testing.T)          { testPanicFromC(t) }
+ func TestZeroArgCallback(t *testing.T)     { testZeroArgCallback(t) }
+ func TestBlocking(t *testing.T)            { testBlocking(t) }
+ func Test1328(t *testing.T)                { test1328(t) }
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index 524f30428b..e91c8bf8a3 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -4,6 +4,7 @@
+ 
+ #include "../runtime.h"
+ #include "../cgocall.h"
++#include "../../../cmd/ld/textflag.h"
+ 
+ // These utility functions are available to be called from code
+ // compiled with gcc via crosscall2.
+@@ -47,6 +48,7 @@ _cgo_allocate_internal(uintptr len, byte *ret)
+ 
+ #pragma cgo_export_static _cgo_allocate
+ #pragma cgo_export_dynamic _cgo_allocate
++#pragma textflag NOSPLIT
+ void
+ _cgo_allocate(void *a, int32 n)
+ {
+@@ -76,6 +78,7 @@ _cgo_panic_internal(byte *p)
+ 
+ #pragma cgo_export_static _cgo_panic
+ #pragma cgo_export_dynamic _cgo_panic
++#pragma textflag NOSPLIT
+ void
+ _cgo_panic(void *a, int32 n)
+ {

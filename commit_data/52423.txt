@@ -14,6 +14,21 @@ Date:   Tue May 3 09:32:19 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/archive/zip/reader.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index b4f6a8d714..19a9c3b2db 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -53,8 +53,7 @@ type File struct {
+ 	zip          *Reader
+ 	zipr         io.ReaderAt
+ 	headerOffset int64
+-	zip64        bool  // zip64 extended information extra field presence
+-	descErr      error // error reading the data descriptor during init
++	zip64        bool // zip64 extended information extra field presence
+ }
+ 
+ // OpenReader will open the Zip file specified by name and return a ReadCloser.

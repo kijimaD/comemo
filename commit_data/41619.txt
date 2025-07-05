@@ -32,7 +32,38 @@ Date:   Sat Oct 12 21:13:28 2019 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/wasm/wasmobj.go | 4 ++++
  src/cmd/link/internal/wasm/asm.go    | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 255e7b68a2..70e8e51e65 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -1154,6 +1154,10 @@ func align(as obj.As) uint64 {
+ }
+ 
+ func writeUleb128(w io.ByteWriter, v uint64) {
++	if v < 128 {
++		w.WriteByte(uint8(v))
++		return
++	}
+ 	more := true
+ 	for more {
+ 		c := uint8(v & 0x7f)
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index bf22c28311..aaaa93f355 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -542,6 +542,10 @@ func writeName(w nameWriter, name string) {
+ }
+ 
+ func writeUleb128(w io.ByteWriter, v uint64) {
++	if v < 128 {
++		w.WriteByte(uint8(v))
++		return
++	}
+ 	more := true
+ 	for more {
+ 		c := uint8(v & 0x7f)

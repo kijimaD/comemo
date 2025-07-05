@@ -23,7 +23,7 @@ Date:   Mon Aug 21 15:55:35 2023 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 +--
  src/cmd/compile/internal/ssa/_gen/S390X.rules |  8 ++++++
@@ -34,3 +34,440 @@ Date:   Mon Aug 21 15:55:35 2023 -0700
  src/cmd/compile/internal/ssa/rewriteS390X.go  | 32 ++++++++++++------------
  test/codegen/memcombine.go                    | 36 ++++++++++++++++++++++-----
  9 files changed, 79 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 7840600ef6..aac6873d28 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1468,6 +1468,7 @@
+   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
+   && a.Val() == 0
+   && c.Val() == 0
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
+ (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
+@@ -1476,6 +1477,7 @@
+   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
+   && a.Val() == 0
+   && c.Val() == 0
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 227ec5d610..c5ee0285d9 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -485,8 +485,8 @@
+ 			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+ 				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+ 
+-(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem)) && x.Uses == 1 && clobber(x) => (MOVQstorezero {s} [i] ptr mem)
+-(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem)) && x.Uses == 1 && clobber(x) => (MOVQstorezero {s} [i-8] ptr mem)
++(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem)) && x.Uses == 1 && setPos(v, x.Pos) && clobber(x) => (MOVQstorezero {s} [i] ptr mem)
++(MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem)) && x.Uses == 1 && setPos(v, x.Pos) && clobber(x) => (MOVQstorezero {s} [i-8] ptr mem)
+ 
+ // strip off fractional word move
+ (Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+index a9d62c79ce..2a6d7e737c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+@@ -1300,21 +1300,25 @@
+   && p.Op != OpSB
+   && x.Uses == 1
+   && is20Bit(int64(i)-4)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STM2 [i-4] {s} p w0 w1 mem)
+ (MOVWstore [i] {s} p w2 x:(STM2 [i-8] {s} p w0 w1 mem))
+   && x.Uses == 1
+   && is20Bit(int64(i)-8)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STM3 [i-8] {s} p w0 w1 w2 mem)
+ (MOVWstore [i] {s} p w3 x:(STM3 [i-12] {s} p w0 w1 w2 mem))
+   && x.Uses == 1
+   && is20Bit(int64(i)-12)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STM4 [i-12] {s} p w0 w1 w2 w3 mem)
+ (STM2 [i] {s} p w2 w3 x:(STM2 [i-8] {s} p w0 w1 mem))
+   && x.Uses == 1
+   && is20Bit(int64(i)-8)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STM4 [i-8] {s} p w0 w1 w2 w3 mem)
+ // 64-bit
+@@ -1322,21 +1326,25 @@
+   && p.Op != OpSB
+   && x.Uses == 1
+   && is20Bit(int64(i)-8)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STMG2 [i-8] {s} p w0 w1 mem)
+ (MOVDstore [i] {s} p w2 x:(STMG2 [i-16] {s} p w0 w1 mem))
+   && x.Uses == 1
+   && is20Bit(int64(i)-16)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STMG3 [i-16] {s} p w0 w1 w2 mem)
+ (MOVDstore [i] {s} p w3 x:(STMG3 [i-24] {s} p w0 w1 w2 mem))
+   && x.Uses == 1
+   && is20Bit(int64(i)-24)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STMG4 [i-24] {s} p w0 w1 w2 w3 mem)
+ (STMG2 [i] {s} p w2 w3 x:(STMG2 [i-16] {s} p w0 w1 mem))
+   && x.Uses == 1
+   && is20Bit(int64(i)-16)
++  && setPos(v, x.Pos)
+   && clobber(x)
+   => (STMG4 [i-16] {s} p w0 w1 w2 w3 mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/memcombine.go b/src/cmd/compile/internal/ssa/memcombine.go
+index 8e3db5a378..848b1e57a7 100644
+--- a/src/cmd/compile/internal/ssa/memcombine.go
++++ b/src/cmd/compile/internal/ssa/memcombine.go
+@@ -512,6 +512,8 @@ func combineStores(root *Value, n int64) bool {
+ 	}
+ 	// Before we sort, grab the memory arg the result should have.
+ 	mem := a[n-1].store.Args[2]
++	// Also grab position of first store (last in array = first in memory order).
++	pos := a[n-1].store.Pos
+ 
+ 	// Sort stores in increasing address order.
+ 	sort.Slice(a, func(i, j int) bool {
+@@ -564,6 +566,7 @@ func combineStores(root *Value, n int64) bool {
+ 			v := a[i].store
+ 			if v == root {
+ 				v.Aux = cv.Type // widen store type
++				v.Pos = pos
+ 				v.SetArg(0, ptr)
+ 				v.SetArg(1, cv)
+ 				v.SetArg(2, mem)
+@@ -632,6 +635,7 @@ func combineStores(root *Value, n int64) bool {
+ 			v := a[i].store
+ 			if v == root {
+ 				v.Aux = load.Type // widen store type
++				v.Pos = pos
+ 				v.SetArg(0, ptr)
+ 				v.SetArg(1, load)
+ 				v.SetArg(2, mem)
+@@ -703,6 +707,7 @@ func combineStores(root *Value, n int64) bool {
+ 		v := a[i].store
+ 		if v == root {
+ 			v.Aux = sv.Type // widen store type
++			v.Pos = pos
+ 			v.SetArg(0, ptr)
+ 			v.SetArg(1, sv)
+ 			v.SetArg(2, mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index eebedea68c..c5bd7cf3a9 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -2146,3 +2146,11 @@ func isARM64addcon(v int64) bool {
+ 	}
+ 	return v <= 0xFFF
+ }
++
++// setPos sets the position of v to pos, then returns true.
++// Useful for setting the result of a rewrite's position to
++// something other than the default.
++func setPos(v *Value, pos src.XPos) bool {
++	v.Pos = pos
++	return true
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5cf5425fdc..5332512f2a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -12204,7 +12204,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVQstoreconst [c] {s} p1 x:(MOVQstoreconst [a] {s} p0 mem))
+-	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)
++	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)
+ 	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
+ 	for {
+ 		c := auxIntToValAndOff(v.AuxInt)
+@@ -12220,7 +12220,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		}
+ 		mem := x.Args[1]
+ 		p0 := x.Args[0]
+-		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
++		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVOstoreconst)
+@@ -12230,7 +12230,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
+-	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)
++	// cond: config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)
+ 	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
+ 	for {
+ 		a := auxIntToValAndOff(v.AuxInt)
+@@ -12246,7 +12246,7 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		}
+ 		mem := x.Args[1]
+ 		p1 := x.Args[0]
+-		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
++		if !(config.useSSE && x.Uses == 1 && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off())) && a.Val() == 0 && c.Val() == 0 && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64MOVOstoreconst)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index d7752d3876..f0a4425502 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -9867,7 +9867,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+ 	// match: (MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i+8] ptr mem))
+-	// cond: x.Uses == 1 && clobber(x)
++	// cond: x.Uses == 1 && setPos(v, x.Pos) && clobber(x)
+ 	// result: (MOVQstorezero {s} [i] ptr mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -9878,7 +9878,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
+ 			break
+ 		}
+ 		mem := x.Args[1]
+-		if ptr != x.Args[0] || !(x.Uses == 1 && clobber(x)) {
++		if ptr != x.Args[0] || !(x.Uses == 1 && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVQstorezero)
+@@ -9888,7 +9888,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstorezero {s} [i] ptr x:(MOVDstorezero {s} [i-8] ptr mem))
+-	// cond: x.Uses == 1 && clobber(x)
++	// cond: x.Uses == 1 && setPos(v, x.Pos) && clobber(x)
+ 	// result: (MOVQstorezero {s} [i-8] ptr mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -9899,7 +9899,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero(v *Value) bool {
+ 			break
+ 		}
+ 		mem := x.Args[1]
+-		if ptr != x.Args[0] || !(x.Uses == 1 && clobber(x)) {
++		if ptr != x.Args[0] || !(x.Uses == 1 && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVQstorezero)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index a3d621898f..c2342c944d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -9060,7 +9060,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstore [i] {s} p w1 x:(MOVDstore [i-8] {s} p w0 mem))
+-	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)
++	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STMG2 [i-8] {s} p w0 w1 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -9076,7 +9076,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
+ 			break
+ 		}
+ 		w0 := x.Args[1]
+-		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)) {
++		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTMG2)
+@@ -9086,7 +9086,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstore [i] {s} p w2 x:(STMG2 [i-16] {s} p w0 w1 mem))
+-	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)
++	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STMG3 [i-16] {s} p w0 w1 w2 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -9103,7 +9103,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
+ 		}
+ 		w0 := x.Args[1]
+ 		w1 := x.Args[2]
+-		if !(x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)) {
++		if !(x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTMG3)
+@@ -9113,7 +9113,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstore [i] {s} p w3 x:(STMG3 [i-24] {s} p w0 w1 w2 mem))
+-	// cond: x.Uses == 1 && is20Bit(int64(i)-24) && clobber(x)
++	// cond: x.Uses == 1 && is20Bit(int64(i)-24) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STMG4 [i-24] {s} p w0 w1 w2 w3 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -9131,7 +9131,7 @@ func rewriteValueS390X_OpS390XMOVDstore(v *Value) bool {
+ 		w0 := x.Args[1]
+ 		w1 := x.Args[2]
+ 		w2 := x.Args[3]
+-		if !(x.Uses == 1 && is20Bit(int64(i)-24) && clobber(x)) {
++		if !(x.Uses == 1 && is20Bit(int64(i)-24) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTMG4)
+@@ -10595,7 +10595,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [i] {s} p w1 x:(MOVWstore [i-4] {s} p w0 mem))
+-	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && clobber(x)
++	// cond: p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STM2 [i-4] {s} p w0 w1 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -10611,7 +10611,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
+ 			break
+ 		}
+ 		w0 := x.Args[1]
+-		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && clobber(x)) {
++		if !(p.Op != OpSB && x.Uses == 1 && is20Bit(int64(i)-4) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTM2)
+@@ -10621,7 +10621,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [i] {s} p w2 x:(STM2 [i-8] {s} p w0 w1 mem))
+-	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)
++	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STM3 [i-8] {s} p w0 w1 w2 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -10638,7 +10638,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
+ 		}
+ 		w0 := x.Args[1]
+ 		w1 := x.Args[2]
+-		if !(x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)) {
++		if !(x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTM3)
+@@ -10648,7 +10648,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [i] {s} p w3 x:(STM3 [i-12] {s} p w0 w1 w2 mem))
+-	// cond: x.Uses == 1 && is20Bit(int64(i)-12) && clobber(x)
++	// cond: x.Uses == 1 && is20Bit(int64(i)-12) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STM4 [i-12] {s} p w0 w1 w2 w3 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -10666,7 +10666,7 @@ func rewriteValueS390X_OpS390XMOVWstore(v *Value) bool {
+ 		w0 := x.Args[1]
+ 		w1 := x.Args[2]
+ 		w2 := x.Args[3]
+-		if !(x.Uses == 1 && is20Bit(int64(i)-12) && clobber(x)) {
++		if !(x.Uses == 1 && is20Bit(int64(i)-12) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTM4)
+@@ -13107,7 +13107,7 @@ func rewriteValueS390X_OpS390XSTM2(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (STM2 [i] {s} p w2 w3 x:(STM2 [i-8] {s} p w0 w1 mem))
+-	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)
++	// cond: x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STM4 [i-8] {s} p w0 w1 w2 w3 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -13125,7 +13125,7 @@ func rewriteValueS390X_OpS390XSTM2(v *Value) bool {
+ 		}
+ 		w0 := x.Args[1]
+ 		w1 := x.Args[2]
+-		if !(x.Uses == 1 && is20Bit(int64(i)-8) && clobber(x)) {
++		if !(x.Uses == 1 && is20Bit(int64(i)-8) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTM4)
+@@ -13162,7 +13162,7 @@ func rewriteValueS390X_OpS390XSTMG2(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (STMG2 [i] {s} p w2 w3 x:(STMG2 [i-16] {s} p w0 w1 mem))
+-	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)
++	// cond: x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)
+ 	// result: (STMG4 [i-16] {s} p w0 w1 w2 w3 mem)
+ 	for {
+ 		i := auxIntToInt32(v.AuxInt)
+@@ -13180,7 +13180,7 @@ func rewriteValueS390X_OpS390XSTMG2(v *Value) bool {
+ 		}
+ 		w0 := x.Args[1]
+ 		w1 := x.Args[2]
+-		if !(x.Uses == 1 && is20Bit(int64(i)-16) && clobber(x)) {
++		if !(x.Uses == 1 && is20Bit(int64(i)-16) && setPos(v, x.Pos) && clobber(x)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XSTMG4)
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index adad9c613d..1b8abc348a 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -748,16 +748,16 @@ func zero_byte_4(b1, b2 []byte) {
+ 
+ func zero_byte_8(b []byte) {
+ 	_ = b[7]
+-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
+-	b[4], b[5], b[6], b[7] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
++	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
++	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
+ }
+ 
+ func zero_byte_16(b []byte) {
+ 	_ = b[15]
+-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
++	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
+ 	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
+ 	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
+-	b[12], b[13], b[14], b[15] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
++	b[12], b[13], b[14], b[15] = 0, 0, 0, 0
+ }
+ 
+ func zero_byte_30(a *[30]byte) {
+@@ -809,8 +809,8 @@ func zero_uint16_4(h1, h2 []uint16) {
+ 
+ func zero_uint16_8(h []uint16) {
+ 	_ = h[7]
+-	h[0], h[1], h[2], h[3] = 0, 0, 0, 0
+-	h[4], h[5], h[6], h[7] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
++	h[0], h[1], h[2], h[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
++	h[4], h[5], h[6], h[7] = 0, 0, 0, 0
+ }
+ 
+ func zero_uint32_2(w1, w2 []uint32) {
+@@ -858,3 +858,27 @@ func loadstore2(p, q *S1) {
+ 	// arm64:"MOVW",-"MOVH"
+ 	q.a, q.b = a, b
+ }
++
++func wideStore(p *[8]uint64) {
++	if p == nil {
++		return
++	}
++
++	// amd64:"MOVUPS",-"MOVQ"
++	// arm64:"STP",-"MOVD"
++	p[0] = 0
++	// amd64:-"MOVUPS",-"MOVQ"
++	// arm64:-"STP",-"MOVD"
++	p[1] = 0
++}
++
++func wideStore2(p *[8]uint64, x, y uint64) {
++	if p == nil {
++		return
++	}
++
++	// s390x:"STMG"
++	p[0] = x
++	// s390x:-"STMG",-"MOVD"
++	p[1] = y
++}

@@ -11,7 +11,40 @@ Date:   Wed Aug 17 10:32:39 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/nilptr3.go     | 8 ++++++++
  test/nilptr3_ssa.go | 8 ++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index a81efb7d8e..73e074391b 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -214,3 +214,11 @@ func p1() byte {
+ 	p := new([100]byte)
+ 	return p[5] // ERROR "removed nil check"
+ }
++
++// make sure not to do nil check for access of PAUTOHEAP
++//go:noinline
++func (p *Struct) m() {}
++func c1() {
++	var x Struct
++	func() { x.m() }() // ERROR "removed nil check"
++}
+diff --git a/test/nilptr3_ssa.go b/test/nilptr3_ssa.go
+index 0974a84333..af1186579e 100644
+--- a/test/nilptr3_ssa.go
++++ b/test/nilptr3_ssa.go
+@@ -226,3 +226,11 @@ func p1() byte {
+ 	p := new([100]byte)
+ 	return p[5] // ERROR "removed nil check"
+ }
++
++// make sure not to do nil check for access of PAUTOHEAP
++//go:noinline
++func (p *Struct) m() {}
++func c1() {
++	var x Struct
++	func() { x.m() }() // ERROR "removed nil check"
++}

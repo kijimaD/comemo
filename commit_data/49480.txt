@@ -13,7 +13,7 @@ Date:   Thu Aug 19 13:31:36 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go        | 12 ++++++------
  src/go/types/infer.go       | 32 ++++++++++++++++----------------
  src/go/types/instantiate.go | 10 +++++-----
@@ -26,3 +26,445 @@ Date:   Thu Aug 19 13:31:36 2021 -0400
  src/go/types/typestring.go  |  7 +++----
  src/go/types/unify.go       | 14 +++++++-------
  11 files changed, 57 insertions(+), 59 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index c6505b63a1..8ebaf289f1 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -632,7 +632,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ }
+ 
+ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
+-	var tparams []*TypeName
++	var tparams []*TypeParam
+ 	// Declare type parameters up-front, with empty interface as type bound.
+ 	// The scope of type parameters starts at the beginning of the type parameter
+ 	// list (so we can have mutually recursive parameterized interfaces).
+@@ -648,7 +648,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
+ 		}
+ 		bound = check.boundType(f.Type)
+ 		for i := range f.Names {
+-			tparams[index+i].typ.(*TypeParam).bound = bound
++			tparams[index+i].bound = bound
+ 		}
+ 
+ 	next:
+@@ -658,11 +658,11 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) *TParamList {
+ 	return bindTParams(tparams)
+ }
+ 
+-func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
++func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
+ 	for _, name := range names {
+-		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+-		check.NewTypeParam(tpar, &emptyInterface)               // assigns type to tpar as a side-effect
+-		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
++		tname := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
++		tpar := check.NewTypeParam(tname, &emptyInterface)       // assigns type to tpar as a side-effect
++		check.declare(check.scope, name, tname, check.scope.pos) // TODO(gri) check scope position
+ 		tparams = append(tparams, tpar)
+ 	}
+ 
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 57ec327d12..58456444ed 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -27,7 +27,7 @@ import (
+ //
+ // Constraint type inference is used after each step to expand the set of type arguments.
+ //
+-func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type, params *Tuple, args []*operand, report bool) (result []Type) {
++func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, report bool) (result []Type) {
+ 	if debug {
+ 		defer func() {
+ 			assert(result == nil || len(result) == len(tparams))
+@@ -121,7 +121,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type,
+ 				}
+ 			}
+ 			if allFailed {
+-				check.errorf(arg, _Todo, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeNamesString(tparams))
++				check.errorf(arg, _Todo, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+ 				return
+ 			}
+ 		}
+@@ -218,23 +218,23 @@ func (check *Checker) infer(posn positioner, tparams []*TypeName, targs []Type,
+ 	assert(index >= 0 && targs[index] == nil)
+ 	tpar := tparams[index]
+ 	if report {
+-		check.errorf(posn, _Todo, "cannot infer %s (%v) (%v)", tpar.name, tpar.pos, targs)
++		check.errorf(posn, _Todo, "cannot infer %s (%v) (%v)", tpar.obj.name, tpar.obj.pos, targs)
+ 	}
+ 	return nil
+ }
+ 
+-// typeNamesString produces a string containing all the
+-// type names in list suitable for human consumption.
+-func typeNamesString(list []*TypeName) string {
++// typeParamsString produces a string containing all the type parameter names
++// in list suitable for human consumption.
++func typeParamsString(list []*TypeParam) string {
+ 	// common cases
+ 	n := len(list)
+ 	switch n {
+ 	case 0:
+ 		return ""
+ 	case 1:
+-		return list[0].name
++		return list[0].obj.name
+ 	case 2:
+-		return list[0].name + " and " + list[1].name
++		return list[0].obj.name + " and " + list[1].obj.name
+ 	}
+ 
+ 	// general case (n > 2)
+@@ -243,15 +243,15 @@ func typeNamesString(list []*TypeName) string {
+ 		if i > 0 {
+ 			b.WriteString(", ")
+ 		}
+-		b.WriteString(tname.name)
++		b.WriteString(tname.obj.name)
+ 	}
+ 	b.WriteString(", and ")
+-	b.WriteString(list[n-1].name)
++	b.WriteString(list[n-1].obj.name)
+ 	return b.String()
+ }
+ 
+ // IsParameterized reports whether typ contains any of the type parameters of tparams.
+-func isParameterized(tparams []*TypeName, typ Type) bool {
++func isParameterized(tparams []*TypeParam, typ Type) bool {
+ 	w := tpWalker{
+ 		seen:    make(map[Type]bool),
+ 		tparams: tparams,
+@@ -261,7 +261,7 @@ func isParameterized(tparams []*TypeName, typ Type) bool {
+ 
+ type tpWalker struct {
+ 	seen    map[Type]bool
+-	tparams []*TypeName
++	tparams []*TypeParam
+ }
+ 
+ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+@@ -334,7 +334,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 
+ 	case *TypeParam:
+ 		// t must be one of w.tparams
+-		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
++		return t.index < len(w.tparams) && w.tparams[t.index] == t
+ 
+ 	default:
+ 		unreachable()
+@@ -360,7 +360,7 @@ func (w *tpWalker) isParameterizedTypeList(list []Type) bool {
+ // first type argument in that list that couldn't be inferred (and thus is nil). If all
+ // type arguments were inferred successfully, index is < 0. The number of type arguments
+ // provided may be less than the number of type parameters, but there must be at least one.
+-func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (types []Type, index int) {
++func (check *Checker) inferB(tparams []*TypeParam, targs []Type, report bool) (types []Type, index int) {
+ 	assert(len(tparams) >= len(targs) && len(targs) > 0)
+ 
+ 	// Setup bidirectional unification between those structural bounds
+@@ -378,12 +378,12 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type, report bool) (ty
+ 
+ 	// Unify type parameters with their structural constraints, if any.
+ 	for _, tpar := range tparams {
+-		typ := tpar.typ.(*TypeParam)
++		typ := tpar
+ 		sbound := typ.structuralType()
+ 		if sbound != nil {
+ 			if !u.unify(typ, sbound) {
+ 				if report {
+-					check.errorf(tpar, _Todo, "%s does not match %s", tpar, sbound)
++					check.errorf(tpar.obj, _Todo, "%s does not match %s", tpar.obj, sbound)
+ 				}
+ 				return nil, 0
+ 			}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 8d7a9ecfb2..fb2fddfc0f 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -48,7 +48,7 @@ func Instantiate(env *Environment, typ Type, targs []Type, validate bool) (Type,
+ 
+ 	var err error
+ 	if validate {
+-		var tparams []*TypeName
++		var tparams []*TypeParam
+ 		switch t := typ.(type) {
+ 		case *Named:
+ 			tparams = t.TParams().list()
+@@ -90,7 +90,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, posList
+ 	check.later(func() {
+ 		// Collect tparams again because lazily loaded *Named types may not have
+ 		// had tparams set up above.
+-		var tparams []*TypeName
++		var tparams []*TypeParam
+ 		switch t := typ.(type) {
+ 		case *Named:
+ 			tparams = t.TParams().list()
+@@ -186,11 +186,11 @@ func (check *Checker) validateTArgLen(pos token.Pos, tparams *TParamList, targs
+ 	return true
+ }
+ 
+-func (check *Checker) verify(pos token.Pos, tparams []*TypeName, targs []Type) (int, error) {
++func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type) (int, error) {
+ 	smap := makeSubstMap(tparams, targs)
+-	for i, tname := range tparams {
++	for i, tpar := range tparams {
+ 		// stop checking bounds after the first failure
+-		if err := check.satisfies(pos, targs[i], tname.typ.(*TypeParam), smap); err != nil {
++		if err := check.satisfies(pos, targs[i], tpar, smap); err != nil {
+ 			return i, err
+ 		}
+ 	}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index d547c47f8e..105f34e1fb 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -24,7 +24,7 @@ type Named struct {
+ 	targs      []Type      // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ 
+-	resolve func(*Named) ([]*TypeName, Type, []*Func)
++	resolve func(*Named) ([]*TypeParam, Type, []*Func)
+ 	once    sync.Once
+ }
+ 
+@@ -126,7 +126,7 @@ func (t *Named) _Orig() *Named { return t.orig }
+ func (t *Named) TParams() *TParamList { return t.load().tparams }
+ 
+ // SetTParams sets the type parameters of the named type t.
+-func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
++func (t *Named) SetTParams(tparams []*TypeParam) { t.load().tparams = bindTParams(tparams) }
+ 
+ // NumTArgs returns the number of type arguments used to instantiate the named
+ // type t, or 0 if t is not an instantiated type.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 7266623fbe..eb5df56d14 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -232,7 +232,7 @@ func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
+ 
+ // _NewTypeNameLazy returns a new defined type like NewTypeName, but it
+ // lazily calls resolve to finish constructing the Named object.
+-func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, resolve func(named *Named) (tparams []*TypeName, underlying Type, methods []*Func)) *TypeName {
++func _NewTypeNameLazy(pos token.Pos, pkg *Package, name string, resolve func(named *Named) (tparams []*TypeParam, underlying Type, methods []*Func)) *TypeName {
+ 	obj := NewTypeName(pos, pkg, name, nil)
+ 	NewNamed(obj, nil, nil).resolve = resolve
+ 	return obj
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 0945dac722..027e30c1a1 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -351,13 +351,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	return false
+ }
+ 
+-func identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
++func identicalTParams(x, y []*TypeParam, cmpTags bool, p *ifacePair) bool {
+ 	if len(x) != len(y) {
+ 		return false
+ 	}
+ 	for i, x := range x {
+ 		y := y[i]
+-		if !identical(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
++		if !identical(x.bound, y.bound, cmpTags, p) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 9bfb1683a7..d6c12cf3d9 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -59,13 +59,13 @@ func (s *Signature) Recv() *Var { return s.recv }
+ func (s *Signature) TParams() *TParamList { return s.tparams }
+ 
+ // SetTParams sets the type parameters of signature s.
+-func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = bindTParams(tparams) }
++func (s *Signature) SetTParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
+ 
+ // RParams returns the receiver type parameters of signature s, or nil.
+ func (s *Signature) RParams() *TParamList { return s.rparams }
+ 
+ // SetRParams sets the receiver type params of signature s.
+-func (s *Signature) SetRParams(rparams []*TypeName) { s.rparams = bindTParams(rparams) }
++func (s *Signature) SetRParams(rparams []*TypeParam) { s.rparams = bindTParams(rparams) }
+ 
+ // Params returns the parameters of signature s, or nil.
+ func (s *Signature) Params() *Tuple { return s.params }
+@@ -121,7 +121,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 			sig.rparams = bindTParams(check.declareTypeParams(nil, rparams))
+ 			// determine receiver type to get its type parameters
+ 			// and the respective type parameter bounds
+-			var recvTParams []*TypeName
++			var recvTParams []*TypeParam
+ 			if rname != nil {
+ 				// recv should be a Named type (otherwise an error is reported elsewhere)
+ 				// Also: Don't report an error via genericType since it will be reported
+@@ -137,19 +137,19 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				// We have a list of *TypeNames but we need a list of Types.
+ 				list := make([]Type, sig.RParams().Len())
+ 				for i, t := range sig.RParams().list() {
+-					list[i] = t.typ
++					list[i] = t
+ 				}
+ 				smap := makeSubstMap(recvTParams, list)
+-				for i, tname := range sig.RParams().list() {
+-					bound := recvTParams[i].typ.(*TypeParam).bound
++				for i, tpar := range sig.RParams().list() {
++					bound := recvTParams[i].bound
+ 					// bound is (possibly) parameterized in the context of the
+ 					// receiver type declaration. Substitute parameters for the
+ 					// current context.
+ 					// TODO(gri) should we assume now that bounds always exist?
+ 					//           (no bound == empty interface)
+ 					if bound != nil {
+-						bound = check.subst(tname.pos, bound, smap, nil)
+-						tname.typ.(*TypeParam).bound = bound
++						bound = check.subst(tpar.obj.pos, bound, smap, nil)
++						tpar.bound = bound
+ 					}
+ 				}
+ 			}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 72d5cac671..75f1ca5fab 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -18,11 +18,11 @@ type substMap map[*TypeParam]Type
+ 
+ // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
+ // If targs[i] is nil, tpars[i] is not substituted.
+-func makeSubstMap(tpars []*TypeName, targs []Type) substMap {
++func makeSubstMap(tpars []*TypeParam, targs []Type) substMap {
+ 	assert(len(tpars) == len(targs))
+ 	proj := make(substMap, len(tpars))
+ 	for i, tpar := range tpars {
+-		proj[tpar.typ.(*TypeParam)] = targs[i]
++		proj[tpar] = targs[i]
+ 	}
+ 	return proj
+ }
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 8d19d5db76..49eda1b43a 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -89,7 +89,7 @@ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 
+ // TParamList holds a list of type parameters bound to a type.
+-type TParamList struct{ tparams []*TypeName }
++type TParamList struct{ tparams []*TypeParam }
+ 
+ // Len returns the number of type parameters in the list.
+ // It is safe to call on a nil receiver.
+@@ -98,23 +98,22 @@ func (tps *TParamList) Len() int {
+ }
+ 
+ // At returns the i'th type parameter in the list.
+-func (tps *TParamList) At(i int) *TypeName {
++func (tps *TParamList) At(i int) *TypeParam {
+ 	return tps.list()[i]
+ }
+ 
+-func (tps *TParamList) list() []*TypeName {
++func (tps *TParamList) list() []*TypeParam {
+ 	if tps == nil {
+ 		return nil
+ 	}
+ 	return tps.tparams
+ }
+ 
+-func bindTParams(list []*TypeName) *TParamList {
++func bindTParams(list []*TypeParam) *TParamList {
+ 	if len(list) == 0 {
+ 		return nil
+ 	}
+-	for i, tp := range list {
+-		typ := tp.Type().(*TypeParam)
++	for i, typ := range list {
+ 		if typ.index >= 0 {
+ 			panic("type parameter bound more than once")
+ 		}
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 452c92f74d..41dde0e469 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -244,15 +244,14 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
+ 	}
+ }
+ 
+-func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
++func writeTParamList(buf *bytes.Buffer, list []*TypeParam, qf Qualifier, visited []Type) {
+ 	// TODO(rFindley) compare this with the corresponding implementation in types2
+ 	buf.WriteString("[")
+ 	var prev Type
+-	for i, p := range list {
++	for i, tpar := range list {
+ 		// Determine the type parameter and its constraint.
+ 		// list is expected to hold type parameter names,
+ 		// but don't crash if that's not the case.
+-		tpar, _ := p.typ.(*TypeParam)
+ 		var bound Type
+ 		if tpar != nil {
+ 			bound = tpar.bound // should not be nil but we want to see it if it is
+@@ -271,7 +270,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited
+ 		if tpar != nil {
+ 			writeType(buf, tpar, qf, visited)
+ 		} else {
+-			buf.WriteString(p.name)
++			buf.WriteString(tpar.obj.name)
+ 		}
+ 	}
+ 	if prev != nil {
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index de87466fe8..8f5b23ce39 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -63,7 +63,7 @@ func (u *unifier) unify(x, y Type) bool {
+ // A tparamsList describes a list of type parameters and the types inferred for them.
+ type tparamsList struct {
+ 	unifier *unifier
+-	tparams []*TypeName
++	tparams []*TypeParam
+ 	// For each tparams element, there is a corresponding type slot index in indices.
+ 	// index  < 0: unifier.types[-index-1] == nil
+ 	// index == 0: no type slot allocated yet
+@@ -78,11 +78,11 @@ type tparamsList struct {
+ func (d *tparamsList) String() string {
+ 	var buf bytes.Buffer
+ 	buf.WriteByte('[')
+-	for i, tname := range d.tparams {
++	for i, tpar := range d.tparams {
+ 		if i > 0 {
+ 			buf.WriteString(", ")
+ 		}
+-		writeType(&buf, tname.typ, nil, nil)
++		writeType(&buf, tpar, nil, nil)
+ 		buf.WriteString(": ")
+ 		writeType(&buf, d.at(i), nil, nil)
+ 	}
+@@ -93,13 +93,13 @@ func (d *tparamsList) String() string {
+ // init initializes d with the given type parameters.
+ // The type parameters must be in the order in which they appear in their declaration
+ // (this ensures that the tparams indices match the respective type parameter index).
+-func (d *tparamsList) init(tparams []*TypeName) {
++func (d *tparamsList) init(tparams []*TypeParam) {
+ 	if len(tparams) == 0 {
+ 		return
+ 	}
+ 	if debug {
+ 		for i, tpar := range tparams {
+-			assert(i == tpar.typ.(*TypeParam).index)
++			assert(i == tpar.index)
+ 		}
+ 	}
+ 	d.tparams = tparams
+@@ -155,8 +155,8 @@ func (d *tparamsList) index(typ Type) int {
+ 
+ // If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+ // Otherwise, the result is < 0. tpar must not be nil.
+-func tparamIndex(list []*TypeName, tpar *TypeParam) int {
+-	if i := tpar.index; i < len(list) && list[i].typ == tpar {
++func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
++	if i := tpar.index; i < len(list) && list[i] == tpar {
+ 		return i
+ 	}
+ 	return -1

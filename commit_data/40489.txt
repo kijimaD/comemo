@@ -14,6 +14,29 @@ Date:   Fri May 17 01:25:55 2019 +1000
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/runtime/sys_netbsd_amd64.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 77dc00dc60..5fc47aefd3 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -218,7 +218,7 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
+ 	MOVL	$SYS___clock_gettime50, AX
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX		// nsec
++	MOVQ	16(SP), DX		// nsec
+ 
+ 	// sec is in AX, nsec in DX
+ 	MOVQ	AX, sec+0(FP)
+@@ -231,7 +231,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ 	MOVL	$SYS___clock_gettime50, AX
+ 	SYSCALL
+ 	MOVQ	8(SP), AX		// sec
+-	MOVL	16(SP), DX		// nsec
++	MOVQ	16(SP), DX		// nsec
+ 
+ 	// sec is in AX, nsec in DX
+ 	// return nsec in AX

@@ -10,8 +10,101 @@ Date:   Tue Feb 7 10:38:10 2012 +1100
     R=bradfitz, bytbox, gustavo, rsc
     CC=golang-dev
     https://golang.org/cl/5576064
-
+---
  misc/osx/etc/profile_go      | 15 ---------------
  misc/osx/package.bash        | 24 +++++++++++-------------
  misc/osx/scripts/postinstall |  5 -----
  3 files changed, 11 insertions(+), 33 deletions(-)
+
+diff --git a/misc/osx/etc/profile_go b/misc/osx/etc/profile_go
+deleted file mode 100755
+index 6c52ac4d58..0000000000
+--- a/misc/osx/etc/profile_go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-#!/bin/bash
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# The output of this script will be eval'd by the user's shell on startup. This
+-# script decides what type of shell is being used in the same way as
+-# /usr/libexec/path_helper
+-
+-if echo $SHELL | grep csh$ > /dev/null; then
+-	echo 'setenv GOROOT /usr/local/go'
+-else
+-	echo 'export GOROOT=/usr/local/go'
+-fi
+-
+diff --git a/misc/osx/package.bash b/misc/osx/package.bash
+index ac3717642f..708494eb2e 100755
+--- a/misc/osx/package.bash
++++ b/misc/osx/package.bash
+@@ -13,34 +13,32 @@ fi
+ 
+ BUILD=/tmp/go.build.tmp
+ ROOT=`hg root`
++export GOROOT=$BUILD/root/usr/local/go
++export GOROOT_FINAL=/usr/local/go
+ 
+ echo "Removing old images"
+ rm -f *.pkg *.dmg
+ 
+ echo "Preparing temporary directory"
+-rm -rf ${BUILD}
+-mkdir -p ${BUILD}
+-
+-echo "Preparing template"
+-mkdir -p ${BUILD}/root/usr/local/
++rm -rf $BUILD
++mkdir -p $BUILD
+ 
+ echo "Copying go source distribution"
+-cp -r $ROOT ${BUILD}/root/usr/local/go
+-cp -r etc ${BUILD}/root/etc
++mkdir -p $BUILD/root/usr/local
++cp -r $ROOT $GOROOT
++cp -r etc $BUILD/root/etc
+ 
+ echo "Building go"
+-pushd . > /dev/null
+-cd ${BUILD}/root/usr/local/go
+-GOROOT=`pwd`
++pushd $GOROOT > /dev/null
+ src/version.bash -save
+ rm -rf .hg .hgignore .hgtags
+ cd src
+ ./all.bash | sed "s/^/  /"
+-cd ..
+ popd > /dev/null
+ 
+ echo "Building package"
+-${PM} -v -r ${BUILD}/root -o "Go `hg id`.pkg" \
++# $PM came from utils.bahs
++$PM -v -r $BUILD/root -o "Go `hg id`.pkg" \
+ 	--scripts scripts \
+ 	--id com.googlecode.go \
+ 	--title Go \
+@@ -48,4 +46,4 @@ ${PM} -v -r ${BUILD}/root -o "Go `hg id`.pkg" \
+ 	--target "10.5"
+ 
+ echo "Removing temporary directory"
+-rm -rf ${BUILD}
++rm -rf $BUILD
+diff --git a/misc/osx/scripts/postinstall b/misc/osx/scripts/postinstall
+index f8545b8b02..3748721c74 100644
+--- a/misc/osx/scripts/postinstall
++++ b/misc/osx/scripts/postinstall
+@@ -9,11 +9,6 @@ find bin -exec chmod ugo+rx \{\} \;
+ find . -type d -exec chmod ugo+rx \{\} \;
+ chmod o-w .
+ 
+-echo "Setting GOROOT system-wide"
+-echo "eval \`/etc/profile_go\`" >> /etc/csh.login
+-echo "eval \`/etc/profile_go\`" >> /etc/zshenv
+-echo "eval \`/etc/profile_go\`" >> /etc/profile
+-
+ echo "Fixing debuggers via sudo.bash"
+ # setgrp procmod the debuggers (sudo.bash)
+ cd $GOROOT/src

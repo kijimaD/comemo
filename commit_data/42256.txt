@@ -7,6 +7,28 @@ Date:   Tue Nov 19 07:42:09 2019 -0800
     Change-Id: I71fc3016106db733b888f3daccc00b493abe39b2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207840
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.14.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index ed4e3e2ef9..fd2525149f 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -171,6 +171,16 @@ TODO
+ TODO
+ </p>
+ 
++<p><!-- CL 171844 and many others -->
++  Internal timers, used by
++  <a href="/pkg/time/#After"><code>time.After</code></a>,
++  <a href="/pkg/time/#Tick"><code>time.Tick</code></a>,
++  <a href="/pkg/net/#Conn"><code>net.Conn.SetDeadline</code></a>,
++  and friends, are more efficient, with less lock contention and fewer
++  context switches.
++  This is a performance improvement that should not cause any user
++  visible changes.
++</p>
+ 
+ <h2 id="library">Core library</h2>
+ 

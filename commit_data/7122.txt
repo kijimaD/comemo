@@ -18,9 +18,183 @@ Date:   Fri Jan 14 09:42:37 2011 -0800
     R=r2
     CC=golang-dev
     https://golang.org/cl/4008041
-
+---
  src/pkg/go/printer/nodes.go                 |  7 +++--
  src/pkg/go/printer/printer.go               | 42 +++++++++++++++++++++--------
  src/pkg/go/printer/testdata/comments.golden |  6 ++++-
  src/pkg/go/printer/testdata/comments.input  |  6 ++++-
  4 files changed, 46 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 1ee0846f68..8aadc75a54 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -872,7 +872,10 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		}
+ 		p.print(x.Lbrace, token.LBRACE)
+ 		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, multiLine, x.Rbrace)
+-		p.print(x.Rbrace, token.RBRACE)
++		// do not insert extra line breaks because of comments before
++		// the closing '}' as it might break the code if there is no
++		// trailing ','
++		p.print(noExtraLinebreak, x.Rbrace, token.RBRACE, noExtraLinebreak)
+ 
+ 	case *ast.Ellipsis:
+ 		p.print(token.ELLIPSIS)
+@@ -1388,7 +1391,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
+ 		if isLit {
+ 			sep = blank
+ 		}
+-		p.print(sep, b.Pos(), token.LBRACE)
++		p.print(sep, b.Lbrace, token.LBRACE)
+ 		if len(b.List) > 0 {
+ 			p.print(blank)
+ 			for i, s := range b.List {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index a4ddad50ec..34b0c4e2dc 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -58,6 +58,15 @@ var infinity = 1 << 30
+ var ignoreMultiLine = new(bool)
+ 
+ 
++// A pmode value represents the current printer mode.
++type pmode int
++
++const (
++	inLiteral pmode = 1 << iota
++	noExtraLinebreak
++)
++
++
+ type printer struct {
+ 	// Configuration (does not change after initialization)
+ 	output io.Writer
+@@ -69,7 +78,7 @@ type printer struct {
+ 	nesting int         // nesting level (0: top-level (package scope), >0: functions/decls.)
+ 	written int         // number of bytes written
+ 	indent  int         // current indentation
+-	escape  bool        // true if in escape sequence
++	mode    pmode       // current printer mode
+ 	lastTok token.Token // the last token printed (token.ILLEGAL if it's whitespace)
+ 
+ 	// Buffered whitespace
+@@ -162,7 +171,7 @@ func (p *printer) write(data []byte) {
+ 			p.pos.Line++
+ 			p.pos.Column = 1
+ 
+-			if !p.escape {
++			if p.mode&inLiteral == 0 {
+ 				// write indentation
+ 				// use "hard" htabs - indentation columns
+ 				// must not be discarded by the tabwriter
+@@ -211,7 +220,7 @@ func (p *printer) write(data []byte) {
+ 			}
+ 
+ 		case tabwriter.Escape:
+-			p.escape = !p.escape
++			p.mode ^= inLiteral
+ 
+ 			// ignore escape chars introduced by printer - they are
+ 			// invisible and must not affect p.pos (was issue #1089)
+@@ -272,7 +281,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
+ 			// (used when printing merged ASTs of different files
+ 			// e.g., the result of ast.MergePackageFiles)
+ 			p.indent = 0
+-			p.escape = false
++			p.mode = 0
+ 			p.buffer = p.buffer[0:0]
+ 			fileChanged = true
+ 		}
+@@ -683,9 +692,13 @@ func (p *printer) intersperseComments(next token.Position, tok token.Token) (dro
+ 			// follows on the same line: separate with an extra blank
+ 			p.write([]byte{' '})
+ 		}
+-		// ensure that there is a newline after a //-style comment
+-		// or if we are before a closing '}' or at the end of a file
+-		return p.writeCommentSuffix(last.Text[1] == '/' || tok == token.RBRACE || tok == token.EOF)
++		// ensure that there is a line break after a //-style comment,
++		// before a closing '}' unless explicitly disabled, or at eof
++		needsLinebreak :=
++			last.Text[1] == '/' ||
++				tok == token.RBRACE && p.mode&noExtraLinebreak == 0 ||
++				tok == token.EOF
++		return p.writeCommentSuffix(needsLinebreak)
+ 	}
+ 
+ 	// no comment was written - we should never reach here since
+@@ -787,6 +800,9 @@ func (p *printer) print(args ...interface{}) {
+ 		var tok token.Token
+ 
+ 		switch x := f.(type) {
++		case pmode:
++			// toggle printer mode
++			p.mode ^= x
+ 		case whiteSpace:
+ 			if x == ignore {
+ 				// don't add ignore's to the buffer; they
+@@ -818,10 +834,14 @@ func (p *printer) print(args ...interface{}) {
+ 				data = x.Value
+ 			}
+ 			// escape all literals so they pass through unchanged
+-			// (note that valid Go programs cannot contain esc ('\xff')
+-			// bytes since they do not appear in legal UTF-8 sequences)
+-			// TODO(gri): do this more efficiently.
+-			data = []byte("\xff" + string(data) + "\xff")
++			// (note that valid Go programs cannot contain
++			// tabwriter.Escape bytes since they do not appear in
++			// legal UTF-8 sequences)
++			escData := make([]byte, 0, len(data)+2)
++			escData = append(escData, tabwriter.Escape)
++			escData = append(escData, data...)
++			escData = append(escData, tabwriter.Escape)
++			data = escData
+ 			tok = x.Kind
+ 		case token.Token:
+ 			s := x.String()
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 200ea332f6..a86d661743 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -422,7 +422,7 @@ func _() {
+ 
+ func ( /* comment1 */ T /* comment2 */ ) _()	{}
+ 
+-func _() { /* one-liner */
++func _() { /* one-line functions with comments are formatted as multi-line functions */
+ }
+ 
+ func _() {
+@@ -430,6 +430,10 @@ func _() {
+ 	/* closing curly brace should be on new line */
+ }
+ 
++func _() {
++	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */ }
++}
++
+ 
+ // Comments immediately adjacent to punctuation (for which the go/printer
+ // may obly have estimated position information) must remain after the punctuation.
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 4a9ea4742a..14cd4cf7a1 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -422,12 +422,16 @@ func _() {
+ 
+ func (/* comment1 */ T /* comment2 */) _() {}
+ 
+-func _() { /* one-liner */ }
++func _() { /* one-line functions with comments are formatted as multi-line functions */ }
+ 
+ func _() {
+ 	_ = 0
+ 	/* closing curly brace should be on new line */ }
+ 
++func _() {
++	_ = []int{0, 1 /* don't introduce a newline after this comment - was issue 1365 */}
++}
++
+ 
+ // Comments immediately adjacent to punctuation (for which the go/printer
+ // may obly have estimated position information) must remain after the punctuation.

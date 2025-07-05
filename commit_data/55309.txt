@@ -10,6 +10,24 @@ Date:   Thu Jan 26 14:43:12 2023 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/walk/switch.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index 8ca8fa82e1..67af2ae57e 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -286,11 +286,10 @@ func (s *exprSwitch) search(cc []exprClause, out *ir.Nodes) {
+ 
+ // Try to implement the clauses with a jump table. Returns true if successful.
+ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
+-	const go119UseJumpTables = true
+ 	const minCases = 8   // have at least minCases cases in the switch
+ 	const minDensity = 4 // use at least 1 out of every minDensity entries
+ 
+-	if !go119UseJumpTables || base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
++	if base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
+ 		return false
+ 	}
+ 	if len(cc) < minCases {

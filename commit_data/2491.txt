@@ -9,10 +9,254 @@ Date:   Mon Jun 22 13:34:21 2009 -0700
     DELTA=57  (2 added, 12 deleted, 43 changed)
     OCL=30549
     CL=30590
-
+---
  src/pkg/archive/tar/untar.go |  5 ++--
  src/pkg/fmt/format.go        | 25 ++++++++++---------
  src/pkg/io/io.go             |  4 +--
  src/pkg/json/struct.go       | 58 ++++++++++++++++++--------------------------
  src/pkg/json/struct_test.go  |  2 +-
  5 files changed, 42 insertions(+), 52 deletions(-)
+
+diff --git a/src/pkg/archive/tar/untar.go b/src/pkg/archive/tar/untar.go
+index 3770d1da3e..e662971a4f 100644
+--- a/src/pkg/archive/tar/untar.go
++++ b/src/pkg/archive/tar/untar.go
+@@ -178,8 +178,9 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
+ }
+ 
+ type slicer []byte
+-func (s *slicer) next(n int) (b []byte) {
+-	b, *s = s[0:n], s[n:len(s)];
++func (sp *slicer) next(n int) (b []byte) {
++	s := *sp;
++	b, *sp = s[0:n], s[n:len(s)];
+ 	return
+ }
+ 
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 3cd492980d..603c3e6de4 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -154,7 +154,8 @@ func (f *Fmt) pad(s string) {
+ // never mind.)  val is known to be unsigned.  we could make things maybe
+ // marginally faster by splitting the 32-bit case out into a separate function
+ // but it's not worth the duplication, so val has 64 bits.
+-func putint(buf *[nByte]byte, i int, base, val uint64, digits *string) int {
++func putint(buf []byte, base, val uint64, digits string) int {
++	i := len(buf) - 1;
+ 	for val >= base {
+ 		buf[i] = digits[val%base];
+ 		i--;
+@@ -176,7 +177,7 @@ func (f *Fmt) Fmt_boolean(v bool) *Fmt {
+ }
+ 
+ // integer; interprets prec but not wid.
+-func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string {
++func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string {
+ 	var buf [nByte]byte;
+ 	negative := is_signed && a < 0;
+ 	if negative {
+@@ -196,7 +197,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
+ 		}
+ 	}
+ 
+-	i := putint(&buf, nByte-1, uint64(base), uint64(a), digits);
++	i := putint(&buf, uint64(base), uint64(a), digits);
+ 	for i > 0 && prec > (nByte-1-i) {
+ 		buf[i] = '0';
+ 		i--;
+@@ -232,7 +233,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits *string) string
+ 
+ // Fmt_d64 formats an int64 in decimal.
+ func (f *Fmt) Fmt_d64(v int64) *Fmt {
+-	f.pad(f.integer(v, 10, true, &ldigits));
++	f.pad(f.integer(v, 10, true, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -249,7 +250,7 @@ func (f *Fmt) Fmt_d(v int) *Fmt {
+ 
+ // Fmt_ud64 formats a uint64 in decimal.
+ func (f *Fmt) Fmt_ud64(v uint64) *Fmt {
+-	f.pad(f.integer(int64(v), 10, false, &ldigits));
++	f.pad(f.integer(int64(v), 10, false, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -266,7 +267,7 @@ func (f *Fmt) Fmt_ud(v uint) *Fmt {
+ 
+ // Fmt_x64 formats an int64 in hexadecimal.
+ func (f *Fmt) Fmt_x64(v int64) *Fmt {
+-	f.pad(f.integer(v, 16, true, &ldigits));
++	f.pad(f.integer(v, 16, true, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -283,7 +284,7 @@ func (f *Fmt) Fmt_x(v int) *Fmt {
+ 
+ // Fmt_ux64 formats a uint64 in hexadecimal.
+ func (f *Fmt) Fmt_ux64(v uint64) *Fmt {
+-	f.pad(f.integer(int64(v), 16, false, &ldigits));
++	f.pad(f.integer(int64(v), 16, false, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -300,7 +301,7 @@ func (f *Fmt) Fmt_ux(v uint) *Fmt {
+ 
+ // Fmt_X64 formats an int64 in upper case hexadecimal.
+ func (f *Fmt) Fmt_X64(v int64) *Fmt {
+-	f.pad(f.integer(v, 16, true, &udigits));
++	f.pad(f.integer(v, 16, true, udigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -317,7 +318,7 @@ func (f *Fmt) Fmt_X(v int) *Fmt {
+ 
+ // Fmt_uX64 formats a uint64 in upper case hexadecimal.
+ func (f *Fmt) Fmt_uX64(v uint64) *Fmt {
+-	f.pad(f.integer(int64(v), 16, false, &udigits));
++	f.pad(f.integer(int64(v), 16, false, udigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -334,7 +335,7 @@ func (f *Fmt) Fmt_uX(v uint) *Fmt {
+ 
+ // Fmt_o64 formats an int64 in octal.
+ func (f *Fmt) Fmt_o64(v int64) *Fmt {
+-	f.pad(f.integer(v, 8, true, &ldigits));
++	f.pad(f.integer(v, 8, true, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -351,7 +352,7 @@ func (f *Fmt) Fmt_o(v int) *Fmt {
+ 
+ // Fmt_uo64 formats a uint64 in octal.
+ func (f *Fmt) Fmt_uo64(v uint64) *Fmt {
+-	f.pad(f.integer(int64(v), 8, false, &ldigits));
++	f.pad(f.integer(int64(v), 8, false, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+@@ -368,7 +369,7 @@ func (f *Fmt) Fmt_uo(v uint) *Fmt {
+ 
+ // Fmt_b64 formats a uint64 in binary.
+ func (f *Fmt) Fmt_b64(v uint64) *Fmt {
+-	f.pad(f.integer(int64(v), 2, false, &ldigits));
++	f.pad(f.integer(int64(v), 2, false, ldigits));
+ 	f.clearflags();
+ 	return f;
+ }
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index d01f9ee3d3..3fbc153fef 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -197,7 +197,7 @@ type ByteReader struct {
+ 
+ func (r ByteReader) Read(p []byte) (int, os.Error) {
+ 	n := len(p);
+-	b := r.Data;
++	b := *r.Data;
+ 	if len(b) == 0 {
+ 		return 0, os.EOF;
+ 	}
+@@ -205,7 +205,7 @@ func (r ByteReader) Read(p []byte) (int, os.Error) {
+ 		n = len(b);
+ 	}
+ 	bytes.Copy(p, b[0:n]);
+-	*b = b[n:len(b)];
++	*r.Data = b[n:len(b)];
+ 	return n, nil;
+ }
+ 
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index ac26895572..400bf8b6c9 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -118,12 +118,10 @@ func (b *_StructBuilder) Array() {
+ 	if b == nil {
+ 		return
+ 	}
+-	if v := b.val; v.Kind() == reflect.PtrKind {
+-		pv := v.(reflect.PtrValue);
+-		psubtype := pv.Type().(reflect.PtrType).Sub();
+-		if pv.Get() == nil && psubtype.Kind() == reflect.ArrayKind {
+-			av := reflect.NewSliceValue(psubtype.(reflect.ArrayType), 0, 8);
+-			pv.SetSub(av);
++	if v := b.val; v.Kind() == reflect.ArrayKind {
++		av := v.(reflect.ArrayValue);
++		if av.IsSlice() && av.IsNil() {
++			av.Set(reflect.NewSliceValue(av.Type().(reflect.ArrayType), 0, 8));
+ 		}
+ 	}
+ }
+@@ -133,38 +131,28 @@ func (b *_StructBuilder) Elem(i int) Builder {
+ 		return nobuilder
+ 	}
+ 	v := b.val;
+-	if v.Kind() == reflect.PtrKind {
+-		// If we have a pointer to an array, allocate or grow
+-		// the array as necessary.  Then set v to the array itself.
+-		pv := v.(reflect.PtrValue);
+-		psub := pv.Sub();
+-		if psub.Kind() == reflect.ArrayKind {
+-			av := psub.(reflect.ArrayValue);
+-			if i > av.Cap() {
+-				n := av.Cap();
+-				if n < 8 {
+-					n = 8
+-				}
+-				for n <= i {
+-					n *= 2
+-				}
+-				av1 := reflect.NewSliceValue(av.Type().(reflect.ArrayType), av.Len(), n);
+-				av1.CopyFrom(av, av.Len());
+-				pv.SetSub(av1);
+-				av = av1;
+-			}
+-		}
+-		v = psub;
++	if v.Kind() != reflect.ArrayKind {
++		return nobuilder
+ 	}
+-	if v.Kind() == reflect.ArrayKind {
+-		// Array was grown above, or is fixed size.
+-		av := v.(reflect.ArrayValue);
+-		if av.Len() <= i && i < av.Cap() {
+-			av.SetLen(i+1);
++	av := v.(reflect.ArrayValue);
++	if av.IsSlice() && i > av.Cap() {
++		n := av.Cap();
++		if n < 8 {
++			n = 8
+ 		}
+-		if i < av.Len() {
+-			return &_StructBuilder{ av.Elem(i) }
++		for n <= i {
++			n *= 2
+ 		}
++		av1 := reflect.NewSliceValue(av.Type().(reflect.ArrayType), av.Len(), n);
++		av1.CopyFrom(av, av.Len());
++		av.Set(av1);
++	}
++	// Array was grown above, or is fixed size.
++	if av.Len() <= i && i < av.Cap() {
++		av.SetLen(i+1);
++	}
++	if i < av.Len() {
++		return &_StructBuilder{ av.Elem(i) }
+ 	}
+ 	return nobuilder
+ }
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index 88d9e9ec4d..193bfe139e 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -26,7 +26,7 @@ type _MyStruct struct {
+ 	fl float;
+ 	fl32 float32;
+ 	fl64 float64;
+-	a *[]string;	// TODO(rsc): Should be able to use []string.
++	a []string;
+ 	my *_MyStruct;
+ };
+ 

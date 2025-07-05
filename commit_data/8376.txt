@@ -7,9 +7,189 @@ Date:   Fri May 13 16:05:47 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev, vcc.163
     https://golang.org/cl/4517056
-
+---
  src/cmd/6l/asm.c   | 70 +++++++++++++++++++++++++++++++-----------------------
  src/cmd/8l/asm.c   | 36 ++++++++++++++++++----------
  src/cmd/ld/dwarf.c |  1 -
  src/cmd/ld/pe.c    |  6 ++---
  4 files changed, 66 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index dda19e48d0..9aeef3c4d8 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -787,40 +787,50 @@ asmb(void)
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
+-		/*
+-		 * the symbol information is stored as
+-		 *	32-bit symbol table size
+-		 *	32-bit line number table size
+-		 *	symbol table
+-		 *	line number table
+-		 */
+-		seek(cout, symo+8, 0);
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f sp\n", cputime());
+-		Bflush(&bso);
+-		if(debug['v'])
+-			Bprint(&bso, "%5.2f pc\n", cputime());
+-		Bflush(&bso);
+-		if(!debug['s'])
+-			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
+-		cflush();
+-		seek(cout, symo, 0);
+-		lputl(symsize);
+-		lputl(lcsize);
+-		cflush();
+-		if(HEADTYPE != Hwindows && !debug['s']) {
+-			elfsymo = symo+8+symsize+lcsize;
+-			seek(cout, elfsymo, 0);
+-			asmelfsym64();
+-			cflush();
+-			elfstro = seek(cout, 0, 1);
+-			elfsymsize = elfstro - elfsymo;
+-			ewrite(cout, elfstrdat, elfstrsize);
+-
++		switch(HEADTYPE) {
++		default:
++			if(iself) {
++				/*
++				 * the symbol information is stored as
++				 *	32-bit symbol table size
++				 *	32-bit line number table size
++				 *	symbol table
++				 *	line number table
++				 */
++				seek(cout, symo+8, 0);
++				if(debug['v'])
++					Bprint(&bso, "%5.2f sp\n", cputime());
++				Bflush(&bso);
++				if(debug['v'])
++					Bprint(&bso, "%5.2f pc\n", cputime());
++				Bflush(&bso);
++				if(!debug['s'])
++					strnput("", INITRND-(8+symsize+lcsize)%INITRND);
++				cflush();
++				seek(cout, symo, 0);
++				lputl(symsize);
++				lputl(lcsize);
++				cflush();
++				elfsymo = symo+8+symsize+lcsize;
++				seek(cout, elfsymo, 0);
++				asmelfsym64();
++				cflush();
++				elfstro = seek(cout, 0, 1);
++				elfsymsize = elfstro - elfsymo;
++				ewrite(cout, elfstrdat, elfstrsize);
++
++				if(debug['v'])
++				       Bprint(&bso, "%5.2f dwarf\n", cputime());
++
++				dwarfemitdebugsections();
++			}
++			break;
++		case Hwindows:
+ 			if(debug['v'])
+ 			       Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 
+ 			dwarfemitdebugsections();
++			break;
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 1e973c180a..535d8bdd38 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -742,12 +742,29 @@ asmb(void)
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		case Hwindows:
+-			// TODO(brainman): not sure what symo meant to be, but it is not used for Windows PE for now anyway
+ 			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
+-		if(HEADTYPE == Hplan9x32) {
++		switch(HEADTYPE) {
++		default:
++			if(iself) {
++				if(debug['v'])
++				       Bprint(&bso, "%5.2f elfsym\n", cputime());
++				elfsymo = symo+8+symsize+lcsize;
++				seek(cout, elfsymo, 0);
++				asmelfsym32();
++				cflush();
++				elfstro = seek(cout, 0, 1);
++				elfsymsize = elfstro - elfsymo;
++				ewrite(cout, elfstrdat, elfstrsize);
++
++				if(debug['v'])
++					Bprint(&bso, "%5.2f dwarf\n", cputime());
++				dwarfemitdebugsections();
++			}
++			break;
++		case Hplan9x32:
+ 			seek(cout, symo, 0);
+ 			asmplan9sym();
+ 			cflush();
+@@ -760,20 +777,13 @@ asmb(void)
+ 				
+ 				cflush();
+ 			}
+-		} else if(iself) {
+-			if(debug['v'])
+-			       Bprint(&bso, "%5.2f elfsym\n", cputime());
+-			elfsymo = symo+8+symsize+lcsize;
+-			seek(cout, elfsymo, 0);
+-			asmelfsym32();
+-			cflush();
+-			elfstro = seek(cout, 0, 1);
+-			elfsymsize = elfstro - elfsymo;
+-			ewrite(cout, elfstrdat, elfstrsize);
+-
++			break;
++		case Hwindows:
++			seek(cout, symo, 0);
+ 			if(debug['v'])
+ 				Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 			dwarfemitdebugsections();
++			break;
+ 		}
+ 	}
+ 	if(debug['v'])
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 98b068008b..ed11f5e5ac 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -2562,7 +2562,6 @@ dwarfaddmachoheaders(void)
+ void
+ dwarfaddpeheaders(void)
+ {
+-	dwarfemitdebugsections();
+ 	newPEDWARFSection(".debug_abbrev", abbrevsize);
+ 	newPEDWARFSection(".debug_line", linesize);
+ 	newPEDWARFSection(".debug_frame", framesize);
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index d523ca9c5b..1c0c665383 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -484,13 +484,13 @@ asmbpe(void)
+ 	d->Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA|
+ 		IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE;
+ 
++	if(!debug['s'])
++		dwarfaddpeheaders();
++
+ 	addimports(nextfileoff, d);
+ 	
+ 	addexports(nextfileoff);
+ 	
+-	if(!debug['s'])
+-		dwarfaddpeheaders();
+-
+ 	addsymtable();
+ 		
+ 	fh.NumberOfSections = nsect;

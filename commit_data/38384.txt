@@ -20,8 +20,145 @@ Date:   Thu Mar 15 08:21:44 2018 +0300
     Change-Id: Ife774b1e3886beb66f25ae4587c62123ccefe847
     Reviewed-on: https://go-review.googlesource.com/c/143177
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/tls/conn.go     | 25 +++++++++++++++----------
  src/net/http/serve_test.go | 26 ++++++++++++++++++++++++++
  src/net/http/server.go     | 20 ++++++++++++++++++++
  3 files changed, 61 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 13cebc9042..8e23643440 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -478,12 +478,18 @@ type RecordHeaderError struct {
+ 	// RecordHeader contains the five bytes of TLS record header that
+ 	// triggered the error.
+ 	RecordHeader [5]byte
++	// Conn provides the underlying net.Conn in the case that a client
++	// sent an initial handshake that didn't look like TLS.
++	// It is nil if there's already been a handshake or a TLS alert has
++	// been written to the connection.
++	Conn net.Conn
+ }
+ 
+ func (e RecordHeaderError) Error() string { return "tls: " + e.Msg }
+ 
+-func (c *Conn) newRecordHeaderError(msg string) (err RecordHeaderError) {
++func (c *Conn) newRecordHeaderError(conn net.Conn, msg string) (err RecordHeaderError) {
+ 	err.Msg = msg
++	err.Conn = conn
+ 	copy(err.RecordHeader[:], c.rawInput.Bytes())
+ 	return err
+ }
+@@ -535,7 +541,7 @@ func (c *Conn) readRecord(want recordType) error {
+ 	// an SSLv2 client.
+ 	if want == recordTypeHandshake && typ == 0x80 {
+ 		c.sendAlert(alertProtocolVersion)
+-		return c.in.setErrorLocked(c.newRecordHeaderError("unsupported SSLv2 handshake received"))
++		return c.in.setErrorLocked(c.newRecordHeaderError(nil, "unsupported SSLv2 handshake received"))
+ 	}
+ 
+ 	vers := uint16(hdr[1])<<8 | uint16(hdr[2])
+@@ -543,12 +549,7 @@ func (c *Conn) readRecord(want recordType) error {
+ 	if c.haveVers && vers != c.vers {
+ 		c.sendAlert(alertProtocolVersion)
+ 		msg := fmt.Sprintf("received record with version %x when expecting version %x", vers, c.vers)
+-		return c.in.setErrorLocked(c.newRecordHeaderError(msg))
+-	}
+-	if n > maxCiphertext {
+-		c.sendAlert(alertRecordOverflow)
+-		msg := fmt.Sprintf("oversized record received with length %d", n)
+-		return c.in.setErrorLocked(c.newRecordHeaderError(msg))
++		return c.in.setErrorLocked(c.newRecordHeaderError(nil, msg))
+ 	}
+ 	if !c.haveVers {
+ 		// First message, be extra suspicious: this might not be a TLS
+@@ -556,10 +557,14 @@ func (c *Conn) readRecord(want recordType) error {
+ 		// The current max version is 3.3 so if the version is >= 16.0,
+ 		// it's probably not real.
+ 		if (typ != recordTypeAlert && typ != want) || vers >= 0x1000 {
+-			c.sendAlert(alertUnexpectedMessage)
+-			return c.in.setErrorLocked(c.newRecordHeaderError("first record does not look like a TLS handshake"))
++			return c.in.setErrorLocked(c.newRecordHeaderError(c.conn, "first record does not look like a TLS handshake"))
+ 		}
+ 	}
++	if n > maxCiphertext {
++		c.sendAlert(alertRecordOverflow)
++		msg := fmt.Sprintf("oversized record received with length %d", n)
++		return c.in.setErrorLocked(c.newRecordHeaderError(nil, msg))
++	}
+ 	if err := c.readFromUntil(c.conn, recordHeaderLen+n); err != nil {
+ 		if e, ok := err.(net.Error); !ok || !e.Temporary() {
+ 			c.in.setErrorLocked(err)
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index a282c4bc17..6eb0088a96 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1556,6 +1556,32 @@ func TestServeTLS(t *testing.T) {
+ 	}
+ }
+ 
++// Test that the HTTPS server nicely rejects plaintext HTTP/1.x requests.
++func TestTLSServerRejectHTTPRequests(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		t.Error("unexpected HTTPS request")
++	}))
++	var errBuf bytes.Buffer
++	ts.Config.ErrorLog = log.New(&errBuf, "", 0)
++	defer ts.Close()
++	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
++	slurp, err := ioutil.ReadAll(conn)
++	if err != nil {
++		t.Fatal(err)
++	}
++	const wantPrefix = "HTTP/1.0 400 Bad Request\r\n"
++	if !strings.HasPrefix(string(slurp), wantPrefix) {
++		t.Errorf("response = %q; wanted prefix %q", slurp, wantPrefix)
++	}
++}
++
+ // Issue 15908
+ func TestAutomaticHTTP2_Serve_NoTLSConfig(t *testing.T) {
+ 	testAutomaticHTTP2_Serve(t, nil, true)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 4227343fbe..82abdd388e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1782,6 +1782,16 @@ func (c *conn) serve(ctx context.Context) {
+ 			c.rwc.SetWriteDeadline(time.Now().Add(d))
+ 		}
+ 		if err := tlsConn.Handshake(); err != nil {
++			// If the handshake failed, one reason might be a
++			// misconfigured client sending an HTTP request. If so, reach
++			// into the *tls.Conn unexported fields in a gross way so we
++			// can reply on the plaintext connection. At least there's a
++			// test that'll break if we rearrange the *tls.Conn struct.
++			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
++				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
++				re.Conn.Close()
++				return
++			}
+ 			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), err)
+ 			return
+ 		}
+@@ -3390,3 +3400,13 @@ func strSliceContains(ss []string, s string) bool {
+ 	}
+ 	return false
+ }
++
++// tlsRecordHeaderLooksLikeHTTP reports whether a TLS record header
++// looks like it might've been a misdirected plaintext HTTP request.
++func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
++	switch string(hdr[:]) {
++	case "GET /", "HEAD ", "POST ", "PUT /", "OPTIO":
++		return true
++	}
++	return false
++}

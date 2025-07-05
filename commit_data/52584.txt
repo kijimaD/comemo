@@ -29,6 +29,20 @@ Date:   Wed Nov 24 17:53:07 2021 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/block.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index db7df3f338..9a1dc8e7d1 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -119,7 +119,7 @@ func (e Edge) String() string {
+ //	 Plain                []            [next]
+ //	    If   [boolean Value]      [then, else]
+ //	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
+-type BlockKind int8
++type BlockKind int16
+ 
+ // short form print
+ func (b *Block) String() string {

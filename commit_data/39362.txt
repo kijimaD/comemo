@@ -12,7 +12,40 @@ Date:   Tue Jan 15 15:00:43 2019 -0800
     Change-Id: I433d1ec455aa37dab8fef6eb7d407f3737dbb97f
     Reviewed-on: https://go-review.googlesource.com/c/158057
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go | 9 ++++++---
  src/cmd/compile/internal/x86/ggen.go   | 1 +
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index ee4f872bd8..bd2c6720d3 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -142,9 +142,12 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ }
+ 
+ func ginsnop(pp *gc.Progs) *obj.Prog {
+-	// This is actually not the x86 NOP anymore,
+-	// but at the point where it gets used, AX is dead
+-	// so it's okay if we lose the high bits.
++	// This is a hardware nop (1-byte 0x90) instruction,
++	// even though we describe it as an explicit XCHGL here.
++	// Particularly, this does not zero the high 32 bits
++	// like typical *L opcodes.
++	// (gas assembles "xchg %eax,%eax" to 0x87 0xc0, which
++	// does zero the high 32 bits.)
+ 	p := pp.Prog(x86.AXCHGL)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = x86.REG_AX
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 1851af57c4..86bb782aab 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -54,6 +54,7 @@ func zeroAuto(pp *gc.Progs, n *gc.Node) {
+ }
+ 
+ func ginsnop(pp *gc.Progs) *obj.Prog {
++	// See comment in ../amd64/ggen.go.
+ 	p := pp.Prog(x86.AXCHGL)
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = x86.REG_AX

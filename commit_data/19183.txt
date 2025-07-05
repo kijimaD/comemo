@@ -10,6 +10,20 @@ Date:   Wed Apr 16 17:16:08 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews, rsc
     https://golang.org/cl/88710043
-
+---
  src/pkg/encoding/xml/xml.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 5b9d670024..b473cb8458 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -200,6 +200,8 @@ type Decoder struct {
+ }
+ 
+ // NewDecoder creates a new XML parser reading from r.
++// If r does not implement io.ByteReader, NewDecoder will
++// do its own buffering.
+ func NewDecoder(r io.Reader) *Decoder {
+ 	d := &Decoder{
+ 		ns:       make(map[string]string),

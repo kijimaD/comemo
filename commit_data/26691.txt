@@ -12,7 +12,32 @@ Date:   Mon Feb 22 11:32:56 2016 -0800
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_darwin.go | 1 +
  src/runtime/runtime2.go  | 1 -
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index b8257768ac..78557759cc 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -7,6 +7,7 @@ package runtime
+ import "unsafe"
+ 
+ type mOS struct {
++	machport uint32 // return address for mach ipc
+ 	waitsema uint32 // semaphore for parking on locks
+ }
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 379fe2678b..5bc5fca7f0 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -309,7 +309,6 @@ type m struct {
+ 	park          note
+ 	alllink       *m // on allm
+ 	schedlink     muintptr
+-	machport      uint32 // return address for mach ipc (os x)
+ 	mcache        *mcache
+ 	lockedg       *g
+ 	createstack   [32]uintptr // stack that created this thread.

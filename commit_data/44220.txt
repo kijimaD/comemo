@@ -17,6 +17,20 @@ Date:   Tue May 26 16:55:28 2020 +0200
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index e386f13a37..e924e2a07f 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -425,6 +425,8 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
+ // AddCookie does not attach more than one Cookie header field. That
+ // means all cookies, if any, are written into the same line,
+ // separated by semicolon.
++// AddCookie only sanitizes c's name and value, and does not sanitize
++// a Cookie header already present in the request.
+ func (r *Request) AddCookie(c *Cookie) {
+ 	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
+ 	if c := r.Header.Get("Cookie"); c != "" {

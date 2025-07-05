@@ -26,7 +26,57 @@ Date:   Wed Dec 1 15:48:53 2021 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/stubs_loong64.go | 11 +++++++++++
  src/runtime/tls_loong64.s    | 26 ++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/runtime/stubs_loong64.go b/src/runtime/stubs_loong64.go
+new file mode 100644
+index 0000000000..22366f508c
+--- /dev/null
++++ b/src/runtime/stubs_loong64.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build loong64
++
++package runtime
++
++// Called from assembly only; declared for go vet.
++func load_g()
++func save_g()
+diff --git a/src/runtime/tls_loong64.s b/src/runtime/tls_loong64.s
+new file mode 100644
+index 0000000000..bc3be3da1b
+--- /dev/null
++++ b/src/runtime/tls_loong64.s
+@@ -0,0 +1,26 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "go_tls.h"
++#include "funcdata.h"
++#include "textflag.h"
++
++// If !iscgo, this is a no-op.
++//
++// NOTE: mcall() assumes this clobbers only R30 (REGTMP).
++TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
++	MOVB	runtime·iscgo(SB), R30
++	BEQ	R30, nocgo
++
++	MOVV	g, runtime·tls_g(SB)
++
++nocgo:
++	RET
++
++TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
++	MOVV	runtime·tls_g(SB), g
++	RET
++
++GLOBL runtime·tls_g(SB), TLSBSS, $8

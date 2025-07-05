@@ -9,9 +9,62 @@ Date:   Wed Nov 7 23:59:09 2012 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6827060
-
+---
  src/cmd/go/build.go                          |   4 ++--
  src/pkg/runtime/race/race.go                 |   2 +-
  src/pkg/runtime/race/race_windows_amd64.syso | Bin 0 -> 118119 bytes
  src/run.bat                                  |   9 +++++++++
  4 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4cfecdd88f..1b5b7f4498 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1840,8 +1840,8 @@ func raceInit() {
+ 	if !buildRace {
+ 		return
+ 	}
+-	if goarch != "amd64" || goos != "linux" && goos != "darwin" {
+-		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64 and darwin/amd64\n", flag.Args()[0])
++	if goarch != "amd64" || goos != "linux" && goos != "darwin" && goos != "windows" {
++		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
+ 	buildGcflags = append(buildGcflags, "-b")
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index fb59ee8338..b5f402ef38 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build race,linux,amd64 race,darwin,amd64
++// +build race,linux,amd64 race,darwin,amd64 race,windows,amd64
+ 
+ // Package race provides low-level facilities for data race detection.
+ package race
+diff --git a/src/pkg/runtime/race/race_windows_amd64.syso b/src/pkg/runtime/race/race_windows_amd64.syso
+new file mode 100644
+index 0000000000..9aecde4458
+Binary files /dev/null and b/src/pkg/runtime/race/race_windows_amd64.syso differ
+diff --git a/src/run.bat b/src/run.bat
+index 78c9858be5..275107bf53 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -52,6 +52,15 @@ go test sync -short -timeout=120s -cpu=10
+ if errorlevel 1 goto fail
+ echo.
+ 
++if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
++echo # Testing race detector.
++go test -race -i flag
++if errorlevel 1 goto fail
++go test -race -short flag
++if errorlevel 1 goto fail
++echo.
++:norace
++
+ echo # ..\misc\dashboard\builder ..\misc\goplay
+ go build ..\misc\dashboard\builder ..\misc\goplay
+ if errorlevel 1 goto fail

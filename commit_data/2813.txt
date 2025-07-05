@@ -7,7 +7,34 @@ Date:   Tue Jul 28 17:02:05 2009 -0700
     R=ken
     OCL=32264
     CL=32386
-
+---
  src/cmd/5g/cgen.c | 2 +-
  src/cmd/8g/cgen.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 327bb1aebc..6e9d9aa8b6 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -618,7 +618,7 @@ bgen(Node *n, int true, Prog *to)
+ 	nr = n->right;
+ 
+ 	if(n->type == T) {
+-		convlit(n, types[TBOOL]);
++		convlit(&n, types[TBOOL]);
+ 		if(n->type == T)
+ 			goto ret;
+ 	}
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index e37eb52952..2306387493 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -683,7 +683,7 @@ bgen(Node *n, int true, Prog *to)
+ 	nr = n->right;
+ 
+ 	if(n->type == T) {
+-		convlit(n, types[TBOOL]);
++		convlit(&n, types[TBOOL]);
+ 		if(n->type == T)
+ 			return;
+ 	}

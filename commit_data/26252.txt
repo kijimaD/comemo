@@ -12,6 +12,20 @@ Date:   Wed Jan 6 13:10:22 2016 -0800
     Change-Id: Ic99fc088dbfd1aa21f509148aee98ccfe7f640bf
     Reviewed-on: https://go-review.googlesource.com/18306
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/pprof/pprof_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index d207464ad1..9e30313146 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -333,7 +333,7 @@ func TestMathBigDivide(t *testing.T) {
+ }
+ 
+ func TestStackBarrierProfiling(t *testing.T) {
+-	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" {
++	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" || runtime.GOOS == "dragonfly" {
+ 		// This test currently triggers a large number of
+ 		// usleep(100)s. These kernels/arches have poor
+ 		// resolution timers, so this gives up a whole

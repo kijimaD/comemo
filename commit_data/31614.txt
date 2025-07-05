@@ -54,7 +54,7 @@ Date:   Fri Feb 17 12:28:05 2017 -0500
     Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go  | 55 +++++++++++++++++++-------
  src/cmd/compile/internal/gc/subr.go |  2 +-
  src/cmd/compile/internal/gc/util.go |  2 +
@@ -73,3 +73,740 @@ Date:   Fri Feb 17 12:28:05 2017 -0500
  src/runtime/funcdata.h              |  2 +
  src/runtime/symtab.go               |  2 +
  17 files changed, 354 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 3401fc6c51..6e3ee91ae3 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -843,12 +843,23 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	call.Type = n.Type
+ 	call.Typecheck = 1
+ 
+-	// Hide the args from setlno -- the parameters to the inlined
++	// Hide the args from setPos -- the parameters to the inlined
+ 	// call already have good line numbers that should be preserved.
+ 	args := as.Rlist
+ 	as.Rlist.Set(nil)
+ 
+-	setlno(call, n.Pos)
++	// Rewrite the line information for the inlined AST.
++	parent := -1
++	callBase := Ctxt.PosTable.Pos(n.Pos).Base()
++	if callBase != nil {
++		parent = callBase.InliningIndex()
++	}
++	newIndex := Ctxt.InlTree.Add(parent, n.Pos, Linksym(fn.Sym))
++	setpos := &setPos{
++		bases:       make(map[*src.PosBase]*src.PosBase),
++		newInlIndex: newIndex,
++	}
++	setpos.node(call)
+ 
+ 	as.Rlist.Set(args.Slice())
+ 
+@@ -1024,29 +1035,47 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 	}
+ }
+ 
+-// Plaster over linenumbers
+-func setlnolist(ll Nodes, lno src.XPos) {
++// setPos is a visitor to update position info with a new inlining index.
++type setPos struct {
++	bases       map[*src.PosBase]*src.PosBase
++	newInlIndex int
++}
++
++func (s *setPos) nodelist(ll Nodes) {
+ 	for _, n := range ll.Slice() {
+-		setlno(n, lno)
++		s.node(n)
+ 	}
+ }
+ 
+-func setlno(n *Node, lno src.XPos) {
++func (s *setPos) node(n *Node) {
+ 	if n == nil {
+ 		return
+ 	}
+ 
+ 	// don't clobber names, unless they're freshly synthesized
+ 	if n.Op != ONAME || !n.Pos.IsKnown() {
+-		n.Pos = lno
++		n.Pos = s.updatedPos(n)
+ 	}
+ 
+-	setlno(n.Left, lno)
+-	setlno(n.Right, lno)
+-	setlnolist(n.List, lno)
+-	setlnolist(n.Rlist, lno)
+-	setlnolist(n.Ninit, lno)
+-	setlnolist(n.Nbody, lno)
++	s.node(n.Left)
++	s.node(n.Right)
++	s.nodelist(n.List)
++	s.nodelist(n.Rlist)
++	s.nodelist(n.Ninit)
++	s.nodelist(n.Nbody)
++}
++
++func (s *setPos) updatedPos(n *Node) src.XPos {
++	pos := Ctxt.PosTable.Pos(n.Pos)
++	oldbase := pos.Base() // can be nil
++	newbase := s.bases[oldbase]
++	if newbase == nil {
++		newbase = src.NewInliningBase(oldbase, s.newInlIndex)
++		pos.SetBase(newbase)
++		s.bases[oldbase] = newbase
++	}
++	pos.SetBase(newbase)
++	return Ctxt.PosTable.XPos(pos)
+ }
+ 
+ func (n *Node) isMethodCalledAsFunction() bool {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index adc487be4c..c1c4d04217 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -87,7 +87,7 @@ func hcrash() {
+ }
+ 
+ func linestr(pos src.XPos) string {
+-	return Ctxt.PosTable.Pos(pos).String()
++	return Ctxt.OutermostPos(pos).String()
+ }
+ 
+ // lasterror keeps track of the most recently issued error.
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 50f636e9d1..947d8a8516 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -10,6 +10,8 @@ import (
+ 	"runtime/pprof"
+ )
+ 
++// Line returns n's position as a string. If n has been inlined,
++// it uses the outermost position where n has been inlined.
+ func (n *Node) Line() string {
+ 	return linestr(n.Pos)
+ }
+diff --git a/src/cmd/internal/obj/funcdata.go b/src/cmd/internal/obj/funcdata.go
+index d5f891096b..af1dbc271d 100644
+--- a/src/cmd/internal/obj/funcdata.go
++++ b/src/cmd/internal/obj/funcdata.go
+@@ -12,8 +12,10 @@ package obj
+ 
+ const (
+ 	PCDATA_StackMapIndex       = 0
++	PCDATA_InlTreeIndex        = 1
+ 	FUNCDATA_ArgsPointerMaps   = 0
+ 	FUNCDATA_LocalsPointerMaps = 1
++	FUNCDATA_InlTree           = 2
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+new file mode 100644
+index 0000000000..f5e06959a2
+--- /dev/null
++++ b/src/cmd/internal/obj/inl.go
+@@ -0,0 +1,78 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package obj
++
++import "cmd/internal/src"
++
++// InlTree s a collection of inlined calls. The Parent field of an
++// InlinedCall is the index of another InlinedCall in InlTree.
++//
++// The compiler maintains a global inlining tree and adds a node to it
++// every time a function is inlined. For example, suppose f() calls g()
++// and g has two calls to h(), and that f, g, and h are inlineable:
++//
++//  1 func main() {
++//  2     f()
++//  3 }
++//  4 func f() {
++//  5     g()
++//  6 }
++//  7 func g() {
++//  8     h()
++//  9     h()
++// 10 }
++//
++// Assuming the global tree starts empty, inlining will produce the
++// following tree:
++//
++//   []InlinedCall{
++//     {Parent: -1, Func: "f", Pos: <line 2>},
++//     {Parent:  0, Func: "g", Pos: <line 5>},
++//     {Parent:  1, Func: "h", Pos: <line 8>},
++//     {Parent:  1, Func: "h", Pos: <line 9>},
++//   }
++//
++// The nodes of h inlined into main will have inlining indexes 2 and 3.
++//
++// Eventually, the compiler extracts a per-function inlining tree from
++// the global inlining tree (see pcln.go).
++type InlTree struct {
++	nodes []InlinedCall
++}
++
++// InlinedCall is a node in an InlTree.
++type InlinedCall struct {
++	Parent int      // index of the parent in the InlTree or < 0 if outermost call
++	Pos    src.XPos // position of the inlined call
++	Func   *LSym    // function that was inlined
++}
++
++// Add adds a new call to the tree, returning its index.
++func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
++	r := len(tree.nodes)
++	call := InlinedCall{
++		Parent: parent,
++		Pos:    pos,
++		Func:   func_,
++	}
++	tree.nodes = append(tree.nodes, call)
++	return r
++}
++
++// OutermostPos returns the outermost position corresponding to xpos,
++// which is where xpos was ultimately inlined to. In the example for
++// InlTree, main() contains inlined AST nodes from h(), but the
++// outermost position for those nodes is line 2.
++func (ctxt *Link) OutermostPos(xpos src.XPos) src.Pos {
++	pos := ctxt.PosTable.Pos(xpos)
++
++	outerxpos := xpos
++	for ix := pos.Base().InliningIndex(); ix >= 0; {
++		call := ctxt.InlTree.nodes[ix]
++		ix = call.Parent
++		outerxpos = call.Pos
++	}
++	return ctxt.PosTable.Pos(outerxpos)
++}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 9dd0c14478..2b066cef34 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -397,12 +397,14 @@ type Pcln struct {
+ 	Pcsp        Pcdata
+ 	Pcfile      Pcdata
+ 	Pcline      Pcdata
++	Pcinline    Pcdata
+ 	Pcdata      []Pcdata
+ 	Funcdata    []*LSym
+ 	Funcdataoff []int64
+ 	File        []*LSym
+ 	Lastfile    *LSym
+ 	Lastindex   int
++	InlTree     InlTree // per-function inlining tree extracted from the global tree
+ }
+ 
+ // A SymKind describes the kind of memory represented by a symbol.
+@@ -728,6 +730,7 @@ type Link struct {
+ 	Pathname      string
+ 	Hash          map[SymVer]*LSym
+ 	PosTable      src.PosTable
++	InlTree       InlTree // global inlining tree used by gc/inl.go
+ 	Imports       []string
+ 	Sym_div       *LSym
+ 	Sym_divu      *LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index be8b2b40c9..3be34d9fbe 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -94,6 +94,7 @@
+ //	- pcsp [data block]
+ //	- pcfile [data block]
+ //	- pcline [data block]
++//	- pcinline [data block]
+ //	- npcdata [int]
+ //	- pcdata [npcdata data blocks]
+ //	- nfuncdata [int]
+@@ -101,6 +102,8 @@
+ //	- funcdatasym [nfuncdata ints]
+ //	- nfile [int]
+ //	- file [nfile symref index]
++//	- ninlinedcall [int]
++//	- inlinedcall [ninlinedcall int symref int symref]
+ //
+ // The file layout and meaning of type integers are architecture-independent.
+ //
+@@ -156,6 +159,7 @@ func (w *objWriter) addLengths(s *LSym) {
+ 	data += len(pc.Pcsp.P)
+ 	data += len(pc.Pcfile.P)
+ 	data += len(pc.Pcline.P)
++	data += len(pc.Pcinline.P)
+ 	for i := 0; i < len(pc.Pcdata); i++ {
+ 		data += len(pc.Pcdata[i].P)
+ 	}
+@@ -227,6 +231,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 		w.wr.Write(pc.Pcsp.P)
+ 		w.wr.Write(pc.Pcfile.P)
+ 		w.wr.Write(pc.Pcline.P)
++		w.wr.Write(pc.Pcinline.P)
+ 		for i := 0; i < len(pc.Pcdata); i++ {
+ 			w.wr.Write(pc.Pcdata[i].P)
+ 		}
+@@ -300,6 +305,11 @@ func (w *objWriter) writeRefs(s *LSym) {
+ 		for _, f := range pc.File {
+ 			w.writeRef(f, true)
+ 		}
++		for _, call := range pc.InlTree.nodes {
++			w.writeRef(call.Func, false)
++			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
++			w.writeRef(f, true)
++		}
+ 	}
+ }
+ 
+@@ -452,6 +462,7 @@ func (w *objWriter) writeSym(s *LSym) {
+ 	w.writeInt(int64(len(pc.Pcsp.P)))
+ 	w.writeInt(int64(len(pc.Pcfile.P)))
+ 	w.writeInt(int64(len(pc.Pcline.P)))
++	w.writeInt(int64(len(pc.Pcinline.P)))
+ 	w.writeInt(int64(len(pc.Pcdata)))
+ 	for i := 0; i < len(pc.Pcdata); i++ {
+ 		w.writeInt(int64(len(pc.Pcdata[i].P)))
+@@ -467,6 +478,14 @@ func (w *objWriter) writeSym(s *LSym) {
+ 	for _, f := range pc.File {
+ 		w.writeRefIndex(f)
+ 	}
++	w.writeInt(int64(len(pc.InlTree.nodes)))
++	for _, call := range pc.InlTree.nodes {
++		w.writeInt(int64(call.Parent))
++		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
++		w.writeRefIndex(f)
++		w.writeInt(int64(l))
++		w.writeRefIndex(call.Func)
++	}
+ }
+ 
+ func (w *objWriter) writeInt(sval int64) {
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 517550c72d..8db7802d0c 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -169,6 +169,62 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
+ 	return int32(i)
+ }
+ 
++// pcinlineState holds the state used to create a function's inlining
++// tree and the PC-value table that maps PCs to nodes in that tree.
++type pcinlineState struct {
++	globalToLocal map[int]int
++	localTree     InlTree
++}
++
++// addBranch adds a branch from the global inlining tree in ctxt to
++// the function's local inlining tree, returning the index in the local tree.
++func (s *pcinlineState) addBranch(ctxt *Link, globalIndex int) int {
++	if globalIndex < 0 {
++		return -1
++	}
++
++	localIndex, ok := s.globalToLocal[globalIndex]
++	if ok {
++		return localIndex
++	}
++
++	// Since tracebacks don't include column information, we could
++	// use one node for multiple calls of the same function on the
++	// same line (e.g., f(x) + f(y)). For now, we use one node for
++	// each inlined call.
++	call := ctxt.InlTree.nodes[globalIndex]
++	call.Parent = s.addBranch(ctxt, call.Parent)
++	localIndex = len(s.localTree.nodes)
++	s.localTree.nodes = append(s.localTree.nodes, call)
++	s.globalToLocal[globalIndex] = localIndex
++	return localIndex
++}
++
++// pctoinline computes the index into the local inlining tree to use at p.
++// If p is not the result of inlining, pctoinline returns -1. Because p.Pos
++// applies to p, phase == 0 (before p) takes care of the update.
++func (s *pcinlineState) pctoinline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
++	if phase == 1 {
++		return oldval
++	}
++
++	posBase := ctxt.PosTable.Pos(p.Pos).Base()
++	if posBase == nil {
++		return -1
++	}
++
++	globalIndex := posBase.InliningIndex()
++	if globalIndex < 0 {
++		return -1
++	}
++
++	if s.globalToLocal == nil {
++		s.globalToLocal = make(map[int]int)
++	}
++
++	return int32(s.addBranch(ctxt, globalIndex))
++}
++
+ // pctospadj computes the sp adjustment in effect.
+ // It is oldval plus any adjustment made by p itself.
+ // The adjustment by p takes effect only after p, so we
+@@ -238,6 +294,10 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	funcpctab(ctxt, &pcln.Pcfile, cursym, "pctofile", pctofileline, pcln)
+ 	funcpctab(ctxt, &pcln.Pcline, cursym, "pctoline", pctofileline, nil)
+ 
++	pcinlineState := new(pcinlineState)
++	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
++	pcln.InlTree = pcinlineState.localTree
++
+ 	// tabulate which pc and func data we have.
+ 	havepc := make([]uint32, (npcdata+31)/32)
+ 	havefunc := make([]uint32, (nfuncdata+31)/32)
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index d0d050ab08..1e48f80616 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -59,7 +59,7 @@ func Getgoextlinkenabled() string {
+ }
+ 
+ func (p *Prog) Line() string {
+-	return p.Ctxt.PosTable.Pos(p.Pos).String()
++	return p.Ctxt.OutermostPos(p.Pos).String()
+ }
+ 
+ var armCondCode = []string{
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index ad124990e8..35e213a6c5 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -63,6 +63,9 @@ func (p Pos) Filename() string { return p.base.Pos().RelFilename() }
+ // Base returns the position base.
+ func (p Pos) Base() *PosBase { return p.base }
+ 
++// SetBase sets the position base.
++func (p *Pos) SetBase(base *PosBase) { p.base = base }
++
+ // RelFilename returns the filename recorded with the position's base.
+ func (p Pos) RelFilename() string { return p.base.Filename() }
+ 
+@@ -115,13 +118,14 @@ type PosBase struct {
+ 	filename    string // file name used to open source file, for error messages
+ 	absFilename string // absolute file name, for PC-Line tables
+ 	line        uint   // relative line number at pos
++	inl         int    // inlining index (see cmd/internal/obj/inl.go)
+ }
+ 
+ // NewFileBase returns a new *PosBase for a file with the given (relative and
+ // absolute) filenames.
+ func NewFileBase(filename, absFilename string) *PosBase {
+ 	if filename != "" {
+-		base := &PosBase{filename: filename, absFilename: absFilename}
++		base := &PosBase{filename: filename, absFilename: absFilename, inl: -1}
+ 		base.pos = MakePos(base, 0, 0)
+ 		return base
+ 	}
+@@ -132,7 +136,24 @@ func NewFileBase(filename, absFilename string) *PosBase {
+ //      //line filename:line
+ // at position pos.
+ func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
+-	return &PosBase{pos, filename, filename, line - 1}
++	return &PosBase{pos, filename, filename, line - 1, -1}
++}
++
++// NewInliningBase returns a copy of the old PosBase with the given inlining
++// index. If old == nil, the resulting PosBase has no filename.
++func NewInliningBase(old *PosBase, inlTreeIndex int) *PosBase {
++	if old == nil {
++		base := &PosBase{inl: inlTreeIndex}
++		base.pos = MakePos(base, 0, 0)
++		return base
++	}
++	copy := *old
++	base := &copy
++	base.inl = inlTreeIndex
++	if old == old.pos.base {
++		base.pos.base = base
++	}
++	return base
+ }
+ 
+ var noPos Pos
+@@ -173,6 +194,16 @@ func (b *PosBase) Line() uint {
+ 	return 0
+ }
+ 
++// InliningIndex returns the index into the global inlining
++// tree recorded with the base. If b == nil or the base has
++// not been inlined, the result is < 0.
++func (b *PosBase) InliningIndex() int {
++	if b != nil {
++		return b.inl
++	}
++	return -1
++}
++
+ // ----------------------------------------------------------------------------
+ // lico
+ 
+diff --git a/src/cmd/internal/src/xpos_test.go b/src/cmd/internal/src/xpos_test.go
+index 3f5b848b3c..4cfeedcd05 100644
+--- a/src/cmd/internal/src/xpos_test.go
++++ b/src/cmd/internal/src/xpos_test.go
+@@ -65,3 +65,20 @@ func TestSize(t *testing.T) {
+ 		t.Errorf("size = %v; want 8", unsafe.Sizeof(p))
+ 	}
+ }
++
++func TestSetBase(t *testing.T) {
++	var tab PosTable
++	b1 := NewFileBase("b1", "b1")
++	orig := MakePos(b1, 42, 7)
++	xpos := tab.XPos(orig)
++
++	pos := tab.Pos(xpos)
++	new := NewInliningBase(b1, 2)
++	pos.SetBase(new)
++	xpos = tab.XPos(pos)
++
++	pos = tab.Pos(xpos)
++	if inl := pos.Base().InliningIndex(); inl != 2 {
++		t.Fatalf("wrong inlining index: %d", inl)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index ffe0873fc8..1c61835da6 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -240,10 +240,20 @@ type FuncInfo struct {
+ 	Pcsp        Pcdata
+ 	Pcfile      Pcdata
+ 	Pcline      Pcdata
++	Pcinline    Pcdata
+ 	Pcdata      []Pcdata
+ 	Funcdata    []*Symbol
+ 	Funcdataoff []int64
+ 	File        []*Symbol
++	InlTree     []InlinedCall
++}
++
++// InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
++type InlinedCall struct {
++	Parent int32   // index of parent in InlTree
++	File   *Symbol // file of the inlined call
++	Line   int32   // line number of the inlined call
++	Func   *Symbol // function that was inlined
+ }
+ 
+ type Pcdata struct {
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 7626a4fbc1..c036acbd77 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -96,6 +96,7 @@ package ld
+ //	- pcsp [data block]
+ //	- pcfile [data block]
+ //	- pcline [data block]
++//	- pcinline [data block]
+ //	- npcdata [int]
+ //	- pcdata [npcdata data blocks]
+ //	- nfuncdata [int]
+@@ -103,6 +104,8 @@ package ld
+ //	- funcdatasym [nfuncdata ints]
+ //	- nfile [int]
+ //	- file [nfile symref index]
++//	- ninlinedcall [int]
++//	- inlinedcall [ninlinedcall int symref int symref]
+ //
+ // The file layout and meaning of type integers are architecture-independent.
+ //
+@@ -374,6 +377,7 @@ overwrite:
+ 		pc.Pcsp.P = r.readData()
+ 		pc.Pcfile.P = r.readData()
+ 		pc.Pcline.P = r.readData()
++		pc.Pcinline.P = r.readData()
+ 		n = r.readInt()
+ 		pc.Pcdata = r.pcdata[:n:n]
+ 		if !isdup {
+@@ -403,6 +407,14 @@ overwrite:
+ 		for i := 0; i < n; i++ {
+ 			pc.File[i] = r.readSymIndex()
+ 		}
++		n = r.readInt()
++		pc.InlTree = make([]InlinedCall, n)
++		for i := 0; i < n; i++ {
++			pc.InlTree[i].Parent = r.readInt32()
++			pc.InlTree[i].File = r.readSymIndex()
++			pc.InlTree[i].Line = r.readInt32()
++			pc.InlTree[i].Func = r.readSymIndex()
++		}
+ 
+ 		if !dupok {
+ 			if s.Attr.OnList() {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 479425f211..a1e28c1536 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -108,18 +108,23 @@ func ftabaddstring(ctxt *Link, ftab *Symbol, s string) int32 {
+ 	return start
+ }
+ 
++// numberfile assigns a file number to the file if it hasn't been assigned already.
++func numberfile(ctxt *Link, file *Symbol) {
++	if file.Type != obj.SFILEPATH {
++		ctxt.Filesyms = append(ctxt.Filesyms, file)
++		file.Value = int64(len(ctxt.Filesyms))
++		file.Type = obj.SFILEPATH
++		file.Name = expandGoroot(file.Name)
++	}
++}
++
+ func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
+ 	var f *Symbol
+ 
+ 	// Give files numbers.
+ 	for i := 0; i < len(files); i++ {
+ 		f = files[i]
+-		if f.Type != obj.SFILEPATH {
+-			ctxt.Filesyms = append(ctxt.Filesyms, f)
+-			f.Value = int64(len(ctxt.Filesyms))
+-			f.Type = obj.SFILEPATH
+-			f.Name = expandGoroot(f.Name)
+-		}
++		numberfile(ctxt, f)
+ 	}
+ 
+ 	newval := int32(-1)
+@@ -226,6 +231,16 @@ func (ctxt *Link) pclntab() {
+ 	setuintxx(ctxt, ftab, 8, uint64(nfunc), int64(SysArch.PtrSize))
+ 	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
+ 
++	funcnameoff := make(map[string]int32)
++	nameToOffset := func(name string) int32 {
++		nameoff, ok := funcnameoff[name]
++		if !ok {
++			nameoff = ftabaddstring(ctxt, ftab, name)
++			funcnameoff[name] = nameoff
++		}
++		return nameoff
++	}
++
+ 	nfunc = 0
+ 	var last *Symbol
+ 	for _, s := range ctxt.Textp {
+@@ -242,6 +257,25 @@ func (ctxt *Link) pclntab() {
+ 			pclntabFirstFunc = s
+ 		}
+ 
++		if len(pcln.InlTree) > 0 {
++			if len(pcln.Pcdata) <= obj.PCDATA_InlTreeIndex {
++				// Create inlining pcdata table.
++				pcdata := make([]Pcdata, obj.PCDATA_InlTreeIndex+1)
++				copy(pcdata, pcln.Pcdata)
++				pcln.Pcdata = pcdata
++			}
++
++			if len(pcln.Funcdataoff) <= obj.FUNCDATA_InlTree {
++				// Create inline tree funcdata.
++				funcdata := make([]*Symbol, obj.FUNCDATA_InlTree+1)
++				funcdataoff := make([]int64, obj.FUNCDATA_InlTree+1)
++				copy(funcdata, pcln.Funcdata)
++				copy(funcdataoff, pcln.Funcdataoff)
++				pcln.Funcdata = funcdata
++				pcln.Funcdataoff = funcdataoff
++			}
++		}
++
+ 		funcstart := int32(len(ftab.P))
+ 		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
+ 
+@@ -264,7 +298,8 @@ func (ctxt *Link) pclntab() {
+ 		off = int32(setaddr(ctxt, ftab, int64(off), s))
+ 
+ 		// name int32
+-		off = int32(setuint32(ctxt, ftab, int64(off), uint32(ftabaddstring(ctxt, ftab, s.Name))))
++		nameoff := nameToOffset(s.Name)
++		off = int32(setuint32(ctxt, ftab, int64(off), uint32(nameoff)))
+ 
+ 		// args int32
+ 		// TODO: Move into funcinfo.
+@@ -295,6 +330,30 @@ func (ctxt *Link) pclntab() {
+ 			}
+ 		}
+ 
++		if len(pcln.InlTree) > 0 {
++			inlTreeSym := ctxt.Syms.Lookup("inltree."+s.Name, 0)
++			inlTreeSym.Type = obj.SRODATA
++			inlTreeSym.Attr |= AttrReachable | AttrDuplicateOK
++
++			for i, call := range pcln.InlTree {
++				// Usually, call.File is already numbered since the file
++				// shows up in the Pcfile table. However, two inlined calls
++				// might overlap exactly so that only the innermost file
++				// appears in the Pcfile table. In that case, this assigns
++				// the outer file a number.
++				numberfile(ctxt, call.File)
++				nameoff := nameToOffset(call.Func.Name)
++
++				setuint32(ctxt, inlTreeSym, int64(i*16+0), uint32(call.Parent))
++				setuint32(ctxt, inlTreeSym, int64(i*16+4), uint32(call.File.Value))
++				setuint32(ctxt, inlTreeSym, int64(i*16+8), uint32(call.Line))
++				setuint32(ctxt, inlTreeSym, int64(i*16+12), uint32(nameoff))
++			}
++
++			pcln.Funcdata[obj.FUNCDATA_InlTree] = inlTreeSym
++			pcln.Pcdata[obj.PCDATA_InlTreeIndex] = pcln.Pcinline
++		}
++
+ 		// pcdata
+ 		off = addpctab(ctxt, ftab, off, &pcln.Pcsp)
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index dd0e5407e8..87de67bbdc 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -513,7 +513,10 @@ func (ctxt *Link) symtab() {
+ 				s.Outer = symgofunc
+ 			}
+ 
+-		case strings.HasPrefix(s.Name, "gcargs."), strings.HasPrefix(s.Name, "gclocals."), strings.HasPrefix(s.Name, "gclocals·"):
++		case strings.HasPrefix(s.Name, "gcargs."),
++			strings.HasPrefix(s.Name, "gclocals."),
++			strings.HasPrefix(s.Name, "gclocals·"),
++			strings.HasPrefix(s.Name, "inltree."):
+ 			s.Type = obj.SGOFUNC
+ 			s.Attr |= AttrHidden
+ 			s.Outer = symgofunc
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index c77e7b094f..27d5a2f6b9 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -9,9 +9,11 @@
+ // These must agree with symtab.go and ../cmd/internal/obj/funcdata.go.
+ 
+ #define PCDATA_StackMapIndex 0
++#define PCDATA_InlTreeIndex 1
+ 
+ #define FUNCDATA_ArgsPointerMaps 0 /* garbage collector blocks */
+ #define FUNCDATA_LocalsPointerMaps 1
++#define FUNCDATA_InlTree 2
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ad8a8a1b8d..94bdc92853 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -173,8 +173,10 @@ func (f *Func) raw() *_func {
+ // See funcdata.h and ../cmd/internal/obj/funcdata.go.
+ const (
+ 	_PCDATA_StackMapIndex       = 0
++	_PCDATA_InlTreeIndex        = 1
+ 	_FUNCDATA_ArgsPointerMaps   = 0
+ 	_FUNCDATA_LocalsPointerMaps = 1
++	_FUNCDATA_InlTree           = 2
+ 	_ArgsSizeUnknown            = -0x80000000
+ )
+ 

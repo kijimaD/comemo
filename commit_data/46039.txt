@@ -13,6 +13,23 @@ Date:   Thu Dec 3 17:29:39 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275299
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.16.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 1c22c21758..4d4b459009 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -58,6 +58,11 @@ Do not send CLs removing the interior tags from such phrases.
+   the <code>ios</code> build tag set.
+ </p>
+ 
++<p><!-- golang.org/issue/23011 -->
++  Go 1.16 is the last release that will run on macOS 10.12 Sierra.
++  Go 1.17 will require macOS 10.13 High Sierra or later.
++</p>
++
+ <h3 id="netbsd">NetBSD</h3>
+ 
+ <p><!-- golang.org/issue/30824 -->

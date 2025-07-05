@@ -13,9 +13,156 @@ Date:   Wed Feb 7 13:58:38 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/named.go      |  6 ++++
  src/cmd/compile/internal/types2/named_test.go | 48 +++++++++++++++++++++++++++
  src/go/types/named.go                         |  6 ++++
  src/go/types/named_test.go                    | 48 +++++++++++++++++++++++++++
  4 files changed, 108 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 57caef123f..5d7bdc764f 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -335,6 +335,12 @@ func (t *Named) NumMethods() int {
+ // For an ordinary or instantiated type t, the receiver base type of this
+ // method is the named type t. For an uninstantiated generic type t, each
+ // method receiver is instantiated with its receiver type parameters.
++//
++// Methods are numbered deterministically: given the same list of source files
++// presented to the type checker, or the same sequence of NewMethod and AddMethod
++// calls, the mapping from method index to corresponding method remains the same.
++// But the specific ordering is not specified and must not be relied on as it may
++// change in the future.
+ func (t *Named) Method(i int) *Func {
+ 	t.resolve()
+ 
+diff --git a/src/cmd/compile/internal/types2/named_test.go b/src/cmd/compile/internal/types2/named_test.go
+index 705dcaee27..25aea26792 100644
+--- a/src/cmd/compile/internal/types2/named_test.go
++++ b/src/cmd/compile/internal/types2/named_test.go
+@@ -112,3 +112,51 @@ type Inst = *Tree[int]
+ 		t.Errorf("Duplicate instances in cycle: %s (%p) -> %s (%p) -> %s (%p)", Inst, Inst, Node, Node, Tree, Tree)
+ 	}
+ }
++
++// TestMethodOrdering is a simple test verifying that the indices of methods of
++// a named type remain the same as long as the same source and AddMethod calls
++// are presented to the type checker in the same order (go.dev/issue/61298).
++func TestMethodOrdering(t *testing.T) {
++	const src = `
++package p
++
++type T struct{}
++
++func (T) a() {}
++func (T) c() {}
++func (T) b() {}
++`
++	// should get the same method order each time
++	var methods []string
++	for i := 0; i < 5; i++ {
++		// collect T methods as provided in src
++		pkg := mustTypecheck(src, nil, nil)
++		T := pkg.Scope().Lookup("T").Type().(*Named)
++
++		// add a few more methods manually
++		for _, name := range []string{"foo", "bar", "bal"} {
++			m := NewFunc(nopos, pkg, name, nil /* don't care about signature */)
++			T.AddMethod(m)
++		}
++
++		// check method order
++		if i == 0 {
++			// first round: collect methods in given order
++			methods = make([]string, T.NumMethods())
++			for j := range methods {
++				methods[j] = T.Method(j).Name()
++			}
++		} else {
++			// successive rounds: methods must appear in the same order
++			if got := T.NumMethods(); got != len(methods) {
++				t.Errorf("got %d methods, want %d", got, len(methods))
++				continue
++			}
++			for j, m := range methods {
++				if got := T.Method(j).Name(); got != m {
++					t.Errorf("got method %s, want %s", got, m)
++				}
++			}
++		}
++	}
++}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index e053fed76b..0800d83217 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -337,6 +337,12 @@ func (t *Named) NumMethods() int {
+ // For an ordinary or instantiated type t, the receiver base type of this
+ // method is the named type t. For an uninstantiated generic type t, each
+ // method receiver is instantiated with its receiver type parameters.
++//
++// Methods are numbered deterministically: given the same list of source files
++// presented to the type checker, or the same sequence of NewMethod and AddMethod
++// calls, the mapping from method index to corresponding method remains the same.
++// But the specific ordering is not specified and must not be relied on as it may
++// change in the future.
+ func (t *Named) Method(i int) *Func {
+ 	t.resolve()
+ 
+diff --git a/src/go/types/named_test.go b/src/go/types/named_test.go
+index 8e00f6e0f9..d930874f12 100644
+--- a/src/go/types/named_test.go
++++ b/src/go/types/named_test.go
+@@ -127,3 +127,51 @@ type Inst = *Tree[int]
+ 		t.Errorf("Duplicate instances in cycle: %s (%p) -> %s (%p) -> %s (%p)", Inst, Inst, Node, Node, Tree, Tree)
+ 	}
+ }
++
++// TestMethodOrdering is a simple test verifying that the indices of methods of
++// a named type remain the same as long as the same source and AddMethod calls
++// are presented to the type checker in the same order (go.dev/issue/61298).
++func TestMethodOrdering(t *testing.T) {
++	const src = `
++package p
++
++type T struct{}
++
++func (T) a() {}
++func (T) c() {}
++func (T) b() {}
++`
++	// should get the same method order each time
++	var methods []string
++	for i := 0; i < 5; i++ {
++		// collect T methods as provided in src
++		pkg := mustTypecheck(src, nil, nil)
++		T := pkg.Scope().Lookup("T").Type().(*Named)
++
++		// add a few more methods manually
++		for _, name := range []string{"foo", "bar", "bal"} {
++			m := NewFunc(nopos, pkg, name, nil /* don't care about signature */)
++			T.AddMethod(m)
++		}
++
++		// check method order
++		if i == 0 {
++			// first round: collect methods in given order
++			methods = make([]string, T.NumMethods())
++			for j := range methods {
++				methods[j] = T.Method(j).Name()
++			}
++		} else {
++			// successive rounds: methods must appear in the same order
++			if got := T.NumMethods(); got != len(methods) {
++				t.Errorf("got %d methods, want %d", got, len(methods))
++				continue
++			}
++			for j, m := range methods {
++				if got := T.Method(j).Name(); got != m {
++					t.Errorf("got method %s, want %s", got, m)
++				}
++			}
++		}
++	}
++}

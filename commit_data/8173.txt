@@ -7,7 +7,32 @@ Date:   Thu Apr 21 10:09:53 2011 -0400
     R=golang-dev, brainman
     CC=golang-dev
     https://golang.org/cl/4437065
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d76461a493..7366be1b22 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -131,6 +131,7 @@ Tarmigan Casebolt <tarmigan@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
++Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index dfb2a0b706..f3a6631ffe 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -197,6 +197,7 @@ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
++Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vish Subramanian <vish@google.com>
+ Wei Guangjing <vcc.163@gmail.com>

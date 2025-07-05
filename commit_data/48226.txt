@@ -16,9 +16,88 @@ Date:   Sat May 1 19:43:55 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/wait_unimp.go                   |  4 ++--
  src/os/wait_wait6.go                   | 12 +++++++-----
  src/syscall/zerrors_dragonfly_amd64.go |  2 ++
  src/syscall/zsysnum_dragonfly_amd64.go |  1 +
  4 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index 28dc2a5939..07b5b6b66b 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || dragonfly || (js && wasm) || netbsd || openbsd || solaris
+-// +build aix darwin dragonfly js,wasm netbsd openbsd solaris
++//go:build aix || darwin || (js && wasm) || netbsd || openbsd || solaris
++// +build aix darwin js,wasm netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 895f21069a..51193401f9 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build freebsd
+-// +build freebsd
++//go:build dragonfly || freebsd
++// +build dragonfly freebsd
+ 
+ package os
+ 
+@@ -23,9 +23,9 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 		// The arguments on 32-bit FreeBSD look like the following:
+ 		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
+ 		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on ARM, MIPS or PowerPC
+-		if runtime.GOARCH == "386" {
++		if runtime.GOOS == "freebsd" && runtime.GOARCH == "386" {
+ 			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+-		} else if runtime.GOARCH == "arm" {
++		} else if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+ 			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
+ 		} else {
+ 			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+@@ -35,7 +35,9 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 		}
+ 	}
+ 	runtime.KeepAlive(p)
+-	if errno != 0 {
++	if errno == syscall.ENOSYS {
++		return false, nil
++	} else if errno != 0 {
+ 		return false, NewSyscallError("wait6", errno)
+ 	}
+ 	return true, nil
+diff --git a/src/syscall/zerrors_dragonfly_amd64.go b/src/syscall/zerrors_dragonfly_amd64.go
+index 8ed611b3e4..35e2a52d25 100644
+--- a/src/syscall/zerrors_dragonfly_amd64.go
++++ b/src/syscall/zerrors_dragonfly_amd64.go
+@@ -1239,8 +1239,10 @@ const (
+ 	VWERASE                           = 0x4
+ 	WCONTINUED                        = 0x4
+ 	WCOREFLAG                         = 0x80
++	WEXITED                           = 0x10
+ 	WLINUXCLONE                       = 0x80000000
+ 	WNOHANG                           = 0x1
++	WNOWAIT                           = 0x8
+ 	WSTOPPED                          = 0x7f
+ 	WUNTRACED                         = 0x2
+ )
+diff --git a/src/syscall/zsysnum_dragonfly_amd64.go b/src/syscall/zsysnum_dragonfly_amd64.go
+index ae504a5f0c..e8996db0f8 100644
+--- a/src/syscall/zsysnum_dragonfly_amd64.go
++++ b/src/syscall/zsysnum_dragonfly_amd64.go
+@@ -305,4 +305,5 @@ const (
+ 	SYS_PIPE2                  = 538 // { int pipe2(int *fildes, int flags); }
+ 	SYS_UTIMENSAT              = 539 // { int utimensat(int fd, const char *path, const struct timespec *ts, int flags); }
+ 	SYS_ACCEPT4                = 541 // { int accept4(int s, caddr_t name, int *anamelen, int flags); }
++	SYS_WAIT6                  = 548 // { int wait6(idtype_t idtype, id_t id, int *status, int options, struct __wrusage *wrusage, siginfo_t *info); }
+ )

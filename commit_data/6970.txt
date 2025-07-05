@@ -9,7 +9,7 @@ Date:   Wed Dec 15 13:20:52 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3444043
-
+---
  src/pkg/math/bits.go      | 2 +-
  src/pkg/math/exp_amd64.s  | 2 +-
  src/pkg/math/frexp.go     | 4 ++--
@@ -17,3 +17,104 @@ Date:   Wed Dec 15 13:20:52 2010 -0500
  src/pkg/math/modf.go      | 6 +++---
  src/pkg/math/sqrt_port.go | 4 ++--
  6 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+index d36cd18d76..1a97e76799 100644
+--- a/src/pkg/math/bits.go
++++ b/src/pkg/math/bits.go
+@@ -10,7 +10,7 @@ const (
+ 	uvneginf = 0xFFF0000000000000
+ 	mask     = 0x7FF
+ 	shift    = 64 - 11 - 1
+-	bias     = 1022
++	bias     = 1023
+ )
+ 
+ // Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.
+diff --git a/src/pkg/math/exp_amd64.s b/src/pkg/math/exp_amd64.s
+index 28064f5f13..74c9c876af 100644
+--- a/src/pkg/math/exp_amd64.s
++++ b/src/pkg/math/exp_amd64.s
+@@ -84,7 +84,7 @@ TEXT ·Exp(SB),7,$0
+ 	MULSD   X1, X0
+ 	ADDSD   $1.0, X0
+ 	// return fr * 2**exponent
+-	MOVL    $0x3FF, AX // bias + 1
++	MOVL    $0x3FF, AX // bias
+ 	ADDL    AX, BX
+ 	JLE     underflow
+ 	CMPL    BX, $0x7FF
+diff --git a/src/pkg/math/frexp.go b/src/pkg/math/frexp.go
+index b63b508e60..203219c0dc 100644
+--- a/src/pkg/math/frexp.go
++++ b/src/pkg/math/frexp.go
+@@ -19,9 +19,9 @@ func Frexp(f float64) (frac float64, exp int) {
+ 		return f, 0
+ 	}
+ 	x := Float64bits(f)
+-	exp = int((x>>shift)&mask) - bias
++	exp = int((x>>shift)&mask) - bias + 1
+ 	x &^= mask << shift
+-	x |= bias << shift
++	x |= (-1 + bias) << shift
+ 	frac = Float64frombits(x)
+ 	return
+ }
+diff --git a/src/pkg/math/logb.go b/src/pkg/math/logb.go
+index 22ec06325d..9e46515171 100644
+--- a/src/pkg/math/logb.go
++++ b/src/pkg/math/logb.go
+@@ -22,7 +22,7 @@ func Logb(x float64) float64 {
+ 	case x != x: // IsNaN(x):
+ 		return x
+ 	}
+-	return float64(int((Float64bits(x)>>shift)&mask) - (bias + 1))
++	return float64(int((Float64bits(x)>>shift)&mask) - bias)
+ }
+ 
+ // Ilogb(x) returns the binary exponent of non-zero x as an integer.
+@@ -43,5 +43,5 @@ func Ilogb(x float64) int {
+ 	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+ 		return MaxInt32
+ 	}
+-	return int((Float64bits(x)>>shift)&mask) - (bias + 1)
++	return int((Float64bits(x)>>shift)&mask) - bias
+ }
+diff --git a/src/pkg/math/modf.go b/src/pkg/math/modf.go
+index ae0c7c8879..315174b701 100644
+--- a/src/pkg/math/modf.go
++++ b/src/pkg/math/modf.go
+@@ -23,9 +23,9 @@ func Modf(f float64) (int float64, frac float64) {
+ 	x := Float64bits(f)
+ 	e := uint(x>>shift)&mask - bias
+ 
+-	// Keep the top 11+e bits, the integer part; clear the rest.
+-	if e < 64-11 {
+-		x &^= 1<<(64-11-e) - 1
++	// Keep the top 12+e bits, the integer part; clear the rest.
++	if e < 64-12 {
++		x &^= 1<<(64-12-e) - 1
+ 	}
+ 	int = Float64frombits(x)
+ 	frac = f - int
+diff --git a/src/pkg/math/sqrt_port.go b/src/pkg/math/sqrt_port.go
+index 8d821b559b..6f35a383d1 100644
+--- a/src/pkg/math/sqrt_port.go
++++ b/src/pkg/math/sqrt_port.go
+@@ -113,7 +113,7 @@ func sqrtGo(x float64) float64 {
+ 		}
+ 		exp++
+ 	}
+-	exp -= bias + 1 // unbias exponent
++	exp -= bias // unbias exponent
+ 	ix &^= mask << shift
+ 	ix |= 1 << shift
+ 	if exp&1 == 1 { // odd exp, double x to make it even
+@@ -138,6 +138,6 @@ func sqrtGo(x float64) float64 {
+ 	if ix != 0 { // remainder, result not exact
+ 		q += q & 1 // round according to extra bit
+ 	}
+-	ix = q>>1 + uint64(exp+bias)<<shift // significand + biased exponent
++	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+ 	return Float64frombits(ix)
+ }

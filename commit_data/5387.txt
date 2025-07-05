@@ -8,6 +8,19 @@ Date:   Wed Apr 28 11:08:07 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/972045
-
+---
  src/pkg/os/os_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index f4ccb524c1..5fb599265e 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -301,6 +301,7 @@ func TestLongSymlink(t *testing.T) {
+ 	// Long, but not too long: a common limit is 255.
+ 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
+ 	from := "longsymlinktestfrom"
++	Remove(from) // Just in case.
+ 	err := Symlink(s, from)
+ 	if err != nil {
+ 		t.Fatalf("symlink %q, %q failed: %v", s, from, err)

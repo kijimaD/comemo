@@ -11,6 +11,21 @@ Date:   Mon Jan 9 13:36:36 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 3ba19eb813..990b3f99ce 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2199,6 +2199,9 @@ var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
+ }
+ 
+ func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Makes assumptions about local networks and (re)naming that aren't always true")
++	}
+ 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+ 	testHookHostsPath = "testdata/aliases"
+ 	mode := hostLookupDNSFiles

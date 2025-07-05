@@ -10,8 +10,137 @@ Date:   Fri Mar 18 11:25:04 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/20832
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/copylock.go               | 30 ++++++++++++++++++++++++++----
  src/cmd/vet/main.go                   |  3 +++
  src/cmd/vet/testdata/copylock_func.go | 29 +++++++++++++++++++++++++++++
  3 files changed, 58 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vet/copylock.go b/src/cmd/vet/copylock.go
+index 78632944ca..ac676f04b1 100644
+--- a/src/cmd/vet/copylock.go
++++ b/src/cmd/vet/copylock.go
+@@ -18,7 +18,7 @@ func init() {
+ 	register("copylocks",
+ 		"check that locks are not passed by value",
+ 		checkCopyLocks,
+-		funcDecl, rangeStmt, funcLit, assignStmt, genDecl, compositeLit)
++		funcDecl, rangeStmt, funcLit, callExpr, assignStmt, genDecl, compositeLit, returnStmt)
+ }
+ 
+ // checkCopyLocks checks whether node might
+@@ -31,12 +31,16 @@ func checkCopyLocks(f *File, node ast.Node) {
+ 		checkCopyLocksFunc(f, node.Name.Name, node.Recv, node.Type)
+ 	case *ast.FuncLit:
+ 		checkCopyLocksFunc(f, "func", nil, node.Type)
++	case *ast.CallExpr:
++		checkCopyLocksCallExpr(f, node)
+ 	case *ast.AssignStmt:
+ 		checkCopyLocksAssign(f, node)
+ 	case *ast.GenDecl:
+ 		checkCopyLocksGenDecl(f, node)
+ 	case *ast.CompositeLit:
+-		checkCopyCompositeLit(f, node)
++		checkCopyLocksCompositeLit(f, node)
++	case *ast.ReturnStmt:
++		checkCopyLocksReturnStmt(f, node)
+ 	}
+ }
+ 
+@@ -66,8 +70,8 @@ func checkCopyLocksGenDecl(f *File, gd *ast.GenDecl) {
+ 	}
+ }
+ 
+-// checkCopyCompositeLit detects lock copy inside a composite literal
+-func checkCopyCompositeLit(f *File, cl *ast.CompositeLit) {
++// checkCopyLocksCompositeLit detects lock copy inside a composite literal
++func checkCopyLocksCompositeLit(f *File, cl *ast.CompositeLit) {
+ 	for _, x := range cl.Elts {
+ 		if node, ok := x.(*ast.KeyValueExpr); ok {
+ 			x = node.Value
+@@ -78,6 +82,24 @@ func checkCopyCompositeLit(f *File, cl *ast.CompositeLit) {
+ 	}
+ }
+ 
++// checkCopyLocksReturnStmt detects lock copy in return statement
++func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
++	for _, x := range rs.Results {
++		if path := lockPathRhs(f, x); path != nil {
++			f.Badf(x.Pos(), "return copies lock value: %v", path)
++		}
++	}
++}
++
++// checkCopyLocksCallExpr detects lock copy in function call
++func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
++	for _, x := range ce.Args {
++		if path := lockPathRhs(f, x); path != nil {
++			f.Badf(x.Pos(), "function call copies lock value: %v", path)
++		}
++	}
++}
++
+ // checkCopyLocksFunc checks whether a function might
+ // inadvertently copy a lock, by checking whether
+ // its receiver, parameters, or return values
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 2d5da9895f..a2142dcabb 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -139,6 +139,7 @@ var (
+ 	genDecl       *ast.GenDecl
+ 	interfaceType *ast.InterfaceType
+ 	rangeStmt     *ast.RangeStmt
++	returnStmt    *ast.ReturnStmt
+ 
+ 	// checkers is a two-level map.
+ 	// The outer level is keyed by a nil pointer, one of the AST vars above.
+@@ -476,6 +477,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 		key = interfaceType
+ 	case *ast.RangeStmt:
+ 		key = rangeStmt
++	case *ast.ReturnStmt:
++		key = returnStmt
+ 	}
+ 	for _, fn := range f.checkers[key] {
+ 		fn(f, node)
+diff --git a/src/cmd/vet/testdata/copylock_func.go b/src/cmd/vet/testdata/copylock_func.go
+index 62725d9fa1..3209eaedf8 100644
+--- a/src/cmd/vet/testdata/copylock_func.go
++++ b/src/cmd/vet/testdata/copylock_func.go
+@@ -78,6 +78,35 @@ func (*CustomLock) Unlock() {}
+ func Ok(*CustomLock) {}
+ func Bad(CustomLock) {} // ERROR "Bad passes lock by value: testdata.CustomLock"
+ 
++// Passing lock values into interface function arguments
++func FuncCallInterfaceArg(f func(a int, b interface{})) {
++	var m sync.Mutex
++	var t struct{ lock sync.Mutex }
++
++	f(1, "foo")
++	f(2, &t)
++	f(3, &sync.Mutex{})
++	f(4, m) // ERROR "function call copies lock value: sync.Mutex"
++	f(5, t) // ERROR "function call copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++}
++
++// Returning lock via interface value
++func ReturnViaInterface(x int) (int, interface{}) {
++	var m sync.Mutex
++	var t struct{ lock sync.Mutex }
++
++	switch x % 4 {
++	case 0:
++		return 0, "qwe"
++	case 1:
++		return 1, &sync.Mutex{}
++	case 2:
++		return 2, m // ERROR "return copies lock value: sync.Mutex"
++	default:
++		return 3, t // ERROR "return copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
++	}
++}
++
+ // TODO: Unfortunate cases
+ 
+ // Non-ideal error message:

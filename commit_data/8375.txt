@@ -7,7 +7,41 @@ Date:   Thu May 12 22:00:50 2011 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4535057
-
+---
  src/pkg/strconv/atob.go      | 4 ++--
  src/pkg/strconv/atob_test.go | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/strconv/atob.go b/src/pkg/strconv/atob.go
+index 69fa2292a1..98ce750798 100644
+--- a/src/pkg/strconv/atob.go
++++ b/src/pkg/strconv/atob.go
+@@ -7,8 +7,8 @@ package strconv
+ import "os"
+ 
+ // Atob returns the boolean value represented by the string.
+-// It accepts 1, t, T, TRUE, true, 0, f, F, FALSE, false.  Any other value returns
+-// an error.
++// It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
++// Any other value returns an error.
+ func Atob(str string) (value bool, err os.Error) {
+ 	switch str {
+ 	case "1", "t", "T", "true", "TRUE", "True":
+diff --git a/src/pkg/strconv/atob_test.go b/src/pkg/strconv/atob_test.go
+index 497df5b18d..541e60d1e9 100644
+--- a/src/pkg/strconv/atob_test.go
++++ b/src/pkg/strconv/atob_test.go
+@@ -24,11 +24,13 @@ var atobtests = []atobTest{
+ 	{"F", false, nil},
+ 	{"FALSE", false, nil},
+ 	{"false", false, nil},
++	{"False", false, nil},
+ 	{"1", true, nil},
+ 	{"t", true, nil},
+ 	{"T", true, nil},
+ 	{"TRUE", true, nil},
+ 	{"true", true, nil},
++	{"True", true, nil},
+ }
+ 
+ func TestAtob(t *testing.T) {

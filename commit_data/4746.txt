@@ -9,7 +9,7 @@ Date:   Mon Feb 1 10:49:24 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/197044
-
+---
  src/cmd/gc/closure.c   |  8 ++++--
  src/cmd/gc/dcl.c       |  1 +
  src/cmd/gc/reflect.c   |  1 +
@@ -18,3 +18,219 @@ Date:   Mon Feb 1 10:49:24 2010 -0800
  test/ddd.go            | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
  test/ddd1.go           |  2 +-
  7 files changed, 86 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 33c576c878..c194a0df32 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -11,7 +11,7 @@
+ void
+ closurehdr(Node *ntype)
+ {
+-	Node *n, *name;
++	Node *n, *name, *a;
+ 	NodeList *l;
+ 
+ 	n = nod(OCLOSURE, N, N);
+@@ -33,7 +33,11 @@ closurehdr(Node *ntype)
+ 		name = l->n->left;
+ 		if(name)
+ 			name = newname(name->sym);
+-		ntype->list = list(ntype->list, nod(ODCLFIELD, name, l->n->right));
++		a = nod(ODCLFIELD, name, l->n->right);
++		a->isddd = l->n->isddd;
++		if(name)
++			name->isddd = a->isddd;
++		ntype->list = list(ntype->list, a);
+ 	}
+ 	for(l=n->rlist; l; l=l->next) {
+ 		name = l->n->left;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index aeb3e3916a..b0b06f7d32 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -501,6 +501,7 @@ oldname(Sym *s)
+ 			c = nod(ONAME, N, N);
+ 			c->sym = s;
+ 			c->class = PPARAMREF;
++			c->isddd = n->isddd;
+ 			c->defn = n;
+ 			c->addable = 0;
+ 			c->ullman = 2;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 3f90f68e93..12d27aa886 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -115,6 +115,7 @@ methodfunc(Type *f, int use_receiver)
+ 	for(t=getinargx(f)->type; t; t=t->down) {
+ 		d = nod(ODCLFIELD, N, N);
+ 		d->type = t->type;
++		d->isddd = t->isddd;
+ 		in = list(in, d);
+ 	}
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index a938424704..40d8b6f9db 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1004,6 +1004,9 @@ Jconv(Fmt *fp)
+ 	if(n->dodata != 0)
+ 		fmtprint(fp, " dd(%d)", n->dodata);
+ 
++	if(n->isddd != 0)
++		fmtprint(fp, " isddd(%d)", n->isddd);
++
+ 	return 0;
+ }
+ 
+@@ -2585,6 +2588,9 @@ adddot(Node *n)
+ 	t = n->left->type;
+ 	if(t == T)
+ 		goto ret;
++	
++	if(n->left->op == OTYPE)
++		goto ret;
+ 
+ 	if(n->right->op != ONAME)
+ 		goto ret;
+@@ -2783,6 +2789,9 @@ structargs(Type **tl, int mustname)
+ 			n = newname(lookup(buf));
+ 		}
+ 		a = nod(ODCLFIELD, n, typenod(t->type));
++		a->isddd = t->isddd;
++		if(n != N)
++			n->isddd = t->isddd;
+ 		args = list(args, a);
+ 	}
+ 	return args;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index dfd67b71cb..4204ee4568 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -470,7 +470,7 @@ reswitch:
+ 		}
+ 		if(l->op == OTYPE) {
+ 			if(n->type->etype != TFUNC || n->type->thistuple != 1) {
+-				yyerror("type %T has no method %s", n->left->type, sym);
++				yyerror("type %T has no method %hS", n->left->type, sym);
+ 				n->type = T;
+ 				goto error;
+ 			}
+@@ -1527,7 +1527,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
+ 				// TODO(rsc): drop first if in DDD cleanup
+ 				if(t->etype != TINTER)
+ 				if(checkconv(nl->n->type, t->type, 0, &xx, &yy, desc) < 0)
+-					yyerror("cannot use %#N as type %T in %s", nl->n, t->type, desc);					
++					yyerror("cannot use %+N as type %T in %s", nl->n, t->type, desc);					
+ 			}
+ 			goto out;
+ 		}
+diff --git a/test/ddd.go b/test/ddd.go
+index 682f22ffe3..08c88f4ff2 100644
+--- a/test/ddd.go
++++ b/test/ddd.go
+@@ -14,6 +14,18 @@ func sum(args ...int) int {
+ 	return s
+ }
+ 
++func sumC(args ...int) int {
++	return func() int { return sum(args) } ()
++}
++
++/* TODO(rsc)
++var sumD = func(args ...int) int { return sum(args) }
++
++var sumE = func() func(...int) int { return func(args ...int) int { return sum(args) } } ()
++
++var sumF = func(args ...int) func() int { return func() int { return sum(args) } }
++*/
++
+ func sumA(args []int) int {
+ 	s := 0
+ 	for _, v := range args {
+@@ -40,6 +52,14 @@ func ln(args ...T) int { return len(args) }
+ 
+ func ln2(args ...T) int { return 2 * ln(args) }
+ 
++func (*T) Sum(args ...int) int {
++	return sum(args)
++}
++
++type U struct {
++	*T
++}
++
+ func main() {
+ 	if x := sum(1, 2, 3); x != 6 {
+ 		panicln("sum 6", x)
+@@ -53,6 +73,20 @@ func main() {
+ 	if x := sum(1, 8); x != 9 {
+ 		panicln("sum 9", x)
+ 	}
++	if x := sumC(4, 5, 6); x != 15 {
++		panicln("sumC 15", x)
++	}
++/* TODO(rsc)
++	if x := sumD(4, 5, 7); x != 16 {
++		panicln("sumD 16", x)
++	}
++	if x := sumE(4, 5, 8); x != 17 {
++		panicln("sumE 17", x)
++	}
++	if x := sumF(4, 5, 9)(); x != 18 {
++		panicln("sumF 18", x)
++	}
++*/
+ 	if x := sum2(1, 2, 3); x != 2*6 {
+ 		panicln("sum 6", x)
+ 	}
+@@ -102,4 +136,36 @@ func main() {
+ 	if x := ln2([]T{}); x != 2*1 {
+ 		panicln("ln2 1", x)
+ 	}
++	if x := ((*T)(nil)).Sum(1,3,5,7); x != 16 {
++		panicln("(*T)(nil).Sum", x)
++	}
++	if x := (*T).Sum(nil, 1, 3, 5, 6); x != 15 {
++		panicln("(*T).Sum", x)
++	}
++	if x := (&U{}).Sum(1,3,5,5); x != 14 {
++		panicln("(&U{}).Sum", x)
++	}
++	var u U
++	if x := u.Sum(1,3,5,4); x != 13 {
++		panicln("u.Sum", x)
++	}
++	if x := (&u).Sum(1,3,5,3); x != 12 {
++		panicln("(&u).Sum", x)
++	}
++	var i interface { Sum(...int) int } = &u
++	if x := i.Sum(2,3,5,7); x != 17 {
++		panicln("i(=&u).Sum", x)
++	}
++	i = u
++	if x := i.Sum(2,3,5,6); x != 16 {
++		panicln("i(=u).Sum", x)
++	}
++/* TODO(rsc): Enable once nested method expressions work.
++	if x := (*U).Sum(&U{}, 1, 3, 5, 2); x != 11 {
++		panicln("(*U).Sum", x)
++	}
++	if x := U.Sum(U{}, 1, 3, 5, 1); x != 10 {
++		panicln("U.Sum", x)
++	}
++*/
+ }
+diff --git a/test/ddd1.go b/test/ddd1.go
+index da03a70c9d..4f830c582f 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -14,7 +14,7 @@ var (
+ 	_ = sum(1.0, 2.0)
+ 	_ = sum(1.5)      // ERROR "integer"
+ 	_ = sum("hello")  // ERROR "convert"
+-	_ = sum([]int{1}) // ERROR "slice literal as type int"
++	_ = sum([]int{1}) // ERROR "slice literal.*as type int"
+ )
+ 
+ type T []T

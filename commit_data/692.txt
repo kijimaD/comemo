@@ -9,9 +9,188 @@ Date:   Sat Sep 20 14:59:15 2008 -0700
     R=r
     OCL=15597
     CL=15597
-
+---
  src/cmd/6g/obj.c  |  4 ++--
  src/cmd/gc/go.h   |  1 +
  src/cmd/gc/subr.c | 14 ++++++++++++++
  src/cmd/gc/walk.c | 34 ++++++++++++++++++++++------------
  4 files changed, 39 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index e6c34bd072..0f187fefed 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -478,7 +478,7 @@ dumpsignatures(void)
+ 			continue;
+ 
+ 		et = t->etype;
+-		if(et != TSTRUCT && et != TINTER)
++		if(t->method == T && et != TINTER)
+ 			continue;
+ 
+ 		s = d->dsym;
+@@ -549,7 +549,7 @@ dumpsignatures(void)
+ 
+ 		t = d->dtype;
+ 		et = t->etype;
+-		if(et != TSTRUCT && et != TINTER)
++		if(t->method == T && et != TINTER)
+ 			continue;
+ 
+ 		s = d->dsym;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 639aa9236d..178f28ef32 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -563,6 +563,7 @@ int	isptrto(Type*, int);
+ int	isptrarray(Type*);
+ int	isptrdarray(Type*);
+ int	isinter(Type*);
++int	ismethod(Type*);
+ int	bytearraysz(Type*);
+ int	eqtype(Type*, Type*, int);
+ void	argtype(Node*, Type*);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c1bb941fc8..15e4eb7e03 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1224,6 +1224,20 @@ isinter(Type *t)
+ 	return 0;
+ }
+ 
++int
++ismethod(Type *t)
++{
++	// OLD WAY
++	if(isptrto(t, TSTRUCT))
++		return 1;
++	return 0;
++
++	// NEW WAY - but doesnt work yet
++	if(t != T && t->method != T)
++		return 1;
++	return 0;
++}
++
+ int
+ bytearraysz(Type *t)
+ {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 300b78cea8..9f27ac753e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -330,8 +330,18 @@ loop:
+ 		}
+ 
+ 		n->type = *getoutarg(t);
+-		if(t->outtuple == 1)
++		switch(t->outtuple) {
++		case 0:
++			if(top == Erv) {
++				yyerror("function requires a return type");
++				n->type = types[TINT32];
++			}
++			break;
++
++		case 1:
+ 			n->type = n->type->type->type;
++			break;
++		}
+ 
+ 		walktype(n->right, Erv);
+ 
+@@ -1381,7 +1391,7 @@ lookdot(Node *n, Type *f)
+ 		if(f->sym != s)
+ 			continue;
+ 		if(r != T) {
+-			yyerror("ambiguous DOT reference %s", s->name);
++			yyerror("ambiguous DOT reference %S", s);
+ 			break;
+ 		}
+ 		r = f;
+@@ -1432,7 +1442,7 @@ walkdot(Node *n)
+ 
+ 	f = lookdot(n->right, t->method);
+ 	if(f == T) {
+-		yyerror("undefined DOT %s", n->right->sym->name);
++		yyerror("undefined DOT %S", n->right->sym);
+ 		return;
+ 	}
+ 
+@@ -1579,11 +1589,11 @@ ascompat(Type *t1, Type *t2)
+ //		return 1;
+ 
+ 	if(isinter(t1))
+-		if(isptrto(t2, TSTRUCT) || isinter(t2))
++		if(ismethod(t2) || isinter(t2))
+ 			return 1;
+ 
+ 	if(isinter(t2))
+-		if(isptrto(t1, TSTRUCT))
++		if(ismethod(t1))
+ 			return 1;
+ 
+ 	if(isptrdarray(t1))
+@@ -1608,7 +1618,7 @@ prcompat(Node *n)
+ 
+ loop:
+ 	if(l == N) {
+-		walktype(r, Erv);
++		walktype(r, Etop);
+ 		return r;
+ 	}
+ 
+@@ -1673,7 +1683,7 @@ nodpanic(int32 lineno)
+ 	on = syslook("panicl", 0);
+ 	n = nodintconst(lineno);
+ 	n = nod(OCALL, on, n);
+-	walktype(n, Erv);
++	walktype(n, Etop);
+ 	return n;
+ }
+ 
+@@ -2027,7 +2037,7 @@ mapop(Node *n, int top)
+ 		argtype(on, t->type);	// any-4
+ 
+ 		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
++		walktype(r, Etop);
+ 		break;
+ 
+ 	assign2:
+@@ -2056,7 +2066,7 @@ mapop(Node *n, int top)
+ 		argtype(on, t->type);	// any-4
+ 
+ 		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
++		walktype(r, Etop);
+ 		break;
+ 
+ 	access2:
+@@ -2446,7 +2456,7 @@ diagnamed(Type *t)
+ 	if(isinter(t))
+ 		if(t->sym == S)
+ 			yyerror("interface type must be named");
+-	if(isptrto(t, TSTRUCT))
++	if(ismethod(t))
+ 		if(t->type == T || t->type->sym == S)
+ 			yyerror("structure type must be named");
+ }
+@@ -2460,7 +2470,7 @@ isandss(Type *lt, Node *r)
+ 
+ 	rt = r->type;
+ 	if(isinter(lt)) {
+-		if(isptrto(rt, TSTRUCT)) {
++		if(ismethod(rt)) {
+ 			o = OS2I;
+ 			goto ret;
+ 		}
+@@ -2470,7 +2480,7 @@ isandss(Type *lt, Node *r)
+ 		}
+ 	}
+ 
+-	if(isptrto(lt, TSTRUCT)) {
++	if(ismethod(lt)) {
+ 		if(isinter(rt)) {
+ 			o = OI2S;
+ 			goto ret;

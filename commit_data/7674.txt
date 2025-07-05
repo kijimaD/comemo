@@ -9,6 +9,41 @@ Date:   Mon Mar 7 11:33:26 2011 -0500
     TBR=niemeyer
     CC=golang-dev
     https://golang.org/cl/4260055
-
+---
  src/cmd/goinstall/syslist_test.go | 19 ++++++++++++-------
  1 file changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/goinstall/syslist_test.go b/src/cmd/goinstall/syslist_test.go
+index a660e69193..795cd293ab 100644
+--- a/src/cmd/goinstall/syslist_test.go
++++ b/src/cmd/goinstall/syslist_test.go
+@@ -11,17 +11,22 @@ import (
+ var (
+ 	thisOS    = runtime.GOOS
+ 	thisArch  = runtime.GOARCH
+-	otherOS   = "freebsd"
+-	otherArch = "arm"
++	otherOS   = anotherOS()
++	otherArch = anotherArch()
+ )
+ 
+-func init() {
+-	if thisOS == otherOS {
+-		otherOS = "linux"
++func anotherOS() string {
++	if thisOS != "darwin" {
++		return "darwin"
+ 	}
+-	if thisArch == otherArch {
+-		otherArch = "amd64"
++	return "linux"
++}
++
++func anotherArch() string {
++	if thisArch != "amd64" {
++		return "amd64"
+ 	}
++	return "386"
+ }
+ 
+ type GoodFileTest struct {

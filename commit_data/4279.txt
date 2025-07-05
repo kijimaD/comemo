@@ -9,7 +9,80 @@ Date:   Wed Dec 2 08:27:57 2009 -0800
     
     R=r, cw
     https://golang.org/cl/163071
-
+---
  src/pkg/time/time.go      |  9 +++++++++
  src/pkg/time/time_test.go | 17 +++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 9a767b458e..1418d521e6 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -113,16 +113,25 @@ func SecondsToUTC(sec int64) *Time {
+ 
+ 	// Cut off 100-year cycles
+ 	n = day / daysPer100Years;
++	if n > 3 {	// happens on last day of 400th year
++		n = 3
++	}
+ 	year += 100 * n;
+ 	day -= daysPer100Years * n;
+ 
+ 	// Cut off 4-year cycles
+ 	n = day / daysPer4Years;
++	if n > 24 {	// happens on last day of 100th year
++		n = 24
++	}
+ 	year += 4 * n;
+ 	day -= daysPer4Years * n;
+ 
+ 	// Cut off non-leap years.
+ 	n = day / 365;
++	if n > 3 {	// happens on last day of 4th year
++		n = 3
++	}
+ 	year += n;
+ 	day -= 365 * n;
+ 
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index da1c7cbf36..88b16ee26a 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -7,6 +7,7 @@ package time_test
+ import (
+ 	"os";
+ 	"testing";
++	"testing/quick";
+ 	. "time";
+ )
+ 
+@@ -27,6 +28,8 @@ var utctests = []TimeTest{
+ 	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
+ 	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
+ 	TimeTest{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
++	TimeTest{599529660, Time{1988, 12, 31, 0, 1, 0, Saturday, 0, "UTC"}},
++	TimeTest{978220860, Time{2000, 12, 31, 0, 1, 0, Sunday, 0, "UTC"}},
+ 	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
+ 	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
+ 	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},
+@@ -84,6 +87,20 @@ func TestSecondsToLocalTime(t *testing.T) {
+ 	}
+ }
+ 
++func TestSecondsToUTCAndBack(t *testing.T) {
++	f := func(sec int64) bool { return SecondsToUTC(sec).Seconds() == sec };
++	f32 := func(sec int32) bool { return f(int64(sec)) };
++	cfg := &quick.Config{MaxCount: 10000};
++
++	// Try a reasonable date first, then the huge ones.
++	if err := quick.Check(f32, cfg); err != nil {
++		t.Fatal(err)
++	}
++	if err := quick.Check(f, cfg); err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func BenchmarkSeconds(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Seconds()

@@ -11,6 +11,20 @@ Date:   Thu Sep 5 08:50:11 2019 +0300
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 1deab660b7..8919815759 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1262,7 +1262,7 @@ func (ctxt *Link) hostlink() {
+ 		// from the beginning of the section (like sym.STYPE).
+ 		argv = append(argv, "-Wl,-znocopyreloc")
+ 
+-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) {
++		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && (objabi.GOOS == "linux" || objabi.GOOS == "android") {
+ 			// On ARM, the GNU linker will generate COPY relocations
+ 			// even with -znocopyreloc set.
+ 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962

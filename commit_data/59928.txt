@@ -18,6 +18,23 @@ Date:   Thu May 9 20:02:30 2024 +0000
     Auto-Submit: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/runtime/panic.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 27fcf73ff4..122fc30df2 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1010,7 +1010,11 @@ func sync_fatal(s string) {
+ // throw should be used for runtime-internal fatal errors where Go itself,
+ // rather than user code, may be at fault for the failure.
+ //
++// NOTE: temporarily marked "go:noinline" pending investigation/fix of
++// issue #67274, so as to fix longtest builders.
++//
+ //go:nosplit
++//go:noinline
+ func throw(s string) {
+ 	// Everything throw does should be recursively nosplit so it
+ 	// can be called even when it's unsafe to grow the stack.

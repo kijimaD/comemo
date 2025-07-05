@@ -14,7 +14,86 @@ Date:   Thu Dec 14 10:54:11 2017 +0800
     Change-Id: Iab08432e41f7ac1b5e25aaa8855d478adb7f98ed
     Reviewed-on: https://go-review.googlesource.com/83995
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_unix.go |  1 +
  src/os/pipe_test.go          | 29 +++++++++++++++++++++++------
  2 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 2bbf60216f..372dc81633 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -56,6 +56,7 @@ func (fd *FD) Init(net string, pollable bool) error {
+ 		fd.isFile = true
+ 	}
+ 	if !pollable {
++		fd.isBlocking = true
+ 		return nil
+ 	}
+ 	return fd.pd.init(fd)
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 50e11f1de5..aad6c27f1b 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -10,6 +10,7 @@ package os_test
+ import (
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	osexec "os/exec"
+@@ -222,12 +223,28 @@ func TestReadNonblockingFd(t *testing.T) {
+ 	}
+ }
+ 
+-// Test that we don't let a blocking read prevent a close.
+-func TestCloseWithBlockingRead(t *testing.T) {
++func TestCloseWithBlockingReadByNewFile(t *testing.T) {
++	var p [2]int
++	err := syscall.Pipe(p[:])
++	if err != nil {
++		t.Fatal(err)
++	}
++	// os.NewFile returns a blocking mode file.
++	testCloseWithBlockingRead(t, os.NewFile(uintptr(p[0]), "reader"), os.NewFile(uintptr(p[1]), "writer"))
++}
++
++func TestCloseWithBlockingReadByFd(t *testing.T) {
+ 	r, w, err := os.Pipe()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	// Calling Fd will put the file into blocking mode.
++	_ = r.Fd()
++	testCloseWithBlockingRead(t, r, w)
++}
++
++// Test that we don't let a blocking read prevent a close.
++func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
+ 	defer r.Close()
+ 	defer w.Close()
+ 
+@@ -248,18 +265,18 @@ func TestCloseWithBlockingRead(t *testing.T) {
+ 		close(c)
+ 	}(c1)
+ 
+-	// Calling Fd will put the file into blocking mode.
+-	_ = r.Fd()
+-
+ 	wg.Add(1)
+ 	go func(c chan bool) {
+ 		defer wg.Done()
+ 		var b [1]byte
+-		_, err = r.Read(b[:])
++		_, err := r.Read(b[:])
+ 		close(c)
+ 		if err == nil {
+ 			t.Error("I/O on closed pipe unexpectedly succeeded")
+ 		}
++		if err != io.EOF {
++			t.Errorf("got %v, expected io.EOF", err)
++		}
+ 	}(c2)
+ 
+ 	for c1 != nil || c2 != nil {

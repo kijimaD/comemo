@@ -11,7 +11,57 @@ Date:   Tue May 1 11:33:25 2012 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6136053
-
+---
  misc/dashboard/codereview/dashboard/cl.go   | 7 +++----
  misc/dashboard/codereview/dashboard/mail.go | 6 ++++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index a77028994c..bafef439bd 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -16,7 +16,6 @@ import (
+ 
+ 	"appengine"
+ 	"appengine/datastore"
+-	"appengine/delay"
+ 	"appengine/mail"
+ 	"appengine/taskqueue"
+ 	"appengine/urlfetch"
+@@ -105,8 +104,6 @@ func (cl *CL) ModifiedAgo() string {
+ 	return "just now"
+ }
+ 
+-var sendMailLater = delay.Func("send-mail", mail.Send)
+-
+ func handleAssign(w http.ResponseWriter, r *http.Request) {
+ 	c := appengine.NewContext(r)
+ 
+@@ -196,7 +193,9 @@ func handleAssign(w http.ResponseWriter, r *http.Request) {
+ 				}
+ 				// TODO(dsymonds): Use cl.LastMessageID as the In-Reply-To header
+ 				// when the appengine/mail package supports that.
+-				sendMailLater.Call(c, msg)
++				if err := mail.Send(c, msg); err != nil {
++					c.Errorf("mail.Send: %v", err)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/misc/dashboard/codereview/dashboard/mail.go b/misc/dashboard/codereview/dashboard/mail.go
+index a4bf1ac3e2..7d91078443 100644
+--- a/misc/dashboard/codereview/dashboard/mail.go
++++ b/misc/dashboard/codereview/dashboard/mail.go
+@@ -45,6 +45,12 @@ func handleMail(w http.ResponseWriter, r *http.Request) {
+ 		if err != nil && err != datastore.ErrNoSuchEntity {
+ 			return err
+ 		}
++		if err == datastore.ErrNoSuchEntity {
++			// Must set sentinel values for time.Time fields
++			// if this is a new entity.
++			cl.Created = time.Unix(0, 0)
++			cl.Modified = time.Unix(0, 0)
++		}
+ 		cl.LastMessageID = msg.Header.Get("Message-ID")
+ 		_, err = datastore.Put(c, key, cl)
+ 		return err

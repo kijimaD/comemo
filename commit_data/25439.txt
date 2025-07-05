@@ -15,6 +15,29 @@ Date:   Thu Oct 29 13:02:28 2015 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/abs.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/abs.go b/src/math/abs.go
+index e35e4da792..924ee7cc97 100644
+--- a/src/math/abs.go
++++ b/src/math/abs.go
+@@ -10,13 +10,13 @@ package math
+ //	Abs(±Inf) = +Inf
+ //	Abs(NaN) = NaN
+ func Abs(x float64) float64 {
+-	// TODO: once golang.org/issue/13905 is fixed, change this to:
++	// TODO: once golang.org/issue/13095 is fixed, change this to:
+ 	// return Float64frombits(Float64bits(x) &^ (1 << 63))
+ 	// But for now, this generates better code and can also be inlined:
+-	switch {
+-	case x < 0:
++	if x < 0 {
+ 		return -x
+-	case x == 0:
++	}
++	if x == 0 {
+ 		return 0 // return correctly abs(-0)
+ 	}
+ 	return x

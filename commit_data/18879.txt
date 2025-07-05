@@ -10,6 +10,20 @@ Date:   Mon Mar 17 11:58:02 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/74660045
-
+---
  misc/bash/go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/bash/go b/misc/bash/go
+index f5d79e41ae..d806a8147d 100644
+--- a/misc/bash/go
++++ b/misc/bash/go
+@@ -20,7 +20,7 @@ _go()
+ 
+   local cmd="${COMP_WORDS[1]}"
+ 
+-  local cmds="build clean doc fix fmt get
++  local cmds="build clean env doc fix fmt get
+     install list run test tool version vet"
+   local addhelp="gopath importpath remote
+     testflag testfunc"

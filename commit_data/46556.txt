@@ -21,6 +21,23 @@ Date:   Fri Jan 8 20:46:03 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/walk/walk.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 928b673752..4a89d2201d 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -57,6 +57,11 @@ func Walk(fn *ir.Func) {
+ 	if base.Flag.Cfg.Instrumenting {
+ 		instrument(fn)
+ 	}
++
++	// Eagerly compute sizes of all variables for SSA.
++	for _, n := range fn.Dcl {
++		types.CalcSize(n.Type())
++	}
+ }
+ 
+ func paramoutheap(fn *ir.Func) bool {

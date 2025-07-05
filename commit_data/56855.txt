@@ -12,6 +12,27 @@ Date:   Thu May 25 14:50:08 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.21.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index c1cca12d22..040a12c682 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -25,6 +25,15 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="language">Changes to the language</h2>
+ 
++<!-- https://go.dev/issue/59488 -->
++<p>
++  Go 1.21 adds two new built-ins to the language:
++  the new functions <code>min</code> and <code>max</code> compute the
++  smallest (or largest, for <code>max</code>) value of a fixed number
++  of given arguments.
++  See the language spec for <a href="https://tip.golang.org/ref/spec#Min_and_max">details</a>.
++</p>
++
+ <p><!-- https://go.dev/issue/56986 -->
+   TODO: <a href="https://go.dev/issue/56986">https://go.dev/issue/56986</a>: extended backwards compatibility for Go
+ </p>

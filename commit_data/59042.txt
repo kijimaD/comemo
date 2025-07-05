@@ -23,7 +23,7 @@ Date:   Tue Feb 6 21:57:06 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go  |  4 +--
  src/cmd/compile/internal/types2/named.go   | 49 +++++++++++++++++++++++-------
  src/cmd/compile/internal/types2/typeset.go |  2 +-
@@ -31,3 +31,224 @@ Date:   Tue Feb 6 21:57:06 2024 -0800
  src/go/types/named.go                      | 49 +++++++++++++++++++++++-------
  src/go/types/typeset.go                    |  2 +-
  6 files changed, 82 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 15e80a0b1b..5aa8091a5c 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -590,9 +590,9 @@ func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
+ 	return -1
+ }
+ 
+-// lookupMethod returns the index of and method with matching package and name, or (-1, nil).
++// methodIndex returns the index of and method with matching package and name, or (-1, nil).
+ // See Object.sameId for the meaning of foldCase.
+-func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
++func methodIndex(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	if name != "_" {
+ 		for i, m := range methods {
+ 			if m.sameId(pkg, name, foldCase) {
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 893247de35..57caef123f 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -6,6 +6,7 @@ package types2
+ 
+ import (
+ 	"cmd/compile/internal/syntax"
++	"strings"
+ 	"sync"
+ 	"sync/atomic"
+ )
+@@ -444,15 +445,40 @@ func (t *Named) SetUnderlying(underlying Type) {
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
+-// t must not have type arguments.
++// The method must be in the same package as t, and t must not have
++// type arguments.
+ func (t *Named) AddMethod(m *Func) {
++	assert(samePkg(t.obj.pkg, m.pkg))
+ 	assert(t.inst == nil)
+ 	t.resolve()
+-	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
++	if t.methodIndex(m.name, false) < 0 {
+ 		t.methods = append(t.methods, m)
+ 	}
+ }
+ 
++// methodIndex returns the index of the method with the given name.
++// If foldCase is set, capitalization in the name is ignored.
++// The result is negative if no such method exists.
++func (t *Named) methodIndex(name string, foldCase bool) int {
++	if name == "_" {
++		return -1
++	}
++	if foldCase {
++		for i, m := range t.methods {
++			if strings.EqualFold(m.name, name) {
++				return i
++			}
++		}
++	} else {
++		for i, m := range t.methods {
++			if m.name == name {
++				return i
++			}
++		}
++	}
++	return -1
++}
++
+ // TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+ func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
+ func (t *Named) String() string   { return TypeString(t, nil) }
+@@ -553,15 +579,16 @@ loop:
+ 
+ func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	n.resolve()
+-	// If n is an instance, we may not have yet instantiated all of its methods.
+-	// Look up the method index in orig, and only instantiate method at the
+-	// matching index (if any).
+-	i, _ := lookupMethod(n.Origin().methods, pkg, name, foldCase)
+-	if i < 0 {
+-		return -1, nil
+-	}
+-	// For instances, m.Method(i) will be different from the orig method.
+-	return i, n.Method(i)
++	if samePkg(n.obj.pkg, pkg) || isExported(name) || foldCase {
++		// If n is an instance, we may not have yet instantiated all of its methods.
++		// Look up the method index in orig, and only instantiate method at the
++		// matching index (if any).
++		if i := n.Origin().methodIndex(name, foldCase); i >= 0 {
++			// For instances, m.Method(i) will be different from the orig method.
++			return i, n.Method(i)
++		}
++	}
++	return -1, nil
+ }
+ 
+ // context returns the type-checker context.
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index a6ccfdb80c..bf07162a21 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -57,7 +57,7 @@ func (s *_TypeSet) Method(i int) *Func { return s.methods[i] }
+ 
+ // LookupMethod returns the index of and method with matching package and name, or (-1, nil).
+ func (s *_TypeSet) LookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
+-	return lookupMethod(s.methods, pkg, name, foldCase)
++	return methodIndex(s.methods, pkg, name, foldCase)
+ }
+ 
+ func (s *_TypeSet) String() string {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 82425f64a8..436a7afbaa 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -592,9 +592,9 @@ func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
+ 	return -1
+ }
+ 
+-// lookupMethod returns the index of and method with matching package and name, or (-1, nil).
++// methodIndex returns the index of and method with matching package and name, or (-1, nil).
+ // See Object.sameId for the meaning of foldCase.
+-func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
++func methodIndex(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	if name != "_" {
+ 		for i, m := range methods {
+ 			if m.sameId(pkg, name, foldCase) {
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 21c0de255d..e053fed76b 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -8,6 +8,7 @@ package types
+ 
+ import (
+ 	"go/token"
++	"strings"
+ 	"sync"
+ 	"sync/atomic"
+ )
+@@ -446,15 +447,40 @@ func (t *Named) SetUnderlying(underlying Type) {
+ }
+ 
+ // AddMethod adds method m unless it is already in the method list.
+-// t must not have type arguments.
++// The method must be in the same package as t, and t must not have
++// type arguments.
+ func (t *Named) AddMethod(m *Func) {
++	assert(samePkg(t.obj.pkg, m.pkg))
+ 	assert(t.inst == nil)
+ 	t.resolve()
+-	if i, _ := lookupMethod(t.methods, m.pkg, m.name, false); i < 0 {
++	if t.methodIndex(m.name, false) < 0 {
+ 		t.methods = append(t.methods, m)
+ 	}
+ }
+ 
++// methodIndex returns the index of the method with the given name.
++// If foldCase is set, capitalization in the name is ignored.
++// The result is negative if no such method exists.
++func (t *Named) methodIndex(name string, foldCase bool) int {
++	if name == "_" {
++		return -1
++	}
++	if foldCase {
++		for i, m := range t.methods {
++			if strings.EqualFold(m.name, name) {
++				return i
++			}
++		}
++	} else {
++		for i, m := range t.methods {
++			if m.name == name {
++				return i
++			}
++		}
++	}
++	return -1
++}
++
+ // TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+ func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
+ func (t *Named) String() string   { return TypeString(t, nil) }
+@@ -555,15 +581,16 @@ loop:
+ 
+ func (n *Named) lookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
+ 	n.resolve()
+-	// If n is an instance, we may not have yet instantiated all of its methods.
+-	// Look up the method index in orig, and only instantiate method at the
+-	// matching index (if any).
+-	i, _ := lookupMethod(n.Origin().methods, pkg, name, foldCase)
+-	if i < 0 {
+-		return -1, nil
+-	}
+-	// For instances, m.Method(i) will be different from the orig method.
+-	return i, n.Method(i)
++	if samePkg(n.obj.pkg, pkg) || isExported(name) || foldCase {
++		// If n is an instance, we may not have yet instantiated all of its methods.
++		// Look up the method index in orig, and only instantiate method at the
++		// matching index (if any).
++		if i := n.Origin().methodIndex(name, foldCase); i >= 0 {
++			// For instances, m.Method(i) will be different from the orig method.
++			return i, n.Method(i)
++		}
++	}
++	return -1, nil
+ }
+ 
+ // context returns the type-checker context.
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d164749996..4e3865ddc4 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -57,7 +57,7 @@ func (s *_TypeSet) Method(i int) *Func { return s.methods[i] }
+ 
+ // LookupMethod returns the index of and method with matching package and name, or (-1, nil).
+ func (s *_TypeSet) LookupMethod(pkg *Package, name string, foldCase bool) (int, *Func) {
+-	return lookupMethod(s.methods, pkg, name, foldCase)
++	return methodIndex(s.methods, pkg, name, foldCase)
+ }
+ 
+ func (s *_TypeSet) String() string {

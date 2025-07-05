@@ -11,7 +11,48 @@ Date:   Thu Dec 19 09:33:16 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go             | 4 +++-
  src/cmd/go/testdata/script/clean_testcache.txt | 9 ++++++++-
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 5f4bf4e6c8..69e17482b4 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -178,7 +178,9 @@ func runClean(cmd *base.Command, args []string) {
+ 				}
+ 			}
+ 			if err != nil {
+-				base.Errorf("go clean -testcache: %v", err)
++				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
++					base.Errorf("go clean -testcache: %v", err)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/clean_testcache.txt b/src/cmd/go/testdata/script/clean_testcache.txt
+index dd7846462e..b3f32fe696 100644
+--- a/src/cmd/go/testdata/script/clean_testcache.txt
++++ b/src/cmd/go/testdata/script/clean_testcache.txt
+@@ -9,6 +9,13 @@ go clean -testcache
+ go test x_test.go
+ ! stdout 'cached'
+ 
++# golang.org/issue/29100: 'go clean -testcache' should succeed
++# if the cache directory doesn't exist at all.
++# It should not write a testexpire.txt file, since there are no
++# test results that need to be invalidated in the first place.
++env GOCACHE=$WORK/nonexistent
++go clean -testcache
++! exists $WORK/nonexistent
+ 
+ -- x/x_test.go --
+ package x_test
+@@ -16,4 +23,4 @@ import (
+     "testing"
+ )
+ func TestMain(t *testing.T) {
+-}
+\ No newline at end of file
++}

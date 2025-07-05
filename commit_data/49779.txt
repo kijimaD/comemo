@@ -15,7 +15,7 @@ Date:   Thu Sep 9 23:47:14 2021 +0100
     Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s    |  2 ++
  src/cmd/compile/internal/riscv64/ssa.go        |  5 +++--
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
@@ -28,3 +28,245 @@ Date:   Thu Sep 9 23:47:14 2021 +0100
  src/cmd/internal/obj/riscv/obj.go              | 10 +++++++++
  test/codegen/math.go                           |  4 ++++
  11 files changed, 66 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 1977d92f62..64b94a2a04 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -382,10 +382,12 @@ start:
+ 	SNEZ	X15, X15				// b337f000
+ 
+ 	// F extension
++	FABSS	F0, F1					// d3200020
+ 	FNEGS	F0, F1					// d3100020
+ 	FNES	F0, F1, X7				// d3a300a093c31300
+ 
+ 	// D extension
++	FABSD	F0, F1					// d3200022
+ 	FNEGD	F0, F1					// d3100022
+ 	FNED	F0, F1, X5				// d3a200a293c21200
+ 	FLTD	F0, F1, X5				// d39200a2
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 30b6d96a89..e400ca1ffe 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -272,7 +272,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpRISCV64FADDS, ssa.OpRISCV64FSUBS, ssa.OpRISCV64FMULS, ssa.OpRISCV64FDIVS,
+ 		ssa.OpRISCV64FEQS, ssa.OpRISCV64FNES, ssa.OpRISCV64FLTS, ssa.OpRISCV64FLES,
+ 		ssa.OpRISCV64FADDD, ssa.OpRISCV64FSUBD, ssa.OpRISCV64FMULD, ssa.OpRISCV64FDIVD,
+-		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED:
++		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED,
++		ssa.OpRISCV64FSGNJD:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+@@ -329,7 +330,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.SetRestArgs([]obj.Addr{{Type: obj.TYPE_REG, Reg: r3}})
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
+-	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
++	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FABSD, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
+ 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
+ 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
+ 		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index b711550186..aa7c452d05 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -96,6 +96,10 @@
+ (Sqrt ...) => (FSQRTD ...)
+ (Sqrt32 ...) => (FSQRTS ...)
+ 
++(Copysign ...) => (FSGNJD ...)
++
++(Abs ...) => (FABSD ...)
++
+ (FMA ...) => (FMADDD ...)
+ 
+ // Sign and zero extension.
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index de189e4c60..ac1bcd2a06 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -432,6 +432,8 @@ func init() {
+ 		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD", commutative: true, typ: "Float64"},                                       // -(arg0 * arg1) - arg2
+ 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD", typ: "Float64"},                                                            // sqrt(arg0)
+ 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD", typ: "Float64"},                                                              // -arg0
++		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD", typ: "Float64"},                                                              // abs(arg0)
++		{name: "FSGNJD", argLength: 2, reg: fp21, asm: "FSGNJD", typ: "Float64"},                                                            // copy sign of arg1 to arg0
+ 		{name: "FMVDX", argLength: 1, reg: gpfp, asm: "FMVDX", typ: "Float64"},                                                              // reinterpret arg0 as float
+ 		{name: "FCVTDW", argLength: 1, reg: gpfp, asm: "FCVTDW", typ: "Float64"},                                                            // float64(low 32 bits of arg0)
+ 		{name: "FCVTDL", argLength: 1, reg: gpfp, asm: "FCVTDL", typ: "Float64"},                                                            // float64(arg0)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 573559db70..1ca99c1ba9 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2183,6 +2183,8 @@ const (
+ 	OpRISCV64FNMSUBD
+ 	OpRISCV64FSQRTD
+ 	OpRISCV64FNEGD
++	OpRISCV64FABSD
++	OpRISCV64FSGNJD
+ 	OpRISCV64FMVDX
+ 	OpRISCV64FCVTDW
+ 	OpRISCV64FCVTDL
+@@ -29187,6 +29189,33 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "FABSD",
++		argLen: 1,
++		asm:    riscv.AFABSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FSGNJD",
++		argLen: 2,
++		asm:    riscv.AFSGNJD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "FMVDX",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 743ff50b0c..3a277ca369 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -8,6 +8,9 @@ import "cmd/compile/internal/types"
+ 
+ func rewriteValueRISCV64(v *Value) bool {
+ 	switch v.Op {
++	case OpAbs:
++		v.Op = OpRISCV64FABSD
++		return true
+ 	case OpAdd16:
+ 		v.Op = OpRISCV64ADD
+ 		return true
+@@ -134,6 +137,9 @@ func rewriteValueRISCV64(v *Value) bool {
+ 	case OpConvert:
+ 		v.Op = OpRISCV64MOVconvert
+ 		return true
++	case OpCopysign:
++		v.Op = OpRISCV64FSGNJD
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = OpRISCV64FCVTWS
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 11bca89fd8..1e7eda94fc 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4212,12 +4212,12 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.ARM, sys.PPC64, sys.Wasm)
++		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm)
+ 	addF("math", "Copysign",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
+ 		},
+-		sys.PPC64, sys.Wasm)
++		sys.PPC64, sys.RISCV64, sys.Wasm)
+ 	addF("math", "FMA",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index 6581bb3402..d2a3674ebe 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -236,6 +236,8 @@ var Anames = []string{
+ 	"BLEZ",
+ 	"BLTZ",
+ 	"BNEZ",
++	"FABSD",
++	"FABSS",
+ 	"FNEGD",
+ 	"FNEGS",
+ 	"FNED",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 1519dc1a63..a258367ae9 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -590,6 +590,8 @@ const (
+ 	ABLEZ
+ 	ABLTZ
+ 	ABNEZ
++	AFABSD
++	AFABSS
+ 	AFNEGD
+ 	AFNEGS
+ 	AFNED
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index fafde64062..62d44d8a3f 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1998,6 +1998,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.as = ASLTU
+ 		ins.rs1 = REG_ZERO
+ 
++	case AFABSS:
++		// FABSS rs, rd -> FSGNJXS rs, rs, rd
++		ins.as = AFSGNJXS
++		ins.rs1 = uint32(p.From.Reg)
++
++	case AFABSD:
++		// FABSD rs, rd -> FSGNJXD rs, rs, rd
++		ins.as = AFSGNJXD
++		ins.rs1 = uint32(p.From.Reg)
++
+ 	case AFNEGS:
+ 		// FNEGS rs, rd -> FSGNJNS rs, rs, rd
+ 		ins.as = AFSGNJNS
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index cd573db7b3..df2ebd79e1 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -73,6 +73,7 @@ func abs(x, y float64) {
+ 	// s390x:"LPDFR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64:"FABS\t"
+ 	// ppc64le:"FABS\t"
++	// riscv64:"FABSD\t"
+ 	// wasm:"F64Abs"
+ 	// arm/6:"ABSD\t"
+ 	sink64[0] = math.Abs(x)
+@@ -96,6 +97,7 @@ func copysign(a, b, c float64) {
+ 	// s390x:"CPSDR",-"MOVD"         (no integer load/store)
+ 	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
++	// riscv64:"FSGNJD"
+ 	// wasm:"F64Copysign"
+ 	sink64[0] = math.Copysign(a, b)
+ 
+@@ -103,6 +105,7 @@ func copysign(a, b, c float64) {
+ 	// s390x:"LNDFR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
++	// riscv64:"FSGNJD"
+ 	// arm64:"ORR", -"AND"
+ 	sink64[1] = math.Copysign(c, -1)
+ 
+@@ -115,6 +118,7 @@ func copysign(a, b, c float64) {
+ 	// s390x:"CPSDR\t",-"MOVD\t"     (no integer load/store)
+ 	// ppc64:"FCPSGN"
+ 	// ppc64le:"FCPSGN"
++	// riscv64:"FSGNJD"
+ 	sink64[3] = math.Copysign(-1, c)
+ }
+ 

@@ -15,8 +15,73 @@ Date:   Sun Apr 29 00:15:03 2018 -0400
     Change-Id: I735ca3c30fc0145c186d2a54f31fd39caab2c3fa
     Reviewed-on: https://go-review.googlesource.com/110018
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go          |  6 +++---
  src/strings/strings.go      |  6 +++---
  src/strings/strings_test.go | 12 ++++++++++++
  3 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 32bf6ab30d..437a6e12df 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -805,9 +805,9 @@ func EqualFold(s, t []byte) bool {
+ 			tr, sr = sr, tr
+ 		}
+ 		// Fast check for ASCII.
+-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
+-			// ASCII, and sr is upper case.  tr must be lower case.
+-			if tr == sr+'a'-'A' {
++		if tr < utf8.RuneSelf {
++			// ASCII only, sr/tr must be upper/lower case
++			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
+ 				continue
+ 			}
+ 			return false
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index b0a53fdefd..45345e0088 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -908,9 +908,9 @@ func EqualFold(s, t string) bool {
+ 			tr, sr = sr, tr
+ 		}
+ 		// Fast check for ASCII.
+-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
+-			// ASCII, and sr is upper case.  tr must be lower case.
+-			if tr == sr+'a'-'A' {
++		if tr < utf8.RuneSelf {
++			// ASCII only, sr/tr must be upper/lower case
++			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
+ 				continue
+ 			}
+ 			return false
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index d8fcb62a87..876f06c674 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1379,6 +1379,8 @@ var EqualFoldTests = []struct {
+ 	{"abcdefghijK", "abcdefghij\u212A", true},
+ 	{"abcdefghijkz", "abcdefghij\u212Ay", false},
+ 	{"abcdefghijKz", "abcdefghij\u212Ay", false},
++	{"1", "2", false},
++	{"utf-8", "US-ASCII", false},
+ }
+ 
+ func TestEqualFold(t *testing.T) {
+@@ -1392,6 +1394,16 @@ func TestEqualFold(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkEqualFold(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		for _, tt := range EqualFoldTests {
++			if out := EqualFold(tt.s, tt.t); out != tt.out {
++				b.Fatal("wrong result")
++			}
++		}
++	}
++}
++
+ var CountTests = []struct {
+ 	s, sep string
+ 	num    int

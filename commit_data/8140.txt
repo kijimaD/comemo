@@ -7,7 +7,98 @@ Date:   Mon Apr 18 13:22:31 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4443047
-
+---
  src/cmd/gc/cplx.c        | 20 +++++++++++++++++---
  test/fixedbugs/bug329.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 3ec9fe5a2c..890cf7f10c 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -12,6 +12,19 @@ static	void	minus(Node *nl, Node *res);
+ 
+ #define	CASE(a,b)	(((a)<<16)|((b)<<0))
+ 
++static int
++overlap(Node *f, Node *t)
++{
++	// check whether f and t could be overlapping stack references.
++	// not exact, because it's hard to check for the stack register
++	// in portable code.  close enough: worst case we will allocate
++	// an extra temporary and the registerizer will clean it up.
++	return f->op == OINDREG &&
++		t->op == OINDREG &&
++		f->xoffset+f->type->width >= t->xoffset &&
++		t->xoffset+t->type->width >= f->xoffset;
++}
++
+ /*
+  * generate:
+  *	res = n;
+@@ -43,9 +56,10 @@ complexmove(Node *f, Node *t)
+ 	case CASE(TCOMPLEX64,TCOMPLEX128):
+ 	case CASE(TCOMPLEX128,TCOMPLEX64):
+ 	case CASE(TCOMPLEX128,TCOMPLEX128):
+-		// complex to complex move/convert
+-		// make from addable
+-		if(!f->addable) {
++		// complex to complex move/convert.
++		// make f addable.
++		// also use temporary if possible stack overlap.
++		if(!f->addable || overlap(f, t)) {
+ 			tempname(&n1, f->type);
+ 			complexmove(f, &n1);
+ 			f = &n1;
+diff --git a/test/fixedbugs/bug329.go b/test/fixedbugs/bug329.go
+new file mode 100644
+index 0000000000..0b7074d62b
+--- /dev/null
++++ b/test/fixedbugs/bug329.go
+@@ -0,0 +1,46 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Value struct {
++	X interface{}
++	Y int
++}
++
++type Struct struct {
++	X complex128
++}
++
++const magic = 1 + 2i
++
++func (Value) Complex(x complex128) {
++	if x != magic {
++		println(x)
++		panic("bad complex magic")
++	}
++}
++
++func f(x *byte, y, z int) complex128 {
++	return magic
++}
++
++func (Value) Struct(x Struct) {
++	if x.X != magic {
++		println(x.X)
++		panic("bad struct magic")
++	}
++}
++
++func f1(x *byte, y, z int) Struct {
++	return Struct{magic}
++}
++
++func main() {
++	var v Value
++	v.Struct(f1(nil, 0, 0)) // ok
++	v.Complex(f(nil, 0, 0)) // used to fail
++}

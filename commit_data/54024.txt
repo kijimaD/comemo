@@ -19,7 +19,7 @@ Date:   Fri May 6 20:11:28 2022 +0000
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/metrics.go             |  98 +++++++++++++++++++++++++++++++
  src/runtime/metrics/description.go | 116 +++++++++++++++++++++++++++++++++++++
  src/runtime/metrics/doc.go         |  84 +++++++++++++++++++++++++++
@@ -32,3 +32,698 @@ Date:   Fri May 6 20:11:28 2022 +0000
  src/runtime/mstats.go              |  22 +++++++
  src/runtime/runtime2.go            |   5 ++
  11 files changed, 459 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 2271d8084d..44fb4878ac 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -90,6 +90,83 @@ func initMetrics() {
+ 				out.scalar = uint64(NumCgoCall())
+ 			},
+ 		},
++		"/cpu/classes/gc/mark/assist:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.gcAssistTime))
++			},
++		},
++		"/cpu/classes/gc/mark/dedicated:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.gcDedicatedTime))
++			},
++		},
++		"/cpu/classes/gc/mark/idle:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.gcIdleTime))
++			},
++		},
++		"/cpu/classes/gc/pause:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.gcPauseTime))
++			},
++		},
++		"/cpu/classes/gc/total:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.gcTotalTime))
++			},
++		},
++		"/cpu/classes/idle:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.idleTime))
++			},
++		},
++		"/cpu/classes/scavenge/assist:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeAssistTime))
++			},
++		},
++		"/cpu/classes/scavenge/background:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeBgTime))
++			},
++		},
++		"/cpu/classes/scavenge/total:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.scavengeTotalTime))
++			},
++		},
++		"/cpu/classes/total:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.totalTime))
++			},
++		},
++		"/cpu/classes/user:cpu-seconds": {
++			deps: makeStatDepSet(cpuStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindFloat64
++				out.scalar = float64bits(nsToSec(in.cpuStats.userTime))
++			},
++		},
+ 		"/gc/cycles/automatic:gc-cycles": {
+ 			deps: makeStatDepSet(sysStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+@@ -345,6 +422,7 @@ type statDep uint
+ const (
+ 	heapStatsDep statDep = iota // corresponds to heapStatsAggregate
+ 	sysStatsDep                 // corresponds to sysStatsAggregate
++	cpuStatsDep                 // corresponds to cpuStatsAggregate
+ 	numStatsDeps
+ )
+ 
+@@ -490,6 +568,23 @@ func (a *sysStatsAggregate) compute() {
+ 	})
+ }
+ 
++// cpuStatsAggregate represents CPU stats obtained from the runtime
++// acquired together to avoid skew and inconsistencies.
++type cpuStatsAggregate struct {
++	cpuStats
++}
++
++// compute populates the cpuStatsAggregate with values from the runtime.
++func (a *cpuStatsAggregate) compute() {
++	a.cpuStats = work.cpuStats
++}
++
++// nsToSec takes a duration in nanoseconds and converts it to seconds as
++// a float64.
++func nsToSec(ns int64) float64 {
++	return float64(ns) / 1e9
++}
++
+ // statAggregate is the main driver of the metrics implementation.
+ //
+ // It contains multiple aggregates of runtime statistics, as well
+@@ -499,6 +594,7 @@ type statAggregate struct {
+ 	ensured   statDepSet
+ 	heapStats heapStatsAggregate
+ 	sysStats  sysStatsAggregate
++	cpuStats  cpuStatsAggregate
+ }
+ 
+ // ensure populates statistics aggregates determined by deps if they
+@@ -517,6 +613,8 @@ func (a *statAggregate) ensure(deps *statDepSet) {
+ 			a.heapStats.compute()
+ 		case sysStatsDep:
+ 			a.sysStats.compute()
++		case cpuStatsDep:
++			a.cpuStats.compute()
+ 		}
+ 	}
+ 	a.ensured = a.ensured.union(missing)
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index ee99d3938d..abcdddd16c 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -57,6 +57,122 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name: "/cpu/classes/gc/mark/assist:cpu-seconds",
++		Description: "Estimated total CPU time goroutines spent performing GC tasks " +
++			"to assist the GC and prevent it from falling behind the application. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/gc/mark/dedicated:cpu-seconds",
++		Description: "Estimated total CPU time spent performing GC tasks on " +
++			"processors (as defined by GOMAXPROCS) dedicated to those tasks. " +
++			"This includes time spent with the world stopped due to the GC. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/gc/mark/idle:cpu-seconds",
++		Description: "Estimated total CPU time spent performing GC tasks on " +
++			"spare CPU resources that the Go scheduler could not otherwise find " +
++			"a use for. This should be subtracted from the total GC CPU time to " +
++			"obtain a measure of compulsory GC CPU time. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/gc/pause:cpu-seconds",
++		Description: "Estimated total CPU time spent with the application paused by " +
++			"the GC. Even if only one thread is running during the pause, this is " +
++			"computed as GOMAXPROCS times the pause latency because nothing else " +
++			"can be executing. This is the exact sum of samples in /gc/pause:seconds " +
++			"if each sample is multiplied by GOMAXPROCS at the time it is taken. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/gc/total:cpu-seconds",
++		Description: "Estimated total CPU time spent performing GC tasks. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics. Sum of all metrics in /cpu/classes/gc.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/idle:cpu-seconds",
++		Description: "Estimated total available CPU time not spent executing any Go or Go runtime code. " +
++			"In other words, the part of /cpu/classes/total:cpu-seconds that was unused. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/scavenge/assist:cpu-seconds",
++		Description: "Estimated total CPU time spent returning unused memory to the " +
++			"underlying platform in response eagerly in response to memory pressure. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/scavenge/background:cpu-seconds",
++		Description: "Estimated total CPU time spent performing background tasks " +
++			"to return unused memory to the underlying platform. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/scavenge/total:cpu-seconds",
++		Description: "Estimated total CPU time spent performing tasks that return " +
++			"unused memory to the underlying platform. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics. Sum of all metrics in /cpu/classes/scavenge.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/total:cpu-seconds",
++		Description: "Estimated total available CPU time for user Go code " +
++			"or the Go runtime, as defined by GOMAXPROCS. In other words, GOMAXPROCS " +
++			"integrated over the wall-clock duration this process has been executing for. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics. Sum of all metrics in /cpu/classes.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
++	{
++		Name: "/cpu/classes/user:cpu-seconds",
++		Description: "Estimated total CPU time spent running user Go code. This may " +
++			"also include some small amount of time spent in the Go runtime. " +
++			"This metric is an overestimate, and not directly comparable to " +
++			"system CPU time measurements. Compare only with other /cpu/classes " +
++			"metrics.",
++		Kind:       KindFloat64,
++		Cumulative: true,
++	},
+ 	{
+ 		Name:        "/gc/cycles/automatic:gc-cycles",
+ 		Description: "Count of completed GC cycles generated by the Go runtime.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 28c9f6abb5..bb7e96b3b5 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -54,6 +54,90 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/cgo/go-to-c-calls:calls
+ 		Count of calls made from Go to C by the current process.
+ 
++	/cpu/classes/gc/mark/assist:cpu-seconds
++		Estimated total CPU time goroutines spent performing GC tasks
++		to assist the GC and prevent it from falling behind the application.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/gc/mark/dedicated:cpu-seconds
++		Estimated total CPU time spent performing GC tasks on
++		processors (as defined by GOMAXPROCS) dedicated to those tasks.
++		This includes time spent with the world stopped due to the GC.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/gc/mark/idle:cpu-seconds
++		Estimated total CPU time spent performing GC tasks on
++		spare CPU resources that the Go scheduler could not otherwise find
++		a use for. This should be subtracted from the total GC CPU time to
++		obtain a measure of compulsory GC CPU time.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/gc/pause:cpu-seconds
++		Estimated total CPU time spent with the application paused by
++		the GC. Even if only one thread is running during the pause, this is
++		computed as GOMAXPROCS times the pause latency because nothing else
++		can be executing. This is the exact sum of samples in /gc/pause:seconds
++		if each sample is multiplied by GOMAXPROCS at the time it is taken.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/gc/total:cpu-seconds
++		Estimated total CPU time spent performing GC tasks.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics. Sum of all metrics in /cpu/classes/gc.
++
++	/cpu/classes/idle:cpu-seconds
++		Estimated total available CPU time not spent executing any Go or Go
++		runtime code. In other words, the part of /cpu/classes/total:cpu-seconds
++		that was unused.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/scavenge/assist:cpu-seconds
++		Estimated total CPU time spent returning unused memory to the
++		underlying platform in response eagerly in response to memory pressure.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/scavenge/background:cpu-seconds
++		Estimated total CPU time spent performing background tasks
++		to return unused memory to the underlying platform.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
++	/cpu/classes/scavenge/total:cpu-seconds
++		Estimated total CPU time spent performing tasks that return
++		unused memory to the underlying platform.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics. Sum of all metrics in /cpu/classes/scavenge.
++
++	/cpu/classes/total:cpu-seconds
++		Estimated total available CPU time for user Go code or the Go runtime, as
++		defined by GOMAXPROCS. In other words, GOMAXPROCS integrated over the
++		wall-clock duration this process has been executing for.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics. Sum of all metrics in /cpu/classes.
++
++	/cpu/classes/user:cpu-seconds
++		Estimated total CPU time spent running user Go code. This may
++		also include some small amount of time spent in the Go runtime.
++		This metric is an overestimate, and not directly comparable to
++		system CPU time measurements. Compare only with other /cpu/classes
++		metrics.
++
+ 	/gc/cycles/automatic:gc-cycles
+ 		Count of completed GC cycles generated by the Go runtime.
+ 
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 8baf020900..645d3a519b 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -163,6 +163,12 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 	runtime.GC()
+ 	runtime.GC()
+ 
++	// Set GOMAXPROCS high then sleep briefly to ensure we generate
++	// some idle time.
++	oldmaxprocs := runtime.GOMAXPROCS(10)
++	time.Sleep(time.Millisecond)
++	runtime.GOMAXPROCS(oldmaxprocs)
++
+ 	// Read all the supported metrics through the metrics package.
+ 	descs, samples := prepareAllMetricsSamples()
+ 	metrics.Read(samples)
+@@ -181,6 +187,22 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 		numGC  uint64
+ 		pauses uint64
+ 	}
++	var cpu struct {
++		gcAssist    float64
++		gcDedicated float64
++		gcIdle      float64
++		gcPause     float64
++		gcTotal     float64
++
++		idle float64
++		user float64
++
++		scavengeAssist float64
++		scavengeBg     float64
++		scavengeTotal  float64
++
++		total float64
++	}
+ 	for i := range samples {
+ 		kind := samples[i].Value.Kind()
+ 		if want := descs[samples[i].Name].Kind; kind != want {
+@@ -199,6 +221,28 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 			}
+ 		}
+ 		switch samples[i].Name {
++		case "/cpu/classes/gc/mark/assist:cpu-seconds":
++			cpu.gcAssist = samples[i].Value.Float64()
++		case "/cpu/classes/gc/mark/dedicated:cpu-seconds":
++			cpu.gcDedicated = samples[i].Value.Float64()
++		case "/cpu/classes/gc/mark/idle:cpu-seconds":
++			cpu.gcIdle = samples[i].Value.Float64()
++		case "/cpu/classes/gc/pause:cpu-seconds":
++			cpu.gcPause = samples[i].Value.Float64()
++		case "/cpu/classes/gc/total:cpu-seconds":
++			cpu.gcTotal = samples[i].Value.Float64()
++		case "/cpu/classes/idle:cpu-seconds":
++			cpu.idle = samples[i].Value.Float64()
++		case "/cpu/classes/scavenge/assist:cpu-seconds":
++			cpu.scavengeAssist = samples[i].Value.Float64()
++		case "/cpu/classes/scavenge/background:cpu-seconds":
++			cpu.scavengeBg = samples[i].Value.Float64()
++		case "/cpu/classes/scavenge/total:cpu-seconds":
++			cpu.scavengeTotal = samples[i].Value.Float64()
++		case "/cpu/classes/total:cpu-seconds":
++			cpu.total = samples[i].Value.Float64()
++		case "/cpu/classes/user:cpu-seconds":
++			cpu.user = samples[i].Value.Float64()
+ 		case "/memory/classes/total:bytes":
+ 			totalVirtual.got = samples[i].Value.Uint64()
+ 		case "/memory/classes/heap/objects:bytes":
+@@ -235,6 +279,33 @@ func TestReadMetricsConsistency(t *testing.T) {
+ 			}
+ 		}
+ 	}
++	// Only check this on Linux where we can be reasonably sure we have a high-resolution timer.
++	if runtime.GOOS == "linux" {
++		if cpu.gcDedicated <= 0 && cpu.gcAssist <= 0 && cpu.gcIdle <= 0 {
++			t.Errorf("found no time spent on GC work: %#v", cpu)
++		}
++		if cpu.gcPause <= 0 {
++			t.Errorf("found no GC pauses: %f", cpu.gcPause)
++		}
++		if cpu.idle <= 0 {
++			t.Errorf("found no idle time: %f", cpu.idle)
++		}
++		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.01) {
++			t.Errorf("calculated total GC CPU not within 1%% of sampled total: %f vs. %f", total, cpu.gcTotal)
++		}
++		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.01) {
++			t.Errorf("calculated total scavenge CPU not within 1%% of sampled total: %f vs. %f", total, cpu.scavengeTotal)
++		}
++		if cpu.total <= 0 {
++			t.Errorf("found no total CPU time passed")
++		}
++		if cpu.user <= 0 {
++			t.Errorf("found no user time passed")
++		}
++		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.02) {
++			t.Errorf("calculated total CPU not within 2%% of sampled total: %f vs. %f", total, cpu.total)
++		}
++	}
+ 	if totalVirtual.got != totalVirtual.want {
+ 		t.Errorf(`"/memory/classes/total:bytes" does not match sum of /memory/classes/**: got %d, want %d`, totalVirtual.got, totalVirtual.want)
+ 	}
+@@ -411,3 +482,7 @@ func TestReadMetricsCumulative(t *testing.T) {
+ 
+ 	wg.Wait()
+ }
++
++func withinEpsilon(v1, v2, e float64) bool {
++	return v2-v2*e <= v1 && v1 <= v2+v2*e
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f7e54d3dd3..3b562181ea 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -366,10 +366,6 @@ type workType struct {
+ 	// explicit user call.
+ 	userForced bool
+ 
+-	// totaltime is the CPU nanoseconds spent in GC since the
+-	// program started if debug.gctrace > 0.
+-	totaltime int64
+-
+ 	// initialHeapLive is the value of gcController.heapLive at the
+ 	// beginning of this GC cycle.
+ 	initialHeapLive uint64
+@@ -404,6 +400,9 @@ type workType struct {
+ 
+ 	// debug.gctrace heap sizes for this cycle.
+ 	heap0, heap1, heap2 uint64
++
++	// Cumulative estimated CPU usage.
++	cpuStats
+ }
+ 
+ // GC runs a garbage collection and blocks the caller until the
+@@ -1006,24 +1005,57 @@ func gcMarkTermination() {
+ 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+ 	memstats.pause_total_ns += uint64(work.pauseNS)
+ 
+-	// Update work.totaltime.
+ 	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+ 	// We report idle marking time below, but omit it from the
+ 	// overall utilization here since it's "free".
+-	markCpu := gcController.assistTime.Load() + gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime.Load()
++	markAssistCpu := gcController.assistTime.Load()
++	markDedicatedCpu := gcController.dedicatedMarkTime.Load()
++	markFractionalCpu := gcController.fractionalMarkTime.Load()
++	markIdleCpu := gcController.idleMarkTime.Load()
+ 	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
+-	cycleCpu := sweepTermCpu + markCpu + markTermCpu
+-	work.totaltime += cycleCpu
++	scavAssistCpu := scavenge.assistTime.Load()
++	scavBgCpu := scavenge.backgroundTime.Load()
++
++	// Update cumulative GC CPU stats.
++	work.cpuStats.gcAssistTime += markAssistCpu
++	work.cpuStats.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
++	work.cpuStats.gcIdleTime += markIdleCpu
++	work.cpuStats.gcPauseTime += sweepTermCpu + markTermCpu
++	work.cpuStats.gcTotalTime += sweepTermCpu + markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu + markTermCpu
++
++	// Update cumulative scavenge CPU stats.
++	work.cpuStats.scavengeAssistTime += scavAssistCpu
++	work.cpuStats.scavengeBgTime += scavBgCpu
++	work.cpuStats.scavengeTotalTime += scavAssistCpu + scavBgCpu
++
++	// Update total CPU.
++	work.cpuStats.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
++	work.cpuStats.idleTime += sched.idleTime.Load()
++
++	// Compute userTime. We compute this indirectly as everything that's not the above.
++	//
++	// Since time spent in _Pgcstop is covered by gcPauseTime, and time spent in _Pidle
++	// is covered by idleTime, what we're left with is time spent in _Prunning and _Psyscall,
++	// the latter of which is fine because the P will either go idle or get used for something
++	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
++	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
++	// but that's fine. The overwhelming majority of this time will be actual user time.
++	work.cpuStats.userTime = work.cpuStats.totalTime - (work.cpuStats.gcTotalTime +
++		work.cpuStats.scavengeTotalTime + work.cpuStats.idleTime)
+ 
+ 	// Compute overall GC CPU utilization.
+-	totalCpu := sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+-	memstats.gc_cpu_fraction = float64(work.totaltime) / float64(totalCpu)
++	// Omit idle marking time from the overall utilization here since it's "free".
++	memstats.gc_cpu_fraction = float64(work.cpuStats.gcTotalTime-work.cpuStats.gcIdleTime) / float64(work.cpuStats.totalTime)
+ 
+-	// Reset assist time stat.
++	// Reset assist time and background time stats.
+ 	//
+ 	// Do this now, instead of at the start of the next GC cycle, because
+ 	// these two may keep accumulating even if the GC is not active.
+-	mheap_.pages.scav.assistTime.Store(0)
++	scavenge.assistTime.Store(0)
++	scavenge.backgroundTime.Store(0)
++
++	// Reset idle time stat.
++	sched.idleTime.Store(0)
+ 
+ 	// Reset sweep state.
+ 	sweep.nbgsweep = 0
+diff --git a/src/runtime/mgclimit.go b/src/runtime/mgclimit.go
+index b6fbcb14cf..bcbe7f88a0 100644
+--- a/src/runtime/mgclimit.go
++++ b/src/runtime/mgclimit.go
+@@ -469,9 +469,10 @@ func (e *limiterEvent) stop(typ limiterEventType, now int64) {
+ 	// Account for the event.
+ 	switch typ {
+ 	case limiterEventIdleMarkWork:
+-		fallthrough
++		gcCPULimiter.addIdleTime(duration)
+ 	case limiterEventIdle:
+ 		gcCPULimiter.addIdleTime(duration)
++		sched.idleTime.Add(duration)
+ 	case limiterEventMarkAssist:
+ 		fallthrough
+ 	case limiterEventScavengeAssist:
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index c54ae34462..1b4fd66917 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -221,6 +221,16 @@ var scavenge struct {
+ 	// gcController.memoryLimit by choosing to target the memory limit or
+ 	// some lower target to keep the scavenger working.
+ 	memoryLimitGoal atomic.Uint64
++
++	// assistTime is the time spent by the allocator scavenging in the last GC cycle.
++	//
++	// This is reset once a GC cycle ends.
++	assistTime atomic.Int64
++
++	// backgroundTime is the time spent by the background scavenger in the last GC cycle.
++	//
++	// This is reset once a GC cycle ends.
++	backgroundTime atomic.Int64
+ }
+ 
+ const (
+@@ -361,6 +371,7 @@ func (s *scavengerState) init() {
+ 			if start >= end {
+ 				return r, 0
+ 			}
++			scavenge.backgroundTime.Add(end - start)
+ 			return r, end - start
+ 		}
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index cd4634448c..c8a6cd2936 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1327,7 +1327,7 @@ HaveSpan:
+ 		if track {
+ 			pp.limiterEvent.stop(limiterEventScavengeAssist, now)
+ 		}
+-		h.pages.scav.assistTime.Add(now - start)
++		scavenge.assistTime.Add(now - start)
+ 	}
+ 
+ 	// Commit and account for any scavenged memory that the span now owns.
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 853d7fc9ca..a8bfc62a80 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -48,7 +48,6 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -273,15 +272,10 @@ type pageAlloc struct {
+ 		// scavenge.
+ 		index scavengeIndex
+ 
+-		// released is the amount of memory released this generation.
++		// released is the amount of memory released this scavenge cycle.
+ 		//
+ 		// Updated atomically.
+ 		released uintptr
+-
+-		// scavengeAssistTime is the time spent scavenging in the last GC cycle.
+-		//
+-		// This is reset once a GC cycle ends.
+-		assistTime atomic.Int64
+ 	}
+ 
+ 	// mheap_.lock. This level of indirection makes it possible
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index d4ef933611..3a5273f361 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -879,3 +879,25 @@ func (m *consistentHeapStats) read(out *heapStatsDelta) {
+ 
+ 	releasem(mp)
+ }
++
++type cpuStats struct {
++	// All fields are CPU time in nanoseconds computed by comparing
++	// calls of nanotime. This means they're all overestimates, because
++	// they don't accurately compute on-CPU time (so some of the time
++	// could be spent scheduled away by the OS).
++
++	gcAssistTime    int64 // GC assists
++	gcDedicatedTime int64 // GC dedicated mark workers + pauses
++	gcIdleTime      int64 // GC idle mark workers
++	gcPauseTime     int64 // GC pauses (all GOMAXPROCS, even if just 1 is running)
++	gcTotalTime     int64
++
++	scavengeAssistTime int64 // background scavenger
++	scavengeBgTime     int64 // scavenge assists
++	scavengeTotalTime  int64
++
++	idleTime int64 // Time Ps spent in _Pidle.
++	userTime int64 // Time Ps spent in _Prunning or _Psyscall that's not any of the above.
++
++	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
++}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 1c620bbfbe..5e0d61c058 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -838,6 +838,11 @@ type schedt struct {
+ 	// as the sum of time a G spends in the _Grunnable state before
+ 	// it transitions to _Grunning.
+ 	timeToRun timeHistogram
++
++	// idleTime is the total CPU time Ps have "spent" idle.
++	//
++	// Reset on each GC cycle.
++	idleTime atomic.Int64
+ }
+ 
+ // Values for the flags field of a sigTabT.

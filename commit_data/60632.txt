@@ -15,6 +15,21 @@ Date:   Wed Aug 7 13:35:59 2024 -0500
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  .github/ISSUE_TEMPLATE/11-language-change.yml | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/11-language-change.yml b/.github/ISSUE_TEMPLATE/11-language-change.yml
+index 37ba2d7e40..ac26ef6cb4 100644
+--- a/.github/ISSUE_TEMPLATE/11-language-change.yml
++++ b/.github/ISSUE_TEMPLATE/11-language-change.yml
+@@ -1,7 +1,7 @@
+ name: Language Change Proposals
+ description: Changes to the language
+-labels: ["Proposal", "v2", "LanguageChange"]
+-title: "proposal: Go 2: proposal title"
++labels: ["Proposal", "LanguageChange", "LanguageChangeReview"]
++title: "proposal: spec: proposal title"
+ 
+ 
+ body:

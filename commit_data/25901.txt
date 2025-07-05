@@ -10,6 +10,19 @@ Date:   Wed Nov 25 17:35:44 2015 -0800
     Change-Id: I18bc9a736d5fb2a89d0f798956c754e3c10d10e2
     Reviewed-on: https://go-review.googlesource.com/17246
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/tls_arm64.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/tls_arm64.h b/src/runtime/tls_arm64.h
+index 0fdc750d0f..c29fa7f7a9 100644
+--- a/src/runtime/tls_arm64.h
++++ b/src/runtime/tls_arm64.h
+@@ -4,6 +4,7 @@
+ 
+ #ifdef GOOS_android
+ #define TLS_linux
++#define TLSG_IS_VARIABLE
+ #endif
+ #ifdef GOOS_linux
+ #define TLS_linux

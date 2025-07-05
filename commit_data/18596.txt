@@ -9,7 +9,32 @@ Date:   Sun Feb 23 12:52:23 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/64100047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 84431da218..02c0826db1 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -297,6 +297,7 @@ Pascal S. de Kloe <pascal@quies.net>
+ Patrick Crosby <patrick@stathat.com>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Patrick Higgins <patrick.allen.higgins@gmail.com>
++Patrick Mézard <patrick@mezard.eu>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
+ Patrick Smith <pat42smith@gmail.com>
+ Paul Hammond <paul@paulhammond.org>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4339fd1fcb..6cdfa94e09 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -414,6 +414,7 @@ Pascal S. de Kloe <pascal@quies.net>
+ Patrick Crosby <patrick@stathat.com>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Patrick Higgins <patrick.allen.higgins@gmail.com>
++Patrick Mézard <patrick@mezard.eu>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
+ Patrick Smith <pat42smith@gmail.com>
+ Paul Borman <borman@google.com>

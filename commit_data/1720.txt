@@ -7,6 +7,31 @@ Date:   Fri Feb 27 16:28:36 2009 -0800
     R=r
     OCL=25526
     CL=25528
-
+---
  usr/gri/pretty/printer.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 8f270216ef..f08e70ccdb 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -760,7 +760,7 @@ func (P *Printer) StatementList(list *vector.Vector) {
+ 		if i == 0 {
+ 			P.newlines = 1;
+ 		} else {  // i > 0
+-			if !P.opt_semi {
++			if !P.opt_semi || *optsemicolons {
+ 				// semicolon is required
+ 				P.separator = semicolon;
+ 			}
+@@ -806,6 +806,10 @@ func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
+ 	P.indentation--;
+ 	P.Expr(s.Label);
+ 	P.Token(s.Pos, Scanner.COLON);
++	// TODO not quite correct:
++	// - we must not print this optional semicolon, as it may invalidate code.
++	// - this will change once the AST reflects the LabelStatement change
++	P.opt_semi = true;
+ 	P.indentation++;
+ }
+ 

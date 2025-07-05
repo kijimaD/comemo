@@ -16,7 +16,7 @@ Date:   Mon Apr 24 21:49:26 2017 -0700
     Change-Id: I7a3daa1a6b07b7345bdce6f0cd7164bd4eaee952
     Reviewed-on: https://go-review.googlesource.com/41674
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go   |  4 ++--
  src/os/dir_windows.go  |  3 ---
  src/os/file.go         |  4 ++++
@@ -27,3 +27,193 @@ Date:   Mon Apr 24 21:49:26 2017 -0700
  src/os/stat_windows.go |  2 +-
  src/os/types_unix.go   |  2 --
  9 files changed, 46 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9aa966d14c..917aae19f6 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1096,9 +1096,9 @@ func (t *tester) runFlag(rx string) string {
+ }
+ 
+ func (t *tester) raceTest(dt *distTest) error {
+-	t.addCmd(dt, "src", "go", "test", "-race", "-i", "runtime/race", "flag", "os/exec")
++	t.addCmd(dt, "src", "go", "test", "-race", "-i", "runtime/race", "flag", "os", "os/exec")
+ 	t.addCmd(dt, "src", "go", "test", "-race", t.runFlag("Output"), "runtime/race")
+-	t.addCmd(dt, "src", "go", "test", "-race", "-short", t.runFlag("TestParse|TestEcho|TestStdinCloseRace"), "flag", "os/exec")
++	t.addCmd(dt, "src", "go", "test", "-race", "-short", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace"), "flag", "os", "os/exec")
+ 	// We don't want the following line, because it
+ 	// slows down all.bash (by 10 seconds on my laptop).
+ 	// The race builder should catch any error here, but doesn't.
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 2a012a8a12..2e3046d736 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -17,9 +17,6 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	if !file.isdir() {
+ 		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
+ 	}
+-	if !file.dirinfo.isempty && file.pfd.Sysfd == syscall.InvalidHandle {
+-		return nil, syscall.EINVAL
+-	}
+ 	wantAll := n <= 0
+ 	size := n
+ 	if wantAll {
+diff --git a/src/os/file.go b/src/os/file.go
+index d61124b338..e5a3efa884 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -38,6 +38,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/poll"
+ 	"io"
+ 	"syscall"
+ )
+@@ -101,6 +102,9 @@ func (f *File) Read(b []byte) (n int, err error) {
+ 	}
+ 	n, e := f.read(b)
+ 	if e != nil {
++		if e == poll.ErrClosing {
++			e = ErrClosed
++		}
+ 		if e == io.EOF {
+ 			err = e
+ 		} else {
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index e38668684c..98c87ee4cd 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -165,8 +165,5 @@ func (f *File) checkValid(op string) error {
+ 	if f == nil {
+ 		return ErrInvalid
+ 	}
+-	if f.pfd.Sysfd == badFd {
+-		return &PathError{op, f.name, ErrClosed}
+-	}
+ 	return nil
+ }
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 6e00f48393..6850ff7a56 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -183,14 +183,13 @@ func (f *File) Close() error {
+ }
+ 
+ func (file *file) close() error {
+-	if file == nil || file.pfd.Sysfd == badFd {
++	if file == nil {
+ 		return syscall.EINVAL
+ 	}
+ 	var err error
+ 	if e := file.pfd.Close(); e != nil {
+ 		err = &PathError{"close", file.name, e}
+ 	}
+-	file.pfd.Sysfd = badFd // so it can't be closed again
+ 
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(file, nil)
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index b7d4275d17..a6cdb3ff47 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -179,7 +179,7 @@ func (file *File) Close() error {
+ }
+ 
+ func (file *file) close() error {
+-	if file == nil || file.pfd.Sysfd == badFd {
++	if file == nil {
+ 		return syscall.EINVAL
+ 	}
+ 	if file.isdir() && file.dirinfo.isempty {
+@@ -190,7 +190,6 @@ func (file *file) close() error {
+ 	if e := file.pfd.Close(); e != nil {
+ 		err = &PathError{"close", file.name, e}
+ 	}
+-	file.pfd.Sysfd = badFd // so it can't be closed again
+ 
+ 	// no need for a finalizer anymore
+ 	runtime.SetFinalizer(file, nil)
+@@ -394,5 +393,3 @@ func Symlink(oldname, newname string) error {
+ 	}
+ 	return nil
+ }
+-
+-const badFd = syscall.InvalidHandle
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 74cce80ee4..032173b759 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -13,8 +13,10 @@ import (
+ 	"os"
+ 	osexec "os/exec"
+ 	"os/signal"
++	"runtime"
+ 	"syscall"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestEPIPE(t *testing.T) {
+@@ -111,3 +113,38 @@ func TestStdPipeHelper(t *testing.T) {
+ 	// For descriptor 3, a normal exit is expected.
+ 	os.Exit(0)
+ }
++
++func TestClosedPipeRace(t *testing.T) {
++	switch runtime.GOOS {
++	case "freebsd":
++		t.Skip("FreeBSD does not use the poller; issue 19093")
++	}
++
++	r, w, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r.Close()
++	defer w.Close()
++
++	// Close the read end of the pipe in a goroutine while we are
++	// writing to the write end.
++	go func() {
++		// Give the main goroutine a chance to enter the Read call.
++		// This is sloppy but the test will pass even if we close
++		// before the read.
++		time.Sleep(20 * time.Millisecond)
++
++		if err := r.Close(); err != nil {
++			t.Error(err)
++		}
++	}()
++
++	if _, err := r.Read(make([]byte, 1)); err == nil {
++		t.Error("Read of closed pipe unexpectedly succeeded")
++	} else if pe, ok := err.(*os.PathError); !ok {
++		t.Errorf("Read of closed pipe returned unexpected error type %T; expected os.PathError", pe)
++	} else {
++		t.Logf("Read returned expected error %q", err)
++	}
++}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 4e586ab78f..9b10f8b5cb 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -16,7 +16,7 @@ func (file *File) Stat() (FileInfo, error) {
+ 	if file == nil {
+ 		return nil, ErrInvalid
+ 	}
+-	if file == nil || file.pfd.Sysfd < 0 {
++	if file == nil {
+ 		return nil, syscall.EINVAL
+ 	}
+ 	if file.isdir() {
+diff --git a/src/os/types_unix.go b/src/os/types_unix.go
+index 1f614812fd..c0259ae0e8 100644
+--- a/src/os/types_unix.go
++++ b/src/os/types_unix.go
+@@ -29,5 +29,3 @@ func (fs *fileStat) Sys() interface{}   { return &fs.sys }
+ func sameFile(fs1, fs2 *fileStat) bool {
+ 	return fs1.sys.Dev == fs2.sys.Dev && fs1.sys.Ino == fs2.sys.Ino
+ }
+-
+-const badFd = -1

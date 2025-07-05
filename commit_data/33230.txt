@@ -7,6 +7,16 @@ Date:   Mon Aug 7 12:23:06 2017 -0700
     Change-Id: If95cec0ec7e32cdb450818c4c55e2d03b847ab65
     Reviewed-on: https://go-review.googlesource.com/53630
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+index e71f69452b..0a14d06d2c 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-go1.9rc1
+\ No newline at end of file
++go1.9rc2
+\ No newline at end of file

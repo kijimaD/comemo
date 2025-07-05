@@ -17,7 +17,7 @@ Date:   Wed Jun 14 14:33:43 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/objfile/macho.go       |   3 +
  src/cmd/pprof/pprof_test.go             |   3 +-
  src/runtime/defs_darwin.go              |  11 +++
@@ -36,3 +36,696 @@ Date:   Wed Jun 14 14:33:43 2023 -0700
  src/runtime/sys_darwin_amd64.s          |  22 ++++++
  src/runtime/sys_darwin_arm64.s          |  23 ++++++
  17 files changed, 464 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index 1d6963f7c4..c92497527a 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -128,6 +128,9 @@ func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+ 
+ func (f *machoFile) loadAddress() (uint64, error) {
++	if seg := f.macho.Segment("__TEXT"); seg != nil {
++		return seg.Addr, nil
++	}
+ 	return 0, fmt.Errorf("unknown load address")
+ }
+ 
+diff --git a/src/cmd/pprof/pprof_test.go b/src/cmd/pprof/pprof_test.go
+index 2a651dda5f..494cd8f24c 100644
+--- a/src/cmd/pprof/pprof_test.go
++++ b/src/cmd/pprof/pprof_test.go
+@@ -76,8 +76,7 @@ func mustHaveDisasm(t *testing.T) {
+ 
+ 	// pprof can only disassemble PIE on some platforms.
+ 	// Skip the ones it can't handle yet.
+-	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") ||
+-		(runtime.GOOS == "android" && runtime.GOARCH == "arm") {
++	if runtime.GOOS == "android" && runtime.GOARCH == "arm" {
+ 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
+ 	}
+ }
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index 9c6eeee45a..e37443307f 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -122,6 +122,9 @@ const (
+ 	O_NONBLOCK = C.O_NONBLOCK
+ 	O_CREAT    = C.O_CREAT
+ 	O_TRUNC    = C.O_TRUNC
++
++	VM_REGION_BASIC_INFO_COUNT_64 = C.VM_REGION_BASIC_INFO_COUNT_64
++	VM_REGION_BASIC_INFO_64       = C.VM_REGION_BASIC_INFO_64
+ )
+ 
+ type StackT C.struct_sigaltstack
+@@ -163,3 +166,11 @@ type PthreadCond C.pthread_cond_t
+ type PthreadCondAttr C.pthread_condattr_t
+ 
+ type MachTimebaseInfo C.mach_timebase_info_data_t
++
++type MachPort C.mach_port_t
++type MachVMMapRead C.vm_map_read_t
++type MachVMAddress C.mach_vm_address_t
++type MachVMSize C.mach_vm_size_t
++type MachVMRegionFlavour C.vm_region_flavor_t
++type MachVMRegionInfo C.vm_region_info_t
++type MachMsgTypeNumber C.mach_msg_type_number_t
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index fc7de3330a..f998b0be91 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -101,6 +101,9 @@ const (
+ 	_O_NONBLOCK = 0x4
+ 	_O_CREAT    = 0x200
+ 	_O_TRUNC    = 0x400
++
++	_VM_REGION_BASIC_INFO_COUNT_64 = 0x9
++	_VM_REGION_BASIC_INFO_64       = 0x9
+ )
+ 
+ type stackt struct {
+@@ -371,3 +374,11 @@ type machTimebaseInfo struct {
+ 	numer uint32
+ 	denom uint32
+ }
++
++type machPort uint32
++type machVMMapRead uint32
++type machVMAddress uint64
++type machVMSize uint64
++type machVMRegionFlavour int32
++type machVMRegionInfo *int32
++type machMsgTypeNumber uint32
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index e26df02959..e07b08e0ee 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -103,6 +103,9 @@ const (
+ 	_O_NONBLOCK = 0x4
+ 	_O_CREAT    = 0x200
+ 	_O_TRUNC    = 0x400
++
++	_VM_REGION_BASIC_INFO_COUNT_64 = 0x9
++	_VM_REGION_BASIC_INFO_64       = 0x9
+ )
+ 
+ type stackt struct {
+@@ -238,3 +241,11 @@ type machTimebaseInfo struct {
+ }
+ 
+ type pthreadkey uint64
++
++type machPort uint32
++type machVMMapRead uint32
++type machVMAddress uint64
++type machVMSize uint64
++type machVMRegionFlavour int32
++type machVMRegionInfo *int32
++type machMsgTypeNumber uint32
+diff --git a/src/runtime/pprof/defs_darwin.go b/src/runtime/pprof/defs_darwin.go
+new file mode 100644
+index 0000000000..2b2f68132c
+--- /dev/null
++++ b/src/runtime/pprof/defs_darwin.go
+@@ -0,0 +1,30 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is used as input to cgo --godefs (GOOS=arm64 or amd64) to
++// generate the types used in viminfo_darwin_{arm64,amd64}.go which are
++// hand edited as appropriate, primarily to avoid exporting the types.
++
++//go:build ignore
++
++package pprof
++
++/*
++#include <sys/param.h>
++#include <mach/vm_prot.h>
++#include <mach/vm_region.h>
++*/
++import "C"
++
++type machVMRegionBasicInfoData C.vm_region_basic_info_data_64_t
++
++const (
++	_VM_PROT_READ    = C.VM_PROT_READ
++	_VM_PROT_WRITE   = C.VM_PROT_WRITE
++	_VM_PROT_EXECUTE = C.VM_PROT_EXECUTE
++
++	_MACH_SEND_INVALID_DEST = C.MACH_SEND_INVALID_DEST
++
++	_MAXPATHLEN = C.MAXPATHLEN
++)
+diff --git a/src/runtime/pprof/defs_darwin_amd64.go b/src/runtime/pprof/defs_darwin_amd64.go
+new file mode 100644
+index 0000000000..14226495d8
+--- /dev/null
++++ b/src/runtime/pprof/defs_darwin_amd64.go
+@@ -0,0 +1,26 @@
++// Code generated by cmd/cgo -godefs; DO NOT EDIT.
++// cgo -godefs defs_darwin.go
++
++package pprof
++
++type machVMRegionBasicInfoData struct {
++	Protection       int32
++	Max_protection   int32
++	Inheritance      uint32
++	Shared           uint32
++	Reserved         uint32
++	Offset           uint64 // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte
++	Behavior         int32
++	User_wired_count uint16
++	Pad_cgo_1        [2]byte
++}
++
++const (
++	_VM_PROT_READ    = 0x1
++	_VM_PROT_WRITE   = 0x2
++	_VM_PROT_EXECUTE = 0x4
++
++	_MACH_SEND_INVALID_DEST = 0x10000003
++
++	_MAXPATHLEN = 0x400
++)
+diff --git a/src/runtime/pprof/defs_darwin_arm64.go b/src/runtime/pprof/defs_darwin_arm64.go
+new file mode 100644
+index 0000000000..2d34a80d80
+--- /dev/null
++++ b/src/runtime/pprof/defs_darwin_arm64.go
+@@ -0,0 +1,26 @@
++// Code generated by cmd/cgo -godefs; DO NOT EDIT.
++// cgo -godefs defs_darwin.go
++
++package pprof
++
++type machVMRegionBasicInfoData struct {
++	Protection       int32
++	Max_protection   int32
++	Inheritance      uint32
++	Shared           int32
++	Reserved         int32
++	Offset           uint64 // This is hand-edited since godefs generates: Pad_cgo_0 [8]byte
++	Behavior         int32
++	User_wired_count uint16
++	Pad_cgo_1        [2]byte
++}
++
++const (
++	_VM_PROT_READ    = 0x1
++	_VM_PROT_WRITE   = 0x2
++	_VM_PROT_EXECUTE = 0x4
++
++	_MACH_SEND_INVALID_DEST = 0x10000003
++
++	_MAXPATHLEN = 0x400
++)
+diff --git a/src/runtime/pprof/proto_darwin.go b/src/runtime/pprof/proto_darwin.go
+new file mode 100644
+index 0000000000..8db9e1d2b3
+--- /dev/null
++++ b/src/runtime/pprof/proto_darwin.go
+@@ -0,0 +1,36 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"errors"
++)
++
++// readMapping adds a mapping entry for the text region of the running process.
++// It uses the mach_vm_region region system call to add mapping entries for the
++// text region of the running process. Note that currently no attempt is
++// made to obtain the buildID information.
++func (b *profileBuilder) readMapping() {
++	if !machVMInfo(b.addMapping) {
++		b.addMappingEntry(0, 0, 0, "", "", true)
++	}
++}
++
++func readMainModuleMapping() (start, end uint64, exe, buildID string, err error) {
++	first := true
++	ok := machVMInfo(func(lo, hi, off uint64, file, build string) {
++		if first {
++			start, end = lo, hi
++			exe, buildID = file, build
++		}
++		// May see multiple text segments if rosetta is used for running
++		// the go toolchain itself.
++		first = false
++	})
++	if !ok {
++		return 0, 0, "", "", errors.New("machVMInfo failed")
++	}
++	return start, end, exe, buildID, nil
++}
+diff --git a/src/runtime/pprof/proto_other.go b/src/runtime/pprof/proto_other.go
+index 4a7fe79501..7322e84803 100644
+--- a/src/runtime/pprof/proto_other.go
++++ b/src/runtime/pprof/proto_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !windows
++//go:build !windows && !darwin
+ 
+ package pprof
+ 
+@@ -25,6 +25,6 @@ func (b *profileBuilder) readMapping() {
+ 	}
+ }
+ 
+-func readMainModuleMapping() (start, end uint64, err error) {
+-	return 0, 0, errors.New("not implemented")
++func readMainModuleMapping() (start, end uint64, exe, buildID string, err error) {
++	return 0, 0, "", "", errors.New("not implemented")
+ }
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 8ec9c9109a..eb43816b7c 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -101,16 +101,11 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 		addr2 = mprof.Mapping[1].Start
+ 		map2 = mprof.Mapping[1]
+ 		map2.BuildID, _ = elfBuildID(map2.File)
+-	case "windows":
++	case "windows", "darwin":
+ 		addr1 = uint64(abi.FuncPCABIInternal(f1))
+ 		addr2 = uint64(abi.FuncPCABIInternal(f2))
+ 
+-		exe, err := os.Executable()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-
+-		start, end, err := readMainModuleMapping()
++		start, end, exe, buildID, err := readMainModuleMapping()
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -120,7 +115,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 			Start:        start,
+ 			Limit:        end,
+ 			File:         exe,
+-			BuildID:      peBuildID(exe),
++			BuildID:      buildID,
+ 			HasFunctions: true,
+ 		}
+ 		map2 = &profile.Mapping{
+@@ -128,7 +123,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 			Start:        start,
+ 			Limit:        end,
+ 			File:         exe,
+-			BuildID:      peBuildID(exe),
++			BuildID:      buildID,
+ 			HasFunctions: true,
+ 		}
+ 	case "js", "wasip1":
+diff --git a/src/runtime/pprof/proto_windows.go b/src/runtime/pprof/proto_windows.go
+index d5ae4a5eec..f4dc44bd07 100644
+--- a/src/runtime/pprof/proto_windows.go
++++ b/src/runtime/pprof/proto_windows.go
+@@ -7,6 +7,7 @@ package pprof
+ import (
+ 	"errors"
+ 	"internal/syscall/windows"
++	"os"
+ 	"syscall"
+ )
+ 
+@@ -42,10 +43,14 @@ func (b *profileBuilder) readMapping() {
+ 	}
+ }
+ 
+-func readMainModuleMapping() (start, end uint64, err error) {
++func readMainModuleMapping() (start, end uint64, exe, buildID string, err error) {
++	exe, err = os.Executable()
++	if err != nil {
++		return 0, 0, "", "", err
++	}
+ 	snap, err := createModuleSnapshot()
+ 	if err != nil {
+-		return 0, 0, err
++		return 0, 0, "", "", err
+ 	}
+ 	defer func() { _ = syscall.CloseHandle(snap) }()
+ 
+@@ -53,10 +58,10 @@ func readMainModuleMapping() (start, end uint64, err error) {
+ 	module.Size = uint32(windows.SizeofModuleEntry32)
+ 	err = windows.Module32First(snap, &module)
+ 	if err != nil {
+-		return 0, 0, err
++		return 0, 0, "", "", err
+ 	}
+ 
+-	return uint64(module.ModBaseAddr), uint64(module.ModBaseAddr) + uint64(module.ModBaseSize), nil
++	return uint64(module.ModBaseAddr), uint64(module.ModBaseAddr) + uint64(module.ModBaseSize), exe, peBuildID(exe), nil
+ }
+ 
+ func createModuleSnapshot() (syscall.Handle, error) {
+diff --git a/src/runtime/pprof/vminfo_darwin.go b/src/runtime/pprof/vminfo_darwin.go
+new file mode 100644
+index 0000000000..7ddb0d1c68
+--- /dev/null
++++ b/src/runtime/pprof/vminfo_darwin.go
+@@ -0,0 +1,71 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"os"
++	"unsafe"
++)
++
++func isExecutable(protection int32) bool {
++	return (protection&_VM_PROT_EXECUTE) != 0 && (protection&_VM_PROT_READ) != 0
++}
++
++// machVMInfo uses the mach_vm_region region system call to add mapping entries
++// for the text region of the running process.
++func machVMInfo(addMapping func(lo, hi, offset uint64, file, buildID string)) bool {
++	added := false
++	var addr uint64 = 0x1
++	for {
++		var memRegionSize uint64
++		var info machVMRegionBasicInfoData
++		// Get the first address and page size.
++		kr := mach_vm_region(
++			&addr,
++			&memRegionSize,
++			unsafe.Pointer(&info))
++		if kr != 0 {
++			if kr == _MACH_SEND_INVALID_DEST {
++				// No more memory regions.
++				return true
++			}
++			return added // return true if at least one mapping was added
++		}
++		if isExecutable(info.Protection) {
++			// NOTE: the meaning/value of Offset is unclear. However,
++			// this likely doesn't matter as the text segment's file
++			// offset is usually 0.
++			addMapping(addr,
++				addr+memRegionSize,
++				uint64(info.Offset),
++				regionFilename(addr),
++				"")
++			added = true
++		}
++		addr += memRegionSize
++	}
++}
++
++func regionFilename(address uint64) string {
++	buf := make([]byte, _MAXPATHLEN)
++	r := proc_regionfilename(
++		os.Getpid(),
++		address,
++		unsafe.SliceData(buf),
++		int64(cap(buf)))
++	if r == 0 {
++		return ""
++	}
++	return string(buf[:r])
++}
++
++// mach_vm_region and proc_regionfilename are implemented by
++// the runtime package (runtime/sys_darwin.go).
++//
++//go:noescape
++func mach_vm_region(address, region_size *uint64, info unsafe.Pointer) int32
++
++//go:noescape
++func proc_regionfilename(pid int, address uint64, buf *byte, buflen int64) int32
+diff --git a/src/runtime/pprof/vminfo_darwin_test.go b/src/runtime/pprof/vminfo_darwin_test.go
+new file mode 100644
+index 0000000000..3023878fde
+--- /dev/null
++++ b/src/runtime/pprof/vminfo_darwin_test.go
+@@ -0,0 +1,122 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import (
++	"bufio"
++	"bytes"
++	"internal/abi"
++	"os"
++	"os/exec"
++	"strconv"
++	"strings"
++	"testing"
++)
++
++func TestVMInfo(t *testing.T) {
++	var begin, end, offset uint64
++	var filename string
++	first := true
++	machVMInfo(func(lo, hi, off uint64, file, buildID string) {
++		if first {
++			begin = lo
++			end = hi
++			offset = off
++			filename = file
++		}
++		// May see multiple text segments if rosetta is used for running
++		// the go toolchain itself.
++		first = false
++	})
++	lo, hi := useVMMap(t)
++	if got, want := begin, lo; got != want {
++		t.Errorf("got %x, want %x", got, want)
++	}
++	if got, want := end, hi; got != want {
++		t.Errorf("got %x, want %x", got, want)
++	}
++	if got, want := offset, uint64(0); got != want {
++		t.Errorf("got %x, want %x", got, want)
++	}
++	if !strings.HasSuffix(filename, "pprof.test") {
++		t.Errorf("got %s, want pprof.test", filename)
++	}
++	addr := uint64(abi.FuncPCABIInternal(TestVMInfo))
++	if addr < lo || addr > hi {
++		t.Errorf("%x..%x does not contain function %p (%x)", lo, hi, TestVMInfo, addr)
++	}
++}
++
++func useVMMap(t *testing.T) (hi, lo uint64) {
++	pid := strconv.Itoa(os.Getpid())
++	out, err := exec.Command("vmmap", pid).Output()
++	if err != nil {
++		t.Fatal(err)
++	}
++	return parseVmmap(t, out)
++}
++
++// parseVmmap parses the output of vmmap and calls addMapping for the first r-x TEXT segment in the output.
++func parseVmmap(t *testing.T, data []byte) (hi, lo uint64) {
++	// vmmap 53799
++	// Process:         gopls [53799]
++	// Path:            /Users/USER/*/gopls
++	// Load Address:    0x1029a0000
++	// Identifier:      gopls
++	// Version:         ???
++	// Code Type:       ARM64
++	// Platform:        macOS
++	// Parent Process:  Code Helper (Plugin) [53753]
++	//
++	// Date/Time:       2023-05-25 09:45:49.331 -0700
++	// Launch Time:     2023-05-23 09:35:37.514 -0700
++	// OS Version:      macOS 13.3.1 (22E261)
++	// Report Version:  7
++	// Analysis Tool:   /Applications/Xcode.app/Contents/Developer/usr/bin/vmmap
++	// Analysis Tool Version:  Xcode 14.3 (14E222b)
++	//
++	// Physical footprint:         1.2G
++	// Physical footprint (peak):  1.2G
++	// Idle exit:                  untracked
++	// ----
++	//
++	// Virtual Memory Map of process 53799 (gopls)
++	// Output report format:  2.4  -64-bit process
++	// VM page size:  16384 bytes
++	//
++	// ==== Non-writable regions for process 53799
++	// REGION TYPE                    START END         [ VSIZE  RSDNT  DIRTY   SWAP] PRT/MAX SHRMOD PURGE    REGION DETAIL
++	// __TEXT                      1029a0000-1033bc000    [ 10.1M  7360K     0K     0K] r-x/rwx SM=COW          /Users/USER/*/gopls
++	// __DATA_CONST                1033bc000-1035bc000    [ 2048K  2000K     0K     0K] r--/rwSM=COW          /Users/USER/*/gopls
++	// __DATA_CONST                1035bc000-103a48000    [ 4656K  3824K     0K     0K] r--/rwSM=COW          /Users/USER/*/gopls
++	// __LINKEDIT                  103b00000-103c98000    [ 1632K  1616K     0K     0K] r--/r-SM=COW          /Users/USER/*/gopls
++	// dyld private memory         103cd8000-103cdc000    [   16K     0K     0K     0K] ---/--SM=NUL
++	// shared memory               103ce4000-103ce8000    [   16K    16K    16K     0K] r--/r-SM=SHM
++	// MALLOC metadata             103ce8000-103cec000    [   16K    16K    16K     0K] r--/rwx SM=COW          DefaultMallocZone_0x103ce8000 zone structure
++	// MALLOC guard page           103cf0000-103cf4000    [   16K     0K     0K     0K] ---/rwx SM=COW
++	// MALLOC guard page           103cfc000-103d00000    [   16K     0K     0K     0K] ---/rwx SM=COW
++	// MALLOC guard page           103d00000-103d04000    [   16K     0K     0K     0K] ---/rwx SM=NUL
++
++	banner := "==== Non-writable regions for process"
++	grabbing := false
++	sc := bufio.NewScanner(bytes.NewReader(data))
++	for sc.Scan() {
++		l := sc.Text()
++		if grabbing {
++			p := strings.Fields(l)
++			if len(p) > 7 && p[0] == "__TEXT" && p[7] == "r-x/rwx" {
++				locs := strings.Split(p[1], "-")
++				start, _ := strconv.ParseUint(locs[0], 16, 64)
++				end, _ := strconv.ParseUint(locs[1], 16, 64)
++				return start, end
++			}
++		}
++		if strings.HasPrefix(l, banner) {
++			grabbing = true
++		}
++	}
++	t.Fatal("vmmap no text segment found")
++	return 0, 0
++}
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index fa9a2fbd52..45175d8663 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -549,6 +549,58 @@ func issetugid() int32 {
+ }
+ func issetugid_trampoline()
+ 
++// mach_vm_region is used to obtain virtual memory mappings for use by the
++// profiling system and is only exported to runtime/pprof. It is restricted
++// to obtaining mappings for the current process.
++//
++//go:linkname mach_vm_region runtime/pprof.mach_vm_region
++func mach_vm_region(address, region_size *uint64, info unsafe.Pointer) int32 {
++	// kern_return_t mach_vm_region(
++	// 	vm_map_read_t target_task,
++	// 	mach_vm_address_t *address,
++	// 	mach_vm_size_t *size,
++	// 	vm_region_flavor_t flavor,
++	// 	vm_region_info_t info,
++	// 	mach_msg_type_number_t *infoCnt,
++	// 	mach_port_t *object_name);
++	var count machMsgTypeNumber = _VM_REGION_BASIC_INFO_COUNT_64
++	var object_name machPort
++	args := struct {
++		address     *uint64
++		size        *uint64
++		flavor      machVMRegionFlavour
++		info        unsafe.Pointer
++		count       *machMsgTypeNumber
++		object_name *machPort
++	}{
++		address:     address,
++		size:        region_size,
++		flavor:      _VM_REGION_BASIC_INFO_64,
++		info:        info,
++		count:       &count,
++		object_name: &object_name,
++	}
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(mach_vm_region_trampoline)), unsafe.Pointer(&args))
++}
++func mach_vm_region_trampoline()
++
++//go:linkname proc_regionfilename runtime/pprof.proc_regionfilename
++func proc_regionfilename(pid int, address uint64, buf *byte, buflen int64) int32 {
++	args := struct {
++		pid     int
++		address uint64
++		buf     *byte
++		bufSize int64
++	}{
++		pid:     pid,
++		address: address,
++		buf:     buf,
++		bufSize: buflen,
++	}
++	return libcCall(unsafe.Pointer(abi.FuncPCABI0(proc_regionfilename_trampoline)), unsafe.Pointer(&args))
++}
++func proc_regionfilename_trampoline()
++
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+@@ -574,6 +626,9 @@ func issetugid_trampoline()
+ //go:cgo_import_dynamic libc_error __error "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_usleep usleep "/usr/lib/libSystem.B.dylib"
+ 
++//go:cgo_import_dynamic libc_proc_regionfilename proc_regionfilename "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_mach_task_self_ mach_task_self_ "/usr/lib/libSystem.B.dylib""
++//go:cgo_import_dynamic libc_mach_vm_region mach_vm_region "/usr/lib/libSystem.B.dylib""
+ //go:cgo_import_dynamic libc_mach_timebase_info mach_timebase_info "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_mach_absolute_time mach_absolute_time "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_clock_gettime clock_gettime "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 8e8ad9c8f7..01992d59d4 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -796,3 +796,25 @@ TEXT runtime·syscall_x509(SB),NOSPLIT,$16
+ TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+ 	CALL	libc_issetugid(SB)
+ 	RET
++
++// mach_vm_region_trampoline calls mach_vm_region from libc.
++TEXT runtime·mach_vm_region_trampoline(SB),NOSPLIT,$0
++	MOVQ	0(DI), SI // address
++	MOVQ	8(DI), DX // size
++	MOVL	16(DI), CX // flavor
++	MOVQ	24(DI), R8 // info
++	MOVQ	32(DI), R9 // count
++	MOVQ	40(DI), R10 // object_name
++	MOVQ	$libc_mach_task_self_(SB), DI
++	MOVL	0(DI), DI
++	CALL	libc_mach_vm_region(SB)
++	RET
++
++// proc_regionfilename_trampoline calls proc_regionfilename.
++TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0
++	MOVQ	8(DI), SI // address
++	MOVQ	16(DI), DX // buffer
++	MOVQ	24(DI), CX // buffer_size
++	MOVQ	0(DI), DI // pid
++	CALL	libc_proc_regionfilename(SB)
++	RET
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index dc6caf873b..32d1f95d56 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -767,3 +767,26 @@ TEXT runtime·syscall_x509(SB),NOSPLIT,$0
+ TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_issetugid(SB)
+ 	RET
++
++// mach_vm_region_trampoline calls mach_vm_region from libc.
++TEXT runtime·mach_vm_region_trampoline(SB),NOSPLIT,$0
++	MOVD	0(R0), R1	// address
++	MOVD	8(R0), R2	// size
++	MOVW	16(R0), R3	// flavor
++	MOVD	24(R0), R4	// info
++	MOVD	32(R0), R5	// count
++	MOVD	40(R0), R6  // object_name
++	MOVD	$libc_mach_task_self_(SB), R0
++	MOVW	0(R0), R0
++	BL	libc_mach_vm_region(SB)
++	RET
++
++// proc_regionfilename_trampoline calls proc_regionfilename for
++// the current process.
++TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// address
++	MOVD	16(R0), R2	// buffer
++	MOVD	24(R0), R3	// buffer_size
++	MOVD	0(R0), R0 // pid
++	BL	libc_proc_regionfilename(SB)
++	RET

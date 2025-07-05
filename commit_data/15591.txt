@@ -8,10 +8,100 @@ Date:   Tue Mar 5 09:46:52 2013 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7429048
-
+---
  src/pkg/runtime/asm_amd64.s  |  6 ++++++
  src/pkg/runtime/atomic_386.c | 13 +++++++++++++
  src/pkg/runtime/atomic_arm.c | 13 +++++++++++++
  src/pkg/runtime/runtime.c    |  4 ++++
  src/pkg/runtime/runtime.h    |  1 +
  5 files changed, 37 insertions(+)
+
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 987958498e..696befd6e4 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -442,6 +442,12 @@ TEXT runtime·xchg(SB), 7, $0
+ 	XCHGL	AX, 0(BX)
+ 	RET
+ 
++TEXT runtime·xchg64(SB), 7, $0
++	MOVQ	8(SP), BX
++	MOVQ	16(SP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
+ TEXT runtime·procyield(SB),7,$0
+ 	MOVL	8(SP), AX
+ again:
+diff --git a/src/pkg/runtime/atomic_386.c b/src/pkg/runtime/atomic_386.c
+index 79b7cbf96d..1046eb81e3 100644
+--- a/src/pkg/runtime/atomic_386.c
++++ b/src/pkg/runtime/atomic_386.c
+@@ -30,3 +30,16 @@ runtime·xadd64(uint64 volatile* addr, int64 v)
+ 	}
+ 	return old+v;
+ }
++
++#pragma textflag 7
++uint64
++runtime·xchg64(uint64 volatile* addr, uint64 v)
++{
++	uint64 old;
++
++	old = *addr;
++	while(!runtime·cas64(addr, &old, v)) {
++		// nothing
++	}
++	return old;
++}
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index 0b54840cc9..9193d599d3 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -121,6 +121,19 @@ runtime·xadd64(uint64 volatile *addr, int64 delta)
+ 	return res;
+ }
+ 
++#pragma textflag 7
++uint64
++runtime·xchg64(uint64 volatile *addr, uint64 v)
++{
++	uint64 res;
++
++	runtime·lock(LOCK(addr));
++	res = *addr;
++	*addr = v;
++	runtime·unlock(LOCK(addr));
++	return res;
++}
++
+ #pragma textflag 7
+ uint64
+ runtime·atomicload64(uint64 volatile *addr)
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 4d57cbafdf..d3ee2a0ec9 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -156,6 +156,10 @@ TestAtomic64(void)
+ 		runtime·throw("xadd64 failed");
+ 	if(runtime·atomicload64(&z64) != (2ull<<40)+2)
+ 		runtime·throw("xadd64 failed");
++	if(runtime·xchg64(&z64, (3ull<<40)+3) != (2ull<<40)+2)
++		runtime·throw("xchg64 failed");
++	if(runtime·atomicload64(&z64) != (3ull<<40)+3)
++		runtime·throw("xchg64 failed");
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 585d6a536e..8ed18432d8 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -691,6 +691,7 @@ bool	runtime·casp(void**, void*, void*);
+ uint32	runtime·xadd(uint32 volatile*, int32);
+ uint64	runtime·xadd64(uint64 volatile*, int64);
+ uint32	runtime·xchg(uint32 volatile*, uint32);
++uint64	runtime·xchg64(uint64 volatile*, uint64);
+ uint32	runtime·atomicload(uint32 volatile*);
+ void	runtime·atomicstore(uint32 volatile*, uint32);
+ void	runtime·atomicstore64(uint64 volatile*, uint64);

@@ -8,6 +8,20 @@ Date:   Fri Dec 16 22:52:02 2011 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5494062
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 651fa02d0b..9025d0e63c 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -63,7 +63,7 @@ OFILES_arm=\
+ 	softfloat_arm.$O\
+ 	vlop_arm.$O\
+ 	vlrt_arm.$O\
+-	traceback_x86.$O\
++	traceback_arm.$O\
+ 
+ OFILES=\
+ 	alg.$O\

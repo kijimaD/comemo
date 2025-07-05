@@ -23,7 +23,7 @@ Date:   Tue Feb 28 16:18:24 2012 -0500
     R=golang-dev, bradfitz, mikioh.mikioh, r, iant
     CC=golang-dev
     https://golang.org/cl/5697066
-
+---
  misc/pprof                            |  35 ++++++++----
  src/cmd/addr2line/main.c              |  68 +++++++++++++++++++++++
  src/cmd/dist/build.c                  | 100 ++++++++++++++++++----------------
@@ -52,3 +52,1295 @@ Date:   Tue Feb 28 16:18:24 2012 -0500
  src/pkg/runtime/thread_plan9.c        |   8 ++-
  src/pkg/runtime/thread_windows.c      |   8 ++-
  27 files changed, 379 insertions(+), 98 deletions(-)
+
+diff --git a/misc/pprof b/misc/pprof
+index 777a45cb7c..2fe56503c9 100755
+--- a/misc/pprof
++++ b/misc/pprof
+@@ -1,7 +1,7 @@
+ #! /usr/bin/env perl
+ 
+ # This is a copy of http://google-perftools.googlecode.com/svn/trunk/src/pprof
+-# with local modifications to handle generation of SVG images and 
++# with local modifications to handle generation of SVG images and
+ # the Go-style pprof paths.  These modifications will probably filter
+ # back into the official source before long.
+ # It's convenient to have a copy here because we need just the one
+@@ -9,11 +9,11 @@
+ 
+ # Copyright (c) 1998-2007, Google Inc.
+ # All rights reserved.
+-# 
++#
+ # Redistribution and use in source and binary forms, with or without
+ # modification, are permitted provided that the following conditions are
+ # met:
+-# 
++#
+ #     * Redistributions of source code must retain the above copyright
+ # notice, this list of conditions and the following disclaimer.
+ #     * Redistributions in binary form must reproduce the above
+@@ -23,7 +23,7 @@
+ #     * Neither the name of Google Inc. nor the names of its
+ # contributors may be used to endorse or promote products derived from
+ # this software without specific prior written permission.
+-# 
++#
+ # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+@@ -1234,6 +1234,13 @@ sub Disassemble {
+   my $cmd = sprintf("$objdump -C -d -l --no-show-raw-insn " .
+                     "--start-address=0x$start_addr " .
+                     "--stop-address=0x$end_addr $prog");
++
++  if (system("$objdump --help >/dev/null 2>&1") != 0) {
++    # objdump must not exist.  Fall back to go tool objdump.
++    $objdump = "go tool objdump";
++    $cmd = "$objdump $prog 0x$start_addr 0x$end_addr";
++  }
++
+   open(OBJDUMP, "$cmd |") || error("$objdump: $!\n");
+   my @result = ();
+   my $filename = "";
+@@ -1305,10 +1312,10 @@ sub PrintListing {
+   my $cumulative = shift;
+   my $list_opts = shift;
+   my $html = shift;
+-  
++
+   my $output = \*STDOUT;
+   my $fname = "";
+-  
++
+ 
+   if ($html) {
+     # Arrange to write the output to a temporary file
+@@ -1323,7 +1330,7 @@ sub PrintListing {
+     printf $output ("<div class=\"legend\">%s<br>Total: %s %s</div>\n",
+                     $main::prog, Unparse($total), Units());
+   }
+- 
++
+   my $listed = 0;
+   foreach my $lib (@{$libs}) {
+     my $symbol_table = GetProcedureBoundaries($lib->[0], $list_opts);
+@@ -2221,7 +2228,7 @@ function handleMouseWheel(evt) {
+ 		z = 0.1;
+ 	if(z > 10.0)
+ 		z = 10.0;
+-		
++
+ 	var g = svgDoc.getElementById("viewport");
+ 
+ 	var p = getEventPoint(evt);
+@@ -4391,6 +4398,12 @@ sub MapToSymbols {
+     $cmd = "$addr2line --demangle -f -C -e $image";
+   }
+ 
++  if (system("$addr2line --help >/dev/null 2>&1") != 0) {
++    # addr2line must not exist.  Fall back to go tool addr2line.
++    $addr2line = "go tool addr2line";
++    $cmd = "$addr2line $image";
++  }
++
+   # If "addr2line" isn't installed on the system at all, just use
+   # nm to get what info we can (function names, but not line numbers).
+   if (system("$addr2line --help >/dev/null 2>&1") != 0) {
+@@ -4434,7 +4447,7 @@ sub MapToSymbols {
+   if ($debug) {
+     print("----\n");
+     system("cat $main::tmpfile_sym");
+-    print("----\n");
++    print("---- $cmd\n");
+     system("$cmd <$main::tmpfile_sym");
+     print("----\n");
+   }
+@@ -4544,7 +4557,7 @@ sub ShortFunctionName {
+ # Trim overly long symbols found in disassembler output
+ sub CleanDisassembly {
+   my $d = shift;
+-  while ($d =~ s/(?<!\.)\([^()%]*\)(\s*const)?//g) { } # Argument types, not (%rax)
++  while ($d =~ s/(?<!\.)\([^()%A-Z]*\)(\s*const)?//g) { } # Argument types, not (%rax)
+   while ($d =~ s/(\w+)<[^<>]*>/$1/g)  { }       # Remove template arguments
+   return $d;
+ }
+@@ -4625,7 +4638,7 @@ sub ConfigureTool {
+     my $dirname = $`;    # this is everything up to and including the last slash
+     if (-x "$dirname$tool") {
+       $path = "$dirname$tool";
+-    } else { 
++    } else {
+       $path = $tool;
+     }
+   }
+diff --git a/src/cmd/addr2line/main.c b/src/cmd/addr2line/main.c
+new file mode 100644
+index 0000000000..6b2fe5dfe1
+--- /dev/null
++++ b/src/cmd/addr2line/main.c
+@@ -0,0 +1,68 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * addr2line simulation - only enough to make pprof work on Macs
++ */
++
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach.h>
++
++void
++usage(void)
++{
++	fprint(2, "usage: addr2line binary\n");
++	fprint(2, "reads addresses from standard input and writes two lines for each:\n");
++	fprint(2, "\tfunction name\n");
++	fprint(2, "\tfile:line\n");
++	exits("usage");
++}
++
++void
++main(int argc, char **argv)
++{
++	int fd;
++	char *p;
++	uvlong pc;
++	Symbol s;
++	Fhdr fhdr;
++	Biobuf bin, bout;
++	char file[1024];
++
++	ARGBEGIN{
++	default:
++		usage();
++	}ARGEND
++
++	if(argc != 1)
++		usage();
++
++	fd = open(argv[0], OREAD);
++	if(fd < 0)
++		sysfatal("open %s: %r", argv[0]);
++	if(crackhdr(fd, &fhdr) <= 0)
++		sysfatal("crackhdr: %r");
++	machbytype(fhdr.type);
++	if(syminit(fd, &fhdr) <= 0)
++		sysfatal("syminit: %r");
++
++	Binit(&bin, 0, OREAD);
++	Binit(&bout, 1, OWRITE);
++	for(;;) {
++		p = Brdline(&bin, '\n');
++		if(p == nil)
++			break;
++		p[Blinelen(&bin)-1] = '\0';
++		pc = strtoull(p, 0, 16);
++		if(!findsym(pc, CTEXT, &s))
++			s.name = "??";
++		if(!fileline(file, sizeof file, pc))
++			strcpy(file, "??:0");
++		Bprint(&bout, "%s\n%s\n", s.name, file);
++	}
++	Bflush(&bout);
++	exits(0);
++}
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 5664c1890a..66b5c1f183 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -59,7 +59,7 @@ int
+ find(char *p, char **l, int n)
+ {
+ 	int i;
+-	
++
+ 	for(i=0; i<n; i++)
+ 		if(streq(p, l[i]))
+ 			return i;
+@@ -73,7 +73,7 @@ init(void)
+ 	char *p;
+ 	int i;
+ 	Buf b;
+-	
++
+ 	binit(&b);
+ 
+ 	xgetenv(&b, "GOROOT");
+@@ -126,7 +126,7 @@ init(void)
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+-	
++
+ 	// Make the environment more predictable.
+ 	xsetenv("LANG", "C");
+ 	xsetenv("LANGUAGE", "en_US.UTF8");
+@@ -170,13 +170,13 @@ findgoversion(void)
+ 	int i, nrev;
+ 	Buf b, path, bmore, branch;
+ 	Vec tags;
+-	
++
+ 	binit(&b);
+ 	binit(&path);
+ 	binit(&bmore);
+ 	binit(&branch);
+ 	vinit(&tags);
+-	
++
+ 	// The $GOROOT/VERSION file takes priority, for distributions
+ 	// without the Mercurial repo.
+ 	bpathf(&path, "%s/VERSION", goroot);
+@@ -232,14 +232,14 @@ findgoversion(void)
+ 		bprintf(&b, "branch.%s", bstr(&branch));
+ 		tag = btake(&b);
+ 	}
+-	
++
+ 	if(rev[0]) {
+ 		// Tag is before the revision we're building.
+ 		// Add extra information.
+ 		run(&bmore, goroot, CheckExit, "hg", "log", "--template", " +{node|short}", "-r", rev, nil);
+ 		chomp(&bmore);
+ 	}
+-	
++
+ 	bprintf(&b, "%s", tag);
+ 	if(bmore.len > 0)
+ 		bwriteb(&b, &bmore);
+@@ -249,14 +249,14 @@ findgoversion(void)
+ 
+ done:
+ 	p = btake(&b);
+-	
+-	
++
++
+ 	bfree(&b);
+ 	bfree(&path);
+ 	bfree(&bmore);
+ 	bfree(&branch);
+ 	vfree(&tags);
+-	
++
+ 	return p;
+ }
+ 
+@@ -325,7 +325,7 @@ setup(void)
+ 			xremoveall(p);
+ 		xmkdirall(p);
+ 	}
+-	
++
+ 	// Create object directory.
+ 	// We keep it in pkg/ so that all the generated binaries
+ 	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
+@@ -393,7 +393,7 @@ static char *proto_gccargs[] = {
+ static Vec gccargs;
+ 
+ // deptab lists changes to the default dependencies for a given prefix.
+-// deps ending in /* read the whole directory; deps beginning with - 
++// deps ending in /* read the whole directory; deps beginning with -
+ // exclude files with that prefix.
+ static struct {
+ 	char *prefix;  // prefix of target
+@@ -559,7 +559,7 @@ install(char *dir)
+ 	vinit(&clean);
+ 	vinit(&lib);
+ 	vinit(&extra);
+-	
++
+ 	// path = full path to dir.
+ 	bpathf(&path, "%s/src/%s", goroot, dir);
+ 	name = lastelem(dir);
+@@ -599,7 +599,7 @@ install(char *dir)
+ 	exe = "";
+ 	if(streq(gohostos, "windows"))
+ 		exe = ".exe";
+-	
++
+ 	// Start final link command line.
+ 	// Note: code below knows that link.p[targ] is the target.
+ 	if(islib) {
+@@ -696,13 +696,13 @@ install(char *dir)
+ 					}
+ 					files.len = n;
+ 					continue;
+-				}				
++				}
+ 				vadd(&files, p);
+ 			}
+ 		}
+ 	}
+ 	vuniq(&files);
+-	
++
+ 	// Convert to absolute paths.
+ 	for(i=0; i<files.len; i++) {
+ 		if(!isabs(files.p[i])) {
+@@ -740,11 +740,11 @@ install(char *dir)
+ 		files.p[n++] = files.p[i];
+ 	}
+ 	files.len = n;
+-	
++
+ 	for(i=0; i<lib.len && !stale; i++)
+ 		if(mtime(lib.p[i]) > ttarg)
+ 			stale = 1;
+-		
++
+ 	if(!stale)
+ 		goto out;
+ 
+@@ -792,9 +792,9 @@ install(char *dir)
+ 		copy(bpathf(&b, "%s/zasm_GOOS_GOARCH.h", workdir),
+ 			bpathf(&b1, "%s/zasm_%s_%s.h", bstr(&path), goos, goarch), 0);
+ 	}
+-	
++
+ 	// Generate .c files from .goc files.
+-	if(streq(dir, "pkg/runtime")) {		
++	if(streq(dir, "pkg/runtime")) {
+ 		for(i=0; i<files.len; i++) {
+ 			p = files.p[i];
+ 			if(!hassuffix(p, ".goc"))
+@@ -808,7 +808,7 @@ install(char *dir)
+ 		}
+ 		vuniq(&files);
+ 	}
+-	
++
+ 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
+ 		// We've generated the right files; the go command can do the build.
+ 		if(vflag > 1)
+@@ -833,13 +833,13 @@ install(char *dir)
+ 				vadd(&compile, "-m32");
+ 			if(streq(dir, "lib9"))
+ 				vadd(&compile, "-DPLAN9PORT");
+-	
++
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, bpathf(&b, "%s/include", goroot));
+-			
++
+ 			vadd(&compile, "-I");
+ 			vadd(&compile, bstr(&path));
+-	
++
+ 			// lib9/goos.c gets the default constants hard-coded.
+ 			if(streq(name, "goos.c")) {
+ 				vadd(&compile, bprintf(&b, "-DGOOS=\"%s\"", goos));
+@@ -849,7 +849,7 @@ install(char *dir)
+ 				vadd(&compile, bprintf(&b, "-DGOROOT=\"%s\"", bstr(&b1)));
+ 				vadd(&compile, bprintf(&b, "-DGOVERSION=\"%s\"", goversion));
+ 			}
+-	
++
+ 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
+ 			if(streq(name, "lex.c")) {
+ 				xgetenv(&b, "GOEXPERIMENT");
+@@ -867,7 +867,7 @@ install(char *dir)
+ 			vadd(&compile, workdir);
+ 			vadd(&compile, bprintf(&b, "-DGOOS_%s", goos));
+ 			vadd(&compile, bprintf(&b, "-DGOARCH_%s", goarch));
+-		}	
++		}
+ 
+ 		bpathf(&b, "%s/%s", workdir, lastelem(files.p[i]));
+ 		doclean = 1;
+@@ -893,7 +893,7 @@ install(char *dir)
+ 			vadd(&clean, bstr(&b));
+ 	}
+ 	bgwait();
+-	
++
+ 	if(isgo) {
+ 		// The last loop was compiling individual files.
+ 		// Hand the Go files to the compiler en masse.
+@@ -905,16 +905,16 @@ install(char *dir)
+ 		vadd(&compile, bstr(&b));
+ 		vadd(&clean, bstr(&b));
+ 		vadd(&link, bstr(&b));
+-		
++
+ 		vadd(&compile, "-p");
+ 		if(hasprefix(dir, "pkg/"))
+ 			vadd(&compile, dir+4);
+ 		else
+ 			vadd(&compile, "main");
+-		
++
+ 		if(streq(dir, "pkg/runtime"))
+ 			vadd(&compile, "-+");
+-		
++
+ 		vcopy(&compile, go.p, go.len);
+ 
+ 		runv(nil, bstr(&path), CheckExit, &compile);
+@@ -980,7 +980,7 @@ shouldbuild(char *file, char *dir)
+ 	int i, j, ret;
+ 	Buf b;
+ 	Vec lines, fields;
+-	
++
+ 	// Check file name for GOOS or GOARCH.
+ 	name = lastelem(file);
+ 	for(i=0; i<nelem(okgoos); i++)
+@@ -989,11 +989,11 @@ shouldbuild(char *file, char *dir)
+ 	for(i=0; i<nelem(okgoarch); i++)
+ 		if(contains(name, okgoarch[i]) && !streq(okgoarch[i], goarch))
+ 			return 0;
+-	
++
+ 	// Omit test files.
+ 	if(contains(name, "_test"))
+ 		return 0;
+-	
++
+ 	// cmd/go/doc.go has a giant /* */ comment before
+ 	// it gets to the important detail that it is not part of
+ 	// package main.  We don't parse those comments,
+@@ -1046,7 +1046,7 @@ out:
+ 	bfree(&b);
+ 	vfree(&lines);
+ 	vfree(&fields);
+-	
++
+ 	return ret;
+ }
+ 
+@@ -1055,7 +1055,7 @@ static void
+ copy(char *dst, char *src, int exec)
+ {
+ 	Buf b;
+-	
++
+ 	if(vflag > 1)
+ 		xprintf("cp %s %s\n", src, dst);
+ 
+@@ -1070,11 +1070,13 @@ static char *buildorder[] = {
+ 	"lib9",
+ 	"libbio",
+ 	"libmach",
+-	
++
+ 	"misc/pprof",
+ 
++	"cmd/addr2line",
+ 	"cmd/cov",
+ 	"cmd/nm",
++	"cmd/objdump",
+ 	"cmd/pack",
+ 	"cmd/prof",
+ 
+@@ -1122,12 +1124,12 @@ static char *buildorder[] = {
+ 	"pkg/go/scanner",
+ 	"pkg/go/ast",
+ 	"pkg/go/parser",
+-	"pkg/go/build",
+ 	"pkg/os/exec",
+ 	"pkg/net/url",
+ 	"pkg/text/template/parse",
+ 	"pkg/text/template",
+ 	"pkg/go/doc",
++	"pkg/go/build",
+ 	"cmd/go",
+ };
+ 
+@@ -1147,11 +1149,13 @@ static char *cleantab[] = {
+ 	"cmd/8c",
+ 	"cmd/8g",
+ 	"cmd/8l",
++	"cmd/addr2line",
+ 	"cmd/cc",
+ 	"cmd/cov",
+ 	"cmd/gc",
+ 	"cmd/go",
+ 	"cmd/nm",
++	"cmd/objdump",
+ 	"cmd/pack",
+ 	"cmd/prof",
+ 	"lib9",
+@@ -1204,11 +1208,11 @@ clean(void)
+ 	int i, j, k;
+ 	Buf b, path;
+ 	Vec dir;
+-	
++
+ 	binit(&b);
+ 	binit(&path);
+ 	vinit(&dir);
+-	
++
+ 	for(i=0; i<nelem(cleantab); i++) {
+ 		bpathf(&path, "%s/src/%s", goroot, cleantab[i]);
+ 		xreaddir(&dir, bstr(&path));
+@@ -1227,7 +1231,7 @@ clean(void)
+ 	if(rebuildall) {
+ 		// Remove object tree.
+ 		xremoveall(bpathf(&b, "%s/pkg/obj/%s_%s", goroot, gohostos, gohostarch));
+-	
++
+ 		// Remove installed packages and tools.
+ 		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch));
+ 		xremoveall(bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch));
+@@ -1294,7 +1298,7 @@ cmdenv(int argc, char **argv)
+ 
+ 	if(argc > 0)
+ 		usage();
+-	
++
+ 	xprintf(format, "GOROOT", goroot);
+ 	xprintf(format, "GOBIN", gobin);
+ 	xprintf(format, "GOARCH", goarch);
+@@ -1346,7 +1350,7 @@ cmdbootstrap(int argc, char **argv)
+ 		clean();
+ 	goversion = findgoversion();
+ 	setup();
+-	
++
+ 	// For the main bootstrap, building for host os/arch.
+ 	oldgoos = goos;
+ 	oldgoarch = goarch;
+@@ -1356,7 +1360,7 @@ cmdbootstrap(int argc, char **argv)
+ 	gochar = gohostchar;
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+-	
++
+ 	for(i=0; i<nelem(buildorder); i++) {
+ 		install(bprintf(&b, buildorder[i], gohostchar));
+ 		if(!streq(oldgochar, gohostchar) && xstrstr(buildorder[i], "%s"))
+@@ -1381,7 +1385,7 @@ defaulttarg(void)
+ {
+ 	char *p;
+ 	Buf pwd, src, real_src;
+-	
++
+ 	binit(&pwd);
+ 	binit(&src);
+ 	binit(&real_src);
+@@ -1404,7 +1408,7 @@ defaulttarg(void)
+ 	bfree(&pwd);
+ 	bfree(&src);
+ 	bfree(&real_src);
+-	
++
+ 	return p;
+ }
+ 
+@@ -1421,7 +1425,7 @@ cmdinstall(int argc, char **argv)
+ 	default:
+ 		usage();
+ 	}ARGEND
+-	
++
+ 	if(argc == 0)
+ 		install(defaulttarg());
+ 
+@@ -1469,7 +1473,7 @@ cmdbanner(int argc, char **argv)
+ 	binit(&b);
+ 	binit(&b1);
+ 	binit(&search);
+-	
++
+ 	xprintf("\n");
+ 	xprintf("---\n");
+ 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot);
+@@ -1490,7 +1494,7 @@ cmdbanner(int argc, char **argv)
+ 			"On OS X the debuggers must be installed setgrp procmod.\n"
+ 			"Read and run ./sudo.bash to install the debuggers.\n");
+ 	}
+-	
++
+ 	if(!streq(goroot_final, goroot)) {
+ 		xprintf("\n"
+ 			"The binaries expect %s to be copied or moved to %s\n",
+diff --git a/src/cmd/objdump/main.c b/src/cmd/objdump/main.c
+new file mode 100644
+index 0000000000..b684be7fbe
+--- /dev/null
++++ b/src/cmd/objdump/main.c
+@@ -0,0 +1,68 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++ * objdump simulation - only enough to make pprof work on Macs
++ */
++
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <mach.h>
++
++void
++usage(void)
++{
++	fprint(2, "usage: objdump binary start stop\n");
++	fprint(2, "Disassembles binary from PC start up to stop.\n");
++	exits("usage");
++}
++
++void
++main(int argc, char **argv)
++{
++	int fd, n;
++	uvlong pc, start, stop;
++	Fhdr fhdr;
++	Biobuf bout;
++	char buf[1024];
++	Map *text;
++
++	ARGBEGIN{
++	default:
++		usage();
++	}ARGEND
++
++	if(argc != 3)
++		usage();
++	start = strtoull(argv[1], 0, 16);
++	stop = strtoull(argv[2], 0, 16);
++
++	fd = open(argv[0], OREAD);
++	if(fd < 0)
++		sysfatal("open %s: %r", argv[0]);
++	if(crackhdr(fd, &fhdr) <= 0)
++		sysfatal("crackhdr: %r");
++	machbytype(fhdr.type);
++	if(syminit(fd, &fhdr) <= 0)
++		sysfatal("syminit: %r");
++	text = loadmap(nil, fd, &fhdr);
++	if(text == nil)
++		sysfatal("loadmap: %r");
++
++	Binit(&bout, 1, OWRITE);
++	for(pc=start; pc<stop; ) {
++		if(fileline(buf, sizeof buf, pc))
++			Bprint(&bout, "%s\n", buf);
++		buf[0] = '\0';
++		machdata->das(text, pc, 0, buf, sizeof buf);
++		Bprint(&bout, " %llx: %s\n", pc, buf);
++		n = machdata->instsize(text, pc);
++		if(n <= 0)
++			break;
++		pc += n;
++	}
++	Bflush(&bout);
++	exits(0);
++}
+diff --git a/src/libmach/8db.c b/src/libmach/8db.c
+index 3101e13730..ce1b4ddd76 100644
+--- a/src/libmach/8db.c
++++ b/src/libmach/8db.c
+@@ -1,11 +1,11 @@
+ // Inferno libmach/8db.c
+ // http://code.google.com/p/inferno-os/source/browse/utils/libmach/8db.c
+ //
+-// 	Copyright © 1994-1999 Lucent Technologies Inc.
+-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
+-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
++//	Copyright © 1994-1999 Lucent Technologies Inc.
++//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
++//	Portions Copyright © 1997-1999 Vita Nuova Limited.
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
++//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+ //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+ //
+ // Permission is hereby granted, free of charge, to any person obtaining a copy
+@@ -2088,18 +2088,23 @@ immediate(Instr *ip, vlong val)
+ static void
+ pea(Instr *ip)
+ {
++	int base;
++
++	base = ip->base;
++	if(base >= 0 && (ip->rex & REXB))
++		base += 8;
++
+ 	if (ip->mod == 3) {
+ 		if (ip->osize == 'B')
+ 			bprint(ip, (ip->rex & REXB? breg64: breg)[(uchar)ip->base]);
+-		else if(ip->rex & REXB)
+-			bprint(ip, "%s%s", ANAME(ip), reg[ip->base+8]);
+ 		else
+-			bprint(ip, "%s%s", ANAME(ip), reg[(uchar)ip->base]);
++			bprint(ip, "%s%s", ANAME(ip), reg[base]);
+ 		return;
+ 	}
++
+ 	if (ip->segment)
+ 		bprint(ip, ip->segment);
+-	if (ip->asize == 'E' && ip->base == SP)
++	if (ip->asize == 'E' && base == SP)
+ 		plocal(ip);
+ 	else {
+ 		if (ip->base < 0)
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 6ec4aee7bf..b4465bff18 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -118,8 +118,12 @@ runtime·notewakeup(Note *n)
+ void
+ runtime·notesleep(Note *n)
+ {
++	if(m->profilehz > 0)
++		runtime·setprof(false);
+ 	while(runtime·atomicload(&n->key) == 0)
+ 		runtime·futexsleep(&n->key, 0, -1);
++	if(m->profilehz > 0)
++		runtime·setprof(true);
+ }
+ 
+ void
+@@ -135,14 +139,18 @@ runtime·notetsleep(Note *n, int64 ns)
+ 	if(runtime·atomicload(&n->key) != 0)
+ 		return;
+ 
++	if(m->profilehz > 0)
++		runtime·setprof(false);
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
+ 		runtime·futexsleep(&n->key, 0, ns);
+ 		if(runtime·atomicload(&n->key) != 0)
+-			return;
++			break;
+ 		now = runtime·nanotime();
+ 		if(now >= deadline)
+-			return;
++			break;
+ 		ns = deadline - now;
+ 	}
++	if(m->profilehz > 0)
++		runtime·setprof(true);
+ }
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 28d2c3281e..1d9c37fdb6 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -154,7 +154,11 @@ runtime·notesleep(Note *n)
+ 		return;
+ 	}
+ 	// Queued.  Sleep.
++	if(m->profilehz > 0)
++		runtime·setprof(false);
+ 	runtime·semasleep(-1);
++	if(m->profilehz > 0)
++		runtime·setprof(true);
+ }
+ 
+ void
+@@ -178,12 +182,16 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		return;
+ 	}
+ 
++	if(m->profilehz > 0)
++		runtime·setprof(false);
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
+ 		// Registered.  Sleep.
+ 		if(runtime·semasleep(ns) >= 0) {
+ 			// Acquired semaphore, semawakeup unregistered us.
+ 			// Done.
++			if(m->profilehz > 0)
++				runtime·setprof(true);
+ 			return;
+ 		}
+ 
+@@ -196,6 +204,9 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		ns = deadline - now;
+ 	}
+ 
++	if(m->profilehz > 0)
++		runtime·setprof(true);
++
+ 	// Deadline arrived.  Still registered.  Semaphore not acquired.
+ 	// Want to give up and return, but have to unregister first,
+ 	// so that any notewakeup racing with the return does not
+diff --git a/src/pkg/runtime/os_darwin.h b/src/pkg/runtime/os_darwin.h
+index 071a547177..eb5d2daa38 100644
+--- a/src/pkg/runtime/os_darwin.h
++++ b/src/pkg/runtime/os_darwin.h
+@@ -38,4 +38,7 @@ void	runtime·raisesigpipe(void);
+ 
+ #define	NSIG 32
+ #define	SI_USER	0  /* empirically true, but not what headers say */
++#define	SIG_BLOCK 1
++#define	SIG_UNBLOCK 2
+ #define	SIG_SETMASK 3
++
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index da1d8de2eb..5e8de5434a 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -9,7 +9,6 @@ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·sigprocmask(Sigset *, Sigset *);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+-void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/os_netbsd.h b/src/pkg/runtime/os_netbsd.h
+index 67c58ecb2a..4ecf78d882 100644
+--- a/src/pkg/runtime/os_netbsd.h
++++ b/src/pkg/runtime/os_netbsd.h
+@@ -12,7 +12,6 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+-void	runtime·setitimerval(int32, Itimerval*, Itimerval*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/os_openbsd.h b/src/pkg/runtime/os_openbsd.h
+index 67c58ecb2a..4ecf78d882 100644
+--- a/src/pkg/runtime/os_openbsd.h
++++ b/src/pkg/runtime/os_openbsd.h
+@@ -12,7 +12,6 @@ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp);
+-void	runtime·setitimerval(int32, Itimerval*, Itimerval*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+ int32	runtime·sysctl(uint32*, uint32, byte*, uintptr*, byte*, uintptr);
+ 
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 099bb6a92f..f67e8a8f9a 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -20,8 +20,8 @@ import (
+ 	"text/tabwriter"
+ )
+ 
+-// BUG(rsc): CPU profiling is broken on OS X, due to an Apple kernel bug.
+-// For details, see http://code.google.com/p/go/source/detail?r=35b716c94225.
++// BUG(rsc): A bug in the OS X Snow Leopard 64-bit kernel prevents
++// CPU profiling from giving accurate results on that system.
+ 
+ // A Profile is a collection of stack traces showing the call sequences
+ // that led to instances of a particular event, such as allocation.
+@@ -156,7 +156,7 @@ func (p *Profile) Count() int {
+ }
+ 
+ // Add adds the current execution stack to the profile, associated with value.
+-// Add stores value in an internal map, so value must be suitable for use as 
++// Add stores value in an internal map, so value must be suitable for use as
+ // a map key and will not be garbage collected until the corresponding
+ // call to Remove.  Add panics if the profile already contains a stack for value.
+ //
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 5f128c01cf..994ec9dde4 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -7,6 +7,7 @@ package pprof_test
+ import (
+ 	"bytes"
+ 	"hash/crc32"
++	"os/exec"
+ 	"runtime"
+ 	. "runtime/pprof"
+ 	"strings"
+@@ -17,8 +18,15 @@ import (
+ func TestCPUProfile(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "darwin":
+-		// see Apple Bug Report #9177434 (copied into change description)
+-		return
++		out, err := exec.Command("uname", "-a").CombinedOutput()
++		if err != nil {
++			t.Fatal(err)
++		}
++		vers := string(out)
++		t.Logf("uname -a: %v", vers)
++		if strings.Contains(vers, "Darwin Kernel Version 10.8.0") && strings.Contains(vers, "root:xnu-1504.15.3~1/RELEASE_X86_64") {
++			t.Logf("skipping test on known-broken kernel (64-bit Snow Leopard)")
++		}
+ 	case "plan9":
+ 		// unimplemented
+ 		return
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d94bec8855..ddac048a00 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -338,7 +338,7 @@ mcommoninit(M *m)
+ 		m->mcache = runtime·allocmcache();
+ 
+ 	runtime·callers(1, m->createstack, nelem(m->createstack));
+-	
++
+ 	// Add to runtime·allm so garbage collector doesn't free m
+ 	// when it is just in a register or thread-local storage.
+ 	m->alllink = runtime·allm;
+@@ -728,7 +728,6 @@ runtime·mstart(void)
+ 	// so other calls can reuse this stack space.
+ 	runtime·gosave(&m->g0->sched);
+ 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
+-
+ 	runtime·asminit();
+ 	runtime·minit();
+ 	schedule(nil);
+@@ -916,6 +915,9 @@ runtime·entersyscall(void)
+ {
+ 	uint32 v;
+ 
++	if(m->profilehz > 0)
++		runtime·setprof(false);
++
+ 	// Leave SP around for gc and traceback.
+ 	runtime·gosave(&g->sched);
+ 	g->gcsp = g->sched.sp;
+@@ -979,6 +981,9 @@ runtime·exitsyscall(void)
+ 		// Garbage collector isn't running (since we are),
+ 		// so okay to clear gcstack.
+ 		g->gcstack = nil;
++
++		if(m->profilehz > 0)
++			runtime·setprof(true);
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3b0f505e72..f2669fdb7e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -730,3 +730,13 @@ bool	runtime·showframe(Func*);
+ void	runtime·ifaceE2I(struct InterfaceType*, Eface, Iface*);
+ 
+ uintptr	runtime·memlimit(void);
++
++// If appropriate, ask the operating system to control whether this
++// thread should receive profiling signals.  This is only necessary on OS X.
++// An operating system should not deliver a profiling signal to a
++// thread that is not actually executing (what good is that?), but that's
++// what OS X prefers to do.  When profiling is turned on, we mask
++// away the profiling signal when threads go to sleep, so that OS X
++// is forced to deliver the signal to a thread that's actually running.
++// This is a no-op on other systems.
++void	runtime·setprof(bool);
+diff --git a/src/pkg/runtime/signal_darwin_386.c b/src/pkg/runtime/signal_darwin_386.c
+index 1844f68a63..9e986352b4 100644
+--- a/src/pkg/runtime/signal_darwin_386.c
++++ b/src/pkg/runtime/signal_darwin_386.c
+@@ -40,7 +40,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	r = &mc->ss;
+ 
+ 	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
++		if(gp != m->g0 && gp != m->gsignal)
++			runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
+ 		return;
+ 	}
+ 
+@@ -58,7 +59,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+ 				info->si_code = FPE_INTDIV;
+ 		}
+-		
++
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+diff --git a/src/pkg/runtime/signal_darwin_amd64.c b/src/pkg/runtime/signal_darwin_amd64.c
+index 32c73081c1..d9c5f48e7c 100644
+--- a/src/pkg/runtime/signal_darwin_amd64.c
++++ b/src/pkg/runtime/signal_darwin_amd64.c
+@@ -48,7 +48,8 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	r = &mc->ss;
+ 
+ 	if(sig == SIGPROF) {
+-		runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
++		if(gp != m->g0 && gp != m->gsignal)
++			runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
+ 		return;
+ 	}
+ 
+@@ -68,7 +69,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 			if(pc[0] == 0xF6 || pc[0] == 0xF7)
+ 				info->si_code = FPE_INTDIV;
+ 		}
+-		
++
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -77,7 +78,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		gp->sigcode0 = info->si_code;
+ 		gp->sigcode1 = (uintptr)info->si_addr;
+ 		gp->sigpc = r->rip;
+-		
++
+ 		// Only push runtime·sigpanic if r->rip != 0.
+ 		// If r->rip == 0, probably panicked because of a
+ 		// call to a nil func.  Not pushing that onto sp will
+@@ -92,7 +93,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 		r->rip = (uintptr)runtime·sigpanic;
+ 		return;
+ 	}
+-	
++
+ 	if(info->si_code == SI_USER || (t->flags & SigNotify))
+ 		if(runtime·sigsend(sig))
+ 			return;
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index 13708415b9..0b9d2a55a1 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -55,17 +55,17 @@ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+ 	Itimerval it;
+-	
++
+ 	runtime·memclr((byte*)&it, sizeof it);
+ 	if(hz == 0) {
+ 		runtime·setitimer(ITIMER_PROF, &it, nil);
+-		runtime·setsig(SIGPROF, SIG_IGN, true);
++		runtime·setprof(false);
+ 	} else {
+-		runtime·setsig(SIGPROF, runtime·sighandler, true);
+ 		it.it_interval.tv_sec = 0;
+ 		it.it_interval.tv_usec = 1000000 / hz;
+ 		it.it_value = it.it_interval;
+ 		runtime·setitimer(ITIMER_PROF, &it, nil);
++		runtime·setprof(true);
+ 	}
+ 	m->profilehz = hz;
+ }
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index e235a8473d..c2dab8931c 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -100,14 +100,14 @@ TEXT runtime·nanotime(SB), 7, $32
+ 	IMULL	$1000, BX
+ 	ADDL	BX, AX
+ 	ADCL	$0, DX
+-	
++
+ 	MOVL	ret+0(FP), DI
+ 	MOVL	AX, 0(DI)
+ 	MOVL	DX, 4(DI)
+ 	RET
+ 
+ TEXT runtime·sigprocmask(SB),7,$0
+-	MOVL	$48, AX
++	MOVL	$329, AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+ 	INT	$0x80
+ 	JAE	2(PC)
+ 	CALL	runtime·notok(SB)
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index 13882c8524..4b215d04d4 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -96,7 +96,7 @@ TEXT runtime·sigprocmask(SB),7,$0
+ 	MOVL	8(SP), DI
+ 	MOVQ	16(SP), SI
+ 	MOVQ	24(SP), DX
+-	MOVL	$(0x2000000+48), AX	// syscall entry
++	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)
+ 	SYSCALL
+ 	JCC	2(PC)
+ 	CALL	runtime·notok(SB)
+diff --git a/src/pkg/runtime/thread_darwin.c b/src/pkg/runtime/thread_darwin.c
+index d170dfb3d3..556fb67e84 100644
+--- a/src/pkg/runtime/thread_darwin.c
++++ b/src/pkg/runtime/thread_darwin.c
+@@ -11,6 +11,7 @@ extern SigTab runtime·sigtab[];
+ 
+ static Sigset sigset_all = ~(Sigset)0;
+ static Sigset sigset_none;
++static Sigset sigset_prof = 1<<(SIGPROF-1);
+ 
+ static void
+ unimplemented(int8 *name)
+@@ -23,7 +24,14 @@ unimplemented(int8 *name)
+ int32
+ runtime·semasleep(int64 ns)
+ {
+-	return runtime·mach_semacquire(m->waitsema, ns);
++	int32 v;
++
++	if(m->profilehz > 0)
++		runtime·setprof(false);
++	v = runtime·mach_semacquire(m->waitsema, ns);
++	if(m->profilehz > 0)
++		runtime·setprof(true);
++	return v;
+ }
+ 
+ void
+@@ -84,7 +92,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_all, &oset);
+ 	errno = runtime·bsdthread_create(stk, m, g, fn);
+ 	runtime·sigprocmask(SIG_SETMASK, &oset, nil);
+-	
++
+ 	if(errno < 0) {
+ 		runtime·printf("runtime: failed to create new OS thread (have %d already; errno=%d)\n", runtime·mcount(), -errno);
+ 		runtime·throw("runtime.newosproc");
+@@ -98,7 +106,11 @@ runtime·minit(void)
+ 	// Initialize signal handling.
+ 	m->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+ 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
+-	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
++
++	if(m->profilehz > 0)
++		runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
++	else
++		runtime·sigprocmask(SIG_SETMASK, &sigset_prof, nil);
+ }
+ 
+ // Mach IPC, to get at semaphores
+@@ -434,3 +446,34 @@ runtime·memlimit(void)
+ 	// the limit.
+ 	return 0;
+ }
++
++// NOTE(rsc): On OS X, when the CPU profiling timer expires, the SIGPROF
++// signal is not guaranteed to be sent to the thread that was executing to
++// cause it to expire.  It can and often does go to a sleeping thread, which is
++// not interesting for our profile.  This is filed Apple Bug Report #9177434,
++// copied to http://code.google.com/p/go/source/detail?r=35b716c94225.
++// To work around this bug, we disable receipt of the profiling signal on
++// a thread while in blocking system calls.  This forces the kernel to deliver
++// the profiling signal to an executing thread.
++//
++// The workaround fails on OS X machines using a 64-bit Snow Leopard kernel.
++// In that configuration, the kernel appears to want to deliver SIGPROF to the
++// sleeping threads regardless of signal mask and, worse, does not deliver
++// the signal until the thread wakes up on its own.
++//
++// If necessary, we can switch to using ITIMER_REAL for OS X and handle
++// the kernel-generated SIGALRM by generating our own SIGALRMs to deliver
++// to all the running threads.  SIGALRM does not appear to be affected by
++// the 64-bit Snow Leopard bug.  However, as of this writing Mountain Lion
++// is in preview, making Snow Leopard two versions old, so it is unclear how
++// much effort we need to spend on one buggy kernel.
++
++// Control whether profiling signal can be delivered to this thread.
++void
++runtime·setprof(bool on)
++{
++	if(on)
++		runtime·sigprocmask(SIG_UNBLOCK, &sigset_prof, nil);
++	else
++		runtime·sigprocmask(SIG_BLOCK, &sigset_prof, nil);
++}
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 7871827a97..77e8bb3dac 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -189,3 +189,9 @@ runtime·memlimit(void)
+ 
+ 	return rl.rlim_cur - used;
+ }
++
++void
++runtime·setprof(bool on)
++{
++	USED(on);
++}
+diff --git a/src/pkg/runtime/thread_linux.c b/src/pkg/runtime/thread_linux.c
+index d406a71240..6b428440e0 100644
+--- a/src/pkg/runtime/thread_linux.c
++++ b/src/pkg/runtime/thread_linux.c
+@@ -228,7 +228,7 @@ runtime·memlimit(void)
+ 	Rlimit rl;
+ 	extern byte text[], end[];
+ 	uintptr used;
+-	
++
+ 	if(runtime·getrlimit(RLIMIT_AS, &rl) != 0)
+ 		return 0;
+ 	if(rl.rlim_cur >= 0x7fffffff)
+@@ -249,3 +249,9 @@ runtime·memlimit(void)
+ 
+ 	return rl.rlim_cur - used;
+ }
++
++void
++runtime·setprof(bool on)
++{
++	USED(on);
++}
+diff --git a/src/pkg/runtime/thread_netbsd.c b/src/pkg/runtime/thread_netbsd.c
+index 7d14e5c68b..62e133c449 100644
+--- a/src/pkg/runtime/thread_netbsd.c
++++ b/src/pkg/runtime/thread_netbsd.c
+@@ -207,3 +207,9 @@ runtime·memlimit(void)
+ {
+ 	return 0;
+ }
++
++void
++runtime·setprof(bool on)
++{
++	USED(on);
++}
+diff --git a/src/pkg/runtime/thread_openbsd.c b/src/pkg/runtime/thread_openbsd.c
+index 704d95a3c6..bee0c5755f 100644
+--- a/src/pkg/runtime/thread_openbsd.c
++++ b/src/pkg/runtime/thread_openbsd.c
+@@ -207,3 +207,9 @@ runtime·memlimit(void)
+ {
+ 	return 0;
+ }
++
++void
++runtime·setprof(bool on)
++{
++	USED(on);
++}
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index 7d5c38fc9a..aaed5050bb 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -87,7 +87,7 @@ runtime·nanotime(void)
+ 	// The naïve implementation (without the cached
+ 	// file descriptor) is roughly four times slower
+ 	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
+-	
++
+ 	if(fd < 0 && (fd = runtime·open((byte*)"/dev/bintime", OREAD|OCEXEC)) < 0)
+ 		return 0;
+ 	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
+@@ -241,3 +241,9 @@ runtime·memlimit(void)
+ {
+ 	return 0;
+ }
++
++void
++runtime·setprof(bool on)
++{
++	USED(on);
++}
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index 8feac9711d..8a448bc37c 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -226,7 +226,7 @@ void
+ time·now(int64 sec, int32 usec)
+ {
+ 	int64 ns;
+-	
++
+ 	ns = runtime·nanotime();
+ 	sec = ns / 1000000000LL;
+ 	usec = ns - sec * 1000000000LL;
+@@ -431,3 +431,9 @@ runtime·memlimit(void)
+ {
+ 	return 0;
+ }
++
++void
++runtime·setprof(bool on)
++{
++	USED(on);
++}

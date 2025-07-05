@@ -22,7 +22,49 @@ Date:   Thu Feb 23 14:15:28 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/os_windows.go       | 3 +++
  src/runtime/runtime-gdb_test.go | 2 --
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 62be6350bd..62509df030 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -28,6 +28,7 @@ const (
+ //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._GetConsoleMode GetConsoleMode%2 "kernel32.dll"
++//go:cgo_import_dynamic runtime._GetCurrentThreadId GetCurrentThreadId%0 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
+@@ -78,6 +79,7 @@ var (
+ 	_ExitProcess,
+ 	_FreeEnvironmentStringsW,
+ 	_GetConsoleMode,
++	_GetCurrentThreadId,
+ 	_GetEnvironmentStringsW,
+ 	_GetProcAddress,
+ 	_GetProcessAffinityMask,
+@@ -957,6 +959,7 @@ func minit() {
+ 	mp := getg().m
+ 	lock(&mp.threadLock)
+ 	mp.thread = thandle
++	mp.procid = uint64(stdcall0(_GetCurrentThreadId))
+ 
+ 	// Configure usleep timer, if possible.
+ 	if mp.highResTimer == 0 && haveHighResTimer {
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index a45654d085..5af3b7455e 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -34,8 +34,6 @@ func checkGdbEnvironment(t *testing.T) {
+ 		t.Skip("gdb does not work on darwin")
+ 	case "netbsd":
+ 		t.Skip("gdb does not work with threads on NetBSD; see https://golang.org/issue/22893 and https://gnats.netbsd.org/52548")
+-	case "windows":
+-		t.Skip("gdb tests fail on Windows: https://golang.org/issue/22687")
+ 	case "linux":
+ 		if runtime.GOARCH == "ppc64" {
+ 			t.Skip("skipping gdb tests on linux/ppc64; see https://golang.org/issue/17366")

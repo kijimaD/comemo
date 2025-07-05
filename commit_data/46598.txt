@@ -16,8 +16,59 @@ Date:   Tue Dec 22 16:48:13 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 3 ++-
  src/cmd/link/internal/ld/main.go       | 5 +----
  src/cmd/link/internal/ld/symtab.go     | 2 +-
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index f1226f6a47..7ff8e21a48 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -301,7 +301,8 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// extra work in typecheck/walk/ssa, might want to add a new node
+ 	// OTAILCALL or something to this effect.
+ 	var tail ir.Node
+-	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 {
++	if tfn.Type().NumResults() == 0 && tfn.Type().NumParams() == 0 && tfn.Type().NumRecvs() == 0 && !(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
++
+ 		tail = ir.NewBranchStmt(base.Pos, ir.ORETJMP, f.Nname.Sym())
+ 	} else {
+ 		call := ir.NewCallExpr(base.Pos, ir.OCALL, f.Nname, nil)
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 1420030eec..133308e5f4 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -95,7 +95,7 @@ var (
+ 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+-	flagAbiWrap       = false
++	flagAbiWrap       = flag.Bool("abiwrap", objabi.Regabi_enabled != 0, "support ABI wrapper functions")
+ 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
+ )
+@@ -134,9 +134,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
+ 	objabi.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
+-	if objabi.Regabi_enabled != 0 {
+-		flag.BoolVar(&flagAbiWrap, "abiwrap", true, "support ABI wrapper functions")
+-	}
+ 
+ 	objabi.Flagparse(usage)
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 3b709baf75..85a8ff42ad 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -120,7 +120,7 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
+ 	// sym or marker relocation to associate the wrapper with the
+ 	// wrapped function.
+ 	//
+-	if flagAbiWrap {
++	if *flagAbiWrap {
+ 		if !ldr.IsExternal(x) && ldr.SymType(x) == sym.STEXT {
+ 			// First case
+ 			if ldr.SymVersion(x) == sym.SymVerABIInternal {

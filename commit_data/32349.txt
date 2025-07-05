@@ -24,7 +24,7 @@ Date:   Wed Apr 19 11:19:53 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/galign.go  |  1 +
  src/cmd/compile/internal/amd64/ggen.go    | 20 +++++++++++++++++++
  src/cmd/compile/internal/arm/galign.go    |  1 +
@@ -46,3 +46,418 @@ Date:   Wed Apr 19 11:19:53 2017 -0700
  src/cmd/compile/internal/x86/ggen.go      | 16 ++++++++++++++++
  test/fixedbugs/issue20029.go              | 32 +++++++++++++++++++++++++++++++
  20 files changed, 196 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index d75a20dbfc..58c469995f 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -22,6 +22,7 @@ func Init(arch *gc.Arch) {
+ 	arch.MAXWIDTH = 1 << 50
+ 
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 41356a7943..60a19f899b 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -121,6 +121,26 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	op := x86.AMOVQ
++	if gc.Widthptr == 4 {
++		op = x86.AMOVL
++	}
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	for i := int64(0); i < size; i += int64(gc.Widthptr) {
++		p := pp.Prog(op)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = x86.REG_SP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	// This is actually not the x86 NOP anymore,
+ 	// but at the point where it gets used, AX is dead
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 9a4ed754d1..6df620838a 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -16,6 +16,7 @@ func Init(arch *gc.Arch) {
+ 	arch.MAXWIDTH = (1 << 32) - 1
+ 
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 13f98eb4d0..8a9e1d2b5b 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -47,6 +47,27 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, r0 *uint32) *obj.Prog
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	p := pp.Prog(arm.AMOVW)
++	p.From.Type = obj.TYPE_CONST
++	p.From.Offset = 0
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = arm.REGTMP
++	for i := int64(0); i < size; i += 4 {
++		p := pp.Prog(arm.AMOVW)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = arm.REGTMP
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = arm.REGSP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(arm.AAND)
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index b2d23e9447..a64be8e7a6 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -17,6 +17,7 @@ func Init(arch *gc.Arch) {
+ 
+ 	arch.PadFrame = padframe
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 7bbd8dd064..6b457e1fd0 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -58,6 +58,22 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	for i := int64(0); i < size; i += 8 {
++		p := pp.Prog(arm64.AMOVD)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = arm64.REGZERO
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = arm64.REGSP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(arm64.AHINT)
+ 	p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 9957fba575..8f9d7c413a 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -243,6 +243,11 @@ type Arch struct {
+ 	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
+ 	// for all values in the block before SSAGenBlock.
+ 	SSAGenBlock func(s *SSAGenState, b, next *ssa.Block)
++
++	// ZeroAuto emits code to zero the given auto stack variable.
++	// ZeroAuto must not use any non-temporary registers.
++	// ZeroAuto will only be called for variables which contain a pointer.
++	ZeroAuto func(*Progs, *Node)
+ }
+ 
+ var thearch Arch
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index b25631a514..e53e2b6d15 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -711,7 +711,7 @@ func livenessepilogue(lv *Liveness) {
+ 			}
+ 
+ 			// Annotate ambiguously live variables so that they can
+-			// be zeroed at function entry.
++			// be zeroed at function entry and at VARKILL points.
+ 			// liveout is dead here and used as a temporary.
+ 			liveout.AndNot(any, all)
+ 			if !liveout.IsEmpty() {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 961d080442..aba1111be2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4375,8 +4375,24 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 			case ssa.OpGetG:
+ 				// nothing to do when there's a g register,
+ 				// and checkLower complains if there's not
+-			case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
++			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+ 				// nothing to do; already used by liveness
++			case ssa.OpVarKill:
++				// Zero variable if it is ambiguously live.
++				// After the VARKILL anything this variable references
++				// might be collected. If it were to become live again later,
++				// the GC will see references to already-collected objects.
++				// See issue 20029.
++				n := v.Aux.(*Node)
++				if n.Name.Needzero() {
++					if n.Class != PAUTO {
++						v.Fatalf("zero of variable which isn't PAUTO %v", n)
++					}
++					if n.Type.Size()%int64(Widthptr) != 0 {
++						v.Fatalf("zero of variable not a multiple of ptr size %v", n)
++					}
++					thearch.ZeroAuto(s.pp, n)
++				}
+ 			case ssa.OpPhi:
+ 				CheckLoweredPhi(v)
+ 
+diff --git a/src/cmd/compile/internal/mips/galign.go b/src/cmd/compile/internal/mips/galign.go
+index f0ef6cd100..77ec78aabf 100644
+--- a/src/cmd/compile/internal/mips/galign.go
++++ b/src/cmd/compile/internal/mips/galign.go
+@@ -19,6 +19,7 @@ func Init(arch *gc.Arch) {
+ 	arch.REGSP = mips.REGSP
+ 	arch.MAXWIDTH = (1 << 31) - 1
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	arch.SSAGenValue = ssaGenValue
+diff --git a/src/cmd/compile/internal/mips/ggen.go b/src/cmd/compile/internal/mips/ggen.go
+index dafa341a13..5a9f590763 100644
+--- a/src/cmd/compile/internal/mips/ggen.go
++++ b/src/cmd/compile/internal/mips/ggen.go
+@@ -43,6 +43,22 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	for i := int64(0); i < size; i += 4 {
++		p := pp.Prog(mips.AMOVW)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = mips.REGZERO
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = mips.REGSP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(mips.ANOR)
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 91986ce694..910230f4f4 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -20,6 +20,7 @@ func Init(arch *gc.Arch) {
+ 	arch.MAXWIDTH = 1 << 50
+ 
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 41b86ebdd1..b9d9a29bcb 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -47,6 +47,22 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	for i := int64(0); i < size; i += 8 {
++		p := pp.Prog(mips.AMOVV)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = mips.REGZERO
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = mips.REGSP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(mips.ANOR)
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 0f8122df6b..ce805f4e0c 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -19,6 +19,7 @@ func Init(arch *gc.Arch) {
+ 	arch.MAXWIDTH = 1 << 50
+ 
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop2
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 194e2a4192..1c14952594 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -42,6 +42,22 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	for i := int64(0); i < size; i += 8 {
++		p := pp.Prog(ppc64.AMOVD)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = ppc64.REGZERO
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = ppc64.REGSP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(ppc64.AOR)
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 67ef14a4c6..3f624692bb 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -15,6 +15,7 @@ func Init(arch *gc.Arch) {
+ 	arch.MAXWIDTH = 1 << 50
+ 
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/s390x/ggen.go b/src/cmd/compile/internal/s390x/ggen.go
+index d492895702..7ce8c0d16c 100644
+--- a/src/cmd/compile/internal/s390x/ggen.go
++++ b/src/cmd/compile/internal/s390x/ggen.go
+@@ -93,6 +93,18 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	p := pp.Prog(s390x.ACLEAR)
++	p.From.Type = obj.TYPE_CONST
++	p.From.Offset = n.Type.Size()
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_AUTO
++	p.To.Reg = s390x.REGSP
++	p.To.Offset = n.Xoffset
++	p.To.Sym = gc.Linksym(n.Sym)
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(s390x.AOR)
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 6b32e1e27a..56cc6c637d 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -30,6 +30,7 @@ func Init(arch *gc.Arch) {
+ 	arch.MAXWIDTH = (1 << 32) - 1
+ 
+ 	arch.ZeroRange = zerorange
++	arch.ZeroAuto = zeroAuto
+ 	arch.Ginsnop = ginsnop
+ 
+ 	arch.SSAMarkMoves = ssaMarkMoves
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index 0c183cb374..8ea877bd37 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -37,6 +37,22 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog
+ 	return p
+ }
+ 
++func zeroAuto(pp *gc.Progs, n *gc.Node) {
++	// Note: this code must not clobber any registers.
++	sym := gc.Linksym(n.Sym)
++	size := n.Type.Size()
++	for i := int64(0); i < size; i += 4 {
++		p := pp.Prog(x86.AMOVL)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_AUTO
++		p.To.Reg = x86.REG_SP
++		p.To.Offset = n.Xoffset + i
++		p.To.Sym = sym
++	}
++}
++
+ func ginsnop(pp *gc.Progs) {
+ 	p := pp.Prog(x86.AXCHGL)
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/test/fixedbugs/issue20029.go b/test/fixedbugs/issue20029.go
+new file mode 100644
+index 0000000000..db3f8aa5dd
+--- /dev/null
++++ b/test/fixedbugs/issue20029.go
+@@ -0,0 +1,32 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20029: make sure we zero at VARKILLs of
++// ambiguously live variables.
++// The ambiguously live variable here is the hiter
++// for the inner range loop.
++
++package main
++
++import "runtime"
++
++func f(m map[int]int) {
++outer:
++	for i := 0; i < 10; i++ {
++		for k := range m {
++			if k == 5 {
++				continue outer
++			}
++		}
++		runtime.GC()
++		break
++	}
++	runtime.GC()
++}
++func main() {
++	m := map[int]int{1: 2, 2: 3, 3: 4}
++	f(m)
++}

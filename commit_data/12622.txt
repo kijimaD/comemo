@@ -13,7 +13,7 @@ Date:   Wed Mar 14 13:03:11 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5815044
-
+---
  doc/Makefile                                       |  4 +-
  ..._concurrency_patterns_timing_out_moving_on.html | 79 ++++++++++++++++++++++
  doc/docs.html                                      |  2 +-
@@ -21,3 +21,206 @@ Date:   Wed Mar 14 13:03:11 2012 +1100
  doc/progs/timeout1.go                              | 28 ++++++++
  doc/progs/timeout2.go                              | 27 ++++++++
  6 files changed, 144 insertions(+), 3 deletions(-)
+
+diff --git a/doc/Makefile b/doc/Makefile
+index b275dfe4dd..687f1b1eb5 100644
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -7,6 +7,8 @@ RAWHTML=\
+ 	articles/error_handling.rawhtml\
+ 	articles/slices_usage_and_internals.rawhtml\
+ 	articles/laws_of_reflection.rawhtml\
++	articles/c_go_cgo.rawhtml\
++	articles/go_concurrency_patterns_timing_out_moving_on.rawhtml\
+ 	articles/image_draw.rawhtml\
+ 	effective_go.rawhtml\
+ 	go1.rawhtml\
+@@ -17,4 +19,4 @@ all: $(RAWHTML)
+ 	godoc -url /doc/$< >$@
+ 
+ clean:
+-	rm -f $(RAWHTML) 
++	rm -f $(RAWHTML)
+diff --git a/doc/articles/go_concurrency_patterns_timing_out_moving_on.html b/doc/articles/go_concurrency_patterns_timing_out_moving_on.html
+new file mode 100644
+index 0000000000..63c8cd59e8
+--- /dev/null
++++ b/doc/articles/go_concurrency_patterns_timing_out_moving_on.html
+@@ -0,0 +1,79 @@
++<!--{
++"Title": "Go Concurrency Patterns: Timing out, moving on",
++"Template": true
++}-->
++
++<p>
++Concurrent programming has its own idioms. A good example is timeouts. Although
++Go's channels do not support them directly, they are easy to implement. Say we
++want to receive from the channel <code>ch</code>, but want to wait at most one
++second for the value to arrive. We would start by creating a signalling channel
++and launching a goroutine that sleeps before sending on the channel:
++</p>
++
++{{code "/doc/progs/timeout1.go" `/timeout :=/` `/STOP/`}}
++
++<p>
++We can then use a <code>select</code> statement to receive from either
++<code>ch</code> or <code>timeout</code>. If nothing arrives on <code>ch</code>
++after one second, the timeout case is selected and the attempt to read from
++<cde>ch</cde> is abandoned.
++</p>
++
++{{code "/doc/progs/timeout1.go" `/select {/` `/STOP/`}}
++
++<p>
++The <code>timeout</code> channel is buffered with space for 1 value, allowing
++the timeout goroutine to send to the channel and then exit. The goroutine
++doesn't know (or care) whether the value is received. This means the goroutine
++won't hang around forever if the <code>ch</code> receive happens before the
++timeout is reached. The <code>timeout</code> channel will eventually be
++deallocated by the garbage collector.
++</p>
++
++<p>
++(In this example we used <code>time.Sleep</code> to demonstrate the mechanics
++of goroutines and channels. In real programs you should use <code>
++<a href="/pkg/time/#After">time.After</a></code>, a function that returns
++a channel and sends on that channel after the specified duration.)
++</p>
++
++<p>
++Let's look at another variation of this pattern. In this example we have a
++program that reads from multiple replicated databases simultaneously. The
++program needs only one of the answers, and it should accept the answer that
++arrives first.
++</p>
++
++<p>
++The function <code>Query</code> takes a slice of database connections and a
++<code>query</code> string. It queries each of the databases in parallel and
++returns the first response it receives:
++</p>
++
++{{code "/doc/progs/timeout2.go" `/func Query/` `/STOP/`}}
++
++<p>
++In this example, the closure does a non-blocking send, which it achieves by
++using the send operation in <code>select</code> statement with a
++<code>default</code> case. If the send cannot go through immediately the
++default case will be selected. Making the send non-blocking guarantees that
++none of the goroutines launched in the loop will hang around. However, if the
++result arrives before the main function has made it to the receive, the send
++could fail since no one is ready.
++</p>
++
++<p>
++This problem is a textbook of example of what is known as a
++<a href="https://en.wikipedia.org/wiki/Race_condition">race condition</a>, but
++the fix is trivial. We just make sure to buffer the channel <code>ch</code> (by
++adding the buffer length as the second argument to <a href="/pkg/builtin/#make">make</a>),
++guaranteeing that the first send has a place to put the value. This ensures the
++send will always succeed, and the first value to arrive will be retrieved
++regardless of the order of execution.
++</p>
++
++<p>
++These two examples demonstrate the simplicity with which Go can express complex
++interactions between goroutines.
++</p>
+diff --git a/doc/docs.html b/doc/docs.html
+index cc637b038a..39e4573eb6 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -105,7 +105,7 @@ Guided tours of Go programs.
+ <li><a href="http://blog.golang.org/2010/04/json-rpc-tale-of-interfaces.html">JSON-RPC: a tale of interfaces</a></li>
+ <li><a href="/doc/articles/gos_declaration_syntax.html">Go's Declaration Syntax</a></li>
+ <li><a href="/doc/articles/defer_panic_recover.html">Defer, Panic, and Recover</a></li>
+-<li><a href="http://blog.golang.org/2010/09/go-concurrency-patterns-timing-out-and.html">Go Concurrency Patterns: Timing out, moving on</a></li>
++<li><a href="/doc/articles/go_concurrency_patterns_timing_out_moving_on.html">Go Concurrency Patterns: Timing out, moving on</a></li>
+ <li><a href="/doc/articles/slices_usage_and_internals.html">Go Slices: usage and internals</a></li>
+ <li><a href="http://blog.golang.org/2011/05/gif-decoder-exercise-in-go-interfaces.html">A GIF decoder: an exercise in Go interfaces</a></li>
+ <li><a href="/doc/articles/error_handling.html">Error Handling and Go</a></li>
+diff --git a/doc/progs/run b/doc/progs/run
+index 4d183530cb..3bd50beda7 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -41,7 +41,12 @@ if [ "$goos" == "freebsd" ]; then
+ 	c_go_cgo="cgo3 cgo4"
+ fi
+ 
+-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo slices go1)
++timeout="
++	timeout1
++	timeout2
++"
++
++all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout slices go1)
+ 
+ for i in $all; do
+ 	go build $i.go
+diff --git a/doc/progs/timeout1.go b/doc/progs/timeout1.go
+new file mode 100644
+index 0000000000..a6c95624c8
+--- /dev/null
++++ b/doc/progs/timeout1.go
+@@ -0,0 +1,28 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package timeout
++
++import (
++	"time"
++)
++
++func Timeout() {
++	ch := make(chan bool, 1)
++	timeout := make(chan bool, 1)
++	go func() {
++		time.Sleep(1e9) // one second
++		timeout <- true
++	}()
++
++	// STOP OMIT
++
++	select {
++	case <-ch:
++		// a read from ch has occurred
++	case <-timeout:
++		// the read from ch has timed out
++	}
++
++	// STOP OMIT
++}
+diff --git a/doc/progs/timeout2.go b/doc/progs/timeout2.go
+new file mode 100644
+index 0000000000..7145bc93e1
+--- /dev/null
++++ b/doc/progs/timeout2.go
+@@ -0,0 +1,27 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package query
++
++type Conn string
++
++func (c Conn) DoQuery(query string) Result {
++	return Result("result")
++}
++
++type Result string
++
++func Query(conns []Conn, query string) Result {
++	ch := make(chan Result, 1)
++	for _, conn := range conns {
++		go func(c Conn) {
++			select {
++			case ch <- c.DoQuery(query):
++			default:
++			}
++		}(conn)
++	}
++	return <-ch
++}
++
++// STOP OMIT

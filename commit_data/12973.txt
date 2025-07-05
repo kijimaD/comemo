@@ -12,8 +12,69 @@ Date:   Thu Apr 26 02:57:23 2012 -0700
     R=rsc, lvd
     CC=golang-dev
     https://golang.org/cl/5909058
-
+---
  src/cmd/gc/lex.c         |  5 ++---
  src/cmd/gc/subr.c        |  5 +++++
  test/fixedbugs/bug435.go | 15 +++++++++++++++
  3 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e71fd3848e..6dc36e47c0 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1531,9 +1531,7 @@ getc(void)
+ 	if(c != 0) {
+ 		curio.peekc = curio.peekc1;
+ 		curio.peekc1 = 0;
+-		if(c == '\n' && pushedio.bin == nil)
+-			lexlineno++;
+-		return c;
++		goto check;
+ 	}
+ 	
+ 	if(curio.bin == nil) {
+@@ -1543,6 +1541,7 @@ getc(void)
+ 	} else
+ 		c = Bgetc(curio.bin);
+ 
++check:
+ 	switch(c) {
+ 	case 0:
+ 		if(curio.bin != nil) {
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 681c023a01..9542b2e718 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -142,6 +142,11 @@ yyerror(char *fmt, ...)
+ 		if(debug['x'])	
+ 			print("yyerror: yystate=%d yychar=%d\n", yystate, yychar);
+ 
++		// An unexpected EOF caused a syntax error. Use the previous
++		// line number since getc generated a fake newline character.
++		if(curio.eofnl)
++			lexlineno = prevlineno;
++
+ 		// only one syntax error per line
+ 		if(lastsyntax == lexlineno)
+ 			return;
+diff --git a/test/fixedbugs/bug435.go b/test/fixedbugs/bug435.go
+new file mode 100644
+index 0000000000..e6af452388
+--- /dev/null
++++ b/test/fixedbugs/bug435.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a syntax error caused by an unexpected EOF
++// gives an error message with the correct line number.
++//
++// https://code.google.com/p/go/issues/detail?id=3392
++
++package main
++
++func foo() {
++	bar(1, // ERROR "unexpected"

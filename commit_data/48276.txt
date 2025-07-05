@@ -18,7 +18,75 @@ Date:   Tue May 4 16:41:13 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/load.go             | 18 +++++++++++-------
  src/cmd/go/testdata/script/mod_tidy_newroot.txt | 20 ++++++++++++++++++--
  2 files changed, 29 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index f434b399d8..c811029ab5 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1065,13 +1065,17 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.errorf("go: %v\n", err)
+ 		}
+ 
+-		// We continuously add tidy roots to ld.requirements during loading, so at
+-		// this point the tidy roots should be a subset of the roots of
+-		// ld.requirements. If not, there is a bug in the loading loop above.
+-		for _, m := range rs.rootModules {
+-			if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+-				ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+-				base.ExitIfErrors()
++		if ld.requirements.depth == lazy {
++			// We continuously add tidy roots to ld.requirements during loading, so at
++			// this point the tidy roots should be a subset of the roots of
++			// ld.requirements, ensuring that no new dependencies are brought inside
++			// the lazy-loading horizon.
++			// If that is not the case, there is a bug in the loading loop above.
++			for _, m := range rs.rootModules {
++				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
++					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
++					base.ExitIfErrors()
++				}
+ 			}
+ 		}
+ 		ld.requirements = rs
+diff --git a/src/cmd/go/testdata/script/mod_tidy_newroot.txt b/src/cmd/go/testdata/script/mod_tidy_newroot.txt
+index db23a21e5b..3abd5ef08a 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_newroot.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_newroot.txt
+@@ -12,8 +12,8 @@
+ # dependency (or else no new root would be needed). An additional package D
+ # in its own module satisfies that condition, reproducing the bug.
+ 
+-! go mod tidy
+-stderr 'internal error'
++go mod tidy
++cmp go.mod go.mod.tidy
+ 
+ -- go.mod --
+ module example.net/a
+@@ -25,6 +25,22 @@ require (
+ 	example.net/d v0.1.0
+ )
+ 
++replace (
++	example.net/b v0.1.0 => ./b
++	example.net/c v0.1.0 => ./c
++	example.net/c v0.2.0 => ./c
++	example.net/d v0.1.0 => ./d
++)
++-- go.mod.tidy --
++module example.net/a
++
++go 1.16
++
++require (
++	example.net/c v0.2.0 // indirect
++	example.net/d v0.1.0
++)
++
+ replace (
+ 	example.net/b v0.1.0 => ./b
+ 	example.net/c v0.1.0 => ./c

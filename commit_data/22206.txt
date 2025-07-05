@@ -9,6 +9,31 @@ Date:   Sat Feb 28 19:17:27 2015 -0500
     Change-Id: Ia894ab60ac6b09926c684f99aacca79275cbced4
     Reviewed-on: https://go-review.googlesource.com/6365
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/interface_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index 15c0cd7be4..98d6734dc3 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -48,6 +48,9 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
+ }
+ 
+ func TestInterfaces(t *testing.T) {
++	if runtime.GOOS == "dragonfly" {
++		t.Skip("fail on dragonfly - issue 10041")
++	}
+ 	ift, err := Interfaces()
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -105,6 +108,9 @@ func TestInterfaces(t *testing.T) {
+ }
+ 
+ func TestInterfaceAddrs(t *testing.T) {
++	if runtime.GOOS == "dragonfly" {
++		t.Skip("fail on dragonfly - issue 10041")
++	}
+ 	ift, err := Interfaces()
+ 	if err != nil {
+ 		t.Fatal(err)

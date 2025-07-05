@@ -21,7 +21,7 @@ Date:   Thu Oct 28 12:24:31 2021 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/go/build/deps_test.go                          |   8 +
  .../coverage/decodecounter/decodecounterfile.go    | 385 +++++++++++++++++++++
  src/internal/coverage/encodecounter/encode.go      | 284 +++++++++++++++
@@ -29,3 +29,1024 @@ Date:   Thu Oct 28 12:24:31 2021 -0400
  src/internal/coverage/test/counter_test.go         | 231 +++++++++++++
  src/internal/coverage/test/roundtrip_test.go       |   2 +-
  6 files changed, 935 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 120d60ee24..35fa77054f 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -562,6 +562,14 @@ var depsRules = `
+     io, os, bufio, crypto/md5
+     < internal/coverage/encodemeta;
+ 
++    FMT, bufio, encoding/binary, internal/coverage,
++    internal/coverage/stringtab, internal/coverage/slicewriter, os, unsafe
++    < internal/coverage/encodecounter;
++
++    FMT, encoding/binary, internal/coverage, io, os,
++    internal/coverage/slicereader, internal/coverage/stringtab
++    < internal/coverage/decodecounter;
++
+     FMT, encoding/binary, internal/coverage, io, os,
+     crypto/md5, internal/coverage/stringtab
+     < internal/coverage/decodemeta;
+diff --git a/src/internal/coverage/decodecounter/decodecounterfile.go b/src/internal/coverage/decodecounter/decodecounterfile.go
+new file mode 100644
+index 0000000000..8a4c302275
+--- /dev/null
++++ b/src/internal/coverage/decodecounter/decodecounterfile.go
+@@ -0,0 +1,385 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package decodecounter
++
++import (
++	"encoding/binary"
++	"fmt"
++	"internal/coverage"
++	"internal/coverage/slicereader"
++	"internal/coverage/stringtab"
++	"io"
++	"os"
++	"strconv"
++	"unsafe"
++)
++
++// This file contains helpers for reading counter data files created
++// during the executions of a coverage-instrumented binary.
++
++type CounterDataReader struct {
++	stab     *stringtab.Reader
++	args     map[string]string
++	osargs   []string
++	goarch   string // GOARCH setting from run that produced counter data
++	goos     string // GOOS setting from run that produced counter data
++	nsegs    int
++	mr       io.ReadSeeker
++	hdr      coverage.CounterFileHeader
++	ftr      coverage.CounterFileFooter
++	shdr     coverage.CounterSegmentHeader
++	u32b     []byte
++	u8b      []byte
++	fcnCount uint32
++	segCount uint32
++	debug    bool
++}
++
++func NewCounterDataReader(fn string, rs io.ReadSeeker) (*CounterDataReader, error) {
++	cdr := &CounterDataReader{
++		mr:   rs,
++		u32b: make([]byte, 4),
++		u8b:  make([]byte, 1),
++	}
++	// Read header
++	if err := binary.Read(rs, binary.LittleEndian, &cdr.hdr); err != nil {
++		return nil, err
++	}
++	if cdr.debug {
++		fmt.Fprintf(os.Stderr, "=-= counter file header: %+v\n", cdr.hdr)
++	}
++	if !checkMagic(cdr.hdr.Magic) {
++		return nil, fmt.Errorf("invalid magic string: not a counter data file")
++	}
++	if cdr.hdr.Version > coverage.CounterFileVersion {
++		return nil, fmt.Errorf("version data incompatibility: reader is %d data is %d", coverage.CounterFileVersion, cdr.hdr.Version)
++	}
++
++	// Read footer.
++	if err := cdr.readFooter(); err != nil {
++		return nil, err
++	}
++	// Seek back to just past the file header.
++	hsz := int64(unsafe.Sizeof(cdr.hdr))
++	if _, err := cdr.mr.Seek(hsz, os.SEEK_SET); err != nil {
++		return nil, err
++	}
++	// Read preamble for first segment.
++	if err := cdr.readSegmentPreamble(); err != nil {
++		return nil, err
++	}
++	return cdr, nil
++}
++
++func (cdr *CounterDataReader) readBytes(b []byte) error {
++	nr, err := cdr.mr.Read(b)
++	if err != nil {
++		return err
++	}
++	if nr != len(b) {
++		return io.EOF
++	}
++	return nil
++}
++
++func checkMagic(v [4]byte) bool {
++	g := coverage.CovCounterMagic
++	return v[0] == g[0] && v[1] == g[1] && v[2] == g[2] && v[3] == g[3]
++}
++
++func (cdr *CounterDataReader) readFooter() error {
++	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
++	if _, err := cdr.mr.Seek(-ftrSize, os.SEEK_END); err != nil {
++		return err
++	}
++	if err := binary.Read(cdr.mr, binary.LittleEndian, &cdr.ftr); err != nil {
++		return err
++	}
++	if !checkMagic(cdr.ftr.Magic) {
++		return fmt.Errorf("invalid magic string (not a counter data file)")
++	}
++	if cdr.ftr.NumSegments == 0 {
++		return fmt.Errorf("invalid counter data file (no segments)")
++	}
++	return nil
++}
++
++// readSegmentPreamble reads and consumes the segment header, segment string
++// table, and segment args table.
++func (cdr *CounterDataReader) readSegmentPreamble() error {
++	// Read segment header.
++	if err := binary.Read(cdr.mr, binary.LittleEndian, &cdr.shdr); err != nil {
++		return err
++	}
++	if cdr.debug {
++		fmt.Fprintf(os.Stderr, "=-= read counter segment header: %+v", cdr.shdr)
++		fmt.Fprintf(os.Stderr, " FcnEntries=0x%x StrTabLen=0x%x ArgsLen=0x%x\n",
++			cdr.shdr.FcnEntries, cdr.shdr.StrTabLen, cdr.shdr.ArgsLen)
++	}
++
++	// Read string table and args.
++	if err := cdr.readStringTable(); err != nil {
++		return err
++	}
++	if err := cdr.readArgs(); err != nil {
++		return err
++	}
++	// Seek past any padding to bring us up to a 4-byte boundary.
++	if of, err := cdr.mr.Seek(0, os.SEEK_CUR); err != nil {
++		return err
++	} else {
++		rem := of % 4
++		if rem != 0 {
++			pad := 4 - rem
++			if _, err := cdr.mr.Seek(pad, os.SEEK_CUR); err != nil {
++				return err
++			}
++		}
++	}
++	return nil
++}
++
++func (cdr *CounterDataReader) readStringTable() error {
++	b := make([]byte, cdr.shdr.StrTabLen)
++	nr, err := cdr.mr.Read(b)
++	if err != nil {
++		return err
++	}
++	if nr != int(cdr.shdr.StrTabLen) {
++		return fmt.Errorf("error: short read on string table")
++	}
++	slr := slicereader.NewReader(b, false /* not readonly */)
++	cdr.stab = stringtab.NewReader(slr)
++	cdr.stab.Read()
++	return nil
++}
++
++func (cdr *CounterDataReader) readArgs() error {
++	b := make([]byte, cdr.shdr.ArgsLen)
++	nr, err := cdr.mr.Read(b)
++	if err != nil {
++		return err
++	}
++	if nr != int(cdr.shdr.ArgsLen) {
++		return fmt.Errorf("error: short read on args table")
++	}
++	slr := slicereader.NewReader(b, false /* not readonly */)
++	sget := func() (string, error) {
++		kidx := slr.ReadULEB128()
++		if int(kidx) >= cdr.stab.Entries() {
++			return "", fmt.Errorf("malformed string table ref")
++		}
++		return cdr.stab.Get(uint32(kidx)), nil
++	}
++	nents := slr.ReadULEB128()
++	cdr.args = make(map[string]string, int(nents))
++	for i := uint64(0); i < nents; i++ {
++		k, errk := sget()
++		if errk != nil {
++			return errk
++		}
++		v, errv := sget()
++		if errv != nil {
++			return errv
++		}
++		if _, ok := cdr.args[k]; ok {
++			return fmt.Errorf("malformed args table")
++		}
++		cdr.args[k] = v
++	}
++	if argcs, ok := cdr.args["argc"]; ok {
++		argc, err := strconv.Atoi(argcs)
++		if err != nil {
++			return fmt.Errorf("malformed argc in counter data file args section")
++		}
++		cdr.osargs = make([]string, 0, argc)
++		for i := 0; i < argc; i++ {
++			arg := cdr.args[fmt.Sprintf("argv%d", i)]
++			cdr.osargs = append(cdr.osargs, arg)
++		}
++	}
++	if goos, ok := cdr.args["GOOS"]; ok {
++		cdr.goos = goos
++	}
++	if goarch, ok := cdr.args["GOARCH"]; ok {
++		cdr.goarch = goarch
++	}
++	return nil
++}
++
++// OsArgs returns the program arguments (saved from os.Args during
++// the run of the instrumented binary) read from the counter
++// data file. Not all coverage data files will have os.Args values;
++// for example, if a data file is produced by merging coverage
++// data from two distinct runs, no os args will be available (an
++// empty list is returned).
++func (cdr *CounterDataReader) OsArgs() []string {
++	return cdr.osargs
++}
++
++// Goos returns the GOOS setting in effect for the "-cover" binary
++// that produced this counter data file. The GOOS value may be
++// empty in the case where the counter data file was produced
++// from a merge in which more than one GOOS value was present.
++func (cdr *CounterDataReader) Goos() string {
++	return cdr.goos
++}
++
++// Goarch returns the GOARCH setting in effect for the "-cover" binary
++// that produced this counter data file. The GOARCH value may be
++// empty in the case where the counter data file was produced
++// from a merge in which more than one GOARCH value was present.
++func (cdr *CounterDataReader) Goarch() string {
++	return cdr.goarch
++}
++
++// FuncPayload encapsulates the counter data payload for a single
++// function as read from a counter data file.
++type FuncPayload struct {
++	PkgIdx   uint32
++	FuncIdx  uint32
++	Counters []uint32
++}
++
++// NumSegments returns the number of execution segments in the file.
++func (cdr *CounterDataReader) NumSegments() uint32 {
++	return cdr.ftr.NumSegments
++}
++
++// BeginNextSegment sets up the the reader to read the next segment,
++// returning TRUE if we do have another segment to read, or FALSE
++// if we're done with all the segments (also an error if
++// something went wrong).
++func (cdr *CounterDataReader) BeginNextSegment() (bool, error) {
++	if cdr.segCount >= cdr.ftr.NumSegments {
++		return false, nil
++	}
++	cdr.segCount++
++	cdr.fcnCount = 0
++	// Seek past footer from last segment.
++	ftrSize := int64(unsafe.Sizeof(cdr.ftr))
++	if _, err := cdr.mr.Seek(ftrSize, os.SEEK_CUR); err != nil {
++		return false, err
++	}
++	// Read preamble for this segment.
++	if err := cdr.readSegmentPreamble(); err != nil {
++		return false, err
++	}
++	return true, nil
++}
++
++// NumFunctionsInSegment returns the number of live functions
++// in the currently selected segment.
++func (cdr *CounterDataReader) NumFunctionsInSegment() uint32 {
++	return uint32(cdr.shdr.FcnEntries)
++}
++
++const supportDeadFunctionsInCounterData = false
++
++// NextFunc reads data for the next function in this current segment
++// into "p", returning TRUE if the read was successful or FALSE
++// if we've read all the functions already (also an error if
++// something went wrong with the read or we hit a premature
++// EOF).
++func (cdr *CounterDataReader) NextFunc(p *FuncPayload) (bool, error) {
++	if cdr.fcnCount >= uint32(cdr.shdr.FcnEntries) {
++		return false, nil
++	}
++	cdr.fcnCount++
++	var rdu32 func() (uint32, error)
++	if cdr.hdr.CFlavor == coverage.CtrULeb128 {
++		rdu32 = func() (uint32, error) {
++			var shift uint
++			var value uint64
++			for {
++				_, err := cdr.mr.Read(cdr.u8b)
++				if err != nil {
++					return 0, err
++				}
++				b := cdr.u8b[0]
++				value |= (uint64(b&0x7F) << shift)
++				if b&0x80 == 0 {
++					break
++				}
++				shift += 7
++			}
++			return uint32(value), nil
++		}
++	} else if cdr.hdr.CFlavor == coverage.CtrRaw {
++		if cdr.hdr.BigEndian {
++			rdu32 = func() (uint32, error) {
++				n, err := cdr.mr.Read(cdr.u32b)
++				if err != nil {
++					return 0, err
++				}
++				if n != 4 {
++					return 0, io.EOF
++				}
++				return binary.BigEndian.Uint32(cdr.u32b), nil
++			}
++		} else {
++			rdu32 = func() (uint32, error) {
++				n, err := cdr.mr.Read(cdr.u32b)
++				if err != nil {
++					return 0, err
++				}
++				if n != 4 {
++					return 0, io.EOF
++				}
++				return binary.LittleEndian.Uint32(cdr.u32b), nil
++			}
++		}
++	} else {
++		panic("internal error: unknown counter flavor")
++	}
++
++	// Alternative/experimental path: one way we could handling writing
++	// out counter data would be to just memcpy the counter segment
++	// out to a file, meaning that a region in the counter memory
++	// corresponding to a dead (never-executed) function would just be
++	// zeroes. The code path below handles this case.
++	var nc uint32
++	var err error
++	if supportDeadFunctionsInCounterData {
++		for {
++			nc, err = rdu32()
++			if err == io.EOF {
++				return false, io.EOF
++			} else if err != nil {
++				break
++			}
++			if nc != 0 {
++				break
++			}
++		}
++	} else {
++		nc, err = rdu32()
++	}
++	if err != nil {
++		return false, err
++	}
++
++	// Read package and func indices.
++	p.PkgIdx, err = rdu32()
++	if err != nil {
++		return false, err
++	}
++	p.FuncIdx, err = rdu32()
++	if err != nil {
++		return false, err
++	}
++	if cap(p.Counters) < 1024 {
++		p.Counters = make([]uint32, 0, 1024)
++	}
++	p.Counters = p.Counters[:0]
++	for i := uint32(0); i < nc; i++ {
++		v, err := rdu32()
++		if err != nil {
++			return false, err
++		}
++		p.Counters = append(p.Counters, v)
++	}
++	return true, nil
++}
+diff --git a/src/internal/coverage/encodecounter/encode.go b/src/internal/coverage/encodecounter/encode.go
+new file mode 100644
+index 0000000000..a3812c7187
+--- /dev/null
++++ b/src/internal/coverage/encodecounter/encode.go
+@@ -0,0 +1,284 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package encodecounter
++
++import (
++	"bufio"
++	"encoding/binary"
++	"fmt"
++	"internal/coverage"
++	"internal/coverage/slicewriter"
++	"internal/coverage/stringtab"
++	"internal/coverage/uleb128"
++	"io"
++	"os"
++	"sort"
++)
++
++// This package contains APIs and helpers for encoding initial portions
++// of the counter data files emitted at runtime when coverage instrumention
++// is enabled.  Counter data files may contain multiple segments; the file
++// header and first segment are written via the "Write" method below, and
++// additional segments can then be added using "AddSegment".
++
++type CoverageDataWriter struct {
++	stab    *stringtab.Writer
++	w       *bufio.Writer
++	tmp     []byte
++	cflavor coverage.CounterFlavor
++	segs    uint32
++	debug   bool
++}
++
++func NewCoverageDataWriter(w io.Writer, flav coverage.CounterFlavor) *CoverageDataWriter {
++	r := &CoverageDataWriter{
++		stab: &stringtab.Writer{},
++		w:    bufio.NewWriter(w),
++
++		tmp:     make([]byte, 64),
++		cflavor: flav,
++	}
++	r.stab.InitWriter()
++	r.stab.Lookup("")
++	return r
++}
++
++// CounterVisitor describes a helper object used during counter file
++// writing; when writing counter data files, clients pass a
++// CounterVisitor to the write/emit routines. The writers will then
++// first invoke the visitor's NumFuncs() method to find out how many
++// function's worth of data to write, then it will invoke VisitFuncs.
++// The expectation is that the VisitFuncs method will then invoke the
++// callback "f" with data for each function to emit to the file.
++type CounterVisitor interface {
++	NumFuncs() (int, error)
++	VisitFuncs(f CounterVisitorFn) error
++}
++
++// CounterVisitorFn describes a callback function invoked when writing
++// coverage counter data.
++type CounterVisitorFn func(pkid uint32, funcid uint32, counters []uint32) error
++
++// Write writes the contents of the count-data file to the writer
++// previously supplied to NewCoverageDataWriter. Returns an error
++// if something went wrong somewhere with the write.
++func (cfw *CoverageDataWriter) Write(metaFileHash [16]byte, args map[string]string, visitor CounterVisitor) error {
++	if err := cfw.writeHeader(metaFileHash); err != nil {
++		return err
++	}
++	return cfw.AppendSegment(args, visitor)
++}
++
++func padToFourByteBoundary(ws *slicewriter.WriteSeeker) error {
++	sz := len(ws.BytesWritten())
++	zeros := []byte{0, 0, 0, 0}
++	rem := uint32(sz) % 4
++	if rem != 0 {
++		pad := zeros[:(4 - rem)]
++		if nw, err := ws.Write(pad); err != nil {
++			return err
++		} else if nw != len(pad) {
++			return fmt.Errorf("error: short write")
++		}
++	}
++	return nil
++}
++
++func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, visitor CounterVisitor) error {
++	var csh coverage.CounterSegmentHeader
++	if nf, err := visitor.NumFuncs(); err != nil {
++		return err
++	} else {
++		csh.FcnEntries = uint64(nf)
++	}
++
++	// Write string table and args to a byte slice (since we need
++	// to capture offsets at various points), then emit the slice
++	// once we are done.
++	cfw.stab.Freeze()
++	ws := &slicewriter.WriteSeeker{}
++	if err := cfw.stab.Write(ws); err != nil {
++		return err
++	}
++	csh.StrTabLen = uint32(len(ws.BytesWritten()))
++
++	akeys := make([]string, 0, len(args))
++	for k := range args {
++		akeys = append(akeys, k)
++	}
++	sort.Strings(akeys)
++
++	wrULEB128 := func(v uint) error {
++		cfw.tmp = cfw.tmp[:0]
++		cfw.tmp = uleb128.AppendUleb128(cfw.tmp, v)
++		if _, err := ws.Write(cfw.tmp); err != nil {
++			return err
++		}
++		return nil
++	}
++
++	// Count of arg pairs.
++	if err := wrULEB128(uint(len(args))); err != nil {
++		return err
++	}
++	// Arg pairs themselves.
++	for _, k := range akeys {
++		ki := uint(cfw.stab.Lookup(k))
++		if err := wrULEB128(ki); err != nil {
++			return err
++		}
++		v := args[k]
++		vi := uint(cfw.stab.Lookup(v))
++		if err := wrULEB128(vi); err != nil {
++			return err
++		}
++	}
++	if err := padToFourByteBoundary(ws); err != nil {
++		return err
++	}
++	csh.ArgsLen = uint32(len(ws.BytesWritten())) - csh.StrTabLen
++
++	if cfw.debug {
++		fmt.Fprintf(os.Stderr, "=-= counter segment header: %+v", csh)
++		fmt.Fprintf(os.Stderr, " FcnEntries=0x%x StrTabLen=0x%x ArgsLen=0x%x\n",
++			csh.FcnEntries, csh.StrTabLen, csh.ArgsLen)
++	}
++
++	// At this point we can now do the actual write.
++	if err := binary.Write(cfw.w, binary.LittleEndian, csh); err != nil {
++		return err
++	}
++	if err := cfw.writeBytes(ws.BytesWritten()); err != nil {
++		return err
++	}
++	return nil
++}
++
++// AppendSegment appends a new segment to a counter data, with a new
++// args section followed by a payload of counter data clauses.
++func (cfw *CoverageDataWriter) AppendSegment(args map[string]string, visitor CounterVisitor) error {
++	cfw.stab = &stringtab.Writer{}
++	cfw.stab.InitWriter()
++	cfw.stab.Lookup("")
++
++	var err error
++	for k, v := range args {
++		cfw.stab.Lookup(k)
++		cfw.stab.Lookup(v)
++	}
++
++	if err = cfw.writeSegmentPreamble(args, visitor); err != nil {
++		return err
++	}
++	if err = cfw.writeCounters(visitor); err != nil {
++		return err
++	}
++	if err = cfw.writeFooter(); err != nil {
++		return err
++	}
++	if err := cfw.w.Flush(); err != nil {
++		return fmt.Errorf("write error: %v\n", err)
++	}
++	cfw.stab = nil
++	return nil
++}
++
++func (cfw *CoverageDataWriter) writeHeader(metaFileHash [16]byte) error {
++	// Emit file header.
++	ch := coverage.CounterFileHeader{
++		Magic:     coverage.CovCounterMagic,
++		Version:   coverage.CounterFileVersion,
++		MetaHash:  metaFileHash,
++		CFlavor:   cfw.cflavor,
++		BigEndian: false,
++	}
++	if err := binary.Write(cfw.w, binary.LittleEndian, ch); err != nil {
++		return err
++	}
++	return nil
++}
++
++func (cfw *CoverageDataWriter) writeBytes(b []byte) error {
++	if len(b) == 0 {
++		return nil
++	}
++	nw, err := cfw.w.Write(b)
++	if err != nil {
++		return fmt.Errorf("error writing counter data: %v", err)
++	}
++	if len(b) != nw {
++		return fmt.Errorf("error writing counter data: short write\n")
++	}
++	return nil
++}
++
++func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor) error {
++	// Notes:
++	// - this version writes everything little-endian, which means
++	//   a call is needed to encode every value (expensive)
++	// - we may want to move to a model in which we just blast out
++	//   all counters, or possibly mmap the file and do the write
++	//   implicitly.
++	ctrb := make([]byte, 4)
++	wrval := func(val uint32) error {
++		var buf []byte
++		var towr int
++		if cfw.cflavor == coverage.CtrRaw {
++			binary.LittleEndian.PutUint32(ctrb, val)
++			buf = ctrb
++			towr = 4
++		} else if cfw.cflavor == coverage.CtrULeb128 {
++			cfw.tmp = cfw.tmp[:0]
++			cfw.tmp = uleb128.AppendUleb128(cfw.tmp, uint(val))
++			buf = cfw.tmp
++			towr = len(buf)
++		} else {
++			panic("internal error: bad counter flavor")
++		}
++		if sz, err := cfw.w.Write(buf); err != nil {
++			return err
++		} else if sz != towr {
++			return fmt.Errorf("writing counters: short write")
++		}
++		return nil
++	}
++
++	// Write out entries for each live function.
++	emitter := func(pkid uint32, funcid uint32, counters []uint32) error {
++		if err := wrval(uint32(len(counters))); err != nil {
++			return err
++		}
++
++		if err := wrval(pkid); err != nil {
++			return err
++		}
++
++		if err := wrval(funcid); err != nil {
++			return err
++		}
++		for _, val := range counters {
++			if err := wrval(val); err != nil {
++				return err
++			}
++		}
++		return nil
++	}
++	if err := visitor.VisitFuncs(emitter); err != nil {
++		return err
++	}
++	return nil
++}
++
++func (cfw *CoverageDataWriter) writeFooter() error {
++	cfw.segs++
++	cf := coverage.CounterFileFooter{
++		Magic:       coverage.CovCounterMagic,
++		NumSegments: cfw.segs,
++	}
++	if err := binary.Write(cfw.w, binary.LittleEndian, cf); err != nil {
++		return err
++	}
++	return nil
++}
+diff --git a/src/internal/coverage/stringtab/stringtab.go b/src/internal/coverage/stringtab/stringtab.go
+index f093e2cd15..405c4c1f18 100644
+--- a/src/internal/coverage/stringtab/stringtab.go
++++ b/src/internal/coverage/stringtab/stringtab.go
+@@ -40,6 +40,9 @@ func (stw *Writer) Lookup(s string) uint32 {
+ 	if idx, ok := stw.stab[s]; ok {
+ 		return idx
+ 	}
++	if stw.frozen {
++		panic("internal error: string table previously frozen")
++	}
+ 	idx := uint32(len(stw.strs))
+ 	stw.stab[s] = idx
+ 	stw.strs = append(stw.strs, s)
+@@ -91,11 +94,23 @@ func (stw *Writer) Write(w io.Writer) error {
+ 	return nil
+ }
+ 
++// Freeze sends a signal to the writer that no more additions are
++// allowed, only lookups of existing strings (if a lookup triggers
++// addition, a panic will result). Useful as a mechanism for
++// "finalizing" a string table prior to writing it out.
++func (stw *Writer) Freeze() {
++	stw.frozen = true
++}
++
++// Reader is a helper for reading a string table previously
++// serialized by a Writer.Write call.
+ type Reader struct {
+ 	r    *slicereader.Reader
+ 	strs []string
+ }
+ 
++// NewReader creates a stringtab.Reader to read the contents
++// of a string table from 'r'.
+ func NewReader(r *slicereader.Reader) *Reader {
+ 	str := &Reader{
+ 		r: r,
+@@ -103,16 +118,8 @@ func NewReader(r *slicereader.Reader) *Reader {
+ 	return str
+ }
+ 
+-func (str *Reader) Entries() int {
+-	return len(str.strs)
+-}
+-
+-func (str *Reader) Get(idx uint32) string {
+-	return str.strs[idx]
+-}
+-
++// Read reads/decodes a string table using the reader provided.
+ func (str *Reader) Read() {
+-	// Read the table itself.
+ 	numEntries := int(str.r.ReadULEB128())
+ 	str.strs = make([]string, 0, numEntries)
+ 	for idx := 0; idx < numEntries; idx++ {
+@@ -120,3 +127,13 @@ func (str *Reader) Read() {
+ 		str.strs = append(str.strs, str.r.ReadString(int64(slen)))
+ 	}
+ }
++
++// Entries returns the number of decoded entries in a string table.
++func (str *Reader) Entries() int {
++	return len(str.strs)
++}
++
++// Get returns string 'idx' within the string table.
++func (str *Reader) Get(idx uint32) string {
++	return str.strs[idx]
++}
+diff --git a/src/internal/coverage/test/counter_test.go b/src/internal/coverage/test/counter_test.go
+new file mode 100644
+index 0000000000..67c2b4802a
+--- /dev/null
++++ b/src/internal/coverage/test/counter_test.go
+@@ -0,0 +1,231 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"fmt"
++	"internal/coverage"
++	"internal/coverage/decodecounter"
++	"internal/coverage/encodecounter"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++type ctrVis struct {
++	funcs []decodecounter.FuncPayload
++}
++
++func (v *ctrVis) NumFuncs() (int, error) {
++	return len(v.funcs), nil
++}
++
++func (v *ctrVis) VisitFuncs(f encodecounter.CounterVisitorFn) error {
++	for _, fn := range v.funcs {
++		if err := f(fn.PkgIdx, fn.FuncIdx, fn.Counters); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func mkfunc(p uint32, f uint32, c []uint32) decodecounter.FuncPayload {
++	return decodecounter.FuncPayload{
++		PkgIdx:   p,
++		FuncIdx:  f,
++		Counters: c,
++	}
++}
++
++func TestCounterDataWriterReader(t *testing.T) {
++	flavors := []coverage.CounterFlavor{
++		coverage.CtrRaw,
++		coverage.CtrULeb128,
++	}
++
++	isDead := func(fp decodecounter.FuncPayload) bool {
++		for _, v := range fp.Counters {
++			if v != 0 {
++				return false
++			}
++		}
++		return true
++	}
++
++	funcs := []decodecounter.FuncPayload{
++		mkfunc(0, 0, []uint32{13, 14, 15}),
++		mkfunc(0, 1, []uint32{16, 17}),
++		mkfunc(1, 0, []uint32{18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 976543, 7}),
++	}
++	writeVisitor := &ctrVis{funcs: funcs}
++
++	for kf, flav := range flavors {
++
++		t.Logf("testing flavor %d\n", flav)
++
++		// Open a counter data file in preparation for emitting data.
++		d := t.TempDir()
++		cfpath := filepath.Join(d, fmt.Sprintf("covcounters.hash.0.%d", kf))
++		of, err := os.OpenFile(cfpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
++		if err != nil {
++			t.Fatalf("opening covcounters: %v", err)
++		}
++
++		// Perform the encode and write.
++		cdfw := encodecounter.NewCoverageDataWriter(of, flav)
++		if cdfw == nil {
++			t.Fatalf("NewCoverageDataWriter failed")
++		}
++		finalHash := [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0}
++		args := map[string]string{"argc": "3", "argv0": "arg0", "argv1": "arg1", "argv2": "arg_________2"}
++		if err := cdfw.Write(finalHash, args, writeVisitor); err != nil {
++			t.Fatalf("counter file Write failed: %v", err)
++		}
++		if err := of.Close(); err != nil {
++			t.Fatalf("closing covcounters: %v", err)
++		}
++		cdfw = nil
++
++		// Decode the same file.
++		var cdr *decodecounter.CounterDataReader
++		inf, err := os.Open(cfpath)
++		defer inf.Close()
++		if err != nil {
++			t.Fatalf("reopening covcounters file: %v", err)
++		}
++		if cdr, err = decodecounter.NewCounterDataReader(cfpath, inf); err != nil {
++			t.Fatalf("opening covcounters for read: %v", err)
++		}
++		decodedArgs := cdr.OsArgs()
++		aWant := "[arg0 arg1 arg_________2]"
++		aGot := fmt.Sprintf("%+v", decodedArgs)
++		if aWant != aGot {
++			t.Errorf("reading decoded args, got %s want %s", aGot, aWant)
++		}
++		for i := range funcs {
++			if isDead(funcs[i]) {
++				continue
++			}
++			var fp decodecounter.FuncPayload
++			if ok, err := cdr.NextFunc(&fp); err != nil {
++				t.Fatalf("reading func %d: %v", i, err)
++			} else if !ok {
++				t.Fatalf("reading func %d: bad return", i)
++			}
++			got := fmt.Sprintf("%+v", fp)
++			want := fmt.Sprintf("%+v", funcs[i])
++			if got != want {
++				t.Errorf("cdr.NextFunc iter %d\ngot  %+v\nwant %+v", i, got, want)
++			}
++		}
++		var dummy decodecounter.FuncPayload
++		if ok, err := cdr.NextFunc(&dummy); err != nil {
++			t.Fatalf("reading func after loop: %v", err)
++		} else if ok {
++			t.Fatalf("reading func after loop: expected EOF")
++		}
++	}
++}
++
++func TestCounterDataAppendSegment(t *testing.T) {
++	d := t.TempDir()
++	cfpath := filepath.Join(d, "covcounters.hash2.0")
++	of, err := os.OpenFile(cfpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
++	if err != nil {
++		t.Fatalf("opening covcounters: %v", err)
++	}
++
++	const numSegments = 2
++
++	// Write a counter with with multiple segments.
++	args := map[string]string{"argc": "1", "argv0": "prog.exe"}
++	allfuncs := [][]decodecounter.FuncPayload{}
++	ctrs := []uint32{}
++	q := uint32(0)
++	var cdfw *encodecounter.CoverageDataWriter
++	for idx := 0; idx < numSegments; idx++ {
++		args[fmt.Sprintf("seg%d", idx)] = "x"
++		q += 7
++		ctrs = append(ctrs, q)
++		funcs := []decodecounter.FuncPayload{}
++		for k := 0; k < idx+1; k++ {
++			c := make([]uint32, len(ctrs))
++			copy(c, ctrs)
++			funcs = append(funcs, mkfunc(uint32(idx), uint32(k), c))
++		}
++		allfuncs = append(allfuncs, funcs)
++
++		writeVisitor := &ctrVis{funcs: funcs}
++
++		if idx == 0 {
++			// Perform the encode and write.
++			cdfw = encodecounter.NewCoverageDataWriter(of, coverage.CtrRaw)
++			if cdfw == nil {
++				t.Fatalf("NewCoverageDataWriter failed")
++			}
++			finalHash := [16]byte{1, 2}
++			if err := cdfw.Write(finalHash, args, writeVisitor); err != nil {
++				t.Fatalf("counter file Write failed: %v", err)
++			}
++		} else {
++			if err := cdfw.AppendSegment(args, writeVisitor); err != nil {
++				t.Fatalf("counter file AppendSegment failed: %v", err)
++			}
++		}
++	}
++	if err := of.Close(); err != nil {
++		t.Fatalf("closing covcounters: %v", err)
++	}
++
++	// Read the result file.
++	var cdr *decodecounter.CounterDataReader
++	inf, err := os.Open(cfpath)
++	defer inf.Close()
++	if err != nil {
++		t.Fatalf("reopening covcounters file: %v", err)
++	}
++	if cdr, err = decodecounter.NewCounterDataReader(cfpath, inf); err != nil {
++		t.Fatalf("opening covcounters for read: %v", err)
++	}
++	ns := cdr.NumSegments()
++	if ns != numSegments {
++		t.Fatalf("got %d segments want %d", ns, numSegments)
++	}
++	if len(allfuncs) != numSegments {
++		t.Fatalf("expected %d got %d", numSegments, len(allfuncs))
++	}
++
++	for sidx := 0; sidx < int(ns); sidx++ {
++
++		if off, err := inf.Seek(0, os.SEEK_CUR); err != nil {
++			t.Fatalf("Seek failed: %v", err)
++		} else {
++			t.Logf("sidx=%d off=%d\n", sidx, off)
++		}
++
++		if sidx != 0 {
++			if ok, err := cdr.BeginNextSegment(); err != nil {
++				t.Fatalf("BeginNextSegment failed: %v", err)
++			} else if !ok {
++				t.Fatalf("BeginNextSegment return %v on iter %d",
++					ok, sidx)
++			}
++		}
++		funcs := allfuncs[sidx]
++		for i := range funcs {
++			var fp decodecounter.FuncPayload
++			if ok, err := cdr.NextFunc(&fp); err != nil {
++				t.Fatalf("reading func %d: %v", i, err)
++			} else if !ok {
++				t.Fatalf("reading func %d: bad return", i)
++			}
++			got := fmt.Sprintf("%+v", fp)
++			want := fmt.Sprintf("%+v", funcs[i])
++			if got != want {
++				t.Errorf("cdr.NextFunc iter %d\ngot  %+v\nwant %+v", i, got, want)
++			}
++		}
++	}
++}
+diff --git a/src/internal/coverage/test/roundtrip_test.go b/src/internal/coverage/test/roundtrip_test.go
+index ebd2f6ca2c..0bcca8e1bc 100644
+--- a/src/internal/coverage/test/roundtrip_test.go
++++ b/src/internal/coverage/test/roundtrip_test.go
+@@ -178,7 +178,7 @@ func createMetaDataBlobs(t *testing.T, nb int) [][]byte {
+ 	return res
+ }
+ 
+-func TestMetaDataFileWriterReader(t *testing.T) {
++func TestMetaDataWriterReader(t *testing.T) {
+ 	d := t.TempDir()
+ 
+ 	// Emit a meta-file...

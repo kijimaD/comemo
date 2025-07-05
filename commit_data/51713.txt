@@ -42,7 +42,7 @@ Date:   Fri Mar 4 15:07:17 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../types2/testdata/fixedbugs/issue41124.go2       | 10 +--
  .../types2/testdata/fixedbugs/issue51472.go2       | 54 ++++++++++++++
  src/cmd/compile/internal/types2/typeset.go         | 87 +++++++++++++++-------
@@ -56,3 +56,700 @@ Date:   Fri Mar 4 15:07:17 2022 -0800
  src/go/types/union.go                              | 18 +++--
  src/go/types/universe.go                           |  2 +-
  12 files changed, 268 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2
+index 7f55ba85a6..4550dd732c 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue41124.go2
+@@ -47,7 +47,7 @@ type _ struct{
+ }
+ 
+ type _ struct{
+-	I3 // ERROR interface is .* comparable
++	I3 // ERROR interface contains type constraints
+ }
+ 
+ // General composite types.
+@@ -59,19 +59,19 @@ type (
+ 	_ []I1 // ERROR interface is .* comparable
+ 	_ []I2 // ERROR interface contains type constraints
+ 
+-	_ *I3 // ERROR interface is .* comparable
++	_ *I3 // ERROR interface contains type constraints
+ 	_ map[I1 /* ERROR interface is .* comparable */ ]I2 // ERROR interface contains type constraints
+-	_ chan I3 // ERROR interface is .* comparable
++	_ chan I3 // ERROR interface contains type constraints
+ 	_ func(I1 /* ERROR interface is .* comparable */ )
+ 	_ func() I2 // ERROR interface contains type constraints
+ )
+ 
+ // Other cases.
+ 
+-var _ = [...]I3 /* ERROR interface is .* comparable */ {}
++var _ = [...]I3 /* ERROR interface contains type constraints */ {}
+ 
+ func _(x interface{}) {
+-	_ = x.(I3 /* ERROR interface is .* comparable */ )
++	_ = x.(I3 /* ERROR interface contains type constraints */ )
+ }
+ 
+ type T1[_ any] struct{}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go2
+new file mode 100644
+index 0000000000..f19d906d97
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51472.go2
+@@ -0,0 +1,54 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[T comparable](x T) {
++        _ = x == x
++}
++
++func _[T interface{interface{comparable}}](x T) {
++        _ = x == x
++}
++
++func _[T interface{comparable; interface{comparable}}](x T) {
++        _ = x == x
++}
++
++func _[T interface{comparable; ~int}](x T) {
++        _ = x == x
++}
++
++func _[T interface{comparable; ~[]byte}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++// TODO(gri) The error message here should be better. See issue #51525.
++func _[T interface{comparable; ~int; ~string}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++// TODO(gri) The error message here should be better. See issue #51525.
++func _[T interface{~int; ~string}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++func _[T interface{comparable; interface{~int}; interface{int|float64}}](x T) {
++        _ = x == x
++}
++
++func _[T interface{interface{comparable; ~int}; interface{~float64; comparable; m()}}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++// test case from issue
++
++func f[T interface{comparable; []byte|string}](x T) {
++        _ = x == x
++}
++
++func _(s []byte) {
++	f( /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ s)
++        _ = f[[ /* ERROR does not implement */ ]byte]
++}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 65ae04819e..8df8949435 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -15,20 +15,25 @@ import (
+ // API
+ 
+ // A _TypeSet represents the type set of an interface.
++// Because of existing language restrictions, methods can be "factored out"
++// from the terms. The actual type set is the intersection of the type set
++// implied by the methods and the type set described by the terms and the
++// comparable bit. To test whether a type is included in a type set
++// ("implements" relation), the type must implement all methods _and_ be
++// an element of the type set described by the terms and the comparable bit.
++// If the term list describes the set of all types and comparable is true,
++// only comparable types are meant; in all other cases comparable is false.
+ type _TypeSet struct {
+-	comparable bool // if set, the interface is or embeds comparable
+-	// TODO(gri) consider using a set for the methods for faster lookup
+-	methods []*Func  // all methods of the interface; sorted by unique ID
+-	terms   termlist // type terms of the type set
++	methods    []*Func  // all methods of the interface; sorted by unique ID
++	terms      termlist // type terms of the type set
++	comparable bool     // invariant: !comparable || terms.isAll()
+ }
+ 
+ // IsEmpty reports whether type set s is the empty set.
+ func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
+ 
+ // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
+-func (s *_TypeSet) IsAll() bool {
+-	return !s.comparable && len(s.methods) == 0 && s.terms.isAll()
+-}
++func (s *_TypeSet) IsAll() bool { return s.IsMethodSet() && len(s.methods) == 0 }
+ 
+ // IsMethodSet reports whether the interface t is fully described by its method set.
+ func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+@@ -43,13 +48,6 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 	})
+ }
+ 
+-// TODO(gri) IsTypeSet is not a great name for this predicate. Find a better one.
+-
+-// IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
+-func (s *_TypeSet) IsTypeSet() bool {
+-	return !s.comparable && len(s.methods) == 0
+-}
+-
+ // NumMethods returns the number of methods available.
+ func (s *_TypeSet) NumMethods() int { return len(s.methods) }
+ 
+@@ -215,12 +213,12 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 
+ 	var todo []*Func
+ 	var seen objset
+-	var methods []*Func
++	var allMethods []*Func
+ 	mpos := make(map[*Func]syntax.Pos) // method specification or method embedding position, for good error messages
+ 	addMethod := func(pos syntax.Pos, m *Func, explicit bool) {
+ 		switch other := seen.insert(m); {
+ 		case other == nil:
+-			methods = append(methods, m)
++			allMethods = append(allMethods, m)
+ 			mpos[m] = pos
+ 		case explicit:
+ 			if check == nil {
+@@ -259,7 +257,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 	}
+ 
+ 	// collect embedded elements
+-	var allTerms = allTermlist
++	allTerms := allTermlist
++	allComparable := false
+ 	for i, typ := range ityp.embeddeds {
+ 		// The embedding position is nil for imported interfaces
+ 		// and also for interface copies after substitution (but
+@@ -268,6 +267,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 		if ityp.embedPos != nil {
+ 			pos = (*ityp.embedPos)[i]
+ 		}
++		var comparable bool
+ 		var terms termlist
+ 		switch u := under(typ).(type) {
+ 		case *Interface:
+@@ -279,9 +279,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 				check.versionErrorf(pos, "go1.18", "embedding constraint interface %s", typ)
+ 				continue
+ 			}
+-			if tset.comparable {
+-				ityp.tset.comparable = true
+-			}
++			comparable = tset.comparable
+ 			for _, m := range tset.methods {
+ 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 			}
+@@ -295,6 +293,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			if tset == &invalidTypeSet {
+ 				continue // ignore invalid unions
+ 			}
++			assert(!tset.comparable)
++			assert(len(tset.methods) == 0)
+ 			terms = tset.terms
+ 		default:
+ 			if u == Typ[Invalid] {
+@@ -306,11 +306,11 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			}
+ 			terms = termlist{{false, typ}}
+ 		}
+-		// The type set of an interface is the intersection
+-		// of the type sets of all its elements.
+-		// Intersection cannot produce longer termlists and
+-		// thus cannot overflow.
+-		allTerms = allTerms.intersect(terms)
++
++		// The type set of an interface is the intersection of the type sets of all its elements.
++		// Due to language restrictions, only embedded interfaces can add methods, they are handled
++		// separately. Here we only need to intersect the term lists and comparable bits.
++		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
+ 	}
+ 	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+@@ -323,15 +323,46 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 		}
+ 	}
+ 
+-	if methods != nil {
+-		sortMethods(methods)
+-		ityp.tset.methods = methods
++	ityp.tset.comparable = allComparable
++	if len(allMethods) != 0 {
++		sortMethods(allMethods)
++		ityp.tset.methods = allMethods
+ 	}
+ 	ityp.tset.terms = allTerms
+ 
+ 	return ityp.tset
+ }
+ 
++// TODO(gri) The intersectTermLists function belongs to the termlist implementation.
++//           The comparable type set may also be best represented as a term (using
++//           a special type).
++
++// intersectTermLists computes the intersection of two term lists and respective comparable bits.
++// xcomp, ycomp are valid only if xterms.isAll() and yterms.isAll() respectively.
++func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool) (termlist, bool) {
++	terms := xterms.intersect(yterms)
++	// If one of xterms or yterms is marked as comparable,
++	// the result must only include comparable types.
++	comp := xcomp || ycomp
++	if comp && !terms.isAll() {
++		// only keep comparable terms
++		i := 0
++		for _, t := range terms {
++			assert(t.typ != nil)
++			if Comparable(t.typ) {
++				terms[i] = t
++				i++
++			}
++		}
++		terms = terms[:i]
++		if !terms.isAll() {
++			comp = false
++		}
++	}
++	assert(!comp || terms.isAll()) // comparable invariant
++	return terms, comp
++}
++
+ func sortMethods(list []*Func) {
+ 	sort.Sort(byUniqueMethodName(list))
+ }
+diff --git a/src/cmd/compile/internal/types2/typeset_test.go b/src/cmd/compile/internal/types2/typeset_test.go
+index 7f7cc06db9..68e5d8ad62 100644
+--- a/src/cmd/compile/internal/types2/typeset_test.go
++++ b/src/cmd/compile/internal/types2/typeset_test.go
+@@ -25,9 +25,9 @@ func TestTypeSetString(t *testing.T) {
+ 		"{int; string}": "∅",
+ 
+ 		"{comparable}":              "{comparable}",
+-		"{comparable; int}":         "{comparable; int}",
+-		"{~int; comparable}":        "{comparable; ~int}",
+-		"{int|string; comparable}":  "{comparable; int ∪ string}",
++		"{comparable; int}":         "{int}",
++		"{~int; comparable}":        "{~int}",
++		"{int|string; comparable}":  "{int ∪ string}",
+ 		"{comparable; int; string}": "∅",
+ 
+ 		"{m()}":                         "{func (p.T).m()}",
+@@ -37,8 +37,8 @@ func TestTypeSetString(t *testing.T) {
+ 		"{m1(); comparable; m2() int }": "{comparable; func (p.T).m1(); func (p.T).m2() int}",
+ 		"{comparable; error}":           "{comparable; func (error).Error() string}",
+ 
+-		"{m(); comparable; int|float32|string}": "{comparable; func (p.T).m(); int ∪ float32 ∪ string}",
+-		"{m1(); int; m2(); comparable }":        "{comparable; func (p.T).m1(); func (p.T).m2(); int}",
++		"{m(); comparable; int|float32|string}": "{func (p.T).m(); int ∪ float32 ∪ string}",
++		"{m1(); int; m2(); comparable }":        "{func (p.T).m1(); func (p.T).m2(); int}",
+ 
+ 		"{E}; type E interface{}":           "𝓤",
+ 		"{E}; type E interface{int;string}": "∅",
+diff --git a/src/cmd/compile/internal/types2/union.go b/src/cmd/compile/internal/types2/union.go
+index 3c0df04ccd..e317b9cced 100644
+--- a/src/cmd/compile/internal/types2/union.go
++++ b/src/cmd/compile/internal/types2/union.go
+@@ -100,25 +100,27 @@ func parseUnion(check *Checker, uexpr syntax.Expr) Type {
+ 
+ 				if !Identical(u, t.typ) {
+ 					check.errorf(tlist[i], "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+-					continue // don't report another error for t
++					continue
+ 				}
+ 			}
+ 
+ 			// Stand-alone embedded interfaces are ok and are handled by the single-type case
+ 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
+-			// here, we must have at least two terms in the union.
+-			if f != nil && !f.typeSet().IsTypeSet() {
++			// here, we must have at least two terms in the syntactic term list (but not necessarily
++			// in the term list of the union's type set).
++			if f != nil {
++				tset := f.typeSet()
+ 				switch {
+-				case f.typeSet().NumMethods() != 0:
++				case tset.NumMethods() != 0:
+ 					check.errorf(tlist[i], "cannot use %s in union (%s contains methods)", t, t)
++					continue
+ 				case t.typ == universeComparable.Type():
+ 					check.error(tlist[i], "cannot use comparable in union")
+-				case f.typeSet().comparable:
++					continue
++				case tset.comparable:
+ 					check.errorf(tlist[i], "cannot use %s in union (%s embeds comparable)", t, t)
+-				default:
+-					panic("not a type set but no methods and not comparable")
++					continue
+ 				}
+-				continue // don't report another error for t
+ 			}
+ 
+ 			// Report overlapping (non-disjoint) terms such as
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 6ee5dbdca3..11c81863a9 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -111,7 +111,7 @@ func defPredeclaredTypes() {
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// interface{} // marked as comparable
+-		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{true, nil, allTermlist}}
++		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+ 
+ 		typ.SetUnderlying(ityp)
+ 		def(obj)
+diff --git a/src/go/types/testdata/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+index 7f55ba85a6..4550dd732c 100644
+--- a/src/go/types/testdata/fixedbugs/issue41124.go2
++++ b/src/go/types/testdata/fixedbugs/issue41124.go2
+@@ -47,7 +47,7 @@ type _ struct{
+ }
+ 
+ type _ struct{
+-	I3 // ERROR interface is .* comparable
++	I3 // ERROR interface contains type constraints
+ }
+ 
+ // General composite types.
+@@ -59,19 +59,19 @@ type (
+ 	_ []I1 // ERROR interface is .* comparable
+ 	_ []I2 // ERROR interface contains type constraints
+ 
+-	_ *I3 // ERROR interface is .* comparable
++	_ *I3 // ERROR interface contains type constraints
+ 	_ map[I1 /* ERROR interface is .* comparable */ ]I2 // ERROR interface contains type constraints
+-	_ chan I3 // ERROR interface is .* comparable
++	_ chan I3 // ERROR interface contains type constraints
+ 	_ func(I1 /* ERROR interface is .* comparable */ )
+ 	_ func() I2 // ERROR interface contains type constraints
+ )
+ 
+ // Other cases.
+ 
+-var _ = [...]I3 /* ERROR interface is .* comparable */ {}
++var _ = [...]I3 /* ERROR interface contains type constraints */ {}
+ 
+ func _(x interface{}) {
+-	_ = x.(I3 /* ERROR interface is .* comparable */ )
++	_ = x.(I3 /* ERROR interface contains type constraints */ )
+ }
+ 
+ type T1[_ any] struct{}
+diff --git a/src/go/types/testdata/fixedbugs/issue51472.go2 b/src/go/types/testdata/fixedbugs/issue51472.go2
+new file mode 100644
+index 0000000000..3126770829
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51472.go2
+@@ -0,0 +1,54 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[T comparable](x T) {
++        _ = x == x
++}
++
++func _[T interface{interface{comparable}}](x T) {
++        _ = x == x
++}
++
++func _[T interface{comparable; interface{comparable}}](x T) {
++        _ = x == x
++}
++
++func _[T interface{comparable; ~int}](x T) {
++        _ = x == x
++}
++
++func _[T interface{comparable; ~[]byte}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++// TODO(gri) The error message here should be better. See issue #51525.
++func _[T interface{comparable; ~int; ~string}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++// TODO(gri) The error message here should be better. See issue #51525.
++func _[T interface{~int; ~string}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++func _[T interface{comparable; interface{~int}; interface{int|float64}}](x T) {
++        _ = x == x
++}
++
++func _[T interface{interface{comparable; ~int}; interface{~float64; comparable; m()}}](x T) {
++        _ = x /* ERROR cannot compare */ == x
++}
++
++// test case from issue
++
++func f[T interface{comparable; []byte|string}](x T) {
++        _ = x == x
++}
++
++func _(s []byte) {
++	f /* ERROR \[\]byte does not implement interface{comparable; \[\]byte\|string} */ (s)
++        _ = f[[ /* ERROR does not implement */ ]byte]
++}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 4c3f018cfe..6603383ea3 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -15,18 +15,25 @@ import (
+ // API
+ 
+ // A _TypeSet represents the type set of an interface.
++// Because of existing language restrictions, methods can be "factored out"
++// from the terms. The actual type set is the intersection of the type set
++// implied by the methods and the type set described by the terms and the
++// comparable bit. To test whether a type is included in a type set
++// ("implements" relation), the type must implement all methods _and_ be
++// an element of the type set described by the terms and the comparable bit.
++// If the term list describes the set of all types and comparable is true,
++// only comparable types are meant; in all other cases comparable is false.
+ type _TypeSet struct {
+-	comparable bool // if set, the interface is or embeds comparable
+-	// TODO(gri) consider using a set for the methods for faster lookup
+-	methods []*Func  // all methods of the interface; sorted by unique ID
+-	terms   termlist // type terms of the type set
++	methods    []*Func  // all methods of the interface; sorted by unique ID
++	terms      termlist // type terms of the type set
++	comparable bool     // invariant: !comparable || terms.isAll()
+ }
+ 
+ // IsEmpty reports whether type set s is the empty set.
+ func (s *_TypeSet) IsEmpty() bool { return s.terms.isEmpty() }
+ 
+ // IsAll reports whether type set s is the set of all types (corresponding to the empty interface).
+-func (s *_TypeSet) IsAll() bool { return !s.comparable && len(s.methods) == 0 && s.terms.isAll() }
++func (s *_TypeSet) IsAll() bool { return s.IsMethodSet() && len(s.methods) == 0 }
+ 
+ // IsMethodSet reports whether the interface t is fully described by its method set.
+ func (s *_TypeSet) IsMethodSet() bool { return !s.comparable && s.terms.isAll() }
+@@ -41,13 +48,6 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 	})
+ }
+ 
+-// TODO(gri) IsTypeSet is not a great name for this predicate. Find a better one.
+-
+-// IsTypeSet reports whether the type set s is represented by a finite set of underlying types.
+-func (s *_TypeSet) IsTypeSet() bool {
+-	return !s.comparable && len(s.methods) == 0
+-}
+-
+ // NumMethods returns the number of methods available.
+ func (s *_TypeSet) NumMethods() int { return len(s.methods) }
+ 
+@@ -217,12 +217,12 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 
+ 	var todo []*Func
+ 	var seen objset
+-	var methods []*Func
++	var allMethods []*Func
+ 	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
+ 	addMethod := func(pos token.Pos, m *Func, explicit bool) {
+ 		switch other := seen.insert(m); {
+ 		case other == nil:
+-			methods = append(methods, m)
++			allMethods = append(allMethods, m)
+ 			mpos[m] = pos
+ 		case explicit:
+ 			if check == nil {
+@@ -257,7 +257,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	}
+ 
+ 	// collect embedded elements
+-	var allTerms = allTermlist
++	allTerms := allTermlist
++	allComparable := false
+ 	for i, typ := range ityp.embeddeds {
+ 		// The embedding position is nil for imported interfaces
+ 		// and also for interface copies after substitution (but
+@@ -266,6 +267,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 		if ityp.embedPos != nil {
+ 			pos = (*ityp.embedPos)[i]
+ 		}
++		var comparable bool
+ 		var terms termlist
+ 		switch u := under(typ).(type) {
+ 		case *Interface:
+@@ -277,9 +279,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 				check.errorf(atPos(pos), _UnsupportedFeature, "embedding constraint interface %s requires go1.18 or later", typ)
+ 				continue
+ 			}
+-			if tset.comparable {
+-				ityp.tset.comparable = true
+-			}
++			comparable = tset.comparable
+ 			for _, m := range tset.methods {
+ 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 			}
+@@ -293,6 +293,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			if tset == &invalidTypeSet {
+ 				continue // ignore invalid unions
+ 			}
++			assert(!tset.comparable)
++			assert(len(tset.methods) == 0)
+ 			terms = tset.terms
+ 		default:
+ 			if u == Typ[Invalid] {
+@@ -304,11 +306,11 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			}
+ 			terms = termlist{{false, typ}}
+ 		}
+-		// The type set of an interface is the intersection
+-		// of the type sets of all its elements.
+-		// Intersection cannot produce longer termlists and
+-		// thus cannot overflow.
+-		allTerms = allTerms.intersect(terms)
++
++		// The type set of an interface is the intersection of the type sets of all its elements.
++		// Due to language restrictions, only embedded interfaces can add methods, they are handled
++		// separately. Here we only need to intersect the term lists and comparable bits.
++		allTerms, allComparable = intersectTermLists(allTerms, allComparable, terms, comparable)
+ 	}
+ 	ityp.embedPos = nil // not needed anymore (errors have been reported)
+ 
+@@ -321,15 +323,46 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 		}
+ 	}
+ 
+-	if methods != nil {
+-		sort.Sort(byUniqueMethodName(methods))
+-		ityp.tset.methods = methods
++	ityp.tset.comparable = allComparable
++	if len(allMethods) != 0 {
++		sortMethods(allMethods)
++		ityp.tset.methods = allMethods
+ 	}
+ 	ityp.tset.terms = allTerms
+ 
+ 	return ityp.tset
+ }
+ 
++// TODO(gri) The intersectTermLists function belongs to the termlist implementation.
++//           The comparable type set may also be best represented as a term (using
++//           a special type).
++
++// intersectTermLists computes the intersection of two term lists and respective comparable bits.
++// xcomp, ycomp are valid only if xterms.isAll() and yterms.isAll() respectively.
++func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool) (termlist, bool) {
++	terms := xterms.intersect(yterms)
++	// If one of xterms or yterms is marked as comparable,
++	// the result must only include comparable types.
++	comp := xcomp || ycomp
++	if comp && !terms.isAll() {
++		// only keep comparable terms
++		i := 0
++		for _, t := range terms {
++			assert(t.typ != nil)
++			if Comparable(t.typ) {
++				terms[i] = t
++				i++
++			}
++		}
++		terms = terms[:i]
++		if !terms.isAll() {
++			comp = false
++		}
++	}
++	assert(!comp || terms.isAll()) // comparable invariant
++	return terms, comp
++}
++
+ func sortMethods(list []*Func) {
+ 	sort.Sort(byUniqueMethodName(list))
+ }
+diff --git a/src/go/types/typeset_test.go b/src/go/types/typeset_test.go
+index 1c0eeceb8c..2bbe611376 100644
+--- a/src/go/types/typeset_test.go
++++ b/src/go/types/typeset_test.go
+@@ -26,9 +26,9 @@ func TestTypeSetString(t *testing.T) {
+ 		"{int; string}": "∅",
+ 
+ 		"{comparable}":              "{comparable}",
+-		"{comparable; int}":         "{comparable; int}",
+-		"{~int; comparable}":        "{comparable; ~int}",
+-		"{int|string; comparable}":  "{comparable; int ∪ string}",
++		"{comparable; int}":         "{int}",
++		"{~int; comparable}":        "{~int}",
++		"{int|string; comparable}":  "{int ∪ string}",
+ 		"{comparable; int; string}": "∅",
+ 
+ 		"{m()}":                         "{func (p.T).m()}",
+@@ -38,8 +38,8 @@ func TestTypeSetString(t *testing.T) {
+ 		"{m1(); comparable; m2() int }": "{comparable; func (p.T).m1(); func (p.T).m2() int}",
+ 		"{comparable; error}":           "{comparable; func (error).Error() string}",
+ 
+-		"{m(); comparable; int|float32|string}": "{comparable; func (p.T).m(); int ∪ float32 ∪ string}",
+-		"{m1(); int; m2(); comparable }":        "{comparable; func (p.T).m1(); func (p.T).m2(); int}",
++		"{m(); comparable; int|float32|string}": "{func (p.T).m(); int ∪ float32 ∪ string}",
++		"{m1(); int; m2(); comparable }":        "{func (p.T).m1(); func (p.T).m2(); int}",
+ 
+ 		"{E}; type E interface{}":           "𝓤",
+ 		"{E}; type E interface{int;string}": "∅",
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 9c59279447..8397d65af0 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -103,25 +103,27 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 
+ 				if !Identical(u, t.typ) {
+ 					check.errorf(tlist[i], _InvalidUnion, "invalid use of ~ (underlying type of %s is %s)", t.typ, u)
+-					continue // don't report another error for t
++					continue
+ 				}
+ 			}
+ 
+ 			// Stand-alone embedded interfaces are ok and are handled by the single-type case
+ 			// in the beginning. Embedded interfaces with tilde are excluded above. If we reach
+-			// here, we must have at least two terms in the union.
+-			if f != nil && !f.typeSet().IsTypeSet() {
++			// here, we must have at least two terms in the syntactic term list (but not necessarily
++			// in the term list of the union's type set).
++			if f != nil {
++				tset := f.typeSet()
+ 				switch {
+-				case f.typeSet().NumMethods() != 0:
++				case tset.NumMethods() != 0:
+ 					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s contains methods)", t, t)
++					continue
+ 				case t.typ == universeComparable.Type():
+ 					check.error(tlist[i], _InvalidUnion, "cannot use comparable in union")
+-				case f.typeSet().comparable:
++					continue
++				case tset.comparable:
+ 					check.errorf(tlist[i], _InvalidUnion, "cannot use %s in union (%s embeds comparable)", t, t)
+-				default:
+-					panic("not a type set but no methods and not comparable")
++					continue
+ 				}
+-				continue // don't report another error for t
+ 			}
+ 
+ 			// Report overlapping (non-disjoint) terms such as
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 3421634678..303ada4e57 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -112,7 +112,7 @@ func defPredeclaredTypes() {
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// interface{} // marked as comparable
+-		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{true, nil, allTermlist}}
++		ityp := &Interface{obj: obj, complete: true, tset: &_TypeSet{nil, allTermlist, true}}
+ 
+ 		typ.SetUnderlying(ityp)
+ 		def(obj)

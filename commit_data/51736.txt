@@ -15,10 +15,138 @@ Date:   Tue Mar 8 14:55:26 2022 +0100
     Trust: Matt Layher <mdlayher@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os3_solaris.go      |  3 ---
  src/runtime/sys_solaris_amd64.s | 12 ------------
  src/runtime/syscall_solaris.go  | 18 ------------------
  src/syscall/asm_solaris_amd64.s |  3 ---
  src/syscall/syscall_solaris.go  | 14 +-------------
  5 files changed, 1 insertion(+), 49 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 5aee04d5a8..f465a3aa3f 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -47,7 +47,6 @@ import (
+ //go:cgo_import_dynamic libc_sysconf sysconf "libc.so"
+ //go:cgo_import_dynamic libc_usleep usleep "libc.so"
+ //go:cgo_import_dynamic libc_write write "libc.so"
+-//go:cgo_import_dynamic libc_pipe pipe "libc.so"
+ //go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
+ 
+ //go:linkname libc____errno libc____errno
+@@ -83,7 +82,6 @@ import (
+ //go:linkname libc_sysconf libc_sysconf
+ //go:linkname libc_usleep libc_usleep
+ //go:linkname libc_write libc_write
+-//go:linkname libc_pipe libc_pipe
+ //go:linkname libc_pipe2 libc_pipe2
+ 
+ var (
+@@ -120,7 +118,6 @@ var (
+ 	libc_sysconf,
+ 	libc_usleep,
+ 	libc_write,
+-	libc_pipe,
+ 	libc_pipe2 libcFunc
+ )
+ 
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 05fd187517..24d2d61df0 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -29,18 +29,6 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
+ 	MOVQ	AX,	(m_mOS+mOS_perrno)(BX)
+ 	RET
+ 
+-// pipe(3c) wrapper that returns fds in AX, DX.
+-// NOT USING GO CALLING CONVENTION.
+-TEXT runtime·pipe1(SB),NOSPLIT,$0
+-	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte aligned
+-	MOVQ	SP, DI
+-	LEAQ	libc_pipe(SB), AX
+-	CALL	AX
+-	MOVL	0(SP), AX
+-	MOVL	4(SP), DX
+-	ADDQ	$16, SP
+-	RET
+-
+ // Call a library function with SysV calling conventions.
+ // The called function can take a maximum of 6 INTEGER class arguments,
+ // see
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index e270e271c0..79775711ae 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -25,11 +25,6 @@ var (
+ 	libc_wait4 libcFunc
+ )
+ 
+-//go:linkname pipe1x runtime.pipe1
+-var pipe1x libcFunc // name to take addr of pipe1
+-
+-func pipe1() // declared for vet; do NOT call
+-
+ // Many of these are exported via linkname to assembly in the syscall
+ // package.
+ 
+@@ -196,19 +191,6 @@ func syscall_ioctl(fd, req, arg uintptr) (err uintptr) {
+ 	return call.err
+ }
+ 
+-//go:linkname syscall_pipe
+-func syscall_pipe() (r, w, err uintptr) {
+-	call := libcall{
+-		fn:   uintptr(unsafe.Pointer(&pipe1x)),
+-		n:    0,
+-		args: uintptr(unsafe.Pointer(&pipe1x)), // it's unused but must be non-nil, otherwise crashes
+-	}
+-	entersyscallblock()
+-	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
+-	exitsyscall()
+-	return call.r1, call.r2, call.err
+-}
+-
+ // This is syscall.RawSyscall, it exists to satisfy some build dependency,
+ // but it doesn't work.
+ //
+diff --git a/src/syscall/asm_solaris_amd64.s b/src/syscall/asm_solaris_amd64.s
+index c61e04a42f..3672d3667f 100644
+--- a/src/syscall/asm_solaris_amd64.s
++++ b/src/syscall/asm_solaris_amd64.s
+@@ -48,9 +48,6 @@ TEXT ·getpid(SB),NOSPLIT,$0
+ TEXT ·ioctl(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_ioctl(SB)
+ 
+-TEXT ·pipe(SB),NOSPLIT,$0
+-	JMP	runtime·syscall_pipe(SB)
+-
+ TEXT ·RawSyscall(SB),NOSPLIT,$0
+ 	JMP	runtime·syscall_rawsyscall(SB)
+ 
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 3c50343d84..d01070b2ec 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -47,20 +47,8 @@ func direntNamlen(buf []byte) (uint64, bool) {
+ 	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
+ }
+ 
+-func pipe() (r uintptr, w uintptr, err uintptr)
+-
+ func Pipe(p []int) (err error) {
+-	if len(p) != 2 {
+-		return EINVAL
+-	}
+-	r0, w0, e1 := pipe()
+-	if e1 != 0 {
+-		err = Errno(e1)
+-	}
+-	if err == nil {
+-		p[0], p[1] = int(r0), int(w0)
+-	}
+-	return
++	return Pipe2(p, 0)
+ }
+ 
+ //sysnb	pipe2(p *[2]_C_int, flags int) (err error)

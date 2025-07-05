@@ -11,6 +11,27 @@ Date:   Thu Sep 15 20:26:46 2022 +0200
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     Auto-Submit: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/at.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index 876ca9ff57..90fcda0c75 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -12,7 +12,6 @@ import (
+ )
+ 
+ func Unlinkat(dirfd int, path string, flags int) error {
+-	var p *byte
+ 	p, err := syscall.BytePtrFromString(path)
+ 	if err != nil {
+ 		return err
+@@ -27,7 +26,6 @@ func Unlinkat(dirfd int, path string, flags int) error {
+ }
+ 
+ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+-	var p *byte
+ 	p, err := syscall.BytePtrFromString(path)
+ 	if err != nil {
+ 		return 0, err

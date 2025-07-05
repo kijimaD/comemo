@@ -23,7 +23,7 @@ Date:   Wed Aug 23 13:52:25 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go         | 21 ---------------
  src/cmd/compile/internal/noder/quirks.go       |  2 +-
  src/cmd/compile/internal/noder/writer.go       | 36 +++++++++++++-------------
@@ -40,3 +40,574 @@ Date:   Wed Aug 23 13:52:25 2023 -0700
  src/cmd/compile/internal/types2/stmt.go        | 14 +++++-----
  src/cmd/compile/internal/types2/typexpr.go     |  2 +-
  15 files changed, 80 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 51b0656385..14ef3b958f 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -11,17 +11,6 @@ import (
+ 	"cmd/compile/internal/syntax"
+ )
+ 
+-func unpackListExpr(expr syntax.Expr) []syntax.Expr {
+-	switch expr := expr.(type) {
+-	case nil:
+-		return nil
+-	case *syntax.ListExpr:
+-		return expr.ElemList
+-	default:
+-		return []syntax.Expr{expr}
+-	}
+-}
+-
+ // constExprOp returns an ir.Op that represents the outermost
+ // operation of the given constant expression. It's intended for use
+ // with ir.RawOrigExpr.
+@@ -43,13 +32,3 @@ func constExprOp(expr syntax.Expr) ir.Op {
+ 		return binOps[expr.Op]
+ 	}
+ }
+-
+-func unparen(expr syntax.Expr) syntax.Expr {
+-	for {
+-		paren, ok := expr.(*syntax.ParenExpr)
+-		if !ok {
+-			return expr
+-		}
+-		expr = paren.X
+-	}
+-}
+diff --git a/src/cmd/compile/internal/noder/quirks.go b/src/cmd/compile/internal/noder/quirks.go
+index a22577f965..dd9cec9250 100644
+--- a/src/cmd/compile/internal/noder/quirks.go
++++ b/src/cmd/compile/internal/noder/quirks.go
+@@ -62,7 +62,7 @@ func typeExprEndPos(expr0 syntax.Expr) syntax.Pos {
+ 			}
+ 
+ 		case *syntax.IndexExpr: // explicit type instantiation
+-			targs := unpackListExpr(expr.Index)
++			targs := syntax.UnpackListExpr(expr.Index)
+ 			expr0 = targs[len(targs)-1]
+ 
+ 		default:
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 07b46b1f2c..10cf46f3f2 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1304,7 +1304,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 		dstType := func(i int) types2.Type {
+ 			return resultTypes.At(i).Type()
+ 		}
+-		w.multiExpr(stmt, dstType, unpackListExpr(stmt.Results))
++		w.multiExpr(stmt, dstType, syntax.UnpackListExpr(stmt.Results))
+ 
+ 	case *syntax.SelectStmt:
+ 		w.Code(stmtSelect)
+@@ -1325,7 +1325,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ }
+ 
+ func (w *writer) assignList(expr syntax.Expr) {
+-	exprs := unpackListExpr(expr)
++	exprs := syntax.UnpackListExpr(expr)
+ 	w.Len(len(exprs))
+ 
+ 	for _, expr := range exprs {
+@@ -1334,7 +1334,7 @@ func (w *writer) assignList(expr syntax.Expr) {
+ }
+ 
+ func (w *writer) assign(expr syntax.Expr) {
+-	expr = unparen(expr)
++	expr = syntax.Unparen(expr)
+ 
+ 	if name, ok := expr.(*syntax.Name); ok {
+ 		if name.Value == "_" {
+@@ -1375,8 +1375,8 @@ func (w *writer) declStmt(decl syntax.Decl) {
+ 
+ // assignStmt writes out an assignment for "lhs = rhs".
+ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
+-	lhs := unpackListExpr(lhs0)
+-	rhs := unpackListExpr(rhs0)
++	lhs := syntax.UnpackListExpr(lhs0)
++	rhs := syntax.UnpackListExpr(rhs0)
+ 
+ 	w.Code(stmtAssign)
+ 	w.pos(pos)
+@@ -1393,7 +1393,7 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
+ 		// Finding dstType is somewhat involved, because for VarDecl
+ 		// statements, the Names are only added to the info.{Defs,Uses}
+ 		// maps, not to info.Types.
+-		if name, ok := unparen(dst).(*syntax.Name); ok {
++		if name, ok := syntax.Unparen(dst).(*syntax.Name); ok {
+ 			if name.Value == "_" {
+ 				return nil // ok: no implicit conversion
+ 			} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
+@@ -1432,12 +1432,12 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+ 			w.rtype(xtyp)
+ 		}
+ 		{
+-			lhs := unpackListExpr(rang.Lhs)
++			lhs := syntax.UnpackListExpr(rang.Lhs)
+ 			assign := func(i int, src types2.Type) {
+ 				if i >= len(lhs) {
+ 					return
+ 				}
+-				dst := unparen(lhs[i])
++				dst := syntax.Unparen(lhs[i])
+ 				if name, ok := dst.(*syntax.Name); ok && name.Value == "_" {
+ 					return
+ 				}
+@@ -1603,7 +1603,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 					if clause.Cases == nil {
+ 						target = clause
+ 					}
+-					for _, cas := range unpackListExpr(clause.Cases) {
++					for _, cas := range syntax.UnpackListExpr(clause.Cases) {
+ 						tv := w.p.typeAndValue(cas)
+ 						if tv.Value == nil {
+ 							return // non-constant case; give up
+@@ -1642,7 +1642,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 		// `any` instead.
+ 	Outer:
+ 		for _, clause := range stmt.Body {
+-			for _, cas := range unpackListExpr(clause.Cases) {
++			for _, cas := range syntax.UnpackListExpr(clause.Cases) {
+ 				if casType := w.p.typeOf(cas); !types2.AssignableTo(casType, tagType) {
+ 					tagType = types2.NewInterfaceType(nil, nil)
+ 					break Outer
+@@ -1664,7 +1664,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 
+ 		w.pos(clause)
+ 
+-		cases := unpackListExpr(clause.Cases)
++		cases := syntax.UnpackListExpr(clause.Cases)
+ 		if iface != nil {
+ 			w.Len(len(cases))
+ 			for _, cas := range cases {
+@@ -1692,7 +1692,7 @@ func (w *writer) switchStmt(stmt *syntax.SwitchStmt) {
+ 			// instead just set the variable's DWARF scoping info earlier so
+ 			// we can give it the correct position information.
+ 			pos := clause.Pos()
+-			if typs := unpackListExpr(clause.Cases); len(typs) != 0 {
++			if typs := syntax.UnpackListExpr(clause.Cases); len(typs) != 0 {
+ 				pos = typeExprEndPos(typs[len(typs)-1])
+ 			}
+ 			w.pos(pos)
+@@ -1731,7 +1731,7 @@ func (w *writer) optLabel(label *syntax.Name) {
+ func (w *writer) expr(expr syntax.Expr) {
+ 	base.Assertf(expr != nil, "missing expression")
+ 
+-	expr = unparen(expr) // skip parens; unneeded after typecheck
++	expr = syntax.Unparen(expr) // skip parens; unneeded after typecheck
+ 
+ 	obj, inst := lookupObj(w.p, expr)
+ 	targs := inst.TypeArgs
+@@ -1990,7 +1990,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 		writeFunExpr := func() {
+-			fun := unparen(expr.Fun)
++			fun := syntax.Unparen(expr.Fun)
+ 
+ 			if selector, ok := fun.(*syntax.SelectorExpr); ok {
+ 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
+@@ -2304,7 +2304,7 @@ type posVar struct {
+ 
+ func (w *writer) exprList(expr syntax.Expr) {
+ 	w.Sync(pkgbits.SyncExprList)
+-	w.exprs(unpackListExpr(expr))
++	w.exprs(syntax.UnpackListExpr(expr))
+ }
+ 
+ func (w *writer) exprs(exprs []syntax.Expr) {
+@@ -2789,7 +2789,7 @@ func isGlobal(obj types2.Object) bool {
+ // object is returned as well.
+ func lookupObj(p *pkgWriter, expr syntax.Expr) (obj types2.Object, inst types2.Instance) {
+ 	if index, ok := expr.(*syntax.IndexExpr); ok {
+-		args := unpackListExpr(index.Index)
++		args := syntax.UnpackListExpr(index.Index)
+ 		if len(args) == 1 {
+ 			tv := p.typeAndValue(args[0])
+ 			if tv.IsValue() {
+@@ -2835,7 +2835,7 @@ func isNil(p *pkgWriter, expr syntax.Expr) bool {
+ // isBuiltin reports whether expr is a (possibly parenthesized)
+ // referenced to the specified built-in function.
+ func (pw *pkgWriter) isBuiltin(expr syntax.Expr, builtin string) bool {
+-	if name, ok := unparen(expr).(*syntax.Name); ok && name.Value == builtin {
++	if name, ok := syntax.Unparen(expr).(*syntax.Name); ok && name.Value == builtin {
+ 		return pw.typeAndValue(name).IsBuiltin()
+ 	}
+ 	return false
+@@ -2955,7 +2955,7 @@ func (pw *pkgWriter) terminates(stmt syntax.Stmt) bool {
+ 	case *syntax.ReturnStmt:
+ 		return true
+ 	case *syntax.ExprStmt:
+-		if call, ok := unparen(stmt.X).(*syntax.CallExpr); ok {
++		if call, ok := syntax.Unparen(stmt.X).(*syntax.CallExpr); ok {
+ 			if pw.isBuiltin(call.Fun, "panic") {
+ 				return true
+ 			}
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index b5602fcff7..7085287cad 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -885,7 +885,7 @@ func (p *parser) unaryExpr() Expr {
+ 			p.next()
+ 			// unaryExpr may have returned a parenthesized composite literal
+ 			// (see comment in operand) - remove parentheses if any
+-			x.X = unparen(p.unaryExpr())
++			x.X = Unparen(p.unaryExpr())
+ 			return x
+ 		}
+ 
+@@ -965,7 +965,7 @@ func (p *parser) callStmt() *CallStmt {
+ 	p.next()
+ 
+ 	x := p.pexpr(nil, p.tok == _Lparen) // keep_parens so we can report error below
+-	if t := unparen(x); t != x {
++	if t := Unparen(x); t != x {
+ 		p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
+ 		// already progressed, no need to advance
+ 		x = t
+@@ -1190,7 +1190,7 @@ loop:
+ 		case _Lbrace:
+ 			// operand may have returned a parenthesized complit
+ 			// type; accept it but complain if we have a complit
+-			t := unparen(x)
++			t := Unparen(x)
+ 			// determine if '{' belongs to a composite literal or a block statement
+ 			complit_ok := false
+ 			switch t.(type) {
+@@ -2812,8 +2812,8 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
+ 	return
+ }
+ 
+-// unparen removes all parentheses around an expression.
+-func unparen(x Expr) Expr {
++// Unparen returns e with any enclosing parentheses stripped.
++func Unparen(x Expr) Expr {
+ 	for {
+ 		p, ok := x.(*ParenExpr)
+ 		if !ok {
+@@ -2823,3 +2823,15 @@ func unparen(x Expr) Expr {
+ 	}
+ 	return x
+ }
++
++// UnpackListExpr unpacks a *ListExpr into a []Expr.
++func UnpackListExpr(x Expr) []Expr {
++	switch x := x.(type) {
++	case nil:
++		return nil
++	case *ListExpr:
++		return x.ElemList
++	default:
++		return []Expr{x}
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index d5d4290f59..538278b3eb 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -374,3 +374,22 @@ func TestLineDirectives(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test that typical uses of UnpackListExpr don't allocate.
++func TestUnpackListExprAllocs(t *testing.T) {
++	var x Expr = NewName(Pos{}, "x")
++	allocs := testing.AllocsPerRun(1000, func() {
++		list := UnpackListExpr(x)
++		if len(list) != 1 || list[0] != x {
++			t.Fatalf("unexpected result")
++		}
++	})
++
++	if allocs > 0 {
++		errorf := t.Errorf
++		if testenv.OptimizationOff() {
++			errorf = t.Logf // noopt builder disables inlining
++		}
++		errorf("UnpackListExpr allocated %v times", allocs)
++	}
++}
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 62de68ed66..9f20db54de 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -916,7 +916,7 @@ func (p *printer) printParameterList(list []*Field, tok token) {
+ 			}
+ 			p.print(blank)
+ 		}
+-		p.printNode(unparen(f.Type)) // no need for (extra) parentheses around parameter types
++		p.printNode(Unparen(f.Type)) // no need for (extra) parentheses around parameter types
+ 	}
+ 	// A type parameter list [P T] where the name P and the type expression T syntactically
+ 	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index cba102e4f4..28ceb6cd75 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -170,7 +170,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
+ // and Typ[Invalid] if it is an invalid lhs expression.
+ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ 	// Determine if the lhs is a (possibly parenthesized) identifier.
+-	ident, _ := unparen(lhs).(*syntax.Name)
++	ident, _ := syntax.Unparen(lhs).(*syntax.Name)
+ 
+ 	// Don't evaluate lhs if it is the blank identifier.
+ 	if ident != nil && ident.Value == "_" {
+@@ -320,7 +320,7 @@ func (check *Checker) assignError(rhs []syntax.Expr, l, r int) {
+ 	rhs0 := rhs[0]
+ 
+ 	if len(rhs) == 1 {
+-		if call, _ := unparen(rhs0).(*syntax.CallExpr); call != nil {
++		if call, _ := syntax.Unparen(rhs0).(*syntax.CallExpr); call != nil {
+ 			check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
+ 			return
+ 		}
+@@ -361,7 +361,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	// error message don't handle it as n:n mapping below.
+ 	isCall := false
+ 	if r == 1 {
+-		_, isCall = unparen(orig_rhs[0]).(*syntax.CallExpr)
++		_, isCall = syntax.Unparen(orig_rhs[0]).(*syntax.CallExpr)
+ 	}
+ 
+ 	// If we have a n:n mapping from lhs variable to rhs expression,
+@@ -436,7 +436,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	// error message don't handle it as n:n mapping below.
+ 	isCall := false
+ 	if r == 1 {
+-		_, isCall = unparen(orig_rhs[0]).(*syntax.CallExpr)
++		_, isCall = syntax.Unparen(orig_rhs[0]).(*syntax.CallExpr)
+ 	}
+ 
+ 	// If we have a n:n mapping from lhs variable to rhs expression,
+@@ -483,21 +483,6 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	// orig_rhs[0] was already evaluated
+ }
+ 
+-// unpackExpr unpacks a *syntax.ListExpr into a list of syntax.Expr.
+-// Helper introduced for the go/types -> types2 port.
+-// TODO(gri) Should find a more efficient solution that doesn't
+-// require introduction of a new slice for simple
+-// expressions.
+-func unpackExpr(x syntax.Expr) []syntax.Expr {
+-	if x, _ := x.(*syntax.ListExpr); x != nil {
+-		return x.ElemList
+-	}
+-	if x != nil {
+-		return []syntax.Expr{x}
+-	}
+-	return nil
+-}
+-
+ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 	top := len(check.delayed)
+ 	scope := check.scope
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 7a209e7a97..53be480f54 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -706,7 +706,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
+ 		// (no argument evaluated yet)
+ 		arg0 := argList[0]
+-		selx, _ := unparen(arg0).(*syntax.SelectorExpr)
++		selx, _ := syntax.Unparen(arg0).(*syntax.SelectorExpr)
+ 		if selx == nil {
+ 			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
+ 			check.use(arg0)
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index f7a8a8dfcd..643242db57 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -47,7 +47,7 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
+ 	var targs []Type
+ 	var xlist []syntax.Expr
+ 	if inst != nil {
+-		xlist = unpackExpr(inst.Index)
++		xlist = syntax.UnpackListExpr(inst.Index)
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			x.mode = invalid
+@@ -258,7 +258,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	var xlist []syntax.Expr
+ 	var targs []Type
+ 	if inst != nil {
+-		xlist = unpackExpr(inst.Index)
++		xlist = syntax.UnpackListExpr(inst.Index)
+ 		targs = check.typeList(xlist)
+ 		if targs == nil {
+ 			check.use(call.ArgList...)
+@@ -953,7 +953,7 @@ func (check *Checker) useN(args []syntax.Expr, lhs bool) bool {
+ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
+ 	var x operand
+ 	x.mode = value // anything but invalid
+-	switch n := unparen(e).(type) {
++	switch n := syntax.Unparen(e).(type) {
+ 	case nil:
+ 		// nothing to do
+ 	case *syntax.Name:
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 88864cb93e..2914b496f4 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -777,7 +777,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
+ 
+ 			// declare all constants
+ 			lhs := make([]*Const, len(s.NameList))
+-			values := unpackExpr(last.Values)
++			values := syntax.UnpackListExpr(last.Values)
+ 			for i, name := range s.NameList {
+ 				obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
+ 				lhs[i] = obj
+@@ -814,7 +814,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
+ 			}
+ 
+ 			// initialize all variables
+-			values := unpackExpr(s.Values)
++			values := syntax.UnpackListExpr(s.Values)
+ 			for i, obj := range lhs0 {
+ 				var lhs []*Var
+ 				var init syntax.Expr
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 67afbfb058..f28fbae123 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -147,7 +147,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 	case syntax.And:
+ 		// spec: "As an exception to the addressability
+ 		// requirement x may also be a composite literal."
+-		if _, ok := unparen(e.X).(*syntax.CompositeLit); !ok && x.mode != variable {
++		if _, ok := syntax.Unparen(e.X).(*syntax.CompositeLit); !ok && x.mode != variable {
+ 			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
+ 			x.mode = invalid
+ 			return
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index d051fb50e1..a76e6d3204 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -351,7 +351,7 @@ func (check *Checker) collectObjects() {
+ 				}
+ 
+ 				// declare all constants
+-				values := unpackExpr(last.Values)
++				values := syntax.UnpackListExpr(last.Values)
+ 				for i, name := range s.NameList {
+ 					obj := NewConst(name.Pos(), pkg, name.Value, nil, iota)
+ 
+@@ -382,7 +382,7 @@ func (check *Checker) collectObjects() {
+ 				}
+ 
+ 				// declare all variables
+-				values := unpackExpr(s.Values)
++				values := syntax.UnpackListExpr(s.Values)
+ 				for i, name := range s.NameList {
+ 					obj := NewVar(name.Pos(), pkg, name.Value, nil)
+ 					lhs[i] = obj
+@@ -538,7 +538,7 @@ L: // unpack receiver type
+ 	if ptyp, _ := rtyp.(*syntax.IndexExpr); ptyp != nil {
+ 		rtyp = ptyp.X
+ 		if unpackParams {
+-			for _, arg := range unpackExpr(ptyp.Index) {
++			for _, arg := range syntax.UnpackListExpr(ptyp.Index) {
+ 				var par *syntax.Name
+ 				switch arg := arg.(type) {
+ 				case *syntax.Name:
+@@ -588,7 +588,7 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, typ syntax.Expr, fileSco
+ 				return false, nil
+ 			}
+ 			ptr = true
+-			typ = unparen(pexpr.X) // continue with pointer base type
++			typ = syntax.Unparen(pexpr.X) // continue with pointer base type
+ 		}
+ 
+ 		// typ must be a name, or a C.name cgo selector.
+diff --git a/src/cmd/compile/internal/types2/return.go b/src/cmd/compile/internal/types2/return.go
+index ab611ef9b2..01988b012e 100644
+--- a/src/cmd/compile/internal/types2/return.go
++++ b/src/cmd/compile/internal/types2/return.go
+@@ -27,7 +27,7 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
+ 
+ 	case *syntax.ExprStmt:
+ 		// calling the predeclared (possibly parenthesized) panic() function is terminating
+-		if call, ok := unparen(s.X).(*syntax.CallExpr); ok && check.isPanic[call] {
++		if call, ok := syntax.Unparen(s.X).(*syntax.CallExpr); ok && check.isPanic[call] {
+ 			return true
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index f13ab69830..3b8c79f108 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -279,7 +279,7 @@ L:
+ // isNil reports whether the expression e denotes the predeclared value nil.
+ func (check *Checker) isNil(e syntax.Expr) bool {
+ 	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
+-	if name, _ := unparen(e).(*syntax.Name); name != nil {
++	if name, _ := syntax.Unparen(e).(*syntax.Name); name != nil {
+ 		_, ok := check.lookup(name.Value).(*Nil)
+ 		return ok
+ 	}
+@@ -462,8 +462,8 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			return
+ 		}
+ 
+-		lhs := unpackExpr(s.Lhs)
+-		rhs := unpackExpr(s.Rhs)
++		lhs := syntax.UnpackListExpr(s.Lhs)
++		rhs := syntax.UnpackListExpr(s.Rhs)
+ 		switch s.Op {
+ 		case 0:
+ 			check.assignVars(lhs, rhs)
+@@ -494,7 +494,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		res := check.sig.results
+ 		// Return with implicit results allowed for function with named results.
+ 		// (If one is named, all are named.)
+-		results := unpackExpr(s.Results)
++		results := syntax.UnpackListExpr(s.Results)
+ 		if len(results) == 0 && res.Len() > 0 && res.vars[0].name != "" {
+ 			// spec: "Implementation restriction: A compiler may disallow an empty expression
+ 			// list in a "return" statement if a different entity (constant, type, or variable)
+@@ -621,7 +621,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 			// if present, rhs must be a receive operation
+ 			if rhs != nil {
+-				if x, _ := unparen(rhs).(*syntax.Operation); x != nil && x.Y == nil && x.Op == syntax.Recv {
++				if x, _ := syntax.Unparen(rhs).(*syntax.Operation); x != nil && x.Y == nil && x.Op == syntax.Recv {
+ 					valid = true
+ 				}
+ 			}
+@@ -718,7 +718,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
+ 		} else {
+ 			inner |= finalSwitchCase
+ 		}
+-		check.caseValues(&x, unpackExpr(clause.Cases), seen)
++		check.caseValues(&x, syntax.UnpackListExpr(clause.Cases), seen)
+ 		check.openScopeUntil(clause, end, "case")
+ 		check.stmtList(inner, clause.Body)
+ 		check.closeScope()
+@@ -778,7 +778,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 			end = s.Body[i+1].Pos()
+ 		}
+ 		// Check each type in this type switch case.
+-		cases := unpackExpr(clause.Cases)
++		cases := syntax.UnpackListExpr(clause.Cases)
+ 		T := check.caseTypes(sx, cases, seen)
+ 		check.openScopeUntil(clause, end, "case")
+ 		// If lhs exists, declare a corresponding variable in the case-local scope.
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index ca717fed8b..5a59db023a 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -272,7 +272,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 
+ 	case *syntax.IndexExpr:
+ 		check.verifyVersionf(e, go1_18, "type instantiation")
+-		return check.instantiatedType(e.X, unpackExpr(e.Index), def)
++		return check.instantiatedType(e.X, syntax.UnpackListExpr(e.Index), def)
+ 
+ 	case *syntax.ParenExpr:
+ 		// Generic types must be instantiated before they can be used in any form.

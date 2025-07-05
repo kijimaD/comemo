@@ -11,7 +11,70 @@ Date:   Mon Feb 12 10:33:27 2018 -0700
     Change-Id: I4897428516b159966c13c1054574c4f6fbf0fbac
     Reviewed-on: https://go-review.googlesource.com/94017
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 22 +++++++++++-----------
  src/cmd/go/main.go    |  2 +-
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 96a1b6dc4d..84211fd9cc 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -13,8 +13,8 @@
+ //
+ // The commands are:
+ //
+-// 	build       compile packages and dependencies
+ // 	bug         start a bug report
++// 	build       compile packages and dependencies
+ // 	clean       remove object files and cached files
+ // 	doc         show documentation for package or symbol
+ // 	env         print Go environment information
+@@ -48,6 +48,16 @@
+ // Use "go help [topic]" for more information about that topic.
+ //
+ //
++// Start a bug report
++//
++// Usage:
++//
++// 	go bug
++//
++// Bug opens the default browser and starts a new bug report.
++// The report includes useful system information.
++//
++//
+ // Compile packages and dependencies
+ //
+ // Usage:
+@@ -171,16 +181,6 @@
+ // See also: go install, go get, go clean.
+ //
+ //
+-// Start a bug report
+-//
+-// Usage:
+-//
+-// 	go bug
+-//
+-// Bug opens the default browser and starts a new bug report.
+-// The report includes useful system information.
+-//
+-//
+ // Remove object files and cached files
+ //
+ // Usage:
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index f89c6c0862..6388b59551 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -37,8 +37,8 @@ import (
+ 
+ func init() {
+ 	base.Commands = []*base.Command{
+-		work.CmdBuild,
+ 		bug.CmdBug,
++		work.CmdBuild,
+ 		clean.CmdClean,
+ 		doc.CmdDoc,
+ 		envcmd.CmdEnv,

@@ -17,10 +17,78 @@ Date:   Wed Jan 18 10:37:04 2023 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                                       | 2 +-
  src/cmd/go.sum                                                       | 4 ++--
  .../golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go | 5 +++++
  .../vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go    | 2 +-
  src/cmd/vendor/modules.txt                                           | 2 +-
  5 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 753e0db2b3..4070301206 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.1.0
+ 	golang.org/x/sys v0.3.0
+ 	golang.org/x/term v0.2.0
+-	golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674
++	golang.org/x/tools v0.3.1-0.20230118190848-070db2996ebe
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index bb72137ecf..da5f720a72 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,5 +12,5 @@ golang.org/x/sys v0.3.0 h1:w8ZOecv6NaNa/zC8944JTU3vz4u6Lagfk4RPQxv92NQ=
+ golang.org/x/sys v0.3.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.2.0 h1:z85xZCsEl7bi/KwbNADeBYoOP0++7W1ipu+aGnpwzRM=
+ golang.org/x/term v0.2.0/go.mod h1:TVmDHMZPmdnySmBfhjOoOdhjzdE1h4u1VwSiw2l1Nuc=
+-golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674 h1:Lv0Y+JVwLQF2YThz8ImE7rP2FSv/IzV9lS2k7bvua6U=
+-golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
++golang.org/x/tools v0.3.1-0.20230118190848-070db2996ebe h1:1B2tjdkEp2f885xTfSsY+7mi5fNZHRxWciDl8Hz3EXg=
++golang.org/x/tools v0.3.1-0.20230118190848-070db2996ebe/go.mod h1:/rWhSS2+zyEVwoJf8YAX6L2f0ntZ7Kn/mGgAWcipA5k=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+index 5291d1b2cd..ae5b4151db 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/loopclosure/loopclosure.go
+@@ -303,6 +303,11 @@ func parallelSubtest(info *types.Info, call *ast.CallExpr) []ast.Stmt {
+ 		return nil
+ 	}
+ 
++	if len(call.Args) != 2 {
++		// Ignore calls such as t.Run(fn()).
++		return nil
++	}
++
+ 	lit, _ := call.Args[1].(*ast.FuncLit)
+ 	if lit == nil {
+ 		return nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 3ac4fcaa28..daaf709a44 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -910,7 +910,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		if reason != "" {
+ 			details = " (" + reason + ")"
+ 		}
+-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s, see also https://pkg.go.dev/fmt#hdr-Printing", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
++		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
+ 		return false
+ 	}
+ 	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 414d8eb743..6961b9b6c8 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -46,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.2.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.3.1-0.20221121233702-060c049c4674
++# golang.org/x/tools v0.3.1-0.20230118190848-070db2996ebe
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

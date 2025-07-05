@@ -15,6 +15,27 @@ Date:   Tue Jan 4 13:16:29 2011 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/3818044
-
+---
  lib/godoc/package.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index 6cad213c52..6fe992dbe4 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -1,5 +1,5 @@
+ {.section PAst}
+-{@}
++{@ FSet}
+ {.end}
+ {.section PDoc}
+ {.section IsPkg}
+@@ -12,7 +12,7 @@ COMMAND DOCUMENTATION
+ {.end}
+ {.section Doc}
+ 
+-{@}
++{@ FSet}
+ {.end}
+ {.section Consts}
+ 

@@ -13,7 +13,89 @@ Date:   Sun May 20 14:53:00 2018 +1000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go           | 44 +++++++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go | 11 ++++-------
  2 files changed, 48 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c05fab00fc..8022071bd8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -6244,3 +6244,47 @@ func TestNoRelativeTmpdir(t *testing.T) {
+ 		tg.grepStderr("relative tmpdir", "wrong error")
+ 	}
+ }
++
++// Issue 24704.
++func TestLinkerTmpDirIsDeleted(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("a.go", `package main; import "C"; func main() {}`)
++	tg.run("build", "-ldflags", "-v", "-o", os.DevNull, tg.path("a.go"))
++	// Find line that has "host link:" in linker output.
++	stderr := tg.getStderr()
++	var hostLinkLine string
++	for _, line := range strings.Split(stderr, "\n") {
++		if !strings.Contains(line, "host link:") {
++			continue
++		}
++		hostLinkLine = line
++		break
++	}
++	if hostLinkLine == "" {
++		t.Fatal(`fail to find with "host link:" string in linker output`)
++	}
++	// Find parameter, like "/tmp/go-link-408556474/go.o" inside of
++	// "host link:" line, and extract temp directory /tmp/go-link-408556474
++	// out of it.
++	tmpdir := hostLinkLine
++	i := strings.Index(tmpdir, `go.o"`)
++	if i == -1 {
++		t.Fatalf(`fail to find "go.o" in "host link:" line %q`, hostLinkLine)
++	}
++	tmpdir = tmpdir[:i-1]
++	i = strings.LastIndex(tmpdir, `"`)
++	if i == -1 {
++		t.Fatalf(`fail to find " in "host link:" line %q`, hostLinkLine)
++	}
++	tmpdir = tmpdir[i+1:]
++	// Verify that temp directory has been removed.
++	_, err := os.Stat(tmpdir)
++	if err == nil {
++		t.Fatalf("temp directory %q has not been removed", tmpdir)
++	}
++	if !os.IsNotExist(err) {
++		t.Fatalf("Stat(%q) returns unexpected error: %v", tmpdir, err)
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d8c474f52c..edf3922980 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -921,12 +921,6 @@ func hostobjs(ctxt *Link) {
+ 	}
+ }
+ 
+-// provided by lib9
+-
+-func rmtemp() {
+-	os.RemoveAll(*flagTmpdir)
+-}
+-
+ func hostlinksetup(ctxt *Link) {
+ 	if ctxt.LinkMode != LinkExternal {
+ 		return
+@@ -945,7 +939,10 @@ func hostlinksetup(ctxt *Link) {
+ 			log.Fatal(err)
+ 		}
+ 		*flagTmpdir = dir
+-		AtExit(rmtemp)
++		AtExit(func() {
++			ctxt.Out.f.Close()
++			os.RemoveAll(*flagTmpdir)
++		})
+ 	}
+ 
+ 	// change our output to temporary object file

@@ -65,7 +65,7 @@ Date:   Tue Apr 15 20:46:46 2014 -0400
     R=r, iant
     CC=golang-codereviews
     https://golang.org/cl/88300045
-
+---
  doc/go1.3.html      | 13 ++++++++++
  include/link.h      |  3 +++
  src/cmd/5a/a.h      |  2 +-
@@ -80,3 +80,512 @@ Date:   Tue Apr 15 20:46:46 2014 -0400
  src/liblink/obj.c   | 46 +++++++++++++++++++++++++++++++++-
  src/liblink/sym.c   |  4 +++
  13 files changed, 164 insertions(+), 117 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 10073200c4..916ed04d25 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -145,6 +145,19 @@ Finally, the go command now supports packages that import Objective-C
+ files (suffixed <code>.m</code>) through cgo.
+ </p>
+ 
++<h3 id="gc_flag">Command-line flag parsing</h3>
++
++<p>
++In the gc tool chain, the assemblers now use the
++same command-line flag parsing rules as the Go flag package, a departure
++from the traditional Unix flag parsing. This may affect scripts that invoke
++the tool directly.
++For example,
++<code>go tool 6a -SDfoo</code> must now be written
++<code>go tool 6a -S -D foo</code>.
++(The same change was made to the compilers and linkers in <a href="/doc/go1.1#gc_flag">Go 1.1</a>.)
++</p>
++
+ <h3 id="misc">Miscellany</h3>
+ 
+ <p>
+diff --git a/include/link.h b/include/link.h
+index 9a6fca2ab0..200a503cce 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -360,6 +360,9 @@ struct	Link
+ 	Biobuf*	bso;	// for -v flag
+ 	char*	pathname;
+ 	int32	windows;
++	char*	trimpath;
++	char*	goroot;
++	char*	goroot_final;
+ 
+ 	// hash table of all symbols
+ 	LSym*	hash[LINKHASH];
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index 4300dd8621..bb60fe7de2 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -97,7 +97,7 @@ enum
+ 	Always	= 14,
+ };
+ 
+-EXTERN	char	debug[256];
++EXTERN	int	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	char**	Dlist;
+ EXTERN	int	nDlist;
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 211f7538b5..906eee641a 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -57,11 +57,27 @@ Lconv(Fmt *fp)
+ 	return linklinefmt(ctxt, fp);
+ }
+ 
++void
++dodef(char *p)
++{
++	if(nDlist%8 == 0)
++		Dlist = allocn(Dlist, nDlist*sizeof(char *),
++			8*sizeof(char *));
++	Dlist[nDlist++] = p;
++}
++
++void
++usage(void)
++{
++	print("usage: %ca [options] file.c...\n", thechar);
++	flagprint(1);
++	errorexit();
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+ 	char *p;
+-	int c;
+ 
+ 	thechar = '5';
+ 	thestring = "arm";
+@@ -84,49 +100,24 @@ main(int argc, char *argv[])
+ 	cinit();
+ 	outfile = 0;
+ 	setinclude(".");
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c >= 0 && c < sizeof(debug))
+-			debug[c] = 1;
+-		break;
+-
+-	case 'o':
+-		outfile = ARGF();
+-		break;
+-
+-	case 'D':
+-		p = ARGF();
+-		if(p) {
+-			if (nDlist%8 == 0) 
+-				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
+-					8*sizeof(char *));
+-			Dlist[nDlist++] = p;
+-		}
+-		break;
+-
+-	case 'I':
+-		p = ARGF();
+-		setinclude(p);
+-		break;
+-
+-	case 't':
+-		thechar = 't';
+-		thestring = "thumb";
+-		break;
+-
+-	case 'S':
+-		ctxt->debugasm++;
+-		break;
+-	} ARGEND
+-	if(*argv == 0) {
+-		print("usage: %ca [-options] file.s\n", thechar);
+-		errorexit();
+-	}
++	
++	flagfn1("D", "name[=value]: add #define", dodef);
++	flagfn1("I", "dir: add dir to include path", setinclude);
++	flagcount("S", "print assembly and machine code", &debug['S']);
++	flagcount("m", "debug preprocessor macros", &debug['m']);
++	flagstr("o", "file: set output file", &outfile);
++	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
++
++	flagparse(&argc, &argv, usage);
++	ctxt->debugasm = debug['S'];
++
++	if(argc < 1)
++		usage();
+ 	if(argc > 1){
+ 		print("can't assemble multiple files\n");
+ 		errorexit();
+ 	}
++
+ 	if(assemble(argv[0]))
+ 		errorexit();
+ 	Bflush(&bstdout);
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index da12b32986..b3fb0bb19f 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -109,7 +109,7 @@ enum
+ 	CPREPROC,
+ };
+ 
+-EXTERN	char	debug[256];
++EXTERN	int	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	char**	Dlist;
+ EXTERN	int	nDlist;
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 2a1c4b8e1f..4ebcc175c3 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -63,13 +63,29 @@ Lconv(Fmt *fp)
+ 	return linklinefmt(ctxt, fp);
+ }
+ 
++void
++dodef(char *p)
++{
++	if(nDlist%8 == 0)
++		Dlist = allocn(Dlist, nDlist*sizeof(char *),
++			8*sizeof(char *));
++	Dlist[nDlist++] = p;
++}
++
+ LinkArch*       thelinkarch = &linkamd64;
+ 
++void
++usage(void)
++{
++	print("usage: %ca [options] file.c...\n", thechar);
++	flagprint(1);
++	errorexit();
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+ 	char *p;
+-	int c;
+ 
+ 	thechar = '6';
+ 	thestring = "amd64";
+@@ -94,45 +110,24 @@ main(int argc, char *argv[])
+ 	cinit();
+ 	outfile = 0;
+ 	setinclude(".");
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c >= 0 && c < sizeof(debug))
+-			debug[c] = 1;
+-		break;
+-
+-	case 'o':
+-		outfile = ARGF();
+-		break;
+-
+-	case 'D':
+-		p = ARGF();
+-		if(p) {
+-			if (nDlist%8 == 0)
+-				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
+-					8*sizeof(char *));
+-			Dlist[nDlist++] = p;
+-		}
+-		break;
+-
+-	case 'I':
+-		p = ARGF();
+-		setinclude(p);
+-		break;
++	
++	flagfn1("D", "name[=value]: add #define", dodef);
++	flagfn1("I", "dir: add dir to include path", setinclude);
++	flagcount("S", "print assembly and machine code", &debug['S']);
++	flagcount("m", "debug preprocessor macros", &debug['m']);
++	flagstr("o", "file: set output file", &outfile);
++	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
+ 
+-	case 'S':
+-		ctxt->debugasm++;
+-		break;
+-	} ARGEND
++	flagparse(&argc, &argv, usage);
++	ctxt->debugasm = debug['S'];
+ 
+-	if(*argv == 0) {
+-		print("usage: %ca [-options] file.s\n", thechar);
+-		errorexit();
+-	}
++	if(argc < 1)
++		usage();
+ 	if(argc > 1){
+ 		print("can't assemble multiple files\n");
+ 		errorexit();
+ 	}
++
+ 	if(assemble(argv[0]))
+ 		errorexit();
+ 	Bflush(&bstdout);
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index 8c023c3ec6..adc388ca9f 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -109,7 +109,7 @@ enum
+ 	CPREPROC,
+ };
+ 
+-EXTERN	char	debug[256];
++EXTERN	int	debug[256];
+ EXTERN	Sym*	hash[NHASH];
+ EXTERN	char**	Dlist;
+ EXTERN	int	nDlist;
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 49a105da6a..79a9488e4b 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -63,11 +63,26 @@ Lconv(Fmt *fp)
+ 	return linklinefmt(ctxt, fp);
+ }
+ 
++void
++dodef(char *p)
++{
++	if(nDlist%8 == 0)
++		Dlist = allocn(Dlist, nDlist*sizeof(char *),
++			8*sizeof(char *));
++	Dlist[nDlist++] = p;
++}
++
++void
++usage(void)
++{
++	print("usage: %ca [options] file.c...\n", thechar);
++	flagprint(1);
++	errorexit();
++}
+ void
+ main(int argc, char *argv[])
+ {
+ 	char *p;
+-	int c;
+ 
+ 	thechar = '8';
+ 	thestring = "386";
+@@ -90,44 +105,24 @@ main(int argc, char *argv[])
+ 	cinit();
+ 	outfile = 0;
+ 	setinclude(".");
+-	ARGBEGIN {
+-	default:
+-		c = ARGC();
+-		if(c >= 0 && c < sizeof(debug))
+-			debug[c] = 1;
+-		break;
+-
+-	case 'o':
+-		outfile = ARGF();
+-		break;
+-
+-	case 'D':
+-		p = ARGF();
+-		if(p) {
+-			if (nDlist%8 == 0)
+-				Dlist = allocn(Dlist, nDlist*sizeof(char *), 
+-					8*sizeof(char *));
+-			Dlist[nDlist++] = p;
+-		}
+-		break;
+-
+-	case 'I':
+-		p = ARGF();
+-		setinclude(p);
+-		break;
+-
+-	case 'S':
+-		ctxt->debugasm++;
+-		break;
+-	} ARGEND
+-	if(*argv == 0) {
+-		print("usage: %ca [-options] file.s\n", thechar);
+-		errorexit();
+-	}
++	
++	flagfn1("D", "name[=value]: add #define", dodef);
++	flagfn1("I", "dir: add dir to include path", setinclude);
++	flagcount("S", "print assembly and machine code", &debug['S']);
++	flagcount("m", "debug preprocessor macros", &debug['m']);
++	flagstr("o", "file: set output file", &outfile);
++	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
++
++	flagparse(&argc, &argv, usage);
++	ctxt->debugasm = debug['S'];
++
++	if(argc < 1)
++		usage();
+ 	if(argc > 1){
+ 		print("can't assemble multiple files\n");
+ 		errorexit();
+ 	}
++
+ 	if(assemble(argv[0]))
+ 		errorexit();
+ 	Bflush(&bstdout);
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index a8ece212f0..4248437643 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -195,6 +195,7 @@ main(int argc, char *argv[])
+ 	flagcount("q", "print Go definitions", &debug['q']);
+ 	flagcount("s", "print #define assembly offsets", &debug['s']);
+ 	flagcount("t", "debug code generation", &debug['t']);
++	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
+ 	flagcount("w", "enable warnings", &debug['w']);
+ 	flagcount("v", "increase debug verbosity", &debug['v']);	
+ 	if(thechar == '6')
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index f372581aae..7e28205656 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -306,6 +306,7 @@ main(int argc, char *argv[])
+ 	flagcount("r", "debug generated wrappers", &debug['r']);
+ 	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "warn about composite literals that can be simplified", &debug['s']);
++	flagstr("trimpath", "prefix: remove prefix from recorded source file paths", &ctxt->trimpath);
+ 	flagcount("u", "reject unsafe code", &safemode);
+ 	flagcount("v", "increase debug verbosity", &debug['v']);
+ 	flagcount("w", "debug type checking", &debug['w']);
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index d7a1d21828..03300555de 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1599,7 +1599,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
+ 		gcargs = append(gcargs, "-installsuffix", buildContext.InstallSuffix)
+ 	}
+ 
+-	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
++	args := stringList(tool(archChar+"g"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+ 	}
+@@ -1613,7 +1613,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, importArgs []
+ 
+ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
++	return b.run(p.Dir, p.ImportPath, nil, tool(archChar+"a"), "-trimpath", b.work, "-I", obj, "-o", ofile, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, sfile)
+ }
+ 
+ func (gcToolchain) pkgpath(basedir string, p *Package) string {
+@@ -1626,7 +1626,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	cmd := "grcP"
++	cmd := "c"
+ 	absAfile := mkAbs(objDir, afile)
+ 	appending := false
+ 	if _, err := os.Stat(absAfile); err == nil {
+@@ -1784,7 +1784,7 @@ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action,
+ func (gcToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	args := stringList(tool(archChar+"c"), "-F", "-V", "-w", "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, cfile)
++	args := stringList(tool(archChar+"c"), "-F", "-V", "-w", "-trimpath", b.work, "-I", objdir, "-I", inc, "-o", ofile, buildCcflags, "-D", "GOOS_"+goos, "-D", "GOARCH_"+goarch, cfile)
+ 	return b.run(p.Dir, p.ImportPath, nil, args)
+ }
+ 
+diff --git a/src/liblink/obj.c b/src/liblink/obj.c
+index 856227fe83..53ae470354 100644
+--- a/src/liblink/obj.c
++++ b/src/liblink/obj.c
+@@ -87,6 +87,34 @@ linklinefmt(Link *ctxt, Fmt *fp)
+ 	return 0;
+ }
+ 
++// Does s have t as a path prefix?
++// That is, does s == t or does s begin with t followed by a slash?
++// For portability, we allow ASCII case folding, so that haspathprefix("a/b/c", "A/B") is true.
++// Similarly, we allow slash folding, so that haspathprefix("a/b/c", "a\\b") is true.
++static int
++haspathprefix(char *s, char *t)
++{
++	int i, cs, ct;
++
++	if(t == nil)
++		return 0;
++	for(i=0; t[i]; i++) {
++		cs = s[i];
++		ct = t[i];
++		if('A' <= cs && cs <= 'Z')
++			cs += 'a' - 'A';
++		if('A' <= ct && ct <= 'Z')
++			ct += 'a' - 'A';
++		if(cs == '\\')
++			cs = '/';
++		if(ct == '\\')
++			ct = '/';
++		if(cs != ct)
++			return 0;
++	}
++	return s[i] == '\0' || s[i] == '/' || s[i] == '\\';
++}
++
+ // This is a simplified copy of linklinefmt above.
+ // It doesn't allow printing the full stack, and it returns the file name and line number separately.
+ // TODO: Unify with linklinefmt somehow.
+@@ -103,7 +131,7 @@ linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l)
+ 	int32 lno, d, dlno;
+ 	int n;
+ 	Hist *h;
+-	char buf[1024], *file;
++	char buf[1024], buf1[1024], *file;
+ 
+ 	lno = line;
+ 	n = 0;
+@@ -159,6 +187,22 @@ linkgetline(Link *ctxt, int32 line, LSym **f, int32 *l)
+ 		snprint(buf, sizeof buf, "%s", file);
+ 	else
+ 		snprint(buf, sizeof buf, "%s/%s", ctxt->pathname, file);
++
++	// Remove leading ctxt->trimpath, or else rewrite $GOROOT to $GOROOT_FINAL.
++	if(haspathprefix(buf, ctxt->trimpath)) {
++		if(strlen(buf) == strlen(ctxt->trimpath))
++			strcpy(buf, "??");
++		else {
++			snprint(buf1, sizeof buf1, "%s", buf+strlen(ctxt->trimpath)+1);
++			if(buf1[0] == '\0')
++				strcpy(buf1, "??");
++			strcpy(buf, buf1);
++		}
++	} else if(ctxt->goroot_final != nil && haspathprefix(buf, ctxt->goroot)) {
++		snprint(buf1, sizeof buf1, "%s%s", ctxt->goroot_final, buf+strlen(ctxt->goroot));
++		strcpy(buf, buf1);
++	}
++
+ 	lno -= dlno;
+ 	*f = linklookup(ctxt, buf, HistVersion);
+ 	*l = lno;
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 29fc036bcb..ff51b3df89 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -95,6 +95,10 @@ linknew(LinkArch *arch)
+ 	ctxt = emallocz(sizeof *ctxt);
+ 	ctxt->arch = arch;
+ 	ctxt->version = HistVersion;
++	ctxt->goroot = getgoroot();
++	ctxt->goroot_final = getenv("GOROOT_FINAL");
++	if(ctxt->goroot_final != nil && ctxt->goroot_final[0] == '\0')
++		ctxt->goroot_final = nil;
+ 
+ 	p = getgoarch();
+ 	if(strcmp(p, arch->name) != 0)

@@ -21,7 +21,115 @@ Date:   Thu Jun 27 15:28:08 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_gobuild_import.txt | 20 +++++++++++--
  src/go/build/build.go                             | 36 ++++++++++-------------
  2 files changed, 34 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index a4eb5d6596..ae05250c5f 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -62,15 +62,31 @@ import (
+ 	"go/build"
+ 	"log"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
+ func main() {
+-	p, err := build.Import(os.Args[1], os.Args[2], 0)
++	// build.Import should support relative and absolute source dir paths.
++	path := os.Args[1]
++	srcDir := os.Args[2]
++	p1, err := build.Import(path, srcDir, 0)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	fmt.Printf("%s\n%s\n", p.Dir, strings.Join(p.GoFiles, " "))
++	absSrcDir, err := filepath.Abs(srcDir)
++	if err != nil {
++		log.Fatal(err)
++	}
++	p2, err := build.Import(path, absSrcDir, 0)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if p1.Dir != p2.Dir {
++		log.Fatalf("different packages loaded with relative and absolute paths:\n\t%s\n\t%s", p1.Dir, p2.Dir)
++	}
++
++	fmt.Printf("%s\n%s\n", p1.Dir, strings.Join(p1.GoFiles, " "))
+ }
+ 
+ -- $GOPATH/other/go.mod --
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index a91551bc22..f8547606aa 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1001,27 +1001,25 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode,
+ 		return errNoModules
+ 	}
+ 
++	// Find the absolute source directory. hasSubdir does not handle
++	// relative paths (and can't because the callbacks don't support this).
++	absSrcDir, err := filepath.Abs(srcDir)
++	if err != nil {
++		return errNoModules
++	}
++
+ 	// If modules are not enabled, then the in-process code works fine and we should keep using it.
+-	// TODO(bcmills): This assumes that the default is "auto" instead of "on".
+ 	switch os.Getenv("GO111MODULE") {
+ 	case "off":
+ 		return errNoModules
+-	case "on":
+-		// ok
+-	default: // "", "auto", anything else
+-		// Automatic mode: no module use in $GOPATH/src.
+-		for _, root := range gopath {
+-			sub, ok := ctxt.hasSubdir(root, srcDir)
+-			if ok && strings.HasPrefix(sub, "src/") {
+-				return errNoModules
+-			}
+-		}
++	default: // "", "on", "auto", anything else
++		// Maybe use modules.
+ 	}
+ 
+ 	// If the source directory is in GOROOT, then the in-process code works fine
+ 	// and we should keep using it. Moreover, the 'go list' approach below doesn't
+ 	// take standard-library vendoring into account and will fail.
+-	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), srcDir); ok {
++	if _, ok := ctxt.hasSubdir(filepath.Join(ctxt.GOROOT, "src"), absSrcDir); ok {
+ 		return errNoModules
+ 	}
+ 
+@@ -1034,20 +1032,18 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode,
+ 	}
+ 
+ 	// Look to see if there is a go.mod.
+-	abs, err := filepath.Abs(srcDir)
+-	if err != nil {
+-		return errNoModules
+-	}
++	// Since go1.13, it doesn't matter if we're inside GOPATH.
++	parent := absSrcDir
+ 	for {
+-		info, err := os.Stat(filepath.Join(abs, "go.mod"))
++		info, err := os.Stat(filepath.Join(parent, "go.mod"))
+ 		if err == nil && !info.IsDir() {
+ 			break
+ 		}
+-		d := filepath.Dir(abs)
+-		if len(d) >= len(abs) {
++		d := filepath.Dir(parent)
++		if len(d) >= len(parent) {
+ 			return errNoModules // reached top of file system, no go.mod
+ 		}
+-		abs = d
++		parent = d
+ 	}
+ 
+ 	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)

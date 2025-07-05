@@ -15,9 +15,213 @@ Date:   Fri Aug 16 22:43:05 2013 -0400
     R=golang-dev, dan.kortschak, r, dvyukov
     CC=bradfitz, golang-dev
     https://golang.org/cl/13038043
-
+---
  src/pkg/net/cgo_unix.go        |  6 ++++++
  src/pkg/net/dialgoogle_test.go | 24 ++++++++++++++++++++++++
  src/pkg/net/lookup_windows.go  | 25 +++++++++++++++++++++++++
  src/pkg/net/net.go             | 16 ++++++++++++++++
  4 files changed, 71 insertions(+)
+
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index c39ada6ae3..ade84162f2 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -32,6 +32,9 @@ func cgoLookupHost(name string) (addrs []string, err error, completed bool) {
+ }
+ 
+ func cgoLookupPort(net, service string) (port int, err error, completed bool) {
++	acquireThread()
++	defer releaseThread()
++
+ 	var res *C.struct_addrinfo
+ 	var hints C.struct_addrinfo
+ 
+@@ -79,6 +82,9 @@ func cgoLookupPort(net, service string) (port int, err error, completed bool) {
+ }
+ 
+ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, completed bool) {
++	acquireThread()
++	defer releaseThread()
++
+ 	var res *C.struct_addrinfo
+ 	var hints C.struct_addrinfo
+ 
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 73a94f5bf1..0a0f7eef28 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -54,6 +54,30 @@ var googleaddrsipv4 = []string{
+ 	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
+ }
+ 
++func TestDNSThreadLimit(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Skip("skipping test to avoid external network")
++	}
++
++	const N = 10000
++	c := make(chan int, N)
++	for i := 0; i < N; i++ {
++		go func() {
++			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
++			c <- 1
++		}()
++	}
++	// Don't bother waiting for the stragglers; stop at 0.9 N.
++	for i := 0; i < N*9/10; i++ {
++		if i%100 == 0 {
++			//println("TestDNSThreadLimit:", i)
++		}
++		<-c
++	}
++
++	// If we're still here, it worked.
++}
++
+ func TestDialGoogleIPv4(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+ 		t.Skip("skipping test to avoid external network")
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index 3b29724f27..6d20b7976a 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -34,6 +34,8 @@ func lookupProtocol(name string) (proto int, err error) {
+ 	}
+ 	ch := make(chan result)
+ 	go func() {
++		acquireThread()
++		defer releaseThread()
+ 		runtime.LockOSThread()
+ 		defer runtime.UnlockOSThread()
+ 		proto, err := getprotobyname(name)
+@@ -56,6 +58,7 @@ func lookupHost(name string) (addrs []string, err error) {
+ }
+ 
+ func gethostbyname(name string) (addrs []IP, err error) {
++	// caller already acquired thread
+ 	h, err := syscall.GetHostByName(name)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("GetHostByName", err)
+@@ -83,6 +86,8 @@ func oldLookupIP(name string) (addrs []IP, err error) {
+ 	}
+ 	ch := make(chan result)
+ 	go func() {
++		acquireThread()
++		defer releaseThread()
+ 		runtime.LockOSThread()
+ 		defer runtime.UnlockOSThread()
+ 		addrs, err := gethostbyname(name)
+@@ -93,6 +98,8 @@ func oldLookupIP(name string) (addrs []IP, err error) {
+ }
+ 
+ func newLookupIP(name string) (addrs []IP, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	hints := syscall.AddrinfoW{
+ 		Family:   syscall.AF_UNSPEC,
+ 		Socktype: syscall.SOCK_STREAM,
+@@ -122,6 +129,8 @@ func newLookupIP(name string) (addrs []IP, err error) {
+ }
+ 
+ func getservbyname(network, service string) (port int, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	switch network {
+ 	case "tcp4", "tcp6":
+ 		network = "tcp"
+@@ -144,6 +153,8 @@ func oldLookupPort(network, service string) (port int, err error) {
+ 	}
+ 	ch := make(chan result)
+ 	go func() {
++		acquireThread()
++		defer releaseThread()
+ 		runtime.LockOSThread()
+ 		defer runtime.UnlockOSThread()
+ 		port, err := getservbyname(network, service)
+@@ -154,6 +165,8 @@ func oldLookupPort(network, service string) (port int, err error) {
+ }
+ 
+ func newLookupPort(network, service string) (port int, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	var stype int32
+ 	switch network {
+ 	case "tcp4", "tcp6":
+@@ -188,6 +201,8 @@ func newLookupPort(network, service string) (port int, err error) {
+ }
+ 
+ func lookupCNAME(name string) (cname string, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_CNAME, 0, nil, &r, nil)
+ 	if e != nil {
+@@ -202,6 +217,8 @@ func lookupCNAME(name string) (cname string, err error) {
+ }
+ 
+ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	var target string
+ 	if service == "" && proto == "" {
+ 		target = name
+@@ -224,6 +241,8 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ }
+ 
+ func lookupMX(name string) (mx []*MX, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
+ 	if e != nil {
+@@ -240,6 +259,8 @@ func lookupMX(name string) (mx []*MX, err error) {
+ }
+ 
+ func lookupNS(name string) (ns []*NS, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &r, nil)
+ 	if e != nil {
+@@ -255,6 +276,8 @@ func lookupNS(name string) (ns []*NS, err error) {
+ }
+ 
+ func lookupTXT(name string) (txt []string, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)
+ 	if e != nil {
+@@ -273,6 +296,8 @@ func lookupTXT(name string) (txt []string, err error) {
+ }
+ 
+ func lookupAddr(addr string) (name []string, err error) {
++	acquireThread()
++	defer releaseThread()
+ 	arpa, err := reverseaddr(addr)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 2cbd5d854a..c918e96b43 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -433,3 +433,19 @@ func (d *deadline) setTime(t time.Time) {
+ 		d.set(t.UnixNano())
+ 	}
+ }
++
++// Limit the number of concurrent cgo-using goroutines, because
++// each will block an entire operating system thread. The usual culprit
++// is resolving many DNS names in separate goroutines but the DNS
++// server is not responding. Then the many lookups each use a different
++// thread, and the system or the program runs out of threads.
++
++var threadLimit = make(chan struct{}, 500)
++
++func acquireThread() {
++	threadLimit <- struct{}{}
++}
++
++func releaseThread() {
++	<-threadLimit
++}

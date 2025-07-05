@@ -7,6 +7,20 @@ Date:   Mon Dec 19 20:27:12 2016 -0800
     Change-Id: Iac7c4f22dc55c970940af33e0f0470694da5c4a6
     Reviewed-on: https://go-review.googlesource.com/34654
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/cover.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index ed919d8c1f..ee140702d3 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -399,7 +399,7 @@ func annotate(name string) {
+ 	// Retain compiler directives that are not processed in ast.Visitor.
+ 	// Some compiler directives like "go:linkname" and "go:cgo_"
+ 	// can be not attached to anything in the tree and hence will not be printed by printer.
+-	// So, we have to explicitely print them here.
++	// So, we have to explicitly print them here.
+ 	for cd, handled := range file.directives {
+ 		if !handled {
+ 			fmt.Fprintln(fd, cd.Text)

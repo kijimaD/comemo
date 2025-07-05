@@ -10,8 +10,57 @@ Date:   Mon Sep 20 20:34:17 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351170
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/types.go  |  2 +-
  src/cmd/compile/internal/noder/writer.go |  2 +-
  src/cmd/compile/internal/types2/named.go | 10 ++++------
  3 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 99917ad974..e1cfe4a9d8 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -115,7 +115,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			// Make sure the base generic type exists in type1 (it may
+ 			// not yet if we are referecing an imported generic type, as
+ 			// opposed to a generic type declared in this package).
+-			_ = g.obj(typ.Orig().Obj())
++			_ = g.obj(typ.Origin().Obj())
+ 
+ 			// Create a forwarding type first and put it in the g.typs
+ 			// map, in order to deal with recursive generic types
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 6a66bea239..9edf5fc97a 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -296,7 +296,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 		// TODO(mdempsky): Why do we need to loop here?
+ 		orig := typ
+ 		for orig.TypeArgs() != nil {
+-			orig = orig.Orig()
++			orig = orig.Origin()
+ 		}
+ 
+ 		w.code(typeNamed)
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index bc4ac87b9d..36a8b88f25 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -87,13 +87,11 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 
+ // Obj returns the type name for the declaration defining the named type t. For
+ // instantiated types, this is the type name of the base type.
+-func (t *Named) Obj() *TypeName {
+-	return t.orig.obj // for non-instances this is the same as t.obj
+-}
++func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this is the same as t.obj
+ 
+-// Orig returns the original generic type an instantiated type is derived from.
+-// If t is not an instantiated type, the result is t.
+-func (t *Named) Orig() *Named { return t.orig }
++// Origin returns the parameterized type from which the named type t is
++// instantiated. If t is not an instantiated type, the result is t.
++func (t *Named) Origin() *Named { return t.orig }
+ 
+ // TODO(gri) Come up with a better representation and API to distinguish
+ //           between parameterized instantiated and non-instantiated types.

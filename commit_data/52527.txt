@@ -20,7 +20,39 @@ Date:   Sat May 7 16:18:57 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/sizes.go |  1 +
  test/fixedbugs/issue52748.go            | 13 +++++++++++++
  2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/sizes.go b/src/cmd/compile/internal/noder/sizes.go
+index 23f2062675..9ba0e509d7 100644
+--- a/src/cmd/compile/internal/noder/sizes.go
++++ b/src/cmd/compile/internal/noder/sizes.go
+@@ -134,6 +134,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
+ }
+ 
+ var basicSizes = [...]byte{
++	types2.Invalid:    1,
+ 	types2.Bool:       1,
+ 	types2.Int8:       1,
+ 	types2.Int16:      2,
+diff --git a/test/fixedbugs/issue52748.go b/test/fixedbugs/issue52748.go
+new file mode 100644
+index 0000000000..42973c01e5
+--- /dev/null
++++ b/test/fixedbugs/issue52748.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type S[T any] struct{}
++
++const c = unsafe.Sizeof(S[[c]byte]{}) // ERROR "initialization loop"

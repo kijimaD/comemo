@@ -10,8 +10,57 @@ Date:   Thu Jan 12 10:23:24 2012 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/5535044
-
+---
  src/cmd/5l/obj.c | 5 +++++
  src/cmd/6l/obj.c | 5 +++++
  src/cmd/8l/obj.c | 5 +++++
  3 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index b93dc63fc9..1496719439 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -136,6 +136,11 @@ main(int argc, char *argv[])
+ 	case 'V':
+ 		print("%cl version %s\n", thechar, getgoversion());
+ 		errorexit();
++	case 'X':
++		// TODO: golang.org/issue/2676
++		EARGF(usage());
++		EARGF(usage());
++		break;
+ 	} ARGEND
+ 
+ 	USED(argc);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index c8a46fc2bf..a1f9e2d111 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -132,6 +132,11 @@ main(int argc, char *argv[])
+ 	case 'V':
+ 		print("%cl version %s\n", thechar, getgoversion());
+ 		errorexit();
++	case 'X':
++		// TODO: golang.org/issue/2676
++		EARGF(usage());
++		EARGF(usage());
++		break;
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 58349c6f89..99726ec180 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -137,6 +137,11 @@ main(int argc, char *argv[])
+ 	case 'V':
+ 		print("%cl version %s\n", thechar, getgoversion());
+ 		errorexit();
++	case 'X':
++		// TODO: golang.org/issue/2676
++		EARGF(usage());
++		EARGF(usage());
++		break;
+ 	} ARGEND
+ 
+ 	if(argc != 1)

@@ -13,7 +13,42 @@ Date:   Tue Aug 9 18:06:25 2022 +1000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/cpu/cpu_arm64_freebsd.go | 5 ++++-
  src/internal/cpu/cpu_arm64_openbsd.go | 5 ++++-
  2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_arm64_freebsd.go b/src/internal/cpu/cpu_arm64_freebsd.go
+index c25e021c68..40ebfaf6ff 100644
+--- a/src/internal/cpu/cpu_arm64_freebsd.go
++++ b/src/internal/cpu/cpu_arm64_freebsd.go
+@@ -25,8 +25,11 @@ func osInit() {
+ 	}
+ 
+ 	switch extractBits(isar0, 12, 15) {
+-	case 1, 2:
++	case 1:
++		ARM64.HasSHA2 = true
++	case 2:
+ 		ARM64.HasSHA2 = true
++		ARM64.HasSHA512 = true
+ 	}
+ 
+ 	switch extractBits(isar0, 16, 19) {
+diff --git a/src/internal/cpu/cpu_arm64_openbsd.go b/src/internal/cpu/cpu_arm64_openbsd.go
+index 2b284ebd03..54e1f4b931 100644
+--- a/src/internal/cpu/cpu_arm64_openbsd.go
++++ b/src/internal/cpu/cpu_arm64_openbsd.go
+@@ -44,8 +44,11 @@ func osInit() {
+ 	}
+ 
+ 	switch extractBits(isar0, 12, 15) {
+-	case 1, 2:
++	case 1:
++		ARM64.HasSHA2 = true
++	case 2:
+ 		ARM64.HasSHA2 = true
++		ARM64.HasSHA512 = true
+ 	}
+ 
+ 	switch extractBits(isar0, 16, 19) {

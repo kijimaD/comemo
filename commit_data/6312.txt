@@ -9,6 +9,31 @@ Date:   Sun Sep 19 23:28:12 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2249041
-
+---
  src/pkg/runtime/chan.c | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 16c02e8e78..436f8b1401 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -403,6 +403,9 @@ void
+ 	int32 o;
+ 	byte *ae;
+ 
++	if(c == nil)
++		panicstring("send to nil channel");
++
+ 	o = rnd(sizeof(c), c->elemalign);
+ 	ae = (byte*)&c + o;
+ 	chansend(c, ae, nil);
+@@ -416,6 +419,9 @@ void
+ 	int32 o;
+ 	byte *ae, *ap;
+ 
++	if(c == nil)
++		panicstring("send to nil channel");
++
+ 	o = rnd(sizeof(c), c->elemalign);
+ 	ae = (byte*)&c + o;
+ 	o = rnd(o+c->elemsize, Structrnd);

@@ -29,9 +29,249 @@ Date:   Tue Jul 27 10:22:35 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           | 23 +++---
  src/cmd/go/internal/modload/modfile.go             | 83 +++++++++++-----------
  src/cmd/go/internal/modload/query.go               | 30 ++++++--
  .../go/testdata/script/mod_update_sum_readonly.txt | 34 +++++++++
  4 files changed, 114 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index f817a04583..dfef9f73c2 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -864,22 +864,25 @@ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
+ 	data, err = r.code.ReadFile(rev, path.Join(dir, "go.mod"), codehost.MaxGoMod)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+-			return r.legacyGoMod(rev, dir), nil
++			return LegacyGoMod(r.modPath), nil
+ 		}
+ 		return nil, err
+ 	}
+ 	return data, nil
+ }
+ 
+-func (r *codeRepo) legacyGoMod(rev, dir string) []byte {
+-	// We used to try to build a go.mod reflecting pre-existing
+-	// package management metadata files, but the conversion
+-	// was inherently imperfect (because those files don't have
+-	// exactly the same semantics as go.mod) and, when done
+-	// for dependencies in the middle of a build, impossible to
+-	// correct. So we stopped.
+-	// Return a fake go.mod that simply declares the module path.
+-	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(r.modPath)))
++// LegacyGoMod generates a fake go.mod file for a module that doesn't have one.
++// The go.mod file contains a module directive and nothing else: no go version,
++// no requirements.
++//
++// We used to try to build a go.mod reflecting pre-existing
++// package management metadata files, but the conversion
++// was inherently imperfect (because those files don't have
++// exactly the same semantics as go.mod) and, when done
++// for dependencies in the middle of a build, impossible to
++// correct. So we stopped.
++func LegacyGoMod(modPath string) []byte {
++	return []byte(fmt.Sprintf("module %s\n", modfile.AutoQuote(modPath)))
+ }
+ 
+ func (r *codeRepo) modPrefix(rev string) string {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index d280945ea6..6145e8b2f0 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -595,47 +595,14 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 	}
+ 	c := rawGoModSummaryCache.Do(m, func() interface{} {
+ 		summary := new(modFileSummary)
+-		var f *modfile.File
+-		if m.Version == "" {
+-			// m is a replacement module with only a file path.
+-			dir := m.Path
+-			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(ModRoot(), dir)
+-			}
+-			gomod := filepath.Join(dir, "go.mod")
+-			var data []byte
+-			var err error
+-			if gomodActual, ok := fsys.OverlayPath(gomod); ok {
+-				// Don't lock go.mod if it's part of the overlay.
+-				// On Plan 9, locking requires chmod, and we don't want to modify any file
+-				// in the overlay. See #44700.
+-				data, err = os.ReadFile(gomodActual)
+-			} else {
+-				data, err = lockedfile.Read(gomodActual)
+-			}
+-			if err != nil {
+-				return cached{nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))}
+-			}
+-			f, err = modfile.ParseLax(gomod, data, nil)
+-			if err != nil {
+-				return cached{nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err))}
+-			}
+-		} else {
+-			if !semver.IsValid(m.Version) {
+-				// Disallow the broader queries supported by fetch.Lookup.
+-				base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
+-			}
+-
+-			data, err := modfetch.GoMod(m.Path, m.Version)
+-			if err != nil {
+-				return cached{nil, err}
+-			}
+-			f, err = modfile.ParseLax("go.mod", data, nil)
+-			if err != nil {
+-				return cached{nil, module.VersionError(m, fmt.Errorf("parsing go.mod: %v", err))}
+-			}
++		name, data, err := rawGoModData(m)
++		if err != nil {
++			return cached{nil, err}
++		}
++		f, err := modfile.ParseLax(name, data, nil)
++		if err != nil {
++			return cached{nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))}
+ 		}
+-
+ 		if f.Module != nil {
+ 			summary.module = f.Module.Mod
+ 			summary.deprecated = f.Module.Deprecated
+@@ -671,6 +638,42 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 
+ var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
+ 
++// rawGoModData returns the content of the go.mod file for module m, ignoring
++// all replacements that may apply to m.
++//
++// rawGoModData cannot be used on the Target module.
++//
++// Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
++// Use rawGoModSummary instead unless you specifically need these bytes.
++func rawGoModData(m module.Version) (name string, data []byte, err error) {
++	if m.Version == "" {
++		// m is a replacement module with only a file path.
++		dir := m.Path
++		if !filepath.IsAbs(dir) {
++			dir = filepath.Join(ModRoot(), dir)
++		}
++		gomod := filepath.Join(dir, "go.mod")
++		if gomodActual, ok := fsys.OverlayPath(gomod); ok {
++			// Don't lock go.mod if it's part of the overlay.
++			// On Plan 9, locking requires chmod, and we don't want to modify any file
++			// in the overlay. See #44700.
++			data, err = os.ReadFile(gomodActual)
++		} else {
++			data, err = lockedfile.Read(gomodActual)
++		}
++		if err != nil {
++			return gomod, nil, module.VersionError(m, fmt.Errorf("reading %s: %v", base.ShortPath(gomod), err))
++		}
++	} else {
++		if !semver.IsValid(m.Version) {
++			// Disallow the broader queries supported by fetch.Lookup.
++			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
++		}
++		data, err = modfetch.GoMod(m.Path, m.Version)
++	}
++	return "go.mod", data, err
++}
++
+ // queryLatestVersionIgnoringRetractions looks up the latest version of the
+ // module with the given path without considering retracted or excluded
+ // versions.
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index dda9004a9f..e737ca90fc 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -5,13 +5,13 @@
+ package modload
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"errors"
+ 	"fmt"
+ 	"io/fs"
+ 	"os"
+ 	pathpkg "path"
+-	"path/filepath"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -931,14 +931,32 @@ func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
+ 	return ok, err
+ }
+ 
+-func versionHasGoMod(ctx context.Context, m module.Version) (bool, error) {
+-	needSum := false
+-	root, _, err := fetch(ctx, m, needSum)
++// versionHasGoMod returns whether a version has a go.mod file.
++//
++// versionHasGoMod fetches the go.mod file (possibly a fake) and true if it
++// contains anything other than a module directive with the same path. When a
++// module does not have a real go.mod file, the go command acts as if it had one
++// that only contained a module directive. Normal go.mod files created after
++// 1.12 at least have a go directive.
++//
++// This function is a heuristic, since it's possible to commit a file that would
++// pass this test. However, we only need a heurstic for determining whether
++// +incompatible versions may be "latest", which is what this function is used
++// for.
++//
++// This heuristic is useful for two reasons: first, when using a proxy,
++// this lets us fetch from the .mod endpoint which is much faster than the .zip
++// endpoint. The .mod file is used anyway, even if the .zip file contains a
++// go.mod with different content. Second, if we don't fetch the .zip, then
++// we don't need to verify it in go.sum. This makes 'go list -m -u' faster
++// and simpler.
++func versionHasGoMod(_ context.Context, m module.Version) (bool, error) {
++	_, data, err := rawGoModData(m)
+ 	if err != nil {
+ 		return false, err
+ 	}
+-	fi, err := os.Stat(filepath.Join(root, "go.mod"))
+-	return err == nil && !fi.IsDir(), nil
++	isFake := bytes.Equal(data, modfetch.LegacyGoMod(m.Path))
++	return !isFake, nil
+ }
+ 
+ // A versionRepo is a subset of modfetch.Repo that can report information about
+diff --git a/src/cmd/go/testdata/script/mod_update_sum_readonly.txt b/src/cmd/go/testdata/script/mod_update_sum_readonly.txt
+new file mode 100644
+index 0000000000..41f12e4084
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_update_sum_readonly.txt
+@@ -0,0 +1,34 @@
++# When finding the latest version of a module, we should not download version
++# contents. Previously, we downloaded .zip files to determine whether a real
++# .mod file was present in order to decide whether +incompatible versions
++# could be "latest".
++#
++# Verifies #47377.
++
++# rsc.io/breaker has two versions, neither of which has a .mod file.
++go list -m -versions rsc.io/breaker
++stdout '^rsc.io/breaker v1.0.0 v2.0.0\+incompatible$'
++go mod download rsc.io/breaker@v1.0.0
++! grep '^go' $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v1.0.0.mod
++go mod download rsc.io/breaker@v2.0.0+incompatible
++! grep '^go' $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v2.0.0+incompatible.mod
++
++# Delete downloaded .zip files.
++go clean -modcache
++
++# Check for updates.
++go list -m -u rsc.io/breaker
++stdout '^rsc.io/breaker v1.0.0 \[v2.0.0\+incompatible\]$'
++
++# We should not have downloaded zips.
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v1.0.0.zip
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/breaker/@v/v2.0.0+incompatible.zip
++
++-- go.mod --
++module m
++
++go 1.16
++
++require rsc.io/breaker v1.0.0
++-- go.sum --
++rsc.io/breaker v1.0.0/go.mod h1:s5yxDXvD88U1/ESC23I2FK3Lkv4YIKaB1ij/Hbm805g=

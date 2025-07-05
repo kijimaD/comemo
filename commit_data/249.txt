@@ -6,10 +6,157 @@ Date:   Fri Jun 27 11:36:40 2008 -0700
     fix make.bash for runtime - sysfile.6 depends on OS so simplest thing is to build just our own version
     
     SVN=125130
-
+---
  src/lib/fmt.go                     | 10 +++++-----
  src/runtime/make.bash              |  6 ++----
  test/{bugs => fixedbugs}/bug058.go |  0
  test/golden.out                    | 17 +++++++----------
  test/sieve.go                      | 10 +++++-----
  5 files changed, 19 insertions(+), 24 deletions(-)
+
+diff --git a/src/lib/fmt.go b/src/lib/fmt.go
+index 521e8ed02c..c12c39b267 100644
+--- a/src/lib/fmt.go
++++ b/src/lib/fmt.go
+@@ -126,7 +126,7 @@ func (f *Fmt) pad(s string) {
+ 			}
+ 		}
+ 	}
+-	f.buf = f.buf + s;  // BUG: += should work
++	f.buf += s;
+ }
+ 
+ // format val into buf, ending at buf[i].  (printing is easier right-to-left;
+@@ -355,7 +355,7 @@ func unpack(a double) (negative bool, exp int, num double) {
+ 	// guess 10-exponent using 2-exponent, then fine tune.
+ 	var g double;
+ 	var e2 int;
+-	e2, g = sys.frexp(a);
++	e2, g = sys.frexp(a);  // BUG: should be able to say e2, g := sys.frexp(a);
+ 	e := int(e2 * .301029995663981);
+ 	g = a * pow10(-e);
+ 	for g < 1 {
+@@ -473,15 +473,15 @@ func (f *Fmt) G(a double) *Fmt {
+ 
+ // float
+ func (x *Fmt) f(a float) *Fmt {
+-	return x.F(double(a));
++	return x.F(double(a))
+ }
+ 
+ // float
+ func (x *Fmt) e(a float) *Fmt {
+-	return x.E(double(a));
++	return x.E(double(a))
+ }
+ 
+ // float
+ func (x *Fmt) g(a float) *Fmt {
+-	return x.G(double(a));
++	return x.G(double(a))
+ }
+diff --git a/src/runtime/make.bash b/src/runtime/make.bash
+index cfeed307c0..8fa8691d9b 100644
+--- a/src/runtime/make.bash
++++ b/src/runtime/make.bash
+@@ -4,8 +4,6 @@
+ 
+ set -ex
+ 
+-for GOOS in linux darwin
+-do
+-	make install
+-done
++make clean
++make install
+ 
+diff --git a/test/bugs/bug058.go b/test/fixedbugs/bug058.go
+similarity index 100%
+rename from test/bugs/bug058.go
+rename to test/fixedbugs/bug058.go
+diff --git a/test/golden.out b/test/golden.out
+index cb015a37e6..dac4eb310f 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -66,10 +66,10 @@ test0.go:49: illegal types for operand: AS
+ 	(<float32>FLOAT32)
+ 	(<int32>INT32)
+ test0.go:50: error in shape across assignment
+-test0.go:47: illegal types for operand: CALLMETH
++test0.go:55: illegal types for operand: CALLMETH
+ 	(*<Point>{})
+ 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
+-test0.go:47: illegal types for operand: AS
++test0.go:54: illegal types for operand: AS
+ 	(<Point>{<x><int32>INT32;<y><int32>INT32;<Point_Initialize>120({},{}){};<Point_Distance>101({},{}){};})
+ 	({})
+ BUG: known to fail incorrectly
+@@ -206,7 +206,7 @@ BUG: compilation should succeed
+ 
+ =========== bugs/bug043.go
+ bugs/bug043.go:14: error in shape across assignment
+-bugs/bug043.go:14: error in shape across assignment
++bugs/bug043.go:17: error in shape across assignment
+ BUG: compilation should succeed
+ 
+ =========== bugs/bug044.go
+@@ -321,13 +321,8 @@ BUG: compilation should succeed
+ bugs/bug057.go:13: syntax error
+ BUG: compilation should succeed
+ 
+-=========== bugs/bug058.go
+-bugs/bug058.go:11: illegal types for operand: INDEX
+-	(MAP[<string>*STRING]*<Box>{})
+-	(<string>*STRING)
+-bugs/bug058.go:11: illegal types for operand: AS
+-	(*<Box>{})
+-BUG: compilation should succeed
++=========== bugs/bug059.go
++BUG: crashes
+ 
+ =========== fixedbugs/bug000.go
+ 
+@@ -378,3 +373,5 @@ BUG: compilation should succeed
+ =========== fixedbugs/bug040.go
+ 
+ =========== fixedbugs/bug045.go
++
++=========== fixedbugs/bug058.go
+diff --git a/test/sieve.go b/test/sieve.go
+index c27519ab9d..dd23903e16 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -9,7 +9,7 @@ package Main
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func Generate(ch *chan> int) {
+   for i := 2; ; i++ {
+-    >ch = i;  // Send 'i' to channel 'ch'.
++    >ch = i  // Send 'i' to channel 'ch'.
+   }
+ }
+ 
+@@ -17,9 +17,9 @@ func Generate(ch *chan> int) {
+ // removing those divisible by 'prime'.
+ func Filter(in *chan< int, out *chan> int, prime int) {
+   for {
+-    i := <in;  // Receive value of new variable 'i' from 'in'.
++    i := <in  // Receive value of new variable 'i' from 'in'.
+     if i % prime != 0 {
+-      >out = i;  // Send 'i' to channel 'out'.
++      >out = i  // Send 'i' to channel 'out'.
+     }
+   }
+ }
+@@ -33,10 +33,10 @@ func Sieve() {
+     print "%d\n",  prime;
+     ch1 := new(chan int);
+     go Filter(ch, ch1, prime);
+-    ch = ch1;
++    ch = ch1
+   }
+ }
+ 
+ func Main() {
+-  Sieve();
++  Sieve()
+ }

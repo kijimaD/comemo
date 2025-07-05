@@ -14,6 +14,25 @@ Date:   Wed Mar 9 17:17:40 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/go/build/build.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index baf76e6b7f..c1d044e55a 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1186,6 +1186,13 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode)
+ 		"GOPATH="+ctxt.GOPATH,
+ 		"CGO_ENABLED="+cgo,
+ 	)
++	if cmd.Dir != "" {
++		// If possible, set PWD: if an error occurs and PWD includes a symlink, we
++		// want the error to refer to Dir, not some other name for it.
++		if abs, err := filepath.Abs(cmd.Dir); err == nil {
++			cmd.Env = append(cmd.Env, "PWD="+abs)
++		}
++	}
+ 
+ 	if err := cmd.Run(); err != nil {
+ 		return fmt.Errorf("go/build: go list %s: %v\n%s\n", path, err, stderr.String())

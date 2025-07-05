@@ -11,9 +11,124 @@ Date:   Thu Mar 15 09:27:29 2018 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/conf.go           |  7 ++++---
  src/net/conf_test.go      | 18 +++++++++++++++++-
  src/net/dnsclient_unix.go |  4 ++--
  src/net/lookup_unix.go    |  4 ++--
  4 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index c10aafe63a..2c21331a00 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -114,18 +114,19 @@ func initConfVal() {
+ // canUseCgo reports whether calling cgo functions is allowed
+ // for non-hostname lookups.
+ func (c *conf) canUseCgo() bool {
+-	return c.hostLookupOrder("") == hostLookupCgo
++	return c.hostLookupOrder(nil, "") == hostLookupCgo
+ }
+ 
+ // hostLookupOrder determines which strategy to use to resolve hostname.
+-func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
++// The provided Resolver is optional. nil means to not consider its options.
++func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder) {
+ 	if c.dnsDebugLevel > 1 {
+ 		defer func() {
+ 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
+ 		}()
+ 	}
+ 	fallbackOrder := hostLookupCgo
+-	if c.netGo {
++	if c.netGo || (r != nil && r.PreferGo) {
+ 		fallbackOrder = hostLookupFilesDNS
+ 	}
+ 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 17d03f4b5f..a6d6987b15 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -33,6 +33,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 	tests := []struct {
+ 		name      string
+ 		c         *conf
++		resolver  *Resolver
+ 		hostTests []nssHostTest
+ 	}{
+ 		{
+@@ -322,6 +323,21 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 				{"x.com", "myhostname", hostLookupCgo},
+ 			},
+ 		},
++		// Issue 24393: make sure "Resolver.PreferGo = true" acts like netgo.
++		{
++			name:     "resolver-prefergo",
++			resolver: &Resolver{PreferGo: true},
++			c: &conf{
++				goos:               "darwin",
++				forceCgoLookupHost: true, // always true for darwin
++				resolv:             defaultResolvConf,
++				nss:                nssStr(""),
++				netCgo:             true,
++			},
++			hostTests: []nssHostTest{
++				{"localhost", "myhostname", hostLookupFilesDNS},
++			},
++		},
+ 	}
+ 
+ 	origGetHostname := getHostname
+@@ -331,7 +347,7 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 		for _, ht := range tt.hostTests {
+ 			getHostname = func() (string, error) { return ht.localhost, nil }
+ 
+-			gotOrder := tt.c.hostLookupOrder(ht.host)
++			gotOrder := tt.c.hostLookupOrder(tt.resolver, ht.host)
+ 			if gotOrder != ht.want {
+ 				t.Errorf("%s: hostLookupOrder(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
+ 			}
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index d2a6dc4a81..7ca5d6027b 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -524,7 +524,7 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
+ // goLookupIP is the native Go implementation of LookupIP.
+ // The libc versions are in cgo_*.go.
+ func (r *Resolver) goLookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+-	order := systemConf().hostLookupOrder(host)
++	order := systemConf().hostLookupOrder(r, host)
+ 	addrs, _, err = r.goLookupIPCNAMEOrder(ctx, host, order)
+ 	return
+ }
+@@ -676,7 +676,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ 
+ // goLookupCNAME is the native Go (non-cgo) implementation of LookupCNAME.
+ func (r *Resolver) goLookupCNAME(ctx context.Context, host string) (string, error) {
+-	order := systemConf().hostLookupOrder(host)
++	order := systemConf().hostLookupOrder(r, host)
+ 	_, cname, err := r.goLookupIPCNAMEOrder(ctx, host, order)
+ 	return cname.String(), err
+ }
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 0b92242907..8e77b8c705 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -74,7 +74,7 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
+ }
+ 
+ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+-	order := systemConf().hostLookupOrder(host)
++	order := systemConf().hostLookupOrder(r, host)
+ 	if !r.PreferGo && order == hostLookupCgo {
+ 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
+ 			return addrs, err
+@@ -89,7 +89,7 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
+ 	if r.PreferGo {
+ 		return r.goLookupIP(ctx, host)
+ 	}
+-	order := systemConf().hostLookupOrder(host)
++	order := systemConf().hostLookupOrder(r, host)
+ 	if order == hostLookupCgo {
+ 		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
+ 			return addrs, err

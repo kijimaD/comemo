@@ -7,6 +7,20 @@ Date:   Wed Mar 17 11:40:05 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/607041
-
+---
  src/cmd/goinstall/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index d21446c67a..c35e9e043b 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -58,7 +58,7 @@ After a successful download and installation of a publicly accessible
+ remote package, goinstall reports the installation to godashboard.appspot.com,
+ which increments a count associated with the package and the time
+ of its most recent installation.  This mechanism powers the package list
+-at http://godashboard.appspot.com/packages, allowing Go programmers
++at http://godashboard.appspot.com/package, allowing Go programmers
+ to learn about popular packages that might be worth looking at.
+ The -dashboard=false flag disables this reporting.
+ 

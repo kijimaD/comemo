@@ -16,8 +16,78 @@ Date:   Fri Mar 5 15:59:12 2021 +0000
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/text/template/exec.go      |  2 +-
  src/text/template/exec_test.go | 22 ++++++++++++++++++++++
  src/text/template/funcs.go     |  5 ++++-
  3 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 4637b2035f..f1305a29a0 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -727,7 +727,7 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
+ 	// error to the caller.
+ 	if err != nil {
+ 		s.at(node)
+-		s.errorf("error calling %s: %v", name, err)
++		s.errorf("error calling %s: %w", name, err)
+ 	}
+ 	if v.Type() == reflectValueType {
+ 		v = v.Interface().(reflect.Value)
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 1a129ed5af..255b111b34 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -902,6 +902,28 @@ func TestExecError(t *testing.T) {
+ 	}
+ }
+ 
++type CustomError struct{}
++
++func (*CustomError) Error() string { return "heyo !" }
++
++// Check that a custom error can be returned.
++func TestExecError_CustomError(t *testing.T) {
++	failingFunc := func() (string, error) {
++		return "", &CustomError{}
++	}
++	tmpl := Must(New("top").Funcs(FuncMap{
++		"err": failingFunc,
++	}).Parse("{{ err }}"))
++
++	var b bytes.Buffer
++	err := tmpl.Execute(&b, nil)
++
++	var e *CustomError
++	if !errors.As(err, &e) {
++		t.Fatalf("expected custom error; got %s", err)
++	}
++}
++
+ func TestJSEscaping(t *testing.T) {
+ 	testCases := []struct {
+ 		in, exp string
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 1b6940a84a..9dd332c068 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -23,6 +23,9 @@ import (
+ // return value evaluates to non-nil during execution, execution terminates and
+ // Execute returns that error.
+ //
++// Errors returned by Execute wrap the underlying error; call errors.As to
++// uncover them.
++//
+ // When template execution invokes a function with an argument list, that list
+ // must be assignable to the function's parameter types. Functions meant to
+ // apply to arguments of arbitrary type can use parameters of type interface{} or
+@@ -344,7 +347,7 @@ func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
+ 
+ 		var err error
+ 		if argv[i], err = prepareArg(arg, argType); err != nil {
+-			return reflect.Value{}, fmt.Errorf("arg %d: %s", i, err)
++			return reflect.Value{}, fmt.Errorf("arg %d: %w", i, err)
+ 		}
+ 	}
+ 	return safeCall(fn, argv)

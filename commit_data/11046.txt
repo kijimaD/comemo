@@ -8,8 +8,85 @@ Date:   Sun Jan 8 10:02:23 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5533045
-
+---
  src/pkg/encoding/asn1/asn1.go         | 3 ++-
  src/pkg/encoding/asn1/asn1_test.go    | 6 ++++++
  src/pkg/encoding/asn1/marshal_test.go | 6 ++++++
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index 22a0dde0da..4d1ae38c4e 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -786,7 +786,8 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ // Because Unmarshal uses the reflect package, the structs
+ // being written to must use upper case field names.
+ //
+-// An ASN.1 INTEGER can be written to an int, int32 or int64.
++// An ASN.1 INTEGER can be written to an int, int32, int64,
++// or *big.Int (from the math/big package).
+ // If the encoded value does not fit in the Go type,
+ // Unmarshal returns a parse error.
+ //
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index 09f94139f9..92c9eb62d2 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -6,6 +6,7 @@ package asn1
+ 
+ import (
+ 	"bytes"
++	"math/big"
+ 	"reflect"
+ 	"testing"
+ 	"time"
+@@ -351,6 +352,10 @@ type TestElementsAfterString struct {
+ 	A, B int
+ }
+ 
++type TestBigInt struct {
++	X *big.Int
++}
++
+ var unmarshalTestData = []struct {
+ 	in  []byte
+ 	out interface{}
+@@ -369,6 +374,7 @@ var unmarshalTestData = []struct {
+ 	{[]byte{0x01, 0x01, 0x00}, newBool(false)},
+ 	{[]byte{0x01, 0x01, 0x01}, newBool(true)},
+ 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
++	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
+ }
+ 
+ func TestUnmarshal(t *testing.T) {
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index d05b5d8d4e..a7447f9781 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -7,6 +7,7 @@ package asn1
+ import (
+ 	"bytes"
+ 	"encoding/hex"
++	"math/big"
+ 	"testing"
+ 	"time"
+ )
+@@ -20,6 +21,10 @@ type twoIntStruct struct {
+ 	B int
+ }
+ 
++type bigIntStruct struct {
++	A *big.Int
++}
++
+ type nestedStruct struct {
+ 	A intStruct
+ }
+@@ -65,6 +70,7 @@ var marshalTests = []marshalTest{
+ 	{-128, "020180"},
+ 	{-129, "0202ff7f"},
+ 	{intStruct{64}, "3003020140"},
++	{bigIntStruct{big.NewInt(0x123456)}, "30050203123456"},
+ 	{twoIntStruct{64, 65}, "3006020140020141"},
+ 	{nestedStruct{intStruct{127}}, "3005300302017f"},
+ 	{[]byte{1, 2, 3}, "0403010203"},

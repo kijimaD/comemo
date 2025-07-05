@@ -12,8 +12,115 @@ Date:   Sat Dec 18 15:54:38 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/doc/doc_test.go     | 13 +++++++++++++
  src/cmd/doc/pkg.go          |  8 +++++++-
  src/cmd/doc/testdata/pkg.go | 12 ++++++++++++
  3 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index af7793133e..0ff9edcde3 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"flag"
++	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -125,6 +126,9 @@ var tests = []test{
+ 			`func MultiLineFunc\(x interface{ ... }\) \(r struct{ ... }\)`, // Multi line function.
+ 			`var LongLine = newLongLine\(("someArgument[1-4]", ){4}...\)`,  // Long list of arguments.
+ 			`type T1 = T2`,                                                 // Type alias
++			`type SimpleConstraint interface{ ... }`,
++			`type TildeConstraint interface{ ... }`,
++			`type StructConstraint interface{ ... }`,
+ 		},
+ 		[]string{
+ 			`const internalConstant = 2`,       // No internal constants.
+@@ -199,6 +203,9 @@ var tests = []test{
+ 			`Comment about exported method`,
+ 			`type T1 = T2`,
+ 			`type T2 int`,
++			`type SimpleConstraint interface {`,
++			`type TildeConstraint interface {`,
++			`type StructConstraint interface {`,
+ 		},
+ 		[]string{
+ 			`constThree`,
+@@ -822,13 +829,19 @@ var tests = []test{
+ 
+ func TestDoc(t *testing.T) {
+ 	maybeSkip(t)
++	defer log.SetOutput(log.Writer())
+ 	for _, test := range tests {
+ 		var b bytes.Buffer
+ 		var flagSet flag.FlagSet
++		var logbuf bytes.Buffer
++		log.SetOutput(&logbuf)
+ 		err := do(&b, &flagSet, test.args)
+ 		if err != nil {
+ 			t.Fatalf("%s %v: %s\n", test.name, test.args, err)
+ 		}
++		if logbuf.Len() > 0 {
++			t.Errorf("%s %v: unexpected log messages:\n%s", test.name, test.args, logbuf.Bytes())
++		}
+ 		output := b.Bytes()
+ 		failed := false
+ 		for j, yes := range test.yes {
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index f51efe08af..0266600730 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -865,6 +865,7 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 		if len(names) == 0 {
+ 			// Embedded type. Use the name of the type. It must be of the form ident or
+ 			// pkg.ident (for structs and interfaces), or *ident or *pkg.ident (structs only).
++			// Or a type embedded in a constraint.
+ 			// Nothing else is allowed.
+ 			ty := field.Type
+ 			if se, ok := field.Type.(*ast.StarExpr); !isInterface && ok {
+@@ -872,6 +873,7 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 				// embedded types in structs.
+ 				ty = se.X
+ 			}
++			constraint := false
+ 			switch ident := ty.(type) {
+ 			case *ast.Ident:
+ 				if isInterface && ident.Name == "error" && ident.Obj == nil {
+@@ -885,8 +887,12 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ 			case *ast.SelectorExpr:
+ 				// An embedded type may refer to a type in another package.
+ 				names = []*ast.Ident{ident.Sel}
++			default:
++				// An approximation or union or type
++				// literal in an interface.
++				constraint = true
+ 			}
+-			if names == nil {
++			if names == nil && !constraint {
+ 				// Can only happen if AST is incorrect. Safe to continue with a nil list.
+ 				log.Print("invalid program: unexpected type for embedded field")
+ 			}
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+index 5ece832565..a693c74918 100644
+--- a/src/cmd/doc/testdata/pkg.go
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -238,3 +238,15 @@ type ExportedFormattedType struct {
+ 	// Text after pre-formatted block.
+ 	ExportedField int
+ }
++
++type SimpleConstraint interface {
++	~int | ~float64
++}
++
++type TildeConstraint interface {
++	~int
++}
++
++type StructConstraint interface {
++	struct { F int }
++}

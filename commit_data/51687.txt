@@ -12,7 +12,7 @@ Date:   Thu Mar 3 16:18:31 2022 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 22 ++++++++++++++++++----
  src/cmd/go/internal/workcmd/edit.go |  5 ++---
  src/cmd/go/internal/workcmd/init.go |  2 ++
@@ -20,3 +20,155 @@ Date:   Thu Mar 3 16:18:31 2022 -0500
  src/cmd/go/internal/workcmd/use.go  |  3 +++
  src/cmd/go/internal/workcmd/work.go |  8 +++++++-
  6 files changed, 35 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b4fb282303..825de1e64a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1359,7 +1359,7 @@
+ //
+ // Workspace maintenance
+ //
+-// Go workspace provides access to operations on workspaces.
++// Work provides access to operations on workspaces.
+ //
+ // Note that support for workspaces is built into many other commands, not
+ // just 'go work'.
+@@ -1367,6 +1367,12 @@
+ // See 'go help modules' for information about Go's module system of which
+ // workspaces are a part.
+ //
++// See https://go.dev/ref/mod#workspaces for an in-depth reference on
++// workspaces.
++//
++// See https://go.dev/doc/tutorial/workspaces for an introductory
++// tutorial on workspaces.
++//
+ // A workspace is specified by a go.work file that specifies a set of
+ // module directories with the "use" directive. These modules are used as
+ // root modules by the go command for builds and related operations.  A
+@@ -1488,9 +1494,8 @@
+ // 		Version string
+ // 	}
+ //
+-// See the workspaces design proposal at
+-// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+-// more information.
++// See the workspaces reference at https://go.dev/ref/mod#workspaces
++// for more information.
+ //
+ //
+ // Initialize workspace file
+@@ -1510,6 +1515,9 @@
+ // Each argument path is added to a use directive in the go.work file. The
+ // current go version will also be listed in the go.work file.
+ //
++// See the workspaces reference at https://go.dev/ref/mod#workspaces
++// for more information.
++//
+ //
+ // Sync workspace build list to modules
+ //
+@@ -1533,6 +1541,9 @@
+ // build list's version of each module is always the same or higher than
+ // that in each workspace module.
+ //
++// See the workspaces reference at https://go.dev/ref/mod#workspaces
++// for more information.
++//
+ //
+ // Add modules to workspace file
+ //
+@@ -1552,6 +1563,9 @@
+ // were specified as arguments: namely, use directives will be added for
+ // directories that exist, and removed for directories that do not exist.
+ //
++// See the workspaces reference at https://go.dev/ref/mod#workspaces
++// for more information.
++//
+ //
+ // Compile and run Go program
+ //
+diff --git a/src/cmd/go/internal/workcmd/edit.go b/src/cmd/go/internal/workcmd/edit.go
+index 05f4f3dddf..1478c19389 100644
+--- a/src/cmd/go/internal/workcmd/edit.go
++++ b/src/cmd/go/internal/workcmd/edit.go
+@@ -84,9 +84,8 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 		Version string
+ 	}
+ 
+-See the workspaces design proposal at
+-https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
+-more information.
++See the workspaces reference at https://go.dev/ref/mod#workspaces
++for more information.
+ `,
+ }
+ 
+diff --git a/src/cmd/go/internal/workcmd/init.go b/src/cmd/go/internal/workcmd/init.go
+index 63bee6e4f5..c2513bac35 100644
+--- a/src/cmd/go/internal/workcmd/init.go
++++ b/src/cmd/go/internal/workcmd/init.go
+@@ -27,6 +27,8 @@ modules will be created.
+ Each argument path is added to a use directive in the go.work file. The
+ current go version will also be listed in the go.work file.
+ 
++See the workspaces reference at https://go.dev/ref/mod#workspaces
++for more information.
+ `,
+ 	Run: runInit,
+ }
+diff --git a/src/cmd/go/internal/workcmd/sync.go b/src/cmd/go/internal/workcmd/sync.go
+index b0f61c5fa2..7712eb6b6b 100644
+--- a/src/cmd/go/internal/workcmd/sync.go
++++ b/src/cmd/go/internal/workcmd/sync.go
+@@ -33,6 +33,9 @@ if the dependency module's version is not already the same as the build
+ list's version. Note that Minimal Version Selection guarantees that the
+ build list's version of each module is always the same or higher than
+ that in each workspace module.
++
++See the workspaces reference at https://go.dev/ref/mod#workspaces
++for more information.
+ `,
+ 	Run: runSync,
+ }
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index e4666ac26d..e20041f79f 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -33,6 +33,9 @@ The -r flag searches recursively for modules in the argument
+ directories, and the use command operates as if each of the directories
+ were specified as arguments: namely, use directives will be added for
+ directories that exist, and removed for directories that do not exist.
++
++See the workspaces reference at https://go.dev/ref/mod#workspaces
++for more information.
+ `,
+ }
+ 
+diff --git a/src/cmd/go/internal/workcmd/work.go b/src/cmd/go/internal/workcmd/work.go
+index d3cc250231..39c81e8f5d 100644
+--- a/src/cmd/go/internal/workcmd/work.go
++++ b/src/cmd/go/internal/workcmd/work.go
+@@ -12,7 +12,7 @@ import (
+ var CmdWork = &base.Command{
+ 	UsageLine: "go work",
+ 	Short:     "workspace maintenance",
+-	Long: `Go workspace provides access to operations on workspaces.
++	Long: `Work provides access to operations on workspaces.
+ 
+ Note that support for workspaces is built into many other commands, not
+ just 'go work'.
+@@ -20,6 +20,12 @@ just 'go work'.
+ See 'go help modules' for information about Go's module system of which
+ workspaces are a part.
+ 
++See https://go.dev/ref/mod#workspaces for an in-depth reference on
++workspaces.
++
++See https://go.dev/doc/tutorial/workspaces for an introductory
++tutorial on workspaces.
++
+ A workspace is specified by a go.work file that specifies a set of
+ module directories with the "use" directive. These modules are used as
+ root modules by the go command for builds and related operations.  A

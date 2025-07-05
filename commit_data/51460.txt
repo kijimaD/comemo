@@ -11,7 +11,64 @@ Date:   Tue Feb 1 12:30:36 2022 -0500
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/fuzz/fuzz.go   | 10 +++++-----
  src/internal/fuzz/worker.go |  4 ++--
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index f2ff3a1390..0014cde04f 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -419,14 +419,14 @@ type corpus struct {
+ 	hashes  map[[sha256.Size]byte]bool
+ }
+ 
+-// addCorpusEntries adds entries to the corpus, and optional also writes the entries
++// addCorpusEntries adds entries to the corpus, and optionally writes the entries
+ // to the cache directory. If an entry is already in the corpus it is skipped. If
+ // all of the entries are unique, addCorpusEntries returns true and a nil error,
+ // if at least one of the entries was a duplicate, it returns false and a nil error.
+ func (c *coordinator) addCorpusEntries(addToCache bool, entries ...CorpusEntry) (bool, error) {
+ 	noDupes := true
+ 	for _, e := range entries {
+-		data, err := CorpusEntryData(e)
++		data, err := corpusEntryData(e)
+ 		if err != nil {
+ 			return false, err
+ 		}
+@@ -478,9 +478,9 @@ type CorpusEntry = struct {
+ 	IsSeed bool
+ }
+ 
+-// Data returns the raw input bytes, either from the data struct field,
+-// or from disk.
+-func CorpusEntryData(ce CorpusEntry) ([]byte, error) {
++// corpusEntryData returns the raw input bytes, either from the data struct
++// field, or from disk.
++func corpusEntryData(ce CorpusEntry) ([]byte, error) {
+ 	if ce.Data != nil {
+ 		return ce.Data, nil
+ 	}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index c2d553240c..e984ba73b2 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -973,7 +973,7 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args
+ 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
+ 	}
+ 	mem.header().count = 0
+-	inp, err := CorpusEntryData(entryIn)
++	inp, err := corpusEntryData(entryIn)
+ 	if err != nil {
+ 		return CorpusEntry{}, minimizeResponse{}, err
+ 	}
+@@ -1059,7 +1059,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
+ 		return CorpusEntry{}, fuzzResponse{}, true, errSharedMemClosed
+ 	}
+ 	mem.header().count = 0
+-	inp, err := CorpusEntryData(entryIn)
++	inp, err := corpusEntryData(entryIn)
+ 	if err != nil {
+ 		return CorpusEntry{}, fuzzResponse{}, true, err
+ 	}

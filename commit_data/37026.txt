@@ -14,8 +14,86 @@ Date:   Fri Jun 15 15:20:57 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go |  6 ++++++
  test/fixedbugs/issue24651a.go      | 24 ++++++++++++++++++++++++
  test/fixedbugs/issue24651b.go      | 24 ++++++++++++++++++++++++
  3 files changed, 54 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 25452911eb..cb3ddaf2a5 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -132,6 +132,12 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
++	// If marked "go:norace" and -race compilation, don't inline.
++	if flag_race && fn.Func.Pragma&Norace != 0 {
++		reason = "marked go:norace with -race compilation"
++		return
++	}
++
+ 	// If marked "go:cgo_unsafe_args", don't inline, since the
+ 	// function makes assumptions about its argument frame layout.
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+diff --git a/test/fixedbugs/issue24651a.go b/test/fixedbugs/issue24651a.go
+new file mode 100644
+index 0000000000..5f63635a2a
+--- /dev/null
++++ b/test/fixedbugs/issue24651a.go
+@@ -0,0 +1,24 @@
++//errorcheck -0 -race -m -m
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:norace
++func Foo(x int) int { // ERROR "cannot inline Foo: marked go:norace with -race compilation$"
++	return x * (x + 1) * (x + 2)
++}
++
++func Bar(x int) int { // ERROR "can inline Bar as: func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
++	return x * (x + 1) * (x + 2)
++}
++
++var x = 5
++
++//go:noinline Provide a clean, constant reason for not inlining main
++func main() { // ERROR "cannot inline main: marked go:noinline$"
++	println("Foo(", x, ")=", Foo(x))
++	println("Bar(", x, ")=", Bar(x)) // ERROR "inlining call to Bar func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
++}
+diff --git a/test/fixedbugs/issue24651b.go b/test/fixedbugs/issue24651b.go
+new file mode 100644
+index 0000000000..2420f61fa6
+--- /dev/null
++++ b/test/fixedbugs/issue24651b.go
+@@ -0,0 +1,24 @@
++//errorcheck -0 -m -m
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:norace
++func Foo(x int) int { // ERROR "can inline Foo as: func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
++	return x * (x + 1) * (x + 2)
++}
++
++func Bar(x int) int { // ERROR "can inline Bar as: func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
++	return x * (x + 1) * (x + 2)
++}
++
++var x = 5
++
++//go:noinline Provide a clean, constant reason for not inlining main
++func main() { // ERROR "cannot inline main: marked go:noinline$"
++	println("Foo(", x, ")=", Foo(x)) // ERROR "inlining call to Foo func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
++	println("Bar(", x, ")=", Bar(x)) // ERROR "inlining call to Bar func\(int\) int { return x \* \(x \+ 1\) \* \(x \+ 2\) }$"
++}

@@ -8,6 +8,26 @@ Date:   Wed Oct 1 17:38:09 2014 -0400
     R=rlh, minux
     CC=golang-codereviews
     https://golang.org/cl/151940043
-
+---
  src/cmd/gc/reflect.c | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 4892ab7570..e229b3075c 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -1506,11 +1506,9 @@ gengcprog1(ProgGen *g, Type *t, vlong *xoffset)
+ 		*xoffset += t->width;
+ 		break;
+ 	case TINTER:
+-		proggendata(g, BitsMultiWord);
+-		if(isnilinter(t))
+-			proggendata(g, BitsEface);
+-		else
+-			proggendata(g, BitsIface);
++		// Assuming IfacePointerOnly=1.
++		proggendata(g, BitsPointer);
++		proggendata(g, BitsPointer);
+ 		*xoffset += t->width;
+ 		break;
+ 	case TARRAY:

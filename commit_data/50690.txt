@@ -12,6 +12,21 @@ Date:   Fri Nov 5 15:38:57 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/gcflags_patterns.txt | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index 5b81e9481a..24ec5aa11b 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -58,8 +58,7 @@ go build -n -ldflags=-X=math.pi=3
+ stderr 'link.* -X=math.pi=3'
+ 
+ # -ldflags applies to current directory even if GOPATH is funny
+-[windows] cd $WORK/GoPath/src/my/cmd/prog
+-[darwin] cd $WORK/GoPath/src/my/cmd/prog
++[!case-sensitive] cd $WORK/GoPath/src/my/cmd/prog
+ go build -n -ldflags=-X=math.pi=3
+ stderr 'link.* -X=math.pi=3'
+ 

@@ -12,7 +12,231 @@ Date:   Tue Jan 19 17:46:56 2010 -0800
     R=r, petar-m
     CC=golang-dev, shadowice
     https://golang.org/cl/190068
-
+---
  src/pkg/http/response.go      |  31 +++++---
  src/pkg/http/response_test.go | 165 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 186 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index eec9486c61..b20a6a003f 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -130,26 +130,37 @@ func ReadResponse(r *bufio.Reader, requestMethod string) (resp *Response, err os
+ 		return nil, err
+ 	}
+ 
+-	// Prepare body reader.  ContentLength < 0 means chunked encoding,
+-	// since multipart is not supported yet
+-	if resp.ContentLength < 0 {
+-		resp.Body = &body{newChunkedReader(r), resp, r}
+-	} else {
+-		resp.Body = &body{io.LimitReader(r, resp.ContentLength), nil, nil}
++	// Prepare body reader.  ContentLength < 0 means chunked encoding
++	// or close connection when finished, since multipart is not supported yet
++	switch {
++	case chunked(resp.TransferEncoding):
++		resp.Body = &body{Reader: newChunkedReader(r), resp: resp, r: r, closing: resp.Close}
++	case resp.ContentLength >= 0:
++		resp.Body = &body{Reader: io.LimitReader(r, resp.ContentLength), closing: resp.Close}
++	default:
++		resp.Body = &body{Reader: r, closing: resp.Close}
+ 	}
+ 
+ 	return resp, nil
+ }
+ 
+-// ffwdClose (fast-forward close) adds a Close method to a Reader which skips
+-// ahead until EOF
++// body turns a Reader into a ReadCloser.
++// Close ensures that the body has been fully read
++// and then reads the trailer if necessary.
+ type body struct {
+ 	io.Reader
+-	resp *Response     // non-nil value means read trailer
+-	r    *bufio.Reader // underlying wire-format reader for the trailer
++	resp    *Response     // non-nil value means read trailer
++	r       *bufio.Reader // underlying wire-format reader for the trailer
++	closing bool          // is the connection to be closed after reading body?
+ }
+ 
+ func (b *body) Close() os.Error {
++	if b.resp == nil && b.closing {
++		// no trailer and closing the connection next.
++		// no point in reading to EOF.
++		return nil
++	}
++
+ 	trashBuf := make([]byte, 1024) // local for thread safety
+ 	for {
+ 		_, err := b.Read(trashBuf)
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+new file mode 100644
+index 0000000000..51126570db
+--- /dev/null
++++ b/src/pkg/http/response_test.go
+@@ -0,0 +1,165 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package http
++
++import (
++	"bufio"
++	"bytes"
++	"fmt"
++	"io"
++	"reflect"
++	"testing"
++)
++
++type respTest struct {
++	Raw  string
++	Resp Response
++	Body string
++}
++
++var respTests = []respTest{
++	// Unchunked response without Content-Length.
++	respTest{
++		"HTTP/1.0 200 OK\r\n" +
++			"Connection: close\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status: "200 OK",
++			StatusCode: 200,
++			Proto: "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			RequestMethod: "GET",
++			Header: map[string]string{
++				"Connection": "close", // TODO(rsc): Delete?
++			},
++			Close: true,
++			ContentLength: -1,
++		},
++
++		"Body here\n",
++	},
++
++	// Unchunked response with Content-Length.
++	respTest{
++		"HTTP/1.0 200 OK\r\n" +
++			"Content-Length: 10\r\n" +
++			"Connection: close\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status: "200 OK",
++			StatusCode: 200,
++			Proto: "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			RequestMethod: "GET",
++			Header: map[string]string{
++				"Connection": "close", // TODO(rsc): Delete?
++				"Content-Length": "10", // TODO(rsc): Delete?
++			},
++			Close: true,
++			ContentLength: 10,
++		},
++
++		"Body here\n",
++	},
++
++	// Chunked response without Content-Length.
++	respTest{
++		"HTTP/1.0 200 OK\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"\r\n" +
++			"0a\r\n" +
++			"Body here\n" +
++			"0\r\n" +
++			"\r\n",
++
++		Response{
++			Status: "200 OK",
++			StatusCode: 200,
++			Proto: "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			RequestMethod: "GET",
++			Header: map[string]string{},
++			Close: true,
++			ContentLength: -1,
++			TransferEncoding: []string{"chunked"},
++		},
++
++		"Body here\n",
++	},
++
++	// Chunked response with Content-Length.
++	respTest{
++		"HTTP/1.0 200 OK\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"Content-Length: 10\r\n" +
++			"\r\n" +
++			"0a\r\n" +
++			"Body here\n" +
++			"0\r\n" +
++			"\r\n",
++
++		Response{
++			Status: "200 OK",
++			StatusCode: 200,
++			Proto: "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			RequestMethod: "GET",
++			Header: map[string]string{},
++			Close: true,
++			ContentLength: -1, // TODO(rsc): Fix?
++			TransferEncoding: []string{"chunked"},
++		},
++
++		"Body here\n",
++	},
++}
++
++func TestReadResponse(t *testing.T) {
++	for i := range respTests {
++		tt := &respTests[i]
++		var braw bytes.Buffer
++		braw.WriteString(tt.Raw)
++		resp, err := ReadResponse(bufio.NewReader(&braw), tt.Resp.RequestMethod)
++		if err != nil {
++			t.Errorf("#%d: %s", i, err)
++			continue
++		}
++		rbody := resp.Body
++		resp.Body = nil
++		diff(t, fmt.Sprintf("#%d Response", i), resp, &tt.Resp)
++		var bout bytes.Buffer
++		if rbody != nil {
++			io.Copy(&bout, rbody)
++			rbody.Close()
++		}
++		body := bout.String()
++		if body != tt.Body {
++			t.Errorf("#%d: Body = %q want %q", i, body, tt.Body)
++		}
++	}
++}
++
++func diff(t *testing.T, prefix string, have, want interface{}) {
++	hv := reflect.NewValue(have).(*reflect.PtrValue).Elem().(*reflect.StructValue)
++	wv := reflect.NewValue(want).(*reflect.PtrValue).Elem().(*reflect.StructValue)
++	if hv.Type() != wv.Type() {
++		t.Errorf("%s: type mismatch %v vs %v", prefix, hv.Type(), wv.Type())
++	}
++	for i := 0; i < hv.NumField(); i++ {
++		hf := hv.Field(i).Interface()
++		wf := wv.Field(i).Interface()
++		if !reflect.DeepEqual(hf, wf) {
++			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().(*reflect.StructType).Field(i).Name, hf, wf)
++		}
++	}
++}

@@ -9,6 +9,19 @@ Date:   Fri Dec 16 10:39:20 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5489052
-
+---
  lib/codereview/codereview.py | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 7ab7b7e0f3..3dbbb72606 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1490,6 +1490,7 @@ def clpatch_or_undo(ui, repo, clname, opts, mode):
+ 		# Mercurial will fall over long before the change log
+ 		# sequence numbers get to be 7 digits long.
+ 		if re.match('^[0-9]{7,}$', clname):
++			found = False
+ 			for r in hg_log(ui, repo, keyword="codereview.appspot.com/"+clname, limit=100, template="{node}\n").split():
+ 				rev = repo[r]
+ 				# Last line with a code review URL is the actual review URL.

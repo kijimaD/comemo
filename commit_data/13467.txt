@@ -9,7 +9,82 @@ Date:   Thu Jul 12 20:52:19 2012 -0700
     R=gri, gri, adg
     CC=golang-dev
     https://golang.org/cl/6392061
-
+---
  src/pkg/bytes/buffer.go      | 13 +++++++++++++
  src/pkg/bytes/buffer_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index afdf220559..efb9798ee0 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -99,6 +99,19 @@ func (b *Buffer) grow(n int) int {
+ 	return b.off + m
+ }
+ 
++// Grow grows the buffer's capacity, if necessary, to guarantee space for
++// another n bytes. After Grow(n), at least n bytes can be written to the
++// buffer without another allocation.
++// If n is negative, Grow will panic.
++// If the buffer can't grow it will panic with ErrTooLarge.
++func (b *Buffer) Grow(n int) {
++	if n < 0 {
++		panic("bytes.Buffer.Grow: negative count")
++	}
++	m := b.grow(n)
++	b.buf = b.buf[0:m]
++}
++
+ // Write appends the contents of p to the buffer.  The return
+ // value n is the length of p; err is always nil.
+ // If the buffer becomes too large, Write will panic with
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index d0af11f104..c385be81ae 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "bytes"
+ 	"io"
+ 	"math/rand"
++	"runtime"
+ 	"testing"
+ 	"unicode/utf8"
+ )
+@@ -374,6 +375,37 @@ func TestReadBytes(t *testing.T) {
+ 	}
+ }
+ 
++func TestGrow(t *testing.T) {
++	x := []byte{'x'}
++	y := []byte{'y'}
++	tmp := make([]byte, 72)
++	for _, startLen := range []int{0, 100, 1000, 10000, 100000} {
++		xBytes := Repeat(x, startLen)
++		for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
++			buf := NewBuffer(xBytes)
++			// If we read, this affects buf.off, which is good to test.
++			readBytes, _ := buf.Read(tmp)
++			buf.Grow(growLen)
++			yBytes := Repeat(y, growLen)
++			// Check no allocation occurs in write, as long as we're single-threaded.
++			var m1, m2 runtime.MemStats
++			runtime.ReadMemStats(&m1)
++			buf.Write(yBytes)
++			runtime.ReadMemStats(&m2)
++			if runtime.GOMAXPROCS(-1) == 1 && m1.Mallocs != m2.Mallocs {
++				t.Errorf("allocation occurred during write")
++			}
++			// Check that buffer has correct data.
++			if !Equal(buf.Bytes()[0:startLen-readBytes], xBytes[readBytes:]) {
++				t.Errorf("bad initial data at %d %d", startLen, growLen)
++			}
++			if !Equal(buf.Bytes()[startLen-readBytes:startLen-readBytes+growLen], yBytes) {
++				t.Errorf("bad written data at %d %d", startLen, growLen)
++			}
++		}
++	}
++}
++
+ // Was a bug: used to give EOF reading empty slice at EOF.
+ func TestReadEmptyAtEOF(t *testing.T) {
+ 	b := new(Buffer)

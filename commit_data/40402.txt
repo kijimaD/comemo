@@ -16,7 +16,7 @@ Date:   Wed May 8 15:10:29 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176104
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/dragonfly_amd64.txt |  6 ------
  src/cmd/vet/all/whitelist/freebsd_386.txt     | 10 ----------
  src/cmd/vet/all/whitelist/freebsd_amd64.txt   |  5 -----
@@ -27,3 +27,184 @@ Date:   Wed May 8 15:10:29 2019 -0400
  src/syscall/asm_netbsd_arm.s                  |  2 +-
  src/syscall/asm_unix_386.s                    | 20 ++++++++++----------
  9 files changed, 16 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/dragonfly_amd64.txt b/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
+deleted file mode 100644
+index 0db5503ef0..0000000000
+--- a/src/cmd/vet/all/whitelist/dragonfly_amd64.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-// dragonfly/amd64-specific vet whitelist. See readme.txt for details.
+-
+-
+-syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
+-syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
+-syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 24(SP) should be a2+16(FP)
+diff --git a/src/cmd/vet/all/whitelist/freebsd_386.txt b/src/cmd/vet/all/whitelist/freebsd_386.txt
+index b5218e814f..ed83a3e5ac 100644
+--- a/src/cmd/vet/all/whitelist/freebsd_386.txt
++++ b/src/cmd/vet/all/whitelist/freebsd_386.txt
+@@ -6,13 +6,3 @@ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
+ runtime/sys_freebsd_386.s: [386] sigtramp: unknown variable context
+ runtime/sys_freebsd_386.s: [386] i386_set_ldt: function i386_set_ldt missing Go declaration
+-syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/freebsd_amd64.txt b/src/cmd/vet/all/whitelist/freebsd_amd64.txt
+deleted file mode 100644
+index 356be022cc..0000000000
+--- a/src/cmd/vet/all/whitelist/freebsd_amd64.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// freebsd/amd64-specific vet whitelist. See readme.txt for details.
+-
+-syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 8(SP) should be num+0(FP)
+-syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 16(SP) should be a1+8(FP)
+-syscall/asm9_unix2_amd64.s: [amd64] Syscall9: 24(SP) should be a2+16(FP)
+diff --git a/src/cmd/vet/all/whitelist/netbsd_386.txt b/src/cmd/vet/all/whitelist/netbsd_386.txt
+index 608021cae4..bd2151de20 100644
+--- a/src/cmd/vet/all/whitelist/netbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_386.txt
+@@ -7,13 +7,3 @@ runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable signo
+ runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_netbsd_386.s: [386] sigtramp: unknown variable context
+ 
+-syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/netbsd_arm.txt b/src/cmd/vet/all/whitelist/netbsd_arm.txt
+deleted file mode 100644
+index 59b261097f..0000000000
+--- a/src/cmd/vet/all/whitelist/netbsd_arm.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// netbsd/arm-specific vet whitelist. See readme.txt for details.
+-
+-syscall/asm_netbsd_arm.s: [arm] Syscall9: unknown variable trap; offset 0 is num+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/openbsd_386.txt b/src/cmd/vet/all/whitelist/openbsd_386.txt
+index bfbf4d9c56..acda942e28 100644
+--- a/src/cmd/vet/all/whitelist/openbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/openbsd_386.txt
+@@ -3,13 +3,3 @@
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable signo
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable info
+ runtime/sys_openbsd_386.s: [386] sigtramp: unknown variable context
+-syscall/asm_unix_386.s: [386] Syscall: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] Syscall6: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall6: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] Syscall9: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] Syscall9: 4(SP) should be num+0(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall: 4(SP) should be trap+0(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall6: 8(SP) should be a1+4(FP)
+-syscall/asm_unix_386.s: [386] RawSyscall6: 4(SP) should be trap+0(FP)
+diff --git a/src/syscall/asm9_unix2_amd64.s b/src/syscall/asm9_unix2_amd64.s
+index 11a6c1f485..6633c12529 100644
+--- a/src/syscall/asm9_unix2_amd64.s
++++ b/src/syscall/asm9_unix2_amd64.s
+@@ -24,12 +24,14 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-104
+ 
+ 	// shift around the last three arguments so they're at the
+ 	// top of the stack when the syscall is called.
++	// note that we are scribbling over the Go arguments now.
++	MOVQ	SP, CX	// hide (SP) writes from vet
+ 	MOVQ	a7+56(FP), R11 // arg 7
+-	MOVQ	R11, 8(SP)
++	MOVQ	R11, 8(CX)
+ 	MOVQ	a8+64(FP), R11 // arg 8
+-	MOVQ	R11, 16(SP)
++	MOVQ	R11, 16(CX)
+ 	MOVQ	a9+72(FP), R11 // arg 9
+-	MOVQ	R11, 24(SP)
++	MOVQ	R11, 24(CX)
+ 
+ 	SYSCALL
+ 	JCC	ok9
+diff --git a/src/syscall/asm_netbsd_arm.s b/src/syscall/asm_netbsd_arm.s
+index 18bca56820..d7c1e9da99 100644
+--- a/src/syscall/asm_netbsd_arm.s
++++ b/src/syscall/asm_netbsd_arm.s
+@@ -62,7 +62,7 @@ error6:
+ 
+ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	BL runtime·entersyscall(SB)
+-	MOVW trap+0(FP), R0 // sigcall num
++	MOVW num+0(FP), R0 // sigcall num
+ 	MOVW a1+4(FP), R1 // a1
+ 	MOVW a2+8(FP), R2 // a2
+ 	MOVW a3+12(FP), R3 // a3
+diff --git a/src/syscall/asm_unix_386.s b/src/syscall/asm_unix_386.s
+index 263355c493..1e82b8800e 100644
+--- a/src/syscall/asm_unix_386.s
++++ b/src/syscall/asm_unix_386.s
+@@ -19,8 +19,8 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -43,8 +43,8 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -70,8 +70,8 @@ TEXT	·Syscall9(SB),NOSPLIT,$0-52
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	num+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		num+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -99,8 +99,8 @@ ok9:
+ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
+ 	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL
+@@ -120,8 +120,8 @@ ok1:
+ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
+ 	MOVL	trap+0(FP), AX	// syscall entry
+ 	// slide args down on top of system call number
+-	LEAL		8(SP), SI
+-	LEAL		4(SP), DI
++	LEAL		a1+4(FP), SI
++	LEAL		trap+0(FP), DI
+ 	CLD
+ 	MOVSL
+ 	MOVSL

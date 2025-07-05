@@ -19,7 +19,43 @@ Date:   Wed Sep 14 20:07:13 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  2 +-
  test/fixedbugs/issue17111.go         | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 8ca0acde51..5dcb29ea05 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -286,7 +286,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 	orig := r
+ 	r = r.Name.Defn.Right
+ 
+-	for r.Op == OCONVNOP {
++	for r.Op == OCONVNOP && !Eqtype(r.Type, l.Type) {
+ 		r = r.Left
+ 	}
+ 
+diff --git a/test/fixedbugs/issue17111.go b/test/fixedbugs/issue17111.go
+new file mode 100644
+index 0000000000..05284a785f
+--- /dev/null
++++ b/test/fixedbugs/issue17111.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type I int
++
++var (
++	i int
++	x = I(i)
++
++	e interface{} = x
++)

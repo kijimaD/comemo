@@ -7,6 +7,30 @@ Date:   Tue Oct 22 12:35:04 2013 -0400
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/14454058
-
+---
  misc/emacs/go-mode.el | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index f5d504d377..6cc03edb06 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -749,6 +749,9 @@ declaration."
+   (let ((old-point (point)))
+     (goto-char (point-min))
+     (cond
++     ((re-search-forward "^import ()" nil t)
++      (backward-char 1)
++      'block-empty)
+      ((re-search-forward "^import ([^)]+)" nil t)
+       (backward-char 2)
+       'block)
+@@ -843,6 +846,8 @@ uncommented, otherwise a new import will be added."
+           (uncomment-region (line-beginning-position) (line-end-position))
+         (case (go-goto-imports)
+           ('fail (message "Could not find a place to add import."))
++          ('block-empty
++           (insert "\n\t" line "\n"))
+           ('block
+               (save-excursion
+                 (re-search-backward "^import (")

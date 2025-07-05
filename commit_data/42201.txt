@@ -18,6 +18,21 @@ Date:   Wed Nov 13 11:09:27 2019 -0800
     Change-Id: I1b2e2c943695d1c2d29496b050abbce9ee710a00
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207078
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/exec/exec_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 0498c7d915..19bda6902a 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -47,6 +47,9 @@ func init() {
+ 		return
+ 	}
+ 	for fd := uintptr(3); fd <= 100; fd++ {
++		if poll.IsPollDescriptor(fd) {
++			continue
++		}
+ 		// We have no good portable way to check whether an FD is open.
+ 		// We use NewFile to create a *os.File, which lets us
+ 		// know whether it is open, but then we have to cope with

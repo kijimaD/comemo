@@ -9,7 +9,7 @@ Date:   Tue May 5 17:24:01 2009 -0700
     DELTA=1179  (578 added, 596 deleted, 5 changed)
     OCL=28313
     CL=28313
-
+---
  src/lib/Makefile                              |  8 ++++----
  src/lib/container/{ => vector}/Makefile       |  0
  src/lib/container/{ => vector}/intvector.go   |  0
@@ -17,3 +17,93 @@ Date:   Tue May 5 17:24:01 2009 -0700
  src/lib/container/{ => vector}/vector_test.go |  0
  src/run.bash                                  | 18 +-----------------
  6 files changed, 5 insertions(+), 21 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 97a33793f9..cbdc6790af 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -9,7 +9,7 @@ GC=6g
+ DIRS=\
+ 	bignum\
+ 	bufio\
+-	container\
++	container/vector\
+ 	exec\
+ 	exvar\
+ 	flag\
+@@ -43,7 +43,7 @@ DIRS=\
+ TEST=\
+ 	bignum \
+ 	bufio \
+-	container \
++	container/vector \
+ 	exec \
+ 	exvar \
+ 	flag \
+@@ -116,7 +116,7 @@ go.install: regexp.install sort.install strconv.install strings.install \
+ hash.install: os.install
+ http.install: bufio.install io.install net.install os.install path.install strings.install log.install
+ io.install: os.install sync.install
+-json.install: container.install fmt.install io.install math.install \
++json.install: container/vector.install fmt.install io.install math.install \
+ 	strconv.install strings.install utf8.install
+ # TODO(rsc): net is not supposed to depend on fmt or strings or strconv
+ net.install: fmt.install once.install os.install strconv.install strings.install
+@@ -126,7 +126,7 @@ reflect.install: strconv.install sync.install
+ strconv.install: math.install os.install utf8.install
+ sync.install:
+ syscall.install: sync.install
+-tabwriter.install: os.install io.install container.install
++tabwriter.install: os.install io.install container/vector.install
+ template.install: fmt.install io.install os.install reflect.install strings.install
+ time.install: once.install os.install io.install
+ 
+diff --git a/src/lib/container/Makefile b/src/lib/container/vector/Makefile
+similarity index 100%
+rename from src/lib/container/Makefile
+rename to src/lib/container/vector/Makefile
+diff --git a/src/lib/container/intvector.go b/src/lib/container/vector/intvector.go
+similarity index 100%
+rename from src/lib/container/intvector.go
+rename to src/lib/container/vector/intvector.go
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector/vector.go
+similarity index 100%
+rename from src/lib/container/vector.go
+rename to src/lib/container/vector/vector.go
+diff --git a/src/lib/container/vector_test.go b/src/lib/container/vector/vector_test.go
+similarity index 100%
+rename from src/lib/container/vector_test.go
+rename to src/lib/container/vector/vector_test.go
+diff --git a/src/run.bash b/src/run.bash
+index de2bd7e654..85bd286555 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -24,27 +24,11 @@ maketest() {
+ }
+ 
+ maketest \
+-	lib/container\
+-	lib/fmt\
+-	lib/go\
+-	lib/hash\
+-	lib/io\
+-	lib/json\
+-	lib/math\
+-	lib/net\
+-	lib/os\
+-	lib/reflect\
+-	lib/regexp\
+-	lib/strconv\
+-	lib/tabwriter\
+-	lib/template\
+-	lib/time\
+-	lib/unicode\
++	lib \
+ 
+ # all of these are subtly different
+ # from what maketest does.
+ 
+-(xcd lib; make test) || exit $?
+ 
+ (xcd lib/sync;
+ make clean;

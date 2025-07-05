@@ -19,6 +19,21 @@ Date:   Tue Oct 28 22:44:59 2014 +0100
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/163510043
-
+---
  src/os/file_plan9.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 22860e20af..5efc2a4f1d 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -259,6 +259,9 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
+ // Since Plan 9 preserves message boundaries, never allow
+ // a zero-byte write.
+ func (f *File) write(b []byte) (n int, err error) {
++	if len(b) == 0 {
++		return 0, nil
++	}
+ 	return fixCount(syscall.Write(f.fd, b))
+ }
+ 

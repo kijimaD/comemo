@@ -18,7 +18,46 @@ Date:   Wed Mar 6 10:39:08 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/type.go          |  1 +
  test/fixedbugs/issue30606.go | 20 ++++++++++++++++++++
  2 files changed, 21 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 5ce80c61dc..531417ea93 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2712,6 +2712,7 @@ func StructOf(fields []StructField) Type {
+ 				}
+ 			}
+ 		}
++		prog = append(prog, 0)
+ 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+ 		typ.kind |= kindGCProg
+ 		typ.gcdata = &prog[0]
+diff --git a/test/fixedbugs/issue30606.go b/test/fixedbugs/issue30606.go
+new file mode 100644
+index 0000000000..bc31982e10
+--- /dev/null
++++ b/test/fixedbugs/issue30606.go
+@@ -0,0 +1,20 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++func main() {}
++
++func typ(x interface{}) reflect.Type { return reflect.ValueOf(x).Type() }
++
++var x = reflect.New(reflect.StructOf([]reflect.StructField{
++	{Name: "F5", Type: reflect.StructOf([]reflect.StructField{
++		{Name: "F4", Type: reflect.ArrayOf(5462,
++			reflect.SliceOf(typ(uint64(0))))},
++	})},
++}))

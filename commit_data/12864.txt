@@ -7,9 +7,82 @@ Date:   Tue Apr 10 10:09:27 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5992082
-
+---
  src/cmd/8a/lex.c          |  4 ++++
  src/cmd/8l/8.out.h        |  5 +++++
  src/cmd/8l/optab.c        | 10 ++++++++++
  src/pkg/runtime/asm_386.s |  3 +--
  4 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index c54e4fe462..5d361f53c5 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -667,6 +667,10 @@ struct
+ 	"MFENCE",	LTYPE0, AMFENCE,
+ 	"SFENCE",	LTYPE0, ASFENCE,
+ 	"EMMS",		LTYPE0, AEMMS,
++	"PREFETCHT0",		LTYPE2,	APREFETCHT0,
++	"PREFETCHT1",		LTYPE2,	APREFETCHT1,
++	"PREFETCHT2",		LTYPE2,	APREFETCHT2,
++	"PREFETCHNTA",		LTYPE2,	APREFETCHNTA,
+ 
+ 	0
+ };
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 9d2751cf0a..e13f1d3454 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -451,6 +451,11 @@ enum	as
+ 	ASFENCE,
+ 
+ 	AEMMS,
++	
++	APREFETCHT0,
++	APREFETCHT1,
++	APREFETCHT2,
++	APREFETCHNTA,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 856482290d..bb2e4705a5 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -349,6 +349,11 @@ uchar	ysvrs[] =
+ 	Ym,	Ynone,	Zm_o,	2,
+ 	0
+ };
++uchar	yprefetch[] =
++{
++	Ym,	Ynone,	Zm_o,	2,
++	0,
++};
+ 
+ Optab optab[] =
+ /*	as, ytab, andproto, opcode */
+@@ -761,5 +766,10 @@ Optab optab[] =
+ 
+ 	{ AEMMS, ynone, Pm, 0x77 },
+ 
++	{ APREFETCHT0,	yprefetch,	Pm,	0x18,(01) },
++	{ APREFETCHT1,	yprefetch,	Pm,	0x18,(02) },
++	{ APREFETCHT2,	yprefetch,	Pm,	0x18,(03) },
++	{ APREFETCHNTA,	yprefetch,	Pm,	0x18,(00) },
++
+ 	0
+ };
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 3ab34d34cb..f3de78cbb9 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -417,8 +417,7 @@ TEXT runtime·atomicstore64(SB), 7, $0
+ 
+ TEXT runtime·prefetch(SB), 7, $0
+ 	MOVL    4(SP), AX
+-	// PREFETCHNTA (AX)
+-	BYTE $0x0f; BYTE $0x18; BYTE $0x00
++	PREFETCHNTA (AX)
+ 	RET
+ 
+ // void jmpdefer(fn, sp);

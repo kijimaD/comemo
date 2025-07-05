@@ -19,6 +19,26 @@ Date:   Tue Jan 21 21:48:41 2020 +0000
     GitHub-Pull-Request: golang/go#36672
     Reviewed-on: https://go-review.googlesource.com/c/go/+/215617
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index e8f7df29a1..4d6a085f60 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -24,6 +24,14 @@ import (
+ // ReverseProxy is an HTTP Handler that takes an incoming request and
+ // sends it to another server, proxying the response back to the
+ // client.
++//
++// ReverseProxy automatically sets the client IP as the value of the
++// X-Forwarded-For header.
++// If an X-Forwarded-For header already exists, the client IP is
++// appended to the existing values.
++// To prevent IP spoofing, be sure to delete any pre-existing
++// X-Forwarded-For header coming from the client or
++// an untrusted proxy.
+ type ReverseProxy struct {
+ 	// Director must be a function which modifies
+ 	// the request into a new request to be sent

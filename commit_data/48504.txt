@@ -10,7 +10,34 @@ Date:   Wed May 26 15:41:27 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/322809
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 +-
  src/runtime/malloc.go            | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 223df63d9d..70fbb9dc4e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1550,7 +1550,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
+ 
+ 	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+ 		// These symbols must have the same alignment as their section.
+-		// Otherwize, ld might change the layout of Go sections.
++		// Otherwise, ld might change the layout of Go sections.
+ 		ldr.SetSymAlign(ldr.Lookup("runtime.data", 0), state.dataMaxAlign[sym.SDATA])
+ 		ldr.SetSymAlign(ldr.Lookup("runtime.bss", 0), state.dataMaxAlign[sym.SBSS])
+ 	}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 81e5225883..2759bbdaf9 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -296,7 +296,7 @@ const (
+ 	// high addresses if viewed as unsigned).
+ 	//
+ 	// On aix/ppc64, this offset allows to keep the heapAddrBits to
+-	// 48. Otherwize, it would be 60 in order to handle mmap addresses
++	// 48. Otherwise, it would be 60 in order to handle mmap addresses
+ 	// (in range 0x0a00000000000000 - 0x0afffffffffffff). But in this
+ 	// case, the memory reserved in (s *pageAlloc).init for chunks
+ 	// is causing important slowdowns.

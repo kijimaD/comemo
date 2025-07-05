@@ -11,6 +11,45 @@ Date:   Wed Apr 1 14:24:35 2015 -0700
     Change-Id: I46630948f893bcc96c05eb3d36eb82e1d97a6fa0
     Reviewed-on: https://go-review.googlesource.com/8358
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/scanner/errors.go | 25 ++++++++-----------------
  1 file changed, 8 insertions(+), 17 deletions(-)
+
+diff --git a/src/go/scanner/errors.go b/src/go/scanner/errors.go
+index 7c9ab254ee..bf7bfa30e4 100644
+--- a/src/go/scanner/errors.go
++++ b/src/go/scanner/errors.go
+@@ -54,25 +54,16 @@ func (p ErrorList) Less(i, j int) bool {
+ 	// Note that it is not sufficient to simply compare file offsets because
+ 	// the offsets do not reflect modified line information (through //line
+ 	// comments).
+-	if e.Filename < f.Filename {
+-		return true
++	if e.Filename != f.Filename {
++		return e.Filename < f.Filename
+ 	}
+-	if e.Filename == f.Filename {
+-		if e.Line < f.Line {
+-			return true
+-		}
+-		if e.Line == f.Line {
+-			if e.Column < f.Column {
+-				return true
+-			}
+-			if e.Column == f.Column {
+-				if p[i].Msg < p[j].Msg {
+-					return true
+-				}
+-			}
+-		}
++	if e.Line != f.Line {
++		return e.Line < f.Line
++	}
++	if e.Column != f.Column {
++		return e.Column < f.Column
+ 	}
+-	return false
++	return p[i].Msg < p[j].Msg
+ }
+ 
+ // Sort sorts an ErrorList. *Error entries are sorted by position,

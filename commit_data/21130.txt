@@ -10,6 +10,19 @@ Date:   Mon Nov 17 20:46:42 2014 +0100
     R=rsc, minux
     CC=golang-codereviews
     https://golang.org/cl/175850043
-
+---
  src/cmd/gc/walk.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index d4d0f449c3..77f9c80f91 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1766,7 +1766,6 @@ walkprint(Node *nn, NodeList **init)
+ 	int notfirst, et, op;
+ 	NodeList *calls;
+ 
+-	on = nil;
+ 	op = nn->op;
+ 	all = nn->list;
+ 	calls = nil;

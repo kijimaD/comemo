@@ -16,6 +16,20 @@ Date:   Mon Feb 12 11:35:29 2024 +1100
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index cfdee8f4d7..53c20a0516 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -99,7 +99,7 @@ func ExampleParseDuration() {
+ 	fmt.Println(complex)
+ 	fmt.Printf("There are %.0f seconds in %v.\n", complex.Seconds(), complex)
+ 	fmt.Printf("There are %d nanoseconds in %v.\n", micro.Nanoseconds(), micro)
+-	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro)
++	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro2)
+ 	// Output:
+ 	// 10h0m0s
+ 	// 1h10m10s

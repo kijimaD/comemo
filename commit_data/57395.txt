@@ -18,6 +18,63 @@ Date:   Thu May 18 11:25:48 2023 +0100
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Run-TryBot: David du Colombier <0intro@gmail.com>
-
+---
  src/encoding/gob/codec_test.go | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/codec_test.go b/src/encoding/gob/codec_test.go
+index 28cd6088af..11a38f5f58 100644
+--- a/src/encoding/gob/codec_test.go
++++ b/src/encoding/gob/codec_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 	"time"
++	"unsafe"
+ )
+ 
+ var doFuzzTests = flag.Bool("gob.fuzz", false, "run the fuzz tests, which are large and very slow")
+@@ -1566,7 +1567,9 @@ func testEncodeDecode(t *testing.T, in, out any) {
+ 
+ func TestLargeSlice(t *testing.T) {
+ 	t.Run("byte", func(t *testing.T) {
+-		t.Parallel()
++		if unsafe.Sizeof(uintptr(0)) > 4 {
++			t.Parallel() // Only run in parallel in a large address space
++		}
+ 		s := make([]byte, 10<<21)
+ 		for i := range s {
+ 			s[i] = byte(i)
+@@ -1576,7 +1579,9 @@ func TestLargeSlice(t *testing.T) {
+ 		testEncodeDecode(t, st, rt)
+ 	})
+ 	t.Run("int8", func(t *testing.T) {
+-		t.Parallel()
++		if unsafe.Sizeof(uintptr(0)) > 4 {
++			t.Parallel()
++		}
+ 		s := make([]int8, 10<<21)
+ 		for i := range s {
+ 			s[i] = int8(i)
+@@ -1586,7 +1591,9 @@ func TestLargeSlice(t *testing.T) {
+ 		testEncodeDecode(t, st, rt)
+ 	})
+ 	t.Run("struct", func(t *testing.T) {
+-		t.Parallel()
++		if unsafe.Sizeof(uintptr(0)) > 4 {
++			t.Parallel()
++		}
+ 		s := make([]StringPair, 1<<21)
+ 		for i := range s {
+ 			s[i].A = string(rune(i))
+@@ -1597,7 +1604,9 @@ func TestLargeSlice(t *testing.T) {
+ 		testEncodeDecode(t, st, rt)
+ 	})
+ 	t.Run("string", func(t *testing.T) {
+-		t.Parallel()
++		if unsafe.Sizeof(uintptr(0)) > 4 {
++			t.Parallel()
++		}
+ 		s := make([]string, 1<<21)
+ 		for i := range s {
+ 			s[i] = string(rune(i))

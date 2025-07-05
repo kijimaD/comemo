@@ -26,7 +26,7 @@ Date:   Tue Sep 27 22:24:51 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go       | 24 ++++++++----------------
  src/runtime/os_darwin.go         | 25 +++++++++++--------------
  src/runtime/os_dragonfly.go      | 20 +++++++-------------
@@ -40,3 +40,652 @@ Date:   Tue Sep 27 22:24:51 2016 -0700
  src/runtime/signal_unix.go       | 32 ++++++++++++++++----------------
  src/runtime/signal_windows.go    |  2 +-
  12 files changed, 79 insertions(+), 124 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 322a57c27f..ad66797b71 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -252,14 +252,10 @@ func sigtramp()
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+ 
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+ 		fn = funcPC(sigtramp)
+@@ -270,11 +266,10 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+-	handler := *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
+-	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
++	if sa.sa_flags&_SA_ONSTACK != 0 {
+ 		return
+ 	}
+ 	sa.sa_flags |= _SA_ONSTACK
+@@ -283,12 +278,9 @@ func setsigstack(i int32) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+-	if *((*uintptr)(unsafe.Pointer(&sa._funcptr))) == funcPC(sigtramp) {
+-		return funcPC(sighandler)
+-	}
+ 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
+ }
+ 
+@@ -465,11 +457,11 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func raise(sig int32) /* int32 */ {
++func raise(sig uint32) /* int32 */ {
+ 	sysvicall1(&libc_raise, uintptr(sig))
+ }
+ 
+-func raiseproc(sig int32) /* int32 */ {
++func raiseproc(sig uint32) /* int32 */ {
+ 	pid := sysvicall0(&libc_getpid)
+ 	sysvicall2(&libc_kill, pid, uintptr(sig))
+ }
+@@ -505,7 +497,7 @@ func setitimer(which int32, value *itimerval, ovalue *itimerval) /* int32 */ {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
++func sigaction(sig uint32, act *sigactiont, oact *sigactiont) /* int32 */ {
+ 	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
+ }
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index c59fd9b8fc..03badb18e1 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -488,8 +488,8 @@ func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Point
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+-func raise(sig int32)
+-func raiseproc(sig int32)
++func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //extern SigTabTT runtime·sigtab[];
+ 
+@@ -499,25 +499,22 @@ var sigset_all = ^sigset(0)
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = ^uint32(0)
+ 	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp)) // runtime·sigtramp's job is to call into real handler
+ 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
+-	sigaction(uint32(i), &sa, nil)
++	sigaction(i, &sa, nil)
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	var osa usigactiont
+-	sigaction(uint32(i), nil, &osa)
++	sigaction(i, nil, &osa)
+ 	handler := *(*uintptr)(unsafe.Pointer(&osa.__sigaction_u))
+-	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || osa.sa_flags&_SA_ONSTACK != 0 {
++	if osa.sa_flags&_SA_ONSTACK != 0 {
+ 		return
+ 	}
+ 	var sa sigactiont
+@@ -525,14 +522,14 @@ func setsigstack(i int32) {
+ 	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp))
+ 	sa.sa_mask = osa.sa_mask
+ 	sa.sa_flags = osa.sa_flags | _SA_ONSTACK
+-	sigaction(uint32(i), &sa, nil)
++	sigaction(i, &sa, nil)
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa usigactiont
+-	sigaction(uint32(i), nil, &sa)
++	sigaction(i, nil, &sa)
+ 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
+ }
+ 
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 495f41805b..4e506796de 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -25,7 +25,7 @@ func lwp_create(param *lwpparams) int32
+ func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+-func sigaction(sig int32, new, old *sigactiont)
++func sigaction(sig uint32, new, old *sigactiont)
+ 
+ //go:noescape
+ func sigprocmask(how int32, new, old *sigset)
+@@ -39,8 +39,8 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ //go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+ 
+-func raise(sig int32)
+-func raiseproc(sig int32)
++func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //go:noescape
+ func sys_umtx_sleep(addr *uint32, val, timeout int32) int32
+@@ -234,12 +234,9 @@ type sigactiont struct {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+ 		fn = funcPC(sigtramp)
+@@ -250,18 +247,15 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	throw("setsigstack")
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+-	if sa.sa_sigaction == funcPC(sigtramp) {
+-		return funcPC(sighandler)
+-	}
+ 	return sa.sa_sigaction
+ }
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index d0b3d27c66..21ed6739df 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -18,7 +18,7 @@ func thr_new(param *thrparam, size int32)
+ func sigaltstack(new, old *stackt)
+ 
+ //go:noescape
+-func sigaction(sig int32, new, old *sigactiont)
++func sigaction(sig uint32, new, old *sigactiont)
+ 
+ //go:noescape
+ func sigprocmask(how int32, new, old *sigset)
+@@ -31,8 +31,8 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ 
+ //go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+-func raise(sig int32)
+-func raiseproc(sig int32)
++func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //go:noescape
+ func sys_umtx_op(addr *uint32, mode int32, val uint32, ptr2, ts *timespec) int32
+@@ -224,12 +224,9 @@ type sigactiont struct {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+ 		fn = funcPC(sigtramp)
+@@ -240,18 +237,15 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	throw("setsigstack")
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+-	if sa.sa_handler == funcPC(sigtramp) {
+-		return funcPC(sighandler)
+-	}
+ 	return sa.sa_handler
+ }
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 52b6b63868..ad9c1894dc 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -329,8 +329,8 @@ func sigprocmask(how int32, new, old *sigset) {
+ 
+ //go:noescape
+ func getrlimit(kind int32, limit unsafe.Pointer) int32
+-func raise(sig int32)
+-func raiseproc(sig int32)
++func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //go:noescape
+ func sched_getaffinity(pid, len uintptr, buf *uintptr) int32
+@@ -338,12 +338,9 @@ func osyield()
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER | _SA_RESTART
+ 	sigfillset(&sa.sa_mask)
+ 	// Although Linux manpage says "sa_restorer element is obsolete and
+ 	// should not be used". x86_64 kernel requires it. Only use it on
+@@ -364,30 +361,23 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	var sa sigactiont
+-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		throw("rt_sigaction failure")
+-	}
+-	if sa.sa_handler == 0 || sa.sa_handler == _SIG_DFL || sa.sa_handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
++	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
++	if sa.sa_flags&_SA_ONSTACK != 0 {
+ 		return
+ 	}
+ 	sa.sa_flags |= _SA_ONSTACK
+-	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
+-		throw("rt_sigaction failure")
+-	}
++	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+ 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+ 		throw("rt_sigaction read failure")
+ 	}
+-	if sa.sa_handler == funcPC(sigtramp) || sa.sa_handler == funcPC(cgoSigtramp) {
+-		return funcPC(sighandler)
+-	}
+ 	return sa.sa_handler
+ }
+ 
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index c968b1a909..7015316414 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -45,7 +45,7 @@ func os_sigpipe() {
+ 	throw("too many writes on closed pipe")
+ }
+ 
+-func dieFromSignal(sig int32) {
++func dieFromSignal(sig uint32) {
+ 	exit(2)
+ }
+ 
+@@ -60,7 +60,7 @@ func sigpanic() {
+ 	panicmem()
+ }
+ 
+-func raiseproc(sig int32) {
++func raiseproc(sig uint32) {
+ }
+ 
+ // Stubs so tests can link correctly. These should never be called.
+@@ -254,7 +254,7 @@ func badsignalgo(sig uintptr) {
+ 	if !sigsend(uint32(sig)) {
+ 		// A foreign thread received the signal sig, and the
+ 		// Go code does not want to handle it.
+-		raisebadsignal(int32(sig))
++		raisebadsignal(uint32(sig))
+ 	}
+ }
+ 
+@@ -267,7 +267,7 @@ func badsignal2() {
+ 
+ var badsignal1 = []byte("runtime: signal received on thread not created by Go.\n")
+ 
+-func raisebadsignal(sig int32) {
++func raisebadsignal(sig uint32) {
+ 	badsignal2()
+ }
+ 
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 63611e2175..c79b50b70b 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -32,7 +32,7 @@ type mOS struct {
+ func setitimer(mode int32, new, old *itimerval)
+ 
+ //go:noescape
+-func sigaction(sig int32, new, old *sigactiont)
++func sigaction(sig uint32, new, old *sigactiont)
+ 
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+@@ -45,8 +45,8 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
+ 
+ func lwp_tramp()
+ 
+-func raise(sig int32)
+-func raiseproc(sig int32)
++func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //go:noescape
+ func getcontext(ctxt unsafe.Pointer)
+@@ -262,12 +262,9 @@ type sigactiont struct {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+ 		fn = funcPC(sigtramp)
+@@ -278,18 +275,15 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	throw("setsigstack")
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+-	if sa.sa_sigaction == funcPC(sigtramp) {
+-		return funcPC(sighandler)
+-	}
+ 	return sa.sa_sigaction
+ }
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 14af045cbd..350166d101 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -17,7 +17,7 @@ type mOS struct {
+ func setitimer(mode int32, new, old *itimerval)
+ 
+ //go:noescape
+-func sigaction(sig int32, new, old *sigactiont)
++func sigaction(sig uint32, new, old *sigactiont)
+ 
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+@@ -41,8 +41,8 @@ func sigprocmask(how int32, new, old *sigset) {
+ //go:noescape
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
+ 
+-func raise(sig int32)
+-func raiseproc(sig int32)
++func raise(sig uint32)
++func raiseproc(sig uint32)
+ 
+ //go:noescape
+ func tfork(param *tforkt, psize uintptr, mm *m, gg *g, fn uintptr) int32
+@@ -240,12 +240,9 @@ type sigactiont struct {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsig(i int32, fn uintptr, restart bool) {
++func setsig(i uint32, fn uintptr) {
+ 	var sa sigactiont
+-	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
+-	if restart {
+-		sa.sa_flags |= _SA_RESTART
+-	}
++	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = uint32(sigset_all)
+ 	if fn == funcPC(sighandler) {
+ 		fn = funcPC(sigtramp)
+@@ -256,18 +253,15 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func setsigstack(i int32) {
++func setsigstack(i uint32) {
+ 	throw("setsigstack")
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func getsig(i int32) uintptr {
++func getsig(i uint32) uintptr {
+ 	var sa sigactiont
+ 	sigaction(i, nil, &sa)
+-	if sa.sa_sigaction == funcPC(sigtramp) {
+-		return funcPC(sighandler)
+-	}
+ 	return sa.sa_sigaction
+ }
+ 
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 333f2221a2..4aa1a0d43d 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -467,7 +467,7 @@ func badsignal2() {
+ 	exits(&_badsignal[0])
+ }
+ 
+-func raisebadsignal(sig int32) {
++func raisebadsignal(sig uint32) {
+ 	badsignal2()
+ }
+ 
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index 3fabb8ac4f..8f12011ba8 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -67,7 +67,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if flags&_SigKill != 0 {
+-		dieFromSignal(int32(sig))
++		dieFromSignal(sig)
+ 	}
+ 
+ 	if flags&_SigThrow == 0 {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index e807d695c7..47ac8e94e1 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -71,7 +71,7 @@ func initsig(preinit bool) {
+ 		return
+ 	}
+ 
+-	for i := int32(0); i < _NSIG; i++ {
++	for i := uint32(0); i < _NSIG; i++ {
+ 		t := &sigtable[i]
+ 		if t.flags == 0 || t.flags&_SigDefault != 0 {
+ 			continue
+@@ -88,13 +88,13 @@ func initsig(preinit bool) {
+ 		}
+ 
+ 		t.flags |= _SigHandling
+-		setsig(i, funcPC(sighandler), true)
++		setsig(i, funcPC(sighandler))
+ 	}
+ }
+ 
+ //go:nosplit
+ //go:nowritebarrierrec
+-func sigInstallGoHandler(sig int32) bool {
++func sigInstallGoHandler(sig uint32) bool {
+ 	// For some signals, we respect an inherited SIG_IGN handler
+ 	// rather than insist on installing our own default handler.
+ 	// Even these signals can be fetched using the os/signal package.
+@@ -131,8 +131,8 @@ func sigenable(sig uint32) {
+ 		<-maskUpdatedChan
+ 		if t.flags&_SigHandling == 0 {
+ 			t.flags |= _SigHandling
+-			fwdSig[sig] = getsig(int32(sig))
+-			setsig(int32(sig), funcPC(sighandler), true)
++			fwdSig[sig] = getsig(sig)
++			setsig(sig, funcPC(sighandler))
+ 		}
+ 	}
+ }
+@@ -151,9 +151,9 @@ func sigdisable(sig uint32) {
+ 		// If initsig does not install a signal handler for a
+ 		// signal, then to go back to the state before Notify
+ 		// we should remove the one we installed.
+-		if !sigInstallGoHandler(int32(sig)) {
++		if !sigInstallGoHandler(sig) {
+ 			t.flags &^= _SigHandling
+-			setsig(int32(sig), fwdSig[sig], true)
++			setsig(sig, fwdSig[sig])
+ 		}
+ 	}
+ }
+@@ -166,7 +166,7 @@ func sigignore(sig uint32) {
+ 	t := &sigtable[sig]
+ 	if t.flags&_SigNotify != 0 {
+ 		t.flags &^= _SigHandling
+-		setsig(int32(sig), _SIG_IGN, true)
++		setsig(sig, _SIG_IGN)
+ 	}
+ }
+ 
+@@ -295,8 +295,8 @@ func sigpanic() {
+ // This is only called with fatal signals expected to kill the process.
+ //go:nosplit
+ //go:nowritebarrierrec
+-func dieFromSignal(sig int32) {
+-	setsig(sig, _SIG_DFL, false)
++func dieFromSignal(sig uint32) {
++	setsig(sig, _SIG_DFL)
+ 	unblocksig(sig)
+ 	raise(sig)
+ 
+@@ -316,7 +316,7 @@ func dieFromSignal(sig int32) {
+ // raisebadsignal is called when a signal is received on a non-Go
+ // thread, and the Go program does not want to handle it (that is, the
+ // program has not called os/signal.Notify for the signal).
+-func raisebadsignal(sig int32, c *sigctxt) {
++func raisebadsignal(sig uint32, c *sigctxt) {
+ 	if sig == _SIGPROF {
+ 		// Ignore profiling signals that arrive on non-Go threads.
+ 		return
+@@ -338,7 +338,7 @@ func raisebadsignal(sig int32, c *sigctxt) {
+ 	// it. That means that we don't have to worry about blocking it
+ 	// again.
+ 	unblocksig(sig)
+-	setsig(sig, handler, false)
++	setsig(sig, handler)
+ 
+ 	// If we're linked into a non-Go program we want to try to
+ 	// avoid modifying the original context in which the signal
+@@ -359,7 +359,7 @@ func raisebadsignal(sig int32, c *sigctxt) {
+ 	// We may receive another instance of the signal before we
+ 	// restore the Go handler, but that is not so bad: we know
+ 	// that the Go program has been ignoring the signal.
+-	setsig(sig, funcPC(sighandler), true)
++	setsig(sig, funcPC(sighandler))
+ }
+ 
+ func crash() {
+@@ -448,7 +448,7 @@ func badsignalgo(sig uintptr, c *sigctxt) {
+ 	if !sigsend(uint32(sig)) {
+ 		// A foreign thread received the signal sig, and the
+ 		// Go code does not want to handle it.
+-		raisebadsignal(int32(sig), c)
++		raisebadsignal(uint32(sig), c)
+ 	}
+ }
+ 
+@@ -473,7 +473,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 		// at program startup, but the Go runtime has not yet
+ 		// been initialized.
+ 		if fwdFn == _SIG_DFL {
+-			dieFromSignal(int32(sig))
++			dieFromSignal(sig)
+ 		} else {
+ 			sigfwd(fwdFn, sig, info, ctx)
+ 		}
+@@ -552,7 +552,7 @@ func sigblock() {
+ // signal handler, on the signal stack, with no g available.
+ //go:nosplit
+ //go:nowritebarrierrec
+-func unblocksig(sig int32) {
++func unblocksig(sig uint32) {
+ 	var set sigset
+ 	sigaddset(&set, int(sig))
+ 	sigprocmask(_SIG_UNBLOCK, &set, nil)
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 298dcc96a0..73bd5b5cfc 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -205,7 +205,7 @@ func sigignore(sig uint32) {
+ 
+ func badsignal2()
+ 
+-func raisebadsignal(sig int32) {
++func raisebadsignal(sig uint32) {
+ 	badsignal2()
+ }
+ 

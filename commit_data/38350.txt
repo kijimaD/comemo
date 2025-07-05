@@ -15,7 +15,7 @@ Date:   Wed Sep 26 10:10:48 2018 -0400
     Run-TryBot: Peter Weinberger <pjw@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/nacl/README                                   |   4 +-
  misc/nacl/testzip.proto                            |   3 +
  src/go/build/deps_test.go                          |   2 +
@@ -51,3 +51,3253 @@ Date:   Wed Sep 26 10:10:48 2018 -0400
  src/internal/traceparser/tr.go                     | 498 ++++++++++++++++++
  src/internal/traceparser/writer.go                 |  52 ++
  34 files changed, 3057 insertions(+), 2 deletions(-)
+
+diff --git a/misc/nacl/README b/misc/nacl/README
+index 99b94dc90a..179e526d89 100644
+--- a/misc/nacl/README
++++ b/misc/nacl/README
+@@ -26,7 +26,7 @@ scheme.
+ # Download NaCl
+ 
+ Download nacl_sdk.zip file from
+-	https://developers.google.com/native-client/dev/sdk/download
++	https://developer.chrome.com/native-client/sdk/download
+ and unpack it. I chose /opt/nacl_sdk.
+ 
+ # Update
+@@ -37,7 +37,7 @@ sdk. These are released every 6-8 weeks, in line with Chrome releases.
+ 	% cd /opt/nacl_sdk
+ 	% ./naclsdk update
+ 
+-At this time pepper_40 is the stable version. The NaCl port needs at least pepper_39
++At this time pepper_49 is the stable version. The NaCl port needs at least pepper_39
+ to work. If naclsdk downloads a later version, please adjust accordingly.
+ 
+ The cmd/go helper scripts expect that the loaders sel_ldr_{x86_{32,64},arm} and
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 5a6a5f43b2..7f524cac48 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -154,6 +154,9 @@ go	src=..
+ 			trace
+ 				testdata
+ 					+
++			traceparser
++				testdata
++					+
+ 		io
+ 			+
+ 		mime
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 27edf78515..386ab9e408 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -272,6 +272,8 @@ var pkgDeps = map[string][]string{
+ 	"internal/goroot":                {"L4", "OS"},
+ 	"internal/singleflight":          {"sync"},
+ 	"internal/trace":                 {"L4", "OS"},
++	"internal/traceparser":           {"L4", "internal/traceparser/filebuf"},
++	"internal/traceparser/filebuf":   {"L4", "OS"},
+ 	"math/big":                       {"L4"},
+ 	"mime":                           {"L4", "OS", "syscall", "internal/syscall/windows/registry"},
+ 	"mime/quotedprintable":           {"L4"},
+diff --git a/src/internal/traceparser/consistent.go b/src/internal/traceparser/consistent.go
+new file mode 100644
+index 0000000000..70fbd04b3f
+--- /dev/null
++++ b/src/internal/traceparser/consistent.go
+@@ -0,0 +1,313 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++// postProcess is a final check of consistency, and if all is well,
++// adds links to Events
++
++import (
++	"fmt"
++)
++
++type gStatus int
++
++const (
++	gDead gStatus = iota
++	gRunnable
++	gRunning
++	gWaiting
++)
++
++// This code is copied from internal/trace/parser.go. With greater understanding it could be
++// simplified. Sets ev.P for GCStart, and set various Link fields
++func (p *Parsed) postProcess(events []*Event) error {
++	type gdesc struct {
++		state        gStatus
++		ev           *Event
++		evStart      *Event
++		evCreate     *Event
++		evMarkAssist *Event
++	}
++	type pdesc struct {
++		running bool
++		g       uint64
++		evSTW   *Event
++		evSweep *Event
++	}
++
++	gs := make(map[uint64]gdesc)
++	ps := make(map[int]pdesc)
++	tasks := make(map[uint64]*Event)           // task id to task creation events
++	activeRegions := make(map[uint64][]*Event) // goroutine id to stack of spans
++	gs[0] = gdesc{state: gRunning}
++	var evGC, evSTW *Event
++
++	checkRunning := func(pd pdesc, g gdesc, ev *Event, allowG0 bool) error {
++		if g.state != gRunning {
++			return fmt.Errorf("saw %v, but g %d is not running", ev, ev.G)
++		}
++		if pd.g != ev.G {
++			return fmt.Errorf("saw %v, but it's P is running %d, not %d", ev, pd.g, ev.G)
++		}
++		if !allowG0 && ev.G == 0 {
++			return fmt.Errorf("saw %v with unexpected g==0", ev)
++		}
++		return nil
++	}
++	for i, ev := range events {
++		g := gs[ev.G]
++		px := ps[int(ev.P)]
++		switch ev.Type {
++		case EvProcStart:
++			if px.running {
++				return fmt.Errorf("%d: running before start %s", i, ev)
++			}
++			px.running = true
++		case EvProcStop:
++			if !px.running {
++				return fmt.Errorf("%d: p %d not running %s", i, ev.P, ev)
++			}
++			if px.g != 0 {
++				return fmt.Errorf("p %d is running a goroutine %s", ev.P, ev)
++			}
++			px.running = false
++		case EvGCStart:
++			if evGC != nil {
++				return fmt.Errorf("GC already running %s, was %s", ev, evGC)
++			}
++			evGC = ev
++			// Attribute this to the global GC state.
++			ev.P = GCP
++		case EvGCDone:
++			if evGC == nil {
++				return fmt.Errorf("%d:%s bogus GC end", i, ev)
++			}
++			evGC.Link = ev
++			evGC = nil
++		case EvGCSTWStart:
++			evp := &evSTW
++			if p.Version < 1010 {
++				// Before 1.10, EvGCSTWStart was per-P.
++				evp = &px.evSTW
++			}
++			if *evp != nil {
++				return fmt.Errorf("STW %s still running at %s", *evp, ev)
++			}
++			*evp = ev
++		case EvGCSTWDone:
++			evp := &evSTW
++			if p.Version < 1010 {
++				// Before 1.10, EvGCSTWDone was per-P.
++				evp = &px.evSTW
++			}
++			if *evp == nil {
++				return fmt.Errorf("%d: no STW running %s", i, ev)
++			}
++			(*evp).Link = ev
++			*evp = nil
++		case EvGCMarkAssistStart:
++			if g.evMarkAssist != nil {
++				return fmt.Errorf("%d: MarkAssist %s is still running at %s",
++					i, g.evMarkAssist, ev)
++			}
++			g.evMarkAssist = ev
++		case EvGCMarkAssistDone:
++			// Unlike most events, mark assists can be in progress when a
++			// goroutine starts tracing, so we can't report an error here.
++			if g.evMarkAssist != nil {
++				g.evMarkAssist.Link = ev
++				g.evMarkAssist = nil
++			}
++		case EvGCSweepStart:
++			if px.evSweep != nil {
++				return fmt.Errorf("sweep not done %d: %s", i, ev)
++			}
++			px.evSweep = ev
++		case EvGCSweepDone:
++			if px.evSweep == nil {
++				return fmt.Errorf("%d: no sweep happening %s", i, ev)
++			}
++			px.evSweep.Link = ev
++			px.evSweep = nil
++		case EvGoWaiting:
++			if g.state != gRunnable {
++				return fmt.Errorf("not runnable before %d:%s", i, ev)
++			}
++			g.state = gWaiting
++			g.ev = ev
++		case EvGoInSyscall:
++			if g.state != gRunnable {
++				return fmt.Errorf("not runnable before %d:%s", i, ev)
++			}
++			g.state = gWaiting
++			g.ev = ev
++		case EvGoCreate:
++			if err := checkRunning(px, g, ev, true); err != nil {
++				return err
++			}
++			if _, ok := gs[ev.Args[0]]; ok {
++				return fmt.Errorf("%d: already exists %s", i, ev)
++			}
++			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
++		case EvGoStart, EvGoStartLabel:
++			if g.state != gRunnable {
++				return fmt.Errorf("not runnable before start %d:%s %+v", i, ev, g)
++			}
++			if px.g != 0 {
++				return fmt.Errorf("%d: %s has p running %d already %v", i, ev, px.g, px)
++			}
++			g.state = gRunning
++			g.evStart = ev
++			px.g = ev.G
++			if g.evCreate != nil {
++				if p.Version < 1007 {
++					// +1 because symbolizer expects return pc.
++					//PJW: aren't doing < 1007. ev.stk = []*Frame{{PC: g.evCreate.args[1] + 1}}
++				} else {
++					ev.StkID = uint32(g.evCreate.Args[1])
++				}
++				g.evCreate = nil
++			}
++
++			if g.ev != nil {
++				g.ev.Link = ev
++				g.ev = nil
++			}
++		case EvGoEnd, EvGoStop:
++			if err := checkRunning(px, g, ev, false); err != nil {
++				return fmt.Errorf("%d: %s", i, err)
++			}
++			g.evStart.Link = ev
++			g.evStart = nil
++			g.state = gDead
++			px.g = 0
++
++			if ev.Type == EvGoEnd { // flush all active Regions
++				spans := activeRegions[ev.G]
++				for _, s := range spans {
++					s.Link = ev
++				}
++				delete(activeRegions, ev.G)
++			}
++		case EvGoSched, EvGoPreempt:
++			if err := checkRunning(px, g, ev, false); err != nil {
++				return err
++			}
++			g.state = gRunnable
++			g.evStart.Link = ev
++			g.evStart = nil
++			px.g = 0
++			g.ev = ev
++		case EvGoUnblock:
++			if g.state != gRunning { // PJW, error message
++				return fmt.Errorf("Event %d (%s) is not running at unblock %s", i, ev, g.state)
++
++			}
++			if ev.P != TimerP && px.g != ev.G {
++				// PJW: do better here.
++				return fmt.Errorf("%d: %s p %d is not running g", i, ev, px.g)
++			}
++			g1 := gs[ev.Args[0]]
++			if g1.state != gWaiting {
++				return fmt.Errorf("g %v is not waiting before unpark i=%d g1=%v %s",
++					ev.Args[0], i, g1, ev)
++			}
++			if g1.ev != nil && g1.ev.Type == EvGoBlockNet && ev.P != TimerP {
++				ev.P = NetpollP
++			}
++			if g1.ev != nil {
++				g1.ev.Link = ev
++			}
++			g1.state = gRunnable
++			g1.ev = ev
++			gs[ev.Args[0]] = g1
++		case EvGoSysCall:
++			if err := checkRunning(px, g, ev, false); err != nil {
++				return err
++			}
++			g.ev = ev
++		case EvGoSysBlock:
++			if err := checkRunning(px, g, ev, false); err != nil {
++				return err
++			}
++			g.state = gWaiting
++			g.evStart.Link = ev
++			g.evStart = nil
++			px.g = 0
++		case EvGoSysExit:
++			if g.state != gWaiting {
++				return fmt.Errorf("not waiting when %s", ev)
++			}
++			if g.ev != nil && g.ev.Type == EvGoSysCall {
++				g.ev.Link = ev
++			}
++			g.state = gRunnable
++			g.ev = ev
++		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
++			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet, EvGoBlockGC:
++			if err := checkRunning(px, g, ev, false); err != nil {
++				return err
++			}
++			g.state = gWaiting
++			g.ev = ev
++			g.evStart.Link = ev
++			g.evStart = nil
++			px.g = 0
++		case EvUserTaskCreate:
++			taskid := ev.Args[0]
++			if prevEv, ok := tasks[taskid]; ok {
++				return fmt.Errorf("task id conflicts (id:%d), %q vs %q", taskid, ev, prevEv)
++			}
++			tasks[ev.Args[0]] = ev
++		case EvUserTaskEnd:
++			if prevEv, ok := tasks[ev.Args[0]]; ok {
++				prevEv.Link = ev
++				ev.Link = prevEv
++			}
++		case EvUserRegion:
++			mode := ev.Args[1]
++			spans := activeRegions[ev.G]
++			if mode == 0 { // span start
++				activeRegions[ev.G] = append(spans, ev) // push
++			} else if mode == 1 { // span end
++				n := len(spans)
++				if n > 0 { // matching span start event is in the trace.
++					s := spans[n-1]
++					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, span name mismatch
++						return fmt.Errorf("misuse of span in goroutine %d: span end %q when the inner-most active span start event is %q",
++							ev.G, ev, s)
++					}
++					// Link span start event with span end event
++					s.Link = ev
++					ev.Link = s
++
++					if n > 1 {
++						activeRegions[ev.G] = spans[:n-1]
++					} else {
++						delete(activeRegions, ev.G)
++					}
++				}
++			} else {
++				return fmt.Errorf("invalid user region, mode: %q", ev)
++			}
++		}
++		gs[ev.G] = g
++		ps[int(ev.P)] = px
++	}
++	return nil
++}
++func (g gStatus) String() string {
++	switch g {
++	case gDead:
++		return "gDead"
++	case gRunnable:
++		return "gRunnable"
++	case gRunning:
++		return "gRunning"
++	case gWaiting:
++		return "gWaiting"
++	}
++	return fmt.Sprintf("gStatus?%d", g)
++}
+diff --git a/src/internal/traceparser/events.go b/src/internal/traceparser/events.go
+new file mode 100644
+index 0000000000..00451f37b5
+--- /dev/null
++++ b/src/internal/traceparser/events.go
+@@ -0,0 +1,312 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++import (
++	"fmt"
++	"sort"
++)
++
++// convert raw events into Events
++
++func (p *Parsed) createEvents(f func(string)) error {
++	// multiple passes:
++	// create some Events
++	// sort them by time (and adjust their times to be nanonseconds)
++	// remove events not in the desired time interval
++	// make the events consistent (adding initializing events at the beginning)
++	// remove the futile events
++	// add links (and do final checking)
++
++	// shared by firstEvents
++	p.byproc = make(map[int][]*Event)
++	p.lastGs = make(map[int]uint64)
++
++	// p.batches are always sorted by time. otherwise a batch for one p that is totally
++	// later than another batch might be done first, confusing us about g's
++	for i, b := range p.batches {
++		if b.raws == nil {
++			continue
++		}
++		if err := p.firstEvents(b); err != nil {
++			return fmt.Errorf("%v", err) // PJW: this is not useful
++		}
++		// we done with b.raws now
++		p.batches[i].raws = nil
++	}
++	f("firstEvents finished")
++	sorted := []*Event{}
++	for _, v := range p.byproc {
++		sorted = append(sorted, v...)
++	}
++	// PJW: are we done with p.byproc now? Yes. This shrinks a little.
++	p.byproc = nil
++	// Why wasn't this done earlier? Or, why do it at all?
++	for _, ev := range sorted {
++		switch ev.Type {
++		case EvGoStartLocal:
++			ev.Type = EvGoStart
++		case EvGoUnblockLocal:
++			ev.Type = EvGoUnblock
++		case EvGoSysExitLocal:
++			ev.Type = EvGoSysExit
++		}
++	}
++	// change to nanoseconds
++	freq := 1e9 / float64(p.TicksPerSec)
++	for i, ev := range sorted {
++		// Move timers and syscalls to separate fake Ps.
++		// This could be done in the loop at line 38
++		// or maybe after robust fixes things.
++		if p.timerGoids[ev.G] && ev.Type == EvGoUnblock {
++			ev.Args[2] = uint64(ev.P) // save for robust() to use
++			ev.P = TimerP
++		}
++		// sometimes the ts is not what it should be
++		if ev.Type == EvGoSysExit {
++			ev.P = SyscallP
++			if ev.Args[2] != 0 {
++				// PJW: test for this being safe. There might be no preceding
++				// EvSysBlock, EvGoInSyscall, or its time might be later than this
++				ev.Ts = int64(ev.Args[2])
++			}
++		}
++		if ev.Type == EvGCStart {
++			ev.P = GCP
++		}
++		t := ev.Ts - p.minticks
++		if t < 0 {
++			return fmt.Errorf("event %d %s would be %d mints=%x", i, ev, t, p.minticks)
++		}
++		ev.Ts = int64(float64(ev.Ts-p.minticks) * freq)
++	}
++	// Stable for the case of equal Ts's.
++	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Ts < sorted[j].Ts })
++	f("sorted")
++	// and ignore the ones with times out of bounds
++	firstwant, lastwant := 0, len(sorted)
++	for i, ev := range sorted {
++		if ev.Ts < p.MinWant {
++			firstwant = i + 1
++		} else if ev.Ts > p.MaxWant { // closed interval [minwant, maxwant]
++			lastwant = i
++			break // sorted by Ts
++		}
++	}
++	f("nanoseconds")
++	var err error
++	sorted, _, err = p.robust(sorted[firstwant:lastwant]) // PJW: copy info from aux
++	f("consistent")
++	if err != nil {
++		return err
++	}
++	events, cnt := p.removeFutile(sorted) // err is always nil here.
++	f(fmt.Sprintf("removed %d futiles", cnt))
++	// and finally, do some checks and put in links
++	err = p.postProcess(events)
++	f("post processed")
++	if err != nil {
++		return err // PJW: is this enough? NO
++	}
++	p.Events = events
++	return nil
++}
++
++// Special P identifiers.
++const (
++	FakeP    = 1000000 + iota
++	TimerP   // depicts timer unblocks
++	NetpollP // depicts network unblocks
++	SyscallP // depicts returns from syscalls
++	GCP      // depicts GC state
++)
++
++// convert the raw events for a batch into Events, and keep track of
++// which G is running on the P that is common to the batch.
++func (p *Parsed) firstEvents(b batch) error {
++	for _, raw := range b.raws {
++		desc := EventDescriptions[raw.typ]
++		narg := p.rawArgNum(&raw)
++		if p.Err != nil {
++			return p.Err
++		}
++		if raw.typ == EvBatch {
++			// first event, record information about P, G, and Ts
++			p.lastGs[p.lastP] = p.lastG // 0 the first time through
++			p.lastP = int(raw.Arg(0))
++			p.lastG = p.lastGs[p.lastP]
++			p.lastTs = int64(raw.Arg(1))
++			continue
++		}
++		e := &Event{Type: raw.typ, P: int32(p.lastP), G: p.lastG}
++		var argoffset int
++		if p.Version < 1007 { // can't happen.
++			e.Ts = p.lastTs + int64(raw.Arg(1))
++			argoffset = 2
++		} else {
++			e.Ts = p.lastTs + int64(raw.Arg(0))
++			argoffset = 1
++		}
++		p.lastTs = e.Ts
++		// collect the args for the raw event e
++		for i := argoffset; i < narg; i++ {
++			// evade one byte of corruption (from fuzzing typically)
++			if raw.args == nil {
++				return fmt.Errorf("raw.args is nil %s", evname(raw.typ))
++			}
++			if i > 0 && i-1 >= len(*raw.args) {
++				return fmt.Errorf("%s wants arg %d of %d", evname(raw.typ), i, len(*raw.args))
++			}
++			if i == narg-1 && desc.Stack {
++				e.StkID = uint32(raw.Arg(i))
++			} else {
++				e.Args[i-argoffset] = raw.Arg(i)
++			}
++		}
++		switch raw.typ {
++		case EvGoSysCall, EvGCSweepDone, EvGCSweepStart:
++			if e.G == 0 {
++				// missing some earlier G's from this P
++				continue // so we don't know which G is doing it
++			}
++		case EvGoStart, EvGoStartLocal, EvGoStartLabel:
++			p.lastG = e.Args[0]
++			e.G = p.lastG
++			if raw.typ == EvGoStartLabel {
++				e.SArgs = []string{p.Strings[e.Args[2]]}
++			}
++		case EvGCSTWStart:
++			e.G = 0
++			switch e.Args[0] {
++			case 0:
++				e.SArgs = []string{"mark termination"}
++			case 1:
++				e.SArgs = []string{"sweep termination"}
++			default:
++				return fmt.Errorf("unknown STW kind %d!=0,1 %s", e.Args[0], e)
++			}
++		case EvGCStart, EvGCDone, EvGCSTWDone:
++			e.G = 0
++		case EvGoEnd, EvGoStop, EvGoSched, EvGoPreempt,
++			EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
++			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond, EvGoBlockNet,
++			EvGoSysBlock, EvGoBlockGC:
++			p.lastG = 0
++			if e.G == 0 {
++				// missing some earlier G's from this P
++				continue // so we don't know which G is doing it
++			}
++		case EvGoSysExit, EvGoWaiting, EvGoInSyscall:
++			e.G = e.Args[0]
++		case EvUserTaskCreate:
++			// e.Args 0: taskID, 1:parentID, 2:nameID
++			e.SArgs = []string{p.Strings[e.Args[2]]}
++		case EvUserRegion:
++			if e.G == 0 {
++				continue // don't know its G
++			}
++			// e.Args 0: taskID, 1: mode, 2:nameID
++			e.SArgs = []string{p.Strings[e.Args[2]]}
++		case EvUserLog:
++			// e.Args 0: taskID, 1:keyID, 2: stackID
++			e.SArgs = []string{p.Strings[e.Args[1]], raw.sarg}
++		}
++		p.byproc[p.lastP] = append(p.byproc[p.lastP], e)
++	}
++	return nil
++}
++
++func (p *Parsed) removeFutile(events []*Event) ([]*Event, int) {
++	// Phase 1: determine futile wakeup sequences.
++	type G struct {
++		futile bool
++		wakeup []*Event // wakeup sequence (subject for removal)
++	}
++	gs := make(map[uint64]G)
++	futile := make(map[*Event]bool)
++	cnt := 0
++	for _, ev := range events {
++		switch ev.Type {
++		case EvGoUnblock:
++			g := gs[ev.Args[0]]
++			g.wakeup = []*Event{ev}
++			gs[ev.Args[0]] = g
++		case EvGoStart, EvGoPreempt, EvFutileWakeup:
++			g := gs[ev.G]
++			g.wakeup = append(g.wakeup, ev)
++			if ev.Type == EvFutileWakeup {
++				g.futile = true
++			}
++			gs[ev.G] = g
++		case EvGoBlock, EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
++			EvGoBlockSync, EvGoBlockCond:
++			g := gs[ev.G]
++			if g.futile {
++				futile[ev] = true
++				for _, ev1 := range g.wakeup {
++					futile[ev1] = true
++				}
++			}
++			delete(gs, ev.G)
++			cnt++
++		}
++	}
++	// Phase 2: remove futile wakeup sequences.
++	newEvents := events[:0] // overwrite the original slice
++	for _, ev := range events {
++		if !futile[ev] {
++			newEvents = append(newEvents, ev)
++		}
++	}
++	return newEvents, cnt // PJW: cnt doesn't count the futile[]s
++}
++
++// Arg gets the n-th arg from a raw event
++func (r *rawEvent) Arg(n int) uint64 {
++	if n == 0 {
++		return r.arg0
++	}
++	return (*r.args)[n-1]
++}
++
++// report the number of arguments. (historical differences)
++func (p *Parsed) rawArgNum(ev *rawEvent) int {
++	desc := EventDescriptions[ev.typ]
++	switch ev.typ {
++	case EvStack, EvFrequency, EvTimerGoroutine:
++		p.Err = fmt.Errorf("%s unexpected in rawArgNum", evname(ev.typ))
++		return 0
++	}
++	narg := len(desc.Args)
++	if desc.Stack {
++		narg++
++	}
++	if ev.typ == EvBatch {
++		if p.Version < 1007 {
++			narg++ // used to be an extra unused arg
++		}
++		return narg
++	}
++	narg++ // timestamp
++	if p.Version < 1007 {
++		narg++ // sequence
++	}
++	// various special historical cases
++	switch ev.typ {
++	case EvGCSweepDone:
++		if p.Version < 1009 {
++			narg -= 2 // 1.9 added 2 args
++		}
++	case EvGCStart, EvGoStart, EvGoUnblock:
++		if p.Version < 1007 {
++			narg-- // one more since 1.7
++		}
++	case EvGCSTWStart:
++		if p.Version < 1010 {
++			narg-- // 1.10 added an argument
++		}
++	}
++	return narg
++}
+diff --git a/src/internal/traceparser/file.go b/src/internal/traceparser/file.go
+new file mode 100644
+index 0000000000..4671edafb2
+--- /dev/null
++++ b/src/internal/traceparser/file.go
+@@ -0,0 +1,247 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++)
++
++// scan the trace file finding the header, starts of batches, and the trailer.
++// the trailer contains strings, stacks, and the clock frequency
++
++// There are two ways of thinking about the raw trace file. It starts with a 16
++// byte header "go 1.11 trace\0\0\0"
++// From the point of
++// view of the runtime, there is a collection of initializations for each goroutine.
++// These consist of an EvGoCreate, possibly followed by one of EvGoWaiting or
++// EvGoInSyscall if the go routine is waiting or in a syscall.
++// Then there is an EvProcStart for the first running goroutine, so there's a running P,
++// and then an EvGoStart for the first running goroutine. Then as the program runs, the
++// runtime emits trace events. Finally when the tracing stops, the runtime emits a footer
++// consisting of an EvFrequency (to convert ticks to nanoseconds) and some EvTimerGoroutines,
++// followed by EvStacks for all the stack frames.
++//
++// In the file, the header and footer are as described, but all the events in between come
++// in batches headed by EvBatch with the same P, and have to be rearranged into timestamp order.
++
++// New() scans once through the file to find the beginnings of all the batches (EvBatch) and
++// processes the footer extracting the strings and stacks.
++// Parse() finds the batches that overlap the desired time interval, and processes them into
++// events, dropping those outside the desired time interval. But it has to derive the missing
++// initializations from the events it sees, as it has no other access to the state of the runtime.
++// This is done in robust.go.
++
++// In more detail, scanFile() is called by commonInit() which is called by either New() or ParseBuffer().
++// It extracts the strings, the stacks, and remembers the locations of the Batches (all saved in *Parsed).
++
++// Parse first computes the rawEvents for the batches that overlap the requested interval.
++// It then calls createEvents() (events.go) which produces Events.
++
++func (p *Parsed) parseHeader() error {
++	p.r.Seek(0, 0)
++	var buf [16]byte
++	n, err := p.r.Read(buf[:])
++	if n != 16 || err != nil {
++		return fmt.Errorf("failed to red header: read %d bytes, not 16 %v", n, err)
++	}
++	// by hand. there are only 6 or so legitimate values; we could search for a match
++	if buf[0] != 'g' || buf[1] != 'o' || buf[2] != ' ' ||
++		buf[3] < '1' || buf[3] > '9' ||
++		buf[4] != '.' ||
++		buf[5] < '1' || buf[5] > '9' {
++		return fmt.Errorf("not a trace file")
++	}
++	ver := int(buf[5] - '0')
++	i := 0
++	for ; buf[6+i] >= '0' && buf[6+i] <= '9' && i < 2; i++ {
++		ver = ver*10 + int(buf[6+i]-'0')
++	}
++	ver += int(buf[3]-'0') * 1000
++	if !bytes.Equal(buf[6+i:], []byte(" trace\x00\x00\x00\x00")[:10-i]) {
++		return fmt.Errorf("not a trace file")
++	}
++	p.Version = ver
++	// PJW: reject 1005 and 1007? They need symbolization, which we don't do.
++	// Further, doing these would require 1.7 or earlier binaries.
++	switch ver {
++	case 1005, 1007:
++		break // no longer supported
++	case 1008, 1009:
++		return nil
++	case 1010, 1011:
++		return nil
++	}
++	return fmt.Errorf("%d unsupported version", ver)
++}
++
++func (p *Parsed) scanFile() error {
++	r := p.r
++	// fill in the following values for sure
++	strings := make(map[uint64]string)
++	p.Strings = strings // ok to save maps immediately
++	timerGoIDs := make(map[uint64]bool)
++	p.timerGoids = timerGoIDs
++	stacks := make(map[uint32][]*Frame)
++	framer := make(map[Frame]*Frame) // uniqify *Frame
++	p.Stacks = stacks
++	footerLoc := 0
++
++	var buf [1]byte
++	off := 16 // skip the header
++	n, err := r.Seek(int64(off), 0)
++	if err != nil || n != int64(off) {
++		return fmt.Errorf("Seek to %d got %d, err=%v", off, n, err)
++	}
++	var batchts int64 // from preceding batch
++	var lastEv byte
++	for {
++		off0 := off
++		n, err := r.Read(buf[:1])
++		if err == io.EOF {
++			break
++		} else if err != nil || n != 1 {
++			return fmt.Errorf("read failed at 0x%x, n=%d, %v",
++				off, n, err)
++		}
++		off += n
++		typ := buf[0] << 2 >> 2
++		if typ == EvNone || typ >= EvCount ||
++			EventDescriptions[typ].MinVersion > p.Version {
++			err = fmt.Errorf("unknown event type %v at offset 0x%x, pass 1", typ, off0)
++			return err
++		}
++		// extract and save the strings
++		if typ == EvString {
++			// String dictionary entry [ID, length, string].
++			var id uint64
++			id, off, err = readVal(r, off)
++			if err != nil {
++				return err
++			}
++			if id == 0 {
++				err = fmt.Errorf("string at offset %d has invalid id 0", off)
++				return err
++			}
++			if strings[id] != "" {
++				err = fmt.Errorf("string at offset %d has duplicate id %v", off, id)
++				return err
++			}
++			var ln uint64
++			ln, off, err = readVal(r, off)
++			if err != nil {
++				return err
++			}
++			if ln == 0 {
++				err = fmt.Errorf("string at offset %d has invalid length 0", off)
++				return err
++			}
++			if ln > 1e6 {
++				err = fmt.Errorf("string at offset %d has too large length %v", off, ln)
++				return err
++			}
++			buf := make([]byte, ln)
++			var n int
++			n, err = io.ReadFull(r, buf)
++			if err != nil {
++				err = fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, ln, err)
++				return err
++			}
++			off += n
++			strings[id] = string(buf)
++			lastEv = EvString
++			continue
++		}
++		p.Count++
++		if typ == EvFrequency {
++			// found footer, remember location, save value
++			footerLoc = off0
++		}
++		var args []uint64
++		off, args, err = p.argsAt(off0, typ)
++		if err != nil {
++			err = fmt.Errorf("argsAt error %v; off=%d off0=%d %s",
++				err, off, off0, evname(typ))
++			return err
++		}
++		r.Seek(int64(off), 0)
++		if typ == EvUserLog {
++			_, off, err = readStr(r, off)
++			if err != nil {
++				return err
++			}
++		}
++		if len(args) == 0 { // can't happen in well-formed trace file
++			return fmt.Errorf("len(args)==0 off=0x%x typ=%s", off, evname(typ))
++		}
++		switch typ {
++		case EvBatch:
++			if footerLoc == 0 {
++				// EvBatch in footer is just to have a header for stacks
++				locp := int64(args[0])
++				p.batches = append(p.batches,
++					batch{Off: off0, P: locp, Cycles: int64(args[1])})
++				// at this point we know when the previous batch ended!!
++				batchts = int64(args[1])
++				if batchts > p.maxticks {
++					p.maxticks = batchts
++				}
++			}
++		case EvFrequency:
++			p.TicksPerSec = int64(args[0])
++		case EvTimerGoroutine:
++			timerGoIDs[args[0]] = true
++		case EvStack:
++			if len(args) < 2 {
++				return fmt.Errorf("EvStack has too few args %d at 0x%x",
++					len(args), off0)
++			}
++			size := args[1]
++			if size > 1000 {
++				return fmt.Errorf("EvStack has %d frames at 0x%x",
++					size, off0)
++			}
++			want := 2 + 4*size
++			if uint64(len(args)) != want {
++				return fmt.Errorf("EvStack wants %d args, got %d, at 0x%x",
++					len(args), want, off0)
++			}
++			id := args[0]
++			if id != 0 && size > 0 {
++				stk := make([]*Frame, size)
++				for i := 0; i < int(size); i++ {
++					pc := args[2+i*4+0]
++					fn := args[2+i*4+1]
++					file := args[2+i*4+2]
++					line := args[2+i*4+3]
++					stk[i] = &Frame{PC: pc, Fn: strings[fn], File: strings[file], Line: int(line)}
++					if _, ok := framer[*stk[i]]; !ok {
++						framer[*stk[i]] = stk[i]
++					}
++					stk[i] = framer[*stk[i]]
++				}
++				stacks[uint32(id)] = stk
++			}
++		default:
++			if lastEv == EvBatch {
++				// p.MinTsVal is set by the first real event, not the first EvBatch
++				x := batchts + int64(args[0])
++				if x < p.minticks {
++					p.minticks = x
++				}
++			}
++			batchts += int64(args[0])
++			if batchts > p.maxticks {
++				p.maxticks = batchts
++			}
++		}
++		lastEv = typ
++	}
++	if footerLoc <= 0 {
++		return fmt.Errorf("malformed trace file, no EvFrequency")
++	}
++	return nil
++}
+diff --git a/src/internal/traceparser/filebuf/filebuf.go b/src/internal/traceparser/filebuf/filebuf.go
+new file mode 100755
+index 0000000000..32d5a92c5b
+--- /dev/null
++++ b/src/internal/traceparser/filebuf/filebuf.go
+@@ -0,0 +1,165 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package filebuf implements io.SeekReader for os files.
++// This is useful only for very large files with lots of
++// seeking. (otherwise use ioutil.ReadFile or bufio)
++package filebuf
++
++import (
++	"fmt"
++	"io"
++	"os"
++)
++
++// Buf is the implemented interface
++type Buf interface {
++	io.ReadCloser
++	io.Seeker
++	Size() int64
++	Stats() Stat
++}
++
++// Buflen is the size of the internal buffer.
++// The code is designed to never need to reread unnecessarily
++const Buflen = 1 << 20
++
++// fbuf is a buffered file with seeking.
++// fixed is an internal buffer. buf is the slice fixed[:fixedLen]. bufloc is the file
++// location of the beginning of fixed (and buf). The seek pointer is at bufloc+bufpos,
++// so the file's contents there start with buf[bufpos:]
++type fbuf struct {
++	Name     string
++	fd       *os.File
++	size     int64        // file size
++	bufloc   int64        // file loc of beginning of fixed
++	bufpos   int32        // seekptr is at bufloc+bufpos. bufpos  <= Buflen, fixedLen
++	fixed    [Buflen]byte // backing store for buf
++	fixedlen int          // how much of fixed is valid file contents
++	buf      []byte       // buf is fixed[0:fixedlen]
++	// statistics
++	seeks int   // number of calls to fd.Seek
++	reads int   // number of calls to fd.Read
++	bytes int64 // number of bytes read by fd.Read
++}
++
++// Stat returns the number of underlying seeks and reads, and bytes read
++type Stat struct {
++	Seeks int
++	Reads int
++	Bytes int64
++}
++
++// Stats returns the stats so far
++func (fb *fbuf) Stats() Stat {
++	return Stat{fb.seeks, fb.reads, fb.bytes}
++}
++
++// Size returns the file size
++func (fb *fbuf) Size() int64 {
++	return fb.size
++}
++
++// New returns an initialized *fbuf or an error
++func New(fname string) (Buf, error) {
++	fd, err := os.Open(fname)
++	if err != nil {
++		return nil, err
++	}
++	fi, err := fd.Stat()
++	if err != nil || fi.Mode().IsDir() {
++		return nil, fmt.Errorf("not readable: %s", fname)
++	}
++	return &fbuf{Name: fname, fd: fd, size: fi.Size()}, nil
++}
++
++// Read implements io.Reader. It may return a positive
++// number of bytes read with io.EOF
++func (fb *fbuf) Read(p []byte) (int, error) {
++	// If there are enough valid bytes remaining in buf, just use them
++	if len(fb.buf[fb.bufpos:]) >= len(p) {
++		copy(p, fb.buf[fb.bufpos:])
++		fb.bufpos += int32(len(p))
++		return len(p), nil
++	}
++	done := 0 // done counts how many bytes have been transferred
++	// If there are any valid bytes left in buf, use them first
++	if len(fb.buf[fb.bufpos:]) > 0 {
++		m := copy(p, fb.buf[fb.bufpos:])
++		done = m
++		fb.bufpos += int32(done) // at end of the valid bytes in buf
++	}
++	// used up buffered data. logical seek pointer is at bufloc+bufpos.
++	// loop until p has been filled up or EOF
++	for done < len(p) {
++		loc, err := fb.fd.Seek(0, io.SeekCurrent) // make sure of the os's file location
++		if loc != fb.bufloc+int64(fb.bufpos) {
++			panic(fmt.Sprintf("%v loc=%d bufloc=%d bufpos=%d", err, loc,
++				fb.bufloc, fb.bufpos))
++		}
++		fb.seeks++ // did a file system seek
++		if loc >= fb.size {
++			// at EOF
++			fb.bufpos = int32(len(fb.buf))
++			fb.bufloc = loc - int64(fb.fixedlen)
++			return done, io.EOF
++		}
++		n, err := fb.fd.Read(fb.fixed[:])
++		if n != 0 {
++			fb.fixedlen = n
++		}
++		fb.reads++ // did a file system read
++		m := copy(p[done:], fb.fixed[:n])
++		done += m
++		if err != nil {
++			if err == io.EOF {
++				fb.bufpos = int32(len(fb.buf))
++				fb.bufloc = loc - int64(fb.fixedlen)
++				return done, io.EOF
++			}
++			return 0, err
++		}
++		fb.bytes += int64(n)
++		fb.bufpos = int32(m) // used m byes of the buffer
++		fb.bufloc = loc
++		fb.buf = fb.fixed[:n]
++	}
++	return len(p), nil
++}
++
++// Seek implements io.Seeker. (<unchanged>, io.EOF) is returned for seeks off the end.
++func (fb *fbuf) Seek(offset int64, whence int) (int64, error) {
++	seekpos := offset
++	switch whence {
++	case io.SeekCurrent:
++		seekpos += fb.bufloc + int64(fb.bufpos)
++	case io.SeekEnd:
++		seekpos += fb.size
++	}
++	if seekpos < 0 || seekpos > fb.size {
++		return fb.bufloc + int64(fb.bufpos), io.EOF
++	}
++	// if seekpos is inside fixed, just adjust buf and bufpos
++	if seekpos >= fb.bufloc && seekpos <= int64(fb.fixedlen)+fb.bufloc {
++		fb.bufpos = int32(seekpos - fb.bufloc)
++		return seekpos, nil
++	}
++	// need to refresh the internal buffer. Seek does no reading, mark buf
++	// as empty, set bufpos and bufloc.
++	fb.buf, fb.bufpos, fb.bufloc = nil, 0, seekpos
++	n, err := fb.fd.Seek(seekpos, io.SeekStart)
++	fb.seeks++
++	if n != seekpos || err != nil {
++		return -1, fmt.Errorf("seek failed (%d!= %d) %v", n, seekpos, err)
++	}
++	return seekpos, nil
++}
++
++// Close closes the underlying file
++func (fb *fbuf) Close() error {
++	if fb.fd != nil {
++		return fb.fd.Close()
++	}
++	return nil
++}
+diff --git a/src/internal/traceparser/filebuf/filebuf_test.go b/src/internal/traceparser/filebuf/filebuf_test.go
+new file mode 100755
+index 0000000000..7a735715ed
+--- /dev/null
++++ b/src/internal/traceparser/filebuf/filebuf_test.go
+@@ -0,0 +1,204 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filebuf
++
++import (
++	"bytes"
++	"io"
++	"io/ioutil"
++	"log"
++	"os"
++	"testing"
++)
++
++var (
++	inited       bool
++	small, large string // files
++	dir          string // in this dir
++	contents     []byte // contents of the large file
++)
++
++func TestMain(m *testing.M) {
++	create()
++	n := m.Run()
++
++	os.RemoveAll(dir)
++	os.Exit(n)
++}
++
++func create() {
++	if inited {
++		return
++	}
++	log.SetFlags(log.Lshortfile)
++	d, erra := ioutil.TempDir("", "filebuf")
++	s, errb := ioutil.TempFile(dir, "small")
++	l, errc := ioutil.TempFile(dir, "large")
++	if erra != nil || errb != nil || errc != nil {
++		log.Fatal(erra, errb, errc)
++	}
++	dir, small, large = d, s.Name(), l.Name()
++	buf := make([]byte, 2*Buflen+3)
++	for i := 0; i < len(buf); i++ {
++		buf[i] = byte(i)
++	}
++	err := ioutil.WriteFile(small, buf[:7], 0666)
++	if err != nil {
++		log.Fatal(err)
++	}
++	err = ioutil.WriteFile(large, buf, 0666)
++	if err != nil {
++		log.Fatal(err)
++	}
++	contents = buf
++	inited = true
++}
++
++func get(n int) io.Reader {
++	if n <= len(contents) {
++		return bytes.NewReader(contents[:n])
++	}
++	return bytes.NewReader(contents)
++}
++
++func TestSmall(t *testing.T) {
++	var f Buf
++	var err error
++	f, err = New(small)
++	small := func(t *testing.T) {
++		if err != nil {
++			t.Fatal(err)
++		}
++		buf := make([]byte, 23)
++		n, err := f.Read(buf)
++		if n != 7 || err != io.EOF {
++			t.Errorf("got %d, expected 7, %v", n, err)
++		}
++		m, err := f.Seek(0, io.SeekCurrent)
++		if m != 7 || err != nil {
++			t.Errorf("got %d, expected 7, %v", m, err)
++		}
++		m, err = f.Seek(1, io.SeekStart)
++		if m != 1 || err != nil {
++			t.Errorf("got %d expected 1, %v", m, err)
++		}
++		n, err = f.Read(buf)
++		if n != 6 || err != io.EOF {
++			t.Errorf("got %d, expected 6, %v", n, err)
++		}
++		for i := 0; i < 6; i++ {
++			if buf[i] != byte(i+1) {
++				t.Fatalf("byte %d is %d, not %d, %v", i, buf[i], i+1, buf)
++			}
++		}
++	}
++	t.Run("New", small)
++	f, err = FromReader(get(7))
++	t.Run("Rdr", small)
++}
++
++func TestLarge(t *testing.T) {
++	var f Buf
++	var err error
++	big := func(t *testing.T) {
++		if err != nil {
++			t.Fatal(err)
++		}
++		x := Buflen - 7
++		n, err := f.Seek(int64(x), io.SeekStart)
++		if n != Buflen-7 || err != nil {
++			t.Fatalf("expected %d, got %d, %v", x, n, err)
++		}
++		buf := make([]byte, 23)
++		m, err := f.Read(buf)
++		if m != len(buf) || err != nil {
++			t.Fatalf("expected %d, got %d, %v", len(buf), m, err)
++		}
++		for i := 0; i < 23; i++ {
++			if buf[i] != byte(x+i) {
++				t.Fatalf("byte %d, got %d, wanted %d", i, buf[i],
++					byte(x+i))
++			}
++		}
++		m, err = f.Read(buf)
++		if m != len(buf) || err != nil {
++			t.Fatalf("got %d, expected %d, %v", m, len(buf), err)
++		}
++		x += len(buf)
++		for i := 0; i < 23; i++ {
++			if buf[i] != byte(x+i) {
++				t.Fatalf("byte %d, got %d, wanted %d", i, buf[i],
++					byte(x+i))
++			}
++		}
++	}
++	f, err = New(large)
++	t.Run("New", big)
++	f, err = FromReader(get(1 << 30))
++	t.Run("Rdr", big)
++}
++
++func TestMore(t *testing.T) {
++	f, err := New(large)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var a, b [4]byte
++	f.Seek(16, 0)
++	f.Read(a[:])
++	f.Seek(16, 0)
++	f.Read(b[:])
++	if a != b {
++		t.Errorf("oops %v %v", a, b)
++	}
++}
++
++func TestSeek(t *testing.T) {
++	f, err := New(small)
++	if err != nil {
++		log.Fatal(err)
++	}
++	n, err := f.Seek(f.Size(), 0)
++	if n != f.Size() || err != nil {
++		t.Errorf("seek got %d, expected %d, %v", n, f.Size(), err)
++	}
++	n, err = f.Seek(1, io.SeekCurrent)
++	if n != f.Size() || err != io.EOF {
++		t.Errorf("n=%d, expected 0. %v", n, err)
++	}
++	n, err = f.Seek(f.Size(), 0)
++	if n != f.Size() || err != nil {
++		t.Errorf("seek got %d, expected %d, %v", n, f.Size(), err)
++	}
++}
++
++func TestReread(t *testing.T) {
++	f, err := New(small)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var buf [1]byte
++	f.Seek(0, 0)
++	for i := 0; i < int(f.Size()); i++ {
++		n, err := f.Read(buf[:])
++		if n != 1 || err != nil {
++			t.Fatalf("n=%d, err=%v", n, err)
++		}
++	}
++	stats := f.Stats()
++	if stats.Bytes != f.Size() || stats.Reads != 1 || stats.Seeks != 1 {
++		t.Errorf("%v %d %d", stats, f.(*fbuf).bufloc, f.(*fbuf).bufpos)
++	}
++	n, err := f.Read(buf[:])
++	if n != 0 || err != io.EOF {
++		t.Fatalf("expected 0 and io.EOF, got %d %v", n, err)
++	}
++	f.Seek(0, 0)
++	xstats := f.Stats()
++	if xstats.Bytes != f.Size() || xstats.Reads != 1 || xstats.Seeks != 2 {
++		t.Errorf("%v %v %d %d", stats, xstats, f.(*fbuf).bufloc, f.(*fbuf).bufpos)
++	}
++	f.Close()
++}
+diff --git a/src/internal/traceparser/filebuf/fromreader.go b/src/internal/traceparser/filebuf/fromreader.go
+new file mode 100644
+index 0000000000..736cbf5e42
+--- /dev/null
++++ b/src/internal/traceparser/filebuf/fromreader.go
+@@ -0,0 +1,71 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filebuf
++
++import (
++	"bytes"
++	"io"
++)
++
++// implement a Buf version from an io.Reader
++
++type rbuf struct {
++	buf          []byte // contents
++	pos          int64
++	seeks, reads int // number of calls. 0 seems right.
++}
++
++func (r *rbuf) Stats() Stat {
++	return Stat{r.seeks, r.reads, int64(len(r.buf))}
++}
++
++func (r *rbuf) Size() int64 {
++	return int64(len(r.buf))
++}
++
++// FromReader creates a Buf by copying the contents of an io.Reader
++func FromReader(rd io.Reader) (Buf, error) {
++	r := &rbuf{}
++	x := bytes.NewBuffer(r.buf)
++	_, err := io.Copy(x, rd)
++	r.buf = x.Bytes()
++	if err != nil {
++		return nil, err
++	}
++	return r, nil
++}
++
++func (r *rbuf) Close() error {
++	return nil
++}
++
++func (r *rbuf) Read(p []byte) (int, error) {
++	n := copy(p, r.buf[r.pos:])
++	r.pos += int64(n)
++	if n == 0 || n < len(p) {
++		return n, io.EOF
++	}
++	return n, nil
++}
++
++func (r *rbuf) Seek(offset int64, whence int) (int64, error) {
++	seekpos := offset
++	switch whence {
++	case io.SeekCurrent:
++		seekpos += int64(r.pos)
++	case io.SeekEnd:
++		seekpos += int64(len(r.buf))
++	}
++	if seekpos < 0 || seekpos > int64(len(r.buf)) {
++		if seekpos < 0 {
++			r.pos = 0
++			return 0, nil
++		}
++		r.pos = int64(len(r.buf))
++		return r.pos, nil
++	}
++	r.pos = seekpos
++	return seekpos, nil
++}
+diff --git a/src/internal/traceparser/fuzz.go b/src/internal/traceparser/fuzz.go
+new file mode 100644
+index 0000000000..666ee945fb
+--- /dev/null
++++ b/src/internal/traceparser/fuzz.go
+@@ -0,0 +1,49 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gofuzz
++
++package traceparser
++
++import (
++	"bytes"
++	"fmt"
++	"log"
++)
++
++// at first we ran the old parser, and return 0 if it failed, on the theory that we don't have
++// to do better. But that leads to very few crashes to look at.
++// Maybe better just to make it so that the new parser doesn't misbehave, and if it doesn't get
++// an error, that the old parser gets the same results. (up to whatever)
++// perhaps even better would be to seed corpus with examples from which the 16-byte header
++// has been stripped, and add it in Fuzz, so the fuzzer doesn't spend a lot of time making
++// changes we reject in the header. (this may not be necessary)
++
++func Fuzz(data []byte) int {
++	if len(data) < 16 {
++		return 0
++	}
++	switch x := string(data[:16]); x {
++	default:
++		return 0
++	case "go 1.9 trace\000\000\000\000":
++		break
++	case "go 1.10 trace\000\000\000":
++		break
++	case "go 1.11 trace\000\000\000":
++		break
++	}
++	p, errp := ParseBuffer(bytes.NewBuffer(data))
++	if errp != nil {
++		if p != nil {
++			panic(fmt.Sprintf("p not nil on error %s", errp))
++		}
++	}
++	// TODO(pjw): if no errors, compare parses?
++	return 1
++}
++
++func init() {
++	log.SetFlags(log.Lshortfile)
++}
+diff --git a/src/internal/traceparser/goroutines.go b/src/internal/traceparser/goroutines.go
+new file mode 100644
+index 0000000000..5fe22f4f29
+--- /dev/null
++++ b/src/internal/traceparser/goroutines.go
+@@ -0,0 +1,341 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++import "sort"
++
++// GDesc contains statistics and execution details of a single goroutine.
++type GDesc struct {
++	ID           uint64
++	Name         string
++	PC           uint64
++	CreationTime int64
++	StartTime    int64
++	EndTime      int64
++
++	// List of regions in the goroutine, sorted based on the start time.
++	Regions []*UserRegionDesc
++
++	// Statistics of execution time during the goroutine execution.
++	GExecutionStat
++
++	*gDesc // private part.
++}
++
++// UserRegionDesc represents a region and goroutine execution stats
++// while the region was active.
++type UserRegionDesc struct {
++	TaskID uint64
++	Name   string
++
++	// Region start event. Normally EvUserRegion start event or nil,
++	// but can be EvGoCreate event if the region is a synthetic
++	// region representing task inheritance from the parent goroutine.
++	Start *Event
++
++	// Region end event. Normally EvUserRegion end event or nil,
++	// but can be EvGoStop or EvGoEnd event if the goroutine
++	// terminated without explicitely ending the region.
++	End *Event
++
++	GExecutionStat
++}
++
++// GExecutionStat contains statistics about a goroutine's execution
++// during a period of time.
++type GExecutionStat struct {
++	ExecTime      int64
++	SchedWaitTime int64
++	IOTime        int64
++	BlockTime     int64
++	SyscallTime   int64
++	GCTime        int64
++	SweepTime     int64
++	TotalTime     int64
++}
++
++// sub returns the stats v-s.
++func (s GExecutionStat) sub(v GExecutionStat) (r GExecutionStat) {
++	r = s
++	r.ExecTime -= v.ExecTime
++	r.SchedWaitTime -= v.SchedWaitTime
++	r.IOTime -= v.IOTime
++	r.BlockTime -= v.BlockTime
++	r.SyscallTime -= v.SyscallTime
++	r.GCTime -= v.GCTime
++	r.SweepTime -= v.SweepTime
++	r.TotalTime -= v.TotalTime
++	return r
++}
++
++// snapshotStat returns the snapshot of the goroutine execution statistics.
++// This is called as we process the ordered trace event stream. lastTs and
++// activeGCStartTime are used to process pending statistics if this is called
++// before any goroutine end event.
++func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionStat) {
++	ret = g.GExecutionStat
++
++	if g.gDesc == nil {
++		return ret // finalized GDesc. No pending state.
++	}
++
++	if activeGCStartTime != 0 { // terminating while GC is active
++		if g.CreationTime < activeGCStartTime {
++			ret.GCTime += lastTs - activeGCStartTime
++		} else {
++			// The goroutine's lifetime completely overlaps
++			// with a GC.
++			ret.GCTime += lastTs - g.CreationTime
++		}
++	}
++
++	if g.TotalTime == 0 {
++		ret.TotalTime = lastTs - g.CreationTime
++	}
++
++	if g.lastStartTime != 0 {
++		ret.ExecTime += lastTs - g.lastStartTime
++	}
++	if g.blockNetTime != 0 {
++		ret.IOTime += lastTs - g.blockNetTime
++	}
++	if g.blockSyncTime != 0 {
++		ret.BlockTime += lastTs - g.blockSyncTime
++	}
++	if g.blockSyscallTime != 0 {
++		ret.SyscallTime += lastTs - g.blockSyscallTime
++	}
++	if g.blockSchedTime != 0 {
++		ret.SchedWaitTime += lastTs - g.blockSchedTime
++	}
++	if g.blockSweepTime != 0 {
++		ret.SweepTime += lastTs - g.blockSweepTime
++	}
++	return ret
++}
++
++// finalize is called when processing a goroutine end event or at
++// the end of trace processing. This finalizes the execution stat
++// and any active regions in the goroutine, in which case trigger is nil.
++func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
++	if trigger != nil {
++		g.EndTime = trigger.Ts
++	}
++	finalStat := g.snapshotStat(lastTs, activeGCStartTime)
++
++	g.GExecutionStat = finalStat
++	for _, s := range g.activeRegions {
++		s.End = trigger
++		s.GExecutionStat = finalStat.sub(s.GExecutionStat)
++		g.Regions = append(g.Regions, s)
++	}
++	*(g.gDesc) = gDesc{}
++}
++
++// gDesc is a private part of GDesc that is required only during analysis.
++type gDesc struct {
++	lastStartTime    int64
++	blockNetTime     int64
++	blockSyncTime    int64
++	blockSyscallTime int64
++	blockSweepTime   int64
++	blockGCTime      int64
++	blockSchedTime   int64
++
++	activeRegions []*UserRegionDesc // stack of active regions
++}
++
++// GoroutineStats generates statistics for all goroutines in the trace segment.
++func (p *Parsed) GoroutineStats() map[uint64]*GDesc {
++	events := p.Events
++	gs := make(map[uint64]*GDesc)
++	var lastTs int64
++	var gcStartTime int64 // gcStartTime == 0 indicates gc is inactive.
++	for _, ev := range events {
++		lastTs = ev.Ts
++		switch ev.Type {
++		case EvGoCreate:
++			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gDesc: new(gDesc)}
++			g.blockSchedTime = ev.Ts
++			// When a goroutine is newly created, inherit the
++			// task of the active region. For ease handling of
++			// this case, we create a fake region description with
++			// the task id.
++			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gDesc.activeRegions) > 0 {
++				regions := creatorG.gDesc.activeRegions
++				s := regions[len(regions)-1]
++				if s.TaskID != 0 {
++					g.gDesc.activeRegions = []*UserRegionDesc{
++						{TaskID: s.TaskID, Start: ev},
++					}
++				}
++			}
++			gs[g.ID] = g
++		case EvGoStart, EvGoStartLabel:
++			g := gs[ev.G]
++			if g.PC == 0 {
++				stk := p.Stacks[ev.StkID]
++				g.PC = stk[0].PC
++				g.Name = stk[0].Fn
++			}
++			g.lastStartTime = ev.Ts
++			if g.StartTime == 0 {
++				g.StartTime = ev.Ts
++			}
++			if g.blockSchedTime != 0 {
++				g.SchedWaitTime += ev.Ts - g.blockSchedTime
++				g.blockSchedTime = 0
++			}
++		case EvGoEnd, EvGoStop:
++			g := gs[ev.G]
++			g.finalize(ev.Ts, gcStartTime, ev)
++		case EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
++			EvGoBlockSync, EvGoBlockCond:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
++			g.blockSyncTime = ev.Ts
++		case EvGoSched, EvGoPreempt:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
++			g.blockSchedTime = ev.Ts
++		case EvGoSleep, EvGoBlock:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
++		case EvGoBlockNet:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
++			g.blockNetTime = ev.Ts
++		case EvGoBlockGC:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
++			g.blockGCTime = ev.Ts
++		case EvGoUnblock:
++			g := gs[ev.Args[0]]
++			if g.blockNetTime != 0 {
++				g.IOTime += ev.Ts - g.blockNetTime
++				g.blockNetTime = 0
++			}
++			if g.blockSyncTime != 0 {
++				g.BlockTime += ev.Ts - g.blockSyncTime
++				g.blockSyncTime = 0
++			}
++			g.blockSchedTime = ev.Ts
++		case EvGoSysBlock:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.lastStartTime = 0
++			g.blockSyscallTime = ev.Ts
++		case EvGoSysExit:
++			g := gs[ev.G]
++			if g.blockSyscallTime != 0 {
++				g.SyscallTime += ev.Ts - g.blockSyscallTime
++				g.blockSyscallTime = 0
++			}
++			g.blockSchedTime = ev.Ts
++		case EvGCSweepStart:
++			g := gs[ev.G]
++			if g != nil {
++				// Sweep can happen during GC on system goroutine.
++				g.blockSweepTime = ev.Ts
++			}
++		case EvGCSweepDone:
++			g := gs[ev.G]
++			if g != nil && g.blockSweepTime != 0 {
++				g.SweepTime += ev.Ts - g.blockSweepTime
++				g.blockSweepTime = 0
++			}
++		case EvGCStart:
++			gcStartTime = ev.Ts
++		case EvGCDone:
++			for _, g := range gs {
++				if g.EndTime != 0 {
++					continue
++				}
++				if gcStartTime < g.CreationTime {
++					g.GCTime += ev.Ts - g.CreationTime
++				} else {
++					g.GCTime += ev.Ts - gcStartTime
++				}
++			}
++			gcStartTime = 0 // indicates gc is inactive.
++		case EvUserRegion:
++			g := gs[ev.G]
++			switch mode := ev.Args[1]; mode {
++			case 0: // region start
++				g.activeRegions = append(g.activeRegions, &UserRegionDesc{
++					Name:           ev.SArgs[0],
++					TaskID:         ev.Args[0],
++					Start:          ev,
++					GExecutionStat: g.snapshotStat(lastTs, gcStartTime),
++				})
++			case 1: // region end
++				var sd *UserRegionDesc
++				if regionStk := g.activeRegions; len(regionStk) > 0 {
++					n := len(regionStk)
++					sd = regionStk[n-1]
++					regionStk = regionStk[:n-1] // pop
++					g.activeRegions = regionStk
++				} else {
++					sd = &UserRegionDesc{
++						Name:   ev.SArgs[0],
++						TaskID: ev.Args[0],
++					}
++				}
++				sd.GExecutionStat = g.snapshotStat(lastTs, gcStartTime).sub(sd.GExecutionStat)
++				sd.End = ev
++				g.Regions = append(g.Regions, sd)
++			}
++		}
++	}
++
++	for _, g := range gs {
++		g.finalize(lastTs, gcStartTime, nil)
++
++		// sort based on region start time
++		sort.Slice(g.Regions, func(i, j int) bool {
++			x := g.Regions[i].Start
++			y := g.Regions[j].Start
++			if x == nil {
++				return true
++			}
++			if y == nil {
++				return false
++			}
++			return x.Ts < y.Ts
++		})
++
++		g.gDesc = nil
++	}
++
++	return gs
++}
++
++// RelatedGoroutines finds a set of goroutines related to goroutine goid.
++func (p *Parsed) RelatedGoroutines(goid uint64) map[uint64]bool {
++	events := p.Events
++	// BFS of depth 2 over "unblock" edges
++	// (what goroutines unblock goroutine goid?).
++	gmap := make(map[uint64]bool)
++	gmap[goid] = true
++	for i := 0; i < 2; i++ {
++		gmap1 := make(map[uint64]bool)
++		for g := range gmap {
++			gmap1[g] = true
++		}
++		for _, ev := range events {
++			if ev.Type == EvGoUnblock && gmap[ev.Args[0]] {
++				gmap1[ev.G] = true
++			}
++		}
++		gmap = gmap1
++	}
++	gmap[0] = true // for GC events
++	return gmap
++}
+diff --git a/src/internal/traceparser/parser_test.go b/src/internal/traceparser/parser_test.go
+new file mode 100644
+index 0000000000..7df56fe1f9
+--- /dev/null
++++ b/src/internal/traceparser/parser_test.go
+@@ -0,0 +1,107 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++)
++
++var (
++	// testfiles from the old trace parser
++	otherDir = "../trace/testdata/"
++	want     = map[string]bool{"http_1_9_good": true, "http_1_10_good": true, "http_1_11_good": true,
++		"stress_1_9_good": true, "stress_1_10_good": true, "stress_1_11_good": true,
++		"stress_start_stop_1_9_good": true, "stress_start_stop_1_10_good": true,
++		"stress_start_stop_1_11_good": true, "user_task_span_1_11_good": true,
++
++		"http_1_5_good": false, "http_1_7_good": false,
++		"stress_1_5_good": false, "stress_1_5_unordered": false, "stress_1_7_good": false,
++		"stress_start_stop_1_5_good": false, "stress_start_stop_1_7_good": false,
++	}
++)
++
++func TestRemoteFiles(t *testing.T) {
++	files, err := ioutil.ReadDir(otherDir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, f := range files {
++		fname := filepath.Join(otherDir, f.Name())
++		p, err := New(fname)
++		if err == nil {
++			err = p.Parse(0, 1<<62, nil)
++		}
++		if err == nil != want[f.Name()] {
++			t.Errorf("%s: got %v expected %v, err=%v",
++				f.Name(), err == nil, want[f.Name()], err)
++		}
++	}
++}
++
++func TestLocalFiles(t *testing.T) {
++
++	files, err := ioutil.ReadDir("./testdata")
++	if err != nil {
++		t.Fatalf("failed to read ./testdata: %v", err)
++	}
++	for _, f := range files {
++		fname := filepath.Join("./testdata", f.Name())
++		p, err := New(fname)
++		if err == nil {
++			err = p.Parse(0, 1<<62, nil)
++		}
++		switch {
++		case strings.Contains(f.Name(), "good"),
++			strings.Contains(f.Name(), "weird"):
++			if err != nil {
++				t.Errorf("unexpected failure %v %s", err, f.Name())
++			}
++		case strings.Contains(f.Name(), "bad"):
++			if err == nil {
++				t.Errorf("bad file did not fail %s", f.Name())
++			}
++		default:
++			t.Errorf("untyped file %v %s", err, f.Name())
++		}
++	}
++}
++
++func TestStats(t *testing.T) {
++	// Need just one good file to see that OSStats work properly,
++	files, err := ioutil.ReadDir("./testdata")
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, f := range files {
++		if !strings.HasPrefix(f.Name(), "good") {
++			continue
++		}
++		fname := filepath.Join("./testdata", f.Name())
++		p, err := New(fname)
++		if err != nil {
++			t.Fatal(err)
++		}
++		stat := p.OSStats()
++		if stat.Bytes == 0 || stat.Seeks == 0 || stat.Reads == 0 {
++			t.Errorf("OSStats impossible %v", stat)
++		}
++		fd, err := os.Open(fname)
++		if err != nil {
++			t.Fatal(err)
++		}
++		pb, err := ParseBuffer(fd)
++		if err != nil {
++			t.Fatal(err)
++		}
++		stat = pb.OSStats()
++		if stat.Seeks != 0 || stat.Reads != 0 {
++			t.Errorf("unexpected positive results %v", stat)
++		}
++	}
++}
+diff --git a/src/internal/traceparser/raw.go b/src/internal/traceparser/raw.go
+new file mode 100644
+index 0000000000..e36a951475
+--- /dev/null
++++ b/src/internal/traceparser/raw.go
+@@ -0,0 +1,106 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++import (
++	"encoding/binary"
++	"fmt"
++	"hash/fnv"
++	"io"
++	"log"
++)
++
++// convert batches into their raw events. For small intervals (1 or 10 seconds)
++// this takes about 40% of the total Parse time.
++
++func (p *Parsed) batchify(b *batch) error {
++	evs := make([]rawEvent, 0)
++	p.seenArgs = make(map[uint64]*[]uint64)
++	hasher := fnv.New64()
++	r := p.r
++	r.Seek(int64(b.Off), 0)
++	var buf [1]byte
++	seenBatch := false // to terminate the loop on the second EvBatch
++
++	for off := b.Off; ; {
++		off0 := off // remember the beginning of the event
++		n, err := r.Read(buf[:])
++		if err != nil {
++			return err
++		}
++		off += n
++		typ := buf[0] << 2 >> 2 // event type is bottom 6 bits
++		if typ == EvFrequency || (typ == EvBatch && seenBatch) {
++			break // found trailer, or next batch
++		}
++		if typ == EvBatch {
++			seenBatch = true
++		}
++		if typ == EvString {
++			// skip over it. error checking was done in file.go
++			_, off, _ = readVal(r, off)
++			var ln uint64
++			ln, off, _ = readVal(r, off)
++			// PJW: why not just seek ahead ln bytes?
++			if false {
++				buf := make([]byte, ln)
++				var n int
++				n, _ = io.ReadFull(r, buf)
++				off += n
++			} else {
++				n, _ := r.Seek(int64(ln), 1)
++				off = int(n)
++			}
++			continue
++		}
++		// build the raw event and collect its arguments
++		ev := rawEvent{typ: typ, off: uint32(off0 - b.Off)}
++		var args []uint64
++		off, args, err = p.argsAt(off0, typ)
++		if err != nil {
++			// PJW: make sure this is useful
++			return fmt.Errorf("parsing %s failed at P=%d off=%d %v", evname(typ),
++				b.P, off0, err)
++		}
++
++		// have we seen the args before?
++		if len(args) > 0 {
++			ev.arg0 = args[0]
++			if len(args) > 1 {
++				hasher.Reset()
++				for i := 1; i < len(args); i++ {
++					var x [8]byte
++					binary.LittleEndian.PutUint64(x[:], args[i])
++					_, err := hasher.Write(x[:])
++					if err != nil {
++						log.Fatal(err)
++					}
++				}
++				hc := hasher.Sum64()
++				old, ok := p.seenArgs[hc]
++				if !ok {
++					final := make([]uint64, len(args)-1)
++					copy(final, args[1:])
++					p.seenArgs[hc] = &final
++				} else {
++					// is this a collision? PJW: make this precisely right
++					if len(*old) != len(args[1:]) {
++						log.Fatalf("COLLISION old:%v this:%v", *old, args[1:])
++					}
++				}
++				ev.args = p.seenArgs[hc]
++			}
++		}
++		if typ == EvUserLog {
++			// argsAt didn't read the string argument
++			var s string
++			s, off, err = readStr(r, off)
++			ev.sarg = s
++		}
++		evs = append(evs, ev)
++	}
++	b.raws = evs
++	return nil
++}
+diff --git a/src/internal/traceparser/robust.go b/src/internal/traceparser/robust.go
+new file mode 100644
+index 0000000000..91748c592f
+--- /dev/null
++++ b/src/internal/traceparser/robust.go
+@@ -0,0 +1,585 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++// there are panics for impossible situations. probably an error would be better
++// (if only it were certain these are impossible)
++
++import (
++	"fmt"
++	"log"
++)
++
++// repair an incomplete or possibly damaged interval of Events
++// so that postProcess is happy
++
++// errors returned by checkRunning()
++const (
++	ok         = 0
++	badRunning = 1 << iota
++	badP
++	badG0
++)
++
++// states of g's and p's
++type gdesc struct {
++	state                               gStatus
++	ev, evStart, evCreate, evMarkAssist *Event
++}
++
++type pdesc struct {
++	running        bool
++	g              uint64
++	evSTW, evSweep *Event
++}
++
++func locstr(ev *Event) string {
++	if ev == nil {
++		return "<nil>"
++	}
++	return fmt.Sprintf("%s:%x", evname(ev.Type), ev.Ts)
++}
++func (p pdesc) String() string {
++	return fmt.Sprintf("[%v %d %s %s]", p.running, p.g, locstr(p.evSTW), locstr(p.evSweep))
++}
++
++func (g gdesc) String() string {
++	var nm string
++	switch g.state {
++	case gDead:
++		nm = "dead"
++	case gWaiting:
++		nm = "waiting"
++	case gRunnable:
++		nm = "runnable"
++	case gRunning:
++		nm = "running"
++	}
++	f := locstr
++	return fmt.Sprintf("[%s %s,%s,%s,%s]", nm, f(g.ev), f(g.evStart),
++		f(g.evCreate), f(g.evMarkAssist))
++}
++
++func checkRunning(pd pdesc, gd gdesc, ev *Event, okG0 bool) int {
++	ret := ok
++	if gd.state != gRunning {
++		ret |= badRunning
++	}
++	if pd.g != ev.G {
++		ret |= badP
++	}
++	if !okG0 && ev.G == 0 {
++		ret |= badG0
++	}
++	return ret
++}
++
++type aux struct {
++	pref     []*Event     // prefix
++	evs      []*Event     // copies and inserted
++	deleted  map[byte]int // count by Type
++	inserted map[byte]int // count by Type
++	gs       map[uint64]gdesc
++	ps       map[int32]pdesc
++	g        gdesc
++	px       pdesc
++	my       *Parsed
++	input    []*Event // events in call to robust()
++	last     int      // last index handled by reorder
++	err      error    // report inconsistent trace files
++}
++
++func (a *aux) preftime() int64 {
++	ts := a.my.MinWant - 1000
++	if ts < 0 {
++		ts = 0
++	}
++	if len(a.pref) > 0 {
++		ts = a.pref[len(a.pref)-1].Ts + 1
++	}
++	return ts
++}
++func (a *aux) delete(i int, ev *Event) {
++	a.deleted[ev.Type]++
++}
++func (a *aux) prefix(typ byte, g uint64, p int32) {
++	ts := a.preftime()
++	ev := &Event{Type: typ, G: g, P: p, Ts: ts,
++		Args: [3]uint64{0, 0, 1}}
++	a.pref = append(a.pref, ev)
++}
++func (a *aux) procstart(p int32) {
++	if p >= FakeP || a.px.running {
++		return
++	}
++	a.prefix(EvProcStart, 0, p)
++	a.px.running = true
++}
++func (a *aux) makewaiting(i int, g uint64, typ byte) {
++	// GoCreate, g=0 args[0]=g; maybe it exists already?
++	// GoWaiting or GoInSysCall
++	p := int32(a.my.batches[0].P)
++	ev := &Event{Type: EvGoCreate, P: p,
++		Ts: a.preftime(), Args: [3]uint64{g, 0, 2}}
++	a.pref = append(a.pref, ev)
++	a.gs[g] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
++	ev = &Event{Type: typ, G: g, P: p,
++		Ts: a.preftime(), Args: [3]uint64{g, 0, 3}}
++	a.pref = append(a.pref, ev)
++	switch typ {
++	default:
++		panic(fmt.Sprintf("weird typ %s in makewaiting", evname(typ)))
++	case EvGoWaiting, EvGoInSyscall:
++		// ok
++	}
++}
++
++func (a *aux) makerunnable(i int, ev *Event) {
++	// Create, Sched, Preempt, or Unblock
++	switch a.gs[ev.G].state {
++	case gDead:
++		p := int32(a.my.batches[0].P)
++		ev := &Event{Type: EvGoCreate, P: p,
++			Ts: a.preftime(), Args: [3]uint64{ev.G, 0, 4}}
++		a.pref = append(a.pref, ev)
++		a.gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
++	case gRunnable:
++		return
++	case gRunning:
++		//a.prevs(i)
++		a.err = fmt.Errorf("gRunning %d:%s", i, ev)
++	case gWaiting:
++		//a.prevs(i)
++		a.err = fmt.Errorf("no consistent ordering possible %d:%s", i, ev)
++	}
++}
++func (a *aux) makerunning(i int, ev *Event) {
++	// GoStart once it is runnable
++	switch a.g.state {
++	case gDead:
++		a.makerunnable(i, ev)
++	case gRunnable:
++		break
++	case gRunning:
++		return
++	case gWaiting:
++		a.err = fmt.Errorf("gWaiting in makerunnable %d:%s %+v", i, ev, a.g)
++	}
++	// PJW: which P? Probably need a ProcStart once
++	if !a.px.running {
++		a.procstart(ev.P)
++	}
++	p := ev.P
++	if p == TimerP {
++		p = int32(ev.Args[2]) // from events.go:71
++		ev.Args[2] = 0
++	}
++	x := &Event{Type: EvGoStart, G: ev.G, P: p, Args: [3]uint64{ev.G, 0, 5}}
++	x.Ts = ev.Ts - 1
++	a.evs = append(a.evs, x)
++	a.g.state = gRunning
++	a.g.evStart = x
++	a.px.g = x.G
++	a.inserted[EvGoStart]++
++}
++
++func (p *Parsed) robust(events []*Event) ([]*Event, *aux, error) { // *aux for debugging (CheckRobust)
++	a := new(aux)
++	a.gs = make(map[uint64]gdesc)
++	a.ps = make(map[int32]pdesc)
++	var evGC, evSTW *Event
++	tasks := make(map[uint64]*Event) // task id to create
++	activeSpans := make(map[uint64][]*Event)
++	a.gs[0] = gdesc{state: gRunning} // bootstrap
++	a.deleted = make(map[byte]int)
++	a.inserted = make(map[byte]int)
++	a.my = p
++	a.input = events
++
++	for i, ev := range events {
++		if a.err != nil {
++			break
++		}
++		if i < len(events)-1 && ev.Ts == events[i+1].Ts &&
++			i > a.last {
++			// sigh. dragonfly, or similar trouble.
++			// a.last is to avoid overlapping calls
++			// This is a placeholder if needed.
++			//a.reorder(i, events)
++			ev = events[i]
++		}
++		var gok, pok bool
++		a.g, gok = a.gs[ev.G]
++		a.px, pok = a.ps[ev.P]
++		switch ev.Type {
++		case EvProcStart:
++			if a.px.running { // This doesn't happen, but to be safe
++				a.delete(i, ev) // already started
++				continue
++			}
++			a.px.running = true
++		case EvProcStop:
++			if !pok { // Ok to delete, as we've never heard of it
++				a.delete(i, ev)
++				continue
++			}
++			if !a.px.running {
++				a.procstart(ev.P)
++			}
++			if a.px.g != 0 {
++				// p is running a g! Stop the g? Ignore the Stop?
++				// Ignore the Stop. I don't think this happens.
++				// (unless there are equal Ts's or the file is corrupt)
++				a.err = fmt.Errorf("unexpected %d:%s %v", i, ev, a.px)
++				// a.delete(i, ev) // PJW
++				continue
++			}
++			a.px.running = false
++		case EvGCStart:
++			if evGC != nil {
++				// already running; doesn't happen
++				a.delete(i, ev)
++				continue
++			}
++			evGC = ev
++		case EvGCDone:
++			if evGC == nil {
++				// no GCStart to link it to: choice is lying about
++				// the duration or the existence. Do the latter
++				a.delete(i, ev)
++				continue
++			}
++			evGC = nil
++		case EvGCSTWStart:
++			evp := &evSTW
++			if p.Version < 1010 {
++				// Before 1.10, EvGCSTWStart was per-P.
++				evp = &a.px.evSTW
++			}
++			if *evp != nil {
++				// still running; doesn't happen
++				a.delete(i, ev)
++				continue
++			}
++			*evp = ev
++		case EvGCSTWDone:
++			evp := &evSTW
++			if p.Version < 1010 {
++				// Before 1.10, EvGCSTWDone was per-P.
++				evp = &a.px.evSTW
++			}
++			if *evp == nil {
++				// no STWStart to link to: choice is lying about
++				// duration or the existence. Do the latter.
++				a.delete(i, ev)
++				continue
++			}
++			*evp = nil
++		case EvGCMarkAssistStart:
++			if a.g.evMarkAssist != nil {
++				// already running; doesn't happen
++				a.delete(i, ev)
++				continue
++			}
++			a.g.evMarkAssist = ev
++		case EvGCMarkAssistDone:
++			// ok to be in progress
++			a.g.evMarkAssist = nil
++		case EvGCSweepStart:
++			if a.px.evSweep != nil {
++				// older one still running; doesn't happen
++				a.delete(i, ev)
++				continue
++			}
++			a.px.evSweep = ev
++		case EvGCSweepDone:
++			if a.px.evSweep == nil {
++				// no Start to link to: choice is lying about
++				// duration or existence. Do the latter.
++				a.delete(i, ev)
++				continue
++			}
++			a.px.evSweep = nil
++		case EvGoWaiting:
++			if a.g.state != gRunnable {
++				a.makerunnable(i, ev)
++			}
++			a.g.state = gWaiting
++			a.g.ev = ev
++		case EvGoInSyscall: // PJW: same as GoWaiting
++			if a.g.state != gRunnable {
++				a.makerunnable(i, ev)
++			}
++			a.g.state = gWaiting
++			a.g.ev = ev
++		case EvGoCreate:
++			if _, ok := a.gs[ev.Args[0]]; ok {
++				// this g already exists; doesn't happen
++				a.delete(i, ev)
++				continue
++			}
++			ret := checkRunning(a.px, a.g, ev, true)
++			if ret&badRunning != 0 {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ret&badP != 0 {
++				a.procstart(ev.P)
++			}
++			a.gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev,
++				evCreate: ev}
++		case EvGoStart, EvGoStartLabel:
++			if a.g.state != gRunnable {
++				a.makerunnable(i, ev)
++			}
++			if a.px.g != 0 {
++				//a.prevs(i)
++				a.err = fmt.Errorf("p already running %d, %d:%s",
++					a.px.g, i, ev)
++			}
++			a.g.state = gRunning
++			a.g.evStart = ev // PJW: do we need g.evStart?
++			a.px.g = ev.G
++			a.g.evCreate = nil // PJW: do we need g.evCreate?
++		case EvGoEnd, EvGoStop:
++			if !gok {
++				// never heard of it; act as if it never existed
++				a.delete(i, ev)
++				continue
++			}
++			ret := checkRunning(a.px, a.g, ev, false)
++			if ret&badRunning != 0 {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ret&badP != 0 {
++				a.procstart(ev.P)
++			}
++			if ret&badG0 != 0 {
++				// gok should have been false
++				panic(fmt.Sprintf("badG0 %d:%s", i, ev))
++			}
++			a.g.evStart = nil
++			a.g.state = gDead
++			a.px.g = 0
++		case EvGoSched, EvGoPreempt:
++			ret := checkRunning(a.px, a.g, ev, false)
++			if ret&badG0 != 0 {
++				// hopeless, we think. Don't know g
++				a.delete(i, ev)
++			}
++			if ret&badRunning != 0 {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ret&badP != 0 {
++				a.procstart(ev.P)
++			}
++			a.g.state = gRunnable
++			a.g.evStart = nil
++			a.px.g = 0
++			a.g.ev = ev
++		case EvGoUnblock:
++			// g == 0 is ok here (PJW) and elsewhere?
++			if a.g.state != gRunning {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ev.P != TimerP && a.px.g != ev.G {
++				//a.prevs(i)
++				a.err = fmt.Errorf("%v not running %d:%s",
++					a.px, i, ev)
++				continue
++			}
++			g1, _ := a.gs[ev.Args[0]]
++			if g1.state != gWaiting {
++				a.makewaiting(i, ev.Args[0], EvGoWaiting)
++				g1.state = gWaiting
++			}
++			g1.state = gRunnable
++			g1.ev = ev
++			a.gs[ev.Args[0]] = g1
++			// if p == TimerP, clean up from events.go:71
++			ev.Args[2] = 0 // no point in checking p
++		case EvGoSysCall:
++			if ev.G == 0 {
++				// hopeless; don't know how to repair
++				a.delete(i, ev)
++				continue
++			}
++			ret := checkRunning(a.px, a.g, ev, false)
++			if ret&badRunning != 0 {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ret&badP != 0 {
++				a.procstart(ev.P)
++			}
++			a.g.ev = ev
++		case EvGoSysBlock:
++			if ev.G == 0 {
++				// hopeless to repair
++				a.delete(i, ev)
++			}
++			ret := checkRunning(a.px, a.g, ev, false)
++			if ret&badRunning != 0 {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ret&badP != 0 {
++				a.procstart(ev.P)
++			}
++			a.g.state = gWaiting
++			a.g.evStart = nil
++			a.px.g = 0
++		case EvGoSysExit:
++			if ev.G == 0 {
++				// don't know how to repair
++				a.delete(i, ev)
++				continue
++			}
++			if a.g.state != gWaiting {
++				a.makewaiting(i, ev.G, EvGoInSyscall)
++			}
++			a.g.state = gRunnable
++			a.g.ev = ev
++		case EvGoSleep, EvGoBlock, EvGoBlockSend, EvGoBlockRecv,
++			EvGoBlockSelect, EvGoBlockSync, EvGoBlockCond,
++			EvGoBlockNet, EvGoBlockGC:
++			if ev.G == 0 { // don't know how to repair
++				a.delete(i, ev)
++				continue
++			}
++			ret := checkRunning(a.px, a.g, ev, false)
++			if ret&badRunning != 0 {
++				a.makerunning(i, ev)
++				a.g.state = gRunning
++			}
++			if ret&badP != 0 {
++				a.procstart(ev.P)
++			}
++			a.g.state = gWaiting
++			a.g.ev = ev
++			a.g.evStart = nil
++			a.px.g = 0
++		case EvHeapAlloc, EvGomaxprocs, EvNextGC, EvUserLog:
++			a.makerunning(i, ev)
++			a.g.state = gRunning
++			a.px.g = ev.G
++		default:
++			return nil, nil, fmt.Errorf("robust: unexpected %d:%s", i, ev)
++		case EvUserTaskCreate:
++			taskid := ev.Args[0]
++			if _, ok := tasks[taskid]; ok {
++				// task id conflict, kill this one, believe the earlier one
++				a.delete(i, ev)
++				continue
++			}
++			tasks[ev.Args[0]] = ev
++		case EvUserTaskEnd: // nothing to do
++		case EvUserRegion:
++			mode := ev.Args[1]
++			spans := activeSpans[ev.G]
++			if mode == 0 {
++				activeSpans[ev.G] = append(spans, ev)
++			} else if mode == 1 { // span end
++				n := len(spans)
++				if n > 0 {
++					// check that spans match up; clean up if not
++					s := spans[n-1]
++					if s.Args[0] != ev.Args[0] ||
++						s.SArgs[0] != ev.SArgs[0] {
++						// try to fix it
++						var ok bool
++						spans, ok = fixSpan(spans, ev)
++						if !ok {
++							// unfixed, toss this event
++							a.delete(i, ev)
++							continue
++						}
++					}
++					n = len(spans)
++					if n > 1 {
++						activeSpans[ev.G] = spans[:n-1]
++					} else {
++						delete(activeSpans, ev.G)
++					}
++				}
++			} else {
++				// invalid mode, toss it
++				a.delete(i, ev)
++				continue
++			}
++		}
++		a.gs[ev.G] = a.g
++		a.ps[ev.P] = a.px
++		a.evs = append(a.evs, ev)
++	}
++	ans := a.pref
++	ans = append(ans, a.evs...)
++	p.Preflen = len(a.pref)
++	p.Added = len(a.inserted)
++	p.Ignored = len(a.deleted)
++	return ans, a, a.err
++}
++
++func fixSpan(spans []*Event, ev *Event) ([]*Event, bool) {
++	// probably indicates a corrupt trace file
++	panic("implement")
++}
++
++type same struct {
++	ev *Event
++	g  gdesc
++	p  pdesc
++}
++
++// This is a placeholder, to organize intervals with equal time stamps
++func (a *aux) reorder(n int, events []*Event) {
++	// bunch of Events with equal time stamps
++	// We care about GoCreate, GoWaiting, GoInSyscall,
++	// GoStart (StartLocal, StartLabel), GoBlock*,
++	// GosSched, GoPreempt, GoUnblock, GoSysExit,
++	// (UnblockLocal, SysExitLocal), GCStart.
++	// maybe ProcStart and ProcStop?
++	repair := []same{}
++	i := n
++	for ; i < len(events) && events[i].Ts == events[n].Ts; i++ {
++		ev := events[i]
++		repair = append(repair, same{ev, a.gs[ev.G],
++			a.ps[ev.P]})
++	}
++	a.last = i - 1
++	log.Println("BEFORE:")
++	for i, r := range repair {
++		log.Printf("x%d:%s %v %v", i+n, r.ev, r.g, r.p)
++	}
++	if true { // PJW
++		return // we're not doing anything yet
++	}
++	// sorting is not going to be enough.
++	log.Println("DID NOTHING!")
++	log.Println("after")
++	for i, r := range repair {
++		log.Printf("y%d:%s %v %v", i+n, r.ev, r.g, r.p)
++	}
++	for i, r := range repair {
++		events[n+i] = r.ev
++	}
++}
++
++// printing for debugging
++func (a *aux) prevs(n int) {
++	for i := 0; i < len(a.pref); i++ {
++		log.Printf("p%3d %s", i, a.pref[i])
++	}
++	start := 0
++	if n > 50 {
++		start = n - 50
++	}
++	for i := start; i <= n+1 && i < len(a.input); i++ {
++		log.Printf("%4d %s", i, a.input[i])
++	}
++}
+diff --git a/src/internal/traceparser/testdata/06dfecf6e5dfb78e954e7892120b56bfca50af65-6.bad b/src/internal/traceparser/testdata/06dfecf6e5dfb78e954e7892120b56bfca50af65-6.bad
+new file mode 100644
+index 0000000000..6e9e23ee8d
+Binary files /dev/null and b/src/internal/traceparser/testdata/06dfecf6e5dfb78e954e7892120b56bfca50af65-6.bad differ
+diff --git a/src/internal/traceparser/testdata/0e6dd1787a6339366dac733a2f957a05d7aa3ac7-3.bad b/src/internal/traceparser/testdata/0e6dd1787a6339366dac733a2f957a05d7aa3ac7-3.bad
+new file mode 100644
+index 0000000000..7b723f889f
+Binary files /dev/null and b/src/internal/traceparser/testdata/0e6dd1787a6339366dac733a2f957a05d7aa3ac7-3.bad differ
+diff --git a/src/internal/traceparser/testdata/16970d24ef6753d71953e20d10638705bdccc3ba-2.weird b/src/internal/traceparser/testdata/16970d24ef6753d71953e20d10638705bdccc3ba-2.weird
+new file mode 100644
+index 0000000000..6b4b06c6ef
+Binary files /dev/null and b/src/internal/traceparser/testdata/16970d24ef6753d71953e20d10638705bdccc3ba-2.weird differ
+diff --git a/src/internal/traceparser/testdata/26492441b33e1bb93669f79cf3584755cc3ef7e8-2.weird b/src/internal/traceparser/testdata/26492441b33e1bb93669f79cf3584755cc3ef7e8-2.weird
+new file mode 100644
+index 0000000000..565a8b2fbc
+Binary files /dev/null and b/src/internal/traceparser/testdata/26492441b33e1bb93669f79cf3584755cc3ef7e8-2.weird differ
+diff --git a/src/internal/traceparser/testdata/2ccf452e473ded814ea880c602488637fc27e549.good b/src/internal/traceparser/testdata/2ccf452e473ded814ea880c602488637fc27e549.good
+new file mode 100644
+index 0000000000..9d101f8f73
+Binary files /dev/null and b/src/internal/traceparser/testdata/2ccf452e473ded814ea880c602488637fc27e549.good differ
+diff --git a/src/internal/traceparser/testdata/34f92cd2ae08f558c494b2ef79e80b574c9f096c-8.weird b/src/internal/traceparser/testdata/34f92cd2ae08f558c494b2ef79e80b574c9f096c-8.weird
+new file mode 100644
+index 0000000000..d6e9cd6a1d
+Binary files /dev/null and b/src/internal/traceparser/testdata/34f92cd2ae08f558c494b2ef79e80b574c9f096c-8.weird differ
+diff --git a/src/internal/traceparser/testdata/4557f81f6aae617eeec8dd920997ea27b3dda12b.weird b/src/internal/traceparser/testdata/4557f81f6aae617eeec8dd920997ea27b3dda12b.weird
+new file mode 100644
+index 0000000000..ae93a0e35c
+Binary files /dev/null and b/src/internal/traceparser/testdata/4557f81f6aae617eeec8dd920997ea27b3dda12b.weird differ
+diff --git a/src/internal/traceparser/testdata/495712b6e35ad7566869c887aa823fcbf69c0b80-1.weird b/src/internal/traceparser/testdata/495712b6e35ad7566869c887aa823fcbf69c0b80-1.weird
+new file mode 100644
+index 0000000000..072bc93960
+Binary files /dev/null and b/src/internal/traceparser/testdata/495712b6e35ad7566869c887aa823fcbf69c0b80-1.weird differ
+diff --git a/src/internal/traceparser/testdata/63cd688ddff425bbbc220fbb7bd4fa11616a8b64-1.bad b/src/internal/traceparser/testdata/63cd688ddff425bbbc220fbb7bd4fa11616a8b64-1.bad
+new file mode 100644
+index 0000000000..5506aa0e61
+Binary files /dev/null and b/src/internal/traceparser/testdata/63cd688ddff425bbbc220fbb7bd4fa11616a8b64-1.bad differ
+diff --git a/src/internal/traceparser/testdata/63df44bfc9d27851fb054ce03002e7e25f307e2f-5.weird b/src/internal/traceparser/testdata/63df44bfc9d27851fb054ce03002e7e25f307e2f-5.weird
+new file mode 100644
+index 0000000000..74ea28cd8e
+Binary files /dev/null and b/src/internal/traceparser/testdata/63df44bfc9d27851fb054ce03002e7e25f307e2f-5.weird differ
+diff --git a/src/internal/traceparser/testdata/6aa1a69b265c3092972a2a81e77fbcaa87061735-4.bad b/src/internal/traceparser/testdata/6aa1a69b265c3092972a2a81e77fbcaa87061735-4.bad
+new file mode 100644
+index 0000000000..af0307958e
+Binary files /dev/null and b/src/internal/traceparser/testdata/6aa1a69b265c3092972a2a81e77fbcaa87061735-4.bad differ
+diff --git a/src/internal/traceparser/testdata/7b82e808a6a3471352a4197d44fedbe3f5fb6f77-1.bad b/src/internal/traceparser/testdata/7b82e808a6a3471352a4197d44fedbe3f5fb6f77-1.bad
+new file mode 100644
+index 0000000000..5353946cf8
+Binary files /dev/null and b/src/internal/traceparser/testdata/7b82e808a6a3471352a4197d44fedbe3f5fb6f77-1.bad differ
+diff --git a/src/internal/traceparser/testdata/94347dc6ca9c22daec04c5f2530b16ea60bb0ba2-7.weird b/src/internal/traceparser/testdata/94347dc6ca9c22daec04c5f2530b16ea60bb0ba2-7.weird
+new file mode 100644
+index 0000000000..3141a88aba
+Binary files /dev/null and b/src/internal/traceparser/testdata/94347dc6ca9c22daec04c5f2530b16ea60bb0ba2-7.weird differ
+diff --git a/src/internal/traceparser/testdata/9fa93c88557e64b0714b8849aacf713d17ff928e-2.weird b/src/internal/traceparser/testdata/9fa93c88557e64b0714b8849aacf713d17ff928e-2.weird
+new file mode 100644
+index 0000000000..c33f6cac57
+Binary files /dev/null and b/src/internal/traceparser/testdata/9fa93c88557e64b0714b8849aacf713d17ff928e-2.weird differ
+diff --git a/src/internal/traceparser/testdata/abf7185aaf1cb69fb5fae50ba8546a7cdefade57-2.weird b/src/internal/traceparser/testdata/abf7185aaf1cb69fb5fae50ba8546a7cdefade57-2.weird
+new file mode 100644
+index 0000000000..2580a591dd
+Binary files /dev/null and b/src/internal/traceparser/testdata/abf7185aaf1cb69fb5fae50ba8546a7cdefade57-2.weird differ
+diff --git a/src/internal/traceparser/testdata/d28fcef078c7dc722867d781b1fd7f37ca965372-7.weird b/src/internal/traceparser/testdata/d28fcef078c7dc722867d781b1fd7f37ca965372-7.weird
+new file mode 100644
+index 0000000000..7d724caddc
+Binary files /dev/null and b/src/internal/traceparser/testdata/d28fcef078c7dc722867d781b1fd7f37ca965372-7.weird differ
+diff --git a/src/internal/traceparser/testdata/d70f178a3813df03f2aed0d47f6d9bc844b8cb57-4.weird b/src/internal/traceparser/testdata/d70f178a3813df03f2aed0d47f6d9bc844b8cb57-4.weird
+new file mode 100644
+index 0000000000..9976163b7b
+Binary files /dev/null and b/src/internal/traceparser/testdata/d70f178a3813df03f2aed0d47f6d9bc844b8cb57-4.weird differ
+diff --git a/src/internal/traceparser/testdata/e68c3126700dda2c2ac3b8743e9f319cb313042a-1.weird b/src/internal/traceparser/testdata/e68c3126700dda2c2ac3b8743e9f319cb313042a-1.weird
+new file mode 100644
+index 0000000000..49ac545692
+Binary files /dev/null and b/src/internal/traceparser/testdata/e68c3126700dda2c2ac3b8743e9f319cb313042a-1.weird differ
+diff --git a/src/internal/traceparser/tr.go b/src/internal/traceparser/tr.go
+new file mode 100644
+index 0000000000..770f280607
+--- /dev/null
++++ b/src/internal/traceparser/tr.go
+@@ -0,0 +1,498 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package traceparser parses the trace files produced by runtime.StartTrace
++package traceparser
++
++import (
++	"fmt"
++	"internal/traceparser/filebuf"
++	"io"
++	"strings"
++)
++
++// Parsed is the result of parsing a trace file
++type Parsed struct {
++	// Set by New
++	Name               string // File's name
++	Size               int64  // File's size
++	Count              int64  // approximate number of all events
++	MaxTs              int64  // range of all events, in nanoseconds
++	Strings            map[uint64]string
++	Stacks             map[uint32][]*Frame
++	Version            int         // version of the trace file from header
++	TicksPerSec        int64       // from EvFrequency in trailer
++	minticks, maxticks int64       // from Init
++	r                  filebuf.Buf // implements io.Seek and io.Read
++	batches            []batch     // location of each Batch and time of start
++	timerGoids         map[uint64]bool
++	// the following are per Parse
++	MinWant, MaxWant int64    // range wanted, from the arguments to Parse()
++	Err              error    // set by internal functions to stop further processing
++	Events           []*Event // after Parse, the events from MinWant to MaxWant
++	Preflen          int      // how long a prefix we added
++	Ignored          int      // how many events we elided
++	Added            int      // how many events we added, not including the prefix
++	// internal processing variables
++	seenArgs map[uint64]*[]uint64
++	byproc   map[int][]*Event
++	lastGs   map[int]uint64
++	lastG    uint64
++	lastP    int
++	lastTs   int64
++}
++
++func (p *Parsed) String() string {
++	ans := []string{}
++	ans = append(ans, fmt.Sprintf("%s Sz:%d Count:%d MaxTs:%d #strs:%d #stks:%d",
++		p.Name, p.Size, p.Count, p.MaxTs, len(p.Strings), len(p.Stacks)))
++	ans = append(ans, fmt.Sprintf("%d clock:%d ticks:(%d,%d) #b:%d",
++		p.Version, p.TicksPerSec, p.minticks, p.maxticks, len(p.batches)))
++	return strings.Join(ans, "\n\t")
++}
++
++// clean up after previous call to Parse
++func (p *Parsed) clean() {
++	// some of these are redundant
++	p.Err = nil
++	p.Events = nil
++	p.Preflen = 0
++	p.Ignored = 0
++	p.Added = 0
++	p.seenArgs = nil // redundant, but safe
++	p.byproc = nil
++	p.lastGs = nil
++	p.lastG = 0
++	p.lastTs = 0
++}
++
++// Frame is a frame in a stack traces
++type Frame struct {
++	PC   uint64
++	Fn   string
++	File string
++	Line int
++}
++
++// An Event is the parsed form of a single trace event
++type Event struct {
++	Type  byte
++	P     int32
++	Ts    int64
++	G     uint64
++	StkID uint32 // key to Parsed.Stacks
++	Args  [3]uint64
++	SArgs []string // EvUserLog has 2. Others are 1 or none
++	Link  *Event
++}
++
++// Batch remembers the EvBatch events. PJW: keep an index of User events?
++type batch struct {
++	Off    int
++	P      int64
++	Cycles int64      // as read from EvBatch
++	Nano   int64      // start time of batch, set in commonInit()
++	raws   []rawEvent // filled in during Parse() for those batches that overlap the desired interval
++}
++
++// rawEvent is a raw event parsed from batches that overlap the time interval
++type rawEvent struct { // about 75 bytes
++	// the choice of what to share (args) and what to make unique per rawEvent
++	// (arg0, sarg) was done by measuring the space impact of various choices.
++	off  uint32 // offset in batch (at batch.Off + off in file)
++	typ  byte
++	arg0 uint64
++	args *[]uint64 // remainder of the args (frequently nil), shared
++	sarg string
++}
++
++func (r rawEvent) String() string {
++	if r.args != nil && len(*r.args) > 0 {
++		return fmt.Sprintf("[%s %d %v %s]", evname(r.typ), r.arg0, *r.args, r.sarg)
++	}
++	return fmt.Sprintf("[%s, %d, [], %s]", evname(r.typ), r.arg0, r.sarg)
++}
++
++// New scans the trace file, finding the number of events, the earliest and latest
++// timestamps, and the stacks and strings referenced in the file.
++func New(fname string) (*Parsed, error) {
++	fd, err := filebuf.New(fname)
++	if err != nil {
++		return nil, err
++	}
++	return commonInit(fd, fname)
++}
++
++// ParseError may be returned by New() or ParseBuffer() to make available
++// some information in the case that the raw trace file seems to contain
++// negative time stamps. (In P, Name, Size, count, Strings, Stacks, Versions are valid,
++// and MaxTs or TicksPerSec is negative.)
++type ParseError struct {
++	P   *Parsed
++	Err error
++}
++
++func (pe ParseError) Error() string {
++	return pe.Err.Error()
++}
++
++func commonInit(fd filebuf.Buf, fname string) (*Parsed, error) {
++	ans := &Parsed{Name: fname, minticks: 1 << 62} // minticks can only decrease
++	var err error
++	defer func() {
++		if err != nil {
++			fd.Close() // try to clean up after error
++		}
++	}()
++	ans.Size = fd.Size()
++	ans.r = fd
++	// parseRaw here for header, trailer: clock, stacks, strings,
++	if err = ans.parseHeader(); err != nil {
++		return nil, err
++	}
++	if err = ans.scanFile(); err != nil {
++		return nil, err
++	}
++	// done with seenArgs
++	ans.seenArgs = nil
++	// convert the clicks in batches to nanoseconds
++	ans.toNanoseconds()
++	if ans.MaxTs <= 0 || ans.TicksPerSec <= 0 {
++		err := ParseError{
++			P: ans,
++			Err: fmt.Errorf("corrupt trace file: negative time: (max TS=%d, ticks per sec=%d",
++				ans.MaxTs, ans.TicksPerSec),
++		}
++		return nil, err
++	}
++	return ans, nil
++}
++
++// Parse parses the events in the interval: start <= ts <= start+length.
++// f, if not nil, will be called at various stages of the parse, each identified by the string
++// argument. It could report on elapsed time, or memory usage, or whatever the user wants.
++// The number of times it is called and the contents of the string argument are both
++// changeable details of the implementation. Parse is not safe for concurrent use.
++func (p *Parsed) Parse(start, length int64, f func(string)) error {
++	p.clean()
++	if f == nil {
++		f = func(string) {} // avoid any further testing for nil
++	}
++
++	p.MinWant = start
++	p.MaxWant = start + length
++	// arrange the slice of batches by P
++	byp := map[int64][]*batch{}
++	// PJW: keep track of the order the Ps occur and use that for batchify
++	for i, b := range p.batches {
++		byp[b.P] = append(byp[b.P], &p.batches[i])
++		p.batches[i].raws = nil // reset from last call to Parse
++	}
++	// batchify the ones that overlap the time range
++	for _, v := range byp {
++		for i := 0; i < len(v); i++ {
++			b := v[i]
++			var bnext *batch
++			if i < len(v)-1 {
++				bnext = v[i+1]
++			}
++			if b.Nano >= p.MaxWant {
++				// starts too late
++				continue
++			} else if b.Nano <= p.MinWant && (bnext != nil && bnext.Nano <= p.MinWant) {
++				// entirely too early
++				continue
++			}
++			err := p.batchify(b)
++			if err != nil {
++				return err
++			}
++		}
++	}
++	f("batchify done")
++	return p.createEvents(f)
++}
++
++// ParseBuffer treats its argument as a trace file, and returns the
++// result of parsing it
++func ParseBuffer(rd io.Reader) (*Parsed, error) {
++	pr, err := filebuf.FromReader(rd)
++	if err != nil {
++		return nil, err
++	}
++	p, err := commonInit(pr, "<buf>")
++	if err != nil {
++		return nil, err
++	}
++	// need the version and the initial scan
++	err = p.Parse(0, 1<<62, nil)
++	if err != nil {
++		return nil, err
++	}
++	return p, nil
++}
++
++// called from commonInit to compute the nanosecond when batches start
++func (p *Parsed) toNanoseconds() {
++	minCycles := p.minticks
++	freq := 1e9 / float64(p.TicksPerSec)
++	// Batches, and more to come.  Don't call this twice!
++	for i, ex := range p.batches {
++		p.batches[i].Nano = int64(float64(ex.Cycles-minCycles) * freq)
++	}
++	p.MaxTs = int64(float64(p.maxticks-minCycles) * freq)
++}
++
++// argsAt returns the args of an event in the file and the offset for the next event.
++//
++// For EvString it returns off, nil, nil, and
++// for EvUserLog it ignores the string argument, which must be read by the
++// caller.
++func (p *Parsed) argsAt(off int, check byte) (int, []uint64, error) {
++	off0 := off
++	r := p.r
++	loc, err := r.Seek(int64(off), 0)
++	if err != nil {
++		panic(err)
++	}
++	var buf [1]byte
++	n, err := r.Read(buf[:])
++	if err != nil || n != 1 {
++		return 0, nil, fmt.Errorf("read failed at 0x%x, %d %v, loc=%d",
++			off, n, err, loc)
++	}
++	off += n
++	typ := buf[0] << 2 >> 2
++	narg := buf[0]>>6 + 1
++	inlineArgs := byte(4)
++
++	if typ == EvNone || typ >= EvCount ||
++		EventDescriptions[typ].MinVersion > p.Version {
++		return 0, nil, fmt.Errorf("unk type %v at offset 0x%x", typ, off0)
++	}
++	if typ == EvString { // skip, wihtout error checking
++		_, off, err = readVal(r, off)
++		var ln uint64
++		ln, off, err = readVal(r, off)
++		off += int(ln)
++		return off, nil, nil
++	}
++	args := []uint64{}
++	if narg < inlineArgs {
++		for i := 0; i < int(narg); i++ {
++			var v uint64
++			v, off, err = readVal(r, off)
++			if err != nil {
++				err = fmt.Errorf("failed to read event %v argument at offset %v (%v)", typ, off, err)
++				return 0, nil, err
++			}
++			args = append(args, v)
++		}
++	} else {
++		// More than inlineArgs args, the first value is length of the event in bytes.
++		var v uint64
++		v, off, err = readVal(r, off)
++		if err != nil {
++			err = fmt.Errorf("failed to read event %v argument at offset %v (%v)", typ, off, err)
++			return 0, nil, err
++		}
++		evLen := v
++		off1 := off
++		for evLen > uint64(off-off1) {
++			v, off, err = readVal(r, off)
++			if err != nil {
++				err = fmt.Errorf("failed to read event %v argument at offset %v (%v)", typ, off, err)
++				return 0, nil, err
++			}
++			args = append(args, v)
++		}
++		if evLen != uint64(off-off1) {
++			err = fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
++			return 0, nil, err
++		}
++	}
++	// This routine does not read the string argument. Callers must tread EvUserLog specially.
++	return off, args, nil
++}
++
++// read a string from r
++func readStr(r io.Reader, off0 int) (s string, off int, err error) {
++	var sz uint64
++	sz, off, err = readVal(r, off0)
++	if err != nil || sz == 0 {
++		return "", off, err
++	}
++	if sz > 1e6 {
++		return "", off, fmt.Errorf("string at offset %d is too large (len=%d)", off, sz)
++	}
++	buf := make([]byte, sz)
++	n, err := io.ReadFull(r, buf)
++	if err != nil || sz != uint64(n) {
++		return "", off + n, fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, sz, err)
++	}
++	return string(buf), off + n, nil
++}
++
++// readVal reads unsigned base-128 value from r.
++func readVal(r io.Reader, off0 int) (v uint64, off int, err error) {
++	off = off0
++	for i := 0; i < 10; i++ {
++		var buf [1]byte
++		var n int
++		n, err = r.Read(buf[:])
++		if err != nil || n != 1 {
++			return 0, 0, fmt.Errorf("failed to read trace at offset %d: read %v, error %v", off0, n, err)
++		}
++		off++
++		v |= uint64(buf[0]&0x7f) << (uint(i) * 7)
++		if buf[0]&0x80 == 0 {
++			return
++		}
++	}
++	return 0, 0, fmt.Errorf("bad value at offset 0x%x", off0)
++}
++
++// OSStats reports on the underlying i/o. If p was created by New,
++// the fields report filesystem activity. If p was created by ParseBuffer,
++// only Size is set.
++func (p *Parsed) OSStats() filebuf.Stat {
++	return p.r.Stats()
++}
++
++func (ev *Event) String() string {
++	var tslink int64
++	if ev.Link != nil {
++		tslink = ev.Link.Ts
++	}
++	return fmt.Sprintf("[g:%d p:%d %s/%d %v %v %x ->%x]",
++		ev.G, ev.P, evname(ev.Type), ev.Type,
++		ev.Args, ev.SArgs, ev.Ts, tslink)
++
++}
++
++func evname(t byte) string {
++	if t >= EvCount || t < 0 {
++		return fmt.Sprintf("typ%d?", t)
++	}
++	return EventDescriptions[t].Name
++}
++
++// Close the underlying file.
++func (p *Parsed) Close() error {
++	return p.r.Close()
++}
++
++// Event types in the trace.
++// Verbatim copy from src/runtime/trace.go with the "trace" prefix removed.
++const (
++	EvNone              = 0  // unused
++	EvBatch             = 1  // start of per-P batch of events [pid, timestamp]
++	EvFrequency         = 2  // contains tracer timer frequency [frequency (ticks per second)]
++	EvStack             = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
++	EvGomaxprocs        = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
++	EvProcStart         = 5  // start of P [timestamp, thread id]
++	EvProcStop          = 6  // stop of P [timestamp]
++	EvGCStart           = 7  // GC start [timestamp, seq, stack id]
++	EvGCDone            = 8  // GC done [timestamp]
++	EvGCSTWStart        = 9  // GC mark termination start [timestamp, kind]
++	EvGCSTWDone         = 10 // GC mark termination done [timestamp]
++	EvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
++	EvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
++	EvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
++	EvGoStart           = 14 // goroutine starts running [timestamp, goroutine id, seq]
++	EvGoEnd             = 15 // goroutine ends [timestamp]
++	EvGoStop            = 16 // goroutine stops (like in select{}) [timestamp, stack]
++	EvGoSched           = 17 // goroutine calls Gosched [timestamp, stack]
++	EvGoPreempt         = 18 // goroutine is preempted [timestamp, stack]
++	EvGoSleep           = 19 // goroutine calls Sleep [timestamp, stack]
++	EvGoBlock           = 20 // goroutine blocks [timestamp, stack]
++	EvGoUnblock         = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
++	EvGoBlockSend       = 22 // goroutine blocks on chan send [timestamp, stack]
++	EvGoBlockRecv       = 23 // goroutine blocks on chan recv [timestamp, stack]
++	EvGoBlockSelect     = 24 // goroutine blocks on select [timestamp, stack]
++	EvGoBlockSync       = 25 // goroutine blocks on Mutex/RWMutex [timestamp, stack]
++	EvGoBlockCond       = 26 // goroutine blocks on Cond [timestamp, stack]
++	EvGoBlockNet        = 27 // goroutine blocks on network [timestamp, stack]
++	EvGoSysCall         = 28 // syscall enter [timestamp, stack]
++	EvGoSysExit         = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
++	EvGoSysBlock        = 30 // syscall blocks [timestamp]
++	EvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
++	EvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
++	EvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
++	EvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
++	EvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
++	EvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
++	EvString            = 37 // string dictionary entry [ID, length, string]
++	EvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
++	EvGoUnblockLocal    = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
++	EvGoSysExitLocal    = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
++	EvGoStartLabel      = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
++	EvGoBlockGC         = 42 // goroutine blocks on GC assist [timestamp, stack]
++	EvGCMarkAssistStart = 43 // GC mark assist start [timestamp, stack]
++	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
++	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
++	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
++	EvUserRegion        = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
++	EvCount             = 49
++)
++
++// EventDescriptions describe the Events
++var EventDescriptions = [EvCount]struct {
++	Name       string
++	MinVersion int
++	Stack      bool
++	Args       []string
++	SArgs      []string // string arguments
++}{
++	EvNone:              {"None", 1005, false, []string{}, nil},
++	EvBatch:             {"Batch", 1005, false, []string{"p", "ticks"}, nil}, // in 1.5 format it was {"p", "seq", "ticks"}
++	EvFrequency:         {"Frequency", 1005, false, []string{"freq"}, nil},   // in 1.5 format it was {"freq", "unused"}
++	EvStack:             {"Stack", 1005, false, []string{"id", "siz"}, nil},
++	EvGomaxprocs:        {"Gomaxprocs", 1005, true, []string{"procs"}, nil},
++	EvProcStart:         {"ProcStart", 1005, false, []string{"thread"}, nil},
++	EvProcStop:          {"ProcStop", 1005, false, []string{}, nil},
++	EvGCStart:           {"GCStart", 1005, true, []string{"seq"}, nil}, // in 1.5 format it was {}
++	EvGCDone:            {"GCDone", 1005, false, []string{}, nil},
++	EvGCSTWStart:        {"GCSTWStart", 1005, false, []string{"kindid"}, []string{"kind"}}, // <= 1.9, args was {} (implicitly {0})
++	EvGCSTWDone:         {"GCSTWDone", 1005, false, []string{}, nil},
++	EvGCSweepStart:      {"GCSweepStart", 1005, true, []string{}, nil},
++	EvGCSweepDone:       {"GCSweepDone", 1005, false, []string{"swept", "reclaimed"}, nil}, // before 1.9, format was {}
++	EvGoCreate:          {"GoCreate", 1005, true, []string{"g", "stack"}, nil},
++	EvGoStart:           {"GoStart", 1005, false, []string{"g", "seq"}, nil}, // in 1.5 format it was {"g"}
++	EvGoEnd:             {"GoEnd", 1005, false, []string{}, nil},
++	EvGoStop:            {"GoStop", 1005, true, []string{}, nil},
++	EvGoSched:           {"GoSched", 1005, true, []string{}, nil},
++	EvGoPreempt:         {"GoPreempt", 1005, true, []string{}, nil},
++	EvGoSleep:           {"GoSleep", 1005, true, []string{}, nil},
++	EvGoBlock:           {"GoBlock", 1005, true, []string{}, nil},
++	EvGoUnblock:         {"GoUnblock", 1005, true, []string{"g", "seq"}, nil}, // in 1.5 format it was {"g"}
++	EvGoBlockSend:       {"GoBlockSend", 1005, true, []string{}, nil},
++	EvGoBlockRecv:       {"GoBlockRecv", 1005, true, []string{}, nil},
++	EvGoBlockSelect:     {"GoBlockSelect", 1005, true, []string{}, nil},
++	EvGoBlockSync:       {"GoBlockSync", 1005, true, []string{}, nil},
++	EvGoBlockCond:       {"GoBlockCond", 1005, true, []string{}, nil},
++	EvGoBlockNet:        {"GoBlockNet", 1005, true, []string{}, nil},
++	EvGoSysCall:         {"GoSysCall", 1005, true, []string{}, nil},
++	EvGoSysExit:         {"GoSysExit", 1005, false, []string{"g", "seq", "ts"}, nil},
++	EvGoSysBlock:        {"GoSysBlock", 1005, false, []string{}, nil},
++	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}, nil},
++	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}, nil},
++	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}, nil},
++	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}, nil},
++	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}, nil}, // in 1.5 format it was {"g", "unused"}
++	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}, nil},
++	EvString:            {"String", 1007, false, []string{}, nil},
++	EvGoStartLocal:      {"GoStartLocal", 1007, false, []string{"g"}, nil},
++	EvGoUnblockLocal:    {"GoUnblockLocal", 1007, true, []string{"g"}, nil},
++	EvGoSysExitLocal:    {"GoSysExitLocal", 1007, false, []string{"g", "ts"}, nil},
++	EvGoStartLabel:      {"GoStartLabel", 1008, false, []string{"g", "seq", "labelid"}, []string{"label"}},
++	EvGoBlockGC:         {"GoBlockGC", 1008, true, []string{}, nil},
++	EvGCMarkAssistStart: {"GCMarkAssistStart", 1009, true, []string{}, nil},
++	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}, nil},
++	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "typeid"}, []string{"name"}},
++	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
++	EvUserRegion:        {"UserRegion", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
++	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
++}
+diff --git a/src/internal/traceparser/writer.go b/src/internal/traceparser/writer.go
+new file mode 100644
+index 0000000000..498bed72f3
+--- /dev/null
++++ b/src/internal/traceparser/writer.go
+@@ -0,0 +1,52 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package traceparser
++
++// test routines used by tests in the trace commands
++
++import "bytes"
++
++// Writer is a test trace writer.
++type Writer struct {
++	bytes.Buffer
++}
++
++// NewWriter provides the test Writer
++func NewWriter() *Writer {
++	w := new(Writer)
++	w.Write([]byte("go 1.9 trace\x00\x00\x00\x00"))
++	return w
++}
++
++// Emit writes an event record to the trace.
++// See Event types for valid types and required arguments.
++func (w *Writer) Emit(typ byte, args ...uint64) {
++	nargs := byte(len(args)) - 1
++	if nargs > 3 {
++		nargs = 3
++	}
++	buf := []byte{typ | nargs<<6}
++	if nargs == 3 {
++		buf = append(buf, 0)
++	}
++	for _, a := range args {
++		buf = appendVarint(buf, a)
++	}
++	if nargs == 3 {
++		buf[1] = byte(len(buf) - 2)
++	}
++	n, err := w.Write(buf)
++	if n != len(buf) || err != nil {
++		panic("failed to write")
++	}
++}
++
++func appendVarint(buf []byte, v uint64) []byte {
++	for ; v >= 0x80; v >>= 7 {
++		buf = append(buf, 0x80|byte(v))
++	}
++	buf = append(buf, byte(v))
++	return buf
++}

@@ -7,9 +7,106 @@ Date:   Fri Jun 17 10:17:33 2011 +1000
     R=golang-dev, mattn.jp, adg
     CC=golang-dev
     https://golang.org/cl/4634043
-
+---
  src/cmd/cgo/gcc.go  |  2 +-
  src/cmd/cgo/main.go |  3 ++-
  src/cmd/cgo/out.go  | 17 ++++++++++-------
  src/cmd/cgo/util.go |  2 +-
  4 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index e4e56d8dd6..e7e99bc56b 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -697,7 +697,7 @@ func (p *Package) gccMachine() []string {
+ 	return nil
+ }
+ 
+-const gccTmp = "_obj/_cgo_.o"
++var gccTmp = objDir + "_cgo_.o"
+ 
+ // gccCmd returns the gcc command line to use for compiling
+ // the input.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 84aeccc217..be9c2bc4fb 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -18,6 +18,7 @@ import (
+ 	"go/token"
+ 	"io"
+ 	"os"
++	"path/filepath"
+ 	"reflect"
+ 	"strings"
+ )
+@@ -228,7 +229,7 @@ func main() {
+ 		}
+ 		pkg := f.Package
+ 		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
+-			pkg = dir + "/" + pkg
++			pkg = filepath.Join(dir, pkg)
+ 		}
+ 		p.PackagePath = pkg
+ 		p.writeOutput(f, input)
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index dbc7bcf695..7eecb3437f 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -14,17 +14,20 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"os"
++	"path/filepath"
+ 	"strings"
+ )
+ 
++var objDir = "_obj" + string(filepath.Separator)
++
+ // writeDefs creates output files to be compiled by 6g, 6c, and gcc.
+ // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
+ func (p *Package) writeDefs() {
+-	fgo2 := creat("_obj/_cgo_gotypes.go")
+-	fc := creat("_obj/_cgo_defun.c")
+-	fm := creat("_obj/_cgo_main.c")
++	fgo2 := creat(objDir + "_cgo_gotypes.go")
++	fc := creat(objDir + "_cgo_defun.c")
++	fm := creat(objDir + "_cgo_main.c")
+ 
+-	fflg := creat("_obj/_cgo_flags")
++	fflg := creat(objDir + "_cgo_flags")
+ 	for k, v := range p.CgoFlags {
+ 		fmt.Fprintf(fflg, "_CGO_%s=%s\n", k, v)
+ 	}
+@@ -285,8 +288,8 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 		base = base[0 : len(base)-3]
+ 	}
+ 	base = strings.Map(slashToUnderscore, base)
+-	fgo1 := creat("_obj/" + base + ".cgo1.go")
+-	fgcc := creat("_obj/" + base + ".cgo2.c")
++	fgo1 := creat(objDir + base + ".cgo1.go")
++	fgcc := creat(objDir + base + ".cgo2.c")
+ 
+ 	p.GoFiles = append(p.GoFiles, base+".cgo1.go")
+ 	p.GccFiles = append(p.GccFiles, base+".cgo2.c")
+@@ -361,7 +364,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ // Write out the various stubs we need to support functions exported
+ // from Go so that they are callable from C.
+ func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+-	fgcc := creat("_obj/_cgo_export.c")
++	fgcc := creat(objDir + "_cgo_export.c")
+ 	fgcch := creat("_cgo_export.h")
+ 
+ 	fmt.Fprintf(fgcch, "/* Created by cgo - DO NOT EDIT. */\n")
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 1ca24103e3..e79b0e1bfa 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -103,7 +103,7 @@ func creat(name string) *os.File {
+ }
+ 
+ func slashToUnderscore(c int) int {
+-	if c == '/' {
++	if c == '/' || c == '\\' || c == ':' {
+ 		c = '_'
+ 	}
+ 	return c

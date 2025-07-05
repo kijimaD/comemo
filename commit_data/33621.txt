@@ -10,6 +10,22 @@ Date:   Fri Aug 18 13:26:41 2017 +0300
     Reviewed-on: https://go-review.googlesource.com/56832
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 5860838dd2..13776486b1 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -471,8 +471,8 @@ type Config struct {
+ 	// connections using that key are compromised.
+ 	SessionTicketKey [32]byte
+ 
+-	// SessionCache is a cache of ClientSessionState entries for TLS session
+-	// resumption.
++	// ClientSessionCache is a cache of ClientSessionState entries for TLS
++	// session resumption.
+ 	ClientSessionCache ClientSessionCache
+ 
+ 	// MinVersion contains the minimum SSL/TLS version that is acceptable.

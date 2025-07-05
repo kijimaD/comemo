@@ -7,6 +7,37 @@ Date:   Thu Mar 8 17:30:45 2012 -0500
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/5781063
-
+---
  src/pkg/go/build/build.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index 2388790860..dc9dcd1d65 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -317,6 +317,16 @@ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
+ 	return ctxt.Import(".", dir, mode)
+ }
+ 
++// NoGoError is the error used by Import to describe a directory
++// containing no Go source files.
++type NoGoError struct {
++	Dir string
++}
++
++func (e *NoGoError) Error() string {
++	return "no Go source files in " + e.Dir
++}
++
+ // Import returns details about the Go package named by the import path,
+ // interpreting local import paths relative to the src directory.  If the path
+ // is a local import path naming a package that can be imported using a
+@@ -602,7 +612,7 @@ Found:
+ 		}
+ 	}
+ 	if p.Name == "" {
+-		return p, fmt.Errorf("no Go source files in %s", p.Dir)
++		return p, &NoGoError{p.Dir}
+ 	}
+ 
+ 	p.Imports, p.ImportPos = cleanImports(imported)

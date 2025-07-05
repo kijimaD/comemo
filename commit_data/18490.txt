@@ -9,8 +9,111 @@ Date:   Thu Feb 13 03:09:03 2014 -0500
     R=rsc, golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/62700044
-
+---
  src/cmd/6c/reg.c |  8 ++++----
  src/cmd/8c/reg.c | 10 +++++-----
  src/cmd/8g/reg.c |  2 +-
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6c/reg.c b/src/cmd/6c/reg.c
+index 1f4735684f..7ca745691b 100644
+--- a/src/cmd/6c/reg.c
++++ b/src/cmd/6c/reg.c
+@@ -1461,7 +1461,7 @@ fixjmp(Reg *firstr)
+ 	for(r=firstr; r; r=r->link) {
+ 		p = r->prog;
+ 		if(debug['R'] && debug['v'])
+-			print("%04d %P\n", r->pc, p);
++			print("%04d %P\n", (int)r->pc, p);
+ 		if(p->as != ACALL && p->to.type == D_BRANCH && r->s2 && r->s2->prog->as == AJMP) {
+ 			r->s2 = chasejmp(r->s2, &jmploop);
+ 			p->to.offset = r->s2->pc;
+@@ -1486,7 +1486,7 @@ fixjmp(Reg *firstr)
+ 				// Let it stay.
+ 			} else {
+ 				if(debug['R'] && debug['v'])
+-					print("del %04d %P\n", r->pc, p);
++					print("del %04d %P\n", (int)r->pc, p);
+ 				p->as = ANOP;
+ 			}
+ 		}
+@@ -1499,7 +1499,7 @@ fixjmp(Reg *firstr)
+ 			p = r->prog;
+ 			if(p->as == AJMP && p->to.type == D_BRANCH && r->s2 == r->link) {
+ 				if(debug['R'] && debug['v'])
+-					print("del %04d %P\n", r->pc, p);
++					print("del %04d %P\n", (int)r->pc, p);
+ 				p->as = ANOP;
+ 			}
+ 		}
+@@ -1520,7 +1520,7 @@ fixjmp(Reg *firstr)
+ 	if(debug['R'] && debug['v']) {
+ 		print("\n");
+ 		for(r=firstr; r; r=r->link)
+-			print("%04d %P\n", r->pc, r->prog);
++			print("%04d %P\n", (int)r->pc, r->prog);
+ 		print("\n");
+ 	}
+ }
+diff --git a/src/cmd/8c/reg.c b/src/cmd/8c/reg.c
+index 467796f3f3..e6ba8bcb3e 100644
+--- a/src/cmd/8c/reg.c
++++ b/src/cmd/8c/reg.c
+@@ -558,7 +558,7 @@ brk:
+ 	if(debug['R'] && debug['v']) {
+ 		print("after pass 7 (peep)\n");
+ 		for(r=firstr; r; r=r->link)
+-			print("%04d %P\n", r->pc, r->prog);
++			print("%04d %P\n", (int)r->pc, r->prog);
+ 		print("\n");
+ 	}
+ 
+@@ -1375,7 +1375,7 @@ fixjmp(Reg *firstr)
+ 	for(r=firstr; r; r=r->link) {
+ 		p = r->prog;
+ 		if(debug['R'] && debug['v'])
+-			print("%04d %P\n", r->pc, p);
++			print("%04d %P\n", (int)r->pc, p);
+ 		if(p->as != ACALL && p->to.type == D_BRANCH && r->s2 && r->s2->prog->as == AJMP) {
+ 			r->s2 = chasejmp(r->s2, &jmploop);
+ 			p->to.offset = r->s2->pc;
+@@ -1400,7 +1400,7 @@ fixjmp(Reg *firstr)
+ 				// Let it stay.
+ 			} else {
+ 				if(debug['R'] && debug['v'])
+-					print("del %04d %P\n", r->pc, p);
++					print("del %04d %P\n", (int)r->pc, p);
+ 				p->as = ANOP;
+ 			}
+ 		}
+@@ -1413,7 +1413,7 @@ fixjmp(Reg *firstr)
+ 			p = r->prog;
+ 			if(p->as == AJMP && p->to.type == D_BRANCH && r->s2 == r->link) {
+ 				if(debug['R'] && debug['v'])
+-					print("del %04d %P\n", r->pc, p);
++					print("del %04d %P\n", (int)r->pc, p);
+ 				p->as = ANOP;
+ 			}
+ 		}
+@@ -1434,7 +1434,7 @@ fixjmp(Reg *firstr)
+ 	if(debug['R'] && debug['v']) {
+ 		print("\n");
+ 		for(r=firstr; r; r=r->link)
+-			print("%04d %P\n", r->pc, r->prog);
++			print("%04d %P\n", (int)r->pc, r->prog);
+ 		print("\n");
+ 	}
+ }
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 38c255e2e8..c4ecb70edf 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -1138,7 +1138,7 @@ dumpit(char *str, Flow *r0, int isreg)
+ 		r1 = r->p2;
+ 		if(r1 != nil) {
+ 			print("	pred:");
+-			for(; r1 != nil; r1 = r->p2link)
++			for(; r1 != nil; r1 = r1->p2link)
+ 				print(" %.4ud", (int)r1->prog->pc);
+ 			print("\n");
+ 		}

@@ -11,7 +11,7 @@ Date:   Fri Sep 11 11:12:15 2015 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue6997_linux.go           | 4 ++--
  src/cmd/compile/internal/big/float.go      | 2 +-
  src/math/big/float.go                      | 2 +-
@@ -22,3 +22,159 @@ Date:   Fri Sep 11 11:12:15 2015 -0700
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  src/runtime/signal_solaris.go              | 2 +-
  9 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index 07fd58e399..638c3b00cf 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test that pthread_cancel works as expected
+-// (NPTL uses SIGRTMIN to implement thread cancellation)
++// (NPTL uses SIGRTMIN to implement thread cancelation)
+ // See https://golang.org/issue/6997
+ package cgotest
+ 
+@@ -32,7 +32,7 @@ func test6997(t *testing.T) {
+ 	select {
+ 	case r = <-c:
+ 		if r == 0 {
+-			t.Error("pthread finished but wasn't cancelled??")
++			t.Error("pthread finished but wasn't canceled??")
+ 		}
+ 	case <-time.After(30 * time.Second):
+ 		t.Error("hung in pthread_cancel/pthread_join")
+diff --git a/src/cmd/compile/internal/big/float.go b/src/cmd/compile/internal/big/float.go
+index d7aa8953c4..1f8edee5dd 100644
+--- a/src/cmd/compile/internal/big/float.go
++++ b/src/cmd/compile/internal/big/float.go
+@@ -1272,7 +1272,7 @@ func (z *Float) usub(x, y *Float) {
+ 		ex = ey
+ 	}
+ 
+-	// operands may have cancelled each other out
++	// operands may have canceled each other out
+ 	if len(z.mant) == 0 {
+ 		z.acc = Exact
+ 		z.form = zero
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index ef74fec513..b92d5cec28 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -1272,7 +1272,7 @@ func (z *Float) usub(x, y *Float) {
+ 		ex = ey
+ 	}
+ 
+-	// operands may have cancelled each other out
++	// operands may have canceled each other out
+ 	if len(z.mant) == 0 {
+ 		z.acc = Exact
+ 		z.form = zero
+diff --git a/src/math/cmplx/sqrt.go b/src/math/cmplx/sqrt.go
+index 4ef6807add..276be07ae9 100644
+--- a/src/math/cmplx/sqrt.go
++++ b/src/math/cmplx/sqrt.go
+@@ -40,7 +40,7 @@ import "math"
+ //                       1/2
+ // Im w  =  [ (r - x)/2 ]   .
+ //
+-// Cancellation error in r-x or r+x is avoided by using the
++// Cancelation error in r-x or r+x is avoided by using the
+ // identity  2 Re w Im w  =  y.
+ //
+ // Note that -w is also a square root of z.  The root chosen
+diff --git a/src/math/j0.go b/src/math/j0.go
+index c20a9b22a8..de7738880e 100644
+--- a/src/math/j0.go
++++ b/src/math/j0.go
+@@ -38,7 +38,7 @@ package math
+ //                      = 1/sqrt(2) * (cos(x) + sin(x))
+ //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
+ //                      = 1/sqrt(2) * (sin(x) - cos(x))
+-//         (To avoid cancellation, use
++//         (To avoid cancelation, use
+ //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ //         to compute the worse one.)
+ //
+@@ -188,7 +188,7 @@ func Y0(x float64) float64 {
+ 		//             =  1/sqrt(2) * (sin(x) + cos(x))
+ 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
+ 		//             =  1/sqrt(2) * (sin(x) - cos(x))
+-		// To avoid cancellation, use
++		// To avoid cancelation, use
+ 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ 		// to compute the worse one.
+ 
+diff --git a/src/math/j1.go b/src/math/j1.go
+index 7ac186b72a..c537a72eb2 100644
+--- a/src/math/j1.go
++++ b/src/math/j1.go
+@@ -39,7 +39,7 @@ package math
+ //                      =  1/sqrt(2) * (sin(x) - cos(x))
+ //              sin(x1) =  sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
+ //                      = -1/sqrt(2) * (sin(x) + cos(x))
+-//         (To avoid cancellation, use
++//         (To avoid cancelation, use
+ //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ //         to compute the worse one.)
+ //
+@@ -197,7 +197,7 @@ func Y1(x float64) float64 {
+ 		//                 =  1/sqrt(2) * (sin(x) - cos(x))
+ 		//         sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
+ 		//                 = -1/sqrt(2) * (cos(x) + sin(x))
+-		// To avoid cancellation, use
++		// To avoid cancelation, use
+ 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
+ 		// to compute the worse one.
+ 
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 205daff9e4..43b2f0ccb0 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -208,7 +208,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 		s.req <- ioSrvReq{o, nil}
+ 		<-o.errc
+ 	}
+-	// Wait for cancellation to complete.
++	// Wait for cancelation to complete.
+ 	fd.pd.WaitCanceled(int(o.mode))
+ 	if o.errno != 0 {
+ 		err = syscall.Errno(o.errno)
+@@ -217,8 +217,8 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 		}
+ 		return 0, err
+ 	}
+-	// We issued cancellation request. But, it seems, IO operation succeeded
+-	// before cancellation request run. We need to treat IO operation as
++	// We issued a cancelation request. But, it seems, IO operation succeeded
++	// before the cancelation request run. We need to treat the IO operation as
+ 	// succeeded (the bytes are actually sent/recv from network).
+ 	return int(o.qty), nil
+ }
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 80a26abe41..14897f4118 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -225,7 +225,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReverseProxyCancellation(t *testing.T) {
++func TestReverseProxyCancelation(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping test; see https://golang.org/issue/9554")
+ 	}
+diff --git a/src/runtime/signal_solaris.go b/src/runtime/signal_solaris.go
+index d8ac676846..0d4fa7f29e 100644
+--- a/src/runtime/signal_solaris.go
++++ b/src/runtime/signal_solaris.go
+@@ -46,7 +46,7 @@ var sigtable = [...]sigTabT{
+ 	/* 33 */ {_SigNotify, "SIGLWP: reserved signal no longer used by"},
+ 	/* 34 */ {_SigNotify, "SIGFREEZE: special signal used by CPR"},
+ 	/* 35 */ {_SigNotify, "SIGTHAW: special signal used by CPR"},
+-	/* 36 */ {0, "SIGCANCEL: reserved signal for thread cancellation"},
++	/* 36 */ {0, "SIGCANCEL: reserved signal for thread cancellation"}, // Oracle's spelling of cancelation.
+ 	/* 37 */ {_SigNotify, "SIGLOST: resource lost (eg, record-lock lost)"},
+ 	/* 38 */ {_SigNotify, "SIGXRES: resource control exceeded"},
+ 	/* 39 */ {_SigNotify, "SIGJVM1: reserved signal for Java Virtual Machine"},

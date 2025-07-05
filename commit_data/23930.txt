@@ -11,6 +11,28 @@ Date:   Tue Jun 23 14:17:59 2015 -0700
     Change-Id: I9b905f17d1ef2722cab4bae38a037270165c7d95
     Reviewed-on: https://go-review.googlesource.com/11369
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 4b8d60b8e4..396454dd54 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of June 11, 2015",
++	"Subtitle": "Version of June 23, 2015",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -4083,7 +4083,7 @@ the implementation restriction in the section
+ on <a href="#Constants">constants</a>.  This rounding may cause a
+ floating-point constant expression to be invalid in an integer
+ context, even if it would be integral when calculated using infinite
+-precision.
++precision, and vice versa.
+ </p>
+ 
+ 

@@ -20,6 +20,38 @@ Date:   Wed May 27 15:20:49 2015 -0400
     Change-Id: I296042e1edc571b77c407f709c2ff9091c4aa795
     Reviewed-on: https://go-review.googlesource.com/10456
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 8b99ed0895..ee0ec52e7b 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1090,7 +1090,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 
+ 	case OAPPEND:
+ 		ordercallargs(&n.List, order)
+-		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.N) {
++		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.N) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
+@@ -1100,7 +1100,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		n.Right.Left = ordercheapexpr(n.Right.Left, order)
+ 		orderexpr(&n.Right.Right, order, nil)
+ 		n.Right.Right = ordercheapexpr(n.Right.Right, order)
+-		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
++		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
+@@ -1112,7 +1112,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		n.Right.Right.Left = ordercheapexpr(n.Right.Right.Left, order)
+ 		orderexpr(&n.Right.Right.Right, order, nil)
+ 		n.Right.Right.Right = ordercheapexpr(n.Right.Right.Right, order)
+-		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
++		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 

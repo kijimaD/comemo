@@ -12,6 +12,21 @@ Date:   Fri Oct 28 03:56:30 2016 +0000
     Change-Id: I36b747bd69a56adc7291fa30d6bffdf67ab8741b
     Reviewed-on: https://go-review.googlesource.com/32238
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go1.7.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index ea34f873b1..3410f417e4 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -67,8 +67,7 @@ This change has no effect on the correctness of existing programs.
+ 
+ <p>
+ Go 1.7 adds support for macOS 10.12 Sierra.
+-This support was backported to Go 1.6.3.
+-Binaries built with versions of Go before 1.6.3 will not work
++Binaries built with versions of Go before 1.7 will not work
+ correctly on Sierra.
+ </p>
+ 

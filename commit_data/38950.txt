@@ -34,10 +34,290 @@ Date:   Tue Dec 11 05:32:50 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/example_text_marshaling_test.go | 67 ++++++++++++++++++
  src/encoding/xml/example_marshaling_test.go       | 84 +++++++++++++++++++++++
  src/encoding/xml/example_text_marshaling_test.go  | 79 +++++++++++++++++++++
  src/encoding/xml/marshal.go                       |  4 ++
  src/encoding/xml/read.go                          |  5 ++
  5 files changed, 239 insertions(+)
+
+diff --git a/src/encoding/json/example_text_marshaling_test.go b/src/encoding/json/example_text_marshaling_test.go
+new file mode 100644
+index 0000000000..04c7813b26
+--- /dev/null
++++ b/src/encoding/json/example_text_marshaling_test.go
+@@ -0,0 +1,67 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package json_test
++
++import (
++	"encoding/json"
++	"fmt"
++	"log"
++	"strings"
++)
++
++type Size int
++
++const (
++	Unrecognized Size = iota
++	Small
++	Large
++)
++
++func (s *Size) UnmarshalText(text []byte) error {
++	switch strings.ToLower(string(text)) {
++	default:
++		*s = Unrecognized
++	case "small":
++		*s = Small
++	case "large":
++		*s = Large
++	}
++	return nil
++}
++
++func (s Size) MarshalText() ([]byte, error) {
++	var name string
++	switch s {
++	default:
++		name = "unrecognized"
++	case Small:
++		name = "small"
++	case Large:
++		name = "large"
++	}
++	return []byte(name), nil
++}
++
++func Example_textMarshalJSON() {
++	blob := `["small","regular","large","unrecognized","small","normal","small","large"]`
++	var inventory []Size
++	if err := json.Unmarshal([]byte(blob), &inventory); err != nil {
++		log.Fatal(err)
++	}
++
++	counts := make(map[Size]int)
++	for _, size := range inventory {
++		counts[size] += 1
++	}
++
++	fmt.Printf("Inventory Counts:\n* Small:        %d\n* Large:        %d\n* Unrecognized: %d\n",
++		counts[Small], counts[Large], counts[Unrecognized])
++
++	// Output:
++	// Inventory Counts:
++	// * Small:        3
++	// * Large:        2
++	// * Unrecognized: 3
++}
+diff --git a/src/encoding/xml/example_marshaling_test.go b/src/encoding/xml/example_marshaling_test.go
+new file mode 100644
+index 0000000000..9f9e801e74
+--- /dev/null
++++ b/src/encoding/xml/example_marshaling_test.go
+@@ -0,0 +1,84 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xml_test
++
++import (
++	"encoding/xml"
++	"fmt"
++	"log"
++	"strings"
++)
++
++type Animal int
++
++const (
++	Unknown Animal = iota
++	Gopher
++	Zebra
++)
++
++func (a *Animal) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
++	var s string
++	if err := d.DecodeElement(&s, &start); err != nil {
++		return err
++	}
++	switch strings.ToLower(s) {
++	default:
++		*a = Unknown
++	case "gopher":
++		*a = Gopher
++	case "zebra":
++		*a = Zebra
++	}
++
++	return nil
++}
++
++func (a Animal) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
++	var s string
++	switch a {
++	default:
++		s = "unknown"
++	case Gopher:
++		s = "gopher"
++	case Zebra:
++		s = "zebra"
++	}
++	return e.EncodeElement(s, start)
++}
++
++func Example_customMarshalXML() {
++	blob := `
++	<animals>
++		<animal>gopher</animal>
++		<animal>armadillo</animal>
++		<animal>zebra</animal>
++		<animal>unknown</animal>
++		<animal>gopher</animal>
++		<animal>bee</animal>
++		<animal>gopher</animal>
++		<animal>zebra</animal>
++	</animals>`
++	var zoo struct {
++		Animals []Animal `xml:"animal"`
++	}
++	if err := xml.Unmarshal([]byte(blob), &zoo); err != nil {
++		log.Fatal(err)
++	}
++
++	census := make(map[Animal]int)
++	for _, animal := range zoo.Animals {
++		census[animal] += 1
++	}
++
++	fmt.Printf("Zoo Census:\n* Gophers: %d\n* Zebras:  %d\n* Unknown: %d\n",
++		census[Gopher], census[Zebra], census[Unknown])
++
++	// Output:
++	// Zoo Census:
++	// * Gophers: 3
++	// * Zebras:  2
++	// * Unknown: 3
++}
+diff --git a/src/encoding/xml/example_text_marshaling_test.go b/src/encoding/xml/example_text_marshaling_test.go
+new file mode 100644
+index 0000000000..2549cb16ae
+--- /dev/null
++++ b/src/encoding/xml/example_text_marshaling_test.go
+@@ -0,0 +1,79 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package xml_test
++
++import (
++	"encoding/xml"
++	"fmt"
++	"log"
++	"strings"
++)
++
++type Size int
++
++const (
++	Unrecognized Size = iota
++	Small
++	Large
++)
++
++func (s *Size) UnmarshalText(text []byte) error {
++	switch strings.ToLower(string(text)) {
++	default:
++		*s = Unrecognized
++	case "small":
++		*s = Small
++	case "large":
++		*s = Large
++	}
++	return nil
++}
++
++func (s Size) MarshalText() ([]byte, error) {
++	var name string
++	switch s {
++	default:
++		name = "unrecognized"
++	case Small:
++		name = "small"
++	case Large:
++		name = "large"
++	}
++	return []byte(name), nil
++}
++
++func Example_textMarshalXML() {
++	blob := `
++	<sizes>
++		<size>small</size>
++		<size>regular</size>
++		<size>large</size>
++		<size>unrecognized</size>
++		<size>small</size>
++		<size>normal</size>
++		<size>small</size>
++		<size>large</size>
++	</sizes>`
++	var inventory struct {
++		Sizes []Size `xml:"size"`
++	}
++	if err := xml.Unmarshal([]byte(blob), &inventory); err != nil {
++		log.Fatal(err)
++	}
++
++	counts := make(map[Size]int)
++	for _, size := range inventory.Sizes {
++		counts[size] += 1
++	}
++
++	fmt.Printf("Inventory Counts:\n* Small:        %d\n* Large:        %d\n* Unrecognized: %d\n",
++		counts[Small], counts[Large], counts[Unrecognized])
++
++	// Output:
++	// Inventory Counts:
++	// * Small:        3
++	// * Large:        2
++	// * Unrecognized: 3
++}
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index d393d0610b..add5ece782 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -61,6 +61,10 @@ const (
+ //       string of length zero.
+ //     - an anonymous struct field is handled as if the fields of its
+ //       value were part of the outer struct.
++//     - a field implementing Marshaler is written by calling its MarshalXML
++//       method.
++//     - a field implementing encoding.TextMarshaler is written by encoding the
++//       result of its MarshalText method as text.
+ //
+ // If a field uses a tag "a>b>c", then the element c will be nested inside
+ // parent elements a and b. Fields that appear next to each other that name
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 36c7ba6311..12102bc804 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -92,6 +92,11 @@ import (
+ //
+ //   * A struct field with tag "-" is never unmarshaled into.
+ //
++// If Unmarshal encounters a field type that implements the Unmarshaler
++// interface, Unmarshal calls its UnmarshalXML method to produce the value from
++// the XML element.  Otherwise, if the value implements
++// encoding.TextUnmarshaler, Unmarshal calls that value's UnmarshalText method.
++//
+ // Unmarshal maps an XML element to a string or []byte by saving the
+ // concatenation of that element's character data in the string or
+ // []byte. The saved []byte is never nil.

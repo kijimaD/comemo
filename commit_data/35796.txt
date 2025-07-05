@@ -11,7 +11,57 @@ Date:   Tue Jan 9 14:40:54 2018 -0500
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
-
+---
  src/cmd/compile/internal/ssa/func.go  |  2 +-
  src/cmd/compile/internal/ssa/prove.go | 11 +++++++++--
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 7e8f68bf87..3868ee37d9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -28,7 +28,7 @@ type Func struct {
+ 	Cache  *Cache      // re-usable cache
+ 	fe     Frontend    // frontend state associated with this Func, callbacks into compiler frontend
+ 	pass   *pass       // current pass information (name, options, etc.)
+-	Name   string      // e.g. bytes·Compare
++	Name   string      // e.g. NewFunc or (*Func).NumBlocks (no package prefix)
+ 	Type   *types.Type // type signature of the function.
+ 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
+ 	Entry  *Block      // the entry basic block
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a4473311ba..ecf0412377 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -90,6 +90,12 @@ type limitFact struct {
+ }
+ 
+ // factsTable keeps track of relations between pairs of values.
++//
++// The fact table logic is sound, but incomplete. Outside of a few
++// special cases, it performs no deduction or arithmetic. While there
++// are known decision procedures for this, the ad hoc approach taken
++// by the facts table is effective for real code while remaining very
++// efficient.
+ type factsTable struct {
+ 	facts map[pair]relation // current known set of relation
+ 	stack []fact            // previous sets of relations
+@@ -433,8 +439,8 @@ var (
+ 		// TODO: OpIsInBounds actually test 0 <= a < b. This means
+ 		// that the positive branch learns signed/LT and unsigned/LT
+ 		// but the negative branch only learns unsigned/GE.
+-		OpIsInBounds:      {unsigned, lt},
+-		OpIsSliceInBounds: {unsigned, lt | eq},
++		OpIsInBounds:      {unsigned, lt},      // 0 <= arg0 < arg1
++		OpIsSliceInBounds: {unsigned, lt | eq}, // 0 <= arg0 <= arg1
+ 	}
+ )
+ 
+@@ -625,6 +631,7 @@ func updateRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r
+ // simplifyBlock simplifies block known the restrictions in ft.
+ // Returns which branch must always be taken.
+ func simplifyBlock(ft *factsTable, b *Block) branch {
++	// Replace OpSlicemask operations in b with constants where possible.
+ 	for _, v := range b.Values {
+ 		if v.Op != OpSlicemask {
+ 			continue

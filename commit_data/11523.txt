@@ -9,9 +9,140 @@ Date:   Tue Jan 31 23:37:01 2012 +0100
     R=rsc
     CC=golang-dev, remy
     https://golang.org/cl/5593047
-
+---
  src/cmd/go/get.go              |  2 +-
  src/cmd/go/pkg.go              | 10 ++++++++++
  src/pkg/go/build/build_test.go |  2 ++
  src/pkg/go/build/dir.go        | 26 +++++++++++++++-----------
  4 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index c5b8fb8395..ab53a33362 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -119,7 +119,7 @@ func download(arg string, stk *importStack) {
+ 		stk.push(p.ImportPath)
+ 		defer stk.pop()
+ 		if err := downloadPackage(p); err != nil {
+-			errorf("%s", &PackageError{stk.copy(), err.Error()})
++			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
+ 			return
+ 		}
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index c1f67f8eb9..5b4959a28a 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -59,10 +59,14 @@ type Package struct {
+ // A PackageError describes an error loading information about a package.
+ type PackageError struct {
+ 	ImportStack []string // shortest path from package named on command line to this one
++	Pos         string   // position of error
+ 	Err         string   // the error itself
+ }
+ 
+ func (p *PackageError) Error() string {
++	if p.Pos != "" {
++		return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Pos + ": " + p.Err
++	}
+ 	return strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
+ }
+ 
+@@ -360,6 +364,12 @@ Stale:
+ 		}
+ 		deps[path] = true
+ 		p1 := loadPackage(path, stk)
++		if p1.Error != nil {
++			if info.ImportPos != nil && len(info.ImportPos[path]) > 0 {
++				pos := info.ImportPos[path][0]
++				p1.Error.Pos = pos.String()
++			}
++		}
+ 		imports = append(imports, p1)
+ 		for _, dep := range p1.Deps {
+ 			deps[dep] = true
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index 381e2b2d96..3c706a46ed 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -71,6 +71,8 @@ func TestBuild(t *testing.T) {
+ 			t.Errorf("ScanDir(%#q): %v", tt.dir, err)
+ 			continue
+ 		}
++		// Don't bother testing import positions.
++		tt.info.ImportPos, tt.info.TestImportPos = info.ImportPos, info.TestImportPos
+ 		if !reflect.DeepEqual(info, tt.info) {
+ 			t.Errorf("ScanDir(%#q) = %#v, want %#v\n", tt.dir, info, tt.info)
+ 			continue
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index d49846f7d4..0917e736aa 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -116,10 +116,11 @@ func envOr(name, def string) string {
+ }
+ 
+ type DirInfo struct {
+-	Package        string            // Name of package in dir
+-	PackageComment *ast.CommentGroup // Package comments from GoFiles
+-	ImportPath     string            // Import path of package in dir
+-	Imports        []string          // All packages imported by GoFiles
++	Package        string                      // Name of package in dir
++	PackageComment *ast.CommentGroup           // Package comments from GoFiles
++	ImportPath     string                      // Import path of package in dir
++	Imports        []string                    // All packages imported by GoFiles
++	ImportPos      map[string][]token.Position // Source code location of imports
+ 
+ 	// Source files
+ 	GoFiles  []string // .go files in dir (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+@@ -134,9 +135,10 @@ type DirInfo struct {
+ 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
+ 
+ 	// Test information
+-	TestGoFiles  []string // _test.go files in package
+-	XTestGoFiles []string // _test.go files outside package
+-	TestImports  []string // All packages imported by (X)TestGoFiles
++	TestGoFiles   []string // _test.go files in package
++	XTestGoFiles  []string // _test.go files outside package
++	TestImports   []string // All packages imported by (X)TestGoFiles
++	TestImportPos map[string][]token.Position
+ }
+ 
+ func (d *DirInfo) IsCommand() bool {
+@@ -223,8 +225,8 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 
+ 	var Sfiles []string // files with ".S" (capital S)
+ 	var di DirInfo
+-	imported := make(map[string]bool)
+-	testImported := make(map[string]bool)
++	imported := make(map[string][]token.Position)
++	testImported := make(map[string][]token.Position)
+ 	fset := token.NewFileSet()
+ 	for _, d := range dirs {
+ 		if d.IsDir() {
+@@ -327,9 +329,9 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
+ 				}
+ 				if isTest {
+-					testImported[path] = true
++					testImported[path] = append(testImported[path], fset.Position(spec.Pos()))
+ 				} else {
+-					imported[path] = true
++					imported[path] = append(imported[path], fset.Position(spec.Pos()))
+ 				}
+ 				if path == "C" {
+ 					if isTest {
+@@ -366,12 +368,14 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		return nil, fmt.Errorf("%s: no Go source files", dir)
+ 	}
+ 	di.Imports = make([]string, len(imported))
++	di.ImportPos = imported
+ 	i := 0
+ 	for p := range imported {
+ 		di.Imports[i] = p
+ 		i++
+ 	}
+ 	di.TestImports = make([]string, len(testImported))
++	di.TestImportPos = testImported
+ 	i = 0
+ 	for p := range testImported {
+ 		di.TestImports[i] = p

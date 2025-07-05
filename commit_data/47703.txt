@@ -29,8 +29,163 @@ Date:   Tue Apr 6 18:39:15 2021 -0400
     Trust: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 14 ++++++---
  test/abi/part_live.go                  | 48 ++++++++++++++++++++++++++++++
  test/abi/part_live_2.go                | 53 ++++++++++++++++++++++++++++++++++
  3 files changed, 111 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 48102e5398..97b970012d 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -558,6 +558,11 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 				v := s.newValue0A(ssa.OpArg, n.Type(), n)
+ 				s.vars[n] = v
+ 				s.addNamedValue(n, v) // This helps with debugging information, not needed for compilation itself.
++				// TODO(register args) Make liveness more fine-grained to that partial spilling is okay.
++				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
++				if len(paramAssignment.Registers) > 1 && n.Type().HasPointers() { // 1 cannot be partially live
++					s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], true)
++				}
+ 			} else { // address was taken AND/OR too large for SSA
+ 				paramAssignment := ssa.ParamAssignmentForArgName(s.f, n)
+ 				if len(paramAssignment.Registers) > 0 {
+@@ -567,9 +572,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 					} else { // Too big for SSA.
+ 						// Brute force, and early, do a bunch of stores from registers
+ 						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
+-						abi := s.f.ABISelf
+-						addr := s.decladdrs[n]
+-						s.storeParameterRegsToStack(abi, paramAssignment, n, addr)
++						s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], false)
+ 					}
+ 				}
+ 			}
+@@ -645,9 +648,12 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	return s.f
+ }
+ 
+-func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *abi.ABIParamAssignment, n *ir.Name, addr *ssa.Value) {
++func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *abi.ABIParamAssignment, n *ir.Name, addr *ssa.Value, pointersOnly bool) {
+ 	typs, offs := paramAssignment.RegisterTypesAndOffsets()
+ 	for i, t := range typs {
++		if pointersOnly && !t.IsPtrShaped() {
++			continue
++		}
+ 		r := paramAssignment.Registers[i]
+ 		o := offs[i]
+ 		op, reg := ssa.ArgOpAndRegisterFor(r, abi)
+diff --git a/test/abi/part_live.go b/test/abi/part_live.go
+new file mode 100644
+index 0000000000..592b6b3a07
+--- /dev/null
++++ b/test/abi/part_live.go
+@@ -0,0 +1,48 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A test for partial liveness / partial spilling / compiler-induced GC failure
++
++package main
++
++import "runtime"
++import "unsafe"
++
++//go:registerparams
++func F(s []int) {
++	for i, x := range s {
++		G(i, x)
++	}
++	GC()
++	G(len(s), cap(s))
++	GC()
++}
++
++//go:noinline
++//go:registerparams
++func G(int, int) {}
++
++//go:registerparams
++func GC() { runtime.GC(); runtime.GC() }
++
++func main() {
++	s := make([]int, 3)
++	escape(s)
++	p := int(uintptr(unsafe.Pointer(&s[2])) + 42) // likely point to unallocated memory
++	poison([3]int{p, p, p})
++	F(s)
++}
++
++//go:noinline
++//go:registerparams
++func poison([3]int) {}
++
++//go:noinline
++//go:registerparams
++func escape(s []int) {
++	g = s
++}
++var g []int
+diff --git a/test/abi/part_live_2.go b/test/abi/part_live_2.go
+new file mode 100644
+index 0000000000..f9d7b01bce
+--- /dev/null
++++ b/test/abi/part_live_2.go
+@@ -0,0 +1,53 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// A test for partial liveness / partial spilling / compiler-induced GC failure
++
++package main
++
++import "runtime"
++import "unsafe"
++
++//go:registerparams
++func F(s []int) {
++	for i, x := range s {
++		G(i, x)
++	}
++	GC()
++	H(&s[0]) // It's possible that this will make the spill redundant, but there's a bug in spill slot allocation.
++	G(len(s), cap(s))
++	GC()
++}
++
++//go:noinline
++//go:registerparams
++func G(int, int) {}
++
++//go:noinline
++//go:registerparams
++func H(*int) {}
++
++//go:registerparams
++func GC() { runtime.GC(); runtime.GC() }
++
++func main() {
++	s := make([]int, 3)
++	escape(s)
++	p := int(uintptr(unsafe.Pointer(&s[2])) + 42) // likely point to unallocated memory
++	poison([3]int{p, p, p})
++	F(s)
++}
++
++//go:noinline
++//go:registerparams
++func poison([3]int) {}
++
++//go:noinline
++//go:registerparams
++func escape(s []int) {
++	g = s
++}
++var g []int

@@ -14,7 +14,7 @@ Date:   Mon Apr 20 11:09:14 2015 +1200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6l/asm.go                | 11 -----------
  src/cmd/internal/ld/objfile.go   |  4 ++--
  src/cmd/internal/obj/arm/asm5.go |  2 --
@@ -22,3 +22,101 @@ Date:   Mon Apr 20 11:09:14 2015 +1200
  src/cmd/internal/obj/objfile.go  |  4 ++--
  src/cmd/internal/obj/x86/asm6.go |  5 -----
  6 files changed, 4 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 25e431fc31..0f67fdbf90 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -392,17 +392,6 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 		} else {
+ 			return -1
+ 		}
+-
+-	case obj.R_TLS:
+-		if r.Siz == 4 {
+-			if ld.Buildmode == ld.BuildmodeCShared {
+-				ld.Thearch.Vput(ld.R_X86_64_GOTTPOFF | uint64(elfsym)<<32)
+-			} else {
+-				ld.Thearch.Vput(ld.R_X86_64_TPOFF32 | uint64(elfsym)<<32)
+-			}
+-		} else {
+-			return -1
+-		}
+ 	}
+ 
+ 	ld.Thearch.Vput(uint64(r.Xadd))
+diff --git a/src/cmd/internal/ld/objfile.go b/src/cmd/internal/ld/objfile.go
+index 4a3212f384..c424cdca8c 100644
+--- a/src/cmd/internal/ld/objfile.go
++++ b/src/cmd/internal/ld/objfile.go
+@@ -143,9 +143,9 @@ overwrite:
+ 			r.Siz = uint8(rdint(f))
+ 			r.Type = int32(rdint(f))
+ 			r.Add = rdint(f)
+-			r.Xadd = rdint(f)
++			rdint(f) // Xadd, ignored
+ 			r.Sym = rdsym(ctxt, f, pkg)
+-			r.Xsym = rdsym(ctxt, f, pkg)
++			rdsym(ctxt, f, pkg) // Xsym, ignored
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index a677dc459c..6207c7367e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1673,8 +1673,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 				if ctxt.Flag_shared != 0 {
+ 					rel.Add += ctxt.Pc - p.Pcrel.Pc - 8 - int64(rel.Siz)
+ 				}
+-				rel.Xadd = rel.Add
+-				rel.Xsym = rel.Sym
+ 			} else if ctxt.Flag_shared != 0 {
+ 				rel.Type = obj.R_PCREL
+ 				rel.Add += ctxt.Pc - p.Pcrel.Pc - 8
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6be5a816c2..33b28580ea 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -356,9 +356,7 @@ type Reloc struct {
+ 	Siz  uint8
+ 	Type int32
+ 	Add  int64
+-	Xadd int64
+ 	Sym  *LSym
+-	Xsym *LSym
+ }
+ 
+ // Reloc.type
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c45ddd86ca..461a926fe7 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -413,9 +413,9 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 		wrint(b, int64(r.Siz))
+ 		wrint(b, int64(r.Type))
+ 		wrint(b, r.Add)
+-		wrint(b, r.Xadd)
++		wrint(b, 0) // Xadd, ignored
+ 		wrsym(b, r.Sym)
+-		wrsym(b, r.Xsym)
++		wrsym(b, nil) // Xsym, ignored
+ 	}
+ 
+ 	if s.Type == STEXT {
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 04f829a7d7..6a367c21dc 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2460,11 +2460,6 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 		r.Off = -1 // caller must fill in
+ 		r.Sym = s
+ 		r.Add = a.Offset
+-		if s.Type == obj.STLSBSS {
+-			r.Xadd = r.Add - int64(r.Siz)
+-			r.Type = obj.R_TLS
+-			r.Xsym = s
+-		}
+ 
+ 		return 0
+ 	}

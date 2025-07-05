@@ -20,6 +20,53 @@ Date:   Fri Jan 26 12:23:01 2024 -0500
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/net_fake.go | 18 +++++-------------
  1 file changed, 5 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index b7ecb39144..2d1e137b6d 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -460,16 +460,6 @@ func (pq *packetQueue) put(q packetQueueState) {
+ 
+ func (pq *packetQueue) closeRead() error {
+ 	q := pq.get()
+-
+-	// Discard any unread packets.
+-	for q.head != nil {
+-		p := q.head
+-		q.head = p.next
+-		p.clear()
+-		packetPool.Put(p)
+-	}
+-	q.nBytes = 0
+-
+ 	q.readClosed = true
+ 	pq.put(q)
+ 	return nil
+@@ -557,7 +547,7 @@ func (pq *packetQueue) send(dt *deadlineTimer, b []byte, from sockaddr, block bo
+ 	}
+ 	if q.writeClosed {
+ 		return 0, ErrClosed
+-	} else if q.readClosed {
++	} else if q.readClosed && q.nBytes >= q.readBufferBytes {
+ 		return 0, os.NewSyscallError("send", syscall.ECONNRESET)
+ 	}
+ 
+@@ -603,11 +593,13 @@ func (pq *packetQueue) recvfrom(dt *deadlineTimer, b []byte, wholePacket bool, c
+ 	}
+ 	defer func() { pq.put(q) }()
+ 
++	if q.readClosed {
++		return 0, nil, ErrClosed
++	}
++
+ 	p := q.head
+ 	if p == nil {
+ 		switch {
+-		case q.readClosed:
+-			return 0, nil, ErrClosed
+ 		case q.writeClosed:
+ 			if q.noLinger {
+ 				return 0, nil, os.NewSyscallError("recvfrom", syscall.ECONNRESET)

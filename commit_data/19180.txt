@@ -14,7 +14,7 @@ Date:   Wed Apr 16 14:36:44 2014 -0700
     R=rsc, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/88210045
-
+---
  include/link.h        | 2 +-
  src/cmd/5a/lex.c      | 2 +-
  src/cmd/5c/swt.c      | 2 +-
@@ -25,3 +25,125 @@ Date:   Wed Apr 16 14:36:44 2014 -0700
  src/cmd/gc/obj.c      | 2 +-
  src/liblink/objfile.c | 5 ++++-
  9 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index c4a6c3dea6..a80b62084a 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -571,7 +571,7 @@ void	linkprfile(Link *ctxt, int32 l);
+ 
+ // objfile.c
+ void	ldobjfile(Link *ctxt, Biobuf *b, char *pkg, int64 len, char *path);
+-void	linkwriteobj(Link *ctxt, Biobuf *b);
++void	writeobj(Link *ctxt, Biobuf *b);
+ 
+ // pass.c
+ Prog*	brchain(Link *ctxt, Prog *p);
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 906eee641a..571fdf7f26 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -172,7 +172,7 @@ assemble(char *file)
+ 			return nerrors;
+ 	}
+ 
+-	linkwriteobj(ctxt, &obuf);
++	writeobj(ctxt, &obuf);
+ 	Bflush(&obuf);
+ 	return 0;
+ }
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 97c2e6c84e..fd81a4e68a 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -365,7 +365,7 @@ outcode(void)
+ 	}
+ 	Bprint(&outbuf, "!\n");
+ 
+-	linkwriteobj(ctxt, &outbuf);
++	writeobj(ctxt, &outbuf);
+ 	lastp = P;
+ }
+ 
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 4ebcc175c3..167e6b6c17 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -182,7 +182,7 @@ assemble(char *file)
+ 			return nerrors;
+ 	}
+ 
+-	linkwriteobj(ctxt, &obuf);
++	writeobj(ctxt, &obuf);
+ 	Bflush(&obuf);
+ 	return 0;
+ }
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index c46207d34a..d7713648de 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -239,7 +239,7 @@ outcode(void)
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+-	linkwriteobj(ctxt, &b);
++	writeobj(ctxt, &b);
+ 	Bterm(&b);
+ 	close(f);
+ 	lastp = P;
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 79a9488e4b..32c099b75a 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -177,7 +177,7 @@ assemble(char *file)
+ 			return nerrors;
+ 	}
+ 
+-	linkwriteobj(ctxt, &obuf);
++	writeobj(ctxt, &obuf);
+ 	Bflush(&obuf);
+ 	return 0;
+ }
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 54fb0881f8..ae36f84eac 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -244,7 +244,7 @@ outcode(void)
+ 	}
+ 	Bprint(&b, "!\n");
+ 
+-	linkwriteobj(ctxt, &b);
++	writeobj(ctxt, &b);
+ 	Bterm(&b);
+ 	close(f);
+ 	lastp = P;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index b5b8df510f..4eeb03aa8e 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -87,7 +87,7 @@ dumpobj(void)
+ 	ggloblsym(zero, zerosize, 1, 1);
+ 
+ 	dumpdata();
+-	linkwriteobj(ctxt, bout);
++	writeobj(ctxt, bout);
+ 
+ 	if(writearchive) {
+ 		Bflush(bout);
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 0c51e795f5..271620a1e8 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -114,8 +114,11 @@ static char *rdstring(Biobuf*);
+ static void rddata(Biobuf*, uchar**, int*);
+ static LSym *rdsym(Link*, Biobuf*, char*);
+ 
++// The Go and C compilers, and the assembler, call writeobj to write
++// out a Go object file.  The linker does not call this; the linker
++// does not write out object files.
+ void
+-linkwriteobj(Link *ctxt, Biobuf *b)
++writeobj(Link *ctxt, Biobuf *b)
+ {
+ 	int flag;
+ 	Hist *h;

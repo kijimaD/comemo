@@ -90,3 +90,144 @@ Date:   Mon Feb 8 21:22:01 2021 -0500
  src/testing/fstest/testfs_test.go               |   31 +
  test/codegen/structs.go                         |    4 +-
  72 files changed, 2393 insertions(+), 2215 deletions(-)
+
+diff --cc src/go/types/api_test.go
+index 014cd5282e,dde451ee3c..3ea14c9316
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@@ -281,28 -304,12 +317,30 @@@ func TestTypesInfo(t *testing.T) 
+  		},
+  
+  		// tests for broken code that doesn't parse or type-check
+- 		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+- 		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+- 		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
+- 		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
++ 		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
++ 		{broken + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
++ 		{broken + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
++ 		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
+  		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
+- 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
++ 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+ +
+ +		// parameterized functions
+ +		{genericPkg + `p0; func f[T any](T); var _ = f(int)`, `f`, `func[T₁ any](T₁)`},
+ +		{genericPkg + `p1; func f[T any](T); var _ = f(int)`, `f(int)`, `func(int)`},
+- 		{genericPkg + `p2; func f[T any](T); var _ = f(42)`, `f`, `func[T₁ any](T₁)`},
+- 		{genericPkg + `p2; func f[T any](T); var _ = f(42)`, `f(42)`, `()`},
+++		{genericPkg + `p2; func f[T any](T); func _() { f(42) }`, `f`, `func[T₁ any](T₁)`},
+++		{genericPkg + `p3; func f[T any](T); func _() { f(42) }`, `f(42)`, `()`},
+ +
+ +		// type parameters
+ +		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+ +		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P₁ any]`},
+ +		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[P₁ interface{}]`},
+ +		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[P₁, Q₂ interface{}]`},
+- 		{genericPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `generic_t4.t[P₁, Q₂ interface{m()}]`},
+++
+++		// TODO (rFindley): compare with types2, which resolves the type broken_t4.t[P₁, Q₂ interface{m()}] here
+++		{broken + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t`},
+ +
+ +		// instantiated types must be sanitized
+ +		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
+  	}
+  
+  	for _, test := range tests {
+diff --cc src/go/types/decl.go
+index bd2c546661,571e172351..f2e68bbd5c
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@@ -511,9 -504,23 +511,23 @@@ func (check *Checker) constDecl(obj *Co
+  func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+  	assert(obj.typ == nil)
+  
++ 	// If we have undefined variable types due to errors,
++ 	// mark variables as used to avoid follow-on errors.
++ 	// Matches compiler behavior.
++ 	defer func() {
++ 		if obj.typ == Typ[Invalid] {
++ 			obj.used = true
++ 		}
++ 		for _, lhs := range lhs {
++ 			if lhs.typ == Typ[Invalid] {
++ 				lhs.used = true
++ 			}
++ 		}
++ 	}()
++ 
+  	// determine type, if any
+  	if typ != nil {
+ -		obj.typ = check.typ(typ)
+ +		obj.typ = check.varType(typ)
+  		// We cannot spread the type to all lhs variables if there
+  		// are more than one since that would mark them as checked
+  		// (see Checker.objDecl) and the assignment of init exprs,
+diff --cc src/go/types/expr.go
+index 1deda99aaf,f7fb0caedd..0d95402455
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@@ -584,23 -577,12 +584,24 @@@ func (check *Checker) implicitTypeAndVa
+  		case UntypedNil:
+  			// Unsafe.Pointer is a basic type that includes nil.
+  			if !hasNil(target) {
+ -				return nil
+ +				return nil, nil, _InvalidUntypedConversion
+  			}
+- 			// TODO(rFindley) return UntypedNil here (golang.org/issues/13061).
++ 			// Preserve the type of nil as UntypedNil: see #13061.
+ -			return Typ[UntypedNil]
+++			return Typ[UntypedNil], nil, 0
+  		default:
+ -			return nil
+ +			return nil, nil, _InvalidUntypedConversion
+ +		}
+ +	case *Sum:
+ +		ok := t.is(func(t Type) bool {
+ +			target, _, _ := check.implicitTypeAndValue(x, t)
+ +			return target != nil
+ +		})
+ +		if !ok {
+ +			return nil, nil, _InvalidUntypedConversion
+ +		}
+ +		// keep nil untyped (was bug #39755)
+ +		if x.isNil() {
+ +			return Typ[UntypedNil], nil, 0
+  		}
+  	case *Interface:
+  		// Values must have concrete dynamic types. If the value is nil,
+diff --cc src/go/types/resolver.go
+index 639ed12117,b637f8b8ca..4f09237692
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@@ -373,20 -366,9 +373,26 @@@ func (check *Checker) collectObjects() 
+  				info := &declInfo{file: fileScope, fdecl: d.decl}
+  				name := d.decl.Name.Name
+  				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil)
+ -				if d.decl.Recv == nil {
+ +				if !d.decl.IsMethod() {
+  					// regular function
+ +					if d.decl.Recv != nil {
+ +						check.error(d.decl.Recv, _BadRecv, "method is missing receiver")
+ +						// treat as function
+ +					}
+- 					if name == "init" {
+++					if name == "init" || (name == "main" && check.pkg.name == "main") {
+++						code := _InvalidInitDecl
+++						if name == "main" {
+++							code = _InvalidMainDecl
+++						}
+ +						if d.decl.Type.TParams != nil {
+- 							check.softErrorf(d.decl.Type.TParams, _InvalidInitSig, "func init must have no type parameters")
+++							check.softErrorf(d.decl.Type.TParams, code, "func %s must have no type parameters", name)
+ +						}
+ +						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
+ +							// TODO(rFindley) Should this be a hard error?
+- 							check.softErrorf(d.decl, _InvalidInitSig, "func init must have no arguments and no return values")
+++							check.softErrorf(d.decl, code, "func %s must have no arguments and no return values", name)
+ +						}
+++					}
++ 					if name == "init" {
+  						// don't declare init functions in the package scope - they are invisible
+  						obj.parent = pkg.scope
+  						check.recordDef(d.decl.Name, obj)

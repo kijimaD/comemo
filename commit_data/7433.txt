@@ -9,6 +9,25 @@ Date:   Thu Feb 10 16:32:51 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4170044
-
+---
  src/cmd/godoc/utils.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index a032bd3311..cc028cc4d7 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -60,10 +60,10 @@ func canonicalizePaths(list []string, filter func(path string) bool) []string {
+ 			continue // ignore empty paths (don't assume ".")
+ 		}
+ 		// len(path) > 0: normalize path
+-		if path[0] != '/' {
+-			path = pathutil.Join(cwd, path)
+-		} else {
++		if pathutil.IsAbs(path) {
+ 			path = pathutil.Clean(path)
++		} else {
++			path = pathutil.Join(cwd, path)
+ 		}
+ 		// we have a non-empty absolute path
+ 		if filter != nil && !filter(path) {

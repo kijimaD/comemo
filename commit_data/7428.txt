@@ -7,6 +7,23 @@ Date:   Fri Feb 11 06:56:31 2011 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/4128060
-
+---
  src/pkg/encoding/binary/binary.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 77ff3a9f3e..ee2f23dbba 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -2,8 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements translation between
+-// unsigned integer values and byte sequences.
++// Package binary implements translation between
++// unsigned integer values and byte sequences
++// and the reading and writing of fixed-size values.
+ package binary
+ 
+ import (

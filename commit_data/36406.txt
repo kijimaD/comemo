@@ -12,6 +12,22 @@ Date:   Fri Apr 20 10:16:00 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/108555
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 7014159cee..8f985bc0e3 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -720,7 +720,9 @@ func (b *Builder) vet(a *Action) error {
+ 	// so at least for now assume the bug is in vet.
+ 	// We know of at least #18395.
+ 	// TODO(rsc,gri): Try to remove this for Go 1.11.
+-	vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
++	//
++	// Disabled 2018-04-20. Let's see if we can do without it.
++	// vcfg.SucceedOnTypecheckFailure = cfg.CmdName == "test"
+ 
+ 	js, err := json.MarshalIndent(vcfg, "", "\t")
+ 	if err != nil {

@@ -15,8 +15,80 @@ Date:   Fri Dec 2 12:30:37 2011 -0500
     R=r, gri
     CC=golang-dev
     https://golang.org/cl/5437120
-
+---
  doc/go_tutorial.html | 8 +++++---
  doc/go_tutorial.tmpl | 8 +++++---
  doc/progs/sum.go     | 3 ++-
  3 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 88785a2124..423abe8b0a 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -343,19 +343,21 @@ Using slices one can write this function (from <code>sum.go</code>):
+ Note how the return type (<code>int</code>) is defined for <code>sum</code> by stating it
+ after the parameter list.
+ <p>
+-To call the function, we slice the array.  This intricate call (we'll show
++To call the function, we slice the array.  This code (we'll show
+ a simpler way in a moment) constructs
+ an array and slices it:
+ <p>
+ <pre>
+-s := sum([3]int{1,2,3}[:])
++x := [3]int{1,2,3}
++s := sum(x[:])
+ </pre>
+ <p>
+ If you are creating a regular array but want the compiler to count the
+ elements for you, use <code>...</code> as the array size:
+ <p>
+ <pre>
+-s := sum([...]int{1,2,3}[:])
++x := [...]int{1,2,3}
++s := sum(x[:])
+ </pre>
+ <p>
+ That's fussier than necessary, though.
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index dfd818959c..d1219b47ed 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -288,19 +288,21 @@ Using slices one can write this function (from <code>sum.go</code>):
+ Note how the return type (<code>int</code>) is defined for <code>sum</code> by stating it
+ after the parameter list.
+ <p>
+-To call the function, we slice the array.  This intricate call (we'll show
++To call the function, we slice the array.  This code (we'll show
+ a simpler way in a moment) constructs
+ an array and slices it:
+ <p>
+ <pre>
+-s := sum([3]int{1,2,3}[:])
++x := [3]int{1,2,3}
++s := sum(x[:])
+ </pre>
+ <p>
+ If you are creating a regular array but want the compiler to count the
+ elements for you, use <code>...</code> as the array size:
+ <p>
+ <pre>
+-s := sum([...]int{1,2,3}[:])
++x := [...]int{1,2,3}
++s := sum(x[:])
+ </pre>
+ <p>
+ That's fussier than necessary, though.
+diff --git a/doc/progs/sum.go b/doc/progs/sum.go
+index e022195ed5..0f316bc012 100644
+--- a/doc/progs/sum.go
++++ b/doc/progs/sum.go
+@@ -15,6 +15,7 @@ func sum(a []int) int { // returns an int
+ }
+ 
+ func main() {
+-	s := sum([3]int{1, 2, 3}[:]) // a slice of the array is passed to sum
++	x := [3]int{1, 2, 3}
++	s := sum(x[:]) // a slice of the array is passed to sum
+ 	fmt.Print(s, "\n")
+ }

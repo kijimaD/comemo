@@ -12,7 +12,7 @@ Date:   Fri Feb 17 10:04:29 2012 +1100
     R=mikioh.mikioh, gustavo, r, rsc
     CC=golang-dev
     https://golang.org/cl/5672047
-
+---
  doc/go1.html                         | 21 ++++++++++-
  doc/go1.tmpl                         | 17 ++++++++-
  doc/go_tutorial.html                 |  8 ++---
@@ -56,3 +56,1738 @@ Date:   Fri Feb 17 10:04:29 2012 +1100
  src/pkg/os/stat_windows.go           |  2 +-
  test/fixedbugs/bug262.go             |  4 +--
  42 files changed, 278 insertions(+), 218 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index b1f92338da..13d74012bc 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1494,12 +1494,31 @@ the i-number expression could be contracted to
+ The vast majority of uses of <code>FileInfo</code> need only the methods
+ of the standard interface.
+ </p>
+-	
++
++<p>
++The <code>os</code> package no longer contains wrappers for the POSIX errors
++such as <code>ENOENT</code>.
++For the few programs that need to verify particular error conditions, there are
++now the boolean functions
++<a href="/pkg/os/#IsExist"><code>IsExist</code></a>,
++<a href="/pkg/os/#IsNotExist"><code>IsNotExist</code></a>
++and
++<a href="/pkg/os/#IsPermission"><code>IsPermission</code></a>.
++</p>
++
++<pre><!--{{code "progs/go1.go" `/os\.Open/` `/}/`}}
++-->    f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
++    if os.IsExist(err) {
++        log.Printf(&#34;%s already exists&#34;, name)
++    }</pre>
++
+ <p>
+ <em>Updating</em>:
+ Running <code>go fix</code> will update code that uses the old equivalent of the current <code>os.FileInfo</code>
+ and <code>os.FileMode</code> API.
+ Code that needs system-specific file details will need to be updated by hand.
++Code that uses the old POSIX error values from the <code>os</code> package
++will fail to compile and will also need to be updated by hand.
+ </p>
+ 
+ <h3 id="path_filepath">The path/filepath package</h3>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 32b166a8b1..a963b14984 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1397,12 +1397,27 @@ the i-number expression could be contracted to
+ The vast majority of uses of <code>FileInfo</code> need only the methods
+ of the standard interface.
+ </p>
+-	
++
++<p>
++The <code>os</code> package no longer contains wrappers for the POSIX errors
++such as <code>ENOENT</code>.
++For the few programs that need to verify particular error conditions, there are
++now the boolean functions
++<a href="/pkg/os/#IsExist"><code>IsExist</code></a>,
++<a href="/pkg/os/#IsNotExist"><code>IsNotExist</code></a>
++and
++<a href="/pkg/os/#IsPermission"><code>IsPermission</code></a>.
++</p>
++
++{{code "progs/go1.go" `/os\.Open/` `/}/`}}
++
+ <p>
+ <em>Updating</em>:
+ Running <code>go fix</code> will update code that uses the old equivalent of the current <code>os.FileInfo</code>
+ and <code>os.FileMode</code> API.
+ Code that needs system-specific file details will need to be updated by hand.
++Code that uses the old POSIX error values from the <code>os</code> package
++will fail to compile and will also need to be updated by hand.
+ </p>
+ 
+ <h3 id="path_filepath">The path/filepath package</h3>
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index eaa989a200..589262363f 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -623,7 +623,7 @@ each of which declares a receiver variable <code>file</code>.
+ <pre><!--{{code "progs/file.go" `/Close/` "$"}}
+ -->func (file *File) Close() error {
+     if file == nil {
+-        return os.EINVAL
++        return os.ErrInvalid
+     }
+     err := syscall.Close(file.fd)
+     file.fd = -1 // so it can&#39;t be closed again
+@@ -632,7 +632,7 @@ each of which declares a receiver variable <code>file</code>.
+ 
+ func (file *File) Read(b []byte) (ret int, err error) {
+     if file == nil {
+-        return -1, os.EINVAL
++        return -1, os.ErrInvalid
+     }
+     r, err := syscall.Read(file.fd, b)
+     return int(r), err
+@@ -640,7 +640,7 @@ func (file *File) Read(b []byte) (ret int, err error) {
+ 
+ func (file *File) Write(b []byte) (ret int, err error) {
+     if file == nil {
+-        return -1, os.EINVAL
++        return -1, os.ErrInvalid
+     }
+     r, err := syscall.Write(file.fd, b)
+     return int(r), err
+@@ -659,7 +659,7 @@ array, not just for <code>structs</code>.   We'll see an example with arrays lat
+ The <code>String</code> method is so called because of a printing convention we'll
+ describe later.
+ <p>
+-The methods use the public variable <code>os.EINVAL</code> to return the (<code>error</code>
++The methods use the public variable <code>os.ErrInvalid</code> to return the (<code>error</code>
+ version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
+ set of such error values.
+ <p>
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index bde724ce31..33189189e4 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -538,7 +538,7 @@ array, not just for <code>structs</code>.   We'll see an example with arrays lat
+ The <code>String</code> method is so called because of a printing convention we'll
+ describe later.
+ <p>
+-The methods use the public variable <code>os.EINVAL</code> to return the (<code>error</code>
++The methods use the public variable <code>os.ErrInvalid</code> to return the (<code>error</code>
+ version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
+ set of such error values.
+ <p>
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index e1aadaa7da..75f0f207ac 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -49,7 +49,7 @@ func Create(name string) (file *File, err error) {
+ 
+ func (file *File) Close() error {
+ 	if file == nil {
+-		return os.EINVAL
++		return os.ErrInvalid
+ 	}
+ 	err := syscall.Close(file.fd)
+ 	file.fd = -1 // so it can't be closed again
+@@ -58,7 +58,7 @@ func (file *File) Close() error {
+ 
+ func (file *File) Read(b []byte) (ret int, err error) {
+ 	if file == nil {
+-		return -1, os.EINVAL
++		return -1, os.ErrInvalid
+ 	}
+ 	r, err := syscall.Read(file.fd, b)
+ 	return int(r), err
+@@ -66,7 +66,7 @@ func (file *File) Read(b []byte) (ret int, err error) {
+ 
+ func (file *File) Write(b []byte) (ret int, err error) {
+ 	if file == nil {
+-		return -1, os.EINVAL
++		return -1, os.ErrInvalid
+ 	}
+ 	r, err := syscall.Write(file.fd, b)
+ 	return int(r), err
+diff --git a/doc/progs/file_windows.go b/doc/progs/file_windows.go
+index e6a355049a..8b79ee97de 100644
+--- a/doc/progs/file_windows.go
++++ b/doc/progs/file_windows.go
+@@ -49,7 +49,7 @@ func Create(name string) (file *File, err error) {
+ 
+ func (file *File) Close() error {
+ 	if file == nil {
+-		return os.EINVAL
++		return os.ErrInvalid
+ 	}
+ 	err := syscall.Close(file.fd)
+ 	file.fd = syscall.InvalidHandle // so it can't be closed again
+@@ -58,7 +58,7 @@ func (file *File) Close() error {
+ 
+ func (file *File) Read(b []byte) (ret int, err error) {
+ 	if file == nil {
+-		return -1, os.EINVAL
++		return -1, os.ErrInvalid
+ 	}
+ 	r, err := syscall.Read(file.fd, b)
+ 	return int(r), err
+@@ -66,7 +66,7 @@ func (file *File) Read(b []byte) (ret int, err error) {
+ 
+ func (file *File) Write(b []byte) (ret int, err error) {
+ 	if file == nil {
+-		return -1, os.EINVAL
++		return -1, os.ErrInvalid
+ 	}
+ 	r, err := syscall.Write(file.fd, b)
+ 	return int(r), err
+diff --git a/doc/progs/go1.go b/doc/progs/go1.go
+index 0348aa315e..653c97fbf5 100644
+--- a/doc/progs/go1.go
++++ b/doc/progs/go1.go
+@@ -11,6 +11,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"log"
++	"os"
+ 	"testing"
+ 	"time"
+ 	"unicode"
+@@ -27,6 +28,7 @@ func main() {
+ 	runeType()
+ 	errorExample()
+ 	timePackage()
++	osIsExist()
+ }
+ 
+ var timeout = flag.Duration("timeout", 30*time.Second, "how long to wait for completion")
+@@ -206,3 +208,12 @@ func BenchmarkSprintf(b *testing.B) {
+ 		fmt.Sprintf("%x", 23)
+ 	}
+ }
++
++func osIsExist() {
++	name := "go1.go"
++	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
++	if os.IsExist(err) {
++		log.Printf("%s already exists", name)
++	}
++	_ = f
++}
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 645eed6abb..42d2e67586 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -49,7 +49,7 @@ func TempFile(dir, prefix string) (f *os.File, err error) {
+ 	for i := 0; i < 10000; i++ {
+ 		name := filepath.Join(dir, prefix+nextSuffix())
+ 		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+-		if pe, ok := err.(*os.PathError); ok && pe.Err == os.EEXIST {
++		if os.IsExist(err) {
+ 			if nconflict++; nconflict > 10 {
+ 				rand = reseed()
+ 			}
+@@ -76,7 +76,7 @@ func TempDir(dir, prefix string) (name string, err error) {
+ 	for i := 0; i < 10000; i++ {
+ 		try := filepath.Join(dir, prefix+nextSuffix())
+ 		err = os.Mkdir(try, 0700)
+-		if pe, ok := err.(*os.PathError); ok && pe.Err == os.EEXIST {
++		if os.IsExist(err) {
+ 			if nconflict++; nconflict > 10 {
+ 				rand = reseed()
+ 			}
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index bf0a387775..334da7f22f 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -506,7 +506,7 @@ func (fd *netFD) Write(p []byte) (int, error) {
+ 	}
+ 	defer fd.decref()
+ 	if fd.sysfile == nil {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 
+ 	var err error
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index efd846e5d8..45f5c2d882 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -335,7 +335,7 @@ func (fd *netFD) Close() error {
+ 
+ func (fd *netFD) shutdown(how int) error {
+ 	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	err := syscall.Shutdown(fd.sysfd, how)
+ 	if err != nil {
+@@ -369,7 +369,7 @@ func (o *readOp) Name() string {
+ 
+ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if fd == nil {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	fd.rio.Lock()
+ 	defer fd.rio.Unlock()
+@@ -378,7 +378,7 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	}
+ 	defer fd.decref()
+ 	if fd.sysfd == syscall.InvalidHandle {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	var o readOp
+ 	o.Init(fd, buf, 'r')
+@@ -408,7 +408,7 @@ func (o *readFromOp) Name() string {
+ 
+ func (fd *netFD) ReadFrom(buf []byte) (n int, sa syscall.Sockaddr, err error) {
+ 	if fd == nil {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	if len(buf) == 0 {
+ 		return 0, nil, nil
+@@ -447,7 +447,7 @@ func (o *writeOp) Name() string {
+ 
+ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	if fd == nil {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	fd.wio.Lock()
+ 	defer fd.wio.Unlock()
+@@ -478,7 +478,7 @@ func (o *writeToOp) Name() string {
+ 
+ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	if fd == nil {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	if len(buf) == 0 {
+ 		return 0, nil
+@@ -490,7 +490,7 @@ func (fd *netFD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	}
+ 	defer fd.decref()
+ 	if fd.sysfd == syscall.InvalidHandle {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	var o writeToOp
+ 	o.Init(fd, buf, 'w')
+@@ -578,10 +578,12 @@ func (fd *netFD) dup() (*os.File, error) {
+ 	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
+ }
+ 
++var errNoSupport = errors.New("address family not supported")
++
+ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+-	return 0, 0, 0, nil, os.EAFNOSUPPORT
++	return 0, 0, 0, nil, errNoSupport
+ }
+ 
+ func (fd *netFD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oobn int, err error) {
+-	return 0, 0, os.EAFNOSUPPORT
++	return 0, 0, errNoSupport
+ }
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file.go
+index f9546dc930..c95d16d64e 100644
+--- a/src/pkg/net/file.go
++++ b/src/pkg/net/file.go
+@@ -28,7 +28,7 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 	switch sa.(type) {
+ 	default:
+ 		closesocket(fd)
+-		return nil, os.EINVAL
++		return nil, syscall.EINVAL
+ 	case *syscall.SockaddrInet4:
+ 		family = syscall.AF_INET
+ 		if proto == syscall.SOCK_DGRAM {
+@@ -84,7 +84,7 @@ func FileConn(f *os.File) (c Conn, err error) {
+ 		return newIPConn(fd), nil
+ 	}
+ 	fd.Close()
+-	return nil, os.EINVAL
++	return nil, syscall.EINVAL
+ }
+ 
+ // FileListener returns a copy of the network listener corresponding
+@@ -103,7 +103,7 @@ func FileListener(f *os.File) (l Listener, err error) {
+ 		return &UnixListener{fd, laddr.Name}, nil
+ 	}
+ 	fd.Close()
+-	return nil, os.EINVAL
++	return nil, syscall.EINVAL
+ }
+ 
+ // FilePacketConn returns a copy of the packet network connection
+@@ -122,5 +122,5 @@ func FilePacketConn(f *os.File) (c PacketConn, err error) {
+ 		return newUnixConn(fd), nil
+ 	}
+ 	fd.Close()
+-	return nil, os.EINVAL
++	return nil, syscall.EINVAL
+ }
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index f3e4a053e3..0409008b67 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -6,6 +6,7 @@ package http_test
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -131,7 +132,7 @@ func TestFileServerCleans(t *testing.T) {
+ 	ch := make(chan string, 1)
+ 	fs := FileServer(&testFileSystem{func(name string) (File, error) {
+ 		ch <- name
+-		return nil, os.ENOENT
++		return nil, errors.New("file does not exist")
+ 	}})
+ 	tests := []struct {
+ 		reqPath, openArg string
+diff --git a/src/pkg/net/http/httputil/persist.go b/src/pkg/net/http/httputil/persist.go
+index c065ccfb49..32f4662cc0 100644
+--- a/src/pkg/net/http/httputil/persist.go
++++ b/src/pkg/net/http/httputil/persist.go
+@@ -13,12 +13,12 @@ import (
+ 	"net"
+ 	"net/http"
+ 	"net/textproto"
+-	"os"
+ 	"sync"
+ )
+ 
+ var (
+ 	ErrPersistEOF = &http.ProtocolError{ErrorString: "persistent connection closed"}
++	ErrClosed     = &http.ProtocolError{ErrorString: "connection closed by user"}
+ 	ErrPipeline   = &http.ProtocolError{ErrorString: "pipeline error"}
+ )
+ 
+@@ -191,7 +191,7 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+ 	}
+ 	if sc.c == nil { // connection closed by user in the meantime
+ 		defer sc.lk.Unlock()
+-		return os.EBADF
++		return ErrClosed
+ 	}
+ 	c := sc.c
+ 	if sc.nread <= sc.nwritten {
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index c34ffeb121..9caa86985a 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -66,7 +66,7 @@ func (c *IPConn) Read(b []byte) (int, error) {
+ // Write implements the Conn Write method.
+ func (c *IPConn) Write(b []byte) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Write(b)
+ }
+@@ -74,7 +74,7 @@ func (c *IPConn) Write(b []byte) (int, error) {
+ // Close closes the IP connection.
+ func (c *IPConn) Close() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	err := c.fd.Close()
+ 	c.fd = nil
+@@ -100,7 +100,7 @@ func (c *IPConn) RemoteAddr() Addr {
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *IPConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setDeadline(c.fd, t)
+ }
+@@ -108,7 +108,7 @@ func (c *IPConn) SetDeadline(t time.Time) error {
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *IPConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadDeadline(c.fd, t)
+ }
+@@ -116,7 +116,7 @@ func (c *IPConn) SetReadDeadline(t time.Time) error {
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *IPConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteDeadline(c.fd, t)
+ }
+@@ -125,7 +125,7 @@ func (c *IPConn) SetWriteDeadline(t time.Time) error {
+ // receive buffer associated with the connection.
+ func (c *IPConn) SetReadBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadBuffer(c.fd, bytes)
+ }
+@@ -134,7 +134,7 @@ func (c *IPConn) SetReadBuffer(bytes int) error {
+ // transmit buffer associated with the connection.
+ func (c *IPConn) SetWriteBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteBuffer(c.fd, bytes)
+ }
+@@ -150,7 +150,7 @@ func (c *IPConn) SetWriteBuffer(bytes int) error {
+ // SetReadDeadline.
+ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	// TODO(cw,rsc): consider using readv if we know the family
+ 	// type to avoid the header trim/copy
+@@ -173,7 +173,7 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, uaddr, err := c.ReadFromIP(b)
+ 	return n, uaddr.toAddr(), err
+@@ -187,7 +187,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	sa, err := addr.sockaddr(c.fd.family)
+ 	if err != nil {
+@@ -199,11 +199,11 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	a, ok := addr.(*IPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
++		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
+ 	}
+ 	return c.WriteToIP(b, a)
+ }
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 597b127754..385da036d4 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -83,7 +83,7 @@ func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
+ // Read implements the Conn Read method.
+ func (c *plan9Conn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	if c.data == nil {
+ 		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+@@ -102,7 +102,7 @@ func (c *plan9Conn) Read(b []byte) (n int, err error) {
+ // Write implements the Conn Write method.
+ func (c *plan9Conn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	if c.data == nil {
+ 		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+@@ -116,7 +116,7 @@ func (c *plan9Conn) Write(b []byte) (n int, err error) {
+ // Close closes the connection.
+ func (c *plan9Conn) Close() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	err := c.ctl.Close()
+ 	if err != nil {
+@@ -280,7 +280,7 @@ func (l *plan9Listener) Accept() (c Conn, err error) {
+ 
+ func (l *plan9Listener) Close() error {
+ 	if l == nil || l.ctl == nil {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return l.ctl.Close()
+ }
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index 128766144d..be89e537f3 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -36,7 +36,7 @@ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return os.EPLAN9
+ }
+@@ -45,7 +45,7 @@ func (c *TCPConn) CloseRead() error {
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return os.EPLAN9
+ }
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 200ce91566..f972043eeb 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -70,7 +70,7 @@ func (c *TCPConn) ok() bool { return c != nil && c.fd != nil }
+ // Read implements the Conn Read method.
+ func (c *TCPConn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Read(b)
+ }
+@@ -86,7 +86,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ // Write implements the Conn Write method.
+ func (c *TCPConn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Write(b)
+ }
+@@ -94,7 +94,7 @@ func (c *TCPConn) Write(b []byte) (n int, err error) {
+ // Close closes the TCP connection.
+ func (c *TCPConn) Close() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	err := c.fd.Close()
+ 	c.fd = nil
+@@ -105,7 +105,7 @@ func (c *TCPConn) Close() error {
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return c.fd.CloseRead()
+ }
+@@ -114,7 +114,7 @@ func (c *TCPConn) CloseRead() error {
+ // Most callers should just use Close.
+ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return c.fd.CloseWrite()
+ }
+@@ -138,7 +138,7 @@ func (c *TCPConn) RemoteAddr() Addr {
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *TCPConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setDeadline(c.fd, t)
+ }
+@@ -146,7 +146,7 @@ func (c *TCPConn) SetDeadline(t time.Time) error {
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *TCPConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadDeadline(c.fd, t)
+ }
+@@ -154,7 +154,7 @@ func (c *TCPConn) SetReadDeadline(t time.Time) error {
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteDeadline(c.fd, t)
+ }
+@@ -163,7 +163,7 @@ func (c *TCPConn) SetWriteDeadline(t time.Time) error {
+ // receive buffer associated with the connection.
+ func (c *TCPConn) SetReadBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadBuffer(c.fd, bytes)
+ }
+@@ -172,7 +172,7 @@ func (c *TCPConn) SetReadBuffer(bytes int) error {
+ // transmit buffer associated with the connection.
+ func (c *TCPConn) SetWriteBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteBuffer(c.fd, bytes)
+ }
+@@ -190,7 +190,7 @@ func (c *TCPConn) SetWriteBuffer(bytes int) error {
+ // data to be sent and acknowledged.
+ func (c *TCPConn) SetLinger(sec int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setLinger(c.fd, sec)
+ }
+@@ -199,7 +199,7 @@ func (c *TCPConn) SetLinger(sec int) error {
+ // keepalive messages on the connection.
+ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setKeepAlive(c.fd, keepalive)
+ }
+@@ -210,7 +210,7 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) error {
+ // that data is sent as soon as possible after a Write.
+ func (c *TCPConn) SetNoDelay(noDelay bool) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setNoDelay(c.fd, noDelay)
+ }
+@@ -294,7 +294,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ // and the remote address.
+ func (l *TCPListener) AcceptTCP() (c *TCPConn, err error) {
+ 	if l == nil || l.fd == nil || l.fd.sysfd < 0 {
+-		return nil, os.EINVAL
++		return nil, syscall.EINVAL
+ 	}
+ 	fd, err := l.fd.accept(sockaddrToTCP)
+ 	if err != nil {
+@@ -317,7 +317,7 @@ func (l *TCPListener) Accept() (c Conn, err error) {
+ // Already Accepted connections are not closed.
+ func (l *TCPListener) Close() error {
+ 	if l == nil || l.fd == nil {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return l.fd.Close()
+ }
+@@ -329,7 +329,7 @@ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+ // A zero time value disables the deadline.
+ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	if l == nil || l.fd == nil {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setDeadline(l.fd, t)
+ }
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index f90a5fe9ab..d1f83d3848 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -43,7 +43,7 @@ func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+ // after a fixed time limit; see SetDeadline and SetReadDeadline.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	if c.data == nil {
+ 		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+@@ -69,7 +69,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	return c.ReadFromUDP(b)
+ }
+@@ -82,7 +82,7 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	if c.data == nil {
+ 		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+@@ -106,11 +106,11 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	a, ok := addr.(*UDPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.dir, addr, os.EINVAL}
++		return 0, &OpError{"write", c.dir, addr, syscall.EINVAL}
+ 	}
+ 	return c.WriteToUDP(b, a)
+ }
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 6108373568..8ee58ed4c6 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -63,7 +63,7 @@ func (c *UDPConn) ok() bool { return c != nil && c.fd != nil }
+ // Read implements the Conn Read method.
+ func (c *UDPConn) Read(b []byte) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Read(b)
+ }
+@@ -71,7 +71,7 @@ func (c *UDPConn) Read(b []byte) (int, error) {
+ // Write implements the Conn Write method.
+ func (c *UDPConn) Write(b []byte) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Write(b)
+ }
+@@ -79,7 +79,7 @@ func (c *UDPConn) Write(b []byte) (int, error) {
+ // Close closes the UDP connection.
+ func (c *UDPConn) Close() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	err := c.fd.Close()
+ 	c.fd = nil
+@@ -105,7 +105,7 @@ func (c *UDPConn) RemoteAddr() Addr {
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *UDPConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setDeadline(c.fd, t)
+ }
+@@ -113,7 +113,7 @@ func (c *UDPConn) SetDeadline(t time.Time) error {
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UDPConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadDeadline(c.fd, t)
+ }
+@@ -121,7 +121,7 @@ func (c *UDPConn) SetReadDeadline(t time.Time) error {
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteDeadline(c.fd, t)
+ }
+@@ -130,7 +130,7 @@ func (c *UDPConn) SetWriteDeadline(t time.Time) error {
+ // receive buffer associated with the connection.
+ func (c *UDPConn) SetReadBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadBuffer(c.fd, bytes)
+ }
+@@ -139,7 +139,7 @@ func (c *UDPConn) SetReadBuffer(bytes int) error {
+ // transmit buffer associated with the connection.
+ func (c *UDPConn) SetWriteBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteBuffer(c.fd, bytes)
+ }
+@@ -154,7 +154,7 @@ func (c *UDPConn) SetWriteBuffer(bytes int) error {
+ // after a fixed time limit; see SetDeadline and SetReadDeadline.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, sa, err := c.fd.ReadFrom(b)
+ 	switch sa := sa.(type) {
+@@ -169,7 +169,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, uaddr, err := c.ReadFromUDP(b)
+ 	return n, uaddr.toAddr(), err
+@@ -183,7 +183,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	if c.fd.isConnected {
+ 		return 0, &OpError{"write", c.fd.net, addr, ErrWriteToConnected}
+@@ -198,11 +198,11 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	a, ok := addr.(*UDPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
++		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
+ 	}
+ 	return c.WriteToUDP(b, a)
+ }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 10b7966851..238cefe718 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -123,7 +123,7 @@ func (c *UnixConn) ok() bool { return c != nil && c.fd != nil }
+ // Read implements the Conn Read method.
+ func (c *UnixConn) Read(b []byte) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Read(b)
+ }
+@@ -131,7 +131,7 @@ func (c *UnixConn) Read(b []byte) (n int, err error) {
+ // Write implements the Conn Write method.
+ func (c *UnixConn) Write(b []byte) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	return c.fd.Write(b)
+ }
+@@ -139,7 +139,7 @@ func (c *UnixConn) Write(b []byte) (n int, err error) {
+ // Close closes the Unix domain connection.
+ func (c *UnixConn) Close() error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	err := c.fd.Close()
+ 	c.fd = nil
+@@ -168,7 +168,7 @@ func (c *UnixConn) RemoteAddr() Addr {
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *UnixConn) SetDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setDeadline(c.fd, t)
+ }
+@@ -176,7 +176,7 @@ func (c *UnixConn) SetDeadline(t time.Time) error {
+ // SetReadDeadline implements the Conn SetReadDeadline method.
+ func (c *UnixConn) SetReadDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadDeadline(c.fd, t)
+ }
+@@ -184,7 +184,7 @@ func (c *UnixConn) SetReadDeadline(t time.Time) error {
+ // SetWriteDeadline implements the Conn SetWriteDeadline method.
+ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteDeadline(c.fd, t)
+ }
+@@ -193,7 +193,7 @@ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+ // receive buffer associated with the connection.
+ func (c *UnixConn) SetReadBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setReadBuffer(c.fd, bytes)
+ }
+@@ -202,7 +202,7 @@ func (c *UnixConn) SetReadBuffer(bytes int) error {
+ // transmit buffer associated with the connection.
+ func (c *UnixConn) SetWriteBuffer(bytes int) error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setWriteBuffer(c.fd, bytes)
+ }
+@@ -216,7 +216,7 @@ func (c *UnixConn) SetWriteBuffer(bytes int) error {
+ // see SetDeadline and SetReadDeadline.
+ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, sa, err := c.fd.ReadFrom(b)
+ 	switch sa := sa.(type) {
+@@ -229,7 +229,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ // ReadFrom implements the PacketConn ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, syscall.EINVAL
+ 	}
+ 	n, uaddr, err := c.ReadFromUnix(b)
+ 	return n, uaddr.toAddr(), err
+@@ -243,10 +243,10 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ // On packet-oriented connections, write timeouts are rare.
+ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	if addr.Net != sotypeToNet(c.fd.sotype) {
+-		return 0, os.EAFNOSUPPORT
++		return 0, syscall.EAFNOSUPPORT
+ 	}
+ 	sa := &syscall.SockaddrUnix{Name: addr.Name}
+ 	return c.fd.WriteTo(b, sa)
+@@ -255,18 +255,18 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ // WriteTo implements the PacketConn WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, syscall.EINVAL
+ 	}
+ 	a, ok := addr.(*UnixAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.fd.net, addr, os.EINVAL}
++		return 0, &OpError{"write", c.fd.net, addr, syscall.EINVAL}
+ 	}
+ 	return c.WriteToUnix(b, a)
+ }
+ 
+ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
+ 	if !c.ok() {
+-		return 0, 0, 0, nil, os.EINVAL
++		return 0, 0, 0, nil, syscall.EINVAL
+ 	}
+ 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
+ 	switch sa := sa.(type) {
+@@ -278,11 +278,11 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ 
+ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
+ 	if !c.ok() {
+-		return 0, 0, os.EINVAL
++		return 0, 0, syscall.EINVAL
+ 	}
+ 	if addr != nil {
+ 		if addr.Net != sotypeToNet(c.fd.sotype) {
+-			return 0, 0, os.EAFNOSUPPORT
++			return 0, 0, syscall.EAFNOSUPPORT
+ 		}
+ 		sa := &syscall.SockaddrUnix{Name: addr.Name}
+ 		return c.fd.WriteMsg(b, oob, sa)
+@@ -339,7 +339,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ // and the remote address.
+ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	if l == nil || l.fd == nil {
+-		return nil, os.EINVAL
++		return nil, syscall.EINVAL
+ 	}
+ 	fd, err := l.fd.accept(sockaddrToUnix)
+ 	if err != nil {
+@@ -363,7 +363,7 @@ func (l *UnixListener) Accept() (c Conn, err error) {
+ // Already accepted connections are not closed.
+ func (l *UnixListener) Close() error {
+ 	if l == nil || l.fd == nil {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 
+ 	// The operating system doesn't clean up
+@@ -391,7 +391,7 @@ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+ // A zero time value disables the deadline.
+ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+ 	if l == nil || l.fd == nil {
+-		return os.EINVAL
++		return syscall.EINVAL
+ 	}
+ 	return setDeadline(l.fd, t)
+ }
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index f2dc15409d..7fa4c7f444 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -10,6 +10,9 @@ import (
+ 	"syscall"
+ )
+ 
++var errShortStat = errors.New("short stat message")
++var errBadStat = errors.New("bad stat message format")
++
+ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+@@ -35,7 +38,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 				break
+ 			}
+ 			if d.nbuf < syscall.STATFIXLEN {
+-				return result, &PathError{"readdir", file.name, Eshortstat}
++				return result, &PathError{"readdir", file.name, errShortStat}
+ 			}
+ 		}
+ 
+@@ -43,7 +46,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 		m, _ := gbit16(d.buf[d.bufp:])
+ 		m += 2
+ 		if m < syscall.STATFIXLEN {
+-			return result, &PathError{"readdir", file.name, Eshortstat}
++			return result, &PathError{"readdir", file.name, errShortStat}
+ 		}
+ 		dir, e := UnmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
+ 		if e != nil {
+@@ -138,7 +141,7 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
+ 	n, b = gbit16(b)
+ 
+ 	if int(n) != len(b) {
+-		return nil, Ebadstat
++		return nil, errBadStat
+ 	}
+ 
+ 	d = new(Dir)
+@@ -155,7 +158,7 @@ func UnmarshalDir(b []byte) (d *Dir, err error) {
+ 	d.Muid, b = gstring(b)
+ 
+ 	if len(b) != 0 {
+-		return nil, Ebadstat
++		return nil, errBadStat
+ 	}
+ 
+ 	return d, nil
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 59350510cc..207e0a0ec7 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -84,7 +84,7 @@ var ENOENV = errors.New("no such environment variable")
+ // It returns the value and an error, if any.
+ func Getenverror(key string) (value string, err error) {
+ 	if len(key) == 0 {
+-		return "", EINVAL
++		return "", ErrInvalid
+ 	}
+ 	val, found := syscall.Getenv(key)
+ 	if !found {
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 135cdae1f9..5baeba475b 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -4,6 +4,18 @@
+ 
+ package os
+ 
++import (
++	"errors"
++)
++
++// Portable analogs of some common system call errors.
++var (
++	ErrInvalid    = errors.New("invalid argument")
++	ErrPermission = errors.New("permission denied")
++	ErrExist      = errors.New("file already exists")
++	ErrNotExist   = errors.New("file does not exit")
++)
++
+ // PathError records an error and the operation and file path that caused it.
+ type PathError struct {
+ 	Op   string
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index cc847e0774..159d685e7c 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -4,34 +4,38 @@
+ 
+ package os
+ 
+-import (
+-	"errors"
+-	"syscall"
+-)
++// IsExist returns whether the error is known to report that a file already exists.
++func IsExist(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return contains(err.Error(), " exists")
++}
+ 
+-var (
+-	Eshortstat = errors.New("stat buffer too small")
+-	Ebadstat   = errors.New("malformed stat buffer")
+-	Ebadfd     = errors.New("fd out of range or not open")
+-	Ebadarg    = errors.New("bad arg in system call")
+-	Enotdir    = errors.New("not a directory")
+-	Enonexist  = errors.New("file does not exist")
+-	Eexist     = errors.New("file already exists")
+-	Eio        = errors.New("i/o error")
+-	Eperm      = errors.New("permission denied")
++// IsNotExist returns whether the error is known to report that a file does not exist.
++func IsNotExist(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return contains(err.Error(), "does not exist")
++}
+ 
+-	EINVAL  = Ebadarg
+-	ENOTDIR = Enotdir
+-	ENOENT  = Enonexist
+-	EEXIST  = Eexist
+-	EIO     = Eio
+-	EACCES  = Eperm
+-	EPERM   = Eperm
+-	EISDIR  = syscall.EISDIR
++// IsPermission returns whether the error is known to report that permission is denied.
++func IsPermission(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return contains(err.Error(), "permission denied")
++}
+ 
+-	EBADF        = errors.New("bad file descriptor")
+-	ENAMETOOLONG = errors.New("file name too long")
+-	ERANGE       = errors.New("math result not representable")
+-	EPIPE        = errors.New("Broken Pipe")
+-	EPLAN9       = errors.New("not supported by plan 9")
+-)
++// contains is a local version of strings.Contains. It knows len(sep) > 1.
++func contains(s, sep string) bool {
++	n := len(sep)
++	c := sep[0]
++	for i := 0; i+n <= len(s); i++ {
++		if s[i] == c && s[i:i+n] == sep {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 57c9b6f278..74b75d1121 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -8,44 +8,29 @@ package os
+ 
+ import "syscall"
+ 
+-// Commonly known Unix errors.
+-var (
+-	EPERM        error = syscall.EPERM
+-	ENOENT       error = syscall.ENOENT
+-	ESRCH        error = syscall.ESRCH
+-	EINTR        error = syscall.EINTR
+-	EIO          error = syscall.EIO
+-	E2BIG        error = syscall.E2BIG
+-	ENOEXEC      error = syscall.ENOEXEC
+-	EBADF        error = syscall.EBADF
+-	ECHILD       error = syscall.ECHILD
+-	EDEADLK      error = syscall.EDEADLK
+-	ENOMEM       error = syscall.ENOMEM
+-	EACCES       error = syscall.EACCES
+-	EFAULT       error = syscall.EFAULT
+-	EBUSY        error = syscall.EBUSY
+-	EEXIST       error = syscall.EEXIST
+-	EXDEV        error = syscall.EXDEV
+-	ENODEV       error = syscall.ENODEV
+-	ENOTDIR      error = syscall.ENOTDIR
+-	EISDIR       error = syscall.EISDIR
+-	EINVAL       error = syscall.EINVAL
+-	ENFILE       error = syscall.ENFILE
+-	EMFILE       error = syscall.EMFILE
+-	ENOTTY       error = syscall.ENOTTY
+-	EFBIG        error = syscall.EFBIG
+-	ENOSPC       error = syscall.ENOSPC
+-	ESPIPE       error = syscall.ESPIPE
+-	EROFS        error = syscall.EROFS
+-	EMLINK       error = syscall.EMLINK
+-	EPIPE        error = syscall.EPIPE
+-	EAGAIN       error = syscall.EAGAIN
+-	EDOM         error = syscall.EDOM
+-	ERANGE       error = syscall.ERANGE
+-	EADDRINUSE   error = syscall.EADDRINUSE
+-	ECONNREFUSED error = syscall.ECONNREFUSED
+-	ENAMETOOLONG error = syscall.ENAMETOOLONG
+-	EAFNOSUPPORT error = syscall.EAFNOSUPPORT
+-	ETIMEDOUT    error = syscall.ETIMEDOUT
+-	ENOTCONN     error = syscall.ENOTCONN
+-)
++// IsExist returns whether the error is known to report that a file already exists.
++// It is satisfied by ErrExist as well as some syscall errors.
++func IsExist(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return err == syscall.EEXIST || err == ErrExist
++}
++
++// IsNotExist returns whether the error is known to report that a file does not exist.
++// It is satisfied by ErrNotExist as well as some syscall errors.
++func IsNotExist(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return err == syscall.ENOENT || err == ErrNotExist
++}
++
++// IsPermission returns whether the error is known to report that permission is denied.
++// It is satisfied by ErrPermission as well as some syscall errors.
++func IsPermission(err error) bool {
++	if pe, ok := err.(*PathError); ok {
++		err = pe.Err
++	}
++	return err == syscall.EACCES || err == syscall.EPERM || err == ErrPermission
++}
+diff --git a/src/pkg/os/exec/lp_unix.go b/src/pkg/os/exec/lp_unix.go
+index 2d3a919dc6..2163221997 100644
+--- a/src/pkg/os/exec/lp_unix.go
++++ b/src/pkg/os/exec/lp_unix.go
+@@ -23,7 +23,7 @@ func findExecutable(file string) error {
+ 	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+ 		return nil
+ 	}
+-	return os.EPERM
++	return os.ErrPermission
+ }
+ 
+ // LookPath searches for an executable binary named file
+diff --git a/src/pkg/os/exec/lp_windows.go b/src/pkg/os/exec/lp_windows.go
+index b7efcd68b8..d8351d7e6d 100644
+--- a/src/pkg/os/exec/lp_windows.go
++++ b/src/pkg/os/exec/lp_windows.go
+@@ -19,7 +19,7 @@ func chkStat(file string) error {
+ 		return err
+ 	}
+ 	if d.IsDir() {
+-		return os.EPERM
++		return os.ErrPermission
+ 	}
+ 	return nil
+ }
+@@ -39,7 +39,7 @@ func findExecutable(file string, exts []string) (string, error) {
+ 			return f, nil
+ 		}
+ 	}
+-	return ``, os.ENOENT
++	return ``, os.ErrNotExist
+ }
+ 
+ // LookPath searches for an executable binary named file
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index b725aeb8d6..c57c4dc6d6 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -76,7 +76,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 	var waitmsg syscall.Waitmsg
+ 
+ 	if p.Pid == -1 {
+-		return nil, EINVAL
++		return nil, ErrInvalid
+ 	}
+ 
+ 	for true {
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 7fe7c2fe8c..a5c22812a2 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -29,7 +29,7 @@ const (
+ // (WNOHANG etc.) affect the behavior of the Wait call.
+ func (p *Process) Wait(options int) (w *Waitmsg, err error) {
+ 	if p.Pid == -1 {
+-		return nil, EINVAL
++		return nil, syscall.EINVAL
+ 	}
+ 	var status syscall.WaitStatus
+ 	var rusage *syscall.Rusage
+diff --git a/src/pkg/os/exec_windows.go b/src/pkg/os/exec_windows.go
+index f357a3034b..2a7affa284 100644
+--- a/src/pkg/os/exec_windows.go
++++ b/src/pkg/os/exec_windows.go
+@@ -48,7 +48,7 @@ func (p *Process) Signal(sig Signal) error {
+ // Release releases any resources associated with the Process.
+ func (p *Process) Release() error {
+ 	if p.handle == uintptr(syscall.InvalidHandle) {
+-		return EINVAL
++		return syscall.EINVAL
+ 	}
+ 	e := syscall.CloseHandle(syscall.Handle(p.handle))
+ 	if e != nil {
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 85f151e284..439164241a 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -55,7 +55,7 @@ const (
+ // EOF is signaled by a zero count with err set to io.EOF.
+ func (f *File) Read(b []byte) (n int, err error) {
+ 	if f == nil {
+-		return 0, EINVAL
++		return 0, ErrInvalid
+ 	}
+ 	n, e := f.read(b)
+ 	if n < 0 {
+@@ -76,7 +76,7 @@ func (f *File) Read(b []byte) (n int, err error) {
+ // At end of file, that error is io.EOF.
+ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
+ 	if f == nil {
+-		return 0, EINVAL
++		return 0, ErrInvalid
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := f.pread(b, off)
+@@ -99,7 +99,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
+ // Write returns a non-nil error when n != len(b).
+ func (f *File) Write(b []byte) (n int, err error) {
+ 	if f == nil {
+-		return 0, EINVAL
++		return 0, ErrInvalid
+ 	}
+ 	n, e := f.write(b)
+ 	if n < 0 {
+@@ -119,7 +119,7 @@ func (f *File) Write(b []byte) (n int, err error) {
+ // WriteAt returns a non-nil error when n != len(b).
+ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ 	if f == nil {
+-		return 0, EINVAL
++		return 0, ErrInvalid
+ 	}
+ 	for len(b) > 0 {
+ 		m, e := f.pwrite(b, off)
+@@ -153,7 +153,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ // an array of bytes.
+ func (f *File) WriteString(s string) (ret int, err error) {
+ 	if f == nil {
+-		return 0, EINVAL
++		return 0, ErrInvalid
+ 	}
+ 	return f.Write([]byte(s))
+ }
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index c28ea3471c..70041f22aa 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -5,11 +5,14 @@
+ package os
+ 
+ import (
++	"errors"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+ 
++var ErrPlan9 = errors.New("unimplemented on Plan 9")
++
+ // File represents an open file descriptor.
+ type File struct {
+ 	*file
+@@ -140,7 +143,7 @@ func (file *File) Close() error {
+ 
+ func (file *file) close() error {
+ 	if file == nil || file.fd < 0 {
+-		return Ebadfd
++		return ErrInvalid
+ 	}
+ 	var err error
+ 	syscall.ForkLock.RLock()
+@@ -203,7 +206,7 @@ func (f *File) Chmod(mode FileMode) error {
+ // of recently written data to disk.
+ func (f *File) Sync() (err error) {
+ 	if f == nil {
+-		return EINVAL
++		return ErrInvalid
+ 	}
+ 
+ 	var d Dir
+@@ -338,27 +341,27 @@ func Pipe() (r *File, w *File, err error) {
+ 
+ // Link creates a hard link.
+ func Link(oldname, newname string) error {
+-	return EPLAN9
++	return ErrPlan9
+ }
+ 
+ func Symlink(oldname, newname string) error {
+-	return EPLAN9
++	return ErrPlan9
+ }
+ 
+ func Readlink(name string) (string, error) {
+-	return "", EPLAN9
++	return "", ErrPlan9
+ }
+ 
+ func Chown(name string, uid, gid int) error {
+-	return EPLAN9
++	return ErrPlan9
+ }
+ 
+ func Lchown(name string, uid, gid int) error {
+-	return EPLAN9
++	return ErrPlan9
+ }
+ 
+ func (f *File) Chown(uid, gid int) error {
+-	return EPLAN9
++	return ErrPlan9
+ }
+ 
+ // TempDir returns the default directory to use for temporary files.
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 8d3a00b6c5..8861af1c7d 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -160,7 +160,7 @@ func (f *File) Truncate(size int64) error {
+ // of recently written data to disk.
+ func (f *File) Sync() (err error) {
+ 	if f == nil {
+-		return EINVAL
++		return syscall.EINVAL
+ 	}
+ 	if e := syscall.Fsync(f.fd); e != nil {
+ 		return NewSyscallError("fsync", e)
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 0a422f4e88..6aa0280f4a 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -90,7 +90,7 @@ func (f *File) Close() error {
+ 
+ func (file *file) close() error {
+ 	if file == nil || file.fd < 0 {
+-		return EINVAL
++		return syscall.EINVAL
+ 	}
+ 	var err error
+ 	if e := syscall.Close(file.fd); e != nil {
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 350d2a72cf..82c7429945 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -98,7 +98,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 	if e == nil {
+ 		if flag&O_WRONLY != 0 || flag&O_RDWR != 0 {
+ 			r.Close()
+-			return nil, &PathError{"open", name, EISDIR}
++			return nil, &PathError{"open", name, syscall.EISDIR}
+ 		}
+ 		return r, nil
+ 	}
+@@ -117,7 +117,7 @@ func (file *File) Close() error {
+ 
+ func (file *file) close() error {
+ 	if file == nil || file.fd == syscall.InvalidHandle {
+-		return EINVAL
++		return syscall.EINVAL
+ 	}
+ 	var e error
+ 	if file.isdir() {
+@@ -138,10 +138,10 @@ func (file *file) close() error {
+ 
+ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 	if file == nil || file.fd == syscall.InvalidHandle {
+-		return nil, EINVAL
++		return nil, syscall.EINVAL
+ 	}
+ 	if !file.isdir() {
+-		return nil, &PathError{"Readdir", file.name, ENOTDIR}
++		return nil, &PathError{"Readdir", file.name, syscall.ENOTDIR}
+ 	}
+ 	wantAll := n <= 0
+ 	size := n
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 56836434db..81d8fed926 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -52,7 +52,7 @@ func Getwd() (pwd string, err error) {
+ 	pwd = ""
+ 	for parent := ".."; ; parent = "../" + parent {
+ 		if len(parent) >= 1024 { // Sanity check
+-			return "", ENAMETOOLONG
++			return "", syscall.ENAMETOOLONG
+ 		}
+ 		fd, err := Open(parent)
+ 		if err != nil {
+@@ -74,7 +74,7 @@ func Getwd() (pwd string, err error) {
+ 			}
+ 		}
+ 		fd.Close()
+-		return "", ENOENT
++		return "", ErrNotExist
+ 
+ 	Found:
+ 		pd, err := fd.Stat()
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 9a95407ad5..e02d7a43a3 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ 	"time"
+ )
+@@ -769,7 +770,7 @@ func TestSeek(t *testing.T) {
+ 	for i, tt := range tests {
+ 		off, err := f.Seek(tt.in, tt.whence)
+ 		if off != tt.out || err != nil {
+-			if e, ok := err.(*PathError); ok && e.Err == EINVAL && tt.out > 1<<32 {
++			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
+ 				// Reiserfs rejects the big seeks.
+ 				// http://code.google.com/p/go/issues/detail?id=91
+ 				break
+@@ -789,17 +790,17 @@ var openErrorTests = []openErrorTest{
+ 	{
+ 		sfdir + "/no-such-file",
+ 		O_RDONLY,
+-		ENOENT,
++		syscall.ENOENT,
+ 	},
+ 	{
+ 		sfdir,
+ 		O_WRONLY,
+-		EISDIR,
++		syscall.EISDIR,
+ 	},
+ 	{
+ 		sfdir + "/" + sfname + "/no-such-file",
+ 		O_WRONLY,
+-		ENOTDIR,
++		syscall.ENOTDIR,
+ 	},
+ }
+ 
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index e962f3e397..02a77ec805 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "io"
++import (
++	"io"
++	"syscall"
++)
+ 
+ // MkdirAll creates a directory named path,
+ // along with any necessary parents, and returns nil,
+@@ -20,7 +23,7 @@ func MkdirAll(path string, perm FileMode) error {
+ 		if dir.IsDir() {
+ 			return nil
+ 		}
+-		return &PathError{"mkdir", path, ENOTDIR}
++		return &PathError{"mkdir", path, syscall.ENOTDIR}
+ 	}
+ 
+ 	// Doesn't already exist; make sure parent does.
+@@ -70,7 +73,7 @@ func RemoveAll(path string) error {
+ 	// Otherwise, is this a directory we need to recurse into?
+ 	dir, serr := Lstat(path)
+ 	if serr != nil {
+-		if serr, ok := serr.(*PathError); ok && (serr.Err == ENOENT || serr.Err == ENOTDIR) {
++		if serr, ok := serr.(*PathError); ok && (IsNotExist(serr.Err) || serr.Err == syscall.ENOTDIR) {
+ 			return nil
+ 		}
+ 		return serr
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 8a786008c0..c1e3fb3543 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "os"
+ 	"path/filepath"
+ 	"runtime"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -201,7 +202,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
+ 	if err != nil {
+ 		pathErr, ok := err.(*PathError)
+ 		// common for users not to be able to write to /
+-		if ok && pathErr.Err == EACCES {
++		if ok && pathErr.Err == syscall.EACCES {
+ 			return
+ 		}
+ 		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index 00622581f4..a7990a359e 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -62,7 +62,7 @@ func dirstat(arg interface{}) (d *Dir, err error) {
+ 			return nil, &PathError{"stat", name, err}
+ 		}
+ 		if n < syscall.STATFIXLEN {
+-			return nil, &PathError{"stat", name, Eshortstat}
++			return nil, &PathError{"stat", name, errShortStat}
+ 		}
+ 
+ 		// Pull the real size out of the stat message.
+@@ -79,7 +79,7 @@ func dirstat(arg interface{}) (d *Dir, err error) {
+ 			return
+ 		}
+ 	}
+-	return nil, &PathError{"stat", name, Ebadstat}
++	return nil, &PathError{"stat", name, errBadStat}
+ }
+ 
+ // Stat returns a FileInfo structure describing the named file.
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index c8bfc3f6d4..ffb679f417 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -14,7 +14,7 @@ import (
+ // If there is an error, it will be of type *PathError.
+ func (file *File) Stat() (fi FileInfo, err error) {
+ 	if file == nil || file.fd < 0 {
+-		return nil, EINVAL
++		return nil, syscall.EINVAL
+ 	}
+ 	if file.isdir() {
+ 		// I don't know any better way to do that for directory
+diff --git a/test/fixedbugs/bug262.go b/test/fixedbugs/bug262.go
+index f5f2c35532..ebca7905f9 100644
+--- a/test/fixedbugs/bug262.go
++++ b/test/fixedbugs/bug262.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ import (
+-	"os"
++	"errors"
+ 	"strconv"
+ )
+ 
+@@ -44,7 +44,7 @@ func main() {
+ 	}
+ 	mm := make(map[string]error)
+ 	trace = ""
+-	mm["abc"] = os.EINVAL
++	mm["abc"] = errors.New("invalid")
+ 	*i(), mm[f()] = strconv.Atoi(h())
+ 	if mm["abc"] != nil || trace != "ifh" {
+ 		println("BUG1", mm["abc"], trace)

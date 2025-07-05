@@ -22,9 +22,177 @@ Date:   Tue Sep 1 12:53:15 2015 -0700
     Change-Id: Iaedbaa5be8d6a246dc7e9383d795000e0f562037
     Reviewed-on: https://go-review.googlesource.com/14129
     Reviewed-by: jcd . <jcd@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 15 ------
  src/runtime/asm_386.s               |  7 +--
  src/runtime/asm_amd64.s             |  7 +--
  src/runtime/hash_test.go            | 97 +++++++++++++++++++++++++++++++++++++
  4 files changed, 105 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0a4a1112cb..be93d2783c 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2611,21 +2611,6 @@ func genhash(sym *Sym, t *Type) {
+ 		colasdefn(n.List, n)
+ 		ni = n.List.N
+ 
+-		// TODO: with aeshash we don't need these shift/mul parts
+-
+-		// h = h<<3 | h>>61
+-		n.Nbody = list(n.Nbody, Nod(OAS, nh, Nod(OOR, Nod(OLSH, nh, Nodintconst(3)), Nod(ORSH, nh, Nodintconst(int64(Widthptr)*8-3)))))
+-
+-		// h *= mul
+-		// Same multipliers as in runtime.memhash.
+-		var mul int64
+-		if Widthptr == 4 {
+-			mul = 3267000013
+-		} else {
+-			mul = 23344194077549503
+-		}
+-		n.Nbody = list(n.Nbody, Nod(OAS, nh, Nod(OMUL, nh, Nodintconst(mul))))
+-
+ 		// h = hashel(&p[i], h)
+ 		call := Nod(OCALL, hashel, nil)
+ 
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 2bc5d8b658..fbce0153db 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1012,9 +1012,10 @@ endofpage:
+ 	RET
+ 
+ aes0:
+-	// return input seed
+-	MOVL	h+4(FP), AX
+-	MOVL	AX, (DX)
++	// Return scrambled input seed
++	AESENC	X7, X6
++	AESENC	X7, X6
++	MOVL	X6, (DX)
+ 	RET
+ 
+ aes16:
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index dc975bebc2..4020bdfbfc 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1003,9 +1003,10 @@ endofpage:
+ 	RET
+ 
+ aes0:
+-	// return input seed
+-	MOVQ	h+8(FP), AX
+-	MOVQ	AX, (DX)
++	// Return scrambled input seed
++	AESENC	X7, X6
++	AESENC	X7, X6
++	MOVQ	X6, (DX)
+ 	RET
+ 
+ aes16:
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 579b0e3e67..165148556d 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -561,3 +561,100 @@ func BenchmarkHash16(b *testing.B)    { benchmarkHash(b, 16) }
+ func BenchmarkHash64(b *testing.B)    { benchmarkHash(b, 64) }
+ func BenchmarkHash1024(b *testing.B)  { benchmarkHash(b, 1024) }
+ func BenchmarkHash65536(b *testing.B) { benchmarkHash(b, 65536) }
++
++func TestArrayHash(t *testing.T) {
++	// Make sure that "" in arrays hash correctly.  The hash
++	// should at least scramble the input seed so that, e.g.,
++	// {"","foo"} and {"foo",""} have different hashes.
++
++	// If the hash is bad, then all (8 choose 4) = 70 keys
++	// have the same hash. If so, we allocate 70/8 = 8
++	// overflow buckets.  If the hash is good we don't
++	// normally allocate any overflow buckets, and the
++	// probability of even one or two overflows goes down rapidly.
++	// (There is always 1 allocation of the bucket array.  The map
++	// header is allocated on the stack.)
++	f := func() {
++		// Make the key type at most 128 bytes.  Otherwise,
++		// we get an allocation per key.
++		type key [8]string
++		m := make(map[key]bool, 70)
++
++		// fill m with keys that have 4 "foo"s and 4 ""s.
++		for i := 0; i < 256; i++ {
++			var k key
++			cnt := 0
++			for j := uint(0); j < 8; j++ {
++				if i>>j&1 != 0 {
++					k[j] = "foo"
++					cnt++
++				}
++			}
++			if cnt == 4 {
++				m[k] = true
++			}
++		}
++		if len(m) != 70 {
++			t.Errorf("bad test: (8 choose 4) should be 70, not %d", len(m))
++		}
++	}
++	if n := testing.AllocsPerRun(10, f); n > 6 {
++		t.Errorf("too many allocs %f - hash not balanced", n)
++	}
++}
++func TestStructHash(t *testing.T) {
++	// See the comment in TestArrayHash.
++	f := func() {
++		type key struct {
++			a, b, c, d, e, f, g, h string
++		}
++		m := make(map[key]bool, 70)
++
++		// fill m with keys that have 4 "foo"s and 4 ""s.
++		for i := 0; i < 256; i++ {
++			var k key
++			cnt := 0
++			if i&1 != 0 {
++				k.a = "foo"
++				cnt++
++			}
++			if i&2 != 0 {
++				k.b = "foo"
++				cnt++
++			}
++			if i&4 != 0 {
++				k.c = "foo"
++				cnt++
++			}
++			if i&8 != 0 {
++				k.d = "foo"
++				cnt++
++			}
++			if i&16 != 0 {
++				k.e = "foo"
++				cnt++
++			}
++			if i&32 != 0 {
++				k.f = "foo"
++				cnt++
++			}
++			if i&64 != 0 {
++				k.g = "foo"
++				cnt++
++			}
++			if i&128 != 0 {
++				k.h = "foo"
++				cnt++
++			}
++			if cnt == 4 {
++				m[k] = true
++			}
++		}
++		if len(m) != 70 {
++			t.Errorf("bad test: (8 choose 4) should be 70, not %d", len(m))
++		}
++	}
++	if n := testing.AllocsPerRun(10, f); n > 6 {
++		t.Errorf("too many allocs %f - hash not balanced", n)
++	}
++}

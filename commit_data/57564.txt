@@ -14,6 +14,19 @@ Date:   Tue Aug 15 14:11:37 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index bd80fc5832..be02f1b6b0 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -130,6 +130,7 @@ func Batch(fns []*ir.Func, recursive bool) {
+ 
+ 	var b batch
+ 	b.heapLoc.escapes = true
++	b.blankLoc.transient = true
+ 
+ 	// Construct data-flow graph from syntax trees.
+ 	for _, fn := range fns {

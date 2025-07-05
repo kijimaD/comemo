@@ -15,7 +15,7 @@ Date:   Wed Jun 2 18:12:14 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/typeparam/absdiff.go           | 16 ++++++++--------
  test/typeparam/adder.go             |  2 +-
  test/typeparam/double.go            |  2 +-
@@ -35,3 +35,340 @@ Date:   Wed Jun 2 18:12:14 2021 -0700
  test/typeparam/smoketest.go         |  2 +-
  test/typeparam/sum.go               |  2 +-
  18 files changed, 55 insertions(+), 55 deletions(-)
+
+diff --git a/test/typeparam/absdiff.go b/test/typeparam/absdiff.go
+index 1381d7c92c..ecaa907795 100644
+--- a/test/typeparam/absdiff.go
++++ b/test/typeparam/absdiff.go
+@@ -12,10 +12,10 @@ import (
+ )
+ 
+ type Numeric interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64,
+-		complex64, complex128
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64 |
++		~complex64 | ~complex128
+ }
+ 
+ // numericAbs matches numeric types with an Abs method.
+@@ -33,14 +33,14 @@ func absDifference[T numericAbs[T]](a, b T) T {
+ 
+ // orderedNumeric matches numeric types that support the < operator.
+ type orderedNumeric interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++		~float32 | ~float64
+ }
+ 
+ // Complex matches the two complex types, which do not have a < operator.
+ type Complex interface {
+-	type complex64, complex128
++	~complex64 | ~complex128
+ }
+ 
+ // orderedAbs is a helper type that defines an Abs method for
+diff --git a/test/typeparam/adder.go b/test/typeparam/adder.go
+index eb564b5bd5..79319bd236 100644
+--- a/test/typeparam/adder.go
++++ b/test/typeparam/adder.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ type AddType interface {
+-	type int, int64, string
++	int | int64 | string
+ }
+ 
+ // Add can add numbers or strings
+diff --git a/test/typeparam/double.go b/test/typeparam/double.go
+index ce78ec9748..6652613814 100644
+--- a/test/typeparam/double.go
++++ b/test/typeparam/double.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ type Number interface {
+-	type int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr, float32, float64
++	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr | ~float32 | ~float64
+ }
+ 
+ type MySlice []int
+diff --git a/test/typeparam/fact.go b/test/typeparam/fact.go
+index ea86ae3e02..baa7fbc68e 100644
+--- a/test/typeparam/fact.go
++++ b/test/typeparam/fact.go
+@@ -8,7 +8,7 @@ package main
+ 
+ import "fmt"
+ 
+-func fact[T interface { type int, int64, float64 }](n T) T {
++func fact[T interface { ~int | ~int64 | ~float64 }](n T) T {
+ 	if n == 1 {
+ 		return 1
+ 	}
+diff --git a/test/typeparam/factimp.dir/a.go b/test/typeparam/factimp.dir/a.go
+index 3552474382..cb1ff2615b 100644
+--- a/test/typeparam/factimp.dir/a.go
++++ b/test/typeparam/factimp.dir/a.go
+@@ -4,7 +4,7 @@
+ 
+ package a
+ 
+-func Fact[T interface { type int, int64, float64 }](n T) T {
++func Fact[T interface { int | int64 | float64 }](n T) T {
+ 	if n == 1 {
+ 		return 1
+ 	}
+diff --git a/test/typeparam/list.go b/test/typeparam/list.go
+index 579078f02f..c63c9bff79 100644
+--- a/test/typeparam/list.go
++++ b/test/typeparam/list.go
+@@ -11,10 +11,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64,
+-                string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ // _List is a linked list of ordered values of type T.
+@@ -34,9 +34,9 @@ func (l *_List[T]) Largest() T {
+ }
+ 
+ type OrderedNum interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64
+ }
+ 
+ // _ListNum is a linked _List of ordered numeric values of type T.
+diff --git a/test/typeparam/listimp.dir/a.go b/test/typeparam/listimp.dir/a.go
+index 0a4634b7be..2b5b23cde3 100644
+--- a/test/typeparam/listimp.dir/a.go
++++ b/test/typeparam/listimp.dir/a.go
+@@ -5,10 +5,10 @@
+ package a
+ 
+ type Ordered interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64,
+-                string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ // List is a linked list of ordered values of type T.
+@@ -28,9 +28,9 @@ func (l *List[T]) Largest() T {
+ }
+ 
+ type OrderedNum interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64
+ }
+ 
+ // ListNum is a linked _List of ordered numeric values of type T.
+diff --git a/test/typeparam/min.go b/test/typeparam/min.go
+index 6e28c062a8..d6c65d68b7 100644
+--- a/test/typeparam/min.go
++++ b/test/typeparam/min.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ type Ordered interface {
+-	type int, int64, float64, string
++	~int | ~int64 | ~float64 | ~string
+ }
+ 
+ func min[T Ordered](x, y T) T {
+diff --git a/test/typeparam/mincheck.dir/a.go b/test/typeparam/mincheck.dir/a.go
+index f1844bba9d..7d42492b74 100644
+--- a/test/typeparam/mincheck.dir/a.go
++++ b/test/typeparam/mincheck.dir/a.go
+@@ -5,7 +5,7 @@
+ package a
+ 
+ type Ordered interface {
+-        type int, int64, float64
++        int | int64 | float64
+ }
+ 
+ func Min[T Ordered](x, y T) T {
+diff --git a/test/typeparam/minimp.dir/a.go b/test/typeparam/minimp.dir/a.go
+index 16c1b035f4..6c3e0eba36 100644
+--- a/test/typeparam/minimp.dir/a.go
++++ b/test/typeparam/minimp.dir/a.go
+@@ -5,7 +5,7 @@
+ package a
+ 
+ type Ordered interface {
+-        type int, int64, float64, string
++        ~int | ~int64 | ~float64 | ~string
+ }
+ 
+ func Min[T Ordered](x, y T) T {
+diff --git a/test/typeparam/ordered.go b/test/typeparam/ordered.go
+index 448db68bb5..699505ec75 100644
+--- a/test/typeparam/ordered.go
++++ b/test/typeparam/ordered.go
+@@ -13,10 +13,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64,
+-		string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ type orderedSlice[Elem Ordered] []Elem
+diff --git a/test/typeparam/orderedmap.go b/test/typeparam/orderedmap.go
+index db1b374267..6a895bd396 100644
+--- a/test/typeparam/orderedmap.go
++++ b/test/typeparam/orderedmap.go
+@@ -15,10 +15,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64,
+-                string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ // _Map is an ordered map.
+diff --git a/test/typeparam/sliceimp.dir/a.go b/test/typeparam/sliceimp.dir/a.go
+index 2b58d1c29e..61b1b17a98 100644
+--- a/test/typeparam/sliceimp.dir/a.go
++++ b/test/typeparam/sliceimp.dir/a.go
+@@ -5,10 +5,10 @@
+ package a
+ 
+ type Ordered interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64,
+-                string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ // Max returns the maximum of two values of some ordered type.
+diff --git a/test/typeparam/sliceimp.dir/main.go b/test/typeparam/sliceimp.dir/main.go
+index 0a8e756b26..2d4d3b2831 100644
+--- a/test/typeparam/sliceimp.dir/main.go
++++ b/test/typeparam/sliceimp.dir/main.go
+@@ -12,8 +12,8 @@ import (
+ )
+ 
+ type Integer interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+ }
+ 
+ func TestEqual() {
+diff --git a/test/typeparam/slices.go b/test/typeparam/slices.go
+index 149199eb64..50783a5439 100644
+--- a/test/typeparam/slices.go
++++ b/test/typeparam/slices.go
+@@ -15,15 +15,15 @@ import (
+ )
+ 
+ type Ordered interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr,
+-                float32, float64,
+-                string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ type Integer interface {
+-        type int, int8, int16, int32, int64,
+-                uint, uint8, uint16, uint32, uint64, uintptr
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+ }
+ 
+ // Max returns the maximum of two values of some ordered type.
+diff --git a/test/typeparam/smallest.go b/test/typeparam/smallest.go
+index d851536049..3fead6a067 100644
+--- a/test/typeparam/smallest.go
++++ b/test/typeparam/smallest.go
+@@ -11,10 +11,10 @@ import (
+ )
+ 
+ type Ordered interface {
+-	type int, int8, int16, int32, int64,
+-		uint, uint8, uint16, uint32, uint64, uintptr,
+-		float32, float64,
+-		string
++        ~int | ~int8 | ~int16 | ~int32 | ~int64 |
++                ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
++                ~float32 | ~float64 |
++                ~string
+ }
+ 
+ func Smallest[T Ordered](s []T) T {
+diff --git a/test/typeparam/smoketest.go b/test/typeparam/smoketest.go
+index b7d6201b2c..d92e02713d 100644
+--- a/test/typeparam/smoketest.go
++++ b/test/typeparam/smoketest.go
+@@ -37,7 +37,7 @@ func (x T2[P1, P2, P3]) m() {}
+ type _ interface {
+ 	m1()
+ 	m2()
+-	type int, float32, string
++	int | float32 | string
+ 	m3()
+ }
+ 
+diff --git a/test/typeparam/sum.go b/test/typeparam/sum.go
+index c82d8e4c61..53e6face11 100644
+--- a/test/typeparam/sum.go
++++ b/test/typeparam/sum.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ )
+ 
+-func Sum[T interface{ type int, float64 }](vec []T) T {
++func Sum[T interface{ int | float64 }](vec []T) T {
+ 	var sum T
+ 	for _, elt := range vec {
+ 		sum = sum + elt

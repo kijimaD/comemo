@@ -25,7 +25,7 @@ Date:   Fri Oct 8 03:53:09 2021 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../google/pprof/internal/driver/commands.go       |   8 ++
@@ -34,3 +34,247 @@ Date:   Fri Oct 8 03:53:09 2021 +0000
  .../google/pprof/internal/driver/tagroot.go        | 124 +++++++++++++++++++++
  src/cmd/vendor/modules.txt                         |   2 +-
  7 files changed, 163 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 5431def67a..b2ec091292 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.18
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20210827144239-02619b876842
++	github.com/google/pprof v0.0.0-20211001005136-7fe48b4c820b
+ 	golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1
+ 	golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 0c575bf777..ff8df7b749 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,8 +1,8 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+-github.com/google/pprof v0.0.0-20210827144239-02619b876842 h1:JCrt5MIE1fHQtdy1825HwJ45oVQaqHE6lgssRhjcg/o=
+-github.com/google/pprof v0.0.0-20210827144239-02619b876842/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
++github.com/google/pprof v0.0.0-20211001005136-7fe48b4c820b h1:GX4+fGLMW5XTmDXB3R6UhTwZIYqgAOdA19+Ea0+3CU4=
++github.com/google/pprof v0.0.0-20211001005136-7fe48b4c820b/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ golang.org/x/arch v0.0.0-20210901143047-ebb09ed340f1 h1:MwxAfiDvuwX8Nnnc6iRDhzyMyyc2tz5tYyCP/pZcPCg=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+index 4397e253e0..c9edf10bb4 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/commands.go
+@@ -189,6 +189,14 @@ var configHelp = map[string]string{
+ 		"Drops functions above the highest matched frame.",
+ 		"If set, all frames above the highest match are dropped from every sample.",
+ 		"Matching includes the function name, filename or object name."),
++	"tagroot": helpText(
++		"Adds pseudo stack frames for labels key/value pairs at the callstack root.",
++		"A comma-separated list of label keys.",
++		"The first key creates frames at the new root."),
++	"tagleaf": helpText(
++		"Adds pseudo stack frames for labels key/value pairs at the callstack leaf.",
++		"A comma-separated list of label keys.",
++		"The last key creates frames at the new leaf."),
+ 	"tagfocus": helpText(
+ 		"Restricts to samples with tags in range or matched by regexp",
+ 		"Use name=value syntax to limit the matching to a specific tag.",
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
+index b3f82f22c9..9fcdd459b2 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/config.go
+@@ -30,6 +30,10 @@ type config struct {
+ 	Normalize           bool    `json:"normalize,omitempty"`
+ 	Sort                string  `json:"sort,omitempty"`
+ 
++	// Label pseudo stack frame generation options
++	TagRoot string `json:"tagroot,omitempty"`
++	TagLeaf string `json:"tagleaf,omitempty"`
++
+ 	// Filtering options
+ 	DropNegative bool    `json:"drop_negative,omitempty"`
+ 	NodeCount    int     `json:"nodecount,omitempty"`
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index 3967a12d45..6a1e64c600 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -73,6 +73,10 @@ func generateRawReport(p *profile.Profile, cmd []string, cfg config, o *plugin.O
+ 
+ 	cfg = applyCommandOverrides(cmd[0], c.format, cfg)
+ 
++	// Create label pseudo nodes before filtering, in case the filters use
++	// the generated nodes.
++	generateTagRootsLeaves(p, cfg, o.UI)
++
+ 	// Delay focus after configuring report to get percentages on all samples.
+ 	relative := cfg.RelativePercentages
+ 	if relative {
+@@ -208,6 +212,25 @@ func applyCommandOverrides(cmd string, outputFormat int, cfg config) config {
+ 	return cfg
+ }
+ 
++// generateTagRootsLeaves generates extra nodes from the tagroot and tagleaf options.
++func generateTagRootsLeaves(prof *profile.Profile, cfg config, ui plugin.UI) {
++	tagRootLabelKeys := dropEmptyStrings(strings.Split(cfg.TagRoot, ","))
++	tagLeafLabelKeys := dropEmptyStrings(strings.Split(cfg.TagLeaf, ","))
++	rootm, leafm := addLabelNodes(prof, tagRootLabelKeys, tagLeafLabelKeys, cfg.Unit)
++	warnNoMatches(cfg.TagRoot == "" || rootm, "TagRoot", ui)
++	warnNoMatches(cfg.TagLeaf == "" || leafm, "TagLeaf", ui)
++}
++
++// dropEmptyStrings filters a slice to only non-empty strings
++func dropEmptyStrings(in []string) (out []string) {
++	for _, s := range in {
++		if s != "" {
++			out = append(out, s)
++		}
++	}
++	return
++}
++
+ func aggregate(prof *profile.Profile, cfg config) error {
+ 	var function, filename, linenumber, address bool
+ 	inlines := !cfg.NoInlines
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go
+new file mode 100644
+index 0000000000..c2cdfa455e
+--- /dev/null
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/tagroot.go
+@@ -0,0 +1,124 @@
++package driver
++
++import (
++	"strings"
++
++	"github.com/google/pprof/internal/measurement"
++	"github.com/google/pprof/profile"
++)
++
++// addLabelNodes adds pseudo stack frames "label:value" to each Sample with
++// labels matching the supplied keys.
++//
++// rootKeys adds frames at the root of the callgraph (first key becomes new root).
++// leafKeys adds frames at the leaf of the callgraph (last key becomes new leaf).
++//
++// Returns whether there were matches found for the label keys.
++func addLabelNodes(p *profile.Profile, rootKeys, leafKeys []string, outputUnit string) (rootm, leafm bool) {
++	// Find where to insert the new locations and functions at the end of
++	// their ID spaces.
++	var maxLocID uint64
++	var maxFunctionID uint64
++	for _, loc := range p.Location {
++		if loc.ID > maxLocID {
++			maxLocID = loc.ID
++		}
++	}
++	for _, f := range p.Function {
++		if f.ID > maxFunctionID {
++			maxFunctionID = f.ID
++		}
++	}
++	nextLocID := maxLocID + 1
++	nextFuncID := maxFunctionID + 1
++
++	// Intern the new locations and functions we are generating.
++	type locKey struct {
++		functionName, fileName string
++	}
++	locs := map[locKey]*profile.Location{}
++
++	internLoc := func(locKey locKey) *profile.Location {
++		loc, found := locs[locKey]
++		if found {
++			return loc
++		}
++
++		function := &profile.Function{
++			ID:       nextFuncID,
++			Name:     locKey.functionName,
++			Filename: locKey.fileName,
++		}
++		nextFuncID++
++		p.Function = append(p.Function, function)
++
++		loc = &profile.Location{
++			ID: nextLocID,
++			Line: []profile.Line{
++				{
++					Function: function,
++				},
++			},
++		}
++		nextLocID++
++		p.Location = append(p.Location, loc)
++		locs[locKey] = loc
++		return loc
++	}
++
++	makeLabelLocs := func(s *profile.Sample, keys []string) ([]*profile.Location, bool) {
++		var locs []*profile.Location
++		var match bool
++		for i := range keys {
++			// Loop backwards, ensuring the first tag is closest to the root,
++			// and the last tag is closest to the leaves.
++			k := keys[len(keys)-1-i]
++			values := formatLabelValues(s, k, outputUnit)
++			if len(values) > 0 {
++				match = true
++			}
++			locKey := locKey{
++				functionName: strings.Join(values, ","),
++				fileName:     k,
++			}
++			loc := internLoc(locKey)
++			locs = append(locs, loc)
++		}
++		return locs, match
++	}
++
++	for _, s := range p.Sample {
++		rootsToAdd, sampleMatchedRoot := makeLabelLocs(s, rootKeys)
++		if sampleMatchedRoot {
++			rootm = true
++		}
++		leavesToAdd, sampleMatchedLeaf := makeLabelLocs(s, leafKeys)
++		if sampleMatchedLeaf {
++			leafm = true
++		}
++
++		var newLocs []*profile.Location
++		newLocs = append(newLocs, leavesToAdd...)
++		newLocs = append(newLocs, s.Location...)
++		newLocs = append(newLocs, rootsToAdd...)
++		s.Location = newLocs
++	}
++	return
++}
++
++// formatLabelValues returns all the string and numeric labels in Sample, with
++// the numeric labels formatted according to outputUnit.
++func formatLabelValues(s *profile.Sample, k string, outputUnit string) []string {
++	var values []string
++	values = append(values, s.Label[k]...)
++	numLabels := s.NumLabel[k]
++	numUnits := s.NumUnit[k]
++	if len(numLabels) != len(numUnits) {
++		return values
++	}
++	for i, numLabel := range numLabels {
++		unit := numUnits[i]
++		values = append(values, measurement.ScaledLabel(numLabel, unit, outputUnit))
++	}
++	return values
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 1e64528968..e0e116a634 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20210827144239-02619b876842
++# github.com/google/pprof v0.0.0-20211001005136-7fe48b4c820b
+ ## explicit; go 1.14
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

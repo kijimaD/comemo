@@ -11,6 +11,22 @@ Date:   Wed Jan 30 17:36:33 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/decode_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/image/decode_test.go b/src/image/decode_test.go
+index 85e235e729..2b3ff6ba58 100644
+--- a/src/image/decode_test.go
++++ b/src/image/decode_test.go
+@@ -123,6 +123,10 @@ loop:
+ 			continue
+ 		}
+ 		c, _, err := decodeConfig(it.filename)
++		if err != nil {
++			t.Errorf("%s: %v", it.filename, err)
++			continue loop
++		}
+ 		if m.ColorModel() != c.ColorModel {
+ 			t.Errorf("%s: color models differ", it.filename)
+ 			continue loop

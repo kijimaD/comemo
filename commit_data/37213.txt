@@ -20,9 +20,103 @@ Date:   Tue Jul 10 12:23:31 2018 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/dwarf/dwarf.go                         |  3 ++-
  src/cmd/link/internal/ld/dwarf_test.go                  | 17 +++++++++++++++++
  .../link/internal/ld/testdata/issue26237/src/b.dir/b.go | 16 ++++++++++++++++
  .../internal/ld/testdata/issue26237/src/main/main.go    | 16 ++++++++++++++++
  4 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index edb84498f9..96fb2b765b 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -8,6 +8,7 @@
+ package dwarf
+ 
+ import (
++	"cmd/internal/objabi"
+ 	"errors"
+ 	"fmt"
+ 	"sort"
+@@ -1096,7 +1097,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
+ 		// be rewritten, since it would change the offsets of the
+ 		// child DIEs (which we're relying on in order for abstract
+ 		// origin references to work).
+-		fullname = s.Importpath + "." + s.Name[3:]
++		fullname = objabi.PathToPrefix(s.Importpath) + "." + s.Name[3:]
+ 	}
+ 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(fullname)), fullname)
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index b4e328bc2a..ea89b72cad 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -830,6 +830,23 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
+ 	}
+ }
+ 
++func TestAbstractOriginSanityIssue26237(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++	if runtime.GOOS == "solaris" || runtime.GOOS == "darwin" {
++		t.Skip("skipping on solaris and darwin, pending resolution of issue #23168")
++	}
++	if wd, err := os.Getwd(); err == nil {
++		gopathdir := filepath.Join(wd, "testdata", "issue26237")
++		abstractOriginSanity(t, gopathdir, DefaultOpt)
++	} else {
++		t.Fatalf("os.Getwd() failed %v", err)
++	}
++}
++
+ func TestRuntimeTypeAttr(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/cmd/link/internal/ld/testdata/issue26237/src/b.dir/b.go b/src/cmd/link/internal/ld/testdata/issue26237/src/b.dir/b.go
+new file mode 100644
+index 0000000000..ca577490bc
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue26237/src/b.dir/b.go
+@@ -0,0 +1,16 @@
++package b
++
++var q int
++
++func Top(x int) int {
++	q += 1
++	if q != x {
++		return 3
++	}
++	return 4
++}
++
++func OOO(x int) int {
++	defer func() { q += x & 7 }()
++	return Top(x + 1)
++}
+diff --git a/src/cmd/link/internal/ld/testdata/issue26237/src/main/main.go b/src/cmd/link/internal/ld/testdata/issue26237/src/main/main.go
+new file mode 100644
+index 0000000000..6fdaa0bfa1
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/issue26237/src/main/main.go
+@@ -0,0 +1,16 @@
++package main
++
++import (
++	"fmt"
++
++	b "b.dir"
++)
++
++var skyx int
++
++func main() {
++	skyx += b.OOO(skyx)
++	if b.Top(1) == 99 {
++		fmt.Printf("Beware the Jabberwock, my son!\n")
++	}
++}

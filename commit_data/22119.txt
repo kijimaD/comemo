@@ -13,6 +13,31 @@ Date:   Wed Feb 25 10:59:20 2015 +1100
     Change-Id: Ie09be1a73d5bb777ec5bca3ba93ba73d5612d141
     Reviewed-on: https://go-review.googlesource.com/5834
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/util.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 12e14d3ae5..d7e0078c2f 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -436,7 +436,7 @@ func main() {
+ 	}
+ 
+ 	if gohostarch == "arm" {
+-		maxbg = 1
++		maxbg = min(maxbg, runtime.NumCPU())
+ 	}
+ 	bginit()
+ 
+@@ -544,3 +544,10 @@ func xgetgoarm() string {
+ 	}
+ 	return goarm
+ }
++
++func min(a, b int) int {
++	if a < b {
++		return a
++	}
++	return b
++}

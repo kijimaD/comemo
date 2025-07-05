@@ -9,6 +9,24 @@ Date:   Wed Apr 20 08:56:33 2016 -0700
     Change-Id: I5275a22af7081875af0256da296811f4fe9832dc
     Reviewed-on: https://go-review.googlesource.com/22296
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  doc/go_faq.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index b44c1893a1..5954d17f5d 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -335,8 +335,10 @@ code that does what generics would enable, if less smoothly.
+ </p>
+ 
+ <p>
+-This remains an open issue. See <a href="https://golang.org/issue/15292">the generics proposal issue</a>
+-for more information.
++The topic remains open.
++For a look at several previous unsuccessful attempts to
++design a good generics solution for Go, see
++<a href="https://golang.org/issue/15292">this proposal</a>.
+ </p>
+ 
+ <h3 id="exceptions">

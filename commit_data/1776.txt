@@ -8,6 +8,25 @@ Date:   Fri Mar 6 17:20:53 2009 -0800
     DELTA=7  (7 added, 0 deleted, 0 changed)
     OCL=25859
     CL=25871
-
+---
  src/lib/syscall/syscall.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/lib/syscall/syscall.go b/src/lib/syscall/syscall.go
+index d8db5ce5d9..93611c86e6 100644
+--- a/src/lib/syscall/syscall.go
++++ b/src/lib/syscall/syscall.go
+@@ -2,6 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This package contains an interface to the low-level operating system
++// primitives.  The details vary depending on the underlying system.
++// Its primary use is inside other packages that provide a more portable
++// interface to the system, such as "os", "time" and "net".  Use those
++// packages rather than this one if you can.
++// For details of the functions and data types in this package consult
++// the manuals for the appropriate operating system.
+ package syscall
+ 
+ /*

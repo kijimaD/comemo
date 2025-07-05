@@ -12,8 +12,76 @@ Date:   Wed Feb 19 08:19:27 2014 +0100
     R=rsc, dvyukov, iant, bradfitz, dave
     CC=golang-codereviews
     https://golang.org/cl/65740043
-
+---
  src/cmd/gc/walk.c | 8 +++++---
  src/run.bash      | 6 ++----
  src/run.bat       | 4 +---
  3 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index fe07490cbd..97473de071 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2707,9 +2707,10 @@ appendslice(Node *n, NodeList **init)
+ 			fn = syslook("copy", 1);
+ 		argtype(fn, l1->type);
+ 		argtype(fn, l2->type);
+-		l = list(l, mkcall1(fn, types[TINT], init,
++		nt = mkcall1(fn, types[TINT], &l,
+ 				nptr1, nptr2,
+-				nodintconst(s->type->type->width)));
++				nodintconst(s->type->type->width));
++		l = list(l, nt);
+ 	} else {
+ 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
+ 		nptr1 = nod(OINDEX, s, nod(OLEN, l1, N));
+@@ -2724,7 +2725,8 @@ appendslice(Node *n, NodeList **init)
+ 
+ 		nwid = cheapexpr(conv(nod(OLEN, l2, N), types[TUINTPTR]), &l);
+ 		nwid = nod(OMUL, nwid, nodintconst(s->type->type->width));
+-		l = list(l, mkcall1(fn, T, init, nptr1, nptr2, nwid));
++		nt = mkcall1(fn, T, &l, nptr1, nptr2, nwid);
++		l = list(l, nt);
+ 	}
+ 
+ 	// s = s[:len(l1)+len(l2)]
+diff --git a/src/run.bash b/src/run.bash
+index 4252247791..9a01e0631b 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -57,10 +57,8 @@ go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
+ 
+ # Race detector only supported on Linux and OS X,
+ # and only on amd64, and only when cgo is enabled.
+-# Disabled due to golang.org/issue/7334; remove XXX below
+-# and in run.bat to reenable.
+ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+-XXXlinux-linux-amd64-1 | XXXdarwin-darwin-amd64-1)
++linux-linux-amd64-1 | darwin-darwin-amd64-1)
+ 	echo
+ 	echo '# Testing race detector.'
+ 	go test -race -i runtime/race flag
+@@ -175,7 +173,7 @@ rm -f goplay
+ 
+ [ "$GOARCH" == arm ] ||
+ (xcd ../test/bench/shootout
+-./timing.sh -test || exit 1
++time ./timing.sh -test || exit 1
+ ) || exit $?
+ 
+ [ "$GOOS" == openbsd ] || # golang.org/issue/5057
+diff --git a/src/run.bat b/src/run.bat
+index 00bbd5905a..f01032699e 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -54,9 +54,7 @@ echo.
+ 
+ :: Race detector only supported on Linux and OS X,
+ :: and only on amd64, and only when cgo is enabled.
+-:: Disabled due to golang.org/issue/7334; remove XXX below
+-:: and in run.bash to reenable.
+-if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "XXXwindows-windows-amd64-1" goto norace
++if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+ echo # Testing race detector.
+ go test -race -i runtime/race flag
+ if errorlevel 1 goto fail

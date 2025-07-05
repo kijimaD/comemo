@@ -7,6 +7,22 @@ Date:   Fri Apr 30 18:45:04 2010 +1000
     R=rsc
     CC=go-dev, golang-dev
     https://golang.org/cl/1006045
-
+---
  src/pkg/syscall/syscall_nacl.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index 7b40a22ad0..aa932b0be7 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -108,6 +108,10 @@ func Sleep(ns int64) (errno int) {
+ //	SYS_TLS_*
+ //	SYS_SCHED_YIELD
+ 
++// #define'd in NaCl but not picked up by mkerrors_nacl.sh.
++
++const EWOULDBLOCK = EAGAIN
++
+ // Not implemented in NaCl but needed to compile other packages.
+ 
+ const (

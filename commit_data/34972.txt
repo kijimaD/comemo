@@ -22,10 +22,117 @@ Date:   Fri Dec 1 09:39:59 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go   | 12 ++++++++++++
  test/fixedbugs/issue22941.dir/a.go    |  7 +++++++
  test/fixedbugs/issue22941.dir/b.go    | 30 ++++++++++++++++++++++++++++++
  test/fixedbugs/issue22941.dir/main.go | 15 +++++++++++++++
  test/fixedbugs/issue22941.go          |  7 +++++++
  5 files changed, 71 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 39da514d53..3d099ad6c0 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -558,6 +558,18 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
+ 		})
++		// Note: the auto that we're appending here is simply to insure
++		// that the DWARF type in question is picked up by the linker --
++		// there isn't a real auto variable with this name. This is
++		// to fix issue 22941.
++		gotype := ngotype(n).Linksym()
++		fnsym.Func.Autom = append(fnsym.Func.Autom, &obj.Auto{
++			Asym:    Ctxt.Lookup(n.Sym.Name),
++			Aoffset: int32(-1),
++			Name:    obj.NAME_AUTO,
++			Gotype:  gotype,
++		})
++
+ 	}
+ 
+ 	// Parameter and local variable names are given middle dot
+diff --git a/test/fixedbugs/issue22941.dir/a.go b/test/fixedbugs/issue22941.dir/a.go
+new file mode 100644
+index 0000000000..7a4ede438f
+--- /dev/null
++++ b/test/fixedbugs/issue22941.dir/a.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package q
++
++type P int
+diff --git a/test/fixedbugs/issue22941.dir/b.go b/test/fixedbugs/issue22941.dir/b.go
+new file mode 100644
+index 0000000000..87d59a6764
+--- /dev/null
++++ b/test/fixedbugs/issue22941.dir/b.go
+@@ -0,0 +1,30 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import q "./a"
++
++type T struct {
++	X *q.P
++}
++
++func F(in, out *T) {
++	*out = *in
++	if in.X != nil {
++		in, out := &in.X, &out.X
++		if *in == nil {
++			*out = nil
++		} else {
++			*out = new(q.P)
++			**out = **in
++		}
++	}
++	return
++}
++
++//go:noinline
++func G(x, y *T) {
++	F(x, y)
++}
+diff --git a/test/fixedbugs/issue22941.dir/main.go b/test/fixedbugs/issue22941.dir/main.go
+new file mode 100644
+index 0000000000..84666adf0d
+--- /dev/null
++++ b/test/fixedbugs/issue22941.dir/main.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import p "./b"
++
++var G int
++
++func main() {
++	if G == 101 {
++		p.G(nil, nil)
++	}
++}
+diff --git a/test/fixedbugs/issue22941.go b/test/fixedbugs/issue22941.go
+new file mode 100644
+index 0000000000..c3732c311b
+--- /dev/null
++++ b/test/fixedbugs/issue22941.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

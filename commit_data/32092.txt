@@ -12,7 +12,42 @@ Date:   Mon Apr 3 16:08:13 2017 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/bytes.go     | 2 +-
  src/strings/strings.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index de3bd0515a..7c878af688 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -48,11 +48,11 @@ func explode(s []byte, n int) [][]byte {
+ 
+ // countGeneric actually implements Count
+ func countGeneric(s, sep []byte) int {
+-	n := 0
+ 	// special case
+ 	if len(sep) == 0 {
+ 		return utf8.RuneCount(s) + 1
+ 	}
++	n := 0
+ 	for {
+ 		i := Index(s, sep)
+ 		if i == -1 {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 9ca222fdfa..2650fb057c 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -75,11 +75,11 @@ func hashStrRev(sep string) (uint32, uint32) {
+ // Count counts the number of non-overlapping instances of substr in s.
+ // If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+ func Count(s, substr string) int {
+-	n := 0
+ 	// special case
+ 	if len(substr) == 0 {
+ 		return utf8.RuneCountInString(s) + 1
+ 	}
++	n := 0
+ 	for {
+ 		i := Index(s, substr)
+ 		if i == -1 {

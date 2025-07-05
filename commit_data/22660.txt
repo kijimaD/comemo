@@ -47,7 +47,67 @@ Date:   Sat Mar 21 23:42:47 2015 -0700
     Change-Id: Iee8f4da5881682c4d4c36b93b9bf397ac5798179
     Reviewed-on: https://go-review.googlesource.com/7913
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/text/scanner/scanner.go      |  4 ++--
  src/text/scanner/scanner_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 9638577bcf..d3eadfd7e1 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -208,7 +208,7 @@ func (s *Scanner) Init(src io.Reader) *Scanner {
+ 	s.tokPos = -1
+ 
+ 	// initialize one character look-ahead
+-	s.ch = -1 // no char read yet
++	s.ch = -2 // no char read yet, not EOF
+ 
+ 	// initialize public fields
+ 	s.Error = nil
+@@ -322,7 +322,7 @@ func (s *Scanner) Next() rune {
+ // the scanner. It returns EOF if the scanner's position is at the last
+ // character of the source.
+ func (s *Scanner) Peek() rune {
+-	if s.ch < 0 {
++	if s.ch == -2 {
+ 		// this code is only run for the very first character
+ 		s.ch = s.next()
+ 		if s.ch == '\uFEFF' {
+diff --git a/src/text/scanner/scanner_test.go b/src/text/scanner/scanner_test.go
+index 702fac2b1a..aca17b1b27 100644
+--- a/src/text/scanner/scanner_test.go
++++ b/src/text/scanner/scanner_test.go
+@@ -616,3 +616,32 @@ func TestPos(t *testing.T) {
+ 		t.Errorf("%d errors", s.ErrorCount)
+ 	}
+ }
++
++type countReader int
++
++func (c *countReader) Read([]byte) (int, error) {
++	*c++
++
++	return 0, io.EOF
++}
++
++func TestPeekEOFHandling(t *testing.T) {
++	var r countReader
++
++	// corner case: empty source
++	s := new(Scanner).Init(&r)
++
++	tok := s.Next()
++	if tok != EOF {
++		t.Errorf("EOF not reported")
++	}
++
++	tok = s.Peek()
++	if tok != EOF {
++		t.Errorf("EOF not reported")
++	}
++
++	if r != 2 {
++		t.Errorf("scanner called Read %d times, not twice", r)
++	}
++}

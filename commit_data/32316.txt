@@ -12,6 +12,48 @@ Date:   Fri Apr 14 14:53:09 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/trace.go | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 72cab90de0..7db2188861 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -481,7 +481,13 @@ func generateTrace(params *traceParams) (ViewerData, error) {
+ 			}
+ 			ctx.emitSlice(&fakeMarkStart, text)
+ 		case trace.EvGCSweepStart:
+-			ctx.emitSlice(ev, "SWEEP")
++			slice := ctx.emitSlice(ev, "SWEEP")
++			if done := ev.Link; done != nil && done.Args[0] != 0 {
++				slice.Arg = struct {
++					Swept     uint64 `json:"Swept bytes"`
++					Reclaimed uint64 `json:"Reclaimed bytes"`
++				}{done.Args[0], done.Args[1]}
++			}
+ 		case trace.EvGoStart, trace.EvGoStartLabel:
+ 			info := getGInfo(ev.G)
+ 			if ev.Type == trace.EvGoStartLabel {
+@@ -574,8 +580,8 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
+ 	}
+ }
+ 
+-func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
+-	ctx.emit(&ViewerEvent{
++func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
++	sl := &ViewerEvent{
+ 		Name:     name,
+ 		Phase:    "X",
+ 		Time:     ctx.time(ev),
+@@ -583,7 +589,9 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
+ 		Tid:      ctx.proc(ev),
+ 		Stack:    ctx.stack(ev.Stk),
+ 		EndStack: ctx.stack(ev.Link.Stk),
+-	})
++	}
++	ctx.emit(sl)
++	return sl
+ }
+ 
+ type heapCountersArg struct {

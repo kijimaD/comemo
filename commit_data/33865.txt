@@ -14,7 +14,7 @@ Date:   Tue Sep 12 18:28:02 2017 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/errors_test.go           | 151 ++++++++++++++++++++++++
  misc/cgo/errors/issue13635.go            |  24 ----
  misc/cgo/errors/{ptr.go => ptr_test.go}  | 196 ++++++++++---------------------
@@ -40,3 +40,738 @@ Date:   Tue Sep 12 18:28:02 2017 -0400
  misc/cgo/errors/test.bash                |  78 ------------
  src/cmd/dist/test.go                     |   2 +-
  24 files changed, 255 insertions(+), 242 deletions(-)
+
+diff --git a/misc/cgo/errors/errors_test.go b/misc/cgo/errors/errors_test.go
+new file mode 100644
+index 0000000000..2924993714
+--- /dev/null
++++ b/misc/cgo/errors/errors_test.go
+@@ -0,0 +1,151 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package errorstest
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"strconv"
++	"strings"
++	"testing"
++)
++
++func path(file string) string {
++	return filepath.Join("src", file)
++}
++
++func check(t *testing.T, file string) {
++	t.Run(file, func(t *testing.T) {
++		t.Parallel()
++
++		contents, err := ioutil.ReadFile(path(file))
++		if err != nil {
++			t.Fatal(err)
++		}
++		var errors []*regexp.Regexp
++		for i, line := range bytes.Split(contents, []byte("\n")) {
++			if !bytes.Contains(line, []byte("ERROR HERE")) {
++				continue
++			}
++			var re *regexp.Regexp
++			frags := bytes.SplitAfterN(line, []byte("ERROR HERE: "), 1)
++			if len(frags) == 1 {
++				re = regexp.MustCompile(regexp.QuoteMeta(fmt.Sprintf("%s:%d:", file, i+1)))
++			} else {
++				re, err = regexp.Compile(string(frags[1]))
++				if err != nil {
++					t.Errorf("Invalid regexp after `ERROR HERE: `: %q", frags[1])
++					continue
++				}
++			}
++			errors = append(errors, re)
++		}
++		if len(errors) == 0 {
++			t.Fatalf("cannot find ERROR HERE")
++		}
++		expect(t, file, errors)
++	})
++}
++
++func expect(t *testing.T, file string, errors []*regexp.Regexp) {
++	cmd := exec.Command("go", "build", "-gcflags=-C", path(file))
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Errorf("expected cgo to fail but it succeeded")
++	}
++
++	lines := bytes.Split(out, []byte("\n"))
++	for _, re := range errors {
++		found := false
++		for _, line := range lines {
++			if re.Match(line) {
++				found = true
++				break
++			}
++		}
++		if !found {
++			t.Errorf("expected error output to contain %q", re)
++		}
++	}
++
++	if t.Failed() {
++		t.Logf("actual output:\n%s", out)
++	}
++}
++
++func sizeofLongDouble(t *testing.T) int {
++	cmd := exec.Command("go", "run", path("long_double_size.go"))
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
++	}
++
++	i, err := strconv.Atoi(strings.TrimSpace(string(out)))
++	if err != nil {
++		t.Fatalf("long_double_size.go printed invalid size: %s", out)
++	}
++	return i
++}
++
++func TestReportsTypeErrors(t *testing.T) {
++	for _, file := range []string{
++		"err1.go",
++		"err2.go",
++		"err3.go",
++		"issue7757.go",
++		"issue8442.go",
++		"issue11097a.go",
++		"issue11097b.go",
++		"issue13129.go",
++		"issue13423.go",
++		"issue13635.go",
++		"issue13830.go",
++		"issue16116.go",
++		"issue16591.go",
++		"issue18452.go",
++		"issue18889.go",
++	} {
++		check(t, file)
++	}
++
++	if sizeofLongDouble(t) > 8 {
++		check(t, "err4.go")
++	}
++}
++
++func TestToleratesOptimizationFlag(t *testing.T) {
++	for _, cflags := range []string{
++		"",
++		"-O",
++	} {
++		cflags := cflags
++		t.Run(cflags, func(t *testing.T) {
++			t.Parallel()
++
++			cmd := exec.Command("go", "build", path("issue14669.go"))
++			cmd.Env = append(os.Environ(), "CGO_CFLAGS="+cflags)
++			out, err := cmd.CombinedOutput()
++			if err != nil {
++				t.Errorf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
++			}
++		})
++	}
++}
++
++func TestMallocCrashesOnNil(t *testing.T) {
++	t.Parallel()
++
++	cmd := exec.Command("go", "run", path("malloc.go"))
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		t.Logf("%#q:\n%s", strings.Join(cmd.Args, " "), out)
++		t.Fatalf("succeeded unexpectedly")
++	}
++}
+diff --git a/misc/cgo/errors/issue13635.go b/misc/cgo/errors/issue13635.go
+deleted file mode 100644
+index 0ce2b1e83a..0000000000
+--- a/misc/cgo/errors/issue13635.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// issue 13635: used to output error about C.unsignedchar.
+-// This test tests all such types.
+-
+-package pkg
+-
+-import "C"
+-
+-func main() {
+-	var (
+-		_ C.uchar         = "uc"  // ERROR HERE
+-		_ C.schar         = "sc"  // ERROR HERE
+-		_ C.ushort        = "us"  // ERROR HERE
+-		_ C.uint          = "ui"  // ERROR HERE
+-		_ C.ulong         = "ul"  // ERROR HERE
+-		_ C.longlong      = "ll"  // ERROR HERE
+-		_ C.ulonglong     = "ull" // ERROR HERE
+-		_ C.complexfloat  = "cf"  // ERROR HERE
+-		_ C.complexdouble = "cd"  // ERROR HERE
+-	)
+-}
+diff --git a/misc/cgo/errors/ptr.go b/misc/cgo/errors/ptr_test.go
+similarity index 79%
+rename from misc/cgo/errors/ptr.go
+rename to misc/cgo/errors/ptr_test.go
+index e5f62f8b56..d295a5849d 100644
+--- a/misc/cgo/errors/ptr.go
++++ b/misc/cgo/errors/ptr_test.go
+@@ -4,20 +4,18 @@
+ 
+ // Tests that cgo detects invalid pointer passing at runtime.
+ 
+-package main
++package errorstest
+ 
+ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
+-	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"runtime"
+ 	"strings"
+-	"sync"
++	"testing"
+ )
+ 
+ // ptrTest is the tests without the boilerplate.
+@@ -353,219 +351,145 @@ var ptrTests = []ptrTest{
+ 	},
+ }
+ 
+-func main() {
+-	os.Exit(doTests())
++func TestPointerChecks(t *testing.T) {
++	for _, pt := range ptrTests {
++		pt := pt
++		t.Run(pt.name, func(t *testing.T) {
++			testOne(t, pt)
++		})
++	}
+ }
+ 
+-func doTests() int {
+-	gopath, err := ioutil.TempDir("", "cgoerrors")
++func testOne(t *testing.T, pt ptrTest) {
++	t.Parallel()
++
++	gopath, err := ioutil.TempDir("", filepath.Base(t.Name()))
+ 	if err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		return 2
++		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(gopath)
+ 
+-	if err := os.MkdirAll(filepath.Join(gopath, "src"), 0777); err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		return 2
+-	}
+-
+-	workers := runtime.NumCPU() + 1
+-
+-	var wg sync.WaitGroup
+-	c := make(chan int)
+-	errs := make(chan int)
+-	for i := 0; i < workers; i++ {
+-		wg.Add(1)
+-		go func() {
+-			worker(gopath, c, errs)
+-			wg.Done()
+-		}()
+-	}
+-
+-	for i := range ptrTests {
+-		c <- i
+-	}
+-	close(c)
+-
+-	go func() {
+-		wg.Wait()
+-		close(errs)
+-	}()
+-
+-	tot := 0
+-	for e := range errs {
+-		tot += e
+-	}
+-	return tot
+-}
+-
+-func worker(gopath string, c, errs chan int) {
+-	e := 0
+-	for i := range c {
+-		if !doOne(gopath, i) {
+-			e++
+-		}
+-	}
+-	if e > 0 {
+-		errs <- e
+-	}
+-}
+-
+-func doOne(gopath string, i int) bool {
+-	t := &ptrTests[i]
+-
+-	dir := filepath.Join(gopath, "src", fmt.Sprintf("dir%d", i))
+-	if err := os.Mkdir(dir, 0777); err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		return false
++	src := filepath.Join(gopath, "src")
++	if err := os.Mkdir(src, 0777); err != nil {
++		t.Fatal(err)
+ 	}
+ 
+-	name := filepath.Join(dir, fmt.Sprintf("t%d.go", i))
++	name := filepath.Join(src, fmt.Sprintf("%s.go", filepath.Base(t.Name())))
+ 	f, err := os.Create(name)
+ 	if err != nil {
+-		fmt.Fprintln(os.Stderr, err)
+-		return false
++		t.Fatal(err)
+ 	}
+ 
+ 	b := bufio.NewWriter(f)
+ 	fmt.Fprintln(b, `package main`)
+ 	fmt.Fprintln(b)
+ 	fmt.Fprintln(b, `/*`)
+-	fmt.Fprintln(b, t.c)
++	fmt.Fprintln(b, pt.c)
+ 	fmt.Fprintln(b, `*/`)
+ 	fmt.Fprintln(b, `import "C"`)
+ 	fmt.Fprintln(b)
+-	for _, imp := range t.imports {
++	for _, imp := range pt.imports {
+ 		fmt.Fprintln(b, `import "`+imp+`"`)
+ 	}
+-	if len(t.imports) > 0 {
++	if len(pt.imports) > 0 {
+ 		fmt.Fprintln(b)
+ 	}
+-	if len(t.support) > 0 {
+-		fmt.Fprintln(b, t.support)
++	if len(pt.support) > 0 {
++		fmt.Fprintln(b, pt.support)
+ 		fmt.Fprintln(b)
+ 	}
+ 	fmt.Fprintln(b, `func main() {`)
+-	fmt.Fprintln(b, t.body)
++	fmt.Fprintln(b, pt.body)
+ 	fmt.Fprintln(b, `}`)
+ 
+ 	if err := b.Flush(); err != nil {
+-		fmt.Fprintf(os.Stderr, "flushing %s: %v\n", name, err)
+-		return false
++		t.Fatalf("flushing %s: %v", name, err)
+ 	}
+ 	if err := f.Close(); err != nil {
+-		fmt.Fprintf(os.Stderr, "closing %s: %v\n", name, err)
+-		return false
++		t.Fatalf("closing %s: %v", name, err)
+ 	}
+ 
+-	for _, e := range t.extra {
+-		if err := ioutil.WriteFile(filepath.Join(dir, e.name), []byte(e.contents), 0644); err != nil {
+-			fmt.Fprintf(os.Stderr, "writing %s: %v\n", e.name, err)
+-			return false
++	for _, e := range pt.extra {
++		if err := ioutil.WriteFile(filepath.Join(src, e.name), []byte(e.contents), 0644); err != nil {
++			t.Fatalf("writing %s: %v", e.name, err)
+ 		}
+ 	}
+ 
+-	ok := true
++	args := func(cmd *exec.Cmd) string {
++		return strings.Join(cmd.Args, " ")
++	}
+ 
+ 	cmd := exec.Command("go", "build")
+-	cmd.Dir = dir
++	cmd.Dir = src
+ 	cmd.Env = addEnv("GOPATH", gopath)
+ 	buf, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "test %s failed to build: %v\n%s", t.name, err, buf)
+-		return false
++		t.Logf("%#q:\n%s", args(cmd), buf)
++		t.Fatalf("failed to build: %v", err)
+ 	}
+ 
+-	exe := filepath.Join(dir, filepath.Base(dir))
++	exe := filepath.Join(src, filepath.Base(src))
+ 	cmd = exec.Command(exe)
+-	cmd.Dir = dir
++	cmd.Dir = src
+ 
+-	if t.expensive {
++	if pt.expensive {
+ 		cmd.Env = cgocheckEnv("1")
+ 		buf, err := cmd.CombinedOutput()
+ 		if err != nil {
+-			var errbuf bytes.Buffer
+-			if t.fail {
+-				fmt.Fprintf(&errbuf, "test %s marked expensive but failed when not expensive: %v\n", t.name, err)
++			t.Logf("%#q:\n%s", args(cmd), buf)
++			if pt.fail {
++				t.Fatalf("test marked expensive, but failed when not expensive: %v", err)
+ 			} else {
+-				fmt.Fprintf(&errbuf, "test %s failed unexpectedly with GODEBUG=cgocheck=1: %v\n", t.name, err)
++				t.Errorf("failed unexpectedly with GODEBUG=cgocheck=1: %v", err)
+ 			}
+-			reportTestOutput(&errbuf, t.name, buf)
+-			os.Stderr.Write(errbuf.Bytes())
+-			ok = false
+ 		}
+ 
+ 		cmd = exec.Command(exe)
+-		cmd.Dir = dir
++		cmd.Dir = src
+ 	}
+ 
+-	if t.expensive {
++	if pt.expensive {
+ 		cmd.Env = cgocheckEnv("2")
+ 	}
+ 
+ 	buf, err = cmd.CombinedOutput()
+-
+-	if t.fail {
++	if pt.fail {
+ 		if err == nil {
+-			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %s did not fail as expected\n", t.name)
+-			reportTestOutput(&errbuf, t.name, buf)
+-			os.Stderr.Write(errbuf.Bytes())
+-			ok = false
++			t.Logf("%#q:\n%s", args(cmd), buf)
++			t.Fatalf("did not fail as expected")
+ 		} else if !bytes.Contains(buf, []byte("Go pointer")) {
+-			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %s output does not contain expected error (failed with %v)\n", t.name, err)
+-			reportTestOutput(&errbuf, t.name, buf)
+-			os.Stderr.Write(errbuf.Bytes())
+-			ok = false
++			t.Logf("%#q:\n%s", args(cmd), buf)
++			t.Fatalf("did not print expected error (failed with %v)", err)
+ 		}
+ 	} else {
+ 		if err != nil {
+-			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %s failed unexpectedly: %v\n", t.name, err)
+-			reportTestOutput(&errbuf, t.name, buf)
+-			os.Stderr.Write(errbuf.Bytes())
+-			ok = false
++			t.Logf("%#q:\n%s", args(cmd), buf)
++			t.Fatalf("failed unexpectedly: %v", err)
+ 		}
+ 
+-		if !t.expensive && ok {
++		if !pt.expensive {
+ 			// Make sure it passes with the expensive checks.
+ 			cmd := exec.Command(exe)
+-			cmd.Dir = dir
++			cmd.Dir = src
+ 			cmd.Env = cgocheckEnv("2")
+ 			buf, err := cmd.CombinedOutput()
+ 			if err != nil {
+-				var errbuf bytes.Buffer
+-				fmt.Fprintf(&errbuf, "test %s failed unexpectedly with expensive checks: %v\n", t.name, err)
+-				reportTestOutput(&errbuf, t.name, buf)
+-				os.Stderr.Write(errbuf.Bytes())
+-				ok = false
++				t.Logf("%#q:\n%s", args(cmd), buf)
++				t.Fatalf("failed unexpectedly with expensive checks: %v", err)
+ 			}
+ 		}
+ 	}
+ 
+-	if t.fail && ok {
++	if pt.fail {
+ 		cmd = exec.Command(exe)
+-		cmd.Dir = dir
++		cmd.Dir = src
+ 		cmd.Env = cgocheckEnv("0")
+ 		buf, err := cmd.CombinedOutput()
+ 		if err != nil {
+-			var errbuf bytes.Buffer
+-			fmt.Fprintf(&errbuf, "test %s failed unexpectedly with GODEBUG=cgocheck=0: %v\n", t.name, err)
+-			reportTestOutput(&errbuf, t.name, buf)
+-			os.Stderr.Write(errbuf.Bytes())
+-			ok = false
++			t.Logf("%#q:\n%s", args(cmd), buf)
++			t.Fatalf("failed unexpectedly with GODEBUG=cgocheck=0: %v", err)
+ 		}
+ 	}
+-
+-	return ok
+-}
+-
+-func reportTestOutput(w io.Writer, name string, buf []byte) {
+-	fmt.Fprintf(w, "=== test %s output ===\n", name)
+-	fmt.Fprintf(w, "%s", buf)
+-	fmt.Fprintf(w, "=== end of test %s output ===\n", name)
+ }
+ 
+ func cgocheckEnv(val string) []string {
+diff --git a/misc/cgo/errors/err1.go b/misc/cgo/errors/src/err1.go
+similarity index 100%
+rename from misc/cgo/errors/err1.go
+rename to misc/cgo/errors/src/err1.go
+diff --git a/misc/cgo/errors/err2.go b/misc/cgo/errors/src/err2.go
+similarity index 100%
+rename from misc/cgo/errors/err2.go
+rename to misc/cgo/errors/src/err2.go
+diff --git a/misc/cgo/errors/err3.go b/misc/cgo/errors/src/err3.go
+similarity index 100%
+rename from misc/cgo/errors/err3.go
+rename to misc/cgo/errors/src/err3.go
+diff --git a/misc/cgo/errors/err4.go b/misc/cgo/errors/src/err4.go
+similarity index 100%
+rename from misc/cgo/errors/err4.go
+rename to misc/cgo/errors/src/err4.go
+diff --git a/misc/cgo/errors/issue11097a.go b/misc/cgo/errors/src/issue11097a.go
+similarity index 100%
+rename from misc/cgo/errors/issue11097a.go
+rename to misc/cgo/errors/src/issue11097a.go
+diff --git a/misc/cgo/errors/issue11097b.go b/misc/cgo/errors/src/issue11097b.go
+similarity index 100%
+rename from misc/cgo/errors/issue11097b.go
+rename to misc/cgo/errors/src/issue11097b.go
+diff --git a/misc/cgo/errors/issue13129.go b/misc/cgo/errors/src/issue13129.go
+similarity index 88%
+rename from misc/cgo/errors/issue13129.go
+rename to misc/cgo/errors/src/issue13129.go
+index f7ad7a7e14..057bce4b82 100644
+--- a/misc/cgo/errors/issue13129.go
++++ b/misc/cgo/errors/src/issue13129.go
+@@ -10,5 +10,5 @@ import "C"
+ 
+ func main() {
+ 	var x C.ushort
+-	x = int(0) // ERROR HERE
++	x = int(0) // ERROR HERE: C\.ushort
+ }
+diff --git a/misc/cgo/errors/issue13423.go b/misc/cgo/errors/src/issue13423.go
+similarity index 100%
+rename from misc/cgo/errors/issue13423.go
+rename to misc/cgo/errors/src/issue13423.go
+diff --git a/misc/cgo/errors/src/issue13635.go b/misc/cgo/errors/src/issue13635.go
+new file mode 100644
+index 0000000000..3f38f5df4b
+--- /dev/null
++++ b/misc/cgo/errors/src/issue13635.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 13635: used to output error about C.unsignedchar.
++// This test tests all such types.
++
++package pkg
++
++import "C"
++
++func main() {
++	var (
++		_ C.uchar         = "uc"  // ERROR HERE: C\.uchar
++		_ C.schar         = "sc"  // ERROR HERE: C\.schar
++		_ C.ushort        = "us"  // ERROR HERE: C\.ushort
++		_ C.uint          = "ui"  // ERROR HERE: C\.uint
++		_ C.ulong         = "ul"  // ERROR HERE: C\.ulong
++		_ C.longlong      = "ll"  // ERROR HERE: C\.longlong
++		_ C.ulonglong     = "ull" // ERROR HERE: C\.ulonglong
++		_ C.complexfloat  = "cf"  // ERROR HERE: C\.complexfloat
++		_ C.complexdouble = "cd"  // ERROR HERE: C\.complexdouble
++	)
++}
+diff --git a/misc/cgo/errors/issue13830.go b/misc/cgo/errors/src/issue13830.go
+similarity index 100%
+rename from misc/cgo/errors/issue13830.go
+rename to misc/cgo/errors/src/issue13830.go
+diff --git a/misc/cgo/errors/issue14669.go b/misc/cgo/errors/src/issue14669.go
+similarity index 100%
+rename from misc/cgo/errors/issue14669.go
+rename to misc/cgo/errors/src/issue14669.go
+diff --git a/misc/cgo/errors/issue16116.go b/misc/cgo/errors/src/issue16116.go
+similarity index 100%
+rename from misc/cgo/errors/issue16116.go
+rename to misc/cgo/errors/src/issue16116.go
+diff --git a/misc/cgo/errors/issue16591.go b/misc/cgo/errors/src/issue16591.go
+similarity index 100%
+rename from misc/cgo/errors/issue16591.go
+rename to misc/cgo/errors/src/issue16591.go
+diff --git a/misc/cgo/errors/issue18452.go b/misc/cgo/errors/src/issue18452.go
+similarity index 75%
+rename from misc/cgo/errors/issue18452.go
+rename to misc/cgo/errors/src/issue18452.go
+index 36ef7f54e1..0386d76892 100644
+--- a/misc/cgo/errors/issue18452.go
++++ b/misc/cgo/errors/src/issue18452.go
+@@ -13,6 +13,6 @@ import (
+ 
+ func a() {
+ 	fmt.Println("Hello, world!")
+-	C.function_that_does_not_exist() // line 16
+-	C.pi                             // line 17
++	C.function_that_does_not_exist() // ERROR HERE
++	C.pi                             // ERROR HERE
+ }
+diff --git a/misc/cgo/errors/issue18889.go b/misc/cgo/errors/src/issue18889.go
+similarity index 100%
+rename from misc/cgo/errors/issue18889.go
+rename to misc/cgo/errors/src/issue18889.go
+diff --git a/misc/cgo/errors/issue7757.go b/misc/cgo/errors/src/issue7757.go
+similarity index 100%
+rename from misc/cgo/errors/issue7757.go
+rename to misc/cgo/errors/src/issue7757.go
+diff --git a/misc/cgo/errors/issue8442.go b/misc/cgo/errors/src/issue8442.go
+similarity index 100%
+rename from misc/cgo/errors/issue8442.go
+rename to misc/cgo/errors/src/issue8442.go
+diff --git a/misc/cgo/errors/src/long_double_size.go b/misc/cgo/errors/src/long_double_size.go
+new file mode 100644
+index 0000000000..8b797f886a
+--- /dev/null
++++ b/misc/cgo/errors/src/long_double_size.go
+@@ -0,0 +1,16 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++const int sizeofLongDouble = sizeof(long double);
++*/
++import "C"
++
++import "fmt"
++
++func main() {
++	fmt.Println(C.sizeofLongDouble)
++}
+diff --git a/misc/cgo/errors/malloc.go b/misc/cgo/errors/src/malloc.go
+similarity index 100%
+rename from misc/cgo/errors/malloc.go
+rename to misc/cgo/errors/src/malloc.go
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+deleted file mode 100755
+index 04747a6913..0000000000
+--- a/misc/cgo/errors/test.bash
++++ /dev/null
+@@ -1,78 +0,0 @@
+-#!/usr/bin/env bash
+-
+-# Copyright 2013 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-check() {
+-	file=$1
+-	line=$(grep -n 'ERROR HERE' $file | sed 's/:.*//')
+-	if [ "$line" = "" ]; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: cannot find ERROR HERE in $file
+-		exit 1
+-	fi
+-	expect $file $file:$line:
+-}
+-
+-expect() {
+-	file=$1
+-	shift
+-	if go build -gcflags=-C $file >errs 2>&1; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail on $file but it succeeded
+-		exit 1
+-	fi
+-	if ! test -s errs; then
+-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output for $file but saw none
+-		exit 1
+-	fi
+-	for error; do
+-		if ! fgrep $error errs >/dev/null 2>&1; then
+-			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output for $file to contain \"$error\" but saw:
+-			cat 1>&2 errs
+-			exit 1
+-		fi
+-	done
+-}
+-
+-check err1.go
+-check err2.go
+-check err3.go
+-if [ $(go env GOARCH) == "amd64" ]; then # If we find a portable test case, we can remove this.
+-	check err4.go
+-fi
+-check issue7757.go
+-check issue8442.go
+-check issue11097a.go
+-check issue11097b.go
+-expect issue13129.go C.ushort
+-check issue13423.go
+-expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
+-check issue13830.go
+-check issue16116.go
+-check issue16591.go
+-check issue18889.go
+-expect issue18452.go issue18452.go:16 issue18452.go:17
+-
+-if ! go build issue14669.go; then
+-	exit 1
+-fi
+-if ! CGO_CFLAGS="-O" go build issue14669.go; then
+-	exit 1
+-fi
+-
+-if ! go run ptr.go; then
+-	exit 1
+-fi
+-
+-# The malloc.go test should crash.
+-rm -f malloc.out
+-if go run malloc.go >malloc.out 2>&1; then
+-	echo '`go run malloc.go` succeeded unexpectedly'
+-	cat malloc.out
+-	rm -f malloc.out
+-	exit 1
+-fi
+-rm -f malloc.out
+-
+-rm -rf errs _obj
+-exit 0
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 89cec9ae54..b91d0964f8 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -623,7 +623,7 @@ func (t *tester) registerTests() {
+ 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}
+ 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
+-			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
++			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
+ 		}
+ 		if t.gohostos == "linux" && t.extLink() {
+ 			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")

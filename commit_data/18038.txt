@@ -12,7 +12,83 @@ Date:   Wed Dec 18 13:05:47 2013 +0900
     R=golang-dev, bradfitz, adg, minux.ma
     CC=golang-dev
     https://golang.org/cl/14639044
-
+---
  src/pkg/net/dialgoogle_test.go | 24 ------------------------
  src/pkg/net/z_last_test.go     | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index b4ebad0e0d..79d150f8aa 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -107,30 +107,6 @@ var googleaddrsipv4 = []string{
+ 	"[0:0:0:0:0:ffff::%d.%d.%d.%d]:80",
+ }
+ 
+-func TestDNSThreadLimit(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skip("skipping test to avoid external network")
+-	}
+-
+-	const N = 10000
+-	c := make(chan int, N)
+-	for i := 0; i < N; i++ {
+-		go func(i int) {
+-			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
+-			c <- 1
+-		}(i)
+-	}
+-	// Don't bother waiting for the stragglers; stop at 0.9 N.
+-	for i := 0; i < N*9/10; i++ {
+-		if i%100 == 0 {
+-			//println("TestDNSThreadLimit:", i)
+-		}
+-		<-c
+-	}
+-
+-	// If we're still here, it worked.
+-}
+-
+ func TestDialGoogleIPv4(t *testing.T) {
+ 	if testing.Short() || !*testExternal {
+ 		t.Skip("skipping test to avoid external network")
+diff --git a/src/pkg/net/z_last_test.go b/src/pkg/net/z_last_test.go
+new file mode 100644
+index 0000000000..bb00f110fe
+--- /dev/null
++++ b/src/pkg/net/z_last_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestDNSThreadLimit(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Skip("skipping test to avoid external network")
++	}
++
++	const N = 10000
++	c := make(chan int, N)
++	for i := 0; i < N; i++ {
++		go func(i int) {
++			LookupIP(fmt.Sprintf("%d.net-test.golang.org", i))
++			c <- 1
++		}(i)
++	}
++	// Don't bother waiting for the stragglers; stop at 0.9 N.
++	for i := 0; i < N*9/10; i++ {
++		if i%100 == 0 {
++			//println("TestDNSThreadLimit:", i)
++		}
++		<-c
++	}
++
++	// If we're still here, it worked.
++}

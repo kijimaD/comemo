@@ -20,6 +20,25 @@ Date:   Mon Sep 27 19:49:38 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/interface.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index c67aca7a20..ccea1f6dcc 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -104,7 +104,13 @@ func (t *Interface) Empty() bool { return t.typeSet().IsAll() }
+ // IsComparable reports whether each type in interface t's type set is comparable.
+ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ 
++// IsMethodSet reports whether the interface t is fully described by its method
++// set.
++func (t *Interface) IsMethodSet() bool { return !t.typeSet().IsConstraint() }
++
+ // IsConstraint reports whether interface t is not just a method set.
++//
++// TODO(rfindley): remove this method.
+ func (t *Interface) IsConstraint() bool { return t.typeSet().IsConstraint() }
+ 
+ // Complete computes the interface's type set. It must be called by users of

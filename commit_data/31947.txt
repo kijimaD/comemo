@@ -27,10 +27,168 @@ Date:   Fri Mar 24 11:33:29 2017 -0700
     Change-Id: I7116c78fa39d975b7bd2c65a1d228749cf0dd46b
     Reviewed-on: https://go-review.googlesource.com/38605
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go         | 46 ++++++++++++++++++------------
  src/cmd/compile/internal/gc/go.go          |  3 +-
  src/cmd/compile/internal/gc/obj.go         |  7 +++--
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/subr.go        | 12 ++++++--
  5 files changed, 43 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 7ac8622fc6..c29a98c60f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1161,22 +1161,36 @@ func funccompile(n *Node) {
+ 	dclcontext = PEXTERN
+ }
+ 
+-func funcsym(s *Sym) *Sym {
+-	if s.Fsym != nil {
+-		return s.Fsym
+-	}
++func (s *Sym) funcsymname() string {
++	return s.Name + "·f"
++}
+ 
+-	s1 := Pkglookup(s.Name+"·f", s.Pkg)
+-	if !Ctxt.Flag_dynlink && s1.Def == nil {
+-		s1.Def = newfuncname(s1)
+-		s1.Def.Func.Shortname = s
+-		funcsyms = append(funcsyms, s1.Def)
+-	}
+-	s.Fsym = s1
+-	return s1
++// funcsym returns s·f.
++func funcsym(s *Sym) *Sym {
++	sf, existed := s.Pkg.LookupOK(s.funcsymname())
++	// Don't export s·f when compiling for dynamic linking.
++	// When dynamically linking, the necessary function
++	// symbols will be created explicitly with makefuncsym.
++	// See the makefuncsym comment for details.
++	if !Ctxt.Flag_dynlink && !existed {
++		funcsyms = append(funcsyms, s)
++	}
++	return sf
+ }
+ 
++// makefuncsym ensures that s·f is exported.
++// It is only used with -dynlink.
++// When not compiling for dynamic linking,
++// the funcsyms are created as needed by
++// the packages that use them.
++// Normally we emit the s·f stubs as DUPOK syms,
++// but DUPOK doesn't work across shared library boundaries.
++// So instead, when dynamic linking, we only create
++// the s·f stubs in s's package.
+ func makefuncsym(s *Sym) {
++	if !Ctxt.Flag_dynlink {
++		Fatalf("makefuncsym dynlink")
++	}
+ 	if isblanksym(s) {
+ 		return
+ 	}
+@@ -1185,13 +1199,9 @@ func makefuncsym(s *Sym) {
+ 		// not get a funcsym.
+ 		return
+ 	}
+-	s1 := funcsym(s)
+-	if s1.Def != nil {
+-		return
++	if _, existed := s.Pkg.LookupOK(s.funcsymname()); !existed {
++		funcsyms = append(funcsyms, s)
+ 	}
+-	s1.Def = newfuncname(s1)
+-	s1.Def.Func.Shortname = s
+-	funcsyms = append(funcsyms, s1.Def)
+ }
+ 
+ type nowritebarrierrecChecker struct {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 12076fc94a..99e481cc87 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -58,7 +58,6 @@ type Sym struct {
+ 	Label   *Node // corresponding label (ephemeral)
+ 	Origpkg *Pkg  // original package for . import
+ 	Lsym    *obj.LSym
+-	Fsym    *Sym // funcsym
+ }
+ 
+ const (
+@@ -239,7 +238,7 @@ var exportlist []*Node
+ 
+ var importlist []*Node // imported functions and methods with inlinable bodies
+ 
+-var funcsyms []*Node
++var funcsyms []*Sym
+ 
+ var dclcontext Class // PEXTERN/PAUTO
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index a7fe469283..6ecb332242 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -216,9 +216,10 @@ func dumpglobls() {
+ 		ggloblnod(n)
+ 	}
+ 
+-	for _, n := range funcsyms {
+-		dsymptr(n.Sym, 0, n.Sym.Def.Func.Shortname, 0)
+-		ggloblsym(n.Sym, int32(Widthptr), obj.DUPOK|obj.RODATA)
++	for _, s := range funcsyms {
++		sf := s.Pkg.Lookup(s.funcsymname())
++		dsymptr(sf, 0, s, 0)
++		ggloblsym(sf, int32(Widthptr), obj.DUPOK|obj.RODATA)
+ 	}
+ 
+ 	// Do not reprocess funcsyms on next dumpglobls call.
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 6d130b7ead..644b9a0736 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -26,7 +26,7 @@ func TestSizeof(t *testing.T) {
+ 		{Name{}, 36, 56},
+ 		{Param{}, 28, 56},
+ 		{Node{}, 84, 136},
+-		{Sym{}, 64, 112},
++		{Sym{}, 60, 104},
+ 		{Type{}, 52, 88},
+ 		{MapType{}, 20, 40},
+ 		{ForwardType{}, 20, 32},
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 726f84794c..3885ca32be 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -254,14 +254,20 @@ var nopkg = &Pkg{
+ }
+ 
+ func (pkg *Pkg) Lookup(name string) *Sym {
++	s, _ := pkg.LookupOK(name)
++	return s
++}
++
++// LookupOK looks up name in pkg and reports whether it previously existed.
++func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
+ 	if pkg == nil {
+ 		pkg = nopkg
+ 	}
+ 	if s := pkg.Syms[name]; s != nil {
+-		return s
++		return s, true
+ 	}
+ 
+-	s := &Sym{
++	s = &Sym{
+ 		Name: name,
+ 		Pkg:  pkg,
+ 	}
+@@ -269,7 +275,7 @@ func (pkg *Pkg) Lookup(name string) *Sym {
+ 		initSyms = append(initSyms, s)
+ 	}
+ 	pkg.Syms[name] = s
+-	return s
++	return s, false
+ }
+ 
+ func (pkg *Pkg) LookupBytes(name []byte) *Sym {

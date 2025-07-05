@@ -7,6 +7,20 @@ Date:   Tue Sep 13 23:31:07 2016 -0700
     Change-Id: I611511434f37c75f77c22f61f469108243bc0101
     Reviewed-on: https://go-review.googlesource.com/29121
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/syscall/exec_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 9fd8cf4dba..af59c5d00a 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -241,7 +241,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 	return pid, 0, err
+ }
+ 
+-// Ordinary exec.
++// Exec invokes the execve(2) system call.
+ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 	argv0p, err := BytePtrFromString(argv0)
+ 	if err != nil {

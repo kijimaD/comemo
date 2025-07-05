@@ -9,7 +9,35 @@ Date:   Fri Jan 30 15:11:46 2009 -0800
     R=ken
     OCL=23971
     CL=23971
-
+---
  src/cmd/6g/cgen.c  | 2 +-
  src/cmd/6g/gsubr.c | 3 ++-
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index ba1427d014..4a7404e8ca 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -118,7 +118,7 @@ cgen(Node *n, Node *res)
+ 			p1 = gins(a, N, res);
+ 			p1->from = addr;
+ 		} else {
+-			regalloc(&n2, n->type, &n1);
++			regalloc(&n2, n->type, N);
+ 			p1 = gins(a, N, &n2);
+ 			p1->from = addr;
+ 			gins(a, &n2, res);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 0f71c104c8..67def99527 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1006,7 +1006,8 @@ gins(int as, Node *f, Node *t)
+ void
+ naddr(Node *n, Addr *a)
+ {
+-
++	a->scale = 0;
++	a->index = D_NONE;
+ 	a->type = D_NONE;
+ 	if(n == N)
+ 		return;

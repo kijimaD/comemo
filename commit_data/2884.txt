@@ -7,7 +7,7 @@ Date:   Wed Aug 5 00:42:44 2009 -0700
     R=ken
     OCL=32772
     CL=32772
-
+---
  src/Make.conf            |   2 +-
  src/cmd/gc/dcl.c         |  77 +++++++++++++
  src/cmd/gc/gen.c         |   4 +-
@@ -23,3 +23,1045 @@ Date:   Wed Aug 5 00:42:44 2009 -0700
  test/fixedbugs/bug035.go |   4 +-
  test/fixedbugs/bug103.go |   2 +-
  14 files changed, 227 insertions(+), 338 deletions(-)
+
+diff --git a/src/Make.conf b/src/Make.conf
+index 9c927bae29..8924d7e149 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -4,7 +4,7 @@
+ 
+ CC=quietgcc
+ LD=quietgcc
+-CFLAGS=-ggdb -I$(GOROOT)/include -O1
++CFLAGS=-ggdb -I$(GOROOT)/include -O1 -fno-inline
+ O=o
+ YFLAGS=-d
+ # GNU Make syntax:
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 8849709ed4..fadf7fa231 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -574,6 +574,83 @@ dclchecks(void)
+ 	}
+ }
+ 
++/*
++ * := declarations
++ */
++
++static int
++colasname(Node *n)
++{
++	// TODO(rsc): can probably simplify
++	// once late-binding of names goes in
++	switch(n->op) {
++	case ONAME:
++	case ONONAME:
++	case OPACK:
++	case OTYPE:
++	case OLITERAL:
++		return n->sym != S;
++	}
++	return 0;
++}
++
++Node*
++old2new(Node *n, Type *t, NodeList **init)
++{
++	Node *l;
++
++	if(!colasname(n)) {
++		yyerror("left side of := must be a name");
++		return n;
++	}
++	if(t != T && t->funarg) {
++		yyerror("use of multi func value as single value in :=");
++		return n;
++	}
++	l = newname(n->sym);
++	dodclvar(l, t, init);
++	return l;
++}
++
++Node*
++colas(NodeList *left, NodeList *right)
++{
++	int nnew;
++	Node *n, *as;
++	NodeList *l;
++
++	if(count(left) == 1 && count(right) == 1)
++		as = nod(OAS, left->n, right->n);
++	else {
++		as = nod(OAS2, N, N);
++		as->list = left;
++		as->rlist = right;
++	}
++	as->colas = 1;
++
++	nnew = 0;
++	for(l=left; l; l=l->next) {
++		n = l->n;
++		if(!colasname(n)) {
++			yyerror("non-name %#N on left side of :=", n);
++			continue;
++		}
++		if(n->sym->block == block)
++			continue;
++		nnew++;
++		n = newname(n->sym);
++		declare(n, dclcontext);
++		if(as->op == OAS)
++			as->left = n;
++		n->defn = as;
++		as->ninit = list(as->ninit, nod(ODCL, n, N));
++		l->n = n;
++	}
++	if(nnew == 0)
++		yyerror("no new variables on left side of :=");
++	return as;
++}
++
+ 
+ /*
+  * structs, functions, and methods.
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 9872c57734..7bf63baef7 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -35,7 +35,9 @@ allocparams(void)
+ 		n = l->n;
+ 		if(n->op != ONAME || n->class != PAUTO)
+ 			continue;
+-		typecheck(&n, Erv);
++		typecheck(&n, Erv);	// only needed for unused variables
++		if(n->type == T)
++			continue;
+ 		dowidth(n->type);
+ 		w = n->type->width;
+ 		if(n->class & PHEAP)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c403048cf0..c55e94f5fd 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -465,7 +465,8 @@ enum
+ 	Etop = 1<<1,	// evaluated at statement level
+ 	Erv = 1<<2,	// evaluated in value context
+ 	Etype = 1<<3,
+-	Ecall = 1<<4,
++	Ecall = 1<<4,	// call-only expressions are ok
++	Efnstruct = 1<<5,	// multivalue function returns are ok
+ };
+ 
+ #define	BITS	5
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index edb7c676ee..0525cf8f2a 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -519,8 +519,8 @@ case:
+ 		// done in casebody()
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+-		typecheck(&$4, Erv);
+-		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
++//		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
++		$$->list = list1(colas(list1($2), list1($4)));
+ 	}
+ |	LDEFAULT ':'
+ 	{
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 2fd63cc7c4..7a90ae2c96 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -66,6 +66,10 @@ typecheckselect(Node *sel)
+ 			ncase->list = nil;
+ 			setlineno(n);
+ 			switch(n->op) {
++			default:
++				yyerror("select case must be receive, send or assign recv");;
++				break;
++
+ 			case OAS:
+ 				// convert x = <-c into OSELRECV(x, c)
+ 				if(n->right->op != ORECV) {
+@@ -123,6 +127,10 @@ walkselect(Node *sel)
+ 		r = nod(OIF, N, N);
+ 		r->nbody = ncase->ninit;
+ 		ncase->ninit = nil;
++		if(n != nil) {
++			r->nbody = concat(r->nbody, n->ninit);
++			n->ninit = nil;
++		}
+ 		if(n == nil) {
+ 			// selectdefault(sel *byte);
+ 			r->ntest = mkcall("selectdefault", types[TBOOL], &init, var);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9ed434b580..71217d8af1 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -582,7 +582,7 @@ dodump(Node *n, int dep)
+ 		print("%O-ntype\n", n->op);
+ 		dodump(n->ntype, dep+1);
+ 	}
+-	if(n->defn != nil) {
++	if(n->defn != nil && n->defn->op != OAS && n->defn->op != OAS2) {
+ 		indent(dep);
+ 		print("%O-defn\n", n->op);
+ 		dodump(n->defn, dep+1);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 66b2b6a87f..177c2b589a 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -27,6 +27,7 @@ static int	nokeys(NodeList*);
+ static void	typecheckcomplit(Node**);
+ static void	addrescapes(Node*);
+ static void	typecheckas2(Node*);
++static void	typecheckas(Node*);
+ static void	checklvalue(Node*, char*);
+ static void checkassign(Node*);
+ static void checkassignlist(NodeList*);
+@@ -88,8 +89,8 @@ reswitch:
+ 
+ 	case ONAME:
+ 		if(n->etype != 0) {
+-			yyerror("must call builtin %S", n->sym);
+-			goto error;
++			ok |= Ecall;
++			goto ret;
+ 		}
+ 		ok |= Erv;
+ 		goto ret;
+@@ -348,6 +349,7 @@ reswitch:
+ 	 * exprs
+ 	 */
+ 	case OADDR:
++		ok |= Erv;
+ 		typecheck(&n->left, Erv);
+ 		if(n->left->type == T)
+ 			goto error;
+@@ -368,6 +370,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OCOMPLIT:
++		ok |= Erv;
+ 		typecheckcomplit(&n);
+ 		if(n->type == T)
+ 			goto error;
+@@ -403,6 +406,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case ODOTTYPE:
++		ok |= Erv;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+@@ -422,6 +426,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OINDEX:
++		ok |= Erv;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, T);
+ 		implicitstar(&n->left);
+@@ -436,21 +441,18 @@ reswitch:
+ 			goto error;
+ 
+ 		case TARRAY:
+-			ok |= Erv;
+ 			defaultlit(&n->right, types[TUINT]);
+ 			n->type = t->type;
+ 			break;
+ 
+ 		case TMAP:
+ 			n->etype = 0;
+-			ok |= Erv;
+ 			defaultlit(&n->right, t->down);
+ 			n->type = t->type;
+ 			n->op = OINDEXMAP;
+ 			break;
+ 
+ 		case TSTRING:
+-			ok |= Erv;
+ 			defaultlit(&n->right, types[TUINT]);
+ 			n->type = types[TUINT8];
+ 			n->op = OINDEXSTR;
+@@ -459,6 +461,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case ORECV:
++		ok |= Etop | Erv;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+@@ -473,10 +476,10 @@ reswitch:
+ 			goto error;
+ 		}
+ 		n->type = t->type;
+-		ok |= Erv;
+ 		goto ret;
+ 
+ 	case OSEND:
++		ok |= Etop | Erv;
+ 		l = typecheck(&n->left, Erv);
+ 		typecheck(&n->right, Erv);
+ 		defaultlit(&n->left, T);
+@@ -495,7 +498,6 @@ reswitch:
+ 		n->etype = 0;
+ 		if(top & Erv)
+ 			n->op = OSENDNB;
+-		ok |= Etop | Erv;
+ 		n->type = types[TBOOL];
+ 		goto ret;
+ 
+@@ -564,7 +566,10 @@ reswitch:
+ 		typecheck(&n->left, Erv | Etype | Ecall);
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+-		typechecklist(n->list, Erv);
++		if(count(n->list) == 1)
++			typecheck(&n->list->n, Erv | Efnstruct);
++		else
++			typechecklist(n->list, Erv);
+ 		if((t = l->type) == T)
+ 			goto error;
+ 		dowidth(t);
+@@ -598,12 +603,11 @@ reswitch:
+ 			break;
+ 		}
+ 		typecheckaste(OCALL, getinargx(t), n->list);
+-		if(t->outtuple == 0) {
+-			ok |= Etop;
++		ok |= Etop;
++		if(t->outtuple == 0)
+ 			goto ret;
+-		}
++		ok |= Erv;
+ 		if(t->outtuple == 1) {
+-			ok |= Erv;
+ 			t = getoutargx(l->type)->type;
+ 			if(t->etype == TFIELD)
+ 				t = t->type;
+@@ -611,12 +615,16 @@ reswitch:
+ 			goto ret;
+ 		}
+ 		// multiple return
+-		// ok |= Emulti;
++		if(!(top & (Efnstruct | Etop))) {
++			yyerror("multiple-value %#N() in single-value context", l);
++			goto ret;
++		}
+ 		n->type = getoutargx(l->type);
+ 		goto ret;
+ 
+ 	case OCAP:
+ 	case OLEN:
++		ok |= Erv;
+ 		if(onearg(n) < 0)
+ 			goto error;
+ 		typecheck(&n->left, Erv);
+@@ -671,6 +679,7 @@ reswitch:
+ 
+ 	case OCONV:
+ 	doconv:
++		ok |= Erv;
+ 		typecheck(&n->left, Erv);
+ 		defaultlit(&n->left, n->type);
+ 		if((t = n->left->type) == T || n->type == T)
+@@ -681,6 +690,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OMAKE:
++		ok |= Erv;
+ 		args = n->list;
+ 		if(args == nil) {
+ 			yyerror("missing argument to make");
+@@ -779,6 +789,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case ONEW:
++		ok |= Erv;
+ 		args = n->list;
+ 		if(args == nil) {
+ 			yyerror("missing argument to new");
+@@ -800,6 +811,7 @@ reswitch:
+ 	case OPANICN:
+ 	case OPRINT:
+ 	case OPRINTN:
++		ok |= Etop;
+ 		typechecklist(n->list, Erv);
+ 		goto ret;
+ 
+@@ -807,14 +819,12 @@ reswitch:
+ 	 * statements
+ 	 */
+ 	case OAS:
+-		typecheck(&n->left, Erv);
+-		checkassign(n->left);
+-		typecheck(&n->right, Erv);
+-		if(n->left->type != T && n->right && n->right->type != T)
+-			n->right = typecheckconv(nil, n->right, n->left->type, 0);
++		ok |= Etop;
++		typecheckas(n);
+ 		goto ret;
+ 
+ 	case OAS2:
++		ok |= Etop;
+ 		typecheckas2(n);
+ 		goto ret;
+ 
+@@ -825,14 +835,17 @@ reswitch:
+ 	case OGOTO:
+ 	case OLABEL:
+ 	case OXFALL:
++		ok |= Etop;
+ 		goto ret;
+ 
+ 	case ODEFER:
+ 	case OPROC:
++		ok |= Etop;
+ 		typecheck(&n->left, Etop);
+ 		goto ret;
+ 
+ 	case OFOR:
++		ok |= Etop;
+ 		typechecklist(n->ninit, Etop);
+ 		typecheck(&n->ntest, Erv);
+ 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
+@@ -842,6 +855,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OIF:
++		ok |= Etop;
+ 		typechecklist(n->ninit, Etop);
+ 		typecheck(&n->ntest, Erv);
+ 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
+@@ -851,30 +865,35 @@ reswitch:
+ 		goto ret;
+ 
+ 	case ORETURN:
+-		typechecklist(n->list, Erv);
++		ok |= Etop;
++		typechecklist(n->list, Erv | Efnstruct);
+ 		if(curfn->type->outnamed && n->list == nil)
+ 			goto ret;
+ 		typecheckaste(ORETURN, getoutargx(curfn->type), n->list);
+ 		goto ret;
+ 
+ 	case OSELECT:
++		ok |= Etop;
+ 		typecheckselect(n);
+ 		goto ret;
+ 
+ 	case OSWITCH:
++		ok |= Etop;
+ 		typecheckswitch(n);
+ 		goto ret;
+ 
+ 	case OTYPECASE:
++		ok |= Etop | Erv;
+ 		typecheck(&n->left, Erv);
+-		ok |= Erv;
+ 		goto ret;
+ 
+ 	case OTYPESW:
++		ok |= Etop;
+ 		typecheck(&n->right, Erv);
+ 		goto ret;
+ 
+ 	case OXCASE:
++		ok |= Etop;
+ 		typechecklist(n->list, Erv);
+ 		typechecklist(n->nbody, Etop);
+ 		goto ret;
+@@ -891,7 +910,15 @@ ret:
+ 		goto error;
+ 	}
+ 	if((ok & Ecall) && !(top & Ecall)) {
+-		yyerror("must call method %#N", n);
++		yyerror("must call %#N", n);
++		goto error;
++	}
++	if((top & (Ecall|Erv|Etype)) && !(ok & (Erv|Etype|Ecall))) {
++		yyerror("%#N used as value", n);
++		goto error;
++	}
++	if((top & Etop) && !(ok & Etop)) {
++		yyerror("%#N not used", n);
+ 		goto error;
+ 	}
+ 
+@@ -1662,8 +1689,41 @@ checkassignlist(NodeList *l)
+ }
+ 
+ /*
+- * multiple assignment
++ * type check assignment.
++ * if this assignment is the definition of a var on the left side,
++ * fill in the var's type.
+  */
++
++static void
++typecheckas(Node *n)
++{
++	// delicate little dance.
++	// the definition of n may refer to this assignment
++	// as its definition, in which case it will call typecheckas.
++	// in that case, do not call typecheck back, or it will cycle.
++	// if the variable has a type (ntype) then typechecking
++	// will not look at defn, so it is okay (and desirable,
++	// so that the conversion below happens).
++	if(n->left->defn != n || n->left->ntype)
++		typecheck(&n->left, Erv);
++
++	checkassign(n->left);
++	typecheck(&n->right, Erv);
++	if(n->left->type != T && n->right && n->right->type != T)
++		n->right = typecheckconv(nil, n->right, n->left->type, 0);
++	if(n->left->defn == n && n->left->ntype == N) {
++		defaultlit(&n->right, T);
++		n->left->type = n->right->type;
++	}
++
++	// second half of dance.
++	// now that right is done, typecheck the left
++	// just to get it over with.  see dance above.
++	n->typecheck = 1;
++	if(n->left->typecheck == 0)
++		typecheck(&n->left, Erv);
++}
++
+ static void
+ typecheckas2(Node *n)
+ {
+@@ -1673,19 +1733,30 @@ typecheckas2(Node *n)
+ 	Iter s;
+ 	Type *t;
+ 
+-	typechecklist(n->list, Erv);
+-	checkassignlist(n->list);
+-	typechecklist(n->rlist, Erv);
+-
++	for(ll=n->list; ll; ll=ll->next) {
++		// delicate little dance.
++		if(ll->n->defn != n || ll->n->ntype)
++			typecheck(&ll->n, Erv);
++	}
+ 	cl = count(n->list);
+ 	cr = count(n->rlist);
++	checkassignlist(n->list);
++	if(cl > 1 && cr == 1)
++		typecheck(&n->rlist->n, Erv | Efnstruct);
++	else
++		typechecklist(n->rlist, Erv);
+ 
+ 	if(cl == cr) {
+ 		// easy
+-		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next)
++		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next) {
+ 			if(ll->n->type != T && lr->n->type != T)
+ 				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0);
+-		return;
++			if(ll->n->defn == n && ll->n->ntype == N) {
++				defaultlit(&lr->n, T);
++				ll->n->type = lr->n->type;
++			}
++		}
++		goto out;
+ 	}
+ 
+ 
+@@ -1695,18 +1766,18 @@ typecheckas2(Node *n)
+ 	// m[i] = x, ok
+ 	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
+ 		if(l->type == T)
+-			return;
++			goto out;
+ 		n->op = OAS2MAPW;
+ 		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
+ 		r = n->rlist->next->n;
+ 		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
+-		return;
++		goto out;
+ 	}
+ 
+ 	// x,y,z = f()
+ 	if(cr == 1) {
+ 		if(r->type == T)
+-			return;
++			goto out;
+ 		switch(r->op) {
+ 		case OCALLMETH:
+ 		case OCALLINTER:
+@@ -1722,16 +1793,18 @@ typecheckas2(Node *n)
+ 				if(ll->n->type != T)
+ 					if(checkconv(t->type, ll->n->type, 0, &op, &et) < 0)
+ 						yyerror("cannot assign type %T to %+N", t->type, ll->n);
++				if(ll->n->defn == n && ll->n->ntype == N)
++					ll->n->type = t->type;
+ 				t = structnext(&s);
+ 			}
+-			return;
++			goto out;
+ 		}
+ 	}
+ 
+ 	// x, ok = y
+ 	if(cl == 2 && cr == 1) {
+ 		if(r->type == T)
+-			return;
++			goto out;
+ 		switch(r->op) {
+ 		case OINDEXMAP:
+ 			n->op = OAS2MAPR;
+@@ -1744,13 +1817,24 @@ typecheckas2(Node *n)
+ 		common:
+ 			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et) < 0)
+ 				yyerror("cannot assign %+N to %+N", r, l);
++			if(l->defn == n)
++				l->type = r->type;
+ 			l = n->list->next->n;
+ 			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
+ 				yyerror("cannot assign bool value to %+N", l);
+-			return;
++			if(l->defn == n && l->ntype == N)
++				l->type = types[TBOOL];
++			goto out;
+ 		}
+ 	}
+ 
+ mismatch:
+ 	yyerror("assignment count mismatch: %d = %d", cl, cr);
++
++out:
++	// second half of dance
++	n->typecheck = 1;
++	for(ll=n->list; ll; ll=ll->next)
++		if(ll->n->typecheck == 0)
++			typecheck(&ll->n, Erv);
+ }
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 43cdcbb475..e1f2d1bf8f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -145,7 +145,6 @@ walkdef(Node *n)
+ 	if(n->type != T || n->sym == S)	// builtin or no name
+ 		goto ret;
+ 
+-
+ 	init = nil;
+ 	switch(n->op) {
+ 	case OLITERAL:
+@@ -185,25 +184,12 @@ walkdef(Node *n)
+ 				n->diag = 1;
+ 				goto ret;
+ 			}
+-			n->ntype = N;
+ 		}
+ 		if(n->type != T)
+ 			break;
+ 		if(n->defn == N)
+ 			fatal("var without type, init: %S", n->sym);
+-		switch(n->defn->op) {
+-		default:
+-			fatal("walkdef name defn");
+-		case OAS:
+-			typecheck(&n->defn->right, Erv);
+-			defaultlit(&n->defn->right, T);
+-			if((t = n->defn->right->type) == T) {
+-				n->diag = 1;
+-				goto ret;
+-			}
+-			n->type = t;
+-			break;
+-		}
++		typecheck(&n->defn, Etop);	// fills in n->type
+ 		break;
+ 	}
+ 
+@@ -1667,7 +1653,7 @@ ifacecvt(Type *tl, Node *n, int et, NodeList **init)
+ 
+ 	r = nod(OCALL, on, N);
+ 	r->list = args;
+-	typecheck(&r, Erv);
++	typecheck(&r, Erv | Efnstruct);
+ 	walkexpr(&r, init);
+ 	return r;
+ }
+@@ -1716,276 +1702,6 @@ out:
+ 	return n;
+ }
+ 
+-int
+-colasname(Node *n)
+-{
+-	// TODO(rsc): can probably simplify
+-	// once late-binding of names goes in
+-	switch(n->op) {
+-	case ONAME:
+-	case ONONAME:
+-	case OPACK:
+-		break;
+-	case OTYPE:
+-	case OLITERAL:
+-		if(n->sym != S)
+-			break;
+-		// fallthrough
+-	default:
+-		return 0;
+-	}
+-	return 1;
+-}
+-
+-Node*
+-old2new(Node *n, Type *t, NodeList **init)
+-{
+-	Node *l;
+-
+-	if(!colasname(n)) {
+-		yyerror("left side of := must be a name");
+-		return n;
+-	}
+-	if(t != T && t->funarg) {
+-		yyerror("use of multi func value as single value in :=");
+-		return n;
+-	}
+-	l = newname(n->sym);
+-	dodclvar(l, t, init);
+-	return l;
+-}
+-
+-static Node*
+-mixedoldnew(Node *n, Type *t)
+-{
+-	n = nod(OXXX, n, N);
+-	n->type = t;
+-	return n;
+-}
+-
+-static NodeList*
+-checkmixed(NodeList *nl, NodeList **init)
+-{
+-	Node *a, *l;
+-	NodeList *ll, *n;
+-	Type *t;
+-	int ntot, nred;
+-
+-	// first pass, check if it is a special
+-	// case of new and old declarations
+-
+-	ntot = 0;	// number assignments
+-	nred = 0;	// number redeclarations
+-	for(ll=nl; ll; ll=ll->next) {
+-		l = ll->n;
+-		t = l->type;
+-		l = l->left;
+-
+-		if(!colasname(l))
+-			goto allnew;
+-		if(l->sym->block == block)
+-			nred++;
+-		ntot++;
+-	}
+-
+-	// test for special case
+-	// a) multi-assignment (ntot>1)
+-	// b) at least one redeclaration (red>0)
+-	// c) not all redeclarations (nred!=ntot)
+-	if(nred == 0 || ntot <= 1 || nred == ntot)
+-		goto allnew;
+-
+-	n = nil;
+-	for(ll=nl; ll; ll=ll->next) {
+-		l = ll->n;
+-		t = l->type;
+-		l = l->left;
+-
+-		a = l;
+-		if(l->sym->block != block)
+-			a = old2new(l, t, init);
+-
+-		n = list(n, a);
+-	}
+-	return n;
+-
+-allnew:
+-	// same as original
+-	n = nil;
+-	for(ll=nl; ll; ll=ll->next) {
+-		l = ll->n;
+-		t = l->type;
+-		l = l->left;
+-
+-		a = old2new(l, t, init);
+-		n = list(n, a);
+-	}
+-	return n;
+-}
+-
+-Node*
+-colas(NodeList *ll, NodeList *lr)
+-{
+-	Node *l, *r, *a, *nl, *nr;
+-	Iter savet;
+-	NodeList *init, *savel, *saver, *n;
+-	Type *t;
+-	int cl, cr;
+-
+-	/* nl is an expression list.
+-	 * nr is an expression list.
+-	 * return a newname-list from
+-	 * types derived from the rhs.
+-	 */
+-	cr = count(lr);
+-	cl = count(ll);
+-	init = nil;
+-	n = nil;
+-
+-	/* check calls early, to give better message for a := f() */
+-	if(cr == 1) {
+-		nr = lr->n;
+-		switch(nr->op) {
+-		case OCALL:
+-		case OCALLFUNC:
+-			if(nr->left->op == ONAME && nr->left->etype != 0)
+-				break;
+-			typecheck(&nr->left, Erv | Etype | Ecall);
+-			walkexpr(&nr->left, &init);
+-			if(nr->left->op == OTYPE)
+-				break;
+-			goto call;
+-		case OCALLMETH:
+-		case OCALLINTER:
+-			typecheck(&nr->left, Erv);
+-			walkexpr(&nr->left, &init);
+-		call:
+-			convlit(&nr->left, types[TFUNC]);
+-			t = nr->left->type;
+-			if(t == T)
+-				goto outl;	// error already printed
+-			if(t->etype == tptr)
+-				t = t->type;
+-			if(t == T || t->etype != TFUNC) {
+-				yyerror("cannot call %T", t);
+-				goto outl;
+-			}
+-			if(t->outtuple != cl) {
+-				cr = t->outtuple;
+-				goto badt;
+-			}
+-			// finish call - first half above
+-			t = structfirst(&savet, getoutarg(t));
+-			if(t == T)
+-				goto outl;
+-			for(savel=ll; savel; savel=savel->next) {
+-				l = savel->n;
+-				a = mixedoldnew(l, t->type);
+-				n = list(n, a);
+-				t = structnext(&savet);
+-			}
+-			n = checkmixed(n, &init);
+-			goto out;
+-		}
+-	}
+-	if(cl != cr) {
+-		if(cr == 1) {
+-			nr = lr->n;
+-			goto multi;
+-		}
+-		goto badt;
+-	}
+-
+-	for(savel=ll, saver=lr; savel != nil; savel=savel->next, saver=saver->next) {
+-		l = savel->n;
+-		r = saver->n;
+-
+-		typecheck(&r, Erv);
+-		defaultlit(&r, T);
+-		saver->n = r;
+-		a = mixedoldnew(l, r->type);
+-		n = list(n, a);
+-	}
+-	n = checkmixed(n, &init);
+-	goto out;
+-
+-multi:
+-	typecheck(&nr, Erv);
+-	lr->n = nr;
+-
+-	/*
+-	 * there is a list on the left
+-	 * and a mono on the right.
+-	 * go into the right to get
+-	 * individual types for the left.
+-	 */
+-	switch(nr->op) {
+-	default:
+-		goto badt;
+-
+-	case OINDEXMAP:
+-		// check if rhs is a map index.
+-		// if so, types are valuetype,bool
+-		if(cl != 2)
+-			goto badt;
+-		walkexpr(&nr->left, &init);
+-		t = nr->left->type;
+-		a = mixedoldnew(ll->n, t->type);
+-		n = list1(a);
+-		a = mixedoldnew(ll->next->n, types[TBOOL]);
+-		n = list(n, a);
+-		n = checkmixed(n, &init);
+-		break;
+-
+-	case ODOTTYPE:
+-		// a,b := i.(T)
+-		walkdottype(nr, &init);
+-		if(cl != 2)
+-			goto badt;
+-		// a,b = iface
+-		a = mixedoldnew(ll->n, nr->type);
+-		n = list1(a);
+-		a = mixedoldnew(ll->next->n, types[TBOOL]);
+-		n = list(n, a);
+-		n = checkmixed(n, &init);
+-		break;
+-
+-	case ORECV:
+-		if(cl != 2)
+-			goto badt;
+-		walkexpr(&nr->left, &init);
+-		t = nr->left->type;
+-		if(!istype(t, TCHAN))
+-			goto badt;
+-		a = mixedoldnew(ll->n, t->type);
+-		n = list1(a);
+-		a = mixedoldnew(ll->next->n, types[TBOOL]);
+-		n = list(n, a);
+-		n = checkmixed(n, &init);
+-		break;
+-	}
+-	goto out;
+-
+-badt:
+-	nl = ll->n;
+-	if(nl->diag == 0) {
+-		nl->diag = 1;
+-		yyerror("assignment count mismatch: %d = %d %#N", cl, cr, lr->n);
+-	}
+-outl:
+-	n = ll;
+-
+-out:
+-	// n is the lhs of the assignment.
+-	// init holds the list of declarations.
+-	a = nod(OAS2, N, N);
+-	a->list = n;
+-	a->rlist = lr;
+-	a->ninit = init;
+-	a->colas = 1;
+-	return a;
+-}
+-
+ /*
+  * rewrite a range statement
+  * k and v are names/new_names
+@@ -2596,7 +2312,7 @@ vmkcall(Node *fn, Type *t, NodeList **init, va_list va)
+ 	r = nod(OCALL, fn, N);
+ 	r->list = args;
+ 	if(fn->type->outtuple > 0)
+-		typecheck(&r, Erv);
++		typecheck(&r, Erv | Efnstruct);
+ 	else
+ 		typecheck(&r, Etop);
+ 	walkexpr(&r, init);
+diff --git a/src/run.bash b/src/run.bash
+index 23c10facf9..3801e4a61f 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -16,8 +16,9 @@ maketest() {
+ 	do
+ 		(
+ 			xcd $i
+-			make clean
+-			time make
++		#	make clean
++		#	time make
++			make install
+ 			make test
+ 		) || exit $?
+ 	done
+diff --git a/test/declbad.go b/test/declbad.go
+index 78f8c8d548..f355113a62 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -16,7 +16,7 @@ func main() {
+ 	{
+ 		// simple redeclaration
+ 		i := f1();
+-		i := f1();	// ERROR "redeclared|redefinition"
++		i := f1();	// ERROR "redeclared|redefinition|no new"
+ 	}
+ 	{
+ 		// change of type for f
+@@ -31,21 +31,21 @@ func main() {
+ 	{
+ 		// no new variables
+ 		i, f, s := f3();
+-		i, f := f2();	// ERROR "redeclared|redefinition"
++		i, f := f2();	// ERROR "redeclared|redefinition|no new"
+ 	}
+ 	{
+ 		// single redeclaration
+ 		i, f, s := f3();	// GCCGO_ERROR "previous"
+-		i := f1();		// ERROR "redeclared|redefinition"
++		i := f1();		// ERROR "redeclared|redefinition|no new"
+ 	}
+ 		// double redeclaration
+ 	{
+ 		i, f, s := f3();
+-		i, f := f2();	// ERROR "redeclared|redefinition"
++		i, f := f2();	// ERROR "redeclared|redefinition|no new"
+ 	}
+ 	{
+ 		// triple redeclaration
+ 		i, f, s := f3();
+-		i, f, s := f3();	// ERROR "redeclared|redefinition"
++		i, f, s := f3();	// ERROR "redeclared|redefinition|no new"
+ 	}
+ }
+diff --git a/test/fixedbugs/bug030.go b/test/fixedbugs/bug030.go
+index 4f5b7946b9..4ee65d0033 100644
+--- a/test/fixedbugs/bug030.go
++++ b/test/fixedbugs/bug030.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+   var x int;
+-  x := 0; // BUG: redeclaration - should not compile
++  x := 0; // ERROR "declar|:="
+ }
+diff --git a/test/fixedbugs/bug035.go b/test/fixedbugs/bug035.go
+index 3c31fa553d..461c0607ac 100644
+--- a/test/fixedbugs/bug035.go
++++ b/test/fixedbugs/bug035.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func f9(a int) (i int, f float) {
+-	i := 9;  // ERROR "redecl"
+-	f := float(9);  // ERROR "redecl"
++	i := 9;  // ERROR "redecl|no new"
++	f := float(9);  // ERROR "redecl|no new"
+ 	return i, f;
+ }
+diff --git a/test/fixedbugs/bug103.go b/test/fixedbugs/bug103.go
+index 6ac4e9a14f..da212121c4 100644
+--- a/test/fixedbugs/bug103.go
++++ b/test/fixedbugs/bug103.go
+@@ -9,6 +9,6 @@ package main
+ func f() /* no return type */ {}
+ 
+ func main() {
+-	x := f();  // ERROR "mismatch"
++	x := f();  // ERROR "mismatch|as value"
+ }
+ 

@@ -8,7 +8,43 @@ Date:   Thu Mar 21 14:56:42 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7716052
-
+---
  src/pkg/bufio/example_test.go | 4 ++--
  src/pkg/bufio/scan.go         | 2 --
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/bufio/example_test.go b/src/pkg/bufio/example_test.go
+index b545ce39ae..08a39441e6 100644
+--- a/src/pkg/bufio/example_test.go
++++ b/src/pkg/bufio/example_test.go
+@@ -19,7 +19,7 @@ func ExampleScanner_lines() {
+ 		fmt.Println(scanner.Text()) // Println will add back the final '\n'
+ 	}
+ 	if err := scanner.Err(); err != nil {
+-		fmt.Fprintln(os.Stdout, "reading standard input:", err)
++		fmt.Fprintln(os.Stderr, "reading standard input:", err)
+ 	}
+ }
+ 
+@@ -37,7 +37,7 @@ func ExampleScanner_words() {
+ 		count++
+ 	}
+ 	if err := scanner.Err(); err != nil {
+-		fmt.Fprintln(os.Stdout, "reading input:", err)
++		fmt.Fprintln(os.Stderr, "reading input:", err)
+ 	}
+ 	fmt.Printf("%d\n", count)
+ 	// Output: 15
+diff --git a/src/pkg/bufio/scan.go b/src/pkg/bufio/scan.go
+index b3c652911c..d94f7f9adc 100644
+--- a/src/pkg/bufio/scan.go
++++ b/src/pkg/bufio/scan.go
+@@ -27,8 +27,6 @@ import (
+ // control over error handling or large tokens, or must run sequential scans
+ // on a reader, should use bufio.Reader instead.
+ //
+-// TODO(r): Provide executable examples.
+-//
+ type Scanner struct {
+ 	r            io.Reader // The reader provided by the client.
+ 	split        SplitFunc // The function to split the tokens.

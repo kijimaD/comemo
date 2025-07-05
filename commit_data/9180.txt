@@ -10,6 +10,22 @@ Date:   Fri Jul 22 15:21:50 2011 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/4812051
-
+---
  src/cmd/godoc/zip.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index 28789f8a0b..868aa1f02f 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -198,5 +198,9 @@ func (z zipList) lookup(name string) (index int, exact bool) {
+ 	if j < 0 {
+ 		return -1, false
+ 	}
+-	return i + j, false
++	if strings.HasPrefix(z[j].Name, name) {
++		return i + j, false
++	}
++
++	return -1, false
+ }

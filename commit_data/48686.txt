@@ -12,7 +12,77 @@ Date:   Fri Jun 4 21:38:40 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/325369
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go            | 20 +++++++++++++---
  .../types2/testdata/fixedbugs/issue46583.src       | 28 ++++++++++++++++++++++
  2 files changed, 45 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index f0f769ec70..8c717cd1e5 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -582,13 +582,27 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 			goto Error
+ 		}
+ 
+-		// the receiver type becomes the type of the first function
+-		// argument of the method expression's function type
++		// The receiver type becomes the type of the first function
++		// argument of the method expression's function type.
+ 		var params []*Var
+ 		if sig.params != nil {
+ 			params = sig.params.vars
+ 		}
+-		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, sig.recv.name, x.typ)}, params...)
++		// Be consistent about named/unnamed parameters. This is not needed
++		// for type-checking, but the newly constructed signature may appear
++		// in an error message and then have mixed named/unnamed parameters.
++		// (An alternative would be to not print parameter names in errors,
++		// but it's useful to see them; this is cheap and method expressions
++		// are rare.)
++		name := ""
++		if len(params) > 0 && params[0].name != "" {
++			// name needed
++			name = sig.recv.name
++			if name == "" {
++				name = "_"
++			}
++		}
++		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+ 		x.mode = value
+ 		x.typ = &Signature{
+ 			tparams:  sig.tparams,
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46583.src b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46583.src
+new file mode 100644
+index 0000000000..da1f1ffbba
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46583.src
+@@ -0,0 +1,28 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T1 struct{}
++func (t T1) m(int) {}
++var f1 func(T1)
++
++type T2 struct{}
++func (t T2) m(x int) {}
++var f2 func(T2)
++
++type T3 struct{}
++func (T3) m(int) {}
++var f3 func(T3)
++
++type T4 struct{}
++func (T4) m(x int) {}
++var f4 func(T4)
++
++func _() {
++	f1 = T1 /* ERROR func\(T1, int\) */ .m
++	f2 = T2 /* ERROR func\(t T2, x int\) */ .m
++	f3 = T3 /* ERROR func\(T3, int\) */ .m
++	f4 = T4 /* ERROR func\(_ T4, x int\) */ .m
++}

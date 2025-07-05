@@ -23,7 +23,71 @@ Date:   Wed Nov 3 14:47:04 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 21 +++++++++++++++++++++
  test/typeparam/issue49309.go           | 25 +++++++++++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index da905bd627..b764aed534 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -685,6 +685,27 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		return n
+ 	}
+ 
++	// Don't inline a function fn that has no shape parameters, but is passed at
++	// least one shape arg. This means we must be inlining a non-generic function
++	// fn that was passed into a generic function, and can be called with a shape
++	// arg because it matches an appropriate type parameters. But fn may include
++	// an interface conversion (that may be applied to a shape arg) that was not
++	// apparent when we first created the instantiation of the generic function.
++	// We can't handle this if we actually do the inlining, since we want to know
++	// all interface conversions immediately after stenciling. So, we avoid
++	// inlining in this case. See #49309.
++	if !fn.Type().HasShape() {
++		for _, arg := range n.Args {
++			if arg.Type().HasShape() {
++				if logopt.Enabled() {
++					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
++						fmt.Sprintf("inlining non-shape function %v with shape args", ir.FuncName(fn)))
++				}
++				return n
++			}
++		}
++	}
++
+ 	if base.Flag.Cfg.Instrumenting && types.IsRuntimePkg(fn.Sym().Pkg) {
+ 		// Runtime package must not be instrumented.
+ 		// Instrument skips runtime package. However, some runtime code can be
+diff --git a/test/typeparam/issue49309.go b/test/typeparam/issue49309.go
+new file mode 100644
+index 0000000000..36da86a9c3
+--- /dev/null
++++ b/test/typeparam/issue49309.go
+@@ -0,0 +1,25 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func genfunc[T any](f func(c T)) {
++	var r T
++
++	f(r)
++}
++
++func myfunc(c string) {
++	test2(c)
++}
++
++//go:noinline
++func test2(a interface{}) {
++}
++
++func main() {
++	genfunc(myfunc)
++}

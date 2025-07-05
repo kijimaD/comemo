@@ -9,7 +9,35 @@ Date:   Thu Jul 26 10:32:24 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6443048
-
+---
  src/pkg/exp/html/parse.go                           | 3 +++
  src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 393a97d2ee..82edb2263f 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -267,6 +267,9 @@ func (p *parser) fosterParent(n *Node) {
+ // addText adds text to the preceding node if it is a text node, or else it
+ // calls addChild with a new text node.
+ func (p *parser) addText(text string) {
++	if text == "" {
++		return
++	}
+ 	// TODO: distinguish whitespace text from others.
+ 	t := p.top()
+ 	if i := len(t.Child); i > 0 && t.Child[i-1].Type == TextNode {
+diff --git a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+index 80f6f92d06..56da0ba88f 100644
+--- a/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
++++ b/src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log
+@@ -4,7 +4,7 @@ PASS "<html> \x00 <frameset></frameset>"
+ PASS "<html>a\x00a<frameset></frameset>"
+ PASS "<html>\x00\x00<frameset></frameset>"
+ PASS "<html>\x00\n <frameset></frameset>"
+-FAIL "<html><select>\x00"
++PASS "<html><select>\x00"
+ PASS "\x00"
+ PASS "<body>\x00"
+ FAIL "<plaintext>\x00filler\x00text\x00"

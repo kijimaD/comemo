@@ -7,7 +7,117 @@ Date:   Fri Aug 26 17:20:19 2011 -0400
     R=rsc
     CC=golang-dev, vcc.163
     https://golang.org/cl/4963044
-
+---
  src/cmd/6l/span.c | 20 ++++++--------------
  src/cmd/8l/span.c | 20 ++++++--------------
  2 files changed, 12 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 5d13ad44b2..7313e42b2f 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -1439,10 +1439,11 @@ found:
+ 
+ 	case Zbr:
+ 	case Zjmp:
++	case Zloop:
+ 		// TODO: jump across functions needs reloc
+ 		q = p->pcond;
+ 		if(q == nil) {
+-			diag("jmp/branch without target");
++			diag("jmp/branch/loop without target");
+ 			errorexit();
+ 		}
+ 		if(q->as == ATEXT) {
+@@ -1468,6 +1469,8 @@ found:
+ 			if(v >= -128) {
+ 				*andptr++ = op;
+ 				*andptr++ = v;
++			} else if(t[2] == Zloop) {
++				diag("loop too far: %P", p);
+ 			} else {
+ 				v -= 5-2;
+ 				if(t[2] == Zbr) {
+@@ -1489,6 +1492,8 @@ found:
+ 		if(p->back & 2)	{ // short
+ 			*andptr++ = op;
+ 			*andptr++ = 0;
++		} else if(t[2] == Zloop) {
++			diag("loop too far: %P", p);
+ 		} else {
+ 			if(t[2] == Zbr)
+ 				*andptr++ = 0x0f;
+@@ -1520,19 +1525,6 @@ found:
+ */
+ 		break;
+ 
+-	case Zloop:
+-		q = p->pcond;
+-		if(q == nil) {
+-			diag("loop without target");
+-			errorexit();
+-		}
+-		v = q->pc - p->pc - 2;
+-		if(v < -128 && v > 127)
+-			diag("loop too far: %P", p);
+-		*andptr++ = op;
+-		*andptr++ = v;
+-		break;
+-
+ 	case Zbyte:
+ 		v = vaddr(&p->from, &rel);
+ 		if(rel.siz != 0) {
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index a4cba12576..cc0069c683 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -1056,9 +1056,10 @@ found:
+ 
+ 	case Zbr:
+ 	case Zjmp:
++	case Zloop:
+ 		q = p->pcond;
+ 		if(q == nil) {
+-			diag("jmp/branch without target");
++			diag("jmp/branch/loop without target");
+ 			errorexit();
+ 		}
+ 		if(q->as == ATEXT) {
+@@ -1086,6 +1087,8 @@ found:
+ 			if(v >= -128) {
+ 				*andptr++ = op;
+ 				*andptr++ = v;
++			} else if(t[2] == Zloop) {
++				diag("loop too far: %P", p);
+ 			} else {
+ 				v -= 5-2;
+ 				if(t[2] == Zbr) {
+@@ -1107,6 +1110,8 @@ found:
+ 		if(p->back & 2)	{ // short
+ 			*andptr++ = op;
+ 			*andptr++ = 0;
++		} else if(t[2] == Zloop) {
++			diag("loop too far: %P", p);
+ 		} else {
+ 			if(t[2] == Zbr)
+ 				*andptr++ = 0x0f;
+@@ -1132,19 +1137,6 @@ found:
+ 		put4(0);
+ 		break;
+ 
+-	case Zloop:
+-		q = p->pcond;
+-		if(q == nil) {
+-			diag("loop without target");
+-			errorexit();
+-		}
+-		v = q->pc - p->pc - 2;
+-		if(v < -128 && v > 127)
+-			diag("loop too far: %P", p);
+-		*andptr++ = op;
+-		*andptr++ = v;
+-		break;
+-
+ 	case Zbyte:
+ 		v = vaddr(&p->from, &rel);
+ 		if(rel.siz != 0) {

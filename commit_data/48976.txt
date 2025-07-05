@@ -17,8 +17,160 @@ Date:   Wed Jun 30 15:38:56 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 29 +++++++++++++++++++++++----
  src/cmd/compile/internal/noder/stencil.go | 33 +++++++++++++------------------
  src/cmd/compile/internal/noder/types.go   | 14 ++++++++-----
  3 files changed, 48 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 017e98986f..d974b291d0 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -206,6 +206,30 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 		// only be fully transformed once it has an instantiated type.
+ 		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
+ 		typed(g.typ(typ), n)
++
++		// Fill in n.Selection for a generic method reference, even though we
++		// won't use it directly, since it is useful for analysis.
++		// Specifically do not fill in for fields or interfaces methods, so
++		// n.Selection being non-nil means a method reference, rather than an
++		// interface reference or reference to a field with a function value.
++		obj2 := g.info.Selections[expr].Obj()
++		sig := types2.AsSignature(obj2.Type())
++		if sig == nil || sig.Recv() == nil {
++			return n
++		}
++		// recvType is the type of the last embedded field. Because of the
++		// way methods are imported, g.obj(obj2) doesn't work across
++		// packages, so we have to lookup the method via the receiver type.
++		recvType := deref2(sig.Recv().Type())
++		if types2.AsInterface(recvType.Underlying()) != nil {
++			return n
++		}
++
++		index := g.info.Selections[expr].Index()
++		last := index[len(index)-1]
++		recvObj := types2.AsNamed(recvType).Obj()
++		recv := g.pkg(recvObj.Pkg()).Lookup(recvObj.Name()).Def
++		n.Selection = recv.Type().Methods().Index(last)
+ 		return n
+ 	}
+ 
+@@ -308,10 +332,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 
+ // getTargs gets the targs associated with the receiver of a selected method
+ func getTargs(selinfo *types2.Selection) []types2.Type {
+-	r := selinfo.Recv()
+-	if p := types2.AsPointer(r); p != nil {
+-		r = p.Elem()
+-	}
++	r := deref2(selinfo.Recv())
+ 	n := types2.AsNamed(r)
+ 	if n == nil {
+ 		base.Fatalf("Incorrect type for selinfo %v", selinfo)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index b228e40258..c04300a165 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1282,14 +1282,15 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 			if n.Op() == ir.OCALL {
+ 				call := n.(*ir.CallExpr)
+ 				if call.X.Op() == ir.OXDOT {
+-					subtargs := deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()
++					subtargs := deref(call.X.(*ir.SelectorExpr).X.Type()).RParams()
+ 					s2targs := make([]*types.Type, len(subtargs))
+ 					for i, t := range subtargs {
+ 						s2targs[i] = subst.Typ(t)
+ 					}
+-					sym = typecheck.MakeDictName(ir.MethodSym(call.X.(*ir.SelectorExpr).X.Type(), call.X.(*ir.SelectorExpr).Sel), s2targs, true)
++					nameNode := call.X.(*ir.SelectorExpr).Selection.Nname.(*ir.Name)
++					sym = g.getDictionarySym(nameNode, s2targs, true)
+ 				} else {
+-					inst := n.(*ir.CallExpr).X.(*ir.InstExpr)
++					inst := call.X.(*ir.InstExpr)
+ 					var nameNode *ir.Name
+ 					var meth *ir.SelectorExpr
+ 					var isMeth bool
+@@ -1325,14 +1326,12 @@ func (g *irgen) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool)
+ 				for i, t := range subtargs {
+ 					s2targs[i] = subst.Typ(t)
+ 				}
+-				sym = typecheck.MakeDictName(ir.MethodSym(selExpr.X.Type(), selExpr.Sel), s2targs, true)
++				nameNode := selExpr.Selection.Nname.(*ir.Name)
++				sym = g.getDictionarySym(nameNode, s2targs, true)
+ 			}
+ 			// TODO: handle closure cases that need sub-dictionaries, get rid of conditional
+ 			if sym != nil {
+-				// TODO: uncomment once we're sure all the
+-				// subdictionaries are created correctly.
+-				// Methods above aren't yet generating dictionaries recursively yet.
+-				//off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
++				off = objw.SymPtr(lsym, off, sym.Linksym(), 0)
+ 				infoPrint(" - Subdict %v\n", sym.Name)
+ 			}
+ 		}
+@@ -1403,18 +1402,14 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 				infoPrint("  Closure&subdictionary required at generic function value %v\n", n.(*ir.InstExpr).X)
+ 				info.subDictCalls = append(info.subDictCalls, n)
+ 			} else if n.Op() == ir.OXDOT && !n.(*ir.SelectorExpr).Implicit() &&
+-				!n.(*ir.SelectorExpr).X.Type().IsInterface() &&
++				n.(*ir.SelectorExpr).Selection != nil &&
+ 				len(n.(*ir.SelectorExpr).X.Type().RParams()) > 0 {
+-				// Fix this - doesn't account for embedded fields, etc.
+-				field := typecheck.Lookdot1(n.(*ir.SelectorExpr), n.(*ir.SelectorExpr).Sel, n.(*ir.SelectorExpr).X.Type(), n.(*ir.SelectorExpr).X.Type().Fields(), 0)
+-				if field == nil {
+-					if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
+-						infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
+-					} else {
+-						infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
+-					}
+-					info.subDictCalls = append(info.subDictCalls, n)
++				if n.(*ir.SelectorExpr).X.Op() == ir.OTYPE {
++					infoPrint("  Closure&subdictionary required at generic meth expr %v\n", n)
++				} else {
++					infoPrint("  Closure&subdictionary required at generic meth value %v\n", n)
+ 				}
++				info.subDictCalls = append(info.subDictCalls, n)
+ 			}
+ 			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OFUNCINST {
+ 				infoPrint("  Subdictionary at generic function call: %v - %v\n", n.(*ir.CallExpr).X.(*ir.InstExpr).X, n)
+@@ -1422,7 +1417,7 @@ func (g *irgen) getGfInfo(gn *ir.Name) *gfInfo {
+ 				info.subDictCalls = append(info.subDictCalls, n)
+ 			}
+ 			if n.Op() == ir.OCALL && n.(*ir.CallExpr).X.Op() == ir.OXDOT &&
+-				!n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type().IsInterface() &&
++				n.(*ir.CallExpr).X.(*ir.SelectorExpr).Selection != nil &&
+ 				len(deref(n.(*ir.CallExpr).X.(*ir.SelectorExpr).X.Type()).RParams()) > 0 {
+ 				infoPrint("  Subdictionary at generic method call: %v\n", n)
+ 				n.(*ir.CallExpr).X.(*ir.SelectorExpr).SetImplicit(true)
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index b37793b2d0..a0b7fea7cb 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -278,11 +278,7 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 		methods := make([]*types.Field, typ.NumMethods())
+ 		for i := range methods {
+ 			m := typ.Method(i)
+-			recvType := types2.AsSignature(m.Type()).Recv().Type()
+-			ptr := types2.AsPointer(recvType)
+-			if ptr != nil {
+-				recvType = ptr.Elem()
+-			}
++			recvType := deref2(types2.AsSignature(m.Type()).Recv().Type())
+ 			var meth *ir.Name
+ 			if m.Pkg() != g.self {
+ 				// Imported methods cannot be loaded by name (what
+@@ -471,3 +467,11 @@ var dirs = [...]types.ChanDir{
+ 	types2.SendOnly: types.Csend,
+ 	types2.RecvOnly: types.Crecv,
+ }
++
++// deref2 does a single deref of types2 type t, if it is a pointer type.
++func deref2(t types2.Type) types2.Type {
++	if ptr := types2.AsPointer(t); ptr != nil {
++		t = ptr.Elem()
++	}
++	return t
++}

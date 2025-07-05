@@ -11,7 +11,7 @@ Date:   Wed Jul 29 13:20:56 2020 -0400
     Change-Id: Id5f6a6019e1e044add682d05e70ebb1548ec58d9
     Reviewed-on: https://go-review.googlesource.com/c/go/+/245577
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/arm/asm.go              | 69 ++++++++-----------
  src/cmd/link/internal/arm64/asm.go            | 22 +++---
  src/cmd/link/internal/ld/data.go              |  2 +-
@@ -23,3 +23,609 @@ Date:   Wed Jul 29 13:20:56 2020 -0400
  src/cmd/link/internal/loader/symbolbuilder.go | 64 +++++------------
  src/cmd/link/internal/ppc64/asm.go            | 98 ++++++++++-----------------
  10 files changed, 129 insertions(+), 205 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 2a21a51b2f..1019fa4b7d 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -75,25 +75,19 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+ 	o(0xe08f0000)
+ 
+ 	o(0xeafffffe)
+-	rel := loader.Reloc{
+-		Off:  8,
+-		Size: 4,
+-		Type: objabi.R_CALLARM,
+-		Sym:  addmoduledata,
+-		Add:  0xeafffffe, // vomit
+-	}
+-	initfunc.AddReloc(rel)
++	rel, _ := initfunc.AddRel(objabi.R_CALLARM)
++	rel.SetOff(8)
++	rel.SetSiz(4)
++	rel.SetSym(addmoduledata)
++	rel.SetAdd(0xeafffffe) // vomit
+ 
+ 	o(0x00000000)
+ 
+-	rel2 := loader.Reloc{
+-		Off:  12,
+-		Size: 4,
+-		Type: objabi.R_PCREL,
+-		Sym:  ctxt.Moduledata,
+-		Add:  4,
+-	}
+-	initfunc.AddReloc(rel2)
++	rel2, _ := initfunc.AddRel(objabi.R_PCREL)
++	rel2.SetOff(12)
++	rel2.SetSiz(4)
++	rel2.SetSym(ctxt.Moduledata)
++	rel2.SetAdd(4)
+ }
+ 
+ // Preserve highest 8 bits of a, and do addition to lower 24-bit
+@@ -452,14 +446,11 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
+ 	tramp.SetData(P)
+ 
+ 	if linkmode == ld.LinkExternal {
+-		r := loader.Reloc{
+-			Off:  8,
+-			Type: objabi.R_ADDR,
+-			Size: 4,
+-			Sym:  target,
+-			Add:  offset,
+-		}
+-		tramp.AddReloc(r)
++		r, _ := tramp.AddRel(objabi.R_ADDR)
++		r.SetOff(8)
++		r.SetSiz(4)
++		r.SetSym(target)
++		r.SetAdd(offset)
+ 	}
+ }
+ 
+@@ -477,14 +468,11 @@ func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
+ 	arch.ByteOrder.PutUint32(P[12:], o4)
+ 	tramp.SetData(P)
+ 
+-	r := loader.Reloc{
+-		Off:  12,
+-		Type: objabi.R_PCREL,
+-		Size: 4,
+-		Sym:  target,
+-		Add:  offset + 4,
+-	}
+-	tramp.AddReloc(r)
++	r, _ := tramp.AddRel(objabi.R_PCREL)
++	r.SetOff(12)
++	r.SetSiz(4)
++	r.SetSym(target)
++	r.SetAdd(offset + 4)
+ }
+ 
+ // generate a trampoline to target+offset in dynlink mode (using GOT)
+@@ -515,19 +503,16 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
+ 	}
+ 	tramp.SetData(P)
+ 
+-	r := loader.Reloc{
+-		Off:  16,
+-		Type: objabi.R_GOTPCREL,
+-		Size: 4,
+-		Sym:  target,
+-		Add:  8,
+-	}
++	r, _ := tramp.AddRel(objabi.R_GOTPCREL)
++	r.SetOff(16)
++	r.SetSiz(4)
++	r.SetSym(target)
++	r.SetAdd(8)
+ 	if offset != 0 {
+ 		// increase reloc offset by 4 as we inserted an ADD instruction
+-		r.Off = 20
+-		r.Add = 12
++		r.SetOff(20)
++		r.SetAdd(12)
+ 	}
+-	tramp.AddReloc(r)
+ }
+ 
+ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index d8eed89eef..ef307886f7 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -56,24 +56,18 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+ 	// 	4: R_AARCH64_ADD_ABS_LO12_NC	local.moduledata
+ 	o(0x90000000)
+ 	o(0x91000000)
+-	rel := loader.Reloc{
+-		Off:  0,
+-		Size: 8,
+-		Type: objabi.R_ADDRARM64,
+-		Sym:  ctxt.Moduledata,
+-	}
+-	initfunc.AddReloc(rel)
++	rel, _ := initfunc.AddRel(objabi.R_ADDRARM64)
++	rel.SetOff(0)
++	rel.SetSiz(8)
++	rel.SetSym(ctxt.Moduledata)
+ 
+ 	// 8:	14000000 	b	0 <runtime.addmoduledata>
+ 	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
+ 	o(0x14000000)
+-	rel2 := loader.Reloc{
+-		Off:  8,
+-		Size: 4,
+-		Type: objabi.R_CALLARM64, // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
+-		Sym:  addmoduledata,
+-	}
+-	initfunc.AddReloc(rel2)
++	rel2, _ := initfunc.AddRel(objabi.R_CALLARM64)
++	rel2.SetOff(8)
++	rel2.SetSiz(4)
++	rel2.SetSym(addmoduledata)
+ }
+ 
+ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4aab2c547a..ee652e27fd 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1063,7 +1063,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 	bld.SetSize(0)
+ 	bld.SetData(make([]byte, 0, arch.PtrSize*2))
+ 	bld.SetReadOnly(false)
+-	bld.SetRelocs(nil)
++	bld.ResetRelocs()
+ 	bld.AddAddrPlus(arch, sbld.Sym(), 0)
+ 	bld.AddUint(arch, uint64(len(value)))
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fd6bab8af4..bc88778b06 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2106,7 +2106,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			}
+ 			su := l.MakeSymbolUpdater(alias)
+ 			su.SetType(sym.SABIALIAS)
+-			su.AddReloc(loader.Reloc{Sym: s})
++			r, _ := su.AddRel(0) // type doesn't matter
++			r.SetSym(s)
+ 		}
+ 	}
+ 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 72031a2041..96d3aac6c4 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1115,7 +1115,9 @@ func initdynimport(ctxt *Link) *Dll {
+ 				}
+ 				dynSym := ldr.CreateSymForUpdate(dynName, 0)
+ 				dynSym.SetType(sym.SHOSTOBJ)
+-				sb.AddReloc(loader.Reloc{Sym: dynSym.Sym(), Type: objabi.R_ADDR, Off: 0, Size: uint8(ctxt.Arch.PtrSize)})
++				r, _ := sb.AddRel(objabi.R_ADDR)
++				r.SetSym(dynSym.Sym())
++				r.SetSiz(uint8(ctxt.Arch.PtrSize))
+ 			}
+ 		}
+ 	} else {
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index e4ab0263ec..4ae98a0a2e 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1201,7 +1201,9 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
+ 
+ 	// Relocation to retrieve the external address
+ 	sb.AddBytes(make([]byte, 8))
+-	sb.AddReloc(loader.Reloc{Off: 0, Size: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: extsym.Sym()})
++	r, _ := sb.AddRel(objabi.R_ADDR)
++	r.SetSym(extsym.Sym())
++	r.SetSiz(uint8(ctxt.Arch.PtrSize))
+ 	// TODO: maybe this could be
+ 	// sb.SetSize(0)
+ 	// sb.SetData(nil)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index a2a09c828e..0b74f189ee 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -37,17 +37,6 @@ type Relocs struct {
+ 	l  *Loader  // loader
+ }
+ 
+-// Reloc contains the payload for a specific relocation.
+-// TODO: replace this with sym.Reloc, once we change the
+-// relocation target from "*sym.Symbol" to "loader.Sym" in sym.Reloc.
+-type Reloc struct {
+-	Off  int32            // offset to rewrite
+-	Size uint8            // number of bytes to rewrite: 0, 1, 2, or 4
+-	Type objabi.RelocType // the relocation type
+-	Add  int64            // addend
+-	Sym  Sym              // global index of symbol the reloc addresses
+-}
+-
+ // ExtReloc contains the payload for an external relocation.
+ type ExtReloc struct {
+ 	Xsym Sym
+@@ -1859,14 +1848,6 @@ func (l *Loader) relocs(r *oReader, li uint32) Relocs {
+ 	}
+ }
+ 
+-// RelocByOff implements sort.Interface for sorting relocations by offset.
+-
+-type RelocByOff []Reloc
+-
+-func (x RelocByOff) Len() int           { return len(x) }
+-func (x RelocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
+-
+ // FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
+ type FuncInfo struct {
+ 	l       *Loader
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 82c46f6417..6a56348659 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -163,12 +163,18 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	}
+ 
+ 	// Add some relocations to the new symbols.
+-	r1 := Reloc{0, 1, objabi.R_ADDR, 0, ts1}
+-	r2 := Reloc{3, 8, objabi.R_CALL, 0, ts2}
+-	r3 := Reloc{7, 1, objabi.R_USETYPE, 0, ts3}
+-	sb1.AddReloc(r1)
+-	sb1.AddReloc(r2)
+-	sb2.AddReloc(r3)
++	r1, _ := sb1.AddRel(objabi.R_ADDR)
++	r1.SetOff(0)
++	r1.SetSiz(1)
++	r1.SetSym(ts1)
++	r2, _ := sb1.AddRel(objabi.R_CALL)
++	r2.SetOff(3)
++	r2.SetSiz(8)
++	r2.SetSym(ts2)
++	r3, _ := sb2.AddRel(objabi.R_USETYPE)
++	r3.SetOff(7)
++	r3.SetSiz(1)
++	r3.SetSym(ts3)
+ 
+ 	// Add some data to the symbols.
+ 	d1 := []byte{1, 2, 3}
+@@ -179,7 +185,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	// Now invoke the usual loader interfaces to make sure
+ 	// we're getting the right things back for these symbols.
+ 	// First relocations...
+-	expRel := [][]Reloc{[]Reloc{r1, r2}, []Reloc{r3}}
++	expRel := [][]Reloc2{{r1, r2}, {r3}}
+ 	for k, sb := range []*SymbolBuilder{sb1, sb2} {
+ 		rsl := sb.Relocs()
+ 		exp := expRel[k]
+@@ -213,18 +219,18 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	}
+ }
+ 
+-func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
++func sameRelocSlice(s1 *Relocs, s2 []Reloc2) bool {
+ 	if s1.Count() != len(s2) {
+ 		return false
+ 	}
+ 	for i := 0; i < s1.Count(); i++ {
+ 		r1 := s1.At2(i)
+ 		r2 := &s2[i]
+-		if r1.Sym() != r2.Sym ||
+-			r1.Type() != r2.Type ||
+-			r1.Off() != r2.Off ||
+-			r1.Add() != r2.Add ||
+-			r1.Siz() != r2.Size {
++		if r1.Sym() != r2.Sym() ||
++			r1.Type() != r2.Type() ||
++			r1.Off() != r2.Off() ||
++			r1.Add() != r2.Add() ||
++			r1.Siz() != r2.Siz() {
+ 			return false
+ 		}
+ 	}
+@@ -233,6 +239,15 @@ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
+ 
+ type addFunc func(l *Loader, s Sym, s2 Sym) Sym
+ 
++func mkReloc(l *Loader, typ objabi.RelocType, off int32, siz uint8, add int64, sym Sym) Reloc2 {
++	r := Reloc2{&goobj2.Reloc{}, l.extReader, l, typ}
++	r.SetOff(off)
++	r.SetSiz(siz)
++	r.SetAdd(add)
++	r.SetSym(sym)
++	return r
++}
++
+ func TestAddDataMethods(t *testing.T) {
+ 	ldr := mkLoader()
+ 	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
+@@ -248,7 +263,7 @@ func TestAddDataMethods(t *testing.T) {
+ 		addDataFunc addFunc
+ 		expData     []byte
+ 		expKind     sym.SymKind
+-		expRel      []Reloc
++		expRel      []Reloc2
+ 	}{
+ 		{
+ 			which: "AddUint8",
+@@ -301,7 +316,7 @@ func TestAddDataMethods(t *testing.T) {
+ 			},
+ 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
+ 			expKind: sym.SDATA,
+-			expRel:  []Reloc{Reloc{Type: objabi.R_ADDR, Size: 8, Add: 3, Sym: 6}},
++			expRel:  []Reloc2{mkReloc(ldr, objabi.R_ADDR, 0, 8, 3, 6)},
+ 		},
+ 		{
+ 			which: "AddAddrPlus4",
+@@ -312,7 +327,7 @@ func TestAddDataMethods(t *testing.T) {
+ 			},
+ 			expData: []byte{0, 0, 0, 0},
+ 			expKind: sym.SDATA,
+-			expRel:  []Reloc{Reloc{Type: objabi.R_ADDR, Size: 4, Add: 3, Sym: 7}},
++			expRel:  []Reloc2{mkReloc(ldr, objabi.R_ADDR, 0, 4, 3, 7)},
+ 		},
+ 		{
+ 			which: "AddCURelativeAddrPlus",
+@@ -323,7 +338,7 @@ func TestAddDataMethods(t *testing.T) {
+ 			},
+ 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
+ 			expKind: sym.SDATA,
+-			expRel:  []Reloc{Reloc{Type: objabi.R_ADDRCUOFF, Size: 8, Add: 7, Sym: 8}},
++			expRel:  []Reloc2{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 7c8115f0b9..7b71f4e625 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -118,18 +118,10 @@ func (sb *SymbolBuilder) Relocs() Relocs {
+ 	return sb.l.Relocs(sb.symIdx)
+ }
+ 
+-func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
+-	n := len(rslice)
+-	if cap(sb.relocs) < n {
+-		sb.relocs = make([]goobj2.Reloc, n)
+-		sb.reltypes = make([]objabi.RelocType, n)
+-	} else {
+-		sb.relocs = sb.relocs[:n]
+-		sb.reltypes = sb.reltypes[:n]
+-	}
+-	for i := range rslice {
+-		sb.SetReloc(i, rslice[i])
+-	}
++// ResetRelocs removes all relocations on this symbol.
++func (sb *SymbolBuilder) ResetRelocs() {
++	sb.relocs = sb.relocs[:0]
++	sb.reltypes = sb.reltypes[:0]
+ }
+ 
+ // SetRelocType sets the type of the 'i'-th relocation on this sym to 't'
+@@ -180,26 +172,6 @@ func (p *relocsByOff) Swap(i, j int) {
+ 	p.reltypes[i], p.reltypes[j] = p.reltypes[j], p.reltypes[i]
+ }
+ 
+-// AddReloc appends the specified reloc to the symbols list of
+-// relocations. Return value is the index of the newly created
+-// reloc.
+-func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
+-	// Populate a goobj2.Reloc from external reloc record.
+-	rval := uint32(len(sb.relocs))
+-	var b goobj2.Reloc
+-	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+-	sb.relocs = append(sb.relocs, b)
+-	sb.reltypes = append(sb.reltypes, r.Type)
+-	return rval
+-}
+-
+-// Update the j-th relocation in place.
+-func (sb *SymbolBuilder) SetReloc(j int, r Reloc) {
+-	// Populate a goobj2.Reloc from external reloc record.
+-	sb.relocs[j].Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+-	sb.reltypes[j] = r.Type
+-}
+-
+ func (sb *SymbolBuilder) Reachable() bool {
+ 	return sb.l.AttrReachable(sb.symIdx)
+ }
+@@ -323,14 +295,12 @@ func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int
+ 		sb.size = off + int64(arch.PtrSize)
+ 		sb.Grow(sb.size)
+ 	}
+-	var r Reloc
+-	r.Sym = tgt
+-	r.Off = int32(off)
+-	r.Size = uint8(arch.PtrSize)
+-	r.Type = objabi.R_ADDR
+-	r.Add = add
+-	sb.AddReloc(r)
+-	return off + int64(r.Size)
++	r, _ := sb.AddRel(objabi.R_ADDR)
++	r.SetSym(tgt)
++	r.SetOff(int32(off))
++	r.SetSiz(uint8(arch.PtrSize))
++	r.SetAdd(add)
++	return off + int64(r.Siz())
+ }
+ 
+ func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
+@@ -361,15 +331,13 @@ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsi
+ 	sb.size += int64(rsize)
+ 	sb.Grow(sb.size)
+ 
+-	var r Reloc
+-	r.Sym = tgt
+-	r.Off = int32(i)
+-	r.Size = uint8(rsize)
+-	r.Type = typ
+-	r.Add = add
+-	sb.AddReloc(r)
++	r, _ := sb.AddRel(typ)
++	r.SetSym(tgt)
++	r.SetOff(int32(i))
++	r.SetSiz(uint8(rsize))
++	r.SetAdd(add)
+ 
+-	return i + int64(r.Size)
++	return i + int64(rsize)
+ }
+ 
+ // Add a symbol reference (relocation) with given type, addend, and size
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index b559d566e6..ba46596cbd 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -152,13 +152,10 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
+ 
+ 	// addis r2, r12, .TOC.-func@ha
+ 	toc := ctxt.DotTOC[0]
+-	rel1 := loader.Reloc{
+-		Off:  0,
+-		Size: 8,
+-		Type: objabi.R_ADDRPOWER_PCREL,
+-		Sym:  toc,
+-	}
+-	initfunc.AddReloc(rel1)
++	rel1, _ := initfunc.AddRel(objabi.R_ADDRPOWER_PCREL)
++	rel1.SetOff(0)
++	rel1.SetSiz(8)
++	rel1.SetSym(toc)
+ 	o(0x3c4c0000)
+ 	// addi r2, r2, .TOC.-func@l
+ 	o(0x38420000)
+@@ -175,24 +172,18 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
+ 	} else {
+ 		tgt = ldr.LookupOrCreateSym("runtime.firstmoduledata", 0)
+ 	}
+-	rel2 := loader.Reloc{
+-		Off:  int32(initfunc.Size()),
+-		Size: 8,
+-		Type: objabi.R_ADDRPOWER_GOT,
+-		Sym:  tgt,
+-	}
+-	initfunc.AddReloc(rel2)
++	rel2, _ := initfunc.AddRel(objabi.R_ADDRPOWER_GOT)
++	rel2.SetOff(int32(initfunc.Size()))
++	rel2.SetSiz(8)
++	rel2.SetSym(tgt)
+ 	o(0x3c620000)
+ 	// ld r3, local.moduledata@got@l(r3)
+ 	o(0xe8630000)
+ 	// bl runtime.addmoduledata
+-	rel3 := loader.Reloc{
+-		Off:  int32(initfunc.Size()),
+-		Size: 4,
+-		Type: objabi.R_CALLPOWER,
+-		Sym:  addmoduledata,
+-	}
+-	initfunc.AddReloc(rel3)
++	rel3, _ := initfunc.AddRel(objabi.R_CALLPOWER)
++	rel3.SetOff(int32(initfunc.Size()))
++	rel3.SetSiz(4)
++	rel3.SetSym(addmoduledata)
+ 	o(0x48000001)
+ 	// nop
+ 	o(0x60000000)
+@@ -233,31 +224,25 @@ func gencallstub(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.Sy
+ 	stub.AddUint32(ctxt.Arch, 0xf8410018) // std r2,24(r1)
+ 
+ 	// Load the function pointer from the PLT.
+-	rel := loader.Reloc{
+-		Off:  int32(stub.Size()),
+-		Size: 2,
+-		Add:  int64(ldr.SymPlt(targ)),
+-		Type: objabi.R_POWER_TOC,
+-		Sym:  plt,
+-	}
++	rel, ri1 := stub.AddRel(objabi.R_POWER_TOC)
++	rel.SetOff(int32(stub.Size()))
++	rel.SetSiz(2)
++	rel.SetAdd(int64(ldr.SymPlt(targ)))
++	rel.SetSym(plt)
+ 	if ctxt.Arch.ByteOrder == binary.BigEndian {
+-		rel.Off += int32(rel.Size)
++		rel.SetOff(rel.Off() + int32(rel.Siz()))
+ 	}
+-	ri1 := stub.AddReloc(rel)
+ 	ldr.SetRelocVariant(stub.Sym(), int(ri1), sym.RV_POWER_HA)
+ 	stub.AddUint32(ctxt.Arch, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
+ 
+-	rel2 := loader.Reloc{
+-		Off:  int32(stub.Size()),
+-		Size: 2,
+-		Add:  int64(ldr.SymPlt(targ)),
+-		Type: objabi.R_POWER_TOC,
+-		Sym:  plt,
+-	}
++	rel2, ri2 := stub.AddRel(objabi.R_POWER_TOC)
++	rel2.SetOff(int32(stub.Size()))
++	rel2.SetSiz(2)
++	rel2.SetAdd(int64(ldr.SymPlt(targ)))
++	rel2.SetSym(plt)
+ 	if ctxt.Arch.ByteOrder == binary.BigEndian {
+-		rel2.Off += int32(rel.Size)
++		rel2.SetOff(rel2.Off() + int32(rel2.Siz()))
+ 	}
+-	ri2 := stub.AddReloc(rel2)
+ 	ldr.SetRelocVariant(stub.Sym(), int(ri2), sym.RV_POWER_LO)
+ 	stub.AddUint32(ctxt.Arch, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
+ 
+@@ -751,13 +736,10 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 		toctramp.SetType(sym.SXCOFFTOC)
+ 		toctramp.AddAddrPlus(ctxt.Arch, target, offset)
+ 
+-		r := loader.Reloc{
+-			Off:  0,
+-			Type: objabi.R_ADDRPOWER_TOCREL_DS,
+-			Size: 8, // generates 2 relocations:  HA + LO
+-			Sym:  toctramp.Sym(),
+-		}
+-		tramp.AddReloc(r)
++		r, _ := tramp.AddRel(objabi.R_ADDRPOWER_TOCREL_DS)
++		r.SetOff(0)
++		r.SetSiz(8) // generates 2 relocations: HA + LO
++		r.SetSym(toctramp.Sym())
+ 	} else {
+ 		// Used for default build mode for an executable
+ 		// Address of the call target is generated using
+@@ -768,14 +750,11 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 		// With external linking, the target address must be
+ 		// relocated using LO and HA
+ 		if ctxt.IsExternal() {
+-			r := loader.Reloc{
+-				Off:  0,
+-				Type: objabi.R_ADDRPOWER,
+-				Size: 8, // generates 2 relocations:  HA + LO
+-				Sym:  target,
+-				Add:  offset,
+-			}
+-			tramp.AddReloc(r)
++			r, _ := tramp.AddRel(objabi.R_ADDRPOWER)
++			r.SetOff(0)
++			r.SetSiz(8) // generates 2 relocations: HA + LO
++			r.SetSym(target)
++			r.SetAdd(offset)
+ 		} else {
+ 			// adjustment needed if lo has sign bit set
+ 			// when using addi to compute address
+@@ -1000,13 +979,10 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
+ 
+ 		// Write symbol resolver stub (just a branch to the
+ 		// glink resolver stub)
+-		rel := loader.Reloc{
+-			Off:  int32(glink.Size()),
+-			Size: 4,
+-			Type: objabi.R_CALLPOWER,
+-			Sym:  glink.Sym(),
+-		}
+-		glink.AddReloc(rel)
++		rel, _ := glink.AddRel(objabi.R_CALLPOWER)
++		rel.SetOff(int32(glink.Size()))
++		rel.SetSiz(4)
++		rel.SetSym(glink.Sym())
+ 		glink.AddUint32(ctxt.Arch, 0x48000000) // b .glink
+ 
+ 		// In the ppc64 ABI, the dynamic linker is responsible

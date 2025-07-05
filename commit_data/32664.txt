@@ -15,6 +15,56 @@ Date:   Fri May 12 11:58:09 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/scanner/example_test.go | 35 ++++++++++++++++-------------------
  1 file changed, 16 insertions(+), 19 deletions(-)
+
+diff --git a/src/text/scanner/example_test.go b/src/text/scanner/example_test.go
+index 1d5d34a015..97e22a98f4 100644
+--- a/src/text/scanner/example_test.go
++++ b/src/text/scanner/example_test.go
+@@ -12,28 +12,25 @@ import (
+ 
+ func Example() {
+ 	const src = `
+-	// This is scanned code.
+-	if a > 10 {
+-		someParsable = text
+-	}`
++// This is scanned code.
++if a > 10 {
++	someParsable = text
++}`
+ 	var s scanner.Scanner
+-	s.Filename = "example"
+ 	s.Init(strings.NewReader(src))
+-	var tok rune
+-	for tok != scanner.EOF {
+-		tok = s.Scan()
+-		fmt.Println("At position", s.Pos(), ":", s.TokenText())
++	s.Filename = "example"
++	for tok := s.Scan(); tok != scanner.EOF; tok = s.Scan() {
++		fmt.Printf("%s: %s\n", s.Position, s.TokenText())
+ 	}
+ 
+ 	// Output:
+-	// At position example:3:4 : if
+-	// At position example:3:6 : a
+-	// At position example:3:8 : >
+-	// At position example:3:11 : 10
+-	// At position example:3:13 : {
+-	// At position example:4:15 : someParsable
+-	// At position example:4:17 : =
+-	// At position example:4:22 : text
+-	// At position example:5:3 : }
+-	// At position example:5:3 :
++	// example:3:1: if
++	// example:3:4: a
++	// example:3:6: >
++	// example:3:8: 10
++	// example:3:11: {
++	// example:4:2: someParsable
++	// example:4:15: =
++	// example:4:17: text
++	// example:5:1: }
+ }

@@ -17,8 +17,114 @@ Date:   Sat Apr 25 22:29:02 2020 +1000
     Run-TryBot: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/draw/bench_test.go |  6 +++++-
  src/image/draw/draw.go       | 22 +++++++++++++++++++---
  src/image/draw/draw_test.go  | 32 +++++++++++++++++++-------------
  3 files changed, 43 insertions(+), 17 deletions(-)
+
+diff --git a/src/image/draw/bench_test.go b/src/image/draw/bench_test.go
+index a41d7e7dfb..831fd958ba 100644
+--- a/src/image/draw/bench_test.go
++++ b/src/image/draw/bench_test.go
+@@ -236,7 +236,11 @@ func BenchmarkRGBA(b *testing.B) {
+ 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+ }
+ 
+-func BenchmarkPaletted(b *testing.B) {
++func BenchmarkPalettedFill(b *testing.B) {
++	bench(b, palette, nil, nil, Src)
++}
++
++func BenchmarkPalettedRGBA(b *testing.B) {
+ 	bench(b, palette, color.RGBAModel, nil, Src)
+ }
+ 
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 932a544483..8f96aa2d18 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -180,9 +180,25 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		drawRGBA(dst0, r, src, sp, mask, mp, op)
+ 		return
+ 	case *image.Paletted:
+-		if op == Src && mask == nil && !processBackward(dst, r, src, sp) {
+-			drawPaletted(dst0, r, src, sp, false)
+-			return
++		if op == Src && mask == nil {
++			if src0, ok := src.(*image.Uniform); ok {
++				colorIndex := uint8(dst0.Palette.Index(src0.C))
++				i0 := dst0.PixOffset(r.Min.X, r.Min.Y)
++				i1 := i0 + r.Dx()
++				for i := i0; i < i1; i++ {
++					dst0.Pix[i] = colorIndex
++				}
++				firstRow := dst0.Pix[i0:i1]
++				for y := r.Min.Y + 1; y < r.Max.Y; y++ {
++					i0 += dst0.Stride
++					i1 += dst0.Stride
++					copy(dst0.Pix[i0:i1], firstRow)
++				}
++				return
++			} else if !processBackward(dst, r, src, sp) {
++				drawPaletted(dst0, r, src, sp, false)
++				return
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index dea51b6bc5..9c5a118400 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -434,11 +434,11 @@ func TestPaletted(t *testing.T) {
+ 		t.Fatalf("open: %v", err)
+ 	}
+ 	defer f.Close()
+-	src, err := png.Decode(f)
++	video001, err := png.Decode(f)
+ 	if err != nil {
+ 		t.Fatalf("decode: %v", err)
+ 	}
+-	b := src.Bounds()
++	b := video001.Bounds()
+ 
+ 	cgaPalette := color.Palette{
+ 		color.RGBA{0x00, 0x00, 0x00, 0xff},
+@@ -450,19 +450,25 @@ func TestPaletted(t *testing.T) {
+ 		"src":             Src,
+ 		"floyd-steinberg": FloydSteinberg,
+ 	}
++	sources := map[string]image.Image{
++		"uniform":  &image.Uniform{color.RGBA{0xff, 0x7f, 0xff, 0xff}},
++		"video001": video001,
++	}
+ 
+-loop:
+ 	for dName, d := range drawers {
+-		dst0 := image.NewPaletted(b, cgaPalette)
+-		dst1 := image.NewPaletted(b, cgaPalette)
+-		d.Draw(dst0, b, src, image.Point{})
+-		d.Draw(embeddedPaletted{dst1}, b, src, image.Point{})
+-		for y := b.Min.Y; y < b.Max.Y; y++ {
+-			for x := b.Min.X; x < b.Max.X; x++ {
+-				if !eq(dst0.At(x, y), dst1.At(x, y)) {
+-					t.Errorf("%s: at (%d, %d), %v versus %v",
+-						dName, x, y, dst0.At(x, y), dst1.At(x, y))
+-					continue loop
++	loop:
++		for sName, src := range sources {
++			dst0 := image.NewPaletted(b, cgaPalette)
++			dst1 := image.NewPaletted(b, cgaPalette)
++			d.Draw(dst0, b, src, image.Point{})
++			d.Draw(embeddedPaletted{dst1}, b, src, image.Point{})
++			for y := b.Min.Y; y < b.Max.Y; y++ {
++				for x := b.Min.X; x < b.Max.X; x++ {
++					if !eq(dst0.At(x, y), dst1.At(x, y)) {
++						t.Errorf("%s / %s: at (%d, %d), %v versus %v",
++							dName, sName, x, y, dst0.At(x, y), dst1.At(x, y))
++						continue loop
++					}
+ 				}
+ 			}
+ 		}

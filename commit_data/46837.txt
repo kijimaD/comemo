@@ -12,7 +12,56 @@ Date:   Fri Feb 5 16:45:40 2021 -0500
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/embed/embed.go | 18 +++++++++---------
  src/io/fs/fs.go    |  1 +
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index f12bf31e76..98da870ac6 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -61,12 +61,15 @@
+ // The Go build system will recognize the directives and arrange for the declared variable
+ // (in the example above, content) to be populated with the matching files from the file system.
+ //
+-// The //go:embed directive accepts multiple space-separated patterns for brevity,
+-// but it can also be repeated, to avoid very long lines when there are many patterns.
+-// The patterns are interpreted relative to the package directory containing the source file.
+-// The path separator is a forward slash, even on Windows systems.
+-// To allow for naming files with spaces in their names, patterns can be written
+-// as Go double-quoted or back-quoted string literals.
++// The //go:embed directive accepts multiple space-separated patterns for
++// brevity, but it can also be repeated, to avoid very long lines when there are
++// many patterns. The patterns are interpreted relative to the package directory
++// containing the source file. The path separator is a forward slash, even on
++// Windows systems. Patterns may not contain ‘.’ or ‘..’ or empty path elements,
++// nor may they begin or end with a slash. To match everything in the current
++// directory, use ‘*’ instead of ‘.’. To allow for naming files with spaces in
++// their names, patterns can be written as Go double-quoted or back-quoted
++// string literals.
+ //
+ // If a pattern names a directory, all files in the subtree rooted at that directory are
+ // embedded (recursively), except that files with names beginning with ‘.’ or ‘_’
+@@ -87,9 +90,6 @@
+ // Matches for empty directories are ignored. After that, each pattern in a //go:embed line
+ // must match at least one file or non-empty directory.
+ //
+-// Patterns must not contain ‘.’ or ‘..’ path elements nor begin with a leading slash.
+-// To match everything in the current directory, use ‘*’ instead of ‘.’.
+-//
+ // If any patterns are invalid or have invalid matches, the build will fail.
+ //
+ // Strings and Bytes
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+index b691a86049..c330f123ad 100644
+--- a/src/io/fs/fs.go
++++ b/src/io/fs/fs.go
+@@ -36,6 +36,7 @@ type FS interface {
+ // sequences of path elements, like “x/y/z”.
+ // Path names must not contain a “.” or “..” or empty element,
+ // except for the special case that the root directory is named “.”.
++// Leading and trailing slashes (like “/x” or “x/”) are not allowed.
+ //
+ // Paths are slash-separated on all systems, even Windows.
+ // Backslashes must not appear in path names.

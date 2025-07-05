@@ -20,7 +20,7 @@ Date:   Wed Apr 27 14:18:29 2016 -0700
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go                                |   8 +-
  src/cmd/cgo/out.go                                |  30 ++--
  src/runtime/asm_386.s                             |  20 ++-
@@ -49,3 +49,1720 @@ Date:   Wed Apr 27 14:18:29 2016 -0700
  src/runtime/testdata/testprogcgo/tracebackctxt.go | 191 ++++++++++++++++++++++
  src/runtime/traceback.go                          | 162 +++++++++++++-----
  27 files changed, 714 insertions(+), 227 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 6e0bfa58c6..d3a7b6d2a7 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -511,7 +511,6 @@ file compiled by gcc, the file x.cgo2.c:
+ 	void
+ 	_cgo_be59f0f25121_Cfunc_puts(void *v)
+ 	{
+-		_cgo_wait_runtime_init_done();
+ 		struct {
+ 			char* p0;
+ 			int r;
+@@ -520,8 +519,7 @@ file compiled by gcc, the file x.cgo2.c:
+ 		a->r = puts((void*)a->p0);
+ 	}
+ 
+-It waits for Go runtime to be initialized (required for shared libraries),
+-extracts the arguments from the pointer to _Cfunc_puts's argument
++It extracts the arguments from the pointer to _Cfunc_puts's argument
+ frame, invokes the system C function (in this case, puts), stores the
+ result in the frame, and returns.
+ 
+@@ -539,8 +537,8 @@ linkage to the desired libraries. The main function is provided by
+ _cgo_main.c:
+ 
+ 	int main() { return 0; }
+-	void crosscall2(void(*fn)(void*, int), void *a, int c) { }
+-	void _cgo_wait_runtime_init_done() { }
++	void crosscall2(void(*fn)(void*, int, uintptr_t), void *a, int c, uintptr_t ctxt) { }
++	uintptr_t _cgo_wait_runtime_init_done() { }
+ 	void _cgo_allocate(void *a, int c) { }
+ 	void _cgo_panic(void *a, int c) { }
+ 
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 88b0147364..1fa3a93bec 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -50,14 +50,16 @@ func (p *Package) writeDefs() {
+ 	// Write C main file for using gcc to resolve imports.
+ 	fmt.Fprintf(fm, "int main() { return 0; }\n")
+ 	if *importRuntimeCgo {
+-		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c) { }\n")
+-		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done() { }\n")
++		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt) { }\n")
++		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done() { return 0; }\n")
++		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__ ctxt) { }\n")
+ 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
+ 	} else {
+ 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
+ 		// which provides these functions. We just need a prototype.
+-		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);\n")
+-		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done();\n")
++		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int, __SIZE_TYPE__), void *a, int c, __SIZE_TYPE__ ctxt);\n")
++		fmt.Fprintf(fm, "__SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
++		fmt.Fprintf(fm, "void _cgo_release_context(__SIZE_TYPE__);\n")
+ 	}
+ 	fmt.Fprintf(fm, "void _cgo_allocate(void *a, int c) { }\n")
+ 	fmt.Fprintf(fm, "void _cgo_panic(void *a, int c) { }\n")
+@@ -700,8 +702,9 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+ 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
+ 
+-	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int), void *, int);\n")
+-	fmt.Fprintf(fgcc, "extern void _cgo_wait_runtime_init_done();\n\n")
++	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int, __SIZE_TYPE__), void *, int, __SIZE_TYPE__);\n")
++	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
++	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
+ 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
+ 
+ 	for _, exp := range p.ExpFunc {
+@@ -803,10 +806,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		}
+ 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
+ 
+-		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int);\n", cPrefix, exp.ExpName)
++		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int, __SIZE_TYPE__);\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgcc, "\n%s\n", s)
+ 		fmt.Fprintf(fgcc, "{\n")
+-		fmt.Fprintf(fgcc, "\t_cgo_wait_runtime_init_done();\n")
++		fmt.Fprintf(fgcc, "\t__SIZE_TYPE__ _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
+ 		fmt.Fprintf(fgcc, "\t%s %v a;\n", ctype, p.packedAttribute())
+ 		if gccResult != "void" && (len(fntype.Results.List) > 1 || len(fntype.Results.List[0].Names) > 1) {
+ 			fmt.Fprintf(fgcc, "\t%s r;\n", gccResult)
+@@ -819,8 +822,9 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 				fmt.Fprintf(fgcc, "\ta.p%d = p%d;\n", i, i)
+ 			})
+ 		fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
+-		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, %d);\n", cPrefix, exp.ExpName, off)
++		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
+ 		fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
++		fmt.Fprintf(fgcc, "\t_cgo_release_context(_cgo_ctxt);\n")
+ 		if gccResult != "void" {
+ 			if len(fntype.Results.List) == 1 && len(fntype.Results.List[0].Names) <= 1 {
+ 				fmt.Fprintf(fgcc, "\treturn a.r0;\n")
+@@ -845,10 +849,10 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgo2, "//go:nosplit\n") // no split stack, so no use of m or g
+ 		fmt.Fprintf(fgo2, "//go:norace\n")  // must not have race detector calls inserted
+-		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a unsafe.Pointer, n int32) {\n", cPrefix, exp.ExpName)
++		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a unsafe.Pointer, n int32, ctxt uintptr) {\n", cPrefix, exp.ExpName)
+ 		fmt.Fprintf(fgo2, "\tfn := %s\n", goname)
+ 		// The indirect here is converting from a Go function pointer to a C function pointer.
+-		fmt.Fprintf(fgo2, "\t_cgo_runtime_cgocallback(**(**unsafe.Pointer)(unsafe.Pointer(&fn)), a, uintptr(n));\n")
++		fmt.Fprintf(fgo2, "\t_cgo_runtime_cgocallback(**(**unsafe.Pointer)(unsafe.Pointer(&fn)), a, uintptr(n), ctxt);\n")
+ 		fmt.Fprintf(fgo2, "}\n")
+ 
+ 		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
+@@ -1337,7 +1341,7 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
+ func _cgo_runtime_cmalloc(uintptr) unsafe.Pointer
+ 
+ //go:linkname _cgo_runtime_cgocallback runtime.cgocallback
+-func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
++func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
+ 
+ //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+ func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+@@ -1580,5 +1584,5 @@ static void GoInit(void) {
+ 		runtime_iscgo = 1;
+ }
+ 
+-extern void _cgo_wait_runtime_init_done() __attribute__ ((weak));
++extern __SIZE_TYPE__ _cgo_wait_runtime_init_done() __attribute__ ((weak));
+ `
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index dec79189bc..530fbb0e27 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -612,23 +612,25 @@ noswitch:
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
++TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
+ 	LEAL	fn+0(FP), AX
+ 	MOVL	AX, 0(SP)
+ 	MOVL	frame+4(FP), AX
+ 	MOVL	AX, 4(SP)
+ 	MOVL	framesize+8(FP), AX
+ 	MOVL	AX, 8(SP)
++	MOVL	ctxt+12(FP), AX
++	MOVL	AX, 12(SP)
+ 	MOVL	$runtime·cgocallback_gofunc(SB), AX
+ 	CALL	AX
+ 	RET
+ 
+-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-12
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-16
+ 	NO_LOCAL_POINTERS
+ 
+ 	// If g is nil, Go did not create the current thread.
+@@ -696,17 +698,19 @@ havem:
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+ 	//
+-	// In the new goroutine, 0(SP) holds the saved oldm (DX) register.
+-	// 4(SP) and 8(SP) are unused.
++	// In the new goroutine, 4(SP) holds the saved oldm (DX) register.
++	// 8(SP) is unused.
+ 	MOVL	m_curg(BP), SI
+ 	MOVL	SI, g(CX)
+ 	MOVL	(g_sched+gobuf_sp)(SI), DI // prepare stack as DI
+ 	MOVL	(g_sched+gobuf_pc)(SI), BP
+ 	MOVL	BP, -4(DI)
++	MOVL	ctxt+12(FP), CX
+ 	LEAL	-(4+12)(DI), SP
+-	MOVL	DX, 0(SP)
++	MOVL	DX, 4(SP)
++	MOVL	CX, 0(SP)
+ 	CALL	runtime·cgocallbackg(SB)
+-	MOVL	0(SP), DX
++	MOVL	4(SP), DX
+ 
+ 	// Restore g->sched (== m->curg->sched) from saved values.
+ 	get_tls(CX)
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index cdda29f347..6cd31f951b 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -622,23 +622,25 @@ nosave:
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
++TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
+ 	LEAQ	fn+0(FP), AX
+ 	MOVQ	AX, 0(SP)
+ 	MOVQ	frame+8(FP), AX
+ 	MOVQ	AX, 8(SP)
+ 	MOVQ	framesize+16(FP), AX
+ 	MOVQ	AX, 16(SP)
++	MOVQ	ctxt+24(FP), AX
++	MOVQ	AX, 24(SP)
+ 	MOVQ	$runtime·cgocallback_gofunc(SB), AX
+ 	CALL	AX
+ 	RET
+ 
+-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+ 	NO_LOCAL_POINTERS
+ 
+ 	// If g is nil, Go did not create the current thread.
+@@ -706,7 +708,7 @@ havem:
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+ 	//
+-	// In the new goroutine, 0(SP) holds the saved R8.
++	// In the new goroutine, 8(SP) holds the saved R8.
+ 	MOVQ	m_curg(BX), SI
+ 	MOVQ	SI, g(CX)
+ 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
+@@ -714,14 +716,16 @@ havem:
+ 	MOVQ	BX, -8(DI)
+ 	// Compute the size of the frame, including return PC and, if
+ 	// GOEXPERIMENT=framepointer, the saved based pointer
++	MOVQ	ctxt+24(FP), BX
+ 	LEAQ	fv+0(FP), AX
+ 	SUBQ	SP, AX
+ 	SUBQ	AX, DI
+ 	MOVQ	DI, SP
+ 
+-	MOVQ	R8, 0(SP)
++	MOVQ	R8, 8(SP)
++	MOVQ	BX, 0(SP)
+ 	CALL	runtime·cgocallbackg(SB)
+-	MOVQ	0(SP), R8
++	MOVQ	8(SP), R8
+ 
+ 	// Compute the size of the frame again. FP and SP have
+ 	// completely different values here than they did above,
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 46f8474f54..df6bde61ee 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -530,23 +530,25 @@ g0:
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
++TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
+ 	MOVW	$fn+0(FP), R0
+ 	MOVW	R0, 4(R13)
+ 	MOVW	frame+4(FP), R0
+ 	MOVW	R0, 8(R13)
+ 	MOVW	framesize+8(FP), R0
+ 	MOVW	R0, 12(R13)
++	MOVW	ctxt+12(FP), R0
++	MOVW	R0, 16(R13)
+ 	MOVW	$runtime·cgocallback_gofunc(SB), R0
+ 	BL	(R0)
+ 	RET
+ 
+-// cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
++TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-16
+ 	NO_LOCAL_POINTERS
+ 	
+ 	// Load m and g from thread-local storage.
+@@ -611,17 +613,20 @@ havem:
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+ 	//
+-	// In the new goroutine, -8(SP) and -4(SP) are unused.
++	// In the new goroutine, -4(SP) is unused (where SP refers to
++	// m->curg's SP while we're setting it up, before we've adjusted it).
+ 	MOVW	m_curg(R8), R0
+ 	BL	setg<>(SB)
+ 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVW	(g_sched+gobuf_pc)(g), R5
+ 	MOVW	R5, -12(R4)
++	MOVW	ctxt+12(FP), R0
++	MOVW	R0, -8(R4)
+ 	MOVW	$-12(R4), R13
+ 	BL	runtime·cgocallbackg(SB)
+ 
+ 	// Restore g->sched (== m->curg->sched) from saved values.
+-	MOVW	0(R13), R5
++	MOVW	4(R13), R5
+ 	MOVW	R5, (g_sched+gobuf_pc)(g)
+ 	MOVW	$12(R13), R4
+ 	MOVW	R4, (g_sched+gobuf_sp)(g)
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index e06aa11a5d..4a18db80c3 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -554,23 +554,25 @@ g0:
+ 	MOVW	R0, ret+16(FP)
+ 	RET
+ 
+-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
++TEXT runtime·cgocallback(SB),NOSPLIT,$40-32
+ 	MOVD	$fn+0(FP), R0
+ 	MOVD	R0, 8(RSP)
+ 	MOVD	frame+8(FP), R0
+ 	MOVD	R0, 16(RSP)
+ 	MOVD	framesize+16(FP), R0
+ 	MOVD	R0, 24(RSP)
++	MOVD	ctxt+24(FP), R0
++	MOVD	R0, 32(RSP)
+ 	MOVD	$runtime·cgocallback_gofunc(SB), R0
+ 	BL	(R0)
+ 	RET
+ 
+-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-24
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Load g from thread-local storage.
+@@ -640,12 +642,15 @@ havem:
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+ 	//
+-	// In the new goroutine, -16(SP) and -8(SP) are unused.
++	// In the new goroutine, -8(SP) is unused (where SP refers to
++	// m->curg's SP while we're setting it up, before we've adjusted it).
+ 	MOVD	m_curg(R8), g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVD	(g_sched+gobuf_pc)(g), R5
+-	MOVD	R5, -(24+8)(R4)	// maintain 16-byte SP alignment
++	MOVD	R5, -(16+8)(R4)
++	MOVD	ctxt+24(FP), R0
++	MOVD	R0, -(24+8)(R4)	// maintain 16-byte SP alignment
+ 	MOVD	$-(24+8)(R4), R0
+ 	MOVD	R0, RSP
+ 	BL	runtime·cgocallbackg(SB)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 8d9d01b104..f7e00198a3 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -569,22 +569,24 @@ g0:
+ 	MOVW	R3, ret+16(FP)
+ 	RET
+ 
+-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
++TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
+ 	MOVD	$fn+0(FP), R3
+ 	MOVD	R3, FIXED_FRAME+0(R1)
+ 	MOVD	frame+8(FP), R3
+ 	MOVD	R3, FIXED_FRAME+8(R1)
+ 	MOVD	framesize+16(FP), R3
+ 	MOVD	R3, FIXED_FRAME+16(R1)
++	MOVD	ctxt+24(FP), R3
++	MOVD	R3, FIXED_FRAME+24(R1)
+ 	MOVD	$runtime·cgocallback_gofunc(SB), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
+ 	RET
+ 
+-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+ TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
+ 	NO_LOCAL_POINTERS
+@@ -654,12 +656,15 @@ havem:
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+ 	//
+-	// In the new goroutine, -16(SP) and -8(SP) are unused.
++	// In the new goroutine, -8(SP) is unused (where SP refers to
++	// m->curg's SP while we're setting it up, before we've adjusted it).
+ 	MOVD	m_curg(R8), g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVD	(g_sched+gobuf_pc)(g), R5
+-	MOVD	R5, -(FIXED_FRAME+16)(R4)
++	MOVD	R5, -(FIXED_FRAME+8)(R4)
++	MOVD	ctxt+24(FP), R1
++	MOVD	R1, -(FIXED_FRAME+16)(R4)
+ 	MOVD	$-(FIXED_FRAME+16)(R4), R1
+ 	BL	runtime·cgocallbackg(SB)
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index fc74b0ddf9..896ccde801 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -541,23 +541,25 @@ g0:
+ 	MOVW	R2, ret+16(FP)
+ 	RET
+ 
+-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
+ // Turn the fn into a Go func (by taking its address) and call
+ // cgocallback_gofunc.
+-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
++TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
+ 	MOVD	$fn+0(FP), R3
+ 	MOVD	R3, 8(R15)
+ 	MOVD	frame+8(FP), R3
+ 	MOVD	R3, 16(R15)
+ 	MOVD	framesize+16(FP), R3
+ 	MOVD	R3, 24(R15)
++	MOVD	ctxt+24(FP), R3
++	MOVD	R3, 32(R15)
+ 	MOVD	$runtime·cgocallback_gofunc(SB), R3
+ 	BL	(R3)
+ 	RET
+ 
+-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
++// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
+ // See cgocall.go for more details.
+-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
++TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
+ 	NO_LOCAL_POINTERS
+ 
+ 	// Load m and g from thread-local storage.
+@@ -622,12 +624,15 @@ havem:
+ 	// so that the traceback will seamlessly trace back into
+ 	// the earlier calls.
+ 	//
+-	// In the new goroutine, -16(SP) and -8(SP) are unused.
++	// In the new goroutine, -8(SP) is unused (where SP refers to
++	// m->curg's SP while we're setting it up, before we've adjusted it).
+ 	MOVD	m_curg(R8), g
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+ 	MOVD	(g_sched+gobuf_pc)(g), R5
+ 	MOVD	R5, -24(R4)
++	MOVD	ctxt+24(FP), R5
++	MOVD	R5, -16(R4)
+ 	MOVD	$-24(R4), R15
+ 	BL	runtime·cgocallbackg(SB)
+ 
+diff --git a/src/runtime/cgo.go b/src/runtime/cgo.go
+index 35d7a07e15..4fb4a613e0 100644
+--- a/src/runtime/cgo.go
++++ b/src/runtime/cgo.go
+@@ -17,6 +17,7 @@ import "unsafe"
+ //go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
+ //go:linkname _cgo_notify_runtime_init_done _cgo_notify_runtime_init_done
+ //go:linkname _cgo_callers _cgo_callers
++//go:linkname _cgo_set_context_function _cgo_set_context_function
+ 
+ var (
+ 	_cgo_init                     unsafe.Pointer
+@@ -26,6 +27,7 @@ var (
+ 	_cgo_sys_thread_create        unsafe.Pointer
+ 	_cgo_notify_runtime_init_done unsafe.Pointer
+ 	_cgo_callers                  unsafe.Pointer
++	_cgo_set_context_function     unsafe.Pointer
+ )
+ 
+ // iscgo is set to true by the runtime/cgo package
+diff --git a/src/runtime/cgo/asm_386.s b/src/runtime/cgo/asm_386.s
+index a21c7b3bd7..dc8897d353 100644
+--- a/src/runtime/cgo/asm_386.s
++++ b/src/runtime/cgo/asm_386.s
+@@ -4,10 +4,9 @@
+ 
+ #include "textflag.h"
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- * Save registers and call fn with two arguments.
+- */
++// Called by C code generated by cmd/cgo.
++// func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
++// Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+@@ -15,14 +14,16 @@ TEXT crosscall2(SB),NOSPLIT,$0
+ 	PUSHL	SI
+ 	PUSHL	DI
+ 	
+-	SUBL	$8, SP
++	SUBL	$12, SP
++	MOVL	20(BP), AX
++	MOVL	AX, 8(SP)
+ 	MOVL	16(BP), AX
+ 	MOVL	AX, 4(SP)
+ 	MOVL	12(BP), AX
+ 	MOVL	AX, 0(SP)
+ 	MOVL	8(BP), AX
+ 	CALL	AX
+-	ADDL	$8, SP
++	ADDL	$12, SP
+ 	
+ 	POPL	DI
+ 	POPL	SI
+diff --git a/src/runtime/cgo/asm_amd64.s b/src/runtime/cgo/asm_amd64.s
+index ace142c043..541bd9ea01 100644
+--- a/src/runtime/cgo/asm_amd64.s
++++ b/src/runtime/cgo/asm_amd64.s
+@@ -4,72 +4,73 @@
+ 
+ #include "textflag.h"
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- * Save registers and call fn with two arguments.
+- */
++// Called by C code generated by cmd/cgo.
++// func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
++// Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT,$0
+ #ifndef GOOS_windows
+ 	SUBQ	$0x58, SP	/* keeps stack pointer 32-byte aligned */
+ #else
+-	SUBQ	$0xf8, SP	/* also need to save xmm6 - xmm15 */
++	SUBQ	$0x118, SP	/* also need to save xmm6 - xmm15 */
+ #endif
+-	MOVQ	BX, 0x10(SP)
+-	MOVQ	BP, 0x18(SP)
+-	MOVQ	R12, 0x20(SP)
+-	MOVQ	R13, 0x28(SP)
+-	MOVQ	R14, 0x30(SP)
+-	MOVQ	R15, 0x38(SP)
++	MOVQ	BX, 0x18(SP)
++	MOVQ	BP, 0x20(SP)
++	MOVQ	R12, 0x28(SP)
++	MOVQ	R13, 0x30(SP)
++	MOVQ	R14, 0x38(SP)
++	MOVQ	R15, 0x40(SP)
+ 
+ #ifdef GOOS_windows
+ 	// Win64 save RBX, RBP, RDI, RSI, RSP, R12, R13, R14, R15 and XMM6 -- XMM15.
+-	MOVQ	DI, 0x40(SP)
+-	MOVQ	SI, 0x48(SP)
+-	MOVUPS	X6, 0x50(SP)
+-	MOVUPS	X7, 0x60(SP)
+-	MOVUPS	X8, 0x70(SP)
+-	MOVUPS	X9, 0x80(SP)
+-	MOVUPS	X10, 0x90(SP)
+-	MOVUPS	X11, 0xa0(SP)
+-	MOVUPS	X12, 0xb0(SP)
+-	MOVUPS	X13, 0xc0(SP)
+-	MOVUPS	X14, 0xd0(SP)
+-	MOVUPS	X15, 0xe0(SP)
++	MOVQ	DI, 0x48(SP)
++	MOVQ	SI, 0x50(SP)
++	MOVUPS	X6, 0x60(SP)
++	MOVUPS	X7, 0x70(SP)
++	MOVUPS	X8, 0x80(SP)
++	MOVUPS	X9, 0x90(SP)
++	MOVUPS	X10, 0xa0(SP)
++	MOVUPS	X11, 0xb0(SP)
++	MOVUPS	X12, 0xc0(SP)
++	MOVUPS	X13, 0xd0(SP)
++	MOVUPS	X14, 0xe0(SP)
++	MOVUPS	X15, 0xf0(SP)
+ 
+-	MOVQ	DX, 0(SP)	/* arg */
+-	MOVQ	R8, 8(SP)	/* argsize (includes padding) */
++	MOVQ	DX, 0x0(SP)	/* arg */
++	MOVQ	R8, 0x8(SP)	/* argsize (includes padding) */
++	MOVQ	R9, 0x10(SP)	/* ctxt */
+ 	
+ 	CALL	CX	/* fn */
+ 	
+-	MOVQ	0x40(SP), DI
+-	MOVQ	0x48(SP), SI
+-	MOVUPS	0x50(SP), X6
+-	MOVUPS	0x60(SP), X7
+-	MOVUPS	0x70(SP), X8
+-	MOVUPS	0x80(SP), X9
+-	MOVUPS	0x90(SP), X10
+-	MOVUPS	0xa0(SP), X11
+-	MOVUPS	0xb0(SP), X12
+-	MOVUPS	0xc0(SP), X13
+-	MOVUPS	0xd0(SP), X14
+-	MOVUPS	0xe0(SP), X15
++	MOVQ	0x48(SP), DI
++	MOVQ	0x50(SP), SI
++	MOVUPS	0x60(SP), X6
++	MOVUPS	0x70(SP), X7
++	MOVUPS	0x80(SP), X8
++	MOVUPS	0x90(SP), X9
++	MOVUPS	0xa0(SP), X10
++	MOVUPS	0xb0(SP), X11
++	MOVUPS	0xc0(SP), X12
++	MOVUPS	0xd0(SP), X13
++	MOVUPS	0xe0(SP), X14
++	MOVUPS	0xf0(SP), X15
+ #else
+-	MOVQ	SI, 0(SP)	/* arg */
+-	MOVQ	DX, 8(SP)	/* argsize (includes padding) */
++	MOVQ	SI, 0x0(SP)	/* arg */
++	MOVQ	DX, 0x8(SP)	/* argsize (includes padding) */
++	MOVQ	CX, 0x10(SP)	/* ctxt */
+ 
+ 	CALL	DI	/* fn */
+ #endif
+ 
+-	MOVQ	0x10(SP), BX
+-	MOVQ	0x18(SP), BP
+-	MOVQ	0x20(SP), R12
+-	MOVQ	0x28(SP), R13
+-	MOVQ	0x30(SP), R14
+-	MOVQ	0x38(SP), R15
++	MOVQ	0x18(SP), BX
++	MOVQ	0x20(SP), BP
++	MOVQ	0x28(SP), R12
++	MOVQ	0x30(SP), R13
++	MOVQ	0x38(SP), R14
++	MOVQ	0x40(SP), R15
+ 	
+ #ifndef GOOS_windows
+ 	ADDQ	$0x58, SP
+ #else
+-	ADDQ	$0xf8, SP
++	ADDQ	$0x118, SP
+ #endif
+ 	RET
+diff --git a/src/runtime/cgo/asm_arm.s b/src/runtime/cgo/asm_arm.s
+index 6d414209da..08472b6ab7 100644
+--- a/src/runtime/cgo/asm_arm.s
++++ b/src/runtime/cgo/asm_arm.s
+@@ -4,21 +4,20 @@
+ 
+ #include "textflag.h"
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- * Save registers and call fn with two arguments.
+- */
++// Called by C code generated by cmd/cgo.
++// func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
++// Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT,$-4
+ 	/* 
+ 	 * We still need to save all callee save register as before, and then
+-	 *  push 2 args for fn (R1 and R2).
++	 *  push 3 args for fn (R1, R2, R3).
+ 	 * Also note that at procedure entry in gc world, 4(R13) will be the
+ 	 *  first arg, so we must push another dummy reg (R0) for 0(R13).
+ 	 *  Additionally, runtime·load_g will clobber R0, so we need to save R0
+ 	 *  nevertheless.
+ 	 */
+-	MOVM.WP	[R0, R1, R2, R4, R5, R6, R7, R8, R9, g, R11, R12, R14], (R13)
++	MOVM.WP	[R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, g, R11, R12, R14], (R13)
+ 	BL	runtime·load_g(SB)
+ 	MOVW	R15, R14 // R15 is PC.
+ 	MOVW	0(R13), R15
+-	MOVM.IAW	(R13), [R0, R1, R2, R4, R5, R6, R7, R8, R9, g, R11, R12, R15]
++	MOVM.IAW	(R13), [R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, g, R11, R12, R15]
+diff --git a/src/runtime/cgo/asm_arm64.s b/src/runtime/cgo/asm_arm64.s
+index 9c2e834c0f..e55a70fe64 100644
+--- a/src/runtime/cgo/asm_arm64.s
++++ b/src/runtime/cgo/asm_arm64.s
+@@ -4,14 +4,13 @@
+ 
+ #include "textflag.h"
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- * Save registers and call fn with two arguments.
+- */
++// Called by C code generated by cmd/cgo.
++// func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
++// Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT,$-8
+ 	/*
+ 	 * We still need to save all callee save register as before, and then
+-	 *  push 2 args for fn (R1 and R2).
++	 *  push 3 args for fn (R1, R2, R3).
+ 	 * Also note that at procedure entry in gc world, 8(RSP) will be the
+ 	 *  first arg.
+ 	 * TODO(minux): use LDP/STP here if it matters.
+@@ -19,26 +18,27 @@ TEXT crosscall2(SB),NOSPLIT,$-8
+ 	SUB	$(8*24), RSP
+ 	MOVD	R1, (8*1)(RSP)
+ 	MOVD	R2, (8*2)(RSP)
+-	MOVD	R19, (8*3)(RSP)
+-	MOVD	R20, (8*4)(RSP)
+-	MOVD	R21, (8*5)(RSP)
+-	MOVD	R22, (8*6)(RSP)
+-	MOVD	R23, (8*7)(RSP)
+-	MOVD	R24, (8*8)(RSP)
+-	MOVD	R25, (8*9)(RSP)
+-	MOVD	R26, (8*10)(RSP)
+-	MOVD	R27, (8*11)(RSP)
+-	MOVD	g, (8*12)(RSP)
+-	MOVD	R29, (8*13)(RSP)
+-	MOVD	R30, (8*14)(RSP)
+-	FMOVD	F8, (8*15)(RSP)
+-	FMOVD	F9, (8*16)(RSP)
+-	FMOVD	F10, (8*17)(RSP)
+-	FMOVD	F11, (8*18)(RSP)
+-	FMOVD	F12, (8*19)(RSP)
+-	FMOVD	F13, (8*20)(RSP)
+-	FMOVD	F14, (8*21)(RSP)
+-	FMOVD	F15, (8*22)(RSP)
++	MOVD	R3, (8*3)(RSP)
++	MOVD	R19, (8*4)(RSP)
++	MOVD	R20, (8*5)(RSP)
++	MOVD	R21, (8*6)(RSP)
++	MOVD	R22, (8*7)(RSP)
++	MOVD	R23, (8*8)(RSP)
++	MOVD	R24, (8*9)(RSP)
++	MOVD	R25, (8*10)(RSP)
++	MOVD	R26, (8*11)(RSP)
++	MOVD	R27, (8*12)(RSP)
++	MOVD	g, (8*13)(RSP)
++	MOVD	R29, (8*14)(RSP)
++	MOVD	R30, (8*15)(RSP)
++	FMOVD	F8, (8*16)(RSP)
++	FMOVD	F9, (8*17)(RSP)
++	FMOVD	F10, (8*18)(RSP)
++	FMOVD	F11, (8*19)(RSP)
++	FMOVD	F12, (8*20)(RSP)
++	FMOVD	F13, (8*21)(RSP)
++	FMOVD	F14, (8*22)(RSP)
++	FMOVD	F15, (8*23)(RSP)
+ 
+ 	MOVD	R0, R19
+ 
+@@ -49,25 +49,26 @@ TEXT crosscall2(SB),NOSPLIT,$-8
+ 
+ 	MOVD	(8*1)(RSP), R1
+ 	MOVD	(8*2)(RSP), R2
+-	MOVD	(8*3)(RSP), R19
+-	MOVD	(8*4)(RSP), R20
+-	MOVD	(8*5)(RSP), R21
+-	MOVD	(8*6)(RSP), R22
+-	MOVD	(8*7)(RSP), R23
+-	MOVD	(8*8)(RSP), R24
+-	MOVD	(8*9)(RSP), R25
+-	MOVD	(8*10)(RSP), R26
+-	MOVD	(8*11)(RSP), R27
+-	MOVD	(8*12)(RSP), g
+-	MOVD	(8*13)(RSP), R29
+-	MOVD	(8*14)(RSP), R30
+-	FMOVD	(8*15)(RSP), F8
+-	FMOVD	(8*16)(RSP), F9
+-	FMOVD	(8*17)(RSP), F10
+-	FMOVD	(8*18)(RSP), F11
+-	FMOVD	(8*19)(RSP), F12
+-	FMOVD	(8*20)(RSP), F13
+-	FMOVD	(8*21)(RSP), F14
+-	FMOVD	(8*22)(RSP), F15
++	MOVD	(8*3)(RSP), R3
++	MOVD	(8*4)(RSP), R19
++	MOVD	(8*5)(RSP), R20
++	MOVD	(8*6)(RSP), R21
++	MOVD	(8*7)(RSP), R22
++	MOVD	(8*8)(RSP), R23
++	MOVD	(8*9)(RSP), R24
++	MOVD	(8*10)(RSP), R25
++	MOVD	(8*11)(RSP), R26
++	MOVD	(8*12)(RSP), R27
++	MOVD	(8*13)(RSP), g
++	MOVD	(8*14)(RSP), R29
++	MOVD	(8*15)(RSP), R30
++	FMOVD	(8*16)(RSP), F8
++	FMOVD	(8*17)(RSP), F9
++	FMOVD	(8*18)(RSP), F10
++	FMOVD	(8*19)(RSP), F11
++	FMOVD	(8*20)(RSP), F12
++	FMOVD	(8*21)(RSP), F13
++	FMOVD	(8*22)(RSP), F14
++	FMOVD	(8*23)(RSP), F15
+ 	ADD	$(8*24), RSP
+ 	RET
+diff --git a/src/runtime/cgo/asm_ppc64x.s b/src/runtime/cgo/asm_ppc64x.s
+index 450487b8cd..954ed7edb3 100644
+--- a/src/runtime/cgo/asm_ppc64x.s
++++ b/src/runtime/cgo/asm_ppc64x.s
+@@ -7,11 +7,9 @@
+ #include "textflag.h"
+ #include "asm_ppc64x.h"
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- * Save registers and call fn with two arguments.
+- * crosscall2 obeys the C ABI; fn obeys the Go ABI.
+- */
++// Called by C code generated by cmd/cgo.
++// func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
++// Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	// TODO(austin): ABI v1 (fn is probably a function descriptor)
+ 
+@@ -22,7 +20,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 
+ 	BL	saveregs2<>(SB)
+ 
+-	MOVDU	R1, (-288-2*8-FIXED_FRAME)(R1)
++	MOVDU	R1, (-288-3*8-FIXED_FRAME)(R1)
+ 
+ 	// Initialize Go ABI environment
+ 	BL	runtime·reginit(SB)
+@@ -32,6 +30,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R3, CTR
+ 	MOVD	R4, FIXED_FRAME+0(R1)
+ 	MOVD	R5, FIXED_FRAME+8(R1)
++	MOVD	R6, FIXED_FRAME+16(R1)
+ 	BL	(CTR)
+ 
+ 	ADD	$(288+2*8+FIXED_FRAME), R1
+diff --git a/src/runtime/cgo/asm_s390x.s b/src/runtime/cgo/asm_s390x.s
+index 5ed13cfe1e..ae688b69f2 100644
+--- a/src/runtime/cgo/asm_s390x.s
++++ b/src/runtime/cgo/asm_s390x.s
+@@ -4,11 +4,9 @@
+ 
+ #include "textflag.h"
+ 
+-/*
+- * void crosscall2(void (*fn)(void*, int32), void*, int32)
+- * Save registers and call fn with two arguments.
+- * crosscall2 obeys the C ABI; fn obeys the Go ABI.
+- */
++// Called by C code generated by cmd/cgo.
++// func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
++// Saves C callee-saved registers and calls fn with three arguments.
+ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	// Start with standard C stack frame layout and linkage
+ 
+@@ -24,14 +22,15 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
+ 	XOR	R0, R0
+ 	BL	runtime·load_g(SB)
+ 
+-	// Allocate 24 bytes on the stack
+-	SUB	$24, R15
++	// Allocate 32 bytes on the stack
++	SUB	$32, R15
+ 
+ 	MOVD	R3, 8(R15)  // arg1
+ 	MOVW	R4, 16(R15) // arg2
+-	BL	(R2)        // fn(arg1, arg2)
++	MOVD	R5, 24(R15) // arg3
++	BL	(R2)        // fn(arg1, arg2, arg3)
+ 
+-	ADD	$24, R15
++	ADD	$32, R15
+ 
+ 	// Restore R6-R15, F0, F2, F4 and F6
+ 	LMG	48(R15), R6, R15
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 47bd2b0edc..d0f63fb4ff 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -11,7 +11,7 @@ import "unsafe"
+ 
+ // cgocallback is defined in runtime
+ //go:linkname _runtime_cgocallback runtime.cgocallback
+-func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
++func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
+ 
+ // The declaration of crosscall2 is:
+ //   void crosscall2(void (*fn)(void *, int), void *, int);
+@@ -19,6 +19,10 @@ func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
+ // We need to export the symbol crosscall2 in order to support
+ // callbacks from shared libraries. This applies regardless of
+ // linking mode.
++//
++// Compatibility note: crosscall2 actually takes four arguments, but
++// it works to call it with three arguments when calling _cgo_panic.
++// That is supported for backward compatibility.
+ //go:cgo_export_static crosscall2
+ //go:cgo_export_dynamic crosscall2
+ 
+@@ -39,7 +43,7 @@ var _runtime_cgo_panic_internal byte
+ //go:nosplit
+ //go:norace
+ func _cgo_panic(a unsafe.Pointer, n int32) {
+-	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n))
++	_runtime_cgocallback(unsafe.Pointer(&_runtime_cgo_panic_internal), a, uintptr(n), 0)
+ }
+ 
+ //go:cgo_import_static x_cgo_init
+@@ -92,5 +96,13 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+ var x_cgo_notify_runtime_init_done byte
+ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
+ 
++// Sets the traceback context function. See runtime.SetCgoTraceback.
++
++//go:cgo_import_static x_cgo_set_context_function
++//go:linkname x_cgo_set_context_function x_cgo_set_context_function
++//go:linkname _cgo_set_context_function _cgo_set_context_function
++var x_cgo_set_context_function byte
++var _cgo_set_context_function = &x_cgo_set_context_function
++
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/gcc_context.c b/src/runtime/cgo/gcc_context.c
+new file mode 100644
+index 0000000000..81556cd464
+--- /dev/null
++++ b/src/runtime/cgo/gcc_context.c
+@@ -0,0 +1,27 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++
++#include "libcgo.h"
++
++// The context function, used when tracing back C calls into Go.
++void (*x_cgo_context_function)(struct context_arg*);
++
++// Sets the context function to call to record the traceback context
++// when calling a Go function from C code. Called from runtime.SetCgoTraceback.
++void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
++	x_cgo_context_function = context;
++}
++
++// Releases the cgo traceback context.
++void _cgo_release_context(uintptr_t ctxt) {
++	if (ctxt != 0 && x_cgo_context_function != nil) {
++		struct context_arg arg;
++
++		arg.Context = ctxt;
++		(*x_cgo_context_function)(&arg);
++	}
++}
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 06b9557709..c5b9476380 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -9,6 +9,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h> // strerror
++#include "libcgo.h"
+ 
+ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
+ static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
+@@ -24,13 +25,21 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+ 	}
+ }
+ 
+-void
++uintptr_t
+ _cgo_wait_runtime_init_done() {
+ 	pthread_mutex_lock(&runtime_init_mu);
+ 	while (runtime_init_done == 0) {
+ 		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
+ 	}
+ 	pthread_mutex_unlock(&runtime_init_mu);
++	if (x_cgo_context_function != nil) {
++		struct context_arg arg;
++
++		arg.Context = 0;
++		(*x_cgo_context_function)(&arg);
++		return arg.Context;
++	}
++	return 0;
+ }
+ 
+ void
+diff --git a/src/runtime/cgo/gcc_libinit_openbsd.c b/src/runtime/cgo/gcc_libinit_openbsd.c
+index eb798ce5e8..07dfcaf660 100644
+--- a/src/runtime/cgo/gcc_libinit_openbsd.c
++++ b/src/runtime/cgo/gcc_libinit_openbsd.c
+@@ -4,6 +4,7 @@
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
++#include "libcgo.h"
+ 
+ void
+ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+@@ -11,12 +12,20 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+ 	abort();
+ }
+ 
+-void
++uintptr_t
+ _cgo_wait_runtime_init_done() {
+ 	// TODO(spetrovic): implement this method.
++	if (x_cgo_context_function != nil) {
++		struct context_arg arg;
++
++		arg.Context = 0;
++		(*x_cgo_context_function)(&arg);
++		return arg.Context;
++	}
++	return 0;
+ }
+ 
+ void
+ x_cgo_notify_runtime_init_done(void* dummy) {
+ 	// TODO(spetrovic): implement this method.
+-}
+\ No newline at end of file
++}
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 50887b844d..f5c306d49a 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -10,6 +10,8 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++#include "libcgo.h"
++
+ static volatile long runtime_init_once_gate = 0;
+ static volatile long runtime_init_once_done = 0;
+ 
+@@ -66,12 +68,20 @@ _cgo_is_runtime_initialized() {
+ 	 return status;
+ }
+ 
+-void
++uintptr_t
+ _cgo_wait_runtime_init_done() {
+ 	 _cgo_maybe_run_preinit();
+ 	while (!_cgo_is_runtime_initialized()) {
+ 			WaitForSingleObject(runtime_init_wait, INFINITE);
+ 	}
++	if (x_cgo_context_function != nil) {
++		struct context_arg arg;
++
++		arg.Context = 0;
++		(*x_cgo_context_function)(&arg);
++		return arg.Context;
++	}
++	return 0;
+ }
+ 
+ void
+diff --git a/src/runtime/cgo/libcgo.h b/src/runtime/cgo/libcgo.h
+index 63af04204b..6a484ad4a0 100644
+--- a/src/runtime/cgo/libcgo.h
++++ b/src/runtime/cgo/libcgo.h
+@@ -57,8 +57,10 @@ void _cgo_sys_thread_start(ThreadStart *ts);
+ 
+ /*
+  * Waits for the Go runtime to be initialized (OS dependent).
++ * If runtime.SetCgoTraceback is used to set a context function,
++ * calls the context function and returns the context value.
+  */
+-void _cgo_wait_runtime_init_done();
++uintptr_t _cgo_wait_runtime_init_done();
+ 
+ /*
+  * Call fn in the 6c world.
+@@ -84,3 +86,11 @@ void darwin_arm_init_thread_exception_port(void);
+  * Starts a mach message server processing EXC_BAD_ACCESS.
+  */
+ void darwin_arm_init_mach_exception_handler(void);
++
++/*
++ * The cgo context function. See runtime.SetCgoTraceback.
++ */
++struct context_arg {
++	uintptr_t Context;
++};
++extern void (*x_cgo_context_function)(struct context_arg*);
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index be234345d1..fa996d2405 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -166,7 +166,7 @@ func cfree(p unsafe.Pointer) {
+ 
+ // Call from C back to Go.
+ //go:nosplit
+-func cgocallbackg() {
++func cgocallbackg(ctxt uintptr) {
+ 	gp := getg()
+ 	if gp != gp.m.curg {
+ 		println("runtime: bad g in cgocallback")
+@@ -184,20 +184,43 @@ func cgocallbackg() {
+ 	savedsp := unsafe.Pointer(gp.syscallsp)
+ 	savedpc := gp.syscallpc
+ 	exitsyscall(0) // coming out of cgo call
+-	cgocallbackg1()
++
++	cgocallbackg1(ctxt)
++
+ 	// going back to cgo call
+ 	reentersyscall(savedpc, uintptr(savedsp))
+ 
+ 	gp.m.syscall = syscall
+ }
+ 
+-func cgocallbackg1() {
++func cgocallbackg1(ctxt uintptr) {
+ 	gp := getg()
+ 	if gp.m.needextram {
+ 		gp.m.needextram = false
+ 		systemstack(newextram)
+ 	}
+ 
++	if ctxt != 0 {
++		s := append(gp.cgoCtxt, ctxt)
++
++		// Now we need to set gp.cgoCtxt = s, but we could get
++		// a SIGPROF signal while manipulating the slice, and
++		// the SIGPROF handler could pick up gp.cgoCtxt while
++		// tracing up the stack.  We need to ensure that the
++		// handler always sees a valid slice, so set the
++		// values in an order such that it always does.
++		p := (*slice)(unsafe.Pointer(&gp.cgoCtxt))
++		atomicstorep(unsafe.Pointer(&p.array), unsafe.Pointer(&s[0]))
++		p.cap = cap(s)
++		p.len = len(s)
++
++		defer func(gp *g) {
++			// Decrease the length of the slice by one, safely.
++			p := (*slice)(unsafe.Pointer(&gp.cgoCtxt))
++			p.len--
++		}(gp)
++	}
++
+ 	if gp.m.ncgo == 0 {
+ 		// The C call to Go came from a thread not currently running
+ 		// any Go. In the case of -buildmode=c-archive or c-shared,
+@@ -236,13 +259,13 @@ func cgocallbackg1() {
+ 		// SP and the stack frame and between the stack frame and the arguments.
+ 		cb = (*args)(unsafe.Pointer(sp + 5*sys.PtrSize))
+ 	case "amd64":
+-		// On amd64, stack frame is one word, plus caller PC.
++		// On amd64, stack frame is two words, plus caller PC.
+ 		if framepointer_enabled {
+ 			// In this case, there's also saved BP.
+-			cb = (*args)(unsafe.Pointer(sp + 3*sys.PtrSize))
++			cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+ 			break
+ 		}
+-		cb = (*args)(unsafe.Pointer(sp + 2*sys.PtrSize))
++		cb = (*args)(unsafe.Pointer(sp + 3*sys.PtrSize))
+ 	case "386":
+ 		// On 386, stack frame is three words, plus caller PC.
+ 		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 6547996b43..0c6b3e887a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -221,3 +221,14 @@ func TestCgoCrashTraceback(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCgoTracebackContext(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skipf("test does not work on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++	got := runTestProg(t, "testprogcgo", "TracebackContext")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d35b897c3e..7567639168 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -352,7 +352,8 @@ type g struct {
+ 	gopc           uintptr // pc of go statement that created this goroutine
+ 	startpc        uintptr // pc of goroutine function
+ 	racectx        uintptr
+-	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
++	waiting        *sudog    // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
++	cgoCtxt        []uintptr // cgo traceback context
+ 
+ 	// Per-G GC state
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 2df390253a..4f6fae2f49 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -18,6 +18,10 @@ type Frames struct {
+ 	// ci.callers[0] is the address of the faulting instruction
+ 	// instead of the return address of the call.
+ 	wasPanic bool
++
++	// Frames to return for subsequent calls to the Next method.
++	// Used for non-Go frames.
++	frames *[]Frame
+ }
+ 
+ // Frame is the information returned by Frames for each call frame.
+@@ -46,12 +50,23 @@ type Frame struct {
+ // prepares to return function/file/line information.
+ // Do not change the slice until you are done with the Frames.
+ func CallersFrames(callers []uintptr) *Frames {
+-	return &Frames{callers, false}
++	return &Frames{callers: callers}
+ }
+ 
+ // Next returns frame information for the next caller.
+ // If more is false, there are no more callers (the Frame value is valid).
+ func (ci *Frames) Next() (frame Frame, more bool) {
++	if ci.frames != nil {
++		// We have saved up frames to return.
++		f := (*ci.frames)[0]
++		if len(*ci.frames) == 1 {
++			ci.frames = nil
++		} else {
++			*ci.frames = (*ci.frames)[1:]
++		}
++		return f, ci.frames != nil || len(ci.callers) > 0
++	}
++
+ 	if len(ci.callers) == 0 {
+ 		ci.wasPanic = false
+ 		return Frame{}, false
+@@ -62,6 +77,9 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 	f := FuncForPC(pc)
+ 	if f == nil {
+ 		ci.wasPanic = false
++		if cgoSymbolizer != nil {
++			return ci.cgoNext(pc, more)
++		}
+ 		return Frame{}, more
+ 	}
+ 
+@@ -87,6 +105,54 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 	return frame, more
+ }
+ 
++// cgoNext returns frame information for pc, known to be a non-Go function,
++// using the cgoSymbolizer hook.
++func (ci *Frames) cgoNext(pc uintptr, more bool) (Frame, bool) {
++	arg := cgoSymbolizerArg{pc: pc}
++	callCgoSymbolizer(&arg)
++
++	if arg.file == nil && arg.funcName == nil {
++		// No useful information from symbolizer.
++		return Frame{}, more
++	}
++
++	var frames []Frame
++	for {
++		frames = append(frames, Frame{
++			PC:       pc,
++			Func:     nil,
++			Function: gostring(arg.funcName),
++			File:     gostring(arg.file),
++			Line:     int(arg.lineno),
++			Entry:    arg.entry,
++		})
++		if arg.more == 0 {
++			break
++		}
++		callCgoSymbolizer(&arg)
++	}
++
++	// No more frames for this PC. Tell the symbolizer we are done.
++	// We don't try to maintain a single cgoSymbolizerArg for the
++	// whole use of Frames, because there would be no good way to tell
++	// the symbolizer when we are done.
++	arg.pc = 0
++	callCgoSymbolizer(&arg)
++
++	if len(frames) == 1 {
++		// Return a single frame.
++		return frames[0], more
++	}
++
++	// Return the first frame we saw and store the rest to be
++	// returned by later calls to Next.
++	rf := frames[0]
++	frames = frames[1:]
++	ci.frames = new([]Frame)
++	*ci.frames = frames
++	return rf, true
++}
++
+ // NOTE: Func does not expose the actual unexported fields, because we return *Func
+ // values to users, and we want to keep them from being able to overwrite the data
+ // with (say) *f = Func{}.
+diff --git a/src/runtime/testdata/testprogcgo/tracebackctxt.go b/src/runtime/testdata/testprogcgo/tracebackctxt.go
+new file mode 100644
+index 0000000000..4b2e486304
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/tracebackctxt.go
+@@ -0,0 +1,191 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The __attribute__((weak)) used below doesn't seem to work on Windows.
++
++// +build !windows
++
++package main
++
++// Test the context argument to SetCgoTraceback.
++// Use fake context, traceback, and symbolizer functions.
++
++/*
++#include <stdlib.h>
++#include <stdint.h>
++
++// Use weak declarations so that we can define functions here even
++// though we use //export in the Go code.
++extern void tcContext(void*) __attribute__((weak));
++extern void tcTraceback(void*) __attribute__((weak));
++extern void tcSymbolizer(void*) __attribute__((weak));
++
++extern void G1(void);
++extern void G2(void);
++
++static void C1() {
++	G1();
++}
++
++static void C2() {
++	G2();
++}
++
++struct cgoContextArg {
++	uintptr_t context;
++};
++
++struct cgoTracebackArg {
++	uintptr_t  context;
++	uintptr_t* buf;
++	uintptr_t  max;
++};
++
++struct cgoSymbolizerArg {
++	uintptr_t   pc;
++	const char* file;
++	uintptr_t   lineno;
++	const char* func;
++	uintptr_t   entry;
++	uintptr_t   more;
++	uintptr_t   data;
++};
++
++// Global so that there is only one, weak so that //export works.
++// Uses atomic adds and subtracts to catch the possibility of
++// erroneous calls from multiple threads; that should be impossible in
++// this test case, but we check just in case.
++int contextCount __attribute__((weak));
++
++static int getContextCount() {
++	return __sync_add_and_fetch(&contextCount, 0);
++}
++
++void tcContext(void* parg) {
++	struct cgoContextArg* arg = (struct cgoContextArg*)(parg);
++	if (arg->context == 0) {
++		arg->context = __sync_add_and_fetch(&contextCount, 1);
++	} else {
++		if (arg->context != __sync_add_and_fetch(&contextCount, 0)) {
++			abort();
++		}
++		__sync_sub_and_fetch(&contextCount, 1);
++	}
++}
++
++void tcTraceback(void* parg) {
++	int base, i;
++	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
++	if (arg->context == 0) {
++		// This shouldn't happen in this program.
++		abort();
++	}
++	// Return a variable number of PC values.
++	base = arg->context << 8;
++	for (i = 0; i < arg->context; i++) {
++		if (i < arg->max) {
++			arg->buf[i] = base + i;
++		}
++	}
++}
++
++void tcSymbolizer(void *parg) {
++	struct cgoSymbolizerArg* arg = (struct cgoSymbolizerArg*)(parg);
++	if (arg->pc == 0) {
++		return;
++	}
++	// Report two lines per PC returned by traceback, to test more handling.
++	arg->more = arg->file == NULL;
++	arg->file = "tracebackctxt.go";
++	arg->func = "cFunction";
++	arg->lineno = arg->pc + (arg->more << 16);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"runtime"
++	"unsafe"
++)
++
++func init() {
++	register("TracebackContext", TracebackContext)
++}
++
++var tracebackOK bool
++
++func TracebackContext() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.tcTraceback), unsafe.Pointer(C.tcContext), unsafe.Pointer(C.tcSymbolizer))
++	C.C1()
++	if got := C.getContextCount(); got != 0 {
++		fmt.Printf("at end contextCount == %d, expected 0\n", got)
++		tracebackOK = false
++	}
++	if tracebackOK {
++		fmt.Println("OK")
++	}
++}
++
++//export G1
++func G1() {
++	C.C2()
++}
++
++//export G2
++func G2() {
++	pc := make([]uintptr, 32)
++	n := runtime.Callers(0, pc)
++	cf := runtime.CallersFrames(pc[:n])
++	var frames []runtime.Frame
++	for {
++		frame, more := cf.Next()
++		frames = append(frames, frame)
++		if !more {
++			break
++		}
++	}
++
++	want := []struct {
++		function string
++		line     int
++	}{
++		{"main.G2", 0},
++		{"cFunction", 0x10200},
++		{"cFunction", 0x200},
++		{"cFunction", 0x10201},
++		{"cFunction", 0x201},
++		{"main.G1", 0},
++		{"cFunction", 0x10100},
++		{"cFunction", 0x100},
++		{"main.TracebackContext", 0},
++	}
++
++	ok := true
++	i := 0
++wantLoop:
++	for _, w := range want {
++		for ; i < len(frames); i++ {
++			if w.function == frames[i].Function {
++				if w.line != 0 && w.line != frames[i].Line {
++					fmt.Printf("found function %s at wrong line %#x (expected %#x)\n", w.function, frames[i].Line, w.line)
++					ok = false
++				}
++				i++
++				continue wantLoop
++			}
++		}
++		fmt.Printf("did not find function %s in\n", w.function)
++		for _, f := range frames {
++			fmt.Println(f)
++		}
++		ok = false
++		break
++	}
++	tracebackOK = ok
++	if got := C.getContextCount(); got != 2 {
++		fmt.Printf("at bottom contextCount == %d, expected 2\n", got)
++		tracebackOK = false
++	}
++}
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 529aa1eddb..7771426ef9 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -172,6 +172,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame.lr = lr0
+ 	}
+ 	waspanic := false
++	cgoCtxt := gp.cgoCtxt
+ 	printing := pcbuf == nil && callback == nil
+ 	_defer := gp._defer
+ 
+@@ -252,6 +253,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				sp = gp.m.curg.sched.sp
+ 				stkbarG = gp.m.curg
+ 				stkbar = stkbarG.stkbar[stkbarG.stkbarPos:]
++				cgoCtxt = gp.m.curg.cgoCtxt
+ 			}
+ 			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
+ 			if !usesLR {
+@@ -413,6 +415,18 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		n++
+ 
+ 	skipped:
++		if f.entry == cgocallback_gofuncPC && len(cgoCtxt) > 0 {
++			ctxt := cgoCtxt[len(cgoCtxt)-1]
++			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
++
++			// skip only applies to Go frames.
++			// callback != nil only used when we only care
++			// about Go frames.
++			if skip == 0 && callback == nil {
++				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
++			}
++		}
++
+ 		waspanic = f.entry == sigpanicPC
+ 
+ 		// Do not unwind past the bottom of the stack.
+@@ -546,6 +560,39 @@ func getArgInfo(frame *stkframe, f *_func, needArgMap bool) (arglen uintptr, arg
+ 	return
+ }
+ 
++// tracebackCgoContext handles tracing back a cgo context value, from
++// the context argument to setCgoTraceback, for the gentraceback
++// function. It returns the new value of n.
++func tracebackCgoContext(pcbuf *uintptr, printing bool, ctxt uintptr, n, max int) int {
++	var cgoPCs [32]uintptr
++	cgoContextPCs(ctxt, cgoPCs[:])
++	var arg cgoSymbolizerArg
++	anySymbolized := false
++	for _, pc := range cgoPCs {
++		if pc == 0 || n >= max {
++			break
++		}
++		if pcbuf != nil {
++			(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
++		}
++		if printing {
++			if cgoSymbolizer == nil {
++				print("non-Go function at pc=", hex(pc), "\n")
++			} else {
++				c := printOneCgoTraceback(pc, max-n, &arg)
++				n += c - 1 // +1 a few lines down
++				anySymbolized = true
++			}
++		}
++		n++
++	}
++	if anySymbolized {
++		arg.pc = 0
++		callCgoSymbolizer(&arg)
++	}
++	return n
++}
++
+ func printcreatedby(gp *g) {
+ 	// Show what created goroutine, except main goroutine (goid 1).
+ 	pc := gp.gopc
+@@ -782,10 +829,11 @@ func isSystemGoroutine(gp *g) bool {
+ //	};
+ //
+ // If the Context field is 0, the context function is being called to
+-// record the current traceback context. It should record whatever
+-// information is needed about the current point of execution to later
+-// produce a stack trace, probably the stack pointer and PC. In this
+-// case the context function will be called from C code.
++// record the current traceback context. It should record in the
++// Context field whatever information is needed about the current
++// point of execution to later produce a stack trace, probably the
++// stack pointer and PC. In this case the context function will be
++// called from C code.
+ //
+ // If the Context field is not 0, then it is a value returned by a
+ // previous call to the context function. This case is called when the
+@@ -903,16 +951,18 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
+ 	if version != 0 {
+ 		panic("unsupported version")
+ 	}
+-	if context != nil {
+-		panic("SetCgoTraceback: context function not yet implemented")
+-	}
++
+ 	cgoTraceback = traceback
+-	cgoContext = context
+ 	cgoSymbolizer = symbolizer
++
++	// The context function is called when a C function calls a Go
++	// function. As such it is only called by C code in runtime/cgo.
++	if _cgo_set_context_function != nil {
++		cgocall(_cgo_set_context_function, context)
++	}
+ }
+ 
+ var cgoTraceback unsafe.Pointer
+-var cgoContext unsafe.Pointer
+ var cgoSymbolizer unsafe.Pointer
+ 
+ // cgoTracebackArg is the type passed to cgoTraceback.
+@@ -922,7 +972,7 @@ type cgoTracebackArg struct {
+ 	max     uintptr
+ }
+ 
+-// cgoContextArg is the type passed to cgoContext.
++// cgoContextArg is the type passed to the context function.
+ type cgoContextArg struct {
+ 	context uintptr
+ }
+@@ -950,39 +1000,75 @@ func printCgoTraceback(callers *cgoCallers) {
+ 		return
+ 	}
+ 
+-	call := cgocall
+-	if panicking > 0 {
+-		// We do not want to call into the scheduler when panicking.
+-		call = asmcgocall
+-	}
+-
+ 	var arg cgoSymbolizerArg
+ 	for _, c := range callers {
+ 		if c == 0 {
+ 			break
+ 		}
+-		arg.pc = c
+-		for {
+-			call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
+-			if arg.funcName != nil {
+-				// Note that we don't print any argument
+-				// information here, not even parentheses.
+-				// The symbolizer must add that if
+-				// appropriate.
+-				println(gostringnocopy(arg.funcName))
+-			} else {
+-				println("non-Go function")
+-			}
+-			print("\t")
+-			if arg.file != nil {
+-				print(gostringnocopy(arg.file), ":", arg.lineno, " ")
+-			}
+-			print("pc=", hex(c), "\n")
+-			if arg.more == 0 {
+-				break
+-			}
+-		}
++		printOneCgoTraceback(c, 0x7fffffff, &arg)
+ 	}
+ 	arg.pc = 0
+-	call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
++	callCgoSymbolizer(&arg)
++}
++
++// printOneCgoTraceback prints the traceback of a single cgo caller.
++// This can print more than one line because of inlining.
++// Returns the number of frames printed.
++func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
++	c := 0
++	arg.pc = pc
++	for {
++		if c > max {
++			break
++		}
++		callCgoSymbolizer(arg)
++		if arg.funcName != nil {
++			// Note that we don't print any argument
++			// information here, not even parentheses.
++			// The symbolizer must add that if appropriate.
++			println(gostringnocopy(arg.funcName))
++		} else {
++			println("non-Go function")
++		}
++		print("\t")
++		if arg.file != nil {
++			print(gostringnocopy(arg.file), ":", arg.lineno, " ")
++		}
++		print("pc=", hex(c), "\n")
++		c++
++		if arg.more == 0 {
++			break
++		}
++	}
++	return c
++}
++
++// callCgoSymbolizer calls the cgoSymbolizer function.
++func callCgoSymbolizer(arg *cgoSymbolizerArg) {
++	call := cgocall
++	if panicking > 0 || getg().m.curg != getg() {
++		// We do not want to call into the scheduler when panicking
++		// or when on the system stack.
++		call = asmcgocall
++	}
++	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
++}
++
++// cgoContextPCs gets the PC values from a cgo traceback.
++func cgoContextPCs(ctxt uintptr, buf []uintptr) {
++	if cgoTraceback == nil {
++		return
++	}
++	call := cgocall
++	if panicking > 0 || getg().m.curg != getg() {
++		// We do not want to call into the scheduler when panicking
++		// or when on the system stack.
++		call = asmcgocall
++	}
++	arg := cgoTracebackArg{
++		context: ctxt,
++		buf:     (*uintptr)(noescape(unsafe.Pointer(&buf[0]))),
++		max:     uintptr(len(buf)),
++	}
++	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
+ }

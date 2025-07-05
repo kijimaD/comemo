@@ -18,9 +18,112 @@ Date:   Thu Sep 2 19:09:15 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/debug/dwarf/testdata/typedef.c      |   1 +
  src/debug/dwarf/testdata/typedef.macho4 | Bin 0 -> 6220 bytes
  src/debug/dwarf/type.go                 |   9 ++++--
  src/debug/dwarf/type_test.go            |  51 ++++++++++++++++++++++++++++++++
  4 files changed, 59 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/dwarf/testdata/typedef.c b/src/debug/dwarf/testdata/typedef.c
+index 4780a0b2ba..3e7e008621 100644
+--- a/src/debug/dwarf/testdata/typedef.c
++++ b/src/debug/dwarf/testdata/typedef.c
+@@ -8,6 +8,7 @@ gcc -gdwarf-2 -m64 -c typedef.c && gcc -gdwarf-2 -m64 -o typedef.elf typedef.o
+ 
+ OS X Mach-O:
+ gcc -gdwarf-2 -m64 -c typedef.c -o typedef.macho
++gcc -gdwarf-4 -m64 -c typedef.c -o typedef.macho4
+ */
+ #include <complex.h>
+ 
+diff --git a/src/debug/dwarf/testdata/typedef.macho4 b/src/debug/dwarf/testdata/typedef.macho4
+new file mode 100644
+index 0000000000..093ff37ea1
+Binary files /dev/null and b/src/debug/dwarf/testdata/typedef.macho4 differ
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index eb5a666ed3..2e5a605174 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -516,7 +516,10 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 		}).Basic()
+ 		t.Name = name
+ 		t.BitSize, _ = e.Val(AttrBitSize).(int64)
+-		t.BitOffset, _ = e.Val(AttrBitOffset).(int64)
++		haveBitOffset := false
++		if t.BitOffset, haveBitOffset = e.Val(AttrBitOffset).(int64); !haveBitOffset {
++			t.BitOffset, _ = e.Val(AttrDataBitOffset).(int64)
++		}
+ 
+ 	case TagClassType, TagStructType, TagUnionType:
+ 		// Structure, union, or class type.  (DWARF v2 §5.5)
+@@ -578,7 +581,9 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
+ 			haveBitOffset := false
+ 			f.Name, _ = kid.Val(AttrName).(string)
+ 			f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
+-			f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64)
++			if f.BitOffset, haveBitOffset = kid.Val(AttrBitOffset).(int64); !haveBitOffset {
++				f.BitOffset, haveBitOffset = kid.Val(AttrDataBitOffset).(int64)
++			}
+ 			f.BitSize, _ = kid.Val(AttrBitSize).(int64)
+ 			t.Field = append(t.Field, f)
+ 
+diff --git a/src/debug/dwarf/type_test.go b/src/debug/dwarf/type_test.go
+index fda03fdbb0..431d0853e0 100644
+--- a/src/debug/dwarf/type_test.go
++++ b/src/debug/dwarf/type_test.go
+@@ -228,3 +228,54 @@ func TestUnsupportedTypes(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestBitOffsetsELF(t *testing.T) { testBitOffsets(t, elfData(t, "testdata/typedef.elf")) }
++
++func TestBitOffsetsMachO(t *testing.T) {
++	testBitOffsets(t, machoData(t, "testdata/typedef.macho"))
++}
++
++func TestBitOffsetsMachO4(t *testing.T) {
++	testBitOffsets(t, machoData(t, "testdata/typedef.macho4"))
++}
++
++func TestBitOffsetsELFDwarf4(t *testing.T) {
++	testBitOffsets(t, elfData(t, "testdata/typedef.elf4"))
++}
++
++func testBitOffsets(t *testing.T, d *Data) {
++	r := d.Reader()
++	for {
++		e, err := r.Next()
++		if err != nil {
++			t.Fatal("r.Next:", err)
++		}
++		if e == nil {
++			break
++		}
++
++		if e.Tag == TagStructType {
++			typ, err := d.Type(e.Offset)
++			if err != nil {
++				t.Fatal("d.Type:", err)
++			}
++
++			t1 := typ.(*StructType)
++
++			for _, field := range t1.Field {
++				// We're only testing for bitfields
++				if field.BitSize == 0 {
++					continue
++				}
++
++				// Ensure BitOffset is not zero
++				if field.BitOffset == 0 {
++					t.Errorf("bit offset of field %s in %s %s is not set", field.Name, t1.Kind, t1.StructName)
++				}
++			}
++		}
++		if e.Tag != TagCompileUnit {
++			r.SkipChildren()
++		}
++	}
++}

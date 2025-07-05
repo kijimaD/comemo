@@ -13,7 +13,34 @@ Date:   Tue May 11 22:40:02 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go   | 2 +-
  src/cmd/link/internal/ld/macho.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 87d88dd957..6f81e74da2 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1171,7 +1171,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 		}
+ 	}
+ 
+-	eaddr := int32(sect.Vaddr + sect.Length)
++	eaddr := sect.Vaddr + sect.Length
+ 	for _, s := range syms {
+ 		if !ldr.AttrReachable(s) {
+ 			continue
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 642113cf07..45a3971c33 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -1194,7 +1194,7 @@ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sy
+ 		}
+ 	}
+ 
+-	eaddr := int32(sect.Vaddr + sect.Length)
++	eaddr := sect.Vaddr + sect.Length
+ 	for _, s := range syms {
+ 		if !ldr.AttrReachable(s) {
+ 			continue

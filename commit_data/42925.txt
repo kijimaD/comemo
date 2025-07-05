@@ -15,8 +15,86 @@ Date:   Tue Feb 25 20:30:37 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/cpuflags.go     |  1 +
  src/runtime/mkpreempt.go    | 19 +++++++++++--------
  src/runtime/preempt_amd64.s |  8 +++++---
  3 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 94f9331d15..4bd894d984 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -11,6 +11,7 @@ import (
+ 
+ // Offsets into internal/cpu records for use in assembly.
+ const (
++	offsetX86HasAVX  = unsafe.Offsetof(cpu.X86.HasAVX)
+ 	offsetX86HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+ 	offsetX86HasERMS = unsafe.Offsetof(cpu.X86.HasERMS)
+ 	offsetX86HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 31b6f5cbac..c26406e55f 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -244,23 +244,26 @@ func genAMD64() {
+ 
+ 	// TODO: MXCSR register?
+ 
++	p("PUSHQ BP")
++	p("MOVQ SP, BP")
++	p("// Save flags before clobbering them")
++	p("PUSHFQ")
++	p("// obj doesn't understand ADD/SUB on SP, but does understand ADJSP")
++	p("ADJSP $%d", l.stack)
++	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
++	p("NOP SP")
++
+ 	// Apparently, the signal handling code path in darwin kernel leaves
+ 	// the upper bits of Y registers in a dirty state, which causes
+ 	// many SSE operations (128-bit and narrower) become much slower.
+ 	// Clear the upper bits to get to a clean state. See issue #37174.
+ 	// It is safe here as Go code don't use the upper bits of Y registers.
+ 	p("#ifdef GOOS_darwin")
++	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0")
++	p("JE 2(PC)")
+ 	p("VZEROUPPER")
+ 	p("#endif")
+ 
+-	p("PUSHQ BP")
+-	p("MOVQ SP, BP")
+-	p("// Save flags before clobbering them")
+-	p("PUSHFQ")
+-	p("// obj doesn't understand ADD/SUB on SP, but does understand ADJSP")
+-	p("ADJSP $%d", l.stack)
+-	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
+-	p("NOP SP")
+ 	l.save()
+ 	p("CALL ·asyncPreempt2(SB)")
+ 	l.restore()
+diff --git a/src/runtime/preempt_amd64.s b/src/runtime/preempt_amd64.s
+index 0f2fd7d8dd..4765e9f448 100644
+--- a/src/runtime/preempt_amd64.s
++++ b/src/runtime/preempt_amd64.s
+@@ -4,9 +4,6 @@
+ #include "textflag.h"
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+-	#ifdef GOOS_darwin
+-	VZEROUPPER
+-	#endif
+ 	PUSHQ BP
+ 	MOVQ SP, BP
+ 	// Save flags before clobbering them
+@@ -15,6 +12,11 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	ADJSP $368
+ 	// But vet doesn't know ADJSP, so suppress vet stack checking
+ 	NOP SP
++	#ifdef GOOS_darwin
++	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0
++	JE 2(PC)
++	VZEROUPPER
++	#endif
+ 	MOVQ AX, 0(SP)
+ 	MOVQ CX, 8(SP)
+ 	MOVQ DX, 16(SP)

@@ -7,9 +7,103 @@ Date:   Tue Feb 28 14:23:57 2012 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5696087
-
+---
  src/pkg/text/template/multi_test.go       |  6 ++++++
  src/pkg/text/template/parse/parse.go      |  2 ++
  src/pkg/text/template/parse/parse_test.go |  3 +++
  src/pkg/text/template/template.go         | 20 +++++++++++---------
  4 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index f205e6be1b..22dedc4f83 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -265,6 +265,12 @@ func TestRedefinition(t *testing.T) {
+ 	if tmpl, err = New("tmpl1").Parse(`{{define "test"}}foo{{end}}`); err != nil {
+ 		t.Fatalf("parse 1: %v", err)
+ 	}
++	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err == nil {
++		t.Fatal("expected error")
++	}
++	if !strings.Contains(err.Error(), "redefinition") {
++		t.Fatalf("expected redefinition error; got %v", err)
++	}
+ 	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err == nil {
+ 		t.Fatal("expected error")
+ 	}
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 35194f7dfd..d67b388808 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -193,6 +193,8 @@ func (t *Tree) add(treeSet map[string]*Tree) {
+ // IsEmptyTree reports whether this tree (node) is empty of everything but space.
+ func IsEmptyTree(n Node) bool {
+ 	switch n := n.(type) {
++	case nil:
++		return true
+ 	case *ActionNode:
+ 	case *IfNode:
+ 	case *ListNode:
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index efa7d8be74..18c0a8b835 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -287,6 +287,9 @@ var isEmptyTests = []isEmptyTest{
+ }
+ 
+ func TestIsEmpty(t *testing.T) {
++	if !IsEmptyTree(nil) {
++		t.Errorf("nil tree is not empty")
++	}
+ 	for _, test := range isEmptyTests {
+ 		tree, err := New("root").Parse(test.input, "", "", make(map[string]*Tree), nil)
+ 		if err != nil {
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index 7494f9d8c4..82fc9e5e39 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -178,10 +178,11 @@ func (t *Template) Parse(text string) (*Template, error) {
+ 			tmpl = t.New(name)
+ 		}
+ 		// Even if t == tmpl, we need to install it in the common.tmpl map.
+-		if err := t.associate(tmpl); err != nil {
++		if replace, err := t.associate(tmpl, tree); err != nil {
+ 			return nil, err
++		} else if replace {
++			tmpl.Tree = tree
+ 		}
+-		tmpl.Tree = tree
+ 		tmpl.leftDelim = t.leftDelim
+ 		tmpl.rightDelim = t.rightDelim
+ 	}
+@@ -191,22 +192,23 @@ func (t *Template) Parse(text string) (*Template, error) {
+ // associate installs the new template into the group of templates associated
+ // with t. It is an error to reuse a name except to overwrite an empty
+ // template. The two are already known to share the common structure.
+-func (t *Template) associate(new *Template) error {
++// The boolean return value reports wither to store this tree as t.Tree.
++func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
+ 	if new.common != t.common {
+ 		panic("internal error: associate not common")
+ 	}
+ 	name := new.name
+ 	if old := t.tmpl[name]; old != nil {
+ 		oldIsEmpty := parse.IsEmptyTree(old.Root)
+-		newIsEmpty := new.Tree != nil && parse.IsEmptyTree(new.Root)
+-		if !oldIsEmpty && !newIsEmpty {
+-			return fmt.Errorf("template: redefinition of template %q", name)
+-		}
++		newIsEmpty := parse.IsEmptyTree(tree.Root)
+ 		if newIsEmpty {
+ 			// Whether old is empty or not, new is empty; no reason to replace old.
+-			return nil
++			return false, nil
++		}
++		if !oldIsEmpty {
++			return false, fmt.Errorf("template: redefinition of template %q", name)
+ 		}
+ 	}
+ 	t.tmpl[name] = new
+-	return nil
++	return true, nil
+ }

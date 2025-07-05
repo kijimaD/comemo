@@ -7,8 +7,84 @@ Date:   Tue Mar 12 11:03:16 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7593045
-
+---
  src/pkg/runtime/env_plan9.c    |  2 +-
  src/pkg/runtime/os_plan9.h     |  3 ---
  src/pkg/runtime/thread_plan9.c | 13 ++++++++++---
  3 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/runtime/env_plan9.c b/src/pkg/runtime/env_plan9.c
+index 848d733037..0483d7eef5 100644
+--- a/src/pkg/runtime/env_plan9.c
++++ b/src/pkg/runtime/env_plan9.c
+@@ -20,7 +20,7 @@ runtime·getenv(int8 *s)
+ 	runtime·memmove((void*)file, (void*)"/env/", 5);
+ 	runtime·memmove((void*)(file+5), (void*)s, len);
+ 
+-	fd = runtime·open(file, OREAD);
++	fd = runtime·open((int8*)file, OREAD, 0);
+ 	if(fd < 0)
+ 		return nil;
+ 	n = runtime·seek(fd, 0, 2);
+diff --git a/src/pkg/runtime/os_plan9.h b/src/pkg/runtime/os_plan9.h
+index c2cdf5b448..f7cc597338 100644
+--- a/src/pkg/runtime/os_plan9.h
++++ b/src/pkg/runtime/os_plan9.h
+@@ -3,12 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Plan 9-specific system calls
+-int32	runtime·open(uint8 *file, int32 mode);
+ int32	runtime·pread(int32 fd, void *buf, int32 nbytes, int64 offset);
+ int32	runtime·pwrite(int32 fd, void *buf, int32 nbytes, int64 offset);
+-int32	runtime·read(int32 fd, void *buf, int32 nbytes);
+ int64	runtime·seek(int32 fd, int64 offset, int32 whence);
+-int32	runtime·close(int32 fd);
+ void	runtime·exits(int8* msg);
+ intptr	runtime·brk_(void*);
+ int32	runtime·sleep(int32 ms);
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index 524dbf6925..338da8f216 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -48,7 +48,7 @@ getproccount(void)
+ 	int32 fd, i, n, ncpu;
+ 	byte buf[2048];
+ 
+-	fd = runtime·open((byte*)"/dev/sysstat", OREAD);
++	fd = runtime·open("/dev/sysstat", OREAD, 0);
+ 	if(fd < 0)
+ 		return 1;
+ 	ncpu = 0;
+@@ -72,7 +72,7 @@ getpid(void)
+ 	int32 fd;
+ 
+ 	runtime·memclr(b, sizeof(b));
+-	fd = runtime·open((byte*)"#c/pid", 0);
++	fd = runtime·open("#c/pid", 0, 0);
+ 	if(fd >= 0) {
+ 		runtime·read(fd, b, sizeof(b));
+ 		runtime·close(fd);
+@@ -91,6 +91,13 @@ runtime·osinit(void)
+ 	runtime·notify(runtime·sigtramp);
+ }
+ 
++void
++runtime·get_random_data(byte **rnd, int32 *rnd_len)
++{
++	*rnd = nil;
++	*rnd_len = 0;
++}
++
+ void
+ runtime·goenvs(void)
+ {
+@@ -195,7 +202,7 @@ runtime·postnote(int32 pid, int8* msg)
+ 	p--;
+ 	runtime·memmove((void*)p, (void*)"/note", 5);
+ 
+-	fd = runtime·open(buf, OWRITE);
++	fd = runtime·open((int8*)buf, OWRITE, 0);
+ 	if(fd < 0)
+ 		return -1;
+ 

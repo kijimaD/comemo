@@ -7,6 +7,21 @@ Date:   Mon Aug 29 10:45:37 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4962042
-
+---
  src/pkg/os/exec_unix.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/exec_unix.go b/src/pkg/os/exec_unix.go
+index 8a4b2e1b80..41e77230ad 100644
+--- a/src/pkg/os/exec_unix.go
++++ b/src/pkg/os/exec_unix.go
+@@ -38,7 +38,8 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 	if e != 0 {
+ 		return nil, NewSyscallError("wait", e)
+ 	}
+-	if options&WSTOPPED == 0 {
++	// With WNOHANG pid is 0 if child has not exited.
++	if pid1 != 0 && options&WSTOPPED == 0 {
+ 		p.done = true
+ 	}
+ 	w = new(Waitmsg)

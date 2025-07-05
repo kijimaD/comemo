@@ -11,8 +11,90 @@ Date:   Sun Jan 24 14:22:54 2016 +0800
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/basic.go           |  3 +++
  misc/cgo/test/cgo_test.go        |  1 +
  misc/cgo/test/cgo_thread_lock.go | 53 ++++++++++++++++++++++++++++++++++++++++
  3 files changed, 57 insertions(+)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 2189af6ae4..3ceb4ce847 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -162,3 +162,6 @@ func testUnsignedInt(t *testing.T) {
+ func sliceOperands(array [2000]int) {
+ 	_ = array[C.KILO:C.KILO:C.KILO] // no type error
+ }
++
++// set in cgo_thread_lock.go init
++var testThreadLockFunc = func(*testing.T) {}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 362c640728..8746f90994 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -72,5 +72,6 @@ func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
+ func Test14838(t *testing.T)                 { test14838(t) }
+ func Test8756(t *testing.T)                  { test8756(t) }
+ func Test17065(t *testing.T)                 { test17065(t) }
++func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/cgo_thread_lock.go b/misc/cgo/test/cgo_thread_lock.go
+new file mode 100644
+index 0000000000..b105068518
+--- /dev/null
++++ b/misc/cgo/test/cgo_thread_lock.go
+@@ -0,0 +1,53 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,freebsd,openbsd
++
++package cgotest
++
++/*
++#include <unistd.h>
++#include <sys/syscall.h>
++void Gosched(void);
++static int Ctid(void) { Gosched(); return syscall(SYS_gettid); }
++*/
++import "C"
++
++import (
++	"runtime"
++	"syscall"
++	"testing"
++	"time"
++)
++
++//export Gosched
++func Gosched() {
++	runtime.Gosched()
++}
++
++func init() {
++	testThreadLockFunc = testThreadLock
++}
++
++func testThreadLock(t *testing.T) {
++	stop := make(chan int)
++	go func() {
++		// We need the G continue running,
++		// so the M has a chance to run this G.
++		for {
++			select {
++			case <-stop:
++				return
++			case <-time.After(time.Millisecond * 100):
++			}
++		}
++	}()
++	defer close(stop)
++
++	for i := 0; i < 1000; i++ {
++		if C.int(syscall.Gettid()) != C.Ctid() {
++			t.Fatalf("cgo has not locked OS thread")
++		}
++	}
++}

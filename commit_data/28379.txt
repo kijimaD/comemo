@@ -12,6 +12,21 @@ Date:   Thu May 19 12:04:10 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_plan9.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 8e272b1eb8..7533232dc9 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -76,6 +76,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
+ 		return 0, err
+ 	}
+ 	defer fd.readUnlock()
++	if len(b) == 0 {
++		return 0, nil
++	}
+ 	n, err = fd.data.Read(b)
+ 	if isHangup(err) {
+ 		err = io.EOF

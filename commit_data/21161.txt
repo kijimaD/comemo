@@ -8,7 +8,7 @@ Date:   Fri Nov 21 10:22:18 2014 -0500
     R=minux, dave
     CC=golang-codereviews
     https://golang.org/cl/181030043
-
+---
  src/runtime/arch1_amd64p32.go                 |  15 ++
  src/runtime/arch_amd64p32.h                   |  17 --
  src/runtime/lfstack_32bit.go                  |   2 +-
@@ -30,3 +30,1499 @@ Date:   Fri Nov 21 10:22:18 2014 -0500
  src/runtime/signals_nacl.h                    |  53 -----
  src/runtime/stubs2.go                         |   1 +
  20 files changed, 562 insertions(+), 767 deletions(-)
+
+diff --git a/src/runtime/arch1_amd64p32.go b/src/runtime/arch1_amd64p32.go
+new file mode 100644
+index 0000000000..2cee21f0ca
+--- /dev/null
++++ b/src/runtime/arch1_amd64p32.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	thechar           = '6'
++	_BigEndian        = 0
++	_CacheLineSize    = 64
++	_RuntimeGogoBytes = 64
++	_PhysPageSize     = 65536*goos_nacl + 4096*(1-goos_nacl)
++	_PCQuantum        = 1
++	_Int64Align       = 8
++)
+diff --git a/src/runtime/arch_amd64p32.h b/src/runtime/arch_amd64p32.h
+deleted file mode 100644
+index d3e8649875..0000000000
+--- a/src/runtime/arch_amd64p32.h
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-enum {
+-	thechar = '6',
+-	BigEndian = 0,
+-	CacheLineSize = 64,
+-	RuntimeGogoBytes = 64,
+-#ifdef GOOS_nacl
+-	PhysPageSize = 65536,
+-#else
+-	PhysPageSize = 4096,
+-#endif
+-	PCQuantum = 1,
+-	Int64Align = 8
+-};
+diff --git a/src/runtime/lfstack_32bit.go b/src/runtime/lfstack_32bit.go
+index 61d8678d9c..4b8bcbac6a 100644
+--- a/src/runtime/lfstack_32bit.go
++++ b/src/runtime/lfstack_32bit.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 arm
++// +build 386 arm nacl
+ 
+ package runtime
+ 
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 4bd40a39fc..e9be5ec8c9 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd netbsd openbsd solaris
++// +build dragonfly freebsd nacl netbsd openbsd solaris
+ 
+ package runtime
+ 
+@@ -38,7 +38,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+ 	// and check the assumption in SysMap.
+-	if ptrSize == 8 && uint64(n) > 1<<32 {
++	if ptrSize == 8 && uint64(n) > 1<<32 || goos_nacl != 0 {
+ 		*reserved = false
+ 		return v
+ 	}
+diff --git a/src/runtime/mem_nacl.c b/src/runtime/mem_nacl.c
+deleted file mode 100644
+index 6c836f18a7..0000000000
+--- a/src/runtime/mem_nacl.c
++++ /dev/null
+@@ -1,120 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "malloc.h"
+-#include "textflag.h"
+-
+-enum
+-{
+-	Debug = 0,
+-};
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·sysAlloc(uintptr n, uint64 *stat)
+-{
+-	void *v;
+-
+-	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(v < (void*)4096) {
+-		if(Debug)
+-			runtime·printf("sysAlloc(%p): %p\n", n, v);
+-		return nil;
+-	}
+-	runtime·xadd64(stat, n);
+-	if(Debug)
+-		runtime·printf("sysAlloc(%p) = %p\n", n, v);
+-	return v;
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr n)
+-{
+-	if(Debug)
+-		runtime·printf("SysUnused(%p, %p)\n", v, n);
+-}
+-
+-void
+-runtime·SysUsed(void *v, uintptr n)
+-{
+-	USED(v);
+-	USED(n);
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr n, uint64 *stat)
+-{
+-	if(Debug)
+-		runtime·printf("SysFree(%p, %p)\n", v, n);
+-	runtime·xadd64(stat, -(uint64)n);
+-	runtime·munmap(v, n);
+-}
+-
+-void
+-runtime·SysFault(void *v, uintptr n)
+-{
+-	runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE|MAP_FIXED, -1, 0);
+-}
+-
+-void*
+-runtime·SysReserve(void *v, uintptr n, bool *reserved)
+-{
+-	void *p;
+-
+-	// On 64-bit, people with ulimit -v set complain if we reserve too
+-	// much address space.  Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if(NaCl || sizeof(void*) == 8) {
+-		*reserved = false;
+-		return v;
+-	}
+-	
+-	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-	if(p < (void*)4096)
+-		return nil;
+-	*reserved = true;
+-	return p;
+-}
+-
+-void
+-runtime·SysMap(void *v, uintptr n, bool reserved, uint64 *stat)
+-{
+-	void *p;
+-	
+-	runtime·xadd64(stat, n);
+-
+-	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(!reserved) {
+-		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+-		if(p == (void*)ENOMEM) {
+-			runtime·printf("SysMap(%p, %p): %p\n", v, n, p);
+-			runtime·throw("runtime: out of memory");
+-		}
+-		if(p != v) {
+-			runtime·printf("SysMap(%p, %p): %p\n", v, n, p);
+-			runtime·printf("runtime: address space conflict: map(%p) = %p\n", v, p);
+-			runtime·throw("runtime: address space conflict");
+-		}
+-		if(Debug)
+-			runtime·printf("SysMap(%p, %p) = %p\n", v, n, p);
+-		return;
+-	}
+-
+-	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+-	if(p == (void*)ENOMEM) {
+-		runtime·printf("SysMap(%p, %p): %p\n", v, n, p);
+-		runtime·throw("runtime: out of memory");
+-	}
+-	if(p != v) {
+-		runtime·printf("SysMap(%p, %p): %p\n", v, n, p);
+-		runtime·printf("mmap MAP_FIXED %p returned %p\n", v, p);
+-		runtime·throw("runtime: cannot map pages in arena address space");
+-	}
+-	if(Debug)
+-		runtime·printf("SysMap(%p, %p) = %p\n", v, n, p);
+-}
+diff --git a/src/runtime/os1_nacl.go b/src/runtime/os1_nacl.go
+new file mode 100644
+index 0000000000..7b4c99a3dd
+--- /dev/null
++++ b/src/runtime/os1_nacl.go
+@@ -0,0 +1,197 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++func mpreinit(mp *m) {
++	mp.gsignal = malg(32 * 1024)
++	mp.gsignal.m = mp
++}
++
++func sigtramp()
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
++func minit() {
++	_g_ := getg()
++
++	// Initialize signal handling
++	ret := nacl_exception_stack(_g_.m.gsignal.stack.lo, 32*1024)
++	if ret < 0 {
++		print("runtime: nacl_exception_stack: error ", -ret, "\n")
++	}
++
++	ret = nacl_exception_handler(funcPC(sigtramp), nil)
++	if ret < 0 {
++		print("runtime: nacl_exception_handler: error ", -ret, "\n")
++	}
++}
++
++// Called from dropm to undo the effect of an minit.
++func unminit() {
++}
++
++func osinit() {
++	ncpu = 1
++	getg().m.procid = 2
++	//nacl_exception_handler(funcPC(sigtramp), nil);
++}
++
++func crash() {
++	*(*int32)(nil) = 0
++}
++
++//go:nosplit
++func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++	*rnd = nil
++	*rnd_len = 0
++}
++
++func goenvs() {
++	goenvs_unix()
++}
++
++func initsig() {
++}
++
++//go:nosplit
++func usleep(us uint32) {
++	var ts timespec
++
++	ts.tv_sec = int64(us / 1e6)
++	ts.tv_nsec = int32(us%1e6) * 1e3
++	nacl_nanosleep(&ts, nil)
++}
++
++func mstart_nacl()
++
++func newosproc(mp *m, stk unsafe.Pointer) {
++	tls := (*[3]unsafe.Pointer)(unsafe.Pointer(&mp.tls))
++	tls[0] = unsafe.Pointer(mp.g0)
++	tls[1] = unsafe.Pointer(mp)
++	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&tls[2]), nil)
++	if ret < 0 {
++		print("nacl_thread_create: error ", -ret, "\n")
++		gothrow("newosproc")
++	}
++}
++
++//go:nosplit
++func semacreate() uintptr {
++	var cond uintptr
++	systemstack(func() {
++		mu := nacl_mutex_create(0)
++		if mu < 0 {
++			print("nacl_mutex_create: error ", -mu, "\n")
++			gothrow("semacreate")
++		}
++		c := nacl_cond_create(0)
++		if c < 0 {
++			print("nacl_cond_create: error ", -cond, "\n")
++			gothrow("semacreate")
++		}
++		cond = uintptr(c)
++		_g_ := getg()
++		_g_.m.waitsemalock = uint32(mu)
++	})
++	return cond
++}
++
++//go:nosplit
++func semasleep(ns int64) int32 {
++	var ret int32
++
++	systemstack(func() {
++		_g_ := getg()
++		if nacl_mutex_lock(int32(_g_.m.waitsemalock)) < 0 {
++			gothrow("semasleep")
++		}
++
++		for _g_.m.waitsemacount == 0 {
++			if ns < 0 {
++				if nacl_cond_wait(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock)) < 0 {
++					gothrow("semasleep")
++				}
++			} else {
++				var ts timespec
++				end := ns + nanotime()
++				ts.tv_sec = end / 1e9
++				ts.tv_nsec = int32(end % 1e9)
++				r := nacl_cond_timed_wait_abs(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock), &ts)
++				if r == -_ETIMEDOUT {
++					nacl_mutex_unlock(int32(_g_.m.waitsemalock))
++					ret = -1
++					return
++				}
++				if r < 0 {
++					gothrow("semasleep")
++				}
++			}
++		}
++
++		_g_.m.waitsemacount = 0
++		nacl_mutex_unlock(int32(_g_.m.waitsemalock))
++		ret = 0
++	})
++	return ret
++}
++
++//go:nosplit
++func semawakeup(mp *m) {
++	systemstack(func() {
++		if nacl_mutex_lock(int32(mp.waitsemalock)) < 0 {
++			gothrow("semawakeup")
++		}
++		if mp.waitsemacount != 0 {
++			gothrow("semawakeup")
++		}
++		mp.waitsemacount = 1
++		nacl_cond_signal(int32(mp.waitsema))
++		nacl_mutex_unlock(int32(mp.waitsemalock))
++	})
++}
++
++func memlimit() uintptr {
++	return 0
++}
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++//go:nosplit
++func badsignal2() {
++	write(2, unsafe.Pointer(&badsignal1[0]), int32(len(badsignal1)))
++	exit(2)
++}
++
++var badsignal1 = []byte("runtime: signal received on thread not created by Go.\n")
++
++func madvise(addr unsafe.Pointer, n uintptr, flags int32) {}
++func munmap(addr unsafe.Pointer, n uintptr)               {}
++func resetcpuprofiler(hz int32)                           {}
++func sigdisable(uint32)                                   {}
++func sigenable(uint32)                                    {}
++func closeonexec(int32)                                   {}
++
++var writelock uint32 // test-and-set spin lock for write
++
++/*
++An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.
++
++void (*nacl_irt_query)(void);
++
++int8 nacl_irt_basic_v0_1_str[] = "nacl-irt-basic-0.1";
++void *nacl_irt_basic_v0_1[6]; // exit, gettod, clock, nanosleep, sched_yield, sysconf
++int32 nacl_irt_basic_v0_1_size = sizeof(nacl_irt_basic_v0_1);
++
++int8 nacl_irt_memory_v0_3_str[] = "nacl-irt-memory-0.3";
++void *nacl_irt_memory_v0_3[3]; // mmap, munmap, mprotect
++int32 nacl_irt_memory_v0_3_size = sizeof(nacl_irt_memory_v0_3);
++
++int8 nacl_irt_thread_v0_1_str[] = "nacl-irt-thread-0.1";
++void *nacl_irt_thread_v0_1[3]; // thread_create, thread_exit, thread_nice
++int32 nacl_irt_thread_v0_1_size = sizeof(nacl_irt_thread_v0_1);
++*/
+diff --git a/src/runtime/os2_nacl.go b/src/runtime/os2_nacl.go
+new file mode 100644
+index 0000000000..0c91e0f737
+--- /dev/null
++++ b/src/runtime/os2_nacl.go
+@@ -0,0 +1,154 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++const (
++	_NSIG    = 32
++	_SI_USER = 1
++
++	// native_client/src/trusted/service_runtime/include/sys/errno.h
++	// The errors are mainly copied from Linux.
++	_EPERM           = 1        /* Operation not permitted */
++	_ENOENT          = 2        /* No such file or directory */
++	_ESRCH           = 3        /* No such process */
++	_EINTR           = 4        /* Interrupted system call */
++	_EIO             = 5        /* I/O error */
++	_ENXIO           = 6        /* No such device or address */
++	_E2BIG           = 7        /* Argument list too long */
++	_ENOEXEC         = 8        /* Exec format error */
++	_EBADF           = 9        /* Bad file number */
++	_ECHILD          = 10       /* No child processes */
++	_EAGAIN          = 11       /* Try again */
++	_ENOMEM          = 12       /* Out of memory */
++	_EACCES          = 13       /* Permission denied */
++	_EFAULT          = 14       /* Bad address */
++	_EBUSY           = 16       /* Device or resource busy */
++	_EEXIST          = 17       /* File exists */
++	_EXDEV           = 18       /* Cross-device link */
++	_ENODEV          = 19       /* No such device */
++	_ENOTDIR         = 20       /* Not a directory */
++	_EISDIR          = 21       /* Is a directory */
++	_EINVAL          = 22       /* Invalid argument */
++	_ENFILE          = 23       /* File table overflow */
++	_EMFILE          = 24       /* Too many open files */
++	_ENOTTY          = 25       /* Not a typewriter */
++	_EFBIG           = 27       /* File too large */
++	_ENOSPC          = 28       /* No space left on device */
++	_ESPIPE          = 29       /* Illegal seek */
++	_EROFS           = 30       /* Read-only file system */
++	_EMLINK          = 31       /* Too many links */
++	_EPIPE           = 32       /* Broken pipe */
++	_ENAMETOOLONG    = 36       /* File name too long */
++	_ENOSYS          = 38       /* Function not implemented */
++	_EDQUOT          = 122      /* Quota exceeded */
++	_EDOM            = 33       /* Math arg out of domain of func */
++	_ERANGE          = 34       /* Math result not representable */
++	_EDEADLK         = 35       /* Deadlock condition */
++	_ENOLCK          = 37       /* No record locks available */
++	_ENOTEMPTY       = 39       /* Directory not empty */
++	_ELOOP           = 40       /* Too many symbolic links */
++	_ENOMSG          = 42       /* No message of desired type */
++	_EIDRM           = 43       /* Identifier removed */
++	_ECHRNG          = 44       /* Channel number out of range */
++	_EL2NSYNC        = 45       /* Level 2 not synchronized */
++	_EL3HLT          = 46       /* Level 3 halted */
++	_EL3RST          = 47       /* Level 3 reset */
++	_ELNRNG          = 48       /* Link number out of range */
++	_EUNATCH         = 49       /* Protocol driver not attached */
++	_ENOCSI          = 50       /* No CSI structure available */
++	_EL2HLT          = 51       /* Level 2 halted */
++	_EBADE           = 52       /* Invalid exchange */
++	_EBADR           = 53       /* Invalid request descriptor */
++	_EXFULL          = 54       /* Exchange full */
++	_ENOANO          = 55       /* No anode */
++	_EBADRQC         = 56       /* Invalid request code */
++	_EBADSLT         = 57       /* Invalid slot */
++	_EDEADLOCK       = _EDEADLK /* File locking deadlock error */
++	_EBFONT          = 59       /* Bad font file fmt */
++	_ENOSTR          = 60       /* Device not a stream */
++	_ENODATA         = 61       /* No data (for no delay io) */
++	_ETIME           = 62       /* Timer expired */
++	_ENOSR           = 63       /* Out of streams resources */
++	_ENONET          = 64       /* Machine is not on the network */
++	_ENOPKG          = 65       /* Package not installed */
++	_EREMOTE         = 66       /* The object is remote */
++	_ENOLINK         = 67       /* The link has been severed */
++	_EADV            = 68       /* Advertise error */
++	_ESRMNT          = 69       /* Srmount error */
++	_ECOMM           = 70       /* Communication error on send */
++	_EPROTO          = 71       /* Protocol error */
++	_EMULTIHOP       = 72       /* Multihop attempted */
++	_EDOTDOT         = 73       /* Cross mount point (not really error) */
++	_EBADMSG         = 74       /* Trying to read unreadable message */
++	_EOVERFLOW       = 75       /* Value too large for defined data type */
++	_ENOTUNIQ        = 76       /* Given log. name not unique */
++	_EBADFD          = 77       /* f.d. invalid for this operation */
++	_EREMCHG         = 78       /* Remote address changed */
++	_ELIBACC         = 79       /* Can't access a needed shared lib */
++	_ELIBBAD         = 80       /* Accessing a corrupted shared lib */
++	_ELIBSCN         = 81       /* .lib section in a.out corrupted */
++	_ELIBMAX         = 82       /* Attempting to link in too many libs */
++	_ELIBEXEC        = 83       /* Attempting to exec a shared library */
++	_EILSEQ          = 84
++	_EUSERS          = 87
++	_ENOTSOCK        = 88  /* Socket operation on non-socket */
++	_EDESTADDRREQ    = 89  /* Destination address required */
++	_EMSGSIZE        = 90  /* Message too long */
++	_EPROTOTYPE      = 91  /* Protocol wrong type for socket */
++	_ENOPROTOOPT     = 92  /* Protocol not available */
++	_EPROTONOSUPPORT = 93  /* Unknown protocol */
++	_ESOCKTNOSUPPORT = 94  /* Socket type not supported */
++	_EOPNOTSUPP      = 95  /* Operation not supported on transport endpoint */
++	_EPFNOSUPPORT    = 96  /* Protocol family not supported */
++	_EAFNOSUPPORT    = 97  /* Address family not supported by protocol family */
++	_EADDRINUSE      = 98  /* Address already in use */
++	_EADDRNOTAVAIL   = 99  /* Address not available */
++	_ENETDOWN        = 100 /* Network interface is not configured */
++	_ENETUNREACH     = 101 /* Network is unreachable */
++	_ENETRESET       = 102
++	_ECONNABORTED    = 103 /* Connection aborted */
++	_ECONNRESET      = 104 /* Connection reset by peer */
++	_ENOBUFS         = 105 /* No buffer space available */
++	_EISCONN         = 106 /* Socket is already connected */
++	_ENOTCONN        = 107 /* Socket is not connected */
++	_ESHUTDOWN       = 108 /* Can't send after socket shutdown */
++	_ETOOMANYREFS    = 109
++	_ETIMEDOUT       = 110 /* Connection timed out */
++	_ECONNREFUSED    = 111 /* Connection refused */
++	_EHOSTDOWN       = 112 /* Host is down */
++	_EHOSTUNREACH    = 113 /* Host is unreachable */
++	_EALREADY        = 114 /* Socket already connected */
++	_EINPROGRESS     = 115 /* Connection already in progress */
++	_ESTALE          = 116
++	_ENOTSUP         = _EOPNOTSUPP /* Not supported */
++	_ENOMEDIUM       = 123         /* No medium (in tape drive) */
++	_ECANCELED       = 125         /* Operation canceled. */
++	_ELBIN           = 2048        /* Inode is remote (not really error) */
++	_EFTYPE          = 2049        /* Inappropriate file type or format */
++	_ENMFILE         = 2050        /* No more files */
++	_EPROCLIM        = 2051
++	_ENOSHARE        = 2052    /* No such host or network path */
++	_ECASECLASH      = 2053    /* Filename exists with different case */
++	_EWOULDBLOCK     = _EAGAIN /* Operation would block */
++
++	// native_client/src/trusted/service_runtime/include/bits/mman.h.
++	// NOTE: DO NOT USE native_client/src/shared/imc/nacl_imc_c.h.
++	// Those MAP_*values are different from these.
++	_PROT_NONE  = 0x0
++	_PROT_READ  = 0x1
++	_PROT_WRITE = 0x2
++	_PROT_EXEC  = 0x4
++
++	_MAP_SHARED  = 0x1
++	_MAP_PRIVATE = 0x2
++	_MAP_FIXED   = 0x10
++	_MAP_ANON    = 0x20
++
++	_MADV_FREE  = 0
++	_SIGFPE     = 8
++	_FPE_INTDIV = 0
++)
++
++type siginfo struct{}
+diff --git a/src/runtime/os_nacl.c b/src/runtime/os_nacl.c
+deleted file mode 100644
+index 14b5583033..0000000000
+--- a/src/runtime/os_nacl.c
++++ /dev/null
+@@ -1,312 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "arch_GOARCH.h"
+-#include "textflag.h"
+-#include "stack.h"
+-
+-int8 *goos = "nacl";
+-extern SigTab runtime·sigtab[];
+-
+-void runtime·sigtramp(void);
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+-void
+-runtime·mpreinit(M *mp)
+-{
+-	mp->gsignal = runtime·malg(32*1024);	// OS X wants >=8K, Linux >=2K
+-	mp->gsignal->m = mp;
+-}
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
+-void
+-runtime·minit(void)
+-{
+-	int32 ret;
+-
+-	// Initialize signal handling
+-	ret = runtime·nacl_exception_stack((byte*)g->m->gsignal->stack.lo, 32*1024);
+-	if(ret < 0)
+-		runtime·printf("runtime: nacl_exception_stack: error %d\n", -ret);
+-
+-	ret = runtime·nacl_exception_handler(runtime·sigtramp, nil);
+-	if(ret < 0)
+-		runtime·printf("runtime: nacl_exception_handler: error %d\n", -ret);
+-}
+-
+-// Called from dropm to undo the effect of an minit.
+-void
+-runtime·unminit(void)
+-{
+-}
+-
+-int8 runtime·sigtrampf[] = "runtime: signal at PC=%X AX=%X CX=%X DX=%X BX=%X DI=%X R15=%X *SP=%X\n";
+-int8 runtime·sigtrampp[] = "runtime: sigtramp";
+-
+-extern byte runtime·tls0[];
+-
+-void
+-runtime·osinit(void)
+-{
+-	runtime·ncpu = 1;
+-	g->m->procid = 2;
+-//runtime·nacl_exception_handler(runtime·sigtramp, nil);
+-}
+-
+-void
+-runtime·crash(void)
+-{
+-	*(int32*)0 = 0;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·get_random_data(byte **rnd, int32 *rnd_len)
+-{
+-	*rnd = nil;
+-	*rnd_len = 0;
+-}
+-
+-void
+-runtime·goenvs(void)
+-{
+-	runtime·goenvs_unix();
+-}
+-
+-void
+-runtime·initsig(void)
+-{
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·usleep(uint32 us)
+-{
+-	Timespec ts;
+-	
+-	ts.tv_sec = us/1000000;
+-	ts.tv_nsec = (us%1000000)*1000;
+-	runtime·nacl_nanosleep(&ts, nil);
+-}
+-
+-void runtime·mstart_nacl(void);
+-
+-void
+-runtime·newosproc(M *mp, void *stk)
+-{
+-	int32 ret;
+-	void **tls;
+-
+-	tls = (void**)mp->tls;
+-	tls[0] = mp->g0;
+-	tls[1] = mp;
+-	ret = runtime·nacl_thread_create(runtime·mstart_nacl, stk, tls+2, 0);
+-	if(ret < 0) {
+-		runtime·printf("nacl_thread_create: error %d\n", -ret);
+-		runtime·throw("newosproc");
+-	}
+-}
+-
+-static void
+-semacreate(void)
+-{
+-	int32 mu, cond;
+-	
+-	mu = runtime·nacl_mutex_create(0);
+-	if(mu < 0) {
+-		runtime·printf("nacl_mutex_create: error %d\n", -mu);
+-		runtime·throw("semacreate");
+-	}
+-	cond = runtime·nacl_cond_create(0);
+-	if(cond < 0) {
+-		runtime·printf("nacl_cond_create: error %d\n", -cond);
+-		runtime·throw("semacreate");
+-	}
+-	g->m->waitsemalock = mu;
+-	g->m->scalararg[0] = cond; // assigned to m->waitsema
+-}
+-
+-#pragma textflag NOSPLIT
+-uint32
+-runtime·semacreate(void)
+-{
+-	void (*fn)(void);
+-	uint32 x;
+-	
+-	fn = semacreate;
+-	runtime·onM(&fn);
+-	x = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-	return x;
+-}
+-
+-static void
+-semasleep(void)
+-{
+-	int32 ret;
+-	int64 ns;
+-	
+-	ns = (int64)(uint32)g->m->scalararg[0] | (int64)(uint32)g->m->scalararg[1]<<32;
+-	g->m->scalararg[0] = 0;
+-	g->m->scalararg[1] = 0;
+-	
+-	ret = runtime·nacl_mutex_lock(g->m->waitsemalock);
+-	if(ret < 0) {
+-		//runtime·printf("nacl_mutex_lock: error %d\n", -ret);
+-		runtime·throw("semasleep");
+-	}
+-	if(g->m->waitsemacount > 0) {
+-		g->m->waitsemacount = 0;
+-		runtime·nacl_mutex_unlock(g->m->waitsemalock);
+-		g->m->scalararg[0] = 0;
+-		return;
+-	}
+-
+-	while(g->m->waitsemacount == 0) {
+-		if(ns < 0) {
+-			ret = runtime·nacl_cond_wait(g->m->waitsema, g->m->waitsemalock);
+-			if(ret < 0) {
+-				//runtime·printf("nacl_cond_wait: error %d\n", -ret);
+-				runtime·throw("semasleep");
+-			}
+-		} else {
+-			Timespec ts;
+-			
+-			ns += runtime·nanotime();
+-			ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+-			ret = runtime·nacl_cond_timed_wait_abs(g->m->waitsema, g->m->waitsemalock, &ts);
+-			if(ret == -ETIMEDOUT) {
+-				runtime·nacl_mutex_unlock(g->m->waitsemalock);
+-				g->m->scalararg[0] = -1;
+-				return;
+-			}
+-			if(ret < 0) {
+-				//runtime·printf("nacl_cond_timed_wait_abs: error %d\n", -ret);
+-				runtime·throw("semasleep");
+-			}
+-		}
+-	}
+-			
+-	g->m->waitsemacount = 0;
+-	runtime·nacl_mutex_unlock(g->m->waitsemalock);
+-	g->m->scalararg[0] = 0;
+-}
+-
+-#pragma textflag NOSPLIT
+-int32
+-runtime·semasleep(int64 ns)
+-{
+-	int32 r;
+-	void (*fn)(void);
+-
+-	g->m->scalararg[0] = (uint32)ns;
+-	g->m->scalararg[1] = (uint32)(ns>>32);
+-	fn = semasleep;
+-	runtime·onM(&fn);
+-	r = g->m->scalararg[0];
+-	g->m->scalararg[0] = 0;
+-	return r;
+-}
+-
+-static void
+-semawakeup(void)
+-{
+-	int32 ret;
+-	M *mp;
+-	
+-	mp = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-
+-	ret = runtime·nacl_mutex_lock(mp->waitsemalock);
+-	if(ret < 0) {
+-		//runtime·printf("nacl_mutex_lock: error %d\n", -ret);
+-		runtime·throw("semawakeup");
+-	}
+-	if(mp->waitsemacount != 0) {
+-		//runtime·printf("semawakeup: double wakeup\n");
+-		runtime·throw("semawakeup");
+-	}
+-	mp->waitsemacount = 1;
+-	runtime·nacl_cond_signal(mp->waitsema);
+-	runtime·nacl_mutex_unlock(mp->waitsemalock);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·semawakeup(M *mp)
+-{
+-	void (*fn)(void);
+-
+-	g->m->ptrarg[0] = mp;
+-	fn = semawakeup;
+-	runtime·onM(&fn);
+-}
+-
+-uintptr
+-runtime·memlimit(void)
+-{
+-	runtime·printf("memlimit\n");
+-	return 0;
+-}
+-
+-#pragma dataflag NOPTR
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag NOSPLIT
+-void
+-runtime·badsignal2(void)
+-{
+-	runtime·write(2, badsignal, sizeof badsignal - 1);
+-	runtime·exit(2);
+-}
+-
+-void	runtime·madvise(byte*, uintptr, int32) { }
+-void runtime·munmap(byte*, uintptr) {}
+-
+-void
+-runtime·resetcpuprofiler(int32 hz)
+-{
+-	USED(hz);
+-}
+-
+-void
+-runtime·sigdisable(uint32)
+-{
+-}
+-
+-void
+-runtime·sigenable(uint32)
+-{
+-}
+-
+-void
+-runtime·closeonexec(int32)
+-{
+-}
+-
+-uint32 runtime·writelock; // test-and-set spin lock for runtime.write
+-
+-/*
+-An attempt at IRT. Doesn't work. See end of sys_nacl_amd64.s.
+-
+-void (*runtime·nacl_irt_query)(void);
+-
+-int8 runtime·nacl_irt_basic_v0_1_str[] = "nacl-irt-basic-0.1";
+-void *runtime·nacl_irt_basic_v0_1[6]; // exit, gettod, clock, nanosleep, sched_yield, sysconf
+-int32 runtime·nacl_irt_basic_v0_1_size = sizeof(runtime·nacl_irt_basic_v0_1);
+-
+-int8 runtime·nacl_irt_memory_v0_3_str[] = "nacl-irt-memory-0.3";
+-void *runtime·nacl_irt_memory_v0_3[3]; // mmap, munmap, mprotect
+-int32 runtime·nacl_irt_memory_v0_3_size = sizeof(runtime·nacl_irt_memory_v0_3);
+-
+-int8 runtime·nacl_irt_thread_v0_1_str[] = "nacl-irt-thread-0.1";
+-void *runtime·nacl_irt_thread_v0_1[3]; // thread_create, thread_exit, thread_nice
+-int32 runtime·nacl_irt_thread_v0_1_size = sizeof(runtime·nacl_irt_thread_v0_1);
+-*/
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 8dd43ff06f..eff9ec30e4 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func nacl_exception_stack(p unsafe.Pointer, size int32) int32
+-func nacl_exception_handler(fn, arg unsafe.Pointer) int32
++func nacl_exception_stack(p uintptr, size int32) int32
++func nacl_exception_handler(fn uintptr, arg unsafe.Pointer) int32
+ func nacl_sem_create(flag int32) int32
+ func nacl_sem_wait(sem int32) int32
+ func nacl_sem_post(sem int32) int32
+@@ -19,9 +19,20 @@ func nacl_cond_create(flag int32) int32
+ func nacl_cond_wait(cond, n int32) int32
+ func nacl_cond_signal(cond int32) int32
+ func nacl_cond_broadcast(cond int32) int32
+-func nacl_cond_timed_wait_abs(cond, lock int32, ts unsafe.Pointer) int32
+-func nacl_thread_create(fn, stk, tls, xx unsafe.Pointer) int32
+-func nacl_nanosleep(ts, extra unsafe.Pointer) int32
++
++//go:noescape
++func nacl_cond_timed_wait_abs(cond, lock int32, ts *timespec) int32
++func nacl_thread_create(fn uintptr, stk, tls, xx unsafe.Pointer) int32
++
++//go:noescape
++func nacl_nanosleep(ts, extra *timespec) int32
++func nanotime() int64
++func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
++func exit(code int32)
++func osyield()
++
++//go:noescape
++func write(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+diff --git a/src/runtime/os_nacl.h b/src/runtime/os_nacl.h
+deleted file mode 100644
+index 7c9d9c242f..0000000000
+--- a/src/runtime/os_nacl.h
++++ /dev/null
+@@ -1,162 +0,0 @@
+-enum {
+-	NSIG = 32,
+-	SI_USER = 1,
+-
+-	// native_client/src/trusted/service_runtime/include/sys/errno.h
+-	// The errors are mainly copied from Linux.
+-	EPERM = 1,  /* Operation not permitted */
+-	ENOENT = 2,  /* No such file or directory */
+-	ESRCH = 3,  /* No such process */
+-	EINTR = 4,  /* Interrupted system call */
+-	EIO = 5,  /* I/O error */
+-	ENXIO = 6,  /* No such device or address */
+-	E2BIG = 7,  /* Argument list too long */
+-	ENOEXEC = 8,  /* Exec format error */
+-	EBADF = 9,  /* Bad file number */
+-	ECHILD = 10,  /* No child processes */
+-	EAGAIN = 11,  /* Try again */
+-	ENOMEM = 12,  /* Out of memory */
+-	EACCES = 13,  /* Permission denied */
+-	EFAULT = 14,  /* Bad address */
+-	EBUSY = 16,  /* Device or resource busy */
+-	EEXIST = 17,  /* File exists */
+-	EXDEV = 18,  /* Cross-device link */
+-	ENODEV = 19,  /* No such device */
+-	ENOTDIR = 20,  /* Not a directory */
+-	EISDIR = 21,  /* Is a directory */
+-	EINVAL = 22,  /* Invalid argument */
+-	ENFILE = 23,  /* File table overflow */
+-	EMFILE = 24,  /* Too many open files */
+-	ENOTTY = 25,  /* Not a typewriter */
+-	EFBIG = 27,  /* File too large */
+-	ENOSPC = 28,  /* No space left on device */
+-	ESPIPE = 29,  /* Illegal seek */
+-	EROFS = 30,  /* Read-only file system */
+-	EMLINK = 31,  /* Too many links */
+-	EPIPE = 32,  /* Broken pipe */
+-	ENAMETOOLONG = 36,  /* File name too long */
+-	ENOSYS = 38,  /* Function not implemented */
+-	EDQUOT = 122, /* Quota exceeded */
+-	EDOM = 33,   /* Math arg out of domain of func */
+-	ERANGE = 34, /* Math result not representable */
+-	EDEADLK = 35,  /* Deadlock condition */
+-	ENOLCK = 37, /* No record locks available */
+-	ENOTEMPTY = 39,  /* Directory not empty */
+-	ELOOP = 40,  /* Too many symbolic links */
+-	ENOMSG = 42, /* No message of desired type */
+-	EIDRM = 43,  /* Identifier removed */
+-	ECHRNG = 44, /* Channel number out of range */
+-	EL2NSYNC = 45, /* Level 2 not synchronized */
+-	EL3HLT = 46, /* Level 3 halted */
+-	EL3RST = 47, /* Level 3 reset */
+-	ELNRNG = 48, /* Link number out of range */
+-	EUNATCH = 49,  /* Protocol driver not attached */
+-	ENOCSI = 50, /* No CSI structure available */
+-	EL2HLT = 51, /* Level 2 halted */
+-	EBADE = 52,  /* Invalid exchange */
+-	EBADR = 53,  /* Invalid request descriptor */
+-	EXFULL = 54, /* Exchange full */
+-	ENOANO = 55, /* No anode */
+-	EBADRQC = 56,  /* Invalid request code */
+-	EBADSLT = 57,  /* Invalid slot */
+-	EDEADLOCK = EDEADLK,  /* File locking deadlock error */
+-	EBFONT = 59, /* Bad font file fmt */
+-	ENOSTR = 60, /* Device not a stream */
+-	ENODATA = 61,  /* No data (for no delay io) */
+-	ETIME = 62,  /* Timer expired */
+-	ENOSR = 63,  /* Out of streams resources */
+-	ENONET = 64, /* Machine is not on the network */
+-	ENOPKG = 65, /* Package not installed */
+-	EREMOTE = 66,  /* The object is remote */
+-	ENOLINK = 67,  /* The link has been severed */
+-	EADV = 68,   /* Advertise error */
+-	ESRMNT = 69, /* Srmount error */
+-	ECOMM = 70,  /* Communication error on send */
+-	EPROTO = 71, /* Protocol error */
+-	EMULTIHOP = 72,  /* Multihop attempted */
+-	EDOTDOT = 73,  /* Cross mount point (not really error) */
+-	EBADMSG = 74,  /* Trying to read unreadable message */
+-	EOVERFLOW = 75, /* Value too large for defined data type */
+-	ENOTUNIQ = 76, /* Given log. name not unique */
+-	EBADFD = 77, /* f.d. invalid for this operation */
+-	EREMCHG = 78,  /* Remote address changed */
+-	ELIBACC = 79,  /* Can't access a needed shared lib */
+-	ELIBBAD = 80,  /* Accessing a corrupted shared lib */
+-	ELIBSCN = 81,  /* .lib section in a.out corrupted */
+-	ELIBMAX = 82,  /* Attempting to link in too many libs */
+-	ELIBEXEC = 83, /* Attempting to exec a shared library */
+-	EILSEQ = 84,
+-	EUSERS = 87,
+-	ENOTSOCK = 88,  /* Socket operation on non-socket */
+-	EDESTADDRREQ = 89,  /* Destination address required */
+-	EMSGSIZE = 90,    /* Message too long */
+-	EPROTOTYPE = 91,  /* Protocol wrong type for socket */
+-	ENOPROTOOPT = 92, /* Protocol not available */
+-	EPROTONOSUPPORT = 93, /* Unknown protocol */
+-	ESOCKTNOSUPPORT = 94, /* Socket type not supported */
+-	EOPNOTSUPP = 95, /* Operation not supported on transport endpoint */
+-	EPFNOSUPPORT = 96, /* Protocol family not supported */
+-	EAFNOSUPPORT = 97, /* Address family not supported by protocol family */
+-	EADDRINUSE = 98,    /* Address already in use */
+-	EADDRNOTAVAIL = 99, /* Address not available */
+-	ENETDOWN = 100,    /* Network interface is not configured */
+-	ENETUNREACH = 101,   /* Network is unreachable */
+-	ENETRESET = 102,
+-	ECONNABORTED = 103,  /* Connection aborted */
+-	ECONNRESET = 104,  /* Connection reset by peer */
+-	ENOBUFS = 105, /* No buffer space available */
+-	EISCONN = 106,   /* Socket is already connected */
+-	ENOTCONN = 107,    /* Socket is not connected */
+-	ESHUTDOWN = 108, /* Can't send after socket shutdown */
+-	ETOOMANYREFS = 109,
+-	ETIMEDOUT = 110,   /* Connection timed out */
+-	ECONNREFUSED = 111,  /* Connection refused */
+-	EHOSTDOWN = 112,   /* Host is down */
+-	EHOSTUNREACH = 113,  /* Host is unreachable */
+-	EALREADY = 114,    /* Socket already connected */
+-	EINPROGRESS = 115,   /* Connection already in progress */
+-	ESTALE = 116,
+-	ENOTSUP = EOPNOTSUPP,   /* Not supported */
+-	ENOMEDIUM = 123,   /* No medium (in tape drive) */
+-	ECANCELED = 125, /* Operation canceled. */
+-	ELBIN = 2048,  /* Inode is remote (not really error) */
+-	EFTYPE = 2049,  /* Inappropriate file type or format */
+-	ENMFILE = 2050,  /* No more files */
+-	EPROCLIM = 2051,
+-	ENOSHARE = 2052,  /* No such host or network path */
+-	ECASECLASH = 2053,  /* Filename exists with different case */
+-	EWOULDBLOCK = EAGAIN,      /* Operation would block */
+-
+-	// native_client/src/trusted/service_runtime/include/bits/mman.h.
+-	// NOTE: DO NOT USE native_client/src/shared/imc/nacl_imc_c.h.
+-	// Those MAP_*values are different from these.
+-	PROT_NONE	= 0x0,
+-	PROT_READ	= 0x1,
+-	PROT_WRITE	= 0x2,
+-	PROT_EXEC	= 0x4,
+-
+-	MAP_SHARED	= 0x1,
+-	MAP_PRIVATE	= 0x2,
+-	MAP_FIXED	= 0x10,
+-	MAP_ANON	= 0x20,
+-};
+-typedef byte* kevent_udata;
+-
+-int32	runtime·nacl_exception_stack(byte*, int32);
+-int32	runtime·nacl_exception_handler(void*, void*);
+-int32	runtime·nacl_sem_create(int32);
+-int32	runtime·nacl_sem_wait(int32);
+-int32	runtime·nacl_sem_post(int32);
+-int32	runtime·nacl_mutex_create(int32);
+-int32	runtime·nacl_mutex_lock(int32);
+-int32	runtime·nacl_mutex_trylock(int32);
+-int32	runtime·nacl_mutex_unlock(int32);
+-int32	runtime·nacl_cond_create(int32);
+-int32	runtime·nacl_cond_wait(int32, int32);
+-int32	runtime·nacl_cond_signal(int32);
+-int32	runtime·nacl_cond_broadcast(int32);
+-int32	runtime·nacl_cond_timed_wait_abs(int32, int32, Timespec*);
+-int32	runtime·nacl_thread_create(void*, void*, void*, void*);
+-int32	runtime·nacl_nanosleep(Timespec*, Timespec*);
+-
+-void	runtime·sigpanic(void);
+diff --git a/src/runtime/os_nacl_arm.c b/src/runtime/os_nacl_arm.go
+similarity index 61%
+rename from src/runtime/os_nacl_arm.c
+rename to src/runtime/os_nacl_arm.go
+index 1248ea6449..a43e7c47b7 100644
+--- a/src/runtime/os_nacl_arm.c
++++ b/src/runtime/os_nacl_arm.go
+@@ -2,23 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "textflag.h"
++package runtime
+ 
+-void
+-runtime·checkgoarm(void)
+-{
+-	return; // NaCl/ARM only supports ARMv7
++func checkgoarm() {
++	return // NaCl/ARM only supports ARMv7
+ }
+ 
+-#pragma textflag NOSPLIT
+-int64
+-runtime·cputicks(void)
+-{
++//go:nosplit
++func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+ 	// TODO: need more entropy to better seed fastrand1.
+-	return runtime·nanotime();
++	return nanotime()
+ }
+diff --git a/src/runtime/signal_nacl.go b/src/runtime/signal_nacl.go
+new file mode 100644
+index 0000000000..122648bc33
+--- /dev/null
++++ b/src/runtime/signal_nacl.go
+@@ -0,0 +1,45 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++type sigTabT struct {
++	flags int32
++	name  string
++}
++
++var sigtable = [...]sigTabT{
++	/* 0 */ {0, "SIGNONE: no trap"},
++	/* 1 */ {_SigNotify + _SigKill, "SIGHUP: terminal line hangup"},
++	/* 2 */ {_SigNotify + _SigKill, "SIGINT: interrupt"},
++	/* 3 */ {_SigNotify + _SigThrow, "SIGQUIT: quit"},
++	/* 4 */ {_SigThrow, "SIGILL: illegal instruction"},
++	/* 5 */ {_SigThrow, "SIGTRAP: trace trap"},
++	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
++	/* 7 */ {_SigThrow, "SIGEMT: emulate instruction executed"},
++	/* 8 */ {_SigPanic, "SIGFPE: floating-point exception"},
++	/* 9 */ {0, "SIGKILL: kill"},
++	/* 10 */ {_SigPanic, "SIGBUS: bus error"},
++	/* 11 */ {_SigPanic, "SIGSEGV: segmentation violation"},
++	/* 12 */ {_SigThrow, "SIGSYS: bad system call"},
++	/* 13 */ {_SigNotify, "SIGPIPE: write to broken pipe"},
++	/* 14 */ {_SigNotify, "SIGALRM: alarm clock"},
++	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
++	/* 16 */ {_SigNotify, "SIGURG: urgent condition on socket"},
++	/* 17 */ {0, "SIGSTOP: stop"},
++	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
++	/* 19 */ {0, "SIGCONT: continue after stop"},
++	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
++	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
++	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
++	/* 23 */ {_SigNotify, "SIGIO: i/o now possible"},
++	/* 24 */ {_SigNotify, "SIGXCPU: cpu limit exceeded"},
++	/* 25 */ {_SigNotify, "SIGXFSZ: file size limit exceeded"},
++	/* 26 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
++	/* 27 */ {_SigNotify, "SIGPROF: profiling alarm clock"},
++	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
++	/* 29 */ {_SigNotify, "SIGINFO: status request from keyboard"},
++	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
++	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
++}
+diff --git a/src/runtime/signal_nacl_386.go b/src/runtime/signal_nacl_386.go
+new file mode 100644
+index 0000000000..0a1e7c6ea5
+--- /dev/null
++++ b/src/runtime/signal_nacl_386.go
+@@ -0,0 +1,34 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *excregs386 { return &(*exccontext)(c.ctxt).regs }
++func (c *sigctxt) eax() uint32       { return c.regs().eax }
++func (c *sigctxt) ebx() uint32       { return c.regs().ebx }
++func (c *sigctxt) ecx() uint32       { return c.regs().ecx }
++func (c *sigctxt) edx() uint32       { return c.regs().edx }
++func (c *sigctxt) edi() uint32       { return c.regs().edi }
++func (c *sigctxt) esi() uint32       { return c.regs().esi }
++func (c *sigctxt) ebp() uint32       { return c.regs().ebp }
++func (c *sigctxt) esp() uint32       { return c.regs().esp }
++func (c *sigctxt) eip() uint32       { return c.regs().eip }
++func (c *sigctxt) eflags() uint32    { return c.regs().eflags }
++func (c *sigctxt) cs() uint32        { return ^uint32(0) }
++func (c *sigctxt) fs() uint32        { return ^uint32(0) }
++func (c *sigctxt) gs() uint32        { return ^uint32(0) }
++func (c *sigctxt) sigcode() uint32   { return ^uint32(0) }
++func (c *sigctxt) sigaddr() uint32   { return 0 }
++
++func (c *sigctxt) set_eip(x uint32)     { c.regs().eip = x }
++func (c *sigctxt) set_esp(x uint32)     { c.regs().esp = x }
++func (c *sigctxt) set_sigcode(x uint32) {}
++func (c *sigctxt) set_sigaddr(x uint32) {}
+diff --git a/src/runtime/signal_nacl_386.h b/src/runtime/signal_nacl_386.h
+deleted file mode 100644
+index c9481b5f4f..0000000000
+--- a/src/runtime/signal_nacl_386.h
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((ExcContext*)(ctxt))->regs)
+-
+-#define SIG_EAX(info, ctxt) (SIG_REGS(ctxt).eax)
+-#define SIG_EBX(info, ctxt) (SIG_REGS(ctxt).ebx)
+-#define SIG_ECX(info, ctxt) (SIG_REGS(ctxt).ecx)
+-#define SIG_EDX(info, ctxt) (SIG_REGS(ctxt).edx)
+-#define SIG_EDI(info, ctxt) (SIG_REGS(ctxt).edi)
+-#define SIG_ESI(info, ctxt) (SIG_REGS(ctxt).esi)
+-#define SIG_EBP(info, ctxt) (SIG_REGS(ctxt).ebp)
+-#define SIG_ESP(info, ctxt) (SIG_REGS(ctxt).esp)
+-#define SIG_EIP(info, ctxt) (SIG_REGS(ctxt).eip)
+-#define SIG_EFLAGS(info, ctxt) (SIG_REGS(ctxt).eflags)
+-
+-#define SIG_CS(info, ctxt) (~0)
+-#define SIG_FS(info, ctxt) (~0)
+-#define SIG_GS(info, ctxt) (~0)
+-
+-#define SIG_CODE0(info, ctxt) (~0)
+-#define SIG_CODE1(info, ctxt) (0)
+diff --git a/src/runtime/signal_nacl_amd64p32.go b/src/runtime/signal_nacl_amd64p32.go
+new file mode 100644
+index 0000000000..024cebaddd
+--- /dev/null
++++ b/src/runtime/signal_nacl_amd64p32.go
+@@ -0,0 +1,44 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *excregsamd64 {
++	return &(*exccontext)(c.ctxt).regs
++}
++func (c *sigctxt) rax() uint64     { return c.regs().rax }
++func (c *sigctxt) rbx() uint64     { return c.regs().rbx }
++func (c *sigctxt) rcx() uint64     { return c.regs().rcx }
++func (c *sigctxt) rdx() uint64     { return c.regs().rdx }
++func (c *sigctxt) rdi() uint64     { return c.regs().rdi }
++func (c *sigctxt) rsi() uint64     { return c.regs().rsi }
++func (c *sigctxt) rbp() uint64     { return c.regs().rbp }
++func (c *sigctxt) rsp() uint64     { return c.regs().rsp }
++func (c *sigctxt) r8() uint64      { return c.regs().r8 }
++func (c *sigctxt) r9() uint64      { return c.regs().r9 }
++func (c *sigctxt) r10() uint64     { return c.regs().r10 }
++func (c *sigctxt) r11() uint64     { return c.regs().r11 }
++func (c *sigctxt) r12() uint64     { return c.regs().r12 }
++func (c *sigctxt) r13() uint64     { return c.regs().r13 }
++func (c *sigctxt) r14() uint64     { return c.regs().r14 }
++func (c *sigctxt) r15() uint64     { return c.regs().r15 }
++func (c *sigctxt) rip() uint64     { return c.regs().rip }
++func (c *sigctxt) rflags() uint64  { return uint64(c.regs().rflags) }
++func (c *sigctxt) cs() uint64      { return ^uint64(0) }
++func (c *sigctxt) fs() uint64      { return ^uint64(0) }
++func (c *sigctxt) gs() uint64      { return ^uint64(0) }
++func (c *sigctxt) sigcode() uint64 { return ^uint64(0) }
++func (c *sigctxt) sigaddr() uint64 { return 0 }
++
++func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
++func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
++func (c *sigctxt) set_sigcode(x uint64) {}
++func (c *sigctxt) set_sigaddr(x uint64) {}
+diff --git a/src/runtime/signal_nacl_amd64p32.h b/src/runtime/signal_nacl_amd64p32.h
+deleted file mode 100644
+index f62305cb52..0000000000
+--- a/src/runtime/signal_nacl_amd64p32.h
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((ExcContext*)(ctxt))->regs.regs64)
+-
+-#define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).rax)
+-#define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).rbx)
+-#define SIG_RCX(info, ctxt) (SIG_REGS(ctxt).rcx)
+-#define SIG_RDX(info, ctxt) (SIG_REGS(ctxt).rdx)
+-#define SIG_RDI(info, ctxt) (SIG_REGS(ctxt).rdi)
+-#define SIG_RSI(info, ctxt) (SIG_REGS(ctxt).rsi)
+-#define SIG_RBP(info, ctxt) (SIG_REGS(ctxt).rbp)
+-#define SIG_RSP(info, ctxt) (SIG_REGS(ctxt).rsp)
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
+-#define SIG_R11(info, ctxt) (SIG_REGS(ctxt).r11)
+-#define SIG_R12(info, ctxt) (SIG_REGS(ctxt).r12)
+-#define SIG_R13(info, ctxt) (SIG_REGS(ctxt).r13)
+-#define SIG_R14(info, ctxt) (SIG_REGS(ctxt).r14)
+-#define SIG_R15(info, ctxt) (SIG_REGS(ctxt).r15)
+-#define SIG_RIP(info, ctxt) (SIG_REGS(ctxt).rip)
+-#define SIG_RFLAGS(info, ctxt) (SIG_REGS(ctxt).rflags)
+-
+-#define SIG_CS(info, ctxt) (~0)
+-#define SIG_FS(info, ctxt) (~0)
+-#define SIG_GS(info, ctxt) (~0)
+-
+-#define SIG_CODE0(info, ctxt) (~0)
+-#define SIG_CODE1(info, ctxt) (0)
+diff --git a/src/runtime/signal_nacl_arm.go b/src/runtime/signal_nacl_arm.go
+new file mode 100644
+index 0000000000..1aeaa4e428
+--- /dev/null
++++ b/src/runtime/signal_nacl_arm.go
+@@ -0,0 +1,47 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++type sigctxt struct {
++	info *siginfo
++	ctxt unsafe.Pointer
++}
++
++func (c *sigctxt) regs() *excregsarm { return &(*exccontext)(c.ctxt).regs }
++
++func (c *sigctxt) r0() uint32      { return c.regs().r0 }
++func (c *sigctxt) r1() uint32      { return c.regs().r1 }
++func (c *sigctxt) r2() uint32      { return c.regs().r2 }
++func (c *sigctxt) r3() uint32      { return c.regs().r3 }
++func (c *sigctxt) r4() uint32      { return c.regs().r4 }
++func (c *sigctxt) r5() uint32      { return c.regs().r5 }
++func (c *sigctxt) r6() uint32      { return c.regs().r6 }
++func (c *sigctxt) r7() uint32      { return c.regs().r7 }
++func (c *sigctxt) r8() uint32      { return c.regs().r8 }
++func (c *sigctxt) r9() uint32      { return c.regs().r9 }
++func (c *sigctxt) r10() uint32     { return c.regs().r10 }
++func (c *sigctxt) fp() uint32      { return c.regs().r11 }
++func (c *sigctxt) ip() uint32      { return c.regs().r12 }
++func (c *sigctxt) sp() uint32      { return c.regs().sp }
++func (c *sigctxt) lr() uint32      { return c.regs().lr }
++func (c *sigctxt) pc() uint32      { return c.regs().pc }
++func (c *sigctxt) cpsr() uint32    { return c.regs().cpsr }
++func (c *sigctxt) fault() uint32   { return ^uint32(0) }
++func (c *sigctxt) trap() uint32    { return ^uint32(0) }
++func (c *sigctxt) error() uint32   { return ^uint32(0) }
++func (c *sigctxt) oldmask() uint32 { return ^uint32(0) }
++
++func (c *sigctxt) sigcode() uint32 { return 0 }
++func (c *sigctxt) sigaddr() uint32 { return 0 }
++
++func (c *sigctxt) set_pc(x uint32)  { c.regs().pc = x }
++func (c *sigctxt) set_sp(x uint32)  { c.regs().sp = x }
++func (c *sigctxt) set_lr(x uint32)  { c.regs().lr = x }
++func (c *sigctxt) set_r10(x uint32) { c.regs().r10 = x }
++
++func (c *sigctxt) set_sigcode(x uint32) {}
++func (c *sigctxt) set_sigaddr(x uint32) {}
+diff --git a/src/runtime/signal_nacl_arm.h b/src/runtime/signal_nacl_arm.h
+deleted file mode 100644
+index e5bbb211dd..0000000000
+--- a/src/runtime/signal_nacl_arm.h
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2014 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#define SIG_REGS(ctxt) (((ExcContext*)(ctxt))->regs)
+-
+-#define SIG_R0(info, ctxt) (SIG_REGS(ctxt).r0)
+-#define SIG_R1(info, ctxt) (SIG_REGS(ctxt).r1)
+-#define SIG_R2(info, ctxt) (SIG_REGS(ctxt).r2)
+-#define SIG_R3(info, ctxt) (SIG_REGS(ctxt).r3)
+-#define SIG_R4(info, ctxt) (SIG_REGS(ctxt).r4)
+-#define SIG_R5(info, ctxt) (SIG_REGS(ctxt).r5)
+-#define SIG_R6(info, ctxt) (SIG_REGS(ctxt).r6)
+-#define SIG_R7(info, ctxt) (SIG_REGS(ctxt).r7)
+-#define SIG_R8(info, ctxt) (SIG_REGS(ctxt).r8)
+-#define SIG_R9(info, ctxt) (SIG_REGS(ctxt).r9)
+-#define SIG_R10(info, ctxt) (SIG_REGS(ctxt).r10)
+-#define SIG_FP(info, ctxt) (SIG_REGS(ctxt).r11)
+-#define SIG_IP(info, ctxt) (SIG_REGS(ctxt).r12)
+-#define SIG_SP(info, ctxt) (SIG_REGS(ctxt).sp)
+-#define SIG_LR(info, ctxt) (SIG_REGS(ctxt).lr)
+-#define SIG_PC(info, ctxt) (SIG_REGS(ctxt).pc)
+-#define SIG_CPSR(info, ctxt) (SIG_REGS(ctxt).cpsr)
+-#define SIG_FAULT(info, ctxt) (~0)
+-#define SIG_TRAP(info, ctxt) (~0)
+-#define SIG_ERROR(info, ctxt) (~0)
+-#define SIG_OLDMASK(info, ctxt) (~0)
+-#define SIG_CODE0(info, ctxt) (~0)
+diff --git a/src/runtime/signals_nacl.h b/src/runtime/signals_nacl.h
+deleted file mode 100644
+index 8761e1bd94..0000000000
+--- a/src/runtime/signals_nacl.h
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-#define N SigNotify
+-#define K SigKill
+-#define T SigThrow
+-#define P SigPanic
+-#define D SigDefault
+-
+-#pragma dataflag NOPTR
+-SigTab runtime·sigtab[] = {
+-	/* 0 */	0, "SIGNONE: no trap",
+-	/* 1 */	N+K, "SIGHUP: terminal line hangup",
+-	/* 2 */	N+K, "SIGINT: interrupt",
+-	/* 3 */	N+T, "SIGQUIT: quit",
+-	/* 4 */	T, "SIGILL: illegal instruction",
+-	/* 5 */	T, "SIGTRAP: trace trap",
+-	/* 6 */	N+T, "SIGABRT: abort",
+-	/* 7 */	T, "SIGEMT: emulate instruction executed",
+-	/* 8 */	P, "SIGFPE: floating-point exception",
+-	/* 9 */	0, "SIGKILL: kill",
+-	/* 10 */	P, "SIGBUS: bus error",
+-	/* 11 */	P, "SIGSEGV: segmentation violation",
+-	/* 12 */	T, "SIGSYS: bad system call",
+-	/* 13 */	N, "SIGPIPE: write to broken pipe",
+-	/* 14 */	N, "SIGALRM: alarm clock",
+-	/* 15 */	N+K, "SIGTERM: termination",
+-	/* 16 */	N, "SIGURG: urgent condition on socket",
+-	/* 17 */	0, "SIGSTOP: stop",
+-	/* 18 */	N+D, "SIGTSTP: keyboard stop",
+-	/* 19 */	0, "SIGCONT: continue after stop",
+-	/* 20 */	N, "SIGCHLD: child status has changed",
+-	/* 21 */	N+D, "SIGTTIN: background read from tty",
+-	/* 22 */	N+D, "SIGTTOU: background write to tty",
+-	/* 23 */	N, "SIGIO: i/o now possible",
+-	/* 24 */	N, "SIGXCPU: cpu limit exceeded",
+-	/* 25 */	N, "SIGXFSZ: file size limit exceeded",
+-	/* 26 */	N, "SIGVTALRM: virtual alarm clock",
+-	/* 27 */	N, "SIGPROF: profiling alarm clock",
+-	/* 28 */	N, "SIGWINCH: window size change",
+-	/* 29 */	N, "SIGINFO: status request from keyboard",
+-	/* 30 */	N, "SIGUSR1: user-defined signal 1",
+-	/* 31 */	N, "SIGUSR2: user-defined signal 2",
+-};
+-
+-#undef N
+-#undef K
+-#undef T
+-#undef P
+-#undef D
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index cb0b0f0ed5..74cc5c6a7c 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -4,6 +4,7 @@
+ 
+ // +build !solaris
+ // +build !windows
++// +build !nacl
+ 
+ package runtime
+ 

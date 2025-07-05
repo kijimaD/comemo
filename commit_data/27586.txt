@@ -17,8 +17,128 @@ Date:   Mon Apr 4 16:38:26 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ahmed Waheed <oneofone@gmail.com>
-
+---
  .../compile/internal/gc/testdata/divbyzero_ssa.go  | 49 ++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/generic.rules     |  5 ++-
  src/cmd/compile/internal/ssa/rewritegeneric.go     | 32 ++++++++++++++
  3 files changed, 85 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/divbyzero_ssa.go b/src/cmd/compile/internal/gc/testdata/divbyzero_ssa.go
+new file mode 100644
+index 0000000000..91e0ec0bf9
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/divbyzero_ssa.go
+@@ -0,0 +1,49 @@
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++var failed = false
++
++func checkDivByZero(f func()) (divByZero bool) {
++	defer func() {
++		if r := recover(); r != nil {
++			if e, ok := r.(runtime.Error); ok && e.Error() == "runtime error: integer divide by zero" {
++				divByZero = true
++			}
++		}
++	}()
++	f()
++	return false
++}
++
++//go:noinline
++func a(i uint, s []int) int {
++	return s[i%uint(len(s))]
++}
++
++//go:noinline
++func b(i uint, j uint) uint {
++	return i / j
++}
++
++func main() {
++	if got := checkDivByZero(func() { b(7, 0) }); !got {
++		fmt.Printf("expected div by zero for b(7, 0), got no error\n")
++		failed = true
++	}
++	if got := checkDivByZero(func() { b(7, 7) }); got {
++		fmt.Printf("expected no error for b(7, 7), got div by zero\n")
++		failed = true
++	}
++	if got := checkDivByZero(func() { a(4, nil) }); !got {
++		fmt.Printf("expected div by zero for a(4, nil), got no error\n")
++		failed = true
++	}
++
++	if failed {
++		panic("tests failed")
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 005ee19f60..930589947f 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -109,12 +109,15 @@
+ (IsInBounds (ZeroExt8to64 _) (Const64 [c])) && (1 << 8) <= c -> (ConstBool [1])
+ (IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= c -> (ConstBool [1])
+ (IsInBounds (ZeroExt16to64 _) (Const64 [c])) && (1 << 16) <= c -> (ConstBool [1])
+-
+ (IsInBounds x x) -> (ConstBool [0])
+ (IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c < d -> (ConstBool [1])
+ (IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
+ (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(0 <= c && c < d)])
+ (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(0 <= c && c < d)])
++// (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
++(IsInBounds (Mod32u _ y) y) -> (ConstBool [1])
++(IsInBounds (Mod64u _ y) y) -> (ConstBool [1])
++
+ (IsSliceInBounds x x) -> (ConstBool [1])
+ (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c <= d -> (ConstBool [1])
+ (IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && 0 <= c && c <= d -> (ConstBool [1])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index e83e8e7a97..14b17698ff 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2815,6 +2815,38 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 		v.AuxInt = b2i(0 <= c && c < d)
+ 		return true
+ 	}
++	// match: (IsInBounds (Mod32u _ y) y)
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMod32u {
++			break
++		}
++		y := v_0.Args[1]
++		if y != v.Args[1] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (IsInBounds (Mod64u _ y) y)
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpMod64u {
++			break
++		}
++		y := v_0.Args[1]
++		if y != v.Args[1] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {

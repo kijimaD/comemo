@@ -23,10 +23,202 @@ Date:   Wed Jun 20 22:19:56 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/120255
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/map.go         | 15 ++++----
  src/runtime/map_fast32.go  |  5 ++-
  src/runtime/map_fast64.go  |  5 ++-
  src/runtime/map_faststr.go |  5 ++-
  src/runtime/map_test.go    | 96 +++++++++++++++++++++++++++++++++++++++++++---
  5 files changed, 107 insertions(+), 19 deletions(-)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index cc1358a977..0e00f12974 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -707,14 +707,13 @@ search:
+ 			} else if t.key.kind&kindNoPointers == 0 {
+ 				memclrHasPointers(k, t.key.size)
+ 			}
+-			// Only clear value if there are pointers in it.
+-			if t.indirectvalue || t.elem.kind&kindNoPointers == 0 {
+-				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
+-				if t.indirectvalue {
+-					*(*unsafe.Pointer)(v) = nil
+-				} else {
+-					memclrHasPointers(v, t.elem.size)
+-				}
++			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
++			if t.indirectvalue {
++				*(*unsafe.Pointer)(v) = nil
++			} else if t.elem.kind&kindNoPointers == 0 {
++				memclrHasPointers(v, t.elem.size)
++			} else {
++				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = empty
+ 			h.count--
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 296569772b..bf0b23604b 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -293,10 +293,11 @@ search:
+ 			if t.key.kind&kindNoPointers == 0 {
+ 				memclrHasPointers(k, t.key.size)
+ 			}
+-			// Only clear value if there are pointers in it.
++			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+ 			if t.elem.kind&kindNoPointers == 0 {
+-				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+ 				memclrHasPointers(v, t.elem.size)
++			} else {
++				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = empty
+ 			h.count--
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index aa3eff8ac8..4bde9e2be0 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -293,10 +293,11 @@ search:
+ 			if t.key.kind&kindNoPointers == 0 {
+ 				memclrHasPointers(k, t.key.size)
+ 			}
+-			// Only clear value if there are pointers in it.
++			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+ 			if t.elem.kind&kindNoPointers == 0 {
+-				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+ 				memclrHasPointers(v, t.elem.size)
++			} else {
++				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = empty
+ 			h.count--
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index fa21dcae7e..415bbff143 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -314,10 +314,11 @@ search:
+ 			}
+ 			// Clear key's pointer.
+ 			k.str = nil
+-			// Only clear value if there are pointers in it.
++			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+ 			if t.elem.kind&kindNoPointers == 0 {
+-				v := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+ 				memclrHasPointers(v, t.elem.size)
++			} else {
++				memclrNoHeapPointers(v, t.elem.size)
+ 			}
+ 			b.tophash[i] = empty
+ 			h.count--
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 0f20c84e77..4713ce25ec 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -435,11 +435,11 @@ func TestEmptyKeyAndValue(t *testing.T) {
+ // ("quick keys") as well as long keys.
+ func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
+ 	testMapLookups(t, map[string]string{
+-		"x":                      "x1val",
+-		"xx":                     "x2val",
+-		"foo":                    "fooval",
+-		"bar":                    "barval", // same key length as "foo"
+-		"xxxx":                   "x4val",
++		"x":    "x1val",
++		"xx":   "x2val",
++		"foo":  "fooval",
++		"bar":  "barval", // same key length as "foo"
++		"xxxx": "x4val",
+ 		strings.Repeat("x", 128): "longval1",
+ 		strings.Repeat("y", 128): "longval2",
+ 	})
+@@ -1045,3 +1045,89 @@ func TestDeferDeleteSlow(t *testing.T) {
+ 		t.Errorf("want 0 elements, got %d", len(m))
+ 	}
+ }
++
++// TestIncrementAfterDeleteValueInt and other test Issue 25936.
++// Value types int, int32, int64 are affected. Value type string
++// works as expected.
++func TestIncrementAfterDeleteValueInt(t *testing.T) {
++	const key1 = 12
++	const key2 = 13
++
++	m := make(map[int]int)
++	m[key1] = 99
++	delete(m, key1)
++	m[key2]++
++	if n2 := m[key2]; n2 != 1 {
++		t.Errorf("incremented 0 to %d", n2)
++	}
++}
++
++func TestIncrementAfterDeleteValueInt32(t *testing.T) {
++	const key1 = 12
++	const key2 = 13
++
++	m := make(map[int]int32)
++	m[key1] = 99
++	delete(m, key1)
++	m[key2]++
++	if n2 := m[key2]; n2 != 1 {
++		t.Errorf("incremented 0 to %d", n2)
++	}
++}
++
++func TestIncrementAfterDeleteValueInt64(t *testing.T) {
++	const key1 = 12
++	const key2 = 13
++
++	m := make(map[int]int64)
++	m[key1] = 99
++	delete(m, key1)
++	m[key2]++
++	if n2 := m[key2]; n2 != 1 {
++		t.Errorf("incremented 0 to %d", n2)
++	}
++}
++
++func TestIncrementAfterDeleteKeyStringValueInt(t *testing.T) {
++	const key1 = ""
++	const key2 = "x"
++
++	m := make(map[string]int)
++	m[key1] = 99
++	delete(m, key1)
++	m[key2] += 1
++	if n2 := m[key2]; n2 != 1 {
++		t.Errorf("incremented 0 to %d", n2)
++	}
++}
++
++func TestIncrementAfterDeleteKeyValueString(t *testing.T) {
++	const key1 = ""
++	const key2 = "x"
++
++	m := make(map[string]string)
++	m[key1] = "99"
++	delete(m, key1)
++	m[key2] += "1"
++	if n2 := m[key2]; n2 != "1" {
++		t.Errorf("appended '1' to empty (nil) string, got %s", n2)
++	}
++}
++
++// TestIncrementAfterBulkClearKeyStringValueInt tests that map bulk
++// deletion (mapclear) still works as expected. Note that it was not
++// affected by Issue 25936.
++func TestIncrementAfterBulkClearKeyStringValueInt(t *testing.T) {
++	const key1 = ""
++	const key2 = "x"
++
++	m := make(map[string]int)
++	m[key1] = 99
++	for k := range m {
++		delete(m, k)
++	}
++	m[key2]++
++	if n2 := m[key2]; n2 != 1 {
++		t.Errorf("incremented 0 to %d", n2)
++	}
++}

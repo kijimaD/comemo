@@ -11,10 +11,159 @@ Date:   Thu May 7 13:42:47 2009 -0700
     R=ken
     OCL=28420
     CL=28423
-
+---
  src/cmd/gc/dcl.c  | 29 +++++++++++++++++++++++++----
  src/cmd/gc/go.h   |  1 +
  src/cmd/gc/obj.c  |  4 ++--
  src/cmd/gc/subr.c | 18 +++++++++++++++++-
  src/cmd/gc/walk.c |  7 +++++--
  5 files changed, 50 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 202f48f858..14617fb604 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1075,15 +1075,36 @@ Node*
+ fakethis(void)
+ {
+ 	Node *n;
+-	Type *t;
+ 
+ 	n = nod(ODCLFIELD, N, N);
+-	t = dostruct(N, TSTRUCT);
+-	t = ptrto(t);
+-	n->type = t;
++	n->type = ptrto(typ(TSTRUCT));
+ 	return n;
+ }
+ 
++/*
++ * Is this field a method on an interface?
++ * Those methods have an anonymous
++ * *struct{} as the receiver.
++ * (See fakethis above.)
++ */
++int
++isifacemethod(Type *f)
++{
++	Type *rcvr;
++	Type *t;
++
++	rcvr = getthisx(f->type)->type;
++	if(rcvr->sym != S)
++		return 0;
++	t = rcvr->type;
++	if(!isptr[t->etype])
++		return 0;
++	t = t->type;
++	if(t->sym != S || t->etype != TSTRUCT || t->type != T)
++		return 0;
++	return 1;
++}
++
+ /*
+  * this generates a new name that is
+  * pushed down on the declaration list.
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c8f3cbf3fe..a7f10ced29 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -822,6 +822,7 @@ void	addvar(Node*, Type*, int);
+ void	addtyp(Type*, int);
+ void	addconst(Node*, Node*, int);
+ Node*	fakethis(void);
++int	isifacemethod(Type*);
+ Node*	newname(Sym*);
+ Node*	oldname(Sym*);
+ Type*	newtype(Sym*);
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index e55e5def8c..ee0fd53dcd 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -206,7 +206,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
+ 
+ 		// get receiver type for this particular method.
+ 		this = getthisx(f->type)->type->type;
+-		if(f->embedded != 2 && isptr[this->etype] && !isptr[progt->etype]) {
++		if(f->embedded != 2 && isptr[this->etype] && !isptr[progt->etype] && !isifacemethod(f)) {
+ 			// pointer receiver method but value method set.
+ 			// ignore.
+ 			if(debug['r'])
+@@ -238,7 +238,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
+ 				// but we can generate more efficient code
+ 				// using genembedtramp if all that is necessary
+ 				// is a pointer adjustment and a JMP.
+-				if(f->embedded && isptr[ifacet->etype])
++				if(f->embedded && isptr[ifacet->etype] && !isifacemethod(f))
+ 					genembedtramp(ifacet, a);
+ 				else
+ 					genwrapper(ifacet, f, a->sym);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 65bf8543f2..7972c41d8c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2568,6 +2568,22 @@ expand0(Type *t, int followptr)
+ 		u = u->type;
+ 	}
+ 
++	if(u->etype == TINTER) {
++		for(f=u->type; f!=T; f=f->down) {
++			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
++				continue;
++			if(f->sym->uniq)
++				continue;
++			f->sym->uniq = 1;
++			sl = mal(sizeof(*sl));
++			sl->field = f;
++			sl->link = slist;
++			sl->followptr = followptr;
++			slist = sl;
++		}
++		return;
++	}
++
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
+@@ -2858,7 +2874,7 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
+ 		// if pointer receiver in method,
+ 		// the method does not exist for value types.
+ 		rcvr = getthisx(tm->type)->type->type;
+-		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr) {
++		if(isptr[rcvr->etype] && !isptr[t0->etype] && !followptr && !isifacemethod(tm)) {
+ 			if(debug['r'])
+ 				yyerror("interface pointer mismatch");
+ 			*m = im;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 64d2ae65d0..efb092ab81 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -192,6 +192,7 @@ implicitstar(Node **nn)
+ 	case TMAP:
+ 	case TSTRING:
+ 	case TARRAY:
++	case TINTER:
+ 		break;
+ 	default:
+ 		return;
+@@ -1611,8 +1612,10 @@ lookdot(Node *n, Type *t)
+ 		n->right = f1->nname;		// substitute real name
+ 		n->xoffset = f1->width;
+ 		n->type = f1->type;
+-		if(t->etype == TINTER)
++		if(t->etype == TINTER) {
++			implicitstar(&n->left);
+ 			n->op = ODOTINTER;
++		}
+ 		return 1;
+ 	}
+ 
+@@ -1742,7 +1745,7 @@ loop:
+ 		if(l != N || r != T)
+ 			yyerror("assignment count mismatch: %d = %d",
+ 				listcount(*nl), structcount(*nr));
+-			
++
+ 		return rev(nn);
+ 	}
+ 

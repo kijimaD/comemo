@@ -39,7 +39,45 @@ Date:   Sun Oct 7 14:11:59 2012 +0800
     R=rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/6542060
-
+---
  src/cmd/gc/align.c |  2 ++
  test/typecheck.go  | 18 ++++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 2440a4b3e2..d9d4df316f 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -54,6 +54,8 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
+ 	for(f=t->type; f!=T; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
++		if(f->type == T)
++			break;
+ 		dowidth(f->type);
+ 		if(f->type->align > maxalign)
+ 			maxalign = f->type->align;
+diff --git a/test/typecheck.go b/test/typecheck.go
+new file mode 100644
+index 0000000000..239ceacc69
+--- /dev/null
++++ b/test/typecheck.go
+@@ -0,0 +1,18 @@
++// errorcheck
++
++// Verify that the Go compiler will not
++// die after running into an undefined
++// type in the argument list for a
++// function.
++// Does not compile.
++
++package main
++
++func mine(int b) int {	// ERROR "undefined.*b"
++	return b + 2	// ERROR "undefined.*b"
++}
++
++func main() {
++	mine()
++	c = mine()	// ERROR "undefined.*c" "cannot assign to c"
++}

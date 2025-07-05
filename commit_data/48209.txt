@@ -15,6 +15,21 @@ Date:   Fri Apr 30 01:34:44 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/314969
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bufio/scan.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index af46a14fbb..4846d4f733 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -48,7 +48,8 @@ type Scanner struct {
+ // and the next token to return to the user, if any, plus an error, if any.
+ //
+ // Scanning stops if the function returns an error, in which case some of
+-// the input may be discarded.
++// the input may be discarded. If that error is ErrFinalToken, scanning
++// stops with no error.
+ //
+ // Otherwise, the Scanner advances the input. If the token is not nil,
+ // the Scanner returns it to the user. If the token is nil, the

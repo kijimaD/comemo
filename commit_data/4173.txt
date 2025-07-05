@@ -11,8 +11,145 @@ Date:   Fri Nov 20 08:59:11 2009 -0800
     
     R=r
     https://golang.org/cl/156110
-
+---
  test/bench/fasta.c               | 10 ++++----
  test/bench/reverse-complement.go | 54 ++++++++++++++++++++++++----------------
  test/bench/timing.sh             | 10 ++++++--
  3 files changed, 46 insertions(+), 28 deletions(-)
+
+diff --git a/test/bench/fasta.c b/test/bench/fasta.c
+index 9cd7f25c2f..65f4d3d35d 100644
+--- a/test/bench/fasta.c
++++ b/test/bench/fasta.c
+@@ -82,7 +82,7 @@ static void repeat_fasta (char const *s, size_t count) {
+     memcpy (s2 + len, s, WIDTH);
+     do {
+      	size_t line = MIN(WIDTH, count);
+-     	fwrite_unlocked (s2 + pos,1,line,stdout);
++     	fwrite (s2 + pos,1,line,stdout);
+      	putchar_unlocked ('\n');
+      	pos += line;
+      	if (pos >= len) pos -= len;
+@@ -113,7 +113,7 @@ static void random_fasta (aminoacid_t const *genelist, size_t count) {
+ 	    buf[pos++] = genelist[i].c;
+ 	} while (pos < line);
+ 	buf[line] = '\n';
+-	fwrite_unlocked (buf, 1, line + 1, stdout);
++	fwrite (buf, 1, line + 1, stdout);
+ 	count -= line;
+     } while (count);
+ }
+@@ -163,11 +163,11 @@ GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG\
+ AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC\
+ AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
+ 
+-    fputs_unlocked (">ONE Homo sapiens alu\n", stdout);
++    fputs (">ONE Homo sapiens alu\n", stdout);
+     repeat_fasta (alu, 2 * n);
+-    fputs_unlocked (">TWO IUB ambiguity codes\n", stdout);
++    fputs (">TWO IUB ambiguity codes\n", stdout);
+     random_fasta (iub, 3 * n);
+-    fputs_unlocked (">THREE Homo sapiens frequency\n", stdout);
++    fputs (">THREE Homo sapiens frequency\n", stdout);
+     random_fasta (homosapiens, 5 * n);
+     return 0;
+ }
+diff --git a/test/bench/reverse-complement.go b/test/bench/reverse-complement.go
+index a7ea8afbd6..a7c7d71394 100644
+--- a/test/bench/reverse-complement.go
++++ b/test/bench/reverse-complement.go
+@@ -92,29 +92,41 @@ func output(buf []byte) {
+ 
+ func main() {
+ 	in = bufio.NewReader(os.Stdin);
+-	buf := make([]byte, 100*1024);
+-	top := 0;
+-	for {
+-		line, err := in.ReadSlice('\n');
+-		if err != nil {
+-			break
+-		}
+-		if line[0] == '>' {
+-			if top > 0 {
+-				output(buf[0:top]);
+-				top = 0;
++	buf := make([]byte, 1024*1024);
++	line, err := in.ReadSlice('\n');
++	for err == nil {
++		os.Stdout.Write(line);
++		
++		// Accumulate reversed complement in buf[w:]
++		nchar := 0;
++		w := len(buf);
++		for {
++			line, err = in.ReadSlice('\n');
++			if err != nil || line[0] == '>' {
++				break;
++			}
++			line = line[0:len(line)-1];
++			nchar += len(line);
++			if len(line)+nchar/60+128 >= w {
++				nbuf := make([]byte, len(buf)*5);
++				copy(nbuf[len(nbuf)-len(buf):len(nbuf)], buf);
++				w += len(nbuf) - len(buf);
++				buf = nbuf;
++			}
++			for r := 0; r < len(line); r++ {
++				w--;
++				buf[w] = complement[line[r]];
+ 			}
+-			os.Stdout.Write(line);
+-			continue;
+ 		}
+-		line = line[0 : len(line)-1];	// drop newline
+-		if top+len(line) > len(buf) {
+-			nbuf := make([]byte, 2*len(buf)+1024*(100+len(line)));
+-			copy(nbuf, buf[0:top]);
+-			buf = nbuf;
++		
++		// Copy down to beginning of buffer, inserting newlines.
++		// The loop left room for the newlines and 128 bytes of padding.
++		i := 0;
++		for j := w; j < len(buf); j += 60 {
++			n := copy(buf[i:i+60], buf[j:len(buf)]);
++			buf[i+n] = '\n';
++			i += n+1;
+ 		}
+-		copy(buf[top:len(buf)], line);
+-		top += len(line);
++		os.Stdout.Write(buf[0:i]);
+ 	}
+-	output(buf[0:top]);
+ }
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 0c3e49bf38..7c3eeab8e1 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/usr/bin/env bash
+ # Copyright 2009 The Go Authors.  All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+@@ -59,7 +59,8 @@ run() {
+ 	echo -n '	'$1'	'
+ 	$1
+ 	shift
+-	(/home/r/plan9/bin/time $* 2>&1 >/dev/null) |  sed 's/r.*/r/'
++	
++	echo $((time -p $* >/dev/null) 2>&1) | awk '{print $4 "u " $6 "s " $2 "r"}'
+ }
+ 
+ fasta() {
+@@ -78,6 +79,11 @@ revcomp() {
+ 	run 'gccgo -O2 reverse-complement.go' a.out < x
+ 	run 'gc reverse-complement' $O.out < x
+ 	run 'gc_B reverse-complement' $O.out < x
++	export GOGC=off
++	runonly echo 'GOGC=off'
++	run 'gc reverse-complement' $O.out < x
++	run 'gc_B reverse-complement' $O.out < x
++	unset GOGC
+ 	rm x
+ }
+ 

@@ -45,6 +45,20 @@ Date:   Thu May 21 09:09:35 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10294
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcwork.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 930c644c0a..b7feb847b4 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -7,7 +7,7 @@ package runtime
+ import "unsafe"
+ 
+ const (
+-	_Debugwbufs  = true    // if true check wbufs consistency
++	_Debugwbufs  = false   // if true check wbufs consistency
+ 	_WorkbufSize = 1 * 256 // in bytes - if small wbufs are passed to GC in a timely fashion.
+ )
+ 

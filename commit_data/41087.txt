@@ -9,6 +9,25 @@ Date:   Mon Sep 2 16:33:07 2019 -0400
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 437e3c60a4..019c4e16af 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -23,6 +23,13 @@ in supported releases as needed by issuing minor revisions
+ (for example, Go 1.6.1, Go 1.6.2, and so on).
+ </p>
+ 
++<h2 id="go1.13">go1.13 (released 2019/09/03)</h2>
++
++<p>
++Go 1.13 is a major release of Go.
++Read the <a href="/doc/go1.13">Go 1.13 Release Notes</a> for more information.
++</p>
++
+ <h2 id="go1.12">go1.12 (released 2019/02/25)</h2>
+ 
+ <p>

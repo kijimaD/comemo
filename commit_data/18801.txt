@@ -15,6 +15,25 @@ Date:   Fri Mar 7 14:22:17 2014 -0500
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/72590044
-
+---
  src/pkg/runtime/os_windows_386.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index 5048f51d61..f6b5431694 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -30,11 +30,13 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 	bool crash;
+ 	uintptr *sp;
+ 
++	/*
+ 	switch(info->ExceptionCode) {
+ 	case EXCEPTION_BREAKPOINT:
+ 		r->Eip--;	// because 8l generates 2 bytes for INT3
+ 		return 1;
+ 	}
++	*/
+ 
+ 	if(gp != nil && runtime·issigpanic(info->ExceptionCode)) {
+ 		// Make it look like a call to the signal func.

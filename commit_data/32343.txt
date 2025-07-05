@@ -15,6 +15,22 @@ Date:   Wed Apr 19 12:04:18 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/40997
     Run-TryBot: David Lazar <lazard@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 3f84935f4e..f6a0cd6cbb 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -308,7 +308,9 @@ func TestNoHelperGoroutines(t *testing.T) {
+ 
+ func TestBreakpoint(t *testing.T) {
+ 	output := runTestProg(t, "testprog", "Breakpoint")
+-	want := "runtime.Breakpoint()"
++	// If runtime.Breakpoint() is inlined, then the stack trace prints
++	// "runtime.Breakpoint(...)" instead of "runtime.Breakpoint()".
++	want := "runtime.Breakpoint("
+ 	if !strings.Contains(output, want) {
+ 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+ 	}

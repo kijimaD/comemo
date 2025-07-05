@@ -13,10 +13,80 @@ Date:   Tue Oct 14 23:25:12 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/153610043
-
+---
  include/link.h     | 2 ++
  src/cmd/5a/lex.c   | 1 +
  src/cmd/6a/lex.c   | 1 +
  src/cmd/8a/lex.c   | 1 +
  src/liblink/data.c | 2 ++
  5 files changed, 7 insertions(+)
+
+diff --git a/include/link.h b/include/link.h
+index 845f9338d9..05e117c87e 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -373,6 +373,7 @@ struct	Link
+ 	char*	trimpath;
+ 	char*	goroot;
+ 	char*	goroot_final;
++	int32	enforce_data_order;	// for use by assembler
+ 
+ 	// hash table of all symbols
+ 	LSym*	hash[LINKHASH];
+@@ -542,6 +543,7 @@ vlong	adduint8(Link *ctxt, LSym *s, uint8 v);
+ vlong	adduintxx(Link *ctxt, LSym *s, uint64 v, int wid);
+ void	mangle(char *file);
+ void	savedata(Link *ctxt, LSym *s, Prog *p, char *pn);
++void	savedata1(Link *ctxt, LSym *s, Prog *p, char *pn, int enforce_order);
+ vlong	setaddr(Link *ctxt, LSym *s, vlong off, LSym *t);
+ vlong	setaddrplus(Link *ctxt, LSym *s, vlong off, LSym *t, vlong add);
+ vlong	setuint16(Link *ctxt, LSym *s, vlong r, uint16 v);
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 84a17d1557..9c69709479 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -85,6 +85,7 @@ main(int argc, char *argv[])
+ 	ctxt = linknew(&linkarm);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;
++	ctxt->enforce_data_order = 1;
+ 	Binit(&bstdout, 1, OWRITE);
+ 	listinit5();
+ 	fmtinstall('L', Lconv);
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index b50e1622e2..8973d69743 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -101,6 +101,7 @@ main(int argc, char *argv[])
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;
++	ctxt->enforce_data_order = 1;
+ 	Binit(&bstdout, 1, OWRITE);
+ 	listinit6();
+ 	fmtinstall('L', Lconv);
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 807e48cb50..6ce6a18abe 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -90,6 +90,7 @@ main(int argc, char *argv[])
+ 	ctxt = linknew(&link386);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;
++	ctxt->enforce_data_order = 1;
+ 	Binit(&bstdout, 1, OWRITE);
+ 	listinit8();
+ 	fmtinstall('L', Lconv);
+diff --git a/src/liblink/data.c b/src/liblink/data.c
+index 4504f4171e..e5efa2eb2d 100644
+--- a/src/liblink/data.c
++++ b/src/liblink/data.c
+@@ -83,6 +83,8 @@ savedata(Link *ctxt, LSym *s, Prog *p, char *pn)
+ 	siz = ctxt->arch->datasize(p);
+ 	if(off < 0 || siz < 0 || off >= 1<<30 || siz >= 100)
+ 		mangle(pn);
++	if(ctxt->enforce_data_order && off < s->np)
++		ctxt->diag("data out of order (already have %d)\n%P", p);
+ 	symgrow(ctxt, s, off+siz);
+ 
+ 	if(p->to.type == ctxt->arch->D_FCONST) {

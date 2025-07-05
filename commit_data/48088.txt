@@ -13,6 +13,23 @@ Date:   Mon Apr 26 22:08:06 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 5955b3d358..ad9eaab07a 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -603,9 +603,9 @@ func (w *exportWriter) pkg(pkg *types.Pkg) {
+ 	w.string(pkg.Path)
+ }
+ 
+-func (w *exportWriter) qualifiedIdent(n ir.Node) {
++func (w *exportWriter) qualifiedIdent(n *ir.Name) {
+ 	// Ensure any referenced declarations are written out too.
+-	w.p.pushDecl(n.Name())
++	w.p.pushDecl(n)
+ 
+ 	s := n.Sym()
+ 	w.string(s.Name)

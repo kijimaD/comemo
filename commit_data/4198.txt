@@ -6,7 +6,32 @@ Date:   Mon Nov 23 17:44:38 2009 -0800
     
     R=rsc
     https://golang.org/cl/160047
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b99416a927..bada5e7174 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -10,6 +10,7 @@
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
++Chris Lennert <calennert@gmail.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Titarenco <david.titarenco@gmail.com>
+ Devon H. O'Dell <devon.odell@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 89cfe624d6..39b41bdb9d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -34,6 +34,7 @@ Ben Eitzen <eitzenb@golang.org>
+ Bill Neubauer <wcn@golang.org>
+ Brendan O'Dea <bod@golang.org>
+ Cary Hull <chull@google.com>
++Chris Lennert <calennert@gmail.com>
+ Daniel Nadasi <dnadasi@google.com>
+ David G. Andersen <dave.andersen@gmail.com>
+ David Symonds <dsymonds@golang.org>

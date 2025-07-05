@@ -10,10 +10,135 @@ Date:   Thu Dec 1 12:38:00 2011 -0500
     R=hectorchu, agl, rsc
     CC=golang-dev, krautz
     https://golang.org/cl/5441052
-
+---
  src/pkg/crypto/tls/root_windows.go        | 27 ++++++++++-----------------
  src/pkg/syscall/syscall_windows.go        |  2 +-
  src/pkg/syscall/zsyscall_windows_386.go   | 11 +++++++++--
  src/pkg/syscall/zsyscall_windows_amd64.go | 11 +++++++++--
  src/pkg/syscall/ztypes_windows.go         |  2 +-
  5 files changed, 30 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/root_windows.go b/src/pkg/crypto/tls/root_windows.go
+index 13073dcee7..319309ae6e 100644
+--- a/src/pkg/crypto/tls/root_windows.go
++++ b/src/pkg/crypto/tls/root_windows.go
+@@ -6,7 +6,6 @@ package tls
+ 
+ import (
+ 	"crypto/x509"
+-	"reflect"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -16,29 +15,23 @@ func loadStore(roots *x509.CertPool, name string) {
+ 	if err != nil {
+ 		return
+ 	}
++	defer syscall.CertCloseStore(store, 0)
+ 
+ 	var cert *syscall.CertContext
+ 	for {
+-		cert = syscall.CertEnumCertificatesInStore(store, cert)
+-		if cert == nil {
+-			break
++		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
++		if err != nil {
++			return
+ 		}
+ 
+-		var asn1Slice []byte
+-		hdrp := (*reflect.SliceHeader)(unsafe.Pointer(&asn1Slice))
+-		hdrp.Data = cert.EncodedCert
+-		hdrp.Len = int(cert.Length)
+-		hdrp.Cap = int(cert.Length)
+-
+-		buf := make([]byte, len(asn1Slice))
+-		copy(buf, asn1Slice)
+-
+-		if cert, err := x509.ParseCertificate(buf); err == nil {
+-			roots.AddCert(cert)
++		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
++		// ParseCertificate requires its own copy of certificate data to keep.
++		buf2 := make([]byte, cert.Length)
++		copy(buf2, buf)
++		if c, err := x509.ParseCertificate(buf2); err == nil {
++			roots.AddCert(c)
+ 		}
+ 	}
+-
+-	syscall.CertCloseStore(store, 0)
+ }
+ 
+ func initDefaultRoots() {
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 5c43f0757b..305e7a4b4a 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -152,7 +152,7 @@ func NewCallback(fn interface{}) uintptr
+ //sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (err error) = mswsock.TransmitFile
+ //sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) = kernel32.ReadDirectoryChangesW
+ //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
+-//sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) = crypt32.CertEnumCertificatesInStore
++//sys	CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) [failretval==nil] = crypt32.CertEnumCertificatesInStore
+ //sys	CertCloseStore(store Handle, flags uint32) (err error) = crypt32.CertCloseStore
+ //sys	RegOpenKeyEx(key Handle, subkey *uint16, options uint32, desiredAccess uint32, result *Handle) (regerrno uintptr) = advapi32.RegOpenKeyExW
+ //sys	RegCloseKey(key Handle) (regerrno uintptr) = advapi32.RegCloseKey
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 0e202db69c..25fa9c48b5 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -969,9 +969,16 @@ func CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) {
+ 	return
+ }
+ 
+-func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) {
+-	r0, _, _ := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
++func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) {
++	r0, _, e1 := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
+ 	context = (*CertContext)(unsafe.Pointer(r0))
++	if context == nil {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index afe8ba41b2..bba74623bd 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -969,9 +969,16 @@ func CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) {
+ 	return
+ }
+ 
+-func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext) {
+-	r0, _, _ := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
++func CertEnumCertificatesInStore(store Handle, prevContext *CertContext) (context *CertContext, err error) {
++	r0, _, e1 := Syscall(procCertEnumCertificatesInStore.Addr(), 2, uintptr(store), uintptr(unsafe.Pointer(prevContext)), 0)
+ 	context = (*CertContext)(unsafe.Pointer(r0))
++	if context == nil {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 5731a0a831..cfc180f701 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -659,7 +659,7 @@ type MibIfRow struct {
+ 
+ type CertContext struct {
+ 	EncodingType uint32
+-	EncodedCert  uintptr
++	EncodedCert  *byte
+ 	Length       uint32
+ 	CertInfo     uintptr
+ 	Store        Handle

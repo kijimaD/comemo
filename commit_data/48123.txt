@@ -23,7 +23,7 @@ Date:   Tue Apr 27 17:19:42 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARMOps.go     | 11 ++++++-----
  src/cmd/compile/internal/ssa/opGen.go          |  8 ++++----
  src/cmd/compile/internal/ssa/rewrite386.go     |  6 ++----
@@ -35,3 +35,240 @@ Date:   Tue Apr 27 17:19:42 2021 -0400
  src/cmd/compile/internal/ssa/rewriteWasm.go    |  8 +++-----
  src/cmd/compile/internal/ssa/rewritegeneric.go |  6 ++----
  10 files changed, 31 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 253ff573ec..d1f86039a3 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+@@ -156,7 +157,7 @@ func init() {
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
+ 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
+-				clobbers: buildReg("R2 R3 R14"),
++				clobbers: buildReg("R2 R3 R12 R14"), // R14 is LR, R12 is linker trampoline scratch register
+ 			},
+ 			clobberFlags: true,
+ 			typ:          "(UInt32,UInt32)",
+@@ -459,7 +460,7 @@ func init() {
+ 			argLength: 3,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
+-				clobbers: buildReg("R1 R14"),
++				clobbers: buildReg("R1 R12 R14"), // R14 is LR, R12 is linker trampoline scratch register
+ 			},
+ 			faultOnNilArg0: true,
+ 		},
+@@ -476,7 +477,7 @@ func init() {
+ 			argLength: 3,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("R2"), buildReg("R1")},
+-				clobbers: buildReg("R0 R1 R2 R14"),
++				clobbers: buildReg("R0 R1 R2 R12 R14"), // R14 is LR, R12 is linker trampoline scratch register
+ 			},
+ 			faultOnNilArg0: true,
+ 			faultOnNilArg1: true,
+@@ -564,8 +565,8 @@ func init() {
+ 
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary,
+-		// but clobbers R14 (LR) because it's a call.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		// but clobbers R14 (LR) because it's a call, and R12 which is linker trampoline scratch register.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R12 R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2f56625397..51cb0881b8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -13879,7 +13879,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 2}, // R1
+ 				{1, 1}, // R0
+ 			},
+-			clobbers: 16396, // R2 R3 R14
++			clobbers: 20492, // R2 R3 R12 R14
+ 			outputs: []outputInfo{
+ 				{0, 1}, // R0
+ 				{1, 2}, // R1
+@@ -17228,7 +17228,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 2}, // R1
+ 				{1, 1}, // R0
+ 			},
+-			clobbers: 16386, // R1 R14
++			clobbers: 20482, // R1 R12 R14
+ 		},
+ 	},
+ 	{
+@@ -17242,7 +17242,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4}, // R2
+ 				{1, 2}, // R1
+ 			},
+-			clobbers: 16391, // R0 R1 R2 R14
++			clobbers: 20487, // R0 R1 R2 R12 R14
+ 		},
+ 	},
+ 	{
+@@ -17403,7 +17403,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 4}, // R2
+ 				{1, 8}, // R3
+ 			},
+-			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
++			clobbers: 4294922240, // R12 R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 		},
+ 	},
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 93b258afac..1ec2d26f75 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -3,10 +3,8 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"math"
+-)
++import "math"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValue386(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index dd92b41c20..0b98b9ddf6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -3,12 +3,10 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"cmd/internal/obj"
+-	"internal/buildcfg"
+-	"math"
+-)
++import "internal/buildcfg"
++import "math"
++import "cmd/internal/obj"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValueAMD64(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 25db5b9fba..febb5566e3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -3,10 +3,8 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"internal/buildcfg"
+-)
++import "internal/buildcfg"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValueARM(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index fe7620c218..96dee0bd21 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -3,11 +3,9 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"internal/buildcfg"
+-	"math"
+-)
++import "internal/buildcfg"
++import "math"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValuePPC64(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index bc4b18e0cd..431fb1aaf6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -3,10 +3,8 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"math"
+-)
++import "math"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValueRISCV64(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 49c5898704..8b41d62c31 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -3,11 +3,9 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"cmd/internal/obj/s390x"
+-	"math"
+-)
++import "math"
++import "cmd/compile/internal/types"
++import "cmd/internal/obj/s390x"
+ 
+ func rewriteValueS390X(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewriteWasm.go b/src/cmd/compile/internal/ssa/rewriteWasm.go
+index ed23ae032a..5dab09f85b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteWasm.go
++++ b/src/cmd/compile/internal/ssa/rewriteWasm.go
+@@ -3,11 +3,9 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"internal/buildcfg"
+-	"math"
+-)
++import "internal/buildcfg"
++import "math"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValueWasm(v *Value) bool {
+ 	switch v.Op {
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0e5f49491e..52258201ca 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3,10 +3,8 @@
+ 
+ package ssa
+ 
+-import (
+-	"cmd/compile/internal/types"
+-	"math"
+-)
++import "math"
++import "cmd/compile/internal/types"
+ 
+ func rewriteValuegeneric(v *Value) bool {
+ 	switch v.Op {

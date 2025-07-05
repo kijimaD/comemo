@@ -7,7 +7,7 @@ Date:   Mon Feb 1 23:05:15 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/198057
-
+---
  src/cmd/gc/align.c                 |  5 +++++
  src/cmd/gc/const.c                 | 11 ++++++++++-
  src/cmd/gc/go.h                    |  1 +
@@ -15,3 +15,145 @@ Date:   Mon Feb 1 23:05:15 2010 -0800
  test/{bugs => fixedbugs}/bug246.go | 12 ++++++++----
  test/golden.out                    |  5 -----
  6 files changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 7a27a040c9..dfb9f9e892 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -410,6 +410,7 @@ typeinit(void)
+ 			okforarith[i] = 1;
+ 			okforadd[i] = 1;
+ 			okforand[i] = 1;
++			okforconst[i] = 1;
+ 			issimple[i] = 1;
+ 			minintval[i] = mal(sizeof(*minintval[i]));
+ 			maxintval[i] = mal(sizeof(*maxintval[i]));
+@@ -419,6 +420,7 @@ typeinit(void)
+ 			okforcmp[i] = 1;
+ 			okforadd[i] = 1;
+ 			okforarith[i] = 1;
++			okforconst[i] = 1;
+ 			issimple[i] = 1;
+ 			minfltval[i] = mal(sizeof(*minfltval[i]));
+ 			maxfltval[i] = mal(sizeof(*maxfltval[i]));
+@@ -434,6 +436,9 @@ typeinit(void)
+ 	okforcap[TARRAY] = 1;
+ 	okforcap[TCHAN] = 1;
+ 
++	okforconst[TBOOL] = 1;
++	okforconst[TSTRING] = 1;
++
+ 	okforlen[TARRAY] = 1;
+ 	okforlen[TCHAN] = 1;
+ 	okforlen[TMAP] = 1;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d7d6e35037..a78c122fec 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -93,6 +93,9 @@ convlit1(Node **np, Type *t, int explicit)
+ 		}
+ 		return;
+ 	case OLITERAL:
++		// target is invalid type for a constant?  leave alone.
++		if(!okforconst[t->etype] && n->type->etype != TNIL)
++			return;
+ 		break;
+ 	case OLSH:
+ 	case ORSH:
+@@ -105,6 +108,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 		n->type = t;
+ 		return;
+ 	}
++
+ 	// avoided repeated calculations, errors
+ 	if(cvttype(n->type, t) == 1) {
+ 		n->type = t;
+@@ -345,7 +349,6 @@ evconst(Node *n)
+ 	case OANDNOT:
+ 	case OARRAYBYTESTR:
+ 	case OCOM:
+-	case OCONV:
+ 	case ODIV:
+ 	case OEQ:
+ 	case OGE:
+@@ -365,6 +368,12 @@ evconst(Node *n)
+ 	case OSUB:
+ 	case OXOR:
+ 		break;
++	case OCONV:
++		if(n->type == T)
++			return;
++		if(!okforconst[n->type->etype] && n->type->etype != TNIL)
++			return;
++		break;
+ 	}
+ 
+ 	nl = n->left;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 16cf87f0c2..98a1597011 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -680,6 +680,7 @@ EXTERN	uchar	okforbool[NTYPE];
+ EXTERN	uchar	okforcap[NTYPE];
+ EXTERN	uchar	okforlen[NTYPE];
+ EXTERN	uchar	okforarith[NTYPE];
++EXTERN	uchar	okforconst[NTYPE];
+ EXTERN	uchar*	okfor[OEND];
+ EXTERN	uchar	iscmp[OEND];
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index f560d5be27..ffdd17a95d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -182,7 +182,7 @@ walkdef(Node *n)
+ 		t = n->type;
+ 		if(t != T) {
+ 			convlit(&e, t);
+-			if(!isint[t->etype] && !isfloat[t->etype] && t->etype != TSTRING && t->etype != TBOOL)
++			if(!okforconst[t->etype])
+ 				yyerror("invalid constant type %T", t);
+ 		}
+ 		n->val = e->val;
+diff --git a/test/bugs/bug246.go b/test/fixedbugs/bug246.go
+similarity index 51%
+rename from test/bugs/bug246.go
+rename to test/fixedbugs/bug246.go
+index e46cdfd048..1c4dc0d537 100644
+--- a/test/bugs/bug246.go
++++ b/test/fixedbugs/bug246.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go || echo BUG: bug246
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug246
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -10,9 +10,13 @@ import "unsafe"
+ 
+ func main() {
+ 	// works
+-	addr := uintptr(0)
+-	_ = (*int)(unsafe.Pointer(addr))
++	addr := uintptr(0x234)
++	x1 := (*int)(unsafe.Pointer(addr))
+ 
+ 	// fails
+-	_ = (*int)(unsafe.Pointer(uintptr(0)))
++	x2 := (*int)(unsafe.Pointer(uintptr(0x234)))
++	
++	if x1 != x2 {
++		panicln("mismatch", x1, x2)
++	}
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 63d179cba5..cf2297e1a7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -150,8 +150,3 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
+-
+-=========== bugs/bug246.go
+-bugs/bug246.go:17: cannot convert 0 to type unsafe.Pointer
+-bugs/bug246.go:17: cannot convert 0 (type uintptr) to type *int in conversion
+-BUG: bug246

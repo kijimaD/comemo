@@ -13,7 +13,71 @@ Date:   Wed Feb 21 19:58:33 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go      | 10 +++++-----
  src/net/http/request_test.go | 10 ++++++++++
  2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 4d01ed04b6..1eb6d39067 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -411,7 +411,7 @@ var multipartByReader = &multipart.Form{
+ }
+ 
+ // MultipartReader returns a MIME multipart reader if this is a
+-// multipart/form-data POST request, else returns nil and an error.
++// multipart/form-data or a multipart/mixed POST request, else returns nil and an error.
+ // Use this function instead of ParseMultipartForm to
+ // process the request body as a stream.
+ func (r *Request) MultipartReader() (*multipart.Reader, error) {
+@@ -422,16 +422,16 @@ func (r *Request) MultipartReader() (*multipart.Reader, error) {
+ 		return nil, errors.New("http: multipart handled by ParseMultipartForm")
+ 	}
+ 	r.MultipartForm = multipartByReader
+-	return r.multipartReader()
++	return r.multipartReader(true)
+ }
+ 
+-func (r *Request) multipartReader() (*multipart.Reader, error) {
++func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
+ 	v := r.Header.Get("Content-Type")
+ 	if v == "" {
+ 		return nil, ErrNotMultipart
+ 	}
+ 	d, params, err := mime.ParseMediaType(v)
+-	if err != nil || d != "multipart/form-data" {
++	if err != nil || !(d == "multipart/form-data" || allowMixed && d == "multipart/mixed") {
+ 		return nil, ErrNotMultipart
+ 	}
+ 	boundary, ok := params["boundary"]
+@@ -1207,7 +1207,7 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
+ 		return nil
+ 	}
+ 
+-	mr, err := r.multipartReader()
++	mr, err := r.multipartReader(false)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index fa716ee59d..aaf9d5cb9b 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -143,6 +143,16 @@ func TestMultipartReader(t *testing.T) {
+ 		t.Errorf("expected multipart; error: %v", err)
+ 	}
+ 
++	req = &Request{
++		Method: "POST",
++		Header: Header{"Content-Type": {`multipart/mixed; boundary="foo123"`}},
++		Body:   ioutil.NopCloser(new(bytes.Buffer)),
++	}
++	multipart, err = req.MultipartReader()
++	if multipart == nil {
++		t.Errorf("expected multipart; error: %v", err)
++	}
++
+ 	req.Header = Header{"Content-Type": {"text/plain"}}
+ 	multipart, err = req.MultipartReader()
+ 	if multipart != nil {

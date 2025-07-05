@@ -15,6 +15,29 @@ Date:   Tue Mar 26 06:44:26 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/encoding/asn1/marshal.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index d8c8fe17b3..69ab4f6f9e 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -355,12 +355,11 @@ func appendTwoDigits(dst []byte, v int) []byte {
+ }
+ 
+ func appendFourDigits(dst []byte, v int) []byte {
+-	var bytes [4]byte
+-	for i := range bytes {
+-		bytes[3-i] = '0' + byte(v%10)
+-		v /= 10
+-	}
+-	return append(dst, bytes[:]...)
++	return append(dst,
++		byte('0'+(v/1000)%10),
++		byte('0'+(v/100)%10),
++		byte('0'+(v/10)%10),
++		byte('0'+v%10))
+ }
+ 
+ func outsideUTCRange(t time.Time) bool {

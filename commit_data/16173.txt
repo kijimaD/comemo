@@ -7,6 +7,26 @@ Date:   Fri Apr 12 16:08:56 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/8650044
-
+---
  src/pkg/testing/iotest/reader.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/testing/iotest/reader.go b/src/pkg/testing/iotest/reader.go
+index 441b9102d9..a5bccca906 100644
+--- a/src/pkg/testing/iotest/reader.go
++++ b/src/pkg/testing/iotest/reader.go
+@@ -37,9 +37,11 @@ func (r *halfReader) Read(p []byte) (int, error) {
+ 	return r.r.Read(p[0 : (len(p)+1)/2])
+ }
+ 
+-// DataErrReader returns a Reader that returns the final
+-// error with the last data read, instead of by itself with
+-// zero bytes of data.
++// DataErrReader changes the way errors are handled by a Reader. Normally, a
++// Reader returns an error (typically EOF) from the first Read call after the
++// last piece of data is read. DataErrReader wraps a Reader and changes its
++// behavior so the final error is returned along with the final data, instead
++// of in the first call after the final data.
+ func DataErrReader(r io.Reader) io.Reader { return &dataErrReader{r, nil, make([]byte, 1024)} }
+ 
+ type dataErrReader struct {

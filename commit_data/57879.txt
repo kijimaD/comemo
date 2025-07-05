@@ -17,10 +17,181 @@ Date:   Wed Sep 6 16:05:11 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/copy.go             | 59 +++----------------------
  src/cmd/compile/internal/ir/expr.go             |  4 --
  src/cmd/compile/internal/ir/stmt.go             |  4 +-
  src/cmd/compile/internal/typecheck/expr.go      |  3 --
  src/cmd/compile/internal/typecheck/typecheck.go |  5 ---
  5 files changed, 8 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/copy.go b/src/cmd/compile/internal/ir/copy.go
+index be57a8fbc6..9d3a136657 100644
+--- a/src/cmd/compile/internal/ir/copy.go
++++ b/src/cmd/compile/internal/ir/copy.go
+@@ -5,71 +5,26 @@
+ package ir
+ 
+ import (
+-	"cmd/compile/internal/base"
+ 	"cmd/internal/src"
+ )
+ 
+-// A Node may implement the Orig and SetOrig method to
+-// maintain a pointer to the "unrewritten" form of a Node.
+-// If a Node does not implement OrigNode, it is its own Orig.
++// Orig returns n.
+ //
+-// Note that both SepCopy and Copy have definitions compatible
+-// with a Node that does not implement OrigNode: such a Node
+-// is its own Orig, and in that case, that's what both want to return
+-// anyway (SepCopy unconditionally, and Copy only when the input
+-// is its own Orig as well, but if the output does not implement
+-// OrigNode, then neither does the input, making the condition true).
+-type OrigNode interface {
+-	Node
+-	Orig() Node
+-	SetOrig(Node)
+-}
+-
+-// origNode may be embedded into a Node to make it implement OrigNode.
+-type origNode struct {
+-	orig Node `mknode:"-"`
+-}
+-
+-func (n *origNode) Orig() Node     { return n.orig }
+-func (n *origNode) SetOrig(o Node) { n.orig = o }
+-
+-// Orig returns the “original” node for n.
+-// If n implements OrigNode, Orig returns n.Orig().
+-// Otherwise Orig returns n itself.
++// TODO(mdempsky): Remove.
+ func Orig(n Node) Node {
+-	if n, ok := n.(OrigNode); ok {
+-		o := n.Orig()
+-		if o == nil {
+-			Dump("Orig nil", n)
+-			base.Fatalf("Orig returned nil")
+-		}
+-		return o
+-	}
+ 	return n
+ }
+ 
+-// SepCopy returns a separate shallow copy of n,
+-// breaking any Orig link to any other nodes.
++// SepCopy returns a shallow copy of n.
++//
++// TODO(mdempsky): Replace with Copy.
+ func SepCopy(n Node) Node {
+-	n = n.copy()
+-	if n, ok := n.(OrigNode); ok {
+-		n.SetOrig(n)
+-	}
+-	return n
++	return n.copy()
+ }
+ 
+ // Copy returns a shallow copy of n.
+-// If Orig(n) == n, then Orig(Copy(n)) == the copy.
+-// Otherwise the Orig link is preserved as well.
+-//
+-// The specific semantics surrounding Orig are subtle but right for most uses.
+-// See issues #26855 and #27765 for pitfalls.
+ func Copy(n Node) Node {
+-	c := n.copy()
+-	if n, ok := n.(OrigNode); ok && n.Orig() == n {
+-		c.(OrigNode).SetOrig(c)
+-	}
+-	return c
++	return n.copy()
+ }
+ 
+ // DeepCopy returns a “deep” copy of n, with its entire structure copied
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 573021a554..abea185dd3 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -188,7 +188,6 @@ func (n *BinaryExpr) SetOp(op Op) {
+ // A CallExpr is a function call X(Args).
+ type CallExpr struct {
+ 	miniExpr
+-	origNode
+ 	X         Node
+ 	Args      Nodes
+ 	RType     Node    `mknode:"-"` // see reflectdata/helpers.go
+@@ -200,7 +199,6 @@ type CallExpr struct {
+ func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
+ 	n := &CallExpr{X: fun}
+ 	n.pos = pos
+-	n.orig = n
+ 	n.SetOp(op)
+ 	n.Args = args
+ 	return n
+@@ -234,7 +232,6 @@ type ClosureExpr struct {
+ // Before type-checking, the type is Ntype.
+ type CompLitExpr struct {
+ 	miniExpr
+-	origNode
+ 	List     Nodes // initialized values
+ 	RType    Node  `mknode:"-"` // *runtime._type for OMAPLIT map types
+ 	Prealloc *Name
+@@ -251,7 +248,6 @@ func NewCompLitExpr(pos src.XPos, op Op, typ *types.Type, list []Node) *CompLitE
+ 	if typ != nil {
+ 		n.SetType(typ)
+ 	}
+-	n.orig = n
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 01d218ecc4..3e925b9db2 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -373,15 +373,13 @@ func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node, distinctVars bo
+ // A ReturnStmt is a return statement.
+ type ReturnStmt struct {
+ 	miniStmt
+-	origNode       // for typecheckargs rewrite
+-	Results  Nodes // return list
++	Results Nodes // return list
+ }
+ 
+ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
+ 	n := &ReturnStmt{}
+ 	n.pos = pos
+ 	n.op = ORETURN
+-	n.orig = n
+ 	n.Results = results
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 89c37d373e..53d0cbf96d 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -169,9 +169,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 		base.Pos = lno
+ 	}()
+ 
+-	// Save original node (including n.Right)
+-	n.SetOrig(ir.Copy(n))
+-
+ 	ir.SetPos(n)
+ 
+ 	t := n.Type()
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index ef8ca7705d..1cd5d88392 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -624,11 +624,6 @@ func typecheckargs(n ir.InitNode) {
+ 		return
+ 	}
+ 
+-	// Save n as n.Orig for fmt.go.
+-	if ir.Orig(n) == n {
+-		n.(ir.OrigNode).SetOrig(ir.SepCopy(n))
+-	}
+-
+ 	// Rewrite f(g()) into t1, t2, ... = g(); f(t1, t2, ...).
+ 	RewriteMultiValueCall(n, list[0])
+ }

@@ -15,9 +15,147 @@ Date:   Wed Mar 30 13:23:37 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396914
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 16 ++++++-------
  .../compile/internal/syntax/testdata/issue49205.go | 27 ++++++++++++++++++++++
  test/fixedbugs/issue13319.go                       |  4 ++--
  test/syntax/composite.go                           |  2 +-
  4 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 805bf13aff..39ea0cc224 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -472,7 +472,7 @@ func isEmptyFuncDecl(dcl Decl) bool {
+ //
+ // list = [ f { sep f } [sep] ] close .
+ //
+-func (p *parser) list(sep, close token, f func() bool) Pos {
++func (p *parser) list(context string, sep, close token, f func() bool) Pos {
+ 	if debug && (sep != _Comma && sep != _Semi || close != _Rparen && close != _Rbrace && close != _Rbrack) {
+ 		panic("invalid sep or close argument for list")
+ 	}
+@@ -482,7 +482,7 @@ func (p *parser) list(sep, close token, f func() bool) Pos {
+ 		done = f()
+ 		// sep is optional before close
+ 		if !p.got(sep) && p.tok != close {
+-			p.syntaxError(fmt.Sprintf("expecting %s or %s", tokstring(sep), tokstring(close)))
++			p.syntaxError(fmt.Sprintf("in %s; possibly missing %s or %s", context, tokstring(sep), tokstring(close)))
+ 			p.advance(_Rparen, _Rbrack, _Rbrace)
+ 			if p.tok != close {
+ 				// position could be better but we had an error so we don't care
+@@ -502,7 +502,7 @@ func (p *parser) appendGroup(list []Decl, f func(*Group) Decl) []Decl {
+ 		g := new(Group)
+ 		p.clearPragma()
+ 		p.next() // must consume "(" after calling clearPragma!
+-		p.list(_Semi, _Rparen, func() bool {
++		p.list("grouped declaration", _Semi, _Rparen, func() bool {
+ 			if x := f(g); x != nil {
+ 				list = append(list, x)
+ 			}
+@@ -1233,7 +1233,7 @@ func (p *parser) complitexpr() *CompositeLit {
+ 
+ 	p.xnest++
+ 	p.want(_Lbrace)
+-	x.Rbrace = p.list(_Comma, _Rbrace, func() bool {
++	x.Rbrace = p.list("composite literal", _Comma, _Rbrace, func() bool {
+ 		// value
+ 		e := p.bare_complitexpr()
+ 		if p.tok == _Colon {
+@@ -1477,7 +1477,7 @@ func (p *parser) structType() *StructType {
+ 
+ 	p.want(_Struct)
+ 	p.want(_Lbrace)
+-	p.list(_Semi, _Rbrace, func() bool {
++	p.list("struct type", _Semi, _Rbrace, func() bool {
+ 		p.fieldDecl(typ)
+ 		return false
+ 	})
+@@ -1497,7 +1497,7 @@ func (p *parser) interfaceType() *InterfaceType {
+ 
+ 	p.want(_Interface)
+ 	p.want(_Lbrace)
+-	p.list(_Semi, _Rbrace, func() bool {
++	p.list("interface type", _Semi, _Rbrace, func() bool {
+ 		switch p.tok {
+ 		case _Name:
+ 			f := p.methodDecl()
+@@ -1980,7 +1980,7 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
+ 
+ 	var named int // number of parameters that have an explicit name and type
+ 	var typed int // number of parameters that have an explicit type
+-	end := p.list(_Comma, close, func() bool {
++	end := p.list("parameter list", _Comma, close, func() bool {
+ 		var par *Field
+ 		if typ != nil {
+ 			if debug && name == nil {
+@@ -2660,7 +2660,7 @@ func (p *parser) argList() (list []Expr, hasDots bool) {
+ 	}
+ 
+ 	p.xnest++
+-	p.list(_Comma, _Rparen, func() bool {
++	p.list("argument list", _Comma, _Rparen, func() bool {
+ 		list = append(list, p.expr())
+ 		hasDots = p.got(_DotDotDot)
+ 		return hasDots
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue49205.go b/src/cmd/compile/internal/syntax/testdata/issue49205.go
+new file mode 100644
+index 0000000000..bbcc950c5c
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue49205.go
+@@ -0,0 +1,27 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// test case from issue
++
++type _ interface{
++	m /* ERROR unexpected int in interface type; possibly missing semicolon or newline or } */ int
++}
++
++// other cases where the fix for this issue affects the error message
++
++const (
++	x int = 10 /* ERROR unexpected literal "foo" in grouped declaration; possibly missing semicolon or newline or \) */ "foo"
++)
++
++var _ = []int{1, 2, 3 /* ERROR unexpected int in composite literal; possibly missing comma or } */ int }
++
++type _ struct {
++	x y /* ERROR syntax error: unexpected comma in struct type; possibly missing semicolon or newline or } */ ,
++}
++
++func f(a, b c /* ERROR unexpected d in parameter list; possibly missing comma or \) */ d) {
++	f(a, b, c /* ERROR unexpected d in argument list; possibly missing comma or \) */ d)
++}
+diff --git a/test/fixedbugs/issue13319.go b/test/fixedbugs/issue13319.go
+index c9b4896a05..7e1df3e45e 100644
+--- a/test/fixedbugs/issue13319.go
++++ b/test/fixedbugs/issue13319.go
+@@ -9,10 +9,10 @@ package main
+ func f(int, int) {
+     switch x {
+     case 1:
+-        f(1, g()   // ERROR "expecting \)|expecting comma or \)"
++        f(1, g()   // ERROR "expecting \)|possibly missing comma or \)"
+     case 2:
+         f()
+     case 3:
+-        f(1, g()   // ERROR "expecting \)|expecting comma or \)"
++        f(1, g()   // ERROR "expecting \)|possibly missing comma or \)"
+     }
+ }
+diff --git a/test/syntax/composite.go b/test/syntax/composite.go
+index f891931b6c..b4e03f3167 100644
+--- a/test/syntax/composite.go
++++ b/test/syntax/composite.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ var a = []int{
+-	3 // ERROR "need trailing comma before newline in composite literal|expecting comma or }"
++	3 // ERROR "need trailing comma before newline in composite literal|possibly missing comma or }"
+ }

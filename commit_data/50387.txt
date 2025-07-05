@@ -14,6 +14,30 @@ Date:   Wed Oct 20 13:12:43 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/operand.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 19326b8342..a5b2729451 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -176,17 +176,14 @@ func operandString(x *operand, qf Qualifier) string {
+ 	if hasType {
+ 		if x.typ != Typ[Invalid] {
+ 			var intro string
+-			var tpar *TypeParam
+ 			if isGeneric(x.typ) {
+ 				intro = " of parameterized type "
+-			} else if tpar = asTypeParam(x.typ); tpar != nil {
+-				intro = " of type parameter "
+ 			} else {
+ 				intro = " of type "
+ 			}
+ 			buf.WriteString(intro)
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar != nil {
++			if tpar := asTypeParam(x.typ); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 			}

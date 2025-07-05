@@ -24,7 +24,7 @@ Date:   Thu Aug 19 15:52:53 2021 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/importer/iimport.go |  2 +-
  src/cmd/compile/internal/noder/noder.go      | 26 ++++++++++++++++++--------
  src/cmd/compile/internal/noder/posmap.go     |  6 ++++--
@@ -34,3 +34,218 @@ Date:   Thu Aug 19 15:52:53 2021 -0700
  src/cmd/compile/internal/syntax/parser.go    |  4 +++-
  src/cmd/compile/internal/syntax/pos.go       | 19 ++++++++++++++++---
  8 files changed, 48 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index ac5ec7c8f2..4384e59c30 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -257,7 +257,7 @@ func (p *iimporter) posBaseAt(off uint64) *syntax.PosBase {
+ 		return posBase
+ 	}
+ 	filename := p.stringAt(off)
+-	posBase := syntax.NewFileBase(filename)
++	posBase := syntax.NewTrimmedFileBase(filename, true)
+ 	p.posBaseCache[off] = posBase
+ 	return posBase
+ }
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 6a2aacd3fe..2b67a91b3f 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -191,13 +191,23 @@ func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
+ 	base.ErrorfAt(p.makeXPos(pos), format, args...)
+ }
+ 
+-// TODO(gri) Can we eliminate fileh in favor of absFilename?
+-func fileh(name string) string {
+-	return objabi.AbsFile("", name, base.Flag.TrimPath)
+-}
+-
+-func absFilename(name string) string {
+-	return objabi.AbsFile(base.Ctxt.Pathname, name, base.Flag.TrimPath)
++// trimFilename returns the "trimmed" filename of b, which is the
++// absolute filename after applying -trimpath processing. This
++// filename form is suitable for use in object files and export data.
++//
++// If b's filename has already been trimmed (i.e., because it was read
++// in from an imported package's export data), then the filename is
++// returned unchanged.
++func trimFilename(b *syntax.PosBase) string {
++	filename := b.Filename()
++	if !b.Trimmed() {
++		dir := ""
++		if b.IsFileBase() {
++			dir = base.Ctxt.Pathname
++		}
++		filename = objabi.AbsFile(dir, filename, base.Flag.TrimPath)
++	}
++	return filename
+ }
+ 
+ // noder transforms package syntax's AST into a Node tree.
+@@ -1723,7 +1733,7 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ // (primarily misuse of linker flags), other files are not.
+ // See golang.org/issue/23672.
+ func isCgoGeneratedFile(pos syntax.Pos) bool {
+-	return strings.HasPrefix(filepath.Base(filepath.Clean(fileh(pos.Base().Filename()))), "_cgo_")
++	return strings.HasPrefix(filepath.Base(trimFilename(pos.Base())), "_cgo_")
+ }
+ 
+ // safeArg reports whether arg is a "safe" command-line argument,
+diff --git a/src/cmd/compile/internal/noder/posmap.go b/src/cmd/compile/internal/noder/posmap.go
+index a6d3e2d7ef..f22628f845 100644
+--- a/src/cmd/compile/internal/noder/posmap.go
++++ b/src/cmd/compile/internal/noder/posmap.go
+@@ -45,8 +45,10 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 	b1, ok := m.bases[b0]
+ 	if !ok {
+ 		fn := b0.Filename()
++		absfn := trimFilename(b0)
++
+ 		if b0.IsFileBase() {
+-			b1 = src.NewFileBase(fn, absFilename(fn))
++			b1 = src.NewFileBase(fn, absfn)
+ 		} else {
+ 			// line directive base
+ 			p0 := b0.Pos()
+@@ -55,7 +57,7 @@ func (m *posMap) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+ 				panic("infinite recursion in makeSrcPosBase")
+ 			}
+ 			p1 := src.MakePos(m.makeSrcPosBase(p0b), p0.Line(), p0.Col())
+-			b1 = src.NewLinePragmaBase(p1, fn, fileh(fn), b0.Line(), b0.Col())
++			b1 = src.NewLinePragmaBase(p1, fn, absfn, b0.Line(), b0.Col())
+ 		}
+ 		if m.bases == nil {
+ 			m.bases = make(map[*syntax.PosBase]*src.PosBase)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 5481812b18..985453a1bb 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -194,16 +194,15 @@ func (pr *pkgReader) posBaseIdx(idx int) *src.PosBase {
+ 	r := pr.newReader(relocPosBase, idx, syncPosBase)
+ 	var b *src.PosBase
+ 
+-	fn := r.string()
+-	absfn := r.string()
++	filename := r.string()
+ 
+ 	if r.bool() {
+-		b = src.NewFileBase(fn, absfn)
++		b = src.NewFileBase(filename, filename)
+ 	} else {
+ 		pos := r.pos0()
+ 		line := r.uint()
+ 		col := r.uint()
+-		b = src.NewLinePragmaBase(pos, fn, absfn, line, col)
++		b = src.NewLinePragmaBase(pos, filename, filename, line, col)
+ 	}
+ 
+ 	pr.posBases[idx] = b
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 22c742ab25..64c1612f70 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -109,15 +109,14 @@ func (pr *pkgReader2) posBaseIdx(idx int) *syntax.PosBase {
+ 	var b *syntax.PosBase
+ 
+ 	filename := r.string()
+-	_ = r.string() // absolute file name
+ 
+ 	if r.bool() {
+-		b = syntax.NewFileBase(filename)
++		b = syntax.NewTrimmedFileBase(filename, true)
+ 	} else {
+ 		pos := r.pos()
+ 		line := r.uint()
+ 		col := r.uint()
+-		b = syntax.NewLineBase(pos, filename, line, col)
++		b = syntax.NewLineBase(pos, filename, true, line, col)
+ 	}
+ 
+ 	pr.posBases[idx] = b
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index d971bd0d16..a33b24e50c 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -189,11 +189,7 @@ func (pw *pkgWriter) posBaseIdx(b *syntax.PosBase) int {
+ 	w := pw.newWriter(relocPosBase, syncPosBase)
+ 	w.p.posBasesIdx[b] = w.idx
+ 
+-	// TODO(mdempsky): What exactly does "fileh" do anyway? Is writing
+-	// out both of these strings really the right thing to do here?
+-	fn := b.Filename()
+-	w.string(fn)
+-	w.string(fileh(fn))
++	w.string(trimFilename(b))
+ 
+ 	if !w.bool(b.IsFileBase()) {
+ 		w.pos(b)
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 4fb6de10a8..c477ddd45d 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -146,11 +146,13 @@ func (p *parser) updateBase(pos Pos, tline, tcol uint, text string) {
+ 	// If we have a column (//line filename:line:col form),
+ 	// an empty filename means to use the previous filename.
+ 	filename := text[:i-1] // lop off ":line"
++	trimmed := false
+ 	if filename == "" && ok2 {
+ 		filename = p.base.Filename()
++		trimmed = p.base.Trimmed()
+ 	}
+ 
+-	p.base = NewLineBase(pos, filename, line, col)
++	p.base = NewLineBase(pos, filename, trimmed, line, col)
+ }
+ 
+ func commentText(s string) string {
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index baebcc995c..1494c0989f 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -133,13 +133,19 @@ type PosBase struct {
+ 	pos       Pos
+ 	filename  string
+ 	line, col uint32
++	trimmed   bool // whether -trimpath has been applied
+ }
+ 
+ // NewFileBase returns a new PosBase for the given filename.
+ // A file PosBase's position is relative to itself, with the
+ // position being filename:1:1.
+ func NewFileBase(filename string) *PosBase {
+-	base := &PosBase{MakePos(nil, linebase, colbase), filename, linebase, colbase}
++	return NewTrimmedFileBase(filename, false)
++}
++
++// NewTrimmedFileBase is like NewFileBase, but allows specifying Trimmed.
++func NewTrimmedFileBase(filename string, trimmed bool) *PosBase {
++	base := &PosBase{MakePos(nil, linebase, colbase), filename, linebase, colbase, trimmed}
+ 	base.pos.base = base
+ 	return base
+ }
+@@ -149,8 +155,8 @@ func NewFileBase(filename string) *PosBase {
+ // the comment containing the line directive. For a directive in a line comment,
+ // that position is the beginning of the next line (i.e., the newline character
+ // belongs to the line comment).
+-func NewLineBase(pos Pos, filename string, line, col uint) *PosBase {
+-	return &PosBase{pos, filename, sat32(line), sat32(col)}
++func NewLineBase(pos Pos, filename string, trimmed bool, line, col uint) *PosBase {
++	return &PosBase{pos, filename, sat32(line), sat32(col), trimmed}
+ }
+ 
+ func (base *PosBase) IsFileBase() bool {
+@@ -188,6 +194,13 @@ func (base *PosBase) Col() uint {
+ 	return uint(base.col)
+ }
+ 
++func (base *PosBase) Trimmed() bool {
++	if base == nil {
++		return false
++	}
++	return base.trimmed
++}
++
+ func sat32(x uint) uint32 {
+ 	if x > PosMax {
+ 		return PosMax

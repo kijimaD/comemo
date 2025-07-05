@@ -25,7 +25,229 @@ Date:   Tue Mar 15 17:14:03 2016 +0100
     Reviewed-on: https://go-review.googlesource.com/20686
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 59 ++++++++++++++++++-------------------------
  src/fmt/print.go    | 73 +++++++++++++++++++++++++----------------------------
  2 files changed, 60 insertions(+), 72 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index ffa24995a5..ff975b0aac 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -161,6 +161,8 @@ var fmtTests = []struct {
+ 
+ 	// basic bytes
+ 	{"%s", []byte("abc"), "abc"},
++	{"%s", [3]byte{'a', 'b', 'c'}, "abc"},
++	{"%s", &[3]byte{'a', 'b', 'c'}, "&abc"},
+ 	{"%q", []byte("abc"), `"abc"`},
+ 	{"%x", []byte("abc"), "616263"},
+ 	{"%x", []byte("\xff\xf0\x0f\xff"), "fff00fff"},
+@@ -534,22 +536,16 @@ var fmtTests = []struct {
+ 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
+ 	{"%v", &bslice, "&[1 2 3 4 5]"},
+ 
+-	// byte slices and arrays with %d and %v variants
+-	{"%d", [0]byte{}, "[]"},
+-	{"%d", [1]byte{123}, "[123]"},
+-	{"%012d", []byte{}, "[]"},
+-	{"%d", [3]byte{1, 11, 111}, "[1 11 111]"},
+-	{"%d", [3]uint8{1, 11, 111}, "[1 11 111]"},
+-	{"%06d", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
+-	{"%-6d", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+-	{"%-06d", [3]byte{1, 11, 111}, "[1      11     111   ]"}, // 0 has no effect when - is present.
+-	{"%v", []byte{}, "[]"},
++	// byte arrays and slices with %b,%c,%d,%o,%U and %v
++	{"%b", [3]byte{65, 66, 67}, "[1000001 1000010 1000011]"},
++	{"%c", [3]byte{65, 66, 67}, "[A B C]"},
++	{"%d", [3]byte{65, 66, 67}, "[65 66 67]"},
++	{"%o", [3]byte{65, 66, 67}, "[101 102 103]"},
++	{"%U", [3]byte{65, 66, 67}, "[U+0041 U+0042 U+0043]"},
++	{"%v", [3]byte{65, 66, 67}, "[65 66 67]"},
++	{"%v", [1]byte{123}, "[123]"},
+ 	{"%012v", []byte{}, "[]"},
+-	{"%#v", []byte{}, "[]byte{}"},
+-	{"%#v", []uint8{}, "[]byte{}"},
+ 	{"%#012v", []byte{}, "[]byte{}"},
+-	{"%v", []byte{123}, "[123]"},
+-	{"%v", []byte{1, 11, 111}, "[1 11 111]"},
+ 	{"%6v", []byte{1, 11, 111}, "[     1     11    111]"},
+ 	{"%06v", []byte{1, 11, 111}, "[000001 000011 000111]"},
+ 	{"%-6v", []byte{1, 11, 111}, "[1      11     111   ]"},
+@@ -559,21 +555,6 @@ var fmtTests = []struct {
+ 	{"%#06v", []byte{1, 11, 111}, "[]byte{0x000001, 0x00000b, 0x00006f}"},
+ 	{"%#-6v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
+ 	{"%#-06v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
+-	{"%v", [0]byte{}, "[]"},
+-	{"%-12v", [0]byte{}, "[]"},
+-	{"%#v", [0]byte{}, "[0]uint8{}"},
+-	{"%#v", [0]uint8{}, "[0]uint8{}"},
+-	{"%#-12v", [0]byte{}, "[0]uint8{}"},
+-	{"%v", [1]byte{123}, "[123]"},
+-	{"%v", [3]byte{1, 11, 111}, "[1 11 111]"},
+-	{"%06v", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
+-	{"%-6v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+-	{"%-06v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+-	{"%#v", [3]byte{1, 11, 111}, "[3]uint8{0x1, 0xb, 0x6f}"},
+-	{"%#6v", [3]byte{1, 11, 111}, "[3]uint8{   0x1,    0xb,   0x6f}"},
+-	{"%#06v", [3]byte{1, 11, 111}, "[3]uint8{0x000001, 0x00000b, 0x00006f}"},
+-	{"%#-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+-	{"%#-06v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+ 	// f.space should and f.plus should not have an effect with %v.
+ 	{"% v", []byte{1, 11, 111}, "[ 1  11  111]"},
+ 	{"%+v", [3]byte{1, 11, 111}, "[1 11 111]"},
+@@ -631,10 +612,20 @@ var fmtTests = []struct {
+ 	{"%#v", "foo", `"foo"`},
+ 	{"%#v", barray, `[5]fmt_test.renamedUint8{0x1, 0x2, 0x3, 0x4, 0x5}`},
+ 	{"%#v", bslice, `[]fmt_test.renamedUint8{0x1, 0x2, 0x3, 0x4, 0x5}`},
+-	{"%#v", []byte(nil), "[]byte(nil)"},
+ 	{"%#v", []int32(nil), "[]int32(nil)"},
+ 	{"%#v", 1.2345678, "1.2345678"},
+ 	{"%#v", float32(1.2345678), "1.2345678"},
++	// Only print []byte and []uint8 as type []byte if they appear at the top level.
++	{"%#v", []byte(nil), "[]byte(nil)"},
++	{"%#v", []uint8(nil), "[]byte(nil)"},
++	{"%#v", []byte{}, "[]byte{}"},
++	{"%#v", []uint8{}, "[]byte{}"},
++	{"%#v", reflect.ValueOf([]byte{}), "[]uint8{}"},
++	{"%#v", reflect.ValueOf([]uint8{}), "[]uint8{}"},
++	{"%#v", &[]byte{}, "&[]uint8{}"},
++	{"%#v", &[]byte{}, "&[]uint8{}"},
++	{"%#v", [3]byte{}, "[3]uint8{0x0, 0x0, 0x0}"},
++	{"%#v", [3]uint8{}, "[3]uint8{0x0, 0x0, 0x0}"},
+ 
+ 	// slices with other formats
+ 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
+@@ -985,10 +976,10 @@ var fmtTests = []struct {
+ 	{"%☠", interface{}(nil), "%!☠(<nil>)"},
+ 	{"%☠", int(0), "%!☠(int=0)"},
+ 	{"%☠", uint(0), "%!☠(uint=0)"},
+-	{"%☠", []byte{0}, "%!☠([]uint8=[0])"},
+-	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
+-	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
+-	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
++	{"%☠", []byte{0, 1}, "[%!☠(uint8=0) %!☠(uint8=1)]"},
++	{"%☠", []uint8{0, 1}, "[%!☠(uint8=0) %!☠(uint8=1)]"},
++	{"%☠", [1]byte{0}, "[%!☠(uint8=0)]"},
++	{"%☠", [1]uint8{0}, "[%!☠(uint8=0)]"},
+ 	{"%☠", "hello", "%!☠(string=hello)"},
+ 	{"%☠", 1.2345678, "%!☠(float64=1.2345678)"},
+ 	{"%☠", float32(1.2345678), "%!☠(float32=1.2345678)"},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 6c64773a1b..1a0b51a5a9 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -26,7 +26,6 @@ const (
+ 	badIndexString    = "(BADINDEX)"
+ 	panicString       = "(PANIC="
+ 	extraString       = "%!(EXTRA "
+-	bytesString       = "[]byte"
+ 	badWidthString    = "%!(BADWIDTH)"
+ 	badPrecString     = "%!(BADPREC)"
+ 	noVerbString      = "%!(NOVERB)"
+@@ -476,7 +475,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
+ 	case 'q':
+ 		p.fmt.fmt_q(string(v))
+ 	default:
+-		p.badVerb(verb)
++		p.printValue(reflect.ValueOf(v), verb, 0)
+ 	}
+ }
+ 
+@@ -655,7 +654,7 @@ func (p *pp) printArg(arg interface{}, verb rune) {
+ 	case string:
+ 		p.fmtString(f, verb)
+ 	case []byte:
+-		p.fmtBytes(f, verb, bytesString)
++		p.fmtBytes(f, verb, "[]byte")
+ 	case reflect.Value:
+ 		p.printValue(f, verb, 0)
+ 	default:
+@@ -775,54 +774,52 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+ 			p.printValue(value, verb, depth+1)
+ 		}
+ 	case reflect.Array, reflect.Slice:
+-		// Byte arrays and slices are special:
+-		// - Handle []byte (== []uint8) with fmtBytes.
+-		// - Handle []T, where T is a named byte type, with fmtBytes only
+-		//   for the s, q, x and X verbs. For other verbs, T might be a
+-		//   Stringer, so we use printValue to print each element.
+-		typ := f.Type()
+-		if typ.Elem().Kind() == reflect.Uint8 &&
+-			(typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x' || verb == 'X') {
+-			var bytes []byte
+-			if f.Kind() == reflect.Slice {
+-				bytes = f.Bytes()
+-			} else if f.CanAddr() {
+-				bytes = f.Slice(0, f.Len()).Bytes()
+-			} else {
+-				// We have an array, but we cannot Slice() a non-addressable array,
+-				// so we build a slice by hand. This is a rare case but it would be nice
+-				// if reflection could help a little more.
+-				bytes = make([]byte, f.Len())
+-				for i := range bytes {
+-					bytes[i] = byte(f.Index(i).Uint())
++		switch verb {
++		case 's', 'q', 'x', 'X':
++			// Handle byte and uint8 slices and arrays special for the above verbs.
++			t := f.Type()
++			if t.Elem().Kind() == reflect.Uint8 {
++				var bytes []byte
++				if f.Kind() == reflect.Slice {
++					bytes = f.Bytes()
++				} else if f.CanAddr() {
++					bytes = f.Slice(0, f.Len()).Bytes()
++				} else {
++					// We have an array, but we cannot Slice() a non-addressable array,
++					// so we build a slice by hand. This is a rare case but it would be nice
++					// if reflection could help a little more.
++					bytes = make([]byte, f.Len())
++					for i := range bytes {
++						bytes[i] = byte(f.Index(i).Uint())
++					}
+ 				}
++				p.fmtBytes(bytes, verb, t.String())
++				return
+ 			}
+-			p.fmtBytes(bytes, verb, typ.String())
+-			return
+ 		}
+ 		if p.fmt.sharpV {
+-			p.buf.WriteString(typ.String())
++			p.buf.WriteString(f.Type().String())
+ 			if f.Kind() == reflect.Slice && f.IsNil() {
+ 				p.buf.WriteString(nilParenString)
+ 				return
++			} else {
++				p.buf.WriteByte('{')
++				for i := 0; i < f.Len(); i++ {
++					if i > 0 {
++						p.buf.WriteString(commaSpaceString)
++					}
++					p.printValue(f.Index(i), verb, depth+1)
++				}
++				p.buf.WriteByte('}')
+ 			}
+-			p.buf.WriteByte('{')
+ 		} else {
+ 			p.buf.WriteByte('[')
+-		}
+-		for i := 0; i < f.Len(); i++ {
+-			if i > 0 {
+-				if p.fmt.sharpV {
+-					p.buf.WriteString(commaSpaceString)
+-				} else {
++			for i := 0; i < f.Len(); i++ {
++				if i > 0 {
+ 					p.buf.WriteByte(' ')
+ 				}
++				p.printValue(f.Index(i), verb, depth+1)
+ 			}
+-			p.printValue(f.Index(i), verb, depth+1)
+-		}
+-		if p.fmt.sharpV {
+-			p.buf.WriteByte('}')
+-		} else {
+ 			p.buf.WriteByte(']')
+ 		}
+ 	case reflect.Ptr:

@@ -14,7 +14,56 @@ Date:   Sun Jul 31 17:20:26 2022 +0800
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  3 +++
  test/typeparam/issue54135.go              | 28 ++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 280f7cdf1c..d3f51e00cd 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1357,6 +1357,9 @@ func (g *genInst) dictPass(info *instInfo) {
+ 			}
+ 		case ir.ODOTTYPE, ir.ODOTTYPE2:
+ 			dt := m.(*ir.TypeAssertExpr)
++			if dt.Type().IsEmptyInterface() || (dt.Type().IsInterface() && !dt.Type().HasShape()) {
++				break
++			}
+ 			if !dt.Type().HasShape() && !(dt.X.Type().HasShape() && !dt.X.Type().IsEmptyInterface()) {
+ 				break
+ 			}
+diff --git a/test/typeparam/issue54135.go b/test/typeparam/issue54135.go
+new file mode 100644
+index 0000000000..dffef60d0d
+--- /dev/null
++++ b/test/typeparam/issue54135.go
+@@ -0,0 +1,28 @@
++// compile
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Foo struct{}
++
++func (Foo) Blanker() {}
++
++type Bar[T any] interface {
++	Blanker()
++}
++
++type Baz interface {
++	Some()
++}
++
++func check[T comparable](p Bar[T]) {
++	_, _ = p.(any)
++	_, _ = p.(Baz)
++}
++
++func main() {
++	check[int](Foo{})
++}

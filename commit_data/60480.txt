@@ -12,6 +12,39 @@ Date:   Thu Jul 25 07:30:24 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/gob/doc.go | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 30e7978b7c..0866ba1544 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -193,14 +193,13 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
+ description, constructed from these types:
+ 
+ 	type wireType struct {
+-		ArrayT           *ArrayType
+-		SliceT           *SliceType
+-		StructT          *StructType
+-		MapT             *MapType
++		ArrayT           *arrayType
++		SliceT           *sliceType
++		StructT          *structType
++		MapT             *mapType
+ 		GobEncoderT      *gobEncoderType
+ 		BinaryMarshalerT *gobEncoderType
+ 		TextMarshalerT   *gobEncoderType
+-
+ 	}
+ 	type arrayType struct {
+ 		CommonType
+@@ -217,7 +216,7 @@ description, constructed from these types:
+ 	}
+ 	type structType struct {
+ 		CommonType
+-		Field []*fieldType // the fields of the struct.
++		Field []fieldType // the fields of the struct.
+ 	}
+ 	type fieldType struct {
+ 		Name string // the name of the field.

@@ -23,9 +23,514 @@ Date:   Sat May 18 08:01:27 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/allocators.go |  27 ++++---
  src/cmd/compile/internal/ssa/allocators.go      | 102 +++++++++++++++---------
  src/cmd/compile/internal/ssa/cache.go           |   2 +-
  src/cmd/compile/internal/ssa/prove.go           |  64 +++++++--------
  4 files changed, 111 insertions(+), 84 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/allocators.go b/src/cmd/compile/internal/ssa/_gen/allocators.go
+index 5869a61e82..56e6d69a31 100644
+--- a/src/cmd/compile/internal/ssa/_gen/allocators.go
++++ b/src/cmd/compile/internal/ssa/_gen/allocators.go
+@@ -46,14 +46,14 @@ func genAllocators() {
+ 			maxLog:   32,
+ 		},
+ 		{
+-			name:     "Int64Slice",
+-			typ:      "[]int64",
++			name:     "LimitSlice",
++			typ:      "[]limit", // the limit type is basically [4]uint64.
+ 			capacity: "cap(%s)",
+-			mak:      "make([]int64, %s)",
++			mak:      "make([]limit, %s)",
+ 			resize:   "%s[:%s]",
+-			clear:    "for i := range %[1]s {\n%[1]s[i] = 0\n}",
+-			minLog:   5,
+-			maxLog:   32,
++			clear:    "for i := range %[1]s {\n%[1]s[i] = limit{}\n}",
++			minLog:   3,
++			maxLog:   30,
+ 		},
+ 		{
+ 			name:     "SparseSet",
+@@ -92,30 +92,35 @@ func genAllocators() {
+ 			typ:  "[]*Block",
+ 			base: "ValueSlice",
+ 		},
++		{
++			name: "Int64",
++			typ:  "[]int64",
++			base: "LimitSlice",
++		},
+ 		{
+ 			name: "IntSlice",
+ 			typ:  "[]int",
+-			base: "Int64Slice",
++			base: "LimitSlice",
+ 		},
+ 		{
+ 			name: "Int32Slice",
+ 			typ:  "[]int32",
+-			base: "Int64Slice",
++			base: "LimitSlice",
+ 		},
+ 		{
+ 			name: "Int8Slice",
+ 			typ:  "[]int8",
+-			base: "Int64Slice",
++			base: "LimitSlice",
+ 		},
+ 		{
+ 			name: "BoolSlice",
+ 			typ:  "[]bool",
+-			base: "Int64Slice",
++			base: "LimitSlice",
+ 		},
+ 		{
+ 			name: "IDSlice",
+ 			typ:  "[]ID",
+-			base: "Int64Slice",
++			base: "LimitSlice",
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/allocators.go b/src/cmd/compile/internal/ssa/allocators.go
+index ff70795f82..222ae73f2b 100644
+--- a/src/cmd/compile/internal/ssa/allocators.go
++++ b/src/cmd/compile/internal/ssa/allocators.go
+@@ -47,42 +47,42 @@ func (c *Cache) freeValueSlice(s []*Value) {
+ 	poolFreeValueSlice[b-5].Put(sp)
+ }
+ 
+-var poolFreeInt64Slice [27]sync.Pool
++var poolFreeLimitSlice [27]sync.Pool
+ 
+-func (c *Cache) allocInt64Slice(n int) []int64 {
+-	var s []int64
++func (c *Cache) allocLimitSlice(n int) []limit {
++	var s []limit
+ 	n2 := n
+-	if n2 < 32 {
+-		n2 = 32
++	if n2 < 8 {
++		n2 = 8
+ 	}
+ 	b := bits.Len(uint(n2 - 1))
+-	v := poolFreeInt64Slice[b-5].Get()
++	v := poolFreeLimitSlice[b-3].Get()
+ 	if v == nil {
+-		s = make([]int64, 1<<b)
++		s = make([]limit, 1<<b)
+ 	} else {
+-		sp := v.(*[]int64)
++		sp := v.(*[]limit)
+ 		s = *sp
+ 		*sp = nil
+-		c.hdrInt64Slice = append(c.hdrInt64Slice, sp)
++		c.hdrLimitSlice = append(c.hdrLimitSlice, sp)
+ 	}
+ 	s = s[:n]
+ 	return s
+ }
+-func (c *Cache) freeInt64Slice(s []int64) {
++func (c *Cache) freeLimitSlice(s []limit) {
+ 	for i := range s {
+-		s[i] = 0
++		s[i] = limit{}
+ 	}
+ 	b := bits.Len(uint(cap(s)) - 1)
+-	var sp *[]int64
+-	if len(c.hdrInt64Slice) == 0 {
+-		sp = new([]int64)
++	var sp *[]limit
++	if len(c.hdrLimitSlice) == 0 {
++		sp = new([]limit)
+ 	} else {
+-		sp = c.hdrInt64Slice[len(c.hdrInt64Slice)-1]
+-		c.hdrInt64Slice[len(c.hdrInt64Slice)-1] = nil
+-		c.hdrInt64Slice = c.hdrInt64Slice[:len(c.hdrInt64Slice)-1]
++		sp = c.hdrLimitSlice[len(c.hdrLimitSlice)-1]
++		c.hdrLimitSlice[len(c.hdrLimitSlice)-1] = nil
++		c.hdrLimitSlice = c.hdrLimitSlice[:len(c.hdrLimitSlice)-1]
+ 	}
+ 	*sp = s
+-	poolFreeInt64Slice[b-5].Put(sp)
++	poolFreeLimitSlice[b-3].Put(sp)
+ }
+ 
+ var poolFreeSparseSet [27]sync.Pool
+@@ -179,14 +179,40 @@ func (c *Cache) freeBlockSlice(s []*Block) {
+ 	}
+ 	c.freeValueSlice(*(*[]*Value)(unsafe.Pointer(&b)))
+ }
++func (c *Cache) allocInt64(n int) []int64 {
++	var base limit
++	var derived int64
++	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
++		panic("bad")
++	}
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
++	s := unsafeheader.Slice{
++		Data: unsafe.Pointer(&b[0]),
++		Len:  n,
++		Cap:  cap(b) * int(scale),
++	}
++	return *(*[]int64)(unsafe.Pointer(&s))
++}
++func (c *Cache) freeInt64(s []int64) {
++	var base limit
++	var derived int64
++	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
++	b := unsafeheader.Slice{
++		Data: unsafe.Pointer(&s[0]),
++		Len:  int((uintptr(len(s)) + scale - 1) / scale),
++		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
++	}
++	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
++}
+ func (c *Cache) allocIntSlice(n int) []int {
+-	var base int64
++	var base limit
+ 	var derived int
+ 	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+ 		panic("bad")
+ 	}
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+-	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+ 	s := unsafeheader.Slice{
+ 		Data: unsafe.Pointer(&b[0]),
+ 		Len:  n,
+@@ -195,7 +221,7 @@ func (c *Cache) allocIntSlice(n int) []int {
+ 	return *(*[]int)(unsafe.Pointer(&s))
+ }
+ func (c *Cache) freeIntSlice(s []int) {
+-	var base int64
++	var base limit
+ 	var derived int
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+ 	b := unsafeheader.Slice{
+@@ -203,16 +229,16 @@ func (c *Cache) freeIntSlice(s []int) {
+ 		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+ 		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+ 	}
+-	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+ }
+ func (c *Cache) allocInt32Slice(n int) []int32 {
+-	var base int64
++	var base limit
+ 	var derived int32
+ 	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+ 		panic("bad")
+ 	}
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+-	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+ 	s := unsafeheader.Slice{
+ 		Data: unsafe.Pointer(&b[0]),
+ 		Len:  n,
+@@ -221,7 +247,7 @@ func (c *Cache) allocInt32Slice(n int) []int32 {
+ 	return *(*[]int32)(unsafe.Pointer(&s))
+ }
+ func (c *Cache) freeInt32Slice(s []int32) {
+-	var base int64
++	var base limit
+ 	var derived int32
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+ 	b := unsafeheader.Slice{
+@@ -229,16 +255,16 @@ func (c *Cache) freeInt32Slice(s []int32) {
+ 		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+ 		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+ 	}
+-	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+ }
+ func (c *Cache) allocInt8Slice(n int) []int8 {
+-	var base int64
++	var base limit
+ 	var derived int8
+ 	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+ 		panic("bad")
+ 	}
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+-	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+ 	s := unsafeheader.Slice{
+ 		Data: unsafe.Pointer(&b[0]),
+ 		Len:  n,
+@@ -247,7 +273,7 @@ func (c *Cache) allocInt8Slice(n int) []int8 {
+ 	return *(*[]int8)(unsafe.Pointer(&s))
+ }
+ func (c *Cache) freeInt8Slice(s []int8) {
+-	var base int64
++	var base limit
+ 	var derived int8
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+ 	b := unsafeheader.Slice{
+@@ -255,16 +281,16 @@ func (c *Cache) freeInt8Slice(s []int8) {
+ 		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+ 		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+ 	}
+-	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+ }
+ func (c *Cache) allocBoolSlice(n int) []bool {
+-	var base int64
++	var base limit
+ 	var derived bool
+ 	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+ 		panic("bad")
+ 	}
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+-	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+ 	s := unsafeheader.Slice{
+ 		Data: unsafe.Pointer(&b[0]),
+ 		Len:  n,
+@@ -273,7 +299,7 @@ func (c *Cache) allocBoolSlice(n int) []bool {
+ 	return *(*[]bool)(unsafe.Pointer(&s))
+ }
+ func (c *Cache) freeBoolSlice(s []bool) {
+-	var base int64
++	var base limit
+ 	var derived bool
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+ 	b := unsafeheader.Slice{
+@@ -281,16 +307,16 @@ func (c *Cache) freeBoolSlice(s []bool) {
+ 		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+ 		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+ 	}
+-	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+ }
+ func (c *Cache) allocIDSlice(n int) []ID {
+-	var base int64
++	var base limit
+ 	var derived ID
+ 	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+ 		panic("bad")
+ 	}
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+-	b := c.allocInt64Slice(int((uintptr(n) + scale - 1) / scale))
++	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+ 	s := unsafeheader.Slice{
+ 		Data: unsafe.Pointer(&b[0]),
+ 		Len:  n,
+@@ -299,7 +325,7 @@ func (c *Cache) allocIDSlice(n int) []ID {
+ 	return *(*[]ID)(unsafe.Pointer(&s))
+ }
+ func (c *Cache) freeIDSlice(s []ID) {
+-	var base int64
++	var base limit
+ 	var derived ID
+ 	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+ 	b := unsafeheader.Slice{
+@@ -307,5 +333,5 @@ func (c *Cache) freeIDSlice(s []ID) {
+ 		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+ 		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+ 	}
+-	c.freeInt64Slice(*(*[]int64)(unsafe.Pointer(&b)))
++	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+ }
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index ba36edd390..fd19cb3c09 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -34,7 +34,7 @@ type Cache struct {
+ 	// Free "headers" for use by the allocators in allocators.go.
+ 	// Used to put slices in sync.Pools without allocation.
+ 	hdrValueSlice []*[]*Value
+-	hdrInt64Slice []*[]int64
++	hdrLimitSlice []*[]limit
+ }
+ 
+ func (c *Cache) Reset() {
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 761b77a05d..af69086981 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -173,7 +173,7 @@ type factsTable struct {
+ 	orderU *poset
+ 
+ 	// known lower and upper bounds on individual values.
+-	limits     map[ID]limit
++	limits     []limit     // indexed by value ID
+ 	limitStack []limitFact // previous entries
+ 
+ 	// For each slice s, a map from s to a len(s)/cap(s) value (if any)
+@@ -199,9 +199,12 @@ func newFactsTable(f *Func) *factsTable {
+ 	ft.orderU.SetUnsigned(true)
+ 	ft.facts = make(map[pair]relation)
+ 	ft.stack = make([]fact, 4)
+-	ft.limits = make(map[ID]limit)
++	ft.limits = f.Cache.allocLimitSlice(f.NumValues())
+ 	ft.limitStack = make([]limitFact, 4)
+ 	ft.zero = f.ConstInt64(f.Config.Types.Int64, 0)
++	for i := range ft.limits {
++		ft.limits[i] = noLimit
++	}
+ 	return ft
+ }
+ 
+@@ -296,9 +299,8 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 		// In fact if there is overflow/underflow, the corresponding
+ 		// code is unreachable because the known range is outside the range
+ 		// of the value's type.
+-		old, ok := ft.limits[v.ID]
+-		if !ok {
+-			old = noLimit
++		old := ft.limits[v.ID]
++		if old == noLimit {
+ 			if v.isGenericIntConst() {
+ 				switch d {
+ 				case signed:
+@@ -444,14 +446,14 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 			// x-1 >= w && x > min  ⇒  x > w
+ 			//
+ 			// Useful for i > 0; s[i-1].
+-			lim, ok := ft.limits[x.ID]
+-			if ok && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
++			lim := ft.limits[x.ID]
++			if lim != noLimit && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
+ 				ft.update(parent, x, w, d, gt)
+ 			}
+ 		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
+ 			// v >= x+1 && x < max  ⇒  v > x
+-			lim, ok := ft.limits[x.ID]
+-			if ok && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
++			lim := ft.limits[x.ID]
++			if lim != noLimit && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
+ 				ft.update(parent, v, x, d, gt)
+ 			}
+ 		}
+@@ -465,7 +467,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
+ 			}
+ 			underflow := true
+-			if l, has := ft.limits[x.ID]; has && delta < 0 {
++			if l := ft.limits[x.ID]; l != noLimit && delta < 0 {
+ 				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+ 					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+ 					underflow = false
+@@ -543,7 +545,7 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
+ 					// so let's see if we can already prove that one of them is false, in which case
+ 					// the other must be true
+-					if l, has := ft.limits[x.ID]; has {
++					if l := ft.limits[x.ID]; l != noLimit {
+ 						if l.max <= min {
+ 							if r&eq == 0 || l.max < min {
+ 								// x>min (x>=min) is impossible, so it must be x<=max
+@@ -617,13 +619,13 @@ func (ft *factsTable) isNonNegative(v *Value) bool {
+ 
+ 	// Check if the recorded limits can prove that the value is positive
+ 
+-	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= uint64(max)) {
++	if l := ft.limits[v.ID]; l != noLimit && (l.min >= 0 || l.umax <= uint64(max)) {
+ 		return true
+ 	}
+ 
+ 	// Check if v = x+delta, and we can use x's limits to prove that it's positive
+ 	if x, delta := isConstDelta(v); x != nil {
+-		if l, has := ft.limits[x.ID]; has {
++		if l := ft.limits[x.ID]; l != noLimit {
+ 			if delta > 0 && l.min >= -delta && l.max <= max-delta {
+ 				return true
+ 			}
+@@ -681,11 +683,7 @@ func (ft *factsTable) restore() {
+ 		if old.vid == 0 { // checkpointBound
+ 			break
+ 		}
+-		if old.limit == noLimit {
+-			delete(ft.limits, old.vid)
+-		} else {
+-			ft.limits[old.vid] = old.limit
+-		}
++		ft.limits[old.vid] = old.limit
+ 	}
+ 	ft.orderS.Undo()
+ 	ft.orderU.Undo()
+@@ -765,6 +763,7 @@ func (ft *factsTable) cleanup(f *Func) {
+ 		}
+ 		f.retPoset(po)
+ 	}
++	f.Cache.freeLimitSlice(ft.limits)
+ }
+ 
+ // prove removes redundant BlockIf branches that can be inferred
+@@ -1261,10 +1260,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
+ 			c = v
+ 			val -= off
+ 		}
+-		old, ok := ft.limits[c.ID]
+-		if !ok {
+-			old = noLimit
+-		}
++		old := ft.limits[c.ID]
+ 		ft.limitStack = append(ft.limitStack, limitFact{c.ID, old})
+ 		if val < old.min || val > old.max || uint64(val) < old.umin || uint64(val) > old.umax {
+ 			ft.unsat = true
+@@ -1473,8 +1469,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 			}
+ 			// slicemask(x + y)
+ 			// if x is larger than -y (y is negative), then slicemask is -1.
+-			lim, ok := ft.limits[x.ID]
+-			if !ok {
++			lim := ft.limits[x.ID]
++			if lim == noLimit {
+ 				break
+ 			}
+ 			if lim.umin > uint64(-delta) {
+@@ -1493,8 +1489,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 			// code for CtzNN if we know that the argument is non-zero.
+ 			// Capture that information here for use in arch-specific optimizations.
+ 			x := v.Args[0]
+-			lim, ok := ft.limits[x.ID]
+-			if !ok {
++			lim := ft.limits[x.ID]
++			if lim == noLimit {
+ 				break
+ 			}
+ 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
+@@ -1542,8 +1538,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 			// Check whether, for a << b, we know that b
+ 			// is strictly less than the number of bits in a.
+ 			by := v.Args[1]
+-			lim, ok := ft.limits[by.ID]
+-			if !ok {
++			lim := ft.limits[by.ID]
++			if lim == noLimit {
+ 				break
+ 			}
+ 			bits := 8 * v.Args[0].Type.Size()
+@@ -1563,11 +1559,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 				break
+ 			}
+ 			divr := v.Args[1]
+-			divrLim, divrLimok := ft.limits[divr.ID]
++			divrLim := ft.limits[divr.ID]
+ 			divd := v.Args[0]
+-			divdLim, divdLimok := ft.limits[divd.ID]
+-			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
+-				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
++			divdLim := ft.limits[divd.ID]
++			if (divrLim != noLimit && (divrLim.max < -1 || divrLim.min > -1)) ||
++				(divdLim != noLimit && divdLim.min > mostNegativeDividend[v.Op]) {
+ 				// See DivisionNeedsFixUp in rewrite.go.
+ 				// v.AuxInt = 1 means we have proved both that the divisor is not -1
+ 				// and that the dividend is not the most negative integer,
+@@ -1585,8 +1581,8 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 			case OpConst64, OpConst32, OpConst16, OpConst8:
+ 				continue
+ 			}
+-			lim, ok := ft.limits[arg.ID]
+-			if !ok {
++			lim := ft.limits[arg.ID]
++			if lim == noLimit {
+ 				continue
+ 			}
+ 

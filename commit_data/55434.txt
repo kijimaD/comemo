@@ -17,6 +17,20 @@ Date:   Fri Feb 3 21:14:05 2023 -0800
     Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/rand/rand_js.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/rand/rand_js.go b/src/crypto/rand/rand_js.go
+index 39e8023504..d8fe81580b 100644
+--- a/src/crypto/rand/rand_js.go
++++ b/src/crypto/rand/rand_js.go
+@@ -10,7 +10,7 @@ import "syscall/js"
+ 
+ // The maximum buffer size for crypto.getRandomValues is 65536 bytes.
+ // https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues#exceptions
+-const maxGetRandomRead = 1 << 16
++const maxGetRandomRead = 64 << 10
+ 
+ var batchedGetRandom func([]byte) error
+ 

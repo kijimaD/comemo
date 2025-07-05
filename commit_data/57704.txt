@@ -14,7 +14,35 @@ Date:   Fri Jul 14 20:30:43 2023 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/runtime/defs_openbsd.go | 3 ---
  src/runtime/defs_solaris.go | 2 --
  2 files changed, 5 deletions(-)
+
+diff --git a/src/runtime/defs_openbsd.go b/src/runtime/defs_openbsd.go
+index 2ca6a88eca..5db8b67dd0 100644
+--- a/src/runtime/defs_openbsd.go
++++ b/src/runtime/defs_openbsd.go
+@@ -57,9 +57,6 @@ const (
+ 
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+ 
+-	F_GETFL = C.F_GETFL
+-	F_SETFL = C.F_SETFL
+-
+ 	SIGHUP    = C.SIGHUP
+ 	SIGINT    = C.SIGINT
+ 	SIGQUIT   = C.SIGQUIT
+diff --git a/src/runtime/defs_solaris.go b/src/runtime/defs_solaris.go
+index 11708ee23a..54c4008340 100644
+--- a/src/runtime/defs_solaris.go
++++ b/src/runtime/defs_solaris.go
+@@ -125,8 +125,6 @@ const (
+ 	O_CREAT    = C.O_CREAT
+ 	O_TRUNC    = C.O_TRUNC
+ 	O_CLOEXEC  = C.O_CLOEXEC
+-	F_GETFL    = C.F_GETFL
+-	F_SETFL    = C.F_SETFL
+ 
+ 	POLLIN  = C.POLLIN
+ 	POLLOUT = C.POLLOUT

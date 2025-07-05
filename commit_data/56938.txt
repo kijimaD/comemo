@@ -12,6 +12,32 @@ Date:   Thu Jun 1 06:13:46 2023 -0700
     Reviewed-by: Eli Bendersky <eliben@google.com>
     TryBot-Bypass: Eli Bendersky <eliben@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go1.21.html | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 6961581776..e9ab899405 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -277,11 +277,6 @@ Do not send CLs removing the interior tags from such phrases.
+   such as inlining the callee.
+ </p>
+ 
+-<!-- CL 461315 -->
+-<p>
+-  <!-- cmd/compile: enable deadcode of unreferenced large global maps -->
+-</p>
+-
+ <p>
+   TODO: complete this section, or delete if not needed
+ </p>
+@@ -305,7 +300,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   <!-- cmd/link: generate .xdata PE section -->
+ </p>
+-<!-- CL 463395 -->
++<!-- CL 463395, CL 461315 -->
+ <p>
+   In Go 1.21 the linker (with help from the compiler) is now capable of
+   deleting dead (unreferenced) global map variables, if the number of

@@ -13,6 +13,20 @@ Date:   Wed Feb 21 02:23:29 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/crypto/x509/hybrid_pool_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/hybrid_pool_test.go b/src/crypto/x509/hybrid_pool_test.go
+index 2b8eb62dd0..d591c2e764 100644
+--- a/src/crypto/x509/hybrid_pool_test.go
++++ b/src/crypto/x509/hybrid_pool_test.go
+@@ -33,7 +33,7 @@ func TestHybridPool(t *testing.T) {
+ 		// dynamically populates roots into its local trust store at time of
+ 		// use. We can attempt to prime the pool by attempting TLS connections
+ 		// to google.com until it works, suggesting the pool has been properly
+-		// updated. If after we hit the dealine, the pool has _still_ not been
++		// updated. If after we hit the deadline, the pool has _still_ not been
+ 		// populated with the expected root, it's unlikely we are ever going to
+ 		// get into a good state, and so we just fail the test. #52108 suggests
+ 		// a better possible long term solution.

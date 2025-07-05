@@ -55,7 +55,7 @@ Date:   Fri Jul 1 09:50:24 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4629070
-
+---
  src/cmd/8c/gc.h       | 2 ++
  src/cmd/8c/swt.c      | 4 ++--
  src/cmd/cc/acid.c     | 1 +
@@ -74,3 +74,279 @@ Date:   Fri Jul 1 09:50:24 2011 -0400
  src/cmd/cc/scon.c     | 1 +
  src/cmd/cc/sub.c      | 1 +
  17 files changed, 28 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index 9fead60e41..32b80e9958 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
+ #include	"../cc/cc.h"
+ #include	"../8l/8.out.h"
+ 
+@@ -400,6 +401,7 @@ void	shiftit(Type*, Node*, Node*);
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Bits
+ #pragma	varargck	type	"D"	Adr*
++#pragma	varargck	type	"lD"	Adr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	char*
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index d07a5439c2..769ef2c66e 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -237,10 +237,10 @@ outcode(void)
+ 		Bprint(&b, "\n");
+ 		Bprint(&b, "$$  // exports\n\n");
+ 		Bprint(&b, "$$  // local types\n\n");
+-		Bprint(&b, "$$  // dynimport\n", thestring);
++		Bprint(&b, "$$  // dynimport\n");
+ 		for(i=0; i<ndynimp; i++)
+ 			Bprint(&b, "dynimport %s %s %s\n", dynimp[i].local, dynimp[i].remote, dynimp[i].path);
+-		Bprint(&b, "\n$$  // dynexport\n", thestring);
++		Bprint(&b, "\n$$  // dynexport\n");
+ 		for(i=0; i<ndynexp; i++)
+ 			Bprint(&b, "dynexport %s %s\n", dynexp[i].local, dynexp[i].remote);
+ 		Bprint(&b, "\n$$\n\n");
+diff --git a/src/cmd/cc/acid.c b/src/cmd/cc/acid.c
+index c6a6722bdc..23147e519f 100644
+--- a/src/cmd/cc/acid.c
++++ b/src/cmd/cc/acid.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
+ #include "cc.h"
+ 
+ static char *kwd[] =
+diff --git a/src/cmd/cc/bits.c b/src/cmd/cc/bits.c
+index aef4449e82..4496d65e77 100644
+--- a/src/cmd/cc/bits.c
++++ b/src/cmd/cc/bits.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
+ #include	"cc.h"
+ 
+ Bits
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 8e8f6af440..a38e658ce0 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -28,10 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include <u.h>
+ #include <libc.h>
+ #include <bio.h>
+-#include <ctype.h>
+ 
+ #pragma	lib	"../cc/cc.a$O"
+ 
+@@ -816,7 +814,9 @@ int	machcap(Node*);
+ #pragma	varargck	type	"L"	int32
+ #pragma	varargck	type	"Q"	int32
+ #pragma	varargck	type	"O"	int
++#pragma	varargck	type	"O"	uint
+ #pragma	varargck	type	"T"	Type*
++#pragma	varargck	type	"U"	char*
+ #pragma	varargck	type	"|"	int
+ 
+ enum
+diff --git a/src/cmd/cc/cc.y b/src/cmd/cc/cc.y
+index 470fdae26f..515a80372e 100644
+--- a/src/cmd/cc/cc.y
++++ b/src/cmd/cc/cc.y
+@@ -29,6 +29,7 @@
+ // THE SOFTWARE.
+ 
+ %{
++#include <u.h>
+ #include <stdio.h>	/* if we don't, bison will, and cc.h re-#defines getc */
+ #include "cc.h"
+ %}
+diff --git a/src/cmd/cc/com.c b/src/cmd/cc/com.c
+index 192c28ace6..6e470ee64a 100644
+--- a/src/cmd/cc/com.c
++++ b/src/cmd/cc/com.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
+ #include "cc.h"
+ 
+ int compar(Node*, int);
+diff --git a/src/cmd/cc/com64.c b/src/cmd/cc/com64.c
+index 8d6e07d1b6..fb7a3f750e 100644
+--- a/src/cmd/cc/com64.c
++++ b/src/cmd/cc/com64.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
+ #include "cc.h"
+ 
+ /*
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index 6f1b8a9a9a..d624bf2474 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
+ #include "cc.h"
+ 
+ Node*
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 1b163ee3a4..42c245b566 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
++#include	<ctype.h>
+ #include	"cc.h"
+ #include	"y.tab.h"
+ 
+diff --git a/src/cmd/cc/funct.c b/src/cmd/cc/funct.c
+index 21d86258ff..99477b2b23 100644
+--- a/src/cmd/cc/funct.c
++++ b/src/cmd/cc/funct.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
+ #include	"cc.h"
+ 
+ typedef	struct	Ftab	Ftab;
+diff --git a/src/cmd/cc/godefs.c b/src/cmd/cc/godefs.c
+index 9503cb2f25..3ba979c8a3 100644
+--- a/src/cmd/cc/godefs.c
++++ b/src/cmd/cc/godefs.c
+@@ -29,6 +29,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
+ #include "cc.h"
+ 
+ static int upper;
+@@ -238,7 +239,7 @@ printtypename(Type *t)
+ 			Bprint(&outbuf, "%U", n);
+ 		break;
+ 	case TFUNC:
+-		Bprint(&outbuf, "func(", t);
++		Bprint(&outbuf, "func(");
+ 		for(t1 = t->down; t1 != T; t1 = t1->down) {
+ 			if(t1->etype == TVOID)
+ 				break;
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 71cc89bf0d..15f2d374d1 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
++#include	<ctype.h>
+ #include	"cc.h"
+ #include	"y.tab.h"
+ 
+@@ -384,7 +386,7 @@ lookup(void)
+ 		}else
+ 			*w++ = *r;
+ 	}
+-	*w++ = '\0';
++	*w = '\0';
+ 
+ 	h = 0;
+ 	for(p=symb; *p;) {
+@@ -1524,7 +1526,7 @@ alloc(int32 n)
+ 	p = malloc(n);
+ 	if(p == nil) {
+ 		print("alloc out of mem\n");
+-		exit(1);
++		exits("alloc: out of mem");
+ 	}
+ 	memset(p, 0, n);
+ 	return p;
+@@ -1538,7 +1540,7 @@ allocn(void *p, int32 n, int32 d)
+ 	p = realloc(p, n+d);
+ 	if(p == nil) {
+ 		print("allocn out of mem\n");
+-		exit(1);
++		exits("allocn: out of mem");
+ 	}
+ 	if(d > 0)
+ 		memset((char*)p+n, 0, d);
+diff --git a/src/cmd/cc/mac.c b/src/cmd/cc/mac.c
+index c08cd9c973..43ae214d7e 100644
+--- a/src/cmd/cc/mac.c
++++ b/src/cmd/cc/mac.c
+@@ -28,6 +28,8 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
++#include	<ctype.h>
+ #include	"cc.h"
+ 
+ #include	"macbody"
+diff --git a/src/cmd/cc/omachcap.c b/src/cmd/cc/omachcap.c
+index ec5aa86e93..f8fc1d88b7 100644
+--- a/src/cmd/cc/omachcap.c
++++ b/src/cmd/cc/omachcap.c
+@@ -28,11 +28,13 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
+ #include	"cc.h"
+ 
+ /* default, like old cc */
+ int
+ machcap(Node *n)
+ {
++	USED(n);
+ 	return 0;
+ }
+diff --git a/src/cmd/cc/scon.c b/src/cmd/cc/scon.c
+index 3047ca44f6..193331f774 100644
+--- a/src/cmd/cc/scon.c
++++ b/src/cmd/cc/scon.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include <u.h>
+ #include "cc.h"
+ 
+ static Node*
+diff --git a/src/cmd/cc/sub.c b/src/cmd/cc/sub.c
+index e0d5df7190..e5992e213b 100644
+--- a/src/cmd/cc/sub.c
++++ b/src/cmd/cc/sub.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#include	<u.h>
+ #include	"cc.h"
+ 
+ Node*

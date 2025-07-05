@@ -13,6 +13,21 @@ Date:   Tue Oct 13 10:18:35 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_linux_386.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 5076dd97ab..54baff5127 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rsc): Rewrite all nn(SP) references into name+(nn-8)(FP)
+-// so that go vet can check that they are correct.
+-
+ package syscall
+ 
+ import "unsafe"

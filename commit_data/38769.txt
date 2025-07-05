@@ -16,9 +16,90 @@ Date:   Wed Nov 21 14:04:29 2018 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/defs_windows_386.go   |  7 ++++---
  src/runtime/defs_windows_amd64.go |  7 ++++---
  src/runtime/defs_windows_arm.go   |  5 +++--
  src/runtime/signal_windows.go     | 14 +++++++++++---
  4 files changed, 22 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 38b30b70e3..8c0d6d8b98 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -105,10 +105,11 @@ func (c *context) ip() uintptr { return uintptr(c.eip) }
+ func (c *context) sp() uintptr { return uintptr(c.esp) }
+ 
+ // 386 does not have link register, so this returns 0.
+-func (c *context) lr() uintptr { return 0 }
++func (c *context) lr() uintptr      { return 0 }
++func (c *context) set_lr(x uintptr) {}
+ 
+-func (c *context) setip(x uintptr) { c.eip = uint32(x) }
+-func (c *context) setsp(x uintptr) { c.esp = uint32(x) }
++func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
++func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
+ 
+ func dumpregs(r *context) {
+ 	print("eax     ", hex(r.eax), "\n")
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 37508c09be..42a446d3cd 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -120,10 +120,11 @@ func (c *context) ip() uintptr { return uintptr(c.rip) }
+ func (c *context) sp() uintptr { return uintptr(c.rsp) }
+ 
+ // Amd64 does not have link register, so this returns 0.
+-func (c *context) lr() uintptr { return 0 }
++func (c *context) lr() uintptr      { return 0 }
++func (c *context) set_lr(x uintptr) {}
+ 
+-func (c *context) setip(x uintptr) { c.rip = uint64(x) }
+-func (c *context) setsp(x uintptr) { c.rsp = uint64(x) }
++func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
++func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
+ 
+ func dumpregs(r *context) {
+ 	print("rax     ", hex(r.rax), "\n")
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index 1140f61651..049f5b613a 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -104,8 +104,9 @@ func (c *context) ip() uintptr { return uintptr(c.pc) }
+ func (c *context) sp() uintptr { return uintptr(c.spr) }
+ func (c *context) lr() uintptr { return uintptr(c.lrr) }
+ 
+-func (c *context) setip(x uintptr) { c.pc = uint32(x) }
+-func (c *context) setsp(x uintptr) { c.spr = uint32(x) }
++func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
++func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
++func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
+ 
+ func dumpregs(r *context) {
+ 	print("r0   ", hex(r.r0), "\n")
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index e8a64da657..e6a75a160f 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -117,10 +117,18 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	if r.ip() != 0 {
+ 		sp := unsafe.Pointer(r.sp())
+ 		sp = add(sp, ^(unsafe.Sizeof(uintptr(0)) - 1)) // sp--
+-		*((*uintptr)(sp)) = r.ip()
+-		r.setsp(uintptr(sp))
++		r.set_sp(uintptr(sp))
++		switch GOARCH {
++		default:
++			panic("unsupported architecture")
++		case "386", "amd64":
++			*((*uintptr)(sp)) = r.ip()
++		case "arm":
++			*((*uintptr)(sp)) = r.lr()
++			r.set_lr(r.ip())
++		}
+ 	}
+-	r.setip(funcPC(sigpanic))
++	r.set_ip(funcPC(sigpanic))
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 

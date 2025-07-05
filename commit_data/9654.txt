@@ -19,7 +19,7 @@ Date:   Mon Sep 12 11:47:55 2011 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4974077
-
+---
  src/pkg/asn1/asn1_test.go        | 16 +++++++-------
  src/pkg/crypto/ocsp/ocsp_test.go |  2 +-
  src/pkg/http/cookie_test.go      |  2 +-
@@ -28,3 +28,267 @@ Date:   Mon Sep 12 11:47:55 2011 -0700
  src/pkg/time/time.go             | 23 +++++++++++++------
  src/pkg/time/time_test.go        | 48 ++++++++++++++++++++--------------------
  7 files changed, 57 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index 9f48f7bdd5..1c529bdb30 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -206,10 +206,10 @@ type timeTest struct {
+ }
+ 
+ var utcTestData = []timeTest{
+-	{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 0, -7 * 60 * 60, ""}},
+-	{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 0, 7*60*60 + 30*60, ""}},
+-	{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, 0, "UTC"}},
+-	{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, 0, "UTC"}},
++	{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
++	{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
++	{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, "UTC"}},
++	{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, "UTC"}},
+ 	{"a10506234540Z", false, nil},
+ 	{"91a506234540Z", false, nil},
+ 	{"9105a6234540Z", false, nil},
+@@ -235,10 +235,10 @@ func TestUTCTime(t *testing.T) {
+ }
+ 
+ var generalizedTimeTestData = []timeTest{
+-	{"20100102030405Z", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, 0, "UTC"}},
++	{"20100102030405Z", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, "UTC"}},
+ 	{"20100102030405", false, nil},
+-	{"20100102030405+0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, 6*60*60 + 7*60, ""}},
+-	{"20100102030405-0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, -6*60*60 - 7*60, ""}},
++	{"20100102030405+0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 6*60*60 + 7*60, ""}},
++	{"20100102030405-0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, -6*60*60 - 7*60, ""}},
+ }
+ 
+ func TestGeneralizedTime(t *testing.T) {
+@@ -475,7 +475,7 @@ var derEncodedSelfSignedCert = Certificate{
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
+ 		},
+-		Validity: Validity{NotBefore: &time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: "UTC"}, NotAfter: &time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: "UTC"}},
++		Validity: Validity{NotBefore: &time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, ZoneOffset: 0, Zone: "UTC"}, NotAfter: &time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, ZoneOffset: 0, Zone: "UTC"}},
+ 		Subject: RDNSequence{
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
+diff --git a/src/pkg/crypto/ocsp/ocsp_test.go b/src/pkg/crypto/ocsp/ocsp_test.go
+index f9889790f0..7be37211c1 100644
+--- a/src/pkg/crypto/ocsp/ocsp_test.go
++++ b/src/pkg/crypto/ocsp/ocsp_test.go
+@@ -15,7 +15,7 @@ func TestOCSPDecode(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ 
+-	expected := Response{Status: 0, SerialNumber: []byte{0x1, 0xd0, 0xfa}, RevocationReason: 0, ThisUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 15, Minute: 1, Second: 5, Weekday: 0, ZoneOffset: 0, Zone: "UTC"}, NextUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 18, Minute: 35, Second: 17, Weekday: 0, ZoneOffset: 0, Zone: "UTC"}}
++	expected := Response{Status: 0, SerialNumber: []byte{0x1, 0xd0, 0xfa}, RevocationReason: 0, ThisUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 15, Minute: 1, Second: 5, ZoneOffset: 0, Zone: "UTC"}, NextUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 18, Minute: 35, Second: 17, ZoneOffset: 0, Zone: "UTC"}}
+ 
+ 	if !reflect.DeepEqual(resp.ThisUpdate, resp.ThisUpdate) {
+ 		t.Errorf("resp.ThisUpdate: got %d, want %d", resp.ThisUpdate, expected.ThisUpdate)
+diff --git a/src/pkg/http/cookie_test.go b/src/pkg/http/cookie_test.go
+index d7aeda0be1..5de6aab611 100644
+--- a/src/pkg/http/cookie_test.go
++++ b/src/pkg/http/cookie_test.go
+@@ -124,7 +124,7 @@ var readSetCookiesTests = []struct {
+ 			Path:       "/",
+ 			Domain:     ".google.ch",
+ 			HttpOnly:   true,
+-			Expires:    time.Time{Year: 2011, Month: 11, Day: 23, Hour: 1, Minute: 5, Second: 3, Weekday: 3, ZoneOffset: 0, Zone: "GMT"},
++			Expires:    time.Time{Year: 2011, Month: 11, Day: 23, Hour: 1, Minute: 5, Second: 3, ZoneOffset: 0, Zone: "GMT"},
+ 			RawExpires: "Wed, 23-Nov-2011 01:05:03 GMT",
+ 			Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+ 		}},
+diff --git a/src/pkg/mail/message_test.go b/src/pkg/mail/message_test.go
+index e1bcc89ee5..5653647b8c 100644
+--- a/src/pkg/mail/message_test.go
++++ b/src/pkg/mail/message_test.go
+@@ -94,7 +94,6 @@ func TestDateParsing(t *testing.T) {
+ 				Hour:       9,
+ 				Minute:     55,
+ 				Second:     6,
+-				Weekday:    5, // Fri
+ 				ZoneOffset: -6 * 60 * 60,
+ 			},
+ 		},
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 5ddd54812f..0701cc925a 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -296,9 +296,9 @@ func (t *Time) Format(layout string) string {
+ 		case stdZeroMonth:
+ 			p = zeroPad(t.Month)
+ 		case stdWeekDay:
+-			p = shortDayNames[t.Weekday]
++			p = shortDayNames[t.Weekday()]
+ 		case stdLongWeekDay:
+-			p = longDayNames[t.Weekday]
++			p = longDayNames[t.Weekday()]
+ 		case stdDay:
+ 			p = strconv.Itoa(t.Day)
+ 		case stdUnderDay:
+@@ -485,7 +485,8 @@ func skip(value, prefix string) (string, os.Error) {
+ // (such as having the wrong day of the week), the returned value will also
+ // be inconsistent.  In any case, the elements of the returned time will be
+ // sane: hours in 0..23, minutes in 0..59, day of month in 1..31, etc.
+-// Years must be in the range 0000..9999.
++// Years must be in the range 0000..9999. The day of the week is checked
++// for syntax but it is otherwise ignored.
+ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 	var t Time
+ 	rangeErrString := "" // set if a value is out of range
+@@ -538,9 +539,10 @@ func Parse(alayout, avalue string) (*Time, os.Error) {
+ 				rangeErrString = "month"
+ 			}
+ 		case stdWeekDay:
+-			t.Weekday, value, err = lookup(shortDayNames, value)
++			// Ignore weekday except for error checking.
++			_, value, err = lookup(shortDayNames, value)
+ 		case stdLongWeekDay:
+-			t.Weekday, value, err = lookup(longDayNames, value)
++			_, value, err = lookup(longDayNames, value)
+ 		case stdDay, stdUnderDay, stdZeroDay:
+ 			if std == stdUnderDay && len(value) > 0 && value[0] == ' ' {
+ 				value = value[1:]
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 0e05da4844..859b316727 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -22,7 +22,6 @@ type Time struct {
+ 	Month, Day           int    // Jan-2 is 1, 2
+ 	Hour, Minute, Second int    // 15:04:05 is 15, 4, 5.
+ 	Nanosecond           int    // Fractional second.
+-	Weekday              int    // Sunday, Monday, ...
+ 	ZoneOffset           int    // seconds east of UTC, e.g. -7*60*60 for -0700
+ 	Zone                 string // e.g., "MST"
+ }
+@@ -63,12 +62,6 @@ func SecondsToUTC(sec int64) *Time {
+ 	t.Minute = int((sec / 60) % 60)
+ 	t.Second = int(sec % 60)
+ 
+-	// Day 0 = January 1, 1970 was a Thursday
+-	t.Weekday = int((day + Thursday) % 7)
+-	if t.Weekday < 0 {
+-		t.Weekday += 7
+-	}
+-
+ 	// Change day from 0 = 1970 to 0 = 2001,
+ 	// to make leap year calculations easier
+ 	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
+@@ -228,3 +221,19 @@ func (t *Time) Seconds() int64 {
+ func (t *Time) Nanoseconds() int64 {
+ 	return t.Seconds()*1e9 + int64(t.Nanosecond)
+ }
++
++// Weekday returns the time's day of the week. Sunday is day 0.
++func (t *Time) Weekday() int {
++	sec := t.Seconds() + int64(t.ZoneOffset)
++	day := sec / secondsPerDay
++	sec -= day * secondsPerDay
++	if sec < 0 {
++		day--
++	}
++	// Day 0 = January 1, 1970 was a Thursday
++	weekday := int((day + Thursday) % 7)
++	if weekday < 0 {
++		weekday += 7
++	}
++	return weekday
++}
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 07d7598332..fe0f3482aa 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -30,31 +30,31 @@ type TimeTest struct {
+ }
+ 
+ var utctests = []TimeTest{
+-	{0, Time{1970, 1, 1, 0, 0, 0, 0, Thursday, 0, "UTC"}},
+-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}},
+-	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, Thursday, 0, "UTC"}},
+-	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, Monday, 0, "UTC"}},
+-	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, Saturday, 0, "UTC"}},
+-	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, Sunday, 0, "UTC"}},
+-	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, Friday, 0, "UTC"}},
+-	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, Tuesday, 0, "UTC"}},
+-	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, Sunday, 0, "UTC"}},
+-	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, Sunday, 0, "UTC"}},
++	{0, Time{1970, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
++	{1221681866, Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}},
++	{-1221681866, Time{1931, 4, 16, 3, 55, 34, 0, 0, "UTC"}},
++	{-11644473600, Time{1601, 1, 1, 0, 0, 0, 0, 0, "UTC"}},
++	{599529660, Time{1988, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
++	{978220860, Time{2000, 12, 31, 0, 1, 0, 0, 0, "UTC"}},
++	{1e18, Time{31688740476, 10, 23, 1, 46, 40, 0, 0, "UTC"}},
++	{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, 0, 0, "UTC"}},
++	{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, 0, 0, "UTC"}},
++	{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, 0, 0, "UTC"}},
+ }
+ 
+ var nanoutctests = []TimeTest{
+-	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, Thursday, 0, "UTC"}},
+-	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, Wednesday, 0, "UTC"}},
++	{0, Time{1970, 1, 1, 0, 0, 0, 1e8, 0, "UTC"}},
++	{1221681866, Time{2008, 9, 17, 20, 4, 26, 2e8, 0, "UTC"}},
+ }
+ 
+ var localtests = []TimeTest{
+-	{0, Time{1969, 12, 31, 16, 0, 0, 0, Wednesday, -8 * 60 * 60, "PST"}},
+-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, Wednesday, -7 * 60 * 60, "PDT"}},
++	{0, Time{1969, 12, 31, 16, 0, 0, 0, -8 * 60 * 60, "PST"}},
++	{1221681866, Time{2008, 9, 17, 13, 4, 26, 0, -7 * 60 * 60, "PDT"}},
+ }
+ 
+ var nanolocaltests = []TimeTest{
+-	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, Wednesday, -8 * 60 * 60, "PST"}},
+-	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, Wednesday, -7 * 60 * 60, "PDT"}},
++	{0, Time{1969, 12, 31, 16, 0, 0, 1e8, -8 * 60 * 60, "PST"}},
++	{1221681866, Time{2008, 9, 17, 13, 4, 26, 3e8, -7 * 60 * 60, "PDT"}},
+ }
+ 
+ func same(t, u *Time) bool {
+@@ -65,7 +65,7 @@ func same(t, u *Time) bool {
+ 		t.Minute == u.Minute &&
+ 		t.Second == u.Second &&
+ 		t.Nanosecond == u.Nanosecond &&
+-		t.Weekday == u.Weekday &&
++		t.Weekday() == u.Weekday() &&
+ 		t.ZoneOffset == u.ZoneOffset &&
+ 		t.Zone == u.Zone
+ }
+@@ -173,9 +173,9 @@ type TimeFormatTest struct {
+ }
+ 
+ var rfc3339Formats = []TimeFormatTest{
+-	{Time{2008, 9, 17, 20, 4, 26, 0, Wednesday, 0, "UTC"}, "2008-09-17T20:04:26Z"},
+-	{Time{1994, 9, 17, 20, 4, 26, 0, Wednesday, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
+-	{Time{2000, 12, 26, 1, 15, 6, 0, Wednesday, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
++	{Time{2008, 9, 17, 20, 4, 26, 0, 0, "UTC"}, "2008-09-17T20:04:26Z"},
++	{Time{1994, 9, 17, 20, 4, 26, 0, -18000, "EST"}, "1994-09-17T20:04:26-05:00"},
++	{Time{2000, 12, 26, 1, 15, 6, 0, 15600, "OTO"}, "2000-12-26T01:15:06+04:20"},
+ }
+ 
+ func TestRFC3339Conversion(t *testing.T) {
+@@ -323,8 +323,8 @@ func checkTime(time *Time, test *ParseTest, t *testing.T) {
+ 	if test.hasTZ && time.ZoneOffset != -28800 {
+ 		t.Errorf("%s: bad tz offset: %d not %d", test.name, time.ZoneOffset, -28800)
+ 	}
+-	if test.hasWD && time.Weekday != 4 {
+-		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday, 4)
++	if test.hasWD && time.Weekday() != 4 {
++		t.Errorf("%s: bad weekday: %d not %d", test.name, time.Weekday(), 4)
+ 	}
+ }
+ 
+@@ -450,11 +450,11 @@ func Test12AMIsMidnight(t *testing.T) {
+ // Check that a time without a Zone still produces a (numeric) time zone
+ // when formatted with MST as a requested zone.
+ func TestMissingZone(t *testing.T) {
+-	time, err := Parse(RubyDate, "Tue Feb 02 16:10:03 -0500 2006")
++	time, err := Parse(RubyDate, "Thu Feb 02 16:10:03 -0500 2006")
+ 	if err != nil {
+ 		t.Fatal("error parsing date:", err)
+ 	}
+-	expect := "Tue Feb  2 16:10:03 -0500 2006" // -0500 not EST
++	expect := "Thu Feb  2 16:10:03 -0500 2006" // -0500 not EST
+ 	str := time.Format(UnixDate)               // uses MST as its time zone
+ 	if str != expect {
+ 		t.Errorf("expected %q got %q", expect, str)

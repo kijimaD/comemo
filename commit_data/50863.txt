@@ -10,6 +10,42 @@ Date:   Fri Nov 12 15:48:01 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/363661
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 45f89b7be5..e796215c78 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -40,6 +40,19 @@ Do not send CLs removing the interior tags from such phrases.
+   FreeBSD 13.0+ will require a kernel with the COMPAT_FREEBSD12 option set (this is the default).
+ </p>
+ 
++<h3 id="amd64">AMD64</h3>
++
++<p><!-- CL 349595 -->
++  Go 1.18 introduces the new <code>GOAMD64</code> environment variable which selects
++  a version of the AMD64 architecture. Allowed values are <code>v1</code>,
++  <code>v2</code>, <code>v3</code>, or <code>v4</code>. Each higher level requires,
++  and takes advantage of, additional processor features.  A detailed description of the
++  versions is <a href="https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels">here</a>.
++</p>
++<p>
++  The <code>GOAMD64</code> environment variable defaults to <code>v1</code>.
++</p>
++
+ <h3 id="ppc64">PPC64</h3>
+ 
+ <p><!-- CL 353969 -->
+@@ -123,10 +136,6 @@ Do not send CLs removing the interior tags from such phrases.
+   third-party tools that need to collect package source code.)
+ </p>
+ 
+-<p><!-- CL 349595 -->
+-  TODO: <a href="https://golang.org/cl/349595">https://golang.org/cl/349595</a>: cmd/go: add GOAMD64 environment variable
+-</p>
+-
+ <h3 id="gofmt"><code>gofmt</code></h3>
+ 
+ <p><!-- https://golang.org/issue/43566 -->

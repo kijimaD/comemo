@@ -15,7 +15,59 @@ Date:   Mon Sep 9 15:41:36 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/13234051
-
+---
  src/pkg/container/list/list.go      |  4 ++--
  src/pkg/container/list/list_test.go | 18 ++++++++++++++++++
  2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 34e6b9a50d..ed2d15a457 100644
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -29,7 +29,7 @@ type Element struct {
+ 
+ // Next returns the next list element or nil.
+ func (e *Element) Next() *Element {
+-	if p := e.next; p != &e.list.root {
++	if p := e.next; e.list != nil && p != &e.list.root {
+ 		return p
+ 	}
+ 	return nil
+@@ -37,7 +37,7 @@ func (e *Element) Next() *Element {
+ 
+ // Prev returns the previous list element or nil.
+ func (e *Element) Prev() *Element {
+-	if p := e.prev; p != &e.list.root {
++	if p := e.prev; e.list != nil && p != &e.list.root {
+ 		return p
+ 	}
+ 	return nil
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index 33f060c7f5..ee52afe82b 100644
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -234,6 +234,24 @@ func TestIssue4103(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue6349(t *testing.T) {
++	l := New()
++	l.PushBack(1)
++	l.PushBack(2)
++
++	e := l.Front()
++	l.Remove(e)
++	if e.Value != 1 {
++		t.Errorf("e.value = %d, want 1", e.Value)
++	}
++	if e.Next() != nil {
++		t.Errorf("e.Next() != nil")
++	}
++	if e.Prev() != nil {
++		t.Errorf("e.Prev() != nil")
++	}
++}
++
+ func TestMove(t *testing.T) {
+ 	l := New()
+ 	e1 := l.PushBack(1)

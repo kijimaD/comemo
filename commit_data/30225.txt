@@ -22,7 +22,54 @@ Date:   Thu Oct 27 23:10:26 2016 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/cookie.go      | 8 +++++++-
  src/net/http/cookie_test.go | 9 +++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index a0a4690ddc..5a67476cd4 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -168,7 +168,7 @@ func (c *Cookie) String() string {
+ 			log.Printf("net/http: invalid Cookie.Domain %q; dropping domain attribute", c.Domain)
+ 		}
+ 	}
+-	if c.Expires.Unix() > 0 {
++	if validCookieExpires(c.Expires) {
+ 		b.WriteString("; Expires=")
+ 		b2 := b.Bytes()
+ 		b.Reset()
+@@ -246,6 +246,12 @@ func validCookieDomain(v string) bool {
+ 	return false
+ }
+ 
++// validCookieExpires returns whether v is a valid cookie expires-value.
++func validCookieExpires(t time.Time) bool {
++	// IETF RFC 6265 Section 5.1.1.5, the year must not be less than 1601
++	return t.Year() >= 1601
++}
++
+ // isCookieDomainName returns whether s is a valid domain name or a valid
+ // domain name with a leading dot '.'.  It is almost a direct copy of
+ // package net's isDomainName.
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 2c01040281..b3e54f8db3 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -56,6 +56,15 @@ var writeSetCookiesTests = []struct {
+ 		&Cookie{Name: "cookie-9", Value: "expiring", Expires: time.Unix(1257894000, 0)},
+ 		"cookie-9=expiring; Expires=Tue, 10 Nov 2009 23:00:00 GMT",
+ 	},
++	// According to IETF 6265 Section 5.1.1.5, the year cannot be less than 1601
++	{
++		&Cookie{Name: "cookie-10", Value: "expiring-1601", Expires: time.Date(1601, 1, 1, 1, 1, 1, 1, time.UTC)},
++		"cookie-10=expiring-1601; Expires=Mon, 01 Jan 1601 01:01:01 GMT",
++	},
++	{
++		&Cookie{Name: "cookie-11", Value: "invalid-expiry", Expires: time.Date(1600, 1, 1, 1, 1, 1, 1, time.UTC)},
++		"cookie-11=invalid-expiry",
++	},
+ 	// The "special" cookies have values containing commas or spaces which
+ 	// are disallowed by RFC 6265 but are common in the wild.
+ 	{

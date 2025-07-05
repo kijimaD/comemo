@@ -7,6 +7,25 @@ Date:   Tue Sep 7 09:55:05 2010 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/2144042
-
+---
  test/garbage/parser.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index 6619f6f882..cf68737fb2 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -30,11 +30,11 @@ func isPkgFile(dir *os.FileInfo) bool {
+ }
+ 
+ func pkgName(filename string) string {
+-	file, err := parser.ParseFile(filename, nil, nil, parser.PackageClauseOnly)
++	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly)
+ 	if err != nil || file == nil {
+ 		return ""
+ 	}
+-	return file.Name.Name()
++	return file.Name.Name
+ }
+ 
+ func parseDir(dirpath string) map[string]*ast.Package {

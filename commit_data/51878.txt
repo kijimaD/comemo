@@ -10,9 +10,86 @@ Date:   Mon Mar 14 12:10:11 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/392715
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go               |  2 +-
  .../internal/types2/testdata/fixedbugs/issue51616.go2 | 19 +++++++++++++++++++
  src/go/types/decl.go                                  |  2 +-
  src/go/types/testdata/fixedbugs/issue51616.go2        | 19 +++++++++++++++++++
  4 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 579fa55e59..01c47ee7c1 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -502,7 +502,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 		}
+ 
+ 		check.brokenAlias(obj)
+-		rhs = check.varType(tdecl.Type)
++		rhs = check.typ(tdecl.Type)
+ 		check.validAlias(obj, rhs)
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51616.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51616.go2
+new file mode 100644
+index 0000000000..e0efc9e620
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51616.go2
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++        C[T any] interface{~int; M() T}
++
++        _ C[bool]
++        _ comparable
++        _ interface {~[]byte | ~string}
++
++        // Alias type declarations may refer to "constraint" types
++        // like ordinary type declarations.
++        _ = C[bool]
++        _ = comparable
++        _ = interface {~[]byte | ~string}
++)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 93a37d76ce..c3d43d93f6 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -559,7 +559,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 		}
+ 
+ 		check.brokenAlias(obj)
+-		rhs = check.varType(tdecl.Type)
++		rhs = check.typ(tdecl.Type)
+ 		check.validAlias(obj, rhs)
+ 		return
+ 	}
+diff --git a/src/go/types/testdata/fixedbugs/issue51616.go2 b/src/go/types/testdata/fixedbugs/issue51616.go2
+new file mode 100644
+index 0000000000..e0efc9e620
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51616.go2
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++        C[T any] interface{~int; M() T}
++
++        _ C[bool]
++        _ comparable
++        _ interface {~[]byte | ~string}
++
++        // Alias type declarations may refer to "constraint" types
++        // like ordinary type declarations.
++        _ = C[bool]
++        _ = comparable
++        _ = interface {~[]byte | ~string}
++)

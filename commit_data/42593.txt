@@ -16,6 +16,27 @@ Date:   Thu Jan 23 03:31:49 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 520158119e..6b36a94daa 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -55,6 +55,15 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
+ 	p.Mark |= NEED_PCREL_ITYPE_RELOC
+ 	p = obj.Appendp(p, newprog)
+ 
++	// TODO(jsing): This instruction is not necessary, as the lower bits
++	// of the immediate can be encoded directly in the JALR instruction.
++	// However, other code currently depends on jalrToSym being 12 bytes...
++	p.As = AADDI
++	p.From = obj.Addr{Type: obj.TYPE_CONST}
++	p.Reg = REG_TMP
++	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
++	p = obj.Appendp(p, newprog)
++
+ 	// Leave Sym only for the CALL reloc in assemble.
+ 	p.As = AJALR
+ 	p.From.Type = obj.TYPE_REG

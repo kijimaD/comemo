@@ -7,7 +7,72 @@ Date:   Fri Feb 11 12:23:54 2011 +0100
     R=r
     CC=golang-dev
     https://golang.org/cl/4182043
-
+---
  src/pkg/flag/flag.go      | 8 ++++----
  src/pkg/flag/flag_test.go | 6 +++---
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 143a106115..be972057ed 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -96,7 +96,7 @@ func newIntValue(val int, p *int) *intValue {
+ }
+ 
+ func (i *intValue) Set(s string) bool {
+-	v, err := strconv.Atoi(s)
++	v, err := strconv.Btoi64(s, 0)
+ 	*i = intValue(v)
+ 	return err == nil
+ }
+@@ -112,7 +112,7 @@ func newInt64Value(val int64, p *int64) *int64Value {
+ }
+ 
+ func (i *int64Value) Set(s string) bool {
+-	v, err := strconv.Atoi64(s)
++	v, err := strconv.Btoi64(s, 0)
+ 	*i = int64Value(v)
+ 	return err == nil
+ }
+@@ -128,7 +128,7 @@ func newUintValue(val uint, p *uint) *uintValue {
+ }
+ 
+ func (i *uintValue) Set(s string) bool {
+-	v, err := strconv.Atoui(s)
++	v, err := strconv.Btoui64(s, 0)
+ 	*i = uintValue(v)
+ 	return err == nil
+ }
+@@ -144,7 +144,7 @@ func newUint64Value(val uint64, p *uint64) *uint64Value {
+ }
+ 
+ func (i *uint64Value) Set(s string) bool {
+-	v, err := strconv.Atoui64(s)
++	v, err := strconv.Btoui64(s, 0)
+ 	*i = uint64Value(v)
+ 	return err == nil
+ }
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index b91a8b5679..30a21e61ae 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -106,7 +106,7 @@ func TestParse(t *testing.T) {
+ 		"-bool",
+ 		"-bool2=true",
+ 		"--int", "22",
+-		"--int64", "23",
++		"--int64", "0x23",
+ 		"-uint", "24",
+ 		"--uint64", "25",
+ 		"-string", "hello",
+@@ -125,8 +125,8 @@ func TestParse(t *testing.T) {
+ 	if *intFlag != 22 {
+ 		t.Error("int flag should be 22, is ", *intFlag)
+ 	}
+-	if *int64Flag != 23 {
+-		t.Error("int64 flag should be 23, is ", *int64Flag)
++	if *int64Flag != 0x23 {
++		t.Error("int64 flag should be 0x23, is ", *int64Flag)
+ 	}
+ 	if *uintFlag != 24 {
+ 		t.Error("uint flag should be 24, is ", *uintFlag)

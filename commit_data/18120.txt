@@ -7,6 +7,56 @@ Date:   Fri Dec 27 08:40:14 2013 -0800
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/42480043
-
+---
  src/pkg/strconv/atob_test.go | 34 ++++++++++++++++++++++++++++++++++
  1 file changed, 34 insertions(+)
+
+diff --git a/src/pkg/strconv/atob_test.go b/src/pkg/strconv/atob_test.go
+index a7c1454eb1..28f469f585 100644
+--- a/src/pkg/strconv/atob_test.go
++++ b/src/pkg/strconv/atob_test.go
+@@ -5,6 +5,7 @@
+ package strconv_test
+ 
+ import (
++	"bytes"
+ 	. "strconv"
+ 	"testing"
+ )
+@@ -55,3 +56,36 @@ func TestParseBool(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var boolString = map[bool]string{
++	true:  "true",
++	false: "false",
++}
++
++func TestFormatBool(t *testing.T) {
++	for b, s := range boolString {
++		if f := FormatBool(b); f != s {
++			t.Errorf(`FormatBool(%v): expected %q but got %q`, b, s, f)
++		}
++	}
++}
++
++type appendBoolTest struct {
++	b   bool
++	in  []byte
++	out []byte
++}
++
++var appendBoolTests = []appendBoolTest{
++	{true, []byte("foo "), []byte("foo true")},
++	{false, []byte("foo "), []byte("foo false")},
++}
++
++func TestAppendBool(t *testing.T) {
++	for _, test := range appendBoolTests {
++		b := AppendBool(test.in, test.b)
++		if !bytes.Equal(b, test.out) {
++			t.Errorf("AppendBool(%q, %v): expected %q but got %q", test.in, test.b, test.out, b)
++		}
++	}
++}

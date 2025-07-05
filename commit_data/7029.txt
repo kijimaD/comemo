@@ -9,7 +9,64 @@ Date:   Tue Jan 4 13:42:50 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3787044
-
+---
  src/pkg/encoding/binary/binary.go      |  4 ++++
  src/pkg/encoding/binary/binary_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index ebc2ae8b7c..6bbe7eb895 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -198,6 +198,10 @@ func sizeof(v reflect.Type) int {
+ 		return sum
+ 
+ 	case *reflect.UintType, *reflect.IntType, *reflect.FloatType, *reflect.ComplexType:
++		switch t := t.Kind(); t {
++		case reflect.Int, reflect.Uint, reflect.Uintptr, reflect.Float, reflect.Complex:
++			return -1
++		}
+ 		return int(v.Size())
+ 	}
+ 	return -1
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index d372d2d027..c378413f10 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -28,6 +28,15 @@ type Struct struct {
+ 	Array      [4]uint8
+ }
+ 
++type T struct {
++	Int     int
++	Uint    uint
++	Float   float
++	Complex complex
++	Uintptr uintptr
++	Array   [4]int
++}
++
+ var s = Struct{
+ 	0x01,
+ 	0x0203,
+@@ -136,3 +145,20 @@ func TestWriteSlice(t *testing.T) {
+ 	err := Write(buf, BigEndian, res)
+ 	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+ }
++
++func TestWriteT(t *testing.T) {
++	buf := new(bytes.Buffer)
++	ts := T{}
++	err := Write(buf, BigEndian, ts)
++	if err == nil {
++		t.Errorf("WriteT: have nil, want non-nil")
++	}
++
++	tv := reflect.Indirect(reflect.NewValue(ts)).(*reflect.StructValue)
++	for i, n := 0, tv.NumField(); i < n; i++ {
++		err = Write(buf, BigEndian, tv.Field(i).Interface())
++		if err == nil {
++			t.Errorf("WriteT.%v: have nil, want non-nil", tv.Field(i).Type())
++		}
++	}
++}

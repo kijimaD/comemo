@@ -9,7 +9,36 @@ Date:   Tue Mar 27 13:46:16 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5926043
-
+---
  doc/{reference-cmd.html => cmd.html} | 2 +-
  doc/reference.html                   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/reference-cmd.html b/doc/cmd.html
+similarity index 99%
+rename from doc/reference-cmd.html
+rename to doc/cmd.html
+index b2cb2efa04..ac54923d43 100644
+--- a/doc/reference-cmd.html
++++ b/doc/cmd.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "Command Documentation",
+-	"Path":  "/ref/cmd"
++	"Path":  "/doc/cmd"
+ }-->
+ 
+ <p>
+diff --git a/doc/reference.html b/doc/reference.html
+index 628289f7be..beaac431d2 100644
+--- a/doc/reference.html
++++ b/doc/reference.html
+@@ -14,7 +14,7 @@
+ The documentation for the Go standard library.
+ </p>
+ 
+-<h3 id="cmd"><a href="/ref/cmd">Command Documentation</a></h3>
++<h3 id="cmd"><a href="/doc/cmd">Command Documentation</a></h3>
+ <p>
+ The documentation for the Go tools.
+ </p>

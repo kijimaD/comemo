@@ -12,6 +12,27 @@ Date:   Wed Jul 3 10:22:28 2019 -0400
     Change-Id: I1ba872a220d5c5bf64f1d851ddba9eb3b1afb89a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/184917
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go/build/doc.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 703825a45d..de793efa87 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -70,10 +70,11 @@
+ // To distinguish build constraints from package documentation, a series of
+ // build constraints must be followed by a blank line.
+ //
+-// A build constraint is evaluated as the OR of space-separated options;
+-// each option evaluates as the AND of its comma-separated terms;
+-// and each term is an alphanumeric word or, preceded by !, its negation.
+-// That is, the build constraint:
++// A build constraint is evaluated as the OR of space-separated options.
++// Each option evaluates as the AND of its comma-separated terms.
++// Each term consists of letters, digits, underscores, and dots.
++// A term may be negated with a preceding !.
++// For example, the build constraint:
+ //
+ //	// +build linux,386 darwin,!cgo
+ //

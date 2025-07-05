@@ -8,7 +8,42 @@ Date:   Fri Oct 16 13:31:35 2009 -0700
     DELTA=20  (20 added, 0 deleted, 0 changed)
     OCL=35847
     CL=35847
-
+---
  test/bugs/bug210.go | 16 ++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 20 insertions(+)
+
+diff --git a/test/bugs/bug210.go b/test/bugs/bug210.go
+new file mode 100644
+index 0000000000..a40dab1600
+--- /dev/null
++++ b/test/bugs/bug210.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	children []T;
++}
++
++/*
++uetli:/home/gri/go/test/bugs gri$ 6g bug210.go
++bug210.go:10: invalid recursive type []T
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 6db0a1217a..dea36ea2bd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -166,3 +166,7 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ too many calls: 5
+ panic PC=xxx
+ BUG: bug196
++
++=========== bugs/bug210.go
++bugs/bug210.go:10: invalid recursive type []T
++BUG: should compile

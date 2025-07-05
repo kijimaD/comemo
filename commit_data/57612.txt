@@ -15,9 +15,177 @@ Date:   Fri Aug 18 00:32:11 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/gc/compile.go          |  4 --
  src/cmd/compile/internal/gc/main.go             | 47 ++++++++++++++++++-----
  src/cmd/compile/internal/gc/obj.go              | 51 +------------------------
  src/cmd/compile/internal/reflectdata/reflect.go |  2 +
  4 files changed, 41 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index a2ffed7b00..b3e8e0e941 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -113,10 +113,6 @@ func prepareFunc(fn *ir.Func) {
+ // It fans out nBackendWorkers to do the work
+ // and waits for them to complete.
+ func compileFunctions() {
+-	if len(compilequeue) == 0 {
+-		return
+-	}
+-
+ 	if race.Enabled {
+ 		// Randomize compilation order to try to shake out races.
+ 		tmp := make([]*ir.Func, len(compilequeue))
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ae695b58f9..5e8ffb34ab 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -298,18 +298,47 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	ir.CurFunc = nil
+ 
+-	// Compile top level functions.
+-	// Don't use range--walk can add functions to Target.Decls.
++	reflectdata.WriteBasicTypes()
++
++	// Compile top-level declarations.
++	//
++	// There are cyclic dependencies between all of these phases, so we
++	// need to iterate all of them until we reach a fixed point.
+ 	base.Timer.Start("be", "compilefuncs")
+-	fcount := int64(0)
+-	for i := 0; i < len(typecheck.Target.Funcs); i++ {
+-		fn := typecheck.Target.Funcs[i]
+-		enqueueFunc(fn)
+-		fcount++
++	for nextFunc, nextExtern := 0, 0; ; {
++		reflectdata.WriteRuntimeTypes()
++
++		if nextExtern < len(typecheck.Target.Externs) {
++			switch n := typecheck.Target.Externs[nextExtern]; n.Op() {
++			case ir.ONAME:
++				dumpGlobal(n)
++			case ir.OLITERAL:
++				dumpGlobalConst(n)
++			case ir.OTYPE:
++				reflectdata.NeedRuntimeType(n.Type())
++			}
++			nextExtern++
++			continue
++		}
++
++		if nextFunc < len(typecheck.Target.Funcs) {
++			enqueueFunc(typecheck.Target.Funcs[nextFunc])
++			nextFunc++
++			continue
++		}
++
++		// The SSA backend supports using multiple goroutines, so keep it
++		// as the last step to maximize how much work we can batch and
++		// process concurrently.
++		if len(compilequeue) != 0 {
++			compileFunctions()
++			continue
++		}
++
++		break
+ 	}
+-	base.Timer.AddEvent(fcount, "funcs")
+ 
+-	compileFunctions()
++	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")
+ 
+ 	if base.Flag.CompilingRuntime {
+ 		// Write barriers are now known. Check the call graph.
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 4ff249ca2e..249eeb221d 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -110,39 +110,11 @@ func dumpCompilerObj(bout *bio.Writer) {
+ }
+ 
+ func dumpdata() {
+-	numExterns := len(typecheck.Target.Externs)
+-	numDecls := len(typecheck.Target.Funcs)
+-	dumpglobls(typecheck.Target.Externs)
+-	addsignats(typecheck.Target.Externs)
+-	reflectdata.WriteRuntimeTypes()
++	reflectdata.WriteGCSymbols()
+ 	reflectdata.WritePluginTable()
+ 	reflectdata.WriteImportStrings()
+-	reflectdata.WriteBasicTypes()
+ 	dumpembeds()
+ 
+-	// Calls to WriteRuntimeTypes can generate functions,
+-	// like method wrappers and hash and equality routines.
+-	// Compile any generated functions, process any new resulting types, repeat.
+-	// This can't loop forever, because there is no way to generate an infinite
+-	// number of types in a finite amount of code.
+-	// In the typical case, we loop 0 or 1 times.
+-	// It was not until issue 24761 that we found any code that required a loop at all.
+-	for {
+-		for i := numDecls; i < len(typecheck.Target.Funcs); i++ {
+-			fn := typecheck.Target.Funcs[i]
+-			enqueueFunc(fn)
+-		}
+-		numDecls = len(typecheck.Target.Funcs)
+-		compileFunctions()
+-		reflectdata.WriteRuntimeTypes()
+-		if numDecls == len(typecheck.Target.Funcs) {
+-			break
+-		}
+-	}
+-
+-	// Dump extra globals.
+-	dumpglobls(typecheck.Target.Externs[numExterns:])
+-
+ 	if reflectdata.ZeroSize > 0 {
+ 		zero := base.PkgLinksym("go:map", "zero", obj.ABI0)
+ 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
+@@ -217,18 +189,6 @@ func dumpGlobalConst(n *ir.Name) {
+ 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+ }
+ 
+-func dumpglobls(externs []*ir.Name) {
+-	// add globals
+-	for _, n := range externs {
+-		switch n.Op() {
+-		case ir.ONAME:
+-			dumpGlobal(n)
+-		case ir.OLITERAL:
+-			dumpGlobalConst(n)
+-		}
+-	}
+-}
+-
+ // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+ //
+ // This is done during the sequential phase after compilation, since
+@@ -323,12 +283,3 @@ func dumpembeds() {
+ 		staticdata.WriteEmbed(v)
+ 	}
+ }
+-
+-func addsignats(dcls []*ir.Name) {
+-	// copy types from dcl list to signatset
+-	for _, n := range dcls {
+-		if n.Op() == ir.OTYPE {
+-			reflectdata.NeedRuntimeType(n.Type())
+-		}
+-	}
+-}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 2e5301c823..ac0f1a96d8 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1264,7 +1264,9 @@ func WriteRuntimeTypes() {
+ 		}
+ 		signatslice = signatslice[len(signats):]
+ 	}
++}
+ 
++func WriteGCSymbols() {
+ 	// Emit GC data symbols.
+ 	gcsyms := make([]typeAndStr, 0, len(gcsymset))
+ 	for t := range gcsymset {

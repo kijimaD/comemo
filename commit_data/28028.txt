@@ -18,7 +18,35 @@ Date:   Tue Apr 26 10:55:32 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go    | 2 +-
  src/cmd/compile/internal/gc/parser.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 09fed98985..8608a6229c 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -755,7 +755,7 @@ func (l *lexer) number(c rune) {
+ 	}
+ 
+ done:
+-	litbuf = "literal " + str
++	litbuf = "" // lazily initialized in (*parser).syntax_error
+ 	l.nlsemi = true
+ 	l.tok = LLITERAL
+ }
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 97a18497ff..55f352590b 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -102,6 +102,9 @@ func (p *parser) syntax_error(msg string) {
+ 			tok = "name"
+ 		}
+ 	case LLITERAL:
++		if litbuf == "" {
++			litbuf = "literal " + lexbuf.String()
++		}
+ 		tok = litbuf
+ 	case LOPER:
+ 		tok = goopnames[p.op]

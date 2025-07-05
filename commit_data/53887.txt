@@ -13,6 +13,25 @@ Date:   Sat Sep 3 18:18:30 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/syscall/syscall_darwin.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 663bd98c10..663ac4e94c 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -310,12 +310,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 			break
+ 		}
+ 		// Copy entry into return buffer.
+-		s := struct {
+-			ptr unsafe.Pointer
+-			siz int
+-			cap int
+-		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
+-		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
++		copy(buf, unsafe.Slice((*byte)(unsafe.Pointer(&entry)), reclen))
+ 		buf = buf[reclen:]
+ 		n += reclen
+ 		cnt++

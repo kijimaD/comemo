@@ -35,7 +35,7 @@ Date:   Fri Sep 14 10:09:08 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  8 ++--
  src/cmd/compile/internal/gc/builtin/runtime.go |  8 ++--
  src/cmd/compile/internal/gc/order.go           | 13 ++++--
@@ -44,3 +44,259 @@ Date:   Fri Sep 14 10:09:08 2018 -0700
  test/fixedbugs/issue20250.go                   |  4 +-
  test/live.go                                   |  8 ++--
  7 files changed, 45 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index ec8f1093b6..8051c7d0df 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -55,15 +55,15 @@ var runtimeDecls = [...]struct {
+ 	{"convT2E16", funcTag, 52},
+ 	{"convT2E32", funcTag, 52},
+ 	{"convT2E64", funcTag, 52},
+-	{"convT2Estring", funcTag, 53},
+-	{"convT2Eslice", funcTag, 53},
++	{"convT2Estring", funcTag, 52},
++	{"convT2Eslice", funcTag, 52},
+ 	{"convT2Enoptr", funcTag, 53},
+ 	{"convT2I", funcTag, 53},
+ 	{"convT2I16", funcTag, 52},
+ 	{"convT2I32", funcTag, 52},
+ 	{"convT2I64", funcTag, 52},
+-	{"convT2Istring", funcTag, 53},
+-	{"convT2Islice", funcTag, 53},
++	{"convT2Istring", funcTag, 52},
++	{"convT2Islice", funcTag, 52},
+ 	{"convT2Inoptr", funcTag, 53},
+ 	{"assertE2I", funcTag, 52},
+ 	{"assertE2I2", funcTag, 54},
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 140b7f3b2d..028936b875 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -68,16 +68,16 @@ func convT2E(typ *byte, elem *any) (ret any)
+ func convT2E16(typ *byte, val any) (ret any)
+ func convT2E32(typ *byte, val any) (ret any)
+ func convT2E64(typ *byte, val any) (ret any)
+-func convT2Estring(typ *byte, elem *any) (ret any)
+-func convT2Eslice(typ *byte, elem *any) (ret any)
++func convT2Estring(typ *byte, val any) (ret any) // val must be a string
++func convT2Eslice(typ *byte, val any) (ret any)  // val must be a slice
+ func convT2Enoptr(typ *byte, elem *any) (ret any)
+ 
+ func convT2I(tab *byte, elem *any) (ret any)
+ func convT2I16(tab *byte, val any) (ret any)
+ func convT2I32(tab *byte, val any) (ret any)
+ func convT2I64(tab *byte, val any) (ret any)
+-func convT2Istring(tab *byte, elem *any) (ret any)
+-func convT2Islice(tab *byte, elem *any) (ret any)
++func convT2Istring(tab *byte, val any) (ret any) // val must be a string
++func convT2Islice(tab *byte, val any) (ret any)  // val must be a slice
+ func convT2Inoptr(tab *byte, elem *any) (ret any)
+ 
+ // interface type assertions x.(T)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 8afb136515..fbc05b95d2 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1042,12 +1042,17 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 			n = o.copyExpr(n, n.Type, false)
+ 		}
+ 
+-	// concrete type (not interface) argument must be addressable
+-	// temporary to pass to runtime.
++	// concrete type (not interface) argument might need an addressable
++	// temporary to pass to the runtime conversion routine.
+ 	case OCONVIFACE:
+ 		n.Left = o.expr(n.Left, nil)
+-
+-		if !n.Left.Type.IsInterface() {
++		if n.Left.Type.IsInterface() {
++			break
++		}
++		if _, needsaddr := convFuncName(n.Left.Type, n.Type); needsaddr || consttype(n.Left) > 0 {
++			// Need a temp if we need to pass the address to the conversion function.
++			// We also process constants here, making a named static global whose
++			// address we can put directly in an interface (see OCONVIFACE case in walk).
+ 			n.Left = o.addrTemp(n.Left)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d33674f221..f7676310e9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -417,9 +417,9 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+ 				return "convT2E64", false
+ 			case from.IsString():
+-				return "convT2Estring", true
++				return "convT2Estring", false
+ 			case from.IsSlice():
+-				return "convT2Eslice", true
++				return "convT2Eslice", false
+ 			case !types.Haspointers(from):
+ 				return "convT2Enoptr", true
+ 			}
+@@ -433,9 +433,9 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
+ 			case from.Size() == 8 && from.Align == types.Types[TUINT64].Align && !types.Haspointers(from):
+ 				return "convT2I64", false
+ 			case from.IsString():
+-				return "convT2Istring", true
++				return "convT2Istring", false
+ 			case from.IsSlice():
+-				return "convT2Islice", true
++				return "convT2Islice", false
+ 			case !types.Haspointers(from):
+ 				return "convT2Inoptr", true
+ 			}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 7ab731151e..1ef9825a48 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -329,38 +329,27 @@ func convT2E64(t *_type, val uint64) (e eface) {
+ 	return
+ }
+ 
+-func convT2Estring(t *_type, elem unsafe.Pointer) (e eface) {
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Estring))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
++func convT2Estring(t *_type, val string) (e eface) {
+ 	var x unsafe.Pointer
+-	if *(*string)(elem) == "" {
++	if val == "" {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+-		x = mallocgc(t.size, t, true)
+-		*(*string)(x) = *(*string)(elem)
++		x = mallocgc(unsafe.Sizeof(val), t, true)
++		*(*string)(x) = val
+ 	}
+ 	e._type = t
+ 	e.data = x
+ 	return
+ }
+ 
+-func convT2Eslice(t *_type, elem unsafe.Pointer) (e eface) {
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Eslice))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
++func convT2Eslice(t *_type, val []byte) (e eface) {
++	// Note: this must work for any element type, not just byte.
+ 	var x unsafe.Pointer
+-	if v := *(*slice)(elem); uintptr(v.array) == 0 {
++	if (*slice)(unsafe.Pointer(&val)).array == nil {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+-		x = mallocgc(t.size, t, true)
+-		*(*slice)(x) = *(*slice)(elem)
++		x = mallocgc(unsafe.Sizeof(val), t, true)
++		*(*[]byte)(x) = val
+ 	}
+ 	e._type = t
+ 	e.data = x
+@@ -438,40 +427,29 @@ func convT2I64(tab *itab, val uint64) (i iface) {
+ 	return
+ }
+ 
+-func convT2Istring(tab *itab, elem unsafe.Pointer) (i iface) {
++func convT2Istring(tab *itab, val string) (i iface) {
+ 	t := tab._type
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Istring))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
+ 	var x unsafe.Pointer
+-	if *(*string)(elem) == "" {
++	if val == "" {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+-		x = mallocgc(t.size, t, true)
+-		*(*string)(x) = *(*string)(elem)
++		x = mallocgc(unsafe.Sizeof(val), t, true)
++		*(*string)(x) = val
+ 	}
+ 	i.tab = tab
+ 	i.data = x
+ 	return
+ }
+ 
+-func convT2Islice(tab *itab, elem unsafe.Pointer) (i iface) {
++func convT2Islice(tab *itab, val []byte) (i iface) {
++	// Note: this must work for any element type, not just byte.
+ 	t := tab._type
+-	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2Islice))
+-	}
+-	if msanenabled {
+-		msanread(elem, t.size)
+-	}
+ 	var x unsafe.Pointer
+-	if v := *(*slice)(elem); uintptr(v.array) == 0 {
++	if (*slice)(unsafe.Pointer(&val)).array == nil {
+ 		x = unsafe.Pointer(&zeroVal[0])
+ 	} else {
+-		x = mallocgc(t.size, t, true)
+-		*(*slice)(x) = *(*slice)(elem)
++		x = mallocgc(unsafe.Sizeof(val), t, true)
++		*(*[]byte)(x) = val
+ 	}
+ 	i.tab = tab
+ 	i.data = x
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+index 47879385d2..c190515274 100644
+--- a/test/fixedbugs/issue20250.go
++++ b/test/fixedbugs/issue20250.go
+@@ -11,13 +11,13 @@
+ package p
+ 
+ type T struct {
+-	s string
++	s [2]string
+ }
+ 
+ func f(a T) { // ERROR "live at entry to f: a"
+ 	var e interface{} // ERROR "stack object e interface \{\}$"
+ 	func() {          // ERROR "live at entry to f.func1: a &e"
+-		e = a.s // ERROR "live at call to convT2Estring: &e" "stack object a T$"
++		e = a.s // ERROR "live at call to convT2E: &e" "stack object a T$"
+ 	}()
+ 	// Before the fix, both a and e were live at the previous line.
+ 	_ = e
+diff --git a/test/live.go b/test/live.go
+index 679562d9bf..ba50f5b779 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -141,7 +141,7 @@ var i9 interface{}
+ func f9() bool {
+ 	g8()
+ 	x := i9
+-	y := interface{}(str()) // ERROR "live at call to convT2Estring: x.data$" "live at call to str: x.data$" "stack object .autotmp_[0-9]+ string$"
++	y := interface{}(g18()) // ERROR "live at call to convT2E: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	i9 = y                  // make y escape so the line above has to call convT2E
+ 	return x != y
+ }
+@@ -493,13 +493,13 @@ func f30(b bool) {
+ 
+ func f31(b1, b2, b3 bool) {
+ 	if b1 {
+-		g31(str()) // ERROR "stack object .autotmp_[0-9]+ string$"
++		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	if b2 {
+-		h31(str()) // ERROR "live at call to convT2Estring: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ string$"
++		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	if b3 {
+-		panic(str()) // ERROR "stack object .autotmp_[0-9]+ string$"
++		panic(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+ 	}
+ 	print(b3)
+ }

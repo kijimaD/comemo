@@ -7,6 +7,28 @@ Date:   Mon Dec 12 10:40:15 2011 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5486044
-
+---
  src/pkg/net/http/filetransport_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/http/filetransport_test.go b/src/pkg/net/http/filetransport_test.go
+index 265a3b903e..039926b538 100644
+--- a/src/pkg/net/http/filetransport_test.go
++++ b/src/pkg/net/http/filetransport_test.go
+@@ -7,6 +7,7 @@ package http_test
+ import (
+ 	"io/ioutil"
+ 	"net/http"
++	"os"
+ 	"path/filepath"
+ 	"testing"
+ )
+@@ -28,6 +29,8 @@ func TestFileTransport(t *testing.T) {
+ 	fname := filepath.Join(dname, "foo.txt")
+ 	err = ioutil.WriteFile(fname, []byte("Bar"), 0644)
+ 	check("WriteFile", err)
++	defer os.Remove(dname)
++	defer os.Remove(fname)
+ 
+ 	tr := &http.Transport{}
+ 	tr.RegisterProtocol("file", http.NewFileTransport(http.Dir(dname)))

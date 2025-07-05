@@ -11,6 +11,32 @@ Date:   Sun Sep 4 19:07:30 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/race/sched_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/race/sched_test.go b/src/runtime/race/sched_test.go
+index 9fe83ea11d..a66860cda0 100644
+--- a/src/runtime/race/sched_test.go
++++ b/src/runtime/race/sched_test.go
+@@ -7,10 +7,10 @@
+ package race_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"reflect"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -40,7 +40,7 @@ func TestRandomScheduling(t *testing.T) {
+ 		}
+ 	}
+ 
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i := 0; i < N; i++ {
+ 		fmt.Fprintf(&buf, "%v\n", out[i])
+ 	}

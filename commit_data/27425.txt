@@ -12,7 +12,99 @@ Date:   Fri Mar 25 18:07:19 2016 -0700
     Change-Id: I65c139d706d4d78e5b4ce09d1b1505a3e424496b
     Reviewed-on: https://go-review.googlesource.com/21173
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go        |  1 -
  src/cmd/compile/internal/gc/typecheck.go | 49 ++++++++++++++------------------
  2 files changed, 21 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 6feb5fb661..78c177e616 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -12,7 +12,6 @@ import (
+ 
+ const (
+ 	UINF            = 100
+-	PRIME1          = 3
+ 	BADWIDTH        = -1000000000
+ 	MaxStackVarSize = 10 * 1024 * 1024
+ )
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1f9b1c8b4a..e364d56b4f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2782,27 +2782,26 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 		return // we don't check variables
+ 	}
+ 
++	const PRIME1 = 3
++
+ 	var h uint32
+-	switch n.Val().Ctype() {
++	switch v := n.Val().U.(type) {
+ 	default: // unknown, bool, nil
+ 		h = 23
+ 
+-	case CTINT, CTRUNE:
+-		h = uint32(n.Val().U.(*Mpint).Int64())
++	case *Mpint:
++		h = uint32(v.Int64())
+ 
+-	case CTFLT:
+-		d := n.Val().U.(*Mpflt).Float64()
+-		x := math.Float64bits(d)
++	case *Mpflt:
++		x := math.Float64bits(v.Float64())
+ 		for i := 0; i < 8; i++ {
+ 			h = h*PRIME1 + uint32(x&0xFF)
+ 			x >>= 8
+ 		}
+ 
+-	case CTSTR:
+-		h = 0
+-		s := n.Val().U.(string)
+-		for i := 0; i < len(s); i++ {
+-			h = h*PRIME1 + uint32(s[i])
++	case string:
++		for i := 0; i < len(v); i++ {
++			h = h*PRIME1 + uint32(v[i])
+ 		}
+ 	}
+ 
+@@ -2810,25 +2809,19 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 	for _, a := range hash[h] {
+ 		cmp.Op = OEQ
+ 		cmp.Left = n
+-		b := false
+ 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
+-			if Eqtype(a.Left.Type, n.Type) {
+-				cmp.Right = a.Left
+-				evconst(&cmp)
+-				if cmp.Op == OLITERAL {
+-					// Sometimes evconst fails. See issue 12536.
+-					b = cmp.Val().U.(bool)
+-				}
+-			}
+-		} else if Eqtype(a.Type, n.Type) {
+-			cmp.Right = a
+-			evconst(&cmp)
+-			if cmp.Op == OLITERAL {
+-				b = cmp.Val().U.(bool)
+-			}
++			a = a.Left
+ 		}
+-
+-		if b {
++		if !Eqtype(a.Type, n.Type) {
++			continue
++		}
++		cmp.Right = a
++		evconst(&cmp)
++		if cmp.Op != OLITERAL {
++			// Sometimes evconst fails. See issue 12536.
++			continue
++		}
++		if cmp.Val().U.(bool) {
+ 			Yyerror("duplicate key %v in map literal", n)
+ 			return
+ 		}

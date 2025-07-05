@@ -11,7 +11,7 @@ Date:   Wed Feb 22 15:44:09 2012 +1100
     R=rsc, mikioh.mikioh, minux.ma, adg
     CC=golang-dev
     https://golang.org/cl/5684060
-
+---
  src/pkg/runtime/cgo/gcc_freebsd_386.c   | 10 ++++++++++
  src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 11 +++++++++++
  src/pkg/runtime/os_freebsd.h            |  1 +
@@ -19,3 +19,186 @@ Date:   Wed Feb 22 15:44:09 2012 +1100
  src/pkg/runtime/sys_freebsd_amd64.s     | 12 +++++++++++-
  src/pkg/runtime/thread_freebsd.c        |  7 +++++++
  6 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_386.c b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+index ad94687307..2c97e2a330 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <sys/types.h>
++#include <sys/signalvar.h>
+ #include <pthread.h>
++#include <signal.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+@@ -25,14 +28,21 @@ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
++	sigset_t ign, oset;
+ 	pthread_t p;
+ 	size_t size;
+ 	int err;
+ 
++	SIGFILLSET(ign);
++	sigprocmask(SIG_SETMASK, &ign, &oset);
++
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
++
++	sigprocmask(SIG_SETMASK, &oset, nil);
++
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+ 		abort();
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+index b18d1bc67d..3beb4d7bb8 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <sys/types.h>
++#include <sys/signalvar.h>
+ #include <pthread.h>
++#include <signal.h>
+ #include "libcgo.h"
+ 
+ static void* threadentry(void*);
+@@ -25,14 +28,22 @@ void
+ libcgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
++	sigset_t ign, oset;
+ 	pthread_t p;
+ 	size_t size;
+ 	int err;
+ 
++	SIGFILLSET(ign);
++	sigprocmask(SIG_SETMASK, &ign, &oset);
++
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
++
+ 	ts->g->stackguard = size;
+ 	err = pthread_create(&p, &attr, threadentry, ts);
++
++	sigprocmask(SIG_SETMASK, &oset, nil);
++
+ 	if (err != 0) {
+ 		fprintf(stderr, "runtime/cgo: pthread_create failed: %s\n", strerror(err));
+ 		abort();
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index 03f131a524..194d96320d 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -7,6 +7,7 @@ void	runtime·sigpanic(void);
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ struct	sigaction;
+ void	runtime·sigaction(int32, struct sigaction*, struct sigaction*);
++void	runtime·sigprocmask(Sigset *, Sigset *);
+ void	runtime·setsig(int32, void(*)(int32, Siginfo*, void*, G*), bool);
+ void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
+ void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 9f31e253f1..0e03eac35a 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -304,4 +304,17 @@ TEXT runtime·osyield(SB),7,$-4
+ 	INT	$0x80
+ 	RET
+ 
++TEXT runtime·sigprocmask(SB),7,$16
++	MOVL	$0, 0(SP)		// syscall gap
++	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
++	MOVL	args+0(FP), AX
++	MOVL	AX, 8(SP)		// arg 2 - set
++	MOVL	args+4(FP), AX
++	MOVL	AX, 12(SP)		// arg 3 - oset
++	MOVL	$340, AX		// sys_sigprocmask
++	INT	$0x80
++	JAE	2(PC)
++	CALL	runtime·notok(SB)
++	RET
++
+ GLOBL runtime·tlsoffset(SB),$4
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index fbed690d18..8021a4248a 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -26,7 +26,7 @@ TEXT runtime·thr_new(SB),7,$0
+ 	RET
+ 
+ TEXT runtime·thr_start(SB),7,$0
+-	MOVQ	DI, R13	// m
++	MOVQ	DI, R13 // m
+ 
+ 	// set up FS to point at m->tls
+ 	LEAQ	m_tls(R13), DI
+@@ -233,3 +233,13 @@ TEXT runtime·osyield(SB),7,$-4
+ 	MOVL	$331, AX		// sys_sched_yield
+ 	SYSCALL
+ 	RET
++
++TEXT runtime·sigprocmask(SB),7,$0
++	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
++	MOVQ	8(SP), SI		// arg 2 - set
++	MOVQ	16(SP), DX		// arg 3 - oset
++	MOVL	$340, AX		// sys_sigprocmask
++	SYSCALL
++	JAE	2(PC)
++	CALL	runtime·notok(SB)
++	RET
+diff --git a/src/pkg/runtime/thread_freebsd.c b/src/pkg/runtime/thread_freebsd.c
+index 06e3a59d00..04de03711d 100644
+--- a/src/pkg/runtime/thread_freebsd.c
++++ b/src/pkg/runtime/thread_freebsd.c
+@@ -13,6 +13,9 @@ extern int32 runtime·sys_umtx_op(uint32*, int32, uint32, void*, void*);
+ #define	CTL_HW	6
+ #define	HW_NCPU	3
+ 
++static Sigset sigset_all = { ~(uint32)0, ~(uint32)0, ~(uint32)0, ~(uint32)0, };
++static Sigset sigset_none = { 0, 0, 0, 0, };
++
+ static int32
+ getncpu(void)
+ {
+@@ -77,6 +80,7 @@ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+ 	ThrParam param;
++	Sigset oset;
+ 
+ 	USED(fn);	// thr_start assumes fn == mstart
+ 	USED(g);	// thr_start assumes g == m->g0
+@@ -86,6 +90,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 			stk, m, g, fn, m->id, m->tls[0], &m);
+ 	}
+ 
++	runtime·sigprocmask(&sigset_all, &oset);
+ 	runtime·memclr((byte*)&param, sizeof param);
+ 
+ 	param.start_func = runtime·thr_start;
+@@ -100,6 +105,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ 	m->tls[0] = m->id;	// so 386 asm can find it
+ 
+ 	runtime·thr_new(&param, sizeof param);
++	runtime·sigprocmask(&oset, nil);
+ }
+ 
+ void
+@@ -121,6 +127,7 @@ runtime·minit(void)
+ 	// Initialize signal handling
+ 	m->gsignal = runtime·malg(32*1024);
+ 	runtime·signalstack(m->gsignal->stackguard - StackGuard, 32*1024);
++	runtime·sigprocmask(&sigset_none, nil);
+ }
+ 
+ void

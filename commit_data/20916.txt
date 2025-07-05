@@ -13,6 +13,41 @@ Date:   Mon Oct 27 17:08:50 2014 -0700
     R=golang-codereviews, bradfitz, tracey.brendan, adg, iant, rsc, dsymonds
     CC=golang-codereviews
     https://golang.org/cl/158500043
-
+---
  doc/go_mem.html | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 2ea1ded7a3..5dd48ff7fb 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -21,6 +21,29 @@ reads of a variable in one goroutine can be guaranteed to
+ observe values produced by writes to the same variable in a different goroutine.
+ </p>
+ 
++
++<h2>Advice</h2>
++
++<p>
++Programs that modify data being simultaneously accessed by multiple goroutines
++must serialize such access.
++</p>
++
++<p>
++To serialize access, protect the data with channel operations or other synchronization primitives
++such as those in the <a href="/pkg/sync/"><code>sync</code></a>
++and <a href="/pkg/sync/atomic/"><code>sync/atomic</code></a> packages.
++</p>
++
++<p>
++If you must read the rest of this document to understand the behavior of your program,
++you are being too clever.
++</p>
++
++<p>
++Don't be clever.
++</p>
++
+ <h2>Happens Before</h2>
+ 
+ <p>

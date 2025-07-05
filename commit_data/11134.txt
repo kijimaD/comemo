@@ -9,7 +9,7 @@ Date:   Thu Jan 12 11:34:02 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/5541045
-
+---
  src/buildscript_darwin_386.sh    | 132 +++++++++++++++------------------------
  src/buildscript_darwin_amd64.sh  | 132 +++++++++++++++------------------------
  src/buildscript_freebsd_386.sh   | 132 +++++++++++++++------------------------
@@ -35,3 +35,2704 @@ Date:   Thu Jan 12 11:34:02 2012 -0800
  src/pkg/go/doc/example.go        |   2 +-
  src/pkg/go/doc/reader.go         |  10 +--
  24 files changed, 795 insertions(+), 1221 deletions(-)
+
+diff --git a/src/buildscript_darwin_386.sh b/src/buildscript_darwin_386.sh
+index bb292d1f3a..b913a7d9e7 100755
+--- a/src/buildscript_darwin_386.sh
++++ b/src/buildscript_darwin_386.sh
+@@ -370,25 +370,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/darwin_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/darwin_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/darwin_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/darwin_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/darwin_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/darwin_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/darwin_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/darwin_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/darwin_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/darwin_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/darwin_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -412,15 +443,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/darwin_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/darwin_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/darwin_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_386/go/build.a
+ 
+ #
+ # net/url
+@@ -452,69 +482,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/darwin_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/darwin_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/darwin_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/darwin_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/darwin_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/darwin_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/darwin_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/darwin_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript_darwin_amd64.sh
+index c537848a53..48117dc051 100755
+--- a/src/buildscript_darwin_amd64.sh
++++ b/src/buildscript_darwin_amd64.sh
+@@ -369,25 +369,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.6
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/darwin_amd64/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-6g -o "$WORK"/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/darwin_amd64/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/darwin_amd64/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/darwin_amd64/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/darwin_amd64/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-6g -o "$WORK"/go/printer/_obj/_go_.6 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.6
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/darwin_amd64/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/darwin_amd64/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
++cp "$WORK"/log.a "$GOROOT"/pkg/darwin_amd64/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/darwin_amd64/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/darwin_amd64/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/darwin_amd64/path.a
+ 
+ #
+ # regexp/syntax
+@@ -411,15 +442,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/darwin_amd64/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/darwin_amd64/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/darwin_amd64/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_amd64/go/build.a
+ 
+ #
+ # net/url
+@@ -451,69 +481,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 6g -o "$WORK"/text/template/_obj/_go_.6 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/darwin_amd64/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/darwin_amd64/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/darwin_amd64/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/darwin_amd64/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+-cp "$WORK"/log.a "$GOROOT"/pkg/darwin_amd64/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/darwin_amd64/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/darwin_amd64/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/darwin_amd64/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/darwin_amd64/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_freebsd_386.sh b/src/buildscript_freebsd_386.sh
+index 4f5cfe6dae..515122ccd8 100755
+--- a/src/buildscript_freebsd_386.sh
++++ b/src/buildscript_freebsd_386.sh
+@@ -370,25 +370,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/freebsd_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/freebsd_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/freebsd_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/freebsd_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/freebsd_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/freebsd_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/freebsd_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/freebsd_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -412,15 +443,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/freebsd_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/freebsd_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/freebsd_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_386/go/build.a
+ 
+ #
+ # net/url
+@@ -452,69 +482,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/freebsd_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/freebsd_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/freebsd_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/freebsd_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript_freebsd_amd64.sh
+index d296eb37f5..143170bb10 100755
+--- a/src/buildscript_freebsd_amd64.sh
++++ b/src/buildscript_freebsd_amd64.sh
+@@ -369,25 +369,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.6
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/freebsd_amd64/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-6g -o "$WORK"/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/freebsd_amd64/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/freebsd_amd64/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/freebsd_amd64/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/freebsd_amd64/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-6g -o "$WORK"/go/printer/_obj/_go_.6 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.6
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/freebsd_amd64/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/freebsd_amd64/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
++cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_amd64/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/freebsd_amd64/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_amd64/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_amd64/path.a
+ 
+ #
+ # regexp/syntax
+@@ -411,15 +442,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/freebsd_amd64/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/freebsd_amd64/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/freebsd_amd64/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_amd64/go/build.a
+ 
+ #
+ # net/url
+@@ -451,69 +481,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 6g -o "$WORK"/text/template/_obj/_go_.6 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/freebsd_amd64/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_amd64/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/freebsd_amd64/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/freebsd_amd64/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+-cp "$WORK"/log.a "$GOROOT"/pkg/freebsd_amd64/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/freebsd_amd64/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/freebsd_amd64/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/freebsd_amd64/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/freebsd_amd64/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_linux_386.sh b/src/buildscript_linux_386.sh
+index 7d26ba5774..c792998740 100755
+--- a/src/buildscript_linux_386.sh
++++ b/src/buildscript_linux_386.sh
+@@ -370,25 +370,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/linux_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/linux_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/linux_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/linux_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/linux_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/linux_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/linux_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/linux_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/linux_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -412,15 +443,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/linux_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_386/go/build.a
+ 
+ #
+ # net/url
+@@ -452,69 +482,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/linux_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/linux_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/linux_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/linux_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/linux_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/linux_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript_linux_amd64.sh
+index 87ce176f2f..11050e7f15 100755
+--- a/src/buildscript_linux_amd64.sh
++++ b/src/buildscript_linux_amd64.sh
+@@ -369,25 +369,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.6
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/linux_amd64/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-6g -o "$WORK"/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/linux_amd64/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/linux_amd64/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/linux_amd64/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_amd64/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-6g -o "$WORK"/go/printer/_obj/_go_.6 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.6
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/linux_amd64/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/linux_amd64/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
++cp "$WORK"/log.a "$GOROOT"/pkg/linux_amd64/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/linux_amd64/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_amd64/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/linux_amd64/path.a
+ 
+ #
+ # regexp/syntax
+@@ -411,15 +442,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_amd64/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/linux_amd64/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_amd64/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_amd64/go/build.a
+ 
+ #
+ # net/url
+@@ -451,69 +481,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 6g -o "$WORK"/text/template/_obj/_go_.6 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/linux_amd64/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_amd64/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/linux_amd64/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/linux_amd64/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+-cp "$WORK"/log.a "$GOROOT"/pkg/linux_amd64/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/linux_amd64/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_amd64/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/linux_amd64/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_amd64/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_linux_arm.sh b/src/buildscript_linux_arm.sh
+index d063ba0f27..a7ce1adc56 100755
+--- a/src/buildscript_linux_arm.sh
++++ b/src/buildscript_linux_arm.sh
+@@ -373,25 +373,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.5
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/linux_arm/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-5g -o "$WORK"/text/tabwriter/_obj/_go_.5 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.5
+-mkdir -p "$GOROOT"/pkg/linux_arm/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/linux_arm/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++5g -o "$WORK"/io/ioutil/_obj/_go_.5 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.5
++mkdir -p "$GOROOT"/pkg/linux_arm/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_arm/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-5g -o "$WORK"/go/printer/_obj/_go_.5 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.5
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/linux_arm/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++5g -o "$WORK"/go/parser/_obj/_go_.5 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.5
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/linux_arm/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++5g -o "$WORK"/log/_obj/_go_.5 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.5
++cp "$WORK"/log.a "$GOROOT"/pkg/linux_arm/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++5g -o "$WORK"/os/exec/_obj/_go_.5 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.5
++mkdir -p "$GOROOT"/pkg/linux_arm/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_arm/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++5g -o "$WORK"/path/_obj/_go_.5 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.5
++cp "$WORK"/path.a "$GOROOT"/pkg/linux_arm/path.a
+ 
+ #
+ # regexp/syntax
+@@ -415,15 +446,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.5
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/linux_arm/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-5g -o "$WORK"/io/ioutil/_obj/_go_.5 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.5
+-mkdir -p "$GOROOT"/pkg/linux_arm/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/linux_arm/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++5g -o "$WORK"/go/build/_obj/_go_.5 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.5
++cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_arm/go/build.a
+ 
+ #
+ # net/url
+@@ -455,69 +485,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 5g -o "$WORK"/text/template/_obj/_go_.5 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.5
++mkdir -p "$GOROOT"/pkg/linux_arm/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_arm/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-5g -o "$WORK"/go/doc/_obj/_go_.5 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.5
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/linux_arm/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-5g -o "$WORK"/go/parser/_obj/_go_.5 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.5
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/linux_arm/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-5g -o "$WORK"/log/_obj/_go_.5 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.5
+-cp "$WORK"/log.a "$GOROOT"/pkg/linux_arm/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-5g -o "$WORK"/os/exec/_obj/_go_.5 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.5
+-mkdir -p "$GOROOT"/pkg/linux_arm/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/linux_arm/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-5g -o "$WORK"/path/_obj/_go_.5 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.5
+-cp "$WORK"/path.a "$GOROOT"/pkg/linux_arm/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-5g -o "$WORK"/go/build/_obj/_go_.5 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.5
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/linux_arm/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_netbsd_386.sh b/src/buildscript_netbsd_386.sh
+index fb5836b18e..c8df072ff7 100755
+--- a/src/buildscript_netbsd_386.sh
++++ b/src/buildscript_netbsd_386.sh
+@@ -370,25 +370,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/netbsd_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/netbsd_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/netbsd_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/netbsd_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/netbsd_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/netbsd_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/netbsd_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/netbsd_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/netbsd_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/netbsd_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -412,15 +443,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/netbsd_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/netbsd_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/netbsd_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_386/go/build.a
+ 
+ #
+ # net/url
+@@ -452,69 +482,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/netbsd_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/netbsd_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/netbsd_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/netbsd_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/netbsd_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/netbsd_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/netbsd_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript_netbsd_amd64.sh
+index c75062d604..f2fd68247c 100755
+--- a/src/buildscript_netbsd_amd64.sh
++++ b/src/buildscript_netbsd_amd64.sh
+@@ -369,25 +369,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.6
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/netbsd_amd64/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-6g -o "$WORK"/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/netbsd_amd64/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/netbsd_amd64/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/netbsd_amd64/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/netbsd_amd64/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-6g -o "$WORK"/go/printer/_obj/_go_.6 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.6
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/netbsd_amd64/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/netbsd_amd64/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
++cp "$WORK"/log.a "$GOROOT"/pkg/netbsd_amd64/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/netbsd_amd64/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/netbsd_amd64/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_amd64/path.a
+ 
+ #
+ # regexp/syntax
+@@ -411,15 +442,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/netbsd_amd64/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/netbsd_amd64/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/netbsd_amd64/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_amd64/go/build.a
+ 
+ #
+ # net/url
+@@ -451,69 +481,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 6g -o "$WORK"/text/template/_obj/_go_.6 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/netbsd_amd64/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/netbsd_amd64/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/netbsd_amd64/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/netbsd_amd64/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+-cp "$WORK"/log.a "$GOROOT"/pkg/netbsd_amd64/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/netbsd_amd64/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/netbsd_amd64/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/netbsd_amd64/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/netbsd_amd64/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_openbsd_386.sh b/src/buildscript_openbsd_386.sh
+index 0435a2fdbc..31dcc7f248 100755
+--- a/src/buildscript_openbsd_386.sh
++++ b/src/buildscript_openbsd_386.sh
+@@ -370,25 +370,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/openbsd_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/openbsd_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/openbsd_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/openbsd_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/openbsd_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/openbsd_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/openbsd_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/openbsd_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/openbsd_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/openbsd_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -412,15 +443,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/openbsd_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/openbsd_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/openbsd_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_386/go/build.a
+ 
+ #
+ # net/url
+@@ -452,69 +482,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/openbsd_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/openbsd_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/openbsd_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/openbsd_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/openbsd_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/openbsd_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/openbsd_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript_openbsd_amd64.sh
+index 89907c0a93..89467dbe37 100755
+--- a/src/buildscript_openbsd_amd64.sh
++++ b/src/buildscript_openbsd_amd64.sh
+@@ -369,25 +369,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.6
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/openbsd_amd64/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-6g -o "$WORK"/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/openbsd_amd64/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/openbsd_amd64/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/openbsd_amd64/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/openbsd_amd64/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-6g -o "$WORK"/go/printer/_obj/_go_.6 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.6
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/openbsd_amd64/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/openbsd_amd64/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
++cp "$WORK"/log.a "$GOROOT"/pkg/openbsd_amd64/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/openbsd_amd64/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/openbsd_amd64/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_amd64/path.a
+ 
+ #
+ # regexp/syntax
+@@ -411,15 +442,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/openbsd_amd64/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/openbsd_amd64/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/openbsd_amd64/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_amd64/go/build.a
+ 
+ #
+ # net/url
+@@ -451,69 +481,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 6g -o "$WORK"/text/template/_obj/_go_.6 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/openbsd_amd64/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/openbsd_amd64/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/openbsd_amd64/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/openbsd_amd64/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+-cp "$WORK"/log.a "$GOROOT"/pkg/openbsd_amd64/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_unix.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/openbsd_amd64/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/openbsd_amd64/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/openbsd_amd64/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/openbsd_amd64/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_plan9_386.sh b/src/buildscript_plan9_386.sh
+index 304c12e58a..d931e38954 100755
+--- a/src/buildscript_plan9_386.sh
++++ b/src/buildscript_plan9_386.sh
+@@ -370,25 +370,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/plan9_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/plan9_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/plan9_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/plan9_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/plan9_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/plan9_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/plan9_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/plan9_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_plan9.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/plan9_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/plan9_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/plan9_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -412,15 +443,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/plan9_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/plan9_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/plan9_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/plan9_386/go/build.a
+ 
+ #
+ # net/url
+@@ -452,69 +482,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/plan9_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/plan9_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/plan9_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/plan9_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/plan9_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_plan9.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/plan9_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/plan9_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/plan9_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/plan9_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_windows_386.sh b/src/buildscript_windows_386.sh
+index 0aeacfba0f..223f5c4e18 100755
+--- a/src/buildscript_windows_386.sh
++++ b/src/buildscript_windows_386.sh
+@@ -372,25 +372,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.8
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/windows_386/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-8g -o "$WORK"/text/tabwriter/_obj/_go_.8 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/windows_386/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/windows_386/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/windows_386/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/windows_386/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-8g -o "$WORK"/go/printer/_obj/_go_.8 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.8
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/windows_386/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/windows_386/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
++cp "$WORK"/log.a "$GOROOT"/pkg/windows_386/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_windows.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/windows_386/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_386/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
++cp "$WORK"/path.a "$GOROOT"/pkg/windows_386/path.a
+ 
+ #
+ # regexp/syntax
+@@ -414,15 +445,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.8
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/windows_386/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-8g -o "$WORK"/io/ioutil/_obj/_go_.8 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/windows_386/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/windows_386/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
++cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_386/go/build.a
+ 
+ #
+ # net/url
+@@ -454,69 +484,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 8g -o "$WORK"/text/template/_obj/_go_.8 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.8
++mkdir -p "$GOROOT"/pkg/windows_386/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_386/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-8g -o "$WORK"/go/doc/_obj/_go_.8 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.8
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/windows_386/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-8g -o "$WORK"/go/parser/_obj/_go_.8 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.8
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/windows_386/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-8g -o "$WORK"/log/_obj/_go_.8 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.8
+-cp "$WORK"/log.a "$GOROOT"/pkg/windows_386/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-8g -o "$WORK"/os/exec/_obj/_go_.8 -p os/exec -I "$WORK" ./exec.go ./lp_windows.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.8
+-mkdir -p "$GOROOT"/pkg/windows_386/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_386/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-8g -o "$WORK"/path/_obj/_go_.8 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.8
+-cp "$WORK"/path.a "$GOROOT"/pkg/windows_386/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-8g -o "$WORK"/go/build/_obj/_go_.8 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.8
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_386/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript_windows_amd64.sh
+index f2d3557c20..89cf1100e5 100755
+--- a/src/buildscript_windows_amd64.sh
++++ b/src/buildscript_windows_amd64.sh
+@@ -371,25 +371,56 @@ gopack grc "$WORK"/go/ast.a "$WORK"/go/ast/_obj/_go_.6
+ cp "$WORK"/go/ast.a "$GOROOT"/pkg/windows_amd64/go/ast.a
+ 
+ #
+-# text/tabwriter
++# io/ioutil
+ #
+ 
+-mkdir -p "$WORK"/text/tabwriter/_obj/
+-cd "$GOROOT"/src/pkg/text/tabwriter
+-6g -o "$WORK"/text/tabwriter/_obj/_go_.6 -p text/tabwriter -I "$WORK" ./tabwriter.go
+-gopack grc "$WORK"/text/tabwriter.a "$WORK"/text/tabwriter/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/windows_amd64/text/
+-cp "$WORK"/text/tabwriter.a "$GOROOT"/pkg/windows_amd64/text/tabwriter.a
++mkdir -p "$WORK"/io/ioutil/_obj/
++cd "$GOROOT"/src/pkg/io/ioutil
++6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
++gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/windows_amd64/io/
++cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/windows_amd64/io/ioutil.a
+ 
+ #
+-# go/printer
++# go/parser
+ #
+ 
+-mkdir -p "$WORK"/go/printer/_obj/
+-cd "$GOROOT"/src/pkg/go/printer
+-6g -o "$WORK"/go/printer/_obj/_go_.6 -p go/printer -I "$WORK" ./nodes.go ./printer.go
+-gopack grc "$WORK"/go/printer.a "$WORK"/go/printer/_obj/_go_.6
+-cp "$WORK"/go/printer.a "$GOROOT"/pkg/windows_amd64/go/printer.a
++mkdir -p "$WORK"/go/parser/_obj/
++cd "$GOROOT"/src/pkg/go/parser
++6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
++gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
++cp "$WORK"/go/parser.a "$GOROOT"/pkg/windows_amd64/go/parser.a
++
++#
++# log
++#
++
++mkdir -p "$WORK"/log/_obj/
++cd "$GOROOT"/src/pkg/log
++6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
++gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
++cp "$WORK"/log.a "$GOROOT"/pkg/windows_amd64/log.a
++
++#
++# os/exec
++#
++
++mkdir -p "$WORK"/os/exec/_obj/
++cd "$GOROOT"/src/pkg/os/exec
++6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_windows.go
++gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/windows_amd64/os/
++cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_amd64/os/exec.a
++
++#
++# path
++#
++
++mkdir -p "$WORK"/path/_obj/
++cd "$GOROOT"/src/pkg/path
++6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
++gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
++cp "$WORK"/path.a "$GOROOT"/pkg/windows_amd64/path.a
+ 
+ #
+ # regexp/syntax
+@@ -413,15 +444,14 @@ gopack grc "$WORK"/regexp.a "$WORK"/regexp/_obj/_go_.6
+ cp "$WORK"/regexp.a "$GOROOT"/pkg/windows_amd64/regexp.a
+ 
+ #
+-# io/ioutil
++# go/build
+ #
+ 
+-mkdir -p "$WORK"/io/ioutil/_obj/
+-cd "$GOROOT"/src/pkg/io/ioutil
+-6g -o "$WORK"/io/ioutil/_obj/_go_.6 -p io/ioutil -I "$WORK" ./ioutil.go ./tempfile.go
+-gopack grc "$WORK"/io/ioutil.a "$WORK"/io/ioutil/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/windows_amd64/io/
+-cp "$WORK"/io/ioutil.a "$GOROOT"/pkg/windows_amd64/io/ioutil.a
++mkdir -p "$WORK"/go/build/_obj/
++cd "$GOROOT"/src/pkg/go/build
++6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
++gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
++cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_amd64/go/build.a
+ 
+ #
+ # net/url
+@@ -453,69 +483,9 @@ mkdir -p "$WORK"/text/template/_obj/
+ cd "$GOROOT"/src/pkg/text/template
+ 6g -o "$WORK"/text/template/_obj/_go_.6 -p text/template -I "$WORK" ./doc.go ./exec.go ./funcs.go ./helper.go ./template.go
+ gopack grc "$WORK"/text/template.a "$WORK"/text/template/_obj/_go_.6
++mkdir -p "$GOROOT"/pkg/windows_amd64/text/
+ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_amd64/text/template.a
+ 
+-#
+-# go/doc
+-#
+-
+-mkdir -p "$WORK"/go/doc/_obj/
+-cd "$GOROOT"/src/pkg/go/doc
+-6g -o "$WORK"/go/doc/_obj/_go_.6 -p go/doc -I "$WORK" ./comment.go ./doc.go ./example.go ./exports.go ./filter.go ./reader.go
+-gopack grc "$WORK"/go/doc.a "$WORK"/go/doc/_obj/_go_.6
+-cp "$WORK"/go/doc.a "$GOROOT"/pkg/windows_amd64/go/doc.a
+-
+-#
+-# go/parser
+-#
+-
+-mkdir -p "$WORK"/go/parser/_obj/
+-cd "$GOROOT"/src/pkg/go/parser
+-6g -o "$WORK"/go/parser/_obj/_go_.6 -p go/parser -I "$WORK" ./interface.go ./parser.go
+-gopack grc "$WORK"/go/parser.a "$WORK"/go/parser/_obj/_go_.6
+-cp "$WORK"/go/parser.a "$GOROOT"/pkg/windows_amd64/go/parser.a
+-
+-#
+-# log
+-#
+-
+-mkdir -p "$WORK"/log/_obj/
+-cd "$GOROOT"/src/pkg/log
+-6g -o "$WORK"/log/_obj/_go_.6 -p log -I "$WORK" ./log.go
+-gopack grc "$WORK"/log.a "$WORK"/log/_obj/_go_.6
+-cp "$WORK"/log.a "$GOROOT"/pkg/windows_amd64/log.a
+-
+-#
+-# os/exec
+-#
+-
+-mkdir -p "$WORK"/os/exec/_obj/
+-cd "$GOROOT"/src/pkg/os/exec
+-6g -o "$WORK"/os/exec/_obj/_go_.6 -p os/exec -I "$WORK" ./exec.go ./lp_windows.go
+-gopack grc "$WORK"/os/exec.a "$WORK"/os/exec/_obj/_go_.6
+-mkdir -p "$GOROOT"/pkg/windows_amd64/os/
+-cp "$WORK"/os/exec.a "$GOROOT"/pkg/windows_amd64/os/exec.a
+-
+-#
+-# path
+-#
+-
+-mkdir -p "$WORK"/path/_obj/
+-cd "$GOROOT"/src/pkg/path
+-6g -o "$WORK"/path/_obj/_go_.6 -p path -I "$WORK" ./match.go ./path.go
+-gopack grc "$WORK"/path.a "$WORK"/path/_obj/_go_.6
+-cp "$WORK"/path.a "$GOROOT"/pkg/windows_amd64/path.a
+-
+-#
+-# go/build
+-#
+-
+-mkdir -p "$WORK"/go/build/_obj/
+-cd "$GOROOT"/src/pkg/go/build
+-6g -o "$WORK"/go/build/_obj/_go_.6 -p go/build -I "$WORK" ./build.go ./dir.go ./path.go ./syslist.go
+-gopack grc "$WORK"/go/build.a "$WORK"/go/build/_obj/_go_.6
+-cp "$WORK"/go/build.a "$GOROOT"/pkg/windows_amd64/go/build.a
+-
+ #
+ # cmd/go
+ #
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 07d2ec3166..fc855dd497 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -9,7 +9,6 @@ package main
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/doc"
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
+@@ -79,7 +78,7 @@ func (f *File) ReadGo(name string) {
+ 			}
+ 			if cg != nil {
+ 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
+-				f.Preamble += doc.CommentText(cg) + "\n"
++				f.Preamble += cg.Text() + "\n"
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 33bbc6d9fe..d2060b0a38 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"fmt"
+ 	"go/build"
+-	"go/doc"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+@@ -130,7 +129,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 
+ 	p := &Package{
+ 		Name:         info.Package,
+-		Doc:          doc.CommentText(info.PackageComment),
++		Doc:          info.PackageComment.Text(),
+ 		ImportPath:   importPath,
+ 		Dir:          dir,
+ 		Imports:      info.Imports,
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 0272614e17..ac0498fa7a 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
+-	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"os"
+@@ -612,7 +611,7 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
+ 			*seen = true
+ 		case isTest(name, "Example"):
+-			output := doc.CommentText(n.Doc)
++			output := n.Doc.Text()
+ 			if output == "" {
+ 				// Don't run examples with no output.
+ 				continue
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index 4be9107eb8..c61f791dcb 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -8,7 +8,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"log"
+@@ -136,7 +135,7 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
+ 							i = 3 // none of the above
+ 						}
+ 						if 0 <= i && i < len(synopses) && synopses[i] == "" {
+-							synopses[i] = firstSentence(doc.CommentText(file.Doc))
++							synopses[i] = firstSentence(file.Doc.Text())
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index c97debb064..6697aeb2a0 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/build"
+-	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
+@@ -222,7 +221,7 @@ func getTestNames() {
+ 			} else if isTest(name, "Benchmark") {
+ 				f.benchmarks = append(f.benchmarks, name)
+ 			} else if isTest(name, "Example") {
+-				output := doc.CommentText(n.Doc)
++				output := n.Doc.Text()
+ 				if output == "" {
+ 					// Don't run examples with no output.
+ 					continue
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 1485f351c0..7123fe58f5 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -9,6 +9,7 @@ package ast
+ 
+ import (
+ 	"go/token"
++	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -76,6 +77,74 @@ type CommentGroup struct {
+ func (g *CommentGroup) Pos() token.Pos { return g.List[0].Pos() }
+ func (g *CommentGroup) End() token.Pos { return g.List[len(g.List)-1].End() }
+ 
++func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
++
++func stripTrailingWhitespace(s string) string {
++	i := len(s)
++	for i > 0 && isWhitespace(s[i-1]) {
++		i--
++	}
++	return s[0:i]
++}
++
++// Text returns the text of the comment,
++// with the comment markers - //, /*, and */ - removed.
++func (g *CommentGroup) Text() string {
++	if g == nil {
++		return ""
++	}
++	comments := make([]string, len(g.List))
++	for i, c := range g.List {
++		comments[i] = string(c.Text)
++	}
++
++	lines := make([]string, 0, 10) // most comments are less than 10 lines
++	for _, c := range comments {
++		// Remove comment markers.
++		// The parser has given us exactly the comment text.
++		switch c[1] {
++		case '/':
++			//-style comment
++			c = c[2:]
++			// Remove leading space after //, if there is one.
++			// TODO(gri) This appears to be necessary in isolated
++			//           cases (bignum.RatFromString) - why?
++			if len(c) > 0 && c[0] == ' ' {
++				c = c[1:]
++			}
++		case '*':
++			/*-style comment */
++			c = c[2 : len(c)-2]
++		}
++
++		// Split on newlines.
++		cl := strings.Split(c, "\n")
++
++		// Walk lines, stripping trailing white space and adding to list.
++		for _, l := range cl {
++			lines = append(lines, stripTrailingWhitespace(l))
++		}
++	}
++
++	// Remove leading blank lines; convert runs of
++	// interior blank lines to a single blank line.
++	n := 0
++	for _, line := range lines {
++		if line != "" || n > 0 && lines[n-1] != "" {
++			lines[n] = line
++			n++
++		}
++	}
++	lines = lines[0:n]
++
++	// Add final "" entry to get trailing newline from Join.
++	if n > 0 && lines[n-1] != "" {
++		lines = append(lines, "")
++	}
++
++	return strings.Join(lines, "\n")
++}
++
+ // ----------------------------------------------------------------------------
+ // Expressions and types
+ 
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 7f24754298..5ce75fda7e 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -9,7 +9,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+-	"go/doc"
+ 	"go/parser"
+ 	"go/token"
+ 	"io/ioutil"
+@@ -412,7 +411,7 @@ func (ctxt *Context) shouldBuild(content []byte) bool {
+ // TODO(rsc): This duplicates code in cgo.
+ // Once the dust settles, remove this code from cgo.
+ func (ctxt *Context) saveCgo(filename string, di *DirInfo, cg *ast.CommentGroup) error {
+-	text := doc.CommentText(cg)
++	text := cg.Text()
+ 	for _, line := range strings.Split(text, "\n") {
+ 		orig := line
+ 
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 39f34afa10..14809fec91 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -7,7 +7,6 @@
+ package doc
+ 
+ import (
+-	"go/ast"
+ 	"io"
+ 	"regexp"
+ 	"strings"
+@@ -16,74 +15,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
+-
+-func stripTrailingWhitespace(s string) string {
+-	i := len(s)
+-	for i > 0 && isWhitespace(s[i-1]) {
+-		i--
+-	}
+-	return s[0:i]
+-}
+-
+-// CommentText returns the text of comment,
+-// with the comment markers - //, /*, and */ - removed.
+-func CommentText(comment *ast.CommentGroup) string {
+-	if comment == nil {
+-		return ""
+-	}
+-	comments := make([]string, len(comment.List))
+-	for i, c := range comment.List {
+-		comments[i] = string(c.Text)
+-	}
+-
+-	lines := make([]string, 0, 10) // most comments are less than 10 lines
+-	for _, c := range comments {
+-		// Remove comment markers.
+-		// The parser has given us exactly the comment text.
+-		switch c[1] {
+-		case '/':
+-			//-style comment
+-			c = c[2:]
+-			// Remove leading space after //, if there is one.
+-			// TODO(gri) This appears to be necessary in isolated
+-			//           cases (bignum.RatFromString) - why?
+-			if len(c) > 0 && c[0] == ' ' {
+-				c = c[1:]
+-			}
+-		case '*':
+-			/*-style comment */
+-			c = c[2 : len(c)-2]
+-		}
+-
+-		// Split on newlines.
+-		cl := strings.Split(c, "\n")
+-
+-		// Walk lines, stripping trailing white space and adding to list.
+-		for _, l := range cl {
+-			lines = append(lines, stripTrailingWhitespace(l))
+-		}
+-	}
+-
+-	// Remove leading blank lines; convert runs of
+-	// interior blank lines to a single blank line.
+-	n := 0
+-	for _, line := range lines {
+-		if line != "" || n > 0 && lines[n-1] != "" {
+-			lines[n] = line
+-			n++
+-		}
+-	}
+-	lines = lines[0:n]
+-
+-	// Add final "" entry to get trailing newline from Join.
+-	if n > 0 && lines[n-1] != "" {
+-		lines = append(lines, "")
+-	}
+-
+-	return strings.Join(lines, "\n")
+-}
+-
+ var (
+ 	ldquo = []byte("&ldquo;")
+ 	rdquo = []byte("&rdquo;")
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 1bdf4e27e1..7c59bf9bd6 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -35,7 +35,7 @@ func Examples(pkg *ast.Package) []*Example {
+ 			examples = append(examples, &Example{
+ 				Name:   name[len("Example"):],
+ 				Body:   &printer.CommentedNode{f.Body, src.Comments},
+-				Output: CommentText(f.Doc),
++				Output: f.Doc.Text(),
+ 			})
+ 		}
+ 	}
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 4e4ed584b1..86448d044e 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -358,7 +358,7 @@ func makeValueDocs(list []*ast.GenDecl, tok token.Token) []*ValueDoc {
+ 	n := 0
+ 	for i, decl := range list {
+ 		if decl.Tok == tok {
+-			d[n] = &ValueDoc{CommentText(decl.Doc), decl, i}
++			d[n] = &ValueDoc{decl.Doc.Text(), decl, i}
+ 			n++
+ 			decl.Doc = nil // doc consumed - removed from AST
+ 		}
+@@ -379,7 +379,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
+ 	i := 0
+ 	for _, f := range m {
+ 		doc := new(FuncDoc)
+-		doc.Doc = CommentText(f.Doc)
++		doc.Doc = f.Doc.Text()
+ 		f.Doc = nil // doc consumed - remove from ast.FuncDecl node
+ 		if f.Recv != nil {
+ 			doc.Recv = f.Recv.List[0].Type
+@@ -452,7 +452,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeInfo) []*TypeDoc {
+ 				doc = decl.Doc
+ 			}
+ 			decl.Doc = nil // doc consumed - remove from ast.Decl node
+-			t.Doc = CommentText(doc)
++			t.Doc = doc.Text()
+ 			t.Type = typespec
+ 			t.Consts = makeValueDocs(old.values, token.CONST)
+ 			t.Vars = makeValueDocs(old.values, token.VAR)
+@@ -587,7 +587,7 @@ func customizeRecv(m *FuncDoc, embeddedIsPtr bool, recvTypeName string) *FuncDoc
+ func makeBugDocs(list []*ast.CommentGroup) []string {
+ 	d := make([]string, len(list))
+ 	for i, g := range list {
+-		d[i] = CommentText(g)
++		d[i] = g.Text()
+ 	}
+ 	return d
+ }
+@@ -600,7 +600,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc
+ 	p.ImportPath = importpath
+ 	sort.Strings(filenames)
+ 	p.Filenames = filenames
+-	p.Doc = CommentText(doc.doc)
++	p.Doc = doc.doc.Text()
+ 	// makeTypeDocs may extend the list of doc.values and
+ 	// doc.funcs and thus must be called before any other
+ 	// function consuming those lists

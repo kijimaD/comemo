@@ -23,6 +23,37 @@ Date:   Mon Dec 17 13:45:14 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mwbbuf.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index a698493a0a..6f01bf68fd 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -217,14 +217,16 @@ func wbBufFlush1(_p_ *p) {
+ 	n := (_p_.wbBuf.next - start) / unsafe.Sizeof(_p_.wbBuf.buf[0])
+ 	ptrs := _p_.wbBuf.buf[:n]
+ 
+-	// Reset the buffer.
+-	_p_.wbBuf.reset()
++	// Poison the buffer to make extra sure nothing is enqueued
++	// while we're processing the buffer.
++	_p_.wbBuf.next = 0
+ 
+ 	if useCheckmark {
+ 		// Slow path for checkmark mode.
+ 		for _, ptr := range ptrs {
+ 			shade(ptr)
+ 		}
++		_p_.wbBuf.reset()
+ 		return
+ 	}
+ 
+@@ -275,4 +277,6 @@ func wbBufFlush1(_p_ *p) {
+ 
+ 	// Enqueue the greyed objects.
+ 	gcw.putBatch(ptrs[:pos])
++
++	_p_.wbBuf.reset()
+ }

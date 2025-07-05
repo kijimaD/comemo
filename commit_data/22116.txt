@@ -8,6 +8,20 @@ Date:   Tue Feb 24 13:54:42 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/5840
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/float_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 6714a92bf0..00bb309908 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -169,8 +169,6 @@ func TestFloatSetMantExp(t *testing.T) {
+ 		{"0", -MaxExp - 1, "0"},
+ 		{"0.5", -MaxExp - 1, "+Inf"},  // exponent overflow
+ 		{"-0.5", -MaxExp - 1, "-Inf"}, // exponent overflow
+-		{"0.5", MaxExp + 1, "+Inf"},   // exponent overflow
+-		{"-0.5", MaxExp + 1, "-Inf"},  // exponent overflow
+ 		{"1", MaxExp, "+Inf"},         // exponent overflow
+ 		{"2", MaxExp - 1, "+Inf"},     // exponent overflow
+ 		{"0.75", 1, "1.5"},

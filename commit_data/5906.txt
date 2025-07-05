@@ -7,7 +7,7 @@ Date:   Thu Jul 29 14:58:28 2010 +1000
     R=brainman, rsc
     CC=golang-dev
     https://golang.org/cl/1748042
-
+---
  src/pkg/net/Makefile                    |  22 +++++--
  src/pkg/net/resolv_windows.go           |  78 ++++++++++++++++++++++
  src/pkg/syscall/mksyscall_windows.sh    |   5 +-
@@ -15,3 +15,389 @@ Date:   Thu Jul 29 14:58:28 2010 +1000
  src/pkg/syscall/zsyscall_windows_386.go |  53 +++++++++++++++
  src/pkg/syscall/ztypes_windows_386.go   | 110 ++++++++++++++++++++++++++++++--
  6 files changed, 261 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 955485a6b1..a69f3877e7 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -7,8 +7,6 @@ include ../../Make.$(GOARCH)
+ TARG=net
+ GOFILES=\
+ 	dial.go\
+-	dnsclient.go\
+-	dnsconfig.go\
+ 	dnsmsg.go\
+ 	fd_$(GOOS).go\
+ 	hosts.go\
+@@ -18,7 +16,6 @@ GOFILES=\
+ 	net.go\
+ 	parse.go\
+ 	pipe.go\
+-	port.go\
+ 	sock.go\
+ 	tcpsock.go\
+ 	udpsock.go\
+@@ -27,18 +24,33 @@ GOFILES=\
+ GOFILES_freebsd=\
+ 	newpollserver.go\
+ 	fd.go\
++	dnsconfig.go\
++	dnsclient.go\
++	port.go\
+ 
+ GOFILES_darwin=\
+ 	newpollserver.go\
+ 	fd.go\
+-
++	dnsconfig.go\
++	dnsclient.go\
++	port.go\
++	
+ GOFILES_linux=\
+ 	newpollserver.go\
+ 	fd.go\
+-
++	dnsconfig.go\
++	dnsclient.go\
++	port.go\
++	
+ GOFILES_nacl=\
+ 	newpollserver.go\
+ 	fd.go\
++	dnsconfig.go\
++	dnsclient.go\
++	port.go\
++
++GOFILES_windows=\
++	resolv_windows.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+diff --git a/src/pkg/net/resolv_windows.go b/src/pkg/net/resolv_windows.go
+new file mode 100644
+index 0000000000..b86a25ad21
+--- /dev/null
++++ b/src/pkg/net/resolv_windows.go
+@@ -0,0 +1,78 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"syscall"
++	"unsafe"
++	"os"
++	"sync"
++)
++
++var hostentLock sync.Mutex
++var serventLock sync.Mutex
++
++func LookupHost(name string) (cname string, addrs []string, err os.Error) {
++	hostentLock.Lock()
++	defer hostentLock.Unlock()
++	h, e := syscall.GetHostByName(name)
++	if e != 0 {
++		return "", nil, os.NewSyscallError("GetHostByName", e)
++	}
++	cname = name
++	switch h.AddrType {
++	case syscall.AF_INET:
++		i := 0
++		addrs = make([]string, 100) // plenty of room to grow
++		for p := (*[100](*[4]byte))(unsafe.Pointer(h.AddrList)); i < cap(addrs) && p[i] != nil; i++ {
++			addrs[i] = IPv4(p[i][0], p[i][1], p[i][2], p[i][3]).String()
++		}
++		addrs = addrs[0:i]
++	default: // TODO(vcc): Implement non IPv4 address lookups.
++		return "", nil, os.NewSyscallError("LookupHost", syscall.EWINDOWS)
++	}
++	return cname, addrs, nil
++}
++
++type SRV struct {
++	Target   string
++	Port     uint16
++	Priority uint16
++	Weight   uint16
++}
++
++func LookupSRV(name string) (cname string, addrs []*SRV, err os.Error) {
++	var r *syscall.DNSRecord
++	e := syscall.DnsQuery(name, syscall.DNS_TYPE_SRV, 0, nil, &r, nil)
++	if int(e) != 0 {
++		return "", nil, os.NewSyscallError("LookupSRV", int(e))
++	}
++	defer syscall.DnsRecordListFree(r, 1)
++	addrs = make([]*SRV, 100)
++	i := 0
++	for p := r; p != nil && p.Type == syscall.DNS_TYPE_SRV; p = p.Next {
++		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
++		addrs[i] = &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))), v.Port, v.Priority, v.Weight}
++		i++
++	}
++	addrs = addrs[0:i]
++	return name, addrs, nil
++}
++
++func LookupPort(network, service string) (port int, err os.Error) {
++	switch network {
++	case "tcp4", "tcp6":
++		network = "tcp"
++	case "udp4", "udp6":
++		network = "udp"
++	}
++	serventLock.Lock()
++	defer serventLock.Unlock()
++	s, e := syscall.GetServByName(service, network)
++	if e != 0 {
++		return 0, os.NewSyscallError("GetServByName", e)
++	}
++	return int(syscall.Ntohs(s.Port)), nil
++}
+diff --git a/src/pkg/syscall/mksyscall_windows.sh b/src/pkg/syscall/mksyscall_windows.sh
+index 9b9fad03a6..3067d86a33 100755
+--- a/src/pkg/syscall/mksyscall_windows.sh
++++ b/src/pkg/syscall/mksyscall_windows.sh
+@@ -216,6 +216,9 @@ while(<>) {
+ 			$ret[$i] = sprintf("r%d", $i);
+ 			$ret[$i+1] = sprintf("r%d", $i+1);
+ 		}
++		if($type =~ /^\*/) {
++			$reg = "unsafe.Pointer($reg)";
++		}
+ 		if($i == 0) {
+ 			if($type eq "bool") {
+ 				$failexpr = "!$name";
+@@ -238,7 +241,7 @@ while(<>) {
+ 			$body .= "\t\t$name = 0;\n";
+ 			$body .= "\t}\n";
+ 		} else {
+-			$body .= "\t$name = $type($reg);\n";
++			$body .= "\t$name = ($type)($reg);\n";
+ 		}
+ 		push @pout, sprintf "\"%s=\", %s, ", $name, $name;
+ 	}
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 951621ab4d..7ff96d9b0a 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -429,6 +429,12 @@ func Utimes(path string, tv []Timeval) (errno int) {
+ //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
+ //sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSARecv
+ //sys	WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval=-1] = ws2_32.WSASend
++//sys	GetHostByName(name string) (h *Hostent, errno int) [failretval=nil] = ws2_32.gethostbyname
++//sys	GetServByName(name string, proto string) (s *Servent, errno int) [failretval=nil] = ws2_32.getservbyname
++//sys	Ntohs(netshort uint16) (u uint16) = ws2_32.ntohs
++//sys	DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) = dnsapi.DnsQuery_W
++//sys	DnsRecordListFree(rl *DNSRecord, freetype uint32) = dnsapi.DnsRecordListFree
++
+ 
+ type RawSockaddrInet4 struct {
+ 	Family uint16
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index a5fffc3bc6..296893f7e0 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -10,6 +10,7 @@ var (
+ 	modadvapi32 = loadDll("advapi32.dll")
+ 	modwsock32  = loadDll("wsock32.dll")
+ 	modws2_32   = loadDll("ws2_32.dll")
++	moddnsapi   = loadDll("dnsapi.dll")
+ 
+ 	procGetLastError               = getSysProcAddr(modkernel32, "GetLastError")
+ 	procLoadLibraryW               = getSysProcAddr(modkernel32, "LoadLibraryW")
+@@ -66,6 +67,11 @@ var (
+ 	procGetAcceptExSockaddrs       = getSysProcAddr(modwsock32, "GetAcceptExSockaddrs")
+ 	procWSARecv                    = getSysProcAddr(modws2_32, "WSARecv")
+ 	procWSASend                    = getSysProcAddr(modws2_32, "WSASend")
++	procgethostbyname              = getSysProcAddr(modws2_32, "gethostbyname")
++	procgetservbyname              = getSysProcAddr(modws2_32, "getservbyname")
++	procntohs                      = getSysProcAddr(modws2_32, "ntohs")
++	procDnsQuery_W                 = getSysProcAddr(moddnsapi, "DnsQuery_W")
++	procDnsRecordListFree          = getSysProcAddr(moddnsapi, "DnsRecordListFree")
+ )
+ 
+ func GetLastError() (lasterrno int) {
+@@ -848,3 +854,50 @@ func WSASend(s uint32, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32,
+ 	}
+ 	return
+ }
++
++func GetHostByName(name string) (h *Hostent, errno int) {
++	r0, _, e1 := Syscall(procgethostbyname, uintptr(unsafe.Pointer(StringBytePtr(name))), 0, 0)
++	h = (*Hostent)(unsafe.Pointer(r0))
++	if h == nil {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetServByName(name string, proto string) (s *Servent, errno int) {
++	r0, _, e1 := Syscall(procgetservbyname, uintptr(unsafe.Pointer(StringBytePtr(name))), uintptr(unsafe.Pointer(StringBytePtr(proto))), 0)
++	s = (*Servent)(unsafe.Pointer(r0))
++	if s == nil {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func Ntohs(netshort uint16) (u uint16) {
++	r0, _, _ := Syscall(procntohs, uintptr(netshort), 0, 0)
++	u = (uint16)(r0)
++	return
++}
++
++func DnsQuery(name string, qtype uint16, options uint32, extra *byte, qrs **DNSRecord, pr *byte) (status uint32) {
++	r0, _, _ := Syscall6(procDnsQuery_W, uintptr(unsafe.Pointer(StringToUTF16Ptr(name))), uintptr(qtype), uintptr(options), uintptr(unsafe.Pointer(extra)), uintptr(unsafe.Pointer(qrs)), uintptr(unsafe.Pointer(pr)))
++	status = (uint32)(r0)
++	return
++}
++
++func DnsRecordListFree(rl *DNSRecord, freetype uint32) {
++	Syscall(procDnsRecordListFree, uintptr(unsafe.Pointer(rl)), uintptr(freetype), 0)
++	return
++}
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 88b6a78712..ae134056dc 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -1,7 +1,3 @@
+-// godefs -gsyscall -f-m32 types_linux.c
+-
+-// MACHINE GENERATED - DO NOT EDIT.
+-
+ package syscall
+ 
+ // TODO(brainman): autogenerate types in ztypes_windows_386.go
+@@ -247,9 +243,10 @@ type Timezoneinformation struct {
+ // Socket related.
+ 
+ const (
+-	AF_UNIX  = 1
+-	AF_INET  = 2
+-	AF_INET6 = 23
++	AF_UNIX    = 1
++	AF_INET    = 2
++	AF_INET6   = 23
++	AF_NETBIOS = 17
+ 
+ 	SOCK_STREAM = 1
+ 	SOCK_DGRAM  = 2
+@@ -336,3 +333,102 @@ const (
+ 	FILE_TYPE_REMOTE  = 0x8000
+ 	FILE_TYPE_UNKNOWN = 0x0000
+ )
++
++type Hostent struct {
++	Name     *byte
++	Aliases  **byte
++	AddrType uint16
++	Length   uint16
++	AddrList **byte
++}
++
++type Servent struct {
++	Name    *byte
++	Aliases **byte
++	Port    uint16
++	Proto   *byte
++}
++
++const (
++	DNS_TYPE_A       = 0x0001
++	DNS_TYPE_NS      = 0x0002
++	DNS_TYPE_MD      = 0x0003
++	DNS_TYPE_MF      = 0x0004
++	DNS_TYPE_CNAME   = 0x0005
++	DNS_TYPE_SOA     = 0x0006
++	DNS_TYPE_MB      = 0x0007
++	DNS_TYPE_MG      = 0x0008
++	DNS_TYPE_MR      = 0x0009
++	DNS_TYPE_NULL    = 0x000a
++	DNS_TYPE_WKS     = 0x000b
++	DNS_TYPE_PTR     = 0x000c
++	DNS_TYPE_HINFO   = 0x000d
++	DNS_TYPE_MINFO   = 0x000e
++	DNS_TYPE_MX      = 0x000f
++	DNS_TYPE_TEXT    = 0x0010
++	DNS_TYPE_RP      = 0x0011
++	DNS_TYPE_AFSDB   = 0x0012
++	DNS_TYPE_X25     = 0x0013
++	DNS_TYPE_ISDN    = 0x0014
++	DNS_TYPE_RT      = 0x0015
++	DNS_TYPE_NSAP    = 0x0016
++	DNS_TYPE_NSAPPTR = 0x0017
++	DNS_TYPE_SIG     = 0x0018
++	DNS_TYPE_KEY     = 0x0019
++	DNS_TYPE_PX      = 0x001a
++	DNS_TYPE_GPOS    = 0x001b
++	DNS_TYPE_AAAA    = 0x001c
++	DNS_TYPE_LOC     = 0x001d
++	DNS_TYPE_NXT     = 0x001e
++	DNS_TYPE_EID     = 0x001f
++	DNS_TYPE_NIMLOC  = 0x0020
++	DNS_TYPE_SRV     = 0x0021
++	DNS_TYPE_ATMA    = 0x0022
++	DNS_TYPE_NAPTR   = 0x0023
++	DNS_TYPE_KX      = 0x0024
++	DNS_TYPE_CERT    = 0x0025
++	DNS_TYPE_A6      = 0x0026
++	DNS_TYPE_DNAME   = 0x0027
++	DNS_TYPE_SINK    = 0x0028
++	DNS_TYPE_OPT     = 0x0029
++	DNS_TYPE_DS      = 0x002B
++	DNS_TYPE_RRSIG   = 0x002E
++	DNS_TYPE_NSEC    = 0x002F
++	DNS_TYPE_DNSKEY  = 0x0030
++	DNS_TYPE_DHCID   = 0x0031
++	DNS_TYPE_UINFO   = 0x0064
++	DNS_TYPE_UID     = 0x0065
++	DNS_TYPE_GID     = 0x0066
++	DNS_TYPE_UNSPEC  = 0x0067
++	DNS_TYPE_ADDRS   = 0x00f8
++	DNS_TYPE_TKEY    = 0x00f9
++	DNS_TYPE_TSIG    = 0x00fa
++	DNS_TYPE_IXFR    = 0x00fb
++	DNS_TYPE_AXFR    = 0x00fc
++	DNS_TYPE_MAILB   = 0x00fd
++	DNS_TYPE_MAILA   = 0x00fe
++	DNS_TYPE_ALL     = 0x00ff
++	DNS_TYPE_ANY     = 0x00ff
++	DNS_TYPE_WINS    = 0xff01
++	DNS_TYPE_WINSR   = 0xff02
++	DNS_TYPE_NBSTAT  = 0xff01
++)
++
++type DNSSRVData struct {
++	Target   *uint16
++	Priority uint16
++	Weight   uint16
++	Port     uint16
++	Pad      uint16
++}
++
++type DNSRecord struct {
++	Next     *DNSRecord
++	Name     *uint16
++	Type     uint16
++	Length   uint16
++	Dw       uint32
++	Ttl      uint32
++	Reserved uint32
++	Data     [40]byte
++}

@@ -11,8 +11,222 @@ Date:   Thu Mar 15 11:15:22 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 95 ---------------------------------
  test/codegen/arithmetic.go              |  3 +-
  test/codegen/floats.go                  | 73 +++++++++++++++++++++++++
  3 files changed, 75 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index ced465c65d..29033db7ee 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -410,35 +410,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		}`,
+ 		pos: []string{"\tADDQ\t[A-Z]"},
+ 	},
+-	// Floating-point strength reduction
+-	{
+-		fn: `
+-		func f60(f float64) float64 {
+-			return f * 2.0
+-		}`,
+-		pos: []string{"\tADDSD\t"},
+-	},
+-	{
+-		fn: `
+-		func f62(f float64) float64 {
+-			return f / 16.0
+-		}`,
+-		pos: []string{"\tMULSD\t"},
+-	},
+-	{
+-		fn: `
+-		func f63(f float64) float64 {
+-			return f / 0.125
+-		}`,
+-		pos: []string{"\tMULSD\t"},
+-	},
+-	{
+-		fn: `
+-		func f64(f float64) float64 {
+-			return f / 0.5
+-		}`,
+-		pos: []string{"\tADDSD\t"},
+-	},
+ 	// Check that compare to constant string uses 2/4/8 byte compares
+ 	{
+ 		fn: `
+@@ -634,39 +605,6 @@ var linux386Tests = []*asmTest{
+ }
+ 
+ var linuxS390XTests = []*asmTest{
+-	// Fused multiply-add/sub instructions.
+-	{
+-		fn: `
+-		func f14(x, y, z float64) float64 {
+-			return x * y + z
+-		}
+-		`,
+-		pos: []string{"\tFMADD\t"},
+-	},
+-	{
+-		fn: `
+-		func f15(x, y, z float64) float64 {
+-			return x * y - z
+-		}
+-		`,
+-		pos: []string{"\tFMSUB\t"},
+-	},
+-	{
+-		fn: `
+-		func f16(x, y, z float32) float32 {
+-			return x * y + z
+-		}
+-		`,
+-		pos: []string{"\tFMADDS\t"},
+-	},
+-	{
+-		fn: `
+-		func f17(x, y, z float32) float32 {
+-			return x * y - z
+-		}
+-		`,
+-		pos: []string{"\tFMSUBS\t"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+@@ -1113,39 +1051,6 @@ var linuxMIPS64Tests = []*asmTest{
+ }
+ 
+ var linuxPPC64LETests = []*asmTest{
+-	// Fused multiply-add/sub instructions.
+-	{
+-		fn: `
+-		func f0(x, y, z float64) float64 {
+-			return x * y + z
+-		}
+-		`,
+-		pos: []string{"\tFMADD\t"},
+-	},
+-	{
+-		fn: `
+-		func f1(x, y, z float64) float64 {
+-			return x * y - z
+-		}
+-		`,
+-		pos: []string{"\tFMSUB\t"},
+-	},
+-	{
+-		fn: `
+-		func f2(x, y, z float32) float32 {
+-			return x * y + z
+-		}
+-		`,
+-		pos: []string{"\tFMADDS\t"},
+-	},
+-	{
+-		fn: `
+-		func f3(x, y, z float32) float32 {
+-			return x * y - z
+-		}
+-		`,
+-		pos: []string{"\tFMSUBS\t"},
+-	},
+ 	{
+ 		// check that stack store is optimized away
+ 		fn: `
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 16517cfac4..0cd4d2ee23 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -7,7 +7,8 @@
+ package codegen
+ 
+ // This file contains codegen tests related to arithmetic
+-// simplifications/optimizations.
++// simplifications and optimizations on integer types.
++// For codegen tests on float types, see floats.go.
+ 
+ // -------------------- //
+ //    Multiplication    //
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+new file mode 100644
+index 0000000000..e397518471
+--- /dev/null
++++ b/test/codegen/floats.go
+@@ -0,0 +1,73 @@
++// asmcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// This file contains codegen tests related to arithmetic
++// simplifications and optimizations on float types.
++// For codegen tests on integer types, see arithmetic.go.
++
++// --------------------- //
++//    Strength-reduce    //
++// --------------------- //
++
++func Mul2(f float64) float64 {
++	// 386:"ADDSD",-"MULSD"
++	// amd64:"ADDSD",-"MULSD"
++	// arm:"ADDD",-"MULD"
++	// arm64:"FADDD",-"FMULD"
++	return f * 2.0
++}
++
++func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
++	// 386:"MULSD",-"DIVSD"
++	// amd64:"MULSD",-"DIVSD"
++	// arm:"MULD",-"DIVD"
++	// arm64:"FMULD",-"FDIVD"
++	x := f1 / 16.0
++
++	// 386:"MULSD",-"DIVSD"
++	// amd64:"MULSD",-"DIVSD"
++	// arm:"MULD",-"DIVD"
++	// arm64:"FMULD",-"FDIVD"
++	y := f2 / 0.125
++
++	// 386:"ADDSD",-"DIVSD",-"MULSD"
++	// amd64:"ADDSD",-"DIVSD",-"MULSD"
++	// arm:"ADDD",-"MULD",-"DIVD"
++	// arm64:"FADDD",-"FMULD",-"FDIVD"
++	z := f3 / 0.5
++
++	return x, y, z
++}
++
++// ----------- //
++//    Fused    //
++// ----------- //
++
++func FusedAdd32(x, y, z float32) float32 {
++	// s390x:"FMADDS\t"
++	// ppc64le:"FMADDS\t"
++	return x*y + z
++}
++
++func FusedSub32(x, y, z float32) float32 {
++	// s390x:"FMSUBS\t"
++	// ppc64le:"FMSUBS\t"
++	return x*y - z
++}
++
++func FusedAdd64(x, y, z float64) float64 {
++	// s390x:"FMADD\t"
++	// ppc64le:"FMADD\t"
++	return x*y + z
++}
++
++func FusedSub64(x, y, z float64) float64 {
++	// s390x:"FMSUB\t"
++	// ppc64le:"FMSUB\t"
++	return x*y - z
++}

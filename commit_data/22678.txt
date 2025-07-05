@@ -9,6 +9,21 @@ Date:   Wed Apr 1 17:48:08 2015 -0700
     Change-Id: I06ac53628980853faecbf1a57ff71b88098d65f2
     Reviewed-on: https://go-review.googlesource.com/8382
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/go/ast/walk.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 73ac38647a..d531f5e714 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -379,7 +379,8 @@ func (f inspector) Visit(node Node) Visitor {
+ 
+ // Inspect traverses an AST in depth-first order: It starts by calling
+ // f(node); node must not be nil. If f returns true, Inspect invokes f
+-// for all the non-nil children of node, recursively.
++// recursively for each of the non-nil children of node, followed by a
++// call of f(nil).
+ //
+ func Inspect(node Node, f func(Node) bool) {
+ 	Walk(inspector(f), node)

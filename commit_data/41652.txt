@@ -16,7 +16,45 @@ Date:   Thu Oct 17 01:17:42 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testplugin/testdata/host/host.go | 13 ++++++-------
  src/cmd/link/internal/ld/lib.go           |  2 +-
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testplugin/testdata/host/host.go b/misc/cgo/testplugin/testdata/host/host.go
+index d836523da8..a3799328cd 100644
+--- a/misc/cgo/testplugin/testdata/host/host.go
++++ b/misc/cgo/testplugin/testdata/host/host.go
+@@ -145,13 +145,12 @@ func main() {
+ 	}
+ 
+ 	_, err = plugin.Open("plugin-mismatch.so")
+-	// TODO: newobj
+-	//if err == nil {
+-	//	log.Fatal(`plugin.Open("plugin-mismatch.so"): should have failed`)
+-	//}
+-	//if s := err.Error(); !strings.Contains(s, "different version") {
+-	//	log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
+-	//}
++	if err == nil {
++		log.Fatal(`plugin.Open("plugin-mismatch.so"): should have failed`)
++	}
++	if s := err.Error(); !strings.Contains(s, "different version") {
++		log.Fatalf(`plugin.Open("plugin-mismatch.so"): error does not mention "different version": %v`, s)
++	}
+ 
+ 	_, err = plugin.Open("plugin2-dup.so")
+ 	if err == nil {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 063bdded0c..63dcb22d98 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -816,7 +816,7 @@ func genhash(ctxt *Link, lib *sym.Library) {
+ 		return
+ 	}
+ 	h.Write(pkgDefBytes[0:firstEOL])
+-	//h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar]) // TODO: newobj: -dynlink may change symbol numbering? which will make the export data differ
++	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
+ 	lib.Hash = hex.EncodeToString(h.Sum(nil))
+ }
+ 

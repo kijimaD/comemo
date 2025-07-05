@@ -8,7 +8,34 @@ Date:   Wed Aug 19 17:37:23 2009 -0700
     DELTA=12  (12 added, 0 deleted, 0 changed)
     OCL=33554
     CL=33563
-
+---
  test/fixedbugs/bug192.go | 11 +++++++++++
  test/golden.out          |  1 +
  2 files changed, 12 insertions(+)
+
+diff --git a/test/fixedbugs/bug192.go b/test/fixedbugs/bug192.go
+new file mode 100644
+index 0000000000..0131a516f2
+--- /dev/null
++++ b/test/fixedbugs/bug192.go
+@@ -0,0 +1,11 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++var fmt int	// ERROR "redecl"
+diff --git a/test/golden.out b/test/golden.out
+index 1c4981b352..69a55d2d55 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -168,3 +168,4 @@ bugs/bug190.go:13: invalid recursive type chan S
+ bugs/bug190.go:16: invalid recursive type S
+ bugs/bug190.go:15: invalid recursive type func(S) (S)
+ BUG: should compile
++bugs/bug191.go succeeded with no output.

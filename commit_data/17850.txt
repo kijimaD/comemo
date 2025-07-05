@@ -9,7 +9,123 @@ Date:   Tue Oct 29 14:06:11 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/14920050
-
+---
  src/pkg/net/http/httputil/dump.go      | 28 +++++++++++++++++++++++++++-
  src/pkg/net/http/httputil/dump_test.go | 30 ++++++++++++++++++++++++++++--
  2 files changed, 55 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index 0b00356616..265499fb00 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -45,13 +45,27 @@ func (c *dumpConn) SetDeadline(t time.Time) error      { return nil }
+ func (c *dumpConn) SetReadDeadline(t time.Time) error  { return nil }
+ func (c *dumpConn) SetWriteDeadline(t time.Time) error { return nil }
+ 
++type neverEnding byte
++
++func (b neverEnding) Read(p []byte) (n int, err error) {
++	for i := range p {
++		p[i] = byte(b)
++	}
++	return len(p), nil
++}
++
+ // DumpRequestOut is like DumpRequest but includes
+ // headers that the standard http.Transport adds,
+ // such as User-Agent.
+ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	save := req.Body
++	dummyBody := false
+ 	if !body || req.Body == nil {
+ 		req.Body = nil
++		if req.ContentLength != 0 {
++			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), req.ContentLength))
++			dummyBody = true
++		}
+ 	} else {
+ 		var err error
+ 		save, req.Body, err = drainBody(req.Body)
+@@ -99,7 +113,19 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return buf.Bytes(), nil
++	dump := buf.Bytes()
++
++	// If we used a dummy body above, remove it now.
++	// TODO: if the req.ContentLength is large, we allocate memory
++	// unnecessarily just to slice it off here.  But this is just
++	// a debug function, so this is acceptable for now. We could
++	// discard the body earlier if this matters.
++	if dummyBody {
++		if i := bytes.Index(dump, []byte("\r\n\r\n")); i >= 0 {
++			dump = dump[:i+4]
++		}
++	}
++	return dump, nil
+ }
+ 
+ // delegateReader is a reader that delegates to another reader,
+diff --git a/src/pkg/net/http/httputil/dump_test.go b/src/pkg/net/http/httputil/dump_test.go
+index 3e87c27bc3..987a820487 100644
+--- a/src/pkg/net/http/httputil/dump_test.go
++++ b/src/pkg/net/http/httputil/dump_test.go
+@@ -20,6 +20,7 @@ type dumpTest struct {
+ 
+ 	WantDump    string
+ 	WantDumpOut string
++	NoBody      bool // if true, set DumpRequest{,Out} body to false
+ }
+ 
+ var dumpTests = []dumpTest{
+@@ -83,6 +84,31 @@ var dumpTests = []dumpTest{
+ 			"User-Agent: Go 1.1 package http\r\n" +
+ 			"Accept-Encoding: gzip\r\n\r\n",
+ 	},
++
++	// Request with Body, but Dump requested without it.
++	{
++		Req: http.Request{
++			Method: "POST",
++			URL: &url.URL{
++				Scheme: "http",
++				Host:   "post.tld",
++				Path:   "/",
++			},
++			ContentLength: 6,
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++		},
++
++		Body: []byte("abcdef"),
++
++		WantDumpOut: "POST / HTTP/1.1\r\n" +
++			"Host: post.tld\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
++			"Content-Length: 6\r\n" +
++			"Accept-Encoding: gzip\r\n\r\n",
++
++		NoBody: true,
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {
+@@ -105,7 +131,7 @@ func TestDumpRequest(t *testing.T) {
+ 
+ 		if tt.WantDump != "" {
+ 			setBody()
+-			dump, err := DumpRequest(&tt.Req, true)
++			dump, err := DumpRequest(&tt.Req, !tt.NoBody)
+ 			if err != nil {
+ 				t.Errorf("DumpRequest #%d: %s", i, err)
+ 				continue
+@@ -118,7 +144,7 @@ func TestDumpRequest(t *testing.T) {
+ 
+ 		if tt.WantDumpOut != "" {
+ 			setBody()
+-			dump, err := DumpRequestOut(&tt.Req, true)
++			dump, err := DumpRequestOut(&tt.Req, !tt.NoBody)
+ 			if err != nil {
+ 				t.Errorf("DumpRequestOut #%d: %s", i, err)
+ 				continue

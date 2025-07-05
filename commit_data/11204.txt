@@ -8,7 +8,7 @@ Date:   Tue Jan 17 11:18:15 2012 -0500
     R=r, rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/5545069
-
+---
  src/buildscript.sh                                                 | 2 +-
  src/{buildscript_darwin_386.sh => buildscript/darwin_386.sh}       | 0
  src/{buildscript_darwin_amd64.sh => buildscript/darwin_amd64.sh}   | 0
@@ -26,3 +26,86 @@ Date:   Tue Jan 17 11:18:15 2012 -0500
  src/{buildscript_windows_amd64.sh => buildscript/windows_amd64.sh} | 0
  src/make.bash                                                      | 2 +-
  16 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/buildscript.sh b/src/buildscript.sh
+index c1b3fad56b..fdc65b8523 100755
+--- a/src/buildscript.sh
++++ b/src/buildscript.sh
+@@ -9,7 +9,7 @@ for sys in $GOOSARCHES
+ do
+ 	export GOOS=$(echo $sys | sed 's/_.*//')
+ 	export GOARCH=$(echo $sys | sed 's/.*_//')
+-	targ=buildscript_${GOOS}_$GOARCH.sh
++	targ=buildscript/${GOOS}_$GOARCH.sh
+ 	rm -f $targ
+ 
+ 	(echo '#!/usr/bin/env bash
+diff --git a/src/buildscript_darwin_386.sh b/src/buildscript/darwin_386.sh
+similarity index 100%
+rename from src/buildscript_darwin_386.sh
+rename to src/buildscript/darwin_386.sh
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript/darwin_amd64.sh
+similarity index 100%
+rename from src/buildscript_darwin_amd64.sh
+rename to src/buildscript/darwin_amd64.sh
+diff --git a/src/buildscript_freebsd_386.sh b/src/buildscript/freebsd_386.sh
+similarity index 100%
+rename from src/buildscript_freebsd_386.sh
+rename to src/buildscript/freebsd_386.sh
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript/freebsd_amd64.sh
+similarity index 100%
+rename from src/buildscript_freebsd_amd64.sh
+rename to src/buildscript/freebsd_amd64.sh
+diff --git a/src/buildscript_linux_386.sh b/src/buildscript/linux_386.sh
+similarity index 100%
+rename from src/buildscript_linux_386.sh
+rename to src/buildscript/linux_386.sh
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript/linux_amd64.sh
+similarity index 100%
+rename from src/buildscript_linux_amd64.sh
+rename to src/buildscript/linux_amd64.sh
+diff --git a/src/buildscript_linux_arm.sh b/src/buildscript/linux_arm.sh
+similarity index 100%
+rename from src/buildscript_linux_arm.sh
+rename to src/buildscript/linux_arm.sh
+diff --git a/src/buildscript_netbsd_386.sh b/src/buildscript/netbsd_386.sh
+similarity index 100%
+rename from src/buildscript_netbsd_386.sh
+rename to src/buildscript/netbsd_386.sh
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript/netbsd_amd64.sh
+similarity index 100%
+rename from src/buildscript_netbsd_amd64.sh
+rename to src/buildscript/netbsd_amd64.sh
+diff --git a/src/buildscript_openbsd_386.sh b/src/buildscript/openbsd_386.sh
+similarity index 100%
+rename from src/buildscript_openbsd_386.sh
+rename to src/buildscript/openbsd_386.sh
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript/openbsd_amd64.sh
+similarity index 100%
+rename from src/buildscript_openbsd_amd64.sh
+rename to src/buildscript/openbsd_amd64.sh
+diff --git a/src/buildscript_plan9_386.sh b/src/buildscript/plan9_386.sh
+similarity index 100%
+rename from src/buildscript_plan9_386.sh
+rename to src/buildscript/plan9_386.sh
+diff --git a/src/buildscript_windows_386.sh b/src/buildscript/windows_386.sh
+similarity index 100%
+rename from src/buildscript_windows_386.sh
+rename to src/buildscript/windows_386.sh
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript/windows_amd64.sh
+similarity index 100%
+rename from src/buildscript_windows_amd64.sh
+rename to src/buildscript/windows_amd64.sh
+diff --git a/src/make.bash b/src/make.bash
+index db8cd7cd49..becf86d851 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -93,7 +93,7 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
+ if $USE_GO_TOOL; then
+ 	echo
+ 	echo '# Building go command from bootstrap script.'
+-	./buildscript_${GOOS}_$GOARCH.sh
++	./buildscript/${GOOS}_$GOARCH.sh
+ 
+ 	echo '# Building Go code.'
+ 	go install -a -v std

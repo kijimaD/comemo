@@ -10,10 +10,94 @@ Date:   Tue Aug 11 10:35:30 2015 -0400
     Change-Id: I9031ea36cc60685f4d6f65c39f770c89b3e3395a
     Reviewed-on: https://go-review.googlesource.com/13449
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go   |  2 +-
  src/cmd/go/go_test.go | 15 +++++++++++++++
  src/cmd/go/main.go    |  5 ++---
  src/cmd/go/test.go    |  2 +-
  src/cmd/go/vcs.go     |  2 +-
  5 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 718edd2f77..b7c7e0584f 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1880,7 +1880,7 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
+ 		cmd.Stdout = &buf
+ 		cmd.Stderr = &buf
+ 		cmd.Dir = dir
+-		cmd.Env = mergeEnvLists(env, envForDir(cmd.Dir))
++		cmd.Env = mergeEnvLists(env, envForDir(cmd.Dir, os.Environ()))
+ 		err := cmd.Run()
+ 
+ 		// cmd.Run will fail on Unix if some other process has the binary
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0718869aa6..77b2628982 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2294,6 +2294,21 @@ func TestIssue11709(t *testing.T) {
+ 	tg.run("run", tg.path("run.go"))
+ }
+ 
++func TestIssue12096(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("test_test.go", `
++		package main
++		import ("os"; "testing")
++		func TestEnv(t *testing.T) {
++			if os.Getenv("TERM") != "" {
++				t.Fatal("TERM is set")
++			}
++		}`)
++	tg.unsetenv("TERM")
++	tg.run("test", tg.path("test_test.go"))
++}
++
+ func TestGoBuildOutput(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 88a94417d7..8ebde89259 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -446,11 +446,10 @@ func runOut(dir string, cmdargs ...interface{}) []byte {
+ // The environment is the current process's environment
+ // but with an updated $PWD, so that an os.Getwd in the
+ // child will be faster.
+-func envForDir(dir string) []string {
+-	env := os.Environ()
++func envForDir(dir string, base []string) []string {
+ 	// Internally we only use rooted paths, so dir is rooted.
+ 	// Even if dir is not rooted, no harm done.
+-	return mergeEnvLists([]string{"PWD=" + dir}, env)
++	return mergeEnvLists([]string{"PWD=" + dir}, base)
+ }
+ 
+ // mergeEnvLists merges the two environment lists such that
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 0ba1883714..ba1ab82680 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -1027,7 +1027,7 @@ func (b *builder) runTest(a *action) error {
+ 
+ 	cmd := exec.Command(args[0], args[1:]...)
+ 	cmd.Dir = a.p.Dir
+-	cmd.Env = envForDir(cmd.Dir)
++	cmd.Env = envForDir(cmd.Dir, origEnv)
+ 	var buf bytes.Buffer
+ 	if testStreamOutput {
+ 		cmd.Stdout = os.Stdout
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 2ee1057a58..28a7540dfe 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -344,7 +344,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 
+ 	cmd := exec.Command(v.cmd, args...)
+ 	cmd.Dir = dir
+-	cmd.Env = envForDir(cmd.Dir)
++	cmd.Env = envForDir(cmd.Dir, os.Environ())
+ 	if buildX {
+ 		fmt.Printf("cd %s\n", dir)
+ 		fmt.Printf("%s %s\n", v.cmd, strings.Join(args, " "))

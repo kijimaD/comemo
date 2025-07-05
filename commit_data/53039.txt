@@ -51,8 +51,168 @@ Date:   Wed Jun 15 15:09:24 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Eric Fang <eric.fang@arm.com>
-
+---
  misc/cgo/test/cgo_linux_test.go    |  8 +++++
  misc/cgo/test/setgid2_linux.go     | 35 ++++++++++++++++++++
  src/cmd/internal/obj/arm64/obj7.go | 65 +++++++++++++++-----------------------
  3 files changed, 69 insertions(+), 39 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index a9746b552e..7c4628c493 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -15,6 +15,14 @@ func TestSetgid(t *testing.T) {
+ 	}
+ 	testSetgid(t)
+ }
++
++func TestSetgidStress(t *testing.T) {
++	if runtime.GOOS == "android" {
++		t.Skip("unsupported on Android")
++	}
++	testSetgidStress(t)
++}
++
+ func Test1435(t *testing.T)    { test1435(t) }
+ func Test6997(t *testing.T)    { test6997(t) }
+ func TestBuildID(t *testing.T) { testBuildID(t) }
+diff --git a/misc/cgo/test/setgid2_linux.go b/misc/cgo/test/setgid2_linux.go
+new file mode 100644
+index 0000000000..d239893f43
+--- /dev/null
++++ b/misc/cgo/test/setgid2_linux.go
+@@ -0,0 +1,35 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Stress test setgid and thread creation. A thread
++// can get a SIGSETXID signal early on at thread
++// initialization, causing crash. See issue 53374.
++
++package cgotest
++
++/*
++#include <sys/types.h>
++#include <unistd.h>
++*/
++import "C"
++
++import (
++	"runtime"
++	"testing"
++)
++
++func testSetgidStress(t *testing.T) {
++	const N = 1000
++	ch := make(chan int, N)
++	for i := 0; i < N; i++ {
++		go func() {
++			C.setgid(0)
++			ch <- 1
++			runtime.LockOSThread() // so every goroutine uses a new thread
++		}()
++	}
++	for i := 0; i < N; i++ {
++		<-ch
++	}
++}
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 1f2625d54f..83ae64a19b 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -609,17 +609,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			var prologueEnd *obj.Prog
+ 
+ 			aoffset := c.autosize
+-			if aoffset > 0x1f0 {
+-				// LDP offset variant range is -512 to 504, SP should be 16-byte aligned,
+-				// so the maximum aoffset value is 496.
+-				aoffset = 0x1f0
++			if aoffset > 0xf0 {
++				// MOVD.W offset variant range is -0x100 to 0xf8, SP should be 16-byte aligned.
++				// so the maximum aoffset value is 0xf0.
++				aoffset = 0xf0
+ 			}
+ 
+ 			// Frame is non-empty. Make sure to save link register, even if
+ 			// it is a leaf function, so that traceback works.
+ 			q = p
+ 			if c.autosize > aoffset {
+-				// Frame size is too large for a STP instruction. Store the frame pointer
++				// Frame size is too large for a MOVD.W instruction. Store the frame pointer
+ 				// register and link register before decrementing SP, so if a signal comes
+ 				// during the execution of the function prologue, the traceback code will
+ 				// not see a half-updated stack frame.
+@@ -679,50 +679,37 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q1.To.Offset = -8
+ 				}
+ 			} else {
+-				// small frame, save FP and LR with one STP instruction, then update SP.
+-				// Store first, so if a signal comes during the execution of the function
+-				// prologue, the traceback code will not see a half-updated stack frame.
+-				// STP (R29, R30), -aoffset-8(RSP)
++				// small frame, update SP and save LR in a single MOVD.W instruction.
++				// So if a signal comes during the execution of the function prologue,
++				// the traceback code will not see a half-updated stack frame.
++				// Also, on Linux, in a cgo binary we may get a SIGSETXID signal
++				// early on before the signal stack is set, as glibc doesn't allow
++				// us to block SIGSETXID. So it is important that we don't write below
++				// the SP until the signal stack is set.
++				// Luckily, all the functions from thread entry to setting the signal
++				// stack have small frames.
+ 				q1 = obj.Appendp(q, c.newprog)
+-				q1.As = ASTP
++				q1.As = AMOVD
+ 				q1.Pos = p.Pos
+-				q1.From.Type = obj.TYPE_REGREG
+-				q1.From.Reg = REGFP
+-				q1.From.Offset = REGLINK
++				q1.From.Type = obj.TYPE_REG
++				q1.From.Reg = REGLINK
+ 				q1.To.Type = obj.TYPE_MEM
+-				q1.To.Offset = int64(-aoffset - 8)
++				q1.Scond = C_XPRE
++				q1.To.Offset = int64(-aoffset)
+ 				q1.To.Reg = REGSP
++				q1.Spadj = aoffset
+ 
+ 				prologueEnd = q1
+ 
+-				q1 = c.ctxt.StartUnsafePoint(q1, c.newprog)
+-				// This instruction is not async preemptible, see the above comment.
+-				// SUB $aoffset, RSP, RSP
++				// Frame pointer.
+ 				q1 = obj.Appendp(q1, c.newprog)
+ 				q1.Pos = p.Pos
+-				q1.As = ASUB
+-				q1.From.Type = obj.TYPE_CONST
+-				q1.From.Offset = int64(aoffset)
+-				q1.Reg = REGSP
+-				q1.To.Type = obj.TYPE_REG
++				q1.As = AMOVD
++				q1.From.Type = obj.TYPE_REG
++				q1.From.Reg = REGFP
++				q1.To.Type = obj.TYPE_MEM
+ 				q1.To.Reg = REGSP
+-				q1.Spadj = aoffset
+-
+-				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
+-
+-				if buildcfg.GOOS == "ios" {
+-					// See the above comment.
+-					// STP (R29, R30), -8(RSP)
+-					q1 = obj.Appendp(q1, c.newprog)
+-					q1.As = ASTP
+-					q1.Pos = p.Pos
+-					q1.From.Type = obj.TYPE_REGREG
+-					q1.From.Reg = REGFP
+-					q1.From.Offset = REGLINK
+-					q1.To.Type = obj.TYPE_MEM
+-					q1.To.Offset = int64(-8)
+-					q1.To.Reg = REGSP
+-				}
++				q1.To.Offset = -8
+ 			}
+ 
+ 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)

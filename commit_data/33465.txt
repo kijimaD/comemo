@@ -16,6 +16,27 @@ Date:   Wed Aug 16 23:52:16 2017 +0200
     Change-Id: I5fc55b75e9dc5ba69f5e3588d6c746f53b45ba66
     Reviewed-on: https://go-review.googlesource.com/56291
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hashmap.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 3e413e52f7..28ea376cf4 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -335,15 +335,10 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 	if h == nil {
+ 		h = (*hmap)(newobject(t.hmap))
+ 	}
+-	h.count = 0
+ 	h.B = B
+ 	h.extra = extra
+-	h.flags = 0
+ 	h.hash0 = fastrand()
+ 	h.buckets = buckets
+-	h.oldbuckets = nil
+-	h.nevacuate = 0
+-	h.noverflow = 0
+ 
+ 	return h
+ }

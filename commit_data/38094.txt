@@ -38,7 +38,7 @@ Date:   Thu Aug 23 13:14:19 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mcache.go   | 46 ++++++++++++++++++++++++++++++++++++++---
  src/runtime/mcentral.go | 55 +++++++++++++++++++++++++++++++++++--------------
  src/runtime/mgc.go      | 18 ++++++++++++++++
@@ -47,3 +47,331 @@ Date:   Thu Aug 23 13:14:19 2018 -0400
  src/runtime/mheap.go    |  4 ++--
  src/runtime/proc.go     |  5 +++++
  7 files changed, 118 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 8486f69569..e20e92cdf4 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"runtime/internal/atomic"
++	"unsafe"
++)
+ 
+ // Per-thread (in Go, per-P) cache for small objects.
+ // No locking needed because it is per-thread (per-P).
+@@ -42,6 +45,12 @@ type mcache struct {
+ 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
+ 	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
+ 	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
++
++	// flushGen indicates the sweepgen during which this mcache
++	// was last flushed. If flushGen != mheap_.sweepgen, the spans
++	// in this mcache are stale and need to the flushed so they
++	// can be swept. This is done in acquirep.
++	flushGen uint32
+ }
+ 
+ // A gclink is a node in a linked list of blocks, like mlink,
+@@ -76,6 +85,7 @@ var emptymspan mspan
+ func allocmcache() *mcache {
+ 	lock(&mheap_.lock)
+ 	c := (*mcache)(mheap_.cachealloc.alloc())
++	c.flushGen = mheap_.sweepgen
+ 	unlock(&mheap_.lock)
+ 	for i := range c.alloc {
+ 		c.alloc[i] = &emptymspan
+@@ -113,9 +123,12 @@ func (c *mcache) refill(spc spanClass) {
+ 	if uintptr(s.allocCount) != s.nelems {
+ 		throw("refill of span with free space remaining")
+ 	}
+-
+ 	if s != &emptymspan {
+-		s.incache = false
++		// Mark this span as no longer cached.
++		if s.sweepgen != mheap_.sweepgen+3 {
++			throw("bad sweepgen in refill")
++		}
++		atomic.Store(&s.sweepgen, mheap_.sweepgen)
+ 	}
+ 
+ 	// Get a new cached span from the central lists.
+@@ -128,6 +141,10 @@ func (c *mcache) refill(spc spanClass) {
+ 		throw("span has no free space")
+ 	}
+ 
++	// Indicate that this span is cached and prevent asynchronous
++	// sweeping in the next sweep phase.
++	s.sweepgen = mheap_.sweepgen + 3
++
+ 	c.alloc[spc] = s
+ }
+ 
+@@ -143,3 +160,26 @@ func (c *mcache) releaseAll() {
+ 	c.tiny = 0
+ 	c.tinyoffset = 0
+ }
++
++// prepareForSweep flushes c if the system has entered a new sweep phase
++// since c was populated. This must happen between the sweep phase
++// starting and the first allocation from c.
++func (c *mcache) prepareForSweep() {
++	// Alternatively, instead of making sure we do this on every P
++	// between starting the world and allocating on that P, we
++	// could leave allocate-black on, allow allocation to continue
++	// as usual, use a ragged barrier at the beginning of sweep to
++	// ensure all cached spans are swept, and then disable
++	// allocate-black. However, with this approach it's difficult
++	// to avoid spilling mark bits into the *next* GC cycle.
++	sg := mheap_.sweepgen
++	if c.flushGen == sg {
++		return
++	} else if c.flushGen != sg-2 {
++		println("bad flushGen", c.flushGen, "in prepareForSweep; sweepgen", sg)
++		throw("bad flushGen")
++	}
++	c.releaseAll()
++	stackcache_clear(c)
++	atomic.Store(&c.flushGen, mheap_.sweepgen) // Synchronizes with gcStart
++}
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index c1e0b472bc..9ca8e5d222 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -135,7 +135,6 @@ havespan:
+ 		// heap_live changed.
+ 		gcController.revise()
+ 	}
+-	s.incache = true
+ 	freeByteBase := s.freeindex &^ (64 - 1)
+ 	whichByte := freeByteBase / 8
+ 	// Init alloc bits cache.
+@@ -150,28 +149,54 @@ havespan:
+ 
+ // Return span from an MCache.
+ func (c *mcentral) uncacheSpan(s *mspan) {
+-	lock(&c.lock)
+-
+-	s.incache = false
+-
+ 	if s.allocCount == 0 {
+ 		throw("uncaching span but s.allocCount == 0")
+ 	}
+ 
+ 	cap := int32((s.npages << _PageShift) / s.elemsize)
+ 	n := cap - int32(s.allocCount)
++
++	// cacheSpan updated alloc assuming all objects on s were
++	// going to be allocated. Adjust for any that weren't. We must
++	// do this before potentially sweeping the span.
+ 	if n > 0 {
++		atomic.Xadd64(&c.nmalloc, -int64(n))
++	}
++
++	sg := mheap_.sweepgen
++	stale := s.sweepgen == sg+1
++	if stale {
++		// Span was cached before sweep began. It's our
++		// responsibility to sweep it.
++		//
++		// Set sweepgen to indicate it's not cached but needs
++		// sweeping. sweep will set s.sweepgen to indicate s
++		// is swept.
++		s.sweepgen = sg - 1
++		s.sweep(true)
++		// sweep may have freed objects, so recompute n.
++		n = cap - int32(s.allocCount)
++	} else {
++		// Indicate that s is no longer cached.
++		s.sweepgen = sg
++	}
++
++	if n > 0 {
++		lock(&c.lock)
+ 		c.empty.remove(s)
+ 		c.nonempty.insert(s)
+-		// mCentral_CacheSpan conservatively counted
+-		// unallocated slots in heap_live. Undo this.
+-		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
+-		// cacheSpan updated alloc assuming all objects on s
+-		// were going to be allocated. Adjust for any that
+-		// weren't.
+-		atomic.Xadd64(&c.nmalloc, -int64(n))
++		if !stale {
++			// mCentral_CacheSpan conservatively counted
++			// unallocated slots in heap_live. Undo this.
++			//
++			// If this span was cached before sweep, then
++			// heap_live was totally recomputed since
++			// caching this span, so we don't do this for
++			// stale spans.
++			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
++		}
++		unlock(&c.lock)
+ 	}
+-	unlock(&c.lock)
+ }
+ 
+ // freeSpan updates c and s after sweeping s.
+@@ -183,13 +208,13 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ // If preserve=true, it does not move s (the caller
+ // must take care of it).
+ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
+-	if s.incache {
++	if sg := mheap_.sweepgen; s.sweepgen == sg+1 || s.sweepgen == sg+3 {
+ 		throw("freeSpan given cached span")
+ 	}
+ 	s.needzero = 1
+ 
+ 	if preserve {
+-		// preserve is set only when called from MCentral_CacheSpan above,
++		// preserve is set only when called from (un)cacheSpan above,
+ 		// the span must be in the empty list.
+ 		if !s.inList() {
+ 			throw("can't preserve unlinked span")
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index d52c8cd791..83980e6020 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1262,6 +1262,14 @@ func gcStart(trigger gcTrigger) {
+ 		traceGCStart()
+ 	}
+ 
++	// Check that all Ps have finished deferred mcache flushes.
++	for _, p := range allp {
++		if fg := atomic.Load(&p.mcache.flushGen); fg != mheap_.sweepgen {
++			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
++			throw("p mcache not flushed")
++		}
++	}
++
+ 	gcBgMarkStartWorkers()
+ 
+ 	gcResetMarkState()
+@@ -1606,6 +1614,16 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 	// Free stack spans. This must be done between GC cycles.
+ 	systemstack(freeStackSpans)
+ 
++	// Ensure all mcaches are flushed. Each P will flush its own
++	// mcache before allocating, but idle Ps may not. Since this
++	// is necessary to sweep all spans, we need to ensure all
++	// mcaches are flushed before we start the next GC cycle.
++	systemstack(func() {
++		forEachP(func(_p_ *p) {
++			_p_.mcache.prepareForSweep()
++		})
++	})
++
+ 	// Print gctrace before dropping worldsema. As soon as we drop
+ 	// worldsema another cycle could start and smash the stats
+ 	// we're trying to print.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index cdbe988a1e..78a597f007 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -52,11 +52,7 @@ const (
+ //
+ //go:nowritebarrier
+ func gcMarkRootPrepare() {
+-	if gcphase == _GCmarktermination {
+-		work.nFlushCacheRoots = int(gomaxprocs)
+-	} else {
+-		work.nFlushCacheRoots = 0
+-	}
++	work.nFlushCacheRoots = 0
+ 
+ 	// Compute how many data and BSS root blocks there are.
+ 	nBlocks := func(bytes uintptr) int {
+@@ -344,7 +340,8 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 		if s.state != mSpanInUse {
+ 			continue
+ 		}
+-		if !useCheckmark && s.sweepgen != sg {
++		// Check that this span was swept (it may be cached or uncached).
++		if !useCheckmark && !(s.sweepgen == sg || s.sweepgen == sg+3) {
+ 			// sweepgen was updated (+2) during non-checkmark GC pass
+ 			print("sweep ", s.sweepgen, " ", sg, "\n")
+ 			throw("gc: unswept span")
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 5cdede002a..00950aede2 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -161,7 +161,8 @@ func (s *mspan) ensureSwept() {
+ 	}
+ 
+ 	sg := mheap_.sweepgen
+-	if atomic.Load(&s.sweepgen) == sg {
++	spangen := atomic.Load(&s.sweepgen)
++	if spangen == sg || spangen == sg+3 {
+ 		return
+ 	}
+ 	// The caller must be sure that the span is a mSpanInUse span.
+@@ -170,7 +171,11 @@ func (s *mspan) ensureSwept() {
+ 		return
+ 	}
+ 	// unfortunate condition, and we don't have efficient means to wait
+-	for atomic.Load(&s.sweepgen) != sg {
++	for {
++		spangen := atomic.Load(&s.sweepgen)
++		if spangen == sg || spangen == sg+3 {
++			break
++		}
+ 		osyield()
+ 	}
+ }
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 2dd66f7c2b..e29af677a2 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -317,6 +317,8 @@ type mspan struct {
+ 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
+ 	// if sweepgen == h->sweepgen - 1, the span is currently being swept
+ 	// if sweepgen == h->sweepgen, the span is swept and ready to use
++	// if sweepgen == h->sweepgen + 1, the span was cached before sweep began and is still cached, and needs sweeping
++	// if sweepgen == h->sweepgen + 3, the span was swept and then cached and is still cached
+ 	// h->sweepgen is incremented by 2 after every GC
+ 
+ 	sweepgen    uint32
+@@ -324,7 +326,6 @@ type mspan struct {
+ 	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
+ 	allocCount  uint16     // number of allocated objects
+ 	spanclass   spanClass  // size class and noscan (uint8)
+-	incache     bool       // being used by an mcache
+ 	state       mSpanState // mspaninuse etc
+ 	needzero    uint8      // needs to be zeroed before allocation
+ 	divShift    uint8      // for divide by elemsize - divMagic.shift
+@@ -1185,7 +1186,6 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.npages = npages
+ 	span.allocCount = 0
+ 	span.spanclass = 0
+-	span.incache = false
+ 	span.elemsize = 0
+ 	span.state = mSpanDead
+ 	span.unusedsince = 0
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0a7321254c..910918f4b4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4119,6 +4119,7 @@ func procresize(nprocs int32) *p {
+ 	if _g_.m.p != 0 && _g_.m.p.ptr().id < nprocs {
+ 		// continue to use the current P
+ 		_g_.m.p.ptr().status = _Prunning
++		_g_.m.p.ptr().mcache.prepareForSweep()
+ 	} else {
+ 		// release the current P and acquire allp[0]
+ 		if _g_.m.p != 0 {
+@@ -4169,6 +4170,10 @@ func acquirep(_p_ *p) {
+ 	_g_ := getg()
+ 	_g_.m.mcache = _p_.mcache
+ 
++	// Perform deferred mcache flush before this P can allocate
++	// from a potentially stale mcache.
++	_p_.mcache.prepareForSweep()
++
+ 	if trace.enabled {
+ 		traceProcStart()
+ 	}

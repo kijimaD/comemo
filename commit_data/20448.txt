@@ -11,6 +11,27 @@ Date:   Mon Sep 8 17:37:49 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/135600043
-
+---
  src/runtime/panic.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 740fa026e2..a5a8fbd6dd 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -95,6 +95,7 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ // This maps exactly to malloc size classes.
+ 
+ // defer size class for arg size sz
++//go:nosplit
+ func deferclass(siz uintptr) uintptr {
+ 	return (siz + 7) >> 4
+ }
+@@ -159,6 +160,7 @@ func newdefer(siz int32) *_defer {
+ 
+ // Free the given defer.
+ // The defer cannot be used after this call.
++//go:nosplit
+ func freedefer(d *_defer) {
+ 	if d.special {
+ 		return

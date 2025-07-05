@@ -21,7 +21,44 @@ Date:   Tue Apr 28 23:02:49 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/2237
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/ld/pe.go  | 11 ++++++-----
  src/runtime/os1_windows.go |  2 +-
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/ld/pe.go b/src/cmd/internal/ld/pe.go
+index a71d2d0599..f7a45fd338 100644
+--- a/src/cmd/internal/ld/pe.go
++++ b/src/cmd/internal/ld/pe.go
+@@ -1225,12 +1225,13 @@ func Asmbpe() {
+ 	// for other threads we specify stack size in runtime explicitly
+ 	// (runtime knows whether cgo is enabled or not).
+ 	// If you change stack reserve sizes here,
+-	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c as well.
++	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c and correspondent
++	// CreateThread parameter in runtime.newosproc as well.
+ 	if !iscgo {
+-		oh64.SizeOfStackReserve = 0x00010000
+-		oh.SizeOfStackReserve = 0x00010000
+-		oh64.SizeOfStackCommit = 0x0000ffff
+-		oh.SizeOfStackCommit = 0x0000ffff
++		oh64.SizeOfStackReserve = 0x00020000
++		oh.SizeOfStackReserve = 0x00020000
++		oh64.SizeOfStackCommit = 0x00001000
++		oh.SizeOfStackCommit = 0x00001000
+ 	} else {
+ 		oh64.SizeOfStackReserve = 0x00200000
+ 		oh.SizeOfStackReserve = 0x00100000
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 2b9739fca3..5719b320f5 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -282,7 +282,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
+ 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+ 	if thandle == 0 {
+-		println("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")")
++		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
+ 		throw("runtime.newosproc")
+ 	}
+ }

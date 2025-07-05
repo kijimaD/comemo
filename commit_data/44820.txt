@@ -11,6 +11,19 @@ Date:   Thu Sep 3 08:27:34 2020 +0930
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/security.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 3ee68ac1b4..d2a2697f0f 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -177,6 +177,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,-Bdynamic`),
+ 	re(`-Wl,-berok`),
+ 	re(`-Wl,-Bstatic`),
++	re(`-Wl,-Bsymbolic-functions`),
+ 	re(`-WL,-O([^@,\-][^,]*)?`),
+ 	re(`-Wl,-d[ny]`),
+ 	re(`-Wl,--disable-new-dtags`),

@@ -9,6 +9,20 @@ Date:   Thu May 26 11:28:23 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4535101
-
+---
  src/cmd/gc/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index dbfd864744..286618ec1b 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -49,7 +49,7 @@ include ../../Make.clib
+ install: $(LIB)
+ 
+ y1.tab.c: y.tab.c	# make yystate global, yytname mutable
+-	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/' >y1.tab.c
++	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/; s/char const \*yymsgp/char *yymsgp/' >y1.tab.c
+ 
+ yerr.h: bisonerrors go.errors y.tab.h	# y.tab.h rule generates y.output too
+ 	awk -f bisonerrors y.output go.errors >yerr.h

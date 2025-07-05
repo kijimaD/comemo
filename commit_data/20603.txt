@@ -8,6 +8,20 @@ Date:   Tue Sep 23 14:55:19 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/149950043
-
+---
  src/os/path.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index b1a90b3e52..24a3415b46 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -87,6 +87,8 @@ func RemoveAll(path string) error {
+ 	fd, err := Open(path)
+ 	if err != nil {
+ 		if IsNotExist(err) {
++			// Race. It was deleted between the Lstat and Open.
++			// Return nil per RemoveAll's docs.
+ 			return nil
+ 		}
+ 		return err

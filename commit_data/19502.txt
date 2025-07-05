@@ -10,7 +10,61 @@ Date:   Thu Jun 5 10:42:03 2014 -0700
     R=rsc, cookieo9
     CC=golang-codereviews
     https://golang.org/cl/103080043
-
+---
  misc/cgo/test/issue8148.go | 31 +++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         |  5 +++++
  2 files changed, 36 insertions(+)
+
+diff --git a/misc/cgo/test/issue8148.go b/misc/cgo/test/issue8148.go
+new file mode 100644
+index 0000000000..8e41908489
+--- /dev/null
++++ b/misc/cgo/test/issue8148.go
+@@ -0,0 +1,31 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 8148.  A typedef of an unnamed struct didn't work when used
++// with an exported Go function.  No runtime test; just make sure it
++// compiles.
++
++package cgotest
++
++/*
++typedef struct { int i; } T;
++
++int issue8148Callback(T*);
++
++static int get() {
++	T t;
++	t.i = 42;
++	return issue8148Callback(&t);
++}
++*/
++import "C"
++
++//export issue8148Callback
++func issue8148Callback(t *C.T) C.int {
++	return t.i
++}
++
++func Issue8148() int {
++	return int(C.get())
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 0160b4b900..7a802102d9 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1283,6 +1283,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		if isStructUnionClass(sub.Go) || *godefs || *cdefs {
+ 			t.Go = sub.Go
+ 
++			if isStructUnionClass(sub.Go) {
++				// Use the typedef name for C code.
++				typedef[sub.Go.(*ast.Ident).Name].C = t.C
++			}
++
+ 			// If we've seen this typedef before, and it
+ 			// was an anonymous struct/union/class before
+ 			// too, use the old definition.

@@ -14,6 +14,21 @@ Date:   Mon Oct 7 12:44:49 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/objfile/objfile2.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/objfile/objfile2.go
+index 5a92fef4ec..1908d21c93 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/objfile/objfile2.go
+@@ -223,9 +223,6 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
+ 		}
+ 		s.Attr.Set(sym.AttrReachable, false)
+ 	}
+-	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+-		s.Attr |= sym.AttrLocal
+-	}
+ }
+ 
+ func LoadFull(l *Loader, r *goobj2.Reader, lib *sym.Library, syms *sym.Symbols, localSymVersion int, libByPkg map[string]*sym.Library) {

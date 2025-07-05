@@ -27,9 +27,85 @@ Date:   Wed Nov 30 16:15:32 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go   |  3 +++
  src/cmd/compile/internal/gc/subr.go   |  2 ++
  src/cmd/compile/internal/gc/syntax.go |  1 +
  src/cmd/internal/obj/x86/obj6.go      | 24 ++++++++++++++++++++----
  4 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index acea790498..643ba79d63 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -380,6 +380,9 @@ func compile(fn *Node) {
+ 	if fn.Func.Wrapper {
+ 		ptxt.From3.Offset |= obj.WRAPPER
+ 	}
++	if fn.Func.NoFramePointer {
++		ptxt.From3.Offset |= obj.NOFRAME
++	}
+ 	if fn.Func.Needctxt {
+ 		ptxt.From3.Offset |= obj.NEEDCTXT
+ 	}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a53ba1fffc..9b9a3f1210 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1810,6 +1810,8 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		n := nod(ORETJMP, nil, nil)
+ 		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
+ 		fn.Nbody.Append(n)
++		// When tail-calling, we can't use a frame pointer.
++		fn.Func.NoFramePointer = true
+ 	} else {
+ 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
+ 		call := nod(OCALL, dot, nil)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 8b06d3aba8..8848bb5955 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -317,6 +317,7 @@ type Func struct {
+ 	Needctxt        bool   // function uses context register (has closure variables)
+ 	ReflectMethod   bool   // function calls reflect.Type.Method or MethodByName
+ 	IsHiddenClosure bool
++	NoFramePointer  bool // Must not use a frame pointer for this function
+ }
+ 
+ type Op uint8
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 102d8c3c4f..eb6f867ca7 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -632,11 +632,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		autoffset = 0
+ 	}
+ 
++	hasCall := false
++	for q := p; q != nil; q = q.Link {
++		if q.As == obj.ACALL || q.As == obj.ADUFFCOPY || q.As == obj.ADUFFZERO {
++			hasCall = true
++			break
++		}
++	}
++
+ 	var bpsize int
+-	if p.Mode == 64 && ctxt.Framepointer_enabled && autoffset > 0 && p.From3.Offset&obj.NOFRAME == 0 {
+-		// Make room for to save a base pointer. If autoffset == 0,
+-		// this might do something special like a tail jump to
+-		// another function, so in that case we omit this.
++	if p.Mode == 64 && ctxt.Framepointer_enabled &&
++		p.From3.Offset&obj.NOFRAME == 0 && // (1) below
++		!(autoffset == 0 && p.From3.Offset&obj.NOSPLIT != 0) && // (2) below
++		!(autoffset == 0 && !hasCall) { // (3) below
++		// Make room to save a base pointer.
++		// There are 2 cases we must avoid:
++		// 1) If noframe is set (which we do for functions which tail call).
++		// 2) Scary runtime internals which would be all messed up by frame pointers.
++		//    We detect these using a heuristic: frameless nosplit functions.
++		//    TODO: Maybe someday we label them all with NOFRAME and get rid of this heuristic.
++		// For performance, we also want to avoid:
++		// 3) Frameless leaf functions
+ 		bpsize = ctxt.Arch.PtrSize
+ 		autoffset += int32(bpsize)
+ 		p.To.Offset += int64(bpsize)

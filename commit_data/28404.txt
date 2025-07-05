@@ -13,8 +13,75 @@ Date:   Fri May 20 11:19:19 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23285
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go |  4 +++-
  src/cmd/compile/internal/gc/main.go    | 15 +++++++++++++++
  src/cmd/compile/internal/gc/parser.go  |  6 +-----
  3 files changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 5184753896..e1885981e0 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -103,7 +103,9 @@ func Import(in *bufio.Reader) {
+ 	// --- compiler-specific export data ---
+ 
+ 	// read compiler-specific flags
+-	importpkg.Safe = p.bool()
++
++	// read but ignore safemode bit (see issue #15772)
++	p.bool() // formerly: importpkg.Safe = p.bool()
+ 
+ 	// phase 2
+ 	objcount = 0
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 713ff13d85..8ad3300dbe 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -784,6 +784,21 @@ func importfile(f *Val, indent []byte) {
+ 		}
+ 	}
+ 
++	// process header lines
++	for {
++		p, err = imp.ReadString('\n')
++		if err != nil {
++			log.Fatalf("reading input: %v", err)
++		}
++		if p == "\n" {
++			break // header ends with blank line
++		}
++		if strings.HasPrefix(p, "safe") {
++			importpkg.Safe = true
++			break // ok to ignore rest
++		}
++	}
++
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+ 	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 55f352590b..7ffd42f83c 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -398,11 +398,8 @@ func (p *parser) import_package() {
+ 		p.import_error()
+ 	}
+ 
+-	importsafe := false
++	// read but skip "safe" bit (see issue #15772)
+ 	if p.tok == LNAME {
+-		if p.sym_.Name == "safe" {
+-			importsafe = true
+-		}
+ 		p.next()
+ 	}
+ 	p.want(';')
+@@ -413,7 +410,6 @@ func (p *parser) import_package() {
+ 	} else if importpkg.Name != name {
+ 		Yyerror("conflicting names %s and %s for package %q", importpkg.Name, name, importpkg.Path)
+ 	}
+-	importpkg.Safe = importsafe
+ 
+ 	typecheckok = true
+ 	defercheckwidth()

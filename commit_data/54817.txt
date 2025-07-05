@@ -13,6 +13,20 @@ Date:   Tue Nov 15 12:26:11 2022 +0100
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/goroot/importcfg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/goroot/importcfg.go b/src/internal/goroot/importcfg.go
+index 51d0d77604..89f58c5d3e 100644
+--- a/src/internal/goroot/importcfg.go
++++ b/src/internal/goroot/importcfg.go
+@@ -54,7 +54,7 @@ func PkgfileMap() (map[string]string, error) {
+ 			}
+ 			sp := strings.SplitN(line, " ", 2)
+ 			if len(sp) != 2 {
+-				err = fmt.Errorf("determining pkgfile map: invalid line in go list output: %q", line)
++				stdlibPkgfileErr = fmt.Errorf("determining pkgfile map: invalid line in go list output: %q", line)
+ 				return
+ 			}
+ 			importPath, export := sp[0], sp[1]

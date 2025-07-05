@@ -11,7 +11,7 @@ Date:   Fri Jan 13 17:23:01 2017 -0800
     Change-Id: Ica6503fe9c888cc05c15b46178423f620c087491
     Reviewed-on: https://go-review.googlesource.com/35233
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go |  9 ++++----
  test/alias2.go                     | 11 +++++++---
  test/alias3.dir/a.go               | 42 ++++++++++++++++++++++++++++++++++++++
@@ -19,3 +19,188 @@ Date:   Fri Jan 13 17:23:01 2017 -0800
  test/alias3.dir/c.go               | 25 +++++++++++++++++++++++
  test/alias3.go                     |  7 +++++++
  6 files changed, 112 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5a1c5e12a0..f934a650bd 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1163,14 +1163,14 @@ bad:
+ 	return nil
+ }
+ 
+-func methodname(n *Node, t *Node) *Node {
++func methodname(n, recv *Node) *Node {
+ 	star := false
+-	if t.Op == OIND {
++	if recv.Op == OIND {
+ 		star = true
+-		t = t.Left
++		recv = recv.Left
+ 	}
+ 
+-	return methodname0(n.Sym, star, t.Sym)
++	return methodname0(n.Sym, star, recv.Sym)
+ }
+ 
+ func methodname0(s *Sym, star bool, tsym *Sym) *Node {
+@@ -1198,7 +1198,6 @@ func methodname0(s *Sym, star bool, tsym *Sym) *Node {
+ // - msym is the method symbol
+ // - t is function type (with receiver)
+ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
+-	// get field sym
+ 	if msym == nil {
+ 		Fatalf("no method symbol")
+ 	}
+diff --git a/test/alias2.go b/test/alias2.go
+index fb0a97feb2..f404d0dd3b 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -35,9 +35,11 @@ type (
+ )
+ 
+ // Methods can be declared on the original named type and the alias.
+-func (T0) m1() {}
+-func (A0) m1() {} // TODO(gri) this should be an error
+-func (A0) m2() {}
++func (T0) m1()  {}
++func (*T0) m1() {} // ERROR "method redeclared: T0\.m1"
++func (A0) m1()  {} // TODO(gri) this should be an error
++func (A0) m1()  {} // ERROR "A0\.m1 redeclared in this block"
++func (A0) m2()  {}
+ 
+ // Type aliases and the original type name can be used interchangeably.
+ var _ A0 = T0{}
+@@ -91,6 +93,9 @@ func _() {
+ type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type"
+ 
+ func (A1) m() {} // ERROR "cannot define new methods on non-local type int"
++func (A2) m() {} // ERROR "invalid receiver type struct {}"
++func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value"
++func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value"
+ 
+ type B1 = struct{}
+ 
+diff --git a/test/alias3.dir/a.go b/test/alias3.dir/a.go
+new file mode 100644
+index 0000000000..09b3408d16
+--- /dev/null
++++ b/test/alias3.dir/a.go
+@@ -0,0 +1,42 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "go/build"
++
++type (
++	Float64 = float64
++	Rune    = rune
++)
++
++type (
++	Int       int
++	IntAlias  = Int
++	IntAlias2 = IntAlias
++	S         struct {
++		Int
++		IntAlias
++		IntAlias2
++	}
++)
++
++type (
++	Context = build.Context
++)
++
++type (
++	I1 interface {
++		M1(IntAlias2) Float64
++		M2() Context
++	}
++
++	I2 = interface {
++		M1(Int) float64
++		M2() build.Context
++	}
++)
++
++var i1 I1
++var i2 I2 = i1
+diff --git a/test/alias3.dir/b.go b/test/alias3.dir/b.go
+new file mode 100644
+index 0000000000..8a86cc0643
+--- /dev/null
++++ b/test/alias3.dir/b.go
+@@ -0,0 +1,26 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import (
++	"./a"
++	. "go/build"
++)
++
++func F(x float64) a.Float64 {
++	return x
++}
++
++type MyContext = Context // = build.Context
++
++var C a.Context = Default
++
++type S struct{}
++
++func (S) M1(x a.IntAlias) float64 { return a.Float64(x) }
++func (S) M2() Context             { return Default }
++
++var _ a.I1 = S{}
++var _ a.I2 = S{}
+diff --git a/test/alias3.dir/c.go b/test/alias3.dir/c.go
+new file mode 100644
+index 0000000000..161d5934c2
+--- /dev/null
++++ b/test/alias3.dir/c.go
+@@ -0,0 +1,25 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"./a"
++	"./b"
++)
++
++func main() {
++	var _ float64 = b.F(0)
++	var _ a.Rune = int32(0)
++
++	// embedded types can have different names but the same types
++	var s a.S
++	s.Int = 1
++	s.IntAlias = s.Int
++	s.IntAlias2 = s.Int
++
++	// aliases denote identical types across packages
++	var c a.Context = b.C
++	var _ b.MyContext = c
++}
+diff --git a/test/alias3.go b/test/alias3.go
+new file mode 100644
+index 0000000000..c3732c311b
+--- /dev/null
++++ b/test/alias3.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

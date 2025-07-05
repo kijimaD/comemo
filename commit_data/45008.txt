@@ -25,7 +25,7 @@ Date:   Wed Sep 16 16:59:58 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/install-source.html                            |  7 ++++--
  misc/cgo/test/issue18146.go                        |  2 +-
  misc/cgo/test/pkg_test.go                          |  2 +-
@@ -126,3 +126,1797 @@ Date:   Wed Sep 16 16:59:58 2020 -0400
  src/time/tick_test.go                              |  2 +-
  .../{zoneinfo_ios.go => zoneinfo_darwin_arm64.go}  |  3 ---
  99 files changed, 215 insertions(+), 125 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index cbf4eac70b..86a4644c0c 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -507,8 +507,8 @@ These default to the values of <code>$GOHOSTOS</code> and
+ 
+ <p>
+ Choices for <code>$GOOS</code> are
+-<code>android</code>, <code>darwin</code> (macOS/iOS),
+-<code>dragonfly</code>, <code>freebsd</code>, <code>illumos</code>, <code>js</code>,
++<code>android</code>, <code>darwin</code>, <code>dragonfly</code>,
++<code>freebsd</code>, <code>illumos</code>, <code>ios</code>, <code>js</code>,
+ <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
+ <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
+ </p>
+@@ -567,6 +567,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <td></td><td><code>illumos</code></td> <td><code>amd64</code></td>
+ </tr>
+ <tr>
++<td></td><td><code>ios</code></td> <td><code>arm64</code></td>
++</tr>
++<tr>
+ <td></td><td><code>js</code></td> <td><code>wasm</code></td>
+ </tr>
+ <tr>
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index 196d98f507..f92d6c7f93 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -24,7 +24,7 @@ func test18146(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		t.Skipf("skipping flaky test on %s; see golang.org/issue/18202", runtime.GOOS)
+ 	}
+ 
+diff --git a/misc/cgo/test/pkg_test.go b/misc/cgo/test/pkg_test.go
+index 26c50ad883..a28ad4ea74 100644
+--- a/misc/cgo/test/pkg_test.go
++++ b/misc/cgo/test/pkg_test.go
+@@ -30,7 +30,7 @@ func TestCrossPackageTests(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android":
+ 		t.Skip("Can't exec cmd/go subprocess on Android.")
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			t.Skip("Can't exec cmd/go subprocess on iOS.")
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 8dfa1cb5ad..27b753a147 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -62,7 +62,7 @@ import (
+ 
+ func testSigaltstack(t *testing.T) {
+ 	switch {
+-	case runtime.GOOS == "solaris", runtime.GOOS == "illumos", runtime.GOOS == "darwin" && runtime.GOARCH == "arm64":
++	case runtime.GOOS == "solaris", runtime.GOOS == "illumos", (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64":
+ 		t.Skipf("switching signal stack not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 05fa52b381..a78f88499b 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -1776,7 +1776,7 @@ func test14838(t *testing.T) {
+ var sink C.int
+ 
+ func test17065(t *testing.T) {
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		t.Skip("broken on darwin; issue 17065")
+ 	}
+ 	for i := range C.ii {
+diff --git a/misc/cgo/test/testx.go b/misc/cgo/test/testx.go
+index 7fbc5c64b3..2b2e69ec00 100644
+--- a/misc/cgo/test/testx.go
++++ b/misc/cgo/test/testx.go
+@@ -164,7 +164,7 @@ func Add(x int) {
+ }
+ 
+ func testCthread(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
+ 	}
+ 	sum.i = 0
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index b4a046c4bc..2e223ea369 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -118,9 +118,9 @@ func testMain(m *testing.M) int {
+ 		cc = append(cc, s[start:])
+ 	}
+ 
+-	if GOOS == "darwin" {
++	if GOOS == "darwin" || GOOS == "ios" {
+ 		// For Darwin/ARM.
+-		// TODO(crawshaw): can we do better?
++		// TODO: do we still need this?
+ 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+ 	}
+ 	if GOOS == "aix" {
+@@ -133,7 +133,7 @@ func testMain(m *testing.M) int {
+ 		libbase = "gccgo_" + libgodir + "_fPIC"
+ 	} else {
+ 		switch GOOS {
+-		case "darwin":
++		case "darwin", "ios":
+ 			if GOARCH == "arm64" {
+ 				libbase += "_shared"
+ 			}
+@@ -303,7 +303,7 @@ func TestInstall(t *testing.T) {
+ 
+ func TestEarlySignalHandler(t *testing.T) {
+ 	switch GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch GOARCH {
+ 		case "arm64":
+ 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
+@@ -384,7 +384,7 @@ func TestSignalForwarding(t *testing.T) {
+ 	expectSignal(t, err, syscall.SIGSEGV)
+ 
+ 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
+-	if runtime.GOOS != "darwin" {
++	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
+ 		// Test SIGPIPE forwarding
+ 		cmd = exec.Command(bin[0], append(bin[1:], "3")...)
+ 
+@@ -485,7 +485,7 @@ func TestSignalForwardingExternal(t *testing.T) {
+ // doesn't work on this platform.
+ func checkSignalForwardingTest(t *testing.T) {
+ 	switch GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch GOARCH {
+ 		case "arm64":
+ 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
+@@ -603,7 +603,7 @@ func TestExtar(t *testing.T) {
+ 	if runtime.Compiler == "gccgo" {
+ 		t.Skip("skipping -extar test when using gccgo")
+ 	}
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skip("shell scripts are not executable on iOS hosts")
+ 	}
+ 
+@@ -645,7 +645,7 @@ func TestExtar(t *testing.T) {
+ 
+ func TestPIE(t *testing.T) {
+ 	switch GOOS {
+-	case "windows", "darwin", "plan9":
++	case "windows", "darwin", "ios", "plan9":
+ 		t.Skipf("skipping PIE test on %s", GOOS)
+ 	}
+ 
+@@ -738,7 +738,7 @@ func TestSIGPROF(t *testing.T) {
+ 	switch GOOS {
+ 	case "windows", "plan9":
+ 		t.Skipf("skipping SIGPROF test on %s", GOOS)
+-	case "darwin":
++	case "darwin", "ios":
+ 		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
+ 	}
+ 
+@@ -841,7 +841,7 @@ func TestCompileWithoutShared(t *testing.T) {
+ 	expectSignal(t, err, syscall.SIGSEGV)
+ 
+ 	// SIGPIPE is never forwarded on darwin. See golang.org/issue/33384.
+-	if runtime.GOOS != "darwin" {
++	if runtime.GOOS != "darwin" && runtime.GOOS != "ios" {
+ 		binArgs := append(cmdToRun(exe), "3")
+ 		t.Log(binArgs)
+ 		out, err = exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput()
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index bd4d341820..d557f34b0f 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -98,7 +98,7 @@ func testMain(m *testing.M) int {
+ 	}
+ 
+ 	switch GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		// For Darwin/ARM.
+ 		// TODO(crawshaw): can we do better?
+ 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+@@ -107,7 +107,7 @@ func testMain(m *testing.M) int {
+ 	}
+ 	libgodir := GOOS + "_" + GOARCH
+ 	switch GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		if GOARCH == "arm64" {
+ 			libgodir += "_shared"
+ 		}
+@@ -407,7 +407,7 @@ func TestUnexportedSymbols(t *testing.T) {
+ 	adbPush(t, libname)
+ 
+ 	linkFlags := "-Wl,--no-as-needed"
+-	if GOOS == "darwin" {
++	if GOOS == "darwin" || GOOS == "ios" {
+ 		linkFlags = ""
+ 	}
+ 
+@@ -636,7 +636,7 @@ func copyFile(t *testing.T, dst, src string) {
+ 
+ func TestGo2C2Go(t *testing.T) {
+ 	switch GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		// Darwin shared libraries don't support the multiple
+ 		// copies of the runtime package implied by this test.
+ 		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index bdd6bd8468..57f0fd34f7 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -21,7 +21,7 @@ func requireTestSOSupported(t *testing.T) {
+ 	t.Helper()
+ 	switch runtime.GOARCH {
+ 	case "arm64":
+-		if runtime.GOOS == "darwin" {
++		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 			t.Skip("No exec facility on iOS.")
+ 		}
+ 	case "ppc64":
+@@ -74,7 +74,7 @@ func TestSO(t *testing.T) {
+ 	ext := "so"
+ 	args := append(gogccflags, "-shared")
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		ext = "dylib"
+ 		args = append(args, "-undefined", "suppress", "-flat_namespace")
+ 	case "windows":
+@@ -119,7 +119,7 @@ func TestSO(t *testing.T) {
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+ 	if runtime.GOOS != "windows" {
+ 		s := "LD_LIBRARY_PATH"
+-		if runtime.GOOS == "darwin" {
++		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 			s = "DYLD_LIBRARY_PATH"
+ 		}
+ 		cmd.Env = append(os.Environ(), s+"=.")
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index bdd6bd8468..57f0fd34f7 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -21,7 +21,7 @@ func requireTestSOSupported(t *testing.T) {
+ 	t.Helper()
+ 	switch runtime.GOARCH {
+ 	case "arm64":
+-		if runtime.GOOS == "darwin" {
++		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 			t.Skip("No exec facility on iOS.")
+ 		}
+ 	case "ppc64":
+@@ -74,7 +74,7 @@ func TestSO(t *testing.T) {
+ 	ext := "so"
+ 	args := append(gogccflags, "-shared")
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		ext = "dylib"
+ 		args = append(args, "-undefined", "suppress", "-flat_namespace")
+ 	case "windows":
+@@ -119,7 +119,7 @@ func TestSO(t *testing.T) {
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+ 	if runtime.GOOS != "windows" {
+ 		s := "LD_LIBRARY_PATH"
+-		if runtime.GOOS == "darwin" {
++		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 			s = "DYLD_LIBRARY_PATH"
+ 		}
+ 		cmd.Env = append(os.Environ(), s+"=.")
+diff --git a/src/archive/tar/stat_unix.go b/src/archive/tar/stat_unix.go
+index d1576db41d..8df3616990 100644
+--- a/src/archive/tar/stat_unix.go
++++ b/src/archive/tar/stat_unix.go
+@@ -66,7 +66,7 @@ func statUnix(fi os.FileInfo, h *Header) error {
+ 			minor := uint32((dev & 0x00000000000000ff) >> 0)
+ 			minor |= uint32((dev & 0x00000ffffff00000) >> 12)
+ 			h.Devmajor, h.Devminor = int64(major), int64(minor)
+-		case "darwin":
++		case "darwin", "ios":
+ 			// Copied from golang.org/x/sys/unix/dev_darwin.go.
+ 			major := uint32((dev >> 24) & 0xff)
+ 			minor := uint32(dev & 0xffffff)
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 730db44990..111a309eb5 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -298,7 +298,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			continue
+ 		}
+ 
+-		if goos == "darwin" && strings.HasSuffix(n.C, "Ref") {
++		if (goos == "darwin" || goos == "ios") && strings.HasSuffix(n.C, "Ref") {
+ 			// For FooRef, find out if FooGetTypeID exists.
+ 			s := n.C[:len(n.C)-3] + "GetTypeID"
+ 			n := &Name{Go: s, C: s}
+@@ -3075,7 +3075,7 @@ func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
+ 	// We identify the correct set of types as those ending in Ref and for which
+ 	// there exists a corresponding GetTypeID function.
+ 	// See comment below for details about the bad pointers.
+-	if goos != "darwin" {
++	if goos != "darwin" && goos != "ios" {
+ 		return false
+ 	}
+ 	s := dt.Name
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index f698919e9b..f3fec03854 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -11,7 +11,7 @@ import (
+ 	"cmd/internal/objabi"
+ )
+ 
+-var darwin = objabi.GOOS == "darwin"
++var darwin = objabi.GOOS == "darwin" || objabi.GOOS == "ios"
+ 
+ func padframe(frame int64) int64 {
+ 	// arm64 requires that the frame size (not counting saved FP&LR)
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 4b2f06def1..7f01f8047f 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -248,7 +248,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.FPReg = framepointerRegARM64
+ 		c.LinkReg = linkRegARM64
+ 		c.hasGReg = true
+-		c.noDuffDevice = objabi.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
++		c.noDuffDevice = objabi.GOOS == "darwin" || objabi.GOOS == "ios" // darwin linker cannot handle BR26 reloc with non-zero addend
+ 	case "ppc64":
+ 		c.BigEndian = true
+ 		fallthrough
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 397b3bb88f..3ac742fa55 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -80,6 +80,7 @@ var okgoos = []string{
+ 	"darwin",
+ 	"dragonfly",
+ 	"illumos",
++	"ios",
+ 	"js",
+ 	"linux",
+ 	"android",
+@@ -970,7 +971,10 @@ func matchtag(tag string) bool {
+ 		}
+ 		return !matchtag(tag[1:])
+ 	}
+-	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux") || (goos == "illumos" && tag == "solaris")
++	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" ||
++		(goos == "android" && tag == "linux") ||
++		(goos == "illumos" && tag == "solaris") ||
++		(goos == "ios" && tag == "darwin")
+ }
+ 
+ // shouldbuild reports whether we should build this file.
+@@ -984,7 +988,7 @@ func shouldbuild(file, pkg string) bool {
+ 	name := filepath.Base(file)
+ 	excluded := func(list []string, ok string) bool {
+ 		for _, x := range list {
+-			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") {
++			if x == ok || (ok == "android" && x == "linux") || (ok == "illumos" && x == "solaris") || (ok == "ios" && x == "darwin") {
+ 				continue
+ 			}
+ 			i := strings.Index(name, x)
+@@ -1462,7 +1466,7 @@ func wrapperPathFor(goos, goarch string) string {
+ 		if gohostos != "android" {
+ 			return pathf("%s/misc/android/go_android_exec.go", goroot)
+ 		}
+-	case goos == "darwin" && goarch == "arm64":
++	case (goos == "darwin" || goos == "ios") && goarch == "arm64":
+ 		if gohostos != "darwin" || gohostarch != "arm64" {
+ 			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
+ 		}
+@@ -1541,6 +1545,7 @@ var cgoEnabled = map[string]bool{
+ 	"android/amd64":   true,
+ 	"android/arm":     true,
+ 	"android/arm64":   true,
++	"ios/arm64":       true,
+ 	"js/wasm":         false,
+ 	"netbsd/386":      true,
+ 	"netbsd/amd64":    true,
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 5ea5c81656..f953a76963 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -464,7 +464,7 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// Test the ios build tag on darwin/amd64 for the iOS simulator.
+-	if goos == "darwin" && !t.iOS() {
++	if goos == "darwin" && goarch == "amd64" {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "amd64ios",
+ 			heading: "ios tag on darwin/amd64",
+@@ -903,7 +903,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
+ }
+ 
+ func (t *tester) iOS() bool {
+-	return goos == "darwin" && goarch == "arm64"
++	return (goos == "darwin" || goos == "ios") && goarch == "arm64"
+ }
+ 
+ func (t *tester) out(v string) {
+@@ -943,7 +943,10 @@ func (t *tester) internalLink() bool {
+ 	if goos == "android" {
+ 		return false
+ 	}
+-	if t.iOS() {
++	if goos == "ios" {
++		return false
++	}
++	if goos == "darwin" && goarch == "arm64" {
+ 		return false
+ 	}
+ 	// Internally linking cgo is incomplete on some architectures.
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index f13d917634..47602833d3 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -36,8 +36,8 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func maybeSkip(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+-		t.Skip("darwin/arm64 does not have a full file tree")
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++		t.Skip("iOS does not have a full file tree")
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 804ca9e5a5..4bc87008ff 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1608,6 +1608,9 @@
+ // Using GOOS=illumos matches build tags and files as for GOOS=solaris
+ // in addition to illumos tags and files.
+ //
++// Using GOOS=ios matches build tags and files as for GOOS=darwin
++// in addition to ios tags and files.
++//
+ // To keep a file from being considered for the build:
+ //
+ // 	// +build ignore
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 021930a8a8..66a52c86ad 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -58,7 +58,7 @@ func init() {
+ 	switch runtime.GOOS {
+ 	case "android", "js":
+ 		canRun = false
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			canRun = false
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index 52bd40f2fb..07e3516855 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -105,7 +105,7 @@ func printGoDetails(w io.Writer) {
+ 
+ func printOSDetails(w io.Writer) {
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		printCmdOut(w, "uname -v: ", "uname", "-v")
+ 		printCmdOut(w, "", "sw_vers")
+ 	case "linux":
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index e1f0521ea4..0ae5fd7ca9 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -838,6 +838,9 @@ in addition to android tags and files.
+ Using GOOS=illumos matches build tags and files as for GOOS=solaris
+ in addition to illumos tags and files.
+ 
++Using GOOS=ios matches build tags and files as for GOOS=darwin
++in addition to ios tags and files.
++
+ To keep a file from being considered for the build:
+ 
+ 	// +build ignore
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index eb070eef4c..50aeabc578 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -141,6 +141,9 @@ func matchTag(name string, tags map[string]bool, want bool) bool {
+ 	if name == "solaris" {
+ 		have = have || tags["illumos"]
+ 	}
++	if name == "darwin" {
++		have = have || tags["ios"]
++	}
+ 	return have == want
+ }
+ 
+@@ -158,6 +161,7 @@ func matchTag(name string, tags map[string]bool, want bool) bool {
+ // Exceptions:
+ //     if GOOS=android, then files with GOOS=linux are also matched.
+ //     if GOOS=illumos, then files with GOOS=solaris are also matched.
++//     if GOOS=ios, then files with GOOS=darwin are also matched.
+ //
+ // If tags["*"] is true, then MatchFile will consider all possible
+ // GOOS and GOARCH to be available and will consequently
+@@ -208,6 +212,7 @@ var KnownOS = map[string]bool{
+ 	"freebsd":   true,
+ 	"hurd":      true,
+ 	"illumos":   true,
++	"ios":       true,
+ 	"js":        true,
+ 	"linux":     true,
+ 	"nacl":      true, // legacy; don't remove
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1cbd7962e7..5cc77915e7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1950,7 +1950,7 @@ func externalLinkingForced(p *Package) bool {
+ 		if cfg.BuildContext.GOARCH != "arm64" {
+ 			return true
+ 		}
+-	case "darwin":
++	case "darwin", "ios":
+ 		if cfg.BuildContext.GOARCH == "arm64" {
+ 			return true
+ 		}
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index c33de2635d..afed0fba72 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -221,7 +221,7 @@ func pkgImportPath(pkgpath string) *load.Package {
+ // See https://golang.org/issue/18878.
+ func TestRespectSetgidDir(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		if runtime.GOARCH == "arm64" {
+ 			t.Skip("can't set SetGID bit with chmod on iOS")
+ 		}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index afd6fd6d3f..51fc2b588d 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2424,7 +2424,7 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
+ 	// On OS X, some of the compilers behave as if -fno-common
+ 	// is always set, and the Mach-O linker in 6l/8l assumes this.
+ 	// See https://golang.org/issue/3253.
+-	if cfg.Goos == "darwin" {
++	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
+ 		a = append(a, "-fno-common")
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 42692acd3b..b0d6133768 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -121,7 +121,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch cfg.Goos {
+-			case "darwin":
++			case "darwin", "ios":
+ 				switch cfg.Goarch {
+ 				case "arm64":
+ 					codegenArg = "-shared"
+@@ -157,7 +157,7 @@ func buildModeInit() {
+ 			ldBuildmode = "pie"
+ 		case "windows":
+ 			ldBuildmode = "pie"
+-		case "darwin":
++		case "darwin", "ios":
+ 			switch cfg.Goarch {
+ 			case "arm64":
+ 				codegenArg = "-shared"
+diff --git a/src/cmd/internal/archive/archive_test.go b/src/cmd/internal/archive/archive_test.go
+index 1468a58210..cb4eb842b4 100644
+--- a/src/cmd/internal/archive/archive_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -243,7 +243,7 @@ func TestParseCGOArchive(t *testing.T) {
+ 	c1 := "c1"
+ 	c2 := "c2"
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		c1 = "_" + c1
+ 		c2 = "_" + c2
+ 	case "windows":
+@@ -275,7 +275,7 @@ func TestParseCGOArchive(t *testing.T) {
+ 
+ 		obj := io.NewSectionReader(f, e.Offset, e.Size)
+ 		switch runtime.GOOS {
+-		case "darwin":
++		case "darwin", "ios":
+ 			mf, err := macho.NewFile(obj)
+ 			if err != nil {
+ 				t.Fatal(err)
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 6ab83639ac..b2fd5262bb 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -378,7 +378,7 @@ func expandPseudoForm(form uint8) uint8 {
+ 		return form
+ 	}
+ 	expandedForm := DW_FORM_udata
+-	if objabi.GOOS == "darwin" {
++	if objabi.GOOS == "darwin" || objabi.GOOS == "ios" {
+ 		expandedForm = DW_FORM_data4
+ 	}
+ 	return uint8(expandedForm)
+diff --git a/src/cmd/internal/objabi/head.go b/src/cmd/internal/objabi/head.go
+index 95b8db3809..48ff292307 100644
+--- a/src/cmd/internal/objabi/head.go
++++ b/src/cmd/internal/objabi/head.go
+@@ -54,7 +54,7 @@ func (h *HeadType) Set(s string) error {
+ 	switch s {
+ 	case "aix":
+ 		*h = Haix
+-	case "darwin":
++	case "darwin", "ios":
+ 		*h = Hdarwin
+ 	case "dragonfly":
+ 		*h = Hdragonfly
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index d2d6fdbda8..b81b73a022 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -139,7 +139,7 @@ func init() {
+ }
+ 
+ // Note: must agree with runtime.framepointer_enabled.
+-var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
++var Framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
+ 
+ func addexp(s string) {
+ 	// Could do general integer parsing here, but the runtime copy doesn't yet.
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index c27b3b986d..b2b3b02bf6 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -38,7 +38,7 @@ func MustLinkExternal(goos, goarch string) bool {
+ 		if goarch != "arm64" {
+ 			return true
+ 		}
+-	case "darwin":
++	case "darwin", "ios":
+ 		if goarch == "arm64" {
+ 			return true
+ 		}
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 52adbc3bab..e4fd591676 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -170,7 +170,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
+ 
+ 		// For Mach-O and PE/386 files we strip a leading
+ 		// underscore from the symbol name.
+-		if objabi.GOOS == "darwin" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
++		if objabi.GOOS == "darwin" || objabi.GOOS == "ios" || (objabi.GOOS == "windows" && objabi.GOARCH == "386") {
+ 			if name[0] == '_' && len(name) > 1 {
+ 				name = name[1:]
+ 			}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 2373b500e3..9aa59fa3e3 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -51,7 +51,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildModePIE
+ 	case "c-archive":
+ 		switch objabi.GOOS {
+-		case "aix", "darwin", "linux":
++		case "aix", "darwin", "ios", "linux":
+ 		case "freebsd":
+ 			switch objabi.GOARCH {
+ 			case "amd64":
+diff --git a/src/cmd/link/internal/ld/outbuf_test.go b/src/cmd/link/internal/ld/outbuf_test.go
+index db0a92485e..e6643da396 100644
+--- a/src/cmd/link/internal/ld/outbuf_test.go
++++ b/src/cmd/link/internal/ld/outbuf_test.go
+@@ -17,7 +17,7 @@ func TestMMap(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	default:
+ 		t.Skip("unsupported OS")
+-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows":
++	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows":
+ 	}
+ 	dir, err := ioutil.TempDir("", "TestMMap")
+ 	if err != nil {
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 5d7fff0f99..413a4eb06f 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -283,7 +283,7 @@ func testGoLib(t *testing.T, iscgo bool) {
+ 	if iscgo {
+ 		syms = append(syms, symType{"B", "mylib.TestCgodata", false, false})
+ 		syms = append(syms, symType{"T", "mylib.TestCgofunc", false, false})
+-		if runtime.GOOS == "darwin" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
++		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" || (runtime.GOOS == "windows" && runtime.GOARCH == "386") {
+ 			syms = append(syms, symType{"D", "_cgodata", true, false})
+ 			syms = append(syms, symType{"T", "_cgofunc", true, false})
+ 		} else if runtime.GOOS == "aix" {
+diff --git a/src/crypto/x509/root_darwin_ios_gen.go b/src/crypto/x509/root_darwin_ios_gen.go
+index 7a42466e5f..61152b4d11 100644
+--- a/src/crypto/x509/root_darwin_ios_gen.go
++++ b/src/crypto/x509/root_darwin_ios_gen.go
+@@ -4,7 +4,7 @@
+ 
+ // +build ignore
+ 
+-// Generates root_darwin_ios.go.
++// Generates root_darwin_iosx.go.
+ //
+ // As of iOS 13, there is no API for querying the system trusted X.509 root
+ // certificates.
+@@ -37,7 +37,10 @@ import (
+ )
+ 
+ func main() {
+-	var output = flag.String("output", "root_darwin_ios.go", "file name to write")
++	// Temporarily name the file _iosx.go, to avoid restricting it to GOOS=ios,
++	// as this is also used for darwin/arm64 (macOS).
++	// TODO: maybe use darwin/amd64 implementation on macOS arm64?
++	var output = flag.String("output", "root_darwin_iosx.go", "file name to write")
+ 	var version = flag.String("version", "", "security_certificates version")
+ 	flag.Parse()
+ 	if *version == "" {
+diff --git a/src/crypto/x509/root_darwin_ios.go b/src/crypto/x509/root_darwin_iosx.go
+similarity index 100%
+rename from src/crypto/x509/root_darwin_ios.go
+rename to src/crypto/x509/root_darwin_iosx.go
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 24948e696a..4c6fdeece9 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -899,7 +899,7 @@ func TestCompressedSection(t *testing.T) {
+ func TestNoSectionOverlaps(t *testing.T) {
+ 	// Ensure cmd/link outputs sections without overlaps.
+ 	switch runtime.GOOS {
+-	case "aix", "android", "darwin", "js", "plan9", "windows":
++	case "aix", "android", "darwin", "ios", "js", "plan9", "windows":
+ 		t.Skipf("cmd/link doesn't produce ELF binaries on %s", runtime.GOOS)
+ 	}
+ 	_ = net.ResolveIPAddr // force dynamic linkage
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 6b75aad9cf..5c3d876130 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1754,6 +1754,9 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+ 	if ctxt.GOOS == "illumos" && name == "solaris" {
+ 		return true
+ 	}
++	if ctxt.GOOS == "ios" && name == "darwin" {
++		return true
++	}
+ 
+ 	// other tags
+ 	for _, tag := range ctxt.BuildTags {
+@@ -1781,7 +1784,10 @@ func (ctxt *Context) match(name string, allTags map[string]bool) bool {
+ //     name_$(GOARCH)_test.*
+ //     name_$(GOOS)_$(GOARCH)_test.*
+ //
+-// An exception: if GOOS=android, then files with GOOS=linux are also matched.
++// Exceptions:
++// if GOOS=android, then files with GOOS=linux are also matched.
++// if GOOS=illumos, then files with GOOS=solaris are also matched.
++// if GOOS=ios, then files with GOOS=darwin are also matched.
+ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+ 	if dot := strings.Index(name, "."); dot != -1 {
+ 		name = name[:dot]
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index a7f2a3e902..22c62ce87d 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -120,7 +120,7 @@ func TestMultiplePackageImport(t *testing.T) {
+ }
+ 
+ func TestLocalDirectory(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+@@ -250,7 +250,7 @@ func TestMatchFile(t *testing.T) {
+ }
+ 
+ func TestImportCmd(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index fbfe4c4677..1275f7c986 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -7,5 +7,5 @@ package build
+ // List of past, present, and future known GOOS and GOARCH values.
+ // Do not remove from this list, as these are used for go/build filename matching.
+ 
+-const goosList = "aix android darwin dragonfly freebsd hurd illumos js linux nacl netbsd openbsd plan9 solaris windows zos "
++const goosList = "aix android darwin dragonfly freebsd hurd illumos ios js linux nacl netbsd openbsd plan9 solaris windows zos "
+ const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+diff --git a/src/go/build/syslist_test.go b/src/go/build/syslist_test.go
+index 7973ff4ee5..2b7b4c71aa 100644
+--- a/src/go/build/syslist_test.go
++++ b/src/go/build/syslist_test.go
+@@ -17,7 +17,7 @@ var (
+ )
+ 
+ func anotherOS() string {
+-	if thisOS != "darwin" {
++	if thisOS != "darwin" && thisOS != "ios" {
+ 		return "darwin"
+ 	}
+ 	return "linux"
+diff --git a/src/internal/poll/read_test.go b/src/internal/poll/read_test.go
+index b4f5236d3e..2d4ef97da0 100644
+--- a/src/internal/poll/read_test.go
++++ b/src/internal/poll/read_test.go
+@@ -38,7 +38,7 @@ func TestRead(t *testing.T) {
+ func specialFiles() []string {
+ 	var ps []string
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
++	case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
+ 		ps = []string{
+ 			"/dev/null",
+ 		}
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 309b2702ed..cfb033b2a2 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -45,7 +45,7 @@ func HasGoBuild() bool {
+ 	switch runtime.GOOS {
+ 	case "android", "js":
+ 		return false
+-	case "darwin":
++	case "darwin", "ios":
+ 		if runtime.GOARCH == "arm64" {
+ 			return false
+ 		}
+@@ -124,7 +124,7 @@ func HasExec() bool {
+ 	switch runtime.GOOS {
+ 	case "js":
+ 		return false
+-	case "darwin":
++	case "darwin", "ios":
+ 		if runtime.GOARCH == "arm64" {
+ 			return false
+ 		}
+@@ -135,7 +135,7 @@ func HasExec() bool {
+ // HasSrc reports whether the entire source tree is available under GOROOT.
+ func HasSrc() bool {
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		if runtime.GOARCH == "arm64" {
+ 			return false
+ 		}
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index f778e965f3..dd2f83e04f 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -51,7 +51,7 @@ func testableNetwork(network string) bool {
+ 	switch network {
+ 	case "unix", "unixgram":
+ 		switch runtime.GOOS {
+-		case "darwin":
++		case "darwin", "ios":
+ 			switch runtime.GOARCH {
+ 			case "arm64":
+ 				return false
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 971b1a399a..5340847123 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -69,7 +69,7 @@ func initConfVal() {
+ 	// Darwin pops up annoying dialog boxes if programs try to do
+ 	// their own DNS requests. So always use cgo instead, which
+ 	// avoids that.
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		confVal.forceCgoLookupHost = true
+ 		return
+ 	}
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 01582489de..2706de4442 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -160,7 +160,7 @@ func dialClosedPort(t *testing.T) (actual, expected time.Duration) {
+ 	// but other platforms should be instantaneous.
+ 	if runtime.GOOS == "windows" {
+ 		expected = 1500 * time.Millisecond
+-	} else if runtime.GOOS == "darwin" {
++	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		expected = 150 * time.Millisecond
+ 	} else {
+ 		expected = 95 * time.Millisecond
+@@ -990,7 +990,7 @@ func TestDialerControl(t *testing.T) {
+ // except that it won't skip testing on non-mobile builders.
+ func mustHaveExternalNetwork(t *testing.T) {
+ 	t.Helper()
+-	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
++	mobile := runtime.GOOS == "android" || (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64"
+ 	if testenv.Builder() == "" || mobile {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 863f40638a..624044aa09 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -37,7 +37,7 @@ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+ 
+ var osDefaultInheritEnv = func() []string {
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		return []string{"DYLD_LIBRARY_PATH"}
+ 	case "linux", "freebsd", "openbsd":
+ 		return []string{"LD_LIBRARY_PATH"}
+diff --git a/src/net/interface_unix_test.go b/src/net/interface_unix_test.go
+index 6a2b7f1a88..bf41a0fb82 100644
+--- a/src/net/interface_unix_test.go
++++ b/src/net/interface_unix_test.go
+@@ -46,7 +46,7 @@ func TestPointToPointInterface(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("avoid external network")
+ 	}
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if os.Getuid() != 0 {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 68bffcab8f..32a0d377da 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -511,7 +511,7 @@ func TestDNSFlood(t *testing.T) {
+ 	defer dnsWaitGroup.Wait()
+ 
+ 	var N = 5000
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		// On Darwin this test consumes kernel threads much
+ 		// than other platforms for some reason.
+ 		// When we monitor the number of allocated Ms by
+@@ -628,7 +628,7 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
+ }
+ 
+ func TestLookupDotsWithRemoteSource(t *testing.T) {
+-	if runtime.GOOS == "darwin" {
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		testenv.SkipFlaky(t, 27992)
+ 	}
+ 	mustHaveExternalNetwork(t)
+diff --git a/src/net/main_test.go b/src/net/main_test.go
+index 85a269d0f4..2d5be2ee5f 100644
+--- a/src/net/main_test.go
++++ b/src/net/main_test.go
+@@ -133,7 +133,7 @@ func setupTestData() {
+ 			{"udp6", "[" + addr + "%" + ifi.Name + "]:0", false},
+ 		}...)
+ 		switch runtime.GOOS {
+-		case "darwin", "dragonfly", "freebsd", "openbsd", "netbsd":
++		case "darwin", "ios", "dragonfly", "freebsd", "openbsd", "netbsd":
+ 			ipv6LinkLocalUnicastTCPTests = append(ipv6LinkLocalUnicastTCPTests, []ipv6LinkLocalUnicastTest{
+ 				{"tcp", "[localhost%" + ifi.Name + "]:0", true},
+ 				{"tcp6", "[localhost%" + ifi.Name + "]:0", true},
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index d3bb918edb..4b92bb6df0 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -59,7 +59,7 @@ func testableNetwork(network string) bool {
+ 		}
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+-		case "aix", "android", "darwin", "plan9", "windows":
++		case "aix", "android", "darwin", "ios", "plan9", "windows":
+ 			return false
+ 		case "netbsd":
+ 			// It passes on amd64 at least. 386 fails (Issue 22927). arm is unknown.
+@@ -82,7 +82,7 @@ func testableNetwork(network string) bool {
+ }
+ 
+ func iOS() bool {
+-	return runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
++	return (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64"
+ }
+ 
+ // testableAddress reports whether address of network is testable on
+diff --git a/src/net/sock_bsd.go b/src/net/sock_bsd.go
+index 516e557cfd..73fb6be814 100644
+--- a/src/net/sock_bsd.go
++++ b/src/net/sock_bsd.go
+@@ -17,7 +17,7 @@ func maxListenerBacklog() int {
+ 		err error
+ 	)
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
+ 	case "freebsd":
+ 		n, err = syscall.SysctlUint32("kern.ipc.soacceptqueue")
+diff --git a/src/net/tcpsock_test.go b/src/net/tcpsock_test.go
+index 8a70496693..6e905aa091 100644
+--- a/src/net/tcpsock_test.go
++++ b/src/net/tcpsock_test.go
+@@ -647,7 +647,7 @@ func TestTCPSelfConnect(t *testing.T) {
+ 		n = 1000
+ 	}
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
++	case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
+ 		// Non-Linux systems take a long time to figure
+ 		// out that there is nothing listening on localhost.
+ 		n = 100
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 947381a57b..327eba6541 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -327,7 +327,7 @@ func TestUDPZeroBytePayload(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+-	case "darwin":
++	case "darwin", "ios":
+ 		testenv.SkipFlaky(t, 29225)
+ 	}
+ 
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index d6dce3cc69..a6b3285e57 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -154,7 +154,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 
+ 		var wantSum int
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd":
++		case "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd":
+ 			var wantMinCalls int
+ 			wantSum = want.Len()
+ 			v := chunks
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 5446dd5003..dc7d868a32 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -129,7 +129,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 	// used with kqueue.
+ 	if kind == kindOpenFile {
+ 		switch runtime.GOOS {
+-		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
++		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
+ 			var st syscall.Stat_t
+ 			err := ignoringEINTR(func() error {
+ 				return syscall.Fstat(fdi, &st)
+@@ -150,7 +150,7 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 			// on Darwin, kqueue does not work properly with fifos:
+ 			// closing the last writer does not cause a kqueue event
+ 			// for any readers. See issue #24164.
+-			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
++			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
+ 				pollable = false
+ 			}
+ 		}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 3359301316..2bb57d866f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -52,7 +52,7 @@ var sysdir = func() *sysDir {
+ 				"libpowermanager.so",
+ 			},
+ 		}
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			wd, err := syscall.Getwd()
+@@ -144,7 +144,7 @@ func localTmp() string {
+ 	switch runtime.GOOS {
+ 	case "android", "windows":
+ 		return TempDir()
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			return TempDir()
+@@ -481,7 +481,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android":
+ 		dir = "/system/bin"
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			wd, err := Getwd()
+@@ -1304,7 +1304,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 		dirs = []string{"/system/bin"}
+ 	case "plan9":
+ 		dirs = []string{"/", "/usr"}
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			dirs = nil
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index d586daf936..3fe9c5ffa3 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -107,7 +107,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android", "plan9", "windows":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			t.Skipf("skipping on darwin/arm64, mkdir returns EPERM")
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 8a71f687ed..1e5c650fe1 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -158,7 +158,7 @@ func TestRemoveAllLarge(t *testing.T) {
+ 
+ func TestRemoveAllLongPath(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "aix", "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
++	case "aix", "darwin", "ios", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
+ 		break
+ 	default:
+ 		t.Skip("skipping for not implemented platforms")
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index d6f680556c..ca100ff071 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -431,7 +431,7 @@ func chtmpdir(t *testing.T) (restore func()) {
+ }
+ 
+ func TestWalk(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		restore := chtmpdir(t)
+ 		defer restore()
+ 	}
+@@ -1278,7 +1278,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ }
+ 
+ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
+diff --git a/src/runtime/debug/panic_test.go b/src/runtime/debug/panic_test.go
+index 4b7830e100..93be216985 100644
+--- a/src/runtime/debug/panic_test.go
++++ b/src/runtime/debug/panic_test.go
+@@ -20,7 +20,7 @@ func TestPanicOnFault(t *testing.T) {
+ 	if runtime.GOARCH == "s390x" {
+ 		t.Skip("s390x fault addresses are missing the low order bits")
+ 	}
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skip("darwin/arm64 doesn't provide fault addresses")
+ 	}
+ 	m, err := syscall.Mmap(-1, 0, 0x1000, syscall.PROT_READ /* Note: no PROT_WRITE */, syscall.MAP_SHARED|syscall.MAP_ANON)
+diff --git a/src/runtime/internal/sys/gengoos.go b/src/runtime/internal/sys/gengoos.go
+index 952b13649d..2a4bf0c3b4 100644
+--- a/src/runtime/internal/sys/gengoos.go
++++ b/src/runtime/internal/sys/gengoos.go
+@@ -44,6 +44,9 @@ func main() {
+ 	}
+ 
+ 	for _, target := range gooses {
++		if target == "nacl" {
++			continue
++		}
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, "// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.\n\n")
+ 		if target == "linux" {
+@@ -52,6 +55,9 @@ func main() {
+ 		if target == "solaris" {
+ 			fmt.Fprintf(&buf, "// +build !illumos\n") // must explicitly exclude illumos for solaris
+ 		}
++		if target == "darwin" {
++			fmt.Fprintf(&buf, "// +build !ios\n") // must explicitly exclude ios for darwin
++		}
+ 		fmt.Fprintf(&buf, "// +build %s\n\n", target) // must explicitly include target for bootstrapping purposes
+ 		fmt.Fprintf(&buf, "package sys\n\n")
+ 		fmt.Fprintf(&buf, "const GOOS = `%s`\n\n", target)
+@@ -69,6 +75,9 @@ func main() {
+ 	}
+ 
+ 	for _, target := range goarches {
++		if target == "amd64p32" {
++			continue
++		}
+ 		var buf bytes.Buffer
+ 		fmt.Fprintf(&buf, "// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.\n\n")
+ 		fmt.Fprintf(&buf, "// +build %s\n\n", target) // must explicitly include target for bootstrapping purposes
+diff --git a/src/runtime/internal/sys/zgoos_aix.go b/src/runtime/internal/sys/zgoos_aix.go
+index d97485c43c..0631d02aa5 100644
+--- a/src/runtime/internal/sys/zgoos_aix.go
++++ b/src/runtime/internal/sys/zgoos_aix.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_android.go b/src/runtime/internal/sys/zgoos_android.go
+index eec970b064..d356a40bec 100644
+--- a/src/runtime/internal/sys/zgoos_android.go
++++ b/src/runtime/internal/sys/zgoos_android.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_darwin.go b/src/runtime/internal/sys/zgoos_darwin.go
+index c40819ee55..6aa2db7e3a 100644
+--- a/src/runtime/internal/sys/zgoos_darwin.go
++++ b/src/runtime/internal/sys/zgoos_darwin.go
+@@ -1,5 +1,6 @@
+ // Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
+ 
++// +build !ios
+ // +build darwin
+ 
+ package sys
+@@ -13,6 +14,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_dragonfly.go b/src/runtime/internal/sys/zgoos_dragonfly.go
+index 3dc4edcc31..88ee1174f1 100644
+--- a/src/runtime/internal/sys/zgoos_dragonfly.go
++++ b/src/runtime/internal/sys/zgoos_dragonfly.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 1
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_freebsd.go b/src/runtime/internal/sys/zgoos_freebsd.go
+index 6c98b342f9..8de2ec0559 100644
+--- a/src/runtime/internal/sys/zgoos_freebsd.go
++++ b/src/runtime/internal/sys/zgoos_freebsd.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 1
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_hurd.go b/src/runtime/internal/sys/zgoos_hurd.go
+index d6dcc7bad4..183ccb02a1 100644
+--- a/src/runtime/internal/sys/zgoos_hurd.go
++++ b/src/runtime/internal/sys/zgoos_hurd.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 1
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_illumos.go b/src/runtime/internal/sys/zgoos_illumos.go
+index 17f4ecc34e..d04134e1df 100644
+--- a/src/runtime/internal/sys/zgoos_illumos.go
++++ b/src/runtime/internal/sys/zgoos_illumos.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 1
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_ios.go b/src/runtime/internal/sys/zgoos_ios.go
+new file mode 100644
+index 0000000000..cf6e9d61f0
+--- /dev/null
++++ b/src/runtime/internal/sys/zgoos_ios.go
+@@ -0,0 +1,25 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++// +build ios
++
++package sys
++
++const GOOS = `ios`
++
++const GoosAix = 0
++const GoosAndroid = 0
++const GoosDarwin = 0
++const GoosDragonfly = 0
++const GoosFreebsd = 0
++const GoosHurd = 0
++const GoosIllumos = 0
++const GoosIos = 1
++const GoosJs = 0
++const GoosLinux = 0
++const GoosNacl = 0
++const GoosNetbsd = 0
++const GoosOpenbsd = 0
++const GoosPlan9 = 0
++const GoosSolaris = 0
++const GoosWindows = 0
++const GoosZos = 0
+diff --git a/src/runtime/internal/sys/zgoos_js.go b/src/runtime/internal/sys/zgoos_js.go
+index 74c9943d9b..1d9279ab38 100644
+--- a/src/runtime/internal/sys/zgoos_js.go
++++ b/src/runtime/internal/sys/zgoos_js.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 1
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_linux.go b/src/runtime/internal/sys/zgoos_linux.go
+index 1d5fcb0685..0f718d704f 100644
+--- a/src/runtime/internal/sys/zgoos_linux.go
++++ b/src/runtime/internal/sys/zgoos_linux.go
+@@ -14,6 +14,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 1
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_netbsd.go b/src/runtime/internal/sys/zgoos_netbsd.go
+index 194fa6e432..2ae149ff13 100644
+--- a/src/runtime/internal/sys/zgoos_netbsd.go
++++ b/src/runtime/internal/sys/zgoos_netbsd.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_openbsd.go b/src/runtime/internal/sys/zgoos_openbsd.go
+index 2108691679..7d4d61e4ca 100644
+--- a/src/runtime/internal/sys/zgoos_openbsd.go
++++ b/src/runtime/internal/sys/zgoos_openbsd.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_plan9.go b/src/runtime/internal/sys/zgoos_plan9.go
+index e632a90b2e..30aec46df3 100644
+--- a/src/runtime/internal/sys/zgoos_plan9.go
++++ b/src/runtime/internal/sys/zgoos_plan9.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_solaris.go b/src/runtime/internal/sys/zgoos_solaris.go
+index 67b2ffbfcd..4bb8c99bce 100644
+--- a/src/runtime/internal/sys/zgoos_solaris.go
++++ b/src/runtime/internal/sys/zgoos_solaris.go
+@@ -14,6 +14,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_windows.go b/src/runtime/internal/sys/zgoos_windows.go
+index cf2d6f4fb0..d1f4290204 100644
+--- a/src/runtime/internal/sys/zgoos_windows.go
++++ b/src/runtime/internal/sys/zgoos_windows.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/internal/sys/zgoos_zos.go b/src/runtime/internal/sys/zgoos_zos.go
+index e5d79accb4..d22be46fc0 100644
+--- a/src/runtime/internal/sys/zgoos_zos.go
++++ b/src/runtime/internal/sys/zgoos_zos.go
+@@ -13,6 +13,7 @@ const GoosDragonfly = 0
+ const GoosFreebsd = 0
+ const GoosHurd = 0
+ const GoosIllumos = 0
++const GoosIos = 0
+ const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e46327f9ce..4fa14996c2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -207,7 +207,7 @@ const (
+ 	// arenaBaseOffset to offset into the top 4 GiB.
+ 	//
+ 	// WebAssembly currently has a limit of 4GB linear memory.
+-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosDarwin*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*sys.GoosDarwin*sys.GoarchArm64
++	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-(sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*(sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64
+ 
+ 	// maxAlloc is the maximum size of an allocation. On 64-bit,
+ 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
+@@ -521,7 +521,7 @@ func mallocinit() {
+ 		for i := 0x7f; i >= 0; i-- {
+ 			var p uintptr
+ 			switch {
+-			case GOARCH == "arm64" && GOOS == "darwin":
++			case GOARCH == "arm64" && (GOOS == "darwin" || GOOS == "ios"):
+ 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
+ 			case GOARCH == "arm64":
+ 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index b74da1057a..9d6f551768 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -90,7 +90,7 @@ const (
+ 	//
+ 	// This ratio is used as part of multiplicative factor to help the scavenger account
+ 	// for the additional costs of using scavenged memory in its pacing.
+-	scavengeCostRatio = 0.7 * sys.GoosDarwin
++	scavengeCostRatio = 0.7 * (sys.GoosDarwin + sys.GoosIos)
+ 
+ 	// scavengeReservationShards determines the amount of memory the scavenger
+ 	// should reserve for scavenging at a time. Specifically, the amount of
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 44dea22ef3..c2e14cdcd6 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -361,6 +361,9 @@ func genARM64() {
+ 	p("#ifdef GOOS_darwin")
+ 	p("MOVD R30, (RSP)")
+ 	p("#endif")
++	p("#ifdef GOOS_ios")
++	p("MOVD R30, (RSP)")
++	p("#endif")
+ 
+ 	l.save()
+ 	p("CALL ·asyncPreempt2(SB)")
+diff --git a/src/runtime/pprof/pprof_rusage.go b/src/runtime/pprof/pprof_rusage.go
+index d42e6ed473..7954673811 100644
+--- a/src/runtime/pprof/pprof_rusage.go
++++ b/src/runtime/pprof/pprof_rusage.go
+@@ -19,7 +19,7 @@ func addMaxRSS(w io.Writer) {
+ 	switch runtime.GOOS {
+ 	case "linux", "android":
+ 		rssToBytes = 1024
+-	case "darwin":
++	case "darwin", "ios":
+ 		rssToBytes = 1
+ 	default:
+ 		panic("unsupported OS")
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 7149bfb31f..43307aeab9 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -262,7 +262,7 @@ func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Loca
+ // as interpreted by matches, and returns the parsed profile.
+ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []string, f func(dur time.Duration)) *profile.Profile {
+ 	switch runtime.GOOS {
+-	case "darwin":
++	case "darwin", "ios":
+ 		switch runtime.GOARCH {
+ 		case "arm64":
+ 			// nothing
+@@ -280,7 +280,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 
+ 	broken := false
+ 	switch runtime.GOOS {
+-	case "darwin", "dragonfly", "netbsd", "illumos", "solaris":
++	case "darwin", "ios", "dragonfly", "netbsd", "illumos", "solaris":
+ 		broken = true
+ 	case "openbsd":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+diff --git a/src/runtime/preempt_arm64.s b/src/runtime/preempt_arm64.s
+index 3c27b52de1..d0e77659c3 100644
+--- a/src/runtime/preempt_arm64.s
++++ b/src/runtime/preempt_arm64.s
+@@ -13,6 +13,9 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	#ifdef GOOS_darwin
+ 	MOVD R30, (RSP)
+ 	#endif
++	#ifdef GOOS_ios
++	MOVD R30, (RSP)
++	#endif
+ 	MOVD R0, 8(RSP)
+ 	MOVD R1, 16(RSP)
+ 	MOVD R2, 24(RSP)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5b6a30d40b..a1e2ed0680 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -503,7 +503,7 @@ func cpuinit() {
+ 	var env string
+ 
+ 	switch GOOS {
+-	case "aix", "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
++	case "aix", "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd", "illumos", "solaris", "linux":
+ 		cpu.DebugOptions = true
+ 
+ 		// Similar to goenv_unix but extracts the environment value for
+@@ -1158,7 +1158,7 @@ func mstart() {
+ 
+ 	// Exit this thread.
+ 	switch GOOS {
+-	case "windows", "solaris", "illumos", "plan9", "darwin", "aix":
++	case "windows", "solaris", "illumos", "plan9", "darwin", "ios", "aix":
+ 		// Windows, Solaris, illumos, Darwin, AIX and Plan 9 always system-allocate
+ 		// the stack, but put it in _g_.stack before mstart,
+ 		// so the logic above hasn't set osStack yet.
+@@ -1487,7 +1487,7 @@ func allocm(_p_ *p, fn func(), id int64) *m {
+ 
+ 	// In case of cgo or Solaris or illumos or Darwin, pthread_create will make us a stack.
+ 	// Windows and Plan 9 will layout sched stack on OS stack.
+-	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" {
++	if iscgo || GOOS == "solaris" || GOOS == "illumos" || GOOS == "windows" || GOOS == "plan9" || GOOS == "darwin" || GOOS == "ios" {
+ 		mp.g0 = malg(-1)
+ 	} else {
+ 		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
+@@ -4077,7 +4077,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 		// Normal traceback is impossible or has failed.
+ 		// See if it falls into several common cases.
+ 		n = 0
+-		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "darwin" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
++		if (GOOS == "windows" || GOOS == "solaris" || GOOS == "illumos" || GOOS == "darwin" || GOOS == "ios" || GOOS == "aix") && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+ 			// Libcall, i.e. runtime syscall on windows.
+ 			// Collect Go stack that leads to the call.
+ 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 9652b6a5a4..48e07f789b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1060,4 +1060,4 @@ var (
+ )
+ 
+ // Must agree with cmd/internal/objabi.Framepointer_enabled.
+-const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin")
++const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64" && (GOOS == "linux" || GOOS == "darwin" || GOOS == "ios")
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index bbfc18e37b..a3d6f34c88 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -346,7 +346,7 @@ const preemptMSupported = true
+ // safe-point, it will preempt the goroutine. It always atomically
+ // increments mp.preemptGen after handling a preemption request.
+ func preemptM(mp *m) {
+-	if GOOS == "darwin" && GOARCH == "arm64" && !iscgo {
++	if (GOOS == "darwin" || GOOS == "ios") && GOARCH == "arm64" && !iscgo {
+ 		// On darwin, we use libc calls, and cgo is required on ARM64
+ 		// so we have TLS set up to save/restore G during C calls. If cgo is
+ 		// absent, we cannot save/restore G in TLS, and if a signal is
+@@ -975,7 +975,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+ 	// This function and its caller sigtrampgo assumes SIGPIPE is delivered on the
+ 	// originating thread. This property does not hold on macOS (golang.org/issue/33384),
+ 	// so we have no choice but to ignore SIGPIPE.
+-	if GOOS == "darwin" && sig == _SIGPIPE {
++	if (GOOS == "darwin" || GOOS == "ios") && sig == _SIGPIPE {
+ 		return true
+ 	}
+ 
+diff --git a/src/runtime/sigqueue.go b/src/runtime/sigqueue.go
+index 3bf07cb5a6..0605f5da80 100644
+--- a/src/runtime/sigqueue.go
++++ b/src/runtime/sigqueue.go
+@@ -105,7 +105,7 @@ Send:
+ 			break Send
+ 		case sigReceiving:
+ 			if atomic.Cas(&sig.state, sigReceiving, sigIdle) {
+-				if GOOS == "darwin" {
++				if GOOS == "darwin" || GOOS == "ios" {
+ 					sigNoteWakeup(&sig.note)
+ 					break Send
+ 				}
+@@ -140,7 +140,7 @@ func signal_recv() uint32 {
+ 				throw("signal_recv: inconsistent state")
+ 			case sigIdle:
+ 				if atomic.Cas(&sig.state, sigIdle, sigReceiving) {
+-					if GOOS == "darwin" {
++					if GOOS == "darwin" || GOOS == "ios" {
+ 						sigNoteSleep(&sig.note)
+ 						break Receive
+ 					}
+@@ -194,7 +194,7 @@ func signal_enable(s uint32) {
+ 	if !sig.inuse {
+ 		// This is the first call to signal_enable. Initialize.
+ 		sig.inuse = true // enable reception of signals; cannot disable
+-		if GOOS == "darwin" {
++		if GOOS == "darwin" || GOOS == "ios" {
+ 			sigNoteSetup(&sig.note)
+ 		} else {
+ 			noteclear(&sig.note)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index adcef071da..3802cd049e 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -66,7 +66,7 @@ const (
+ 	// to each stack below the usual guard area for OS-specific
+ 	// purposes like signal handling. Used on Windows, Plan 9,
+ 	// and iOS because they do not use a separate stack.
+-	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm64*1024
++	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + (sys.GoosDarwin+sys.GoosIos)*sys.GoarchArm64*1024
+ 
+ 	// The minimum size of stack used by Go code
+ 	_StackMin = 2048
+diff --git a/src/runtime/tls_arm64.h b/src/runtime/tls_arm64.h
+index f60f4f6d5b..0804fa3502 100644
+--- a/src/runtime/tls_arm64.h
++++ b/src/runtime/tls_arm64.h
+@@ -15,6 +15,12 @@
+ #endif
+ 
+ #ifdef GOOS_darwin
++#define TLS_darwin
++#endif
++#ifdef GOOS_ios
++#define TLS_darwin
++#endif
++#ifdef TLS_darwin
+ #define TPIDR TPIDRRO_EL0
+ #define TLSG_IS_VARIABLE
+ #define MRS_TPIDR_R0 WORD $0xd53bd060 // MRS TPIDRRO_EL0, R0
+diff --git a/src/runtime/tls_arm64.s b/src/runtime/tls_arm64.s
+index 999914d655..7846fac6c5 100644
+--- a/src/runtime/tls_arm64.s
++++ b/src/runtime/tls_arm64.s
+@@ -13,7 +13,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	CBZ	R0, nocgo
+ 
+ 	MRS_TPIDR_R0
+-#ifdef GOOS_darwin
++#ifdef TLS_darwin
+ 	// Darwin sometimes returns unaligned pointers
+ 	AND	$0xfffffffffffffff8, R0
+ #endif
+@@ -29,7 +29,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
+ 	CBZ	R0, nocgo
+ 
+ 	MRS_TPIDR_R0
+-#ifdef GOOS_darwin
++#ifdef TLS_darwin
+ 	// Darwin sometimes returns unaligned pointers
+ 	AND	$0xfffffffffffffff8, R0
+ #endif
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index cb08b7084c..725c2bc1f9 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -296,7 +296,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 			uintptr(unsafe.Pointer(argv0p)),
+ 			uintptr(unsafe.Pointer(&argvp[0])),
+ 			uintptr(unsafe.Pointer(&envvp[0])))
+-	} else if runtime.GOOS == "darwin" {
++	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		// Similarly on Darwin.
+ 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
+ 	} else {
+diff --git a/src/syscall/sockcmsg_unix_other.go b/src/syscall/sockcmsg_unix_other.go
+index fbafbf8341..3aaf7c3616 100644
+--- a/src/syscall/sockcmsg_unix_other.go
++++ b/src/syscall/sockcmsg_unix_other.go
+@@ -20,7 +20,7 @@ func cmsgAlignOf(salen int) int {
+ 	case "aix":
+ 		// There is no alignment on AIX.
+ 		salign = 1
+-	case "darwin", "illumos", "solaris":
++	case "darwin", "ios", "illumos", "solaris":
+ 		// NOTE: It seems like 64-bit Darwin, Illumos and Solaris
+ 		// kernels still require 32-bit aligned access to network
+ 		// subsystem.
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index fda9d613d3..b52de7450f 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -277,7 +277,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	if runtime.GOOS == "darwin" && len == 0 {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && len == 0 {
+ 		// Accepted socket has no address.
+ 		// This is likely due to a bug in xnu kernels,
+ 		// where instead of ECONNABORTED error socket
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 56abce19cd..91c939e0ea 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -22,7 +22,7 @@ var (
+ )
+ 
+ const (
+-	darwin64Bit = runtime.GOOS == "darwin" && sizeofPtr == 8
++	darwin64Bit = (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && sizeofPtr == 8
+ 	netbsd32Bit = runtime.GOOS == "netbsd" && sizeofPtr == 4
+ )
+ 
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 3c7982eefe..7e9bb0c3ac 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -70,7 +70,7 @@ func _() {
+ // Thus this test also verifies that the Flock_t structure can be
+ // roundtripped with F_SETLK and F_GETLK.
+ func TestFcntlFlock(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		t.Skip("skipping; no child processes allowed on iOS")
+ 	}
+ 	flock := syscall.Flock_t{
+@@ -336,7 +336,7 @@ func TestRlimit(t *testing.T) {
+ 	}
+ 	set := rlimit
+ 	set.Cur = set.Max - 1
+-	if runtime.GOOS == "darwin" && set.Cur > 4096 {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && set.Cur > 4096 {
+ 		// rlim_min for RLIMIT_NOFILE should be equal to
+ 		// or lower than kern.maxfilesperproc, which on
+ 		// some machines are 4096. See #40564.
+@@ -353,7 +353,7 @@ func TestRlimit(t *testing.T) {
+ 	}
+ 	set = rlimit
+ 	set.Cur = set.Max - 1
+-	if runtime.GOOS == "darwin" && set.Cur > 4096 {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && set.Cur > 4096 {
+ 		set.Cur = 4096
+ 	}
+ 	if set != get {
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index c0c6e76b53..9a1cdf9ab2 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -21,7 +21,7 @@ func TestTicker(t *testing.T) {
+ 	delta := 20 * Millisecond
+ 
+ 	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
++	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+ 		// The following test will run ticker count/2 times then reset
+ 		// the ticker to double the duration for the rest of count/2.
+ 		// Since tick frequency is limited on Darwin ARM64, use even
+diff --git a/src/time/zoneinfo_ios.go b/src/time/zoneinfo_darwin_arm64.go
+similarity index 96%
+rename from src/time/zoneinfo_ios.go
+rename to src/time/zoneinfo_darwin_arm64.go
+index 6016a7925a..65feb84711 100644
+--- a/src/time/zoneinfo_ios.go
++++ b/src/time/zoneinfo_darwin_arm64.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin
+-// +build arm64
+-
+ package time
+ 
+ import (

@@ -7,6 +7,20 @@ Date:   Fri Mar 16 09:58:23 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5842043
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index f9a50516cf..67f023ff71 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -67,7 +67,7 @@ var (
+ 	// search index
+ 	indexEnabled = flag.Bool("index", false, "enable search index")
+ 	indexFiles   = flag.String("index_files", "", "glob pattern specifying index files;"+
+-			"if not empty, the index is read from these files in sorted order")
++		"if not empty, the index is read from these files in sorted order")
+ 	maxResults    = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+ 	indexThrottle = flag.Float64("index_throttle", 0.75, "index throttle value; 0.0 = no time allocated, 1.0 = full throttle")
+ 

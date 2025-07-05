@@ -14,9 +14,62 @@ Date:   Mon May 17 12:18:12 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go.mod                                | 2 +-
  src/go.sum                                | 4 ++--
  src/vendor/golang.org/x/net/route/empty.s | 1 +
  src/vendor/modules.txt                    | 2 +-
  4 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index a3ceb05890..93ff2d8d3c 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.17
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
+-	golang.org/x/net v0.0.0-20210505024714-0287a6fb4125
++	golang.org/x/net v0.0.0-20210510120150-4163338589ed
+ 	golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6 // indirect
+ 	golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 27513a350d..1390ce6d45 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+-golang.org/x/net v0.0.0-20210505024714-0287a6fb4125 h1:Ugb8sMTWuWRC3+sz5WeN/4kejDx9BvIwnPUiJBjJE+8=
+-golang.org/x/net v0.0.0-20210505024714-0287a6fb4125/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
++golang.org/x/net v0.0.0-20210510120150-4163338589ed h1:p9UgmWI9wKpfYmgaV/IZKGdXc5qEK45tDwwwDyjS26I=
++golang.org/x/net v0.0.0-20210510120150-4163338589ed/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+ golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6 h1:cdsMqa2nXzqlgs183pHxtvoVwU7CyzaCTAUOg94af4c=
+ golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f h1:yQJrRE0hDxDFmZLlRaw+3vusO4fwNHgHIjUOMO7bHYI=
+diff --git a/src/vendor/golang.org/x/net/route/empty.s b/src/vendor/golang.org/x/net/route/empty.s
+index bff0231c7d..90ab4ca3d8 100644
+--- a/src/vendor/golang.org/x/net/route/empty.s
++++ b/src/vendor/golang.org/x/net/route/empty.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin && go1.12
+ // +build darwin,go1.12
+ 
+ // This exists solely so we can linkname in symbols from syscall.
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 5b939af60d..1b850342a5 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+-# golang.org/x/net v0.0.0-20210505024714-0287a6fb4125
++# golang.org/x/net v0.0.0-20210510120150-4163338589ed
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

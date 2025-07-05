@@ -15,10 +15,337 @@ Date:   Thu Mar 21 08:53:52 2013 +0100
     R=dvyukov, golang-dev
     CC=golang-dev
     https://golang.org/cl/7504047
-
+---
  src/cmd/gc/racewalk.c                            | 65 ++++++++--------
  src/pkg/runtime/race/testdata/map_test.go        |  6 +-
  src/pkg/runtime/race/testdata/mop_test.go        | 96 ++++++++++++++++++++++++
  src/pkg/runtime/race/testdata/regression_test.go | 12 +++
  src/pkg/runtime/race/testdata/slice_test.go      | 21 ++++++
  5 files changed, 162 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 269c0b2652..3e5e592ca0 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -196,6 +196,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OPLUS:
+ 	case OREAL:
+ 	case OIMAG:
++	case OCOM:
+ 		racewalknode(&n->left, init, wr, 0);
+ 		goto ret;
+ 
+@@ -222,23 +223,17 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OCAP:
+ 		racewalknode(&n->left, init, 0, 0);
+ 		if(istype(n->left->type, TMAP)) {
+-			// crashes on len(m[0]) or len(f())
+-			SET(n1);
+-			USED(n1);
+-			/*
+-			n1 = nod(OADDR, n->left, N);
+-			n1 = conv(n1, types[TUNSAFEPTR]);
+-			n1 = conv(n1, ptrto(ptrto(types[TINT8])));
+-			n1 = nod(OIND, n1, N);
++			n1 = nod(OCONVNOP, n->left, N);
++			n1->type = ptrto(types[TUINT8]);
+ 			n1 = nod(OIND, n1, N);
+ 			typecheck(&n1, Erv);
+ 			callinstr(&n1, init, 0, skip);
+-			*/
+ 		}
+ 		goto ret;
+ 
+ 	case OLSH:
+ 	case ORSH:
++	case OLROT:
+ 	case OAND:
+ 	case OANDNOT:
+ 	case OOR:
+@@ -279,7 +274,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 
+ 	case ODIV:
+ 	case OMOD:
+-		// TODO(dvyukov): add a test for this
+ 		racewalknode(&n->left, init, wr, 0);
+ 		racewalknode(&n->right, init, wr, 0);
+ 		goto ret;
+@@ -324,9 +318,30 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OPANIC:
+ 	case ORECOVER:
+ 	case OCONVIFACE:
++	case OMAKECHAN:
++	case OMAKEMAP:
++	case OMAKESLICE:
++	case OCALL:
++	case OCOPY:
++	case ORUNESTR:
++	case OARRAYBYTESTR:
++	case OARRAYRUNESTR:
++	case OSTRARRAYBYTE:
++	case OSTRARRAYRUNE:
++	case OINDEXMAP:  // lowered to call
++	case OCMPSTR:
++	case OADDSTR:
++	case ODOTTYPE:
++	case ODOTTYPE2:
+ 		yyerror("racewalk: %O must be lowered by now", n->op);
+ 		goto ret;
+ 
++	// impossible nodes: only appear in backend.
++	case ORROTC:
++	case OEXTEND:
++		yyerror("racewalk: %O cannot exist now", n->op);
++		goto ret;
++
+ 	// just do generic traversal
+ 	case OFOR:
+ 	case OIF:
+@@ -334,43 +349,28 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case ORETURN:
+ 	case OSELECT:
+ 	case OEMPTY:
++	case OBREAK:
++	case OCONTINUE:
++	case OFALL:
++	case OGOTO:
++	case OLABEL:
+ 		goto ret;
+ 
+ 	// does not require instrumentation
+-	case OINDEXMAP:  // implemented in runtime
+ 	case OPRINT:     // don't bother instrumenting it
+ 	case OPRINTN:    // don't bother instrumenting it
+ 	case OPARAM:     // it appears only in fn->exit to copy heap params back
+ 		goto ret;
+ 
+ 	// unimplemented
+-	case OCMPSTR:
+-	case OADDSTR:
+ 	case OSLICESTR:
+ 	case OAPPEND:
+-	case OCOPY:
+-	case OMAKECHAN:
+-	case OMAKEMAP:
+-	case OMAKESLICE:
+-	case ORUNESTR:
+-	case OARRAYBYTESTR:
+-	case OARRAYRUNESTR:
+-	case OSTRARRAYBYTE:
+-	case OSTRARRAYRUNE:
+ 	case OCMPIFACE:
+ 	case OARRAYLIT:
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
+ 	case OCLOSURE:
+-	case ODOTTYPE:
+-	case ODOTTYPE2:
+-	case OCALL:
+-	case OBREAK:
+ 	case ODCL:
+-	case OCONTINUE:
+-	case OFALL:
+-	case OGOTO:
+-	case OLABEL:
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
+ 	case OLITERAL:
+@@ -378,14 +378,11 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OTYPE:
+ 	case ONONAME:
+ 	case OINDREG:
+-	case OCOM:
+ 	case ODOTMETH:
+ 	case OITAB:
+-	case OEXTEND:
+ 	case OHMUL:
+-	case OLROT:
+-	case ORROTC:
+ 	case OCHECKNOTNIL:
++	case OCLOSUREVAR:
+ 		goto ret;
+ 	}
+ 
+diff --git a/src/pkg/runtime/race/testdata/map_test.go b/src/pkg/runtime/race/testdata/map_test.go
+index 6f86a50b70..35db8db69b 100644
+--- a/src/pkg/runtime/race/testdata/map_test.go
++++ b/src/pkg/runtime/race/testdata/map_test.go
+@@ -94,8 +94,7 @@ func TestNoRaceMapRangeRange(t *testing.T) {
+ 	<-ch
+ }
+ 
+-// Map len is not instrumented.
+-func TestRaceFailingMapLen(t *testing.T) {
++func TestRaceMapLen(t *testing.T) {
+ 	m := make(map[string]bool)
+ 	ch := make(chan bool, 1)
+ 	go func() {
+@@ -117,8 +116,7 @@ func TestRaceMapDelete(t *testing.T) {
+ 	<-ch
+ }
+ 
+-// Map len is not instrumented.
+-func TestRaceFailingMapLenDelete(t *testing.T) {
++func TestRaceMapLenDelete(t *testing.T) {
+ 	m := make(map[string]bool)
+ 	ch := make(chan bool, 1)
+ 	go func() {
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index f2daa37301..26cd3a4e41 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -306,6 +306,102 @@ func TestNoRacePlus(t *testing.T) {
+ 	<-ch
+ }
+ 
++func TestRaceComplement(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		x = ^y
++		ch <- 1
++	}()
++	go func() {
++		y = ^z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceDiv(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		x = y / (z + 1)
++		ch <- 1
++	}()
++	go func() {
++		y = z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceDivConst(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		x = y / 3
++		ch <- 1
++	}()
++	go func() {
++		y = z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceMod(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		x = y % (z + 1)
++		ch <- 1
++	}()
++	go func() {
++		y = z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceModConst(t *testing.T) {
++	var x, y, z int
++	ch := make(chan int, 2)
++
++	go func() {
++		x = y % 3
++		ch <- 1
++	}()
++	go func() {
++		y = z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
++func TestRaceRotate(t *testing.T) {
++	var x, y, z uint32
++	ch := make(chan int, 2)
++
++	go func() {
++		x = y<<12 | y>>20
++		ch <- 1
++	}()
++	go func() {
++		y = z
++		ch <- 1
++	}()
++	<-ch
++	<-ch
++}
++
+ // May crash if the instrumentation is reckless.
+ func TestNoRaceEnoughRegisters(t *testing.T) {
+ 	// from erf.go
+diff --git a/src/pkg/runtime/race/testdata/regression_test.go b/src/pkg/runtime/race/testdata/regression_test.go
+index afe8cc5ec2..f08ee3ed31 100644
+--- a/src/pkg/runtime/race/testdata/regression_test.go
++++ b/src/pkg/runtime/race/testdata/regression_test.go
+@@ -45,6 +45,18 @@ func InstrumentMapLen3() {
+ 	_ = len(*m[0])
+ }
+ 
++func TestRaceUnaddressableMapLen(t *testing.T) {
++	m := make(map[int]map[int]int)
++	ch := make(chan int, 1)
++	m[0] = make(map[int]int)
++	go func() {
++		_ = len(m[0])
++		ch <- 0
++	}()
++	m[0][0] = 1
++	<-ch
++}
++
+ type Rect struct {
+ 	x, y int
+ }
+diff --git a/src/pkg/runtime/race/testdata/slice_test.go b/src/pkg/runtime/race/testdata/slice_test.go
+index 773463662b..1fe051b121 100644
+--- a/src/pkg/runtime/race/testdata/slice_test.go
++++ b/src/pkg/runtime/race/testdata/slice_test.go
+@@ -463,3 +463,24 @@ func TestRaceSliceRuneToString(t *testing.T) {
+ 	s[9] = 42
+ 	<-c
+ }
++
++func TestRaceConcatString(t *testing.T) {
++	s := "hello"
++	c := make(chan string, 1)
++	go func() {
++		c <- s + " world"
++	}()
++	s = "world"
++	<-c
++}
++
++func TestRaceCompareString(t *testing.T) {
++	s1 := "hello"
++	s2 := "world"
++	c := make(chan bool, 1)
++	go func() {
++		c <- s1 == s2
++	}()
++	s1 = s2
++	<-c
++}

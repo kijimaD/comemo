@@ -10,6 +10,20 @@ Date:   Wed Oct 15 06:20:55 2014 -0700
     R=agl, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/152590043
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 69a62e57d2..7a37b98e31 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1670,7 +1670,7 @@ var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
+ 
+ // CreateCertificateRequest creates a new certificate based on a template. The
+ // following members of template are used: Subject, Attributes,
+-// SignatureAlgorithm, Extension, DNSNames, EmailAddresses, and IPAddresses.
++// SignatureAlgorithm, Extensions, DNSNames, EmailAddresses, and IPAddresses.
+ // The private key is the private key of the signer.
+ //
+ // The returned slice is the certificate request in DER encoding.

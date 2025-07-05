@@ -14,9 +14,92 @@ Date:   Mon Jan 11 17:22:20 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/ir/name.go             |  4 ----
  src/cmd/compile/internal/ir/sizeof_test.go      |  2 +-
  src/cmd/compile/internal/typecheck/dcl.go       |  8 --------
  src/cmd/compile/internal/typecheck/typecheck.go | 11 ++++++++++-
  4 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 30f7e9b9e0..514b303893 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -55,10 +55,6 @@ type Name struct {
+ 	// The function, method, or closure in which local variable or param is declared.
+ 	Curfn *Func
+ 
+-	// Unique number for OTYPE names within a function.
+-	// TODO(mdempsky): Remove completely.
+-	Typegen int32
+-
+ 	Ntype    Ntype
+ 	Heapaddr *Name // temp holding heap address of param
+ 
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 1a4d2e5c7a..2ada7231aa 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 184, 320},
+-		{Name{}, 120, 216},
++		{Name{}, 116, 208},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index caa3e8203a..c7d7506fd1 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -62,10 +62,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
+ 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
+ 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+ 		}
+-		if n.Op() == ir.OTYPE {
+-			declare_typegen++
+-			n.Typegen = int32(declare_typegen)
+-		}
+ 		types.Pushdcl(s)
+ 		n.Curfn = ir.CurFunc
+ 	}
+@@ -308,10 +304,6 @@ func checkembeddedtype(t *types.Type) {
+ 	}
+ }
+ 
+-// declare individual names - var, typ, const
+-
+-var declare_typegen int
+-
+ func fakeRecvField() *types.Field {
+ 	return types.NewField(src.NoXPos, nil, types.FakeRecvType())
+ }
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 431fb04bef..3fc077b00c 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1681,13 +1681,22 @@ func CheckMapKeys() {
+ 	mapqueue = nil
+ }
+ 
++// typegen tracks the number of function-scoped defined types that
++// have been declared. It's used to generate unique linker symbols for
++// their runtime type descriptors.
++var typegen int32
++
+ func typecheckdeftype(n *ir.Name) {
+ 	if base.EnableTrace && base.Flag.LowerT {
+ 		defer tracePrint("typecheckdeftype", n)(nil)
+ 	}
+ 
+ 	t := types.NewNamed(n)
+-	t.Vargen = n.Typegen
++	if n.Curfn != nil {
++		typegen++
++		t.Vargen = typegen
++	}
++
+ 	if n.Pragma()&ir.NotInHeap != 0 {
+ 		t.SetNotInHeap(true)
+ 	}

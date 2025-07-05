@@ -20,7 +20,7 @@ Date:   Thu Sep 30 09:57:04 2021 +0800
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |   3 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  18 ++--
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   4 +
@@ -28,3 +28,423 @@ Date:   Thu Sep 30 09:57:04 2021 +0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 144 +++++++++++++++++++++++++--
  test/codegen/mathbits.go                     |  24 +++--
  6 files changed, 202 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 68266d35d6..33cd5985e0 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -265,7 +265,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 	case ssa.OpAMD64BLSIQ, ssa.OpAMD64BLSIL,
+ 		ssa.OpAMD64BLSMSKQ, ssa.OpAMD64BLSMSKL,
+-		ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL:
++		ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL,
++		ssa.OpAMD64TZCNTQ, ssa.OpAMD64TZCNTL:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index edb1a4869a..1c63a3f70c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -78,15 +78,21 @@
+ (OffPtr [off] ptr) => (ADDQ (MOVQconst [off]) ptr)
+ 
+ // Lowering other arithmetic
+-(Ctz64 <t> x) => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+-(Ctz32 x) => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
++(Ctz64 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
++(Ctz32 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
++(Ctz64 <t> x) && buildcfg.GOAMD64 <  3 => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
++(Ctz32 x)     && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+ (Ctz16 x) => (BSFL (BTSLconst <typ.UInt32> [16] x))
+ (Ctz8  x) => (BSFL (BTSLconst <typ.UInt32> [ 8] x))
+ 
+-(Ctz64NonZero x) => (Select0 (BSFQ x))
+-(Ctz32NonZero ...) => (BSFL ...)
+-(Ctz16NonZero ...) => (BSFL ...)
+-(Ctz8NonZero  ...) => (BSFL ...)
++(Ctz64NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
++(Ctz32NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
++(Ctz16NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
++(Ctz8NonZero  x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
++(Ctz64NonZero x) && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ x))
++(Ctz32NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
++(Ctz16NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
++(Ctz8NonZero  x) && buildcfg.GOAMD64 <  3 => (BSFL x)
+ 
+ // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
+ // However, for zero-extended values, we can cheat a bit, and calculate
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 6e4c514bd0..1887772736 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -918,6 +918,10 @@ func init() {
+ 		{name: "BLSMSKL", argLength: 1, reg: gp11, asm: "BLSMSKL", clobberFlags: true}, // arg0 ^ (arg0 - 1)
+ 		{name: "BLSRQ", argLength: 1, reg: gp11, asm: "BLSRQ", clobberFlags: true},     // arg0 & (arg0 - 1)
+ 		{name: "BLSRL", argLength: 1, reg: gp11, asm: "BLSRL", clobberFlags: true},     // arg0 & (arg0 - 1)
++		// count the number of trailing zero bits, prefer TZCNTQ over BSFQ, as TZCNTQ(0)==64
++		// and BSFQ(0) is undefined. Same for TZCNTL(0)==32
++		{name: "TZCNTQ", argLength: 1, reg: gp11, asm: "TZCNTQ", clobberFlags: true},
++		{name: "TZCNTL", argLength: 1, reg: gp11, asm: "TZCNTL", clobberFlags: true},
+ 	}
+ 
+ 	var AMD64blocks = []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 128ec1f049..6266092f6f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1041,6 +1041,8 @@ const (
+ 	OpAMD64BLSMSKL
+ 	OpAMD64BLSRQ
+ 	OpAMD64BLSRL
++	OpAMD64TZCNTQ
++	OpAMD64TZCNTL
+ 
+ 	OpARMADD
+ 	OpARMADDconst
+@@ -13752,6 +13754,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "TZCNTQ",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.ATZCNTQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
++	{
++		name:         "TZCNTL",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.ATZCNTL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++			outputs: []outputInfo{
++				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++			},
++		},
++	},
+ 
+ 	{
+ 		name:        "ADD",
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 906260fb14..10d3afbc7d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -647,13 +647,11 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpCtz16:
+ 		return rewriteValueAMD64_OpCtz16(v)
+ 	case OpCtz16NonZero:
+-		v.Op = OpAMD64BSFL
+-		return true
++		return rewriteValueAMD64_OpCtz16NonZero(v)
+ 	case OpCtz32:
+ 		return rewriteValueAMD64_OpCtz32(v)
+ 	case OpCtz32NonZero:
+-		v.Op = OpAMD64BSFL
+-		return true
++		return rewriteValueAMD64_OpCtz32NonZero(v)
+ 	case OpCtz64:
+ 		return rewriteValueAMD64_OpCtz64(v)
+ 	case OpCtz64NonZero:
+@@ -661,8 +659,7 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpCtz8:
+ 		return rewriteValueAMD64_OpCtz8(v)
+ 	case OpCtz8NonZero:
+-		v.Op = OpAMD64BSFL
+-		return true
++		return rewriteValueAMD64_OpCtz8NonZero(v)
+ 	case OpCvt32Fto32:
+ 		v.Op = OpAMD64CVTTSS2SL
+ 		return true
+@@ -28694,14 +28691,58 @@ func rewriteValueAMD64_OpCtz16(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz16NonZero(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Ctz16NonZero x)
++	// cond: buildcfg.GOAMD64 >= 3
++	// result: (TZCNTL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 >= 3) {
++			break
++		}
++		v.reset(OpAMD64TZCNTL)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Ctz16NonZero x)
++	// cond: buildcfg.GOAMD64 < 3
++	// result: (BSFL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 < 3) {
++			break
++		}
++		v.reset(OpAMD64BSFL)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpCtz32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz32 x)
++	// cond: buildcfg.GOAMD64 >= 3
++	// result: (TZCNTL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 >= 3) {
++			break
++		}
++		v.reset(OpAMD64TZCNTL)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Ctz32 x)
++	// cond: buildcfg.GOAMD64 < 3
+ 	// result: (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+ 	for {
+ 		x := v_0
++		if !(buildcfg.GOAMD64 < 3) {
++			break
++		}
+ 		v.reset(OpSelect0)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+ 		v1 := b.NewValue0(v.Pos, OpAMD64BTSQconst, typ.UInt64)
+@@ -28711,16 +28752,61 @@ func rewriteValueAMD64_OpCtz32(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpCtz32NonZero(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Ctz32NonZero x)
++	// cond: buildcfg.GOAMD64 >= 3
++	// result: (TZCNTL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 >= 3) {
++			break
++		}
++		v.reset(OpAMD64TZCNTL)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Ctz32NonZero x)
++	// cond: buildcfg.GOAMD64 < 3
++	// result: (BSFL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 < 3) {
++			break
++		}
++		v.reset(OpAMD64BSFL)
++		v.AddArg(x)
++		return true
++	}
++	return false
+ }
+ func rewriteValueAMD64_OpCtz64(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
++	// match: (Ctz64 x)
++	// cond: buildcfg.GOAMD64 >= 3
++	// result: (TZCNTQ x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 >= 3) {
++			break
++		}
++		v.reset(OpAMD64TZCNTQ)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (Ctz64 <t> x)
++	// cond: buildcfg.GOAMD64 < 3
+ 	// result: (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
++		if !(buildcfg.GOAMD64 < 3) {
++			break
++		}
+ 		v.reset(OpAMD64CMOVQEQ)
+ 		v0 := b.NewValue0(v.Pos, OpSelect0, t)
+ 		v1 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+@@ -28733,21 +28819,39 @@ func rewriteValueAMD64_OpCtz64(v *Value) bool {
+ 		v.AddArg3(v0, v2, v3)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValueAMD64_OpCtz64NonZero(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz64NonZero x)
++	// cond: buildcfg.GOAMD64 >= 3
++	// result: (TZCNTQ x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 >= 3) {
++			break
++		}
++		v.reset(OpAMD64TZCNTQ)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Ctz64NonZero x)
++	// cond: buildcfg.GOAMD64 < 3
+ 	// result: (Select0 (BSFQ x))
+ 	for {
+ 		x := v_0
++		if !(buildcfg.GOAMD64 < 3) {
++			break
++		}
+ 		v.reset(OpSelect0)
+ 		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, types.NewTuple(typ.UInt64, types.TypeFlags))
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValueAMD64_OpCtz8(v *Value) bool {
+ 	v_0 := v.Args[0]
+@@ -28765,6 +28869,34 @@ func rewriteValueAMD64_OpCtz8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpCtz8NonZero(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Ctz8NonZero x)
++	// cond: buildcfg.GOAMD64 >= 3
++	// result: (TZCNTL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 >= 3) {
++			break
++		}
++		v.reset(OpAMD64TZCNTL)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Ctz8NonZero x)
++	// cond: buildcfg.GOAMD64 < 3
++	// result: (BSFL x)
++	for {
++		x := v_0
++		if !(buildcfg.GOAMD64 < 3) {
++			break
++		}
++		v.reset(OpAMD64BSFL)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpDiv16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index aecd84a78b..50527fea04 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -272,7 +272,8 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
+ // ------------------------ //
+ 
+ func TrailingZeros(n uint) int {
+-	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
++	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
++	// amd64/v3:"TZCNTQ"
+ 	// arm:"CLZ"
+ 	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+@@ -285,7 +286,8 @@ func TrailingZeros(n uint) int {
+ }
+ 
+ func TrailingZeros64(n uint64) int {
+-	// amd64:"BSFQ","MOVL\t\\$64","CMOVQEQ"
++	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
++	// amd64/v3:"TZCNTQ"
+ 	// arm64:"RBIT","CLZ"
+ 	// s390x:"FLOGR"
+ 	// ppc64/power8:"ANDN","POPCNTD"
+@@ -303,7 +305,8 @@ func TrailingZeros64Subtract(n uint64) int {
+ }
+ 
+ func TrailingZeros32(n uint32) int {
+-	// amd64:"BTSQ\\t\\$32","BSFQ"
++	// amd64/v1,amd64/v2:"BTSQ\\t\\$32","BSFQ"
++	// amd64/v3:"TZCNTL"
+ 	// arm:"CLZ"
+ 	// arm64:"RBITW","CLZW"
+ 	// s390x:"FLOGR","MOVWZ"
+@@ -343,7 +346,8 @@ func TrailingZeros8(n uint8) int {
+ func IterateBits(n uint) int {
+ 	i := 0
+ 	for n != 0 {
+-		// amd64:"BSFQ",-"CMOVEQ"
++		// amd64/v1,amd64/v2:"BSFQ",-"CMOVEQ"
++		// amd64/v3:"TZCNTQ"
+ 		i += bits.TrailingZeros(n)
+ 		n &= n - 1
+ 	}
+@@ -353,7 +357,8 @@ func IterateBits(n uint) int {
+ func IterateBits64(n uint64) int {
+ 	i := 0
+ 	for n != 0 {
+-		// amd64:"BSFQ",-"CMOVEQ"
++		// amd64/v1,amd64/v2:"BSFQ",-"CMOVEQ"
++		// amd64/v3:"TZCNTQ"
+ 		i += bits.TrailingZeros64(n)
+ 		n &= n - 1
+ 	}
+@@ -363,7 +368,8 @@ func IterateBits64(n uint64) int {
+ func IterateBits32(n uint32) int {
+ 	i := 0
+ 	for n != 0 {
+-		// amd64:"BSFL",-"BTSQ"
++		// amd64/v1,amd64/v2:"BSFL",-"BTSQ"
++		// amd64/v3:"TZCNTL"
+ 		i += bits.TrailingZeros32(n)
+ 		n &= n - 1
+ 	}
+@@ -373,7 +379,8 @@ func IterateBits32(n uint32) int {
+ func IterateBits16(n uint16) int {
+ 	i := 0
+ 	for n != 0 {
+-		// amd64:"BSFL",-"BTSL"
++		// amd64/v1,amd64/v2:"BSFL",-"BTSL"
++		// amd64/v3:"TZCNTL"
+ 		// arm64:"RBITW","CLZW",-"ORR"
+ 		i += bits.TrailingZeros16(n)
+ 		n &= n - 1
+@@ -384,7 +391,8 @@ func IterateBits16(n uint16) int {
+ func IterateBits8(n uint8) int {
+ 	i := 0
+ 	for n != 0 {
+-		// amd64:"BSFL",-"BTSL"
++		// amd64/v1,amd64/v2:"BSFL",-"BTSL"
++		// amd64/v3:"TZCNTL"
+ 		// arm64:"RBITW","CLZW",-"ORR"
+ 		i += bits.TrailingZeros8(n)
+ 		n &= n - 1

@@ -53,7 +53,7 @@ Date:   Tue Apr 21 21:20:15 2015 +0900
     Change-Id: Id678e369088dc9fbe9073cfe7ff8a8754a57d61f
     Reviewed-on: https://go-review.googlesource.com/9236
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/fd_plan9.go           |  2 +-
  src/net/fd_unix.go            | 47 +++++++++++++++++++++++++++---------
  src/net/fd_windows.go         | 41 ++++++++++++++++++++++++-------
@@ -82,3 +82,1255 @@ Date:   Tue Apr 21 21:20:15 2015 +0900
  src/net/sys_cloexec.go        | 13 ++++++----
  src/net/tcpsockopt_windows.go |  2 +-
  27 files changed, 225 insertions(+), 138 deletions(-)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 347829ce8e..32766f53b5 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -202,7 +202,7 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
+ 	dfd, err := syscall.Dup(int(f.Fd()), -1)
+ 	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("dup", err)
+ 	}
+ 	return os.NewFile(uintptr(dfd), s), nil
+ }
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 4859d92c99..64e94fecf8 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -93,7 +93,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		}
+ 		fallthrough
+ 	default:
+-		return err
++		return os.NewSyscallError("connect", err)
+ 	}
+ 	if err := fd.init(); err != nil {
+ 		return err
+@@ -116,14 +116,14 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		}
+ 		nerr, err := getsockoptIntFunc(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)
+ 		if err != nil {
+-			return err
++			return os.NewSyscallError("getsockopt", err)
+ 		}
+ 		switch err := syscall.Errno(nerr); err {
+ 		case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
+ 		case syscall.Errno(0), syscall.EISCONN:
+ 			return nil
+ 		default:
+-			return err
++			return os.NewSyscallError("getsockopt", err)
+ 		}
+ 	}
+ }
+@@ -205,7 +205,7 @@ func (fd *netFD) shutdown(how int) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-	return syscall.Shutdown(fd.sysfd, how)
++	return os.NewSyscallError("shutdown", syscall.Shutdown(fd.sysfd, how))
+ }
+ 
+ func (fd *netFD) closeRead() error {
+@@ -237,6 +237,9 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 		err = fd.eofError(n, err)
+ 		break
+ 	}
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("read", err)
++	}
+ 	return
+ }
+ 
+@@ -261,6 +264,9 @@ func (fd *netFD) readFrom(p []byte) (n int, sa syscall.Sockaddr, err error) {
+ 		err = fd.eofError(n, err)
+ 		break
+ 	}
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("recvfrom", err)
++	}
+ 	return
+ }
+ 
+@@ -285,6 +291,9 @@ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 		err = fd.eofError(n, err)
+ 		break
+ 	}
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("recvmsg", err)
++	}
+ 	return
+ }
+ 
+@@ -318,6 +327,9 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 			break
+ 		}
+ 	}
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("write", err)
++	}
+ 	return nn, err
+ }
+ 
+@@ -341,6 +353,9 @@ func (fd *netFD) writeTo(p []byte, sa syscall.Sockaddr) (n int, err error) {
+ 	if err == nil {
+ 		n = len(p)
+ 	}
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("sendto", err)
++	}
+ 	return
+ }
+ 
+@@ -364,6 +379,9 @@ func (fd *netFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int, oob
+ 	if err == nil {
+ 		oobn = len(oob)
+ 	}
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("sendmsg", err)
++	}
+ 	return
+ }
+ 
+@@ -381,13 +399,20 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
+ 	for {
+ 		s, rsa, err = accept(fd.sysfd)
+ 		if err != nil {
+-			if err == syscall.EAGAIN {
++			nerr, ok := err.(*os.SyscallError)
++			if !ok {
++				return nil, err
++			}
++			switch nerr.Err {
++			case syscall.EAGAIN:
+ 				if err = fd.pd.WaitRead(); err == nil {
+ 					continue
+ 				}
+-			} else if err == syscall.ECONNABORTED {
+-				// This means that a socket on the listen queue was closed
+-				// before we Accept()ed it; it's a silly error, so try again.
++			case syscall.ECONNABORTED:
++				// This means that a socket on the
++				// listen queue was closed before we
++				// Accept()ed it; it's a silly error,
++				// so try again.
+ 				continue
+ 			}
+ 			return nil, err
+@@ -436,7 +461,7 @@ func dupCloseOnExec(fd int) (newfd int, err error) {
+ 			// from now on.
+ 			atomic.StoreInt32(&tryDupCloexec, 0)
+ 		default:
+-			return -1, e1
++			return -1, os.NewSyscallError("fcntl", e1)
+ 		}
+ 	}
+ 	return dupCloseOnExecOld(fd)
+@@ -449,7 +474,7 @@ func dupCloseOnExecOld(fd int) (newfd int, err error) {
+ 	defer syscall.ForkLock.RUnlock()
+ 	newfd, err = syscall.Dup(fd)
+ 	if err != nil {
+-		return -1, err
++		return -1, os.NewSyscallError("dup", err)
+ 	}
+ 	syscall.CloseOnExec(newfd)
+ 	return
+@@ -466,7 +491,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 	// I/O will block the thread instead of letting us use the epoll server.
+ 	// Everything will still work, just with more threads.
+ 	if err = syscall.SetNonblock(ns, false); err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("setnonblock", err)
+ 	}
+ 
+ 	return os.NewFile(uintptr(ns), fd.name()), nil
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 654eb2ee05..205daff9e4 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -38,7 +38,7 @@ func sysInit() {
+ 	var d syscall.WSAData
+ 	e := syscall.WSAStartup(uint32(0x202), &d)
+ 	if e != nil {
+-		initErr = os.NewSyscallError("WSAStartup", e)
++		initErr = os.NewSyscallError("wsastartup", e)
+ 	}
+ 	canCancelIO = syscall.LoadCancelIoEx() == nil
+ 	if syscall.LoadGetAddrInfo() == nil {
+@@ -297,7 +297,7 @@ func (fd *netFD) init() error {
+ 		size := uint32(unsafe.Sizeof(flag))
+ 		err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
+ 		if err != nil {
+-			return os.NewSyscallError("WSAIoctl", err)
++			return os.NewSyscallError("wsaioctl", err)
+ 		}
+ 	}
+ 	fd.rop.mode = 'r'
+@@ -331,7 +331,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		defer fd.setWriteDeadline(noDeadline)
+ 	}
+ 	if !canUseConnectEx(fd.net) {
+-		return connectFunc(fd.sysfd, ra)
++		return os.NewSyscallError("connect", connectFunc(fd.sysfd, ra))
+ 	}
+ 	// ConnectEx windows API requires an unconnected, previously bound socket.
+ 	if la == nil {
+@@ -344,7 +344,7 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 			panic("unexpected type in connect")
+ 		}
+ 		if err := syscall.Bind(fd.sysfd, la); err != nil {
+-			return err
++			return os.NewSyscallError("bind", err)
+ 		}
+ 	}
+ 	// Call ConnectEx API.
+@@ -354,10 +354,13 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+ 		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
+ 	})
+ 	if err != nil {
++		if _, ok := err.(syscall.Errno); ok {
++			err = os.NewSyscallError("connectex", err)
++		}
+ 		return err
+ 	}
+ 	// Refresh socket properties.
+-	return syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
++	return os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd))))
+ }
+ 
+ func (fd *netFD) destroy() {
+@@ -461,7 +464,11 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	if raceenabled {
+ 		raceAcquire(unsafe.Pointer(&ioSync))
+ 	}
+-	return n, fd.eofError(n, err)
++	err = fd.eofError(n, err)
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("wsarecv", err)
++	}
++	return n, err
+ }
+ 
+ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+@@ -482,11 +489,14 @@ func (fd *netFD) readFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 		return syscall.WSARecvFrom(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+ 	})
+ 	err = fd.eofError(n, err)
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("wsarecvfrom", err)
++	}
+ 	if err != nil {
+ 		return n, nil, err
+ 	}
+ 	sa, _ := o.rsa.Sockaddr()
+-	return n, sa, err
++	return n, sa, nil
+ }
+ 
+ func (fd *netFD) Write(buf []byte) (int, error) {
+@@ -502,6 +512,9 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 	n, err := wsrv.ExecIO(o, "WSASend", func(o *operation) error {
+ 		return syscall.WSASend(o.fd.sysfd, &o.buf, 1, &o.qty, 0, &o.o, nil)
+ 	})
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("wsasend", err)
++	}
+ 	return n, err
+ }
+ 
+@@ -519,6 +532,9 @@ func (fd *netFD) writeTo(buf []byte, sa syscall.Sockaddr) (int, error) {
+ 	n, err := wsrv.ExecIO(o, "WSASendto", func(o *operation) error {
+ 		return syscall.WSASendto(o.fd.sysfd, &o.buf, 1, &o.qty, 0, o.sa, &o.o, nil)
+ 	})
++	if _, ok := err.(syscall.Errno); ok {
++		err = os.NewSyscallError("wsasendto", err)
++	}
+ 	return n, err
+ }
+ 
+@@ -548,6 +564,9 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
+ 	})
+ 	if err != nil {
+ 		netfd.Close()
++		if _, ok := err.(syscall.Errno); ok {
++			err = os.NewSyscallError("acceptex", err)
++		}
+ 		return nil, err
+ 	}
+ 
+@@ -555,7 +574,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
+ 	err = syscall.Setsockopt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd)))
+ 	if err != nil {
+ 		netfd.Close()
+-		return nil, err
++		return nil, os.NewSyscallError("setsockopt", err)
+ 	}
+ 
+ 	return netfd, nil
+@@ -581,7 +600,11 @@ func (fd *netFD) accept() (*netFD, error) {
+ 		// before AcceptEx could complete. These errors relate to new
+ 		// connection, not to AcceptEx, so ignore broken connection and
+ 		// try AcceptEx again for more connections.
+-		errno, ok := err.(syscall.Errno)
++		nerr, ok := err.(*os.SyscallError)
++		if !ok {
++			return nil, err
++		}
++		errno, ok := nerr.Err.(syscall.Errno)
+ 		if !ok {
+ 			return nil, err
+ 		}
+diff --git a/src/net/file_plan9.go b/src/net/file_plan9.go
+index 0aa6c32d06..892775a024 100644
+--- a/src/net/file_plan9.go
++++ b/src/net/file_plan9.go
+@@ -39,7 +39,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 
+ 	path, err := syscall.Fd2path(int(f.Fd()))
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("fd2path", err)
+ 	}
+ 	comp := splitAtBytes(path, "/")
+ 	n := len(comp)
+@@ -54,7 +54,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 		fd, err := syscall.Dup(int(f.Fd()), -1)
+ 		syscall.ForkLock.RUnlock()
+ 		if err != nil {
+-			return nil, err
++			return nil, os.NewSyscallError("dup", err)
+ 		}
+ 		defer close(fd)
+ 
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index 98ceea1d55..147ca1ed95 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -19,13 +19,13 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 
+ 	if err = syscall.SetNonblock(fd, true); err != nil {
+ 		closeFunc(fd)
+-		return nil, err
++		return nil, os.NewSyscallError("setnonblock", err)
+ 	}
+ 
+ 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 	if err != nil {
+ 		closeFunc(fd)
+-		return nil, err
++		return nil, os.NewSyscallError("getsockopt", err)
+ 	}
+ 
+ 	family := syscall.AF_UNSPEC
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 01a67c69a1..208f37f9fd 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -17,11 +18,11 @@ import (
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("routerib", err)
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingmessage", err)
+ 	}
+ 	return parseInterfaceTable(ifindex, msgs)
+ }
+@@ -50,7 +51,7 @@ loop:
+ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingsockaddr", err)
+ 	}
+ 	ifi := &Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
+ 	sa, _ := sas[syscall.RTAX_IFP].(*syscall.SockaddrDatalink)
+@@ -103,11 +104,11 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	}
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, index)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("routerib", err)
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingmessage", err)
+ 	}
+ 	var ift []Interface
+ 	if index == 0 {
+@@ -144,7 +145,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingsockaddr", err)
+ 	}
+ 	ifa := &IPNet{}
+ 	switch sa := sas[syscall.RTAX_NETMASK].(type) {
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index bda6ff9a57..b7a333849d 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -4,18 +4,21 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++)
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifi.Index)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("routerib", err)
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingmessage", err)
+ 	}
+ 	var ifmat []Addr
+ 	for _, m := range msgs {
+@@ -38,7 +41,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingsockaddr", err)
+ 	}
+ 	switch sa := sas[syscall.RTAX_IFA].(type) {
+ 	case *syscall.SockaddrInet4:
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index c759db4720..c42d90b740 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -4,18 +4,21 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++)
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFMALIST, ifi.Index)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("routerib", err)
+ 	}
+ 	msgs, err := syscall.ParseRoutingMessage(tab)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingmessage", err)
+ 	}
+ 	var ifmat []Addr
+ 	for _, m := range msgs {
+@@ -38,7 +41,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
+ 	sas, err := syscall.ParseRoutingSockaddr(m)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parseroutingsockaddr", err)
+ 	}
+ 	switch sa := sas[syscall.RTAX_IFA].(type) {
+ 	case *syscall.SockaddrInet4:
+diff --git a/src/net/interface_linux.go b/src/net/interface_linux.go
+index 3c117ea2f5..6551a3562e 100644
+--- a/src/net/interface_linux.go
++++ b/src/net/interface_linux.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -15,11 +16,11 @@ import (
+ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("netlinkrib", err)
+ 	}
+ 	msgs, err := syscall.ParseNetlinkMessage(tab)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parsenetlinkmessage", err)
+ 	}
+ 	var ift []Interface
+ loop:
+@@ -32,7 +33,7 @@ loop:
+ 			if ifindex == 0 || ifindex == int(ifim.Index) {
+ 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
+ 				if err != nil {
+-					return nil, err
++					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)
+ 				}
+ 				ift = append(ift, *newLink(ifim, attrs))
+ 				if ifindex == int(ifim.Index) {
+@@ -119,11 +120,11 @@ func linkFlags(rawFlags uint32) Flags {
+ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("netlinkrib", err)
+ 	}
+ 	msgs, err := syscall.ParseNetlinkMessage(tab)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("parsenetlinkmessage", err)
+ 	}
+ 	var ift []Interface
+ 	if ifi == nil {
+@@ -159,7 +160,7 @@ loop:
+ 				}
+ 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
+ 				if err != nil {
+-					return nil, err
++					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)
+ 				}
+ 				ifa := newAddr(ifi, ifam, attrs)
+ 				if ifa != nil {
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 83870efb10..e25c1ed560 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"internal/syscall/windows"
++	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -26,7 +27,7 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
+ 			break
+ 		}
+ 		if err.(syscall.Errno) != syscall.ERROR_BUFFER_OVERFLOW {
+-			return nil, err
++			return nil, os.NewSyscallError("getadaptersaddresses", err)
+ 		}
+ 	}
+ 	return &addrs[0], nil
+@@ -44,7 +45,7 @@ func getInterfaceInfos() ([]syscall.InterfaceInfo, error) {
+ 	size := uint32(unsafe.Sizeof(iia))
+ 	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&iia[0])), size, &ret, nil, 0)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("wsaioctl", err)
+ 	}
+ 	iilen := ret / uint32(unsafe.Sizeof(iia[0]))
+ 	return iia[:iilen-1], nil
+diff --git a/src/net/ip.go b/src/net/ip.go
+index a554165af7..a7f45642e3 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -12,8 +12,6 @@
+ 
+ package net
+ 
+-import "errors"
+-
+ // IP address lengths (bytes).
+ const (
+ 	IPv4len = 4
+@@ -331,7 +329,7 @@ func (ip IP) MarshalText() ([]byte, error) {
+ 		return []byte(""), nil
+ 	}
+ 	if len(ip) != IPv4len && len(ip) != IPv6len {
+-		return nil, errors.New("invalid IP address")
++		return nil, &AddrError{Err: "invalid IP address", Addr: ip.String()}
+ 	}
+ 	return []byte(ip.String()), nil
+ }
+@@ -346,7 +344,7 @@ func (ip *IP) UnmarshalText(text []byte) error {
+ 	s := string(text)
+ 	x := ParseIP(s)
+ 	if x == nil {
+-		return &ParseError{"IP address", s}
++		return &ParseError{Type: "IP address", Text: s}
+ 	}
+ 	*ip = x
+ 	return nil
+@@ -633,16 +631,6 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 	return ip, zone
+ }
+ 
+-// A ParseError represents a malformed text string and the type of string that was expected.
+-type ParseError struct {
+-	Type string
+-	Text string
+-}
+-
+-func (e *ParseError) Error() string {
+-	return "invalid " + e.Type + ": " + e.Text
+-}
+-
+ // ParseIP parses s as an IP address, returning the result.
+ // The string s can be in dotted decimal ("74.125.19.99")
+ // or IPv6 ("2001:4860:0:2001::68") form.
+@@ -671,7 +659,7 @@ func ParseIP(s string) IP {
+ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	i := byteIndex(s, '/')
+ 	if i < 0 {
+-		return nil, nil, &ParseError{"CIDR address", s}
++		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+ 	addr, mask := s[:i], s[i+1:]
+ 	iplen := IPv4len
+@@ -682,7 +670,7 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 	}
+ 	n, i, ok := dtoi(mask, 0)
+ 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
+-		return nil, nil, &ParseError{"CIDR address", s}
++		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+ 	m := CIDRMask(n, 8*iplen)
+ 	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 1215b69d02..24f67cac97 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -194,10 +194,10 @@ var parseCIDRTests = []struct {
+ 	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
+ 	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+ 	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+-	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{"CIDR address", "192.168.1.1/255.255.255.0"}},
+-	{"192.168.1.1/35", nil, nil, &ParseError{"CIDR address", "192.168.1.1/35"}},
+-	{"2001:db8::1/-1", nil, nil, &ParseError{"CIDR address", "2001:db8::1/-1"}},
+-	{"", nil, nil, &ParseError{"CIDR address", ""}},
++	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
++	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
++	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
++	{"", nil, nil, &ParseError{Type: "CIDR address", Text: ""}},
+ }
+ 
+ func TestParseCIDR(t *testing.T) {
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index c09faa763e..6e75c33d53 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -122,7 +122,7 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ 		// Expect the first ']' just before the last ':'.
+ 		end := byteIndex(hostport, ']')
+ 		if end < 0 {
+-			err = &AddrError{"missing ']' in address", hostport}
++			err = &AddrError{Err: "missing ']' in address", Addr: hostport}
+ 			return
+ 		}
+ 		switch end + 1 {
+@@ -151,11 +151,11 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ 		}
+ 	}
+ 	if byteIndex(hostport[j:], '[') >= 0 {
+-		err = &AddrError{"unexpected '[' in address", hostport}
++		err = &AddrError{Err: "unexpected '[' in address", Addr: hostport}
+ 		return
+ 	}
+ 	if byteIndex(hostport[k:], ']') >= 0 {
+-		err = &AddrError{"unexpected ']' in address", hostport}
++		err = &AddrError{Err: "unexpected ']' in address", Addr: hostport}
+ 		return
+ 	}
+ 
+@@ -163,15 +163,15 @@ func SplitHostPort(hostport string) (host, port string, err error) {
+ 	return
+ 
+ missingPort:
+-	err = &AddrError{"missing port in address", hostport}
++	err = &AddrError{Err: "missing port in address", Addr: hostport}
+ 	return
+ 
+ tooManyColons:
+-	err = &AddrError{"too many colons in address", hostport}
++	err = &AddrError{Err: "too many colons in address", Addr: hostport}
+ 	return
+ 
+ missingBrackets:
+-	err = &AddrError{"missing brackets in address", hostport}
++	err = &AddrError{Err: "missing brackets in address", Addr: hostport}
+ 	return
+ }
+ 
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 11b6b32e0b..72d640d923 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"errors"
+ 	"os"
+ 	"syscall"
+ )
+@@ -60,15 +59,15 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	if i >= 0 {
+ 		addr = ParseIP(s[:i])
+ 		if addr == nil {
+-			return nil, 0, errors.New("parsing IP failed")
++			return nil, 0, &ParseError{Type: "IP address", Text: s}
+ 		}
+ 	}
+ 	p, _, ok := dtoi(s[i+1:], 0)
+ 	if !ok {
+-		return nil, 0, errors.New("parsing port failed")
++		return nil, 0, &ParseError{Type: "port", Text: s}
+ 	}
+ 	if p < 0 || p > 0xFFFF {
+-		return nil, 0, &AddrError{"invalid port", string(p)}
++		return nil, 0, &AddrError{Err: "invalid port", Addr: string(p)}
+ 	}
+ 	return addr, p, nil
+ }
+@@ -95,7 +94,7 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+ 	case "udp":
+ 		addr = &UDPAddr{IP: ip, Port: port}
+ 	default:
+-		return nil, errors.New("unknown protocol " + proto)
++		return nil, UnknownNetworkError(proto)
+ 	}
+ 	return addr, nil
+ }
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 7597a92f6f..56b9872fd1 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -144,7 +144,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 			ip = IPv4zero
+ 		}
+ 		if ip = ip.To4(); ip == nil {
+-			return nil, InvalidAddrError("non-IPv4 address")
++			return nil, &AddrError{Err: "non-IPv4 address", Addr: ip.String()}
+ 		}
+ 		sa := new(syscall.SockaddrInet4)
+ 		for i := 0; i < IPv4len; i++ {
+@@ -163,7 +163,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 			ip = IPv6zero
+ 		}
+ 		if ip = ip.To16(); ip == nil {
+-			return nil, InvalidAddrError("non-IPv6 address")
++			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
+ 		}
+ 		sa := new(syscall.SockaddrInet6)
+ 		for i := 0; i < IPv6len; i++ {
+@@ -173,5 +173,5 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 		sa.ZoneId = uint32(zoneToInt(zone))
+ 		return sa, nil
+ 	}
+-	return nil, InvalidAddrError("unexpected socket family")
++	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}
+ }
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 73abbad93b..c6274640bb 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -101,19 +101,18 @@ func lookupProtocol(name string) (proto int, err error) {
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	unknownProtoError := errors.New("unknown IP protocol specified: " + name)
+ 	if len(lines) == 0 {
+-		return 0, unknownProtoError
++		return 0, UnknownNetworkError(name)
+ 	}
+ 	f := getFields(lines[0])
+ 	if len(f) < 2 {
+-		return 0, unknownProtoError
++		return 0, UnknownNetworkError(name)
+ 	}
+ 	s := f[1]
+ 	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
+ 		return n, nil
+ 	}
+-	return 0, unknownProtoError
++	return 0, UnknownNetworkError(name)
+ }
+ 
+ func lookupHost(host string) (addrs []string, err error) {
+@@ -173,7 +172,7 @@ func lookupPort(network, service string) (port int, err error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	unknownPortError := &AddrError{"unknown port", network + "/" + service}
++	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
+ 	if len(lines) == 0 {
+ 		return 0, unknownPortError
+ 	}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index 7ad393ab69..1b6d392f66 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"os"
+ 	"runtime"
+ 	"syscall"
+ 	"unsafe"
+@@ -18,7 +19,7 @@ var (
+ func getprotobyname(name string) (proto int, err error) {
+ 	p, err := syscall.GetProtoByName(name)
+ 	if err != nil {
+-		return 0, err
++		return 0, os.NewSyscallError("getorotobyname", err)
+ 	}
+ 	return int(p.Proto), nil
+ }
+@@ -66,7 +67,7 @@ func gethostbyname(name string) (addrs []IPAddr, err error) {
+ 	// caller already acquired thread
+ 	h, err := syscall.GetHostByName(name)
+ 	if err != nil {
+-		return nil, err
++		return nil, os.NewSyscallError("gethostbyname", err)
+ 	}
+ 	switch h.AddrType {
+ 	case syscall.AF_INET:
+@@ -116,7 +117,7 @@ func newLookupIP(name string) ([]IPAddr, error) {
+ 	var result *syscall.AddrinfoW
+ 	e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
+ 	if e != nil {
+-		return nil, &DNSError{Err: e.Error(), Name: name}
++		return nil, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: name}
+ 	}
+ 	defer syscall.FreeAddrInfoW(result)
+ 	addrs := make([]IPAddr, 0, 5)
+@@ -148,7 +149,7 @@ func getservbyname(network, service string) (int, error) {
+ 	}
+ 	s, err := syscall.GetServByName(service, network)
+ 	if err != nil {
+-		return 0, err
++		return 0, os.NewSyscallError("getservbyname", err)
+ 	}
+ 	return int(syscall.Ntohs(s.Port)), nil
+ }
+@@ -194,7 +195,7 @@ func newLookupPort(network, service string) (int, error) {
+ 	var result *syscall.AddrinfoW
+ 	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
+ 	if e != nil {
+-		return 0, &DNSError{Err: e.Error(), Name: network + "/" + service}
++		return 0, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: network + "/" + service}
+ 	}
+ 	defer syscall.FreeAddrInfoW(result)
+ 	if result == nil {
+@@ -226,7 +227,7 @@ func lookupCNAME(name string) (string, error) {
+ 		return name, nil
+ 	}
+ 	if e != nil {
+-		return "", &DNSError{Err: e.Error(), Name: name}
++		return "", &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+@@ -247,7 +248,7 @@ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(target, syscall.DNS_TYPE_SRV, 0, nil, &r, nil)
+ 	if e != nil {
+-		return "", nil, &DNSError{Err: e.Error(), Name: target}
++		return "", nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: target}
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+@@ -266,7 +267,7 @@ func lookupMX(name string) ([]*MX, error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_MX, 0, nil, &r, nil)
+ 	if e != nil {
+-		return nil, &DNSError{Err: e.Error(), Name: name}
++		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+@@ -285,7 +286,7 @@ func lookupNS(name string) ([]*NS, error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_NS, 0, nil, &r, nil)
+ 	if e != nil {
+-		return nil, &DNSError{Err: e.Error(), Name: name}
++		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+@@ -303,7 +304,7 @@ func lookupTXT(name string) ([]string, error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(name, syscall.DNS_TYPE_TEXT, 0, nil, &r, nil)
+ 	if e != nil {
+-		return nil, &DNSError{Err: e.Error(), Name: name}
++		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+@@ -328,7 +329,7 @@ func lookupAddr(addr string) ([]string, error) {
+ 	var r *syscall.DNSRecord
+ 	e := syscall.DnsQuery(arpa, syscall.DNS_TYPE_PTR, 0, nil, &r, nil)
+ 	if e != nil {
+-		return nil, &DNSError{Err: e.Error(), Name: addr}
++		return nil, &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: addr}
+ 	}
+ 	defer syscall.DnsRecordListFree(r, 1)
+ 
+diff --git a/src/net/mac.go b/src/net/mac.go
+index d616b1f689..8594a9146a 100644
+--- a/src/net/mac.go
++++ b/src/net/mac.go
+@@ -2,12 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// MAC address manipulations
+-
+ package net
+ 
+-import "errors"
+-
+ const hexDigit = "0123456789abcdef"
+ 
+ // A HardwareAddr represents a physical hardware address.
+@@ -82,5 +78,5 @@ func ParseMAC(s string) (hw HardwareAddr, err error) {
+ 	return hw, nil
+ 
+ error:
+-	return nil, errors.New("invalid MAC address: " + s)
++	return nil, &AddrError{Err: "invalid MAC address", Addr: s}
+ }
+diff --git a/src/net/net.go b/src/net/net.go
+index 589f21f582..fbeac81d27 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -244,13 +244,6 @@ func (c *conn) File() (f *os.File, err error) {
+ 	return
+ }
+ 
+-// An Error represents a network error.
+-type Error interface {
+-	error
+-	Timeout() bool   // Is the error a timeout?
+-	Temporary() bool // Is the error temporary?
+-}
+-
+ // PacketConn is a generic packet-oriented network connection.
+ //
+ // Multiple goroutines may invoke methods on a PacketConn simultaneously.
+@@ -314,6 +307,13 @@ type Listener interface {
+ 	Addr() Addr
+ }
+ 
++// An Error represents a network error.
++type Error interface {
++	error
++	Timeout() bool   // Is the error a timeout?
++	Temporary() bool // Is the error temporary?
++}
++
+ // Various errors contained in OpError.
+ var (
+ 	// For connection setup and write operations.
+@@ -377,15 +377,6 @@ func (e *OpError) Error() string {
+ 	return s
+ }
+ 
+-type temporary interface {
+-	Temporary() bool
+-}
+-
+-func (e *OpError) Temporary() bool {
+-	t, ok := e.Err.(temporary)
+-	return ok && t.Temporary()
+-}
+-
+ var noDeadline = time.Time{}
+ 
+ type timeout interface {
+@@ -393,16 +384,45 @@ type timeout interface {
+ }
+ 
+ func (e *OpError) Timeout() bool {
++	if ne, ok := e.Err.(*os.SyscallError); ok {
++		t, ok := ne.Err.(timeout)
++		return ok && t.Timeout()
++	}
+ 	t, ok := e.Err.(timeout)
+ 	return ok && t.Timeout()
+ }
+ 
++type temporary interface {
++	Temporary() bool
++}
++
++func (e *OpError) Temporary() bool {
++	if ne, ok := e.Err.(*os.SyscallError); ok {
++		t, ok := ne.Err.(temporary)
++		return ok && t.Temporary()
++	}
++	t, ok := e.Err.(temporary)
++	return ok && t.Temporary()
++}
++
+ type timeoutError struct{}
+ 
+ func (e *timeoutError) Error() string   { return "i/o timeout" }
+ func (e *timeoutError) Timeout() bool   { return true }
+ func (e *timeoutError) Temporary() bool { return true }
+ 
++// A ParseError is the error type of literal network address parsers.
++type ParseError struct {
++	// Type is the type of string that was expected, such as
++	// "IP address", "CIDR address".
++	Type string
++
++	// Text is the malformed text string.
++	Text string
++}
++
++func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
++
+ type AddrError struct {
+ 	Err  string
+ 	Addr string
+@@ -419,14 +439,14 @@ func (e *AddrError) Error() string {
+ 	return s
+ }
+ 
+-func (e *AddrError) Temporary() bool { return false }
+ func (e *AddrError) Timeout() bool   { return false }
++func (e *AddrError) Temporary() bool { return false }
+ 
+ type UnknownNetworkError string
+ 
+ func (e UnknownNetworkError) Error() string   { return "unknown network " + string(e) }
+-func (e UnknownNetworkError) Temporary() bool { return false }
+ func (e UnknownNetworkError) Timeout() bool   { return false }
++func (e UnknownNetworkError) Temporary() bool { return false }
+ 
+ type InvalidAddrError string
+ 
+diff --git a/src/net/sendfile_dragonfly.go b/src/net/sendfile_dragonfly.go
+index a0025b6ab6..939a9a9466 100644
+--- a/src/net/sendfile_dragonfly.go
++++ b/src/net/sendfile_dragonfly.go
+@@ -99,5 +99,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	if lr != nil {
+ 		lr.N = remain
+ 	}
++	if err != nil {
++		err = os.NewSyscallError("sendfile", err)
++	}
+ 	return written, err, written > 0
+ }
+diff --git a/src/net/sendfile_freebsd.go b/src/net/sendfile_freebsd.go
+index a0324a3289..9b423cbb7b 100644
+--- a/src/net/sendfile_freebsd.go
++++ b/src/net/sendfile_freebsd.go
+@@ -99,5 +99,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	if lr != nil {
+ 		lr.N = remain
+ 	}
++	if err != nil {
++		err = os.NewSyscallError("sendfile", err)
++	}
+ 	return written, err, written > 0
+ }
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+index e76828d053..6480cf573e 100644
+--- a/src/net/sendfile_linux.go
++++ b/src/net/sendfile_linux.go
+@@ -72,5 +72,8 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	if lr != nil {
+ 		lr.N = remain
+ 	}
++	if err != nil {
++		err = os.NewSyscallError("sendfile", err)
++	}
+ 	return written, err, written > 0
+ }
+diff --git a/src/net/sendfile_windows.go b/src/net/sendfile_windows.go
+index b128ba27b0..f3f3b54b88 100644
+--- a/src/net/sendfile_windows.go
++++ b/src/net/sendfile_windows.go
+@@ -46,7 +46,7 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		return syscall.TransmitFile(o.fd.sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
+ 	})
+ 	if err != nil {
+-		return 0, err, false
++		return 0, os.NewSyscallError("transmitfile", err), false
+ 	}
+ 	if lr != nil {
+ 		lr.N -= int64(done)
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 842d7d5538..616a101eac 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -9,7 +9,10 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++)
+ 
+ // Wrapper around the socket system call that marks the returned file
+ // descriptor as nonblocking and close-on-exec.
+@@ -20,8 +23,12 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 	// introduced in 10 kernel. If we get an EINVAL error on Linux
+ 	// or EPROTONOSUPPORT error on FreeBSD, fall back to using
+ 	// socket without them.
+-	if err == nil || (err != syscall.EPROTONOSUPPORT && err != syscall.EINVAL) {
+-		return s, err
++	switch err {
++	case nil:
++		return s, nil
++	default:
++		return -1, os.NewSyscallError("socket", err)
++	case syscall.EPROTONOSUPPORT, syscall.EINVAL:
+ 	}
+ 
+ 	// See ../syscall/exec_unix.go for description of ForkLock.
+@@ -32,11 +39,11 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 	}
+ 	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+-		return -1, err
++		return -1, os.NewSyscallError("socket", err)
+ 	}
+ 	if err = syscall.SetNonblock(s, true); err != nil {
+ 		closeFunc(s)
+-		return -1, err
++		return -1, os.NewSyscallError("setnonblock", err)
+ 	}
+ 	return s, nil
+ }
+@@ -50,8 +57,10 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
+ 	// error on Linux, fall back to using accept.
+ 	switch err {
+-	default: // nil and errors other than the ones listed
+-		return ns, sa, err
++	case nil:
++		return ns, sa, nil
++	default: // errors other than the ones listed
++		return -1, sa, os.NewSyscallError("accept4", err)
+ 	case syscall.ENOSYS: // syscall missing
+ 	case syscall.EINVAL: // some Linux use this instead of ENOSYS
+ 	case syscall.EACCES: // some Linux use this instead of ENOSYS
+@@ -68,11 +77,11 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 		syscall.CloseOnExec(ns)
+ 	}
+ 	if err != nil {
+-		return -1, nil, err
++		return -1, nil, os.NewSyscallError("accept", err)
+ 	}
+ 	if err = syscall.SetNonblock(ns, true); err != nil {
+ 		closeFunc(ns)
+-		return -1, nil, err
++		return -1, nil, os.NewSyscallError("setnonblock", err)
+ 	}
+ 	return ns, sa, nil
+ }
+diff --git a/src/net/sock_windows.go b/src/net/sock_windows.go
+index 591861f443..888e70bb8e 100644
+--- a/src/net/sock_windows.go
++++ b/src/net/sock_windows.go
+@@ -4,7 +4,10 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++)
+ 
+ func maxListenerBacklog() int {
+ 	// TODO: Implement this
+@@ -20,5 +23,8 @@ func sysSocket(family, sotype, proto int) (syscall.Handle, error) {
+ 		syscall.CloseOnExec(s)
+ 	}
+ 	syscall.ForkLock.RUnlock()
+-	return s, err
++	if err != nil {
++		return syscall.InvalidHandle, os.NewSyscallError("socket", err)
++	}
++	return s, nil
+ }
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index 5a631aa56d..ba266e6534 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -9,7 +9,10 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++)
+ 
+ // Wrapper around the socket system call that marks the returned file
+ // descriptor as nonblocking and close-on-exec.
+@@ -22,11 +25,11 @@ func sysSocket(family, sotype, proto int) (int, error) {
+ 	}
+ 	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+-		return -1, err
++		return -1, os.NewSyscallError("socket", err)
+ 	}
+ 	if err = syscall.SetNonblock(s, true); err != nil {
+ 		closeFunc(s)
+-		return -1, err
++		return -1, os.NewSyscallError("setnonblock", err)
+ 	}
+ 	return s, nil
+ }
+@@ -44,11 +47,11 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 		syscall.CloseOnExec(ns)
+ 	}
+ 	if err != nil {
+-		return -1, nil, err
++		return -1, nil, os.NewSyscallError("accept", err)
+ 	}
+ 	if err = syscall.SetNonblock(ns, true); err != nil {
+ 		closeFunc(ns)
+-		return -1, nil, err
++		return -1, nil, os.NewSyscallError("setnonblock", err)
+ 	}
+ 	return ns, sa, nil
+ }
+diff --git a/src/net/tcpsockopt_windows.go b/src/net/tcpsockopt_windows.go
+index 091f5233f2..ae2d7c8f18 100644
+--- a/src/net/tcpsockopt_windows.go
++++ b/src/net/tcpsockopt_windows.go
+@@ -28,5 +28,5 @@ func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
+ 	ret := uint32(0)
+ 	size := uint32(unsafe.Sizeof(ka))
+ 	err := syscall.WSAIoctl(fd.sysfd, syscall.SIO_KEEPALIVE_VALS, (*byte)(unsafe.Pointer(&ka)), size, nil, 0, &ret, nil, 0)
+-	return os.NewSyscallError("WSAIoctl", err)
++	return os.NewSyscallError("wsaioctl", err)
+ }

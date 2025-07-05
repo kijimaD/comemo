@@ -7,6 +7,19 @@ Date:   Fri Mar 29 15:07:10 2013 +0900
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/8073044
-
+---
  src/pkg/net/example_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/net/example_test.go b/src/pkg/net/example_test.go
+index eefe84fa77..6f2f9074c1 100644
+--- a/src/pkg/net/example_test.go
++++ b/src/pkg/net/example_test.go
+@@ -16,6 +16,7 @@ func ExampleListener() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
++	defer l.Close()
+ 	for {
+ 		// Wait for a connection.
+ 		conn, err := l.Accept()

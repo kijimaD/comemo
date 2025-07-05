@@ -18,6 +18,22 @@ Date:   Thu Aug 30 21:45:21 2018 +0000
     GitHub-Pull-Request: golang/go#27388
     Reviewed-on: https://go-review.googlesource.com/132378
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/cert_pool.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index a1646b9826..5381f0d659 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -47,8 +47,8 @@ func (s *CertPool) copy() *CertPool {
+ 
+ // SystemCertPool returns a copy of the system cert pool.
+ //
+-// Any mutations to the returned pool are not written to disk and do
+-// not affect any other pool.
++// Any mutations to a returned pool are not written to disk and do
++// not affect any other pool returned by SystemCertPool.
+ //
+ // New changes in the the system cert pool might not be reflected
+ // in subsequent calls.

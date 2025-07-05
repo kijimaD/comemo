@@ -35,7 +35,7 @@ Date:   Tue Jul 10 13:47:15 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/issue24161_darwin_test.go | 12 +++++
  misc/cgo/test/issue24161e0/main.go      | 22 ++++++++
  misc/cgo/test/issue24161e1/main.go      | 31 +++++++++++
@@ -43,3 +43,310 @@ Date:   Tue Jul 10 13:47:15 2018 -0700
  src/cmd/cgo/gcc.go                      | 93 +++++++++++++++++++++++----------
  src/cmd/cgo/main.go                     |  9 ++--
  6 files changed, 169 insertions(+), 31 deletions(-)
+
+diff --git a/misc/cgo/test/issue24161_darwin_test.go b/misc/cgo/test/issue24161_darwin_test.go
+index cb15b3c5a0..10fdfbd1bc 100644
+--- a/misc/cgo/test/issue24161_darwin_test.go
++++ b/misc/cgo/test/issue24161_darwin_test.go
+@@ -8,6 +8,9 @@ import (
+ 	"testing"
+ 
+ 	"./issue24161arg"
++	"./issue24161e0"
++	"./issue24161e1"
++	"./issue24161e2"
+ 	"./issue24161res"
+ )
+ 
+@@ -17,3 +20,12 @@ func Test24161Arg(t *testing.T) {
+ func Test24161Res(t *testing.T) {
+ 	issue24161res.Test(t)
+ }
++func Test24161Example0(t *testing.T) {
++	issue24161e0.Test(t)
++}
++func Test24161Example1(t *testing.T) {
++	issue24161e1.Test(t)
++}
++func Test24161Example2(t *testing.T) {
++	issue24161e2.Test(t)
++}
+diff --git a/misc/cgo/test/issue24161e0/main.go b/misc/cgo/test/issue24161e0/main.go
+new file mode 100644
+index 0000000000..ec5bea9662
+--- /dev/null
++++ b/misc/cgo/test/issue24161e0/main.go
+@@ -0,0 +1,22 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++
++package issue24161e0
++
++/*
++#cgo CFLAGS: -x objective-c
++#cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <CoreFoundation/CoreFoundation.h>
++#include <Security/Security.h>
++*/
++import "C"
++import "testing"
++
++func f1() {
++	C.SecKeyCreateSignature(0, C.kSecKeyAlgorithmECDSASignatureDigestX962SHA1, 0, nil)
++}
++
++func Test(t *testing.T) {}
+diff --git a/misc/cgo/test/issue24161e1/main.go b/misc/cgo/test/issue24161e1/main.go
+new file mode 100644
+index 0000000000..aea0ff50c5
+--- /dev/null
++++ b/misc/cgo/test/issue24161e1/main.go
+@@ -0,0 +1,31 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++
++package issue24161e1
++
++/*
++#cgo CFLAGS: -x objective-c
++#cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <CoreFoundation/CoreFoundation.h>
++#include <Security/Security.h>
++*/
++import "C"
++import (
++	"fmt"
++	"testing"
++)
++
++func f1() {
++	C.SecKeyCreateSignature(0, C.kSecKeyAlgorithmECDSASignatureDigestX962SHA1, 0, nil)
++}
++
++func f2(e C.CFErrorRef) {
++	if desc := C.CFErrorCopyDescription(e); desc != 0 {
++		fmt.Println(desc)
++	}
++}
++
++func Test(t *testing.T) {}
+diff --git a/misc/cgo/test/issue24161e2/main.go b/misc/cgo/test/issue24161e2/main.go
+new file mode 100644
+index 0000000000..c6675a7689
+--- /dev/null
++++ b/misc/cgo/test/issue24161e2/main.go
+@@ -0,0 +1,33 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin
++
++package issue24161e2
++
++/*
++#cgo CFLAGS: -x objective-c
++#cgo LDFLAGS: -framework CoreFoundation -framework Security
++#include <CoreFoundation/CoreFoundation.h>
++#include <Security/Security.h>
++*/
++import "C"
++import (
++	"fmt"
++	"testing"
++)
++
++var _ C.CFStringRef
++
++func f1() {
++	C.SecKeyCreateSignature(0, C.kSecKeyAlgorithmECDSASignatureDigestX962SHA1, 0, nil)
++}
++
++func f2(e C.CFErrorRef) {
++	if desc := C.CFErrorCopyDescription(e); desc != 0 {
++		fmt.Println(desc)
++	}
++}
++
++func Test(t *testing.T) {}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 9f4a611f19..251cb18f5f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -164,24 +164,22 @@ func (p *Package) Translate(f *File) {
+ 		cref.Name.C = cname(cref.Name.Go)
+ 	}
+ 	p.loadDefines(f)
+-	needType := p.guessKinds(f)
+-	if len(needType) > 0 {
+-		p.loadDWARF(f, needType)
+-		// If there are typedefs used as arguments, add those
+-		// types to the list of types we're interested in, and
+-		// try again.
+-		if len(p.ArgTypedefs) > 0 {
+-			for _, a := range p.ArgTypedefs {
+-				f.Name[a] = &Name{
+-					Go: a,
+-					C:  a,
+-				}
+-			}
+-			needType := p.guessKinds(f)
+-			if len(needType) > 0 {
+-				p.loadDWARF(f, needType)
++	p.typedefs = map[string]bool{}
++	p.typedefList = nil
++	numTypedefs := -1
++	for len(p.typedefs) > numTypedefs {
++		numTypedefs = len(p.typedefs)
++		// Also ask about any typedefs we've seen so far.
++		for _, a := range p.typedefList {
++			f.Name[a] = &Name{
++				Go: a,
++				C:  a,
+ 			}
+ 		}
++		needType := p.guessKinds(f)
++		if len(needType) > 0 {
++			p.loadDWARF(f, needType)
++		}
+ 	}
+ 	if p.rewriteCalls(f) {
+ 		// Add `import _cgo_unsafe "unsafe"` after the package statement.
+@@ -566,6 +564,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 				fatalf("malformed __cgo__ name: %s", name)
+ 			}
+ 			types[i] = t.Type
++			p.recordTypedefs(t.Type)
+ 		}
+ 		if e.Tag != dwarf.TagCompileUnit {
+ 			r.SkipChildren()
+@@ -630,7 +629,43 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 		}
+ 		conv.FinishType(pos)
+ 	}
+-	p.ArgTypedefs = conv.argTypedefs
++}
++
++// recordTypedefs remembers in p.typedefs all the typedefs used in dtypes and its children.
++func (p *Package) recordTypedefs(dtype dwarf.Type) {
++	p.recordTypedefs1(dtype, map[dwarf.Type]bool{})
++}
++func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool) {
++	if dtype == nil {
++		return
++	}
++	if visited[dtype] {
++		return
++	}
++	visited[dtype] = true
++	switch dt := dtype.(type) {
++	case *dwarf.TypedefType:
++		if !p.typedefs[dt.Name] {
++			p.typedefs[dt.Name] = true
++			p.typedefList = append(p.typedefList, dt.Name)
++			p.recordTypedefs1(dt.Type, visited)
++		}
++	case *dwarf.PtrType:
++		p.recordTypedefs1(dt.Type, visited)
++	case *dwarf.ArrayType:
++		p.recordTypedefs1(dt.Type, visited)
++	case *dwarf.QualType:
++		p.recordTypedefs1(dt.Type, visited)
++	case *dwarf.FuncType:
++		p.recordTypedefs1(dt.ReturnType, visited)
++		for _, a := range dt.ParamType {
++			p.recordTypedefs1(a, visited)
++		}
++	case *dwarf.StructType:
++		for _, f := range dt.Field {
++			p.recordTypedefs1(f.Type, visited)
++		}
++	}
+ }
+ 
+ // mangleName does name mangling to translate names
+@@ -1712,9 +1747,6 @@ type typeConv struct {
+ 
+ 	ptrSize int64
+ 	intSize int64
+-
+-	// Typedefs used as argument types for C calls.
+-	argTypedefs []string
+ }
+ 
+ var tagGen int
+@@ -2275,9 +2307,6 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 			C:     tr,
+ 		}
+ 	case *dwarf.TypedefType:
+-		// Keep track of all the typedefs used as arguments.
+-		c.argTypedefs = append(c.argTypedefs, dt.Name)
+-
+ 		// C has much more relaxed rules than Go for
+ 		// implicit type conversions. When the parameter
+ 		// is type T defined as *X, simulate a little of the
+@@ -2290,7 +2319,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type, pos token.Pos) *Type {
+ 			}
+ 			// ...or the typedef is one in which we expect bad pointers.
+ 			// It will be a uintptr instead of *X.
+-			if c.badPointerTypedef(dt) {
++			if c.baseBadPointerTypedef(dt) {
+ 				break
+ 			}
+ 
+@@ -2334,9 +2363,6 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType, pos token.Pos) *FuncType {
+ 		gr = []*ast.Field{{Type: c.goVoid}}
+ 	} else if dtype.ReturnType != nil {
+ 		r = c.Type(unqual(dtype.ReturnType), pos)
+-		if dt, ok := dtype.ReturnType.(*dwarf.TypedefType); ok {
+-			c.argTypedefs = append(c.argTypedefs, dt.Name)
+-		}
+ 		gr = []*ast.Field{{Type: r.Go}}
+ 	}
+ 	return &FuncType{
+@@ -2645,6 +2671,19 @@ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
+ 	return false
+ }
+ 
++// baseBadPointerTypedef reports whether the base of a chain of typedefs is a bad typedef
++// as badPointerTypedef reports.
++func (c *typeConv) baseBadPointerTypedef(dt *dwarf.TypedefType) bool {
++	for {
++		if t, ok := dt.Type.(*dwarf.TypedefType); ok {
++			dt = t
++			continue
++		}
++		break
++	}
++	return c.badPointerTypedef(dt)
++}
++
+ func (c *typeConv) badCFType(dt *dwarf.TypedefType) bool {
+ 	// The real bad types are CFNumberRef and CFDateRef.
+ 	// Sometimes non-pointers are stored in these types.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 84b1daadbe..540fe7499a 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -43,10 +43,11 @@ type Package struct {
+ 	Name        map[string]*Name // accumulated Name from Files
+ 	ExpFunc     []*ExpFunc       // accumulated ExpFunc from Files
+ 	Decl        []ast.Decl
+-	GoFiles     []string // list of Go files
+-	GccFiles    []string // list of gcc output files
+-	Preamble    string   // collected preamble for _cgo_export.h
+-	ArgTypedefs []string // typedefs used as arguments to or results of C functions
++	GoFiles     []string        // list of Go files
++	GccFiles    []string        // list of gcc output files
++	Preamble    string          // collected preamble for _cgo_export.h
++	typedefs    map[string]bool // type names that appear in the types of the objects we're interested in
++	typedefList []string
+ }
+ 
+ // A File collects information about a single Go input file.

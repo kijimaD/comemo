@@ -47,7 +47,92 @@ Date:   Tue Jul 11 14:53:54 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s | 40 ++++++++++++++---------------
  src/cmd/internal/obj/riscv/obj.go           | 13 +++++++---
  2 files changed, 29 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 6f303858b4..53538320f0 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -183,28 +183,28 @@ start:
+ 	// 8.2: Load-Reserved/Store-Conditional
+ 	LRW	(X5), X6				// 2fa30214
+ 	LRD	(X5), X6				// 2fb30214
+-	SCW	X5, (X6), X7				// af23531c
+-	SCD	X5, (X6), X7				// af33531c
++	SCW	X5, (X6), X7				// af23531a
++	SCD	X5, (X6), X7				// af33531a
+ 
+ 	// 8.3: Atomic Memory Operations
+-	AMOSWAPW	X5, (X6), X7			// af23530c
+-	AMOSWAPD	X5, (X6), X7			// af33530c
+-	AMOADDW		X5, (X6), X7			// af235304
+-	AMOADDD		X5, (X6), X7			// af335304
+-	AMOANDW		X5, (X6), X7			// af235364
+-	AMOANDD		X5, (X6), X7			// af335364
+-	AMOORW		X5, (X6), X7			// af235344
+-	AMOORD		X5, (X6), X7			// af335344
+-	AMOXORW		X5, (X6), X7			// af235324
+-	AMOXORD		X5, (X6), X7			// af335324
+-	AMOMAXW		X5, (X6), X7			// af2353a4
+-	AMOMAXD		X5, (X6), X7			// af3353a4
+-	AMOMAXUW	X5, (X6), X7			// af2353e4
+-	AMOMAXUD	X5, (X6), X7			// af3353e4
+-	AMOMINW		X5, (X6), X7			// af235384
+-	AMOMIND		X5, (X6), X7			// af335384
+-	AMOMINUW	X5, (X6), X7			// af2353c4
+-	AMOMINUD	X5, (X6), X7			// af3353c4
++	AMOSWAPW	X5, (X6), X7			// af23530e
++	AMOSWAPD	X5, (X6), X7			// af33530e
++	AMOADDW		X5, (X6), X7			// af235306
++	AMOADDD		X5, (X6), X7			// af335306
++	AMOANDW		X5, (X6), X7			// af235366
++	AMOANDD		X5, (X6), X7			// af335366
++	AMOORW		X5, (X6), X7			// af235346
++	AMOORD		X5, (X6), X7			// af335346
++	AMOXORW		X5, (X6), X7			// af235326
++	AMOXORD		X5, (X6), X7			// af335326
++	AMOMAXW		X5, (X6), X7			// af2353a6
++	AMOMAXD		X5, (X6), X7			// af3353a6
++	AMOMAXUW	X5, (X6), X7			// af2353e6
++	AMOMAXUD	X5, (X6), X7			// af3353e6
++	AMOMINW		X5, (X6), X7			// af235386
++	AMOMIND		X5, (X6), X7			// af335386
++	AMOMINUW	X5, (X6), X7			// af2353c6
++	AMOMINUD	X5, (X6), X7			// af3353c6
+ 
+ 	// 10.1: Base Counters and Timers
+ 	RDCYCLE		X5				// f32200c0
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 44623a1491..43fa7351bf 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2067,17 +2067,22 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		return instructionsForStore(p, ins.as, p.To.Reg)
+ 
+ 	case ALRW, ALRD:
+-		// Set aq to use acquire access ordering, which matches Go's memory requirements.
++		// Set aq to use acquire access ordering
+ 		ins.funct7 = 2
+ 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
+ 
+ 	case AADDI, AANDI, AORI, AXORI:
+ 		inss = instructionsForOpImmediate(p, ins.as, p.Reg)
+ 
+-	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
++	case ASCW, ASCD:
++		// Set release access ordering
++		ins.funct7 = 1
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
++
++	case AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
+ 		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
+-		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+-		ins.funct7 = 2
++		// Set aqrl to use acquire & release access ordering
++		ins.funct7 = 3
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
+ 
+ 	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:

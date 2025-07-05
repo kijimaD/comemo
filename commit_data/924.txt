@@ -7,9 +7,329 @@ Date:   Tue Oct 21 15:04:10 2008 -0700
     R=r
     OCL=17572
     CL=17572
-
+---
  src/cmd/gc/dcl.c  |  18 ++++++-
  src/cmd/gc/go.h   |   6 ++-
  src/cmd/gc/go.y   |  22 ++++----
  src/cmd/gc/walk.c | 155 +++++++++++++++++++++++++++++++++---------------------
  4 files changed, 130 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index bfccdcfd4c..94a0646e4f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -471,7 +471,7 @@ loop:
+ 
+ 	if(n->left != N && n->left->op == ONAME) {
+ 		f->nname = n->left;
+-		f->embedded = n->embedded;
++		f->imbedded = n->imbedded;
+ 	} else {
+ 		vargen++;
+ 		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
+@@ -1148,3 +1148,19 @@ resumecheckwidth(void)
+ 		tlfree = l;
+ 	}
+ }
++
++Node*
++imbedded(Sym *s)
++{
++	Node *n;
++
++	n = newname(lookup(s->name));
++	n = nod(ODCLFIELD, n, N);
++	n->imbedded = 1;
++	if(s == S)
++		return n;
++	n->type = oldtype(s);
++	if(isptr[n->type->etype])
++		yyerror("imbedded type cannot be a pointer");
++	return n;
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 5e9c363554..4e1c0c5d98 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -124,7 +124,7 @@ struct	Type
+ 	uchar	trecur;		// to detect loops
+ 	uchar	methptr;	// 1=direct 2=pointer
+ 	uchar	printed;
+-	uchar	embedded;	// TFIELD embedded type
++	uchar	imbedded;	// TFIELD imbedded type
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+@@ -163,7 +163,7 @@ struct	Node
+ 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	iota;		// OLITERAL made from iota
+-	uchar	embedded;	// ODCLFIELD embedded type
++	uchar	imbedded;	// ODCLFIELD imbedded type
+ 
+ 	// most nodes
+ 	Node*	left;
+@@ -673,6 +673,7 @@ void	checkarglist(Node*);
+ void	checkwidth(Type*);
+ void	defercheckwidth(void);
+ void	resumecheckwidth(void);
++Node*	imbedded(Sym*);
+ 
+ /*
+  *	export.c
+@@ -713,6 +714,7 @@ void	walkstate(Node*);
+ void	walktype(Node*, int);
+ void	walkas(Node*);
+ void	walkbool(Node*);
++void	adddot(Node*);
+ Type*	walkswitch(Node*, Type*(*)(Node*, Type*));
+ int	casebody(Node*);
+ void	walkselect(Node*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 3e1c073bc8..12fe548c9d 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -58,7 +58,7 @@
+ %type	<node>		name onew_name new_name new_name_list_r
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+-%type	<node>		structdcl_list_r structdcl
++%type	<node>		structdcl_list_r structdcl imbed
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+ %type	<node>		keyexpr_list braced_keyexpr_list keyval_list_r keyval
+ 
+@@ -822,6 +822,7 @@ pexpr:
+ |	pexpr '.' sym2
+ 	{
+ 		$$ = nod(ODOT, $1, newname($3));
++		adddot($$);
+ 	}
+ |	pexpr '.' '(' type ')'
+ 	{
+@@ -1378,18 +1379,21 @@ structdcl:
+ 		$$ = nod(ODCLFIELD, $1, N);
+ 		$$->type = $2;
+ 	}
+-|	LATYPE
++|	imbed
++|	'*' imbed
+ 	{
+-		$$ = nod(ODCLFIELD, newname($1), N);
+-		$$->type = oldtype($1);
+-		$$->embedded = 1;
++		$$ = $2;
++		$$->type = ptrto($$->type);
++	}
++
++imbed:
++	LATYPE
++	{
++		$$ = imbedded($1);
+ 	}
+ |	lpack '.' LATYPE
+ 	{
+-		$$ = newname(lookup($3->name));
+-		$$ = nod(ODCLFIELD, $$, N);
+-		$$->type = oldtype($3);
+-		$$->embedded = 1;
++		$$ = imbedded($3);
+ 		context = nil;
+ 	}
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1acbd90c69..fedf578b0e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1391,61 +1391,101 @@ walkselect(Node *sel)
+ }
+ 
+ Type*
+-lookdot(Node *n, Type *f, int d)
++methtype(Type *t)
+ {
+-	Type *r, *r1;
+-	Sym *s, *sf;
++	Sym *s;
++
++	// this is ismethod() without diagnostics
++	if(t == T)
++		return T;
++	if(t->etype == TINTER || (t->etype == tptr && t->type->etype == TINTER))
++		return T;
++	s = t->sym;
++	if(s != S && s->name[0] != '_')
++		return t;
++	if(!isptr[t->etype])
++		return T;
++	t = t->type;
++	if(t == T)
++		return T;
++	s = t->sym;
++	if(s != S && s->name[0] != '_')
++		return t;
++	return T;
++}
++
++Type*
++lookdot1(Node *n, Type *f)
++{
++	Type *r;
++	Sym *s;
+ 
+ 	r = T;
+ 	s = n->sym;
+ 
+ 	for(; f!=T; f=f->down) {
+-		sf = f->sym;
+-		if(sf == S)
++		if(f->sym == S)
+ 			continue;
+-
+-		// depth=0 -- look directly in structure
+-		if(d == 0) {
+-			if(sf != s)
+-				continue;
+-			if(r != T)
+-				goto ambig;
+-			r = f;
+-			n->xoffset = f->width;
+-		}
+-
+-		// depth>0 -- look into unnamed substructures
+-		if(d > 0 && f->embedded) {
+-			if(f->type == T)
+-				continue;
+-			if(f->type->etype != TSTRUCT && f->type->etype != TINTER)
+-				continue;
+-			r1 = lookdot(n, f->type->type, d-1);
+-			if(r1 == T)
+-				continue;
+-			if(r != T)
+-				goto ambig;
+-			r = r1;
+-			n->xoffset += f->width;
++		if(f->sym != s)
++			continue;
++		if(r != T) {
++			yyerror("ambiguous DOT reference %S", s);
++			break;
+ 		}
++		r = f;
+ 	}
+ 	return r;
++}
+ 
+-ambig:
+-	yyerror("ambiguous DOT reference %S", s);
+-	return r;
++int
++lookdot(Node *n, Type *t)
++{
++	Type *f1, *f2;
++
++	f1 = T;
++	if(t->etype == TSTRUCT || t->etype == TINTER)
++		f1 = lookdot1(n->right, t->type);
++
++	f2 = methtype(n->left->type);
++	if(f2 != T)
++		f2 = lookdot1(n->right, f2->method);
++
++	if(f1 != T) {
++		if(f2 != T)
++			yyerror("ambiguous DOT reference %S as both field and method",
++				n->right->sym);
++		n->right = f1->nname;		// substitute real name
++		n->xoffset = f1->width;
++		n->type = f1->type;
++		if(t->etype == TINTER)
++			n->op = ODOTINTER;
++		return 1;
++	}
++
++	if(f2 != T) {
++		n->right = methodname(n->right, ismethod(n->left->type));
++		n->xoffset = f2->width;
++		n->type = f2->type;
++		n->op = ODOTMETH;
++		return 1;
++	}
++
++	return 0;
+ }
+ 
+ void
+ walkdot(Node *n)
+ {
+ 	Type *t, *f;
+-	int d;
+ 
+ 	if(n->left == N || n->right == N)
+ 		return;
+-	if(n->op == ODOTINTER || n->op == ODOTMETH)
++	switch(n->op) {
++	case ODOTINTER:
++	case ODOTMETH:
++	case ODOTPTR:
+ 		return;	// already done
++	}
+ 
+ 	walktype(n->left, Erv);
+ 	if(n->right->op != ONAME) {
+@@ -1465,34 +1505,31 @@ walkdot(Node *n)
+ 		n->op = ODOTPTR;
+ 	}
+ 
+-	if(t->etype == TSTRUCT || t->etype == TINTER) {
+-		for(d=0; d<=5; d++) {
+-			f = lookdot(n->right, t->type, d);
+-			if(f != T) {
+-				n->xoffset = n->right->xoffset;
+-				n->right = f->nname;		// substitute real name
+-				n->type = f->type;
+-				if(t->etype == TINTER)
+-					n->op = ODOTINTER;
+-				return;
+-			}
+-		}
+-	}
+-
+-	// as a method
+-	f = T;
+-	t = ismethod(n->left->type);
+-	if(t != T)
+-		f = lookdot(n->right, t->method, 0);
+-	if(f == T) {
++	if(!lookdot(n, t))
+ 		yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
++}
++
++int
++adddot1(Node *n, int d)
++{
++	return 1;
++}
++
++void
++adddot(Node *n)
++{
++	int d;
++
++	walktype(n->left, Erv);
++	if(n->left->type == T)
++		return;
++	if(n->right->op != ONAME)
+ 		return;
+-	}
+ 
+-	n->xoffset = f->width;
+-	n->right = methodname(n->right, t);
+-	n->type = f->type;
+-	n->op = ODOTMETH;
++	for(d=0; d<5; d++)
++		if(adddot1(n, d))
++			break;
++//	dump("adddot", n);
+ }
+ 
+ Node*

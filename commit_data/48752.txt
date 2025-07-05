@@ -17,7 +17,56 @@ Date:   Sat Jun 12 12:34:40 2021 +0200
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go |  2 +-
  src/cmd/go/go_test.go                | 10 +---------
  2 files changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 90d8c365e6..fdc6df9602 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -400,7 +400,7 @@ func main() {
+ 	defer f.Close()
+ 	section := f.Section(".edata")
+ 	if section == nil {
+-		t.Fatalf(".edata section is not present")
++		t.Skip(".edata section is not present")
+ 	}
+ 
+ 	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a059a6dd90..c0c86ab9f5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -72,7 +72,6 @@ func tooSlow(t *testing.T) {
+ // (temp) directory.
+ var testGOROOT string
+ 
+-var testCC string
+ var testGOCACHE string
+ 
+ var testGo string
+@@ -179,13 +178,6 @@ func TestMain(m *testing.M) {
+ 			os.Exit(2)
+ 		}
+ 
+-		out, err = exec.Command(gotool, "env", "CC").CombinedOutput()
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, "could not find testing CC: %v\n%s", err, out)
+-			os.Exit(2)
+-		}
+-		testCC = strings.TrimSpace(string(out))
+-
+ 		cmd := exec.Command(testGo, "env", "CGO_ENABLED")
+ 		cmd.Stderr = new(strings.Builder)
+ 		if out, err := cmd.Output(); err != nil {
+@@ -2185,7 +2177,7 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
+ 			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+ 			section := f.Section(".edata")
+ 			if section == nil {
+-				t.Fatalf(".edata section is not present")
++				t.Skip(".edata section is not present")
+ 			}
+ 			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
+ 			type IMAGE_EXPORT_DIRECTORY struct {

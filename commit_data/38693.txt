@@ -19,9 +19,210 @@ Date:   Wed Nov 14 20:48:40 2018 +0100
     Run-TryBot: Martin Möhrmann <martisch@uos.de>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/cpu/cpu.go          | 29 +++++++++++++++++------------
  src/internal/cpu/cpu_test.go     |  8 ++++----
  src/internal/cpu/cpu_x86_test.go | 12 ++++++------
  src/runtime/proc.go              |  8 ++++----
  4 files changed, 31 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index e210a6db9e..5ac0989d79 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -6,7 +6,8 @@
+ // used by the Go standard library.
+ package cpu
+ 
+-// DebugOptions is set to true by the runtime if the OS supports GODEBUGCPU.
++// DebugOptions is set to true by the runtime if the OS supports reading
++// GODEBUG early in runtime startup.
+ // This should not be changed after it is initialized.
+ var DebugOptions bool
+ 
+@@ -130,13 +131,14 @@ type s390x struct {
+ 
+ // Initialize examines the processor and sets the relevant variables above.
+ // This is called by the runtime package early in program initialization,
+-// before normal init functions are run. env is set by runtime if the OS supports GODEBUGCPU.
++// before normal init functions are run. env is set by runtime if the OS supports
++// cpu feature options in GODEBUG.
+ func Initialize(env string) {
+ 	doinit()
+ 	processOptions(env)
+ }
+ 
+-// options contains the cpu debug options that can be used in GODEBUGCPU.
++// options contains the cpu debug options that can be used in GODEBUG.
+ // Options are arch dependent and are added by the arch specific doinit functions.
+ // Features that are mandatory for the specific GOARCH should not be added to options
+ // (e.g. SSE2 on amd64).
+@@ -146,16 +148,16 @@ var options []option
+ type option struct {
+ 	Name      string
+ 	Feature   *bool
+-	Specified bool // whether feature value was specified in GODEBUGCPU
++	Specified bool // whether feature value was specified in GODEBUG
+ 	Enable    bool // whether feature should be enabled
+ 	Required  bool // whether feature is mandatory and can not be disabled
+ }
+ 
+ // processOptions enables or disables CPU feature values based on the parsed env string.
+-// The env string is expected to be of the form feature1=value1,feature2=value2...
++// The env string is expected to be of the form cpu.feature1=value1,cpu.feature2=value2...
+ // where feature names is one of the architecture specifc list stored in the
+ // cpu packages options variable and values are either 'on' or 'off'.
+-// If env contains all=off then all cpu features referenced through the options
++// If env contains cpu.all=off then all cpu features referenced through the options
+ // variable are disabled. Other feature names and values result in warning messages.
+ func processOptions(env string) {
+ field:
+@@ -167,12 +169,15 @@ field:
+ 		} else {
+ 			field, env = env[:i], env[i+1:]
+ 		}
++		if len(field) < 4 || field[:4] != "cpu." {
++			continue
++		}
+ 		i = indexByte(field, '=')
+ 		if i < 0 {
+-			print("GODEBUGCPU: no value specified for \"", field, "\"\n")
++			print("GODEBUG: no value specified for \"", field, "\"\n")
+ 			continue
+ 		}
+-		key, value := field[:i], field[i+1:]
++		key, value := field[4:i], field[i+1:] // e.g. "SSE2", "on"
+ 
+ 		var enable bool
+ 		switch value {
+@@ -181,7 +186,7 @@ field:
+ 		case "off":
+ 			enable = false
+ 		default:
+-			print("GODEBUGCPU: value \"", value, "\" not supported for option ", key, "\n")
++			print("GODEBUG: value \"", value, "\" not supported for cpu option \"", key, "\"\n")
+ 			continue field
+ 		}
+ 
+@@ -201,7 +206,7 @@ field:
+ 			}
+ 		}
+ 
+-		print("GODEBUGCPU: unknown cpu feature \"", key, "\"\n")
++		print("GODEBUG: unknown cpu feature \"", key, "\"\n")
+ 	}
+ 
+ 	for _, o := range options {
+@@ -210,12 +215,12 @@ field:
+ 		}
+ 
+ 		if o.Enable && !*o.Feature {
+-			print("GODEBUGCPU: can not enable \"", o.Name, "\", missing hardware support\n")
++			print("GODEBUG: can not enable \"", o.Name, "\", missing CPU support\n")
+ 			continue
+ 		}
+ 
+ 		if !o.Enable && o.Required {
+-			print("GODEBUGCPU: can not disable \"", o.Name, "\", required feature\n")
++			print("GODEBUG: can not disable \"", o.Name, "\", required CPU feature\n")
+ 			continue
+ 		}
+ 
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index b01e212ce8..e09bd2d8b9 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -41,7 +41,7 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ 
+ 	testenv.MustHaveExec(t)
+ 
+-	env := "GODEBUGCPU=" + options
++	env := "GODEBUG=" + options
+ 
+ 	cmd := exec.Command(os.Args[0], "-test.run="+test)
+ 	cmd.Env = append(cmd.Env, env)
+@@ -58,14 +58,14 @@ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ }
+ 
+ func TestDisableAllCapabilities(t *testing.T) {
+-	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "all=off")
++	runDebugOptionsTest(t, "TestAllCapabilitiesDisabled", "cpu.all=off")
+ }
+ 
+ func TestAllCapabilitiesDisabled(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUGCPU") != "all=off" {
+-		t.Skipf("skipping test: GODEBUGCPU=all=off not set")
++	if os.Getenv("GODEBUG") != "cpu.all=off" {
++		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
+ 	}
+ 
+ 	for _, o := range Options {
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index a79be41811..9e93d1af5d 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -20,14 +20,14 @@ func TestX86ifAVX2hasAVX(t *testing.T) {
+ }
+ 
+ func TestDisableSSE2(t *testing.T) {
+-	runDebugOptionsTest(t, "TestSSE2DebugOption", "sse2=off")
++	runDebugOptionsTest(t, "TestSSE2DebugOption", "cpu.sse2=off")
+ }
+ 
+ func TestSSE2DebugOption(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUGCPU") != "sse2=off" {
+-		t.Skipf("skipping test: GODEBUGCPU=sse2=off not set")
++	if os.Getenv("GODEBUG") != "cpu.sse2=off" {
++		t.Skipf("skipping test: GODEBUG=cpu.sse2=off not set")
+ 	}
+ 
+ 	want := runtime.GOARCH != "386" // SSE2 can only be disabled on 386.
+@@ -37,14 +37,14 @@ func TestSSE2DebugOption(t *testing.T) {
+ }
+ 
+ func TestDisableSSE3(t *testing.T) {
+-	runDebugOptionsTest(t, "TestSSE3DebugOption", "sse3=off")
++	runDebugOptionsTest(t, "TestSSE3DebugOption", "cpu.sse3=off")
+ }
+ 
+ func TestSSE3DebugOption(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if os.Getenv("GODEBUGCPU") != "sse3=off" {
+-		t.Skipf("skipping test: GODEBUGCPU=sse3=off not set")
++	if os.Getenv("GODEBUG") != "cpu.sse3=off" {
++		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
+ 	}
+ 
+ 	want := false
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 41ac75d3dd..b78eff8ff6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -476,10 +476,10 @@ const (
+ 	_GoidCacheBatch = 16
+ )
+ 
+-// cpuinit extracts the environment variable GODEBUGCPU from the environment on
+-// Linux and Darwin and calls internal/cpu.Initialize.
++// cpuinit extracts the environment variable GODEBUG from the environment on
++// Unix-like operating systems and calls internal/cpu.Initialize.
+ func cpuinit() {
+-	const prefix = "GODEBUGCPU="
++	const prefix = "GODEBUG="
+ 	var env string
+ 
+ 	switch GOOS {
+@@ -487,7 +487,7 @@ func cpuinit() {
+ 		cpu.DebugOptions = true
+ 
+ 		// Similar to goenv_unix but extracts the environment value for
+-		// GODEBUGCPU directly.
++		// GODEBUG directly.
+ 		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
+ 		n := int32(0)
+ 		for argv_index(argv, argc+1+n) != nil {

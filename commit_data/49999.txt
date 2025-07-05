@@ -8,6 +8,20 @@ Date:   Sat Sep 18 23:24:07 2021 +0900
     Reviewed-on: https://go-review.googlesource.com/c/go/+/350694
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/link.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 592d2a655b..9be173ff98 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -283,7 +283,7 @@ func (a *Addr) SetConst(v int64) {
+ // Each Prog is charged to a specific source line in the debug information,
+ // specified by Pos.Line().
+ // Every Prog has a Ctxt field that defines its context.
+-// For performance reasons, Progs usually are usually bulk allocated, cached, and reused;
++// For performance reasons, Progs are usually bulk allocated, cached, and reused;
+ // those bulk allocators should always be used, rather than new(Prog).
+ //
+ // The other fields not yet mentioned are for use by the back ends and should

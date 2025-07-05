@@ -11,7 +11,37 @@ Date:   Thu Dec 12 06:40:16 2013 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/35660043
-
+---
  src/pkg/fmt/fmt_test.go | 2 ++
  src/pkg/fmt/format.go   | 5 ++++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index bf50675f54..444297d926 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -220,6 +220,8 @@ var fmtTests = []struct {
+ 	{"%+.3e", 0.0, "+0.000e+00"},
+ 	{"%+.3e", 1.0, "+1.000e+00"},
+ 	{"%+.3f", -1.0, "-1.000"},
++	{"%+07.2f", 1.0, "+001.00"},
++	{"%+07.2f", -1.0, "-001.00"},
+ 	{"% .3E", -1.0, "-1.000E+00"},
+ 	{"% .3e", 1.0, " 1.000e+00"},
+ 	{"%+.3g", 0.0, "+0"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 2e2b0716ed..a54f12ee9f 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -372,7 +372,10 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
+ 	default:
+ 		// There's no sign, but we might need one.
+ 		if f.plus {
+-			slice[0] = '+'
++			f.buf.WriteByte('+')
++			f.wid--
++			f.pad(slice[1:])
++			return
+ 		} else if f.space {
+ 			// space is already there
+ 		} else {

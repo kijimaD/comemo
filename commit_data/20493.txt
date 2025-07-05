@@ -12,6 +12,20 @@ Date:   Fri Sep 12 01:21:51 2014 -0700
     R=rsc, 0intro, aram
     CC=golang-codereviews, mischief
     https://golang.org/cl/139560044
-
+---
  src/runtime/sys_plan9_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index b0e1864602..3a96c2bf91 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -149,7 +149,7 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$0
+ 
+ 	// Initialize procid from TOS struct.
+ 	MOVQ	_tos(SB), AX
+-	MOVQ	64(AX), AX
++	MOVL	64(AX), AX
+ 	MOVQ	AX, m_procid(CX)	// save pid as m->procid
+ 
+ 	// Finally, initialize g.

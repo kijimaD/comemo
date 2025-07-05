@@ -9,10 +9,83 @@ Date:   Sun Mar 17 19:50:01 2013 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7853047
-
+---
  src/pkg/net/interface_bsd.go     | 1 -
  src/pkg/net/interface_darwin.go  | 1 -
  src/pkg/net/interface_freebsd.go | 1 -
  src/pkg/net/interface_linux.go   | 6 ------
  src/pkg/net/ip.go                | 1 -
  5 files changed, 10 deletions(-)
+
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index f58065a85b..716b60a97f 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -171,7 +171,6 @@ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (Addr, error) {
+ 				// the interface index in the interface-local or link-
+ 				// local address as the kernel-internal form.
+ 				if ifa.IP.IsLinkLocalUnicast() {
+-					ifa.Zone = ifi.Name
+ 					ifa.IP[2], ifa.IP[3] = 0, 0
+ 				}
+ 			}
+diff --git a/src/pkg/net/interface_darwin.go b/src/pkg/net/interface_darwin.go
+index 83e483ba20..a50a7988ee 100644
+--- a/src/pkg/net/interface_darwin.go
++++ b/src/pkg/net/interface_darwin.go
+@@ -54,7 +54,6 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage)
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+ 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+-				ifma.Zone = ifi.Name
+ 				ifma.IP[2], ifma.IP[3] = 0, 0
+ 			}
+ 			ifmat = append(ifmat, ifma.toAddr())
+diff --git a/src/pkg/net/interface_freebsd.go b/src/pkg/net/interface_freebsd.go
+index 1bf5ae72b8..d547d50b6d 100644
+--- a/src/pkg/net/interface_freebsd.go
++++ b/src/pkg/net/interface_freebsd.go
+@@ -54,7 +54,6 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage)
+ 			// the interface index in the interface-local or link-
+ 			// local address as the kernel-internal form.
+ 			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+-				ifma.Zone = ifi.Name
+ 				ifma.IP[2], ifma.IP[3] = 0, 0
+ 			}
+ 			ifmat = append(ifmat, ifma.toAddr())
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index e66daef06a..1207c0f269 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -156,9 +156,6 @@ func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRou
+ 			case syscall.AF_INET6:
+ 				ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
+ 				copy(ifa.IP, a.Value[:])
+-				if ifam.Scope == syscall.RT_SCOPE_HOST || ifam.Scope == syscall.RT_SCOPE_LINK {
+-					ifa.Zone = ifi.Name
+-				}
+ 				return ifa
+ 			}
+ 		}
+@@ -229,9 +226,6 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
+ 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
+ 			}
+ 			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
+-			if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {
+-				ifma.Zone = ifi.Name
+-			}
+ 			ifmat = append(ifmat, ifma.toAddr())
+ 		}
+ 	}
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index d588e3a429..aee4064161 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -36,7 +36,6 @@ type IPMask []byte
+ type IPNet struct {
+ 	IP   IP     // network number
+ 	Mask IPMask // network mask
+-	Zone string // IPv6 scoped addressing zone
+ }
+ 
+ // IPv4 returns the IP address (in 16-byte form) of the

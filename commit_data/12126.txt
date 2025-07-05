@@ -17,7 +17,7 @@ Date:   Tue Feb 21 22:08:42 2012 -0500
     R=golang-dev, minux.ma, r
     CC=golang-dev
     https://golang.org/cl/5686060
-
+---
  src/cmd/5a/lex.c           |  1 -
  src/cmd/5c/swt.c           |  7 +++----
  src/cmd/5c/txt.c           |  2 ++
@@ -45,3 +45,612 @@ Date:   Tue Feb 21 22:08:42 2012 -0500
  src/pkg/runtime/malloc.goc |  2 ++
  src/pkg/runtime/mgc0.c     |  7 ++-----
  26 files changed, 114 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index ab7e5228ec..4bef0219a2 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -491,7 +491,6 @@ zaddr(Gen *a, int s)
+ 
+ 	Bputc(&obuf, a->type);
+ 	Bputc(&obuf, a->reg);
+-	Bputc(&obuf, 0); // flag
+ 	Bputc(&obuf, s);
+ 	Bputc(&obuf, a->name);
+ 	switch(a->type) {
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 124a9710f5..7268f9af26 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -564,10 +564,9 @@ zaddr(char *bp, Adr *a, int s)
+ 
+ 	bp[0] = a->type;
+ 	bp[1] = a->reg;
+-	bp[2] = 0; // flag
+-	bp[3] = s;
+-	bp[4] = a->name;
+-	bp += 5;
++	bp[2] = s;
++	bp[3] = a->name;
++	bp += 4;
+ 	switch(a->type) {
+ 	default:
+ 		diag(Z, "unknown type %d in zaddr", a->type);
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 4de8908905..dea406eb92 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -139,7 +139,9 @@ gclean(void)
+ 			continue;
+ 		if(s->type == types[TENUM])
+ 			continue;
++		textflag = s->dataflag;
+ 		gpseudo(AGLOBL, s, nodconst(s->type->width));
++		textflag = 0;
+ 	}
+ 	nextpc();
+ 	p->as = AEND;
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 99b26075e5..7dbf3beecd 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -27,7 +27,6 @@ struct	Addr
+ 	uchar	reg;
+ 	char pun;
+ 	uchar	etype;
+-	char	flag;
+ };
+ #define	A	((Addr*)0)
+ 
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 1e0e96f1d1..b562ba888b 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -93,7 +93,6 @@ zaddr(Biobuf *b, Addr *a, int s)
+ 	default:
+ 		Bputc(b, a->type);
+ 		Bputc(b, a->reg);
+-		Bputc(b, a->flag);
+ 		Bputc(b, s);
+ 		Bputc(b, a->name);
+ 	}
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 387ebad355..86f05fb32c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -254,9 +254,9 @@ ggloblnod(Node *nam, int32 width)
+ 	p->to.type = D_CONST;
+ 	p->to.offset = width;
+ 	if(nam->readonly)
+-		p->from.flag = RODATA;
++		p->reg = RODATA;
+ 	if(nam->type != T && !haspointers(nam->type))
+-		p->from.flag |= NOPTR;
++		p->reg |= NOPTR;
+ }
+ 
+ void
+@@ -273,7 +273,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
+ 	p->to.offset = width;
+ 	if(dupok)
+ 		p->reg = DUPOK;
+-	p->from.flag |= RODATA;
++	p->reg |= RODATA;
+ }
+ 
+ int
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 4a4bfe1292..5edc27011a 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -75,6 +75,7 @@ enum {
+ 	ElfStrPlt,
+ 	ElfStrNoteNetbsdIdent,
+ 	ElfStrNoPtrData,
++	ElfStrNoPtrBss,
+ 	NElfStr
+ };
+ 
+@@ -168,6 +169,7 @@ doelf(void)
+ 	elfstr[ElfStrNoPtrData] = addstring(shstrtab, ".noptrdata");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	addstring(shstrtab, ".rodata");
+@@ -1847,12 +1849,14 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case STYPE:
+ 			case SSTRING:
+ 			case SGOSTRING:
++			case SNOPTRDATA:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'D', s->value, s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SBSS:
++			case SNOPTRBSS:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'B', s->value, s->size, s->version, s->gotype);
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 4abb6f2f50..b1a48ded89 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -76,7 +76,6 @@ struct	Adr
+ 	uchar	index; // not used on arm, required by ld/go.c
+ 	char	reg;
+ 	char	name;
+-	char	flag;
+ 	int32	offset2; // argsize
+ 	char	class;
+ 	Sym*	gotype;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 316a9a01b3..eb078511b6 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -301,7 +301,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ 
+ 	a->type = Bgetc(f);
+ 	a->reg = Bgetc(f);
+-	a->flag = Bgetc(f);
+ 	c = Bgetc(f);
+ 	if(c < 0 || c > NSYM){
+ 		print("sym out of range: %d\n", c);
+@@ -541,7 +540,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->value = 0;
+ 		}
+-		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
++		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
+ 			diag("redefinition: %s\n%P", s->name, p);
+ 			s->type = SBSS;
+ 			s->value = 0;
+@@ -550,10 +549,14 @@ loop:
+ 			s->size = p->to.offset;
+ 		if(p->reg & DUPOK)
+ 			s->dupok = 1;
+-		if(p->from.flag & RODATA)
++		if(p->reg & RODATA)
+ 			s->type = SRODATA;
+-		else if(p->from.flag & NOPTR)
+-			s->type = SNOPTRDATA;
++		else if(p->reg & NOPTR) {
++			if(s->np > 0)
++				s->type = SNOPTRDATA;
++			else
++				s->type = SNOPTRBSS;
++		}
+ 		break;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index 2e1232a1a1..13e1848e16 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -421,6 +421,8 @@ symaddr(Sym *s)
+ 	case SDATA:
+ 	case SBSS:
+ 	case SCONST:
++	case SNOPTRDATA:
++	case SNOPTRBSS:
+ 		break;
+ 	}
+ 	return v;
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index dd232f085f..2cb8c15851 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -158,7 +158,9 @@ gclean(void)
+ 			continue;
+ 		if(s->type == types[TENUM])
+ 			continue;
++		textflag = s->dataflag;
+ 		gpseudo(AGLOBL, s, nodconst(s->type->width));
++		textflag = 0;
+ 	}
+ 	nextpc();
+ 	p->as = AEND;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index b64a6dabbc..d5954ea517 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -96,6 +96,7 @@ enum {
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
+ 	ElfStrNoPtrData,
++	ElfStrNoPtrBss,
+ 	NElfStr
+ };
+ 
+@@ -573,6 +574,7 @@ doelf(void)
+ 	elfstr[ElfStrNoPtrData] = addstring(shstrtab, ".noptrdata");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	addstring(shstrtab, ".elfdata");
+@@ -1169,6 +1171,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 		case SCONST:
+ 		case SRODATA:
+ 		case SDATA:
++		case SNOPTRDATA:
+ 		case SELFROSECT:
+ 		case SMACHOGOT:
+ 		case STYPE:
+@@ -1181,6 +1184,7 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			continue;
+ 
+ 		case SBSS:
++		case SNOPTRBSS:
+ 			if(!s->reachable)
+ 				continue;
+ 			put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 19f85f059e..f441f3303d 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -555,7 +555,7 @@ loop:
+ 			s->type = SBSS;
+ 			s->size = 0;
+ 		}
+-		if(s->type != SBSS && s->type != SNOPTRDATA && !s->dupok) {
++		if(s->type != SBSS && s->type != SNOPTRBSS && !s->dupok) {
+ 			diag("%s: redefinition: %s in %s",
+ 				pn, s->name, TNAME);
+ 			s->type = SBSS;
+@@ -567,8 +567,12 @@ loop:
+ 			s->dupok = 1;
+ 		if(p->from.scale & RODATA)
+ 			s->type = SRODATA;
+-		else if(p->from.scale & NOPTR)
+-			s->type = SNOPTRDATA;
++		else if(p->from.scale & NOPTR) {
++			if(s->np > 0)
++				s->type = SNOPTRDATA;
++			else
++				s->type = SNOPTRBSS;
++		}
+ 		goto loop;
+ 
+ 	case ADATA:
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 65c551ef6f..3a08da7cd2 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -146,7 +146,9 @@ gclean(void)
+ 			continue;
+ 		if(s->type == types[TENUM])
+ 			continue;
++		textflag = s->dataflag;
+ 		gpseudo(AGLOBL, s, nodconst(s->type->width));
++		textflag = 0;
+ 	}
+ 	nextpc();
+ 	p->as = AEND;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 27881d8088..2b8137fb3a 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -92,6 +92,7 @@ enum {
+ 	ElfStrGnuVersionR,
+ 	ElfStrNoteNetbsdIdent,
+ 	ElfStrNoPtrData,
++	ElfStrNoPtrBss,
+ 	NElfStr
+ };
+ 
+@@ -530,6 +531,7 @@ doelf(void)
+ 	elfstr[ElfStrNoPtrData] = addstring(shstrtab, ".noptrdata");
+ 	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+ 	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
++	elfstr[ElfStrNoPtrBss] = addstring(shstrtab, ".noptrbss");
+ 	if(HEADTYPE == Hnetbsd)
+ 		elfstr[ElfStrNoteNetbsdIdent] = addstring(shstrtab, ".note.netbsd.ident");
+ 	addstring(shstrtab, ".elfdata");
+@@ -1256,12 +1258,14 @@ genasmsym(void (*put)(Sym*, char*, int, vlong, vlong, int, Sym*))
+ 			case SSTRING:
+ 			case SGOSTRING:
+ 			case SWINDOWS:
++			case SNOPTRDATA:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'D', symaddr(s), s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SBSS:
++			case SNOPTRBSS:
+ 				if(!s->reachable)
+ 					continue;
+ 				put(s, s->name, 'B', symaddr(s), s->size, s->version, s->gotype);
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 566494e752..f4632364cf 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -122,6 +122,7 @@ struct	Sym
+ 	uchar	sym;
+ 	uchar	aused;
+ 	uchar	sig;
++	uchar	dataflag;
+ };
+ #define	S	((Sym*)0)
+ 
+@@ -524,6 +525,7 @@ EXTERN	int	nterm;
+ EXTERN	int	packflg;
+ EXTERN	int	fproundflg;
+ EXTERN	int	textflag;
++EXTERN	int	dataflag;
+ EXTERN	int	ncontin;
+ EXTERN	int	canreach;
+ EXTERN	int	warnreach;
+@@ -766,6 +768,7 @@ void	arginit(void);
+ void	pragvararg(void);
+ void	pragpack(void);
+ void	pragfpround(void);
++void	pragdataflag(void);
+ void	pragtextflag(void);
+ void	pragincomplete(void);
+ void	pragdynimport(void);
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index d624bf2474..a3ed9772da 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -120,6 +120,10 @@ loop:
+ 		(*f)(c, t, s);
+ 		if(s->class == CLOCAL)
+ 			s = mkstatic(s);
++		if(dataflag) {
++			s->dataflag = dataflag;
++			dataflag = 0;
++		}
+ 		firstbit = 0;
+ 		n->sym = s;
+ 		n->type = s->type;
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 084aa04846..c579e20d98 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -567,19 +567,23 @@ pragfpround(void)
+ void
+ pragtextflag(void)
+ {
+-	Sym *s;
+-
+-	textflag = 0;
+-	s = getsym();
+-	textflag = 7;
+-	if(s)
+-		textflag = atoi(s->name+1);
++	textflag = getnsn();
+ 	while(getnsc() != '\n')
+ 		;
+ 	if(debug['f'])
+ 		print("%4d: textflag %d\n", lineno, textflag);
+ }
+ 
++void
++pragdataflag(void)
++{
++	dataflag = getnsn();
++	while(getnsc() != '\n')
++		;
++	if(debug['f'])
++		print("%4d: dataflag %d\n", lineno, dataflag);
++}
++
+ void
+ pragincomplete(void)
+ {
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index f4cc19c2ea..d339cf9a29 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -74,6 +74,13 @@ pragtextflag(void)
+ 		;
+ }
+ 
++void
++pragdataflag(void)
++{
++	while(getnsc() != '\n')
++		;
++}
++
+ void
+ pragprofile(void)
+ {
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index ed66361f1a..874e82d255 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -731,6 +731,10 @@ macprag(void)
+ 		pragtextflag();
+ 		return;
+ 	}
++	if(s && strcmp(s->name, "dataflag") == 0) {
++		pragdataflag();
++		return;
++	}
+ 	if(s && strcmp(s->name, "varargck") == 0) {
+ 		pragvararg();
+ 		return;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index e5e1db6d6e..5ed8568ff3 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -806,8 +806,12 @@ dodata(void)
+ 	}
+ 
+ 	for(s = datap; s != nil; s = s->next) {
+-		if(s->np > 0 && s->type == SBSS)
+-			s->type = SDATA;
++		if(s->np > 0) {
++			if(s->type == SBSS)
++				s->type = SDATA;
++			if(s->type == SNOPTRBSS)
++				s->type = SNOPTRDATA;
++		}
+ 		if(s->np > s->size)
+ 			diag("%s: initialize bounds (%lld < %d)",
+ 				s->name, (vlong)s->size, s->np);
+@@ -935,11 +939,24 @@ dodata(void)
+ 		datsize += t;
+ 	}
+ 
+-	/* bss */
++	/* bss, then pointer-free bss */
++	noptr = nil;
+ 	sect = addsection(&segdata, ".bss", 06);
+ 	sect->vaddr = datsize;
+-	for(; s != nil; s = s->next) {
+-		if(s->type != SBSS) {
++	for(; ; s = s->next) {
++		if((s == nil || s->type >= SNOPTRBSS) && noptr == nil) {
++			// finish bss, start noptrbss
++			datsize = rnd(datsize, 8);
++			sect->len = datsize - sect->vaddr;
++			sect = addsection(&segdata, ".noptrbss", 06);
++			sect->vaddr = datsize;
++			noptr = sect;
++		}
++		if(s == nil) {
++			sect->len = datsize - sect->vaddr;
++			break;
++		}
++		if(s->type > SNOPTRBSS) {
+ 			cursym = s;
+ 			diag("unexpected symbol type %d", s->type);
+ 		}
+@@ -961,7 +978,6 @@ dodata(void)
+ 		s->value = datsize;
+ 		datsize += t;
+ 	}
+-	sect->len = datsize - sect->vaddr;
+ }
+ 
+ // assign addresses to text
+@@ -1004,7 +1020,7 @@ textaddress(void)
+ void
+ address(void)
+ {
+-	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr;
++	Section *s, *text, *data, *rodata, *symtab, *pclntab, *noptr, *bss, *noptrbss;
+ 	Sym *sym, *sub;
+ 	uvlong va;
+ 
+@@ -1031,6 +1047,8 @@ address(void)
+ 		segdata.fileoff = segtext.fileoff + segtext.filelen;
+ 	data = nil;
+ 	noptr = nil;
++	bss = nil;
++	noptrbss = nil;
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;
+@@ -1040,8 +1058,12 @@ address(void)
+ 			data = s;
+ 		if(strcmp(s->name, ".noptrdata") == 0)
+ 			noptr = s;
++		if(strcmp(s->name, ".bss") == 0)
++			bss = s;
++		if(strcmp(s->name, ".noptrbss") == 0)
++			noptrbss = s;
+ 	}
+-	segdata.filelen -= data->next->len; // deduct .bss
++	segdata.filelen -= bss->len + noptrbss->len; // deduct .bss
+ 
+ 	text = segtext.sect;
+ 	rodata = text->next;
+@@ -1068,7 +1090,11 @@ address(void)
+ 	xdefine("epclntab", SRODATA, pclntab->vaddr + pclntab->len);
+ 	xdefine("noptrdata", SBSS, noptr->vaddr);
+ 	xdefine("enoptrdata", SBSS, noptr->vaddr + noptr->len);
++	xdefine("bss", SBSS, bss->vaddr);
++	xdefine("ebss", SBSS, bss->vaddr + bss->len);
+ 	xdefine("data", SBSS, data->vaddr);
+ 	xdefine("edata", SBSS, data->vaddr + data->len);
++	xdefine("noptrbss", SBSS, noptrbss->vaddr);
++	xdefine("enoptrbss", SBSS, noptrbss->vaddr + noptrbss->len);
+ 	xdefine("end", SBSS, segdata.vaddr + segdata.len);
+ }
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index a66a571c21..f5881b5d6f 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -49,6 +49,7 @@ enum
+ 	SMACHOGOT,
+ 	SWINDOWS,
+ 	SBSS,
++	SNOPTRBSS,
+ 
+ 	SXREF,
+ 	SMACHODYNSTR,
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index d89359958e..6d76e9e775 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -334,6 +334,10 @@ symtab(void)
+ 	xdefine("enoptrdata", SBSS, 0);
+ 	xdefine("data", SBSS, 0);
+ 	xdefine("edata", SBSS, 0);
++	xdefine("bss", SBSS, 0);
++	xdefine("ebss", SBSS, 0);
++	xdefine("noptrbss", SBSS, 0);
++	xdefine("enoptrbss", SBSS, 0);
+ 	xdefine("end", SBSS, 0);
+ 	xdefine("epclntab", SRODATA, 0);
+ 	xdefine("esymtab", SRODATA, 0);
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index a5827f5599..e539362b0b 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -112,7 +112,7 @@ addr(Biobuf *bp)
+ 	long off;
+ 
+ 	a.type = Bgetc(bp);	/* a.type */
+-	skip(bp,2);		/* reg, flag */
++	skip(bp,1);		/* reg */
+ 	a.sym = Bgetc(bp);	/* sym index */
+ 	a.name = Bgetc(bp);	/* sym type */
+ 	switch(a.type){
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index c9f1d67c22..932e3d9ef6 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -14,7 +14,9 @@ package runtime
+ #include "defs_GOOS_GOARCH.h"
+ #include "type.h"
+ 
++#pragma dataflag 16 /* mark mheap as 'no pointers', hiding from garbage collector */
+ MHeap runtime·mheap;
++
+ extern MStats mstats;	// defined in extern.go
+ 
+ extern volatile int32 runtime·MemProfileRate;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 8efa7afc03..fd1babfd35 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -85,7 +85,7 @@ struct FinBlock
+ 
+ extern byte data[];
+ extern byte etext[];
+-extern byte end[];
++extern byte ebss[];
+ 
+ static G *fing;
+ static FinBlock *finq; // list of finalizers that are to be executed
+@@ -630,10 +630,7 @@ mark(void (*scan)(byte*, int64))
+ 	FinBlock *fb;
+ 
+ 	// mark data+bss.
+-	// skip runtime·mheap itself, which has no interesting pointers
+-	// and is mostly zeroed and would not otherwise be paged in.
+-	scan(data, (byte*)&runtime·mheap - data);
+-	scan((byte*)(&runtime·mheap+1), end - (byte*)(&runtime·mheap+1));
++	scan(data, ebss - data);
+ 
+ 	// mark stacks
+ 	for(gp=runtime·allg; gp!=nil; gp=gp->alllink) {

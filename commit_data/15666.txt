@@ -10,7 +10,7 @@ Date:   Sun Mar 10 18:19:53 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7594046
-
+---
  src/cmd/5l/asm.c     | 25 +++++++++----------------
  src/cmd/5l/l.h       |  2 +-
  src/cmd/6l/asm.c     | 32 +++++++++++++-------------------
@@ -26,3 +26,629 @@ Date:   Sun Mar 10 18:19:53 2013 -0400
  src/cmd/ld/macho.c   | 14 +++-----------
  src/cmd/ld/pe.c      | 14 +++++++-------
  14 files changed, 60 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 097b74e31b..4afbedfc43 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -125,7 +125,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	// Handle relocations found in ELF object files.
+ 	case 256 + R_ARM_PLT32:
+ 		r->type = D_CALL;
+-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add = braddoff(r->add, targ->plt / 4);
+@@ -138,7 +138,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 
+ 	case 256 + R_ARM_GOT32: // R_ARM_GOT_BREL
+-		if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic)) {
++		if(targ->type != SDYNIMPORT) {
+ 			addgotsyminternal(targ);
+ 		} else {
+ 			addgotsym(targ);
+@@ -149,7 +149,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 
+ 	case 256 + R_ARM_GOT_PREL: // GOT(S) + A - P
+-		if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic)) {
++		if(targ->type != SDYNIMPORT) {
+ 			addgotsyminternal(targ);
+ 		} else {
+ 			addgotsym(targ);
+@@ -171,7 +171,7 @@ adddynrel(Sym *s, Reloc *r)
+ 
+ 	case 256 + R_ARM_CALL:
+ 		r->type = D_CALL;
+-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add = braddoff(r->add, targ->plt / 4);
+@@ -184,7 +184,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 
+ 	case 256 + R_ARM_ABS32: 
+-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic))
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ->name);
+ 		r->type = D_ADDR;
+ 		return;
+@@ -201,7 +201,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	case 256 + R_ARM_PC24:
+ 	case 256 + R_ARM_JUMP24:
+ 		r->type = D_CALL;
+-		if(targ->dynimpname != nil && !(targ->cgoexport & CgoExportDynamic)) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add = braddoff(r->add, targ->plt / 4);
+@@ -210,7 +210,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	}
+ 	
+ 	// Handle references to ELF symbols from our own object files.
+-	if(targ->dynimpname == nil || (targ->cgoexport & CgoExportDynamic))
++	if(targ->type != SDYNIMPORT)
+ 		return;
+ 
+ 	switch(r->type) {
+@@ -437,20 +437,13 @@ adddynsym(Sym *s)
+ 	if(s->dynid >= 0)
+ 		return;
+ 
+-	if(s->dynimpname == nil) {
+-		s->dynimpname = s->name;
+-		//diag("adddynsym: no dynamic name for %s", s->name);
+-	}
+-
+ 	if(iself) {
+ 		s->dynid = nelfsym++;
+ 
+ 		d = lookup(".dynsym", 0);
+ 
+ 		/* name */
+-		name = s->dynimpname;
+-		if(name == nil)
+-			name = s->name;
++		name = s->extname;
+ 		adduint32(d, addstring(lookup(".dynstr", 0), name));
+ 
+ 		/* value */
+@@ -472,7 +465,7 @@ adddynsym(Sym *s)
+ 		adduint8(d, 0);
+ 
+ 		/* shndx */
+-		if(!(s->cgoexport & CgoExportDynamic) && s->dynimpname != nil)
++		if(s->type == SDYNIMPORT)
+ 			adduint16(d, SHN_UNDEF);
+ 		else {
+ 			switch(s->type) {
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 0b31b07ab6..78f99d873d 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -134,6 +134,7 @@ struct	Prog
+ struct	Sym
+ {
+ 	char*	name;
++	char*	extname;	// name used in external object files
+ 	short	type;
+ 	short	version;
+ 	uchar	dupok;
+@@ -163,7 +164,6 @@ struct	Sym
+ 	Sym*	reachparent;
+ 	Sym*	queue;
+ 	char*	file;
+-	char*	dynimpname;
+ 	char*	dynimplib;
+ 	char*	dynimpvers;
+ 	struct Section*	sect;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 40bea63bfe..d2c6f86d35 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -131,7 +131,7 @@ adddynrel(Sym *s, Reloc *r)
+ 
+ 	// Handle relocations found in ELF object files.
+ 	case 256 + R_X86_64_PC32:
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected R_X86_64_PC32 relocation for dynamic symbol %s", targ->name);
+ 		if(targ->type == 0 || targ->type == SXREF)
+ 			diag("unknown symbol %s in pcrel", targ->name);
+@@ -142,7 +142,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	case 256 + R_X86_64_PLT32:
+ 		r->type = D_PCREL;
+ 		r->add += 4;
+-		if(targ->dynimpname != nil && !targ->cgoexport) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add += targ->plt;
+@@ -150,7 +150,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 	
+ 	case 256 + R_X86_64_GOTPCREL:
+-		if(targ->dynimpname == nil || targ->cgoexport) {
++		if(targ->type != SDYNIMPORT) {
+ 			// have symbol
+ 			if(r->off >= 2 && s->p[r->off-2] == 0x8b) {
+ 				// turn MOVQ of GOT entry into LEAQ of symbol itself
+@@ -161,7 +161,6 @@ adddynrel(Sym *s, Reloc *r)
+ 			}
+ 			// fall back to using GOT and hope for the best (CMOV*)
+ 			// TODO: just needs relocation, no need to put in .dynsym
+-			targ->dynimpname = targ->name;
+ 		}
+ 		addgotsym(targ);
+ 		r->type = D_PCREL;
+@@ -171,7 +170,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 	
+ 	case 256 + R_X86_64_64:
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected R_X86_64_64 relocation for dynamic symbol %s", targ->name);
+ 		r->type = D_ADDR;
+ 		return;
+@@ -182,12 +181,12 @@ adddynrel(Sym *s, Reloc *r)
+ 	case 512 + MACHO_X86_64_RELOC_BRANCH*2 + 0:
+ 		// TODO: What is the difference between all these?
+ 		r->type = D_ADDR;
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected reloc for dynamic symbol %s", targ->name);
+ 		return;
+ 
+ 	case 512 + MACHO_X86_64_RELOC_BRANCH*2 + 1:
+-		if(targ->dynimpname != nil && !targ->cgoexport) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add = targ->plt;
+@@ -201,12 +200,12 @@ adddynrel(Sym *s, Reloc *r)
+ 	case 512 + MACHO_X86_64_RELOC_SIGNED_2*2 + 1:
+ 	case 512 + MACHO_X86_64_RELOC_SIGNED_4*2 + 1:
+ 		r->type = D_PCREL;
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected pc-relative reloc for dynamic symbol %s", targ->name);
+ 		return;
+ 
+ 	case 512 + MACHO_X86_64_RELOC_GOT_LOAD*2 + 1:
+-		if(targ->dynimpname == nil || targ->cgoexport) {
++		if(targ->type != SDYNIMPORT) {
+ 			// have symbol
+ 			// turn MOVQ of GOT entry into LEAQ of symbol itself
+ 			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+@@ -219,7 +218,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		}
+ 		// fall through
+ 	case 512 + MACHO_X86_64_RELOC_GOT*2 + 1:
+-		if(targ->dynimpname == nil || targ->cgoexport)
++		if(targ->type != SDYNIMPORT)
+ 			diag("unexpected GOT reloc for non-dynamic symbol %s", targ->name);
+ 		addgotsym(targ);
+ 		r->type = D_PCREL;
+@@ -229,7 +228,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	}
+ 	
+ 	// Handle references to ELF symbols from our own object files.
+-	if(targ->dynimpname == nil || targ->cgoexport)
++	if(targ->type != SDYNIMPORT)
+ 		return;
+ 
+ 	switch(r->type) {
+@@ -455,17 +454,12 @@ adddynsym(Sym *s)
+ 	if(s->dynid >= 0)
+ 		return;
+ 
+-	if(s->dynimpname == nil)
+-		diag("adddynsym: no dynamic name for %s", s->name);
+-
+ 	if(iself) {
+ 		s->dynid = nelfsym++;
+ 
+ 		d = lookup(".dynsym", 0);
+ 
+-		name = s->dynimpname;
+-		if(name == nil)
+-			name = s->name;
++		name = s->extname;
+ 		adduint32(d, addstring(lookup(".dynstr", 0), name));
+ 		/* type */
+ 		t = STB_GLOBAL << 4;
+@@ -479,7 +473,7 @@ adddynsym(Sym *s)
+ 		adduint8(d, 0);
+ 	
+ 		/* section where symbol is defined */
+-		if(!s->cgoexport && s->dynimpname != nil)
++		if(s->type == SDYNIMPORT)
+ 			adduint16(d, SHN_UNDEF);
+ 		else {
+ 			switch(s->type) {
+@@ -514,7 +508,7 @@ adddynsym(Sym *s)
+ 				addstring(lookup(".dynstr", 0), s->dynimplib));
+ 		}
+ 	} else if(HEADTYPE == Hdarwin) {
+-		diag("adddynsym: missed symbol %s (%s)", s->name, s->dynimpname);
++		diag("adddynsym: missed symbol %s (%s)", s->name, s->extname);
+ 	} else if(HEADTYPE == Hwindows) {
+ 		// already taken care of
+ 	} else {
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index a06dff8c09..a48639d7ae 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -141,6 +141,7 @@ struct	Auto
+ struct	Sym
+ {
+ 	char*	name;
++	char*	extname;	// name used in external object files
+ 	short	type;
+ 	short	version;
+ 	uchar	dupok;
+@@ -168,7 +169,6 @@ struct	Sym
+ 	vlong	size;
+ 	Sym*	gotype;
+ 	char*	file;
+-	char*	dynimpname;
+ 	char*	dynimplib;
+ 	char*	dynimpvers;
+ 	struct Section*	sect;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 683eeba109..9250aeeae3 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -128,7 +128,7 @@ adddynrel(Sym *s, Reloc *r)
+ 
+ 	// Handle relocations found in ELF object files.
+ 	case 256 + R_386_PC32:
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ->name);
+ 		if(targ->type == 0 || targ->type == SXREF)
+ 			diag("unknown symbol %s in pcrel", targ->name);
+@@ -139,7 +139,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	case 256 + R_386_PLT32:
+ 		r->type = D_PCREL;
+ 		r->add += 4;
+-		if(targ->dynimpname != nil && !targ->cgoexport) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add += targ->plt;
+@@ -147,7 +147,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;		
+ 	
+ 	case 256 + R_386_GOT32:
+-		if(targ->dynimpname == nil || targ->cgoexport) {
++		if(targ->type != SDYNIMPORT) {
+ 			// have symbol
+ 			// turn MOVL of GOT entry into LEAL of symbol itself
+ 			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+@@ -175,19 +175,19 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 
+ 	case 256 + R_386_32:
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected R_386_32 relocation for dynamic symbol %s", targ->name);
+ 		r->type = D_ADDR;
+ 		return;
+ 	
+ 	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 0:
+ 		r->type = D_ADDR;
+-		if(targ->dynimpname != nil && !targ->cgoexport)
++		if(targ->type == SDYNIMPORT)
+ 			diag("unexpected reloc for dynamic symbol %s", targ->name);
+ 		return;
+ 	
+ 	case 512 + MACHO_GENERIC_RELOC_VANILLA*2 + 1:
+-		if(targ->dynimpname != nil && !targ->cgoexport) {
++		if(targ->type == SDYNIMPORT) {
+ 			addpltsym(targ);
+ 			r->sym = lookup(".plt", 0);
+ 			r->add = targ->plt;
+@@ -198,7 +198,7 @@ adddynrel(Sym *s, Reloc *r)
+ 		return;
+ 	
+ 	case 512 + MACHO_FAKE_GOTPCREL:
+-		if(targ->dynimpname == nil || targ->cgoexport) {
++		if(targ->type != SDYNIMPORT) {
+ 			// have symbol
+ 			// turn MOVL of GOT entry into LEAL of symbol itself
+ 			if(r->off < 2 || s->p[r->off-2] != 0x8b) {
+@@ -217,7 +217,7 @@ adddynrel(Sym *s, Reloc *r)
+ 	}
+ 	
+ 	// Handle references to ELF symbols from our own object files.
+-	if(targ->dynimpname == nil || targ->cgoexport)
++	if(targ->type != SDYNIMPORT)
+ 		return;
+ 
+ 	switch(r->type) {
+@@ -435,18 +435,13 @@ adddynsym(Sym *s)
+ 	if(s->dynid >= 0)
+ 		return;
+ 	
+-	if(s->dynimpname == nil)
+-		diag("adddynsym: no dynamic name for %s", s->name);
+-
+ 	if(iself) {
+ 		s->dynid = nelfsym++;
+ 		
+ 		d = lookup(".dynsym", 0);
+ 
+ 		/* name */
+-		name = s->dynimpname;
+-		if(name == nil)
+-			name = s->name;
++		name = s->extname;
+ 		adduint32(d, addstring(lookup(".dynstr", 0), name));
+ 		
+ 		/* value */
+@@ -468,7 +463,7 @@ adddynsym(Sym *s)
+ 		adduint8(d, 0);
+ 	
+ 		/* shndx */
+-		if(!s->cgoexport && s->dynimpname != nil)
++		if(s->type == SDYNIMPORT)
+ 			adduint16(d, SHN_UNDEF);
+ 		else {
+ 			switch(s->type) {
+@@ -489,7 +484,7 @@ adddynsym(Sym *s)
+ 			adduint16(d, t);
+ 		}
+ 	} else if(HEADTYPE == Hdarwin) {
+-		diag("adddynsym: missed symbol %s (%s)", s->name, s->dynimpname);
++		diag("adddynsym: missed symbol %s (%s)", s->name, s->extname);
+ 	} else if(HEADTYPE == Hwindows) {
+ 		// already taken care of
+ 	} else {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index f6de746466..18a3de218d 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -123,6 +123,7 @@ struct	Auto
+ struct	Sym
+ {
+ 	char*	name;
++	char*	extname;	// name used in external object files
+ 	short	type;
+ 	short	version;
+ 	uchar	dupok;
+@@ -150,7 +151,6 @@ struct	Sym
+ 	Sym*	reachparent;
+ 	Sym*	queue;
+ 	char*	file;
+-	char*	dynimpname;
+ 	char*	dynimplib;
+ 	char*	dynimpvers;
+ 	struct Section*	sect;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 3e4e4bf6d9..e035942be7 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -297,7 +297,7 @@ dynrelocsym(Sym *s)
+ 	for(r=s->r; r<s->r+s->nr; r++) {
+ 		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256)
+ 			adddynrel(s, r);
+-		if(flag_shared && r->sym != S && (r->sym->dynimpname == nil || (r->sym->cgoexport & CgoExportDynamic)) && r->type == D_ADDR
++		if(flag_shared && r->sym != S && s->type != SDYNIMPORT && r->type == D_ADDR
+ 				&& (s == got || s->type == SDATA || s->type == SGOSTRING || s->type == STYPE || s->type == SRODATA)) {
+ 			// Create address based RELATIVE relocation
+ 			adddynrela(rel, s, r);
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 0bd23d8ed0..9f7cb75fa9 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -605,9 +605,7 @@ elfdynhash(void)
+ 		if(sy->dynimpvers)
+ 			need[sy->dynid] = addelflib(&needlib, sy->dynimplib, sy->dynimpvers);
+ 
+-		name = sy->dynimpname;
+-		if(name == nil)
+-			name = sy->name;
++		name = sy->extname;
+ 		hc = elfhash((uchar*)name);
+ 
+ 		b = hc % nbucket;
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 246d73c23f..66eddd5d8d 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -465,7 +465,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 				free(local);
+ 			if(s->type == 0 || s->type == SXREF) {
+ 				s->dynimplib = lib;
+-				s->dynimpname = remote;
++				s->extname = remote;
+ 				s->dynimpvers = q;
+ 				s->type = SDYNIMPORT;
+ 				havedynamic = 1;
+@@ -507,17 +507,17 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 				nerrors++;
+ 			}
+ 			
+-			if(strcmp(f[0], "cgo_export_static") == 0)
+-				s->cgoexport |= CgoExportStatic;
+-			else
+-				s->cgoexport |= CgoExportDynamic;
+-			if(s->dynimpname == nil) {
+-				s->dynimpname = remote;
++			if(s->cgoexport == 0) {
++				if(strcmp(f[0], "cgo_export_static") == 0)
++					s->cgoexport |= CgoExportStatic;
++				else
++					s->cgoexport |= CgoExportDynamic;
++				s->extname = remote;
+ 				if(ndynexp%32 == 0)
+ 					dynexp = erealloc(dynexp, (ndynexp+32)*sizeof dynexp[0]);
+ 				dynexp[ndynexp++] = s;
+-			} else if(strcmp(s->dynimpname, remote) != 0) {
+-				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->dynimpname, remote);
++			} else if(strcmp(s->extname, remote) != 0) {
++				fprint(2, "%s: conflicting cgo_export directives: %s as %s and %s\n", argv0, s->name, s->extname, remote);
+ 				nerrors++;
+ 				return;
+ 			}
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 750dff4e60..27041bc472 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -595,10 +595,8 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		s->sub = sect->sym->sub;
+ 		sect->sym->sub = s;
+ 		s->type = sect->sym->type | (s->type&~SMASK) | SSUB;
+-		if(!(s->cgoexport & CgoExportDynamic)) {
++		if(!(s->cgoexport & CgoExportDynamic))
+ 			s->dynimplib = nil;  // satisfy dynimport
+-			s->dynimpname = nil;  // satisfy dynimport
+-		}
+ 		s->value = sym.value;
+ 		s->size = sym.size;
+ 		s->outer = sect->sym;
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 2509be471c..098cb7beff 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -639,10 +639,8 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			s->size = (sym+1)->value - sym->value;
+ 		else
+ 			s->size = sect->addr + sect->size - sym->value;
+-		if(!(s->cgoexport & CgoExportDynamic)) {
++		if(!(s->cgoexport & CgoExportDynamic))
+ 			s->dynimplib = nil;	// satisfy dynimport
+-			s->dynimpname = nil;	// satisfy dynimport
+-		}
+ 		if(outer->type == STEXT) {
+ 			Prog *p;
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 5468c7b0e7..82a7df341a 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -843,6 +843,7 @@ _lookup(char *symb, int v, int creat)
+ 		return nil;
+ 
+ 	s = newsym(symb, v);
++	s->extname = s->name;
+ 	s->hash = hash[h];
+ 	hash[h] = s;
+ 
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index be85bf8093..b85b7d6d8b 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -458,7 +458,7 @@ symkind(Sym *s)
+ {
+ 	if(s->type == SDYNIMPORT)
+ 		return SymKindUndef;
+-	if(s->dynimpname)
++	if(s->cgoexport)
+ 		return SymKindExtdef;
+ 	return SymKindLocal;
+ }
+@@ -490,14 +490,6 @@ addsym(Sym *s, char *name, int type, vlong addr, vlong size, int ver, Sym *gotyp
+ 	}
+ 	nsortsym++;
+ }
+-
+-static char*
+-xsymname(Sym *s)
+-{
+-	if(s->dynimpname != nil)
+-		return s->dynimpname;
+-	return s->name;
+-}
+ 	
+ static int
+ scmp(const void *p1, const void *p2)
+@@ -513,7 +505,7 @@ scmp(const void *p1, const void *p2)
+ 	if(k1 != k2)
+ 		return k1 - k2;
+ 
+-	return strcmp(xsymname(s1), xsymname(s2));
++	return strcmp(s1->extname, s2->extname);
+ }
+ 
+ static void
+@@ -559,7 +551,7 @@ machosymtab(void)
+ 		s = sortsym[i];
+ 		adduint32(symtab, symstr->size);
+ 		adduint8(symstr, '_');
+-		addstring(symstr, xsymname(s));
++		addstring(symstr, s->extname);
+ 		if(s->type == SDYNIMPORT) {
+ 			adduint8(symtab, 0x01); // type N_EXT, external symbol
+ 			adduint8(symtab, 0); // no section
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 85f622dbc0..090d083f5d 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -195,7 +195,7 @@ initdynimport(void)
+ 	dr = nil;
+ 	m = nil;
+ 	for(s = allsym; s != S; s = s->allsym) {
+-		if(!s->reachable || !s->dynimpname || (s->cgoexport & CgoExportDynamic))
++		if(!s->reachable || s->type != SDYNIMPORT)
+ 			continue;
+ 		for(d = dr; d != nil; d = d->next) {
+ 			if(strcmp(d->name,s->dynimplib) == 0) {
+@@ -262,7 +262,7 @@ addimports(IMAGE_SECTION_HEADER *datsect)
+ 		for(m = d->ms; m != nil; m = m->next) {
+ 			m->off = nextsectoff + cpos() - startoff;
+ 			wputl(0); // hint
+-			strput(m->s->dynimpname);
++			strput(m->s->extname);
+ 		}
+ 	}
+ 	
+@@ -325,7 +325,7 @@ scmp(const void *p1, const void *p2)
+ 
+ 	s1 = *(Sym**)p1;
+ 	s2 = *(Sym**)p2;
+-	return strcmp(s1->dynimpname, s2->dynimpname);
++	return strcmp(s1->extname, s2->extname);
+ }
+ 
+ static void
+@@ -335,7 +335,7 @@ initdynexport(void)
+ 	
+ 	nexport = 0;
+ 	for(s = allsym; s != S; s = s->allsym) {
+-		if(!s->reachable || !s->dynimpname || !(s->cgoexport & CgoExportDynamic))
++		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
+ 			continue;
+ 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
+ 			diag("pe dynexport table is full");
+@@ -358,7 +358,7 @@ addexports(void)
+ 
+ 	size = sizeof e + 10*nexport + strlen(outfile) + 1;
+ 	for(i=0; i<nexport; i++)
+-		size += strlen(dexport[i]->dynimpname) + 1;
++		size += strlen(dexport[i]->extname) + 1;
+ 	
+ 	if (nexport == 0)
+ 		return;
+@@ -394,7 +394,7 @@ addexports(void)
+ 	v = e.Name + strlen(outfile)+1;
+ 	for(i=0; i<nexport; i++) {
+ 		lputl(v);
+-		v += strlen(dexport[i]->dynimpname)+1;
++		v += strlen(dexport[i]->extname)+1;
+ 	}
+ 	// put EXPORT Ordinal Table
+ 	for(i=0; i<nexport; i++)
+@@ -402,7 +402,7 @@ addexports(void)
+ 	// put Names
+ 	strnput(outfile, strlen(outfile)+1);
+ 	for(i=0; i<nexport; i++)
+-		strnput(dexport[i]->dynimpname, strlen(dexport[i]->dynimpname)+1);
++		strnput(dexport[i]->extname, strlen(dexport[i]->extname)+1);
+ 	strnput("", sect->SizeOfRawData - size);
+ }
+ 

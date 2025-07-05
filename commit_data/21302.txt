@@ -19,6 +19,20 @@ Date:   Thu Dec 18 13:50:57 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/1830
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/cpuprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index d56678e21f..a9bb1add85 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -203,7 +203,7 @@ func (p *cpuProfile) add(pc []uintptr) {
+ 	h := uintptr(0)
+ 	for _, x := range pc {
+ 		h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
+-		h += x*31 + x*7 + x*3
++		h += x * 41
+ 	}
+ 	p.count++
+ 

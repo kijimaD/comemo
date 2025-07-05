@@ -20,7 +20,7 @@ Date:   Tue Sep 9 01:08:34 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/141810043
-
+---
  src/runtime/cgocallback.go |  2 +-
  src/runtime/chan.go        |  2 +-
  src/runtime/malloc.c       | 15 ---------------
@@ -35,3 +35,343 @@ Date:   Tue Sep 9 01:08:34 2014 -0400
  src/runtime/select.go      |  2 +-
  src/runtime/string.go      |  6 +++---
  13 files changed, 33 insertions(+), 44 deletions(-)
+
+diff --git a/src/runtime/cgocallback.go b/src/runtime/cgocallback.go
+index 844a095c22..b3edfb672a 100644
+--- a/src/runtime/cgocallback.go
++++ b/src/runtime/cgocallback.go
+@@ -21,7 +21,7 @@ import "unsafe"
+ // Either we need to add types or we need to stop using it.
+ 
+ func _cgo_allocate_internal(len uintptr) unsafe.Pointer {
+-	ret := gomallocgc(len, nil, 0)
++	ret := mallocgc(len, conservative, 0)
+ 	c := new(cgomal)
+ 	c.alloc = ret
+ 	gp := getg()
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 91ade4d37e..226b824065 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -37,7 +37,7 @@ func makechan(t *chantype, size int64) *hchan {
+ 		// buf points into the same allocation, elemtype is persistent.
+ 		// SudoG's are referenced from their owning thread so they can't be collected.
+ 		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
+-		c = (*hchan)(gomallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
++		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
+ 		if size > 0 && elem.size != 0 {
+ 			c.buf = (*uint8)(add(unsafe.Pointer(c), hchanSize))
+ 		} else {
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 752ff60f37..b56f42531e 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -23,23 +23,8 @@ MStats runtime·memstats;
+ 
+ Type* runtime·conservative;
+ 
+-void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
+ void runtime·gc_notype_ptr(Eface*);
+ 
+-void*
+-runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
+-{
+-	void *ret;
+-
+-	// Call into the Go version of mallocgc.
+-	// TODO: maybe someday we can get rid of this.  It is
+-	// probably the only location where we run Go code on the M stack.
+-	if((flag&FlagNoScan) == 0 && typ == nil)
+-		typ = runtime·conservative;
+-	runtime·cmallocgc(size, typ, flag, &ret);
+-	return ret;
+-}
+-
+ int32
+ runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **sp)
+ {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8181312f17..ca7cb6d36a 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -51,12 +51,16 @@ var maxMem uintptr
+ // Allocate an object of size bytes.
+ // Small objects are allocated from the per-P cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+-func gomallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
++func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 	if size == 0 {
+ 		return unsafe.Pointer(&zeroObject)
+ 	}
+ 	size0 := size
+ 
++	if flags&flagNoScan == 0 && typ == nil {
++		gothrow("malloc missing type")
++	}
++
+ 	// This function must be atomic wrt GC, but for performance reasons
+ 	// we don't acquirem/releasem on fast path. The code below does not have
+ 	// split stack checks, so it can't be preempted by GC.
+@@ -338,18 +342,13 @@ marked:
+ 	return x
+ }
+ 
+-// cmallocgc is a trampoline used to call the Go malloc from C.
+-func cmallocgc(size uintptr, typ *_type, flags int, ret *unsafe.Pointer) {
+-	*ret = gomallocgc(size, typ, flags)
+-}
+-
+ // implementation of new builtin
+ func newobject(typ *_type) unsafe.Pointer {
+ 	flags := 0
+ 	if typ.kind&kindNoPointers != 0 {
+ 		flags |= flagNoScan
+ 	}
+-	return gomallocgc(uintptr(typ.size), typ, flags)
++	return mallocgc(uintptr(typ.size), typ, flags)
+ }
+ 
+ // implementation of make builtin for slices
+@@ -361,13 +360,13 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
+ 	if int(n) < 0 || (typ.size > 0 && n > maxMem/uintptr(typ.size)) {
+ 		panic("runtime: allocation size out of range")
+ 	}
+-	return gomallocgc(uintptr(typ.size)*n, typ, flags)
++	return mallocgc(uintptr(typ.size)*n, typ, flags)
+ }
+ 
+ // rawmem returns a chunk of pointerless memory.  It is
+ // not zeroed.
+ func rawmem(size uintptr) unsafe.Pointer {
+-	return gomallocgc(size, nil, flagNoScan|flagNoZero)
++	return mallocgc(size, nil, flagNoScan|flagNoZero)
+ }
+ 
+ // round size up to next size class
+@@ -725,7 +724,7 @@ func runfinq() {
+ 					// all not yet finalized objects are stored in finq.
+ 					// If we do not mark it as FlagNoScan,
+ 					// the last finalized object is not collected.
+-					frame = gomallocgc(framesz, nil, flagNoScan)
++					frame = mallocgc(framesz, nil, flagNoScan)
+ 					framecap = framesz
+ 				}
+ 
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 1505cedcc0..cdda6e7e6f 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1867,7 +1867,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	if(p >= runtime·data && p < runtime·edata) {
+ 		n = ((PtrType*)t)->elem->size;
+ 		*len = n/PtrSize;
+-		*mask = runtime·mallocgc(*len, nil, 0);
++		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (p+i-runtime·data)/PtrSize;
+ 			bits = (((byte*)runtime·gcdatamask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+@@ -1879,7 +1879,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	if(p >= runtime·bss && p < runtime·ebss) {
+ 		n = ((PtrType*)t)->elem->size;
+ 		*len = n/PtrSize;
+-		*mask = runtime·mallocgc(*len, nil, 0);
++		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (p+i-runtime·bss)/PtrSize;
+ 			bits = (((byte*)runtime·gcbssmask.data)[off/PointersPerByte] >> ((off%PointersPerByte)*BitsPerPointer))&BitsMask;
+@@ -1890,7 +1890,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 	// heap
+ 	if(runtime·mlookup(p, &base, &n, nil)) {
+ 		*len = n/PtrSize;
+-		*mask = runtime·mallocgc(*len, nil, 0);
++		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (uintptr*)(base+i) - (uintptr*)runtime·mheap.arena_start;
+ 			b = runtime·mheap.arena_start - off/wordsPerBitmapByte - 1;
+@@ -1929,7 +1929,7 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 		size = bv.n/BitsPerPointer*PtrSize;
+ 		n = ((PtrType*)t)->elem->size;
+ 		*len = n/PtrSize;
+-		*mask = runtime·mallocgc(*len, nil, 0);
++		*mask = runtime·mallocgc(*len, nil, FlagNoScan);
+ 		for(i = 0; i < n; i += PtrSize) {
+ 			off = (p+i-(byte*)frame.varp+size)/PtrSize;
+ 			bits = (bv.data[off*BitsPerPointer/32] >> ((off*BitsPerPointer)%32))&BitsMask;
+diff --git a/src/runtime/os_plan9.c b/src/runtime/os_plan9.c
+index ab4a51e884..fe92e5b269 100644
+--- a/src/runtime/os_plan9.c
++++ b/src/runtime/os_plan9.c
+@@ -6,6 +6,7 @@
+ #include "os_GOOS.h"
+ #include "arch_GOARCH.h"
+ #include "textflag.h"
++#include "malloc.h"
+ 
+ int8 *goos = "plan9";
+ extern SigTab runtime·sigtab[];
+@@ -20,11 +21,11 @@ runtime·mpreinit(M *mp)
+ 	// Initialize stack and goroutine for note handling.
+ 	mp->gsignal = runtime·malg(32*1024);
+ 	mp->gsignal->m = mp;
+-	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, 0);
++	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, FlagNoScan);
+ 
+ 	// Initialize stack for handling strings from the
+ 	// errstr system call, as used in package syscall.
+-	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, 0);
++	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, FlagNoScan);
+ }
+ 
+ // Called to initialize a new m (including the bootstrap m).
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 4e7c50b7fd..8d069d3ee3 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -7,6 +7,8 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "textflag.h"
++#include "arch_GOARCH.h"
++#include "malloc.h"
+ 
+ #pragma dynimport runtime·AddVectoredExceptionHandler AddVectoredExceptionHandler "kernel32.dll"
+ #pragma dynimport runtime·CloseHandle CloseHandle "kernel32.dll"
+@@ -144,7 +146,7 @@ runtime·goenvs(void)
+ 	for(p=env; *p; n++)
+ 		p += runtime·findnullw(p)+1;
+ 
+-	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
++	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
+ 
+ 	p = env;
+ 	for(i=0; i<n; i++) {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 52ab654646..ac0a7541e8 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -147,7 +147,7 @@ func newdefer(siz int32) *_defer {
+ 	if d == nil {
+ 		// deferpool is empty or just a big defer
+ 		total := goroundupsize(totaldefersize(uintptr(siz)))
+-		d = (*_defer)(gomallocgc(total, conservative, 0))
++		d = (*_defer)(mallocgc(total, conservative, 0))
+ 	}
+ 	d.siz = siz
+ 	d.special = false
+diff --git a/src/runtime/parfor.c b/src/runtime/parfor.c
+index 6023193b5c..ba17303b23 100644
+--- a/src/runtime/parfor.c
++++ b/src/runtime/parfor.c
+@@ -6,6 +6,7 @@
+ 
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
++#include "malloc.h"
+ 
+ struct ParForThread
+ {
+@@ -27,7 +28,7 @@ runtime·parforalloc(uint32 nthrmax)
+ 
+ 	// The ParFor object is followed by CacheLineSize padding
+ 	// and then nthrmax ParForThread.
+-	desc = (ParFor*)runtime·mallocgc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread), nil, 0);
++	desc = (ParFor*)runtime·mallocgc(sizeof(ParFor) + CacheLineSize + nthrmax * sizeof(ParForThread), runtime·conservative, 0);
+ 	desc->thr = (ParForThread*)((byte*)(desc+1) + CacheLineSize);
+ 	desc->nthrmax = nthrmax;
+ 	return desc;
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index c462ae2b5e..6132fee579 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -2286,7 +2286,7 @@ allgadd(G *gp)
+ 		cap = 4096/sizeof(new[0]);
+ 		if(cap < 2*allgcap)
+ 			cap = 2*allgcap;
+-		new = runtime·mallocgc(cap*sizeof(new[0]), nil, 0);
++		new = runtime·mallocgc(cap*sizeof(new[0]), runtime·conservative, 0);
+ 		if(new == nil)
+ 			runtime·throw("runtime: cannot allocate memory");
+ 		if(runtime·allg != nil)
+@@ -2757,7 +2757,7 @@ procresize(int32 new)
+ 	for(i = 0; i < new; i++) {
+ 		p = runtime·allp[i];
+ 		if(p == nil) {
+-			p = (P*)runtime·mallocgc(sizeof(*p), 0, 0);
++			p = (P*)runtime·mallocgc(sizeof(*p), runtime·conservative, 0);
+ 			p->id = i;
+ 			p->status = Pgcstop;
+ 			runtime·atomicstorep(&runtime·allp[i], p);
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 42ce1dadfb..97d040664b 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -6,6 +6,7 @@
+ #include "stack.h"
+ #include "arch_GOARCH.h"
+ #include "textflag.h"
++#include "malloc.h"
+ 
+ // Keep a cached value to make gotraceback fast,
+ // since we call it on every call to gentraceback.
+@@ -96,7 +97,7 @@ runtime·goargs(void)
+ 	if(Windows)
+ 		return;
+ 
+-	s = runtime·mallocgc(argc*sizeof s[0], nil, 0);
++	s = runtime·mallocgc(argc*sizeof s[0], runtime·conservative, 0);
+ 	for(i=0; i<argc; i++)
+ 		s[i] = runtime·gostringnocopy(argv[i]);
+ 	os·Args.array = (byte*)s;
+@@ -113,7 +114,7 @@ runtime·goenvs_unix(void)
+ 	for(n=0; argv[argc+1+n] != 0; n++)
+ 		;
+ 
+-	s = runtime·mallocgc(n*sizeof s[0], nil, 0);
++	s = runtime·mallocgc(n*sizeof s[0], runtime·conservative, 0);
+ 	for(i=0; i<n; i++)
+ 		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
+ 	syscall·envs.array = (byte*)s;
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 6d2531e7f8..7716d2d4b2 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -588,7 +588,7 @@ const (
+ func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
+ 	// flagNoScan is safe here, because all objects are also referenced from cases.
+ 	size := selectsize(uintptr(len(cases)))
+-	sel := (*_select)(gomallocgc(size, nil, flagNoScan))
++	sel := (*_select)(mallocgc(size, nil, flagNoScan))
+ 	newselect(sel, int64(size), int32(len(cases)))
+ 	r := new(bool)
+ 	for i := range cases {
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 99cce1326a..c84f673427 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -192,7 +192,7 @@ func stringiter2(s string, k int) (int, rune) {
+ // The storage is not zeroed. Callers should use
+ // b to set the string contents and then drop b.
+ func rawstring(size int) (s string, b []byte) {
+-	p := gomallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
++	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
+ 
+ 	(*stringStruct)(unsafe.Pointer(&s)).str = p
+ 	(*stringStruct)(unsafe.Pointer(&s)).len = size
+@@ -212,7 +212,7 @@ func rawstring(size int) (s string, b []byte) {
+ // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
+ func rawbyteslice(size int) (b []byte) {
+ 	cap := goroundupsize(uintptr(size))
+-	p := gomallocgc(cap, nil, flagNoScan|flagNoZero)
++	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
+ 	if cap != uintptr(size) {
+ 		memclr(add(p, uintptr(size)), cap-uintptr(size))
+ 	}
+@@ -229,7 +229,7 @@ func rawruneslice(size int) (b []rune) {
+ 		gothrow("out of memory")
+ 	}
+ 	mem := goroundupsize(uintptr(size) * 4)
+-	p := gomallocgc(mem, nil, flagNoScan|flagNoZero)
++	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
+ 	if mem != uintptr(size)*4 {
+ 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
+ 	}

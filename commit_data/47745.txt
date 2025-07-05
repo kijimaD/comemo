@@ -17,7 +17,98 @@ Date:   Thu Apr 8 12:44:05 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 11 +++++++----
  src/cmd/compile/internal/ssa/value.go        | 29 ++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index ede713f22a..cb8b2eeec8 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1015,7 +1015,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
+ 			if x.debug {
+ 				x.Printf("...marking %v unused\n", a.LongString())
+ 			}
+-			a.reset(OpInvalid)
++			a.invalidateRecursively()
+ 		}
+ 	}
+ 
+@@ -1140,7 +1140,7 @@ func expandCalls(f *Func) {
+ 					if x.debug {
+ 						x.Printf("...marking %v unused\n", a.LongString())
+ 					}
+-					a.reset(OpInvalid)
++					a.invalidateRecursively()
+ 				}
+ 			}
+ 			if x.debug {
+@@ -1343,6 +1343,9 @@ func expandCalls(f *Func) {
+ 		if dupe == nil {
+ 			x.commonSelectors[sk] = v
+ 		} else if x.sdom.IsAncestorEq(dupe.Block, v.Block) {
++			if x.debug {
++				x.Printf("Duplicate, make %s copy of %s\n", v, dupe)
++			}
+ 			v.copyOf(dupe)
+ 		} else {
+ 			// Because values are processed in dominator order, the old common[s] will never dominate after a miss is seen.
+@@ -1361,7 +1364,7 @@ func expandCalls(f *Func) {
+ 			x.Printf("allOrdered[%d] = b%d, %s, uses=%d\n", i, b.ID, v.LongString(), v.Uses)
+ 		}
+ 		if v.Uses == 0 {
+-			v.reset(OpInvalid)
++			v.invalidateRecursively()
+ 			continue
+ 		}
+ 		if v.Op == OpCopy {
+@@ -1456,7 +1459,7 @@ func expandCalls(f *Func) {
+ 				v.SetArg(i, aa)
+ 				for a.Uses == 0 {
+ 					b := a.Args[0]
+-					a.reset(OpInvalid)
++					a.invalidateRecursively()
+ 					a = b
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index ba7f8c0300..630e4814b9 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -348,6 +348,35 @@ func (v *Value) reset(op Op) {
+ 	v.Aux = nil
+ }
+ 
++// invalidateRecursively marks a value as invalid (unused)
++// and after decrementing reference counts on its Args,
++// also recursively invalidates any of those whose use
++// count goes to zero.
++//
++// BEWARE of doing this *before* you've applied intended
++// updates to SSA.
++func (v *Value) invalidateRecursively() {
++	if v.InCache {
++		v.Block.Func.unCache(v)
++	}
++	v.Op = OpInvalid
++
++	for _, a := range v.Args {
++		a.Uses--
++		if a.Uses == 0 {
++			a.invalidateRecursively()
++		}
++	}
++
++	v.argstorage[0] = nil
++	v.argstorage[1] = nil
++	v.argstorage[2] = nil
++	v.Args = v.argstorage[:0]
++
++	v.AuxInt = 0
++	v.Aux = nil
++}
++
+ // copyOf is called from rewrite rules.
+ // It modifies v to be (Copy a).
+ //go:noinline

@@ -10,6 +10,33 @@ Date:   Wed Nov 29 10:48:12 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/80696
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
-
+---
  src/go/format/format.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index b9cacfebd8..cad5958e5c 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -24,8 +24,8 @@ const parserMode = parser.ParseComments
+ // The node type must be *ast.File, *printer.CommentedNode, []ast.Decl,
+ // []ast.Stmt, or assignment-compatible to ast.Expr, ast.Decl, ast.Spec,
+ // or ast.Stmt. Node does not modify node. Imports are not sorted for
+-// nodes representing partial source files (i.e., if the node is not an
+-// *ast.File or a *printer.CommentedNode not wrapping an *ast.File).
++// nodes representing partial source files (for instance, if the node is
++// not an *ast.File or a *printer.CommentedNode not wrapping an *ast.File).
+ //
+ // The function may return early (before the entire result is written)
+ // and return a formatting error, for instance due to an incorrect AST.
+@@ -79,6 +79,10 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
+ // space as src), and the result is indented by the same amount as the first
+ // line of src containing code. Imports are not sorted for partial source files.
+ //
++// Caution: Tools relying on consistent formatting based on the installed
++// version of gofmt (for instance, such as for presubmit checks) should
++// execute that gofmt binary instead of calling Source.
++//
+ func Source(src []byte) ([]byte, error) {
+ 	fset := token.NewFileSet()
+ 	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)

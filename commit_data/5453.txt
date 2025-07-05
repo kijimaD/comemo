@@ -18,10 +18,648 @@ Date:   Thu May 6 18:20:01 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1149041
-
+---
  src/pkg/big/arith.go      |  28 +++++++---
  src/pkg/big/arith_386.s   |  78 ++++++++++++++++----------
  src/pkg/big/arith_amd64.s | 140 ++++++++++++++++++++++++++++++----------------
  src/pkg/big/int.go        |   4 +-
  src/pkg/big/nat.go        | 102 ++++++++-------------------------
  5 files changed, 188 insertions(+), 164 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index d5060bb88f..a0c7aa31ab 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -325,10 +325,16 @@ func subVW_g(z, x *Word, y Word, n int) (c Word) {
+ 
+ func shlVW(z, x *Word, s Word, n int) (c Word)
+ func shlVW_g(z, x *Word, s Word, n int) (c Word) {
+-	ŝ := _W - s
+-	for i := 0; i < n; i++ {
+-		w := *x.at(i)
+-		c, *z.at(i) = w>>ŝ, w<<s|c
++	if n > 0 {
++		ŝ := _W - s
++		w1 := *x.at(n - 1)
++		c = w1 >> ŝ
++		for i := n - 1; i > 0; i-- {
++			w := w1
++			w1 = *x.at(i - 1)
++			*z.at(i) = w<<s | w1>>ŝ
++		}
++		*z.at(0) = w1 << s
+ 	}
+ 	return
+ }
+@@ -336,10 +342,16 @@ func shlVW_g(z, x *Word, s Word, n int) (c Word) {
+ 
+ func shrVW(z, x *Word, s Word, n int) (c Word)
+ func shrVW_g(z, x *Word, s Word, n int) (c Word) {
+-	ŝ := _W - s
+-	for i := n - 1; i >= 0; i-- {
+-		w := *x.at(i)
+-		c, *z.at(i) = w<<ŝ, w>>s|c
++	if n > 0 {
++		ŝ := _W - s
++		w1 := *x.at(0)
++		c = w1 << ŝ
++		for i := 0; i < n-1; i++ {
++			w := w1
++			w1 = *x.at(i + 1)
++			*z.at(i) = w>>s | w1<<ŝ
++		}
++		*z.at(n - 1) = w1 >> s
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/big/arith_386.s b/src/pkg/big/arith_386.s
+index 22fde9ccbf..09904594c7 100644
+--- a/src/pkg/big/arith_386.s
++++ b/src/pkg/big/arith_386.s
+@@ -101,53 +101,73 @@ E4:	CMPL BX, BP		// i < n
+ 
+ // func shlVW(z, x *Word, s Word, n int) (c Word)
+ TEXT ·shlVW(SB),7,$0
++	MOVL n+12(FP), BX	// i = n
++	SUBL $1, BX		// i--
++	JL X8b			// i < 0	(n <= 0)
++
++	// n > 0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+4(FP), SI
+ 	MOVL s+8(FP), CX
+-	MOVL n+12(FP), BX
+-	LEAL (DI)(BX*4), DI
+-	LEAL (SI)(BX*4), SI
+-	NEGL BX			// i = -n
+-	MOVL $0, AX		// c = 0
+-	JMP E8
++	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
++	MOVL $0, DX
++	SHLL CX, DX:AX		// w1>>ŝ
++	MOVL DX, c+16(FP)
+ 
+-L8:	MOVL (SI)(BX*4), DX
+-	MOVL DX, BP
+-	SHLL CX, DX:AX
+-	MOVL DX, (DI)(BX*4)
+-	MOVL BP, AX
+-	ADDL $1, BX		// i++
++	CMPL BX, $0
++	JLE X8a			// i <= 0
+ 
+-E8:	CMPL BX, $0		// i < 0
+-	JL L8
++	// i > 0
++L8:	MOVL AX, DX		// w = w1
++	MOVL -4(SI)(BX*4), AX	// w1 = x[i-1]
++	SHLL CX, DX:AX		// w<<s | w1>>ŝ
++	MOVL DX, (DI)(BX*4)	// z[i] = w<<s | w1>>ŝ
++	SUBL $1, BX		// i--
++	JG L8			// i > 0
+ 
+-	MOVL $0, DX
+-	SHLL CX, DX:AX
+-	MOVL DX, c+16(FP)
++	// i <= 0
++X8a:	SHLL CX, AX		// w1<<s
++	MOVL AX, (DI)		// z[0] = w1<<s
++	RET
++
++X8b:	MOVL $0, c+16(FP)
+ 	RET
+ 
+ 
+ // func shrVW(z, x *Word, s Word, n int) (c Word)
+ TEXT ·shrVW(SB),7,$0
++	MOVL n+24(FP), BP
++	SUBL $1, BP		// n--
++	JL X9b			// n < 0	(n <= 0)
++
++	// n > 0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+4(FP), SI
+ 	MOVL s+8(FP), CX
+-	MOVL n+12(FP), BX	// i = n
+-	MOVL $0, AX		// c = 0
++	MOVL (SI), AX		// w1 = x[0]
++	MOVL $0, DX
++	SHRL CX, DX:AX		// w1<<ŝ
++	MOVL DX, c+16(FP)
++
++	MOVL $0, BX		// i = 0
+ 	JMP E9
+ 
+-L9:	MOVL (SI)(BX*4), DX
+-	MOVL DX, BP
+-	SHRL CX, DX:AX
+-	MOVL DX, (DI)(BX*4)
+-	MOVL BP, AX
++	// i < n-1
++L9:	MOVL AX, DX		// w = w1
++	MOVL 4(SI)(BX*4), AX	// w1 = x[i+1]
++	SHRL CX, DX:AX		// w>>s | w1<<ŝ
++	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
++	ADDL $1, BX		// i++
++	
++E9:	CMPL BX, BP
++	JL L9			// i < n-1
+ 
+-E9:	SUBL $1, BX		// i--
+-	JGE L9
++	// i >= n-1
++X9a:	SHRL CX, AX		// w1>>s
++	MOVL AX, (DI)(BP*4)	// z[n-1] = w1>>s
++	RET
+ 
+-	MOVL $0, DX
+-	SHRL CX, DX:AX
+-	MOVL DX, c+16(FP)
++X9b:	MOVL $0, c+16(FP)
+ 	RET
+ 
+ 
+diff --git a/src/pkg/big/arith_amd64.s b/src/pkg/big/arith_amd64.s
+index 5f9b4782da..e216510290 100644
+--- a/src/pkg/big/arith_amd64.s
++++ b/src/pkg/big/arith_amd64.s
+@@ -13,8 +13,8 @@ TEXT ·addVV(SB),7,$0
+ 	MOVQ x+8(FP), R8
+ 	MOVQ y+16(FP), R9
+ 	MOVL n+24(FP), R11
+-	MOVQ $0, BX         // i = 0
+-	MOVQ $0, DX         // c = 0
++	MOVQ $0, BX		// i = 0
++	MOVQ $0, DX		// c = 0
+ 	JMP E1
+ 
+ L1:	MOVQ (R8)(BX*8), AX
+@@ -22,7 +22,7 @@ L1:	MOVQ (R8)(BX*8), AX
+ 	ADCQ (R9)(BX*8), AX
+ 	RCLQ $1, DX
+ 	MOVQ AX, (R10)(BX*8)
+-	ADDL $1, BX			// i++
++	ADDL $1, BX		// i++
+ 
+ E1:	CMPQ BX, R11		// i < n
+ 	JL L1
+@@ -38,8 +38,8 @@ TEXT ·subVV(SB),7,$0
+ 	MOVQ x+8(FP), R8
+ 	MOVQ y+16(FP), R9
+ 	MOVL n+24(FP), R11
+-	MOVQ $0, BX         // i = 0
+-	MOVQ $0, DX         // c = 0
++	MOVQ $0, BX		// i = 0
++	MOVQ $0, DX		// c = 0
+ 	JMP E2
+ 
+ L2:	MOVQ (R8)(BX*8), AX
+@@ -47,9 +47,9 @@ L2:	MOVQ (R8)(BX*8), AX
+ 	SBBQ (R9)(BX*8), AX
+ 	RCLQ $1, DX
+ 	MOVQ AX, (R10)(BX*8)
+-	ADDL $1, BX         // i++
++	ADDL $1, BX		// i++
+ 
+-E2:	CMPQ BX, R11        // i < n
++E2:	CMPQ BX, R11		// i < n
+ 	JL L2
+ 
+ 	MOVQ DX, c+32(FP)
+@@ -60,18 +60,18 @@ E2:	CMPQ BX, R11        // i < n
+ TEXT ·addVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+8(FP), R8
+-	MOVQ y+16(FP), AX   // c = y
++	MOVQ y+16(FP), AX	// c = y
+ 	MOVL n+24(FP), R11
+-	MOVQ $0, BX         // i = 0
++	MOVQ $0, BX		// i = 0
+ 	JMP E3
+ 
+ L3:	ADDQ (R8)(BX*8), AX
+ 	MOVQ AX, (R10)(BX*8)
+ 	RCLQ $1, AX
+ 	ANDQ $1, AX
+-	ADDL $1, BX         // i++
++	ADDL $1, BX		// i++
+ 
+-E3:	CMPQ BX, R11        // i < n
++E3:	CMPQ BX, R11		// i < n
+ 	JL L3
+ 
+ 	MOVQ AX, c+32(FP)
+@@ -82,9 +82,9 @@ E3:	CMPQ BX, R11        // i < n
+ TEXT ·subVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+8(FP), R8
+-	MOVQ y+16(FP), AX   // c = y
++	MOVQ y+16(FP), AX	// c = y
+ 	MOVL n+24(FP), R11
+-	MOVQ $0, BX         // i = 0
++	MOVQ $0, BX		// i = 0
+ 	JMP E4
+ 
+ L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
+@@ -92,9 +92,9 @@ L4:	MOVQ (R8)(BX*8), DX	// TODO(gri) is there a reverse SUBQ?
+ 	MOVQ DX, (R10)(BX*8)
+ 	RCLQ $1, AX
+ 	ANDQ $1, AX
+-	ADDL $1, BX          // i++
++	ADDL $1, BX		// i++
+ 
+-E4:	CMPQ BX, R11         // i < n
++E4:	CMPQ BX, R11		// i < n
+ 	JL L4
+ 
+ 	MOVQ AX, c+32(FP)
+@@ -103,47 +103,93 @@ E4:	CMPQ BX, R11         // i < n
+ 
+ // func shlVW(z, x *Word, s Word, n int) (c Word)
+ TEXT ·shlVW(SB),7,$0
++	MOVL n+24(FP), BX	// i = n
++	SUBL $1, BX		// i--
++	JL X8b			// i < 0	(n <= 0)
++
++	// n > 0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+8(FP), R8
+ 	MOVQ s+16(FP), CX
+-	MOVL n+24(FP), R11
+-	MOVQ $0, AX         // c = 0
+-	MOVQ $0, BX         // i = 0
+-	JMP E8
++	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
++	MOVQ $0, DX
++	SHLQ CX, DX:AX		// w1>>ŝ
++	MOVQ DX, c+32(FP)
+ 
+-L8:	MOVQ (R8)(BX*8), DX
+-	MOVQ DX, R12
+-	SHLQ CX, DX:AX
+-	MOVQ DX, (R10)(BX*8)
+-	MOVQ R12, AX
+-	ADDL $1, BX          // i++
++	CMPL BX, $0
++	JLE X8a			// i <= 0
+ 
+-E8:	CMPQ BX, R11         // i < n
+-	JL L8
++	// i > 0
++L8:	MOVQ AX, DX		// w = w1
++	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
++	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
++	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
++	SUBL $1, BX		// i--
++	JG L8			// i > 0
+ 
+-	MOVQ $0, DX
+-	SHLQ CX, DX:AX
+-	MOVQ DX, c+32(FP)
++	// i <= 0
++X8a:	SHLQ CX, AX		// w1<<s
++	MOVQ AX, (R10)		// z[0] = w1<<s
++	RET
++
++X8b:	MOVQ $0, c+32(FP)
+ 	RET
+ 
+ 
+ // func shrVW(z, x *Word, s Word, n int) (c Word)
+ TEXT ·shrVW(SB),7,$0
++	MOVL n+24(FP), R11
++	SUBL $1, R11		// n--
++	JL X9b			// n < 0	(n <= 0)
++
++	// n > 0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+8(FP), R8
+ 	MOVQ s+16(FP), CX
+-	MOVL n+24(FP), BX   // i = n
+-	MOVQ $0, AX         // c = 0
++	MOVQ (R8), AX		// w1 = x[0]
++	MOVQ $0, DX
++	SHRQ CX, DX:AX		// w1<<ŝ
++	MOVQ DX, c+32(FP)
++
++	MOVQ $0, BX		// i = 0
+ 	JMP E9
+ 
+-L9:	MOVQ (R8)(BX*8), DX
++	// i < n-1
++L9:	MOVQ AX, DX		// w = w1
++	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
++	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
++	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
++	ADDL $1, BX		// i++
++	
++E9:	CMPQ BX, R11
++	JL L9			// i < n-1
++
++	// i >= n-1
++X9a:	SHRQ CX, AX		// w1>>s
++	MOVQ AX, (R10)(R11*8)	// z[n-1] = w1>>s
++	RET
++
++X9b:	MOVQ $0, c+32(FP)
++	RET
++
++
++// func shrVW(z, x *Word, s Word, n int) (c Word)
++TEXT ·shrVW_(SB),7,$0
++	MOVQ z+0(FP), R10
++	MOVQ x+8(FP), R8
++	MOVQ s+16(FP), CX
++	MOVL n+24(FP), BX	// i = n
++	MOVQ $0, AX		// c = 0
++	JMP E9_
++
++L9_:	MOVQ (R8)(BX*8), DX
+ 	MOVQ DX, R12
+ 	SHRQ CX, DX:AX
+ 	MOVQ DX, (R10)(BX*8)
+ 	MOVQ R12, AX
+ 
+-E9:	SUBL $1, BX         // i--
+-	JGE L9
++E9_:	SUBL $1, BX		// i--
++	JGE L9_
+ 
+ 	MOVQ $0, DX
+ 	SHRQ CX, DX:AX
+@@ -156,9 +202,9 @@ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+8(FP), R8
+ 	MOVQ y+16(FP), R9
+-	MOVQ r+24(FP), CX   // c = r
++	MOVQ r+24(FP), CX	// c = r
+ 	MOVL n+32(FP), R11
+-	MOVQ $0, BX         // i = 0
++	MOVQ $0, BX		// i = 0
+ 	JMP E5
+ 
+ L5:	MOVQ (R8)(BX*8), AX
+@@ -167,9 +213,9 @@ L5:	MOVQ (R8)(BX*8), AX
+ 	ADCQ $0, DX
+ 	MOVQ AX, (R10)(BX*8)
+ 	MOVQ DX, CX
+-	ADDL $1, BX         // i++
++	ADDL $1, BX		// i++
+ 
+-E5:	CMPQ BX, R11        // i < n
++E5:	CMPQ BX, R11		// i < n
+ 	JL L5
+ 
+ 	MOVQ CX, c+40(FP)
+@@ -182,8 +228,8 @@ TEXT ·addMulVVW(SB),7,$0
+ 	MOVQ x+8(FP), R8
+ 	MOVQ y+16(FP), R9
+ 	MOVL n+24(FP), R11
+-	MOVQ $0, BX         // i = 0
+-	MOVQ $0, CX         // c = 0
++	MOVQ $0, BX		// i = 0
++	MOVQ $0, CX		// c = 0
+ 	JMP E6
+ 
+ L6:	MOVQ (R8)(BX*8), AX
+@@ -194,9 +240,9 @@ L6:	MOVQ (R8)(BX*8), AX
+ 	ADCQ $0, DX
+ 	MOVQ AX, (R10)(BX*8)
+ 	MOVQ DX, CX
+-	ADDL $1, BX         // i++
++	ADDL $1, BX		// i++
+ 
+-E6:	CMPQ BX, R11        // i < n
++E6:	CMPQ BX, R11		// i < n
+ 	JL L6
+ 
+ 	MOVQ CX, c+32(FP)
+@@ -206,18 +252,18 @@ E6:	CMPQ BX, R11        // i < n
+ // divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+-	MOVQ xn+8(FP), DX   // r = xn
++	MOVQ xn+8(FP), DX	// r = xn
+ 	MOVQ x+16(FP), R8
+ 	MOVQ y+24(FP), R9
+-	MOVL n+32(FP), BX   // i = n
++	MOVL n+32(FP), BX	// i = n
+ 	JMP E7
+ 
+ L7:	MOVQ (R8)(BX*8), AX
+ 	DIVQ R9
+ 	MOVQ AX, (R10)(BX*8)
+ 
+-E7:	SUBL $1, BX         // i--
+-	JGE L7              // i >= 0
++E7:	SUBL $1, BX		// i--
++	JGE L7			// i >= 0
+ 
+ 	MOVQ DX, r+40(FP)
+ 	RET
+diff --git a/src/pkg/big/int.go b/src/pkg/big/int.go
+index 2382924787..3e3d677e33 100755
+--- a/src/pkg/big/int.go
++++ b/src/pkg/big/int.go
+@@ -126,7 +126,7 @@ func (z *Int) Rem(x, y *Int) *Int {
+ // QuoRem implements T-division and modulus (like Go):
+ //
+ //	q = x/y      with the result truncated to zero
+-//      r = x - y*q
++//	r = x - y*q
+ //
+ // (See Daan Leijen, ``Division and Modulus for Computer Scientists''.)
+ //
+@@ -183,7 +183,7 @@ func (z *Int) Mod(x, y *Int) *Int {
+ // DivMod implements Euclidian division and modulus (unlike Go):
+ //
+ //	q = x div y  such that
+-//      m = x - y*q  with 0 <= m < |q|
++//	m = x - y*q  with 0 <= m < |q|
+ //
+ // (See Raymond T. Boute, ``The Euclidian definition of the functions
+ // div and mod''. ACM Transactions on Programming Languages and
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index 1cad23777b..023501cacc 100755
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -60,6 +60,11 @@ func (z nat) norm() nat {
+ }
+ 
+ 
++// TODO(gri) Consider changing "make" such that is does not reserve space
++//           for a potential carry; instead callers must provide the correct
++//           m (+1). Should lead to clearer code and shorter allocations on
++//           average.
++
+ func (z nat) make(m int) nat {
+ 	if cap(z) > m {
+ 		return z[0:m] // reuse z - has at least one extra word for a carry, if any
+@@ -219,11 +224,7 @@ func (z nat) mulAddWW(x nat, y, r Word) nat {
+ // basicMul multiplies x and y and leaves the result in z.
+ // The (non-normalized) result is placed in z[0 : len(x) + len(y)].
+ func basicMul(z, x, y nat) {
+-	// initialize z
+-	for i := range z[0 : len(x)+len(y)] {
+-		z[i] = 0
+-	}
+-	// multiply
++	z[0 : len(x)+len(y)].clear() // initialize z
+ 	for i, d := range y {
+ 		if d != 0 {
+ 			z[len(x)+i] = addMulVVW(&z[i], &x[0], d, len(x))
+@@ -534,28 +535,26 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
+ 
+ 
+ // q = (uIn-r)/v, with 0 <= r < y
++// Uses z as storage for q, and u as storage for r if possible.
+ // See Knuth, Volume 2, section 4.3.1, Algorithm D.
+ // Preconditions:
+ //    len(v) >= 2
+ //    len(uIn) >= len(v)
+-func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
++func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
+ 	n := len(v)
+-	m := len(uIn) - len(v)
++	m := len(uIn) - n
+ 
+-	var u nat
+-	if z2 == nil || &z2[0] == &uIn[0] {
+-		u = u.make(len(uIn) + 1).clear() // uIn is an alias for z2
+-	} else {
+-		u = z2.make(len(uIn) + 1).clear()
+-	}
+-	qhatv := make(nat, len(v)+1)
+ 	q = z.make(m + 1)
++	qhatv := make(nat, n+1)
++	if alias(u, uIn) {
++		u = nil // u is an alias for uIn - cannot reuse
++	}
++	u = u.make(len(uIn) + 1).clear()
+ 
+ 	// D1.
+-	shift := leadingZeros(v[n-1])
+-	v.shiftLeftDeprecated(v, shift)
+-	u.shiftLeftDeprecated(uIn, shift)
+-	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - shift)
++	shift := Word(leadingZeros(v[n-1]))
++	shlVW(&v[0], &v[0], shift, n)
++	u[len(uIn)] = shlVW(&u[0], &uIn[0], shift, len(uIn))
+ 
+ 	// D2.
+ 	for j := m; j >= 0; j-- {
+@@ -583,12 +582,12 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
+ 		}
+ 
+ 		// D4.
+-		qhatv[len(v)] = mulAddVWW(&qhatv[0], &v[0], qhat, 0, len(v))
++		qhatv[n] = mulAddVWW(&qhatv[0], &v[0], qhat, 0, n)
+ 
+ 		c := subVV(&u[j], &u[j], &qhatv[0], len(qhatv))
+ 		if c != 0 {
+-			c := addVV(&u[j], &u[j], &v[0], len(v))
+-			u[j+len(v)] += c
++			c := addVV(&u[j], &u[j], &v[0], n)
++			u[j+n] += c
+ 			qhat--
+ 		}
+ 
+@@ -596,8 +595,8 @@ func (z nat) divLarge(z2, uIn, v nat) (q, r nat) {
+ 	}
+ 
+ 	q = q.norm()
+-	u.shiftRightDeprecated(u, shift)
+-	v.shiftRightDeprecated(v, shift)
++	shrVW(&u[0], &u[0], shift, len(u))
++	shrVW(&v[0], &v[0], shift, n)
+ 	r = u.norm()
+ 
+ 	return q, r
+@@ -755,15 +754,10 @@ func (z nat) shl(x nat, s uint) nat {
+ 	}
+ 	// m > 0
+ 
+-	// determine if z can be reused
+-	// TODO(gri) change shlVW so we don't need this
+-	if alias(z, x) {
+-		z = nil // z is an alias for x - cannot reuse
+-	}
+-
+ 	n := m + int(s/_W)
+ 	z = z.make(n + 1)
+ 	z[n] = shlVW(&z[n-m], &x[0], Word(s%_W), m)
++	z[0 : n-m].clear()
+ 
+ 	return z.norm()
+ }
+@@ -778,12 +772,6 @@ func (z nat) shr(x nat, s uint) nat {
+ 	}
+ 	// n > 0
+ 
+-	// determine if z can be reused
+-	// TODO(gri) change shrVW so we don't need this
+-	if alias(z, x) {
+-		z = nil // z is an alias for x - cannot reuse
+-	}
+-
+ 	z = z.make(n)
+ 	shrVW(&z[0], &x[m-n], Word(s%_W), n)
+ 
+@@ -791,48 +779,6 @@ func (z nat) shr(x nat, s uint) nat {
+ }
+ 
+ 
+-// TODO(gri) Remove these shift functions once shlVW and shrVW can be
+-//           used directly in divLarge and powersOfTwoDecompose
+-//
+-// To avoid losing the top n bits, z should be sized so that
+-// len(z) == len(x) + 1.
+-func (z nat) shiftLeftDeprecated(x nat, n uint) nat {
+-	if len(x) == 0 {
+-		return x
+-	}
+-
+-	ñ := _W - n
+-	m := x[len(x)-1]
+-	if len(z) > len(x) {
+-		z[len(x)] = m >> ñ
+-	}
+-	for i := len(x) - 1; i >= 1; i-- {
+-		y := x[i-1]
+-		z[i] = m<<n | y>>ñ
+-		m = y
+-	}
+-	z[0] = m << n
+-	return z
+-}
+-
+-
+-func (z nat) shiftRightDeprecated(x nat, n uint) nat {
+-	if len(x) == 0 {
+-		return x
+-	}
+-
+-	ñ := _W - n
+-	m := x[0]
+-	for i := 0; i < len(x)-1; i++ {
+-		y := x[i+1]
+-		z[i] = m>>n | y<<ñ
+-		m = y
+-	}
+-	z[len(x)-1] = m >> n
+-	return z
+-}
+-
+-
+ func (z nat) and(x, y nat) nat {
+ 	m := len(x)
+ 	n := len(y)
+@@ -936,7 +882,7 @@ func (n nat) powersOfTwoDecompose() (q nat, k Word) {
+ 	x := trailingZeroBits(n[zeroWords])
+ 
+ 	q = q.make(len(n) - zeroWords)
+-	q.shiftRightDeprecated(n[zeroWords:], uint(x))
++	shrVW(&q[0], &n[zeroWords], Word(x), len(q))
+ 	q = q.norm()
+ 
+ 	k = Word(_W*zeroWords + x)

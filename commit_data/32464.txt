@@ -13,7 +13,7 @@ Date:   Tue Apr 25 17:47:34 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file.go         | 40 ++++++++++++++++++----------------------
  src/os/file_posix.go   | 16 +++++-----------
  src/os/file_unix.go    |  3 +++
@@ -21,3 +21,279 @@ Date:   Tue Apr 25 17:47:34 2017 -0700
  src/os/os_test.go      | 20 ++++++++++++++++++++
  src/os/pipe_test.go    | 41 +++++++++++++++++++++++++++++++----------
  6 files changed, 80 insertions(+), 43 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 271197a90e..b5a1bb8c0d 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -101,17 +101,7 @@ func (f *File) Read(b []byte) (n int, err error) {
+ 		return 0, err
+ 	}
+ 	n, e := f.read(b)
+-	if e != nil {
+-		if e == poll.ErrFileClosing {
+-			e = ErrClosed
+-		}
+-		if e == io.EOF {
+-			err = e
+-		} else {
+-			err = &PathError{"read", f.name, e}
+-		}
+-	}
+-	return n, err
++	return n, f.wrapErr("read", e)
+ }
+ 
+ // ReadAt reads len(b) bytes from the File starting at byte offset off.
+@@ -130,11 +120,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
+ 	for len(b) > 0 {
+ 		m, e := f.pread(b, off)
+ 		if e != nil {
+-			if e == io.EOF {
+-				err = e
+-			} else {
+-				err = &PathError{"read", f.name, e}
+-			}
++			err = f.wrapErr("read", e)
+ 			break
+ 		}
+ 		n += m
+@@ -161,10 +147,7 @@ func (f *File) Write(b []byte) (n int, err error) {
+ 
+ 	epipecheck(f, e)
+ 
+-	if e != nil {
+-		err = &PathError{"write", f.name, e}
+-	}
+-	return n, err
++	return n, f.wrapErr("write", e)
+ }
+ 
+ // WriteAt writes len(b) bytes to the File starting at byte offset off.
+@@ -182,7 +165,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
+ 	for len(b) > 0 {
+ 		m, e := f.pwrite(b, off)
+ 		if e != nil {
+-			err = &PathError{"write", f.name, e}
++			err = f.wrapErr("write", e)
+ 			break
+ 		}
+ 		n += m
+@@ -206,7 +189,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ 		e = syscall.EISDIR
+ 	}
+ 	if e != nil {
+-		return 0, &PathError{"seek", f.name, e}
++		return 0, f.wrapErr("seek", e)
+ 	}
+ 	return r, nil
+ }
+@@ -279,3 +262,16 @@ func fixCount(n int, err error) (int, error) {
+ 	}
+ 	return n, err
+ }
++
++// wrapErr wraps an error that occurred during an operation on an open file.
++// It passes io.EOF through unchanged, otherwise converts
++// poll.ErrFileClosing to ErrClosed and wraps the error in a PathError.
++func (f *File) wrapErr(op string, err error) error {
++	if err == nil || err == io.EOF {
++		return err
++	}
++	if err == poll.ErrFileClosing {
++		err = ErrClosed
++	}
++	return &PathError{op, f.name, err}
++}
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 98c87ee4cd..6ee7eeb2da 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -7,7 +7,6 @@
+ package os
+ 
+ import (
+-	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+@@ -62,9 +61,8 @@ func (f *File) Chmod(mode FileMode) error {
+ 		return err
+ 	}
+ 	if e := f.pfd.Fchmod(syscallMode(mode)); e != nil {
+-		return &PathError{"chmod", f.name, e}
++		return f.wrapErr("chmod", e)
+ 	}
+-	runtime.KeepAlive(f)
+ 	return nil
+ }
+ 
+@@ -95,9 +93,8 @@ func (f *File) Chown(uid, gid int) error {
+ 		return err
+ 	}
+ 	if e := f.pfd.Fchown(uid, gid); e != nil {
+-		return &PathError{"chown", f.name, e}
++		return f.wrapErr("chown", e)
+ 	}
+-	runtime.KeepAlive(f)
+ 	return nil
+ }
+ 
+@@ -109,9 +106,8 @@ func (f *File) Truncate(size int64) error {
+ 		return err
+ 	}
+ 	if e := f.pfd.Ftruncate(size); e != nil {
+-		return &PathError{"truncate", f.name, e}
++		return f.wrapErr("truncate", e)
+ 	}
+-	runtime.KeepAlive(f)
+ 	return nil
+ }
+ 
+@@ -123,9 +119,8 @@ func (f *File) Sync() error {
+ 		return err
+ 	}
+ 	if e := f.pfd.Fsync(); e != nil {
+-		return &PathError{"sync", f.name, e}
++		return f.wrapErr("sync", e)
+ 	}
+-	runtime.KeepAlive(f)
+ 	return nil
+ }
+ 
+@@ -153,9 +148,8 @@ func (f *File) Chdir() error {
+ 		return err
+ 	}
+ 	if e := f.pfd.Fchdir(); e != nil {
+-		return &PathError{"chdir", f.name, e}
++		return f.wrapErr("chdir", e)
+ 	}
+-	runtime.KeepAlive(f)
+ 	return nil
+ }
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 847316492b..c65cfb6d37 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -186,6 +186,9 @@ func (file *file) close() error {
+ 	}
+ 	var err error
+ 	if e := file.pfd.Close(); e != nil {
++		if e == poll.ErrFileClosing {
++			e = ErrClosed
++		}
+ 		err = &PathError{"close", file.name, e}
+ 	}
+ 
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index a6cdb3ff47..c5b83b5dfe 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -188,6 +188,9 @@ func (file *file) close() error {
+ 	}
+ 	var err error
+ 	if e := file.pfd.Close(); e != nil {
++		if e == poll.ErrFileClosing {
++			e = ErrClosed
++		}
+ 		err = &PathError{"close", file.name, e}
+ 	}
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index c0c8875363..8e2cd14ddf 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2178,3 +2178,23 @@ func TestPipeThreads(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDoubleCloseError(t *testing.T) {
++	path := sfdir + "/" + sfname
++	file, err := Open(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := file.Close(); err != nil {
++		t.Fatalf("unexpected error from Close: %v", err)
++	}
++	if err := file.Close(); err == nil {
++		t.Error("second Close did not fail")
++	} else if pe, ok := err.(*PathError); !ok {
++		t.Errorf("second Close returned unexpected error type %T; expected os.PathError", pe)
++	} else if pe.Err != ErrClosed {
++		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
++	} else {
++		t.Logf("second close returned expected error %q", err)
++	}
++}
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index a7bd41ff40..eb26b68f85 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -114,7 +114,7 @@ func TestStdPipeHelper(t *testing.T) {
+ 	os.Exit(0)
+ }
+ 
+-func TestClosedPipeRace(t *testing.T) {
++func testClosedPipeRace(t *testing.T, read bool) {
+ 	switch runtime.GOOS {
+ 	case "freebsd":
+ 		t.Skip("FreeBSD does not use the poller; issue 19093")
+@@ -128,25 +128,46 @@ func TestClosedPipeRace(t *testing.T) {
+ 	defer w.Close()
+ 
+ 	// Close the read end of the pipe in a goroutine while we are
+-	// writing to the write end.
++	// writing to the write end, or vice-versa.
+ 	go func() {
+-		// Give the main goroutine a chance to enter the Read call.
+-		// This is sloppy but the test will pass even if we close
+-		// before the read.
++		// Give the main goroutine a chance to enter the Read or
++		// Write call. This is sloppy but the test will pass even
++		// if we close before the read/write.
+ 		time.Sleep(20 * time.Millisecond)
+ 
+-		if err := r.Close(); err != nil {
++		var err error
++		if read {
++			err = r.Close()
++		} else {
++			err = w.Close()
++		}
++		if err != nil {
+ 			t.Error(err)
+ 		}
+ 	}()
+ 
+-	if _, err := r.Read(make([]byte, 1)); err == nil {
+-		t.Error("Read of closed pipe unexpectedly succeeded")
++	// A slice larger than PIPE_BUF.
++	var b [65537]byte
++	if read {
++		_, err = r.Read(b[:])
++	} else {
++		_, err = w.Write(b[:])
++	}
++	if err == nil {
++		t.Error("I/O on closed pipe unexpectedly succeeded")
+ 	} else if pe, ok := err.(*os.PathError); !ok {
+-		t.Errorf("Read of closed pipe returned unexpected error type %T; expected os.PathError", pe)
++		t.Errorf("I/O on closed pipe returned unexpected error type %T; expected os.PathError", pe)
+ 	} else if pe.Err != os.ErrClosed {
+ 		t.Errorf("got error %q but expected %q", pe.Err, os.ErrClosed)
+ 	} else {
+-		t.Logf("Read returned expected error %q", err)
++		t.Logf("I/O returned expected error %q", err)
+ 	}
+ }
++
++func TestClosedPipeRaceRead(t *testing.T) {
++	testClosedPipeRace(t, true)
++}
++
++func TestClosedPipeRaceWrite(t *testing.T) {
++	testClosedPipeRace(t, false)
++}

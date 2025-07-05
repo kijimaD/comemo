@@ -13,8 +13,60 @@ Date:   Wed Dec 28 17:29:25 2016 -0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go |  2 ++
  src/go/types/stdlib_test.go          |  1 +
  test/fixedbugs/issue18459.go         | 13 +++++++++++++
  3 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a501cb67b6..ca99adea27 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -1055,6 +1055,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 		lookup(f[1]).Linkname = f[2]
+ 
+ 	case strings.HasPrefix(text, "go:cgo_"):
++		lineno = p.baseline + int32(line) - 1 // pragcgo may call yyerror
+ 		pragcgobuf += pragcgo(text)
+ 		fallthrough // because of //go:cgo_unsafe_args
+ 	default:
+@@ -1062,6 +1063,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 		if i := strings.Index(text, " "); i >= 0 {
+ 			verb = verb[:i]
+ 		}
++		lineno = p.baseline + int32(line) - 1 // pragmaValue may call yyerror
+ 		return syntax.Pragma(pragmaValue(verb))
+ 	}
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 1c6d7b5299..06d2c93dda 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -157,6 +157,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue11362.go", // canonical import path check
+ 		"issue15002.go", // uses Mmap; testTestDir should consult build tags
+ 		"issue16369.go", // go/types handles this correctly - not an issue
++		"issue18459.go", // go/types doesn't check validity of //go:xxx directives
+ 	)
+ }
+ 
+diff --git a/test/fixedbugs/issue18459.go b/test/fixedbugs/issue18459.go
+new file mode 100644
+index 0000000000..ac07661d63
+--- /dev/null
++++ b/test/fixedbugs/issue18459.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that we have a line number for this error.
++
++package main
++
++//go:nowritebarrier // ERROR "go:nowritebarrier only allowed in runtime"
++func main() {
++}

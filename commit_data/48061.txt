@@ -13,6 +13,20 @@ Date:   Tue Apr 20 14:06:51 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/testdata/testprogcgo/windows/win.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/windows/win.go b/src/runtime/testdata/testprogcgo/windows/win.go
+index f2eabb9548..12488aa658 100644
+--- a/src/runtime/testdata/testprogcgo/windows/win.go
++++ b/src/runtime/testdata/testprogcgo/windows/win.go
+@@ -1,7 +1,7 @@
+ package windows
+ 
+ /*
+-#cgo CFLAGS: -mnop-fun-dllimport
++#cgo amd64 386 CFLAGS: -mnop-fun-dllimport
+ 
+ #include <windows.h>
+ 

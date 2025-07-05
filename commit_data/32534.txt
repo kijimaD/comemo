@@ -11,6 +11,22 @@ Date:   Fri Apr 28 21:16:03 2017 +0000
     Change-Id: I6f4382ffdfff83a4504b013ba37100319b2c1aad
     Reviewed-on: https://go-review.googlesource.com/42138
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/all.bash | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index abe2beb6dd..5d994d3d0d 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -8,10 +8,6 @@ if [ ! -f make.bash ]; then
+ 	echo 'all.bash must be run from $GOROOT/src' 1>&2
+ 	exit 1
+ fi
+-if [ ! -f cmd/api/run.go ]; then
+-	echo 'all.bash cannot be run from a binary download package' 1>&2
+-	exit 1
+-fi
+ OLDPATH="$PATH"
+ . ./make.bash "$@" --no-banner
+ bash run.bash --no-rebuild

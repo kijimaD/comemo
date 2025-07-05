@@ -7,7 +7,54 @@ Date:   Tue May 19 13:37:36 2009 -0700
     R=r
     OCL=29036
     CL=29036
-
+---
  src/cmd/6g/gen.c | 19 +++++++++++++++++++
  src/cmd/6g/gg.h  |  5 +++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 55eb43a618..61d25184e8 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -830,6 +830,25 @@ lit:
+ 		p = gins(ADATA, &nam, nr);
+ 		p->from.scale = nr->type->width;
+ 		break;
++
++	case TSTRING:
++		p = gins(ADATA, &nam, N);
++		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
++		p->from.scale = types[tptr]->width;
++		p->to.index = p->to.type;
++		p->to.type = D_ADDR;
++//print("%P\n", p);
++
++		nodconst(&nod1, types[TINT32], nr->val.u.sval->len);
++		p = gins(ADATA, &nam, &nod1);
++		p->from.scale = types[TINT32]->width;
++		p->from.offset += types[tptr]->width;
++//print("%P\n", p);
++
++		p = gins(ADATA, &nam, &nod1);
++		p->from.scale = types[TINT32]->width;
++		p->from.offset += types[tptr]->width+types[TINT32]->width;
++		break;
+ 	}
+ 
+ yes:
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 266a11ddc6..0d83506aee 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -125,6 +125,11 @@ int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*);
+ void	datagostring(Strlit*, Addr*);
+ 
++/*
++ * obj.c
++ */
++void	datastring(char*, int, Addr*);
++
+ /*
+  * list.c
+  */

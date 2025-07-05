@@ -7,6 +7,21 @@ Date:   Fri Apr 8 23:53:57 2011 +1000
     R=golang-dev, peterGo, rsc1
     CC=Joe Poirier, golang-dev
     https://golang.org/cl/4370048
-
+---
  src/cmd/gotest/gotest.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 210798c63f..2455aa88f4 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -240,6 +240,9 @@ func runWithStdout(argv ...string) string {
+ 	if s[len(s)-1] == '\n' {
+ 		s = s[:len(s)-1]
+ 	}
++	if len(s) > 0 && s[len(s)-1] == '\r' { // it is \r\n on Windows.
++		s = s[:len(s)-1]
++	}
+ 	return s
+ }
+ 

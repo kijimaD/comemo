@@ -9,7 +9,51 @@ Date:   Thu Nov 5 16:59:39 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1022006
-
+---
  src/pkg/crypto/tls/handshake_server.go | 9 ++++++---
  src/pkg/crypto/tls/record_process.go   | 5 ++++-
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 7303189ca2..86f11e66c0 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -22,8 +22,8 @@ import (
+ )
+ 
+ type cipherSuite struct {
+-	id uint16;  // The number of this suite on the wire.
+-	hashLength, cipherKeyLength int;
++	id				uint16;	// The number of this suite on the wire.
++	hashLength, cipherKeyLength	int;
+ 	// TODO(agl): need a method to create the cipher and hash interfaces.
+ }
+ 
+@@ -226,7 +226,10 @@ func (h *serverHandshake) error(e alertType) {
+ 		// to tell it about the error.
+ 		h.controlChan <- ConnectionState{false, "", e};
+ 		close(h.controlChan);
+-		go func() { for _ = range h.msgChan {} }();
++		go func() {
++			for _ = range h.msgChan {
++			}
++		}();
+ 		h.writeChan <- alert{alertLevelError, e};
+ 	}
+ }
+diff --git a/src/pkg/crypto/tls/record_process.go b/src/pkg/crypto/tls/record_process.go
+index 4c6931970a..1cd6879af9 100644
+--- a/src/pkg/crypto/tls/record_process.go
++++ b/src/pkg/crypto/tls/record_process.go
+@@ -114,7 +114,10 @@ func (p *recordProcessor) loop(appDataChan chan<- []byte, requestChan <-chan int
+ 
+ 	p.wakeWaiters();
+ 	go drainRequestChannel(p.requestChan, p.connState);
+-	go func() { for _ = range controlChan {} }();
++	go func() {
++		for _ = range controlChan {
++		}
++	}();
+ 
+ 	close(handshakeChan);
+ 	if len(p.appData) > 0 {

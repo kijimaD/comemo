@@ -10,6 +10,35 @@ Date:   Thu Jan 30 19:22:15 2020 -0800
     Change-Id: I8b33eb6a8fb7c0ecf365940a1c3ae88dc807ebcd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217132
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.14.html | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 7e74c7a69b..26644cca59 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -694,6 +694,23 @@ TODO
+ 
+ </dl><!-- signal -->
+ 
++<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
++  <dd>
++    <p>
++      The <a href="/pkg/strconv/#NumError"><code>NumError</code></a>
++      type now has
++      an <a href="/pkg/strconv/#NumError.Unwrap"><code>Unwrap</code></a>
++      method that may be used to retrieve the reason that a conversion
++      failed.
++      This supports using <code>NumError</code> values
++      with <a href="/pkg/errors/#Is"><code>errors.Is</code></a> to see
++      if the underlying error
++      is <a href="/pkg/strconv/#pkg-variables"><code>strconv.ErrRange</code></a>
++      or <a href="/pkg/strconv/#pkg-variables"><code>strconv.ErrSyntax</code></a>.
++    </p>
++  </dd>
++</dl><!-- strconv -->
++
+ <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+   <dd>
+     <p><!-- CL 200577 -->

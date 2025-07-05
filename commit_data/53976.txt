@@ -15,6 +15,32 @@ Date:   Sun Apr 24 12:14:13 2022 +0800
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Jenny Rakoczy <jenny@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 3243a15b4d..f7e54d3dd3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -612,9 +612,6 @@ func gcStart(trigger gcTrigger) {
+ 		return
+ 	}
+ 
+-	// For stats, check if this GC was forced by the user.
+-	work.userForced = trigger.kind == gcTriggerCycle
+-
+ 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
+ 	// We do this after re-checking the transition condition so
+ 	// that multiple goroutines that detect the heap trigger don't
+@@ -630,6 +627,10 @@ func gcStart(trigger gcTrigger) {
+ 	semacquire(&gcsema)
+ 	semacquire(&worldsema)
+ 
++	// For stats, check if this GC was forced by the user.
++	// Update it under gcsema to avoid gctrace getting wrong values.
++	work.userForced = trigger.kind == gcTriggerCycle
++
+ 	if trace.enabled {
+ 		traceGCStart()
+ 	}

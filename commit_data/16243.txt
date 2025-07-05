@@ -7,6 +7,21 @@ Date:   Tue Apr 30 00:19:21 2013 -0700
     R=golang-dev, dsymonds, dave
     CC=golang-dev
     https://golang.org/cl/9038043
-
+---
  src/cmd/ld/data.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index f7e585b917..c57c0c69b6 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -259,7 +259,8 @@ relocsym(Sym *s)
+ 			cursym = s;
+ 			diag("bad reloc size %#ux for %s", siz, r->sym->name);
+ 		case 4:
+-			if(o != (int32)o) {
++			// TODO: Test is causing breakages on ARM and Windows. Disable for now.
++			if(0 && o != (int32)o) {
+ 				cursym = S;
+ 				diag("relocation address is too big: %#llx", o);
+ 			}

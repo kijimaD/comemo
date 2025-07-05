@@ -15,6 +15,24 @@ Date:   Thu Oct 27 13:36:48 2016 +1100
     Change-Id: I047b0b01d78a1cda65e00eeac229bb972cda431d
     Reviewed-on: https://go-review.googlesource.com/32139
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/png/reader.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 2dd5ed8073..44214eda29 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -709,7 +709,11 @@ func (d *decoder) parseChunk() error {
+ 		d.stage = dsSeenPLTE
+ 		return d.parsePLTE(length)
+ 	case "tRNS":
+-		if d.stage != dsSeenPLTE {
++		if cbPaletted(d.cb) {
++			if d.stage != dsSeenPLTE {
++				return chunkOrderError
++			}
++		} else if d.stage != dsSeenIHDR {
+ 			return chunkOrderError
+ 		}
+ 		d.stage = dsSeentRNS

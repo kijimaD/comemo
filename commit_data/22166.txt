@@ -10,6 +10,45 @@ Date:   Thu Feb 26 09:44:41 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/6101
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec_test.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 197d3e8b40..ebaef992bc 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -28,8 +28,9 @@ import (
+ )
+ 
+ func helperCommand(t *testing.T, s ...string) *exec.Cmd {
+-	if runtime.GOOS == "nacl" {
+-		t.Skip("skipping on nacl")
++	if runtime.GOOS == "nacl" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm") {
++		// iOS cannot fork
++		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+@@ -49,6 +50,10 @@ func TestEcho(t *testing.T) {
+ }
+ 
+ func TestCommandRelativeName(t *testing.T) {
++	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
++		t.Skip("skipping on darwin/arm")
++	}
++
+ 	// Run our own binary as a relative path
+ 	// (e.g. "_test/exec.test") our parent directory.
+ 	base := filepath.Base(os.Args[0]) // "exec.test"
+@@ -378,6 +383,10 @@ func TestExtraFiles(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl", "windows":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping test on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	// Ensure that file descriptors have not already been leaked into

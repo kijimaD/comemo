@@ -9,7 +9,54 @@ Date:   Mon Sep 16 14:22:37 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/13253055
-
+---
  src/cmd/gc/walk.c           |  2 +-
  test/fixedbugs/issue6399.go | 27 +++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e9a594d1ef..489b947143 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1295,7 +1295,7 @@ walkexpr(Node **np, NodeList **init)
+ 		t = n->type;
+ 		if(n->esc == EscNone
+ 			&& smallintconst(l) && smallintconst(r)
+-			&& mpgetfix(r->val.u.xval) < (1ULL<<16) / t->type->width) {
++			&& (t->type->width == 0 || mpgetfix(r->val.u.xval) < (1ULL<<16) / t->type->width)) {
+ 			// var arr [r]T
+ 			// n = arr[:l]
+ 			t = aindex(r, t->type); // [r]T
+diff --git a/test/fixedbugs/issue6399.go b/test/fixedbugs/issue6399.go
+new file mode 100644
+index 0000000000..b3d1c855b2
+--- /dev/null
++++ b/test/fixedbugs/issue6399.go
+@@ -0,0 +1,27 @@
++// compile
++
++package main
++
++type Foo interface {
++	Print()
++}
++
++type Bar struct{}
++
++func (b Bar) Print() {}
++
++func main() {
++	b := make([]Bar, 20)
++	f := make([]Foo, 20)
++	for i := range f {
++		f[i] = b[i]
++	}
++	T(f)
++	_ = make([]struct{}, 1)
++}
++
++func T(f []Foo) {
++	for i := range f {
++		f[i].Print()
++	}
++}

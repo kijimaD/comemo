@@ -23,9 +23,125 @@ Date:   Fri Sep 1 12:32:38 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/export_test.go  |  5 +++++
  src/runtime/hashmap.go      |  6 +++---
  src/runtime/hashmap_fast.go |  6 +++---
  src/runtime/map_test.go     | 29 +++++++++++++++++++++++++++++
  4 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index b99ee83e3e..8b061e0a82 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -376,3 +376,8 @@ func (rw *RWMutex) Lock() {
+ func (rw *RWMutex) Unlock() {
+ 	rw.rw.unlock()
+ }
++
++func MapBuckets(m map[int]int) int {
++	h := *(**hmap)(unsafe.Pointer(&m))
++	return 1 << h.B
++}
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 37bf6e0aeb..cbb1f0defc 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -573,7 +573,7 @@ again:
+ 
+ 	// If we hit the max load factor or we have too many overflow buckets,
+ 	// and we're not already in the middle of growing, start growing.
+-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+ 		hashGrow(t, h)
+ 		goto again // Growing the table invalidates everything, so try again
+ 	}
+@@ -904,7 +904,7 @@ func hashGrow(t *maptype, h *hmap) {
+ 	// Otherwise, there are too many overflow buckets,
+ 	// so keep the same number of buckets and "grow" laterally.
+ 	bigger := uint8(1)
+-	if !overLoadFactor(h.count, h.B) {
++	if !overLoadFactor(h.count+1, h.B) {
+ 		bigger = 0
+ 		h.flags |= sameSizeGrow
+ 	}
+@@ -944,7 +944,7 @@ func hashGrow(t *maptype, h *hmap) {
+ 
+ // overLoadFactor reports whether count items placed in 1<<B buckets is over loadFactor.
+ func overLoadFactor(count int, B uint8) bool {
+-	return count >= bucketCnt && uintptr(count) >= loadFactorNum*(bucketShift(B)/loadFactorDen)
++	return count > bucketCnt && uintptr(count) > loadFactorNum*(bucketShift(B)/loadFactorDen)
+ }
+ 
+ // tooManyOverflowBuckets reports whether noverflow buckets is too many for a map with 1<<B buckets.
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index f117311439..21e1f68bf7 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -406,7 +406,7 @@ again:
+ 
+ 	// If we hit the max load factor or we have too many overflow buckets,
+ 	// and we're not already in the middle of growing, start growing.
+-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+ 		hashGrow(t, h)
+ 		goto again // Growing the table invalidates everything, so try again
+ 	}
+@@ -495,7 +495,7 @@ again:
+ 
+ 	// If we hit the max load factor or we have too many overflow buckets,
+ 	// and we're not already in the middle of growing, start growing.
+-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+ 		hashGrow(t, h)
+ 		goto again // Growing the table invalidates everything, so try again
+ 	}
+@@ -596,7 +596,7 @@ again:
+ 
+ 	// If we hit the max load factor or we have too many overflow buckets,
+ 	// and we're not already in the middle of growing, start growing.
+-	if !h.growing() && (overLoadFactor(h.count, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
++	if !h.growing() && (overLoadFactor(h.count+1, h.B) || tooManyOverflowBuckets(h.noverflow, h.B)) {
+ 		hashGrow(t, h)
+ 		goto again // Growing the table invalidates everything, so try again
+ 	}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 59e9c94c3f..f31ef22f3e 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -596,6 +596,35 @@ func TestIgnoreBogusMapHint(t *testing.T) {
+ 	}
+ }
+ 
++func TestMapBuckets(t *testing.T) {
++	// Test that maps of different sizes have the right number of buckets.
++	// These tests depend on bucketCnt and loadFactor* in hashmap.go.
++	for _, tt := range [...]struct {
++		n, b int
++	}{
++		{8, 1},
++		{9, 2},
++		{13, 2},
++		{14, 4},
++		{26, 4},
++	} {
++		m := map[int]int{}
++		for i := 0; i < tt.n; i++ {
++			m[i] = i
++		}
++		if got := runtime.MapBuckets(m); got != tt.b {
++			t.Errorf("no hint n=%d want %d buckets, got %d", tt.n, tt.b, got)
++		}
++		m = make(map[int]int, tt.n)
++		for i := 0; i < tt.n; i++ {
++			m[i] = i
++		}
++		if got := runtime.MapBuckets(m); got != tt.b {
++			t.Errorf("hint n=%d want %d buckets, got %d", tt.n, tt.b, got)
++		}
++	}
++}
++
+ func benchmarkMapPop(b *testing.B, n int) {
+ 	m := map[int]int{}
+ 	for i := 0; i < b.N; i++ {

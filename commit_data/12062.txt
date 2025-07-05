@@ -8,6 +8,39 @@ Date:   Mon Feb 20 07:44:41 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5676104
-
+---
  test/initsyscall.go | 26 --------------------------
  1 file changed, 26 deletions(-)
+
+diff --git a/test/initsyscall.go b/test/initsyscall.go
+deleted file mode 100644
+index 492b188c92..0000000000
+--- a/test/initsyscall.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// run
+-
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This used to crash because the scheduler
+-// tried to kick off a new scheduling thread for f
+-// when time.Nanoseconds went into the system call.
+-// It's not okay to schedule new goroutines
+-// until main has started.
+-
+-package main
+-
+-import "time"
+-
+-func f() {
+-}
+-
+-func init() {
+-	go f()
+-	time.Now()
+-}
+-
+-func main() {
+-}

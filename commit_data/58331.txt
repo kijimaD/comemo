@@ -19,6 +19,36 @@ Date:   Sat Oct 28 07:09:01 2023 +0000
     Run-TryBot: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/internal/fmtsort/sort_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index 55c80ad426..7d5de9f56b 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"internal/fmtsort"
+ 	"math"
+ 	"reflect"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -190,12 +191,15 @@ func sprintKey(key reflect.Value) string {
+ var (
+ 	ints  [3]int
+ 	chans = makeChans()
++	pin   runtime.Pinner
+ )
+ 
+ func makeChans() []chan int {
+ 	cs := []chan int{make(chan int), make(chan int), make(chan int)}
+ 	// Order channels by address. See issue #49431.
+-	// TODO: pin these pointers once pinning is available (#46787).
++	for i := range cs {
++		pin.Pin(reflect.ValueOf(cs[i]).UnsafePointer())
++	}
+ 	sort.Slice(cs, func(i, j int) bool {
+ 		return uintptr(reflect.ValueOf(cs[i]).UnsafePointer()) < uintptr(reflect.ValueOf(cs[j]).UnsafePointer())
+ 	})

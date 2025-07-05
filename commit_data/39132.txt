@@ -15,10 +15,106 @@ Date:   Sun Jan 6 18:19:35 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  .../vendor/golang.org/x/tools/go/analysis/doc.go    |  4 ----
  .../x/tools/go/analysis/passes/asmdecl/asmdecl.go   |  4 ++--
  .../x/tools/go/analysis/passes/bools/bools.go       |  2 +-
  .../tools/go/analysis/passes/structtag/structtag.go | 21 +++++++++++++++++----
  .../x/tools/go/analysis/unitchecker/unitchecker.go  |  2 +-
  5 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 5dee615181..f925849ab5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -3,10 +3,6 @@
+ The analysis package defines the interface between a modular static
+ analysis and an analysis driver program.
+ 
+-
+-THIS INTERFACE IS EXPERIMENTAL AND SUBJECT TO CHANGE.
+-We aim to finalize it by November 2018.
+-
+ Background
+ 
+ A static analysis is a function that inspects a package of Go code and
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 0f8abb5748..dce1ef7bd5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -490,7 +490,7 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
+ 		offsets := arch.sizes.Offsetsof(fields)
+ 		elemoff := int(offsets[1])
+ 		for i := 0; i < int(tu.Len()); i++ {
+-			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), i*elemoff)
++			cc = appendComponentsRecursive(arch, elem, cc, suffix+"_"+strconv.Itoa(i), off+i*elemoff)
+ 		}
+ 	}
+ 
+@@ -514,7 +514,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
+ 		for _, fld := range list {
+ 			t := pass.TypesInfo.Types[fld.Type].Type
+ 
+-			// Work around github.com/golang/go/issues/28277.
++			// Work around https://golang.org/issue/28277.
+ 			if t == nil {
+ 				if ell, ok := fld.Type.(*ast.Ellipsis); ok {
+ 					t = types.NewSlice(pass.TypesInfo.Types[ell.Elt].Type)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+index 0e6f2695f3..833c9d7aae 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/bools/bools.go
+@@ -45,7 +45,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ 		// TODO(adonovan): this reports n(n-1)/2 errors for an
+ 		// expression e||...||e of depth n. Fix.
+-		// See https://github.com/golang/go/issues/28086.
++		// See https://golang.org/issue/28086.
+ 		comm := op.commutativeSets(pass.TypesInfo, e)
+ 		for _, exprs := range comm {
+ 			op.checkRedundant(pass, exprs)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index 78133fe6f3..2b67c376ba 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -136,10 +136,23 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
+ 		*seen = map[[2]string]token.Pos{}
+ 	}
+ 	if pos, ok := (*seen)[[2]string{key, val}]; ok {
+-		posn := pass.Fset.Position(pos)
+-		posn.Filename = filepath.Base(posn.Filename)
+-		posn.Column = 0
+-		pass.Reportf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, posn)
++		alsoPos := pass.Fset.Position(pos)
++		alsoPos.Column = 0
++
++		// Make the "also at" position relative to the current position,
++		// to ensure that all warnings are unambiguous and correct. For
++		// example, via anonymous struct fields, it's possible for the
++		// two fields to be in different packages and directories.
++		thisPos := pass.Fset.Position(field.Pos())
++		rel, err := filepath.Rel(filepath.Dir(thisPos.Filename), alsoPos.Filename)
++		if err != nil {
++			// Possibly because the paths are relative; leave the
++			// filename alone.
++		} else {
++			alsoPos.Filename = rel
++		}
++
++		pass.Reportf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, alsoPos)
+ 	} else {
+ 		(*seen)[[2]string{key, val}] = field.Pos()
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 018191a5e7..76dabc28b9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -182,7 +182,7 @@ func readConfig(filename string) (*Config, error) {
+ }
+ 
+ var importerForCompiler = func(_ *token.FileSet, compiler string, lookup importer.Lookup) types.Importer {
+-	// broken legacy implementation (github.com/golang/go/issues/28995)
++	// broken legacy implementation (https://golang.org/issue/28995)
+ 	return importer.For(compiler, lookup)
+ }
+ 

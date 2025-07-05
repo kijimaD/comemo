@@ -12,6 +12,20 @@ Date:   Sat Sep 1 10:34:58 2012 -0400
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/6488069
-
+---
  src/cmd/go/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 62533b3e01..c9c4e2d779 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -250,7 +250,7 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ 		if p.Error == nil {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.copy(),
+-				Err:         "import loop",
++				Err:         "import cycle not allowed",
+ 			}
+ 		}
+ 		p.Incomplete = true

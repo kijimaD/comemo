@@ -34,7 +34,76 @@ Date:   Mon Jun 30 15:40:20 2025 -0700
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/encoding/json/internal/jsonopts/options.go | 8 ++++----
  src/encoding/json/v2/options.go                | 5 +++--
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/json/internal/jsonopts/options.go b/src/encoding/json/internal/jsonopts/options.go
+index 2226830b6b..e4c3f47d36 100644
+--- a/src/encoding/json/internal/jsonopts/options.go
++++ b/src/encoding/json/internal/jsonopts/options.go
+@@ -65,7 +65,7 @@ func (*Struct) JSONOptions(internal.NotForPublicUse) {}
+ 
+ // GetUnknownOption is injected by the "json" package to handle Options
+ // declared in that package so that "jsonopts" can handle them.
+-var GetUnknownOption = func(*Struct, Options) (any, bool) { panic("unknown option") }
++var GetUnknownOption = func(Struct, Options) (any, bool) { panic("unknown option") }
+ 
+ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
+ 	// Collapse the options to *Struct to simplify lookup.
+@@ -104,14 +104,14 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
+ 		}
+ 		return any(structOpts.DepthLimit).(T), true
+ 	default:
+-		v, ok := GetUnknownOption(structOpts, opt)
++		v, ok := GetUnknownOption(*structOpts, opt)
+ 		return v.(T), ok
+ 	}
+ }
+ 
+ // JoinUnknownOption is injected by the "json" package to handle Options
+ // declared in that package so that "jsonopts" can handle them.
+-var JoinUnknownOption = func(*Struct, Options) { panic("unknown option") }
++var JoinUnknownOption = func(Struct, Options) Struct { panic("unknown option") }
+ 
+ func (dst *Struct) Join(srcs ...Options) {
+ 	dst.join(false, srcs...)
+@@ -182,7 +182,7 @@ func (dst *Struct) join(excludeCoderOptions bool, srcs ...Options) {
+ 				}
+ 			}
+ 		default:
+-			JoinUnknownOption(dst, src)
++			*dst = JoinUnknownOption(*dst, src)
+ 		}
+ 	}
+ }
+diff --git a/src/encoding/json/v2/options.go b/src/encoding/json/v2/options.go
+index 12bbdb5d86..0942d2d307 100644
+--- a/src/encoding/json/v2/options.go
++++ b/src/encoding/json/v2/options.go
+@@ -257,7 +257,7 @@ func (*unmarshalersOption) JSONOptions(internal.NotForPublicUse) {}
+ 
+ // Inject support into "jsonopts" to handle these types.
+ func init() {
+-	jsonopts.GetUnknownOption = func(src *jsonopts.Struct, zero jsonopts.Options) (any, bool) {
++	jsonopts.GetUnknownOption = func(src jsonopts.Struct, zero jsonopts.Options) (any, bool) {
+ 		switch zero.(type) {
+ 		case *marshalersOption:
+ 			if !src.Flags.Has(jsonflags.Marshalers) {
+@@ -273,7 +273,7 @@ func init() {
+ 			panic(fmt.Sprintf("unknown option %T", zero))
+ 		}
+ 	}
+-	jsonopts.JoinUnknownOption = func(dst *jsonopts.Struct, src jsonopts.Options) {
++	jsonopts.JoinUnknownOption = func(dst jsonopts.Struct, src jsonopts.Options) jsonopts.Struct {
+ 		switch src := src.(type) {
+ 		case *marshalersOption:
+ 			dst.Flags.Set(jsonflags.Marshalers | 1)
+@@ -284,5 +284,6 @@ func init() {
+ 		default:
+ 			panic(fmt.Sprintf("unknown option %T", src))
+ 		}
++		return dst
+ 	}
+ }

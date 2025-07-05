@@ -12,6 +12,19 @@ Date:   Fri May 17 12:58:10 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/586477
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/envcmd/env.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index b25010a29a..c4836b2f95 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -132,7 +132,6 @@ func MkEnv() []cfg.EnvVar {
+ 				env[i].Changed = true
+ 			}
+ 		case "GODEBUG":
+-			env[i].Value = os.Getenv("GODEBUG")
+ 			env[i].Changed = env[i].Value != ""
+ 		}
+ 	}

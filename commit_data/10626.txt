@@ -7,6 +7,20 @@ Date:   Tue Dec 6 08:16:39 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5448115
-
+---
  src/cmd/cgo/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 1241152c30..6282c0bbfa 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -93,7 +93,7 @@ Go functions can be exported for use by C code in the following way:
+ 	func MyFunction(arg1, arg2 int, arg3 string) int64 {...}
+ 
+ 	//export MyFunction2
+-	func MyFunction2(arg1, arg2 int, arg3 string) (int64, C.char*) {...}
++	func MyFunction2(arg1, arg2 int, arg3 string) (int64, *C.char) {...}
+ 
+ They will be available in the C code as:
+ 

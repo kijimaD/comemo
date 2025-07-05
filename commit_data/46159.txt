@@ -21,6 +21,48 @@ Date:   Thu Dec 10 17:43:09 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/277212
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.16.html | 16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 504165f3ea..44d9707c16 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -99,10 +99,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="tools">Tools</h2>
+ 
+-<p>
+-  TODO
+-</p>
+-
+ <h3 id="go-command">Go command</h3>
+ 
+ <h4 id="modules">Modules</h4>
+@@ -438,10 +434,10 @@ Do not send CLs removing the interior tags from such phrases.
+   implementations.
+ </p>
+ 
+-<p>
+-  TODO: when the "Minor changes to the library" section is close to completion,
+-  decide if any changes are worth factoring out and highlighting in "Core library"
+-</p>
++<!-- okay-after-beta1
++  TODO: decide if any additional changes are worth factoring out from
++  "Minor changes to the library" and highlighting in "Core library"
++-->
+ 
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+@@ -451,10 +447,6 @@ Do not send CLs removing the interior tags from such phrases.
+   in mind.
+ </p>
+ 
+-<p>
+-  TODO: complete this section, resolve TODOs below, add missing entries
+-</p>
+-
+ <dl id="crypto/dsa"><dt><a href="/pkg/crypto/dsa/">crypto/dsa</a></dt>
+   <dd>
+     <p><!-- CL 257939 -->

@@ -11,7 +11,7 @@ Date:   Thu Jan 22 16:23:44 2009 -0800
     DELTA=740  (289 added, 300 deleted, 151 changed)
     OCL=23326
     CL=23331
-
+---
  src/cmd/gc/sys.go              |  18 ---
  src/cmd/gc/sysimport.c         |  17 +--
  src/cmd/gc/unsafe.go           |   2 +-
@@ -41,3 +41,1586 @@ Date:   Thu Jan 22 16:23:44 2009 -0800
  src/runtime/sema.c             |   6 +-
  src/runtime/sema_go.cgo        |  15 +++
  28 files changed, 433 insertions(+), 434 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 28a22fba36..fc10f181a8 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -77,27 +77,9 @@ func	Unreflect(uint64, string, bool) (ret interface { });
+ var	Args []string;
+ var	Envs []string;
+ 
+-func	Frexp(float64) (float64, int);		// break fp into exp,fract
+-func	Ldexp(float64, int) float64;		// make fp from exp,fract
+-func	Modf(float64) (float64, float64);	// break fp into double.double
+-func	IsInf(float64, int) bool;		// test for infinity
+-func	IsNaN(float64) bool;			// test for not-a-number
+-func	Inf(int) float64;			// return signed Inf
+-func	NaN() float64;				// return a NaN
+-func	Float32bits(float32) uint32;		// raw bits
+-func	Float64bits(float64) uint64;		// raw bits
+-func	Float32frombits(uint32) float32;	// raw bits
+-func	Float64frombits(uint64) float64;	// raw bits
+-
+ func	Gosched();
+ func	Goexit();
+ 
+-func	BytesToRune(*byte, int, int) (int, int);	// convert bytes to runes
+-func	StringToRune(string, int) (int, int);	// convert bytes to runes
+-
+ func	Exit(int);
+ 
+ func	Caller(n int) (pc uint64, file string, line int, ok bool);
+-
+-func	SemAcquire(sema *int32);
+-func	SemRelease(sema *int32);
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 734272aca3..bccc8f877f 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -55,29 +55,16 @@ char *sysimport =
+ 	"func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+ 	"var sys.Args []string\n"
+ 	"var sys.Envs []string\n"
+-	"func sys.Frexp (? float64) (? float64, ? int)\n"
+-	"func sys.Ldexp (? float64, ? int) (? float64)\n"
+-	"func sys.Modf (? float64) (? float64, ? float64)\n"
+-	"func sys.IsInf (? float64, ? int) (? bool)\n"
+-	"func sys.IsNaN (? float64) (? bool)\n"
+-	"func sys.Inf (? int) (? float64)\n"
+-	"func sys.NaN () (? float64)\n"
+-	"func sys.Float32bits (? float32) (? uint32)\n"
+-	"func sys.Float64bits (? float64) (? uint64)\n"
+-	"func sys.Float32frombits (? uint32) (? float32)\n"
+-	"func sys.Float64frombits (? uint64) (? float64)\n"
+ 	"func sys.Gosched ()\n"
+ 	"func sys.Goexit ()\n"
+-	"func sys.BytesToRune (? *uint8, ? int, ? int) (? int, ? int)\n"
+-	"func sys.StringToRune (? string, ? int) (? int, ? int)\n"
+ 	"func sys.Exit (? int)\n"
+ 	"func sys.Caller (n int) (pc uint64, file string, line int, ok bool)\n"
+-	"func sys.SemAcquire (sema *int32)\n"
+-	"func sys.SemRelease (sema *int32)\n"
++	"func sys.Init·sys ()\n"
+ 	"\n"
+ 	"$$\n";
+ char *unsafeimport =
+ 	"package unsafe\n"
+ 	"type unsafe.Pointer *any\n"
++	"func unsafe.Init·unsafe ()\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index ba6aa7c462..2b2187b3e3 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -5,4 +5,4 @@
+ 
+ package PACKAGE
+ 
+-export	type	pointer	*any;
++type	Pointer	*any;
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index c24b02b312..3cfde17b51 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -105,7 +105,7 @@ net.dirinstall: fmt.dirinstall once.install os.dirinstall strconv.dirinstall str
+ os.dirinstall: syscall.dirinstall
+ regexp.dirinstall: os.dirinstall
+ reflect.dirinstall: strconv.dirinstall sync.dirinstall
+-strconv.dirinstall: os.dirinstall utf8.install
++strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
+ tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
+ time.dirinstall: once.install os.dirinstall
+ sync.dirinstall:
+diff --git a/src/lib/fmt/fmt_test.go b/src/lib/fmt/fmt_test.go
+index 881fd1a366..8cafcd159a 100644
+--- a/src/lib/fmt/fmt_test.go
++++ b/src/lib/fmt/fmt_test.go
+@@ -7,6 +7,7 @@ package fmt
+ import (
+ 	"fmt";
+ 	"io";
++	"math";
+ 	"syscall";
+ 	"testing";
+ )
+@@ -145,9 +146,9 @@ var fmttests = []fmtTest{
+ 	fmtTest{ "%g",		float64(1.23456789e3),	"1234.56789" },
+ 	fmtTest{ "%g",		float64(1.23456789e-3),	"0.00123456789" },
+ 	fmtTest{ "%g",		float64(1.23456789e20),	"1.23456789e+20" },
+-	fmtTest{ "%20e",	sys.Inf(1),		"                +Inf" },
+-	fmtTest{ "%-20f",	sys.Inf(-1),		"-Inf                " },
+-	fmtTest{ "%20g",	sys.NaN(),		"                 NaN" },
++	fmtTest{ "%20e",	math.Inf(1),		"                +Inf" },
++	fmtTest{ "%-20f",	math.Inf(-1),		"-Inf                " },
++	fmtTest{ "%20g",	math.NaN(),		"                 NaN" },
+ }
+ 
+ func TestSprintf(t *testing.T) {
+diff --git a/src/lib/math/Makefile b/src/lib/math/Makefile
+index d0debdbbcd..623626e967 100644
+--- a/src/lib/math/Makefile
++++ b/src/lib/math/Makefile
+@@ -32,48 +32,56 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
+-	exp.$O\
+ 	fabs.$O\
+-	floor.$O\
+-	fmod.$O\
+ 	hypot.$O\
+ 	pow10.$O\
+-	sqrt.$O\
++	runtime.$O\
+ 	const.$O\
+ 
+ O2=\
+ 	atan.$O\
++	exp.$O\
++	floor.$O\
++	fmod.$O\
+ 	log.$O\
+ 	sin.$O\
+-	sinh.$O\
++	sqrt.$O\
+ 	tan.$O\
+ 
+ O3=\
+ 	asin.$O\
+ 	atan2.$O\
+ 	pow.$O\
++	sinh.$O\
++
++O4=\
+ 	tanh.$O\
+ 
+-math.a: a1 a2 a3
++math.a: a1 a2 a3 a4
+ 
+ a1:	$(O1)
+-	$(AR) grc math.a exp.$O fabs.$O floor.$O fmod.$O hypot.$O pow10.$O sqrt.$O const.$O
++	$(AR) grc math.a fabs.$O hypot.$O pow10.$O runtime.$O const.$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+-	$(AR) grc math.a atan.$O log.$O sin.$O sinh.$O tan.$O
++	$(AR) grc math.a atan.$O exp.$O floor.$O fmod.$O log.$O sin.$O sqrt.$O tan.$O
+ 	rm -f $(O2)
+ 
+ a3:	$(O3)
+-	$(AR) grc math.a asin.$O atan2.$O pow.$O tanh.$O
++	$(AR) grc math.a asin.$O atan2.$O pow.$O sinh.$O
+ 	rm -f $(O3)
+ 
++a4:	$(O4)
++	$(AR) grc math.a tanh.$O
++	rm -f $(O4)
++
+ newpkg: clean
+ 	$(AR) grc math.a
+ 
+ $(O1): newpkg
+ $(O2): a1
+ $(O3): a2
++$(O4): a3
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/math.a
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+index d39339ea1c..cd3a0b7a0f 100644
+--- a/src/lib/math/asin.go
++++ b/src/lib/math/asin.go
+@@ -24,7 +24,7 @@ func Asin(arg float64) float64 {
+ 		sign = true;
+ 	}
+ 	if arg > 1 {
+-		return sys.NaN();
++		return NaN();
+ 	}
+ 
+ 	temp = Sqrt(1 - x*x);
+@@ -42,7 +42,7 @@ func Asin(arg float64) float64 {
+ 
+ func Acos(arg float64) float64 {
+ 	if arg > 1 || arg < -1 {
+-		return sys.NaN();
++		return NaN();
+ 	}
+ 	return Pi/2 - Asin(arg);
+ }
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+index 0d06ff9cbe..d781c1dec0 100644
+--- a/src/lib/math/exp.go
++++ b/src/lib/math/exp.go
+@@ -101,12 +101,12 @@ func Exp(x float64) float64 {
+ 
+ 	// special cases
+ 	switch {
+-	case sys.IsNaN(x) || sys.IsInf(x, 1):
++	case IsNaN(x) || IsInf(x, 1):
+ 		return x;
+-	case sys.IsInf(x, -1):
++	case IsInf(x, -1):
+ 		return 0;
+ 	case x > Overflow:
+-		return sys.Inf(1);
++		return Inf(1);
+ 	case x < Underflow:
+ 		return 0;
+ 	case -NearZero < x && x < NearZero:
+@@ -129,6 +129,6 @@ func Exp(x float64) float64 {
+ 	t := r * r;
+ 	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
+ 	y := 1 - ((lo - (r*c)/(2-c)) - hi);
+-	// TODO(rsc): make sure sys.Ldexp can handle boundary k
+-	return sys.Ldexp(y, k);
++	// TODO(rsc): make sure Ldexp can handle boundary k
++	return Ldexp(y, k);
+ }
+diff --git a/src/lib/math/floor.go b/src/lib/math/floor.go
+index 1cbdded47f..cedecd1f6c 100644
+--- a/src/lib/math/floor.go
++++ b/src/lib/math/floor.go
+@@ -4,6 +4,8 @@
+ 
+ package math
+ 
++import "math"
++
+ /*
+  * floor and ceil-- greatest integer <= arg
+  * (resp least >=)
+@@ -11,13 +13,13 @@ package math
+ 
+ func Floor(arg float64) float64 {
+ 	if arg < 0 {
+-		d, fract := sys.Modf(-arg);
++		d, fract := Modf(-arg);
+ 		if fract != 0.0 {
+ 			d = d+1;
+ 		}
+ 		return -d;
+ 	}
+-	d, fract := sys.Modf(arg);
++	d, fract := Modf(arg);
+ 	return d;
+ }
+ 
+diff --git a/src/lib/math/fmod.go b/src/lib/math/fmod.go
+index f30ae35631..75e5eece2d 100644
+--- a/src/lib/math/fmod.go
++++ b/src/lib/math/fmod.go
+@@ -4,6 +4,8 @@
+ 
+ package math
+ 
++import "math"
++
+ /*
+  *	floating-point mod func without infinity or NaN checking
+  */
+@@ -16,7 +18,7 @@ func Fmod(x, y float64) float64 {
+ 		y = -y;
+ 	}
+ 
+-	yfr, yexp := sys.Frexp(y);
++	yfr, yexp := Frexp(y);
+ 	sign := false;
+ 	r := x;
+ 	if x < 0 {
+@@ -25,11 +27,11 @@ func Fmod(x, y float64) float64 {
+ 	}
+ 
+ 	for r >= y {
+-		rfr, rexp := sys.Frexp(r);
++		rfr, rexp := Frexp(r);
+ 		if rfr < yfr {
+ 			rexp = rexp - 1;
+ 		}
+-		r = r - sys.Ldexp(y, rexp-yexp);
++		r = r - Ldexp(y, rexp-yexp);
+ 	}
+ 	if sign {
+ 		r = -r;
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+index 76b5231e53..8874216427 100644
+--- a/src/lib/math/log.go
++++ b/src/lib/math/log.go
+@@ -85,16 +85,16 @@ func Log(x float64) float64 {
+ 
+ 	// special cases
+ 	switch {
+-	case sys.IsNaN(x) || sys.IsInf(x, 1):
++	case IsNaN(x) || IsInf(x, 1):
+ 		return x;
+ 	case x < 0:
+-		return sys.NaN();
++		return NaN();
+ 	case x == 0:
+-		return sys.Inf(-1);
++		return Inf(-1);
+ 	}
+ 
+ 	// reduce
+-	f1, ki := sys.Frexp(x);
++	f1, ki := Frexp(x);
+ 	if f1 < Sqrt2/2 {
+ 		f1 *= 2;
+ 		ki--;
+@@ -115,7 +115,7 @@ func Log(x float64) float64 {
+ 
+ func Log10(arg float64) float64 {
+ 	if arg <= 0 {
+-		return sys.NaN();
++		return NaN();
+ 	}
+ 	return Log(arg) * (1/Ln10);
+ }
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index 3ab218d5ef..929943a130 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -17,7 +17,7 @@ func Pow(x, y float64) float64 {
+ 	case x == 0 && y > 0:
+ 		return 0;
+ 	case x == 0 && y < 0:
+-		return sys.Inf(1);
++		return Inf(1);
+ 	case y == 0.5:
+ 		return Sqrt(x);
+ 	case y == -0.5:
+@@ -30,9 +30,9 @@ func Pow(x, y float64) float64 {
+ 		absy = -absy;
+ 		flip = true;
+ 	}
+-	yi, yf := sys.Modf(absy);
++	yi, yf := Modf(absy);
+ 	if yf != 0 && x < 0 {
+-		return sys.NaN();
++		return NaN();
+ 	}
+ 	if yi >= 1<<63 {
+ 		return Exp(y * Log(x));
+@@ -55,7 +55,7 @@ func Pow(x, y float64) float64 {
+ 	// by multiplying in successive squarings
+ 	// of x according to bits of yi.
+ 	// accumulate powers of two into exp.
+-	x1, xe := sys.Frexp(x);
++	x1, xe := Frexp(x);
+ 	for i := int64(yi); i != 0; i >>= 1 {
+ 		if i&1 == 1 {
+ 			a1 *= x1;
+@@ -76,5 +76,5 @@ func Pow(x, y float64) float64 {
+ 		a1 = 1 / a1;
+ 		ae = -ae;
+ 	}
+-	return sys.Ldexp(a1, ae);
++	return Ldexp(a1, ae);
+ }
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index fc8a05d4bf..9c7b39bf82 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -29,9 +29,9 @@ func sinus(arg float64, quad int) float64 {
+ 	var y float64;
+ 	if x > 32764 {
+ 		var e float64;
+-		e, y = sys.Modf(x);
++		e, y = Modf(x);
+ 		e = e + float64(quad);
+-		temp1, f := sys.Modf(0.25*e);
++		temp1, f := Modf(0.25*e);
+ 		quad = int(e - 4*f);
+ 	} else {
+ 		k := int32(x);
+diff --git a/src/lib/math/sqrt.go b/src/lib/math/sqrt.go
+index cf256b25c4..466b927715 100644
+--- a/src/lib/math/sqrt.go
++++ b/src/lib/math/sqrt.go
+@@ -4,6 +4,8 @@
+ 
+ package math
+ 
++import "math"
++
+ /*
+  *	sqrt returns the square root of its floating
+  *	point argument. Newton's method.
+@@ -12,18 +14,18 @@ package math
+  */
+ 
+ func Sqrt(arg float64) float64 {
+-	if sys.IsInf(arg, 1) {
++	if IsInf(arg, 1) {
+ 		return arg;
+ 	}
+ 
+ 	if arg <= 0 {
+ 		if arg < 0 {
+-			return sys.NaN();
++			return NaN();
+ 		}
+ 		return 0;
+ 	}
+ 
+-	x,exp := sys.Frexp(arg);
++	x,exp := Frexp(arg);
+ 	for x < 0.5 {
+ 		x = x*2;
+ 		exp = exp-1;
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+index 4910fa3a4c..99155d0053 100644
+--- a/src/lib/math/tan.go
++++ b/src/lib/math/tan.go
+@@ -33,7 +33,7 @@ func Tan(arg float64) float64 {
+ 	}
+ 	x = x * (4/Pi);   /* overflow? */
+ 	var e float64;
+-	e, x = sys.Modf(x);
++	e, x = Modf(x);
+ 	i := int32(e);
+ 
+ 	switch i & 3 {
+@@ -56,7 +56,7 @@ func Tan(arg float64) float64 {
+ 
+ 	if flag {
+ 		if(temp == 0) {
+-			panic(sys.NaN());
++			panic(NaN());
+ 		}
+ 		temp = 1/temp;
+ 	}
+diff --git a/src/lib/strconv/atof.go b/src/lib/strconv/atof.go
+index e562bfdb33..3585944163 100644
+--- a/src/lib/strconv/atof.go
++++ b/src/lib/strconv/atof.go
+@@ -11,6 +11,7 @@
+ package strconv
+ 
+ import (
++	"math";
+ 	"os";
+ 	"strconv";
+ )
+@@ -329,7 +330,7 @@ func Atof64(s string) (f float64, err *os.Error) {
+ 		}
+ 	}
+ 	b, ovf := decimalToFloatBits(neg, d, trunc, &float64info);
+-	f = sys.Float64frombits(b);
++	f = math.Float64frombits(b);
+ 	if ovf {
+ 		err = os.ERANGE;
+ 	}
+@@ -347,7 +348,7 @@ func Atof32(s string) (f float32, err *os.Error) {
+ 		}
+ 	}
+ 	b, ovf := decimalToFloatBits(neg, d, trunc, &float32info);
+-	f = sys.Float32frombits(uint32(b));
++	f = math.Float32frombits(uint32(b));
+ 	if ovf {
+ 		err = os.ERANGE;
+ 	}
+diff --git a/src/lib/strconv/ftoa.go b/src/lib/strconv/ftoa.go
+index c4951873d0..52835c803e 100644
+--- a/src/lib/strconv/ftoa.go
++++ b/src/lib/strconv/ftoa.go
+@@ -10,7 +10,10 @@
+ 
+ package strconv
+ 
+-import "strconv"
++import (
++	"math";
++	"strconv";
++)
+ 
+ // TODO: move elsewhere?
+ type floatInfo struct {
+@@ -41,11 +44,11 @@ func floatsize() int {
+ var FloatSize = floatsize()
+ 
+ func Ftoa32(f float32, fmt byte, prec int) string {
+-	return genericFtoa(uint64(sys.Float32bits(f)), fmt, prec, &float32info);
++	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info);
+ }
+ 
+ func Ftoa64(f float64, fmt byte, prec int) string {
+-	return genericFtoa(sys.Float64bits(f), fmt, prec, &float64info);
++	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info);
+ }
+ 
+ func Ftoa(f float, fmt byte, prec int) string {
+diff --git a/src/lib/strconv/ftoa_test.go b/src/lib/strconv/ftoa_test.go
+index 309f028700..0f0baa5145 100644
+--- a/src/lib/strconv/ftoa_test.go
++++ b/src/lib/strconv/ftoa_test.go
+@@ -5,6 +5,7 @@
+ package strconv
+ 
+ import (
++	"math";
+ 	"strconv";
+ 	"testing"
+ )
+@@ -89,11 +90,11 @@ var ftoatests = []ftoaTest {
+ 
+ 	ftoaTest{ 100, 'x', -1, "%x" },
+ 
+-	ftoaTest{ sys.NaN(), 'g', -1, "NaN" },
+-	ftoaTest{ -sys.NaN(), 'g', -1, "NaN" },
+-	ftoaTest{ sys.Inf(0), 'g', -1, "+Inf" },
+-	ftoaTest{ sys.Inf(-1), 'g', -1,  "-Inf" },
+-	ftoaTest{ -sys.Inf(0), 'g', -1, "-Inf" },
++	ftoaTest{ math.NaN(), 'g', -1, "NaN" },
++	ftoaTest{ -math.NaN(), 'g', -1, "NaN" },
++	ftoaTest{ math.Inf(0), 'g', -1, "+Inf" },
++	ftoaTest{ math.Inf(-1), 'g', -1,  "-Inf" },
++	ftoaTest{ -math.Inf(0), 'g', -1, "-Inf" },
+ 
+ 	ftoaTest{ -1, 'b', -1, "-4503599627370496p-52" },
+ }
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index f62229fd2c..03633a61d3 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -17,23 +17,26 @@ LIBOFILES=\
+ 	rt1_$(GOARCH)_$(GOOS).$O\
+ 	rt2_$(GOARCH).$O\
+ 	sys_$(GOARCH)_$(GOOS).$O\
+-	runtime.$O\
+-	hashmap.$O\
++	array.$O\
+ 	chan.$O\
++	float.$O\
++	float_go.$O\
++	hashmap.$O\
+ 	iface.$O\
+-	array.$O\
+-	mem.$O\
+ 	malloc.$O\
+ 	malloc_go.$O\
+ 	mcache.$O\
+ 	mcentral.$O\
++	mem.$O\
+ 	mfixalloc.$O\
+ 	mheap.$O\
+ 	msize.$O\
+ 	print.$O\
+-	rune.$O\
+ 	proc.$O\
++	rune.$O\
++	runtime.$O\
+ 	sema.$O\
++	sema_go.$O\
+ 	string.$O\
+ 	symtab.$O\
+ 
+@@ -69,7 +72,7 @@ cgo2c: cgo2c.c
+ 	quietgcc -o $@ $<
+ 
+ %.c:	%.cgo cgo2c
+-	./cgo2c < $< > $@.tmp
++	./cgo2c $< > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+ %.$O:	%.s
+diff --git a/src/runtime/amd64_darwin.h b/src/runtime/amd64_darwin.h
+index 45174cb42a..28e58972b1 100644
+--- a/src/runtime/amd64_darwin.h
++++ b/src/runtime/amd64_darwin.h
+@@ -58,8 +58,8 @@ void bsdthread_register(void);
+ typedef int32 kern_return_t;
+ typedef uint32 mach_port_t;
+ 
+-mach_port_t semcreate(void);
+-void semacquire(mach_port_t);
+-void semrelease(mach_port_t);
+-void semreset(mach_port_t);
+-void semdestroy(mach_port_t);
++mach_port_t mach_semcreate(void);
++void mach_semacquire(mach_port_t);
++void mach_semrelease(mach_port_t);
++void mach_semreset(mach_port_t);
++void mach_semdestroy(mach_port_t);
+diff --git a/src/runtime/cgo2c.c b/src/runtime/cgo2c.c
+index 0d1817d6bd..3905f7e6dc 100644
+--- a/src/runtime/cgo2c.c
++++ b/src/runtime/cgo2c.c
+@@ -21,11 +21,13 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+ 
+-/* The name of the program.  */
+-static const char *program_name;
++/* Whether we're emitting for gcc */
++static int gcc;
+ 
+-/* The line number.  */
++/* File and line number */
++static const char *file;
+ static unsigned int lineno;
+ 
+ /* List of names and types.  */
+@@ -39,8 +41,7 @@ struct params {
+ static void
+ bad_eof(void)
+ {
+-	fprintf(stderr, "%s: line %u: unexpected EOF\n",
+-		program_name, lineno);
++	fprintf(stderr, "%s:%u: unexpected EOF\n", file, lineno);
+ 	exit(1);
+ }
+ 
+@@ -48,8 +49,7 @@ bad_eof(void)
+ static void
+ bad_mem(void)
+ {
+-	fprintf(stderr, "%s: line %u: out of memory\n",
+-		program_name, lineno);
++	fprintf(stderr, "%s:%u: out of memory\n", file, lineno);
+ 	exit(1);
+ }
+ 
+@@ -212,8 +212,8 @@ read_package(void)
+ 	token = read_token_no_eof();
+ 	if (strcmp(token, "package") != 0) {
+ 		fprintf(stderr,
+-			"%s: line %u: expected \"package\", got \"%s\"\n",
+-			program_name, lineno, token);
++			"%s:%u: expected \"package\", got \"%s\"\n",
++			file, lineno, token);
+ 		exit(1);
+ 	}
+ 	return read_token_no_eof();
+@@ -298,8 +298,8 @@ read_params(void)
+ 		}
+ 	}
+ 	if (strcmp(token, ")") != 0) {
+-		fprintf(stderr, "%s: line %u: expected '('\n",
+-			program_name, lineno);
++		fprintf(stderr, "%s:%u: expected '('\n",
++			file, lineno);
+ 		exit(1);
+ 	}
+ 	return ret;
+@@ -316,16 +316,16 @@ read_func_header(char **name, struct params **params, struct params **rets)
+ 	if (token == NULL)
+ 		return 0;
+ 	if (strcmp(token, "func") != 0) {
+-		fprintf(stderr, "%s: line %u: expected \"func\"\n",
+-			program_name, lineno);
++		fprintf(stderr, "%s:%u: expected \"func\"\n",
++			file, lineno);
+ 		exit(1);
+ 	}
+ 	*name = read_token_no_eof();
+ 
+ 	token = read_token();
+ 	if (token == NULL || strcmp(token, "(") != 0) {
+-		fprintf(stderr, "%s: line %u: expected \"(\"\n",
+-			program_name, lineno);
++		fprintf(stderr, "%s:%u: expected \"(\"\n",
++			file, lineno);
+ 		exit(1);
+ 	}
+ 	*params = read_params();
+@@ -338,8 +338,8 @@ read_func_header(char **name, struct params **params, struct params **rets)
+ 		token = read_token();
+ 	}
+ 	if (token == NULL || strcmp(token, "{") != 0) {
+-		fprintf(stderr, "%s: line %u: expected \"{\"\n",
+-			program_name, lineno);
++		fprintf(stderr, "%s:%u: expected \"{\"\n",
++			file, lineno);
+ 		exit(1);
+ 	}
+ 	return 1;
+@@ -455,21 +455,22 @@ write_gcc_func_trailer(char *package, char *name, struct params *rets)
+ 
+ /* Write out a function header.  */
+ static void
+-write_func_header(int flag_gcc, char *package, char *name,
++write_func_header(char *package, char *name,
+ 		  struct params *params, struct params *rets)
+ {
+-	if (flag_gcc)
++	if (gcc)
+ 		write_gcc_func_header(package, name, params, rets);
+ 	else
+ 		write_6g_func_header(package, name, params, rets);
++	printf("#line %d \"%s\"\n", lineno, file);
+ }
+ 
+ /* Write out a function trailer.  */
+ static void
+-write_func_trailer(int flag_gcc, char *package, char *name,
++write_func_trailer(char *package, char *name,
+ 		   struct params *rets)
+ {
+-	if (flag_gcc)
++	if (gcc)
+ 		write_gcc_func_trailer(package, name, rets);
+ 	else
+ 		write_6g_func_trailer(rets);
+@@ -478,7 +479,7 @@ write_func_trailer(int flag_gcc, char *package, char *name,
+ /* Read and write the body of the function, ending in an unnested }
+    (which is read but not written).  */
+ static void
+-copy_body()
++copy_body(void)
+ {
+ 	int nesting = 0;
+ 	while (1) {
+@@ -541,7 +542,7 @@ copy_body()
+ 
+ /* Process the entire file.  */
+ static void
+-process_file(int flag_gcc)
++process_file(void)
+ {
+ 	char *package, *name;
+ 	struct params *params, *rets;
+@@ -549,9 +550,9 @@ process_file(int flag_gcc)
+ 	package = read_package();
+ 	read_preprocessor_lines();
+ 	while (read_func_header(&name, &params, &rets)) {
+-		write_func_header(flag_gcc, package, name, params, rets);
++		write_func_header(package, name, params, rets);
+ 		copy_body();
+-		write_func_trailer(flag_gcc, package, name, rets);
++		write_func_trailer(package, name, rets);
+ 		free(name);
+ 		free_params(params);
+ 		free_params(rets);
+@@ -559,25 +560,43 @@ process_file(int flag_gcc)
+ 	free(package);
+ }
+ 
+-/* Main function.  */
++static void
++usage(void)
++{
++	fprintf(stderr, "Usage: cgo2c [--6g | --gc] [file]\n");
++	exit(1);
++}
++
+ int
+ main(int argc, char **argv)
+ {
+-	int flag_gcc = 0;
+-	int i;
+-
+-	program_name = argv[0];
+-	for (i = 1; i < argc; ++i) {
+-		if (strcmp(argv[i], "--6g") == 0)
+-			flag_gcc = 0;
+-		else if (strcmp(argv[i], "--gcc") == 0)
+-			flag_gcc = 1;
+-		else {
+-			fprintf(stderr, "Usage: %s [--6g][--gcc]\n",
+-				program_name);
+-			exit(1);
+-		}
++	while(argc > 1 && argv[1][0] == '-') {
++		if(strcmp(argv[1], "-") == 0)
++			break;
++		if(strcmp(argv[1], "--6g") == 0)
++			gcc = 0;
++		else if(strcmp(argv[1], "--gcc") == 0)
++			gcc = 1;
++		else
++			usage();
++		argc--;
++		argv++;
++	}
++	
++	if(argc <= 1 || strcmp(argv[1], "-") == 0) {
++		file = "<stdin>";
++		process_file();
++		return 0;
++	}
++	
++	if(argc > 2)
++		usage();
++
++	file = argv[1];
++	if(freopen(file, "r", stdin) == 0) {
++		fprintf(stderr, "open %s: %s\n", file, strerror(errno));
++		exit(1);
+ 	}
+-	process_file(flag_gcc);
++	process_file();
+ 	return 0;
+ }
+diff --git a/src/runtime/float.c b/src/runtime/float.c
+new file mode 100644
+index 0000000000..5122f359a7
+--- /dev/null
++++ b/src/runtime/float.c
+@@ -0,0 +1,173 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++static	uint64	uvnan		= 0x7FF0000000000001ULL;
++static	uint64	uvinf		= 0x7FF0000000000000ULL;
++static	uint64	uvneginf	= 0xFFF0000000000000ULL;
++
++uint32
++float32tobits(float32 f)
++{
++	// The obvious cast-and-pointer code is technically
++	// not valid, and gcc miscompiles it.  Use a union instead.
++	union {
++		float32 f;
++		uint32 i;
++	} u;
++	u.f = f;
++	return u.i;
++}
++
++uint64
++float64tobits(float64 f)
++{
++	// The obvious cast-and-pointer code is technically
++	// not valid, and gcc miscompiles it.  Use a union instead.
++	union {
++		float64 f;
++		uint64 i;
++	} u;
++	u.f = f;
++	return u.i;
++}
++
++float64
++float64frombits(uint64 i)
++{
++	// The obvious cast-and-pointer code is technically
++	// not valid, and gcc miscompiles it.  Use a union instead.
++	union {
++		float64 f;
++		uint64 i;
++	} u;
++	u.i = i;
++	return u.f;
++}
++
++float32
++float32frombits(uint32 i)
++{
++	// The obvious cast-and-pointer code is technically
++	// not valid, and gcc miscompiles it.  Use a union instead.
++	union {
++		float32 f;
++		uint32 i;
++	} u;
++	u.i = i;
++	return u.f;
++}
++
++bool
++isInf(float64 f, int32 sign)
++{
++	uint64 x;
++
++	x = float64tobits(f);
++	if(sign == 0)
++		return x == uvinf || x == uvneginf;
++	if(sign > 0)
++		return x == uvinf;
++	return x == uvneginf;
++}
++
++float64
++NaN(void)
++{
++	return float64frombits(uvnan);
++}
++
++bool
++isNaN(float64 f)
++{
++	uint64 x;
++
++	x = float64tobits(f);
++	return ((uint32)(x>>52) & 0x7FF) == 0x7FF && !isInf(f, 0);
++}
++
++float64
++Inf(int32 sign)
++{
++	if(sign >= 0)
++		return float64frombits(uvinf);
++	else
++		return float64frombits(uvneginf);
++}
++
++enum
++{
++	MASK	= 0x7ffL,
++	SHIFT	= 64-11-1,
++	BIAS	= 1022L,
++};
++
++float64
++frexp(float64 d, int32 *ep)
++{
++	uint64 x;
++
++	if(d == 0) {
++		*ep = 0;
++		return 0;
++	}
++	x = float64tobits(d);
++	*ep = (int32)((x >> SHIFT) & MASK) - BIAS;
++	x &= ~((uint64)MASK << SHIFT);
++	x |= (uint64)BIAS << SHIFT;
++	return float64frombits(x);
++}
++
++float64
++ldexp(float64 d, int32 e)
++{
++	uint64 x;
++
++	if(d == 0)
++		return 0;
++	x = float64tobits(d);
++	e += (int32)(x >> SHIFT) & MASK;
++	if(e <= 0)
++		return 0;	/* underflow */
++	if(e >= MASK){		/* overflow */
++		if(d < 0)
++			return Inf(-1);
++		return Inf(1);
++	}
++	x &= ~((uint64)MASK << SHIFT);
++	x |= (uint64)e << SHIFT;
++	return float64frombits(x);
++}
++
++float64
++modf(float64 d, float64 *ip)
++{
++	float64 dd;
++	uint64 x;
++	int32 e;
++
++	if(d < 1) {
++		if(d < 0) {
++			d = modf(-d, ip);
++			*ip = -*ip;
++			return -d;
++		}
++		*ip = 0;
++		return d;
++	}
++
++	x = float64tobits(d);
++	e = (int32)((x >> SHIFT) & MASK) - BIAS;
++
++	/*
++	 * Keep the top 11+e bits; clear the rest.
++	 */
++	if(e <= 64-11)
++		x &= ~(((uint64)1 << (64LL-11LL-e))-1);
++	dd = float64frombits(x);
++	*ip = dd;
++	return d - dd;
++}
++
+diff --git a/src/runtime/float_go.cgo b/src/runtime/float_go.cgo
+new file mode 100644
+index 0000000000..518d559507
+--- /dev/null
++++ b/src/runtime/float_go.cgo
+@@ -0,0 +1,52 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++#include "runtime.h"
++
++func Frexp(f float64) (frac float64, exp int32) {
++	frac = frexp(f, &exp);
++}
++
++func Ldexp(frac float64, exp int32) (f float64) {
++	f = ldexp(frac, exp);
++}
++
++func Modf(f float64) (integer float64, frac float64) {
++	frac = modf(f, &integer);
++}
++
++func IsInf(f float64, sign int32) (is bool) {
++	is = isInf(f, sign);
++}
++
++func IsNaN(f float64) (is bool) {
++	is = isNaN(f);
++}
++
++func Inf(sign int32) (f float64) {
++	f = Inf(sign);
++}
++
++func NaN() (f float64) {
++	f = NaN();
++}
++
++func Float32bits(f float32) (b uint32) {
++	b = float32tobits(f);
++}
++
++func Float64bits(f float64) (b uint64) {
++	b = float64tobits(f);
++}
++
++func Float32frombits(b uint32) (f float32) {
++	f = float32frombits(b);
++}
++
++func Float64frombits(b uint64) (f float64) {
++	f = float64frombits(b);
++}
++
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index f1ef946646..453bd519c2 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -232,10 +232,10 @@ initsema(uint32 *psema)
+ 	if(*psema != 0)	// already have one
+ 		return;
+ 
+-	sema = semcreate();
++	sema = mach_semcreate();
+ 	if(!cas(psema, 0, sema)){
+ 		// Someone else filled it in.  Use theirs.
+-		semdestroy(sema);
++		mach_semdestroy(sema);
+ 		return;
+ 	}
+ }
+@@ -281,14 +281,14 @@ lock(Lock *l)
+ 		initsema(&l->sema);
+ 
+ 	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
+-		semacquire(l->sema);
++		mach_semacquire(l->sema);
+ }
+ 
+ void
+ unlock(Lock *l)
+ {
+ 	if(xadd(&l->key, -1) > 0)	// someone else is waiting
+-		semrelease(l->sema);
++		mach_semrelease(l->sema);
+ }
+ 
+ 
+@@ -300,14 +300,14 @@ void
+ usemacquire(Usema *s)
+ {
+ 	if((int32)xadd(&s->u, -1) < 0)
+-		semacquire(s->k);
++		mach_semacquire(s->k);
+ }
+ 
+ void
+ usemrelease(Usema *s)
+ {
+ 	if((int32)xadd(&s->u, 1) <= 0)
+-		semrelease(s->k);
++		mach_semrelease(s->k);
+ }
+ 
+ 
+@@ -622,20 +622,20 @@ machcall(mach_msg_header_t *h, int32 maxsize, int32 rxsize)
+ 
+ enum
+ {
+-	Tsemcreate = 3418,
+-	Rsemcreate = Tsemcreate + Reply,
++	Tmach_semcreate = 3418,
++	Rmach_semcreate = Tmach_semcreate + Reply,
+ 
+-	Tsemdestroy = 3419,
+-	Rsemdestroy = Tsemdestroy + Reply,
++	Tmach_semdestroy = 3419,
++	Rmach_semdestroy = Tmach_semdestroy + Reply,
+ };
+ 
+-typedef struct TsemcreateMsg TsemcreateMsg;
+-typedef struct RsemcreateMsg RsemcreateMsg;
+-typedef struct TsemdestroyMsg TsemdestroyMsg;
+-// RsemdestroyMsg = CodeMsg
++typedef struct Tmach_semcreateMsg Tmach_semcreateMsg;
++typedef struct Rmach_semcreateMsg Rmach_semcreateMsg;
++typedef struct Tmach_semdestroyMsg Tmach_semdestroyMsg;
++// Rmach_semdestroyMsg = CodeMsg
+ 
+ #pragma pack on
+-struct TsemcreateMsg
++struct Tmach_semcreateMsg
+ {
+ 	mach_msg_header_t h;
+ 	NDR_record_t ndr;
+@@ -643,14 +643,14 @@ struct TsemcreateMsg
+ 	int32 value;
+ };
+ 
+-struct RsemcreateMsg
++struct Rmach_semcreateMsg
+ {
+ 	mach_msg_header_t h;
+ 	mach_msg_body_t body;
+ 	mach_msg_port_descriptor_t semaphore;
+ };
+ 
+-struct TsemdestroyMsg
++struct Tmach_semdestroyMsg
+ {
+ 	mach_msg_header_t h;
+ 	mach_msg_body_t body;
+@@ -659,11 +659,11 @@ struct TsemdestroyMsg
+ #pragma pack off
+ 
+ mach_port_t
+-semcreate(void)
++mach_semcreate(void)
+ {
+ 	union {
+-		TsemcreateMsg tx;
+-		RsemcreateMsg rx;
++		Tmach_semcreateMsg tx;
++		Rmach_semcreateMsg rx;
+ 		uint8 pad[MinMachMsg];
+ 	} m;
+ 	kern_return_t r;
+@@ -671,7 +671,7 @@ semcreate(void)
+ 	m.tx.h.bits = 0;
+ 	m.tx.h.size = sizeof(m.tx);
+ 	m.tx.h.remote_port = mach_task_self();
+-	m.tx.h.id = Tsemcreate;
++	m.tx.h.id = Tmach_semcreate;
+ 	m.tx.ndr = zerondr;
+ 
+ 	m.tx.policy = 0;	// 0 = SYNC_POLICY_FIFO
+@@ -680,15 +680,15 @@ semcreate(void)
+ 	if((r = machcall(&m.tx.h, sizeof m, sizeof(m.rx))) != 0)
+ 		macherror(r, "semaphore_create");
+ 	if(m.rx.body.descriptor_count != 1)
+-		unimplemented("semcreate desc count");
++		unimplemented("mach_semcreate desc count");
+ 	return m.rx.semaphore.name;
+ }
+ 
+ void
+-semdestroy(mach_port_t sem)
++mach_semdestroy(mach_port_t sem)
+ {
+ 	union {
+-		TsemdestroyMsg tx;
++		Tmach_semdestroyMsg tx;
+ 		uint8 pad[MinMachMsg];
+ 	} m;
+ 	kern_return_t r;
+@@ -696,7 +696,7 @@ semdestroy(mach_port_t sem)
+ 	m.tx.h.bits = MACH_MSGH_BITS_COMPLEX;
+ 	m.tx.h.size = sizeof(m.tx);
+ 	m.tx.h.remote_port = mach_task_self();
+-	m.tx.h.id = Tsemdestroy;
++	m.tx.h.id = Tmach_semdestroy;
+ 	m.tx.body.descriptor_count = 1;
+ 	m.tx.semaphore.name = sem;
+ 	m.tx.semaphore.disposition = MACH_MSG_TYPE_MOVE_SEND;
+@@ -714,7 +714,7 @@ kern_return_t mach_semaphore_signal(uint32 sema);
+ kern_return_t mach_semaphore_signal_all(uint32 sema);
+ 
+ void
+-semacquire(mach_port_t sem)
++mach_semacquire(mach_port_t sem)
+ {
+ 	kern_return_t r;
+ 
+@@ -723,7 +723,7 @@ semacquire(mach_port_t sem)
+ }
+ 
+ void
+-semrelease(mach_port_t sem)
++mach_semrelease(mach_port_t sem)
+ {
+ 	kern_return_t r;
+ 
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 31bd1ed868..29a67b190d 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -113,261 +113,6 @@ rnd(uint32 n, uint32 m)
+ 	return n;
+ }
+ 
+-static	uint64	uvnan		= 0x7FF0000000000001ULL;
+-static	uint64	uvinf		= 0x7FF0000000000000ULL;
+-static	uint64	uvneginf	= 0xFFF0000000000000ULL;
+-
+-static uint32
+-float32tobits(float32 f)
+-{
+-	// The obvious cast-and-pointer code is technically
+-	// not valid, and gcc miscompiles it.  Use a union instead.
+-	union {
+-		float32 f;
+-		uint32 i;
+-	} u;
+-	u.f = f;
+-	return u.i;
+-}
+-
+-static uint64
+-float64tobits(float64 f)
+-{
+-	// The obvious cast-and-pointer code is technically
+-	// not valid, and gcc miscompiles it.  Use a union instead.
+-	union {
+-		float64 f;
+-		uint64 i;
+-	} u;
+-	u.f = f;
+-	return u.i;
+-}
+-
+-static float64
+-float64frombits(uint64 i)
+-{
+-	// The obvious cast-and-pointer code is technically
+-	// not valid, and gcc miscompiles it.  Use a union instead.
+-	union {
+-		float64 f;
+-		uint64 i;
+-	} u;
+-	u.i = i;
+-	return u.f;
+-}
+-
+-static float32
+-float32frombits(uint32 i)
+-{
+-	// The obvious cast-and-pointer code is technically
+-	// not valid, and gcc miscompiles it.  Use a union instead.
+-	union {
+-		float32 f;
+-		uint32 i;
+-	} u;
+-	u.i = i;
+-	return u.f;
+-}
+-
+-bool
+-isInf(float64 f, int32 sign)
+-{
+-	uint64 x;
+-
+-	x = float64tobits(f);
+-	if(sign == 0)
+-		return x == uvinf || x == uvneginf;
+-	if(sign > 0)
+-		return x == uvinf;
+-	return x == uvneginf;
+-}
+-
+-static float64
+-NaN(void)
+-{
+-	return float64frombits(uvnan);
+-}
+-
+-bool
+-isNaN(float64 f)
+-{
+-	uint64 x;
+-
+-	x = float64tobits(f);
+-	return ((uint32)(x>>52) & 0x7FF) == 0x7FF && !isInf(f, 0);
+-}
+-
+-static float64
+-Inf(int32 sign)
+-{
+-	if(sign >= 0)
+-		return float64frombits(uvinf);
+-	else
+-		return float64frombits(uvneginf);
+-}
+-
+-enum
+-{
+-	MASK	= 0x7ffL,
+-	SHIFT	= 64-11-1,
+-	BIAS	= 1022L,
+-};
+-
+-static float64
+-frexp(float64 d, int32 *ep)
+-{
+-	uint64 x;
+-
+-	if(d == 0) {
+-		*ep = 0;
+-		return 0;
+-	}
+-	x = float64tobits(d);
+-	*ep = (int32)((x >> SHIFT) & MASK) - BIAS;
+-	x &= ~((uint64)MASK << SHIFT);
+-	x |= (uint64)BIAS << SHIFT;
+-	return float64frombits(x);
+-}
+-
+-static float64
+-ldexp(float64 d, int32 e)
+-{
+-	uint64 x;
+-
+-	if(d == 0)
+-		return 0;
+-	x = float64tobits(d);
+-	e += (int32)(x >> SHIFT) & MASK;
+-	if(e <= 0)
+-		return 0;	/* underflow */
+-	if(e >= MASK){		/* overflow */
+-		if(d < 0)
+-			return Inf(-1);
+-		return Inf(1);
+-	}
+-	x &= ~((uint64)MASK << SHIFT);
+-	x |= (uint64)e << SHIFT;
+-	return float64frombits(x);
+-}
+-
+-static float64
+-modf(float64 d, float64 *ip)
+-{
+-	float64 dd;
+-	uint64 x;
+-	int32 e;
+-
+-	if(d < 1) {
+-		if(d < 0) {
+-			d = modf(-d, ip);
+-			*ip = -*ip;
+-			return -d;
+-		}
+-		*ip = 0;
+-		return d;
+-	}
+-
+-	x = float64tobits(d);
+-	e = (int32)((x >> SHIFT) & MASK) - BIAS;
+-
+-	/*
+-	 * Keep the top 11+e bits; clear the rest.
+-	 */
+-	if(e <= 64-11)
+-		x &= ~(((uint64)1 << (64LL-11LL-e))-1);
+-	dd = float64frombits(x);
+-	*ip = dd;
+-	return d - dd;
+-}
+-
+-// func Frexp(float64) (float64, int32); // break fp into exp,frac
+-void
+-sys·Frexp(float64 din, float64 dou, int32 iou)
+-{
+-	dou = frexp(din, &iou);
+-	FLUSH(&dou);
+-}
+-
+-//func	ldexp(int32, float64) float64;	// make fp from exp,frac
+-void
+-sys·Ldexp(float64 din, int32 ein, float64 dou)
+-{
+-	dou = ldexp(din, ein);
+-	FLUSH(&dou);
+-}
+-
+-//func	modf(float64) (float64, float64);	// break fp into double+double
+-void
+-sys·Modf(float64 din, float64 integer, float64 fraction)
+-{
+-	fraction = modf(din, &integer);
+-	FLUSH(&fraction);
+-}
+-
+-//func	isinf(float64, int32 sign) bool;  // test for infinity
+-void
+-sys·IsInf(float64 din, int32 signin, bool out)
+-{
+-	out = isInf(din, signin);
+-	FLUSH(&out);
+-}
+-
+-//func	isnan(float64) bool;  // test for NaN
+-void
+-sys·IsNaN(float64 din, bool out)
+-{
+-	out = isNaN(din);
+-	FLUSH(&out);
+-}
+-
+-//func	inf(int32 sign) float64;  // signed infinity
+-void
+-sys·Inf(int32 signin, float64 out)
+-{
+-	out = Inf(signin);
+-	FLUSH(&out);
+-}
+-
+-//func	nan() float64;  // NaN
+-void
+-sys·NaN(float64 out)
+-{
+-	out = NaN();
+-	FLUSH(&out);
+-}
+-
+-// func float32bits(float32) uint32; // raw bits of float32
+-void
+-sys·Float32bits(float32 din, uint32 iou)
+-{
+-	iou = float32tobits(din);
+-	FLUSH(&iou);
+-}
+-
+-// func float64bits(float64) uint64; // raw bits of float64
+-void
+-sys·Float64bits(float64 din, uint64 iou)
+-{
+-	iou = float64tobits(din);
+-	FLUSH(&iou);
+-}
+-
+-// func float32frombits(uint32) float32; // raw bits to float32
+-void
+-sys·Float32frombits(uint32 uin, float32 dou)
+-{
+-	dou = float32frombits(uin);
+-	FLUSH(&dou);
+-}
+-
+-// func float64frombits(uint64) float64; // raw bits to float64
+-void
+-sys·Float64frombits(uint64 uin, float64 dou)
+-{
+-	dou = float64frombits(uin);
+-	FLUSH(&dou);
+-}
+-
+ static int32	argc;
+ static uint8**	argv;
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 735f1aa9ce..bc6b2f76d5 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -370,15 +370,12 @@ void	notewakeup(Note*);
+ #define sys_printpointer sys·printpointer
+ #define sys_printstring sys·printstring
+ #define sys_printuint sys·printuint
+-#define sys_readfile sys·readfile
+-#define sys_semacquire sys·semacquire
+-#define sys_semrelease sys·semrelease
+ #define sys_setcallerpc sys·setcallerpc
+ #define sys_slicestring sys·slicestring
+ #endif
+ 
+ /*
+- * low level go -called
++ * low level go-called
+  */
+ void	sys_Goexit(void);
+ void	sys_Gosched(void);
+@@ -407,12 +404,20 @@ void	sys_cmpstring(string, string, int32);
+ void	sys_slicestring(string, int32, int32, string);
+ void	sys_indexstring(string, int32, byte);
+ void	sys_intstring(int64, string);
+-bool	isInf(float64, int32);
+-bool	isNaN(float64);
+ 
+ /*
+- * User go-called
++ * wrapped for go users
+  */
+-void	sys_readfile(string, string, bool);
+-void	sys_semacquire(uint32*);
+-void	sys_semrelease(uint32*);
++float64	Inf(int32 sign);
++float64	NaN(void);
++float32	float32frombits(uint32 i);
++uint32	float32tobits(float32 f);
++float64	float64frombits(uint64 i);
++uint64	float64tobits(float64 f);
++float64	frexp(float64 d, int32 *ep);
++bool	isInf(float64 f, int32 sign);
++bool	isNaN(float64 f);
++float64	ldexp(float64 d, int32 e);
++float64	modf(float64 d, float64 *ip);
++void	semacquire(uint32*);
++void	semrelease(uint32*);
+diff --git a/src/runtime/sema.c b/src/runtime/sema.c
+index e4309f079b..cad08d1672 100644
+--- a/src/runtime/sema.c
++++ b/src/runtime/sema.c
+@@ -133,11 +133,10 @@ cansemacquire(uint32 *addr)
+ 	return 0;
+ }
+ 
+-// func sync.semacquire(addr *uint32)
+ // For now has no return value.
+ // Might return an ok (not interrupted) bool in the future?
+ void
+-sync·semacquire(uint32 *addr)
++semacquire(uint32 *addr)
+ {
+ 	Sema s;
+ 
+@@ -163,9 +162,8 @@ sync·semacquire(uint32 *addr)
+ 	semwakeup(addr);
+ }
+ 
+-// func sync.semrelease(addr *uint32)
+ void
+-sync·semrelease(uint32 *addr)
++semrelease(uint32 *addr)
+ {
+ 	uint32 v;
+ 
+diff --git a/src/runtime/sema_go.cgo b/src/runtime/sema_go.cgo
+new file mode 100644
+index 0000000000..eb4082a0d1
+--- /dev/null
++++ b/src/runtime/sema_go.cgo
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync
++#include "runtime.h"
++
++func semacquire(addr *uint32) {
++	semacquire(addr);
++}
++
++func semrelease(addr *uint32) {
++	semrelease(addr);
++}
++

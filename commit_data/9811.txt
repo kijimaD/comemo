@@ -9,6 +9,20 @@ Date:   Tue Sep 27 09:40:01 2011 -0400
     R=agl, gri
     CC=golang-dev
     https://golang.org/cl/5121052
-
+---
  src/pkg/crypto/elliptic/elliptic_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/elliptic/elliptic_test.go b/src/pkg/crypto/elliptic/elliptic_test.go
+index b7e7f035fa..9578364b58 100644
+--- a/src/pkg/crypto/elliptic/elliptic_test.go
++++ b/src/pkg/crypto/elliptic/elliptic_test.go
+@@ -295,7 +295,7 @@ func TestBaseMult(t *testing.T) {
+ 		}
+ 		x, y := p224.ScalarBaseMult(k.Bytes())
+ 		if fmt.Sprintf("%x", x) != e.x || fmt.Sprintf("%x", y) != e.y {
+-			t.Errorf("%d: bad output for k=%s: got (%x, %s), want (%s, %s)", i, e.k, x, y, e.x, e.y)
++			t.Errorf("%d: bad output for k=%s: got (%x, %s), want (%x, %s)", i, e.k, x, y, e.x, e.y)
+ 		}
+ 		if testing.Short() && i > 5 {
+ 			break

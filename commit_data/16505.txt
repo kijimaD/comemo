@@ -12,6 +12,25 @@ Date:   Wed Jun 5 21:16:44 2013 -0700
     R=golang-dev, kr, r
     CC=golang-dev
     https://golang.org/cl/10067043
-
+---
  src/pkg/io/ioutil/ioutil.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 6b395c69bd..ce8d8b48ac 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -78,10 +78,12 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
+ 		return err
+ 	}
+ 	n, err := f.Write(data)
+-	f.Close()
+ 	if err == nil && n < len(data) {
+ 		err = io.ErrShortWrite
+ 	}
++	if err1 := f.Close(); err == nil {
++		err = err1
++	}
+ 	return err
+ }
+ 

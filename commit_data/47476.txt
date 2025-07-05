@@ -15,7 +15,80 @@ Date:   Sun Mar 21 00:58:18 2021 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/303350
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 12 ++++++------
  2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index ec013c11ed..9cdd62edbe 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -607,9 +607,9 @@
+ (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) => (MOVDstorezero [off] {sym} ptr mem)
+ 
+ // Avoid sign/zero extension for consts.
+-(MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(c)])
+-(MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(c)])
+-(MOVWreg  (MOVDconst [c])) => (MOVDconst [int64(c)])
++(MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
++(MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])
++(MOVWreg  (MOVDconst [c])) => (MOVDconst [int64(int32(c))])
+ (MOVBUreg (MOVDconst [c])) => (MOVDconst [int64(uint8(c))])
+ (MOVHUreg (MOVDconst [c])) => (MOVDconst [int64(uint16(c))])
+ (MOVWUreg (MOVDconst [c])) => (MOVDconst [int64(uint32(c))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 767c7dda1f..431fb1aaf6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -2985,14 +2985,14 @@ func rewriteValueRISCV64_OpRISCV64MOVBreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (MOVBreg (MOVDconst [c]))
+-	// result: (MOVDconst [int64(c)])
++	// result: (MOVDconst [int64(int8(c))])
+ 	for {
+ 		if v_0.Op != OpRISCV64MOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_0.AuxInt)
+ 		v.reset(OpRISCV64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(int64(c))
++		v.AuxInt = int64ToAuxInt(int64(int8(c)))
+ 		return true
+ 	}
+ 	// match: (MOVBreg x:(MOVBload _ _))
+@@ -3638,14 +3638,14 @@ func rewriteValueRISCV64_OpRISCV64MOVHreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (MOVHreg (MOVDconst [c]))
+-	// result: (MOVDconst [int64(c)])
++	// result: (MOVDconst [int64(int16(c))])
+ 	for {
+ 		if v_0.Op != OpRISCV64MOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_0.AuxInt)
+ 		v.reset(OpRISCV64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(int64(c))
++		v.AuxInt = int64ToAuxInt(int64(int16(c)))
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(MOVBload _ _))
+@@ -4129,14 +4129,14 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (MOVWreg (MOVDconst [c]))
+-	// result: (MOVDconst [int64(c)])
++	// result: (MOVDconst [int64(int32(c))])
+ 	for {
+ 		if v_0.Op != OpRISCV64MOVDconst {
+ 			break
+ 		}
+ 		c := auxIntToInt64(v_0.AuxInt)
+ 		v.reset(OpRISCV64MOVDconst)
+-		v.AuxInt = int64ToAuxInt(int64(c))
++		v.AuxInt = int64ToAuxInt(int64(int32(c)))
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVBload _ _))

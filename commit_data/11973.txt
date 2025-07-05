@@ -9,6 +9,29 @@ Date:   Thu Feb 16 14:05:17 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev, r
     https://golang.org/cl/5656076
-
+---
  src/cmd/go/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index c688a739d0..b07d720e86 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -157,7 +157,7 @@ Use "go help [topic]" for more information about that topic.
+ 
+ `
+ 
+-var helpTemplate = `{{if .Run}}usage: go {{.UsageLine}}
++var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
+ 
+ {{end}}{{.Long | trim}}
+ `
+@@ -169,7 +169,7 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
+ /*
+ {{range .}}{{if .Short}}{{.Short | capitalize}}
+ 
+-{{end}}{{if .Run}}Usage:
++{{end}}{{if .Runnable}}Usage:
+ 
+ 	go {{.UsageLine}}
+ 

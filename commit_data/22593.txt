@@ -18,7 +18,42 @@ Date:   Wed Mar 25 13:17:54 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8091
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/generate.go      | 4 ++++
  src/cmd/go/generate_test.go | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index 3c0af8760b..8e9ad384ae 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -64,6 +64,8 @@ Go generate sets several variables when it runs the generator:
+ 		The base name of the file.
+ 	$GOPACKAGE
+ 		The name of the package of the file containing the directive.
++	$DOLLAR
++		A dollar sign.
+ 
+ Other than variable substitution and quoted-string evaluation, no
+ special processing such as "globbing" is performed on the command
+@@ -348,6 +350,8 @@ func (g *Generator) expandEnv(word string) string {
+ 			sub = g.file
+ 		case "GOPACKAGE":
+ 			sub = g.pkg
++		case "DOLLAR":
++			sub = "$"
+ 		default:
+ 			sub = os.Getenv(envVar)
+ 		}
+diff --git a/src/cmd/go/generate_test.go b/src/cmd/go/generate_test.go
+index 2ec548630a..169d71ca81 100644
+--- a/src/cmd/go/generate_test.go
++++ b/src/cmd/go/generate_test.go
+@@ -26,6 +26,7 @@ var splitTests = []splitTest{
+ 	{"$GOPACKAGE", []string{"sys"}},
+ 	{"a $XXNOTDEFINEDXX b", []string{"a", "", "b"}},
+ 	{"/$XXNOTDEFINED/", []string{"//"}},
++	{"/$DOLLAR/", []string{"/$/"}},
+ 	{"yacc -o $GOARCH/yacc_$GOFILE", []string{"go", "tool", "yacc", "-o", runtime.GOARCH + "/yacc_proc.go"}},
+ }
+ 

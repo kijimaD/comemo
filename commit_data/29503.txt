@@ -9,7 +9,104 @@ Date:   Fri Sep 16 12:08:05 2016 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  5 ++--
  src/cmd/compile/internal/ssa/rewritePPC64.go | 34 ++++++++++++++++++++++++----
  2 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index c1be4c7953..1bf8e332a5 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -530,8 +530,9 @@
+ 
+ // Optimizations
+ 
+-(ADD (MOVDconst [c]) x) && int64(int32(c)) == c -> (ADDconst [c] x)
+-(ADD x (MOVDconst [c])) && int64(int32(c)) == c -> (ADDconst [c] x)
++(ADD (MOVDconst [c]) x) && is32Bit(c) -> (ADDconst [c] x)
++(ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
++(ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) -> (ADDconst [c+d] x)
+ 
+ // Fold offsets for stores.
+ (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 1a0a0d62ed..6a81464d4e 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -340,6 +340,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
+ 		return rewriteValuePPC64_OpOrB(v, config)
+ 	case OpPPC64ADD:
+ 		return rewriteValuePPC64_OpPPC64ADD(v, config)
++	case OpPPC64ADDconst:
++		return rewriteValuePPC64_OpPPC64ADDconst(v, config)
+ 	case OpPPC64CMPUconst:
+ 		return rewriteValuePPC64_OpPPC64CMPUconst(v, config)
+ 	case OpPPC64CMPWUconst:
+@@ -3977,7 +3979,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+ 	// match: (ADD (MOVDconst [c]) x)
+-	// cond: int64(int32(c)) == c
++	// cond: is32Bit(c)
+ 	// result: (ADDconst [c] x)
+ 	for {
+ 		v_0 := v.Args[0]
+@@ -3986,7 +3988,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
+ 		}
+ 		c := v_0.AuxInt
+ 		x := v.Args[1]
+-		if !(int64(int32(c)) == c) {
++		if !(is32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64ADDconst)
+@@ -3995,7 +3997,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (ADD x (MOVDconst [c]))
+-	// cond: int64(int32(c)) == c
++	// cond: is32Bit(c)
+ 	// result: (ADDconst [c] x)
+ 	for {
+ 		x := v.Args[0]
+@@ -4004,7 +4006,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
+ 			break
+ 		}
+ 		c := v_1.AuxInt
+-		if !(int64(int32(c)) == c) {
++		if !(is32Bit(c)) {
+ 			break
+ 		}
+ 		v.reset(OpPPC64ADDconst)
+@@ -4014,6 +4016,30 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64ADDconst(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ADDconst [c] (ADDconst [d] x))
++	// cond: is32Bit(c+d)
++	// result: (ADDconst [c+d] x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpPPC64ADDconst {
++			break
++		}
++		d := v_0.AuxInt
++		x := v_0.Args[0]
++		if !(is32Bit(c + d)) {
++			break
++		}
++		v.reset(OpPPC64ADDconst)
++		v.AuxInt = c + d
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64CMPUconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

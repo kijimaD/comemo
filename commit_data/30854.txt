@@ -11,7 +11,88 @@ Date:   Sun Dec 11 12:55:17 2016 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 27 +++++++++++++++++----------
  src/fmt/print.go    |  8 +++++++-
  2 files changed, 24 insertions(+), 11 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 6f8c1550a0..b7089be1a1 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1561,18 +1561,23 @@ func TestWidthAndPrecision(t *testing.T) {
+ 	}
+ }
+ 
+-// Panic is a type that panics in String.
+-type Panic struct {
++// PanicS is a type that panics in String.
++type PanicS struct {
+ 	message interface{}
+ }
+ 
+ // Value receiver.
+-func (p Panic) GoString() string {
++func (p PanicS) String() string {
+ 	panic(p.message)
+ }
+ 
++// PanicGo is a type that panics in GoString.
++type PanicGo struct {
++	message interface{}
++}
++
+ // Value receiver.
+-func (p Panic) String() string {
++func (p PanicGo) GoString() string {
+ 	panic(p.message)
+ }
+ 
+@@ -1592,13 +1597,15 @@ var panictests = []struct {
+ 	out string
+ }{
+ 	// String
+-	{"%s", (*Panic)(nil), "<nil>"}, // nil pointer special case
+-	{"%s", Panic{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+-	{"%s", Panic{3}, "%!s(PANIC=3)"},
++	{"%s", (*PanicS)(nil), "<nil>"}, // nil pointer special case
++	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
++	{"%s", PanicS{3}, "%!s(PANIC=3)"},
+ 	// GoString
+-	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
+-	{"%#v", Panic{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
+-	{"%#v", Panic{3}, "%!v(PANIC=3)"},
++	{"%#v", (*PanicGo)(nil), "<nil>"}, // nil pointer special case
++	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
++	{"%#v", PanicGo{3}, "%!v(PANIC=3)"},
++	// Issue 18282. catchPanic should not clear fmtFlags permanently.
++	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=3), %!v(PANIC=3)}"},
+ 	// Format
+ 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
+ 	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index a95edacc99..a7ef2e5ac2 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -535,7 +535,11 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
+ 			// Nested panics; the recursion in printArg cannot succeed.
+ 			panic(err)
+ 		}
+-		p.fmt.clearflags() // We are done, and for this output we want default behavior.
++
++		oldFlags := p.fmt.fmtFlags
++		// For this output we want default behavior.
++		p.fmt.clearflags()
++
+ 		p.buf.WriteString(percentBangString)
+ 		p.buf.WriteRune(verb)
+ 		p.buf.WriteString(panicString)
+@@ -543,6 +547,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
+ 		p.printArg(err, 'v')
+ 		p.panicking = false
+ 		p.buf.WriteByte(')')
++
++		p.fmt.fmtFlags = oldFlags
+ 	}
+ }
+ 

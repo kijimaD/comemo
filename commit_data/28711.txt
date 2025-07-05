@@ -17,7 +17,3992 @@ Date:   Thu Jun 30 11:13:24 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/main.go |    7 +
  src/cmd/compile/internal/ssa/opGen.go    | 2834 +++++++++++++++---------------
  2 files changed, 1424 insertions(+), 1417 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 1fc42b94bc..05be16d6b4 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -77,6 +77,7 @@ var archs []arch
+ 
+ func main() {
+ 	flag.Parse()
++	sort.Sort(ArchsByName(archs))
+ 	genOp()
+ 	genLower()
+ }
+@@ -306,3 +307,9 @@ type byKey []intPair
+ func (a byKey) Len() int           { return len(a) }
+ func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
++
++type ArchsByName []arch
++
++func (x ArchsByName) Len() int           { return len(x) }
++func (x ArchsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x ArchsByName) Less(i, j int) bool { return x[i].name < x[j].name }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index aeb4557cfd..e4dca03dd2 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -39,16 +39,6 @@ const (
+ 	BlockARMUGT
+ 	BlockARMUGE
+ 
+-	BlockPlain
+-	BlockIf
+-	BlockCall
+-	BlockDefer
+-	BlockCheck
+-	BlockRet
+-	BlockRetJmp
+-	BlockExit
+-	BlockFirst
+-
+ 	BlockPPC64EQ
+ 	BlockPPC64NE
+ 	BlockPPC64LT
+@@ -59,6 +49,16 @@ const (
+ 	BlockPPC64ULE
+ 	BlockPPC64UGT
+ 	BlockPPC64UGE
++
++	BlockPlain
++	BlockIf
++	BlockCall
++	BlockDefer
++	BlockCheck
++	BlockRet
++	BlockRetJmp
++	BlockExit
++	BlockFirst
+ )
+ 
+ var blockString = [...]string{
+@@ -90,16 +90,6 @@ var blockString = [...]string{
+ 	BlockARMUGT: "UGT",
+ 	BlockARMUGE: "UGE",
+ 
+-	BlockPlain:  "Plain",
+-	BlockIf:     "If",
+-	BlockCall:   "Call",
+-	BlockDefer:  "Defer",
+-	BlockCheck:  "Check",
+-	BlockRet:    "Ret",
+-	BlockRetJmp: "RetJmp",
+-	BlockExit:   "Exit",
+-	BlockFirst:  "First",
+-
+ 	BlockPPC64EQ:  "EQ",
+ 	BlockPPC64NE:  "NE",
+ 	BlockPPC64LT:  "LT",
+@@ -110,6 +100,16 @@ var blockString = [...]string{
+ 	BlockPPC64ULE: "ULE",
+ 	BlockPPC64UGT: "UGT",
+ 	BlockPPC64UGE: "UGE",
++
++	BlockPlain:  "Plain",
++	BlockIf:     "If",
++	BlockCall:   "Call",
++	BlockDefer:  "Defer",
++	BlockCheck:  "Check",
++	BlockRet:    "Ret",
++	BlockRetJmp: "RetJmp",
++	BlockExit:   "Exit",
++	BlockFirst:  "First",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }
+@@ -457,6 +457,71 @@ const (
+ 	OpARMLoweredGetClosurePtr
+ 	OpARMMOVWconvert
+ 
++	OpPPC64ADD
++	OpPPC64ADDconst
++	OpPPC64FADD
++	OpPPC64FADDS
++	OpPPC64SUB
++	OpPPC64FSUB
++	OpPPC64FSUBS
++	OpPPC64MULLD
++	OpPPC64MULLW
++	OpPPC64FMUL
++	OpPPC64FMULS
++	OpPPC64FDIV
++	OpPPC64FDIVS
++	OpPPC64AND
++	OpPPC64ANDconst
++	OpPPC64OR
++	OpPPC64ORconst
++	OpPPC64XOR
++	OpPPC64XORconst
++	OpPPC64NEG
++	OpPPC64MOVBreg
++	OpPPC64MOVBZreg
++	OpPPC64MOVHreg
++	OpPPC64MOVHZreg
++	OpPPC64MOVWreg
++	OpPPC64MOVWZreg
++	OpPPC64MOVBload
++	OpPPC64MOVBZload
++	OpPPC64MOVHload
++	OpPPC64MOVHZload
++	OpPPC64MOVWload
++	OpPPC64MOVWZload
++	OpPPC64MOVDload
++	OpPPC64FMOVDload
++	OpPPC64FMOVSload
++	OpPPC64MOVBstore
++	OpPPC64MOVHstore
++	OpPPC64MOVWstore
++	OpPPC64MOVDstore
++	OpPPC64FMOVDstore
++	OpPPC64FMOVSstore
++	OpPPC64MOVBstoreconst
++	OpPPC64MOVHstoreconst
++	OpPPC64MOVWstoreconst
++	OpPPC64MOVDstoreconst
++	OpPPC64MOVDconst
++	OpPPC64MOVWconst
++	OpPPC64MOVHconst
++	OpPPC64MOVBconst
++	OpPPC64FMOVDconst
++	OpPPC64FMOVSconst
++	OpPPC64FCMPU
++	OpPPC64CMP
++	OpPPC64CMPU
++	OpPPC64CMPW
++	OpPPC64CMPWU
++	OpPPC64CMPconst
++	OpPPC64CALLstatic
++	OpPPC64Equal
++	OpPPC64NotEqual
++	OpPPC64LessThan
++	OpPPC64LessEqual
++	OpPPC64GreaterThan
++	OpPPC64GreaterEqual
++
+ 	OpAdd8
+ 	OpAdd16
+ 	OpAdd32
+@@ -759,71 +824,6 @@ const (
+ 	OpCvt64Fto32U
+ 	OpSelect0
+ 	OpSelect1
+-
+-	OpPPC64ADD
+-	OpPPC64ADDconst
+-	OpPPC64FADD
+-	OpPPC64FADDS
+-	OpPPC64SUB
+-	OpPPC64FSUB
+-	OpPPC64FSUBS
+-	OpPPC64MULLD
+-	OpPPC64MULLW
+-	OpPPC64FMUL
+-	OpPPC64FMULS
+-	OpPPC64FDIV
+-	OpPPC64FDIVS
+-	OpPPC64AND
+-	OpPPC64ANDconst
+-	OpPPC64OR
+-	OpPPC64ORconst
+-	OpPPC64XOR
+-	OpPPC64XORconst
+-	OpPPC64NEG
+-	OpPPC64MOVBreg
+-	OpPPC64MOVBZreg
+-	OpPPC64MOVHreg
+-	OpPPC64MOVHZreg
+-	OpPPC64MOVWreg
+-	OpPPC64MOVWZreg
+-	OpPPC64MOVBload
+-	OpPPC64MOVBZload
+-	OpPPC64MOVHload
+-	OpPPC64MOVHZload
+-	OpPPC64MOVWload
+-	OpPPC64MOVWZload
+-	OpPPC64MOVDload
+-	OpPPC64FMOVDload
+-	OpPPC64FMOVSload
+-	OpPPC64MOVBstore
+-	OpPPC64MOVHstore
+-	OpPPC64MOVWstore
+-	OpPPC64MOVDstore
+-	OpPPC64FMOVDstore
+-	OpPPC64FMOVSstore
+-	OpPPC64MOVBstoreconst
+-	OpPPC64MOVHstoreconst
+-	OpPPC64MOVWstoreconst
+-	OpPPC64MOVDstoreconst
+-	OpPPC64MOVDconst
+-	OpPPC64MOVWconst
+-	OpPPC64MOVHconst
+-	OpPPC64MOVBconst
+-	OpPPC64FMOVDconst
+-	OpPPC64FMOVSconst
+-	OpPPC64FCMPU
+-	OpPPC64CMP
+-	OpPPC64CMPU
+-	OpPPC64CMPW
+-	OpPPC64CMPWU
+-	OpPPC64CMPconst
+-	OpPPC64CALLstatic
+-	OpPPC64Equal
+-	OpPPC64NotEqual
+-	OpPPC64LessThan
+-	OpPPC64LessEqual
+-	OpPPC64GreaterThan
+-	OpPPC64GreaterEqual
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -5468,2413 +5468,2413 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 
+ 	{
+-		name:        "Add8",
++		name:        "ADD",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Add16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "ADDconst",
++		auxType: auxSymOff,
++		argLen:  1,
++		asm:     ppc64.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Add32",
++		name:        "FADD",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AFADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:        "Add64",
++		name:        "FADDS",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AFADDS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "AddPtr",
+-		argLen:  2,
+-		generic: true,
++		name:   "SUB",
++		argLen: 2,
++		asm:    ppc64.ASUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Add32F",
+-		argLen:  2,
+-		generic: true,
++		name:   "FSUB",
++		argLen: 2,
++		asm:    ppc64.AFSUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Add64F",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Sub8",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Sub16",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Sub32",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Sub64",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "SubPtr",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Sub32F",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Sub64F",
+-		argLen:  2,
+-		generic: true,
++		name:   "FSUBS",
++		argLen: 2,
++		asm:    ppc64.AFSUBS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:        "Mul8",
++		name:        "MULLD",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AMULLD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Mul16",
++		name:        "MULLW",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AMULLW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Mul32",
++		name:        "FMUL",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AFMUL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:        "Mul64",
++		name:        "FMULS",
+ 		argLen:      2,
+ 		commutative: true,
+-		generic:     true,
++		asm:         ppc64.AFMULS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mul32F",
+-		argLen:  2,
+-		generic: true,
++		name:   "FDIV",
++		argLen: 2,
++		asm:    ppc64.AFDIV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mul64F",
+-		argLen:  2,
+-		generic: true,
++		name:   "FDIVS",
++		argLen: 2,
++		asm:    ppc64.AFDIVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div32F",
+-		argLen:  2,
+-		generic: true,
++		name:        "AND",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AAND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div64F",
+-		argLen:  2,
+-		generic: true,
++		name:    "ANDconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AAND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul8",
+-		argLen:  2,
+-		generic: true,
++		name:        "OR",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul8u",
+-		argLen:  2,
+-		generic: true,
++		name:    "ORconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul16",
+-		argLen:  2,
+-		generic: true,
++		name:        "XOR",
++		argLen:      2,
++		commutative: true,
++		asm:         ppc64.AXOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul16u",
+-		argLen:  2,
+-		generic: true,
++		name:    "XORconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.AXOR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul32",
+-		argLen:  2,
+-		generic: true,
++		name:   "NEG",
++		argLen: 1,
++		asm:    ppc64.ANEG,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul32u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVBreg",
++		argLen: 1,
++		asm:    ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Hmul64",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Hmul64u",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "Avg64u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVBZreg",
++		argLen: 1,
++		asm:    ppc64.AMOVBZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div8",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVHreg",
++		argLen: 1,
++		asm:    ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div8u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVHZreg",
++		argLen: 1,
++		asm:    ppc64.AMOVHZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div16",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVWreg",
++		argLen: 1,
++		asm:    ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div16u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVWZreg",
++		argLen: 1,
++		asm:    ppc64.AMOVWZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div32",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVBload",
++		argLen: 2,
++		asm:    ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div32u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVBZload",
++		argLen: 2,
++		asm:    ppc64.AMOVBZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div64",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVHload",
++		argLen: 2,
++		asm:    ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Div64u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVHZload",
++		argLen: 2,
++		asm:    ppc64.AMOVHZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod8",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVWload",
++		argLen: 2,
++		asm:    ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod8u",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVWZload",
++		argLen: 2,
++		asm:    ppc64.AMOVWZ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod16",
+-		argLen:  2,
+-		generic: true,
++		name:   "MOVDload",
++		argLen: 2,
++		asm:    ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod16u",
+-		argLen:  2,
+-		generic: true,
++		name:   "FMOVDload",
++		argLen: 2,
++		asm:    ppc64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod32",
+-		argLen:  2,
+-		generic: true,
++		name:   "FMOVSload",
++		argLen: 2,
++		asm:    ppc64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod32u",
+-		argLen:  2,
+-		generic: true,
++		name:    "MOVBstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod64",
+-		argLen:  2,
+-		generic: true,
++		name:    "MOVHstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Mod64u",
+-		argLen:  2,
+-		generic: true,
++		name:    "MOVWstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "And8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "MOVDstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "And16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "FMOVDstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AFMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 1073731578},         // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "And32",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "FMOVSstore",
++		auxType: auxSymOff,
++		argLen:  3,
++		asm:     ppc64.AFMOVS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 1073731578},         // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "And64",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "MOVBstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Or8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "MOVHstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Or16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "MOVWstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Or32",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "MOVDstoreconst",
++		auxType: auxSymValAndOff,
++		argLen:  2,
++		asm:     ppc64.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Or64",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:              "MOVDconst",
++		auxType:           auxInt64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVD,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Xor8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:              "MOVWconst",
++		auxType:           auxInt32,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVW,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Xor16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:              "MOVHconst",
++		auxType:           auxInt16,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVH,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Xor32",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:              "MOVBconst",
++		auxType:           auxInt8,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AMOVB,
++		reg: regInfo{
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:        "Xor64",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:              "FMOVDconst",
++		auxType:           auxFloat64,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AFMOVD,
++		reg: regInfo{
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh8x8",
+-		argLen:  2,
+-		generic: true,
++		name:              "FMOVSconst",
++		auxType:           auxFloat32,
++		argLen:            0,
++		rematerializeable: true,
++		asm:               ppc64.AFMOVS,
++		reg: regInfo{
++			outputs: []regMask{
++				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh8x16",
+-		argLen:  2,
+-		generic: true,
++		name:   "FCMPU",
++		argLen: 2,
++		asm:    ppc64.AFCMPU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh8x32",
+-		argLen:  2,
+-		generic: true,
++		name:   "CMP",
++		argLen: 2,
++		asm:    ppc64.ACMP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh8x64",
+-		argLen:  2,
+-		generic: true,
++		name:   "CMPU",
++		argLen: 2,
++		asm:    ppc64.ACMPU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh16x8",
+-		argLen:  2,
+-		generic: true,
++		name:   "CMPW",
++		argLen: 2,
++		asm:    ppc64.ACMPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh16x16",
+-		argLen:  2,
+-		generic: true,
++		name:   "CMPWU",
++		argLen: 2,
++		asm:    ppc64.ACMPWU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh16x32",
+-		argLen:  2,
+-		generic: true,
++		name:    "CMPconst",
++		auxType: auxInt32,
++		argLen:  1,
++		asm:     ppc64.ACMP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []regMask{
++				576460752303423488, // CR
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh16x64",
+-		argLen:  2,
+-		generic: true,
+-	},
++		name:    "CALLstatic",
++		auxType: auxSymOff,
++		argLen:  1,
++		reg: regInfo{
++			clobbers: 576460744787220472, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
++		},
++	},
+ 	{
+-		name:    "Lsh32x8",
+-		argLen:  2,
+-		generic: true,
++		name:   "Equal",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh32x16",
+-		argLen:  2,
+-		generic: true,
++		name:   "NotEqual",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh32x32",
+-		argLen:  2,
+-		generic: true,
++		name:   "LessThan",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh32x64",
+-		argLen:  2,
+-		generic: true,
++		name:   "LessEqual",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh64x8",
+-		argLen:  2,
+-		generic: true,
++		name:   "GreaterThan",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
+ 	},
+ 	{
+-		name:    "Lsh64x16",
++		name:   "GreaterEqual",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 576460752303423488}, // CR
++			},
++			outputs: []regMask{
++				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++
++	{
++		name:        "Add8",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Add16",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Add32",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Add64",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:    "AddPtr",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Lsh64x32",
++		name:    "Add32F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Lsh64x64",
++		name:    "Add64F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8x8",
++		name:    "Sub8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8x16",
++		name:    "Sub16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8x32",
++		name:    "Sub32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8x64",
++		name:    "Sub64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16x8",
++		name:    "SubPtr",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16x16",
++		name:    "Sub32F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16x32",
++		name:    "Sub64F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16x64",
++		name:        "Mul8",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Mul16",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Mul32",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Mul64",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:    "Mul32F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32x8",
++		name:    "Mul64F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32x16",
++		name:    "Div32F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32x32",
++		name:    "Div64F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32x64",
++		name:    "Hmul8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64x8",
++		name:    "Hmul8u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64x16",
++		name:    "Hmul16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64x32",
++		name:    "Hmul16u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64x64",
++		name:    "Hmul32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8Ux8",
++		name:    "Hmul32u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8Ux16",
++		name:    "Hmul64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8Ux32",
++		name:    "Hmul64u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh8Ux64",
++		name:    "Avg64u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16Ux8",
++		name:    "Div8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16Ux16",
++		name:    "Div8u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16Ux32",
++		name:    "Div16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh16Ux64",
++		name:    "Div16u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32Ux8",
++		name:    "Div32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32Ux16",
++		name:    "Div32u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32Ux32",
++		name:    "Div64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh32Ux64",
++		name:    "Div64u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64Ux8",
++		name:    "Mod8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64Ux16",
++		name:    "Mod8u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64Ux32",
++		name:    "Mod16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Rsh64Ux64",
++		name:    "Mod16u",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Lrot8",
+-		auxType: auxInt64,
+-		argLen:  1,
++		name:    "Mod32",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Lrot16",
+-		auxType: auxInt64,
+-		argLen:  1,
++		name:    "Mod32u",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Lrot32",
+-		auxType: auxInt64,
+-		argLen:  1,
++		name:    "Mod64",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Lrot64",
+-		auxType: auxInt64,
+-		argLen:  1,
++		name:    "Mod64u",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:        "Eq8",
++		name:        "And8",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "Eq16",
++		name:        "And16",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "Eq32",
++		name:        "And32",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "Eq64",
++		name:        "And64",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "EqPtr",
++		name:        "Or8",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:    "EqInter",
+-		argLen:  2,
+-		generic: true,
++		name:        "Or16",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "EqSlice",
+-		argLen:  2,
+-		generic: true,
++		name:        "Or32",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Eq32F",
+-		argLen:  2,
+-		generic: true,
++		name:        "Or64",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Eq64F",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:        "Neq8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
+-	},
+-	{
+-		name:        "Neq16",
++		name:        "Xor8",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "Neq32",
++		name:        "Xor16",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "Neq64",
++		name:        "Xor32",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "NeqPtr",
++		name:        "Xor64",
+ 		argLen:      2,
+ 		commutative: true,
+ 		generic:     true,
+ 	},
+ 	{
+-		name:    "NeqInter",
++		name:    "Lsh8x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "NeqSlice",
++		name:    "Lsh8x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neq32F",
++		name:    "Lsh8x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neq64F",
++		name:    "Lsh8x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less8",
++		name:    "Lsh16x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less8U",
++		name:    "Lsh16x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less16",
++		name:    "Lsh16x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less16U",
++		name:    "Lsh16x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less32",
++		name:    "Lsh32x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less32U",
++		name:    "Lsh32x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less64",
++		name:    "Lsh32x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less64U",
++		name:    "Lsh32x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less32F",
++		name:    "Lsh64x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Less64F",
++		name:    "Lsh64x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq8",
++		name:    "Lsh64x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq8U",
++		name:    "Lsh64x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq16",
++		name:    "Rsh8x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq16U",
++		name:    "Rsh8x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq32",
++		name:    "Rsh8x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq32U",
++		name:    "Rsh8x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq64",
++		name:    "Rsh16x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq64U",
++		name:    "Rsh16x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq32F",
++		name:    "Rsh16x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Leq64F",
++		name:    "Rsh16x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater8",
++		name:    "Rsh32x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater8U",
++		name:    "Rsh32x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater16",
++		name:    "Rsh32x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater16U",
++		name:    "Rsh32x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater32",
++		name:    "Rsh64x8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater32U",
++		name:    "Rsh64x16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater64",
++		name:    "Rsh64x32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater64U",
++		name:    "Rsh64x64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater32F",
++		name:    "Rsh8Ux8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Greater64F",
++		name:    "Rsh8Ux16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq8",
++		name:    "Rsh8Ux32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq8U",
++		name:    "Rsh8Ux64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq16",
++		name:    "Rsh16Ux8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq16U",
++		name:    "Rsh16Ux16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq32",
++		name:    "Rsh16Ux32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq32U",
++		name:    "Rsh16Ux64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq64",
++		name:    "Rsh32Ux8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq64U",
++		name:    "Rsh32Ux16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq32F",
++		name:    "Rsh32Ux32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Geq64F",
++		name:    "Rsh32Ux64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "AndB",
++		name:    "Rsh64Ux8",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "OrB",
++		name:    "Rsh64Ux16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "EqB",
++		name:    "Rsh64Ux32",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "NeqB",
++		name:    "Rsh64Ux64",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Not",
++		name:    "Lrot8",
++		auxType: auxInt64,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neg8",
++		name:    "Lrot16",
++		auxType: auxInt64,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neg16",
++		name:    "Lrot32",
++		auxType: auxInt64,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neg32",
++		name:    "Lrot64",
++		auxType: auxInt64,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Neg64",
+-		argLen:  1,
+-		generic: true,
++		name:        "Eq8",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Neg32F",
+-		argLen:  1,
+-		generic: true,
++		name:        "Eq16",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Neg64F",
+-		argLen:  1,
+-		generic: true,
++		name:        "Eq32",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Com8",
+-		argLen:  1,
+-		generic: true,
++		name:        "Eq64",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Com16",
+-		argLen:  1,
+-		generic: true,
++		name:        "EqPtr",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Com32",
+-		argLen:  1,
++		name:    "EqInter",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Com64",
+-		argLen:  1,
++		name:    "EqSlice",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Ctz16",
+-		argLen:  1,
++		name:    "Eq32F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Ctz32",
+-		argLen:  1,
++		name:    "Eq64F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Ctz64",
+-		argLen:  1,
+-		generic: true,
++		name:        "Neq8",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Clz16",
+-		argLen:  1,
+-		generic: true,
++		name:        "Neq16",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Clz32",
+-		argLen:  1,
+-		generic: true,
++		name:        "Neq32",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Clz64",
+-		argLen:  1,
+-		generic: true,
++		name:        "Neq64",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:    "Bswap32",
+-		argLen:  1,
++		name:        "NeqPtr",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:    "NeqInter",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Bswap64",
+-		argLen:  1,
++		name:    "NeqSlice",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Sqrt",
+-		argLen:  1,
++		name:    "Neq32F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Phi",
+-		argLen:  -1,
++		name:    "Neq64F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Copy",
+-		argLen:  1,
++		name:    "Less8",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Convert",
++		name:    "Less8U",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ConstBool",
+-		auxType: auxBool,
+-		argLen:  0,
++		name:    "Less16",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ConstString",
+-		auxType: auxString,
+-		argLen:  0,
++		name:    "Less16U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ConstNil",
+-		argLen:  0,
++		name:    "Less32",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const8",
+-		auxType: auxInt8,
+-		argLen:  0,
++		name:    "Less32U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const16",
+-		auxType: auxInt16,
+-		argLen:  0,
++		name:    "Less64",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const32",
+-		auxType: auxInt32,
+-		argLen:  0,
++		name:    "Less64U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const64",
+-		auxType: auxInt64,
+-		argLen:  0,
++		name:    "Less32F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const32F",
+-		auxType: auxFloat32,
+-		argLen:  0,
++		name:    "Less64F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Const64F",
+-		auxType: auxFloat64,
+-		argLen:  0,
++		name:    "Leq8",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ConstInterface",
+-		argLen:  0,
++		name:    "Leq8U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ConstSlice",
+-		argLen:  0,
++		name:    "Leq16",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "InitMem",
+-		argLen:  0,
++		name:    "Leq16U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Arg",
+-		auxType: auxSymOff,
+-		argLen:  0,
++		name:    "Leq32",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Addr",
+-		auxType: auxSym,
+-		argLen:  1,
++		name:    "Leq32U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SP",
+-		argLen:  0,
++		name:    "Leq64",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SB",
+-		argLen:  0,
++		name:    "Leq64U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Func",
+-		auxType: auxSym,
+-		argLen:  0,
++		name:    "Leq32F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Load",
++		name:    "Leq64F",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Store",
+-		auxType: auxInt64,
+-		argLen:  3,
++		name:    "Greater8",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Move",
+-		auxType: auxInt64,
+-		argLen:  3,
++		name:    "Greater8U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Zero",
+-		auxType: auxInt64,
++		name:    "Greater16",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ClosureCall",
+-		auxType: auxInt64,
+-		argLen:  3,
++		name:    "Greater16U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StaticCall",
+-		auxType: auxSymOff,
+-		argLen:  1,
++		name:    "Greater32",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "DeferCall",
+-		auxType: auxInt64,
+-		argLen:  1,
++		name:    "Greater32U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "GoCall",
+-		auxType: auxInt64,
+-		argLen:  1,
++		name:    "Greater64",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "InterCall",
+-		auxType: auxInt64,
++		name:    "Greater64U",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SignExt8to16",
+-		argLen:  1,
++		name:    "Greater32F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SignExt8to32",
+-		argLen:  1,
++		name:    "Greater64F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SignExt8to64",
+-		argLen:  1,
++		name:    "Geq8",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SignExt16to32",
+-		argLen:  1,
++		name:    "Geq8U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SignExt16to64",
+-		argLen:  1,
++		name:    "Geq16",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SignExt32to64",
+-		argLen:  1,
++		name:    "Geq16U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ZeroExt8to16",
+-		argLen:  1,
++		name:    "Geq32",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ZeroExt8to32",
+-		argLen:  1,
++		name:    "Geq32U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ZeroExt8to64",
+-		argLen:  1,
++		name:    "Geq64",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ZeroExt16to32",
+-		argLen:  1,
++		name:    "Geq64U",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ZeroExt16to64",
+-		argLen:  1,
++		name:    "Geq32F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ZeroExt32to64",
+-		argLen:  1,
++		name:    "Geq64F",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Trunc16to8",
+-		argLen:  1,
++		name:    "AndB",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Trunc32to8",
+-		argLen:  1,
++		name:    "OrB",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Trunc32to16",
+-		argLen:  1,
++		name:    "EqB",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Trunc64to8",
+-		argLen:  1,
++		name:    "NeqB",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Trunc64to16",
++		name:    "Not",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Trunc64to32",
++		name:    "Neg8",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32to32F",
++		name:    "Neg16",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32to64F",
++		name:    "Neg32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt64to32F",
++		name:    "Neg64",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt64to64F",
++		name:    "Neg32F",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32Fto32",
++		name:    "Neg64F",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32Fto64",
++		name:    "Com8",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt64Fto32",
++		name:    "Com16",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt64Fto64",
++		name:    "Com32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32Fto64F",
++		name:    "Com64",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt64Fto32F",
++		name:    "Ctz16",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "IsNonNil",
++		name:    "Ctz32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "IsInBounds",
+-		argLen:  2,
+-		generic: true,
+-	},
+-	{
+-		name:    "IsSliceInBounds",
+-		argLen:  2,
++		name:    "Ctz64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "NilCheck",
+-		argLen:  2,
++		name:    "Clz16",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "GetG",
++		name:    "Clz32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "GetClosurePtr",
+-		argLen:  0,
++		name:    "Clz64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ArrayIndex",
+-		auxType: auxInt64,
++		name:    "Bswap32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "PtrIndex",
+-		argLen:  2,
++		name:    "Bswap64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "OffPtr",
+-		auxType: auxInt64,
++		name:    "Sqrt",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SliceMake",
+-		argLen:  3,
++		name:    "Phi",
++		argLen:  -1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SlicePtr",
++		name:    "Copy",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SliceLen",
+-		argLen:  1,
++		name:    "Convert",
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "SliceCap",
+-		argLen:  1,
++		name:    "ConstBool",
++		auxType: auxBool,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ComplexMake",
+-		argLen:  2,
++		name:    "ConstString",
++		auxType: auxString,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ComplexReal",
+-		argLen:  1,
++		name:    "ConstNil",
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ComplexImag",
+-		argLen:  1,
++		name:    "Const8",
++		auxType: auxInt8,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StringMake",
+-		argLen:  2,
++		name:    "Const16",
++		auxType: auxInt16,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StringPtr",
+-		argLen:  1,
++		name:    "Const32",
++		auxType: auxInt32,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StringLen",
+-		argLen:  1,
++		name:    "Const64",
++		auxType: auxInt64,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "IMake",
+-		argLen:  2,
++		name:    "Const32F",
++		auxType: auxFloat32,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "ITab",
+-		argLen:  1,
++		name:    "Const64F",
++		auxType: auxFloat64,
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "IData",
+-		argLen:  1,
++		name:    "ConstInterface",
++		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StructMake0",
++		name:    "ConstSlice",
+ 		argLen:  0,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StructMake1",
++		name:    "InitMem",
++		argLen:  0,
++		generic: true,
++	},
++	{
++		name:    "Arg",
++		auxType: auxSymOff,
++		argLen:  0,
++		generic: true,
++	},
++	{
++		name:    "Addr",
++		auxType: auxSym,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StructMake2",
++		name:    "SP",
++		argLen:  0,
++		generic: true,
++	},
++	{
++		name:    "SB",
++		argLen:  0,
++		generic: true,
++	},
++	{
++		name:    "Func",
++		auxType: auxSym,
++		argLen:  0,
++		generic: true,
++	},
++	{
++		name:    "Load",
+ 		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StructMake3",
++		name:    "Store",
++		auxType: auxInt64,
+ 		argLen:  3,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StructMake4",
+-		argLen:  4,
++		name:    "Move",
++		auxType: auxInt64,
++		argLen:  3,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StructSelect",
++		name:    "Zero",
++		auxType: auxInt64,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "ClosureCall",
+ 		auxType: auxInt64,
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "StaticCall",
++		auxType: auxSymOff,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "StoreReg",
++		name:    "DeferCall",
++		auxType: auxInt64,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "LoadReg",
++		name:    "GoCall",
++		auxType: auxInt64,
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "FwdRef",
+-		auxType: auxSym,
+-		argLen:  0,
++		name:    "InterCall",
++		auxType: auxInt64,
++		argLen:  2,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Unknown",
+-		argLen:  0,
++		name:    "SignExt8to16",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "VarDef",
+-		auxType: auxSym,
++		name:    "SignExt8to32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "VarKill",
+-		auxType: auxSym,
++		name:    "SignExt8to64",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "VarLive",
+-		auxType: auxSym,
++		name:    "SignExt16to32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "KeepAlive",
+-		argLen:  2,
++		name:    "SignExt16to64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Int64Make",
+-		argLen:  2,
++		name:    "SignExt32to64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Int64Hi",
++		name:    "ZeroExt8to16",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Int64Lo",
++		name:    "ZeroExt8to32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:        "Add32carry",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "ZeroExt8to64",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:        "Add32withcarry",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "ZeroExt16to32",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:    "Sub32carry",
+-		argLen:  2,
++		name:    "ZeroExt16to64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Sub32withcarry",
+-		argLen:  3,
++		name:    "ZeroExt32to64",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Mul32uhilo",
+-		argLen:  2,
++		name:    "Trunc16to8",
++		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Signmask",
++		name:    "Trunc32to8",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Zeromask",
++		name:    "Trunc32to16",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32Uto32F",
++		name:    "Trunc64to8",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32Uto64F",
++		name:    "Trunc64to16",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt32Fto32U",
++		name:    "Trunc64to32",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Cvt64Fto32U",
++		name:    "Cvt32to32F",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Select0",
++		name:    "Cvt32to64F",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Select1",
++		name:    "Cvt64to32F",
+ 		argLen:  1,
+ 		generic: true,
+ 	},
+-
+ 	{
+-		name:        "ADD",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AADD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Cvt64to64F",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:    "ADDconst",
+-		auxType: auxSymOff,
++		name:    "Cvt32Fto32",
+ 		argLen:  1,
+-		asm:     ppc64.AADD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:        "FADD",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFADD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "Cvt32Fto64",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:        "FADDS",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFADDS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "Cvt64Fto32",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "SUB",
+-		argLen: 2,
+-		asm:    ppc64.ASUB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Cvt64Fto64",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FSUB",
+-		argLen: 2,
+-		asm:    ppc64.AFSUB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "Cvt32Fto64F",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FSUBS",
+-		argLen: 2,
+-		asm:    ppc64.AFSUBS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "Cvt64Fto32F",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:        "MULLD",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AMULLD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+-	{
+-		name:        "MULLW",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AMULLW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+-	{
+-		name:        "FMUL",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFMUL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
+-	},
+-	{
+-		name:        "FMULS",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AFMULS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "IsNonNil",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FDIV",
+-		argLen: 2,
+-		asm:    ppc64.AFDIV,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "IsInBounds",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FDIVS",
+-		argLen: 2,
+-		asm:    ppc64.AFDIVS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "IsSliceInBounds",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:        "AND",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AAND,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "NilCheck",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:    "ANDconst",
+-		auxType: auxInt32,
++		name:    "GetG",
+ 		argLen:  1,
+-		asm:     ppc64.AAND,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:        "OR",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AOR,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "GetClosurePtr",
++		argLen:  0,
++		generic: true,
+ 	},
+ 	{
+-		name:    "ORconst",
+-		auxType: auxInt32,
++		name:    "ArrayIndex",
++		auxType: auxInt64,
+ 		argLen:  1,
+-		asm:     ppc64.AOR,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:        "XOR",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         ppc64.AXOR,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "PtrIndex",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:    "XORconst",
+-		auxType: auxInt32,
++		name:    "OffPtr",
++		auxType: auxInt64,
+ 		argLen:  1,
+-		asm:     ppc64.AXOR,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+-	{
+-		name:   "NEG",
+-		argLen: 1,
+-		asm:    ppc64.ANEG,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+-	{
+-		name:   "MOVBreg",
+-		argLen: 1,
+-		asm:    ppc64.AMOVB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVBZreg",
+-		argLen: 1,
+-		asm:    ppc64.AMOVBZ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "SliceMake",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVHreg",
+-		argLen: 1,
+-		asm:    ppc64.AMOVH,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "SlicePtr",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVHZreg",
+-		argLen: 1,
+-		asm:    ppc64.AMOVHZ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "SliceLen",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVWreg",
+-		argLen: 1,
+-		asm:    ppc64.AMOVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "SliceCap",
++		argLen:  1,
++		generic: true,
+ 	},
+-	{
+-		name:   "MOVWZreg",
+-		argLen: 1,
+-		asm:    ppc64.AMOVWZ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++	{
++		name:    "ComplexMake",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVBload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "ComplexReal",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVBZload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVBZ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "ComplexImag",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVHload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVH,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StringMake",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVHZload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVHZ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StringPtr",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVWload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StringLen",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVWZload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVWZ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "IMake",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:   "MOVDload",
+-		argLen: 2,
+-		asm:    ppc64.AMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "ITab",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FMOVDload",
+-		argLen: 2,
+-		asm:    ppc64.AFMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "IData",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FMOVSload",
+-		argLen: 2,
+-		asm:    ppc64.AFMOVS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "StructMake0",
++		argLen:  0,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVBstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StructMake1",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVHstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVH,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StructMake2",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVWstore",
+-		auxType: auxSymOff,
++		name:    "StructMake3",
+ 		argLen:  3,
+-		asm:     ppc64.AMOVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StructMake4",
++		argLen:  4,
++		generic: true,
+ 	},
+ 	{
+-		name:    "FMOVDstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AFMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 1073731578},         // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StructSelect",
++		auxType: auxInt64,
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:    "FMOVSstore",
+-		auxType: auxSymOff,
+-		argLen:  3,
+-		asm:     ppc64.AFMOVS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 1073731578},         // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "StoreReg",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVBstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVB,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "LoadReg",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVHstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVH,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "FwdRef",
++		auxType: auxSym,
++		argLen:  0,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVWstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Unknown",
++		argLen:  0,
++		generic: true,
+ 	},
+ 	{
+-		name:    "MOVDstoreconst",
+-		auxType: auxSymValAndOff,
+-		argLen:  2,
+-		asm:     ppc64.AMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "VarDef",
++		auxType: auxSym,
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:              "MOVDconst",
+-		auxType:           auxInt64,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AMOVD,
+-		reg: regInfo{
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "VarKill",
++		auxType: auxSym,
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:              "MOVWconst",
+-		auxType:           auxInt32,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AMOVW,
+-		reg: regInfo{
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "VarLive",
++		auxType: auxSym,
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:              "MOVHconst",
+-		auxType:           auxInt16,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AMOVH,
+-		reg: regInfo{
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "KeepAlive",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:              "MOVBconst",
+-		auxType:           auxInt8,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AMOVB,
+-		reg: regInfo{
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Int64Make",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:              "FMOVDconst",
+-		auxType:           auxFloat64,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AFMOVD,
+-		reg: regInfo{
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "Int64Hi",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:              "FMOVSconst",
+-		auxType:           auxFloat32,
+-		argLen:            0,
+-		rematerializeable: true,
+-		asm:               ppc64.AFMOVS,
+-		reg: regInfo{
+-			outputs: []regMask{
+-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-		},
++		name:    "Int64Lo",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "FCMPU",
+-		argLen: 2,
+-		asm:    ppc64.AFCMPU,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-			},
+-			outputs: []regMask{
+-				576460752303423488, // CR
+-			},
+-		},
++		name:        "Add32carry",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:   "CMP",
+-		argLen: 2,
+-		asm:    ppc64.ACMP,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460752303423488, // CR
+-			},
+-		},
++		name:        "Add32withcarry",
++		argLen:      3,
++		commutative: true,
++		generic:     true,
+ 	},
+ 	{
+-		name:   "CMPU",
+-		argLen: 2,
+-		asm:    ppc64.ACMPU,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460752303423488, // CR
+-			},
+-		},
++		name:    "Sub32carry",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:   "CMPW",
+-		argLen: 2,
+-		asm:    ppc64.ACMPW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460752303423488, // CR
+-			},
+-		},
++		name:    "Sub32withcarry",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+-		name:   "CMPWU",
+-		argLen: 2,
+-		asm:    ppc64.ACMPWU,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460752303423488, // CR
+-			},
+-		},
++		name:    "Mul32uhilo",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+-		name:    "CMPconst",
+-		auxType: auxInt32,
++		name:    "Signmask",
+ 		argLen:  1,
+-		asm:     ppc64.ACMP,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []regMask{
+-				576460752303423488, // CR
+-			},
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:    "CALLstatic",
+-		auxType: auxSymOff,
++		name:    "Zeromask",
+ 		argLen:  1,
+-		reg: regInfo{
+-			clobbers: 576460744787220472, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+-		},
++		generic: true,
+ 	},
+ 	{
+-		name:   "Equal",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Cvt32Uto32F",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "NotEqual",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Cvt32Uto64F",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "LessThan",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Cvt32Fto32U",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "LessEqual",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Cvt64Fto32U",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "GreaterThan",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Select0",
++		argLen:  1,
++		generic: true,
+ 	},
+ 	{
+-		name:   "GreaterEqual",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 576460752303423488}, // CR
+-			},
+-			outputs: []regMask{
+-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
++		name:    "Select1",
++		argLen:  1,
++		generic: true,
+ 	},
+ }
+ 

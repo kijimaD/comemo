@@ -29,7 +29,7 @@ Date:   Mon Jan 11 22:58:23 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go |  16 +--
  src/cmd/compile/internal/escape/escape.go  | 169 ++----------------------
  src/cmd/compile/internal/gc/compile.go     |  15 +--
@@ -43,3 +43,959 @@ Date:   Mon Jan 11 22:58:23 2021 -0800
  src/cmd/compile/internal/walk/stmt.go      |  19 +--
  src/cmd/compile/internal/walk/walk.go      | 111 ----------------
  12 files changed, 192 insertions(+), 424 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index ff249c1f4e..2440e3c8d3 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -186,19 +186,11 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 		isReturnValue := (n.Class == ir.PPARAMOUT)
+ 		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+-		} else if n.Class == ir.PAUTOHEAP {
+-			// If dcl in question has been promoted to heap, do a bit
+-			// of extra work to recover original class (auto or param);
+-			// see issue 30908. This insures that we get the proper
+-			// signature in the abstract function DIE, but leaves a
+-			// misleading location for the param (we want pointer-to-heap
+-			// and not stack).
++		}
++		if n.Esc() == ir.EscHeap {
++			// The variable in question has been promoted to the heap.
++			// Its address is in n.Heapaddr.
+ 			// TODO(thanm): generate a better location expression
+-			stackcopy := n.Stackcopy
+-			if stackcopy != nil && (stackcopy.Class == ir.PPARAM || stackcopy.Class == ir.PPARAMOUT) {
+-				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+-				isReturnValue = (stackcopy.Class == ir.PPARAMOUT)
+-			}
+ 		}
+ 		inlIndex := 0
+ 		if base.Flag.GenDwarfInl > 1 {
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index bee3878f10..79e5a98c91 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -1658,7 +1658,14 @@ func (b *batch) finish(fns []*ir.Func) {
+ 		// Update n.Esc based on escape analysis results.
+ 
+ 		if loc.escapes {
+-			if n.Op() != ir.ONAME {
++			if n.Op() == ir.ONAME {
++				if base.Flag.CompilingRuntime {
++					base.ErrorfAt(n.Pos(), "%v escapes to heap, not allowed in runtime", n)
++				}
++				if base.Flag.LowerM != 0 {
++					base.WarnfAt(n.Pos(), "moved to heap: %v", n)
++				}
++			} else {
+ 				if base.Flag.LowerM != 0 {
+ 					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+ 				}
+@@ -1668,7 +1675,6 @@ func (b *batch) finish(fns []*ir.Func) {
+ 				}
+ 			}
+ 			n.SetEsc(ir.EscHeap)
+-			addrescapes(n)
+ 		} else {
+ 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME {
+ 				base.WarnfAt(n.Pos(), "%v does not escape", n)
+@@ -2014,165 +2020,6 @@ func HeapAllocReason(n ir.Node) string {
+ 	return ""
+ }
+ 
+-// addrescapes tags node n as having had its address taken
+-// by "increasing" the "value" of n.Esc to EscHeap.
+-// Storage is allocated as necessary to allow the address
+-// to be taken.
+-func addrescapes(n ir.Node) {
+-	switch n.Op() {
+-	default:
+-		// Unexpected Op, probably due to a previous type error. Ignore.
+-
+-	case ir.ODEREF, ir.ODOTPTR:
+-		// Nothing to do.
+-
+-	case ir.ONAME:
+-		n := n.(*ir.Name)
+-		if n == ir.RegFP {
+-			break
+-		}
+-
+-		// if this is a tmpname (PAUTO), it was tagged by tmpname as not escaping.
+-		// on PPARAM it means something different.
+-		if n.Class == ir.PAUTO && n.Esc() == ir.EscNever {
+-			break
+-		}
+-
+-		// If a closure reference escapes, mark the outer variable as escaping.
+-		if n.IsClosureVar() {
+-			addrescapes(n.Defn)
+-			break
+-		}
+-
+-		if n.Class != ir.PPARAM && n.Class != ir.PPARAMOUT && n.Class != ir.PAUTO {
+-			break
+-		}
+-
+-		// This is a plain parameter or local variable that needs to move to the heap,
+-		// but possibly for the function outside the one we're compiling.
+-		// That is, if we have:
+-		//
+-		//	func f(x int) {
+-		//		func() {
+-		//			global = &x
+-		//		}
+-		//	}
+-		//
+-		// then we're analyzing the inner closure but we need to move x to the
+-		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
+-		oldfn := ir.CurFunc
+-		ir.CurFunc = n.Curfn
+-		ln := base.Pos
+-		base.Pos = ir.CurFunc.Pos()
+-		moveToHeap(n)
+-		ir.CurFunc = oldfn
+-		base.Pos = ln
+-
+-	// ODOTPTR has already been introduced,
+-	// so these are the non-pointer ODOT and OINDEX.
+-	// In &x[0], if x is a slice, then x does not
+-	// escape--the pointer inside x does, but that
+-	// is always a heap pointer anyway.
+-	case ir.ODOT:
+-		n := n.(*ir.SelectorExpr)
+-		addrescapes(n.X)
+-	case ir.OINDEX:
+-		n := n.(*ir.IndexExpr)
+-		if !n.X.Type().IsSlice() {
+-			addrescapes(n.X)
+-		}
+-	case ir.OPAREN:
+-		n := n.(*ir.ParenExpr)
+-		addrescapes(n.X)
+-	case ir.OCONVNOP:
+-		n := n.(*ir.ConvExpr)
+-		addrescapes(n.X)
+-	}
+-}
+-
+-// moveToHeap records the parameter or local variable n as moved to the heap.
+-func moveToHeap(n *ir.Name) {
+-	if base.Flag.LowerR != 0 {
+-		ir.Dump("MOVE", n)
+-	}
+-	if base.Flag.CompilingRuntime {
+-		base.Errorf("%v escapes to heap, not allowed in runtime", n)
+-	}
+-	if n.Class == ir.PAUTOHEAP {
+-		ir.Dump("n", n)
+-		base.Fatalf("double move to heap")
+-	}
+-
+-	// Allocate a local stack variable to hold the pointer to the heap copy.
+-	// temp will add it to the function declaration list automatically.
+-	heapaddr := typecheck.Temp(types.NewPtr(n.Type()))
+-	heapaddr.SetSym(typecheck.Lookup("&" + n.Sym().Name))
+-	heapaddr.SetPos(n.Pos())
+-
+-	// Unset AutoTemp to persist the &foo variable name through SSA to
+-	// liveness analysis.
+-	// TODO(mdempsky/drchase): Cleaner solution?
+-	heapaddr.SetAutoTemp(false)
+-
+-	// Parameters have a local stack copy used at function start/end
+-	// in addition to the copy in the heap that may live longer than
+-	// the function.
+-	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+-		if n.FrameOffset() == types.BADWIDTH {
+-			base.Fatalf("addrescapes before param assignment")
+-		}
+-
+-		// We rewrite n below to be a heap variable (indirection of heapaddr).
+-		// Preserve a copy so we can still write code referring to the original,
+-		// and substitute that copy into the function declaration list
+-		// so that analyses of the local (on-stack) variables use it.
+-		stackcopy := typecheck.NewName(n.Sym())
+-		stackcopy.SetType(n.Type())
+-		stackcopy.SetFrameOffset(n.FrameOffset())
+-		stackcopy.Class = n.Class
+-		stackcopy.Heapaddr = heapaddr
+-		if n.Class == ir.PPARAMOUT {
+-			// Make sure the pointer to the heap copy is kept live throughout the function.
+-			// The function could panic at any point, and then a defer could recover.
+-			// Thus, we need the pointer to the heap copy always available so the
+-			// post-deferreturn code can copy the return value back to the stack.
+-			// See issue 16095.
+-			heapaddr.SetIsOutputParamHeapAddr(true)
+-		}
+-		n.Stackcopy = stackcopy
+-
+-		// Substitute the stackcopy into the function variable list so that
+-		// liveness and other analyses use the underlying stack slot
+-		// and not the now-pseudo-variable n.
+-		found := false
+-		for i, d := range ir.CurFunc.Dcl {
+-			if d == n {
+-				ir.CurFunc.Dcl[i] = stackcopy
+-				found = true
+-				break
+-			}
+-			// Parameters are before locals, so can stop early.
+-			// This limits the search even in functions with many local variables.
+-			if d.Class == ir.PAUTO {
+-				break
+-			}
+-		}
+-		if !found {
+-			base.Fatalf("cannot find %v in local variable list", n)
+-		}
+-		ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+-	}
+-
+-	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+-	n.Class = ir.PAUTOHEAP
+-	n.SetFrameOffset(0)
+-	n.Heapaddr = heapaddr
+-	n.SetEsc(ir.EscHeap)
+-	if base.Flag.LowerM != 0 {
+-		base.WarnfAt(n.Pos(), "moved to heap: %v", n)
+-	}
+-}
+-
+ // This special tag is applied to uintptr variables
+ // that we believe may hold unsafe.Pointers for
+ // calls into assembly functions.
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 410b3e90ea..a8a0106320 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -90,15 +90,12 @@ func prepareFunc(fn *ir.Func) {
+ 	// because symbols must be allocated before the parallel
+ 	// phase of the compiler.
+ 	for _, n := range fn.Dcl {
+-		switch n.Class {
+-		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
+-			if liveness.ShouldTrack(n) && n.Addrtaken() {
+-				reflectdata.WriteType(n.Type())
+-				// Also make sure we allocate a linker symbol
+-				// for the stack object data, for the same reason.
+-				if fn.LSym.Func().StackObjects == nil {
+-					fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
+-				}
++		if liveness.ShouldTrack(n) && n.Addrtaken() {
++			reflectdata.WriteType(n.Type())
++			// Also make sure we allocate a linker symbol
++			// for the stack object data, for the same reason.
++			if fn.LSym.Func().StackObjects == nil {
++				fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 6f5f6499ce..1811feebe9 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -762,13 +762,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		if ln.Class == ir.PPARAMOUT { // return values handled below.
+ 			continue
+ 		}
+-		if ir.IsParamStackCopy(ln) { // ignore the on-stack copy of a parameter that moved to the heap
+-			// TODO(mdempsky): Remove once I'm confident
+-			// this never actually happens. We currently
+-			// perform inlining before escape analysis, so
+-			// nothing should have moved to the heap yet.
+-			base.Fatalf("impossible: %v", ln)
+-		}
+ 		inlf := typecheck.Expr(inlvar(ln)).(*ir.Name)
+ 		inlvars[ln] = inlf
+ 		if base.Flag.GenDwarfInl > 0 {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 514b303893..d19b0440e6 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -58,9 +58,6 @@ type Name struct {
+ 	Ntype    Ntype
+ 	Heapaddr *Name // temp holding heap address of param
+ 
+-	// ONAME PAUTOHEAP
+-	Stackcopy *Name // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
+-
+ 	// ONAME closure linkage
+ 	// Consider:
+ 	//
+@@ -150,12 +147,7 @@ func (n *Name) TypeDefn() *types.Type {
+ // RecordFrameOffset records the frame offset for the name.
+ // It is used by package types when laying out function arguments.
+ func (n *Name) RecordFrameOffset(offset int64) {
+-	if n.Stackcopy != nil {
+-		n.Stackcopy.SetFrameOffset(offset)
+-		n.SetFrameOffset(0)
+-	} else {
+-		n.SetFrameOffset(offset)
+-	}
++	n.SetFrameOffset(offset)
+ }
+ 
+ // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
+@@ -292,6 +284,22 @@ func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+ 
++// OnStack reports whether variable n may reside on the stack.
++func (n *Name) OnStack() bool {
++	if n.Op() != ONAME || n.Class == PFUNC {
++		base.Fatalf("%v is not a variable", n)
++	}
++	switch n.Class {
++	case PPARAM, PPARAMOUT, PAUTO:
++		return n.Esc() != EscHeap
++	case PEXTERN, PAUTOHEAP:
++		return false
++	default:
++		base.FatalfAt(n.Pos(), "%v has unknown class %v", n, n.Class)
++		panic("unreachable")
++	}
++}
++
+ // MarkReadonly indicates that n is an ONAME with readonly contents.
+ func (n *Name) MarkReadonly() {
+ 	if n.Op() != ONAME {
+@@ -501,24 +509,4 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
+ 	return p
+ }
+ 
+-// IsParamStackCopy reports whether this is the on-stack copy of a
+-// function parameter that moved to the heap.
+-func IsParamStackCopy(n Node) bool {
+-	if n.Op() != ONAME {
+-		return false
+-	}
+-	name := n.(*Name)
+-	return (name.Class == PPARAM || name.Class == PPARAMOUT) && name.Heapaddr != nil
+-}
+-
+-// IsParamHeapCopy reports whether this is the on-heap copy of
+-// a function parameter that moved to the heap.
+-func IsParamHeapCopy(n Node) bool {
+-	if n.Op() != ONAME {
+-		return false
+-	}
+-	name := n.(*Name)
+-	return name.Class == PAUTOHEAP && name.Stackcopy != nil
+-}
+-
+ var RegFP *Name
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 553dc53760..d8c1518b90 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 188, 328},
+-		{Name{}, 116, 208},
++		{Name{}, 112, 200},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 8d1754c813..abc9583d5a 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -181,7 +181,7 @@ type progeffectscache struct {
+ // nor do we care about empty structs (handled by the pointer check),
+ // nor do we care about the fake PAUTOHEAP variables.
+ func ShouldTrack(n *ir.Name) bool {
+-	return (n.Class == ir.PAUTO || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
++	return (n.Class == ir.PAUTO && n.Esc() != ir.EscHeap || n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT) && n.Type().HasPointers()
+ }
+ 
+ // getvariables returns the list of on-stack variables that we need to track
+@@ -788,7 +788,7 @@ func (lv *liveness) epilogue() {
+ 				if n.Class == ir.PPARAM {
+ 					continue // ok
+ 				}
+-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
++				base.FatalfAt(n.Pos(), "bad live variable at entry of %v: %L", lv.fn.Nname, n)
+ 			}
+ 
+ 			// Record live variables.
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 3b542cf92a..ab2e21bea0 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -399,11 +399,20 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 	if s.hasOpenDefers && len(s.curfn.Exit) > 0 {
+ 		// Skip doing open defers if there is any extra exit code (likely
+-		// copying heap-allocated return values or race detection), since
+-		// we will not generate that code in the case of the extra
+-		// deferreturn/ret segment.
++		// race detection), since we will not generate that code in the
++		// case of the extra deferreturn/ret segment.
+ 		s.hasOpenDefers = false
+ 	}
++	if s.hasOpenDefers {
++		// Similarly, skip if there are any heap-allocated result
++		// parameters that need to be copied back to their stack slots.
++		for _, f := range s.curfn.Type().Results().FieldSlice() {
++			if !f.Nname.(*ir.Name).OnStack() {
++				s.hasOpenDefers = false
++				break
++			}
++		}
++	}
+ 	if s.hasOpenDefers &&
+ 		s.curfn.NumReturns*s.curfn.NumDefers > 15 {
+ 		// Since we are generating defer calls at every exit for
+@@ -450,19 +459,9 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 		case ir.PPARAMOUT:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+ 			results = append(results, ssa.Param{Type: n.Type(), Offset: int32(n.FrameOffset())})
+-			if s.canSSA(n) {
+-				// Save ssa-able PPARAMOUT variables so we can
+-				// store them back to the stack at the end of
+-				// the function.
+-				s.returns = append(s.returns, n)
+-			}
+ 		case ir.PAUTO:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
+-		case ir.PAUTOHEAP:
+-			// moved to heap - already handled by frontend
+-		case ir.PFUNC:
+-			// local function - already handled by frontend
+ 		default:
+ 			s.Fatalf("local variable with class %v unimplemented", n.Class)
+ 		}
+@@ -488,38 +487,28 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 			}
+ 
+ 			offset = types.Rnd(offset, typ.Alignment())
+-			r := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
++			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
+ 			offset += typ.Size()
+ 
+ 			if n.Byval() && TypeOK(n.Type()) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+-				r = s.load(n.Type(), r)
+-
+ 				n.Class = ir.PAUTO
+-			} else {
+-				if !n.Byval() {
+-					r = s.load(typ, r)
+-				}
+-
+-				// Declare variable holding address taken from closure.
+-				addr := ir.NewNameAt(fn.Pos(), &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
+-				addr.SetType(types.NewPtr(n.Type()))
+-				addr.Class = ir.PAUTO
+-				addr.SetUsed(true)
+-				addr.Curfn = fn
+-				types.CalcSize(addr.Type())
+-
+-				n.Heapaddr = addr
+-				n = addr
++				fn.Dcl = append(fn.Dcl, n)
++				s.assign(n, s.load(n.Type(), ptr), false, 0)
++				continue
+ 			}
+ 
+-			fn.Dcl = append(fn.Dcl, n)
+-			s.assign(n, r, false, 0)
++			if !n.Byval() {
++				ptr = s.load(typ, ptr)
++			}
++			s.setHeapaddr(fn.Pos(), n, ptr)
+ 		}
+ 	}
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+ 	s.stmtList(fn.Enter)
++	s.zeroResults()
++	s.paramsToHeap()
+ 	s.stmtList(fn.Body)
+ 
+ 	// fallthrough to exit
+@@ -547,6 +536,100 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	return s.f
+ }
+ 
++// zeroResults zeros the return values at the start of the function.
++// We need to do this very early in the function.  Defer might stop a
++// panic and show the return values as they exist at the time of
++// panic.  For precise stacks, the garbage collector assumes results
++// are always live, so we need to zero them before any allocations,
++// even allocations to move params/results to the heap.
++func (s *state) zeroResults() {
++	for _, f := range s.curfn.Type().Results().FieldSlice() {
++		n := f.Nname.(*ir.Name)
++		if !n.OnStack() {
++			// The local which points to the return value is the
++			// thing that needs zeroing. This is already handled
++			// by a Needzero annotation in plive.go:(*liveness).epilogue.
++			continue
++		}
++		// Zero the stack location containing f.
++		if typ := n.Type(); TypeOK(typ) {
++			s.assign(n, s.zeroVal(typ), false, 0)
++		} else {
++			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
++			s.zero(n.Type(), s.decladdrs[n])
++		}
++	}
++}
++
++// paramsToHeap produces code to allocate memory for heap-escaped parameters
++// and to copy non-result parameters' values from the stack.
++func (s *state) paramsToHeap() {
++	do := func(params *types.Type) {
++		for _, f := range params.FieldSlice() {
++			if f.Nname == nil {
++				continue // anonymous or blank parameter
++			}
++			n := f.Nname.(*ir.Name)
++			if ir.IsBlank(n) || n.OnStack() {
++				continue
++			}
++			s.newHeapaddr(n)
++			if n.Class == ir.PPARAM {
++				s.move(n.Type(), s.expr(n.Heapaddr), s.decladdrs[n])
++			}
++		}
++	}
++
++	typ := s.curfn.Type()
++	do(typ.Recvs())
++	do(typ.Params())
++	do(typ.Results())
++}
++
++// newHeapaddr allocates heap memory for n and sets its heap address.
++func (s *state) newHeapaddr(n *ir.Name) {
++	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type()))
++}
++
++// setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
++// and then sets it as n's heap address.
++func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
++	if !ptr.Type.IsPtr() || !types.Identical(n.Type(), ptr.Type.Elem()) {
++		base.FatalfAt(n.Pos(), "setHeapaddr %L with type %v", n, ptr.Type)
++	}
++
++	// Declare variable to hold address.
++	addr := ir.NewNameAt(pos, &types.Sym{Name: "&" + n.Sym().Name, Pkg: types.LocalPkg})
++	addr.SetType(types.NewPtr(n.Type()))
++	addr.Class = ir.PAUTO
++	addr.SetUsed(true)
++	addr.Curfn = s.curfn
++	s.curfn.Dcl = append(s.curfn.Dcl, addr)
++	types.CalcSize(addr.Type())
++
++	if n.Class == ir.PPARAMOUT {
++		addr.SetIsOutputParamHeapAddr(true)
++	}
++
++	n.Heapaddr = addr
++	s.assign(addr, ptr, false, 0)
++}
++
++// newObject returns an SSA value denoting new(typ).
++func (s *state) newObject(typ *types.Type) *ssa.Value {
++	if typ.Size() == 0 {
++		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
++	}
++	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, s.reflectType(typ))[0]
++}
++
++// reflectType returns an SSA value representing a pointer to typ's
++// reflection type descriptor.
++func (s *state) reflectType(typ *types.Type) *ssa.Value {
++	lsym := reflectdata.TypeLinksym(typ)
++	return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(types.Types[types.TUINT8]), lsym, s.sb)
++}
++
+ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
+ 	// Read sources of target function fn.
+ 	fname := base.Ctxt.PosTable.Pos(fn.Pos()).Filename()
+@@ -682,7 +765,7 @@ type state struct {
+ 	// all defined variables at the end of each block. Indexed by block ID.
+ 	defvars []map[ir.Node]*ssa.Value
+ 
+-	// addresses of PPARAM and PPARAMOUT variables.
++	// addresses of PPARAM and PPARAMOUT variables on the stack.
+ 	decladdrs map[*ir.Name]*ssa.Value
+ 
+ 	// starting values. Memory, stack pointer, and globals pointer
+@@ -702,9 +785,6 @@ type state struct {
+ 	// Used to deduplicate panic calls.
+ 	panics map[funcLine]*ssa.Block
+ 
+-	// list of PPARAMOUT (return) variables.
+-	returns []*ir.Name
+-
+ 	cgoUnsafeArgs bool
+ 	hasdefer      bool // whether the function contains a defer statement
+ 	softFloat     bool
+@@ -1290,8 +1370,8 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.ODCL:
+ 		n := n.(*ir.Decl)
+-		if n.X.Class == ir.PAUTOHEAP {
+-			s.Fatalf("DCL %v", n)
++		if v := n.X; v.Esc() == ir.EscHeap {
++			s.newHeapaddr(v)
+ 		}
+ 
+ 	case ir.OLABEL:
+@@ -1727,21 +1807,25 @@ func (s *state) exit() *ssa.Block {
+ 		}
+ 	}
+ 
+-	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
+-	// variables back to the stack.
+-	s.stmtList(s.curfn.Exit)
+-
+-	// Store SSAable PPARAMOUT variables back to stack locations.
+-	for _, n := range s.returns {
+-		addr := s.decladdrs[n]
+-		val := s.variable(n, n.Type())
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+-		s.store(n.Type(), addr, val)
++	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
++	for _, f := range s.curfn.Type().Results().FieldSlice() {
++		n := f.Nname.(*ir.Name)
++		if s.canSSA(n) {
++			val := s.variable(n, n.Type())
++			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
++			s.store(n.Type(), s.decladdrs[n], val)
++		} else if !n.OnStack() {
++			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
++			s.move(n.Type(), s.decladdrs[n], s.expr(n.Heapaddr))
++		}
+ 		// TODO: if val is ever spilled, we'd like to use the
+ 		// PPARAMOUT slot for spilling it. That won't happen
+ 		// currently.
+ 	}
+ 
++	// Run exit code. Today, this is just raceexit, in -race mode.
++	s.stmtList(s.curfn.Exit)
++
+ 	// Do actual return.
+ 	m := s.mem()
+ 	b := s.endBlock()
+@@ -2945,12 +3029,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 
+ 	case ir.ONEWOBJ:
+ 		n := n.(*ir.UnaryExpr)
+-		if n.Type().Elem().Size() == 0 {
+-			return s.newValue1A(ssa.OpAddr, n.Type(), ir.Syms.Zerobase, s.sb)
+-		}
+-		typ := s.expr(n.X)
+-		vv := s.rtcall(ir.Syms.Newobject, true, []*types.Type{n.Type()}, typ)
+-		return vv[0]
++		return s.newObject(n.Type().Elem())
+ 
+ 	default:
+ 		s.Fatalf("unhandled expr %v", n.Op())
+@@ -3267,7 +3346,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
+ 
+ 	// If this assignment clobbers an entire local variable, then emit
+ 	// OpVarDef so liveness analysis knows the variable is redefined.
+-	if base, ok := clobberBase(left).(*ir.Name); ok && base.Op() == ir.ONAME && base.Class != ir.PEXTERN && base.Class != ir.PAUTOHEAP && skip == 0 {
++	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 {
+ 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
+ 	}
+ 
+@@ -5011,6 +5090,9 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		fallthrough
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
++		if n.Heapaddr != nil {
++			return s.expr(n.Heapaddr)
++		}
+ 		switch n.Class {
+ 		case ir.PEXTERN:
+ 			// global variable
+@@ -5039,8 +5121,6 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			// ensure that we reuse symbols for out parameters so
+ 			// that cse works on their addresses
+ 			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
+-		case ir.PAUTOHEAP:
+-			return s.expr(n.Heapaddr)
+ 		default:
+ 			s.Fatalf("variable address class %v not implemented", n.Class)
+ 			return nil
+@@ -5141,15 +5221,10 @@ func (s *state) canSSA(n ir.Node) bool {
+ }
+ 
+ func (s *state) canSSAName(name *ir.Name) bool {
+-	if name.Addrtaken() {
+-		return false
+-	}
+-	if ir.IsParamHeapCopy(name) {
++	if name.Addrtaken() || !name.OnStack() {
+ 		return false
+ 	}
+ 	switch name.Class {
+-	case ir.PEXTERN, ir.PAUTOHEAP:
+-		return false
+ 	case ir.PPARAMOUT:
+ 		if s.hasdefer {
+ 			// TODO: handle this case? Named return values must be
+@@ -6399,7 +6474,7 @@ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ func emitStackObjects(e *ssafn, pp *objw.Progs) {
+ 	var vars []*ir.Name
+ 	for _, n := range e.curfn.Dcl {
+-		if liveness.ShouldTrack(n) && n.Addrtaken() {
++		if liveness.ShouldTrack(n) && n.Addrtaken() && n.Esc() != ir.EscHeap {
+ 			vars = append(vars, n)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 3fe810ac4e..4043d7574a 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -392,11 +392,7 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
+ 
+ 		appendWalkStmt(&late, convas(ir.NewAssignStmt(base.Pos, lorig, r), &late))
+ 
+-		if name == nil || name.Addrtaken() || name.Class == ir.PEXTERN || name.Class == ir.PAUTOHEAP {
+-			memWrite = true
+-			continue
+-		}
+-		if ir.IsBlank(name) {
++		if name != nil && ir.IsBlank(name) {
+ 			// We can ignore assignments to blank.
+ 			continue
+ 		}
+@@ -405,7 +401,12 @@ func ascompatee(op ir.Op, nl, nr []ir.Node) []ir.Node {
+ 			// parameters. These can't appear in expressions anyway.
+ 			continue
+ 		}
+-		assigned.Add(name)
++
++		if name != nil && name.OnStack() && !name.Addrtaken() {
++			assigned.Add(name)
++		} else {
++			memWrite = true
++		}
+ 	}
+ 
+ 	early.Append(late.Take()...)
+@@ -418,7 +419,10 @@ func readsMemory(n ir.Node) bool {
+ 	switch n.Op() {
+ 	case ir.ONAME:
+ 		n := n.(*ir.Name)
+-		return n.Class == ir.PEXTERN || n.Class == ir.PAUTOHEAP || n.Addrtaken()
++		if n.Class == ir.PFUNC {
++			return false
++		}
++		return n.Addrtaken() || !n.OnStack()
+ 
+ 	case ir.OADD,
+ 		ir.OAND,
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 8a77bba2ad..f82ef69ca9 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -64,11 +64,11 @@ func readonlystaticname(t *types.Type) *ir.Name {
+ }
+ 
+ func isSimpleName(nn ir.Node) bool {
+-	if nn.Op() != ir.ONAME {
++	if nn.Op() != ir.ONAME || ir.IsBlank(nn) {
+ 		return false
+ 	}
+ 	n := nn.(*ir.Name)
+-	return n.Class != ir.PAUTOHEAP && n.Class != ir.PEXTERN
++	return n.OnStack()
+ }
+ 
+ func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 1df491bd4e..d892b2413f 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -86,6 +86,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 		ir.OFALL,
+ 		ir.OGOTO,
+ 		ir.OLABEL,
++		ir.ODCL,
+ 		ir.ODCLCONST,
+ 		ir.ODCLTYPE,
+ 		ir.OCHECKNIL,
+@@ -94,10 +95,6 @@ func walkStmt(n ir.Node) ir.Node {
+ 		ir.OVARLIVE:
+ 		return n
+ 
+-	case ir.ODCL:
+-		n := n.(*ir.Decl)
+-		return walkDecl(n)
+-
+ 	case ir.OBLOCK:
+ 		n := n.(*ir.BlockStmt)
+ 		walkStmtList(n.List)
+@@ -173,20 +170,6 @@ func walkStmtList(s []ir.Node) {
+ 	}
+ }
+ 
+-// walkDecl walks an ODCL node.
+-func walkDecl(n *ir.Decl) ir.Node {
+-	v := n.X
+-	if v.Class == ir.PAUTOHEAP {
+-		if base.Flag.CompilingRuntime {
+-			base.Errorf("%v escapes to heap, not allowed in runtime", v)
+-		}
+-		nn := ir.NewAssignStmt(base.Pos, v.Heapaddr, callnew(v.Type()))
+-		nn.Def = true
+-		return walkStmt(typecheck.Stmt(nn))
+-	}
+-	return n
+-}
+-
+ // walkFor walks an OFOR or OFORUNTIL node.
+ func walkFor(n *ir.ForStmt) ir.Node {
+ 	if n.Cond != nil {
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index e780a90660..71f018fe3e 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -7,7 +7,6 @@ package walk
+ import (
+ 	"errors"
+ 	"fmt"
+-	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -47,35 +46,11 @@ func Walk(fn *ir.Func) {
+ 		ir.DumpList(s, ir.CurFunc.Body)
+ 	}
+ 
+-	zeroResults()
+-	heapmoves()
+-	if base.Flag.W != 0 && len(ir.CurFunc.Enter) > 0 {
+-		s := fmt.Sprintf("enter %v", ir.CurFunc.Sym())
+-		ir.DumpList(s, ir.CurFunc.Enter)
+-	}
+-
+ 	if base.Flag.Cfg.Instrumenting {
+ 		instrument(fn)
+ 	}
+ }
+ 
+-func paramoutheap(fn *ir.Func) bool {
+-	for _, ln := range fn.Dcl {
+-		switch ln.Class {
+-		case ir.PPARAMOUT:
+-			if ir.IsParamStackCopy(ln) || ln.Addrtaken() {
+-				return true
+-			}
+-
+-		case ir.PAUTO:
+-			// stop early - parameters are over
+-			return false
+-		}
+-	}
+-
+-	return false
+-}
+-
+ // walkRecv walks an ORECV node.
+ func walkRecv(n *ir.UnaryExpr) ir.Node {
+ 	if n.Typecheck() == 0 {
+@@ -122,92 +97,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
+ 
+ var stop = errors.New("stop")
+ 
+-// paramstoheap returns code to allocate memory for heap-escaped parameters
+-// and to copy non-result parameters' values from the stack.
+-func paramstoheap(params *types.Type) []ir.Node {
+-	var nn []ir.Node
+-	for _, t := range params.Fields().Slice() {
+-		v := ir.AsNode(t.Nname)
+-		if v != nil && v.Sym() != nil && strings.HasPrefix(v.Sym().Name, "~r") { // unnamed result
+-			v = nil
+-		}
+-		if v == nil {
+-			continue
+-		}
+-
+-		if stackcopy := v.Name().Stackcopy; stackcopy != nil {
+-			nn = append(nn, walkStmt(ir.NewDecl(base.Pos, ir.ODCL, v.(*ir.Name))))
+-			if stackcopy.Class == ir.PPARAM {
+-				nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, v, stackcopy))))
+-			}
+-		}
+-	}
+-
+-	return nn
+-}
+-
+-// zeroResults zeros the return values at the start of the function.
+-// We need to do this very early in the function.  Defer might stop a
+-// panic and show the return values as they exist at the time of
+-// panic.  For precise stacks, the garbage collector assumes results
+-// are always live, so we need to zero them before any allocations,
+-// even allocations to move params/results to the heap.
+-// The generated code is added to Curfn's Enter list.
+-func zeroResults() {
+-	for _, f := range ir.CurFunc.Type().Results().Fields().Slice() {
+-		v := ir.AsNode(f.Nname)
+-		if v != nil && v.Name().Heapaddr != nil {
+-			// The local which points to the return value is the
+-			// thing that needs zeroing. This is already handled
+-			// by a Needzero annotation in plive.go:livenessepilogue.
+-			continue
+-		}
+-		if ir.IsParamHeapCopy(v) {
+-			// TODO(josharian/khr): Investigate whether we can switch to "continue" here,
+-			// and document more in either case.
+-			// In the review of CL 114797, Keith wrote (roughly):
+-			// I don't think the zeroing below matters.
+-			// The stack return value will never be marked as live anywhere in the function.
+-			// It is not written to until deferreturn returns.
+-			v = v.Name().Stackcopy
+-		}
+-		// Zero the stack location containing f.
+-		ir.CurFunc.Enter.Append(ir.NewAssignStmt(ir.CurFunc.Pos(), v, nil))
+-	}
+-}
+-
+-// returnsfromheap returns code to copy values for heap-escaped parameters
+-// back to the stack.
+-func returnsfromheap(params *types.Type) []ir.Node {
+-	var nn []ir.Node
+-	for _, t := range params.Fields().Slice() {
+-		v := ir.AsNode(t.Nname)
+-		if v == nil {
+-			continue
+-		}
+-		if stackcopy := v.Name().Stackcopy; stackcopy != nil && stackcopy.Class == ir.PPARAMOUT {
+-			nn = append(nn, walkStmt(typecheck.Stmt(ir.NewAssignStmt(base.Pos, stackcopy, v))))
+-		}
+-	}
+-
+-	return nn
+-}
+-
+-// heapmoves generates code to handle migrating heap-escaped parameters
+-// between the stack and the heap. The generated code is added to Curfn's
+-// Enter and Exit lists.
+-func heapmoves() {
+-	lno := base.Pos
+-	base.Pos = ir.CurFunc.Pos()
+-	nn := paramstoheap(ir.CurFunc.Type().Recvs())
+-	nn = append(nn, paramstoheap(ir.CurFunc.Type().Params())...)
+-	nn = append(nn, paramstoheap(ir.CurFunc.Type().Results())...)
+-	ir.CurFunc.Enter.Append(nn...)
+-	base.Pos = ir.CurFunc.Endlineno
+-	ir.CurFunc.Exit.Append(returnsfromheap(ir.CurFunc.Type().Results())...)
+-	base.Pos = lno
+-}
+-
+ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
+ 	if fn.Type() == nil || fn.Type().Kind() != types.TFUNC {
+ 		base.Fatalf("mkcall %v %v", fn, fn.Type())

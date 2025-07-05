@@ -16,8 +16,96 @@ Date:   Thu Oct 8 11:18:02 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++--
  src/cmd/compile/internal/ssa/rewriteAMD64.go |  8 ++++----
  test/fixedbugs/issue41872.go                 | 26 ++++++++++++++++++++++++++
  3 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 408678f054..8a253035e0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1274,8 +1274,8 @@
+ (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
+ (CMPQconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
+ (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
+-(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= m && int16(m) < n => (FlagLT_ULT)
+-(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= m && int8(m)  < n => (FlagLT_ULT)
++(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < n => (FlagLT_ULT)
++(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m)  && int8(m)  < n => (FlagLT_ULT)
+ 
+ // TESTQ c c sets flags like CMPQ c 0.
+ (TESTQconst [c] (MOVQconst [d])) && int64(c) == d && c == 0 => (FlagEQ)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 3d7eb8c9a4..32ef26f98d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -6886,7 +6886,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPBconst (ANDLconst _ [m]) [n])
+-	// cond: 0 <= m && int8(m) < n
++	// cond: 0 <= int8(m) && int8(m) < n
+ 	// result: (FlagLT_ULT)
+ 	for {
+ 		n := auxIntToInt8(v.AuxInt)
+@@ -6894,7 +6894,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
+ 			break
+ 		}
+ 		m := auxIntToInt32(v_0.AuxInt)
+-		if !(0 <= m && int8(m) < n) {
++		if !(0 <= int8(m) && int8(m) < n) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64FlagLT_ULT)
+@@ -8243,7 +8243,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (CMPWconst (ANDLconst _ [m]) [n])
+-	// cond: 0 <= m && int16(m) < n
++	// cond: 0 <= int16(m) && int16(m) < n
+ 	// result: (FlagLT_ULT)
+ 	for {
+ 		n := auxIntToInt16(v.AuxInt)
+@@ -8251,7 +8251,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
+ 			break
+ 		}
+ 		m := auxIntToInt32(v_0.AuxInt)
+-		if !(0 <= m && int16(m) < n) {
++		if !(0 <= int16(m) && int16(m) < n) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64FlagLT_ULT)
+diff --git a/test/fixedbugs/issue41872.go b/test/fixedbugs/issue41872.go
+new file mode 100644
+index 0000000000..837d61ae0a
+--- /dev/null
++++ b/test/fixedbugs/issue41872.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package main
++
++//go:noinline
++func f8(x int32) bool {
++	return byte(x&0xc0) == 64
++}
++
++//go:noinline
++func f16(x int32) bool {
++	return uint16(x&0x8040) == 64
++}
++
++func main() {
++	if !f8(64) {
++		panic("wanted true, got false")
++	}
++	if !f16(64) {
++		panic("wanted true, got false")
++	}
++}

@@ -19,9 +19,61 @@ Date:   Sat Jan 7 13:10:38 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go | 2 +-
  src/testing/fuzz.go                | 2 +-
  test/fixedbugs/issue47068.dir/a.go | 2 +-
  test/typeparam/graph.go            | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index d7a28388e5..db18bc8e0a 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3215,7 +3215,7 @@ func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
+ 	return SYSARG5(0, op1, Cn, Cm, op2)
+ }
+ 
+-// checkUnpredictable checks if the sourse and transfer registers are the same register.
++// checkUnpredictable checks if the source and transfer registers are the same register.
+ // ARM64 manual says it is "constrained unpredictable" if the src and dst registers of STP/LDP are same.
+ func (c *ctxt7) checkUnpredictable(p *obj.Prog, isload bool, wback bool, rn int16, rt1 int16, rt2 int16) {
+ 	if wback && rn != REGSP && (rn == rt1 || rn == rt2) {
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 6e43ae7710..d31a3f81f5 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -40,7 +40,7 @@ var (
+ 
+ // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
+ // internal error. This distinguishes internal errors from uncontrolled panics
+-// and other failiures. Keep in sync with internal/fuzz.workerExitCode.
++// and other failures. Keep in sync with internal/fuzz.workerExitCode.
+ const fuzzWorkerExitCode = 70
+ 
+ // InternalFuzzTarget is an internal type but exported because it is
+diff --git a/test/fixedbugs/issue47068.dir/a.go b/test/fixedbugs/issue47068.dir/a.go
+index f7b780d459..30a51c1edb 100644
+--- a/test/fixedbugs/issue47068.dir/a.go
++++ b/test/fixedbugs/issue47068.dir/a.go
+@@ -10,6 +10,6 @@ func A() {
+ 		10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0,
+ 		20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0, 27: 0, 28: 0, 29: 0}
+ 	if len(m) != 30 {
+-		panic("unepexted map length")
++		panic("unexpected map length")
+ 	}
+ }
+diff --git a/test/typeparam/graph.go b/test/typeparam/graph.go
+index 38a97bcfb1..5cd1faa76f 100644
+--- a/test/typeparam/graph.go
++++ b/test/typeparam/graph.go
+@@ -36,7 +36,7 @@ type _Graph[_Node _NodeC[_Edge], _Edge _EdgeC[_Node]] struct {
+ 	nodes []_Node
+ }
+ 
+-// _NodeC is the contraints on a node in a graph, given the _Edge type.
++// _NodeC is the constraints on a node in a graph, given the _Edge type.
+ type _NodeC[_Edge any] interface {
+ 	comparable
+ 	Edges() []_Edge

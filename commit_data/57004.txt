@@ -19,6 +19,21 @@ Date:   Tue Jun 6 16:53:39 2023 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/dist/build.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index d920db9b88..8eb6daa3a5 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1457,7 +1457,8 @@ func cmdbootstrap() {
+ 	os.Setenv("CC", compilerEnvLookup("CC", defaultcc, goos, goarch))
+ 	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
+ 	os.Setenv("GOEXPERIMENT", goexperiment)
+-	goInstall(toolenv(), goBootstrap, toolchain...)
++	// No need to enable PGO for toolchain2.
++	goInstall(toolenv(), goBootstrap, append([]string{"-pgo=off"}, toolchain...)...)
+ 	if debug {
+ 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+ 		copyfile(pathf("%s/compile2", tooldir), pathf("%s/compile", tooldir), writeExec)

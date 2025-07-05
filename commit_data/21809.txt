@@ -9,10 +9,148 @@ Date:   Thu Feb 5 10:23:26 2015 +0000
     Change-Id: Ifd09b3dae0af0c7cef5fbbc332c63e78dc90d6b1
     Reviewed-on: https://go-review.googlesource.com/3960
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/5a/a.y      | 10 +++++-----
  src/cmd/5a/y.tab.c  | 10 +++++-----
  src/cmd/5a/y.tab.h  |  2 +-
  src/liblink/asm5.c  |  4 ++--
  src/liblink/list5.c |  5 ++---
  5 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index fbf583def4..429f7437c6 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -38,7 +38,7 @@
+ %union
+ {
+ 	Sym	*sym;
+-	int64	lval;
++	int32	lval;
+ 	double	dval;
+ 	char	sval[8];
+ 	Addr	addr;
+@@ -460,20 +460,20 @@ fcon:
+ reglist:
+ 	spreg
+ 	{
+-		$$ = 1ULL << $1;
++		$$ = 1 << $1;
+ 	}
+ |	spreg '-' spreg
+ 	{
+ 		int i;
+ 		$$=0;
+ 		for(i=$1; i<=$3; i++)
+-			$$ |= 1ULL<<i;
++			$$ |= 1<<i;
+ 		for(i=$3; i<=$1; i++)
+-			$$ |= 1ULL<<i;
++			$$ |= 1<<i;
+ 	}
+ |	spreg comma reglist
+ 	{
+-		$$ = (1ULL<<$1) | $3;
++		$$ = (1<<$1) | $3;
+ 	}
+ 
+ gen:
+diff --git a/src/cmd/5a/y.tab.c b/src/cmd/5a/y.tab.c
+index 3db88a7805..d9af383d78 100644
+--- a/src/cmd/5a/y.tab.c
++++ b/src/cmd/5a/y.tab.c
+@@ -204,7 +204,7 @@ typedef union YYSTYPE
+ #line 39 "a.y"
+ {
+ 	Sym	*sym;
+-	int64	lval;
++	int32	lval;
+ 	double	dval;
+ 	char	sval[8];
+ 	Addr	addr;
+@@ -2223,7 +2223,7 @@ yyreduce:
+   case 64:
+ #line 462 "a.y"
+     {
+-		(yyval.lval) = 1ULL << (yyvsp[(1) - (1)].lval);
++		(yyval.lval) = 1 << (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+@@ -2233,16 +2233,16 @@ yyreduce:
+ 		int i;
+ 		(yyval.lval)=0;
+ 		for(i=(yyvsp[(1) - (3)].lval); i<=(yyvsp[(3) - (3)].lval); i++)
+-			(yyval.lval) |= 1ULL<<i;
++			(yyval.lval) |= 1<<i;
+ 		for(i=(yyvsp[(3) - (3)].lval); i<=(yyvsp[(1) - (3)].lval); i++)
+-			(yyval.lval) |= 1ULL<<i;
++			(yyval.lval) |= 1<<i;
+ 	}
+     break;
+ 
+   case 66:
+ #line 475 "a.y"
+     {
+-		(yyval.lval) = (1ULL<<(yyvsp[(1) - (3)].lval)) | (yyvsp[(3) - (3)].lval);
++		(yyval.lval) = (1<<(yyvsp[(1) - (3)].lval)) | (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+diff --git a/src/cmd/5a/y.tab.h b/src/cmd/5a/y.tab.h
+index ef08534b1c..fbbdbef99b 100644
+--- a/src/cmd/5a/y.tab.h
++++ b/src/cmd/5a/y.tab.h
+@@ -149,7 +149,7 @@ typedef union YYSTYPE
+ #line 39 "a.y"
+ {
+ 	Sym	*sym;
+-	int64	lval;
++	int32	lval;
+ 	double	dval;
+ 	char	sval[8];
+ 	Addr	addr;
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 7a87abd0fd..8d597750b7 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -1820,14 +1820,14 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 		switch(o->type) {
+ 		case 38:	/* movm $con,oreg -> stm */
+ 			o1 = (0x4 << 25);
+-			o1 |= (p->from.offset >> REG_R0) & 0xffff;
++			o1 |= p->from.offset & 0xffff;
+ 			o1 |= (p->to.reg&15) << 16;
+ 			aclass(ctxt, &p->to);
+ 			break;
+ 	
+ 		case 39:	/* movm oreg,$con -> ldm */
+ 			o1 = (0x4 << 25) | (1 << 20);
+-			o1 |= (p->to.offset >> REG_R0) & 0xffff;
++			o1 |= p->to.offset & 0xffff;
+ 			o1 |= (p->from.reg&15) << 16;
+ 			aclass(ctxt, &p->from);
+ 			break;
+diff --git a/src/liblink/list5.c b/src/liblink/list5.c
+index bce13c24fb..3d3e8e7d12 100644
+--- a/src/liblink/list5.c
++++ b/src/liblink/list5.c
+@@ -222,8 +222,7 @@ RAconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ];
+ 	Addr *a;
+-	int i;
+-	vlong v;
++	int i, v;
+ 
+ 	a = va_arg(fp->args, Addr*);
+ 	sprint(str, "GOK-reglist");
+@@ -233,7 +232,7 @@ RAconv(Fmt *fp)
+ 			break;
+ 		if(a->sym != nil)
+ 			break;
+-		v = a->offset >> REG_R0;
++		v = a->offset;
+ 		strcpy(str, "");
+ 		for(i=0; i<NREG; i++) {
+ 			if(v & (1<<i)) {

@@ -20,8 +20,73 @@ Date:   Mon Mar 20 16:19:45 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/net/http/export_test.go    |  8 +++++---
  src/net/http/omithttp2.go      | 10 +++++++++-
  src/net/http/transport_test.go |  4 ++--
  3 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index fb5ab9396a..8a61e651dc 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -142,9 +142,11 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
+ 	pool.mu.Lock()
+ 	defer pool.mu.Unlock()
+ 
+-	for k, cc := range pool.conns {
+-		for range cc {
+-			ret = append(ret, k)
++	for k, ccs := range pool.conns {
++		for _, cc := range ccs {
++			if cc.idleState().canTakeNewRequest {
++				ret = append(ret, k)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/net/http/omithttp2.go b/src/net/http/omithttp2.go
+index 3316f55c6d..ca08ddfad8 100644
+--- a/src/net/http/omithttp2.go
++++ b/src/net/http/omithttp2.go
+@@ -42,9 +42,17 @@ type http2noDialClientConnPool struct {
+ 
+ type http2clientConnPool struct {
+ 	mu    *sync.Mutex
+-	conns map[string][]struct{}
++	conns map[string][]*http2clientConn
+ }
+ 
++type http2clientConn struct{}
++
++type http2clientConnIdleState struct {
++	canTakeNewRequest bool
++}
++
++func (cc *http2clientConn) idleState() http2clientConnIdleState { return http2clientConnIdleState{} }
++
+ func http2configureTransports(*Transport) (*http2Transport, error) { panic(noHTTP2) }
+ 
+ func http2isNoCachedConnError(err error) bool {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 1abb0aabd6..b82c6156ac 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -5047,7 +5047,7 @@ timeoutLoop:
+ 		}
+ 
+ 		var conn string
+-		doReq := func(n int) (ok bool) {
++		doReq := func(n int) (timeoutOk bool) {
+ 			req, _ := NewRequest("GET", cst.ts.URL, nil)
+ 			req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+ 				PutIdleConn: func(err error) {
+@@ -5094,7 +5094,7 @@ timeoutLoop:
+ 		waitCondition(t, timeout/2, func(d time.Duration) bool {
+ 			if got := idleConns(); len(got) != 0 {
+ 				if d >= timeout*3/2 {
+-					t.Logf("after %d, idle conns = %q", d, got)
++					t.Logf("after %v, idle conns = %q", d, got)
+ 				}
+ 				return false
+ 			}

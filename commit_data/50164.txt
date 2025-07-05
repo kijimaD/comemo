@@ -22,7 +22,83 @@ Date:   Wed Oct 6 05:27:52 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu.go      |  8 +-------
  src/internal/cpu/cpu_test.go | 20 +-------------------
  2 files changed, 2 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 4f0c5d2896..30745344e1 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -136,7 +136,6 @@ type option struct {
+ 	Feature   *bool
+ 	Specified bool // whether feature value was specified in GODEBUG
+ 	Enable    bool // whether feature should be enabled
+-	Required  bool // whether feature is mandatory and can not be disabled
+ }
+ 
+ // processOptions enables or disables CPU feature values based on the parsed env string.
+@@ -179,7 +178,7 @@ field:
+ 		if key == "all" {
+ 			for i := range options {
+ 				options[i].Specified = true
+-				options[i].Enable = enable || options[i].Required
++				options[i].Enable = enable
+ 			}
+ 			continue field
+ 		}
+@@ -205,11 +204,6 @@ field:
+ 			continue
+ 		}
+ 
+-		if !o.Enable && o.Required {
+-			print("GODEBUG: can not disable \"", o.Name, "\", required CPU feature\n")
+-			continue
+-		}
+-
+ 		*o.Feature = o.Enable
+ 	}
+ }
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 2de7365732..06ad20800f 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -9,28 +9,10 @@ import (
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func TestMinimalFeatures(t *testing.T) {
+-	// TODO: maybe do MustSupportFeatureDectection(t) ?
+-	if runtime.GOARCH == "arm64" {
+-		switch runtime.GOOS {
+-		case "linux", "android", "darwin":
+-		default:
+-			t.Skipf("%s/%s is not supported", runtime.GOOS, runtime.GOARCH)
+-		}
+-	}
+-
+-	for _, o := range Options {
+-		if o.Required && !*o.Feature {
+-			t.Errorf("%v expected true, got false", o.Name)
+-		}
+-	}
+-}
+-
+ func MustHaveDebugOptionsSupport(t *testing.T) {
+ 	if !DebugOptions {
+ 		t.Skipf("skipping test: cpu feature options not supported by OS")
+@@ -75,7 +57,7 @@ func TestAllCapabilitiesDisabled(t *testing.T) {
+ 	}
+ 
+ 	for _, o := range Options {
+-		want := o.Required
++		want := false
+ 		if got := *o.Feature; got != want {
+ 			t.Errorf("%v: expected %v, got %v", o.Name, want, got)
+ 		}

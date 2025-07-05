@@ -13,6 +13,21 @@ Date:   Mon Nov 16 15:34:41 2015 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  test/fixedbugs/issue11590.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/issue11590.go b/test/fixedbugs/issue11590.go
+index 9776704b2a..1acac64c73 100644
+--- a/test/fixedbugs/issue11590.go
++++ b/test/fixedbugs/issue11590.go
+@@ -6,6 +6,6 @@
+ 
+ package p
+ 
+-var _ = int8(4) * 300         // ERROR "constant overflows int8"
+-var _ = complex64(1) * 1e200  // ERROR "constant overflows complex64"
+-var _ = complex128(1) * 1e500 // ERROR "constant overflows complex128"
++var _ = int8(4) * 300         // ERROR "constant 300 overflows int8" "constant 1200 overflows int8"
++var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64"
++var _ = complex128(1) * 1e500 // ERROR "constant 1\.00000e\+500 overflows complex128"

@@ -12,8 +12,146 @@ Date:   Fri Nov 3 19:54:41 2023 +0800
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/sort/search.go | 10 +++++-----
  src/sort/slice.go  |  8 ++++----
  src/sort/sort.go   | 16 ++++++++--------
  3 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/sort/search.go b/src/sort/search.go
+index 874e40813d..ccf76dba24 100644
+--- a/src/sort/search.go
++++ b/src/sort/search.go
+@@ -117,7 +117,7 @@ func Find(n int, cmp func(int) int) (i int, found bool) {
+ // Convenience wrappers for common cases.
+ 
+ // SearchInts searches for x in a sorted slice of ints and returns the index
+-// as specified by Search. The return value is the index to insert x if x is
++// as specified by [Search]. The return value is the index to insert x if x is
+ // not present (it could be len(a)).
+ // The slice must be sorted in ascending order.
+ func SearchInts(a []int, x int) int {
+@@ -125,7 +125,7 @@ func SearchInts(a []int, x int) int {
+ }
+ 
+ // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
+-// as specified by Search. The return value is the index to insert x if x is not
++// as specified by [Search]. The return value is the index to insert x if x is not
+ // present (it could be len(a)).
+ // The slice must be sorted in ascending order.
+ func SearchFloat64s(a []float64, x float64) int {
+@@ -140,11 +140,11 @@ func SearchStrings(a []string, x string) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+ 
+-// Search returns the result of applying SearchInts to the receiver and x.
++// Search returns the result of applying [SearchInts] to the receiver and x.
+ func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
+ 
+-// Search returns the result of applying SearchFloat64s to the receiver and x.
++// Search returns the result of applying [SearchFloat64s] to the receiver and x.
+ func (p Float64Slice) Search(x float64) int { return SearchFloat64s(p, x) }
+ 
+-// Search returns the result of applying SearchStrings to the receiver and x.
++// Search returns the result of applying [SearchStrings] to the receiver and x.
+ func (p StringSlice) Search(x string) int { return SearchStrings(p, x) }
+diff --git a/src/sort/slice.go b/src/sort/slice.go
+index 73ba548a47..bc9dd84ed2 100644
+--- a/src/sort/slice.go
++++ b/src/sort/slice.go
+@@ -14,12 +14,12 @@ import (
+ //
+ // The sort is not guaranteed to be stable: equal elements
+ // may be reversed from their original order.
+-// For a stable sort, use SliceStable.
++// For a stable sort, use [SliceStable].
+ //
+ // The less function must satisfy the same requirements as
+ // the Interface type's Less method.
+ //
+-// Note: in many situations, the newer slices.SortFunc function is more
++// Note: in many situations, the newer [slices.SortFunc] function is more
+ // ergonomic and runs faster.
+ func Slice(x any, less func(i, j int) bool) {
+ 	rv := reflectlite.ValueOf(x)
+@@ -36,7 +36,7 @@ func Slice(x any, less func(i, j int) bool) {
+ // The less function must satisfy the same requirements as
+ // the Interface type's Less method.
+ //
+-// Note: in many situations, the newer slices.SortStableFunc function is more
++// Note: in many situations, the newer [slices.SortStableFunc] function is more
+ // ergonomic and runs faster.
+ func SliceStable(x any, less func(i, j int) bool) {
+ 	rv := reflectlite.ValueOf(x)
+@@ -47,7 +47,7 @@ func SliceStable(x any, less func(i, j int) bool) {
+ // SliceIsSorted reports whether the slice x is sorted according to the provided less function.
+ // It panics if x is not a slice.
+ //
+-// Note: in many situations, the newer slices.IsSortedFunc function is more
++// Note: in many situations, the newer [slices.IsSortedFunc] function is more
+ // ergonomic and runs faster.
+ func SliceIsSorted(x any, less func(i, j int) bool) bool {
+ 	rv := reflectlite.ValueOf(x)
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 8ea62a5e6a..6db161f0c0 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -40,7 +40,7 @@ type Interface interface {
+ // It makes one call to data.Len to determine n and O(n*log(n)) calls to
+ // data.Less and data.Swap. The sort is not guaranteed to be stable.
+ //
+-// Note: in many situations, the newer slices.SortFunc function is more
++// Note: in many situations, the newer [slices.SortFunc] function is more
+ // ergonomic and runs faster.
+ func Sort(data Interface) {
+ 	n := data.Len()
+@@ -100,7 +100,7 @@ func Reverse(data Interface) Interface {
+ 
+ // IsSorted reports whether data is sorted.
+ //
+-// Note: in many situations, the newer slices.IsSortedFunc function is more
++// Note: in many situations, the newer [slices.IsSortedFunc] function is more
+ // ergonomic and runs faster.
+ func IsSorted(data Interface) bool {
+ 	n := data.Len()
+@@ -161,34 +161,34 @@ func (x StringSlice) Sort() { Sort(x) }
+ 
+ // Ints sorts a slice of ints in increasing order.
+ //
+-// Note: as of Go 1.22, this function simply calls slices.Sort.
++// Note: as of Go 1.22, this function simply calls [slices.Sort].
+ func Ints(x []int) { intsImpl(x) }
+ 
+ // Float64s sorts a slice of float64s in increasing order.
+ // Not-a-number (NaN) values are ordered before other values.
+ //
+-// Note: as of Go 1.22, this function simply calls slices.Sort.
++// Note: as of Go 1.22, this function simply calls [slices.Sort].
+ func Float64s(x []float64) { float64sImpl(x) }
+ 
+ // Strings sorts a slice of strings in increasing order.
+ //
+-// Note: as of Go 1.22, this function simply calls slices.Sort.
++// Note: as of Go 1.22, this function simply calls [slices.Sort].
+ func Strings(x []string) { stringsImpl(x) }
+ 
+ // IntsAreSorted reports whether the slice x is sorted in increasing order.
+ //
+-// Note: as of Go 1.22, this function simply calls slices.IsSorted.
++// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+ func IntsAreSorted(x []int) bool { return intsAreSortedImpl(x) }
+ 
+ // Float64sAreSorted reports whether the slice x is sorted in increasing order,
+ // with not-a-number (NaN) values before any other values.
+ //
+-// Note: as of Go 1.22, this function simply calls slices.IsSorted.
++// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+ func Float64sAreSorted(x []float64) bool { return float64sAreSortedImpl(x) }
+ 
+ // StringsAreSorted reports whether the slice x is sorted in increasing order.
+ //
+-// Note: as of Go 1.22, this function simply calls slices.IsSorted.
++// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+ func StringsAreSorted(x []string) bool { return stringsAreSortedImpl(x) }
+ 
+ // Notes on stable sorting:

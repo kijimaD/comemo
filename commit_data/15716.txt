@@ -10,8 +10,89 @@ Date:   Tue Mar 12 17:21:44 2013 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7629045
-
+---
  src/pkg/runtime/mheap.c   |  3 +++
  src/pkg/runtime/proc.c    | 11 ++++-------
  src/pkg/runtime/runtime.h |  5 +++--
  3 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index f45149d63f..177f406596 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -409,6 +409,9 @@ runtime·MHeap_Scavenger(void)
+ 	bool trace;
+ 	Note note, *notep;
+ 
++	g->issystem = true;
++	g->isbackground = true;
++
+ 	// If we go two minutes without a garbage collection, force one to run.
+ 	forcegc = 2*60*1e9;
+ 	// If a span goes unused for 5 minutes after a garbage collection,
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 8429826974..fff270c4fb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -71,8 +71,6 @@ M*	runtime·extram;
+ int8*	runtime·goos;
+ int32	runtime·ncpu;
+ static int32	newprocs;
+-// Keep trace of scavenger's goroutine for deadlock detection.
+-static G *scvg;
+ 
+ void runtime·mstart(void);
+ static void runqput(P*, G*);
+@@ -174,8 +172,7 @@ runtime·main(void)
+ 	runtime·lockOSThread();
+ 	if(m != &runtime·m0)
+ 		runtime·throw("runtime·main not on m0");
+-	scvg = runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
+-	scvg->issystem = true;
++	runtime·newproc1(&scavenger, nil, 0, 0, runtime·main);
+ 	main·init();
+ 	runtime·unlockOSThread();
+ 
+@@ -1265,7 +1262,7 @@ void
+ 
+ 	p = releasep();
+ 	handoffp(p);
+-	if(g == scvg)  // do not consider blocked scavenger for deadlock detection
++	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+ 		inclocked(1);
+ 	runtime·gosave(&g->sched);  // re-save for traceback
+ }
+@@ -1297,7 +1294,7 @@ runtime·exitsyscall(void)
+ 		return;
+ 	}
+ 
+-	if(g == scvg)  // do not consider blocked scavenger for deadlock detection
++	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+ 		inclocked(-1);
+ 	// Try to get any other idle P.
+ 	m->p = nil;
+@@ -1899,7 +1896,7 @@ checkdead(void)
+ 	}
+ 	grunning = 0;
+ 	for(gp = runtime·allg; gp; gp = gp->alllink) {
+-		if(gp == scvg)
++		if(gp->isbackground)
+ 			continue;
+ 		s = gp->status;
+ 		if(s == Gwaiting)
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d9afd5b796..b0276072fd 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -235,8 +235,9 @@ struct	G
+ 	int8*	waitreason;	// if status==Gwaiting
+ 	G*	schedlink;
+ 	bool	ispanic;
+-	bool	issystem;
+-	int8	raceignore; // ignore race detection events
++	bool	issystem;	// do not output in stack dump
++	bool	isbackground;	// ignore in deadlock detector
++	int8	raceignore;	// ignore race detection events
+ 	M*	m;		// for debuggers, but offset not hard-coded
+ 	M*	lockedm;
+ 	int32	sig;

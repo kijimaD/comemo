@@ -9,7 +9,32 @@ Date:   Wed Sep 4 15:17:42 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/13336045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d72bee01be..50cc7b5694 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -46,6 +46,7 @@ Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
++Aulus Egnatius Varialus <varialus@gmail.com>
+ Ben Olive <sionide21@gmail.com>
+ Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a84164d1ba..b8e17f5d4a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -78,6 +78,7 @@ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Asim Shankar <asimshankar@gmail.com>
++Aulus Egnatius Varialus <varialus@gmail.com>
+ Austin Clements <aclements@csail.mit.edu>
+ Balazs Lecz <leczb@google.com>
+ Ben Eitzen <eitzenb@golang.org>

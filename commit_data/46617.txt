@@ -17,7 +17,80 @@ Date:   Wed Jan 13 14:40:07 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/283633
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go                    | 18 +++++++++---------
  src/cmd/go/internal/generate/generate.go | 18 +++++++++---------
  2 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d884f7d5f3..0645780966 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -495,15 +495,6 @@
+ // (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+ // command alias, described below.
+ //
+-// To convey to humans and machine tools that code is generated,
+-// generated source should have a line that matches the following
+-// regular expression (in Go syntax):
+-//
+-// 	^// Code generated .* DO NOT EDIT\.$
+-//
+-// The line may appear anywhere in the file, but is typically
+-// placed near the beginning so it is easy to find.
+-//
+ // Note that go generate does not parse the file, so lines that look
+ // like directives in comments or multiline strings will be treated
+ // as directives.
+@@ -515,6 +506,15 @@
+ // Quoted strings use Go syntax and are evaluated before execution; a
+ // quoted string appears as a single argument to the generator.
+ //
++// To convey to humans and machine tools that code is generated,
++// generated source should have a line that matches the following
++// regular expression (in Go syntax):
++//
++// 	^// Code generated .* DO NOT EDIT\.$
++//
++// This line must appear before the first non-comment, non-blank
++// text in the file.
++//
+ // Go generate sets several variables when it runs the generator:
+ //
+ // 	$GOARCH
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index c7401948b8..b1e001c800 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -52,15 +52,6 @@ that can be run locally. It must either be in the shell path
+ (gofmt), a fully qualified path (/usr/you/bin/mytool), or a
+ command alias, described below.
+ 
+-To convey to humans and machine tools that code is generated,
+-generated source should have a line that matches the following
+-regular expression (in Go syntax):
+-
+-	^// Code generated .* DO NOT EDIT\.$
+-
+-The line may appear anywhere in the file, but is typically
+-placed near the beginning so it is easy to find.
+-
+ Note that go generate does not parse the file, so lines that look
+ like directives in comments or multiline strings will be treated
+ as directives.
+@@ -72,6 +63,15 @@ arguments when it is run.
+ Quoted strings use Go syntax and are evaluated before execution; a
+ quoted string appears as a single argument to the generator.
+ 
++To convey to humans and machine tools that code is generated,
++generated source should have a line that matches the following
++regular expression (in Go syntax):
++
++	^// Code generated .* DO NOT EDIT\.$
++
++This line must appear before the first non-comment, non-blank
++text in the file.
++
+ Go generate sets several variables when it runs the generator:
+ 
+ 	$GOARCH

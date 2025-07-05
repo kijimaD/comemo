@@ -7,6 +7,27 @@ Date:   Fri Sep 7 16:28:15 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6498106
-
+---
  src/pkg/go/scanner/scanner_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 119679a31f..1c19053e64 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -346,6 +346,7 @@ var lines = []string{
+ 	// # indicates a semicolon present in the source
+ 	// $ indicates an automatically inserted semicolon
+ 	"",
++	"\ufeff#;", // first BOM is ignored
+ 	"#;",
+ 	"foo$\n",
+ 	"123$\n",
+@@ -694,6 +695,7 @@ var errors = []struct {
+ 	{"0X", token.INT, 0, "illegal hexadecimal number"},
+ 	{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
+ 	{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
++	{"\ufeff\ufeff", token.ILLEGAL, 3, "illegal character U+FEFF"}, // only first BOM is ignored
+ }
+ 
+ func TestScanErrors(t *testing.T) {

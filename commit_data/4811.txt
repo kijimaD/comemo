@@ -7,6 +7,20 @@ Date:   Sun Feb 7 23:11:54 2010 -0800
     R=iant, rsc
     CC=golang-dev
     https://golang.org/cl/204068
-
+---
  src/pkg/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index f917004e87..5bdbd8aa27 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -6,7 +6,7 @@
+ // It is intended to be used in concert with the ``gotest'' utility, which automates
+ // execution of any function of the form
+ //     func TestXxx(*testing.T)
+-// where Xxx can by any alphanumeric string (but the first letter must not be in
++// where Xxx can be any alphanumeric string (but the first letter must not be in
+ // [a-z]) and serves to identify the test routine.
+ // These TestXxx routines should be declared within the package they are testing.
+ //

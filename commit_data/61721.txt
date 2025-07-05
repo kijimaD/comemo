@@ -44,7 +44,7 @@ Date:   Fri Sep 13 11:06:06 2024 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/base/base.go                   | 35 +++++---
  .../test_nonunix.go => base/error_notunix.go}      |  4 +-
  .../{test/test_unix.go => base/error_unix.go}      |  4 +-
@@ -56,3 +56,544 @@ Date:   Fri Sep 13 11:06:06 2024 -0400
  src/cmd/go/internal/work/buildid.go                | 83 ++++++++++++-------
  src/cmd/go/internal/work/exec.go                   | 19 +----
  10 files changed, 170 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 0ba2ffd415..a2c95fb52f 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -17,6 +17,7 @@ import (
+ 	"slices"
+ 	"strings"
+ 	"sync"
++	"time"
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
+@@ -206,18 +207,34 @@ func Run(cmdargs ...any) {
+ 	}
+ }
+ 
+-// RunStdin is like run but connects Stdin.
++// RunStdin is like run but connects Stdin. It retries if it encounters an ETXTBSY.
+ func RunStdin(cmdline []string) {
+-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Stdin = os.Stdin
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
+ 	env := slices.Clip(cfg.OrigEnv)
+ 	env = AppendPATH(env)
+-	cmd.Env = env
+-	StartSigHandlers()
+-	if err := cmd.Run(); err != nil {
+-		Errorf("%v", err)
++	for try := range 3 {
++		cmd := exec.Command(cmdline[0], cmdline[1:]...)
++		cmd.Stdin = os.Stdin
++		cmd.Stdout = os.Stdout
++		cmd.Stderr = os.Stderr
++		cmd.Env = env
++		StartSigHandlers()
++		err := cmd.Run()
++		if err == nil {
++			break // success
++		}
++
++		if !IsETXTBSY(err) {
++			Errorf("%v", err)
++			break // failure
++		}
++
++		// The error was an ETXTBSY. Sleep and try again. It's possible that
++		// another go command instance was racing against us to write the executable
++		// to the executable cache. In that case it may still have the file open, and
++		// we may get an ETXTBSY. That should resolve once that process closes the file
++		// so attempt a couple more times. See the discussion in #22220 and also
++		// (*runTestActor).Act in cmd/go/internal/test, which does something similar.
++		time.Sleep(100 * time.Millisecond << uint(try))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test_nonunix.go b/src/cmd/go/internal/base/error_notunix.go
+similarity index 84%
+rename from src/cmd/go/internal/test/test_nonunix.go
+rename to src/cmd/go/internal/base/error_notunix.go
+index df8448730d..c7780fa300 100644
+--- a/src/cmd/go/internal/test/test_nonunix.go
++++ b/src/cmd/go/internal/base/error_notunix.go
+@@ -4,9 +4,9 @@
+ 
+ //go:build !unix
+ 
+-package test
++package base
+ 
+-func isETXTBSY(err error) bool {
++func IsETXTBSY(err error) bool {
+ 	// syscall.ETXTBSY is only meaningful on Unix platforms.
+ 	return false
+ }
+diff --git a/src/cmd/go/internal/test/test_unix.go b/src/cmd/go/internal/base/error_unix.go
+similarity index 84%
+rename from src/cmd/go/internal/test/test_unix.go
+rename to src/cmd/go/internal/base/error_unix.go
+index f50ef98703..2dcd75e5f3 100644
+--- a/src/cmd/go/internal/test/test_unix.go
++++ b/src/cmd/go/internal/base/error_unix.go
+@@ -4,13 +4,13 @@
+ 
+ //go:build unix
+ 
+-package test
++package base
+ 
+ import (
+ 	"errors"
+ 	"syscall"
+ )
+ 
+-func isETXTBSY(err error) bool {
++func IsETXTBSY(err error) bool {
+ 	return errors.Is(err, syscall.ETXTBSY)
+ }
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index c3442eccbf..e717503707 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -20,6 +20,7 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"cmd/go/internal/base"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/mmap"
+ )
+@@ -101,7 +102,7 @@ func Open(dir string) (*DiskCache, error) {
+ 	}
+ 	for i := 0; i < 256; i++ {
+ 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
+-		if err := os.MkdirAll(name, 0777); err != nil {
++		if err := os.MkdirAll(name, 0o777); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+@@ -254,7 +255,7 @@ func (c *DiskCache) get(id ActionID) (Entry, error) {
+ 		return missing(errors.New("negative timestamp"))
+ 	}
+ 
+-	c.used(c.fileName(id, "a"))
++	c.markUsed(c.fileName(id, "a"))
+ 
+ 	return Entry{buf, size, time.Unix(0, tm)}, nil
+ }
+@@ -313,7 +314,17 @@ func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
+ // OutputFile returns the name of the cache file storing output with the given OutputID.
+ func (c *DiskCache) OutputFile(out OutputID) string {
+ 	file := c.fileName(out, "d")
+-	c.used(file)
++	isExecutable := c.markUsed(file)
++	if isExecutable {
++		entries, err := os.ReadDir(file)
++		if err != nil {
++			return fmt.Sprintf("DO NOT USE - missing binary cache entry: %v", err)
++		}
++		if len(entries) != 1 {
++			return "DO NOT USE - invalid binary cache entry"
++		}
++		return filepath.Join(file, entries[0].Name())
++	}
+ 	return file
+ }
+ 
+@@ -335,7 +346,7 @@ const (
+ 	trimLimit     = 5 * 24 * time.Hour
+ )
+ 
+-// used makes a best-effort attempt to update mtime on file,
++// markUsed makes a best-effort attempt to update mtime on file,
+ // so that mtime reflects cache access time.
+ //
+ // Because the reflection only needs to be approximate,
+@@ -344,12 +355,15 @@ const (
+ // mtime is more than an hour old. This heuristic eliminates
+ // nearly all of the mtime updates that would otherwise happen,
+ // while still keeping the mtimes useful for cache trimming.
+-func (c *DiskCache) used(file string) {
++//
++// markUsed reports whether the file is a directory (an executable cache entry).
++func (c *DiskCache) markUsed(file string) (isExecutable bool) {
+ 	info, err := os.Stat(file)
+ 	if err == nil && c.now().Sub(info.ModTime()) < mtimeInterval {
+-		return
++		return info.IsDir()
+ 	}
+ 	os.Chtimes(file, c.now(), c.now())
++	return info.IsDir()
+ }
+ 
+ func (c *DiskCache) Close() error { return c.Trim() }
+@@ -387,7 +401,7 @@ func (c *DiskCache) Trim() error {
+ 	// cache will appear older than it is, and we'll trim it again next time.
+ 	var b bytes.Buffer
+ 	fmt.Fprintf(&b, "%d", now.Unix())
+-	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
++	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0o666); err != nil {
+ 		return err
+ 	}
+ 
+@@ -416,6 +430,10 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) {
+ 		entry := filepath.Join(subdir, name)
+ 		info, err := os.Stat(entry)
+ 		if err == nil && info.ModTime().Before(cutoff) {
++			if info.IsDir() { // executable cache entry
++				os.RemoveAll(entry)
++				continue
++			}
+ 			os.Remove(entry)
+ 		}
+ 	}
+@@ -448,7 +466,7 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
+ 
+ 	// Copy file to cache directory.
+ 	mode := os.O_WRONLY | os.O_CREATE
+-	f, err := os.OpenFile(file, mode, 0666)
++	f, err := os.OpenFile(file, mode, 0o666)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -491,7 +509,21 @@ func (c *DiskCache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error
+ 	if isNoVerify {
+ 		file = wrapper.ReadSeeker
+ 	}
+-	return c.put(id, file, !isNoVerify)
++	return c.put(id, "", file, !isNoVerify)
++}
++
++// PutExecutable is used to store the output as the output for the action ID into a
++// file with the given base name, with the executable mode bit set.
++// It may read file twice. The content of file must not change between the two passes.
++func (c *DiskCache) PutExecutable(id ActionID, name string, file io.ReadSeeker) (OutputID, int64, error) {
++	if name == "" {
++		panic("PutExecutable called without a name")
++	}
++	wrapper, isNoVerify := file.(noVerifyReadSeeker)
++	if isNoVerify {
++		file = wrapper.ReadSeeker
++	}
++	return c.put(id, name, file, !isNoVerify)
+ }
+ 
+ // PutNoVerify is like Put but disables the verify check
+@@ -502,7 +534,7 @@ func PutNoVerify(c Cache, id ActionID, file io.ReadSeeker) (OutputID, int64, err
+ 	return c.Put(id, noVerifyReadSeeker{file})
+ }
+ 
+-func (c *DiskCache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
++func (c *DiskCache) put(id ActionID, executableName string, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
+ 	// Compute output ID.
+ 	h := sha256.New()
+ 	if _, err := file.Seek(0, 0); err != nil {
+@@ -516,7 +548,11 @@ func (c *DiskCache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (Outp
+ 	h.Sum(out[:0])
+ 
+ 	// Copy to cached output file (if not already present).
+-	if err := c.copyFile(file, out, size); err != nil {
++	fileMode := fs.FileMode(0o666)
++	if executableName != "" {
++		fileMode = 0o777
++	}
++	if err := c.copyFile(file, executableName, out, size, fileMode); err != nil {
+ 		return out, size, err
+ 	}
+ 
+@@ -532,9 +568,33 @@ func PutBytes(c Cache, id ActionID, data []byte) error {
+ 
+ // copyFile copies file into the cache, expecting it to have the given
+ // output ID and size, if that file is not present already.
+-func (c *DiskCache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
+-	name := c.fileName(out, "d")
++func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out OutputID, size int64, perm os.FileMode) error {
++	name := c.fileName(out, "d") // TODO(matloob): use a different suffix for the executable cache?
+ 	info, err := os.Stat(name)
++	if executableName != "" {
++		// This is an executable file. The file at name won't hold the output itself, but will
++		// be a directory that holds the output, named according to executableName. Check to see
++		// if the directory already exists, and if it does not, create it. Then reset name
++		// to the name we want the output written to.
++		if err != nil {
++			if !os.IsNotExist(err) {
++				return err
++			}
++			if err := os.Mkdir(name, 0o777); err != nil {
++				return err
++			}
++			if info, err = os.Stat(name); err != nil {
++				return err
++			}
++		}
++		if !info.IsDir() {
++			return errors.New("internal error: invalid binary cache entry: not a directory")
++		}
++
++		// directory exists. now set name to the inner file
++		name = filepath.Join(name, executableName)
++		info, err = os.Stat(name)
++	}
+ 	if err == nil && info.Size() == size {
+ 		// Check hash.
+ 		if f, err := os.Open(name); err == nil {
+@@ -555,8 +615,14 @@ func (c *DiskCache) copyFile(file io.ReadSeeker, out OutputID, size int64) error
+ 	if err == nil && info.Size() > size { // shouldn't happen but fix in case
+ 		mode |= os.O_TRUNC
+ 	}
+-	f, err := os.OpenFile(name, mode, 0666)
++	f, err := os.OpenFile(name, mode, perm)
+ 	if err != nil {
++		if base.IsETXTBSY(err) {
++			// This file is being used by an executable. It must have
++			// already been written by another go process and then run.
++			// return without an error.
++			return nil
++		}
+ 		return err
+ 	}
+ 	defer f.Close()
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 09814f0f17..074f911593 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -41,7 +41,7 @@ func initDefaultCache() Cache {
+ 		}
+ 		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
+ 	}
+-	if err := os.MkdirAll(dir, 0777); err != nil {
++	if err := os.MkdirAll(dir, 0o777); err != nil {
+ 		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
+ 	}
+ 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 621ce4a402..e72b2412e5 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -170,6 +170,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
++	a1.CacheExecutable = true
+ 	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
+ 	b.Do(ctx, a)
+ }
+@@ -199,7 +200,7 @@ func shouldUseOutsideModuleMode(args []string) bool {
+ // buildRunProgram is the action for running a binary that has already
+ // been compiled. We ignore exit status.
+ func buildRunProgram(b *work.Builder, ctx context.Context, a *work.Action) error {
+-	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].Target, a.Args)
++	cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Shell(a).ShowCmd("", "%s", strings.Join(cmdline, " "))
+ 		if cfg.BuildN {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 52f68183fe..256eb10569 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1624,7 +1624,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		t0 = time.Now()
+ 		err = cmd.Run()
+ 
+-		if !isETXTBSY(err) {
++		if !base.IsETXTBSY(err) {
+ 			// We didn't hit the race in #22315, so there is no reason to retry the
+ 			// command.
+ 			break
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 60ed983d82..44bb9f8c1e 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -92,6 +92,8 @@ type Action struct {
+ 
+ 	TryCache func(*Builder, *Action) bool // callback for cache bypass
+ 
++	CacheExecutable bool // Whether to cache executables produced by link steps
++
+ 	// Generated files, directories.
+ 	Objdir   string         // directory for intermediate objects
+ 	Target   string         // goal of the action: the created package or executable
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 56248ffdc4..ca3dce2df4 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
++	"path"
+ 	"strings"
+ 	"sync"
+ 
+@@ -415,8 +416,7 @@ var (
+ )
+ 
+ // useCache tries to satisfy the action a, which has action ID actionHash,
+-// by using a cached result from an earlier build. At the moment, the only
+-// cached result is the installed package or binary at target.
++// by using a cached result from an earlier build.
+ // If useCache decides that the cache can be used, it sets a.buildID
+ // and a.built for use by parent actions and then returns true.
+ // Otherwise it sets a.buildID to a temporary build ID for use in the build
+@@ -543,6 +543,11 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 		}
+ 	}
+ 
++	// TODO(matloob): If we end up caching all executables, the test executable will
++	// already be cached so building it won't do any work. But for now we won't
++	// cache all executables and instead only want to cache some:
++	// we only cache executables produced for 'go run' (and soon, for 'go tool').
++	//
+ 	// Special case for linking a test binary: if the only thing we
+ 	// want the binary for is to run the test, and the test result is cached,
+ 	// then to avoid the link step, report the link as up-to-date.
+@@ -575,7 +580,16 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 		}
+ 		if buildID, err := buildid.ReadFile(file); err == nil {
+ 			if printOutput {
+-				showStdout(b, c, a, "stdout")
++				switch a.Mode {
++				case "link":
++					// The link output is stored using the build action's action ID.
++					// See corresponding code storing the link output in updateBuildID.
++					for _, a1 := range a.Deps {
++						showStdout(b, c, a1, "link-stdout") // link output
++					}
++				default:
++					showStdout(b, c, a, "stdout") // compile output
++				}
+ 			}
+ 			a.built = file
+ 			a.Target = "DO NOT USE - using cache"
+@@ -651,13 +665,11 @@ func (b *Builder) flushOutput(a *Action) {
+ // in the binary.
+ //
+ // Keep in sync with src/cmd/buildid/buildid.go
+-func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
++func (b *Builder) updateBuildID(a *Action, target string) error {
+ 	sh := b.Shell(a)
+ 
+ 	if cfg.BuildX || cfg.BuildN {
+-		if rewrite {
+-			sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
+-		}
++		sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList(base.Tool("buildid"), "-w", target)))
+ 		if cfg.BuildN {
+ 			return nil
+ 		}
+@@ -708,34 +720,26 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
+ 		return nil
+ 	}
+ 
+-	if rewrite {
+-		w, err := os.OpenFile(target, os.O_RDWR, 0)
+-		if err != nil {
+-			return err
+-		}
+-		err = buildid.Rewrite(w, matches, newID)
+-		if err != nil {
+-			w.Close()
+-			return err
+-		}
+-		if err := w.Close(); err != nil {
+-			return err
+-		}
++	// Replace the build id in the file with the content-based ID.
++	w, err := os.OpenFile(target, os.O_RDWR, 0)
++	if err != nil {
++		return err
++	}
++	err = buildid.Rewrite(w, matches, newID)
++	if err != nil {
++		w.Close()
++		return err
++	}
++	if err := w.Close(); err != nil {
++		return err
+ 	}
+ 
+-	// Cache package builds, but not binaries (link steps).
+-	// The expectation is that binaries are not reused
++	// Cache package builds, and cache executable builds if
++	// executable caching was requested. Executables are not
++	// cached by default because they are not reused
+ 	// nearly as often as individual packages, and they're
+ 	// much larger, so the cache-footprint-to-utility ratio
+-	// of binaries is much lower for binaries.
+-	// Not caching the link step also makes sure that repeated "go run" at least
+-	// always rerun the linker, so that they don't get too fast.
+-	// (We don't want people thinking go is a scripting language.)
+-	// Note also that if we start caching binaries, then we will
+-	// copy the binaries out of the cache to run them, and then
+-	// that will mean the go process is itself writing a binary
+-	// and then executing it, so we will need to defend against
+-	// ETXTBSY problems as discussed in exec.go and golang.org/issue/22220.
++	// of executables is much lower for executables.
+ 	if a.Mode == "build" {
+ 		r, err := os.Open(target)
+ 		if err == nil {
+@@ -756,6 +760,23 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
+ 			}
+ 		}
+ 	}
++	if c, ok := c.(*cache.DiskCache); a.Mode == "link" && a.CacheExecutable && ok {
++		r, err := os.Open(target)
++		if err == nil {
++			if a.output == nil {
++				panic("internal error: a.output not set")
++			}
++			name := a.Package.Internal.ExeName
++			if name == "" {
++				name = path.Base(a.Package.ImportPath)
++			}
++			outputID, _, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
++			r.Close()
++			if err == nil && cfg.BuildX {
++				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
++			}
++		}
++	}
+ 
+ 	return nil
+ }
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 70d9a588cc..2538fae52f 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -983,7 +983,7 @@ OverlayLoop:
+ 		}
+ 	}
+ 
+-	if err := b.updateBuildID(a, objpkg, true); err != nil {
++	if err := b.updateBuildID(a, objpkg); err != nil {
+ 		return err
+ 	}
+ 
+@@ -1486,22 +1486,7 @@ func (b *Builder) link(ctx context.Context, a *Action) (err error) {
+ 	}
+ 
+ 	// Update the binary with the final build ID.
+-	// But if OmitDebug is set, don't rewrite the binary, because we set OmitDebug
+-	// on binaries that we are going to run and then delete.
+-	// There's no point in doing work on such a binary.
+-	// Worse, opening the binary for write here makes it
+-	// essentially impossible to safely fork+exec due to a fundamental
+-	// incompatibility between ETXTBSY and threads on modern Unix systems.
+-	// See golang.org/issue/22220.
+-	// We still call updateBuildID to update a.buildID, which is important
+-	// for test result caching, but passing rewrite=false (final arg)
+-	// means we don't actually rewrite the binary, nor store the
+-	// result into the cache. That's probably a net win:
+-	// less cache space wasted on large binaries we are not likely to
+-	// need again. (On the other hand it does make repeated go test slower.)
+-	// It also makes repeated go run slower, which is a win in itself:
+-	// we don't want people to treat go run like a scripting environment.
+-	if err := b.updateBuildID(a, a.Target, !a.Package.Internal.OmitDebug); err != nil {
++	if err := b.updateBuildID(a, a.Target); err != nil {
+ 		return err
+ 	}
+ 

@@ -21,7 +21,7 @@ Date:   Mon Dec 9 19:07:40 2024 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/gc_test.go                           |  14 +++
  src/runtime/mcheckmark.go                        | 141 +++++++++++++++++++++--
  src/runtime/mgc.go                               |  30 ++---
@@ -30,3 +30,427 @@ Date:   Mon Dec 9 19:07:40 2024 +0000
  src/runtime/runtime1.go                          |   2 +
  src/runtime/testdata/testprog/checkfinalizers.go |  50 ++++++++
  7 files changed, 237 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 56fb4ed18a..f29dfe4377 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -1073,3 +1073,17 @@ func TestMSpanQueue(t *testing.T) {
+ 		expectMSpan(t, p.Pop(), nil, "pop")
+ 	})
+ }
++
++func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
++	got := runTestProg(t, "testprog", "DetectFinalizerAndCleanupLeaks", "GODEBUG=checkfinalizers=1")
++	sp := strings.SplitN(got, "runtime: detected", 2)
++	if len(sp) != 2 {
++		t.Fatalf("expected the runtime to throw, got:\n%s", got)
++	}
++	if strings.Count(sp[0], "finalizer") != 1 {
++		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
++	}
++	if strings.Count(sp[0], "cleanup") != 1 {
++		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
++	}
++}
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index 03d769e7d3..00ea436739 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -92,23 +92,150 @@ func setCheckmark(obj, base, off uintptr, mbits markBits) bool {
+ 		getg().m.traceback = 2
+ 		throw("checkmark found unmarked object")
+ 	}
++	bytep, mask := getCheckmark(obj)
++	if bytep == nil {
++		return false
++	}
++	if atomic.Load8(bytep)&mask != 0 {
++		// Already checkmarked.
++		return true
++	}
++	atomic.Or8(bytep, mask)
++	return false
++}
+ 
++func getCheckmark(obj uintptr) (bytep *byte, mask uint8) {
+ 	ai := arenaIndex(obj)
+ 	arena := mheap_.arenas[ai.l1()][ai.l2()]
+ 	if arena == nil {
+ 		// Non-heap pointer.
+-		return false
++		return nil, 0
+ 	}
+ 	wordIdx := (obj - alignDown(obj, heapArenaBytes)) / goarch.PtrSize
+ 	arenaWord := wordIdx / 8
+-	mask := byte(1 << (wordIdx % 8))
+-	bytep := &arena.checkmarks.b[arenaWord]
++	mask = byte(1 << (wordIdx % 8))
++	bytep = &arena.checkmarks.b[arenaWord]
++	return bytep, mask
++}
+ 
+-	if atomic.Load8(bytep)&mask != 0 {
+-		// Already checkmarked.
++// runCheckmark runs a full non-parallel, stop-the-world mark using
++// checkmark bits, to check that we didn't forget to mark anything
++// during the concurrent mark process.
++//
++// The world must be stopped to call runCheckmark.
++func runCheckmark(prepareRootSet func(*gcWork)) {
++	assertWorldStopped()
++
++	// Turn off gcwaiting because that will force
++	// gcDrain to return early if this goroutine
++	// happens to have its preemption flag set.
++	// This is fine because the world is stopped.
++	// Restore it after we're done just to be safe.
++	sched.gcwaiting.Store(false)
++	startCheckmarks()
++	gcResetMarkState()
++	gcw := &getg().m.p.ptr().gcw
++	prepareRootSet(gcw)
++	gcDrain(gcw, 0)
++	wbBufFlush1(getg().m.p.ptr())
++	gcw.dispose()
++	endCheckmarks()
++	sched.gcwaiting.Store(true)
++}
++
++// checkFinalizersAndCleanups uses checkmarks to check for potential issues
++// with the program's use of cleanups and finalizers.
++func checkFinalizersAndCleanups() {
++	assertWorldStopped()
++
++	failed := false
++	forEachSpecial(func(p uintptr, s *mspan, sp *special) bool {
++		// We only care about finalizers and cleanups.
++		if sp.kind != _KindSpecialFinalizer && sp.kind != _KindSpecialCleanup {
++			return true
++		}
++
++		// Run a checkmark GC using this cleanup and/or finalizer as a root.
++		runCheckmark(func(gcw *gcWork) {
++			switch sp.kind {
++			case _KindSpecialFinalizer:
++				gcScanFinalizer((*specialfinalizer)(unsafe.Pointer(sp)), s, gcw)
++			case _KindSpecialCleanup:
++				gcScanCleanup((*specialCleanup)(unsafe.Pointer(sp)), gcw)
++			}
++		})
++
++		// Now check to see if the object the special is attached to was marked.
++		// The roots above do not directly mark p, so if it is marked, then p
++		// must be reachable from the finalizer and/or cleanup, preventing
++		// reclamation.
++		bytep, mask := getCheckmark(p)
++		if bytep == nil {
++			return true
++		}
++		if atomic.Load8(bytep)&mask != 0 {
++			if !failed {
++				println("runtime: found possibly unreclaimable objects:")
++			}
++			failed = true
++			kind := "cleanup"
++			if sp.kind == _KindSpecialFinalizer {
++				kind = "finalizer"
++			}
++			print("\t0x", hex(p), " leaked due to a ", kind)
++			if sp.kind == _KindSpecialFinalizer {
++				spf := (*specialfinalizer)(unsafe.Pointer(sp))
++				print(" (", (rtype{spf.fint}).string(), ")\n")
++			} else {
++				println()
++			}
++		}
+ 		return true
++	})
++	if failed {
++		throw("runtime: detected possible cleanup and/or finalizer leak")
+ 	}
++}
+ 
+-	atomic.Or8(bytep, mask)
+-	return false
++// forEachSpecial is an iterator over all specials.
++//
++// Used by debug.checkfinalizers.
++//
++// The world must be stopped.
++func forEachSpecial(yield func(p uintptr, s *mspan, sp *special) bool) {
++	assertWorldStopped()
++
++	// Find the arena and page index into that arena for this shard.
++	for _, ai := range mheap_.markArenas {
++		ha := mheap_.arenas[ai.l1()][ai.l2()]
++
++		// Construct slice of bitmap which we'll iterate over.
++		for i := range ha.pageSpecials[:] {
++			// Find set bits, which correspond to spans with specials.
++			specials := atomic.Load8(&ha.pageSpecials[i])
++			if specials == 0 {
++				continue
++			}
++			for j := uint(0); j < 8; j++ {
++				if specials&(1<<j) == 0 {
++					continue
++				}
++				// Find the span for this bit.
++				//
++				// This value is guaranteed to be non-nil because having
++				// specials implies that the span is in-use, and since we're
++				// currently marking we can be sure that we don't have to worry
++				// about the span being freed and re-used.
++				s := ha.spans[uint(i)*8+j]
++
++				// Lock the specials to prevent a special from being
++				// removed from the list while we're traversing it.
++				for sp := s.specials; sp != nil; sp = sp.next {
++					if !yield(s.base()+sp.offset, s, sp) {
++						return
++					}
++				}
++			}
++		}
++	}
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 84aa1105d8..664acd9250 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -370,13 +370,13 @@ type workType struct {
+ 	tstart int64
+ 	nwait  uint32
+ 
+-	// Number of roots of various root types. Set by gcMarkRootPrepare.
++	// Number of roots of various root types. Set by gcPrepareMarkRoots.
+ 	//
+ 	// nStackRoots == len(stackRoots), but we have nStackRoots for
+ 	// consistency.
+ 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+ 
+-	// Base indexes of each root type. Set by gcMarkRootPrepare.
++	// Base indexes of each root type. Set by gcPrepareMarkRoots.
+ 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
+ 
+ 	// stackRoots is a snapshot of all of the Gs that existed
+@@ -788,7 +788,7 @@ func gcStart(trigger gcTrigger) {
+ 	setGCPhase(_GCmark)
+ 
+ 	gcBgMarkPrepare() // Must happen before assists are enabled.
+-	gcMarkRootPrepare()
++	gcPrepareMarkRoots()
+ 
+ 	// Mark all active tinyalloc blocks. Since we're
+ 	// allocating from these, they need to be black like
+@@ -1069,26 +1069,10 @@ func gcMarkTermination(stw worldStop) {
+ 	systemstack(func() {
+ 		work.heap2 = work.bytesMarked
+ 		if debug.gccheckmark > 0 {
+-			// Run a full non-parallel, stop-the-world
+-			// mark using checkmark bits, to check that we
+-			// didn't forget to mark anything during the
+-			// concurrent mark process.
+-			//
+-			// Turn off gcwaiting because that will force
+-			// gcDrain to return early if this goroutine
+-			// happens to have its preemption flag set.
+-			// This is fine because the world is stopped.
+-			// Restore it after we're done just to be safe.
+-			sched.gcwaiting.Store(false)
+-			startCheckmarks()
+-			gcResetMarkState()
+-			gcMarkRootPrepare()
+-			gcw := &getg().m.p.ptr().gcw
+-			gcDrain(gcw, 0)
+-			wbBufFlush1(getg().m.p.ptr())
+-			gcw.dispose()
+-			endCheckmarks()
+-			sched.gcwaiting.Store(true)
++			runCheckmark(func(_ *gcWork) { gcPrepareMarkRoots() })
++		}
++		if debug.checkfinalizers > 0 {
++			checkFinalizersAndCleanups()
+ 		}
+ 
+ 		// marking is complete so we can turn the write barrier off
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 171d76d32a..41a4b1ab5a 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -53,11 +53,11 @@ const (
+ 	pagesPerSpanRoot = 512
+ )
+ 
+-// gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
++// gcPrepareMarkRoots queues root scanning jobs (stacks, globals, and
+ // some miscellany) and initializes scanning-related state.
+ //
+ // The world must be stopped.
+-func gcMarkRootPrepare() {
++func gcPrepareMarkRoots() {
+ 	assertWorldStopped()
+ 
+ 	// Compute how many data and BSS root blocks there are.
+@@ -128,7 +128,7 @@ func gcMarkRootCheck() {
+ 	//
+ 	// We only check the first nStackRoots Gs that we should have scanned.
+ 	// Since we don't care about newer Gs (see comment in
+-	// gcMarkRootPrepare), no locking is required.
++	// gcPrepareMarkRoots), no locking is required.
+ 	i := 0
+ 	forEachGRace(func(gp *g) {
+ 		if i >= work.nStackRoots {
+@@ -392,29 +392,13 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 			for sp := s.specials; sp != nil; sp = sp.next {
+ 				switch sp.kind {
+ 				case _KindSpecialFinalizer:
+-					// don't mark finalized object, but scan it so we
+-					// retain everything it points to.
+-					spf := (*specialfinalizer)(unsafe.Pointer(sp))
+-					// A finalizer can be set for an inner byte of an object, find object beginning.
+-					p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+-
+-					// Mark everything that can be reached from
+-					// the object (but *not* the object itself or
+-					// we'll never collect it).
+-					if !s.spanclass.noscan() {
+-						scanobject(p, gcw)
+-					}
+-
+-					// The special itself is a root.
+-					scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
++					gcScanFinalizer((*specialfinalizer)(unsafe.Pointer(sp)), s, gcw)
+ 				case _KindSpecialWeakHandle:
+ 					// The special itself is a root.
+ 					spw := (*specialWeakHandle)(unsafe.Pointer(sp))
+ 					scanblock(uintptr(unsafe.Pointer(&spw.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+ 				case _KindSpecialCleanup:
+-					spc := (*specialCleanup)(unsafe.Pointer(sp))
+-					// The special itself is a root.
+-					scanblock(uintptr(unsafe.Pointer(&spc.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
++					gcScanCleanup((*specialCleanup)(unsafe.Pointer(sp)), gcw)
+ 				}
+ 			}
+ 			unlock(&s.speciallock)
+@@ -422,6 +406,30 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	}
+ }
+ 
++// gcScanFinalizer scans the relevant parts of a finalizer special as a root.
++func gcScanFinalizer(spf *specialfinalizer, s *mspan, gcw *gcWork) {
++	// Don't mark finalized object, but scan it so we retain everything it points to.
++
++	// A finalizer can be set for an inner byte of an object, find object beginning.
++	p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
++
++	// Mark everything that can be reached from
++	// the object (but *not* the object itself or
++	// we'll never collect it).
++	if !s.spanclass.noscan() {
++		scanobject(p, gcw)
++	}
++
++	// The special itself is also a root.
++	scanblock(uintptr(unsafe.Pointer(&spf.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
++}
++
++// gcScanCleanup scans the relevant parts of a cleanup special as a root.
++func gcScanCleanup(spc *specialCleanup, gcw *gcWork) {
++	// The special itself is a root.
++	scanblock(uintptr(unsafe.Pointer(&spc.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
++}
++
+ // gcAssistAlloc performs GC work to make gp's assist debt positive.
+ // gp must be the calling user goroutine.
+ //
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index c5e55f583e..41ac4698f5 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -314,7 +314,7 @@ type heapArena struct {
+ 	pageUseSpanInlineMarkBits [pagesPerArena / 8]uint8
+ 
+ 	// checkmarks stores the debug.gccheckmark state. It is only
+-	// used if debug.gccheckmark > 0.
++	// used if debug.gccheckmark > 0 or debug.checkfinalizers > 0.
+ 	checkmarks *checkmarksMap
+ 
+ 	// zeroedBase marks the first byte of the first page in this
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 5beaa4dd74..9a4e15c95e 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -333,6 +333,7 @@ var debug struct {
+ 	traceCheckStackOwnership int32
+ 	profstackdepth           int32
+ 	dataindependenttiming    int32
++	checkfinalizers          int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -373,6 +374,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "decoratemappings", value: &debug.decoratemappings, def: 1},
+ 	{name: "disablethp", value: &debug.disablethp},
+ 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
++	{name: "checkfinalizers", value: &debug.checkfinalizers},
+ 	{name: "efence", value: &debug.efence},
+ 	{name: "gccheckmark", value: &debug.gccheckmark},
+ 	{name: "gcpacertrace", value: &debug.gcpacertrace},
+diff --git a/src/runtime/testdata/testprog/checkfinalizers.go b/src/runtime/testdata/testprog/checkfinalizers.go
+new file mode 100644
+index 0000000000..ef0108a7e0
+--- /dev/null
++++ b/src/runtime/testdata/testprog/checkfinalizers.go
+@@ -0,0 +1,50 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"runtime"
++)
++
++func init() {
++	register("DetectFinalizerAndCleanupLeaks", DetectFinalizerAndCleanupLeaks)
++}
++
++// Intended to be run only with `GODEBUG=checkfinalizers=1`.
++func DetectFinalizerAndCleanupLeaks() {
++	type T *int
++
++	// Leak a cleanup.
++	cLeak := new(T)
++	runtime.AddCleanup(cLeak, func(x int) {
++		**cLeak = x
++	}, int(0))
++
++	// Have a regular cleanup to make sure it doesn't trip the detector.
++	cNoLeak := new(T)
++	runtime.AddCleanup(cNoLeak, func(_ int) {}, int(0))
++
++	// Leak a finalizer.
++	fLeak := new(T)
++	runtime.SetFinalizer(fLeak, func(_ *T) {
++		**fLeak = 12
++	})
++
++	// Have a regular finalizer to make sure it doesn't trip the detector.
++	fNoLeak := new(T)
++	runtime.SetFinalizer(fNoLeak, func(x *T) {
++		**x = 51
++	})
++
++	// runtime.GC here should crash.
++	runtime.GC()
++	println("OK")
++
++	// Keep everything alive.
++	runtime.KeepAlive(cLeak)
++	runtime.KeepAlive(cNoLeak)
++	runtime.KeepAlive(fLeak)
++	runtime.KeepAlive(fNoLeak)
++}

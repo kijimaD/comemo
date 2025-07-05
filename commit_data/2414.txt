@@ -7,6 +7,19 @@ Date:   Sat Jun 6 19:27:30 2009 -0700
     R=ken
     OCL=29984
     CL=29997
-
+---
  src/cmd/6g/gsubr.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index f9b092039c..0c5141d9b1 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -455,6 +455,7 @@ bignodes(void)
+  *	t = f
+  * hard part is conversions.
+  */
++// TODO: lost special constants for floating point.  XORPD for 0.0?
+ void
+ gmove(Node *f, Node *t)
+ {

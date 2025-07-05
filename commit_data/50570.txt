@@ -16,7 +16,42 @@ Date:   Sun Oct 31 00:20:13 2021 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/call.go |  6 +++++-
  test/fixedbugs/issue49240.go            | 11 +++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 9e5abed591..63e790a786 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -337,7 +337,11 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
+ 	if arg := *argp; arg.Op() == ir.OSLICELIT {
+ 		list := arg.(*ir.CompLitExpr).List
+ 		for i := range list {
+-			visit(arg.Pos(), &list[i])
++			el := &list[i]
++			if list[i].Op() == ir.OKEY {
++				el = &list[i].(*ir.KeyExpr).Value
++			}
++			visit(arg.Pos(), el)
+ 		}
+ 	} else {
+ 		visit(call.Pos(), argp)
+diff --git a/test/fixedbugs/issue49240.go b/test/fixedbugs/issue49240.go
+new file mode 100644
+index 0000000000..26929fe1a2
+--- /dev/null
++++ b/test/fixedbugs/issue49240.go
+@@ -0,0 +1,11 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	go copy([]int{1: 0}, []int{})
++}

@@ -12,7 +12,7 @@ Date:   Tue Jul 28 14:31:25 2015 -0700
     Change-Id: I4bcbe2229fcebd189ae18df24f2c612feb6e215e
     Reviewed-on: https://go-review.googlesource.com/12810
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 59 +++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 --
  src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +-
@@ -20,3 +20,212 @@ Date:   Tue Jul 28 14:31:25 2015 -0700
  src/cmd/compile/internal/ssa/regalloc.go       |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 39 -----------------
  6 files changed, 59 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 430adc31fd..b9113b2733 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1005,8 +1005,51 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return nil
+ 		}
+ 	case OCONVNOP:
++		to := n.Type
++		from := n.Left.Type
++		if to.Etype == TFUNC {
++			s.Unimplementedf("CONVNOP closure %v -> %v", n.Type, n.Left.Type)
++			return nil
++		}
++
++		// Assume everything will work out, so set up our return value.
++		// Anything interesting that happens from here is a fatal.
+ 		x := s.expr(n.Left)
+-		return s.newValue1(ssa.OpConvNop, n.Type, x)
++		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
++
++		// named <--> unnamed type or typed <--> untyped const
++		if from.Etype == to.Etype {
++			return v
++		}
++		// unsafe.Pointer <--> *T
++		if to.Etype == TUNSAFEPTR && from.IsPtr() || from.Etype == TUNSAFEPTR && to.IsPtr() {
++			return v
++		}
++
++		dowidth(from)
++		dowidth(to)
++		if from.Width != to.Width {
++			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
++			return nil
++		}
++		if etypesign(from.Etype) != etypesign(to.Etype) {
++			s.Fatalf("CONVNOP sign mismatch %v (%s) -> %v (%s)\n", from, Econv(int(from.Etype), 0), to, Econv(int(to.Etype), 0))
++			return nil
++		}
++
++		if flag_race != 0 {
++			s.Unimplementedf("questionable CONVNOP from race detector %v -> %v\n", from, to)
++			return nil
++		}
++
++		if etypesign(from.Etype) == 0 {
++			s.Fatalf("CONVNOP unrecognized non-integer %v -> %v\n", from, to)
++			return nil
++		}
++
++		// integer, same width, same sign
++		return v
++
+ 	case OCONV:
+ 		x := s.expr(n.Left)
+ 		ft := n.Left.Type // from type
+@@ -1014,7 +1057,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		if ft.IsInteger() && tt.IsInteger() {
+ 			var op ssa.Op
+ 			if tt.Size() == ft.Size() {
+-				op = ssa.OpConvNop
++				op = ssa.OpCopy
+ 			} else if tt.Size() < ft.Size() {
+ 				// truncation
+ 				switch 10*ft.Size() + tt.Size() {
+@@ -1310,6 +1353,18 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 	return nil
+ }
+ 
++// etypesign returns the signed-ness of e, for integer/pointer etypes.
++// -1 means signed, +1 means unsigned, 0 means non-integer/non-pointer.
++func etypesign(e uint8) int8 {
++	switch e {
++	case TINT8, TINT16, TINT32, TINT64, TINT:
++		return -1
++	case TUINT8, TUINT16, TUINT32, TUINT64, TUINT, TUINTPTR, TUNSAFEPTR:
++		return +1
++	}
++	return 0
++}
++
+ // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
+ // The value that the returned Value represents is guaranteed to be non-nil.
+ func (s *state) addr(n *Node) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 0aa9c73279..1630e13213 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -78,10 +78,6 @@
+ (Trunc64to16 x) -> (Copy x)
+ (Trunc64to32 x) -> (Copy x)
+ 
+-(ConvNop <t> x) && t == x.Type -> (Copy x)
+-(ConvNop <t> x) && t.IsInteger() && x.Type.IsInteger() && t.Size() == x.Type.Size() -> (Copy x)
+-// TODO: other ConvNops are safe?  Maybe all of them?
+-
+ // Lowering shifts
+ // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+ //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index bc1fdc86a2..7536415216 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -203,7 +203,7 @@ var genericOps = []opData{
+ 	{name: "ClosureCall"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  Returns memory.
+ 	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
+ 
+-	// Conversions: signed extensions, zero (unsigned) extensions, truncations, and no-op (type only)
++	// Conversions: signed extensions, zero (unsigned) extensions, truncations
+ 	{name: "SignExt8to16"},
+ 	{name: "SignExt8to32"},
+ 	{name: "SignExt8to64"},
+@@ -223,8 +223,6 @@ var genericOps = []opData{
+ 	{name: "Trunc64to16"},
+ 	{name: "Trunc64to32"},
+ 
+-	{name: "ConvNop"},
+-
+ 	// Automatically inserted safety checks
+ 	{name: "IsNonNil"},   // arg0 != nil
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f5f6e139f5..b0f86a9cbe 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -357,7 +357,6 @@ const (
+ 	OpTrunc64to8
+ 	OpTrunc64to16
+ 	OpTrunc64to32
+-	OpConvNop
+ 	OpIsNonNil
+ 	OpIsInBounds
+ 	OpArrayIndex
+@@ -2722,10 +2721,6 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Trunc64to32",
+ 		generic: true,
+ 	},
+-	{
+-		name:    "ConvNop",
+-		generic: true,
+-	},
+ 	{
+ 		name:    "IsNonNil",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index a13b8b2a06..7e8f2ae354 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -167,7 +167,7 @@ func regalloc(f *Func) {
+ 			//   - definition of v.  c will be identical to v but will live in
+ 			//     a register.  v will be modified into a spill of c.
+ 			regspec := opcodeTable[v.Op].reg
+-			if v.Op == OpCopy || v.Op == OpConvNop {
++			if v.Op == OpCopy {
+ 				// TODO: make this less of a hack
+ 				regspec = opcodeTable[OpAMD64ADDQconst].reg
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index eb1428e87e..f06227e749 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1294,45 +1294,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endc395c0a53eeccf597e225a07b53047d1
+ 	endc395c0a53eeccf597e225a07b53047d1:
+ 		;
+-	case OpConvNop:
+-		// match: (ConvNop <t> x)
+-		// cond: t == x.Type
+-		// result: (Copy x)
+-		{
+-			t := v.Type
+-			x := v.Args[0]
+-			if !(t == x.Type) {
+-				goto end6c588ed8aedc7dca8c06b4ada77e3ddd
+-			}
+-			v.Op = OpCopy
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(x)
+-			return true
+-		}
+-		goto end6c588ed8aedc7dca8c06b4ada77e3ddd
+-	end6c588ed8aedc7dca8c06b4ada77e3ddd:
+-		;
+-		// match: (ConvNop <t> x)
+-		// cond: t.IsInteger() && x.Type.IsInteger() && t.Size() == x.Type.Size()
+-		// result: (Copy x)
+-		{
+-			t := v.Type
+-			x := v.Args[0]
+-			if !(t.IsInteger() && x.Type.IsInteger() && t.Size() == x.Type.Size()) {
+-				goto endfb3563f9df3468ad8123dbaa962cdbf7
+-			}
+-			v.Op = OpCopy
+-			v.AuxInt = 0
+-			v.Aux = nil
+-			v.resetArgs()
+-			v.AddArg(x)
+-			return true
+-		}
+-		goto endfb3563f9df3468ad8123dbaa962cdbf7
+-	endfb3563f9df3468ad8123dbaa962cdbf7:
+-		;
+ 	case OpEq16:
+ 		// match: (Eq16 x y)
+ 		// cond:

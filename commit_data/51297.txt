@@ -14,6 +14,18 @@ Date:   Fri Jan 7 17:50:37 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/376357
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Julie Qiu <julie@golang.org>
-
+---
  .github/ISSUE_TEMPLATE/config.yml | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/.github/ISSUE_TEMPLATE/config.yml b/.github/ISSUE_TEMPLATE/config.yml
+index ddf5fc6833..c07f1e4d1c 100644
+--- a/.github/ISSUE_TEMPLATE/config.yml
++++ b/.github/ISSUE_TEMPLATE/config.yml
+@@ -3,6 +3,3 @@ contact_links:
+   - name: Questions
+     about: Please use one of the forums for questions or general discussions
+     url:  https://go.dev/wiki/Questions
+-  - name: Security Vulnerabilities
+-    about: See here for our security policy
+-    url: https://go.dev/security

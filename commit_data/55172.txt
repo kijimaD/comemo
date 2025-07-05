@@ -16,6 +16,36 @@ Date:   Tue Jan 17 16:14:05 2023 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/reboot/reboot_test.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/misc/reboot/reboot_test.go b/misc/reboot/reboot_test.go
+index a1b513b432..c4a9f3ef9f 100644
+--- a/misc/reboot/reboot_test.go
++++ b/misc/reboot/reboot_test.go
+@@ -36,14 +36,22 @@ func TestRepeatBootstrap(t *testing.T) {
+ 	if err := os.Mkdir(dotGit, 000); err != nil {
+ 		t.Fatal(err)
+ 	}
++
++	overlayStart := time.Now()
++
+ 	goroot := filepath.Join(parent, "goroot")
+ 
+ 	gorootSrc := filepath.Join(goroot, "src")
+-	overlayStart := time.Now()
+ 	if err := overlayDir(gorootSrc, filepath.Join(realGoroot, "src")); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	t.Logf("GOROOT/src overlay set up in %s", time.Since(overlayStart))
++
++	gorootLib := filepath.Join(goroot, "lib")
++	if err := overlayDir(gorootLib, filepath.Join(realGoroot, "lib")); err != nil {
++		t.Fatal(err)
++	}
++
++	t.Logf("GOROOT overlay set up in %s", time.Since(overlayStart))
+ 
+ 	if err := os.WriteFile(filepath.Join(goroot, "VERSION"), []byte(runtime.Version()), 0666); err != nil {
+ 		t.Fatal(err)

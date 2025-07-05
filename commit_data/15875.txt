@@ -42,7 +42,7 @@ Date:   Thu Mar 21 16:38:57 2013 -0400
     R=agl
     CC=golang-dev
     https://golang.org/cl/7865046
-
+---
  src/cmd/6l/optab.c             |   7 +-
  src/pkg/crypto/rc4/rc4.go      |   6 +-
  src/pkg/crypto/rc4/rc4_386.s   |  10 +--
@@ -51,3 +51,365 @@ Date:   Thu Mar 21 16:38:57 2013 -0400
  src/pkg/crypto/rc4/rc4_asm.go  |   2 +-
  src/pkg/crypto/rc4/rc4_test.go |  21 ++++++
  7 files changed, 156 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 2f97296c6a..b0d5ca788e 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -537,6 +537,11 @@ uchar	yextrw[] =
+ 	Yxr,	Yrl,	Zibm_r,	2,
+ 	0
+ };
++uchar	yinsrw[] =
++{
++	Yml,	Yxr,	Zibm_r,	2,
++	0
++};
+ uchar	yinsr[] =
+ {
+ 	Ymm,	Yxr,	Zibm_r,	3,
+@@ -992,7 +997,7 @@ Optab optab[] =
+ 	{ APFRSQRT,	ymfp,	Px, 0x97 },
+ 	{ APFSUB,	ymfp,	Px, 0x9a },
+ 	{ APFSUBR,	ymfp,	Px, 0xaa },
+-	{ APINSRW,	yextrw,	Pq, 0xc4,(00) },
++	{ APINSRW,	yinsrw,	Pq, 0xc4,(00) },
+ 	{ APINSRD,	yinsr,	Pq, 0x3a, 0x22, (00) },
+ 	{ APINSRQ,	yinsr,	Pq3, 0x3a, 0x22, (00) },
+ 	{ APMADDWL,	ymm,	Py, 0xf5,Pe,0xf5 },
+diff --git a/src/pkg/crypto/rc4/rc4.go b/src/pkg/crypto/rc4/rc4.go
+index e0c33fa4b5..3d717c63b0 100644
+--- a/src/pkg/crypto/rc4/rc4.go
++++ b/src/pkg/crypto/rc4/rc4.go
+@@ -13,7 +13,7 @@ import "strconv"
+ 
+ // A Cipher is an instance of RC4 using a particular key.
+ type Cipher struct {
+-	s    [256]byte
++	s    [256]uint32
+ 	i, j uint8
+ }
+ 
+@@ -32,11 +32,11 @@ func NewCipher(key []byte) (*Cipher, error) {
+ 	}
+ 	var c Cipher
+ 	for i := 0; i < 256; i++ {
+-		c.s[i] = uint8(i)
++		c.s[i] = uint32(i)
+ 	}
+ 	var j uint8 = 0
+ 	for i := 0; i < 256; i++ {
+-		j += c.s[i] + key[i%k]
++		j += uint8(c.s[i]) + key[i%k]
+ 		c.s[i], c.s[j] = c.s[j], c.s[i]
+ 	}
+ 	return &c, nil
+diff --git a/src/pkg/crypto/rc4/rc4_386.s b/src/pkg/crypto/rc4/rc4_386.s
+index 55b527bd8c..6e12c208af 100644
+--- a/src/pkg/crypto/rc4/rc4_386.s
++++ b/src/pkg/crypto/rc4/rc4_386.s
+@@ -20,19 +20,19 @@ loop:
+ 	INCB AX
+ 
+ 	// j += c.s[i]
+-	MOVBLZX (BP)(AX*1), DX
++	MOVBLZX (BP)(AX*4), DX
+ 	ADDB DX, BX
+ 	MOVBLZX BX, BX
+ 
+ 	// c.s[i], c.s[j] = c.s[j], c.s[i]
+-	MOVBLZX (BP)(BX*1), CX
+-	MOVB CX, (BP)(AX*1)
+-	MOVB DX, (BP)(BX*1)
++	MOVBLZX (BP)(BX*4), CX
++	MOVB CX, (BP)(AX*4)
++	MOVB DX, (BP)(BX*4)
+ 
+ 	// *dst = *src ^ c.s[c.s[i]+c.s[j]]
+ 	ADDB DX, CX
+ 	MOVBLZX CX, CX
+-	MOVB (BP)(CX*1), CX
++	MOVB (BP)(CX*4), CX
+ 	XORB (SI), CX
+ 	MOVBLZX CX, CX
+ 	MOVB CX, (DI)
+diff --git a/src/pkg/crypto/rc4/rc4_amd64.s b/src/pkg/crypto/rc4/rc4_amd64.s
+index d6d4577a38..f0962a4c17 100644
+--- a/src/pkg/crypto/rc4/rc4_amd64.s
++++ b/src/pkg/crypto/rc4/rc4_amd64.s
+@@ -1,11 +1,19 @@
+ // Original source:
+ //	http://www.zorinaq.com/papers/rc4-amd64.html
+ //	http://www.zorinaq.com/papers/rc4-amd64.tar.bz2
++
++// Local modifications:
+ //
+ // Transliterated from GNU to 6a assembly syntax by the Go authors.
+ // The comments and spacing are from the original.
+-
++//
+ // The new EXTEND macros avoid a bad stall on some systems after 8-bit math.
++//
++// The original code accumulated 64 bits of key stream in an integer
++// register and then XOR'ed the key stream into the data 8 bytes at a time.
++// Modified to accumulate 128 bits of key stream into an XMM register
++// and then XOR the key stream into the data 16 bytes at a time.
++// Approximately doubles throughput.
+ 
+ // NOTE: Changing EXTEND to a no-op makes the code run 1.2x faster on Core i5
+ // but makes the code run 2.0x slower on Xeon.
+@@ -38,59 +46,123 @@ TEXT ·xorKeyStream(SB),7,$0
+ 	MOVQ	yp+40(FP),	AX
+ 	MOVBQZX	0(AX),		DX		// y = *yp
+ 
+-	INCQ	CX				// x++
+-	ANDQ	$255,		CX		// x &= 0xff
+-	LEAQ	-8(BX)(SI*1),	BX		// rbx = in+len-8
+-	MOVQ	BX,		R9		// tmp = in+len-8
+-	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x]
+-	CMPQ	BX,		SI		// cmp in with in+len-8
+-	JLT	end				// jump if (in+len-8 < in)
++	LEAQ	(SI)(BX*1),	R9		// limit = in+len
+ 
+-start:
+-	ADDQ	$8,		SI		// increment in
+-	ADDQ	$8,		DI		// increment out
+-	
+-	// generate the next 8 bytes of the rc4 stream into R8
+-	MOVQ	$8,		R11		// byte counter
+-l1:	ADDB	AX,		DX
++l1:	CMPQ	SI,		R9		// cmp in with in+len
++	JGE	finished			// jump if (in >= in+len)
++
++	INCB	CX
++	EXTEND(CX)
++	TESTL	$15,		CX
++	JZ	wordloop
++
++	MOVBLZX	(BP)(CX*4),	AX
++
++	ADDB	AX,		DX		// y += tx
+ 	EXTEND(DX)
+-	MOVBLZX	(BP)(DX*1),	BX		// ty = d[y]
+-	MOVB	BX,		(BP)(CX*1)	// d[x] = ty
+-	ADDB	AX,		BX		// val = ty + tx
++	MOVBLZX	(BP)(DX*4),	BX		// ty = d[y]
++	MOVB	BX,		(BP)(CX*4)	// d[x] = ty
++	ADDB	AX,		BX		// val = ty+tx
+ 	EXTEND(BX)
+-	MOVB	AX,		(BP)(DX*1)	// d[y] = tx
+-	INCB	CX				// x++ (NEXT ROUND)
+-	EXTEND(CX)
+-	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x] (NEXT ROUND)
+-	SHLQ	$8,		R8
+-	MOVB	(BP)(BX*1),	R8		// val = d[val]
+-	DECQ	R11
+-	JNZ	l1
+-
+-	// xor 8 bytes
+-	BSWAPQ	R8
+-	XORQ	-8(SI),		R8
+-	CMPQ	SI,		R9		// cmp in+len-8 with in XXX
+-	MOVQ	R8,		-8(DI)
+-	JLE	start				// jump if (in <= in+len-8)
++	MOVB	AX,		(BP)(DX*4)	// d[y] = tx
++	MOVBLZX	(BP)(BX*4),	R8		// val = d[val]
++	XORB	(SI),		R8		// xor 1 byte
++	MOVB	R8,		(DI)
++	INCQ	SI				// in++
++	INCQ	DI				// out++
++	JMP l1
++
++wordloop:
++	SUBQ	$16,		R9
++	CMPQ	SI,		R9
++	JGT	end
++
++start:
++	ADDQ	$16,		SI		// increment in
++	ADDQ	$16,		DI		// increment out
++
++	// Each KEYROUND generates one byte of key and
++	// inserts it into an XMM register at the given 16-bit index.
++	// The key state array is uint32 words only using the bottom
++	// byte of each word, so the 16-bit OR only copies 8 useful bits.
++	// We accumulate alternating bytes into X0 and X1, and then at
++	// the end we OR X1<<8 into X0 to produce the actual key.
++	//
++	// At the beginning of the loop, CX%16 == 0, so the 16 loads
++	// at state[CX], state[CX+1], ..., state[CX+15] can precompute
++	// (state+CX) as R12 and then become R12[0], R12[1], ... R12[15],
++	// without fear of the byte computation CX+15 wrapping around.
++	//
++	// The first round needs R12[0], the second needs R12[1], and so on.
++	// We can avoid memory stalls by starting the load for round n+1
++	// before the end of round n, using the LOAD macro.
++	LEAQ	(BP)(CX*4),	R12
++
++#define KEYROUND(xmm, load, off, r1, r2, index) \
++	MOVBLZX	(BP)(DX*4),	R8; \
++	MOVB	r1,		(BP)(DX*4); \
++	load((off+1), r2); \
++	MOVB	R8,		(off*4)(R12); \
++	ADDB	r1,		R8; \
++	EXTEND(R8); \
++	PINSRW	$index, (BP)(R8*4), xmm
++
++#define LOAD(off, reg) \
++	MOVBLZX	(off*4)(R12),	reg; \
++	ADDB	reg,		DX; \
++	EXTEND(DX)
++
++#define SKIP(off, reg)
++
++	LOAD(0, AX)
++	KEYROUND(X0, LOAD, 0, AX, BX, 0)
++	KEYROUND(X1, LOAD, 1, BX, AX, 0)
++	KEYROUND(X0, LOAD, 2, AX, BX, 1)
++	KEYROUND(X1, LOAD, 3, BX, AX, 1)
++	KEYROUND(X0, LOAD, 4, AX, BX, 2)
++	KEYROUND(X1, LOAD, 5, BX, AX, 2)
++	KEYROUND(X0, LOAD, 6, AX, BX, 3)
++	KEYROUND(X1, LOAD, 7, BX, AX, 3)
++	KEYROUND(X0, LOAD, 8, AX, BX, 4)
++	KEYROUND(X1, LOAD, 9, BX, AX, 4)
++	KEYROUND(X0, LOAD, 10, AX, BX, 5)
++	KEYROUND(X1, LOAD, 11, BX, AX, 5)
++	KEYROUND(X0, LOAD, 12, AX, BX, 6)
++	KEYROUND(X1, LOAD, 13, BX, AX, 6)
++	KEYROUND(X0, LOAD, 14, AX, BX, 7)
++	KEYROUND(X1, SKIP, 15, BX, AX, 7)
++	
++	ADDB	$16,		CX
++
++	PSLLQ	$8,		X1
++	PXOR	X1,		X0
++	MOVOU	-16(SI),	X2
++	PXOR	X0,		X2
++	MOVOU	X2,		-16(DI)
++
++	CMPQ	SI,		R9		// cmp in with in+len-16
++	JLE	start				// jump if (in <= in+len-16)
+ 
+ end:
+-	ADDQ	$8,		R9		// tmp = in+len
++	DECB	CX
++	ADDQ	$16,		R9		// tmp = in+len
+ 
+ 	// handle the last bytes, one by one
+-l2:	CMPQ	R9,		SI		// cmp in with in+len
+-	JLE	finished			// jump if (in+len <= in)
++l2:	CMPQ	SI,		R9		// cmp in with in+len
++	JGE	finished			// jump if (in >= in+len)
++
++	INCB	CX
++	EXTEND(CX)
++	MOVBLZX	(BP)(CX*4),	AX
++
+ 	ADDB	AX,		DX		// y += tx
+ 	EXTEND(DX)
+-	MOVBLZX	(BP)(DX*1),	BX		// ty = d[y]
+-	MOVB	BX,		(BP)(CX*1)	// d[x] = ty
++	MOVBLZX	(BP)(DX*4),	BX		// ty = d[y]
++	MOVB	BX,		(BP)(CX*4)	// d[x] = ty
+ 	ADDB	AX,		BX		// val = ty+tx
+ 	EXTEND(BX)
+-	MOVB	AX,		(BP)(DX*1)	// d[y] = tx
+-	INCB	CX				// x++ (NEXT ROUND)
+-	EXTEND(CX)
+-	MOVBLZX	(BP)(CX*1),	AX		// tx = d[x] (NEXT ROUND)
+-	MOVBLZX	(BP)(BX*1),	R8		// val = d[val]
++	MOVB	AX,		(BP)(DX*4)	// d[y] = tx
++	MOVBLZX	(BP)(BX*4),	R8		// val = d[val]
+ 	XORB	(SI),		R8		// xor 1 byte
+ 	MOVB	R8,		(DI)
+ 	INCQ	SI				// in++
+@@ -98,7 +170,6 @@ l2:	CMPQ	R9,		SI		// cmp in with in+len
+ 	JMP l2
+ 
+ finished:
+-	DECQ	CX				// x--
+ 	MOVQ	yp+40(FP),	BX
+ 	MOVB	DX, 0(BX)
+ 	MOVQ	xp+32(FP),	AX
+diff --git a/src/pkg/crypto/rc4/rc4_arm.s b/src/pkg/crypto/rc4/rc4_arm.s
+index 51a332f624..307cb71484 100644
+--- a/src/pkg/crypto/rc4/rc4_arm.s
++++ b/src/pkg/crypto/rc4/rc4_arm.s
+@@ -31,19 +31,19 @@ loop:
+ 	// i += 1; j += state[i]
+ 	ADD $1, R(i)
+ 	AND $0xff, R(i)
+-	MOVBU R(i)<<0(R(state)), R(t)
++	MOVBU R(i)<<2(R(state)), R(t)
+ 	ADD R(t), R(j)
+ 	AND $0xff, R(j)
+ 
+ 	// swap state[i] <-> state[j]
+-	MOVBU R(j)<<0(R(state)), R(t2)
+-	MOVB R(t2), R(i)<<0(R(state))
+-	MOVB R(t), R(j)<<0(R(state))
++	MOVBU R(j)<<2(R(state)), R(t2)
++	MOVB R(t2), R(i)<<2(R(state))
++	MOVB R(t), R(j)<<2(R(state))
+ 
+ 	// dst[k] = src[k] ^ state[state[i] + state[j]]
+ 	ADD R(t2), R(t)
+ 	AND $0xff, R(t)
+-	MOVBU R(t)<<0(R(state)), R(t)
++	MOVBU R(t)<<2(R(state)), R(t)
+ 	MOVBU R(k)<<0(R(src)), R(t2)
+ 	EOR R(t), R(t2)
+ 	MOVB R(t2), R(k)<<0(R(dst))
+diff --git a/src/pkg/crypto/rc4/rc4_asm.go b/src/pkg/crypto/rc4/rc4_asm.go
+index 532768dff2..c582a4488b 100644
+--- a/src/pkg/crypto/rc4/rc4_asm.go
++++ b/src/pkg/crypto/rc4/rc4_asm.go
+@@ -6,7 +6,7 @@
+ 
+ package rc4
+ 
+-func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
++func xorKeyStream(dst, src *byte, n int, state *[256]uint32, i, j *uint8)
+ 
+ // XORKeyStream sets dst to the result of XORing src with the key stream.
+ // Dst and src may be the same slice but otherwise should not overlap.
+diff --git a/src/pkg/crypto/rc4/rc4_test.go b/src/pkg/crypto/rc4/rc4_test.go
+index 1ce03608ca..7b4df6791d 100644
+--- a/src/pkg/crypto/rc4/rc4_test.go
++++ b/src/pkg/crypto/rc4/rc4_test.go
+@@ -5,6 +5,7 @@
+ package rc4
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"testing"
+ )
+@@ -115,6 +116,26 @@ func TestGolden(t *testing.T) {
+ 	}
+ }
+ 
++func TestBlock(t *testing.T) {
++	c1a, _ := NewCipher(golden[0].key)
++	c1b, _ := NewCipher(golden[1].key)
++	data1 := make([]byte, 1<<20)
++	for i := range data1 {
++		c1a.XORKeyStream(data1[i:i+1], data1[i:i+1])
++		c1b.XORKeyStream(data1[i:i+1], data1[i:i+1])
++	}
++
++	c2a, _ := NewCipher(golden[0].key)
++	c2b, _ := NewCipher(golden[1].key)
++	data2 := make([]byte, 1<<20)
++	c2a.XORKeyStream(data2, data2)
++	c2b.XORKeyStream(data2, data2)
++
++	if !bytes.Equal(data1, data2) {
++		t.Fatalf("bad block")
++	}
++}
++
+ func benchmark(b *testing.B, size int64) {
+ 	buf := make([]byte, size)
+ 	c, err := NewCipher(golden[0].key)

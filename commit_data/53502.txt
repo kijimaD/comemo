@@ -15,7 +15,7 @@ Date:   Tue Jul 19 13:15:05 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/stmt.go         |  2 +-
  src/cmd/compile/internal/ir/fmt.go              | 18 ++-----
  src/cmd/compile/internal/ir/node.go             | 26 +++-------
@@ -29,3 +29,460 @@ Date:   Tue Jul 19 13:15:05 2022 -0700
  src/cmd/compile/internal/walk/range.go          | 13 -----
  src/cmd/compile/internal/walk/stmt.go           |  7 +--
  12 files changed, 69 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index 8b361bcbd0..90d4f2dedc 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -78,7 +78,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		n := n.(*ir.UnaryExpr)
+ 		e.discard(n.X)
+ 
+-	case ir.OFOR, ir.OFORUNTIL:
++	case ir.OFOR:
+ 		n := n.(*ir.ForStmt)
+ 		e.loopDepth++
+ 		e.discard(n.Cond)
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 5912438d09..f12054e657 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -50,7 +50,6 @@ var OpNames = []string{
+ 	OEQ:          "==",
+ 	OFALL:        "fallthrough",
+ 	OFOR:         "for",
+-	OFORUNTIL:    "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
+ 	OGE:          ">=",
+ 	OGOTO:        "goto",
+ 	OGT:          ">",
+@@ -274,7 +273,6 @@ var OpPrec = []int{
+ 	ODEFER:      -1,
+ 	OFALL:       -1,
+ 	OFOR:        -1,
+-	OFORUNTIL:   -1,
+ 	OGOTO:       -1,
+ 	OIF:         -1,
+ 	OLABEL:      -1,
+@@ -290,7 +288,7 @@ var OpPrec = []int{
+ // StmtWithInit reports whether op is a statement with an explicit init list.
+ func StmtWithInit(op Op) bool {
+ 	switch op {
+-	case OIF, OFOR, OFORUNTIL, OSWITCH:
++	case OIF, OFOR, OSWITCH:
+ 		return true
+ 	}
+ 	return false
+@@ -401,18 +399,14 @@ func stmtFmt(n Node, s fmt.State) {
+ 			fmt.Fprintf(s, " else { %v }", n.Else)
+ 		}
+ 
+-	case OFOR, OFORUNTIL:
++	case OFOR:
+ 		n := n.(*ForStmt)
+-		opname := "for"
+-		if n.Op() == OFORUNTIL {
+-			opname = "foruntil"
+-		}
+ 		if !exportFormat { // TODO maybe only if FmtShort, same below
+-			fmt.Fprintf(s, "%s loop", opname)
++			fmt.Fprintf(s, "for loop")
+ 			break
+ 		}
+ 
+-		fmt.Fprint(s, opname)
++		fmt.Fprint(s, "for")
+ 		if simpleinit {
+ 			fmt.Fprintf(s, " %v;", n.Init()[0])
+ 		} else if n.Post != nil {
+@@ -429,10 +423,6 @@ func stmtFmt(n Node, s fmt.State) {
+ 			fmt.Fprint(s, ";")
+ 		}
+ 
+-		if n.Op() == OFORUNTIL && len(n.Late) != 0 {
+-			fmt.Fprintf(s, "; %v", n.Late)
+-		}
+-
+ 		fmt.Fprintf(s, " { %v }", n.Body)
+ 
+ 	case ORANGE:
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 3b69f98426..0ce5339c12 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -263,24 +263,14 @@ const (
+ 	ODEFER    // defer Call
+ 	OFALL     // fallthrough
+ 	OFOR      // for Init; Cond; Post { Body }
+-	// OFORUNTIL is like OFOR, but the test (Cond) is applied after the body:
+-	// 	Init
+-	// 	top: { Body }   // Execute the body at least once
+-	// 	cont: Post
+-	// 	if Cond {        // And then test the loop condition
+-	// 		List     // Before looping to top, execute List
+-	// 		goto top
+-	// 	}
+-	// OFORUNTIL is created by walk. There's no way to write this in Go code.
+-	OFORUNTIL
+-	OGOTO   // goto Label
+-	OIF     // if Init; Cond { Then } else { Else }
+-	OLABEL  // Label:
+-	OGO     // go Call
+-	ORANGE  // for Key, Value = range X { Body }
+-	ORETURN // return Results
+-	OSELECT // select { Cases }
+-	OSWITCH // switch Init; Expr { Cases }
++	OGOTO     // goto Label
++	OIF       // if Init; Cond { Then } else { Else }
++	OLABEL    // Label:
++	OGO       // go Call
++	ORANGE    // for Key, Value = range X { Body }
++	ORETURN   // return Results
++	OSELECT   // select { Cases }
++	OSWITCH   // switch Init; Expr { Cases }
+ 	// OTYPESW:  X := Y.(type) (appears as .Tag of OSWITCH)
+ 	//   X is nil if there is no type-switch variable
+ 	OTYPESW
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 6e14bea169..108e3c494c 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -483,7 +483,6 @@ func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *ForStmt) copy() Node {
+ 	c := *n
+ 	c.init = copyNodes(c.init)
+-	c.Late = copyNodes(c.Late)
+ 	c.Body = copyNodes(c.Body)
+ 	return &c
+ }
+@@ -494,9 +493,6 @@ func (n *ForStmt) doChildren(do func(Node) bool) bool {
+ 	if n.Cond != nil && do(n.Cond) {
+ 		return true
+ 	}
+-	if doNodes(n.Late, do) {
+-		return true
+-	}
+ 	if n.Post != nil && do(n.Post) {
+ 		return true
+ 	}
+@@ -510,7 +506,6 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
+ 	if n.Cond != nil {
+ 		n.Cond = edit(n.Cond).(Node)
+ 	}
+-	editNodes(n.Late, edit)
+ 	if n.Post != nil {
+ 		n.Post = edit(n.Post).(Node)
+ 	}
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 5d475a7995..d2a933f9ec 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -129,44 +129,43 @@ func _() {
+ 	_ = x[ODEFER-118]
+ 	_ = x[OFALL-119]
+ 	_ = x[OFOR-120]
+-	_ = x[OFORUNTIL-121]
+-	_ = x[OGOTO-122]
+-	_ = x[OIF-123]
+-	_ = x[OLABEL-124]
+-	_ = x[OGO-125]
+-	_ = x[ORANGE-126]
+-	_ = x[ORETURN-127]
+-	_ = x[OSELECT-128]
+-	_ = x[OSWITCH-129]
+-	_ = x[OTYPESW-130]
+-	_ = x[OFUNCINST-131]
+-	_ = x[OINLCALL-132]
+-	_ = x[OEFACE-133]
+-	_ = x[OITAB-134]
+-	_ = x[OIDATA-135]
+-	_ = x[OSPTR-136]
+-	_ = x[OCFUNC-137]
+-	_ = x[OCHECKNIL-138]
+-	_ = x[OVARDEF-139]
+-	_ = x[OVARKILL-140]
+-	_ = x[OVARLIVE-141]
+-	_ = x[ORESULT-142]
+-	_ = x[OINLMARK-143]
+-	_ = x[OLINKSYMOFFSET-144]
+-	_ = x[OJUMPTABLE-145]
+-	_ = x[ODYNAMICDOTTYPE-146]
+-	_ = x[ODYNAMICDOTTYPE2-147]
+-	_ = x[ODYNAMICTYPE-148]
+-	_ = x[OTAILCALL-149]
+-	_ = x[OGETG-150]
+-	_ = x[OGETCALLERPC-151]
+-	_ = x[OGETCALLERSP-152]
+-	_ = x[OEND-153]
++	_ = x[OGOTO-121]
++	_ = x[OIF-122]
++	_ = x[OLABEL-123]
++	_ = x[OGO-124]
++	_ = x[ORANGE-125]
++	_ = x[ORETURN-126]
++	_ = x[OSELECT-127]
++	_ = x[OSWITCH-128]
++	_ = x[OTYPESW-129]
++	_ = x[OFUNCINST-130]
++	_ = x[OINLCALL-131]
++	_ = x[OEFACE-132]
++	_ = x[OITAB-133]
++	_ = x[OIDATA-134]
++	_ = x[OSPTR-135]
++	_ = x[OCFUNC-136]
++	_ = x[OCHECKNIL-137]
++	_ = x[OVARDEF-138]
++	_ = x[OVARKILL-139]
++	_ = x[OVARLIVE-140]
++	_ = x[ORESULT-141]
++	_ = x[OINLMARK-142]
++	_ = x[OLINKSYMOFFSET-143]
++	_ = x[OJUMPTABLE-144]
++	_ = x[ODYNAMICDOTTYPE-145]
++	_ = x[ODYNAMICDOTTYPE2-146]
++	_ = x[ODYNAMICTYPE-147]
++	_ = x[OTAILCALL-148]
++	_ = x[OGETG-149]
++	_ = x[OGETCALLERPC-150]
++	_ = x[OGETCALLERSP-151]
++	_ = x[OEND-152]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 722, 726, 728, 733, 735, 740, 746, 752, 758, 764, 772, 779, 784, 788, 793, 797, 802, 810, 816, 823, 830, 836, 843, 856, 865, 879, 894, 905, 913, 917, 928, 939, 942}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 718, 720, 725, 727, 732, 738, 744, 750, 756, 764, 771, 776, 780, 785, 789, 794, 802, 808, 815, 822, 828, 835, 848, 857, 871, 886, 897, 905, 909, 920, 931, 934}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index cae773b722..9f2d04f450 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -205,12 +205,10 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
+ }
+ 
+ // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
+-// Op can be OFOR or OFORUNTIL (!Cond).
+ type ForStmt struct {
+ 	miniStmt
+ 	Label    *types.Sym
+ 	Cond     Node
+-	Late     Nodes
+ 	Post     Node
+ 	Body     Nodes
+ 	HasBreak bool
+@@ -227,13 +225,6 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt
+ 	return n
+ }
+ 
+-func (n *ForStmt) SetOp(op Op) {
+-	if op != OFOR && op != OFORUNTIL {
+-		panic(n.no("SetOp " + op.String()))
+-	}
+-	n.op = op
+-}
+-
+ // A GoDeferStmt is a go or defer statement: go Call / defer Call.
+ //
+ // The two opcodes use a single syntax because the implementations
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a6cd687999..fec79a413b 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1099,8 +1099,7 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
+ // addLocalInductiveFacts adds inductive facts when visiting b, where
+ // b is a join point in a loop. In contrast with findIndVar, this
+ // depends on facts established for b, which is why it happens when
+-// visiting b. addLocalInductiveFacts specifically targets the pattern
+-// created by OFORUNTIL, which isn't detected by findIndVar.
++// visiting b.
+ //
+ // TODO: It would be nice to combine this with findIndVar.
+ func addLocalInductiveFacts(ft *factsTable, b *Block) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e5fe646eaf..0c30cfecab 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1738,12 +1738,9 @@ func (s *state) stmt(n ir.Node) {
+ 		b.Pos = s.lastPos.WithIsStmt() // Do this even if b is an empty block.
+ 		b.AddEdgeTo(to)
+ 
+-	case ir.OFOR, ir.OFORUNTIL:
++	case ir.OFOR:
+ 		// OFOR: for Ninit; Left; Right { Nbody }
+ 		// cond (Left); body (Nbody); incr (Right)
+-		//
+-		// OFORUNTIL: for Ninit; Left; Right; List { Nbody }
+-		// => body: { Nbody }; incr: Right; if Left { lateincr: List; goto body }; end:
+ 		n := n.(*ir.ForStmt)
+ 		bCond := s.f.NewBlock(ssa.BlockPlain)
+ 		bBody := s.f.NewBlock(ssa.BlockPlain)
+@@ -1753,21 +1750,17 @@ func (s *state) stmt(n ir.Node) {
+ 		// ensure empty for loops have correct position; issue #30167
+ 		bBody.Pos = n.Pos()
+ 
+-		// first, jump to condition test (OFOR) or body (OFORUNTIL)
++		// first, jump to condition test
+ 		b := s.endBlock()
+-		if n.Op() == ir.OFOR {
+-			b.AddEdgeTo(bCond)
+-			// generate code to test condition
+-			s.startBlock(bCond)
+-			if n.Cond != nil {
+-				s.condBranch(n.Cond, bBody, bEnd, 1)
+-			} else {
+-				b := s.endBlock()
+-				b.Kind = ssa.BlockPlain
+-				b.AddEdgeTo(bBody)
+-			}
++		b.AddEdgeTo(bCond)
+ 
++		// generate code to test condition
++		s.startBlock(bCond)
++		if n.Cond != nil {
++			s.condBranch(n.Cond, bBody, bEnd, 1)
+ 		} else {
++			b := s.endBlock()
++			b.Kind = ssa.BlockPlain
+ 			b.AddEdgeTo(bBody)
+ 		}
+ 
+@@ -1801,29 +1794,18 @@ func (s *state) stmt(n ir.Node) {
+ 			b.AddEdgeTo(bIncr)
+ 		}
+ 
+-		// generate incr (and, for OFORUNTIL, condition)
++		// generate incr
+ 		s.startBlock(bIncr)
+ 		if n.Post != nil {
+ 			s.stmt(n.Post)
+ 		}
+-		if n.Op() == ir.OFOR {
+-			if b := s.endBlock(); b != nil {
+-				b.AddEdgeTo(bCond)
+-				// It can happen that bIncr ends in a block containing only VARKILL,
+-				// and that muddles the debugging experience.
+-				if b.Pos == src.NoXPos {
+-					b.Pos = bCond.Pos
+-				}
++		if b := s.endBlock(); b != nil {
++			b.AddEdgeTo(bCond)
++			// It can happen that bIncr ends in a block containing only VARKILL,
++			// and that muddles the debugging experience.
++			if b.Pos == src.NoXPos {
++				b.Pos = bCond.Pos
+ 			}
+-		} else {
+-			// bCond is unused in OFORUNTIL, so repurpose it.
+-			bLateIncr := bCond
+-			// test condition
+-			s.condBranch(n.Cond, bLateIncr, bEnd, 1)
+-			// generate late increment
+-			s.startBlock(bLateIncr)
+-			s.stmtList(n.Late)
+-			s.endBlock().AddEdgeTo(bBody)
+ 		}
+ 
+ 		s.startBlock(bEnd)
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 370e324874..5eeab4115e 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -258,9 +258,6 @@ func tcFor(n *ir.ForStmt) ir.Node {
+ 		}
+ 	}
+ 	n.Post = Stmt(n.Post)
+-	if n.Op() == ir.OFORUNTIL {
+-		Stmts(n.Late)
+-	}
+ 	Stmts(n.Body)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 3b0c1f734e..44e1b3ef78 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -774,7 +774,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		tcGoDefer(n)
+ 		return n
+ 
+-	case ir.OFOR, ir.OFORUNTIL:
++	case ir.OFOR:
+ 		n := n.(*ir.ForStmt)
+ 		return tcFor(n)
+ 
+@@ -1697,7 +1697,7 @@ func markBreak(fn *ir.Func) {
+ 				setHasBreak(labels[n.Label])
+ 			}
+ 
+-		case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
++		case ir.OFOR, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
+ 			old := implicit
+ 			implicit = n
+ 			var sym *types.Sym
+@@ -1773,7 +1773,7 @@ func isTermNode(n ir.Node) bool {
+ 	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
+ 		return true
+ 
+-	case ir.OFOR, ir.OFORUNTIL:
++	case ir.OFOR:
+ 		n := n.(*ir.ForStmt)
+ 		if n.Cond != nil {
+ 			return false
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 4a2b55c71a..f2591c362a 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -123,19 +123,6 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 			break
+ 		}
+ 
+-		// TODO(austin): OFORUNTIL is a strange beast, but is
+-		// necessary for expressing the control flow we need
+-		// while also making "break" and "continue" work. It
+-		// would be nice to just lower ORANGE during SSA, but
+-		// racewalk needs to see many of the operations
+-		// involved in ORANGE's implementation. If racewalk
+-		// moves into SSA, consider moving ORANGE into SSA and
+-		// eliminating OFORUNTIL.
+-
+-		// TODO(austin): OFORUNTIL inhibits bounds-check
+-		// elimination on the index variable (see #20711).
+-		// Enhance the prove pass to understand this.
+-
+ 		// Slice to iterate over
+ 		var hs ir.Node
+ 		if t.IsSlice() {
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index 8a42dbf777..9ddc82336c 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -124,7 +124,7 @@ func walkStmt(n ir.Node) ir.Node {
+ 		n := n.(*ir.GoDeferStmt)
+ 		return walkGoDefer(n)
+ 
+-	case ir.OFOR, ir.OFORUNTIL:
++	case ir.OFOR:
+ 		n := n.(*ir.ForStmt)
+ 		return walkFor(n)
+ 
+@@ -178,7 +178,7 @@ func walkStmtList(s []ir.Node) {
+ 	}
+ }
+ 
+-// walkFor walks an OFOR or OFORUNTIL node.
++// walkFor walks an OFOR node.
+ func walkFor(n *ir.ForStmt) ir.Node {
+ 	if n.Cond != nil {
+ 		init := ir.TakeInit(n.Cond)
+@@ -188,9 +188,6 @@ func walkFor(n *ir.ForStmt) ir.Node {
+ 	}
+ 
+ 	n.Post = walkStmt(n.Post)
+-	if n.Op() == ir.OFORUNTIL {
+-		walkStmtList(n.Late)
+-	}
+ 	walkStmtList(n.Body)
+ 	return n
+ }

@@ -16,6 +16,19 @@ Date:   Fri Jul 24 16:27:07 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 41fc6d0e62..41e02fc580 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -975,6 +975,7 @@ func (pc *persistConn) readLoop() {
+ 			// the underlying bufio reader.
+ 			select {
+ 			case <-rc.req.Cancel:
++				alive = false
+ 				pc.t.CancelRequest(rc.req)
+ 			case bodyEOF := <-waitForBodyRead:
+ 				pc.t.setReqCanceler(rc.req, nil) // before pc might return to idle pool

@@ -16,7 +16,71 @@ Date:   Mon Aug 8 22:00:09 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue54343.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
  test/run.go                  |  1 +
  2 files changed, 46 insertions(+)
+
+diff --git a/test/fixedbugs/issue54343.go b/test/fixedbugs/issue54343.go
+new file mode 100644
+index 0000000000..f8f73f4048
+--- /dev/null
++++ b/test/fixedbugs/issue54343.go
+@@ -0,0 +1,45 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++func main() {
++	if wait() {
++		panic("GC'd early")
++	}
++	m = nil
++	if !wait() {
++		panic("never GC'd")
++	}
++}
++
++var m = New[int]().M
++
++func New[X any]() *T[X] {
++	p := new(T[X])
++	runtime.SetFinalizer(p, func(*T[X]) { close(done) })
++	return p
++}
++
++type T[X any] int
++
++func (*T[X]) M() {}
++
++var done = make(chan int)
++
++func wait() bool {
++	for i := 0; i < 10; i++ {
++		runtime.GC()
++		select {
++		case <-done:
++			return true
++		default:
++		}
++	}
++	return false
++}
+diff --git a/test/run.go b/test/run.go
+index 4a99203761..8c8c87a46d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1980,6 +1980,7 @@ var types2Failures32Bit = setOf(
+ )
+ 
+ var go118Failures = setOf(
++	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+ 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+ 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+ 	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions

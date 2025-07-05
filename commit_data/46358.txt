@@ -250,3 +250,352 @@ Date:   Wed Dec 23 01:43:22 2020 -0500
  src/cmd/compile/main.go                            |    3 +-
  src/cmd/internal/archive/archive.go                |   21 +
  207 files changed, 23455 insertions(+), 22881 deletions(-)
+
+diff --cc src/cmd/compile/fmtmap_test.go
+index 9105bac191,a925ec05ac..7663d1e23b
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@@ -20,83 -20,56 +20,83 @@@ package main_tes
+  // An absent entry means that the format is not recognized as valid.
+  // An empty new format means that the format should remain unchanged.
+  var knownFormats = map[string]string{
+ -	"*bytes.Buffer %s":                             "",
+ -	"*cmd/compile/internal/ssa.Block %s":           "",
+ -	"*cmd/compile/internal/ssa.Func %s":            "",
+ -	"*cmd/compile/internal/ssa.Register %s":        "",
+ -	"*cmd/compile/internal/ssa.Value %s":           "",
+ -	"*cmd/compile/internal/types.Sym %+v":          "",
+ -	"*cmd/compile/internal/types.Sym %S":           "",
+ -	"*cmd/compile/internal/types.Type %+v":         "",
+ -	"*cmd/compile/internal/types.Type %-S":         "",
+ -	"*cmd/compile/internal/types.Type %L":          "",
+ -	"*cmd/compile/internal/types.Type %S":          "",
+ -	"*cmd/compile/internal/types.Type %s":          "",
+ -	"*math/big.Float %f":                           "",
+ -	"*math/big.Int %s":                             "",
+ -	"[]cmd/compile/internal/syntax.token %s":       "",
+ -	"cmd/compile/internal/arm.shift %d":            "",
+ -	"cmd/compile/internal/gc.RegIndex %d":          "",
+ -	"cmd/compile/internal/ir.Class %d":             "",
+ -	"cmd/compile/internal/ir.Node %+v":             "",
+ -	"cmd/compile/internal/ir.Node %L":              "",
+ -	"cmd/compile/internal/ir.Nodes %+v":            "",
+ -	"cmd/compile/internal/ir.Nodes %.v":            "",
+ -	"cmd/compile/internal/ir.Op %+v":               "",
+ -	"cmd/compile/internal/ssa.Aux %#v":             "",
+ -	"cmd/compile/internal/ssa.Aux %q":              "",
+ -	"cmd/compile/internal/ssa.Aux %s":              "",
+ -	"cmd/compile/internal/ssa.BranchPrediction %d": "",
+ -	"cmd/compile/internal/ssa.ID %d":               "",
+ -	"cmd/compile/internal/ssa.LocalSlot %s":        "",
+ -	"cmd/compile/internal/ssa.Location %s":         "",
+ -	"cmd/compile/internal/ssa.Op %s":               "",
+ -	"cmd/compile/internal/ssa.ValAndOff %s":        "",
+ -	"cmd/compile/internal/ssa.flagConstant %s":     "",
+ -	"cmd/compile/internal/ssa.rbrank %d":           "",
+ -	"cmd/compile/internal/ssa.regMask %d":          "",
+ -	"cmd/compile/internal/ssa.register %d":         "",
+ -	"cmd/compile/internal/ssa.relation %s":         "",
+ -	"cmd/compile/internal/syntax.Error %q":         "",
+ -	"cmd/compile/internal/syntax.Expr %#v":         "",
+ -	"cmd/compile/internal/syntax.LitKind %d":       "",
+ -	"cmd/compile/internal/syntax.Operator %s":      "",
+ -	"cmd/compile/internal/syntax.Pos %s":           "",
+ -	"cmd/compile/internal/syntax.position %s":      "",
+ -	"cmd/compile/internal/syntax.token %q":         "",
+ -	"cmd/compile/internal/syntax.token %s":         "",
+ -	"cmd/compile/internal/types.Kind %d":           "",
+ -	"cmd/compile/internal/types.Kind %s":           "",
+ -	"cmd/compile/internal/walk.initKind %d":        "",
+ -	"go/constant.Value %#v":                        "",
+ -	"math/big.Accuracy %s":                         "",
+ -	"reflect.Type %s":                              "",
+ -	"time.Duration %d":                             "",
+ +	"*bytes.Buffer %s":                                                               "",
+ +	"*cmd/compile/internal/ssa.Block %s":                                             "",
+ +	"*cmd/compile/internal/ssa.Func %s":                                              "",
+ +	"*cmd/compile/internal/ssa.Register %s":                                          "",
+ +	"*cmd/compile/internal/ssa.Value %s":                                             "",
+ +	"*cmd/compile/internal/syntax.CallExpr %s":                                       "",
+ +	"*cmd/compile/internal/syntax.FuncLit %s":                                        "",
+ +	"*cmd/compile/internal/syntax.IndexExpr %s":                                      "",
+ +	"*cmd/compile/internal/types.Sym %+v":                                            "",
+ +	"*cmd/compile/internal/types.Sym %S":                                             "",
+ +	"*cmd/compile/internal/types.Type %+v":                                           "",
+ +	"*cmd/compile/internal/types.Type %-S":                                           "",
+ +	"*cmd/compile/internal/types.Type %L":                                            "",
+ +	"*cmd/compile/internal/types.Type %S":                                            "",
+ +	"*cmd/compile/internal/types.Type %s":                                            "",
+ +	"*cmd/compile/internal/types2.Basic %s":                                          "",
+ +	"*cmd/compile/internal/types2.Chan %s":                                           "",
+ +	"*cmd/compile/internal/types2.Func %s":                                           "",
+ +	"*cmd/compile/internal/types2.Initializer %s":                                    "",
+ +	"*cmd/compile/internal/types2.Interface %s":                                      "",
+ +	"*cmd/compile/internal/types2.MethodSet %s":                                      "",
+ +	"*cmd/compile/internal/types2.Named %s":                                          "",
+ +	"*cmd/compile/internal/types2.Package %s":                                        "",
+ +	"*cmd/compile/internal/types2.Selection %s":                                      "",
+ +	"*cmd/compile/internal/types2.Signature %s":                                      "",
+ +	"*cmd/compile/internal/types2.TypeName %s":                                       "",
+ +	"*cmd/compile/internal/types2.TypeParam %s":                                      "",
+ +	"*cmd/compile/internal/types2.Var %s":                                            "",
+ +	"*cmd/compile/internal/types2.operand %s":                                        "",
+ +	"*cmd/compile/internal/types2.substMap %s":                                       "",
+ +	"*math/big.Float %f":                                                             "",
+ +	"*math/big.Int %s":                                                               "",
+ +	"[]*cmd/compile/internal/types2.TypeName %s":                                     "",
+ +	"[]cmd/compile/internal/syntax.token %s":                                         "",
+ +	"[]cmd/compile/internal/types2.Type %s":                                          "",
+ +	"cmd/compile/internal/arm.shift %d":                                              "",
+ +	"cmd/compile/internal/gc.RegIndex %d":                                            "",
+- 	"cmd/compile/internal/gc.initKind %d":                                            "",
+ +	"cmd/compile/internal/ir.Class %d":                                               "",
+ +	"cmd/compile/internal/ir.Node %+v":                                               "",
+ +	"cmd/compile/internal/ir.Node %L":                                                "",
+ +	"cmd/compile/internal/ir.Nodes %+v":                                              "",
+ +	"cmd/compile/internal/ir.Nodes %.v":                                              "",
+ +	"cmd/compile/internal/ir.Op %+v":                                                 "",
+ +	"cmd/compile/internal/ssa.Aux %#v":                                               "",
+ +	"cmd/compile/internal/ssa.Aux %q":                                                "",
+ +	"cmd/compile/internal/ssa.Aux %s":                                                "",
+ +	"cmd/compile/internal/ssa.BranchPrediction %d":                                   "",
+ +	"cmd/compile/internal/ssa.ID %d":                                                 "",
+ +	"cmd/compile/internal/ssa.LocalSlot %s":                                          "",
+ +	"cmd/compile/internal/ssa.Location %s":                                           "",
+ +	"cmd/compile/internal/ssa.Op %s":                                                 "",
+ +	"cmd/compile/internal/ssa.ValAndOff %s":                                          "",
+ +	"cmd/compile/internal/ssa.flagConstant %s":                                       "",
+ +	"cmd/compile/internal/ssa.rbrank %d":                                             "",
+ +	"cmd/compile/internal/ssa.regMask %d":                                            "",
+ +	"cmd/compile/internal/ssa.register %d":                                           "",
+ +	"cmd/compile/internal/ssa.relation %s":                                           "",
+ +	"cmd/compile/internal/syntax.ChanDir %d":                                         "",
+ +	"cmd/compile/internal/syntax.Error %q":                                           "",
+ +	"cmd/compile/internal/syntax.Expr %#v":                                           "",
+ +	"cmd/compile/internal/syntax.Expr %s":                                            "",
+ +	"cmd/compile/internal/syntax.LitKind %d":                                         "",
+ +	"cmd/compile/internal/syntax.Operator %s":                                        "",
+ +	"cmd/compile/internal/syntax.Pos %s":                                             "",
+ +	"cmd/compile/internal/syntax.position %s":                                        "",
+ +	"cmd/compile/internal/syntax.token %q":                                           "",
+ +	"cmd/compile/internal/syntax.token %s":                                           "",
+ +	"cmd/compile/internal/types.Kind %d":                                             "",
+ +	"cmd/compile/internal/types.Kind %s":                                             "",
+ +	"cmd/compile/internal/types2.Object %s":                                          "",
+ +	"cmd/compile/internal/types2.Type %s":                                            "",
+ +	"cmd/compile/internal/types2.color %s":                                           "",
+++	"cmd/compile/internal/walk.initKind %d":                                          "",
+ +	"go/constant.Value %#v":                                                          "",
+ +	"go/constant.Value %s":                                                           "",
+ +	"map[*cmd/compile/internal/types2.TypeParam]cmd/compile/internal/types2.Type %s": "",
+ +	"math/big.Accuracy %s":                                                           "",
+ +	"reflect.Type %s":                                                                "",
+ +	"time.Duration %d":                                                               "",
+  }
+diff --cc src/cmd/compile/internal/gc/main.go
+index b9454604f0,8483c87a38..c5870c650a
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@@ -186,51 -182,45 +182,51 @@@ func Main(archInit func(*ssagen.ArchInf
+  		logopt.LogJsonOption(base.Flag.JSON)
+  	}
+  
+- 	ir.EscFmt = escFmt
+- 	IsIntrinsicCall = isIntrinsicCall
+- 	SSADumpInline = ssaDumpInline
+- 	initSSAEnv()
+- 	initSSATables()
++ 	ir.EscFmt = escape.Fmt
++ 	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
++ 	inline.SSADumpInline = ssagen.DumpInline
++ 	ssagen.InitEnv()
++ 	ssagen.InitTables()
+  
+- 	Widthptr = thearch.LinkArch.PtrSize
+- 	Widthreg = thearch.LinkArch.RegSize
+- 	MaxWidth = thearch.MAXWIDTH
++ 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
++ 	types.RegSize = ssagen.Arch.LinkArch.RegSize
++ 	types.MaxWidth = ssagen.Arch.MAXWIDTH
+  	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+- 		return typenamesym(t).Linksym()
++ 		return reflectdata.TypeSym(t).Linksym()
+  	}
+  
+- 	Target = new(ir.Package)
++ 	typecheck.Target = new(ir.Package)
+  
+- 	NeedFuncSym = makefuncsym
+- 	NeedITab = func(t, iface *types.Type) { itabname(t, iface) }
+- 	NeedRuntimeType = addsignat // TODO(rsc): typenamesym for lock?
++ 	typecheck.NeedFuncSym = staticdata.NeedFuncSym
++ 	typecheck.NeedITab = func(t, iface *types.Type) { reflectdata.ITabAddr(t, iface) }
++ 	typecheck.NeedRuntimeType = reflectdata.NeedRuntimeType // TODO(rsc): typenamesym for lock?
+  
+- 	autogeneratedPos = makePos(src.NewFileBase("<autogenerated>", "<autogenerated>"), 1, 0)
++ 	base.AutogeneratedPos = makePos(src.NewFileBase("<autogenerated>", "<autogenerated>"), 1, 0)
+  
+  	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+- 		return typenamesym(t).Linksym()
++ 		return reflectdata.TypeSym(t).Linksym()
+  	}
+- 	TypecheckInit()
++ 	typecheck.Init()
+  
+  	// Parse input.
+- 	timings.Start("fe", "parse")
+- 	lines := parseFiles(flag.Args())
+- 	cgoSymABIs()
+- 	timings.Stop()
+- 	timings.AddEvent(int64(lines), "lines")
++ 	base.Timer.Start("fe", "parse")
++ 	lines := noder.ParseFiles(flag.Args())
++ 	ssagen.CgoSymABIs()
++ 	base.Timer.Stop()
++ 	base.Timer.AddEvent(int64(lines), "lines")
+ +	if base.Flag.G != 0 && base.Flag.G < 3 {
+ +		// can only parse generic code for now
+ +		base.ExitIfErrors()
+ +		return
+ +	}
+ +
+- 	recordPackageName()
++ 	dwarfgen.RecordPackageName()
+  
+  	// Typecheck.
+- 	TypecheckPackage()
++ 	typecheck.Package()
+  
+  	// With all user code typechecked, it's now safe to verify unused dot imports.
+- 	checkDotImports()
++ 	noder.CheckDotImports()
+  	base.ExitIfErrors()
+  
+  	// Build init task.
+diff --cc src/cmd/compile/internal/noder/noder.go
+index 8beef0d18b,a684673c8f..1bebb44e6c
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@@ -18,11 -17,10 +18,12 @@@ import 
+  	"unicode/utf8"
+  
+  	"cmd/compile/internal/base"
+ +	"cmd/compile/internal/importer"
+  	"cmd/compile/internal/ir"
+  	"cmd/compile/internal/syntax"
++ 	"cmd/compile/internal/typecheck"
+  	"cmd/compile/internal/types"
+ +	"cmd/compile/internal/types2"
+  	"cmd/internal/objabi"
+  	"cmd/internal/src"
+  )
+@@@ -31,7 -29,7 +32,7 @@@
+  // Each declaration in every *syntax.File is converted to a syntax tree
+  // and its root represented by *Node is appended to Target.Decls.
+  // Returns the total count of parsed lines.
+- func parseFiles(filenames []string) (lines uint) {
+ -func ParseFiles(filenames []string) uint {
+++func ParseFiles(filenames []string) (lines uint) {
+  	noders := make([]*noder, 0, len(filenames))
+  	// Limit the number of simultaneously open files.
+  	sem := make(chan struct{}, runtime.GOMAXPROCS(0)+10)
+@@@ -65,86 -59,7 +66,86 @@@
+  		}(filename)
+  	}
+  
+ -	var lines uint
+ +	// generic noding phase (using new typechecker)
+ +	if base.Flag.G != 0 {
+ +		// setup and syntax error reporting
+ +		nodersmap := make(map[string]*noder)
+ +		var files []*syntax.File
+ +		for _, p := range noders {
+ +			for e := range p.err {
+ +				p.errorAt(e.Pos, "%s", e.Msg)
+ +			}
+ +
+ +			nodersmap[p.file.Pos().RelFilename()] = p
+ +			files = append(files, p.file)
+ +			lines += p.file.EOF.Line()
+ +
+ +		}
+ +		if base.SyntaxErrors() != 0 {
+ +			base.ErrorExit()
+ +		}
+ +
+ +		// typechecking
+ +		conf := types2.Config{
+ +			InferFromConstraints:  true,
+ +			IgnoreBranches:        true, // parser already checked via syntax.CheckBranches mode
+ +			CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ +			Error: func(err error) {
+ +				terr := err.(types2.Error)
+ +				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
+ +					// types2 reports error clarifications via separate
+ +					// error messages which are indented with a tab.
+ +					// Ignore them to satisfy tools and tests that expect
+ +					// only one error in such cases.
+ +					// TODO(gri) Need to adjust error reporting in types2.
+ +					return
+ +				}
+ +				p := nodersmap[terr.Pos.RelFilename()]
+ +				base.ErrorfAt(p.makeXPos(terr.Pos), "%s", terr.Msg)
+ +			},
+ +			Importer: &gcimports{
+ +				packages: make(map[string]*types2.Package),
+ +				lookup: func(path string) (io.ReadCloser, error) {
+ +					file, ok := findpkg(path)
+ +					if !ok {
+ +						return nil, fmt.Errorf("can't find import: %q", path)
+ +					}
+ +					return os.Open(file)
+ +				},
+ +			},
+ +		}
+ +		info := types2.Info{
+ +			Types:      make(map[syntax.Expr]types2.TypeAndValue),
+ +			Defs:       make(map[*syntax.Name]types2.Object),
+ +			Uses:       make(map[*syntax.Name]types2.Object),
+ +			Selections: make(map[*syntax.SelectorExpr]*types2.Selection),
+ +			// expand as needed
+ +		}
+ +		conf.Check(base.Ctxt.Pkgpath, files, &info)
+ +		base.ExitIfErrors()
+ +		if base.Flag.G < 2 {
+ +			return
+ +		}
+ +
+ +		// noding
+ +		for _, p := range noders {
+ +			// errors have already been reported
+ +
+ +			p.typeInfo = &info
+ +			p.node()
+ +			lines += p.file.EOF.Line()
+ +			p.file = nil // release memory
+ +			base.ExitIfErrors()
+ +
+ +			// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+- 			testdclstack()
+++			types.CheckDclstack()
+ +		}
+ +
+ +		types.LocalPkg.Height = myheight
+ +		return
+ +	}
+ +
+ +	// traditional (non-generic) noding phase
+  	for _, p := range noders {
+  		for e := range p.err {
+  			p.errorAt(e.Pos, "%s", e.Msg)
+@@@ -156,9 -71,9 +157,9 @@@
+  		if base.SyntaxErrors() != 0 {
+  			base.ErrorExit()
+  		}
+ +
+  		// Always run testdclstack here, even when debug_dclstack is not set, as a sanity measure.
+- 		testdclstack()
++ 		types.CheckDclstack()
+  	}
+  
+  	for _, p := range noders {

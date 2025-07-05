@@ -16,8 +16,103 @@ Date:   Thu May 23 19:17:21 2024 +0000
     Auto-Submit: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/cfg/cfg.go             | 17 +++++++++++++----
  src/cmd/go/internal/envcmd/env.go          |  6 ++----
  src/cmd/go/testdata/script/env_changed.txt | 11 +++++++++++
  3 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 002d0006ed..3715a19a96 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -285,8 +285,9 @@ var OrigEnv []string
+ var CmdEnv []EnvVar
+ 
+ var envCache struct {
+-	once sync.Once
+-	m    map[string]string
++	once   sync.Once
++	m      map[string]string
++	goroot map[string]string
+ }
+ 
+ // EnvFile returns the name of the Go environment configuration file,
+@@ -310,6 +311,7 @@ func EnvFile() (string, bool, error) {
+ 
+ func initEnvCache() {
+ 	envCache.m = make(map[string]string)
++	envCache.goroot = make(map[string]string)
+ 	if file, _, _ := EnvFile(); file != "" {
+ 		readEnvFile(file, "user")
+ 	}
+@@ -357,6 +359,7 @@ func readEnvFile(file string, source string) {
+ 		key, val := line[:i], line[i+1:]
+ 
+ 		if source == "GOROOT" {
++			envCache.goroot[string(key)] = string(val)
+ 			// In the GOROOT/go.env file, do not overwrite fields loaded from the user's go/env file.
+ 			if _, ok := envCache.m[string(key)]; ok {
+ 				continue
+@@ -433,10 +436,16 @@ var (
+ 
+ // EnvOrAndChanged returns the environment variable value
+ // and reports whether it differs from the default value.
+-func EnvOrAndChanged(name, def string) (string, bool) {
++func EnvOrAndChanged(name, def string) (v string, changed bool) {
+ 	val := Getenv(name)
+ 	if val != "" {
+-		return val, val != def
++		v = val
++		if g, ok := envCache.goroot[name]; ok {
++			changed = val != g
++		} else {
++			changed = val != def
++		}
++		return v, changed
+ 	}
+ 	return def, false
+ }
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index c4836b2f95..f19577c4df 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -106,7 +106,7 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
+ 		{Name: "GOSUMDB", Value: cfg.GOSUMDB, Changed: cfg.GOSUMDBChanged},
+ 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+-		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
++		{Name: "GOTOOLCHAIN"},
+ 		{Name: "GOTOOLDIR", Value: build.ToolDir},
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
+ 		{Name: "GOVERSION", Value: runtime.Version()},
+@@ -128,9 +128,7 @@ func MkEnv() []cfg.EnvVar {
+ 		case "GOCACHE":
+ 			env[i].Value, env[i].Changed = cache.DefaultDir()
+ 		case "GOTOOLCHAIN":
+-			if env[i].Value != "auto" {
+-				env[i].Changed = true
+-			}
++			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GOTOOLCHAIN", "")
+ 		case "GODEBUG":
+ 			env[i].Changed = env[i].Value != ""
+ 		}
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+index 7b7b154dae..a3d368cd39 100644
+--- a/src/cmd/go/testdata/script/env_changed.txt
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -43,3 +43,14 @@ go env -changed -json GOOS
+ go env -changed -json GOARCH
+ [GOARCH:amd64] stdout '"GOARCH": "arm64"'
+ [!GOARCH:amd64] stdout '"GOARCH": "amd64"'
++
++env GOROOT=./a
++env GOPROXY=s
++go env -changed GOPROXY
++! stdout 'GOPROXY'
++env GOPROXY=s2
++go env -changed GOPROXY
++stdout 'GOPROXY=''?s2''?'
++
++--  a/go.env --
++GOPROXY=s

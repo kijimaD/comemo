@@ -19,9 +19,121 @@ Date:   Tue Nov 1 08:53:10 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dnsclient_unix.go      |  4 ++++
  src/net/dnsclient_unix_test.go | 47 +++++++++++++++++++++++++++++++++++++++---
  src/net/dnsconfig.go           |  1 +
  src/net/dnsconfig_unix.go      |  2 ++
  4 files changed, 51 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 74029d2311..b958db52b0 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -369,6 +369,10 @@ func (conf *resolverConfig) init() {
+ func (conf *resolverConfig) tryUpdate(name string) {
+ 	conf.initOnce.Do(conf.init)
+ 
++	if conf.dnsConfig.noReload {
++		return
++	}
++
+ 	// Ensure only one update at a time checks resolv.conf.
+ 	if !conf.tryAcquireSema() {
+ 		return
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 553b220cbe..20ee8bd062 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -247,7 +247,7 @@ func newResolvConfTest() (*resolvConfTest, error) {
+ 	return conf, nil
+ }
+ 
+-func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
++func (conf *resolvConfTest) write(lines []string) error {
+ 	f, err := os.OpenFile(conf.path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+ 	if err != nil {
+ 		return err
+@@ -257,10 +257,18 @@ func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
+ 		return err
+ 	}
+ 	f.Close()
+-	if err := conf.forceUpdate(conf.path, time.Now().Add(time.Hour)); err != nil {
++	return nil
++}
++
++func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
++	return conf.writeAndUpdateWithLastCheckedTime(lines, time.Now().Add(time.Hour))
++}
++
++func (conf *resolvConfTest) writeAndUpdateWithLastCheckedTime(lines []string, lastChecked time.Time) error {
++	if err := conf.write(lines); err != nil {
+ 		return err
+ 	}
+-	return nil
++	return conf.forceUpdate(conf.path, lastChecked)
+ }
+ 
+ func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
+@@ -2409,3 +2417,36 @@ func TestDNSTrustAD(t *testing.T) {
+ 		t.Errorf("lookup failed: %v", err)
+ 	}
+ }
++
++func TestDNSConfigNoReload(t *testing.T) {
++	r := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
++		if address != "192.0.2.1:53" {
++			return nil, errors.New("configuration unexpectedly changed")
++		}
++		return fakeDNSServerSuccessful.DialContext(ctx, network, address)
++	}}
++
++	conf, err := newResolvConfTest()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conf.teardown()
++
++	err = conf.writeAndUpdateWithLastCheckedTime([]string{"nameserver 192.0.2.1", "options no-reload"}, time.Now().Add(-time.Hour))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if _, err = r.LookupHost(context.Background(), "go.dev"); err != nil {
++		t.Fatal(err)
++	}
++
++	err = conf.write([]string{"nameserver 192.0.2.200"})
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if _, err = r.LookupHost(context.Background(), "go.dev"); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/net/dnsconfig.go b/src/net/dnsconfig.go
+index 37252b5a0b..c86a70be5a 100644
+--- a/src/net/dnsconfig.go
++++ b/src/net/dnsconfig.go
+@@ -30,6 +30,7 @@ type dnsConfig struct {
+ 	singleRequest bool          // use sequential A and AAAA queries instead of parallel queries
+ 	useTCP        bool          // force usage of TCP for DNS resolutions
+ 	trustAD       bool          // add AD flag to queries
++	noReload      bool          // do not check for config file updates
+ }
+ 
+ // serverOffset returns an offset that can be used to determine
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 962314b4b6..8f6ae34c1b 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -118,6 +118,8 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 				case s == "edns0":
+ 					// We use EDNS by default.
+ 					// Ignore this option.
++				case s == "no-reload":
++					conf.noReload = true
+ 				default:
+ 					conf.unknownOpt = true
+ 				}

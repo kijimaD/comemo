@@ -7,6 +7,20 @@ Date:   Sun Apr 10 12:49:40 2016 +0200
     Change-Id: Id79eaa6d49dae80c334c7243b0a5bbcdcb9397d3
     Reviewed-on: https://go-review.googlesource.com/21758
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/internal/trace/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 5db3fc317e..65530b15c3 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -134,7 +134,7 @@ func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
+ 				return nil, nil, err
+ 			}
+ 			if ln == 0 {
+-				return nil, nil, fmt.Errorf("string at offset %d has invalie length 0", off)
++				return nil, nil, fmt.Errorf("string at offset %d has invalid length 0", off)
+ 			}
+ 			if ln > 1e6 {
+ 				return nil, nil, fmt.Errorf("string at offset %d has too large length %v", off, ln)

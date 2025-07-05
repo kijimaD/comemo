@@ -12,6 +12,33 @@ Date:   Thu May 21 18:06:34 2015 -0700
     Change-Id: I4d011dbaa15b7c5e73ca71f724f32951a0302dae
     Reviewed-on: https://go-review.googlesource.com/10353
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index 69b9c30a71..a15a2bcac0 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -333,9 +333,9 @@ func TestTrailingZeroBits(t *testing.T) {
+ }
+ 
+ var montgomeryTests = []struct {
+-	x, y, m string
+-	k0      uint64
+-	out32, out64     string
++	x, y, m      string
++	k0           uint64
++	out32, out64 string
+ }{
+ 	{
+ 		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
+@@ -384,7 +384,7 @@ func TestMontgomery(t *testing.T) {
+ 			out = natFromString(test.out64)
+ 		}
+ 
+-		k0 := Word(test.k0 & _M)  // mask k0 to ensure that it fits for 32-bit systems.
++		k0 := Word(test.k0 & _M) // mask k0 to ensure that it fits for 32-bit systems.
+ 		z := nat(nil).montgomery(x, y, m, k0, len(m))
+ 		z = z.norm()
+ 		if z.cmp(out) != 0 {

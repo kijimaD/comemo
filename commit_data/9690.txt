@@ -17,8 +17,101 @@ Date:   Wed Sep 14 20:40:50 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5020043
-
+---
  src/pkg/exp/template/html/doc.go         |  1 -
  src/pkg/exp/template/html/escape.go      | 23 ++++++++++++++++-------
  src/pkg/exp/template/html/escape_test.go | 29 +++++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/doc.go b/src/pkg/exp/template/html/doc.go
+index 12a3b1e580..4344a981f8 100644
+--- a/src/pkg/exp/template/html/doc.go
++++ b/src/pkg/exp/template/html/doc.go
+@@ -19,7 +19,6 @@ that will be passed to Execute.
+ 
+ If successful, set will now be injection-safe. Otherwise, the returned set will
+ be nil and an error, described below, will explain the problem.
+-If an error is returned, do not use the original set; it is insecure.
+ 
+ The template names do not need to include helper templates but should include
+ all names x used thus:
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index a1816fc71c..6be703127f 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -28,10 +28,10 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
+ 
+ // EscapeSet rewrites the template set to guarantee that the output of any of
+ // the named templates is properly escaped.
+-// Names should include the names of all templates that might be called but
+-// need not include helper templates only called by top-level templates.
+-// If nil is returned, then the templates have been modified.  Otherwise no
+-// changes were made.
++// Names should include the names of all templates that might be Executed but
++// need not include helper templates.
++// If no error is returned, then the named templates have been modified. 
++// Otherwise the named templates have been rendered unusable.
+ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
+ 	if len(names) == 0 {
+ 		// TODO: Maybe add a method to Set to enumerate template names
+@@ -48,11 +48,20 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
+ 	}
+ 	for _, name := range names {
+ 		c, _ := e.escapeTree(context{}, name, 0)
++		var err os.Error
+ 		if c.errStr != "" {
+-			return nil, fmt.Errorf("%s:%d: %s", name, c.errLine, c.errStr)
++			err = fmt.Errorf("%s:%d: %s", name, c.errLine, c.errStr)
++		} else if c.state != stateText {
++			err = fmt.Errorf("%s ends in a non-text context: %v", name, c)
+ 		}
+-		if c.state != stateText {
+-			return nil, fmt.Errorf("%s ends in a non-text context: %v", name, c)
++		if err != nil {
++			// Prevent execution of unsafe templates.
++			for _, name := range names {
++				if t := s.Template(name); t != nil {
++					t.Tree = nil
++				}
++			}
++			return nil, err
+ 		}
+ 	}
+ 	e.commit()
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 20bce7ae5c..051e8703ac 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -1148,3 +1148,32 @@ func TestEnsurePipelineContains(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func expectExecuteFailure(t *testing.T, b *bytes.Buffer) {
++	if x := recover(); x != nil {
++		if b.Len() != 0 {
++			t.Errorf("output on buffer: %q", b.String())
++		}
++	} else {
++		t.Errorf("unescaped template executed")
++	}
++}
++
++func TestEscapeErrorsNotIgnorable(t *testing.T) {
++	var b bytes.Buffer
++	tmpl := template.Must(template.New("dangerous").Parse("<a"))
++	Escape(tmpl)
++	defer expectExecuteFailure(t, &b)
++	tmpl.Execute(&b, nil)
++}
++
++func TestEscapeSetErrorsNotIgnorable(t *testing.T) {
++	s, err := (&template.Set{}).Parse(`{{define "t"}}<a{{end}}`)
++	if err != nil {
++		t.Error("failed to parse set: %q", err)
++	}
++	EscapeSet(s, "t")
++	var b bytes.Buffer
++	defer expectExecuteFailure(t, &b)
++	s.Execute(&b, "t", nil)
++}

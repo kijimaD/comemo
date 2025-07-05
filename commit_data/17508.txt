@@ -9,7 +9,43 @@ Date:   Mon Sep 9 12:00:16 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/13624043
-
+---
  src/cmd/gc/walk.c           |  2 ++
  test/fixedbugs/issue6298.go | 15 +++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ff7d772570..e539d25d32 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1386,7 +1386,9 @@ ret:
+ 	// constants until walk. For example, if n is y%1 == 0, the
+ 	// walk of y%1 may have replaced it by 0.
+ 	// Check whether n with its updated args is itself now a constant.
++	t = n->type;
+ 	evconst(n);
++	n->type = t;
+ 	if(n->op == OLITERAL)
+ 		typecheck(&n, Erv);
+ 
+diff --git a/test/fixedbugs/issue6298.go b/test/fixedbugs/issue6298.go
+new file mode 100644
+index 0000000000..6303dbe5b0
+--- /dev/null
++++ b/test/fixedbugs/issue6298.go
+@@ -0,0 +1,15 @@
++// compile
++
++// golang.org/issue/6298.
++// Used to cause "internal error: typename ideal bool"
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var x interface{} = "abc"[0] == 'a'
++	_ = x
++}

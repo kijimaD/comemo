@@ -20,7 +20,36 @@ Date:   Wed Jan 19 16:54:41 2022 -0500
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Julie Qiu <julie@golang.org>
-
+---
  src/math/big/ratconv.go      | 5 +++++
  src/math/big/ratconv_test.go | 1 +
  2 files changed, 6 insertions(+)
+
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index ac3c8bd11f..90053a9c81 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -169,6 +169,11 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 		n := exp5
+ 		if n < 0 {
+ 			n = -n
++			if n < 0 {
++				// This can occur if -n overflows. -(-1 << 63) would become
++				// -1 << 63, which is still negative.
++				return nil, false
++			}
+ 		}
+ 		if n > 1e6 {
+ 			return nil, false // avoid excessively large exponents
+diff --git a/src/math/big/ratconv_test.go b/src/math/big/ratconv_test.go
+index 15d206cb38..e55e655718 100644
+--- a/src/math/big/ratconv_test.go
++++ b/src/math/big/ratconv_test.go
+@@ -104,6 +104,7 @@ var setStringTests = []StringTest{
+ 	{in: "4/3/"},
+ 	{in: "4/3."},
+ 	{in: "4/"},
++	{in: "13e-9223372036854775808"}, // CVE-2022-23772
+ 
+ 	// valid
+ 	{"0", "0", true},

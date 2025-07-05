@@ -22,6 +22,19 @@ Date:   Wed Apr 12 11:09:01 2023 +0200
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics/description.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 9f486d1367..0168ee912c 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -367,6 +367,7 @@ var allDesc = []Description{
+ 		Name:        "/sched/latencies:seconds",
+ 		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
+ 		Kind:        KindFloat64Histogram,
++		Cumulative:  true,
+ 	},
+ 	{
+ 		Name:        "/sync/mutex/wait/total:seconds",

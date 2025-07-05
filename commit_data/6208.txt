@@ -9,7 +9,7 @@ Date:   Wed Sep 8 22:01:48 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2172043
-
+---
  src/pkg/go/printer/printer.go                  |  5 ++++
  src/pkg/go/printer/testdata/comments.golden    | 32 ++++++++++++++++++++++++
  src/pkg/go/printer/testdata/comments.input     | 34 ++++++++++++++++++++++++++
@@ -17,3 +17,164 @@ Date:   Wed Sep 8 22:01:48 2010 -0700
  src/pkg/go/printer/testdata/expressions.input  |  1 -
  src/pkg/go/printer/testdata/expressions.raw    |  4 +--
  6 files changed, 73 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index f1873d92dd..5ee2491958 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -209,6 +209,11 @@ func (p *printer) write(data []byte) {
+ 
+ 		case tabwriter.Escape:
+ 			p.escape = !p.escape
++
++			// ignore escape chars introduced by printer - they are
++			// invisible and must not affect p.pos (was issue #1089)
++			p.pos.Offset--
++			p.pos.Column--
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 4c9f71d95b..200ea332f6 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -431,6 +431,38 @@ func _() {
+ }
+ 
+ 
++// Comments immediately adjacent to punctuation (for which the go/printer
++// may obly have estimated position information) must remain after the punctuation.
++func _() {
++	_ = T{
++		1,	// comment after comma
++		2,	/* comment after comma */
++		3,	// comment after comma
++	}
++	_ = T{
++		1,	// comment after comma
++		2,	/* comment after comma */
++		3,	// comment after comma
++	}
++	_ = T{
++		/* comment before literal */ 1,
++		2,	/* comment before comma - ok to move after comma */
++		3,	/* comment before comma - ok to move after comma */
++	}
++
++	for i = 0;	// comment after semicolon
++	i < 9;		/* comment after semicolon */
++	i++ {		// comment after opening curly brace
++	}
++
++	// TODO(gri) the last comment in this example should be aligned */
++	for i = 0;	// comment after semicolon
++	i < 9;		/* comment before semicolon - ok to move after semicolon */
++	i++ /* comment before opening curly brace */ {
++	}
++}
++
++
+ // Line comments with tabs
+ func _() {
+ 	var finput *bufio.Reader	// input file
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 335e813918..4a9ea4742a 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -429,6 +429,40 @@ func _() {
+ 	/* closing curly brace should be on new line */ }
+ 
+ 
++// Comments immediately adjacent to punctuation (for which the go/printer
++// may obly have estimated position information) must remain after the punctuation.
++func _() {
++	_ = T{
++		1,    // comment after comma
++		2,    /* comment after comma */
++		3  ,  // comment after comma
++	}
++	_ = T{
++		1  ,// comment after comma
++		2  ,/* comment after comma */
++		3,// comment after comma
++	}
++	_ = T{
++		/* comment before literal */1,
++		2/* comment before comma - ok to move after comma */,
++		3  /* comment before comma - ok to move after comma */  ,
++	}
++
++	for
++		i=0;// comment after semicolon
++		i<9;/* comment after semicolon */
++		i++{// comment after opening curly brace
++	}
++
++	// TODO(gri) the last comment in this example should be aligned */
++	for
++		i=0;// comment after semicolon
++		i<9/* comment before semicolon - ok to move after semicolon */;
++		i++ /* comment before opening curly brace */ {
++	}
++}
++
++
+ // Line comments with tabs
+ func _() {
+ var	finput		*bufio.Reader			// input file
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 39c4c34164..0436bf11ff 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -335,7 +335,6 @@ func _() {
+ 		2,
+ 		3,
+ 	)
+-	// TODO(gri) the cases below are not correct yet
+ 	f(1,
+ 		2,
+ 		3)	// comment
+@@ -348,8 +347,7 @@ func _() {
+ 		3)	// comment
+ 	f(1,
+ 		2,
+-		3 // comment
+-		,
++		3,	// comment
+ 	)
+ }
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 0c0b813a63..b799166241 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -328,7 +328,6 @@ func _() {
+ 		2,
+ 		3,
+ 	)
+-	// TODO(gri) the cases below are not correct yet
+ 	f(1,
+ 		2,
+ 		3)  // comment
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index cba8636c48..d7009b3773 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -335,7 +335,6 @@ func _() {
+ 		2,
+ 		3,
+ 	)
+-	// TODO(gri) the cases below are not correct yet
+ 	f(1,
+ 		2,
+ 		3)	// comment
+@@ -348,8 +347,7 @@ func _() {
+ 		3)	// comment
+ 	f(1,
+ 		2,
+-		3 // comment
+-		,
++		3,	// comment
+ 	)
+ }
+ 

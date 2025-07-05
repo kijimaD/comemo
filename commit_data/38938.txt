@@ -13,7 +13,33 @@ Date:   Tue Dec 11 11:48:01 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/script_test.go         | 2 ++
  src/cmd/go/testdata/script/README | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index e180080a9d..284b3548c4 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -274,6 +274,8 @@ Script:
+ 				ok = testenv.HasExternalNetwork()
+ 			case "link":
+ 				ok = testenv.HasLink()
++			case "root":
++				ok = os.Geteuid() == 0
+ 			case "symlink":
+ 				ok = testenv.HasSymlink()
+ 			default:
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 392ff34fc2..76d4b36b01 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -75,6 +75,7 @@ should only run when the condition is satisfied. The available conditions are:
+    - [cgo], [msan], [race] for whether cgo, msan, and the race detector can be used
+    - [net] for whether the external network can be used
+    - [link] for testenv.HasLink()
++   - [root] for os.Geteuid() == 0
+    - [symlink] for testenv.HasSymlink()
+    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+ 

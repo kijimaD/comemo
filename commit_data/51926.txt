@@ -24,7 +24,48 @@ Date:   Fri Mar 18 10:57:02 2022 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++++++
  src/cmd/gofmt/gofmt.go                         | 7 ++++++-
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/fmt_load_errors.txt b/src/cmd/go/testdata/script/fmt_load_errors.txt
+index 559dcc5fe3..e3a9034ede 100644
+--- a/src/cmd/go/testdata/script/fmt_load_errors.txt
++++ b/src/cmd/go/testdata/script/fmt_load_errors.txt
+@@ -16,6 +16,10 @@ stdout 'package x'
+ exec $GOROOT/bin/gofmt gofmt-dir
+ ! stdout 'package x'
+ 
++! exec $GOROOT/bin/gofmt empty.go nopackage.go
++stderr -count=1 'empty\.go:1:1: expected .package., found .EOF.'
++stderr -count=1 'nopackage\.go:1:1: expected .package., found not'
++
+ -- exclude/empty/x.txt --
+ -- exclude/ignore/_x.go --
+ package x
+@@ -29,3 +33,6 @@ package x
+ package x
+ -- gofmt-dir/no-extension --
+ package x
++-- empty.go --
++-- nopackage.go --
++not the proper start to a Go file
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 8efc88df88..5fa883fb56 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -347,7 +347,12 @@ func readFile(filename string, info fs.FileInfo, in io.Reader) ([]byte, error) {
+ 	// stop to avoid corrupting it.)
+ 	src := make([]byte, size+1)
+ 	n, err := io.ReadFull(in, src)
+-	if err != nil && err != io.ErrUnexpectedEOF {
++	switch err {
++	case nil, io.EOF, io.ErrUnexpectedEOF:
++		// io.ReadFull returns io.EOF (for an empty file) or io.ErrUnexpectedEOF
++		// (for a non-empty file) if the file was changed unexpectedly. Continue
++		// with comparing file sizes in those cases.
++	default:
+ 		return nil, err
+ 	}
+ 	if n < size {

@@ -15,9 +15,195 @@ Date:   Fri Nov 20 11:50:11 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/157087
-
+---
  src/pkg/Makefile                        |  1 +
  src/pkg/exp/exception/Makefile          | 11 +++++
  src/pkg/exp/exception/exception.go      | 83 +++++++++++++++++++++++++++++++++
  src/pkg/exp/exception/exception_test.go | 61 ++++++++++++++++++++++++
  4 files changed, 156 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 4b251d4b85..32a261b3f7 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -50,6 +50,7 @@ DIRS=\
+ 	exec\
+ 	exp/datafmt\
+ 	exp/eval\
++	exp/exception\
+ 	exp/iterable\
+ 	expvar\
+ 	flag\
+diff --git a/src/pkg/exp/exception/Makefile b/src/pkg/exp/exception/Makefile
+new file mode 100644
+index 0000000000..5c8d1e9df6
+--- /dev/null
++++ b/src/pkg/exp/exception/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=exp/exception
++GOFILES=\
++	exception.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/exp/exception/exception.go b/src/pkg/exp/exception/exception.go
+new file mode 100644
+index 0000000000..45e0be3f1d
+--- /dev/null
++++ b/src/pkg/exp/exception/exception.go
+@@ -0,0 +1,83 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package illustrates how basic try-catch exception handling
++// can be emulated using goroutines, channels, and closures.
++//
++// This package is *not* intended as a general exception handler
++// library.
++//
++package exception
++
++import (
++	"fmt";
++	"runtime";
++)
++
++// A Handler function handles an arbitrary exception value x.
++type Handler func(x interface{})
++
++// An Exception carries an exception value.
++type Exception struct {
++	Value interface{};	// Value may be the nil exception
++}
++
++// Try invokes a function f with a Handler to throw exceptions.
++// The function f may terminate abnormally with an arbitrary
++// exception x by calling throw(x) within f. If an exception is
++// thrown, Try returns an *Exception; otherwise it returns nil.
++//
++// Usage pattern:
++//
++//	if x := exception.Try(func(throw exception.Handler) {
++//		...
++//		throw(42);  // terminate f by throwing exception 42
++//		...
++//	}); x != nil {
++//		// catch exception, e.g. print it
++//		fmt.Println(x.Value);
++//	}
++//
++// Alternative:
++//
++//	exception.Try(func(throw exception.Handler) {
++//		...
++//		throw(42);  // terminate f by throwing exception 42
++//		...
++//	}).Catch(func (x interface{}) {
++//		// catch exception, e.g. print it
++//		fmt.Println(x);
++//	})
++//
++func Try(f func(throw Handler)) *Exception {
++	h := make(chan *Exception);
++
++	// execute try block
++	go func() {
++		f(func(x interface{}) {
++			h <- &Exception{x};
++			runtime.Goexit();
++		});
++		h <- nil;	// clean termination
++	}();
++
++	return <-h;
++}
++
++
++// If x != nil, Catch invokes f with the exception value x.Value.
++// See Try for usage patterns.
++func (x *Exception) Catch(f Handler) {
++	if x != nil {
++		f(x.Value)
++	}
++}
++
++
++func (x *Exception) String() string {
++	if x != nil {
++		return fmt.Sprintf("exception: %v", x.Value)
++	}
++	return "";
++}
+diff --git a/src/pkg/exp/exception/exception_test.go b/src/pkg/exp/exception/exception_test.go
+new file mode 100644
+index 0000000000..91f742ea03
+--- /dev/null
++++ b/src/pkg/exp/exception/exception_test.go
+@@ -0,0 +1,61 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exception
++
++import "testing"
++
++func TestNoException(t *testing.T) {
++	e := Try(func(throw Handler) {});
++	if e != nil {
++		t.Fatalf("no exception expected, found: %v", e)
++	}
++}
++
++
++func TestNilException(t *testing.T) {
++	e := Try(func(throw Handler) { throw(nil) });
++	if e == nil {
++		t.Fatalf("exception expected", e)
++	}
++	if e.Value != nil {
++		t.Fatalf("nil exception expected, found: %v", e)
++	}
++}
++
++
++func TestTry(t *testing.T) {
++	s := 0;
++	for i := 1; i <= 10; i++ {
++		e := Try(func(throw Handler) {
++			if i%3 == 0 {
++				throw(i);
++				panic("throw returned");
++			}
++		});
++		if e != nil {
++			s += e.Value.(int)
++		}
++	}
++	result := 3 + 6 + 9;
++	if s != result {
++		t.Fatalf("expected: %d, found: %d", result, s)
++	}
++}
++
++
++func TestCatch(t *testing.T) {
++	s := 0;
++	for i := 1; i <= 10; i++ {
++		Try(func(throw Handler) {
++			if i%3 == 0 {
++				throw(i)
++			}
++		}).Catch(func(x interface{}) { s += x.(int) })
++	}
++	result := 3 + 6 + 9;
++	if s != result {
++		t.Fatalf("expected: %d, found: %d", result, s)
++	}
++}

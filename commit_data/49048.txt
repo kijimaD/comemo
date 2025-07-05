@@ -15,10 +15,89 @@ Date:   Wed Jul 14 14:19:36 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go         | 4 ++--
  src/go/types/check.go       | 4 ++--
  src/go/types/check_test.go  | 2 +-
  src/go/types/stdlib_test.go | 3 +--
  src/go/types/types_test.go  | 6 ------
  5 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index d3a95bc991..2bfbb8ce0c 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -103,12 +103,12 @@ type ImporterFrom interface {
+ // A Config specifies the configuration for type checking.
+ // The zero value for Config is a ready-to-use default configuration.
+ type Config struct {
+-	// goVersion describes the accepted Go language version. The string
++	// GoVersion describes the accepted Go language version. The string
+ 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
+ 	// empty; an empty string indicates the latest language version.
+ 	// If the format is invalid, invoking the type checker will cause a
+ 	// panic.
+-	goVersion string
++	GoVersion string
+ 
+ 	// If IgnoreFuncBodies is set, function bodies are not
+ 	// type-checked.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index e82056e722..aea319f463 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -180,9 +180,9 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		info = new(Info)
+ 	}
+ 
+-	version, err := parseGoVersion(conf.goVersion)
++	version, err := parseGoVersion(conf.GoVersion)
+ 	if err != nil {
+-		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.goVersion, err))
++		panic(fmt.Sprintf("invalid Go version %q (%v)", conf.GoVersion, err))
+ 	}
+ 
+ 	return &Checker{
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index a5720f992e..f0cfced97f 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -244,7 +244,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	// typecheck and collect typechecker errors
+ 	var conf Config
+ 	conf.Sizes = sizes
+-	SetGoVersion(&conf, goVersion)
++	conf.GoVersion = goVersion
+ 
+ 	// special case for importC.src
+ 	if len(filenames) == 1 {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index d86a77a110..3eb7519a91 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -140,8 +140,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		// parse and type-check file
+ 		file, err := parser.ParseFile(fset, filename, nil, 0)
+ 		if err == nil {
+-			conf := Config{Importer: stdLibImporter}
+-			SetGoVersion(&conf, goVersion)
++			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
+ 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
+ 		}
+ 
+diff --git a/src/go/types/types_test.go b/src/go/types/types_test.go
+index 7990414f42..f2358c6e19 100644
+--- a/src/go/types/types_test.go
++++ b/src/go/types/types_test.go
+@@ -4,11 +4,5 @@
+ 
+ package types
+ 
+-// SetGoVersion sets the unexported goVersion field on config, so that tests
+-// which assert on behavior for older Go versions can set it.
+-func SetGoVersion(config *Config, goVersion string) {
+-	config.goVersion = goVersion
+-}
+-
+ // Debug is set if go/types is built with debug mode enabled.
+ const Debug = debug

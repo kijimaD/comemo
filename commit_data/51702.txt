@@ -9,7 +9,7 @@ Date:   Sat Mar 5 19:21:15 2022 +1030
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/compress/bzip2/huffman.go  | 2 +-
  src/crypto/tls/conn.go         | 2 +-
  src/crypto/x509/parser.go      | 2 +-
@@ -20,3 +20,130 @@ Date:   Sat Mar 5 19:21:15 2022 +1030
  src/math/big/nat.go            | 2 +-
  src/net/lookup.go              | 2 +-
  9 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/compress/bzip2/huffman.go b/src/compress/bzip2/huffman.go
+index 36ae954009..447fc4d851 100644
+--- a/src/compress/bzip2/huffman.go
++++ b/src/compress/bzip2/huffman.go
+@@ -182,7 +182,7 @@ func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIn
+ 
+ 		// If this function was called recursively then we know that
+ 		// len(codes) >= 2 because, otherwise, we would have hit the
+-		// "leaf node" case, below, and not recursed.
++		// "leaf node" case, below, and not recurred.
+ 		//
+ 		// However, for the initial call it's possible that len(codes)
+ 		// is zero or one. Both cases are invalid because a zero length
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 28ab063782..fba36d3010 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -758,7 +758,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
+ 	return nil
+ }
+ 
+-// retryReadRecord recurses into readRecordOrCCS to drop a non-advancing record, like
++// retryReadRecord recurs into readRecordOrCCS to drop a non-advancing record, like
+ // a warning alert, empty application_data, or a change_cipher_spec in TLS 1.3.
+ func (c *Conn) retryReadRecord(expectChangeCipherSpec bool) error {
+ 	c.retryCount++
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index a32a973c68..bb60cea7c9 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -855,7 +855,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ 	}
+ 	// we ignore the presence of negative serial numbers because
+ 	// of their prevalence, despite them being invalid
+-	// TODO(rolandshoemaker): revist this decision, there are currently
++	// TODO(rolandshoemaker): revisit this decision, there are currently
+ 	// only 10 trusted certificates with negative serial numbers
+ 	// according to censys.io.
+ 	cert.SerialNumber = serial
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index cbdc838a12..3bc6a5454e 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -1122,7 +1122,7 @@ func (d *Data) dwarf2Ranges(u *unit, base uint64, ranges int64, ret [][2]uint64)
+ 	return ret, nil
+ }
+ 
+-// dwarf5Ranges interpets a debug_rnglists sequence, see DWARFv5 section
++// dwarf5Ranges interprets a debug_rnglists sequence, see DWARFv5 section
+ // 2.17.3 (page 53).
+ func (d *Data) dwarf5Ranges(u *unit, cu *Entry, base uint64, ranges int64, ret [][2]uint64) ([][2]uint64, error) {
+ 	var addrBase int64
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 2b11526f52..2b4027348a 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -44,7 +44,7 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
+ }
+ 
+ // evalArgs formats the list of arguments into a string. It is equivalent to
+-// fmt.Sprint(args...), except that it deferences all pointers.
++// fmt.Sprint(args...), except that it dereferences all pointers.
+ func evalArgs(args ...any) string {
+ 	// Optimization for simple common case of a single string argument.
+ 	if len(args) == 1 {
+@@ -690,7 +690,7 @@ func (e *escaper) escapeTemplateBody(c context, t *template.Template) (context,
+ 		return c.eq(c1)
+ 	}
+ 	// We need to assume an output context so that recursive template calls
+-	// take the fast path out of escapeTree instead of infinitely recursing.
++	// take the fast path out of escapeTree instead of infinitely recurring.
+ 	// Naively assuming that the input context is the same as the output
+ 	// works >90% of the time.
+ 	e.output[t.Name()] = c
+diff --git a/src/index/suffixarray/sais.go b/src/index/suffixarray/sais.go
+index b4496d2988..74c5235617 100644
+--- a/src/index/suffixarray/sais.go
++++ b/src/index/suffixarray/sais.go
+@@ -656,7 +656,7 @@ func recurse_32(sa, oldTmp []int32, numLMS, maxID int) {
+ 	dst, saTmp, text := sa[:numLMS], sa[numLMS:len(sa)-numLMS], sa[len(sa)-numLMS:]
+ 
+ 	// Set up temporary space for recursive call.
+-	// We must pass sais_32 a tmp buffer wiith at least maxID entries.
++	// We must pass sais_32 a tmp buffer with at least maxID entries.
+ 	//
+ 	// The subproblem is guaranteed to have length at most len(sa)/2,
+ 	// so that sa can hold both the subproblem and its suffix array.
+diff --git a/src/index/suffixarray/sais2.go b/src/index/suffixarray/sais2.go
+index f1247028c6..32b8972801 100644
+--- a/src/index/suffixarray/sais2.go
++++ b/src/index/suffixarray/sais2.go
+@@ -1194,7 +1194,7 @@ func recurse_64(sa, oldTmp []int64, numLMS, maxID int) {
+ 	dst, saTmp, text := sa[:numLMS], sa[numLMS:len(sa)-numLMS], sa[len(sa)-numLMS:]
+ 
+ 	// Set up temporary space for recursive call.
+-	// We must pass sais_64 a tmp buffer wiith at least maxID entries.
++	// We must pass sais_64 a tmp buffer with at least maxID entries.
+ 	//
+ 	// The subproblem is guaranteed to have length at most len(sa)/2,
+ 	// so that sa can hold both the subproblem and its suffix array.
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 140c619c8c..512b2c229f 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -341,7 +341,7 @@ func karatsuba(z, x, y nat) {
+ 	karatsuba(p, xd, yd)
+ 
+ 	// save original z2:z0
+-	// (ok to use upper half of z since we're done recursing)
++	// (ok to use upper half of z since we're done recurring)
+ 	r := z[n*4:]
+ 	copy(r, z[:n*2])
+ 
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index c7b8dc6905..6fa90f354d 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -286,7 +286,7 @@ func withUnexpiredValuesPreserved(lookupCtx context.Context) context.Context {
+ // It returns a slice of that host's IPv4 and IPv6 addresses.
+ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IPAddr, error) {
+ 	// Make sure that no matter what we do later, host=="" is rejected.
+-	// parseIP, for example, does accept empty strings.
++	// parseIPZone, for example, does accept empty strings.
+ 	if host == "" {
+ 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+ 	}

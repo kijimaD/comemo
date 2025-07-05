@@ -13,6 +13,29 @@ Date:   Fri Mar 15 16:33:04 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7834044
-
+---
  lib/codereview/codereview.py | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 4b6014505f..11766fcb23 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -155,7 +155,8 @@ default_to_utf8()
+ global_status = None
+ 
+ def set_status(s):
+-	# print >>sys.stderr, "\t", time.asctime(), s
++	if verbosity > 0:
++		print >>sys.stderr, time.asctime(), s
+ 	global global_status
+ 	global_status = s
+ 
+@@ -2213,6 +2214,7 @@ def reposetup(ui, repo):
+ 	if codereview_init:
+ 		return
+ 	codereview_init = True
++	start_status_thread()
+ 
+ 	# Read repository-specific options from lib/codereview/codereview.cfg or codereview.cfg.
+ 	root = ''

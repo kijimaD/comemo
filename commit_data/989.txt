@@ -8,6 +8,45 @@ Date:   Wed Oct 29 15:23:29 2008 -0700
     DELTA=6  (0 added, 0 deleted, 6 changed)
     OCL=18044
     CL=18068
-
+---
  src/run.bash | 11 +++++------
  1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index c88fa57a23..449e7ed234 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -15,28 +15,27 @@ xcd() {
+ make clean
+ time make
+ bash test.bash
+-)
++) || exit $?
+ 
+ (xcd lib/regexp
+ make clean
+ time make
+ make test
+-)
++) || exit $?
+ 
+ (xcd ../usr/gri/gosrc
+ make clean
+ time make
+ # make test
+-)
++) || exit $?
+ 
+ (xcd ../usr/gri/pretty
+ make clean
+ time make
+ make test
+-)
+-
++) || exit $?
+ 
+ (xcd ../test
+ ./run
+-)
++) || exit $?
+ 

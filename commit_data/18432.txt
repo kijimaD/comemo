@@ -8,6 +8,19 @@ Date:   Sun Feb 9 17:20:59 2014 +0900
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/54300054
-
+---
  src/pkg/syscall/mkerrors.sh | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index d60d1be97a..498e42de42 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -306,6 +306,7 @@ echo ')'
+ (
+ 	/bin/echo "
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <errno.h>
+ #include <ctype.h>
+ #include <string.h>

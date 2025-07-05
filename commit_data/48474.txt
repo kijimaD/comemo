@@ -13,7 +13,7 @@ Date:   Fri May 14 23:14:22 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/edit.go              |  2 +-
  src/cmd/go/internal/modcmd/tidy.go              | 42 +++++++++++++++++++------
  src/cmd/go/internal/modload/init.go             | 10 +++---
@@ -21,3 +21,198 @@ Date:   Fri May 14 23:14:22 2021 -0400
  src/cmd/go/internal/modload/modfile.go          |  2 +-
  src/cmd/go/testdata/script/mod_tidy_version.txt | 12 ++++++-
  6 files changed, 52 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 79a93ca44b..e856e7c630 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -196,7 +196,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	if *editGo != "" {
+ 		if !modfile.GoVersionRE.MatchString(*editGo) {
+-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go 1.12"`)
++			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index c72ec30a57..9af624028a 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -12,8 +12,10 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modload"
+ 	"context"
++	"fmt"
+ 
+ 	"golang.org/x/mod/modfile"
++	"golang.org/x/mod/semver"
+ )
+ 
+ var cmdTidy = &base.Command{
+@@ -44,28 +46,48 @@ See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+ }
+ 
+ var (
+-	tidyE  bool   // if true, report errors but proceed anyway.
+-	tidyGo string // go version to write to the tidied go.mod file (toggles lazy loading)
++	tidyE  bool          // if true, report errors but proceed anyway.
++	tidyGo goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
+ )
+ 
+ func init() {
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+-	cmdTidy.Flag.StringVar(&tidyGo, "go", "", "")
++	cmdTidy.Flag.Var(&tidyGo, "go", "")
+ 	base.AddModCommonFlags(&cmdTidy.Flag)
+ }
+ 
++// A goVersionFlag is a flag.Value representing a supported Go version.
++//
++// (Note that the -go argument to 'go mod edit' is *not* a goVersionFlag.
++// It intentionally allows newer-than-supported versions as arguments.)
++type goVersionFlag struct {
++	v string
++}
++
++func (f *goVersionFlag) String() string   { return f.v }
++func (f *goVersionFlag) Get() interface{} { return f.v }
++
++func (f *goVersionFlag) Set(s string) error {
++	if s != "" {
++		latest := modload.LatestGoVersion()
++		if !modfile.GoVersionRE.MatchString(s) {
++			return fmt.Errorf("expecting a Go version like %q", latest)
++		}
++		if semver.Compare("v"+s, "v"+latest) > 0 {
++			return fmt.Errorf("maximum supported Go version is %s", latest)
++		}
++	}
++
++	f.v = s
++	return nil
++}
++
+ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go mod tidy: no arguments allowed")
+ 	}
+ 
+-	if tidyGo != "" {
+-		if !modfile.GoVersionRE.MatchString(tidyGo) {
+-			base.Fatalf(`go mod: invalid -go option %q; expecting something like "-go 1.17"`, tidyGo)
+-		}
+-	}
+-
+ 	// Tidy aims to make 'go test' reproducible for any package in 'all', so we
+ 	// need to include test dependencies. For modules that specify go 1.15 or
+ 	// earlier this is a no-op (because 'all' saturates transitive test
+@@ -80,7 +102,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.RootMode = modload.NeedRoot
+ 
+ 	modload.LoadPackages(ctx, modload.PackageOpts{
+-		GoVersion:                tidyGo,
++		GoVersion:                tidyGo.String(),
+ 		Tags:                     imports.AnyTags(),
+ 		Tidy:                     true,
+ 		VendorModulesInGOROOTSrc: true,
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 5cdea12cd3..e358230e74 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -405,7 +405,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 	if modRoot == "" {
+ 		Target = module.Version{Path: "command-line-arguments"}
+ 		targetPrefix = "command-line-arguments"
+-		goVersion := latestGoVersion()
++		goVersion := LatestGoVersion()
+ 		rawGoVersion.Store(Target, goVersion)
+ 		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
+ 		return requirements, false
+@@ -448,7 +448,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 		// TODO(#45551): Do something more principled instead of checking
+ 		// cfg.CmdName directly here.
+ 		if cfg.BuildMod == "mod" && cfg.CmdName != "mod graph" && cfg.CmdName != "mod why" {
+-			addGoStmt(latestGoVersion())
++			addGoStmt(LatestGoVersion())
+ 			if go117EnableLazyLoading {
+ 				// We need to add a 'go' version to the go.mod file, but we must assume
+ 				// that its existing contents match something between Go 1.11 and 1.16.
+@@ -500,7 +500,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	modFile = new(modfile.File)
+ 	modFile.AddModuleStmt(modPath)
+ 	initTarget(modFile.Module.Mod)
+-	addGoStmt(latestGoVersion()) // Add the go directive before converted module requirements.
++	addGoStmt(LatestGoVersion()) // Add the go directive before converted module requirements.
+ 
+ 	convertedFrom, err := convertLegacyConfig(modPath)
+ 	if convertedFrom != "" {
+@@ -793,9 +793,9 @@ func addGoStmt(v string) {
+ 	rawGoVersion.Store(Target, v)
+ }
+ 
+-// latestGoVersion returns the latest version of the Go language supported by
++// LatestGoVersion returns the latest version of the Go language supported by
+ // this toolchain, like "1.17".
+-func latestGoVersion() string {
++func LatestGoVersion() string {
+ 	tags := build.Default.ReleaseTags
+ 	version := tags[len(tags)-1]
+ 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 83fc7c09c3..23ee3824f3 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -931,8 +931,8 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.allClosesOverTests = true
+ 		}
+ 
+-		if ld.Tidy && semver.Compare(goVersionV, "v"+latestGoVersion()) > 0 {
+-			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", params.GoVersion, latestGoVersion())
++		if ld.Tidy && semver.Compare(goVersionV, "v"+LatestGoVersion()) > 0 {
++			ld.errorf("go mod tidy: go.mod file indicates go %s, but maximum supported version is %s\n", params.GoVersion, LatestGoVersion())
+ 			base.ExitIfErrors()
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index bafff3e080..a9c3a91d35 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -55,7 +55,7 @@ var modFile *modfile.File
+ // in modFile are intepreted, or the latest Go version if modFile is nil.
+ func modFileGoVersion() string {
+ 	if modFile == nil {
+-		return latestGoVersion()
++		return LatestGoVersion()
+ 	}
+ 	if modFile.Go == nil || modFile.Go.Version == "" {
+ 		// The main module necessarily has a go.mod file, and that file lacks a
+diff --git a/src/cmd/go/testdata/script/mod_tidy_version.txt b/src/cmd/go/testdata/script/mod_tidy_version.txt
+index 5441d9cc06..eaa6ee7b0d 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_version.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_version.txt
+@@ -32,12 +32,22 @@
+ 
+ cp go.mod go.mod.orig
+ 
++
+ # An invalid argument should be rejected.
+ 
+ ! go mod tidy -go=bananas
+-stderr '^go mod: invalid -go option "bananas"; expecting something like "-go 1.17"$'
++stderr '^invalid value "bananas" for flag -go: expecting a Go version like "'$goversion'"$'
+ cmp go.mod go.mod.orig
+ 
++! go mod tidy -go=0.9
++stderr '^invalid value "0.9" for flag -go: expecting a Go version like "'$goversion'"$'
++
++! go mod tidy -go=2000.0
++stderr '^invalid value "2000.0" for flag -go: maximum supported Go version is '$goversion'$'
++
++
++# Supported versions should change the go.mod file to be tidy according to the
++# indicated version.
+ 
+ go mod tidy -go=1.15
+ cmp go.mod go.mod.115

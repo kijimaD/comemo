@@ -9,6 +9,24 @@ Date:   Wed May 11 08:31:24 2011 -0700
     R=rsc, r2, niemeyer
     CC=golang-dev
     https://golang.org/cl/4539049
-
+---
  doc/effective_go.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 1aeed4ad84..86b2d63dcb 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1489,6 +1489,12 @@ to print in the format
+ 7/-2.35/"abc\tdef"
+ </pre>
+ <p>
++(If you need to print <em>values</em> of type <code>T</code> as well as pointers to <code>T</code>,
++the receiver for <code>String</code> must be of value type; this example used a pointer because
++that's more efficient and idiomatic for struct types.
++See the section below on <a href="#pointers_vs_values">pointers vs. value receivers</a> for more information.)
++</p>
++<p>
+ Our <code>String()</code> method is able to call <code>Sprintf</code> because the
+ print routines are fully reentrant and can be used recursively.
+ We can even go one step further and pass a print routine's arguments directly to another such routine.

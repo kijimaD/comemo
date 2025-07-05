@@ -23,7 +23,7 @@ Date:   Wed Jul 8 17:13:16 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
-
+---
  src/cmd/go/internal/fsys/fsys.go                   |   6 +-
  src/cmd/go/internal/fsys/fsys_test.go              |   2 +-
  src/cmd/go/internal/list/list.go                   |   2 +
@@ -43,3 +43,899 @@ Date:   Wed Jul 8 17:13:16 2020 -0400
  .../internal/embedtest/testdata/i/j/k/k8s.txt      |   1 +
  src/embed/internal/embedtest/testdata/ken.txt      |   1 +
  18 files changed, 575 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 44d9b1368b..e3a0e44f82 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -426,7 +426,7 @@ func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
+ // Walk walks the file tree rooted at root, calling walkFn for each file or
+ // directory in the tree, including root.
+ func Walk(root string, walkFn filepath.WalkFunc) error {
+-	info, err := lstat(root)
++	info, err := Lstat(root)
+ 	if err != nil {
+ 		err = walkFn(root, nil, err)
+ 	} else {
+@@ -439,7 +439,7 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
+ }
+ 
+ // lstat implements a version of os.Lstat that operates on the overlay filesystem.
+-func lstat(path string) (fs.FileInfo, error) {
++func Lstat(path string) (fs.FileInfo, error) {
+ 	return overlayStat(path, os.Lstat, "lstat")
+ }
+ 
+@@ -523,7 +523,7 @@ func Glob(pattern string) (matches []string, err error) {
+ 		return nil, err
+ 	}
+ 	if !hasMeta(pattern) {
+-		if _, err = lstat(pattern); err != nil {
++		if _, err = Lstat(pattern); err != nil {
+ 			return nil, nil
+ 		}
+ 		return []string{pattern}, nil
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 22ad2fe445..90a69de14a 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -918,7 +918,7 @@ contents`,
+ 	for _, tc := range testCases {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			initOverlay(t, tc.overlay)
+-			got, err := lstat(tc.path)
++			got, err := Lstat(tc.path)
+ 			if tc.wantErr {
+ 				if err == nil {
+ 					t.Errorf("lstat(%q): got no error, want error", tc.path)
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 89088f5def..9af9dbb856 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -570,6 +570,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		// Show vendor-expanded paths in listing
+ 		p.TestImports = p.Resolve(p.TestImports)
+ 		p.XTestImports = p.Resolve(p.XTestImports)
++		p.TestEmbedFiles = p.ResolveEmbed(p.TestEmbedPatterns)
++		p.XTestEmbedFiles = p.ResolveEmbed(p.XTestEmbedPatterns)
+ 		p.DepOnly = !cmdline[p]
+ 
+ 		if *listCompiled {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ff744ee9fa..30ca33b663 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -17,6 +17,7 @@ import (
+ 	"io/fs"
+ 	"io/ioutil"
+ 	"os"
++	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -94,6 +95,10 @@ type PackagePublic struct {
+ 	SwigCXXFiles      []string `json:",omitempty"` // .swigcxx files
+ 	SysoFiles         []string `json:",omitempty"` // .syso system object files added to package
+ 
++	// Embedded files
++	EmbedPatterns []string `json:",omitempty"` // //go:embed patterns
++	EmbedFiles    []string `json:",omitempty"` // files and directories matched by EmbedPatterns
++
+ 	// Cgo directives
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+ 	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
+@@ -115,10 +120,14 @@ type PackagePublic struct {
+ 	// Test information
+ 	// If you add to this list you MUST add to p.AllFiles (below) too.
+ 	// Otherwise file name security lists will not apply to any new additions.
+-	TestGoFiles  []string `json:",omitempty"` // _test.go files in package
+-	TestImports  []string `json:",omitempty"` // imports from TestGoFiles
+-	XTestGoFiles []string `json:",omitempty"` // _test.go files outside package
+-	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
++	TestGoFiles        []string `json:",omitempty"` // _test.go files in package
++	TestImports        []string `json:",omitempty"` // imports from TestGoFiles
++	TestEmbedPatterns  []string `json:",omitempty"` // //go:embed patterns
++	TestEmbedFiles     []string `json:",omitempty"` // //files matched by EmbedPatterns
++	XTestGoFiles       []string `json:",omitempty"` // _test.go files outside package
++	XTestImports       []string `json:",omitempty"` // imports from XTestGoFiles
++	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
++	XTestEmbedFiles    []string `json:",omitempty"` // //files matched by EmbedPatterns
+ }
+ 
+ // AllFiles returns the names of all the files considered for the package.
+@@ -127,7 +136,7 @@ type PackagePublic struct {
+ // The go/build package filtered others out (like foo_wrongGOARCH.s)
+ // and that's OK.
+ func (p *Package) AllFiles() []string {
+-	return str.StringList(
++	files := str.StringList(
+ 		p.GoFiles,
+ 		p.CgoFiles,
+ 		// no p.CompiledGoFiles, because they are from GoFiles or generated by us
+@@ -145,6 +154,27 @@ func (p *Package) AllFiles() []string {
+ 		p.TestGoFiles,
+ 		p.XTestGoFiles,
+ 	)
++
++	// EmbedFiles may overlap with the other files.
++	// Dedup, but delay building the map as long as possible.
++	// Only files in the current directory (no slash in name)
++	// need to be checked against the files variable above.
++	var have map[string]bool
++	for _, file := range p.EmbedFiles {
++		if !strings.Contains(file, "/") {
++			if have == nil {
++				have = make(map[string]bool)
++				for _, file := range files {
++					have[file] = true
++				}
++			}
++			if have[file] {
++				continue
++			}
++		}
++		files = append(files, file)
++	}
++	return files
+ }
+ 
+ // Desc returns the package "description", for use in b.showOutput.
+@@ -174,6 +204,7 @@ type PackageInternal struct {
+ 	GobinSubdir       bool                 // install target would be subdir of GOBIN
+ 	BuildInfo         string               // add this info to package main
+ 	TestmainGo        *[]byte              // content for _testmain.go
++	Embed             map[string][]string  // //go:embed comment mapping
+ 
+ 	Asmflags   []string // -asmflags for this package
+ 	Gcflags    []string // -gcflags for this package
+@@ -366,6 +397,9 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 		p.TestImports = nil
+ 		p.XTestImports = nil
+ 	}
++	p.EmbedPatterns = pp.EmbedPatterns
++	p.TestEmbedPatterns = pp.TestEmbedPatterns
++	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
+ }
+ 
+ // A PackageError describes an error loading information about a package.
+@@ -960,6 +994,12 @@ func (pre *preload) preloadImports(imports []string, parent *build.Package) {
+ // loadPackageData have completed. The preloader will not make any new calls
+ // to loadPackageData.
+ func (pre *preload) flush() {
++	// flush is usually deferred.
++	// Don't hang program waiting for workers on panic.
++	if v := recover(); v != nil {
++		panic(v)
++	}
++
+ 	close(pre.cancel)
+ 	for i := 0; i < preloadWorkerCount; i++ {
+ 		pre.sema <- struct{}{}
+@@ -1624,6 +1664,11 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
+ 		p.setLoadPackageDataError(err, path, stk, importPos)
+ 	}
+ 
++	p.EmbedFiles, p.Internal.Embed, err = p.resolveEmbed(p.EmbedPatterns)
++	if err != nil {
++		setError(err)
++	}
++
+ 	useBindir := p.Name == "main"
+ 	if !p.Standard {
+ 		switch cfg.BuildBuildmode {
+@@ -1865,6 +1910,153 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
+ 	}
+ }
+ 
++// ResolveEmbed resolves //go:embed patterns and returns only the file list.
++// For use by go list to compute p.TestEmbedFiles and p.XTestEmbedFiles.
++func (p *Package) ResolveEmbed(patterns []string) []string {
++	files, _, _ := p.resolveEmbed(patterns)
++	return files
++}
++
++// resolveEmbed resolves //go:embed patterns to precise file lists.
++// It sets files to the list of unique files matched (for go list),
++// and it sets pmap to the more precise mapping from
++// patterns to files.
++// TODO(rsc): All these messages need position information for better error reports.
++func (p *Package) resolveEmbed(patterns []string) (files []string, pmap map[string][]string, err error) {
++	pmap = make(map[string][]string)
++	have := make(map[string]int)
++	dirOK := make(map[string]bool)
++	pid := 0 // pattern ID, to allow reuse of have map
++	for _, pattern := range patterns {
++		pid++
++
++		// Check pattern is valid for //go:embed.
++		if _, err := path.Match(pattern, ""); err != nil || !validEmbedPattern(pattern) {
++			return nil, nil, fmt.Errorf("pattern %s: invalid pattern syntax", pattern)
++		}
++
++		// Glob to find matches.
++		match, err := fsys.Glob(p.Dir + string(filepath.Separator) + filepath.FromSlash(pattern))
++		if err != nil {
++			return nil, nil, fmt.Errorf("pattern %s: %v", pattern, err)
++		}
++
++		// Filter list of matches down to the ones that will still exist when
++		// the directory is packaged up as a module. (If p.Dir is in the module cache,
++		// only those files exist already, but if p.Dir is in the current module,
++		// then there may be other things lying around, like symbolic links or .git directories.)
++		var list []string
++		for _, file := range match {
++			rel := filepath.ToSlash(file[len(p.Dir)+1:]) // file, relative to p.Dir
++
++			what := "file"
++			info, err := fsys.Lstat(file)
++			if err != nil {
++				return nil, nil, err
++			}
++			if info.IsDir() {
++				what = "directory"
++			}
++
++			// Check that directories along path do not begin a new module
++			// (do not contain a go.mod).
++			for dir := file; len(dir) > len(p.Dir)+1 && !dirOK[dir]; dir = filepath.Dir(dir) {
++				if _, err := fsys.Stat(filepath.Join(dir, "go.mod")); err == nil {
++					return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in different module", pattern, what, rel)
++				}
++				if dir != file {
++					if info, err := fsys.Lstat(dir); err == nil && !info.IsDir() {
++						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in non-directory %s", pattern, what, rel, dir[len(p.Dir)+1:])
++					}
++				}
++				dirOK[dir] = true
++				if elem := filepath.Base(dir); isBadEmbedName(elem) {
++					if dir == file {
++						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: invalid name %s", pattern, what, rel, elem)
++					} else {
++						return nil, nil, fmt.Errorf("pattern %s: cannot embed %s %s: in invalid directory %s", pattern, what, rel, elem)
++					}
++				}
++			}
++
++			switch {
++			default:
++				return nil, nil, fmt.Errorf("pattern %s: cannot embed irregular file %s", pattern, rel)
++
++			case info.Mode().IsRegular():
++				if have[rel] != pid {
++					have[rel] = pid
++					list = append(list, rel)
++				}
++
++			case info.IsDir():
++				// Gather all files in the named directory, stopping at module boundaries
++				// and ignoring files that wouldn't be packaged into a module.
++				count := 0
++				err := fsys.Walk(file, func(path string, info os.FileInfo, err error) error {
++					if err != nil {
++						return err
++					}
++					rel := filepath.ToSlash(path[len(p.Dir)+1:])
++					if info.IsDir() {
++						if _, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil {
++							return filepath.SkipDir
++						}
++						return nil
++					}
++					if !info.Mode().IsRegular() {
++						return nil
++					}
++					if isBadEmbedName(info.Name()) {
++						// Ignore bad names, assuming they won't go into modules.
++						return nil
++					}
++					count++
++					if have[rel] != pid {
++						have[rel] = pid
++						list = append(list, rel)
++					}
++					return nil
++				})
++				if err != nil {
++					return nil, nil, err
++				}
++				if count == 0 {
++					return nil, nil, fmt.Errorf("pattern %s: cannot embed directory %s: contains no embeddable files", pattern, rel)
++				}
++			}
++		}
++
++		if len(list) == 0 {
++			return nil, nil, fmt.Errorf("pattern %s: no matching files found", pattern)
++		}
++		sort.Strings(list)
++		pmap[pattern] = list
++	}
++
++	for file := range have {
++		files = append(files, file)
++	}
++	sort.Strings(files)
++	return files, pmap, nil
++}
++
++func validEmbedPattern(pattern string) bool {
++	return pattern != "." && fs.ValidPath(pattern)
++}
++
++// isBadEmbedName reports whether name is the base name of a file that
++// can't or won't be included in modules and therefore shouldn't be treated
++// as existing for embedding.
++func isBadEmbedName(name string) bool {
++	switch name {
++	// Version control directories won't be present in module.
++	case ".bzr", ".hg", ".git", ".svn":
++		return true
++	}
++	return false
++}
++
+ // collectDeps populates p.Deps and p.DepsErrors by iterating over
+ // p.Internal.Imports.
+ //
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index e0f13323df..d884361aaa 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -105,6 +105,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 	var ptestErr, pxtestErr *PackageError
+ 	var imports, ximports []*Package
+ 	var stk ImportStack
++	var testEmbed, xtestEmbed map[string][]string
+ 	stk.Push(p.ImportPath + " (test)")
+ 	rawTestImports := str.StringList(p.TestImports)
+ 	for i, path := range p.TestImports {
+@@ -122,7 +123,16 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 		p.TestImports[i] = p1.ImportPath
+ 		imports = append(imports, p1)
+ 	}
++	var err error
++	p.TestEmbedFiles, testEmbed, err = p.resolveEmbed(p.TestEmbedPatterns)
++	if err != nil && ptestErr == nil {
++		ptestErr = &PackageError{
++			ImportStack: stk.Copy(),
++			Err:         err,
++		}
++	}
+ 	stk.Pop()
++
+ 	stk.Push(p.ImportPath + "_test")
+ 	pxtestNeedsPtest := false
+ 	rawXTestImports := str.StringList(p.XTestImports)
+@@ -135,6 +145,13 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 		}
+ 		p.XTestImports[i] = p1.ImportPath
+ 	}
++	p.XTestEmbedFiles, xtestEmbed, err = p.resolveEmbed(p.XTestEmbedPatterns)
++	if err != nil && pxtestErr == nil {
++		pxtestErr = &PackageError{
++			ImportStack: stk.Copy(),
++			Err:         err,
++		}
++	}
+ 	stk.Pop()
+ 
+ 	// Test package.
+@@ -174,6 +191,14 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 			m[k] = append(m[k], v...)
+ 		}
+ 		ptest.Internal.Build.ImportPos = m
++		if testEmbed == nil && len(p.Internal.Embed) > 0 {
++			testEmbed = map[string][]string{}
++		}
++		for k, v := range p.Internal.Embed {
++			testEmbed[k] = v
++		}
++		ptest.Internal.Embed = testEmbed
++		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
+ 		ptest.collectDeps()
+ 	} else {
+ 		ptest = p
+@@ -193,6 +218,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 				ForTest:    p.ImportPath,
+ 				Module:     p.Module,
+ 				Error:      pxtestErr,
++				EmbedFiles: p.XTestEmbedFiles,
+ 			},
+ 			Internal: PackageInternal{
+ 				LocalPrefix: p.Internal.LocalPrefix,
+@@ -206,6 +232,7 @@ func TestPackagesAndErrors(ctx context.Context, p *Package, cover *TestCover) (p
+ 				Gcflags:    p.Internal.Gcflags,
+ 				Ldflags:    p.Internal.Ldflags,
+ 				Gccgoflags: p.Internal.Gccgoflags,
++				Embed:      xtestEmbed,
+ 			},
+ 		}
+ 		if pxtestNeedsPtest {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 24e309c657..838b00a00d 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -339,6 +339,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		p.SysoFiles,
+ 		p.SwigFiles,
+ 		p.SwigCXXFiles,
++		p.EmbedFiles,
+ 	)
+ 	for _, file := range inputFiles {
+ 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+@@ -694,6 +695,26 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
+ 	}
+ 
++	// Prepare Go embed config if needed.
++	// Unlike the import config, it's okay for the embed config to be empty.
++	var embedcfg []byte
++	if len(p.Internal.Embed) > 0 {
++		var embed struct {
++			Patterns map[string][]string
++			Files    map[string]string
++		}
++		embed.Patterns = p.Internal.Embed
++		embed.Files = make(map[string]string)
++		for _, file := range p.EmbedFiles {
++			embed.Files[file] = filepath.Join(p.Dir, file)
++		}
++		js, err := json.MarshalIndent(&embed, "", "\t")
++		if err != nil {
++			return fmt.Errorf("marshal embedcfg: %v", err)
++		}
++		embedcfg = js
++	}
++
+ 	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
+ 		if err := b.writeFile(objdir+"_gomod_.go", modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")); err != nil {
+ 			return err
+@@ -703,7 +724,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 
+ 	// Compile Go.
+ 	objpkg := objdir + "_pkg_.a"
+-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), symabis, len(sfiles) > 0, gofiles)
++	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
+ 	if len(out) > 0 {
+ 		output := b.processOutput(out)
+ 		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+@@ -2125,9 +2146,7 @@ func mkAbs(dir, f string) string {
+ type toolchain interface {
+ 	// gc runs the compiler in a specific directory on a set of files
+ 	// and returns the name of the generated output file.
+-	//
+-	// TODO: This argument list is long. Consider putting it in a struct.
+-	gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
++	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+ 	// cc runs the toolchain's C compiler in a directory on a C file
+ 	// to produce an output file.
+ 	cc(b *Builder, a *Action, ofile, cfile string) error
+@@ -2167,7 +2186,7 @@ func (noToolchain) linker() string {
+ 	return ""
+ }
+ 
+-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
++func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+ 	return "", nil, noCompiler()
+ }
+ 
+@@ -2934,7 +2953,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
+ 
+ 	p := load.GoFilesPackage(context.TODO(), srcs)
+ 
+-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, "", false, srcs); e != nil {
++	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, srcs); e != nil {
+ 		return "32", nil
+ 	}
+ 	return "64", nil
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 0c4a7fa6e3..e79173485d 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -52,7 +52,7 @@ func pkgPath(a *Action) string {
+ 	return ppath
+ }
+ 
+-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+ 	p := a.Package
+ 	objdir := a.Objdir
+ 	if archive != "" {
+@@ -137,6 +137,12 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
+ 		}
+ 		args = append(args, "-importcfg", objdir+"importcfg")
+ 	}
++	if embedcfg != nil {
++		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
++			return "", nil, err
++		}
++		args = append(args, "-embedcfg", objdir+"embedcfg")
++	}
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+ 	}
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index ade8964b7c..6be3821f75 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -63,7 +63,7 @@ func checkGccgoBin() {
+ 	base.Exit()
+ }
+ 
+-func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+ 	p := a.Package
+ 	objdir := a.Objdir
+ 	out := "_go_.o"
+diff --git a/src/cmd/go/testdata/script/embed.txt b/src/cmd/go/testdata/script/embed.txt
+new file mode 100644
+index 0000000000..7e9a548661
+--- /dev/null
++++ b/src/cmd/go/testdata/script/embed.txt
+@@ -0,0 +1,72 @@
++# go list shows patterns and files
++go list -f '{{.EmbedPatterns}}'
++stdout '\[x\*t\*t\]'
++go list -f '{{.EmbedFiles}}'
++stdout '\[x.txt\]'
++
++# build embeds x.txt
++go build -x
++stderr 'x.txt'
++
++# build uses cache correctly
++go build -x
++! stderr 'x.txt'
++cp x.txt2 x.txt
++go build -x
++stderr 'x.txt'
++
++# build rejects invalid names
++cp x.go2 x.go
++go build -x
++cp x.txt .git
++! go build -x
++stderr 'pattern [*]t: cannot embed file [.]git'
++rm .git
++
++# build rejects symlinks
++[symlink] symlink x.tzt -> x.txt
++[symlink] ! go build -x
++[symlink] stderr 'pattern [*]t: cannot embed irregular file x.tzt'
++[symlink] rm x.tzt
++
++# build rejects empty directories
++mkdir t
++! go build -x
++stderr 'pattern [*]t: cannot embed directory t: contains no embeddable files'
++
++# build ignores symlinks and invalid names in directories
++cp x.txt t/.git
++! go build -x
++stderr 'pattern [*]t: cannot embed directory t: contains no embeddable files'
++[symlink] symlink t/x.link -> ../x.txt
++[symlink] ! go build -x
++[symlink] stderr 'pattern [*]t: cannot embed directory t: contains no embeddable files'
++
++cp x.txt t/x.txt
++go build -x
++
++-- x.go --
++package p
++
++import "embed"
++
++//go:embed x*t*t
++var X embed.FS
++
++-- x.go2 --
++package p
++
++import "embed"
++
++//go:embed *t
++var X embed.FS
++
++-- x.txt --
++hello
++
++-- x.txt2 --
++not hello
++
++-- go.mod --
++module m
++
+diff --git a/src/embed/internal/embedtest/concurrency.txt b/src/embed/internal/embedtest/concurrency.txt
+new file mode 100644
+index 0000000000..0814741261
+--- /dev/null
++++ b/src/embed/internal/embedtest/concurrency.txt
+@@ -0,0 +1 @@
++Concurrency is not parallelism.
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+new file mode 100644
+index 0000000000..c82ca9fed2
+--- /dev/null
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -0,0 +1,103 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package embedtest
++
++import (
++	"embed"
++	"reflect"
++	"testing"
++	"testing/fstest"
++)
++
++//go:embed testdata/h*.txt
++//go:embed c*.txt testdata/g*.txt
++var global embed.FS
++
++//go:embed c*txt
++var concurrency string
++
++//go:embed testdata/g*.txt
++var glass []byte
++
++func testFiles(t *testing.T, f embed.FS, name, data string) {
++	t.Helper()
++	d, err := f.ReadFile(name)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	if string(d) != data {
++		t.Errorf("read %v = %q, want %q", name, d, data)
++	}
++}
++
++func testString(t *testing.T, s, name, data string) {
++	t.Helper()
++	if s != data {
++		t.Errorf("%v = %q, want %q", name, s, data)
++	}
++}
++
++func testDir(t *testing.T, f embed.FS, name string, expect ...string) {
++	t.Helper()
++	dirs, err := f.ReadDir(name)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	var names []string
++	for _, d := range dirs {
++		name := d.Name()
++		if d.IsDir() {
++			name += "/"
++		}
++		names = append(names, name)
++	}
++	if !reflect.DeepEqual(names, expect) {
++		t.Errorf("readdir %v = %v, want %v", name, names, expect)
++	}
++}
++
++func TestGlobal(t *testing.T) {
++	testFiles(t, global, "concurrency.txt", "Concurrency is not parallelism.\n")
++	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
++	testFiles(t, global, "testdata/glass.txt", "I can eat glass and it doesn't hurt me.\n")
++
++	if err := fstest.TestFS(global); err != nil {
++		t.Fatal(err)
++	}
++
++	testString(t, concurrency, "concurrency", "Concurrency is not parallelism.\n")
++	testString(t, string(glass), "glass", "I can eat glass and it doesn't hurt me.\n")
++}
++
++func TestLocal(t *testing.T) {
++	//go:embed testdata/k*.txt
++	var local embed.FS
++	testFiles(t, local, "testdata/ken.txt", "If a program is too slow, it must have a loop.\n")
++
++	//go:embed testdata/k*.txt
++	var s string
++	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
++
++	//go:embed testdata/h*.txt
++	var b []byte
++	testString(t, string(b), "local variable b", "hello, world\n")
++}
++
++func TestDir(t *testing.T) {
++	//go:embed testdata
++	var all embed.FS
++
++	testFiles(t, all, "testdata/hello.txt", "hello, world\n")
++	testFiles(t, all, "testdata/i/i18n.txt", "internationalization\n")
++	testFiles(t, all, "testdata/i/j/k/k8s.txt", "kubernetes\n")
++	testFiles(t, all, "testdata/ken.txt", "If a program is too slow, it must have a loop.\n")
++
++	testDir(t, all, ".", "testdata/")
++	testDir(t, all, "testdata/i", "i18n.txt", "j/")
++	testDir(t, all, "testdata/i/j", "k/")
++	testDir(t, all, "testdata/i/j/k", "k8s.txt")
++}
+diff --git a/src/embed/internal/embedtest/embedx_test.go b/src/embed/internal/embedtest/embedx_test.go
+new file mode 100644
+index 0000000000..53d45488f1
+--- /dev/null
++++ b/src/embed/internal/embedtest/embedx_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package embedtest_test
++
++import (
++	"embed"
++	"io/ioutil"
++	"testing"
++)
++
++var (
++	global2      = global
++	concurrency2 = concurrency
++	glass2       = glass
++	sbig2        = sbig
++	bbig2        = bbig
++)
++
++//go:embed testdata/*.txt
++var global embed.FS
++
++//go:embed c*txt
++var concurrency string
++
++//go:embed testdata/g*.txt
++var glass []byte
++
++//go:embed testdata/ascii.txt
++var sbig string
++
++//go:embed testdata/ascii.txt
++var bbig []byte
++
++func testFiles(t *testing.T, f embed.FS, name, data string) {
++	t.Helper()
++	d, err := f.ReadFile(name)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	if string(d) != data {
++		t.Errorf("read %v = %q, want %q", name, d, data)
++	}
++}
++
++func testString(t *testing.T, s, name, data string) {
++	t.Helper()
++	if s != data {
++		t.Errorf("%v = %q, want %q", name, s, data)
++	}
++}
++
++func TestXGlobal(t *testing.T) {
++	testFiles(t, global, "testdata/hello.txt", "hello, world\n")
++	testString(t, concurrency, "concurrency", "Concurrency is not parallelism.\n")
++	testString(t, string(glass), "glass", "I can eat glass and it doesn't hurt me.\n")
++	testString(t, concurrency2, "concurrency2", "Concurrency is not parallelism.\n")
++	testString(t, string(glass2), "glass2", "I can eat glass and it doesn't hurt me.\n")
++
++	big, err := ioutil.ReadFile("testdata/ascii.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	testString(t, sbig, "sbig", string(big))
++	testString(t, sbig2, "sbig2", string(big))
++	testString(t, string(bbig), "bbig", string(big))
++	testString(t, string(bbig2), "bbig", string(big))
++
++	if t.Failed() {
++		return
++	}
++
++	// Could check &glass[0] == &glass2[0] but also want to make sure write does not fault
++	// (data must not be in read-only memory).
++	old := glass[0]
++	glass[0]++
++	if glass2[0] != glass[0] {
++		t.Fatalf("glass and glass2 do not share storage")
++	}
++	glass[0] = old
++
++	// Could check &bbig[0] == &bbig2[0] but also want to make sure write does not fault
++	// (data must not be in read-only memory).
++	old = bbig[0]
++	bbig[0]++
++	if bbig2[0] != bbig[0] {
++		t.Fatalf("bbig and bbig2 do not share storage")
++	}
++	bbig[0] = old
++}
++
++func TestXLocal(t *testing.T) {
++	//go:embed testdata/*o.txt
++	var local embed.FS
++	testFiles(t, local, "testdata/hello.txt", "hello, world\n")
++
++	//go:embed testdata/k*.txt
++	var s string
++	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
++
++	//go:embed testdata/h*.txt
++	var b []byte
++	testString(t, string(b), "local variable b", "hello, world\n")
++}
+diff --git a/src/embed/internal/embedtest/testdata/ascii.txt b/src/embed/internal/embedtest/testdata/ascii.txt
+new file mode 100644
+index 0000000000..0cfebf6e9c
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/ascii.txt
+@@ -0,0 +1,25 @@
++ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmn
++!"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmno
++"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnop
++#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopq
++$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqr
++%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrs
++&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrst
++'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstu
++()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuv
++)*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvw
++*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwx
+++,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxy
++,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz
++-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{
++./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|
++/0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}
++0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} 
++123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !
++23456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"
++3456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"#
++456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"#$
++56789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"#$%
++6789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"#$%&
++789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"#$%&'
++89:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|} !"#$%&'(
+diff --git a/src/embed/internal/embedtest/testdata/glass.txt b/src/embed/internal/embedtest/testdata/glass.txt
+new file mode 100644
+index 0000000000..8350baf437
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/glass.txt
+@@ -0,0 +1 @@
++I can eat glass and it doesn't hurt me.
+diff --git a/src/embed/internal/embedtest/testdata/hello.txt b/src/embed/internal/embedtest/testdata/hello.txt
+new file mode 100644
+index 0000000000..4b5fa63702
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/hello.txt
+@@ -0,0 +1 @@
++hello, world
+diff --git a/src/embed/internal/embedtest/testdata/i/i18n.txt b/src/embed/internal/embedtest/testdata/i/i18n.txt
+new file mode 100644
+index 0000000000..5ee27c63b6
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/i/i18n.txt
+@@ -0,0 +1 @@
++internationalization
+diff --git a/src/embed/internal/embedtest/testdata/i/j/k/k8s.txt b/src/embed/internal/embedtest/testdata/i/j/k/k8s.txt
+new file mode 100644
+index 0000000000..807e21be4c
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/i/j/k/k8s.txt
+@@ -0,0 +1 @@
++kubernetes
+diff --git a/src/embed/internal/embedtest/testdata/ken.txt b/src/embed/internal/embedtest/testdata/ken.txt
+new file mode 100644
+index 0000000000..bb2598132e
+--- /dev/null
++++ b/src/embed/internal/embedtest/testdata/ken.txt
+@@ -0,0 +1 @@
++If a program is too slow, it must have a loop.

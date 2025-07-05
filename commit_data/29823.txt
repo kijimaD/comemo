@@ -11,7 +11,46 @@ Date:   Wed Oct 12 19:41:29 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/interface.go       | 4 ++--
  src/net/interface_plan9.go | 5 ++---
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/interface.go b/src/net/interface.go
+index e36e886646..d1fe2a0009 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -13,8 +13,8 @@ import (
+ // BUG(mikio): On NaCl, methods and functions related to
+ // Interface are not implemented.
+ 
+-// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD and Solaris, the
+-// MulticastAddrs method of Interface is not implemented.
++// BUG(mikio): On DragonFly BSD, NetBSD, OpenBSD, Plan 9 and Solaris,
++// the MulticastAddrs method of Interface is not implemented.
+ 
+ var (
+ 	errInvalidInterface         = errors.New("invalid network interface")
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index 12d39db59b..e5d77390f8 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -132,7 +132,7 @@ func interfaceCount() (int, error) {
+ // network interfaces. Otherwise it returns addresses for a specific
+ // interface.
+ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+-	ifcs := []Interface{}
++	var ifcs []Interface
+ 	if ifi == nil {
+ 		var err error
+ 		ifcs, err = interfaceTable(0)
+@@ -177,8 +177,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 		if !ok {
+ 			return nil, errors.New("cannot parse network mask for interface: " + status)
+ 		}
+-		mask := CIDRMask(int(pfxlen), 128)
+-
++		var mask IPMask
+ 		if ip.To4() != nil { // IPv4 or IPv6 IPv4-mapped address
+ 			mask = CIDRMask(pfxlen-8*len(v4InV6Prefix), 8*IPv4len)
+ 		}

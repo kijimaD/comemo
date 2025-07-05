@@ -12,9 +12,60 @@ Date:   Fri Oct 14 15:31:42 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/goos/nonunix.go               | 5 +++++
  src/internal/goos/unix.go                  | 5 +++++
  src/runtime/crash_cgo_test.go              | 4 ++--
  src/runtime/testdata/testprogcgo/sigfwd.go | 2 +-
  4 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/goos/nonunix.go b/src/internal/goos/nonunix.go
+new file mode 100644
+index 0000000000..0f1373ff31
+--- /dev/null
++++ b/src/internal/goos/nonunix.go
+@@ -0,0 +1,5 @@
++//go:build !unix
++
++package goos
++
++const IsUnix = false
+diff --git a/src/internal/goos/unix.go b/src/internal/goos/unix.go
+new file mode 100644
+index 0000000000..6ef2a2c7d1
+--- /dev/null
++++ b/src/internal/goos/unix.go
+@@ -0,0 +1,5 @@
++//go:build unix
++
++package goos
++
++const IsUnix = true
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 441a704ebe..ba0e9f4ced 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -757,8 +757,8 @@ func TestCgoTraceParserWithOneProc(t *testing.T) {
+ 
+ func TestCgoSigfwd(t *testing.T) {
+ 	t.Parallel()
+-	if goos.IsLinux == 0 {
+-		t.Skipf("only supported on Linux")
++	if !goos.IsUnix {
++		t.Skipf("no signals on %s", runtime.GOOS)
+ 	}
+ 
+ 	got := runTestProg(t, "testprogcgo", "CgoSigfwd", "GO_TEST_CGOSIGFWD=1")
+diff --git a/src/runtime/testdata/testprogcgo/sigfwd.go b/src/runtime/testdata/testprogcgo/sigfwd.go
+index b27d436f82..b66616db36 100644
+--- a/src/runtime/testdata/testprogcgo/sigfwd.go
++++ b/src/runtime/testdata/testprogcgo/sigfwd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux
++//go:build unix
+ 
+ package main
+ 

@@ -15,7 +15,7 @@ Date:   Wed Apr 8 22:45:33 2009 -0700
     R=r
     OCL=27244
     CL=27244
-
+---
  src/cmd/6l/obj.c  | 20 ++++++++++++++------
  src/cmd/gc/go.h   |  2 +-
  src/cmd/gc/lex.c  | 35 +++++++++++++++++++++--------------
@@ -23,3 +23,220 @@ Date:   Wed Apr 8 22:45:33 2009 -0700
  src/cmd/gc/walk.c |  4 ++--
  src/lib/Makefile  |  6 ++++--
  6 files changed, 44 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 470095467d..3a4208cd22 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -635,12 +635,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
+ void
+ addlib(char *src, char *obj)
+ {
+-	char name[1024], comp[256], *p, *q;
+-	int i;
++	char name[1024], pname[1024], comp[256], *p, *q;
++	int i, search;
+ 
+ 	if(histfrogp <= 0)
+ 		return;
+ 
++	search = 0;
+ 	if(histfrog[0]->name[1] == '/') {
+ 		sprint(name, "");
+ 		i = 1;
+@@ -649,11 +650,9 @@ addlib(char *src, char *obj)
+ 		sprint(name, ".");
+ 		i = 0;
+ 	} else {
+-		if(debug['9'])
+-			sprint(name, "/%s/lib", thestring);
+-		else
+-			sprint(name, "/usr/%clib", thechar);
++		sprint(name, "");
+ 		i = 0;
++		search = 1;
+ 	}
+ 
+ 	for(; i<histfrogp; i++) {
+@@ -683,6 +682,15 @@ addlib(char *src, char *obj)
+ 		strcat(name, "/");
+ 		strcat(name, comp);
+ 	}
++
++	if(search) {
++		// try dot and then try goroot.
++		// going to have to do better (probably a command line flag) later.
++		snprint(pname, sizeof pname, ".%s", name);
++		if(access(pname, AEXIST) < 0)
++			snprint(pname, sizeof pname, "%s/pkg/%s", goroot, name);
++		strcpy(name, pname);
++	}
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b3f8a50bce..256f624156 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -703,7 +703,7 @@ Sym*	pkglookup(char*, char*);
+ void	yyerror(char*, ...);
+ void	warn(char*, ...);
+ void	fatal(char*, ...);
+-void	linehist(char*, int32);
++void	linehist(char*, int32, int);
+ int32	setlineno(Node*);
+ Node*	nod(int, Node*, Node*);
+ Node*	nodlit(Val);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 4e577a63c8..d382c60852 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -74,7 +74,7 @@ main(int argc, char *argv[])
+ 
+ 	setfilename(argv[0]);
+ 	infile = argv[0];
+-	linehist(infile, 0);
++	linehist(infile, 0, 0);
+ 
+ 	curio.infile = infile;
+ 	curio.bin = Bopen(infile, OREAD);
+@@ -103,7 +103,7 @@ main(int argc, char *argv[])
+ 	yyparse();
+ 	runifacechecks();
+ 
+-	linehist(nil, 0);
++	linehist(nil, 0, 0);
+ 	if(curio.bin != nil)
+ 		Bterm(curio.bin);
+ 
+@@ -148,7 +148,7 @@ setfilename(char *file)
+ 	if(p != nil && strcmp(p, ".go") == 0)
+ 		*p = 0;
+ 	filename = strdup(namebuf);
+-	
++
+ 	// turn invalid identifier chars into _
+ 	for(p=filename; *p; p++) {
+ 		c = *p & 0xFF;
+@@ -254,7 +254,7 @@ void
+ importfile(Val *f)
+ {
+ 	Biobuf *imp;
+-	char *file;
++	char *file, *p;
+ 	int32 c;
+ 	int len;
+ 
+@@ -276,14 +276,21 @@ importfile(Val *f)
+ 	file = strdup(namebuf);
+ 
+ 	len = strlen(namebuf);
+-	if(len > 2)
+-	if(namebuf[len-2] == '.')
+-	if(namebuf[len-1] == 'a')
+-	if(!skiptopkgdef(imp))
+-		fatal("import not package file: %s", namebuf);
+-
+-	linehist(file, 0);
+-	linehist(file, -1);	// acts as #pragma lib
++	if(len > 2 && namebuf[len-2] == '.' && namebuf[len-1] == 'a') {
++		if(!skiptopkgdef(imp))
++			fatal("import not package file: %s", namebuf);
++
++		// assume .a files move (get installed)
++		// so don't record the full path.
++		p = file + len - f->u.sval->len - 2;
++		linehist(p, 0, 0);
++		linehist(p, -1, 1);	// acts as #pragma lib
++	} else {
++		// assume .6 files don't move around
++		// so do record the full path
++		linehist(file, 0, 0);
++		linehist(file, -1, 0);
++	}
+ 
+ 	/*
+ 	 * position the input right
+@@ -314,7 +321,7 @@ importfile(Val *f)
+ void
+ unimportfile(void)
+ {
+-	linehist(nil, 0);
++	linehist(nil, 0, 0);
+ 
+ 	if(curio.bin != nil) {
+ 		Bterm(curio.bin);
+@@ -330,7 +337,7 @@ void
+ cannedimports(char *file, char *cp)
+ {
+ 	lineno++;		// if sys.6 is included on line 1,
+-	linehist(file, 0);	// the debugger gets confused
++	linehist(file, 0, 0);	// the debugger gets confused
+ 
+ 	pushedio = curio;
+ 	curio.bin = nil;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index fb8a1744a4..1ca6c33744 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -63,7 +63,7 @@ fatal(char *fmt, ...)
+ }
+ 
+ void
+-linehist(char *file, int32 off)
++linehist(char *file, int32 off, int relative)
+ {
+ 	Hist *h;
+ 	char *cp;
+@@ -78,7 +78,7 @@ linehist(char *file, int32 off)
+ 			print("end of import at line %L\n", lineno);
+ 	}
+ 
+-	if(off < 0 && file[0] != '/') {
++	if(off < 0 && file[0] != '/' && !relative) {
+ 		cp = mal(strlen(file) + strlen(pathname) + 2);
+ 		sprint(cp, "%s/%s", pathname, file);
+ 		file = cp;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 0958a9f2f8..d3a4adbf34 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3078,12 +3078,12 @@ colas(Node *nl, Node *nr)
+ 			convlit(nr->left, types[TFUNC]);
+ 			t = nr->left->type;
+ 			if(t == T)
+-				return;	// error already printed
++				return nl;	// error already printed
+ 			if(t->etype == tptr)
+ 				t = t->type;
+ 			if(t == T || t->etype != TFUNC) {
+ 				yyerror("cannot call %T", t);
+-				return;
++				return nl;
+ 			}
+ 			if(t->outtuple != cl) {
+ 				cr = t->outtuple;
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index d084543853..4d98c62c6c 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -68,7 +68,9 @@ test.files: $(addsuffix .test, $(TEST))
+ 	rm -f $*.6
+ 
+ %.install: %.6
+-	mv $*.6 $(GOROOT)/pkg/$*.6
++	6ar grc $*.a $*.6
++	mv $*.a $(GOROOT)/pkg/$*.a
++	rm -f $*.6
+ 
+ %.dirclean:
+ 	+cd $* && make clean
+@@ -95,7 +97,7 @@ test: test.files
+ 
+ bignum.6: fmt.dirinstall
+ bufio.6: io.dirinstall os.dirinstall
+-exec.6: os.dirinstall
++exec.6: os.dirinstall strings.install
+ flag.6: fmt.dirinstall os.dirinstall strconv.dirinstall
+ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+ path.6: io.dirinstall

@@ -8,6 +8,41 @@ Date:   Mon Aug 11 23:43:51 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/119640043
-
+---
  src/cmd/cgo/main.go | 20 ++++++++++++++------
  1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 17b0cdd167..0dc22dcd45 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -130,15 +130,23 @@ func usage() {
+ }
+ 
+ var ptrSizeMap = map[string]int64{
+-	"386":   4,
+-	"amd64": 8,
+-	"arm":   4,
++	"386":       4,
++	"amd64":     8,
++	"arm":       4,
++	"ppc64":     8,
++	"ppc64le":   8,
++	"power64":   8,
++	"power64le": 8,
+ }
+ 
+ var intSizeMap = map[string]int64{
+-	"386":   4,
+-	"amd64": 8,
+-	"arm":   4,
++	"386":       4,
++	"amd64":     8,
++	"arm":       4,
++	"ppc64":     8,
++	"ppc64le":   8,
++	"power64":   8,
++	"power64le": 8,
+ }
+ 
+ var cPrefix string

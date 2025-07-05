@@ -9,6 +9,20 @@ Date:   Mon Sep 14 20:58:21 2015 -0700
     Change-Id: I9e690379d2dfd983266de0ea5231f2b57c8b1517
     Reviewed-on: https://go-review.googlesource.com/14568
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index 4f1bf9dcc1..89212e6e26 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -345,7 +345,7 @@ var listenerBacklog = maxListenerBacklog()
+ // Multiple goroutines may invoke methods on a Listener simultaneously.
+ type Listener interface {
+ 	// Accept waits for and returns the next connection to the listener.
+-	Accept() (c Conn, err error)
++	Accept() (Conn, error)
+ 
+ 	// Close closes the listener.
+ 	// Any blocked Accept operations will be unblocked and return errors.

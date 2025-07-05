@@ -14,6 +14,29 @@ Date:   Thu Apr 7 02:44:08 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/hash/maphash/maphash.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 973fb68701..ffd488fa17 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -40,7 +40,7 @@ type Seed struct {
+ //	var h Hash
+ //	h.SetSeed(seed)
+ //	h.Write(b)
+-//	return h.Sum()
++//	return h.Sum64()
+ func Bytes(seed Seed, b []byte) uint64 {
+ 	state := seed.s
+ 	if state == 0 {
+@@ -66,7 +66,7 @@ func Bytes(seed Seed, b []byte) uint64 {
+ //	var h Hash
+ //	h.SetSeed(seed)
+ //	h.WriteString(s)
+-//	return h.Sum()
++//	return h.Sum64()
+ func String(seed Seed, s string) uint64 {
+ 	state := seed.s
+ 	if state == 0 {

@@ -7,7 +7,7 @@ Date:   Tue Dec 20 10:28:04 2011 -0500
     R=golang-dev, r, adg
     CC=golang-dev
     https://golang.org/cl/5495068
-
+---
  src/cmd/go/build.go            | 75 ++++++++++++++++++++++++++++++++++--------
  src/cmd/go/list.go             |  1 +
  src/cmd/go/main.go             |  8 -----
@@ -15,3 +15,272 @@ Date:   Tue Dec 20 10:28:04 2011 -0500
  src/pkg/go/build/build_test.go |  1 +
  src/pkg/go/build/dir.go        | 21 ++++++++++--
  6 files changed, 85 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index ba9aa672b6..bee0f2a76d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -106,6 +106,8 @@ type builder struct {
+ 	vflag       bool                 // the -v flag
+ 	arch        string               // e.g., "6"
+ 	goroot      string               // the $GOROOT
++	goarch      string               // the $GOARCH
++	goos        string               // the $GOOS
+ 	actionCache map[cacheKey]*action // a cache of already-constructed actions
+ }
+ 
+@@ -147,8 +149,10 @@ func (b *builder) init(aflag, nflag, vflag bool) {
+ 	b.vflag = vflag
+ 	b.actionCache = make(map[cacheKey]*action)
+ 	b.goroot = runtime.GOROOT()
++	b.goarch = build.DefaultContext.GOARCH
++	b.goos = build.DefaultContext.GOOS
+ 
+-	b.arch, err = build.ArchChar(build.DefaultContext.GOARCH)
++	b.arch, err = build.ArchChar(b.goarch)
+ 	if err != nil {
+ 		fatalf("%s", err)
+ 	}
+@@ -236,7 +240,7 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		}
+ 		if p.Standard {
+ 			switch p.ImportPath {
+-			case "runtime", "runtime/cgo":
++			case "runtime/cgo":
+ 				// Too complex - can't build.
+ 				a.f = (*builder).nop
+ 				return a
+@@ -362,17 +366,60 @@ func (b *builder) build(a *action) error {
+ 	// compile Go
+ 	if len(gofiles) > 0 {
+ 		out := "_go_.6"
+-		if err := b.gc(a.p.Dir, obj+out, a.p.ImportPath, inc, gofiles); err != nil {
++		gcargs := []string{"-p", a.p.ImportPath}
++		if a.p.Standard && a.p.ImportPath == "runtime" {
++			// runtime compiles with a special 6g flag to emit
++			// additional reflect type data.
++			gcargs = append(gcargs, "-+")
++		}
++		if err := b.gc(a.p.Dir, obj+out, gcargs, inc, gofiles); err != nil {
+ 			return err
+ 		}
+ 		objects = append(objects, out)
+ 	}
+ 
+-	// assemble .s files
+-	if len(a.p.SFiles) > 0 {
+-		for _, sfile := range a.p.SFiles {
+-			out := sfile[:len(sfile)-len(".s")] + "." + b.arch
+-			if err := b.asm(a.p.Dir, obj+out, sfile); err != nil {
++	// copy .h files named for goos or goarch or goos_goarch
++	// to names using GOOS and GOARCH.
++	// For example, defs_linux_amd64.h becomes defs_GOOS_GOARCH.h.
++	_goos_goarch := "_" + b.goos + "_" + b.goarch + ".h"
++	_goos := "_" + b.goos + ".h"
++	_goarch := "_" + b.goarch + ".h"
++	for _, file := range a.p.HFiles {
++		switch {
++		case strings.HasSuffix(file, _goos_goarch):
++			targ := file[:len(file)-len(_goos_goarch)] + "_GOOS_GOARCH.h"
++			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
++				return err
++			}
++		case strings.HasSuffix(file, _goarch):
++			targ := file[:len(file)-len(_goarch)] + "_GOARCH.h"
++			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
++				return err
++			}
++		case strings.HasSuffix(file, _goos):
++			targ := file[:len(file)-len(_goos)] + "_GOOS.h"
++			if err := b.copyFile(obj+targ, filepath.Join(a.p.Dir, file), 0666); err != nil {
++				return err
++			}
++		}
++	}
++
++	// in a cgo package, the .c files are compiled with gcc during b.cgo above.
++	// in a non-cgo package, the .c files are compiled with 5c/6c/8c.
++	// The same convention applies for .s files.
++	if len(a.p.CgoFiles) == 0 {
++		for _, file := range a.p.CFiles {
++			out := file[:len(file)-len(".c")] + "." + b.arch
++			if err := b.cc(a.p.Dir, obj+out, file); err != nil {
++				return err
++			}
++			objects = append(objects, out)
++		}
++
++		// assemble .s files
++		for _, file := range a.p.SFiles {
++			out := file[:len(file)-len(".s")] + "." + b.arch
++			if err := b.asm(a.p.Dir, obj+out, file); err != nil {
+ 				return err
+ 			}
+ 			objects = append(objects, out)
+@@ -510,8 +557,10 @@ func (b *builder) mkdir(dir string) error {
+ 
+ // gc runs the Go compiler in a specific directory on a set of files
+ // to generate the named output file. 
+-func (b *builder) gc(dir, ofile, importPath string, importArgs []string, gofiles []string) error {
+-	args := append([]string{b.arch + "g", "-o", ofile, "-p", importPath}, importArgs...)
++func (b *builder) gc(dir, ofile string, gcargs, importArgs []string, gofiles []string) error {
++	args := []string{b.arch + "g", "-o", ofile}
++	args = append(args, gcargs...)
++	args = append(args, importArgs...)
+ 	args = append(args, gofiles...)
+ 	return b.run(dir, args...)
+ }
+@@ -519,7 +568,7 @@ func (b *builder) gc(dir, ofile, importPath string, importArgs []string, gofiles
+ // asm runs the assembler in a specific directory on a specific file
+ // to generate the named output file. 
+ func (b *builder) asm(dir, ofile, sfile string) error {
+-	return b.run(dir, b.arch+"a", "-o", ofile, sfile)
++	return b.run(dir, b.arch+"a", "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, sfile)
+ }
+ 
+ // gopack runs the assembler in a specific directory to create
+@@ -538,8 +587,8 @@ func (b *builder) ld(dir, out string, importArgs []string, mainpkg string) error
+ // to produce an output file.
+ func (b *builder) cc(dir, ofile, cfile string) error {
+ 	inc := filepath.Join(runtime.GOROOT(), "pkg",
+-		fmt.Sprintf("%s_%s", build.DefaultContext.GOOS, build.DefaultContext.GOARCH))
+-	return b.run(dir, b.arch+"c", "-FVW", "-I", inc, "-o", ofile, cfile)
++		fmt.Sprintf("%s_%s", b.goos, b.goarch))
++	return b.run(dir, b.arch+"c", "-FVw", "-I", inc, "-o", ofile, "-DGOOS_"+b.goos, "-DGOARCH_"+b.goarch, cfile)
+ }
+ 
+ // gcc runs the gcc C compiler to create an object from a single C file.
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 4d8a3609b0..bd75fd6cc4 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -37,6 +37,7 @@ being passed to the template is:
+         // Source files
+         GoFiles  []string // .go source files (excluding CgoFiles)
+         CFiles   []string // .c source files
++        HFiles []string // .h source files
+         SFiles   []string // .s source files
+         CgoFiles []string // .go sources files that import "C"
+ 
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 97db5abce8..79bcd66746 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -239,7 +239,6 @@ func run(cmdline ...string) {
+ func allPackages() []string {
+ 	have := make(map[string]bool)
+ 	var pkgs []string
+-	runtime := filepath.Join(build.Path[0].SrcDir(), "runtime") + string(filepath.Separator)
+ 	for _, t := range build.Path {
+ 		src := t.SrcDir() + string(filepath.Separator)
+ 		filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+@@ -251,13 +250,6 @@ func allPackages() []string {
+ 			if strings.HasSuffix(path, string(filepath.Separator)+"testdata") {
+ 				return filepath.SkipDir
+ 			}
+-			// Avoid runtime subdirectories.
+-			if strings.HasPrefix(path, runtime) {
+-				switch path {
+-				case runtime + "darwin", runtime + "freebsd", runtime + "linux", runtime + "netbsd", runtime + "openbsd", runtime + "windows":
+-					return filepath.SkipDir
+-				}
+-			}
+ 
+ 			_, err = build.ScanDir(path)
+ 			if err != nil {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index e9fb3bf3c0..dcb9afa472 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -29,6 +29,7 @@ type Package struct {
+ 	// Source files
+ 	GoFiles  []string // .go source files (excluding CgoFiles)
+ 	CFiles   []string // .c source files
++	HFiles   []string // .h source files
+ 	SFiles   []string // .s source files
+ 	CgoFiles []string // .go sources files that import "C"
+ 
+@@ -120,6 +121,7 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 		Imports:    info.Imports,
+ 		GoFiles:    info.GoFiles,
+ 		CFiles:     info.CFiles,
++		HFiles:     info.HFiles,
+ 		SFiles:     info.SFiles,
+ 		CgoFiles:   info.CgoFiles,
+ 		Standard:   t.Goroot && !strings.Contains(importPath, "."),
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index e22a49aa3d..e86cfc012e 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -48,6 +48,7 @@ var buildPkgs = []struct {
+ 		&DirInfo{
+ 			CgoFiles:    []string{"cgotest.go"},
+ 			CFiles:      []string{"cgotest.c"},
++			HFiles:      []string{"cgotest.h"},
+ 			Imports:     []string{"C", "unsafe"},
+ 			TestImports: []string{},
+ 			Package:     "cgotest",
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 2c89224fd4..29d7c4c7d3 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -96,8 +96,9 @@ type DirInfo struct {
+ 
+ 	// Source files
+ 	GoFiles  []string // .go files in dir (excluding CgoFiles)
++	HFiles   []string // .h files in dir
+ 	CFiles   []string // .c files in dir
+-	SFiles   []string // .s files in dir
++	SFiles   []string // .s (and, when using cgo, .S files in dir)
+ 	CgoFiles []string // .go files that import "C"
+ 
+ 	// Cgo directives
+@@ -135,6 +136,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		return nil, err
+ 	}
+ 
++	var Sfiles []string // files with ".S" (capital S)
+ 	var di DirInfo
+ 	imported := make(map[string]bool)
+ 	testImported := make(map[string]bool)
+@@ -154,7 +156,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 
+ 		ext := path.Ext(name)
+ 		switch ext {
+-		case ".go", ".c", ".s":
++		case ".go", ".c", ".s", ".h", ".S":
+ 			// tentatively okay
+ 		default:
+ 			// skip
+@@ -175,9 +177,15 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		case ".c":
+ 			di.CFiles = append(di.CFiles, name)
+ 			continue
++		case ".h":
++			di.HFiles = append(di.HFiles, name)
++			continue
+ 		case ".s":
+ 			di.SFiles = append(di.SFiles, name)
+ 			continue
++		case ".S":
++			Sfiles = append(Sfiles, name)
++			continue
+ 		}
+ 
+ 		pf, err := parser.ParseFile(fset, filename, data, parser.ImportsOnly|parser.ParseComments)
+@@ -282,6 +290,15 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		di.TestImports[i] = p
+ 		i++
+ 	}
++
++	// add the .S files only if we are using cgo
++	// (which means gcc will compile them).
++	// The standard assemblers expect .s files.
++	if len(di.CgoFiles) > 0 {
++		di.SFiles = append(di.SFiles, Sfiles...)
++		sort.Strings(di.SFiles)
++	}
++
+ 	// File name lists are sorted because ReadDir sorts.
+ 	sort.Strings(di.Imports)
+ 	sort.Strings(di.TestImports)

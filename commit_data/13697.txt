@@ -7,6 +7,20 @@ Date:   Tue Aug 28 04:03:27 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6476066
-
+---
  src/cmd/api/goapi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index ad1c6bb8ca..992762602e 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -100,7 +100,7 @@ func setContexts() {
+ func main() {
+ 	flag.Parse()
+ 
+-	if !strings.Contains(runtime.Version(), "weekly") {
++	if !strings.Contains(runtime.Version(), "weekly") && runtime.Version() != "devel" {
+ 		if *nextFile != "" {
+ 			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
+ 			*nextFile = ""

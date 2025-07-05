@@ -16,7 +16,7 @@ Date:   Fri Jan 15 23:20:13 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go      |   2 +-
  src/cmd/compile/internal/ir/node.go      |   1 -
  src/cmd/compile/internal/ir/op_string.go | 143 +++++++++++++++----------------
@@ -26,3 +26,288 @@ Date:   Fri Jan 15 23:20:13 2021 +0700
  src/cmd/compile/internal/walk/expr.go    |   2 +-
  src/cmd/compile/internal/walk/walk.go    |   2 +-
  8 files changed, 87 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 5b1be7fc0f..dd91e347bd 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -657,7 +657,7 @@ func (n *UnaryExpr) SetOp(op Op) {
+ 	case OBITNOT, ONEG, ONOT, OPLUS, ORECV,
+ 		OALIGNOF, OCAP, OCLOSE, OIMAG, OLEN, ONEW,
+ 		OOFFSETOF, OPANIC, OREAL, OSIZEOF,
+-		OCHECKNIL, OCFUNC, OIDATA, OITAB, ONEWOBJ, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
++		OCHECKNIL, OCFUNC, OIDATA, OITAB, OSPTR, OVARDEF, OVARKILL, OVARLIVE:
+ 		n.op = op
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index a1b09b38cc..de03800da2 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -216,7 +216,6 @@ const (
+ 	OAND         // Left & Right
+ 	OANDNOT      // Left &^ Right
+ 	ONEW         // new(Left); corresponds to calls to new in source code
+-	ONEWOBJ      // runtime.newobject(n.Type); introduced by walk; Left is type descriptor
+ 	ONOT         // !Left
+ 	OBITNOT      // ^Left
+ 	OPLUS        // +Left
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index b54b4785a2..9538599c38 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -91,81 +91,80 @@ func _() {
+ 	_ = x[OAND-80]
+ 	_ = x[OANDNOT-81]
+ 	_ = x[ONEW-82]
+-	_ = x[ONEWOBJ-83]
+-	_ = x[ONOT-84]
+-	_ = x[OBITNOT-85]
+-	_ = x[OPLUS-86]
+-	_ = x[ONEG-87]
+-	_ = x[OOROR-88]
+-	_ = x[OPANIC-89]
+-	_ = x[OPRINT-90]
+-	_ = x[OPRINTN-91]
+-	_ = x[OPAREN-92]
+-	_ = x[OSEND-93]
+-	_ = x[OSLICE-94]
+-	_ = x[OSLICEARR-95]
+-	_ = x[OSLICESTR-96]
+-	_ = x[OSLICE3-97]
+-	_ = x[OSLICE3ARR-98]
+-	_ = x[OSLICEHEADER-99]
+-	_ = x[ORECOVER-100]
+-	_ = x[ORECV-101]
+-	_ = x[ORUNESTR-102]
+-	_ = x[OSELRECV2-103]
+-	_ = x[OIOTA-104]
+-	_ = x[OREAL-105]
+-	_ = x[OIMAG-106]
+-	_ = x[OCOMPLEX-107]
+-	_ = x[OALIGNOF-108]
+-	_ = x[OOFFSETOF-109]
+-	_ = x[OSIZEOF-110]
+-	_ = x[OMETHEXPR-111]
+-	_ = x[OSTMTEXPR-112]
+-	_ = x[OBLOCK-113]
+-	_ = x[OBREAK-114]
+-	_ = x[OCASE-115]
+-	_ = x[OCONTINUE-116]
+-	_ = x[ODEFER-117]
+-	_ = x[OFALL-118]
+-	_ = x[OFOR-119]
+-	_ = x[OFORUNTIL-120]
+-	_ = x[OGOTO-121]
+-	_ = x[OIF-122]
+-	_ = x[OLABEL-123]
+-	_ = x[OGO-124]
+-	_ = x[ORANGE-125]
+-	_ = x[ORETURN-126]
+-	_ = x[OSELECT-127]
+-	_ = x[OSWITCH-128]
+-	_ = x[OTYPESW-129]
+-	_ = x[OTCHAN-130]
+-	_ = x[OTMAP-131]
+-	_ = x[OTSTRUCT-132]
+-	_ = x[OTINTER-133]
+-	_ = x[OTFUNC-134]
+-	_ = x[OTARRAY-135]
+-	_ = x[OTSLICE-136]
+-	_ = x[OINLCALL-137]
+-	_ = x[OEFACE-138]
+-	_ = x[OITAB-139]
+-	_ = x[OIDATA-140]
+-	_ = x[OSPTR-141]
+-	_ = x[OCFUNC-142]
+-	_ = x[OCHECKNIL-143]
+-	_ = x[OVARDEF-144]
+-	_ = x[OVARKILL-145]
+-	_ = x[OVARLIVE-146]
+-	_ = x[ORESULT-147]
+-	_ = x[OINLMARK-148]
+-	_ = x[ONAMEOFFSET-149]
+-	_ = x[ORETJMP-150]
+-	_ = x[OGETG-151]
+-	_ = x[OEND-152]
++	_ = x[ONOT-83]
++	_ = x[OBITNOT-84]
++	_ = x[OPLUS-85]
++	_ = x[ONEG-86]
++	_ = x[OOROR-87]
++	_ = x[OPANIC-88]
++	_ = x[OPRINT-89]
++	_ = x[OPRINTN-90]
++	_ = x[OPAREN-91]
++	_ = x[OSEND-92]
++	_ = x[OSLICE-93]
++	_ = x[OSLICEARR-94]
++	_ = x[OSLICESTR-95]
++	_ = x[OSLICE3-96]
++	_ = x[OSLICE3ARR-97]
++	_ = x[OSLICEHEADER-98]
++	_ = x[ORECOVER-99]
++	_ = x[ORECV-100]
++	_ = x[ORUNESTR-101]
++	_ = x[OSELRECV2-102]
++	_ = x[OIOTA-103]
++	_ = x[OREAL-104]
++	_ = x[OIMAG-105]
++	_ = x[OCOMPLEX-106]
++	_ = x[OALIGNOF-107]
++	_ = x[OOFFSETOF-108]
++	_ = x[OSIZEOF-109]
++	_ = x[OMETHEXPR-110]
++	_ = x[OSTMTEXPR-111]
++	_ = x[OBLOCK-112]
++	_ = x[OBREAK-113]
++	_ = x[OCASE-114]
++	_ = x[OCONTINUE-115]
++	_ = x[ODEFER-116]
++	_ = x[OFALL-117]
++	_ = x[OFOR-118]
++	_ = x[OFORUNTIL-119]
++	_ = x[OGOTO-120]
++	_ = x[OIF-121]
++	_ = x[OLABEL-122]
++	_ = x[OGO-123]
++	_ = x[ORANGE-124]
++	_ = x[ORETURN-125]
++	_ = x[OSELECT-126]
++	_ = x[OSWITCH-127]
++	_ = x[OTYPESW-128]
++	_ = x[OTCHAN-129]
++	_ = x[OTMAP-130]
++	_ = x[OTSTRUCT-131]
++	_ = x[OTINTER-132]
++	_ = x[OTFUNC-133]
++	_ = x[OTARRAY-134]
++	_ = x[OTSLICE-135]
++	_ = x[OINLCALL-136]
++	_ = x[OEFACE-137]
++	_ = x[OITAB-138]
++	_ = x[OIDATA-139]
++	_ = x[OSPTR-140]
++	_ = x[OCFUNC-141]
++	_ = x[OCHECKNIL-142]
++	_ = x[OVARDEF-143]
++	_ = x[OVARKILL-144]
++	_ = x[OVARLIVE-145]
++	_ = x[ORESULT-146]
++	_ = x[OINLMARK-147]
++	_ = x[ONAMEOFFSET-148]
++	_ = x[ORETJMP-149]
++	_ = x[OGETG-150]
++	_ = x[OEND-151]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNEWOBJNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKNAMEOFFSETRETJMPGETGEND"
++const _Op_name = "XXXNAMENONAMETYPEPACKLITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCALLPARTCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFMETHEXPRSTMTEXPRBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWTCHANTMAPTSTRUCTTINTERTFUNCTARRAYTSLICEINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKNAMEOFFSETRETJMPGETGEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 477, 480, 486, 490, 493, 497, 502, 507, 513, 518, 522, 527, 535, 543, 549, 558, 569, 576, 580, 587, 595, 599, 603, 607, 614, 621, 629, 635, 643, 651, 656, 661, 665, 673, 678, 682, 685, 693, 697, 699, 704, 706, 711, 717, 723, 729, 735, 740, 744, 751, 757, 762, 768, 774, 781, 786, 790, 795, 799, 804, 812, 818, 825, 832, 838, 845, 855, 861, 865, 868}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 21, 28, 31, 34, 37, 39, 42, 48, 52, 58, 64, 73, 85, 94, 103, 115, 124, 126, 129, 139, 146, 153, 160, 164, 168, 176, 184, 193, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 280, 284, 287, 294, 302, 309, 315, 318, 324, 331, 339, 343, 350, 358, 360, 362, 364, 366, 368, 370, 375, 380, 388, 391, 400, 403, 407, 415, 422, 431, 444, 447, 450, 453, 456, 459, 462, 468, 471, 474, 480, 484, 487, 491, 496, 501, 507, 512, 516, 521, 529, 537, 543, 552, 563, 570, 574, 581, 589, 593, 597, 601, 608, 615, 623, 629, 637, 645, 650, 655, 659, 667, 672, 676, 679, 687, 691, 693, 698, 700, 705, 711, 717, 723, 729, 734, 738, 745, 751, 756, 762, 768, 775, 780, 784, 789, 793, 798, 806, 812, 819, 826, 832, 839, 849, 855, 859, 862}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 48942e01d6..097cfacc23 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3034,7 +3034,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		}
+ 		return s.zeroVal(n.Type())
+ 
+-	case ir.ONEWOBJ:
++	case ir.ONEW:
+ 		n := n.(*ir.UnaryExpr)
+ 		return s.newObject(n.Type().Elem())
+ 
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index a061181e2f..18ff702248 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -501,18 +501,21 @@ func walkMakeSliceCopy(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 
+ // walkNew walks an ONEW node.
+ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+-	if n.Type().Elem().NotInHeap() {
++	t := n.Type().Elem()
++	if t.NotInHeap() {
+ 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", n.Type().Elem())
+ 	}
+ 	if n.Esc() == ir.EscNone {
+-		if n.Type().Elem().Width >= ir.MaxImplicitStackVarSize {
++		if t.Size() >= ir.MaxImplicitStackVarSize {
+ 			base.Fatalf("large ONEW with EscNone: %v", n)
+ 		}
+-		r := typecheck.Temp(n.Type().Elem())
++		r := typecheck.Temp(t)
+ 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, r, nil))) // zero temp
+ 		return typecheck.Expr(typecheck.NodAddr(r))
+ 	}
+-	return callnew(n.Type().Elem())
++	types.CalcSize(t)
++	n.MarkNonNil()
++	return n
+ }
+ 
+ // generate code for print
+@@ -678,15 +681,6 @@ func badtype(op ir.Op, tl, tr *types.Type) {
+ 	base.Errorf("illegal types for operand: %v%s", op, s)
+ }
+ 
+-func callnew(t *types.Type) ir.Node {
+-	types.CalcSize(t)
+-	n := ir.NewUnaryExpr(base.Pos, ir.ONEWOBJ, reflectdata.TypePtr(t))
+-	n.SetType(types.NewPtr(t))
+-	n.SetTypecheck(1)
+-	n.MarkNonNil()
+-	return n
+-}
+-
+ func writebarrierfn(name string, l *types.Type, r *types.Type) ir.Node {
+ 	fn := typecheck.LookupRuntime(name)
+ 	fn = typecheck.SubstArgTypes(fn, l, r)
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 85459fd92f..848aee3938 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -248,7 +248,11 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		if n.Esc() == ir.EscNone && len(sc) <= int(ir.MaxImplicitStackVarSize) {
+ 			a = typecheck.NodAddr(typecheck.Temp(t))
+ 		} else {
+-			a = callnew(t)
++			types.CalcSize(t)
++			a = ir.NewUnaryExpr(base.Pos, ir.ONEW, nil)
++			a.SetType(types.NewPtr(t))
++			a.SetTypecheck(1)
++			a.MarkNonNil()
+ 		}
+ 		p := typecheck.Temp(t.PtrTo()) // *[n]byte
+ 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, p, a)))
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index c9b7c0704e..253634a60f 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -84,7 +84,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		base.Fatalf("walkexpr: switch 1 unknown op %+v", n.Op())
+ 		panic("unreachable")
+ 
+-	case ir.ONONAME, ir.OGETG, ir.ONEWOBJ:
++	case ir.ONONAME, ir.OGETG:
+ 		return n
+ 
+ 	case ir.OTYPE, ir.ONAME, ir.OLITERAL, ir.ONIL, ir.ONAMEOFFSET:
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 71f018fe3e..4ba81b82fe 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -358,7 +358,7 @@ func calcHasCall(n ir.Node) bool {
+ 	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
+ 		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
+ 		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
+-		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.ONEWOBJ, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
++		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
+ 		n := n.(*ir.UnaryExpr)
+ 		return n.X.HasCall()
+ 	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:

@@ -43,7 +43,7 @@ Date:   Mon Jul 15 10:05:37 2024 -0700
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/66450.txt                                |  1 +
  doc/godebug.md                                    | 11 ++++
  doc/next/6-stdlib/99-minor/crypto/subtle/66450.md |  6 +++
@@ -57,3 +57,312 @@ Date:   Mon Jul 15 10:05:37 2024 -0700
  src/runtime/proc.go                               |  4 ++
  src/runtime/runtime1.go                           |  2 +
  12 files changed, 196 insertions(+)
+
+diff --git a/api/next/66450.txt b/api/next/66450.txt
+new file mode 100644
+index 0000000000..3b2daef560
+--- /dev/null
++++ b/api/next/66450.txt
+@@ -0,0 +1 @@
++pkg crypto/subtle, func WithDataIndependentTiming(func()) #66450
+diff --git a/doc/godebug.md b/doc/godebug.md
+index c5e9491aab..b9abfea898 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -177,6 +177,17 @@ This behavior can be controlled with the `gotestjsonbuildtext` setting.
+ Using `gotestjsonbuildtext=1` restores the 1.23 behavior.
+ This setting will be removed in a future release, Go 1.28 at the earliest.
+ 
++Go 1.24 introduced a mechanism for enabling platform specific Data Independent
++Timing (DIT) modes in the [`crypto/subtle`](/pkg/crypto/subtle) package. This
++mode can be enabled for an entire program with the `dataindependenttiming` setting.
++For Go 1.24 it defaults to `dataindependenttiming=0`. There is no change in default
++behavior from Go 1.23 when `dataindependenttiming` is unset.
++Using `dataindependenttiming=1` enables the DIT mode for the entire Go program.
++When enabled, DIT will be enabled when calling into C from Go. When enabled,
++calling into Go code from C will enable DIT, and disable it before returning to
++C if it was not enabled when Go code was entered.
++This currently only affects arm64 programs. For all other platforms it is a no-op.
++
+ ### Go 1.23
+ 
+ Go 1.23 changed the channels created by package time to be unbuffered
+diff --git a/doc/next/6-stdlib/99-minor/crypto/subtle/66450.md b/doc/next/6-stdlib/99-minor/crypto/subtle/66450.md
+new file mode 100644
+index 0000000000..353594ba0f
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/subtle/66450.md
+@@ -0,0 +1,6 @@
++The [WithDataIndependentTiming] function allows the user to run a function with
++architecture specific features enabled which guarantee specific instructions are
++data value timing invariant. This can be used to make sure that code designed to
++run in constant time is not optimized by CPU-level features such that it
++operates in variable time. Currently, [WithDataIndependentTiming] uses the
++PSTATE.DIT bit on arm64, and is a no-op on all other architectures.
+\ No newline at end of file
+diff --git a/src/crypto/subtle/dit.go b/src/crypto/subtle/dit.go
+new file mode 100644
+index 0000000000..c23df971f0
+--- /dev/null
++++ b/src/crypto/subtle/dit.go
+@@ -0,0 +1,50 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle
++
++import (
++	"internal/runtime/sys"
++	"runtime"
++)
++
++// WithDataIndependentTiming enables architecture specific features which ensure
++// that the timing of specific instructions is independent of their inputs
++// before executing f. On f returning it disables these features.
++//
++// WithDataIndependentTiming should only be used when f is written to make use
++// of constant-time operations. WithDataIndependentTiming does not make
++// variable-time code constant-time.
++//
++// WithDataIndependentTiming may lock the current goroutine to the OS thread for
++// the duration of f. Calls to WithDataIndependentTiming may be nested.
++//
++// On Arm64 processors with FEAT_DIT, WithDataIndependentTiming enables
++// PSTATE.DIT. See https://developer.arm.com/documentation/ka005181/1-0/?lang=en.
++//
++// Currently, on all other architectures WithDataIndependentTiming executes f immediately
++// with no other side-effects.
++//
++//go:noinline
++func WithDataIndependentTiming(f func()) {
++	if !sys.DITSupported {
++		f()
++		return
++	}
++
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
++
++	alreadyEnabled := sys.EnableDIT()
++
++	// disableDIT is called in a deferred function so that if f panics we will
++	// still disable DIT, in case the panic is recovered further up the stack.
++	defer func() {
++		if !alreadyEnabled {
++			sys.DisableDIT()
++		}
++	}()
++
++	f()
++}
+diff --git a/src/crypto/subtle/dit_test.go b/src/crypto/subtle/dit_test.go
+new file mode 100644
+index 0000000000..8753ed623f
+--- /dev/null
++++ b/src/crypto/subtle/dit_test.go
+@@ -0,0 +1,61 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package subtle
++
++import (
++	"internal/cpu"
++	"internal/runtime/sys"
++	"testing"
++)
++
++func TestWithDataIndependentTiming(t *testing.T) {
++	if !cpu.ARM64.HasDIT {
++		t.Skip("CPU does not support DIT")
++	}
++
++	WithDataIndependentTiming(func() {
++		if !sys.DITEnabled() {
++			t.Fatal("dit not enabled within WithDataIndependentTiming closure")
++		}
++
++		WithDataIndependentTiming(func() {
++			if !sys.DITEnabled() {
++				t.Fatal("dit not enabled within nested WithDataIndependentTiming closure")
++			}
++		})
++
++		if !sys.DITEnabled() {
++			t.Fatal("dit not enabled after return from nested WithDataIndependentTiming closure")
++		}
++	})
++
++	if sys.DITEnabled() {
++		t.Fatal("dit not unset after returning from WithDataIndependentTiming closure")
++	}
++}
++
++func TestDITPanic(t *testing.T) {
++	if !cpu.ARM64.HasDIT {
++		t.Skip("CPU does not support DIT")
++	}
++
++	defer func() {
++		e := recover()
++		if e == nil {
++			t.Fatal("didn't panic")
++		}
++		if sys.DITEnabled() {
++			t.Error("DIT still enabled after panic inside of WithDataIndependentTiming closure")
++		}
++	}()
++
++	WithDataIndependentTiming(func() {
++		if !sys.DITEnabled() {
++			t.Fatal("dit not enabled within WithDataIndependentTiming closure")
++		}
++
++		panic("bad")
++	})
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index d00014eaae..da6ca78773 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -26,6 +26,7 @@ type Info struct {
+ // (Otherwise the test in this package will fail.)
+ var All = []Info{
+ 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
++	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
+ 	{Name: "execerrdot", Package: "os/exec"},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+diff --git a/src/internal/runtime/sys/dit_arm64.go b/src/internal/runtime/sys/dit_arm64.go
+new file mode 100644
+index 0000000000..643fd770d5
+--- /dev/null
++++ b/src/internal/runtime/sys/dit_arm64.go
+@@ -0,0 +1,17 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64
++
++package sys
++
++import (
++	"internal/cpu"
++)
++
++var DITSupported = cpu.ARM64.HasDIT
++
++func EnableDIT() bool
++func DITEnabled() bool
++func DisableDIT()
+diff --git a/src/internal/runtime/sys/dit_arm64.s b/src/internal/runtime/sys/dit_arm64.s
+new file mode 100644
+index 0000000000..fcb44d6f22
+--- /dev/null
++++ b/src/internal/runtime/sys/dit_arm64.s
+@@ -0,0 +1,18 @@
++#include "textflag.h"
++
++TEXT ·EnableDIT(SB),$0-1
++    MRS DIT, R0
++    UBFX $24, R0, $1, R1
++    MOVB R1, ret+0(FP)
++    MSR $1, DIT
++    RET
++
++TEXT ·DITEnabled(SB),$0-1
++    MRS DIT, R0
++    UBFX $24, R0, $1, R1
++    MOVB R1, ret+0(FP)
++    RET
++
++TEXT ·DisableDIT(SB),$0
++    MSR $0, DIT
++    RET
+diff --git a/src/internal/runtime/sys/no_dit.go b/src/internal/runtime/sys/no_dit.go
+new file mode 100644
+index 0000000000..0589d0ca14
+--- /dev/null
++++ b/src/internal/runtime/sys/no_dit.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !arm64
++
++package sys
++
++var DITSupported = false
++
++func EnableDIT() bool  { return false }
++func DITEnabled() bool { return false }
++func DisableDIT()      {}
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 0effcb8053..326674cd2e 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -425,6 +425,13 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	restore := true
+ 	defer unwindm(&restore)
+ 
++	var ditAlreadySet bool
++	if debug.dataindependenttiming == 1 && gp.m.isextra {
++		// We only need to enable DIT for threads that were created by C, as it
++		// should already by enabled on threads that were created by Go.
++		ditAlreadySet = sys.EnableDIT()
++	}
++
+ 	if raceenabled {
+ 		raceacquire(unsafe.Pointer(&racecgosync))
+ 	}
+@@ -440,6 +447,11 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 		racereleasemerge(unsafe.Pointer(&racecgosync))
+ 	}
+ 
++	if debug.dataindependenttiming == 1 && !ditAlreadySet {
++		// Only unset DIT if it wasn't already enabled when cgocallback was called.
++		sys.DisableDIT()
++	}
++
+ 	// Do not unwind m->g0->sched.sp.
+ 	// Our caller, cgocallback, will do that.
+ 	restore = false
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3f360ef129..17c375de1a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1848,6 +1848,10 @@ func mstart1() {
+ 		mstartm0()
+ 	}
+ 
++	if debug.dataindependenttiming == 1 {
++		sys.EnableDIT()
++	}
++
+ 	if fn := gp.m.mstartfn; fn != nil {
+ 		fn()
+ 	}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 56886ea571..7a092e8039 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -331,6 +331,7 @@ var debug struct {
+ 	traceadvanceperiod       int32
+ 	traceCheckStackOwnership int32
+ 	profstackdepth           int32
++	dataindependenttiming    int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -367,6 +368,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
+ 	{name: "cgocheck", value: &debug.cgocheck},
+ 	{name: "clobberfree", value: &debug.clobberfree},
++	{name: "dataindependenttiming", value: &debug.dataindependenttiming},
+ 	{name: "disablethp", value: &debug.disablethp},
+ 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+ 	{name: "efence", value: &debug.efence},

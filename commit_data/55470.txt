@@ -17,7 +17,80 @@ Date:   Sat Feb 4 14:53:34 2023 +0800
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 30 ++++++++++++++++++++++++++++++
  src/runtime/symtab.go           |  6 +++++-
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 53688ad825..b19ac16170 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -333,6 +333,23 @@ func inlinedCalleeDump(pcs []uintptr) {
+ 	dumpCallers(pcs)
+ }
+ 
++type inlineWrapperInterface interface {
++	dump(stack []uintptr)
++}
++
++type inlineWrapper struct {
++}
++
++func (h inlineWrapper) dump(pcs []uintptr) {
++	dumpCallers(pcs)
++}
++
++func inlinedWrapperCallerDump(pcs []uintptr) {
++	var h inlineWrapperInterface
++	h = &inlineWrapper{}
++	h.dump(pcs)
++}
++
+ func TestCPUProfileRecursion(t *testing.T) {
+ 	matches := matchAndAvoidStacks(stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions())
+ 	p := testCPUProfile(t, matches, func(dur time.Duration) {
+@@ -2054,6 +2071,8 @@ func TestTryAdd(t *testing.T) {
+ 	for i := range pcs {
+ 		inlinedCallerStack[i] = uint64(pcs[i])
+ 	}
++	wrapperPCs := make([]uintptr, 1)
++	inlinedWrapperCallerDump(wrapperPCs)
+ 
+ 	if _, found := findInlinedCall(recursionChainBottom, 4<<10); !found {
+ 		t.Skip("Can't determine whether anything was inlined into recursionChainBottom.")
+@@ -2226,6 +2245,17 @@ func TestTryAdd(t *testing.T) {
+ 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
+ 			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 2}, {ID: 1}}},
+ 		},
++	}, {
++		name: "expand_wrapper_function",
++		input: []uint64{
++			3, 0, 500, // hz = 500. Must match the period.
++			4, 0, 50, uint64(wrapperPCs[0]),
++		},
++		count:    2,
++		wantLocs: [][]string{{"runtime/pprof.inlineWrapper.dump"}},
++		wantSamples: []*profile.Sample{
++			{Value: []int64{50, 50 * period}, Location: []*profile.Location{{ID: 1}}},
++		},
+ 	}}
+ 
+ 	for _, tc := range testCases {
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index dead27e5f2..da83fd93ea 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -230,7 +230,11 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
+ 	}
+ 
+ 	// N.B. we want to keep the last parentPC which is not inline.
+-	stk = append(stk, pc)
++	if f.funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
++		// Ignore wrapper functions (except when they trigger panics).
++	} else {
++		stk = append(stk, pc)
++	}
+ 
+ 	return stk
+ }

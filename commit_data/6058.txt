@@ -11,7 +11,7 @@ Date:   Fri Aug 20 09:12:21 2010 -0400
     R=imkrasin, rsc
     CC=golang-dev
     https://golang.org/cl/1957041
-
+---
  src/pkg/debug/proc/regs_linux_386.go    | 24 +++++++++----------
  src/pkg/syscall/syscall_bsd.go          |  2 +-
  src/pkg/syscall/syscall_linux.go        |  2 +-
@@ -25,3 +25,697 @@ Date:   Fri Aug 20 09:12:21 2010 -0400
  src/pkg/syscall/ztypes_linux_386.go     | 20 ++++++----------
  src/pkg/syscall/ztypes_linux_amd64.go   | 34 +++++++++++++-------------
  12 files changed, 145 insertions(+), 64 deletions(-)
+
+diff --git a/src/pkg/debug/proc/regs_linux_386.go b/src/pkg/debug/proc/regs_linux_386.go
+index 7cebfa64a9..b4a9769db5 100644
+--- a/src/pkg/debug/proc/regs_linux_386.go
++++ b/src/pkg/debug/proc/regs_linux_386.go
+@@ -80,17 +80,17 @@ func (r *_386Regs) Get(i int) Word {
+ 	case 9:
+ 		return Word(uint32(r.Eflags))
+ 	case 10:
+-		return Word(r.Cs)
++		return Word(r.Xcs)
+ 	case 11:
+-		return Word(r.Ss)
++		return Word(r.Xss)
+ 	case 12:
+-		return Word(r.Ds)
++		return Word(r.Xds)
+ 	case 13:
+-		return Word(r.Es)
++		return Word(r.Xes)
+ 	case 14:
+-		return Word(r.Fs)
++		return Word(r.Xfs)
+ 	case 15:
+-		return Word(r.Gs)
++		return Word(r.Xgs)
+ 	}
+ 	panic("invalid register index " + strconv.Itoa(i))
+ }
+@@ -118,17 +118,17 @@ func (r *_386Regs) Set(i int, val Word) os.Error {
+ 	case 9:
+ 		r.Eflags = int32(val)
+ 	case 10:
+-		r.Cs = uint16(val)
++		r.Xcs = int32(val)
+ 	case 11:
+-		r.Ss = uint16(val)
++		r.Xss = int32(val)
+ 	case 12:
+-		r.Ds = uint16(val)
++		r.Xds = int32(val)
+ 	case 13:
+-		r.Es = uint16(val)
++		r.Xes = int32(val)
+ 	case 14:
+-		r.Fs = uint16(val)
++		r.Xfs = int32(val)
+ 	case 15:
+-		r.Gs = uint16(val)
++		r.Xgs = int32(val)
+ 	default:
+ 		panic("invalid register index " + strconv.Itoa(i))
+ 	}
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 66be580e7d..46182ada64 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -324,7 +324,7 @@ func Socket(domain, typ, proto int) (fd, errno int) {
+ }
+ 
+ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
+-	fd, errno = socketpair(domain, typ, proto)
++	errno = socketpair(domain, typ, proto, &fd)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 5b48939551..b03bbb1d0c 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -369,7 +369,7 @@ func Socket(domain, typ, proto int) (fd, errno int) {
+ }
+ 
+ func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
+-	fd, errno = socketpair(domain, typ, proto)
++	errno = socketpair(domain, typ, proto, &fd)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 4a2e92f0ab..2997785418 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -100,10 +100,8 @@ func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return
+ }
+ 
+-func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
+-	var f [2]int
+-	_, errno = socketcall(_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
+-	fd = f
++func socketpair(domain int, typ int, flags int, fd *[2]int) (errno int) {
++	_, errno = socketcall(_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(flags), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	return
+ }
+ 
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index 284e8bf1d4..123da34c5a 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -13,7 +13,6 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ 
+ #include <dirent.h>
+ #include <fcntl.h>
+-#include <linux/user.h>
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
+ #include <signal.h>
+@@ -34,6 +33,7 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #include <sys/timex.h>
+ #include <sys/types.h>
+ #include <sys/un.h>
++#include <sys/user.h>
+ #include <sys/utsname.h>
+ #include <sys/wait.h>
+ #include <time.h>
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index ae3e759738..72302f32a1 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -16,27 +16,34 @@ const (
+ 	AF_AX25                          = 0x3
+ 	AF_BLUETOOTH                     = 0x1f
+ 	AF_BRIDGE                        = 0x7
++	AF_CAN                           = 0x1d
+ 	AF_DECnet                        = 0xc
+ 	AF_ECONET                        = 0x13
+ 	AF_FILE                          = 0x1
++	AF_IEEE802154                    = 0x24
+ 	AF_INET                          = 0x2
+ 	AF_INET6                         = 0xa
+ 	AF_IPX                           = 0x4
+ 	AF_IRDA                          = 0x17
++	AF_ISDN                          = 0x22
+ 	AF_IUCV                          = 0x20
+ 	AF_KEY                           = 0xf
++	AF_LLC                           = 0x1a
+ 	AF_LOCAL                         = 0x1
+-	AF_MAX                           = 0x22
++	AF_MAX                           = 0x25
+ 	AF_NETBEUI                       = 0xd
+ 	AF_NETLINK                       = 0x10
+ 	AF_NETROM                        = 0x6
+ 	AF_PACKET                        = 0x11
++	AF_PHONET                        = 0x23
+ 	AF_PPPOX                         = 0x18
++	AF_RDS                           = 0x15
+ 	AF_ROSE                          = 0xb
+ 	AF_ROUTE                         = 0x10
+ 	AF_RXRPC                         = 0x21
+ 	AF_SECURITY                      = 0xe
+ 	AF_SNA                           = 0x16
++	AF_TIPC                          = 0x1e
+ 	AF_UNIX                          = 0x1
+ 	AF_UNSPEC                        = 0
+ 	AF_WANPIPE                       = 0x19
+@@ -160,9 +167,11 @@ const (
+ 	EPOLLRDNORM                      = 0x40
+ 	EPOLLWRBAND                      = 0x200
+ 	EPOLLWRNORM                      = 0x100
++	EPOLL_CLOEXEC                    = 0x80000
+ 	EPOLL_CTL_ADD                    = 0x1
+ 	EPOLL_CTL_DEL                    = 0x2
+ 	EPOLL_CTL_MOD                    = 0x3
++	EPOLL_NONBLOCK                   = 0x800
+ 	EPROTO                           = 0x47
+ 	EPROTONOSUPPORT                  = 0x5d
+ 	EPROTOTYPE                       = 0x5b
+@@ -171,6 +180,7 @@ const (
+ 	EREMOTE                          = 0x42
+ 	EREMOTEIO                        = 0x79
+ 	ERESTART                         = 0x55
++	ERFKILL                          = 0x84
+ 	EROFS                            = 0x1e
+ 	ESHUTDOWN                        = 0x6c
+ 	ESOCKTNOSUPPORT                  = 0x5e
+@@ -189,7 +199,6 @@ const (
+ 	EWOULDBLOCK                      = 0xb
+ 	EXDEV                            = 0x12
+ 	EXFULL                           = 0x36
+-	EXPR_NEST_MAX                    = 0x20
+ 	FD_CLOEXEC                       = 0x1
+ 	FD_SETSIZE                       = 0x400
+ 	F_DUPFD                          = 0
+@@ -201,6 +210,7 @@ const (
+ 	F_GETLK                          = 0xc
+ 	F_GETLK64                        = 0xc
+ 	F_GETOWN                         = 0x9
++	F_GETOWN_EX                      = 0x10
+ 	F_GETSIG                         = 0xb
+ 	F_LOCK                           = 0x1
+ 	F_NOTIFY                         = 0x402
+@@ -214,6 +224,7 @@ const (
+ 	F_SETLKW                         = 0xe
+ 	F_SETLKW64                       = 0xe
+ 	F_SETOWN                         = 0x8
++	F_SETOWN_EX                      = 0xf
+ 	F_SETSIG                         = 0xa
+ 	F_SHLCK                          = 0x8
+ 	F_TEST                           = 0x3
+@@ -223,6 +234,7 @@ const (
+ 	F_WRLCK                          = 0x1
+ 	IPPROTO_AH                       = 0x33
+ 	IPPROTO_COMP                     = 0x6c
++	IPPROTO_DCCP                     = 0x21
+ 	IPPROTO_DSTOPTS                  = 0x3c
+ 	IPPROTO_EGP                      = 0x8
+ 	IPPROTO_ENCAP                    = 0x62
+@@ -248,6 +260,7 @@ const (
+ 	IPPROTO_TCP                      = 0x6
+ 	IPPROTO_TP                       = 0x1d
+ 	IPPROTO_UDP                      = 0x11
++	IPPROTO_UDPLITE                  = 0x88
+ 	IPV6_2292DSTOPTS                 = 0x4
+ 	IPV6_2292HOPLIMIT                = 0x8
+ 	IPV6_2292HOPOPTS                 = 0x3
+@@ -276,6 +289,7 @@ const (
+ 	IPV6_PKTINFO                     = 0x32
+ 	IPV6_PMTUDISC_DO                 = 0x2
+ 	IPV6_PMTUDISC_DONT               = 0
++	IPV6_PMTUDISC_PROBE              = 0x3
+ 	IPV6_PMTUDISC_WANT               = 0x1
+ 	IPV6_RECVDSTOPTS                 = 0x3a
+ 	IPV6_RECVERR                     = 0x19
+@@ -321,6 +335,7 @@ const (
+ 	IP_PMTUDISC                      = 0xa
+ 	IP_PMTUDISC_DO                   = 0x2
+ 	IP_PMTUDISC_DONT                 = 0
++	IP_PMTUDISC_PROBE                = 0x3
+ 	IP_PMTUDISC_WANT                 = 0x1
+ 	IP_RECVERR                       = 0xb
+ 	IP_RECVOPTS                      = 0x6
+@@ -357,6 +372,16 @@ const (
+ 	O_TRUNC                          = 0x200
+ 	O_WRONLY                         = 0x1
+ 	PTRACE_ATTACH                    = 0x10
++	PTRACE_BTS_CLEAR                 = 0x2c
++	PTRACE_BTS_CONFIG                = 0x28
++	PTRACE_BTS_DRAIN                 = 0x2d
++	PTRACE_BTS_GET                   = 0x2b
++	PTRACE_BTS_O_ALLOC               = 0x8
++	PTRACE_BTS_O_SCHED               = 0x2
++	PTRACE_BTS_O_SIGNAL              = 0x4
++	PTRACE_BTS_O_TRACE               = 0x1
++	PTRACE_BTS_SIZE                  = 0x2a
++	PTRACE_BTS_STATUS                = 0x29
+ 	PTRACE_CONT                      = 0x7
+ 	PTRACE_DETACH                    = 0x11
+ 	PTRACE_EVENT_CLONE               = 0x3
+@@ -393,6 +418,7 @@ const (
+ 	PTRACE_SETREGS                   = 0xd
+ 	PTRACE_SETSIGINFO                = 0x4203
+ 	PTRACE_SET_THREAD_AREA           = 0x1a
++	PTRACE_SINGLEBLOCK               = 0x21
+ 	PTRACE_SINGLESTEP                = 0x9
+ 	PTRACE_SYSCALL                   = 0x18
+ 	PTRACE_SYSEMU                    = 0x1f
+@@ -436,7 +462,10 @@ const (
+ 	SIGWINCH                         = 0x1c
+ 	SIGXCPU                          = 0x18
+ 	SIGXFSZ                          = 0x19
++	SOCK_CLOEXEC                     = 0x80000
++	SOCK_DCCP                        = 0x6
+ 	SOCK_DGRAM                       = 0x2
++	SOCK_NONBLOCK                    = 0x800
+ 	SOCK_PACKET                      = 0xa
+ 	SOCK_RAW                         = 0x3
+ 	SOCK_RDM                         = 0x4
+@@ -462,10 +491,12 @@ const (
+ 	SO_BSDCOMPAT                     = 0xe
+ 	SO_DEBUG                         = 0x1
+ 	SO_DETACH_FILTER                 = 0x1b
++	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+ 	SO_KEEPALIVE                     = 0x9
+ 	SO_LINGER                        = 0xd
++	SO_MARK                          = 0x24
+ 	SO_NO_CHECK                      = 0xb
+ 	SO_OOBINLINE                     = 0xa
+ 	SO_PASSCRED                      = 0x10
+@@ -474,6 +505,7 @@ const (
+ 	SO_PEERNAME                      = 0x1c
+ 	SO_PEERSEC                       = 0x1f
+ 	SO_PRIORITY                      = 0xc
++	SO_PROTOCOL                      = 0x26
+ 	SO_RCVBUF                        = 0x8
+ 	SO_RCVBUFFORCE                   = 0x21
+ 	SO_RCVLOWAT                      = 0x12
+@@ -487,6 +519,7 @@ const (
+ 	SO_SNDLOWAT                      = 0x13
+ 	SO_SNDTIMEO                      = 0x15
+ 	SO_TIMESTAMP                     = 0x1d
++	SO_TIMESTAMPING                  = 0x25
+ 	SO_TIMESTAMPNS                   = 0x23
+ 	SO_TYPE                          = 0x3
+ 	S_BLKSIZE                        = 0x200
+@@ -663,6 +696,7 @@ var errors = [...]string{
+ 	66:  "object is remote",
+ 	121: "remote I/O error",
+ 	85:  "interrupted system call should be restarted",
++	132: "unknown error 132",
+ 	30:  "read-only file system",
+ 	108: "cannot send after transport endpoint shutdown",
+ 	94:  "socket type not supported",
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index c9ee470c41..087ac6566c 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -1,7 +1,7 @@
+ // mkerrors.sh -f -m64
+ // MACHINE GENERATED BY THE COMMAND ABOVE; DO NOT EDIT
+ 
+-// godefs -f -m64 -gsyscall -f -m64 _const.c
++// godefs -c gcc -f -m64 -gsyscall -f -m64 _const.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -16,27 +16,34 @@ const (
+ 	AF_AX25                          = 0x3
+ 	AF_BLUETOOTH                     = 0x1f
+ 	AF_BRIDGE                        = 0x7
++	AF_CAN                           = 0x1d
+ 	AF_DECnet                        = 0xc
+ 	AF_ECONET                        = 0x13
+ 	AF_FILE                          = 0x1
++	AF_IEEE802154                    = 0x24
+ 	AF_INET                          = 0x2
+ 	AF_INET6                         = 0xa
+ 	AF_IPX                           = 0x4
+ 	AF_IRDA                          = 0x17
++	AF_ISDN                          = 0x22
+ 	AF_IUCV                          = 0x20
+ 	AF_KEY                           = 0xf
++	AF_LLC                           = 0x1a
+ 	AF_LOCAL                         = 0x1
+-	AF_MAX                           = 0x22
++	AF_MAX                           = 0x25
+ 	AF_NETBEUI                       = 0xd
+ 	AF_NETLINK                       = 0x10
+ 	AF_NETROM                        = 0x6
+ 	AF_PACKET                        = 0x11
++	AF_PHONET                        = 0x23
+ 	AF_PPPOX                         = 0x18
++	AF_RDS                           = 0x15
+ 	AF_ROSE                          = 0xb
+ 	AF_ROUTE                         = 0x10
+ 	AF_RXRPC                         = 0x21
+ 	AF_SECURITY                      = 0xe
+ 	AF_SNA                           = 0x16
++	AF_TIPC                          = 0x1e
+ 	AF_UNIX                          = 0x1
+ 	AF_UNSPEC                        = 0
+ 	AF_WANPIPE                       = 0x19
+@@ -160,9 +167,11 @@ const (
+ 	EPOLLRDNORM                      = 0x40
+ 	EPOLLWRBAND                      = 0x200
+ 	EPOLLWRNORM                      = 0x100
++	EPOLL_CLOEXEC                    = 0x80000
+ 	EPOLL_CTL_ADD                    = 0x1
+ 	EPOLL_CTL_DEL                    = 0x2
+ 	EPOLL_CTL_MOD                    = 0x3
++	EPOLL_NONBLOCK                   = 0x800
+ 	EPROTO                           = 0x47
+ 	EPROTONOSUPPORT                  = 0x5d
+ 	EPROTOTYPE                       = 0x5b
+@@ -171,6 +180,7 @@ const (
+ 	EREMOTE                          = 0x42
+ 	EREMOTEIO                        = 0x79
+ 	ERESTART                         = 0x55
++	ERFKILL                          = 0x84
+ 	EROFS                            = 0x1e
+ 	ESHUTDOWN                        = 0x6c
+ 	ESOCKTNOSUPPORT                  = 0x5e
+@@ -189,7 +199,6 @@ const (
+ 	EWOULDBLOCK                      = 0xb
+ 	EXDEV                            = 0x12
+ 	EXFULL                           = 0x36
+-	EXPR_NEST_MAX                    = 0x20
+ 	FD_CLOEXEC                       = 0x1
+ 	FD_SETSIZE                       = 0x400
+ 	F_DUPFD                          = 0
+@@ -201,6 +210,7 @@ const (
+ 	F_GETLK                          = 0x5
+ 	F_GETLK64                        = 0x5
+ 	F_GETOWN                         = 0x9
++	F_GETOWN_EX                      = 0x10
+ 	F_GETSIG                         = 0xb
+ 	F_LOCK                           = 0x1
+ 	F_NOTIFY                         = 0x402
+@@ -214,6 +224,7 @@ const (
+ 	F_SETLKW                         = 0x7
+ 	F_SETLKW64                       = 0x7
+ 	F_SETOWN                         = 0x8
++	F_SETOWN_EX                      = 0xf
+ 	F_SETSIG                         = 0xa
+ 	F_SHLCK                          = 0x8
+ 	F_TEST                           = 0x3
+@@ -223,6 +234,7 @@ const (
+ 	F_WRLCK                          = 0x1
+ 	IPPROTO_AH                       = 0x33
+ 	IPPROTO_COMP                     = 0x6c
++	IPPROTO_DCCP                     = 0x21
+ 	IPPROTO_DSTOPTS                  = 0x3c
+ 	IPPROTO_EGP                      = 0x8
+ 	IPPROTO_ENCAP                    = 0x62
+@@ -248,6 +260,7 @@ const (
+ 	IPPROTO_TCP                      = 0x6
+ 	IPPROTO_TP                       = 0x1d
+ 	IPPROTO_UDP                      = 0x11
++	IPPROTO_UDPLITE                  = 0x88
+ 	IPV6_2292DSTOPTS                 = 0x4
+ 	IPV6_2292HOPLIMIT                = 0x8
+ 	IPV6_2292HOPOPTS                 = 0x3
+@@ -276,6 +289,7 @@ const (
+ 	IPV6_PKTINFO                     = 0x32
+ 	IPV6_PMTUDISC_DO                 = 0x2
+ 	IPV6_PMTUDISC_DONT               = 0
++	IPV6_PMTUDISC_PROBE              = 0x3
+ 	IPV6_PMTUDISC_WANT               = 0x1
+ 	IPV6_RECVDSTOPTS                 = 0x3a
+ 	IPV6_RECVERR                     = 0x19
+@@ -321,6 +335,7 @@ const (
+ 	IP_PMTUDISC                      = 0xa
+ 	IP_PMTUDISC_DO                   = 0x2
+ 	IP_PMTUDISC_DONT                 = 0
++	IP_PMTUDISC_PROBE                = 0x3
+ 	IP_PMTUDISC_WANT                 = 0x1
+ 	IP_RECVERR                       = 0xb
+ 	IP_RECVOPTS                      = 0x6
+@@ -358,6 +373,16 @@ const (
+ 	O_WRONLY                         = 0x1
+ 	PTRACE_ARCH_PRCTL                = 0x1e
+ 	PTRACE_ATTACH                    = 0x10
++	PTRACE_BTS_CLEAR                 = 0x2c
++	PTRACE_BTS_CONFIG                = 0x28
++	PTRACE_BTS_DRAIN                 = 0x2d
++	PTRACE_BTS_GET                   = 0x2b
++	PTRACE_BTS_O_ALLOC               = 0x8
++	PTRACE_BTS_O_SCHED               = 0x2
++	PTRACE_BTS_O_SIGNAL              = 0x4
++	PTRACE_BTS_O_TRACE               = 0x1
++	PTRACE_BTS_SIZE                  = 0x2a
++	PTRACE_BTS_STATUS                = 0x29
+ 	PTRACE_CONT                      = 0x7
+ 	PTRACE_DETACH                    = 0x11
+ 	PTRACE_EVENT_CLONE               = 0x3
+@@ -394,8 +419,11 @@ const (
+ 	PTRACE_SETREGS                   = 0xd
+ 	PTRACE_SETSIGINFO                = 0x4203
+ 	PTRACE_SET_THREAD_AREA           = 0x1a
++	PTRACE_SINGLEBLOCK               = 0x21
+ 	PTRACE_SINGLESTEP                = 0x9
+ 	PTRACE_SYSCALL                   = 0x18
++	PTRACE_SYSEMU                    = 0x1f
++	PTRACE_SYSEMU_SINGLESTEP         = 0x20
+ 	PTRACE_TRACEME                   = 0
+ 	SHUT_RD                          = 0
+ 	SHUT_RDWR                        = 0x2
+@@ -435,7 +463,10 @@ const (
+ 	SIGWINCH                         = 0x1c
+ 	SIGXCPU                          = 0x18
+ 	SIGXFSZ                          = 0x19
++	SOCK_CLOEXEC                     = 0x80000
++	SOCK_DCCP                        = 0x6
+ 	SOCK_DGRAM                       = 0x2
++	SOCK_NONBLOCK                    = 0x800
+ 	SOCK_PACKET                      = 0xa
+ 	SOCK_RAW                         = 0x3
+ 	SOCK_RDM                         = 0x4
+@@ -461,10 +492,12 @@ const (
+ 	SO_BSDCOMPAT                     = 0xe
+ 	SO_DEBUG                         = 0x1
+ 	SO_DETACH_FILTER                 = 0x1b
++	SO_DOMAIN                        = 0x27
+ 	SO_DONTROUTE                     = 0x5
+ 	SO_ERROR                         = 0x4
+ 	SO_KEEPALIVE                     = 0x9
+ 	SO_LINGER                        = 0xd
++	SO_MARK                          = 0x24
+ 	SO_NO_CHECK                      = 0xb
+ 	SO_OOBINLINE                     = 0xa
+ 	SO_PASSCRED                      = 0x10
+@@ -473,6 +506,7 @@ const (
+ 	SO_PEERNAME                      = 0x1c
+ 	SO_PEERSEC                       = 0x1f
+ 	SO_PRIORITY                      = 0xc
++	SO_PROTOCOL                      = 0x26
+ 	SO_RCVBUF                        = 0x8
+ 	SO_RCVBUFFORCE                   = 0x21
+ 	SO_RCVLOWAT                      = 0x12
+@@ -486,6 +520,7 @@ const (
+ 	SO_SNDLOWAT                      = 0x13
+ 	SO_SNDTIMEO                      = 0x15
+ 	SO_TIMESTAMP                     = 0x1d
++	SO_TIMESTAMPING                  = 0x25
+ 	SO_TIMESTAMPNS                   = 0x23
+ 	SO_TYPE                          = 0x3
+ 	S_BLKSIZE                        = 0x200
+@@ -662,6 +697,7 @@ var errors = [...]string{
+ 	66:  "object is remote",
+ 	121: "remote I/O error",
+ 	85:  "interrupted system call should be restarted",
++	132: "unknown error 132",
+ 	30:  "read-only file system",
+ 	108: "cannot send after transport endpoint shutdown",
+ 	94:  "socket type not supported",
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index bdc532839c..e1508025b6 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -786,10 +786,8 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
+-func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
+-	var f [2]int
+-	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
+-	fd = f
++func socketpair(domain int, typ int, proto int, fd *[2]int) (errno int) {
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(fd)), 0, 0)
+ 	errno = int(e1)
+ 	return
+ }
+diff --git a/src/pkg/syscall/zsysnum_linux_386.go b/src/pkg/syscall/zsysnum_linux_386.go
+index fca0a1a6a6..e45e00fd46 100644
+--- a/src/pkg/syscall/zsysnum_linux_386.go
++++ b/src/pkg/syscall/zsysnum_linux_386.go
+@@ -310,9 +310,19 @@ const (
+ 	SYS_EPOLL_PWAIT            = 319
+ 	SYS_UTIMENSAT              = 320
+ 	SYS_SIGNALFD               = 321
+-	SYS_TIMERFD                = 322
++	SYS_TIMERFD_CREATE         = 322
+ 	SYS_EVENTFD                = 323
+ 	SYS_FALLOCATE              = 324
++	SYS_TIMERFD_SETTIME        = 325
++	SYS_TIMERFD_GETTIME        = 326
++	SYS_SIGNALFD4              = 327
++	SYS_EVENTFD2               = 328
++	SYS_EPOLL_CREATE1          = 329
++	SYS_DUP3                   = 330
++	SYS_PIPE2                  = 331
++	SYS_INOTIFY_INIT1          = 332
++	SYS_PREADV                 = 333
++	SYS_PWRITEV                = 334
++	SYS_RT_TGSIGQUEUEINFO      = 335
++	SYS_PERF_EVENT_OPEN        = 336
+ )
+-
+-func _darwin_system_call_conflict() {}
+diff --git a/src/pkg/syscall/zsysnum_linux_amd64.go b/src/pkg/syscall/zsysnum_linux_amd64.go
+index e7a2929943..2621999c75 100644
+--- a/src/pkg/syscall/zsysnum_linux_amd64.go
++++ b/src/pkg/syscall/zsysnum_linux_amd64.go
+@@ -287,9 +287,20 @@ const (
+ 	SYS_UTIMENSAT              = 280
+ 	SYS_EPOLL_PWAIT            = 281
+ 	SYS_SIGNALFD               = 282
+-	SYS_TIMERFD                = 283
++	SYS_TIMERFD_CREATE         = 283
+ 	SYS_EVENTFD                = 284
+ 	SYS_FALLOCATE              = 285
++	SYS_TIMERFD_SETTIME        = 286
++	SYS_TIMERFD_GETTIME        = 287
++	SYS_ACCEPT4                = 288
++	SYS_SIGNALFD4              = 289
++	SYS_EVENTFD2               = 290
++	SYS_EPOLL_CREATE1          = 291
++	SYS_DUP3                   = 292
++	SYS_PIPE2                  = 293
++	SYS_INOTIFY_INIT1          = 294
++	SYS_PREADV                 = 295
++	SYS_PWRITEV                = 296
++	SYS_RT_TGSIGQUEUEINFO      = 297
++	SYS_PERF_EVENT_OPEN        = 298
+ )
+-
+-func _darwin_system_call_conflict() {}
+diff --git a/src/pkg/syscall/ztypes_linux_386.go b/src/pkg/syscall/ztypes_linux_386.go
+index 866c119592..2afabb13ff 100644
+--- a/src/pkg/syscall/ztypes_linux_386.go
++++ b/src/pkg/syscall/ztypes_linux_386.go
+@@ -61,6 +61,7 @@ type Timex struct {
+ 	Calcnt    int32
+ 	Errcnt    int32
+ 	Stbcnt    int32
++	Tai       int32
+ 	Pad0      int32
+ 	Pad1      int32
+ 	Pad2      int32
+@@ -72,7 +73,6 @@ type Timex struct {
+ 	Pad8      int32
+ 	Pad9      int32
+ 	Pad10     int32
+-	Pad11     int32
+ }
+ 
+ type Time_t int32
+@@ -225,22 +225,16 @@ type PtraceRegs struct {
+ 	Edi      int32
+ 	Ebp      int32
+ 	Eax      int32
+-	Ds       uint16
+-	X__ds    uint16
+-	Es       uint16
+-	X__es    uint16
+-	Fs       uint16
+-	X__fs    uint16
+-	Gs       uint16
+-	X__gs    uint16
++	Xds      int32
++	Xes      int32
++	Xfs      int32
++	Xgs      int32
+ 	Orig_eax int32
+ 	Eip      int32
+-	Cs       uint16
+-	X__cs    uint16
++	Xcs      int32
+ 	Eflags   int32
+ 	Esp      int32
+-	Ss       uint16
+-	X__ss    uint16
++	Xss      int32
+ }
+ 
+ type FdSet struct {
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index a5fc0ab536..2ca047fd73 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -64,6 +64,7 @@ type Timex struct {
+ 	Calcnt    int64
+ 	Errcnt    int64
+ 	Stbcnt    int64
++	Tai       int32
+ 	Pad3      int32
+ 	Pad4      int32
+ 	Pad5      int32
+@@ -75,7 +76,6 @@ type Timex struct {
+ 	Pad11     int32
+ 	Pad12     int32
+ 	Pad13     int32
+-	Pad14     int32
+ }
+ 
+ type Time_t int64
+@@ -119,21 +119,21 @@ type Rlimit struct {
+ type _Gid_t uint32
+ 
+ type Stat_t struct {
+-	Dev      uint64
+-	Ino      uint64
+-	Nlink    uint64
+-	Mode     uint32
+-	Uid      uint32
+-	Gid      uint32
+-	Pad0     int32
+-	Rdev     uint64
+-	Size     int64
+-	Blksize  int64
+-	Blocks   int64
+-	Atim     Timespec
+-	Mtim     Timespec
+-	Ctim     Timespec
+-	__unused [3]int64
++	Dev       uint64
++	Ino       uint64
++	Nlink     uint64
++	Mode      uint32
++	Uid       uint32
++	Gid       uint32
++	X__pad0   int32
++	Rdev      uint64
++	Size      int64
++	Blksize   int64
++	Blocks    int64
++	Atim      Timespec
++	Mtim      Timespec
++	Ctim      Timespec
++	X__unused [3]int64
+ }
+ 
+ type Statfs_t struct {
+@@ -268,7 +268,7 @@ type Sysinfo_t struct {
+ 	Totalhigh uint64
+ 	Freehigh  uint64
+ 	Unit      uint32
+-	_f        [2]int8
++	X_f       [2]int8
+ 	Pad1      [4]byte
+ }
+ 

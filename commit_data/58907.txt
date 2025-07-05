@@ -13,6 +13,38 @@ Date:   Sun Jan 21 09:26:40 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/sccp.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/sccp.go b/src/cmd/compile/internal/ssa/sccp.go
+index 77a6f50961..ecc0f94e5b 100644
+--- a/src/cmd/compile/internal/ssa/sccp.go
++++ b/src/cmd/compile/internal/ssa/sccp.go
+@@ -80,7 +80,7 @@ func sccp(f *Func) {
+ 	// build it early since we rely heavily on the def-use chain later
+ 	t.buildDefUses()
+ 
+-	// pick up either an edge or SSA value from worklilst, process it
++	// pick up either an edge or SSA value from worklist, process it
+ 	for {
+ 		if len(t.edges) > 0 {
+ 			edge := t.edges[0]
+@@ -145,7 +145,7 @@ func equals(a, b lattice) bool {
+ 	return true
+ }
+ 
+-// possibleConst checks if Value can be fold to const. For those Values that can
++// possibleConst checks if Value can be folded to const. For those Values that can
+ // never become constants(e.g. StaticCall), we don't make futile efforts.
+ func possibleConst(val *Value) bool {
+ 	if isConst(val) {
+@@ -343,7 +343,7 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
+ 	// However, this would create a huge switch for all opcodes that can be
+ 	// evaluated during compile time. Moreover, some operations can be evaluated
+ 	// only if its arguments satisfy additional conditions(e.g. divide by zero).
+-	// It's fragile and error prone. We did a trick by reusing the existing rules
++	// It's fragile and error-prone. We did a trick by reusing the existing rules
+ 	// in generic rules for compile-time evaluation. But generic rules rewrite
+ 	// original value, this behavior is undesired, because the lattice of values
+ 	// may change multiple times, once it was rewritten, we lose the opportunity

@@ -9,7 +9,56 @@ Date:   Thu Oct 20 16:43:09 2016 -0400
     Change-Id: I9425af91a48016b1d7465b9f43cafa792bc00bb3
     Reviewed-on: https://go-review.googlesource.com/31581
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/net/mail/message.go      |  5 +++--
  src/net/mail/message_test.go | 13 +++++++++----
  2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 0c000697f7..b1d526bba9 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -92,7 +92,8 @@ func init() {
+ 	}
+ }
+ 
+-func parseDate(date string) (time.Time, error) {
++// ParseDate parses an RFC 5322 date string.
++func ParseDate(date string) (time.Time, error) {
+ 	for _, layout := range dateLayouts {
+ 		t, err := time.Parse(layout, date)
+ 		if err == nil {
+@@ -119,7 +120,7 @@ func (h Header) Date() (time.Time, error) {
+ 	if hdr == "" {
+ 		return time.Time{}, ErrHeaderNotPresent
+ 	}
+-	return parseDate(hdr)
++	return ParseDate(hdr)
+ }
+ 
+ // AddressList parses the named header field as a list of addresses.
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index bbbba6b584..b29e375f2e 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -110,11 +110,16 @@ func TestDateParsing(t *testing.T) {
+ 		}
+ 		date, err := hdr.Date()
+ 		if err != nil {
+-			t.Errorf("Failed parsing %q: %v", test.dateStr, err)
+-			continue
++			t.Errorf("Header(Date: %s).Date(): %v", test.dateStr, err)
++		} else if !date.Equal(test.exp) {
++			t.Errorf("Header(Date: %s).Date() = %+v, want %+v", test.dateStr, date, test.exp)
+ 		}
+-		if !date.Equal(test.exp) {
+-			t.Errorf("Parse of %q: got %+v, want %+v", test.dateStr, date, test.exp)
++
++		date, err = ParseDate(test.dateStr)
++		if err != nil {
++			t.Errorf("ParseDate(%s): %v", test.dateStr, err)
++		} else if !date.Equal(test.exp) {
++			t.Errorf("ParseDate(%s) = %+v, want %+v", test.dateStr, date, test.exp)
+ 		}
+ 	}
+ }

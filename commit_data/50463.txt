@@ -15,7 +15,45 @@ Date:   Thu Oct 28 01:55:10 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/testdata/testprogcgo/panic.c  | 9 +++++++++
  src/runtime/testdata/testprogcgo/panic.go | 8 +-------
  2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/panic.c b/src/runtime/testdata/testprogcgo/panic.c
+new file mode 100644
+index 0000000000..deb5ed5a60
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/panic.c
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern void panic_callback();
++
++void call_callback(void) {
++	panic_callback();
++}
+diff --git a/src/runtime/testdata/testprogcgo/panic.go b/src/runtime/testdata/testprogcgo/panic.go
+index 4ddef3abcd..57ac89540e 100644
+--- a/src/runtime/testdata/testprogcgo/panic.go
++++ b/src/runtime/testdata/testprogcgo/panic.go
+@@ -1,16 +1,10 @@
+ package main
+ 
+-import "C"
+-
+ // This program will crash.
+ // We want to test unwinding from a cgo callback.
+ 
+ /*
+-void panic_callback();
+-
+-static void call_callback(void) {
+-	panic_callback();
+-}
++void call_callback(void);
+ */
+ import "C"
+ 

@@ -9,6 +9,34 @@ Date:   Thu Oct 22 14:14:41 2015 -0700
     Change-Id: Ic2bcdc3bf507d121ed204f30f6744bb8764202c0
     Reviewed-on: https://go-review.googlesource.com/16232
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 13 ++-----------
  1 file changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 292e3b95b2..1b2a520f0b 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -713,20 +713,11 @@ func (p *exporter) value(x Val) {
+ }
+ 
+ func (p *exporter) float(x *Mpflt) {
+-	// extract sign, treat -0 as < 0
++	// extract sign (there is no -0)
+ 	f := &x.Val
+ 	sign := f.Sign()
+ 	if sign == 0 {
+-		// ±0
+-		// TODO(gri) remove 'if' below if #12577 gets accepted
+-		if f.Signbit() {
+-			// -0 (uncommon)
+-			p.int(-1)
+-			p.int(0)
+-			p.string("")
+-			return
+-		}
+-		// +0
++		// x == 0
+ 		p.int(0)
+ 		return
+ 	}

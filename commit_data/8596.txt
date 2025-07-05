@@ -10,8 +10,222 @@ Date:   Thu Jun 2 10:26:09 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4517134
-
+---
  src/pkg/exec/exec.go      | 61 +++++++++++++++++++++++++++++++++++++--
  src/pkg/exec/exec_test.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/http/cgi/host.go  | 13 ++++-----
  3 files changed, 136 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index ede09091db..958245832d 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -65,8 +65,8 @@ type Cmd struct {
+ 	process         *os.Process
+ 	finished        bool // when Wait was called
+ 	childFiles      []*os.File
+-	closeAfterStart []*os.File
+-	closeAfterWait  []*os.File
++	closeAfterStart []io.Closer
++	closeAfterWait  []io.Closer
+ 	goroutine       []func() os.Error
+ 	errch           chan os.Error // one send per goroutine
+ }
+@@ -307,3 +307,60 @@ func (c *Cmd) CombinedOutput() ([]byte, os.Error) {
+ 	err := c.Run()
+ 	return b.Bytes(), err
+ }
++
++// StdinPipe returns a pipe that will be connected to the command's
++// standard input when the command starts.
++func (c *Cmd) StdinPipe() (io.WriteCloser, os.Error) {
++	if c.Stdin != nil {
++		return nil, os.NewError("exec: Stdin already set")
++	}
++	if c.process != nil {
++		return nil, os.NewError("exec: StdinPipe after process started")
++	}
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		return nil, err
++	}
++	c.Stdin = pr
++	c.closeAfterStart = append(c.closeAfterStart, pr)
++	c.closeAfterWait = append(c.closeAfterStart, pw)
++	return pw, nil
++}
++
++// StdoutPipe returns a pipe that will be connected to the command's
++// standard output when the command starts.
++func (c *Cmd) StdoutPipe() (io.Reader, os.Error) {
++	if c.Stdout != nil {
++		return nil, os.NewError("exec: Stdout already set")
++	}
++	if c.process != nil {
++		return nil, os.NewError("exec: StdoutPipe after process started")
++	}
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		return nil, err
++	}
++	c.Stdout = pw
++	c.closeAfterStart = append(c.closeAfterStart, pw)
++	c.closeAfterWait = append(c.closeAfterStart, pr)
++	return pr, nil
++}
++
++// StderrPipe returns a pipe that will be connected to the command's
++// standard error when the command starts.
++func (c *Cmd) StderrPipe() (io.Reader, os.Error) {
++	if c.Stderr != nil {
++		return nil, os.NewError("exec: Stderr already set")
++	}
++	if c.process != nil {
++		return nil, os.NewError("exec: StderrPipe after process started")
++	}
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		return nil, err
++	}
++	c.Stderr = pw
++	c.closeAfterStart = append(c.closeAfterStart, pw)
++	c.closeAfterWait = append(c.closeAfterStart, pr)
++	return pr, nil
++}
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 041d527e01..c45a7d70a6 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -5,6 +5,8 @@
+ package exec
+ 
+ import (
++	"bufio"
++	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -87,6 +89,57 @@ func TestExitStatus(t *testing.T) {
+ 	}
+ }
+ 
++func TestPipes(t *testing.T) {
++	check := func(what string, err os.Error) {
++		if err != nil {
++			t.Fatalf("%s: %v", what, err)
++		}
++	}
++	// Cat, testing stdin and stdout.
++	c := helperCommand("pipetest")
++	stdin, err := c.StdinPipe()
++	check("StdinPipe", err)
++	stdout, err := c.StdoutPipe()
++	check("StdoutPipe", err)
++	stderr, err := c.StderrPipe()
++	check("StderrPipe", err)
++
++	outbr := bufio.NewReader(stdout)
++	errbr := bufio.NewReader(stderr)
++	line := func(what string, br *bufio.Reader) string {
++		line, _, err := br.ReadLine()
++		if err != nil {
++			t.Fatalf("%s: %v", what, err)
++		}
++		return string(line)
++	}
++
++	err = c.Start()
++	check("Start", err)
++
++	_, err = stdin.Write([]byte("O:I am output\n"))
++	check("first stdin Write", err)
++	if g, e := line("first output line", outbr), "O:I am output"; g != e {
++		t.Errorf("got %q, want %q", g, e)
++	}
++
++	_, err = stdin.Write([]byte("E:I am error\n"))
++	check("second stdin Write", err)
++	if g, e := line("first error line", errbr), "E:I am error"; g != e {
++		t.Errorf("got %q, want %q", g, e)
++	}
++
++	_, err = stdin.Write([]byte("O:I am output2\n"))
++	check("third stdin Write 3", err)
++	if g, e := line("second output line", outbr), "O:I am output2"; g != e {
++		t.Errorf("got %q, want %q", g, e)
++	}
++
++	stdin.Close()
++	err = c.Wait()
++	check("Wait", err)
++}
++
+ // TestHelperProcess isn't a real test. It's used as a helper process
+ // for TestParameterRun.
+ func TestHelperProcess(*testing.T) {
+@@ -133,6 +186,25 @@ func TestHelperProcess(*testing.T) {
+ 			}
+ 		}
+ 		os.Exit(exit)
++	case "pipetest":
++		bufr := bufio.NewReader(os.Stdin)
++		for {
++			line, _, err := bufr.ReadLine()
++			if err == os.EOF {
++				break
++			} else if err != nil {
++				os.Exit(1)
++			}
++			if bytes.HasPrefix(line, []byte("O:")) {
++				os.Stdout.Write(line)
++				os.Stdout.Write([]byte{'\n'})
++			} else if bytes.HasPrefix(line, []byte("E:")) {
++				os.Stderr.Write(line)
++				os.Stderr.Write([]byte{'\n'})
++			} else {
++				os.Exit(1)
++			}
++		}
+ 	case "exit":
+ 		n, _ := strconv.Atoi(args[0])
+ 		os.Exit(n)
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index c283191ef2..7ab3f9247a 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -161,30 +161,27 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		h.printf("CGI error: %v", err)
+ 	}
+ 
+-	stdoutRead, stdoutWrite, err := os.Pipe()
+-	if err != nil {
+-		internalError(err)
+-		return
+-	}
+-
+ 	cmd := &exec.Cmd{
+ 		Path:   pathBase,
+ 		Args:   append([]string{h.Path}, h.Args...),
+ 		Dir:    cwd,
+ 		Env:    env,
+-		Stdout: stdoutWrite,
+ 		Stderr: os.Stderr, // for now
+ 	}
+ 	if req.ContentLength != 0 {
+ 		cmd.Stdin = req.Body
+ 	}
++	stdoutRead, err := cmd.StdoutPipe()
++	if err != nil {
++		internalError(err)
++		return
++	}
+ 
+ 	err = cmd.Start()
+ 	if err != nil {
+ 		internalError(err)
+ 		return
+ 	}
+-	stdoutWrite.Close()
+ 	defer cmd.Wait()
+ 
+ 	linebody, _ := bufio.NewReaderSize(stdoutRead, 1024)

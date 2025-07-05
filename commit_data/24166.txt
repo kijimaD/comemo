@@ -18,7 +18,138 @@ Date:   Sat Jun 27 13:07:22 2015 +0000
     Change-Id: Ieffea9f870f2694548e12897f8f47babc0ea4414
     Reviewed-on: https://go-review.googlesource.com/11630
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/encoding/xml/marshal.go      | 45 ++++++++++++++++++++++++++++++++++++++--
  src/encoding/xml/marshal_test.go | 40 ++++++++++++++++++++++++++++++++++-
  2 files changed, 82 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 88e7d99cb5..5a49cc3528 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -173,6 +173,7 @@ func (enc *Encoder) EncodeElement(v interface{}, start StartElement) error {
+ }
+ 
+ var (
++	begComment   = []byte("<!--")
+ 	endComment   = []byte("-->")
+ 	endProcInst  = []byte("?>")
+ 	endDirective = []byte(">")
+@@ -238,8 +239,8 @@ func (enc *Encoder) EncodeToken(t Token) error {
+ 		}
+ 		p.WriteString("?>")
+ 	case Directive:
+-		if bytes.Contains(t, endDirective) {
+-			return fmt.Errorf("xml: EncodeToken of Directive containing > marker")
++		if !isValidDirective(t) {
++			return fmt.Errorf("xml: EncodeToken of Directive containing wrong < or > markers")
+ 		}
+ 		p.WriteString("<!")
+ 		p.Write(t)
+@@ -248,6 +249,46 @@ func (enc *Encoder) EncodeToken(t Token) error {
+ 	return p.cachedWriteError()
+ }
+ 
++// isValidDirective reports whether dir is a valid directive text,
++// meaning angle brackets are matched, ignoring comments and strings.
++func isValidDirective(dir Directive) bool {
++	var (
++		depth     int
++		inquote   uint8
++		incomment bool
++	)
++	for i, c := range dir {
++		switch {
++		case incomment:
++			if c == '>' {
++				if n := 1 + i - len(endComment); n >= 0 && bytes.Equal(dir[n:i+1], endComment) {
++					incomment = false
++				}
++			}
++			// Just ignore anything in comment
++		case inquote != 0:
++			if c == inquote {
++				inquote = 0
++			}
++			// Just ignore anything within quotes
++		case c == '\'' || c == '"':
++			inquote = c
++		case c == '<':
++			if i+len(begComment) < len(dir) && bytes.Equal(dir[i:i+len(begComment)], begComment) {
++				incomment = true
++			} else {
++				depth++
++			}
++		case c == '>':
++			if depth == 0 {
++				return false
++			}
++			depth--
++		}
++	}
++	return depth == 0 && inquote == 0 && !incomment
++}
++
+ // Flush flushes any buffered XML to the underlying writer.
+ // See the EncodeToken documentation for details about when it is necessary.
+ func (enc *Encoder) Flush() error {
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 4c478ddded..78fe841d76 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -1527,12 +1527,18 @@ var encodeTokenTests = []struct {
+ 		Directive("foo"),
+ 	},
+ 	want: `<!foo>`,
++}, {
++	desc: "more complex directive",
++	toks: []Token{
++		Directive("DOCTYPE doc [ <!ELEMENT doc '>'> <!-- com>ment --> ]"),
++	},
++	want: `<!DOCTYPE doc [ <!ELEMENT doc '>'> <!-- com>ment --> ]>`,
+ }, {
+ 	desc: "directive instruction with bad name",
+ 	toks: []Token{
+ 		Directive("foo>"),
+ 	},
+-	err: "xml: EncodeToken of Directive containing > marker",
++	err: "xml: EncodeToken of Directive containing wrong < or > markers",
+ }, {
+ 	desc: "end tag without start tag",
+ 	toks: []Token{
+@@ -1868,3 +1874,35 @@ func TestRace9796(t *testing.T) {
+ 	}
+ 	wg.Wait()
+ }
++
++func TestIsValidDirective(t *testing.T) {
++	testOK := []string{
++		"<>",
++		"< < > >",
++		"<!DOCTYPE '<' '>' '>' <!--nothing-->>",
++		"<!DOCTYPE doc [ <!ELEMENT doc ANY> <!ELEMENT doc ANY> ]>",
++		"<!DOCTYPE doc [ <!ELEMENT doc \"ANY> '<' <!E\" LEMENT '>' doc ANY> ]>",
++		"<!DOCTYPE doc <!-- just>>>> a < comment --> [ <!ITEM anything> ] >",
++	}
++	testKO := []string{
++		"<",
++		">",
++		"<!--",
++		"-->",
++		"< > > < < >",
++		"<!dummy <!-- > -->",
++		"<!DOCTYPE doc '>",
++		"<!DOCTYPE doc '>'",
++		"<!DOCTYPE doc <!--comment>",
++	}
++	for _, s := range testOK {
++		if !isValidDirective(Directive(s)) {
++			t.Errorf("Directive %q is expected to be valid", s)
++		}
++	}
++	for _, s := range testKO {
++		if isValidDirective(Directive(s)) {
++			t.Errorf("Directive %q is expected to be invalid", s)
++		}
++	}
++}

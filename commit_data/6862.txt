@@ -7,6 +7,22 @@ Date:   Wed Dec 8 08:31:26 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/3442042
-
+---
  doc/install.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 510464960f..1c344e425c 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -64,7 +64,9 @@ support for segmented stacks, and a strong goroutine implementation.
+ <p>
+ The compilers can target the FreeBSD, Linux, Native Client,
+ and OS X (a.k.a. Darwin) operating systems.
+-(A port to Microsoft Windows is in progress but incomplete.)
++(A port to Microsoft Windows is in progress but incomplete.  See the 
++<a href="http://code.google.com/p/go/wiki/WindowsPort">Windows Port</a>
++page for details.)
+ The full set of supported combinations is listed in the discussion of
+ <a href="#environment">environment variables</a> below.
+ </p>

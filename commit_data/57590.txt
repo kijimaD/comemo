@@ -23,7 +23,7 @@ Date:   Tue Jul 11 05:11:26 2023 +0800
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/metadata/main.go     |  2 +-
  src/go/build/deps_test.go             |  2 +-
  src/internal/sysinfo/cpuinfo_linux.go | 77 +++++++++++++++++++++++++++++++++++
@@ -31,3 +31,195 @@ Date:   Tue Jul 11 05:11:26 2023 +0800
  src/internal/sysinfo/sysinfo.go       | 22 ++++++----
  src/testing/benchmark.go              |  4 +-
  6 files changed, 105 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/metadata/main.go b/src/cmd/internal/metadata/main.go
+index 7478eec1c9..af46c89bf6 100644
+--- a/src/cmd/internal/metadata/main.go
++++ b/src/cmd/internal/metadata/main.go
+@@ -22,7 +22,7 @@ import (
+ 
+ func main() {
+ 	fmt.Printf("# GOARCH: %s\n", runtime.GOARCH)
+-	fmt.Printf("# CPU: %s\n", sysinfo.CPU.Name())
++	fmt.Printf("# CPU: %s\n", sysinfo.CPUName())
+ 
+ 	fmt.Printf("# GOOS: %s\n", runtime.GOOS)
+ 	ver, err := osinfo.Version()
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 39f22af5f9..ff03691eb9 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -564,7 +564,7 @@ var depsRules = `
+ 	< net/rpc/jsonrpc;
+ 
+ 	# System Information
+-	internal/cpu, sync
++	bufio, bytes, internal/cpu, io, os, strings, sync
+ 	< internal/sysinfo;
+ 
+ 	# Test-only
+diff --git a/src/internal/sysinfo/cpuinfo_linux.go b/src/internal/sysinfo/cpuinfo_linux.go
+new file mode 100644
+index 0000000000..aff63b33b4
+--- /dev/null
++++ b/src/internal/sysinfo/cpuinfo_linux.go
+@@ -0,0 +1,77 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sysinfo
++
++import (
++	"bufio"
++	"bytes"
++	"io"
++	"os"
++	"strings"
++)
++
++func readLinuxProcCPUInfo(buf []byte) error {
++	f, err := os.Open("/proc/cpuinfo")
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++
++	_, err = io.ReadFull(f, buf)
++	if err != nil && err != io.ErrUnexpectedEOF {
++		return err
++	}
++
++	return nil
++}
++
++func osCpuInfoName() string {
++	modelName := ""
++	cpuMHz := ""
++
++	// The 512-byte buffer is enough to hold the contents of CPU0
++	buf := make([]byte, 512)
++	err := readLinuxProcCPUInfo(buf)
++	if err != nil {
++		return ""
++	}
++
++	scanner := bufio.NewScanner(bytes.NewReader(buf))
++	for scanner.Scan() {
++		line := scanner.Text()
++		if !strings.Contains(line, ":") {
++			continue
++		}
++
++		field := strings.SplitN(line, ": ", 2)
++		switch strings.TrimSpace(field[0]) {
++		case "Model Name", "model name":
++			modelName = field[1]
++		case "CPU MHz", "cpu MHz":
++			cpuMHz = field[1]
++		}
++	}
++
++	if modelName == "" {
++		return ""
++	}
++
++	if cpuMHz == "" {
++		return modelName
++	}
++
++	// The modelName field already contains the frequency information,
++	// so the cpuMHz field information is not needed.
++	// modelName filed example:
++	//	Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz
++	f := [...]string{"GHz", "MHz"}
++	for _, v := range f {
++		if strings.Contains(modelName, v) {
++			return modelName
++		}
++	}
++
++	return modelName + " @ " + cpuMHz + "MHz"
++}
+diff --git a/src/internal/sysinfo/cpuinfo_stub.go b/src/internal/sysinfo/cpuinfo_stub.go
+new file mode 100644
+index 0000000000..5dcfed1137
+--- /dev/null
++++ b/src/internal/sysinfo/cpuinfo_stub.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux
++
++package sysinfo
++
++func osCpuInfoName() string {
++	return ""
++}
+diff --git a/src/internal/sysinfo/sysinfo.go b/src/internal/sysinfo/sysinfo.go
+index 961be7abae..6a29ad2bc1 100644
+--- a/src/internal/sysinfo/sysinfo.go
++++ b/src/internal/sysinfo/sysinfo.go
+@@ -7,25 +7,29 @@
+ package sysinfo
+ 
+ import (
+-	internalcpu "internal/cpu"
++	"internal/cpu"
+ 	"sync"
+ )
+ 
+-type cpuInfo struct {
++var cpuInfo struct {
+ 	once sync.Once
+ 	name string
+ }
+ 
+-var CPU cpuInfo
+-
+-func (cpu *cpuInfo) Name() string {
+-	cpu.once.Do(func() {
++func CPUName() string {
++	cpuInfo.once.Do(func() {
+ 		// Try to get the information from internal/cpu.
+-		if name := internalcpu.Name(); name != "" {
+-			cpu.name = name
++		if name := cpu.Name(); name != "" {
++			cpuInfo.name = name
+ 			return
+ 		}
++
+ 		// TODO(martisch): use /proc/cpuinfo and /sys/devices/system/cpu/ on Linux as fallback.
++		if name := osCpuInfoName(); name != "" {
++			cpuInfo.name = name
++			return
++		}
+ 	})
+-	return cpu.name
++
++	return cpuInfo.name
+ }
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index e408595993..c9012ea0ac 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -251,7 +251,7 @@ func (b *B) run() {
+ 		if b.importPath != "" {
+ 			fmt.Fprintf(b.w, "pkg: %s\n", b.importPath)
+ 		}
+-		if cpu := sysinfo.CPU.Name(); cpu != "" {
++		if cpu := sysinfo.CPUName(); cpu != "" {
+ 			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
+ 		}
+ 	})
+@@ -668,7 +668,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 			if b.importPath != "" {
+ 				fmt.Printf("pkg: %s\n", b.importPath)
+ 			}
+-			if cpu := sysinfo.CPU.Name(); cpu != "" {
++			if cpu := sysinfo.CPUName(); cpu != "" {
+ 				fmt.Printf("cpu: %s\n", cpu)
+ 			}
+ 		})

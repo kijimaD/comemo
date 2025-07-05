@@ -11,6 +11,31 @@ Date:   Wed Nov 2 23:31:08 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/bug.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 75fbf445bc..47f1d68bb7 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -44,6 +44,7 @@ func runBug(cmd *Command, args []string) {
+ 	for _, e := range env {
+ 		fmt.Fprintf(&buf, "%s=\"%s\"\n", e.name, e.value)
+ 	}
++	printGoDetails(&buf)
+ 	printOSDetails(&buf)
+ 	printCDetails(&buf)
+ 	fmt.Fprintln(&buf, "```")
+@@ -72,6 +73,11 @@ A link on play.golang.org is best.
+ 
+ `
+ 
++func printGoDetails(w io.Writer) {
++	printCmdOut(w, "GOROOT/bin/go version: ", filepath.Join(runtime.GOROOT(), "bin/go"), "version")
++	printCmdOut(w, "GOROOT/bin/go tool compile -v: ", filepath.Join(runtime.GOROOT(), "bin/go"), "tool", "compile", "-V")
++}
++
+ func printOSDetails(w io.Writer) {
+ 	switch runtime.GOOS {
+ 	case "darwin":

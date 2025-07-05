@@ -11,6 +11,35 @@ Date:   Tue Jan 27 21:07:35 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3511
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/liblink/list9.c | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/liblink/list9.c b/src/liblink/list9.c
+index b63099a5ab..ce0fb4b295 100644
+--- a/src/liblink/list9.c
++++ b/src/liblink/list9.c
+@@ -92,18 +92,19 @@ Pconv(Fmt *fp)
+ 	bigP = p;
+ 	a = p->as;
+ 
++	str[0] = 0;
+ 	if(a == ADATA || a == AINIT || a == ADYNT)
+ 		sprint(str, "%.5lld (%L)	%A	%D/%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 	else if(a == ATEXT) {
+ 		if(p->reg != 0)
+-			sprint(str, "%.5lld (%L)        %A      %D,%d,%lD", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
++			sprint(str, "%.5lld (%L)	%A	%D,%d,%lD", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 		else
+-			sprint(str, "%.5lld (%L)        %A      %D,%lD", p->pc, p->lineno, a, &p->from, &p->to);
++			sprint(str, "%.5lld (%L)	%A	%D,%lD", p->pc, p->lineno, a, &p->from, &p->to);
+ 	} else if(a == AGLOBL) {
+ 		if(p->reg != 0)
+-			sprint(str, "%.5lld (%L)        %A      %D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
++			sprint(str, "%.5lld (%L)	%A	%D,%d,%D", p->pc, p->lineno, a, &p->from, p->reg, &p->to);
+ 		else
+-			sprint(str, "%.5lld (%L)        %A      %D,%D", p->pc, p->lineno, a, &p->from, &p->to);
++			sprint(str, "%.5lld (%L)	%A	%D,%D", p->pc, p->lineno, a, &p->from, &p->to);
+ 	} else {
+ 		if(p->mark & NOSCHED)
+ 			sprint(strchr(str, 0), "*");

@@ -7,6 +7,29 @@ Date:   Tue Mar 8 19:16:04 2016 +0000
     Change-Id: I754861147838d0f6c184d8deb8a028062a1d3214
     Reviewed-on: https://go-review.googlesource.com/20400
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index bfa5c59ff0..0bb980e92f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -762,7 +762,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
+ 
+ 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
+-	
++
+ 	// If we're writing out type T,
+ 	// we are very likely to write out type *T as well.
+ 	// Use the string "*T"[1:] for "T", so that the two
+@@ -770,7 +770,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	// amount of space taken up by reflect strings.
+ 	prefix := 0
+ 	if !strings.HasPrefix(p, "*") {
+-		p = "*"+p
++		p = "*" + p
+ 		prefix = 1
+ 	}
+ 	_, symdata := stringsym(p) // string

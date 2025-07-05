@@ -18,6 +18,21 @@ Date:   Thu May 5 23:31:20 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/debug/buildinfo/buildinfo.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/buildinfo/buildinfo.go b/src/debug/buildinfo/buildinfo.go
+index 8de03ff106..d1f4892751 100644
+--- a/src/debug/buildinfo/buildinfo.go
++++ b/src/debug/buildinfo/buildinfo.go
+@@ -393,5 +393,8 @@ func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
+ }
+ 
+ func (x *xcoffExe) DataStart() uint64 {
+-	return x.f.SectionByType(xcoff.STYP_DATA).VirtualAddress
++	if s := x.f.SectionByType(xcoff.STYP_DATA); s != nil {
++		return s.VirtualAddress
++	}
++	return 0
+ }

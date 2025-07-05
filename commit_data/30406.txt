@@ -38,7 +38,51 @@ Date:   Wed Nov 2 20:18:47 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/32612
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/cover/cover.go         |  4 ++--
  src/cmd/cover/testdata/test.go | 12 ++++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 222737571f..b7d9125d60 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -168,13 +168,13 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 			case *ast.CaseClause: // switch
+ 				for _, n := range n.List {
+ 					clause := n.(*ast.CaseClause)
+-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
++					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
+ 				}
+ 				return f
+ 			case *ast.CommClause: // select
+ 				for _, n := range n.List {
+ 					clause := n.(*ast.CommClause)
+-					clause.Body = f.addCounters(clause.Pos(), clause.End(), clause.Body, false)
++					clause.Body = f.addCounters(clause.Colon+1, clause.End(), clause.Body, false)
+ 				}
+ 				return f
+ 			}
+diff --git a/src/cmd/cover/testdata/test.go b/src/cmd/cover/testdata/test.go
+index 71cb115331..61b40eaa74 100644
+--- a/src/cmd/cover/testdata/test.go
++++ b/src/cmd/cover/testdata/test.go
+@@ -246,6 +246,18 @@ func testFunctionLiteral() {
+ 		check(LINE, 2)
+ 	}) {
+ 	}
++
++	x := 2
++	switch x {
++	case func() int { check(LINE, 1); return 1 }():
++		check(LINE, 0)
++		panic("2=1")
++	case func() int { check(LINE, 1); return 2 }():
++		check(LINE, 1)
++	case func() int { check(LINE, 0); return 3 }():
++		check(LINE, 0)
++		panic("2=3")
++	}
+ }
+ 
+ func testGoto() {

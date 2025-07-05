@@ -10,6 +10,30 @@ Date:   Mon Feb 23 16:29:00 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5650
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/sym.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index d9df440f6e..d22a3396ce 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -36,6 +36,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ )
+ 
+ func yy_isalpha(c int) bool {
+@@ -131,6 +132,10 @@ func Linknew(arch *LinkArch) *Link {
+ 	ctxt.Version = HistVersion
+ 	ctxt.Goroot = Getgoroot()
+ 	ctxt.Goroot_final = os.Getenv("GOROOT_FINAL")
++	if runtime.GOOS == "windows" {
++		// TODO(rsc): Remove ctxt.Windows and let callers use runtime.GOOS.
++		ctxt.Windows = 1
++	}
+ 
+ 	buf, _ = os.Getwd()
+ 	if buf == "" {

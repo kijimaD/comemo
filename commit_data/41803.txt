@@ -34,7 +34,7 @@ Date:   Fri Sep 27 12:27:51 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mgcmark.go   |  16 +++-
  src/runtime/preempt.go   | 225 +++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/proc.go      |  56 +++++++++++-
@@ -42,3 +42,457 @@ Date:   Fri Sep 27 12:27:51 2019 -0400
  src/runtime/stack.go     |   5 ++
  src/runtime/traceback.go |   1 +
  6 files changed, 313 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 645083db07..adfdaced18 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -211,14 +211,24 @@ func markroot(gcw *gcWork, i uint32) {
+ 				userG.waitreason = waitReasonGarbageCollectionScan
+ 			}
+ 
+-			// TODO: scang blocks until gp's stack has
+-			// been scanned, which may take a while for
++			// TODO: suspendG blocks (and spins) until gp
++			// stops, which may take a while for
+ 			// running goroutines. Consider doing this in
+ 			// two phases where the first is non-blocking:
+ 			// we scan the stacks we can and ask running
+ 			// goroutines to scan themselves; and the
+ 			// second blocks.
+-			scang(gp, gcw)
++			stopped := suspendG(gp)
++			if stopped.dead {
++				gp.gcscandone = true
++				return
++			}
++			if gp.gcscandone {
++				throw("g already scanned")
++			}
++			scanstack(gp, gcw)
++			gp.gcscandone = true
++			resumeG(stopped)
+ 
+ 			if selfScan {
+ 				casgstatus(userG, _Gwaiting, _Grunning)
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+new file mode 100644
+index 0000000000..0565fd6360
+--- /dev/null
++++ b/src/runtime/preempt.go
+@@ -0,0 +1,225 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Goroutine preemption
++//
++// A goroutine can be preempted at any safe-point. Currently, there
++// are a few categories of safe-points:
++//
++// 1. A blocked safe-point occurs for the duration that a goroutine is
++//    descheduled, blocked on synchronization, or in a system call.
++//
++// 2. Synchronous safe-points occur when a running goroutine checks
++//    for a preemption request.
++//
++// At both blocked and synchronous safe-points, a goroutine's CPU
++// state is minimal and the garbage collector has complete information
++// about its entire stack. This makes it possible to deschedule a
++// goroutine with minimal space, and to precisely scan a goroutine's
++// stack.
++//
++// Synchronous safe-points are implemented by overloading the stack
++// bound check in function prologues. To preempt a goroutine at the
++// next synchronous safe-point, the runtime poisons the goroutine's
++// stack bound to a value that will cause the next stack bound check
++// to fail and enter the stack growth implementation, which will
++// detect that it was actually a preemption and redirect to preemption
++// handling.
++
++package runtime
++
++type suspendGState struct {
++	g *g
++
++	// dead indicates the goroutine was not suspended because it
++	// is dead. This goroutine could be reused after the dead
++	// state was observed, so the caller must not assume that it
++	// remains dead.
++	dead bool
++
++	// stopped indicates that this suspendG transitioned the G to
++	// _Gwaiting via g.preemptStop and thus is responsible for
++	// readying it when done.
++	stopped bool
++}
++
++// suspendG suspends goroutine gp at a safe-point and returns the
++// state of the suspended goroutine. The caller gets read access to
++// the goroutine until it calls resumeG.
++//
++// It is safe for multiple callers to attempt to suspend the same
++// goroutine at the same time. The goroutine may execute between
++// subsequent successful suspend operations. The current
++// implementation grants exclusive access to the goroutine, and hence
++// multiple callers will serialize. However, the intent is to grant
++// shared read access, so please don't depend on exclusive access.
++//
++// This must be called from the system stack and the user goroutine on
++// the current M (if any) must be in a preemptible state. This
++// prevents deadlocks where two goroutines attempt to suspend each
++// other and both are in non-preemptible states. There are other ways
++// to resolve this deadlock, but this seems simplest.
++//
++// TODO(austin): What if we instead required this to be called from a
++// user goroutine? Then we could deschedule the goroutine while
++// waiting instead of blocking the thread. If two goroutines tried to
++// suspend each other, one of them would win and the other wouldn't
++// complete the suspend until it was resumed. We would have to be
++// careful that they couldn't actually queue up suspend for each other
++// and then both be suspended. This would also avoid the need for a
++// kernel context switch in the synchronous case because we could just
++// directly schedule the waiter. The context switch is unavoidable in
++// the signal case.
++//
++//go:systemstack
++func suspendG(gp *g) suspendGState {
++	if mp := getg().m; mp.curg != nil && readgstatus(mp.curg) == _Grunning {
++		// Since we're on the system stack of this M, the user
++		// G is stuck at an unsafe point. If another goroutine
++		// were to try to preempt m.curg, it could deadlock.
++		throw("suspendG from non-preemptible goroutine")
++	}
++
++	// See https://golang.org/cl/21503 for justification of the yield delay.
++	const yieldDelay = 10 * 1000
++	var nextYield int64
++
++	// Drive the goroutine to a preemption point.
++	stopped := false
++	for i := 0; ; i++ {
++		switch s := readgstatus(gp); s {
++		default:
++			if s&_Gscan != 0 {
++				// Someone else is suspending it. Wait
++				// for them to finish.
++				//
++				// TODO: It would be nicer if we could
++				// coalesce suspends.
++				break
++			}
++
++			dumpgstatus(gp)
++			throw("invalid g status")
++
++		case _Gdead:
++			// Nothing to suspend.
++			//
++			// preemptStop may need to be cleared, but
++			// doing that here could race with goroutine
++			// reuse. Instead, goexit0 clears it.
++			return suspendGState{dead: true}
++
++		case _Gcopystack:
++			// The stack is being copied. We need to wait
++			// until this is done.
++
++		case _Gpreempted:
++			// We (or someone else) suspended the G. Claim
++			// ownership of it by transitioning it to
++			// _Gwaiting.
++			if !casGFromPreempted(gp, _Gpreempted, _Gwaiting) {
++				break
++			}
++
++			// We stopped the G, so we have to ready it later.
++			stopped = true
++
++			s = _Gwaiting
++			fallthrough
++
++		case _Grunnable, _Gsyscall, _Gwaiting:
++			// Claim goroutine by setting scan bit.
++			// This may race with execution or readying of gp.
++			// The scan bit keeps it from transition state.
++			if !castogscanstatus(gp, s, s|_Gscan) {
++				break
++			}
++
++			// Clear the preemption request. It's safe to
++			// reset the stack guard because we hold the
++			// _Gscan bit and thus own the stack.
++			gp.preemptStop = false
++			gp.preempt = false
++			gp.stackguard0 = gp.stack.lo + _StackGuard
++
++			// The goroutine was already at a safe-point
++			// and we've now locked that in.
++			//
++			// TODO: It would be much better if we didn't
++			// leave it in _Gscan, but instead gently
++			// prevented its scheduling until resumption.
++			// Maybe we only use this to bump a suspended
++			// count and the scheduler skips suspended
++			// goroutines? That wouldn't be enough for
++			// {_Gsyscall,_Gwaiting} -> _Grunning. Maybe
++			// for all those transitions we need to check
++			// suspended and deschedule?
++			return suspendGState{g: gp, stopped: stopped}
++
++		case _Grunning:
++			// Optimization: if there is already a pending preemption request
++			// (from the previous loop iteration), don't bother with the atomics.
++			if gp.preemptStop && gp.preempt && gp.stackguard0 == stackPreempt {
++				break
++			}
++
++			// Temporarily block state transitions.
++			if !castogscanstatus(gp, _Grunning, _Gscanrunning) {
++				break
++			}
++
++			// Request synchronous preemption.
++			gp.preemptStop = true
++			gp.preempt = true
++			gp.stackguard0 = stackPreempt
++
++			// TODO: Inject asynchronous preemption.
++
++			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
++		}
++
++		// TODO: Don't busy wait. This loop should really only
++		// be a simple read/decide/CAS loop that only fails if
++		// there's an active race. Once the CAS succeeds, we
++		// should queue up the preemption (which will require
++		// it to be reliable in the _Grunning case, not
++		// best-effort) and then sleep until we're notified
++		// that the goroutine is suspended.
++		if i == 0 {
++			nextYield = nanotime() + yieldDelay
++		}
++		if nanotime() < nextYield {
++			procyield(10)
++		} else {
++			osyield()
++			nextYield = nanotime() + yieldDelay/2
++		}
++	}
++}
++
++// resumeG undoes the effects of suspendG, allowing the suspended
++// goroutine to continue from its current safe-point.
++func resumeG(state suspendGState) {
++	if state.dead {
++		// We didn't actually stop anything.
++		return
++	}
++
++	gp := state.g
++	switch s := readgstatus(gp); s {
++	default:
++		dumpgstatus(gp)
++		throw("unexpected g status")
++
++	case _Grunnable | _Gscan,
++		_Gwaiting | _Gscan,
++		_Gsyscall | _Gscan:
++		casfrom_Gscanstatus(gp, s, s&^_Gscan)
++	}
++
++	if state.stopped {
++		// We stopped it, so we need to re-schedule it.
++		ready(gp, 0, true)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 524d75e3c7..3964941b9c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -738,7 +738,8 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 	case _Gscanrunnable,
+ 		_Gscanwaiting,
+ 		_Gscanrunning,
+-		_Gscansyscall:
++		_Gscansyscall,
++		_Gscanpreempted:
+ 		if newval == oldval&^_Gscan {
+ 			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
+ 		}
+@@ -844,6 +845,28 @@ func casgcopystack(gp *g) uint32 {
+ 	}
+ }
+ 
++// casGToPreemptScan transitions gp from _Grunning to _Gscan|_Gpreempted.
++//
++// TODO(austin): This is the only status operation that both changes
++// the status and locks the _Gscan bit. Rethink this.
++func casGToPreemptScan(gp *g, old, new uint32) {
++	if old != _Grunning || new != _Gscan|_Gpreempted {
++		throw("bad g transition")
++	}
++	for !atomic.Cas(&gp.atomicstatus, _Grunning, _Gscan|_Gpreempted) {
++	}
++}
++
++// casGFromPreempted attempts to transition gp from _Gpreempted to
++// _Gwaiting. If successful, the caller is responsible for
++// re-scheduling gp.
++func casGFromPreempted(gp *g, old, new uint32) bool {
++	if old != _Gpreempted || new != _Gwaiting {
++		throw("bad g transition")
++	}
++	return atomic.Cas(&gp.atomicstatus, _Gpreempted, _Gwaiting)
++}
++
+ // scang blocks until gp's stack has been scanned.
+ // It might be scanned by scang or it might be scanned by the goroutine itself.
+ // Either way, the stack scan has completed when scang returns.
+@@ -1676,7 +1699,6 @@ func oneNewExtraM() {
+ 	gp.syscallsp = gp.sched.sp
+ 	gp.stktopsp = gp.sched.sp
+ 	gp.gcscanvalid = true
+-	gp.gcscandone = true
+ 	// malg returns status as _Gidle. Change to _Gdead before
+ 	// adding to allg where GC can see it. We use _Gdead to hide
+ 	// this from tracebacks and stack scans since it isn't a
+@@ -2838,6 +2860,32 @@ func gopreempt_m(gp *g) {
+ 	goschedImpl(gp)
+ }
+ 
++// preemptPark parks gp and puts it in _Gpreempted.
++//
++//go:systemstack
++func preemptPark(gp *g) {
++	if trace.enabled {
++		traceGoPark(traceEvGoBlock, 0)
++	}
++	status := readgstatus(gp)
++	if status&^_Gscan != _Grunning {
++		dumpgstatus(gp)
++		throw("bad g status")
++	}
++	gp.waitreason = waitReasonPreempted
++	// Transition from _Grunning to _Gscan|_Gpreempted. We can't
++	// be in _Grunning when we dropg because then we'd be running
++	// without an M, but the moment we're in _Gpreempted,
++	// something could claim this G before we've fully cleaned it
++	// up. Hence, we set the scan bit to lock down further
++	// transitions until we can dropg.
++	casGToPreemptScan(gp, _Grunning, _Gscan|_Gpreempted)
++	dropg()
++	casfrom_Gscanstatus(gp, _Gscan|_Gpreempted, _Gpreempted)
++
++	schedule()
++}
++
+ // Finishes execution of the current goroutine.
+ func goexit1() {
+ 	if raceenabled {
+@@ -2861,6 +2909,7 @@ func goexit0(gp *g) {
+ 	locked := gp.lockedm != 0
+ 	gp.lockedm = 0
+ 	_g_.m.lockedg = 0
++	gp.preemptStop = false
+ 	gp.paniconfault = false
+ 	gp._defer = nil // should be true already but just in case.
+ 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
+@@ -4436,7 +4485,8 @@ func checkdead() {
+ 		}
+ 		s := readgstatus(gp)
+ 		switch s &^ _Gscan {
+-		case _Gwaiting:
++		case _Gwaiting,
++			_Gpreempted:
+ 			grunning++
+ 		case _Grunnable,
+ 			_Grunning,
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c5023027be..7eac58eb2c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -78,6 +78,13 @@ const (
+ 	// stack is owned by the goroutine that put it in _Gcopystack.
+ 	_Gcopystack // 8
+ 
++	// _Gpreempted means this goroutine stopped itself for a
++	// suspendG preemption. It is like _Gwaiting, but nothing is
++	// yet responsible for ready()ing it. Some suspendG must CAS
++	// the status to _Gwaiting to take responsibility for
++	// ready()ing this G.
++	_Gpreempted // 9
++
+ 	// _Gscan combined with one of the above states other than
+ 	// _Grunning indicates that GC is scanning the stack. The
+ 	// goroutine is not executing user code and the stack is owned
+@@ -89,11 +96,12 @@ const (
+ 	//
+ 	// atomicstatus&~Gscan gives the state the goroutine will
+ 	// return to when the scan completes.
+-	_Gscan         = 0x1000
+-	_Gscanrunnable = _Gscan + _Grunnable // 0x1001
+-	_Gscanrunning  = _Gscan + _Grunning  // 0x1002
+-	_Gscansyscall  = _Gscan + _Gsyscall  // 0x1003
+-	_Gscanwaiting  = _Gscan + _Gwaiting  // 0x1004
++	_Gscan          = 0x1000
++	_Gscanrunnable  = _Gscan + _Grunnable  // 0x1001
++	_Gscanrunning   = _Gscan + _Grunning   // 0x1002
++	_Gscansyscall   = _Gscan + _Gsyscall   // 0x1003
++	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
++	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
+ )
+ 
+ const (
+@@ -411,6 +419,7 @@ type g struct {
+ 	waitsince      int64      // approx time when the g become blocked
+ 	waitreason     waitReason // if status==Gwaiting
+ 	preempt        bool       // preemption signal, duplicates stackguard0 = stackpreempt
++	preemptStop    bool       // transition to _Gpreempted on preemption; otherwise, just deschedule
+ 	paniconfault   bool       // panic (instead of crash) on unexpected fault address
+ 	preemptscan    bool       // preempted g does scan for gc
+ 	gcscandone     bool       // g has scanned stack; protected by _Gscan bit in status
+@@ -906,6 +915,7 @@ const (
+ 	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
+ 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
+ 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
++	waitReasonPreempted                               // "preempted"
+ )
+ 
+ var waitReasonStrings = [...]string{
+@@ -934,6 +944,7 @@ var waitReasonStrings = [...]string{
+ 	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
+ 	waitReasonWaitForGCCycle:        "wait for GC cycle",
+ 	waitReasonGCWorkerIdle:          "GC worker (idle)",
++	waitReasonPreempted:             "preempted",
+ }
+ 
+ func (w waitReason) String() string {
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 93f9769899..3b92c89ff0 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1017,6 +1017,11 @@ func newstack() {
+ 		if thisg.m.p == 0 && thisg.m.locks == 0 {
+ 			throw("runtime: g is running but p is not")
+ 		}
++
++		if gp.preemptStop {
++			preemptPark(gp) // never returns
++		}
++
+ 		// Synchronize with scang.
+ 		casgstatus(gp, _Grunning, _Gwaiting)
+ 		if gp.preemptscan {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 0e4b75a7e6..9be7d739d1 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -860,6 +860,7 @@ var gStatusStrings = [...]string{
+ 	_Gwaiting:   "waiting",
+ 	_Gdead:      "dead",
+ 	_Gcopystack: "copystack",
++	_Gpreempted: "preempted",
+ }
+ 
+ func goroutineheader(gp *g) {

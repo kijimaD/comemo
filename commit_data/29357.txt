@@ -11,7 +11,54 @@ Date:   Sun Sep 11 12:34:58 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/cgo_test.go   |  1 +
  misc/cgo/test/issue17065.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 6440747208..362c640728 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -71,5 +71,6 @@ func TestGCC68255(t *testing.T)              { testGCC68255(t) }
+ func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
+ func Test14838(t *testing.T)                 { test14838(t) }
+ func Test8756(t *testing.T)                  { test8756(t) }
++func Test17065(t *testing.T)                 { test17065(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue17065.go b/misc/cgo/test/issue17065.go
+new file mode 100644
+index 0000000000..ede30bc3e6
+--- /dev/null
++++ b/misc/cgo/test/issue17065.go
+@@ -0,0 +1,29 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++// Test that C symbols larger than a page play nicely with the race detector.
++// See issue 17065.
++
++int ii[65537];
++*/
++import "C"
++
++import (
++	"runtime"
++	"testing"
++)
++
++var sink C.int
++
++func test17065(t *testing.T) {
++	if runtime.GOOS == "darwin" {
++		t.Skip("broken on darwin; issue 17065")
++	}
++	for i := range C.ii {
++		sink = C.ii[i]
++	}
++}

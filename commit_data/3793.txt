@@ -6,7 +6,7 @@ Date:   Wed Nov 4 23:16:46 2009 -0800
     
     R=rsc
     http://go/go-review/1017045
-
+---
  src/pkg/net/dialgoogle_test.go |  15 ++-
  src/pkg/net/dnsclient.go       |  46 +++----
  src/pkg/net/dnsconfig.go       |  33 +++--
@@ -31,3 +31,3155 @@ Date:   Wed Nov 4 23:16:46 2009 -0800
  src/pkg/net/udpsock.go         |  44 +++----
  src/pkg/net/unixsock.go        |  62 ++++-----
  23 files changed, 569 insertions(+), 570 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 81c65c9d1d..037684c796 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -26,7 +26,7 @@ func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
+ 
+ 	if n < 1000 {
+ 		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);
+-		return
++		return;
+ 	}
+ }
+ 
+@@ -34,13 +34,13 @@ func doDial(t *testing.T, network, addr string) {
+ 	fd, err := Dial(network, "", addr);
+ 	if err != nil {
+ 		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+-		return
++		return;
+ 	}
+ 	fetchGoogle(t, fd, network, addr);
+-	fd.Close()
++	fd.Close();
+ }
+ 
+-var googleaddrs = []string {
++var googleaddrs = []string{
+ 	"74.125.19.99:80",
+ 	"www.google.com:80",
+ 	"74.125.19.99:http",
+@@ -51,19 +51,20 @@ var googleaddrs = []string {
+ 	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
+ 	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
+ 	"[0:0:0:0:0:ffff::74.125.19.99]:80",
+-	"[2001:4860:0:2001::68]:80"	// ipv6.google.com; removed if ipv6 flag not set
++	"[2001:4860:0:2001::68]:80" // ipv6.google.com; removed if ipv6 flag not set
++	,
+ }
+ 
+ func TestDialGoogle(t *testing.T) {
+ 	// If no ipv6 tunnel, don't try the last address.
+ 	if !*ipv6 {
+-		googleaddrs[len(googleaddrs)-1] = ""
++		googleaddrs[len(googleaddrs)-1] = "";
+ 	}
+ 
+ 	for i := 0; i < len(googleaddrs); i++ {
+ 		addr := googleaddrs[i];
+ 		if addr == "" {
+-			continue
++			continue;
+ 		}
+ 		t.Logf("-- %s --", addr);
+ 		doDial(t, "tcp", addr);
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 46b8218a4c..3c283001b3 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -21,9 +21,9 @@ import (
+ 
+ // DNSError represents a DNS lookup error.
+ type DNSError struct {
+-	Error string;	// description of the error
+-	Name string;	// name looked for
+-	Server string;	// server used
++	Error	string;	// description of the error
++	Name	string;	// name looked for
++	Server	string;	// server used
+ }
+ 
+ func (e *DNSError) String() string {
+@@ -41,30 +41,30 @@ const noSuchHost = "no such host"
+ // Up to cfg.attempts attempts.
+ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
+ 	if len(name) >= 256 {
+-		return nil, &DNSError{"name too long", name, ""}
++		return nil, &DNSError{"name too long", name, ""};
+ 	}
+ 	out := new(_DNS_Msg);
+ 	out.id = 0x1234;
+ 	out.question = []_DNS_Question{
+-		_DNS_Question{ name, _DNS_TypeA, _DNS_ClassINET }
++		_DNS_Question{name, _DNS_TypeA, _DNS_ClassINET},
+ 	};
+ 	out.recursion_desired = true;
+ 	msg, ok := out.Pack();
+ 	if !ok {
+-		return nil, &DNSError{"internal error - cannot pack message", name, ""}
++		return nil, &DNSError{"internal error - cannot pack message", name, ""};
+ 	}
+ 
+ 	for attempt := 0; attempt < cfg.attempts; attempt++ {
+ 		n, err := c.Write(msg);
+ 		if err != nil {
+-			return nil, err
++			return nil, err;
+ 		}
+ 
+ 		c.SetReadTimeout(1e9);	// nanoseconds
+ 
+ 		buf := make([]byte, 2000);	// More than enough.
+ 		n, err = c.Read(buf);
+-		if isEAGAIN(err)  {
++		if isEAGAIN(err) {
+ 			err = nil;
+ 			continue;
+ 		}
+@@ -74,15 +74,15 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
+ 		buf = buf[0:n];
+ 		in := new(_DNS_Msg);
+ 		if !in.Unpack(buf) || in.id != out.id {
+-			continue
++			continue;
+ 		}
+-		return in, nil
++		return in, nil;
+ 	}
+ 	var server string;
+ 	if a := c.RemoteAddr(); a != nil {
+ 		server = a.String();
+ 	}
+-	return nil, &DNSError{"no answer from server", name, server}
++	return nil, &DNSError{"no answer from server", name, server};
+ }
+ 
+ 
+@@ -92,14 +92,14 @@ func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError)
+ 	addrs = make([]string, 0, len(dns.answer));
+ 
+ 	if dns.rcode == _DNS_RcodeNameError && dns.recursion_available {
+-		return nil, &DNSError{noSuchHost, name, ""}
++		return nil, &DNSError{noSuchHost, name, ""};
+ 	}
+ 	if dns.rcode != _DNS_RcodeSuccess {
+ 		// None of the error codes make sense
+ 		// for the query we sent.  If we didn't get
+ 		// a name error and we didn't get success,
+ 		// the server is behaving incorrectly.
+-		return nil, &DNSError{"server misbehaving", name, server}
++		return nil, &DNSError{"server misbehaving", name, server};
+ 	}
+ 
+ 	// Look for the name.
+@@ -118,29 +118,29 @@ Cname:
+ 				case _DNS_TypeA:
+ 					n := len(addrs);
+ 					a := rr.(*_DNS_RR_A).A;
+-					addrs = addrs[0:n+1];
++					addrs = addrs[0 : n+1];
+ 					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String();
+ 				case _DNS_TypeCNAME:
+ 					// redirect to cname
+ 					name = rr.(*_DNS_RR_CNAME).Cname;
+-					continue Cname
++					continue Cname;
+ 				}
+ 			}
+ 		}
+ 		if len(addrs) == 0 {
+-			return nil, &DNSError{noSuchHost, name, server}
++			return nil, &DNSError{noSuchHost, name, server};
+ 		}
+-		return addrs, nil
++		return addrs, nil;
+ 	}
+ 
+-	return nil, &DNSError{"too many redirects", name, server}
++	return nil, &DNSError{"too many redirects", name, server};
+ }
+ 
+ // Do a lookup for a single name, which must be rooted
+ // (otherwise answer will not find the answers).
+ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
+ 	if len(cfg.servers) == 0 {
+-		return nil, &DNSError{"no DNS servers", name, ""}
++		return nil, &DNSError{"no DNS servers", name, ""};
+ 	}
+ 	for i := 0; i < len(cfg.servers); i++ {
+ 		// Calling Dial here is scary -- we have to be sure
+@@ -255,14 +255,14 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 		}
+ 	}
+ 	if rooted {
+-		return
++		return;
+ 	}
+ 
+ 	// Otherwise, try suffixes.
+ 	for i := 0; i < len(cfg.search); i++ {
+-		rname := name+"."+cfg.search[i];
++		rname := name + "." + cfg.search[i];
+ 		if rname[len(rname)-1] != '.' {
+-			rname += "."
++			rname += ".";
+ 		}
+ 		addrs, err = tryOneName(cfg, rname);
+ 		if err == nil {
+@@ -270,5 +270,5 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 			return;
+ 		}
+ 	}
+-	return
++	return;
+ }
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index e2d36f97ea..b13b1b90a6 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -9,15 +9,15 @@ package net
+ import "os"
+ 
+ type _DNS_Config struct {
+-	servers []string;	// servers to use
+-	search []string;	// suffixes to append to local name
+-	ndots int;		// number of dots in name to trigger absolute lookup
+-	timeout int;	// seconds before giving up on packet
+-	attempts int;	// lost packets before giving up on server
+-	rotate bool;	// round robin among servers
++	servers		[]string;	// servers to use
++	search		[]string;	// suffixes to append to local name
++	ndots		int;		// number of dots in name to trigger absolute lookup
++	timeout		int;		// seconds before giving up on packet
++	attempts	int;		// lost packets before giving up on server
++	rotate		bool;		// round robin among servers
+ }
+ 
+-var _DNS_configError os.Error;
++var _DNS_configError os.Error
+ 
+ // See resolv.conf(5) on a Linux machine.
+ // TODO(rsc): Supposed to call uname() and chop the beginning
+@@ -26,10 +26,10 @@ var _DNS_configError os.Error;
+ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 	file, err := open("/etc/resolv.conf");
+ 	if err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 	conf := new(_DNS_Config);
+-	conf.servers = make([]string, 3)[0:0];		// small, but the standard limit
++	conf.servers = make([]string, 3)[0:0];	// small, but the standard limit
+ 	conf.search = make([]string, 0);
+ 	conf.ndots = 1;
+ 	conf.timeout = 1;
+@@ -50,7 +50,7 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 				// to look it up.
+ 				name := f[1];
+ 				if len(ParseIP(name)) != 0 {
+-					a = a[0:n+1];
++					a = a[0 : n+1];
+ 					a[n] = name;
+ 					conf.servers = a;
+ 				}
+@@ -61,11 +61,11 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 				conf.search = make([]string, 1);
+ 				conf.search[0] = f[1];
+ 			} else {
+-				conf.search = make([]string, 0)
++				conf.search = make([]string, 0);
+ 			}
+ 
+ 		case "search":	// set search path to given servers
+-			conf.search = make([]string, len(f) - 1);
++			conf.search = make([]string, len(f)-1);
+ 			for i := 0; i < len(conf.search); i++ {
+ 				conf.search[i] = f[i+1];
+ 			}
+@@ -77,19 +77,19 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 				case len(s) >= 6 && s[0:6] == "ndots:":
+ 					n, _, _ := dtoi(s, 6);
+ 					if n < 1 {
+-						n = 1
++						n = 1;
+ 					}
+ 					conf.ndots = n;
+ 				case len(s) >= 8 && s[0:8] == "timeout:":
+ 					n, _, _ := dtoi(s, 8);
+ 					if n < 1 {
+-						n = 1
++						n = 1;
+ 					}
+ 					conf.timeout = n;
+ 				case len(s) >= 8 && s[0:9] == "attempts:":
+ 					n, _, _ := dtoi(s, 9);
+ 					if n < 1 {
+-						n = 1
++						n = 1;
+ 					}
+ 					conf.attempts = n;
+ 				case s == "rotate":
+@@ -100,6 +100,5 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
+ 	}
+ 	file.close();
+ 
+-	return conf, nil
++	return conf, nil;
+ }
+-
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index a166c96619..93ab3aac0e 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -34,93 +34,93 @@ import (
+ // Wire constants.
+ const (
+ 	// valid _DNS_RR_Header.Rrtype and _DNS_Question.qtype
+-	_DNS_TypeA = 1;
+-	_DNS_TypeNS = 2;
+-	_DNS_TypeMD = 3;
+-	_DNS_TypeMF = 4;
+-	_DNS_TypeCNAME = 5;
+-	_DNS_TypeSOA = 6;
+-	_DNS_TypeMB = 7;
+-	_DNS_TypeMG = 8;
+-	_DNS_TypeMR = 9;
+-	_DNS_TypeNULL = 10;
+-	_DNS_TypeWKS = 11;
+-	_DNS_TypePTR = 12;
+-	_DNS_TypeHINFO = 13;
+-	_DNS_TypeMINFO = 14;
+-	_DNS_TypeMX = 15;
+-	_DNS_TypeTXT = 16;
++	_DNS_TypeA	= 1;
++	_DNS_TypeNS	= 2;
++	_DNS_TypeMD	= 3;
++	_DNS_TypeMF	= 4;
++	_DNS_TypeCNAME	= 5;
++	_DNS_TypeSOA	= 6;
++	_DNS_TypeMB	= 7;
++	_DNS_TypeMG	= 8;
++	_DNS_TypeMR	= 9;
++	_DNS_TypeNULL	= 10;
++	_DNS_TypeWKS	= 11;
++	_DNS_TypePTR	= 12;
++	_DNS_TypeHINFO	= 13;
++	_DNS_TypeMINFO	= 14;
++	_DNS_TypeMX	= 15;
++	_DNS_TypeTXT	= 16;
+ 
+ 	// valid _DNS_Question.qtype only
+-	_DNS_TypeAXFR = 252;
+-	_DNS_TypeMAILB = 253;
+-	_DNS_TypeMAILA = 254;
+-	_DNS_TypeALL = 255;
++	_DNS_TypeAXFR	= 252;
++	_DNS_TypeMAILB	= 253;
++	_DNS_TypeMAILA	= 254;
++	_DNS_TypeALL	= 255;
+ 
+ 	// valid _DNS_Question.qclass
+-	_DNS_ClassINET = 1;
+-	_DNS_ClassCSNET = 2;
+-	_DNS_ClassCHAOS = 3;
+-	_DNS_ClassHESIOD = 4;
+-	_DNS_ClassANY = 255;
++	_DNS_ClassINET		= 1;
++	_DNS_ClassCSNET		= 2;
++	_DNS_ClassCHAOS		= 3;
++	_DNS_ClassHESIOD	= 4;
++	_DNS_ClassANY		= 255;
+ 
+ 	// _DNS_Msg.rcode
+-	_DNS_RcodeSuccess = 0;
+-	_DNS_RcodeFormatError = 1;
+-	_DNS_RcodeServerFailure = 2;
+-	_DNS_RcodeNameError = 3;
+-	_DNS_RcodeNotImplemented = 4;
+-	_DNS_RcodeRefused = 5;
++	_DNS_RcodeSuccess		= 0;
++	_DNS_RcodeFormatError		= 1;
++	_DNS_RcodeServerFailure		= 2;
++	_DNS_RcodeNameError		= 3;
++	_DNS_RcodeNotImplemented	= 4;
++	_DNS_RcodeRefused		= 5;
+ )
+ 
+ // The wire format for the DNS packet header.
+ type __DNS_Header struct {
+-	Id uint16;
+-	Bits uint16;
+-	Qdcount, Ancount, Nscount, Arcount uint16;
++	Id					uint16;
++	Bits					uint16;
++	Qdcount, Ancount, Nscount, Arcount	uint16;
+ }
+ 
+ const (
+ 	// __DNS_Header.Bits
+-	_QR = 1<<15;	// query/response (response=1)
+-	_AA = 1<<10;	// authoritative
+-	_TC = 1<<9;	// truncated
+-	_RD = 1<<8;	// recursion desired
+-	_RA = 1<<7;	// recursion available
++	_QR	= 1<<15;	// query/response (response=1)
++	_AA	= 1<<10;	// authoritative
++	_TC	= 1<<9;		// truncated
++	_RD	= 1<<8;		// recursion desired
++	_RA	= 1<<7;		// recursion available
+ )
+ 
+ // DNS queries.
+ type _DNS_Question struct {
+-	Name string "domain-name";	// "domain-name" specifies encoding; see packers below
+-	Qtype uint16;
+-	Qclass uint16;
++	Name	string	"domain-name";	// "domain-name" specifies encoding; see packers below
++	Qtype	uint16;
++	Qclass	uint16;
+ }
+ 
+ // DNS responses (resource records).
+ // There are many types of messages,
+ // but they all share the same header.
+ type _DNS_RR_Header struct {
+-	Name string "domain-name";
+-	Rrtype uint16;
+-	Class uint16;
+-	Ttl uint32;
+-	Rdlength uint16;	// length of data after header
++	Name		string	"domain-name";
++	Rrtype		uint16;
++	Class		uint16;
++	Ttl		uint32;
++	Rdlength	uint16;	// length of data after header
+ }
+ 
+ func (h *_DNS_RR_Header) Header() *_DNS_RR_Header {
+-	return h
++	return h;
+ }
+ 
+ type _DNS_RR interface {
+-	Header() *_DNS_RR_Header
++	Header() *_DNS_RR_Header;
+ }
+ 
+ 
+ // Specific DNS RR formats for each query type.
+ 
+ type _DNS_RR_CNAME struct {
+-	Hdr _DNS_RR_Header;
+-	Cname string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Cname	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_CNAME) Header() *_DNS_RR_Header {
+@@ -128,9 +128,9 @@ func (rr *_DNS_RR_CNAME) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_HINFO struct {
+-	Hdr _DNS_RR_Header;
+-	Cpu string;
+-	Os string;
++	Hdr	_DNS_RR_Header;
++	Cpu	string;
++	Os	string;
+ }
+ 
+ func (rr *_DNS_RR_HINFO) Header() *_DNS_RR_Header {
+@@ -138,8 +138,8 @@ func (rr *_DNS_RR_HINFO) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_MB struct {
+-	Hdr _DNS_RR_Header;
+-	Mb string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Mb	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_MB) Header() *_DNS_RR_Header {
+@@ -147,8 +147,8 @@ func (rr *_DNS_RR_MB) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_MG struct {
+-	Hdr _DNS_RR_Header;
+-	Mg string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Mg	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_MG) Header() *_DNS_RR_Header {
+@@ -156,9 +156,9 @@ func (rr *_DNS_RR_MG) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_MINFO struct {
+-	Hdr _DNS_RR_Header;
+-	Rmail string "domain-name";
+-	Email string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Rmail	string	"domain-name";
++	Email	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_MINFO) Header() *_DNS_RR_Header {
+@@ -166,8 +166,8 @@ func (rr *_DNS_RR_MINFO) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_MR struct {
+-	Hdr _DNS_RR_Header;
+-	Mr string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Mr	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_MR) Header() *_DNS_RR_Header {
+@@ -175,9 +175,9 @@ func (rr *_DNS_RR_MR) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_MX struct {
+-	Hdr _DNS_RR_Header;
+-	Pref uint16;
+-	Mx string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Pref	uint16;
++	Mx	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_MX) Header() *_DNS_RR_Header {
+@@ -185,8 +185,8 @@ func (rr *_DNS_RR_MX) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_NS struct {
+-	Hdr _DNS_RR_Header;
+-	Ns string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Ns	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_NS) Header() *_DNS_RR_Header {
+@@ -194,8 +194,8 @@ func (rr *_DNS_RR_NS) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_PTR struct {
+-	Hdr _DNS_RR_Header;
+-	Ptr string "domain-name";
++	Hdr	_DNS_RR_Header;
++	Ptr	string	"domain-name";
+ }
+ 
+ func (rr *_DNS_RR_PTR) Header() *_DNS_RR_Header {
+@@ -203,14 +203,14 @@ func (rr *_DNS_RR_PTR) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_SOA struct {
+-	Hdr _DNS_RR_Header;
+-	Ns string "domain-name";
+-	Mbox string "domain-name";
+-	Serial uint32;
+-	Refresh uint32;
+-	Retry uint32;
+-	Expire uint32;
+-	Minttl uint32;
++	Hdr	_DNS_RR_Header;
++	Ns	string	"domain-name";
++	Mbox	string	"domain-name";
++	Serial	uint32;
++	Refresh	uint32;
++	Retry	uint32;
++	Expire	uint32;
++	Minttl	uint32;
+ }
+ 
+ func (rr *_DNS_RR_SOA) Header() *_DNS_RR_Header {
+@@ -218,8 +218,8 @@ func (rr *_DNS_RR_SOA) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_TXT struct {
+-	Hdr _DNS_RR_Header;
+-	Txt string;	// not domain name
++	Hdr	_DNS_RR_Header;
++	Txt	string;	// not domain name
+ }
+ 
+ func (rr *_DNS_RR_TXT) Header() *_DNS_RR_Header {
+@@ -227,8 +227,8 @@ func (rr *_DNS_RR_TXT) Header() *_DNS_RR_Header {
+ }
+ 
+ type _DNS_RR_A struct {
+-	Hdr _DNS_RR_Header;
+-	A uint32 "ipv4";
++	Hdr	_DNS_RR_Header;
++	A	uint32	"ipv4";
+ }
+ 
+ func (rr *_DNS_RR_A) Header() *_DNS_RR_Header {
+@@ -236,7 +236,6 @@ func (rr *_DNS_RR_A) Header() *_DNS_RR_Header {
+ }
+ 
+ 
+-
+ // Packing and unpacking.
+ //
+ // All the packers and unpackers take a (msg []byte, off int)
+@@ -246,7 +245,7 @@ func (rr *_DNS_RR_A) Header() *_DNS_RR_Header {
+ // packing sequence.
+ 
+ // Map of constructors for each RR wire type.
+-var rr_mk = map[int] func()_DNS_RR {
++var rr_mk = map[int]func() _DNS_RR{
+ 	_DNS_TypeCNAME: func() _DNS_RR { return new(_DNS_RR_CNAME) },
+ 	_DNS_TypeHINFO: func() _DNS_RR { return new(_DNS_RR_HINFO) },
+ 	_DNS_TypeMB: func() _DNS_RR { return new(_DNS_RR_MB) },
+@@ -274,19 +273,19 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 	// We trade each dot byte for a length byte.
+ 	// There is also a trailing zero.
+ 	// Check that we have all the space we need.
+-	tot := len(s) + 1;
++	tot := len(s)+1;
+ 	if off+tot > len(msg) {
+-		return len(msg), false
++		return len(msg), false;
+ 	}
+ 
+ 	// Emit sequence of counted strings, chopping at dots.
+ 	begin := 0;
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == '.' {
+-			if i - begin >= 1<<6 { // top two bits of length must be clear
+-				return len(msg), false
++			if i-begin >= 1<<6 {	// top two bits of length must be clear
++				return len(msg), false;
+ 			}
+-			msg[off] = byte(i - begin);
++			msg[off] = byte(i-begin);
+ 			off++;
+ 			for j := begin; j < i; j++ {
+ 				msg[off] = s[j];
+@@ -297,7 +296,7 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 	}
+ 	msg[off] = 0;
+ 	off++;
+-	return off, true
++	return off, true;
+ }
+ 
+ // Unpack a domain name.
+@@ -319,7 +318,7 @@ func unpackDomainName(msg []byte, off int) (s string, off1 int, ok bool) {
+ Loop:
+ 	for {
+ 		if off >= len(msg) {
+-			return "", len(msg), false
++			return "", len(msg), false;
+ 		}
+ 		c := int(msg[off]);
+ 		off++;
+@@ -327,13 +326,13 @@ Loop:
+ 		case 0x00:
+ 			if c == 0x00 {
+ 				// end of name
+-				break Loop
++				break Loop;
+ 			}
+ 			// literal string
+ 			if off+c > len(msg) {
+-				return "", len(msg), false
++				return "", len(msg), false;
+ 			}
+-			s += string(msg[off:off+c]) + ".";
++			s += string(msg[off : off+c])+".";
+ 			off += c;
+ 		case 0xC0:
+ 			// pointer to somewhere else in msg.
+@@ -342,26 +341,26 @@ Loop:
+ 			// also, don't follow too many pointers --
+ 			// maybe there's a loop.
+ 			if off >= len(msg) {
+-				return "", len(msg), false
++				return "", len(msg), false;
+ 			}
+ 			c1 := msg[off];
+ 			off++;
+ 			if ptr == 0 {
+-				off1 = off
++				off1 = off;
+ 			}
+ 			if ptr++; ptr > 10 {
+-				return "", len(msg), false
++				return "", len(msg), false;
+ 			}
+ 			off = (c^0xC0)<<8 | int(c1);
+ 		default:
+ 			// 0x80 and 0x40 are reserved
+-			return "", len(msg), false
++			return "", len(msg), false;
+ 		}
+ 	}
+ 	if ptr == 0 {
+-		off1 = off
++		off1 = off;
+ 	}
+-	return s, off1, true
++	return s, off1, true;
+ }
+ 
+ // TODO(rsc): Move into generic library?
+@@ -379,7 +378,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 		case *reflect.Uint16Value:
+ 			i := fv.Get();
+ 			if off+2 > len(msg) {
+-				return len(msg), false
++				return len(msg), false;
+ 			}
+ 			msg[off] = byte(i>>8);
+ 			msg[off+1] = byte(i);
+@@ -387,7 +386,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 		case *reflect.Uint32Value:
+ 			i := fv.Get();
+ 			if off+4 > len(msg) {
+-				return len(msg), false
++				return len(msg), false;
+ 			}
+ 			msg[off] = byte(i>>24);
+ 			msg[off+1] = byte(i>>16);
+@@ -405,12 +404,12 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 			case "domain-name":
+ 				off, ok = packDomainName(s, msg, off);
+ 				if !ok {
+-					return len(msg), false
++					return len(msg), false;
+ 				}
+ 			case "":
+ 				// Counted string: 1 byte length.
+-				if len(s) > 255 || off + 1 + len(s) > len(msg) {
+-					return len(msg), false
++				if len(s) > 255 || off+1+len(s) > len(msg) {
++					return len(msg), false;
+ 				}
+ 				msg[off] = byte(len(s));
+ 				off++;
+@@ -421,7 +420,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 			}
+ 		}
+ 	}
+-	return off, true
++	return off, true;
+ }
+ 
+ func structValue(any interface{}) *reflect.StructValue {
+@@ -430,7 +429,7 @@ func structValue(any interface{}) *reflect.StructValue {
+ 
+ func packStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ 	off, ok = packStructValue(structValue(any), msg, off);
+-	return off, ok
++	return off, ok;
+ }
+ 
+ // TODO(rsc): Move into generic library?
+@@ -447,14 +446,14 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 			off, ok = unpackStructValue(fv, msg, off);
+ 		case *reflect.Uint16Value:
+ 			if off+2 > len(msg) {
+-				return len(msg), false
++				return len(msg), false;
+ 			}
+ 			i := uint16(msg[off])<<8 | uint16(msg[off+1]);
+ 			fv.Set(i);
+ 			off += 2;
+ 		case *reflect.Uint32Value:
+ 			if off+4 > len(msg) {
+-				return len(msg), false
++				return len(msg), false;
+ 			}
+ 			i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3]);
+ 			fv.Set(i);
+@@ -468,11 +467,11 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 			case "domain-name":
+ 				s, off, ok = unpackDomainName(msg, off);
+ 				if !ok {
+-					return len(msg), false
++					return len(msg), false;
+ 				}
+ 			case "":
+ 				if off >= len(msg) || off+1+int(msg[off]) > len(msg) {
+-					return len(msg), false
++					return len(msg), false;
+ 				}
+ 				n := int(msg[off]);
+ 				off++;
+@@ -486,12 +485,12 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 			fv.Set(s);
+ 		}
+ 	}
+-	return off, true
++	return off, true;
+ }
+ 
+ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ 	off, ok = unpackStructValue(structValue(any), msg, off);
+-	return off, ok
++	return off, ok;
+ }
+ 
+ // Generic struct printer.
+@@ -515,7 +514,7 @@ func printStructValue(val *reflect.StructValue) string {
+ 			i := fv.Get();
+ 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String();
+ 		} else {
+-			s += fmt.Sprint(fval.Interface())
++			s += fmt.Sprint(fval.Interface());
+ 		}
+ 	}
+ 	s += "}";
+@@ -537,12 +536,12 @@ func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
+ 	off1, ok = packStruct(rr.Header(), msg, off);
+ 	off2, ok = packStruct(rr, msg, off);
+ 	if !ok {
+-		return len(msg), false
++		return len(msg), false;
+ 	}
+ 	// pack a third time; redo header with correct data length
+-	rr.Header().Rdlength = uint16(off2 - off1);
++	rr.Header().Rdlength = uint16(off2-off1);
+ 	packStruct(rr.Header(), msg, off);
+-	return off2, true
++	return off2, true;
+ }
+ 
+ // Resource record unpacker.
+@@ -551,7 +550,7 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
+ 	var h _DNS_RR_Header;
+ 	off0 := off;
+ 	if off, ok = unpackStruct(&h, msg, off); !ok {
+-		return nil, len(msg), false
++		return nil, len(msg), false;
+ 	}
+ 	end := off+int(h.Rdlength);
+ 
+@@ -559,14 +558,14 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
+ 	// again inefficient but doesn't need to be fast.
+ 	mk, known := rr_mk[int(h.Rrtype)];
+ 	if !known {
+-		return &h, end, true
++		return &h, end, true;
+ 	}
+ 	rr = mk();
+ 	off, ok = unpackStruct(rr, msg, off0);
+ 	if off != end {
+-		return &h, end, true
++		return &h, end, true;
+ 	}
+-	return rr, off, ok
++	return rr, off, ok;
+ }
+ 
+ // Usable representation of a DNS packet.
+@@ -574,22 +573,22 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
+ // A manually-unpacked version of (id, bits).
+ // This is in its own struct for easy printing.
+ type __DNS_Msg_Top struct {
+-	id uint16;
+-	response bool;
+-	opcode int;
+-	authoritative bool;
+-	truncated bool;
+-	recursion_desired bool;
+-	recursion_available bool;
+-	rcode int;
++	id			uint16;
++	response		bool;
++	opcode			int;
++	authoritative		bool;
++	truncated		bool;
++	recursion_desired	bool;
++	recursion_available	bool;
++	rcode			int;
+ }
+ 
+ type _DNS_Msg struct {
+ 	__DNS_Msg_Top;
+-	question []_DNS_Question;
+-	answer []_DNS_RR;
+-	ns []_DNS_RR;
+-	extra []_DNS_RR;
++	question	[]_DNS_Question;
++	answer		[]_DNS_RR;
++	ns		[]_DNS_RR;
++	extra		[]_DNS_RR;
+ }
+ 
+ 
+@@ -647,9 +646,9 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
+ 		off, ok = packStruct(extra[i], msg, off);
+ 	}
+ 	if !ok {
+-		return nil, false
++		return nil, false;
+ 	}
+-	return msg[0:off], true
++	return msg[0:off], true;
+ }
+ 
+ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
+@@ -658,11 +657,11 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
+ 	off := 0;
+ 	var ok bool;
+ 	if off, ok = unpackStruct(&dh, msg, off); !ok {
+-		return false
++		return false;
+ 	}
+ 	dns.id = dh.Id;
+ 	dns.response = (dh.Bits & _QR) != 0;
+-	dns.opcode = int(dh.Bits >> 11) & 0xF;
++	dns.opcode = int(dh.Bits >> 11)&0xF;
+ 	dns.authoritative = (dh.Bits & _AA) != 0;
+ 	dns.truncated = (dh.Bits & _TC) != 0;
+ 	dns.recursion_desired = (dh.Bits & _RD) != 0;
+@@ -688,38 +687,38 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
+ 		dns.extra[i], off, ok = unpackRR(msg, off);
+ 	}
+ 	if !ok {
+-		return false
++		return false;
+ 	}
+-//	if off != len(msg) {
+-//		println("extra bytes in dns packet", off, "<", len(msg));
+-//	}
+-	return true
++	//	if off != len(msg) {
++	//		println("extra bytes in dns packet", off, "<", len(msg));
++	//	}
++	return true;
+ }
+ 
+ func (dns *_DNS_Msg) String() string {
+-	s := "DNS: "+printStruct(&dns.__DNS_Msg_Top)+"\n";
++	s := "DNS: " + printStruct(&dns.__DNS_Msg_Top) + "\n";
+ 	if len(dns.question) > 0 {
+ 		s += "-- Questions\n";
+ 		for i := 0; i < len(dns.question); i++ {
+-			s += printStruct(&dns.question[i])+"\n";
++			s += printStruct(&dns.question[i]) + "\n";
+ 		}
+ 	}
+ 	if len(dns.answer) > 0 {
+ 		s += "-- Answers\n";
+ 		for i := 0; i < len(dns.answer); i++ {
+-			s += printStruct(dns.answer[i])+"\n";
++			s += printStruct(dns.answer[i]) + "\n";
+ 		}
+ 	}
+ 	if len(dns.ns) > 0 {
+ 		s += "-- Name servers\n";
+ 		for i := 0; i < len(dns.ns); i++ {
+-			s += printStruct(dns.ns[i])+"\n";
++			s += printStruct(dns.ns[i]) + "\n";
+ 		}
+ 	}
+ 	if len(dns.extra) > 0 {
+ 		s += "-- Extra\n";
+ 		for i := 0; i < len(dns.extra); i++ {
+-			s += printStruct(dns.extra[i])+"\n";
++			s += printStruct(dns.extra[i]) + "\n";
+ 		}
+ 	}
+ 	return s;
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 64d505ae39..3c326461a8 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -16,26 +16,26 @@ import (
+ // Network file descriptor.
+ type netFD struct {
+ 	// immutable until Close
+-	fd int;
+-	family int;
+-	proto int;
+-	file *os.File;
+-	cr chan *netFD;
+-	cw chan *netFD;
+-	net string;
+-	laddr Addr;
+-	raddr Addr;
++	fd	int;
++	family	int;
++	proto	int;
++	file	*os.File;
++	cr	chan *netFD;
++	cw	chan *netFD;
++	net	string;
++	laddr	Addr;
++	raddr	Addr;
+ 
+ 	// owned by client
+-	rdeadline_delta int64;
+-	rdeadline int64;
+-	rio sync.Mutex;
+-	wdeadline_delta int64;
+-	wdeadline int64;
+-	wio sync.Mutex;
++	rdeadline_delta	int64;
++	rdeadline	int64;
++	rio		sync.Mutex;
++	wdeadline_delta	int64;
++	wdeadline	int64;
++	wio		sync.Mutex;
+ 
+ 	// owned by fd wait server
+-	ncr, ncw int;
++	ncr, ncw	int;
+ }
+ 
+ // A pollServer helps FDs determine when to retry a non-blocking
+@@ -68,11 +68,11 @@ type netFD struct {
+ // might help batch requests.
+ 
+ type pollServer struct {
+-	cr, cw chan *netFD;	// buffered >= 1
+-	pr, pw *os.File;
+-	pending map[int] *netFD;
+-	poll *pollster;	// low-level OS hooks
+-	deadline int64;	// next deadline (nsec since 1970)
++	cr, cw		chan *netFD;	// buffered >= 1
++	pr, pw		*os.File;
++	pending		map[int]*netFD;
++	poll		*pollster;	// low-level OS hooks
++	deadline	int64;		// next deadline (nsec since 1970)
+ }
+ 
+ func newPollServer() (s *pollServer, err os.Error) {
+@@ -80,7 +80,7 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	s.cr = make(chan *netFD, 1);
+ 	s.cw = make(chan *netFD, 1);
+ 	if s.pr, s.pw, err = os.Pipe(); err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 	var e int;
+ 	if e = syscall.SetNonblock(s.pr.Fd(), true); e != 0 {
+@@ -99,11 +99,11 @@ func newPollServer() (s *pollServer, err os.Error) {
+ 	}
+ 	if err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {
+ 		s.poll.Close();
+-		goto Error
++		goto Error;
+ 	}
+-	s.pending = make(map[int] *netFD);
++	s.pending = make(map[int]*netFD);
+ 	go s.Run();
+-	return s, nil
++	return s, nil;
+ }
+ 
+ func (s *pollServer) AddFD(fd *netFD, mode int) {
+@@ -122,19 +122,19 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
+ 	if intfd < 0 {
+ 		// fd closed underfoot
+ 		if mode == 'r' {
+-			fd.cr <- fd
++			fd.cr <- fd;
+ 		} else {
+-			fd.cw <- fd
++			fd.cw <- fd;
+ 		}
+-		return
++		return;
+ 	}
+ 	if err := s.poll.AddFD(intfd, mode, false); err != nil {
+ 		panicln("pollServer AddFD ", intfd, ": ", err.String(), "\n");
+-		return
++		return;
+ 	}
+ 
+ 	var t int64;
+-	key := intfd << 1;
++	key := intfd<<1;
+ 	if mode == 'r' {
+ 		fd.ncr++;
+ 		t = fd.rdeadline;
+@@ -150,28 +150,28 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
+ }
+ 
+ func (s *pollServer) LookupFD(fd int, mode int) *netFD {
+-	key := fd << 1;
++	key := fd<<1;
+ 	if mode == 'w' {
+ 		key++;
+ 	}
+ 	netfd, ok := s.pending[key];
+ 	if !ok {
+-		return nil
++		return nil;
+ 	}
+ 	s.pending[key] = nil, false;
+-	return netfd
++	return netfd;
+ }
+ 
+ func (s *pollServer) WakeFD(fd *netFD, mode int) {
+ 	if mode == 'r' {
+ 		for fd.ncr > 0 {
+ 			fd.ncr--;
+-			fd.cr <- fd
++			fd.cr <- fd;
+ 		}
+ 	} else {
+ 		for fd.ncw > 0 {
+ 			fd.ncw--;
+-			fd.cw <- fd
++			fd.cw <- fd;
+ 		}
+ 	}
+ }
+@@ -181,7 +181,7 @@ func (s *pollServer) Now() int64 {
+ 	if err != nil {
+ 		panic("net: os.Time: ", err.String());
+ 	}
+-	nsec += sec * 1e9;
++	nsec += sec*1e9;
+ 	return nsec;
+ }
+ 
+@@ -237,7 +237,7 @@ func (s *pollServer) Run() {
+ 		fd, mode, err := s.poll.WaitFD(t);
+ 		if err != nil {
+ 			print("pollServer WaitFD: ", err.String(), "\n");
+-			return
++			return;
+ 		}
+ 		if fd < 0 {
+ 			// Timeout happened.
+@@ -247,42 +247,43 @@ func (s *pollServer) Run() {
+ 		if fd == s.pr.Fd() {
+ 			// Drain our wakeup pipe.
+ 			for nn, _ := s.pr.Read(&scratch); nn > 0; {
+-				nn, _ = s.pr.Read(&scratch)
++				nn, _ = s.pr.Read(&scratch);
+ 			}
+ 
+ 			// Read from channels
+ 			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
+-				s.AddFD(fd, 'r')
++				s.AddFD(fd, 'r');
+ 			}
+ 			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
+-				s.AddFD(fd, 'w')
++				s.AddFD(fd, 'w');
+ 			}
+ 		} else {
+ 			netfd := s.LookupFD(fd, mode);
+ 			if netfd == nil {
+ 				print("pollServer: unexpected wakeup for fd=", netfd, " mode=", string(mode), "\n");
+-				continue
++				continue;
+ 			}
+ 			s.WakeFD(netfd, mode);
+ 		}
+ 	}
+ }
+ 
+-var wakeupbuf [1]byte;
++var wakeupbuf [1]byte
++
+ func (s *pollServer) Wakeup() {
+-	s.pw.Write(&wakeupbuf)
++	s.pw.Write(&wakeupbuf);
+ }
+ 
+ func (s *pollServer) WaitRead(fd *netFD) {
+ 	s.cr <- fd;
+ 	s.Wakeup();
+-	<-fd.cr
++	<-fd.cr;
+ }
+ 
+ func (s *pollServer) WaitWrite(fd *netFD) {
+ 	s.cw <- fd;
+ 	s.Wakeup();
+-	<-fd.cw
++	<-fd.cw;
+ }
+ 
+ 
+@@ -294,9 +295,9 @@ var pollserver *pollServer
+ func startServer() {
+ 	p, err := newPollServer();
+ 	if err != nil {
+-		print("Start pollServer: ", err.String(), "\n")
++		print("Start pollServer: ", err.String(), "\n");
+ 	}
+-	pollserver = p
++	pollserver = p;
+ }
+ 
+ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
+@@ -319,10 +320,10 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err
+ 	if raddr != nil {
+ 		rs = raddr.String();
+ 	}
+-	f.file = os.NewFile(fd, net + ":" + ls + "->" + rs);
++	f.file = os.NewFile(fd, net+":"+ls+"->"+rs);
+ 	f.cr = make(chan *netFD, 1);
+ 	f.cw = make(chan *netFD, 1);
+-	return f, nil
++	return f, nil;
+ }
+ 
+ func isEAGAIN(e os.Error) bool {
+@@ -334,7 +335,7 @@ func isEAGAIN(e os.Error) bool {
+ 
+ func (fd *netFD) Close() os.Error {
+ 	if fd == nil || fd.file == nil {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 
+ 	// In case the user has set linger,
+@@ -348,12 +349,12 @@ func (fd *netFD) Close() os.Error {
+ 	e := fd.file.Close();
+ 	fd.file = nil;
+ 	fd.fd = -1;
+-	return e
++	return e;
+ }
+ 
+ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	fd.rio.Lock();
+ 	defer fd.rio.Unlock();
+@@ -375,7 +376,7 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 
+ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	fd.wio.Lock();
+ 	defer fd.wio.Unlock();
+@@ -389,7 +390,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	for nn < len(p) {
+ 		n, err = fd.file.Write(p[nn:len(p)]);
+ 		if n > 0 {
+-			nn += n
++			nn += n;
+ 		}
+ 		if nn == len(p) {
+ 			break;
+@@ -402,12 +403,12 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 			break;
+ 		}
+ 	}
+-	return nn, err
++	return nn, err;
+ }
+ 
+-func (fd *netFD) accept(toAddr func(syscall.Sockaddr)Addr) (nfd *netFD, err os.Error) {
++func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
+ 	if fd == nil || fd.file == nil {
+-		return nil, os.EINVAL
++		return nil, os.EINVAL;
+ 	}
+ 
+ 	// See ../syscall/exec.go for description of ForkLock.
+@@ -427,14 +428,14 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr)Addr) (nfd *netFD, err os.E
+ 	}
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+-		return nil, &OpError{"accept", fd.net, fd.laddr, os.Errno(e)}
++		return nil, &OpError{"accept", fd.net, fd.laddr, os.Errno(e)};
+ 	}
+ 	syscall.CloseOnExec(s);
+ 	syscall.ForkLock.RUnlock();
+ 
+ 	if nfd, err = newFD(s, fd.family, fd.proto, fd.net, fd.laddr, toAddr(sa)); err != nil {
+ 		syscall.Close(s);
+-		return nil, err
++		return nil, err;
+ 	}
+-	return nfd, nil
++	return nfd, nil;
+ }
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index 8de8ce3004..8ae9f687c0 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -12,27 +12,27 @@ import (
+ )
+ 
+ type pollster struct {
+-	kq int;
+-	eventbuf [10]syscall.Kevent_t;
+-	events []syscall.Kevent_t;
++	kq		int;
++	eventbuf	[10]syscall.Kevent_t;
++	events		[]syscall.Kevent_t;
+ }
+ 
+ func newpollster() (p *pollster, err os.Error) {
+ 	p = new(pollster);
+ 	var e int;
+ 	if p.kq, e = syscall.Kqueue(); e != 0 {
+-		return nil, os.NewSyscallError("kqueue", e)
++		return nil, os.NewSyscallError("kqueue", e);
+ 	}
+ 	p.events = p.eventbuf[0:0];
+-	return p, nil
++	return p, nil;
+ }
+ 
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 	var kmode int;
+ 	if mode == 'r' {
+-		kmode = syscall.EVFILT_READ
++		kmode = syscall.EVFILT_READ;
+ 	} else {
+-		kmode = syscall.EVFILT_WRITE
++		kmode = syscall.EVFILT_WRITE;
+ 	}
+ 	var events [1]syscall.Kevent_t;
+ 	ev := &events[0];
+@@ -42,7 +42,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 	// EV_ONESHOT - delete the event the first time it triggers
+ 	flags := syscall.EV_ADD | syscall.EV_RECEIPT;
+ 	if !repeat {
+-		flags |= syscall.EV_ONESHOT
++		flags |= syscall.EV_ONESHOT;
+ 	}
+ 	syscall.SetKevent(ev, fd, kmode, flags);
+ 
+@@ -54,17 +54,17 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 		return os.ErrorString("kqueue phase error");
+ 	}
+ 	if ev.Data != 0 {
+-		return os.Errno(int(ev.Data))
++		return os.Errno(int(ev.Data));
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ func (p *pollster) DelFD(fd int, mode int) {
+ 	var kmode int;
+ 	if mode == 'r' {
+-		kmode = syscall.EVFILT_READ
++		kmode = syscall.EVFILT_READ;
+ 	} else {
+-		kmode = syscall.EVFILT_WRITE
++		kmode = syscall.EVFILT_WRITE;
+ 	}
+ 	var events [1]syscall.Kevent_t;
+ 	ev := &events[0];
+@@ -87,26 +87,26 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t);
+ 		if e != 0 {
+ 			if e == syscall.EINTR {
+-				continue
++				continue;
+ 			}
+-			return -1, 0, os.NewSyscallError("kevent", e)
++			return -1, 0, os.NewSyscallError("kevent", e);
+ 		}
+ 		if nn == 0 {
+ 			return -1, 0, nil;
+ 		}
+-		p.events = p.eventbuf[0:nn]
++		p.events = p.eventbuf[0:nn];
+ 	}
+ 	ev := &p.events[0];
+ 	p.events = p.events[1:len(p.events)];
+ 	fd = int(ev.Ident);
+ 	if ev.Filter == syscall.EVFILT_READ {
+-		mode = 'r'
++		mode = 'r';
+ 	} else {
+-		mode = 'w'
++		mode = 'w';
+ 	}
+-	return fd, mode, nil
++	return fd, mode, nil;
+ }
+ 
+ func (p *pollster) Close() os.Error {
+-	return os.NewSyscallError("close", syscall.Close(p.kq))
++	return os.NewSyscallError("close", syscall.Close(p.kq));
+ }
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index 7c0fc042f6..47ae4f1c38 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -12,15 +12,15 @@ import (
+ )
+ 
+ const (
+-	readFlags = syscall.EPOLLIN | syscall.EPOLLRDHUP;
+-	writeFlags = syscall.EPOLLOUT
++	readFlags	= syscall.EPOLLIN | syscall.EPOLLRDHUP;
++	writeFlags	= syscall.EPOLLOUT;
+ )
+ 
+ type pollster struct {
+-	epfd int;
++	epfd	int;
+ 
+ 	// Events we're already waiting for
+-	events map[int] uint32;
++	events	map[int]uint32;
+ }
+ 
+ func newpollster() (p *pollster, err os.Error) {
+@@ -31,10 +31,10 @@ func newpollster() (p *pollster, err os.Error) {
+ 	// about the number of FDs we will care about.
+ 	// We don't know.
+ 	if p.epfd, e = syscall.EpollCreate(16); e != 0 {
+-		return nil, os.NewSyscallError("epoll_create", e)
++		return nil, os.NewSyscallError("epoll_create", e);
+ 	}
+-	p.events = make(map[int] uint32);
+-	return p, nil
++	p.events = make(map[int]uint32);
++	return p, nil;
+ }
+ 
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+@@ -58,10 +58,10 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+ 		op = syscall.EPOLL_CTL_ADD;
+ 	}
+ 	if e := syscall.EpollCtl(p.epfd, op, fd, &ev); e != 0 {
+-		return os.NewSyscallError("epoll_ctl", e)
++		return os.NewSyscallError("epoll_ctl", e);
+ 	}
+ 	p.events[fd] = ev.Events;
+-	return nil
++	return nil;
+ }
+ 
+ func (p *pollster) StopWaiting(fd int, bits uint) {
+@@ -111,7 +111,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
+ 	ev := &evarray[0];
+ 	var msec int = -1;
+ 	if nsec > 0 {
+-		msec = int((nsec + 1e6 - 1)/1e6);
++		msec = int((nsec+1e6-1)/1e6);
+ 	}
+ 	n, e := syscall.EpollWait(p.epfd, &evarray, msec);
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+diff --git a/src/pkg/net/fd_nacl.go b/src/pkg/net/fd_nacl.go
+index 45d63c15b0..36a012b2a5 100644
+--- a/src/pkg/net/fd_nacl.go
++++ b/src/pkg/net/fd_nacl.go
+@@ -9,11 +9,10 @@ import (
+ 	"syscall";
+ )
+ 
+-type pollster struct {
+-}
++type pollster struct{}
+ 
+ func newpollster() (p *pollster, err os.Error) {
+-	return nil, os.NewSyscallError("networking", syscall.ENACL)
++	return nil, os.NewSyscallError("networking", syscall.ENACL);
+ }
+ 
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index b6f5ef49ec..3178db0215 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -14,8 +14,8 @@ package net
+ 
+ // IP address lengths (bytes).
+ const (
+-	IPv4len = 4;
+-	IPv6len = 16
++	IPv4len	= 4;
++	IPv6len	= 16;
+ )
+ 
+ // An IP is a single IP address, an array of bytes.
+@@ -30,17 +30,17 @@ const (
+ // is a semantic property of the address, not just the
+ // length of the byte array: a 16-byte array can still
+ // be an IPv4 address.
+-type IP []byte;
++type IP []byte
+ 
+ // An IP mask is an IP address.
+-type IPMask []byte;
++type IPMask []byte
+ 
+ // IPv4 returns the IP address (in 16-byte form) of the
+ // IPv4 address a.b.c.d.
+ func IPv4(a, b, c, d byte) IP {
+ 	p := make(IP, IPv6len);
+ 	for i := 0; i < 10; i++ {
+-		p[i] = 0
++		p[i] = 0;
+ 	}
+ 	p[10] = 0xff;
+ 	p[11] = 0xff;
+@@ -48,15 +48,15 @@ func IPv4(a, b, c, d byte) IP {
+ 	p[13] = b;
+ 	p[14] = c;
+ 	p[15] = d;
+-	return p
++	return p;
+ }
+ 
+ // Well-known IPv4 addresses
+ var (
+-	IPv4bcast = IPv4(255, 255, 255, 255);	// broadcast
+-	IPv4allsys = IPv4(224, 0, 0, 1);	// all systems
+-	IPv4allrouter = IPv4(224, 0, 0, 2);	// all routers
+-	IPv4zero = IPv4(0, 0, 0, 0);	// all zeros
++	IPv4bcast	= IPv4(255, 255, 255, 255);	// broadcast
++	IPv4allsys	= IPv4(224, 0, 0, 1);		// all systems
++	IPv4allrouter	= IPv4(224, 0, 0, 2);		// all routers
++	IPv4zero	= IPv4(0, 0, 0, 0);		// all zeros
+ )
+ 
+ // Well-known IPv6 addresses
+@@ -68,52 +68,52 @@ var (
+ func isZeros(p IP) bool {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] != 0 {
+-			return false
++			return false;
+ 		}
+ 	}
+-	return true
++	return true;
+ }
+ 
+ // To4 converts the IPv4 address ip to a 4-byte representation.
+ // If ip is not an IPv4 address, To4 returns nil.
+ func (ip IP) To4() IP {
+ 	if len(ip) == IPv4len {
+-		return ip
++		return ip;
+ 	}
+-	if len(ip) == IPv6len
+-	&& isZeros(ip[0:10])
+-	&& ip[10] == 0xff
+-	&& ip[11] == 0xff {
+-		return ip[12:16]
++	if len(ip) == IPv6len &&
++		isZeros(ip[0:10]) &&
++		ip[10] == 0xff &&
++		ip[11] == 0xff {
++		return ip[12:16];
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ // To16 converts the IP address ip to a 16-byte representation.
+ // If ip is not an IP address (it is the wrong length), To16 returns nil.
+ func (ip IP) To16() IP {
+ 	if len(ip) == IPv4len {
+-		return IPv4(ip[0], ip[1], ip[2], ip[3])
++		return IPv4(ip[0], ip[1], ip[2], ip[3]);
+ 	}
+ 	if len(ip) == IPv6len {
+-		return ip
++		return ip;
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ // Default route masks for IPv4.
+ var (
+-	classAMask = IPMask(IPv4(0xff, 0, 0, 0));
+-	classBMask = IPMask(IPv4(0xff, 0xff, 0, 0));
+-	classCMask = IPMask(IPv4(0xff, 0xff, 0xff, 0));
++	classAMask	= IPMask(IPv4(0xff, 0, 0, 0));
++	classBMask	= IPMask(IPv4(0xff, 0xff, 0, 0));
++	classCMask	= IPMask(IPv4(0xff, 0xff, 0xff, 0));
+ )
+ 
+ // DefaultMask returns the default IP mask for the IP address ip.
+ // Only IPv4 addresses have default masks; DefaultMask returns
+ // nil if ip is not a valid IPv4 address.
+-func (ip IP) DefaultMask() IPMask  {
++func (ip IP) DefaultMask() IPMask {
+ 	if ip = ip.To4(); ip == nil {
+-		return nil
++		return nil;
+ 	}
+ 	switch true {
+ 	case ip[0] < 0x80:
+@@ -130,19 +130,19 @@ func (ip IP) DefaultMask() IPMask  {
+ func (ip IP) Mask(mask IPMask) IP {
+ 	n := len(ip);
+ 	if n != len(mask) {
+-		return nil
++		return nil;
+ 	}
+ 	out := make(IP, n);
+ 	for i := 0; i < n; i++ {
+-		out[i] = ip[i] & mask[i];
++		out[i] = ip[i]&mask[i];
+ 	}
+-	return out
++	return out;
+ }
+ 
+ // Convert i to decimal string.
+ func itod(i uint) string {
+ 	if i == 0 {
+-		return "0"
++		return "0";
+ 	}
+ 
+ 	// Assemble decimal in reverse order.
+@@ -150,16 +150,16 @@ func itod(i uint) string {
+ 	bp := len(b);
+ 	for ; i > 0; i /= 10 {
+ 		bp--;
+-		b[bp] = byte(i%10) + '0'
++		b[bp] = byte(i%10)+'0';
+ 	}
+ 
+-	return string(b[bp:len(b)])
++	return string(b[bp:len(b)]);
+ }
+ 
+ // Convert i to hexadecimal string.
+ func itox(i uint) string {
+ 	if i == 0 {
+-		return "0"
++		return "0";
+ 	}
+ 
+ 	// Assemble hexadecimal in reverse order.
+@@ -167,10 +167,10 @@ func itox(i uint) string {
+ 	bp := len(b);
+ 	for ; i > 0; i /= 16 {
+ 		bp--;
+-		b[bp] = "0123456789abcdef"[byte(i%16)]
++		b[bp] = "0123456789abcdef"[byte(i%16)];
+ 	}
+ 
+-	return string(b[bp:len(b)])
++	return string(b[bp:len(b)]);
+ }
+ 
+ // String returns the string form of the IP address ip.
+@@ -186,26 +186,26 @@ func (ip IP) String() string {
+ 
+ 	// If IPv4, use dotted notation.
+ 	if p4 := p.To4(); len(p4) == 4 {
+-		return itod(uint(p4[0]))+"."
+-			+itod(uint(p4[1]))+"."
+-			+itod(uint(p4[2]))+"."
+-			+itod(uint(p4[3]))
++		return itod(uint(p4[0])) + "." +
++			itod(uint(p4[1])) + "." +
++			itod(uint(p4[2])) + "." +
++			itod(uint(p4[3]));
+ 	}
+ 	if len(p) != IPv6len {
+-		return "?"
++		return "?";
+ 	}
+ 
+ 	// Find longest run of zeros.
+ 	e0 := -1;
+ 	e1 := -1;
+-	for i := 0; i < 16; i+=2 {
++	for i := 0; i < 16; i += 2 {
+ 		j := i;
+ 		for j < 16 && p[j] == 0 && p[j+1] == 0 {
+-			j += 2
++			j += 2;
+ 		}
+-		if j > i && j - i > e1 - e0 {
++		if j > i && j-i > e1-e0 {
+ 			e0 = i;
+-			e1 = j
++			e1 = j;
+ 		}
+ 	}
+ 
+@@ -216,14 +216,14 @@ func (ip IP) String() string {
+ 			s += "::";
+ 			i = e1;
+ 			if i >= 16 {
+-				break
++				break;
+ 			}
+ 		} else if i > 0 {
+-			s += ":"
++			s += ":";
+ 		}
+-		s += itox((uint(p[i])<<8) | uint(p[i+1]))
++		s += itox((uint(p[i])<<8)|uint(p[i+1]));
+ 	}
+-	return s
++	return s;
+ }
+ 
+ // If mask is a sequence of 1 bits followed by 0 bits,
+@@ -232,24 +232,24 @@ func simpleMaskLength(mask IPMask) int {
+ 	var i int;
+ 	for i = 0; i < len(mask); i++ {
+ 		if mask[i] != 0xFF {
+-			break
++			break;
+ 		}
+ 	}
+ 	n := 8*i;
+ 	v := mask[i];
+-	for v & 0x80 != 0 {
++	for v&0x80 != 0 {
+ 		n++;
+-		v <<= 1
++		v <<= 1;
+ 	}
+ 	if v != 0 {
+-		return -1
++		return -1;
+ 	}
+ 	for i++; i < len(mask); i++ {
+ 		if mask[i] != 0 {
+-			return -1
++			return -1;
+ 		}
+ 	}
+-	return n
++	return n;
+ }
+ 
+ // String returns the string representation of mask.
+@@ -262,12 +262,12 @@ func (mask IPMask) String() string {
+ 	case 4:
+ 		n := simpleMaskLength(mask);
+ 		if n >= 0 {
+-			return itod(uint(n+(IPv6len-IPv4len)*8))
++			return itod(uint(n + (IPv6len-IPv4len)*8));
+ 		}
+ 	case 16:
+ 		n := simpleMaskLength(mask);
+ 		if n >= 0 {
+-			return itod(uint(n))
++			return itod(uint(n));
+ 		}
+ 	}
+ 	return IP(mask).String();
+@@ -280,24 +280,24 @@ func parseIPv4(s string) IP {
+ 	for j := 0; j < IPv4len; j++ {
+ 		if j > 0 {
+ 			if s[i] != '.' {
+-				return nil
++				return nil;
+ 			}
+ 			i++;
+ 		}
+ 		var (
+-			n int;
+-			ok bool
++			n	int;
++			ok	bool;
+ 		)
+ 		n, i, ok = dtoi(s, i);
+ 		if !ok || n > 0xFF {
+-			return nil
++			return nil;
+ 		}
+-		p[j] = byte(n)
++		p[j] = byte(n);
+ 	}
+ 	if i != len(s) {
+-		return nil
++		return nil;
+ 	}
+-	return IPv4(p[0], p[1], p[2], p[3])
++	return IPv4(p[0], p[1], p[2], p[3]);
+ }
+ 
+ // Parse IPv6 address.  Many forms.
+@@ -311,7 +311,7 @@ func parseIPv4(s string) IP {
+ func parseIPv6(s string) IP {
+ 	p := make(IP, 16);
+ 	ellipsis := -1;	// position of ellipsis in p
+-	i := 0;	// index in string s
++	i := 0;		// index in string s
+ 
+ 	// Might have leading ellipsis
+ 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
+@@ -319,7 +319,7 @@ func parseIPv6(s string) IP {
+ 		i = 2;
+ 		// Might be only ellipsis
+ 		if i == len(s) {
+-			return p
++			return p;
+ 		}
+ 	}
+ 
+@@ -329,22 +329,22 @@ L:	for j < IPv6len {
+ 		// Hex number.
+ 		n, i1, ok := xtoi(s, i);
+ 		if !ok || n > 0xFFFF {
+-			return nil
++			return nil;
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+ 		if i1 < len(s) && s[i1] == '.' {
+-			if ellipsis < 0 && j != IPv6len - IPv4len {
++			if ellipsis < 0 && j != IPv6len-IPv4len {
+ 				// Not the right place.
+-				return nil
++				return nil;
+ 			}
+ 			if j+IPv4len > IPv6len {
+ 				// Not enough room.
+-				return nil
++				return nil;
+ 			}
+ 			p4 := parseIPv4(s[i:len(s)]);
+ 			if p4 == nil {
+-				return nil
++				return nil;
+ 			}
+ 			p[j] = p4[12];
+ 			p[j+1] = p4[13];
+@@ -352,7 +352,7 @@ L:	for j < IPv6len {
+ 			p[j+3] = p4[15];
+ 			i = len(s);
+ 			j += 4;
+-			break
++			break;
+ 		}
+ 
+ 		// Save this 16-bit chunk.
+@@ -363,46 +363,46 @@ L:	for j < IPv6len {
+ 		// Stop at end of string.
+ 		i = i1;
+ 		if i == len(s) {
+-			break
++			break;
+ 		}
+ 
+ 		// Otherwise must be followed by colon and more.
+ 		if s[i] != ':' && i+1 == len(s) {
+-			return nil
++			return nil;
+ 		}
+ 		i++;
+ 
+ 		// Look for ellipsis.
+ 		if s[i] == ':' {
+ 			if ellipsis >= 0 {	// already have one
+-				return nil
++				return nil;
+ 			}
+ 			ellipsis = j;
+ 			if i++; i == len(s) {	// can be at end
+-				break
++				break;
+ 			}
+ 		}
+ 	}
+ 
+ 	// Must have used entire string.
+ 	if i != len(s) {
+-		return nil
++		return nil;
+ 	}
+ 
+ 	// If didn't parse enough, expand ellipsis.
+ 	if j < IPv6len {
+ 		if ellipsis < 0 {
+-			return nil
++			return nil;
+ 		}
+-		n := IPv6len - j;
++		n := IPv6len-j;
+ 		for k := j-1; k >= ellipsis; k-- {
+-			p[k+n] = p[k]
++			p[k+n] = p[k];
+ 		}
+-		for k := ellipsis+n-1; k>=ellipsis; k-- {
+-			p[k] = 0
++		for k := ellipsis+n-1; k >= ellipsis; k-- {
++			p[k] = 0;
+ 		}
+ 	}
+-	return p
++	return p;
+ }
+ 
+ // ParseIP parses s as an IP address, returning the result.
+@@ -413,8 +413,7 @@ L:	for j < IPv6len {
+ func ParseIP(s string) IP {
+ 	p := parseIPv4(s);
+ 	if p != nil {
+-		return p
++		return p;
+ 	}
+-	return parseIPv6(s)
++	return parseIPv6(s);
+ }
+-
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index 32840a8864..d23eaff3ac 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -5,28 +5,29 @@
+ package net
+ 
+ import (
+-	"testing"
++	"testing";
+ )
+ 
+ func isEqual(a, b IP) bool {
+ 	if a == nil && b == nil {
+-		return true
++		return true;
+ 	}
+ 	if a == nil || b == nil || len(a) != len(b) {
+-		return false
++		return false;
+ 	}
+ 	for i := 0; i < len(a); i++ {
+ 		if a[i] != b[i] {
+-			return false
++			return false;
+ 		}
+ 	}
+-	return true
++	return true;
+ }
+ 
+ type parseIPTest struct {
+-	in string;
+-	out IP;
++	in	string;
++	out	IP;
+ }
++
+ var parseiptests = []parseIPTest{
+ 	parseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
+ 	parseIPTest{"127.0.0.1", IPv4(127, 0, 0, 1)},
+@@ -34,8 +35,10 @@ var parseiptests = []parseIPTest{
+ 	parseIPTest{"abc", nil},
+ 	parseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	parseIPTest{"2001:4860:0:2001::68",
+-		IP{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01,
+-			0,0, 0,0, 0,0, 0x00,0x68}},
++		IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01,
++			0, 0, 0, 0, 0, 0, 0x00, 0x68,
++		},
++	},
+ 	parseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
+ }
+ 
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 705fc075a3..76a64e76e0 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -20,9 +20,9 @@ import (
+ func kernelSupportsIPv6() bool {
+ 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
+ 	if fd >= 0 {
+-		syscall.Close(fd)
++		syscall.Close(fd);
+ 	}
+-	return e == 0
++	return e == 0;
+ }
+ 
+ var preferIPv4 = !kernelSupportsIPv6()
+@@ -31,7 +31,7 @@ var preferIPv4 = !kernelSupportsIPv6()
+ // /proc/sys/net/core/somaxconn,
+ // to take advantage of kernels that have raised the limit.
+ func listenBacklog() int {
+-	return syscall.SOMAXCONN
++	return syscall.SOMAXCONN;
+ }
+ 
+ // Internet sockets (TCP, UDP)
+@@ -50,7 +50,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
+ 	family := syscall.AF_INET6;
+ 	switch net[len(net)-1] {
+ 	case '4':
+-		family = syscall.AF_INET
++		family = syscall.AF_INET;
+ 	case '6':
+ 		// nothing to do
+ 	default:
+@@ -114,7 +114,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 			ip = IPv4zero;
+ 		}
+ 		if ip = ip.To4(); ip == nil {
+-			return nil, os.EINVAL
++			return nil, os.EINVAL;
+ 		}
+ 		s := new(syscall.SockaddrInet4);
+ 		for i := 0; i < IPv4len; i++ {
+@@ -133,7 +133,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 			ip = IPzero;
+ 		}
+ 		if ip = ip.To16(); ip == nil {
+-			return nil, os.EINVAL
++			return nil, os.EINVAL;
+ 		}
+ 		s := new(syscall.SockaddrInet6);
+ 		for i := 0; i < IPv6len; i++ {
+@@ -155,11 +155,11 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ 		return;
+ 	}
+ 
+-	host, port = hostport[0:i], hostport[i+1:len(hostport)];
++	host, port = hostport[0:i], hostport[i+1 : len(hostport)];
+ 
+ 	// Can put brackets around host ...
+ 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
+-		host = host[1:len(host)-1]
++		host = host[1 : len(host)-1];
+ 	} else {
+ 		// ... but if there are no brackets, no colons.
+ 		if byteIndex(host, ':') >= 0 {
+@@ -175,9 +175,9 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ func joinHostPort(host, port string) string {
+ 	// If host has colons, have to bracket it.
+ 	if byteIndex(host, ':') >= 0 {
+-		return "[" + host + "]:" + port
++		return "["+host+"]:"+port;
+ 	}
+-	return host + ":" + port
++	return host+":"+port;
+ }
+ 
+ // Convert "host:port" into IP address and port.
+@@ -224,4 +224,3 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ Error:
+ 	return nil, 0, err;
+ }
+-
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 1532fc0a76..9c3762ae45 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -13,7 +13,7 @@ import "os"
+ // Addr represents a network end point address.
+ type Addr interface {
+ 	Network() string;	// name of the network
+-	String() string;		// string form of address
++	String() string;	// string form of address
+ }
+ 
+ // Conn is a generic stream-oriented network connection.
+@@ -233,10 +233,10 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+ var errMissingAddress = os.ErrorString("missing address")
+ 
+ type OpError struct {
+-	Op string;
+-	Net string;
+-	Addr Addr;
+-	Error os.Error;
++	Op	string;
++	Net	string;
++	Addr	Addr;
++	Error	os.Error;
+ }
+ 
+ func (e *OpError) String() string {
+@@ -252,8 +252,8 @@ func (e *OpError) String() string {
+ }
+ 
+ type AddrError struct {
+-	Error string;
+-	Addr string;
++	Error	string;
++	Addr	string;
+ }
+ 
+ func (e *AddrError) String() string {
+@@ -265,7 +265,7 @@ func (e *AddrError) String() string {
+ }
+ 
+ type UnknownNetworkError string
++
+ func (e UnknownNetworkError) String() string {
+ 	return "unknown network " + string(e);
+ }
+-
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index cd888679fa..70577ecbc7 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -10,13 +10,13 @@ import (
+ )
+ 
+ type DialErrorTest struct {
+-	Net string;
+-	Laddr string;
+-	Raddr string;
+-	Pattern string;
++	Net	string;
++	Laddr	string;
++	Raddr	string;
++	Pattern	string;
+ }
+ 
+-var dialErrorTests = []DialErrorTest {
++var dialErrorTests = []DialErrorTest{
+ 	DialErrorTest{
+ 		"datakit", "", "mh/astro/r70",
+ 		"dial datakit mh/astro/r70: unknown network datakit",
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index 4afe1dafb9..a9ba2d22ee 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -13,12 +13,12 @@ import (
+ )
+ 
+ type file struct {
+-	file *os.File;
+-	data []byte;
++	file	*os.File;
++	data	[]byte;
+ }
+ 
+ func (f *file) close() {
+-	f.file.Close()
++	f.file.Close();
+ }
+ 
+ func (f *file) getLineFromData() (s string, ok bool) {
+@@ -29,30 +29,30 @@ func (f *file) getLineFromData() (s string, ok bool) {
+ 			ok = true;
+ 			// move data
+ 			i++;
+-			n := len(data) - i;
++			n := len(data)-i;
+ 			for j := 0; j < n; j++ {
+ 				data[j] = data[i+j];
+ 			}
+ 			f.data = data[0:n];
+-			return
++			return;
+ 		}
+ 	}
+-	return
++	return;
+ }
+ 
+ func (f *file) readLine() (s string, ok bool) {
+ 	if s, ok = f.getLineFromData(); ok {
+-		return
++		return;
+ 	}
+ 	if len(f.data) < cap(f.data) {
+ 		ln := len(f.data);
+ 		n, _ := io.ReadFull(f.file, f.data[ln:cap(f.data)]);
+ 		if n >= 0 {
+-			f.data = f.data[0:ln+n];
++			f.data = f.data[0 : ln+n];
+ 		}
+ 	}
+ 	s, ok = f.getLineFromData();
+-	return
++	return;
+ }
+ 
+ func open(name string) (*file, os.Error) {
+@@ -66,10 +66,10 @@ func open(name string) (*file, os.Error) {
+ func byteIndex(s string, c byte) int {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] == c {
+-			return i
++			return i;
+ 		}
+ 	}
+-	return -1
++	return -1;
+ }
+ 
+ // Count occurrences in s of any bytes in t.
+@@ -80,12 +80,12 @@ func countAnyByte(s string, t string) int {
+ 			n++;
+ 		}
+ 	}
+-	return n
++	return n;
+ }
+ 
+ // Split s at any bytes in t.
+ func splitAtBytes(s string, t string) []string {
+-	a := make([]string, 1+countAnyByte(s, t));
++	a := make([]string, 1 + countAnyByte(s, t));
+ 	n := 0;
+ 	last := 0;
+ 	for i := 0; i < len(s); i++ {
+@@ -116,15 +116,15 @@ const big = 0xFFFFFF
+ func dtoi(s string, i0 int) (n int, i int, ok bool) {
+ 	n = 0;
+ 	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+-		n = n*10 + int(s[i] - '0');
++		n = n*10 + int(s[i]-'0');
+ 		if n >= big {
+-			return 0, i, false
++			return 0, i, false;
+ 		}
+ 	}
+ 	if i == i0 {
+-		return 0, i, false
++		return 0, i, false;
+ 	}
+-	return n, i, true
++	return n, i, true;
+ }
+ 
+ // Hexadecimal to integer starting at &s[i0].
+@@ -134,24 +134,24 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
+ 	for i = i0; i < len(s); i++ {
+ 		if '0' <= s[i] && s[i] <= '9' {
+ 			n *= 16;
+-			n += int(s[i] - '0')
++			n += int(s[i]-'0');
+ 		} else if 'a' <= s[i] && s[i] <= 'f' {
+ 			n *= 16;
+-			n += int(s[i] - 'a') + 10
++			n += int(s[i]-'a')+10;
+ 		} else if 'A' <= s[i] && s[i] <= 'F' {
+ 			n *= 16;
+-			n += int(s[i] -'A') + 10
++			n += int(s[i]-'A')+10;
+ 		} else {
+-			break
++			break;
+ 		}
+ 		if n >= big {
+-			return 0, i, false
++			return 0, i, false;
+ 		}
+ 	}
+ 	if i == i0 {
+-		return 0, i, false
++		return 0, i, false;
+ 	}
+-	return n, i, true
++	return n, i, true;
+ }
+ 
+ // Integer to decimal.
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index c95138896b..e187ee76c5 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -30,7 +30,7 @@ func TestReadLine(t *testing.T) {
+ 	for {
+ 		bline, berr := br.ReadString('\n');
+ 		if n := len(bline); n > 0 {
+-			bline = bline[0:n-1];
++			bline = bline[0 : n-1];
+ 		}
+ 		line, ok := file.readLine();
+ 		if (berr != nil) != !ok || bline != line {
+@@ -38,9 +38,9 @@ func TestReadLine(t *testing.T) {
+ 				filename, lineno, byteno, bline, berr, line, ok);
+ 		}
+ 		if !ok {
+-			break
++			break;
+ 		}
+ 		lineno++;
+-		byteno += len(line) + 1;
++		byteno += len(line)+1;
+ 	}
+ }
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index b806a07f61..32879d90f9 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -11,11 +11,11 @@ import (
+ 	"os";
+ )
+ 
+-var services map[string] map[string] int
++var services map[string]map[string]int
+ var servicesError os.Error
+ 
+ func readServices() {
+-	services = make(map[string] map[string] int);
++	services = make(map[string]map[string]int);
+ 	var file *file;
+ 	file, servicesError = open("/etc/services");
+ 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+@@ -30,12 +30,12 @@ func readServices() {
+ 		portnet := f[1];	// "tcp/80"
+ 		port, j, ok := dtoi(portnet, 0);
+ 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
+-			continue
++			continue;
+ 		}
+-		netw := portnet[j+1:len(portnet)];	// "tcp"
++		netw := portnet[j+1 : len(portnet)];	// "tcp"
+ 		m, ok1 := services[netw];
+ 		if !ok1 {
+-			m = make(map[string] int);
++			m = make(map[string]int);
+ 			services[netw] = m;
+ 		}
+ 		for i := 0; i < len(f); i++ {
+@@ -63,5 +63,5 @@ func LookupPort(network, service string) (port int, err os.Error) {
+ 			return;
+ 		}
+ 	}
+-	return 0, &AddrError{"unknown port", network + "/" + service};
++	return 0, &AddrError{"unknown port", network+"/"+service};
+ }
+diff --git a/src/pkg/net/port_test.go b/src/pkg/net/port_test.go
+index aa2a3a7a6b..0d0f4fe48e 100644
+--- a/src/pkg/net/port_test.go
++++ b/src/pkg/net/port_test.go
+@@ -9,42 +9,42 @@ import (
+ )
+ 
+ type portTest struct {
+-	netw string;
+-	name string;
+-	port int;
+-	ok bool;
++	netw	string;
++	name	string;
++	port	int;
++	ok	bool;
+ }
+ 
+-var porttests = []portTest {
+-	portTest{ "tcp", "echo", 7, true },
+-	portTest{ "tcp", "discard", 9, true },
+-	portTest{ "tcp", "systat", 11, true },
+-	portTest{ "tcp", "daytime", 13, true },
+-	portTest{ "tcp", "chargen", 19, true },
+-	portTest{ "tcp", "ftp-data", 20, true },
+-	portTest{ "tcp", "ftp", 21, true },
+-	portTest{ "tcp", "ssh", 22, true },
+-	portTest{ "tcp", "telnet", 23, true },
+-	portTest{ "tcp", "smtp", 25, true },
+-	portTest{ "tcp", "time", 37, true },
+-	portTest{ "tcp", "domain", 53, true },
+-	portTest{ "tcp", "gopher", 70, true },
+-	portTest{ "tcp", "finger", 79, true },
+-	portTest{ "tcp", "http", 80, true },
++var porttests = []portTest{
++	portTest{"tcp", "echo", 7, true},
++	portTest{"tcp", "discard", 9, true},
++	portTest{"tcp", "systat", 11, true},
++	portTest{"tcp", "daytime", 13, true},
++	portTest{"tcp", "chargen", 19, true},
++	portTest{"tcp", "ftp-data", 20, true},
++	portTest{"tcp", "ftp", 21, true},
++	portTest{"tcp", "ssh", 22, true},
++	portTest{"tcp", "telnet", 23, true},
++	portTest{"tcp", "smtp", 25, true},
++	portTest{"tcp", "time", 37, true},
++	portTest{"tcp", "domain", 53, true},
++	portTest{"tcp", "gopher", 70, true},
++	portTest{"tcp", "finger", 79, true},
++	portTest{"tcp", "http", 80, true},
+ 
+-	portTest{ "udp", "echo", 7, true },
+-	portTest{ "udp", "tacacs", 49, true },
+-	portTest{ "udp", "tftp", 69, true },
+-	portTest{ "udp", "bootpc", 68, true },
+-	portTest{ "udp", "bootps", 67, true },
+-	portTest{ "udp", "domain", 53, true },
+-	portTest{ "udp", "ntp", 123, true },
+-	portTest{ "udp", "snmp", 161, true },
+-	portTest{ "udp", "syslog", 514, true },
+-	portTest{ "udp", "nfs", 2049, true },
++	portTest{"udp", "echo", 7, true},
++	portTest{"udp", "tacacs", 49, true},
++	portTest{"udp", "tftp", 69, true},
++	portTest{"udp", "bootpc", 68, true},
++	portTest{"udp", "bootps", 67, true},
++	portTest{"udp", "domain", 53, true},
++	portTest{"udp", "ntp", 123, true},
++	portTest{"udp", "snmp", 161, true},
++	portTest{"udp", "syslog", 514, true},
++	portTest{"udp", "nfs", 2049, true},
+ 
+-	portTest{ "--badnet--", "zzz", 0, false },
+-	portTest{ "tcp", "--badport--", 0, false },
++	portTest{"--badnet--", "zzz", 0, false},
++	portTest{"tcp", "--badport--", 0, false},
+ }
+ 
+ func TestLookupPort(t *testing.T) {
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index cdcc99e312..6a7c479f35 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -20,9 +20,9 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
+ 		if err != nil || n == 0 {
+ 			break;
+ 		}
+-		fd.Write(buf[0:n])
++		fd.Write(buf[0:n]);
+ 	}
+-	done <- 1
++	done <- 1;
+ }
+ 
+ func runServe(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
+@@ -42,13 +42,13 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done
+ 		<-echodone;	// make sure Echo stops
+ 		l.Close();
+ 	}
+-	done <- 1
++	done <- 1;
+ }
+ 
+ func connect(t *testing.T, network, addr string) {
+ 	var laddr string;
+ 	if network == "unixgram" {
+-		laddr = addr + ".local";
++		laddr = addr+".local";
+ 	}
+ 	fd, err := Dial(network, laddr, addr);
+ 	if err != nil {
+@@ -80,14 +80,14 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ 	go runServe(t, network, listenaddr, listening, done);
+ 	addr := <-listening;	// wait for server to start
+ 	if network == "tcp" {
+-		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)];
++		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)];
+ 	}
+ 	connect(t, network, dialaddr);
+ 	<-done;	// make sure server stopped
+ }
+ 
+ func TestTCPServer(t *testing.T) {
+-	doTest(t,  "tcp", "0.0.0.0", "127.0.0.1");
++	doTest(t, "tcp", "0.0.0.0", "127.0.0.1");
+ 	doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
+ 	doTest(t, "tcp", "[::]", "127.0.0.1");
+ 	doTest(t, "tcp", "", "127.0.0.1");
+@@ -141,7 +141,7 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
+ 	go runPacket(t, network, listenaddr, listening, done);
+ 	addr := <-listening;	// wait for server to start
+ 	if network == "udp" {
+-		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)];
++		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)];
+ 	}
+ 	connect(t, network, dialaddr);
+ 	<-done;	// tell server to stop
+@@ -149,7 +149,7 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
+ }
+ 
+ func TestUDPServer(t *testing.T) {
+-	doTestPacket(t,  "udp", "0.0.0.0", "127.0.0.1");
++	doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1");
+ 	doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
+ 	doTestPacket(t, "udp", "[::]", "127.0.0.1");
+ 	doTestPacket(t, "udp", "", "127.0.0.1");
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 8b40184588..a078f4c44f 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -15,9 +15,9 @@ import (
+ // Boolean to int.
+ func boolint(b bool) int {
+ 	if b {
+-		return 1
++		return 1;
+ 	}
+-	return 0
++	return 0;
+ }
+ 
+ // Generic socket creation.
+@@ -27,7 +27,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	s, e := syscall.Socket(f, p, t);
+ 	if e != 0 {
+ 		syscall.ForkLock.RUnlock();
+-		return nil, os.Errno(e)
++		return nil, os.Errno(e);
+ 	}
+ 	syscall.CloseOnExec(s);
+ 	syscall.ForkLock.RUnlock();
+@@ -39,7 +39,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 		e = syscall.Bind(s, la);
+ 		if e != 0 {
+ 			syscall.Close(s);
+-			return nil, os.Errno(e)
++			return nil, os.Errno(e);
+ 		}
+ 	}
+ 
+@@ -47,7 +47,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 		e = syscall.Connect(s, ra);
+ 		if e != 0 {
+ 			syscall.Close(s);
+-			return nil, os.Errno(e)
++			return nil, os.Errno(e);
+ 		}
+ 	}
+ 
+@@ -59,10 +59,10 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	fd, err = newFD(s, f, p, net, laddr, raddr);
+ 	if err != nil {
+ 		syscall.Close(s);
+-		return nil, err
++		return nil, err;
+ 	}
+ 
+-	return fd, nil
++	return fd, nil;
+ }
+ 
+ func setsockoptInt(fd, level, opt int, value int) os.Error {
+@@ -94,9 +94,9 @@ func setWriteTimeout(fd *netFD, nsec int64) os.Error {
+ 
+ func setTimeout(fd *netFD, nsec int64) os.Error {
+ 	if e := setReadTimeout(fd, nsec); e != nil {
+-		return e
++		return e;
+ 	}
+-	return setWriteTimeout(fd, nsec)
++	return setWriteTimeout(fd, nsec);
+ }
+ 
+ func setReuseAddr(fd *netFD, reuse bool) os.Error {
+@@ -105,7 +105,7 @@ func setReuseAddr(fd *netFD, reuse bool) os.Error {
+ 
+ func bindToDevice(fd *netFD, dev string) os.Error {
+ 	// TODO(rsc): call setsockopt with null-terminated string pointer
+-	return os.EINVAL
++	return os.EINVAL;
+ }
+ 
+ func setDontRoute(fd *netFD, dontroute bool) os.Error {
+@@ -132,8 +132,9 @@ func setLinger(fd *netFD, sec int) os.Error {
+ type UnknownSocketError struct {
+ 	sa syscall.Sockaddr;
+ }
++
+ func (e *UnknownSocketError) String() string {
+-	return "unknown socket address type " + reflect.Typeof(e.sa).String()
++	return "unknown socket address type " + reflect.Typeof(e.sa).String();
+ }
+ 
+ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+@@ -148,4 +149,3 @@ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+ 
+ 	return "", &UnknownSocketError{sa};
+ }
+-
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index cfe1a4bd49..2c84be03c6 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -23,8 +23,8 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 
+ // TCPAddr represents the address of a TCP end point.
+ type TCPAddr struct {
+-	IP IP;
+-	Port int;
++	IP	IP;
++	Port	int;
+ }
+ 
+ // Network returns the address's network name, "tcp".
+@@ -78,11 +78,10 @@ type TCPConn struct {
+ func newTCPConn(fd *netFD) *TCPConn {
+ 	c := &TCPConn{fd};
+ 	setsockoptInt(fd.fd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1);
+-	return c
++	return c;
+ }
+ 
+ func (c *TCPConn) ok() bool {
+-if c == nil || c.fd == nil { panic() }
+ 	return c != nil && c.fd != nil;
+ }
+ 
+@@ -94,7 +93,7 @@ if c == nil || c.fd == nil { panic() }
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	return c.fd.Read(b);
+ }
+@@ -105,7 +104,7 @@ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	return c.fd.Write(b);
+ }
+@@ -113,7 +112,7 @@ func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
+ // Close closes the TCP connection.
+ func (c *TCPConn) Close() os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	err := c.fd.Close();
+ 	c.fd = nil;
+@@ -140,7 +139,7 @@ func (c *TCPConn) RemoteAddr() Addr {
+ // with the connection.
+ func (c *TCPConn) SetTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setTimeout(c.fd, nsec);
+ }
+@@ -150,7 +149,7 @@ func (c *TCPConn) SetTimeout(nsec int64) os.Error {
+ // Setting nsec == 0 (the default) disables the deadline.
+ func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setReadTimeout(c.fd, nsec);
+ }
+@@ -162,7 +161,7 @@ func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
+ // some of the data was successfully written.
+ func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setWriteTimeout(c.fd, nsec);
+ }
+@@ -171,7 +170,7 @@ func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
+ // receive buffer associated with the connection.
+ func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setReadBuffer(c.fd, bytes);
+ }
+@@ -180,7 +179,7 @@ func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
+ // transmit buffer associated with the connection.
+ func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setWriteBuffer(c.fd, bytes);
+ }
+@@ -198,7 +197,7 @@ func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
+ // data to be sent and acknowledged.
+ func (c *TCPConn) SetLinger(sec int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setLinger(c.fd, sec);
+ }
+@@ -207,7 +206,7 @@ func (c *TCPConn) SetLinger(sec int) os.Error {
+ // keepalive messages on the connection.
+ func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setKeepAlive(c.fd, keepalive);
+ }
+@@ -216,13 +215,13 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
+ // and returns a TCPConn structure.
+ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
+ 	if raddr == nil {
+-		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
++		return nil, &OpError{"dial", "tcp", nil, errMissingAddress};
+ 	}
+ 	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, "dial", sockaddrToTCP);
+ 	if e != nil {
+-		return nil, e
++		return nil, e;
+ 	}
+-	return newTCPConn(fd), nil
++	return newTCPConn(fd), nil;
+ }
+ 
+ // TCPListener is a TCP network listener.
+@@ -239,7 +238,7 @@ type TCPListener struct {
+ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
+ 	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, "listen", sockaddrToTCP);
+ 	if err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 	errno := syscall.Listen(fd.fd, listenBacklog());
+ 	if errno != 0 {
+@@ -248,20 +247,20 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
+ 	}
+ 	l = new(TCPListener);
+ 	l.fd = fd;
+-	return l, nil
++	return l, nil;
+ }
+ 
+ // AcceptTCP accepts the next incoming call and returns the new connection
+ // and the remote address.
+ func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
+ 	if l == nil || l.fd == nil || l.fd.fd < 0 {
+-		return nil, os.EINVAL
++		return nil, os.EINVAL;
+ 	}
+ 	fd, err := l.fd.accept(sockaddrToTCP);
+ 	if err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+-	return newTCPConn(fd), nil
++	return newTCPConn(fd), nil;
+ }
+ 
+ // Accept implements the Accept method in the Listener interface;
+@@ -269,7 +268,7 @@ func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
+ func (l *TCPListener) Accept() (c Conn, err os.Error) {
+ 	c1, err := l.AcceptTCP();
+ 	if err != nil {
+-		return nil, err
++		return nil, err;
+ 	}
+ 	return c1, nil;
+ }
+@@ -278,9 +277,9 @@ func (l *TCPListener) Accept() (c Conn, err os.Error) {
+ // Already Accepted connections are not closed.
+ func (l *TCPListener) Close() os.Error {
+ 	if l == nil || l.fd == nil {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+-	return l.fd.Close()
++	return l.fd.Close();
+ }
+ 
+ // Addr returns the listener's network address, a *TCPAddr.
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index d2edbfaae1..0e03b63f99 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -23,8 +23,8 @@ func testTimeout(t *testing.T, network, addr string) {
+ 	if n != 0 || !isEAGAIN(err1) {
+ 		t.Errorf("fd.Read on %s %s did not return 0, EAGAIN: %v, %v", network, addr, n, err1);
+ 	}
+-	if t1 - t0 < 0.5e8 || t1 - t0 > 1.5e8 {
+-		t.Errorf("fd.Read on %s %s took %f seconds, expected 0.1", network, addr, float64(t1 - t0) / 1e9);
++	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
++		t.Errorf("fd.Read on %s %s took %f seconds, expected 0.1", network, addr, float64(t1-t0)/1e9);
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 03549f536e..f3b6bf6a43 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -23,8 +23,8 @@ func sockaddrToUDP(sa syscall.Sockaddr) Addr {
+ 
+ // UDPAddr represents the address of a UDP end point.
+ type UDPAddr struct {
+-	IP IP;
+-	Port int;
++	IP	IP;
++	Port	int;
+ }
+ 
+ // Network returns the address's network name, "udp".
+@@ -94,7 +94,7 @@ func (c *UDPConn) ok() bool {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	return c.fd.Read(b);
+ }
+@@ -105,7 +105,7 @@ func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	return c.fd.Write(b);
+ }
+@@ -113,7 +113,7 @@ func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
+ // Close closes the UDP connection.
+ func (c *UDPConn) Close() os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	err := c.fd.Close();
+ 	c.fd = nil;
+@@ -140,7 +140,7 @@ func (c *UDPConn) RemoteAddr() Addr {
+ // with the connection.
+ func (c *UDPConn) SetTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setTimeout(c.fd, nsec);
+ }
+@@ -150,7 +150,7 @@ func (c *UDPConn) SetTimeout(nsec int64) os.Error {
+ // Setting nsec == 0 (the default) disables the deadline.
+ func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setReadTimeout(c.fd, nsec);
+ }
+@@ -162,7 +162,7 @@ func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
+ // some of the data was successfully written.
+ func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setWriteTimeout(c.fd, nsec);
+ }
+@@ -171,7 +171,7 @@ func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
+ // receive buffer associated with the connection.
+ func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setReadBuffer(c.fd, bytes);
+ }
+@@ -180,7 +180,7 @@ func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
+ // transmit buffer associated with the connection.
+ func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setWriteBuffer(c.fd, bytes);
+ }
+@@ -195,7 +195,7 @@ func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, os.EINVAL;
+ 	}
+ 	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
+ 	if errno != 0 {
+@@ -218,7 +218,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, os.EINVAL;
+ 	}
+ 	n, uaddr, err := c.ReadFromUDP(b);
+ 	return n, uaddr.toAddr(), err;
+@@ -231,7 +231,7 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ // On packet-oriented connections such as UDP, write timeouts are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	sa, err := addr.sockaddr(c.fd.family);
+ 	if err != nil {
+@@ -250,7 +250,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
+ // On packet-oriented connections such as UDP, write timeouts are rare.
+ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	a, ok := addr.(*UDPAddr);
+ 	if !ok {
+@@ -266,16 +266,16 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, UnknownNetworkError(net);
+ 	}
+ 	if raddr == nil {
+-		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
++		return nil, &OpError{"dial", "udp", nil, errMissingAddress};
+ 	}
+ 	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, "dial", sockaddrToUDP);
+ 	if e != nil {
+-		return nil, e
++		return nil, e;
+ 	}
+-	return newUDPConn(fd), nil
++	return newUDPConn(fd), nil;
+ }
+ 
+ // ListenUDP listens for incoming UDP packets addressed to the
+@@ -286,14 +286,14 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, UnknownNetworkError(net);
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
++		return nil, &OpError{"listen", "udp", nil, errMissingAddress};
+ 	}
+ 	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, "dial", sockaddrToUDP);
+ 	if e != nil {
+-		return nil, e
++		return nil, e;
+ 	}
+-	return newUDPConn(fd), nil
++	return newUDPConn(fd), nil;
+ }
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 5c61f1437d..b30d7f2d45 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -34,16 +34,16 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 		if raddr != nil {
+ 			ra = &syscall.SockaddrUnix{Name: raddr.Name};
+ 		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
+-			return nil, &OpError{mode, net, nil, errMissingAddress}
++			return nil, &OpError{mode, net, nil, errMissingAddress};
+ 		}
+ 
+ 	case "listen":
+ 		if laddr == nil {
+-			return nil, &OpError{mode, net, nil, errMissingAddress}
++			return nil, &OpError{mode, net, nil, errMissingAddress};
+ 		}
+ 		la = &syscall.SockaddrUnix{Name: laddr.Name};
+ 		if raddr != nil {
+-			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}}
++			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}};
+ 		}
+ 	}
+ 
+@@ -67,8 +67,8 @@ Error:
+ 
+ // UnixAddr represents the address of a Unix domain socket end point.
+ type UnixAddr struct {
+-	Name string;
+-	Datagram bool;
++	Name		string;
++	Datagram	bool;
+ }
+ 
+ func sockaddrToUnix(sa syscall.Sockaddr) Addr {
+@@ -95,7 +95,7 @@ func (a *UnixAddr) Network() string {
+ 
+ func (a *UnixAddr) String() string {
+ 	if a == nil {
+-		return "<nil>"
++		return "<nil>";
+ 	}
+ 	return a.Name;
+ }
+@@ -128,7 +128,7 @@ type UnixConn struct {
+ }
+ 
+ func newUnixConn(fd *netFD) *UnixConn {
+-	return &UnixConn{fd}
++	return &UnixConn{fd};
+ }
+ 
+ func (c *UnixConn) ok() bool {
+@@ -143,7 +143,7 @@ func (c *UnixConn) ok() bool {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	return c.fd.Read(b);
+ }
+@@ -154,7 +154,7 @@ func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	return c.fd.Write(b);
+ }
+@@ -162,7 +162,7 @@ func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
+ // Close closes the Unix domain connection.
+ func (c *UnixConn) Close() os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	err := c.fd.Close();
+ 	c.fd = nil;
+@@ -192,7 +192,7 @@ func (c *UnixConn) RemoteAddr() Addr {
+ // with the connection.
+ func (c *UnixConn) SetTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setTimeout(c.fd, nsec);
+ }
+@@ -202,7 +202,7 @@ func (c *UnixConn) SetTimeout(nsec int64) os.Error {
+ // Setting nsec == 0 (the default) disables the deadline.
+ func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setReadTimeout(c.fd, nsec);
+ }
+@@ -214,7 +214,7 @@ func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
+ // some of the data was successfully written.
+ func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setWriteTimeout(c.fd, nsec);
+ }
+@@ -223,7 +223,7 @@ func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
+ // receive buffer associated with the connection.
+ func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setReadBuffer(c.fd, bytes);
+ }
+@@ -232,7 +232,7 @@ func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
+ // transmit buffer associated with the connection.
+ func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
+ 	if !c.ok() {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 	return setWriteBuffer(c.fd, bytes);
+ }
+@@ -245,7 +245,7 @@ func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, os.EINVAL;
+ 	}
+ 	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
+ 	if errno != 0 {
+@@ -266,7 +266,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error)
+ // after a fixed time limit; see SetTimeout and SetReadTimeout.
+ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ 	if !c.ok() {
+-		return 0, nil, os.EINVAL
++		return 0, nil, os.EINVAL;
+ 	}
+ 	n, uaddr, err := c.ReadFromUnix(b);
+ 	return n, uaddr.toAddr(), err;
+@@ -279,7 +279,7 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
+ // On packet-oriented connections such as UDP, write timeouts are rare.
+ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
+ 		return 0, os.EAFNOSUPPORT;
+@@ -298,7 +298,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
+ // On packet-oriented connections such as UDP, write timeouts are rare.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ 	if !c.ok() {
+-		return 0, os.EINVAL
++		return 0, os.EINVAL;
+ 	}
+ 	a, ok := addr.(*UnixAddr);
+ 	if !ok {
+@@ -313,7 +313,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
+ func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
+ 	fd, e := unixSocket(net, laddr, raddr, "dial");
+ 	if e != nil {
+-		return nil, e
++		return nil, e;
+ 	}
+ 	return newUnixConn(fd), nil;
+ }
+@@ -322,8 +322,8 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
+ // Clients should typically use variables of type Listener
+ // instead of assuming Unix domain sockets.
+ type UnixListener struct {
+-	fd *netFD;
+-	path string;
++	fd	*netFD;
++	path	string;
+ }
+ 
+ // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+@@ -342,7 +342,7 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
+ 		}
+ 		return nil, e;
+ 	}
+-	e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
++	e1 := syscall.Listen(fd.fd, 8);	// listenBacklog());
+ 	if e1 != 0 {
+ 		syscall.Close(fd.fd);
+ 		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)};
+@@ -354,14 +354,14 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
+ // and the remote address.
+ func (l *UnixListener) AcceptUnix() (c *UnixConn, err os.Error) {
+ 	if l == nil || l.fd == nil || l.fd.fd < 0 {
+-		return nil, os.EINVAL
++		return nil, os.EINVAL;
+ 	}
+ 	fd, e := l.fd.accept(sockaddrToUnix);
+ 	if e != nil {
+-		return nil, e
++		return nil, e;
+ 	}
+ 	c = newUnixConn(fd);
+-	return c, nil
++	return c, nil;
+ }
+ 
+ // Accept implements the Accept method in the Listener interface;
+@@ -378,7 +378,7 @@ func (l *UnixListener) Accept() (c Conn, err os.Error) {
+ // Already accepted connections are not closed.
+ func (l *UnixListener) Close() os.Error {
+ 	if l == nil || l.fd == nil {
+-		return os.EINVAL
++		return os.EINVAL;
+ 	}
+ 
+ 	// The operating system doesn't clean up
+@@ -412,14 +412,14 @@ func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err os.Error) {
+ 	switch net {
+ 	case "unixgram":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, UnknownNetworkError(net);
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress}
++		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress};
+ 	}
+ 	fd, e := unixSocket(net, laddr, nil, "listen");
+ 	if e != nil {
+-		return nil, e
++		return nil, e;
+ 	}
+-	return newUDPConn(fd), nil
++	return newUDPConn(fd), nil;
+ }

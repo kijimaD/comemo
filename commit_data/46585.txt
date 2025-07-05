@@ -20,8 +20,197 @@ Date:   Fri Jan 8 10:15:36 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/{gc => abi}/abiutils.go   | 42 +++++++++++++++++++---
  .../compile/internal/{gc => test}/abiutils_test.go | 10 ++----
  .../internal/{gc => test}/abiutilsaux_test.go      | 17 ++++-----
  3 files changed, 50 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+similarity index 91%
+rename from src/cmd/compile/internal/gc/abiutils.go
+rename to src/cmd/compile/internal/abi/abiutils.go
+index 5822c088f9..3ac59e6f75 100644
+--- a/src/cmd/compile/internal/gc/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package abi
+ 
+ import (
+ 	"cmd/compile/internal/types"
+@@ -28,7 +28,35 @@ type ABIParamResultInfo struct {
+ 	intSpillSlots     int
+ 	floatSpillSlots   int
+ 	offsetToSpillArea int64
+-	config            ABIConfig // to enable String() method
++	config            *ABIConfig // to enable String() method
++}
++
++func (a *ABIParamResultInfo) InParams() []ABIParamAssignment {
++	return a.inparams
++}
++
++func (a *ABIParamResultInfo) OutParams() []ABIParamAssignment {
++	return a.outparams
++}
++
++func (a *ABIParamResultInfo) InParam(i int) ABIParamAssignment {
++	return a.inparams[i]
++}
++
++func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
++	return a.outparams[i]
++}
++
++func (a *ABIParamResultInfo) IntSpillCount() int {
++	return a.intSpillSlots
++}
++
++func (a *ABIParamResultInfo) FloatSpillCount() int {
++	return a.floatSpillSlots
++}
++
++func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
++	return a.offsetToSpillArea
+ }
+ 
+ // RegIndex stores the index into the set of machine registers used by
+@@ -66,11 +94,17 @@ type ABIConfig struct {
+ 	regAmounts RegAmounts
+ }
+ 
++// NewABIConfig returns a new ABI configuration for an architecture with
++// iRegsCount integer/pointer registers and fRegsCount floating point registers.
++func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
++	return &ABIConfig{RegAmounts{iRegsCount, fRegsCount}}
++}
++
+ // ABIAnalyze takes a function type 't' and an ABI rules description
+ // 'config' and analyzes the function to determine how its parameters
+ // and results will be passed (in registers or on the stack), returning
+ // an ABIParamResultInfo object that holds the results of the analysis.
+-func ABIAnalyze(t *types.Type, config ABIConfig) ABIParamResultInfo {
++func ABIAnalyze(t *types.Type, config *ABIConfig) ABIParamResultInfo {
+ 	setup()
+ 	s := assignState{
+ 		rTotal: config.regAmounts,
+@@ -124,7 +158,7 @@ func (c *RegAmounts) regString(r RegIndex) string {
+ 
+ // toString method renders an ABIParamAssignment in human-readable
+ // form, suitable for debugging or unit testing.
+-func (ri *ABIParamAssignment) toString(config ABIConfig) string {
++func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
+ 	regs := "R{"
+ 	for _, r := range ri.Registers {
+ 		regs += " " + config.regAmounts.regString(r)
+diff --git a/src/cmd/compile/internal/gc/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+similarity index 98%
+rename from src/cmd/compile/internal/gc/abiutils_test.go
+rename to src/cmd/compile/internal/test/abiutils_test.go
+index 6fd0af1b1f..ae7d484062 100644
+--- a/src/cmd/compile/internal/gc/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -2,10 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package test
+ 
+ import (
+ 	"bufio"
++	"cmd/compile/internal/abi"
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+@@ -20,12 +21,7 @@ import (
+ // AMD64 registers available:
+ // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
+ // - floating point: X0 - X14
+-var configAMD64 = ABIConfig{
+-	regAmounts: RegAmounts{
+-		intRegs:   9,
+-		floatRegs: 15,
+-	},
+-}
++var configAMD64 = abi.NewABIConfig(9,15)
+ 
+ func TestMain(m *testing.M) {
+ 	ssagen.Arch.LinkArch = &x86.Linkamd64
+diff --git a/src/cmd/compile/internal/gc/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+similarity index 87%
+rename from src/cmd/compile/internal/gc/abiutilsaux_test.go
+rename to src/cmd/compile/internal/test/abiutilsaux_test.go
+index 9386b554b0..7b84e73947 100644
+--- a/src/cmd/compile/internal/gc/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package test
+ 
+ // This file contains utility routines and harness infrastructure used
+ // by the ABI tests in "abiutils_test.go".
+ 
+ import (
++	"cmd/compile/internal/abi"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -75,7 +76,7 @@ func tokenize(src string) []string {
+ 	return res
+ }
+ 
+-func verifyParamResultOffset(t *testing.T, f *types.Field, r ABIParamAssignment, which string, idx int) int {
++func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
+ 	n := ir.AsNode(f.Nname).(*ir.Name)
+ 	if n.FrameOffset() != int64(r.Offset) {
+ 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
+@@ -110,7 +111,7 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 	types.CalcSize(ft)
+ 
+ 	// Analyze with full set of registers.
+-	regRes := ABIAnalyze(ft, configAMD64)
++	regRes := abi.ABIAnalyze(ft, configAMD64)
+ 	regResString := strings.TrimSpace(regRes.String())
+ 
+ 	// Check results.
+@@ -121,8 +122,8 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 	}
+ 
+ 	// Analyze again with empty register set.
+-	empty := ABIConfig{}
+-	emptyRes := ABIAnalyze(ft, empty)
++	empty := &abi.ABIConfig{}
++	emptyRes := abi.ABIAnalyze(ft, empty)
+ 	emptyResString := emptyRes.String()
+ 
+ 	// Walk the results and make sure the offsets assigned match
+@@ -135,18 +136,18 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 	rfsl := ft.Recvs().Fields().Slice()
+ 	poff := 0
+ 	if len(rfsl) != 0 {
+-		failed |= verifyParamResultOffset(t, rfsl[0], emptyRes.inparams[0], "receiver", 0)
++		failed |= verifyParamResultOffset(t, rfsl[0], emptyRes.InParams()[0], "receiver", 0)
+ 		poff = 1
+ 	}
+ 	// params
+ 	pfsl := ft.Params().Fields().Slice()
+ 	for k, f := range pfsl {
+-		verifyParamResultOffset(t, f, emptyRes.inparams[k+poff], "param", k)
++		verifyParamResultOffset(t, f, emptyRes.InParams()[k+poff], "param", k)
+ 	}
+ 	// results
+ 	ofsl := ft.Results().Fields().Slice()
+ 	for k, f := range ofsl {
+-		failed |= verifyParamResultOffset(t, f, emptyRes.outparams[k], "result", k)
++		failed |= verifyParamResultOffset(t, f, emptyRes.OutParams()[k], "result", k)
+ 	}
+ 
+ 	if failed != 0 {

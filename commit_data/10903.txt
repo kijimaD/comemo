@@ -7,6 +7,29 @@ Date:   Tue Dec 20 15:54:39 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5491077
-
+---
  .hgignore | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/.hgignore b/.hgignore
+index 11a0773a05..81c3d41560 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -49,12 +49,17 @@ src/pkg/exp/ebnflint/ebnflint
+ src/pkg/go/build/syslist.go
+ src/pkg/go/doc/headscan
+ src/pkg/runtime/*/asm.h
++src/pkg/runtime/arch_GOARCH.h
++src/pkg/runtime/defs_GOOS_GOARCH.h
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion
++src/pkg/runtime/os_GOOS.h
+ src/pkg/runtime/runtime.acid.*
+ src/pkg/runtime/runtime_defs.go
++src/pkg/runtime/signals_GOOS.h
+ src/pkg/runtime/version.go
+ src/pkg/runtime/version_*.go
++src/pkg/runtime/z*
+ src/pkg/unicode/maketables
+ src/pkg/*.*/
+ test/pass.out

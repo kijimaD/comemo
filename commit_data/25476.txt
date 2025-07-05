@@ -26,10 +26,404 @@ Date:   Wed Oct 28 18:05:05 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/16430
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/runtime/asm_amd64.s        | 162 +++++++++++++++++++++++++++++++++++++++++
  src/strings/strings.go         |  37 ----------
  src/strings/strings_amd64.go   |  49 +++++++++++++
  src/strings/strings_generic.go |  47 ++++++++++++
  src/strings/strings_test.go    |  53 ++++++++++++++
  5 files changed, 311 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 33d641e612..2ba3d3d106 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1725,6 +1725,168 @@ big_loop_avx2_exit:
+ 	JMP loop
+ 
+ 
++// TODO: Also use this in bytes.Index
++TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
++	MOVQ s+0(FP), DI
++	MOVQ s_len+8(FP), CX
++	MOVQ c+16(FP), AX
++	MOVQ c_len+24(FP), BX
++	CMPQ BX, CX
++	JA fail
++	CMPQ BX, $2
++	JA   _3_or_more
++	MOVW (AX), AX
++	LEAQ -1(DI)(CX*1), CX
++loop2:
++	MOVW (DI), SI
++	CMPW SI,AX
++	JZ success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop2
++	JMP fail
++_3_or_more:
++	CMPQ BX, $3
++	JA   _4_or_more
++	MOVW 1(AX), DX
++	MOVW (AX), AX
++	LEAQ -2(DI)(CX*1), CX
++loop3:
++	MOVW (DI), SI
++	CMPW SI,AX
++	JZ   partial_success3
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop3
++	JMP fail
++partial_success3:
++	MOVW 1(DI), SI
++	CMPW SI,DX
++	JZ success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop3
++	JMP fail
++_4_or_more:
++	CMPQ BX, $4
++	JA   _5_or_more
++	MOVL (AX), AX
++	LEAQ -3(DI)(CX*1), CX
++loop4:
++	MOVL (DI), SI
++	CMPL SI,AX
++	JZ   success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop4
++	JMP fail
++_5_or_more:
++	CMPQ BX, $7
++	JA   _8_or_more
++	LEAQ 1(DI)(CX*1), CX
++	SUBQ BX, CX
++	MOVL -4(AX)(BX*1), DX
++	MOVL (AX), AX
++loop5to7:
++	MOVL (DI), SI
++	CMPL SI,AX
++	JZ   partial_success5to7
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop5to7
++	JMP fail
++partial_success5to7:
++	MOVL -4(BX)(DI*1), SI
++	CMPL SI,DX
++	JZ success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop5to7
++	JMP fail
++_8_or_more:
++	CMPQ BX, $8
++	JA   _9_or_more
++	MOVQ (AX), AX
++	LEAQ -7(DI)(CX*1), CX
++loop8:
++	MOVQ (DI), SI
++	CMPQ SI,AX
++	JZ   success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop8
++	JMP fail
++_9_or_more:
++	CMPQ BX, $16
++	JA   _16_or_more
++	LEAQ 1(DI)(CX*1), CX
++	SUBQ BX, CX
++	MOVQ -8(AX)(BX*1), DX
++	MOVQ (AX), AX
++loop9to15:
++	MOVQ (DI), SI
++	CMPQ SI,AX
++	JZ   partial_success9to15
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop9to15
++	JMP fail
++partial_success9to15:
++	MOVQ -8(BX)(DI*1), SI
++	CMPQ SI,DX
++	JZ success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop9to15
++	JMP fail
++_16_or_more:
++	CMPQ BX, $16
++	JA   _17_to_31
++	MOVOU (AX), X1
++	LEAQ -15(DI)(CX*1), CX
++loop16:
++	MOVOU (DI), X2
++	PCMPEQB X1, X2
++	PMOVMSKB X2, SI
++	CMPQ  SI, $0xffff
++	JE   success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop16
++	JMP fail
++_17_to_31:
++	LEAQ 1(DI)(CX*1), CX
++	SUBQ BX, CX
++	MOVOU -16(AX)(BX*1), X0
++	MOVOU (AX), X1
++loop17to31:
++	MOVOU (DI), X2
++	PCMPEQB X1,X2
++	PMOVMSKB X2, SI
++	CMPQ  SI, $0xffff
++	JE   partial_success17to31
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop17to31
++	JMP fail
++partial_success17to31:
++	MOVOU -16(BX)(DI*1), X3
++	PCMPEQB X0, X3
++	PMOVMSKB X3, SI
++	CMPQ  SI, $0xffff
++	JE success
++	ADDQ $1,DI
++	CMPQ DI,CX
++	JB loop17to31
++fail:
++	MOVQ $-1, ret+32(FP)
++	RET
++success:
++	SUBQ s+0(FP), DI
++	MOVQ DI, ret+32(FP)
++	RET
++
++
+ TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), SI
+ 	MOVQ s_len+8(FP), BX
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index dd51dabb32..37d5647ffd 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -143,43 +143,6 @@ func ContainsRune(s string, r rune) bool {
+ 	return IndexRune(s, r) >= 0
+ }
+ 
+-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
+-func Index(s, sep string) int {
+-	n := len(sep)
+-	switch {
+-	case n == 0:
+-		return 0
+-	case n == 1:
+-		return IndexByte(s, sep[0])
+-	case n == len(s):
+-		if sep == s {
+-			return 0
+-		}
+-		return -1
+-	case n > len(s):
+-		return -1
+-	}
+-	// Rabin-Karp search
+-	hashsep, pow := hashStr(sep)
+-	var h uint32
+-	for i := 0; i < n; i++ {
+-		h = h*primeRK + uint32(s[i])
+-	}
+-	if h == hashsep && s[:n] == sep {
+-		return 0
+-	}
+-	for i := n; i < len(s); {
+-		h *= primeRK
+-		h += uint32(s[i])
+-		h -= pow * uint32(s[i-n])
+-		i++
+-		if h == hashsep && s[i-n:i] == sep {
+-			return i - n
+-		}
+-	}
+-	return -1
+-}
+-
+ // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+ func LastIndex(s, sep string) int {
+ 	n := len(sep)
+diff --git a/src/strings/strings_amd64.go b/src/strings/strings_amd64.go
+new file mode 100644
+index 0000000000..376113f0a2
+--- /dev/null
++++ b/src/strings/strings_amd64.go
+@@ -0,0 +1,49 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++// indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
++// indexShortStr requires 2 <= len(c) <= shortStringLen
++func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s
++const shortStringLen = 31
++
++// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
++func Index(s, sep string) int {
++	n := len(sep)
++	switch {
++	case n == 0:
++		return 0
++	case n == 1:
++		return IndexByte(s, sep[0])
++	case n <= shortStringLen:
++		return indexShortStr(s, sep)
++	case n == len(s):
++		if sep == s {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
++	}
++	// Rabin-Karp search
++	hashsep, pow := hashStr(sep)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashsep && s[:n] == sep {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashsep && s[i-n:i] == sep {
++			return i - n
++		}
++	}
++	return -1
++}
+diff --git a/src/strings/strings_generic.go b/src/strings/strings_generic.go
+new file mode 100644
+index 0000000000..811cb80316
+--- /dev/null
++++ b/src/strings/strings_generic.go
+@@ -0,0 +1,47 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !amd64
++
++package strings
++
++// TODO: implements short string optimization on non amd64 platforms
++// and get rid of strings_amd64.go
++
++// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
++func Index(s, sep string) int {
++	n := len(sep)
++	switch {
++	case n == 0:
++		return 0
++	case n == 1:
++		return IndexByte(s, sep[0])
++	case n == len(s):
++		if sep == s {
++			return 0
++		}
++		return -1
++	case n > len(s):
++		return -1
++	}
++	// Rabin-Karp search
++	hashsep, pow := hashStr(sep)
++	var h uint32
++	for i := 0; i < n; i++ {
++		h = h*primeRK + uint32(s[i])
++	}
++	if h == hashsep && s[:n] == sep {
++		return 0
++	}
++	for i := n; i < len(s); {
++		h *= primeRK
++		h += uint32(s[i])
++		h -= pow * uint32(s[i-n])
++		i++
++		if h == hashsep && s[i-n:i] == sep {
++			return i - n
++		}
++	}
++	return -1
++}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 4e21deaecd..49f55fe38c 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -59,6 +59,59 @@ var indexTests = []IndexTest{
+ 	{"abc", "b", 1},
+ 	{"abc", "c", 2},
+ 	{"abc", "x", -1},
++	// test special cases in Index() for short strings
++	{"", "ab", -1},
++	{"bc", "ab", -1},
++	{"ab", "ab", 0},
++	{"xab", "ab", 1},
++	{"xab"[:2], "ab", -1},
++	{"", "abc", -1},
++	{"xbc", "abc", -1},
++	{"abc", "abc", 0},
++	{"xabc", "abc", 1},
++	{"xabc"[:3], "abc", -1},
++	{"xabxc", "abc", -1},
++	{"", "abcd", -1},
++	{"xbcd", "abcd", -1},
++	{"abcd", "abcd", 0},
++	{"xabcd", "abcd", 1},
++	{"xyabcd"[:5], "abcd", -1},
++	{"xbcqq", "abcqq", -1},
++	{"abcqq", "abcqq", 0},
++	{"xabcqq", "abcqq", 1},
++	{"xyabcqq"[:6], "abcqq", -1},
++	{"xabxcqq", "abcqq", -1},
++	{"xabcqxq", "abcqq", -1},
++	{"", "01234567", -1},
++	{"32145678", "01234567", -1},
++	{"01234567", "01234567", 0},
++	{"x01234567", "01234567", 1},
++	{"xx01234567"[:9], "01234567", -1},
++	{"", "0123456789", -1},
++	{"3214567844", "0123456789", -1},
++	{"0123456789", "0123456789", 0},
++	{"x0123456789", "0123456789", 1},
++	{"xyz0123456789"[:12], "0123456789", -1},
++	{"x01234567x89", "0123456789", -1},
++	{"", "0123456789012345", -1},
++	{"3214567889012345", "0123456789012345", -1},
++	{"0123456789012345", "0123456789012345", 0},
++	{"x0123456789012345", "0123456789012345", 1},
++	{"", "01234567890123456789", -1},
++	{"32145678890123456789", "01234567890123456789", -1},
++	{"01234567890123456789", "01234567890123456789", 0},
++	{"x01234567890123456789", "01234567890123456789", 1},
++	{"xyz01234567890123456789"[:22], "01234567890123456789", -1},
++	{"", "0123456789012345678901234567890", -1},
++	{"321456788901234567890123456789012345678911", "0123456789012345678901234567890", -1},
++	{"0123456789012345678901234567890", "0123456789012345678901234567890", 0},
++	{"x0123456789012345678901234567890", "0123456789012345678901234567890", 1},
++	{"xyz0123456789012345678901234567890"[:33], "0123456789012345678901234567890", -1},
++	{"", "01234567890123456789012345678901", -1},
++	{"32145678890123456789012345678901234567890211", "01234567890123456789012345678901", -1},
++	{"01234567890123456789012345678901", "01234567890123456789012345678901", 0},
++	{"x01234567890123456789012345678901", "01234567890123456789012345678901", 1},
++	{"xyz01234567890123456789012345678901"[:34], "01234567890123456789012345678901", -1},
+ }
+ 
+ var lastIndexTests = []IndexTest{

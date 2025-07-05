@@ -11,6 +11,23 @@ Date:   Sat May 25 20:02:28 2019 +0200
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/pkg.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 32810bd581..abc8e0b385 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -129,7 +129,10 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
+ 		log.Fatal(err)
+ 	}
+ 	// Make sure they are all in one package.
+-	if len(pkgs) != 1 {
++	if len(pkgs) == 0 {
++		log.Fatalf("no source-code package in directory %s", pkg.Dir)
++	}
++	if len(pkgs) > 1 {
+ 		log.Fatalf("multiple packages in directory %s", pkg.Dir)
+ 	}
+ 	astPkg := pkgs[pkg.Name]

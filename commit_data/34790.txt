@@ -19,7 +19,51 @@ Date:   Tue Nov 14 23:22:19 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/lookup.go      |  2 +-
  src/net/lookup_test.go | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index c9f327050a..607953bba5 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -200,7 +200,7 @@ func (r *Resolver) LookupIPAddr(ctx context.Context, host string) ([]IPAddr, err
+ 		// rather than waiting for the current lookup to
+ 		// complete. See issue 8602.
+ 		ctxErr := ctx.Err()
+-		if ctxErr == context.DeadlineExceeded {
++		if ctxErr == context.Canceled || ctxErr == context.DeadlineExceeded {
+ 			lookupGroup.Forget(host)
+ 		}
+ 		err := mapErr(ctxErr)
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 68a7abe95d..8a0212a3f4 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -739,3 +739,25 @@ func TestLookupNonLDH(t *testing.T) {
+ 		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
+ 	}
+ }
++
++func TestLookupContextCancel(t *testing.T) {
++	if runtime.GOOS == "nacl" {
++		t.Skip("skip on NaCl")
++	}
++
++	ctx, ctxCancel := context.WithCancel(context.Background())
++	ctxCancel()
++
++	_, err := DefaultResolver.LookupIPAddr(ctx, "google.com")
++	if err != errCanceled {
++		testenv.SkipFlakyNet(t)
++		t.Fatalf("unexpected error: %q", err)
++	}
++
++	ctx = context.Background()
++
++	_, err = DefaultResolver.LookupIPAddr(ctx, "google.com")
++	if err != nil {
++		t.Fatalf("unexpected error: %q", err)
++	}
++}

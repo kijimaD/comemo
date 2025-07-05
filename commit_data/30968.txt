@@ -11,7 +11,65 @@ Date:   Wed Jan 4 21:03:24 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  1 +
  2 files changed, 38 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index d8561f7c7f..c2be58108b 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -5089,3 +5089,40 @@ func testServerKeepAlivesEnabled(t *testing.T, h2 bool) {
+ 		t.Fatalf("test server has active conns")
+ 	}
+ }
++
++// Issue 18447: test that the Server's ReadTimeout is stopped while
++// the server's doing its 1-byte background read between requests,
++// waiting for the connection to maybe close.
++func TestServerCancelsReadTimeoutWhenIdle(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	const timeout = 250 * time.Millisecond
++	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		select {
++		case <-time.After(2 * timeout):
++			fmt.Fprint(w, "ok")
++		case <-r.Context().Done():
++			fmt.Fprint(w, r.Context().Err())
++		}
++	}))
++	ts.Config.ReadTimeout = timeout
++	ts.Start()
++	defer ts.Close()
++
++	tr := &Transport{}
++	defer tr.CloseIdleConnections()
++	c := &Client{Transport: tr}
++
++	res, err := c.Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	slurp, err := ioutil.ReadAll(res.Body)
++	res.Body.Close()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(slurp) != "ok" {
++		t.Fatalf("Got: %q, want ok", slurp)
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 6df9c260e4..bf1014134c 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -637,6 +637,7 @@ func (cr *connReader) startBackgroundRead() {
+ 		panic("invalid concurrent Body.Read call")
+ 	}
+ 	cr.inRead = true
++	cr.conn.rwc.SetReadDeadline(time.Time{})
+ 	go cr.backgroundRead()
+ }
+ 

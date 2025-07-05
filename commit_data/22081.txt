@@ -10,6 +10,27 @@ Date:   Mon Feb 23 10:29:25 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5575
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  misc/nacl/testzip.proto | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 2aa094135b..b2e866c1e8 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -18,6 +18,15 @@ go	src=..
+ 			internal
+ 				objfile
+ 					objfile.go
++				rsc.io
++					arm
++						armasm
++							testdata
++								+
++					x86
++						x86asm
++							testdata
++								+
+ 			gofmt
+ 				gofmt.go
+ 				gofmt_test.go

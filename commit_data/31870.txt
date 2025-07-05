@@ -13,6 +13,31 @@ Date:   Tue Mar 21 12:13:12 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 8b8882ac55..548f1ea6c6 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -413,8 +413,8 @@ func localswords(lv *Liveness) int32 {
+ }
+ 
+ // Returns the number of words of in and out arguments.
+-func argswords() int32 {
+-	return int32(Curfn.Type.ArgWidth() / int64(Widthptr))
++func argswords(lv *Liveness) int32 {
++	return int32(lv.fn.Type.ArgWidth() / int64(Widthptr))
+ }
+ 
+ // Generates live pointer value maps for arguments and local variables. The
+@@ -1082,7 +1082,7 @@ func finishgclocals(sym *Sym) {
+ // length of the bitmaps. All bitmaps are assumed to be of equal length. The
+ // remaining bytes are the raw bitmaps.
+ func livenessemit(lv *Liveness, argssym, livesym *Sym) {
+-	args := bvalloc(argswords())
++	args := bvalloc(argswords(lv))
+ 	aoff := duint32(argssym, 0, uint32(len(lv.livevars))) // number of bitmaps
+ 	aoff = duint32(argssym, aoff, uint32(args.n))         // number of bits in each bitmap
+ 

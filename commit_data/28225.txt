@@ -13,6 +13,19 @@ Date:   Thu May 5 17:46:58 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/issue15548.dir/c.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue15548.dir/c.go b/test/fixedbugs/issue15548.dir/c.go
+index ce6e3204b3..6d3f3be53e 100644
+--- a/test/fixedbugs/issue15548.dir/c.go
++++ b/test/fixedbugs/issue15548.dir/c.go
+@@ -5,6 +5,6 @@
+ package c
+ 
+ import (
+-	_ "./a"
+ 	_ "./b"
++	_ "./a"
+ )

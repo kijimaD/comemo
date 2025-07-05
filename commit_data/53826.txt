@@ -12,6 +12,42 @@ Date:   Fri Sep 2 10:37:16 2022 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/runtime/rwmutex_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/rwmutex_test.go b/src/runtime/rwmutex_test.go
+index f15d367b32..ddb16aead4 100644
+--- a/src/runtime/rwmutex_test.go
++++ b/src/runtime/rwmutex_test.go
+@@ -17,10 +17,10 @@ import (
+ 	"testing"
+ )
+ 
+-func parallelReader(m *RWMutex, clocked chan bool, cunlock *uint32, cdone chan bool) {
++func parallelReader(m *RWMutex, clocked chan bool, cunlock *atomic.Bool, cdone chan bool) {
+ 	m.RLock()
+ 	clocked <- true
+-	for atomic.LoadUint32(cunlock) == 0 {
++	for !cunlock.Load() {
+ 	}
+ 	m.RUnlock()
+ 	cdone <- true
+@@ -30,7 +30,7 @@ func doTestParallelReaders(numReaders int) {
+ 	GOMAXPROCS(numReaders + 1)
+ 	var m RWMutex
+ 	clocked := make(chan bool, numReaders)
+-	var cunlock uint32
++	var cunlock atomic.Bool
+ 	cdone := make(chan bool)
+ 	for i := 0; i < numReaders; i++ {
+ 		go parallelReader(&m, clocked, &cunlock, cdone)
+@@ -39,7 +39,7 @@ func doTestParallelReaders(numReaders int) {
+ 	for i := 0; i < numReaders; i++ {
+ 		<-clocked
+ 	}
+-	atomic.StoreUint32(&cunlock, 1)
++	cunlock.Store(true)
+ 	// Wait for the goroutines to finish.
+ 	for i := 0; i < numReaders; i++ {
+ 		<-cdone

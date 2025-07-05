@@ -24,7 +24,7 @@ Date:   Thu Jan 12 11:19:12 2023 +0100
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Davis Goodin <dagood@microsoft.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/objabi/reloctype.go          |  4 ++++
  src/cmd/internal/objabi/reloctype_string.go   |  5 +++--
  src/cmd/link/internal/amd64/asm.go            |  3 +++
@@ -36,3 +36,194 @@ Date:   Thu Jan 12 11:19:12 2023 +0100
  src/cmd/link/internal/loader/symbolbuilder.go |  4 ++++
  src/cmd/link/internal/x86/asm.go              |  3 +++
  10 files changed, 51 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 2bc7b2dd7a..84b0aecc4a 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -333,6 +333,10 @@ const (
+ 	// in a symbol and target any symbols.
+ 	R_XCOFFREF
+ 
++	// R_PEIMAGEOFF resolves to a 32-bit offset from the start address of where
++	// the executable file is mapped in memory.
++	R_PEIMAGEOFF
++
+ 	// R_WEAK marks the relocation as a weak reference.
+ 	// A weak relocation does not make the symbol it refers to reachable,
+ 	// and is only honored by the linker if the symbol is in some other way
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index 9ce37d00de..b4b741e020 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -85,11 +85,12 @@ func _() {
+ 	_ = x[R_ADDRCUOFF-75]
+ 	_ = x[R_WASMIMPORT-76]
+ 	_ = x[R_XCOFFREF-77]
++	_ = x[R_PEIMAGEOFF-78]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREF"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IE_ITYPER_RISCV_TLS_IE_STYPER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFF"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 837, 857, 867, 880, 894, 910, 927, 940, 952, 963, 976, 987, 999, 1009}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 837, 857, 867, 880, 894, 910, 927, 940, 952, 963, 976, 987, 999, 1009, 1021}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index f4832efcf7..c91e37584c 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -532,6 +532,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 			v = ld.IMAGE_REL_AMD64_ADDR32
+ 		}
+ 
++	case objabi.R_PEIMAGEOFF:
++		v = ld.IMAGE_REL_AMD64_ADDR32NB
++
+ 	case objabi.R_CALL,
+ 		objabi.R_PCREL:
+ 		v = ld.IMAGE_REL_AMD64_REL32
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 4574f2d5f9..b432da89d4 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -356,6 +356,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 
+ 	case objabi.R_ADDR:
+ 		v = ld.IMAGE_REL_ARM_ADDR32
++
++	case objabi.R_PEIMAGEOFF:
++		v = ld.IMAGE_REL_ARM_ADDR32NB
+ 	}
+ 
+ 	out.Write16(uint16(v))
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 7109d84fa3..312ee27aa6 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -679,6 +679,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 			out.Write16(ld.IMAGE_REL_ARM64_ADDR32)
+ 		}
+ 
++	case objabi.R_PEIMAGEOFF:
++		out.Write16(ld.IMAGE_REL_ARM64_ADDR32NB)
++
+ 	case objabi.R_ADDRARM64:
+ 		// Note: r.Xadd has been taken care of below, in archreloc.
+ 		out.Write32(uint32(sectoff))
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 01f9bc7099..66e97c69db 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -345,7 +345,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			} else {
+ 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+ 			}
+-		case objabi.R_ADDR:
++		case objabi.R_ADDR, objabi.R_PEIMAGEOFF:
+ 			if weak && !ldr.AttrReachable(rs) {
+ 				// Redirect it to runtime.unreachableMethod, which will throw if called.
+ 				rs = syms.unreachableMethod
+@@ -398,6 +398,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			}
+ 
+ 			o = ldr.SymValue(rs) + r.Add()
++			if rt == objabi.R_PEIMAGEOFF {
++				// The R_PEIMAGEOFF offset is a RVA, so subtract
++				// the base address for the executable.
++				o -= PEBASE
++			}
+ 
+ 			// On amd64, 4-byte offsets will be sign-extended, so it is impossible to
+ 			// access more than 2GB of static data; fail at link time is better than
+@@ -639,7 +644,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
+ 		}
+ 		return rr, false
+ 
+-	case objabi.R_ADDR:
++	case objabi.R_ADDR, objabi.R_PEIMAGEOFF:
+ 		// set up addend for eventual relocation via outer symbol.
+ 		rs := r.Sym()
+ 		if r.Weak() && !ldr.AttrReachable(rs) {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 08e5b976b6..27f2b0305a 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -105,14 +105,16 @@ const (
+ 	IMAGE_SYM_CLASS_EXTERNAL = 2
+ 	IMAGE_SYM_CLASS_STATIC   = 3
+ 
+-	IMAGE_REL_I386_DIR32  = 0x0006
+-	IMAGE_REL_I386_SECREL = 0x000B
+-	IMAGE_REL_I386_REL32  = 0x0014
+-
+-	IMAGE_REL_AMD64_ADDR64 = 0x0001
+-	IMAGE_REL_AMD64_ADDR32 = 0x0002
+-	IMAGE_REL_AMD64_REL32  = 0x0004
+-	IMAGE_REL_AMD64_SECREL = 0x000B
++	IMAGE_REL_I386_DIR32   = 0x0006
++	IMAGE_REL_I386_DIR32NB = 0x0007
++	IMAGE_REL_I386_SECREL  = 0x000B
++	IMAGE_REL_I386_REL32   = 0x0014
++
++	IMAGE_REL_AMD64_ADDR64   = 0x0001
++	IMAGE_REL_AMD64_ADDR32   = 0x0002
++	IMAGE_REL_AMD64_ADDR32NB = 0x0003
++	IMAGE_REL_AMD64_REL32    = 0x0004
++	IMAGE_REL_AMD64_SECREL   = 0x000B
+ 
+ 	IMAGE_REL_ARM_ABSOLUTE = 0x0000
+ 	IMAGE_REL_ARM_ADDR32   = 0x0001
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 7d1031e9dc..8ee4be033b 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -338,6 +338,17 @@ func TestAddDataMethods(t *testing.T) {
+ 			expKind: sym.SDATA,
+ 			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
+ 		},
++		{
++			which: "AddPEImageRelativeAddrPlus",
++			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
++				sb := l.MakeSymbolUpdater(s)
++				sb.AddPEImageRelativeAddrPlus(arch, s2, 3)
++				return s
++			},
++			expData: []byte{0, 0, 0, 0},
++			expKind: sym.SDATA,
++			expRel:  []Reloc{mkReloc(ldr, objabi.R_PEIMAGEOFF, 0, 4, 3, 9)},
++		},
+ 	}
+ 
+ 	var pmi Sym
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 558c0a7dff..1744df2784 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -387,6 +387,10 @@ func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
+ 	return sb.AddAddrPlus(arch, tgt, 0)
+ }
+ 
++func (sb *SymbolBuilder) AddPEImageRelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
++	return sb.addSymRef(tgt, add, objabi.R_PEIMAGEOFF, 4)
++}
++
+ func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+ 	return sb.addSymRef(tgt, add, objabi.R_PCREL, 4)
+ }
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 3a33201fd9..fa5ad67228 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -399,6 +399,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	case objabi.R_ADDR:
+ 		v = ld.IMAGE_REL_I386_DIR32
+ 
++	case objabi.R_PEIMAGEOFF:
++		v = ld.IMAGE_REL_I386_DIR32NB
++
+ 	case objabi.R_CALL,
+ 		objabi.R_PCREL:
+ 		v = ld.IMAGE_REL_I386_REL32

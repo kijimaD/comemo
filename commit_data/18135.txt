@@ -16,6 +16,20 @@ Date:   Mon Dec 30 12:14:27 2013 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/44990043
-
+---
  src/cmd/6g/cgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index ada2baa81c..da16071a8d 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1513,7 +1513,7 @@ componentgen(Node *nr, Node *nl)
+ 				fatal("componentgen: not a TFIELD: %lT", t);
+ 			fldcount++;
+ 		}
+-		if(fldcount == 0 || fldcount > 3)
++		if(fldcount == 0 || fldcount > 4)
+ 			goto no;
+ 
+ 		break;

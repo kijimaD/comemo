@@ -39,8 +39,331 @@ Date:   Tue Jun 12 12:01:59 2018 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/proto.go                     |  65 ++++++++++++---
  src/runtime/pprof/proto_test.go                |  69 ++++++++++++++++
  src/runtime/pprof/testdata/mappingtest/main.go | 105 +++++++++++++++++++++++++
  3 files changed, 226 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index d67c3a2865..1cf3a5154f 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"runtime"
+-	"sort"
+ 	"strconv"
+ 	"time"
+ 	"unsafe"
+@@ -48,10 +47,26 @@ type profileBuilder struct {
+ }
+ 
+ type memMap struct {
+-	start uintptr
+-	end   uintptr
++	// initialized as reading mapping
++	start         uintptr
++	end           uintptr
++	offset        uint64
++	file, buildID string
++
++	funcs symbolizeFlag
+ }
+ 
++// symbolizeFlag keeps track of symbolization result.
++//   0                  : no symbol lookup was performed
++//   1<<0 (lookupTried) : symbol lookup was performed
++//   1<<1 (lookupFailed): symbol lookup was performed but failed
++type symbolizeFlag uint8
++
++const (
++	lookupTried  symbolizeFlag = 1 << iota
++	lookupFailed symbolizeFlag = 1 << iota
++)
++
+ const (
+ 	// message Profile
+ 	tagProfile_SampleType        = 1  // repeated ValueType
+@@ -171,7 +186,7 @@ func (b *profileBuilder) pbLine(tag int, funcID uint64, line int64) {
+ }
+ 
+ // pbMapping encodes a Mapping message to b.pb.
+-func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file, buildID string) {
++func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file, buildID string, hasFuncs bool) {
+ 	start := b.pb.startMessage()
+ 	b.pb.uint64Opt(tagMapping_ID, id)
+ 	b.pb.uint64Opt(tagMapping_Start, base)
+@@ -179,8 +194,15 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
+ 	b.pb.uint64Opt(tagMapping_Offset, offset)
+ 	b.pb.int64Opt(tagMapping_Filename, b.stringIndex(file))
+ 	b.pb.int64Opt(tagMapping_BuildID, b.stringIndex(buildID))
+-	// TODO: Set any of HasInlineFrames, HasFunctions, HasFilenames, HasLineNumbers?
+-	// It seems like they should all be true, but they've never been set.
++	// TODO: we set HasFunctions if all symbols from samples were symbolized (hasFuncs).
++	// Decide what to do about HasInlineFrames and HasLineNumbers.
++	// Also, another approach to handle the mapping entry with
++	// incomplete symbolization results is to dupliace the mapping
++	// entry (but with different Has* fields values) and use
++	// different entries for symbolized locations and unsymbolized locations.
++	if hasFuncs {
++		b.pb.bool(tagMapping_HasFunctions, true)
++	}
+ 	b.pb.endMessage(tag, start)
+ }
+ 
+@@ -205,6 +227,11 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 		return 0
+ 	}
+ 
++	symbolizeResult := lookupTried
++	if frame.PC == 0 || frame.Function == "" || frame.File == "" || frame.Line == 0 {
++		symbolizeResult |= lookupFailed
++	}
++
+ 	if frame.PC == 0 {
+ 		// If we failed to resolve the frame, at least make up
+ 		// a reasonable call PC. This mostly happens in tests.
+@@ -239,12 +266,14 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 		}
+ 		frame, more = frames.Next()
+ 	}
+-	if len(b.mem) > 0 {
+-		i := sort.Search(len(b.mem), func(i int) bool {
+-			return b.mem[i].end > addr
+-		})
+-		if i < len(b.mem) && b.mem[i].start <= addr && addr < b.mem[i].end {
++	for i := range b.mem {
++		if b.mem[i].start <= addr && addr < b.mem[i].end {
+ 			b.pb.uint64Opt(tagLocation_MappingID, uint64(i+1))
++
++			m := b.mem[i]
++			m.funcs |= symbolizeResult
++			b.mem[i] = m
++			break
+ 		}
+ 	}
+ 	b.pb.endMessage(tagProfile_Location, start)
+@@ -392,6 +421,11 @@ func (b *profileBuilder) build() {
+ 		b.pbSample(values, locs, labels)
+ 	}
+ 
++	for i, m := range b.mem {
++		hasFunctions := m.funcs == lookupTried // lookupTried but not lookupFailed
++		b.pbMapping(tagProfile_Mapping, uint64(i+1), uint64(m.start), uint64(m.end), m.offset, m.file, m.buildID, hasFunctions)
++	}
++
+ 	// TODO: Anything for tagProfile_DropFrames?
+ 	// TODO: Anything for tagProfile_KeepFrames?
+ 
+@@ -506,6 +540,11 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
+ }
+ 
+ func (b *profileBuilder) addMapping(lo, hi, offset uint64, file, buildID string) {
+-	b.mem = append(b.mem, memMap{uintptr(lo), uintptr(hi)})
+-	b.pbMapping(tagProfile_Mapping, uint64(len(b.mem)), lo, hi, offset, file, buildID)
++	b.mem = append(b.mem, memMap{
++		start:   uintptr(lo),
++		end:     uintptr(hi),
++		offset:  offset,
++		file:    file,
++		buildID: buildID,
++	})
+ }
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 78bb84412f..9efcaeafe0 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -8,7 +8,10 @@ import (
+ 	"bytes"
+ 	"encoding/json"
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
++	"os"
++	"os/exec"
+ 	"reflect"
+ 	"runtime"
+ 	"runtime/pprof/internal/profile"
+@@ -225,3 +228,69 @@ func TestProcSelfMaps(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestMapping checkes the mapping section of CPU profiles
++// has the HasFunctions field set correctly. If all PCs included
++// in the samples are successfully symbolized, the corresponding
++// mapping entry (in this test case, only one entry) should have
++// its HasFunctions field set true.
++// The test generates a CPU profile that includes PCs from C side
++// that the runtime can't symbolize. See ./testdata/mappingtest.
++func TestMapping(t *testing.T) {
++	testenv.MustHaveGoRun(t)
++
++	prog := "./testdata/mappingtest"
++
++	// GoOnly includes only Go symbols that runtime will symbolize.
++	// Go+C includes C symbols that runtime will not symbolize.
++	for _, traceback := range []string{"GoOnly", "Go+C"} {
++		t.Run("traceback"+traceback, func(t *testing.T) {
++			cmd := exec.Command("go", "run", prog)
++			if traceback != "GoOnly" {
++				cmd.Env = append(os.Environ(), "SETCGOTRACEBACK=1")
++			}
++			cmd.Stderr = new(bytes.Buffer)
++
++			out, err := cmd.Output()
++			if err != nil {
++				t.Fatalf("failed to run the test program %q: %v\n%v", prog, err, cmd.Stderr)
++			}
++
++			prof, err := profile.Parse(bytes.NewReader(out))
++			if err != nil {
++				t.Fatalf("failed to parse the generated profile data: %v", err)
++			}
++
++			allResolved := !hasUnresolvedSymbol(prof)
++			if allResolved && traceback != "GoOnly" {
++				t.Log("No non-Go samples were sampled")
++			}
++
++			for _, m := range prof.Mapping {
++				if !strings.Contains(m.File, "/exe/main") {
++					continue
++				}
++				if allResolved && !m.HasFunctions {
++					t.Errorf("HasFunctions=%t when all sampled PCs were symbolized\n%s", m.HasFunctions, prof)
++				}
++				if !allResolved && m.HasFunctions {
++					t.Errorf("HasFunctions=%t when some sampled PCs were not symbolized\n%s", m.HasFunctions, prof)
++				}
++			}
++		})
++	}
++}
++
++func hasUnresolvedSymbol(prof *profile.Profile) bool {
++	for _, loc := range prof.Location {
++		if len(loc.Line) == 0 {
++			return true
++		}
++		l := loc.Line[0]
++		f := l.Function
++		if l.Line == 0 || f == nil || f.Name == "" || f.Filename == "" {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/runtime/pprof/testdata/mappingtest/main.go b/src/runtime/pprof/testdata/mappingtest/main.go
+new file mode 100644
+index 0000000000..7850faab0d
+--- /dev/null
++++ b/src/runtime/pprof/testdata/mappingtest/main.go
+@@ -0,0 +1,105 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This program outputs a CPU profile that includes
++// both Go and Cgo stacks. This is used by the mapping info
++// tests in runtime/pprof.
++//
++// If SETCGOTRACEBACK=1 is set, the CPU profile will includes
++// PCs from C side but they will not be symbolized.
++package main
++
++/*
++#include <stdint.h>
++#include <stdlib.h>
++
++int cpuHogCSalt1 = 0;
++int cpuHogCSalt2 = 0;
++
++void CPUHogCFunction() {
++	int foo = cpuHogCSalt1;
++	int i;
++	for (i = 0; i < 100000; i++) {
++		if (foo > 0) {
++			foo *= foo;
++		} else {
++			foo *= foo + 1;
++		}
++		cpuHogCSalt2 = foo;
++	}
++}
++
++struct CgoTracebackArg {
++	uintptr_t context;
++        uintptr_t sigContext;
++	uintptr_t *buf;
++        uintptr_t max;
++};
++
++void CollectCgoTraceback(void* parg) {
++        struct CgoTracebackArg* arg = (struct CgoTracebackArg*)(parg);
++	arg->buf[0] = (uintptr_t)(CPUHogCFunction);
++	arg->buf[1] = 0;
++};
++*/
++import "C"
++
++import (
++	"log"
++	"os"
++	"runtime"
++	"runtime/pprof"
++	"time"
++	"unsafe"
++)
++
++func init() {
++	if v := os.Getenv("SETCGOTRACEBACK"); v == "1" {
++		// Collect some PCs from C-side, but don't symbolize.
++		runtime.SetCgoTraceback(0, unsafe.Pointer(C.CollectCgoTraceback), nil, nil)
++	}
++}
++
++func main() {
++	go cpuHogGoFunction()
++	go cpuHogCFunction()
++	runtime.Gosched()
++
++	if err := pprof.StartCPUProfile(os.Stdout); err != nil {
++		log.Fatal("can't start CPU profile: ", err)
++	}
++	time.Sleep(1 * time.Second)
++	pprof.StopCPUProfile()
++
++	if err := os.Stdout.Close(); err != nil {
++		log.Fatal("can't write CPU profile: ", err)
++	}
++}
++
++var salt1 int
++var salt2 int
++
++func cpuHogGoFunction() {
++	// Generates CPU profile samples including a Go call path.
++	for {
++		foo := salt1
++		for i := 0; i < 1e5; i++ {
++			if foo > 0 {
++				foo *= foo
++			} else {
++				foo *= foo + 1
++			}
++			salt2 = foo
++		}
++		runtime.Gosched()
++	}
++}
++
++func cpuHogCFunction() {
++	// Generates CPU profile samples including a Cgo call path.
++	for {
++		C.CPUHogCFunction()
++		runtime.Gosched()
++	}
++}

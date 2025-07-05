@@ -34,9 +34,114 @@ Date:   Thu Sep 10 22:53:59 2020 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/goflags.go    | 17 +++++++++++++++++
  src/cmd/go/internal/version/version.go |  9 ++++++++-
  src/cmd/go/internal/work/init.go       | 22 +++-------------------
  src/cmd/go/testdata/script/version.txt |  6 ++++++
  4 files changed, 34 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/goflags.go b/src/cmd/go/internal/base/goflags.go
+index f11f9a5d33..4da27550fd 100644
+--- a/src/cmd/go/internal/base/goflags.go
++++ b/src/cmd/go/internal/base/goflags.go
+@@ -130,3 +130,20 @@ func SetFromGOFLAGS(flags *flag.FlagSet) {
+ 		}
+ 	}
+ }
++
++// InGOFLAGS returns whether GOFLAGS contains the given flag, such as "-mod".
++func InGOFLAGS(flag string) bool {
++	for _, goflag := range GOFLAGS() {
++		name := goflag
++		if strings.HasPrefix(name, "--") {
++			name = name[1:]
++		}
++		if i := strings.Index(name, "="); i >= 0 {
++			name = name[:i]
++		}
++		if name == flag {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index c2de8d326d..5aa0f8e7ed 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -54,7 +54,14 @@ var (
+ 
+ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) == 0 {
+-		if *versionM || *versionV {
++		// If any of this command's flags were passed explicitly, error
++		// out, because they only make sense with arguments.
++		//
++		// Don't error if the flags came from GOFLAGS, since that can be
++		// a reasonable use case. For example, imagine GOFLAGS=-v to
++		// turn "verbose mode" on for all Go commands, which should not
++		// break "go version".
++		if (!base.InGOFLAGS("-m") && *versionM) || (!base.InGOFLAGS("-v") && *versionV) {
+ 			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
+ 			base.SetExitStatus(2)
+ 			return
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index f78020032c..d71387d323 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -254,34 +254,18 @@ func buildModeInit() {
+ 	case "":
+ 		// Behavior will be determined automatically, as if no flag were passed.
+ 	case "readonly", "vendor", "mod":
+-		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
++		if !cfg.ModulesEnabled && !base.InGOFLAGS("-mod") {
+ 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
+ 		}
+ 	default:
+ 		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+ 	}
+ 	if !cfg.ModulesEnabled {
+-		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
++		if cfg.ModCacheRW && !base.InGOFLAGS("-modcacherw") {
+ 			base.Fatalf("build flag -modcacherw only valid when using modules")
+ 		}
+-		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
++		if cfg.ModFile != "" && !base.InGOFLAGS("-mod") {
+ 			base.Fatalf("build flag -modfile only valid when using modules")
+ 		}
+ 	}
+ }
+-
+-func inGOFLAGS(flag string) bool {
+-	for _, goflag := range base.GOFLAGS() {
+-		name := goflag
+-		if strings.HasPrefix(name, "--") {
+-			name = name[1:]
+-		}
+-		if i := strings.Index(name, "="); i >= 0 {
+-			name = name[:i]
+-		}
+-		if name == flag {
+-			return true
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 81ca698620..8615a4aac5 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -9,6 +9,12 @@ stderr 'with arguments'
+ ! go version -v
+ stderr 'with arguments'
+ 
++# Neither of the two flags above should be an issue via GOFLAGS.
++env GOFLAGS='-m -v'
++go version
++stdout '^go version'
++env GOFLAGS=
++
+ env GO111MODULE=on
+ # Skip the builds below if we are running in short mode.
+ [short] skip

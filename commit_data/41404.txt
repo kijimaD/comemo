@@ -28,6 +28,47 @@ Date:   Mon Sep 30 09:44:37 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 932a2a7757..46825d5937 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -60,7 +60,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
++	entersyscall()
+ 	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+@@ -71,7 +71,7 @@ func syscall()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
++	entersyscall()
+ 	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+@@ -82,7 +82,7 @@ func syscall6()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
++	entersyscall()
+ 	libcCall(unsafe.Pointer(funcPC(syscall6X)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return
+@@ -93,7 +93,7 @@ func syscall6X()
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	entersyscallblock()
++	entersyscall()
+ 	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
+ 	exitsyscall()
+ 	return

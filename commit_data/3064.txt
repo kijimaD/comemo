@@ -11,7 +11,7 @@ Date:   Mon Aug 24 10:19:31 2009 -0700
     DELTA=117  (91 added, 3 deleted, 23 changed)
     OCL=33739
     CL=33750
-
+---
  src/cmd/5l/l.h                    |  3 ++
  src/cmd/6l/asm.c                  | 76 +++++++++++++++++++++++++++------------
  src/cmd/6l/l.h                    |  3 ++
@@ -19,3 +19,253 @@ Date:   Mon Aug 24 10:19:31 2009 -0700
  src/cmd/ld/go.c                   | 43 ++++++++++++++++++++--
  src/pkg/runtime/linux/amd64/rt0.s |  7 ++++
  6 files changed, 112 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 25cffd0c2c..1ba95e0a2e 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -119,6 +119,7 @@ struct	Sym
+ 	short	frame;
+ 	uchar	subtype;
+ 	uchar	reachable;
++	uchar	ffitype;
+ 	ushort	file;
+ 	int32	value;
+ 	int32	sig;
+@@ -131,6 +132,8 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
++	char*	ffiname;
++	char*	ffilib;
+ };
+ 
+ #define SIGNINTERN	(1729*325*1729)
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d40b716747..6232a5a902 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -258,10 +258,27 @@ enum {
+ 
+ vlong elfstr[NElfStr];
+ 
++static int
++needlib(char *name)
++{
++	char *p;
++	Sym *s;
++
++	/* reuse hash code in symbol table */
++	p = smprint(".elfload.%s", name);
++	s = lookup(p, 0);
++	if(s->type == 0) {
++		s->type = 100;	// avoid SDATA, etc.
++		return 1;
++	}
++	return 0;
++}
++
+ void
+ doelf(void)
+ {
+-	Sym *s, *shstrtab;
++	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
++	int h, nsym, t;
+ 
+ 	if(HEADTYPE != 7)
+ 		return;
+@@ -279,8 +296,6 @@ doelf(void)
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+ 	if(!debug['d']) {	/* -d suppresses dynamic loader format */
+-		Sym *dynamic, *dynstr;
+-
+ 		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
+ 		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
+ 		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
+@@ -338,28 +353,45 @@ doelf(void)
+ 		dynamic = s;
+ 
+ 		/*
+-		 * relocation demo - overwrite go func
+-		 * var main.extern_c_fib with fib symbol from fib.so
++		 * relocation entries for extern ffi symbols
+ 		 */
+-		Sym *fib;
+-		fib = lookup("main·extern_c_fib", 0);
+-		if(fib->type == SDATA || fib->type == SBSS) {
+-			s = lookup(".rela", 0);
+-			addaddr(s, fib);
+-			adduint64(s, ELF64_R_INFO(1, R_X86_64_64));	// 1 = first symbol in dynsym
+-			adduint64(s, 0);
+-
+-			s = lookup(".dynsym", 0);
+-			adduint32(s, addstring(lookup(".dynstr", 0), "fib"));
+-			adduint8(s, (STB_GLOBAL<<4) | STT_FUNC);
+-			adduint8(s, 0);		/* reserved */
+-			adduint16(s, SHN_UNDEF);	/* section where symbol is defined */
+-			adduint64(s, 0);	/* value */
+-			adduint64(s, 0);	/* size of object */
+-
+-			elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, "fib.so"));
++		nsym = 1;	// sym 0 is reserved
++		for(h=0; h<NHASH; h++) {
++			for(s=hash[h]; s!=S; s=s->link) {
++				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->ffiname == nil)
++					continue;
++
++				d = lookup(".rela", 0);
++				addaddr(d, s);
++				adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
++				adduint64(d, 0);
++				nsym++;
++
++				d = lookup(".dynsym", 0);
++				adduint32(d, addstring(lookup(".dynstr", 0), s->ffiname));
++				t = STB_GLOBAL << 4;
++				switch(s->ffitype) {
++				case 'T':
++					t |= STT_FUNC;
++					break;
++				case 'D':
++					t |= STT_OBJECT;
++					break;
++				}
++				adduint8(d, t);
++				adduint8(d, 0);	/* reserved */
++				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
++				adduint64(d, 0);	/* value */
++				adduint64(d, 0);	/* size of object */
++
++				if(needlib(s->ffilib))
++					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->ffilib));
++			}
+ 		}
+ 
++		/*
++		 * .dynamic table
++		 */
+ 		s = dynamic;
+ 		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
+ 		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 271ea412dc..a0794a6227 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -119,6 +119,7 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
++	uchar	ffitype;
+ 	vlong	value;
+ 	vlong	size;
+ 	int32	sig;
+@@ -126,6 +127,8 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
++	char*	ffiname;
++	char*	ffilib;
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 3452598c52..e58c279694 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -116,6 +116,7 @@ struct	Sym
+ 	uchar	subtype;
+ 	uchar	dupok;
+ 	uchar	reachable;
++	uchar	ffitype;
+ 	ushort	file;
+ 	int32	value;
+ 	int32	sig;
+@@ -123,6 +124,9 @@ struct	Sym
+ 	Prog*	text;
+ 	Prog*	data;
+ 	Sym*	gotype;
++	char*	ffiname;
++	char*	ffilib;
++
+ };
+ struct	Optab
+ {
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 0ced9a1ac9..4bad524133 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -190,6 +190,7 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+ 
++again:
+ 	// skip white space
+ 	p = *pp;
+ 	while(p < ep && (*p == ' ' || *p == '\t' || *p == '\n'))
+@@ -211,8 +212,46 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
+ 		p += 5;
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
+-	else{
+-		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, p);
++	else if(strncmp(p, "//ffi ", 6) == 0) {
++		Sym *s;
++		char type, *lib;
++
++		p += 6;
++		if(*p == 0 || *(p+1) != ' ')
++			goto err;
++		type = *p;
++		p += 2;
++		name = p;
++		p = strchr(name, ' ');
++		if(p == nil)
++			goto err;
++		while(*p == ' ')
++			p++;
++		def = p;
++		p = strchr(def, ' ');
++		if(p == nil)
++			goto err;
++		while(*p == ' ')
++			p++;
++		lib = p;
++		p = strchr(lib, '\n');
++		if(p == nil)
++			goto err;
++
++		// successful parse: now can edit the line
++		*strchr(name, ' ') = 0;
++		*strchr(def, ' ') = 0;
++		*strchr(lib, '\n') = 0;
++		*pp = p+1;
++
++		s = lookup(name, 0);
++		s->ffitype = type;
++		s->ffilib = lib;
++		s->ffiname = def;
++		goto again;
++	} else {
++	err:
++		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, prefix);
+ 		nerrors++;
+ 		return -1;
+ 	}
+diff --git a/src/pkg/runtime/linux/amd64/rt0.s b/src/pkg/runtime/linux/amd64/rt0.s
+index 55be5bceef..83b68881d1 100644
+--- a/src/pkg/runtime/linux/amd64/rt0.s
++++ b/src/pkg/runtime/linux/amd64/rt0.s
+@@ -5,5 +5,12 @@
+ // Darwin and Linux use the same linkage to main
+ 
+ TEXT	_rt0_amd64_linux(SB),7,$-8
++	MOVQ	_initffi(SB), AX
++	TESTQ	AX, AX
++	JZ	2(PC)
++	CALL	AX
++
+ 	MOVQ	$_rt0_amd64(SB), AX
+ 	JMP	AX
++
++GLOBL _initffi(SB), $8

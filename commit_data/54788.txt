@@ -17,9 +17,103 @@ Date:   Tue Nov 15 09:37:11 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/go/doc/comment/std_test.go                 | 3 +--
  src/go/importer/importer_test.go               | 3 +--
  src/go/internal/gccgoimporter/importer_test.go | 6 +++---
  src/go/internal/gcimporter/gcimporter_test.go  | 3 +--
  4 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/doc/comment/std_test.go b/src/go/doc/comment/std_test.go
+index ae32dcd984..89206e6bc8 100644
+--- a/src/go/doc/comment/std_test.go
++++ b/src/go/doc/comment/std_test.go
+@@ -7,14 +7,13 @@ package comment
+ import (
+ 	"internal/diff"
+ 	"internal/testenv"
+-	"os/exec"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestStd(t *testing.T) {
+-	out, err := exec.Command(testenv.GoToolPath(t), "list", "std").CombinedOutput()
++	out, err := testenv.Command(t, testenv.GoToolPath(t), "list", "std").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("%v\n%s", err, out)
+ 	}
+diff --git a/src/go/importer/importer_test.go b/src/go/importer/importer_test.go
+index 3c39138038..142efd30f4 100644
+--- a/src/go/importer/importer_test.go
++++ b/src/go/importer/importer_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"strings"
+ 	"testing"
+ )
+@@ -25,7 +24,7 @@ func TestForCompiler(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+ 	const thePackage = "math/big"
+-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-export", "-f={{context.Compiler}}:{{.Export}}", thePackage).CombinedOutput()
++	out, err := testenv.Command(t, testenv.GoToolPath(t), "list", "-export", "-f={{context.Compiler}}:{{.Export}}", thePackage).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
+ 	}
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 55e2feb9fa..76b4500f3b 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -130,7 +130,7 @@ func TestObjImporter(t *testing.T) {
+ 		t.Skip("This test needs gccgo")
+ 	}
+ 
+-	verout, err := exec.Command(gpath, "--version").CombinedOutput()
++	verout, err := testenv.Command(t, gpath, "--version").CombinedOutput()
+ 	if err != nil {
+ 		t.Logf("%s", verout)
+ 		t.Fatal(err)
+@@ -171,7 +171,7 @@ func TestObjImporter(t *testing.T) {
+ 		ofile := filepath.Join(tmpdir, test.pkgpath+".o")
+ 		afile := filepath.Join(artmpdir, "lib"+test.pkgpath+".a")
+ 
+-		cmd := exec.Command(gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
++		cmd := testenv.Command(t, gpath, "-fgo-pkgpath="+test.pkgpath, "-c", "-o", ofile, gofile)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Logf("%s", out)
+@@ -180,7 +180,7 @@ func TestObjImporter(t *testing.T) {
+ 
+ 		runImporterTest(t, imp, initmap, &test)
+ 
+-		cmd = exec.Command("ar", "cr", afile, ofile)
++		cmd = testenv.Command(t, "ar", "cr", afile, ofile)
+ 		out, err = cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Logf("%s", out)
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index bcbaa558d3..af99e7a852 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"internal/goexperiment"
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -47,7 +46,7 @@ func compile(t *testing.T, dirname, filename, outdirname string, packagefiles ma
+ 	importcfgfile := filepath.Join(outdirname, basename) + ".importcfg"
+ 	testenv.WriteImportcfg(t, importcfgfile, packagefiles)
+ 	pkgpath := path.Join("testdata", basename)
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

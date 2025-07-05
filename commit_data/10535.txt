@@ -7,6 +7,20 @@ Date:   Tue Nov 29 14:40:34 2011 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5445052
-
+---
  misc/cgo/test/helpers.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/helpers.go b/misc/cgo/test/helpers.go
+index de14d19abf..890dcbdf1d 100644
+--- a/misc/cgo/test/helpers.go
++++ b/misc/cgo/test/helpers.go
+@@ -29,7 +29,7 @@ var testPairs = []testPair{
+ func testHelpers(t *testing.T) {
+ 	for _, pair := range testPairs {
+ 		if !reflect.DeepEqual(pair.Got, pair.Want) {
+-			t.Errorf("%s: got %#v, want %#v", pair.Got, pair.Want)
++			t.Errorf("%s: got %#v, want %#v", pair.Name, pair.Got, pair.Want)
+ 		}
+ 	}
+ }

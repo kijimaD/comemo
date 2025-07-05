@@ -9,7 +9,49 @@ Date:   Sat Dec 22 13:36:55 2012 -0500
     R=golang-dev, daniel.morsing, remyoudompheng, rsc
     CC=golang-dev
     https://golang.org/cl/6997045
-
+---
  src/pkg/encoding/json/encode.go      |  2 +-
  src/pkg/encoding/json/tagkey_test.go | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index a5803b4623..c3018ad293 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -437,7 +437,7 @@ func isValidTag(s string) bool {
+ 	}
+ 	for _, c := range s {
+ 		switch {
+-		case strings.ContainsRune("!#$%&()*+-./:<=>?@[]^_{|}~", c):
++		case strings.ContainsRune("!#$%&()*+-./:<=>?@[]^_{|}~ ", c):
+ 			// Backslash and quote chars are reserved, but
+ 			// otherwise any punctuation chars are allowed
+ 			// in a tag name.
+diff --git a/src/pkg/encoding/json/tagkey_test.go b/src/pkg/encoding/json/tagkey_test.go
+index da8b12bd8f..23e71c7525 100644
+--- a/src/pkg/encoding/json/tagkey_test.go
++++ b/src/pkg/encoding/json/tagkey_test.go
+@@ -60,6 +60,14 @@ type badCodeTag struct {
+ 	Z string `json:" !\"#&'()*+,."`
+ }
+ 
++type spaceTag struct {
++	Q string `json:"With space"`
++}
++
++type unicodeTag struct {
++	W string `json:"Ελλάδα"`
++}
++
+ var structTagObjectKeyTests = []struct {
+ 	raw   interface{}
+ 	value string
+@@ -78,6 +86,8 @@ var structTagObjectKeyTests = []struct {
+ 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
+ 	{percentSlashTag{"brut"}, "brut", "text/html%"},
+ 	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:<=>?@[]^_{|}~"},
++	{spaceTag{"Perreddu"}, "Perreddu", "With space"},
++	{unicodeTag{"Loukanikos"}, "Loukanikos", "Ελλάδα"},
+ }
+ 
+ func TestStructTagObjectKey(t *testing.T) {

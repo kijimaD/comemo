@@ -9,6 +9,20 @@ Date:   Mon Sep 16 13:19:32 2013 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/13419049
-
+---
  src/cmd/cgo/doc.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index b3e11e4c03..6ceb3bd3d2 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -463,8 +463,6 @@ and libcgo_thread_start to a gcc-compiled function that can be used to
+ create a new thread, in place of the runtime's usual direct system
+ calls.
+ 
+-[NOTE: From here down is planned but not yet implemented.]
+-
+ Internal and External Linking
+ 
+ The text above describes "internal" linking, in which 6l parses and

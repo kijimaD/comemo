@@ -17,9 +17,209 @@ Date:   Tue Jan 29 22:13:54 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/160245
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go      |  2 ++
  src/fmt/fmt_test.go | 24 ++++++++++++++++++++++++
  src/fmt/format.go   | 15 +++++++++++----
  src/fmt/print.go    |  4 ++--
  4 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 3b657f3681..c349f8e321 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -40,6 +40,8 @@
+ 		%F	synonym for %f
+ 		%g	%e for large exponents, %f otherwise. Precision is discussed below.
+ 		%G	%E for large exponents, %F otherwise
++		%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
++		%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
+ 	String and slice of bytes (treated equivalently with these verbs):
+ 		%s	the uninterpreted bytes of the string or slice
+ 		%q	a double-quoted string safely escaped with Go syntax
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 068c2620a8..2d10c7a841 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -413,6 +413,8 @@ var fmtTests = []struct {
+ 	// floats
+ 	{"%+.3e", 0.0, "+0.000e+00"},
+ 	{"%+.3e", 1.0, "+1.000e+00"},
++	{"%+.3x", 0.0, "+0x0.000p+00"},
++	{"%+.3x", 1.0, "+0x1.000p+00"},
+ 	{"%+.3f", -1.0, "-1.000"},
+ 	{"%+.3F", -1.0, "-1.000"},
+ 	{"%+.3F", float32(-1.0), "-1.000"},
+@@ -428,6 +430,8 @@ var fmtTests = []struct {
+ 	{"%+10.2f", -1.0, "     -1.00"},
+ 	{"% .3E", -1.0, "-1.000E+00"},
+ 	{"% .3e", 1.0, " 1.000e+00"},
++	{"% .3X", -1.0, "-0X1.000P+00"},
++	{"% .3x", 1.0, " 0x1.000p+00"},
+ 	{"%+.3g", 0.0, "+0"},
+ 	{"%+.3g", 1.0, "+1"},
+ 	{"%+.3g", -1.0, "-1"},
+@@ -445,17 +449,21 @@ var fmtTests = []struct {
+ 	{"%#g", 1000000.0, "1.00000e+06"},
+ 	{"%#.0f", 1.0, "1."},
+ 	{"%#.0e", 1.0, "1.e+00"},
++	{"%#.0x", 1.0, "0x1.p+00"},
+ 	{"%#.0g", 1.0, "1."},
+ 	{"%#.0g", 1100000.0, "1.e+06"},
+ 	{"%#.4f", 1.0, "1.0000"},
+ 	{"%#.4e", 1.0, "1.0000e+00"},
++	{"%#.4x", 1.0, "0x1.0000p+00"},
+ 	{"%#.4g", 1.0, "1.000"},
+ 	{"%#.4g", 100000.0, "1.000e+05"},
+ 	{"%#.0f", 123.0, "123."},
+ 	{"%#.0e", 123.0, "1.e+02"},
++	{"%#.0x", 123.0, "0x1.p+07"},
+ 	{"%#.0g", 123.0, "1.e+02"},
+ 	{"%#.4f", 123.0, "123.0000"},
+ 	{"%#.4e", 123.0, "1.2300e+02"},
++	{"%#.4x", 123.0, "0x1.ec00p+06"},
+ 	{"%#.4g", 123.0, "123.0"},
+ 	{"%#.4g", 123000.0, "1.230e+05"},
+ 	{"%#9.4g", 1.0, "    1.000"},
+@@ -474,17 +482,23 @@ var fmtTests = []struct {
+ 	{"%20f", posInf, "                +Inf"},
+ 	{"% 20F", posInf, "                 Inf"},
+ 	{"% 20e", negInf, "                -Inf"},
++	{"% 20x", negInf, "                -Inf"},
+ 	{"%+20E", negInf, "                -Inf"},
++	{"%+20X", negInf, "                -Inf"},
+ 	{"% +20g", negInf, "                -Inf"},
+ 	{"%+-20G", posInf, "+Inf                "},
+ 	{"%20e", NaN, "                 NaN"},
++	{"%20x", NaN, "                 NaN"},
+ 	{"% +20E", NaN, "                +NaN"},
++	{"% +20X", NaN, "                +NaN"},
+ 	{"% -20g", NaN, " NaN                "},
+ 	{"%+-20G", NaN, "+NaN                "},
+ 	// Zero padding does not apply to infinities and NaN.
+ 	{"%+020e", posInf, "                +Inf"},
++	{"%+020x", posInf, "                +Inf"},
+ 	{"%-020f", negInf, "-Inf                "},
+ 	{"%-020E", NaN, "NaN                 "},
++	{"%-020X", NaN, "NaN                 "},
+ 
+ 	// complex values
+ 	{"%.f", 0i, "(0+0i)"},
+@@ -492,23 +506,29 @@ var fmtTests = []struct {
+ 	{"%+.f", 0i, "(+0+0i)"},
+ 	{"% +.f", 0i, "(+0+0i)"},
+ 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
++	{"%+.3x", 0i, "(+0x0.000p+00+0x0.000p+00i)"},
+ 	{"%+.3f", 0i, "(+0.000+0.000i)"},
+ 	{"%+.3g", 0i, "(+0+0i)"},
+ 	{"%+.3e", 1 + 2i, "(+1.000e+00+2.000e+00i)"},
++	{"%+.3x", 1 + 2i, "(+0x1.000p+00+0x1.000p+01i)"},
+ 	{"%+.3f", 1 + 2i, "(+1.000+2.000i)"},
+ 	{"%+.3g", 1 + 2i, "(+1+2i)"},
+ 	{"%.3e", 0i, "(0.000e+00+0.000e+00i)"},
++	{"%.3x", 0i, "(0x0.000p+00+0x0.000p+00i)"},
+ 	{"%.3f", 0i, "(0.000+0.000i)"},
+ 	{"%.3F", 0i, "(0.000+0.000i)"},
+ 	{"%.3F", complex64(0i), "(0.000+0.000i)"},
+ 	{"%.3g", 0i, "(0+0i)"},
+ 	{"%.3e", 1 + 2i, "(1.000e+00+2.000e+00i)"},
++	{"%.3x", 1 + 2i, "(0x1.000p+00+0x1.000p+01i)"},
+ 	{"%.3f", 1 + 2i, "(1.000+2.000i)"},
+ 	{"%.3g", 1 + 2i, "(1+2i)"},
+ 	{"%.3e", -1 - 2i, "(-1.000e+00-2.000e+00i)"},
++	{"%.3x", -1 - 2i, "(-0x1.000p+00-0x1.000p+01i)"},
+ 	{"%.3f", -1 - 2i, "(-1.000-2.000i)"},
+ 	{"%.3g", -1 - 2i, "(-1-2i)"},
+ 	{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
++	{"% .3X", -1 - 2i, "(-0X1.000P+00-0X1.000P+01i)"},
+ 	{"%+.3g", 1 + 2i, "(+1+2i)"},
+ 	{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
+ 	{"%#g", 1 + 2i, "(1.00000+2.00000i)"},
+@@ -517,11 +537,13 @@ var fmtTests = []struct {
+ 	{"%#g", -1e10 - 1.11e100i, "(-1.00000e+10-1.11000e+100i)"},
+ 	{"%#.0f", 1.23 + 1.0i, "(1.+1.i)"},
+ 	{"%#.0e", 1.23 + 1.0i, "(1.e+00+1.e+00i)"},
++	{"%#.0x", 1.23 + 1.0i, "(0x1.p+00+0x1.p+00i)"},
+ 	{"%#.0g", 1.23 + 1.0i, "(1.+1.i)"},
+ 	{"%#.0g", 0 + 100000i, "(0.+1.e+05i)"},
+ 	{"%#.0g", 1230000 + 0i, "(1.e+06+0.i)"},
+ 	{"%#.4f", 1 + 1.23i, "(1.0000+1.2300i)"},
+ 	{"%#.4e", 123 + 1i, "(1.2300e+02+1.0000e+00i)"},
++	{"%#.4x", 123 + 1i, "(0x1.ec00p+06+0x1.0000p+00i)"},
+ 	{"%#.4g", 123 + 1.23i, "(123.0+1.230i)"},
+ 	{"%#12.5g", 0 + 100000i, "(      0.0000 +1.0000e+05i)"},
+ 	{"%#12.5g", 1230000 - 0i, "(  1.2300e+06     +0.0000i)"},
+@@ -541,7 +563,9 @@ var fmtTests = []struct {
+ 	{"% f", complex(negInf, negInf), "(-Inf-Infi)"},
+ 	{"% f", complex(NaN, NaN), "( NaN+NaNi)"},
+ 	{"%8e", complex(posInf, posInf), "(    +Inf    +Infi)"},
++	{"%8x", complex(posInf, posInf), "(    +Inf    +Infi)"},
+ 	{"% 8E", complex(posInf, posInf), "(     Inf    +Infi)"},
++	{"% 8X", complex(posInf, posInf), "(     Inf    +Infi)"},
+ 	{"%+8f", complex(negInf, negInf), "(    -Inf    -Infi)"},
+ 	{"% +8g", complex(negInf, negInf), "(    -Inf    -Infi)"},
+ 	{"% -8G", complex(NaN, NaN), "( NaN    +NaN    i)"},
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index d6da8aed1e..6d93908095 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -510,7 +510,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 	if f.sharp && verb != 'b' {
+ 		digits := 0
+ 		switch verb {
+-		case 'v', 'g', 'G':
++		case 'v', 'g', 'G', 'x':
+ 			digits = prec
+ 			// If no precision is set explicitly use a precision of 6.
+ 			if digits == -1 {
+@@ -519,8 +519,8 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 		}
+ 
+ 		// Buffer pre-allocated with enough room for
+-		// exponent notations of the form "e+123".
+-		var tailBuf [5]byte
++		// exponent notations of the form "e+123" or "p-1023".
++		var tailBuf [6]byte
+ 		tail := tailBuf[:0]
+ 
+ 		hasDecimalPoint := false
+@@ -529,9 +529,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 			switch num[i] {
+ 			case '.':
+ 				hasDecimalPoint = true
+-			case 'e', 'E':
++			case 'p', 'P':
+ 				tail = append(tail, num[i:]...)
+ 				num = num[:i]
++			case 'e', 'E':
++				if verb != 'x' && verb != 'X' {
++					tail = append(tail, num[i:]...)
++					num = num[:i]
++					break
++				}
++				fallthrough
+ 			default:
+ 				digits--
+ 			}
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 42fcd8b979..9976b8d263 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -407,7 +407,7 @@ func (p *pp) fmtFloat(v float64, size int, verb rune) {
+ 	switch verb {
+ 	case 'v':
+ 		p.fmt.fmtFloat(v, size, 'g', -1)
+-	case 'b', 'g', 'G':
++	case 'b', 'g', 'G', 'x', 'X':
+ 		p.fmt.fmtFloat(v, size, verb, -1)
+ 	case 'f', 'e', 'E':
+ 		p.fmt.fmtFloat(v, size, verb, 6)
+@@ -425,7 +425,7 @@ func (p *pp) fmtComplex(v complex128, size int, verb rune) {
+ 	// Make sure any unsupported verbs are found before the
+ 	// calls to fmtFloat to not generate an incorrect error string.
+ 	switch verb {
+-	case 'v', 'b', 'g', 'G', 'f', 'F', 'e', 'E':
++	case 'v', 'b', 'g', 'G', 'x', 'X', 'f', 'F', 'e', 'E':
+ 		oldPlus := p.fmt.plus
+ 		p.buf.WriteByte('(')
+ 		p.fmtFloat(real(v), size/2, verb)

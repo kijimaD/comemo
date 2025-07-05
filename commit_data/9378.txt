@@ -7,8 +7,56 @@ Date:   Tue Aug 16 14:22:12 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4837044
-
+---
  src/cmd/5l/l.h | 1 +
  src/cmd/6l/l.h | 1 +
  src/cmd/8l/l.h | 5 +----
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index e00f536a72..dabe93d37b 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -324,6 +324,7 @@ EXTERN	Prog*	prog_modu;
+ #pragma	varargck	type	"N"	Adr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"S"	char*
++#pragma	varargck	type	"Z"	char*
+ #pragma	varargck	type	"i"	char*
+ 
+ int	Aconv(Fmt*);
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 0435685855..b291d5f3d8 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -410,6 +410,7 @@ uint32	machheadr(void);
+ #pragma	varargck	type	"D"	Adr*
+ #pragma	varargck	type	"P"	Prog*
+ #pragma	varargck	type	"R"	int
++#pragma	varargck	type	"Z"	char*
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	argpos	diag 1
+ 
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 94cbfc26ad..4ee0db9672 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -46,10 +46,6 @@ enum
+ #define	P		((Prog*)0)
+ #define	S		((Sym*)0)
+ #define	TNAME		(cursym?cursym->name:noname)
+-#define	cput(c)\
+-	{ *cbp++ = c;\
+-	if(--cbc <= 0)\
+-		cflush(); }
+ 
+ typedef	struct	Adr	Adr;
+ typedef	struct	Prog	Prog;
+@@ -254,6 +250,7 @@ enum
+ #pragma	varargck	type	"R"	int
+ #pragma	varargck	type	"S"	char*
+ #pragma	varargck	type	"Y"	Sym*
++#pragma	varargck	type	"Z"	char*
+ #pragma	varargck	type	"i"	char*
+ 
+ EXTERN	int32	HEADR;

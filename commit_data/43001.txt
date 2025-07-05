@@ -16,7 +16,55 @@ Date:   Sat Feb 29 07:07:56 2020 -0800
     Change-Id: I724f32317b946b5138224808f85709d9c097a247
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221428
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index f4d487176b..54c5ed646f 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -56,6 +56,7 @@
+ (Cvt64Fto64  (Const64F [c])) -> (Const64  [int64(auxTo64F(c))])
+ (Round32F x:(Const32F)) -> x
+ (Round64F x:(Const64F)) -> x
++(CvtBoolToUint8 (ConstBool [c])) -> (Const8 [c])
+ 
+ (Trunc16to8  (ZeroExt8to16  x)) -> x
+ (Trunc32to8  (ZeroExt8to32  x)) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index c711af249c..94c2353fd9 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -68,6 +68,8 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpCvt64to32F(v)
+ 	case OpCvt64to64F:
+ 		return rewriteValuegeneric_OpCvt64to64F(v)
++	case OpCvtBoolToUint8:
++		return rewriteValuegeneric_OpCvtBoolToUint8(v)
+ 	case OpDiv16:
+ 		return rewriteValuegeneric_OpDiv16(v)
+ 	case OpDiv16u:
+@@ -2981,6 +2983,21 @@ func rewriteValuegeneric_OpCvt64to64F(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpCvtBoolToUint8(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (CvtBoolToUint8 (ConstBool [c]))
++	// result: (Const8 [c])
++	for {
++		if v_0.Op != OpConstBool {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConst8)
++		v.AuxInt = c
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpDiv16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]

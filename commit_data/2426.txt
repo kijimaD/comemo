@@ -9,7 +9,58 @@ Date:   Mon Jun 8 14:07:20 2009 -0700
     DELTA=10  (7 added, 1 deleted, 2 changed)
     OCL=30055
     CL=30059
-
+---
  src/lib/datafmt/datafmt_test.go | 7 +++++++
  src/lib/datafmt/parser.go       | 5 ++---
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/datafmt/datafmt_test.go b/src/lib/datafmt/datafmt_test.go
+index 74c87aee86..788c013c6e 100644
+--- a/src/lib/datafmt/datafmt_test.go
++++ b/src/lib/datafmt/datafmt_test.go
+@@ -54,6 +54,9 @@ func formatter(s *State, value interface{}, rule_name string) bool {
+ 		return true;
+ 	case "nil":
+ 		return false;
++	case "testing.T":
++		s.Write(io.StringBytes("testing.T"));
++		return true;
+ 	}
+ 	panic("unreachable");
+ 	return false;
+@@ -63,6 +66,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
+ func TestCustomFormatters(t *testing.T) {
+ 	fmap0 := FormatterMap{ "/": formatter };
+ 	fmap1 := FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
++	fmap2 := FormatterMap{ "testing.T": formatter };
+ 
+ 	f := parse(t, `int=`, fmap0);
+ 	verify(t, f, ``, 1, 2, 3);
+@@ -82,6 +86,9 @@ func TestCustomFormatters(t *testing.T) {
+ 	f = parse(t, `float=@:nil`, fmap1);
+ 	verify(t, f, ``, 0.0, 1.0, 2.0);
+ 
++	f = parse(t, `testing "testing"; ptr=*`, fmap2);
++	verify(t, f, `testing.T`, t);
++
+ 	// TODO needs more tests
+ }
+ 
+diff --git a/src/lib/datafmt/parser.go b/src/lib/datafmt/parser.go
+index 3fe89f9151..0d597dcb5f 100644
+--- a/src/lib/datafmt/parser.go
++++ b/src/lib/datafmt/parser.go
+@@ -399,11 +399,10 @@ func (p *parser) parseFormat() {
+ func remap(p *parser, name string) string {
+ 	i := strings.Index(name, ".");
+ 	if i >= 0 {
+-		packageName := name[0 : i];
+-		typeName := name[i : len(name)];
++		packageName, suffix := name[0 : i], name[i : len(name)];
+ 		// lookup package
+ 		if importPath, found := p.packs[packageName]; found {
+-			name = importPath + "." + typeName;
++			name = importPath + suffix;
+ 		} else {
+ 			var invalidPos token.Position;
+ 			p.Error(invalidPos, "package not declared: " + packageName);

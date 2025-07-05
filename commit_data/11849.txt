@@ -7,8 +7,52 @@ Date:   Mon Feb 13 13:58:12 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5650076
-
+---
  src/cmd/8a/lex.c   | 3 +++
  src/cmd/8l/8.out.h | 4 ++++
  src/cmd/8l/optab.c | 4 ++++
  3 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 254deab6a4..3d635d3b85 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -663,6 +663,9 @@ struct
+ 	"FXTRACT",	LTYPE0, AFXTRACT,
+ 	"FYL2X",	LTYPE0, AFYL2X,
+ 	"FYL2XP1",	LTYPE0, AFYL2XP1,
++	"LFENCE",	LTYPE0, ALFENCE,
++	"MFENCE",	LTYPE0, AMFENCE,
++	"SFENCE",	LTYPE0, ASFENCE,
+ 
+ 	0
+ };
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index e8f530664b..0553453512 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -445,6 +445,10 @@ enum	as
+ 	AFCMOVNU,
+ 	AFCMOVUN,
+ 
++	ALFENCE,
++	AMFENCE,
++	ASFENCE,
++
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index c7700aa792..9505972cbf 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -755,5 +755,9 @@ Optab optab[] =
+ 	{ AFCMOVNU,	yfcmv,	Px, 0xdb,(03) },
+ 	{ AFCMOVUN,	yfcmv,	Px, 0xda,(03) },
+ 
++	{ ALFENCE, ynone, Pm, 0xae,0xe8 },
++	{ AMFENCE, ynone, Pm, 0xae,0xf0 },
++	{ ASFENCE, ynone, Pm, 0xae,0xf8 },
++
+ 	0
+ };

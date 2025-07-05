@@ -49,6 +49,26 @@ Date:   Thu May 12 17:12:32 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index e92b5a6846..e776750954 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1444,6 +1444,14 @@ type typesByString []typeAndStr
+ 
+ func (a typesByString) Len() int { return len(a) }
+ func (a typesByString) Less(i, j int) bool {
++	// put named types before unnamed types
++	if a[i].t.Sym() != nil && a[j].t.Sym() == nil {
++		return true
++	}
++	if a[i].t.Sym() == nil && a[j].t.Sym() != nil {
++		return false
++	}
++
+ 	if a[i].short != a[j].short {
+ 		return a[i].short < a[j].short
+ 	}

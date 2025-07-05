@@ -61,7 +61,7 @@ Date:   Sun Mar 10 14:30:06 2019 +0900
     Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/error_linux_test.go | 31 ++++++++++++++++++++++++
  src/internal/poll/error_stub_test.go  | 21 +++++++++++++++++
  src/internal/poll/error_test.go       | 44 +++++++++++++++++++++++++++++++++++
@@ -74,3 +74,279 @@ Date:   Sun Mar 10 14:30:06 2019 +0900
  src/runtime/netpoll_kqueue.go         |  7 +++++-
  src/runtime/netpoll_solaris.go        |  4 ++++
  11 files changed, 133 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/error_linux_test.go b/src/internal/poll/error_linux_test.go
+new file mode 100644
+index 0000000000..059fb8eac9
+--- /dev/null
++++ b/src/internal/poll/error_linux_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll_test
++
++import (
++	"errors"
++	"internal/poll"
++	"os"
++	"syscall"
++)
++
++func badStateFile() (*os.File, error) {
++	if os.Getuid() != 0 {
++		return nil, errors.New("must be root")
++	}
++	// Using OpenFile for a device file is an easy way to make a
++	// file attached to the runtime-integrated network poller and
++	// configured in halfway.
++	return os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
++}
++
++func isBadStateFileError(err error) (string, bool) {
++	switch err {
++	case poll.ErrNotPollable, syscall.EBADFD:
++		return "", true
++	default:
++		return "not pollable or file in bad state error", false
++	}
++}
+diff --git a/src/internal/poll/error_stub_test.go b/src/internal/poll/error_stub_test.go
+new file mode 100644
+index 0000000000..c40ffcd20f
+--- /dev/null
++++ b/src/internal/poll/error_stub_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !linux
++
++package poll_test
++
++import (
++	"errors"
++	"os"
++	"runtime"
++)
++
++func badStateFile() (*os.File, error) {
++	return nil, errors.New("not supported on " + runtime.GOOS)
++}
++
++func isBadStateFileError(err error) (string, bool) {
++	return "", false
++}
+diff --git a/src/internal/poll/error_test.go b/src/internal/poll/error_test.go
+new file mode 100644
+index 0000000000..89c6e384c5
+--- /dev/null
++++ b/src/internal/poll/error_test.go
+@@ -0,0 +1,44 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll_test
++
++import (
++	"fmt"
++	"net"
++	"os"
++	"testing"
++)
++
++func TestReadError(t *testing.T) {
++	t.Run("ErrNotPollable", func(t *testing.T) {
++		f, err := badStateFile()
++		if err != nil {
++			t.Skip(err)
++		}
++		defer f.Close()
++		var b [1]byte
++		_, err = f.Read(b[:])
++		if perr := parseReadError(err, isBadStateFileError); perr != nil {
++			t.Fatal(perr)
++		}
++	})
++}
++
++func parseReadError(nestedErr error, verify func(error) (string, bool)) error {
++	err := nestedErr
++	if nerr, ok := err.(*net.OpError); ok {
++		err = nerr.Err
++	}
++	if nerr, ok := err.(*os.PathError); ok {
++		err = nerr.Err
++	}
++	if nerr, ok := err.(*os.SyscallError); ok {
++		err = nerr.Err
++	}
++	if s, ok := verify(err); !ok {
++		return fmt.Errorf("got %v; want %s", nestedErr, s)
++	}
++	return nil
++}
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 2567746106..2ab86f2314 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -44,6 +44,10 @@ func (e *TimeoutError) Error() string   { return "i/o timeout" }
+ func (e *TimeoutError) Timeout() bool   { return true }
+ func (e *TimeoutError) Temporary() bool { return true }
+ 
++// ErrNotPollable is returned when the file or socket is not suitable
++// for event notification.
++var ErrNotPollable = errors.New("not pollable")
++
+ // consume removes data from a slice of byte slices, for writev.
+ func consume(v *[][]byte, n int64) {
+ 	for len(*v) > 0 {
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index 2932615d85..d32f4a0ddd 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -115,6 +115,8 @@ func convertErr(res int, isFile bool) error {
+ 		return errClosing(isFile)
+ 	case 2:
+ 		return ErrTimeout
++	case 3:
++		return ErrNotPollable
+ 	}
+ 	println("unreachable: ", res)
+ 	panic("unreachable")
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 2819986c0c..b0622d7fd5 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -436,7 +436,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing, poll.ErrTimeout:
++	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+@@ -627,7 +627,7 @@ second:
+ 		goto third
+ 	}
+ 	switch nestedErr {
+-	case poll.ErrNetClosing, poll.ErrTimeout:
++	case poll.ErrNetClosing, poll.ErrTimeout, poll.ErrNotPollable:
+ 		return nil
+ 	}
+ 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 71ca993cc0..0de67c63e7 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -49,13 +49,14 @@ type pollDesc struct {
+ 	// The lock protects pollOpen, pollSetDeadline, pollUnblock and deadlineimpl operations.
+ 	// This fully covers seq, rt and wt variables. fd is constant throughout the PollDesc lifetime.
+ 	// pollReset, pollWait, pollWaitCanceled and runtime·netpollready (IO readiness notification)
+-	// proceed w/o taking the lock. So closing, rg, rd, wg and wd are manipulated
++	// proceed w/o taking the lock. So closing, everr, rg, rd, wg and wd are manipulated
+ 	// in a lock-free way by all operations.
+ 	// NOTE(dvyukov): the following code uses uintptr to store *g (rg/wg),
+ 	// that will blow up when GC starts moving objects.
+ 	lock    mutex // protects the following fields
+ 	fd      uintptr
+ 	closing bool
++	everr   bool    // marks event scanning error happened
+ 	user    uint32  // user settable cookie
+ 	rseq    uintptr // protects from stale read timers
+ 	rg      uintptr // pdReady, pdWait, G waiting for read or nil
+@@ -120,6 +121,7 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+ 	}
+ 	pd.fd = fd
+ 	pd.closing = false
++	pd.everr = false
+ 	pd.rseq++
+ 	pd.rg = 0
+ 	pd.rd = 0
+@@ -335,10 +337,16 @@ func netpollready(toRun *gList, pd *pollDesc, mode int32) {
+ 
+ func netpollcheckerr(pd *pollDesc, mode int32) int {
+ 	if pd.closing {
+-		return 1 // errClosing
++		return 1 // ErrFileClosing or ErrNetClosing
+ 	}
+ 	if (mode == 'r' && pd.rd < 0) || (mode == 'w' && pd.wd < 0) {
+-		return 2 // errTimeout
++		return 2 // ErrTimeout
++	}
++	// Report an event scanning error only on a read event.
++	// An error on a write event will be captured in a subsequent
++	// write call that is able to report a more specific error.
++	if mode == 'r' && pd.everr {
++		return 3 // ErrNotPollable
+ 	}
+ 	return 0
+ }
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index 1e886dae94..b4d7de8c2a 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -232,6 +232,10 @@ retry:
+ 			if pollVerbose {
+ 				println("*** netpollready i=", i, "revents=", pfd.revents, "events=", pfd.events, "pd=", pds[i])
+ 			}
++			pds[i].everr = false
++			if pfd.revents&_POLLERR != 0 {
++				pds[i].everr = true
++			}
+ 			netpollready(&toRun, pds[i], mode)
+ 			n--
+ 		}
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index f764d6ff7c..7dc8301acd 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -91,7 +91,10 @@ retry:
+ 		}
+ 		if mode != 0 {
+ 			pd := *(**pollDesc)(unsafe.Pointer(&ev.data))
+-
++			pd.everr = false
++			if ev.events&_EPOLLERR != 0 {
++				pd.everr = true
++			}
+ 			netpollready(&toRun, pd, mode)
+ 		}
+ 	}
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index fdaa1cd80d..1de484978a 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -102,7 +102,12 @@ retry:
+ 			mode += 'w'
+ 		}
+ 		if mode != 0 {
+-			netpollready(&toRun, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
++			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
++			pd.everr = false
++			if ev.flags&_EV_ERROR != 0 {
++				pd.everr = true
++			}
++			netpollready(&toRun, pd, mode)
+ 		}
+ 	}
+ 	if block && toRun.empty() {
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index 6bd484afaa..7ae8a2aba1 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -233,6 +233,10 @@ retry:
+ 		}
+ 
+ 		if mode != 0 {
++			pd.everr = false
++			if ev.portev_events&_POLLERR != 0 {
++				pd.everr = true
++			}
+ 			netpollready(&toRun, pd, mode)
+ 		}
+ 	}

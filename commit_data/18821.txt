@@ -21,7 +21,47 @@ Date:   Tue Mar 11 14:43:10 2014 +1100
     R=iant, rsc, remyoudompheng
     CC=golang-codereviews
     https://golang.org/cl/72860046
-
+---
  src/pkg/runtime/runtime.h | 6 ++----
  src/pkg/runtime/stack.c   | 2 +-
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 716071eb83..0682a8026a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -21,19 +21,17 @@ typedef	uint64		uintptr;
+ typedef	int64		intptr;
+ typedef	int64		intgo; // Go's int
+ typedef	uint64		uintgo; // Go's uint
+-typedef	uint64		uintreg;
+ #else
+ typedef	uint32		uintptr;
+ typedef	int32		intptr;
+ typedef	int32		intgo; // Go's int
+ typedef	uint32		uintgo; // Go's uint
+-typedef	uint32		uintreg;
+ #endif
+ 
+ #ifdef _64BITREG
+-//typedef	uint64		uintreg;
++typedef	uint64		uintreg;
+ #else
+-//typedef	uint32		uintreg;
++typedef	uint32		uintreg;
+ #endif
+ 
+ /*
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index ead9ba59c1..4d699f1101 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -187,7 +187,7 @@ runtime·oldstack(void)
+ 
+ 	if(StackDebug >= 1) {
+ 		runtime·printf("runtime: oldstack gobuf={pc:%p sp:%p lr:%p} cret=%p argsize=%p\n",
+-			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, m->cret, (uintptr)argsize);
++			top->gobuf.pc, top->gobuf.sp, top->gobuf.lr, (uintptr)m->cret, (uintptr)argsize);
+ 	}
+ 
+ 	// gp->status is usually Grunning, but it could be Gsyscall if a stack split

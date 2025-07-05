@@ -11,7 +11,59 @@ Date:   Mon Aug 24 13:45:27 2020 +0200
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/sync/map.go      |  1 +
  src/sync/map_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/sync/map.go b/src/sync/map.go
+index a61e2ebdd6..9ad25353ff 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -274,6 +274,7 @@ func (m *Map) LoadAndDelete(key interface{}) (value interface{}, loaded bool) {
+ 		e, ok = read.m[key]
+ 		if !ok && read.amended {
+ 			e, ok = m.dirty[key]
++			delete(m.dirty, key)
+ 			// Regardless of whether the entry was present, record a miss: this key
+ 			// will take the slow path until the dirty map is promoted to the read
+ 			// map.
+diff --git a/src/sync/map_test.go b/src/sync/map_test.go
+index 4ae989a6d5..7f163caa5c 100644
+--- a/src/sync/map_test.go
++++ b/src/sync/map_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"reflect"
+ 	"runtime"
+ 	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"testing/quick"
+ )
+@@ -171,3 +172,26 @@ func TestConcurrentRange(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue40999(t *testing.T) {
++	var m sync.Map
++
++	// Since the miss-counting in missLocked (via Delete)
++	// compares the miss count with len(m.dirty),
++	// add an initial entry to bias len(m.dirty) above the miss count.
++	m.Store(nil, struct{}{})
++
++	var finalized uint32
++
++	// Set finalizers that count for collected keys. A non-zero count
++	// indicates that keys have not been leaked.
++	for atomic.LoadUint32(&finalized) == 0 {
++		p := new(int)
++		runtime.SetFinalizer(p, func(*int) {
++			atomic.AddUint32(&finalized, 1)
++		})
++		m.Store(p, struct{}{})
++		m.Delete(p)
++		runtime.GC()
++	}
++}

@@ -16,9 +16,78 @@ Date:   Sun Feb 21 22:27:19 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go | 2 +-
  test/fixedbugs/bug188.go                | 8 ++++----
  test/fixedbugs/bug358.go                | 2 +-
  test/fixedbugs/bug397.go                | 8 ++++----
  4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 28536cc1f7..da5b024b1a 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -68,10 +68,10 @@ func check2(noders []*noder) {
+ 	}
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, &info)
+ 	files = nil
++	base.ExitIfErrors()
+ 	if err != nil {
+ 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
+ 	}
+-	base.ExitIfErrors()
+ 	if base.Flag.G < 2 {
+ 		os.Exit(0)
+ 	}
+diff --git a/test/fixedbugs/bug188.go b/test/fixedbugs/bug188.go
+index 5506147894..8195e3666d 100644
+--- a/test/fixedbugs/bug188.go
++++ b/test/fixedbugs/bug188.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,7 +9,7 @@ package main
+ import "sort"
+ 
+ func main() {
+-	sort.Sort(nil);
+-	var x int;
+-	sort(x);	// ERROR "package"
++	sort.Sort(nil)
++	var x int
++	sort(x) // ERROR "package"
+ }
+diff --git a/test/fixedbugs/bug358.go b/test/fixedbugs/bug358.go
+index 5ca0be1f6e..541051cdd3 100644
+--- a/test/fixedbugs/bug358.go
++++ b/test/fixedbugs/bug358.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug397.go b/test/fixedbugs/bug397.go
+index db8d652814..bf3a5fffc8 100644
+--- a/test/fixedbugs/bug397.go
++++ b/test/fixedbugs/bug397.go
+@@ -1,4 +1,4 @@
+-// errorcheck
++// errorcheck -d=panic
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,7 +7,7 @@
+ package main
+ 
+ // Issue 2623
+-var m = map[string]int {
+-	"abc":1,
+-	1:2, // ERROR "cannot use 1.*as type string in map key|incompatible type|cannot convert"
++var m = map[string]int{
++	"abc": 1,
++	1:     2, // ERROR "cannot use 1.*as type string in map key|incompatible type|cannot convert"
+ }

@@ -15,7 +15,7 @@ Date:   Mon May 10 03:16:28 2021 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/os_openbsd_libc.go      | 4 ++--
  src/runtime/os_openbsd_syscall.go   | 4 ++--
  src/runtime/os_openbsd_syscall1.go  | 4 ++--
@@ -30,3 +30,199 @@ Date:   Mon May 10 03:16:28 2021 +1000
  src/syscall/syscall_openbsd1.go     | 4 ++--
  src/syscall/syscall_openbsd_libc.go | 4 ++--
  13 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/os_openbsd_libc.go b/src/runtime/os_openbsd_libc.go
+index 8150753796..0a342e5533 100644
+--- a/src/runtime/os_openbsd_libc.go
++++ b/src/runtime/os_openbsd_libc.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build openbsd && !mips64
++// +build openbsd,!mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_openbsd_syscall.go b/src/runtime/os_openbsd_syscall.go
+index 94e851cde8..3cdcb6c707 100644
+--- a/src/runtime/os_openbsd_syscall.go
++++ b/src/runtime/os_openbsd_syscall.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build openbsd && !386 && openbsd && !amd64 && openbsd && !arm && openbsd && !arm64
+-// +build openbsd,!386,openbsd,!amd64,openbsd,!arm,openbsd,!arm64
++//go:build openbsd && mips64
++// +build openbsd,mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_openbsd_syscall1.go b/src/runtime/os_openbsd_syscall1.go
+index f8f666890a..c20ee8300e 100644
+--- a/src/runtime/os_openbsd_syscall1.go
++++ b/src/runtime/os_openbsd_syscall1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build openbsd && !386 && !amd64 && !arm && !arm64
+-// +build openbsd,!386,!amd64,!arm,!arm64
++//go:build openbsd && mips64
++// +build openbsd,mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index 84543acec4..af1997131f 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build openbsd && !386 && !amd64 && !arm && !arm64
+-// +build openbsd,!386,!amd64,!arm,!arm64
++//go:build openbsd && mips64
++// +build openbsd,mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_libc.go b/src/runtime/sys_libc.go
+index 346b1ab285..b1a9f8b536 100644
+--- a/src/runtime/sys_libc.go
++++ b/src/runtime/sys_libc.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build darwin openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build darwin || (openbsd && !mips64)
++// +build darwin openbsd,!mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd.go b/src/runtime/sys_openbsd.go
+index 89203bf85f..ab3149558b 100644
+--- a/src/runtime/sys_openbsd.go
++++ b/src/runtime/sys_openbsd.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build openbsd && !mips64
++// +build openbsd,!mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd1.go b/src/runtime/sys_openbsd1.go
+index 1af48539fa..6f9ad356d4 100644
+--- a/src/runtime/sys_openbsd1.go
++++ b/src/runtime/sys_openbsd1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build openbsd && !mips64
++// +build openbsd,!mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index 2d53f67a61..cd1a4e879f 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build openbsd && !mips64
++// +build openbsd,!mips64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/sys_openbsd3.go b/src/runtime/sys_openbsd3.go
+index 4ef0bdcf77..8d77a4b216 100644
+--- a/src/runtime/sys_openbsd3.go
++++ b/src/runtime/sys_openbsd3.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build openbsd && !mips64
++// +build openbsd,!mips64
+ 
+ package runtime
+ 
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 569dd675ed..709066e809 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || netbsd || (openbsd && !386 && !amd64 && !arm && !arm64)
+-// +build dragonfly freebsd netbsd openbsd,!386,!amd64,!arm,!arm64
++//go:build dragonfly || freebsd || netbsd || (openbsd && mips64)
++// +build dragonfly freebsd netbsd openbsd,mips64
+ 
+ package syscall
+ 
+diff --git a/src/syscall/exec_libc2.go b/src/syscall/exec_libc2.go
+index 7442d59aff..b999754c2e 100644
+--- a/src/syscall/exec_libc2.go
++++ b/src/syscall/exec_libc2.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build darwin openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build darwin || (openbsd && !mips64)
++// +build darwin openbsd,!mips64
+ 
+ package syscall
+ 
+diff --git a/src/syscall/syscall_openbsd1.go b/src/syscall/syscall_openbsd1.go
+index 450f384831..15870ce1ee 100644
+--- a/src/syscall/syscall_openbsd1.go
++++ b/src/syscall/syscall_openbsd1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build openbsd && !386 && !amd64 && !arm && !arm64
+-// +build openbsd,!386,!amd64,!arm,!arm64
++//go:build openbsd && mips64
++// +build openbsd,mips64
+ 
+ package syscall
+ 
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index 2390912b0f..e67ee4e571 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (openbsd && 386) || (openbsd && amd64) || (openbsd && arm) || (openbsd && arm64)
+-// +build openbsd,386 openbsd,amd64 openbsd,arm openbsd,arm64
++//go:build openbsd && !mips64
++// +build openbsd,!mips64
+ 
+ package syscall
+ 

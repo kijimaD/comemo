@@ -9,7 +9,76 @@ Date:   Mon Jul 18 09:04:48 2011 -0700
     R=golang-dev, andybalholm, rsc
     CC=golang-dev
     https://golang.org/cl/4759052
-
+---
  src/pkg/http/fs.go      |  7 ++++++-
  src/pkg/http/fs_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 34fe77d6bd..4a514beb0b 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -242,7 +242,12 @@ func FileServer(root FileSystem) Handler {
+ }
+ 
+ func (f *fileHandler) ServeHTTP(w ResponseWriter, r *Request) {
+-	serveFile(w, r, f.root, path.Clean(r.URL.Path), true)
++	upath := r.URL.Path
++	if !strings.HasPrefix(upath, "/") {
++		upath = "/" + upath
++		r.URL.Path = upath
++	}
++	serveFile(w, r, f.root, path.Clean(upath), true)
+ }
+ 
+ // httpRange specifies the byte range to be sent to the client.
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index e278e25399..0101ad88ca 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -10,6 +10,8 @@ import (
+ 	"http/httptest"
+ 	"io/ioutil"
+ 	"os"
++	"path/filepath"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -117,6 +119,36 @@ func TestFileServerCleans(t *testing.T) {
+ 	}
+ }
+ 
++func TestFileServerImplicitLeadingSlash(t *testing.T) {
++	tempDir, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatalf("TempDir: %v", err)
++	}
++	defer os.RemoveAll(tempDir)
++	if err := ioutil.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
++		t.Fatalf("WriteFile: %v", err)
++	}
++	ts := httptest.NewServer(StripPrefix("/bar/", FileServer(Dir(tempDir))))
++	defer ts.Close()
++	get := func(suffix string) string {
++		res, err := Get(ts.URL + suffix)
++		if err != nil {
++			t.Fatalf("Get %s: %v", suffix, err)
++		}
++		b, err := ioutil.ReadAll(res.Body)
++		if err != nil {
++			t.Fatalf("ReadAll %s: %v", suffix, err)
++		}
++		return string(b)
++	}
++	if s := get("/bar/"); !strings.Contains(s, ">foo.txt<") {
++		t.Logf("expected a directory listing with foo.txt, got %q", s)
++	}
++	if s := get("/bar/foo.txt"); s != "Hello world" {
++		t.Logf("expected %q, got %q", "Hello world", s)
++	}
++}
++
+ func TestDirJoin(t *testing.T) {
+ 	wfi, err := os.Stat("/etc/hosts")
+ 	if err != nil {

@@ -21,6 +21,33 @@ Date:   Fri Apr 15 18:09:48 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/value.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 2496cbe463..06f0469ede 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2465,12 +2465,17 @@ func (v Value) TrySend(x Value) bool {
+ 
+ // Type returns v's type.
+ func (v Value) Type() Type {
+-	f := v.flag
+-	if f == 0 {
++	if v.flag != 0 && v.flag&flagMethod == 0 {
++		return v.typ
++	}
++	return v.typeSlow()
++}
++
++func (v Value) typeSlow() Type {
++	if v.flag == 0 {
+ 		panic(&ValueError{"reflect.Value.Type", Invalid})
+ 	}
+-	if f&flagMethod == 0 {
+-		// Easy case
++	if v.flag&flagMethod == 0 {
+ 		return v.typ
+ 	}
+ 

@@ -9,6 +9,60 @@ Date:   Fri Feb 8 11:58:23 2019 +0530
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/bytes/example_test.go | 30 ++++++++++++++++++++++++++++++
  1 file changed, 30 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index 6d328378fa..5ba7077c1d 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -365,6 +365,16 @@ func ExampleToTitle() {
+ 	// ХЛЕБ
+ }
+ 
++func ExampleToTitleSpecial() {
++	str := []byte("ahoj vývojári golang")
++	totitle := bytes.ToTitleSpecial(unicode.AzeriCase, str)
++	fmt.Println("Original : " + string(str))
++	fmt.Println("ToTitle : " + string(totitle))
++	// Output:
++	// Original : ahoj vývojári golang
++	// ToTitle : AHOJ VÝVOJÁRİ GOLANG
++}
++
+ func ExampleTrim() {
+ 	fmt.Printf("[%q]", bytes.Trim([]byte(" !!! Achtung! Achtung! !!! "), "! "))
+ 	// Output: ["Achtung! Achtung"]
+@@ -438,11 +448,31 @@ func ExampleToUpper() {
+ 	// Output: GOPHER
+ }
+ 
++func ExampleToUpperSpecial() {
++	str := []byte("ahoj vývojári golang")
++	totitle := bytes.ToUpperSpecial(unicode.AzeriCase, str)
++	fmt.Println("Original : " + string(str))
++	fmt.Println("ToUpper : " + string(totitle))
++	// Output:
++	// Original : ahoj vývojári golang
++	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
++}
++
+ func ExampleToLower() {
+ 	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
+ 	// Output: gopher
+ }
+ 
++func ExampleToLowerSpecial() {
++	str := []byte("AHOJ VÝVOJÁRİ GOLANG")
++	totitle := bytes.ToLowerSpecial(unicode.AzeriCase, str)
++	fmt.Println("Original : " + string(str))
++	fmt.Println("ToLower : " + string(totitle))
++	// Output:
++	// Original : AHOJ VÝVOJÁRİ GOLANG
++	// ToLower : ahoj vývojári golang
++}
++
+ func ExampleReader_Len() {
+ 	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
+ 	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())

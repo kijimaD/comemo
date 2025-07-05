@@ -11,6 +11,42 @@ Date:   Fri Aug 3 14:49:47 2018 +0800
     Change-Id: I1a6184cefa78e9a3c034fa84506fdfe0fec27add
     Reviewed-on: https://go-review.googlesource.com/127736
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/mail/message.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 5912b90334..554377aa1d 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -26,6 +26,7 @@ import (
+ 	"mime"
+ 	"net/textproto"
+ 	"strings"
++	"sync"
+ 	"time"
+ 	"unicode/utf8"
+ )
+@@ -65,9 +66,12 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
+ 
+ // Layouts suitable for passing to time.Parse.
+ // These are tried in order.
+-var dateLayouts []string
++var (
++	dateLayoutsBuildOnce sync.Once
++	dateLayouts          []string
++)
+ 
+-func init() {
++func buildDateLayouts() {
+ 	// Generate layouts based on RFC 5322, section 3.3.
+ 
+ 	dows := [...]string{"", "Mon, "}   // day-of-week
+@@ -93,6 +97,7 @@ func init() {
+ 
+ // ParseDate parses an RFC 5322 date string.
+ func ParseDate(date string) (time.Time, error) {
++	dateLayoutsBuildOnce.Do(buildDateLayouts)
+ 	for _, layout := range dateLayouts {
+ 		t, err := time.Parse(layout, date)
+ 		if err == nil {

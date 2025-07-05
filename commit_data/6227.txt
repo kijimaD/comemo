@@ -9,6 +9,41 @@ Date:   Fri Sep 10 13:59:20 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2172041
-
+---
  src/cmd/ld/go.c | 15 +++++++++++++--
  1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 46ae5ff74d..e0ea6091f0 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -282,7 +282,7 @@ static int
+ parsepkgdata(char *file, char *pkg, char **pp, char *ep, char **prefixp, char **namep, char **defp)
+ {
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+-	int n;
++	int n, inquote;
+ 
+ 	// skip white space
+ 	p = *pp;
+@@ -319,8 +319,19 @@ loop:
+ 
+ 	// name: a.b followed by space
+ 	name = p;
+-	while(p < ep && *p != ' ')
++	inquote = 0;
++	while(p < ep) {
++		if (*p == ' ' && !inquote)
++			break;
++
++                if(*p == '\\')
++                        p++;
++		else if(*p == '"')
++			inquote = !inquote;
++
+ 		p++;
++	}
++
+ 	if(p >= ep)
+ 		return -1;
+ 	*p++ = '\0';

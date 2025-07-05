@@ -7,6 +7,31 @@ Date:   Tue May 22 11:42:44 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6223060
-
+---
  src/cmd/6a/lex.c | 14 --------------
  1 file changed, 14 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 18a0667573..23f4637e10 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1347,19 +1347,5 @@ outhist(void)
+ 	}
+ }
+ 
+-void
+-pragbldicks(void)
+-{
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+-void
+-praghjdicks(void)
+-{
+-	while(getnsc() != '\n')
+-		;
+-}
+-
+ #include "../cc/lexbody"
+ #include "../cc/macbody"

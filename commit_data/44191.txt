@@ -15,7 +15,42 @@ Date:   Sun May 24 00:09:20 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/test_chatty_parallel_fail.txt    | 6 +++---
  src/cmd/go/testdata/script/test_chatty_parallel_success.txt | 6 +++---
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+index 5c51a02846..3f7360b659 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+@@ -9,9 +9,9 @@ stdout -count=1 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.g
+ # Run parallel chatty tests with -json. Assert on CONT lines as above - make
+ # sure there are CONT lines before each output line.
+ ! go test -json -parallel 3 chatty_parallel_test.go -v
+-stdout -count=1 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"}'
+-stdout -count=1 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"}'
+-stdout -count=1 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"}'
++stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"}'
++stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"}'
++stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"}'
+ 
+ -- chatty_parallel_test.go --
+ package chatty_paralell_test
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+index 0f97d4c221..4a86d74f19 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+@@ -8,9 +8,9 @@ stdout -count=2 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.g
+ # Run parallel chatty tests with -json. Assert on CONT lines as above - make
+ # sure there are CONT lines before each output line.
+ go test -json -parallel 3 chatty_parallel_test.go -v
+-stdout -count=2 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:32: this is sub-0\\n"}'
+-stdout -count=2 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:32: this is sub-1\\n"}'
+-stdout -count=2 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"}'
++stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:32: this is sub-0\\n"}'
++stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:32: this is sub-1\\n"}'
++stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"}'
+ 
+ -- chatty_parallel_test.go --
+ package chatty_paralell_test

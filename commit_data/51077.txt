@@ -15,6 +15,23 @@ Date:   Wed Dec 1 17:03:15 2021 -0500
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 5692a068ab..8f0fc1fb71 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -459,7 +459,10 @@ proposal</a>.
+     </p>
+ 
+     <p><!-- CL 357962 -->
+-      TODO: <a href="https://golang.org/cl/357962">https://golang.org/cl/357962</a>: add FieldByIndexErr
++      <a href="/pkg/reflect#Value.FieldByIndexErr"><code>Value.FieldByIndexErr</code></a>
++      has been added to avoid the panic that occurs in
++      <a href="/pkg/reflect#Value.FieldByIndex"><code>Value.FieldByIndex</code></a>
++      when stepping through a nil pointer to an embedded struct.
+     </p>
+   </dd>
+ </dl><!-- reflect -->

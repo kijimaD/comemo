@@ -26,7 +26,7 @@ Date:   Fri May 16 12:15:32 2014 -0400
     R=golang-codereviews, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/99320043
-
+---
  src/pkg/syscall/asm_linux_386.s        |  2 +-
  src/pkg/syscall/asm_linux_amd64.s      | 10 +---------
  src/pkg/syscall/asm_linux_arm.s        |  2 +-
@@ -35,3 +35,156 @@ Date:   Fri May 16 12:15:32 2014 -0400
  src/pkg/syscall/syscall_linux_arm.go   | 14 +++++++++++---
  src/pkg/syscall/syscall_unix_test.go   | 12 ++++++++++++
  7 files changed, 57 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_linux_386.s b/src/pkg/syscall/asm_linux_386.s
+index 668fc2bee5..30b22073df 100644
+--- a/src/pkg/syscall/asm_linux_386.s
++++ b/src/pkg/syscall/asm_linux_386.s
+@@ -162,7 +162,7 @@ oksock1:
+ // taking the address of the return value newoffset.
+ // Underlying system call is
+ //	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
+-TEXT ·Seek(SB),NOSPLIT,$0-32
++TEXT ·seek(SB),NOSPLIT,$0-28
+ 	CALL	runtime·entersyscall(SB)
+ 	MOVL	$SYS__LLSEEK, AX	// syscall entry
+ 	MOVL	4(SP), BX	// fd
+diff --git a/src/pkg/syscall/asm_linux_amd64.s b/src/pkg/syscall/asm_linux_amd64.s
+index d75096dec0..995b60ecd0 100644
+--- a/src/pkg/syscall/asm_linux_amd64.s
++++ b/src/pkg/syscall/asm_linux_amd64.s
+@@ -110,7 +110,7 @@ ok2:
+ 	MOVQ	$0, 80(SP)	// errno
+ 	RET
+ 
+-TEXT ·Gettimeofday(SB),NOSPLIT,$0-24
++TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+ 	MOVQ	8(SP), DI
+ 	MOVQ	$0, SI
+ 	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+@@ -124,11 +124,3 @@ TEXT ·Gettimeofday(SB),NOSPLIT,$0-24
+ ok7:
+ 	MOVQ	$0, 16(SP)  // errno
+ 	RET
+-
+-TEXT ·Time(SB),NOSPLIT,$0-32
+-	MOVQ	8(SP), DI
+-	MOVQ	runtime·__vdso_time_sym(SB), AX
+-	CALL	AX
+-	MOVQ	AX, 16(SP)  // tt
+-	MOVQ	$0, 24(SP)  // errno
+-	RET
+diff --git a/src/pkg/syscall/asm_linux_arm.s b/src/pkg/syscall/asm_linux_arm.s
+index bf54b4fe6d..8499a73704 100644
+--- a/src/pkg/syscall/asm_linux_arm.s
++++ b/src/pkg/syscall/asm_linux_arm.s
+@@ -98,7 +98,7 @@ ok2:
+ 	RET
+ 
+ #define SYS__LLSEEK 140  /* from zsysnum_linux_arm.go */
+-// func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
++// func seek(fd int, offset int64, whence int) (newoffset int64, errno int)
+ // Implemented in assembly to avoid allocation when
+ // taking the address of the return value newoffset.
+ // Underlying system call is
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 4487848f73..c491a286ce 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -135,7 +135,15 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // Underlying system call writes to newoffset via pointer.
+ // Implemented in assembly to avoid allocation.
+-func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
++func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
++	newoffset, errno := seek(fd, offset, whence)
++	if errno != 0 {
++		return 0, errno
++	}
++	return newoffset, nil
++}
+ 
+ // Vsyscalls on amd64.
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+diff --git a/src/pkg/syscall/syscall_linux_amd64.go b/src/pkg/syscall/syscall_linux_amd64.go
+index 9e8663d014..1e330dd99c 100644
+--- a/src/pkg/syscall/syscall_linux_amd64.go
++++ b/src/pkg/syscall/syscall_linux_amd64.go
+@@ -58,8 +58,28 @@ package syscall
+ 
+ func Getpagesize() int { return 4096 }
+ 
+-func Gettimeofday(tv *Timeval) (err error)
+-func Time(t *Time_t) (tt Time_t, err error)
++//go:noescape
++func gettimeofday(tv *Timeval) (err Errno)
++
++func Gettimeofday(tv *Timeval) (err error) {
++	errno := gettimeofday(tv)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++func Time(t *Time_t) (tt Time_t, err error) {
++	var tv Timeval
++	errno := gettimeofday(&tv)
++	if errno != 0 {
++		return errno
++	}
++	if t != nil {
++		*t = tv.Sec
++	}
++	return Time_t(tv.Sec), nil
++}
+ 
+ func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
+ 
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index 68c796b448..9fe80232a8 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -23,9 +23,17 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	return
+ }
+ 
+-// Seek is defined in assembly.
+-
+-func Seek(fd int, offset int64, whence int) (newoffset int64, err error)
++// Underlying system call writes to newoffset via pointer.
++// Implemented in assembly to avoid allocation.
++func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
++
++func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
++	newoffset, errno := seek(fd, offset, whence)
++	if errno != 0 {
++		return 0, errno
++	}
++	return newoffset, nil
++}
+ 
+ //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
+ //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
+diff --git a/src/pkg/syscall/syscall_unix_test.go b/src/pkg/syscall/syscall_unix_test.go
+index 32d7b9f2e4..a0afb91fcf 100644
+--- a/src/pkg/syscall/syscall_unix_test.go
++++ b/src/pkg/syscall/syscall_unix_test.go
+@@ -300,3 +300,15 @@ func TestRlimit(t *testing.T) {
+ 		t.Fatalf("Setrlimit: restore failed: %#v %v", rlimit, err)
+ 	}
+ }
++
++func TestSeekFailure(t *testing.T) {
++	_, err := syscall.Seek(-1, 0, 0)
++	if err == nil {
++		t.Fatalf("Seek(-1, 0, 0) did not fail")
++	}
++	str := err.Error() // used to crash on Linux
++	t.Logf("Seek: %v", str)
++	if str == "" {
++		t.Fatalf("Seek(-1, 0, 0) return error with empty message")
++	}
++}

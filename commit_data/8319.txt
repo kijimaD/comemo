@@ -7,6 +7,20 @@ Date:   Wed May 4 15:01:33 2011 -0400
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/4436074
-
+---
  src/pkg/http/spdy/protocol.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/spdy/protocol.go b/src/pkg/http/spdy/protocol.go
+index 09519d6d30..d584ea232e 100644
+--- a/src/pkg/http/spdy/protocol.go
++++ b/src/pkg/http/spdy/protocol.go
+@@ -73,7 +73,7 @@ const (
+ 
+ // SETTINGS frame flags
+ const (
+-	FlagClearPreviouslyPersistedSettings = 0x01
++	FlagClearPreviouslyPersistedSettings FrameFlags = 0x01
+ )
+ 
+ // MaxDataLength is the maximum number of bytes that can be stored in one frame.

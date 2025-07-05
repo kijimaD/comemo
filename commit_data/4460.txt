@@ -9,6 +9,21 @@ Date:   Thu Dec 17 17:04:48 2009 -0800
     R=dho
     CC=golang-dev
     https://golang.org/cl/179095
-
+---
  src/cmd/cgo/main.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index c3e319f92c..d1b551b555 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -94,7 +94,8 @@ func main() {
+ 			case "call":
+ 				if !cref.TypeName {
+ 					// Is an actual function call.
+-					*cref.Expr = &ast.Ident{Value: "_C_" + cref.Name}
++					pos := (*cref.Expr).Pos()
++					*cref.Expr = &ast.Ident{Position: pos, Value: "_C_" + cref.Name}
+ 					p.Funcdef[cref.Name] = cref.FuncType
+ 					break
+ 				}

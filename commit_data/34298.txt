@@ -16,7 +16,98 @@ Date:   Tue Aug 29 21:35:42 2017 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Tom Bergan <tombergan@google.com>
-
+---
  src/net/http/transport.go      |  3 ++
  src/net/http/transport_test.go | 68 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 258b912b0a..d08504d7ab 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1199,6 +1199,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (*persistCon
+ 		if resp.StatusCode != 200 {
+ 			f := strings.SplitN(resp.Status, " ", 2)
+ 			conn.Close()
++			if len(f) < 2 {
++				return nil, errors.New("unknown status code")
++			}
+ 			return nil, errors.New(f[1])
+ 		}
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index ad63cca5fe..b838fe9002 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4269,3 +4269,71 @@ var rgz = []byte{
+ 	0x00, 0x00, 0x3d, 0xb1, 0x20, 0x85, 0xfa, 0x00,
+ 	0x00, 0x00,
+ }
++
++// Ensure that a missing status doesn't make the server panic
++// See Issue https://golang.org/issues/21701
++func TestMissingStatusNoPanic(t *testing.T) {
++	t.Parallel()
++
++	const want = "unknown status code"
++
++	ln := newLocalListener(t)
++	addr := ln.Addr().String()
++	shutdown := make(chan bool, 1)
++	done := make(chan bool)
++	fullAddrURL := fmt.Sprintf("http://%s", addr)
++	raw := `HTTP/1.1 400
++		Date: Wed, 30 Aug 2017 19:09:27 GMT
++		Content-Type: text/html; charset=utf-8
++		Content-Length: 10
++		Last-Modified: Wed, 30 Aug 2017 19:02:02 GMT
++		Vary: Accept-Encoding` + "\r\n\r\nAloha Olaa"
++
++	go func() {
++		defer func() {
++			ln.Close()
++			close(done)
++		}()
++
++		conn, _ := ln.Accept()
++		if conn != nil {
++			io.WriteString(conn, raw)
++			ioutil.ReadAll(conn)
++			conn.Close()
++		}
++	}()
++
++	proxyURL, err := url.Parse(fullAddrURL)
++	if err != nil {
++		t.Fatalf("proxyURL: %v", err)
++	}
++
++	tr := &Transport{Proxy: ProxyURL(proxyURL)}
++
++	req, _ := NewRequest("GET", "https://golang.org/", nil)
++	res, err, panicked := doFetchCheckPanic(tr, req)
++	if panicked {
++		t.Error("panicked, expecting an error")
++	}
++	if res != nil && res.Body != nil {
++		io.Copy(ioutil.Discard, res.Body)
++		res.Body.Close()
++	}
++
++	if err == nil || !strings.Contains(err.Error(), want) {
++		t.Errorf("got=%v want=%q", err, want)
++	}
++
++	close(shutdown)
++	<-done
++}
++
++func doFetchCheckPanic(tr *Transport, req *Request) (res *Response, err error, panicked bool) {
++	defer func() {
++		if r := recover(); r != nil {
++			panicked = true
++		}
++	}()
++	res, err = tr.RoundTrip(req)
++	return
++}

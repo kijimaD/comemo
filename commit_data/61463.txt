@@ -22,7 +22,386 @@ Date:   Mon Nov 4 16:40:09 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/625455
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tim King <taking@google.com>
-
+---
  .../compile/internal/rangefunc/rangefunc_test.go   | 153 ++++++++++++++-------
  src/cmd/compile/internal/rangefunc/rewrite.go      |  52 ++++---
  2 files changed, 142 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/rangefunc/rangefunc_test.go b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+index acf0ef6e09..4b4974b9dd 100644
+--- a/src/cmd/compile/internal/rangefunc/rangefunc_test.go
++++ b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+@@ -185,10 +185,11 @@ func Check2[U, V any](forall Seq2[U, V]) Seq2[U, V] {
+ 	return func(body func(U, V) bool) {
+ 		state := READY
+ 		forall(func(u U, v V) bool {
+-			if state != READY {
+-				panic(fail[state])
+-			}
++			tmp := state
+ 			state = PANIC
++			if tmp != READY {
++				panic(fail[tmp])
++			}
+ 			ret := body(u, v)
+ 			if ret {
+ 				state = READY
+@@ -208,10 +209,11 @@ func Check[U any](forall Seq[U]) Seq[U] {
+ 	return func(body func(U) bool) {
+ 		state := READY
+ 		forall(func(u U) bool {
+-			if state != READY {
+-				panic(fail[state])
+-			}
++			tmp := state
+ 			state = PANIC
++			if tmp != READY {
++				panic(fail[tmp])
++			}
+ 			ret := body(u)
+ 			if ret {
+ 				state = READY
+@@ -1122,12 +1124,12 @@ func TestPanickyIterator1(t *testing.T) {
+ 			} else {
+ 				t.Errorf("Saw wrong panic '%v'", r)
+ 			}
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
+ 		} else {
+ 			t.Errorf("Wanted to see a failure, result was %v", result)
+ 		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
+-		}
+ 	}()
+ 	for _, z := range PanickyOfSliceIndex([]int{1, 2, 3, 4}) {
+ 		result = append(result, z)
+@@ -1172,12 +1174,12 @@ func TestPanickyIterator2(t *testing.T) {
+ 			} else {
+ 				t.Errorf("Saw wrong panic '%v'", r)
+ 			}
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
+ 		} else {
+ 			t.Errorf("Wanted to see a failure, result was %v", result)
+ 		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
+-		}
+ 	}()
+ 	for _, x := range OfSliceIndex([]int{100, 200}) {
+ 		result = append(result, x)
+@@ -1207,11 +1209,11 @@ func TestPanickyIterator2Check(t *testing.T) {
+ 			} else {
+ 				t.Errorf("Saw wrong panic '%v'", r)
+ 			}
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
+ 		} else {
+-			t.Errorf("Wanted to see a failure, result was %v", result)
+-		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
++			t.Errorf("Wanted to see a panic, result was %v", result)
+ 		}
+ 	}()
+ 	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
+@@ -1234,13 +1236,19 @@ func TestPanickyIterator2Check(t *testing.T) {
+ 
+ func TestPanickyIterator3(t *testing.T) {
+ 	var result []int
+-	var expect = []int{100, 10, 1, 2, 200, 10, 1, 2}
++	var expect = []int{100, 10, 1, 2}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Errorf("Unexpected panic '%v'", r)
+-		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
++			if matchError(r, RERR_MISSING) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a panic, result was %v", result)
+ 		}
+ 	}()
+ 	for _, x := range OfSliceIndex([]int{100, 200}) {
+@@ -1262,13 +1270,19 @@ func TestPanickyIterator3(t *testing.T) {
+ }
+ func TestPanickyIterator3Check(t *testing.T) {
+ 	var result []int
+-	var expect = []int{100, 10, 1, 2, 200, 10, 1, 2}
++	var expect = []int{100, 10, 1, 2}
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			t.Errorf("Unexpected panic '%v'", r)
+-		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
++			if matchError(r, CERR_MISSING) {
++				t.Logf("Saw expected panic '%v'", r)
++			} else {
++				t.Errorf("Saw wrong panic '%v'", r)
++			}
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a panic, result was %v", result)
+ 		}
+ 	}()
+ 	for _, x := range Check2(OfSliceIndex([]int{100, 200})) {
+@@ -1298,9 +1312,11 @@ func TestPanickyIterator4(t *testing.T) {
+ 			} else {
+ 				t.Errorf("Saw wrong panic '%v'", r)
+ 			}
+-		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a panic, result was %v", result)
+ 		}
+ 	}()
+ 	for _, x := range SwallowPanicOfSliceIndex([]int{1, 2, 3, 4}) {
+@@ -1321,9 +1337,11 @@ func TestPanickyIterator4Check(t *testing.T) {
+ 			} else {
+ 				t.Errorf("Saw wrong panic '%v'", r)
+ 			}
+-		}
+-		if !slices.Equal(expect, result) {
+-			t.Errorf("Expected %v, got %v", expect, result)
++			if !slices.Equal(expect, result) {
++				t.Errorf("Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Errorf("Wanted to see a panic, result was %v", result)
+ 		}
+ 	}()
+ 	for _, x := range Check2(SwallowPanicOfSliceIndex([]int{1, 2, 3, 4})) {
+@@ -1409,33 +1427,76 @@ X:
+ 
+ // TestVeryBad1 checks the behavior of an extremely poorly behaved iterator.
+ func TestVeryBad1(t *testing.T) {
+-	result := veryBad([]int{10, 20, 30, 40, 50}) // odd length
+-	expect := []int{1, 10}
++	expect := []int{} // assignment does not happen
++	var result []int
+ 
+-	if !slices.Equal(expect, result) {
+-		t.Errorf("Expected %v, got %v", expect, result)
++	defer func() {
++		if r := recover(); r != nil {
++			expectPanic(t, r, RERR_MISSING)
++			if !slices.Equal(expect, result) {
++				t.Errorf("(Inner) Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	result = veryBad([]int{10, 20, 30, 40, 50}) // odd length
++
++}
++
++func expectPanic(t *testing.T, r any, s string) {
++	if matchError(r, s) {
++		t.Logf("Saw expected panic '%v'", r)
++	} else {
++		t.Errorf("Saw wrong panic '%v'", r)
++	}
++}
++
++func expectError(t *testing.T, err any, s string) {
++	if matchError(err, s) {
++		t.Logf("Saw expected error '%v'", err)
++	} else {
++		t.Errorf("Saw wrong error '%v'", err)
+ 	}
+ }
+ 
+ // TestVeryBad2 checks the behavior of an extremely poorly behaved iterator.
+ func TestVeryBad2(t *testing.T) {
+-	result := veryBad([]int{10, 20, 30, 40}) // even length
+-	expect := []int{1, 10}
++	result := []int{}
++	expect := []int{}
++
++	defer func() {
++		if r := recover(); r != nil {
++			expectPanic(t, r, RERR_MISSING)
++			if !slices.Equal(expect, result) {
++				t.Errorf("(Inner) Expected %v, got %v", expect, result)
++			}
++		} else {
++			t.Error("Wanted to see a failure")
++		}
++	}()
++
++	result = veryBad([]int{10, 20, 30, 40}) // even length
+ 
+-	if !slices.Equal(expect, result) {
+-		t.Errorf("Expected %v, got %v", expect, result)
+-	}
+ }
+ 
+ // TestVeryBadCheck checks the behavior of an extremely poorly behaved iterator,
+ // which also suppresses the exceptions from "Check"
+ func TestVeryBadCheck(t *testing.T) {
+-	result := veryBadCheck([]int{10, 20, 30, 40}) // even length
+-	expect := []int{1, 10}
++	expect := []int{}
++	var result []int
++	defer func() {
++		if r := recover(); r != nil {
++			expectPanic(t, r, CERR_MISSING)
++		}
++		if !slices.Equal(expect, result) {
++			t.Errorf("Expected %v, got %v", expect, result)
++		}
++	}()
++
++	result = veryBadCheck([]int{10, 20, 30, 40}) // even length
+ 
+-	if !slices.Equal(expect, result) {
+-		t.Errorf("Expected %v, got %v", expect, result)
+-	}
+ }
+ 
+ // TestOk is the nice version of the very bad iterator.
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index 3752eb9ecd..74c7f55801 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -157,8 +157,9 @@ The value of #stateK transitions
+ 
+ (3) at the beginning of the iteration of the loop body,
+ 
+-	if #stateN != abi.RF_READY { runtime.panicrangestate(#stateN) }
++	if #stateN != abi.RF_READY { #stateN = abi.RF_PANIC ; runtime.panicrangestate(#stateN) }
+ 	#stateN = abi.RF_PANIC
++	// This is slightly rearranged below for better code generation.
+ 
+ (4) when loop iteration continues,
+ 
+@@ -183,7 +184,7 @@ becomes
+ 		{
+ 			var #state1 = abi.RF_READY
+ 			f(func(x T1) bool {
+-				if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
++				if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+ 				#state1 = abi.RF_PANIC
+ 				...
+ 				if ... { #state1 = abi.RF_DONE ; return false }
+@@ -232,11 +233,11 @@ becomes
+ 		)
+ 		var #state1 = abi.RF_READY
+ 		f(func() bool {
+-			if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
++			if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+ 			#state1 = abi.RF_PANIC
+ 			var #state2 = abi.RF_READY
+ 			g(func() bool {
+-				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
++				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
+ 				...
+ 				{
+ 					// return a, b
+@@ -324,15 +325,15 @@ becomes
+ 		var #next int
+ 		var #state1 = abi.RF_READY
+ 		f(func() { // 1,2
+-			if #state1 != abi.RF_READY { runtime.panicrangestate(#state1) }
++			if #state1 != abi.RF_READY { #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+ 			#state1 = abi.RF_PANIC
+ 			var #state2 = abi.RF_READY
+ 			g(func() { // 3,4
+-				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
++				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
+ 				#state2 = abi.RF_PANIC
+ 				var #state3 = abi.RF_READY
+ 				h(func() { // 5,6
+-					if #state3 != abi.RF_READY { runtime.panicrangestate(#state3) }
++					if #state3 != abi.RF_READY { #state3 = abi.RF_PANIC; runtime.panicrangestate(#state3) }
+ 					#state3 = abi.RF_PANIC
+ 					...
+ 					{
+@@ -425,16 +426,16 @@ becomes
+ 		var #next int
+ 		var #state1 = abi.RF_READY
+ 		f(func() {
+-			if #state1 != abi.RF_READY{ runtime.panicrangestate(#state1) }
++			if #state1 != abi.RF_READY{ #state1 = abi.RF_PANIC; runtime.panicrangestate(#state1) }
+ 			#state1 = abi.RF_PANIC
+ 			var #state2 = abi.RF_READY
+ 			g(func() {
+-				if #state2 != abi.RF_READY { runtime.panicrangestate(#state2) }
++				if #state2 != abi.RF_READY { #state2 = abi.RF_PANIC; runtime.panicrangestate(#state2) }
+ 				#state2 = abi.RF_PANIC
+ 				...
+ 				var #state3 bool = abi.RF_READY
+ 				h(func() {
+-					if #state3 != abi.RF_READY { runtime.panicrangestate(#state3) }
++					if #state3 != abi.RF_READY { #state3 = abi.RF_PANIC; runtime.panicrangestate(#state3) }
+ 					#state3 = abi.RF_PANIC
+ 					...
+ 					{
+@@ -1182,8 +1183,25 @@ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, fty
+ 	loop := r.forStack[len(r.forStack)-1]
+ 
+ 	if r.checkFuncMisuse() {
+-		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, loop))
++		// #tmpState := #stateVarN
++		// #stateVarN = abi.RF_PANIC
++		// if #tmpState != abi.RF_READY {
++		//    runtime.panicrangestate(#tmpState)
++		// }
++		//
++		// That is a slightly code-size-optimized version of
++		//
++		// if #stateVarN != abi.RF_READY {
++		//	  #stateVarN = abi.RF_PANIC // If we ever need to specially detect "iterator swallowed checking panic" we put a different value here.
++		//    runtime.panicrangestate(#tmpState)
++		// }
++		// #stateVarN = abi.RF_PANIC
++		//
++
++		tmpDecl, tmpState := r.declSingleVar("#tmpState", r.int.Type(), r.useObj(loop.stateVar))
++		bodyFunc.Body.List = append(bodyFunc.Body.List, tmpDecl)
+ 		bodyFunc.Body.List = append(bodyFunc.Body.List, r.setState(abi.RF_PANIC, start))
++		bodyFunc.Body.List = append(bodyFunc.Body.List, r.assertReady(start, tmpState))
+ 	}
+ 
+ 	// Original loop body (already rewritten by editStmt during inspect).
+@@ -1327,14 +1345,14 @@ func setValueType(x syntax.Expr, typ syntax.Type) {
+ 
+ // assertReady returns the statement:
+ //
+-//	if #stateK != abi.RF_READY { runtime.panicrangestate(#stateK) }
+-//
+-// where #stateK is the state variable for loop.
+-func (r *rewriter) assertReady(start syntax.Pos, loop *forLoop) syntax.Stmt {
++//	if #tmpState != abi.RF_READY { runtime.panicrangestate(#tmpState) }
++func (r *rewriter) assertReady(start syntax.Pos, tmpState *types2.Var) syntax.Stmt {
++
+ 	nif := &syntax.IfStmt{
+-		Cond: r.cond(syntax.Neq, r.useObj(loop.stateVar), r.stateConst(abi.RF_READY)),
++		Cond: r.cond(syntax.Neq, r.useObj(tmpState), r.stateConst(abi.RF_READY)),
+ 		Then: &syntax.BlockStmt{
+-			List: []syntax.Stmt{r.callPanic(start, r.useObj(loop.stateVar))},
++			List: []syntax.Stmt{
++				r.callPanic(start, r.useObj(tmpState))},
+ 		},
+ 	}
+ 	setPos(nif, start)

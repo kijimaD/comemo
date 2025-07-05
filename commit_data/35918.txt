@@ -11,7 +11,33 @@ Date:   Mon Mar 19 06:52:28 2018 +0000
     Change-Id: I82b5edc8af4e06862bc4692b119697c6bb7dc3fb
     Reviewed-on: https://go-review.googlesource.com/101297
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 1 +
  src/cmd/internal/obj/arm64/asm7.go        | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index c53023e630..4b364c458b 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -230,6 +230,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	VMOV	V0.D[0], R11          // 0b3c084e
+ 	VMOV	V0.D[1], R11          // 0b3c184e
+ 	VMOV	R20, V1.S[0]          // 811e044e
++	VMOV	R20, V1.S[1]          // 811e0c4e
+ 	VMOV	R1, V9.H4             // 290c020e
+ 	VMOV	R22, V11.D2           // cb0e084e
+ 	VMOV 	V2.B16, V4.B16        // 441ca24e
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 7b940dd58c..a948d1243d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3563,7 +3563,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := int(p.To.Reg)
+ 		imm5 := 0
+ 		o1 = 1<<30 | 7<<25 | 7<<10
+-		index := int(p.From.Index)
++		index := int(p.To.Index)
+ 		switch (p.To.Reg >> 5) & 15 {
+ 		case ARNG_B:
+ 			c.checkindex(p, index, 15)

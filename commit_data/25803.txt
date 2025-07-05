@@ -15,6 +15,34 @@ Date:   Mon Nov 23 12:43:17 2015 -0800
     Change-Id: I0882849e06a58f1e38b00eb89d79ac39777309b2
     Reviewed-on: https://go-review.googlesource.com/17172
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/template.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index f0609ca635..22d103026b 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -80,7 +80,7 @@ func (t *Template) escape() error {
+ 	defer t.nameSpace.mu.Unlock()
+ 	if t.escapeErr == nil {
+ 		if t.Tree == nil {
+-			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.text.DefinedTemplates())
++			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
+ 		}
+ 		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
+ 			return err
+@@ -143,6 +143,13 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
+ 	return tmpl, err
+ }
+ 
++// DefinedTemplates returns a string listing the defined templates,
++// prefixed by the string "defined templates are: ". If there are none,
++// it returns the empty string. Used to generate an error message.
++func (t *Template) DefinedTemplates() string {
++	return t.text.DefinedTemplates()
++}
++
+ // Parse parses a string into a template. Nested template definitions
+ // will be associated with the top-level template t. Parse may be
+ // called multiple times to parse definitions of templates to associate

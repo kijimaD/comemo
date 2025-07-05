@@ -7,6 +7,20 @@ Date:   Thu Nov 3 19:20:27 2016 -0700
     Change-Id: I6bb594576e174cb0df8d25d11b84f5a4752ebfd6
     Reviewed-on: https://go-review.googlesource.com/32683
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/bug.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/bug.go b/src/cmd/go/bug.go
+index 47f1d68bb7..5506b3a0ba 100644
+--- a/src/cmd/go/bug.go
++++ b/src/cmd/go/bug.go
+@@ -75,7 +75,7 @@ A link on play.golang.org is best.
+ 
+ func printGoDetails(w io.Writer) {
+ 	printCmdOut(w, "GOROOT/bin/go version: ", filepath.Join(runtime.GOROOT(), "bin/go"), "version")
+-	printCmdOut(w, "GOROOT/bin/go tool compile -v: ", filepath.Join(runtime.GOROOT(), "bin/go"), "tool", "compile", "-V")
++	printCmdOut(w, "GOROOT/bin/go tool compile -V: ", filepath.Join(runtime.GOROOT(), "bin/go"), "tool", "compile", "-V")
+ }
+ 
+ func printOSDetails(w io.Writer) {

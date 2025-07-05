@@ -22,7 +22,7 @@ Date:   Wed Apr 27 22:18:02 2016 -0400
     Change-Id: I5f34868f88c5a9698c042a8a1f12f76806c187b9
     Reviewed-on: https://go-review.googlesource.com/19802
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/mips64/gsubr.go |   1 +
  src/cmd/compile/internal/mips64/reg.go   |   2 +-
  src/cmd/internal/obj/link.go             |   8 +-
@@ -31,3 +31,492 @@ Date:   Wed Apr 27 22:18:02 2016 -0400
  src/runtime/rt0_linux_mips64x.s          |   5 +
  src/runtime/sys_linux_mips64x.s          |   8 +-
  7 files changed, 138 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/compile/internal/mips64/gsubr.go b/src/cmd/compile/internal/mips64/gsubr.go
+index a2bff29ecc..eb1c55d7e6 100644
+--- a/src/cmd/compile/internal/mips64/gsubr.go
++++ b/src/cmd/compile/internal/mips64/gsubr.go
+@@ -41,6 +41,7 @@ import (
+ var resvd = []int{
+ 	mips.REGZERO,
+ 	mips.REGSP,   // reserved for SP
++	mips.REGSB,   // reserved for SB
+ 	mips.REGLINK, // reserved for link
+ 	mips.REGG,
+ 	mips.REGTMP,
+diff --git a/src/cmd/compile/internal/mips64/reg.go b/src/cmd/compile/internal/mips64/reg.go
+index c17f4da735..1fe18ba90c 100644
+--- a/src/cmd/compile/internal/mips64/reg.go
++++ b/src/cmd/compile/internal/mips64/reg.go
+@@ -111,7 +111,7 @@ func regnames(n *int) []string {
+ 
+ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+-	regbits := 1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27)
++	regbits := 1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGSB) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27)
+ 
+ 	// Also exclude floating point registers with fixed constants
+ 	regbits |= RtoB(mips.FREGZERO) | RtoB(mips.FREGHALF) | RtoB(mips.FREGONE) | RtoB(mips.FREGTWO)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 5f257f60ab..78b96bb4a5 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -454,8 +454,8 @@ const (
+ 	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
+ 	// referenced symbol.
+ 	R_ADDRARM64
+-	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
+-	// by loading the address into a register with two instructions (lui, ori).
++	// R_ADDRMIPS (only used on mips64) resolves to the low 16 bits of an external
++	// address, by encoding it into the instruction.
+ 	R_ADDRMIPS
+ 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
+ 	// holding the data being relocated to the referenced symbol.
+@@ -581,6 +581,10 @@ const (
+ 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
+ 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
+ 	R_PCRELDBL
++
++	// R_ADDRMIPSU (only used on mips64) resolves to the sign-adjusted "upper" 16
++	// bits (bit 16-31) of an external address, by encoding it into the instruction.
++	R_ADDRMIPSU
+ )
+ 
+ type Auto struct {
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 73d6cabbcb..8643b9874f 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -60,7 +60,7 @@ var optab = []Optab{
+ 	{obj.ATEXT, C_LEXT, C_NONE, C_TEXTSIZE, 0, 0, 0},
+ 	{obj.ATEXT, C_ADDR, C_NONE, C_TEXTSIZE, 0, 0, 0},
+ 
+-	{AMOVW, C_REG, C_NONE, C_REG, 14, 8, 0},
++	{AMOVW, C_REG, C_NONE, C_REG, 1, 4, 0},
+ 	{AMOVV, C_REG, C_NONE, C_REG, 1, 4, 0},
+ 	{AMOVB, C_REG, C_NONE, C_REG, 12, 8, 0},
+ 	{AMOVBU, C_REG, C_NONE, C_REG, 13, 4, 0},
+@@ -121,42 +121,42 @@ var optab = []Optab{
+ 	{AMOVBU, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO},
+ 	{AMOVWL, C_SOREG, C_NONE, C_REG, 8, 4, REGZERO},
+ 
+-	{AMOVW, C_REG, C_NONE, C_LEXT, 35, 16, REGSB},
+-	{AMOVWU, C_REG, C_NONE, C_LEXT, 35, 16, REGSB},
+-	{AMOVV, C_REG, C_NONE, C_LEXT, 35, 16, REGSB},
+-	{AMOVB, C_REG, C_NONE, C_LEXT, 35, 16, REGSB},
+-	{AMOVBU, C_REG, C_NONE, C_LEXT, 35, 16, REGSB},
+-	{AMOVW, C_REG, C_NONE, C_LAUTO, 35, 16, REGSP},
+-	{AMOVWU, C_REG, C_NONE, C_LAUTO, 35, 16, REGSP},
+-	{AMOVV, C_REG, C_NONE, C_LAUTO, 35, 16, REGSP},
+-	{AMOVB, C_REG, C_NONE, C_LAUTO, 35, 16, REGSP},
+-	{AMOVBU, C_REG, C_NONE, C_LAUTO, 35, 16, REGSP},
+-	{AMOVW, C_REG, C_NONE, C_LOREG, 35, 16, REGZERO},
+-	{AMOVWU, C_REG, C_NONE, C_LOREG, 35, 16, REGZERO},
+-	{AMOVV, C_REG, C_NONE, C_LOREG, 35, 16, REGZERO},
+-	{AMOVB, C_REG, C_NONE, C_LOREG, 35, 16, REGZERO},
+-	{AMOVBU, C_REG, C_NONE, C_LOREG, 35, 16, REGZERO},
++	{AMOVW, C_REG, C_NONE, C_LEXT, 35, 12, REGSB},
++	{AMOVWU, C_REG, C_NONE, C_LEXT, 35, 12, REGSB},
++	{AMOVV, C_REG, C_NONE, C_LEXT, 35, 12, REGSB},
++	{AMOVB, C_REG, C_NONE, C_LEXT, 35, 12, REGSB},
++	{AMOVBU, C_REG, C_NONE, C_LEXT, 35, 12, REGSB},
++	{AMOVW, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP},
++	{AMOVWU, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP},
++	{AMOVV, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP},
++	{AMOVB, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP},
++	{AMOVBU, C_REG, C_NONE, C_LAUTO, 35, 12, REGSP},
++	{AMOVW, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO},
++	{AMOVWU, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO},
++	{AMOVV, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO},
++	{AMOVB, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO},
++	{AMOVBU, C_REG, C_NONE, C_LOREG, 35, 12, REGZERO},
+ 	{AMOVW, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVWU, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVV, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 
+-	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 16, REGSB},
+-	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 16, REGSB},
+-	{AMOVV, C_LEXT, C_NONE, C_REG, 36, 16, REGSB},
+-	{AMOVB, C_LEXT, C_NONE, C_REG, 36, 16, REGSB},
+-	{AMOVBU, C_LEXT, C_NONE, C_REG, 36, 16, REGSB},
+-	{AMOVW, C_LAUTO, C_NONE, C_REG, 36, 16, REGSP},
+-	{AMOVWU, C_LAUTO, C_NONE, C_REG, 36, 16, REGSP},
+-	{AMOVV, C_LAUTO, C_NONE, C_REG, 36, 16, REGSP},
+-	{AMOVB, C_LAUTO, C_NONE, C_REG, 36, 16, REGSP},
+-	{AMOVBU, C_LAUTO, C_NONE, C_REG, 36, 16, REGSP},
+-	{AMOVW, C_LOREG, C_NONE, C_REG, 36, 16, REGZERO},
+-	{AMOVWU, C_LOREG, C_NONE, C_REG, 36, 16, REGZERO},
+-	{AMOVV, C_LOREG, C_NONE, C_REG, 36, 16, REGZERO},
+-	{AMOVB, C_LOREG, C_NONE, C_REG, 36, 16, REGZERO},
+-	{AMOVBU, C_LOREG, C_NONE, C_REG, 36, 16, REGZERO},
++	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
++	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
++	{AMOVV, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
++	{AMOVB, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
++	{AMOVBU, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
++	{AMOVW, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP},
++	{AMOVWU, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP},
++	{AMOVV, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP},
++	{AMOVB, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP},
++	{AMOVBU, C_LAUTO, C_NONE, C_REG, 36, 12, REGSP},
++	{AMOVW, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO},
++	{AMOVWU, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO},
++	{AMOVV, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO},
++	{AMOVB, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO},
++	{AMOVBU, C_LOREG, C_NONE, C_REG, 36, 12, REGZERO},
+ 	{AMOVW, C_ADDR, C_NONE, C_REG, 51, 12, 0},
+ 	{AMOVWU, C_ADDR, C_NONE, C_REG, 51, 12, 0},
+ 	{AMOVV, C_ADDR, C_NONE, C_REG, 51, 12, 0},
+@@ -167,8 +167,8 @@ var optab = []Optab{
+ 	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, REGSB},
+ 	{AMOVW, C_SACON, C_NONE, C_REG, 3, 4, REGSP},
+ 	{AMOVV, C_SACON, C_NONE, C_REG, 3, 4, REGSP},
+-	{AMOVW, C_LECON, C_NONE, C_REG, 26, 12, REGSB},
+-	{AMOVV, C_LECON, C_NONE, C_REG, 26, 12, REGSB},
++	{AMOVW, C_LECON, C_NONE, C_REG, 52, 12, REGSB},
++	{AMOVV, C_LECON, C_NONE, C_REG, 52, 12, REGSB},
+ 	{AMOVW, C_LACON, C_NONE, C_REG, 26, 12, REGSP},
+ 	{AMOVV, C_LACON, C_NONE, C_REG, 26, 12, REGSP},
+ 	{AMOVW, C_ADDCON, C_NONE, C_REG, 3, 4, REGZERO},
+@@ -238,15 +238,15 @@ var optab = []Optab{
+ 	{AMOVF, C_SOREG, C_NONE, C_FREG, 27, 4, REGZERO},
+ 	{AMOVD, C_SOREG, C_NONE, C_FREG, 27, 4, REGZERO},
+ 
+-	{AMOVW, C_LEXT, C_NONE, C_FREG, 27, 16, REGSB},
+-	{AMOVF, C_LEXT, C_NONE, C_FREG, 27, 16, REGSB},
+-	{AMOVD, C_LEXT, C_NONE, C_FREG, 27, 16, REGSB},
+-	{AMOVW, C_LAUTO, C_NONE, C_FREG, 27, 16, REGSP},
+-	{AMOVF, C_LAUTO, C_NONE, C_FREG, 27, 16, REGSP},
+-	{AMOVD, C_LAUTO, C_NONE, C_FREG, 27, 16, REGSP},
+-	{AMOVW, C_LOREG, C_NONE, C_FREG, 27, 16, REGZERO},
+-	{AMOVF, C_LOREG, C_NONE, C_FREG, 27, 16, REGZERO},
+-	{AMOVD, C_LOREG, C_NONE, C_FREG, 27, 16, REGZERO},
++	{AMOVW, C_LEXT, C_NONE, C_FREG, 27, 12, REGSB},
++	{AMOVF, C_LEXT, C_NONE, C_FREG, 27, 12, REGSB},
++	{AMOVD, C_LEXT, C_NONE, C_FREG, 27, 12, REGSB},
++	{AMOVW, C_LAUTO, C_NONE, C_FREG, 27, 12, REGSP},
++	{AMOVF, C_LAUTO, C_NONE, C_FREG, 27, 12, REGSP},
++	{AMOVD, C_LAUTO, C_NONE, C_FREG, 27, 12, REGSP},
++	{AMOVW, C_LOREG, C_NONE, C_FREG, 27, 12, REGZERO},
++	{AMOVF, C_LOREG, C_NONE, C_FREG, 27, 12, REGZERO},
++	{AMOVD, C_LOREG, C_NONE, C_FREG, 27, 12, REGZERO},
+ 	{AMOVF, C_ADDR, C_NONE, C_FREG, 51, 12, 0},
+ 	{AMOVD, C_ADDR, C_NONE, C_FREG, 51, 12, 0},
+ 
+@@ -260,15 +260,15 @@ var optab = []Optab{
+ 	{AMOVF, C_FREG, C_NONE, C_SOREG, 28, 4, REGZERO},
+ 	{AMOVD, C_FREG, C_NONE, C_SOREG, 28, 4, REGZERO},
+ 
+-	{AMOVW, C_FREG, C_NONE, C_LEXT, 28, 16, REGSB},
+-	{AMOVF, C_FREG, C_NONE, C_LEXT, 28, 16, REGSB},
+-	{AMOVD, C_FREG, C_NONE, C_LEXT, 28, 16, REGSB},
+-	{AMOVW, C_FREG, C_NONE, C_LAUTO, 28, 16, REGSP},
+-	{AMOVF, C_FREG, C_NONE, C_LAUTO, 28, 16, REGSP},
+-	{AMOVD, C_FREG, C_NONE, C_LAUTO, 28, 16, REGSP},
+-	{AMOVW, C_FREG, C_NONE, C_LOREG, 28, 16, REGZERO},
+-	{AMOVF, C_FREG, C_NONE, C_LOREG, 28, 16, REGZERO},
+-	{AMOVD, C_FREG, C_NONE, C_LOREG, 28, 16, REGZERO},
++	{AMOVW, C_FREG, C_NONE, C_LEXT, 28, 12, REGSB},
++	{AMOVF, C_FREG, C_NONE, C_LEXT, 28, 12, REGSB},
++	{AMOVD, C_FREG, C_NONE, C_LEXT, 28, 12, REGSB},
++	{AMOVW, C_FREG, C_NONE, C_LAUTO, 28, 12, REGSP},
++	{AMOVF, C_FREG, C_NONE, C_LAUTO, 28, 12, REGSP},
++	{AMOVD, C_FREG, C_NONE, C_LAUTO, 28, 12, REGSP},
++	{AMOVW, C_FREG, C_NONE, C_LOREG, 28, 12, REGZERO},
++	{AMOVF, C_FREG, C_NONE, C_LOREG, 28, 12, REGZERO},
++	{AMOVD, C_FREG, C_NONE, C_LOREG, 28, 12, REGZERO},
+ 	{AMOVF, C_FREG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVD, C_FREG, C_NONE, C_ADDR, 50, 12, 0},
+ 
+@@ -279,8 +279,6 @@ var optab = []Optab{
+ 
+ 	{AMOVW, C_ADDCON, C_NONE, C_FREG, 34, 8, 0},
+ 	{AMOVW, C_ANDCON, C_NONE, C_FREG, 34, 8, 0},
+-	{AMOVW, C_UCON, C_NONE, C_FREG, 35, 8, 0},
+-	{AMOVW, C_LCON, C_NONE, C_FREG, 36, 12, 0},
+ 
+ 	{AMOVW, C_REG, C_NONE, C_MREG, 37, 4, 0},
+ 	{AMOVV, C_REG, C_NONE, C_MREG, 37, 4, 0},
+@@ -541,9 +539,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 
+ 			ctxt.Instoffset = a.Offset
+-
+-			/* not sure why this barfs */
+-			return C_LCON
++			return C_LECON
+ 
+ 		case obj.NAME_AUTO:
+ 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
+@@ -765,6 +761,7 @@ func (x ocmp) Less(i, j int) bool {
+ 	}
+ 	return false
+ }
++
+ func opset(a, b0 obj.As) {
+ 	oprange[a&obj.AMask] = oprange[b0]
+ }
+@@ -989,7 +986,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		break
+ 
+ 	case 1: /* mov r1,r2 ==> OR r1,r0,r2 */
+-		o1 = OP_RRR(oprrr(ctxt, AOR), uint32(p.From.Reg), uint32(REGZERO), uint32(p.To.Reg))
++		a := AOR
++		if p.As == AMOVW {
++			a = AADDU // sign-extended to high 32 bits
++		}
++		o1 = OP_RRR(oprrr(ctxt, a), uint32(p.From.Reg), uint32(REGZERO), uint32(p.To.Reg))
+ 
+ 	case 2: /* add/sub r1,[r2],r3 */
+ 		r := int(p.Reg)
+@@ -1131,11 +1132,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 14: /* movwu r,r */
+ 		o1 = OP_SRR(opirr(ctxt, -ASLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
+-		if p.As == AMOVWU {
+-			o2 = OP_SRR(opirr(ctxt, -ASRLV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+-		} else {
+-			o2 = OP_SRR(opirr(ctxt, -ASRAV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+-		}
++		o2 = OP_SRR(opirr(ctxt, -ASRLV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+ 
+ 	case 16: /* sll $c,[r1],r2 */
+ 		v := regoff(ctxt, &p.From)
+@@ -1166,14 +1163,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		v := regoff(ctxt, &p.From)
+ 		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(p.To.Reg))
+ 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(p.To.Reg), uint32(p.To.Reg))
+-		if p.From.Sym != nil {
+-			rel := obj.Addrel(ctxt.Cursym)
+-			rel.Off = int32(ctxt.Pc)
+-			rel.Siz = 8
+-			rel.Sym = p.From.Sym
+-			rel.Add = p.From.Offset
+-			rel.Type = obj.R_ADDRMIPS
+-		}
+ 
+ 	case 20: /* mov lo/hi,r */
+ 		a := OP(2, 0) /* mfhi */
+@@ -1236,11 +1225,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			a = -AMOVD
+ 		}
+ 		switch o.size {
+-		case 16:
+-			o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+-			o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
+-			o3 = OP_RRR(opirr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
+-			o4 = OP_IRR(opirr(ctxt, a), uint32(0), uint32(r), uint32(p.To.Reg))
++		case 12:
++			o1 = OP_IRR(opirr(ctxt, ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
++			o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
++			o3 = OP_IRR(opirr(ctxt, a), uint32(v), uint32(REGTMP), uint32(p.To.Reg))
+ 
+ 		case 4:
+ 			o1 = OP_IRR(opirr(ctxt, a), uint32(v), uint32(r), uint32(p.To.Reg))
+@@ -1257,11 +1245,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			a = AMOVD
+ 		}
+ 		switch o.size {
+-		case 16:
+-			o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+-			o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
+-			o3 = OP_RRR(opirr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
+-			o4 = OP_IRR(opirr(ctxt, a), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
++		case 12:
++			o1 = OP_IRR(opirr(ctxt, ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
++			o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
++			o3 = OP_IRR(opirr(ctxt, a), uint32(v), uint32(REGTMP), uint32(p.From.Reg))
+ 
+ 		case 4:
+ 			o1 = OP_IRR(opirr(ctxt, a), uint32(v), uint32(r), uint32(p.From.Reg))
+@@ -1294,27 +1281,25 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = OP_IRR(opirr(ctxt, a), uint32(v), uint32(0), uint32(REGTMP))
+ 		o2 = OP_RRR(SP(2, 1)|(4<<21), uint32(REGTMP), uint32(0), uint32(p.To.Reg)) /* mtc1 */
+ 
+-	case 35: /* mov r,lext/auto/oreg ==> sw o(r) */
++	case 35: /* mov r,lext/auto/oreg ==> sw o(REGTMP) */
+ 		v := regoff(ctxt, &p.To)
+ 		r := int(p.To.Reg)
+ 		if r == 0 {
+ 			r = int(o.param)
+ 		}
+-		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+-		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
+-		o3 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
+-		o4 = OP_IRR(opirr(ctxt, p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
++		o1 = OP_IRR(opirr(ctxt, ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
++		o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
++		o3 = OP_IRR(opirr(ctxt, p.As), uint32(v), uint32(REGTMP), uint32(p.From.Reg))
+ 
+-	case 36: /* mov lext/auto/oreg,r ==> lw o(r30) */
++	case 36: /* mov lext/auto/oreg,r ==> lw o(REGTMP) */
+ 		v := regoff(ctxt, &p.From)
+ 		r := int(p.From.Reg)
+ 		if r == 0 {
+ 			r = int(o.param)
+ 		}
+-		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+-		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
+-		o3 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
+-		o4 = OP_IRR(opirr(ctxt, -p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
++		o1 = OP_IRR(opirr(ctxt, ALUI), uint32((v+1<<15)>>16), uint32(REGZERO), uint32(REGTMP))
++		o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
++		o3 = OP_IRR(opirr(ctxt, -p.As), uint32(v), uint32(REGTMP), uint32(p.To.Reg))
+ 
+ 	case 37: /* movw r,mr */
+ 		a := SP(2, 0) | (4 << 21) /* mtc0 */
+@@ -1349,30 +1334,59 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = OP_RRR(a, uint32(p.To.Reg), uint32(0), uint32(p.From.Reg))
+ 
+ 	case 49: /* undef */
+-		o1 = 8 /* JMP (R0) */
++		o1 = 52 /* trap -- teq r0, r0 */
+ 
+ 	/* relocation operations */
+-	case 50: /* mov r,addr ==> lu + or + sw (REGTMP) */
++	case 50: /* mov r,addr ==> lu + add REGSB, REGTMP + sw o(REGTMP) */
+ 		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(0), uint32(REGZERO), uint32(REGTMP))
+-		o2 = OP_IRR(opirr(ctxt, AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
+ 		rel := obj.Addrel(ctxt.Cursym)
+ 		rel.Off = int32(ctxt.Pc)
+-		rel.Siz = 8
++		rel.Siz = 4
+ 		rel.Sym = p.To.Sym
+ 		rel.Add = p.To.Offset
+-		rel.Type = obj.R_ADDRMIPS
++		rel.Type = obj.R_ADDRMIPSU
++		o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(REGSB), uint32(REGTMP), uint32(REGTMP))
+ 		o3 = OP_IRR(opirr(ctxt, p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
+-
+-	case 51: /* mov addr,r ==> lu + or + lw (REGTMP) */
++		rel2 := obj.Addrel(ctxt.Cursym)
++		rel2.Off = int32(ctxt.Pc + 8)
++		rel2.Siz = 4
++		rel2.Sym = p.To.Sym
++		rel2.Add = p.To.Offset
++		rel2.Type = obj.R_ADDRMIPS
++
++	case 51: /* mov addr,r ==> lu + add REGSB, REGTMP + lw o(REGTMP) */
+ 		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(0), uint32(REGZERO), uint32(REGTMP))
+-		o2 = OP_IRR(opirr(ctxt, AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
+ 		rel := obj.Addrel(ctxt.Cursym)
+ 		rel.Off = int32(ctxt.Pc)
+-		rel.Siz = 8
++		rel.Siz = 4
+ 		rel.Sym = p.From.Sym
+ 		rel.Add = p.From.Offset
+-		rel.Type = obj.R_ADDRMIPS
++		rel.Type = obj.R_ADDRMIPSU
++		o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(REGSB), uint32(REGTMP), uint32(REGTMP))
+ 		o3 = OP_IRR(opirr(ctxt, -p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
++		rel2 := obj.Addrel(ctxt.Cursym)
++		rel2.Off = int32(ctxt.Pc + 8)
++		rel2.Siz = 4
++		rel2.Sym = p.From.Sym
++		rel2.Add = p.From.Offset
++		rel2.Type = obj.R_ADDRMIPS
++
++	case 52: /* mov $lext, r ==> lu + add REGSB, r + add */
++		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(0), uint32(REGZERO), uint32(p.To.Reg))
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc)
++		rel.Siz = 4
++		rel.Sym = p.From.Sym
++		rel.Add = p.From.Offset
++		rel.Type = obj.R_ADDRMIPSU
++		o2 = OP_RRR(oprrr(ctxt, AADDVU), uint32(REGSB), uint32(p.To.Reg), uint32(p.To.Reg))
++		o3 = OP_IRR(opirr(ctxt, AADDVU), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
++		rel2 := obj.Addrel(ctxt.Cursym)
++		rel2.Off = int32(ctxt.Pc + 8)
++		rel2.Siz = 4
++		rel2.Sym = p.From.Sym
++		rel2.Add = p.From.Offset
++		rel2.Type = obj.R_ADDRMIPS
+ 	}
+ 
+ 	out[0] = o1
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 785002b02c..379a550a16 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/ld"
+-	"encoding/binary"
+ 	"fmt"
+ 	"log"
+ )
+@@ -71,24 +70,14 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
+ 		return 0
+ 
+-	case obj.R_ADDRMIPS:
++	case obj.R_ADDRMIPS,
++		obj.R_ADDRMIPSU:
+ 		t := ld.Symaddr(r.Sym) + r.Add
+-		if t >= 1<<32 || t < -1<<32 {
+-			ld.Diag("program too large, address relocation = %v", t)
+-		}
+-
+-		// the first instruction is always at the lower address, this is endian neutral;
+-		// but note that o1 and o2 should still use the target endian.
+ 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+-		o2 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off+4:])
+-		o1 = o1&0xffff0000 | uint32(t>>16)&0xffff
+-		o2 = o2&0xffff0000 | uint32(t)&0xffff
+-
+-		// when laid out, the instruction order must always be o1, o2.
+-		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+-			*val = int64(o1)<<32 | int64(o2)
++		if r.Type == obj.R_ADDRMIPS {
++			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
+ 		} else {
+-			*val = int64(o2)<<32 | int64(o1)
++			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
+ 		}
+ 		return 0
+ 
+diff --git a/src/runtime/rt0_linux_mips64x.s b/src/runtime/rt0_linux_mips64x.s
+index c7e35f5e47..6b596677be 100644
+--- a/src/runtime/rt0_linux_mips64x.s
++++ b/src/runtime/rt0_linux_mips64x.s
+@@ -27,5 +27,10 @@ TEXT _main<>(SB),NOSPLIT,$-8
+ 	JMP main(SB)
+ 
+ TEXT main(SB),NOSPLIT,$-8
++	// initalize REGSB = PC&0xffffffff00000000
++	BGEZAL	R0, 1(PC)
++	SRLV	$32, R31, RSB
++	SLLV	$32, RSB
++
+ 	MOVV	$runtime·rt0_go(SB), R4
+ 	JMP	(R4)
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index f6877cb32d..e84b2c5bd5 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -233,6 +233,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	RET
+ 
+ TEXT runtime·sigtramp(SB),NOSPLIT,$64
++	// initialize REGSB = PC&0xffffffff00000000
++	BGEZAL	R0, 1(PC)
++	SRLV	$32, R31, RSB
++	SLLV	$32, RSB
++
+ 	// initialize essential registers (just in case)
+ 	JAL	runtime·reginit(SB)
+ 
+@@ -250,8 +255,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
+ 	RET
+ 
+ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+-	MOVV	$runtime·sigtramp(SB), R1
+-	JMP	(R1)
++	JMP	runtime·sigtramp(SB)
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$-8
+ 	MOVV	addr+0(FP), R4

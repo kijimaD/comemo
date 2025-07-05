@@ -16,7 +16,7 @@ Date:   Mon Mar 28 11:34:37 2016 +0200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/pgen.go |  4 ++--
  src/cmd/internal/obj/arm/obj5.go    |  6 ++---
  src/cmd/internal/obj/arm64/obj7.go  |  6 ++---
@@ -26,3 +26,328 @@ Date:   Mon Mar 28 11:34:37 2016 +0200
  src/cmd/internal/obj/ppc64/obj9.go  |  6 ++---
  src/cmd/internal/obj/x86/obj6.go    |  8 +++----
  8 files changed, 54 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1636011197..0833c60016 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -135,7 +135,7 @@ func gcsymdup(s *Sym) {
+ 		Fatalf("cannot rosymdup %s with relocations", ls.Name)
+ 	}
+ 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
+-	ls.Dupok = 1
++	ls.Dupok = true
+ }
+ 
+ func emitptrargsmap() {
+@@ -442,7 +442,7 @@ func compile(fn *Node) {
+ 		ptxt.From3.Offset |= obj.REFLECTMETHOD
+ 	}
+ 	if fn.Func.Pragma&Systemstack != 0 {
+-		ptxt.From.Sym.Cfunc = 1
++		ptxt.From.Sym.Cfunc = true
+ 	}
+ 
+ 	// Clumsy but important.
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 6aa76c72bd..92ffc7b2f3 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -367,7 +367,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = 1
++				cursym.Leaf = true
+ 				if autosize == 0 {
+ 					break
+ 				}
+@@ -709,7 +709,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc != 0 {
++	if ctxt.Cursym.Cfunc {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -822,7 +822,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	morestack := "runtime.morestack"
+ 	switch {
+-	case ctxt.Cursym.Cfunc != 0:
++	case ctxt.Cursym.Cfunc:
+ 		morestack = "runtime.morestackc"
+ 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 67b6861da0..e372ac8a00 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -57,7 +57,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc != 0 {
++	if ctxt.Cursym.Cfunc {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -193,7 +193,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	morestack := "runtime.morestack"
+ 	switch {
+-	case ctxt.Cursym.Cfunc != 0:
++	case ctxt.Cursym.Cfunc:
+ 		morestack = "runtime.morestackc"
+ 	case ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"
+@@ -718,7 +718,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				aoffset = 0xF0
+ 			}
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = 1
++				cursym.Leaf = true
+ 				if ctxt.Autosize == 0 {
+ 					break
+ 				}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 0bf72817e6..11d451abb2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -309,12 +309,12 @@ type LSym struct {
+ 	Name      string
+ 	Type      int16
+ 	Version   int16
+-	Dupok     uint8
+-	Cfunc     uint8
+-	Nosplit   uint8
+-	Leaf      uint8
+-	Seenglobl uint8
+-	Onlist    uint8
++	Dupok     bool
++	Cfunc     bool
++	Nosplit   bool
++	Leaf      bool
++	Seenglobl bool
++	Onlist    bool
+ 
+ 	// ReflectMethod means the function may call reflect.Type.Method or
+ 	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 27ad6f562c..2ea5aa261d 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -302,7 +302,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = 1
++				cursym.Leaf = true
+ 				break
+ 			}
+ 
+@@ -560,7 +560,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc != 0 {
++	if ctxt.Cursym.Cfunc {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -690,7 +690,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	p.As = AJAL
+ 	p.To.Type = obj.TYPE_BRANCH
+-	if ctxt.Cursym.Cfunc != 0 {
++	if ctxt.Cursym.Cfunc {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 42ae86d62d..b9eb8014ec 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -170,15 +170,14 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 
+ 			case AGLOBL:
+ 				s := p.From.Sym
+-				tmp6 := s.Seenglobl
+-				s.Seenglobl++
+-				if tmp6 != 0 {
++				if s.Seenglobl {
+ 					fmt.Printf("duplicate %v\n", p)
+ 				}
+-				if s.Onlist != 0 {
++				s.Seenglobl = true
++				if s.Onlist {
+ 					log.Fatalf("symbol %s listed multiple times", s.Name)
+ 				}
+-				s.Onlist = 1
++				s.Onlist = true
+ 				ctxt.Data = append(ctxt.Data, s)
+ 				s.Size = p.To.Offset
+ 				if s.Type == 0 || s.Type == SXREF {
+@@ -186,7 +185,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				}
+ 				flag := int(p.From3.Offset)
+ 				if flag&DUPOK != 0 {
+-					s.Dupok = 1
++					s.Dupok = true
+ 				}
+ 				if flag&RODATA != 0 {
+ 					s.Type = SRODATA
+@@ -209,17 +208,17 @@ func flushplist(ctxt *Link, freeProgs bool) {
+ 				if s.Text != nil {
+ 					log.Fatalf("duplicate TEXT for %s", s.Name)
+ 				}
+-				if s.Onlist != 0 {
++				if s.Onlist {
+ 					log.Fatalf("symbol %s listed multiple times", s.Name)
+ 				}
+-				s.Onlist = 1
++				s.Onlist = true
+ 				text = append(text, s)
+ 				flag := int(p.From3Offset())
+ 				if flag&DUPOK != 0 {
+-					s.Dupok = 1
++					s.Dupok = true
+ 				}
+ 				if flag&NOSPLIT != 0 {
+-					s.Nosplit = 1
++					s.Nosplit = true
+ 				}
+ 				if flag&REFLECTMETHOD != 0 {
+ 					s.ReflectMethod = true
+@@ -437,19 +436,19 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 		if s.Type != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
+ 		}
+-		if s.Dupok != 0 {
++		if s.Dupok {
+ 			fmt.Fprintf(ctxt.Bso, "dupok ")
+ 		}
+-		if s.Cfunc != 0 {
++		if s.Cfunc {
+ 			fmt.Fprintf(ctxt.Bso, "cfunc ")
+ 		}
+-		if s.Nosplit != 0 {
++		if s.Nosplit {
+ 			fmt.Fprintf(ctxt.Bso, "nosplit ")
+ 		}
+ 		fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 		if s.Type == STEXT {
+ 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
+-			if s.Leaf != 0 {
++			if s.Leaf {
+ 				fmt.Fprintf(ctxt.Bso, " leaf")
+ 			}
+ 		}
+@@ -499,9 +498,12 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 	Bputc(b, 0xfe)
+ 	wrint(b, int64(s.Type))
+ 	wrsym(b, s)
+-	flags := int64(s.Dupok)
++	flags := int64(0)
++	if s.Dupok {
++		flags |= 1
++	}
+ 	if s.Local {
+-		flags |= 2
++		flags |= 1 << 1
+ 	}
+ 	wrint(b, flags)
+ 	wrint(b, s.Size)
+@@ -522,8 +524,18 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 	if s.Type == STEXT {
+ 		wrint(b, int64(s.Args))
+ 		wrint(b, int64(s.Locals))
+-		wrint(b, int64(s.Nosplit))
+-		flags := int64(s.Leaf) | int64(s.Cfunc)<<1
++		if s.Nosplit {
++			wrint(b, 1)
++		} else {
++			wrint(b, 0)
++		}
++		flags := int64(0)
++		if s.Leaf {
++			flags |= 1
++		}
++		if s.Cfunc {
++			flags |= 1 << 1
++		}
+ 		if s.ReflectMethod {
+ 			flags |= 1 << 2
+ 		}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index b3f3699fda..445cca1924 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -534,7 +534,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 			if cursym.Text.Mark&LEAF != 0 {
+-				cursym.Leaf = 1
++				cursym.Leaf = true
+ 				break
+ 			}
+ 
+@@ -828,7 +828,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.From.Type = obj.TYPE_MEM
+ 	p.From.Reg = REGG
+ 	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-	if ctxt.Cursym.Cfunc != 0 {
++	if ctxt.Cursym.Cfunc {
+ 		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 	}
+ 	p.To.Type = obj.TYPE_REG
+@@ -943,7 +943,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 
+ 	var morestacksym *obj.LSym
+-	if ctxt.Cursym.Cfunc != 0 {
++	if ctxt.Cursym.Cfunc {
+ 		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+ 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
+ 		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 65da6a6c8f..0e8aeca4d3 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -985,7 +985,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		p.From.Reg = REG_SP
+ 		indir_cx(ctxt, p, &p.To)
+ 		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-		if ctxt.Cursym.Cfunc != 0 {
++		if ctxt.Cursym.Cfunc {
+ 			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 		}
+ 	} else if framesize <= obj.StackBig {
+@@ -1007,7 +1007,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		p.From.Reg = REG_AX
+ 		indir_cx(ctxt, p, &p.To)
+ 		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-		if ctxt.Cursym.Cfunc != 0 {
++		if ctxt.Cursym.Cfunc {
+ 			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 		}
+ 	} else {
+@@ -1031,7 +1031,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 		p.As = mov
+ 		indir_cx(ctxt, p, &p.From)
+ 		p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+-		if ctxt.Cursym.Cfunc != 0 {
++		if ctxt.Cursym.Cfunc {
+ 			p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+ 		}
+ 		p.To.Type = obj.TYPE_REG
+@@ -1095,7 +1095,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	call.To.Type = obj.TYPE_BRANCH
+ 	morestack := "runtime.morestack"
+ 	switch {
+-	case ctxt.Cursym.Cfunc != 0:
++	case ctxt.Cursym.Cfunc:
+ 		morestack = "runtime.morestackc"
+ 	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
+ 		morestack = "runtime.morestack_noctxt"

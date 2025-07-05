@@ -10,9 +10,399 @@ Date:   Wed Jun 1 10:48:15 2011 +1000
     R=rsc, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/4524078
-
+---
  src/cmd/goinstall/doc.go  |  55 ++++++++++++++++++++++++-
  src/cmd/goinstall/main.go | 102 ++++++++++++++++++++++++----------------------
  src/cmd/goinstall/make.go |  32 +++------------
  src/cmd/goinstall/path.go |  44 +++++++++++++++++---
  4 files changed, 151 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index 15845b5745..13c37d0a23 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-
+ Goinstall is an experiment in automatic package installation.
+ It installs packages, possibly downloading them from the internet.
+ It maintains a list of public Go packages at http://godashboard.appspot.com/package.
+@@ -100,5 +99,59 @@ Instead, it invokes "make install" after locating the package sources.
+ For local packages without a Makefile and all remote packages,
+ goinstall creates and uses a temporary Makefile constructed from
+ the import path and the list of Go files in the package.
++
++
++The GOPATH Environment Variable
++
++GOPATH may be set to a colon-separated list of paths inside which Go code,
++package objects, and executables may be found.
++
++Set a GOPATH to use goinstall to build and install your own code and
++external libraries outside of the Go tree (and to avoid writing Makefiles).
++
++The top-level directory structure of a GOPATH is prescribed:
++
++The 'src' directory is for source code. The directory naming inside 'src'
++determines the package import path or executable name.
++
++The 'pkg' directory is for package objects. Like the Go tree, package objects
++are stored inside a directory named after the target operating system and
++processor architecture ('pkg/$GOOS_$GOARCH').
++A package whose source is located at '$GOPATH/src/foo/bar' would be imported
++as 'foo/bar' and installed as '$GOPATH/pkg/$GOOS_$GOARCH/foo/bar.a'.
++
++The 'bin' directory is for executable files.
++Goinstall installs program binaries using the name of the source folder.
++A binary whose source is at 'src/foo/qux' would be built and installed to
++'$GOPATH/bin/qux'. (Note 'bin/qux', not 'bin/foo/qux' - this is such that
++you can put the bin directory in your PATH.) 
++
++Here's an example directory layout:
++
++	GOPATH=/home/user/gocode
++
++	/home/user/gocode/
++		src/foo/
++			bar/               (go code in package bar)
++			qux/               (go code in package main)
++		bin/qux                    (executable file)
++		pkg/linux_amd64/foo/bar.a  (object file)
++
++Run 'goinstall foo/bar' to build and install the package 'foo/bar'
++(and its dependencies).
++Goinstall will search each GOPATH (in order) for 'src/foo/bar'.
++If the directory cannot be found, goinstall will attempt to fetch the
++source from a remote repository and write it to the 'src' directory of the
++first GOPATH (or $GOROOT/src/pkg if GOPATH is not set).
++
++Goinstall recognizes relative and absolute paths (paths beginning with / or .).
++The following commands would build our example packages:
++
++	goinstall /home/user/gocode/src/foo/bar  # build and install foo/bar
++	cd /home/user/gocode/src/foo
++	goinstall ./bar  # build and install foo/bar (again)
++	cd qux
++	goinstall .      # build and install foo/qux
++
+ */
+ package documentation
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index ffa37aa417..9434c05606 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -32,9 +32,8 @@ var (
+ 	argv0         = os.Args[0]
+ 	errors        = false
+ 	parents       = make(map[string]string)
+-	root          = runtime.GOROOT()
+ 	visit         = make(map[string]status)
+-	logfile       = filepath.Join(root, "goinstall.log")
++	logfile       = filepath.Join(runtime.GOROOT(), "goinstall.log")
+ 	installedPkgs = make(map[string]bool)
+ 
+ 	allpkg            = flag.Bool("a", false, "install all previously installed packages")
+@@ -52,14 +51,30 @@ const (
+ 	done
+ )
+ 
++func logf(format string, args ...interface{}) {
++	format = "%s: " + format
++	args = append([]interface{}{argv0}, args...)
++	fmt.Fprintf(os.Stderr, format, args...)
++}
++
++func vlogf(format string, args ...interface{}) {
++	if *verbose {
++		logf(format, args...)
++	}
++}
++
++func errorf(format string, args ...interface{}) {
++	errors = true
++	logf(format, args...)
++}
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+-	if root == "" {
++	if runtime.GOROOT() == "" {
+ 		fmt.Fprintf(os.Stderr, "%s: no $GOROOT\n", argv0)
+ 		os.Exit(1)
+ 	}
+-	root += filepath.FromSlash("/src/pkg/")
+ 
+ 	// special case - "unsafe" is already installed
+ 	visit["unsafe"] = done
+@@ -88,6 +103,11 @@ func main() {
+ 		usage()
+ 	}
+ 	for _, path := range args {
++		if strings.HasPrefix(path, "http://") {
++			errorf("'http://' used in remote path, try '%s'\n", path[7:])
++			continue
++		}
++
+ 		install(path, "")
+ 	}
+ 	if errors {
+@@ -131,11 +151,6 @@ func logPackage(pkg string) {
+ 
+ // install installs the package named by path, which is needed by parent.
+ func install(pkg, parent string) {
+-	if isStandardPath(pkg) {
+-		visit[pkg] = done
+-		return
+-	}
+-
+ 	// Make sure we're not already trying to install pkg.
+ 	switch visit[pkg] {
+ 	case done:
+@@ -148,46 +163,44 @@ func install(pkg, parent string) {
+ 	}
+ 	visit[pkg] = visiting
+ 	parents[pkg] = parent
+-	if *verbose {
+-		fmt.Println(pkg)
+-	}
++
++	vlogf("%s: visit\n", pkg)
+ 
+ 	// Check whether package is local or remote.
+ 	// If remote, download or update it.
+-	var dir string
+-	proot := gopath[0] // default to GOROOT
+-	local := false
+-	if strings.HasPrefix(pkg, "http://") {
+-		fmt.Fprintf(os.Stderr, "%s: %s: 'http://' used in remote path, try '%s'\n", argv0, pkg, pkg[7:])
+-		errors = true
++	proot, pkg, err := findPackageRoot(pkg)
++	// Don't build the standard library.
++	if err == nil && proot.goroot && isStandardPath(pkg) {
++		if parent == "" {
++			errorf("%s: can not goinstall the standard library\n", pkg)
++		} else {
++			vlogf("%s: skipping standard library\n", pkg)
++		}
++		visit[pkg] = done
+ 		return
+ 	}
+-	if isLocalPath(pkg) {
+-		dir = pkg
+-		local = true
+-	} else {
+-		proot = findPkgroot(pkg)
+-		err := download(pkg, proot.srcDir())
+-		dir = filepath.Join(proot.srcDir(), pkg)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
+-			errors = true
+-			visit[pkg] = done
+-			return
+-		}
++	// Download remote packages if not found or forced with -u flag.
++	remote := isRemote(pkg)
++	if remote && (err == ErrPackageNotFound || (err == nil && *update)) {
++		vlogf("%s: download\n", pkg)
++		err = download(pkg, proot.srcDir())
++	}
++	if err != nil {
++		errorf("%s: %v\n", pkg, err)
++		visit[pkg] = done
++		return
+ 	}
++	dir := filepath.Join(proot.srcDir(), pkg)
+ 
+ 	// Install prerequisites.
+ 	dirInfo, err := scanDir(dir, parent == "")
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
+-		errors = true
++		errorf("%s: %v\n", pkg, err)
+ 		visit[pkg] = done
+ 		return
+ 	}
+ 	if len(dirInfo.goFiles) == 0 {
+-		fmt.Fprintf(os.Stderr, "%s: %s: package has no files\n", argv0, pkg)
+-		errors = true
++		errorf("%s: package has no files\n", pkg)
+ 		visit[pkg] = done
+ 		return
+ 	}
+@@ -200,22 +213,16 @@ func install(pkg, parent string) {
+ 	// Install this package.
+ 	if !errors {
+ 		isCmd := dirInfo.pkgName == "main"
+-		if err := domake(dir, pkg, proot, local, isCmd); err != nil {
+-			fmt.Fprintf(os.Stderr, "%s: installing %s: %s\n", argv0, pkg, err)
+-			errors = true
+-		} else if !local && *logPkgs {
+-			// mark this package as installed in $GOROOT/goinstall.log
++		if err := domake(dir, pkg, proot, isCmd); err != nil {
++			errorf("installing: %v\n", err)
++		} else if remote && *logPkgs {
++			// mark package as installed in $GOROOT/goinstall.log
+ 			logPackage(pkg)
+ 		}
+ 	}
+ 	visit[pkg] = done
+ }
+ 
+-// Is this a local path?  /foo ./foo ../foo . ..
+-func isLocalPath(s string) bool {
+-	const sep = string(filepath.Separator)
+-	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
+-}
+ 
+ // Is this a standard package path?  strings container/vector etc.
+ // Assume that if the first element has a dot, it's a domain name
+@@ -245,9 +252,7 @@ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
+ 		return err
+ 	}
+ 	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
+-	if *verbose {
+-		fmt.Fprintf(os.Stderr, "%s: %s; %s %s\n", argv0, dir, bin, strings.Join(cmd[1:], " "))
+-	}
++	vlogf("%s: %s %s\n", dir, bin, strings.Join(cmd[1:], " "))
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -257,7 +262,6 @@ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
+ 	}()
+ 	var buf bytes.Buffer
+ 	io.Copy(&buf, p.Stdout)
+-	io.Copy(&buf, p.Stdout)
+ 	w, err := p.Wait(0)
+ 	p.Close()
+ 	if err != nil {
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 67c7b93ef3..0c44481d71 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -14,26 +14,14 @@ import (
+ )
+ 
+ // domake builds the package in dir.
+-// If local is false, the package was copied from an external system.
+-// For non-local packages or packages without Makefiles,
+ // domake generates a standard Makefile and passes it
+ // to make on standard input.
+-func domake(dir, pkg string, root *pkgroot, local, isCmd bool) (err os.Error) {
+-	needMakefile := true
+-	if local {
+-		_, err := os.Stat(filepath.Join(dir, "Makefile"))
+-		if err == nil {
+-			needMakefile = false
+-		}
+-	}
+-	cmd := []string{"bash", "gomake"}
+-	var makefile []byte
+-	if needMakefile {
+-		if makefile, err = makeMakefile(dir, pkg, root, isCmd); err != nil {
+-			return err
+-		}
+-		cmd = append(cmd, "-f-")
++func domake(dir, pkg string, root *pkgroot, isCmd bool) (err os.Error) {
++	makefile, err := makeMakefile(dir, pkg, root, isCmd)
++	if err != nil {
++		return err
+ 	}
++	cmd := []string{"bash", "gomake", "-f-"}
+ 	if *clean {
+ 		cmd = append(cmd, "clean")
+ 	}
+@@ -51,16 +39,8 @@ func makeMakefile(dir, pkg string, root *pkgroot, isCmd bool) ([]byte, os.Error)
+ 	targ := pkg
+ 	targDir := root.pkgDir()
+ 	if isCmd {
+-		// use the last part of the package name only
++		// use the last part of the package name for targ
+ 		_, targ = filepath.Split(pkg)
+-		// if building the working dir use the directory name
+-		if targ == "." {
+-			d, err := filepath.Abs(dir)
+-			if err != nil {
+-				return nil, os.NewError("finding path: " + err.String())
+-			}
+-			_, targ = filepath.Split(d)
+-		}
+ 		targDir = root.binDir()
+ 	}
+ 	dirInfo, err := scanDir(dir, isCmd)
+diff --git a/src/cmd/goinstall/path.go b/src/cmd/goinstall/path.go
+index 1153e04714..7b4bda0fb8 100644
+--- a/src/cmd/goinstall/path.go
++++ b/src/cmd/goinstall/path.go
+@@ -5,10 +5,12 @@
+ package main
+ 
+ import (
++	"fmt"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ )
+ 
+ var (
+@@ -19,6 +21,7 @@ var (
+ 
+ // set up gopath: parse and validate GOROOT and GOPATH variables
+ func init() {
++	root := runtime.GOROOT()
+ 	p, err := newPkgroot(root)
+ 	if err != nil {
+ 		log.Fatalf("Invalid GOROOT %q: %v", root, err)
+@@ -105,13 +108,42 @@ func (r *pkgroot) hasPkg(name string) bool {
+ 	// TODO(adg): check object version is consistent
+ }
+ 
+-// findPkgroot searches each of the gopath roots
+-// for the source code for the given import path.
+-func findPkgroot(importPath string) *pkgroot {
++
++var ErrPackageNotFound = os.NewError("package could not be found locally")
++
++// findPackageRoot takes an import or filesystem path and returns the
++// root where the package source should be and the package import path.
++func findPackageRoot(path string) (root *pkgroot, pkg string, err os.Error) {
++	if isLocalPath(path) {
++		if path, err = filepath.Abs(path); err != nil {
++			return
++		}
++		for _, r := range gopath {
++			rpath := r.srcDir() + filepath.SeparatorString
++			if !strings.HasPrefix(path, rpath) {
++				continue
++			}
++			root = r
++			pkg = path[len(rpath):]
++			return
++		}
++		err = fmt.Errorf("path %q not inside a GOPATH", path)
++		return
++	}
++	root = defaultRoot
++	pkg = path
+ 	for _, r := range gopath {
+-		if r.hasSrcDir(importPath) {
+-			return r
++		if r.hasSrcDir(path) {
++			root = r
++			return
+ 		}
+ 	}
+-	return defaultRoot
++	err = ErrPackageNotFound
++	return
++}
++
++// Is this a local path?  /foo ./foo ../foo . ..
++func isLocalPath(s string) bool {
++	const sep = string(filepath.Separator)
++	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
+ }

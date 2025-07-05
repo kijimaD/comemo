@@ -7,8 +7,71 @@ Date:   Tue Apr 13 22:30:41 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/815044
-
+---
  src/pkg/os/file_mingw.go         |  2 +-
  src/pkg/os/stat_mingw.go         |  3 +--
  src/pkg/syscall/syscall_mingw.go | 20 +++++++++-----------
  3 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/os/file_mingw.go b/src/pkg/os/file_mingw.go
+index b9ba6a984d..41bbe1e2de 100644
+--- a/src/pkg/os/file_mingw.go
++++ b/src/pkg/os/file_mingw.go
+@@ -55,7 +55,7 @@ func Open(name string, flag int, perm int) (file *File, err Error) {
+ 	if e == nil {
+ 		return r, nil
+ 	}
+-	r, e = openFile(name, flag|syscall.O_CLOEXEC, perm)
++	r, e = openFile(name, flag, perm)
+ 	if e == nil {
+ 		return r, nil
+ 	}
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_mingw.go
+index b22843aeaa..f2112759b4 100644
+--- a/src/pkg/os/stat_mingw.go
++++ b/src/pkg/os/stat_mingw.go
+@@ -10,8 +10,7 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Mode = 0
+ 	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_DIRECTORY {
+ 		fi.Mode = fi.Mode | syscall.S_IFDIR
+-	}
+-	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_NORMAL {
++	} else {
+ 		fi.Mode = fi.Mode | syscall.S_IFREG
+ 	}
+ 	if stat.Windata.FileAttributes == syscall.FILE_ATTRIBUTE_READONLY {
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_mingw.go
+index c3f8b9fb7e..99f649e4fc 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_mingw.go
+@@ -132,21 +132,19 @@ func Open(path string, mode int, perm int) (fd int, errno int) {
+ 	if len(path) == 0 {
+ 		return -1, ERROR_FILE_NOT_FOUND
+ 	}
+-	var access, sharemode uint32
+-	switch {
+-	case mode&O_CREAT != 0:
+-		access = GENERIC_READ | GENERIC_WRITE
+-		sharemode = 0
+-	case mode&O_RDWR == O_RDONLY:
++	var access uint32
++	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
++	case O_RDONLY:
+ 		access = GENERIC_READ
+-		sharemode = FILE_SHARE_READ
+-	case mode&O_RDWR == O_WRONLY:
++	case O_WRONLY:
+ 		access = GENERIC_WRITE
+-		sharemode = FILE_SHARE_READ
+-	case mode&O_RDWR == O_RDWR:
++	case O_RDWR:
+ 		access = GENERIC_READ | GENERIC_WRITE
+-		sharemode = FILE_SHARE_READ | FILE_SHARE_WRITE
+ 	}
++	if mode&O_CREAT != 0 {
++		access |= GENERIC_WRITE
++	}
++	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
+ 	var createmode uint32
+ 	switch {
+ 	case mode&O_CREAT != 0:

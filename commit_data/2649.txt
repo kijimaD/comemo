@@ -7,6 +7,20 @@ Date:   Wed Jul 8 17:58:15 2009 -0700
     R=rsc
     OCL=31373
     CL=31373
-
+---
  src/cmd/gc/dcl.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 4a1dfa1c1b..4c085c82f9 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -107,6 +107,8 @@ updatetype(Type *n, Type *t)
+ 	int local, vargen;
+ 	int maplineno, lno, etype;
+ 
++	if(t == T)
++		return;
+ 	s = n->sym;
+ 	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
+ 		fatal("updatetype %T = %T", n, t);

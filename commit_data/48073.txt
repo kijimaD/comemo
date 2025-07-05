@@ -8,6 +8,20 @@ Date:   Mon Apr 26 14:30:00 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/313629
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/sys_windows_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 72ced3cd1c..ed44561084 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -148,7 +148,7 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0-0
+ 	// and re-save old SP for restoring later.
+ 	// Adjust g0 stack by the space we're using and
+ 	// save SP at the same place on the g0 stack.
+-	// The 32(DI) here must match the 32(SP) above.
++	// The 40(DI) here must match the 40(SP) above.
+ 	SUBQ	$(REGS_HOST_TO_ABI0_STACK + 48), DI
+ 	MOVQ	SP, 40(DI)
+ 	MOVQ	DI, SP

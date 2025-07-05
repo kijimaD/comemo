@@ -18,8 +18,70 @@ Date:   Wed Nov 18 17:05:02 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/expr.go                  |  6 +++++-
  src/go/types/fixedbugs/issue42695.src | 17 +++++++++++++++++
  src/go/types/operand.go               |  8 +++++++-
  3 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 11f9411284..b026e99ce2 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1073,7 +1073,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 	case *ast.BasicLit:
+ 		x.setConst(e.Kind, e.Value)
+ 		if x.mode == invalid {
+-			check.invalidAST(e, "invalid literal %v", e.Value)
++			// The parser already establishes syntactic correctness.
++			// If we reach here it's because of number under-/overflow.
++			// TODO(gri) setConst (and in turn the go/constant package)
++			// should return an error describing the issue.
++			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
+ 			goto Error
+ 		}
+ 
+diff --git a/src/go/types/fixedbugs/issue42695.src b/src/go/types/fixedbugs/issue42695.src
+new file mode 100644
+index 0000000000..d0d6200969
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue42695.src
+@@ -0,0 +1,17 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue42695
++
++const _ = 6e5518446744 // ERROR malformed constant
++const _ uint8 = 6e5518446744 // ERROR malformed constant
++
++var _ = 6e5518446744 // ERROR malformed constant
++var _ uint8 = 6e5518446744 // ERROR malformed constant
++
++func f(x int) int {
++        return x + 6e5518446744 // ERROR malformed constant
++}
++
++var _ = f(6e5518446744 /* ERROR malformed constant */ )
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 2d30dbd024..3e1ac312d9 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -195,9 +195,15 @@ func (x *operand) setConst(tok token.Token, lit string) {
+ 		unreachable()
+ 	}
+ 
++	val := constant.MakeFromLiteral(lit, tok, 0)
++	if val.Kind() == constant.Unknown {
++		x.mode = invalid
++		x.typ = Typ[Invalid]
++		return
++	}
+ 	x.mode = constant_
+ 	x.typ = Typ[kind]
+-	x.val = constant.MakeFromLiteral(lit, tok, 0)
++	x.val = val
+ }
+ 
+ // isNil reports whether x is the nil value.

@@ -11,7 +11,7 @@ Date:   Sun Jul 12 09:23:37 2015 +0900
     Change-Id: I205eab5cf1930fda8a68659b35cfa9f3a0e67ca6
     Reviewed-on: https://go-review.googlesource.com/12062
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_dragonfly.go  |  3 ---
  src/runtime/os_freebsd.go    |  3 ---
  src/runtime/os_linux.go      |  3 ---
@@ -24,3 +24,241 @@ Date:   Sun Jul 12 09:23:37 2015 +0900
  src/runtime/signal_darwin.go |  3 ---
  src/runtime/signal_unix.go   | 36 +---------------------------------
  11 files changed, 48 insertions(+), 64 deletions(-)
+
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index b19270a18d..62fc56a1f1 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -12,9 +12,6 @@ func lwp_create(param *lwpparams) int32
+ //go:noescape
+ func sigaltstack(new, old *sigaltstackt)
+ 
+-//go:noescape
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+-
+ //go:noescape
+ func sigaction(sig int32, new, old *sigactiont)
+ 
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 8c8a10661d..bc3394c9ac 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -12,9 +12,6 @@ func thr_new(param *thrparam, size int32)
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+ 
+-//go:noescape
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+-
+ //go:noescape
+ func sigaction(sig int32, new, old *sigactiont)
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index bd492f5e3b..dc932dbaa0 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -18,9 +18,6 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+ //go:noescape
+ func sigaltstack(new, old *sigaltstackt)
+ 
+-//go:noescape
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+-
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 3b4c13606f..efa8fa12b9 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -50,10 +50,6 @@ func sigpanic() {
+ 	panicmem()
+ }
+ 
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	throw("sigfwd not implemented")
+-}
+-
+ func raiseproc(sig int32) {
+ }
+ 
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index af52099079..4fa4a416bd 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -15,10 +15,6 @@ func sigaction(sig int32, new, old *sigactiont)
+ //go:noescape
+ func sigaltstack(new, old *sigaltstackt)
+ 
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	throw("sigfwd not implemented")
+-}
+-
+ //go:noescape
+ func sigprocmask(mode int32, new, old *sigset)
+ 
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index f94b490285..8a97a738f7 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+@@ -15,9 +13,6 @@ func sigaction(sig int32, new, old *sigactiont)
+ //go:noescape
+ func sigaltstack(new, old *stackt)
+ 
+-//go:noescape
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+-
+ //go:noescape
+ func sigprocmask(mode int32, new uint32) uint32
+ 
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index fd20a5cd11..634e4cf914 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -10,9 +10,6 @@ type libcFunc uintptr
+ 
+ var asmsysvicall6 libcFunc
+ 
+-//go:noescape
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+-
+ //go:nosplit
+ func sysvicall0(fn *libcFunc) uintptr {
+ 	libcall := &getg().m.libcall
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index e351d57b77..8cabbc20e2 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -16,7 +16,7 @@ const (
+ // handle a particular signal (e.g., signal occurred on a non-Go thread).
+ // See sigfwdgo() for more information on when the signals are forwarded.
+ //
+-// Signal forwarding is currently available only on Linux.
++// Signal forwarding is currently available only on Darwin and Linux.
+ var fwdSig [_NSIG]uintptr
+ 
+ // sigmask represents a general signal mask compatible with the GOOS
+diff --git a/src/runtime/signal2_unix.go b/src/runtime/signal2_unix.go
+new file mode 100644
+index 0000000000..8b0bd42206
+--- /dev/null
++++ b/src/runtime/signal2_unix.go
+@@ -0,0 +1,46 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin linux
++
++package runtime
++
++import "unsafe"
++
++//go:noescape
++func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
++
++// Determines if the signal should be handled by Go and if not, forwards the
++// signal to the handler that was installed before Go's.  Returns whether the
++// signal was forwarded.
++//go:nosplit
++func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
++	g := getg()
++	c := &sigctxt{info, ctx}
++	if sig >= uint32(len(sigtable)) {
++		return false
++	}
++	fwdFn := fwdSig[sig]
++	flags := sigtable[sig].flags
++
++	// If there is no handler to forward to, no need to forward.
++	if fwdFn == _SIG_DFL {
++		return false
++	}
++	// Only forward synchronous signals.
++	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
++		return false
++	}
++	// Determine if the signal occurred inside Go code.  We test that:
++	//   (1) we were in a goroutine (i.e., m.curg != nil), and
++	//   (2) we weren't in CGO (i.e., m.curg.syscallsp == 0).
++	if g != nil && g.m != nil && g.m.curg != nil && g.m.curg.syscallsp == 0 {
++		return false
++	}
++	// Signal not handled by Go, forward it.
++	if fwdFn != _SIG_IGN {
++		sigfwd(fwdFn, sig, info, ctx)
++	}
++	return true
++}
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index 6cd18653d5..e8ec162fda 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -46,9 +46,6 @@ var sigtable = [...]sigTabT{
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ }
+ 
+-//go:noescape
+-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
+-
+ //go:noescape
+ func sigreturn(ctx unsafe.Pointer, infostyle uint32)
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index ad3ab31c01..8834e51f4b 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -6,43 +6,9 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ //go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {
+ 	systemstack(sigpipe)
+ }
+-
+-// Determines if the signal should be handled by Go and if not, forwards the
+-// signal to the handler that was installed before Go's.  Returns whether the
+-// signal was forwarded.
+-//go:nosplit
+-func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
+-	g := getg()
+-	c := &sigctxt{info, ctx}
+-	if sig >= uint32(len(sigtable)) {
+-		return false
+-	}
+-	fwdFn := fwdSig[sig]
+-	flags := sigtable[sig].flags
+-
+-	// If there is no handler to forward to, no need to forward.
+-	if fwdFn == _SIG_DFL {
+-		return false
+-	}
+-	// Only forward synchronous signals.
+-	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
+-		return false
+-	}
+-	// Determine if the signal occurred inside Go code.  We test that:
+-	//   (1) we were in a goroutine (i.e., m.curg != nil), and
+-	//   (2) we weren't in CGO (i.e., m.curg.syscallsp == 0).
+-	if g != nil && g.m != nil && g.m.curg != nil && g.m.curg.syscallsp == 0 {
+-		return false
+-	}
+-	// Signal not handled by Go, forward it.
+-	if fwdFn != _SIG_IGN {
+-		sigfwd(fwdFn, sig, info, ctx)
+-	}
+-	return true
+-}

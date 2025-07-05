@@ -9,7 +9,7 @@ Date:   Wed Aug 5 15:44:45 2009 -0700
     DELTA=195  (155 added, 0 deleted, 40 changed)
     OCL=32800
     CL=32800
-
+---
  src/pkg/go/doc/comment.go  |   6 +-
  src/pkg/go/doc/doc.go      |   6 +-
  src/pkg/log/log_test.go    |   2 +-
@@ -18,3 +18,452 @@ Date:   Wed Aug 5 15:44:45 2009 -0700
  src/pkg/regexp/regexp.go   | 141 +++++++++++++++++++++++++++++++++++++++------
  src/pkg/testing/testing.go |   2 +-
  7 files changed, 188 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index b6c88a0d6a..0550e73316 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -51,18 +51,18 @@ func commentText(comments []string) string {
+ 		w := 0;
+ 		for j, l := range cl {
+ 			// remove /* and */ lines
+-			if comment_junk.Match(l) {
++			if comment_junk.MatchString(l) {
+ 				continue;
+ 			}
+ 
+ 			// strip trailing white space
+-			m := trailing_whitespace.Execute(l);
++			m := trailing_whitespace.ExecuteString(l);
+ 			if len(m) > 0 {
+ 				l = l[0 : m[1]];
+ 			}
+ 
+ 			// strip leading comment markers
+-			m = comment_markers.Execute(l);
++			m = comment_markers.ExecuteString(l);
+ 			if len(m) > 0 {
+ 				l = l[m[1] : len(l)];
+ 			}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 634bd0ce91..2edc846384 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -223,9 +223,9 @@ func (doc *docReader) addFile(src *ast.File) {
+ 	for c := src.Comments; c != nil; c = c.Next {
+ 		text := c.List[0].Text;
+ 		cstr := string(text);
+-		if m := bug_markers.Execute(cstr); len(m) > 0 {
++		if m := bug_markers.ExecuteString(cstr); len(m) > 0 {
+ 			// found a BUG comment; maybe empty
+-			if bstr := cstr[m[1] : len(cstr)]; bug_content.Match(bstr) {
++			if bstr := cstr[m[1] : len(cstr)]; bug_content.MatchString(bstr) {
+ 				// non-empty BUG comment; collect comment without BUG prefix
+ 				list := copyCommentList(c.List);
+ 				list[0].Text = text[m[1] : len(text)];
+@@ -486,7 +486,7 @@ func isRegexp(s string) bool {
+ func match(s string, a []string) bool {
+ 	for _, t := range a {
+ 		if isRegexp(t) {
+-			if matched, err := regexp.Match(t, s); matched {
++			if matched, err := regexp.MatchString(t, s); matched {
+ 				return true;
+ 			}
+ 		}
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index 819e959ceb..e346b3b587 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -65,7 +65,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 		t.Fatal("log error", err3);
+ 	}
+ 	pattern = "^"+pattern+"hello 23 world$";
+-	matched, err4 := regexp.Match(pattern, line);
++	matched, err4 := regexp.MatchString(pattern, line);
+ 	if err4 != nil{
+ 		t.Fatal("pattern did not compile:", err4);
+ 	}
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 6756ee86f0..ec2037fe9c 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -64,7 +64,7 @@ func TestDialError(t *testing.T) {
+ 			continue;
+ 		}
+ 		s := e.String();
+-		match, err := regexp.Match(tt.Pattern, s);
++		match, err := regexp.MatchString(tt.Pattern, s);
+ 		if !match {
+ 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern);
+ 		}
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 0d16b24e3a..aef3bbe0b5 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -7,6 +7,7 @@ package regexp
+ import (
+ 	"os";
+ 	"regexp";
++	"strings";
+ 	"testing";
+ )
+ 
+@@ -117,6 +118,17 @@ func printStrings(t *testing.T, m []string) {
+ 	}
+ }
+ 
++func printBytes(t *testing.T, b [][]byte) {
++	l := len(b);
++	if l == 0 {
++		t.Log("\t<no match>");
++	} else {
++		for i := 0; i < l; i = i+2 {
++			t.Logf("\t%q", b[i])
++		}
++	}
++}
++
+ func equal(m1, m2 []int) bool {
+ 	l := len(m1);
+ 	if l != len(m2) {
+@@ -143,12 +155,33 @@ func equalStrings(m1, m2 []string) bool {
+ 	return true
+ }
+ 
++func equalBytes(m1 [][]byte, m2 []string) bool {
++	l := len(m1);
++	if l != len(m2) {
++		return false
++	}
++	for i := 0; i < l; i++ {
++		if string(m1[i]) != m2[i] {
++			return false
++		}
++	}
++	return true
++}
++
+ func executeTest(t *testing.T, expr string, str string, match []int) {
+ 	re := compileTest(t, expr, nil);
+ 	if re == nil {
+ 		return
+ 	}
+-	m := re.Execute(str);
++	m := re.ExecuteString(str);
++	if !equal(m, match) {
++		t.Error("ExecuteString failure on `", expr, "` matching `", str, "`:");
++		printVec(t, m);
++		t.Log("should be:");
++		printVec(t, match);
++	}
++	// now try bytes
++	m = re.Execute(strings.Bytes(str));
+ 	if !equal(m, match) {
+ 		t.Error("Execute failure on `", expr, "` matching `", str, "`:");
+ 		printVec(t, m);
+@@ -181,7 +214,12 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
+ 	if re == nil {
+ 		return
+ 	}
+-	m := re.Match(str);
++	m := re.MatchString(str);
++	if m != (len(match) > 0) {
++		t.Error("MatchString failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
++	}
++	// now try bytes
++	m = re.Match(strings.Bytes(str));
+ 	if m != (len(match) > 0) {
+ 		t.Error("Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
+ 	}
+@@ -210,6 +248,14 @@ func matchStringsTest(t *testing.T, expr string, str string, match []int) {
+ 		t.Log("should be:");
+ 		printStrings(t, strs);
+ 	}
++	// now try bytes
++	s := re.MatchSlices(strings.Bytes(str));
++	if !equalBytes(s, strs) {
++		t.Error("MatchSlices failure on `", expr, "` matching `", str, "`:");
++		printBytes(t, s);
++		t.Log("should be:");
++		printStrings(t, strs);
++	}
+ }
+ 
+ func TestMatchStrings(t *testing.T) {
+@@ -220,7 +266,7 @@ func TestMatchStrings(t *testing.T) {
+ }
+ 
+ func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
+-	m, err := Match(expr, str);
++	m, err := MatchString(expr, str);
+ 	if err == nil {
+ 		return
+ 	}
+@@ -309,7 +355,13 @@ func TestReplaceAll(t *testing.T) {
+ 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err);
+ 			continue;
+ 		}
+-		actual := re.ReplaceAll(tc.input, tc.replacement);
++		actual := re.ReplaceAllString(tc.input, tc.replacement);
++		if actual != tc.output {
++			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
++				tc.pattern, tc.input, tc.replacement, actual, tc.output);
++		}
++		// now try bytes
++		actual = string(re.ReplaceAll(strings.Bytes(tc.input), strings.Bytes(tc.replacement)));
+ 		if actual != tc.output {
+ 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+ 				tc.pattern, tc.input, tc.replacement, actual, tc.output);
+@@ -347,7 +399,7 @@ func TestQuoteMeta(t *testing.T) {
+ 			}
+ 			src := "abc" + tc.pattern + "def";
+ 			repl := "xyz";
+-			replaced := re.ReplaceAll(src, repl);
++			replaced := re.ReplaceAllString(src, repl);
+ 			expected := "abcxyzdef";
+ 			if replaced != expected {
+ 				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 745a3ae724..6b8b1bf86b 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -645,14 +645,20 @@ func addState(s []state, inst instr, match []int) []state {
+ 	return s;
+ }
+ 
+-func (re *Regexp) doExecute(str string, pos int) []int {
++// Accepts either string or bytes - the logic is identical either way.
++// If bytes == nil, scan str.
++func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
+ 	var s [2][]state;	// TODO: use a vector when state values (not ptrs) can be vector elements
+ 	s[0] = make([]state, 10)[0:0];
+ 	s[1] = make([]state, 10)[0:0];
+ 	in, out := 0, 1;
+ 	var final state;
+ 	found := false;
+-	for pos <= len(str) {
++	end := len(str);
++	if bytes != nil {
++		end = len(bytes)
++	}
++	for pos <= end {
+ 		if !found {
+ 			// prime the pump if we haven't seen a match yet
+ 			match := make([]int, 2*(re.nbra+1));
+@@ -670,8 +676,12 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ 		}
+ 		charwidth := 1;
+ 		c := endOfFile;
+-		if pos < len(str) {
+-			c, charwidth = utf8.DecodeRuneInString(str[pos:len(str)]);
++		if pos < end {
++			if bytes == nil {
++				c, charwidth = utf8.DecodeRuneInString(str[pos:end]);
++			} else {
++				c, charwidth = utf8.DecodeRune(bytes[pos:end]);
++			}
+ 		}
+ 		for i := 0; i < len(s[in]); i++ {
+ 			st := s[in][i];
+@@ -681,7 +691,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ 					s[in] = addState(s[in], st.inst.next(), st.match)
+ 				}
+ 			case _EOT:
+-				if pos == len(str) {
++				if pos == end {
+ 					s[in] = addState(s[in], st.inst.next(), st.match)
+ 				}
+ 			case _CHAR:
+@@ -720,7 +730,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ 				// choose leftmost longest
+ 				if !found ||	// first
+ 				   st.match[0] < final.match[0] ||	// leftmost
+-				   (st.match[0] == final.match[0] && pos > final.match[1])  {	// longest
++				   (st.match[0] == final.match[0] && pos > final.match[1]) {	// longest
+ 					final = st;
+ 					final.match[1] = pos;
+ 				}
+@@ -736,22 +746,41 @@ func (re *Regexp) doExecute(str string, pos int) []int {
+ }
+ 
+ 
+-// Execute matches the Regexp against the string s.
++// ExecuteString matches the Regexp against the string s.
+ // The return value is an array of integers, in pairs, identifying the positions of
+ // substrings matched by the expression.
+ //    s[a[0]:a[1]] is the substring matched by the entire expression.
+ //    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
+ // A negative value means the subexpression did not match any element of the string.
+ // An empty array means "no match".
+-func (re *Regexp) Execute(s string) (a []int) {
+-	return re.doExecute(s, 0)
++func (re *Regexp) ExecuteString(s string) (a []int) {
++	return re.doExecute(s, nil, 0)
+ }
+ 
+ 
+-// Match returns whether the Regexp matches the string s.
++// Execute matches the Regexp against the byte slice b.
++// The return value is an array of integers, in pairs, identifying the positions of
++// subslices matched by the expression.
++//    b[a[0]:a[1]] is the subslice matched by the entire expression.
++//    b[a[2*i]:a[2*i+1]] for i > 0 is the subslice matched by the ith parenthesized subexpression.
++// A negative value means the subexpression did not match any element of the slice.
++// An empty array means "no match".
++func (re *Regexp) Execute(b []byte) (a []int) {
++	return re.doExecute("", b, 0)
++}
++
++
++// MatchString returns whether the Regexp matches the string s.
+ // The return value is a boolean: true for match, false for no match.
+-func (re *Regexp) Match(s string) bool {
+-	return len(re.doExecute(s, 0)) > 0
++func (re *Regexp) MatchString(s string) bool {
++	return len(re.doExecute(s, nil, 0)) > 0
++}
++
++
++// Match returns whether the Regexp matches the byte slice b.
++// The return value is a boolean: true for match, false for no match.
++func (re *Regexp) Match(b []byte) bool {
++	return len(re.doExecute("", b, 0)) > 0
+ }
+ 
+ 
+@@ -761,7 +790,7 @@ func (re *Regexp) Match(s string) bool {
+ //    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
+ // An empty array means ``no match''.
+ func (re *Regexp) MatchStrings(s string) (a []string) {
+-	r := re.doExecute(s, 0);
++	r := re.doExecute(s, nil, 0);
+ 	if r == nil {
+ 		return nil
+ 	}
+@@ -774,26 +803,56 @@ func (re *Regexp) MatchStrings(s string) (a []string) {
+ 	return
+ }
+ 
++// MatchSlices matches the Regexp against the byte slice b.
++// The return value is an array of subslices matched by the expression.
++//    a[0] is the subslice matched by the entire expression.
++//    a[i] for i > 0 is the subslice matched by the ith parenthesized subexpression.
++// An empty array means ``no match''.
++func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
++	r := re.doExecute("", b, 0);
++	if r == nil {
++		return nil
++	}
++	a = make([][]byte, len(r)/2);
++	for i := 0; i < len(r); i += 2 {
++		if r[i] != -1 {	// -1 means no match for this subexpression
++			a[i/2] = b[r[i] : r[i+1]]
++		}
++	}
++	return
++}
++
++// MatchString checks whether a textual regular expression
++// matches a string.  More complicated queries need
++// to use Compile and the full Regexp interface.
++func MatchString(pattern string, s string) (matched bool, error os.Error) {
++	re, err := Compile(pattern);
++	if err != nil {
++		return false, err
++	}
++	return re.MatchString(s), nil
++}
++
+ // Match checks whether a textual regular expression
+-// matches a substring.  More complicated queries need
++// matches a byte slice.  More complicated queries need
+ // to use Compile and the full Regexp interface.
+-func Match(pattern string, s string) (matched bool, error os.Error) {
++func Match(pattern string, b []byte) (matched bool, error os.Error) {
+ 	re, err := Compile(pattern);
+ 	if err != nil {
+ 		return false, err
+ 	}
+-	return re.Match(s), nil
++	return re.Match(b), nil
+ }
+ 
+-// ReplaceAll returns a copy of src in which all matches for the Regexp
++// ReplaceAllString returns a copy of src in which all matches for the Regexp
+ // have been replaced by repl.  No support is provided for expressions
+ // (e.g. \1 or $1) in the replacement string.
+-func (re *Regexp) ReplaceAll(src, repl string) string {
++func (re *Regexp) ReplaceAllString(src, repl string) string {
+ 	lastMatchEnd := 0; // end position of the most recent match
+ 	searchPos := 0; // position where we next look for a match
+ 	buf := new(bytes.Buffer);
+ 	for searchPos <= len(src) {
+-		a := re.doExecute(src, searchPos);
++		a := re.doExecute(src, nil, searchPos);
+ 		if len(a) == 0 {
+ 			break; // no more matches
+ 		}
+@@ -829,6 +888,50 @@ func (re *Regexp) ReplaceAll(src, repl string) string {
+ 	return string(buf.Data());
+ }
+ 
++// ReplaceAll returns a copy of src in which all matches for the Regexp
++// have been replaced by repl.  No support is provided for expressions
++// (e.g. \1 or $1) in the replacement text.
++func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
++	lastMatchEnd := 0; // end position of the most recent match
++	searchPos := 0; // position where we next look for a match
++	buf := new(bytes.Buffer);
++	for searchPos <= len(src) {
++		a := re.doExecute("", src, searchPos);
++		if len(a) == 0 {
++			break; // no more matches
++		}
++
++		// Copy the unmatched characters before this match.
++		buf.Write(src[lastMatchEnd:a[0]]);
++
++		// Now insert a copy of the replacement string, but not for a
++		// match of the empty string immediately after another match.
++		// (Otherwise, we get double replacement for patterns that
++		// match both empty and nonempty strings.)
++		if a[1] > lastMatchEnd || a[0] == 0 {
++			buf.Write(repl);
++		}
++		lastMatchEnd = a[1];
++
++		// Advance past this match; always advance at least one character.
++		rune, width := utf8.DecodeRune(src[searchPos:len(src)]);
++		if searchPos + width > a[1] {
++			searchPos += width;
++		} else if searchPos + 1 > a[1] {
++			// This clause is only needed at the end of the input
++			// string.  In that case, DecodeRuneInString returns width=0.
++			searchPos++;
++		} else {
++			searchPos = a[1];
++		}
++	}
++
++	// Copy the unmatched characters after the last match.
++	buf.Write(src[lastMatchEnd:len(src)]);
++
++	return buf.Data();
++}
++
+ // QuoteMeta returns a string that quotes all regular expression metacharacters
+ // inside the argument text; the returned string is a regular expression matching
+ // the literal text.  For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 330fadd3ab..e4608ef723 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -128,7 +128,7 @@ func Main(tests []Test) {
+ 		os.Exit(1);
+ 	}
+ 	for i := 0; i < len(tests); i++ {
+-		if !re.Match(tests[i].Name) {
++		if !re.MatchString(tests[i].Name) {
+ 			continue;
+ 		}
+ 		if *chatty {

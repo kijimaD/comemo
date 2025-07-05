@@ -11,9 +11,202 @@ Date:   Wed Oct 28 11:40:22 2015 +1300
     Change-Id: Ic8bf1d0a74284cca0d94a68cf75024e8ab063b4e
     Reviewed-on: https://go-review.googlesource.com/16383
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 85 +++++++++++++++++++++++++++++++---------
  src/cmd/link/internal/ld/lib.go  |  2 +-
  src/cmd/link/internal/x86/asm.go | 33 ++++++++++++++++
  src/cmd/link/internal/x86/obj.go |  7 ++++
  4 files changed, 108 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 13ab240c64..416ed71231 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2018,6 +2018,21 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 	}
+ 
+ 	if p.Mode == 32 {
++		if a.Index == REG_TLS && ctxt.Flag_shared != 0 {
++			// When building for inclusion into a shared library, an instruction of the form
++			//     MOVL 0(CX)(TLS*1), AX
++			// becomes
++			//     mov %gs:(%ecx), %eax
++			// which assumes that the correct TLS offset has been loaded into %ecx (today
++			// there is only one TLS variable -- g -- so this is OK). When not building for
++			// a shared library the instruction it becomes
++			//     mov 0x0(%ecx), $eax
++			// and a R_TLS_LE relocation, and so does not require a prefix.
++			if a.Offset != 0 {
++				ctxt.Diag("cannot handle non-0 offsets to TLS")
++			}
++			return 0x65 // GS
++		}
+ 		return 0
+ 	}
+ 
+@@ -2518,10 +2533,12 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 			log.Fatalf("reloc")
+ 		}
+ 
+-		r.Type = obj.R_TLS_LE
+-		r.Siz = 4
+-		r.Off = -1 // caller must fill in
+-		r.Add = a.Offset
++		if ctxt.Flag_shared == 0 {
++			r.Type = obj.R_TLS_LE
++			r.Siz = 4
++			r.Off = -1 // caller must fill in
++			r.Add = a.Offset
++		}
+ 		return 0
+ 	}
+ 
+@@ -3922,20 +3939,52 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 						case obj.Hlinux,
+ 							obj.Hnacl:
+-							// ELF TLS base is 0(GS).
+-							pp.From = p.From
+-
+-							pp.From.Type = obj.TYPE_MEM
+-							pp.From.Reg = REG_GS
+-							pp.From.Offset = 0
+-							pp.From.Index = REG_NONE
+-							pp.From.Scale = 0
+-							ctxt.Andptr[0] = 0x65
+-							ctxt.Andptr = ctxt.Andptr[1:] // GS
+-							ctxt.Andptr[0] = 0x8B
+-							ctxt.Andptr = ctxt.Andptr[1:]
+-							asmand(ctxt, p, &pp.From, &p.To)
+-
++							if ctxt.Flag_shared != 0 {
++								// Note that this is not generating the same insns as the other cases.
++								//     MOV TLS, R_to
++								// becomes
++								//     call __x86.get_pc_thunk.cx
++								//     movl (gotpc + g@gotntpoff)(%ecx),$R_To
++								// which is encoded as
++								//     call __x86.get_pc_thunk.cx
++								//     movq 0(%ecx), R_to
++								// and R_CALL & R_TLS_IE relocs. This all assumes the only tls variable we access
++								// is g, which we can't check here, but will when we assemble the second
++								// instruction.
++								ctxt.Andptr[0] = 0xe8
++								ctxt.Andptr = ctxt.Andptr[1:]
++								r = obj.Addrel(ctxt.Cursym)
++								r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
++								r.Type = obj.R_CALL
++								r.Siz = 4
++								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
++								put4(ctxt, 0)
++
++								ctxt.Andptr[0] = 0x8B
++								ctxt.Andptr = ctxt.Andptr[1:]
++								ctxt.Andptr[0] = byte(2<<6 | reg[REG_CX] | (reg[p.To.Reg] << 3))
++								ctxt.Andptr = ctxt.Andptr[1:]
++								r = obj.Addrel(ctxt.Cursym)
++								r.Off = int32(p.Pc + int64(-cap(ctxt.Andptr)+cap(ctxt.And[:])))
++								r.Type = obj.R_TLS_IE
++								r.Siz = 4
++								r.Add = 2
++								put4(ctxt, 0)
++							} else {
++								// ELF TLS base is 0(GS).
++								pp.From = p.From
++
++								pp.From.Type = obj.TYPE_MEM
++								pp.From.Reg = REG_GS
++								pp.From.Offset = 0
++								pp.From.Index = REG_NONE
++								pp.From.Scale = 0
++								ctxt.Andptr[0] = 0x65
++								ctxt.Andptr = ctxt.Andptr[1:] // GS
++								ctxt.Andptr[0] = 0x8B
++								ctxt.Andptr = ctxt.Andptr[1:]
++								asmand(ctxt, p, &pp.From, &p.To)
++							}
+ 						case obj.Hplan9:
+ 							if ctxt.Plan9privates == nil {
+ 								ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9749355ddb..fc242d8a84 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1669,7 +1669,7 @@ func stkcheck(up *Chain, depth int) int {
+ 		// should never be called directly.
+ 		// only diagnose the direct caller.
+ 		// TODO(mwhudson): actually think about this.
+-		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() {
++		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() && Buildmode != BuildmodePIE {
+ 			Diag("call to external function %s", s.Name)
+ 		}
+ 		return -1
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 7f619b5c34..603aaa4ff1 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -38,6 +38,30 @@ import (
+ )
+ 
+ func gentext() {
++	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE {
++		return
++	}
++
++	thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0)
++	thunkfunc.Type = obj.STEXT
++	thunkfunc.Local = true
++	thunkfunc.Reachable = true
++	o := func(op ...uint8) {
++		for _, op1 := range op {
++			ld.Adduint8(ld.Ctxt, thunkfunc, op1)
++		}
++	}
++	// 8b 0c 24	mov    (%esp),%ecx
++	o(0x8b, 0x0c, 0x24)
++	// c3		ret
++	o(0xc3)
++
++	if ld.Ctxt.Etextp != nil {
++		ld.Ctxt.Etextp.Next = thunkfunc
++	} else {
++		ld.Ctxt.Textp = thunkfunc
++	}
++	ld.Ctxt.Etextp = thunkfunc
+ }
+ 
+ func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+@@ -257,6 +281,15 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 		} else {
+ 			return -1
+ 		}
++
++	case obj.R_TLS_IE:
++		if r.Siz == 4 {
++			ld.Thearch.Lput(ld.R_386_GOTPC)
++			ld.Thearch.Lput(uint32(sectoff))
++			ld.Thearch.Lput(ld.R_386_TLS_GOTIE | uint32(elfsym)<<8)
++		} else {
++			return -1
++		}
+ 	}
+ 
+ 	return 0
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index ee408f70c6..c1535555b3 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -86,6 +86,13 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
++	if ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ld.DynlinkingGo() {
++		ld.Linkmode = ld.LinkExternal
++		got := ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
++		got.Type = obj.SDYNIMPORT
++		got.Reachable = true
++	}
++
+ 	switch ld.HEADTYPE {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {

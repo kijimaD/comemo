@@ -15,7 +15,36 @@ Date:   Thu Oct 28 17:08:22 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/359485
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/bytes/bytes.go     | 3 ++-
  src/strings/strings.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 9e6b68eaf4..6fdaa49c73 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -746,7 +746,8 @@ func isSeparator(r rune) bool {
+ // Title treats s as UTF-8-encoded bytes and returns a copy with all Unicode letters that begin
+ // words mapped to their title case.
+ //
+-// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
++// Deprecated: The rule Title uses for word boundaries does not handle Unicode
++// punctuation properly. Use golang.org/x/text/cases instead.
+ func Title(s []byte) []byte {
+ 	// Use a closure here to remember state.
+ 	// Hackish but effective. Depends on Map scanning in order and calling
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index bc734048c3..c5a29e95f6 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -706,7 +706,8 @@ func isSeparator(r rune) bool {
+ // Title returns a copy of the string s with all Unicode letters that begin words
+ // mapped to their Unicode title case.
+ //
+-// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
++// Deprecated: The rule Title uses for word boundaries does not handle Unicode
++// punctuation properly. Use golang.org/x/text/cases instead.
+ func Title(s string) string {
+ 	// Use a closure here to remember state.
+ 	// Hackish but effective. Depends on Map scanning in order and calling

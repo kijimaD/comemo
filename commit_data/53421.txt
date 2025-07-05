@@ -12,7 +12,7 @@ Date:   Mon Aug 15 16:26:23 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go               |  9 ++++++++-
  .../internal/types2/testdata/fixedbugs/issue54280.go  |  7 +++++++
  src/go/types/check_test.go                            |  2 +-
@@ -21,3 +21,165 @@ Date:   Mon Aug 15 16:26:23 2022 -0700
  test/const7.go                                        | 19 +++++++++++--------
  test/fixedbugs/issue54280.go                          | 11 +++++++++++
  7 files changed, 52 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index ee0792e61c..6e1e47c08f 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -109,7 +109,11 @@ func (check *Checker) overflow(x *operand) {
+ 	// Untyped integer values must not grow arbitrarily.
+ 	const prec = 512 // 512 is the constant precision
+ 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
+-		check.errorf(opPos(x.expr), "constant %s overflow", opName(x.expr))
++		op := opName(x.expr)
++		if op != "" {
++			op += " "
++		}
++		check.errorf(opPos(x.expr), "constant %soverflow", op)
+ 		x.val = constant.MakeUnknown()
+ 	}
+ }
+@@ -1344,6 +1348,9 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			check.errorf(e, "malformed constant: %s", e.Value)
+ 			goto Error
+ 		}
++		// Ensure that integer values don't overflow (issue #54280).
++		x.expr = e // make sure that check.overflow below has an error position
++		check.overflow(x)
+ 
+ 	case *syntax.FuncLit:
+ 		if sig, ok := check.typ(e.Type).(*Signature); ok {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54280.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54280.go
+new file mode 100644
+index 0000000000..e83e1a140a
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue54280.go
+@@ -0,0 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912 // ERROR constant overflow
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 4684a6e296..cd149499b2 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -352,7 +352,7 @@ func TestManual(t *testing.T) {
+ }
+ 
+ func TestLongConstants(t *testing.T) {
+-	format := "package longconst\n\nconst _ = %s\nconst _ = %s // ERROR excessively long constant"
++	format := "package longconst\n\nconst _ = %s /* ERROR constant overflow */ \nconst _ = %s // ERROR excessively long constant"
+ 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
+ 	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
+ }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 4b60123499..4d3dd9edab 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -110,7 +110,11 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
+ 	// Untyped integer values must not grow arbitrarily.
+ 	const prec = 512 // 512 is the constant precision
+ 	if x.val.Kind() == constant.Int && constant.BitLen(x.val) > prec {
+-		check.errorf(atPos(opPos), _InvalidConstVal, "constant %s overflow", opName(x.expr))
++		op := opName(x.expr)
++		if op != "" {
++			op += " "
++		}
++		check.errorf(atPos(opPos), _InvalidConstVal, "constant %soverflow", op)
+ 		x.val = constant.MakeUnknown()
+ 	}
+ }
+@@ -1300,6 +1304,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			check.errorf(e, _InvalidConstVal, "malformed constant: %s", e.Value)
+ 			goto Error
+ 		}
++		// Ensure that integer values don't overflow (issue #54280).
++		check.overflow(x, e.Pos())
+ 
+ 	case *ast.FuncLit:
+ 		if sig, ok := check.typ(e.Type).(*Signature); ok {
+diff --git a/src/go/types/testdata/fixedbugs/issue54280.go b/src/go/types/testdata/fixedbugs/issue54280.go
+new file mode 100644
+index 0000000000..e83e1a140a
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue54280.go
+@@ -0,0 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912 // ERROR constant overflow
+diff --git a/test/const7.go b/test/const7.go
+index 6acd7fde3a..8b252a24cf 100644
+--- a/test/const7.go
++++ b/test/const7.go
+@@ -24,12 +24,12 @@ import (
+ // which declares an untyped constant of the given length.
+ // testProg compiles this package and checks for the absence or
+ // presence of a constant literal error.
+-func testProg(dir, name string, length int, ok bool) {
++func testProg(dir, name string, length int, msg string) {
+ 	var buf bytes.Buffer
+ 
+ 	fmt.Fprintf(&buf,
+-		"package %s; const _ = %s // %d digits",
+-		name, strings.Repeat("9", length), length,
++		"package %s; const _ = 0b%s // %d bits",
++		name, strings.Repeat("1", length), length,
+ 	)
+ 
+ 	filename := filepath.Join(dir, fmt.Sprintf("%s.go", name))
+@@ -41,7 +41,7 @@ func testProg(dir, name string, length int, ok bool) {
+ 	cmd.Dir = dir
+ 	output, err := cmd.CombinedOutput()
+ 
+-	if ok {
++	if msg == "" {
+ 		// no error expected
+ 		if err != nil {
+ 			log.Fatalf("%s: compile failed unexpectedly: %v", name, err)
+@@ -53,7 +53,7 @@ func testProg(dir, name string, length int, ok bool) {
+ 	if err == nil {
+ 		log.Fatalf("%s: compile succeeded unexpectedly", name)
+ 	}
+-	if !bytes.Contains(output, []byte("excessively long constant")) {
++	if !bytes.Contains(output, []byte(msg)) {
+ 		log.Fatalf("%s: wrong compiler error message:\n%s\n", name, output)
+ 	}
+ }
+@@ -69,7 +69,10 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	const limit = 10000 // compiler-internal constant length limit
+-	testProg(dir, "x1", limit, true)
+-	testProg(dir, "x2", limit+1, false)
++	const bitLimit = 512
++	const charLimit = 10000 // compiler-internal constant length limit
++	testProg(dir, "x1", bitLimit, "")
++	testProg(dir, "x2", bitLimit+1, "constant overflow")
++	testProg(dir, "x3", charLimit-2, "constant overflow") // -2 because literal contains 0b prefix
++	testProg(dir, "x4", charLimit-1, "excessively long constant")
+ }
+diff --git a/test/fixedbugs/issue54280.go b/test/fixedbugs/issue54280.go
+new file mode 100644
+index 0000000000..4f9103d4e6
+--- /dev/null
++++ b/test/fixedbugs/issue54280.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Don't crash in export of oversized integer constant.
++
++package p
++
++const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912 // ERROR "constant overflow"

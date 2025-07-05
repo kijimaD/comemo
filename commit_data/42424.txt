@@ -13,7 +13,107 @@ Date:   Fri Oct 18 04:13:50 2019 +0200
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/doc/main.go                |  7 ++--
  src/cmd/go/testdata/script/doc.txt | 75 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 86259e5f1f..0499c40369 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -65,9 +65,10 @@ func usage() {
+ 	fmt.Fprintf(os.Stderr, "Usage of [go] doc:\n")
+ 	fmt.Fprintf(os.Stderr, "\tgo doc\n")
+ 	fmt.Fprintf(os.Stderr, "\tgo doc <pkg>\n")
+-	fmt.Fprintf(os.Stderr, "\tgo doc <sym>[.<method>]\n")
+-	fmt.Fprintf(os.Stderr, "\tgo doc [<pkg>].<sym>[.<method>]\n")
+-	fmt.Fprintf(os.Stderr, "\tgo doc <pkg> <sym>[.<method>]\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc <sym>[.<methodOrField>]\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc [<pkg>.]<sym>[.<methodOrField>]\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc [<pkg>.][<sym>.]<methodOrField>\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc <pkg> <sym>[.<methodOrField>]\n")
+ 	fmt.Fprintf(os.Stderr, "For more information run\n")
+ 	fmt.Fprintf(os.Stderr, "\tgo help doc\n\n")
+ 	fmt.Fprintf(os.Stderr, "Flags:\n")
+diff --git a/src/cmd/go/testdata/script/doc.txt b/src/cmd/go/testdata/script/doc.txt
+new file mode 100644
+index 0000000000..3ff1aab093
+--- /dev/null
++++ b/src/cmd/go/testdata/script/doc.txt
+@@ -0,0 +1,75 @@
++# go doc --help
++! go doc --help
++stderr 'go doc'
++stderr 'go doc <pkg>'
++stderr 'go doc <sym>\[\.<methodOrField>\]'
++stderr 'go doc \[<pkg>\.\]<sym>\[\.<methodOrField>\]'
++stderr 'go doc \[<pkg>\.\]\[<sym>\.\]<methodOrField>'
++stderr 'go doc <pkg> <sym>\[\.<methodOrField>\]'
++
++# go help doc
++go help doc
++stdout 'go doc'
++stdout 'go doc <pkg>'
++stdout 'go doc <sym>\[\.<methodOrField>\]'
++stdout 'go doc \[<pkg>\.\]<sym>\[\.<methodOrField>\]'
++stdout 'go doc \[<pkg>\.\]\[<sym>\.\]<methodOrField>'
++stdout 'go doc <pkg> <sym>\[\.<methodOrField>\]'
++
++# go doc <pkg>
++go doc p/v2
++stdout .
++
++# go doc <pkg> <sym>
++go doc p/v2 Symbol
++stdout .
++
++# go doc <pkg> <sym> <method>
++! go doc p/v2 Symbol Method
++stderr .
++
++# go doc <pkg>.<sym>
++go doc p/v2.Symbol
++stdout .
++
++# go doc <pkg>.<sym>.<method>
++go doc p/v2.Symbol.Method
++stdout .
++
++# go doc <sym>
++go doc Symbol
++stdout .
++
++# go doc <sym> <method>
++! go doc Symbol Method
++stderr .
++
++# go doc <sym>.<method>
++go doc Symbol.Method
++stdout .
++
++# go doc <pkg>.<method>
++go doc p/v2.Method
++stdout .
++
++# go doc <pkg> <method>
++go doc p/v2 Method
++stdout .
++
++# go doc <method>
++go doc Method
++stdout .
++
++-- go.mod --
++module p/v2
++
++go 1.13
++
++-- p.go --
++package p
++
++type Symbol struct{}
++
++func (Symbol) Method() error {
++	return nil
++}

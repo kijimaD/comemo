@@ -8,6 +8,21 @@ Date:   Wed Nov 11 14:52:29 2009 -0800
     
     R=r
     https://golang.org/cl/152080
-
+---
  src/pkg/os/os_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 3066d57265..57081afb4e 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -297,7 +297,8 @@ func TestSymLink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	s := "0123456789abcdef";
+-	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
++	// Long, but not too long: a common limit is 255.
++	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
+ 	from := "longsymlinktestfrom";
+ 	err := Symlink(s, from);
+ 	if err != nil {

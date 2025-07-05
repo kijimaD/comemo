@@ -7,6 +7,20 @@ Date:   Tue Apr 27 14:05:53 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/989044
-
+---
  src/pkg/go/printer/testdata/statements.golden | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index e3076aefc3..f3dc8fe744 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -152,7 +152,7 @@ func _() {
+ 
+ // Don't remove mandatory parentheses around composite literals in control clauses.
+ func _() {
+-	// strip no parentheses - no composite literals or composite literals don't start with a type name
++	// strip parentheses - no composite literals or composite literals don't start with a type name
+ 	if x {
+ 	}
+ 	if x {

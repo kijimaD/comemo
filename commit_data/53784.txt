@@ -17,6 +17,36 @@ Date:   Wed Aug 31 19:05:55 2022 +0200
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/mapfile_mmap.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index c1616db8e9..e154a3f9e0 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -10,6 +10,7 @@ package base
+ import (
+ 	"os"
+ 	"reflect"
++	"runtime"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -27,7 +28,7 @@ func MapFile(f *os.File, offset, length int64) (string, error) {
+ 	length += x
+ 
+ 	buf, err := syscall.Mmap(int(f.Fd()), offset, int(length), syscall.PROT_READ, syscall.MAP_SHARED)
+-	keepAlive(f)
++	runtime.KeepAlive(f)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -43,7 +44,3 @@ func MapFile(f *os.File, offset, length int64) (string, error) {
+ 
+ 	return res, nil
+ }
+-
+-// keepAlive is a reimplementation of runtime.KeepAlive, which wasn't
+-// added until Go 1.7, whereas we need to compile with Go 1.4.
+-var keepAlive = func(interface{}) {}

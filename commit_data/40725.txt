@@ -99,7 +99,7 @@ Date:   Tue Jun 11 15:49:44 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/181881
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.13.html                                    |  58 +++
  src/cmd/go/internal/modconv/convert_test.go        |   2 +-
  src/cmd/go/internal/modfetch/cache.go              |  18 +-
@@ -121,3 +121,1983 @@ Date:   Tue Jun 11 15:49:44 2019 -0400
  src/cmd/go/testdata/script/mod_download_hash.txt   |  14 +-
  src/cmd/go/testdata/script/mod_invalid_version.txt | 220 ++++++++++++
  20 files changed, 1170 insertions(+), 201 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index e2099ce2d6..594b75bcfa 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -161,6 +161,64 @@ TODO
+ TODO
+ </p>
+ 
++<h3 id="modules">Modules</h3>
++
++<h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
++
++<p>
++  When extracting a module from a version control system, the <code>go</code>
++  command now performs additional validation on the requested version string.
++</p>
++
++<p>
++  The <code>+incompatible</code> version annotation bypasses the requirement
++  of <a href="/cmd/go/#hdr-Module_compatibility_and_semantic_versioning">semantic
++  import versioning</a> for repositories that predate the introduction of
++  modules. The <code>go</code> command now verifies that such a version does not
++  include an explicit <code>go.mod</code> file.
++</p>
++
++<p>
++  The <code>go</code> command now verifies the mapping
++  between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
++  version-control metadata. Specifically:
++  <ul>
++    <li>The version prefix must be derived from a tag on the named revision or
++    one of its ancestors, or be of the form <code>vX.0.0</code>.</li>
++
++    <li>The date string must match the UTC timestamp of the revision.</li>
++
++    <li>The short name of the revision must use the same number of characters as
++    what the <code>go</code> command would generate. (For SHA-1 hashes as used
++    by <code>git</code>, a 12-digit prefix.)</li>
++  </ul>
++</p>
++
++<p>
++  If the main module directly requires a version that fails the above
++  validation, a corrected version can be obtained by redacting the version to
++  just the commit hash and re-running a <code>go</code> command such as <code>go
++  list -m all</code> or <code>go mod tidy</code>. For example,
++  <pre>require github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c</pre>
++      can be redacted to
++  <pre>require github.com/docker/docker e7b5f7dbe98c</pre>
++  which resolves to
++  <pre>require github.com/docker/docker v0.7.3-0.20190319215453-e7b5f7dbe98c</pre>
++</p>
++
++<p>
++  If the main module has a transitive requirement on a version that fails
++  validation, the invalid version can still be replaced with a valid one through
++  the use of a <a href="/cmd/go/#hdr-The_go_mod_file"><code>replace</code>
++  directive</a> in the <code>go.mod</code> file of
++  the <a href="/cmd/go/#hdr-The_main_module_and_the_build_list">main module</a>.
++  If the replacement is a commit hash, it will be resolved to the appropriate
++  pseudo-version. For example,
++  <pre>replace github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c => github.com/docker/docker e7b5f7dbe98c</pre>
++  resolves to
++  <pre>replace github.com/docker/docker v1.14.0-0.20190319215453-e7b5f7dbe98c => github.com/docker/docker v0.7.3-0.20190319215453-e7b5f7dbe98c</pre>
++</p>
++
+ <h3 id="compiler">Compiler toolchain</h3>
+ 
+ <p><!-- CL 170448 -->
+diff --git a/src/cmd/go/internal/modconv/convert_test.go b/src/cmd/go/internal/modconv/convert_test.go
+index 32727e79eb..8ff229bd14 100644
+--- a/src/cmd/go/internal/modconv/convert_test.go
++++ b/src/cmd/go/internal/modconv/convert_test.go
+@@ -128,7 +128,7 @@ func TestConvertLegacyConfig(t *testing.T) {
+ 
+ 		{
+ 			// golang.org/issue/24585 - confusion about v2.0.0 tag in legacy non-v2 module
+-			"github.com/fishy/gcsbucket", "v0.0.0-20150410205453-618d60fe84e0",
++			"github.com/fishy/gcsbucket", "v0.0.0-20180217031846-618d60fe84e0",
+ 			`module github.com/fishy/gcsbucket
+ 
+ 			require (
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index b23776d874..c0062809d1 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -216,29 +216,21 @@ func (r *cachingRepo) Latest() (*RevInfo, error) {
+ 	return &info, nil
+ }
+ 
+-func (r *cachingRepo) GoMod(rev string) ([]byte, error) {
++func (r *cachingRepo) GoMod(version string) ([]byte, error) {
+ 	type cached struct {
+ 		text []byte
+ 		err  error
+ 	}
+-	c := r.cache.Do("gomod:"+rev, func() interface{} {
+-		file, text, err := readDiskGoMod(r.path, rev)
++	c := r.cache.Do("gomod:"+version, func() interface{} {
++		file, text, err := readDiskGoMod(r.path, version)
+ 		if err == nil {
+ 			// Note: readDiskGoMod already called checkGoMod.
+ 			return cached{text, nil}
+ 		}
+ 
+-		// Convert rev to canonical version
+-		// so that we use the right identifier in the go.sum check.
+-		info, err := r.Stat(rev)
+-		if err != nil {
+-			return cached{nil, err}
+-		}
+-		rev = info.Version
+-
+-		text, err = r.r.GoMod(rev)
++		text, err = r.r.GoMod(version)
+ 		if err == nil {
+-			checkGoMod(r.path, rev, text)
++			checkGoMod(r.path, version, text)
+ 			if err := writeDiskGoMod(file, text); err != nil {
+ 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
+ 			}
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 6c17f7886f..ab9287b541 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -79,14 +79,16 @@ type Repo interface {
+ 	// nested in a single top-level directory, whose name is not specified.
+ 	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
+ 
+-	// RecentTag returns the most recent tag at or before the given rev
+-	// with the given prefix. It should make a best-effort attempt to
+-	// find a tag that is a valid semantic version (following the prefix),
+-	// or else the result is not useful to the caller, but it need not
+-	// incur great expense in doing so. For example, the git implementation
+-	// of RecentTag limits git's search to tags matching the glob expression
+-	// "v[0-9]*.[0-9]*.[0-9]*" (after the prefix).
+-	RecentTag(rev, prefix string) (tag string, err error)
++	// RecentTag returns the most recent tag on rev or one of its predecessors
++	// with the given prefix and major version.
++	// An empty major string matches any major version.
++	RecentTag(rev, prefix, major string) (tag string, err error)
++
++	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
++	//
++	// DescendsFrom must return true for any tag returned by RecentTag for the
++	// same revision.
++	DescendsFrom(rev, tag string) (bool, error)
+ }
+ 
+ // A Rev describes a single revision in a source code repository.
+@@ -105,6 +107,20 @@ type FileRev struct {
+ 	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
+ }
+ 
++// UnknownRevisionError is an error equivalent to os.ErrNotExist, but for a
++// revision rather than a file.
++type UnknownRevisionError struct {
++	Rev string
++}
++
++func (e *UnknownRevisionError) Error() string {
++	return "unknown revision " + e.Rev
++}
++
++func (e *UnknownRevisionError) Is(err error) bool {
++	return err == os.ErrNotExist
++}
++
+ // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
+ func AllHex(rev string) bool {
+ 	for i := 0; i < len(rev); i++ {
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index a1d451d61a..83e694dfe8 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -10,6 +10,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"path/filepath"
+ 	"sort"
+ 	"strconv"
+@@ -318,7 +319,7 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 			hash = rev
+ 		}
+ 	} else {
+-		return nil, fmt.Errorf("unknown revision %s", rev)
++		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+ 
+ 	// Protect r.fetchLevel and the "fetch more and more" sequence.
+@@ -378,17 +379,30 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+ 
+ 	// Last resort.
+ 	// Fetch all heads and tags and hope the hash we want is in the history.
++	if err := r.fetchRefsLocked(); err != nil {
++		return nil, err
++	}
++
++	return r.statLocal(rev, rev)
++}
++
++// fetchRefsLocked fetches all heads and tags from the origin, along with the
++// ancestors of those commits.
++//
++// We only fetch heads and tags, not arbitrary other commits: we don't want to
++// pull in off-branch commits (such as rejected GitHub pull requests) that the
++// server may be willing to provide. (See the comments within the stat method
++// for more detail.)
++//
++// fetchRefsLocked requires that r.mu remain locked for the duration of the call.
++func (r *gitRepo) fetchRefsLocked() error {
+ 	if r.fetchLevel < fetchAll {
+-		// TODO(bcmills): should we wait to upgrade fetchLevel until after we check
+-		// err? If there is a temporary server error, we want subsequent fetches to
+-		// try again instead of proceeding with an incomplete repo.
+-		r.fetchLevel = fetchAll
+ 		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+-			return nil, err
++			return err
+ 		}
++		r.fetchLevel = fetchAll
+ 	}
+-
+-	return r.statLocal(rev, rev)
++	return nil
+ }
+ 
+ func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
+@@ -411,7 +425,7 @@ func (r *gitRepo) fetchUnshallow(refSpecs ...string) error {
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+ 	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev, "--")
+ 	if err != nil {
+-		return nil, fmt.Errorf("unknown revision %s", rev)
++		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+ 	f := strings.Fields(string(out))
+ 	if len(f) < 2 {
+@@ -648,7 +662,7 @@ func (r *gitRepo) readFileRevs(tags []string, file string, fileMap map[string]*F
+ 	return missing, nil
+ }
+ 
+-func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
++func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
+ 	info, err := r.Stat(rev)
+ 	if err != nil {
+ 		return "", err
+@@ -681,7 +695,7 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 
+ 			semtag := line[len(prefix):]
+ 			// Consider only tags that are valid and complete (not just major.minor prefixes).
+-			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) {
++			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) && (major == "" || semver.Major(c) == major) {
+ 				highest = semver.Max(highest, semtag)
+ 			}
+ 		}
+@@ -716,12 +730,8 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 	}
+ 	defer unlock()
+ 
+-	if r.fetchLevel < fetchAll {
+-		// Fetch all heads and tags and see if that gives us enough history.
+-		if err := r.fetchUnshallow("refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+-			return "", err
+-		}
+-		r.fetchLevel = fetchAll
++	if err := r.fetchRefsLocked(); err != nil {
++		return "", err
+ 	}
+ 
+ 	// If we've reached this point, we have all of the commits that are reachable
+@@ -738,6 +748,67 @@ func (r *gitRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 	return tag, err
+ }
+ 
++func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
++	// The "--is-ancestor" flag was added to "git merge-base" in version 1.8.0, so
++	// this won't work with Git 1.7.1. According to golang.org/issue/28550, cmd/go
++	// already doesn't work with Git 1.7.1, so at least it's not a regression.
++	//
++	// git merge-base --is-ancestor exits with status 0 if rev is an ancestor, or
++	// 1 if not.
++	_, err := Run(r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
++
++	// Git reports "is an ancestor" with exit code 0 and "not an ancestor" with
++	// exit code 1.
++	// Unfortunately, if we've already fetched rev with a shallow history, git
++	// merge-base has been observed to report a false-negative, so don't stop yet
++	// even if the exit code is 1!
++	if err == nil {
++		return true, nil
++	}
++
++	// See whether the tag and rev even exist.
++	tags, err := r.Tags(tag)
++	if err != nil {
++		return false, err
++	}
++	if len(tags) == 0 {
++		return false, nil
++	}
++
++	// NOTE: r.stat is very careful not to fetch commits that we shouldn't know
++	// about, like rejected GitHub pull requests, so don't try to short-circuit
++	// that here.
++	if _, err = r.stat(rev); err != nil {
++		return false, err
++	}
++
++	// Now fetch history so that git can search for a path.
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return false, err
++	}
++	defer unlock()
++
++	if r.fetchLevel < fetchAll {
++		// Fetch the complete history for all refs and heads. It would be more
++		// efficient to only fetch the history from rev to tag, but that's much more
++		// complicated, and any kind of shallow fetch is fairly likely to trigger
++		// bugs in JGit servers and/or the go command anyway.
++		if err := r.fetchRefsLocked(); err != nil {
++			return false, err
++		}
++	}
++
++	_, err = Run(r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
++	if err == nil {
++		return true, nil
++	}
++	if ee, ok := err.(*RunError).Err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
++		return false, nil
++	}
++	return false, err
++}
++
+ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+ 	// TODO: Use maxSize or drop it.
+ 	args := []string{}
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 34aeedebc5..b1845f5c65 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -347,7 +347,7 @@ func (r *vcsRepo) fetch() {
+ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
+ 	out, err := Run(r.dir, r.cmd.statLocal(rev, r.remote))
+ 	if err != nil {
+-		return nil, vcsErrorf("unknown revision %s", rev)
++		return nil, &UnknownRevisionError{Rev: rev}
+ 	}
+ 	return r.cmd.parseStat(rev, string(out))
+ }
+@@ -392,7 +392,7 @@ func (r *vcsRepo) ReadFileRevs(revs []string, file string, maxSize int64) (map[s
+ 	return nil, vcsErrorf("ReadFileRevs not implemented")
+ }
+ 
+-func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
++func (r *vcsRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
+ 	// We don't technically need to lock here since we're returning an error
+ 	// uncondititonally, but doing so anyway will help to avoid baking in
+ 	// lock-inversion bugs.
+@@ -405,6 +405,16 @@ func (r *vcsRepo) RecentTag(rev, prefix string) (tag string, err error) {
+ 	return "", vcsErrorf("RecentTag not implemented")
+ }
+ 
++func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return false, err
++	}
++	defer unlock()
++
++	return false, vcsErrorf("DescendsFrom not implemented")
++}
++
+ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
+ 	if r.cmd.readZip == nil {
+ 		return nil, "", vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 59f2cc70b5..45243681f8 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -6,12 +6,14 @@ package modfetch
+ 
+ import (
+ 	"archive/zip"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+ 	"strings"
++	"time"
+ 
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modfile"
+@@ -42,12 +44,10 @@ type codeRepo struct {
+ 	// It is used only for logging.
+ 	pathPrefix string
+ 
+-	// pseudoMajor is the major version prefix to use when generating
+-	// pseudo-versions for this module, derived from the module path.
+-	//
+-	// TODO(golang.org/issue/29262): We can't distinguish v0 from v1 using the
+-	// path alone: we have to compute it by examining the tags at a particular
+-	// revision.
++	// pseudoMajor is the major version prefix to require when generating
++	// pseudo-versions for this module, derived from the module path. pseudoMajor
++	// is empty if the module path does not include a version suffix (that is,
++	// accepts either v0 or v1).
+ 	pseudoMajor string
+ }
+ 
+@@ -65,10 +65,7 @@ func newCodeRepo(code codehost.Repo, codeRoot, path string) (Repo, error) {
+ 	if codeRoot == path {
+ 		pathPrefix = path
+ 	}
+-	pseudoMajor := "v0"
+-	if pathMajor != "" {
+-		pseudoMajor = pathMajor[1:]
+-	}
++	pseudoMajor := module.PathMajorPrefix(pathMajor)
+ 
+ 	// Compute codeDir = bar, the subdirectory within the repo
+ 	// corresponding to the module root.
+@@ -159,7 +156,7 @@ func (r *codeRepo) Versions(prefix string) ([]string, error) {
+ 		if v == "" || v != module.CanonicalVersion(v) || IsPseudoVersion(v) {
+ 			continue
+ 		}
+-		if !module.MatchPathMajor(v, r.pathMajor) {
++		if err := module.MatchPathMajor(v, r.pathMajor); err != nil {
+ 			if r.codeDir == "" && r.pathMajor == "" && semver.Major(v) > "v1" {
+ 				incompatible = append(incompatible, v)
+ 			}
+@@ -220,79 +217,322 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 		Time:  info.Time,
+ 	}
+ 
+-	// Determine version.
+-	if module.CanonicalVersion(statVers) == statVers && module.MatchPathMajor(statVers, r.pathMajor) {
+-		// The original call was repo.Stat(statVers), and requestedVersion is OK, so use it.
+-		info2.Version = statVers
+-	} else {
+-		// Otherwise derive a version from a code repo tag.
+-		// Tag must have a prefix matching codeDir.
+-		p := ""
+-		if r.codeDir != "" {
+-			p = r.codeDir + "/"
+-		}
+-
+-		// If this is a plain tag (no dir/ prefix)
+-		// and the module path is unversioned,
+-		// and if the underlying file tree has no go.mod,
+-		// then allow using the tag with a +incompatible suffix.
+-		canUseIncompatible := false
++	// If this is a plain tag (no dir/ prefix)
++	// and the module path is unversioned,
++	// and if the underlying file tree has no go.mod,
++	// then allow using the tag with a +incompatible suffix.
++	var canUseIncompatible func() bool
++	canUseIncompatible = func() bool {
++		var ok bool
+ 		if r.codeDir == "" && r.pathMajor == "" {
+ 			_, errGoMod := r.code.ReadFile(info.Name, "go.mod", codehost.MaxGoMod)
+ 			if errGoMod != nil {
+-				canUseIncompatible = true
++				ok = true
+ 			}
+ 		}
++		canUseIncompatible = func() bool { return ok }
++		return ok
++	}
+ 
+-		tagToVersion := func(v string) string {
+-			if !strings.HasPrefix(v, p) {
+-				return ""
++	invalidf := func(format string, args ...interface{}) error {
++		return &module.ModuleError{
++			Path: r.modPath,
++			Err: &module.InvalidVersionError{
++				Version: info2.Version,
++				Err:     fmt.Errorf(format, args...),
++			},
++		}
++	}
++
++	// checkGoMod verifies that the go.mod file for the module exists or does not
++	// exist as required by info2.Version and the module path represented by r.
++	checkGoMod := func() (*RevInfo, error) {
++		// If r.codeDir is non-empty, then the go.mod file must exist: the module
++		// author, not the module consumer, gets to decide how to carve up the repo
++		// into modules.
++		if r.codeDir != "" {
++			_, _, _, err := r.findDir(info2.Version)
++			if err != nil {
++				// TODO: It would be nice to return an error like "not a module".
++				// Right now we return "missing go.mod", which is a little confusing.
++				return nil, err
+ 			}
+-			v = v[len(p):]
+-			if module.CanonicalVersion(v) != v || IsPseudoVersion(v) {
+-				return ""
++		}
++
++		// If the version is +incompatible, then the go.mod file must not exist:
++		// +incompatible is not an ongoing opt-out from semantic import versioning.
++		if strings.HasSuffix(info2.Version, "+incompatible") {
++			if !canUseIncompatible() {
++				if r.pathMajor != "" {
++					return nil, invalidf("+incompatible suffix not allowed: module path includes a major version suffix, so major version must match")
++				} else {
++					return nil, invalidf("+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required")
++				}
+ 			}
+-			if module.MatchPathMajor(v, r.pathMajor) {
+-				return v
++
++			if err := module.MatchPathMajor(strings.TrimSuffix(info2.Version, "+incompatible"), r.pathMajor); err == nil {
++				return nil, invalidf("+incompatible suffix not allowed: major version %s is compatible", semver.Major(info2.Version))
+ 			}
+-			if canUseIncompatible {
+-				return v + "+incompatible"
++		}
++
++		return info2, nil
++	}
++
++	// Determine version.
++	//
++	// If statVers is canonical, then the original call was repo.Stat(statVers).
++	// Since the version is canonical, we must not resolve it to anything but
++	// itself, possibly with a '+incompatible' annotation: we do not need to do
++	// the work required to look for an arbitrary pseudo-version.
++	if statVers != "" && statVers == module.CanonicalVersion(statVers) {
++		info2.Version = statVers
++
++		if IsPseudoVersion(info2.Version) {
++			if err := r.validatePseudoVersion(info, info2.Version); err != nil {
++				return nil, err
++			}
++			return checkGoMod()
++		}
++
++		if err := module.MatchPathMajor(info2.Version, r.pathMajor); err != nil {
++			if canUseIncompatible() {
++				info2.Version += "+incompatible"
++				return checkGoMod()
++			} else {
++				if vErr, ok := err.(*module.InvalidVersionError); ok {
++					// We're going to describe why the version is invalid in more detail,
++					// so strip out the existing “invalid version” wrapper.
++					err = vErr.Err
++				}
++				return nil, invalidf("module contains a go.mod file, so major version must be compatible: %v", err)
+ 			}
+-			return ""
+ 		}
+ 
+-		// If info.Version is OK, use it.
+-		if v := tagToVersion(info.Version); v != "" {
+-			info2.Version = v
+-		} else {
+-			// Otherwise look through all known tags for latest in semver ordering.
+-			for _, tag := range info.Tags {
+-				if v := tagToVersion(tag); v != "" && semver.Compare(info2.Version, v) < 0 {
++		return checkGoMod()
++	}
++
++	// statVers is empty or non-canonical, so we need to resolve it to a canonical
++	// version or pseudo-version.
++
++	// Derive or verify a version from a code repo tag.
++	// Tag must have a prefix matching codeDir.
++	tagPrefix := ""
++	if r.codeDir != "" {
++		tagPrefix = r.codeDir + "/"
++	}
++
++	// tagToVersion returns the version obtained by trimming tagPrefix from tag.
++	// If the tag is invalid or a pseudo-version, tagToVersion returns an empty
++	// version.
++	tagToVersion := func(tag string) (v string, tagIsCanonical bool) {
++		if !strings.HasPrefix(tag, tagPrefix) {
++			return "", false
++		}
++		trimmed := tag[len(tagPrefix):]
++		// Tags that look like pseudo-versions would be confusing. Ignore them.
++		if IsPseudoVersion(tag) {
++			return "", false
++		}
++
++		v = semver.Canonical(trimmed) // Not module.Canonical: we don't want to pick up an explicit "+incompatible" suffix from the tag.
++		if v == "" || !strings.HasPrefix(trimmed, v) {
++			return "", false // Invalid or incomplete version (just vX or vX.Y).
++		}
++		if v == trimmed {
++			tagIsCanonical = true
++		}
++
++		if err := module.MatchPathMajor(v, r.pathMajor); err != nil {
++			if canUseIncompatible() {
++				return v + "+incompatible", tagIsCanonical
++			}
++			return "", false
++		}
++
++		return v, tagIsCanonical
++	}
++
++	// If the VCS gave us a valid version, use that.
++	if v, tagIsCanonical := tagToVersion(info.Version); tagIsCanonical {
++		info2.Version = v
++		return checkGoMod()
++	}
++
++	// Look through the tags on the revision for either a usable canonical version
++	// or an appropriate base for a pseudo-version.
++	var pseudoBase string
++	for _, pathTag := range info.Tags {
++		v, tagIsCanonical := tagToVersion(pathTag)
++		if tagIsCanonical {
++			if statVers != "" && semver.Compare(v, statVers) == 0 {
++				// The user requested a non-canonical version, but the tag for the
++				// canonical equivalent refers to the same revision. Use it.
++				info2.Version = v
++				return checkGoMod()
++			} else {
++				// Save the highest canonical tag for the revision. If we don't find a
++				// better match, we'll use it as the canonical version.
++				//
++				// NOTE: Do not replace this with semver.Max. Despite the name,
++				// semver.Max *also* canonicalizes its arguments, which uses
++				// semver.Canonical instead of module.CanonicalVersion and thereby
++				// strips our "+incompatible" suffix.
++				if semver.Compare(info2.Version, v) < 0 {
+ 					info2.Version = v
+ 				}
+ 			}
+-			// Otherwise make a pseudo-version.
+-			if info2.Version == "" {
+-				tag, _ := r.code.RecentTag(info.Name, p)
+-				v = tagToVersion(tag)
+-				// TODO: Check that v is OK for r.pseudoMajor or else is OK for incompatible.
+-				info2.Version = PseudoVersion(r.pseudoMajor, v, info.Time, info.Short)
++		} else if v != "" && semver.Compare(v, statVers) == 0 {
++			// The user explicitly requested something equivalent to this tag. We
++			// can't use the version from the tag directly: since the tag is not
++			// canonical, it could be ambiguous. For example, tags v0.0.1+a and
++			// v0.0.1+b might both exist and refer to different revisions.
++			//
++			// The tag is otherwise valid for the module, so we can at least use it as
++			// the base of an unambiguous pseudo-version.
++			//
++			// If multiple tags match, tagToVersion will canonicalize them to the same
++			// base version.
++			pseudoBase = v
++		}
++	}
++
++	// If we found any canonical tag for the revision, return it.
++	// Even if we found a good pseudo-version base, a canonical version is better.
++	if info2.Version != "" {
++		return checkGoMod()
++	}
++
++	if pseudoBase == "" {
++		var tag string
++		if r.pseudoMajor != "" || canUseIncompatible() {
++			tag, _ = r.code.RecentTag(info.Name, tagPrefix, r.pseudoMajor)
++		} else {
++			// Allow either v1 or v0, but not incompatible higher versions.
++			tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v1")
++			if tag == "" {
++				tag, _ = r.code.RecentTag(info.Name, tagPrefix, "v0")
+ 			}
+ 		}
++		pseudoBase, _ = tagToVersion(tag) // empty if the tag is invalid
+ 	}
+ 
+-	// Do not allow a successful stat of a pseudo-version for a subdirectory
+-	// unless the subdirectory actually does have a go.mod.
+-	if IsPseudoVersion(info2.Version) && r.codeDir != "" {
+-		_, _, _, err := r.findDir(info2.Version)
++	info2.Version = PseudoVersion(r.pseudoMajor, pseudoBase, info.Time, info.Short)
++	return checkGoMod()
++}
++
++// validatePseudoVersion checks that version has a major version compatible with
++// r.modPath and encodes a base version and commit metadata that agrees with
++// info.
++//
++// Note that verifying a nontrivial base version in particular may be somewhat
++// expensive: in order to do so, r.code.DescendsFrom will need to fetch at least
++// enough of the commit history to find a path between version and its base.
++// Fortunately, many pseudo-versions — such as those for untagged repositories —
++// have trivial bases!
++func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string) (err error) {
++	defer func() {
+ 		if err != nil {
+-			// TODO: It would be nice to return an error like "not a module".
+-			// Right now we return "missing go.mod", which is a little confusing.
+-			return nil, err
++			if _, ok := err.(*module.ModuleError); !ok {
++				if _, ok := err.(*module.InvalidVersionError); !ok {
++					err = &module.InvalidVersionError{Version: version, Pseudo: true, Err: err}
++				}
++				err = &module.ModuleError{Path: r.modPath, Err: err}
++			}
+ 		}
++	}()
++
++	if err := module.MatchPathMajor(version, r.pathMajor); err != nil {
++		return err
+ 	}
+ 
+-	return info2, nil
++	rev, err := PseudoVersionRev(version)
++	if err != nil {
++		return err
++	}
++	if rev != info.Short {
++		switch {
++		case strings.HasPrefix(rev, info.Short):
++			return fmt.Errorf("revision is longer than canonical (%s)", info.Short)
++		case strings.HasPrefix(info.Short, rev):
++			return fmt.Errorf("revision is shorter than canonical (%s)", info.Short)
++		default:
++			return fmt.Errorf("does not match short name of revision (%s)", info.Short)
++		}
++	}
++
++	t, err := PseudoVersionTime(version)
++	if err != nil {
++		return err
++	}
++	if !t.Equal(info.Time.Truncate(time.Second)) {
++		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
++	}
++
++	// A pseudo-version should have a precedence just above its parent revisions,
++	// and no higher. Otherwise, it would be possible for library authors to "pin"
++	// dependency versions (and bypass the usual minimum version selection) by
++	// naming an extremely high pseudo-version rather than an accurate one.
++	//
++	// Moreover, if we allow a pseudo-version to use any arbitrary pre-release
++	// tag, we end up with infinitely many possible names for each commit. Each
++	// name consumes resources in the module cache and proxies, so we want to
++	// restrict them to a finite set under control of the module author.
++	//
++	// We address both of these issues by requiring the tag upon which the
++	// pseudo-version is based to refer to some ancestor of the revision. We
++	// prefer the highest such tag when constructing a new pseudo-version, but do
++	// not enforce that property when resolving existing pseudo-versions: we don't
++	// know when the parent tags were added, and the highest-tagged parent may not
++	// have existed when the pseudo-version was first resolved.
++	base, err := PseudoVersionBase(strings.TrimSuffix(version, "+incompatible"))
++	if err != nil {
++		return err
++	}
++	if base == "" {
++		if r.pseudoMajor == "" && semver.Major(version) == "v1" {
++			return fmt.Errorf("major version without preceding tag must be v0, not v1")
++		}
++		return nil
++	}
++
++	tagPrefix := ""
++	if r.codeDir != "" {
++		tagPrefix = r.codeDir + "/"
++	}
++
++	tags, err := r.code.Tags(tagPrefix + base)
++	if err != nil {
++		return err
++	}
++
++	var lastTag string // Prefer to log some real tag rather than a canonically-equivalent base.
++	ancestorFound := false
++	for _, tag := range tags {
++		versionOnly := strings.TrimPrefix(tag, tagPrefix)
++		if semver.Compare(versionOnly, base) == 0 {
++			lastTag = tag
++			ancestorFound, err = r.code.DescendsFrom(info.Name, tag)
++			if ancestorFound {
++				break
++			}
++		}
++	}
++
++	if lastTag == "" {
++		return fmt.Errorf("preceding tag (%s) not found", base)
++	}
++
++	if !ancestorFound {
++		if err != nil {
++			return err
++		}
++		rev, err := PseudoVersionRev(version)
++		if err != nil {
++			return fmt.Errorf("not a descendent of preceding tag (%s)", lastTag)
++		}
++		return fmt.Errorf("revision %s is not a descendent of preceding tag (%s)", rev, lastTag)
++	}
++	return nil
+ }
+ 
+ func (r *codeRepo) revToRev(rev string) string {
+@@ -314,7 +554,13 @@ func (r *codeRepo) revToRev(rev string) string {
+ 
+ func (r *codeRepo) versionToRev(version string) (rev string, err error) {
+ 	if !semver.IsValid(version) {
+-		return "", fmt.Errorf("malformed semantic version %q", version)
++		return "", &module.ModuleError{
++			Path: r.modPath,
++			Err: &module.InvalidVersionError{
++				Version: version,
++				Err:     errors.New("syntax error"),
++			},
++		}
+ 	}
+ 	return r.revToRev(version), nil
+ }
+@@ -424,6 +670,21 @@ func isMajor(mpath, pathMajor string) bool {
+ }
+ 
+ func (r *codeRepo) GoMod(version string) (data []byte, err error) {
++	if version != module.CanonicalVersion(version) {
++		return nil, fmt.Errorf("version %s is not canonical", version)
++	}
++
++	if IsPseudoVersion(version) {
++		// findDir ignores the metadata encoded in a pseudo-version,
++		// only using the revision at the end.
++		// Invoke Stat to verify the metadata explicitly so we don't return
++		// a bogus file for an invalid version.
++		_, err := r.Stat(version)
++		if err != nil {
++			return nil, err
++		}
++	}
++
+ 	rev, dir, gomod, err := r.findDir(version)
+ 	if err != nil {
+ 		return nil, err
+@@ -457,6 +718,21 @@ func (r *codeRepo) modPrefix(rev string) string {
+ }
+ 
+ func (r *codeRepo) Zip(dst io.Writer, version string) error {
++	if version != module.CanonicalVersion(version) {
++		return fmt.Errorf("version %s is not canonical", version)
++	}
++
++	if IsPseudoVersion(version) {
++		// findDir ignores the metadata encoded in a pseudo-version,
++		// only using the revision at the end.
++		// Invoke Stat to verify the metadata explicitly so we don't return
++		// a bogus file for an invalid version.
++		_, err := r.Stat(version)
++		if err != nil {
++			return err
++		}
++	}
++
+ 	rev, dir, _, err := r.findDir(version)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 2cf6f81122..bfb1dff3de 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -7,7 +7,6 @@ package modfetch
+ import (
+ 	"archive/zip"
+ 	"internal/testenv"
+-	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -695,21 +694,10 @@ func TestLatest(t *testing.T) {
+ // fixedTagsRepo is a fake codehost.Repo that returns a fixed list of tags
+ type fixedTagsRepo struct {
+ 	tags []string
++	codehost.Repo
+ }
+ 
+-func (ch *fixedTagsRepo) Tags(string) ([]string, error)                  { return ch.tags, nil }
+-func (ch *fixedTagsRepo) Latest() (*codehost.RevInfo, error)             { panic("not impl") }
+-func (ch *fixedTagsRepo) ReadFile(string, string, int64) ([]byte, error) { panic("not impl") }
+-func (ch *fixedTagsRepo) ReadFileRevs([]string, string, int64) (map[string]*codehost.FileRev, error) {
+-	panic("not impl")
+-}
+-func (ch *fixedTagsRepo) ReadZip(string, string, int64) (io.ReadCloser, string, error) {
+-	panic("not impl")
+-}
+-func (ch *fixedTagsRepo) RecentTag(string, string) (string, error) {
+-	panic("not impl")
+-}
+-func (ch *fixedTagsRepo) Stat(string) (*codehost.RevInfo, error) { panic("not impl") }
++func (ch *fixedTagsRepo) Tags(string) ([]string, error) { return ch.tags, nil }
+ 
+ func TestNonCanonicalSemver(t *testing.T) {
+ 	root := "golang.org/x/issue24476"
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index ce74e826e1..426499baa9 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -281,6 +281,12 @@ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+ 	if err := json.Unmarshal(data, info); err != nil {
+ 		return nil, err
+ 	}
++	if info.Version != rev && rev == module.CanonicalVersion(rev) && module.Check(p.path, rev) == nil {
++		// If we request a correct, appropriate version for the module path, the
++		// proxy must return either exactly that version or an error — not some
++		// arbitrary other version.
++		return nil, fmt.Errorf("requested canonical version %s, but proxy returned info for version %s", rev, info.Version)
++	}
+ 	return info, nil
+ }
+ 
+@@ -298,6 +304,10 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
+ }
+ 
+ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
++	if version != module.CanonicalVersion(version) {
++		return nil, fmt.Errorf("version %s is not canonical", version)
++	}
++
+ 	encVer, err := module.EncodeVersion(version)
+ 	if err != nil {
+ 		return nil, err
+@@ -310,6 +320,10 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+ }
+ 
+ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
++	if version != module.CanonicalVersion(version) {
++		return fmt.Errorf("version %s is not canonical", version)
++	}
++
+ 	encVer, err := module.EncodeVersion(version)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/go/internal/modfetch/pseudo.go
+index e13607ac2b..8c063b9107 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/go/internal/modfetch/pseudo.go
+@@ -35,13 +35,18 @@
+ package modfetch
+ 
+ import (
+-	"cmd/go/internal/semver"
++	"errors"
+ 	"fmt"
+-	"internal/lazyregexp"
+ 	"strings"
+ 	"time"
++
++	"cmd/go/internal/module"
++	"cmd/go/internal/semver"
++	"internal/lazyregexp"
+ )
+ 
++var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$`)
++
+ // PseudoVersion returns a pseudo-version for the given major version ("v1")
+ // preexisting older tagged version ("" or "v1.2.3" or "v1.2.3-pre"), revision time,
+ // and revision identifier (usually a 12-byte commit hash prefix).
+@@ -49,7 +54,6 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	if major == "" {
+ 		major = "v0"
+ 	}
+-	major = strings.TrimSuffix(major, "-unstable") // make gopkg.in/macaroon-bakery.v2-unstable use "v2"
+ 	segment := fmt.Sprintf("%s-%s", t.UTC().Format("20060102150405"), rev)
+ 	build := semver.Build(older)
+ 	older = semver.Canonical(older)
+@@ -65,11 +69,16 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 	i := strings.LastIndex(older, ".") + 1
+ 	v, patch := older[:i], older[i:]
+ 
+-	// Increment PATCH by adding 1 to decimal:
+-	// scan right to left turning 9s to 0s until you find a digit to increment.
+-	// (Number might exceed int64, but math/big is overkill.)
+-	digits := []byte(patch)
+-	for i = len(digits) - 1; i >= 0 && digits[i] == '9'; i-- {
++	// Reassemble.
++	return v + incDecimal(patch) + "-0." + segment + build
++}
++
++// incDecimal returns the decimal string incremented by 1.
++func incDecimal(decimal string) string {
++	// Scan right to left turning 9s to 0s until you find a digit to increment.
++	digits := []byte(decimal)
++	i := len(digits) - 1
++	for ; i >= 0 && digits[i] == '9'; i-- {
+ 		digits[i] = '0'
+ 	}
+ 	if i >= 0 {
+@@ -79,13 +88,29 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 		digits[0] = '1'
+ 		digits = append(digits, '0')
+ 	}
+-	patch = string(digits)
+-
+-	// Reassemble.
+-	return v + patch + "-0." + segment + build
++	return string(digits)
+ }
+ 
+-var pseudoVersionRE = lazyregexp.New(`^v[0-9]+\.(0\.0-|\d+\.\d+-([^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+(\+incompatible)?$`)
++// decDecimal returns the decimal string decremented by 1, or the empty string
++// if the decimal is all zeroes.
++func decDecimal(decimal string) string {
++	// Scan right to left turning 0s to 9s until you find a digit to decrement.
++	digits := []byte(decimal)
++	i := len(digits) - 1
++	for ; i >= 0 && digits[i] == '0'; i-- {
++		digits[i] = '9'
++	}
++	if i < 0 {
++		// decimal is all zeros
++		return ""
++	}
++	if i == 0 && digits[i] == '1' && len(digits) > 1 {
++		digits = digits[1:]
++	} else {
++		digits[i]--
++	}
++	return string(digits)
++}
+ 
+ // IsPseudoVersion reports whether v is a pseudo-version.
+ func IsPseudoVersion(v string) bool {
+@@ -96,13 +121,17 @@ func IsPseudoVersion(v string) bool {
+ // It returns an error if v is not a pseudo-version or if the time stamp
+ // embedded in the pseudo-version is not a valid time.
+ func PseudoVersionTime(v string) (time.Time, error) {
+-	timestamp, _, err := parsePseudoVersion(v)
++	_, timestamp, _, _, err := parsePseudoVersion(v)
+ 	if err != nil {
+ 		return time.Time{}, err
+ 	}
+ 	t, err := time.Parse("20060102150405", timestamp)
+ 	if err != nil {
+-		return time.Time{}, fmt.Errorf("pseudo-version with malformed time %s: %q", timestamp, v)
++		return time.Time{}, &module.InvalidVersionError{
++			Version: v,
++			Pseudo:  true,
++			Err:     fmt.Errorf("malformed time %q", timestamp),
++		}
+ 	}
+ 	return t, nil
+ }
+@@ -110,22 +139,99 @@ func PseudoVersionTime(v string) (time.Time, error) {
+ // PseudoVersionRev returns the revision identifier of the pseudo-version v.
+ // It returns an error if v is not a pseudo-version.
+ func PseudoVersionRev(v string) (rev string, err error) {
+-	_, rev, err = parsePseudoVersion(v)
++	_, _, rev, _, err = parsePseudoVersion(v)
+ 	return
+ }
+ 
+-func parsePseudoVersion(v string) (timestamp, rev string, err error) {
++// PseudoVersionBase returns the canonical parent version, if any, upon which
++// the pseudo-version v is based.
++//
++// If v has no parent version (that is, if it is "vX.0.0-[…]"),
++// PseudoVersionBase returns the empty string and a nil error.
++func PseudoVersionBase(v string) (string, error) {
++	base, _, _, build, err := parsePseudoVersion(v)
++	if err != nil {
++		return "", err
++	}
++
++	switch pre := semver.Prerelease(base); pre {
++	case "":
++		// vX.0.0-yyyymmddhhmmss-abcdef123456 → ""
++		if build != "" {
++			// Pseudo-versions of the form vX.0.0-yyyymmddhhmmss-abcdef123456+incompatible
++			// are nonsensical: the "vX.0.0-" prefix implies that there is no parent tag,
++			// but the "+incompatible" suffix implies that the major version of
++			// the parent tag is not compatible with the module's import path.
++			//
++			// There are a few such entries in the index generated by proxy.golang.org,
++			// but we believe those entries were generated by the proxy itself.
++			return "", &module.InvalidVersionError{
++				Version: v,
++				Pseudo:  true,
++				Err:     fmt.Errorf("lacks base version, but has build metadata %q", build),
++			}
++		}
++		return "", nil
++
++	case "-0":
++		// vX.Y.(Z+1)-0.yyyymmddhhmmss-abcdef123456 → vX.Y.Z
++		// vX.Y.(Z+1)-0.yyyymmddhhmmss-abcdef123456+incompatible → vX.Y.Z+incompatible
++		base = strings.TrimSuffix(base, pre)
++		i := strings.LastIndexByte(base, '.')
++		if i < 0 {
++			panic("base from parsePseudoVersion missing patch number: " + base)
++		}
++		patch := decDecimal(base[i+1:])
++		if patch == "" {
++			// vX.0.0-0 is invalid, but has been observed in the wild in the index
++			// generated by requests to proxy.golang.org.
++			//
++			// NOTE(bcmills): I cannot find a historical bug that accounts for
++			// pseudo-versions of this form, nor have I seen such versions in any
++			// actual go.mod files. If we find actual examples of this form and a
++			// reasonable theory of how they came into existence, it seems fine to
++			// treat them as equivalent to vX.0.0 (especially since the invalid
++			// pseudo-versions have lower precedence than the real ones). For now, we
++			// reject them.
++			return "", &module.InvalidVersionError{
++				Version: v,
++				Pseudo:  true,
++				Err:     fmt.Errorf("version before %s would have negative patch number", base),
++			}
++		}
++		return base[:i+1] + patch + build, nil
++
++	default:
++		// vX.Y.Z-pre.0.yyyymmddhhmmss-abcdef123456 → vX.Y.Z-pre
++		// vX.Y.Z-pre.0.yyyymmddhhmmss-abcdef123456+incompatible → vX.Y.Z-pre+incompatible
++		if !strings.HasSuffix(base, ".0") {
++			panic(`base from parsePseudoVersion missing ".0" before date: ` + base)
++		}
++		return strings.TrimSuffix(base, ".0") + build, nil
++	}
++}
++
++var errPseudoSyntax = errors.New("syntax error")
++
++func parsePseudoVersion(v string) (base, timestamp, rev, build string, err error) {
+ 	if !IsPseudoVersion(v) {
+-		return "", "", fmt.Errorf("malformed pseudo-version %q", v)
++		return "", "", "", "", &module.InvalidVersionError{
++			Version: v,
++			Pseudo:  true,
++			Err:     errPseudoSyntax,
++		}
+ 	}
+-	v = strings.TrimSuffix(v, "+incompatible")
++	build = semver.Build(v)
++	v = strings.TrimSuffix(v, build)
+ 	j := strings.LastIndex(v, "-")
+ 	v, rev = v[:j], v[j+1:]
+ 	i := strings.LastIndex(v, "-")
+ 	if j := strings.LastIndex(v, "."); j > i {
++		base = v[:j] // "vX.Y.Z-pre.0" or "vX.Y.(Z+1)-0"
+ 		timestamp = v[j+1:]
+ 	} else {
++		base = v[:i] // "vX.0.0"
+ 		timestamp = v[i+1:]
+ 	}
+-	return timestamp, rev, nil
++	return base, timestamp, rev, build, nil
+ }
+diff --git a/src/cmd/go/internal/modfetch/pseudo_test.go b/src/cmd/go/internal/modfetch/pseudo_test.go
+index d0e800b450..4483f8e962 100644
+--- a/src/cmd/go/internal/modfetch/pseudo_test.go
++++ b/src/cmd/go/internal/modfetch/pseudo_test.go
+@@ -23,6 +23,10 @@ var pseudoTests = []struct {
+ 	{"unused", "v1.2.99999999999999999", "v1.2.100000000000000000-0.20060102150405-hash"},
+ 	{"unused", "v1.2.3-pre", "v1.2.3-pre.0.20060102150405-hash"},
+ 	{"unused", "v1.3.0-pre", "v1.3.0-pre.0.20060102150405-hash"},
++	{"unused", "v0.0.0--", "v0.0.0--.0.20060102150405-hash"},
++	{"unused", "v1.0.0+metadata", "v1.0.1-0.20060102150405-hash+metadata"},
++	{"unused", "v2.0.0+incompatible", "v2.0.1-0.20060102150405-hash+incompatible"},
++	{"unused", "v2.3.0-pre+incompatible", "v2.3.0-pre.0.20060102150405-hash+incompatible"},
+ }
+ 
+ var pseudoTime = time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC)
+@@ -79,3 +83,72 @@ func TestPseudoVersionRev(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestPseudoVersionBase(t *testing.T) {
++	for _, tt := range pseudoTests {
++		base, err := PseudoVersionBase(tt.version)
++		if err != nil {
++			t.Errorf("PseudoVersionBase(%q): %v", tt.version, err)
++		} else if base != tt.older {
++			t.Errorf("PseudoVersionBase(%q) = %q; want %q", tt.version, base, tt.older)
++		}
++	}
++}
++
++func TestInvalidPseudoVersionBase(t *testing.T) {
++	for _, in := range []string{
++		"v0.0.0",
++		"v0.0.0-",                                 // malformed: empty prerelease
++		"v0.0.0-0.20060102150405-hash",            // Z+1 == 0
++		"v0.1.0-0.20060102150405-hash",            // Z+1 == 0
++		"v1.0.0-0.20060102150405-hash",            // Z+1 == 0
++		"v0.0.0-20060102150405-hash+incompatible", // "+incompatible without base version
++		"v0.0.0-20060102150405-hash+metadata",     // other metadata without base version
++	} {
++		base, err := PseudoVersionBase(in)
++		if err == nil || base != "" {
++			t.Errorf(`PseudoVersionBase(%q) = %q, %v; want "", error`, in, base, err)
++		}
++	}
++}
++
++func TestIncDecimal(t *testing.T) {
++	cases := []struct {
++		in, want string
++	}{
++		{"0", "1"},
++		{"1", "2"},
++		{"99", "100"},
++		{"100", "101"},
++		{"101", "102"},
++	}
++
++	for _, tc := range cases {
++		got := incDecimal(tc.in)
++		if got != tc.want {
++			t.Fatalf("incDecimal(%q) = %q; want %q", tc.in, tc.want, got)
++		}
++	}
++}
++
++func TestDecDecimal(t *testing.T) {
++	cases := []struct {
++		in, want string
++	}{
++		{"", ""},
++		{"0", ""},
++		{"00", ""},
++		{"1", "0"},
++		{"2", "1"},
++		{"99", "98"},
++		{"100", "99"},
++		{"101", "100"},
++	}
++
++	for _, tc := range cases {
++		got := decDecimal(tc.in)
++		if got != tc.want {
++			t.Fatalf("decDecimal(%q) = %q; want %q", tc.in, tc.want, got)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index 8fa4f125a5..6e1a22f3ca 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -16,7 +16,6 @@ import (
+ 	"unicode"
+ 
+ 	"cmd/go/internal/module"
+-	"cmd/go/internal/semver"
+ )
+ 
+ // A File is the parsed, interpreted form of a go.mod file.
+@@ -214,10 +213,9 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 			return
+ 		}
+-		old := args[1]
+-		v, err := parseVersion(s, &args[1], fix)
++		v, err := parseVersion(verb, s, &args[1], fix)
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: invalid module version %q: %v\n", f.Syntax.Name, line.Start.Line, old, err)
++			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 			return
+ 		}
+ 		pathMajor, err := modulePathMajor(s)
+@@ -225,11 +223,8 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 			return
+ 		}
+-		if !module.MatchPathMajor(v, pathMajor) {
+-			if pathMajor == "" {
+-				pathMajor = "v0 or v1"
+-			}
+-			fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
++		if err := module.MatchPathMajor(v, pathMajor); err != nil {
++			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, &Error{Verb: verb, ModPath: s, Err: err})
+ 			return
+ 		}
+ 		if verb == "require" {
+@@ -265,17 +260,13 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 		}
+ 		var v string
+ 		if arrow == 2 {
+-			old := args[1]
+-			v, err = parseVersion(s, &args[1], fix)
++			v, err = parseVersion(verb, s, &args[1], fix)
+ 			if err != nil {
+-				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
++				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 				return
+ 			}
+-			if !module.MatchPathMajor(v, pathMajor) {
+-				if pathMajor == "" {
+-					pathMajor = "v0 or v1"
+-				}
+-				fmt.Fprintf(errs, "%s:%d: invalid module: %s should be %s, not %s (%s)\n", f.Syntax.Name, line.Start.Line, s, pathMajor, semver.Major(v), v)
++			if err := module.MatchPathMajor(v, pathMajor); err != nil {
++				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, &Error{Verb: verb, ModPath: s, Err: err})
+ 				return
+ 			}
+ 		}
+@@ -296,10 +287,9 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			}
+ 		}
+ 		if len(args) == arrow+3 {
+-			old := args[arrow+1]
+-			nv, err = parseVersion(ns, &args[arrow+2], fix)
++			nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
+ 			if err != nil {
+-				fmt.Fprintf(errs, "%s:%d: invalid module version %v: %v\n", f.Syntax.Name, line.Start.Line, old, err)
++				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
+ 				return
+ 			}
+ 			if IsDirectoryPath(ns) {
+@@ -411,15 +401,41 @@ func parseString(s *string) (string, error) {
+ 	return t, nil
+ }
+ 
+-func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
++type Error struct {
++	Verb    string
++	ModPath string
++	Err     error
++}
++
++func (e *Error) Error() string {
++	return fmt.Sprintf("%s %s: %v", e.Verb, e.ModPath, e.Err)
++}
++
++func (e *Error) Unwrap() error { return e.Err }
++
++func parseVersion(verb string, path string, s *string, fix VersionFixer) (string, error) {
+ 	t, err := parseString(s)
+ 	if err != nil {
+-		return "", err
++		return "", &Error{
++			Verb:    verb,
++			ModPath: path,
++			Err: &module.InvalidVersionError{
++				Version: *s,
++				Err:     err,
++			},
++		}
+ 	}
+ 	if fix != nil {
+ 		var err error
+ 		t, err = fix(path, t)
+ 		if err != nil {
++			if err, ok := err.(*module.ModuleError); ok {
++				return "", &Error{
++					Verb:    verb,
++					ModPath: path,
++					Err:     err.Err,
++				}
++			}
+ 			return "", err
+ 		}
+ 	}
+@@ -427,7 +443,14 @@ func parseVersion(path string, s *string, fix VersionFixer) (string, error) {
+ 		*s = v
+ 		return *s, nil
+ 	}
+-	return "", fmt.Errorf("version must be of the form v1.2.3")
++	return "", &Error{
++		Verb:    verb,
++		ModPath: path,
++		Err: &module.InvalidVersionError{
++			Version: t,
++			Err:     errors.New("must be of the form v1.2.3"),
++		},
++	}
+ }
+ 
+ func modulePathMajor(path string) (string, error) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a8fd06fa38..75ea131273 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -733,10 +733,18 @@ func fixVersion(path, vers string) (string, error) {
+ 	// Avoid the query if it looks OK.
+ 	_, pathMajor, ok := module.SplitPathVersion(path)
+ 	if !ok {
+-		return "", fmt.Errorf("malformed module path: %s", path)
++		return "", &module.ModuleError{
++			Path: path,
++			Err: &module.InvalidVersionError{
++				Version: vers,
++				Err:     fmt.Errorf("malformed module path %q", path),
++			},
++		}
+ 	}
+-	if vers != "" && module.CanonicalVersion(vers) == vers && module.MatchPathMajor(vers, pathMajor) {
+-		return vers, nil
++	if vers != "" && module.CanonicalVersion(vers) == vers {
++		if err := module.MatchPathMajor(vers, pathMajor); err == nil {
++			return vers, nil
++		}
+ 	}
+ 
+ 	info, err := Query(path, vers, "", nil)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index f05975d331..1e9a1a3c35 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1093,18 +1093,18 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 
+ 	data, err := modfetch.GoMod(mod.Path, mod.Version)
+ 	if err != nil {
+-		return nil, fmt.Errorf("%s@%s: %v", mod.Path, mod.Version, err)
++		return nil, err
+ 	}
+ 	f, err := modfile.ParseLax("go.mod", data, nil)
+ 	if err != nil {
+-		return nil, fmt.Errorf("%s@%s: parsing go.mod: %v", mod.Path, mod.Version, err)
++		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: %v", err))
+ 	}
+ 
+ 	if f.Module == nil {
+-		return nil, fmt.Errorf("%s@%s: parsing go.mod: missing module line", mod.Path, mod.Version)
++		return nil, module.VersionError(mod, errors.New("parsing go.mod: missing module line"))
+ 	}
+ 	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
+-		return nil, fmt.Errorf("%s@%s: parsing go.mod: unexpected module path %q", mod.Path, mod.Version, mpath)
++		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: unexpected module path %q", mpath))
+ 	}
+ 	if f.Go != nil {
+ 		r.versions.LoadOrStore(mod, f.Go.Version)
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 614592806d..1e55992777 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -158,6 +158,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 			// semantic versioning defines them to be equivalent.
+ 			if vers := module.CanonicalVersion(query); vers != "" && vers != query {
+ 				info, err = modfetch.Stat(proxy, path, vers)
++				if !errors.Is(err, os.ErrNotExist) {
++					return info, err
++				}
+ 			}
+ 			if err != nil {
+ 				return nil, queryErr
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index 19c45b02b3..5c0527d40c 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -106,12 +106,18 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
+ 	{path: queryRepo, query: "v0.0", vers: "v0.0.3"},
+ 	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
++
++	// golang.org/issue/29262: The major version for for a module without a suffix
++	// should be based on the most recent tag (v1 as appropriate, not v0
++	// unconditionally).
++	{path: queryRepo, query: "42abcb6df8ee", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
++
+ 	{path: queryRepo, query: "v1.9.10-pre2+wrongmetadata", err: `unknown revision v1.9.10-pre2+wrongmetadata`},
+ 	{path: queryRepo, query: "v1.9.10-pre2", err: `unknown revision v1.9.10-pre2`},
+ 	{path: queryRepo, query: "latest", vers: "v1.9.9"},
+ 	{path: queryRepo, query: "latest", current: "v1.9.10-pre1", vers: "v1.9.10-pre1"},
+ 	{path: queryRepo, query: "latest", current: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+-	{path: queryRepo, query: "latest", current: "v0.0.0-20990101120000-5ba9a4ea6213", vers: "v0.0.0-20990101120000-5ba9a4ea6213"},
++	{path: queryRepo, query: "latest", current: "v0.0.0-20190513201126-42abcb6df8ee", vers: "v0.0.0-20190513201126-42abcb6df8ee"},
+ 	{path: queryRepo, query: "latest", allow: "NOMATCH", err: `no matching versions for query "latest"`},
+ 	{path: queryRepo, query: "latest", current: "v1.9.9", allow: "NOMATCH", err: `no matching versions for query "latest" (current version is v1.9.9)`},
+ 	{path: queryRepo, query: "latest", current: "v1.99.99", err: `unknown revision v1.99.99`},
+@@ -125,20 +131,35 @@ var queryTests = []struct {
+ 	{path: queryRepo, query: ">v1.10.0", err: `no matching versions for query ">v1.10.0"`},
+ 	{path: queryRepo, query: ">=v1.10.0", err: `no matching versions for query ">=v1.10.0"`},
+ 	{path: queryRepo, query: "6cf84eb", vers: "v0.0.2-0.20180704023347-6cf84ebaea54"},
++
++	// golang.org/issue/27173: A pseudo-version may be based on the highest tag on
++	// any parent commit, or any existing semantically-lower tag: a given commit
++	// could have been a pre-release for a backport tag at any point.
++	{path: queryRepo, query: "3ef0cec634e0", vers: "v0.1.2-0.20180704023347-3ef0cec634e0"},
++	{path: queryRepo, query: "v0.1.2-0.20180704023347-3ef0cec634e0", vers: "v0.1.2-0.20180704023347-3ef0cec634e0"},
++	{path: queryRepo, query: "v0.1.1-0.20180704023347-3ef0cec634e0", vers: "v0.1.1-0.20180704023347-3ef0cec634e0"},
++	{path: queryRepo, query: "v0.0.4-0.20180704023347-3ef0cec634e0", vers: "v0.0.4-0.20180704023347-3ef0cec634e0"},
++
++	// Invalid tags are tested in cmd/go/testdata/script/mod_pseudo_invalid.txt.
++
+ 	{path: queryRepo, query: "start", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
++	{path: queryRepo, query: "5e9e31667ddf", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
++	{path: queryRepo, query: "v0.0.0-20180704023101-5e9e31667ddf", vers: "v0.0.0-20180704023101-5e9e31667ddf"},
++
+ 	{path: queryRepo, query: "7a1b6bf", vers: "v0.1.0"},
+ 
+ 	{path: queryRepoV2, query: "<v0.0.0", err: `no matching versions for query "<v0.0.0"`},
+ 	{path: queryRepoV2, query: "<=v0.0.0", err: `no matching versions for query "<=v0.0.0"`},
+ 	{path: queryRepoV2, query: ">v0.0.0", vers: "v2.0.0"},
+ 	{path: queryRepoV2, query: ">=v0.0.0", vers: "v2.0.0"},
+-	{path: queryRepoV2, query: "v0.0.1+foo", vers: "v2.0.0-20180704023347-179bc86b1be3"},
++
+ 	{path: queryRepoV2, query: "v2", vers: "v2.5.5"},
+ 	{path: queryRepoV2, query: "v2.5", vers: "v2.5.5"},
+ 	{path: queryRepoV2, query: "v2.6", err: `no matching versions for query "v2.6"`},
+ 	{path: queryRepoV2, query: "v2.6.0-pre1", vers: "v2.6.0-pre1"},
+ 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
+ 
++	{path: queryRepoV3, query: "e0cf3de987e6", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
+ 	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
+ 
+ 	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
+@@ -162,10 +183,12 @@ func TestQuery(t *testing.T) {
+ 		t.Run(strings.ReplaceAll(tt.path, "/", "_")+"/"+tt.query+"/"+tt.current+"/"+allow, func(t *testing.T) {
+ 			info, err := Query(tt.path, tt.query, tt.current, allowed)
+ 			if tt.err != "" {
+-				if err != nil && err.Error() == tt.err {
+-					return
++				if err == nil {
++					t.Errorf("Query(%q, %q, %v) = %v, want error %q", tt.path, tt.query, allow, info.Version, tt.err)
++				} else if err.Error() != tt.err {
++					t.Errorf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
+ 				}
+-				t.Fatalf("Query(%q, %q, %v): %v, want error %q", tt.path, tt.query, allow, err, tt.err)
++				return
+ 			}
+ 			if err != nil {
+ 				t.Fatalf("Query(%q, %q, %v): %v", tt.path, tt.query, allow, err)
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index bc76b92b91..4a313f99f9 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -18,6 +18,7 @@ package module
+ // Changes to the semantics in this file require approval from rsc.
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"sort"
+ 	"strings"
+@@ -40,6 +41,60 @@ type Version struct {
+ 	Version string `json:",omitempty"`
+ }
+ 
++// A ModuleError indicates an error specific to a module.
++type ModuleError struct {
++	Path    string
++	Version string
++	Err     error
++}
++
++// VersionError returns a ModuleError derived from a Version and error.
++func VersionError(v Version, err error) error {
++	return &ModuleError{
++		Path:    v.Path,
++		Version: v.Version,
++		Err:     err,
++	}
++}
++
++func (e *ModuleError) Error() string {
++	if v, ok := e.Err.(*InvalidVersionError); ok {
++		return fmt.Sprintf("%s@%s: invalid %s: %v", e.Path, v.Version, v.noun(), v.Err)
++	}
++	if e.Version != "" {
++		return fmt.Sprintf("%s@%s: %v", e.Path, e.Version, e.Err)
++	}
++	return fmt.Sprintf("module %s: %v", e.Path, e.Err)
++}
++
++func (e *ModuleError) Unwrap() error { return e.Err }
++
++// An InvalidVersionError indicates an error specific to a version, with the
++// module path unknown or specified externally.
++//
++// A ModuleError may wrap an InvalidVersionError, but an InvalidVersionError
++// must not wrap a ModuleError.
++type InvalidVersionError struct {
++	Version string
++	Pseudo  bool
++	Err     error
++}
++
++// noun returns either "version" or "pseudo-version", depending on whether
++// e.Version is a pseudo-version.
++func (e *InvalidVersionError) noun() string {
++	if e.Pseudo {
++		return "pseudo-version"
++	}
++	return "version"
++}
++
++func (e *InvalidVersionError) Error() string {
++	return fmt.Sprintf("%s %q invalid: %s", e.noun(), e.Version, e.Err)
++}
++
++func (e *InvalidVersionError) Unwrap() error { return e.Err }
++
+ // Check checks that a given module path, version pair is valid.
+ // In addition to the path being a valid module path
+ // and the version being a valid semantic version,
+@@ -51,17 +106,14 @@ func Check(path, version string) error {
+ 		return err
+ 	}
+ 	if !semver.IsValid(version) {
+-		return fmt.Errorf("malformed semantic version %v", version)
++		return &ModuleError{
++			Path: path,
++			Err:  &InvalidVersionError{Version: version, Err: errors.New("not a semantic version")},
++		}
+ 	}
+ 	_, pathMajor, _ := SplitPathVersion(path)
+-	if !MatchPathMajor(version, pathMajor) {
+-		if pathMajor == "" {
+-			pathMajor = "v0 or v1"
+-		}
+-		if pathMajor[0] == '.' { // .v1
+-			pathMajor = pathMajor[1:]
+-		}
+-		return fmt.Errorf("mismatched module path %v and version %v (want %v)", path, version, pathMajor)
++	if err := MatchPathMajor(version, pathMajor); err != nil {
++		return &ModuleError{Path: path, Err: err}
+ 	}
+ 	return nil
+ }
+@@ -320,22 +372,56 @@ func splitGopkgIn(path string) (prefix, pathMajor string, ok bool) {
+ 	return prefix, pathMajor, true
+ }
+ 
+-// MatchPathMajor reports whether the semantic version v
+-// matches the path major version pathMajor.
+-func MatchPathMajor(v, pathMajor string) bool {
++// MatchPathMajor returns a non-nil error if the semantic version v
++// does not match the path major version pathMajor.
++func MatchPathMajor(v, pathMajor string) error {
+ 	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
+ 		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
+ 	}
+ 	if strings.HasPrefix(v, "v0.0.0-") && pathMajor == ".v1" {
+ 		// Allow old bug in pseudo-versions that generated v0.0.0- pseudoversion for gopkg .v1.
+ 		// For example, gopkg.in/yaml.v2@v2.2.1's go.mod requires gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405.
+-		return true
++		return nil
+ 	}
+ 	m := semver.Major(v)
+ 	if pathMajor == "" {
+-		return m == "v0" || m == "v1" || semver.Build(v) == "+incompatible"
++		if m == "v0" || m == "v1" || semver.Build(v) == "+incompatible" {
++			return nil
++		}
++		pathMajor = "v0 or v1"
++	} else if pathMajor[0] == '/' || pathMajor[0] == '.' {
++		if m == pathMajor[1:] {
++			return nil
++		}
++		pathMajor = pathMajor[1:]
++	}
++	return &InvalidVersionError{
++		Version: v,
++		Err:     fmt.Errorf("should be %s, not %s", pathMajor, semver.Major(v)),
++	}
++}
++
++// PathMajorPrefix returns the major-version tag prefix implied by pathMajor.
++// An empty PathMajorPrefix allows either v0 or v1.
++//
++// Note that MatchPathMajor may accept some versions that do not actually begin
++// with this prefix: namely, it accepts a 'v0.0.0-' prefix for a '.v1'
++// pathMajor, even though that pathMajor implies 'v1' tagging.
++func PathMajorPrefix(pathMajor string) string {
++	if pathMajor == "" {
++		return ""
++	}
++	if pathMajor[0] != '/' && pathMajor[0] != '.' {
++		panic("pathMajor suffix " + pathMajor + " passed to PathMajorPrefix lacks separator")
++	}
++	if strings.HasPrefix(pathMajor, ".v") && strings.HasSuffix(pathMajor, "-unstable") {
++		pathMajor = strings.TrimSuffix(pathMajor, "-unstable")
++	}
++	m := pathMajor[1:]
++	if m != semver.Major(m) {
++		panic("pathMajor suffix " + pathMajor + "passed to PathMajorPrefix is not a valid major version")
+ 	}
+-	return (pathMajor[0] == '/' || pathMajor[0] == '.') && m == pathMajor[1:]
++	return m
+ }
+ 
+ // CanonicalVersion returns the canonical form of the version string v.
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index dca909e858..568efbd8b2 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -87,7 +87,6 @@ func (e *BuildListError) Module() module.Version {
+ 
+ func (e *BuildListError) Error() string {
+ 	b := &strings.Builder{}
+-	errMsg := e.Err.Error()
+ 	stack := e.stack
+ 
+ 	// Don't print modules at the beginning of the chain without a
+@@ -97,16 +96,19 @@ func (e *BuildListError) Error() string {
+ 		stack = stack[:len(stack)-1]
+ 	}
+ 
+-	// Don't print the last module if the error message already
+-	// starts with module path and version.
+-	errMentionsLast := len(stack) > 0 && strings.HasPrefix(errMsg, fmt.Sprintf("%s@%s: ", stack[0].m.Path, stack[0].m.Version))
+ 	for i := len(stack) - 1; i >= 1; i-- {
+ 		fmt.Fprintf(b, "%s@%s %s\n\t", stack[i].m.Path, stack[i].m.Version, stack[i].nextReason)
+ 	}
+-	if errMentionsLast || len(stack) == 0 {
+-		b.WriteString(errMsg)
++	if len(stack) == 0 {
++		b.WriteString(e.Err.Error())
+ 	} else {
+-		fmt.Fprintf(b, "%s@%s: %s", stack[0].m.Path, stack[0].m.Version, errMsg)
++		// Ensure that the final module path and version are included as part of the
++		// error message.
++		if _, ok := e.Err.(*module.ModuleError); ok {
++			fmt.Fprintf(b, "%v", e.Err)
++		} else {
++			fmt.Fprintf(b, "%v", module.VersionError(stack[0].m, e.Err))
++		}
+ 	}
+ 	return b.String()
+ }
+diff --git a/src/cmd/go/testdata/script/mod_download_hash.txt b/src/cmd/go/testdata/script/mod_download_hash.txt
+index 07ea78a4fd..5a42c4b072 100644
+--- a/src/cmd/go/testdata/script/mod_download_hash.txt
++++ b/src/cmd/go/testdata/script/mod_download_hash.txt
+@@ -7,18 +7,18 @@ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+ go mod download rsc.io/quote@a91498bed0a73d4bb9c1fb2597925f7883bc40a7
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180709162918-a91498bed0a7.info
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180709162918-a91498bed0a7.mod
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180709162918-a91498bed0a7.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.zip
+ 
+ go mod download rsc.io/quote@master
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180710144737-5d9f230bcfba.info
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180710144737-5d9f230bcfba.mod
+-exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v0.0.0-20180710144737-5d9f230bcfba.zip
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.info
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.mod
++exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.zip
+ 
+ 
+ -- go.mod --
+ module m
+ 
+ -- m.go --
+-package m
+\ No newline at end of file
++package m
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+new file mode 100644
+index 0000000000..34cdfe4902
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -0,0 +1,220 @@
++[!net] skip
++[!exec:git] skip
++
++env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
++
++# Regression test for golang.org/issue/27173: if the user (or go.mod file)
++# requests a pseudo-version that does not match both the module path and commit
++# metadata, reject it with a helpful error message.
++#
++# TODO(bcmills): Replace the github.com/pierrec/lz4 examples with something
++# equivalent on vcs-test.golang.org.
++
++# An incomplete commit hash is not a valid semantic version,
++# but can appear in the main go.mod file anyway and should be resolved.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0: parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "14c0d48ead0c" invalid: must be of the form v1.2.3'
++cd ..
++go list -m golang.org/x/text
++stdout 'golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
++grep 'golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c' go.mod
++
++# A module path below the repo root that does not contain a go.mod file is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
++
++# A major version that does not match the module path is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v2.1.1-0.20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0: parsing ../go.mod: '$WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
++cd ..
++! go list -m golang.org/x/text
++stderr $WORK'/gopath/src/go.mod:5: require golang.org/x/text: version "v2.1.1-0.20170915032832-14c0d48ead0c" invalid: should be v0 or v1, not v2'
++
++# A pseudo-version with fewer than 12 digits of SHA-1 prefix is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0: invalid pseudo-version: revision is shorter than canonical \(14c0d48ead0c\)'
++
++# A pseudo-version with more than 12 digits of SHA-1 prefix is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0cd47e3104ada247d91be04afc7a5a: invalid pseudo-version: revision is longer than canonical \(14c0d48ead0c\)'
++
++# A pseudo-version that does not match the commit timestamp is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
++
++# A 'replace' directive in the main module can replace an invalid timestamp
++# with a valid one.
++go mod edit -replace golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c=golang.org/x/text@14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
++cd ..
++go list -m golang.org/x/text
++stdout 'golang.org/x/text v0.1.1-0.20190915032832-14c0d48ead0c => golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'
++
++# A pseudo-version that is not derived from a tag is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c: invalid pseudo-version: preceding tag \(v1.999.998\) not found'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v1.999.999-0.20170915032832-14c0d48ead0c: invalid pseudo-version: preceding tag \(v1.999.998\) not found'
++
++# A v1.0.0- pseudo-version that is not derived from a tag is invalid:
++# v1.0.0- implies no tag, but the correct no-tag prefix for a module path
++# without a major-version suffix is v0.0.0-.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c: invalid pseudo-version: major version without preceding tag must be v0, not v1'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v1.0.0-20170915032832-14c0d48ead0c: invalid pseudo-version: major version without preceding tag must be v0, not v1'
++
++# A pseudo-version vX.Y.Z+1 cannot have Z+1 == 0, since that would
++# imply a base tag with a negative patch field.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
++
++# A 'replace' directive in the main module can replace an
++# invalid pseudo-version base with a valid one.
++go mod edit -replace golang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c=golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.0.0-0.20170915032832-14c0d48ead0c: invalid pseudo-version: version before v0.0.0 would have negative patch number'
++cd ..
++go list -m golang.org/x/text
++stdout 'golang.org/x/text v0.0.0-0.20170915032832-14c0d48ead0c => golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
++
++# A pseudo-version derived from a non-ancestor tag is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
++
++# A +incompatible suffix is not allowed on a version that is actually compatible.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c+incompatible
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c\+incompatible: invalid version: \+incompatible suffix not allowed: major version v0 is compatible'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c\+incompatible: invalid version: \+incompatible suffix not allowed: major version v0 is compatible'
++
++# The pseudo-version for a commit after a tag with a non-matching major version
++# should instead be based on the last matching tag.
++cp go.mod.orig go.mod
++go mod edit -require github.com/pierrec/lz4@473cd7ce01a1
++go list -m github.com/pierrec/lz4
++stdout 'github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1'
++cd outside
++go list -m github.com/pierrec/lz4
++stdout 'github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1'
++cd ..
++
++# A +incompatible version for a module that has an explicit go.mod file is invalid.
++cp go.mod.orig go.mod
++go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1+incompatible
++cd outside
++! go list -m github.com/pierrec/lz4
++stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++cd ..
++! go list -m github.com/pierrec/lz4
++stderr 'github.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++
++# A +incompatible pseudo-version is valid for a revision of the module
++# that lacks a go.mod file.
++cp go.mod.orig go.mod
++go mod edit -require github.com/pierrec/lz4@v2.0.4-0.20180826165652-dbe9298ce099+incompatible
++cd outside
++go list -m github.com/pierrec/lz4
++stdout 'github.com/pierrec/lz4 v2.0.4-0.20180826165652-dbe9298ce099\+incompatible'
++cd ..
++go list -m github.com/pierrec/lz4
++stdout 'github.com/pierrec/lz4 v2.0.4-0.20180826165652-dbe9298ce099\+incompatible'
++
++# 'go get' for a mismatched major version without a go.mod file should resolve
++# to the equivalent +incompatible version, not a pseudo-version with a different
++# major version.
++cp go.mod.orig go.mod
++go get -d github.com/pierrec/lz4@v2.0.5
++go list -m github.com/pierrec/lz4
++stdout 'github.com/pierrec/lz4 v2.0.5\+incompatible'
++
++# 'go get' for a mismatched major version with a go.mod file should error out,
++# not resolve to a pseudo-version with a different major version.
++cp go.mod.orig go.mod
++! go get -d github.com/pierrec/lz4@v2.0.8
++stderr 'go get github.com/pierrec/lz4@v2.0.8: github.com/pierrec/lz4@v2.0.8: invalid version: module contains a go.mod file, so major version must be compatible: should be v0 or v1, not v2'
++
++# An invalid +incompatible suffix for a canonical version should error out,
++# not resolve to a pseudo-version.
++#
++# TODO(bcmills): The "outside" view for this failure mode is missing its import stack.
++# Figure out why and fix it.
++cp go.mod.orig go.mod
++go mod edit -require github.com/pierrec/lz4@v2.0.8+incompatible
++cd outside
++! go list -m github.com/pierrec/lz4
++stderr 'github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++cd ..
++! go list -m github.com/pierrec/lz4
++stderr 'github.com/pierrec/lz4@v2.0.8\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++
++-- go.mod.orig --
++module example.com
++
++go 1.13
++-- outside/go.mod --
++module example.com/outside
++
++go 1.13
++
++require example.com v0.0.0
++replace example.com v0.0.0 => ./..

@@ -24,10 +24,178 @@ Date:   Wed Dec 31 06:27:31 2014 +0100
     Change-Id: Ib6eda597106cb025137673b33c4828df1367f75b
     Reviewed-on: https://go-review.googlesource.com/2211
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path.go         |  9 +++------
  src/path/filepath/path_plan9.go   | 10 ++++++++++
  src/path/filepath/path_test.go    | 28 ++++++++++++++++++++--------
  src/path/filepath/path_unix.go    | 10 ++++++++++
  src/path/filepath/path_windows.go | 37 +++++++++++++++++++++++++++++++++++++
  5 files changed, 80 insertions(+), 14 deletions(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 3bde14b91e..ebdd9f5968 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -196,13 +196,10 @@ func Split(path string) (dir, file string) {
+ // Join joins any number of path elements into a single path, adding
+ // a Separator if necessary. The result is Cleaned, in particular
+ // all empty strings are ignored.
++// On Windows, the result is a UNC path if and only if the first path
++// element is a UNC path.
+ func Join(elem ...string) string {
+-	for i, e := range elem {
+-		if e != "" {
+-			return Clean(strings.Join(elem[i:], string(Separator)))
+-		}
+-	}
+-	return ""
++	return join(elem)
+ }
+ 
+ // Ext returns the file name extension used by path.
+diff --git a/src/path/filepath/path_plan9.go b/src/path/filepath/path_plan9.go
+index ee8912d58e..da5f5fdac7 100644
+--- a/src/path/filepath/path_plan9.go
++++ b/src/path/filepath/path_plan9.go
+@@ -32,3 +32,13 @@ func splitList(path string) []string {
+ func abs(path string) (string, error) {
+ 	return unixAbs(path)
+ }
++
++func join(elem []string) string {
++	// If there's a bug here, fix the logic in ./path_unix.go too.
++	for i, e := range elem {
++		if e != "" {
++			return Clean(strings.Join(elem[i:], string(Separator)))
++		}
++	}
++	return ""
++}
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 399284b97d..c4f74b97ff 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -242,6 +242,7 @@ var jointests = []JoinTest{
+ 
+ 	// one parameter
+ 	{[]string{""}, ""},
++	{[]string{"/"}, "/"},
+ 	{[]string{"a"}, "a"},
+ 
+ 	// two parameters
+@@ -249,10 +250,16 @@ var jointests = []JoinTest{
+ 	{[]string{"a", ""}, "a"},
+ 	{[]string{"", "b"}, "b"},
+ 	{[]string{"/", "a"}, "/a"},
++	{[]string{"/", "a/b"}, "/a/b"},
+ 	{[]string{"/", ""}, "/"},
++	{[]string{"//", "a"}, "/a"},
++	{[]string{"/a", "b"}, "/a/b"},
+ 	{[]string{"a/", "b"}, "a/b"},
+ 	{[]string{"a/", ""}, "a"},
+ 	{[]string{"", ""}, ""},
++
++	// three parameters
++	{[]string{"/", "a", "b"}, "/a/b"},
+ }
+ 
+ var winjointests = []JoinTest{
+@@ -262,13 +269,17 @@ var winjointests = []JoinTest{
+ 	{[]string{`C:\`, `Windows`}, `C:\Windows`},
+ 	{[]string{`C:`, `Windows`}, `C:\Windows`},
+ 	{[]string{`\\host\share`, `foo`}, `\\host\share\foo`},
++	{[]string{`\\host\share\foo`}, `\\host\share\foo`},
+ 	{[]string{`//host/share`, `foo/bar`}, `\\host\share\foo\bar`},
+-}
+-
+-// join takes a []string and passes it to Join.
+-func join(elem []string, args ...string) string {
+-	args = elem
+-	return filepath.Join(args...)
++	{[]string{`\`}, `\`},
++	{[]string{`\`, ``}, `\`},
++	{[]string{`\`, `a`}, `\a`},
++	{[]string{`\\`, `a`}, `\a`},
++	{[]string{`\`, `a`, `b`}, `\a\b`},
++	{[]string{`\\`, `a`, `b`}, `\a\b`},
++	{[]string{`\`, `\\a\b`, `c`}, `\a\b\c`},
++	{[]string{`\\a`, `b`, `c`}, `\a\b\c`},
++	{[]string{`\\a\`, `b`, `c`}, `\a\b\c`},
+ }
+ 
+ func TestJoin(t *testing.T) {
+@@ -276,8 +287,9 @@ func TestJoin(t *testing.T) {
+ 		jointests = append(jointests, winjointests...)
+ 	}
+ 	for _, test := range jointests {
+-		if p := join(test.elem); p != filepath.FromSlash(test.path) {
+-			t.Errorf("join(%q) = %q, want %q", test.elem, p, test.path)
++		expected := filepath.FromSlash(test.path)
++		if p := filepath.Join(test.elem...); p != expected {
++			t.Errorf("join(%q) = %q, want %q", test.elem, p, expected)
+ 		}
+ 	}
+ }
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index 4e7d0d1b42..008b76e19e 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -34,3 +34,13 @@ func splitList(path string) []string {
+ func abs(path string) (string, error) {
+ 	return unixAbs(path)
+ }
++
++func join(elem []string) string {
++	// If there's a bug here, fix the logic in ./path_plan9.go too.
++	for i, e := range elem {
++		if e != "" {
++			return Clean(strings.Join(elem[i:], string(Separator)))
++		}
++	}
++	return ""
++}
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index ec50f6b264..d6ed3d142d 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -108,3 +108,40 @@ func splitList(path string) []string {
+ func abs(path string) (string, error) {
+ 	return syscall.FullPath(path)
+ }
++
++func join(elem []string) string {
++	for i, e := range elem {
++		if e != "" {
++			return joinNonEmpty(elem[i:])
++		}
++	}
++	return ""
++}
++
++// joinNonEmpty is like join, but it assumes that the first element is non-empty.
++func joinNonEmpty(elem []string) string {
++	// The following logic prevents Join from inadvertently creating a
++	// UNC path on Windows. Unless the first element is a UNC path, Join
++	// shouldn't create a UNC path. See golang.org/issue/9167.
++	p := Clean(strings.Join(elem, string(Separator)))
++	if !isUNC(p) {
++		return p
++	}
++	// p == UNC only allowed when the first element is a UNC path.
++	head := Clean(elem[0])
++	if isUNC(head) {
++		return p
++	}
++	// head + tail == UNC, but joining two non-UNC paths should not result
++	// in a UNC path. Undo creation of UNC path.
++	tail := Clean(strings.Join(elem[1:], string(Separator)))
++	if head[len(head)-1] == Separator {
++		return head + tail
++	}
++	return head + string(Separator) + tail
++}
++
++// isUNC returns true if path is a UNC path.
++func isUNC(path string) bool {
++	return volumeNameLen(path) > 2
++}

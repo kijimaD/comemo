@@ -10,6 +10,20 @@ Date:   Thu Dec 15 09:10:20 2022 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  doc/go1.20.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 635ef3e66b..70ab62a3e9 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -815,7 +815,7 @@ proxyHandler := &httputil.ReverseProxy{
+       The new <a href="/pkg/go/types/#Satisfies"><code>Satisfies</code></a> function reports
+       whether a type satisfies a constraint.
+       This change aligns with the <a href="#language">new language semantics</a>
+-      that distinguish satsifying a constraint from implementing an interface.
++      that distinguish satisfying a constraint from implementing an interface.
+     </p>
+   </dd>
+ </dl><!-- go/types -->

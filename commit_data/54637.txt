@@ -14,7 +14,7 @@ Date:   Sat Nov 5 16:14:08 2022 +1030
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/internal/edwards25519/tables.go    | 4 ++--
  src/crypto/rsa/pkcs1v15.go                    | 2 +-
  src/crypto/x509/sec1.go                       | 2 +-
@@ -26,3 +26,160 @@ Date:   Sat Nov 5 16:14:08 2022 +1030
  src/internal/coverage/encodecounter/encode.go | 2 +-
  src/internal/fuzz/queue.go                    | 2 +-
  10 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/internal/edwards25519/tables.go b/src/crypto/internal/edwards25519/tables.go
+index 5ca40f7bfa..83234bbc0f 100644
+--- a/src/crypto/internal/edwards25519/tables.go
++++ b/src/crypto/internal/edwards25519/tables.go
+@@ -38,7 +38,7 @@ func (v *projLookupTable) FromP3(q *Point) {
+ 	tmpP3 := Point{}
+ 	tmpP1xP1 := projP1xP1{}
+ 	for i := 0; i < 7; i++ {
+-		// Compute (i+1)*Q as Q + i*Q and convert to a ProjCached
++		// Compute (i+1)*Q as Q + i*Q and convert to a projCached
+ 		// This is needlessly complicated because the API has explicit
+ 		// receivers instead of creating stack objects and relying on RVO
+ 		v.points[i+1].FromP3(tmpP3.fromP1xP1(tmpP1xP1.Add(q, &v.points[i])))
+@@ -53,7 +53,7 @@ func (v *affineLookupTable) FromP3(q *Point) {
+ 	tmpP3 := Point{}
+ 	tmpP1xP1 := projP1xP1{}
+ 	for i := 0; i < 7; i++ {
+-		// Compute (i+1)*Q as Q + i*Q and convert to AffineCached
++		// Compute (i+1)*Q as Q + i*Q and convert to affineCached
+ 		v.points[i+1].FromP3(tmpP3.fromP1xP1(tmpP1xP1.AddAffine(q, &v.points[i])))
+ 	}
+ }
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index ab19229a6c..ea5a878620 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -16,7 +16,7 @@ import (
+ 
+ // This file implements encryption and decryption using PKCS #1 v1.5 padding.
+ 
+-// PKCS1v15DecrypterOpts is for passing options to PKCS #1 v1.5 decryption using
++// PKCS1v15DecryptOptions is for passing options to PKCS #1 v1.5 decryption using
+ // the crypto.Decrypter interface.
+ type PKCS1v15DecryptOptions struct {
+ 	// SessionKeyLen is the length of the session key that is being
+diff --git a/src/crypto/x509/sec1.go b/src/crypto/x509/sec1.go
+index ff48e0cc9e..c01c6b0e55 100644
+--- a/src/crypto/x509/sec1.go
++++ b/src/crypto/x509/sec1.go
+@@ -51,7 +51,7 @@ func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
+ 	return marshalECPrivateKeyWithOID(key, oid)
+ }
+ 
+-// marshalECPrivateKey marshals an EC private key into ASN.1, DER format and
++// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format and
+ // sets the curve ID to the given OID, or omits it if OID is nil.
+ func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier) ([]byte, error) {
+ 	if !key.Curve.IsOnCurve(key.X, key.Y) {
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 2f804f88ee..5bb4297b48 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -34,7 +34,7 @@ type afield struct {
+ // a map from entry format ids to their descriptions
+ type abbrevTable map[uint32]abbrev
+ 
+-// ParseAbbrev returns the abbreviation table that starts at byte off
++// parseAbbrev returns the abbreviation table that starts at byte off
+ // in the .debug_abbrev section.
+ func (d *Data) parseAbbrev(off uint64, vers int) (abbrevTable, error) {
+ 	if m, ok := d.abbrevCache[off]; ok {
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index c2f495581a..43be08eeef 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -537,7 +537,7 @@ Loop:
+ 			consumed := false
+ 			if sv.IsValid() {
+ 				// unmarshalPath can call unmarshal, so we need to pass the depth through so that
+-				// we can continue to enforce the maximum recusion limit.
++				// we can continue to enforce the maximum recursion limit.
+ 				consumed, err = d.unmarshalPath(tinfo, sv, nil, &t, depth)
+ 				if err != nil {
+ 					return err
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index cc0818dd9a..9e3c945b56 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -348,7 +348,7 @@ func (r *importReader) obj(name string) {
+ 
+ 	case 'T', 'U':
+ 		// Types can be recursive. We need to setup a stub
+-		// declaration before recursing.
++		// declaration before recurring.
+ 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
+ 		named := types.NewNamed(obj, nil, nil)
+ 		// Declare obj before calling r.tparamList, so the new type name is recognized
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 7ac452d152..5a762a78ab 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -579,7 +579,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 	}
+ 
+ 	// The data structure of each (provided or inferred) type represents a graph, where
+-	// each node corresponds to a type and each (directed) vertice points to a component
++	// each node corresponds to a type and each (directed) vertex points to a component
+ 	// type. The substitution process described above repeatedly replaces type parameter
+ 	// nodes in these graphs with the graphs of the types the type parameters stand for,
+ 	// which creates a new (possibly bigger) graph for each type.
+@@ -592,14 +592,14 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
+ 	// Generally, cycles may occur across multiple type parameters and inferred types
+ 	// (for instance, consider [P interface{ *Q }, Q interface{ func(P) }]).
+ 	// We eliminate cycles by walking the graphs for all type parameters. If a cycle
+-	// through a type parameter is detected, cycleFinder nils out the respectice type
++	// through a type parameter is detected, cycleFinder nils out the respective type
+ 	// which kills the cycle; this also means that the respective type could not be
+ 	// inferred.
+ 	//
+ 	// TODO(gri) If useful, we could report the respective cycle as an error. We don't
+ 	//           do this now because type inference will fail anyway, and furthermore,
+ 	//           constraints with cycles of this kind cannot currently be satisfied by
+-	//           any user-suplied type. But should that change, reporting an error
++	//           any user-supplied type. But should that change, reporting an error
+ 	//           would be wrong.
+ 	w := cycleFinder{tparams, types, make(map[Type]bool)}
+ 	for _, t := range tparams {
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 34c9533a05..467a7fe5f5 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -177,7 +177,7 @@ func makeObjList(tlist []*Named) []Object {
+ //         nest = A[A[string]]->B[P]
+ //         path = A[A[string]]->B[P]
+ //
+-// Eventutally we reach the type parameter P of type B (P₂):
++// Eventually we reach the type parameter P of type B (P₂):
+ //
+ //   P₂
+ //         nest = A[A[string]]->B[P]
+diff --git a/src/internal/coverage/encodecounter/encode.go b/src/internal/coverage/encodecounter/encode.go
+index 40e24418d4..8db4f514e8 100644
+--- a/src/internal/coverage/encodecounter/encode.go
++++ b/src/internal/coverage/encodecounter/encode.go
+@@ -18,7 +18,7 @@ import (
+ )
+ 
+ // This package contains APIs and helpers for encoding initial portions
+-// of the counter data files emitted at runtime when coverage instrumention
++// of the counter data files emitted at runtime when coverage instrumentation
+ // is enabled.  Counter data files may contain multiple segments; the file
+ // header and first segment are written via the "Write" method below, and
+ // additional segments can then be added using "AddSegment".
+diff --git a/src/internal/fuzz/queue.go b/src/internal/fuzz/queue.go
+index 42a8379541..195d6eb7b6 100644
+--- a/src/internal/fuzz/queue.go
++++ b/src/internal/fuzz/queue.go
+@@ -9,7 +9,7 @@ package fuzz
+ // For now, this is a simple ring buffer
+ // (https://en.wikipedia.org/wiki/Circular_buffer).
+ //
+-// TODO(golang.org/issue/46224): use a priotization algorithm based on input
++// TODO(golang.org/issue/46224): use a prioritization algorithm based on input
+ // size, previous duration, coverage, and any other metrics that seem useful.
+ type queue struct {
+ 	// elems holds a ring buffer.

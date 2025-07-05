@@ -13,9 +13,92 @@ Date:   Thu Nov 19 17:03:01 2015 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/callback.go  | 17 +++++++++++++++++
  misc/cgo/test/callback_c.c |  8 ++++++++
  misc/cgo/test/cgo_test.go  |  1 +
  src/cmd/cgo/out.go         |  2 +-
  4 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index bf468008a3..21d1df59ed 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -12,6 +12,7 @@ void callPanic(void);
+ int callGoReturnVal(void);
+ int returnAfterGrow(void);
+ int returnAfterGrowFromGo(void);
++void callGoWithString(void);
+ */
+ import "C"
+ 
+@@ -276,6 +277,22 @@ func goReturnVal() (r C.int) {
+ 	return
+ }
+ 
++// Test that C can pass in a Go string from a string constant.
++func testCallGoWithString(t *testing.T) {
++	C.callGoWithString()
++	want := "string passed from C to Go"
++	if stringFromGo != want {
++		t.Errorf("string passed through C is %s, want %s", stringFromGo, want)
++	}
++}
++
++var stringFromGo string
++
++//export goWithString
++func goWithString(s string) {
++	stringFromGo = s
++}
++
+ func testCallbackStack(t *testing.T) {
+ 	// Make cgo call and callback with different amount of stack stack available.
+ 	// We do not do any explicit checks, just ensure that it does not crash.
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index 5bb6425340..5ae237b14c 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <string.h>
+ #include <sys/types.h>
+ #include <unistd.h>
+ #include "_cgo_export.h"
+@@ -80,3 +81,10 @@ returnAfterGrowFromGo(void)
+ 	return goReturnVal();
+ }
+ 
++void
++callGoWithString(void)
++{
++	extern void goWithString(GoString);
++	const char *str = "string passed from C to Go";
++	goWithString((GoString){str, strlen(str)});
++}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 0880047953..48fb6f18b7 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -68,5 +68,6 @@ func Test10303(t *testing.T)                 { test10303(t, 10) }
+ func Test11925(t *testing.T)                 { test11925(t) }
+ func Test12030(t *testing.T)                 { test12030(t) }
+ func TestGCC68255(t *testing.T)              { testGCC68255(t) }
++func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 473bc9a927..8aca64a874 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1429,7 +1429,7 @@ typedef __complex double GoComplex128;
+ */
+ typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
+ 
+-typedef struct { char *p; GoInt n; } GoString;
++typedef struct { const char *p; GoInt n; } GoString;
+ typedef void *GoMap;
+ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;

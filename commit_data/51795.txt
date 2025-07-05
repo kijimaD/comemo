@@ -10,7 +10,38 @@ Date:   Mon Mar 14 10:29:51 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go          | 4 ++++
  src/cmd/go/internal/run/run.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 825de1e64a..8410731a28 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1599,6 +1599,10 @@
+ // cross-compiled programs when a simulator or other execution method is
+ // available.
+ //
++// By default, 'go run' compiles the binary without generating the information
++// used by debuggers, to reduce build time. To include debugger information in
++// the binary, use 'go build'.
++//
+ // The exit status of Run is not the exit status of the compiled binary.
+ //
+ // For more about build flags, see 'go help build'.
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 312b49ef5d..35c5783373 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -52,6 +52,10 @@ for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
+ cross-compiled programs when a simulator or other execution method is
+ available.
+ 
++By default, 'go run' compiles the binary without generating the information
++used by debuggers, to reduce build time. To include debugger information in
++the binary, use 'go build'.
++
+ The exit status of Run is not the exit status of the compiled binary.
+ 
+ For more about build flags, see 'go help build'.

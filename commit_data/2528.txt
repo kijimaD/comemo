@@ -7,6 +7,37 @@ Date:   Thu Jun 25 16:57:56 2009 -0700
     R=ken
     OCL=30768
     CL=30768
-
+---
  src/cmd/gc/lex.c | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 32a9298421..a5b4244100 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -272,6 +272,9 @@ importfile(Val *f)
+ 		return;
+ 	}
+ 
++	if(!debug['A'])
++		anysym->def = typenod(types[TANY]);
++
+ 	if(!findpkg(f->u.sval))
+ 		fatal("can't find import: %Z", f->u.sval);
+ 	imp = Bopen(namebuf, OREAD);
+@@ -343,12 +346,12 @@ unimportfile(void)
+ void
+ cannedimports(char *file, char *cp)
+ {
+-	lineno++;		// if sys.6 is included on line 1,
+-	linehist(file, 0, 0);	// the debugger gets confused
+-
+ 	if(!debug['A'])
+ 		anysym->def = typenod(types[TANY]);
+ 
++	lineno++;		// if sys.6 is included on line 1,
++	linehist(file, 0, 0);	// the debugger gets confused
++
+ 	pushedio = curio;
+ 	curio.bin = nil;
+ 	curio.peekc = 0;

@@ -9,8 +9,70 @@ Date:   Mon Oct 10 11:16:04 2011 +1100
     R=r, bradfitz
     CC=golang-dev
     https://golang.org/cl/5235056
-
+---
  doc/Makefile         | 5 ++---
  doc/go_tutorial.html | 4 ++--
  doc/go_tutorial.tmpl | 4 ++--
  3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/doc/Makefile b/doc/Makefile
+index 29d7e2c068..7957a0d0aa 100644
+--- a/doc/Makefile
++++ b/doc/Makefile
+@@ -9,10 +9,9 @@ GOFILES=\
+ 	tmpltohtml.go\
+ 
+ go_tutorial.html: go_tutorial.tmpl tmpltohtml
+-	makehtml go_tutorial.tmpl
++	./makehtml go_tutorial.tmpl
+ 
+ effective_go.html: effective_go.tmpl tmpltohtml
+-	makehtml effective_go.tmpl
+-
++	./makehtml effective_go.tmpl
+ 
+ include ../src/Make.cmd
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 8f6e07b06c..40c793057f 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -104,7 +104,7 @@ With <code>gccgo</code> it looks a little more traditional.
+ <p>
+ <pre>
+ $ gccgo helloworld.go
+-$ a.out
++$ ./a.out
+ Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
+ $
+ </pre>
+@@ -706,7 +706,7 @@ Now we can compile and run the program. On Unix, this would be the result:
+ $ 6g file.go                       # compile file package
+ $ 6g helloworld3.go                # compile main package
+ $ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
+-$ helloworld3
++$ ./helloworld3
+ hello, world
+ can't open file; err=No such file or directory
+ $
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index 15f87ca4b2..4377dabde0 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -96,7 +96,7 @@ With <code>gccgo</code> it looks a little more traditional.
+ <p>
+ <pre>
+ $ gccgo helloworld.go
+-$ a.out
++$ ./a.out
+ Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
+ $
+ </pre>
+@@ -547,7 +547,7 @@ Now we can compile and run the program. On Unix, this would be the result:
+ $ 6g file.go                       # compile file package
+ $ 6g helloworld3.go                # compile main package
+ $ 6l -o helloworld3 helloworld3.6  # link - no need to mention "file"
+-$ helloworld3
++$ ./helloworld3
+ hello, world
+ can't open file; err=No such file or directory
+ $

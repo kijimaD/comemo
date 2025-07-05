@@ -18,6 +18,20 @@ Date:   Sun Nov 5 16:48:15 2023 +0000
     Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/asm_wasm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 9cd8b5a99f..a96115b02c 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -223,7 +223,7 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
+ 
+ 	// Cannot grow scheduler stack (m->g0).
+ 	Get g
+-	Get R1
++	Get R2
+ 	I64Eq
+ 	If
+ 		CALLNORESUME runtime·badmorestackg0(SB)

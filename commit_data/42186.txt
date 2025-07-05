@@ -57,7 +57,7 @@ Date:   Sat Oct 26 16:26:59 2019 +0900
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/os_darwin_arm.go    |  1 -
  src/runtime/os_darwin_arm64.go  |  1 -
  src/runtime/os_freebsd_arm.go   |  1 -
@@ -74,3 +74,280 @@ Date:   Sat Oct 26 16:26:59 2019 +0900
  src/runtime/os_plan9_arm.go     |  1 -
  src/runtime/proc.go             | 12 ++++++++++--
  15 files changed, 14 insertions(+), 58 deletions(-)
+
+diff --git a/src/runtime/os_darwin_arm.go b/src/runtime/os_darwin_arm.go
+index ee1bd174f1..2703e3cff8 100644
+--- a/src/runtime/os_darwin_arm.go
++++ b/src/runtime/os_darwin_arm.go
+@@ -19,6 +19,5 @@ func checkgoarm() {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_darwin_arm64.go b/src/runtime/os_darwin_arm64.go
+index 8de132d8e2..b808150de0 100644
+--- a/src/runtime/os_darwin_arm64.go
++++ b/src/runtime/os_darwin_arm64.go
+@@ -8,6 +8,5 @@ package runtime
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index 3edd381302..3feaa5e225 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -44,6 +44,5 @@ func archauxv(tag, val uintptr) {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_freebsd_arm64.go b/src/runtime/os_freebsd_arm64.go
+index 800bd2fa6e..51ebf9d478 100644
+--- a/src/runtime/os_freebsd_arm64.go
++++ b/src/runtime/os_freebsd_arm64.go
+@@ -151,6 +151,5 @@ func extractBits(data uint64, start, end uint) uint {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 3738c9b237..ff0ee3aa6b 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -131,7 +131,6 @@ func os_sigpipe() {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+ 
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 207b0e4d4d..5f89c30f7a 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -11,8 +11,6 @@ const (
+ 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
+ )
+ 
+-var randomNumber uint32
+-
+ func checkgoarm() {
+ 	// On Android, /proc/self/auxv might be unreadable and hwcap won't
+ 	// reflect the CPU capabilities. Assume that every Android arm device
+@@ -34,13 +32,6 @@ func checkgoarm() {
+ 
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+-	case _AT_RANDOM:
+-		// sysargs filled in startupRandomData, but that
+-		// pointer may not be word aligned, so we must treat
+-		// it as a byte array.
+-		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+-			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+-
+ 	case _AT_HWCAP:
+ 		cpu.HWCap = uint(val)
+ 	case _AT_HWCAP2:
+@@ -52,6 +43,5 @@ func archauxv(tag, val uintptr) {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand.
+-	return nanotime() + int64(randomNumber)
++	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index 2d6f68bdd9..b51bc88820 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -8,17 +8,8 @@ package runtime
+ 
+ import "internal/cpu"
+ 
+-var randomNumber uint32
+-
+ func archauxv(tag, val uintptr) {
+ 	switch tag {
+-	case _AT_RANDOM:
+-		// sysargs filled in startupRandomData, but that
+-		// pointer may not be word aligned, so we must treat
+-		// it as a byte array.
+-		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+-			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+-
+ 	case _AT_HWCAP:
+ 		// arm64 doesn't have a 'cpuid' instruction equivalent and relies on
+ 		// HWCAP/HWCAP2 bits for hardware capabilities.
+@@ -40,6 +31,5 @@ func archauxv(tag, val uintptr) {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand.
+-	return nanotime() + int64(randomNumber)
++	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 0d7b84dcee..59d2a8f2c6 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -7,25 +7,14 @@
+ 
+ package runtime
+ 
+-var randomNumber uint32
+-
+ func archauxv(tag, val uintptr) {
+-	switch tag {
+-	case _AT_RANDOM:
+-		// sysargs filled in startupRandomData, but that
+-		// pointer may not be word aligned, so we must treat
+-		// it as a byte array.
+-		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+-			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+-	}
+ }
+ 
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand.
+-	return nanotime() + int64(randomNumber)
++	return nanotime()
+ }
+ 
+ const (
+diff --git a/src/runtime/os_linux_mipsx.go b/src/runtime/os_linux_mipsx.go
+index e0548ecc79..ccdc3a7fe5 100644
+--- a/src/runtime/os_linux_mipsx.go
++++ b/src/runtime/os_linux_mipsx.go
+@@ -7,25 +7,14 @@
+ 
+ package runtime
+ 
+-var randomNumber uint32
+-
+ func archauxv(tag, val uintptr) {
+-	switch tag {
+-	case _AT_RANDOM:
+-		// sysargs filled in startupRandomData, but that
+-		// pointer may not be word aligned, so we must treat
+-		// it as a byte array.
+-		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+-			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+-	}
+ }
+ 
+ //go:nosplit
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand1.
+-	return nanotime() + int64(randomNumber)
++	return nanotime()
+ }
+ 
+ const (
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index 95603da643..b5ec23e45b 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -30,6 +30,5 @@ func checkgoarm() {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_netbsd_arm64.go b/src/runtime/os_netbsd_arm64.go
+index fd81eb7557..8d21b0a430 100644
+--- a/src/runtime/os_netbsd_arm64.go
++++ b/src/runtime/os_netbsd_arm64.go
+@@ -19,6 +19,5 @@ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintp
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index be2e1e9959..0a2409676c 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -19,6 +19,5 @@ func checkgoarm() {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_openbsd_arm64.go b/src/runtime/os_openbsd_arm64.go
+index f15a95b653..d559a2a3e5 100644
+--- a/src/runtime/os_openbsd_arm64.go
++++ b/src/runtime/os_openbsd_arm64.go
+@@ -12,7 +12,6 @@ import (
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+ 
+diff --git a/src/runtime/os_plan9_arm.go b/src/runtime/os_plan9_arm.go
+index fdce1e7a35..f165a34151 100644
+--- a/src/runtime/os_plan9_arm.go
++++ b/src/runtime/os_plan9_arm.go
+@@ -12,6 +12,5 @@ func checkgoarm() {
+ func cputicks() int64 {
+ 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 56e9530ab6..3252173c0a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -543,6 +543,7 @@ func schedinit() {
+ 	moduledataverify()
+ 	stackinit()
+ 	mallocinit()
++	fastrandinit() // must run before mcommoninit
+ 	mcommoninit(_g_.m)
+ 	cpuinit()       // must run before alginit
+ 	alginit()       // maps must not be used before this call
+@@ -620,8 +621,8 @@ func mcommoninit(mp *m) {
+ 	sched.mnext++
+ 	checkmcount()
+ 
+-	mp.fastrand[0] = 1597334677 * uint32(mp.id)
+-	mp.fastrand[1] = uint32(cputicks())
++	mp.fastrand[0] = uint32(int64Hash(uint64(mp.id), fastrandseed))
++	mp.fastrand[1] = uint32(int64Hash(uint64(cputicks()), ^fastrandseed))
+ 	if mp.fastrand[0]|mp.fastrand[1] == 0 {
+ 		mp.fastrand[1] = 1
+ 	}
+@@ -646,6 +647,13 @@ func mcommoninit(mp *m) {
+ 	}
+ }
+ 
++var fastrandseed uintptr
++
++func fastrandinit() {
++	s := (*[unsafe.Sizeof(fastrandseed)]byte)(unsafe.Pointer(&fastrandseed))[:]
++	getRandomData(s)
++}
++
+ // Mark gp ready to run.
+ func ready(gp *g, traceskip int, next bool) {
+ 	if trace.enabled {

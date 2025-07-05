@@ -12,8 +12,107 @@ Date:   Sun Nov 12 23:01:34 2023 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/asm.s        |  4 ++++
  src/runtime/asm_ppc64x.s | 41 +++++++++++++++++++++++++++++++++--------
  src/runtime/proc.go      |  2 +-
  3 files changed, 38 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 012a6a095d..45ba467806 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -17,6 +17,8 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ #ifndef GOARCH_arm64
+ #ifndef GOARCH_mips64
+ #ifndef GOARCH_mips64le
++#ifndef GOARCH_ppc64
++#ifndef GOARCH_ppc64le
+ #ifndef GOARCH_riscv64
+ // stub to appease shared build mode.
+ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+@@ -26,3 +28,5 @@ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+ #endif
+ #endif
+ #endif
++#endif
++#endif
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 922c50dc4f..ff9b736430 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -284,6 +284,31 @@ noswitch:
+ #endif
+ 	RET
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
++	MOVD	R3, R11				// context register
++	MOVD	g_m(g), R3			// curm
++
++	// set g to gcrash
++	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
++	CALL	runtime·save_g(SB)	// clobbers R31
++	MOVD	R3, g_m(g)			// g.m = curm
++	MOVD	g, m_g0(R3)			// curm.g0 = g
++
++	// switch to crashstack
++	MOVD	(g_stack+stack_hi)(g), R3
++	SUB	$(4*8), R3
++	MOVD	R3, R1
++
++	// call target function
++	MOVD	0(R11), R12			// code pointer
++	MOVD	R12, CTR
++	BL	(CTR)
++
++	// should never return
++	CALL	runtime·abort(SB)
++	UNDEF
++
+ /*
+  * support for morestack
+  */
+@@ -297,6 +322,14 @@ noswitch:
+ // calling the scheduler calling newm calling gc), so we must
+ // record an argument size. For that purpose, it has no arguments.
+ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
++	// Called from f.
++	// Set g->sched to context in f.
++	MOVD	R1, (g_sched+gobuf_sp)(g)
++	MOVD	LR, R8
++	MOVD	R8, (g_sched+gobuf_pc)(g)
++	MOVD	R5, (g_sched+gobuf_lr)(g)
++	MOVD	R11, (g_sched+gobuf_ctxt)(g)
++
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVD	g_m(g), R7
+ 	MOVD	m_g0(R7), R8
+@@ -312,14 +345,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	BL	runtime·badmorestackgsignal(SB)
+ 	BL	runtime·abort(SB)
+ 
+-	// Called from f.
+-	// Set g->sched to context in f.
+-	MOVD	R1, (g_sched+gobuf_sp)(g)
+-	MOVD	LR, R8
+-	MOVD	R8, (g_sched+gobuf_pc)(g)
+-	MOVD	R5, (g_sched+gobuf_lr)(g)
+-	MOVD	R11, (g_sched+gobuf_ctxt)(g)
+-
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVD	R5, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6b13d3b2f6..66d7da887e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -576,7 +576,7 @@ func switchToCrashStack(fn func()) {
+ 	abort()
+ }
+ 
+-const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "riscv64"
++const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64"
+ 
+ //go:noescape
+ func switchToCrashStack0(fn func()) // in assembly

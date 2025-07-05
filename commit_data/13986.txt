@@ -12,6 +12,20 @@ Date:   Fri Sep 28 14:19:43 2012 -0700
     R=gri
     CC=gobot, golang-dev
     https://golang.org/cl/6488106
-
+---
  src/cmd/godoc/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 3b1b9a8226..64f4b80305 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -108,7 +108,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection,
+ 			break
+ 		}
+ 		// determine the kind of segment change
+-		if index == len(selections)-1 {
++		if lw != nil && index == len(selections)-1 {
+ 			// we have a link segment change:
+ 			// format the previous selection segment, write the
+ 			// link tag and start a new selection segment

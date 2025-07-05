@@ -33,8 +33,124 @@ Date:   Wed Oct 15 17:51:30 2014 +0200
     R=adg
     CC=golang-codereviews
     https://golang.org/cl/155420044
-
+---
  src/net/http/response_test.go  | 28 ++++++++++++++++++++++++++++
  src/net/http/transport.go      | 11 +++++++++--
  src/net/http/transport_test.go | 33 +++++++++++++++++++++++++++++++++
  3 files changed, 70 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 2dd0fad11d..06e940d9ab 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -377,6 +377,34 @@ some body`,
+ 
+ 		"Body here\n",
+ 	},
++
++	// 206 Partial Content. golang.org/issue/8923
++	{
++		"HTTP/1.1 206 Partial Content\r\n" +
++			"Content-Type: text/plain; charset=utf-8\r\n" +
++			"Accept-Ranges: bytes\r\n" +
++			"Content-Range: bytes 0-5/1862\r\n" +
++			"Content-Length: 6\r\n\r\n" +
++			"foobar",
++
++		Response{
++			Status:     "206 Partial Content",
++			StatusCode: 206,
++			Proto:      "HTTP/1.1",
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Request:    dummyReq("GET"),
++			Header: Header{
++				"Accept-Ranges":  []string{"bytes"},
++				"Content-Length": []string{"6"},
++				"Content-Type":   []string{"text/plain; charset=utf-8"},
++				"Content-Range":  []string{"bytes 0-5/1862"},
++			},
++			ContentLength: 6,
++		},
++
++		"foobar",
++	},
+ }
+ 
+ func TestReadResponse(t *testing.T) {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 70e574fc86..782f7cd395 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1040,11 +1040,14 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 	}
+ 
+ 	// Ask for a compressed version if the caller didn't set their
+-	// own value for Accept-Encoding. We only attempted to
++	// own value for Accept-Encoding. We only attempt to
+ 	// uncompress the gzip stream if we were the layer that
+ 	// requested it.
+ 	requestedGzip := false
+-	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" && req.Method != "HEAD" {
++	if !pc.t.DisableCompression &&
++		req.Header.Get("Accept-Encoding") == "" &&
++		req.Header.Get("Range") == "" &&
++		req.Method != "HEAD" {
+ 		// Request gzip only, not deflate. Deflate is ambiguous and
+ 		// not as universally supported anyway.
+ 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
+@@ -1053,6 +1056,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 		// due to a bug in nginx:
+ 		//   http://trac.nginx.org/nginx/ticket/358
+ 		//   http://golang.org/issue/5522
++		//
++		// We don't request gzip if the request is for a range, since
++		// auto-decoding a portion of a gzipped document will just fail
++		// anyway. See http://golang.org/issue/8923
+ 		requestedGzip = true
+ 		req.extraHeaders().Set("Accept-Encoding", "gzip")
+ 	}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 66fcc3c7d4..defa633708 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2216,6 +2216,39 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
+ 	wantIdle("after final put", 1)
+ }
+ 
++// This tests that an client requesting a content range won't also
++// implicitly ask for gzip support. If they want that, they need to do it
++// on their own.
++// golang.org/issue/8923
++func TestTransportRangeAndGzip(t *testing.T) {
++	defer afterTest(t)
++	reqc := make(chan *Request, 1)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		reqc <- r
++	}))
++	defer ts.Close()
++
++	req, _ := NewRequest("GET", ts.URL, nil)
++	req.Header.Set("Range", "bytes=7-11")
++	res, err := DefaultClient.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	select {
++	case r := <-reqc:
++		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
++			t.Error("Transport advertised gzip support in the Accept header")
++		}
++		if r.Header.Get("Range") == "" {
++			t.Error("no Range in request")
++		}
++	case <-time.After(10 * time.Second):
++		t.Fatal("timeout")
++	}
++	res.Body.Close()
++}
++
+ func wantBody(res *http.Response, err error, want string) error {
+ 	if err != nil {
+ 		return err

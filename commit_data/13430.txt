@@ -8,7 +8,47 @@ Date:   Mon Jul 2 09:33:22 2012 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6349064
-
+---
  src/cmd/gc/const.c       |  3 ++-
  test/fixedbugs/bug445.go | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index e27c883387..2f323c77f9 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1012,12 +1012,13 @@ defaultlit(Node **np, Type *t)
+ 		}
+ 		n->type = t;
+ 		return;
++	case OCOM:
+ 	case ONOT:
+ 		defaultlit(&n->left, t);
+ 		n->type = n->left->type;
+ 		return;
+ 	default:
+-		if(n->left == N) {
++		if(n->left == N || n->right == N) {
+ 			dump("defaultlit", n);
+ 			fatal("defaultlit");
+ 		}
+diff --git a/test/fixedbugs/bug445.go b/test/fixedbugs/bug445.go
+new file mode 100644
+index 0000000000..497ecd3aba
+--- /dev/null
++++ b/test/fixedbugs/bug445.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3765
++
++package main
++
++func f(x uint) uint {
++	m := ^(1 << x)
++	return uint(m)
++}

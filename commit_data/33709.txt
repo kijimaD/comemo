@@ -114,10 +114,672 @@ Date:   Fri Aug 25 12:07:01 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/58950
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |   2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |  24 ++
  src/cmd/compile/internal/ssa/gen/ARMOps.go |   1 +
  src/cmd/compile/internal/ssa/opGen.go      |  16 +
  src/cmd/compile/internal/ssa/rewriteARM.go | 528 +++++++++++++++++++++++++++++
  5 files changed, 570 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index d0d864d25d..7951119127 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -402,7 +402,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REGREG
+ 		p.To.Reg = v.Reg0()           // high 32-bit
+ 		p.To.Offset = int64(v.Reg1()) // low 32-bit
+-	case ssa.OpARMMULA:
++	case ssa.OpARMMULA, ssa.OpARMMULS:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index b80747ad31..9062453e47 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -602,6 +602,28 @@
+ (MULA (MOVWconst [c]) x a) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (ADD (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
+ (MULA (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (ADD (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
+ 
++(MULS x (MOVWconst [c]) a) && int32(c) == -1 -> (ADD a x)
++(MULS _ (MOVWconst [0]) a) -> a
++(MULS x (MOVWconst [1]) a) -> (RSB x a)
++(MULS x (MOVWconst [c]) a) && isPowerOfTwo(c) -> (RSB (SLLconst <x.Type> [log2(c)] x) a)
++(MULS x (MOVWconst [c]) a) && isPowerOfTwo(c-1) && int32(c) >= 3 -> (RSB (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
++(MULS x (MOVWconst [c]) a) && isPowerOfTwo(c+1) && int32(c) >= 7 -> (RSB (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
++(MULS x (MOVWconst [c]) a) && c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
++(MULS x (MOVWconst [c]) a) && c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
++(MULS x (MOVWconst [c]) a) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
++(MULS x (MOVWconst [c]) a) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
++
++(MULS (MOVWconst [c]) x a) && int32(c) == -1 -> (ADD a x)
++(MULS (MOVWconst [0]) _ a) -> a
++(MULS (MOVWconst [1]) x a) -> (RSB x a)
++(MULS (MOVWconst [c]) x a) && isPowerOfTwo(c) -> (RSB (SLLconst <x.Type> [log2(c)] x) a)
++(MULS (MOVWconst [c]) x a) && isPowerOfTwo(c-1) && int32(c) >= 3 -> (RSB (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
++(MULS (MOVWconst [c]) x a) && isPowerOfTwo(c+1) && int32(c) >= 7 -> (RSB (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
++(MULS (MOVWconst [c]) x a) && c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
++(MULS (MOVWconst [c]) x a) && c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
++(MULS (MOVWconst [c]) x a) && c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
++(MULS (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (RSB (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
++
+ // div by constant
+ (Select0 (CALLudiv x (MOVWconst [1]))) -> x
+ (Select1 (CALLudiv _ (MOVWconst [1]))) -> (MOVWconst [0])
+@@ -1215,6 +1237,8 @@
+ (BIC x x) -> (MOVWconst [0])
+ 
+ (ADD (MUL x y) a) -> (MULA x y a)
++(SUB a (MUL x y)) && objabi.GOARM == 7 -> (MULS x y a)
++(RSB (MUL x y) a) && objabi.GOARM == 7 -> (MULS x y a)
+ 
+ (AND x (MVN y)) -> (BIC x y)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 8cbb73f291..2a041d1340 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -168,6 +168,7 @@ func init() {
+ 
+ 		{name: "MULLU", argLength: 2, reg: gp22, asm: "MULLU", commutative: true}, // arg0 * arg1, high 32 bits in out0, low 32 bits in out1
+ 		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                      // arg0 * arg1 + arg2
++		{name: "MULS", argLength: 3, reg: gp31, asm: "MULS"},                      // arg2 - arg0 * arg1
+ 
+ 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
+ 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8d249dd19c..eec57b8b03 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -694,6 +694,7 @@ const (
+ 	OpARMRSCconst
+ 	OpARMMULLU
+ 	OpARMMULA
++	OpARMMULS
+ 	OpARMADDF
+ 	OpARMADDD
+ 	OpARMSUBF
+@@ -8456,6 +8457,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MULS",
++		argLen: 3,
++		asm:    arm.AMULS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++				{1, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:        "ADDF",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 095f8c1356..64aec25bda 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -201,6 +201,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMMUL_0(v) || rewriteValueARM_OpARMMUL_10(v) || rewriteValueARM_OpARMMUL_20(v)
+ 	case OpARMMULA:
+ 		return rewriteValueARM_OpARMMULA_0(v) || rewriteValueARM_OpARMMULA_10(v) || rewriteValueARM_OpARMMULA_20(v)
++	case OpARMMULS:
++		return rewriteValueARM_OpARMMULS_0(v) || rewriteValueARM_OpARMMULS_10(v)
+ 	case OpARMMVN:
+ 		return rewriteValueARM_OpARMMVN_0(v)
+ 	case OpARMMVNshiftLL:
+@@ -9571,6 +9573,488 @@ func rewriteValueARM_OpARMMULA_20(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMMULS_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: int32(c) == -1
++	// result: (ADD a x)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(int32(c) == -1) {
++			break
++		}
++		v.reset(OpARMADD)
++		v.AddArg(a)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MULS _ (MOVWconst [0]) a)
++	// cond:
++	// result: a
++	for {
++		_ = v.Args[2]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		a := v.Args[2]
++		v.reset(OpCopy)
++		v.Type = a.Type
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [1]) a)
++	// cond:
++	// result: (RSB x a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		if v_1.AuxInt != 1 {
++			break
++		}
++		a := v.Args[2]
++		v.reset(OpARMRSB)
++		v.AddArg(x)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: isPowerOfTwo(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c)] x) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
++	// result: (RSB (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v0.AuxInt = log2(c - 1)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
++	// result: (RSB (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
++		v0.AuxInt = log2(c + 1)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 3)
++		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 5)
++		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v1.AuxInt = 2
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 7)
++		v1 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
++		v1.AuxInt = 3
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS x (MOVWconst [c]) a)
++	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_1.AuxInt
++		a := v.Args[2]
++		if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 9)
++		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v1.AuxInt = 3
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpARMMULS_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: int32(c) == -1
++	// result: (ADD a x)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(int32(c) == -1) {
++			break
++		}
++		v.reset(OpARMADD)
++		v.AddArg(a)
++		v.AddArg(x)
++		return true
++	}
++	// match: (MULS (MOVWconst [0]) _ a)
++	// cond:
++	// result: a
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		a := v.Args[2]
++		v.reset(OpCopy)
++		v.Type = a.Type
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [1]) x a)
++	// cond:
++	// result: (RSB x a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		if v_0.AuxInt != 1 {
++			break
++		}
++		x := v.Args[1]
++		a := v.Args[2]
++		v.reset(OpARMRSB)
++		v.AddArg(x)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: isPowerOfTwo(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c)] x) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: isPowerOfTwo(c-1) && int32(c) >= 3
++	// result: (RSB (ADDshiftLL <x.Type> x x [log2(c-1)]) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(isPowerOfTwo(c-1) && int32(c) >= 3) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v0.AuxInt = log2(c - 1)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: isPowerOfTwo(c+1) && int32(c) >= 7
++	// result: (RSB (RSBshiftLL <x.Type> x x [log2(c+1)]) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(isPowerOfTwo(c+1) && int32(c) >= 7) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
++		v0.AuxInt = log2(c + 1)
++		v0.AddArg(x)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/3)] (ADDshiftLL <x.Type> x x [1])) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(c%3 == 0 && isPowerOfTwo(c/3) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 3)
++		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v1.AuxInt = 1
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/5)] (ADDshiftLL <x.Type> x x [2])) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(c%5 == 0 && isPowerOfTwo(c/5) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 5)
++		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v1.AuxInt = 2
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/7)] (RSBshiftLL <x.Type> x x [3])) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(c%7 == 0 && isPowerOfTwo(c/7) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 7)
++		v1 := b.NewValue0(v.Pos, OpARMRSBshiftLL, x.Type)
++		v1.AuxInt = 3
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	// match: (MULS (MOVWconst [c]) x a)
++	// cond: c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)
++	// result: (RSB (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
++	for {
++		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0.AuxInt
++		x := v.Args[1]
++		a := v.Args[2]
++		if !(c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c)) {
++			break
++		}
++		v.reset(OpARMRSB)
++		v0 := b.NewValue0(v.Pos, OpARMSLLconst, x.Type)
++		v0.AuxInt = log2(c / 9)
++		v1 := b.NewValue0(v.Pos, OpARMADDshiftLL, x.Type)
++		v1.AuxInt = 3
++		v1.AddArg(x)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v.AddArg(a)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMMVN_0(v *Value) bool {
+ 	// match: (MVN (MOVWconst [c]))
+ 	// cond:
+@@ -10835,6 +11319,28 @@ func rewriteValueARM_OpARMRSB_10(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (RSB (MUL x y) a)
++	// cond: objabi.GOARM == 7
++	// result: (MULS x y a)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMUL {
++			break
++		}
++		_ = v_0.Args[1]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		a := v.Args[1]
++		if !(objabi.GOARM == 7) {
++			break
++		}
++		v.reset(OpARMMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(a)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMRSBSshiftLL_0(v *Value) bool {
+@@ -12865,6 +13371,28 @@ func rewriteValueARM_OpARMSUB_10(v *Value) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (SUB a (MUL x y))
++	// cond: objabi.GOARM == 7
++	// result: (MULS x y a)
++	for {
++		_ = v.Args[1]
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMUL {
++			break
++		}
++		_ = v_1.Args[1]
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		if !(objabi.GOARM == 7) {
++			break
++		}
++		v.reset(OpARMMULS)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(a)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpARMSUBS_0(v *Value) bool {

@@ -15,7 +15,63 @@ Date:   Mon Aug 20 20:29:30 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/encoding/xml/xml.go      |  4 ++++
  src/encoding/xml/xml_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 33 insertions(+)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index d4509dfc85..2e32324415 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -302,6 +302,10 @@ func (d *Decoder) Token() (Token, error) {
+ 		// the translations first.
+ 		for _, a := range t1.Attr {
+ 			if a.Name.Space == xmlnsPrefix {
++				if a.Value == "" {
++					d.err = d.syntaxError("empty namespace with prefix")
++					return nil, d.err
++				}
+ 				v, ok := d.ns[a.Name.Local]
+ 				d.pushNs(a.Name.Local, v, ok)
+ 				d.ns[a.Name.Local] = a.Value
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index e20dc781a1..26c4a8a74b 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -916,6 +916,35 @@ func TestIssue5880(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue8068(t *testing.T) {
++	emptyError := SyntaxError{}
++	noError := emptyError.Error()
++	testCases := []struct {
++		s       string
++		wantErr SyntaxError
++	}{
++		{`<foo xmlns:bar="a"></foo>`, SyntaxError{}},
++		{`<foo xmlns:bar=""></foo>`, SyntaxError{Msg: "empty namespace with prefix", Line: 1}},
++		{`<foo xmlns:="a"></foo>`, SyntaxError{}},
++		{`<foo xmlns:""></foo>`, SyntaxError{Msg: "attribute name without = in element", Line: 1}},
++		{`<foo xmlns:"a"></foo>`, SyntaxError{Msg: "attribute name without = in element", Line: 1}},
++	}
++	var dest string
++	for _, tc := range testCases {
++		if got, want := Unmarshal([]byte(tc.s), &dest), tc.wantErr.Error(); got == nil {
++			if want != noError {
++				t.Errorf("%q: got nil, want %s", tc.s, want)
++			}
++		} else {
++			if want == "" {
++				t.Errorf("%q: got %s, want nil", tc.s, got)
++			} else if got.Error() != want {
++				t.Errorf("%q: got %s, want %s", tc.s, got, want)
++			}
++		}
++	}
++}
++
+ func TestIssue8535(t *testing.T) {
+ 
+ 	type ExampleConflict struct {

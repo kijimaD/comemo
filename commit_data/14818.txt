@@ -11,7 +11,7 @@ Date:   Sun Jan 6 22:47:39 2013 -0500
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/7072043
-
+---
  src/cmd/5l/obj.c     | 2 +-
  src/cmd/6l/obj.c     | 2 +-
  src/cmd/8l/obj.c     | 2 +-
@@ -23,3 +23,189 @@ Date:   Sun Jan 6 22:47:39 2013 -0500
  src/cmd/ld/lib.c     | 4 ++--
  src/cmd/ld/lib.h     | 1 +
  10 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 4e2b4d44ec..a99f67d949 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -109,7 +109,6 @@ main(int argc, char *argv[])
+ 	flagfn2("X", "name value: define string data", addstrdata);
+ 	flagcount("Z", "clear stack frame on entry", &debug['Z']);
+ 	flagcount("a", "disassemble output", &debug['a']);
+-	flagcount("b", "race detection", &debug['b']);
+ 	flagcount("c", "dump call graph", &debug['c']);
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+@@ -119,6 +118,7 @@ main(int argc, char *argv[])
+ 	flagstr("o", "outfile: set output file", &outfile);
+ 	flagcount("p", "insert profiling code", &debug['p']);
+ 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
++	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 56f3df768c..3d90cb38f2 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -103,7 +103,6 @@ main(int argc, char *argv[])
+ 	flagfn2("X", "name value: define string data", addstrdata);
+ 	flagcount("Z", "clear stack frame on entry", &debug['Z']);
+ 	flagcount("a", "disassemble output", &debug['a']);
+-	flagcount("b", "race detection", &debug['b']);
+ 	flagcount("c", "dump call graph", &debug['c']);
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+@@ -113,6 +112,7 @@ main(int argc, char *argv[])
+ 	flagstr("o", "outfile: set output file", &outfile);
+ 	flagcount("p", "insert profiling code", &debug['p']);
+ 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
++	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+ 	flagcount("v", "print link trace", &debug['v']);
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 5d32dfee73..a7c7464f2e 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -109,7 +109,6 @@ main(int argc, char *argv[])
+ 	flagfn2("X", "name value: define string data", addstrdata);
+ 	flagcount("Z", "clear stack frame on entry", &debug['Z']);
+ 	flagcount("a", "disassemble output", &debug['a']);
+-	flagcount("b", "race detection", &debug['b']);
+ 	flagcount("c", "dump call graph", &debug['c']);
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+@@ -118,6 +117,7 @@ main(int argc, char *argv[])
+ 	flagstr("o", "outfile: set output file", &outfile);
+ 	flagcount("p", "insert profiling code", &debug['p']);
+ 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
++	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
+ 	flagcount("n", "dump symbol table", &debug['n']);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 59f5e7388e..adca665ef7 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -939,6 +939,7 @@ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ EXTERN	int	compiling_wrappers;
+ EXTERN	int	pure_go;
++EXTERN	int	flag_race;
+ 
+ EXTERN	int	nointerface;
+ EXTERN	int	fieldtrack_enabled;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 1073b985cc..3415d8f0de 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -238,7 +238,6 @@ main(int argc, char *argv[])
+ 	flagcount("S", "print assembly listing", &debug['S']);
+ 	flagfn0("V", "print compiler version", doversion);
+ 	flagcount("W", "debug parse tree after type checking", &debug['W']);
+-	flagcount("b", "enable race detector", &debug['b']);
+ 	flagcount("complete", "compiling complete package (no C or assembly)", &pure_go);
+ 	flagcount("d", "debug declarations", &debug['d']);
+ 	flagcount("e", "no limit on number of errors reported", &debug['e']);
+@@ -252,6 +251,7 @@ main(int argc, char *argv[])
+ 	flagstr("o", "obj: set output file", &outfile);
+ 	flagstr("p", "path: set expected package import path", &myimportpath);
+ 	flagcount("r", "debug generated wrappers", &debug['r']);
++	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "warn about composite literals that can be simplified", &debug['s']);
+ 	flagcount("u", "reject unsafe code", &safemode);
+ 	flagcount("v", "increase debug verbosity", &debug['v']);
+@@ -261,7 +261,7 @@ main(int argc, char *argv[])
+ 
+ 	flagparse(&argc, &argv, usage);
+ 
+-	if(debug['b']) {
++	if(flag_race) {
+ 		racepkg = mkpkg(strlit("runtime/race"));
+ 		racepkg->name = "race";
+ 	}
+@@ -567,7 +567,7 @@ findpkg(Strlit *name)
+ 	}
+ 	if(goroot != nil) {
+ 		race = "";
+-		if(debug['b'])
++		if(flag_race)
+ 			race = "_race";
+ 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s/%Z.a", goroot, goos, goarch, race, name);
+ 		if(access(namebuf, 0) >= 0)
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index e388fe6a5e..a07ad77342 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -66,7 +66,7 @@ compile(Node *fn)
+ 	walk(curfn);
+ 	if(nerrors != 0)
+ 		goto ret;
+-	if(debug['b'])
++	if(flag_race)
+ 		racewalk(curfn);
+ 	if(nerrors != 0)
+ 		goto ret;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 849a1edb27..b8eb799388 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -980,7 +980,7 @@ dumptypestructs(void)
+ 
+ 		// add paths for runtime and main, which 6l imports implicitly.
+ 		dimportpath(runtimepkg);
+-		if(debug['b'])
++		if(flag_race)
+ 			dimportpath(racepkg);
+ 		dimportpath(mkpkg(strlit("main")));
+ 	}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5975e0bfc0..8db752bd91 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1892,8 +1892,8 @@ func raceInit() {
+ 		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
+-	buildGcflags = append(buildGcflags, "-b")
+-	buildLdflags = append(buildLdflags, "-b")
++	buildGcflags = append(buildGcflags, "-race")
++	buildLdflags = append(buildLdflags, "-race")
+ 	buildCcflags = append(buildCcflags, "-D", "RACE")
+ 	buildContext.InstallTag = "race"
+ 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 4b91af6eb4..70c2b5540d 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -83,7 +83,7 @@ libinit(void)
+ 
+ 	// add goroot to the end of the libdir list.
+ 	race = "";
+-	if(debug['b'])
++	if(flag_race)
+ 		race = "_race";
+ 	Lflag(smprint("%s/pkg/%s_%s%s", goroot, goos, goarch, race));
+ 
+@@ -286,7 +286,7 @@ loadlib(void)
+ 	loadinternal("runtime");
+ 	if(thechar == '5')
+ 		loadinternal("math");
+-	if(debug['b'])
++	if(flag_race)
+ 		loadinternal("runtime/race");
+ 
+ 	for(i=0; i<libraryp; i++) {
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index cc9e2dac60..92d458a14c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -135,6 +135,7 @@ EXTERN	int	ndynexp;
+ EXTERN	int	havedynamic;
+ EXTERN	int	iscgo;
+ EXTERN	int	elfglobalsymndx;
++EXTERN	int	flag_race;
+ EXTERN	char*	tracksym;
+ EXTERN	char*	interpreter;
+ 

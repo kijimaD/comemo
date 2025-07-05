@@ -9,7 +9,73 @@ Date:   Mon Sep 26 13:59:12 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5139045
-
+---
  src/pkg/strconv/quote.go      | 16 ++++++++++++++++
  src/pkg/strconv/quote_test.go | 16 ++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 05e49d32dd..bbb9783ce8 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -288,6 +288,22 @@ func Unquote(s string) (t string, err os.Error) {
+ 	if quote != '"' && quote != '\'' {
+ 		return "", os.EINVAL
+ 	}
++	if strings.Index(s, "\n") >= 0 {
++		return "", os.EINVAL
++	}
++
++	// Is it trivial?  Avoid allocation.
++	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, int(quote)) < 0 {
++		switch quote {
++		case '"':
++			return s, nil
++		case '\'':
++			r, size := utf8.DecodeRuneInString(s)
++			if size == len(s) && (r != utf8.RuneError || size != 1) {
++				return s, nil
++			}
++		}
++	}
+ 
+ 	var buf bytes.Buffer
+ 	for len(s) > 0 {
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 4d615db443..0311f77a3a 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -168,6 +168,7 @@ var unquotetests = []unQuoteTest{
+ 	{"`\\xFF`", `\xFF`},
+ 	{"`\\377`", `\377`},
+ 	{"`\\`", `\`},
++	{"`\n`", "\n"},
+ 	{"`	`", `	`},
+ 	{"` `", ` `},
+ }
+@@ -189,6 +190,9 @@ var misquoted = []string{
+ 	"`\"",
+ 	`"\'"`,
+ 	`'\"'`,
++	"\"\n\"",
++	"\"\\n\n\"",
++	"'\n'",
+ }
+ 
+ func TestUnquote(t *testing.T) {
+@@ -211,3 +215,15 @@ func TestUnquote(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkUnquoteEasy(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Unquote(`"Give me a rock, paper and scissors and I will move the world."`)
++	}
++}
++
++func BenchmarkUnquoteHard(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Unquote(`"\x47ive me a \x72ock, \x70aper and \x73cissors and \x49 will move the world."`)
++	}
++}

@@ -14,10 +14,264 @@ Date:   Fri Jul 6 15:00:18 2012 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/6346056
-
+---
  src/cmd/dist/a.h       |  1 +
  src/cmd/dist/build.c   | 14 +++++++-------
  src/cmd/dist/plan9.c   | 17 ++++++++++++++---
  src/cmd/dist/unix.c    | 19 +++++++++++++++----
  src/cmd/dist/windows.c | 38 +++++++++++++++++++-------------------
  5 files changed, 56 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index f417d5ffeb..b108572c0c 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -108,6 +108,7 @@ void	xmain(int argc, char **argv);
+ 
+ // portability layer (plan9.c, unix.c, windows.c)
+ bool	contains(char *p, char *sep);
++void	errprintf(char*, ...);
+ void	fatal(char *msg, ...);
+ bool	hasprefix(char *p, char *prefix);
+ bool	hassuffix(char *p, char *suffix);
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index b2f852fce3..440fc5d0bd 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -147,7 +147,7 @@ static void
+ rmworkdir(void)
+ {
+ 	if(vflag > 1)
+-		xprintf("rm -rf %s\n", workdir);
++		errprintf("rm -rf %s\n", workdir);
+ 	xremoveall(workdir);
+ }
+ 
+@@ -543,9 +543,9 @@ install(char *dir)
+ 
+ 	if(vflag) {
+ 		if(!streq(goos, gohostos) || !streq(goarch, gohostarch))
+-			xprintf("%s (%s/%s)\n", dir, goos, goarch);
++			errprintf("%s (%s/%s)\n", dir, goos, goarch);
+ 		else
+-			xprintf("%s\n", dir);
++			errprintf("%s\n", dir);
+ 	}
+ 
+ 	binit(&b);
+@@ -575,7 +575,7 @@ install(char *dir)
+ 	// For release, cmd/prof and cmd/cov are not included.
+ 	if((streq(dir, "cmd/cov") || streq(dir, "cmd/prof")) && !isdir(bstr(&path))) {
+ 		if(vflag > 1)
+-			xprintf("skipping %s - does not exist\n", dir);
++			errprintf("skipping %s - does not exist\n", dir);
+ 		goto out;
+ 	}
+ 
+@@ -784,7 +784,7 @@ install(char *dir)
+ 		for(j=0; j<nelem(gentab); j++) {
+ 			if(hasprefix(elem, gentab[j].nameprefix)) {
+ 				if(vflag > 1)
+-					xprintf("generate %s\n", p);
++					errprintf("generate %s\n", p);
+ 				gentab[j].gen(bstr(&path), p);
+ 				// Do not add generated file to clean list.
+ 				// In pkg/runtime, we want to be able to
+@@ -829,7 +829,7 @@ install(char *dir)
+ 	if((!streq(goos, gohostos) || !streq(goarch, gohostarch)) && isgo) {
+ 		// We've generated the right files; the go command can do the build.
+ 		if(vflag > 1)
+-			xprintf("skip build for cross-compile %s\n", dir);
++			errprintf("skip build for cross-compile %s\n", dir);
+ 		goto nobuild;
+ 	}
+ 
+@@ -1112,7 +1112,7 @@ copy(char *dst, char *src, int exec)
+ 	Buf b;
+ 
+ 	if(vflag > 1)
+-		xprintf("cp %s %s\n", src, dst);
++		errprintf("cp %s %s\n", src, dst);
+ 
+ 	binit(&b);
+ 	readfile(&b, src);
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index d012102da0..8bbff1d24c 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -177,7 +177,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+ 		bwritestr(&cmd, q);
+ 	}
+ 	if(vflag > 1)
+-		xprintf("%s\n", bstr(&cmd));
++		errprintf("%s\n", bstr(&cmd));
+ 
+ 	if(b != nil) {
+ 		breset(b);
+@@ -422,7 +422,7 @@ void
+ xremove(char *p)
+ {
+ 	if(vflag > 2)
+-		xprintf("rm %s\n", p);
++		errprintf("rm %s\n", p);
+ 	remove(p);
+ }
+ 
+@@ -445,7 +445,7 @@ xremoveall(char *p)
+ 		}
+ 	}
+ 	if(vflag > 2)
+-		xprintf("rm %s\n", p);
++		errprintf("rm %s\n", p);
+ 	remove(p);
+ 	
+ 	bfree(&b);
+@@ -661,6 +661,17 @@ xprintf(char *fmt, ...)
+ 	va_end(arg);
+ }
+ 
++// errprintf prints a message to standard output.
++void
++errprintf(char *fmt, ...)
++{
++	va_list arg;
++	
++	va_start(arg, fmt);
++	vfprintf(stderr, fmt, arg);
++	va_end(arg);
++}
++
+ // xsetenv sets the environment variable $name to the given value.
+ void
+ xsetenv(char *name, char *value)
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index e6d82e14ef..e38d5bcc0f 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -177,7 +177,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+ 		bwritestr(&cmd, q);
+ 	}
+ 	if(vflag > 1)
+-		xprintf("%s\n", bstr(&cmd));
++		errprintf("%s\n", bstr(&cmd));
+ 
+ 	if(b != nil) {
+ 		breset(b);
+@@ -398,7 +398,7 @@ void
+ xremove(char *p)
+ {
+ 	if(vflag > 2)
+-		xprintf("rm %s\n", p);
++		errprintf("rm %s\n", p);
+ 	unlink(p);
+ }
+ 
+@@ -420,11 +420,11 @@ xremoveall(char *p)
+ 			xremoveall(bstr(&b));
+ 		}
+ 		if(vflag > 2)
+-			xprintf("rm %s\n", p);
++			errprintf("rm %s\n", p);
+ 		rmdir(p);
+ 	} else {
+ 		if(vflag > 2)
+-			xprintf("rm %s\n", p);
++			errprintf("rm %s\n", p);
+ 		unlink(p);
+ 	}
+ 	
+@@ -627,6 +627,17 @@ xprintf(char *fmt, ...)
+ 	va_end(arg);
+ }
+ 
++// errprintf prints a message to standard output.
++void
++errprintf(char *fmt, ...)
++{
++	va_list arg;
++	
++	va_start(arg, fmt);
++	vfprintf(stderr, fmt, arg);
++	va_end(arg);
++}
++
+ // xsetenv sets the environment variable $name to the given value.
+ void
+ xsetenv(char *name, char *value)
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index ec26f78724..90310cd28d 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -121,22 +121,6 @@ errstr(void)
+ 	return bstr(&b);  // leak but we're dying anyway
+ }
+ 
+-static void
+-errprintf(char *fmt, ...) {
+-	va_list arg;
+-	char *p;
+-	DWORD n, w;
+-
+-	va_start(arg, fmt);
+-	n = vsnprintf(NULL, 0, fmt, arg);
+-	p = xmalloc(n+1);
+-	vsnprintf(p, n+1, fmt, arg);
+-	va_end(arg);
+-	w = 0;
+-	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
+-	xfree(p);
+-}
+-
+ void
+ xgetenv(Buf *b, char *name)
+ {
+@@ -332,7 +316,7 @@ genrun(Buf *b, char *dir, int mode, Vec *argv, int wait)
+ 		}
+ 	}
+ 	if(vflag > 1)
+-		xprintf("%s\n", bstr(&cmd));
++		errprintf("%s\n", bstr(&cmd));
+ 
+ 	torune(&rcmd, bstr(&cmd));
+ 	rexe = nil;
+@@ -547,7 +531,7 @@ readfile(Buf *b, char *file)
+ 	Rune *r;
+ 
+ 	if(vflag > 2)
+-		xprintf("read %s\n", file);
++		errprintf("read %s\n", file);
+ 	torune(&r, file);
+ 	h = CreateFileW(r, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
+ 	if(h == INVALID_HANDLE_VALUE)
+@@ -566,7 +550,7 @@ writefile(Buf *b, char *file, int exec)
+ 	USED(exec);
+ 
+ 	if(vflag > 2)
+-		xprintf("write %s\n", file);
++		errprintf("write %s\n", file);
+ 	torune(&r, file);
+ 	h = CreateFileW(r, GENERIC_WRITE, FILE_SHARE_READ|FILE_SHARE_WRITE, nil, CREATE_ALWAYS, 0, 0);
+ 	if(h == INVALID_HANDLE_VALUE)
+@@ -866,6 +850,22 @@ xprintf(char *fmt, ...)
+ 	xfree(p);
+ }
+ 
++void
++errprintf(char *fmt, ...) {
++	va_list arg;
++	char *p;
++	DWORD n, w;
++
++	va_start(arg, fmt);
++	n = vsnprintf(NULL, 0, fmt, arg);
++	p = xmalloc(n+1);
++	vsnprintf(p, n+1, fmt, arg);
++	va_end(arg);
++	w = 0;
++	WriteFile(GetStdHandle(STD_ERROR_HANDLE), p, n, &w, 0);
++	xfree(p);
++}
++
+ int
+ main(int argc, char **argv)
+ {

@@ -8,6 +8,46 @@ Date:   Thu Feb 13 16:35:51 2014 +0100
     R=rsc, jas, gobot
     CC=ality, golang-codereviews
     https://golang.org/cl/51650051
-
+---
  src/cmd/gc/lex.c | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 738ac494e5..a607fabde0 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -164,6 +164,23 @@ fault(int s)
+ 	fatal("fault");
+ }
+ 
++void
++catcher(void *v, char *s)
++{
++	USED(v);
++
++	if(strncmp(s, "sys: fp: invalid operation", 26) == 0) {
++		noted(NCONT);
++		return;
++	}
++	if(strncmp(s, "sys: trap: fault read", 21) == 0) {
++		if(nsavederrors + nerrors > 0)
++			errorexit();
++		fatal("fault");
++	}
++	noted(NDFLT);
++}
++
+ void
+ doversion(void)
+ {
+@@ -188,6 +205,10 @@ main(int argc, char *argv[])
+ 	signal(SIGSEGV, fault);
+ #endif
+ 
++#ifdef	PLAN9
++	notify(catcher);
++#endif
++
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;

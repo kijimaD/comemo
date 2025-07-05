@@ -11,6 +11,20 @@ Date:   Tue Aug 25 18:44:30 2015 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/sniff.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index 3be8c865d3..3602969031 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -209,7 +209,7 @@ func (textSig) match(data []byte, firstNonWS int) string {
+ 	// c.f. section 5, step 4.
+ 	for _, b := range data[firstNonWS:] {
+ 		switch {
+-		case 0x00 <= b && b <= 0x08,
++		case b <= 0x08,
+ 			b == 0x0B,
+ 			0x0E <= b && b <= 0x1A,
+ 			0x1C <= b && b <= 0x1F:

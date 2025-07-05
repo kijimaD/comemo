@@ -15,6 +15,29 @@ Date:   Mon Apr 27 13:23:24 2020 -0400
     Run-TryBot: Akhil Indurti <aindurti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/atoi.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index a4a8a37fb4..0b82fb0908 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -96,7 +96,7 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
+ 	}
+ 
+ 	if bitSize == 0 {
+-		bitSize = int(IntSize)
++		bitSize = IntSize
+ 	} else if bitSize < 0 || bitSize > 64 {
+ 		return 0, bitSizeError(fnParseUint, s0, bitSize)
+ 	}
+@@ -203,7 +203,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 	}
+ 
+ 	if bitSize == 0 {
+-		bitSize = int(IntSize)
++		bitSize = IntSize
+ 	}
+ 
+ 	cutoff := uint64(1 << uint(bitSize-1))

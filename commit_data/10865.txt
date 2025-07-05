@@ -9,7 +9,67 @@ Date:   Mon Dec 19 14:59:41 2011 +1100
     R=golang-dev, bradfitz, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/5494072
-
+---
  src/pkg/archive/zip/struct.go   | 16 ++++++++++++++++
  src/pkg/archive/zip/zip_test.go | 11 +++++++++++
  2 files changed, 27 insertions(+)
+
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index c53a83c4e7..34a87fae5b 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -96,12 +96,28 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+ 	)
+ }
+ 
++// timeToMsDosTime converts a time.Time to an MS-DOS date and time.
++// The resolution is 2s.
++// See: http://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
++func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
++	t = t.In(time.UTC)
++	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
++	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
++	return
++}
++
+ // ModTime returns the modification time.
+ // The resolution is 2s.
+ func (h *FileHeader) ModTime() time.Time {
+ 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
++// SetModTime sets the ModifiedTime and ModifiedDate fields to the given time.
++// The resolution is 2s.
++func (h *FileHeader) SetModTime(t time.Time) {
++	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
++}
++
+ // traditional names for Unix constants
+ const (
+ 	s_IFMT  = 0xf000
+diff --git a/src/pkg/archive/zip/zip_test.go b/src/pkg/archive/zip/zip_test.go
+index 2075715f3e..8aab2b6812 100644
+--- a/src/pkg/archive/zip/zip_test.go
++++ b/src/pkg/archive/zip/zip_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"testing"
++	"time"
+ )
+ 
+ type stringReaderAt string
+@@ -55,3 +56,13 @@ func TestOver65kFiles(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestModTime(t *testing.T) {
++	var testTime = time.Date(2009, time.November, 10, 23, 45, 58, 0, time.UTC)
++	fh := new(FileHeader)
++	fh.SetModTime(testTime)
++	outTime := fh.ModTime()
++	if !outTime.Equal(testTime) {
++		t.Errorf("times don't match: got %s, want %s", outTime, testTime)
++	}
++}

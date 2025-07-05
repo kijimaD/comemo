@@ -14,7 +14,71 @@ Date:   Wed Dec 18 17:06:17 2013 -0500
     R=golang-dev, bradfitz, gobot, agl
     CC=golang-dev
     https://golang.org/cl/22460043
-
+---
  src/pkg/encoding/asn1/asn1.go      |  8 +++++---
  src/pkg/encoding/asn1/asn1_test.go | 27 +++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index 992356c263..dfcbf920d0 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -451,11 +451,13 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
+ 		if err != nil {
+ 			return
+ 		}
+-		// We pretend that GENERAL STRINGs are PRINTABLE STRINGs so
+-		// that a sequence of them can be parsed into a []string.
+-		if t.tag == tagGeneralString {
++		// We pretend that various other string types are PRINTABLE STRINGs
++		// so that a sequence of them can be parsed into a []string.
++		switch t.tag {
++		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+ 			t.tag = tagPrintableString
+ 		}
++
+ 		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+ 			err = StructuralError{"sequence tag mismatch"}
+ 			return
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index e59f997ef4..ea98e023fa 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -6,6 +6,7 @@ package asn1
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"math/big"
+ 	"reflect"
+ 	"testing"
+@@ -776,3 +777,29 @@ var derEncodedPaypalNULCertBytes = []byte{
+ 	0xc8, 0x64, 0x8c, 0xb5, 0x50, 0x23, 0x82, 0x6f, 0xdb, 0xb8, 0x22, 0x1c, 0x43,
+ 	0x96, 0x07, 0xa8, 0xbb,
+ }
++
++var stringSliceTestData = [][]string{
++	{"foo", "bar"},
++	{"foo", "\\bar"},
++	{"foo", "\"bar\""},
++	{"foo", "åäö"},
++}
++
++func TestStringSlice(t *testing.T) {
++	for _, test := range stringSliceTestData {
++		bs, err := Marshal(test)
++		if err != nil {
++			t.Error(err)
++		}
++
++		var res []string
++		_, err = Unmarshal(bs, &res)
++		if err != nil {
++			t.Error(err)
++		}
++
++		if fmt.Sprintf("%v", res) != fmt.Sprintf("%v", test) {
++			t.Errorf("incorrect marshal/unmarshal; %v != %v", res, test)
++		}
++	}
++}

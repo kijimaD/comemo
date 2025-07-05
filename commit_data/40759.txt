@@ -10,7 +10,40 @@ Date:   Wed Jun 26 09:22:08 2019 -0400
     Change-Id: I029b9d69cabb87091734bd33d7fd39d30b12f9c5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/183917
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/vcs.go | 4 +++-
  src/cmd/go/testdata/script/mod_get_svn.txt   | 6 ++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index b1845f5c65..48238f176c 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -341,7 +341,9 @@ func (r *vcsRepo) Stat(rev string) (*RevInfo, error) {
+ }
+ 
+ func (r *vcsRepo) fetch() {
+-	_, r.fetchErr = Run(r.dir, r.cmd.fetch)
++	if len(r.cmd.fetch) > 0 {
++		_, r.fetchErr = Run(r.dir, r.cmd.fetch)
++	}
+ }
+ 
+ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
+diff --git a/src/cmd/go/testdata/script/mod_get_svn.txt b/src/cmd/go/testdata/script/mod_get_svn.txt
+index e89bb9d9f5..90be737213 100644
+--- a/src/cmd/go/testdata/script/mod_get_svn.txt
++++ b/src/cmd/go/testdata/script/mod_get_svn.txt
+@@ -13,6 +13,12 @@ stderr 'ReadZip not implemented for svn'
+ ! go install .
+ stderr 'ReadZip not implemented for svn'
+ 
++# Attempting to get a nonexistent module using svn should fail with a
++# reasonable message instead of a panic.
++! go get -d vcs-test.golang.org/svn/nonexistent.svn
++! stderr panic
++stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "latest"'
++
+ -- go.mod --
+ module golang/go/issues/28943/main
+ -- main.go --

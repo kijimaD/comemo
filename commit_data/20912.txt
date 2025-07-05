@@ -10,7 +10,96 @@ Date:   Mon Oct 27 18:58:25 2014 -0400
     R=adg, bradfitz
     CC=golang-codereviews, zimmski
     https://golang.org/cl/162340043
-
+---
  src/encoding/json/encode.go      |  8 ++++++-
  src/encoding/json/encode_test.go | 52 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 9b7b9d5fd1..fca2a0980b 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -805,6 +805,9 @@ func (e *encodeState) string(s string) (int, error) {
+ 			case '\r':
+ 				e.WriteByte('\\')
+ 				e.WriteByte('r')
++			case '\t':
++				e.WriteByte('\\')
++				e.WriteByte('t')
+ 			default:
+ 				// This encodes bytes < 0x20 except for \n and \r,
+ 				// as well as <, > and &. The latter are escaped because they
+@@ -878,9 +881,12 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
+ 			case '\r':
+ 				e.WriteByte('\\')
+ 				e.WriteByte('r')
++			case '\t':
++				e.WriteByte('\\')
++				e.WriteByte('t')
+ 			default:
+ 				// This encodes bytes < 0x20 except for \n and \r,
+-				// as well as < and >. The latter are escaped because they
++				// as well as <, >, and &. The latter are escaped because they
+ 				// can lead to security holes when user-controlled strings
+ 				// are rendered into JSON and served to some browsers.
+ 				e.WriteString(`\u00`)
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index eb84cbae14..7abfa85db7 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -478,3 +478,55 @@ func TestEncodePointerString(t *testing.T) {
+ 		t.Fatalf("*N = %d; want 42", *back.N)
+ 	}
+ }
++
++var encodeStringTests = []struct {
++	in  string
++	out string
++}{
++	{"\x00", `"\u0000"`},
++	{"\x01", `"\u0001"`},
++	{"\x02", `"\u0002"`},
++	{"\x03", `"\u0003"`},
++	{"\x04", `"\u0004"`},
++	{"\x05", `"\u0005"`},
++	{"\x06", `"\u0006"`},
++	{"\x07", `"\u0007"`},
++	{"\x08", `"\u0008"`},
++	{"\x09", `"\t"`},
++	{"\x0a", `"\n"`},
++	{"\x0b", `"\u000b"`},
++	{"\x0c", `"\u000c"`},
++	{"\x0d", `"\r"`},
++	{"\x0e", `"\u000e"`},
++	{"\x0f", `"\u000f"`},
++	{"\x10", `"\u0010"`},
++	{"\x11", `"\u0011"`},
++	{"\x12", `"\u0012"`},
++	{"\x13", `"\u0013"`},
++	{"\x14", `"\u0014"`},
++	{"\x15", `"\u0015"`},
++	{"\x16", `"\u0016"`},
++	{"\x17", `"\u0017"`},
++	{"\x18", `"\u0018"`},
++	{"\x19", `"\u0019"`},
++	{"\x1a", `"\u001a"`},
++	{"\x1b", `"\u001b"`},
++	{"\x1c", `"\u001c"`},
++	{"\x1d", `"\u001d"`},
++	{"\x1e", `"\u001e"`},
++	{"\x1f", `"\u001f"`},
++}
++
++func TestEncodeString(t *testing.T) {
++	for _, tt := range encodeStringTests {
++		b, err := Marshal(tt.in)
++		if err != nil {
++			t.Errorf("Marshal(%q): %v", tt.in, err)
++			continue
++		}
++		out := string(b)
++		if out != tt.out {
++			t.Errorf("Marshal(%q) = %#q, want %#q", tt.in, out, tt.out)
++		}
++	}
++}

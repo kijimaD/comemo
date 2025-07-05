@@ -7,7 +7,32 @@ Date:   Sun Aug 24 21:26:07 2014 -0400
     TBR=dfc
     CC=golang-codereviews
     https://golang.org/cl/126210047
-
+---
  src/cmd/6g/gg.h | 1 -
  src/cmd/gc/go.h | 1 +
  2 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index a5da17d61f..27f6c01fee 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -51,7 +51,6 @@ void	allocparams(void);
+ void	checklabels(void);
+ void	ginscall(Node*, int);
+ int	gen_as_init(Node*);
+-void	clearslim(Node*);
+ 
+ /*
+  * cgen.c
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6affd08dc1..61bb7bd6e4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1169,6 +1169,7 @@ void	cgen_callmeth(Node *n, int proc);
+ void	cgen_eface(Node* n, Node* res);
+ void	cgen_slice(Node* n, Node* res);
+ void	clearlabels(void);
++void	clearslim(Node*);
+ void	checklabels(void);
+ int	dotoffset(Node *n, int64 *oary, Node **nn);
+ void	gen(Node *n);

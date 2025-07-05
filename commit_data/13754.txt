@@ -8,8 +8,109 @@ Date:   Thu Sep 6 10:47:25 2012 +1000
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/6489082
-
+---
  src/cmd/6g/ggen.c  |  2 +-
  src/cmd/6g/gsubr.c | 16 ++++++++--------
  src/cmd/gc/go.h    | 25 +++++++++++--------------
  3 files changed, 20 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 4d9fa4812f..73577a7f3d 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -758,7 +758,7 @@ divbymul:
+ 			// need to add numerator accounting for overflow
+ 			gins(optoas(OADD, nl->type), &n1, &dx);
+ 			nodconst(&n2, nl->type, 1);
+-			gins(optoas(ORRC, nl->type), &n2, &dx);
++			gins(optoas(ORROTC, nl->type), &n2, &dx);
+ 			nodconst(&n2, nl->type, m.s-1);
+ 			gins(optoas(ORSH, nl->type), &n2, &dx);
+ 		} else {
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 0f75bd8a2b..aa2d4b8653 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1724,23 +1724,23 @@ optoas(int op, Type *t)
+ 		a = ASARQ;
+ 		break;
+ 
+-	case CASE(ORRC, TINT8):
+-	case CASE(ORRC, TUINT8):
++	case CASE(ORROTC, TINT8):
++	case CASE(ORROTC, TUINT8):
+ 		a = ARCRB;
+ 		break;
+ 
+-	case CASE(ORRC, TINT16):
+-	case CASE(ORRC, TUINT16):
++	case CASE(ORROTC, TINT16):
++	case CASE(ORROTC, TUINT16):
+ 		a = ARCRW;
+ 		break;
+ 
+-	case CASE(ORRC, TINT32):
+-	case CASE(ORRC, TUINT32):
++	case CASE(ORROTC, TINT32):
++	case CASE(ORROTC, TUINT32):
+ 		a = ARCRL;
+ 		break;
+ 
+-	case CASE(ORRC, TINT64):
+-	case CASE(ORRC, TUINT64):
++	case CASE(ORROTC, TINT64):
++	case CASE(ORROTC, TUINT64):
+ 		a = ARCRQ;
+ 		break;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 6dc971b12c..7bbaabb378 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -431,7 +431,6 @@ enum
+ 	OAS2MAPR,	// x, ok = m["foo"]
+ 	OAS2DOTTYPE,	// x, ok = I.(int)
+ 	OASOP,	// x += y
+-	OBAD,	// unused.
+ 	OCALL,	// function call, method call or type conversion, possibly preceded by defer or go.
+ 	OCALLFUNC,	// f()
+ 	OCALLMETH,	// t.Method()
+@@ -479,12 +478,6 @@ enum
+ 	OMAKECHAN,	// make(chan int)
+ 	OMAKEMAP,	// make(map[string]int)
+ 	OMAKESLICE,	// make([]int, 0)
+-
+-	// TODO: move these to the "for back ends" section, like OLROT.
+-	OHMUL, // high-mul. 386/amd64: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
+-	ORRC, // right rotate-carry. 386/amd64: ARCR.
+-	OLRC, // unused.
+-
+ 	OMUL,	// x * y
+ 	ODIV,	// x / y
+ 	OMOD,	// x % y
+@@ -553,14 +546,18 @@ enum
+ 	OEFACE,	// itable and data words of an empty-interface value.
+ 	OITAB,	// itable word of an interface value.
+ 
+-	// for back ends
+-	OCMP,	// compare. 386/amd64: ACMP.
+-	ODEC,	// decrement. 386/amd64: ADEC.
+-	OEXTEND,	// extend. 386/amd64: ACWD/ACDQ/ACQO.
+-	OINC,	// increment. 386/amd64: AINC.
+-	OREGISTER,	// an arch-specific register.
++	// arch-specific registers
++	OREGISTER,	// a register, such as AX.
+ 	OINDREG,	// offset plus indirect of a register, such as 8(SP).
+-	OLROT,	// rotate left. 386/amd64: AROL.
++
++	// 386/amd64-specific opcodes
++	OCMP,	// compare: ACMP.
++	ODEC,	// decrement: ADEC.
++	OINC,	// increment: AINC.
++	OEXTEND,	// extend: ACWD/ACDQ/ACQO.
++	OHMUL, // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
++	OLROT,	// left rotate: AROL.
++	ORROTC, // right rotate-carry: ARCR.
+ 
+ 	OEND,
+ };

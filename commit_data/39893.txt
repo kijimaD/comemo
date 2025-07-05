@@ -23,8 +23,319 @@ Date:   Wed Feb 13 08:49:52 2019 +0530
     Reviewed-on: https://go-review.googlesource.com/c/go/+/162337
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/testdata/import.golden | 60 ++++++++++++++++++++++++++
  src/cmd/gofmt/testdata/import.input  | 62 +++++++++++++++++++++++++++
  src/go/ast/import.go                 | 81 ++++++++++++++++++++++++++----------
  3 files changed, 180 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/gofmt/testdata/import.golden b/src/cmd/gofmt/testdata/import.golden
+index 51d7be79df..f7d742e3e8 100644
+--- a/src/cmd/gofmt/testdata/import.golden
++++ b/src/cmd/gofmt/testdata/import.golden
+@@ -1,3 +1,4 @@
++// package comment
+ package main
+ 
+ import (
+@@ -20,6 +21,10 @@ import (
+ 	"io"
+ )
+ 
++// We reset the line numbering to test that
++// the formatting works independent of line directives
++//line :19
++
+ import (
+ 	"errors"
+ 	"fmt"
+@@ -124,3 +129,58 @@ import (
+ 
+ 	"dedup_by_group"
+ )
++
++import (
++	"fmt" // for Printf
++	/* comment */ io1 "io"
++	/* comment */ io2 "io"
++	/* comment */ "log"
++)
++
++import (
++	"fmt"
++	/* comment */ io1 "io"
++	/* comment */ io2 "io" // hello
++	"math"                 /* right side */
++	// end
++)
++
++import (
++	"errors" // for New
++	"fmt"
++	/* comment */ io1 "io" /* before */ // after
++	io2 "io"               // another
++	// end
++)
++
++import (
++	"errors" // for New
++	/* left */ "fmt" /* right */
++	"log"            // for Fatal
++	/* left */ "math" /* right */
++)
++
++import /* why */ /* comment here? */ (
++	/* comment */ "fmt"
++	"math"
++)
++
++// Reset it again
++//line :100
++
++// Dedup with different import styles
++import (
++	"path"
++	. "path"
++	_ "path"
++	pathpkg "path"
++)
++
++/* comment */
++import (
++	"fmt"
++	"math" // for Abs
++	// This is a new run
++	"errors"
++	"fmt"
++)
+diff --git a/src/cmd/gofmt/testdata/import.input b/src/cmd/gofmt/testdata/import.input
+index 9a4b09dbf9..6e3a3a3bed 100644
+--- a/src/cmd/gofmt/testdata/import.input
++++ b/src/cmd/gofmt/testdata/import.input
+@@ -1,3 +1,4 @@
++// package comment
+ package main
+ 
+ import (
+@@ -20,6 +21,10 @@ import (
+ 	"io"
+ )
+ 
++// We reset the line numbering to test that
++// the formatting works independent of line directives
++//line :19
++
+ import (
+ 	"fmt"
+ 	"math"
+@@ -129,3 +134,60 @@ import (
+ 
+ 	"dedup_by_group"
+ )
++
++import (
++	/* comment */ io1 "io"
++	"fmt" // for Printf
++	/* comment */ "log"
++	/* comment */ io2 "io"
++)
++
++import (
++	/* comment */ io2 "io" // hello
++	/* comment */ io1 "io"
++	"math" /* right side */
++	"fmt"
++	// end
++)
++
++import (
++	/* comment */ io1 "io" /* before */ // after
++	"fmt"
++	"errors" // for New
++	io2 "io" // another
++	// end
++)
++
++import (
++	/* left */ "fmt" /* right */
++	"errors" // for New
++	/* left */ "math" /* right */
++	"log" // for Fatal
++)
++
++import /* why */ /* comment here? */ (
++	/* comment */ "fmt"
++	"math"
++)
++
++// Reset it again
++//line :100
++
++// Dedup with different import styles
++import (
++	"path"
++	. "path"
++	_ "path"
++	"path"
++	pathpkg "path"
++)
++
++/* comment */
++import (
++	"math" // for Abs
++	"fmt"
++	// This is a new run
++	"errors"
++	"fmt"
++	"errors"
++)
+diff --git a/src/go/ast/import.go b/src/go/ast/import.go
+index be23c7fc43..7102884c85 100644
+--- a/src/go/ast/import.go
++++ b/src/go/ast/import.go
+@@ -30,7 +30,7 @@ func SortImports(fset *token.FileSet, f *File) {
+ 		i := 0
+ 		specs := d.Specs[:0]
+ 		for j, s := range d.Specs {
+-			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
++			if j > i && lineAt(fset, s.Pos()) > 1+lineAt(fset, d.Specs[j-1].End()) {
+ 				// j begins a new run. End this one.
+ 				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
+ 				i = j
+@@ -42,8 +42,8 @@ func SortImports(fset *token.FileSet, f *File) {
+ 		// Deduping can leave a blank line before the rparen; clean that up.
+ 		if len(d.Specs) > 0 {
+ 			lastSpec := d.Specs[len(d.Specs)-1]
+-			lastLine := fset.Position(lastSpec.Pos()).Line
+-			rParenLine := fset.Position(d.Rparen).Line
++			lastLine := lineAt(fset, lastSpec.Pos())
++			rParenLine := lineAt(fset, d.Rparen)
+ 			for rParenLine > lastLine+1 {
+ 				rParenLine--
+ 				fset.File(d.Rparen).MergeLine(rParenLine)
+@@ -52,6 +52,10 @@ func SortImports(fset *token.FileSet, f *File) {
+ 	}
+ }
+ 
++func lineAt(fset *token.FileSet, pos token.Pos) int {
++	return fset.PositionFor(pos, false).Line
++}
++
+ func importPath(s Spec) string {
+ 	t, err := strconv.Unquote(s.(*ImportSpec).Path.Value)
+ 	if err == nil {
+@@ -89,6 +93,11 @@ type posSpan struct {
+ 	End   token.Pos
+ }
+ 
++type cgPos struct {
++	left bool // true if comment is to the left of the spec, false otherwise.
++	cg   *CommentGroup
++}
++
+ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 	// Can't short-circuit here even if specs are already sorted,
+ 	// since they might yet need deduplication.
+@@ -104,39 +113,57 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 	}
+ 
+ 	// Identify comments in this range.
+-	// Any comment from pos[0].Start to the final line counts.
+-	lastLine := fset.Position(pos[len(pos)-1].End).Line
+-	cstart := len(f.Comments)
+-	cend := len(f.Comments)
++	begSpecs := pos[0].Start
++	endSpecs := pos[len(pos)-1].End
++	beg := fset.File(begSpecs).LineStart(lineAt(fset, begSpecs))
++	end := fset.File(endSpecs).LineStart(lineAt(fset, endSpecs) + 1) // beginning of next line
++	first := len(f.Comments)
++	last := -1
+ 	for i, g := range f.Comments {
+-		if g.Pos() < pos[0].Start {
+-			continue
+-		}
+-		if i < cstart {
+-			cstart = i
+-		}
+-		if fset.Position(g.End()).Line > lastLine {
+-			cend = i
++		if g.End() >= end {
+ 			break
+ 		}
++		// g.End() < end
++		if beg <= g.Pos() {
++			// comment is within the range [beg, end[ of import declarations
++			if i < first {
++				first = i
++			}
++			if i > last {
++				last = i
++			}
++		}
+ 	}
+-	comments := f.Comments[cstart:cend]
+ 
+-	// Assign each comment to the import spec preceding it.
+-	importComments := map[*ImportSpec][]*CommentGroup{}
++	var comments []*CommentGroup
++	if last >= 0 {
++		comments = f.Comments[first : last+1]
++	}
++
++	// Assign each comment to the import spec on the same line.
++	importComments := map[*ImportSpec][]cgPos{}
+ 	specIndex := 0
+ 	for _, g := range comments {
+ 		for specIndex+1 < len(specs) && pos[specIndex+1].Start <= g.Pos() {
+ 			specIndex++
+ 		}
++		var left bool
++		// A block comment can appear before the first import spec.
++		if specIndex == 0 && pos[specIndex].Start > g.Pos() {
++			left = true
++		} else if specIndex+1 < len(specs) && // Or it can appear on the left of an import spec.
++			lineAt(fset, pos[specIndex].Start)+1 == lineAt(fset, g.Pos()) {
++			specIndex++
++			left = true
++		}
+ 		s := specs[specIndex].(*ImportSpec)
+-		importComments[s] = append(importComments[s], g)
++		importComments[s] = append(importComments[s], cgPos{left: left, cg: g})
+ 	}
+ 
+ 	// Sort the import specs by import path.
+ 	// Remove duplicates, when possible without data loss.
+ 	// Reassign the import paths to have the same position sequence.
+-	// Reassign each comment to abut the end of its spec.
++	// Reassign each comment to the spec on the same line.
+ 	// Sort the comments by new position.
+ 	sort.Slice(specs, func(i, j int) bool {
+ 		ipath := importPath(specs[i])
+@@ -160,7 +187,7 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 			deduped = append(deduped, s)
+ 		} else {
+ 			p := s.Pos()
+-			fset.File(p).MergeLine(fset.Position(p).Line)
++			fset.File(p).MergeLine(lineAt(fset, p))
+ 		}
+ 	}
+ 	specs = deduped
+@@ -174,8 +201,16 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+ 		s.Path.ValuePos = pos[i].Start
+ 		s.EndPos = pos[i].End
+ 		for _, g := range importComments[s] {
+-			for _, c := range g.List {
+-				c.Slash = pos[i].End
++			for _, c := range g.cg.List {
++				if g.left {
++					c.Slash = pos[i].Start - 1
++				} else {
++					// An import spec can have both block comment and a line comment
++					// to its right. In that case, both of them will have the same pos.
++					// But while formatting the AST, the line comment gets moved to
++					// after the block comment.
++					c.Slash = pos[i].End
++				}
+ 			}
+ 		}
+ 	}

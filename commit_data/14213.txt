@@ -7,6 +7,19 @@ Date:   Wed Oct 24 11:40:32 2012 +0200
     R=r
     CC=golang-dev
     https://golang.org/cl/6752043
-
+---
  src/pkg/exp/locale/collate/collate.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+index 5853b710c3..59507e55b2 100644
+--- a/src/pkg/exp/locale/collate/collate.go
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -86,6 +86,7 @@ type Collator struct {
+ }
+ 
+ // Locales returns the list of locales for which collating differs from its parent locale.
++// The returned value should not be modified.
+ func Locales() []string {
+ 	return availableLocales
+ }

@@ -10,8 +10,51 @@ Date:   Fri Apr 22 18:49:59 2016 -0700
     Change-Id: Id360d474e6153cfe32a525b0a720810fd113195b
     Reviewed-on: https://go-review.googlesource.com/22392
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 7 +++++++
  src/cmd/link/internal/ld/lib.go      | 1 +
  src/cmd/link/internal/ld/pobj.go     | 1 +
  3 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 6a70ff581f..aaed6cde21 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -196,6 +196,13 @@ func (d *deadcodepass) mark(s, parent *LSym) {
+ 	if s.Attr.ReflectMethod() {
+ 		d.reflectMethod = true
+ 	}
++	if flag_dumpdep {
++		p := "_"
++		if parent != nil {
++			p = parent.Name
++		}
++		fmt.Printf("%s -> %s\n", p, s.Name)
++	}
+ 	s.Attr |= AttrReachable
+ 	s.Reachparent = parent
+ 	d.markQueue = append(d.markQueue, s)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 77db672bfd..f7b9b79c2f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -196,6 +196,7 @@ var (
+ 	Funcalign          int
+ 	iscgo              bool
+ 	elfglobalsymndx    int
++	flag_dumpdep       bool
+ 	flag_installsuffix string
+ 	flag_race          int
+ 	flag_msan          int
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index f4fb4d4845..b64bb5deaf 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -90,6 +90,7 @@ func Ldmain() {
+ 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
+ 	obj.Flagcount("c", "dump call graph", &Debug['c'])
+ 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
++	flag.BoolVar(&flag_dumpdep, "dumpdep", false, "dump symbol dependency graph")
+ 	obj.Flagstr("extar", "archive program for buildmode=c-archive", &extar)
+ 	obj.Flagstr("extld", "use `linker` when linking in external mode", &extld)
+ 	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)

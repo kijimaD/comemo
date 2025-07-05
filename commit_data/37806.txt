@@ -13,7 +13,7 @@ Date:   Tue Jul 17 15:36:30 2018 -0400
     Change-Id: I170d628a760be300a0c1f738f0998970e91ce3d6
     Reviewed-on: https://go-review.googlesource.com/125478
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go       | 28 +++++++++++-----------
  src/cmd/link/internal/arm/asm.go         | 32 ++++++++++++-------------
  src/cmd/link/internal/ld/data.go         | 10 ++++----
@@ -25,3 +25,631 @@ Date:   Tue Jul 17 15:36:30 2018 -0400
  src/cmd/link/internal/sym/symbols.go     |  2 --
  src/cmd/link/internal/x86/asm.go         | 24 +++++++++----------
  10 files changed, 100 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 66aab3f748..829635d219 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -139,7 +139,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add += int64(targ.Plt)
++			r.Add += int64(targ.Plt())
+ 		}
+ 
+ 		return true
+@@ -164,7 +164,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Type = objabi.R_PCREL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+ 		r.Add += 4
+-		r.Add += int64(targ.Got)
++		r.Add += int64(targ.Got())
+ 		return true
+ 
+ 	case 256 + objabi.RelocType(elf.R_X86_64_64):
+@@ -190,7 +190,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add = int64(targ.Plt)
++			r.Add = int64(targ.Plt())
+ 			r.Type = objabi.R_PCREL
+ 			return true
+ 		}
+@@ -230,7 +230,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		addgotsym(ctxt, targ)
+ 		r.Type = objabi.R_PCREL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+-		r.Add += int64(targ.Got)
++		r.Add += int64(targ.Got())
+ 		return true
+ 	}
+ 
+@@ -249,7 +249,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		// Build a PLT entry and change the relocation target to that entry.
+ 		addpltsym(ctxt, targ)
+ 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-		r.Add = int64(targ.Plt)
++		r.Add = int64(targ.Plt())
+ 		return true
+ 
+ 	case objabi.R_ADDR:
+@@ -257,7 +257,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			if ctxt.HeadType == objabi.Hsolaris {
+ 				addpltsym(ctxt, targ)
+ 				r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-				r.Add += int64(targ.Plt)
++				r.Add += int64(targ.Plt())
+ 				return true
+ 			}
+ 			// The code is asking for the address of an external
+@@ -266,7 +266,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 			addgotsym(ctxt, targ)
+ 
+ 			r.Sym = ctxt.Syms.Lookup(".got", 0)
+-			r.Add += int64(targ.Got)
++			r.Add += int64(targ.Got())
+ 			return true
+ 		}
+ 
+@@ -567,7 +567,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ }
+ 
+ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Plt >= 0 {
++	if s.Plt() >= 0 {
+ 		return
+ 	}
+ 
+@@ -606,7 +606,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
+ 		rela.AddUint64(ctxt.Arch, 0)
+ 
+-		s.Plt = int32(plt.Size - 16)
++		s.SetPlt(int32(plt.Size - 16))
+ 	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		// To do lazy symbol lookup right, we're supposed
+ 		// to tell the dynamic loader which library each
+@@ -624,29 +624,29 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
+ 
+ 		// jmpq *got+size(IP)
+-		s.Plt = int32(plt.Size)
++		s.SetPlt(int32(plt.Size))
+ 
+ 		plt.AddUint8(0xff)
+ 		plt.AddUint8(0x25)
+-		plt.AddPCRelPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
++		plt.AddPCRelPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got()))
+ 	} else {
+ 		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Got >= 0 {
++	if s.Got() >= 0 {
+ 		return
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+ 	got := ctxt.Syms.Lookup(".got", 0)
+-	s.Got = int32(got.Size)
++	s.SetGot(int32(got.Size))
+ 	got.AddUint64(ctxt.Arch, 0)
+ 
+ 	if ctxt.IsELF {
+ 		rela := ctxt.Syms.Lookup(".rela", 0)
+-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
++		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
+ 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
+ 		rela.AddUint64(ctxt.Arch, 0)
+ 	} else if ctxt.HeadType == objabi.Hdarwin {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index b1d44b5896..efcd41d72b 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -132,7 +132,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
++			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
+ 		}
+ 
+ 		return true
+@@ -150,7 +150,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		r.Type = objabi.R_CONST // write r->add during relocsym
+ 		r.Sym = nil
+-		r.Add += int64(targ.Got)
++		r.Add += int64(targ.Got())
+ 		return true
+ 
+ 	case 256 + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
+@@ -162,7 +162,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		r.Type = objabi.R_PCREL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+-		r.Add += int64(targ.Got) + 4
++		r.Add += int64(targ.Got()) + 4
+ 		return true
+ 
+ 	case 256 + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
+@@ -182,7 +182,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
++			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
+ 		}
+ 
+ 		return true
+@@ -216,7 +216,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
++			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
+ 		}
+ 
+ 		return true
+@@ -235,7 +235,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		addpltsym(ctxt, targ)
+ 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-		r.Add = int64(targ.Plt)
++		r.Add = int64(targ.Plt())
+ 		return true
+ 
+ 	case objabi.R_ADDR:
+@@ -678,7 +678,7 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
+ 	r.Off = int32(plt.Size)
+ 	r.Siz = 4
+ 	r.Type = typ
+-	r.Add = int64(s.Got) - 8
++	r.Add = int64(s.Got()) - 8
+ 
+ 	plt.Attr |= sym.AttrReachable
+ 	plt.Size += 4
+@@ -686,7 +686,7 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
+ }
+ 
+ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Plt >= 0 {
++	if s.Plt() >= 0 {
+ 		return
+ 	}
+ 
+@@ -701,7 +701,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		}
+ 
+ 		// .got entry
+-		s.Got = int32(got.Size)
++		s.SetGot(int32(got.Size))
+ 
+ 		// In theory, all GOT should point to the first PLT entry,
+ 		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
+@@ -709,14 +709,14 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		got.AddAddrPlus(ctxt.Arch, plt, 0)
+ 
+ 		// .plt entry, this depends on the .got entry
+-		s.Plt = int32(plt.Size)
++		s.SetPlt(int32(plt.Size))
+ 
+ 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT0) // add lr, pc, #0xXX00000
+ 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT1) // add lr, lr, #0xYY000
+ 		addpltreloc(ctxt, plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
+ 
+ 		// rel
+-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
++		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
+ 
+ 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_JUMP_SLOT)))
+ 	} else {
+@@ -725,12 +725,12 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ }
+ 
+ func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Got >= 0 {
++	if s.Got() >= 0 {
+ 		return
+ 	}
+ 
+ 	got := ctxt.Syms.Lookup(".got", 0)
+-	s.Got = int32(got.Size)
++	s.SetGot(int32(got.Size))
+ 
+ 	got.AddAddrPlus(ctxt.Arch, s, 0)
+ 
+@@ -741,18 +741,18 @@ func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
+ }
+ 
+ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Got >= 0 {
++	if s.Got() >= 0 {
+ 		return
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+ 	got := ctxt.Syms.Lookup(".got", 0)
+-	s.Got = int32(got.Size)
++	s.SetGot(int32(got.Size))
+ 	got.AddUint32(ctxt.Arch, 0)
+ 
+ 	if ctxt.IsELF {
+ 		rel := ctxt.Syms.Lookup(".rel", 0)
+-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
++		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
+ 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_GLOB_DAT)))
+ 	} else {
+ 		ld.Errorf(s, "addgotsym: unsupported binary format")
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3070fdbb35..ff0d3a8d84 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -546,10 +546,10 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 			}
+ 			Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
+ 		}
+-		if r.Sym.Plt == -2 && r.Sym.Got != -2 { // make dynimport JMP table for PE object files.
+-			targ.Plt = int32(rel.Size)
++		if r.Sym.Plt() == -2 && r.Sym.Got() != -2 { // make dynimport JMP table for PE object files.
++			targ.SetPlt(int32(rel.Size))
+ 			r.Sym = rel
+-			r.Add = int64(targ.Plt)
++			r.Add = int64(targ.Plt())
+ 
+ 			// jmp *addr
+ 			switch ctxt.Arch.Family {
+@@ -569,9 +569,9 @@ func windynrelocsym(ctxt *Link, s *sym.Symbol) {
+ 				rel.AddAddrPlus4(targ, 0)
+ 				rel.AddUint8(0x90)
+ 			}
+-		} else if r.Sym.Plt >= 0 {
++		} else if r.Sym.Plt() >= 0 {
+ 			r.Sym = rel
+-			r.Add = int64(targ.Plt)
++			r.Add = int64(targ.Plt())
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index f78252c283..ac07d5c35d 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -358,7 +358,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
+ 
+ 		if pesym.SectionNumber == 0 { // extern
+ 			if s.Type == sym.SDYNIMPORT {
+-				s.Plt = -2 // flag for dynimport in PE object files.
++				s.SetPlt(-2) // flag for dynimport in PE object files.
+ 			}
+ 			if s.Type == sym.SXREF && pesym.Value > 0 { // global data
+ 				s.Type = sym.SNOPTRDATA
+@@ -479,7 +479,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
+ 		s.Type = sym.SXREF
+ 	}
+ 	if strings.HasPrefix(symname, "__imp_") {
+-		s.Got = -2 // flag for __imp_
++		s.SetGot(-2) // flag for __imp_
+ 	}
+ 
+ 	return s, nil
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 2baa9c1de1..9445fbebcb 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -236,7 +236,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
+ 
+ 	r.Off = int32(stub.Size)
+ 	r.Sym = plt
+-	r.Add = int64(targ.Plt)
++	r.Add = int64(targ.Plt())
+ 	r.Siz = 2
+ 	if ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		r.Off += int32(r.Siz)
+@@ -247,7 +247,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
+ 	r = stub.AddRel()
+ 	r.Off = int32(stub.Size)
+ 	r.Sym = plt
+-	r.Add = int64(targ.Plt)
++	r.Add = int64(targ.Plt())
+ 	r.Siz = 2
+ 	if ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		r.Off += int32(r.Siz)
+@@ -793,7 +793,7 @@ overflow:
+ }
+ 
+ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Plt >= 0 {
++	if s.Plt() >= 0 {
+ 		return
+ 	}
+ 
+@@ -825,11 +825,11 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		// JMP_SLOT dynamic relocation for it.
+ 		//
+ 		// TODO(austin): ABI v1 is different
+-		s.Plt = int32(plt.Size)
++		s.SetPlt(int32(plt.Size))
+ 
+ 		plt.Size += 8
+ 
+-		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt))
++		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt()))
+ 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_PPC64_JMP_SLOT)))
+ 		rela.AddUint64(ctxt.Arch, 0)
+ 	} else {
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 215200721c..245da19d9d 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -157,7 +157,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add += int64(targ.Plt)
++			r.Add += int64(targ.Plt())
+ 		}
+ 		return true
+ 
+@@ -168,7 +168,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add += int64(targ.Plt)
++			r.Add += int64(targ.Plt())
+ 		}
+ 		return true
+ 
+@@ -224,7 +224,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		r.Type = objabi.R_PCREL
+ 		r.Variant = sym.RV_390_DBL
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+-		r.Add += int64(targ.Got)
++		r.Add += int64(targ.Got())
+ 		r.Add += int64(r.Siz)
+ 		return true
+ 	}
+@@ -417,7 +417,7 @@ func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64
+ }
+ 
+ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Plt >= 0 {
++	if s.Plt() >= 0 {
+ 		return
+ 	}
+ 
+@@ -472,7 +472,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_JMP_SLOT)))
+ 		rela.AddUint64(ctxt.Arch, 0)
+ 
+-		s.Plt = int32(plt.Size - 32)
++		s.SetPlt(int32(plt.Size - 32))
+ 
+ 	} else {
+ 		ld.Errorf(s, "addpltsym: unsupported binary format")
+@@ -480,18 +480,18 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ }
+ 
+ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Got >= 0 {
++	if s.Got() >= 0 {
+ 		return
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+ 	got := ctxt.Syms.Lookup(".got", 0)
+-	s.Got = int32(got.Size)
++	s.SetGot(int32(got.Size))
+ 	got.AddUint64(ctxt.Arch, 0)
+ 
+ 	if ctxt.IsELF {
+ 		rela := ctxt.Syms.Lookup(".rela", 0)
+-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
++		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
+ 		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_GLOB_DAT)))
+ 		rela.AddUint64(ctxt.Arch, 0)
+ 	} else {
+diff --git a/src/cmd/link/internal/sym/sizeof_test.go b/src/cmd/link/internal/sym/sizeof_test.go
+index 814ec42373..a9bc174d59 100644
+--- a/src/cmd/link/internal/sym/sizeof_test.go
++++ b/src/cmd/link/internal/sym/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Symbol{}, 120, 192},
++		{Symbol{}, 112, 184},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 7739737591..c05b82a665 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -19,8 +19,6 @@ type Symbol struct {
+ 	Version     int16
+ 	Attr        Attribute
+ 	Dynid       int32
+-	Plt         int32
+-	Got         int32
+ 	Align       int32
+ 	Elfsym      int32
+ 	LocalElfsym int32
+@@ -49,6 +47,8 @@ type AuxSymbol struct {
+ 	dynimplib  string
+ 	dynimpvers string
+ 	localentry uint8
++	plt        int32
++	got        int32
+ }
+ 
+ func (s *Symbol) String() string {
+@@ -271,7 +271,7 @@ func (s *Symbol) setUintXX(arch *sys.Arch, off int64, v uint64, wid int64) int64
+ 
+ func (s *Symbol) makeAuxInfo() {
+ 	if s.auxinfo == nil {
+-		s.auxinfo = &AuxSymbol{extname: s.Name}
++		s.auxinfo = &AuxSymbol{extname: s.Name, plt: -1, got: -1}
+ 	}
+ }
+ 
+@@ -344,6 +344,40 @@ func (s *Symbol) SetLocalentry(val uint8) {
+ 	s.auxinfo.localentry = val
+ }
+ 
++func (s *Symbol) Plt() int32 {
++	if s.auxinfo == nil {
++		return -1
++	}
++	return s.auxinfo.plt
++}
++
++func (s *Symbol) SetPlt(val int32) {
++	if s.auxinfo == nil {
++		if val == -1 {
++			return
++		}
++		s.makeAuxInfo()
++	}
++	s.auxinfo.plt = val
++}
++
++func (s *Symbol) Got() int32 {
++	if s.auxinfo == nil {
++		return -1
++	}
++	return s.auxinfo.got
++}
++
++func (s *Symbol) SetGot(val int32) {
++	if s.auxinfo == nil {
++		if val == -1 {
++			return
++		}
++		s.makeAuxInfo()
++	}
++	s.auxinfo.got = val
++}
++
+ // SortSub sorts a linked-list (by Sub) of *Symbol by Value.
+ // Used for sub-symbols when loading host objects (see e.g. ldelf.go).
+ func SortSub(l *Symbol) *Symbol {
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index 7c6137c73c..d79d1d8b1d 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -59,8 +59,6 @@ func (syms *Symbols) Newsym(name string, v int) *Symbol {
+ 	syms.symbolBatch = batch[1:]
+ 
+ 	s.Dynid = -1
+-	s.Plt = -1
+-	s.Got = -1
+ 	s.Name = name
+ 	s.Version = int16(v)
+ 	syms.Allsym = append(syms.Allsym, s)
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 4b45aff653..1744ab4d99 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -197,7 +197,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add += int64(targ.Plt)
++			r.Add += int64(targ.Plt())
+ 		}
+ 
+ 		return true
+@@ -230,7 +230,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		addgotsym(ctxt, targ)
+ 		r.Type = objabi.R_CONST // write r->add during relocsym
+ 		r.Sym = nil
+-		r.Add += int64(targ.Got)
++		r.Add += int64(targ.Got())
+ 		return true
+ 
+ 	case 256 + objabi.RelocType(elf.R_386_GOTOFF):
+@@ -261,7 +261,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		if targ.Type == sym.SDYNIMPORT {
+ 			addpltsym(ctxt, targ)
+ 			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-			r.Add = int64(targ.Plt)
++			r.Add = int64(targ.Plt())
+ 			r.Type = objabi.R_PCREL
+ 			return true
+ 		}
+@@ -285,7 +285,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 
+ 		addgotsym(ctxt, targ)
+ 		r.Sym = ctxt.Syms.Lookup(".got", 0)
+-		r.Add += int64(targ.Got)
++		r.Add += int64(targ.Got())
+ 		r.Type = objabi.R_PCREL
+ 		return true
+ 	}
+@@ -303,7 +303,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 		}
+ 		addpltsym(ctxt, targ)
+ 		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+-		r.Add = int64(targ.Plt)
++		r.Add = int64(targ.Plt())
+ 		return true
+ 
+ 	case objabi.R_ADDR:
+@@ -538,7 +538,7 @@ func elfsetupplt(ctxt *ld.Link) {
+ }
+ 
+ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Plt >= 0 {
++	if s.Plt() >= 0 {
+ 		return
+ 	}
+ 
+@@ -576,7 +576,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 
+ 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_JMP_SLOT)))
+ 
+-		s.Plt = int32(plt.Size - 16)
++		s.SetPlt(int32(plt.Size - 16))
+ 	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		// Same laziness as in 6l.
+ 
+@@ -587,29 +587,29 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+ 		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
+ 
+ 		// jmpq *got+size(IP)
+-		s.Plt = int32(plt.Size)
++		s.SetPlt(int32(plt.Size))
+ 
+ 		plt.AddUint8(0xff)
+ 		plt.AddUint8(0x25)
+-		plt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got))
++		plt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got()))
+ 	} else {
+ 		ld.Errorf(s, "addpltsym: unsupported binary format")
+ 	}
+ }
+ 
+ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+-	if s.Got >= 0 {
++	if s.Got() >= 0 {
+ 		return
+ 	}
+ 
+ 	ld.Adddynsym(ctxt, s)
+ 	got := ctxt.Syms.Lookup(".got", 0)
+-	s.Got = int32(got.Size)
++	s.SetGot(int32(got.Size))
+ 	got.AddUint32(ctxt.Arch, 0)
+ 
+ 	if ctxt.IsELF {
+ 		rel := ctxt.Syms.Lookup(".rel", 0)
+-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got))
++		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
+ 		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_386_GLOB_DAT)))
+ 	} else if ctxt.HeadType == objabi.Hdarwin {
+ 		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))

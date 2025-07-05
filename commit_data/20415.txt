@@ -10,10 +10,76 @@ Date:   Sat Sep 6 15:27:39 2014 -0400
     R=iant, r
     CC=golang-codereviews
     https://golang.org/cl/134530044
-
+---
  src/pkg/runtime/cgo/asm_386.s           | 2 +-
  src/pkg/runtime/cgo/asm_amd64.s         | 2 +-
  src/pkg/runtime/cgo/asm_arm.s           | 2 +-
  src/pkg/runtime/cgo/asm_nacl_amd64p32.s | 2 +-
  src/pkg/runtime/cgo/callbacks.c         | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/cgo/asm_386.s b/src/pkg/runtime/cgo/asm_386.s
+index ab2f1d17a8..a895083f1b 100644
+--- a/src/pkg/runtime/cgo/asm_386.s
++++ b/src/pkg/runtime/cgo/asm_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+diff --git a/src/pkg/runtime/cgo/asm_amd64.s b/src/pkg/runtime/cgo/asm_amd64.s
+index 64f719ab1c..6095bd1337 100644
+--- a/src/pkg/runtime/cgo/asm_amd64.s
++++ b/src/pkg/runtime/cgo/asm_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+diff --git a/src/pkg/runtime/cgo/asm_arm.s b/src/pkg/runtime/cgo/asm_arm.s
+index b989ab9330..6e57432e35 100644
+--- a/src/pkg/runtime/cgo/asm_arm.s
++++ b/src/pkg/runtime/cgo/asm_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+diff --git a/src/pkg/runtime/cgo/asm_nacl_amd64p32.s b/src/pkg/runtime/cgo/asm_nacl_amd64p32.s
+index 377cf72a3a..eb92014ed8 100644
+--- a/src/pkg/runtime/cgo/asm_nacl_amd64p32.s
++++ b/src/pkg/runtime/cgo/asm_nacl_amd64p32.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ /*
+  * void crosscall2(void (*fn)(void*, int32), void*, int32)
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index eb69255db4..f074237d5f 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -4,7 +4,7 @@
+ 
+ #include "../runtime.h"
+ #include "../cgocall.h"
+-#include "../../../cmd/ld/textflag.h"
++#include "textflag.h"
+ 
+ // These utility functions are available to be called from code
+ // compiled with gcc via crosscall2.

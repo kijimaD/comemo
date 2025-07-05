@@ -15,7 +15,7 @@ Date:   Fri Dec 7 12:05:00 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.12.html                                    |  8 +--
  src/cmd/dist/test.go                               |  2 -
  src/cmd/go/go_test.go                              | 60 +------------------
@@ -27,3 +27,419 @@ Date:   Fri Dec 7 12:05:00 2018 -0500
  .../go/testdata/script/build_relative_tmpdir.txt   | 16 ++++++
  src/cmd/go/testdata/script/cache_unix.txt          | 34 +++++++++++
  10 files changed, 103 insertions(+), 163 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index f036180f53..f204c977fd 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -91,11 +91,11 @@ Go 1.13 will require macOS 10.11 El Capitan or later.
+ <h3 id="gocache">Build cache requirement</h3>
+ 
+ <p>
+-  The build cache is now required as a step toward eliminating
++  The <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a> is now
++  required as a step toward eliminating
+   <code>$GOPATH/pkg</code>. Setting the environment variable
+-  <code>GOCACHE=off</code> to disable the
+-  <a href="/cmd/go/#hdr-Build_and_test_caching">build cache</a>
+-  has no effect in Go 1.12.
++  <code>GOCACHE=off</code> will cause <code>go</code> commands that write to the
++  cache to fail.
+ </p>
+ 
+ <h3 id="binary-only">Binary-only packages</h3>
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index c88a7c05df..ac18230552 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -519,7 +519,6 @@ func (t *tester) registerTests() {
+ 				}
+ 
+ 				// Run `go test fmt` in the moved GOROOT.
+-				// Disable GOCACHE because it points back at the old GOROOT.
+ 				cmd := exec.Command(filepath.Join(moved, "bin", "go"), "test", "fmt")
+ 				cmd.Stdout = os.Stdout
+ 				cmd.Stderr = os.Stderr
+@@ -529,7 +528,6 @@ func (t *tester) registerTests() {
+ 						cmd.Env = append(cmd.Env, e)
+ 					}
+ 				}
+-				cmd.Env = append(cmd.Env, "GOCACHE=off")
+ 				err := cmd.Run()
+ 
+ 				if rerr := os.Rename(moved, goroot); rerr != nil {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6c31f98415..d16ab3d76d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5011,7 +5011,8 @@ func TestExecBuildX(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 
+-	tg.setenv("GOCACHE", "off")
++	tg.tempDir("cache")
++	tg.setenv("GOCACHE", tg.path("cache"))
+ 
+ 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
+ 	src := tg.path("main.go")
+@@ -5542,30 +5543,6 @@ func TestTestCacheInputs(t *testing.T) {
+ 	}
+ }
+ 
+-func TestNoCache(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "windows":
+-		t.Skipf("no unwritable directories on %s", runtime.GOOS)
+-	}
+-	if os.Getuid() == 0 {
+-		t.Skip("skipping test because running as root")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempFile("triv.go", `package main; func main() {}`)
+-	tg.must(os.MkdirAll(tg.path("unwritable"), 0555))
+-	home := "HOME"
+-	if runtime.GOOS == "plan9" {
+-		home = "home"
+-	}
+-	tg.setenv(home, tg.path(filepath.Join("unwritable", "home")))
+-	tg.unsetenv("GOCACHE")
+-	tg.run("build", "-o", tg.path("triv"), tg.path("triv.go"))
+-	tg.grepStderr("disabling cache", "did not disable cache")
+-}
+-
+ func TestTestVet(t *testing.T) {
+ 	tooSlow(t)
+ 	tg := testgo(t)
+@@ -5715,17 +5692,6 @@ func TestFmtLoadErrors(t *testing.T) {
+ 	tg.run("fmt", "-n", "exclude")
+ }
+ 
+-func TestRelativePkgdir(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOCACHE", "off")
+-	tg.cd(tg.tempdir)
+-
+-	tg.run("build", "-i", "-pkgdir=.", "runtime")
+-}
+-
+ func TestGoTestMinusN(t *testing.T) {
+ 	// Intent here is to verify that 'go test -n' works without crashing.
+ 	// This reuses flag_test.go, but really any test would do.
+@@ -6107,28 +6073,6 @@ func TestDontReportRemoveOfEmptyDir(t *testing.T) {
+ 	}
+ }
+ 
+-// Issue 23264.
+-func TestNoRelativeTmpdir(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-
+-	tg.tempFile("src/a/a.go", `package a`)
+-	tg.cd(tg.path("."))
+-	tg.must(os.Mkdir("tmp", 0777))
+-
+-	tg.setenv("GOCACHE", "off")
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.setenv("GOTMPDIR", "tmp")
+-	tg.run("build", "-work", "a")
+-	tg.grepStderr("WORK=[^t]", "work should be absolute path")
+-
+-	tg.unsetenv("GOTMPDIR")
+-	tg.setenv("TMP", "tmp")    // windows
+-	tg.setenv("TMPDIR", "tmp") // unix
+-	tg.run("build", "-work", "a")
+-	tg.grepStderr("WORK=[^t]", "work should be absolute path")
+-}
+-
+ // Issue 24704.
+ func TestLinkerTmpDirIsDeleted(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo does not use cmd/link")
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 4a69bf2a44..52a1fc8c7a 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -10,6 +10,8 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"sync"
++
++	"cmd/go/internal/base"
+ )
+ 
+ // Default returns the default cache to use, or nil if no cache should be used.
+@@ -34,15 +36,12 @@ See golang.org to learn more about Go.
+ // initDefaultCache does the work of finding the default cache
+ // the first time Default is called.
+ func initDefaultCache() {
+-	dir, showWarnings := defaultDir()
++	dir := DefaultDir()
+ 	if dir == "off" {
+-		return
++		die()
+ 	}
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+-		if showWarnings {
+-			fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
+-		}
+-		return
++		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
+ 	}
+ 	if _, err := os.Stat(filepath.Join(dir, "README")); err != nil {
+ 		// Best effort.
+@@ -51,10 +50,7 @@ func initDefaultCache() {
+ 
+ 	c, err := Open(dir)
+ 	if err != nil {
+-		if showWarnings {
+-			fmt.Fprintf(os.Stderr, "go: disabling cache (%s) due to initialization failure: %s\n", dir, err)
+-		}
+-		return
++		base.Fatalf("failed to initialize build cache at %s: %s\n", dir, err)
+ 	}
+ 	defaultCache = c
+ }
+@@ -62,34 +58,26 @@ func initDefaultCache() {
+ // DefaultDir returns the effective GOCACHE setting.
+ // It returns "off" if the cache is disabled.
+ func DefaultDir() string {
+-	dir, _ := defaultDir()
+-	return dir
+-}
+-
+-// defaultDir returns the effective GOCACHE setting.
+-// It returns "off" if the cache is disabled.
+-// The second return value reports whether warnings should
+-// be shown if the cache fails to initialize.
+-func defaultDir() (string, bool) {
+ 	dir := os.Getenv("GOCACHE")
+ 	if dir != "" {
+-		return dir, true
++		return dir
+ 	}
+ 
+ 	// Compute default location.
+ 	dir, err := os.UserCacheDir()
+ 	if err != nil {
+-		return "off", true
++		return "off"
+ 	}
+-	dir = filepath.Join(dir, "go-build")
++	return filepath.Join(dir, "go-build")
++}
+ 
+-	// Do this after filepath.Join, so that the path has been cleaned.
+-	showWarnings := true
+-	switch dir {
+-	case "/.cache/go-build":
+-		// probably docker run with -u flag
+-		// https://golang.org/issue/26280
+-		showWarnings = false
++// die calls base.Fatalf with a message explaining why DefaultDir was "off".
++func die() {
++	if os.Getenv("GOCACHE") == "off" {
++		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
++	}
++	if _, err := os.UserCacheDir(); err != nil {
++		base.Fatalf("build cache is required, but could not be located: %v", err)
+ 	}
+-	return dir, showWarnings
++	panic(fmt.Sprintf("cache.die called unexpectedly with cache.DefaultDir() = %s", DefaultDir()))
+ }
+diff --git a/src/cmd/go/internal/cache/default_unix_test.go b/src/cmd/go/internal/cache/default_unix_test.go
+deleted file mode 100644
+index 1458201f4b..0000000000
+--- a/src/cmd/go/internal/cache/default_unix_test.go
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !windows,!darwin,!plan9
+-
+-package cache
+-
+-import (
+-	"os"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestDefaultDir(t *testing.T) {
+-	goCacheDir := "/tmp/test-go-cache"
+-	xdgCacheDir := "/tmp/test-xdg-cache"
+-	homeDir := "/tmp/test-home"
+-
+-	// undo env changes when finished
+-	defer func(GOCACHE, XDG_CACHE_HOME, HOME string) {
+-		os.Setenv("GOCACHE", GOCACHE)
+-		os.Setenv("XDG_CACHE_HOME", XDG_CACHE_HOME)
+-		os.Setenv("HOME", HOME)
+-	}(os.Getenv("GOCACHE"), os.Getenv("XDG_CACHE_HOME"), os.Getenv("HOME"))
+-
+-	os.Setenv("GOCACHE", goCacheDir)
+-	os.Setenv("XDG_CACHE_HOME", xdgCacheDir)
+-	os.Setenv("HOME", homeDir)
+-
+-	dir, showWarnings := defaultDir()
+-	if dir != goCacheDir {
+-		t.Errorf("Cache DefaultDir %q should be $GOCACHE %q", dir, goCacheDir)
+-	}
+-	if !showWarnings {
+-		t.Error("Warnings should be shown when $GOCACHE is set")
+-	}
+-
+-	os.Unsetenv("GOCACHE")
+-	dir, showWarnings = defaultDir()
+-	if !strings.HasPrefix(dir, xdgCacheDir+"/") {
+-		t.Errorf("Cache DefaultDir %q should be under $XDG_CACHE_HOME %q when $GOCACHE is unset", dir, xdgCacheDir)
+-	}
+-	if !showWarnings {
+-		t.Error("Warnings should be shown when $XDG_CACHE_HOME is set")
+-	}
+-
+-	os.Unsetenv("XDG_CACHE_HOME")
+-	dir, showWarnings = defaultDir()
+-	if !strings.HasPrefix(dir, homeDir+"/.cache/") {
+-		t.Errorf("Cache DefaultDir %q should be under $HOME/.cache %q when $GOCACHE and $XDG_CACHE_HOME are unset", dir, homeDir+"/.cache")
+-	}
+-	if !showWarnings {
+-		t.Error("Warnings should be shown when $HOME is not /")
+-	}
+-
+-	os.Unsetenv("HOME")
+-	if dir, _ := defaultDir(); dir != "off" {
+-		t.Error("Cache not disabled when $GOCACHE, $XDG_CACHE_HOME, and $HOME are unset")
+-	}
+-
+-	os.Setenv("HOME", "/")
+-	if _, showWarnings := defaultDir(); showWarnings {
+-		// https://golang.org/issue/26280
+-		t.Error("Cache initialization warnings should be squelched when $GOCACHE and $XDG_CACHE_HOME are unset and $HOME is /")
+-	}
+-}
+diff --git a/src/cmd/go/testdata/script/build_GOTMPDIR.txt b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+index 4c387afbba..ea06dcc472 100644
+--- a/src/cmd/go/testdata/script/build_GOTMPDIR.txt
++++ b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+@@ -1,6 +1,8 @@
++# Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
++env GOCACHE=$WORK/gocache
++
+ # Build should use GOTMPDIR if set.
+ env GOTMPDIR=$WORK/my-favorite-tmpdir
+-env GOCACHE=off
+ mkdir $GOTMPDIR
+ go build -work hello.go
+ stderr ^WORK=.*my-favorite-tmpdir
+@@ -8,4 +10,3 @@ stderr ^WORK=.*my-favorite-tmpdir
+ -- hello.go --
+ package main
+ func main() { println("hello") }
+-
+diff --git a/src/cmd/go/testdata/script/build_nocache.txt b/src/cmd/go/testdata/script/build_nocache.txt
+new file mode 100644
+index 0000000000..61ea5c5dbd
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_nocache.txt
+@@ -0,0 +1,19 @@
++# Set GOCACHE to a directory that doesn't allow writes.
++[windows] skip # Does not support unwritable directories.
++[root] skip # Can write to unwritable directories.
++
++mkdir $WORK/unwritable/home
++chmod 0555 $WORK/unwritable/home
++[!plan9] env HOME=$WORK/unwritable/home
++[plan9] env home=$WORK/unwritable/home
++
++env GOCACHE=$WORK/unwritable/home
++
++# As of Go 1.12, the module cache is required:
++# failure to write to it should cause builds to fail.
++! go build -o triv triv.go
++stderr 'failed to initialize build cache.* permission denied'
++
++-- triv.go --
++package main
++func main() {}
+diff --git a/src/cmd/go/testdata/script/build_relative_pkgdir.txt b/src/cmd/go/testdata/script/build_relative_pkgdir.txt
+new file mode 100644
+index 0000000000..76098a0662
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_relative_pkgdir.txt
+@@ -0,0 +1,7 @@
++# Regression test for golang.org/issue/21309: accept relative -pkgdir argument.
++
++[short] skip
++
++mkdir $WORK/gocache
++env GOCACHE=$WORK/gocache
++go build -i -pkgdir=. runtime
+diff --git a/src/cmd/go/testdata/script/build_relative_tmpdir.txt b/src/cmd/go/testdata/script/build_relative_tmpdir.txt
+new file mode 100644
+index 0000000000..9490a285d3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_relative_tmpdir.txt
+@@ -0,0 +1,16 @@
++# If GOTMPDIR is relative, 'go build' should derive an absolute $WORK directory.
++cd $WORK
++mkdir tmp
++env GOTMPDIR=tmp
++go build -work a
++stderr 'WORK=\$WORK' # the test script itself converts the absolute directory back to $WORK
++
++# Similarly if TMP/TMPDIR is relative.
++env GOTMPDIR=
++env TMP=tmp    # Windows
++env TMPDIR=tmp # Unix
++go build -work a
++stderr 'WORK=\$WORK'
++
++-- a/a.go --
++package a
+diff --git a/src/cmd/go/testdata/script/cache_unix.txt b/src/cmd/go/testdata/script/cache_unix.txt
+new file mode 100644
+index 0000000000..f700ebe3ed
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cache_unix.txt
+@@ -0,0 +1,34 @@
++# Integration test for cache directory calculation (cmd/go/internal/cache).
++
++[windows] skip
++[darwin] skip
++[plan9] skip
++
++mkdir $WORK/gocache
++mkdir $WORK/xdg
++mkdir $WORK/home
++
++# Set GOCACHE, XDG_CACHE_HOME, and HOME.
++env GOCACHE=$WORK/gocache
++env XDG_CACHE_HOME=$WORK/xdg
++env HOME=$WORK/home
++
++# With all three set, we should prefer GOCACHE.
++go env GOCACHE
++stdout '\$WORK/gocache$'
++
++# Without GOCACHE, we should prefer XDG_CACHE_HOME over HOME.
++env GOCACHE=
++go env GOCACHE
++stdout '\$WORK/xdg/go-build$$'
++
++# With only HOME set, we should use $HOME/.cache.
++env XDG_CACHE_HOME=
++go env GOCACHE
++stdout '\$WORK/home/.cache/go-build$'
++
++# With no guidance from the environment, we must disable the cache, but that
++# should not cause commands that do not write to the cache to fail.
++env HOME=
++go env GOCACHE
++stdout 'off'

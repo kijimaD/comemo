@@ -9,10 +9,75 @@ Date:   Mon Feb 15 11:26:58 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go     | 2 +-
  src/runtime/stack.go    | 2 +-
  src/runtime/stubs.go    | 1 +
  src/runtime/sys_wasm.go | 2 +-
  src/runtime/sys_x86.go  | 2 +-
  5 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ccfe085691..dbb430fd25 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3482,7 +3482,7 @@ func save(pc, sp uintptr) {
+ // This is called only from the go syscall library and cgocall,
+ // not from the low-level system calls used by the runtime.
+ //
+-// Entersyscall cannot split the stack: the gosave must
++// Entersyscall cannot split the stack: the save must
+ // make g->sched refer to the caller's stack segment, because
+ // entersyscall is going to return immediately after.
+ //
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 8c90e7b46f..d971e5e26f 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1089,7 +1089,7 @@ func nilfunc() {
+ }
+ 
+ // adjust Gobuf as if it executed a call to fn
+-// and then did an immediate gosave.
++// and then stopped before the first instruction in fn.
+ func gostartcallfn(gobuf *gobuf, fv *funcval) {
+ 	var fn unsafe.Pointer
+ 	if fv != nil {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index c0cc95ec65..b9b313a711 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -169,6 +169,7 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ // This in turn calls cgocallbackg, which is where we'll find
+ // pointer-declared arguments.
+ func cgocallback(fn, frame, ctxt uintptr)
++
+ func gogo(buf *gobuf)
+ 
+ //go:noescape
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+index 3ed621f92e..057ed4ccd9 100644
+--- a/src/runtime/sys_wasm.go
++++ b/src/runtime/sys_wasm.go
+@@ -27,7 +27,7 @@ func wasmTruncU()
+ func wasmExit(code int32)
+ 
+ // adjust Gobuf as it if executed a call to fn with context ctxt
+-// and then did an immediate gosave.
++// and then stopped before the first instruction in fn.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp
+ 	sp -= sys.PtrSize
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index 5b7a666679..8f21585d28 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // adjust Gobuf as if it executed a call to fn with context ctxt
+-// and then did an immediate gosave.
++// and then stopped before the first instruction in fn.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp
+ 	sp -= sys.PtrSize

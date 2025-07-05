@@ -10,8 +10,86 @@ Date:   Fri Jul 21 17:55:41 2017 -0400
     Change-Id: I4d810b8c0dcac7a4ec25ac1e52898f55477025df
     Reviewed-on: https://go-review.googlesource.com/50875
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go  |  8 ++++----
  src/cmd/compile/internal/gc/scope.go |  2 +-
  src/cmd/internal/dwarf/dwarf.go      | 18 +++++++++---------
  3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 66e4a10ee8..d301ae19c8 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -358,10 +358,10 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
+ 
+ 		typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+ 		dwarfVars = append(dwarfVars, &dwarf.Var{
+-			Name:   n.Sym.Name,
+-			Abbrev: abbrev,
+-			Offset: int32(offs),
+-			Type:   Ctxt.Lookup(typename),
++			Name:        n.Sym.Name,
++			Abbrev:      abbrev,
++			StackOffset: int32(offs),
++			Type:        Ctxt.Lookup(typename),
+ 		})
+ 
+ 		var scope ScopeID
+diff --git a/src/cmd/compile/internal/gc/scope.go b/src/cmd/compile/internal/gc/scope.go
+index b0bc7f6908..ebdaa19994 100644
+--- a/src/cmd/compile/internal/gc/scope.go
++++ b/src/cmd/compile/internal/gc/scope.go
+@@ -168,7 +168,7 @@ func (v varsByScopeAndOffset) Less(i, j int) bool {
+ 	if v.scopes[i] != v.scopes[j] {
+ 		return v.scopes[i] < v.scopes[j]
+ 	}
+-	return v.vars[i].Offset < v.vars[j].Offset
++	return v.vars[i].StackOffset < v.vars[j].StackOffset
+ }
+ 
+ func (v varsByScopeAndOffset) Swap(i, j int) {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index a617c389f9..325836119f 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -25,11 +25,11 @@ type Sym interface {
+ 
+ // A Var represents a local variable or a function parameter.
+ type Var struct {
+-	Name   string
+-	Abbrev int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
+-	Offset int32
+-	Scope  int32
+-	Type   Sym
++	Name        string
++	Abbrev      int // Either DW_ABRV_AUTO or DW_ABRV_PARAM
++	StackOffset int32
++	Scope       int32
++	Type        Sym
+ }
+ 
+ // A Scope represents a lexical scope. All variables declared within a
+@@ -749,9 +749,9 @@ func putvar(ctxt Context, s Sym, v *Var, encbuf []byte) {
+ 	Uleb128put(ctxt, s, int64(v.Abbrev))
+ 	putattr(ctxt, s, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
+ 	loc := append(encbuf[:0], DW_OP_call_frame_cfa)
+-	if v.Offset != 0 {
++	if v.StackOffset != 0 {
+ 		loc = append(loc, DW_OP_consts)
+-		loc = AppendSleb128(loc, int64(v.Offset))
++		loc = AppendSleb128(loc, int64(v.StackOffset))
+ 		loc = append(loc, DW_OP_plus)
+ 	}
+ 	putattr(ctxt, s, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
+@@ -759,9 +759,9 @@ func putvar(ctxt Context, s Sym, v *Var, encbuf []byte) {
+ }
+ 
+ // VarsByOffset attaches the methods of sort.Interface to []*Var,
+-// sorting in increasing Offset.
++// sorting in increasing StackOffset.
+ type VarsByOffset []*Var
+ 
+ func (s VarsByOffset) Len() int           { return len(s) }
+-func (s VarsByOffset) Less(i, j int) bool { return s[i].Offset < s[j].Offset }
++func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
+ func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

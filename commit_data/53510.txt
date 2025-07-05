@@ -18,9 +18,635 @@ Date:   Wed Aug 17 18:30:21 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      |   2 +-
  .../internal/types2/testdata/spec/assignability.go | 264 ---------------------
  .../internal/types2/testdata/spec/comparisons.go   | 120 ----------
  .../internal/types2/testdata/spec/conversions.go   | 210 ----------------
  4 files changed, 1 insertion(+), 595 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 2b79f39d0a..039b0bde00 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -298,7 +298,7 @@ func TestManual(t *testing.T) {
+ // TODO(gri) go/types has extra TestLongConstants and TestIndexRepresentability tests
+ 
+ func TestCheck(t *testing.T)     { DefPredeclaredTestFuncs(); testDirFiles(t, "testdata/check", 55, false) } // TODO(gri) narrow column tolerance
+-func TestSpec(t *testing.T)      { testDirFiles(t, "testdata/spec", 0, false) }
++func TestSpec(t *testing.T)      { testDirFiles(t, "../../../../go/types/testdata/spec", 0, false) }
+ func TestExamples(t *testing.T)  { testDirFiles(t, "testdata/examples", 45, false) }
+ func TestFixedbugs(t *testing.T) { testDirFiles(t, "testdata/fixedbugs", 0, false) }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/assignability.go b/src/cmd/compile/internal/types2/testdata/spec/assignability.go
+deleted file mode 100644
+index 0ab8eb3e93..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/spec/assignability.go
++++ /dev/null
+@@ -1,264 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package assignability
+-
+-// See the end of this package for the declarations
+-// of the types and variables used in these tests.
+-
+-// "x's type is identical to T"
+-func _[TP any](X TP) {
+-	b = b
+-	a = a
+-	l = l
+-	s = s
+-	p = p
+-	f = f
+-	i = i
+-	m = m
+-	c = c
+-	d = d
+-
+-	B = B
+-	A = A
+-	L = L
+-	S = S
+-	P = P
+-	F = F
+-	I = I
+-	M = M
+-	C = C
+-	D = D
+-	X = X
+-}
+-
+-// "x's type V and T have identical underlying types
+-// and at least one of V or T is not a named type."
+-// (here a named type is a type with a name)
+-func _[TP1, TP2 Interface](X1 TP1, X2 TP2) {
+-	b = B // ERROR cannot use B .* as int value
+-	a = A
+-	l = L
+-	s = S
+-	p = P
+-	f = F
+-	i = I
+-	m = M
+-	c = C
+-	d = D
+-
+-	B = b // ERROR cannot use b .* as Basic value
+-	A = a
+-	L = l
+-	S = s
+-	P = p
+-	F = f
+-	I = i
+-	M = m
+-	C = c
+-	D = d
+-	X1 = i  // ERROR cannot use i .* as TP1 value
+-	X1 = X2 // ERROR cannot use X2 .* as TP1 value
+-}
+-
+-// "T is an interface type and x implements T and T is not a type parameter"
+-func _[TP Interface](X TP) {
+-	i = d // ERROR missing method m
+-	i = D
+-	i = X
+-	X = i // ERROR cannot use i .* as TP value
+-}
+-
+-// "x is a bidirectional channel value, T is a channel type, x's type V and T have identical element types, and at least one of V or T is not a named type"
+-// (here a named type is a type with a name)
+-type (
+-	_SendChan = chan<- int
+-	_RecvChan = <-chan int
+-
+-	SendChan _SendChan
+-	RecvChan _RecvChan
+-)
+-
+-func _[
+-	_CC ~_Chan,
+-	_SC ~_SendChan,
+-	_RC ~_RecvChan,
+-
+-	CC Chan,
+-	SC SendChan,
+-	RC RecvChan,
+-]() {
+-	var (
+-		_ _SendChan = c
+-		_ _RecvChan = c
+-		_ _Chan     = c
+-
+-		_ _SendChan = C
+-		_ _RecvChan = C
+-		_ _Chan     = C
+-
+-		_ SendChan = c
+-		_ RecvChan = c
+-		_ Chan     = c
+-
+-		_ SendChan = C // ERROR cannot use C .* as SendChan value
+-		_ RecvChan = C // ERROR cannot use C .* as RecvChan value
+-		_ Chan     = C
+-		_ Chan     = make /* ERROR cannot use make\(chan Basic\) .* as Chan value */ (chan Basic)
+-	)
+-
+-	var (
+-		_ _CC = C // ERROR cannot use C .* as _CC value
+-		_ _SC = C // ERROR cannot use C .* as _SC value
+-		_ _RC = C // ERROR cannot use C .* as _RC value
+-
+-		_ CC = _CC /* ERROR cannot use _CC\(nil\) .* as CC value */ (nil)
+-		_ SC = _CC /* ERROR cannot use _CC\(nil\) .* as SC value */ (nil)
+-		_ RC = _CC /* ERROR cannot use _CC\(nil\) .* as RC value */ (nil)
+-
+-		_ CC = C // ERROR cannot use C .* as CC value
+-		_ SC = C // ERROR cannot use C .* as SC value
+-		_ RC = C // ERROR cannot use C .* as RC value
+-	)
+-}
+-
+-// "x's type V is not a named type and T is a type parameter, and x is assignable to each specific type in T's type set."
+-func _[
+-	TP0 any,
+-	TP1 ~_Chan,
+-	TP2 ~chan int | ~chan byte,
+-]() {
+-	var (
+-		_ TP0 = c // ERROR cannot use c .* as TP0 value
+-		_ TP0 = C // ERROR cannot use C .* as TP0 value
+-		_ TP1 = c
+-		_ TP1 = C // ERROR cannot use C .* as TP1 value
+-		_ TP2 = c // ERROR .* cannot assign chan int to chan byte
+-	)
+-}
+-
+-// "x's type V is a type parameter and T is not a named type, and values x' of each specific type in V's type set are assignable to T."
+-func _[
+-	TP0 Interface,
+-	TP1 ~_Chan,
+-	TP2 ~chan int | ~chan byte,
+-](X0 TP0, X1 TP1, X2 TP2) {
+-	i = X0
+-	I = X0
+-	c = X1
+-	C = X1 // ERROR cannot use X1 .* as Chan value
+-	c = X2 // ERROR .* cannot assign chan byte \(in TP2\) to chan int
+-}
+-
+-// "x is the predeclared identifier nil and T is a pointer, function, slice, map, channel, or interface type"
+-func _[TP Interface](X TP) {
+-	b = nil // ERROR cannot use nil
+-	a = nil // ERROR cannot use nil
+-	l = nil
+-	s = nil // ERROR cannot use nil
+-	p = nil
+-	f = nil
+-	i = nil
+-	m = nil
+-	c = nil
+-	d = nil // ERROR cannot use nil
+-
+-	B = nil // ERROR cannot use nil
+-	A = nil // ERROR cannot use nil
+-	L = nil
+-	S = nil // ERROR cannot use nil
+-	P = nil
+-	F = nil
+-	I = nil
+-	M = nil
+-	C = nil
+-	D = nil // ERROR cannot use nil
+-	X = nil // ERROR cannot use nil
+-}
+-
+-// "x is an untyped constant representable by a value of type T"
+-func _[
+-	Int8 ~int8,
+-	Int16 ~int16,
+-	Int32 ~int32,
+-	Int64 ~int64,
+-	Int8_16 ~int8 | ~int16,
+-](
+-	i8 Int8,
+-	i16 Int16,
+-	i32 Int32,
+-	i64 Int64,
+-	i8_16 Int8_16,
+-) {
+-	b = 42
+-	b = 42.0
+-	// etc.
+-
+-	i8 = -1 << 7
+-	i8 = 1<<7 - 1
+-	i16 = -1 << 15
+-	i16 = 1<<15 - 1
+-	i32 = -1 << 31
+-	i32 = 1<<31 - 1
+-	i64 = -1 << 63
+-	i64 = 1<<63 - 1
+-
+-	i8_16 = -1 << 7
+-	i8_16 = 1<<7 - 1
+-	i8_16 = - /* ERROR cannot use .* as Int8_16 */ 1 << 15
+-	i8_16 = 1 /* ERROR cannot use .* as Int8_16 */ <<15 - 1
+-}
+-
+-// proto-types for tests
+-
+-type (
+-	_Basic     = int
+-	_Array     = [10]int
+-	_Slice     = []int
+-	_Struct    = struct{ f int }
+-	_Pointer   = *int
+-	_Func      = func(x int) string
+-	_Interface = interface{ m() int }
+-	_Map       = map[string]int
+-	_Chan      = chan int
+-
+-	Basic     _Basic
+-	Array     _Array
+-	Slice     _Slice
+-	Struct    _Struct
+-	Pointer   _Pointer
+-	Func      _Func
+-	Interface _Interface
+-	Map       _Map
+-	Chan      _Chan
+-	Defined   _Struct
+-)
+-
+-func (Defined) m() int
+-
+-// proto-variables for tests
+-
+-var (
+-	b _Basic
+-	a _Array
+-	l _Slice
+-	s _Struct
+-	p _Pointer
+-	f _Func
+-	i _Interface
+-	m _Map
+-	c _Chan
+-	d _Struct
+-
+-	B Basic
+-	A Array
+-	L Slice
+-	S Struct
+-	P Pointer
+-	F Func
+-	I Interface
+-	M Map
+-	C Chan
+-	D Defined
+-)
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/comparisons.go b/src/cmd/compile/internal/types2/testdata/spec/comparisons.go
+deleted file mode 100644
+index 2a7598a581..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/spec/comparisons.go
++++ /dev/null
+@@ -1,120 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package comparisons
+-
+-type (
+-	B int // basic type representative
+-	A [10]func()
+-	L []byte
+-	S struct{ f []byte }
+-	P *S
+-	F func()
+-	I interface{}
+-	M map[string]int
+-	C chan int
+-)
+-
+-var (
+-	b B
+-	a A
+-	l L
+-	s S
+-	p P
+-	f F
+-	i I
+-	m M
+-	c C
+-)
+-
+-func _() {
+-	_ = nil == nil // ERROR operator == not defined on untyped nil
+-	_ = b == b
+-	_ = a /* ERROR \[10\]func\(\) cannot be compared */ == a
+-	_ = l /* ERROR slice can only be compared to nil */ == l
+-	_ = s /* ERROR struct containing \[\]byte cannot be compared */ == s
+-	_ = p == p
+-	_ = f /* ERROR func can only be compared to nil */ == f
+-	_ = i == i
+-	_ = m /* ERROR map can only be compared to nil */ == m
+-	_ = c == c
+-
+-	_ = b /* ERROR mismatched types */ == nil
+-	_ = a /* ERROR mismatched types */ == nil
+-	_ = l == nil
+-	_ = s /* ERROR mismatched types */ == nil
+-	_ = p == nil
+-	_ = f == nil
+-	_ = i == nil
+-	_ = m == nil
+-	_ = c == nil
+-
+-	_ = nil /* ERROR operator < not defined on untyped nil */ < nil
+-	_ = b < b
+-	_ = a /* ERROR operator < not defined on array */ < a
+-	_ = l /* ERROR operator < not defined on slice */ < l
+-	_ = s /* ERROR operator < not defined on struct */ < s
+-	_ = p /* ERROR operator < not defined on pointer */ < p
+-	_ = f /* ERROR operator < not defined on func */ < f
+-	_ = i /* ERROR operator < not defined on interface */ < i
+-	_ = m /* ERROR operator < not defined on map */ < m
+-	_ = c /* ERROR operator < not defined on chan */ < c
+-}
+-
+-func _[
+-	B int,
+-	A [10]func(),
+-	L []byte,
+-	S struct{ f []byte },
+-	P *S,
+-	F func(),
+-	I interface{},
+-	J comparable,
+-	M map[string]int,
+-	C chan int,
+-](
+-	b B,
+-	a A,
+-	l L,
+-	s S,
+-	p P,
+-	f F,
+-	i I,
+-	j J,
+-	m M,
+-	c C,
+-) {
+-	_ = b == b
+-	_ = a /* ERROR incomparable types in type set */ == a
+-	_ = l /* ERROR incomparable types in type set */ == l
+-	_ = s /* ERROR incomparable types in type set */ == s
+-	_ = p == p
+-	_ = f /* ERROR incomparable types in type set */ == f
+-	_ = i /* ERROR incomparable types in type set */ == i
+-	_ = j == j
+-	_ = m /* ERROR incomparable types in type set */ == m
+-	_ = c == c
+-
+-	_ = b /* ERROR mismatched types */ == nil
+-	_ = a /* ERROR mismatched types */ == nil
+-	_ = l == nil
+-	_ = s /* ERROR mismatched types */ == nil
+-	_ = p == nil
+-	_ = f == nil
+-	_ = i /* ERROR mismatched types */ == nil
+-	_ = j /* ERROR mismatched types */ == nil
+-	_ = m == nil
+-	_ = c == nil
+-
+-	_ = b < b
+-	_ = a /* ERROR type parameter A is not comparable with < */ < a
+-	_ = l /* ERROR type parameter L is not comparable with < */ < l
+-	_ = s /* ERROR type parameter S is not comparable with < */ < s
+-	_ = p /* ERROR type parameter P is not comparable with < */ < p
+-	_ = f /* ERROR type parameter F is not comparable with < */ < f
+-	_ = i /* ERROR type parameter I is not comparable with < */ < i
+-	_ = j /* ERROR type parameter J is not comparable with < */ < j
+-	_ = m /* ERROR type parameter M is not comparable with < */ < m
+-	_ = c /* ERROR type parameter C is not comparable with < */ < c
+-}
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/conversions.go b/src/cmd/compile/internal/types2/testdata/spec/conversions.go
+deleted file mode 100644
+index 8613242899..0000000000
+--- a/src/cmd/compile/internal/types2/testdata/spec/conversions.go
++++ /dev/null
+@@ -1,210 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package conversions
+-
+-import "unsafe"
+-
+-// constant conversions
+-
+-func _[T ~byte]() T { return 255 }
+-func _[T ~byte]() T { return 256 /* ERROR cannot use 256 .* as T value */ }
+-
+-func _[T ~byte]() {
+-	const _ = T /* ERROR T\(0\) .* is not constant */ (0)
+-	var _ T = 255
+-	var _ T = 256 // ERROR cannot use 256 .* as T value
+-}
+-
+-func _[T ~string]() T                { return T('a') }
+-func _[T ~int | ~string]() T         { return T('a') }
+-func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to T */) }
+-
+-// implicit conversions never convert to string
+-func _[T ~string]() {
+-	var _ string = 0 // ERROR cannot use .* as string value
+-	var _ T = 0      // ERROR cannot use .* as T value
+-}
+-
+-// failing const conversions of constants to type parameters report a cause
+-func _[
+-	T1 any,
+-	T2 interface{ m() },
+-	T3 ~int | ~float64 | ~bool,
+-	T4 ~int | ~string,
+-]() {
+-	_ = T1(0 /* ERROR cannot convert 0 .* to T1\n\tT1 does not contain specific types */)
+-	_ = T2(1 /* ERROR cannot convert 1 .* to T2\n\tT2 does not contain specific types */)
+-	_ = T3(2 /* ERROR cannot convert 2 .* to T3\n\tcannot convert 2 .* to bool \(in T3\) */)
+-	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to T4\n\tcannot convert 3.14 .* to int \(in T4\) */)
+-}
+-
+-// "x is assignable to T"
+-// - tested via assignability tests
+-
+-// "x's type and T have identical underlying types if tags are ignored"
+-
+-func _[X ~int, T ~int](x X) T { return T(x) }
+-func _[X struct {
+-	f int "foo"
+-}, T struct {
+-	f int "bar"
+-}](x X) T {
+-	return T(x)
+-}
+-
+-type Foo struct {
+-	f int "foo"
+-}
+-type Bar struct {
+-	f int "bar"
+-}
+-type Far struct{ f float64 }
+-
+-func _[X Foo, T Bar](x X) T       { return T(x) }
+-func _[X Foo | Bar, T Bar](x X) T { return T(x) }
+-func _[X Foo, T Foo | Bar](x X) T { return T(x) }
+-func _[X Foo, T Far](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to T\n\tcannot convert Foo \(in X\) to Far \(in T\) */)
+-}
+-
+-// "x's type and T are unnamed pointer types and their pointer base types
+-// have identical underlying types if tags are ignored"
+-
+-func _[X ~*Foo, T ~*Bar](x X) T         { return T(x) }
+-func _[X ~*Foo | ~*Bar, T ~*Bar](x X) T { return T(x) }
+-func _[X ~*Foo, T ~*Foo | ~*Bar](x X) T { return T(x) }
+-func _[X ~*Foo, T ~*Far](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to T\n\tcannot convert \*Foo \(in X\) to \*Far \(in T\) */)
+-}
+-
+-// Verify that the defined types in constraints are considered for the rule above.
+-
+-type (
+-	B  int
+-	C  int
+-	X0 *B
+-	T0 *C
+-)
+-
+-func _(x X0) T0           { return T0(x /* ERROR cannot convert */) } // non-generic reference
+-func _[X X0, T T0](x X) T { return T(x /* ERROR cannot convert */) }
+-func _[T T0](x X0) T      { return T(x /* ERROR cannot convert */) }
+-func _[X X0](x X) T0      { return T0(x /* ERROR cannot convert */) }
+-
+-// "x's type and T are both integer or floating point types"
+-
+-func _[X Integer, T Integer](x X) T  { return T(x) }
+-func _[X Unsigned, T Integer](x X) T { return T(x) }
+-func _[X Float, T Integer](x X) T    { return T(x) }
+-
+-func _[X Integer, T Unsigned](x X) T  { return T(x) }
+-func _[X Unsigned, T Unsigned](x X) T { return T(x) }
+-func _[X Float, T Unsigned](x X) T    { return T(x) }
+-
+-func _[X Integer, T Float](x X) T  { return T(x) }
+-func _[X Unsigned, T Float](x X) T { return T(x) }
+-func _[X Float, T Float](x X) T    { return T(x) }
+-
+-func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
+-func _[X, T Integer | ~string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
+-}
+-
+-// "x's type and T are both complex types"
+-
+-func _[X, T Complex](x X) T { return T(x) }
+-func _[X, T Float | Complex](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float\|Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
+-}
+-
+-// "x is an integer or a slice of bytes or runes and T is a string type"
+-
+-type myInt int
+-type myString string
+-
+-func _[T ~string](x int) T      { return T(x) }
+-func _[T ~string](x myInt) T    { return T(x) }
+-func _[X Integer](x X) string   { return string(x) }
+-func _[X Integer](x X) myString { return myString(x) }
+-func _[X Integer](x X) *string {
+-	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to \*string\n\tcannot convert int \(in X\) to \*string */)
+-}
+-
+-func _[T ~string](x []byte) T                           { return T(x) }
+-func _[T ~string](x []rune) T                           { return T(x) }
+-func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
+-func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
+-func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
+-func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer\|~\[\]byte\|~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
+-}
+-
+-// "x is a string and T is a slice of bytes or runes"
+-
+-func _[T ~[]byte](x string) T { return T(x) }
+-func _[T ~[]rune](x string) T { return T(x) }
+-func _[T ~[]rune](x *string) T {
+-	return T(x /* ERROR cannot convert x \(variable of type \*string\) to T\n\tcannot convert \*string to \[\]rune \(in T\) */)
+-}
+-
+-func _[X ~string, T ~[]byte](x X) T           { return T(x) }
+-func _[X ~string, T ~[]rune](x X) T           { return T(x) }
+-func _[X ~string, T ~[]byte | ~[]rune](x X) T { return T(x) }
+-func _[X ~*string, T ~[]byte | ~[]rune](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to T\n\tcannot convert \*string \(in X\) to \[\]byte \(in T\) */)
+-}
+-
+-// package unsafe:
+-// "any pointer or value of underlying type uintptr can be converted into a unsafe.Pointer"
+-
+-type myUintptr uintptr
+-
+-func _[X ~uintptr](x X) unsafe.Pointer  { return unsafe.Pointer(x) }
+-func _[T unsafe.Pointer](x myUintptr) T { return T(x) }
+-func _[T unsafe.Pointer](x int64) T {
+-	return T(x /* ERROR cannot convert x \(variable of type int64\) to T\n\tcannot convert int64 to unsafe\.Pointer \(in T\) */)
+-}
+-
+-// "and vice versa"
+-
+-func _[T ~uintptr](x unsafe.Pointer) T  { return T(x) }
+-func _[X unsafe.Pointer](x X) uintptr   { return uintptr(x) }
+-func _[X unsafe.Pointer](x X) myUintptr { return myUintptr(x) }
+-func _[X unsafe.Pointer](x X) int64 {
+-	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to int64\n\tcannot convert unsafe\.Pointer \(in X\) to int64 */)
+-}
+-
+-// "x is a slice, T is a pointer-to-array type,
+-// and the slice and array types have identical element types."
+-
+-func _[X ~[]E, T ~*[10]E, E any](x X) T { return T(x) }
+-func _[X ~[]E, T ~[10]E, E any](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\[\]E\) to T\n\tcannot convert \[\]E \(in X\) to \[10\]E \(in T\) */)
+-}
+-
+-// ----------------------------------------------------------------------------
+-// The following declarations can be replaced by the exported types of the
+-// constraints package once all builders support importing interfaces with
+-// type constraints.
+-
+-type Signed interface {
+-	~int | ~int8 | ~int16 | ~int32 | ~int64
+-}
+-
+-type Unsigned interface {
+-	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+-}
+-
+-type Integer interface {
+-	Signed | Unsigned
+-}
+-
+-type Float interface {
+-	~float32 | ~float64
+-}
+-
+-type Complex interface {
+-	~complex64 | ~complex128
+-}

@@ -20,9 +20,365 @@ Date:   Wed Mar 2 13:01:48 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/48000.txt      |   1 +
  src/reflect/all_test.go | 120 ++++++++++++++++++++++++++++++++++++++++--------
  src/reflect/value.go    |  86 +++++++++++++++++++++-------------
  src/runtime/slice.go    |  39 ++++++++++++----
  4 files changed, 188 insertions(+), 58 deletions(-)
+
+diff --git a/api/next/48000.txt b/api/next/48000.txt
+new file mode 100644
+index 0000000000..4b92ab68fb
+--- /dev/null
++++ b/api/next/48000.txt
+@@ -0,0 +1 @@
++pkg reflect, method (Value) Grow(int) #48000
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5b43669384..40377178a5 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -739,25 +739,88 @@ func TestFunctionValue(t *testing.T) {
+ 	assert(t, v.Type().String(), "func()")
+ }
+ 
++func TestGrow(t *testing.T) {
++	v := ValueOf([]int(nil))
++	shouldPanic("reflect.Value.Grow using unaddressable value", func() { v.Grow(0) })
++	v = ValueOf(new([]int)).Elem()
++	v.Grow(0)
++	if !v.IsNil() {
++		t.Errorf("v.Grow(0) should still be nil")
++	}
++	v.Grow(1)
++	if v.Cap() == 0 {
++		t.Errorf("v.Cap = %v, want non-zero", v.Cap())
++	}
++	want := v.UnsafePointer()
++	v.Grow(1)
++	got := v.UnsafePointer()
++	if got != want {
++		t.Errorf("noop v.Grow should not change pointers")
++	}
++
++	t.Run("Append", func(t *testing.T) {
++		var got, want []T
++		v := ValueOf(&got).Elem()
++		appendValue := func(vt T) {
++			v.Grow(1)
++			v.SetLen(v.Len() + 1)
++			v.Index(v.Len() - 1).Set(ValueOf(vt))
++		}
++		for i := 0; i < 10; i++ {
++			vt := T{i, float64(i), strconv.Itoa(i), &i}
++			appendValue(vt)
++			want = append(want, vt)
++		}
++		if !DeepEqual(got, want) {
++			t.Errorf("value mismatch:\ngot  %v\nwant %v", got, want)
++		}
++	})
++
++	t.Run("Rate", func(t *testing.T) {
++		var b []byte
++		v := ValueOf(new([]byte)).Elem()
++		for i := 0; i < 10; i++ {
++			b = append(b[:cap(b)], make([]byte, 1)...)
++			v.SetLen(v.Cap())
++			v.Grow(1)
++			if v.Cap() != cap(b) {
++				t.Errorf("v.Cap = %v, want %v", v.Cap(), cap(b))
++			}
++		}
++	})
++
++	t.Run("ZeroCapacity", func(t *testing.T) {
++		for i := 0; i < 10; i++ {
++			v := ValueOf(new([]byte)).Elem()
++			v.Grow(61)
++			b := v.Bytes()
++			b = b[:cap(b)]
++			for i, c := range b {
++				if c != 0 {
++					t.Fatalf("Value.Bytes[%d] = 0x%02x, want 0x00", i, c)
++				}
++				b[i] = 0xff
++			}
++			runtime.GC()
++		}
++	})
++}
++
+ var appendTests = []struct {
+ 	orig, extra []int
+ }{
++	{nil, nil},
++	{[]int{}, nil},
++	{nil, []int{}},
++	{[]int{}, []int{}},
++	{nil, []int{22}},
++	{[]int{}, []int{22}},
++	{make([]int, 2, 4), nil},
++	{make([]int, 2, 4), []int{}},
+ 	{make([]int, 2, 4), []int{22}},
+ 	{make([]int, 2, 4), []int{22, 33, 44}},
+ }
+ 
+-func sameInts(x, y []int) bool {
+-	if len(x) != len(y) {
+-		return false
+-	}
+-	for i, xx := range x {
+-		if xx != y[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ func TestAppend(t *testing.T) {
+ 	for i, test := range appendTests {
+ 		origLen, extraLen := len(test.orig), len(test.extra)
+@@ -769,32 +832,51 @@ func TestAppend(t *testing.T) {
+ 		}
+ 		// Convert extra from []int to *SliceValue.
+ 		e1 := ValueOf(test.extra)
++
+ 		// Test Append.
+-		a0 := ValueOf(test.orig)
+-		have0 := Append(a0, e0...).Interface().([]int)
+-		if !sameInts(have0, want) {
+-			t.Errorf("Append #%d: have %v, want %v (%p %p)", i, have0, want, test.orig, have0)
++		a0 := ValueOf(&test.orig).Elem()
++		have0 := Append(a0, e0...)
++		if have0.CanAddr() {
++			t.Errorf("Append #%d: have slice should not be addressable", i)
++		}
++		if !DeepEqual(have0.Interface(), want) {
++			t.Errorf("Append #%d: have %v, want %v (%p %p)", i, have0, want, test.orig, have0.Interface())
+ 		}
+ 		// Check that the orig and extra slices were not modified.
++		if a0.Len() != len(test.orig) {
++			t.Errorf("Append #%d: a0.Len: have %d, want %d", i, a0.Len(), origLen)
++		}
+ 		if len(test.orig) != origLen {
+ 			t.Errorf("Append #%d origLen: have %v, want %v", i, len(test.orig), origLen)
+ 		}
+ 		if len(test.extra) != extraLen {
+ 			t.Errorf("Append #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
+ 		}
++
+ 		// Test AppendSlice.
+-		a1 := ValueOf(test.orig)
+-		have1 := AppendSlice(a1, e1).Interface().([]int)
+-		if !sameInts(have1, want) {
++		a1 := ValueOf(&test.orig).Elem()
++		have1 := AppendSlice(a1, e1)
++		if have1.CanAddr() {
++			t.Errorf("AppendSlice #%d: have slice should not be addressable", i)
++		}
++		if !DeepEqual(have1.Interface(), want) {
+ 			t.Errorf("AppendSlice #%d: have %v, want %v", i, have1, want)
+ 		}
+ 		// Check that the orig and extra slices were not modified.
++		if a1.Len() != len(test.orig) {
++			t.Errorf("AppendSlice #%d: a1.Len: have %d, want %d", i, a0.Len(), origLen)
++		}
+ 		if len(test.orig) != origLen {
+ 			t.Errorf("AppendSlice #%d origLen: have %v, want %v", i, len(test.orig), origLen)
+ 		}
+ 		if len(test.extra) != extraLen {
+ 			t.Errorf("AppendSlice #%d extraLen: have %v, want %v", i, len(test.extra), extraLen)
+ 		}
++
++		// Test Append and AppendSlice with unexported value.
++		ax := ValueOf(struct{ x []int }{test.orig}).Field(0)
++		shouldPanic("using unexported field", func() { Append(ax, e0...) })
++		shouldPanic("using unexported field", func() { AppendSlice(ax, e1) })
+ 	}
+ }
+ 
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 89cc37f1db..eeee6fac0f 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2780,42 +2780,61 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
+ 	return add(p, uintptr(i)*eltSize, "i < len")
+ }
+ 
+-// grow grows the slice s so that it can hold extra more values, allocating
+-// more capacity if needed. It also returns the old and new slice lengths.
+-func grow(s Value, extra int) (Value, int, int) {
+-	i0 := s.Len()
+-	i1 := i0 + extra
+-	if i1 < i0 {
+-		panic("reflect.Append: slice overflow")
+-	}
+-	m := s.Cap()
+-	if i1 <= m {
+-		return s.Slice(0, i1), i0, i1
+-	}
+-	if m == 0 {
+-		m = extra
+-	} else {
+-		const threshold = 256
+-		for m < i1 {
+-			if i0 < threshold {
+-				m += m
+-			} else {
+-				m += (m + 3*threshold) / 4
+-			}
+-		}
++// Grow increases the slice's capacity, if necessary, to guarantee space for
++// another n elements. After Grow(n), at least n elements can be appended
++// to the slice without another allocation.
++//
++// It panics if v's Kind is not a Slice or if n is negative or too large to
++// allocate the memory.
++func (v Value) Grow(n int) {
++	v.mustBeAssignable()
++	v.mustBe(Slice)
++	v.grow(n)
++}
++
++// grow is identical to Grow but does not check for assignability.
++func (v Value) grow(n int) {
++	p := (*unsafeheader.Slice)(v.ptr)
++	switch {
++	case n < 0:
++		panic("reflect.Value.Grow: negative len")
++	case p.Len+n < 0:
++		panic("reflect.Value.Grow: slice overflow")
++	case p.Len+n > p.Cap:
++		t := v.typ.Elem().(*rtype)
++		*p = growslice(t, *p, n)
+ 	}
+-	t := MakeSlice(s.Type(), i1, m)
+-	Copy(t, s)
+-	return t, i0, i1
++}
++
++// extendSlice extends a slice by n elements.
++//
++// Unlike Value.grow, which modifies the slice in place and
++// does not change the length of the slice in place,
++// extendSlice returns a new slice value with the length
++// incremented by the number of specified elements.
++func (v Value) extendSlice(n int) Value {
++	v.mustBeExported()
++	v.mustBe(Slice)
++
++	// Shallow copy the slice header to avoid mutating the source slice.
++	sh := *(*unsafeheader.Slice)(v.ptr)
++	s := &sh
++	v.ptr = unsafe.Pointer(s)
++	v.flag = flagIndir | flag(Slice) // equivalent flag to MakeSlice
++
++	v.grow(n) // fine to treat as assignable since we allocate a new slice header
++	s.Len += n
++	return v
+ }
+ 
+ // Append appends the values x to a slice s and returns the resulting slice.
+ // As in Go, each x's value must be assignable to the slice's element type.
+ func Append(s Value, x ...Value) Value {
+ 	s.mustBe(Slice)
+-	s, i0, i1 := grow(s, len(x))
+-	for i, j := i0, 0; i < i1; i, j = i+1, j+1 {
+-		s.Index(i).Set(x[j])
++	n := s.Len()
++	s = s.extendSlice(len(x))
++	for i, v := range x {
++		s.Index(n + i).Set(v)
+ 	}
+ 	return s
+ }
+@@ -2826,8 +2845,10 @@ func AppendSlice(s, t Value) Value {
+ 	s.mustBe(Slice)
+ 	t.mustBe(Slice)
+ 	typesMustMatch("reflect.AppendSlice", s.Type().Elem(), t.Type().Elem())
+-	s, i0, i1 := grow(s, t.Len())
+-	Copy(s.Slice(i0, i1), t)
++	ns := s.Len()
++	nt := t.Len()
++	s = s.extendSlice(nt)
++	Copy(s.Slice(ns, ns+nt), t)
+ 	return s
+ }
+ 
+@@ -3764,6 +3785,9 @@ func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
+ 
+ func verifyNotInHeapPtr(p uintptr) bool
+ 
++//go:noescape
++func growslice(t *rtype, old unsafeheader.Slice, num int) unsafeheader.Slice
++
+ // Dummy annotation marking that the value x escapes,
+ // for use in cases where the reflect code is so clever that
+ // the compiler cannot follow.
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 284ee1f484..134d14f1a0 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -126,16 +126,18 @@ func mulUintptr(a, b uintptr) (uintptr, bool) {
+ // growslice allocates new backing store for a slice.
+ //
+ // arguments:
+-//   oldPtr = pointer to the slice's backing array
+-//   newLen = new length (= oldLen + num)
+-//   oldCap = original slice's capacity.
+-//      num = number of elements being added
+-//       et = element type
++//
++//	oldPtr = pointer to the slice's backing array
++//	newLen = new length (= oldLen + num)
++//	oldCap = original slice's capacity.
++//	   num = number of elements being added
++//	    et = element type
+ //
+ // return values:
+-//   newPtr = pointer to the new backing store
+-//   newLen = same value as the argument
+-//   newCap = capacity of the new backing store
++//
++//	newPtr = pointer to the new backing store
++//	newLen = same value as the argument
++//	newCap = capacity of the new backing store
+ //
+ // Requires that uint(newLen) > uint(oldCap).
+ // Assumes the original slice length is newLen - num
+@@ -264,6 +266,8 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 		p = mallocgc(capmem, nil, false)
+ 		// The append() that calls growslice is going to overwrite from oldLen to newLen.
+ 		// Only clear the part that will not be overwritten.
++		// The reflect_growslice() that calls growslice will manually clear
++		// the region not cleared here.
+ 		memclrNoHeapPointers(add(p, newlenmem), capmem-newlenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
+@@ -279,6 +283,25 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 	return slice{p, newLen, newcap}
+ }
+ 
++//go:linkname reflect_growslice reflect.growslice
++func reflect_growslice(et *_type, old slice, num int) slice {
++	// Semantically equivalent to slices.Grow, except that the caller
++	// is responsible for ensuring that old.len+num > old.cap.
++	num -= old.cap - old.len // preserve memory of old[old.len:old.cap]
++	new := growslice(old.array, old.cap+num, old.cap, num, et)
++	// growslice does not zero out new[old.cap:new.len] since it assumes that
++	// the memory will be overwritten by an append() that called growslice.
++	// Since the caller of reflect_growslice is not append(),
++	// zero out this region before returning the slice to the reflect package.
++	if et.ptrdata == 0 {
++		oldcapmem := uintptr(old.cap) * et.size
++		newlenmem := uintptr(new.len) * et.size
++		memclrNoHeapPointers(add(new.array, oldcapmem), newlenmem-oldcapmem)
++	}
++	new.len = old.len // preserve the old length
++	return new
++}
++
+ func isPowerOfTwo(x uintptr) bool {
+ 	return x&(x-1) == 0
+ }

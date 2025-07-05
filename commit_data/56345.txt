@@ -14,7 +14,7 @@ Date:   Fri Apr 28 21:35:31 2023 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/dwarf.go          | 11 +++++------
  src/cmd/internal/obj/link.go           | 26 +++++++++++++++++++++++++-
  src/cmd/internal/obj/objfile.go        | 21 ++++++++++++++++-----
@@ -22,3 +22,191 @@ Date:   Fri Apr 28 21:35:31 2023 -0400
  src/cmd/link/internal/ld/dwarf.go      | 10 +---------
  src/cmd/link/internal/loader/loader.go |  9 +++++++++
  6 files changed, 62 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 3f4c6e8ef3..f1330c9258 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -412,12 +412,11 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
+ 		return
+ 	}
+ 	varname := varSym.Name
+-	dieSymName := dwarf.InfoPrefix + varname
+-	dieSym := ctxt.LookupInit(dieSymName, func(s *LSym) {
+-		s.Type = objabi.SDWARFVAR
+-		s.Set(AttrDuplicateOK, true) // needed for shared linkage
+-		ctxt.Data = append(ctxt.Data, s)
+-	})
++	dieSym := &LSym{
++		Type: objabi.SDWARFVAR,
++	}
++	varSym.NewVarInfo().dwarfInfoSym = dieSym
++	ctxt.Data = append(ctxt.Data, dieSym)
+ 	typeSym := ctxt.Lookup(dwarf.InfoPrefix + typename)
+ 	dwarf.PutGlobal(dwCtxt{ctxt}, dieSym, typeSym, varSym, varname)
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index b50305f85c..def92e103b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -465,7 +465,7 @@ type LSym struct {
+ 	P      []byte
+ 	R      []Reloc
+ 
+-	Extra *interface{} // *FuncInfo or *FileInfo, if present
++	Extra *interface{} // *FuncInfo, *VarInfo, or *FileInfo, if present
+ 
+ 	Pkg    string
+ 	PkgIdx int32
+@@ -537,6 +537,30 @@ func (s *LSym) Func() *FuncInfo {
+ 	return f
+ }
+ 
++type VarInfo struct {
++	dwarfInfoSym *LSym
++}
++
++// NewVarInfo allocates and returns a VarInfo for LSym.
++func (s *LSym) NewVarInfo() *VarInfo {
++	if s.Extra != nil {
++		panic(fmt.Sprintf("invalid use of LSym - NewVarInfo with Extra of type %T", *s.Extra))
++	}
++	f := new(VarInfo)
++	s.Extra = new(interface{})
++	*s.Extra = f
++	return f
++}
++
++// VarInfo returns the *VarInfo associated with s, or else nil.
++func (s *LSym) VarInfo() *VarInfo {
++	if s.Extra == nil {
++		return nil
++	}
++	f, _ := (*s.Extra).(*VarInfo)
++	return f
++}
++
+ // A FileInfo contains extra fields for SDATA symbols backed by files.
+ // (If LSym.Extra is a *FileInfo, LSym.P == nil.)
+ type FileInfo struct {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a9ddf0edf1..aa99855565 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -615,6 +615,10 @@ func (w *writer) Aux(s *LSym) {
+ 			}
+ 			w.aux1(goobj.AuxWasmImport, fn.WasmImportSym)
+ 		}
++	} else if v := s.VarInfo(); v != nil {
++		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
++			w.aux1(goobj.AuxDwarfInfo, v.dwarfInfoSym)
++		}
+ 	}
+ }
+ 
+@@ -721,6 +725,10 @@ func nAuxSym(s *LSym) int {
+ 			}
+ 			n++
+ 		}
++	} else if v := s.VarInfo(); v != nil {
++		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
++			n++
++		}
+ 	}
+ 	return n
+ }
+@@ -795,11 +803,14 @@ func genFuncInfoSyms(ctxt *Link) {
+ func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
+ 	// Most aux symbols (ex: funcdata) are not interesting--
+ 	// pick out just the DWARF ones for now.
+-	if aux.Type != objabi.SDWARFLOC &&
+-		aux.Type != objabi.SDWARFFCN &&
+-		aux.Type != objabi.SDWARFABSFCN &&
+-		aux.Type != objabi.SDWARFLINES &&
+-		aux.Type != objabi.SDWARFRANGE {
++	switch aux.Type {
++	case objabi.SDWARFLOC,
++		objabi.SDWARFFCN,
++		objabi.SDWARFABSFCN,
++		objabi.SDWARFLINES,
++		objabi.SDWARFRANGE,
++		objabi.SDWARFVAR:
++	default:
+ 		return
+ 	}
+ 	ctxt.writeSymDebugNamed(aux, "aux for "+par.Name)
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 49968d3177..6a5ab6c349 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -367,6 +367,8 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+ 						fn(aux)
+ 					}
+ 					ctxt.traverseFuncAux(flag, s, f, files)
++				} else if v := s.VarInfo(); v != nil {
++					fnNoNil(v.dwarfInfoSym)
+ 				}
+ 			}
+ 			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
+@@ -443,10 +445,11 @@ func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *
+ 					fn(s, s.Gotype)
+ 				}
+ 			}
+-			if s.Type != objabi.STEXT {
+-				continue
++			if s.Type == objabi.STEXT {
++				ctxt.traverseFuncAux(flag, s, fn, files)
++			} else if v := s.VarInfo(); v != nil && v.dwarfInfoSym != nil {
++				fn(s, v.dwarfInfoSym)
+ 			}
+-			ctxt.traverseFuncAux(flag, s, fn, files)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 41da25805f..4eb0baf63c 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1936,21 +1936,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 		if d.ldr.IsFileLocal(idx) {
+ 			continue
+ 		}
+-		sn := d.ldr.SymName(idx)
+-		if sn == "" {
+-			// skip aux symbols
+-			continue
+-		}
+ 
+ 		// Find compiler-generated DWARF info sym for global in question,
+ 		// and tack it onto the appropriate unit.  Note that there are
+ 		// circumstances under which we can't find the compiler-generated
+ 		// symbol-- this typically happens as a result of compiler options
+ 		// (e.g. compile package X with "-dwarf=0").
+-
+-		// FIXME: use an aux sym or a relocation here instead of a
+-		// name lookup.
+-		varDIE := d.ldr.Lookup(dwarf.InfoPrefix+sn, 0)
++		varDIE := d.ldr.GetVarDwarfAuxSym(idx)
+ 		if varDIE != 0 {
+ 			unit := d.ldr.SymUnit(idx)
+ 			d.defgotype(gt)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 4bccce047b..a989d14362 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1685,6 +1685,15 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
+ 	return
+ }
+ 
++func (l *Loader) GetVarDwarfAuxSym(i Sym) Sym {
++	aux := l.aux1(i, goobj.AuxDwarfInfo)
++	if aux != 0 && l.SymType(aux) != sym.SDWARFVAR {
++		fmt.Println(l.SymName(i), l.SymType(i), l.SymType(aux), sym.SDWARFVAR)
++		panic("aux dwarf info sym with wrong type")
++	}
++	return aux
++}
++
+ // AddInteriorSym sets up 'interior' as an interior symbol of
+ // container/payload symbol 'container'. An interior symbol does not
+ // itself have data, but gives a name to a subrange of the data in its

@@ -7,7 +7,467 @@ Date:   Thu Aug 12 17:16:37 2010 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/1956044
-
+---
  src/pkg/regexp/all_test.go | 264 +++------------------------------------------
  src/pkg/regexp/regexp.go   | 110 +------------------
  2 files changed, 20 insertions(+), 354 deletions(-)
+
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 4bdd6c67e8..13a3d3ce51 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -51,68 +51,6 @@ var bad_re = []stringError{
+ 	stringError{`\x`, ErrBadBackslash},
+ }
+ 
+-type vec []int
+-
+-type tester struct {
+-	re    string
+-	text  string
+-	match vec
+-}
+-
+-var matches = []tester{
+-	tester{`^abcdefg`, "abcdefg", vec{0, 7}},
+-	tester{`a+`, "baaab", vec{1, 4}},
+-	tester{"abcd..", "abcdef", vec{0, 6}},
+-	tester{``, "", vec{0, 0}},
+-	tester{`a`, "a", vec{0, 1}},
+-	tester{`x`, "y", vec{}},
+-	tester{`b`, "abc", vec{1, 2}},
+-	tester{`.`, "a", vec{0, 1}},
+-	tester{`.*`, "abcdef", vec{0, 6}},
+-	tester{`^`, "abcde", vec{0, 0}},
+-	tester{`$`, "abcde", vec{5, 5}},
+-	tester{`^abcd$`, "abcd", vec{0, 4}},
+-	tester{`^bcd'`, "abcdef", vec{}},
+-	tester{`^abcd$`, "abcde", vec{}},
+-	tester{`a+`, "baaab", vec{1, 4}},
+-	tester{`a*`, "baaab", vec{0, 0}},
+-	tester{`[a-z]+`, "abcd", vec{0, 4}},
+-	tester{`[^a-z]+`, "ab1234cd", vec{2, 6}},
+-	tester{`[a\-\]z]+`, "az]-bcz", vec{0, 4}},
+-	tester{`[^\n]+`, "abcd\n", vec{0, 4}},
+-	tester{`[日本語]+`, "日本語日本語", vec{0, 18}},
+-	tester{`日本語+`, "日本語", vec{0, 9}},
+-	tester{`日本語+`, "日本語語語語", vec{0, 18}},
+-	tester{`()`, "", vec{0, 0, 0, 0}},
+-	tester{`(a)`, "a", vec{0, 1, 0, 1}},
+-	tester{`(.)(.)`, "日a", vec{0, 4, 0, 3, 3, 4}},
+-	tester{`(.*)`, "", vec{0, 0, 0, 0}},
+-	tester{`(.*)`, "abcd", vec{0, 4, 0, 4}},
+-	tester{`(..)(..)`, "abcd", vec{0, 4, 0, 2, 2, 4}},
+-	tester{`(([^xyz]*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 3, 4}},
+-	tester{`((a|b|c)*(d))`, "abcd", vec{0, 4, 0, 4, 2, 3, 3, 4}},
+-	tester{`(((a|b|c)*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 2, 3, 3, 4}},
+-	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
+-	tester{`(.*).*`, "ab", vec{0, 2, 0, 2}},
+-	tester{`[.]`, ".", vec{0, 1}},
+-	tester{`/$`, "/abc/", vec{4, 5}},
+-	tester{`/$`, "/abc", vec{}},
+-
+-	// fixed bugs
+-	tester{`ab$`, "cab", vec{1, 3}},
+-	tester{`axxb$`, "axxcb", vec{}},
+-	tester{`data`, "daXY data", vec{5, 9}},
+-	tester{`da(.)a$`, "daXY data", vec{5, 9, 7, 8}},
+-
+-	// can backslash-escape any punctuation
+-	tester{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
+-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
+-	tester{`[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~]+`,
+-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, vec{0, 31}},
+-	tester{"\\`", "`", vec{0, 1}},
+-	tester{"[\\`]+", "`", vec{0, 1}},
+-}
+-
+ func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+ 	re, err := Compile(expr)
+ 	if err != error {
+@@ -121,66 +59,6 @@ func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+ 	return re
+ }
+ 
+-func printVec(t *testing.T, m []int) {
+-	l := len(m)
+-	if l == 0 {
+-		t.Log("\t<no match>")
+-	} else {
+-		if m[len(m)-1] == -1 {
+-			m = m[0 : len(m)-2]
+-		}
+-		t.Log("\t", m)
+-	}
+-}
+-
+-func equal(m1, m2 []int) bool {
+-	l := len(m1)
+-	if l != len(m2) {
+-		return false
+-	}
+-	for i := 0; i < l; i++ {
+-		if m1[i] != m2[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func equalStrings(m1, m2 []string) bool {
+-	l := len(m1)
+-	if l != len(m2) {
+-		return false
+-	}
+-	for i := 0; i < l; i++ {
+-		if m1[i] != m2[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+-func executeTest(t *testing.T, expr string, str string, match []int) {
+-	re := compileTest(t, expr, nil)
+-	if re == nil {
+-		return
+-	}
+-	m := re.ExecuteString(str)
+-	if !equal(m, match) {
+-		t.Errorf("ExecuteString failure on %#q matching %q:", expr, str)
+-		printVec(t, m)
+-		t.Log("should be:")
+-		printVec(t, match)
+-	}
+-	// now try bytes
+-	m = re.Execute([]byte(str))
+-	if !equal(m, match) {
+-		t.Errorf("Execute failure on %#q matching %q:", expr, str)
+-		printVec(t, m)
+-		t.Log("should be:")
+-		printVec(t, match)
+-	}
+-}
+-
+ func TestGoodCompile(t *testing.T) {
+ 	for i := 0; i < len(good_re); i++ {
+ 		compileTest(t, good_re[i], nil)
+@@ -193,57 +71,41 @@ func TestBadCompile(t *testing.T) {
+ 	}
+ }
+ 
+-func TestExecute(t *testing.T) {
+-	for i := 0; i < len(matches); i++ {
+-		test := &matches[i]
+-		executeTest(t, test.re, test.text, test.match)
+-	}
+-}
+-
+-func matchTest(t *testing.T, expr string, str string, match []int) {
+-	re := compileTest(t, expr, nil)
++func matchTest(t *testing.T, test *FindTest) {
++	re := compileTest(t, test.pat, nil)
+ 	if re == nil {
+ 		return
+ 	}
+-	m := re.MatchString(str)
+-	if m != (len(match) > 0) {
+-		t.Errorf("MatchString failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
++	m := re.MatchString(test.text)
++	if m != (len(test.matches) > 0) {
++		t.Errorf("MatchString failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+ 	}
+ 	// now try bytes
+-	m = re.Match([]byte(str))
+-	if m != (len(match) > 0) {
+-		t.Errorf("Match failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
++	m = re.Match([]byte(test.text))
++	if m != (len(test.matches) > 0) {
++		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+ 	}
+ }
+ 
+ func TestMatch(t *testing.T) {
+-	for i := 0; i < len(matches); i++ {
+-		test := &matches[i]
+-		matchTest(t, test.re, test.text, test.match)
++	for _, test := range findTests {
++		matchTest(t, &test)
+ 	}
+ }
+ 
+-func TestMatchStrings(t *testing.T) {
+-	for i := 0; i < len(matches); i++ {
+-		test := &matches[i]
+-		matchTest(t, test.re, test.text, test.match)
+-	}
+-}
+-
+-func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
+-	m, err := MatchString(expr, str)
++func matchFunctionTest(t *testing.T, test *FindTest) {
++	m, err := MatchString(test.pat, test.text)
+ 	if err == nil {
+ 		return
+ 	}
+-	if m != (len(match) > 0) {
+-		t.Errorf("Match failure on %#q matching %q: %d should be %d", expr, str, m, len(match) > 0)
++	if m != (len(test.matches) > 0) {
++		t.Errorf("Match failure on %s: %t should be %t", test, m, len(test.matches) > 0)
+ 	}
+ }
+ 
+ func TestMatchFunction(t *testing.T) {
+-	for i := 0; i < len(matches); i++ {
+-		test := &matches[i]
+-		matchFunctionTest(t, test.re, test.text, test.match)
++	for _, test := range findTests {
++		matchFunctionTest(t, &test)
+ 	}
+ }
+ 
+@@ -407,100 +269,6 @@ func TestQuoteMeta(t *testing.T) {
+ 	}
+ }
+ 
+-type matchCase struct {
+-	matchfunc string
+-	input     string
+-	n         int
+-	regexp    string
+-	expected  []string
+-}
+-
+-var matchCases = []matchCase{
+-	matchCase{"match", " aa b", 0, "[^ ]+", []string{"aa", "b"}},
+-	matchCase{"match", " aa b", 0, "[^ ]*", []string{"", "aa", "b"}},
+-	matchCase{"match", "a b c", 0, "[^ ]*", []string{"a", "b", "c"}},
+-	matchCase{"match", "a:a: a:", 0, "^.:", []string{"a:"}},
+-	matchCase{"match", "", 0, "[^ ]*", []string{""}},
+-	matchCase{"match", "", 0, "", []string{""}},
+-	matchCase{"match", "a", 0, "", []string{"", ""}},
+-	matchCase{"match", "ab", 0, "^", []string{""}},
+-	matchCase{"match", "ab", 0, "$", []string{""}},
+-	matchCase{"match", "ab", 0, "X*", []string{"", "", ""}},
+-	matchCase{"match", "aX", 0, "X*", []string{"", "X"}},
+-	matchCase{"match", "XabX", 0, "X*", []string{"X", "", "X"}},
+-
+-	matchCase{"matchit", "", 0, ".", []string{}},
+-	matchCase{"matchit", "abc", 2, ".", []string{"a", "b"}},
+-	matchCase{"matchit", "abc", 0, ".", []string{"a", "b", "c"}},
+-}
+-
+-func printStringSlice(t *testing.T, s []string) {
+-	t.Logf("%#v", s)
+-}
+-
+-func TestAllMatches(t *testing.T) {
+-	ch := make(chan matchCase)
+-	go func() {
+-		for _, c := range matchCases {
+-			ch <- c
+-			stringCase := matchCase{
+-				"string" + c.matchfunc,
+-				c.input,
+-				c.n,
+-				c.regexp,
+-				c.expected,
+-			}
+-			ch <- stringCase
+-		}
+-		close(ch)
+-	}()
+-
+-	for c := range ch {
+-		var result []string
+-		re, _ := Compile(c.regexp)
+-
+-		switch c.matchfunc {
+-		case "matchit":
+-			result = make([]string, len(c.input)+1)
+-			i := 0
+-			b := []byte(c.input)
+-			for match := range re.AllMatchesIter(b, c.n) {
+-				result[i] = string(match)
+-				i++
+-			}
+-			result = result[0:i]
+-		case "stringmatchit":
+-			result = make([]string, len(c.input)+1)
+-			i := 0
+-			for match := range re.AllMatchesStringIter(c.input, c.n) {
+-				result[i] = match
+-				i++
+-			}
+-			result = result[0:i]
+-		case "match":
+-			result = make([]string, len(c.input)+1)
+-			b := []byte(c.input)
+-			i := 0
+-			for _, match := range re.AllMatches(b, c.n) {
+-				result[i] = string(match)
+-				i++
+-			}
+-			result = result[0:i]
+-		case "stringmatch":
+-			result = re.AllMatchesString(c.input, c.n)
+-		}
+-
+-		if !equalStrings(result, c.expected) {
+-			t.Errorf("testing '%s'.%s('%s', %d), expected: ",
+-				c.regexp, c.matchfunc, c.input, c.n)
+-			printStringSlice(t, c.expected)
+-			t.Log("got: ")
+-			printStringSlice(t, result)
+-			t.Log("\n")
+-		}
+-	}
+-}
+-
+ type numSubexpCase struct {
+ 	input    string
+ 	expected int
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 39a6b0cdee..ea17cfe06f 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -936,81 +936,15 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
+ 	return final.match.m
+ }
+ 
+-
+-// ExecuteString matches the Regexp against the string s.
+-// The return value is an array of integers, in pairs, identifying the positions of
+-// substrings matched by the expression.
+-//    s[a[0]:a[1]] is the substring matched by the entire expression.
+-//    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
+-// A negative value means the subexpression did not match any element of the string.
+-// An empty array means "no match".
+-// Deprecated; use FindString.
+-func (re *Regexp) ExecuteString(s string) (a []int) {
+-	return re.doExecute(s, nil, 0)
+-}
+-
+-
+-// Execute matches the Regexp against the byte slice b.
+-// The return value is an array of integers, in pairs, identifying the positions of
+-// subslices matched by the expression.
+-//    b[a[0]:a[1]] is the subslice matched by the entire expression.
+-//    b[a[2*i]:a[2*i+1]] for i > 0 is the subslice matched by the ith parenthesized subexpression.
+-// A negative value means the subexpression did not match any element of the slice.
+-// An empty array means "no match".
+-// Deprecated; use Find.
+-func (re *Regexp) Execute(b []byte) (a []int) { return re.doExecute("", b, 0) }
+-
+-
+ // MatchString returns whether the Regexp matches the string s.
+ // The return value is a boolean: true for match, false for no match.
+ func (re *Regexp) MatchString(s string) bool { return len(re.doExecute(s, nil, 0)) > 0 }
+ 
+-
+ // Match returns whether the Regexp matches the byte slice b.
+ // The return value is a boolean: true for match, false for no match.
+ func (re *Regexp) Match(b []byte) bool { return len(re.doExecute("", b, 0)) > 0 }
+ 
+ 
+-// MatchStrings matches the Regexp against the string s.
+-// The return value is an array of strings matched by the expression.
+-//    a[0] is the substring matched by the entire expression.
+-//    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
+-// An empty array means ``no match''.
+-// Deprecated; use FindStringSubmatch.
+-func (re *Regexp) MatchStrings(s string) (a []string) {
+-	r := re.doExecute(s, nil, 0)
+-	if r == nil {
+-		return nil
+-	}
+-	a = make([]string, len(r)/2)
+-	for i := 0; i < len(r); i += 2 {
+-		if r[i] != -1 { // -1 means no match for this subexpression
+-			a[i/2] = s[r[i]:r[i+1]]
+-		}
+-	}
+-	return
+-}
+-
+-// MatchSlices matches the Regexp against the byte slice b.
+-// The return value is an array of subslices matched by the expression.
+-//    a[0] is the subslice matched by the entire expression.
+-//    a[i] for i > 0 is the subslice matched by the ith parenthesized subexpression.
+-// An empty array means ``no match''.
+-// Deprecated; use FindSubmatch.
+-func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
+-	r := re.doExecute("", b, 0)
+-	if r == nil {
+-		return nil
+-	}
+-	a = make([][]byte, len(r)/2)
+-	for i := 0; i < len(r); i += 2 {
+-		if r[i] != -1 { // -1 means no match for this subexpression
+-			a[i/2] = b[r[i]:r[i+1]]
+-		}
+-	}
+-	return
+-}
+-
+ // MatchString checks whether a textual regular expression
+ // matches a string.  More complicated queries need
+ // to use Compile and the full Regexp interface.
+@@ -1202,46 +1136,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
+ 	}
+ }
+ 
+-// AllMatches slices the byte slice b into substrings that are successive
+-// matches of the Regexp within b. If n > 0, the function returns at most n
+-// matches. Text that does not match the expression will be skipped. Empty
+-// matches abutting a preceding match are ignored. The function returns a slice
+-// containing the matching substrings.
+-// Deprecated; use FindAll.
+-func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
+-	if n <= 0 {
+-		n = len(b) + 1
+-	}
+-	// TODO: here and below, grow the result slice on demand
+-	// to avoid allocating a huge slice for a small result and
+-	// wasting memory.
+-	result := make([][]byte, n)
+-	i := 0
+-	re.allMatches("", b, n, func(match []int) {
+-		result[i] = b[match[0]:match[1]]
+-		i++
+-	})
+-	return result[0:i]
+-}
+-
+-// AllMatchesString slices the string s into substrings that are successive
+-// matches of the Regexp within s. If n > 0, the function returns at most n
+-// matches. Text that does not match the expression will be skipped. Empty
+-// matches abutting a preceding match are ignored. The function returns a slice
+-// containing the matching substrings.
+-// Deprecated; use FindAllString.
+-func (re *Regexp) AllMatchesString(s string, n int) []string {
+-	if n <= 0 {
+-		n = len(s) + 1
+-	}
+-	result := make([]string, n)
+-	i := 0
+-	re.allMatches(s, nil, n, func(match []int) {
+-		result[i] = s[match[0]:match[1]]
+-		i++
+-	})
+-	return result[0:i]
+-}
++// TODO: AllMatchesIter and AllMatchesStringIter should change to return submatches as well.
+ 
+ // AllMatchesIter slices the byte slice b into substrings that are successive
+ // matches of the Regexp within b. If n > 0, the function returns at most n
+@@ -1380,6 +1275,9 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
+ 	return re.doExecute(s, nil, 0)
+ }
+ 
++// TODO: The routines that return slices of unpredictable length should
++// grow them on demand rather than just allocating them maximum-length.
++
+ // FindAll is the 'All' version of Find; it returns a slice of all successive
+ // matches of the expression, as defined by the 'All' description in the
+ // package comment.

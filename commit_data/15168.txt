@@ -9,7 +9,35 @@ Date:   Fri Feb 8 08:19:47 2013 +0100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7306069
-
+---
  src/cmd/5g/ggen.c  | 1 +
  src/cmd/5g/gsubr.c | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 40ef0bd7bc..1decdf46c1 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -609,6 +609,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 		regalloc(&n3, types[TUINT32], N);
+ 		gmove(&lo, &n1);
+ 		gmove(&hi, &n3);
++		splitclean();
+ 		gins(ATST, &n3, N);
+ 		nodconst(&t, types[TUINT32], w);
+ 		p1 = gins(AMOVW, &t, &n1);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index f023b269c8..b8161acdbc 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -560,9 +560,9 @@ split64(Node *n, Node *lo, Node *hi)
+ 	if(!is64(n->type))
+ 		fatal("split64 %T", n->type);
+ 
+-	sclean[nsclean].op = OEMPTY;
+ 	if(nsclean >= nelem(sclean))
+ 		fatal("split64 clean");
++	sclean[nsclean].op = OEMPTY;
+ 	nsclean++;
+ 	switch(n->op) {
+ 	default:

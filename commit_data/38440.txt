@@ -21,8 +21,96 @@ Date:   Mon Oct 29 11:45:16 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go       |  5 +++--
  src/net/http/response_test.go | 28 ++++++++++++++++++++++++++++
  src/net/http/transfer.go      | 14 ++++++++++----
  3 files changed, 41 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 3669f17f66..0bcdeae0df 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -53,8 +53,9 @@ var (
+ 	// available.
+ 	ErrNotSupported = &ProtocolError{"feature not supported"}
+ 
+-	// ErrUnexpectedTrailer is returned by the Transport when a server
+-	// replies with a Trailer header, but without a chunked reply.
++	// Deprecated: ErrUnexpectedTrailer is no longer returned by
++	// anything in the net/http package. Callers should not
++	// compare errors against this variable.
+ 	ErrUnexpectedTrailer = &ProtocolError{"trailer header without chunked transfer encoding"}
+ 
+ 	// ErrMissingBoundary is returned by Request.MultipartReader when the
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index c28b0cba89..c46f13f798 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -157,6 +157,34 @@ var respTests = []respTest{
+ 		"Body here\ncontinued",
+ 	},
+ 
++	// Trailer header but no TransferEncoding
++	{
++		"HTTP/1.0 200 OK\r\n" +
++			"Trailer: Content-MD5, Content-Sources\r\n" +
++			"Content-Length: 10\r\n" +
++			"Connection: close\r\n" +
++			"\r\n" +
++			"Body here\n",
++
++		Response{
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.0",
++			ProtoMajor: 1,
++			ProtoMinor: 0,
++			Request:    dummyReq("GET"),
++			Header: Header{
++				"Connection":     {"close"},
++				"Content-Length": {"10"},
++				"Trailer":        []string{"Content-MD5, Content-Sources"},
++			},
++			Close:         true,
++			ContentLength: 10,
++		},
++
++		"Body here\n",
++	},
++
+ 	// Chunked response with Content-Length.
+ 	{
+ 		"HTTP/1.1 200 OK\r\n" +
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index f0b43844dd..3eb9f0da91 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -740,6 +740,16 @@ func fixTrailer(header Header, te []string) (Header, error) {
+ 	if !ok {
+ 		return nil, nil
+ 	}
++	if !chunked(te) {
++		// Trailer and no chunking:
++		// this is an invalid use case for trailer header.
++		// Nevertheless, no error will be returned and we
++		// let users decide if this is a valid HTTP message.
++		// The Trailer header will be kept in Response.Header
++		// but not populate Response.Trailer.
++		// See issue #27197.
++		return nil, nil
++	}
+ 	header.Del("Trailer")
+ 
+ 	trailer := make(Header)
+@@ -763,10 +773,6 @@ func fixTrailer(header Header, te []string) (Header, error) {
+ 	if len(trailer) == 0 {
+ 		return nil, nil
+ 	}
+-	if !chunked(te) {
+-		// Trailer and no chunking
+-		return nil, ErrUnexpectedTrailer
+-	}
+ 	return trailer, nil
+ }
+ 

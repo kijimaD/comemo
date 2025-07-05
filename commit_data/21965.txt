@@ -11,7 +11,140 @@ Date:   Fri Feb 13 21:47:10 2015 -0800
     Change-Id: Idd09b8fcbab89894fede0b9bc922cda5ddc87930
     Reviewed-on: https://go-review.googlesource.com/4876
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/big/float.go      | 16 +++++++-------
  src/math/big/float_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 61 insertions(+), 7 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 314fd689ed..739d30f7ad 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -298,6 +298,10 @@ func validate(args ...*Float) {
+ // sbit must be 0 or 1 and summarizes any "sticky bit" information one might
+ // have before calling round. z's mantissa must be normalized (with the msb set)
+ // or empty.
++//
++// CAUTION: The rounding modes ToNegativeInf, ToPositiveInf are affected by the
++// sign of z. For correct rounding, the sign of z must be set correctly before
++// calling round.
+ func (z *Float) round(sbit uint) {
+ 	if debugFloat {
+ 		validate(z)
+@@ -1076,7 +1080,7 @@ func (z *Float) Add(x, y *Float) *Float {
+ 	}
+ 
+ 	// x, y != 0
+-	neg := x.neg
++	z.neg = x.neg
+ 	if x.neg == y.neg {
+ 		// x + y == x + y
+ 		// (-x) + (-y) == -(x + y)
+@@ -1087,11 +1091,10 @@ func (z *Float) Add(x, y *Float) *Float {
+ 		if x.ucmp(y) >= 0 {
+ 			z.usub(x, y)
+ 		} else {
+-			neg = !neg
++			z.neg = !z.neg
+ 			z.usub(y, x)
+ 		}
+ 	}
+-	z.neg = neg
+ 	return z
+ }
+ 
+@@ -1116,7 +1119,7 @@ func (z *Float) Sub(x, y *Float) *Float {
+ 	}
+ 
+ 	// x, y != 0
+-	neg := x.neg
++	z.neg = x.neg
+ 	if x.neg != y.neg {
+ 		// x - (-y) == x + y
+ 		// (-x) - y == -(x + y)
+@@ -1127,11 +1130,10 @@ func (z *Float) Sub(x, y *Float) *Float {
+ 		if x.ucmp(y) >= 0 {
+ 			z.usub(x, y)
+ 		} else {
+-			neg = !neg
++			z.neg = !z.neg
+ 			z.usub(y, x)
+ 		}
+ 	}
+-	z.neg = neg
+ 	return z
+ }
+ 
+@@ -1158,8 +1160,8 @@ func (z *Float) Mul(x, y *Float) *Float {
+ 	}
+ 
+ 	// x, y != 0
+-	z.umul(x, y)
+ 	z.neg = x.neg != y.neg
++	z.umul(x, y)
+ 	return z
+ }
+ 
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 8ed7f0a4ad..17247b1eb2 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1077,6 +1077,58 @@ func TestFloatQuoSmoke(t *testing.T) {
+ 	}
+ }
+ 
++// For rounding modes ToNegativeInf and ToPositiveInf, rounding is affected
++// by the sign of the value to be rounded. Test that rounding happens after
++// the sign of a result has been set.
++// This test uses specific values that are known to fail if rounding is
++// "factored" out before setting the result sign.
++func TestFloatArithmeticRounding(t *testing.T) {
++	for _, test := range []struct {
++		mode       RoundingMode
++		prec       uint
++		x, y, want int64
++		op         byte
++	}{
++		{ToZero, 3, -0x8, -0x1, -0x8, '+'},
++		{AwayFromZero, 3, -0x8, -0x1, -0xa, '+'},
++		{ToNegativeInf, 3, -0x8, -0x1, -0xa, '+'},
++
++		{ToZero, 3, -0x8, 0x1, -0x8, '-'},
++		{AwayFromZero, 3, -0x8, 0x1, -0xa, '-'},
++		{ToNegativeInf, 3, -0x8, 0x1, -0xa, '-'},
++
++		{ToZero, 3, -0x9, 0x1, -0x8, '*'},
++		{AwayFromZero, 3, -0x9, 0x1, -0xa, '*'},
++		{ToNegativeInf, 3, -0x9, 0x1, -0xa, '*'},
++
++		{ToZero, 3, -0x9, 0x1, -0x8, '/'},
++		{AwayFromZero, 3, -0x9, 0x1, -0xa, '/'},
++		{ToNegativeInf, 3, -0x9, 0x1, -0xa, '/'},
++	} {
++		var x, y, z Float
++		x.SetInt64(test.x)
++		y.SetInt64(test.y)
++		z.SetPrec(test.prec).SetMode(test.mode)
++		switch test.op {
++		case '+':
++			z.Add(&x, &y)
++		case '-':
++			z.Sub(&x, &y)
++		case '*':
++			z.Mul(&x, &y)
++		case '/':
++			z.Quo(&x, &y)
++		default:
++			panic("unreachable")
++		}
++		if got, acc := z.Int64(); got != test.want || acc != Exact {
++			t.Errorf("%s, %d bits: %d %c %d = %d (%s); want %d (Exact)",
++				test.mode, test.prec, test.x, test.op, test.y, got, acc, test.want,
++			)
++		}
++	}
++}
++
+ func TestFloatCmp(t *testing.T) {
+ 	// TODO(gri) implement this
+ }

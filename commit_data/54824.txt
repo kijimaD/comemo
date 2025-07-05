@@ -15,6 +15,47 @@ Date:   Fri Sep 23 17:23:54 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 16 +---------------
  1 file changed, 1 insertion(+), 15 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b3c282a869..5558bc1819 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -889,7 +889,7 @@ func (t *tester) isRegisteredTestName(testName string) bool {
+ 	return false
+ }
+ 
+-func (t *tester) registerTest1(seq bool, name, dirBanner string, cmdline ...interface{}) {
++func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
+ 	bin, args := flattenCmdline(cmdline)
+ 	if bin == "time" && !t.haveTime {
+ 		bin, args = args[0], args[1:]
+@@ -901,26 +901,12 @@ func (t *tester) registerTest1(seq bool, name, dirBanner string, cmdline ...inte
+ 		name:    name,
+ 		heading: dirBanner,
+ 		fn: func(dt *distTest) error {
+-			if seq {
+-				t.runPending(dt)
+-				timelog("start", name)
+-				defer timelog("end", name)
+-				return t.dirCmd(filepath.Join(goroot, "src", dirBanner), bin, args).Run()
+-			}
+ 			t.addCmd(dt, filepath.Join(goroot, "src", dirBanner), bin, args)
+ 			return nil
+ 		},
+ 	})
+ }
+ 
+-func (t *tester) registerTest(name, dirBanner string, cmdline ...interface{}) {
+-	t.registerTest1(false, name, dirBanner, cmdline...)
+-}
+-
+-func (t *tester) registerSeqTest(name, dirBanner string, cmdline ...interface{}) {
+-	t.registerTest1(true, name, dirBanner, cmdline...)
+-}
+-
+ // bgDirCmd constructs a Cmd intended to be run in the background as
+ // part of the worklist. The worklist runner will buffer its output
+ // and replay it sequentially. The command will be run in dir.

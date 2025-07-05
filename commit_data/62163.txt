@@ -16,7 +16,7 @@ Date:   Fri Jan 24 20:17:20 2025 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/go/build/deps_test.go                          |   4 +-
  src/internal/trace/event/go122/event.go            | 116 +++++++++---------
  .../trace/internal/{oldtrace => tracev1}/order.go  |   2 +-
@@ -38,3 +38,996 @@ Date:   Fri Jan 24 20:17:20 2025 +0000
  src/internal/trace/{oldtrace.go => tracev1.go}     | 132 ++++++++++-----------
  .../trace/{oldtrace_test.go => tracev1_test.go}    |   6 +-
  20 files changed, 144 insertions(+), 144 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 31ec9512c1..e992681da4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -711,9 +711,9 @@ var depsRules = `
+ 	< internal/trace/raw;
+ 
+ 	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
+-	< internal/trace/internal/oldtrace;
++	< internal/trace/internal/tracev1;
+ 
+-	FMT, encoding/binary, internal/trace/version, internal/trace/internal/oldtrace, container/heap, math/rand
++	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
+ 	< internal/trace;
+ 
+ 	regexp, internal/trace, internal/trace/raw, internal/txtar
+diff --git a/src/internal/trace/event/go122/event.go b/src/internal/trace/event/go122/event.go
+index f22b23ddbb..5eadf0e571 100644
+--- a/src/internal/trace/event/go122/event.go
++++ b/src/internal/trace/event/go122/event.go
+@@ -130,246 +130,246 @@ func Specs() []event.Spec {
+ 
+ var specs = [...]event.Spec{
+ 	// "Structural" Events.
+-	EvEventBatch: event.Spec{
++	EvEventBatch: {
+ 		Name: "EventBatch",
+ 		Args: []string{"gen", "m", "time", "size"},
+ 	},
+-	EvStacks: event.Spec{
++	EvStacks: {
+ 		Name: "Stacks",
+ 	},
+-	EvStack: event.Spec{
++	EvStack: {
+ 		Name:    "Stack",
+ 		Args:    []string{"id", "nframes"},
+ 		IsStack: true,
+ 	},
+-	EvStrings: event.Spec{
++	EvStrings: {
+ 		Name: "Strings",
+ 	},
+-	EvString: event.Spec{
++	EvString: {
+ 		Name:    "String",
+ 		Args:    []string{"id"},
+ 		HasData: true,
+ 	},
+-	EvCPUSamples: event.Spec{
++	EvCPUSamples: {
+ 		Name: "CPUSamples",
+ 	},
+-	EvCPUSample: event.Spec{
++	EvCPUSample: {
+ 		Name: "CPUSample",
+ 		Args: []string{"time", "m", "p", "g", "stack"},
+ 		// N.B. There's clearly a timestamp here, but these Events
+ 		// are special in that they don't appear in the regular
+ 		// M streams.
+ 	},
+-	EvFrequency: event.Spec{
++	EvFrequency: {
+ 		Name: "Frequency",
+ 		Args: []string{"freq"},
+ 	},
+-	EvExperimentalBatch: event.Spec{
++	EvExperimentalBatch: {
+ 		Name:    "ExperimentalBatch",
+ 		Args:    []string{"exp", "gen", "m", "time"},
+ 		HasData: true, // Easier to represent for raw readers.
+ 	},
+ 
+ 	// "Timed" Events.
+-	EvProcsChange: event.Spec{
++	EvProcsChange: {
+ 		Name:         "ProcsChange",
+ 		Args:         []string{"dt", "procs_value", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 	},
+-	EvProcStart: event.Spec{
++	EvProcStart: {
+ 		Name:         "ProcStart",
+ 		Args:         []string{"dt", "p", "p_seq"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvProcStop: event.Spec{
++	EvProcStop: {
+ 		Name:         "ProcStop",
+ 		Args:         []string{"dt"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvProcSteal: event.Spec{
++	EvProcSteal: {
+ 		Name:         "ProcSteal",
+ 		Args:         []string{"dt", "p", "p_seq", "m"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvProcStatus: event.Spec{
++	EvProcStatus: {
+ 		Name:         "ProcStatus",
+ 		Args:         []string{"dt", "p", "pstatus"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoCreate: event.Spec{
++	EvGoCreate: {
+ 		Name:         "GoCreate",
+ 		Args:         []string{"dt", "new_g", "new_stack", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{3, 2},
+ 	},
+-	EvGoCreateSyscall: event.Spec{
++	EvGoCreateSyscall: {
+ 		Name:         "GoCreateSyscall",
+ 		Args:         []string{"dt", "new_g"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoStart: event.Spec{
++	EvGoStart: {
+ 		Name:         "GoStart",
+ 		Args:         []string{"dt", "g", "g_seq"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoDestroy: event.Spec{
++	EvGoDestroy: {
+ 		Name:         "GoDestroy",
+ 		Args:         []string{"dt"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoDestroySyscall: event.Spec{
++	EvGoDestroySyscall: {
+ 		Name:         "GoDestroySyscall",
+ 		Args:         []string{"dt"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoStop: event.Spec{
++	EvGoStop: {
+ 		Name:         "GoStop",
+ 		Args:         []string{"dt", "reason_string", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 		StringIDs:    []int{1},
+ 	},
+-	EvGoBlock: event.Spec{
++	EvGoBlock: {
+ 		Name:         "GoBlock",
+ 		Args:         []string{"dt", "reason_string", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 		StringIDs:    []int{1},
+ 	},
+-	EvGoUnblock: event.Spec{
++	EvGoUnblock: {
+ 		Name:         "GoUnblock",
+ 		Args:         []string{"dt", "g", "g_seq", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{3},
+ 	},
+-	EvGoSyscallBegin: event.Spec{
++	EvGoSyscallBegin: {
+ 		Name:         "GoSyscallBegin",
+ 		Args:         []string{"dt", "p_seq", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 	},
+-	EvGoSyscallEnd: event.Spec{
++	EvGoSyscallEnd: {
+ 		Name:         "GoSyscallEnd",
+ 		Args:         []string{"dt"},
+ 		StartEv:      EvGoSyscallBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoSyscallEndBlocked: event.Spec{
++	EvGoSyscallEndBlocked: {
+ 		Name:         "GoSyscallEndBlocked",
+ 		Args:         []string{"dt"},
+ 		StartEv:      EvGoSyscallBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoStatus: event.Spec{
++	EvGoStatus: {
+ 		Name:         "GoStatus",
+ 		Args:         []string{"dt", "g", "m", "gstatus"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvSTWBegin: event.Spec{
++	EvSTWBegin: {
+ 		Name:         "STWBegin",
+ 		Args:         []string{"dt", "kind_string", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 		StringIDs:    []int{1},
+ 	},
+-	EvSTWEnd: event.Spec{
++	EvSTWEnd: {
+ 		Name:         "STWEnd",
+ 		Args:         []string{"dt"},
+ 		StartEv:      EvSTWBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGCActive: event.Spec{
++	EvGCActive: {
+ 		Name:         "GCActive",
+ 		Args:         []string{"dt", "gc_seq"},
+ 		IsTimedEvent: true,
+ 		StartEv:      EvGCBegin,
+ 	},
+-	EvGCBegin: event.Spec{
++	EvGCBegin: {
+ 		Name:         "GCBegin",
+ 		Args:         []string{"dt", "gc_seq", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 	},
+-	EvGCEnd: event.Spec{
++	EvGCEnd: {
+ 		Name:         "GCEnd",
+ 		Args:         []string{"dt", "gc_seq"},
+ 		StartEv:      EvGCBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGCSweepActive: event.Spec{
++	EvGCSweepActive: {
+ 		Name:         "GCSweepActive",
+ 		Args:         []string{"dt", "p"},
+ 		StartEv:      EvGCSweepBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGCSweepBegin: event.Spec{
++	EvGCSweepBegin: {
+ 		Name:         "GCSweepBegin",
+ 		Args:         []string{"dt", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{1},
+ 	},
+-	EvGCSweepEnd: event.Spec{
++	EvGCSweepEnd: {
+ 		Name:         "GCSweepEnd",
+ 		Args:         []string{"dt", "swept_value", "reclaimed_value"},
+ 		StartEv:      EvGCSweepBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGCMarkAssistActive: event.Spec{
++	EvGCMarkAssistActive: {
+ 		Name:         "GCMarkAssistActive",
+ 		Args:         []string{"dt", "g"},
+ 		StartEv:      EvGCMarkAssistBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvGCMarkAssistBegin: event.Spec{
++	EvGCMarkAssistBegin: {
+ 		Name:         "GCMarkAssistBegin",
+ 		Args:         []string{"dt", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{1},
+ 	},
+-	EvGCMarkAssistEnd: event.Spec{
++	EvGCMarkAssistEnd: {
+ 		Name:         "GCMarkAssistEnd",
+ 		Args:         []string{"dt"},
+ 		StartEv:      EvGCMarkAssistBegin,
+ 		IsTimedEvent: true,
+ 	},
+-	EvHeapAlloc: event.Spec{
++	EvHeapAlloc: {
+ 		Name:         "HeapAlloc",
+ 		Args:         []string{"dt", "heapalloc_value"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvHeapGoal: event.Spec{
++	EvHeapGoal: {
+ 		Name:         "HeapGoal",
+ 		Args:         []string{"dt", "heapgoal_value"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoLabel: event.Spec{
++	EvGoLabel: {
+ 		Name:         "GoLabel",
+ 		Args:         []string{"dt", "label_string"},
+ 		IsTimedEvent: true,
+ 		StringIDs:    []int{1},
+ 	},
+-	EvUserTaskBegin: event.Spec{
++	EvUserTaskBegin: {
+ 		Name:         "UserTaskBegin",
+ 		Args:         []string{"dt", "task", "parent_task", "name_string", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{4},
+ 		StringIDs:    []int{3},
+ 	},
+-	EvUserTaskEnd: event.Spec{
++	EvUserTaskEnd: {
+ 		Name:         "UserTaskEnd",
+ 		Args:         []string{"dt", "task", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{2},
+ 	},
+-	EvUserRegionBegin: event.Spec{
++	EvUserRegionBegin: {
+ 		Name:         "UserRegionBegin",
+ 		Args:         []string{"dt", "task", "name_string", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{3},
+ 		StringIDs:    []int{2},
+ 	},
+-	EvUserRegionEnd: event.Spec{
++	EvUserRegionEnd: {
+ 		Name:         "UserRegionEnd",
+ 		Args:         []string{"dt", "task", "name_string", "stack"},
+ 		StartEv:      EvUserRegionBegin,
+@@ -377,30 +377,30 @@ var specs = [...]event.Spec{
+ 		StackIDs:     []int{3},
+ 		StringIDs:    []int{2},
+ 	},
+-	EvUserLog: event.Spec{
++	EvUserLog: {
+ 		Name:         "UserLog",
+ 		Args:         []string{"dt", "task", "key_string", "value_string", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{4},
+ 		StringIDs:    []int{2, 3},
+ 	},
+-	EvGoSwitch: event.Spec{
++	EvGoSwitch: {
+ 		Name:         "GoSwitch",
+ 		Args:         []string{"dt", "g", "g_seq"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoSwitchDestroy: event.Spec{
++	EvGoSwitchDestroy: {
+ 		Name:         "GoSwitchDestroy",
+ 		Args:         []string{"dt", "g", "g_seq"},
+ 		IsTimedEvent: true,
+ 	},
+-	EvGoCreateBlocked: event.Spec{
++	EvGoCreateBlocked: {
+ 		Name:         "GoCreateBlocked",
+ 		Args:         []string{"dt", "new_g", "new_stack", "stack"},
+ 		IsTimedEvent: true,
+ 		StackIDs:     []int{3, 2},
+ 	},
+-	EvGoStatusStack: event.Spec{
++	EvGoStatusStack: {
+ 		Name:         "GoStatusStack",
+ 		Args:         []string{"dt", "g", "m", "gstatus", "stack"},
+ 		IsTimedEvent: true,
+@@ -409,55 +409,55 @@ var specs = [...]event.Spec{
+ 
+ 	// Experimental events.
+ 
+-	EvSpan: event.Spec{
++	EvSpan: {
+ 		Name:         "Span",
+ 		Args:         []string{"dt", "id", "npages_value", "kindclass"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvSpanAlloc: event.Spec{
++	EvSpanAlloc: {
+ 		Name:         "SpanAlloc",
+ 		Args:         []string{"dt", "id", "npages_value", "kindclass"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvSpanFree: event.Spec{
++	EvSpanFree: {
+ 		Name:         "SpanFree",
+ 		Args:         []string{"dt", "id"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvHeapObject: event.Spec{
++	EvHeapObject: {
+ 		Name:         "HeapObject",
+ 		Args:         []string{"dt", "id", "type"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvHeapObjectAlloc: event.Spec{
++	EvHeapObjectAlloc: {
+ 		Name:         "HeapObjectAlloc",
+ 		Args:         []string{"dt", "id", "type"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvHeapObjectFree: event.Spec{
++	EvHeapObjectFree: {
+ 		Name:         "HeapObjectFree",
+ 		Args:         []string{"dt", "id"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvGoroutineStack: event.Spec{
++	EvGoroutineStack: {
+ 		Name:         "GoroutineStack",
+ 		Args:         []string{"dt", "id", "order"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvGoroutineStackAlloc: event.Spec{
++	EvGoroutineStackAlloc: {
+ 		Name:         "GoroutineStackAlloc",
+ 		Args:         []string{"dt", "id", "order"},
+ 		IsTimedEvent: true,
+ 		Experiment:   AllocFree,
+ 	},
+-	EvGoroutineStackFree: event.Spec{
++	EvGoroutineStackFree: {
+ 		Name:         "GoroutineStackFree",
+ 		Args:         []string{"dt", "id"},
+ 		IsTimedEvent: true,
+diff --git a/src/internal/trace/internal/oldtrace/order.go b/src/internal/trace/internal/tracev1/order.go
+similarity index 99%
+rename from src/internal/trace/internal/oldtrace/order.go
+rename to src/internal/trace/internal/tracev1/order.go
+index b9d63e2f0c..683d7f03b4 100644
+--- a/src/internal/trace/internal/oldtrace/order.go
++++ b/src/internal/trace/internal/tracev1/order.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package oldtrace
++package tracev1
+ 
+ import "errors"
+ 
+diff --git a/src/internal/trace/internal/oldtrace/parser.go b/src/internal/trace/internal/tracev1/parser.go
+similarity index 99%
+rename from src/internal/trace/internal/oldtrace/parser.go
+rename to src/internal/trace/internal/tracev1/parser.go
+index 5b12df7e2b..b95f86e43d 100644
+--- a/src/internal/trace/internal/oldtrace/parser.go
++++ b/src/internal/trace/internal/tracev1/parser.go
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package oldtrace implements a parser for Go execution traces from versions
++// Package tracev1 implements a parser for Go execution traces from versions
+ // 1.11–1.21.
+ //
+ // The package started as a copy of Go 1.19's internal/trace, but has been
+ // optimized to be faster while using less memory and fewer allocations. It has
+ // been further modified for the specific purpose of converting traces to the
+ // new 1.22+ format.
+-package oldtrace
++package tracev1
+ 
+ import (
+ 	"bytes"
+diff --git a/src/internal/trace/internal/oldtrace/parser_test.go b/src/internal/trace/internal/tracev1/parser_test.go
+similarity index 99%
+rename from src/internal/trace/internal/oldtrace/parser_test.go
+rename to src/internal/trace/internal/tracev1/parser_test.go
+index 6fe31e2e7e..af6d8db234 100644
+--- a/src/internal/trace/internal/oldtrace/parser_test.go
++++ b/src/internal/trace/internal/tracev1/parser_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package oldtrace
++package tracev1
+ 
+ import (
+ 	"bytes"
+diff --git a/src/internal/trace/internal/oldtrace/testdata/fmt_1_21_pprof_good b/src/internal/trace/internal/tracev1/testdata/fmt_1_21_pprof_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/fmt_1_21_pprof_good
+rename to src/internal/trace/internal/tracev1/testdata/fmt_1_21_pprof_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/http_1_19_good b/src/internal/trace/internal/tracev1/testdata/http_1_19_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/http_1_19_good
+rename to src/internal/trace/internal/tracev1/testdata/http_1_19_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/http_1_21_good b/src/internal/trace/internal/tracev1/testdata/http_1_21_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/http_1_21_good
+rename to src/internal/trace/internal/tracev1/testdata/http_1_21_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/stress_1_11_good b/src/internal/trace/internal/tracev1/testdata/stress_1_11_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/stress_1_11_good
+rename to src/internal/trace/internal/tracev1/testdata/stress_1_11_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/stress_1_19_good b/src/internal/trace/internal/tracev1/testdata/stress_1_19_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/stress_1_19_good
+rename to src/internal/trace/internal/tracev1/testdata/stress_1_19_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/stress_1_21_good b/src/internal/trace/internal/tracev1/testdata/stress_1_21_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/stress_1_21_good
+rename to src/internal/trace/internal/tracev1/testdata/stress_1_21_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_11_good b/src/internal/trace/internal/tracev1/testdata/stress_start_stop_1_11_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_11_good
+rename to src/internal/trace/internal/tracev1/testdata/stress_start_stop_1_11_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_19_good b/src/internal/trace/internal/tracev1/testdata/stress_start_stop_1_19_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_19_good
+rename to src/internal/trace/internal/tracev1/testdata/stress_start_stop_1_19_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_21_good b/src/internal/trace/internal/tracev1/testdata/stress_start_stop_1_21_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_21_good
+rename to src/internal/trace/internal/tracev1/testdata/stress_start_stop_1_21_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/user_task_region_1_11_good b/src/internal/trace/internal/tracev1/testdata/user_task_region_1_11_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/user_task_region_1_11_good
+rename to src/internal/trace/internal/tracev1/testdata/user_task_region_1_11_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/user_task_region_1_19_good b/src/internal/trace/internal/tracev1/testdata/user_task_region_1_19_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/user_task_region_1_19_good
+rename to src/internal/trace/internal/tracev1/testdata/user_task_region_1_19_good
+diff --git a/src/internal/trace/internal/oldtrace/testdata/user_task_region_1_21_good b/src/internal/trace/internal/tracev1/testdata/user_task_region_1_21_good
+similarity index 100%
+rename from src/internal/trace/internal/oldtrace/testdata/user_task_region_1_21_good
+rename to src/internal/trace/internal/tracev1/testdata/user_task_region_1_21_good
+diff --git a/src/internal/trace/reader.go b/src/internal/trace/reader.go
+index 149a88b7b4..6fc39e28ac 100644
+--- a/src/internal/trace/reader.go
++++ b/src/internal/trace/reader.go
+@@ -12,7 +12,7 @@ import (
+ 	"strings"
+ 
+ 	"internal/trace/event/go122"
+-	"internal/trace/internal/oldtrace"
++	"internal/trace/internal/tracev1"
+ 	"internal/trace/version"
+ )
+ 
+@@ -33,7 +33,7 @@ type Reader struct {
+ 	syncs      int
+ 	done       bool
+ 
+-	go121Events *oldTraceConverter
++	v1Events *traceV1Converter
+ }
+ 
+ // NewReader creates a new trace reader.
+@@ -45,12 +45,12 @@ func NewReader(r io.Reader) (*Reader, error) {
+ 	}
+ 	switch v {
+ 	case version.Go111, version.Go119, version.Go121:
+-		tr, err := oldtrace.Parse(br, v)
++		tr, err := tracev1.Parse(br, v)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		return &Reader{
+-			go121Events: convertOldFormat(tr),
++			v1Events: convertV1Trace(tr),
+ 		}, nil
+ 	case version.Go122, version.Go123:
+ 		return &Reader{
+@@ -76,29 +76,29 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 		return Event{}, io.EOF
+ 	}
+ 
+-	// Handle old execution traces.
+-	if r.go121Events != nil {
++	// Handle v1 execution traces.
++	if r.v1Events != nil {
+ 		if r.syncs == 0 {
+ 			// Always emit a sync event first, if we have any events at all.
+-			ev, ok := r.go121Events.events.Peek()
++			ev, ok := r.v1Events.events.Peek()
+ 			if ok {
+ 				r.syncs++
+-				return syncEvent(r.go121Events.evt, Time(ev.Ts-1), r.syncs), nil
++				return syncEvent(r.v1Events.evt, Time(ev.Ts-1), r.syncs), nil
+ 			}
+ 		}
+-		ev, err := r.go121Events.next()
++		ev, err := r.v1Events.next()
+ 		if err == io.EOF {
+ 			// Always emit a sync event at the end.
+ 			r.done = true
+ 			r.syncs++
+-			return syncEvent(nil, r.go121Events.lastTs+1, r.syncs), nil
++			return syncEvent(nil, r.v1Events.lastTs+1, r.syncs), nil
+ 		} else if err != nil {
+ 			return Event{}, err
+ 		}
+ 		return ev, nil
+ 	}
+ 
+-	// Go 1.22+ trace parsing algorithm.
++	// Trace v2 parsing algorithm.
+ 	//
+ 	// (1) Read in all the batches for the next generation from the stream.
+ 	//   (a) Use the size field in the header to quickly find all batches.
+diff --git a/src/internal/trace/oldtrace.go b/src/internal/trace/tracev1.go
+similarity index 85%
+rename from src/internal/trace/oldtrace.go
+rename to src/internal/trace/tracev1.go
+index c49f8c7474..91752efa99 100644
+--- a/src/internal/trace/oldtrace.go
++++ b/src/internal/trace/tracev1.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements conversion from old (Go 1.11–Go 1.21) traces to the Go
+-// 1.22 format.
++// This file implements conversion from v1 (Go 1.11–Go 1.21) traces to the v2
++// format (Go 1.22+).
+ //
+-// Most events have direct equivalents in 1.22, at worst requiring arguments to
++// Most events have direct equivalents in v2, at worst requiring arguments to
+ // be reordered. Some events, such as GoWaiting need to look ahead for follow-up
+ // events to determine the correct translation. GoSyscall, which is an
+ // instantaneous event, gets turned into a 1 ns long pair of
+@@ -13,11 +13,11 @@
+ // emit a GoSyscallStart+GoSyscallEndBlocked pair with the correct duration
+ // (i.e. starting at the original GoSyscall).
+ //
+-// The resulting trace treats the old trace as a single, large generation,
++// The resulting trace treats the trace v1 as a single, large generation,
+ // sharing a single evTable for all events.
+ //
+ // We use a new (compared to what was used for 'go tool trace' in earlier
+-// versions of Go) parser for old traces that is optimized for speed, low memory
++// versions of Go) parser for v1 traces that is optimized for speed, low memory
+ // usage, and minimal GC pressure. It allocates events in batches so that even
+ // though we have to load the entire trace into memory, the conversion process
+ // shouldn't result in a doubling of memory usage, even if all converted events
+@@ -32,16 +32,16 @@ import (
+ 	"fmt"
+ 	"internal/trace/event"
+ 	"internal/trace/event/go122"
+-	"internal/trace/internal/oldtrace"
++	"internal/trace/internal/tracev1"
+ 	"io"
+ )
+ 
+-type oldTraceConverter struct {
+-	trace          oldtrace.Trace
++type traceV1Converter struct {
++	trace          tracev1.Trace
+ 	evt            *evTable
+ 	preInit        bool
+ 	createdPreInit map[GoID]struct{}
+-	events         oldtrace.Events
++	events         tracev1.Events
+ 	extra          []Event
+ 	extraArr       [3]Event
+ 	tasks          map[TaskID]taskState
+@@ -91,7 +91,7 @@ const (
+ 	sLast
+ )
+ 
+-func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
++func (it *traceV1Converter) init(pr tracev1.Trace) error {
+ 	it.trace = pr
+ 	it.preInit = true
+ 	it.createdPreInit = make(map[GoID]struct{})
+@@ -105,7 +105,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
+ 
+ 	evt := it.evt
+ 
+-	// Convert from oldtracer's Strings map to our dataTable.
++	// Convert from trace v1's Strings map to our dataTable.
+ 	var max uint64
+ 	for id, s := range pr.Strings {
+ 		evt.strings.insert(stringID(id), s)
+@@ -115,7 +115,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
+ 	}
+ 	pr.Strings = nil
+ 
+-	// Add all strings used for UserLog. In the old trace format, these were
++	// Add all strings used for UserLog. In the trace v1 format, these were
+ 	// stored inline and didn't have IDs. We generate IDs for them.
+ 	if max+uint64(len(pr.InlineStrings)) < max {
+ 		return errors.New("trace contains too many strings")
+@@ -187,7 +187,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
+ 	}
+ 
+ 	// OPT(dh): if we could share the frame type between this package and
+-	// oldtrace we wouldn't have to copy the map.
++	// tracev1 we wouldn't have to copy the map.
+ 	for pc, f := range pr.PCs {
+ 		evt.pcs[pc] = frame{
+ 			pc:     pc,
+@@ -204,7 +204,7 @@ func (it *oldTraceConverter) init(pr oldtrace.Trace) error {
+ 
+ // next returns the next event, io.EOF if there are no more events, or a
+ // descriptive error for invalid events.
+-func (it *oldTraceConverter) next() (Event, error) {
++func (it *traceV1Converter) next() (Event, error) {
+ 	if len(it.extra) > 0 {
+ 		ev := it.extra[0]
+ 		it.extra = it.extra[1:]
+@@ -245,20 +245,20 @@ func (it *oldTraceConverter) next() (Event, error) {
+ 
+ var errSkip = errors.New("skip event")
+ 
+-// convertEvent converts an event from the old trace format to zero or more
++// convertEvent converts an event from the trace v1 format to zero or more
+ // events in the new format. Most events translate 1 to 1. Some events don't
+ // result in an event right away, in which case convertEvent returns errSkip.
+ // Some events result in more than one new event; in this case, convertEvent
+ // returns the first event and stores additional events in it.extra. When
+-// encountering events that oldtrace shouldn't be able to emit, ocnvertEvent
++// encountering events that tracev1 shouldn't be able to emit, ocnvertEvent
+ // returns a descriptive error.
+-func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR error) {
++func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR error) {
+ 	var mappedType event.Type
+ 	var mappedArgs timedEventArgs
+ 	copy(mappedArgs[:], ev.Args[:])
+ 
+ 	switch ev.Type {
+-	case oldtrace.EvGomaxprocs:
++	case tracev1.EvGomaxprocs:
+ 		mappedType = go122.EvProcsChange
+ 		if it.preInit {
+ 			// The first EvGomaxprocs signals the end of trace initialization. At this point we've seen
+@@ -286,7 +286,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 			it.createdPreInit = nil
+ 			return Event{}, errSkip
+ 		}
+-	case oldtrace.EvProcStart:
++	case tracev1.EvProcStart:
+ 		it.procMs[ProcID(ev.P)] = ThreadID(ev.Args[0])
+ 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
+ 			mappedType = go122.EvProcStart
+@@ -296,7 +296,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 			mappedType = go122.EvProcStatus
+ 			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcRunning)}
+ 		}
+-	case oldtrace.EvProcStop:
++	case tracev1.EvProcStop:
+ 		if _, ok := it.seenProcs[ProcID(ev.P)]; ok {
+ 			mappedType = go122.EvProcStop
+ 			mappedArgs = timedEventArgs{uint64(ev.P)}
+@@ -305,29 +305,29 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 			mappedType = go122.EvProcStatus
+ 			mappedArgs = timedEventArgs{uint64(ev.P), uint64(go122.ProcIdle)}
+ 		}
+-	case oldtrace.EvGCStart:
++	case tracev1.EvGCStart:
+ 		mappedType = go122.EvGCBegin
+-	case oldtrace.EvGCDone:
++	case tracev1.EvGCDone:
+ 		mappedType = go122.EvGCEnd
+-	case oldtrace.EvSTWStart:
++	case tracev1.EvSTWStart:
+ 		sid := it.builtinToStringID[sSTWUnknown+it.trace.STWReason(ev.Args[0])]
+ 		it.lastStwReason = sid
+ 		mappedType = go122.EvSTWBegin
+ 		mappedArgs = timedEventArgs{uint64(sid)}
+-	case oldtrace.EvSTWDone:
++	case tracev1.EvSTWDone:
+ 		mappedType = go122.EvSTWEnd
+ 		mappedArgs = timedEventArgs{it.lastStwReason}
+-	case oldtrace.EvGCSweepStart:
++	case tracev1.EvGCSweepStart:
+ 		mappedType = go122.EvGCSweepBegin
+-	case oldtrace.EvGCSweepDone:
++	case tracev1.EvGCSweepDone:
+ 		mappedType = go122.EvGCSweepEnd
+-	case oldtrace.EvGoCreate:
++	case tracev1.EvGoCreate:
+ 		if it.preInit {
+ 			it.createdPreInit[GoID(ev.Args[0])] = struct{}{}
+ 			return Event{}, errSkip
+ 		}
+ 		mappedType = go122.EvGoCreate
+-	case oldtrace.EvGoStart:
++	case tracev1.EvGoStart:
+ 		if it.preInit {
+ 			mappedType = go122.EvGoStatus
+ 			mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoRunning)}
+@@ -335,7 +335,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 		} else {
+ 			mappedType = go122.EvGoStart
+ 		}
+-	case oldtrace.EvGoStartLabel:
++	case tracev1.EvGoStartLabel:
+ 		it.extra = []Event{{
+ 			ctx: schedCtx{
+ 				G: GoID(ev.G),
+@@ -362,58 +362,58 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 				args: mappedArgs,
+ 			},
+ 		}, nil
+-	case oldtrace.EvGoEnd:
++	case tracev1.EvGoEnd:
+ 		mappedType = go122.EvGoDestroy
+-	case oldtrace.EvGoStop:
++	case tracev1.EvGoStop:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sForever]), uint64(ev.StkID)}
+-	case oldtrace.EvGoSched:
++	case tracev1.EvGoSched:
+ 		mappedType = go122.EvGoStop
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sGosched]), uint64(ev.StkID)}
+-	case oldtrace.EvGoPreempt:
++	case tracev1.EvGoPreempt:
+ 		mappedType = go122.EvGoStop
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sPreempted]), uint64(ev.StkID)}
+-	case oldtrace.EvGoSleep:
++	case tracev1.EvGoSleep:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSleep]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlock:
++	case tracev1.EvGoBlock:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sEmpty]), uint64(ev.StkID)}
+-	case oldtrace.EvGoUnblock:
++	case tracev1.EvGoUnblock:
+ 		mappedType = go122.EvGoUnblock
+-	case oldtrace.EvGoBlockSend:
++	case tracev1.EvGoBlockSend:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanSend]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlockRecv:
++	case tracev1.EvGoBlockRecv:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sChanRecv]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlockSelect:
++	case tracev1.EvGoBlockSelect:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSelect]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlockSync:
++	case tracev1.EvGoBlockSync:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSync]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlockCond:
++	case tracev1.EvGoBlockCond:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sSyncCond]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlockNet:
++	case tracev1.EvGoBlockNet:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sNetwork]), uint64(ev.StkID)}
+-	case oldtrace.EvGoBlockGC:
++	case tracev1.EvGoBlockGC:
+ 		mappedType = go122.EvGoBlock
+ 		mappedArgs = timedEventArgs{uint64(it.builtinToStringID[sMarkAssistWait]), uint64(ev.StkID)}
+-	case oldtrace.EvGoSysCall:
++	case tracev1.EvGoSysCall:
+ 		// Look for the next event for the same G to determine if the syscall
+ 		// blocked.
+ 		blocked := false
+-		it.events.All()(func(nev *oldtrace.Event) bool {
++		it.events.All()(func(nev *tracev1.Event) bool {
+ 			if nev.G != ev.G {
+ 				return true
+ 			}
+ 			// After an EvGoSysCall, the next event on the same G will either be
+ 			// EvGoSysBlock to denote a blocking syscall, or some other event
+ 			// (or the end of the trace) if the syscall didn't block.
+-			if nev.Type == oldtrace.EvGoSysBlock {
++			if nev.Type == tracev1.EvGoSysBlock {
+ 				blocked = true
+ 			}
+ 			return false
+@@ -453,30 +453,30 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 			return out1, nil
+ 		}
+ 
+-	case oldtrace.EvGoSysExit:
++	case tracev1.EvGoSysExit:
+ 		mappedType = go122.EvGoSyscallEndBlocked
+-	case oldtrace.EvGoSysBlock:
++	case tracev1.EvGoSysBlock:
+ 		return Event{}, errSkip
+-	case oldtrace.EvGoWaiting:
++	case tracev1.EvGoWaiting:
+ 		mappedType = go122.EvGoStatus
+ 		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoWaiting)}
+ 		delete(it.createdPreInit, GoID(ev.Args[0]))
+-	case oldtrace.EvGoInSyscall:
++	case tracev1.EvGoInSyscall:
+ 		mappedType = go122.EvGoStatus
+ 		// In the new tracer, GoStatus with GoSyscall knows what thread the
+-		// syscall is on. In the old tracer, EvGoInSyscall doesn't contain that
++		// syscall is on. In trace v1, EvGoInSyscall doesn't contain that
+ 		// information and all we can do here is specify NoThread.
+ 		mappedArgs = timedEventArgs{ev.Args[0], ^uint64(0), uint64(go122.GoSyscall)}
+ 		delete(it.createdPreInit, GoID(ev.Args[0]))
+-	case oldtrace.EvHeapAlloc:
++	case tracev1.EvHeapAlloc:
+ 		mappedType = go122.EvHeapAlloc
+-	case oldtrace.EvHeapGoal:
++	case tracev1.EvHeapGoal:
+ 		mappedType = go122.EvHeapGoal
+-	case oldtrace.EvGCMarkAssistStart:
++	case tracev1.EvGCMarkAssistStart:
+ 		mappedType = go122.EvGCMarkAssistBegin
+-	case oldtrace.EvGCMarkAssistDone:
++	case tracev1.EvGCMarkAssistDone:
+ 		mappedType = go122.EvGCMarkAssistEnd
+-	case oldtrace.EvUserTaskCreate:
++	case tracev1.EvUserTaskCreate:
+ 		mappedType = go122.EvUserTaskBegin
+ 		parent := ev.Args[1]
+ 		if parent == 0 {
+@@ -485,7 +485,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 		mappedArgs = timedEventArgs{ev.Args[0], parent, ev.Args[2], uint64(ev.StkID)}
+ 		name, _ := it.evt.strings.get(stringID(ev.Args[2]))
+ 		it.tasks[TaskID(ev.Args[0])] = taskState{name: name, parentID: TaskID(ev.Args[1])}
+-	case oldtrace.EvUserTaskEnd:
++	case tracev1.EvUserTaskEnd:
+ 		mappedType = go122.EvUserTaskEnd
+ 		// Event.Task expects the parent and name to be smuggled in extra args
+ 		// and as extra strings.
+@@ -501,7 +501,7 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 		} else {
+ 			mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], uint64(NoTask), uint64(it.evt.addExtraString(""))}
+ 		}
+-	case oldtrace.EvUserRegion:
++	case tracev1.EvUserRegion:
+ 		switch ev.Args[1] {
+ 		case 0: // start
+ 			mappedType = go122.EvUserRegionBegin
+@@ -509,10 +509,10 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 			mappedType = go122.EvUserRegionEnd
+ 		}
+ 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[2], uint64(ev.StkID)}
+-	case oldtrace.EvUserLog:
++	case tracev1.EvUserLog:
+ 		mappedType = go122.EvUserLog
+ 		mappedArgs = timedEventArgs{ev.Args[0], ev.Args[1], it.inlineToStringID[ev.Args[3]], uint64(ev.StkID)}
+-	case oldtrace.EvCPUSample:
++	case tracev1.EvCPUSample:
+ 		mappedType = go122.EvCPUSample
+ 		// When emitted by the Go 1.22 tracer, CPU samples have 5 arguments:
+ 		// timestamp, M, P, G, stack. However, after they get turned into Event,
+@@ -524,19 +524,19 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 		return Event{}, fmt.Errorf("unexpected event type %v", ev.Type)
+ 	}
+ 
+-	if oldtrace.EventDescriptions[ev.Type].Stack {
++	if tracev1.EventDescriptions[ev.Type].Stack {
+ 		if stackIDs := go122.Specs()[mappedType].StackIDs; len(stackIDs) > 0 {
+ 			mappedArgs[stackIDs[0]-1] = uint64(ev.StkID)
+ 		}
+ 	}
+ 
+ 	m := NoThread
+-	if ev.P != -1 && ev.Type != oldtrace.EvCPUSample {
++	if ev.P != -1 && ev.Type != tracev1.EvCPUSample {
+ 		if t, ok := it.procMs[ProcID(ev.P)]; ok {
+ 			m = ThreadID(t)
+ 		}
+ 	}
+-	if ev.Type == oldtrace.EvProcStop {
++	if ev.Type == tracev1.EvProcStop {
+ 		delete(it.procMs, ProcID(ev.P))
+ 	}
+ 	g := GoID(ev.G)
+@@ -559,10 +559,10 @@ func (it *oldTraceConverter) convertEvent(ev *oldtrace.Event) (OUT Event, ERR er
+ 	return out, nil
+ }
+ 
+-// convertOldFormat takes a fully loaded trace in the old trace format and
++// convertV1Trace takes a fully loaded trace in the v1 trace format and
+ // returns an iterator over events in the new format.
+-func convertOldFormat(pr oldtrace.Trace) *oldTraceConverter {
+-	it := &oldTraceConverter{}
++func convertV1Trace(pr tracev1.Trace) *traceV1Converter {
++	it := &traceV1Converter{}
+ 	it.init(pr)
+ 	return it
+ }
+diff --git a/src/internal/trace/oldtrace_test.go b/src/internal/trace/tracev1_test.go
+similarity index 93%
+rename from src/internal/trace/oldtrace_test.go
+rename to src/internal/trace/tracev1_test.go
+index f812d5ef84..0f8e24d2c4 100644
+--- a/src/internal/trace/oldtrace_test.go
++++ b/src/internal/trace/tracev1_test.go
+@@ -13,15 +13,15 @@ import (
+ 	"testing"
+ )
+ 
+-func TestOldtrace(t *testing.T) {
+-	traces, err := filepath.Glob("./internal/oldtrace/testdata/*_good")
++func TestTraceV1(t *testing.T) {
++	traces, err := filepath.Glob("./internal/tracev1/testdata/*_good")
+ 	if err != nil {
+ 		t.Fatalf("failed to glob for tests: %s", err)
+ 	}
+ 	var testedUserRegions bool
+ 	for _, p := range traces {
+ 		p := p
+-		testName, err := filepath.Rel("./internal/oldtrace/testdata", p)
++		testName, err := filepath.Rel("./internal/tracev1/testdata", p)
+ 		if err != nil {
+ 			t.Fatalf("failed to relativize testdata path: %s", err)
+ 		}

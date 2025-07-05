@@ -7,7 +7,34 @@ Date:   Tue Jun 28 16:00:55 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4626081
-
+---
  src/cmd/cc/com.c  | 2 +-
  src/cmd/cc/pgen.c | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cc/com.c b/src/cmd/cc/com.c
+index b1a8a47041..192c28ace6 100644
+--- a/src/cmd/cc/com.c
++++ b/src/cmd/cc/com.c
+@@ -127,7 +127,7 @@ tcomo(Node *n, int f)
+ 	case ORETURN:
+ 		if(l == Z) {
+ 			if(n->type->etype != TVOID)
+-				warn(n, "null return of a typed function");
++				diag(n, "null return of a typed function");
+ 			break;
+ 		}
+ 		if(tcom(l))
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 5d17cafc92..0e5e8c059d 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -112,7 +112,7 @@ codgen(Node *n, Node *nn)
+ 	warnreach = 1;
+ 	gen(n);
+ 	if(canreach && thisfn->link->etype != TVOID)
+-		warn(Z, "no return at end of function: %s", n1->sym->name);
++		diag(Z, "no return at end of function: %s", n1->sym->name);
+ 	noretval(3);
+ 	gbranch(ORETURN);
+ 

@@ -9,7 +9,7 @@ Date:   Wed Apr 1 14:17:43 2015 +1300
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6l/asm.go             | 54 +++++++++++++++++++++++++++++++++++++++++++
  src/cmd/internal/ld/data.go   |  7 +++++-
  src/cmd/internal/ld/elf.go    |  8 ++++++-
@@ -17,3 +17,157 @@ Date:   Wed Apr 1 14:17:43 2015 +1300
  src/runtime/asm_amd64.s       |  7 ++++++
  src/runtime/symtab.go         |  3 ++-
  6 files changed, 83 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 329eb657a9..5bfda22c8c 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -61,7 +61,61 @@ func needlib(name string) int {
+ 	return 0
+ }
+ 
++func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
++	s.Reachable = true
++	i := s.Size
++	s.Size += 4
++	ld.Symgrow(ctxt, s, s.Size)
++	r := ld.Addrel(s)
++	r.Sym = t
++	r.Off = int32(i)
++	r.Type = ld.R_CALL
++	r.Siz = 4
++	return i + int64(r.Siz)
++}
++
+ func gentext() {
++	if !ld.DynlinkingGo() {
++		return
++	}
++	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
++	if addmoduledata.Type == ld.STEXT {
++		// we're linking a module containing the runtime -> no need for
++		// an init function
++		return
++	}
++	addmoduledata.Reachable = true
++	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
++	initfunc.Type = ld.STEXT
++	initfunc.Local = true
++	initfunc.Reachable = true
++	o := func(op ...uint8) {
++		for _, op1 := range op {
++			ld.Adduint8(ld.Ctxt, initfunc, op1)
++		}
++	}
++	// 0000000000000000 <local.dso_init>:
++	//    0:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 7 <local.dso_init+0x7>
++	// 			3: R_X86_64_PC32	runtime.firstmoduledata-0x4
++	o(0x48, 0x8d, 0x3d)
++	ld.Addpcrelplus(ld.Ctxt, initfunc, ld.Linklookup(ld.Ctxt, "runtime.firstmoduledata", 0), 0)
++	//    7:	e8 00 00 00 00       	callq  c <local.dso_init+0xc>
++	// 			8: R_X86_64_PLT32	runtime.addmoduledata-0x4
++	o(0xe8)
++	Addcall(ld.Ctxt, initfunc, addmoduledata)
++	//    c:	c3                   	retq
++	o(0xc3)
++	if ld.Ctxt.Etextp != nil {
++		ld.Ctxt.Etextp.Next = initfunc
++	} else {
++		ld.Ctxt.Textp = initfunc
++	}
++	ld.Ctxt.Etextp = initfunc
++	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
++	initarray_entry.Reachable = true
++	initarray_entry.Local = true
++	initarray_entry.Type = ld.SINITARR
++	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+ }
+ 
+ func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 75c8dea96d..4175d4d3a1 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -1331,10 +1331,15 @@ func dodata() {
+ 
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
++	hasinitarr := Linkshared
++
+ 	/* shared library initializer */
+ 	switch Buildmode {
+ 	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
+-		// TODO(mwhudson): switch on Linkshared
++		hasinitarr = true
++	}
++
++	if hasinitarr {
+ 		sect := addsection(&Segdata, ".init_array", 06)
+ 		sect.Align = maxalign(s, SINITARR)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index eb2c28fada..790c8713de 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1658,9 +1658,15 @@ func doelf() {
+ 		Addstring(shstrtab, ".note.GNU-stack")
+ 	}
+ 
++	hasinitarr := Linkshared
++
++	/* shared library initializer */
+ 	switch Buildmode {
+ 	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
+-		// TODO(mwhudson): switch on Linkshared
++		hasinitarr = true
++	}
++
++	if hasinitarr {
+ 		Addstring(shstrtab, ".init_array")
+ 		switch Thearch.Thechar {
+ 		case '6', '7', '9':
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index 1898a9b818..e7b107b669 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -464,4 +464,11 @@ func symtab() {
+ 	// The rest of moduledata is zero initialized.
+ 	moduledata.Size = moduledatasize
+ 	Symgrow(Ctxt, moduledata, moduledatasize)
++
++	lastmoduledatap := Linklookup(Ctxt, "runtime.lastmoduledatap", 0)
++	if lastmoduledatap.Type != SDYNIMPORT {
++		lastmoduledatap.Type = SNOPTRDATA
++		lastmoduledatap.Size = 0 // overwrite existing value
++		Addaddr(Ctxt, lastmoduledatap, moduledata)
++	}
+ }
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 0e5389fbd7..468763f095 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1692,3 +1692,10 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	MOVQ	addr+0(FP), AX
+ 	PREFETCHNTA	(AX)
+ 	RET
++
++// This is called from .init_array and follows the platform, not Go, ABI.
++TEXT runtime·addmoduledata(SB),NOSPLIT,$0-8
++	MOVQ	runtime·lastmoduledatap(SB), AX
++	MOVQ	DI, moduledata_next(AX)
++	MOVQ	DI, runtime·lastmoduledatap(SB)
++	RET
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 86c1408b85..e55c357900 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -60,7 +60,8 @@ type moduledata struct {
+ 	next *moduledata
+ }
+ 
+-var firstmoduledata moduledata // linker symbol
++var firstmoduledata moduledata  // linker symbol
++var lastmoduledatap *moduledata // linker symbol
+ 
+ type functab struct {
+ 	entry   uintptr

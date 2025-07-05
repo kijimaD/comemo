@@ -26,7 +26,7 @@ Date:   Tue Jul 20 14:46:40 2021 -0700
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-on: https://go-review.googlesource.com/c/go/+/341933
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/init.go                | 21 ++++++++++++++++----
  src/cmd/go/testdata/script/mod_all.txt             |  2 +-
  src/cmd/go/testdata/script/mod_e.txt               | 23 ++++++++++++++--------
@@ -41,3 +41,258 @@ Date:   Tue Jul 20 14:46:40 2021 -0700
  src/cmd/go/testdata/script/mod_verify.txt          |  5 -----
  src/cmd/go/testdata/script/modfile_flag.txt        |  5 +++++
  13 files changed, 61 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 45f724d5e3..d5f9d10422 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -686,12 +686,25 @@ func setDefaultBuildMod() {
+ 		return
+ 	}
+ 
+-	if cfg.CmdName == "get" || strings.HasPrefix(cfg.CmdName, "mod ") {
+-		// 'get' and 'go mod' commands may update go.mod automatically.
+-		// TODO(jayconrod): should this narrower? Should 'go mod download' or
+-		// 'go mod graph' update go.mod by default?
++	// TODO(#40775): commands should pass in the module mode as an option
++	// to modload functions instead of relying on an implicit setting
++	// based on command name.
++	switch cfg.CmdName {
++	case "get", "mod download", "mod init", "mod tidy":
++		// These commands are intended to update go.mod and go.sum.
+ 		cfg.BuildMod = "mod"
+ 		return
++	case "mod graph", "mod verify", "mod why":
++		// These commands should not update go.mod or go.sum, but they should be
++		// able to fetch modules not in go.sum and should not report errors if
++		// go.mod is inconsistent. They're useful for debugging, and they need
++		// to work in buggy situations.
++		cfg.BuildMod = "mod"
++		allowWriteGoMod = false
++		return
++	case "mod vendor":
++		cfg.BuildMod = "readonly"
++		return
+ 	}
+ 	if modRoot == "" {
+ 		if allowMissingModuleImports {
+diff --git a/src/cmd/go/testdata/script/mod_all.txt b/src/cmd/go/testdata/script/mod_all.txt
+index 090eeee22d..6fa2d83239 100644
+--- a/src/cmd/go/testdata/script/mod_all.txt
++++ b/src/cmd/go/testdata/script/mod_all.txt
+@@ -315,7 +315,7 @@ go 1.15
+ 
+ require (
+ 	example.com/a v0.1.0
+-	example.com/b v0.1.0
++	example.com/b v0.1.0 // indirect
+ 	example.com/q v0.1.0
+ 	example.com/r v0.1.0 // indirect
+ 	example.com/t v0.1.0
+diff --git a/src/cmd/go/testdata/script/mod_e.txt b/src/cmd/go/testdata/script/mod_e.txt
+index 3a0d18dabc..3cffaf6ef1 100644
+--- a/src/cmd/go/testdata/script/mod_e.txt
++++ b/src/cmd/go/testdata/script/mod_e.txt
+@@ -24,11 +24,11 @@ cmp go.mod.orig go.mod
+ 
+ ! go mod vendor
+ 
+-stderr '^example.com/untidy imports\n\texample.net/directnotfound: cannot find module providing package example.net/directnotfound: module example.net/directnotfound: reading http://.*: 404 Not Found$'
++stderr '^example.com/untidy imports\n\texample.net/directnotfound: no required module provides package example.net/directnotfound; to add it:\n\tgo get example.net/directnotfound$'
+ 
+-stderr '^example.com/untidy imports\n\texample.net/m imports\n\texample.net/indirectnotfound: cannot find module providing package example.net/indirectnotfound: module example.net/indirectnotfound: reading http://.*: 404 Not Found$'
++stderr '^example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
+ 
+-stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: cannot find module providing package example.net/directtestnotfound: module example.net/directtestnotfound: reading http://.*: 404 Not Found$'
++stderr '^example.com/untidy tested by\n\texample.com/untidy.test imports\n\texample.net/directtestnotfound: no required module provides package example.net/directtestnotfound; to add it:\n\tgo get example.net/directtestnotfound$'
+ 
+ ! stderr 'indirecttestnotfound'  # Vendor prunes test dependencies.
+ 
+@@ -43,15 +43,22 @@ stderr -count=4 'cannot find module providing package'
+ cmp go.mod.final go.mod
+ 
+ 
+-# 'go mod vendor -e' still logs the errors, but succeeds and updates go.mod.
+-
++# 'go mod vendor -e' still logs the errors, but creates a vendor directory
++# and exits with status 0.
++# 'go mod vendor -e' does not update go.mod and will not vendor packages that
++# would require changing go.mod, for example, by adding a requirement.
+ cp go.mod.orig go.mod
+ go mod vendor -e
+-stderr -count=3 'cannot find module providing package'
+-cmp go.mod.final go.mod
++stderr -count=2 'no required module provides package'
++stderr '^example.com/untidy imports\n\texample.net/m: module example.net/m provides package example.net/m and is replaced but not required; to add it:\n\tgo get example.net/m@v0.1.0$'
+ exists vendor/modules.txt
+-exists vendor/example.net/m/m.go
++! exists vendor/example.net
+ 
++go mod edit -require example.net/m@v0.1.0
++go mod vendor -e
++stderr -count=3 'no required module provides package'
++exists vendor/modules.txt
++exists vendor/example.net/m/m.go
+ 
+ -- go.mod --
+ module example.com/untidy
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index 4649491a53..0cf94ae182 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -44,7 +44,7 @@ go mod edit -require rsc.io/quote@23179ee
+ grep 'rsc.io/quote 23179ee' go.mod
+ 
+ # but other commands fix them
+-go mod graph
++go list -m -mod=mod all
+ grep 'rsc.io/quote v1.5.1' go.mod
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index d3df2078b0..00070c03b5 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -25,6 +25,7 @@ stderr 'go list -m: can''t match module patterns using the vendor directory\n\t\
+ -- go.mod --
+ module x
+ 
++go 1.16
+ -- x.go --
+ package x
+ import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_list_retract.txt b/src/cmd/go/testdata/script/mod_list_retract.txt
+index 4b13348515..b7147aa182 100644
+--- a/src/cmd/go/testdata/script/mod_list_retract.txt
++++ b/src/cmd/go/testdata/script/mod_list_retract.txt
+@@ -101,7 +101,9 @@ module example.com/use
+ go 1.15
+ 
+ require example.com/retract v1.0.0-bad
+-
++-- go.sum --
++example.com/retract v1.0.0-bad h1:liAW69rbtjY67x2CcNzat668L/w+YGgNX3lhJsWIJis=
++example.com/retract v1.0.0-bad/go.mod h1:0DvGGofJ9hr1q63cBrOY/jSY52OwhRGA0K47NE80I5Y=
+ -- use.go --
+ package use
+ 
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index 7a371b1806..481c10d2b7 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -39,12 +39,14 @@ go list -mod=mod all
+ cmp go.mod go.mod.tidy
+ 
+ # "// indirect" comments should be added if appropriate.
++# TODO(#42504): add case for 'go list -mod=mod -tags=any all' when -tags=any
++# is supported. Only a command that loads "all" without build constraints
++# (except "ignore") has enough information to add "// indirect" comments.
++# 'go mod tidy' and 'go mod vendor' are the only commands that do that,
++# but 'go mod vendor' cannot write go.mod.
+ cp go.mod.toodirect go.mod
+ go list all
+ cmp go.mod go.mod.toodirect
+-go mod vendor # loads everything, so adds "// indirect" comments.
+-cmp go.mod go.mod.tidy
+-rm -r vendor
+ 
+ 
+ # Redundant requirements should be preserved...
+diff --git a/src/cmd/go/testdata/script/mod_tidy_error.txt b/src/cmd/go/testdata/script/mod_tidy_error.txt
+index 395537b1a7..51fc65fa7a 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_error.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_error.txt
+@@ -10,8 +10,8 @@ stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/non
+ 
+ ! go mod vendor
+ ! stderr 'package nonexist is not in GOROOT'
+-stderr '^issue27063 imports\n\tnonexist.example.com: cannot find module providing package nonexist.example.com'
+-stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: cannot find module providing package other.example.com/nonexist'
++stderr '^issue27063 imports\n\tnonexist.example.com: no required module provides package nonexist.example.com; to add it:\n\tgo get nonexist.example.com$'
++stderr '^issue27063 imports\n\tissue27063/other imports\n\tother.example.com/nonexist: no required module provides package other.example.com/nonexist; to add it:\n\tgo get other.example.com/nonexist$'
+ 
+ -- go.mod --
+ module issue27063
+diff --git a/src/cmd/go/testdata/script/mod_vendor_replace.txt b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+index 0c1c1d22f5..1820af62ad 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_replace.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_replace.txt
+@@ -36,7 +36,6 @@ module example.com/replace
+ 
+ require rsc.io/quote/v3 v3.0.0
+ replace rsc.io/quote/v3 => ./local/not-rsc.io/quote/v3
+-
+ -- imports.go --
+ package replace
+ 
+@@ -64,3 +63,7 @@ require (
+ 	not-rsc.io/quote/v3 v3.0.0
+ )
+ replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
++-- multiple-paths/go.sum --
++golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++rsc.io/quote/v3 v3.0.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
++rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+diff --git a/src/cmd/go/testdata/script/mod_vendor_trimpath.txt b/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
+index 5451aa773c..d9d9d98897 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_trimpath.txt
+@@ -29,8 +29,12 @@ stdout '^example.com/stack@v1.0.0/stack.go$'
+ -- go.mod --
+ module example.com/main
+ 
+-require example.com/stack v1.0.0
++go 1.17
+ 
++require example.com/stack v1.0.0
++-- go.sum --
++example.com/stack v1.0.0 h1:IEDLeew5NytZ8vrgCF/QVem3H3SR3QMttdu9HfJvk9I=
++example.com/stack v1.0.0/go.mod h1:7wFEbaV5e5O7wJ8aBdqQOR//UXppm/pwnwziMKViuI4=
+ -- main.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_unused_only.txt b/src/cmd/go/testdata/script/mod_vendor_unused_only.txt
+index 839c6453cf..accd9f373d 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_unused_only.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_unused_only.txt
+@@ -12,6 +12,8 @@ module example.com/m
+ go 1.14
+ 
+ require example.com v1.0.0 // indirect
++-- go.sum --
++example.com v1.0.0/go.mod h1:WRiieAqDBb1hVdDXLLdxNtCDWNfehn7FWyPC5Oz2vB4=
+ -- go1.14-modules.txt --
+ # example.com v1.0.0
+ ## explicit
+diff --git a/src/cmd/go/testdata/script/mod_verify.txt b/src/cmd/go/testdata/script/mod_verify.txt
+index b5106659a9..f02d15aa28 100644
+--- a/src/cmd/go/testdata/script/mod_verify.txt
++++ b/src/cmd/go/testdata/script/mod_verify.txt
+@@ -39,11 +39,6 @@ stderr 'go.mod: checksum mismatch'
+ 
+ # go.sum should be created and updated automatically.
+ rm go.sum
+-go mod graph
+-exists go.sum
+-grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+-! grep '^rsc.io/quote v1.1.0 ' go.sum
+-
+ go mod tidy
+ grep '^rsc.io/quote v1.1.0/go.mod ' go.sum
+ grep '^rsc.io/quote v1.1.0 ' go.sum
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index 0ad0880817..baf25d31b8 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -24,6 +24,11 @@ stdout '^go.alt.mod$'
+ go mod edit -require rsc.io/quote@v1.5.2
+ grep rsc.io/quote go.alt.mod
+ 
++# 'go list -m' should add sums to the alternate go.sum.
++go list -m -mod=mod all
++grep '^rsc.io/quote v1.5.2/go.mod ' go.alt.sum
++! grep '^rsc.io/quote v1.5.2 ' go.alt.sum
++
+ # other 'go mod' commands should work. 'go mod vendor' is tested later.
+ go mod download rsc.io/quote
+ go mod graph

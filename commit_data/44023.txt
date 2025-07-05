@@ -44,7 +44,7 @@ Date:   Fri May 1 18:58:41 2020 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |  13 +-
  src/cmd/go.sum                                     |  28 +-
  .../github.com/ianlancetaylor/demangle/demangle.go |   1 +
@@ -147,3 +147,5263 @@ Date:   Fri May 1 18:58:41 2020 -0400
  src/vendor/golang.org/x/text/unicode/bidi/core.go  |   8 +-
  src/vendor/modules.txt                             |   7 +-
  101 files changed, 1468 insertions(+), 1662 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 05c46cbf31..1302449b1b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -1,12 +1,13 @@
+ module cmd
+ 
+-go 1.14
++go 1.15
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+-	golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff
+-	golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
+-	golang.org/x/mod v0.2.0
+-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
+-	golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca
++	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
++	golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4
++	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
++	golang.org/x/mod v0.2.1-0.20200429172858-859b3ef565e2
++	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
++	golang.org/x/tools v0.0.0-20200504152539-33427f1b0364
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 3aa3c8536b..e66011dd86 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,20 +1,21 @@
+ github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
+-github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e h1:fY5BOSpyZCqRo5OhCuC+XN+r/bBCmeuuJtjz+bCNIf8=
+ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
+ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+ github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3 h1:SRgJV+IoxM5MKyFdlSUeNy6/ycRUF2yBAKdAQswoHUk=
+ github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3/go.mod h1:ZgVRPoUq/hfqzAqh7sHMqb3I9Rq5C59dIz2SbBwJ4eM=
+-github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 h1:UDMh68UUwekSh5iP2OMhRRZJiiBccgV7axzUG8vi56c=
+ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+-golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff h1:k/MrR0lKiCokRu1JUDDAWhWZinfBAOZRzz3LkPOkFMs=
+-golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
++github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 h1:S1+yTUaFPXuDZnPDbO+TrDFIjPzQraYH8/CwSlu9Fac=
++github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
++github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
++golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4 h1:cZG+Ns0n5bdEEsURGnDinFswSebRNMqspbLvxrLZoIc=
++golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550 h1:ObdrDkeb4kJdCP557AjRjq69pTHfNouLtWZG7j9rPN8=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992 h1:B4Wjn2mWOWzjcWfyRYlf00lQ1/9h5vRKmQnhIKhMFR0=
+-golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+-golang.org/x/mod v0.2.0 h1:KU7oHjnv3XNWfa5COkzUifxZmxp1TyI7ImMXqFxLwvQ=
++golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79 h1:IaQbIIB2X/Mp/DKctl6ROxz1KyMlKp4uyvL6+kQ7C88=
++golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.2.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.2.1-0.20200429172858-859b3ef565e2 h1:VUsRDZIYpMs3R7PyYeN7BSbDfYjhxaX6HlWvM5iAEqs=
++golang.org/x/mod v0.2.1-0.20200429172858-859b3ef565e2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20200226121028-0de0cce0169b/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+@@ -23,16 +24,13 @@ golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJ
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd h1:xhmwyvizuTgC2qz7ZlMluP20uW+C3Rm0FD/WLDX8884=
+-golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
++golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 h1:5B6i6EAiSYyejWfvc5Rc9BbI3rzIsrrXfAQBWnYfn+w=
++golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e h1:aZzprAO9/8oim3qStq3wc1Xuxx4QmAGriC4VU4ojemQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca h1:cFQHQhDv9N1vc+64dtXDAyd3exHDGfRTtveOnD0IsLI=
+-golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca/go.mod h1:o4KQGtdN14AW+yjsvvwRTJJuXz8XRtIHtEnmAXLyFUw=
++golang.org/x/tools v0.0.0-20200504152539-33427f1b0364 h1:B3dlRmcq+I6Bd22nHKKa7E+r0/6mLEoJQa75WjfILUE=
++golang.org/x/tools v0.0.0-20200504152539-33427f1b0364/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+-golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 h1:/atklqdjdhuosWIl6AIbOeHJjicWYPqR9bpxqxYG2pA=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
+ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+index 62667bbde9..7541b736ba 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+@@ -250,6 +250,7 @@ func adjustErr(err error, adj int) error {
+ }
+ 
+ type forLocalNameType int
++
+ const (
+ 	forLocalName forLocalNameType = iota
+ 	notForLocalName
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/print.go b/src/cmd/vendor/golang.org/x/mod/modfile/print.go
+index 3bbea38529..524f93022a 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/print.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/print.go
+@@ -138,16 +138,11 @@ func (p *printer) expr(x Expr) {
+ 		p.printf(")")
+ 
+ 	case *Line:
+-		sep := ""
+-		for _, tok := range x.Token {
+-			p.printf("%s%s", sep, tok)
+-			sep = " "
+-		}
++		p.tokens(x.Token)
+ 
+ 	case *LineBlock:
+-		for _, tok := range x.Token {
+-			p.printf("%s ", tok)
+-		}
++		p.tokens(x.Token)
++		p.printf(" ")
+ 		p.expr(&x.LParen)
+ 		p.margin++
+ 		for _, l := range x.Line {
+@@ -163,3 +158,17 @@ func (p *printer) expr(x Expr) {
+ 	// reach the end of the line.
+ 	p.comment = append(p.comment, x.Comment().Suffix...)
+ }
++
++func (p *printer) tokens(tokens []string) {
++	sep := ""
++	for _, t := range tokens {
++		if t == "," || t == ")" || t == "]" || t == "}" {
++			sep = ""
++		}
++		p.printf("%s%s", sep, t)
++		sep = " "
++		if t == "(" || t == "[" || t == "{" {
++			sep = ""
++		}
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/read.go b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+index 616d00efdb..c1f2008ee4 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/read.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+@@ -2,13 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Module file parser.
+-// This is a simplified copy of Google's buildifier parser.
+-
+ package modfile
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"os"
+ 	"strconv"
+@@ -323,18 +321,17 @@ func (x *RParen) Span() (start, end Position) {
+ // An input represents a single input file being parsed.
+ type input struct {
+ 	// Lexing state.
+-	filename  string    // name of input file, for errors
+-	complete  []byte    // entire input
+-	remaining []byte    // remaining input
+-	token     []byte    // token being scanned
+-	lastToken string    // most recently returned token, for error messages
+-	pos       Position  // current input position
+-	comments  []Comment // accumulated comments
+-	endRule   int       // position of end of current rule
++	filename   string    // name of input file, for errors
++	complete   []byte    // entire input
++	remaining  []byte    // remaining input
++	tokenStart []byte    // token being scanned to end of input
++	token      token     // next token to be returned by lex, peek
++	pos        Position  // current input position
++	comments   []Comment // accumulated comments
+ 
+ 	// Parser state.
+-	file       *FileSyntax // returned top-level syntax tree
+-	parseError error       // error encountered during parsing
++	file        *FileSyntax // returned top-level syntax tree
++	parseErrors ErrorList   // errors encountered during parsing
+ 
+ 	// Comment assignment state.
+ 	pre  []Expr // all expressions, in preorder traversal
+@@ -352,25 +349,32 @@ func newInput(filename string, data []byte) *input {
+ 
+ // parse parses the input file.
+ func parse(file string, data []byte) (f *FileSyntax, err error) {
+-	in := newInput(file, data)
+ 	// The parser panics for both routine errors like syntax errors
+ 	// and for programmer bugs like array index errors.
+ 	// Turn both into error returns. Catching bug panics is
+ 	// especially important when processing many files.
++	in := newInput(file, data)
+ 	defer func() {
+-		if e := recover(); e != nil {
+-			if e == in.parseError {
+-				err = in.parseError
+-			} else {
+-				err = fmt.Errorf("%s:%d:%d: internal error: %v", in.filename, in.pos.Line, in.pos.LineRune, e)
+-			}
++		if e := recover(); e != nil && e != &in.parseErrors {
++			in.parseErrors = append(in.parseErrors, Error{
++				Filename: in.filename,
++				Pos:      in.pos,
++				Err:      fmt.Errorf("internal error: %v", e),
++			})
++		}
++		if err == nil && len(in.parseErrors) > 0 {
++			err = in.parseErrors
+ 		}
+ 	}()
+ 
++	// Prime the lexer by reading in the first token. It will be available
++	// in the next peek() or lex() call.
++	in.readToken()
++
+ 	// Invoke the parser.
+ 	in.parseFile()
+-	if in.parseError != nil {
+-		return nil, in.parseError
++	if len(in.parseErrors) > 0 {
++		return nil, in.parseErrors
+ 	}
+ 	in.file.Name = in.filename
+ 
+@@ -381,14 +385,14 @@ func parse(file string, data []byte) (f *FileSyntax, err error) {
+ }
+ 
+ // Error is called to report an error.
+-// The reason s is often "syntax error".
+ // Error does not return: it panics.
+ func (in *input) Error(s string) {
+-	if s == "syntax error" && in.lastToken != "" {
+-		s += " near " + in.lastToken
+-	}
+-	in.parseError = fmt.Errorf("%s:%d:%d: %v", in.filename, in.pos.Line, in.pos.LineRune, s)
+-	panic(in.parseError)
++	in.parseErrors = append(in.parseErrors, Error{
++		Filename: in.filename,
++		Pos:      in.pos,
++		Err:      errors.New(s),
++	})
++	panic(&in.parseErrors)
+ }
+ 
+ // eof reports whether the input has reached end of file.
+@@ -434,46 +438,68 @@ func (in *input) readRune() int {
+ 	return int(r)
+ }
+ 
+-type symType struct {
++type token struct {
++	kind   tokenKind
+ 	pos    Position
+ 	endPos Position
+ 	text   string
+ }
+ 
++type tokenKind int
++
++const (
++	_EOF tokenKind = -(iota + 1)
++	_EOLCOMMENT
++	_IDENT
++	_STRING
++	_COMMENT
++
++	// newlines and punctuation tokens are allowed as ASCII codes.
++)
++
++func (k tokenKind) isComment() bool {
++	return k == _COMMENT || k == _EOLCOMMENT
++}
++
++// isEOL returns whether a token terminates a line.
++func (k tokenKind) isEOL() bool {
++	return k == _EOF || k == _EOLCOMMENT || k == '\n'
++}
++
+ // startToken marks the beginning of the next input token.
+-// It must be followed by a call to endToken, once the token has
++// It must be followed by a call to endToken, once the token's text has
+ // been consumed using readRune.
+-func (in *input) startToken(sym *symType) {
+-	in.token = in.remaining
+-	sym.text = ""
+-	sym.pos = in.pos
++func (in *input) startToken() {
++	in.tokenStart = in.remaining
++	in.token.text = ""
++	in.token.pos = in.pos
+ }
+ 
+ // endToken marks the end of an input token.
+-// It records the actual token string in sym.text if the caller
+-// has not done that already.
+-func (in *input) endToken(sym *symType) {
+-	if sym.text == "" {
+-		tok := string(in.token[:len(in.token)-len(in.remaining)])
+-		sym.text = tok
+-		in.lastToken = sym.text
+-	}
+-	sym.endPos = in.pos
++// It records the actual token string in tok.text.
++func (in *input) endToken(kind tokenKind) {
++	in.token.kind = kind
++	text := string(in.tokenStart[:len(in.tokenStart)-len(in.remaining)])
++	in.token.text = text
++	in.token.endPos = in.pos
++}
++
++// peek returns the kind of the the next token returned by lex.
++func (in *input) peek() tokenKind {
++	return in.token.kind
+ }
+ 
+ // lex is called from the parser to obtain the next input token.
+-// It returns the token value (either a rune like '+' or a symbolic token _FOR)
+-// and sets val to the data associated with the token.
+-// For all our input tokens, the associated data is
+-// val.Pos (the position where the token begins)
+-// and val.Token (the input string corresponding to the token).
+-func (in *input) lex(sym *symType) int {
++func (in *input) lex() token {
++	tok := in.token
++	in.readToken()
++	return tok
++}
++
++// readToken lexes the next token from the text and stores it in in.token.
++func (in *input) readToken() {
+ 	// Skip past spaces, stopping at non-space or EOF.
+-	countNL := 0 // number of newlines we've skipped past
+ 	for !in.eof() {
+-		// Skip over spaces. Count newlines so we can give the parser
+-		// information about where top-level blank lines are,
+-		// for top-level comment assignment.
+ 		c := in.peekRune()
+ 		if c == ' ' || c == '\t' || c == '\r' {
+ 			in.readRune()
+@@ -482,7 +508,7 @@ func (in *input) lex(sym *symType) int {
+ 
+ 		// Comment runs to end of line.
+ 		if in.peekPrefix("//") {
+-			in.startToken(sym)
++			in.startToken()
+ 
+ 			// Is this comment the only thing on its line?
+ 			// Find the last \n before this // and see if it's all
+@@ -495,30 +521,23 @@ func (in *input) lex(sym *symType) int {
+ 			// Consume comment.
+ 			for len(in.remaining) > 0 && in.readRune() != '\n' {
+ 			}
+-			in.endToken(sym)
+-
+-			sym.text = strings.TrimRight(sym.text, "\n")
+-			in.lastToken = "comment"
+ 
+ 			// If we are at top level (not in a statement), hand the comment to
+ 			// the parser as a _COMMENT token. The grammar is written
+ 			// to handle top-level comments itself.
+ 			if !suffix {
+-				// Not in a statement. Tell parser about top-level comment.
+-				return _COMMENT
++				in.endToken(_COMMENT)
++				return
+ 			}
+ 
+ 			// Otherwise, save comment for later attachment to syntax tree.
+-			if countNL > 1 {
+-				in.comments = append(in.comments, Comment{sym.pos, "", false})
+-			}
+-			in.comments = append(in.comments, Comment{sym.pos, sym.text, suffix})
+-			countNL = 1
+-			return _EOL
++			in.endToken(_EOLCOMMENT)
++			in.comments = append(in.comments, Comment{in.token.pos, in.token.text, suffix})
++			return
+ 		}
+ 
+ 		if in.peekPrefix("/*") {
+-			in.Error(fmt.Sprintf("mod files must use // comments (not /* */ comments)"))
++			in.Error("mod files must use // comments (not /* */ comments)")
+ 		}
+ 
+ 		// Found non-space non-comment.
+@@ -526,35 +545,27 @@ func (in *input) lex(sym *symType) int {
+ 	}
+ 
+ 	// Found the beginning of the next token.
+-	in.startToken(sym)
+-	defer in.endToken(sym)
++	in.startToken()
+ 
+ 	// End of file.
+ 	if in.eof() {
+-		in.lastToken = "EOF"
+-		return _EOF
++		in.endToken(_EOF)
++		return
+ 	}
+ 
+ 	// Punctuation tokens.
+ 	switch c := in.peekRune(); c {
+-	case '\n':
++	case '\n', '(', ')', '[', ']', '{', '}', ',':
+ 		in.readRune()
+-		return c
+-
+-	case '(':
+-		in.readRune()
+-		return c
+-
+-	case ')':
+-		in.readRune()
+-		return c
++		in.endToken(tokenKind(c))
++		return
+ 
+ 	case '"', '`': // quoted string
+ 		quote := c
+ 		in.readRune()
+ 		for {
+ 			if in.eof() {
+-				in.pos = sym.pos
++				in.pos = in.token.pos
+ 				in.Error("unexpected EOF in string")
+ 			}
+ 			if in.peekRune() == '\n' {
+@@ -566,14 +577,14 @@ func (in *input) lex(sym *symType) int {
+ 			}
+ 			if c == '\\' && quote != '`' {
+ 				if in.eof() {
+-					in.pos = sym.pos
++					in.pos = in.token.pos
+ 					in.Error("unexpected EOF in string")
+ 				}
+ 				in.readRune()
+ 			}
+ 		}
+-		in.endToken(sym)
+-		return _STRING
++		in.endToken(_STRING)
++		return
+ 	}
+ 
+ 	// Checked all punctuation. Must be identifier token.
+@@ -587,17 +598,23 @@ func (in *input) lex(sym *symType) int {
+ 			break
+ 		}
+ 		if in.peekPrefix("/*") {
+-			in.Error(fmt.Sprintf("mod files must use // comments (not /* */ comments)"))
++			in.Error("mod files must use // comments (not /* */ comments)")
+ 		}
+ 		in.readRune()
+ 	}
+-	return _IDENT
++	in.endToken(_IDENT)
+ }
+ 
+ // isIdent reports whether c is an identifier rune.
+-// We treat nearly all runes as identifier runes.
++// We treat most printable runes as identifier runes, except for a handful of
++// ASCII punctuation characters.
+ func isIdent(c int) bool {
+-	return c != 0 && !unicode.IsSpace(rune(c))
++	switch r := rune(c); r {
++	case ' ', '(', ')', '[', ']', '{', '}', ',':
++		return false
++	default:
++		return !unicode.IsSpace(r) && unicode.IsPrint(r)
++	}
+ }
+ 
+ // Comment assignment.
+@@ -668,7 +685,7 @@ func (in *input) assignComments() {
+ 	for _, x := range in.pre {
+ 		start, _ := x.Span()
+ 		if debug {
+-			fmt.Printf("pre %T :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte)
++			fmt.Fprintf(os.Stderr, "pre %T :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte)
+ 		}
+ 		xcom := x.Comment()
+ 		for len(line) > 0 && start.Byte >= line[0].Start.Byte {
+@@ -695,7 +712,7 @@ func (in *input) assignComments() {
+ 
+ 		start, end := x.Span()
+ 		if debug {
+-			fmt.Printf("post %T :%d:%d #%d :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte, end.Line, end.LineRune, end.Byte)
++			fmt.Fprintf(os.Stderr, "post %T :%d:%d #%d :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte, end.Line, end.LineRune, end.Byte)
+ 		}
+ 
+ 		// Do not assign suffix comments to end of line block or whole file.
+@@ -745,29 +762,29 @@ func reverseComments(list []Comment) {
+ 
+ func (in *input) parseFile() {
+ 	in.file = new(FileSyntax)
+-	var sym symType
+ 	var cb *CommentBlock
+ 	for {
+-		tok := in.lex(&sym)
+-		switch tok {
++		switch in.peek() {
+ 		case '\n':
++			in.lex()
+ 			if cb != nil {
+ 				in.file.Stmt = append(in.file.Stmt, cb)
+ 				cb = nil
+ 			}
+ 		case _COMMENT:
++			tok := in.lex()
+ 			if cb == nil {
+-				cb = &CommentBlock{Start: sym.pos}
++				cb = &CommentBlock{Start: tok.pos}
+ 			}
+ 			com := cb.Comment()
+-			com.Before = append(com.Before, Comment{Start: sym.pos, Token: sym.text})
++			com.Before = append(com.Before, Comment{Start: tok.pos, Token: tok.text})
+ 		case _EOF:
+ 			if cb != nil {
+ 				in.file.Stmt = append(in.file.Stmt, cb)
+ 			}
+ 			return
+ 		default:
+-			in.parseStmt(&sym)
++			in.parseStmt()
+ 			if cb != nil {
+ 				in.file.Stmt[len(in.file.Stmt)-1].Comment().Before = cb.Before
+ 				cb = nil
+@@ -776,60 +793,88 @@ func (in *input) parseFile() {
+ 	}
+ }
+ 
+-func (in *input) parseStmt(sym *symType) {
+-	start := sym.pos
+-	end := sym.endPos
+-	token := []string{sym.text}
++func (in *input) parseStmt() {
++	tok := in.lex()
++	start := tok.pos
++	end := tok.endPos
++	tokens := []string{tok.text}
+ 	for {
+-		tok := in.lex(sym)
+-		switch tok {
+-		case '\n', _EOF, _EOL:
++		tok := in.lex()
++		switch {
++		case tok.kind.isEOL():
+ 			in.file.Stmt = append(in.file.Stmt, &Line{
+ 				Start: start,
+-				Token: token,
++				Token: tokens,
+ 				End:   end,
+ 			})
+ 			return
+-		case '(':
+-			in.file.Stmt = append(in.file.Stmt, in.parseLineBlock(start, token, sym))
+-			return
++
++		case tok.kind == '(':
++			if next := in.peek(); next.isEOL() {
++				// Start of block: no more tokens on this line.
++				in.file.Stmt = append(in.file.Stmt, in.parseLineBlock(start, tokens, tok))
++				return
++			} else if next == ')' {
++				rparen := in.lex()
++				if in.peek().isEOL() {
++					// Empty block.
++					in.lex()
++					in.file.Stmt = append(in.file.Stmt, &LineBlock{
++						Start:  start,
++						Token:  tokens,
++						LParen: LParen{Pos: tok.pos},
++						RParen: RParen{Pos: rparen.pos},
++					})
++					return
++				}
++				// '( )' in the middle of the line, not a block.
++				tokens = append(tokens, tok.text, rparen.text)
++			} else {
++				// '(' in the middle of the line, not a block.
++				tokens = append(tokens, tok.text)
++			}
++
+ 		default:
+-			token = append(token, sym.text)
+-			end = sym.endPos
++			tokens = append(tokens, tok.text)
++			end = tok.endPos
+ 		}
+ 	}
+ }
+ 
+-func (in *input) parseLineBlock(start Position, token []string, sym *symType) *LineBlock {
++func (in *input) parseLineBlock(start Position, token []string, lparen token) *LineBlock {
+ 	x := &LineBlock{
+ 		Start:  start,
+ 		Token:  token,
+-		LParen: LParen{Pos: sym.pos},
++		LParen: LParen{Pos: lparen.pos},
+ 	}
+ 	var comments []Comment
+ 	for {
+-		tok := in.lex(sym)
+-		switch tok {
+-		case _EOL:
+-			// ignore
++		switch in.peek() {
++		case _EOLCOMMENT:
++			// Suffix comment, will be attached later by assignComments.
++			in.lex()
+ 		case '\n':
++			// Blank line. Add an empty comment to preserve it.
++			in.lex()
+ 			if len(comments) == 0 && len(x.Line) > 0 || len(comments) > 0 && comments[len(comments)-1].Token != "" {
+ 				comments = append(comments, Comment{})
+ 			}
+ 		case _COMMENT:
+-			comments = append(comments, Comment{Start: sym.pos, Token: sym.text})
++			tok := in.lex()
++			comments = append(comments, Comment{Start: tok.pos, Token: tok.text})
+ 		case _EOF:
+ 			in.Error(fmt.Sprintf("syntax error (unterminated block started at %s:%d:%d)", in.filename, x.Start.Line, x.Start.LineRune))
+ 		case ')':
++			rparen := in.lex()
+ 			x.RParen.Before = comments
+-			x.RParen.Pos = sym.pos
+-			tok = in.lex(sym)
+-			if tok != '\n' && tok != _EOF && tok != _EOL {
++			x.RParen.Pos = rparen.pos
++			if !in.peek().isEOL() {
+ 				in.Error("syntax error (expected newline after closing paren)")
+ 			}
++			in.lex()
+ 			return x
+ 		default:
+-			l := in.parseLine(sym)
++			l := in.parseLine()
+ 			x.Line = append(x.Line, l)
+ 			l.Comment().Before = comments
+ 			comments = nil
+@@ -837,35 +882,29 @@ func (in *input) parseLineBlock(start Position, token []string, sym *symType) *L
+ 	}
+ }
+ 
+-func (in *input) parseLine(sym *symType) *Line {
+-	start := sym.pos
+-	end := sym.endPos
+-	token := []string{sym.text}
++func (in *input) parseLine() *Line {
++	tok := in.lex()
++	if tok.kind.isEOL() {
++		in.Error("internal parse error: parseLine at end of line")
++	}
++	start := tok.pos
++	end := tok.endPos
++	tokens := []string{tok.text}
+ 	for {
+-		tok := in.lex(sym)
+-		switch tok {
+-		case '\n', _EOF, _EOL:
++		tok := in.lex()
++		if tok.kind.isEOL() {
+ 			return &Line{
+ 				Start:   start,
+-				Token:   token,
++				Token:   tokens,
+ 				End:     end,
+ 				InBlock: true,
+ 			}
+-		default:
+-			token = append(token, sym.text)
+-			end = sym.endPos
+ 		}
++		tokens = append(tokens, tok.text)
++		end = tok.endPos
+ 	}
+ }
+ 
+-const (
+-	_EOF = -(1 + iota)
+-	_EOL
+-	_IDENT
+-	_STRING
+-	_COMMENT
+-)
+-
+ var (
+ 	slashSlash = []byte("//")
+ 	moduleStr  = []byte("module")
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 62af06889f..91ca6828df 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -2,10 +2,24 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package modfile implements a parser and formatter for go.mod files.
++//
++// The go.mod syntax is described in
++// https://golang.org/cmd/go/#hdr-The_go_mod_file.
++//
++// The Parse and ParseLax functions both parse a go.mod file and return an
++// abstract syntax tree. ParseLax ignores unknown statements and may be used to
++// parse go.mod files that may have been developed with newer versions of Go.
++//
++// The File struct returned by Parse and ParseLax represent an abstract
++// go.mod file. File has several methods like AddNewRequire and DropReplace
++// that can be used to programmatically edit a file.
++//
++// The Format function formats a File back to a byte slice which can be
++// written to a file.
+ package modfile
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"fmt"
+ 	"path/filepath"
+@@ -120,7 +134,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 		Syntax: fs,
+ 	}
+ 
+-	var errs bytes.Buffer
++	var errs ErrorList
+ 	for _, x := range fs.Stmt {
+ 		switch x := x.(type) {
+ 		case *Line:
+@@ -129,14 +143,22 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 		case *LineBlock:
+ 			if len(x.Token) > 1 {
+ 				if strict {
+-					fmt.Fprintf(&errs, "%s:%d: unknown block type: %s\n", file, x.Start.Line, strings.Join(x.Token, " "))
++					errs = append(errs, Error{
++						Filename: file,
++						Pos:      x.Start,
++						Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
++					})
+ 				}
+ 				continue
+ 			}
+ 			switch x.Token[0] {
+ 			default:
+ 				if strict {
+-					fmt.Fprintf(&errs, "%s:%d: unknown block type: %s\n", file, x.Start.Line, strings.Join(x.Token, " "))
++					errs = append(errs, Error{
++						Filename: file,
++						Pos:      x.Start,
++						Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
++					})
+ 				}
+ 				continue
+ 			case "module", "require", "exclude", "replace":
+@@ -147,15 +169,15 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (*File
+ 		}
+ 	}
+ 
+-	if errs.Len() > 0 {
+-		return nil, errors.New(strings.TrimRight(errs.String(), "\n"))
++	if len(errs) > 0 {
++		return nil, errs
+ 	}
+ 	return f, nil
+ }
+ 
+ var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+ 
+-func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
++func (f *File) add(errs *ErrorList, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+ 	// If strict is false, this module is a dependency.
+ 	// We ignore all unknown directives as well as main-module-only
+ 	// directives like replace and exclude. It will work better for
+@@ -171,60 +193,83 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 		}
+ 	}
+ 
++	wrapModPathError := func(modPath string, err error) {
++		*errs = append(*errs, Error{
++			Filename: f.Syntax.Name,
++			Pos:      line.Start,
++			ModPath:  modPath,
++			Verb:     verb,
++			Err:      err,
++		})
++	}
++	wrapError := func(err error) {
++		*errs = append(*errs, Error{
++			Filename: f.Syntax.Name,
++			Pos:      line.Start,
++			Err:      err,
++		})
++	}
++	errorf := func(format string, args ...interface{}) {
++		wrapError(fmt.Errorf(format, args...))
++	}
++
+ 	switch verb {
+ 	default:
+-		fmt.Fprintf(errs, "%s:%d: unknown directive: %s\n", f.Syntax.Name, line.Start.Line, verb)
++		errorf("unknown directive: %s", verb)
+ 
+ 	case "go":
+ 		if f.Go != nil {
+-			fmt.Fprintf(errs, "%s:%d: repeated go statement\n", f.Syntax.Name, line.Start.Line)
++			errorf("repeated go statement")
+ 			return
+ 		}
+-		if len(args) != 1 || !GoVersionRE.MatchString(args[0]) {
+-			fmt.Fprintf(errs, "%s:%d: usage: go 1.23\n", f.Syntax.Name, line.Start.Line)
++		if len(args) != 1 {
++			errorf("go directive expects exactly one argument")
++			return
++		} else if !GoVersionRE.MatchString(args[0]) {
++			errorf("invalid go version '%s': must match format 1.23", args[0])
+ 			return
+ 		}
++
+ 		f.Go = &Go{Syntax: line}
+ 		f.Go.Version = args[0]
+ 	case "module":
+ 		if f.Module != nil {
+-			fmt.Fprintf(errs, "%s:%d: repeated module statement\n", f.Syntax.Name, line.Start.Line)
++			errorf("repeated module statement")
+ 			return
+ 		}
+ 		f.Module = &Module{Syntax: line}
+ 		if len(args) != 1 {
+-
+-			fmt.Fprintf(errs, "%s:%d: usage: module module/path\n", f.Syntax.Name, line.Start.Line)
++			errorf("usage: module module/path")
+ 			return
+ 		}
+ 		s, err := parseString(&args[0])
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
++			errorf("invalid quoted string: %v", err)
+ 			return
+ 		}
+ 		f.Module.Mod = module.Version{Path: s}
+ 	case "require", "exclude":
+ 		if len(args) != 2 {
+-			fmt.Fprintf(errs, "%s:%d: usage: %s module/path v1.2.3\n", f.Syntax.Name, line.Start.Line, verb)
++			errorf("usage: %s module/path v1.2.3", verb)
+ 			return
+ 		}
+ 		s, err := parseString(&args[0])
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
++			errorf("invalid quoted string: %v", err)
+ 			return
+ 		}
+ 		v, err := parseVersion(verb, s, &args[1], fix)
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
++			wrapError(err)
+ 			return
+ 		}
+ 		pathMajor, err := modulePathMajor(s)
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
++			wrapError(err)
+ 			return
+ 		}
+ 		if err := module.CheckPathMajor(v, pathMajor); err != nil {
+-			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, &Error{Verb: verb, ModPath: s, Err: err})
++			wrapModPathError(s, err)
+ 			return
+ 		}
+ 		if verb == "require" {
+@@ -245,55 +290,55 @@ func (f *File) add(errs *bytes.Buffer, line *Line, verb string, args []string, f
+ 			arrow = 1
+ 		}
+ 		if len(args) < arrow+2 || len(args) > arrow+3 || args[arrow] != "=>" {
+-			fmt.Fprintf(errs, "%s:%d: usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory\n", f.Syntax.Name, line.Start.Line, verb, verb)
++			errorf("usage: %s module/path [v1.2.3] => other/module v1.4\n\t or %s module/path [v1.2.3] => ../local/directory", verb, verb)
+ 			return
+ 		}
+ 		s, err := parseString(&args[0])
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
++			errorf("invalid quoted string: %v", err)
+ 			return
+ 		}
+ 		pathMajor, err := modulePathMajor(s)
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
++			wrapModPathError(s, err)
+ 			return
+ 		}
+ 		var v string
+ 		if arrow == 2 {
+ 			v, err = parseVersion(verb, s, &args[1], fix)
+ 			if err != nil {
+-				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
++				wrapError(err)
+ 				return
+ 			}
+ 			if err := module.CheckPathMajor(v, pathMajor); err != nil {
+-				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, &Error{Verb: verb, ModPath: s, Err: err})
++				wrapModPathError(s, err)
+ 				return
+ 			}
+ 		}
+ 		ns, err := parseString(&args[arrow+1])
+ 		if err != nil {
+-			fmt.Fprintf(errs, "%s:%d: invalid quoted string: %v\n", f.Syntax.Name, line.Start.Line, err)
++			errorf("invalid quoted string: %v", err)
+ 			return
+ 		}
+ 		nv := ""
+ 		if len(args) == arrow+2 {
+ 			if !IsDirectoryPath(ns) {
+-				fmt.Fprintf(errs, "%s:%d: replacement module without version must be directory path (rooted or starting with ./ or ../)\n", f.Syntax.Name, line.Start.Line)
++				errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
+ 				return
+ 			}
+ 			if filepath.Separator == '/' && strings.Contains(ns, `\`) {
+-				fmt.Fprintf(errs, "%s:%d: replacement directory appears to be Windows path (on a non-windows system)\n", f.Syntax.Name, line.Start.Line)
++				errorf("replacement directory appears to be Windows path (on a non-windows system)")
+ 				return
+ 			}
+ 		}
+ 		if len(args) == arrow+3 {
+ 			nv, err = parseVersion(verb, ns, &args[arrow+2], fix)
+ 			if err != nil {
+-				fmt.Fprintf(errs, "%s:%d: %v\n", f.Syntax.Name, line.Start.Line, err)
++				wrapError(err)
+ 				return
+ 			}
+ 			if IsDirectoryPath(ns) {
+-				fmt.Fprintf(errs, "%s:%d: replacement module directory path %q cannot have version\n", f.Syntax.Name, line.Start.Line, ns)
++				errorf("replacement module directory path %q cannot have version", ns)
+ 				return
+ 			}
+ 		}
+@@ -372,8 +417,19 @@ func IsDirectoryPath(ns string) bool {
+ // a single token in a go.mod line.
+ func MustQuote(s string) bool {
+ 	for _, r := range s {
+-		if !unicode.IsPrint(r) || r == ' ' || r == '"' || r == '\'' || r == '`' {
++		switch r {
++		case ' ', '"', '\'', '`':
+ 			return true
++
++		case '(', ')', '[', ']', '{', '}', ',':
++			if len(s) > 1 {
++				return true
++			}
++
++		default:
++			if !unicode.IsPrint(r) {
++				return true
++			}
+ 		}
+ 	}
+ 	return s == "" || strings.Contains(s, "//") || strings.Contains(s, "/*")
+@@ -405,14 +461,42 @@ func parseString(s *string) (string, error) {
+ 	return t, nil
+ }
+ 
++type ErrorList []Error
++
++func (e ErrorList) Error() string {
++	errStrs := make([]string, len(e))
++	for i, err := range e {
++		errStrs[i] = err.Error()
++	}
++	return strings.Join(errStrs, "\n")
++}
++
+ type Error struct {
+-	Verb    string
+-	ModPath string
+-	Err     error
++	Filename string
++	Pos      Position
++	Verb     string
++	ModPath  string
++	Err      error
+ }
+ 
+ func (e *Error) Error() string {
+-	return fmt.Sprintf("%s %s: %v", e.Verb, e.ModPath, e.Err)
++	var pos string
++	if e.Pos.LineRune > 1 {
++		// Don't print LineRune if it's 1 (beginning of line).
++		// It's always 1 except in scanner errors, which are rare.
++		pos = fmt.Sprintf("%s:%d:%d: ", e.Filename, e.Pos.Line, e.Pos.LineRune)
++	} else if e.Pos.Line > 0 {
++		pos = fmt.Sprintf("%s:%d: ", e.Filename, e.Pos.Line)
++	} else if e.Filename != "" {
++		pos = fmt.Sprintf("%s: ", e.Filename)
++	}
++
++	var directive string
++	if e.ModPath != "" {
++		directive = fmt.Sprintf("%s %s: ", e.Verb, e.ModPath)
++	}
++
++	return pos + directive + e.Err.Error()
+ }
+ 
+ func (e *Error) Unwrap() error { return e.Err }
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index 37c764257e..6865895b3d 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -247,6 +247,9 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
+ 
+ 	var files []File
+ 	err = filepath.Walk(dir, func(filePath string, info os.FileInfo, err error) error {
++		if err != nil {
++			return err
++		}
+ 		relPath, err := filepath.Rel(dir, filePath)
+ 		if err != nil {
+ 			return err
+@@ -313,6 +316,12 @@ func (f dirFile) Path() string                 { return f.slashPath }
+ func (f dirFile) Lstat() (os.FileInfo, error)  { return f.info, nil }
+ func (f dirFile) Open() (io.ReadCloser, error) { return os.Open(f.filePath) }
+ 
++// isVendoredPackage attempts to report whether the given filename is contained
++// in a package whose import path contains (but does not end with) the component
++// "vendor".
++//
++// Unfortunately, isVendoredPackage reports false positives for files in any
++// non-top-level package whose import path ends in "vendor".
+ func isVendoredPackage(name string) bool {
+ 	var i int
+ 	if strings.HasPrefix(name, "vendor/") {
+@@ -322,15 +331,8 @@ func isVendoredPackage(name string) bool {
+ 		//
+ 		// 	i = j + len("/vendor/")
+ 		//
+-		// (See https://golang.org/issue/31562.)
+-		//
+-		// Unfortunately, we can't fix it without invalidating checksums.
+-		// Fortunately, the error appears to be strictly conservative: we'll retain
+-		// vendored packages that we should have pruned, but we won't prune
+-		// non-vendored packages that we should have retained.
+-		//
+-		// Since this defect doesn't seem to break anything, it's not worth fixing
+-		// for now.
++		// (See https://golang.org/issue/31562 and https://golang.org/issue/37397.)
++		// Unfortunately, we can't fix it without invalidating module checksums.
+ 		i += len("/vendor/")
+ 	} else {
+ 		return false
+diff --git a/src/cmd/vendor/golang.org/x/sys/internal/unsafeheader/unsafeheader.go b/src/cmd/vendor/golang.org/x/sys/internal/unsafeheader/unsafeheader.go
+new file mode 100644
+index 0000000000..e07899b909
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/internal/unsafeheader/unsafeheader.go
+@@ -0,0 +1,30 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package unsafeheader contains header declarations for the Go runtime's
++// slice and string implementations.
++//
++// This package allows x/sys to use types equivalent to
++// reflect.SliceHeader and reflect.StringHeader without introducing
++// a dependency on the (relatively heavy) "reflect" package.
++package unsafeheader
++
++import (
++	"unsafe"
++)
++
++// Slice is the runtime representation of a slice.
++// It cannot be used safely or portably and its representation may change in a later release.
++type Slice struct {
++	Data unsafe.Pointer
++	Len  int
++	Cap  int
++}
++
++// String is the runtime representation of a string.
++// It cannot be used safely or portably and its representation may change in a later release.
++type String struct {
++	Data unsafe.Pointer
++	Len  int
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/README.md b/src/cmd/vendor/golang.org/x/sys/unix/README.md
+index ab433ccfbb..579d2d7355 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/README.md
++++ b/src/cmd/vendor/golang.org/x/sys/unix/README.md
+@@ -89,7 +89,7 @@ constants.
+ 
+ Adding new syscall numbers is mostly done by running the build on a sufficiently
+ new installation of the target OS (or updating the source checkouts for the
+-new build system). However, depending on the OS, you make need to update the
++new build system). However, depending on the OS, you may need to update the
+ parsing in mksysnum.
+ 
+ ### mksyscall.go
+@@ -163,7 +163,7 @@ The merge is performed in the following steps:
+ 
+ ## Generated files
+ 
+-### `zerror_${GOOS}_${GOARCH}.go`
++### `zerrors_${GOOS}_${GOARCH}.go`
+ 
+ A file containing all of the system's generated error numbers, error strings,
+ signal numbers, and constants. Generated by `mkerrors.sh` (see above).
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index bc076cf629..780e387e3f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -187,6 +187,7 @@ struct ltchars {
+ #include <sys/select.h>
+ #include <sys/signalfd.h>
+ #include <sys/socket.h>
++#include <sys/timerfd.h>
+ #include <sys/uio.h>
+ #include <sys/xattr.h>
+ #include <linux/bpf.h>
+@@ -200,6 +201,7 @@ struct ltchars {
+ #include <linux/filter.h>
+ #include <linux/fs.h>
+ #include <linux/fscrypt.h>
++#include <linux/fsverity.h>
+ #include <linux/genetlink.h>
+ #include <linux/hdreg.h>
+ #include <linux/icmpv6.h>
+@@ -479,12 +481,13 @@ ccflags="$@"
+ 		$2 ~ /^(MS|MNT|UMOUNT)_/ ||
+ 		$2 ~ /^NS_GET_/ ||
+ 		$2 ~ /^TUN(SET|GET|ATTACH|DETACH)/ ||
+-		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT)_/ ||
++		$2 ~ /^(O|F|[ES]?FD|NAME|S|PTRACE|PT|TFD)_/ ||
+ 		$2 ~ /^KEXEC_/ ||
+ 		$2 ~ /^LINUX_REBOOT_CMD_/ ||
+ 		$2 ~ /^LINUX_REBOOT_MAGIC[12]$/ ||
+ 		$2 ~ /^MODULE_INIT_/ ||
+ 		$2 !~ "NLA_TYPE_MASK" &&
++		$2 !~ /^RTC_VL_(ACCURACY|BACKUP|DATA)/ &&
+ 		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|IFAN|RT|RTC|RTCF|RTN|RTPROT|RTNH|ARPHRD|ETH_P|NETNSA)_/ ||
+ 		$2 ~ /^SIOC/ ||
+ 		$2 ~ /^TIOC/ ||
+@@ -506,7 +509,8 @@ ccflags="$@"
+ 		$2 ~ /^CAP_/ ||
+ 		$2 ~ /^ALG_/ ||
+ 		$2 ~ /^FS_(POLICY_FLAGS|KEY_DESC|ENCRYPTION_MODE|[A-Z0-9_]+_KEY_SIZE)/ ||
+-		$2 ~ /^FS_IOC_.*ENCRYPTION/ ||
++		$2 ~ /^FS_IOC_.*(ENCRYPTION|VERITY|GETFLAGS)/ ||
++		$2 ~ /^FS_VERITY_/ ||
+ 		$2 ~ /^FSCRYPT_/ ||
+ 		$2 ~ /^GRND_/ ||
+ 		$2 ~ /^RND/ ||
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.1_13.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.1_13.go
+index f911617be9..dc0befee37 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.1_13.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.1_13.go
+@@ -6,7 +6,11 @@
+ 
+ package unix
+ 
+-import "unsafe"
++import (
++	"unsafe"
++
++	"golang.org/x/sys/internal/unsafeheader"
++)
+ 
+ //sys	closedir(dir uintptr) (err error)
+ //sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
+@@ -71,6 +75,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 			cnt++
+ 			continue
+ 		}
++
+ 		reclen := int(entry.Reclen)
+ 		if reclen > len(buf) {
+ 			// Not enough room. Return for now.
+@@ -79,13 +84,15 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
+ 			// restarting is O(n^2) in the length of the directory. Oh well.
+ 			break
+ 		}
++
+ 		// Copy entry into return buffer.
+-		s := struct {
+-			ptr unsafe.Pointer
+-			siz int
+-			cap int
+-		}{ptr: unsafe.Pointer(&entry), siz: reclen, cap: reclen}
+-		copy(buf, *(*[]byte)(unsafe.Pointer(&s)))
++		var s []byte
++		hdr := (*unsafeheader.Slice)(unsafe.Pointer(&s))
++		hdr.Data = unsafe.Pointer(&entry)
++		hdr.Cap = reclen
++		hdr.Len = reclen
++		copy(buf, s)
++
+ 		buf = buf[reclen:]
+ 		n += reclen
+ 		cnt++
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index bbe1abbcee..942a4bbf74 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1633,6 +1633,15 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	CopyFileRange(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
+ //sys	DeleteModule(name string, flags int) (err error)
+ //sys	Dup(oldfd int) (fd int, err error)
++
++func Dup2(oldfd, newfd int) error {
++	// Android O and newer blocks dup2; riscv and arm64 don't implement dup2.
++	if runtime.GOOS == "android" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "arm64" {
++		return Dup3(oldfd, newfd, 0)
++	}
++	return dup2(oldfd, newfd)
++}
++
+ //sys	Dup3(oldfd int, newfd int, flags int) (err error)
+ //sysnb	EpollCreate1(flag int) (fd int, err error)
+ //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
+@@ -1757,6 +1766,9 @@ func Signalfd(fd int, sigmask *Sigset_t, flags int) (newfd int, err error) {
+ //sys	Syncfs(fd int) (err error)
+ //sysnb	Sysinfo(info *Sysinfo_t) (err error)
+ //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
++//sysnb TimerfdCreate(clockid int, flags int) (fd int, err error)
++//sysnb TimerfdGettime(fd int, currValue *ItimerSpec) (err error)
++//sysnb TimerfdSettime(fd int, flags int, newValue *ItimerSpec, oldValue *ItimerSpec) (err error)
+ //sysnb	Tgkill(tgid int, tid int, sig syscall.Signal) (err error)
+ //sysnb	Times(tms *Tms) (ticks uintptr, err error)
+ //sysnb	Umask(mask int) (oldmask int)
+@@ -2178,7 +2190,6 @@ func Klogset(typ int, arg int) (err error) {
+ // TimerGetoverrun
+ // TimerGettime
+ // TimerSettime
+-// Timerfd
+ // Tkill (obsolete)
+ // Tuxcall
+ // Umount2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_386.go
+index a8374b67cf..048d18e3c8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_386.go
+@@ -49,7 +49,7 @@ func Pipe2(p []int, flags int) (err error) {
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (386 default is 32-bit file system and 16-bit uid).
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64_64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go
+index 8ed1d546f0..72efe86ed4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go
+@@ -6,7 +6,7 @@
+ 
+ package unix
+ 
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
+index 99ae613733..e1913e2c93 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm.go
+@@ -80,7 +80,7 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ 
+ // 64-bit file system and 32-bit uid calls
+ // (16-bit uid calls are not always supported in newer kernels)
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error) = SYS_FCHOWN32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+index 807a0b20c3..c6de6b9134 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+@@ -25,7 +25,7 @@ func EpollCreate(size int) (fd int, err error) {
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
++//sysnb	getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+@@ -47,7 +47,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ //sysnb	Setregid(rgid int, egid int) (err error)
+ //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+ //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+-//sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
++//sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+@@ -168,6 +168,24 @@ func Pipe2(p []int, flags int) (err error) {
+ 	return
+ }
+ 
++// Getrlimit prefers the prlimit64 system call. See issue 38604.
++func Getrlimit(resource int, rlim *Rlimit) error {
++	err := prlimit(0, resource, nil, rlim)
++	if err != ENOSYS {
++		return err
++	}
++	return getrlimit(resource, rlim)
++}
++
++// Setrlimit prefers the prlimit64 system call. See issue 38604.
++func Setrlimit(resource int, rlim *Rlimit) error {
++	err := prlimit(0, resource, rlim, nil)
++	if err != ENOSYS {
++		return err
++	}
++	return setrlimit(resource, rlim)
++}
++
+ func (r *PtraceRegs) PC() uint64 { return r.Pc }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Pc = pc }
+@@ -192,9 +210,9 @@ func InotifyInit() (fd int, err error) {
+ 	return InotifyInit1(0)
+ }
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
+-	return Dup3(oldfd, newfd, 0)
+-}
++// dup2 exists because func Dup3 in syscall_linux.go references
++// it in an unreachable path. dup2 isn't available on arm64.
++func dup2(oldfd int, newfd int) error
+ 
+ func Pause() error {
+ 	_, err := ppoll(nil, 0, nil, nil)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go
+index af77e6e25e..f0287476cd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go
+@@ -7,7 +7,7 @@
+ 
+ package unix
+ 
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mipsx.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mipsx.go
+index e286c6ba31..c11328111d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mipsx.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mipsx.go
+@@ -14,7 +14,7 @@ import (
+ 
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_ppc64x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_ppc64x.go
+index ca0345aabf..349374409b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_ppc64x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_ppc64x.go
+@@ -7,7 +7,7 @@
+ 
+ package unix
+ 
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+index abdabbac3f..b0b1505565 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+@@ -191,10 +191,6 @@ func InotifyInit() (fd int, err error) {
+ 	return InotifyInit1(0)
+ }
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
+-	return Dup3(oldfd, newfd, 0)
+-}
+-
+ func Pause() error {
+ 	_, err := ppoll(nil, 0, nil, nil)
+ 	return err
+@@ -228,3 +224,7 @@ func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error
+ 	}
+ 	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
+ }
++
++// dup2 exists because func Dup3 in syscall_linux.go references
++// it in an unreachable path. dup2 isn't available on arm64.
++func dup2(oldfd int, newfd int) error
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go
+index 533e9305e7..2363f74991 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_s390x.go
+@@ -10,7 +10,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sysnb	EpollCreate(size int) (fd int, err error)
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_sparc64.go
+index d890a227bf..d389f1518f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_sparc64.go
+@@ -8,7 +8,7 @@ package unix
+ 
+ //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
+ //sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_FADVISE64
+-//sys	Dup2(oldfd int, newfd int) (err error)
++//sys	dup2(oldfd int, newfd int) (err error)
+ //sys	Fchown(fd int, uid int, gid int) (err error)
+ //sys	Fstat(fd int, stat *Stat_t) (err error)
+ //sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+index 8f710d0140..400ba9fbc9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+@@ -12,6 +12,8 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"unsafe"
++
++	"golang.org/x/sys/internal/unsafeheader"
+ )
+ 
+ var (
+@@ -113,15 +115,12 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
+ 		return nil, errno
+ 	}
+ 
+-	// Slice memory layout
+-	var sl = struct {
+-		addr uintptr
+-		len  int
+-		cap  int
+-	}{addr, length, length}
+-
+-	// Use unsafe to turn sl into a []byte.
+-	b := *(*[]byte)(unsafe.Pointer(&sl))
++	// Use unsafe to convert addr into a []byte.
++	var b []byte
++	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
++	hdr.Data = unsafe.Pointer(addr)
++	hdr.Cap = length
++	hdr.Len = length
+ 
+ 	// Register mapping in m and return it.
+ 	p := &b[cap(b)-1]
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 84c599c524..6e3cfec46c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -216,6 +216,7 @@ const (
+ 	BPF_F_RDONLY                                = 0x8
+ 	BPF_F_RDONLY_PROG                           = 0x80
+ 	BPF_F_RECOMPUTE_CSUM                        = 0x1
++	BPF_F_REPLACE                               = 0x4
+ 	BPF_F_REUSE_STACKID                         = 0x400
+ 	BPF_F_SEQ_NUMBER                            = 0x8
+ 	BPF_F_SKIP_FIELD_MASK                       = 0xff
+@@ -389,6 +390,7 @@ const (
+ 	CLONE_NEWNET                                = 0x40000000
+ 	CLONE_NEWNS                                 = 0x20000
+ 	CLONE_NEWPID                                = 0x20000000
++	CLONE_NEWTIME                               = 0x80
+ 	CLONE_NEWUSER                               = 0x10000000
+ 	CLONE_NEWUTS                                = 0x4000000
+ 	CLONE_PARENT                                = 0x8000
+@@ -671,6 +673,7 @@ const (
+ 	FS_IOC_ADD_ENCRYPTION_KEY                   = 0xc0506617
+ 	FS_IOC_GET_ENCRYPTION_KEY_STATUS            = 0xc080661a
+ 	FS_IOC_GET_ENCRYPTION_POLICY_EX             = 0xc0096616
++	FS_IOC_MEASURE_VERITY                       = 0xc0046686
+ 	FS_IOC_REMOVE_ENCRYPTION_KEY                = 0xc0406618
+ 	FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS      = 0xc0406619
+ 	FS_KEY_DESCRIPTOR_SIZE                      = 0x8
+@@ -683,6 +686,9 @@ const (
+ 	FS_POLICY_FLAGS_PAD_8                       = 0x1
+ 	FS_POLICY_FLAGS_PAD_MASK                    = 0x3
+ 	FS_POLICY_FLAGS_VALID                       = 0xf
++	FS_VERITY_FL                                = 0x100000
++	FS_VERITY_HASH_ALG_SHA256                   = 0x1
++	FS_VERITY_HASH_ALG_SHA512                   = 0x2
+ 	FUTEXFS_SUPER_MAGIC                         = 0xbad1dea
+ 	F_ADD_SEALS                                 = 0x409
+ 	F_DUPFD                                     = 0x0
+@@ -733,6 +739,7 @@ const (
+ 	GENL_NAMSIZ                                 = 0x10
+ 	GENL_START_ALLOC                            = 0x13
+ 	GENL_UNS_ADMIN_PERM                         = 0x10
++	GRND_INSECURE                               = 0x4
+ 	GRND_NONBLOCK                               = 0x1
+ 	GRND_RANDOM                                 = 0x2
+ 	HDIO_DRIVE_CMD                              = 0x31f
+@@ -1483,6 +1490,7 @@ const (
+ 	PR_GET_FPEMU                                = 0x9
+ 	PR_GET_FPEXC                                = 0xb
+ 	PR_GET_FP_MODE                              = 0x2e
++	PR_GET_IO_FLUSHER                           = 0x3a
+ 	PR_GET_KEEPCAPS                             = 0x7
+ 	PR_GET_NAME                                 = 0x10
+ 	PR_GET_NO_NEW_PRIVS                         = 0x27
+@@ -1518,6 +1526,7 @@ const (
+ 	PR_SET_FPEMU                                = 0xa
+ 	PR_SET_FPEXC                                = 0xc
+ 	PR_SET_FP_MODE                              = 0x2d
++	PR_SET_IO_FLUSHER                           = 0x39
+ 	PR_SET_KEEPCAPS                             = 0x8
+ 	PR_SET_MM                                   = 0x23
+ 	PR_SET_MM_ARG_END                           = 0x9
+@@ -1746,12 +1755,15 @@ const (
+ 	RTM_DELRULE                                 = 0x21
+ 	RTM_DELTCLASS                               = 0x29
+ 	RTM_DELTFILTER                              = 0x2d
++	RTM_DELVLAN                                 = 0x71
+ 	RTM_F_CLONED                                = 0x200
+ 	RTM_F_EQUALIZE                              = 0x400
+ 	RTM_F_FIB_MATCH                             = 0x2000
+ 	RTM_F_LOOKUP_TABLE                          = 0x1000
+ 	RTM_F_NOTIFY                                = 0x100
++	RTM_F_OFFLOAD                               = 0x4000
+ 	RTM_F_PREFIX                                = 0x800
++	RTM_F_TRAP                                  = 0x8000
+ 	RTM_GETACTION                               = 0x32
+ 	RTM_GETADDR                                 = 0x16
+ 	RTM_GETADDRLABEL                            = 0x4a
+@@ -1773,7 +1785,8 @@ const (
+ 	RTM_GETSTATS                                = 0x5e
+ 	RTM_GETTCLASS                               = 0x2a
+ 	RTM_GETTFILTER                              = 0x2e
+-	RTM_MAX                                     = 0x6f
++	RTM_GETVLAN                                 = 0x72
++	RTM_MAX                                     = 0x73
+ 	RTM_NEWACTION                               = 0x30
+ 	RTM_NEWADDR                                 = 0x14
+ 	RTM_NEWADDRLABEL                            = 0x48
+@@ -1788,6 +1801,7 @@ const (
+ 	RTM_NEWNETCONF                              = 0x50
+ 	RTM_NEWNEXTHOP                              = 0x68
+ 	RTM_NEWNSID                                 = 0x58
++	RTM_NEWNVLAN                                = 0x70
+ 	RTM_NEWPREFIX                               = 0x34
+ 	RTM_NEWQDISC                                = 0x24
+ 	RTM_NEWROUTE                                = 0x18
+@@ -1795,8 +1809,8 @@ const (
+ 	RTM_NEWSTATS                                = 0x5c
+ 	RTM_NEWTCLASS                               = 0x28
+ 	RTM_NEWTFILTER                              = 0x2c
+-	RTM_NR_FAMILIES                             = 0x18
+-	RTM_NR_MSGTYPES                             = 0x60
++	RTM_NR_FAMILIES                             = 0x19
++	RTM_NR_MSGTYPES                             = 0x64
+ 	RTM_SETDCB                                  = 0x4f
+ 	RTM_SETLINK                                 = 0x13
+ 	RTM_SETNEIGHTBL                             = 0x43
+@@ -2086,7 +2100,7 @@ const (
+ 	TASKSTATS_GENL_NAME                         = "TASKSTATS"
+ 	TASKSTATS_GENL_VERSION                      = 0x1
+ 	TASKSTATS_TYPE_MAX                          = 0x6
+-	TASKSTATS_VERSION                           = 0x9
++	TASKSTATS_VERSION                           = 0xa
+ 	TCIFLUSH                                    = 0x0
+ 	TCIOFF                                      = 0x2
+ 	TCIOFLUSH                                   = 0x2
+@@ -2151,6 +2165,8 @@ const (
+ 	TCP_USER_TIMEOUT                            = 0x12
+ 	TCP_WINDOW_CLAMP                            = 0xa
+ 	TCP_ZEROCOPY_RECEIVE                        = 0x23
++	TFD_TIMER_ABSTIME                           = 0x1
++	TFD_TIMER_CANCEL_ON_SET                     = 0x2
+ 	TIMER_ABSTIME                               = 0x1
+ 	TIOCM_DTR                                   = 0x2
+ 	TIOCM_LE                                    = 0x1
+@@ -2267,7 +2283,7 @@ const (
+ 	VMADDR_CID_ANY                              = 0xffffffff
+ 	VMADDR_CID_HOST                             = 0x2
+ 	VMADDR_CID_HYPERVISOR                       = 0x0
+-	VMADDR_CID_RESERVED                         = 0x1
++	VMADDR_CID_LOCAL                            = 0x1
+ 	VMADDR_PORT_ANY                             = 0xffffffff
+ 	VM_SOCKETS_INVALID_VERSION                  = 0xffffffff
+ 	VQUIT                                       = 0x1
+@@ -2394,6 +2410,7 @@ const (
+ 	XENFS_SUPER_MAGIC                           = 0xabba1974
+ 	XFS_SUPER_MAGIC                             = 0x58465342
+ 	Z3FOLD_MAGIC                                = 0x33
++	ZONEFS_MAGIC                                = 0x5a4f4653
+ 	ZSMALLOC_MAGIC                              = 0x58295829
+ )
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 0876cf92ff..5e974110d9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -73,6 +73,8 @@ const (
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
+ 	FP_XSTATE_MAGIC2                 = 0x46505845
++	FS_IOC_ENABLE_VERITY             = 0x40806685
++	FS_IOC_GETFLAGS                  = 0x80046601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
+@@ -340,6 +342,8 @@ const (
+ 	TCSETXF                          = 0x5434
+ 	TCSETXW                          = 0x5435
+ 	TCXONC                           = 0x540a
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index d5be2e8377..47a57fe468 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -73,6 +73,8 @@ const (
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
+ 	FP_XSTATE_MAGIC2                 = 0x46505845
++	FS_IOC_ENABLE_VERITY             = 0x40806685
++	FS_IOC_GETFLAGS                  = 0x80086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
+@@ -341,6 +343,8 @@ const (
+ 	TCSETXF                          = 0x5434
+ 	TCSETXW                          = 0x5435
+ 	TCXONC                           = 0x540a
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index fbeef83252..df2eea4bb7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
++	FS_IOC_ENABLE_VERITY             = 0x40806685
++	FS_IOC_GETFLAGS                  = 0x80046601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
+@@ -347,6 +349,8 @@ const (
+ 	TCSETXF                          = 0x5434
+ 	TCSETXW                          = 0x5435
+ 	TCXONC                           = 0x540a
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 06daa50ebd..4e1214217f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -75,6 +75,8 @@ const (
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
+ 	FPSIMD_MAGIC                     = 0x46508001
++	FS_IOC_ENABLE_VERITY             = 0x40806685
++	FS_IOC_GETFLAGS                  = 0x80086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
+@@ -334,6 +336,8 @@ const (
+ 	TCSETXF                          = 0x5434
+ 	TCSETXW                          = 0x5435
+ 	TCXONC                           = 0x540a
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index 7c866b8f5b..a23b08029a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x2000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40046601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -337,6 +339,8 @@ const (
+ 	TCSETSW                          = 0x540f
+ 	TCSETSW2                         = 0x8030542c
+ 	TCXONC                           = 0x5406
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x80
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x80047478
+ 	TIOCEXCL                         = 0x740d
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index c42966d19c..a5a921e43b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x2000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -337,6 +339,8 @@ const (
+ 	TCSETSW                          = 0x540f
+ 	TCSETSW2                         = 0x8030542c
+ 	TCXONC                           = 0x5406
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x80
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x80047478
+ 	TIOCEXCL                         = 0x740d
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index a5b2b42739..d088e197bd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x2000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -337,6 +339,8 @@ const (
+ 	TCSETSW                          = 0x540f
+ 	TCSETSW2                         = 0x8030542c
+ 	TCXONC                           = 0x5406
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x80
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x80047478
+ 	TIOCEXCL                         = 0x740d
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index 7f91881b81..0ddf9d5fe8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x2000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40046601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -337,6 +339,8 @@ const (
+ 	TCSETSW                          = 0x540f
+ 	TCSETSW2                         = 0x8030542c
+ 	TCXONC                           = 0x5406
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x80
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x80047478
+ 	TIOCEXCL                         = 0x740d
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index 63df35597e..a93ffc1807 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x4000
+ 	FFDLY                            = 0x4000
+ 	FLUSHO                           = 0x800000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -391,6 +393,8 @@ const (
+ 	TCSETSF                          = 0x802c7416
+ 	TCSETSW                          = 0x802c7415
+ 	TCXONC                           = 0x2000741e
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index 7ab68f7c8a..c1ea48b95f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x4000
+ 	FFDLY                            = 0x4000
+ 	FLUSHO                           = 0x800000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -391,6 +393,8 @@ const (
+ 	TCSETSF                          = 0x802c7416
+ 	TCSETSW                          = 0x802c7415
+ 	TCXONC                           = 0x2000741e
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index f99cf1b9e0..7def950ba5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
++	FS_IOC_ENABLE_VERITY             = 0x40806685
++	FS_IOC_GETFLAGS                  = 0x80086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
+@@ -328,6 +330,8 @@ const (
+ 	TCSETXF                          = 0x5434
+ 	TCSETXW                          = 0x5435
+ 	TCXONC                           = 0x540a
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index 613ee237e3..d39293c871 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -72,6 +72,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
++	FS_IOC_ENABLE_VERITY             = 0x40806685
++	FS_IOC_GETFLAGS                  = 0x80086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x400c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x40106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x800c6613
+@@ -401,6 +403,8 @@ const (
+ 	TCSETXF                          = 0x5434
+ 	TCSETXW                          = 0x5435
+ 	TCXONC                           = 0x540a
++	TFD_CLOEXEC                      = 0x80000
++	TFD_NONBLOCK                     = 0x800
+ 	TIOCCBRK                         = 0x5428
+ 	TIOCCONS                         = 0x541d
+ 	TIOCEXCL                         = 0x540c
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index 1f7a68d5cc..3ff3ec681b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -76,6 +76,8 @@ const (
+ 	FF1                              = 0x8000
+ 	FFDLY                            = 0x8000
+ 	FLUSHO                           = 0x1000
++	FS_IOC_ENABLE_VERITY             = 0x80806685
++	FS_IOC_GETFLAGS                  = 0x40086601
+ 	FS_IOC_GET_ENCRYPTION_POLICY     = 0x800c6615
+ 	FS_IOC_GET_ENCRYPTION_PWSALT     = 0x80106614
+ 	FS_IOC_SET_ENCRYPTION_POLICY     = 0x400c6613
+@@ -390,6 +392,8 @@ const (
+ 	TCSETSW                          = 0x8024540a
+ 	TCSETSW2                         = 0x802c540e
+ 	TCXONC                           = 0x20005406
++	TFD_CLOEXEC                      = 0x400000
++	TFD_NONBLOCK                     = 0x4000
+ 	TIOCCBRK                         = 0x2000747a
+ 	TIOCCONS                         = 0x20007424
+ 	TIOCEXCL                         = 0x2000740d
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index fd2dae8e57..df217825f0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -1450,6 +1450,37 @@ func Sysinfo(info *Sysinfo_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func TimerfdCreate(clockid int, flags int) (fd int, err error) {
++	r0, _, e1 := RawSyscall(SYS_TIMERFD_CREATE, uintptr(clockid), uintptr(flags), 0)
++	fd = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func TimerfdGettime(fd int, currValue *ItimerSpec) (err error) {
++	_, _, e1 := RawSyscall(SYS_TIMERFD_GETTIME, uintptr(fd), uintptr(unsafe.Pointer(currValue)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func TimerfdSettime(fd int, flags int, newValue *ItimerSpec, oldValue *ItimerSpec) (err error) {
++	_, _, e1 := RawSyscall6(SYS_TIMERFD_SETTIME, uintptr(fd), uintptr(flags), uintptr(unsafe.Pointer(newValue)), uintptr(unsafe.Pointer(oldValue)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Tgkill(tgid int, tid int, sig syscall.Signal) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_TGKILL, uintptr(tgid), uintptr(tid), uintptr(sig))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go
+index ba63af7b08..19ebd3ff75 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_386.go
+@@ -55,7 +55,7 @@ func pipe(p *[2]_C_int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go
+index f64adef415..5c562182a1 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_amd64.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
+index ac19523e88..dc69d99c61 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm.go
+@@ -234,7 +234,7 @@ func sendmsg(s int, msg *Msghdr, flags int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go
+index f0d2890b16..1b897dee05 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_arm64.go
+@@ -151,7 +151,7 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
++func getrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -307,7 +307,7 @@ func Setresuid(ruid int, euid int, suid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setrlimit(resource int, rlim *Rlimit) (err error) {
++func setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go
+index aecbbca754..49186843ae 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go
+index 424fb7fb60..9171d3bd2a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go
+index 28c7239cf6..82286f04f9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mips64le.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go
+index 84596b300a..15920621c4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_mipsle.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go
+index de022639d6..73a42e2ccb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go
+index 888f21d37a..6b85595366 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_ppc64le.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go
+index 9bc353f0c4..d7032ab1e4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_s390x.go
+@@ -45,7 +45,7 @@ func Tee(rfd int, wfd int, len int, flags int) (n int64, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go
+index 854e816d67..bcbbdd906e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_sparc64.go
+@@ -72,7 +72,7 @@ func Fadvise(fd int, offset int64, length int64, advice int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Dup2(oldfd int, newfd int) (err error) {
++func dup2(oldfd int, newfd int) (err error) {
+ 	_, _, e1 := Syscall(SYS_DUP2, uintptr(oldfd), uintptr(newfd), 0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
+index 7aae554f21..54559a8956 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_386.go
+@@ -431,4 +431,6 @@ const (
+ 	SYS_FSPICK                       = 433
+ 	SYS_PIDFD_OPEN                   = 434
+ 	SYS_CLONE3                       = 435
++	SYS_OPENAT2                      = 437
++	SYS_PIDFD_GETFD                  = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+index 7968439a92..054a741b7f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+@@ -353,4 +353,6 @@ const (
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
+ 	SYS_CLONE3                 = 435
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
+index 3c663c69d4..307f2ba12e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm.go
+@@ -395,4 +395,6 @@ const (
+ 	SYS_FSPICK                       = 433
+ 	SYS_PIDFD_OPEN                   = 434
+ 	SYS_CLONE3                       = 435
++	SYS_OPENAT2                      = 437
++	SYS_PIDFD_GETFD                  = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+index 1f3b4d150f..e9404dd545 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+@@ -298,4 +298,6 @@ const (
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
+ 	SYS_CLONE3                 = 435
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
+index 00da3de907..68bb6d29b8 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips.go
+@@ -416,4 +416,6 @@ const (
+ 	SYS_FSPICK                       = 4433
+ 	SYS_PIDFD_OPEN                   = 4434
+ 	SYS_CLONE3                       = 4435
++	SYS_OPENAT2                      = 4437
++	SYS_PIDFD_GETFD                  = 4438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
+index d404fbd4d4..4e5251185f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64.go
+@@ -346,4 +346,6 @@ const (
+ 	SYS_FSPICK                 = 5433
+ 	SYS_PIDFD_OPEN             = 5434
+ 	SYS_CLONE3                 = 5435
++	SYS_OPENAT2                = 5437
++	SYS_PIDFD_GETFD            = 5438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
+index bfbf242f33..4d9aa3003b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mips64le.go
+@@ -346,4 +346,6 @@ const (
+ 	SYS_FSPICK                 = 5433
+ 	SYS_PIDFD_OPEN             = 5434
+ 	SYS_CLONE3                 = 5435
++	SYS_OPENAT2                = 5437
++	SYS_PIDFD_GETFD            = 5438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
+index 3826f497ad..64af0707d5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_mipsle.go
+@@ -416,4 +416,6 @@ const (
+ 	SYS_FSPICK                       = 4433
+ 	SYS_PIDFD_OPEN                   = 4434
+ 	SYS_CLONE3                       = 4435
++	SYS_OPENAT2                      = 4437
++	SYS_PIDFD_GETFD                  = 4438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
+index 52e3da6490..cc3c067ba3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64.go
+@@ -395,4 +395,6 @@ const (
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
+ 	SYS_CLONE3                 = 435
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
+index 6141f90a82..4050ff9836 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_ppc64le.go
+@@ -395,4 +395,6 @@ const (
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
+ 	SYS_CLONE3                 = 435
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+index 4f7261a884..529abb6a7f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+@@ -297,4 +297,6 @@ const (
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
+ 	SYS_CLONE3                 = 435
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+index f47014ac05..2766500109 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_s390x.go
+@@ -360,4 +360,6 @@ const (
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
+ 	SYS_CLONE3                 = 435
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+index dd78abb0d6..4dc82bb249 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_sparc64.go
+@@ -374,4 +374,6 @@ const (
+ 	SYS_FSMOUNT                = 432
+ 	SYS_FSPICK                 = 433
+ 	SYS_PIDFD_OPEN             = 434
++	SYS_OPENAT2                = 437
++	SYS_PIDFD_GETFD            = 438
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index cb5e06c605..416f7767e7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -18,6 +18,11 @@ type (
+ 	_C_long_long int64
+ )
+ 
++type ItimerSpec struct {
++	Interval Timespec
++	Value    Timespec
++}
++
+ const (
+ 	TIME_OK    = 0x0
+ 	TIME_INS   = 0x1
+@@ -114,7 +119,8 @@ type FscryptKeySpecifier struct {
+ type FscryptAddKeyArg struct {
+ 	Key_spec FscryptKeySpecifier
+ 	Raw_size uint32
+-	_        [9]uint32
++	Key_id   uint32
++	_        [8]uint32
+ }
+ 
+ type FscryptRemoveKeyArg struct {
+@@ -479,7 +485,7 @@ const (
+ 	IFLA_NEW_IFINDEX        = 0x31
+ 	IFLA_MIN_MTU            = 0x32
+ 	IFLA_MAX_MTU            = 0x33
+-	IFLA_MAX                = 0x35
++	IFLA_MAX                = 0x36
+ 	IFLA_INFO_KIND          = 0x1
+ 	IFLA_INFO_DATA          = 0x2
+ 	IFLA_INFO_XSTATS        = 0x3
+@@ -2291,3 +2297,49 @@ const (
+ 	DEVLINK_DPIPE_HEADER_IPV4                 = 0x1
+ 	DEVLINK_DPIPE_HEADER_IPV6                 = 0x2
+ )
++
++type FsverityDigest struct {
++	Algorithm uint16
++	Size      uint16
++}
++
++type FsverityEnableArg struct {
++	Version        uint32
++	Hash_algorithm uint32
++	Block_size     uint32
++	Salt_size      uint32
++	Salt_ptr       uint64
++	Sig_size       uint32
++	_              uint32
++	Sig_ptr        uint64
++	_              [11]uint64
++}
++
++type Nhmsg struct {
++	Family   uint8
++	Scope    uint8
++	Protocol uint8
++	Resvd    uint8
++	Flags    uint32
++}
++
++type NexthopGrp struct {
++	Id     uint32
++	Weight uint8
++	Resvd1 uint8
++	Resvd2 uint16
++}
++
++const (
++	NHA_UNSPEC     = 0x0
++	NHA_ID         = 0x1
++	NHA_GROUP      = 0x2
++	NHA_GROUP_TYPE = 0x3
++	NHA_BLACKHOLE  = 0x4
++	NHA_OIF        = 0x5
++	NHA_GATEWAY    = 0x6
++	NHA_ENCAP_TYPE = 0x7
++	NHA_ENCAP      = 0x8
++	NHA_GROUPS     = 0x9
++	NHA_MASTER     = 0xa
++)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+index fc6b3fb5c4..761b67c864 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_386.go
+@@ -287,6 +287,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+index 26c30b84d0..201fb3482d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_amd64.go
+@@ -298,6 +298,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+index 814d42d543..8051b56108 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm.go
+@@ -276,6 +276,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+index d9664c7135..a936f21692 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_arm64.go
+@@ -277,6 +277,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+index 0d721454f5..aaca03dd7d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips.go
+@@ -281,6 +281,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+index ef697684d1..2e7f3b8ca4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64.go
+@@ -280,6 +280,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+index 485fda70be..16add5a257 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mips64le.go
+@@ -280,6 +280,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+index 569477eef8..4ed2c8e54c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_mipsle.go
+@@ -281,6 +281,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+index 602d8b4eed..7415190997 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64.go
+@@ -287,6 +287,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+index 6db9a7b737..046c2debd4 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_ppc64le.go
+@@ -287,6 +287,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+index 52b5348c2e..0f2f61a6ad 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+@@ -305,6 +305,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+index a111387b3a..cca1b6be27 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_s390x.go
+@@ -300,6 +300,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+index 8153af1818..33a73bf183 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_sparc64.go
+@@ -282,6 +282,7 @@ type Taskstats struct {
+ 	Freepages_delay_total     uint64
+ 	Thrashing_count           uint64
+ 	Thrashing_delay_total     uint64
++	Ac_btime64                uint64
+ }
+ 
+ type cpuMask uint64
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index ea605f4fd4..8c9977355c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -7,6 +7,8 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"reflect"
++
++	"golang.org/x/tools/internal/analysisinternal"
+ )
+ 
+ // An Analyzer describes an analysis function and its options.
+@@ -69,6 +71,17 @@ type Analyzer struct {
+ 
+ func (a *Analyzer) String() string { return a.Name }
+ 
++func init() {
++	// Set the analysisinternal functions to be able to pass type errors
++	// to the Pass type without modifying the go/analysis API.
++	analysisinternal.SetTypeErrors = func(p interface{}, errors []types.Error) {
++		p.(*Pass).typeErrors = errors
++	}
++	analysisinternal.GetTypeErrors = func(p interface{}) []types.Error {
++		return p.(*Pass).typeErrors
++	}
++}
++
+ // A Pass provides information to the Run function that
+ // applies a specific analyzer to a single Go package.
+ //
+@@ -138,6 +151,9 @@ type Pass struct {
+ 	// WARNING: This is an experimental API and may change in the future.
+ 	AllObjectFacts func() []ObjectFact
+ 
++	// typeErrors contains types.Errors that are associated with the pkg.
++	typeErrors []types.Error
++
+ 	/* Further fields may be added in future. */
+ 	// For example, suggested or applied refactorings.
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index 0778f42207..4b7be2d1f5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -382,7 +382,7 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
+ func (tree JSONTree) Print() {
+ 	data, err := json.MarshalIndent(tree, "", "\t")
+ 	if err != nil {
+-		log.Panicf("internal error: JSON marshalling failed: %v", err)
++		log.Panicf("internal error: JSON marshaling failed: %v", err)
+ 	}
+ 	fmt.Printf("%s\n", data)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index ebd7f6e34b..14f3a47610 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -508,9 +508,13 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
+ 	return fn, KindNone
+ }
+ 
+-// isFormatter reports whether t satisfies fmt.Formatter.
++// isFormatter reports whether t could satisfy fmt.Formatter.
+ // The only interface method to look for is "Format(State, rune)".
+ func isFormatter(typ types.Type) bool {
++	// If the type is an interface, the value it holds might satisfy fmt.Formatter.
++	if _, ok := typ.Underlying().(*types.Interface); ok {
++		return true
++	}
+ 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
+ 	fn, ok := obj.(*types.Func)
+ 	if !ok {
+@@ -827,7 +831,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		}
+ 	}
+ 
+-	// Does current arg implement fmt.Formatter?
++	// Could current arg implement fmt.Formatter?
+ 	formatter := false
+ 	if state.argNum < len(call.Args) {
+ 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
+@@ -891,43 +895,51 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString)
+ 		return false
+ 	}
+-	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) && recursiveStringer(pass, arg) {
+-		pass.ReportRangef(call, "%s format %s with arg %s causes recursive String method call", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+-		return false
++	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
++		if methodName, ok := recursiveStringer(pass, arg); ok {
++			pass.ReportRangef(call, "%s format %s with arg %s causes recursive %s method call", state.name, state.format, analysisutil.Format(pass.Fset, arg), methodName)
++			return false
++		}
+ 	}
+ 	return true
+ }
+ 
+ // recursiveStringer reports whether the argument e is a potential
+-// recursive call to stringer, such as t and &t in these examples:
++// recursive call to stringer or is an error, such as t and &t in these examples:
+ //
+ // 	func (t *T) String() string { printf("%s",  t) }
+-// 	func (t  T) String() string { printf("%s",  t) }
++// 	func (t  T) Error() string { printf("%s",  t) }
+ // 	func (t  T) String() string { printf("%s", &t) }
+-//
+-func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
++func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
+ 	typ := pass.TypesInfo.Types[e].Type
+ 
+ 	// It's unlikely to be a recursive stringer if it has a Format method.
+ 	if isFormatter(typ) {
+-		return false
++		return "", false
+ 	}
+ 
+-	// Does e allow e.String()?
+-	obj, _, _ := types.LookupFieldOrMethod(typ, false, pass.Pkg, "String")
+-	stringMethod, ok := obj.(*types.Func)
+-	if !ok {
+-		return false
++	// Does e allow e.String() or e.Error()?
++	strObj, _, _ := types.LookupFieldOrMethod(typ, false, pass.Pkg, "String")
++	strMethod, strOk := strObj.(*types.Func)
++	errObj, _, _ := types.LookupFieldOrMethod(typ, false, pass.Pkg, "Error")
++	errMethod, errOk := errObj.(*types.Func)
++	if !strOk && !errOk {
++		return "", false
+ 	}
+ 
+-	// Is the expression e within the body of that String method?
+-	if stringMethod.Pkg() != pass.Pkg || !stringMethod.Scope().Contains(e.Pos()) {
+-		return false
++	// Is the expression e within the body of that String or Error method?
++	var method *types.Func
++	if strOk && strMethod.Pkg() == pass.Pkg && strMethod.Scope().Contains(e.Pos()) {
++		method = strMethod
++	} else if errOk && errMethod.Pkg() == pass.Pkg && errMethod.Scope().Contains(e.Pos()) {
++		method = errMethod
++	} else {
++		return "", false
+ 	}
+ 
+-	sig := stringMethod.Type().(*types.Signature)
++	sig := method.Type().(*types.Signature)
+ 	if !isStringer(sig) {
+-		return false
++		return "", false
+ 	}
+ 
+ 	// Is it the receiver r, or &r?
+@@ -935,9 +947,11 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
+ 		e = u.X // strip off & from &r
+ 	}
+ 	if id, ok := e.(*ast.Ident); ok {
+-		return pass.TypesInfo.Uses[id] == sig.Recv()
++		if pass.TypesInfo.Uses[id] == sig.Recv() {
++			return method.Name(), true
++		}
+ 	}
+-	return false
++	return "", false
+ }
+ 
+ // isStringer reports whether the method signature matches the String() definition in fmt.Stringer.
+@@ -1061,8 +1075,8 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if isFunctionValue(pass, arg) {
+ 			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.Name(), analysisutil.Format(pass.Fset, arg))
+ 		}
+-		if recursiveStringer(pass, arg) {
+-			pass.ReportRangef(call, "%s arg %s causes recursive call to String method", fn.Name(), analysisutil.Format(pass.Fset, arg))
++		if methodName, ok := recursiveStringer(pass, arg); ok {
++			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", fn.Name(), analysisutil.Format(pass.Fset, arg), methodName)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+index 089c064838..90896dd1bb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unreachable/unreachable.go
+@@ -189,7 +189,18 @@ func (d *deadState) findDead(stmt ast.Stmt) {
+ 		case *ast.EmptyStmt:
+ 			// do not warn about unreachable empty statements
+ 		default:
+-			d.pass.ReportRangef(stmt, "unreachable code")
++			d.pass.Report(analysis.Diagnostic{
++				Pos:     stmt.Pos(),
++				End:     stmt.End(),
++				Message: "unreachable code",
++				SuggestedFixes: []analysis.SuggestedFix{{
++					Message: "Remove",
++					TextEdits: []analysis.TextEdit{{
++						Pos: stmt.Pos(),
++						End: stmt.End(),
++					}},
++				}},
++			})
+ 			d.reachable = true // silence error about next statement
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+index 3084508b5f..af5e17feee 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+@@ -150,7 +150,11 @@ func traverse(files []*ast.File) []event {
+ 		extent += int(f.End() - f.Pos())
+ 	}
+ 	// This estimate is based on the net/http package.
+-	events := make([]event, 0, extent*33/100)
++	capacity := extent * 33 / 100
++	if capacity > 1e6 {
++		capacity = 1e6 // impose some reasonable maximum
++	}
++	events := make([]event, 0, capacity)
+ 
+ 	var stack []event
+ 	for _, f := range files {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+new file mode 100644
+index 0000000000..26586810c7
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -0,0 +1,118 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package analysisinternal exposes internal-only fields from go/analysis.
++package analysisinternal
++
++import (
++	"bytes"
++	"fmt"
++	"go/ast"
++	"go/token"
++	"go/types"
++	"strings"
++
++	"golang.org/x/tools/go/ast/astutil"
++)
++
++func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
++	// Get the end position for the type error.
++	offset, end := fset.PositionFor(start, false).Offset, start
++	if offset >= len(src) {
++		return end
++	}
++	if width := bytes.IndexAny(src[offset:], " \n,():;[]+-*"); width > 0 {
++		end = start + token.Pos(width)
++	}
++	return end
++}
++
++func ZeroValue(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
++	under := typ
++	if n, ok := typ.(*types.Named); ok {
++		under = n.Underlying()
++	}
++	switch u := under.(type) {
++	case *types.Basic:
++		switch {
++		case u.Info()&types.IsNumeric != 0:
++			return &ast.BasicLit{Kind: token.INT, Value: "0"}
++		case u.Info()&types.IsBoolean != 0:
++			return &ast.Ident{Name: "false"}
++		case u.Info()&types.IsString != 0:
++			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
++		default:
++			panic("unknown basic type")
++		}
++	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
++		return ast.NewIdent("nil")
++	case *types.Struct:
++		texpr := typeExpr(fset, f, pkg, typ) // typ because we want the name here.
++		if texpr == nil {
++			return nil
++		}
++		return &ast.CompositeLit{
++			Type: texpr,
++		}
++	case *types.Array:
++		texpr := typeExpr(fset, f, pkg, u.Elem())
++		if texpr == nil {
++			return nil
++		}
++		return &ast.CompositeLit{
++			Type: &ast.ArrayType{
++				Elt: texpr,
++				Len: &ast.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", u.Len())},
++			},
++		}
++	}
++	return nil
++}
++
++func typeExpr(fset *token.FileSet, f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
++	switch t := typ.(type) {
++	case *types.Basic:
++		switch t.Kind() {
++		case types.UnsafePointer:
++			return &ast.SelectorExpr{X: ast.NewIdent("unsafe"), Sel: ast.NewIdent("Pointer")}
++		default:
++			return ast.NewIdent(t.Name())
++		}
++	case *types.Named:
++		if t.Obj().Pkg() == pkg {
++			return ast.NewIdent(t.Obj().Name())
++		}
++		pkgName := t.Obj().Pkg().Name()
++		// If the file already imports the package under another name, use that.
++		for _, group := range astutil.Imports(fset, f) {
++			for _, cand := range group {
++				if strings.Trim(cand.Path.Value, `"`) == t.Obj().Pkg().Path() {
++					if cand.Name != nil && cand.Name.Name != "" {
++						pkgName = cand.Name.Name
++					}
++				}
++			}
++		}
++		if pkgName == "." {
++			return ast.NewIdent(t.Obj().Name())
++		}
++		return &ast.SelectorExpr{
++			X:   ast.NewIdent(pkgName),
++			Sel: ast.NewIdent(t.Obj().Name()),
++		}
++	default:
++		return nil // TODO: anonymous structs, but who does that
++	}
++}
++
++var GetTypeErrors = func(p interface{}) []types.Error { return nil }
++var SetTypeErrors = func(p interface{}, errors []types.Error) {}
++
++type TypeErrorPass string
++
++const (
++	NoNewVars      TypeErrorPass = "nonewvars"
++	NoResultValues TypeErrorPass = "noresultvalues"
++	UndeclaredName TypeErrorPass = "undeclaredname"
++)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 1761ac3389..10d7d4b9f1 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -15,20 +15,21 @@ github.com/google/pprof/profile
+ github.com/google/pprof/third_party/d3
+ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+-# github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6
++# github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340
++## explicit
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff
++# golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4
+ ## explicit
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
++# golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+ ## explicit
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.2.0
++# golang.org/x/mod v0.2.1-0.20200429172858-859b3ef565e2
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -39,11 +40,12 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
++# golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3
+ ## explicit
++golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20200309180859-aa4048aca1ca
++# golang.org/x/tools v0.0.0-20200504152539-33427f1b0364
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+@@ -81,6 +83,7 @@ golang.org/x/tools/go/ast/inspector
+ golang.org/x/tools/go/cfg
+ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
++golang.org/x/tools/internal/analysisinternal
+ # golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+ golang.org/x/xerrors
+ golang.org/x/xerrors/internal
+diff --git a/src/go.mod b/src/go.mod
+index d0e651edf5..29407a8a2c 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -1,9 +1,10 @@
+ module std
+ 
+-go 1.14
++go 1.15
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
++	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+ 	golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5
+-	golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f // indirect
++	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
++	golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 43b5eead88..e154f542f8 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,15 +1,15 @@
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992 h1:B4Wjn2mWOWzjcWfyRYlf00lQ1/9h5vRKmQnhIKhMFR0=
+-golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79 h1:IaQbIIB2X/Mp/DKctl6ROxz1KyMlKp4uyvL6+kQ7C88=
++golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5 h1:WQ8q63x+f/zpC8Ac1s9wLElVoHhm32p6tudrU72n1QA=
+ golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5/go.mod h1:qpuaurCH72eLCgpAm/N6yyVIVM9cpaDIP3A8BGJEC5A=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd h1:xhmwyvizuTgC2qz7ZlMluP20uW+C3Rm0FD/WLDX8884=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 h1:5B6i6EAiSYyejWfvc5Rc9BbI3rzIsrrXfAQBWnYfn+w=
++golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f h1:wYBuYA3M/ZC3iBpL1jKHNRNEK7d8D3JoJmM+zx6rLVQ=
+-golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+-golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e h1:FDhOuMEY4JVRztM/gsbk+IKUQ8kj74bxZrgw87eMMVc=
++golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530 h1:5BI4smlcep+Tom3S2Ogln1ojaBZK8Gomqwu5WpBL0jU=
++golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go b/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
+index 7c498e90d9..a2ecf5c325 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/chacha_generic.go
+@@ -42,10 +42,14 @@ type Cipher struct {
+ 
+ 	// The last len bytes of buf are leftover key stream bytes from the previous
+ 	// XORKeyStream invocation. The size of buf depends on how many blocks are
+-	// computed at a time.
++	// computed at a time by xorKeyStreamBlocks.
+ 	buf [bufSize]byte
+ 	len int
+ 
++	// overflow is set when the counter overflowed, no more blocks can be
++	// generated, and the next XORKeyStream call should panic.
++	overflow bool
++
+ 	// The counter-independent results of the first round are cached after they
+ 	// are computed the first time.
+ 	precompDone      bool
+@@ -89,6 +93,7 @@ func newUnauthenticatedCipher(c *Cipher, key, nonce []byte) (*Cipher, error) {
+ 		return nil, errors.New("chacha20: wrong nonce size")
+ 	}
+ 
++	key, nonce = key[:KeySize], nonce[:NonceSize] // bounds check elimination hint
+ 	c.key = [8]uint32{
+ 		binary.LittleEndian.Uint32(key[0:4]),
+ 		binary.LittleEndian.Uint32(key[4:8]),
+@@ -139,15 +144,18 @@ func quarterRound(a, b, c, d uint32) (uint32, uint32, uint32, uint32) {
+ // SetCounter sets the Cipher counter. The next invocation of XORKeyStream will
+ // behave as if (64 * counter) bytes had been encrypted so far.
+ //
+-// To prevent accidental counter reuse, SetCounter panics if counter is
+-// less than the current value.
++// To prevent accidental counter reuse, SetCounter panics if counter is less
++// than the current value.
++//
++// Note that the execution time of XORKeyStream is not independent of the
++// counter value.
+ func (s *Cipher) SetCounter(counter uint32) {
+ 	// Internally, s may buffer multiple blocks, which complicates this
+ 	// implementation slightly. When checking whether the counter has rolled
+ 	// back, we must use both s.counter and s.len to determine how many blocks
+ 	// we have already output.
+ 	outputCounter := s.counter - uint32(s.len)/blockSize
+-	if counter < outputCounter {
++	if s.overflow || counter < outputCounter {
+ 		panic("chacha20: SetCounter attempted to rollback counter")
+ 	}
+ 
+@@ -196,34 +204,52 @@ func (s *Cipher) XORKeyStream(dst, src []byte) {
+ 			dst[i] = src[i] ^ b
+ 		}
+ 		s.len -= len(keyStream)
+-		src = src[len(keyStream):]
+-		dst = dst[len(keyStream):]
++		dst, src = dst[len(keyStream):], src[len(keyStream):]
++	}
++	if len(src) == 0 {
++		return
+ 	}
+ 
+-	const blocksPerBuf = bufSize / blockSize
+-	numBufs := (uint64(len(src)) + bufSize - 1) / bufSize
+-	if uint64(s.counter)+numBufs*blocksPerBuf >= 1<<32 {
++	// If we'd need to let the counter overflow and keep generating output,
++	// panic immediately. If instead we'd only reach the last block, remember
++	// not to generate any more output after the buffer is drained.
++	numBlocks := (uint64(len(src)) + blockSize - 1) / blockSize
++	if s.overflow || uint64(s.counter)+numBlocks > 1<<32 {
+ 		panic("chacha20: counter overflow")
++	} else if uint64(s.counter)+numBlocks == 1<<32 {
++		s.overflow = true
+ 	}
+ 
+ 	// xorKeyStreamBlocks implementations expect input lengths that are a
+ 	// multiple of bufSize. Platform-specific ones process multiple blocks at a
+ 	// time, so have bufSizes that are a multiple of blockSize.
+ 
+-	rem := len(src) % bufSize
+-	full := len(src) - rem
+-
++	full := len(src) - len(src)%bufSize
+ 	if full > 0 {
+ 		s.xorKeyStreamBlocks(dst[:full], src[:full])
+ 	}
++	dst, src = dst[full:], src[full:]
++
++	// If using a multi-block xorKeyStreamBlocks would overflow, use the generic
++	// one that does one block at a time.
++	const blocksPerBuf = bufSize / blockSize
++	if uint64(s.counter)+blocksPerBuf > 1<<32 {
++		s.buf = [bufSize]byte{}
++		numBlocks := (len(src) + blockSize - 1) / blockSize
++		buf := s.buf[bufSize-numBlocks*blockSize:]
++		copy(buf, src)
++		s.xorKeyStreamBlocksGeneric(buf, buf)
++		s.len = len(buf) - copy(dst, buf)
++		return
++	}
+ 
+ 	// If we have a partial (multi-)block, pad it for xorKeyStreamBlocks, and
+ 	// keep the leftover keystream for the next XORKeyStream invocation.
+-	if rem > 0 {
++	if len(src) > 0 {
+ 		s.buf = [bufSize]byte{}
+-		copy(s.buf[:], src[full:])
++		copy(s.buf[:], src)
+ 		s.xorKeyStreamBlocks(s.buf[:], s.buf[:])
+-		s.len = bufSize - copy(dst[full:], s.buf[:])
++		s.len = bufSize - copy(dst, s.buf[:])
+ 	}
+ }
+ 
+@@ -260,7 +286,9 @@ func (s *Cipher) xorKeyStreamBlocksGeneric(dst, src []byte) {
+ 		s.precompDone = true
+ 	}
+ 
+-	for i := 0; i < len(src); i += blockSize {
++	// A condition of len(src) > 0 would be sufficient, but this also
++	// acts as a bounds check elimination hint.
++	for len(src) >= 64 && len(dst) >= 64 {
+ 		// The remainder of the first column round.
+ 		fcr0, fcr4, fcr8, fcr12 := quarterRound(c0, c4, c8, s.counter)
+ 
+@@ -285,49 +313,28 @@ func (s *Cipher) xorKeyStreamBlocksGeneric(dst, src []byte) {
+ 			x3, x4, x9, x14 = quarterRound(x3, x4, x9, x14)
+ 		}
+ 
+-		// Finally, add back the initial state to generate the key stream.
+-		x0 += c0
+-		x1 += c1
+-		x2 += c2
+-		x3 += c3
+-		x4 += c4
+-		x5 += c5
+-		x6 += c6
+-		x7 += c7
+-		x8 += c8
+-		x9 += c9
+-		x10 += c10
+-		x11 += c11
+-		x12 += s.counter
+-		x13 += c13
+-		x14 += c14
+-		x15 += c15
++		// Add back the initial state to generate the key stream, then
++		// XOR the key stream with the source and write out the result.
++		addXor(dst[0:4], src[0:4], x0, c0)
++		addXor(dst[4:8], src[4:8], x1, c1)
++		addXor(dst[8:12], src[8:12], x2, c2)
++		addXor(dst[12:16], src[12:16], x3, c3)
++		addXor(dst[16:20], src[16:20], x4, c4)
++		addXor(dst[20:24], src[20:24], x5, c5)
++		addXor(dst[24:28], src[24:28], x6, c6)
++		addXor(dst[28:32], src[28:32], x7, c7)
++		addXor(dst[32:36], src[32:36], x8, c8)
++		addXor(dst[36:40], src[36:40], x9, c9)
++		addXor(dst[40:44], src[40:44], x10, c10)
++		addXor(dst[44:48], src[44:48], x11, c11)
++		addXor(dst[48:52], src[48:52], x12, s.counter)
++		addXor(dst[52:56], src[52:56], x13, c13)
++		addXor(dst[56:60], src[56:60], x14, c14)
++		addXor(dst[60:64], src[60:64], x15, c15)
+ 
+ 		s.counter += 1
+-		if s.counter == 0 {
+-			panic("chacha20: internal error: counter overflow")
+-		}
+ 
+-		in, out := src[i:], dst[i:]
+-		in, out = in[:blockSize], out[:blockSize] // bounds check elimination hint
+-
+-		// XOR the key stream with the source and write out the result.
+-		xor(out[0:], in[0:], x0)
+-		xor(out[4:], in[4:], x1)
+-		xor(out[8:], in[8:], x2)
+-		xor(out[12:], in[12:], x3)
+-		xor(out[16:], in[16:], x4)
+-		xor(out[20:], in[20:], x5)
+-		xor(out[24:], in[24:], x6)
+-		xor(out[28:], in[28:], x7)
+-		xor(out[32:], in[32:], x8)
+-		xor(out[36:], in[36:], x9)
+-		xor(out[40:], in[40:], x10)
+-		xor(out[44:], in[44:], x11)
+-		xor(out[48:], in[48:], x12)
+-		xor(out[52:], in[52:], x13)
+-		xor(out[56:], in[56:], x14)
+-		xor(out[60:], in[60:], x15)
++		src, dst = src[blockSize:], dst[blockSize:]
+ 	}
+ }
+ 
+diff --git a/src/vendor/golang.org/x/crypto/chacha20/xor.go b/src/vendor/golang.org/x/crypto/chacha20/xor.go
+index 0110c9865a..c2d04851e0 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20/xor.go
++++ b/src/vendor/golang.org/x/crypto/chacha20/xor.go
+@@ -13,10 +13,10 @@ const unaligned = runtime.GOARCH == "386" ||
+ 	runtime.GOARCH == "ppc64le" ||
+ 	runtime.GOARCH == "s390x"
+ 
+-// xor reads a little endian uint32 from src, XORs it with u and
++// addXor reads a little endian uint32 from src, XORs it with (a + b) and
+ // places the result in little endian byte order in dst.
+-func xor(dst, src []byte, u uint32) {
+-	_, _ = src[3], dst[3] // eliminate bounds checks
++func addXor(dst, src []byte, a, b uint32) {
++	_, _ = src[3], dst[3] // bounds check elimination hint
+ 	if unaligned {
+ 		// The compiler should optimize this code into
+ 		// 32-bit unaligned little endian loads and stores.
+@@ -27,15 +27,16 @@ func xor(dst, src []byte, u uint32) {
+ 		v |= uint32(src[1]) << 8
+ 		v |= uint32(src[2]) << 16
+ 		v |= uint32(src[3]) << 24
+-		v ^= u
++		v ^= a + b
+ 		dst[0] = byte(v)
+ 		dst[1] = byte(v >> 8)
+ 		dst[2] = byte(v >> 16)
+ 		dst[3] = byte(v >> 24)
+ 	} else {
+-		dst[0] = src[0] ^ byte(u)
+-		dst[1] = src[1] ^ byte(u>>8)
+-		dst[2] = src[2] ^ byte(u>>16)
+-		dst[3] = src[3] ^ byte(u>>24)
++		a += b
++		dst[0] = src[0] ^ byte(a)
++		dst[1] = src[1] ^ byte(a>>8)
++		dst[2] = src[2] ^ byte(a>>16)
++		dst[3] = src[3] ^ byte(a>>24)
+ 	}
+ }
+diff --git a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+index 91b38568ce..fe191d395d 100644
+--- a/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
++++ b/src/vendor/golang.org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+@@ -12,56 +12,64 @@ import (
+ 	"golang.org/x/crypto/poly1305"
+ )
+ 
+-func roundTo16(n int) int {
+-	return 16 * ((n + 15) / 16)
++func writeWithPadding(p *poly1305.MAC, b []byte) {
++	p.Write(b)
++	if rem := len(b) % 16; rem != 0 {
++		var buf [16]byte
++		padLen := 16 - rem
++		p.Write(buf[:padLen])
++	}
++}
++
++func writeUint64(p *poly1305.MAC, n int) {
++	var buf [8]byte
++	binary.LittleEndian.PutUint64(buf[:], uint64(n))
++	p.Write(buf[:])
+ }
+ 
+ func (c *chacha20poly1305) sealGeneric(dst, nonce, plaintext, additionalData []byte) []byte {
+ 	ret, out := sliceForAppend(dst, len(plaintext)+poly1305.TagSize)
++	ciphertext, tag := out[:len(plaintext)], out[len(plaintext):]
+ 	if subtle.InexactOverlap(out, plaintext) {
+ 		panic("chacha20poly1305: invalid buffer overlap")
+ 	}
+ 
+-	var polyKey, discardBuf [32]byte
++	var polyKey [32]byte
+ 	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
+ 	s.XORKeyStream(polyKey[:], polyKey[:])
+-	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
+-	s.XORKeyStream(out, plaintext)
+-
+-	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(plaintext))+8+8)
+-	copy(polyInput, additionalData)
+-	copy(polyInput[roundTo16(len(additionalData)):], out[:len(plaintext)])
+-	binary.LittleEndian.PutUint64(polyInput[len(polyInput)-16:], uint64(len(additionalData)))
+-	binary.LittleEndian.PutUint64(polyInput[len(polyInput)-8:], uint64(len(plaintext)))
++	s.SetCounter(1) // set the counter to 1, skipping 32 bytes
++	s.XORKeyStream(ciphertext, plaintext)
+ 
+-	var tag [poly1305.TagSize]byte
+-	poly1305.Sum(&tag, polyInput, &polyKey)
+-	copy(out[len(plaintext):], tag[:])
++	p := poly1305.New(&polyKey)
++	writeWithPadding(p, additionalData)
++	writeWithPadding(p, ciphertext)
++	writeUint64(p, len(additionalData))
++	writeUint64(p, len(plaintext))
++	p.Sum(tag[:0])
+ 
+ 	return ret
+ }
+ 
+ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
+-	var tag [poly1305.TagSize]byte
+-	copy(tag[:], ciphertext[len(ciphertext)-16:])
++	tag := ciphertext[len(ciphertext)-16:]
+ 	ciphertext = ciphertext[:len(ciphertext)-16]
+ 
+-	var polyKey, discardBuf [32]byte
++	var polyKey [32]byte
+ 	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
+ 	s.XORKeyStream(polyKey[:], polyKey[:])
+-	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
++	s.SetCounter(1) // set the counter to 1, skipping 32 bytes
+ 
+-	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(ciphertext))+8+8)
+-	copy(polyInput, additionalData)
+-	copy(polyInput[roundTo16(len(additionalData)):], ciphertext)
+-	binary.LittleEndian.PutUint64(polyInput[len(polyInput)-16:], uint64(len(additionalData)))
+-	binary.LittleEndian.PutUint64(polyInput[len(polyInput)-8:], uint64(len(ciphertext)))
++	p := poly1305.New(&polyKey)
++	writeWithPadding(p, additionalData)
++	writeWithPadding(p, ciphertext)
++	writeUint64(p, len(additionalData))
++	writeUint64(p, len(ciphertext))
+ 
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+ 	if subtle.InexactOverlap(out, ciphertext) {
+ 		panic("chacha20poly1305: invalid buffer overlap")
+ 	}
+-	if !poly1305.Verify(&tag, polyInput, &polyKey) {
++	if !p.Verify(tag) {
+ 		for i := range out {
+ 			out[i] = 0
+ 		}
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index f930f7e526..b26376aeca 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -81,7 +81,7 @@ func (b *Builder) AddASN1BigInt(n *big.Int) {
+ 			for i := range bytes {
+ 				bytes[i] ^= 0xff
+ 			}
+-			if bytes[0]&0x80 == 0 {
++			if len(bytes) == 0 || bytes[0]&0x80 == 0 {
+ 				c.add(0xff)
+ 			}
+ 			c.add(bytes...)
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go b/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go
+index b0c2cd0561..d118f30ed5 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/mac_noasm.go
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!ppc64le gccgo purego
++// +build !amd64,!ppc64le,!s390x gccgo purego
+ 
+ package poly1305
+ 
+ type mac struct{ macGeneric }
+-
+-func newMAC(key *[32]byte) mac { return mac{newMACGeneric(key)} }
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/poly1305.go b/src/vendor/golang.org/x/crypto/poly1305/poly1305.go
+index 066159b797..9d7a6af09f 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/poly1305.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/poly1305.go
+@@ -26,7 +26,9 @@ const TagSize = 16
+ // 16-byte result into out. Authenticating two different messages with the same
+ // key allows an attacker to forge messages at will.
+ func Sum(out *[16]byte, m []byte, key *[32]byte) {
+-	sum(out, m, key)
++	h := New(key)
++	h.Write(m)
++	h.Sum(out[:0])
+ }
+ 
+ // Verify returns true if mac is a valid authenticator for m with the given key.
+@@ -46,10 +48,9 @@ func Verify(mac *[16]byte, m []byte, key *[32]byte) bool {
+ // two different messages with the same key allows an attacker
+ // to forge messages at will.
+ func New(key *[32]byte) *MAC {
+-	return &MAC{
+-		mac:       newMAC(key),
+-		finalized: false,
+-	}
++	m := &MAC{}
++	initialize(key, &m.macState)
++	return m
+ }
+ 
+ // MAC is an io.Writer computing an authentication tag
+@@ -58,7 +59,7 @@ func New(key *[32]byte) *MAC {
+ // MAC cannot be used like common hash.Hash implementations,
+ // because using a poly1305 key twice breaks its security.
+ // Therefore writing data to a running MAC after calling
+-// Sum causes it to panic.
++// Sum or Verify causes it to panic.
+ type MAC struct {
+ 	mac // platform-dependent implementation
+ 
+@@ -71,10 +72,10 @@ func (h *MAC) Size() int { return TagSize }
+ // Write adds more data to the running message authentication code.
+ // It never returns an error.
+ //
+-// It must not be called after the first call of Sum.
++// It must not be called after the first call of Sum or Verify.
+ func (h *MAC) Write(p []byte) (n int, err error) {
+ 	if h.finalized {
+-		panic("poly1305: write to MAC after Sum")
++		panic("poly1305: write to MAC after Sum or Verify")
+ 	}
+ 	return h.mac.Write(p)
+ }
+@@ -87,3 +88,12 @@ func (h *MAC) Sum(b []byte) []byte {
+ 	h.finalized = true
+ 	return append(b, mac[:]...)
+ }
++
++// Verify returns whether the authenticator of all data written to
++// the message authentication code matches the expected value.
++func (h *MAC) Verify(expected []byte) bool {
++	var mac [TagSize]byte
++	h.mac.Sum(&mac)
++	h.finalized = true
++	return subtle.ConstantTimeCompare(expected, mac[:]) == 1
++}
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
+index 35b9e38c90..99e5a1d50e 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_amd64.go
+@@ -9,17 +9,6 @@ package poly1305
+ //go:noescape
+ func update(state *macState, msg []byte)
+ 
+-func sum(out *[16]byte, m []byte, key *[32]byte) {
+-	h := newMAC(key)
+-	h.Write(m)
+-	h.Sum(out)
+-}
+-
+-func newMAC(key *[32]byte) (h mac) {
+-	initialize(key, &h.r, &h.s)
+-	return
+-}
+-
+ // mac is a wrapper for macGeneric that redirects calls that would have gone to
+ // updateGeneric to update.
+ //
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go b/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go
+index 1187eab78f..c942a65904 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_generic.go
+@@ -31,16 +31,18 @@ func sumGeneric(out *[TagSize]byte, msg []byte, key *[32]byte) {
+ 	h.Sum(out)
+ }
+ 
+-func newMACGeneric(key *[32]byte) (h macGeneric) {
+-	initialize(key, &h.r, &h.s)
+-	return
++func newMACGeneric(key *[32]byte) macGeneric {
++	m := macGeneric{}
++	initialize(key, &m.macState)
++	return m
+ }
+ 
+ // macState holds numbers in saturated 64-bit little-endian limbs. That is,
+ // the value of [x0, x1, x2] is x[0] + x[1] * 2⁶⁴ + x[2] * 2¹²⁸.
+ type macState struct {
+ 	// h is the main accumulator. It is to be interpreted modulo 2¹³⁰ - 5, but
+-	// can grow larger during and after rounds.
++	// can grow larger during and after rounds. It must, however, remain below
++	// 2 * (2¹³⁰ - 5).
+ 	h [3]uint64
+ 	// r and s are the private key components.
+ 	r [2]uint64
+@@ -97,11 +99,12 @@ const (
+ 	rMask1 = 0x0FFFFFFC0FFFFFFC
+ )
+ 
+-func initialize(key *[32]byte, r, s *[2]uint64) {
+-	r[0] = binary.LittleEndian.Uint64(key[0:8]) & rMask0
+-	r[1] = binary.LittleEndian.Uint64(key[8:16]) & rMask1
+-	s[0] = binary.LittleEndian.Uint64(key[16:24])
+-	s[1] = binary.LittleEndian.Uint64(key[24:32])
++// initialize loads the 256-bit key into the two 128-bit secret values r and s.
++func initialize(key *[32]byte, m *macState) {
++	m.r[0] = binary.LittleEndian.Uint64(key[0:8]) & rMask0
++	m.r[1] = binary.LittleEndian.Uint64(key[8:16]) & rMask1
++	m.s[0] = binary.LittleEndian.Uint64(key[16:24])
++	m.s[1] = binary.LittleEndian.Uint64(key[24:32])
+ }
+ 
+ // uint128 holds a 128-bit number as two 64-bit limbs, for use with the
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go b/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
+deleted file mode 100644
+index 2e3ae34c7d..0000000000
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_noasm.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build s390x,!go1.11 !amd64,!s390x,!ppc64le gccgo purego
+-
+-package poly1305
+-
+-func sum(out *[TagSize]byte, msg []byte, key *[32]byte) {
+-	h := newMAC(key)
+-	h.Write(msg)
+-	h.Sum(out)
+-}
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
+index 92597bb8c2..2e7a120b19 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.go
+@@ -9,17 +9,6 @@ package poly1305
+ //go:noescape
+ func update(state *macState, msg []byte)
+ 
+-func sum(out *[16]byte, m []byte, key *[32]byte) {
+-	h := newMAC(key)
+-	h.Write(m)
+-	h.Sum(out)
+-}
+-
+-func newMAC(key *[32]byte) (h mac) {
+-	initialize(key, &h.r, &h.s)
+-	return
+-}
+-
+ // mac is a wrapper for macGeneric that redirects calls that would have gone to
+ // updateGeneric to update.
+ //
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
+index 5f91ff84a9..958fedc079 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build go1.11,!gccgo,!purego
++// +build !gccgo,!purego
+ 
+ package poly1305
+ 
+@@ -10,30 +10,66 @@ import (
+ 	"golang.org/x/sys/cpu"
+ )
+ 
+-// poly1305vx is an assembly implementation of Poly1305 that uses vector
++// updateVX is an assembly implementation of Poly1305 that uses vector
+ // instructions. It must only be called if the vector facility (vx) is
+ // available.
+ //go:noescape
+-func poly1305vx(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
++func updateVX(state *macState, msg []byte)
+ 
+-// poly1305vmsl is an assembly implementation of Poly1305 that uses vector
+-// instructions, including VMSL. It must only be called if the vector facility (vx) is
+-// available and if VMSL is supported.
+-//go:noescape
+-func poly1305vmsl(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
++// mac is a replacement for macGeneric that uses a larger buffer and redirects
++// calls that would have gone to updateGeneric to updateVX if the vector
++// facility is installed.
++//
++// A larger buffer is required for good performance because the vector
++// implementation has a higher fixed cost per call than the generic
++// implementation.
++type mac struct {
++	macState
++
++	buffer [16 * TagSize]byte // size must be a multiple of block size (16)
++	offset int
++}
+ 
+-func sum(out *[16]byte, m []byte, key *[32]byte) {
+-	if cpu.S390X.HasVX {
+-		var mPtr *byte
+-		if len(m) > 0 {
+-			mPtr = &m[0]
++func (h *mac) Write(p []byte) (int, error) {
++	nn := len(p)
++	if h.offset > 0 {
++		n := copy(h.buffer[h.offset:], p)
++		if h.offset+n < len(h.buffer) {
++			h.offset += n
++			return nn, nil
+ 		}
+-		if cpu.S390X.HasVXE && len(m) > 256 {
+-			poly1305vmsl(out, mPtr, uint64(len(m)), key)
++		p = p[n:]
++		h.offset = 0
++		if cpu.S390X.HasVX {
++			updateVX(&h.macState, h.buffer[:])
+ 		} else {
+-			poly1305vx(out, mPtr, uint64(len(m)), key)
++			updateGeneric(&h.macState, h.buffer[:])
+ 		}
+-	} else {
+-		sumGeneric(out, m, key)
+ 	}
++
++	tail := len(p) % len(h.buffer) // number of bytes to copy into buffer
++	body := len(p) - tail          // number of bytes to process now
++	if body > 0 {
++		if cpu.S390X.HasVX {
++			updateVX(&h.macState, p[:body])
++		} else {
++			updateGeneric(&h.macState, p[:body])
++		}
++	}
++	h.offset = copy(h.buffer[:], p[body:]) // copy tail bytes - can be 0
++	return nn, nil
++}
++
++func (h *mac) Sum(out *[TagSize]byte) {
++	state := h.macState
++	remainder := h.buffer[:h.offset]
++
++	// Use the generic implementation if we have 2 or fewer blocks left
++	// to sum. The vector implementation has a higher startup time.
++	if cpu.S390X.HasVX && len(remainder) > 2*TagSize {
++		updateVX(&state, remainder)
++	} else if len(remainder) > 0 {
++		updateGeneric(&state, remainder)
++	}
++	finalize(out, &state.h, &state.s)
+ }
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
+index 806d1694b0..0fa9ee6e0b 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_s390x.s
+@@ -2,115 +2,187 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build go1.11,!gccgo,!purego
++// +build !gccgo,!purego
+ 
+ #include "textflag.h"
+ 
+-// Implementation of Poly1305 using the vector facility (vx).
+-
+-// constants
+-#define MOD26 V0
+-#define EX0   V1
+-#define EX1   V2
+-#define EX2   V3
+-
+-// temporaries
+-#define T_0 V4
+-#define T_1 V5
+-#define T_2 V6
+-#define T_3 V7
+-#define T_4 V8
+-
+-// key (r)
+-#define R_0  V9
+-#define R_1  V10
+-#define R_2  V11
+-#define R_3  V12
+-#define R_4  V13
+-#define R5_1 V14
+-#define R5_2 V15
+-#define R5_3 V16
+-#define R5_4 V17
+-#define RSAVE_0 R5
+-#define RSAVE_1 R6
+-#define RSAVE_2 R7
+-#define RSAVE_3 R8
+-#define RSAVE_4 R9
+-#define R5SAVE_1 V28
+-#define R5SAVE_2 V29
+-#define R5SAVE_3 V30
+-#define R5SAVE_4 V31
+-
+-// message block
+-#define F_0 V18
+-#define F_1 V19
+-#define F_2 V20
+-#define F_3 V21
+-#define F_4 V22
+-
+-// accumulator
+-#define H_0 V23
+-#define H_1 V24
+-#define H_2 V25
+-#define H_3 V26
+-#define H_4 V27
+-
+-GLOBL ·keyMask<>(SB), RODATA, $16
+-DATA ·keyMask<>+0(SB)/8, $0xffffff0ffcffff0f
+-DATA ·keyMask<>+8(SB)/8, $0xfcffff0ffcffff0f
+-
+-GLOBL ·bswapMask<>(SB), RODATA, $16
+-DATA ·bswapMask<>+0(SB)/8, $0x0f0e0d0c0b0a0908
+-DATA ·bswapMask<>+8(SB)/8, $0x0706050403020100
+-
+-GLOBL ·constants<>(SB), RODATA, $64
+-// MOD26
+-DATA ·constants<>+0(SB)/8, $0x3ffffff
+-DATA ·constants<>+8(SB)/8, $0x3ffffff
++// This implementation of Poly1305 uses the vector facility (vx)
++// to process up to 2 blocks (32 bytes) per iteration using an
++// algorithm based on the one described in:
++//
++// NEON crypto, Daniel J. Bernstein & Peter Schwabe
++// https://cryptojedi.org/papers/neoncrypto-20120320.pdf
++//
++// This algorithm uses 5 26-bit limbs to represent a 130-bit
++// value. These limbs are, for the most part, zero extended and
++// placed into 64-bit vector register elements. Each vector
++// register is 128-bits wide and so holds 2 of these elements.
++// Using 26-bit limbs allows us plenty of headroom to accomodate
++// accumulations before and after multiplication without
++// overflowing either 32-bits (before multiplication) or 64-bits
++// (after multiplication).
++//
++// In order to parallelise the operations required to calculate
++// the sum we use two separate accumulators and then sum those
++// in an extra final step. For compatibility with the generic
++// implementation we perform this summation at the end of every
++// updateVX call.
++//
++// To use two accumulators we must multiply the message blocks
++// by r² rather than r. Only the final message block should be
++// multiplied by r.
++//
++// Example:
++//
++// We want to calculate the sum (h) for a 64 byte message (m):
++//
++//   h = m[0:16]r⁴ + m[16:32]r³ + m[32:48]r² + m[48:64]r
++//
++// To do this we split the calculation into the even indices
++// and odd indices of the message. These form our SIMD 'lanes':
++//
++//   h = m[ 0:16]r⁴ + m[32:48]r² +   <- lane 0
++//       m[16:32]r³ + m[48:64]r      <- lane 1
++//
++// To calculate this iteratively we refactor so that both lanes
++// are written in terms of r² and r:
++//
++//   h = (m[ 0:16]r² + m[32:48])r² + <- lane 0
++//       (m[16:32]r² + m[48:64])r    <- lane 1
++//                ^             ^
++//                |             coefficients for second iteration
++//                coefficients for first iteration
++//
++// So in this case we would have two iterations. In the first
++// both lanes are multiplied by r². In the second only the
++// first lane is multiplied by r² and the second lane is
++// instead multiplied by r. This gives use the odd and even
++// powers of r that we need from the original equation.
++//
++// Notation:
++//
++//   h - accumulator
++//   r - key
++//   m - message
++//
++//   [a, b]       - SIMD register holding two 64-bit values
++//   [a, b, c, d] - SIMD register holding four 32-bit values
++//   xᵢ[n]        - limb n of variable x with bit width i
++//
++// Limbs are expressed in little endian order, so for 26-bit
++// limbs x₂₆[4] will be the most significant limb and x₂₆[0]
++// will be the least significant limb.
++
++// masking constants
++#define MOD24 V0 // [0x0000000000ffffff, 0x0000000000ffffff] - mask low 24-bits
++#define MOD26 V1 // [0x0000000003ffffff, 0x0000000003ffffff] - mask low 26-bits
++
++// expansion constants (see EXPAND macro)
++#define EX0 V2
++#define EX1 V3
++#define EX2 V4
++
++// key (r², r or 1 depending on context)
++#define R_0 V5
++#define R_1 V6
++#define R_2 V7
++#define R_3 V8
++#define R_4 V9
++
++// precalculated coefficients (5r², 5r or 0 depending on context)
++#define R5_1 V10
++#define R5_2 V11
++#define R5_3 V12
++#define R5_4 V13
++
++// message block (m)
++#define M_0 V14
++#define M_1 V15
++#define M_2 V16
++#define M_3 V17
++#define M_4 V18
++
++// accumulator (h)
++#define H_0 V19
++#define H_1 V20
++#define H_2 V21
++#define H_3 V22
++#define H_4 V23
++
++// temporary registers (for short-lived values)
++#define T_0 V24
++#define T_1 V25
++#define T_2 V26
++#define T_3 V27
++#define T_4 V28
++
++GLOBL ·constants<>(SB), RODATA, $0x30
+ // EX0
+-DATA ·constants<>+16(SB)/8, $0x0006050403020100
+-DATA ·constants<>+24(SB)/8, $0x1016151413121110
++DATA ·constants<>+0x00(SB)/8, $0x0006050403020100
++DATA ·constants<>+0x08(SB)/8, $0x1016151413121110
+ // EX1
+-DATA ·constants<>+32(SB)/8, $0x060c0b0a09080706
+-DATA ·constants<>+40(SB)/8, $0x161c1b1a19181716
++DATA ·constants<>+0x10(SB)/8, $0x060c0b0a09080706
++DATA ·constants<>+0x18(SB)/8, $0x161c1b1a19181716
+ // EX2
+-DATA ·constants<>+48(SB)/8, $0x0d0d0d0d0d0f0e0d
+-DATA ·constants<>+56(SB)/8, $0x1d1d1d1d1d1f1e1d
+-
+-// h = (f*g) % (2**130-5) [partial reduction]
++DATA ·constants<>+0x20(SB)/8, $0x0d0d0d0d0d0f0e0d
++DATA ·constants<>+0x28(SB)/8, $0x1d1d1d1d1d1f1e1d
++
++// MULTIPLY multiplies each lane of f and g, partially reduced
++// modulo 2¹³⁰ - 5. The result, h, consists of partial products
++// in each lane that need to be reduced further to produce the
++// final result.
++//
++//   h₁₃₀ = (f₁₃₀g₁₃₀) % 2¹³⁰ + (5f₁₃₀g₁₃₀) / 2¹³⁰
++//
++// Note that the multiplication by 5 of the high bits is
++// achieved by precalculating the multiplication of four of the
++// g coefficients by 5. These are g51-g54.
+ #define MULTIPLY(f0, f1, f2, f3, f4, g0, g1, g2, g3, g4, g51, g52, g53, g54, h0, h1, h2, h3, h4) \
+ 	VMLOF  f0, g0, h0        \
+-	VMLOF  f0, g1, h1        \
+-	VMLOF  f0, g2, h2        \
+ 	VMLOF  f0, g3, h3        \
++	VMLOF  f0, g1, h1        \
+ 	VMLOF  f0, g4, h4        \
++	VMLOF  f0, g2, h2        \
+ 	VMLOF  f1, g54, T_0      \
+-	VMLOF  f1, g0, T_1       \
+-	VMLOF  f1, g1, T_2       \
+ 	VMLOF  f1, g2, T_3       \
++	VMLOF  f1, g0, T_1       \
+ 	VMLOF  f1, g3, T_4       \
++	VMLOF  f1, g1, T_2       \
+ 	VMALOF f2, g53, h0, h0   \
+-	VMALOF f2, g54, h1, h1   \
+-	VMALOF f2, g0, h2, h2    \
+ 	VMALOF f2, g1, h3, h3    \
++	VMALOF f2, g54, h1, h1   \
+ 	VMALOF f2, g2, h4, h4    \
++	VMALOF f2, g0, h2, h2    \
+ 	VMALOF f3, g52, T_0, T_0 \
+-	VMALOF f3, g53, T_1, T_1 \
+-	VMALOF f3, g54, T_2, T_2 \
+ 	VMALOF f3, g0, T_3, T_3  \
++	VMALOF f3, g53, T_1, T_1 \
+ 	VMALOF f3, g1, T_4, T_4  \
++	VMALOF f3, g54, T_2, T_2 \
+ 	VMALOF f4, g51, h0, h0   \
+-	VMALOF f4, g52, h1, h1   \
+-	VMALOF f4, g53, h2, h2   \
+ 	VMALOF f4, g54, h3, h3   \
++	VMALOF f4, g52, h1, h1   \
+ 	VMALOF f4, g0, h4, h4    \
++	VMALOF f4, g53, h2, h2   \
+ 	VAG    T_0, h0, h0       \
+-	VAG    T_1, h1, h1       \
+-	VAG    T_2, h2, h2       \
+ 	VAG    T_3, h3, h3       \
+-	VAG    T_4, h4, h4
+-
+-// carry h0->h1 h3->h4, h1->h2 h4->h0, h0->h1 h2->h3, h3->h4
++	VAG    T_1, h1, h1       \
++	VAG    T_4, h4, h4       \
++	VAG    T_2, h2, h2
++
++// REDUCE performs the following carry operations in four
++// stages, as specified in Bernstein & Schwabe:
++//
++//   1: h₂₆[0]->h₂₆[1] h₂₆[3]->h₂₆[4]
++//   2: h₂₆[1]->h₂₆[2] h₂₆[4]->h₂₆[0]
++//   3: h₂₆[0]->h₂₆[1] h₂₆[2]->h₂₆[3]
++//   4: h₂₆[3]->h₂₆[4]
++//
++// The result is that all of the limbs are limited to 26-bits
++// except for h₂₆[1] and h₂₆[4] which are limited to 27-bits.
++//
++// Note that although each limb is aligned at 26-bit intervals
++// they may contain values that exceed 2²⁶ - 1, hence the need
++// to carry the excess bits in each limb.
+ #define REDUCE(h0, h1, h2, h3, h4) \
+ 	VESRLG $26, h0, T_0  \
+ 	VESRLG $26, h3, T_1  \
+@@ -136,144 +208,155 @@ DATA ·constants<>+56(SB)/8, $0x1d1d1d1d1d1f1e1d
+ 	VN     MOD26, h3, h3 \
+ 	VAG    T_2, h4, h4
+ 
+-// expand in0 into d[0] and in1 into d[1]
++// EXPAND splits the 128-bit little-endian values in0 and in1
++// into 26-bit big-endian limbs and places the results into
++// the first and second lane of d₂₆[0:4] respectively.
++//
++// The EX0, EX1 and EX2 constants are arrays of byte indices
++// for permutation. The permutation both reverses the bytes
++// in the input and ensures the bytes are copied into the
++// destination limb ready to be shifted into their final
++// position.
+ #define EXPAND(in0, in1, d0, d1, d2, d3, d4) \
+-	VGBM   $0x0707, d1       \ // d1=tmp
+-	VPERM  in0, in1, EX2, d4 \
+ 	VPERM  in0, in1, EX0, d0 \
+ 	VPERM  in0, in1, EX1, d2 \
+-	VN     d1, d4, d4        \
++	VPERM  in0, in1, EX2, d4 \
+ 	VESRLG $26, d0, d1       \
+ 	VESRLG $30, d2, d3       \
+ 	VESRLG $4, d2, d2        \
+-	VN     MOD26, d0, d0     \
+-	VN     MOD26, d1, d1     \
+-	VN     MOD26, d2, d2     \
+-	VN     MOD26, d3, d3
+-
+-// pack h4:h0 into h1:h0 (no carry)
+-#define PACK(h0, h1, h2, h3, h4) \
+-	VESLG $26, h1, h1  \
+-	VESLG $26, h3, h3  \
+-	VO    h0, h1, h0   \
+-	VO    h2, h3, h2   \
+-	VESLG $4, h2, h2   \
+-	VLEIB $7, $48, h1  \
+-	VSLB  h1, h2, h2   \
+-	VO    h0, h2, h0   \
+-	VLEIB $7, $104, h1 \
+-	VSLB  h1, h4, h3   \
+-	VO    h3, h0, h0   \
+-	VLEIB $7, $24, h1  \
+-	VSRLB h1, h4, h1
+-
+-// if h > 2**130-5 then h -= 2**130-5
+-#define MOD(h0, h1, t0, t1, t2) \
+-	VZERO t0          \
+-	VLEIG $1, $5, t0  \
+-	VACCQ h0, t0, t1  \
+-	VAQ   h0, t0, t0  \
+-	VONE  t2          \
+-	VLEIG $1, $-4, t2 \
+-	VAQ   t2, t1, t1  \
+-	VACCQ h1, t1, t1  \
+-	VONE  t2          \
+-	VAQ   t2, t1, t1  \
+-	VN    h0, t1, t2  \
+-	VNC   t0, t1, t1  \
+-	VO    t1, t2, h0
+-
+-// func poly1305vx(out *[16]byte, m *byte, mlen uint64, key *[32]key)
+-TEXT ·poly1305vx(SB), $0-32
+-	// This code processes up to 2 blocks (32 bytes) per iteration
+-	// using the algorithm described in:
+-	// NEON crypto, Daniel J. Bernstein & Peter Schwabe
+-	// https://cryptojedi.org/papers/neoncrypto-20120320.pdf
+-	LMG out+0(FP), R1, R4 // R1=out, R2=m, R3=mlen, R4=key
+-
+-	// load MOD26, EX0, EX1 and EX2
++	VN     MOD26, d0, d0     \ // [in0₂₆[0], in1₂₆[0]]
++	VN     MOD26, d3, d3     \ // [in0₂₆[3], in1₂₆[3]]
++	VN     MOD26, d1, d1     \ // [in0₂₆[1], in1₂₆[1]]
++	VN     MOD24, d4, d4     \ // [in0₂₆[4], in1₂₆[4]]
++	VN     MOD26, d2, d2     // [in0₂₆[2], in1₂₆[2]]
++
++// func updateVX(state *macState, msg []byte)
++TEXT ·updateVX(SB), NOSPLIT, $0
++	MOVD state+0(FP), R1
++	LMG  msg+8(FP), R2, R3 // R2=msg_base, R3=msg_len
++
++	// load EX0, EX1 and EX2
+ 	MOVD $·constants<>(SB), R5
+-	VLM  (R5), MOD26, EX2
+-
+-	// setup r
+-	VL   (R4), T_0
+-	MOVD $·keyMask<>(SB), R6
+-	VL   (R6), T_1
+-	VN   T_0, T_1, T_0
+-	EXPAND(T_0, T_0, R_0, R_1, R_2, R_3, R_4)
+-
+-	// setup r*5
+-	VLEIG $0, $5, T_0
+-	VLEIG $1, $5, T_0
+-
+-	// store r (for final block)
+-	VMLOF T_0, R_1, R5SAVE_1
+-	VMLOF T_0, R_2, R5SAVE_2
+-	VMLOF T_0, R_3, R5SAVE_3
+-	VMLOF T_0, R_4, R5SAVE_4
+-	VLGVG $0, R_0, RSAVE_0
+-	VLGVG $0, R_1, RSAVE_1
+-	VLGVG $0, R_2, RSAVE_2
+-	VLGVG $0, R_3, RSAVE_3
+-	VLGVG $0, R_4, RSAVE_4
+-
+-	// skip r**2 calculation
++	VLM  (R5), EX0, EX2
++
++	// generate masks
++	VGMG $(64-24), $63, MOD24 // [0x00ffffff, 0x00ffffff]
++	VGMG $(64-26), $63, MOD26 // [0x03ffffff, 0x03ffffff]
++
++	// load h (accumulator) and r (key) from state
++	VZERO T_1               // [0, 0]
++	VL    0(R1), T_0        // [h₆₄[0], h₆₄[1]]
++	VLEG  $0, 16(R1), T_1   // [h₆₄[2], 0]
++	VL    24(R1), T_2       // [r₆₄[0], r₆₄[1]]
++	VPDI  $0, T_0, T_2, T_3 // [h₆₄[0], r₆₄[0]]
++	VPDI  $5, T_0, T_2, T_4 // [h₆₄[1], r₆₄[1]]
++
++	// unpack h and r into 26-bit limbs
++	// note: h₆₄[2] may have the low 3 bits set, so h₂₆[4] is a 27-bit value
++	VN     MOD26, T_3, H_0            // [h₂₆[0], r₂₆[0]]
++	VZERO  H_1                        // [0, 0]
++	VZERO  H_3                        // [0, 0]
++	VGMG   $(64-12-14), $(63-12), T_0 // [0x03fff000, 0x03fff000] - 26-bit mask with low 12 bits masked out
++	VESLG  $24, T_1, T_1              // [h₆₄[2]<<24, 0]
++	VERIMG $-26&63, T_3, MOD26, H_1   // [h₂₆[1], r₂₆[1]]
++	VESRLG $+52&63, T_3, H_2          // [h₂₆[2], r₂₆[2]] - low 12 bits only
++	VERIMG $-14&63, T_4, MOD26, H_3   // [h₂₆[1], r₂₆[1]]
++	VESRLG $40, T_4, H_4              // [h₂₆[4], r₂₆[4]] - low 24 bits only
++	VERIMG $+12&63, T_4, T_0, H_2     // [h₂₆[2], r₂₆[2]] - complete
++	VO     T_1, H_4, H_4              // [h₂₆[4], r₂₆[4]] - complete
++
++	// replicate r across all 4 vector elements
++	VREPF $3, H_0, R_0 // [r₂₆[0], r₂₆[0], r₂₆[0], r₂₆[0]]
++	VREPF $3, H_1, R_1 // [r₂₆[1], r₂₆[1], r₂₆[1], r₂₆[1]]
++	VREPF $3, H_2, R_2 // [r₂₆[2], r₂₆[2], r₂₆[2], r₂₆[2]]
++	VREPF $3, H_3, R_3 // [r₂₆[3], r₂₆[3], r₂₆[3], r₂₆[3]]
++	VREPF $3, H_4, R_4 // [r₂₆[4], r₂₆[4], r₂₆[4], r₂₆[4]]
++
++	// zero out lane 1 of h
++	VLEIG $1, $0, H_0 // [h₂₆[0], 0]
++	VLEIG $1, $0, H_1 // [h₂₆[1], 0]
++	VLEIG $1, $0, H_2 // [h₂₆[2], 0]
++	VLEIG $1, $0, H_3 // [h₂₆[3], 0]
++	VLEIG $1, $0, H_4 // [h₂₆[4], 0]
++
++	// calculate 5r (ignore least significant limb)
++	VREPIF $5, T_0
++	VMLF   T_0, R_1, R5_1 // [5r₂₆[1], 5r₂₆[1], 5r₂₆[1], 5r₂₆[1]]
++	VMLF   T_0, R_2, R5_2 // [5r₂₆[2], 5r₂₆[2], 5r₂₆[2], 5r₂₆[2]]
++	VMLF   T_0, R_3, R5_3 // [5r₂₆[3], 5r₂₆[3], 5r₂₆[3], 5r₂₆[3]]
++	VMLF   T_0, R_4, R5_4 // [5r₂₆[4], 5r₂₆[4], 5r₂₆[4], 5r₂₆[4]]
++
++	// skip r² calculation if we are only calculating one block
+ 	CMPBLE R3, $16, skip
+ 
+-	// calculate r**2
+-	MULTIPLY(R_0, R_1, R_2, R_3, R_4, R_0, R_1, R_2, R_3, R_4, R5SAVE_1, R5SAVE_2, R5SAVE_3, R5SAVE_4, H_0, H_1, H_2, H_3, H_4)
+-	REDUCE(H_0, H_1, H_2, H_3, H_4)
+-	VLEIG $0, $5, T_0
+-	VLEIG $1, $5, T_0
+-	VMLOF T_0, H_1, R5_1
+-	VMLOF T_0, H_2, R5_2
+-	VMLOF T_0, H_3, R5_3
+-	VMLOF T_0, H_4, R5_4
+-	VLR   H_0, R_0
+-	VLR   H_1, R_1
+-	VLR   H_2, R_2
+-	VLR   H_3, R_3
+-	VLR   H_4, R_4
+-
+-	// initialize h
+-	VZERO H_0
+-	VZERO H_1
+-	VZERO H_2
+-	VZERO H_3
+-	VZERO H_4
++	// calculate r²
++	MULTIPLY(R_0, R_1, R_2, R_3, R_4, R_0, R_1, R_2, R_3, R_4, R5_1, R5_2, R5_3, R5_4, M_0, M_1, M_2, M_3, M_4)
++	REDUCE(M_0, M_1, M_2, M_3, M_4)
++	VGBM   $0x0f0f, T_0
++	VERIMG $0, M_0, T_0, R_0 // [r₂₆[0], r²₂₆[0], r₂₆[0], r²₂₆[0]]
++	VERIMG $0, M_1, T_0, R_1 // [r₂₆[1], r²₂₆[1], r₂₆[1], r²₂₆[1]]
++	VERIMG $0, M_2, T_0, R_2 // [r₂₆[2], r²₂₆[2], r₂₆[2], r²₂₆[2]]
++	VERIMG $0, M_3, T_0, R_3 // [r₂₆[3], r²₂₆[3], r₂₆[3], r²₂₆[3]]
++	VERIMG $0, M_4, T_0, R_4 // [r₂₆[4], r²₂₆[4], r₂₆[4], r²₂₆[4]]
++
++	// calculate 5r² (ignore least significant limb)
++	VREPIF $5, T_0
++	VMLF   T_0, R_1, R5_1 // [5r₂₆[1], 5r²₂₆[1], 5r₂₆[1], 5r²₂₆[1]]
++	VMLF   T_0, R_2, R5_2 // [5r₂₆[2], 5r²₂₆[2], 5r₂₆[2], 5r²₂₆[2]]
++	VMLF   T_0, R_3, R5_3 // [5r₂₆[3], 5r²₂₆[3], 5r₂₆[3], 5r²₂₆[3]]
++	VMLF   T_0, R_4, R5_4 // [5r₂₆[4], 5r²₂₆[4], 5r₂₆[4], 5r²₂₆[4]]
+ 
+ loop:
+-	CMPBLE R3, $32, b2
+-	VLM    (R2), T_0, T_1
+-	SUB    $32, R3
+-	MOVD   $32(R2), R2
+-	EXPAND(T_0, T_1, F_0, F_1, F_2, F_3, F_4)
+-	VLEIB  $4, $1, F_4
+-	VLEIB  $12, $1, F_4
++	CMPBLE R3, $32, b2 // 2 or fewer blocks remaining, need to change key coefficients
++
++	// load next 2 blocks from message
++	VLM (R2), T_0, T_1
++
++	// update message slice
++	SUB  $32, R3
++	MOVD $32(R2), R2
++
++	// unpack message blocks into 26-bit big-endian limbs
++	EXPAND(T_0, T_1, M_0, M_1, M_2, M_3, M_4)
++
++	// add 2¹²⁸ to each message block value
++	VLEIB $4, $1, M_4
++	VLEIB $12, $1, M_4
+ 
+ multiply:
+-	VAG    H_0, F_0, F_0
+-	VAG    H_1, F_1, F_1
+-	VAG    H_2, F_2, F_2
+-	VAG    H_3, F_3, F_3
+-	VAG    H_4, F_4, F_4
+-	MULTIPLY(F_0, F_1, F_2, F_3, F_4, R_0, R_1, R_2, R_3, R_4, R5_1, R5_2, R5_3, R5_4, H_0, H_1, H_2, H_3, H_4)
++	// accumulate the incoming message
++	VAG H_0, M_0, M_0
++	VAG H_3, M_3, M_3
++	VAG H_1, M_1, M_1
++	VAG H_4, M_4, M_4
++	VAG H_2, M_2, M_2
++
++	// multiply the accumulator by the key coefficient
++	MULTIPLY(M_0, M_1, M_2, M_3, M_4, R_0, R_1, R_2, R_3, R_4, R5_1, R5_2, R5_3, R5_4, H_0, H_1, H_2, H_3, H_4)
++
++	// carry and partially reduce the partial products
+ 	REDUCE(H_0, H_1, H_2, H_3, H_4)
++
+ 	CMPBNE R3, $0, loop
+ 
+ finish:
+-	// sum vectors
++	// sum lane 0 and lane 1 and put the result in lane 1
+ 	VZERO  T_0
+ 	VSUMQG H_0, T_0, H_0
+-	VSUMQG H_1, T_0, H_1
+-	VSUMQG H_2, T_0, H_2
+ 	VSUMQG H_3, T_0, H_3
++	VSUMQG H_1, T_0, H_1
+ 	VSUMQG H_4, T_0, H_4
++	VSUMQG H_2, T_0, H_2
+ 
+-	// h may be >= 2*(2**130-5) so we need to reduce it again
++	// reduce again after summation
++	// TODO(mundaym): there might be a more efficient way to do this
++	// now that we only have 1 active lane. For example, we could
++	// simultaneously pack the values as we reduce them.
+ 	REDUCE(H_0, H_1, H_2, H_3, H_4)
+ 
+-	// carry h1->h4
++	// carry h[1] through to h[4] so that only h[4] can exceed 2²⁶ - 1
++	// TODO(mundaym): in testing this final carry was unnecessary.
++	// Needs a proof before it can be removed though.
+ 	VESRLG $26, H_1, T_1
+ 	VN     MOD26, H_1, H_1
+ 	VAQ    T_1, H_2, H_2
+@@ -284,95 +367,137 @@ finish:
+ 	VN     MOD26, H_3, H_3
+ 	VAQ    T_3, H_4, H_4
+ 
+-	// h is now < 2*(2**130-5)
+-	// pack h into h1 (hi) and h0 (lo)
+-	PACK(H_0, H_1, H_2, H_3, H_4)
+-
+-	// if h > 2**130-5 then h -= 2**130-5
+-	MOD(H_0, H_1, T_0, T_1, T_2)
+-
+-	// h += s
+-	MOVD  $·bswapMask<>(SB), R5
+-	VL    (R5), T_1
+-	VL    16(R4), T_0
+-	VPERM T_0, T_0, T_1, T_0    // reverse bytes (to big)
+-	VAQ   T_0, H_0, H_0
+-	VPERM H_0, H_0, T_1, H_0    // reverse bytes (to little)
+-	VST   H_0, (R1)
+-
++	// h is now < 2(2¹³⁰ - 5)
++	// Pack each lane in h₂₆[0:4] into h₁₂₈[0:1].
++	VESLG $26, H_1, H_1
++	VESLG $26, H_3, H_3
++	VO    H_0, H_1, H_0
++	VO    H_2, H_3, H_2
++	VESLG $4, H_2, H_2
++	VLEIB $7, $48, H_1
++	VSLB  H_1, H_2, H_2
++	VO    H_0, H_2, H_0
++	VLEIB $7, $104, H_1
++	VSLB  H_1, H_4, H_3
++	VO    H_3, H_0, H_0
++	VLEIB $7, $24, H_1
++	VSRLB H_1, H_4, H_1
++
++	// update state
++	VSTEG $1, H_0, 0(R1)
++	VSTEG $0, H_0, 8(R1)
++	VSTEG $1, H_1, 16(R1)
+ 	RET
+ 
+-b2:
++b2:  // 2 or fewer blocks remaining
+ 	CMPBLE R3, $16, b1
+ 
+-	// 2 blocks remaining
+-	SUB    $17, R3
+-	VL     (R2), T_0
+-	VLL    R3, 16(R2), T_1
+-	ADD    $1, R3
++	// Load the 2 remaining blocks (17-32 bytes remaining).
++	MOVD $-17(R3), R0    // index of final byte to load modulo 16
++	VL   (R2), T_0       // load full 16 byte block
++	VLL  R0, 16(R2), T_1 // load final (possibly partial) block and pad with zeros to 16 bytes
++
++	// The Poly1305 algorithm requires that a 1 bit be appended to
++	// each message block. If the final block is less than 16 bytes
++	// long then it is easiest to insert the 1 before the message
++	// block is split into 26-bit limbs. If, on the other hand, the
++	// final message block is 16 bytes long then we append the 1 bit
++	// after expansion as normal.
+ 	MOVBZ  $1, R0
+-	CMPBEQ R3, $16, 2(PC)
+-	VLVGB  R3, R0, T_1
+-	EXPAND(T_0, T_1, F_0, F_1, F_2, F_3, F_4)
++	MOVD   $-16(R3), R3   // index of byte in last block to insert 1 at (could be 16)
++	CMPBEQ R3, $16, 2(PC) // skip the insertion if the final block is 16 bytes long
++	VLVGB  R3, R0, T_1    // insert 1 into the byte at index R3
++
++	// Split both blocks into 26-bit limbs in the appropriate lanes.
++	EXPAND(T_0, T_1, M_0, M_1, M_2, M_3, M_4)
++
++	// Append a 1 byte to the end of the second to last block.
++	VLEIB $4, $1, M_4
++
++	// Append a 1 byte to the end of the last block only if it is a
++	// full 16 byte block.
+ 	CMPBNE R3, $16, 2(PC)
+-	VLEIB  $12, $1, F_4
+-	VLEIB  $4, $1, F_4
+-
+-	// setup [r²,r]
+-	VLVGG $1, RSAVE_0, R_0
+-	VLVGG $1, RSAVE_1, R_1
+-	VLVGG $1, RSAVE_2, R_2
+-	VLVGG $1, RSAVE_3, R_3
+-	VLVGG $1, RSAVE_4, R_4
+-	VPDI  $0, R5_1, R5SAVE_1, R5_1
+-	VPDI  $0, R5_2, R5SAVE_2, R5_2
+-	VPDI  $0, R5_3, R5SAVE_3, R5_3
+-	VPDI  $0, R5_4, R5SAVE_4, R5_4
++	VLEIB  $12, $1, M_4
++
++	// Finally, set up the coefficients for the final multiplication.
++	// We have previously saved r and 5r in the 32-bit even indexes
++	// of the R_[0-4] and R5_[1-4] coefficient registers.
++	//
++	// We want lane 0 to be multiplied by r² so that can be kept the
++	// same. We want lane 1 to be multiplied by r so we need to move
++	// the saved r value into the 32-bit odd index in lane 1 by
++	// rotating the 64-bit lane by 32.
++	VGBM   $0x00ff, T_0         // [0, 0xffffffffffffffff] - mask lane 1 only
++	VERIMG $32, R_0, T_0, R_0   // [_,  r²₂₆[0], _,  r₂₆[0]]
++	VERIMG $32, R_1, T_0, R_1   // [_,  r²₂₆[1], _,  r₂₆[1]]
++	VERIMG $32, R_2, T_0, R_2   // [_,  r²₂₆[2], _,  r₂₆[2]]
++	VERIMG $32, R_3, T_0, R_3   // [_,  r²₂₆[3], _,  r₂₆[3]]
++	VERIMG $32, R_4, T_0, R_4   // [_,  r²₂₆[4], _,  r₂₆[4]]
++	VERIMG $32, R5_1, T_0, R5_1 // [_, 5r²₂₆[1], _, 5r₂₆[1]]
++	VERIMG $32, R5_2, T_0, R5_2 // [_, 5r²₂₆[2], _, 5r₂₆[2]]
++	VERIMG $32, R5_3, T_0, R5_3 // [_, 5r²₂₆[3], _, 5r₂₆[3]]
++	VERIMG $32, R5_4, T_0, R5_4 // [_, 5r²₂₆[4], _, 5r₂₆[4]]
+ 
+ 	MOVD $0, R3
+ 	BR   multiply
+ 
+ skip:
+-	VZERO H_0
+-	VZERO H_1
+-	VZERO H_2
+-	VZERO H_3
+-	VZERO H_4
+-
+ 	CMPBEQ R3, $0, finish
+ 
+-b1:
+-	// 1 block remaining
+-	SUB    $1, R3
+-	VLL    R3, (R2), T_0
+-	ADD    $1, R3
++b1:  // 1 block remaining
++
++	// Load the final block (1-16 bytes). This will be placed into
++	// lane 0.
++	MOVD $-1(R3), R0
++	VLL  R0, (R2), T_0 // pad to 16 bytes with zeros
++
++	// The Poly1305 algorithm requires that a 1 bit be appended to
++	// each message block. If the final block is less than 16 bytes
++	// long then it is easiest to insert the 1 before the message
++	// block is split into 26-bit limbs. If, on the other hand, the
++	// final message block is 16 bytes long then we append the 1 bit
++	// after expansion as normal.
+ 	MOVBZ  $1, R0
+ 	CMPBEQ R3, $16, 2(PC)
+ 	VLVGB  R3, R0, T_0
+-	VZERO  T_1
+-	EXPAND(T_0, T_1, F_0, F_1, F_2, F_3, F_4)
++
++	// Set the message block in lane 1 to the value 0 so that it
++	// can be accumulated without affecting the final result.
++	VZERO T_1
++
++	// Split the final message block into 26-bit limbs in lane 0.
++	// Lane 1 will be contain 0.
++	EXPAND(T_0, T_1, M_0, M_1, M_2, M_3, M_4)
++
++	// Append a 1 byte to the end of the last block only if it is a
++	// full 16 byte block.
+ 	CMPBNE R3, $16, 2(PC)
+-	VLEIB  $4, $1, F_4
+-	VLEIG  $1, $1, R_0
+-	VZERO  R_1
+-	VZERO  R_2
+-	VZERO  R_3
+-	VZERO  R_4
+-	VZERO  R5_1
+-	VZERO  R5_2
+-	VZERO  R5_3
+-	VZERO  R5_4
+-
+-	// setup [r, 1]
+-	VLVGG $0, RSAVE_0, R_0
+-	VLVGG $0, RSAVE_1, R_1
+-	VLVGG $0, RSAVE_2, R_2
+-	VLVGG $0, RSAVE_3, R_3
+-	VLVGG $0, RSAVE_4, R_4
+-	VPDI  $0, R5SAVE_1, R5_1, R5_1
+-	VPDI  $0, R5SAVE_2, R5_2, R5_2
+-	VPDI  $0, R5SAVE_3, R5_3, R5_3
+-	VPDI  $0, R5SAVE_4, R5_4, R5_4
++	VLEIB  $4, $1, M_4
++
++	// We have previously saved r and 5r in the 32-bit even indexes
++	// of the R_[0-4] and R5_[1-4] coefficient registers.
++	//
++	// We want lane 0 to be multiplied by r so we need to move the
++	// saved r value into the 32-bit odd index in lane 0. We want
++	// lane 1 to be set to the value 1. This makes multiplication
++	// a no-op. We do this by setting lane 1 in every register to 0
++	// and then just setting the 32-bit index 3 in R_0 to 1.
++	VZERO T_0
++	MOVD  $0, R0
++	MOVD  $0x10111213, R12
++	VLVGP R12, R0, T_1         // [_, 0x10111213, _, 0x00000000]
++	VPERM T_0, R_0, T_1, R_0   // [_,  r₂₆[0], _, 0]
++	VPERM T_0, R_1, T_1, R_1   // [_,  r₂₆[1], _, 0]
++	VPERM T_0, R_2, T_1, R_2   // [_,  r₂₆[2], _, 0]
++	VPERM T_0, R_3, T_1, R_3   // [_,  r₂₆[3], _, 0]
++	VPERM T_0, R_4, T_1, R_4   // [_,  r₂₆[4], _, 0]
++	VPERM T_0, R5_1, T_1, R5_1 // [_, 5r₂₆[1], _, 0]
++	VPERM T_0, R5_2, T_1, R5_2 // [_, 5r₂₆[2], _, 0]
++	VPERM T_0, R5_3, T_1, R5_3 // [_, 5r₂₆[3], _, 0]
++	VPERM T_0, R5_4, T_1, R5_4 // [_, 5r₂₆[4], _, 0]
++
++	// Set the value of lane 1 to be 1.
++	VLEIF $3, $1, R_0 // [_,  r₂₆[0], _, 1]
+ 
+ 	MOVD $0, R3
+ 	BR   multiply
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s b/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s
+deleted file mode 100644
+index b439af9369..0000000000
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_vmsl_s390x.s
++++ /dev/null
+@@ -1,909 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build go1.11,!gccgo,!purego
+-
+-#include "textflag.h"
+-
+-// Implementation of Poly1305 using the vector facility (vx) and the VMSL instruction.
+-
+-// constants
+-#define EX0   V1
+-#define EX1   V2
+-#define EX2   V3
+-
+-// temporaries
+-#define T_0 V4
+-#define T_1 V5
+-#define T_2 V6
+-#define T_3 V7
+-#define T_4 V8
+-#define T_5 V9
+-#define T_6 V10
+-#define T_7 V11
+-#define T_8 V12
+-#define T_9 V13
+-#define T_10 V14
+-
+-// r**2 & r**4
+-#define R_0  V15
+-#define R_1  V16
+-#define R_2  V17
+-#define R5_1 V18
+-#define R5_2 V19
+-// key (r)
+-#define RSAVE_0 R7
+-#define RSAVE_1 R8
+-#define RSAVE_2 R9
+-#define R5SAVE_1 R10
+-#define R5SAVE_2 R11
+-
+-// message block
+-#define M0 V20
+-#define M1 V21
+-#define M2 V22
+-#define M3 V23
+-#define M4 V24
+-#define M5 V25
+-
+-// accumulator
+-#define H0_0 V26
+-#define H1_0 V27
+-#define H2_0 V28
+-#define H0_1 V29
+-#define H1_1 V30
+-#define H2_1 V31
+-
+-GLOBL ·keyMask<>(SB), RODATA, $16
+-DATA ·keyMask<>+0(SB)/8, $0xffffff0ffcffff0f
+-DATA ·keyMask<>+8(SB)/8, $0xfcffff0ffcffff0f
+-
+-GLOBL ·bswapMask<>(SB), RODATA, $16
+-DATA ·bswapMask<>+0(SB)/8, $0x0f0e0d0c0b0a0908
+-DATA ·bswapMask<>+8(SB)/8, $0x0706050403020100
+-
+-GLOBL ·constants<>(SB), RODATA, $48
+-// EX0
+-DATA ·constants<>+0(SB)/8, $0x18191a1b1c1d1e1f
+-DATA ·constants<>+8(SB)/8, $0x0000050403020100
+-// EX1
+-DATA ·constants<>+16(SB)/8, $0x18191a1b1c1d1e1f
+-DATA ·constants<>+24(SB)/8, $0x00000a0908070605
+-// EX2
+-DATA ·constants<>+32(SB)/8, $0x18191a1b1c1d1e1f
+-DATA ·constants<>+40(SB)/8, $0x0000000f0e0d0c0b
+-
+-GLOBL ·c<>(SB), RODATA, $48
+-// EX0
+-DATA ·c<>+0(SB)/8, $0x0000050403020100
+-DATA ·c<>+8(SB)/8, $0x0000151413121110
+-// EX1
+-DATA ·c<>+16(SB)/8, $0x00000a0908070605
+-DATA ·c<>+24(SB)/8, $0x00001a1918171615
+-// EX2
+-DATA ·c<>+32(SB)/8, $0x0000000f0e0d0c0b
+-DATA ·c<>+40(SB)/8, $0x0000001f1e1d1c1b
+-
+-GLOBL ·reduce<>(SB), RODATA, $32
+-// 44 bit
+-DATA ·reduce<>+0(SB)/8, $0x0
+-DATA ·reduce<>+8(SB)/8, $0xfffffffffff
+-// 42 bit
+-DATA ·reduce<>+16(SB)/8, $0x0
+-DATA ·reduce<>+24(SB)/8, $0x3ffffffffff
+-
+-// h = (f*g) % (2**130-5) [partial reduction]
+-// uses T_0...T_9 temporary registers
+-// input: m02_0, m02_1, m02_2, m13_0, m13_1, m13_2, r_0, r_1, r_2, r5_1, r5_2, m4_0, m4_1, m4_2, m5_0, m5_1, m5_2
+-// temp: t0, t1, t2, t3, t4, t5, t6, t7, t8, t9
+-// output: m02_0, m02_1, m02_2, m13_0, m13_1, m13_2
+-#define MULTIPLY(m02_0, m02_1, m02_2, m13_0, m13_1, m13_2, r_0, r_1, r_2, r5_1, r5_2, m4_0, m4_1, m4_2, m5_0, m5_1, m5_2, t0, t1, t2, t3, t4, t5, t6, t7, t8, t9) \
+-	\ // Eliminate the dependency for the last 2 VMSLs
+-	VMSLG m02_0, r_2, m4_2, m4_2                       \
+-	VMSLG m13_0, r_2, m5_2, m5_2                       \ // 8 VMSLs pipelined
+-	VMSLG m02_0, r_0, m4_0, m4_0                       \
+-	VMSLG m02_1, r5_2, V0, T_0                         \
+-	VMSLG m02_0, r_1, m4_1, m4_1                       \
+-	VMSLG m02_1, r_0, V0, T_1                          \
+-	VMSLG m02_1, r_1, V0, T_2                          \
+-	VMSLG m02_2, r5_1, V0, T_3                         \
+-	VMSLG m02_2, r5_2, V0, T_4                         \
+-	VMSLG m13_0, r_0, m5_0, m5_0                       \
+-	VMSLG m13_1, r5_2, V0, T_5                         \
+-	VMSLG m13_0, r_1, m5_1, m5_1                       \
+-	VMSLG m13_1, r_0, V0, T_6                          \
+-	VMSLG m13_1, r_1, V0, T_7                          \
+-	VMSLG m13_2, r5_1, V0, T_8                         \
+-	VMSLG m13_2, r5_2, V0, T_9                         \
+-	VMSLG m02_2, r_0, m4_2, m4_2                       \
+-	VMSLG m13_2, r_0, m5_2, m5_2                       \
+-	VAQ   m4_0, T_0, m02_0                             \
+-	VAQ   m4_1, T_1, m02_1                             \
+-	VAQ   m5_0, T_5, m13_0                             \
+-	VAQ   m5_1, T_6, m13_1                             \
+-	VAQ   m02_0, T_3, m02_0                            \
+-	VAQ   m02_1, T_4, m02_1                            \
+-	VAQ   m13_0, T_8, m13_0                            \
+-	VAQ   m13_1, T_9, m13_1                            \
+-	VAQ   m4_2, T_2, m02_2                             \
+-	VAQ   m5_2, T_7, m13_2                             \
+-
+-// SQUARE uses three limbs of r and r_2*5 to output square of r
+-// uses T_1, T_5 and T_7 temporary registers
+-// input: r_0, r_1, r_2, r5_2
+-// temp: TEMP0, TEMP1, TEMP2
+-// output: p0, p1, p2
+-#define SQUARE(r_0, r_1, r_2, r5_2, p0, p1, p2, TEMP0, TEMP1, TEMP2) \
+-	VMSLG r_0, r_0, p0, p0     \
+-	VMSLG r_1, r5_2, V0, TEMP0 \
+-	VMSLG r_2, r5_2, p1, p1    \
+-	VMSLG r_0, r_1, V0, TEMP1  \
+-	VMSLG r_1, r_1, p2, p2     \
+-	VMSLG r_0, r_2, V0, TEMP2  \
+-	VAQ   TEMP0, p0, p0        \
+-	VAQ   TEMP1, p1, p1        \
+-	VAQ   TEMP2, p2, p2        \
+-	VAQ   TEMP0, p0, p0        \
+-	VAQ   TEMP1, p1, p1        \
+-	VAQ   TEMP2, p2, p2        \
+-
+-// carry h0->h1->h2->h0 || h3->h4->h5->h3
+-// uses T_2, T_4, T_5, T_7, T_8, T_9
+-//       t6,  t7,  t8,  t9, t10, t11
+-// input: h0, h1, h2, h3, h4, h5
+-// temp: t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
+-// output: h0, h1, h2, h3, h4, h5
+-#define REDUCE(h0, h1, h2, h3, h4, h5, t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11) \
+-	VLM    (R12), t6, t7  \ // 44 and 42 bit clear mask
+-	VLEIB  $7, $0x28, t10 \ // 5 byte shift mask
+-	VREPIB $4, t8         \ // 4 bit shift mask
+-	VREPIB $2, t11        \ // 2 bit shift mask
+-	VSRLB  t10, h0, t0    \ // h0 byte shift
+-	VSRLB  t10, h1, t1    \ // h1 byte shift
+-	VSRLB  t10, h2, t2    \ // h2 byte shift
+-	VSRLB  t10, h3, t3    \ // h3 byte shift
+-	VSRLB  t10, h4, t4    \ // h4 byte shift
+-	VSRLB  t10, h5, t5    \ // h5 byte shift
+-	VSRL   t8, t0, t0     \ // h0 bit shift
+-	VSRL   t8, t1, t1     \ // h2 bit shift
+-	VSRL   t11, t2, t2    \ // h2 bit shift
+-	VSRL   t8, t3, t3     \ // h3 bit shift
+-	VSRL   t8, t4, t4     \ // h4 bit shift
+-	VESLG  $2, t2, t9     \ // h2 carry x5
+-	VSRL   t11, t5, t5    \ // h5 bit shift
+-	VN     t6, h0, h0     \ // h0 clear carry
+-	VAQ    t2, t9, t2     \ // h2 carry x5
+-	VESLG  $2, t5, t9     \ // h5 carry x5
+-	VN     t6, h1, h1     \ // h1 clear carry
+-	VN     t7, h2, h2     \ // h2 clear carry
+-	VAQ    t5, t9, t5     \ // h5 carry x5
+-	VN     t6, h3, h3     \ // h3 clear carry
+-	VN     t6, h4, h4     \ // h4 clear carry
+-	VN     t7, h5, h5     \ // h5 clear carry
+-	VAQ    t0, h1, h1     \ // h0->h1
+-	VAQ    t3, h4, h4     \ // h3->h4
+-	VAQ    t1, h2, h2     \ // h1->h2
+-	VAQ    t4, h5, h5     \ // h4->h5
+-	VAQ    t2, h0, h0     \ // h2->h0
+-	VAQ    t5, h3, h3     \ // h5->h3
+-	VREPG  $1, t6, t6     \ // 44 and 42 bit masks across both halves
+-	VREPG  $1, t7, t7     \
+-	VSLDB  $8, h0, h0, h0 \ // set up [h0/1/2, h3/4/5]
+-	VSLDB  $8, h1, h1, h1 \
+-	VSLDB  $8, h2, h2, h2 \
+-	VO     h0, h3, h3     \
+-	VO     h1, h4, h4     \
+-	VO     h2, h5, h5     \
+-	VESRLG $44, h3, t0    \ // 44 bit shift right
+-	VESRLG $44, h4, t1    \
+-	VESRLG $42, h5, t2    \
+-	VN     t6, h3, h3     \ // clear carry bits
+-	VN     t6, h4, h4     \
+-	VN     t7, h5, h5     \
+-	VESLG  $2, t2, t9     \ // multiply carry by 5
+-	VAQ    t9, t2, t2     \
+-	VAQ    t0, h4, h4     \
+-	VAQ    t1, h5, h5     \
+-	VAQ    t2, h3, h3     \
+-
+-// carry h0->h1->h2->h0
+-// input: h0, h1, h2
+-// temp: t0, t1, t2, t3, t4, t5, t6, t7, t8
+-// output: h0, h1, h2
+-#define REDUCE2(h0, h1, h2, t0, t1, t2, t3, t4, t5, t6, t7, t8) \
+-	VLEIB  $7, $0x28, t3 \ // 5 byte shift mask
+-	VREPIB $4, t4        \ // 4 bit shift mask
+-	VREPIB $2, t7        \ // 2 bit shift mask
+-	VGBM   $0x003F, t5   \ // mask to clear carry bits
+-	VSRLB  t3, h0, t0    \
+-	VSRLB  t3, h1, t1    \
+-	VSRLB  t3, h2, t2    \
+-	VESRLG $4, t5, t5    \ // 44 bit clear mask
+-	VSRL   t4, t0, t0    \
+-	VSRL   t4, t1, t1    \
+-	VSRL   t7, t2, t2    \
+-	VESRLG $2, t5, t6    \ // 42 bit clear mask
+-	VESLG  $2, t2, t8    \
+-	VAQ    t8, t2, t2    \
+-	VN     t5, h0, h0    \
+-	VN     t5, h1, h1    \
+-	VN     t6, h2, h2    \
+-	VAQ    t0, h1, h1    \
+-	VAQ    t1, h2, h2    \
+-	VAQ    t2, h0, h0    \
+-	VSRLB  t3, h0, t0    \
+-	VSRLB  t3, h1, t1    \
+-	VSRLB  t3, h2, t2    \
+-	VSRL   t4, t0, t0    \
+-	VSRL   t4, t1, t1    \
+-	VSRL   t7, t2, t2    \
+-	VN     t5, h0, h0    \
+-	VN     t5, h1, h1    \
+-	VESLG  $2, t2, t8    \
+-	VN     t6, h2, h2    \
+-	VAQ    t0, h1, h1    \
+-	VAQ    t8, t2, t2    \
+-	VAQ    t1, h2, h2    \
+-	VAQ    t2, h0, h0    \
+-
+-// expands two message blocks into the lower halfs of the d registers
+-// moves the contents of the d registers into upper halfs
+-// input: in1, in2, d0, d1, d2, d3, d4, d5
+-// temp: TEMP0, TEMP1, TEMP2, TEMP3
+-// output: d0, d1, d2, d3, d4, d5
+-#define EXPACC(in1, in2, d0, d1, d2, d3, d4, d5, TEMP0, TEMP1, TEMP2, TEMP3) \
+-	VGBM   $0xff3f, TEMP0      \
+-	VGBM   $0xff1f, TEMP1      \
+-	VESLG  $4, d1, TEMP2       \
+-	VESLG  $4, d4, TEMP3       \
+-	VESRLG $4, TEMP0, TEMP0    \
+-	VPERM  in1, d0, EX0, d0    \
+-	VPERM  in2, d3, EX0, d3    \
+-	VPERM  in1, d2, EX2, d2    \
+-	VPERM  in2, d5, EX2, d5    \
+-	VPERM  in1, TEMP2, EX1, d1 \
+-	VPERM  in2, TEMP3, EX1, d4 \
+-	VN     TEMP0, d0, d0       \
+-	VN     TEMP0, d3, d3       \
+-	VESRLG $4, d1, d1          \
+-	VESRLG $4, d4, d4          \
+-	VN     TEMP1, d2, d2       \
+-	VN     TEMP1, d5, d5       \
+-	VN     TEMP0, d1, d1       \
+-	VN     TEMP0, d4, d4       \
+-
+-// expands one message block into the lower halfs of the d registers
+-// moves the contents of the d registers into upper halfs
+-// input: in, d0, d1, d2
+-// temp: TEMP0, TEMP1, TEMP2
+-// output: d0, d1, d2
+-#define EXPACC2(in, d0, d1, d2, TEMP0, TEMP1, TEMP2) \
+-	VGBM   $0xff3f, TEMP0     \
+-	VESLG  $4, d1, TEMP2      \
+-	VGBM   $0xff1f, TEMP1     \
+-	VPERM  in, d0, EX0, d0    \
+-	VESRLG $4, TEMP0, TEMP0   \
+-	VPERM  in, d2, EX2, d2    \
+-	VPERM  in, TEMP2, EX1, d1 \
+-	VN     TEMP0, d0, d0      \
+-	VN     TEMP1, d2, d2      \
+-	VESRLG $4, d1, d1         \
+-	VN     TEMP0, d1, d1      \
+-
+-// pack h2:h0 into h1:h0 (no carry)
+-// input: h0, h1, h2
+-// output: h0, h1, h2
+-#define PACK(h0, h1, h2) \
+-	VMRLG  h1, h2, h2  \ // copy h1 to upper half h2
+-	VESLG  $44, h1, h1 \ // shift limb 1 44 bits, leaving 20
+-	VO     h0, h1, h0  \ // combine h0 with 20 bits from limb 1
+-	VESRLG $20, h2, h1 \ // put top 24 bits of limb 1 into h1
+-	VLEIG  $1, $0, h1  \ // clear h2 stuff from lower half of h1
+-	VO     h0, h1, h0  \ // h0 now has 88 bits (limb 0 and 1)
+-	VLEIG  $0, $0, h2  \ // clear upper half of h2
+-	VESRLG $40, h2, h1 \ // h1 now has upper two bits of result
+-	VLEIB  $7, $88, h1 \ // for byte shift (11 bytes)
+-	VSLB   h1, h2, h2  \ // shift h2 11 bytes to the left
+-	VO     h0, h2, h0  \ // combine h0 with 20 bits from limb 1
+-	VLEIG  $0, $0, h1  \ // clear upper half of h1
+-
+-// if h > 2**130-5 then h -= 2**130-5
+-// input: h0, h1
+-// temp: t0, t1, t2
+-// output: h0
+-#define MOD(h0, h1, t0, t1, t2) \
+-	VZERO t0          \
+-	VLEIG $1, $5, t0  \
+-	VACCQ h0, t0, t1  \
+-	VAQ   h0, t0, t0  \
+-	VONE  t2          \
+-	VLEIG $1, $-4, t2 \
+-	VAQ   t2, t1, t1  \
+-	VACCQ h1, t1, t1  \
+-	VONE  t2          \
+-	VAQ   t2, t1, t1  \
+-	VN    h0, t1, t2  \
+-	VNC   t0, t1, t1  \
+-	VO    t1, t2, h0  \
+-
+-// func poly1305vmsl(out *[16]byte, m *byte, mlen uint64, key *[32]key)
+-TEXT ·poly1305vmsl(SB), $0-32
+-	// This code processes 6 + up to 4 blocks (32 bytes) per iteration
+-	// using the algorithm described in:
+-	// NEON crypto, Daniel J. Bernstein & Peter Schwabe
+-	// https://cryptojedi.org/papers/neoncrypto-20120320.pdf
+-	// And as moddified for VMSL as described in
+-	// Accelerating Poly1305 Cryptographic Message Authentication on the z14
+-	// O'Farrell et al, CASCON 2017, p48-55
+-	// https://ibm.ent.box.com/s/jf9gedj0e9d2vjctfyh186shaztavnht
+-
+-	LMG   out+0(FP), R1, R4 // R1=out, R2=m, R3=mlen, R4=key
+-	VZERO V0                // c
+-
+-	// load EX0, EX1 and EX2
+-	MOVD $·constants<>(SB), R5
+-	VLM  (R5), EX0, EX2        // c
+-
+-	// setup r
+-	VL    (R4), T_0
+-	MOVD  $·keyMask<>(SB), R6
+-	VL    (R6), T_1
+-	VN    T_0, T_1, T_0
+-	VZERO T_2                 // limbs for r
+-	VZERO T_3
+-	VZERO T_4
+-	EXPACC2(T_0, T_2, T_3, T_4, T_1, T_5, T_7)
+-
+-	// T_2, T_3, T_4: [0, r]
+-
+-	// setup r*20
+-	VLEIG $0, $0, T_0
+-	VLEIG $1, $20, T_0       // T_0: [0, 20]
+-	VZERO T_5
+-	VZERO T_6
+-	VMSLG T_0, T_3, T_5, T_5
+-	VMSLG T_0, T_4, T_6, T_6
+-
+-	// store r for final block in GR
+-	VLGVG $1, T_2, RSAVE_0  // c
+-	VLGVG $1, T_3, RSAVE_1  // c
+-	VLGVG $1, T_4, RSAVE_2  // c
+-	VLGVG $1, T_5, R5SAVE_1 // c
+-	VLGVG $1, T_6, R5SAVE_2 // c
+-
+-	// initialize h
+-	VZERO H0_0
+-	VZERO H1_0
+-	VZERO H2_0
+-	VZERO H0_1
+-	VZERO H1_1
+-	VZERO H2_1
+-
+-	// initialize pointer for reduce constants
+-	MOVD $·reduce<>(SB), R12
+-
+-	// calculate r**2 and 20*(r**2)
+-	VZERO R_0
+-	VZERO R_1
+-	VZERO R_2
+-	SQUARE(T_2, T_3, T_4, T_6, R_0, R_1, R_2, T_1, T_5, T_7)
+-	REDUCE2(R_0, R_1, R_2, M0, M1, M2, M3, M4, R5_1, R5_2, M5, T_1)
+-	VZERO R5_1
+-	VZERO R5_2
+-	VMSLG T_0, R_1, R5_1, R5_1
+-	VMSLG T_0, R_2, R5_2, R5_2
+-
+-	// skip r**4 calculation if 3 blocks or less
+-	CMPBLE R3, $48, b4
+-
+-	// calculate r**4 and 20*(r**4)
+-	VZERO T_8
+-	VZERO T_9
+-	VZERO T_10
+-	SQUARE(R_0, R_1, R_2, R5_2, T_8, T_9, T_10, T_1, T_5, T_7)
+-	REDUCE2(T_8, T_9, T_10, M0, M1, M2, M3, M4, T_2, T_3, M5, T_1)
+-	VZERO T_2
+-	VZERO T_3
+-	VMSLG T_0, T_9, T_2, T_2
+-	VMSLG T_0, T_10, T_3, T_3
+-
+-	// put r**2 to the right and r**4 to the left of R_0, R_1, R_2
+-	VSLDB $8, T_8, T_8, T_8
+-	VSLDB $8, T_9, T_9, T_9
+-	VSLDB $8, T_10, T_10, T_10
+-	VSLDB $8, T_2, T_2, T_2
+-	VSLDB $8, T_3, T_3, T_3
+-
+-	VO T_8, R_0, R_0
+-	VO T_9, R_1, R_1
+-	VO T_10, R_2, R_2
+-	VO T_2, R5_1, R5_1
+-	VO T_3, R5_2, R5_2
+-
+-	CMPBLE R3, $80, load // less than or equal to 5 blocks in message
+-
+-	// 6(or 5+1) blocks
+-	SUB    $81, R3
+-	VLM    (R2), M0, M4
+-	VLL    R3, 80(R2), M5
+-	ADD    $1, R3
+-	MOVBZ  $1, R0
+-	CMPBGE R3, $16, 2(PC)
+-	VLVGB  R3, R0, M5
+-	MOVD   $96(R2), R2
+-	EXPACC(M0, M1, H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_0, T_1, T_2, T_3)
+-	EXPACC(M2, M3, H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_0, T_1, T_2, T_3)
+-	VLEIB  $2, $1, H2_0
+-	VLEIB  $2, $1, H2_1
+-	VLEIB  $10, $1, H2_0
+-	VLEIB  $10, $1, H2_1
+-
+-	VZERO  M0
+-	VZERO  M1
+-	VZERO  M2
+-	VZERO  M3
+-	VZERO  T_4
+-	VZERO  T_10
+-	EXPACC(M4, M5, M0, M1, M2, M3, T_4, T_10, T_0, T_1, T_2, T_3)
+-	VLR    T_4, M4
+-	VLEIB  $10, $1, M2
+-	CMPBLT R3, $16, 2(PC)
+-	VLEIB  $10, $1, T_10
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, T_10, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_10, M0, M1, M2, M3, M4, T_4, T_5, T_2, T_7, T_8, T_9)
+-	VMRHG  V0, H0_1, H0_0
+-	VMRHG  V0, H1_1, H1_0
+-	VMRHG  V0, H2_1, H2_0
+-	VMRLG  V0, H0_1, H0_1
+-	VMRLG  V0, H1_1, H1_1
+-	VMRLG  V0, H2_1, H2_1
+-
+-	SUB    $16, R3
+-	CMPBLE R3, $0, square
+-
+-load:
+-	// load EX0, EX1 and EX2
+-	MOVD $·c<>(SB), R5
+-	VLM  (R5), EX0, EX2
+-
+-loop:
+-	CMPBLE R3, $64, add // b4	// last 4 or less blocks left
+-
+-	// next 4 full blocks
+-	VLM  (R2), M2, M5
+-	SUB  $64, R3
+-	MOVD $64(R2), R2
+-	REDUCE(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_10, M0, M1, T_0, T_1, T_3, T_4, T_5, T_2, T_7, T_8, T_9)
+-
+-	// expacc in-lined to create [m2, m3] limbs
+-	VGBM   $0x3f3f, T_0     // 44 bit clear mask
+-	VGBM   $0x1f1f, T_1     // 40 bit clear mask
+-	VPERM  M2, M3, EX0, T_3
+-	VESRLG $4, T_0, T_0     // 44 bit clear mask ready
+-	VPERM  M2, M3, EX1, T_4
+-	VPERM  M2, M3, EX2, T_5
+-	VN     T_0, T_3, T_3
+-	VESRLG $4, T_4, T_4
+-	VN     T_1, T_5, T_5
+-	VN     T_0, T_4, T_4
+-	VMRHG  H0_1, T_3, H0_0
+-	VMRHG  H1_1, T_4, H1_0
+-	VMRHG  H2_1, T_5, H2_0
+-	VMRLG  H0_1, T_3, H0_1
+-	VMRLG  H1_1, T_4, H1_1
+-	VMRLG  H2_1, T_5, H2_1
+-	VLEIB  $10, $1, H2_0
+-	VLEIB  $10, $1, H2_1
+-	VPERM  M4, M5, EX0, T_3
+-	VPERM  M4, M5, EX1, T_4
+-	VPERM  M4, M5, EX2, T_5
+-	VN     T_0, T_3, T_3
+-	VESRLG $4, T_4, T_4
+-	VN     T_1, T_5, T_5
+-	VN     T_0, T_4, T_4
+-	VMRHG  V0, T_3, M0
+-	VMRHG  V0, T_4, M1
+-	VMRHG  V0, T_5, M2
+-	VMRLG  V0, T_3, M3
+-	VMRLG  V0, T_4, M4
+-	VMRLG  V0, T_5, M5
+-	VLEIB  $10, $1, M2
+-	VLEIB  $10, $1, M5
+-
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	CMPBNE R3, $0, loop
+-	REDUCE(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_10, M0, M1, M3, M4, M5, T_4, T_5, T_2, T_7, T_8, T_9)
+-	VMRHG  V0, H0_1, H0_0
+-	VMRHG  V0, H1_1, H1_0
+-	VMRHG  V0, H2_1, H2_0
+-	VMRLG  V0, H0_1, H0_1
+-	VMRLG  V0, H1_1, H1_1
+-	VMRLG  V0, H2_1, H2_1
+-
+-	// load EX0, EX1, EX2
+-	MOVD $·constants<>(SB), R5
+-	VLM  (R5), EX0, EX2
+-
+-	// sum vectors
+-	VAQ H0_0, H0_1, H0_0
+-	VAQ H1_0, H1_1, H1_0
+-	VAQ H2_0, H2_1, H2_0
+-
+-	// h may be >= 2*(2**130-5) so we need to reduce it again
+-	// M0...M4 are used as temps here
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, T_9, T_10, H0_1, M5)
+-
+-next:  // carry h1->h2
+-	VLEIB  $7, $0x28, T_1
+-	VREPIB $4, T_2
+-	VGBM   $0x003F, T_3
+-	VESRLG $4, T_3
+-
+-	// byte shift
+-	VSRLB T_1, H1_0, T_4
+-
+-	// bit shift
+-	VSRL T_2, T_4, T_4
+-
+-	// clear h1 carry bits
+-	VN T_3, H1_0, H1_0
+-
+-	// add carry
+-	VAQ T_4, H2_0, H2_0
+-
+-	// h is now < 2*(2**130-5)
+-	// pack h into h1 (hi) and h0 (lo)
+-	PACK(H0_0, H1_0, H2_0)
+-
+-	// if h > 2**130-5 then h -= 2**130-5
+-	MOD(H0_0, H1_0, T_0, T_1, T_2)
+-
+-	// h += s
+-	MOVD  $·bswapMask<>(SB), R5
+-	VL    (R5), T_1
+-	VL    16(R4), T_0
+-	VPERM T_0, T_0, T_1, T_0    // reverse bytes (to big)
+-	VAQ   T_0, H0_0, H0_0
+-	VPERM H0_0, H0_0, T_1, H0_0 // reverse bytes (to little)
+-	VST   H0_0, (R1)
+-	RET
+-
+-add:
+-	// load EX0, EX1, EX2
+-	MOVD $·constants<>(SB), R5
+-	VLM  (R5), EX0, EX2
+-
+-	REDUCE(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_10, M0, M1, M3, M4, M5, T_4, T_5, T_2, T_7, T_8, T_9)
+-	VMRHG  V0, H0_1, H0_0
+-	VMRHG  V0, H1_1, H1_0
+-	VMRHG  V0, H2_1, H2_0
+-	VMRLG  V0, H0_1, H0_1
+-	VMRLG  V0, H1_1, H1_1
+-	VMRLG  V0, H2_1, H2_1
+-	CMPBLE R3, $64, b4
+-
+-b4:
+-	CMPBLE R3, $48, b3 // 3 blocks or less
+-
+-	// 4(3+1) blocks remaining
+-	SUB    $49, R3
+-	VLM    (R2), M0, M2
+-	VLL    R3, 48(R2), M3
+-	ADD    $1, R3
+-	MOVBZ  $1, R0
+-	CMPBEQ R3, $16, 2(PC)
+-	VLVGB  R3, R0, M3
+-	MOVD   $64(R2), R2
+-	EXPACC(M0, M1, H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_0, T_1, T_2, T_3)
+-	VLEIB  $10, $1, H2_0
+-	VLEIB  $10, $1, H2_1
+-	VZERO  M0
+-	VZERO  M1
+-	VZERO  M4
+-	VZERO  M5
+-	VZERO  T_4
+-	VZERO  T_10
+-	EXPACC(M2, M3, M0, M1, M4, M5, T_4, T_10, T_0, T_1, T_2, T_3)
+-	VLR    T_4, M2
+-	VLEIB  $10, $1, M4
+-	CMPBNE R3, $16, 2(PC)
+-	VLEIB  $10, $1, T_10
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M4, M5, M2, T_10, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_10, M0, M1, M3, M4, M5, T_4, T_5, T_2, T_7, T_8, T_9)
+-	VMRHG  V0, H0_1, H0_0
+-	VMRHG  V0, H1_1, H1_0
+-	VMRHG  V0, H2_1, H2_0
+-	VMRLG  V0, H0_1, H0_1
+-	VMRLG  V0, H1_1, H1_1
+-	VMRLG  V0, H2_1, H2_1
+-	SUB    $16, R3
+-	CMPBLE R3, $0, square // this condition must always hold true!
+-
+-b3:
+-	CMPBLE R3, $32, b2
+-
+-	// 3 blocks remaining
+-
+-	// setup [r²,r]
+-	VSLDB $8, R_0, R_0, R_0
+-	VSLDB $8, R_1, R_1, R_1
+-	VSLDB $8, R_2, R_2, R_2
+-	VSLDB $8, R5_1, R5_1, R5_1
+-	VSLDB $8, R5_2, R5_2, R5_2
+-
+-	VLVGG $1, RSAVE_0, R_0
+-	VLVGG $1, RSAVE_1, R_1
+-	VLVGG $1, RSAVE_2, R_2
+-	VLVGG $1, R5SAVE_1, R5_1
+-	VLVGG $1, R5SAVE_2, R5_2
+-
+-	// setup [h0, h1]
+-	VSLDB $8, H0_0, H0_0, H0_0
+-	VSLDB $8, H1_0, H1_0, H1_0
+-	VSLDB $8, H2_0, H2_0, H2_0
+-	VO    H0_1, H0_0, H0_0
+-	VO    H1_1, H1_0, H1_0
+-	VO    H2_1, H2_0, H2_0
+-	VZERO H0_1
+-	VZERO H1_1
+-	VZERO H2_1
+-
+-	VZERO M0
+-	VZERO M1
+-	VZERO M2
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-
+-	// H*[r**2, r]
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, H0_1, H1_1, T_10, M5)
+-
+-	SUB    $33, R3
+-	VLM    (R2), M0, M1
+-	VLL    R3, 32(R2), M2
+-	ADD    $1, R3
+-	MOVBZ  $1, R0
+-	CMPBEQ R3, $16, 2(PC)
+-	VLVGB  R3, R0, M2
+-
+-	// H += m0
+-	VZERO T_1
+-	VZERO T_2
+-	VZERO T_3
+-	EXPACC2(M0, T_1, T_2, T_3, T_4, T_5, T_6)
+-	VLEIB $10, $1, T_3
+-	VAG   H0_0, T_1, H0_0
+-	VAG   H1_0, T_2, H1_0
+-	VAG   H2_0, T_3, H2_0
+-
+-	VZERO M0
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-	VZERO T_10
+-
+-	// (H+m0)*r
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M3, M4, M5, V0, T_10, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M3, M4, M5, T_10, H0_1, H1_1, H2_1, T_9)
+-
+-	// H += m1
+-	VZERO V0
+-	VZERO T_1
+-	VZERO T_2
+-	VZERO T_3
+-	EXPACC2(M1, T_1, T_2, T_3, T_4, T_5, T_6)
+-	VLEIB $10, $1, T_3
+-	VAQ   H0_0, T_1, H0_0
+-	VAQ   H1_0, T_2, H1_0
+-	VAQ   H2_0, T_3, H2_0
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M3, M4, M5, T_9, H0_1, H1_1, H2_1, T_10)
+-
+-	// [H, m2] * [r**2, r]
+-	EXPACC2(M2, H0_0, H1_0, H2_0, T_1, T_2, T_3)
+-	CMPBNE R3, $16, 2(PC)
+-	VLEIB  $10, $1, H2_0
+-	VZERO  M0
+-	VZERO  M1
+-	VZERO  M2
+-	VZERO  M3
+-	VZERO  M4
+-	VZERO  M5
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, H0_1, H1_1, M5, T_10)
+-	SUB    $16, R3
+-	CMPBLE R3, $0, next   // this condition must always hold true!
+-
+-b2:
+-	CMPBLE R3, $16, b1
+-
+-	// 2 blocks remaining
+-
+-	// setup [r²,r]
+-	VSLDB $8, R_0, R_0, R_0
+-	VSLDB $8, R_1, R_1, R_1
+-	VSLDB $8, R_2, R_2, R_2
+-	VSLDB $8, R5_1, R5_1, R5_1
+-	VSLDB $8, R5_2, R5_2, R5_2
+-
+-	VLVGG $1, RSAVE_0, R_0
+-	VLVGG $1, RSAVE_1, R_1
+-	VLVGG $1, RSAVE_2, R_2
+-	VLVGG $1, R5SAVE_1, R5_1
+-	VLVGG $1, R5SAVE_2, R5_2
+-
+-	// setup [h0, h1]
+-	VSLDB $8, H0_0, H0_0, H0_0
+-	VSLDB $8, H1_0, H1_0, H1_0
+-	VSLDB $8, H2_0, H2_0, H2_0
+-	VO    H0_1, H0_0, H0_0
+-	VO    H1_1, H1_0, H1_0
+-	VO    H2_1, H2_0, H2_0
+-	VZERO H0_1
+-	VZERO H1_1
+-	VZERO H2_1
+-
+-	VZERO M0
+-	VZERO M1
+-	VZERO M2
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-
+-	// H*[r**2, r]
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, T_10, M0, M1, M2, M3, M4, T_4, T_5, T_2, T_7, T_8, T_9)
+-	VMRHG V0, H0_1, H0_0
+-	VMRHG V0, H1_1, H1_0
+-	VMRHG V0, H2_1, H2_0
+-	VMRLG V0, H0_1, H0_1
+-	VMRLG V0, H1_1, H1_1
+-	VMRLG V0, H2_1, H2_1
+-
+-	// move h to the left and 0s at the right
+-	VSLDB $8, H0_0, H0_0, H0_0
+-	VSLDB $8, H1_0, H1_0, H1_0
+-	VSLDB $8, H2_0, H2_0, H2_0
+-
+-	// get message blocks and append 1 to start
+-	SUB    $17, R3
+-	VL     (R2), M0
+-	VLL    R3, 16(R2), M1
+-	ADD    $1, R3
+-	MOVBZ  $1, R0
+-	CMPBEQ R3, $16, 2(PC)
+-	VLVGB  R3, R0, M1
+-	VZERO  T_6
+-	VZERO  T_7
+-	VZERO  T_8
+-	EXPACC2(M0, T_6, T_7, T_8, T_1, T_2, T_3)
+-	EXPACC2(M1, T_6, T_7, T_8, T_1, T_2, T_3)
+-	VLEIB  $2, $1, T_8
+-	CMPBNE R3, $16, 2(PC)
+-	VLEIB  $10, $1, T_8
+-
+-	// add [m0, m1] to h
+-	VAG H0_0, T_6, H0_0
+-	VAG H1_0, T_7, H1_0
+-	VAG H2_0, T_8, H2_0
+-
+-	VZERO M2
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-	VZERO T_10
+-	VZERO M0
+-
+-	// at this point R_0 .. R5_2 look like [r**2, r]
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M2, M3, M4, M5, T_10, M0, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M2, M3, M4, M5, T_9, H0_1, H1_1, H2_1, T_10)
+-	SUB    $16, R3, R3
+-	CMPBLE R3, $0, next
+-
+-b1:
+-	CMPBLE R3, $0, next
+-
+-	// 1 block remaining
+-
+-	// setup [r²,r]
+-	VSLDB $8, R_0, R_0, R_0
+-	VSLDB $8, R_1, R_1, R_1
+-	VSLDB $8, R_2, R_2, R_2
+-	VSLDB $8, R5_1, R5_1, R5_1
+-	VSLDB $8, R5_2, R5_2, R5_2
+-
+-	VLVGG $1, RSAVE_0, R_0
+-	VLVGG $1, RSAVE_1, R_1
+-	VLVGG $1, RSAVE_2, R_2
+-	VLVGG $1, R5SAVE_1, R5_1
+-	VLVGG $1, R5SAVE_2, R5_2
+-
+-	// setup [h0, h1]
+-	VSLDB $8, H0_0, H0_0, H0_0
+-	VSLDB $8, H1_0, H1_0, H1_0
+-	VSLDB $8, H2_0, H2_0, H2_0
+-	VO    H0_1, H0_0, H0_0
+-	VO    H1_1, H1_0, H1_0
+-	VO    H2_1, H2_0, H2_0
+-	VZERO H0_1
+-	VZERO H1_1
+-	VZERO H2_1
+-
+-	VZERO M0
+-	VZERO M1
+-	VZERO M2
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-
+-	// H*[r**2, r]
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, T_9, T_10, H0_1, M5)
+-
+-	// set up [0, m0] limbs
+-	SUB    $1, R3
+-	VLL    R3, (R2), M0
+-	ADD    $1, R3
+-	MOVBZ  $1, R0
+-	CMPBEQ R3, $16, 2(PC)
+-	VLVGB  R3, R0, M0
+-	VZERO  T_1
+-	VZERO  T_2
+-	VZERO  T_3
+-	EXPACC2(M0, T_1, T_2, T_3, T_4, T_5, T_6)// limbs: [0, m]
+-	CMPBNE R3, $16, 2(PC)
+-	VLEIB  $10, $1, T_3
+-
+-	// h+m0
+-	VAQ H0_0, T_1, H0_0
+-	VAQ H1_0, T_2, H1_0
+-	VAQ H2_0, T_3, H2_0
+-
+-	VZERO M0
+-	VZERO M1
+-	VZERO M2
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, T_9, T_10, H0_1, M5)
+-
+-	BR next
+-
+-square:
+-	// setup [r²,r]
+-	VSLDB $8, R_0, R_0, R_0
+-	VSLDB $8, R_1, R_1, R_1
+-	VSLDB $8, R_2, R_2, R_2
+-	VSLDB $8, R5_1, R5_1, R5_1
+-	VSLDB $8, R5_2, R5_2, R5_2
+-
+-	VLVGG $1, RSAVE_0, R_0
+-	VLVGG $1, RSAVE_1, R_1
+-	VLVGG $1, RSAVE_2, R_2
+-	VLVGG $1, R5SAVE_1, R5_1
+-	VLVGG $1, R5SAVE_2, R5_2
+-
+-	// setup [h0, h1]
+-	VSLDB $8, H0_0, H0_0, H0_0
+-	VSLDB $8, H1_0, H1_0, H1_0
+-	VSLDB $8, H2_0, H2_0, H2_0
+-	VO    H0_1, H0_0, H0_0
+-	VO    H1_1, H1_0, H1_0
+-	VO    H2_1, H2_0, H2_0
+-	VZERO H0_1
+-	VZERO H1_1
+-	VZERO H2_1
+-
+-	VZERO M0
+-	VZERO M1
+-	VZERO M2
+-	VZERO M3
+-	VZERO M4
+-	VZERO M5
+-
+-	// (h0*r**2) + (h1*r)
+-	MULTIPLY(H0_0, H1_0, H2_0, H0_1, H1_1, H2_1, R_0, R_1, R_2, R5_1, R5_2, M0, M1, M2, M3, M4, M5, T_0, T_1, T_2, T_3, T_4, T_5, T_6, T_7, T_8, T_9)
+-	REDUCE2(H0_0, H1_0, H2_0, M0, M1, M2, M3, M4, T_9, T_10, H0_1, M5)
+-	BR next
+diff --git a/src/vendor/golang.org/x/text/unicode/bidi/core.go b/src/vendor/golang.org/x/text/unicode/bidi/core.go
+index 48d144008a..50deb6600a 100644
+--- a/src/vendor/golang.org/x/text/unicode/bidi/core.go
++++ b/src/vendor/golang.org/x/text/unicode/bidi/core.go
+@@ -480,15 +480,15 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
+ 
+ 	// Rule W1.
+ 	// Changes all NSMs.
+-	preceedingCharacterType := s.sos
++	precedingCharacterType := s.sos
+ 	for i, t := range s.types {
+ 		if t == NSM {
+-			s.types[i] = preceedingCharacterType
++			s.types[i] = precedingCharacterType
+ 		} else {
+ 			if t.in(LRI, RLI, FSI, PDI) {
+-				preceedingCharacterType = ON
++				precedingCharacterType = ON
+ 			}
+-			preceedingCharacterType = t
++			precedingCharacterType = t
+ 		}
+ 	}
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 37fda889ec..7c42df8348 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
++# golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+ ## explicit
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -18,9 +18,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
++# golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3
++## explicit
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f
++# golang.org/x/text v0.3.3-0.20200430171850-afb9336c4530
+ ## explicit
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

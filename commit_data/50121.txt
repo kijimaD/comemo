@@ -12,6 +12,19 @@ Date:   Fri Oct 1 17:02:50 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index b6b922e02b..0f3356f85e 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -344,6 +344,7 @@ func (w *writer) Sym(s *LSym) {
+ 		case strings.HasPrefix(s.Name, "go.string."),
+ 			strings.HasPrefix(name, "type..namedata."),
+ 			strings.HasPrefix(name, "type..importpath."),
++			strings.HasPrefix(name, "runtime.gcbits."),
+ 			strings.HasSuffix(name, ".opendefer"),
+ 			strings.HasSuffix(name, ".arginfo0"),
+ 			strings.HasSuffix(name, ".arginfo1"):

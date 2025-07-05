@@ -8,7 +8,27 @@ Date:   Sun Mar 22 21:02:17 2009 -0700
     DELTA=56  (26 added, 30 deleted, 0 changed)
     OCL=26628
     CL=26628
-
+---
  test/{bugs => fixedbugs}/bug141.go | 0
  test/golden.out                    | 4 ----
  2 files changed, 4 deletions(-)
+
+diff --git a/test/bugs/bug141.go b/test/fixedbugs/bug141.go
+similarity index 100%
+rename from test/bugs/bug141.go
+rename to test/fixedbugs/bug141.go
+diff --git a/test/golden.out b/test/golden.out
+index 35a6aec8c6..c41d2d9e17 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -141,10 +141,6 @@ bugs/bug140.go:6: syntax error near L1
+ bugs/bug140.go:7: syntax error near L2
+ BUG should compile
+ 
+-=========== bugs/bug141.go
+-failed to match interface
+-BUG: should run
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

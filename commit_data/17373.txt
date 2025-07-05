@@ -11,7 +11,7 @@ Date:   Sat Aug 24 01:51:25 2013 +1000
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/13188043
-
+---
  src/pkg/syscall/asm_dragonfly_amd64.s      | 133 ++++++++++
  src/pkg/syscall/bpf_bsd.go                 |   2 +-
  src/pkg/syscall/consistency_unix_test.go   |   2 +-
@@ -33,3 +33,1251 @@ Date:   Sat Aug 24 01:51:25 2013 +1000
  src/pkg/syscall/syscall_unix.go            |   2 +-
  src/pkg/syscall/types_dragonfly.go         | 241 ++++++++++++++++++
  20 files changed, 1002 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_dragonfly_amd64.s b/src/pkg/syscall/asm_dragonfly_amd64.s
+new file mode 100644
+index 0000000000..31d107490a
+--- /dev/null
++++ b/src/pkg/syscall/asm_dragonfly_amd64.s
+@@ -0,0 +1,133 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "../../cmd/ld/textflag.h"
++
++//
++// System call support for AMD64, DragonFly
++//
++
++// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
++// func Syscall6(trap int64, a1, a2, a3, a4, a5, a6 int64) (r1, r2, err int64);
++// func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64)
++// Trap # in AX, args in DI SI DX, return in AX DX
++
++TEXT	·Syscall(SB),NOSPLIT,$0-64
++	CALL	runtime·entersyscall(SB)
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	$0, R10
++	MOVQ	$0, R8
++	MOVQ	$0, R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok
++	MOVQ	$-1, 40(SP)	// r1
++	MOVQ	$0, 48(SP)	// r2
++	MOVQ	AX, 56(SP)  // errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok:
++	MOVQ	AX, 40(SP)	// r1
++	MOVQ	DX, 48(SP)	// r2
++	MOVQ	$0, 56(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	·Syscall6(SB),NOSPLIT,$0-88
++	CALL	runtime·entersyscall(SB)
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok6
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	MOVQ	AX, 80(SP)  // errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok6:
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT	·Syscall9(SB),NOSPLIT,$0-112
++	CALL	runtime·entersyscall(SB)
++	MOVQ	8(SP), AX
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP),	R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++
++	// shift around the last three arguments so they're at the
++	// top of the stack when the syscall is called.
++	MOVQ	64(SP), R11 // arg 7
++	MOVQ	R11, 8(SP)
++	MOVQ	72(SP), R11 // arg 8
++	MOVQ	R11, 16(SP)
++	MOVQ	80(SP), R11 // arg 9
++	MOVQ	R11, 24(SP)
++
++	SYSCALL
++	JCC	ok9
++	MOVQ	$-1, 88(SP)	// r1
++	MOVQ	$0, 96(SP)	// r2
++	MOVQ	AX, 104(SP)  // errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++ok9:
++	MOVQ	AX, 88(SP)	// r1
++	MOVQ	DX, 96(SP)	// r2
++	MOVQ	$0, 104(SP)	// errno
++	CALL	runtime·exitsyscall(SB)
++	RET
++
++TEXT ·RawSyscall(SB),NOSPLIT,$0-64
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	$0, R10
++	MOVQ	$0, R8
++	MOVQ	$0, R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok1
++	MOVQ	$-1, 40(SP)	// r1
++	MOVQ	$0, 48(SP)	// r2
++	MOVQ	AX, 56(SP)  // errno
++	RET
++ok1:
++	MOVQ	AX, 40(SP)	// r1
++	MOVQ	DX, 48(SP)	// r2
++	MOVQ	$0, 56(SP)	// errno
++	RET
++
++TEXT	·RawSyscall6(SB),NOSPLIT,$0-88
++	MOVQ	16(SP), DI
++	MOVQ	24(SP), SI
++	MOVQ	32(SP), DX
++	MOVQ	40(SP), R10
++	MOVQ	48(SP), R8
++	MOVQ	56(SP), R9
++	MOVQ	8(SP), AX	// syscall entry
++	SYSCALL
++	JCC	ok2
++	MOVQ	$-1, 64(SP)	// r1
++	MOVQ	$0, 72(SP)	// r2
++	MOVQ	AX, 80(SP)  // errno
++	RET
++ok2:
++	MOVQ	AX, 64(SP)	// r1
++	MOVQ	DX, 72(SP)	// r2
++	MOVQ	$0, 80(SP)	// errno
++	RET
+diff --git a/src/pkg/syscall/bpf_bsd.go b/src/pkg/syscall/bpf_bsd.go
+index f98036c42c..cc6c1e77c5 100644
+--- a/src/pkg/syscall/bpf_bsd.go
++++ b/src/pkg/syscall/bpf_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ // Berkeley packet filter for BSD variants
+ 
+diff --git a/src/pkg/syscall/consistency_unix_test.go b/src/pkg/syscall/consistency_unix_test.go
+index d2416c1eae..b4664d7c71 100644
+--- a/src/pkg/syscall/consistency_unix_test.go
++++ b/src/pkg/syscall/consistency_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd darwin linux netbsd openbsd
++// +build freebsd dragonfly darwin linux netbsd openbsd
+ 
+ // This file tests that some basic syscalls are consistent across
+ // all Unixes.
+diff --git a/src/pkg/syscall/env_unix.go b/src/pkg/syscall/env_unix.go
+index 8573d79c78..5970df8fc8 100644
+--- a/src/pkg/syscall/env_unix.go
++++ b/src/pkg/syscall/env_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // Unix environment variables.
+ 
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index 49f792cf00..ff78f197f1 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ package syscall
+ 
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 01b76c1068..b82e39701e 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // Fork, exec, wait, etc.
+ 
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index a94236336e..4aa979bd11 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -121,6 +121,12 @@ darwin_amd64)
+ 	mksysnum="./mksysnum_darwin.pl /usr/include/sys/syscall.h"
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
++dragonfly_amd64)
++	mkerrors="$mkerrors -m64"
++	mksyscall="./mksyscall.pl -dragonfly"
++	mksysnum="curl -s 'http://gitweb.dragonflybsd.org/dragonfly.git/blob_plain/HEAD:/sys/kern/syscalls.master' | ./mksysnum_dragonfly.pl"
++	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
++	;;
+ freebsd_386)
+ 	mkerrors="$mkerrors -m32"
+ 	mksyscall="./mksyscall.pl -l32"
+@@ -218,7 +224,7 @@ esac
+ 	if [ -n "$mkerrors" ]; then echo "$mkerrors |gofmt >$zerrors"; fi
+ 	syscall_goos="syscall_$GOOS.go"
+ 	case "$GOOS" in
+-	darwin | freebsd | netbsd | openbsd)
++	darwin | dragonfly | freebsd | netbsd | openbsd)
+ 		syscall_goos="syscall_bsd.go $syscall_goos"
+ 		;;
+ 	windows)
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 1492c82937..9bdf993503 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -37,6 +37,25 @@ includes_Darwin='
+ #include <termios.h>
+ '
+ 
++includes_DragonFly='
++#include <sys/types.h>
++#include <sys/event.h>
++#include <sys/socket.h>
++#include <sys/sockio.h>
++#include <sys/sysctl.h>
++#include <sys/mman.h>
++#include <sys/wait.h>
++#include <sys/ioctl.h>
++#include <net/bpf.h>
++#include <net/if.h>
++#include <net/if_types.h>
++#include <net/route.h>
++#include <netinet/in.h>
++#include <termios.h>
++#include <netinet/ip.h>
++#include <net/ip_mroute/ip_mroute.h>
++'
++
+ includes_FreeBSD='
+ #include <sys/types.h>
+ #include <sys/event.h>
+diff --git a/src/pkg/syscall/mksyscall.pl b/src/pkg/syscall/mksyscall.pl
+index 4a814ca5cf..b4ece9a542 100755
+--- a/src/pkg/syscall/mksyscall.pl
++++ b/src/pkg/syscall/mksyscall.pl
+@@ -27,6 +27,7 @@ my $_32bit = "";
+ my $plan9 = 0;
+ my $openbsd = 0;
+ my $netbsd = 0;
++my $dragonfly = 0;
+ my $arm = 0; # 64-bit value should use (even, odd)-pair
+ 
+ if($ARGV[0] eq "-b32") {
+@@ -48,6 +49,10 @@ if($ARGV[0] eq "-netbsd") {
+ 	$netbsd = 1;
+ 	shift;
+ }
++if($ARGV[0] eq "-dragonfly") {
++	$dragonfly = 1;
++	shift;
++}
+ if($ARGV[0] eq "-arm") {
+ 	$arm = 1;
+ 	shift;
+@@ -159,6 +164,17 @@ while(<>) {
+ 			} else {
+ 				push @args, "uintptr($name)";
+ 			}
++		} elsif($type eq "int64" && $dragonfly) {
++			if ($func !~ /^extp(read|write)/i) {
++				push @args, "0";
++			}
++			if($_32bit eq "big-endian") {
++				push @args, "uintptr($name>>32)", "uintptr($name)";
++			} elsif($_32bit eq "little-endian") {
++				push @args, "uintptr($name)", "uintptr($name>>32)";
++			} else {
++				push @args, "uintptr($name)";
++			}
+ 		} elsif($type eq "int64" && $_32bit ne "") {
+ 			if(@args % 2 && $arm) {
+ 				# arm abi specifies 64-bit argument uses 
+diff --git a/src/pkg/syscall/mksysnum_dragonfly.pl b/src/pkg/syscall/mksysnum_dragonfly.pl
+new file mode 100755
+index 0000000000..769c29ea73
+--- /dev/null
++++ b/src/pkg/syscall/mksysnum_dragonfly.pl
+@@ -0,0 +1,43 @@
++#!/usr/bin/env perl
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++#
++# Generate system call table for DragonFly from master list
++# (for example, /usr/src/sys/kern/syscalls.master).
++
++use strict;
++
++my $command = "mksysnum_dragonfly.pl " . join(' ', @ARGV);
++
++print <<EOF;
++// $command
++// MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
++
++package syscall
++
++const (
++EOF
++
++while(<>){
++	if(/^([0-9]+)\s+STD\s+\S+\s+({ \S+\s+(\w+).*)$/){
++		my $num = $1;
++		my $proto = $2;
++		my $name = "SYS_$3";
++		$name =~ y/a-z/A-Z/;
++
++		# There are multiple entries for enosys and nosys, so comment them out.
++		if($name =~ /^SYS_E?NOSYS$/){
++			$name = "// $name";
++		}
++		if($name eq 'SYS_SYS_EXIT'){
++			$name = 'SYS_EXIT';
++		}
++
++		print "	$name = $num;  // $proto\n";
++	}
++}
++
++print <<EOF;
++)
++EOF
+diff --git a/src/pkg/syscall/passfd_test.go b/src/pkg/syscall/passfd_test.go
+index e16debae19..53c7a1ffa4 100644
+--- a/src/pkg/syscall/passfd_test.go
++++ b/src/pkg/syscall/passfd_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux darwin freebsd netbsd openbsd
++// +build linux dragonfly darwin freebsd netbsd openbsd
+ 
+ package syscall_test
+ 
+@@ -13,6 +13,7 @@ import (
+ 	"net"
+ 	"os"
+ 	"os/exec"
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -26,6 +27,10 @@ import (
+ // "-test.run=^TestPassFD$" and an environment variable used to signal
+ // that the test should become the child process instead.
+ func TestPassFD(t *testing.T) {
++	if runtime.GOOS == "dragonfly" {
++		// TODO(jsing): Figure out why sendmsg is returning EINVAL.
++		t.Skip("Skipping test on dragonfly")
++	}
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		passFDChild()
+ 		return
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 2a81f85c34..103aa20f59 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ // Routing sockets and messages
+ 
+diff --git a/src/pkg/syscall/route_dragonfly.go b/src/pkg/syscall/route_dragonfly.go
+new file mode 100644
+index 0000000000..acad7a2be8
+--- /dev/null
++++ b/src/pkg/syscall/route_dragonfly.go
+@@ -0,0 +1,72 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Routing sockets and messages for Dragonfly
++
++package syscall
++
++import "unsafe"
++
++func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
++	switch any.Type {
++	case RTM_ADD, RTM_DELETE, RTM_CHANGE, RTM_GET, RTM_LOSING, RTM_REDIRECT, RTM_MISS, RTM_LOCK, RTM_RESOLVE:
++		p := (*RouteMessage)(unsafe.Pointer(any))
++		return &RouteMessage{Header: p.Header, Data: b[SizeofRtMsghdr:any.Msglen]}
++	case RTM_IFINFO:
++		p := (*InterfaceMessage)(unsafe.Pointer(any))
++		return &InterfaceMessage{Header: p.Header, Data: b[SizeofIfMsghdr:any.Msglen]}
++	case RTM_IFANNOUNCE:
++		p := (*InterfaceAnnounceMessage)(unsafe.Pointer(any))
++		return &InterfaceAnnounceMessage{Header: p.Header}
++	case RTM_NEWADDR, RTM_DELADDR:
++		p := (*InterfaceAddrMessage)(unsafe.Pointer(any))
++		return &InterfaceAddrMessage{Header: p.Header, Data: b[SizeofIfaMsghdr:any.Msglen]}
++	case RTM_NEWMADDR, RTM_DELMADDR:
++		p := (*InterfaceMulticastAddrMessage)(unsafe.Pointer(any))
++		return &InterfaceMulticastAddrMessage{Header: p.Header, Data: b[SizeofIfmaMsghdr:any.Msglen]}
++	}
++	return nil
++}
++
++// InterfaceAnnounceMessage represents a routing message containing
++// network interface arrival and depature information.
++type InterfaceAnnounceMessage struct {
++	Header IfAnnounceMsghdr
++}
++
++func (m *InterfaceAnnounceMessage) sockaddr() (sas []Sockaddr) { return nil }
++
++// InterfaceMulticastAddrMessage represents a routing message
++// containing network interface address entries.
++type InterfaceMulticastAddrMessage struct {
++	Header IfmaMsghdr
++	Data   []byte
++}
++
++const rtaIfmaMask = RTA_GATEWAY | RTA_IFP | RTA_IFA
++
++func (m *InterfaceMulticastAddrMessage) sockaddr() (sas []Sockaddr) {
++	if m.Header.Addrs&rtaIfmaMask == 0 {
++		return nil
++	}
++	b := m.Data[:]
++	for i := uint(0); i < RTAX_MAX; i++ {
++		if m.Header.Addrs&rtaIfmaMask&(1<<i) == 0 {
++			continue
++		}
++		rsa := (*RawSockaddr)(unsafe.Pointer(&b[0]))
++		switch i {
++		case RTAX_IFA:
++			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if e != nil {
++				return nil
++			}
++			sas = append(sas, sa)
++		case RTAX_GATEWAY, RTAX_IFP:
++			// nothing to do
++		}
++		b = b[rsaAlignOf(int(rsa.Len)):]
++	}
++	return sas
++}
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+index bc7cf2098f..d2aba7b5c7 100644
+--- a/src/pkg/syscall/sockcmsg_unix.go
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ // Socket control messages
+ 
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index bd094ae368..76b1f41b46 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd netbsd openbsd
++// +build darwin dragonfly freebsd netbsd openbsd
+ 
+ // BSD system call wrappers shared by *BSD based systems
+ // including OS X (Darwin) and FreeBSD.  Like the other
+@@ -291,7 +291,9 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
+ 		return
+ 	}
+ 	// TODO(jsing): Remove after OpenBSD 5.4 is released (see issue 3349).
+-	if runtime.GOOS == "openbsd" && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
++	// TODO(jsing): Apparently dragonfly has the same "bug", which should
++	// be reported upstream.
++	if (runtime.GOOS == "dragonfly" || runtime.GOOS == "openbsd") && rsa.Addr.Family == AF_UNSPEC && rsa.Addr.Len == 0 {
+ 		rsa.Addr.Family = AF_UNIX
+ 		rsa.Addr.Len = SizeofSockaddrUnix
+ 	}
+diff --git a/src/pkg/syscall/syscall_dragonfly.go b/src/pkg/syscall/syscall_dragonfly.go
+new file mode 100644
+index 0000000000..e19a9cee3e
+--- /dev/null
++++ b/src/pkg/syscall/syscall_dragonfly.go
+@@ -0,0 +1,394 @@
++// Copyright 2009,2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// FreeBSD system calls.
++// This file is compiled as ordinary Go code,
++// but it is also input to mksyscall,
++// which parses the //sys lines and generates system call stubs.
++// Note that sometimes we use a lowercase //sys name and wrap
++// it in our own nicer implementation, either here or in
++// syscall_bsd.go or syscall_unix.go.
++
++package syscall
++
++import "unsafe"
++
++type SockaddrDatalink struct {
++	Len    uint8
++	Family uint8
++	Index  uint16
++	Type   uint8
++	Nlen   uint8
++	Alen   uint8
++	Slen   uint8
++	Data   [12]int8
++	Rcf    uint16
++	Route  [16]uint16
++	raw    RawSockaddrDatalink
++}
++
++// Translate "kern.hostname" to []_C_int{0,1,2,3}.
++func nametomib(name string) (mib []_C_int, err error) {
++	const siz = unsafe.Sizeof(mib[0])
++
++	// NOTE(rsc): It seems strange to set the buffer to have
++	// size CTL_MAXNAME+2 but use only CTL_MAXNAME
++	// as the size.  I don't know why the +2 is here, but the
++	// kernel uses +2 for its own implementation of this function.
++	// I am scared that if we don't include the +2 here, the kernel
++	// will silently write 2 words farther than we specify
++	// and we'll get memory corruption.
++	var buf [CTL_MAXNAME + 2]_C_int
++	n := uintptr(CTL_MAXNAME) * siz
++
++	p := (*byte)(unsafe.Pointer(&buf[0]))
++	bytes, err := ByteSliceFromString(name)
++	if err != nil {
++		return nil, err
++	}
++
++	// Magic sysctl: "setting" 0.3 to a string name
++	// lets you read back the array of integers form.
++	if err = sysctl([]_C_int{0, 3}, p, &n, &bytes[0], uintptr(len(name))); err != nil {
++		return nil, err
++	}
++	return buf[0 : n/siz], nil
++}
++
++// ParseDirent parses up to max directory entries in buf,
++// appending the names to names.  It returns the number
++// bytes consumed from buf, the number of entries added
++// to names, and the new names slice.
++func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
++	origlen := len(buf)
++	for max != 0 && len(buf) > 0 {
++		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
++		reclen := int(16+dirent.Namlen+1+7) & ^7
++		buf = buf[reclen:]
++		if dirent.Fileno == 0 { // File absent in directory.
++			continue
++		}
++		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
++		var name = string(bytes[0:dirent.Namlen])
++		if name == "." || name == ".." { // Useless names
++			continue
++		}
++		max--
++		count++
++		names = append(names, name)
++	}
++	return origlen - len(buf), count, names
++}
++
++//sysnb pipe() (r int, w int, err error)
++
++func Pipe(p []int) (err error) {
++	if len(p) != 2 {
++		return EINVAL
++	}
++	p[0], p[1], err = pipe()
++	return
++}
++
++//sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
++func Pread(fd int, p []byte, offset int64) (n int, err error) {
++	return extpread(fd, p, 0, offset)
++}
++
++//sys	extpwrite(fd int, p []byte, flags int, offset int64) (n int, err error)
++func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++	return extpwrite(fd, p, 0, offset)
++}
++
++/*
++ * Exposed directly
++ */
++//sys	Access(path string, mode uint32) (err error)
++//sys	Adjtime(delta *Timeval, olddelta *Timeval) (err error)
++//sys	Chdir(path string) (err error)
++//sys	Chflags(path string, flags int) (err error)
++//sys	Chmod(path string, mode uint32) (err error)
++//sys	Chown(path string, uid int, gid int) (err error)
++//sys	Chroot(path string) (err error)
++//sys	Close(fd int) (err error)
++//sysnb	Dup(fd int) (nfd int, err error)
++//sysnb	Dup2(from int, to int) (err error)
++//sys	Exit(code int)
++//sys	Fchdir(fd int) (err error)
++//sys	Fchflags(fd int, flags int) (err error)
++//sys	Fchmod(fd int, mode uint32) (err error)
++//sys	Fchown(fd int, uid int, gid int) (err error)
++//sys	Flock(fd int, how int) (err error)
++//sys	Fpathconf(fd int, name int) (val int, err error)
++//sys	Fstat(fd int, stat *Stat_t) (err error)
++//sys	Fstatfs(fd int, stat *Statfs_t) (err error)
++//sys	Fsync(fd int) (err error)
++//sys	Ftruncate(fd int, length int64) (err error)
++//sys	Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error)
++//sys	Getdtablesize() (size int)
++//sysnb	Getegid() (egid int)
++//sysnb	Geteuid() (uid int)
++//sys	Getfsstat(buf []Statfs_t, flags int) (n int, err error)
++//sysnb	Getgid() (gid int)
++//sysnb	Getpgid(pid int) (pgid int, err error)
++//sysnb	Getpgrp() (pgrp int)
++//sysnb	Getpid() (pid int)
++//sysnb	Getppid() (ppid int)
++//sys	Getpriority(which int, who int) (prio int, err error)
++//sysnb	Getrlimit(which int, lim *Rlimit) (err error)
++//sysnb	Getrusage(who int, rusage *Rusage) (err error)
++//sysnb	Getsid(pid int) (sid int, err error)
++//sysnb	Gettimeofday(tv *Timeval) (err error)
++//sysnb	Getuid() (uid int)
++//sys	Issetugid() (tainted bool)
++//sys	Kill(pid int, signum Signal) (err error)
++//sys	Kqueue() (fd int, err error)
++//sys	Lchown(path string, uid int, gid int) (err error)
++//sys	Link(path string, link string) (err error)
++//sys	Listen(s int, backlog int) (err error)
++//sys	Lstat(path string, stat *Stat_t) (err error)
++//sys	Mkdir(path string, mode uint32) (err error)
++//sys	Mkfifo(path string, mode uint32) (err error)
++//sys	Mknod(path string, mode uint32, dev int) (err error)
++//sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
++//sys	Open(path string, mode int, perm uint32) (fd int, err error)
++//sys	Pathconf(path string, name int) (val int, err error)
++//sys	read(fd int, p []byte) (n int, err error)
++//sys	Readlink(path string, buf []byte) (n int, err error)
++//sys	Rename(from string, to string) (err error)
++//sys	Revoke(path string) (err error)
++//sys	Rmdir(path string) (err error)
++//sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = SYS_LSEEK
++//sys	Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error)
++//sysnb	Setegid(egid int) (err error)
++//sysnb	Seteuid(euid int) (err error)
++//sysnb	Setgid(gid int) (err error)
++//sys	Setlogin(name string) (err error)
++//sysnb	Setpgid(pid int, pgid int) (err error)
++//sys	Setpriority(which int, who int, prio int) (err error)
++//sysnb	Setregid(rgid int, egid int) (err error)
++//sysnb	Setreuid(ruid int, euid int) (err error)
++//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
++//sysnb	Setsid() (pid int, err error)
++//sysnb	Settimeofday(tp *Timeval) (err error)
++//sysnb	Setuid(uid int) (err error)
++//sys	Stat(path string, stat *Stat_t) (err error)
++//sys	Statfs(path string, stat *Statfs_t) (err error)
++//sys	Symlink(path string, link string) (err error)
++//sys	Sync() (err error)
++//sys	Truncate(path string, length int64) (err error)
++//sys	Umask(newmask int) (oldmask int)
++//sys	Undelete(path string) (err error)
++//sys	Unlink(path string) (err error)
++//sys	Unmount(path string, flags int) (err error)
++//sys	write(fd int, p []byte) (n int, err error)
++//sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
++//sys   munmap(addr uintptr, length uintptr) (err error)
++//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
++//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
++
++/*
++ * Unimplemented
++ * TODO(jsing): Update this list for DragonFly.
++ */
++// Profil
++// Sigaction
++// Sigprocmask
++// Getlogin
++// Sigpending
++// Sigaltstack
++// Ioctl
++// Reboot
++// Execve
++// Vfork
++// Sbrk
++// Sstk
++// Ovadvise
++// Mincore
++// Setitimer
++// Swapon
++// Select
++// Sigsuspend
++// Readv
++// Writev
++// Nfssvc
++// Getfh
++// Quotactl
++// Mount
++// Csops
++// Waitid
++// Add_profil
++// Kdebug_trace
++// Sigreturn
++// Mmap
++// Mlock
++// Munlock
++// Atsocket
++// Kqueue_from_portset_np
++// Kqueue_portset
++// Getattrlist
++// Setattrlist
++// Getdirentriesattr
++// Searchfs
++// Delete
++// Copyfile
++// Poll
++// Watchevent
++// Waitevent
++// Modwatch
++// Getxattr
++// Fgetxattr
++// Setxattr
++// Fsetxattr
++// Removexattr
++// Fremovexattr
++// Listxattr
++// Flistxattr
++// Fsctl
++// Initgroups
++// Posix_spawn
++// Nfsclnt
++// Fhopen
++// Minherit
++// Semsys
++// Msgsys
++// Shmsys
++// Semctl
++// Semget
++// Semop
++// Msgctl
++// Msgget
++// Msgsnd
++// Msgrcv
++// Shmat
++// Shmctl
++// Shmdt
++// Shmget
++// Shm_open
++// Shm_unlink
++// Sem_open
++// Sem_close
++// Sem_unlink
++// Sem_wait
++// Sem_trywait
++// Sem_post
++// Sem_getvalue
++// Sem_init
++// Sem_destroy
++// Open_extended
++// Umask_extended
++// Stat_extended
++// Lstat_extended
++// Fstat_extended
++// Chmod_extended
++// Fchmod_extended
++// Access_extended
++// Settid
++// Gettid
++// Setsgroups
++// Getsgroups
++// Setwgroups
++// Getwgroups
++// Mkfifo_extended
++// Mkdir_extended
++// Identitysvc
++// Shared_region_check_np
++// Shared_region_map_np
++// __pthread_mutex_destroy
++// __pthread_mutex_init
++// __pthread_mutex_lock
++// __pthread_mutex_trylock
++// __pthread_mutex_unlock
++// __pthread_cond_init
++// __pthread_cond_destroy
++// __pthread_cond_broadcast
++// __pthread_cond_signal
++// Setsid_with_pid
++// __pthread_cond_timedwait
++// Aio_fsync
++// Aio_return
++// Aio_suspend
++// Aio_cancel
++// Aio_error
++// Aio_read
++// Aio_write
++// Lio_listio
++// __pthread_cond_wait
++// Iopolicysys
++// Mlockall
++// Munlockall
++// __pthread_kill
++// __pthread_sigmask
++// __sigwait
++// __disable_threadsignal
++// __pthread_markcancel
++// __pthread_canceled
++// __semwait_signal
++// Proc_info
++// Stat64_extended
++// Lstat64_extended
++// Fstat64_extended
++// __pthread_chdir
++// __pthread_fchdir
++// Audit
++// Auditon
++// Getauid
++// Setauid
++// Getaudit
++// Setaudit
++// Getaudit_addr
++// Setaudit_addr
++// Auditctl
++// Bsdthread_create
++// Bsdthread_terminate
++// Stack_snapshot
++// Bsdthread_register
++// Workq_open
++// Workq_ops
++// __mac_execve
++// __mac_syscall
++// __mac_get_file
++// __mac_set_file
++// __mac_get_link
++// __mac_set_link
++// __mac_get_proc
++// __mac_set_proc
++// __mac_get_fd
++// __mac_set_fd
++// __mac_get_pid
++// __mac_get_lcid
++// __mac_get_lctx
++// __mac_set_lctx
++// Setlcid
++// Read_nocancel
++// Write_nocancel
++// Open_nocancel
++// Close_nocancel
++// Wait4_nocancel
++// Recvmsg_nocancel
++// Sendmsg_nocancel
++// Recvfrom_nocancel
++// Accept_nocancel
++// Msync_nocancel
++// Fcntl_nocancel
++// Select_nocancel
++// Fsync_nocancel
++// Connect_nocancel
++// Sigsuspend_nocancel
++// Readv_nocancel
++// Writev_nocancel
++// Sendto_nocancel
++// Pread_nocancel
++// Pwrite_nocancel
++// Waitid_nocancel
++// Poll_nocancel
++// Msgsnd_nocancel
++// Msgrcv_nocancel
++// Sem_wait_nocancel
++// Aio_suspend_nocancel
++// __sigwait_nocancel
++// __semwait_signal_nocancel
++// __mac_mount
++// __mac_get_mount
++// __mac_getfsstat
+diff --git a/src/pkg/syscall/syscall_dragonfly_amd64.go b/src/pkg/syscall/syscall_dragonfly_amd64.go
+new file mode 100644
+index 0000000000..70c2ffb035
+--- /dev/null
++++ b/src/pkg/syscall/syscall_dragonfly_amd64.go
+@@ -0,0 +1,58 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import "unsafe"
++
++func Getpagesize() int { return 4096 }
++
++func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = nsec / 1e9
++	ts.Nsec = nsec % 1e9
++	return
++}
++
++func TimevalToNsec(tv Timeval) int64 { return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
++
++func NsecToTimeval(nsec int64) (tv Timeval) {
++	nsec += 999 // round up to microsecond
++	tv.Usec = nsec % 1e9 / 1e3
++	tv.Sec = int64(nsec / 1e9)
++	return
++}
++
++func SetKevent(k *Kevent_t, fd, mode, flags int) {
++	k.Ident = uint64(fd)
++	k.Filter = int16(mode)
++	k.Flags = uint16(flags)
++}
++
++func (iov *Iovec) SetLen(length int) {
++	iov.Len = uint64(length)
++}
++
++func (msghdr *Msghdr) SetControllen(length int) {
++	msghdr.Controllen = uint32(length)
++}
++
++func (cmsg *Cmsghdr) SetLen(length int) {
++	cmsg.Len = uint32(length)
++}
++
++func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
++	var writtenOut uint64 = 0
++	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
++
++	written = int(writtenOut)
++
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+diff --git a/src/pkg/syscall/syscall_no_getwd.go b/src/pkg/syscall/syscall_no_getwd.go
+index 18fc317dcf..0080c5ca0f 100644
+--- a/src/pkg/syscall/syscall_no_getwd.go
++++ b/src/pkg/syscall/syscall_no_getwd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd netbsd openbsd
++// +build dragonfly freebsd netbsd openbsd
+ 
+ package syscall
+ 
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 046b93b2f6..4e4a366df5 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package syscall
+ 
+diff --git a/src/pkg/syscall/types_dragonfly.go b/src/pkg/syscall/types_dragonfly.go
+new file mode 100644
+index 0000000000..009b8f045b
+--- /dev/null
++++ b/src/pkg/syscall/types_dragonfly.go
+@@ -0,0 +1,241 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++/*
++Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
++*/
++
++// +godefs map struct_in_addr [4]byte /* in_addr */
++// +godefs map struct_in6_addr [16]byte /* in6_addr */
++
++package syscall
++
++/*
++#define KERNEL
++#include <dirent.h>
++#include <fcntl.h>
++#include <signal.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <sys/event.h>
++#include <sys/mman.h>
++#include <sys/mount.h>
++#include <sys/param.h>
++#include <sys/ptrace.h>
++#include <sys/resource.h>
++#include <sys/select.h>
++#include <sys/signal.h>
++#include <sys/socket.h>
++#include <sys/stat.h>
++#include <sys/time.h>
++#include <sys/types.h>
++#include <sys/un.h>
++#include <sys/wait.h>
++#include <net/bpf.h>
++#include <net/if.h>
++#include <net/if_dl.h>
++#include <net/route.h>
++#include <netinet/in.h>
++#include <netinet/icmp6.h>
++#include <netinet/tcp.h>
++
++enum {
++	sizeofPtr = sizeof(void*),
++};
++
++union sockaddr_all {
++	struct sockaddr s1;	// this one gets used for fields
++	struct sockaddr_in s2;	// these pad it out
++	struct sockaddr_in6 s3;
++	struct sockaddr_un s4;
++	struct sockaddr_dl s5;
++};
++
++struct sockaddr_any {
++	struct sockaddr addr;
++	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
++};
++
++*/
++import "C"
++
++// Machine characteristics; for internal use.
++
++const (
++	sizeofPtr      = C.sizeofPtr
++	sizeofShort    = C.sizeof_short
++	sizeofInt      = C.sizeof_int
++	sizeofLong     = C.sizeof_long
++	sizeofLongLong = C.sizeof_longlong
++)
++
++// Basic types
++
++type (
++	_C_short     C.short
++	_C_int       C.int
++	_C_long      C.long
++	_C_long_long C.longlong
++)
++
++// Time
++
++type Timespec C.struct_timespec
++
++type Timeval C.struct_timeval
++
++// Processes
++
++type Rusage C.struct_rusage
++
++type Rlimit C.struct_rlimit
++
++type _Gid_t C.gid_t
++
++// Files
++
++const (
++	F_DUPFD_CLOEXEC = 0 // not supported
++)
++
++const ( // Directory mode bits
++	S_IFMT   = C.S_IFMT
++	S_IFIFO  = C.S_IFIFO
++	S_IFCHR  = C.S_IFCHR
++	S_IFDIR  = C.S_IFDIR
++	S_IFBLK  = C.S_IFBLK
++	S_IFREG  = C.S_IFREG
++	S_IFLNK  = C.S_IFLNK
++	S_IFSOCK = C.S_IFSOCK
++	S_ISUID  = C.S_ISUID
++	S_ISGID  = C.S_ISGID
++	S_ISVTX  = C.S_ISVTX
++	S_IRUSR  = C.S_IRUSR
++	S_IWUSR  = C.S_IWUSR
++	S_IXUSR  = C.S_IXUSR
++)
++
++type Stat_t C.struct_stat
++
++type Statfs_t C.struct_statfs
++
++type Flock_t C.struct_flock
++
++type Dirent C.struct_dirent
++
++type Fsid C.struct_fsid
++
++// Sockets
++
++type RawSockaddrInet4 C.struct_sockaddr_in
++
++type RawSockaddrInet6 C.struct_sockaddr_in6
++
++type RawSockaddrUnix C.struct_sockaddr_un
++
++type RawSockaddrDatalink C.struct_sockaddr_dl
++
++type RawSockaddr C.struct_sockaddr
++
++type RawSockaddrAny C.struct_sockaddr_any
++
++type _Socklen C.socklen_t
++
++type Linger C.struct_linger
++
++type Iovec C.struct_iovec
++
++type IPMreq C.struct_ip_mreq
++
++type IPv6Mreq C.struct_ipv6_mreq
++
++type Msghdr C.struct_msghdr
++
++type Cmsghdr C.struct_cmsghdr
++
++type Inet6Pktinfo C.struct_in6_pktinfo
++
++type IPv6MTUInfo C.struct_ip6_mtuinfo
++
++type ICMPv6Filter C.struct_icmp6_filter
++
++const (
++	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
++	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
++	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
++	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
++	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
++	SizeofLinger           = C.sizeof_struct_linger
++	SizeofIPMreq           = C.sizeof_struct_ip_mreq
++	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
++	SizeofMsghdr           = C.sizeof_struct_msghdr
++	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
++	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
++	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
++	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
++)
++
++// Ptrace requests
++
++const (
++	PTRACE_TRACEME = C.PT_TRACE_ME
++	PTRACE_CONT    = C.PT_CONTINUE
++	PTRACE_KILL    = C.PT_KILL
++)
++
++// Events (kqueue, kevent)
++
++type Kevent_t C.struct_kevent
++
++// Select
++
++type FdSet C.fd_set
++
++// Routing and interface messages
++
++const (
++	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
++	SizeofIfData           = C.sizeof_struct_if_data
++	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
++	SizeofIfmaMsghdr       = C.sizeof_struct_ifma_msghdr
++	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
++	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
++	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
++)
++
++type IfMsghdr C.struct_if_msghdr
++
++type IfData C.struct_if_data
++
++type IfaMsghdr C.struct_ifa_msghdr
++
++type IfmaMsghdr C.struct_ifma_msghdr
++
++type IfAnnounceMsghdr C.struct_if_announcemsghdr
++
++type RtMsghdr C.struct_rt_msghdr
++
++type RtMetrics C.struct_rt_metrics
++
++// Berkeley packet filter
++
++const (
++	SizeofBpfVersion = C.sizeof_struct_bpf_version
++	SizeofBpfStat    = C.sizeof_struct_bpf_stat
++	SizeofBpfProgram = C.sizeof_struct_bpf_program
++	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
++	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
++)
++
++type BpfVersion C.struct_bpf_version
++
++type BpfStat C.struct_bpf_stat
++
++type BpfProgram C.struct_bpf_program
++
++type BpfInsn C.struct_bpf_insn
++
++type BpfHdr C.struct_bpf_hdr

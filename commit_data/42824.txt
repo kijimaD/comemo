@@ -15,6 +15,20 @@ Date:   Tue Nov 26 13:45:15 2019 -0500
     Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/x509.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 013f1c996d..aaf2e684fa 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1374,7 +1374,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 	if rest, err := asn1.Unmarshal(in.TBSCertificate.Issuer.FullBytes, &issuer); err != nil {
+ 		return nil, err
+ 	} else if len(rest) != 0 {
+-		return nil, errors.New("x509: trailing data after X.509 subject")
++		return nil, errors.New("x509: trailing data after X.509 issuer")
+ 	}
+ 
+ 	out.Issuer.FillFromRDNSequence(&issuer)

@@ -8,7 +8,34 @@ Date:   Tue Aug 11 16:36:40 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/13510
     Reviewed-by: Michael McGreevy <mcgreevy@golang.org>
     Reviewed-by: David Symonds <dsymonds@golang.org>
-
+---
  src/net/mail/message.go      | 2 +-
  src/net/mail/message_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index 8a89f9b0c0..266ac50a38 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -177,7 +177,7 @@ func (a *Address) String() string {
+ 		// treat the whole address as local-part.
+ 		local = a.Address
+ 	} else {
+-		local, domain := a.Address[:at], a.Address[at+1:]
++		local, domain = a.Address[:at], a.Address[at+1:]
+ 	}
+ 
+ 	// Add quotes if needed
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index c6b412c181..1b422743f9 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -485,7 +485,7 @@ func TestAddressFormatting(t *testing.T) {
+ 		},
+ 		{ // https://golang.org/issue/12098
+ 			&Address{Name: "Rob", Address: ""},
+-			`"Rob" <>`,
++			`"Rob" <@>`,
+ 		},
+ 		{ // https://golang.org/issue/12098
+ 			&Address{Name: "Rob", Address: "@"},

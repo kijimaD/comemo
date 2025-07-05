@@ -7,6 +7,20 @@ Date:   Tue Jun 11 04:58:02 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10159043
-
+---
  src/cmd/ld/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 3493f41d8a..5f7c2565ef 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -52,6 +52,8 @@ Options new in this version:
+ 		The default is the single location $GOROOT/pkg/$GOOS_$GOARCH.
+ 	-r dir1:dir2:...
+ 		Set the dynamic linker search path when using ELF.
++	-s
++		Omit the symbol table and debug information.
+ 	-V
+ 		Print the linker version.
+ 	-X symbol value

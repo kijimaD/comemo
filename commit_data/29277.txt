@@ -36,8 +36,116 @@ Date:   Tue Sep 6 08:09:27 2016 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes.go       | 12 +++++------
  src/bytes/bytes_amd64.go |  2 ++
  src/bytes/bytes_test.go  | 52 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index c35a1c0005..3286ca3fe9 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -131,14 +131,12 @@ func LastIndexByte(s []byte, c byte) int {
+ // It returns the byte index of the first occurrence in s of the given rune.
+ // It returns -1 if rune is not present in s.
+ func IndexRune(s []byte, r rune) int {
+-	for i := 0; i < len(s); {
+-		r1, size := utf8.DecodeRune(s[i:])
+-		if r == r1 {
+-			return i
+-		}
+-		i += size
++	if r < utf8.RuneSelf {
++		return IndexByte(s, byte(r))
+ 	}
+-	return -1
++	var b [utf8.UTFMax]byte
++	n := utf8.EncodeRune(b[:], r)
++	return Index(s, b[:n])
+ }
+ 
+ // IndexAny interprets s as a sequence of UTF-8-encoded Unicode code points.
+diff --git a/src/bytes/bytes_amd64.go b/src/bytes/bytes_amd64.go
+index e8be28b51d..b683e6721c 100644
+--- a/src/bytes/bytes_amd64.go
++++ b/src/bytes/bytes_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package bytes
+ 
++//go:noescape
++
+ // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
+ // indexShortStr requires 2 <= len(c) <= shortStringLen
+ func indexShortStr(s, c []byte) int // ../runtime/asm_$GOARCH.s
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index c48f662e10..e9a022b91a 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -354,6 +354,20 @@ func TestIndexRune(t *testing.T) {
+ 			t.Errorf(`IndexRune(%q, '%c') = %v`, tt.a, r, pos)
+ 		}
+ 	}
++
++	haystack := []byte("test世界")
++
++	allocs := testing.AllocsPerRun(1000, func() {
++		if i := IndexRune(haystack, 's'); i != 2 {
++			t.Fatalf("'s' at %d; want 2", i)
++		}
++		if i := IndexRune(haystack, '世'); i != 4 {
++			t.Fatalf("'世' at %d; want 4", i)
++		}
++	})
++	if allocs != 0 {
++		t.Errorf(`expected no allocations, got %f`, allocs)
++	}
+ }
+ 
+ var bmbuf []byte
+@@ -404,6 +418,44 @@ func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
+ 	}
+ }
+ 
++func BenchmarkIndexRune(b *testing.B) {
++	benchBytes(b, indexSizes, bmIndexRune(IndexRune))
++}
++
++func BenchmarkIndexRuneASCII(b *testing.B) {
++	benchBytes(b, indexSizes, bmIndexRuneASCII(IndexRune))
++}
++
++func bmIndexRuneASCII(index func([]byte, rune) int) func(b *testing.B, n int) {
++	return func(b *testing.B, n int) {
++		buf := bmbuf[0:n]
++		buf[n-1] = 'x'
++		for i := 0; i < b.N; i++ {
++			j := index(buf, 'x')
++			if j != n-1 {
++				b.Fatal("bad index", j)
++			}
++		}
++		buf[n-1] = '\x00'
++	}
++}
++
++func bmIndexRune(index func([]byte, rune) int) func(b *testing.B, n int) {
++	return func(b *testing.B, n int) {
++		buf := bmbuf[0:n]
++		utf8.EncodeRune(buf[n-3:], '世')
++		for i := 0; i < b.N; i++ {
++			j := index(buf, '世')
++			if j != n-3 {
++				b.Fatal("bad index", j)
++			}
++		}
++		buf[n-3] = '\x00'
++		buf[n-2] = '\x00'
++		buf[n-1] = '\x00'
++	}
++}
++
+ func BenchmarkEqual(b *testing.B) {
+ 	b.Run("0", func(b *testing.B) {
+ 		var buf [4]byte

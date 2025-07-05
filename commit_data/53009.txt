@@ -13,7 +13,7 @@ Date:   Wed May 11 15:11:29 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/ecdsa/boring.go                            | 5 +++--
  src/crypto/internal/boring/{ => bcache}/cache.go      | 3 ++-
  src/crypto/internal/boring/{ => bcache}/cache_test.go | 2 +-
@@ -22,3 +22,125 @@ Date:   Wed May 11 15:11:29 2022 -0400
  src/go/build/deps_test.go                             | 7 +++++--
  src/runtime/mgc.go                                    | 2 +-
  7 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/ecdsa/boring.go b/src/crypto/ecdsa/boring.go
+index edb723fe0e..4495730b84 100644
+--- a/src/crypto/ecdsa/boring.go
++++ b/src/crypto/ecdsa/boring.go
+@@ -9,6 +9,7 @@ package ecdsa
+ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
++	"crypto/internal/boring/bcache"
+ 	"math/big"
+ 	"unsafe"
+ )
+@@ -26,8 +27,8 @@ import (
+ // still matches before using the cached key. The theory is that the real
+ // operations are significantly more expensive than the comparison.
+ 
+-var pubCache boring.Cache
+-var privCache boring.Cache
++var pubCache bcache.Cache
++var privCache bcache.Cache
+ 
+ func init() {
+ 	pubCache.Register()
+diff --git a/src/crypto/internal/boring/cache.go b/src/crypto/internal/boring/bcache/cache.go
+similarity index 97%
+rename from src/crypto/internal/boring/cache.go
+rename to src/crypto/internal/boring/bcache/cache.go
+index 476e47706c..c0b9d7bf2a 100644
+--- a/src/crypto/internal/boring/cache.go
++++ b/src/crypto/internal/boring/bcache/cache.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package boring
++// Package bcache implements a GC-friendly cache (see [Cache]) for BoringCrypto.
++package bcache
+ 
+ import (
+ 	"sync/atomic"
+diff --git a/src/crypto/internal/boring/cache_test.go b/src/crypto/internal/boring/bcache/cache_test.go
+similarity index 99%
+rename from src/crypto/internal/boring/cache_test.go
+rename to src/crypto/internal/boring/bcache/cache_test.go
+index f9ccb74f6f..8b2cf3d094 100644
+--- a/src/crypto/internal/boring/cache_test.go
++++ b/src/crypto/internal/boring/bcache/cache_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package boring
++package bcache
+ 
+ import (
+ 	"fmt"
+diff --git a/src/crypto/internal/boring/stub.s b/src/crypto/internal/boring/bcache/stub.s
+similarity index 100%
+rename from src/crypto/internal/boring/stub.s
+rename to src/crypto/internal/boring/bcache/stub.s
+diff --git a/src/crypto/rsa/boring.go b/src/crypto/rsa/boring.go
+index fc2842fb34..9b1db564c3 100644
+--- a/src/crypto/rsa/boring.go
++++ b/src/crypto/rsa/boring.go
+@@ -9,6 +9,7 @@ package rsa
+ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
++	"crypto/internal/boring/bcache"
+ 	"math/big"
+ 	"unsafe"
+ )
+@@ -31,8 +32,8 @@ type boringPub struct {
+ 	orig PublicKey
+ }
+ 
+-var pubCache boring.Cache
+-var privCache boring.Cache
++var pubCache bcache.Cache
++var privCache bcache.Cache
+ 
+ func init() {
+ 	pubCache.Register()
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5b971b93e2..84cc9de8e7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -393,7 +393,7 @@ var depsRules = `
+ 	< net/mail;
+ 
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+-	sync/atomic < crypto/internal/boring/fipstls;
++	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
+ 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+ 
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+@@ -410,7 +410,10 @@ var depsRules = `
+ 	< crypto/internal/nistec
+ 	< crypto/internal/edwards25519/field, golang.org/x/crypto/curve25519/internal/field
+ 	< crypto/internal/edwards25519
+-	< crypto/cipher
++	< crypto/cipher;
++
++	crypto/cipher,
++	crypto/internal/boring/bcache
+ 	< crypto/internal/boring
+ 	< crypto/boring
+ 	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9b25948255..63e04636d7 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1579,7 +1579,7 @@ func sync_runtime_registerPoolCleanup(f func()) {
+ 	poolcleanup = f
+ }
+ 
+-//go:linkname boring_registerCache crypto/internal/boring.registerCache
++//go:linkname boring_registerCache crypto/internal/boring/bcache.registerCache
+ func boring_registerCache(p unsafe.Pointer) {
+ 	boringCaches = append(boringCaches, p)
+ }

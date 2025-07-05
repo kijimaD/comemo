@@ -15,8 +15,80 @@ Date:   Mon Apr 18 18:14:51 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/assignments.go | 10 +++++-----
  src/go/types/call.go        |  9 ++++-----
  src/go/types/conversions.go |  5 ++++-
  3 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 101e868d82..98d75630ef 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -9,6 +9,7 @@ package types
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/token"
+ 	"strings"
+ )
+ 
+@@ -339,11 +340,10 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
+ 			} else if len(rhs) > 0 {
+ 				at = rhs[len(rhs)-1].expr // report at last value
+ 			}
+-			check.errorf(at, _WrongResultCount, "%s return values\n\thave %s\n\twant %s",
+-				qualifier,
+-				check.typesSummary(operandTypes(rhs), false),
+-				check.typesSummary(varTypes(lhs), false),
+-			)
++			err := newErrorf(at, _WrongResultCount, "%s return values", qualifier)
++			err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(rhs), false))
++			err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(lhs), false))
++			check.report(err)
+ 			return
+ 		}
+ 		if compilerErrorMessages {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 51603170a6..3c7c3226f6 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -368,11 +368,10 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		if sig.params != nil {
+ 			params = sig.params.vars
+ 		}
+-		check.errorf(at, _WrongArgCount, "%s arguments in call to %s\n\thave %s\n\twant %s",
+-			qualifier, call.Fun,
+-			check.typesSummary(operandTypes(args), false),
+-			check.typesSummary(varTypes(params), sig.variadic),
+-		)
++		err := newErrorf(at, _WrongArgCount, "%s arguments in call to %s", qualifier, call.Fun)
++		err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(args), false))
++		err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
++		check.report(err)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 65691cf455..362c8fdbac 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -8,6 +8,7 @@ package types
+ 
+ import (
+ 	"go/constant"
++	"go/token"
+ 	"unicode"
+ )
+ 
+@@ -74,7 +75,9 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		if compilerErrorMessages {
+ 			if cause != "" {
+ 				// Add colon at end of line if we have a following cause.
+-				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s:\n\t%s", x, T, cause)
++				err := newErrorf(x, _InvalidConversion, "cannot convert %s to type %s:", x, T)
++				err.errorf(token.NoPos, cause)
++				check.report(err)
+ 			} else {
+ 				check.errorf(x, _InvalidConversion, "cannot convert %s to type %s", x, T)
+ 			}

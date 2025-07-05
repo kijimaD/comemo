@@ -23,8 +23,73 @@ Date:   Tue Jul 4 18:15:58 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  src/os/dir_darwin.go  | 9 +++++++++
  src/os/dir_unix.go    | 6 +++++-
  src/syscall/dirent.go | 9 +++++++--
  3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/dir_darwin.go b/src/os/dir_darwin.go
+index deba3eb37f..e6d5bda24b 100644
+--- a/src/os/dir_darwin.go
++++ b/src/os/dir_darwin.go
+@@ -54,6 +54,15 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
+ 		if entptr == nil { // EOF
+ 			break
+ 		}
++		// Darwin may return a zero inode when a directory entry has been
++		// deleted but not yet removed from the directory. The man page for
++		// getdirentries(2) states that programs are responsible for skipping
++		// those entries:
++		//
++		//   Users of getdirentries() should skip entries with d_fileno = 0,
++		//   as such entries represent files which have been deleted but not
++		//   yet removed from the directory entry.
++		//
+ 		if dirent.Ino == 0 {
+ 			continue
+ 		}
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 004b9fbb2b..266a78acaf 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -89,7 +89,11 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
+ 		if !ok {
+ 			break
+ 		}
+-		if ino == 0 {
++		// When building to wasip1, the host runtime might be running on Windows
++		// or might expose a remote file system which does not have the concept
++		// of inodes. Therefore, we cannot make the assumption that it is safe
++		// to skip entries with zero inodes.
++		if ino == 0 && runtime.GOOS != "wasip1" {
+ 			continue
+ 		}
+ 		const namoff = uint64(unsafe.Offsetof(syscall.Dirent{}.Name))
+diff --git a/src/syscall/dirent.go b/src/syscall/dirent.go
+index eee94bf73c..1a0f1eec11 100644
+--- a/src/syscall/dirent.go
++++ b/src/syscall/dirent.go
+@@ -6,7 +6,10 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	"runtime"
++	"unsafe"
++)
+ 
+ // readInt returns the size-bytes unsigned integer in native byte order at offset off.
+ func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
+@@ -75,7 +78,9 @@ func ParseDirent(buf []byte, max int, names []string) (consumed int, count int,
+ 		if !ok {
+ 			break
+ 		}
+-		if ino == 0 { // File absent in directory.
++		// See src/os/dir_unix.go for the reason why this condition is
++		// excluded on wasip1.
++		if ino == 0 && runtime.GOOS != "wasip1" { // File absent in directory.
+ 			continue
+ 		}
+ 		const namoff = uint64(unsafe.Offsetof(Dirent{}.Name))

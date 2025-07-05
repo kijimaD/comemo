@@ -20,8 +20,82 @@ Date:   Wed Nov 28 16:33:23 2018 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go            | 20 ++++++++------------
  src/cmd/go/testdata/script/mod_fs_patterns.txt |  4 ++--
  src/cmd/go/testdata/script/mod_list_dir.txt    |  4 +++-
  3 files changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index dd1a370825..5bb943dd6d 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -90,7 +90,7 @@ func ImportPaths(patterns []string) []*search.Match {
+ 				// the exact version of a particular module increases during
+ 				// the loader iterations.
+ 				m.Pkgs = str.StringList(fsDirs[i])
+-				for i, pkg := range m.Pkgs {
++				for j, pkg := range m.Pkgs {
+ 					dir := pkg
+ 					if !filepath.IsAbs(dir) {
+ 						dir = filepath.Join(cwd, pkg)
+@@ -124,19 +124,15 @@ func ImportPaths(patterns []string) []*search.Match {
+ 					}
+ 					info, err := os.Stat(dir)
+ 					if err != nil || !info.IsDir() {
+-						// If the directory does not exist,
+-						// don't turn it into an import path
+-						// that will trigger a lookup.
+-						pkg = ""
+-						if !iterating {
+-							if err != nil {
+-								base.Errorf("go: no such directory %v", m.Pattern)
+-							} else {
+-								base.Errorf("go: %s is not a directory", m.Pattern)
+-							}
++						// If the directory is local but does not exist, don't return it
++						// while loader is iterating, since this would trigger a fetch.
++						// After loader is done iterating, we still need to return the
++						// path, so that "go list -e" produces valid output.
++						if iterating {
++							pkg = ""
+ 						}
+ 					}
+-					m.Pkgs[i] = pkg
++					m.Pkgs[j] = pkg
+ 				}
+ 
+ 			case strings.Contains(m.Pattern, "..."):
+diff --git a/src/cmd/go/testdata/script/mod_fs_patterns.txt b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+index d7d3e0321b..9341a1d083 100644
+--- a/src/cmd/go/testdata/script/mod_fs_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_fs_patterns.txt
+@@ -34,11 +34,11 @@ stderr 'import lookup disabled'
+ 
+ ! go build -mod=readonly ./nonexist
+ ! stderr 'import lookup disabled'
+-stderr '^go: no such directory ./nonexist'
++stderr 'unknown import path "m/nonexist": cannot find package'
+ 
+ ! go build -mod=readonly ./go.mod
+ ! stderr 'import lookup disabled'
+-stderr '^go: ./go.mod is not a directory'
++stderr 'unknown import path "m/go.mod": cannot find package'
+ 
+ -- x/go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index 800f277559..903651c9d5 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -10,7 +10,9 @@ stdout ^math$
+ go list -f '{{.ImportPath}}' .
+ stdout ^x$
+ ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stderr '^go: no such directory.*quote@v1.5.2'
++stderr 'unknown import path "rsc.io/quote": cannot find package'
++go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++stdout 'unknown import path "rsc.io/quote": cannot find package'
+ go mod download rsc.io/quote@v1.5.2
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ stdout '^rsc.io/quote$'

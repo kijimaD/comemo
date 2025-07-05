@@ -9,6 +9,28 @@ Date:   Wed Apr 8 11:20:15 2015 -0700
     Change-Id: Ia4cdda36ed57a06371f9ace7365ce9e215228487
     Reviewed-on: https://go-review.googlesource.com/8654
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/net/rpc/server.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 83728d55a1..6e6e881917 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -13,6 +13,7 @@
+ 	Only methods that satisfy these criteria will be made available for remote access;
+ 	other methods will be ignored:
+ 
++		- the method's type is exported.
+ 		- the method is exported.
+ 		- the method has two arguments, both exported (or builtin) types.
+ 		- the method's second argument is a pointer.
+@@ -216,7 +217,7 @@ func isExportedOrBuiltinType(t reflect.Type) bool {
+ 
+ // Register publishes in the server the set of methods of the
+ // receiver value that satisfy the following conditions:
+-//	- exported method
++//	- exported method of exported type
+ //	- two arguments, both of exported type
+ //	- the second argument is a pointer
+ //	- one return value, of type error

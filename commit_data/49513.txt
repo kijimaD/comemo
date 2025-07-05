@@ -22,9 +22,261 @@ Date:   Tue Aug 24 15:34:52 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/344829
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/types.go    | 24 ++++++--------
  src/cmd/compile/internal/typecheck/subr.go | 52 ++++++++++++++++--------------
  test/typeparam/issue47901.go               | 21 ++++++++++++
  test/typeparam/issue47929.go               | 29 +++++++++++++++++
  4 files changed, 88 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 541ed68ef3..c9f7c2bbe4 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -30,21 +30,11 @@ func (g *irgen) pkg(pkg *types2.Package) *types.Pkg {
+ // typ converts a types2.Type to a types.Type, including caching of previously
+ // translated types.
+ func (g *irgen) typ(typ types2.Type) *types.Type {
++	// Defer the CheckSize calls until we have fully-defined a
++	// (possibly-recursive) top-level type.
++	types.DeferCheckSize()
+ 	res := g.typ1(typ)
+-
+-	// Calculate the size for all concrete types seen by the frontend. The old
+-	// typechecker calls CheckSize() a lot, and we want to eliminate calling
+-	// it eventually, so we should do it here instead. We only call it for
+-	// top-level types (i.e. we do it here rather in typ1), to make sure that
+-	// recursive types have been fully constructed before we call CheckSize.
+-	if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
+-		types.CheckSize(res)
+-		if res.IsPtr() {
+-			// Pointers always have their size set, even though their element
+-			// may not have its size set.
+-			types.CheckSize(res.Elem())
+-		}
+-	}
++	types.ResumeCheckSize()
+ 	return res
+ }
+ 
+@@ -59,6 +49,12 @@ func (g *irgen) typ1(typ types2.Type) *types.Type {
+ 	res, ok := g.typs[typ]
+ 	if !ok {
+ 		res = g.typ0(typ)
++		// Calculate the size for all concrete types seen by the frontend.
++		// This is the replacement for the CheckSize() calls in the types1
++		// typechecker. These will be deferred until the top-level g.typ().
++		if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
++			types.CheckSize(res)
++		}
+ 		g.typs[typ] = res
+ 	}
+ 	return res
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 7ae10ef406..b9cdcf10f2 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1003,6 +1003,15 @@ type Tsubster struct {
+ // result is t; otherwise the result is a new type. It deals with recursive types
+ // by using TFORW types and finding partially or fully created types via sym.Def.
+ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
++	// Defer the CheckSize calls until we have fully-defined
++	// (possibly-recursive) top-level type.
++	types.DeferCheckSize()
++	r := ts.typ1(t)
++	types.ResumeCheckSize()
++	return r
++}
++
++func (ts *Tsubster) typ1(t *types.Type) *types.Type {
+ 	if !t.HasTParam() && t.Kind() != types.TFUNC {
+ 		// Note: function types need to be copied regardless, as the
+ 		// types of closures may contain declarations that need
+@@ -1047,7 +1056,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		// the tparam/targs mapping from subst.
+ 		neededTargs = make([]*types.Type, len(t.RParams()))
+ 		for i, rparam := range t.RParams() {
+-			neededTargs[i] = ts.Typ(rparam)
++			neededTargs[i] = ts.typ1(rparam)
+ 			if !types.Identical(neededTargs[i], rparam) {
+ 				targsChanged = true
+ 			}
+@@ -1085,26 +1094,26 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		}
+ 		// Substitute the underlying typeparam (e.g. T in P[T], see
+ 		// the example describing type P[T] above).
+-		newt = ts.Typ(t.Underlying())
++		newt = ts.typ1(t.Underlying())
+ 		assert(newt != t)
+ 
+ 	case types.TARRAY:
+ 		elem := t.Elem()
+-		newelem := ts.Typ(elem)
++		newelem := ts.typ1(elem)
+ 		if newelem != elem || targsChanged {
+ 			newt = types.NewArray(newelem, t.NumElem())
+ 		}
+ 
+ 	case types.TPTR:
+ 		elem := t.Elem()
+-		newelem := ts.Typ(elem)
++		newelem := ts.typ1(elem)
+ 		if newelem != elem || targsChanged {
+ 			newt = types.NewPtr(newelem)
+ 		}
+ 
+ 	case types.TSLICE:
+ 		elem := t.Elem()
+-		newelem := ts.Typ(elem)
++		newelem := ts.typ1(elem)
+ 		if newelem != elem || targsChanged {
+ 			newt = types.NewSlice(newelem)
+ 		}
+@@ -1159,22 +1168,17 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		}
+ 
+ 	case types.TMAP:
+-		newkey := ts.Typ(t.Key())
+-		newval := ts.Typ(t.Elem())
++		newkey := ts.typ1(t.Key())
++		newval := ts.typ1(t.Elem())
+ 		if newkey != t.Key() || newval != t.Elem() || targsChanged {
+ 			newt = types.NewMap(newkey, newval)
+ 		}
+ 
+ 	case types.TCHAN:
+ 		elem := t.Elem()
+-		newelem := ts.Typ(elem)
++		newelem := ts.typ1(elem)
+ 		if newelem != elem || targsChanged {
+ 			newt = types.NewChan(newelem, t.ChanDir())
+-			if !newt.HasTParam() {
+-				// TODO(danscales): not sure why I have to do this
+-				// only for channels.....
+-				types.CheckSize(newt)
+-			}
+ 		}
+ 	case types.TFORW:
+ 		if ts.SubstForwFunc != nil {
+@@ -1194,7 +1198,7 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		for i := 0; i < nt; i++ {
+ 			term, tilde := t.Term(i)
+ 			tildes[i] = tilde
+-			newterms[i] = ts.Typ(term)
++			newterms[i] = ts.typ1(term)
+ 			if newterms[i] != term {
+ 				changed = true
+ 			}
+@@ -1212,24 +1216,24 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		return t
+ 	}
+ 
+-	if t.Sym() == nil && t.Kind() != types.TINTER {
+-		// Not a named type or interface type, so there was no forwarding type
+-		// and there are no methods to substitute.
+-		assert(t.Methods().Len() == 0)
+-		return newt
+-	}
+-
+ 	if forw != nil {
+ 		forw.SetUnderlying(newt)
+ 		newt = forw
+ 	}
+ 
++	if !newt.HasTParam() {
++		// Calculate the size of any new types created. These will be
++		// deferred until the top-level ts.Typ() or g.typ() (if this is
++		// called from g.fillinMethods()).
++		types.CheckSize(newt)
++	}
++
+ 	if t.Kind() != types.TINTER && t.Methods().Len() > 0 {
+ 		// Fill in the method info for the new type.
+ 		var newfields []*types.Field
+ 		newfields = make([]*types.Field, t.Methods().Len())
+ 		for i, f := range t.Methods().Slice() {
+-			t2 := ts.Typ(f.Type)
++			t2 := ts.typ1(f.Type)
+ 			oldsym := f.Nname.Sym()
+ 			newsym := MakeFuncInstSym(oldsym, ts.Targs, true)
+ 			var nname *ir.Name
+@@ -1272,7 +1276,7 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ 		newfields = make([]*types.Field, t.NumFields())
+ 	}
+ 	for i, f := range t.Fields().Slice() {
+-		t2 := ts.Typ(f.Type)
++		t2 := ts.typ1(f.Type)
+ 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
+ 			newfields = make([]*types.Field, t.NumFields())
+ 			for j := 0; j < i; j++ {
+@@ -1325,7 +1329,7 @@ func (ts *Tsubster) tinter(t *types.Type) *types.Type {
+ 	}
+ 	var newfields []*types.Field
+ 	for i, f := range t.Methods().Slice() {
+-		t2 := ts.Typ(f.Type)
++		t2 := ts.typ1(f.Type)
+ 		if (t2 != f.Type || f.Nname != nil) && newfields == nil {
+ 			newfields = make([]*types.Field, t.Methods().Len())
+ 			for j := 0; j < i; j++ {
+diff --git a/test/typeparam/issue47901.go b/test/typeparam/issue47901.go
+new file mode 100644
+index 0000000000..cd07973011
+--- /dev/null
++++ b/test/typeparam/issue47901.go
+@@ -0,0 +1,21 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Chan[T any] chan Chan[T]
++
++func (ch Chan[T]) recv() Chan[T] {
++	return <-ch
++}
++
++func main() {
++	ch := Chan[int](make(chan Chan[int]))
++	go func() {
++		ch <- make(Chan[int])
++	}()
++	ch.recv()
++}
+diff --git a/test/typeparam/issue47929.go b/test/typeparam/issue47929.go
+new file mode 100644
+index 0000000000..a5636f2c7b
+--- /dev/null
++++ b/test/typeparam/issue47929.go
+@@ -0,0 +1,29 @@
++// compile -G=3 -p=p
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package v4
++
++var sink interface{}
++
++//go:noinline
++func Do(result, body interface{}) {
++	sink = &result
++}
++
++func DataAction(result DataActionResponse, body DataActionRequest) {
++	Do(&result, body)
++}
++
++type DataActionRequest struct {
++	Action *interface{}
++}
++
++type DataActionResponse struct {
++	ValidationErrors *ValidationError
++}
++
++type ValidationError struct {
++}

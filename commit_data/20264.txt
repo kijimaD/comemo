@@ -8,6 +8,19 @@ Date:   Thu Aug 28 11:47:54 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/134030043
-
+---
  src/pkg/runtime/stubs.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 793cc3acb7..364c3e744d 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -190,7 +190,6 @@ func newstackcall(fv *funcval, addr unsafe.Pointer, size uint32)
+ func procyield(cycles uint32)
+ func osyield()
+ func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
+-func cmpstring(s1, s2 string) int
+ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
+ func readgogc() int32
+ func notetsleepg(n *note, ns int64)

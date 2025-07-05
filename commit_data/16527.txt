@@ -7,7 +7,7 @@ Date:   Tue Jun 11 02:47:04 2013 +0800
     R=golang-dev, iant, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/7430044
-
+---
  src/pkg/syscall/consistency_unix_test.go | 25 +++++++++++++++++++++++++
  src/pkg/syscall/mkerrors.sh              |  2 ++
  src/pkg/syscall/syscall_linux.go         |  4 ++--
@@ -28,3 +28,390 @@ Date:   Tue Jun 11 02:47:04 2013 +0800
  src/pkg/syscall/zsyscall_linux_amd64.go  | 21 +++++++++++++++++++++
  src/pkg/syscall/zsyscall_linux_arm.go    | 21 +++++++++++++++++++++
  19 files changed, 131 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/consistency_unix_test.go b/src/pkg/syscall/consistency_unix_test.go
+new file mode 100644
+index 0000000000..d2416c1eae
+--- /dev/null
++++ b/src/pkg/syscall/consistency_unix_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build freebsd darwin linux netbsd openbsd
++
++// This file tests that some basic syscalls are consistent across
++// all Unixes.
++
++package syscall_test
++
++import "syscall"
++
++// {Set,Get}priority and needed constants for them
++func _() {
++	var (
++		_ func(int, int, int) error   = syscall.Setpriority
++		_ func(int, int) (int, error) = syscall.Getpriority
++	)
++	const (
++		_ int = syscall.PRIO_USER
++		_ int = syscall.PRIO_PROCESS
++		_ int = syscall.PRIO_PGRP
++	)
++}
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 66cb690c7a..1492c82937 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -71,6 +71,7 @@ includes_Linux='
+ #include <sys/prctl.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
++#include <sys/time.h>
+ #include <sys/socket.h>
+ #include <linux/if_addr.h>
+ #include <linux/if_ether.h>
+@@ -222,6 +223,7 @@ ccflags="$@"
+ 		$2 ~ /^BIOC/ ||
+ 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
+ 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
++		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
+ 		$2 !~ /^(BPF_TIMEVAL)$/ &&
+ 		$2 ~ /^(BPF|DLT)_/ ||
+ 		$2 !~ "WMESGLEN" &&
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 391d80e5fb..6cd047ef1f 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -926,6 +926,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sysnb	Getpgrp() (pid int)
+ //sysnb	Getpid() (pid int)
+ //sysnb	Getppid() (ppid int)
++//sys	Getpriority(which int, who int) (prio int, err error)
+ //sysnb	Getrusage(who int, rusage *Rusage) (err error)
+ //sysnb	Gettid() (tid int)
+ //sys	Getxattr(path string, attr string, dest []byte) (sz int, err error)
+@@ -957,6 +958,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
+ //sysnb	Setsid() (pid int, err error)
+ //sysnb	Settimeofday(tv *Timeval) (err error)
+ //sysnb	Setuid(uid int) (err error)
++//sys	Setpriority(which int, who int, prio int) (err error)
+ //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
+ //sys	Symlink(oldpath string, newpath string) (err error)
+ //sys	Sync()
+@@ -1036,7 +1038,6 @@ func Munmap(b []byte) (err error) {
+ // GetThreadArea
+ // Getitimer
+ // Getpmsg
+-// Getpriority
+ // IoCancel
+ // IoDestroy
+ // IoGetevents
+@@ -1112,7 +1113,6 @@ func Munmap(b []byte) (err error) {
+ // SetRobustList
+ // SetThreadArea
+ // SetTidAddress
+-// Setpriority
+ // Shmat
+ // Shmctl
+ // Shmdt
+diff --git a/src/pkg/syscall/zerrors_darwin_386.go b/src/pkg/syscall/zerrors_darwin_386.go
+index 29e6190a92..bb3a1610c0 100644
+--- a/src/pkg/syscall/zerrors_darwin_386.go
++++ b/src/pkg/syscall/zerrors_darwin_386.go
+@@ -747,6 +747,9 @@ const (
+ 	PARMRK                            = 0x8
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	PROT_EXEC                         = 0x4
+ 	PROT_NONE                         = 0x0
+ 	PROT_READ                         = 0x1
+diff --git a/src/pkg/syscall/zerrors_darwin_amd64.go b/src/pkg/syscall/zerrors_darwin_amd64.go
+index db02b6a541..05ab48ee32 100644
+--- a/src/pkg/syscall/zerrors_darwin_amd64.go
++++ b/src/pkg/syscall/zerrors_darwin_amd64.go
+@@ -747,6 +747,9 @@ const (
+ 	PARMRK                            = 0x8
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	PROT_EXEC                         = 0x4
+ 	PROT_NONE                         = 0x0
+ 	PROT_READ                         = 0x1
+diff --git a/src/pkg/syscall/zerrors_freebsd_386.go b/src/pkg/syscall/zerrors_freebsd_386.go
+index 55f255a54b..24af6ab09b 100644
+--- a/src/pkg/syscall/zerrors_freebsd_386.go
++++ b/src/pkg/syscall/zerrors_freebsd_386.go
+@@ -1089,6 +1089,9 @@ const (
+ 	PARMRK                            = 0x8
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	PROT_EXEC                         = 0x4
+ 	PROT_NONE                         = 0x0
+ 	PROT_READ                         = 0x1
+diff --git a/src/pkg/syscall/zerrors_freebsd_amd64.go b/src/pkg/syscall/zerrors_freebsd_amd64.go
+index ab92a94920..d766cd13a0 100644
+--- a/src/pkg/syscall/zerrors_freebsd_amd64.go
++++ b/src/pkg/syscall/zerrors_freebsd_amd64.go
+@@ -1089,6 +1089,9 @@ const (
+ 	PARMRK                            = 0x8
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	PROT_EXEC                         = 0x4
+ 	PROT_NONE                         = 0x0
+ 	PROT_READ                         = 0x1
+diff --git a/src/pkg/syscall/zerrors_freebsd_arm.go b/src/pkg/syscall/zerrors_freebsd_arm.go
+index 29d92be2ec..269f179b30 100644
+--- a/src/pkg/syscall/zerrors_freebsd_arm.go
++++ b/src/pkg/syscall/zerrors_freebsd_arm.go
+@@ -1094,6 +1094,9 @@ const (
+ 	PARMRK                            = 0x8
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	PROT_EXEC                         = 0x4
+ 	PROT_NONE                         = 0x0
+ 	PROT_READ                         = 0x1
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index 9510cccd6d..ea568ce4e3 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -658,6 +658,9 @@ const (
+ 	PACKET_RECV_OUTPUT               = 0x3
+ 	PACKET_RX_RING                   = 0x5
+ 	PACKET_STATISTICS                = 0x6
++	PRIO_PGRP                        = 0x1
++	PRIO_PROCESS                     = 0x0
++	PRIO_USER                        = 0x2
+ 	PROT_EXEC                        = 0x4
+ 	PROT_GROWSDOWN                   = 0x1000000
+ 	PROT_GROWSUP                     = 0x2000000
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index 7435155e20..337dc62d1b 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -658,6 +658,9 @@ const (
+ 	PACKET_RECV_OUTPUT               = 0x3
+ 	PACKET_RX_RING                   = 0x5
+ 	PACKET_STATISTICS                = 0x6
++	PRIO_PGRP                        = 0x1
++	PRIO_PROCESS                     = 0x0
++	PRIO_USER                        = 0x2
+ 	PROT_EXEC                        = 0x4
+ 	PROT_GROWSDOWN                   = 0x1000000
+ 	PROT_GROWSUP                     = 0x2000000
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index fe54fe72d9..51e3b92719 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -654,6 +654,9 @@ const (
+ 	PACKET_RECV_OUTPUT               = 0x3
+ 	PACKET_RX_RING                   = 0x5
+ 	PACKET_STATISTICS                = 0x6
++	PRIO_PGRP                        = 0x1
++	PRIO_PROCESS                     = 0x0
++	PRIO_USER                        = 0x2
+ 	PROT_EXEC                        = 0x4
+ 	PROT_GROWSDOWN                   = 0x1000000
+ 	PROT_GROWSUP                     = 0x2000000
+diff --git a/src/pkg/syscall/zerrors_netbsd_386.go b/src/pkg/syscall/zerrors_netbsd_386.go
+index c0ef19fdda..9b93f5a154 100644
+--- a/src/pkg/syscall/zerrors_netbsd_386.go
++++ b/src/pkg/syscall/zerrors_netbsd_386.go
+@@ -1040,6 +1040,9 @@ const (
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
+ 	PRI_IOFLUSH                       = 0x7c
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	RLIMIT_AS                         = 0xa
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+diff --git a/src/pkg/syscall/zerrors_netbsd_amd64.go b/src/pkg/syscall/zerrors_netbsd_amd64.go
+index e4f5a903f4..4db30fa5ce 100644
+--- a/src/pkg/syscall/zerrors_netbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_netbsd_amd64.go
+@@ -1030,6 +1030,9 @@ const (
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
+ 	PRI_IOFLUSH                       = 0x7c
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	RLIMIT_AS                         = 0xa
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+diff --git a/src/pkg/syscall/zerrors_netbsd_arm.go b/src/pkg/syscall/zerrors_netbsd_arm.go
+index 3264cef89d..9262d5afb7 100644
+--- a/src/pkg/syscall/zerrors_netbsd_arm.go
++++ b/src/pkg/syscall/zerrors_netbsd_arm.go
+@@ -1030,6 +1030,9 @@ const (
+ 	PARODD                            = 0x2000
+ 	PENDIN                            = 0x20000000
+ 	PRI_IOFLUSH                       = 0x7c
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	RLIMIT_AS                         = 0xa
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+diff --git a/src/pkg/syscall/zerrors_openbsd_386.go b/src/pkg/syscall/zerrors_openbsd_386.go
+index 003958efaf..e546243b07 100644
+--- a/src/pkg/syscall/zerrors_openbsd_386.go
++++ b/src/pkg/syscall/zerrors_openbsd_386.go
+@@ -927,6 +927,9 @@ const (
+ 	PENDIN                            = 0x20000000
+ 	PF_FLUSH                          = 0x1
+ 	PT_MASK                           = 0x3ff000
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+ 	RLIMIT_DATA                       = 0x2
+diff --git a/src/pkg/syscall/zerrors_openbsd_amd64.go b/src/pkg/syscall/zerrors_openbsd_amd64.go
+index 7c53ceca69..411b51a68c 100644
+--- a/src/pkg/syscall/zerrors_openbsd_amd64.go
++++ b/src/pkg/syscall/zerrors_openbsd_amd64.go
+@@ -933,6 +933,9 @@ const (
+ 	PENDIN                            = 0x20000000
+ 	PF_FLUSH                          = 0x1
+ 	PMC5_PIPELINE_FLUSH               = 0x15
++	PRIO_PGRP                         = 0x1
++	PRIO_PROCESS                      = 0x0
++	PRIO_USER                         = 0x2
+ 	RLIMIT_CORE                       = 0x4
+ 	RLIMIT_CPU                        = 0x0
+ 	RLIMIT_DATA                       = 0x2
+diff --git a/src/pkg/syscall/zsyscall_linux_386.go b/src/pkg/syscall/zsyscall_linux_386.go
+index 3f0470c988..810cba0042 100644
+--- a/src/pkg/syscall/zsyscall_linux_386.go
++++ b/src/pkg/syscall/zsyscall_linux_386.go
+@@ -534,6 +534,17 @@ func Getppid() (ppid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Getpriority(which int, who int) (prio int, err error) {
++	r0, _, e1 := Syscall(SYS_GETPRIORITY, uintptr(which), uintptr(who), 0)
++	prio = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getrusage(who int, rusage *Rusage) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	if e1 != 0 {
+@@ -994,6 +1005,16 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Setpriority(which int, who int, prio int) (err error) {
++	_, _, e1 := Syscall(SYS_SETPRIORITY, uintptr(which), uintptr(who), uintptr(prio))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 43f24e7731..9978b81383 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -534,6 +534,17 @@ func Getppid() (ppid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Getpriority(which int, who int) (prio int, err error) {
++	r0, _, e1 := Syscall(SYS_GETPRIORITY, uintptr(which), uintptr(who), 0)
++	prio = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getrusage(who int, rusage *Rusage) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	if e1 != 0 {
+@@ -994,6 +1005,16 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Setpriority(which int, who int, prio int) (err error) {
++	_, _, e1 := Syscall(SYS_SETPRIORITY, uintptr(which), uintptr(who), uintptr(prio))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 804821eb3f..80d3f9b39d 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -534,6 +534,17 @@ func Getppid() (ppid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Getpriority(which int, who int) (prio int, err error) {
++	r0, _, e1 := Syscall(SYS_GETPRIORITY, uintptr(which), uintptr(who), 0)
++	prio = int(r0)
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Getrusage(who int, rusage *Rusage) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	if e1 != 0 {
+@@ -994,6 +1005,16 @@ func Setuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func Setpriority(which int, who int, prio int) (err error) {
++	_, _, e1 := Syscall(SYS_SETPRIORITY, uintptr(which), uintptr(who), uintptr(prio))
++	if e1 != 0 {
++		err = e1
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Setxattr(path string, attr string, data []byte, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)

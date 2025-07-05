@@ -26,7 +26,7 @@ Date:   Mon Dec 27 16:38:48 2021 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/asan_test.go           | 13 +++++++----
  misc/cgo/testsanitizers/cc_test.go             |  2 ++
  misc/cgo/testsanitizers/testdata/asan1_fail.go |  2 +-
@@ -36,3 +36,265 @@ Date:   Mon Dec 27 16:38:48 2021 +0800
  src/runtime/asan_amd64.s                       | 20 ++++++++++++-----
  src/runtime/asan_arm64.s                       | 24 ++++++++++++--------
  8 files changed, 66 insertions(+), 53 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index dbcce2fe28..cd1e9f354b 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -33,11 +33,12 @@ func TestASAN(t *testing.T) {
+ 	cases := []struct {
+ 		src               string
+ 		memoryAccessError string
++		errorLocation     string
+ 	}{
+-		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free"},
+-		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow"},
+-		{src: "asan3_fail.go", memoryAccessError: "use-after-poison"},
+-		{src: "asan4_fail.go", memoryAccessError: "use-after-poison"},
++		{src: "asan1_fail.go", memoryAccessError: "heap-use-after-free", errorLocation: "asan1_fail.go:25"},
++		{src: "asan2_fail.go", memoryAccessError: "heap-buffer-overflow", errorLocation: "asan2_fail.go:31"},
++		{src: "asan3_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan3_fail.go:13"},
++		{src: "asan4_fail.go", memoryAccessError: "use-after-poison", errorLocation: "asan4_fail.go:13"},
+ 		{src: "asan_useAfterReturn.go"},
+ 	}
+ 	for _, tc := range cases {
+@@ -56,6 +57,10 @@ func TestASAN(t *testing.T) {
+ 			if tc.memoryAccessError != "" {
+ 				out, err := cmd.CombinedOutput()
+ 				if err != nil && strings.Contains(string(out), tc.memoryAccessError) {
++					// Check if -asan option can correctly print where the error occured.
++					if tc.errorLocation != "" && !strings.Contains(string(out), tc.errorLocation) {
++						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
++					}
+ 					return
+ 				}
+ 				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.memoryAccessError, out)
+diff --git a/misc/cgo/testsanitizers/cc_test.go b/misc/cgo/testsanitizers/cc_test.go
+index b776afa3e6..0ce4f75935 100644
+--- a/misc/cgo/testsanitizers/cc_test.go
++++ b/misc/cgo/testsanitizers/cc_test.go
+@@ -269,6 +269,8 @@ func configure(sanitizer string) *config {
+ 
+ 	case "address":
+ 		c.goFlags = append(c.goFlags, "-asan")
++		// Set the debug mode to print the C stack trace.
++		c.cFlags = append(c.cFlags, "-g")
+ 
+ 	default:
+ 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
+diff --git a/misc/cgo/testsanitizers/testdata/asan1_fail.go b/misc/cgo/testsanitizers/testdata/asan1_fail.go
+index e60db76981..80289e5c30 100644
+--- a/misc/cgo/testsanitizers/testdata/asan1_fail.go
++++ b/misc/cgo/testsanitizers/testdata/asan1_fail.go
+@@ -22,7 +22,7 @@ func main() {
+ 	// C passes Go an invalid pointer.
+ 	a := C.test()
+ 	// Use after free
+-	*a = 2
++	*a = 2 // BOOM
+ 	// We shouldn't get here; asan should stop us first.
+ 	fmt.Println(*a)
+ }
+diff --git a/misc/cgo/testsanitizers/testdata/asan2_fail.go b/misc/cgo/testsanitizers/testdata/asan2_fail.go
+index e35670c440..3ab0608571 100644
+--- a/misc/cgo/testsanitizers/testdata/asan2_fail.go
++++ b/misc/cgo/testsanitizers/testdata/asan2_fail.go
+@@ -28,7 +28,7 @@ func main() {
+ 	a := C.f()
+ 	q5 := (*C.int)(unsafe.Add(unsafe.Pointer(a), 4*5))
+ 	// Access to C pointer out of bounds.
+-	*q5 = 100
++	*q5 = 100 // BOOM
+ 	// We shouldn't get here; asan should stop us first.
+ 	fmt.Printf("q5: %d, %x\n", *q5, q5)
+ }
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index a22b56bb07..affafd4d8d 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -11,23 +11,38 @@ import (
+ )
+ 
+ // Public address sanitizer API.
+-
+ func ASanRead(addr unsafe.Pointer, len int) {
+-	asanread(addr, uintptr(len))
++	sp := getcallersp()
++	pc := getcallerpc()
++	doasanread(addr, uintptr(len), sp, pc)
+ }
+ 
+ func ASanWrite(addr unsafe.Pointer, len int) {
+-	asanwrite(addr, uintptr(len))
++	sp := getcallersp()
++	pc := getcallerpc()
++	doasanwrite(addr, uintptr(len), sp, pc)
+ }
+ 
+ // Private interface for the runtime.
+ const asanenabled = true
+ 
++func asanread(addr unsafe.Pointer, sz uintptr) {
++	sp := getcallersp()
++	pc := getcallerpc()
++	doasanread(addr, sz, sp, pc)
++}
++
++func asanwrite(addr unsafe.Pointer, sz uintptr) {
++	sp := getcallersp()
++	pc := getcallerpc()
++	doasanwrite(addr, sz, sp, pc)
++}
++
+ //go:noescape
+-func asanread(addr unsafe.Pointer, sz uintptr)
++func doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
+ 
+ //go:noescape
+-func asanwrite(addr unsafe.Pointer, sz uintptr)
++func doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
+ 
+ //go:noescape
+ func asanunpoison(addr unsafe.Pointer, sz uintptr)
+diff --git a/src/runtime/asan/asan.go b/src/runtime/asan/asan.go
+index eb66b3aab5..bab2362c51 100644
+--- a/src/runtime/asan/asan.go
++++ b/src/runtime/asan/asan.go
+@@ -14,38 +14,15 @@ package asan
+ #include <stdint.h>
+ #include <sanitizer/asan_interface.h>
+ 
+-extern void __asan_report_load1(void*);
+-extern void __asan_report_load2(void*);
+-extern void __asan_report_load4(void*);
+-extern void __asan_report_load8(void*);
+-extern void __asan_report_load_n(void*, uintptr_t);
+-extern void __asan_report_store1(void*);
+-extern void __asan_report_store2(void*);
+-extern void __asan_report_store4(void*);
+-extern void __asan_report_store8(void*);
+-extern void __asan_report_store_n(void*, uintptr_t);
+-
+-void __asan_read_go(void *addr, uintptr_t sz) {
++void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc) {
+ 	if (__asan_region_is_poisoned(addr, sz)) {
+-		switch (sz) {
+-		case 1: __asan_report_load1(addr); break;
+-		case 2: __asan_report_load2(addr); break;
+-		case 4: __asan_report_load4(addr); break;
+-		case 8: __asan_report_load8(addr); break;
+-		default: __asan_report_load_n(addr, sz); break;
+-		}
++		__asan_report_error(pc, 0, sp, addr, false, sz);
+ 	}
+ }
+ 
+-void __asan_write_go(void *addr, uintptr_t sz) {
++void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc) {
+ 	if (__asan_region_is_poisoned(addr, sz)) {
+-		switch (sz) {
+-		case 1: __asan_report_store1(addr); break;
+-		case 2: __asan_report_store2(addr); break;
+-		case 4: __asan_report_store4(addr); break;
+-		case 8: __asan_report_store8(addr); break;
+-		default: __asan_report_store_n(addr, sz); break;
+-		}
++		__asan_report_error(pc, 0, sp, addr, true, sz);
+ 	}
+ }
+ 
+diff --git a/src/runtime/asan_amd64.s b/src/runtime/asan_amd64.s
+index e8de80399b..3857350020 100644
+--- a/src/runtime/asan_amd64.s
++++ b/src/runtime/asan_amd64.s
+@@ -15,25 +15,33 @@
+ #ifdef GOOS_windows
+ #define RARG0 CX
+ #define RARG1 DX
++#define RARG2 R8
++#define RARG3 R9
+ #else
+ #define RARG0 DI
+ #define RARG1 SI
++#define RARG2 DX
++#define RARG3 CX
+ #endif
+ 
+ // Called from intrumented code.
+-// func runtime·asanread(addr unsafe.Pointer, sz uintptr)
+-TEXT	runtime·asanread(SB), NOSPLIT, $0-16
++// func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
++TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
+ 	MOVQ	addr+0(FP), RARG0
+ 	MOVQ	size+8(FP), RARG1
+-	// void __asan_read_go(void *addr, uintptr_t sz);
++	MOVQ	sp+16(FP), RARG2
++	MOVQ	pc+24(FP), RARG3
++	// void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc);
+ 	MOVQ	$__asan_read_go(SB), AX
+ 	JMP	asancall<>(SB)
+ 
+-// func runtime·asanwrite(addr unsafe.Pointer, sz uintptr)
+-TEXT	runtime·asanwrite(SB), NOSPLIT, $0-16
++// func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
++TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
+ 	MOVQ	addr+0(FP), RARG0
+ 	MOVQ	size+8(FP), RARG1
+-	// void __asan_write_go(void *addr, uintptr_t sz);
++	MOVQ	sp+16(FP), RARG2
++	MOVQ	pc+24(FP), RARG3
++	// void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc);
+ 	MOVQ	$__asan_write_go(SB), AX
+ 	JMP	asancall<>(SB)
+ 
+diff --git a/src/runtime/asan_arm64.s b/src/runtime/asan_arm64.s
+index acae200fb5..5ed03c932b 100644
+--- a/src/runtime/asan_arm64.s
++++ b/src/runtime/asan_arm64.s
+@@ -9,22 +9,28 @@
+ 
+ #define RARG0 R0
+ #define RARG1 R1
+-#define FARG R3
++#define RARG2 R2
++#define RARG3 R3
++#define FARG R4
+ 
+ // Called from instrumented code.
+-// func runtime·asanread(addr unsafe.Pointer, sz uintptr)
+-TEXT	runtime·asanread(SB), NOSPLIT, $0-16
++// func runtime·doasanread(addr unsafe.Pointer, sz, sp, pc uintptr)
++TEXT	runtime·doasanread(SB), NOSPLIT, $0-32
+ 	MOVD	addr+0(FP), RARG0
+ 	MOVD	size+8(FP), RARG1
+-	// void __asan_read_go(void *addr, uintptr_t sz);
++	MOVD	sp+16(FP), RARG2
++	MOVD	pc+24(FP), RARG3
++	// void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc);
+ 	MOVD	$__asan_read_go(SB), FARG
+ 	JMP	asancall<>(SB)
+ 
+-// func runtime·asanwrite(addr unsafe.Pointer, sz uintptr)
+-TEXT	runtime·asanwrite(SB), NOSPLIT, $0-16
++// func runtime·doasanwrite(addr unsafe.Pointer, sz, sp, pc uintptr)
++TEXT	runtime·doasanwrite(SB), NOSPLIT, $0-32
+ 	MOVD	addr+0(FP), RARG0
+ 	MOVD	size+8(FP), RARG1
+-	// void __asan_write_go(void *addr, uintptr_t sz);
++	MOVD	sp+16(FP), RARG2
++	MOVD	pc+24(FP), RARG3
++	// void __asan_write_go(void *addr, uintptr_t sz, void *sp, void *pc);
+ 	MOVD	$__asan_write_go(SB), FARG
+ 	JMP	asancall<>(SB)
+ 
+@@ -53,8 +59,8 @@ TEXT	asancall<>(SB), NOSPLIT, $0-0
+ 	CMP	R11, g
+ 	BEQ	g0stack
+ 
+-	MOVD	(g_sched+gobuf_sp)(R11), R4
+-	MOVD	R4, RSP
++	MOVD	(g_sched+gobuf_sp)(R11), R5
++	MOVD	R5, RSP
+ 
+ g0stack:
+ 	BL	(FARG)

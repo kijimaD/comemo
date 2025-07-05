@@ -9,6 +9,21 @@ Date:   Thu May 2 18:07:34 2019 +0300
     Change-Id: Ife5f815efa4c163ecdbb3a4c16bfb60a484dfa11
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174706
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 6f4d5a1ce7..6480d4b432 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -950,8 +950,8 @@ func resolvePath(base, ref string) string {
+ 	if full == "" {
+ 		return ""
+ 	}
+-	var dst []string
+ 	src := strings.Split(full, "/")
++	dst := make([]string, 0, len(src))
+ 	for _, elem := range src {
+ 		switch elem {
+ 		case ".":

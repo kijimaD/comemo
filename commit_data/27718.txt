@@ -13,7 +13,68 @@ Date:   Fri Apr 8 15:39:32 2016 +1000
     Change-Id: I6e73f61b8a72c694179c1f8cdc808766c90b6f57
     Reviewed-on: https://go-review.googlesource.com/21705
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec.go      | 12 +++++++-----
  src/text/template/exec_test.go | 17 +++++++++++++++++
  2 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index a169e62ab0..22881c6852 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -538,14 +538,14 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 		return s.evalCall(dot, method, node, fieldName, args, final)
+ 	}
+ 	hasArgs := len(args) > 1 || final.IsValid()
+-	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
+-	if isNil {
+-		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+-	}
++	// It's not a method; must be a field of a struct or an element of a map.
+ 	switch receiver.Kind() {
+ 	case reflect.Struct:
+ 		tField, ok := receiver.Type().FieldByName(fieldName)
+ 		if ok {
++			if isNil {
++				s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
++			}
+ 			field := receiver.FieldByIndex(tField.Index)
+ 			if tField.PkgPath != "" { // field is unexported
+ 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
+@@ -556,8 +556,10 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 			}
+ 			return field
+ 		}
+-		s.errorf("%s is not a field of struct type %s", fieldName, typ)
+ 	case reflect.Map:
++		if isNil {
++			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
++		}
+ 		// If it's a map, attempt to use the field name as a key.
+ 		nameVal := reflect.ValueOf(fieldName)
+ 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index e507e917fe..bc2aa683ec 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1280,3 +1280,20 @@ func TestBlock(t *testing.T) {
+ 		t.Errorf("got %q, want %q", got, want2)
+ 	}
+ }
++
++// Check that calling an invalid field on nil pointer prints
++// a field error instead of a distracting nil pointer error.
++// https://golang.org/issue/15125
++func TestMissingFieldOnNil(t *testing.T) {
++	tmpl := Must(New("tmpl").Parse("{{.MissingField}}"))
++	var d *T
++	err := tmpl.Execute(ioutil.Discard, d)
++	got := "<nil>"
++	if err != nil {
++		got = err.Error()
++	}
++	want := "can't evaluate field MissingField in type *template.T"
++	if !strings.HasSuffix(got, want) {
++		t.Errorf("got error %q, want %q", got, want)
++	}
++}

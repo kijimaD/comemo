@@ -11,8 +11,90 @@ Date:   Fri Oct 7 17:10:53 2016 +0900
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/cert_pool.go    |  5 -----
  src/crypto/x509/root_windows.go | 35 ++++++++++++++++++++++++++++++++++-
  src/crypto/x509/x509_test.go    |  7 +++++++
  3 files changed, 41 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 7650494824..8508cbacd7 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -7,8 +7,6 @@ package x509
+ import (
+ 	"bytes"
+ 	"encoding/pem"
+-	"errors"
+-	"runtime"
+ )
+ 
+ // CertPool is a set of certificates.
+@@ -31,9 +29,6 @@ func NewCertPool() *CertPool {
+ // Any mutations to the returned pool are not written to disk and do
+ // not affect any other pool.
+ func SystemCertPool() (*CertPool, error) {
+-	if runtime.GOOS == "windows" {
+-		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
+-	}
+ 	return loadSystemRoots()
+ }
+ 
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index 392c869012..ca2fba5cb4 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -225,4 +225,37 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
+ 	return chains, nil
+ }
+ 
+-func loadSystemRoots() (*CertPool, error) { return nil, nil }
++func loadSystemRoots() (*CertPool, error) {
++	const CRYPT_E_NOT_FOUND = 0x80092004
++
++	store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT"))
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.CertCloseStore(store, 0)
++
++	roots := NewCertPool()
++	var cert *syscall.CertContext
++	for {
++		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
++		if err != nil {
++			if errno, ok := err.(syscall.Errno); ok {
++				if errno == CRYPT_E_NOT_FOUND {
++					break
++				}
++			}
++			return nil, err
++		}
++		if cert == nil {
++			break
++		}
++		// Copy the buf, since ParseCertificate does not create its own copy.
++		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
++		buf2 := make([]byte, cert.Length)
++		copy(buf2, buf)
++		if c, err := ParseCertificate(buf2); err == nil {
++			roots.AddCert(c)
++		}
++	}
++	return roots, nil
++}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index ae77331a41..354545ccbc 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1457,3 +1457,10 @@ func TestMultipleRDN(t *testing.T) {
+ 		t.Errorf("got serial number of %q, but want %q", cert.Subject.SerialNumber, want)
+ 	}
+ }
++
++func TestSystemCertPool(t *testing.T) {
++	_, err := SystemCertPool()
++	if err != nil {
++		t.Fatal(err)
++	}
++}

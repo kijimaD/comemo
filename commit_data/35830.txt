@@ -20,8 +20,74 @@ Date:   Sat Mar 3 19:53:53 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/test2json/test2json.go             |  7 ++++++-
  src/cmd/internal/test2json/testdata/issue23920.json | 14 ++++++++++++++
  src/cmd/internal/test2json/testdata/issue23920.test |  7 +++++++
  3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index 483fb1de52..f8052136be 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -175,6 +175,7 @@ func (c *converter) handleInputLine(line []byte) {
+ 	// "=== RUN   "
+ 	// "=== PAUSE "
+ 	// "=== CONT  "
++	actionColon := false
+ 	origLine := line
+ 	ok := false
+ 	indent := 0
+@@ -196,6 +197,7 @@ func (c *converter) handleInputLine(line []byte) {
+ 		}
+ 		for _, magic := range reports {
+ 			if bytes.HasPrefix(line, magic) {
++				actionColon = true
+ 				ok = true
+ 				break
+ 			}
+@@ -209,7 +211,10 @@ func (c *converter) handleInputLine(line []byte) {
+ 	}
+ 
+ 	// Parse out action and test name.
+-	i := bytes.IndexByte(line, ':') + 1
++	i := 0
++	if actionColon {
++		i = bytes.IndexByte(line, ':') + 1
++	}
+ 	if i == 0 {
+ 		i = len(updates[0])
+ 	}
+diff --git a/src/cmd/internal/test2json/testdata/issue23920.json b/src/cmd/internal/test2json/testdata/issue23920.json
+new file mode 100644
+index 0000000000..28f7bd56ac
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/issue23920.json
+@@ -0,0 +1,14 @@
++{"Action":"run","Test":"TestWithColons"}
++{"Action":"output","Test":"TestWithColons","Output":"=== RUN   TestWithColons\n"}
++{"Action":"run","Test":"TestWithColons/[::1]"}
++{"Action":"output","Test":"TestWithColons/[::1]","Output":"=== RUN   TestWithColons/[::1]\n"}
++{"Action":"run","Test":"TestWithColons/127.0.0.1:0"}
++{"Action":"output","Test":"TestWithColons/127.0.0.1:0","Output":"=== RUN   TestWithColons/127.0.0.1:0\n"}
++{"Action":"output","Test":"TestWithColons","Output":"--- PASS: TestWithColons (0.00s)\n"}
++{"Action":"output","Test":"TestWithColons/[::1]","Output":"    --- PASS: TestWithColons/[::1] (0.00s)\n"}
++{"Action":"pass","Test":"TestWithColons/[::1]"}
++{"Action":"output","Test":"TestWithColons/127.0.0.1:0","Output":"    --- PASS: TestWithColons/127.0.0.1:0 (0.00s)\n"}
++{"Action":"pass","Test":"TestWithColons/127.0.0.1:0"}
++{"Action":"pass","Test":"TestWithColons"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/issue23920.test b/src/cmd/internal/test2json/testdata/issue23920.test
+new file mode 100644
+index 0000000000..43bf058034
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/issue23920.test
+@@ -0,0 +1,7 @@
++=== RUN   TestWithColons
++=== RUN   TestWithColons/[::1]
++=== RUN   TestWithColons/127.0.0.1:0
++--- PASS: TestWithColons (0.00s)
++    --- PASS: TestWithColons/[::1] (0.00s)
++    --- PASS: TestWithColons/127.0.0.1:0 (0.00s)
++PASS

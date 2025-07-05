@@ -24,7 +24,57 @@ Date:   Wed Mar 15 14:48:23 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/proc.go              | 4 ++++
  src/runtime/signal_sighandler.go | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index caeb51205b..45d98de151 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1399,6 +1399,7 @@ func needm(x byte) {
+ 	// running at all (that is, there's no garbage collection
+ 	// running right now).
+ 	mp.needextram = mp.schedlink == 0
++	extraMCount--
+ 	unlockextra(mp.schedlink.ptr())
+ 
+ 	// Save and block signals before installing g.
+@@ -1484,6 +1485,7 @@ func oneNewExtraM() {
+ 	// Add m to the extra list.
+ 	mnext := lockextra(true)
+ 	mp.schedlink.set(mnext)
++	extraMCount++
+ 	unlockextra(mp)
+ }
+ 
+@@ -1525,6 +1527,7 @@ func dropm() {
+ 	unminit()
+ 
+ 	mnext := lockextra(true)
++	extraMCount++
+ 	mp.schedlink.set(mnext)
+ 
+ 	setg(nil)
+@@ -1541,6 +1544,7 @@ func getm() uintptr {
+ }
+ 
+ var extram uintptr
++var extraMCount uint32 // Protected by lockextra
+ var extraMWaiters uint32
+ 
+ // lockextra locks the extra list and returns the list head.
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index 5af12d7b2f..3b9ba296d9 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -111,7 +111,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	if docrash {
+ 		crashing++
+-		if crashing < sched.mcount {
++		if crashing < sched.mcount-int32(extraMCount) {
+ 			// There are other m's that need to dump their stacks.
+ 			// Relay SIGQUIT to the next m by sending it to the current process.
+ 			// All m's that have already received SIGQUIT have signal masks blocking

@@ -7,6 +7,16 @@ Date:   Mon Dec 13 15:26:52 2010 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3620041
-
+---
  src/cmd/ld/macho.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/ld/macho.h b/src/cmd/ld/macho.h
+index 03f1d2c321..4cc7edc80d 100644
+--- a/src/cmd/ld/macho.h
++++ b/src/cmd/ld/macho.h
+@@ -91,3 +91,4 @@ enum {
+ void	domacho(void);
+ vlong	domacholink(void);
+ void	asmbmacho(void);
++void	machoadddynlib(char*);

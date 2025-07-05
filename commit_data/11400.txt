@@ -7,6 +7,24 @@ Date:   Wed Jan 25 16:09:12 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5577050
-
+---
  src/pkg/math/big/arith_amd64.s | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/math/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+index 088f724704..54f647322b 100644
+--- a/src/pkg/math/big/arith_amd64.s
++++ b/src/pkg/math/big/arith_amd64.s
+@@ -266,9 +266,9 @@ E7:	SUBL $1, BX		// i--
+ TEXT ·bitLen(SB),7,$0
+ 	BSRQ x+0(FP), AX
+ 	JZ Z1
+-	INCQ AX
+-	MOVQ AX, n+8(FP)
++	INCL AX
++	MOVL AX, n+8(FP)
+ 	RET
+ 
+-Z1:	MOVQ $0, n+8(FP)
++Z1:	MOVL $0, n+8(FP)
+ 	RET

@@ -12,6 +12,27 @@ Date:   Wed Apr 15 23:11:52 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ppc64/asm.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index d6b6c76f9a..d86738538d 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -733,14 +733,13 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 		toctramp := ldr.CreateSymForUpdate("TOC."+ldr.SymName(tramp.Sym()), 0)
+ 		toctramp.SetType(sym.SXCOFFTOC)
+ 		toctramp.SetReachable(true)
+-		toctramp.AddAddr(ctxt.Arch, target)
++		toctramp.AddAddrPlus(ctxt.Arch, target, offset)
+ 
+ 		r := loader.Reloc{
+ 			Off:  0,
+ 			Type: objabi.R_ADDRPOWER_TOCREL_DS,
+ 			Size: 8, // generates 2 relocations:  HA + LO
+ 			Sym:  toctramp.Sym(),
+-			Add:  offset,
+ 		}
+ 		tramp.AddReloc(r)
+ 	} else {

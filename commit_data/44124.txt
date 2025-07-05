@@ -13,7 +13,7 @@ Date:   Tue May 12 10:07:38 2020 -0400
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go |  15 ++
@@ -21,3 +21,595 @@ Date:   Tue May 12 10:07:38 2020 -0400
  .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 105 +++++++++++++
  src/cmd/vendor/modules.txt                         |   2 +-
  6 files changed, 266 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 1302449b1b..9c78cd14e6 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.15
+ require (
+ 	github.com/google/pprof v0.0.0-20200229191704-1ebb73c60ed3
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
+-	golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4
++	golang.org/x/arch v0.0.0-20200511175325-f7c78586839d
+ 	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+ 	golang.org/x/mod v0.2.1-0.20200429172858-859b3ef565e2
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index e66011dd86..f1b3754aad 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -7,8 +7,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:
+ github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 h1:S1+yTUaFPXuDZnPDbO+TrDFIjPzQraYH8/CwSlu9Fac=
+ github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
+-golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4 h1:cZG+Ns0n5bdEEsURGnDinFswSebRNMqspbLvxrLZoIc=
+-golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
++golang.org/x/arch v0.0.0-20200511175325-f7c78586839d h1:YvwchuJby5xEAPdBGmdAVSiVME50C+RJfJJwJJsGEV8=
++golang.org/x/arch v0.0.0-20200511175325-f7c78586839d/go.mod h1:flIaEI6LNU6xOCD5PaJvn9wGP0agmIOqjrtsKGRguv4=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+ golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79 h1:IaQbIIB2X/Mp/DKctl6ROxz1KyMlKp4uyvL6+kQ7C88=
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go
+index fc2916408c..1849a297d8 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go
+@@ -134,6 +134,19 @@ func GNUSyntax(inst Inst, pc uint64) string {
+ 			buf.WriteString("spr")
+ 		}
+ 
++	case "sync":
++		switch arg := inst.Args[0].(type) {
++		case Imm:
++			switch arg {
++			case 0:
++				buf.WriteString("hwsync")
++			case 1:
++				buf.WriteString("lwsync")
++			case 2:
++				buf.WriteString("ptesync")
++			}
++		}
++		startArg = 2
+ 	default:
+ 		buf.WriteString(inst.Op.String())
+ 	}
+@@ -262,6 +275,8 @@ func isLoadStoreOp(op Op) bool {
+ 		return true
+ 	case LHBRX, LWBRX, STHBRX, STWBRX:
+ 		return true
++	case LBARX, LWARX, LHARX, LDARX:
++		return true
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go
+index d039d9d500..858f9acbb8 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/plan9.go
+@@ -55,10 +55,24 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
+ 	// laid out the instruction
+ 	switch inst.Op {
+ 	default: // dst, sA, sB, ...
+-		if len(args) == 0 {
++		switch len(args) {
++		case 0:
+ 			return op
+-		} else if len(args) == 1 {
++		case 1:
+ 			return fmt.Sprintf("%s %s", op, args[0])
++		case 2:
++			if inst.Op == COPY || inst.Op == PASTECC || inst.Op == FCMPO || inst.Op == FCMPU {
++				return op + " " + args[0] + "," + args[1]
++			}
++			return op + " " + args[1] + "," + args[0]
++		case 3:
++			if reverseOperandOrder(inst.Op) {
++				return op + " " + args[2] + "," + args[1] + "," + args[0]
++			}
++		case 4:
++			if reverseMiddleOps(inst.Op) {
++				return op + " " + args[1] + "," + args[3] + "," + args[2] + "," + args[0]
++			}
+ 		}
+ 		args = append(args, args[0])
+ 		return op + " " + strings.Join(args[1:], ",")
+@@ -77,7 +91,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
+ 		STH, STHU,
+ 		STW, STWU,
+ 		STD, STDU,
+-		STQ:
++		STQ, STFD, STFDU, STFS, STFSU:
+ 		return op + " " + strings.Join(args, ",")
+ 
+ 	case CMPD, CMPDI, CMPLD, CMPLDI, CMPW, CMPWI, CMPLW, CMPLWI:
+@@ -92,28 +106,41 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
+ 		return "ADDIS $0," + args[1] + "," + args[0]
+ 	// store instructions with index registers
+ 	case STBX, STBUX, STHX, STHUX, STWX, STWUX, STDX, STDUX,
+-		STHBRX, STWBRX, STDBRX, STSWX, STFSX, STFSUX, STFDX, STFDUX, STFIWX, STFDPX:
++		STHBRX, STWBRX, STDBRX, STSWX, STFIWX:
+ 		return "MOV" + op[2:len(op)-1] + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
+ 
+ 	case STDCXCC, STWCXCC, STHCXCC, STBCXCC:
+ 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
+ 
+-	case STXVD2X, STXVW4X:
++	case STXVD2X, STXVW4X, STXSDX, STVX, STVXL, STVEBX, STVEHX, STVEWX, STXSIWX, STFDX, STFDUX, STFDPX, STFSX, STFSUX:
+ 		return op + " " + args[0] + ",(" + args[2] + ")(" + args[1] + ")"
+ 
+-	// load instructions with index registers
+-	case LBZX, LBZUX, LHZX, LHZUX, LWZX, LWZUX, LDX, LDUX,
+-		LHBRX, LWBRX, LDBRX, LSWX, LFSX, LFSUX, LFDX, LFDUX, LFIWAX, LFIWZX:
+-		return "MOV" + op[1:len(op)-1] + " (" + args[2] + ")(" + args[1] + ")," + args[0]
++	case STXV:
++		return op + " " + args[0] + "," + args[1]
++
++	case STXVL, STXVLL:
++		return op + " " + args[0] + "," + args[1] + "," + args[2]
+ 
+-	case LDARX, LWARX, LHARX, LBARX:
++	case LWAX, LWAUX, LWZX, LHZX, LBZX, LDX, LHAX, LHAUX, LDARX, LWARX, LHARX, LBARX, LFDX, LFDUX, LFSX, LFSUX, LDBRX, LWBRX, LHBRX, LDUX, LWZUX, LHZUX, LBZUX:
++		if args[1] == "0" {
++			return op + " (" + args[2] + ")," + args[0]
++		}
+ 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
+ 
+-	case LXVD2X, LXVW4X:
++	case LXVD2X, LXVW4X, LVX, LVXL, LVSR, LVSL, LVEBX, LVEHX, LVEWX, LXSDX, LXSIWAX:
+ 		return op + " (" + args[2] + ")(" + args[1] + ")," + args[0]
+ 
+-	case DCBT, DCBTST, DCBZ, DCBST:
+-		return op + " (" + args[1] + ")"
++	case LXV:
++		return op + " " + args[1] + "," + args[0]
++
++	case LXVL, LXVLL:
++		return op + " " + args[1] + "," + args[2] + "," + args[0]
++
++	case DCBT, DCBTST, DCBZ, DCBST, DCBI, ICBI:
++		if args[0] == "0" || args[0] == "R0" {
++			return op + " (" + args[1] + ")"
++		}
++		return op + " (" + args[1] + ")(" + args[0] + ")"
+ 
+ 	// branch instructions needs additional handling
+ 	case BCLR:
+@@ -173,12 +200,15 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
+ 		if inst.Op == ISEL {
+ 			return fmt.Sprintf("$%d", (arg - Cond0LT))
+ 		}
+-		if arg == CR0 && strings.HasPrefix(inst.Op.String(), "cmp") {
++		if arg == CR0 && (strings.HasPrefix(inst.Op.String(), "cmp") || strings.HasPrefix(inst.Op.String(), "fcmp")) {
+ 			return "" // don't show cr0 for cmp instructions
+ 		} else if arg >= CR0 {
+ 			return fmt.Sprintf("CR%d", int(arg-CR0))
+ 		}
+ 		bit := [4]string{"LT", "GT", "EQ", "SO"}[(arg-Cond0LT)%4]
++		if strings.HasPrefix(inst.Op.String(), "cr") {
++			return fmt.Sprintf("CR%d%s", int(arg-Cond0LT)/4, bit)
++		}
+ 		if arg <= Cond0SO {
+ 			return bit
+ 		}
+@@ -212,6 +242,37 @@ func plan9Arg(inst *Inst, argIndex int, pc uint64, arg Arg, symname func(uint64)
+ 	return fmt.Sprintf("???(%v)", arg)
+ }
+ 
++func reverseMiddleOps(op Op) bool {
++	switch op {
++	case FMADD, FMADDCC, FMADDS, FMADDSCC, FMSUB, FMSUBCC, FMSUBS, FMSUBSCC, FNMADD, FNMADDCC, FNMADDS, FNMADDSCC, FNMSUB, FNMSUBCC, FNMSUBS, FNMSUBSCC, FSEL, FSELCC:
++		return true
++	}
++	return false
++}
++
++func reverseOperandOrder(op Op) bool {
++	switch op {
++	// Special case for SUBF, SUBFC: not reversed
++	case ADD, ADDC, ADDE, ADDCC, ADDCCC:
++		return true
++	case MULLW, MULLWCC, MULHW, MULHWCC, MULLD, MULLDCC, MULHD, MULHDCC, MULLWO, MULLWOCC, MULHWU, MULHWUCC, MULLDO, MULLDOCC:
++		return true
++	case DIVD, DIVDCC, DIVDU, DIVDUCC, DIVDE, DIVDECC, DIVDEU, DIVDEUCC, DIVDO, DIVDOCC, DIVDUO, DIVDUOCC:
++		return true
++	case MODUD, MODSD, MODUW, MODSW:
++		return true
++	case FADD, FADDS, FSUB, FSUBS, FMUL, FMULS, FDIV, FDIVS, FMADD, FMADDS, FMSUB, FMSUBS, FNMADD, FNMADDS, FNMSUB, FNMSUBS, FMULSCC:
++		return true
++	case FADDCC, FADDSCC, FSUBCC, FMULCC, FDIVCC, FDIVSCC:
++		return true
++	case OR, ORC, AND, ANDC, XOR, NAND, EQV, NOR, ANDCC, ORCC, XORCC, EQVCC, NORCC, NANDCC:
++		return true
++	case SLW, SLWCC, SLD, SLDCC, SRW, SRAW, SRWCC, SRAWCC, SRD, SRDCC, SRAD, SRADCC:
++		return true
++	}
++	return false
++}
++
+ // revCondMap maps a conditional register bit to its inverse, if possible.
+ var revCondMap = map[string]string{
+ 	"LT": "GE", "GT": "LE", "EQ": "NE",
+@@ -219,15 +280,65 @@ var revCondMap = map[string]string{
+ 
+ // plan9OpMap maps an Op to its Plan 9 mnemonics, if different than its GNU mnemonics.
+ var plan9OpMap = map[Op]string{
+-	LWARX: "LWAR",
+-	LDARX: "LDAR",
+-	LHARX: "LHAR",
+-	LBARX: "LBAR",
+-	ADDI:  "ADD",
+-	SRADI: "SRAD",
+-	SUBF:  "SUB",
+-	LI:    "MOVD",
+-	LBZ:   "MOVBZ", STB: "MOVB",
++	LWARX:     "LWAR",
++	LDARX:     "LDAR",
++	LHARX:     "LHAR",
++	LBARX:     "LBAR",
++	LWAX:      "MOVW",
++	LHAX:      "MOVH",
++	LWAUX:     "MOVWU",
++	LHAU:      "MOVHU",
++	LHAUX:     "MOVHU",
++	LDX:       "MOVD",
++	LDUX:      "MOVDU",
++	LWZX:      "MOVWZ",
++	LWZUX:     "MOVWZU",
++	LHZX:      "MOVHZ",
++	LHZUX:     "MOVHZU",
++	LBZX:      "MOVBZ",
++	LBZUX:     "MOVBZU",
++	LDBRX:     "MOVDBR",
++	LWBRX:     "MOVWBR",
++	LHBRX:     "MOVHBR",
++	MCRF:      "MOVFL",
++	XORI:      "XOR",
++	ORI:       "OR",
++	ANDICC:    "ANDCC",
++	ANDC:      "ANDN",
++	ADDEO:     "ADDEV",
++	ADDEOCC:   "ADDEVCC",
++	ADDO:      "ADDV",
++	ADDOCC:    "ADDVCC",
++	ADDMEO:    "ADDMEV",
++	ADDMEOCC:  "ADDMEVCC",
++	ADDCO:     "ADDCV",
++	ADDCOCC:   "ADDCVCC",
++	ADDZEO:    "ADDZEV",
++	ADDZEOCC:  "ADDZEVCC",
++	SUBFME:    "SUBME",
++	SUBFMECC:  "SUBMECC",
++	SUBFZE:    "SUBZE",
++	SUBFZECC:  "SUBZECC",
++	SUBFZEO:   "SUBZEV",
++	SUBFZEOCC: "SUBZEVCC",
++	SUBFC:     "SUBC",
++	ORC:       "ORN",
++	MULLWO:    "MULLWV",
++	MULLWOCC:  "MULLWVCC",
++	MULLDO:    "MULLDV",
++	MULLDOCC:  "MULLDVCC",
++	DIVDO:     "DIVDV",
++	DIVDOCC:   "DIVDVCC",
++	DIVDUO:    "DIVDUV",
++	DIVDUOCC:  "DIVDUVCC",
++	ADDI:      "ADD",
++	SRADI:     "SRAD",
++	SUBF:      "SUB",
++	STBCXCC:   "STBCCC",
++	STWCXCC:   "STWCCC",
++	STDCXCC:   "STDCCC",
++	LI:        "MOVD",
++	LBZ:       "MOVBZ", STB: "MOVB",
+ 	LBZU: "MOVBZU", STBU: "MOVBU",
+ 	LHZ: "MOVHZ", LHA: "MOVH", STH: "MOVH",
+ 	LHZU: "MOVHZU", STHU: "MOVHU",
+@@ -235,6 +346,14 @@ var plan9OpMap = map[Op]string{
+ 	LWZU: "MOVWZU", STWU: "MOVWU",
+ 	LD: "MOVD", STD: "MOVD",
+ 	LDU: "MOVDU", STDU: "MOVDU",
++	LFD: "FMOVD", STFD: "FMOVD",
++	LFS: "FMOVS", STFS: "FMOVS",
++	LFDX: "FMOVD", STFDX: "FMOVD",
++	LFDU: "FMOVDU", STFDU: "FMOVDU",
++	LFDUX: "FMOVDU", STFDUX: "FMOVDU",
++	LFSX: "FMOVS", STFSX: "FMOVS",
++	LFSU: "FMOVSU", STFSU: "FMOVSU",
++	LFSUX: "FMOVSU", STFSUX: "FMOVSU",
+ 	CMPD: "CMP", CMPDI: "CMP",
+ 	CMPW: "CMPW", CMPWI: "CMPW",
+ 	CMPLD: "CMPU", CMPLDI: "CMPU",
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+index f536926dbc..250d3b7193 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/tables.go
+@@ -186,6 +186,10 @@ const (
+ 	DIVDEUCC
+ 	DIVDEUO
+ 	DIVDEUOCC
++	MODSD
++	MODUD
++	MODSW
++	MODUW
+ 	CMPWI
+ 	CMPDI
+ 	CMPW
+@@ -466,6 +470,7 @@ const (
+ 	VSPLTISH
+ 	VSPLTISW
+ 	VPERM
++	VPERMR
+ 	VSEL
+ 	VSL
+ 	VSLDOI
+@@ -524,6 +529,7 @@ const (
+ 	VMSUMSHS
+ 	VMSUMUHM
+ 	VMSUMUHS
++	VMSUMUDM
+ 	VSUMSWS
+ 	VSUM2SWS
+ 	VSUM4SBS
+@@ -559,6 +565,18 @@ const (
+ 	VCMPEQUWCC
+ 	VCMPEQUD
+ 	VCMPEQUDCC
++	VCMPNEB
++	VCMPNEBCC
++	VCMPNEZB
++	VCMPNEZBCC
++	VCMPNEH
++	VCMPNEHCC
++	VCMPNEZH
++	VCMPNEZHCC
++	VCMPNEW
++	VCMPNEWCC
++	VCMPNEZW
++	VCMPNEZWCC
+ 	VCMPGTSB
+ 	VCMPGTSBCC
+ 	VCMPGTSD
+@@ -647,6 +665,7 @@ const (
+ 	VPOPCNTH
+ 	VPOPCNTW
+ 	VBPERMQ
++	VBPERMD
+ 	BCDADDCC
+ 	BCDSUBCC
+ 	MTVSCR
+@@ -708,11 +727,17 @@ const (
+ 	LXVD2X
+ 	LXVDSX
+ 	LXVW4X
++	LXV
++	LXVL
++	LXVLL
+ 	STXSDX
+ 	STXSIWX
+ 	STXSSPX
+ 	STXVD2X
+ 	STXVW4X
++	STXV
++	STXVL
++	STXVLL
+ 	XSABSDP
+ 	XSADDDP
+ 	XSADDSP
+@@ -852,6 +877,7 @@ const (
+ 	XXMRGHW
+ 	XXMRGLW
+ 	XXPERMDI
++	XXPERM
+ 	XXSEL
+ 	XXSLDWI
+ 	XXSPLTW
+@@ -1528,6 +1554,10 @@ var opstr = [...]string{
+ 	DIVDEUCC:      "divdeu.",
+ 	DIVDEUO:       "divdeuo",
+ 	DIVDEUOCC:     "divdeuo.",
++	MODSD:         "modsd",
++	MODUD:         "modud",
++	MODSW:         "modsw",
++	MODUW:         "moduw",
+ 	CMPWI:         "cmpwi",
+ 	CMPDI:         "cmpdi",
+ 	CMPW:          "cmpw",
+@@ -1808,6 +1838,7 @@ var opstr = [...]string{
+ 	VSPLTISH:      "vspltish",
+ 	VSPLTISW:      "vspltisw",
+ 	VPERM:         "vperm",
++	VPERMR:        "vpermr",
+ 	VSEL:          "vsel",
+ 	VSL:           "vsl",
+ 	VSLDOI:        "vsldoi",
+@@ -1866,6 +1897,7 @@ var opstr = [...]string{
+ 	VMSUMSHS:      "vmsumshs",
+ 	VMSUMUHM:      "vmsumuhm",
+ 	VMSUMUHS:      "vmsumuhs",
++	VMSUMUDM:      "vmsumudm",
+ 	VSUMSWS:       "vsumsws",
+ 	VSUM2SWS:      "vsum2sws",
+ 	VSUM4SBS:      "vsum4sbs",
+@@ -1901,6 +1933,18 @@ var opstr = [...]string{
+ 	VCMPEQUWCC:    "vcmpequw.",
+ 	VCMPEQUD:      "vcmpequd",
+ 	VCMPEQUDCC:    "vcmpequd.",
++	VCMPNEB:       "vcmpneb",
++	VCMPNEBCC:     "vcmpneb.",
++	VCMPNEZB:      "vcmpnezb",
++	VCMPNEZBCC:    "vcmpnezb.",
++	VCMPNEH:       "vcmpneh",
++	VCMPNEHCC:     "vcmpneh.",
++	VCMPNEZH:      "vcmpnezh",
++	VCMPNEZHCC:    "vcmpnezh.",
++	VCMPNEW:       "vcmpnew",
++	VCMPNEWCC:     "vcmpnew.",
++	VCMPNEZW:      "vcmpnezw",
++	VCMPNEZWCC:    "vcmpnezw.",
+ 	VCMPGTSB:      "vcmpgtsb",
+ 	VCMPGTSBCC:    "vcmpgtsb.",
+ 	VCMPGTSD:      "vcmpgtsd",
+@@ -1989,6 +2033,7 @@ var opstr = [...]string{
+ 	VPOPCNTH:      "vpopcnth",
+ 	VPOPCNTW:      "vpopcntw",
+ 	VBPERMQ:       "vbpermq",
++	VBPERMD:       "vbpermd",
+ 	BCDADDCC:      "bcdadd.",
+ 	BCDSUBCC:      "bcdsub.",
+ 	MTVSCR:        "mtvscr",
+@@ -2050,11 +2095,17 @@ var opstr = [...]string{
+ 	LXVD2X:        "lxvd2x",
+ 	LXVDSX:        "lxvdsx",
+ 	LXVW4X:        "lxvw4x",
++	LXV:           "lxv",
++	LXVL:          "lxvl",
++	LXVLL:         "lxvll",
+ 	STXSDX:        "stxsdx",
+ 	STXSIWX:       "stxsiwx",
+ 	STXSSPX:       "stxsspx",
+ 	STXVD2X:       "stxvd2x",
+ 	STXVW4X:       "stxvw4x",
++	STXV:          "stxv",
++	STXVL:         "stxvl",
++	STXVLL:        "stxvll",
+ 	XSABSDP:       "xsabsdp",
+ 	XSADDDP:       "xsadddp",
+ 	XSADDSP:       "xsaddsp",
+@@ -2194,6 +2245,7 @@ var opstr = [...]string{
+ 	XXMRGHW:       "xxmrghw",
+ 	XXMRGLW:       "xxmrglw",
+ 	XXPERMDI:      "xxpermdi",
++	XXPERM:        "xxperm",
+ 	XXSEL:         "xxsel",
+ 	XXSLDWI:       "xxsldwi",
+ 	XXSPLTW:       "xxspltw",
+@@ -2745,6 +2797,7 @@ var (
+ 	ap_ImmUnsigned_21_22       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{21, 2}}}
+ 	ap_ImmUnsigned_11_12       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{11, 2}}}
+ 	ap_ImmUnsigned_11_11       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{11, 1}}}
++	ap_VecSReg_28_28_6_10      = &argField{Type: TypeVecSReg, Shift: 0, BitFields: BitFields{{28, 1}, {6, 5}}}
+ 	ap_VecSReg_30_30_16_20     = &argField{Type: TypeVecSReg, Shift: 0, BitFields: BitFields{{30, 1}, {16, 5}}}
+ 	ap_VecSReg_29_29_11_15     = &argField{Type: TypeVecSReg, Shift: 0, BitFields: BitFields{{29, 1}, {11, 5}}}
+ 	ap_ImmUnsigned_22_23       = &argField{Type: TypeImmUnsigned, Shift: 0, BitFields: BitFields{{22, 2}}}
+@@ -3125,6 +3178,14 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{DIVDEUOCC, 0xfc0007ff, 0x7c000713, 0x0, // Divide Doubleword Extended Unsigned XO-form (divdeuo. RT,RA,RB)
+ 		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{MODSD, 0xfc0007fe, 0x7c000612, 0x1, // Modulo Signed Doubleword X-form (modsd RT,RA,RB)
++		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{MODUD, 0xfc0007fe, 0x7c000212, 0x1, // Modulo Unsigned Doubleword X-form (modud RT,RA,RB)
++		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{MODSW, 0xfc0007fe, 0x7c000616, 0x1, // Modulo Signed Word X-form (modsw RT,RA,RB)
++		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{MODUW, 0xfc0007fe, 0x7c000216, 0x1, // Modulo Unsigned Word X-form (moduw RT,RA,RB)
++		[5]*argField{ap_Reg_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{CMPWI, 0xfc200000, 0x2c000000, 0x400000, // Compare Immediate D-form (cmpwi BF,RA,SI)
+ 		[5]*argField{ap_CondRegField_6_8, ap_Reg_11_15, ap_ImmSigned_16_31}},
+ 	{CMPDI, 0xfc200000, 0x2c200000, 0x400000, // Compare Immediate D-form (cmpdi BF,RA,SI)
+@@ -3685,6 +3746,8 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecReg_6_10, ap_ImmSigned_11_15}},
+ 	{VPERM, 0xfc00003f, 0x1000002b, 0x0, // Vector Permute VA-form (vperm VRT,VRA,VRB,VRC)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
++	{VPERMR, 0xfc00003f, 0x1000003b, 0x0, // Vector Permute Right-indexed VA-form (vpermr VRT,VRA,VRB,VRC)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
+ 	{VSEL, 0xfc00003f, 0x1000002a, 0x0, // Vector Select VA-form (vsel VRT,VRA,VRB,VRC)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
+ 	{VSL, 0xfc0007ff, 0x100001c4, 0x0, // Vector Shift Left VX-form (vsl VRT,VRA,VRB)
+@@ -3801,6 +3864,8 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
+ 	{VMSUMUHS, 0xfc00003f, 0x10000027, 0x0, // Vector Multiply-Sum Unsigned Halfword Saturate VA-form (vmsumuhs VRT,VRA,VRB,VRC)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
++	{VMSUMUDM, 0xfc00003f, 0x10000023, 0x0, // Vector Multiply-Sum Unsigned Doubleword Modulo VA-form (vmsumudm VRT,VRA,VRB,VRC)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_VecReg_21_25}},
+ 	{VSUMSWS, 0xfc0007ff, 0x10000788, 0x0, // Vector Sum across Signed Word Saturate VX-form (vsumsws VRT,VRA,VRB)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+ 	{VSUM2SWS, 0xfc0007ff, 0x10000688, 0x0, // Vector Sum across Half Signed Word Saturate VX-form (vsum2sws VRT,VRA,VRB)
+@@ -3871,6 +3936,30 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+ 	{VCMPEQUDCC, 0xfc0007ff, 0x100004c7, 0x0, // Vector Compare Equal To Unsigned Doubleword VX-form (vcmpequd. VRT,VRA,VRB)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEB, 0xfc0007ff, 0x10000007, 0x0, // Vector Compare Not Equal Byte VX-form (vcmpneb VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEBCC, 0xfc0007ff, 0x10000407, 0x0, // Vector Compare Not Equal Byte VX-form (vcmpneb. VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEZB, 0xfc0007ff, 0x10000107, 0x0, // Vector Compare Not Equal or Zero Byte VX-form (vcmpnezb VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEZBCC, 0xfc0007ff, 0x10000507, 0x0, // Vector Compare Not Equal or Zero Byte VX-form (vcmpnezb. VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEH, 0xfc0007ff, 0x10000047, 0x0, // Vector Compare Not Equal Halfword VX-form (vcmpneh VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEHCC, 0xfc0007ff, 0x10000447, 0x0, // Vector Compare Not Equal Halfword VX-form (vcmpneh. VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEZH, 0xfc0007ff, 0x10000147, 0x0, // Vector Compare Not Equal or Zero Halfword VX-form (vcmpnezh VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEZHCC, 0xfc0007ff, 0x10000547, 0x0, // Vector Compare Not Equal or Zero Halfword VX-form (vcmpnezh. VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEW, 0xfc0007ff, 0x10000087, 0x0, // Vector Compare Not Equal Word VX-form (vcmpnew VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEWCC, 0xfc0007ff, 0x10000487, 0x0, // Vector Compare Not Equal Word VX-form (vcmpnew. VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEZW, 0xfc0007ff, 0x10000187, 0x0, // Vector Compare Not Equal or Zero Word VX-form (vcmpnezw VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VCMPNEZWCC, 0xfc0007ff, 0x10000587, 0x0, // Vector Compare Not Equal or Zero Word VX-form (vcmpnezw. VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+ 	{VCMPGTSB, 0xfc0007ff, 0x10000306, 0x0, // Vector Compare Greater Than Signed Byte VC-form (vcmpgtsb VRT,VRA,VRB)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+ 	{VCMPGTSBCC, 0xfc0007ff, 0x10000706, 0x0, // Vector Compare Greater Than Signed Byte VC-form (vcmpgtsb. VRT,VRA,VRB)
+@@ -4047,6 +4136,8 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_16_20}},
+ 	{VBPERMQ, 0xfc0007ff, 0x1000054c, 0x0, // Vector Bit Permute Quadword VX-form (vbpermq VRT,VRA,VRB)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
++	{VBPERMD, 0xfc0007ff, 0x100005cc, 0x0, // Vector Bit Permute Doubleword VX-form (vbpermd VRT,VRA,VRB)
++		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20}},
+ 	{BCDADDCC, 0xfc0005ff, 0x10000401, 0x0, // Decimal Add Modulo VX-form (bcdadd. VRT,VRA,VRB,PS)
+ 		[5]*argField{ap_VecReg_6_10, ap_VecReg_11_15, ap_VecReg_16_20, ap_ImmUnsigned_22_22}},
+ 	{BCDSUBCC, 0xfc0005ff, 0x10000441, 0x0, // Decimal Subtract Modulo VX-form (bcdsub. VRT,VRA,VRB,PS)
+@@ -4169,6 +4260,12 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{LXVW4X, 0xfc0007fe, 0x7c000618, 0x0, // Load VSX Vector Word*4 Indexed XX1-form (lxvw4x XT,RA,RB)
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{LXV, 0xfc000007, 0xf4000001, 0x0, // Load VSX Vector DQ-form (lxv XT,DQ(RA))
++		[5]*argField{ap_VecSReg_28_28_6_10, ap_Offset_16_27_shift4, ap_Reg_11_15}},
++	{LXVL, 0xfc0007fe, 0x7c00021a, 0x0, // Load VSX Vector with Length X-form (lxvl XT,RA,RB)
++		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{LXVLL, 0xfc0007fe, 0x7c00025a, 0x0, // Load VSX Vector Left-justified with Length X-form (lxvll XT,RA,RB)
++		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{STXSDX, 0xfc0007fe, 0x7c000598, 0x0, // Store VSX Scalar Doubleword Indexed XX1-form (stxsdx XS,RA,RB)
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{STXSIWX, 0xfc0007fe, 0x7c000118, 0x0, // Store VSX Scalar as Integer Word Indexed XX1-form (stxsiwx XS,RA,RB)
+@@ -4179,6 +4276,12 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{STXVW4X, 0xfc0007fe, 0x7c000718, 0x0, // Store VSX Vector Word*4 Indexed XX1-form (stxvw4x XS,RA,RB)
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{STXV, 0xfc000007, 0xf4000005, 0x0, // Store VSX Vector DQ-form (stxv XS,DQ(RA))
++		[5]*argField{ap_VecSReg_28_28_6_10, ap_Offset_16_27_shift4, ap_Reg_11_15}},
++	{STXVL, 0xfc0007fe, 0x7c00031a, 0x0, // Store VSX Vector with Length X-form (stxvl XS,RA,RB)
++		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
++	{STXVLL, 0xfc0007fe, 0x7c00035a, 0x0, // Store VSX Vector Left-justified with Length X-form (stxvll XS,RA,RB)
++		[5]*argField{ap_VecSReg_31_31_6_10, ap_Reg_11_15, ap_Reg_16_20}},
+ 	{XSABSDP, 0xfc0007fc, 0xf0000564, 0x1f0000, // VSX Scalar Absolute Value Double-Precision XX2-form (xsabsdp XT,XB)
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_30_30_16_20}},
+ 	{XSADDDP, 0xfc0007f8, 0xf0000100, 0x0, // VSX Scalar Add Double-Precision XX3-form (xsadddp XT,XA,XB)
+@@ -4457,6 +4560,8 @@ var instFormats = [...]instFormat{
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
+ 	{XXPERMDI, 0xfc0004f8, 0xf0000050, 0x0, // VSX Permute Doubleword Immediate XX3-form (xxpermdi XT,XA,XB,DM)
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20, ap_ImmUnsigned_22_23}},
++	{XXPERM, 0xfc0007f8, 0xf00000d0, 0x0, // VSX Permute XX3-form (xxperm XT,XA,XB)
++		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20}},
+ 	{XXSEL, 0xfc000030, 0xf0000030, 0x0, // VSX Select XX4-form (xxsel XT,XA,XB,XC)
+ 		[5]*argField{ap_VecSReg_31_31_6_10, ap_VecSReg_29_29_11_15, ap_VecSReg_30_30_16_20, ap_VecSReg_28_28_21_25}},
+ 	{XXSLDWI, 0xfc0004f8, 0xf0000010, 0x0, // VSX Shift Left Double by Word Immediate XX3-form (xxsldwi XT,XA,XB,SHW)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 10d7d4b9f1..0a3ea66ffd 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -18,7 +18,7 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340
+ ## explicit
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.0.0-20200312215426-ff8b605520f4
++# golang.org/x/arch v0.0.0-20200511175325-f7c78586839d
+ ## explicit
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm

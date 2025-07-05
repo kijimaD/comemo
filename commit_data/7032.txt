@@ -7,9 +7,76 @@ Date:   Tue Jan 4 13:16:50 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3794043
-
+---
  src/pkg/exp/datafmt/datafmt.go                | 2 +-
  src/pkg/go/parser/interface.go                | 2 +-
  src/pkg/go/printer/printer.go                 | 4 ++--
  src/pkg/index/suffixarray/suffixarray_test.go | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index 979dedd973..46c412342a 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -656,7 +656,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 
+ // Eval formats each argument according to the format
+ // f and returns the resulting []byte and os.Error. If
+-// an error occured, the []byte contains the partially
++// an error occurred, the []byte contains the partially
+ // formatted result. An environment env may be passed
+ // in which is available in custom formatters through
+ // the state parameter.
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index f14e4ac757..84d699a679 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -178,7 +178,7 @@ func ParseFiles(fset *token.FileSet, filenames []string, mode uint) (pkgs map[st
+ // information is recorded in the file set fset.
+ //
+ // If the directory couldn't be read, a nil map and the respective error are
+-// returned. If a parse error occured, a non-nil but incomplete map and the
++// returned. If a parse error occurred, a non-nil but incomplete map and the
+ // error are returned.
+ //
+ func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index c0f7344f31..a4ddad50ec 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -879,7 +879,7 @@ func (p *printer) commentBefore(next token.Position) bool {
+ }
+ 
+ 
+-// Flush prints any pending comments and whitespace occuring
++// Flush prints any pending comments and whitespace occurring
+ // textually before the position of the next token tok. Flush
+ // returns true if a pending formfeed character was dropped
+ // from the whitespace buffer as a result of interspersing
+@@ -922,7 +922,7 @@ const (
+ )
+ 
+ 
+-// Design note: It is tempting to eliminate extra blanks occuring in
++// Design note: It is tempting to eliminate extra blanks occurring in
+ //              whitespace in this function as it could simplify some
+ //              of the blanks logic in the node printing functions.
+ //              However, this would mess up any formatting done by
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index cc252a9299..659bce042c 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -101,11 +101,11 @@ var testCases = []testCase{
+ }
+ 
+ 
+-// find all occurences of s in source; report at most n occurences
++// find all occurrences of s in source; report at most n occurences
+ func find(src, s string, n int) []int {
+ 	var res vector.IntVector
+ 	if s != "" && n != 0 {
+-		// find at most n occurences of s in src
++		// find at most n occurrences of s in src
+ 		for i := -1; n < 0 || len(res) < n; {
+ 			j := strings.Index(src[i+1:], s)
+ 			if j < 0 {

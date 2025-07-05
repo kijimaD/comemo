@@ -12,7 +12,7 @@ Date:   Sat Aug 19 22:33:51 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go                | 2 +-
  src/cmd/compile/fmt_test.go                    | 2 +-
  src/cmd/compile/internal/amd64/ssa.go          | 2 +-
@@ -40,3 +40,393 @@ Date:   Sat Aug 19 22:33:51 2017 +0200
  src/syscall/mksyscall_windows.go               | 2 +-
  src/unsafe/unsafe.go                           | 2 +-
  26 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 7e9e59daf4..24aa0537ca 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -666,7 +666,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			}
+ 		}
+ 		if p.arch.Family == sys.AMD64 {
+-			// 4 operand instruction have form  ymm1, ymm2, ymm3/m256, imm8
++			// 4 operand instruction have form ymm1, ymm2, ymm3/m256, imm8
+ 			// So From3 is always just a register, so we store imm8 in Offset field,
+ 			// to avoid increasing size of Prog.
+ 			prog.From = a[1]
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 0e5a3192ce..dde80565b8 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -419,7 +419,7 @@ func stringVal(tv types.TypeAndValue) (string, bool) {
+ // formatIter iterates through the string s in increasing
+ // index order and calls f for each format specifier '%..v'.
+ // The arguments for f describe the specifier's index range.
+-// If a format specifier contains a  "*", f is called with
++// If a format specifier contains a "*", f is called with
+ // the index range for "*" alone, before being called for
+ // the entire specifier. The result of f is the index of
+ // the rune at which iteration continues.
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index fbd0a9e46c..a0cfdd093a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -878,7 +878,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64LoweredNilCheck:
+ 		// Issue a load which will fault if the input is nil.
+ 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
+-		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
++		// Should we use the 3-byte TESTB $0, (reg) instead? It is larger
+ 		// but it doesn't have false dependency on AX.
+ 		// Or maybe allocate an output register and use MOVL (reg),reg2 ?
+ 		// That trades clobbering flags for clobbering a register.
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 1fb42e7223..03b853ecc5 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -77,7 +77,7 @@ func convT2Istring(tab *byte, elem *any) (ret any)
+ func convT2Islice(tab *byte, elem *any) (ret any)
+ func convT2Inoptr(tab *byte, elem *any) (ret any)
+ 
+-// interface type assertions  x.(T)
++// interface type assertions x.(T)
+ func assertE2I(typ *byte, iface any) (ret any)
+ func assertE2I2(typ *byte, iface any) (ret any, b bool)
+ func assertI2I(typ *byte, iface any) (ret any)
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index c6a679ed78..6fede5fd30 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -247,7 +247,7 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 
+ 		return n
+ 
+-		// target is invalid type for a constant?  leave alone.
++		// target is invalid type for a constant? leave alone.
+ 	case OLITERAL:
+ 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
+ 			return defaultlitreuse(n, nil, reuse)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a1f4767c8f..6d5c15bd85 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -769,7 +769,7 @@ func isDriveLetter(b byte) bool {
+ 	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
+ }
+ 
+-// is this path a local name?  begins with ./ or ../ or /
++// is this path a local name? begins with ./ or ../ or /
+ func islocalname(name string) bool {
+ 	return strings.HasPrefix(name, "/") ||
+ 		runtime.GOOS == "windows" && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 47fb6938a1..10886b94b8 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3373,7 +3373,7 @@ func (s *state) canSSA(n *Node) bool {
+ 		return false
+ 	case PPARAMOUT:
+ 		if s.hasdefer {
+-			// TODO: handle this case?  Named return values must be
++			// TODO: handle this case? Named return values must be
+ 			// in memory so that the deferred function can see them.
+ 			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }
+ 			// Or maybe not, see issue 18860.  Even unnamed return values
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 5cbb4486b2..44ccfe1bfe 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -45,7 +45,7 @@ func copySource(v *Value) *Value {
+ 	// but we take some extra care to make sure we
+ 	// don't get stuck in an infinite loop.
+ 	// Infinite copy loops may happen in unreachable code.
+-	// (TODO: or can they?  Needs a test.)
++	// (TODO: or can they? Needs a test.)
+ 	slow := w
+ 	var advance bool
+ 	for w.Op == OpCopy {
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index d509c6c0d3..5d1fbf8e3f 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -884,7 +884,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			// Decide on registers for phi ops. Use the registers determined
+ 			// by the primary predecessor if we can.
+ 			// TODO: pick best of (already processed) predecessors?
+-			// Majority vote?  Deepest nesting level?
++			// Majority vote? Deepest nesting level?
+ 			phiRegs = phiRegs[:0]
+ 			var phiUsed regMask
+ 			for _, v := range phis {
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index a491599c58..ca430d681b 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -728,7 +728,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.Op386LoweredNilCheck:
+ 		// Issue a load which will fault if the input is nil.
+ 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
+-		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
++		// Should we use the 3-byte TESTB $0, (reg) instead? It is larger
+ 		// but it doesn't have false dependency on AX.
+ 		// Or maybe allocate an output register and use MOVL (reg),reg2 ?
+ 		// That trades clobbering flags for clobbering a register.
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 27873e0824..52fbaa0156 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -528,7 +528,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	var dst int16 = REG_CX
+ 	if (p.As == ALEAL || p.As == AMOVL) && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+ 		dst = p.To.Reg
+-		// Why?  See the comment near the top of rewriteToUseGot above.
++		// Why? See the comment near the top of rewriteToUseGot above.
+ 		// AMOVLs might be introduced by the GOT rewrites.
+ 	}
+ 	q := obj.Appendp(p, newprog)
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index e075604abd..c9e12a81a4 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -81,7 +81,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ }
+ 
+ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+-	// Should never be called.  We implement Liner below, callers
++	// Should never be called. We implement Liner below, callers
+ 	// should use that instead.
+ 	return 0, nil, nil, fmt.Errorf("pcln not available in go object file")
+ }
+@@ -90,7 +90,7 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ // Returns "",0,nil if unknown.
+ // This function implements the Liner interface in preference to pcln() above.
+ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+-	// TODO: this is really inefficient.  Binary search?  Memoize last result?
++	// TODO: this is really inefficient. Binary search? Memoize last result?
+ 	var arch *sys.Arch
+ 	for _, a := range sys.Archs {
+ 		if a.Name == f.goobj.Arch {
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 8e0b1dd375..9398b8f243 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -55,7 +55,7 @@ func NewDecoder(r io.Reader) *Decoder {
+ 
+ // recvType loads the definition of a type.
+ func (dec *Decoder) recvType(id typeId) {
+-	// Have we already seen this type?  That's an error
++	// Have we already seen this type? That's an error
+ 	if id < firstUserId || dec.wireType[id] != nil {
+ 		dec.err = errors.New("gob: duplicate type received")
+ 		return
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 420a07e154..bc3bd9733d 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -508,7 +508,7 @@ func (d *decodeState) array(v reflect.Value) {
+ 	switch v.Kind() {
+ 	case reflect.Interface:
+ 		if v.NumMethod() == 0 {
+-			// Decoding into nil interface?  Switch to non-reflect code.
++			// Decoding into nil interface? Switch to non-reflect code.
+ 			v.Set(reflect.ValueOf(d.arrayInterface()))
+ 			return
+ 		}
+@@ -612,7 +612,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 	}
+ 	v = pv
+ 
+-	// Decoding into nil interface?  Switch to non-reflect code.
++	// Decoding into nil interface? Switch to non-reflect code.
+ 	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
+ 		v.Set(reflect.ValueOf(d.objectInterface()))
+ 		return
+@@ -1190,7 +1190,7 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 	b := make([]byte, len(s)+2*utf8.UTFMax)
+ 	w := copy(b, s[0:r])
+ 	for r < len(s) {
+-		// Out of room?  Can only happen if s is full of
++		// Out of room? Can only happen if s is full of
+ 		// malformed UTF-8 and we're replacing each
+ 		// byte with RuneError.
+ 		if w >= len(b)-2*utf8.UTFMax {
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index dffb95d77a..2fd6e06688 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -160,7 +160,7 @@ func (e UnmarshalError) Error() string { return string(e) }
+ // UnmarshalXML must consume exactly one XML element.
+ // One common implementation strategy is to unmarshal into
+ // a separate value with a layout matching the expected XML
+-// using d.DecodeElement,  and then to copy the data from
++// using d.DecodeElement, and then to copy the data from
+ // that value into the receiver.
+ // Another common strategy is to use d.Token to process the
+ // XML object one token at a time.
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index be47f0714d..6bc8e96e20 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -646,13 +646,13 @@ func (f *FlagSet) UintVar(p *uint, name string, value uint, usage string) {
+ }
+ 
+ // UintVar defines a uint flag with specified name, default value, and usage string.
+-// The argument p points to a uint  variable in which to store the value of the flag.
++// The argument p points to a uint variable in which to store the value of the flag.
+ func UintVar(p *uint, name string, value uint, usage string) {
+ 	CommandLine.Var(newUintValue(value, p), name, usage)
+ }
+ 
+ // Uint defines a uint flag with specified name, default value, and usage string.
+-// The return value is the address of a uint  variable that stores the value of the flag.
++// The return value is the address of a uint variable that stores the value of the flag.
+ func (f *FlagSet) Uint(name string, value uint, usage string) *uint {
+ 	p := new(uint)
+ 	f.UintVar(p, name, value, usage)
+@@ -660,7 +660,7 @@ func (f *FlagSet) Uint(name string, value uint, usage string) *uint {
+ }
+ 
+ // Uint defines a uint flag with specified name, default value, and usage string.
+-// The return value is the address of a uint  variable that stores the value of the flag.
++// The return value is the address of a uint variable that stores the value of the flag.
+ func Uint(name string, value uint, usage string) *uint {
+ 	return CommandLine.Uint(name, value, usage)
+ }
+@@ -935,7 +935,7 @@ func (f *FlagSet) Parsed() bool {
+ 	return f.parsed
+ }
+ 
+-// Parse parses the command-line flags from os.Args[1:].  Must be called
++// Parse parses the command-line flags from os.Args[1:]. Must be called
+ // after all flags are defined and before flags are accessed by the program.
+ func Parse() {
+ 	// Ignore errors; CommandLine is set for ExitOnError.
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index d1c99c1cd3..38ce928fc0 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -837,7 +837,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+ 			p.buf.WriteByte(']')
+ 		}
+ 	case reflect.Ptr:
+-		// pointer to array or slice or struct?  ok at top level
++		// pointer to array or slice or struct? ok at top level
+ 		// but not embedded (avoid loops)
+ 		if depth == 0 && f.Pointer() != 0 {
+ 			switch a := f.Elem(); a.Kind() {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 8af4438262..7312f4850f 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1337,7 +1337,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	} else if hasCL {
+ 		delHeader("Transfer-Encoding")
+ 	} else if w.req.ProtoAtLeast(1, 1) {
+-		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity,  and no
++		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity, and no
+ 		// content-length has been provided. The connection must be closed after the
+ 		// reply is written, and no chunking is to be done. This is the setup
+ 		// recommended in the Server-Sent Events candidate recommendation 11,
+diff --git a/src/runtime/cputicks.go b/src/runtime/cputicks.go
+index ccc3947bb2..de97d5b6fa 100644
+--- a/src/runtime/cputicks.go
++++ b/src/runtime/cputicks.go
+@@ -11,6 +11,6 @@
+ 
+ package runtime
+ 
+-// careful: cputicks is not guaranteed to be monotonic!  In particular, we have
++// careful: cputicks is not guaranteed to be monotonic! In particular, we have
+ // noticed drift between cpus on certain os/arch combinations. See issue 8976.
+ func cputicks() int64
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 5b0169d572..68fcb564af 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -140,7 +140,7 @@ func notewakeup(n *note) {
+ 	case v == 0:
+ 		// Nothing was waiting. Done.
+ 	case v == locked:
+-		// Two notewakeups!  Not allowed.
++		// Two notewakeups! Not allowed.
+ 		throw("notewakeup - double wakeup")
+ 	default:
+ 		// Must be the waiting m. Wake it up.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0e57d960c4..5708d4afa6 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1235,7 +1235,7 @@ func gcStart(mode gcMode, trigger gcTrigger) {
+ 		}
+ 	}
+ 
+-	// Ok, we're doing it!  Stop everybody else
++	// Ok, we're doing it! Stop everybody else
+ 	semacquire(&worldsema)
+ 
+ 	if trace.enabled {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 2a7acb7797..1f8e37e14f 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -680,7 +680,7 @@ func startpanic_m() {
+ 		exit(4)
+ 		fallthrough
+ 	default:
+-		// Can't even print!  Just exit.
++		// Can't even print! Just exit.
+ 		exit(5)
+ 	}
+ }
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index db57065cac..156a510d21 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -381,7 +381,7 @@ func Unquote(s string) (string, error) {
+ 		return "", ErrSyntax
+ 	}
+ 
+-	// Is it trivial?  Avoid allocation.
++	// Is it trivial? Avoid allocation.
+ 	if !contains(s, '\\') && !contains(s, quote) {
+ 		switch quote {
+ 		case '"':
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index 753def62b5..39c40c6aaf 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -30,7 +30,7 @@ const (
+ 	magic64 = 0xdeddeadbeefbeef
+ )
+ 
+-// Do the 64-bit functions panic?  If so, don't bother testing.
++// Do the 64-bit functions panic? If so, don't bother testing.
+ var test64err = func() (err interface{}) {
+ 	defer func() {
+ 		err = recover()
+diff --git a/src/syscall/mksyscall_windows.go b/src/syscall/mksyscall_windows.go
+index 37e4a070cd..e7c8664ee0 100644
+--- a/src/syscall/mksyscall_windows.go
++++ b/src/syscall/mksyscall_windows.go
+@@ -614,7 +614,7 @@ func (src *Source) ExternalImport(pkg string) {
+ }
+ 
+ // ParseFiles parses files listed in fs and extracts all syscall
+-// functions listed in  sys comments. It returns source files
++// functions listed in sys comments. It returns source files
+ // and functions collection *Source if successful.
+ func ParseFiles(fs []string) (*Source, error) {
+ 	src := &Source{
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 859ca4fa3b..ffe406e1ce 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -176,7 +176,7 @@ type Pointer *ArbitraryType
+ // Sizeof takes an expression x of any type and returns the size in bytes
+ // of a hypothetical variable v as if v was declared via var v = x.
+ // The size does not include any memory possibly referenced by x.
+-// For instance, if x is a slice,  Sizeof returns the size of the slice
++// For instance, if x is a slice, Sizeof returns the size of the slice
+ // descriptor, not the size of the memory referenced by the slice.
+ func Sizeof(x ArbitraryType) uintptr
+ 

@@ -12,7 +12,42 @@ Date:   Thu Nov 3 01:11:49 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/export_test.go | 12 ++++++++++++
  src/net/http/serve_test.go  |  3 +++
  2 files changed, 15 insertions(+)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index fbed45070c..40f87dc8e9 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -186,3 +186,15 @@ func ExportHttp2ConfigureTransport(t *Transport) error {
+ }
+ 
+ var Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
++
++func (s *Server) ExportAllConnsIdle() bool {
++	s.mu.Lock()
++	defer s.mu.Unlock()
++	for c := range s.activeConn {
++		st, ok := c.curState.Load().(ConnState)
++		if !ok || st != StateIdle {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index f855c35822..fe63c6925f 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4875,6 +4875,9 @@ func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
+ 	}) {
+ 		t.Fatalf("idle count before SetKeepAlivesEnabled called = %v; want 1", idle0)
+ 	}
++	if !waitCondition(2*time.Second, 10*time.Millisecond, ts.Config.ExportAllConnsIdle) {
++		t.Fatalf("test server has active conns")
++	}
+ 
+ 	ts.Config.SetKeepAlivesEnabled(false)
+ 

@@ -17,7 +17,100 @@ Date:   Sat Dec 16 18:08:16 2023 +0800
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dexter Ouyang <kkhaike@gmail.com>
-
+---
  src/net/dnsclient_unix.go      | 13 ++++++++-----
  src/net/dnsclient_unix_test.go | 23 ++++++++++++++++++++++-
  2 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index ec067acbd0..bef285e413 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -211,7 +211,7 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
+ 
+ // checkHeader performs basic sanity checks on the header.
+ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
+-	rcode := extractExtendedRCode(*p, h)
++	rcode, hasAdd := extractExtendedRCode(*p, h)
+ 
+ 	if rcode == dnsmessage.RCodeNameError {
+ 		return errNoSuchHost
+@@ -224,7 +224,7 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
+ 
+ 	// libresolv continues to the next server when it receives
+ 	// an invalid referral response. See golang.org/issue/15434.
+-	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
++	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone && !hasAdd {
+ 		return errLameReferral
+ 	}
+ 
+@@ -263,16 +263,19 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
+ 
+ // extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
+ // If an OPT record is not found, the RCode from the hdr is returned.
+-func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
++// Another return value indicates whether an additional resource was found.
++func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) (dnsmessage.RCode, bool) {
+ 	p.SkipAllAnswers()
+ 	p.SkipAllAuthorities()
++	hasAdd := false
+ 	for {
+ 		ahdr, err := p.AdditionalHeader()
++		hasAdd = hasAdd || err != dnsmessage.ErrSectionDone
+ 		if err != nil {
+-			return hdr.RCode
++			return hdr.RCode, hasAdd
+ 		}
+ 		if ahdr.Type == dnsmessage.TypeOPT {
+-			return ahdr.ExtendedRCode(hdr.RCode)
++			return ahdr.ExtendedRCode(hdr.RCode), hasAdd
+ 		}
+ 		p.SkipAdditional()
+ 	}
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index dfc9773a66..0fad9e94ba 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -803,13 +803,25 @@ func TestIgnoreLameReferrals(t *testing.T) {
+ 					},
+ 				}
+ 			}
++		} else if s == "192.0.2.1:53" {
++			if q.Questions[0].Type == dnsmessage.TypeA && strings.HasPrefix(q.Questions[0].Name.String(), "empty.com.") {
++				var edns0Hdr dnsmessage.ResourceHeader
++				edns0Hdr.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false)
++
++				r.Additionals = []dnsmessage.Resource{
++					{
++						Header: edns0Hdr,
++						Body:   &dnsmessage.OPTResource{},
++					},
++				}
++			}
+ 		}
+ 
+ 		return r, nil
+ 	}}
+ 	r := Resolver{PreferGo: true, Dial: fake.DialContext}
+ 
+-	addrs, err := r.LookupIPAddr(context.Background(), "www.golang.org")
++	addrs, err := r.LookupIP(context.Background(), "ip4", "www.golang.org")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -821,6 +833,15 @@ func TestIgnoreLameReferrals(t *testing.T) {
+ 	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
+ 		t.Fatalf("got address %v, want %v", got, want)
+ 	}
++
++	_, err = r.LookupIP(context.Background(), "ip4", "empty.com")
++	de, ok := err.(*DNSError)
++	if !ok {
++		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
++	}
++	if de.Err != errNoSuchHost.Error() {
++		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
++	}
+ }
+ 
+ func BenchmarkGoLookupIP(b *testing.B) {

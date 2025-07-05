@@ -11,6 +11,20 @@ Date:   Wed May 4 23:42:10 2016 -0700
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 5f1758cae2..c89917df88 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -71,8 +71,6 @@ func TestCompound(t *testing.T) { runTest(t, "compound_ssa.go") }
+ 
+ func TestCtl(t *testing.T) { runTest(t, "ctl_ssa.go") }
+ 
+-func TestFp(t *testing.T) { runTest(t, "fp_ssa.go") }
+-
+ func TestLoadStore(t *testing.T) { runTest(t, "loadstore_ssa.go") }
+ 
+ func TestMap(t *testing.T) { runTest(t, "map_ssa.go") }

@@ -14,6 +14,24 @@ Date:   Wed Oct 19 14:29:26 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/check_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index f19a904f7f..1ca522c079 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -221,12 +221,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		t.Fatal(err)
+ 	}
+ 
+-	// TODO(gri) remove this or use flag mechanism to set mode if still needed
+-	if strings.HasSuffix(filenames[0], ".go1") {
+-		// TODO(rfindley): re-enable this test by using GoVersion.
+-		t.Skip("type params are enabled")
+-	}
+-
+ 	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
+ 
+ 	pkgName := "<no package>"

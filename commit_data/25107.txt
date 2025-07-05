@@ -35,7 +35,7 @@ Date:   Thu Sep 24 15:10:47 2015 -0700
     Change-Id: I68bd807529bd9b985f4b6ac2a87764bcc1a7d2f7
     Reviewed-on: https://go-review.googlesource.com/14926
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/decimal.go      |  2 +-
  src/math/big/ftoa.go         |  6 ++--
  src/math/big/intconv.go      | 56 ++++++++++++++---------------
@@ -44,3 +44,600 @@ Date:   Thu Sep 24 15:10:47 2015 -0700
  src/math/big/natconv_test.go | 85 +++++++++++++++++++++-----------------------
  src/math/big/ratconv.go      |  6 ++--
  7 files changed, 106 insertions(+), 125 deletions(-)
+
+diff --git a/src/math/big/decimal.go b/src/math/big/decimal.go
+index b9e181dba3..28cddf9f6b 100644
+--- a/src/math/big/decimal.go
++++ b/src/math/big/decimal.go
+@@ -80,7 +80,7 @@ func (x *decimal) init(m nat, shift int) {
+ 	}
+ 
+ 	// Convert mantissa into decimal representation.
+-	s := m.decimalString() // TODO(gri) avoid string conversion here
++	s := m.itoa(10)
+ 	n := len(s)
+ 	x.exp = n
+ 	// Trim trailing zeros; instead the exponent is tracking
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 506a6cb905..3727b7d651 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -9,9 +9,9 @@
+ package big
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"strconv"
+-	"strings"
+ )
+ 
+ // Text converts the floating-point number x to a string according
+@@ -323,7 +323,7 @@ func (x *Float) fmtB(buf []byte) []byte {
+ 		m = nat(nil).shr(m, uint(w-x.prec))
+ 	}
+ 
+-	buf = append(buf, m.decimalString()...)
++	buf = append(buf, m.itoa(10)...)
+ 	buf = append(buf, 'p')
+ 	e := int64(x.exp) - int64(x.prec)
+ 	if e >= 0 {
+@@ -357,7 +357,7 @@ func (x *Float) fmtP(buf []byte) []byte {
+ 	m = m[i:]
+ 
+ 	buf = append(buf, "0x."...)
+-	buf = append(buf, strings.TrimRight(m.hexString(), "0")...)
++	buf = append(buf, bytes.TrimRight(m.itoa(16), "0")...)
+ 	buf = append(buf, 'p')
+ 	if x.exp >= 0 {
+ 		buf = append(buf, '+')
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 737d176cb8..4693b17159 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -17,25 +17,9 @@ func (x *Int) String() string {
+ 	case x == nil:
+ 		return "<nil>"
+ 	case x.neg:
+-		return "-" + x.abs.decimalString()
++		return "-" + string(x.abs.itoa(10))
+ 	}
+-	return x.abs.decimalString()
+-}
+-
+-func charset(ch rune) string {
+-	switch ch {
+-	case 'b':
+-		return lowercaseDigits[0:2]
+-	case 'o':
+-		return lowercaseDigits[0:8]
+-	case 'd', 's', 'v':
+-		return lowercaseDigits[0:10]
+-	case 'x':
+-		return lowercaseDigits[0:16]
+-	case 'X':
+-		return uppercaseDigits[0:16]
+-	}
+-	return "" // unknown format
++	return string(x.abs.itoa(10))
+ }
+ 
+ // write count copies of text to s
+@@ -60,15 +44,24 @@ func writeMultiple(s fmt.State, text string, count int) {
+ // right justification.
+ //
+ func (x *Int) Format(s fmt.State, ch rune) {
+-	cs := charset(ch)
+-
+-	// special cases
+-	switch {
+-	case cs == "":
++	// determine base
++	var base int
++	switch ch {
++	case 'b':
++		base = 2
++	case 'o':
++		base = 8
++	case 'd', 's', 'v':
++		base = 10
++	case 'x', 'X':
++		base = 16
++	default:
+ 		// unknown format
+ 		fmt.Fprintf(s, "%%!%c(big.Int=%s)", ch, x.String())
+ 		return
+-	case x == nil:
++	}
++
++	if x == nil {
+ 		fmt.Fprint(s, "<nil>")
+ 		return
+ 	}
+@@ -97,8 +90,15 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 		}
+ 	}
+ 
+-	// determine digits with base set by len(cs) and digit characters from cs
+-	digits := x.abs.string(cs)
++	digits := x.abs.itoa(base)
++	if ch == 'X' {
++		// faster than bytes.ToUpper
++		for i, d := range digits {
++			if 'a' <= d && d <= 'z' {
++				digits[i] = 'A' + (d - 'a')
++			}
++		}
++	}
+ 
+ 	// number of characters for the three classes of number padding
+ 	var left int  // space characters to left of digits for right justification ("%8d")
+@@ -111,7 +111,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 		switch {
+ 		case len(digits) < precision:
+ 			zeros = precision - len(digits) // count of zero padding
+-		case digits == "0" && precision == 0:
++		case len(digits) == 1 && digits[0] == '0' && precision == 0:
+ 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
+ 		}
+ 	}
+@@ -137,7 +137,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 	writeMultiple(s, sign, 1)
+ 	writeMultiple(s, prefix, 1)
+ 	writeMultiple(s, "0", zeros)
+-	writeMultiple(s, digits, 1)
++	s.Write(digits)
+ 	writeMultiple(s, " ", right)
+ }
+ 
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index 7ac3cb8a84..3def120fff 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -158,7 +158,7 @@ var mulRangesN = []struct {
+ 
+ func TestMulRangeN(t *testing.T) {
+ 	for i, r := range mulRangesN {
+-		prod := nat(nil).mulRange(r.a, r.b).decimalString()
++		prod := string(nat(nil).mulRange(r.a, r.b).itoa(10))
+ 		if prod != r.prod {
+ 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
+ 		}
+@@ -326,7 +326,7 @@ func TestTrailingZeroBits(t *testing.T) {
+ 	for i := uint(0); i <= 3*_W; i++ {
+ 		n := y.trailingZeroBits()
+ 		if n != i {
+-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.hexString(), n, i)
++			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.itoa(16), n, i)
+ 		}
+ 		y = y.shl(y, 1)
+ 	}
+@@ -388,7 +388,7 @@ func TestMontgomery(t *testing.T) {
+ 		z := nat(nil).montgomery(x, y, m, k0, len(m))
+ 		z = z.norm()
+ 		if z.cmp(out) != 0 {
+-			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
++			t.Errorf("#%d got %s want %s", i, z.itoa(10), out.itoa(10))
+ 		}
+ 	}
+ }
+@@ -429,7 +429,7 @@ func TestExpNN(t *testing.T) {
+ 
+ 		z := nat(nil).expNN(x, y, m)
+ 		if z.cmp(out) != 0 {
+-			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
++			t.Errorf("#%d got %s want %s", i, z.itoa(10), out.itoa(10))
+ 		}
+ 	}
+ }
+@@ -486,7 +486,7 @@ var fiboNums = []string{
+ func TestFibo(t *testing.T) {
+ 	for i, want := range fiboNums {
+ 		n := i * 10
+-		got := fibo(n).decimalString()
++		got := string(fibo(n).itoa(10))
+ 		if got != want {
+ 			t.Errorf("fibo(%d) failed: got %s want %s", n, got, want)
+ 		}
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 80da307147..96c0fad6e6 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -14,6 +14,11 @@ import (
+ 	"sync"
+ )
+ 
++const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
++
++// Note: MaxBase = len(digits), but it must remain a rune constant
++//       for API compatibility.
++
+ // MaxBase is the largest number base accepted for string conversions.
+ const MaxBase = 'z' - 'a' + 10 + 1
+ 
+@@ -229,45 +234,25 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
+ 	return
+ }
+ 
+-// Character sets for string conversion.
+-const (
+-	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
+-	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+-)
+-
+-// decimalString returns a decimal representation of x.
+-// It calls x.string with the charset "0123456789".
+-func (x nat) decimalString() string {
+-	return x.string(lowercaseDigits[:10])
+-}
+-
+-// hexString returns a hexadecimal representation of x.
+-// It calls x.string with the charset "0123456789abcdef".
+-func (x nat) hexString() string {
+-	return x.string(lowercaseDigits[:16])
+-}
+-
+-// string converts x to a string using digits from a charset; a digit with
+-// value d is represented by charset[d]. The conversion base is determined
+-// by len(charset), which must be >= 2 and <= 256.
+-func (x nat) string(charset string) string {
+-	b := Word(len(charset))
+-	if b < 2 || b > 256 {
+-		panic("invalid character set length")
++// itoa converts x to an ASCII representation in the given base;
++// base must be between 2 and MaxBase, inclusive.
++func (x nat) itoa(base int) []byte {
++	if base < 2 || base > MaxBase {
++		panic("invalid base")
+ 	}
+ 
+ 	// x == 0
+ 	if len(x) == 0 {
+-		return string(charset[0])
++		return []byte("0")
+ 	}
+ 	// len(x) > 0
+ 
+ 	// allocate buffer for conversion
+-	i := int(float64(x.bitLen())/math.Log2(float64(b))) + 1 // off by one at most
++	i := int(float64(x.bitLen())/math.Log2(float64(base))) + 1 // off by 1 at most
+ 	s := make([]byte, i)
+ 
+ 	// convert power of two and non power of two bases separately
+-	if b == b&-b {
++	if b := Word(base); b == b&-b {
+ 		// shift is base b digit size in bits
+ 		shift := trailingZeroBits(b) // shift > 0 because b >= 2
+ 		mask := Word(1<<shift - 1)
+@@ -279,7 +264,7 @@ func (x nat) string(charset string) string {
+ 			// convert full digits
+ 			for nbits >= shift {
+ 				i--
+-				s[i] = charset[w&mask]
++				s[i] = digits[w&mask]
+ 				w >>= shift
+ 				nbits -= shift
+ 			}
+@@ -293,7 +278,7 @@ func (x nat) string(charset string) string {
+ 				// partial digit in current word w (== x[k-1]) and next word x[k]
+ 				w |= x[k] << nbits
+ 				i--
+-				s[i] = charset[w&mask]
++				s[i] = digits[w&mask]
+ 
+ 				// advance
+ 				w = x[k] >> (shift - nbits)
+@@ -304,7 +289,7 @@ func (x nat) string(charset string) string {
+ 		// convert digits of most-significant word w (omit leading zeros)
+ 		for w != 0 {
+ 			i--
+-			s[i] = charset[w&mask]
++			s[i] = digits[w&mask]
+ 			w >>= shift
+ 		}
+ 
+@@ -319,18 +304,18 @@ func (x nat) string(charset string) string {
+ 		q := nat(nil).set(x)
+ 
+ 		// convert q to string s in base b
+-		q.convertWords(s, charset, b, ndigits, bb, table)
++		q.convertWords(s, b, ndigits, bb, table)
+ 
+ 		// strip leading zeros
+ 		// (x != 0; thus s must contain at least one non-zero digit
+ 		// and the loop will terminate)
+ 		i = 0
+-		for zero := charset[0]; s[i] == zero; {
++		for s[i] == '0' {
+ 			i++
+ 		}
+ 	}
+ 
+-	return string(s[i:])
++	return s[i:]
+ }
+ 
+ // Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
+@@ -349,7 +334,7 @@ func (x nat) string(charset string) string {
+ // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
+ // specific hardware.
+ //
+-func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
++func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
+ 	// split larger blocks recursively
+ 	if table != nil {
+ 		// len(q) > leafSize > 0
+@@ -374,8 +359,8 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 
+ 			// convert subblocks and collect results in s[:h] and s[h:]
+ 			h := len(s) - table[index].ndigits
+-			r.convertWords(s[h:], charset, b, ndigits, bb, table[0:index])
+-			s = s[:h] // == q.convertWords(s, charset, b, ndigits, bb, table[0:index+1])
++			r.convertWords(s[h:], b, ndigits, bb, table[0:index])
++			s = s[:h] // == q.convertWords(s, b, ndigits, bb, table[0:index+1])
+ 		}
+ 	}
+ 
+@@ -393,7 +378,7 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 				// this appears to be faster for BenchmarkString10000Base10
+ 				// and smaller strings (but a bit slower for larger ones)
+ 				t := r / 10
+-				s[i] = charset[r-t<<3-t-t] // TODO(gri) replace w/ t*10 once compiler produces better code
++				s[i] = '0' + byte(r-t<<3-t-t) // TODO(gri) replace w/ t*10 once compiler produces better code
+ 				r = t
+ 			}
+ 		}
+@@ -403,17 +388,16 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
+ 			q, r = q.divW(q, bb)
+ 			for j := 0; j < ndigits && i > 0; j++ {
+ 				i--
+-				s[i] = charset[r%b]
++				s[i] = digits[r%b]
+ 				r /= b
+ 			}
+ 		}
+ 	}
+ 
+ 	// prepend high-order zeros
+-	zero := charset[0]
+ 	for i > 0 { // while need more leading zeros
+ 		i--
+-		s[i] = zero
++		s[i] = '0'
+ 	}
+ }
+ 
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index f321fbc2df..687b70698a 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -5,20 +5,19 @@
+ package big
+ 
+ import (
++	"bytes"
+ 	"io"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-func toString(x nat, charset string) string {
+-	base := len(charset)
+-
++func itoa(x nat, base int) []byte {
+ 	// special cases
+ 	switch {
+ 	case base < 2:
+ 		panic("illegal base")
+ 	case len(x) == 0:
+-		return string(charset[0])
++		return []byte("0")
+ 	}
+ 
+ 	// allocate buffer for conversion
+@@ -33,54 +32,53 @@ func toString(x nat, charset string) string {
+ 		i--
+ 		var r Word
+ 		q, r = q.divW(q, Word(base))
+-		s[i] = charset[r]
++		s[i] = digits[r]
+ 	}
+ 
+-	return string(s[i:])
++	return s[i:]
+ }
+ 
+ var strTests = []struct {
+ 	x nat    // nat value to be converted
+-	c string // conversion charset
++	b int    // conversion base
+ 	s string // expected result
+ }{
+-	{nil, "01", "0"},
+-	{nat{1}, "01", "1"},
+-	{nat{0xc5}, "01", "11000101"},
+-	{nat{03271}, lowercaseDigits[:8], "3271"},
+-	{nat{10}, lowercaseDigits[:10], "10"},
+-	{nat{1234567890}, uppercaseDigits[:10], "1234567890"},
+-	{nat{0xdeadbeef}, lowercaseDigits[:16], "deadbeef"},
+-	{nat{0xdeadbeef}, uppercaseDigits[:16], "DEADBEEF"},
+-	{nat{0x229be7}, lowercaseDigits[:17], "1a2b3c"},
+-	{nat{0x309663e6}, uppercaseDigits[:32], "O9COV6"},
++	{nil, 2, "0"},
++	{nat{1}, 2, "1"},
++	{nat{0xc5}, 2, "11000101"},
++	{nat{03271}, 8, "3271"},
++	{nat{10}, 10, "10"},
++	{nat{1234567890}, 10, "1234567890"},
++	{nat{0xdeadbeef}, 16, "deadbeef"},
++	{nat{0x229be7}, 17, "1a2b3c"},
++	{nat{0x309663e6}, 32, "o9cov6"},
+ }
+ 
+ func TestString(t *testing.T) {
+-	// test invalid character set explicitly
++	// test invalid base explicitly
+ 	var panicStr string
+ 	func() {
+ 		defer func() {
+ 			panicStr = recover().(string)
+ 		}()
+-		natOne.string("0")
++		natOne.itoa(1)
+ 	}()
+-	if panicStr != "invalid character set length" {
+-		t.Errorf("expected panic for invalid character set")
++	if panicStr != "invalid base" {
++		t.Errorf("expected panic for invalid base")
+ 	}
+ 
+ 	for _, a := range strTests {
+-		s := a.x.string(a.c)
++		s := string(a.x.itoa(a.b))
+ 		if s != a.s {
+ 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
+ 		}
+ 
+-		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), len(a.c), false)
++		x, b, _, err := nat(nil).scan(strings.NewReader(a.s), a.b, false)
+ 		if x.cmp(a.x) != 0 {
+ 			t.Errorf("scan%+v\n\tgot z = %v; want %v", a, x, a.x)
+ 		}
+-		if b != len(a.c) {
+-			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, len(a.c))
++		if b != a.b {
++			t.Errorf("scan%+v\n\tgot b = %d; want %d", a, b, a.b)
+ 		}
+ 		if err != nil {
+ 			t.Errorf("scan%+v\n\tgot error = %s", a, err)
+@@ -236,7 +234,7 @@ func TestScanPi(t *testing.T) {
+ 	if err != nil {
+ 		t.Errorf("scanning pi: %s", err)
+ 	}
+-	if s := z.decimalString(); s != pi {
++	if s := string(z.itoa(10)); s != pi {
+ 		t.Errorf("scanning pi: got %s", s)
+ 	}
+ }
+@@ -265,12 +263,12 @@ func BenchmarkScanPi(b *testing.B) {
+ func BenchmarkStringPiParallel(b *testing.B) {
+ 	var x nat
+ 	x, _, _, _ = x.scan(strings.NewReader(pi), 0, false)
+-	if x.decimalString() != pi {
++	if string(x.itoa(10)) != pi {
+ 		panic("benchmark incorrect: conversion failed")
+ 	}
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			x.decimalString()
++			x.itoa(10)
+ 		}
+ 	})
+ }
+@@ -304,15 +302,14 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
+ 	var z nat
+ 	z = z.expWW(x, y)
+ 
+-	var s string
+-	s = z.string(lowercaseDigits[:base])
+-	if t := toString(z, lowercaseDigits[:base]); t != s {
++	s := z.itoa(base)
++	if t := itoa(z, base); !bytes.Equal(s, t) {
+ 		b.Fatalf("scanning: got %s; want %s", s, t)
+ 	}
+ 	b.StartTimer()
+ 
+ 	for i := 0; i < b.N; i++ {
+-		z.scan(strings.NewReader(s), base, false)
++		z.scan(bytes.NewReader(s), base, false)
+ 	}
+ }
+ 
+@@ -344,11 +341,11 @@ func StringHelper(b *testing.B, base int, x, y Word) {
+ 	b.StopTimer()
+ 	var z nat
+ 	z = z.expWW(x, y)
+-	z.string(lowercaseDigits[:base]) // warm divisor cache
++	z.itoa(base) // warm divisor cache
+ 	b.StartTimer()
+ 
+ 	for i := 0; i < b.N; i++ {
+-		_ = z.string(lowercaseDigits[:base])
++		_ = z.itoa(base)
+ 	}
+ }
+ 
+@@ -372,7 +369,7 @@ func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
+ func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
+ func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+ 
+-func LeafSizeHelper(b *testing.B, base Word, size int) {
++func LeafSizeHelper(b *testing.B, base, size int) {
+ 	b.StopTimer()
+ 	originalLeafSize := leafSize
+ 	resetTable(cacheBase10.table[:])
+@@ -382,12 +379,12 @@ func LeafSizeHelper(b *testing.B, base Word, size int) {
+ 	for d := 1; d <= 10000; d *= 10 {
+ 		b.StopTimer()
+ 		var z nat
+-		z = z.expWW(base, Word(d))           // build target number
+-		_ = z.string(lowercaseDigits[:base]) // warm divisor cache
++		z = z.expWW(Word(base), Word(d)) // build target number
++		_ = z.itoa(base)                 // warm divisor cache
+ 		b.StartTimer()
+ 
+ 		for i := 0; i < b.N; i++ {
+-			_ = z.string(lowercaseDigits[:base])
++			_ = z.itoa(base)
+ 		}
+ 	}
+ 
+@@ -408,13 +405,13 @@ func resetTable(table []divisor) {
+ }
+ 
+ func TestStringPowers(t *testing.T) {
+-	var b, p Word
+-	for b = 2; b <= 16; b++ {
++	var p Word
++	for b := 2; b <= 16; b++ {
+ 		for p = 0; p <= 512; p++ {
+-			x := nat(nil).expWW(b, p)
+-			xs := x.string(lowercaseDigits[:b])
+-			xs2 := toString(x, lowercaseDigits[:b])
+-			if xs != xs2 {
++			x := nat(nil).expWW(Word(b), p)
++			xs := x.itoa(b)
++			xs2 := itoa(x, b)
++			if !bytes.Equal(xs, xs2) {
+ 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
+ 			}
+ 		}
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 961ff649a5..8cf6716c3a 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -190,7 +190,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
+ func (x *Rat) String() string {
+ 	s := "/1"
+ 	if len(x.b.abs) != 0 {
+-		s = "/" + x.b.abs.decimalString()
++		s = "/" + string(x.b.abs.itoa(10))
+ 	}
+ 	return x.a.String() + s
+ }
+@@ -237,13 +237,13 @@ func (x *Rat) FloatString(prec int) string {
+ 		}
+ 	}
+ 
+-	s := q.decimalString()
++	s := string(q.itoa(10))
+ 	if x.a.neg {
+ 		s = "-" + s
+ 	}
+ 
+ 	if prec > 0 {
+-		rs := r.decimalString()
++		rs := string(r.itoa(10))
+ 		leadingZeros := prec - len(rs)
+ 		s += "." + strings.Repeat("0", leadingZeros) + rs
+ 	}

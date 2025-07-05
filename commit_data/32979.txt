@@ -9,9 +9,109 @@ Date:   Tue Jun 20 17:25:07 2017 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  4 ++--
  src/crypto/dsa/dsa_test.go             |  2 +-
  src/hash/crc32/crc32_arm64.go          | 32 ++++++++++++++++----------------
  src/runtime/symtab_test.go             |  2 +-
  4 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 8827d6cfb4..decd3beda7 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -79,8 +79,8 @@ const (
+ 	MAXVALSIZE = 128
+ )
+ 
+-func structfieldSize() int             { return 3 * Widthptr } // Sizeof(runtime.structfield{})
+-func imethodSize() int                 { return 4 + 4 }        // Sizeof(runtime.imethod{})
++func structfieldSize() int { return 3 * Widthptr } // Sizeof(runtime.structfield{})
++func imethodSize() int     { return 4 + 4 }        // Sizeof(runtime.imethod{})
+ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
+ 	if t.Sym == nil && len(methods(t)) == 0 {
+ 		return 0
+diff --git a/src/crypto/dsa/dsa_test.go b/src/crypto/dsa/dsa_test.go
+index a78c3f1972..7fc246bc2b 100644
+--- a/src/crypto/dsa/dsa_test.go
++++ b/src/crypto/dsa/dsa_test.go
+@@ -83,7 +83,7 @@ func fromHex(s string) *big.Int {
+ 
+ func TestSignAndVerify(t *testing.T) {
+ 	priv := PrivateKey{
+-		PublicKey: PublicKey {
++		PublicKey: PublicKey{
+ 			Parameters: Parameters{
+ 				P: fromHex("A9B5B793FB4785793D246BAE77E8FF63CA52F442DA763C440259919FE1BC1D6065A9350637A04F75A2F039401D49F08E066C4D275A5A65DA5684BC563C14289D7AB8A67163BFBF79D85972619AD2CFF55AB0EE77A9002B0EF96293BDD0F42685EBB2C66C327079F6C98000FBCB79AACDE1BC6F9D5C7B1A97E3D9D54ED7951FEF"),
+ 				Q: fromHex("E1D3391245933D68A0714ED34BBCB7A1F422B9C1"),
+diff --git a/src/hash/crc32/crc32_arm64.go b/src/hash/crc32/crc32_arm64.go
+index 2df3702650..17044861c7 100644
+--- a/src/hash/crc32/crc32_arm64.go
++++ b/src/hash/crc32/crc32_arm64.go
+@@ -15,37 +15,37 @@ func ieeeUpdate(crc uint32, p []byte) uint32
+ var hasCRC32 = supportsCRC32()
+ 
+ func archAvailableCastagnoli() bool {
+-    return hasCRC32
++	return hasCRC32
+ }
+ 
+ func archInitCastagnoli() {
+-    if !hasCRC32 {
+-        panic("arch-specific crc32 instruction for Catagnoli not available")
+-    }
++	if !hasCRC32 {
++		panic("arch-specific crc32 instruction for Catagnoli not available")
++	}
+ }
+ 
+ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+-    if !hasCRC32 {
+-        panic("arch-specific crc32 instruction for Castagnoli not available")
+-    }
++	if !hasCRC32 {
++		panic("arch-specific crc32 instruction for Castagnoli not available")
++	}
+ 
+-    return ^castagnoliUpdate(^crc, p)
++	return ^castagnoliUpdate(^crc, p)
+ }
+ 
+ func archAvailableIEEE() bool {
+-    return hasCRC32
++	return hasCRC32
+ }
+ 
+ func archInitIEEE() {
+-    if !hasCRC32 {
+-        panic("arch-specific crc32 instruction for IEEE not available")
+-    }
++	if !hasCRC32 {
++		panic("arch-specific crc32 instruction for IEEE not available")
++	}
+ }
+ 
+ func archUpdateIEEE(crc uint32, p []byte) uint32 {
+-    if !hasCRC32 {
+-        panic("arch-specific crc32 instruction for IEEE not available")
+-    }
++	if !hasCRC32 {
++		panic("arch-specific crc32 instruction for IEEE not available")
++	}
+ 
+-    return ^ieeeUpdate(^crc, p)
++	return ^ieeeUpdate(^crc, p)
+ }
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index 57642a49fb..b75b6b2c2a 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -92,7 +92,7 @@ var mapLit = map[int]int{ // 28
+ }                           // 33
+ var intLit = lineNumber() + // 34
+ 	lineNumber() + // 35
+-			lineNumber() // 36
++	lineNumber() // 36
+ func trythis() { // 37
+ 	recordLines(lineNumber(), // 38
+ 		lineNumber(), // 39

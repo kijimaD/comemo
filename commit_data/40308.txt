@@ -12,6 +12,22 @@ Date:   Thu May 2 15:48:14 2019 +0700
     Change-Id: I04ea86509074afdc83a3f70d68b8a1a8829763d1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174839
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 5013c55663..addba98e3e 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -343,10 +343,6 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 				// runtime.heapBits.next even though
+ 				// it calls slow-path
+ 				// runtime.heapBits.nextArena.
+-				//
+-				// TODO(austin): Once mid-stack
+-				// inlining is the default, remove
+-				// this special case.
+ 				break
+ 			}
+ 		}

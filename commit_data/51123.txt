@@ -22,10 +22,137 @@ Date:   Tue Dec 7 00:24:54 2021 -0500
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/test/testdata/issue9400_linux.go |  4 +++-
  src/runtime/debug_test.go                 | 23 ++++++++++++++++++-----
  src/runtime/proc_test.go                  | 15 +++++++++------
  src/runtime/rwmutex_test.go               |  4 +++-
  src/runtime/testdata/testprog/preempt.go  |  3 ++-
  5 files changed, 35 insertions(+), 14 deletions(-)
+
+diff --git a/misc/cgo/test/testdata/issue9400_linux.go b/misc/cgo/test/testdata/issue9400_linux.go
+index 47f224dc4f..051b9ab0bb 100644
+--- a/misc/cgo/test/testdata/issue9400_linux.go
++++ b/misc/cgo/test/testdata/issue9400_linux.go
+@@ -50,7 +50,9 @@ func test9400(t *testing.T) {
+ 	// Disable GC for the duration of the test.
+ 	// This avoids a potential GC deadlock when spinning in uninterruptable ASM below #49695.
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+-	// And finish any pending GC after we pause, if any.
++	// SetGCPercent waits until the mark phase is over, but the runtime
++	// also preempts at the start of the sweep phase, so make sure that's
++	// done too. See #49695.
+ 	runtime.GC()
+ 
+ 	// Temporarily rewind the stack and trigger SIGSETXID
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index 44585b1744..5bb0c5cee3 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -34,10 +34,17 @@ func startDebugCallWorker(t *testing.T) (g *runtime.G, after func()) {
+ 	skipUnderDebugger(t)
+ 
+ 	// This can deadlock if there aren't enough threads or if a GC
+-	// tries to interrupt an atomic loop (see issue #10958). A GC
+-	// could also actively be in progress (see issue #49370), so we
+-	// need to call runtime.GC to block until it has complete. We
+-	// use 8 Ps so there's room for the debug call worker,
++	// tries to interrupt an atomic loop (see issue #10958). Execute
++	// an extra GC to ensure even the sweep phase is done (out of
++	// caution to prevent #49370 from happening).
++	// TODO(mknyszek): This extra GC cycle is likely unnecessary
++	// because preemption (which may happen during the sweep phase)
++	// isn't much of an issue anymore thanks to asynchronous preemption.
++	// The biggest risk is having a write barrier in the debug call
++	// injection test code fire, because it runs in a signal handler
++	// and may not have a P.
++	//
++	// We use 8 Ps so there's room for the debug call worker,
+ 	// something that's trying to preempt the call worker, and the
+ 	// goroutine that's trying to stop the call worker.
+ 	ogomaxprocs := runtime.GOMAXPROCS(8)
+@@ -270,8 +277,14 @@ func TestDebugCallPanic(t *testing.T) {
+ 	// progress. Wait until the current GC is done, and turn it off.
+ 	//
+ 	// See #10958 and #49370.
+-	runtime.GC()
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
++	// TODO(mknyszek): This extra GC cycle is likely unnecessary
++	// because preemption (which may happen during the sweep phase)
++	// isn't much of an issue anymore thanks to asynchronous preemption.
++	// The biggest risk is having a write barrier in the debug call
++	// injection test code fire, because it runs in a signal handler
++	// and may not have a P.
++	runtime.GC()
+ 
+ 	ready := make(chan *runtime.G)
+ 	var stop uint32
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 9198022ace..cc899a24c6 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -119,8 +119,9 @@ func TestGoroutineParallelism(t *testing.T) {
+ 	// since the goroutines can't be stopped/preempted.
+ 	// Disable GC for this test (see issue #10958).
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+-	// Now that GCs are disabled, block until any outstanding GCs
+-	// are also done.
++	// SetGCPercent waits until the mark phase is over, but the runtime
++	// also preempts at the start of the sweep phase, so make sure that's
++	// done too. See #45867.
+ 	runtime.GC()
+ 	for try := 0; try < N; try++ {
+ 		done := make(chan bool)
+@@ -166,8 +167,9 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
+ 	// since the goroutines can't be stopped/preempted.
+ 	// Disable GC for this test (see issue #10958).
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+-	// Now that GCs are disabled, block until any outstanding GCs
+-	// are also done.
++	// SetGCPercent waits until the mark phase is over, but the runtime
++	// also preempts at the start of the sweep phase, so make sure that's
++	// done too. See #45867.
+ 	runtime.GC()
+ 	for try := 0; try < N; try++ {
+ 		if load {
+@@ -629,8 +631,9 @@ func TestSchedLocalQueueEmpty(t *testing.T) {
+ 	// If runtime triggers a forced GC during this test then it will deadlock,
+ 	// since the goroutines can't be stopped/preempted during spin wait.
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+-	// Now that GCs are disabled, block until any outstanding GCs
+-	// are also done.
++	// SetGCPercent waits until the mark phase is over, but the runtime
++	// also preempts at the start of the sweep phase, so make sure that's
++	// done too. See #45867.
+ 	runtime.GC()
+ 
+ 	iters := int(1e5)
+diff --git a/src/runtime/rwmutex_test.go b/src/runtime/rwmutex_test.go
+index 33ddd7d1d5..f15d367b32 100644
+--- a/src/runtime/rwmutex_test.go
++++ b/src/runtime/rwmutex_test.go
+@@ -55,7 +55,9 @@ func TestParallelRWMutexReaders(t *testing.T) {
+ 	// since the goroutines can't be stopped/preempted.
+ 	// Disable GC for this test (see issue #10958).
+ 	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+-	// Finish any in-progress GCs and get ourselves to a clean slate.
++	// SetGCPercent waits until the mark phase is over, but the runtime
++	// also preempts at the start of the sweep phase, so make sure that's
++	// done too.
+ 	GC()
+ 
+ 	doTestParallelReaders(1)
+diff --git a/src/runtime/testdata/testprog/preempt.go b/src/runtime/testdata/testprog/preempt.go
+index eb9f59053c..fb6755a372 100644
+--- a/src/runtime/testdata/testprog/preempt.go
++++ b/src/runtime/testdata/testprog/preempt.go
+@@ -21,7 +21,8 @@ func AsyncPreempt() {
+ 	// Disable GC so we have complete control of what we're testing.
+ 	debug.SetGCPercent(-1)
+ 	// Out of an abundance of caution, also make sure that there are
+-	// no GCs actively in progress.
++	// no GCs actively in progress. The sweep phase of a GC cycle
++	// for instance tries to preempt Ps at the very beginning.
+ 	runtime.GC()
+ 
+ 	// Start a goroutine with no sync safe-points.

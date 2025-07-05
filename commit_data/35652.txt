@@ -7,7 +7,274 @@ Date:   Tue Feb 27 03:01:01 2018 -0800
     Change-Id: I12f96a9397cfaebe11e616543d804bd62cd72da0
     Reviewed-on: https://go-review.googlesource.com/97379
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/format.go | 48 +++++++++++++++++++++++------------------------
  src/fmt/print.go  | 56 +++++++++++++++++++++++++++----------------------------
  2 files changed, 52 insertions(+), 52 deletions(-)
+
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index d4b92f8121..91103f2c07 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -122,8 +122,8 @@ func (f *fmt) padString(s string) {
+ 	}
+ }
+ 
+-// fmt_boolean formats a boolean.
+-func (f *fmt) fmt_boolean(v bool) {
++// fmtBoolean formats a boolean.
++func (f *fmt) fmtBoolean(v bool) {
+ 	if v {
+ 		f.padString("true")
+ 	} else {
+@@ -131,8 +131,8 @@ func (f *fmt) fmt_boolean(v bool) {
+ 	}
+ }
+ 
+-// fmt_unicode formats a uint64 as "U+0078" or with f.sharp set as "U+0078 'x'".
+-func (f *fmt) fmt_unicode(u uint64) {
++// fmtUnicode formats a uint64 as "U+0078" or with f.sharp set as "U+0078 'x'".
++func (f *fmt) fmtUnicode(u uint64) {
+ 	buf := f.intbuf[0:]
+ 
+ 	// With default precision set the maximum needed buf length is 18
+@@ -190,8 +190,8 @@ func (f *fmt) fmt_unicode(u uint64) {
+ 	f.zero = oldZero
+ }
+ 
+-// fmt_integer formats signed and unsigned integers.
+-func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
++// fmtInteger formats signed and unsigned integers.
++func (f *fmt) fmtInteger(u uint64, base int, isSigned bool, digits string) {
+ 	negative := isSigned && int64(u) < 0
+ 	if negative {
+ 		u = -u
+@@ -322,14 +322,14 @@ func (f *fmt) truncate(s string) string {
+ 	return s
+ }
+ 
+-// fmt_s formats a string.
+-func (f *fmt) fmt_s(s string) {
++// fmtS formats a string.
++func (f *fmt) fmtS(s string) {
+ 	s = f.truncate(s)
+ 	f.padString(s)
+ }
+ 
+-// fmt_sbx formats a string or byte slice as a hexadecimal encoding of its bytes.
+-func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
++// fmtSbx formats a string or byte slice as a hexadecimal encoding of its bytes.
++func (f *fmt) fmtSbx(s string, b []byte, digits string) {
+ 	length := len(b)
+ 	if b == nil {
+ 		// No byte slice present. Assume string s should be encoded.
+@@ -394,20 +394,20 @@ func (f *fmt) fmt_sbx(s string, b []byte, digits string) {
+ 	}
+ }
+ 
+-// fmt_sx formats a string as a hexadecimal encoding of its bytes.
+-func (f *fmt) fmt_sx(s, digits string) {
+-	f.fmt_sbx(s, nil, digits)
++// fmtSx formats a string as a hexadecimal encoding of its bytes.
++func (f *fmt) fmtSx(s, digits string) {
++	f.fmtSbx(s, nil, digits)
+ }
+ 
+-// fmt_bx formats a byte slice as a hexadecimal encoding of its bytes.
+-func (f *fmt) fmt_bx(b []byte, digits string) {
+-	f.fmt_sbx("", b, digits)
++// fmtBx formats a byte slice as a hexadecimal encoding of its bytes.
++func (f *fmt) fmtBx(b []byte, digits string) {
++	f.fmtSbx("", b, digits)
+ }
+ 
+-// fmt_q formats a string as a double-quoted, escaped Go string constant.
++// fmtQ formats a string as a double-quoted, escaped Go string constant.
+ // If f.sharp is set a raw (backquoted) string may be returned instead
+ // if the string does not contain any control characters other than tab.
+-func (f *fmt) fmt_q(s string) {
++func (f *fmt) fmtQ(s string) {
+ 	s = f.truncate(s)
+ 	if f.sharp && strconv.CanBackquote(s) {
+ 		f.padString("`" + s + "`")
+@@ -421,9 +421,9 @@ func (f *fmt) fmt_q(s string) {
+ 	}
+ }
+ 
+-// fmt_c formats an integer as a Unicode character.
++// fmtC formats an integer as a Unicode character.
+ // If the character is not valid Unicode, it will print '\ufffd'.
+-func (f *fmt) fmt_c(c uint64) {
++func (f *fmt) fmtC(c uint64) {
+ 	r := rune(c)
+ 	if c > utf8.MaxRune {
+ 		r = utf8.RuneError
+@@ -433,9 +433,9 @@ func (f *fmt) fmt_c(c uint64) {
+ 	f.pad(buf[:w])
+ }
+ 
+-// fmt_qc formats an integer as a single-quoted, escaped Go character constant.
++// fmtQc formats an integer as a single-quoted, escaped Go character constant.
+ // If the character is not valid Unicode, it will print '\ufffd'.
+-func (f *fmt) fmt_qc(c uint64) {
++func (f *fmt) fmtQc(c uint64) {
+ 	r := rune(c)
+ 	if c > utf8.MaxRune {
+ 		r = utf8.RuneError
+@@ -448,9 +448,9 @@ func (f *fmt) fmt_qc(c uint64) {
+ 	}
+ }
+ 
+-// fmt_float formats a float64. It assumes that verb is a valid format specifier
++// fmtFloat formats a float64. It assumes that verb is a valid format specifier
+ // for strconv.AppendFloat and therefore fits into a byte.
+-func (f *fmt) fmt_float(v float64, size int, verb rune, prec int) {
++func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
+ 	// Explicit precision in format specifier overrules default precision.
+ 	if f.precPresent {
+ 		prec = f.prec
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 98c156a121..f67f805603 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -341,7 +341,7 @@ func (p *pp) badVerb(verb rune) {
+ func (p *pp) fmtBool(v bool, verb rune) {
+ 	switch verb {
+ 	case 't', 'v':
+-		p.fmt.fmt_boolean(v)
++		p.fmt.fmtBoolean(v)
+ 	default:
+ 		p.badVerb(verb)
+ 	}
+@@ -352,7 +352,7 @@ func (p *pp) fmtBool(v bool, verb rune) {
+ func (p *pp) fmt0x64(v uint64, leading0x bool) {
+ 	sharp := p.fmt.sharp
+ 	p.fmt.sharp = leading0x
+-	p.fmt.fmt_integer(v, 16, unsigned, ldigits)
++	p.fmt.fmtInteger(v, 16, unsigned, ldigits)
+ 	p.fmt.sharp = sharp
+ }
+ 
+@@ -363,28 +363,28 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
+ 		if p.fmt.sharpV && !isSigned {
+ 			p.fmt0x64(v, true)
+ 		} else {
+-			p.fmt.fmt_integer(v, 10, isSigned, ldigits)
++			p.fmt.fmtInteger(v, 10, isSigned, ldigits)
+ 		}
+ 	case 'd':
+-		p.fmt.fmt_integer(v, 10, isSigned, ldigits)
++		p.fmt.fmtInteger(v, 10, isSigned, ldigits)
+ 	case 'b':
+-		p.fmt.fmt_integer(v, 2, isSigned, ldigits)
++		p.fmt.fmtInteger(v, 2, isSigned, ldigits)
+ 	case 'o':
+-		p.fmt.fmt_integer(v, 8, isSigned, ldigits)
++		p.fmt.fmtInteger(v, 8, isSigned, ldigits)
+ 	case 'x':
+-		p.fmt.fmt_integer(v, 16, isSigned, ldigits)
++		p.fmt.fmtInteger(v, 16, isSigned, ldigits)
+ 	case 'X':
+-		p.fmt.fmt_integer(v, 16, isSigned, udigits)
++		p.fmt.fmtInteger(v, 16, isSigned, udigits)
+ 	case 'c':
+-		p.fmt.fmt_c(v)
++		p.fmt.fmtC(v)
+ 	case 'q':
+ 		if v <= utf8.MaxRune {
+-			p.fmt.fmt_qc(v)
++			p.fmt.fmtQc(v)
+ 		} else {
+ 			p.badVerb(verb)
+ 		}
+ 	case 'U':
+-		p.fmt.fmt_unicode(v)
++		p.fmt.fmtUnicode(v)
+ 	default:
+ 		p.badVerb(verb)
+ 	}
+@@ -395,13 +395,13 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
+ func (p *pp) fmtFloat(v float64, size int, verb rune) {
+ 	switch verb {
+ 	case 'v':
+-		p.fmt.fmt_float(v, size, 'g', -1)
++		p.fmt.fmtFloat(v, size, 'g', -1)
+ 	case 'b', 'g', 'G':
+-		p.fmt.fmt_float(v, size, verb, -1)
++		p.fmt.fmtFloat(v, size, verb, -1)
+ 	case 'f', 'e', 'E':
+-		p.fmt.fmt_float(v, size, verb, 6)
++		p.fmt.fmtFloat(v, size, verb, 6)
+ 	case 'F':
+-		p.fmt.fmt_float(v, size, 'f', 6)
++		p.fmt.fmtFloat(v, size, 'f', 6)
+ 	default:
+ 		p.badVerb(verb)
+ 	}
+@@ -432,18 +432,18 @@ func (p *pp) fmtString(v string, verb rune) {
+ 	switch verb {
+ 	case 'v':
+ 		if p.fmt.sharpV {
+-			p.fmt.fmt_q(v)
++			p.fmt.fmtQ(v)
+ 		} else {
+-			p.fmt.fmt_s(v)
++			p.fmt.fmtS(v)
+ 		}
+ 	case 's':
+-		p.fmt.fmt_s(v)
++		p.fmt.fmtS(v)
+ 	case 'x':
+-		p.fmt.fmt_sx(v, ldigits)
++		p.fmt.fmtSx(v, ldigits)
+ 	case 'X':
+-		p.fmt.fmt_sx(v, udigits)
++		p.fmt.fmtSx(v, udigits)
+ 	case 'q':
+-		p.fmt.fmt_q(v)
++		p.fmt.fmtQ(v)
+ 	default:
+ 		p.badVerb(verb)
+ 	}
+@@ -472,18 +472,18 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
+ 				if i > 0 {
+ 					p.buf.WriteByte(' ')
+ 				}
+-				p.fmt.fmt_integer(uint64(c), 10, unsigned, ldigits)
++				p.fmt.fmtInteger(uint64(c), 10, unsigned, ldigits)
+ 			}
+ 			p.buf.WriteByte(']')
+ 		}
+ 	case 's':
+-		p.fmt.fmt_s(string(v))
++		p.fmt.fmtS(string(v))
+ 	case 'x':
+-		p.fmt.fmt_bx(v, ldigits)
++		p.fmt.fmtBx(v, ldigits)
+ 	case 'X':
+-		p.fmt.fmt_bx(v, udigits)
++		p.fmt.fmtBx(v, udigits)
+ 	case 'q':
+-		p.fmt.fmt_q(string(v))
++		p.fmt.fmtQ(string(v))
+ 	default:
+ 		p.printValue(reflect.ValueOf(v), verb, 0)
+ 	}
+@@ -577,7 +577,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 			handled = true
+ 			defer p.catchPanic(p.arg, verb)
+ 			// Print the result of GoString unadorned.
+-			p.fmt.fmt_s(stringer.GoString())
++			p.fmt.fmtS(stringer.GoString())
+ 			return
+ 		}
+ 	} else {
+@@ -626,7 +626,7 @@ func (p *pp) printArg(arg interface{}, verb rune) {
+ 	// %T (the value's type) and %p (its address) are special; we always do them first.
+ 	switch verb {
+ 	case 'T':
+-		p.fmt.fmt_s(reflect.TypeOf(arg).String())
++		p.fmt.fmtS(reflect.TypeOf(arg).String())
+ 		return
+ 	case 'p':
+ 		p.fmtPointer(reflect.ValueOf(arg), 'p')

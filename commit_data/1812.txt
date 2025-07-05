@@ -7,8 +7,109 @@ Date:   Wed Mar 11 17:37:04 2009 -0700
     R=r
     OCL=26146
     CL=26146
-
+---
  src/cmd/gc/walk.c                  | 22 ++++++++++++++++++----
  test/{bugs => fixedbugs}/bug122.go |  0
  test/golden.out                    |  6 +++---
  3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6c93c11cfe..4652a75f8c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -2220,6 +2220,10 @@ mapop(Node *n, int top)
+ 		fatal("mapop: unknown op %O", n->op);
+ 
+ 	case OMAKE:
++		cl = listcount(n->left);
++		if(cl > 1)
++			yyerror("too many arguments to make map");
++
+ 		if(top != Erv)
+ 			goto nottop;
+ 
+@@ -2232,8 +2236,9 @@ mapop(Node *n, int top)
+ 			break;
+ 
+ 		a = n->left;				// hint
+-		if(n->left == N)
++		if(cl != 1)
+ 			a = nodintconst(0);
++
+ 		r = a;
+ 		a = nodintconst(algtype(t->type));	// val algorithm
+ 		r = list(a, r);
+@@ -2427,6 +2432,10 @@ chanop(Node *n, int top)
+ 		fatal("chanop: unknown op %O", n->op);
+ 
+ 	case OMAKE:
++		cl = listcount(n->left);
++		if(cl > 1)
++			yyerror("too many arguments to make chan");
++
+ 		// newchan(elemsize int, elemalg int,
+ 		//	hint int) (hmap *chan[any-1]);
+ 
+@@ -2434,12 +2443,12 @@ chanop(Node *n, int top)
+ 		if(t == T)
+ 			break;
+ 
+-		if(n->left != N) {
++		a = nodintconst(0);
++		if(cl == 1) {
+ 			// async buf size
+ 			a = nod(OCONV, n->left, N);
+ 			a->type = types[TINT];
+-		} else
+-			a = nodintconst(0);
++		}
+ 
+ 		r = a;
+ 		a = nodintconst(algtype(t->type));	// elem algorithm
+@@ -2602,6 +2611,7 @@ arrayop(Node *n, int top)
+ 	Type *t, *tl;
+ 	Node *on;
+ 	Iter save;
++	int cl;
+ 
+ 	r = n;
+ 	switch(n->op) {
+@@ -2658,6 +2668,10 @@ arrayop(Node *n, int top)
+ 		return n;
+ 
+ 	case OMAKE:
++		cl = listcount(n->left);
++		if(cl > 2)
++			yyerror("too many arguments to make array");
++
+ 		// newarray(nel int, max int, width int) (ary []any)
+ 		t = fixarray(n->type);
+ 		if(t == T)
+diff --git a/test/bugs/bug122.go b/test/fixedbugs/bug122.go
+similarity index 100%
+rename from test/bugs/bug122.go
+rename to test/fixedbugs/bug122.go
+diff --git a/test/golden.out b/test/golden.out
+index 64f7e25863..df7be75c13 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -125,9 +125,6 @@ bugs/bug117.go:9: illegal types for operand: RETURN
+ 	int
+ BUG: should compile
+ 
+-=========== bugs/bug122.go
+-BUG: compilation succeeds incorrectly
+-
+ =========== bugs/bug125.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ 
+@@ -268,6 +265,9 @@ fixedbugs/bug121.go:20: illegal types for operand: AS
+ 	I
+ 	*S
+ 
++=========== fixedbugs/bug122.go
++fixedbugs/bug122.go:6: too many arguments to make array
++
+ =========== fixedbugs/bug133.go
+ fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
+ fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN

@@ -13,7 +13,29 @@ Date:   Mon Dec 11 11:28:50 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/83256
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/test/test.go            | 2 +-
  src/cmd/go/testdata/src/testcache/script.sh | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 4239677bdd..4a9682c585 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1266,7 +1266,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
+ 	}
+ 
+ 	testlogArg := []string{}
+-	if !c.disableCache {
++	if !c.disableCache && cfg.Goos != "nacl" {
+ 		testlogArg = []string{"-test.testlogfile=" + a.Objdir + "testlog.txt"}
+ 	}
+ 	args := str.StringList(work.FindExecCmd(), a.Deps[0].Target, testlogArg, testArgs)
+diff --git a/src/cmd/go/testdata/src/testcache/script.sh b/src/cmd/go/testdata/src/testcache/script.sh
+new file mode 100755
+index 0000000000..039e4d0069
+--- /dev/null
++++ b/src/cmd/go/testdata/src/testcache/script.sh
+@@ -0,0 +1,2 @@
++#!/bin/sh
++exit 0

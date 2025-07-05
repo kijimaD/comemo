@@ -14,6 +14,29 @@ Date:   Wed Dec 16 21:09:03 2015 -0500
     Change-Id: I4b5910434bf324d1b85107002a64684d8ba14dc8
     Reviewed-on: https://go-review.googlesource.com/17940
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 54e3fdf040..634c52c3b0 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1102,11 +1102,15 @@ func checkCC() {
+ 	if !needCC() {
+ 		return
+ 	}
+-	if _, err := exec.Command(defaultcc, "--help").Output(); err != nil {
++	if output, err := exec.Command(defaultcc, "--help").CombinedOutput(); err != nil {
++		outputHdr := ""
++		if len(output) > 0 {
++			outputHdr = "\nCommand output:\n\n"
++		}
+ 		fatal("cannot invoke C compiler %q: %v\n\n"+
+ 			"Go needs a system C compiler for use with cgo.\n"+
+ 			"To set a C compiler, export CC=the-compiler.\n"+
+-			"To disable cgo, export CGO_ENABLED=0.\n", defaultcc, err)
++			"To disable cgo, export CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
+ 	}
+ }
+ 

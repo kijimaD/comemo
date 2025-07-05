@@ -11,7 +11,36 @@ Date:   Tue May 12 11:59:14 2015 +1200
     Change-Id: I03893efb1576aed4f102f2465421f256f3bb0f30
     Reviewed-on: https://go-review.googlesource.com/9941
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testshared/test.bash | 1 +
  src/runtime/asm_amd64.s       | 4 +++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testshared/test.bash b/misc/cgo/testshared/test.bash
+index 21004adaf8..0b0d0411f7 100755
+--- a/misc/cgo/testshared/test.bash
++++ b/misc/cgo/testshared/test.bash
+@@ -78,6 +78,7 @@ ensure_ldd $rootdir/libdep.so $std_install_dir/$soname
+ 
+ # And exe that links against both
+ go install -installsuffix="$mysuffix" -linkshared exe
++./bin/exe || die "./bin/exe failed with code $?"
+ ensure_ldd ./bin/exe $rootdir/libdep.so
+ ensure_ldd ./bin/exe $std_install_dir/$soname
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 36353d108f..0f9aeb8f37 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1693,8 +1693,10 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
+ 	RET
+ 
+ // This is called from .init_array and follows the platform, not Go, ABI.
+-TEXT runtime·addmoduledata(SB),NOSPLIT,$0-8
++TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
++	PUSHQ	R15 // The access to global variables below implicitly uses R15, which is callee-save
+ 	MOVQ	runtime·lastmoduledatap(SB), AX
+ 	MOVQ	DI, moduledata_next(AX)
+ 	MOVQ	DI, runtime·lastmoduledatap(SB)
++	POPQ	R15
+ 	RET

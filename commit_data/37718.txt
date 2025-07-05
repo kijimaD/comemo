@@ -25,9 +25,125 @@ Date:   Tue Jul 31 11:24:37 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/map.go         | 6 +++---
  src/runtime/map_fast32.go  | 6 +++---
  src/runtime/map_fast64.go  | 6 +++---
  src/runtime/map_faststr.go | 4 ++--
  4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index c03e745dc5..c3fcfbfdbe 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -567,7 +567,7 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 
+ 	// Set hashWriting after calling alg.hash, since alg.hash may panic,
+ 	// in which case we have not actually done a write.
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	if h.buckets == nil {
+ 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+@@ -679,7 +679,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 
+ 	// Set hashWriting after calling alg.hash, since alg.hash may panic,
+ 	// in which case we have not actually done a write (delete).
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	bucket := hash & bucketMask(h.B)
+ 	if h.growing() {
+@@ -921,7 +921,7 @@ func mapclear(t *maptype, h *hmap) {
+ 		throw("concurrent map writes")
+ 	}
+ 
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	h.flags &^= sameSizeGrow
+ 	h.oldbuckets = nil
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index bf0b23604b..671558545a 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -103,7 +103,7 @@ func mapassign_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapassign.
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	if h.buckets == nil {
+ 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+@@ -189,7 +189,7 @@ func mapassign_fast32ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapassign.
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	if h.buckets == nil {
+ 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+@@ -276,7 +276,7 @@ func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapdelete
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	bucket := hash & bucketMask(h.B)
+ 	if h.growing() {
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 4bde9e2be0..164a4dd1ce 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -103,7 +103,7 @@ func mapassign_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapassign.
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	if h.buckets == nil {
+ 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+@@ -189,7 +189,7 @@ func mapassign_fast64ptr(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapassign.
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	if h.buckets == nil {
+ 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+@@ -276,7 +276,7 @@ func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapdelete
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	bucket := hash & bucketMask(h.B)
+ 	if h.growing() {
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 415bbff143..bee62dfb03 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -202,7 +202,7 @@ func mapassign_faststr(t *maptype, h *hmap, s string) unsafe.Pointer {
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&s)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapassign.
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	if h.buckets == nil {
+ 		h.buckets = newobject(t.bucket) // newarray(t.bucket, 1)
+@@ -294,7 +294,7 @@ func mapdelete_faststr(t *maptype, h *hmap, ky string) {
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+ 
+ 	// Set hashWriting after calling alg.hash for consistency with mapdelete
+-	h.flags |= hashWriting
++	h.flags ^= hashWriting
+ 
+ 	bucket := hash & bucketMask(h.B)
+ 	if h.growing() {

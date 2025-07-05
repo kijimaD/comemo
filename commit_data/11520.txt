@@ -10,7 +10,52 @@ Date:   Tue Jan 31 13:01:34 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5608043
-
+---
  src/pkg/net/dnsconfig.go | 13 -------------
  src/pkg/net/net.go       | 12 ++++++++++++
  2 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/dnsconfig.go b/src/pkg/net/dnsconfig.go
+index c0ab80288d..bb46cc9007 100644
+--- a/src/pkg/net/dnsconfig.go
++++ b/src/pkg/net/dnsconfig.go
+@@ -17,19 +17,6 @@ type dnsConfig struct {
+ 	rotate   bool     // round robin among servers
+ }
+ 
+-var dnsconfigError error
+-
+-type DNSConfigError struct {
+-	Err error
+-}
+-
+-func (e *DNSConfigError) Error() string {
+-	return "error reading DNS config: " + e.Err.Error()
+-}
+-
+-func (e *DNSConfigError) Timeout() bool   { return false }
+-func (e *DNSConfigError) Temporary() bool { return false }
+-
+ // See resolv.conf(5) on a Linux machine.
+ // TODO(rsc): Supposed to call uname() and chop the beginning
+ // of the host name to get the default search domain.
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 84cb4fcc73..79d36a2a81 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -201,3 +201,15 @@ type UnknownNetworkError string
+ func (e UnknownNetworkError) Error() string   { return "unknown network " + string(e) }
+ func (e UnknownNetworkError) Temporary() bool { return false }
+ func (e UnknownNetworkError) Timeout() bool   { return false }
++
++// DNSConfigError represents an error reading the machine's DNS configuration.
++type DNSConfigError struct {
++	Err error
++}
++
++func (e *DNSConfigError) Error() string {
++	return "error reading DNS config: " + e.Err.Error()
++}
++
++func (e *DNSConfigError) Timeout() bool   { return false }
++func (e *DNSConfigError) Temporary() bool { return false }

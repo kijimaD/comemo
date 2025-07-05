@@ -7,9 +7,57 @@ Date:   Tue Mar 2 18:53:25 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/223106
-
+---
  test/golden.out   | 6 ------
  test/ken/cplx0.go | 2 ++
  test/ken/cplx1.go | 2 +-
  test/ken/cplx2.go | 2 +-
  4 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 448a104377..cf2297e1a7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -56,12 +56,6 @@ Hello World!
+ 
+ == ken/
+ 
+-=========== ken/cplx0.go
+-(+5.000000e+000,+6.000000e+000i)
+-(+5.000000e+000,+6.000000e+000i)
+-(+5.000000e+000,+6.000000e+000i)
+-(+5.000000e+000,+6.000000e+000i)
+-
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+ 
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+index cf78e5719f..b9de2292bb 100644
+--- a/test/ken/cplx0.go
++++ b/test/ken/cplx0.go
+@@ -1,3 +1,5 @@
++// true  # disabled until 8g has complex
++
+ // $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+diff --git a/test/ken/cplx1.go b/test/ken/cplx1.go
+index 4686a4e52a..d2953fc264 100644
+--- a/test/ken/cplx1.go
++++ b/test/ken/cplx1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// [ $GOARCH != amd64 ] || ($G $D/$F.go && $L $F.$A && ./$A.out)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+index 06fd3812fe..684cc6537a 100644
+--- a/test/ken/cplx2.go
++++ b/test/ken/cplx2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// [ $GOARCH != amd64 ] || ($G $D/$F.go && $L $F.$A && ./$A.out)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

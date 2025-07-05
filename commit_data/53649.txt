@@ -15,9 +15,143 @@ Date:   Sun Jul 24 18:25:18 2022 +0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ryan Schuster <shuey19831@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/go/testdata/script/test2json_interrupt.txt | 55 ++++++++++++++++++++++
  src/cmd/test2json/main.go                          |  7 +++
  src/cmd/test2json/signal_notunix.go                | 13 +++++
  src/cmd/test2json/signal_unix.go                   | 14 ++++++
  4 files changed, 89 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test2json_interrupt.txt b/src/cmd/go/testdata/script/test2json_interrupt.txt
+new file mode 100644
+index 0000000000..3e3a1c7b0d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test2json_interrupt.txt
+@@ -0,0 +1,55 @@
++[short] skip 'links and runs a test binary'
++[!fuzz] skip 'tests SIGINT behavior for interrupting fuzz tests'
++[windows] skip 'windows does not support os.Interrupt'
++
++? go test -json -fuzz FuzzInterrupt -run '^$' -parallel 1
++stdout -count=1 '"Action":"pass","Package":"example","Test":"FuzzInterrupt"'
++stdout -count=1 '"Action":"pass","Package":"example","Elapsed":'
++
++mkdir $WORK/fuzzcache
++go test -c . -fuzz=. -o test2json_interrupt_obj
++? go tool test2json -p example -t ./test2json_interrupt_obj -test.v -test.paniconexit0 -test.fuzzcachedir $WORK/fuzzcache -test.fuzz FuzzInterrupt -test.run '^$' -test.parallel 1
++stdout -count=1 '"Action":"pass","Package":"example","Test":"FuzzInterrupt"'
++stdout -count=1 '"Action":"pass","Package":"example","Elapsed":'
++
++-- go.mod --
++module example
++go 1.20
++-- example_test.go --
++package example_test
++
++import (
++	"fmt"
++	"os"
++	"strconv"
++	"testing"
++	"strings"
++	"time"
++)
++
++func FuzzInterrupt(f *testing.F) {
++	pids := os.Getenv("GO_TEST_INTERRUPT_PIDS")
++	if pids == "" {
++		// This is the main test process.
++		// Set the environment variable for fuzz workers.
++		pid := os.Getpid()
++		ppid := os.Getppid()
++		os.Setenv("GO_TEST_INTERRUPT_PIDS", fmt.Sprintf("%d,%d", ppid, pid))
++	}
++
++	f.Fuzz(func(t *testing.T, orig string) {
++		// Simulate a ctrl-C on the keyboard by sending SIGINT
++		// to the main test process and its parent.
++		for _, pid := range strings.Split(pids, ",") {
++			i, err := strconv.Atoi(pid)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if p, err := os.FindProcess(i); err == nil {
++				p.Signal(os.Interrupt)
++				time.Sleep(10 * time.Millisecond)
++				pids = ""  // Only interrupt once.
++			}
++		}
++	})
++}
+\ No newline at end of file
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 5e17e0dec3..f9e590cd36 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -88,6 +88,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"os/exec"
++	"os/signal"
+ 
+ 	"cmd/internal/test2json"
+ )
+@@ -102,6 +103,11 @@ func usage() {
+ 	os.Exit(2)
+ }
+ 
++// ignoreSignals ignore the interrupt signals.
++func ignoreSignals() {
++	signal.Ignore(signalsToIgnore...)
++}
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+@@ -121,6 +127,7 @@ func main() {
+ 		w := &countWriter{0, c}
+ 		cmd.Stdout = w
+ 		cmd.Stderr = w
++		ignoreSignals()
+ 		err := cmd.Run()
+ 		if err != nil {
+ 			if w.n > 0 {
+diff --git a/src/cmd/test2json/signal_notunix.go b/src/cmd/test2json/signal_notunix.go
+new file mode 100644
+index 0000000000..e5a73be8cc
+--- /dev/null
++++ b/src/cmd/test2json/signal_notunix.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build plan9 || windows
++
++package main
++
++import (
++	"os"
++)
++
++var signalsToIgnore = []os.Signal{os.Interrupt}
+diff --git a/src/cmd/test2json/signal_unix.go b/src/cmd/test2json/signal_unix.go
+new file mode 100644
+index 0000000000..ed5ca7e42f
+--- /dev/null
++++ b/src/cmd/test2json/signal_unix.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || js
++
++package main
++
++import (
++	"os"
++	"syscall"
++)
++
++var signalsToIgnore = []os.Signal{os.Interrupt, syscall.SIGQUIT}

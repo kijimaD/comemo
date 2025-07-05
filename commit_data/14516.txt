@@ -9,6 +9,20 @@ Date:   Wed Nov 28 08:45:23 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6849115
-
+---
  src/pkg/net/iprawsock.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 852c299c45..45ad697aa6 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -37,5 +37,8 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
+ 		return nil, UnknownNetworkError(net)
+ 	}
+ 	a, err := resolveInternetAddr(afnet, addr, noDeadline)
++	if err != nil {
++		return nil, err
++	}
+ 	return a.(*IPAddr), nil
+ }

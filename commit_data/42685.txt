@@ -11,6 +11,23 @@ Date:   Wed Jan 15 17:19:17 2020 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.14.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 7cf73bc501..f5e878e9df 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -401,6 +401,11 @@ appropriately.)
+   This API may change in future releases.
+ </p>
+ 
++<p><!-- CL 174704 --><!-- CL 196784 -->
++  Bounds check elimination now uses information from slice creation and can
++  eliminate checks for indexes with types smaller than <code>int</code>.
++</p>
++
+ <h2 id="library">Core library</h2>
+ 
+ <p>

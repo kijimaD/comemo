@@ -7,6 +7,31 @@ Date:   Mon Apr 18 11:21:16 2011 -0700
     R=r, rsc1
     CC=golang-dev
     https://golang.org/cl/4440054
-
+---
  src/pkg/mime/mediatype.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/mime/mediatype.go b/src/pkg/mime/mediatype.go
+index 9f8d2050e1..f28ff3e968 100644
+--- a/src/pkg/mime/mediatype.go
++++ b/src/pkg/mime/mediatype.go
+@@ -136,7 +136,9 @@ func decode2231Enc(v string) string {
+ 	if len(sv) != 3 {
+ 		return ""
+ 	}
+-	// Ignoring lang in sv[1] for now.
++	// TODO: ignoring lang in sv[1] for now. If anybody needs it we'll
++	// need to decide how to expose it in the API. But I'm not sure
++	// anybody uses it in practice.
+ 	charset := strings.ToLower(sv[0])
+ 	if charset != "us-ascii" && charset != "utf-8" {
+ 		// TODO: unsupported encoding
+@@ -240,7 +242,7 @@ func percentHexUnescape(s string) (string, os.Error) {
+ 			if len(s) > 3 {
+ 				s = s[0:3]
+ 			}
+-			return "", fmt.Errorf("Bogus characters after %: %q", s)
++			return "", fmt.Errorf("mime: bogus characters after %%: %q", s)
+ 		}
+ 		i += 3
+ 	}

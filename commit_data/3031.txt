@@ -15,7 +15,7 @@ Date:   Thu Aug 20 10:18:48 2009 -0700
     DELTA=52  (3 added, 0 deleted, 49 changed)
     OCL=33589
     CL=33592
-
+---
  src/pkg/base64/base64_test.go        |  4 ++--
  src/pkg/bufio/bufio_test.go          |  8 ++++----
  src/pkg/compress/gzip/gunzip.go      | 26 +++++++++++++-------------
@@ -32,3 +32,397 @@ Date:   Thu Aug 20 10:18:48 2009 -0700
  src/pkg/crypto/block/xor_test.go     |  4 ++--
  src/pkg/http/request.go              |  2 +-
  15 files changed, 46 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index 34bcfb34b7..255f85c69a 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -113,7 +113,7 @@ func TestDecode(t *testing.T) {
+ 
+ func TestDecoder(t *testing.T) {
+ 	for _, p := range pairs {
+-		decoder := NewDecoder(StdEncoding, io.NewByteReader(strings.Bytes(p.encoded)));
++		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(strings.Bytes(p.encoded)));
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+ 		count, err := decoder.Read(dbuf);
+ 		if err != nil && err != os.EOF {
+@@ -131,7 +131,7 @@ func TestDecoder(t *testing.T) {
+ func TestDecoderBuffering(t *testing.T) {
+ 	input := strings.Bytes(bigtest.encoded);
+ 	for bs := 1; bs <= 12; bs++ {
+-		decoder := NewDecoder(StdEncoding, io.NewByteReader(input));
++		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(input));
+ 		buf := make([]byte, len(bigtest.decoded) + 12);
+ 		var total int;
+ 		for total = 0; total < len(bigtest.decoded); {
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index e5bf904a0c..c04ebf214e 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -61,12 +61,12 @@ func readBytes(buf *Reader) string {
+ 
+ func TestReaderSimple(t *testing.T) {
+ 	data := strings.Bytes("hello world");
+-	b := NewReader(io.NewByteReader(data));
++	b := NewReader(bytes.NewBuffer(data));
+ 	if s := readBytes(b); s != "hello world" {
+ 		t.Errorf("simple hello world test failed: got %q", s);
+ 	}
+ 
+-	b = NewReader(newRot13Reader(io.NewByteReader(data)));
++	b = NewReader(newRot13Reader(bytes.NewBuffer(data)));
+ 	if s := readBytes(b); s != "uryyb jbeyq" {
+ 		t.Error("rot13 hello world test failed: got %q", s);
+ 	}
+@@ -154,7 +154,7 @@ func TestReader(t *testing.T) {
+ 					readmaker := readMakers[i];
+ 					bufreader := bufreaders[j];
+ 					bufsize := bufsizes[k];
+-					read := readmaker.fn(io.NewByteReader(textbytes));
++					read := readmaker.fn(bytes.NewBuffer(textbytes));
+ 					buf, e := NewReaderSize(read, bufsize);
+ 					s := bufreader.fn(buf);
+ 					if s != text {
+@@ -308,7 +308,7 @@ func TestWriteErrors(t *testing.T) {
+ 
+ func TestNewReaderSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewReaderSize(io.NewByteReader(strings.Bytes("hello world")), BufSize);
++	b, err := NewReaderSize(bytes.NewBuffer(strings.Bytes("hello world")), BufSize);
+ 	if err != nil {
+ 		t.Error("NewReaderSize create fail", err);
+ 	}
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 4455561fee..7a55528965 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -38,23 +38,23 @@ func makeReader(r io.Reader) flate.Reader {
+ var HeaderError os.Error = os.ErrorString("invalid gzip header")
+ var ChecksumError os.Error = os.ErrorString("gzip checksum error")
+ 
+-// A GzipInflater is an io.Reader that can be read to retrieve
++// An Inflater is an io.Reader that can be read to retrieve
+ // uncompressed data from a gzip-format compressed file.
+ // The gzip file stores a header giving metadata about the compressed file.
+-// That header is exposed as the fields of the GzipInflater struct.
++// That header is exposed as the fields of the Inflater struct.
+ //
+ // In general, a gzip file can be a concatenation of gzip files,
+-// each with its own header.  Reads from the GzipInflater
++// each with its own header.  Reads from the Inflater
+ // return the concatenation of the uncompressed data of each.
+-// Only the first header is recorded in the GzipInflater fields.
++// Only the first header is recorded in the Inflater fields.
+ //
+ // Gzip files store a length and checksum of the uncompressed data.
+-// The GzipInflater will return a ChecksumError when Read
++// The Inflater will return a ChecksumError when Read
+ // reaches the end of the uncompressed data if it does not
+ // have the expected length or checksum.  Clients should treat data
+ // returned by Read as tentative until they receive the successful
+ // (zero length, nil error) Read marking the end of the data.
+-type GzipInflater struct {
++type Inflater struct {
+ 	Comment string;	// comment
+ 	Extra []byte;		// "extra data"
+ 	Mtime uint32;		// modification time (seconds since January 1, 1970)
+@@ -71,10 +71,10 @@ type GzipInflater struct {
+ 	eof bool;
+ }
+ 
+-// NewGzipInflater creates a new GzipInflater reading the given reader.
++// NewInflater creates a new Inflater reading the given reader.
+ // The implementation buffers input and may read more data than necessary from r.
+-func NewGzipInflater(r io.Reader) (*GzipInflater, os.Error) {
+-	z := new(GzipInflater);
++func NewInflater(r io.Reader) (*Inflater, os.Error) {
++	z := new(Inflater);
+ 	z.r = makeReader(r);
+ 	z.digest = crc32.NewIEEE();
+ 	if err := z.readHeader(true); err != nil {
+@@ -89,7 +89,7 @@ func get4(p []byte) uint32 {
+ 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24;
+ }
+ 
+-func (z *GzipInflater) readString() (string, os.Error) {
++func (z *Inflater) readString() (string, os.Error) {
+ 	var err os.Error;
+ 	for i := 0;; i++ {
+ 		if i >= len(z.buf) {
+@@ -106,7 +106,7 @@ func (z *GzipInflater) readString() (string, os.Error) {
+ 	panic("not reached");
+ }
+ 
+-func (z *GzipInflater) read2() (uint32, os.Error) {
++func (z *Inflater) read2() (uint32, os.Error) {
+ 	_, err := z.r.Read(z.buf[0:2]);
+ 	if err != nil {
+ 		return 0, err;
+@@ -114,7 +114,7 @@ func (z *GzipInflater) read2() (uint32, os.Error) {
+ 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil;
+ }
+ 
+-func (z *GzipInflater) readHeader(save bool) os.Error {
++func (z *Inflater) readHeader(save bool) os.Error {
+ 	n, err := io.ReadFull(z.r, z.buf[0:10]);
+ 	if err != nil {
+ 		return err;
+@@ -181,7 +181,7 @@ func (z *GzipInflater) readHeader(save bool) os.Error {
+ 	return nil;
+ }
+ 
+-func (z *GzipInflater) Read(p []byte) (n int, err os.Error) {
++func (z *Inflater) Read(p []byte) (n int, err os.Error) {
+ 	if z.err != nil {
+ 		return 0, z.err;
+ 	}
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 99df3261d8..49f6e9c919 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -264,13 +264,13 @@ var gzipTests = []gzipTest {
+ 	},
+ }
+ 
+-func TestGzipInflater(t *testing.T) {
++func TestInflater(t *testing.T) {
+ 	b := new(bytes.Buffer);
+ 	for i, tt := range gzipTests {
+-		in := io.NewByteReader(tt.gzip);
+-		gzip, err := NewGzipInflater(in);
++		in := bytes.NewBuffer(tt.gzip);
++		gzip, err := NewInflater(in);
+ 		if err != nil {
+-			t.Errorf("%s: NewGzipInflater: %s", tt.name, err);
++			t.Errorf("%s: NewInflater: %s", tt.name, err);
+ 			continue;
+ 		}
+ 		if tt.name != gzip.Name {
+diff --git a/src/pkg/compress/zlib/reader.go b/src/pkg/compress/zlib/reader.go
+index a407aa8916..a777408038 100644
+--- a/src/pkg/compress/zlib/reader.go
++++ b/src/pkg/compress/zlib/reader.go
+@@ -28,9 +28,9 @@ type reader struct {
+ 	err os.Error;
+ }
+ 
+-// NewZlibInflater creates a new io.Reader that satisfies reads by decompressing data read from r.
++// NewInflater creates a new io.Reader that satisfies reads by decompressing data read from r.
+ // The implementation buffers input and may read more data than necessary from r.
+-func NewZlibInflater(r io.Reader) (io.Reader, os.Error) {
++func NewInflater(r io.Reader) (io.Reader, os.Error) {
+ 	z := new(reader);
+ 	if fr, ok := r.(flate.Reader); ok {
+ 		z.r = fr;
+diff --git a/src/pkg/compress/zlib/reader_test.go b/src/pkg/compress/zlib/reader_test.go
+index f178cb5f0e..6bec35b969 100644
+--- a/src/pkg/compress/zlib/reader_test.go
++++ b/src/pkg/compress/zlib/reader_test.go
+@@ -75,14 +75,14 @@ var zlibTests = []zlibTest {
+ 	},
+ }
+ 
+-func TestZlibInflater(t *testing.T) {
++func TestInflater(t *testing.T) {
+ 	b := new(bytes.Buffer);
+ 	for i, tt := range zlibTests {
+-		in := io.NewByteReader(tt.compressed);
+-		zlib, err := NewZlibInflater(in);
++		in := bytes.NewBuffer(tt.compressed);
++		zlib, err := NewInflater(in);
+ 		if err != nil {
+ 			if err != tt.err {
+-				t.Errorf("%s: NewZlibInflater: %s", tt.desc, err);
++				t.Errorf("%s: NewInflater: %s", tt.desc, err);
+ 			}
+ 			continue;
+ 		}
+diff --git a/src/pkg/crypto/block/cbc_aes_test.go b/src/pkg/crypto/block/cbc_aes_test.go
+index 51e30b5f4e..ec34ba1aa0 100644
+--- a/src/pkg/crypto/block/cbc_aes_test.go
++++ b/src/pkg/crypto/block/cbc_aes_test.go
+@@ -78,7 +78,7 @@ func TestCBC_AES(t *testing.T) {
+ 
+ 		var crypt bytes.Buffer;
+ 		w := NewCBCEncrypter(c, tt.iv, &crypt);
+-		var r io.Reader = io.NewByteReader(tt.in);
++		var r io.Reader = bytes.NewBuffer(tt.in);
+ 		n, err := io.Copy(r, w);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: CBCEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+@@ -87,7 +87,7 @@ func TestCBC_AES(t *testing.T) {
+ 		}
+ 
+ 		var plain bytes.Buffer;
+-		r = NewCBCDecrypter(c, tt.iv, io.NewByteReader(tt.out));
++		r = NewCBCDecrypter(c, tt.iv, bytes.NewBuffer(tt.out));
+ 		w = &plain;
+ 		n, err = io.Copy(r, w);
+ 		if n != int64(len(tt.out)) || err != nil {
+diff --git a/src/pkg/crypto/block/cfb_aes_test.go b/src/pkg/crypto/block/cfb_aes_test.go
+index b0dcef7b21..8c8565dc7f 100644
+--- a/src/pkg/crypto/block/cfb_aes_test.go
++++ b/src/pkg/crypto/block/cfb_aes_test.go
+@@ -287,7 +287,7 @@ func TestCFB_AES(t *testing.T) {
+ 
+ 		var crypt bytes.Buffer;
+ 		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt);
+-		var r io.Reader = io.NewByteReader(tt.in);
++		var r io.Reader = bytes.NewBuffer(tt.in);
+ 		n, err := io.Copy(r, w);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+@@ -296,7 +296,7 @@ func TestCFB_AES(t *testing.T) {
+ 		}
+ 
+ 		var plain bytes.Buffer;
+-		r = NewCFBDecrypter(c, tt.s, tt.iv, io.NewByteReader(tt.out));
++		r = NewCFBDecrypter(c, tt.s, tt.iv, bytes.NewBuffer(tt.out));
+ 		w = &plain;
+ 		n, err = io.Copy(r, w);
+ 		if n != int64(len(tt.out)) || err != nil {
+diff --git a/src/pkg/crypto/block/ctr_aes_test.go b/src/pkg/crypto/block/ctr_aes_test.go
+index 4f90af1732..014e64d017 100644
+--- a/src/pkg/crypto/block/ctr_aes_test.go
++++ b/src/pkg/crypto/block/ctr_aes_test.go
+@@ -84,7 +84,7 @@ func TestCTR_AES(t *testing.T) {
+ 			var crypt bytes.Buffer;
+ 			in := tt.in[0:len(tt.in) - j];
+ 			w := NewCTRWriter(c, tt.iv, &crypt);
+-			var r io.Reader = io.NewByteReader(in);
++			var r io.Reader = bytes.NewBuffer(in);
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(in)) || err != nil {
+ 				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+@@ -96,7 +96,7 @@ func TestCTR_AES(t *testing.T) {
+ 		for j := 0; j <= 7; j += 7 {
+ 			var plain bytes.Buffer;
+ 			out := tt.out[0:len(tt.out) - j];
+-			r := NewCTRReader(c, tt.iv, io.NewByteReader(out));
++			r := NewCTRReader(c, tt.iv, bytes.NewBuffer(out));
+ 			w := &plain;
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(out)) || err != nil {
+diff --git a/src/pkg/crypto/block/eax_aes_test.go b/src/pkg/crypto/block/eax_aes_test.go
+index 94a3d7c40f..f90d54173a 100644
+--- a/src/pkg/crypto/block/eax_aes_test.go
++++ b/src/pkg/crypto/block/eax_aes_test.go
+@@ -204,7 +204,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
+ 		}
+ 		b.Reset();
+ 		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b);
+-		n, err := io.Copy(io.NewByteReader(tt.msg), enc);
++		n, err := io.Copy(bytes.NewBuffer(tt.msg), enc);
+ 		if n != int64(len(tt.msg)) || err != nil {
+ 			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err);
+ 		}
+@@ -227,7 +227,7 @@ func TestEAXDecrypt_AES(t *testing.T) {
+ 			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
+ 		}
+ 		b.Reset();
+-		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, io.NewByteReader(tt.cipher));
++		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, bytes.NewBuffer(tt.cipher));
+ 		n, err := io.Copy(dec, b);
+ 		if n != int64(len(tt.msg)) || err != nil {
+ 			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);
+diff --git a/src/pkg/crypto/block/ecb_aes_test.go b/src/pkg/crypto/block/ecb_aes_test.go
+index 7359c6ce7b..3453663cb4 100644
+--- a/src/pkg/crypto/block/ecb_aes_test.go
++++ b/src/pkg/crypto/block/ecb_aes_test.go
+@@ -111,7 +111,7 @@ func TestECB_AES(t *testing.T) {
+ 
+ 		var crypt bytes.Buffer;
+ 		w := NewECBEncrypter(c, &crypt);
+-		var r io.Reader = io.NewByteReader(tt.in);
++		var r io.Reader = bytes.NewBuffer(tt.in);
+ 		n, err := io.Copy(r, w);
+ 		if n != int64(len(tt.in)) || err != nil {
+ 			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+@@ -120,7 +120,7 @@ func TestECB_AES(t *testing.T) {
+ 		}
+ 
+ 		var plain bytes.Buffer;
+-		r = NewECBDecrypter(c, io.NewByteReader(tt.out));
++		r = NewECBDecrypter(c, bytes.NewBuffer(tt.out));
+ 		w = &plain;
+ 		n, err = io.Copy(r, w);
+ 		if n != int64(len(tt.out)) || err != nil {
+diff --git a/src/pkg/crypto/block/ecb_test.go b/src/pkg/crypto/block/ecb_test.go
+index 0938cbe7ab..5cce4461de 100644
+--- a/src/pkg/crypto/block/ecb_test.go
++++ b/src/pkg/crypto/block/ecb_test.go
+@@ -69,7 +69,7 @@ func TestECBEncrypter(t *testing.T) {
+ 		for frag := 0; frag < 2; frag++ {
+ 			c := &IncCipher{block, 0, true};
+ 			b.Reset();
+-			r := io.NewByteReader(&plain);
++			r := bytes.NewBuffer(&plain);
+ 			w := NewECBEncrypter(c, b);
+ 
+ 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
+@@ -135,7 +135,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
+ 				test := fmt.Sprintf("block=%d mode=%d frag=%d maxio=%d", block, mode, frag, maxio);
+ 				c := &IncCipher{block, 0, false};
+ 				b.Reset();
+-				r := NewECBDecrypter(c, readers[mode](io.NewByteReader(crypt[0:maxio])));
++				r := NewECBDecrypter(c, readers[mode](bytes.NewBuffer(crypt[0:maxio])));
+ 
+ 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 				// if frag == 1, move the 1 to the end to cause fragmentation.
+diff --git a/src/pkg/crypto/block/ofb_aes_test.go b/src/pkg/crypto/block/ofb_aes_test.go
+index 303202d71f..1937218c91 100644
+--- a/src/pkg/crypto/block/ofb_aes_test.go
++++ b/src/pkg/crypto/block/ofb_aes_test.go
+@@ -80,7 +80,7 @@ func TestOFB_AES(t *testing.T) {
+ 			var crypt bytes.Buffer;
+ 			in := tt.in[0:len(tt.in) - j];
+ 			w := NewOFBWriter(c, tt.iv, &crypt);
+-			var r io.Reader = io.NewByteReader(in);
++			var r io.Reader = bytes.NewBuffer(in);
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(in)) || err != nil {
+ 				t.Errorf("%s/%d: OFBWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+@@ -92,7 +92,7 @@ func TestOFB_AES(t *testing.T) {
+ 		for j := 0; j <= 7; j += 7 {
+ 			var plain bytes.Buffer;
+ 			out := tt.out[0:len(tt.out) - j];
+-			r := NewOFBReader(c, tt.iv, io.NewByteReader(out));
++			r := NewOFBReader(c, tt.iv, bytes.NewBuffer(out));
+ 			w := &plain;
+ 			n, err := io.Copy(r, w);
+ 			if n != int64(len(out)) || err != nil {
+diff --git a/src/pkg/crypto/block/xor_test.go b/src/pkg/crypto/block/xor_test.go
+index 7e26533c43..358c253479 100644
+--- a/src/pkg/crypto/block/xor_test.go
++++ b/src/pkg/crypto/block/xor_test.go
+@@ -53,7 +53,7 @@ func testXorWriter(t *testing.T, maxio int) {
+ 		for frag := 0; frag < 2; frag++ {
+ 			test := fmt.Sprintf("block=%d frag=%d maxio=%d", block, frag, maxio);
+ 			b.Reset();
+-			r := io.NewByteReader(&plain);
++			r := bytes.NewBuffer(&plain);
+ 			s := newIncStream(block);
+ 			w := newXorWriter(s, b);
+ 
+@@ -123,7 +123,7 @@ func testXorReader(t *testing.T, maxio int) {
+ 				test := fmt.Sprintf("block=%d mode=%d frag=%d maxio=%d", block, mode, frag, maxio);
+ 				s := newIncStream(block);
+ 				b.Reset();
+-				r := newXorReader(s, readers[mode](io.NewByteReader(crypt[0:maxio])));
++				r := newXorReader(s, readers[mode](bytes.NewBuffer(crypt[0:maxio])));
+ 
+ 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
+ 				// if frag == 1, move the 1 to the end to cause fragmentation.
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 15dc15c1eb..dabd39d208 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -574,7 +574,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 		if err != nil || uint64(n) < length {
+ 			return nil, ErrShortBody
+ 		}
+-		req.Body = io.NewByteReader(raw);
++		req.Body = bytes.NewBuffer(raw);
+ 	}
+ 
+ 	return req, nil

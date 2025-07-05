@@ -74,3 +74,4 @@ Date:   Thu Apr 30 17:08:35 2020 -0400
  src/cmd/link/testdata/testIndexMismatch/b.go    |    8 +
  src/cmd/link/testdata/testIndexMismatch/main.go |    9 +
  59 files changed, 3103 insertions(+), 2455 deletions(-)
+

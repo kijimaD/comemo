@@ -8,7 +8,7 @@ Date:   Tue Oct 27 14:04:10 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/265497
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules   | 2 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules | 2 +-
  src/cmd/compile/internal/ssa/gen/MIPS.rules  | 2 +-
@@ -16,3 +16,97 @@ Date:   Tue Oct 27 14:04:10 2020 +0100
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 4 ++--
  src/cmd/compile/internal/ssa/rewriteMIPS.go  | 4 ++--
  6 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 6a0b87cab4..4e6cc8c692 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -310,7 +310,7 @@
+ (Const32  ...) => (MOVLconst ...)
+ (Const(32|64)F ...) => (MOVS(S|D)const ...)
+ (ConstNil) => (MOVLconst [0])
+-(ConstBool [c]) => (MOVLconst [int32(b2i(c))])
++(ConstBool [c]) => (MOVLconst [b2i32(c)])
+ 
+ // Lowering calls
+ (StaticCall ...) => (CALLstatic ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 8742c49ebd..934e7dfdb6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -401,7 +401,7 @@
+ (Const32F ...) => (MOVSSconst ...)
+ (Const64F ...) => (MOVSDconst ...)
+ (ConstNil    ) => (MOVQconst [0])
+-(ConstBool [c]) => (MOVLconst [int32(b2i(c))])
++(ConstBool [c]) => (MOVLconst [b2i32(c)])
+ 
+ // Lowering calls
+ (StaticCall ...) => (CALLstatic ...)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index ba3e8cc000..b6e5312224 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -143,7 +143,7 @@
+ (Const(32|16|8) [val]) => (MOVWconst [int32(val)])
+ (Const(32|64)F ...) => (MOV(F|D)const ...)
+ (ConstNil) => (MOVWconst [0])
+-(ConstBool [b]) => (MOVWconst [int32(b2i(b))])
++(ConstBool [b]) => (MOVWconst [b2i32(b)])
+ 
+ // truncations
+ // Because we ignore high parts of registers, truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 0f08160f44..afce14fa76 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -8696,11 +8696,11 @@ func rewriteValue386_OpConst8(v *Value) bool {
+ }
+ func rewriteValue386_OpConstBool(v *Value) bool {
+ 	// match: (ConstBool [c])
+-	// result: (MOVLconst [int32(b2i(c))])
++	// result: (MOVLconst [b2i32(c)])
+ 	for {
+ 		c := auxIntToBool(v.AuxInt)
+ 		v.reset(Op386MOVLconst)
+-		v.AuxInt = int32ToAuxInt(int32(b2i(c)))
++		v.AuxInt = int32ToAuxInt(b2i32(c))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 833470ea66..ed84812a03 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -29719,11 +29719,11 @@ func rewriteValueAMD64_OpConst8(v *Value) bool {
+ }
+ func rewriteValueAMD64_OpConstBool(v *Value) bool {
+ 	// match: (ConstBool [c])
+-	// result: (MOVLconst [int32(b2i(c))])
++	// result: (MOVLconst [b2i32(c)])
+ 	for {
+ 		c := auxIntToBool(v.AuxInt)
+ 		v.reset(OpAMD64MOVLconst)
+-		v.AuxInt = int32ToAuxInt(int32(b2i(c)))
++		v.AuxInt = int32ToAuxInt(b2i32(c))
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 175ba770c2..0f0954fb83 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -868,11 +868,11 @@ func rewriteValueMIPS_OpConst8(v *Value) bool {
+ }
+ func rewriteValueMIPS_OpConstBool(v *Value) bool {
+ 	// match: (ConstBool [b])
+-	// result: (MOVWconst [int32(b2i(b))])
++	// result: (MOVWconst [b2i32(b)])
+ 	for {
+ 		b := auxIntToBool(v.AuxInt)
+ 		v.reset(OpMIPSMOVWconst)
+-		v.AuxInt = int32ToAuxInt(int32(b2i(b)))
++		v.AuxInt = int32ToAuxInt(b2i32(b))
+ 		return true
+ 	}
+ }

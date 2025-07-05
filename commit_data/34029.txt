@@ -13,7 +13,63 @@ Date:   Wed Sep 27 08:46:08 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/macho/file.go      |  1 +
  src/debug/macho/file_test.go | 13 +++++++++----
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index 082c6b816a..7b9e83e5a8 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -290,6 +290,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				return nil, &FormatError{offset, "invalid path in rpath command", hdr.Path}
+ 			}
+ 			l.Path = cstring(cmddat[hdr.Path:])
++			l.LoadBytes = LoadBytes(cmddat)
+ 			f.Loads[i] = l
+ 
+ 		case LoadCmdDylib:
+diff --git a/src/debug/macho/file_test.go b/src/debug/macho/file_test.go
+index b9d88c1bad..003c14e69b 100644
+--- a/src/debug/macho/file_test.go
++++ b/src/debug/macho/file_test.go
+@@ -234,6 +234,11 @@ func TestOpen(t *testing.T) {
+ 			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
+ 			continue
+ 		}
++		for i, l := range f.Loads {
++			if len(l.Raw()) < 8 {
++				t.Errorf("open %s, command %d:\n\tload command %T don't have enough data\n", tt.file, i, l)
++			}
++		}
+ 		if tt.loads != nil {
+ 			for i, l := range f.Loads {
+ 				if i >= len(tt.loads) {
+@@ -249,22 +254,22 @@ func TestOpen(t *testing.T) {
+ 				case *Segment:
+ 					have := &l.SegmentHeader
+ 					if !reflect.DeepEqual(have, want) {
+-						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++						t.Errorf("open %s, command %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+ 					}
+ 				case *Dylib:
+ 					have := l
+ 					have.LoadBytes = nil
+ 					if !reflect.DeepEqual(have, want) {
+-						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++						t.Errorf("open %s, command %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+ 					}
+ 				case *Rpath:
+ 					have := l
+ 					have.LoadBytes = nil
+ 					if !reflect.DeepEqual(have, want) {
+-						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++						t.Errorf("open %s, command %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+ 					}
+ 				default:
+-					t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
++					t.Errorf("open %s, command %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
+ 				}
+ 			}
+ 			tn := len(tt.loads)

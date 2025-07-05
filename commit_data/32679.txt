@@ -16,8 +16,90 @@ Date:   Tue May 9 16:25:13 2017 +0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj/read.go  |  2 +-
  src/cmd/internal/objabi/doc.go  |  2 +-
  src/cmd/objdump/objdump_test.go | 47 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index 587274401b..b6c90d3bd7 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -507,7 +507,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			break
+ 		}
+ 
+-		typ := r.readInt()
++		typ := r.readByte()
+ 		s := &Sym{SymID: r.readSymID()}
+ 		r.p.Syms = append(r.p.Syms, s)
+ 		s.Kind = objabi.SymKind(typ)
+diff --git a/src/cmd/internal/objabi/doc.go b/src/cmd/internal/objabi/doc.go
+index dc37817a61..7bd5ff63e5 100644
+--- a/src/cmd/internal/objabi/doc.go
++++ b/src/cmd/internal/objabi/doc.go
+@@ -56,7 +56,7 @@
+ // Each symbol is laid out as the following fields:
+ //
+ //	- byte 0xfe (sanity check for synchronization)
+-//	- type [int]
++//	- type [byte]
+ //	- name & version [symref index]
+ //	- flags [int]
+ //		1<<0 dupok
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 91adde3eb3..47e51df339 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -201,3 +201,50 @@ func TestDisasmExtld(t *testing.T) {
+ 	}
+ 	testDisasm(t, false, "-ldflags=-linkmode=external")
+ }
++
++func TestDisasmGoobj(t *testing.T) {
++	switch runtime.GOARCH {
++	case "arm":
++		t.Skipf("skipping on %s, issue 19811", runtime.GOARCH)
++	case "arm64":
++		t.Skipf("skipping on %s, issue 10106", runtime.GOARCH)
++	case "mips", "mipsle", "mips64", "mips64le":
++		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
++	case "s390x":
++		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
++	}
++
++	hello := filepath.Join(tmp, "hello.o")
++	args := []string{"tool", "compile", "-o", hello}
++	args = append(args, "testdata/fmthello.go")
++	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
++	if err != nil {
++		t.Fatalf("go tool compile fmthello.go: %v\n%s", err, out)
++	}
++	need := []string{
++		"main(SB)",
++		"fmthello.go:6",
++	}
++
++	args = []string{
++		"-s", "main",
++		hello,
++	}
++
++	out, err = exec.Command(exe, args...).CombinedOutput()
++	if err != nil {
++		t.Fatalf("objdump fmthello.o: %v\n%s", err, out)
++	}
++
++	text := string(out)
++	ok := true
++	for _, s := range need {
++		if !strings.Contains(text, s) {
++			t.Errorf("disassembly missing '%s'", s)
++			ok = false
++		}
++	}
++	if !ok {
++		t.Logf("full disassembly:\n%s", text)
++	}
++}

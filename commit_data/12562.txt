@@ -11,6 +11,31 @@ Date:   Mon Mar 12 15:55:39 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5783076
-
+---
  src/cmd/godoc/filesystem.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index b1913cdd99..869e23ca25 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -420,11 +420,17 @@ func (ns nameSpace) ReadDir(path string) ([]os.FileInfo, error) {
+ 			first = dir
+ 		}
+ 
++		useFiles := false
++
++		// Always include all files under /doc.
++		if path == "/doc" || strings.HasPrefix(path, "/doc/") {
++			useFiles = true // always include docs
++		}
++
+ 		// If we don't yet have Go files in 'all' and this directory
+ 		// has some, add all the files from this directory.
+ 		// Otherwise, only add subdirectories.
+-		useFiles := false
+-		if !haveGo {
++		if !useFiles && !haveGo {
+ 			for _, d := range dir {
+ 				if strings.HasSuffix(d.Name(), ".go") {
+ 					useFiles = true

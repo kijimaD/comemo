@@ -96,7 +96,7 @@ Date:   Thu Oct 26 12:33:04 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  6 ++++++
  src/cmd/compile/internal/gc/asm_test.go        |  2 +-
  src/cmd/compile/internal/gc/go.go              |  1 +
@@ -113,3 +113,368 @@ Date:   Thu Oct 26 12:33:04 2017 -0400
  test/fixedbugs/issue15747.go                   |  6 +++++-
  test/fixedbugs/issue20250.go                   |  6 +++++-
  15 files changed, 109 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 97b01d20fa..c116336c7f 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -824,6 +824,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.OpAMD64LoweredWB:
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = v.Aux.(*obj.LSym)
++
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
+ 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
+ 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL:
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index d590ff3c60..687a3a3240 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -468,7 +468,7 @@ var linuxAMD64Tests = []*asmTest{
+ 			*t = T2{}
+ 		}
+ 		`,
+-		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.writebarrierptr\\(SB\\)"},
++		pos: []string{"\tXORPS\tX., X", "\tMOVUPS\tX., \\(.*\\)", "\tMOVQ\t\\$0, 16\\(.*\\)", "\tCALL\truntime\\.(writebarrierptr|gcWriteBarrier)\\(SB\\)"},
+ 	},
+ 	// Rotate tests
+ 	{
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 663750c9f5..9b81600b60 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -287,6 +287,7 @@ var (
+ 	goschedguarded,
+ 	writeBarrier,
+ 	writebarrierptr,
++	gcWriteBarrier,
+ 	typedmemmove,
+ 	typedmemclr,
+ 	Udiv *obj.LSym
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index d94dd08012..553b7907ca 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -44,6 +44,7 @@ var (
+ 	Debug_slice        int
+ 	Debug_vlog         bool
+ 	Debug_wb           int
++	Debug_eagerwb      int
+ 	Debug_pctab        string
+ 	Debug_locationlist int
+ 	Debug_typecheckinl int
+@@ -70,6 +71,7 @@ var debugtab = []struct {
+ 	{"slice", "print information about slice compilation", &Debug_slice},
+ 	{"typeassert", "print information about type assertion inlining", &Debug_typeassert},
+ 	{"wb", "print information about write barriers", &Debug_wb},
++	{"eagerwb", "use unbuffered write barrier", &Debug_eagerwb},
+ 	{"export", "print export data", &Debug_export},
+ 	{"pctab", "print named pc-value table", &Debug_pctab},
+ 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
+@@ -400,6 +402,12 @@ func Main(archInit func(*Arch)) {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
++	// The buffered write barrier is only implemented on amd64
++	// right now.
++	if objabi.GOARCH != "amd64" {
++		Debug_eagerwb = 1
++	}
++
+ 	trackScopes = flagDWARF && ((Debug['l'] == 0 && Debug['N'] != 0) || Ctxt.Flag_locationlists)
+ 
+ 	Widthptr = thearch.LinkArch.PtrSize
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index be1dd8bd87..9eeeb35599 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -90,6 +90,7 @@ func initssaconfig() {
+ 	goschedguarded = sysfunc("goschedguarded")
+ 	writeBarrier = sysfunc("writeBarrier")
+ 	writebarrierptr = sysfunc("writebarrierptr")
++	gcWriteBarrier = sysfunc("gcWriteBarrier")
+ 	typedmemmove = sysfunc("typedmemmove")
+ 	typedmemclr = sysfunc("typedmemclr")
+ 	Udiv = sysfunc("udiv")
+@@ -5185,6 +5186,10 @@ func (e *ssafn) Debug_checknil() bool {
+ 	return Debug_checknil != 0
+ }
+ 
++func (e *ssafn) Debug_eagerwb() bool {
++	return Debug_eagerwb != 0
++}
++
+ func (e *ssafn) UseWriteBarrier() bool {
+ 	return use_writebarrier
+ }
+@@ -5197,6 +5202,8 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 		return writeBarrier
+ 	case "writebarrierptr":
+ 		return writebarrierptr
++	case "gcWriteBarrier":
++		return gcWriteBarrier
+ 	case "typedmemmove":
+ 		return typedmemmove
+ 	case "typedmemclr":
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index de3aadbbe5..61ecac4e75 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -88,6 +88,7 @@ type Logger interface {
+ 
+ 	// Forwards the Debug flags from gc
+ 	Debug_checknil() bool
++	Debug_eagerwb() bool
+ }
+ 
+ type Frontend interface {
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index d1d6831eb3..28ae494505 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -134,6 +134,7 @@ func (d DummyFrontend) Log() bool                            { return true }
+ func (d DummyFrontend) Fatalf(_ src.XPos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+ func (d DummyFrontend) Warnl(_ src.XPos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Debug_checknil() bool                               { return false }
++func (d DummyFrontend) Debug_eagerwb() bool                                { return false }
+ 
+ var dummyTypes Types
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 522d8f13cc..c0d9dda386 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -551,6 +551,9 @@
+ (AtomicAnd8 ptr val mem) -> (ANDBlock ptr val mem)
+ (AtomicOr8 ptr val mem) -> (ORBlock ptr val mem)
+ 
++// Write barrier.
++(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
++
+ // ***************************
+ // Above: lowering rules
+ // Below: optimizations
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 699554ab2e..a15d3e4519 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -561,6 +561,10 @@ func init() {
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// It saves all GP registers if necessary, but may clobber others.
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave ^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++
+ 		// MOVQconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+ 		// (particularly stack maps).  It takes a memory arg so it
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 5ed0ce21b2..0ad582b046 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -331,6 +331,12 @@ var genericOps = []opData{
+ 	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
+ 	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
+ 
++	// WB invokes runtime.gcWriteBarrier. This is not a normal
++	// call: it takes arguments in registers, doesn't clobber
++	// general-purpose registers (the exact clobber set is
++	// arch-dependent), and is not a safe-point.
++	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+ 	// as a phantom first argument.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d8cae61588..e65cb1e7d6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -668,6 +668,7 @@ const (
+ 	OpAMD64LoweredGetCallerPC
+ 	OpAMD64LoweredGetCallerSP
+ 	OpAMD64LoweredNilCheck
++	OpAMD64LoweredWB
+ 	OpAMD64MOVQconvert
+ 	OpAMD64MOVLconvert
+ 	OpAMD64FlagEQ
+@@ -1923,6 +1924,7 @@ const (
+ 	OpStoreWB
+ 	OpMoveWB
+ 	OpZeroWB
++	OpWB
+ 	OpClosureCall
+ 	OpStaticCall
+ 	OpInterCall
+@@ -8155,6 +8157,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredWB",
++		auxType:      auxSym,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymNone,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 128}, // DI
++				{1, 1},   // AX
++			},
++			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++		},
++	},
+ 	{
+ 		name:         "MOVQconvert",
+ 		argLen:       2,
+@@ -23389,6 +23405,13 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:      "WB",
++		auxType:   auxSym,
++		argLen:    3,
++		symEffect: SymNone,
++		generic:   true,
++	},
+ 	{
+ 		name:    "ClosureCall",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 6fcc647102..df49aa5df7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -905,6 +905,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpTrunc64to32_0(v)
+ 	case OpTrunc64to8:
+ 		return rewriteValueAMD64_OpTrunc64to8_0(v)
++	case OpWB:
++		return rewriteValueAMD64_OpWB_0(v)
+ 	case OpXor16:
+ 		return rewriteValueAMD64_OpXor16_0(v)
+ 	case OpXor32:
+@@ -46955,6 +46957,24 @@ func rewriteValueAMD64_OpTrunc64to8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpWB_0(v *Value) bool {
++	// match: (WB {fn} destptr srcptr mem)
++	// cond:
++	// result: (LoweredWB {fn} destptr srcptr mem)
++	for {
++		fn := v.Aux
++		_ = v.Args[2]
++		destptr := v.Args[0]
++		srcptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpAMD64LoweredWB)
++		v.Aux = fn
++		v.AddArg(destptr)
++		v.AddArg(srcptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpXor16_0(v *Value) bool {
+ 	// match: (Xor16 x y)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 60797158b3..b711d8d2bf 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -44,7 +44,7 @@ func writebarrier(f *Func) {
+ 	}
+ 
+ 	var sb, sp, wbaddr, const0 *Value
+-	var writebarrierptr, typedmemmove, typedmemclr *obj.LSym
++	var writebarrierptr, typedmemmove, typedmemclr, gcWriteBarrier *obj.LSym
+ 	var stores, after []*Value
+ 	var sset *sparseSet
+ 	var storeNumber []int32
+@@ -97,6 +97,9 @@ func writebarrier(f *Func) {
+ 			wbsym := f.fe.Syslook("writeBarrier")
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+ 			writebarrierptr = f.fe.Syslook("writebarrierptr")
++			if !f.fe.Debug_eagerwb() {
++				gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")
++			}
+ 			typedmemmove = f.fe.Syslook("typedmemmove")
+ 			typedmemclr = f.fe.Syslook("typedmemclr")
+ 			const0 = f.ConstInt32(initpos, f.Config.Types.UInt32, 0)
+@@ -170,6 +173,15 @@ func writebarrier(f *Func) {
+ 		b.Succs = b.Succs[:0]
+ 		b.AddEdgeTo(bThen)
+ 		b.AddEdgeTo(bElse)
++		// TODO: For OpStoreWB and the buffered write barrier,
++		// we could move the write out of the write barrier,
++		// which would lead to fewer branches. We could do
++		// something similar to OpZeroWB, since the runtime
++		// could provide just the barrier half and then we
++		// could unconditionally do an OpZero (which could
++		// also generate better zeroing code). OpMoveWB is
++		// trickier and would require changing how
++		// cgoCheckMemmove works.
+ 		bThen.AddEdgeTo(bEnd)
+ 		bElse.AddEdgeTo(bEnd)
+ 
+@@ -205,7 +217,11 @@ func writebarrier(f *Func) {
+ 			switch w.Op {
+ 			case OpStoreWB, OpMoveWB, OpZeroWB:
+ 				volatile := w.Op == OpMoveWB && isVolatile(val)
+-				memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
++				if w.Op == OpStoreWB && !f.fe.Debug_eagerwb() {
++					memThen = bThen.NewValue3A(pos, OpWB, types.TypeMem, gcWriteBarrier, ptr, val, memThen)
++				} else {
++					memThen = wbcall(pos, bThen, fn, typ, ptr, val, memThen, sp, sb, volatile)
++				}
+ 			case OpVarDef, OpVarLive, OpVarKill:
+ 				memThen = bThen.NewValue1A(pos, w.Op, types.TypeMem, w.Aux, memThen)
+ 			}
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index 836d0eab25..decabc754e 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -live
++// errorcheck -0 -live -d=eagerwb
+ 
+ // Copyright 2016 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,6 +7,10 @@
+ // Issue 15747: liveness analysis was marking heap-escaped params live too much,
+ // and worse was using the wrong bitmap bits to do so.
+ 
++// TODO(austin): This expects function calls to the write barrier, so
++// we enable the legacy eager write barrier. Fix this once the
++// buffered write barrier works on all arches.
++
+ package p
+ 
+ var global *[]byte
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+index 28c85ff130..4a8fe30935 100644
+--- a/test/fixedbugs/issue20250.go
++++ b/test/fixedbugs/issue20250.go
+@@ -1,4 +1,4 @@
+-// errorcheck -0 -live -d=compilelater
++// errorcheck -0 -live -d=compilelater,eagerwb
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -8,6 +8,10 @@
+ // due to propagation of addrtaken to outer variables for
+ // closure variables.
+ 
++// TODO(austin): This expects function calls to the write barrier, so
++// we enable the legacy eager write barrier. Fix this once the
++// buffered write barrier works on all arches.
++
+ package p
+ 
+ type T struct {

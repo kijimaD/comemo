@@ -14,6 +14,21 @@ Date:   Thu Mar 28 08:05:43 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/runtime-gdb.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index 48960b7f61..72645d289e 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -540,8 +540,8 @@ class GoroutineCmd(gdb.Command):
+ 			# In GDB, assignments to sp must be done from the
+ 			# top-most frame, so select frame 0 first.
+ 			gdb.execute('select-frame 0')
+-			gdb.parse_and_eval('$sp = $save_sp')
+ 			gdb.parse_and_eval('$pc = $save_pc')
++			gdb.parse_and_eval('$sp = $save_sp')
+ 			save_frame.select()
+ 
+ 

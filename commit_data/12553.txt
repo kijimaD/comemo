@@ -7,6 +7,20 @@ Date:   Sat Mar 10 15:13:34 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5795050
-
+---
  doc/contribute.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 73233c5880..e1f39ae7e0 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -404,7 +404,7 @@ $ hg mail -r golang-dev@googlegroups.com --cc math-nuts@swtch.com 99999
+ 
+ <p>
+ Running <code>hg mail</code> will send an email to you and the reviewers
+-asking them to visit the issue's URL and make coments on the change.
++asking them to visit the issue's URL and make comments on the change.
+ When done, the reviewer clicks &ldquo;Publish and Mail comments&rdquo;
+ to send comments back.
+ </p>

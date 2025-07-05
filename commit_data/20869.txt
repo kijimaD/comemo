@@ -16,7 +16,55 @@ Date:   Mon Oct 20 22:04:12 2014 -0400
     R=golang-codereviews, r
     CC=adonovan, golang-codereviews, gri
     https://golang.org/cl/129550043
-
+---
  src/cmd/gc/typecheck.c   | 7 +++++--
  test/fixedbugs/bug371.go | 6 +++---
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2ad8ab5bff..714c662681 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2127,13 +2127,16 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 				n->left = nod(OADDR, n->left, N);
+ 				n->left->implicit = 1;
+ 				typecheck(&n->left, Etype|Erv);
+-			} else if(tt->etype == tptr && eqtype(tt->type, rcvr)) {
++			} else if(tt->etype == tptr && rcvr->etype != tptr && eqtype(tt->type, rcvr)) {
+ 				n->left = nod(OIND, n->left, N);
+ 				n->left->implicit = 1;
+ 				typecheck(&n->left, Etype|Erv);
+-			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), rcvr)) {
++			} else if(tt->etype == tptr && tt->type->etype == tptr && eqtype(derefall(tt), derefall(rcvr))) {
+ 				yyerror("calling method %N with receiver %lN requires explicit dereference", n->right, n->left);
+ 				while(tt->etype == tptr) {
++					// Stop one level early for method with pointer receiver.
++					if(rcvr->etype == tptr && tt->type->etype != tptr)
++						break;
+ 					n->left = nod(OIND, n->left, N);
+ 					n->left->implicit = 1;
+ 					typecheck(&n->left, Etype|Erv);
+diff --git a/test/fixedbugs/bug371.go b/test/fixedbugs/bug371.go
+index 6329e9635a..86c73bf4a8 100644
+--- a/test/fixedbugs/bug371.go
++++ b/test/fixedbugs/bug371.go
+@@ -8,10 +8,10 @@
+ 
+ package main
+ 
+-type T struct {}
++type T struct{}
+ 
+ func (t *T) pm() {}
+-func (t T) m() {}
++func (t T) m()   {}
+ 
+ func main() {
+ 	p := &T{}
+@@ -20,5 +20,5 @@ func main() {
+ 
+ 	q := &p
+ 	q.m()  // ERROR "requires explicit dereference"
+-	q.pm()
++	q.pm() // ERROR "requires explicit dereference"
+ }

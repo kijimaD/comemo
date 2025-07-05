@@ -12,7 +12,40 @@ Date:   Tue Jan 5 14:06:58 2016 -0800
     Change-Id: I70308034011fb308b63585bcd40b0d1e62ec93ef
     Reviewed-on: https://go-review.googlesource.com/18263
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash | 7 ++++++-
  src/runtime/proc.go               | 3 +++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 269db2f341..feacd89c27 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -61,7 +61,12 @@ if ! go run -msan msan.go; then
+   status=1
+ fi
+ 
+-if ! go run -msan msan2.go; then
++if ! CGO_LDFLAGS="-fsanitize=memory" CGO_CPPFLAGS="-fsanitize=memory" go run -msan -a msan2.go; then
++  echo "FAIL: msan2 with -fsanitize=memory"
++  status=1
++fi
++
++if ! go run -msan -a msan2.go; then
+   echo "FAIL: msan2"
+   status=1
+ fi
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3fa21d8e6f..12fba1404c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1489,6 +1489,9 @@ func newm(fn func(), _p_ *p) {
+ 		ts.g.set(mp.g0)
+ 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
+ 		ts.fn = unsafe.Pointer(funcPC(mstart))
++		if msanenabled {
++			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
++		}
+ 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
+ 		return
+ 	}

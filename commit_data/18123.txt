@@ -7,7 +7,7 @@ Date:   Fri Dec 27 08:59:02 2013 -0800
     R=golang-codereviews, dave, iant
     CC=golang-codereviews
     https://golang.org/cl/45750044
-
+---
  src/cmd/gc/fmt.c            | 2 +-
  src/cmd/gc/go.h             | 4 ++--
  src/cmd/gc/subr.c           | 2 +-
@@ -19,3 +19,152 @@ Date:   Fri Dec 27 08:59:02 2013 -0800
  test/fixedbugs/bug476.go    | 2 +-
  test/run.go                 | 2 +-
  10 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 3f6ac457d7..4217321831 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -17,7 +17,7 @@
+ //		Flags: "%#O": print go syntax. (automatic unless fmtmode == FDbg)
+ //
+ //	%J Node*	Node details
+-//		Flags: "%hJ" supresses things not relevant until walk.
++//		Flags: "%hJ" suppresses things not relevant until walk.
+ //
+ //	%V Val*		Constant values
+ //
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3840c9adf9..2e03898cda 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -503,7 +503,7 @@ enum
+ 	OKEY,	// The x:3 in t{x:3, y:4}, the 1:2 in a[1:2], the 2:20 in [3]int{2:20}, etc.
+ 	OPARAM,	// The on-stack copy of a parameter or return value that escapes.
+ 	OLEN,	// len
+-	OMAKE,	// make, typechecking may convert to a more specfic OMAKEXXX.
++	OMAKE,	// make, typechecking may convert to a more specific OMAKEXXX.
+ 	OMAKECHAN,	// make(chan int)
+ 	OMAKEMAP,	// make(map[string]int)
+ 	OMAKESLICE,	// make([]int, 0)
+@@ -525,7 +525,7 @@ enum
+ 	OPRINTN,	// println
+ 	OPAREN,	// (x)
+ 	OSEND,	// c <- x
+-	OSLICE,	// v[1:2], typechecking may convert to a more specfic OSLICEXXX.
++	OSLICE,	// v[1:2], typechecking may convert to a more specific OSLICEXXX.
+ 	OSLICEARR,	// a[1:2]
+ 	OSLICESTR,	// s[1:2]
+ 	OSLICE3,	// v[1:2:3], typechecking may convert to OSLICE3ARR.
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index cca9705b27..f8e321c962 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1234,7 +1234,7 @@ assignop(Type *src, Type *dst, char **why)
+ 		if(implements(src, dst, &missing, &have, &ptr))
+ 			return OCONVIFACE;
+ 
+-		// we'll have complained about this method anyway, supress spurious messages.
++		// we'll have complained about this method anyway, suppress spurious messages.
+ 		if(have && have->sym == missing->sym && (have->type->broke || missing->type->broke))
+ 			return OCONVIFACE;
+ 
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index 12b079d25f..f40073f7a2 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -28,7 +28,7 @@
+ //
+ //	-n
+ //		an alias for -sort address (numeric),
+-//		for compatiblity with other nm commands
++//		for compatibility with other nm commands
+ //	-size
+ //		print symbol size in decimal between address and type
+ //	-sort {address,name,none}
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index 6c744a815a..923c059222 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -1991,7 +1991,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 		// This is supposed to be something that stops execution.
+ 		// It's not supposed to be reached, ever, but if it is, we'd
+ 		// like to be able to tell how we got there.  Assemble as
+-		// 0xf7fabcfd which is guranteed to raise undefined instruction
++		// 0xf7fabcfd which is guaranteed to raise undefined instruction
+ 		// exception.
+ 		o1 = 0xf7fabcfd;
+ 		break;
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index a0bd051628..4f86d24b2e 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -569,7 +569,7 @@ func (db *DB) maybeOpenNewConnections() {
+ 	}
+ }
+ 
+-// Runs in a seperate goroutine, opens new connections when requested.
++// Runs in a separate goroutine, opens new connections when requested.
+ func (db *DB) connectionOpener() {
+ 	for _ = range db.openerCh {
+ 		db.openNewConnection()
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index f06eb3827a..242c5fffa2 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -289,7 +289,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+ // only logarithmic additional stack space.  They perform well if compared
+ // experimentaly to other stable in-place sorting algorithms.
+ //
+-// Remarks on other algoritms evaluated:
++// Remarks on other algorithms evaluated:
+ //  - GCC's 4.6.3 stable_sort with merge_without_buffer from libstdc++:
+ //    Not faster.
+ //  - GCC's __rotate for block rotations: Not faster.
+@@ -349,7 +349,7 @@ func Stable(data Interface) {
+ // The algorithm needs O((M+N)*log(M)) calls to data.Swap.
+ //
+ // The paper gives O((M+N)*log(M)) as the number of assignments assuming a
+-// rotation algorithm wich uses O(M+N+gcd(M+N)) assignments. The argumentation
++// rotation algorithm which uses O(M+N+gcd(M+N)) assignments. The argumentation
+ // in the paper carries through for Swap operations, especially as the block
+ // swapping rotate uses only O(M+N) Swaps.
+ func symMerge(data Interface, a, m, b int) {
+diff --git a/test/divmod.go b/test/divmod.go
+index 49fed0222c..ad632bc83b 100644
+--- a/test/divmod.go
++++ b/test/divmod.go
+@@ -6,7 +6,7 @@
+ 
+ // Test division of variables. Generate many test cases,
+ // compute correct answer using shift and subtract,
+-// and then compare against results from divison and
++// and then compare against results from division and
+ // modulus operators.
+ //
+ // Primarily useful for testing software div/mod.
+diff --git a/test/fixedbugs/bug476.go b/test/fixedbugs/bug476.go
+index 4ea2174048..563fd9156e 100644
+--- a/test/fixedbugs/bug476.go
++++ b/test/fixedbugs/bug476.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Logical operation on named boolean type returns the same type,
+-// supporting an implicit convertion to an interface type.  This used
++// supporting an implicit conversion to an interface type.  This used
+ // to crash gccgo.
+ 
+ package p
+diff --git a/test/run.go b/test/run.go
+index 5c94de6400..e5190e4e79 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -886,7 +886,7 @@ func checkShouldTest() {
+ 	// Build tags separated by a space are OR-ed together.
+ 	assertNot(shouldTest("// +build arm 386", "linux", "amd64"))
+ 
+-	// Build tags seperated by a comma are AND-ed together.
++	// Build tags separated by a comma are AND-ed together.
+ 	assertNot(shouldTest("// +build !windows,!plan9", "windows", "amd64"))
+ 	assertNot(shouldTest("// +build !windows,!plan9", "plan9", "386"))
+ 

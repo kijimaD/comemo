@@ -20,10 +20,102 @@ Date:   Mon Dec 13 20:11:07 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go |  7 ++++++-
  test/typeparam/structinit.dir/a.go            | 15 +++++++++++++++
  test/typeparam/structinit.dir/b.go            | 12 ++++++++++++
  test/typeparam/structinit.dir/main.go         | 11 +++++++++++
  test/typeparam/structinit.go                  |  7 +++++++
  5 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 09f87df580..bc34d3933a 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1630,11 +1630,16 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.OADDR, ir.OPTRLIT:
+-		n := NodAddrAt(r.pos(), r.expr())
+ 		if go117ExportTypes {
++			pos := r.pos()
++			expr := r.expr()
++			expr.SetTypecheck(1) // we do this for all nodes after importing, but do it now so markAddrOf can see it.
++			n := NodAddrAt(pos, expr)
+ 			n.SetOp(op)
+ 			n.SetType(r.typ())
++			return n
+ 		}
++		n := NodAddrAt(r.pos(), r.expr())
+ 		return n
+ 
+ 	case ir.ODEREF:
+diff --git a/test/typeparam/structinit.dir/a.go b/test/typeparam/structinit.dir/a.go
+new file mode 100644
+index 0000000000..c76d1551ad
+--- /dev/null
++++ b/test/typeparam/structinit.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type S[T any] struct {
++}
++
++func (b *S[T]) build() *X[T] {
++	return &X[T]{f:0}
++}
++type X[T any] struct {
++	f int
++}
+diff --git a/test/typeparam/structinit.dir/b.go b/test/typeparam/structinit.dir/b.go
+new file mode 100644
+index 0000000000..40a929bcae
+--- /dev/null
++++ b/test/typeparam/structinit.dir/b.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func B() {
++	var x a.S[int]
++	_ = x
++}
+diff --git a/test/typeparam/structinit.dir/main.go b/test/typeparam/structinit.dir/main.go
+new file mode 100644
+index 0000000000..c564171879
+--- /dev/null
++++ b/test/typeparam/structinit.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./b"
++
++func main() {
++	b.B()
++}
+diff --git a/test/typeparam/structinit.go b/test/typeparam/structinit.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/structinit.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

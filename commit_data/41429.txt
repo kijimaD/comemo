@@ -9,6 +9,20 @@ Date:   Wed Oct 2 05:49:50 2019 +0000
     GitHub-Pull-Request: golang/go#34637
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198041
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 46e6212858..3536113234 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -777,7 +777,7 @@ GitHub User @tatsumack (4510569) <tatsu.mack@gmail.com>
+ GitHub User @tell-k (26263) <ffk2005@gmail.com>
+ GitHub User @uhei (2116845) <uhei@users.noreply.github.com>
+ GitHub User @uropek (39370426) <uropek@gmail.com>
+-GitHub User @utkarsh-extc (53217283) <53217283+utkarsh-extc@users.noreply.github.com>
++GitHub User @utkarsh-extc (53217283) <utkarsh.extc@gmail.com>
+ GitHub User @yuanhh (1298735) <yuan415030@gmail.com>
+ GitHub User @ZZMarquis (7624583) <zhonglingjian3821@163.com>
+ Giulio Iotti <dullgiulio@gmail.com>

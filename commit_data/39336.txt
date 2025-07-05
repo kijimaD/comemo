@@ -24,7 +24,144 @@ Date:   Sun Dec 9 17:35:21 2018 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec.go      | 22 ++++++++-----
  src/text/template/exec_test.go | 70 ++++++++++++++++++++++++++++++++++--------
  2 files changed, 72 insertions(+), 20 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index d34d248441..964bb87cda 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -591,9 +591,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 	case reflect.Struct:
+ 		tField, ok := receiver.Type().FieldByName(fieldName)
+ 		if ok {
+-			if isNil {
+-				s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+-			}
+ 			field := receiver.FieldByIndex(tField.Index)
+ 			if tField.PkgPath != "" { // field is unexported
+ 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
+@@ -605,9 +602,6 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 			return field
+ 		}
+ 	case reflect.Map:
+-		if isNil {
+-			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+-		}
+ 		// If it's a map, attempt to use the field name as a key.
+ 		nameVal := reflect.ValueOf(fieldName)
+ 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
+@@ -627,6 +621,18 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node,
+ 			}
+ 			return result
+ 		}
++	case reflect.Ptr:
++		etyp := receiver.Type().Elem()
++		if etyp.Kind() == reflect.Struct {
++			if _, ok := etyp.FieldByName(fieldName); !ok {
++				// If there's no such field, say "can't evaluate"
++				// instead of "nil pointer evaluating".
++				break
++			}
++		}
++		if isNil {
++			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
++		}
+ 	}
+ 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
+ 	panic("not reached")
+@@ -899,7 +905,9 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
+ 	panic("not reached")
+ }
+ 
+-// indirect returns the item at the end of indirection, and a bool to indicate if it's nil.
++// indirect returns the item at the end of indirection, and a bool to indicate
++// if it's nil. If the returned bool is true, the returned value's kind will be
++// either a pointer or interface.
+ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
+ 	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
+ 		if v.IsNil() {
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 6cdb285bd8..5947e3ec63 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -1349,20 +1349,64 @@ func TestBlock(t *testing.T) {
+ 	}
+ }
+ 
+-// Check that calling an invalid field on nil pointer prints
+-// a field error instead of a distracting nil pointer error.
+-// https://golang.org/issue/15125
+-func TestMissingFieldOnNil(t *testing.T) {
+-	tmpl := Must(New("tmpl").Parse("{{.MissingField}}"))
+-	var d *T
+-	err := tmpl.Execute(ioutil.Discard, d)
+-	got := "<nil>"
+-	if err != nil {
+-		got = err.Error()
++func TestEvalFieldErrors(t *testing.T) {
++	tests := []struct {
++		name, src string
++		value     interface{}
++		want      string
++	}{
++		{
++			// Check that calling an invalid field on nil pointer
++			// prints a field error instead of a distracting nil
++			// pointer error. https://golang.org/issue/15125
++			"MissingFieldOnNil",
++			"{{.MissingField}}",
++			(*T)(nil),
++			"can't evaluate field MissingField in type *template.T",
++		},
++		{
++			"MissingFieldOnNonNil",
++			"{{.MissingField}}",
++			&T{},
++			"can't evaluate field MissingField in type *template.T",
++		},
++		{
++			"ExistingFieldOnNil",
++			"{{.X}}",
++			(*T)(nil),
++			"nil pointer evaluating *template.T.X",
++		},
++		{
++			"MissingKeyOnNilMap",
++			"{{.MissingKey}}",
++			(*map[string]string)(nil),
++			"nil pointer evaluating *map[string]string.MissingKey",
++		},
++		{
++			"MissingKeyOnNilMapPtr",
++			"{{.MissingKey}}",
++			(*map[string]string)(nil),
++			"nil pointer evaluating *map[string]string.MissingKey",
++		},
++		{
++			"MissingKeyOnMapPtrToNil",
++			"{{.MissingKey}}",
++			&map[string]string{},
++			"<nil>",
++		},
+ 	}
+-	want := "can't evaluate field MissingField in type *template.T"
+-	if !strings.HasSuffix(got, want) {
+-		t.Errorf("got error %q, want %q", got, want)
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			tmpl := Must(New("tmpl").Parse(tc.src))
++			err := tmpl.Execute(ioutil.Discard, tc.value)
++			got := "<nil>"
++			if err != nil {
++				got = err.Error()
++			}
++			if !strings.HasSuffix(got, tc.want) {
++				t.Fatalf("got error %q, want %q", got, tc.want)
++			}
++		})
+ 	}
+ }
+ 

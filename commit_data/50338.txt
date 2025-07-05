@@ -17,9 +17,75 @@ Date:   Tue Oct 19 16:34:43 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/reflect/all_test.go    | 8 ++++++++
  src/reflect/export_test.go | 2 ++
  src/reflect/makefunc.go    | 6 +++++-
  src/reflect/value.go       | 4 ++--
  4 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 141cc8f73d..91aac9cccb 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7722,3 +7722,11 @@ func TestNotInHeapDeref(t *testing.T) {
+ 	v = ValueOf((*nih)(unsafe.Pointer(new(int))))
+ 	shouldPanic("reflect: reflect.Value.Elem on an invalid notinheap pointer", func() { v.Elem() })
+ }
++
++func TestMethodCallValueCodePtr(t *testing.T) {
++	p := ValueOf(Point{}).Method(1).UnsafePointer()
++	want := MethodValueCallCodePtr()
++	if got := uintptr(p); got != want {
++		t.Errorf("methodValueCall code pointer mismatched, want: %v, got: %v", want, got)
++	}
++}
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 01749e30d8..ba7fb68067 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -161,3 +161,5 @@ func SetArgRegs(ints, floats int, floatSize uintptr) (oldInts, oldFloats int, ol
+ 	clearLayoutCache()
+ 	return
+ }
++
++var MethodValueCallCodePtr = methodValueCallCodePtr
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index 588be8bcc1..d0b0935cb8 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -107,7 +107,7 @@ func makeMethodValue(op string, v Value) Value {
+ 	// v.Type returns the actual type of the method value.
+ 	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
+ 
+-	code := abi.FuncPCABI0(methodValueCall)
++	code := methodValueCallCodePtr()
+ 
+ 	// methodValue contains a stack map for use by the runtime
+ 	_, _, abi := funcLayout(ftyp, nil)
+@@ -130,6 +130,10 @@ func makeMethodValue(op string, v Value) Value {
+ 	return Value{&ftyp.rtype, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+ }
+ 
++func methodValueCallCodePtr() uintptr {
++	return abi.FuncPCABI0(methodValueCall)
++}
++
+ // methodValueCall is an assembly function that is the code half of
+ // the function returned from makeMethodValue. It expects a *methodValue
+ // as its context register, and its job is to invoke callMethod(ctxt, frame)
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index a272714ac9..1d385f6bf9 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2488,8 +2488,8 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ 			// created via reflect have the same underlying code pointer,
+ 			// so their Pointers are equal. The function used here must
+ 			// match the one used in makeMethodValue.
+-			f := methodValueCall
+-			return **(**unsafe.Pointer)(unsafe.Pointer(&f))
++			code := methodValueCallCodePtr()
++			return *(*unsafe.Pointer)(unsafe.Pointer(&code))
+ 		}
+ 		p := v.pointer()
+ 		// Non-nil func value points at data block.

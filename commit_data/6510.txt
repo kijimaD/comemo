@@ -7,6 +7,19 @@ Date:   Wed Oct 13 14:40:02 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2472041
-
+---
  src/pkg/runtime/extern.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 0d0bfa777f..8ab57d03f6 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -146,7 +146,6 @@ func Semrelease(s *uint32)
+ // If a finalizer must run for a long time, it should do so by starting
+ // a new goroutine.
+ //
+-// TODO(rsc): make os.File use SetFinalizer
+ // TODO(rsc): allow f to have (ignored) return values
+ //
+ func SetFinalizer(x, f interface{})

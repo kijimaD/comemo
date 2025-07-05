@@ -18,6 +18,19 @@ Date:   Mon Nov 22 14:37:41 2021 -0500
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/semasleep_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index bc73140a2a..0057b0729e 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -21,6 +21,7 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+ 	}
++	t.Parallel() // Waits for a program to sleep for 1s.
+ 
+ 	exe, err := buildTestProg(t, "testprog")
+ 	if err != nil {

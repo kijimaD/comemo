@@ -13,7 +13,7 @@ Date:   Sat Mar 24 15:49:43 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/decode.go   |  8 ++++----
  src/internal/trace/parser.go |  9 +++------
  src/regexp/syntax/prog.go    | 14 ++++++--------
@@ -22,3 +22,254 @@ Date:   Sat Mar 24 15:49:43 2018 +0000
  src/time/time.go             | 14 +++++++-------
  src/time/zoneinfo.go         |  8 ++------
  7 files changed, 24 insertions(+), 34 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 2da913fceb..d2f6c749b1 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -1070,14 +1070,14 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
+ }
+ 
+ // compileIgnoreSingle compiles the decoder engine for a non-struct top-level value that will be discarded.
+-func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err error) {
+-	engine = new(decEngine)
++func (dec *Decoder) compileIgnoreSingle(remoteId typeId) *decEngine {
++	engine := new(decEngine)
+ 	engine.instr = make([]decInstr, 1) // one item
+ 	op := dec.decIgnoreOpFor(remoteId, make(map[typeId]*decOp))
+ 	ovfl := overflow(dec.typeString(remoteId))
+ 	engine.instr[0] = decInstr{*op, 0, nil, ovfl}
+ 	engine.numInstr = 1
+-	return
++	return engine
+ }
+ 
+ // compileDec compiles the decoder engine for a value. If the value is not a struct,
+@@ -1168,7 +1168,7 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
+ 		if wire != nil && wire.StructT != nil {
+ 			*enginePtr, err = dec.compileDec(wireId, userType(emptyStructType))
+ 		} else {
+-			*enginePtr, err = dec.compileIgnoreSingle(wireId)
++			*enginePtr = dec.compileIgnoreSingle(wireId)
+ 		}
+ 		if err != nil {
+ 			delete(dec.ignorerCache, wireId)
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 29ba73c761..6d142a593f 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -108,10 +108,7 @@ func parse(r io.Reader, bin string) (int, ParseResult, error) {
+ 	if err != nil {
+ 		return 0, ParseResult{}, err
+ 	}
+-	events, err = removeFutile(events)
+-	if err != nil {
+-		return 0, ParseResult{}, err
+-	}
++	events = removeFutile(events)
+ 	err = postProcessTrace(ver, events)
+ 	if err != nil {
+ 		return 0, ParseResult{}, err
+@@ -505,7 +502,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ // ahead and acquired the mutex before the first goroutine is scheduled,
+ // so the first goroutine has to block again. Such wakeups happen on buffered
+ // channels and sync.Mutex, but are generally not interesting for end user.
+-func removeFutile(events []*Event) ([]*Event, error) {
++func removeFutile(events []*Event) []*Event {
+ 	// Two non-trivial aspects:
+ 	// 1. A goroutine can be preempted during a futile wakeup and migrate to another P.
+ 	//	We want to remove all of that.
+@@ -552,7 +549,7 @@ func removeFutile(events []*Event) ([]*Event, error) {
+ 			newEvents = append(newEvents, ev)
+ 		}
+ 	}
+-	return newEvents, nil
++	return newEvents
+ }
+ 
+ // ErrTimeOrder is returned by Parse when the trace contains
+diff --git a/src/regexp/syntax/prog.go b/src/regexp/syntax/prog.go
+index 6c56371b4c..36aa653b7f 100644
+--- a/src/regexp/syntax/prog.go
++++ b/src/regexp/syntax/prog.go
+@@ -122,15 +122,13 @@ func (p *Prog) String() string {
+ 	return b.String()
+ }
+ 
+-// skipNop follows any no-op or capturing instructions
+-// and returns the resulting pc.
+-func (p *Prog) skipNop(pc uint32) (*Inst, uint32) {
++// skipNop follows any no-op or capturing instructions.
++func (p *Prog) skipNop(pc uint32) *Inst {
+ 	i := &p.Inst[pc]
+ 	for i.Op == InstNop || i.Op == InstCapture {
+-		pc = i.Out
+-		i = &p.Inst[pc]
++		i = &p.Inst[i.Out]
+ 	}
+-	return i, pc
++	return i
+ }
+ 
+ // op returns i.Op but merges all the Rune special cases into InstRune
+@@ -147,7 +145,7 @@ func (i *Inst) op() InstOp {
+ // regexp must start with. Complete is true if the prefix
+ // is the entire match.
+ func (p *Prog) Prefix() (prefix string, complete bool) {
+-	i, _ := p.skipNop(uint32(p.Start))
++	i := p.skipNop(uint32(p.Start))
+ 
+ 	// Avoid allocation of buffer if prefix is empty.
+ 	if i.op() != InstRune || len(i.Rune) != 1 {
+@@ -158,7 +156,7 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
+ 	var buf bytes.Buffer
+ 	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 {
+ 		buf.WriteRune(i.Rune[0])
+-		i, _ = p.skipNop(i.Out)
++		i = p.skipNop(i.Out)
+ 	}
+ 	return buf.String(), i.Op == InstMatch
+ }
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 9e16e580ee..ff75537889 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -343,7 +343,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error
+ }
+ 
+ // build completes and returns the constructed profile.
+-func (b *profileBuilder) build() error {
++func (b *profileBuilder) build() {
+ 	b.end = time.Now()
+ 
+ 	b.pb.int64Opt(tagProfile_TimeNanos, b.start.UnixNano())
+@@ -396,7 +396,6 @@ func (b *profileBuilder) build() error {
+ 	b.pb.strings(tagProfile_StringTable, b.strings)
+ 	b.zw.Write(b.pb.data)
+ 	b.zw.Close()
+-	return nil
+ }
+ 
+ // readMapping reads /proc/self/maps and writes mappings to b.pb.
+diff --git a/src/time/format.go b/src/time/format.go
+index 7994052510..237f28738b 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1059,7 +1059,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 
+ 		// Look for local zone with the given offset.
+ 		// If that zone was in effect at the given time, use it.
+-		name, offset, _, _, _ := local.lookup(t.unixSec())
++		name, offset, _, _ := local.lookup(t.unixSec())
+ 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
+ 			t.setLoc(local)
+ 			return t, nil
+diff --git a/src/time/time.go b/src/time/time.go
+index 5e357e1aec..1d7f76c2f2 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -445,7 +445,7 @@ func (t Time) abs() uint64 {
+ 		if l.cacheZone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+ 			sec += int64(l.cacheZone.offset)
+ 		} else {
+-			_, offset, _, _, _ := l.lookup(sec)
++			_, offset, _, _ := l.lookup(sec)
+ 			sec += int64(offset)
+ 		}
+ 	}
+@@ -466,7 +466,7 @@ func (t Time) locabs() (name string, offset int, abs uint64) {
+ 			name = l.cacheZone.name
+ 			offset = l.cacheZone.offset
+ 		} else {
+-			name, offset, _, _, _ = l.lookup(sec)
++			name, offset, _, _ = l.lookup(sec)
+ 		}
+ 		sec += int64(offset)
+ 	} else {
+@@ -1088,7 +1088,7 @@ func (t Time) Location() *Location {
+ // Zone computes the time zone in effect at time t, returning the abbreviated
+ // name of the zone (such as "CET") and its offset in seconds east of UTC.
+ func (t Time) Zone() (name string, offset int) {
+-	name, offset, _, _, _ = t.loc.lookup(t.unixSec())
++	name, offset, _, _ = t.loc.lookup(t.unixSec())
+ 	return
+ }
+ 
+@@ -1181,7 +1181,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
+ 
+ 	if offset == -1*60 {
+ 		t.setLoc(&utcLoc)
+-	} else if _, localoff, _, _, _ := Local.lookup(t.unixSec()); offset == localoff {
++	} else if _, localoff, _, _ := Local.lookup(t.unixSec()); offset == localoff {
+ 		t.setLoc(Local)
+ 	} else {
+ 		t.setLoc(FixedZone("", offset))
+@@ -1366,13 +1366,13 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
+ 	// The lookup function expects UTC, so we pass t in the
+ 	// hope that it will not be too close to a zone transition,
+ 	// and then adjust if it is.
+-	_, offset, _, start, end := loc.lookup(unix)
++	_, offset, start, end := loc.lookup(unix)
+ 	if offset != 0 {
+ 		switch utc := unix - int64(offset); {
+ 		case utc < start:
+-			_, offset, _, _, _ = loc.lookup(start - 1)
++			_, offset, _, _ = loc.lookup(start - 1)
+ 		case utc >= end:
+-			_, offset, _, _, _ = loc.lookup(end)
++			_, offset, _, _ = loc.lookup(end)
+ 		}
+ 		unix -= int64(offset)
+ 	}
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index d7e830be9d..d2bc642d81 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -108,13 +108,12 @@ func FixedZone(name string, offset int) *Location {
+ // the start and end times bracketing sec when that zone is in effect,
+ // the offset in seconds east of UTC (such as -5*60*60), and whether
+ // the daylight savings is being observed at that time.
+-func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start, end int64) {
++func (l *Location) lookup(sec int64) (name string, offset int, start, end int64) {
+ 	l = l.get()
+ 
+ 	if len(l.zone) == 0 {
+ 		name = "UTC"
+ 		offset = 0
+-		isDST = false
+ 		start = alpha
+ 		end = omega
+ 		return
+@@ -123,7 +122,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
+ 	if zone := l.cacheZone; zone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
+ 		name = zone.name
+ 		offset = zone.offset
+-		isDST = zone.isDST
+ 		start = l.cacheStart
+ 		end = l.cacheEnd
+ 		return
+@@ -133,7 +131,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
+ 		zone := &l.zone[l.lookupFirstZone()]
+ 		name = zone.name
+ 		offset = zone.offset
+-		isDST = zone.isDST
+ 		start = alpha
+ 		if len(l.tx) > 0 {
+ 			end = l.tx[0].when
+@@ -162,7 +159,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
+ 	zone := &l.zone[tx[lo].index]
+ 	name = zone.name
+ 	offset = zone.offset
+-	isDST = zone.isDST
+ 	start = tx[lo].when
+ 	// end = maintained during the search
+ 	return
+@@ -235,7 +231,7 @@ func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
+ 	for i := range l.zone {
+ 		zone := &l.zone[i]
+ 		if zone.name == name {
+-			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
++			nam, offset, _, _ := l.lookup(unix - int64(zone.offset))
+ 			if nam == zone.name {
+ 				return offset, true
+ 			}

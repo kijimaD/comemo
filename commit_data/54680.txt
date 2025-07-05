@@ -23,7 +23,81 @@ Date:   Wed Jul 6 22:29:35 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/sendfile_linux.go | 16 ++++++++++------
  src/net/sendfile_linux.go           |  8 ++++----
  2 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index 6e7852347b..cc31969a43 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -11,18 +11,21 @@ import "syscall"
+ const maxSendfileSize int = 4 << 20
+ 
+ // SendFile wraps the sendfile system call.
+-func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
++func SendFile(dstFD *FD, src int, remain int64) (int64, error, bool) {
+ 	if err := dstFD.writeLock(); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 	defer dstFD.writeUnlock()
+ 	if err := dstFD.pd.prepareWrite(dstFD.isFile); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 
+ 	dst := dstFD.Sysfd
+-	var written int64
+-	var err error
++	var (
++		written int64
++		err     error
++		handled = true
++	)
+ 	for remain > 0 {
+ 		n := maxSendfileSize
+ 		if int64(n) > remain {
+@@ -48,8 +51,9 @@ func SendFile(dstFD *FD, src int, remain int64) (int64, error) {
+ 			// support) and syscall.EINVAL (fd types which
+ 			// don't implement sendfile)
+ 			err = err1
++			handled = false
+ 			break
+ 		}
+ 	}
+-	return written, err
++	return written, err, handled
+ }
+diff --git a/src/net/sendfile_linux.go b/src/net/sendfile_linux.go
+index e5150aa5e8..0299fdc3b5 100644
+--- a/src/net/sendfile_linux.go
++++ b/src/net/sendfile_linux.go
+@@ -13,8 +13,8 @@ import (
+ // sendFile copies the contents of r to c using the sendfile
+ // system call to minimize copies.
+ //
+-// if handled == true, sendFile returns the number of bytes copied and any
+-// non-EOF error.
++// if handled == true, sendFile returns the number (potentially zero) of bytes
++// copied and any non-EOF error.
+ //
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+@@ -39,7 +39,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 
+ 	var werr error
+ 	err = sc.Read(func(fd uintptr) bool {
+-		written, werr = poll.SendFile(&c.pfd, int(fd), remain)
++		written, werr, handled = poll.SendFile(&c.pfd, int(fd), remain)
+ 		return true
+ 	})
+ 	if err == nil {
+@@ -49,5 +49,5 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	if lr != nil {
+ 		lr.N = remain - written
+ 	}
+-	return written, wrapSyscallError("sendfile", err), written > 0
++	return written, wrapSyscallError("sendfile", err), handled
+ }

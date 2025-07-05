@@ -7,6 +7,45 @@ Date:   Wed Nov 7 05:09:54 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6741051
-
+---
  src/cmd/go/build.go | 15 ++++++++++-----
  1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 78d7c907bd..4cfecdd88f 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1541,6 +1541,8 @@ func envList(key string) []string {
+ 
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
++var cgoLibGccFile string
++
+ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo, outObj []string, err error) {
+ 	if goos != toolGOOS {
+ 		return nil, nil, errors.New("cannot use cgo when compiling for a different operating system")
+@@ -1630,16 +1632,19 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 			bareLDFLAGS = append(bareLDFLAGS, f)
+ 		}
+ 	}
+-	libgcc, err := b.libgcc(p)
+-	if err != nil {
+-		return nil, nil, err
++	if cgoLibGccFile == "" {
++		var err error
++		cgoLibGccFile, err = b.libgcc(p)
++		if err != nil {
++			return nil, nil, err
++		}
+ 	}
+ 	var staticLibs []string
+ 	if goos == "windows" {
+ 		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last
+-		staticLibs = []string{"-lmingwex", "-lmingw32", libgcc}
++		staticLibs = []string{"-lmingwex", "-lmingw32", cgoLibGccFile}
+ 	} else {
+-		staticLibs = []string{libgcc}
++		staticLibs = []string{cgoLibGccFile}
+ 	}
+ 
+ 	for _, cfile := range cfiles {

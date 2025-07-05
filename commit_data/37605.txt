@@ -11,6 +11,24 @@ Date:   Mon Aug 20 12:46:43 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/all/main.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 09181f9689..e7fe4edc2a 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -198,6 +198,12 @@ func (p platform) vet() {
+ 		return
+ 	}
+ 
++	if p.os == "windows" && p.arch == "arm" {
++		// TODO(jordanrh1): enable as soon as the windows/arm port has fully landed
++		fmt.Println("skipping windows/arm")
++		return
++	}
++
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
+ 

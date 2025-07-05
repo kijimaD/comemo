@@ -18,7 +18,119 @@ Date:   Thu Sep 17 14:39:13 2020 +0000
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go      | 27 +++++++++++++++++++++++++++
  src/encoding/json/encode_test.go | 27 ++++++++++++++++++++++++++-
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index c2d191442c..ea5eca51ef 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -779,6 +779,16 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 		e.WriteString("null")
+ 		return
+ 	}
++	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
++		// We're a large number of nested ptrEncoder.encode calls deep;
++		// start checking if we've run into a pointer cycle.
++		ptr := v.Pointer()
++		if _, ok := e.ptrSeen[ptr]; ok {
++			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
++		}
++		e.ptrSeen[ptr] = struct{}{}
++		defer delete(e.ptrSeen, ptr)
++	}
+ 	e.WriteByte('{')
+ 
+ 	// Extract and sort the keys.
+@@ -801,6 +811,7 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 		me.elemEnc(e, v.MapIndex(kv.v), opts)
+ 	}
+ 	e.WriteByte('}')
++	e.ptrLevel--
+ }
+ 
+ func newMapEncoder(t reflect.Type) encoderFunc {
+@@ -857,7 +868,23 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 		e.WriteString("null")
+ 		return
+ 	}
++	if e.ptrLevel++; e.ptrLevel > startDetectingCyclesAfter {
++		// We're a large number of nested ptrEncoder.encode calls deep;
++		// start checking if we've run into a pointer cycle.
++		// Here we use a struct to memorize the pointer to the first element of the slice
++		// and its length.
++		ptr := struct {
++			ptr uintptr
++			len int
++		}{v.Pointer(), v.Len()}
++		if _, ok := e.ptrSeen[ptr]; ok {
++			e.error(&UnsupportedValueError{v, fmt.Sprintf("encountered a cycle via %s", v.Type())})
++		}
++		e.ptrSeen[ptr] = struct{}{}
++		defer delete(e.ptrSeen, ptr)
++	}
+ 	se.arrayEnc(e, v, opts)
++	e.ptrLevel--
+ }
+ 
+ func newSliceEncoder(t reflect.Type) encoderFunc {
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 7290eca06f..42bb09d5cd 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -183,7 +183,15 @@ type PointerCycleIndirect struct {
+ 	Ptrs []interface{}
+ }
+ 
+-var pointerCycleIndirect = &PointerCycleIndirect{}
++type RecursiveSlice []RecursiveSlice
++
++var (
++	pointerCycleIndirect = &PointerCycleIndirect{}
++	mapCycle             = make(map[string]interface{})
++	sliceCycle           = []interface{}{nil}
++	sliceNoCycle         = []interface{}{nil, nil}
++	recursiveSliceCycle  = []RecursiveSlice{nil}
++)
+ 
+ func init() {
+ 	ptr := &SamePointerNoCycle{}
+@@ -192,6 +200,14 @@ func init() {
+ 
+ 	pointerCycle.Ptr = pointerCycle
+ 	pointerCycleIndirect.Ptrs = []interface{}{pointerCycleIndirect}
++
++	mapCycle["x"] = mapCycle
++	sliceCycle[0] = sliceCycle
++	sliceNoCycle[1] = sliceNoCycle[:1]
++	for i := startDetectingCyclesAfter; i > 0; i-- {
++		sliceNoCycle = []interface{}{sliceNoCycle}
++	}
++	recursiveSliceCycle[0] = recursiveSliceCycle
+ }
+ 
+ func TestSamePointerNoCycle(t *testing.T) {
+@@ -200,12 +216,21 @@ func TestSamePointerNoCycle(t *testing.T) {
+ 	}
+ }
+ 
++func TestSliceNoCycle(t *testing.T) {
++	if _, err := Marshal(sliceNoCycle); err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++}
++
+ var unsupportedValues = []interface{}{
+ 	math.NaN(),
+ 	math.Inf(-1),
+ 	math.Inf(1),
+ 	pointerCycle,
+ 	pointerCycleIndirect,
++	mapCycle,
++	sliceCycle,
++	recursiveSliceCycle,
+ }
+ 
+ func TestUnsupportedValues(t *testing.T) {

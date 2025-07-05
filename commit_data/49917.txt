@@ -21,10 +21,339 @@ Date:   Wed Sep 15 14:44:19 2021 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Katie Hockman <katie@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go              | 56 +++++++++++------------------
  src/cmd/go/internal/clean/clean.go |  4 ++-
  src/cmd/go/internal/test/test.go   | 54 ++++++++++------------------
  src/cmd/go/main.go                 |  1 -
  src/testing/testing.go             | 72 +++++++++++++++++++++++++++++---------
  5 files changed, 98 insertions(+), 89 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 74522691ab..744d462c00 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -53,7 +53,6 @@
+ // 	private         configuration for downloading non-public code
+ // 	testflag        testing flags
+ // 	testfunc        testing functions
+-// 	fuzz            fuzzing
+ // 	vcs             controlling version control with GOVCS
+ //
+ // Use "go help <topic>" for more information about that topic.
+@@ -293,7 +292,9 @@
+ // download cache, including unpacked source code of versioned
+ // dependencies.
+ //
+-// The -fuzzcache flag causes clean to remove values used for fuzz testing.
++// The -fuzzcache flag causes clean to remove files stored in the Go build
++// cache for fuzz testing. Files stored in source testdata directories
++// are left in place.
+ //
+ // For more about build flags, see 'go help build'.
+ //
+@@ -2733,10 +2734,10 @@
+ // 	    (for example, -benchtime 100x).
+ //
+ // 	-count n
+-// 	    Run each test, benchmark, and fuzz targets' seed corpora n times
+-// 	    (default 1).
++// 	    Run each test, benchmark, and fuzz seed n times (default 1).
+ // 	    If -cpu is set, run n times for each GOMAXPROCS value.
+-// 	    Examples are always run once.
++// 	    Examples are always run once. -count does not apply to
++// 	    fuzz targets matched by -fuzz.
+ //
+ // 	-cover
+ // 	    Enable coverage analysis.
+@@ -2765,14 +2766,18 @@
+ // 	-cpu 1,2,4
+ // 	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
+ // 	    fuzz targets should be executed. The default is the current value
+-// 	    of GOMAXPROCS.
++// 	    of GOMAXPROCS. -cpu does not apply to fuzz targets matched by -fuzz.
+ //
+ // 	-failfast
+ // 	    Do not start new tests after the first test failure.
+ //
+-// 	-fuzz name
+-// 	    Run the fuzz target with the given regexp. Must match exactly one fuzz
+-// 	    target. This is an experimental feature.
++// 	-fuzz regexp
++// 	    Run the fuzz target matching the regular expression. When specified,
++// 	    the command line argument must match exactly one package, and regexp
++// 	    must match exactly one fuzz target within that package. After tests,
++// 	    benchmarks, seed corpora of other fuzz targets, and examples have
++// 	    completed, the matching target will be fuzzed. See the Fuzzing section
++// 	    of the testing package documentation for details.
+ //
+ // 	-fuzztime t
+ // 	    Run enough iterations of the fuzz test to take t, specified as a
+@@ -2785,9 +2790,6 @@
+ // 	    Log verbose output and test results in JSON. This presents the
+ // 	    same information as the -v flag in a machine-readable format.
+ //
+-// 	-keepfuzzing
+-// 	    Keep running the fuzz target if a crasher is found.
+-//
+ // 	-list regexp
+ // 	    List tests, benchmarks, fuzz targets, or examples matching the regular
+ // 	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
+@@ -2798,10 +2800,13 @@
+ // 	    Allow parallel execution of test functions that call t.Parallel, and
+ // 	    f.Fuzz functions that call t.Parallel when running the seed corpus.
+ // 	    The value of this flag is the maximum number of tests to run
+-// 	    simultaneously. While fuzzing, the value of this flag is the
+-// 	    maximum number of workers to run the fuzz function simultaneously,
+-// 	    regardless of whether t.Parallel has been called; by default, it is set
+-// 	    to the value of GOMAXPROCS.
++// 	    simultaneously.
++// 	    While fuzzing, the value of this flag is the maximum number of
++// 	    subprocesses that may call the fuzz function simultaneously, regardless of
++// 	    whether T.Parallel is called.
++// 	    By default, -parallel is set to the value of GOMAXPROCS.
++// 	    Setting -parallel to values higher than GOMAXPROCS may cause degraded
++// 	    performance due to CPU contention, especially when fuzzing.
+ // 	    Note that -parallel only applies within a single test binary.
+ // 	    The 'go test' command may run tests for different packages
+ // 	    in parallel as well, according to the setting of the -p flag
+@@ -3026,25 +3031,6 @@
+ // See the documentation of the testing package for more information.
+ //
+ //
+-// Fuzzing
+-//
+-// By default, go test will build and run the fuzz targets using the target's seed
+-// corpus only. Any generated corpora in $GOCACHE that were previously written by
+-// the fuzzing engine will not be run by default.
+-//
+-// When -fuzz is set, the binary will be instrumented for coverage. After all
+-// tests, examples, benchmark functions, and the seed corpora for all fuzz targets
+-// have been run, go test will begin to fuzz the specified fuzz target.
+-// Note that this feature is experimental.
+-//
+-// -run can be used for testing a single seed corpus entry for a fuzz target. The
+-// regular expression value of -run can be in the form $target/$name, where $target
+-// is the name of the fuzz target, and $name is the name of the file (ignoring file
+-// extensions) to run. For example, -run=FuzzFoo/497b6f87.
+-//
+-// See https://golang.org/s/draft-fuzzing-design for more details.
+-//
+-//
+ // Controlling version control with GOVCS
+ //
+ // The 'go get' command can run version control commands like git
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 518473c914..ca7623ea21 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -75,7 +75,9 @@ The -modcache flag causes clean to remove the entire module
+ download cache, including unpacked source code of versioned
+ dependencies.
+ 
+-The -fuzzcache flag causes clean to remove values used for fuzz testing.
++The -fuzzcache flag causes clean to remove files stored in the Go build
++cache for fuzz testing. Files stored in source testdata directories
++are left in place.
+ 
+ For more about build flags, see 'go help build'.
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 8f5d57eff1..c8305c7808 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -210,10 +210,10 @@ control the execution of any test:
+ 	    (for example, -benchtime 100x).
+ 
+ 	-count n
+-	    Run each test, benchmark, and fuzz targets' seed corpora n times
+-	    (default 1).
++	    Run each test, benchmark, and fuzz seed n times (default 1).
+ 	    If -cpu is set, run n times for each GOMAXPROCS value.
+-	    Examples are always run once.
++	    Examples are always run once. -count does not apply to
++	    fuzz targets matched by -fuzz.
+ 
+ 	-cover
+ 	    Enable coverage analysis.
+@@ -242,14 +242,18 @@ control the execution of any test:
+ 	-cpu 1,2,4
+ 	    Specify a list of GOMAXPROCS values for which the tests, benchmarks or
+ 	    fuzz targets should be executed. The default is the current value
+-	    of GOMAXPROCS.
++	    of GOMAXPROCS. -cpu does not apply to fuzz targets matched by -fuzz.
+ 
+ 	-failfast
+ 	    Do not start new tests after the first test failure.
+ 
+-	-fuzz name
+-	    Run the fuzz target with the given regexp. Must match exactly one fuzz
+-	    target. This is an experimental feature.
++	-fuzz regexp
++	    Run the fuzz target matching the regular expression. When specified,
++	    the command line argument must match exactly one package, and regexp
++	    must match exactly one fuzz target within that package. After tests,
++	    benchmarks, seed corpora of other fuzz targets, and examples have
++	    completed, the matching target will be fuzzed. See the Fuzzing section
++	    of the testing package documentation for details.
+ 
+ 	-fuzztime t
+ 	    Run enough iterations of the fuzz test to take t, specified as a
+@@ -262,9 +266,6 @@ control the execution of any test:
+ 	    Log verbose output and test results in JSON. This presents the
+ 	    same information as the -v flag in a machine-readable format.
+ 
+-	-keepfuzzing
+-	    Keep running the fuzz target if a crasher is found.
+-
+ 	-list regexp
+ 	    List tests, benchmarks, fuzz targets, or examples matching the regular
+ 	    expression. No tests, benchmarks, fuzz targets, or examples will be run.
+@@ -275,10 +276,13 @@ control the execution of any test:
+ 	    Allow parallel execution of test functions that call t.Parallel, and
+ 	    f.Fuzz functions that call t.Parallel when running the seed corpus.
+ 	    The value of this flag is the maximum number of tests to run
+-	    simultaneously. While fuzzing, the value of this flag is the
+-	    maximum number of workers to run the fuzz function simultaneously,
+-	    regardless of whether t.Parallel has been called; by default, it is set
+-	    to the value of GOMAXPROCS.
++	    simultaneously.
++	    While fuzzing, the value of this flag is the maximum number of
++	    subprocesses that may call the fuzz function simultaneously, regardless of
++	    whether T.Parallel is called.
++	    By default, -parallel is set to the value of GOMAXPROCS.
++	    Setting -parallel to values higher than GOMAXPROCS may cause degraded
++	    performance due to CPU contention, especially when fuzzing.
+ 	    Note that -parallel only applies within a single test binary.
+ 	    The 'go test' command may run tests for different packages
+ 	    in parallel as well, according to the setting of the -p flag
+@@ -507,28 +511,6 @@ See the documentation of the testing package for more information.
+ `,
+ }
+ 
+-var HelpFuzz = &base.Command{
+-	UsageLine: "fuzz",
+-	Short:     "fuzzing",
+-	Long: `
+-By default, go test will build and run the fuzz targets using the target's seed
+-corpus only. Any generated corpora in $GOCACHE that were previously written by
+-the fuzzing engine will not be run by default.
+-
+-When -fuzz is set, the binary will be instrumented for coverage. After all
+-tests, examples, benchmark functions, and the seed corpora for all fuzz targets
+-have been run, go test will begin to fuzz the specified fuzz target.
+-Note that this feature is experimental.
+-
+--run can be used for testing a single seed corpus entry for a fuzz target. The
+-regular expression value of -run can be in the form $target/$name, where $target
+-is the name of the fuzz target, and $name is the name of the file (ignoring file
+-extensions) to run. For example, -run=FuzzFoo/497b6f87.
+-
+-See https://golang.org/s/draft-fuzzing-design for more details.
+-`,
+-}
+-
+ var (
+ 	testBench        string                            // -bench flag
+ 	testC            bool                              // -c flag
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 11ff750aff..16361e02ca 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -80,7 +80,6 @@ func init() {
+ 		modfetch.HelpPrivate,
+ 		test.HelpTestflag,
+ 		test.HelpTestfunc,
+-		test.HelpFuzz,
+ 		modget.HelpVCS,
+ 	}
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 567eb0dfa3..ac1e52af85 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -134,28 +134,68 @@
+ //
+ // Fuzzing
+ //
+-// Functions of the form
++// 'go test' and the testing package support fuzzing, a testing technique where
++// a function is called with randomly generated inputs to find bugs not
++// anticipated by unit tests.
++//
++// A fuzz target is a function that declares a set of "seed" inputs by calling
++// F.Add, then provides a fuzz function by calling F.Fuzz. A fuzz target has
++// the form:
++//
+ //     func FuzzXxx(*testing.F)
+-// are considered fuzz targets, and are executed by the "go test" command. When
+-// the -fuzz flag is provided, the functions will be fuzzed.
+ //
+-// For a description of the testing flags, see
+-// https://golang.org/cmd/go/#hdr-Testing_flags.
++// For example:
++//
++// func FuzzHex(f *testing.F) {
++//   for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
++//     f.Add(seed)
++//   }
++//   f.Fuzz(func(t *testing.T, in []byte) {
++//     enc := hex.EncodeToString(in)
++//     out, err := hex.DecodeString(enc)
++//     if err != nil {
++//       t.Fatalf("%v: decode: %v", in, err)
++//     }
++//     if !bytes.Equal(in, out) {
++//       t.Fatalf("%v: not equal after round trip: %v", in, out)
++//     }
++//   })
++// }
++//
++// Seed inputs may be registered by calling F.Add or by storing files in the
++// directory testdata/fuzz/<Name> (where <Name> is the name of the fuzz target)
++// within the package containing the fuzz target. Seed inputs are optional, but
++// the fuzzing engine may find bugs more efficiently when provided with a set
++// of small seed inputs with good code coverage.
++//
++// The fuzz function provided to F.Fuzz must accept a *testing.T parameter,
++// followed by one or more parameters for random inputs. The types of arguments
++// passed to F.Add must be identical to the types of these parameters. The fuzz
++// function may signal that it's found a problem the same way tests do: by
++// calling T.Fail (or any method that calls it like T.Error or T.Fatal) or by
++// panicking.
++//
++// When fuzzing is enabled (by setting the -fuzz flag to a regular expression
++// that matches a specific fuzz target), the fuzz function is called with
++// arguments generated by repeatedly making random changes to the seed inputs.
++// On supported platforms, 'go test' compiles the test executable with fuzzing
++// coverage instrumentation. The fuzzing engine uses that instrumentation to
++// find and cache inputs that expand coverage, increasing the liklihood of
++// finding bugs. If the fuzz function finds a problem, the fuzzing engine writes
++// the inputs that caused the problem to a file in the directory
++// testdata/fuzz/<Name> within the package directory. This file later serves as
++// a seed input. If the file can't be written at that location (for example,
++// because the directory is read-only), the fuzzing engine writes the file to
++// the fuzz cache directory within the build cache instead.
++//
++// When fuzzing is disabled, the fuzz function is called with the seed inputs
++// registered with F.Add and seed inputs from testdata/fuzz/<Name>. In this
++// mode, the fuzz target acts much like a regular test, with subtests started
++// with F.Fuzz instead of T.Run.
+ //
+-// For a description of fuzzing, see golang.org/s/draft-fuzzing-design.
+ // TODO(#48255): write and link to documentation that will be helpful to users
+ // who are unfamiliar with fuzzing.
+ //
+-// A sample fuzz target looks like this:
+-//
+-//     func FuzzBytesCmp(f *testing.F) {
+-//         f.Fuzz(func(t *testing.T, a, b []byte) {
+-//             if bytes.HasPrefix(a, b) && !bytes.Contains(a, b) {
+-//                 t.Error("HasPrefix is true, but Contains is false")
+-//             }
+-//         })
+-//     }
+-//
+ // Skipping
+ //
+ // Tests or benchmarks may be skipped at run time with a call to

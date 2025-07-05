@@ -12,7 +12,93 @@ Date:   Fri Jun 21 18:07:57 2013 -0700
     R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
     https://golang.org/cl/10328043
-
+---
  src/pkg/time/time.go      | 20 ++++++++++++++++++--
  src/pkg/time/time_test.go | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index d291672af1..6694ac5bec 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -424,6 +424,11 @@ func (t Time) YearDay() int {
+ // largest representable duration to approximately 290 years.
+ type Duration int64
+ 
++const (
++	minDuration Duration = -1 << 63
++	maxDuration Duration = 1<<63 - 1
++)
++
+ // Common durations.  There is no definition for units of Day or larger
+ // to avoid confusion across daylight savings time zone transitions.
+ //
+@@ -611,10 +616,21 @@ func (t Time) Add(d Duration) Time {
+ 	return t
+ }
+ 
+-// Sub returns the duration t-u.
++// Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
++// value that can be stored in a Duration, the maximum (or minimum) duration
++// will be returned.
+ // To compute t-d for a duration d, use t.Add(-d).
+ func (t Time) Sub(u Time) Duration {
+-	return Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
++	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
++	// Check for overflow or underflow.
++	switch {
++	case u.Add(d).Equal(t):
++		return d // d is correct
++	case t.Before(u):
++		return minDuration // t - u is negative out of range
++	default:
++		return maxDuration // t - u is positive out of range
++	}
+ }
+ 
+ // Since returns the time elapsed since t.
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index a0ee37ae3b..2caaf698b7 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -1327,6 +1327,40 @@ func TestLoadFixed(t *testing.T) {
+ 	}
+ }
+ 
++const (
++	minDuration Duration = -1 << 63
++	maxDuration Duration = 1<<63 - 1
++)
++
++var subTests = []struct {
++	t Time
++	u Time
++	d Duration
++}{
++	{Time{}, Time{}, Duration(0)},
++	{Date(2009, 11, 23, 0, 0, 0, 1, UTC), Date(2009, 11, 23, 0, 0, 0, 0, UTC), Duration(1)},
++	{Date(2009, 11, 23, 0, 0, 0, 0, UTC), Date(2009, 11, 24, 0, 0, 0, 0, UTC), -24 * Hour},
++	{Date(2009, 11, 24, 0, 0, 0, 0, UTC), Date(2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
++	{Date(-2009, 11, 24, 0, 0, 0, 0, UTC), Date(-2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
++	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), Duration(minDuration)},
++	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(maxDuration)},
++	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Duration(maxDuration)},
++	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(minDuration)},
++	{Date(2290, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), 290*365*24*Hour + 71*24*Hour},
++	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
++	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
++	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
++}
++
++func TestSub(t *testing.T) {
++	for i, st := range subTests {
++		got := st.t.Sub(st.u)
++		if got != st.d {
++			t.Errorf("#%d: Sub(%v, %v): got %v; want %v", i, st.t, st.u, got, st.d)
++		}
++	}
++}
++
+ func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		t = Now()

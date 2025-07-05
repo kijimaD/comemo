@@ -17,6 +17,29 @@ Date:   Wed Dec 6 14:03:17 2023 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.22.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index 07901c82ab..2f08803221 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -409,6 +409,17 @@ defer func() {
+   </dd>
+ </dl><!-- encoding -->
+ 
++<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
++  <dd>
++    <p><!-- https://go.dev/cl/521675 -->
++      Marshaling and encoding functionality now escapes
++      <code>'\b'</code> and <code>'\f'</code> characters as
++      <code>\b</code> and <code>\f</code> instead of
++      <code>\u0008</code> and <code>\u000c</code>.
++    </p>
++  </dd>
++</dl><!-- encoding/json -->
++
+ <dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/52463, https://go/dev/cl/504915 -->

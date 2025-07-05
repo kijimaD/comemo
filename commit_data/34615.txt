@@ -14,6 +14,22 @@ Date:   Fri Nov 3 09:40:52 2017 +0100
     Change-Id: Ib68c30567ac864f152d2da31f001a98531fc9757
     Reviewed-on: https://go-review.googlesource.com/75751
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/extern.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 6e6c674d96..66b9527802 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -212,8 +212,8 @@ func Callers(skip int, pc []uintptr) int {
+ 	return callers(skip, pc)
+ }
+ 
+-// GOROOT returns the root of the Go tree.
+-// It uses the GOROOT environment variable, if set,
++// GOROOT returns the root of the Go tree. It uses the
++// GOROOT environment variable, if set at process start,
+ // or else the root used during the Go build.
+ func GOROOT() string {
+ 	s := gogetenv("GOROOT")

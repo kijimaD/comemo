@@ -16,7 +16,7 @@ Date:   Sat Apr 21 21:13:56 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/arm/obj5.go   |  8 +-------
  src/cmd/internal/obj/arm64/obj7.go |  8 +-------
  src/cmd/internal/obj/mips/obj0.go  |  2 ++
@@ -25,3 +25,129 @@ Date:   Sat Apr 21 21:13:56 2018 -0400
  src/cmd/internal/obj/s390x/objz.go |  8 +-------
  src/cmd/internal/obj/x86/obj6.go   |  8 +-------
  7 files changed, 23 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index a177e5f75f..c17bf2a8ac 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -768,13 +768,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
+-	pcdata := obj.Appendp(spfix, c.newprog)
+-	pcdata.Pos = c.cursym.Func.Text.Pos
+-	pcdata.As = obj.APCDATA
+-	pcdata.From.Type = obj.TYPE_CONST
+-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+-	pcdata.To.Type = obj.TYPE_CONST
+-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
+ 
+ 	// MOVW	LR, R3
+ 	movw := obj.Appendp(pcdata, c.newprog)
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 0ea9af2854..0d832387d7 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -167,13 +167,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
+-	pcdata := obj.Appendp(spfix, c.newprog)
+-	pcdata.Pos = c.cursym.Func.Text.Pos
+-	pcdata.As = obj.APCDATA
+-	pcdata.From.Type = obj.TYPE_CONST
+-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+-	pcdata.To.Type = obj.TYPE_CONST
+-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
+ 
+ 	// MOV	LR, R3
+ 	movlr := obj.Appendp(pcdata, c.newprog)
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 5bbc4ce638..5a2546af9e 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -790,6 +790,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.Mark |= LABEL
+ 	}
+ 
++	p = c.ctxt.EmitEntryLiveness(c.cursym, p, c.newprog)
++
+ 	// JAL	runtime.morestack(SB)
+ 	p = obj.Appendp(p, c.newprog)
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 8e70404774..d383d85cab 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -190,3 +190,18 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+ 		s.Type = objabi.STLSBSS
+ 	}
+ }
++
++// EmitEntryLiveness generates PCDATA Progs after p to switch to the
++// liveness map active at the entry of function s. It returns the last
++// Prog generated.
++func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
++	pcdata := Appendp(p, newprog)
++	pcdata.Pos = s.Func.Text.Pos
++	pcdata.As = APCDATA
++	pcdata.From.Type = TYPE_CONST
++	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
++	pcdata.To.Type = TYPE_CONST
++	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++
++	return pcdata
++}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index c3a9443228..7bb21ab439 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -966,6 +966,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		q.Pcond = p
+ 	}
+ 
++	p = c.ctxt.EmitEntryLiveness(c.cursym, p, c.newprog)
++
+ 	var morestacksym *obj.LSym
+ 	if c.cursym.CFunc() {
+ 		morestacksym = c.ctxt.Lookup("runtime.morestackc")
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 2408af8259..b7b8a2c7a6 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -679,13 +679,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog,
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
+-	pcdata := obj.Appendp(spfix, c.newprog)
+-	pcdata.Pos = c.cursym.Func.Text.Pos
+-	pcdata.As = obj.APCDATA
+-	pcdata.From.Type = obj.TYPE_CONST
+-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+-	pcdata.To.Type = obj.TYPE_CONST
+-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
+ 
+ 	// MOVD	LR, R5
+ 	p = obj.Appendp(pcdata, c.newprog)
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 59a2e20d6b..139f293b13 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1150,13 +1150,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
+-	pcdata := obj.Appendp(spfix, newprog)
+-	pcdata.Pos = cursym.Func.Text.Pos
+-	pcdata.As = obj.APCDATA
+-	pcdata.From.Type = obj.TYPE_CONST
+-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+-	pcdata.To.Type = obj.TYPE_CONST
+-	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++	pcdata := ctxt.EmitEntryLiveness(cursym, spfix, newprog)
+ 
+ 	call := obj.Appendp(pcdata, newprog)
+ 	call.Pos = cursym.Func.Text.Pos

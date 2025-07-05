@@ -12,7 +12,67 @@ Date:   Wed Sep 22 14:05:49 2021 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
  src/cmd/compile/internal/ssa/opGen.go        | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 9d9122e148..5f84290002 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -428,10 +428,10 @@ func init() {
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLtail", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                         // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
++		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                       // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                         // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
++		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
++		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+ 
+ 		// large or unaligned zeroing
+ 		// arg0 = address of memory to zero (in R3, changed as side effect)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index fed3bc3386..32ffd28b6a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -27337,7 +27337,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLstatic",
+ 		auxType:      auxCallOff,
+-		argLen:       1,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -27347,7 +27347,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLtail",
+ 		auxType:      auxCallOff,
+-		argLen:       1,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -27357,7 +27357,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLclosure",
+ 		auxType:      auxCallOff,
+-		argLen:       3,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{
+@@ -27371,7 +27371,7 @@ var opcodeTable = [...]opInfo{
+ 	{
+ 		name:         "CALLinter",
+ 		auxType:      auxCallOff,
+-		argLen:       2,
++		argLen:       -1,
+ 		clobberFlags: true,
+ 		call:         true,
+ 		reg: regInfo{

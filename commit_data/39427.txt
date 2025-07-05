@@ -14,10 +14,207 @@ Date:   Fri Feb 22 23:41:38 2019 +0100
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/errors/errors.go      | 14 ++++++++++--
  src/errors/format.go      | 34 ++++++++++++++++++++++++++++
  src/errors/frame.go       | 56 +++++++++++++++++++++++++++++++++++++++++++++++
  src/errors/frame_test.go  | 43 ++++++++++++++++++++++++++++++++++++
  src/go/build/deps_test.go |  2 +-
  5 files changed, 146 insertions(+), 3 deletions(-)
+
+diff --git a/src/errors/errors.go b/src/errors/errors.go
+index b8a46921be..f23a96c43e 100644
+--- a/src/errors/errors.go
++++ b/src/errors/errors.go
+@@ -6,15 +6,25 @@
+ package errors
+ 
+ // New returns an error that formats as the given text.
++//
++// The returned error contains a Frame set to the caller's location and
++// implements Formatter to show this information when printed with details.
+ func New(text string) error {
+-	return &errorString{text}
++	return &errorString{text, Caller(1)}
+ }
+ 
+ // errorString is a trivial implementation of error.
+ type errorString struct {
+-	s string
++	s     string
++	frame Frame
+ }
+ 
+ func (e *errorString) Error() string {
+ 	return e.s
+ }
++
++func (e *errorString) FormatError(p Printer) (next error) {
++	p.Print(e.s)
++	e.frame.Format(p)
++	return nil
++}
+diff --git a/src/errors/format.go b/src/errors/format.go
+new file mode 100644
+index 0000000000..12deed3cf7
+--- /dev/null
++++ b/src/errors/format.go
+@@ -0,0 +1,34 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package errors
++
++// A Formatter formats error messages.
++type Formatter interface {
++	error
++
++	// FormatError prints the receiver's first error and returns the next error in
++	// the error chain, if any.
++	FormatError(p Printer) (next error)
++}
++
++// A Printer formats error messages.
++//
++// The most common implementation of Printer is the one provided by package fmt
++// during Printf. Localization packages such as golang.org/x/text/message
++// typically provide their own implementations.
++type Printer interface {
++	// Print appends args to the message output.
++	Print(args ...interface{})
++
++	// Printf writes a formatted string.
++	Printf(format string, args ...interface{})
++
++	// Detail reports whether error detail is requested.
++	// After the first call to Detail, all text written to the Printer
++	// is formatted as additional detail, or ignored when
++	// detail has not been requested.
++	// If Detail returns false, the caller can avoid printing the detail at all.
++	Detail() bool
++}
+diff --git a/src/errors/frame.go b/src/errors/frame.go
+new file mode 100644
+index 0000000000..a5369e5c36
+--- /dev/null
++++ b/src/errors/frame.go
+@@ -0,0 +1,56 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package errors
++
++import (
++	"runtime"
++)
++
++// A Frame contains part of a call stack.
++type Frame struct {
++	// Make room for three PCs: the one we were asked for, what it called,
++	// and possibly a PC for skipPleaseUseCallersFrames. See:
++	// https://go.googlesource.com/go/+/032678e0fb/src/runtime/extern.go#169
++	frames [3]uintptr
++}
++
++// Caller returns a Frame that describes a frame on the caller's stack.
++// The argument skip is the number of frames to skip over.
++// Caller(0) returns the frame for the caller of Caller.
++func Caller(skip int) Frame {
++	var s Frame
++	runtime.Callers(skip+1, s.frames[:])
++	return s
++}
++
++// location reports the file, line, and function of a frame.
++//
++// The returned function may be "" even if file and line are not.
++func (f Frame) location() (function, file string, line int) {
++	frames := runtime.CallersFrames(f.frames[:])
++	if _, ok := frames.Next(); !ok {
++		return "", "", 0
++	}
++	fr, ok := frames.Next()
++	if !ok {
++		return "", "", 0
++	}
++	return fr.Function, fr.File, fr.Line
++}
++
++// Format prints the stack as error detail.
++// It should be called from an error's Format implementation,
++// before printing any other error detail.
++func (f Frame) Format(p Printer) {
++	if p.Detail() {
++		function, file, line := f.location()
++		if function != "" {
++			p.Printf("%s\n    ", function)
++		}
++		if file != "" {
++			p.Printf("%s:%d\n", file, line)
++		}
++	}
++}
+diff --git a/src/errors/frame_test.go b/src/errors/frame_test.go
+new file mode 100644
+index 0000000000..864a6934d1
+--- /dev/null
++++ b/src/errors/frame_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package errors_test
++
++import (
++	"bytes"
++	"errors"
++	"fmt"
++	"math/big"
++	"testing"
++)
++
++type myType struct{}
++
++func (myType) Format(s fmt.State, v rune) {
++	s.Write(bytes.Repeat([]byte("Hi! "), 10))
++}
++
++func BenchmarkErrorf(b *testing.B) {
++	err := errors.New("foo")
++	// pi := big.NewFloat(3.14) // Something expensive.
++	num := big.NewInt(5)
++	args := func(a ...interface{}) []interface{} { return a }
++	benchCases := []struct {
++		name   string
++		format string
++		args   []interface{}
++	}{
++		{"no_format", "msg: %v", args(err)},
++		{"with_format", "failed %d times: %v", args(5, err)},
++		{"method: mytype", "pi: %v", args("myfile.go", myType{}, err)},
++		{"method: number", "pi: %v", args("myfile.go", num, err)},
++	}
++	for _, bc := range benchCases {
++		b.Run(bc.name, func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				_ = fmt.Errorf(bc.format, bc.args...)
++			}
++		})
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3bf4b7acfa..6866abc9b5 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -34,7 +34,7 @@ import (
+ //
+ var pkgDeps = map[string][]string{
+ 	// L0 is the lowest level, core, nearly unavoidable packages.
+-	"errors":                  {},
++	"errors":                  {"runtime"},
+ 	"io":                      {"errors", "sync", "sync/atomic"},
+ 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys", "runtime/internal/math", "internal/cpu", "internal/bytealg"},
+ 	"runtime/internal/sys":    {},

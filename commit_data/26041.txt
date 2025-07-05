@@ -12,6 +12,22 @@ Date:   Mon Dec 14 13:05:25 2015 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index a3baecdf8b..b8c761fc4f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -38,8 +38,8 @@ var nameToC = map[string]string{
+ 	"ulong":         "unsigned long",
+ 	"longlong":      "long long",
+ 	"ulonglong":     "unsigned long long",
+-	"complexfloat":  "__complex float",
+-	"complexdouble": "__complex double",
++	"complexfloat":  "float _Complex",
++	"complexdouble": "double _Complex",
+ }
+ 
+ // cname returns the C name to use for C.s.

@@ -8,9 +8,936 @@ Date:   Thu Nov 5 17:02:55 2009 -0800
     
     R=r, rsc
     http://go/go-review/1023003
-
+---
  src/pkg/debug/gosym/symtab.go | 108 +++++++++++------------
  src/pkg/ebnf/ebnf.go          |   4 +-
  src/pkg/gob/decoder.go        |   2 +-
  src/pkg/template/template.go  | 194 +++++++++++++++++++++---------------------
  4 files changed, 155 insertions(+), 153 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index 7edbc03907..153465ae45 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -26,12 +26,12 @@ import (
+ 
+ // A Sym represents a single symbol table entry.
+ type Sym struct {
+-	Value uint64;
+-	Type byte;
+-	Name string;
+-	GoType uint64;
++	Value	uint64;
++	Type	byte;
++	Name	string;
++	GoType	uint64;
+ 	// If this symbol if a function symbol, the corresponding Func
+-	Func *Func;
++	Func	*Func;
+ }
+ 
+ // Static returns whether this symbol is static (not visible outside its file).
+@@ -56,33 +56,33 @@ func (s *Sym) ReceiverName() string {
+ 	if l == -1 || r == -1 || l == r {
+ 		return "";
+ 	}
+-	return s.Name[l+1:r];
++	return s.Name[l+1 : r];
+ }
+ 
+ // BaseName returns the symbol name without the package or receiver name.
+ func (s *Sym) BaseName() string {
+ 	if i := strings.LastIndex(s.Name, "."); i != -1 {
+-		return s.Name[i+1:len(s.Name)];
++		return s.Name[i+1 : len(s.Name)];
+ 	}
+ 	return s.Name;
+ }
+ 
+ // A Func collects information about a single function.
+ type Func struct {
+-	Entry uint64;
++	Entry	uint64;
+ 	*Sym;
+-	End uint64;
+-	Params []*Sym;
+-	Locals []*Sym;
+-	FrameSize int;
+-	LineTable *LineTable;
+-	Obj *Obj;
++	End		uint64;
++	Params		[]*Sym;
++	Locals		[]*Sym;
++	FrameSize	int;
++	LineTable	*LineTable;
++	Obj		*Obj;
+ }
+ 
+ // An Obj represents a single object file.
+ type Obj struct {
+-	Funcs []Func;
+-	Paths []Sym;
++	Funcs	[]Func;
++	Paths	[]Sym;
+ }
+ 
+ /*
+@@ -93,18 +93,18 @@ type Obj struct {
+ // symbols decoded from the program and provides methods to translate
+ // between symbols, names, and addresses.
+ type Table struct {
+-	Syms []Sym;
+-	Funcs []Func;
+-	Files map[string] *Obj;
+-	Objs []Obj;
+-//	textEnd uint64;
++	Syms	[]Sym;
++	Funcs	[]Func;
++	Files	map[string]*Obj;
++	Objs	[]Obj;
++	//	textEnd uint64;
+ }
+ 
+ type sym struct {
+-	value uint32;
+-	gotype uint32;
+-	typ byte;
+-	name []byte;
++	value	uint32;
++	gotype	uint32;
++	typ	byte;
++	name	[]byte;
+ }
+ 
+ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
+@@ -114,7 +114,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
+ 		s.value = binary.BigEndian.Uint32(p[0:4]);
+ 		typ := p[4];
+ 		if typ&0x80 == 0 {
+-			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ};
++			return &DecodingError{len(data)-len(p)+4, "bad symbol type", typ};
+ 		}
+ 		typ &^= 0x80;
+ 		s.typ = typ;
+@@ -129,7 +129,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
+ 		}
+ 		switch typ {
+ 		case 'z', 'Z':
+-			p = p[i+nnul:len(p)];
++			p = p[i+nnul : len(p)];
+ 			for i = 0; i+2 <= len(p); i += 2 {
+ 				if p[i] == 0 && p[i+1] == 0 {
+ 					nnul = 2;
+@@ -142,8 +142,8 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
+ 		}
+ 		s.name = p[0:i];
+ 		i += nnul;
+-		s.gotype = binary.BigEndian.Uint32(p[i:i+4]);
+-		p = p[i+4:len(p)];
++		s.gotype = binary.BigEndian.Uint32(p[i : i+4]);
++		p = p[i+4 : len(p)];
+ 		fn(s);
+ 	}
+ 	return nil;
+@@ -153,7 +153,10 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
+ // returning an in-memory representation.
+ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 	var n int;
+-	err := walksymtab(symtab, func(s sym) os.Error { n++; return nil });
++	err := walksymtab(symtab, func(s sym) os.Error {
++		n++;
++		return nil;
++	});
+ 	if err != nil {
+ 		return nil, err;
+ 	}
+@@ -166,7 +169,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 	lasttyp := uint8(0);
+ 	err = walksymtab(symtab, func(s sym) os.Error {
+ 		n := len(t.Syms);
+-		t.Syms = t.Syms[0:n+1];
++		t.Syms = t.Syms[0 : n+1];
+ 		ts := &t.Syms[n];
+ 		ts.Type = s.typ;
+ 		ts.Value = uint64(s.value);
+@@ -190,7 +193,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 				nz++;
+ 			}
+ 			for i := 0; i < len(s.name); i += 2 {
+-				eltIdx := binary.BigEndian.Uint16(s.name[i:i+2]);
++				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2]);
+ 				elt, ok := fname[eltIdx];
+ 				if !ok {
+ 					return &DecodingError{-1, "bad filename code", eltIdx};
+@@ -208,7 +211,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 			fname[uint16(s.value)] = ts.Name;
+ 		}
+ 		lasttyp = s.typ;
+-		return nil
++		return nil;
+ 	});
+ 	if err != nil {
+ 		return nil, err;
+@@ -216,7 +219,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 
+ 	t.Funcs = make([]Func, 0, nf);
+ 	t.Objs = make([]Obj, 0, nz);
+-	t.Files = make(map[string] *Obj);
++	t.Files = make(map[string]*Obj);
+ 
+ 	// Count text symbols and attach frame sizes, parameters, and
+ 	// locals to them.  Also, find object file boundaries.
+@@ -234,7 +237,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 
+ 			// Start new object
+ 			n := len(t.Objs);
+-			t.Objs = t.Objs[0:n+1];
++			t.Objs = t.Objs[0 : n+1];
+ 			obj = &t.Objs[n];
+ 
+ 			// Count & copy path symbols
+@@ -286,7 +289,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 
+ 			// Fill in the function symbol
+ 			n := len(t.Funcs);
+-			t.Funcs = t.Funcs[0:n+1];
++			t.Funcs = t.Funcs[0 : n+1];
+ 			fn := &t.Funcs[n];
+ 			sym.Func = fn;
+ 			fn.Params = make([]*Sym, 0, np);
+@@ -305,11 +308,11 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
+ 					fn.FrameSize = int(s.Value);
+ 				case 'p':
+ 					n := len(fn.Params);
+-					fn.Params = fn.Params[0:n+1];
++					fn.Params = fn.Params[0 : n+1];
+ 					fn.Params[n] = s;
+ 				case 'a':
+ 					n := len(fn.Locals);
+-					fn.Locals = fn.Locals[0:n+1];
++					fn.Locals = fn.Locals[0 : n+1];
+ 					fn.Locals[n] = s;
+ 				}
+ 			}
+@@ -335,7 +338,7 @@ func (t *Table) PCToFunc(pc uint64) *Func {
+ 		case fn.Entry <= pc && pc < fn.End:
+ 			return fn;
+ 		default:
+-			funcs = funcs[m+1:len(funcs)];
++			funcs = funcs[m+1 : len(funcs)];
+ 		}
+ 	}
+ 	return nil;
+@@ -345,7 +348,7 @@ func (t *Table) PCToFunc(pc uint64) *Func {
+ // If there is no information, it returns fn == nil.
+ func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
+ 	if fn = t.PCToFunc(pc); fn == nil {
+-		return
++		return;
+ 	}
+ 	file, line = fn.Obj.lineFromAline(fn.LineTable.PCToLine(pc));
+ 	return;
+@@ -423,11 +426,11 @@ func (t *Table) SymByAddr(addr uint64) *Sym {
+ 
+ func (o *Obj) lineFromAline(aline int) (string, int) {
+ 	type stackEnt struct {
+-		path string;
+-		start int;
+-		offset int;
+-		prev *stackEnt;
+-	};
++		path	string;
++		start	int;
++		offset	int;
++		prev	*stackEnt;
++	}
+ 
+ 	noPath := &stackEnt{"", 0, 0, nil};
+ 	tos := noPath;
+@@ -485,14 +488,14 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
+ 			val := int(s.Value);
+ 			switch {
+ 			case depth == 1 && val >= line:
+-				return line - 1, nil;
++				return line-1, nil;
+ 
+ 			case s.Name == "":
+ 				depth--;
+ 				if depth == 0 {
+ 					break pathloop;
+ 				} else if depth == 1 {
+-					line += val - incstart;
++					line += val-incstart;
+ 				}
+ 
+ 			default:
+@@ -523,8 +526,8 @@ func (e UnknownFileError) String() string {
+ // counter, either because the line is beyond the bounds of the file
+ // or because there is no code on the given line.
+ type UnknownLineError struct {
+-	File string;
+-	Line int;
++	File	string;
++	Line	int;
+ }
+ 
+ func (e *UnknownLineError) String() string {
+@@ -534,9 +537,9 @@ func (e *UnknownLineError) String() string {
+ // DecodingError represents an error during the decoding of
+ // the symbol table.
+ type DecodingError struct {
+-	off int;
+-	msg string;
+-	val interface{};
++	off	int;
++	msg	string;
++	val	interface{};
+ }
+ 
+ func (e *DecodingError) String() string {
+@@ -547,4 +550,3 @@ func (e *DecodingError) String() string {
+ 	msg += fmt.Sprintf(" at byte %#x", e.off);
+ 	return msg;
+ }
+-
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 3d0be92c7a..1561b7b022 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -38,8 +38,8 @@ import (
+ type (
+ 	// An Expression node represents a production expression.
+ 	Expression	interface {
+-			// Pos is the position of the first character of the syntactic construct
+-			Pos() token.Position;
++		// Pos is the position of the first character of the syntactic construct
++		Pos() token.Position;
+ 	};
+ 
+ 	// An Alternative node represents a non-empty list of alternative expressions.
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 745ed6952e..d00c3a7621 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -88,7 +88,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 
+ 		// Is it a new type?
+ 		if id < 0 {	// 0 is the error state, handled above
+-				// If the id is negative, we have a type.
++			// If the id is negative, we have a type.
+ 			dec.recvType(-id);
+ 			if dec.state.err != nil {
+ 				break;
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 85da9121c7..c647a2d379 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -68,23 +68,23 @@ import (
+ // Errors returned during parsing and execution.  Users may extract the information and reformat
+ // if they desire.
+ type Error struct {
+-	Line int;
+-	Msg string;
++	Line	int;
++	Msg	string;
+ }
+ 
+ func (e *Error) String() string {
+-	return fmt.Sprintf("line %d: %s", e.Line, e.Msg)
++	return fmt.Sprintf("line %d: %s", e.Line, e.Msg);
+ }
+ 
+ // Most of the literals are aces.
+-var lbrace = []byte{ '{' }
+-var rbrace = []byte{ '}' }
+-var space = []byte{ ' ' }
+-var tab = []byte{ '\t' }
++var lbrace = []byte{'{'}
++var rbrace = []byte{'}'}
++var space = []byte{' '}
++var tab = []byte{'\t'}
+ 
+ // The various types of "tokens", which are plain text or (usually) brace-delimited descriptors
+ const (
+-	tokAlternates = iota;
++	tokAlternates	= iota;
+ 	tokComment;
+ 	tokEnd;
+ 	tokLiteral;
+@@ -97,13 +97,13 @@ const (
+ 
+ // FormatterMap is the type describing the mapping from formatter
+ // names to the functions that implement them.
+-type FormatterMap map[string] func(io.Writer, interface{}, string)
++type FormatterMap map[string]func(io.Writer, interface{}, string)
+ 
+ // Built-in formatters.
+-var builtins = FormatterMap {
+-	"html" : HtmlFormatter,
+-	"str" : StringFormatter,
+-	"" : StringFormatter,
++var builtins = FormatterMap{
++	"html": HtmlFormatter,
++	"str": StringFormatter,
++	"": StringFormatter,
+ }
+ 
+ // The parsed state of a template is a vector of xxxElement structs.
+@@ -111,7 +111,7 @@ var builtins = FormatterMap {
+ 
+ // Plain text.
+ type textElement struct {
+-	text	[]byte;
++	text []byte;
+ }
+ 
+ // A literal such as .meta-left or .meta-right
+@@ -121,14 +121,14 @@ type literalElement struct {
+ 
+ // A variable to be evaluated
+ type variableElement struct {
+-	linenum	int;
+-	name	string;
++	linenum		int;
++	name		string;
+ 	formatter	string;	// TODO(r): implement pipelines
+ }
+ 
+ // A .section block, possibly with a .or
+ type sectionElement struct {
+-	linenum int;	// of .section itself
++	linenum	int;	// of .section itself
+ 	field	string;	// cursor field for this block
+ 	start	int;	// first element
+ 	or	int;	// first element of .or block
+@@ -137,9 +137,9 @@ type sectionElement struct {
+ 
+ // A .repeated block, possibly with a .or and a .alternates
+ type repeatedElement struct {
+-	sectionElement;	// It has the same structure...
++	sectionElement;		// It has the same structure...
+ 	altstart	int;	// ... except for alternates
+-	altend	int;
++	altend		int;
+ }
+ 
+ // Template is the type that represents a template definition.
+@@ -147,11 +147,11 @@ type repeatedElement struct {
+ type Template struct {
+ 	fmap	FormatterMap;	// formatters for variables
+ 	// Used during parsing:
+-	ldelim, rdelim	[]byte;	// delimiters; default {}
+-	buf	[]byte;	// input text to process
+-	p	int;	// position in buf
+-	linenum	int;	// position in input
+-	error	os.Error;	// error during parsing (only)
++	ldelim, rdelim	[]byte;		// delimiters; default {}
++	buf		[]byte;		// input text to process
++	p		int;		// position in buf
++	linenum		int;		// position in input
++	error		os.Error;	// error during parsing (only)
+ 	// Parsed results:
+ 	elems	*vector.Vector;
+ }
+@@ -160,14 +160,14 @@ type Template struct {
+ // the data item descends into the fields associated with sections, etc.
+ // Parent is used to walk upwards to find variables higher in the tree.
+ type state struct {
+-	parent	*state;	// parent in hierarchy
++	parent	*state;		// parent in hierarchy
+ 	data	reflect.Value;	// the driver data for this section etc.
+ 	wr	io.Writer;	// where to send output
+ 	errors	chan os.Error;	// for reporting errors during execute
+ }
+ 
+ func (parent *state) clone(data reflect.Value) *state {
+-	return &state{parent, data, parent.wr, parent.errors}
++	return &state{parent, data, parent.wr, parent.errors};
+ }
+ 
+ // New creates a new template with the specified formatter map (which
+@@ -197,21 +197,21 @@ func (t *Template) parseError(err string, args ...) {
+ 
+ // Is c a white space character?
+ func white(c uint8) bool {
+-	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
++	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+ }
+ 
+ // Safely, does s[n:n+len(t)] == t?
+ func equal(s []byte, n int, t []byte) bool {
+ 	b := s[n:len(s)];
+ 	if len(t) > len(b) {	// not enough space left for a match.
+-		return false
++		return false;
+ 	}
+-	for i , c := range t {
++	for i, c := range t {
+ 		if c != b[i] {
+-			return false
++			return false;
+ 		}
+ 	}
+-	return true
++	return true;
+ }
+ 
+ // nextItem returns the next item from the input buffer.  If the returned
+@@ -224,7 +224,7 @@ func (t *Template) nextItem() []byte {
+ 	sawLeft := false;	// are we waiting for an opening delimiter?
+ 	special := false;	// is this a {.foo} directive, which means trim white space?
+ 	// Delete surrounding white space if this {.foo} is the only thing on the line.
+-	trim_white := t.p == 0 || t.buf[t.p-1] == '\n';
++	trim_white := t.p == 0 || t.buf[t.p - 1] == '\n';
+ 	only_white := true;	// we have seen only white space so far
+ 	var i int;
+ 	start := t.p;
+@@ -237,23 +237,23 @@ Loop:
+ 			break Loop;
+ 		case white(t.buf[i]):
+ 			// white space, do nothing
+-		case !sawLeft && equal(t.buf, i, t.ldelim):  // sawLeft checked because delims may be equal
++		case !sawLeft && equal(t.buf, i, t.ldelim):	// sawLeft checked because delims may be equal
+ 			// anything interesting already on the line?
+ 			if !only_white {
+ 				break Loop;
+ 			}
+ 			// is it a directive or comment?
+-			j := i + len(t.ldelim);  // position after delimiter
++			j := i+len(t.ldelim);	// position after delimiter
+ 			if j+1 < len(t.buf) && (t.buf[j] == '.' || t.buf[j] == '#') {
+ 				special = true;
+ 				if trim_white && only_white {
+ 					start = i;
+ 				}
+-			} else if i > t.p {  // have some text accumulated so stop before delimiter
++			} else if i > t.p {	// have some text accumulated so stop before delimiter
+ 				break Loop;
+ 			}
+ 			sawLeft = true;
+-			i = j - 1;
++			i = j-1;
+ 		case equal(t.buf, i, t.rdelim):
+ 			if !sawLeft {
+ 				t.parseError("unmatched closing delimiter");
+@@ -277,18 +277,18 @@ Loop:
+ 			if t.buf[i] == '\n' {
+ 				t.linenum++;
+ 				i++;
+-				break	// stop after newline
++				break;	// stop after newline
+ 			}
+ 		}
+ 	}
+ 	t.p = i;
+-	return item
++	return item;
+ }
+ 
+ // Turn a byte array into a white-space-split array of strings.
+ func words(buf []byte) []string {
+ 	s := make([]string, 0, 5);
+-	p := 0; // position in buf
++	p := 0;	// position in buf
+ 	// one word per loop
+ 	for i := 0; ; i++ {
+ 		// skip white space
+@@ -299,19 +299,19 @@ func words(buf []byte) []string {
+ 		for ; p < len(buf) && !white(buf[p]); p++ {
+ 		}
+ 		if start == p {	// no text left
+-			break
++			break;
+ 		}
+ 		if i == cap(s) {
+ 			ns := make([]string, 2*cap(s));
+ 			for j := range s {
+-				ns[j] = s[j]
++				ns[j] = s[j];
+ 			}
+ 			s = ns;
+ 		}
+-		s = s[0:i+1];
+-		s[i] = string(buf[start:p])
++		s = s[0 : i+1];
++		s[i] = string(buf[start:p]);
+ 	}
+-	return s
++	return s;
+ }
+ 
+ // Analyze an item and return its token type and, if it's an action item, an array of
+@@ -333,10 +333,10 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
+ 	// Comment
+ 	if item[len(t.ldelim)] == '#' {
+ 		tok = tokComment;
+-		return
++		return;
+ 	}
+ 	// Split into words
+-	w = words(item[len(t.ldelim): len(item)-len(t.rdelim)]);	// drop final delimiter
++	w = words(item[len(t.ldelim) : len(item)-len(t.rdelim)]);	// drop final delimiter
+ 	if len(w) == 0 {
+ 		t.parseError("empty directive");
+ 		return;
+@@ -378,7 +378,7 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
+ 		return;
+ 	}
+ 	t.parseError("bad directive: %s", item);
+-	return
++	return;
+ }
+ 
+ // -- Parsing
+@@ -390,7 +390,7 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
+ 	bar := strings.Index(name_formatter, "|");
+ 	if bar >= 0 {
+ 		name = name_formatter[0:bar];
+-		formatter = name_formatter[bar+1:len(name_formatter)];
++		formatter = name_formatter[bar+1 : len(name_formatter)];
+ 	}
+ 	// Probably ok, so let's build it.
+ 	v = &variableElement{t.linenum, name, formatter};
+@@ -402,15 +402,15 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
+ 	// Is it in user-supplied map?
+ 	if t.fmap != nil {
+ 		if _, ok := t.fmap[formatter]; ok {
+-			return
++			return;
+ 		}
+ 	}
+ 	// Is it in builtin map?
+ 	if _, ok := builtins[formatter]; ok {
+-		return
++		return;
+ 	}
+ 	t.parseError("unknown formatter: %s", formatter);
+-	return
++	return;
+ }
+ 
+ // Grab the next item.  If it's simple, just append it to the template.
+@@ -418,7 +418,7 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
+ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
+ 	tok, w = t.analyze(item);
+ 	if t.error != nil {
+-		return
++		return;
+ 	}
+ 	done = true;	// assume for simplicity
+ 	switch tok {
+@@ -446,7 +446,7 @@ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
+ 		t.elems.Push(t.newVariable(w[0]));
+ 		return;
+ 	}
+-	return false, tok, w
++	return false, tok, w;
+ }
+ 
+ // parseRepeated and parseSection are mutually recursive
+@@ -467,7 +467,7 @@ Loop:
+ 		if t.error != nil {
+ 			break;
+ 		}
+-		if len(item) ==  0 {
++		if len(item) == 0 {
+ 			t.parseError("missing .end for .repeated section");
+ 			break;
+ 		}
+@@ -476,7 +476,7 @@ Loop:
+ 			break;
+ 		}
+ 		if done {
+-			continue
++			continue;
+ 		}
+ 		switch tok {
+ 		case tokEnd:
+@@ -508,10 +508,10 @@ Loop:
+ 		}
+ 	}
+ 	if t.error != nil {
+-		return nil
++		return nil;
+ 	}
+ 	if r.altend < 0 {
+-		r.altend = t.elems.Len()
++		r.altend = t.elems.Len();
+ 	}
+ 	r.end = t.elems.Len();
+ 	return r;
+@@ -531,7 +531,7 @@ Loop:
+ 		if t.error != nil {
+ 			break;
+ 		}
+-		if len(item) ==  0 {
++		if len(item) == 0 {
+ 			t.parseError("missing .end for .section");
+ 			break;
+ 		}
+@@ -540,7 +540,7 @@ Loop:
+ 			break;
+ 		}
+ 		if done {
+-			continue
++			continue;
+ 		}
+ 		switch tok {
+ 		case tokEnd:
+@@ -562,7 +562,7 @@ Loop:
+ 		}
+ 	}
+ 	if t.error != nil {
+-		return nil
++		return nil;
+ 	}
+ 	s.end = t.elems.Len();
+ 	return s;
+@@ -572,14 +572,14 @@ func (t *Template) parse() {
+ 	for t.error == nil {
+ 		item := t.nextItem();
+ 		if t.error != nil {
+-			break
++			break;
+ 		}
+ 		if len(item) == 0 {
+-			break
++			break;
+ 		}
+ 		done, tok, w := t.parseSimple(item);
+ 		if done {
+-			continue
++			continue;
+ 		}
+ 		switch tok {
+ 		case tokOr, tokEnd, tokAlternates:
+@@ -604,7 +604,7 @@ func (t *Template) parse() {
+ // it represents the actual named field.
+ func (st *state) findVar(s string) reflect.Value {
+ 	if s == "@" {
+-		return st.data
++		return st.data;
+ 	}
+ 	data := st.data;
+ 	elems := strings.Split(s, ".", 0);
+@@ -612,26 +612,26 @@ func (st *state) findVar(s string) reflect.Value {
+ 		// Look up field; data must be a struct.
+ 		data = reflect.Indirect(data);
+ 		if data == nil {
+-			return nil
++			return nil;
+ 		}
+ 		typ, ok := data.Type().(*reflect.StructType);
+ 		if !ok {
+-			return nil
++			return nil;
+ 		}
+ 		field, ok := typ.FieldByName(elems[i]);
+ 		if !ok {
+-			return nil
++			return nil;
+ 		}
+ 		data = data.(*reflect.StructValue).FieldByIndex(field.Index);
+ 	}
+-	return data
++	return data;
+ }
+ 
+ // Is there no data to look at?
+ func empty(v reflect.Value) bool {
+ 	v = reflect.Indirect(v);
+ 	if v == nil {
+-		return true
++		return true;
+ 	}
+ 	switch v := v.(type) {
+ 	case *reflect.BoolValue:
+@@ -653,7 +653,7 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
+ 	field := st.findVar(name);
+ 	if field == nil {
+ 		if st.parent == nil {
+-			t.execError(st, t.linenum, "name not found: %s", name)
++			t.execError(st, t.linenum, "name not found: %s", name);
+ 		}
+ 		return t.varValue(name, st.parent);
+ 	}
+@@ -677,7 +677,7 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
+ 		fn(st.wr, val, formatter);
+ 		return;
+ 	}
+-	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name)
++	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name);
+ }
+ 
+ // Execute element i.  Return next index to execute.
+@@ -701,13 +701,13 @@ func (t *Template) executeElement(i int, st *state) int {
+ 	}
+ 	e := t.elems.At(i);
+ 	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.NewValue(e).Interface(), e);
+-	return 0
++	return 0;
+ }
+ 
+ // Execute the template.
+ func (t *Template) execute(start, end int, st *state) {
+ 	for i := start; i < end; {
+-		i = t.executeElement(i, st)
++		i = t.executeElement(i, st);
+ 	}
+ }
+ 
+@@ -723,17 +723,17 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
+ 	if !empty(field) {
+ 		// Execute the normal block.
+ 		if end < 0 {
+-			end = s.end
++			end = s.end;
+ 		}
+ 	} else {
+ 		// Execute the .or block.  If it's missing, do nothing.
+ 		start, end = s.or, s.end;
+ 		if start < 0 {
+-			return
++			return;
+ 		}
+ 	}
+ 	for i := start; i < end; {
+-		i = t.executeElement(i, st)
++		i = t.executeElement(i, st);
+ 	}
+ }
+ 
+@@ -745,15 +745,15 @@ func iter(v reflect.Value) *reflect.ChanValue {
+ 		ft := fv.Type().(*reflect.FuncType);
+ 		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
+ 		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
+-			continue
++			continue;
+ 		}
+ 		ct, ok := ft.Out(0).(*reflect.ChanType);
+ 		if !ok || ct.Dir() & reflect.RecvDir == 0 {
+-			continue
++			continue;
+ 		}
+-		return fv.Call(nil)[0].(*reflect.ChanValue)
++		return fv.Call(nil)[0].(*reflect.ChanValue);
+ 	}
+-	return nil
++	return nil;
+ }
+ 
+ // Execute a .repeated section
+@@ -766,10 +766,10 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 
+ 	start, end := r.start, r.or;
+ 	if end < 0 {
+-		end = r.end
++		end = r.end;
+ 	}
+ 	if r.altstart >= 0 {
+-		end = r.altstart
++		end = r.altstart;
+ 	}
+ 	first := true;
+ 
+@@ -780,38 +780,38 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 			// .alternates between elements
+ 			if !first && r.altstart >= 0 {
+ 				for i := r.altstart; i < r.altend; {
+-					i = t.executeElement(i, newst)
++					i = t.executeElement(i, newst);
+ 				}
+ 			}
+ 			first = false;
+ 
+ 			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
++				i = t.executeElement(i, newst);
+ 			}
+ 		}
+ 	} else if ch := iter(field); ch != nil {
+ 		for {
+ 			e := ch.Recv();
+ 			if ch.Closed() {
+-				break
++				break;
+ 			}
+ 			newst := st.clone(e);
+ 
+ 			// .alternates between elements
+ 			if !first && r.altstart >= 0 {
+ 				for i := r.altstart; i < r.altend; {
+-					i = t.executeElement(i, newst)
++					i = t.executeElement(i, newst);
+ 				}
+ 			}
+ 			first = false;
+ 
+ 			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
++				i = t.executeElement(i, newst);
+ 			}
+ 		}
+ 	} else {
+ 		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
+-			    r.field, field.Type());
++			r.field, field.Type());
+ 	}
+ 
+ 	if first {
+@@ -820,21 +820,21 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 		if start >= 0 {
+ 			newst := st.clone(field);
+ 			for i := start; i < end; {
+-				i = t.executeElement(i, newst)
++				i = t.executeElement(i, newst);
+ 			}
+ 		}
+-		return
++		return;
+ 	}
+ }
+ 
+ // A valid delimiter must contain no white space and be non-empty.
+ func validDelim(d []byte) bool {
+ 	if len(d) == 0 {
+-		return false
++		return false;
+ 	}
+ 	for _, c := range d {
+ 		if white(c) {
+-			return false
++			return false;
+ 		}
+ 	}
+ 	return true;
+@@ -847,7 +847,7 @@ func validDelim(d []byte) bool {
+ // the error.
+ func (t *Template) Parse(s string) os.Error {
+ 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+-		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
++		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)};
+ 	}
+ 	t.buf = strings.Bytes(s);
+ 	t.p = 0;
+@@ -889,16 +889,16 @@ func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
+ 	t = New(fmap);
+ 	err = t.Parse(s);
+ 	if err != nil {
+-		t = nil
++		t = nil;
+ 	}
+-	return
++	return;
+ }
+ 
+ // MustParse is like Parse but panics if the template cannot be parsed.
+ func MustParse(s string, fmap FormatterMap) *Template {
+-	t , err := Parse(s, fmap);
++	t, err := Parse(s, fmap);
+ 	if err != nil {
+ 		panic("template parse error: ", err.String());
+ 	}
+-	return t
++	return t;
+ }

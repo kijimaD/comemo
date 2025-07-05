@@ -10,6 +10,20 @@ Date:   Sun Apr 13 20:19:10 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/86870044
-
+---
  src/pkg/runtime/stack_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index 9a69704368..f3fba6a31c 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -162,7 +162,7 @@ func TestStackGrowth(t *testing.T) {
+ 		GC()
+ 		select {
+ 		case <-done:
+-		case <-time.After(4 * time.Second):
++		case <-time.After(20 * time.Second):
+ 			t.Fatal("finalizer did not run")
+ 		}
+ 	}()

@@ -21,6 +21,27 @@ Date:   Thu May 13 16:36:32 2021 -0400
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 6659e95cc1..223df63d9d 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -340,6 +340,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 			if weak && !ldr.AttrReachable(rs) {
+ 				// Redirect it to runtime.unreachableMethod, which will throw if called.
+ 				rs = syms.unreachableMethod
++				rs = ldr.ResolveABIAlias(rs)
+ 			}
+ 			if target.IsExternal() {
+ 				nExtReloc++
+@@ -623,6 +624,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
+ 		rs := ldr.ResolveABIAlias(r.Sym())
+ 		if r.Weak() && !ldr.AttrReachable(rs) {
+ 			rs = ctxt.ArchSyms.unreachableMethod
++			rs = ldr.ResolveABIAlias(rs)
+ 		}
+ 		rs, off := FoldSubSymbolOffset(ldr, rs)
+ 		rr.Xadd = r.Add() + off

@@ -11,7 +11,63 @@ Date:   Wed Feb 20 22:15:36 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7399046
-
+---
  src/pkg/database/sql/sql.go      |  4 +++-
  src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 2833992109..4faaa11b11 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -408,7 +408,9 @@ func (db *DB) putConn(c driver.Conn, err error) {
+ 	c.Close()
+ }
+ 
+-// Prepare creates a prepared statement for later execution.
++// Prepare creates a prepared statement for later queries or executions.
++// Multiple queries or executions may be run concurrently from the
++// returned statement.
+ func (db *DB) Prepare(query string) (*Stmt, error) {
+ 	var stmt *Stmt
+ 	var err error
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index e6fc6a1d57..74ba8e0ce7 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -273,6 +273,35 @@ func TestStatementQueryRow(t *testing.T) {
+ 
+ }
+ 
++// golang.org/issue/3734
++func TestStatementQueryRowConcurrent(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++	stmt, err := db.Prepare("SELECT|people|age|name=?")
++	if err != nil {
++		t.Fatalf("Prepare: %v", err)
++	}
++	defer stmt.Close()
++
++	const n = 10
++	ch := make(chan error, n)
++	for i := 0; i < n; i++ {
++		go func() {
++			var age int
++			err := stmt.QueryRow("Alice").Scan(&age)
++			if err == nil && age != 1 {
++				err = fmt.Errorf("unexpected age %d", age)
++			}
++			ch <- err
++		}()
++	}
++	for i := 0; i < n; i++ {
++		if err := <-ch; err != nil {
++			t.Error(err)
++		}
++	}
++}
++
+ // just a test of fakedb itself
+ func TestBogusPreboundParameters(t *testing.T) {
+ 	db := newTestDB(t, "foo")

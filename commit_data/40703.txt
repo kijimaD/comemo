@@ -10,6 +10,25 @@ Date:   Wed Jun 19 11:41:54 2019 -0400
     Change-Id: I5f120fd5bf31ee0b8b29a33879305abb31a7913d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/182957
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/macho/macho.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 7bc1950bfd..49e107eed3 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -3,7 +3,12 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Mach-O header data structures
+-// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
++// Originally at:
++// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html (since deleted by Apply)
++// Archived copy at:
++// https://web.archive.org/web/20090819232456/http://developer.apple.com/documentation/DeveloperTools/Conceptual/MachORuntime/index.html
++// For cloned PDF see:
++// https://github.com/aidansteele/osx-abi-macho-file-format-reference
+ 
+ package macho
+ 

@@ -17,7 +17,88 @@ Date:   Mon Sep 27 11:37:56 2021 +0200
     Run-TryBot: Changkun Ou <mail@changkun.de>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/testing/panic_test.go | 17 +++++++++++++++++
  src/testing/testing.go    | 20 ++++++++++++++------
  2 files changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/panic_test.go b/src/testing/panic_test.go
+index fafcff790e..4648057b77 100644
+--- a/src/testing/panic_test.go
++++ b/src/testing/panic_test.go
+@@ -224,6 +224,11 @@ func TestMorePanic(t *testing.T) {
+ 			want: `panic: die
+ 	panic: test executed panic(nil) or runtime.Goexit`,
+ 		},
++		{
++			desc:  "Issue 48515: call t.Run in t.Cleanup should trigger panic",
++			flags: []string{"-test.run=TestCallRunInCleanupHelper"},
++			want:  `panic: testing: t.Run is called during t.Cleanup`,
++		},
+ 	}
+ 
+ 	for _, tc := range testCases {
+@@ -239,6 +244,18 @@ func TestMorePanic(t *testing.T) {
+ 	}
+ }
+ 
++func TestCallRunInCleanupHelper(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++
++	t.Cleanup(func() {
++		t.Run("in-cleanup", func(t *testing.T) {
++			t.Log("must not be executed")
++		})
++	})
++}
++
+ func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+ 		return
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8d3129fbcd..9c6b660582 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -604,12 +604,13 @@ type common struct {
+ 	finished    bool                 // Test function has completed.
+ 	inFuzzFn    bool                 // Whether the fuzz target, if this is one, is running.
+ 
+-	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
+-	bench      bool           // Whether the current test is a benchmark.
+-	hasSub     atomic.Bool    // whether there are sub-benchmarks.
+-	raceErrors int            // Number of races detected during test.
+-	runner     string         // Function name of tRunner running the test.
+-	isParallel bool           // Whether the test is parallel.
++	chatty         *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
++	bench          bool           // Whether the current test is a benchmark.
++	hasSub         atomic.Bool    // whether there are sub-benchmarks.
++	cleanupStarted atomic.Bool    // Registered cleanup callbacks have started to execute
++	raceErrors     int            // Number of races detected during test.
++	runner         string         // Function name of tRunner running the test.
++	isParallel     bool           // Whether the test is parallel.
+ 
+ 	parent   *common
+ 	level    int       // Nesting depth of test or benchmark.
+@@ -1291,6 +1292,9 @@ const (
+ // If catchPanic is true, this will catch panics, and return the recovered
+ // value if any.
+ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
++	c.cleanupStarted.Store(true)
++	defer c.cleanupStarted.Store(false)
++
+ 	if ph == recoverAndReturnPanic {
+ 		defer func() {
+ 			panicVal = recover()
+@@ -1583,6 +1587,10 @@ func tRunner(t *T, fn func(t *T)) {
+ // Run may be called simultaneously from multiple goroutines, but all such calls
+ // must return before the outer test function for t returns.
+ func (t *T) Run(name string, f func(t *T)) bool {
++	if t.cleanupStarted.Load() {
++		panic("testing: t.Run is called during t.Cleanup")
++	}
++
+ 	t.hasSub.Store(true)
+ 	testName, ok, _ := t.context.match.fullName(&t.common, name)
+ 	if !ok || shouldFailFast() {

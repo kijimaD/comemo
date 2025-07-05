@@ -7,6 +7,19 @@ Date:   Tue Aug 23 06:14:31 2016 -0700
     Change-Id: Ie2bef1c181a49d7a02ed8068894d2bd81fc5bafa
     Reviewed-on: https://go-review.googlesource.com/27566
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index 4e6d3a0069..3cecbc89f3 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -3,6 +3,7 @@ Tools:
+ 
+ compile: SSA for 386, arm, arm64, ppc64le, ... (many CLs)
+ yacc: "go tool yacc" is removed. now at golang.org/x/tools/cmd/goyacc (CL 27324, CL 27325)
++go: -buildmode=c-archive now builds PIC on ELF (CL 24180)
+ 
+ Ports:
+ 

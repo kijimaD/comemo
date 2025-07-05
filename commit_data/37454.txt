@@ -12,7 +12,47 @@ Date:   Wed Aug 1 00:19:55 2018 +0000
     Change-Id: I2e2ad0a98d2ea27a3a8a006a0563b366f7a3b71b
     Reviewed-on: https://go-review.googlesource.com/127135
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go      | 9 +++++----
  src/strconv/ftoa.go | 7 ++++---
  2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index f8e4766a65..3b657f3681 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -97,10 +97,11 @@
+ 
+ 	For floating-point values, width sets the minimum width of the field and
+ 	precision sets the number of places after the decimal, if appropriate,
+-	except that for %g/%G precision sets the total number of significant
+-	digits. For example, given 12.345 the format %6.3f prints 12.345 while
+-	%.3g prints 12.3. The default precision for %e, %f and %#g is 6; for %g it
+-	is the smallest number of digits necessary to identify the value uniquely.
++	except that for %g/%G precision sets the maximum number of significant
++	digits (trailing zeros are removed). For example, given 12.345 the format
++	%6.3f prints 12.345 while %.3g prints 12.3. The default precision for %e, %f
++	and %#g is 6; for %g it is the smallest number of digits necessary to identify
++	the value uniquely.
+ 
+ 	For complex numbers, the width and precision apply to the two
+ 	components independently and the result is parenthesized, so %f applied
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index 8b3d33e4e7..a7ccbe6727 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -35,10 +35,11 @@ var float64info = floatInfo{52, 11, -1023}
+ // 'g' ('e' for large exponents, 'f' otherwise), or
+ // 'G' ('E' for large exponents, 'f' otherwise).
+ //
+-// The precision prec controls the number of digits
+-// (excluding the exponent) printed by the 'e', 'E', 'f', 'g', and 'G' formats.
++// The precision prec controls the number of digits (excluding the exponent)
++// printed by the 'e', 'E', 'f', 'g', and 'G' formats.
+ // For 'e', 'E', and 'f' it is the number of digits after the decimal point.
+-// For 'g' and 'G' it is the total number of digits.
++// For 'g' and 'G' it is the maximum number of significant digits (trailing
++// zeros are removed).
+ // The special precision -1 uses the smallest number of digits
+ // necessary such that ParseFloat will return f exactly.
+ func FormatFloat(f float64, fmt byte, prec, bitSize int) string {

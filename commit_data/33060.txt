@@ -15,7 +15,34 @@ Date:   Thu Jun 1 12:14:23 2017 +0200
     Change-Id: I191a9af2a9095be1e0aaf10b79c30e00a9c495cb
     Reviewed-on: https://go-review.googlesource.com/47150
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/benchmark.go | 2 +-
  src/testing/testing.go   | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index be9e96d50c..484a6d7e12 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -482,7 +482,7 @@ func (ctx *benchContext) processBench(b *B) {
+ // least once will not be measured itself and will be called once with N=1.
+ //
+ // Run may be called simultaneously from multiple goroutines, but all such
+-// calls must happen before the outer benchmark function for b returns.
++// calls must return before the outer benchmark function for b returns.
+ func (b *B) Run(name string, f func(b *B)) bool {
+ 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
+ 	// Release the lock and acquire it on exit to ensure locks stay paired.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 96c34a5aea..80031039b4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -760,7 +760,7 @@ func tRunner(t *T, fn func(t *T)) {
+ // have completed.
+ //
+ // Run may be called simultaneously from multiple goroutines, but all such calls
+-// must happen before the outer test function for t returns.
++// must return before the outer test function for t returns.
+ func (t *T) Run(name string, f func(t *T)) bool {
+ 	atomic.StoreInt32(&t.hasSub, 1)
+ 	testName, ok, _ := t.context.match.fullName(&t.common, name)

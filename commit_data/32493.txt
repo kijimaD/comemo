@@ -12,6 +12,20 @@ Date:   Thu Apr 27 11:37:24 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index aac5e9d760..e84e513f93 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -346,7 +346,7 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
+ 		i2 := s.out.LastIndex([]byte(" connect"))
+ 		return i0 > 0 && i1 > 0 && i2 > 0
+ 	}
+-	if err := s.wait("lldb start", cond, 10*time.Second); err != nil {
++	if err := s.wait("lldb start", cond, 15*time.Second); err != nil {
+ 		panic(waitPanic{err})
+ 	}
+ 	return s, nil

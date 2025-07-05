@@ -9,6 +9,24 @@ Date:   Fri Aug 28 13:52:26 2015 -0700
     Change-Id: I0da8bab133dc207124556927698e7cd682e64ef5
     Reviewed-on: https://go-review.googlesource.com/13989
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a465a6fc1b..0194a52c2b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1681,10 +1681,10 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 		switch t.Size() {
+ 		case 8:
+ 			z := s.constFloat32(Types[TFLOAT32], 0)
+-			return s.newValue2(ssa.OpComplexMake, t, z, z)
++			return s.entryNewValue2(ssa.OpComplexMake, t, z, z)
+ 		case 16:
+ 			z := s.constFloat64(Types[TFLOAT64], 0)
+-			return s.newValue2(ssa.OpComplexMake, t, z, z)
++			return s.entryNewValue2(ssa.OpComplexMake, t, z, z)
+ 		default:
+ 			s.Fatalf("bad sized complex type %s", t)
+ 		}

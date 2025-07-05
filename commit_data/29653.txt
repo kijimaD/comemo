@@ -16,6 +16,24 @@ Date:   Fri Jul 1 16:41:09 2016 -0400
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/conn.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 20b3d735ff..6fd486462f 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -632,9 +632,10 @@ Again:
+ 
+ 	// Process message.
+ 	b, c.rawInput = c.in.splitBlock(b, recordHeaderLen+n)
+-	ok, off, err := c.in.decrypt(b)
++	ok, off, alertValue := c.in.decrypt(b)
+ 	if !ok {
+-		c.in.setErrorLocked(c.sendAlert(err))
++		c.in.freeBlock(b)
++		return c.in.setErrorLocked(c.sendAlert(alertValue))
+ 	}
+ 	b.off = off
+ 	data := b.data[b.off:]

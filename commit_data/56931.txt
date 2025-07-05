@@ -10,6 +10,37 @@ Date:   Thu Jun 1 06:11:51 2023 -0700
     Reviewed-by: Eli Bendersky <eliben@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Eli Bendersky <eliben@google.com>
-
+---
  doc/go1.21.html | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 9c1383a16f..78977a173d 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -216,6 +216,13 @@ Do not send CLs removing the interior tags from such phrases.
+   <!-- cmd/go: make go test build multiple executables; The go test command now supports using the -c flag with multiple packages. -->
+ </p>
+ 
++<h3 id="cgo">Cgo</h3>
++
++<p><!-- CL 490819 -->
++  In files that <code>import "C"</code>, the Go toolchain now
++  correctly reports errors for attempts to declare Go methods on C types.
++</p>
++
+ <h2 id="runtime-changes">Runtime</h2>
+ 
+ <p>
+@@ -280,11 +287,6 @@ Do not send CLs removing the interior tags from such phrases.
+   such as inlining the callee.
+ </p>
+ 
+-<!-- CL 490819 -->
+-<p>
+-  <!-- cmd/cgo: reject attempts to declare methods on C types -->
+-</p>
+-
+ <!-- CL 461315 -->
+ <p>
+   <!-- cmd/compile: enable deadcode of unreferenced large global maps -->

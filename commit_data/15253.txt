@@ -8,6 +8,56 @@ Date:   Fri Feb 15 00:02:12 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7331044
-
+---
  src/pkg/runtime/proc_test.go | 31 +++++++++++++++++++++++++++++++
  1 file changed, 31 insertions(+)
+
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index bf97fb148d..927bd7b816 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"runtime"
+ 	"sync/atomic"
+ 	"testing"
++	"time"
+ )
+ 
+ var stop = make(chan bool, 1)
+@@ -45,6 +46,36 @@ func TestStopTheWorldDeadlock(t *testing.T) {
+ 	runtime.GOMAXPROCS(maxprocs)
+ }
+ 
++func TestYieldLocked(t *testing.T) {
++	const N = 10
++	c := make(chan bool)
++	go func() {
++		runtime.LockOSThread()
++		for i := 0; i < N; i++ {
++			runtime.Gosched()
++			time.Sleep(time.Millisecond)
++		}
++		c <- true
++		// runtime.UnlockOSThread() is deliberately omitted
++	}()
++	<-c
++}
++
++func TestBlockLocked(t *testing.T) {
++	const N = 10
++	c := make(chan bool)
++	go func() {
++		runtime.LockOSThread()
++		for i := 0; i < N; i++ {
++			c <- true
++		}
++		runtime.UnlockOSThread()
++	}()
++	for i := 0; i < N; i++ {
++		<-c
++	}
++}
++
+ func stackGrowthRecursive(i int) {
+ 	var pad [128]uint64
+ 	if i != 0 && pad[0] == 0 {

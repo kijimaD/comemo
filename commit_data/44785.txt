@@ -14,6 +14,21 @@ Date:   Thu Aug 27 04:00:59 2020 +0000
     GitHub-Pull-Request: golang/go#41063
     Reviewed-on: https://go-review.googlesource.com/c/go/+/250997
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/install-source.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index f8cda1dc21..cbf4eac70b 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -600,6 +600,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+ <td></td><td><code>linux</code></td> <td><code>mips64le</code></td>
+ </tr>
+ <tr>
++<td></td><td><code>linux</code></td> <td><code>riscv64</code></td>
++</tr>
++<tr>
+ <td></td><td><code>linux</code></td> <td><code>s390x</code></td>
+ </tr>
+ <tr>

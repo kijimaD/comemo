@@ -16,10 +16,234 @@ Date:   Wed Jun 14 10:55:06 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go | 26 +-------------
  src/cmd/compile/internal/types2/stmt.go  |  6 ++++
  src/cmd/compile/internal/walk/order.go   | 11 +++---
  src/cmd/compile/internal/walk/range.go   | 24 ++++++++++---
  test/range3.go                           | 58 ++++++++++++++++++++++++++++++++
  5 files changed, 91 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 79c884c22f..f68a3875df 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1448,7 +1448,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
+ 				w.convRTTI(src, dstType)
+ 			}
+ 
+-			keyType, valueType := w.p.rangeTypes(rang.X)
++			keyType, valueType := types2.RangeKeyVal(w.p.typeOf(rang.X))
+ 			assign(0, keyType)
+ 			assign(1, valueType)
+ 		}
+@@ -1489,30 +1489,6 @@ func (w *writer) distinctVars(stmt *syntax.ForStmt) bool {
+ 	return is122 || lv > 0 && lv != 3
+ }
+ 
+-// rangeTypes returns the types of values produced by ranging over
+-// expr.
+-func (pw *pkgWriter) rangeTypes(expr syntax.Expr) (key, value types2.Type) {
+-	typ := pw.typeOf(expr)
+-	switch typ := types2.CoreType(typ).(type) {
+-	case *types2.Pointer: // must be pointer to array
+-		return types2.Typ[types2.Int], types2.CoreType(typ.Elem()).(*types2.Array).Elem()
+-	case *types2.Array:
+-		return types2.Typ[types2.Int], typ.Elem()
+-	case *types2.Slice:
+-		return types2.Typ[types2.Int], typ.Elem()
+-	case *types2.Basic:
+-		if typ.Info()&types2.IsString != 0 {
+-			return types2.Typ[types2.Int], runeTypeName.Type()
+-		}
+-	case *types2.Map:
+-		return typ.Key(), typ.Elem()
+-	case *types2.Chan:
+-		return typ.Elem(), nil
+-	}
+-	pw.fatalf(expr, "unexpected range type: %v", typ)
+-	panic("unreachable")
+-}
+-
+ func (w *writer) ifStmt(stmt *syntax.IfStmt) {
+ 	cond := w.p.staticBool(&stmt.Cond)
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e00c72685f..0797da19d4 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -967,6 +967,12 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	check.stmt(inner, s.Body)
+ }
+ 
++// RangeKeyVal returns the key and value types for a range over typ.
++func RangeKeyVal(typ Type) (Type, Type) {
++	key, val, _, _, _ := rangeKeyVal(typ)
++	return key, val
++}
++
+ // rangeKeyVal returns the key and value type produced by a range clause
+ // over an expression of type typ. If the range clause is not permitted,
+ // rangeKeyVal returns ok = false. When ok = false, rangeKeyVal may also
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 8db9e919c7..2517023908 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -830,11 +830,14 @@ func (o *orderState) stmt(n ir.Node) {
+ 
+ 		orderBody := true
+ 		xt := typecheck.RangeExprType(n.X.Type())
+-		switch xt.Kind() {
++		switch k := xt.Kind(); {
+ 		default:
+ 			base.Fatalf("order.stmt range %v", n.Type())
+ 
+-		case types.TARRAY, types.TSLICE:
++		case types.IsInt[k]:
++			// Used only once, no need to copy.
++
++		case k == types.TARRAY, k == types.TSLICE:
+ 			if n.Value == nil || ir.IsBlank(n.Value) {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+@@ -842,7 +845,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 			}
+ 			fallthrough
+ 
+-		case types.TCHAN, types.TSTRING:
++		case k == types.TCHAN, k == types.TSTRING:
+ 			// chan, string, slice, array ranges use value multiple times.
+ 			// make copy.
+ 			r := n.X
+@@ -855,7 +858,7 @@ func (o *orderState) stmt(n ir.Node) {
+ 
+ 			n.X = o.copyExpr(r)
+ 
+-		case types.TMAP:
++		case k == types.TMAP:
+ 			if isMapClear(n) {
+ 				// Preserve the body of the map clear pattern so it can
+ 				// be detected during walk. The loop body will not be used
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 4e9908b5d1..93898b3a66 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -74,11 +74,25 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ 	var body []ir.Node
+ 	var init []ir.Node
+-	switch t.Kind() {
++	switch k := t.Kind(); {
+ 	default:
+ 		base.Fatalf("walkRange")
+ 
+-	case types.TARRAY, types.TSLICE, types.TPTR: // TPTR is pointer-to-array
++	case types.IsInt[k]:
++		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t)
++		hn := typecheck.TempAt(base.Pos, ir.CurFunc, t)
++
++		init = append(init, ir.NewAssignStmt(base.Pos, hv1, nil))
++		init = append(init, ir.NewAssignStmt(base.Pos, hn, a))
++
++		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
++		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))
++
++		if v1 != nil {
++			body = []ir.Node{rangeAssign(nrange, hv1)}
++		}
++
++	case k == types.TARRAY, k == types.TSLICE, k == types.TPTR: // TPTR is pointer-to-array
+ 		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
+ 			base.Pos = lno
+ 			return nn
+@@ -219,7 +233,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		as := ir.NewAssignStmt(base.Pos, hu, ir.NewBinaryExpr(base.Pos, ir.OADD, huVal, ir.NewInt(base.Pos, elem.Size())))
+ 		nfor.Post = ir.NewBlockStmt(base.Pos, []ir.Node{nfor.Post, as})
+ 
+-	case types.TMAP:
++	case k == types.TMAP:
+ 		// order.stmt allocated the iterator for us.
+ 		// we only use a once, so no copy needed.
+ 		ha := a
+@@ -248,7 +262,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 			body = []ir.Node{rangeAssign2(nrange, key, elem)}
+ 		}
+ 
+-	case types.TCHAN:
++	case k == types.TCHAN:
+ 		// order.stmt arranged for a copy of the channel variable.
+ 		ha := a
+ 
+@@ -275,7 +289,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// See issue 15281.
+ 		body = append(body, ir.NewAssignStmt(base.Pos, hv1, nil))
+ 
+-	case types.TSTRING:
++	case k == types.TSTRING:
+ 		// Transform string range statements like "for v1, v2 = range a" into
+ 		//
+ 		// ha := a
+diff --git a/test/range3.go b/test/range3.go
+new file mode 100644
+index 0000000000..80a4ac8416
+--- /dev/null
++++ b/test/range3.go
+@@ -0,0 +1,58 @@
++// run -goexperiment range
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test the 'for range' construct.
++
++package main
++
++// test range over integers
++
++func testint1() {
++	j := 0
++	for i := range int(4) {
++		if i != j {
++			println("range var", i, "want", j)
++		}
++		j++
++	}
++	if j != 4 {
++		println("wrong count ranging over 4:", j)
++	}
++}
++
++func testint2() {
++	j := 0
++	for i := range 4 {
++		if i != j {
++			println("range var", i, "want", j)
++		}
++		j++
++	}
++	if j != 4 {
++		println("wrong count ranging over 4:", j)
++	}
++}
++
++func testint3() {
++	type MyInt int
++
++	j := MyInt(0)
++	for i := range MyInt(4) {
++		if i != j {
++			println("range var", i, "want", j)
++		}
++		j++
++	}
++	if j != 4 {
++		println("wrong count ranging over 4:", j)
++	}
++}
++
++func main() {
++	testint1()
++	testint2()
++	testint3()
++}

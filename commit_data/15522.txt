@@ -9,6 +9,20 @@ Date:   Fri Mar 1 14:57:59 2013 +1100
     R=golang-dev, peter
     CC=golang-dev
     https://golang.org/cl/7415046
-
+---
  src/pkg/html/template/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/template/doc.go b/src/pkg/html/template/doc.go
+index f470facfd0..d422ada37a 100644
+--- a/src/pkg/html/template/doc.go
++++ b/src/pkg/html/template/doc.go
+@@ -119,7 +119,7 @@ If {{.}} is the innocuous word, `left`, then it can appear more widely,
+ Non-string values can be used in JavaScript contexts.
+ If {{.}} is
+ 
+-  []struct{A,B string}{ "foo", "bar" }
++  struct{A,B string}{ "foo", "bar" }
+ 
+ in the escaped template
+ 

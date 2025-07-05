@@ -29,7 +29,7 @@ Date:   Sun Sep 8 19:36:13 2019 +0300
     Change-Id: I3cb5830a176850e1a0584b8a40b47bde7b260eae
     Reviewed-on: https://go-review.googlesource.com/c/go/+/193848
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go           | 2 +-
  src/cmd/compile/internal/gc/escape.go          | 6 +++---
  src/cmd/compile/internal/gc/main.go            | 2 +-
@@ -94,3 +94,957 @@ Date:   Sun Sep 8 19:36:13 2019 +0300
  test/opt_branchlikely.go                       | 2 +-
  test/strength.go                               | 2 +-
  63 files changed, 78 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 47601ecf5f..1cd8488ea1 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1294,7 +1294,7 @@ type constSetKey struct {
+ // equal value and identical type has already been added, then add
+ // reports an error about the duplicate value.
+ //
+-// pos provides position information for where expression n occured
++// pos provides position information for where expression n occurred
+ // (in case n does not have its own position information). what and
+ // where are used in the error message.
+ //
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index d2e096d0f0..c428fb35a0 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -24,7 +24,7 @@ import (
+ // First, we construct a directed weighted graph where vertices
+ // (termed "locations") represent variables allocated by statements
+ // and expressions, and edges represent assignments between variables
+-// (with weights reperesenting addressing/dereference counts).
++// (with weights representing addressing/dereference counts).
+ //
+ // Next we walk the graph looking for assignment paths that might
+ // violate the invariants stated above. If a variable v's address is
+@@ -33,7 +33,7 @@ import (
+ //
+ // To support interprocedural analysis, we also record data-flow from
+ // each function's parameters to the heap and to its result
+-// parameters. This information is summarized as "paremeter tags",
++// parameters. This information is summarized as "parameter tags",
+ // which are used at static call sites to improve escape analysis of
+ // function arguments.
+ 
+@@ -44,7 +44,7 @@ import (
+ // "location."
+ //
+ // We also model every Go assignment as a directed edges between
+-// locations. The number of derefence operations minus the number of
++// locations. The number of dereference operations minus the number of
+ // addressing operations is recorded as the edge's weight (termed
+ // "derefs"). For example:
+ //
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 12ebfb871b..dff33ee530 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -570,7 +570,7 @@ func Main(archInit func(*Arch)) {
+ 			fcount++
+ 		}
+ 	}
+-	// With all types ckecked, it's now safe to verify map keys. One single
++	// With all types checked, it's now safe to verify map keys. One single
+ 	// check past phase 9 isn't sufficient, as we may exit with other errors
+ 	// before then, thus skipping map key errors.
+ 	checkMapKeys()
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index a506bfe31f..ae8e79d854 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -495,7 +495,7 @@ func isStaticCompositeLiteral(n *Node) bool {
+ // literal components of composite literals.
+ // Dynamic initialization represents non-literals and
+ // non-literal components of composite literals.
+-// LocalCode initializion represents initialization
++// LocalCode initialization represents initialization
+ // that occurs purely in generated code local to the function of use.
+ // Initialization code is sometimes generated in passes,
+ // first static then dynamic.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6d70cdbdd0..5e8033ac34 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1645,7 +1645,7 @@ var fpConvOpToSSA32 = map[twoTypes]twoOpsAndType{
+ 	twoTypes{TFLOAT64, TUINT32}: twoOpsAndType{ssa.OpCvt64Fto32U, ssa.OpCopy, TUINT32},
+ }
+ 
+-// uint64<->float conversions, only on machines that have intructions for that
++// uint64<->float conversions, only on machines that have instructions for that
+ var uint64fpConvOpToSSA = map[twoTypes]twoOpsAndType{
+ 	twoTypes{TUINT64, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto32F, TUINT64},
+ 	twoTypes{TUINT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto64F, TUINT64},
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index dec72690bf..7bd88eec17 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -691,7 +691,7 @@ const (
+ 	ORECV        // <-Left
+ 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
+ 	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
+-	OSELRECV2    // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
++	OSELRECV2    // List = <-Right.Left: (appears as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+ 	OIOTA        // iota
+ 	OREAL        // real(Left)
+ 	OIMAG        // imag(Left)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 0062dddc6c..cb49e0f7ce 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1265,7 +1265,7 @@ opswitch:
+ 			}
+ 			// Map initialization with a variable or large hint is
+ 			// more complicated. We therefore generate a call to
+-			// runtime.makemap to intialize hmap and allocate the
++			// runtime.makemap to initialize hmap and allocate the
+ 			// map buckets.
+ 
+ 			// When hint fits into int, use makemap instead of
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index 71c947d0d5..fda0cbb9b3 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -319,7 +319,7 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
+ 		cost := phi * 1
+ 		if phi > 1 {
+ 			// If we have more than 1 phi and some values in post have args
+-			// in yes or no blocks, we may have to recalucalte condition, because
++			// in yes or no blocks, we may have to recalculate condition, because
+ 			// those args may clobber flags. For now assume that all operations clobber flags.
+ 			cost += other * 1
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 69616b3a88..ebcb571e66 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -180,7 +180,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 			}
+ 			return
+ 		case OpStore, OpMove, OpZero:
+-			// v should be elimated if we eliminate the auto.
++			// v should be eliminated if we eliminate the auto.
+ 			n, ok := addr[args[0]]
+ 			if ok && elim[v] == nil {
+ 				elim[v] = n
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 73a0afb82c..28bb88a0c3 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -959,7 +959,7 @@ func replaceEnv(env []string, ev string, evv string) []string {
+ }
+ 
+ // asCommandLine renders cmd as something that could be copy-and-pasted into a command line
+-// If cwd is not empty and different from the command's directory, prepend an approprirate "cd"
++// If cwd is not empty and different from the command's directory, prepend an appropriate "cd"
+ func asCommandLine(cwd string, cmd *exec.Cmd) string {
+ 	s := "("
+ 	if cmd.Dir != "" && cmd.Dir != cwd {
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 65a183dba6..af72774765 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -222,7 +222,7 @@ func init() {
+ 
+ 		{name: "POPCNTD", argLength: 1, reg: gp11, asm: "POPCNTD"}, // number of set bits in arg0
+ 		{name: "POPCNTW", argLength: 1, reg: gp11, asm: "POPCNTW"}, // number of set bits in each word of arg0 placed in corresponding word
+-		{name: "POPCNTB", argLength: 1, reg: gp11, asm: "POPCNTB"}, // number of set bits in each byte of arg0 placed in corresonding byte
++		{name: "POPCNTB", argLength: 1, reg: gp11, asm: "POPCNTB"}, // number of set bits in each byte of arg0 placed in corresponding byte
+ 
+ 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
+ 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 03c8b3de06..943b9c2661 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -489,7 +489,7 @@ func init() {
+ 		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+ 
+-		// Constant conditon code values. The condition code can be 0, 1, 2 or 3.
++		// Constant condition code values. The condition code can be 0, 1, 2 or 3.
+ 		{name: "FlagEQ"}, // CC=0 (equal)
+ 		{name: "FlagLT"}, // CC=1 (less than)
+ 		{name: "FlagGT"}, // CC=2 (greater than)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 8933aa51ef..3ca773b595 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -484,7 +484,7 @@ var genericOps = []opData{
+ 
+ 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+ 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},                             // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+-	// TODO: what's the difference betweeen VarLive and KeepAlive?
++	// TODO: what's the difference between VarLive and KeepAlive?
+ 	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 9c0e0904b2..ba17148fc9 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -74,7 +74,7 @@ type regInfo struct {
+ 	// clobbers encodes the set of registers that are overwritten by
+ 	// the instruction (other than the output registers).
+ 	clobbers regMask
+-	// outpus[i] encodes the set of registers allowed for the i'th output.
++	// outputs[i] encodes the set of registers allowed for the i'th output.
+ 	outputs []regMask
+ }
+ 
+@@ -430,7 +430,7 @@ func (a arch) Name() string {
+ //
+ // Note that there is no limit on the concurrency at the moment. On a four-core
+ // laptop at the time of writing, peak RSS usually reached ~230MiB, which seems
+-// doable by practially any machine nowadays. If that stops being the case, we
++// doable by practically any machine nowadays. If that stops being the case, we
+ // can cap this func to a fixed number of architectures being generated at once.
+ func genLower() {
+ 	var wg sync.WaitGroup
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index ad09975a6d..2df2e1234b 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -396,7 +396,7 @@ type Node interface{}
+ // ast.Stmt under some limited circumstances.
+ type Statement interface{}
+ 
+-// bodyBase is shared by all of our statement psuedo-node types which can
++// bodyBase is shared by all of our statement pseudo-node types which can
+ // contain other statements.
+ type bodyBase struct {
+ 	list    []Statement
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 5f02643ccd..092e7aa35b 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -186,7 +186,7 @@ func findIndVar(f *Func) []indVar {
+ 			// Handle induction variables of these forms.
+ 			// KNN is known-not-negative.
+ 			// SIGNED ARITHMETIC ONLY. (see switch on b.Control.Op above)
+-			// Possibilitis for KNN are len and cap; perhaps we can infer others.
++			// Possibilities for KNN are len and cap; perhaps we can infer others.
+ 			// for i := 0; i <= KNN-k    ; i += k
+ 			// for i := 0; i <  KNN-(k-1); i += k
+ 			// Also handle decreasing.
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 8abbf61507..3b7049b823 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -411,7 +411,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ 
+ 	if s.f.Config.ctxt.Arch.Arch == sys.ArchWasm {
+ 		// TODO(neelance): In theory this should never happen, because all wasm registers are equal.
+-		// So if there is still a free register, the allocation should have picked that one in the first place insead of
++		// So if there is still a free register, the allocation should have picked that one in the first place instead of
+ 		// trying to kick some other value out. In practice, this case does happen and it breaks the stack optimization.
+ 		s.freeReg(r)
+ 		return r
+@@ -489,7 +489,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos
+ 	}
+ 
+ 	var r register
+-	// If nospill is set, the value is used immedately, so it can live on the WebAssembly stack.
++	// If nospill is set, the value is used immediately, so it can live on the WebAssembly stack.
+ 	onWasmStack := nospill && s.f.Config.ctxt.Arch.Arch == sys.ArchWasm
+ 	if !onWasmStack {
+ 		// Allocate a register.
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index 546da8348d..fe96912c00 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -223,7 +223,7 @@ func (t SparseTree) domorder(x *Block) int32 {
+ 	// entry(x) < entry(y) allows cases x-dom-y and x-then-y.
+ 	// But by supposition, x does not dominate y. So we have x-then-y.
+ 	//
+-	// For contractidion, assume x dominates z.
++	// For contradiction, assume x dominates z.
+ 	// Then entry(x) < entry(z) < exit(z) < exit(x).
+ 	// But we know x-then-y, so entry(x) < exit(x) < entry(y) < exit(y).
+ 	// Combining those, entry(x) < entry(z) < exit(z) < exit(x) < entry(y) < exit(y).
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f6caa01fd2..71a2e01fa3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -206,7 +206,7 @@ func TestMain(m *testing.M) {
+ 		// (installed in GOROOT/pkg/tool/GOOS_GOARCH).
+ 		// If these are not the same toolchain, then the entire standard library
+ 		// will look out of date (the compilers in those two different tool directories
+-		// are built for different architectures and have different buid IDs),
++		// are built for different architectures and have different build IDs),
+ 		// which will cause many tests to do unnecessary rebuilds and some
+ 		// tests to attempt to overwrite the installed standard library.
+ 		// Bail out entirely in this case.
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index f15ce67d46..cd85bad45f 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -632,7 +632,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
+ 		// the real module, found at a different path, usable only in
+ 		// a replace directive.
+ 		//
+-		// TODO(bcmills): This doesn't seem right. Investigate futher.
++		// TODO(bcmills): This doesn't seem right. Investigate further.
+ 		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
+ 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
+ 		file2 = path.Join(dir2, "go.mod")
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 0167c8d755..0e420c99bd 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -241,7 +241,7 @@ func TreeCanMatchPattern(pattern string) func(name string) bool {
+ //
+ // First, /... at the end of the pattern can match an empty string,
+ // so that net/... matches both net and packages in its subdirectories, like net/http.
+-// Second, any slash-separted pattern element containing a wildcard never
++// Second, any slash-separated pattern element containing a wildcard never
+ // participates in a match of the "vendor" element in the path of a vendored
+ // package, so that ./... does not match packages in subdirectories of
+ // ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
+diff --git a/src/cmd/go/internal/search/search_test.go b/src/cmd/go/internal/search/search_test.go
+index 0bef765fa4..5f27daf3fb 100644
+--- a/src/cmd/go/internal/search/search_test.go
++++ b/src/cmd/go/internal/search/search_test.go
+@@ -33,7 +33,7 @@ var matchPatternTests = `
+ 	match net net/http
+ 	not not/http not/net/http netchan
+ 
+-	# Second, any slash-separted pattern element containing a wildcard never
++	# Second, any slash-separated pattern element containing a wildcard never
+ 	# participates in a match of the "vendor" element in the path of a vendored
+ 	# package, so that ./... does not match packages in subdirectories of
+ 	# ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
+diff --git a/src/cmd/go/internal/sumweb/client.go b/src/cmd/go/internal/sumweb/client.go
+index 6973e5ac17..a35dbb39be 100644
+--- a/src/cmd/go/internal/sumweb/client.go
++++ b/src/cmd/go/internal/sumweb/client.go
+@@ -107,7 +107,7 @@ func NewConn(client Client) *Conn {
+ 	}
+ }
+ 
+-// init initiailzes the conn (if not already initialized)
++// init initializes the conn (if not already initialized)
+ // and returns any initialization error.
+ func (c *Conn) init() error {
+ 	c.initOnce.Do(c.initWork)
+diff --git a/src/cmd/go/internal/tlog/tlog.go b/src/cmd/go/internal/tlog/tlog.go
+index 6703656b19..1746ed9157 100644
+--- a/src/cmd/go/internal/tlog/tlog.go
++++ b/src/cmd/go/internal/tlog/tlog.go
+@@ -121,7 +121,7 @@ func NodeHash(left, right Hash) Hash {
+ func StoredHashIndex(level int, n int64) int64 {
+ 	// Level L's n'th hash is written right after level L+1's 2n+1'th hash.
+ 	// Work our way down to the level 0 ordering.
+-	// We'll add back the orignal level count at the end.
++	// We'll add back the original level count at the end.
+ 	for l := level; l > 0; l-- {
+ 		n = 2*n + 1
+ 	}
+@@ -155,7 +155,7 @@ func SplitStoredHashIndex(index int64) (level int, n int64) {
+ 		n++
+ 		indexN = x
+ 	}
+-	// The hash we want was commited with record n,
++	// The hash we want was committed with record n,
+ 	// meaning it is one of (0, n), (1, n/2), (2, n/4), ...
+ 	level = int(index - indexN)
+ 	return level, n >> uint(level)
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 33b7818fb2..0f35739976 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -702,7 +702,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
+ }
+ 
+ // buildmodeShared takes the "go build" action a1 into the building of a shared library of a1.Deps.
+-// That is, the input a1 represents "go build pkgs" and the result represents "go build -buidmode=shared pkgs".
++// That is, the input a1 represents "go build pkgs" and the result represents "go build -buildmode=shared pkgs".
+ func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
+ 	name, err := libname(args, pkgs)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 24d856ca1e..cf5dba189e 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -332,7 +332,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
+ 		}
+ 
+ 		if haveShlib[filepath.Base(a.Target)] {
+-			// This is a shared library we want to link againt.
++			// This is a shared library we want to link against.
+ 			if !addedShlib[a.Target] {
+ 				shlibs = append(shlibs, a.Target)
+ 				addedShlib[a.Target] = true
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 88a447bcc8..47586ba262 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1561,7 +1561,7 @@ func rclass(r int16) int {
+ 	return C_GOK
+ }
+ 
+-// con32class reclassifies the constant of 32-bit instruction. Becuase the constant type is 32-bit,
++// con32class reclassifies the constant of 32-bit instruction. Because the constant type is 32-bit,
+ // but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
+ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 	v := uint32(a.Offset)
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 62d41e11eb..a3281a99e4 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -658,7 +658,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	}
+ }
+ 
+-// This table is designed to aid in the creation of references betweeen
++// This table is designed to aid in the creation of references between
+ // DWARF subprogram DIEs.
+ //
+ // In most cases when one DWARF DIE has to refer to another DWARF DIE,
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 1f668a0166..e7c76d6da2 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3055,7 +3055,7 @@ func (ab *AsmBuf) Put(b []byte) {
+ }
+ 
+ // PutOpBytesLit writes zero terminated sequence of bytes from op,
+-// starting at specified offsed (e.g. z counter value).
++// starting at specified offset (e.g. z counter value).
+ // Trailing 0 is not written.
+ //
+ // Intended to be used for literal Z cases.
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index ab51c874ce..12363626ae 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -297,7 +297,7 @@ type peStringTable struct {
+ 	stringsLen int
+ }
+ 
+-// size resturns size of string table t.
++// size returns size of string table t.
+ func (t *peStringTable) size() int {
+ 	// string table starts with 4-byte length at the beginning
+ 	return t.stringsLen + 4
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index b5e5f5213b..c64066acec 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -628,7 +628,7 @@ func logBase2(a int) uint8 {
+ 	return uint8(bits.Len(uint(a)) - 1)
+ }
+ 
+-// Write symbols needed when a new file appared :
++// Write symbols needed when a new file appeared:
+ // - a C_FILE with one auxiliary entry for its name
+ // - C_DWARF symbols to provide debug information
+ // - a C_HIDEXT which will be a csect containing all of its functions
+@@ -663,7 +663,7 @@ func (f *xcoffFile) writeSymbolNewFile(ctxt *Link, name string, firstEntry uint6
+ 			// Find the size of this corresponding package DWARF compilation unit.
+ 			// This size is set during DWARF generation (see dwarf.go).
+ 			dwsize = getDwsectCUSize(sect.Name, name)
+-			// .debug_abbrev is commun to all packages and not found with the previous function
++			// .debug_abbrev is common to all packages and not found with the previous function
+ 			if sect.Name == ".debug_abbrev" {
+ 				s := ctxt.Syms.ROLookup(sect.Name, 0)
+ 				dwsize = uint64(s.Size)
+@@ -779,7 +779,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x *sym.Symbol) []xcoffSym {
+ 		// in the current file.
+ 		// Same goes for runtime.text.X symbols.
+ 	} else if x.File == "" { // Undefined global symbol
+-		// If this happens, the algorithme must be redone.
++		// If this happens, the algorithm must be redone.
+ 		if currSymSrcFile.name != "" {
+ 			Exitf("undefined global symbol found inside another file")
+ 		}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 5ac2098ceb..f04311320e 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -991,7 +991,7 @@ func mutualProtocol(protos, preferenceProtos []string) (string, bool) {
+ 	return protos[0], true
+ }
+ 
+-// hostnameInSNI converts name into an approriate hostname for SNI.
++// hostnameInSNI converts name into an appropriate hostname for SNI.
+ // Literal IP addresses and absolute FQDNs are not permitted as SNI values.
+ // See RFC 6066, Section 3.
+ func hostnameInSNI(name string) string {
+diff --git a/src/crypto/tls/prf.go b/src/crypto/tls/prf.go
+index 05b87a9b89..aeba5fcbd7 100644
+--- a/src/crypto/tls/prf.go
++++ b/src/crypto/tls/prf.go
+@@ -263,7 +263,7 @@ func (h *finishedHash) discardHandshakeBuffer() {
+ }
+ 
+ // noExportedKeyingMaterial is used as a value of
+-// ConnectionState.ekm when renegotation is enabled and thus
++// ConnectionState.ekm when renegotiation is enabled and thus
+ // we wish to fail all key-material export requests.
+ func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
+ 	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when renegotiation is enabled")
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 2020e37a5b..8344240927 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -1457,7 +1457,7 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 	// that we can process CA certificates in the wild that have invalid SANs.
+ 	// See https://github.com/golang/go/issues/23995
+ 
+-	// #77: an invalid DNS or mail SAN will not be detected if name constaint
++	// #77: an invalid DNS or mail SAN will not be detected if name constraint
+ 	// checking is not triggered.
+ 	{
+ 		roots: make([]constraintsSpec, 1),
+@@ -1631,7 +1631,7 @@ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.
+ 		NotAfter:              time.Unix(2000, 0),
+ 		KeyUsage:              KeyUsageCertSign,
+ 		BasicConstraintsValid: true,
+-		IsCA:                  true,
++		IsCA: true,
+ 	}
+ 
+ 	if err := addConstraintsToTemplate(constraints, template); err != nil {
+@@ -1668,7 +1668,7 @@ func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certi
+ 		NotAfter:              time.Unix(2000, 0),
+ 		KeyUsage:              KeyUsageDigitalSignature,
+ 		BasicConstraintsValid: true,
+-		IsCA:                  false,
++		IsCA: false,
+ 	}
+ 
+ 	for _, name := range leaf.sans {
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 4c056a1eda..b966ef970c 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -565,7 +565,7 @@ func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
+ // coefficient (also known as a significand) as a []byte, and an int32 exponent.
+ // These are composed into a final value as "decimal = (neg) (form=finite) coefficient * 10 ^ exponent".
+ // A zero length coefficient is a zero value.
+-// The big-endian integer coefficent stores the most significant byte first (at coefficent[0]).
++// The big-endian integer coefficient stores the most significant byte first (at coefficient[0]).
+ // If the form is not finite the coefficient and exponent should be ignored.
+ // The negative parameter may be set to true for any form, although implementations are not required
+ // to respect the negative parameter in the non-finite form.
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index 8a82891c25..2668a5ed5e 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -525,7 +525,7 @@ func (d *dec) Compose(form byte, negative bool, coefficient []byte, exponent int
+ 	// This isn't strictly correct, as the extra bytes could be all zero,
+ 	// ignore this for this test.
+ 	if len(coefficient) > 16 {
+-		return fmt.Errorf("coefficent too large")
++		return fmt.Errorf("coefficient too large")
+ 	}
+ 	copy(d.coefficient[:], coefficient)
+ 
+@@ -558,7 +558,7 @@ func (d *decFinite) Compose(form byte, negative bool, coefficient []byte, expone
+ 	// This isn't strictly correct, as the extra bytes could be all zero,
+ 	// ignore this for this test.
+ 	if len(coefficient) > 16 {
+-		return fmt.Errorf("coefficent too large")
++		return fmt.Errorf("coefficient too large")
+ 	}
+ 	copy(d.coefficient[:], coefficient)
+ 
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 5c5b7dc7e9..93001635be 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2040,7 +2040,7 @@ func (tx *Tx) grabConn(ctx context.Context) (*driverConn, releaseConn, error) {
+ 		return nil, nil, ctx.Err()
+ 	}
+ 
+-	// closeme.RLock must come before the check for isDone to prevent the Tx from
++	// closemu.RLock must come before the check for isDone to prevent the Tx from
+ 	// closing while a query is executing.
+ 	tx.closemu.RLock()
+ 	if tx.isDone() {
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index f68cefe43a..ed0099e0e9 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -3783,7 +3783,7 @@ func (c *ctxOnlyConn) ExecContext(ctx context.Context, q string, args []driver.N
+ // TestQueryExecContextOnly ensures drivers only need to implement QueryContext
+ // and ExecContext methods.
+ func TestQueryExecContextOnly(t *testing.T) {
+-	// Ensure connection does not implment non-context interfaces.
++	// Ensure connection does not implement non-context interfaces.
+ 	var connType driver.Conn = &ctxOnlyConn{}
+ 	if _, ok := connType.(driver.Execer); ok {
+ 		t.Fatalf("%T must not implement driver.Execer", connType)
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 42d328b547..bc41be2669 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -215,7 +215,7 @@ var fileTests = []fileTest{
+ 		// testdata/vmlinuz-4.15.0-47-generic is a trimmed down version of Linux Kernel image.
+ 		// The original Linux Kernel image is about 8M and it is not recommended to add such a big binary file to the repo.
+ 		// Moreover only a very small portion of the original Kernel image was being parsed by debug/pe package.
+-		// Inorder to indentify this portion, the original image was first parsed by modified debug/pe package.
++		// In order to identify this portion, the original image was first parsed by modified debug/pe package.
+ 		// Modification essentially communicated reader's positions before and after parsing.
+ 		// Finally, bytes between those positions where written to a separate file,
+ 		// generating trimmed down version Linux Kernel image used in this test case.
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index e14d2d4987..7b74c1ab2c 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -302,7 +302,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 					// We have reached the end and are missing padding
+ 					return n, false, CorruptInputError(olen - len(src) - j)
+ 				}
+-				// We have reached the end and are not expecing any padding
++				// We have reached the end and are not expecting any padding
+ 				dlen, end = j, true
+ 				break
+ 			}
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index f8547606aa..722fead20e 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -981,7 +981,7 @@ Found:
+ var errNoModules = errors.New("not using modules")
+ 
+ // importGo checks whether it can use the go command to find the directory for path.
+-// If using the go command is not appopriate, importGo returns errNoModules.
++// If using the go command is not appropriate, importGo returns errNoModules.
+ // Otherwise, importGo tries using the go command and reports whether that succeeded.
+ // Using the go command lets build.Import and build.Context.Import find code
+ // in Go modules. In the long term we want tools to use go/packages (currently golang.org/x/tools/go/packages),
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 0a62f4beaf..fb660b5cc8 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -362,7 +362,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// convert or check untyped argument
+ 		if isUntyped(x.typ) {
+ 			if x.mode == constant_ {
+-				// an untyped constant number can alway be considered
++				// an untyped constant number can always be considered
+ 				// as a complex constant
+ 				if isNumeric(x.typ) {
+ 					x.typ = Typ[UntypedComplex]
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 6220794718..1400e0f00b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -439,7 +439,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
+ 				// TODO(gri) This only works because we call LookupFieldOrMethod
+ 				// _before_ calling NewMethodSet: LookupFieldOrMethod completes
+-				// any incomplete interfaces so they are avaible to NewMethodSet
++				// any incomplete interfaces so they are available to NewMethodSet
+ 				// (which assumes that interfaces have been completed already).
+ 				typ := x.typ
+ 				if x.mode == variable {
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 0bc24d1bee..b619961787 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -52,7 +52,7 @@ func averageDelta(m0, m1 image.Image) int64 {
+ }
+ 
+ // averageDeltaBounds returns the average delta in RGB space. The average delta is
+-// calulated in the specified bounds.
++// calculated in the specified bounds.
+ func averageDeltaBound(m0, m1 image.Image, b0, b1 image.Rectangle) int64 {
+ 	var sum, n int64
+ 	for y := b0.Min.Y; y < b0.Max.Y; y++ {
+diff --git a/src/internal/bytealg/count_ppc64x.s b/src/internal/bytealg/count_ppc64x.s
+index 7abdce1954..a64d7d792d 100644
+--- a/src/internal/bytealg/count_ppc64x.s
++++ b/src/internal/bytealg/count_ppc64x.s
+@@ -49,7 +49,7 @@ TEXT countbytebody<>(SB), NOSPLIT|NOFRAME, $0-0
+ cmploop:
+ 	LXVW4X (R3), VS32 // load bytes from string
+ 
+-	// when the bytes match, the corresonding byte contains all 1s
++	// when the bytes match, the corresponding byte contains all 1s
+ 	VCMPEQUB V1, V0, V2     // compare bytes
+ 	VPOPCNTD V2, V3         // each double word contains its count
+ 	VADDUDM  V3, V5, V5     // accumulate bit count in each double word
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 76fc878abe..f326b06332 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -160,7 +160,7 @@ type option struct {
+ 
+ // processOptions enables or disables CPU feature values based on the parsed env string.
+ // The env string is expected to be of the form cpu.feature1=value1,cpu.feature2=value2...
+-// where feature names is one of the architecture specifc list stored in the
++// where feature names is one of the architecture specific list stored in the
+ // cpu packages options variable and values are either 'on' or 'off'.
+ // If env contains cpu.all=off then all cpu features referenced through the options
+ // variable are disabled. Other feature names and values result in warning messages.
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 23221c083d..f4d9a08d72 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -468,7 +468,7 @@ func (x *Int) TrailingZeroBits() uint {
+ // If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
+ // and x and n are not relatively prime, z is unchanged and nil is returned.
+ //
+-// Modular exponentation of inputs of a particular size is not a
++// Modular exponentiation of inputs of a particular size is not a
+ // cryptographically constant-time operation.
+ func (z *Int) Exp(x, y, m *Int) *Int {
+ 	// See Knuth, volume 2, section 4.6.3.
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b23e68f7b3..44dbbef43f 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -437,7 +437,7 @@ func (tr *transportRequest) setError(err error) {
+ 	tr.mu.Unlock()
+ }
+ 
+-// useRegisteredProtocol reports whether an alternate protocol (as reqistered
++// useRegisteredProtocol reports whether an alternate protocol (as registered
+ // with Transport.RegisterProtocol) should be respected for this request.
+ func (t *Transport) useRegisteredProtocol(req *Request) bool {
+ 	if req.URL.Scheme == "https" && req.requiresHTTP1() {
+@@ -1903,7 +1903,7 @@ func (pc *persistConn) readLoop() {
+ 			}
+ 			return
+ 		}
+-		pc.readLimit = maxInt64 // effictively no limit for response bodies
++		pc.readLimit = maxInt64 // effectively no limit for response bodies
+ 
+ 		pc.mu.Lock()
+ 		pc.numExpectedResponses--
+diff --git a/src/net/interface_unix_test.go b/src/net/interface_unix_test.go
+index 20e75cd036..6a2b7f1a88 100644
+--- a/src/net/interface_unix_test.go
++++ b/src/net/interface_unix_test.go
+@@ -186,7 +186,7 @@ func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
+ 	}
+ 
+ 	// Ensure zoneCache is filled:
+-	_, _ = Listen("tcp", "[fe80::1%nonexistant]:0")
++	_, _ = Listen("tcp", "[fe80::1%nonexistent]:0")
+ 
+ 	ti := &testInterface{local: "fe80::1"}
+ 	if err := ti.setLinkLocal(0); err != nil {
+@@ -200,7 +200,7 @@ func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
+ 	time.Sleep(3 * time.Millisecond)
+ 
+ 	// If Listen fails (on Linux with “bind: invalid argument”), zoneCache was
+-	// not updated when encountering a nonexistant interface:
++	// not updated when encountering a nonexistent interface:
+ 	ln, err := Listen("tcp", "[fe80::1%"+ti.name+"]:0")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index f29e658af9..bd706eac84 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -449,7 +449,7 @@ func getscheme(rawurl string) (scheme, path string, err error) {
+ 	return "", rawurl, nil
+ }
+ 
+-// split slices s into two substrings separated by the first occurence of
++// split slices s into two substrings separated by the first occurrence of
+ // sep. If cutc is true then sep is included with the second substring.
+ // If sep does not occur in s then s and the empty string is returned.
+ func split(s string, sep byte, cutc bool) (string, string) {
+diff --git a/src/os/file.go b/src/os/file.go
+index 46ae1a46aa..9afc0ba360 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -250,7 +250,7 @@ func Mkdir(name string, perm FileMode) error {
+ 	return nil
+ }
+ 
+-// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
++// setStickyBit adds ModeSticky to the permission bits of path, non atomic.
+ func setStickyBit(name string) error {
+ 	fi, err := Stat(name)
+ 	if err != nil {
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index cf04ead115..bae1aa0dbd 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -251,7 +251,7 @@ func BenchmarkMapLast(b *testing.B) {
+ }
+ 
+ func BenchmarkMapCycle(b *testing.B) {
+-	// Arrange map entries to be a permuation, so that
++	// Arrange map entries to be a permutation, so that
+ 	// we hit all entries, and one lookup is data dependent
+ 	// on the previous lookup.
+ 	const N = 3127
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 45a9eb2b2a..284e6698d1 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -74,7 +74,7 @@ func heapRetained() uint64 {
+ // its rate and RSS goal.
+ //
+ // The RSS goal is based on the current heap goal with a small overhead
+-// to accomodate non-determinism in the allocator.
++// to accommodate non-determinism in the allocator.
+ //
+ // The pacing is based on scavengePageRate, which applies to both regular and
+ // huge pages. See that constant for more information.
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index d9b94d438c..b79fa08dc2 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -6,7 +6,7 @@
+ // Pollset syscalls are in netpoll_aix.go.
+ // The implementation is based on Solaris and Windows.
+ // Each syscall is made by calling its libc symbol using asmcgocall and asmsyscall6
+-// asssembly functions.
++// assembly functions.
+ 
+ package runtime
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index d5af836f4e..567c567000 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -775,7 +775,7 @@ func newosproc(mp *m) {
+ func newosproc0(mp *m, stk unsafe.Pointer) {
+ 	// TODO: this is completely broken. The args passed to newosproc0 (in asm_amd64.s)
+ 	// are stacksize and function, not *m and stack.
+-	// Check os_linux.go for an implemention that might actually work.
++	// Check os_linux.go for an implementation that might actually work.
+ 	throw("bad newosproc0")
+ }
+ 
+diff --git a/src/runtime/pprof/label_test.go b/src/runtime/pprof/label_test.go
+index 240445f098..de39d85d3a 100644
+--- a/src/runtime/pprof/label_test.go
++++ b/src/runtime/pprof/label_test.go
+@@ -24,7 +24,7 @@ func (s labelSorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ func (s labelSorter) Less(i, j int) bool { return s[i].key < s[j].key }
+ 
+ func TestContextLabels(t *testing.T) {
+-	// Background context starts with no lablels.
++	// Background context starts with no labels.
+ 	ctx := context.Background()
+ 	labels := labelsSorted(ctx)
+ 	if len(labels) != 0 {
+diff --git a/test/closure2.go b/test/closure2.go
+index 4d61b45d3f..e4db05d884 100644
+--- a/test/closure2.go
++++ b/test/closure2.go
+@@ -74,7 +74,7 @@ func main() {
+ 		for i := range [2]int{} {
+ 			if i == 0 {
+ 				g = func() int {
+-					return i // test that we capture by ref here, i is mutated on every interation
++					return i // test that we capture by ref here, i is mutated on every interaction
+ 				}
+ 			}
+ 		}
+@@ -90,7 +90,7 @@ func main() {
+ 			q++
+ 			g = func() int {
+ 				return q // test that we capture by ref here
+-					 // q++ must on a different decldepth than q declaration
++				// q++ must on a different decldepth than q declaration
+ 			}
+ 		}
+ 		if g() != 2 {
+@@ -108,7 +108,7 @@ func main() {
+ 		}()] = range [2]int{} {
+ 			g = func() int {
+ 				return q // test that we capture by ref here
+-					 // q++ must on a different decldepth than q declaration
++				// q++ must on a different decldepth than q declaration
+ 			}
+ 		}
+ 		if g() != 2 {
+diff --git a/test/finprofiled.go b/test/finprofiled.go
+index 0eb801a4bd..ca7e3c81dc 100644
+--- a/test/finprofiled.go
++++ b/test/finprofiled.go
+@@ -23,7 +23,7 @@ func main() {
+ 	// only for middle bytes. The finalizer resurrects that object.
+ 	// As the result, all allocated memory must stay alive.
+ 	const (
+-		N = 1 << 20
++		N             = 1 << 20
+ 		tinyBlockSize = 16 // runtime._TinySize
+ 	)
+ 	hold := make([]*int32, 0, N)
+@@ -36,7 +36,7 @@ func main() {
+ 		}
+ 	}
+ 	// Finalize as much as possible.
+-	// Note: the sleep only increases probility of bug detection,
++	// Note: the sleep only increases probability of bug detection,
+ 	// it cannot lead to false failure.
+ 	for i := 0; i < 5; i++ {
+ 		runtime.GC()
+diff --git a/test/fixedbugs/issue24339.go b/test/fixedbugs/issue24339.go
+index 0670becdfe..502c575ec8 100644
+--- a/test/fixedbugs/issue24339.go
++++ b/test/fixedbugs/issue24339.go
+@@ -6,7 +6,7 @@
+ 
+ package p
+ 
+-// Use a diffent line number for each token so we can
++// Use a different line number for each token so we can
+ // check that the error message appears at the correct
+ // position.
+ var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
+diff --git a/test/index.go b/test/index.go
+index d73d137dda..91195ad632 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -251,7 +251,7 @@ func main() {
+ 		if c == "" && (i == "fgood" || i == "fbad") {
+ 			return
+ 		}
+-		// Integral float constat is ok.
++		// Integral float constant is ok.
+ 		if c == "c" && n == "" && i == "fgood" {
+ 			if pass == 0 {
+ 				fmt.Fprintf(b, "\tuse(%s[%s])\n", pae, cni)
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index d88cf10032..c27bf64bdf 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test integer modulus by contstants.
++// Test integer modulus by constants.
+ 
+ package main
+ 
+diff --git a/test/opt_branchlikely.go b/test/opt_branchlikely.go
+index 84de32179f..884c34916e 100644
+--- a/test/opt_branchlikely.go
++++ b/test/opt_branchlikely.go
+@@ -1,6 +1,6 @@
+ // +build amd64
+ // errorcheck -0 -d=ssa/likelyadjust/debug=1,ssa/insert_resched_checks/off
+-// rescheduling check insertion is turend off because the inserted conditional branches perturb the errorcheck
++// rescheduling check insertion is turned off because the inserted conditional branches perturb the errorcheck
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/strength.go b/test/strength.go
+index 94d589c240..823d05af08 100644
+--- a/test/strength.go
++++ b/test/strength.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Generate test of strength reduction for multiplications
+-// with contstants. Especially useful for amd64/386.
++// with constants. Especially useful for amd64/386.
+ 
+ package main
+ 

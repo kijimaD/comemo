@@ -13,9 +13,72 @@ Date:   Wed Feb 22 16:29:14 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5690072
-
+---
  src/cmd/5c/txt.c   | 3 ++-
  src/cmd/5g/gsubr.c | 4 +++-
  src/cmd/5g/list.c  | 2 +-
  src/cmd/5l/list.c  | 2 +-
  4 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index dea406eb92..1a189e3afe 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -1185,7 +1185,8 @@ gpseudo(int a, Sym *s, Node *n)
+ 	if(a == ATEXT) {
+ 		p->reg = textflag;
+ 		textflag = 0;
+-	}
++	} else if(a == AGLOBL)
++		p->reg = 0;
+ 	if(s->class == CSTATIC)
+ 		p->from.name = D_STATIC;
+ 	naddr(n, &p->to);
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 86f05fb32c..9acf93670f 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -75,6 +75,7 @@ prog(int as)
+ 		p = dpc;
+ 		dpc = mal(sizeof(*dpc));
+ 		p->link = dpc;
++		p->reg = 0;  // used for flags
+ 	} else {
+ 		p = pc;
+ 		pc = mal(sizeof(*pc));
+@@ -1116,7 +1117,8 @@ gins(int as, Node *f, Node *t)
+ 	if(f != N)
+ 		naddr(f, &af, 1);
+ 	if(t != N)
+-		naddr(t, &at, 1);	p = prog(as);
++		naddr(t, &at, 1);
++	p = prog(as);
+ 	if(f != N)
+ 		p->from = af;
+ 	if(t != N)
+diff --git a/src/cmd/5g/list.c b/src/cmd/5g/list.c
+index fef9c85435..9bc3a9a9a6 100644
+--- a/src/cmd/5g/list.c
++++ b/src/cmd/5g/list.c
+@@ -59,7 +59,7 @@ Pconv(Fmt *fp)
+ 	switch(p->as) {
+ 	default:
+ 		snprint(str1, sizeof(str1), "%A%C", p->as, p->scond);
+-		if(p->reg == NREG)
++		if(p->reg == NREG && p->as != AGLOBL)
+ 			snprint(str, sizeof(str), "%.4d (%L) %-7s	%D,%D", 
+ 				p->loc, p->lineno, str1, &p->from, &p->to);
+ 		else
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index fa838215b1..7b623d78a5 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -65,7 +65,7 @@ Pconv(Fmt *fp)
+ 	switch(a) {
+ 	default:
+ 		fmtprint(fp, "(%d)", p->line);
+-		if(p->reg == NREG)
++		if(p->reg == NREG && p->as != AGLOBL)
+ 			fmtprint(fp, "	%A%C	%D,%D",
+ 				a, p->scond, &p->from, &p->to);
+ 		else

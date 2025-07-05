@@ -10,7 +10,29 @@ Date:   Tue Apr 29 21:41:54 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/92850043
-
+---
  lib/time/update.bash  |   6 ++----
  lib/time/zoneinfo.zip | Bin 374754 -> 352541 bytes
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index f24ef8204b..2680329da4 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -6,11 +6,9 @@
+ # This script rebuilds the time zone files using files
+ # downloaded from the ICANN/IANA distribution.
+ 
+-# NOTE: As of Oct, 2013, the C files will not build on Macs but will build on Linux.
+-
+ # Versions to use.
+-CODE=2013g
+-DATA=2013g
++CODE=2014b
++DATA=2014b
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index c9181153fa..65eaddde58 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

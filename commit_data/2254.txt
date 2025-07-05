@@ -8,6 +8,24 @@ Date:   Wed May 20 11:02:12 2009 -0700
     DELTA=5  (4 added, 0 deleted, 1 changed)
     OCL=29088
     CL=29090
-
+---
  src/lib/go/parser/parser.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/go/parser/parser.go b/src/lib/go/parser/parser.go
+index 8663289f8b..e320bec42f 100644
+--- a/src/lib/go/parser/parser.go
++++ b/src/lib/go/parser/parser.go
+@@ -50,7 +50,11 @@ func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offs
+ 
+ 
+ func (p ErrorList) String() string {
+-	return fmt.Sprintf("%d syntax errors", len(p));
++	switch len(p) {
++	case 0: return "unspecified error";
++	case 1: return p[0].String();
++	}
++	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
+ }
+ 
+ 

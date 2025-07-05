@@ -31,7 +31,7 @@ Date:   Sat Jun 23 01:15:19 2018 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_darwin.go       | 2 +-
  src/runtime/sys_darwin.go      | 8 ++++----
  src/runtime/sys_darwin_386.s   | 4 ++--
@@ -39,3 +39,122 @@ Date:   Sat Jun 23 01:15:19 2018 -0400
  src/runtime/sys_darwin_arm.s   | 4 ++--
  src/runtime/sys_darwin_arm64.s | 4 ++--
  6 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 5019b9423c..ff375004a3 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -45,7 +45,7 @@ func semasleep(ns int64) int32 {
+ 		if ns >= 0 {
+ 			var t timespec
+ 			t.set_nsec(ns)
+-			err := pthread_cond_timedwait(&mp.cond, &mp.mutex, &t)
++			err := pthread_cond_timedwait_relative_np(&mp.cond, &mp.mutex, &t)
+ 			if err == _ETIMEDOUT {
+ 				pthread_mutex_unlock(&mp.mutex)
+ 				return -1
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index ef5aef1929..f0d0815903 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -287,10 +287,10 @@ func pthread_cond_wait_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+-func pthread_cond_timedwait(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
+-	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_trampoline)), unsafe.Pointer(&c))
++func pthread_cond_timedwait_relative_np(c *pthreadcond, m *pthreadmutex, t *timespec) int32 {
++	return libcCall(unsafe.Pointer(funcPC(pthread_cond_timedwait_relative_np_trampoline)), unsafe.Pointer(&c))
+ }
+-func pthread_cond_timedwait_trampoline()
++func pthread_cond_timedwait_relative_np_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+@@ -348,7 +348,7 @@ func closeonexec(fd int32) {
+ //go:cgo_import_dynamic libc_pthread_mutex_unlock pthread_mutex_unlock "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_init pthread_cond_init "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_pthread_cond_timedwait pthread_cond_timedwait "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index c0903e7b60..09f12283a1 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -595,7 +595,7 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	POPL	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	PUSHL	BP
+ 	MOVL	SP, BP
+ 	SUBL	$24, SP
+@@ -606,7 +606,7 @@ TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
+ 	MOVL	AX, 4(SP)
+ 	MOVL	8(CX), AX	// arg 3 timeout
+ 	MOVL	AX, 8(SP)
+-	CALL	libc_pthread_cond_timedwait(SB)
++	CALL	libc_pthread_cond_timedwait_relative_np(SB)
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 5522a86a1f..142933585d 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -447,13 +447,13 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	POPQ	BP
+ 	RET
+ 
+-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	PUSHQ	BP
+ 	MOVQ	SP, BP
+ 	MOVQ	8(DI), SI	// arg 2 mutex
+ 	MOVQ	16(DI), DX	// arg 3 timeout
+ 	MOVQ	0(DI), DI	// arg 1 cond
+-	CALL	libc_pthread_cond_timedwait(SB)
++	CALL	libc_pthread_cond_timedwait_relative_np(SB)
+ 	POPQ	BP
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 5b3f553ff9..9b5c667f45 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -368,11 +368,11 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_pthread_cond_wait(SB)
+ 	RET
+ 
+-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	MOVW	4(R0), R1	// arg 2 mutex
+ 	MOVW	8(R0), R2	// arg 3 timeout
+ 	MOVW	0(R0), R0	// arg 1 cond
+-	BL	libc_pthread_cond_timedwait(SB)
++	BL	libc_pthread_cond_timedwait_relative_np(SB)
+ 	RET
+ 
+ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index eb01774d8d..c324994d26 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -357,11 +357,11 @@ TEXT runtime·pthread_cond_wait_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_pthread_cond_wait(SB)
+ 	RET
+ 
+-TEXT runtime·pthread_cond_timedwait_trampoline(SB),NOSPLIT,$0
++TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
+ 	MOVD	8(R0), R1	// arg 2 mutex
+ 	MOVD	16(R0), R2	// arg 3 timeout
+ 	MOVD	0(R0), R0	// arg 1 cond
+-	BL	libc_pthread_cond_timedwait(SB)
++	BL	libc_pthread_cond_timedwait_relative_np(SB)
+ 	RET
+ 
+ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0

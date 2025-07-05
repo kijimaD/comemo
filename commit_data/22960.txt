@@ -7,6 +7,20 @@ Date:   Thu Apr 16 20:42:21 2015 +0200
     Change-Id: I8b2063e65d3454a694a789c1682dacfe0bea2e19
     Reviewed-on: https://go-review.googlesource.com/8965
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_plan9.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index ddadb6e5bc..38355e2458 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -11,7 +11,7 @@ import (
+ 	"time"
+ )
+ 
+-// Network file descritor.
++// Network file descriptor.
+ type netFD struct {
+ 	// locking/lifetime of sysfd + serialize access to Read and Write methods
+ 	fdmu fdMutex

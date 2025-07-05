@@ -8,8 +8,150 @@ Date:   Tue Jan 27 14:01:20 2009 -0800
     DELTA=43  (29 added, 5 deleted, 9 changed)
     OCL=23608
     CL=23611
-
+---
  src/runtime/proc.c             |  6 +++++-
  src/runtime/rt1_amd64_darwin.c |  8 +++++++-
  src/runtime/rt1_amd64_linux.c  | 38 ++++++++++++++++++++++++++------------
  3 files changed, 38 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 3fe08df94d..0b509bb875 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -397,7 +397,7 @@ nextgandunlock(void)
+ 		throw("all goroutines are asleep - deadlock!");
+ 	m->nextg = nil;
+ 	noteclear(&m->havenextg);
+-	if(sched.waitstop) {
++	if(sched.waitstop && sched.mcpu <= sched.mcpumax) {
+ 		sched.waitstop = 0;
+ 		notewakeup(&sched.stopped);
+ 	}
+@@ -590,6 +590,10 @@ sys·entersyscall(uint64 callerpc, int64 trap)
+ 	sched.msyscall++;
+ 	if(sched.gwait != 0)
+ 		matchmg();
++	if(sched.waitstop && sched.mcpu <= sched.mcpumax) {
++		sched.waitstop = 0;
++		notewakeup(&sched.stopped);
++	}
+ 	unlock(&sched);
+ 	// leave SP around for gc; poison PC to make sure it's not used
+ 	g->sched.SP = (byte*)&callerpc;
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index b614756721..c476f89b58 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -277,19 +277,25 @@ xadd(uint32 volatile *val, int32 delta)
+ void
+ lock(Lock *l)
+ {
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++
+ 	// Allocate semaphore if needed.
+ 	if(l->sema == 0)
+ 		initsema(&l->sema);
+ 
+ 	if(xadd(&l->key, 1) > 1)	// someone else has it; wait
+ 		mach_semacquire(l->sema);
+-	m->locks++;
+ }
+ 
+ void
+ unlock(Lock *l)
+ {
+ 	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++
+ 	if(xadd(&l->key, -1) > 0)	// someone else is waiting
+ 		mach_semrelease(l->sema);
+ }
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index c0c2038053..5b3e458094 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -301,13 +301,11 @@ futexwakeup(uint32 *addr)
+ // 	else return 0;
+ // but atomically.
+ 
+-void
+-lock(Lock *l)
++static void
++futexlock(Lock *l)
+ {
+ 	uint32 v;
+ 
+-	m->locks++;
+-
+ again:
+ 	v = l->key;
+ 	if((v&1) == 0){
+@@ -346,13 +344,11 @@ again:
+ 	goto again;
+ }
+ 
+-void
+-unlock(Lock *l)
++static void
++futexunlock(Lock *l)
+ {
+ 	uint32 v;
+ 
+-	m->locks--;
+-
+ 	// Atomically get value and clear lock bit.
+ again:
+ 	v = l->key;
+@@ -366,6 +362,24 @@ again:
+ 		futexwakeup(&l->key);
+ }
+ 
++void
++lock(Lock *l)
++{
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++	futexlock(l);
++}
++
++void
++unlock(Lock *l)
++{
++	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++	futexunlock(l);
++}
++
+ 
+ // One-time notifications.
+ //
+@@ -383,20 +397,20 @@ void
+ noteclear(Note *n)
+ {
+ 	n->lock.key = 0;	// memset(n, 0, sizeof *n)
+-	lock(&n->lock);
++	futexlock(&n->lock);
+ }
+ 
+ void
+ notewakeup(Note *n)
+ {
+-	unlock(&n->lock);
++	futexunlock(&n->lock);
+ }
+ 
+ void
+ notesleep(Note *n)
+ {
+-	lock(&n->lock);
+-	unlock(&n->lock);	// Let other sleepers find out too.
++	futexlock(&n->lock);
++	futexunlock(&n->lock);	// Let other sleepers find out too.
+ }
+ 
+ 

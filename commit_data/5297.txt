@@ -7,7 +7,34 @@ Date:   Thu Apr 15 12:47:49 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/912041
-
+---
  src/cmd/gotest/gotest | 2 +-
  test/run              | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index b5a21e7469..3fca81b6a5 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -38,7 +38,7 @@ esac
+ # TODO(kaib): proper emulator strategy
+ case x"$GOARCH" in
+ xarm)
+-	export E=${EMU_arm:-qemu-arm -cpu cortex-a8}
++	export E=${GORUN:-qemu-arm -cpu cortex-a8}
+ esac
+ 
+ # Allow overrides
+diff --git a/test/run b/test/run
+index 473bef1472..78014c867f 100755
+--- a/test/run
++++ b/test/run
+@@ -13,7 +13,7 @@ X386)
+ 	;;
+ Xarm)
+ 	export A=5
+-	export E=${EMU_arm:-qemu-arm -cpu cortex-a8}
++	export E=${GORUN:-qemu-arm -cpu cortex-a8}
+ 	;;
+ *)
+ 	echo 1>&2 run: unsupported '$GOARCH'

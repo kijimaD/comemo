@@ -17,6 +17,20 @@ Date:   Tue Aug 15 10:27:42 2017 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/ztypes_dragonfly_amd64.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/ztypes_dragonfly_amd64.go b/src/syscall/ztypes_dragonfly_amd64.go
+index 0be4a53ebe..dbbd29a63a 100644
+--- a/src/syscall/ztypes_dragonfly_amd64.go
++++ b/src/syscall/ztypes_dragonfly_amd64.go
+@@ -433,7 +433,7 @@ type BpfHdr struct {
+ }
+ 
+ const (
+-	_AT_FDCWD = -0x64
++	_AT_FDCWD = 0xfffafdcd
+ )
+ 
+ type Termios struct {

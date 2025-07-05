@@ -12,7 +12,43 @@ Date:   Fri Feb 27 12:34:25 2015 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file_windows.go | 5 ++---
  src/os/os_test.go      | 8 ++++++++
  2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 2a90a50559..fa0736753c 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -508,9 +508,8 @@ func Link(oldname, newname string) error {
+ 	if err != nil {
+ 		return &LinkError{"link", oldname, newname, err}
+ 	}
+-
+-	e := syscall.CreateHardLink(n, o, 0)
+-	if e != nil {
++	err = syscall.CreateHardLink(n, o, 0)
++	if err != nil {
+ 		return &LinkError{"link", oldname, newname, err}
+ 	}
+ 	return nil
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 5285b76024..21d229635d 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -533,6 +533,14 @@ func TestHardLink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("link %q, %q failed: %v", to, from, err)
+ 	}
++
++	none := "hardlinktestnone"
++	err = Link(none, none)
++	// Check the returned error is well-formed.
++	if lerr, ok := err.(*LinkError); !ok || lerr.Error() == "" {
++		t.Errorf("link %q, %q failed to return a valid error", none, none)
++	}
++
+ 	defer Remove(from)
+ 	tostat, err := Stat(to)
+ 	if err != nil {

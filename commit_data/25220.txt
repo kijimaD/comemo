@@ -10,6 +10,20 @@ Date:   Sun Oct 4 19:28:42 2015 -0400
     Change-Id: If7f9bb853d75d0097facff3aa6704b224d9108b8
     Reviewed-on: https://go-review.googlesource.com/15402
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b95289aaa6..b664d69548 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -351,7 +351,7 @@ type gcControllerState struct {
+ 	// dedicated mark workers get started.
+ 	dedicatedMarkWorkersNeeded int64
+ 
+-	// assistRatio is the ratio of allocated bytes to scan work
++	// assistRatio is the ratio of scan work to allocated bytes
+ 	// that should be performed by mutator assists. This is
+ 	// computed at the beginning of each cycle and updated every
+ 	// time heap_scan is updated.

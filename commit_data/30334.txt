@@ -19,7 +19,7 @@ Date:   Sun Oct 30 01:54:19 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/32390
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/export_test.go |  3 ++
  src/runtime/mgc.go         |  8 ++--
  src/runtime/proc.go        | 13 +++----
@@ -27,3 +27,279 @@ Date:   Sun Oct 30 01:54:19 2016 +0200
  src/runtime/string.go      | 63 ++++++++++++++++++++++++++++---
  src/runtime/string_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 174 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d83b3b0a49..f4a65fec18 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -32,6 +32,9 @@ var FuncPC = funcPC
+ 
+ var Fastlog2 = fastlog2
+ 
++var Atoi = atoi
++var Atoi32 = atoi32
++
+ type LFNode struct {
+ 	Next    uint64
+ 	Pushcnt uintptr
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 64af0a90ee..c625b75ea9 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -196,13 +196,13 @@ func gcinit() {
+ 
+ func readgogc() int32 {
+ 	p := gogetenv("GOGC")
+-	if p == "" {
+-		return 100
+-	}
+ 	if p == "off" {
+ 		return -1
+ 	}
+-	return int32(atoi(p))
++	if n, ok := atoi32(p); ok {
++		return n
++	}
++	return 100
+ }
+ 
+ // gcenable is called after the bulk of the runtime initialization,
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 6fb85c832d..c83644e810 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -477,17 +477,14 @@ func schedinit() {
+ 	gcinit()
+ 
+ 	sched.lastpoll = uint64(nanotime())
+-	procs := int(ncpu)
++	procs := ncpu
++	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
++		procs = n
++	}
+ 	if procs > _MaxGomaxprocs {
+ 		procs = _MaxGomaxprocs
+ 	}
+-	if n := atoi(gogetenv("GOMAXPROCS")); n > 0 {
+-		if n > _MaxGomaxprocs {
+-			n = _MaxGomaxprocs
+-		}
+-		procs = n
+-	}
+-	if procresize(int32(procs)) != nil {
++	if procresize(procs) != nil {
+ 		throw("unknown runnable goroutine during bootstrap")
+ 	}
+ 
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 0acb37212e..780e1d907a 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -375,11 +375,15 @@ func parsedebugvars() {
+ 		// is int, not int32, and should only be updated
+ 		// if specified in GODEBUG.
+ 		if key == "memprofilerate" {
+-			MemProfileRate = atoi(value)
++			if n, ok := atoi(value); ok {
++				MemProfileRate = n
++			}
+ 		} else {
+ 			for _, v := range dbgvars {
+ 				if v.name == key {
+-					*v.value = int32(atoi(value))
++					if n, ok := atoi32(value); ok {
++						*v.value = n
++					}
+ 				}
+ 			}
+ 		}
+@@ -422,7 +426,10 @@ func setTraceback(level string) {
+ 	case "crash":
+ 		t = 2<<tracebackShift | tracebackAll | tracebackCrash
+ 	default:
+-		t = uint32(atoi(level))<<tracebackShift | tracebackAll
++		t = tracebackAll
++		if n, ok := atoi(level); ok && n == int(uint32(n)) {
++			t |= uint32(n) << tracebackShift
++		}
+ 	}
+ 	// when C owns the process, simply exit'ing the process on fatal errors
+ 	// and panics is surprising. Be louder and abort instead.
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 07528236ee..822adaacf1 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -320,13 +320,66 @@ func hasprefix(s, t string) bool {
+ 	return len(s) >= len(t) && s[:len(t)] == t
+ }
+ 
+-func atoi(s string) int {
+-	n := 0
+-	for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+-		n = n*10 + int(s[0]) - '0'
++const (
++	maxUint = ^uint(0)
++	maxInt  = int(maxUint >> 1)
++)
++
++// atoi parses an int from a string s.
++// The bool result reports whether s is a number
++// representable by a value of type int.
++func atoi(s string) (int, bool) {
++	if s == "" {
++		return 0, false
++	}
++
++	neg := false
++	if s[0] == '-' {
++		neg = true
+ 		s = s[1:]
+ 	}
+-	return n
++
++	un := uint(0)
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if c < '0' || c > '9' {
++			return 0, false
++		}
++		if un > maxUint/10 {
++			// overflow
++			return 0, false
++		}
++		un *= 10
++		un1 := un + uint(c) - '0'
++		if un1 < un {
++			// overflow
++			return 0, false
++		}
++		un = un1
++	}
++
++	if !neg && un > uint(maxInt) {
++		return 0, false
++	}
++	if neg && un > uint(maxInt)+1 {
++		return 0, false
++	}
++
++	n := int(un)
++	if neg {
++		n = -n
++	}
++
++	return n, true
++}
++
++// atoi32 is like atoi but for integers
++// that fit into an int32.
++func atoi32(s string) (int32, bool) {
++	if n, ok := atoi(s); n == int(int32(n)) {
++		return int32(n), ok
++	}
++	return 0, false
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index ef0b01c237..fcfc52291f 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -279,3 +279,97 @@ func TestString2Slice(t *testing.T) {
+ 		t.Errorf("extra runes not zeroed")
+ 	}
+ }
++
++const intSize = 32 << (^uint(0) >> 63)
++
++type atoi64Test struct {
++	in  string
++	out int64
++	ok  bool
++}
++
++var atoi64tests = []atoi64Test{
++	{"", 0, false},
++	{"0", 0, true},
++	{"-0", 0, true},
++	{"1", 1, true},
++	{"-1", -1, true},
++	{"12345", 12345, true},
++	{"-12345", -12345, true},
++	{"012345", 12345, true},
++	{"-012345", -12345, true},
++	{"12345x", 0, false},
++	{"-12345x", 0, false},
++	{"98765432100", 98765432100, true},
++	{"-98765432100", -98765432100, true},
++	{"20496382327982653440", 0, false},
++	{"-20496382327982653440", 0, false},
++	{"9223372036854775807", 1<<63 - 1, true},
++	{"-9223372036854775807", -(1<<63 - 1), true},
++	{"9223372036854775808", 0, false},
++	{"-9223372036854775808", -1 << 63, true},
++	{"9223372036854775809", 0, false},
++	{"-9223372036854775809", 0, false},
++}
++
++func TestAtoi(t *testing.T) {
++	switch intSize {
++	case 32:
++		for i := range atoi32tests {
++			test := &atoi32tests[i]
++			out, ok := runtime.Atoi(test.in)
++			if test.out != int32(out) || test.ok != ok {
++				t.Errorf("atoi(%q) = (%v, %v) want (%v, %v)",
++					test.in, out, ok, test.out, test.ok)
++			}
++		}
++	case 64:
++		for i := range atoi64tests {
++			test := &atoi64tests[i]
++			out, ok := runtime.Atoi(test.in)
++			if test.out != int64(out) || test.ok != ok {
++				t.Errorf("atoi(%q) = (%v, %v) want (%v, %v)",
++					test.in, out, ok, test.out, test.ok)
++			}
++		}
++	}
++}
++
++type atoi32Test struct {
++	in  string
++	out int32
++	ok  bool
++}
++
++var atoi32tests = []atoi32Test{
++	{"", 0, false},
++	{"0", 0, true},
++	{"-0", 0, true},
++	{"1", 1, true},
++	{"-1", -1, true},
++	{"12345", 12345, true},
++	{"-12345", -12345, true},
++	{"012345", 12345, true},
++	{"-012345", -12345, true},
++	{"12345x", 0, false},
++	{"-12345x", 0, false},
++	{"987654321", 987654321, true},
++	{"-987654321", -987654321, true},
++	{"2147483647", 1<<31 - 1, true},
++	{"-2147483647", -(1<<31 - 1), true},
++	{"2147483648", 0, false},
++	{"-2147483648", -1 << 31, true},
++	{"2147483649", 0, false},
++	{"-2147483649", 0, false},
++}
++
++func TestAtoi32(t *testing.T) {
++	for i := range atoi32tests {
++		test := &atoi32tests[i]
++		out, ok := runtime.Atoi32(test.in)
++		if test.out != out || test.ok != ok {
++			t.Errorf("atoi32(%q) = (%v, %v) want (%v, %v)",
++				test.in, out, ok, test.out, test.ok)
++		}
++	}
++}

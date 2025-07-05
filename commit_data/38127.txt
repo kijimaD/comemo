@@ -9,8 +9,87 @@ Date:   Wed Oct 3 22:18:07 2018 +0000
     Change-Id: I220afbaaeab4dec6d59eeeef12107234a77f1587
     Reviewed-on: https://go-review.googlesource.com/c/139419
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/rand/rand.go         | 4 ++++
  src/crypto/rand/rand_unix.go    | 8 ++++++++
  src/crypto/rand/rand_windows.go | 9 +++++++++
  3 files changed, 21 insertions(+)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 952d20aa16..a5ccd19de3 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -23,3 +23,7 @@ var Reader io.Reader
+ func Read(b []byte) (n int, err error) {
+ 	return io.ReadFull(Reader, b)
+ }
++
++func warnBlocked() {
++	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
++}
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index cebb7a761c..d49f693746 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -18,6 +18,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"sync"
++	"sync/atomic"
+ 	"time"
+ )
+ 
+@@ -39,6 +40,7 @@ type devReader struct {
+ 	name string
+ 	f    io.Reader
+ 	mu   sync.Mutex
++	used int32 // atomic; whether this devReader has been used
+ }
+ 
+ // altGetRandom if non-nil specifies an OS-specific function to get
+@@ -46,6 +48,12 @@ type devReader struct {
+ var altGetRandom func([]byte) (ok bool)
+ 
+ func (r *devReader) Read(b []byte) (n int, err error) {
++	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
++		// First use of randomness. Start timer to warn about
++		// being blocked on entropy not being available.
++		t := time.AfterFunc(60*time.Second, warnBlocked)
++		defer t.Stop()
++	}
+ 	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
+ 		return len(b), nil
+ 	}
+diff --git a/src/crypto/rand/rand_windows.go b/src/crypto/rand/rand_windows.go
+index 4d7511a840..78a4ed6d67 100644
+--- a/src/crypto/rand/rand_windows.go
++++ b/src/crypto/rand/rand_windows.go
+@@ -10,7 +10,9 @@ package rand
+ import (
+ 	"os"
+ 	"sync"
++	"sync/atomic"
+ 	"syscall"
++	"time"
+ )
+ 
+ // Implemented by using Windows CryptoAPI 2.0.
+@@ -19,11 +21,18 @@ func init() { Reader = &rngReader{} }
+ 
+ // A rngReader satisfies reads by reading from the Windows CryptGenRandom API.
+ type rngReader struct {
++	used int32 // atomic; whether this rngReader has been used
+ 	prov syscall.Handle
+ 	mu   sync.Mutex
+ }
+ 
+ func (r *rngReader) Read(b []byte) (n int, err error) {
++	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
++		// First use of randomness. Start timer to warn about
++		// being blocked on entropy not being available.
++		t := time.AfterFunc(60*time.Second, warnBlocked)
++		defer t.Stop()
++	}
+ 	r.mu.Lock()
+ 	if r.prov == 0 {
+ 		const provType = syscall.PROV_RSA_FULL

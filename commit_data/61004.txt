@@ -12,7 +12,7 @@ Date:   Fri Aug 9 15:00:35 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/alias.go     | 35 ++++++++++++++++++++++++----
  src/cmd/compile/internal/types2/named.go     | 11 +++++++++
  src/cmd/compile/internal/types2/object.go    | 19 +++++++++++----
@@ -22,3 +22,260 @@ Date:   Fri Aug 9 15:00:35 2024 -0400
  src/go/types/object.go                       | 19 +++++++++++----
  src/go/types/typeparam.go                    |  5 +++-
  8 files changed, 120 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index 07f35b1854..6a6b96a6e3 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -10,11 +10,36 @@ import (
+ )
+ 
+ // An Alias represents an alias type.
+-// Whether or not Alias types are created is controlled by the
+-// gotypesalias setting with the GODEBUG environment variable.
+-// For gotypesalias=1, alias declarations produce an Alias type.
+-// Otherwise, the alias information is only in the type name,
+-// which points directly to the actual (aliased) type.
++//
++// Alias types are created by alias declarations such as:
++//
++//	type A = int
++//
++// The type on the right-hand side of the declaration can be accessed
++// using [Alias.Rhs]. This type may itself be an alias.
++// Call [Unalias] to obtain the first non-alias type in a chain of
++// alias type declarations.
++//
++// Like a defined ([Named]) type, an alias type has a name.
++// Use the [Alias.Obj] method to access its [TypeName] object.
++//
++// Historically, Alias types were not materialized so that, in the example
++// above, A's type was represented by a Basic (int), not an Alias
++// whose [Alias.Rhs] is int. But Go 1.24 allows you to declare an
++// alias type with type parameters or arguments:
++//
++//	type Set[K comparable] = map[K]bool
++//	s := make(Set[String])
++//
++// and this requires that Alias types be materialized. Use the
++// [Alias.TypeParams] and [Alias.TypeArgs] methods to access them.
++//
++// To ease the transition, the Alias type was introduced in go1.22,
++// but the type-checker would not construct values of this type unless
++// the GODEBUG=gotypesalias=1 environment variable was provided.
++// Starting in go1.23, this variable is enabled by default.
++// This setting also causes the predeclared type "any" to be
++// represented as an Alias, not a bare [Interface].
+ type Alias struct {
+ 	obj     *TypeName      // corresponding declared alias object
+ 	orig    *Alias         // original, uninstantiated alias
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 92dedf51d5..a9a27c9320 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -92,6 +92,17 @@ import (
+ // in its "lineage".
+ 
+ // A Named represents a named (defined) type.
++//
++// A declaration such as:
++//
++//	type S struct { ... }
++//
++// creates a defined type whose underlying type is a struct,
++// and binds this type to the object S, a [TypeName].
++// Use [Named.Underlying] to access the underlying type.
++// Use [Named.Obj] to obtain the object S.
++//
++// Before type aliases (Go 1.9), the spec called defined types "named types".
+ type Named struct {
+ 	check *Checker  // non-nil during type-checking; nil otherwise
+ 	obj   *TypeName // corresponding declared object for declared types; see above for instantiated types
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index f9a25473a1..d29c9a3df6 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -14,9 +14,15 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// An Object describes a named language entity such as a package,
+-// constant, type, variable, function (incl. methods), or label.
+-// All objects implement the Object interface.
++// An Object is a named language entity.
++// An Object may be a constant ([Const]), type name ([TypeName]),
++// variable or struct field ([Var]), function or method ([Func]),
++// imported package ([PkgName]), label ([Label]),
++// built-in function ([Builtin]),
++// or the predeclared identifier 'nil' ([Nil]).
++//
++// The environment, which is structured as a tree of Scopes,
++// maps each name to the unique Object that it denotes.
+ type Object interface {
+ 	Parent() *Scope  // scope in which this object is declared; nil for methods and struct fields
+ 	Pos() syntax.Pos // position of object identifier in declaration
+@@ -27,6 +33,7 @@ type Object interface {
+ 	Id() string      // object name if exported, qualified name if not exported (see func Id)
+ 
+ 	// String returns a human-readable string of the object.
++	// Use [ObjectString] to control how package names are formatted in the string.
+ 	String() string
+ 
+ 	// order reflects a package-level object's source order: if object
+@@ -257,7 +264,11 @@ func (obj *Const) Val() constant.Value { return obj.val }
+ 
+ func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
+ 
+-// A TypeName represents a name for a (defined or alias) type.
++// A TypeName is an [Object] that represents a type with a name:
++// a defined type ([Named]),
++// an alias type ([Alias]),
++// a type parameter ([TypeParam]),
++// or a predeclared type such as int or error.
+ type TypeName struct {
+ 	object
+ }
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index e22981e1ad..c812df16ea 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -15,7 +15,10 @@ var lastID atomic.Uint32
+ // each call, starting with 1. It may be called concurrently.
+ func nextID() uint64 { return uint64(lastID.Add(1)) }
+ 
+-// A TypeParam represents a type parameter type.
++// A TypeParam represents the type of a type parameter in a generic declaration.
++//
++// A TypeParam has a name; use the [TypeParam.Obj] method to access
++// its [TypeName] object.
+ type TypeParam struct {
+ 	check *Checker  // for lazy type bound completion
+ 	id    uint64    // unique id, for debugging only
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 7adb3deb58..3836ce9bb9 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -13,11 +13,36 @@ import (
+ )
+ 
+ // An Alias represents an alias type.
+-// Whether or not Alias types are created is controlled by the
+-// gotypesalias setting with the GODEBUG environment variable.
+-// For gotypesalias=1, alias declarations produce an Alias type.
+-// Otherwise, the alias information is only in the type name,
+-// which points directly to the actual (aliased) type.
++//
++// Alias types are created by alias declarations such as:
++//
++//	type A = int
++//
++// The type on the right-hand side of the declaration can be accessed
++// using [Alias.Rhs]. This type may itself be an alias.
++// Call [Unalias] to obtain the first non-alias type in a chain of
++// alias type declarations.
++//
++// Like a defined ([Named]) type, an alias type has a name.
++// Use the [Alias.Obj] method to access its [TypeName] object.
++//
++// Historically, Alias types were not materialized so that, in the example
++// above, A's type was represented by a Basic (int), not an Alias
++// whose [Alias.Rhs] is int. But Go 1.24 allows you to declare an
++// alias type with type parameters or arguments:
++//
++//	type Set[K comparable] = map[K]bool
++//	s := make(Set[String])
++//
++// and this requires that Alias types be materialized. Use the
++// [Alias.TypeParams] and [Alias.TypeArgs] methods to access them.
++//
++// To ease the transition, the Alias type was introduced in go1.22,
++// but the type-checker would not construct values of this type unless
++// the GODEBUG=gotypesalias=1 environment variable was provided.
++// Starting in go1.23, this variable is enabled by default.
++// This setting also causes the predeclared type "any" to be
++// represented as an Alias, not a bare [Interface].
+ type Alias struct {
+ 	obj     *TypeName      // corresponding declared alias object
+ 	orig    *Alias         // original, uninstantiated alias
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 21d0f4f59f..1282abfa3f 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -95,6 +95,17 @@ import (
+ // in its "lineage".
+ 
+ // A Named represents a named (defined) type.
++//
++// A declaration such as:
++//
++//	type S struct { ... }
++//
++// creates a defined type whose underlying type is a struct,
++// and binds this type to the object S, a [TypeName].
++// Use [Named.Underlying] to access the underlying type.
++// Use [Named.Obj] to obtain the object S.
++//
++// Before type aliases (Go 1.9), the spec called defined types "named types".
+ type Named struct {
+ 	check *Checker  // non-nil during type-checking; nil otherwise
+ 	obj   *TypeName // corresponding declared object for declared types; see above for instantiated types
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index cc01418832..06d5fbe511 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -17,9 +17,15 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// An Object describes a named language entity such as a package,
+-// constant, type, variable, function (incl. methods), or label.
+-// All objects implement the Object interface.
++// An Object is a named language entity.
++// An Object may be a constant ([Const]), type name ([TypeName]),
++// variable or struct field ([Var]), function or method ([Func]),
++// imported package ([PkgName]), label ([Label]),
++// built-in function ([Builtin]),
++// or the predeclared identifier 'nil' ([Nil]).
++//
++// The environment, which is structured as a tree of Scopes,
++// maps each name to the unique Object that it denotes.
+ type Object interface {
+ 	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
+ 	Pos() token.Pos // position of object identifier in declaration
+@@ -30,6 +36,7 @@ type Object interface {
+ 	Id() string     // object name if exported, qualified name if not exported (see func Id)
+ 
+ 	// String returns a human-readable string of the object.
++	// Use [ObjectString] to control how package names are formatted in the string.
+ 	String() string
+ 
+ 	// order reflects a package-level object's source order: if object
+@@ -260,7 +267,11 @@ func (obj *Const) Val() constant.Value { return obj.val }
+ 
+ func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
+ 
+-// A TypeName represents a name for a (defined or alias) type.
++// A TypeName is an [Object] that represents a type with a name:
++// a defined type ([Named]),
++// an alias type ([Alias]),
++// a type parameter ([TypeParam]),
++// or a predeclared type such as int or error.
+ type TypeName struct {
+ 	object
+ }
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 789b63d7a1..42284307e2 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -18,7 +18,10 @@ var lastID atomic.Uint32
+ // each call, starting with 1. It may be called concurrently.
+ func nextID() uint64 { return uint64(lastID.Add(1)) }
+ 
+-// A TypeParam represents a type parameter type.
++// A TypeParam represents the type of a type parameter in a generic declaration.
++//
++// A TypeParam has a name; use the [TypeParam.Obj] method to access
++// its [TypeName] object.
+ type TypeParam struct {
+ 	check *Checker  // for lazy type bound completion
+ 	id    uint64    // unique id, for debugging only

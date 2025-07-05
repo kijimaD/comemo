@@ -10,7 +10,38 @@ Date:   Thu Apr 25 08:57:36 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/predicates.go | 4 +++-
  src/go/types/predicates.go                    | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 6d9e6ec760..986cd6aa61 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -518,7 +518,9 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool
+ // it returns the incoming type for all other types. The default type
+ // for untyped nil is untyped nil.
+ func Default(t Type) Type {
+-	if t, ok := Unalias(t).(*Basic); ok {
++	// Alias and named types cannot denote untyped types
++	// so there's no need to call Unalias or under, below.
++	if t, _ := t.(*Basic); t != nil {
+ 		switch t.kind {
+ 		case UntypedBool:
+ 			return Typ[Bool]
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 1889694342..83bc64772f 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -521,7 +521,9 @@ func identicalInstance(xorig Type, xargs []Type, yorig Type, yargs []Type) bool
+ // it returns the incoming type for all other types. The default type
+ // for untyped nil is untyped nil.
+ func Default(t Type) Type {
+-	if t, ok := Unalias(t).(*Basic); ok {
++	// Alias and named types cannot denote untyped types
++	// so there's no need to call Unalias or under, below.
++	if t, _ := t.(*Basic); t != nil {
+ 		switch t.kind {
+ 		case UntypedBool:
+ 			return Typ[Bool]

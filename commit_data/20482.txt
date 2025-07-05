@@ -8,10 +8,85 @@ Date:   Thu Sep 11 16:22:21 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/134520044
-
+---
  src/runtime/malloc.go |  2 +-
  src/runtime/mgc0.go   |  2 +-
  src/runtime/proc.c    | 13 +------------
  src/runtime/runtime.h |  1 -
  src/runtime/stubs.go  |  1 -
  5 files changed, 3 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 890ddea6d5..d6f1a1a4a2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -477,7 +477,7 @@ func gogc(force int32) {
+ 	// now that gc is done, kick off finalizer thread if needed
+ 	if !concurrentSweep {
+ 		// give the queued finalizers, if any, a chance to run
+-		gosched()
++		Gosched()
+ 	}
+ }
+ 
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 5d6d91875f..130e8262ad 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -89,7 +89,7 @@ func bgsweep() {
+ 	for {
+ 		for gosweepone() != ^uintptr(0) {
+ 			sweep.nbgsweep++
+-			gosched()
++			Gosched()
+ 		}
+ 		lock(&gclock)
+ 		if !gosweepdone() {
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 03deb7abb1..004d93a973 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -1677,18 +1677,7 @@ runtime·park_m(G *gp)
+ 	schedule();
+ }
+ 
+-// Scheduler yield.
+-#pragma textflag NOSPLIT
+-void
+-runtime·gosched(void)
+-{
+-	void (*fn)(G*);
+-	
+-	fn = runtime·gosched_m;
+-	runtime·mcall(&fn);
+-}
+-
+-// runtime·gosched continuation on g0.
++// Gosched continuation on g0.
+ void
+ runtime·gosched_m(G *gp)
+ {
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 4f9656457d..01923c61e0 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -852,7 +852,6 @@ void	runtime·setg(G*);
+ void	runtime·newextram(void);
+ void	runtime·exit(int32);
+ void	runtime·breakpoint(void);
+-void	runtime·gosched(void);
+ void	runtime·gosched_m(G*);
+ void	runtime·schedtrace(bool);
+ void	runtime·park(bool(*)(G*, void*), void*, String);
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 45fc877e51..ff443c4cd4 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -130,7 +130,6 @@ func memclr(ptr unsafe.Pointer, n uintptr)
+ //go:noescape
+ func memmove(to unsafe.Pointer, from unsafe.Pointer, n uintptr)
+ 
+-func gosched()
+ func starttheworld()
+ func stoptheworld()
+ func newextram()

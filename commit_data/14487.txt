@@ -9,7 +9,7 @@ Date:   Tue Nov 27 03:05:46 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6856080
-
+---
  src/cmd/cc/dcl.c         | 4 ++++
  src/cmd/cov/main.c       | 4 ++++
  src/cmd/cov/tree.c       | 2 ++
@@ -18,3 +18,159 @@ Date:   Tue Nov 27 03:05:46 2012 +0800
  src/libmach/executable.c | 9 +++++++++
  src/libmach/obj.c        | 2 ++
  7 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index a3ed9772da..edfc7e75a8 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -1058,6 +1058,10 @@ sigind(Type *t, Typetab *tt)
+ 			return p-a;
+ 	if((n&15) == 0){
+ 		na = malloc((n+16)*sizeof(Type*));
++		if(na == nil) {
++			print("%s: out of memory", argv0);
++			errorexit();
++		}
+ 		memmove(na, a, n*sizeof(Type*));
+ 		free(a);
+ 		a = tt->a = na;
+diff --git a/src/cmd/cov/main.c b/src/cmd/cov/main.c
+index 9496632c53..33ef49e17d 100644
+--- a/src/cmd/cov/main.c
++++ b/src/cmd/cov/main.c
+@@ -98,6 +98,8 @@ ran(uvlong pc, uvlong epc)
+ 		if(epc < oldepc) {
+ 			Range *n;
+ 			n = malloc(sizeof *n);
++			if(n == nil)
++				sysfatal("out of memory");
+ 			n->pc = epc;
+ 			n->epc = oldepc;
+ 			treeput(&breakpoints, n, n);
+@@ -288,6 +290,8 @@ breakpoint(uvlong pc, uvlong epc)
+ 	Range *r;
+ 
+ 	r = malloc(sizeof *r);
++	if(r == nil)
++		sysfatal("out of memory");
+ 	r->pc = pc;
+ 	r->epc = epc;
+ 	treeput(&breakpoints, r, r);
+diff --git a/src/cmd/cov/tree.c b/src/cmd/cov/tree.c
+index 905bb7d978..366a47efd4 100644
+--- a/src/cmd/cov/tree.c
++++ b/src/cmd/cov/tree.c
+@@ -52,6 +52,8 @@ rwTreeNode(TreeNode *p, int color, TreeNode *left, void *key, void *value, TreeN
+ {
+ 	if(p == nil)
+ 		p = malloc(sizeof *p);
++	if(p == nil)
++		sysfatal("out of memory");
+ 	p->color = color;
+ 	p->left = left;
+ 	p->key = key;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 9c72f25db7..bb5199fc15 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1297,6 +1297,10 @@ decodez(char *s)
+ 		return 0;
+ 
+ 	r = malloc(len + 1);
++	if(r == nil) {
++		diag("out of memory");
++		errorexit();
++	}
+ 	rb = r;
+ 	re = rb + len + 1;
+ 
+@@ -1475,6 +1479,10 @@ inithist(Auto *a)
+ 			continue;
+ 		if (linehist == 0 || linehist->absline != absline) {
+ 			Linehist* lh = malloc(sizeof *lh);
++			if(lh == nil) {
++				diag("out of memory");
++				errorexit();
++			}
+ 			lh->link = linehist;
+ 			lh->absline = absline;
+ 			linehist = lh;
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index a2ae2e11e6..e6cc836bce 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -399,6 +399,8 @@ addtohistogram(uvlong pc, uvlong callerpc, uvlong sp)
+ 		}
+ 	}
+ 	x = malloc(sizeof(PC));
++	if(x == nil)
++		sysfatal("out of memory");
+ 	x->pc = pc;
+ 	x->callerpc = callerpc;
+ 	x->count = 1;
+@@ -617,6 +619,8 @@ findfunc(uvlong pc)
+ 			return f;
+ 
+ 	f = malloc(sizeof *f);
++	if(f == nil)
++		sysfatal("out of memory");
+ 	memset(f, 0, sizeof *f);
+ 	f->s = s;
+ 	f->next = func[h];
+@@ -665,6 +669,8 @@ dumphistogram()
+ 
+ 	// build array
+ 	ff = malloc(nfunc*sizeof ff[0]);
++	if(ff == nil)
++		sysfatal("out of memory");
+ 	n = 0;
+ 	for(h = 0; h < nelem(func); h++)
+ 		for(f = func[h]; f != NULL; f = f->next)
+@@ -715,6 +721,8 @@ dumppprof()
+ 		return;
+ 	// Allocate and link the traces together.
+ 	trace = malloc(ntrace * sizeof(Trace));
++	if(trace == nil)
++		sysfatal("out of memory");
+ 	tp = trace;
+ 	for(p = ppdata; p < e;) {
+ 		n = *p++;
+diff --git a/src/libmach/executable.c b/src/libmach/executable.c
+index 3db3e7da4d..3fd3e0968e 100644
+--- a/src/libmach/executable.c
++++ b/src/libmach/executable.c
+@@ -1091,12 +1091,21 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
+ 	}
+ 
+ 	cmdbuf = malloc(mp->sizeofcmds);
++	if(!cmdbuf) {
++		werrstr("out of memory");
++		return 0;
++	}
+ 	seek(fd, hdrsize, 0);
+ 	if(read(fd, cmdbuf, mp->sizeofcmds) != mp->sizeofcmds) {
+ 		free(cmdbuf);
+ 		return 0;
+ 	}
+ 	cmd = malloc(mp->ncmds * sizeof(MachCmd*));
++	if(!cmd) {
++		free(cmdbuf);
++		werrstr("out of memory");
++		return 0;
++	}
+ 	cmdp = cmdbuf;
+ 	textva = 0;
+ 	textoff = 0;
+diff --git a/src/libmach/obj.c b/src/libmach/obj.c
+index 7999f24c6e..2a5e047583 100644
+--- a/src/libmach/obj.c
++++ b/src/libmach/obj.c
+@@ -293,6 +293,8 @@ objlookup(int id, char *name, int type, uint sig)
+ 			}
+ 	}
+ 	sp = malloc(sizeof(Symtab));
++	if(sp == nil)
++		sysfatal("out of memory");
+ 	sp->s.name = name;
+ 	sp->s.type = type;
+ 	sp->s.sig = sig;

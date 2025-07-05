@@ -12,7 +12,7 @@ Date:   Thu Jun 23 20:54:52 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/predicates.go            | 12 +++++++++++-
  .../internal/types2/testdata/fixedbugs/issue48712.go     | 14 +++++++-------
  .../internal/types2/testdata/fixedbugs/issue51525.go     | 16 ++++++++++++++++
@@ -22,3 +22,240 @@ Date:   Thu Jun 23 20:54:52 2022 -0700
  src/go/types/testdata/fixedbugs/issue51525.go            | 16 ++++++++++++++++
  src/go/types/testdata/spec/comparisons.go                | 16 ++++++++--------
  8 files changed, 84 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index f7b5b16204..c4d11dcac4 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -147,7 +147,17 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
+ 		}
+ 		return true
+ 	case *Interface:
+-		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
++		if dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen) {
++			return true
++		}
++		if reportf != nil {
++			if t.typeSet().IsEmpty() {
++				reportf("empty type set")
++			} else {
++				reportf("incomparable types in type set")
++			}
++		}
++		// fallthrough
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go
+index ab397560a8..63ce7bc510 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go
+@@ -23,18 +23,18 @@ func _[P comparable](x P, y any) {
+ }
+ 
+ func _[P any](x, y P) {
+-	_ = x /* ERROR type parameter P is not comparable with == */ == x
+-	_ = x /* ERROR type parameter P is not comparable with == */ == y
+-	_ = y /* ERROR type parameter P is not comparable with == */ == x
+-	_ = y /* ERROR type parameter P is not comparable with == */ == y
++	_ = x /* ERROR incomparable types in type set */ == x
++	_ = x /* ERROR incomparable types in type set */ == y
++	_ = y /* ERROR incomparable types in type set */ == x
++	_ = y /* ERROR incomparable types in type set */ == y
+ 
+ 	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P any](x P, y any) {
+-	_ = x /* ERROR type parameter P is not comparable with == */ == x
+-	_ = x /* ERROR type parameter P is not comparable with == */ == y
+-	_ = y == x // ERROR type parameter P is not comparable with ==
++	_ = x /* ERROR incomparable types in type set */ == x
++	_ = x /* ERROR incomparable types in type set */ == y
++	_ = y == x // ERROR incomparable types in type set
+ 	_ = y == y
+ 
+ 	_ = x /* ERROR type parameter P is not comparable with < */ < y
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51525.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51525.go
+new file mode 100644
+index 0000000000..af1d1e6063
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51525.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[T interface {
++	int
++	string
++}](x T) {
++	_ = x /* ERROR empty type set */ == x
++}
++
++func _[T interface{ int | []byte }](x T) {
++	_ = x /* ERROR incomparable types in type set */ == x
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/comparisons.go b/src/cmd/compile/internal/types2/testdata/spec/comparisons.go
+index 62c95d47d7..2a7598a581 100644
+--- a/src/cmd/compile/internal/types2/testdata/spec/comparisons.go
++++ b/src/cmd/compile/internal/types2/testdata/spec/comparisons.go
+@@ -40,7 +40,7 @@ func _() {
+ 	_ = m /* ERROR map can only be compared to nil */ == m
+ 	_ = c == c
+ 
+-	_ = b /* ERROR mismatched types */ == nil 
++	_ = b /* ERROR mismatched types */ == nil
+ 	_ = a /* ERROR mismatched types */ == nil
+ 	_ = l == nil
+ 	_ = s /* ERROR mismatched types */ == nil
+@@ -73,7 +73,7 @@ func _[
+ 	J comparable,
+ 	M map[string]int,
+ 	C chan int,
+-] (
++](
+ 	b B,
+ 	a A,
+ 	l L,
+@@ -86,14 +86,14 @@ func _[
+ 	c C,
+ ) {
+ 	_ = b == b
+-	_ = a /* ERROR type parameter A is not comparable with == */ == a
+-	_ = l /* ERROR type parameter L is not comparable with == */ == l
+-	_ = s /* ERROR type parameter S is not comparable with == */ == s
++	_ = a /* ERROR incomparable types in type set */ == a
++	_ = l /* ERROR incomparable types in type set */ == l
++	_ = s /* ERROR incomparable types in type set */ == s
+ 	_ = p == p
+-	_ = f /* ERROR type parameter F is not comparable with == */ == f
+-	_ = i /* ERROR type parameter I is not comparable with == */ == i
++	_ = f /* ERROR incomparable types in type set */ == f
++	_ = i /* ERROR incomparable types in type set */ == i
+ 	_ = j == j
+-	_ = m /* ERROR type parameter M is not comparable with == */ == m
++	_ = m /* ERROR incomparable types in type set */ == m
+ 	_ = c == c
+ 
+ 	_ = b /* ERROR mismatched types */ == nil
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 25db4acf4a..aaf4dd52fc 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -149,7 +149,17 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
+ 		}
+ 		return true
+ 	case *Interface:
+-		return dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen)
++		if dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen) {
++			return true
++		}
++		if reportf != nil {
++			if t.typeSet().IsEmpty() {
++				reportf("empty type set")
++			} else {
++				reportf("incomparable types in type set")
++			}
++		}
++		// fallthrough
+ 	}
+ 	return false
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue48712.go b/src/go/types/testdata/fixedbugs/issue48712.go
+index ab397560a8..63ce7bc510 100644
+--- a/src/go/types/testdata/fixedbugs/issue48712.go
++++ b/src/go/types/testdata/fixedbugs/issue48712.go
+@@ -23,18 +23,18 @@ func _[P comparable](x P, y any) {
+ }
+ 
+ func _[P any](x, y P) {
+-	_ = x /* ERROR type parameter P is not comparable with == */ == x
+-	_ = x /* ERROR type parameter P is not comparable with == */ == y
+-	_ = y /* ERROR type parameter P is not comparable with == */ == x
+-	_ = y /* ERROR type parameter P is not comparable with == */ == y
++	_ = x /* ERROR incomparable types in type set */ == x
++	_ = x /* ERROR incomparable types in type set */ == y
++	_ = y /* ERROR incomparable types in type set */ == x
++	_ = y /* ERROR incomparable types in type set */ == y
+ 
+ 	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P any](x P, y any) {
+-	_ = x /* ERROR type parameter P is not comparable with == */ == x
+-	_ = x /* ERROR type parameter P is not comparable with == */ == y
+-	_ = y == x // ERROR type parameter P is not comparable with ==
++	_ = x /* ERROR incomparable types in type set */ == x
++	_ = x /* ERROR incomparable types in type set */ == y
++	_ = y == x // ERROR incomparable types in type set
+ 	_ = y == y
+ 
+ 	_ = x /* ERROR type parameter P is not comparable with < */ < y
+diff --git a/src/go/types/testdata/fixedbugs/issue51525.go b/src/go/types/testdata/fixedbugs/issue51525.go
+new file mode 100644
+index 0000000000..af1d1e6063
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51525.go
+@@ -0,0 +1,16 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[T interface {
++	int
++	string
++}](x T) {
++	_ = x /* ERROR empty type set */ == x
++}
++
++func _[T interface{ int | []byte }](x T) {
++	_ = x /* ERROR incomparable types in type set */ == x
++}
+diff --git a/src/go/types/testdata/spec/comparisons.go b/src/go/types/testdata/spec/comparisons.go
+index 62c95d47d7..2a7598a581 100644
+--- a/src/go/types/testdata/spec/comparisons.go
++++ b/src/go/types/testdata/spec/comparisons.go
+@@ -40,7 +40,7 @@ func _() {
+ 	_ = m /* ERROR map can only be compared to nil */ == m
+ 	_ = c == c
+ 
+-	_ = b /* ERROR mismatched types */ == nil 
++	_ = b /* ERROR mismatched types */ == nil
+ 	_ = a /* ERROR mismatched types */ == nil
+ 	_ = l == nil
+ 	_ = s /* ERROR mismatched types */ == nil
+@@ -73,7 +73,7 @@ func _[
+ 	J comparable,
+ 	M map[string]int,
+ 	C chan int,
+-] (
++](
+ 	b B,
+ 	a A,
+ 	l L,
+@@ -86,14 +86,14 @@ func _[
+ 	c C,
+ ) {
+ 	_ = b == b
+-	_ = a /* ERROR type parameter A is not comparable with == */ == a
+-	_ = l /* ERROR type parameter L is not comparable with == */ == l
+-	_ = s /* ERROR type parameter S is not comparable with == */ == s
++	_ = a /* ERROR incomparable types in type set */ == a
++	_ = l /* ERROR incomparable types in type set */ == l
++	_ = s /* ERROR incomparable types in type set */ == s
+ 	_ = p == p
+-	_ = f /* ERROR type parameter F is not comparable with == */ == f
+-	_ = i /* ERROR type parameter I is not comparable with == */ == i
++	_ = f /* ERROR incomparable types in type set */ == f
++	_ = i /* ERROR incomparable types in type set */ == i
+ 	_ = j == j
+-	_ = m /* ERROR type parameter M is not comparable with == */ == m
++	_ = m /* ERROR incomparable types in type set */ == m
+ 	_ = c == c
+ 
+ 	_ = b /* ERROR mismatched types */ == nil

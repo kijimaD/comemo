@@ -9,9 +9,269 @@ Date:   Wed Feb 8 16:27:00 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/verify.go      |  8 +++-
  src/crypto/x509/verify_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++
  src/crypto/x509/x509.go        | 45 +++++++++++++-------
  src/crypto/x509/x509_test.go   |  5 +++
  4 files changed, 138 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 021fe5e644..2b4f39d62e 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -166,7 +166,7 @@ const (
+ 
+ func matchNameConstraint(domain, constraint string) bool {
+ 	// The meaning of zero length constraints is not specified, but this
+-	// code follows NSS and accepts them as valid for everything.
++	// code follows NSS and accepts them as matching everything.
+ 	if len(constraint) == 0 {
+ 		return true
+ 	}
+@@ -220,6 +220,12 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		}
+ 	}
+ 
++	for _, constraint := range c.ExcludedDNSDomains {
++		if matchNameConstraint(opts.DNSName, constraint) {
++			return CertificateInvalidError{c, CANotAuthorizedForThisName}
++		}
++	}
++
+ 	// KeyUsage status flags are ignored. From Engineering Security, Peter
+ 	// Gutmann: A European government CA marked its signing certificates as
+ 	// being valid for encryption only, but no-one noticed. Another
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 56c365e1e8..335c477d0d 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -285,6 +285,17 @@ var verifyTests = []verifyTest{
+ 
+ 		errorCallback: expectHostnameError,
+ 	},
++	{
++		// Test that excluded names are respected.
++		leaf:          excludedNamesLeaf,
++		dnsName:       "bender.local",
++		intermediates: []string{excludedNamesIntermediate},
++		roots:         []string{excludedNamesRoot},
++		currentTime:   1486684488,
++		systemSkip:    true,
++
++		errorCallback: expectNameConstraintsError,
++	},
+ }
+ 
+ func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
+@@ -352,6 +363,14 @@ func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool)
+ 	return true
+ }
+ 
++func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
++	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != CANotAuthorizedForThisName {
++		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %s", i, err)
++		return false
++	}
++	return true
++}
++
+ func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
+ 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NotAuthorizedToSign {
+ 		t.Errorf("#%d: error was not a NotAuthorizedToSign: %s", i, err)
+@@ -1390,6 +1409,83 @@ j2kBQyvnyKsXHLAKUoUOpd6t/1PHrfXnGj+HmzZNloJ/BZ1kiWb4eLvMljoLGkZn
+ xZbqP3Krgjj4XNaXjg==
+ -----END CERTIFICATE-----`
+ 
++const excludedNamesLeaf = `
++-----BEGIN CERTIFICATE-----
++MIID4DCCAsigAwIBAgIHDUSFtJknhzANBgkqhkiG9w0BAQsFADCBnjELMAkGA1UE
++BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
++MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
++ICgzNzM0NTE1NTYyODA2Mzk3KTEhMB8GA1UEAwwYSW50ZXJtZWRpYXRlIENBIGZv
++ciAzMzkyMB4XDTE3MDIwODIxMTUwNFoXDTE4MDIwODIwMjQ1OFowgZAxCzAJBgNV
++BAYTAlVTMRMwEQYDVQQIDApDYWxpZm9ybmlhMRIwEAYDVQQHDAlMb3MgR2F0b3Mx
++FDASBgNVBAoMC05ldGZsaXggSW5jMS0wKwYDVQQLDCRQbGF0Zm9ybSBTZWN1cml0
++eSAoMzczNDUxNTc0ODUwMjY5NikxEzARBgNVBAMMCjE3Mi4xNi4wLjEwggEiMA0G
++CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCZ0oP1bMv6bOeqcKbzinnGpNOpenhA
++zdFFsgea62znWsH3Wg4+1Md8uPCqlaQIsaJQKZHc50eKD3bg0Io7c6kxHkBQr1b8
++Q7cGeK3CjdqG3NwS/aizzrLKOwL693hFwwy7JY7GGCvogbhyQRKn6iV0U9zMm7bu
++/9pQVV/wx8u01u2uAlLttjyQ5LJkxo5t8cATFVqxdN5J9eY//VSDiTwXnlpQITBP
++/Ow+zYuZ3kFlzH3CtCOhOEvNG3Ar1NvP3Icq35PlHV+Eki4otnKfixwByoiGpqCB
++UEIY04VrZJjwBxk08y/3jY2B3VLYGgi+rryyCxIqkB7UpSNPMMWSG4UpAgMBAAGj
++LzAtMAwGA1UdEwEB/wQCMAAwHQYDVR0RBBYwFIIMYmVuZGVyLmxvY2FshwSsEAAB
++MA0GCSqGSIb3DQEBCwUAA4IBAQCLW3JO8L7LKByjzj2RciPjCGH5XF87Wd20gYLq
++sNKcFwCIeyZhnQy5aZ164a5G9AIk2HLvH6HevBFPhA9Ivmyv/wYEfnPd1VcFkpgP
++hDt8MCFJ8eSjCyKdtZh1MPMLrLVymmJV+Rc9JUUYM9TIeERkpl0rskcO1YGewkYt
++qKlWE+0S16+pzsWvKn831uylqwIb8ANBPsCX4aM4muFBHavSWAHgRO+P+yXVw8Q+
++VQDnMHUe5PbZd1/+1KKVs1K/CkBCtoHNHp1d/JT+2zUQJphwja9CcgfFdVhSnHL4
++oEEOFtqVMIuQfR2isi08qW/JGOHc4sFoLYB8hvdaxKWSE19A
++-----END CERTIFICATE-----
++`
++
++const excludedNamesIntermediate = `
++-----BEGIN CERTIFICATE-----
++MIIDzTCCArWgAwIBAgIHDUSFqYeczDANBgkqhkiG9w0BAQsFADCBmTELMAkGA1UE
++BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
++MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
++ICgzNzM0NTE1NDc5MDY0NjAyKTEcMBoGA1UEAwwTTG9jYWwgUm9vdCBmb3IgMzM5
++MjAeFw0xNzAyMDgyMTE1MDRaFw0xODAyMDgyMDI0NThaMIGeMQswCQYDVQQGEwJV
++UzETMBEGA1UECAwKQ2FsaWZvcm5pYTESMBAGA1UEBwwJTG9zIEdhdG9zMRQwEgYD
++VQQKDAtOZXRmbGl4IEluYzEtMCsGA1UECwwkUGxhdGZvcm0gU2VjdXJpdHkgKDM3
++MzQ1MTU1NjI4MDYzOTcpMSEwHwYDVQQDDBhJbnRlcm1lZGlhdGUgQ0EgZm9yIDMz
++OTIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCOyEs6tJ/t9emQTvlx
++3FS7uJSou5rKkuqVxZdIuYQ+B2ZviBYUnMRT9bXDB0nsVdKZdp0hdchdiwNXDG/I
++CiWu48jkcv/BdynVyayOT+0pOJSYLaPYpzBx1Pb9M5651ct9GSbj6Tz0ChVonoIE
++1AIZ0kkebucZRRFHd0xbAKVRKyUzPN6HJ7WfgyauUp7RmlC35wTmrmARrFohQLlL
++7oICy+hIQePMy9x1LSFTbPxZ5AUUXVC3eUACU3vLClF/Xs8XGHebZpUXCdMQjOGS
++nq1eFguFHR1poSB8uSmmLqm4vqUH9CDhEgiBAC8yekJ8//kZQ7lUEqZj3YxVbk+Y
++E4H5AgMBAAGjEzARMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB
++ADxrnmNX5gWChgX9K5fYwhFDj5ofxZXAKVQk+WjmkwMcmCx3dtWSm++Wdksj/ZlA
++V1cLW3ohWv1/OAZuOlw7sLf98aJpX+UUmIYYQxDubq+4/q7VA7HzEf2k/i/oN1NI
++JgtrhpPcZ/LMO6k7DYx0qlfYq8pTSfd6MI4LnWKgLc+JSPJJjmvspgio2ZFcnYr7
++A264BwLo6v1Mos1o1JUvFFcp4GANlw0XFiWh7JXYRl8WmS5DoouUC+aNJ3lmyF6z
++LbIjZCSfgZnk/LK1KU1j91FI2bc2ULYZvAC1PAg8/zvIgxn6YM2Q7ZsdEgWw0FpS
++zMBX1/lk4wkFckeUIlkD55Y=
++-----END CERTIFICATE-----`
++
++const excludedNamesRoot = `
++-----BEGIN CERTIFICATE-----
++MIIEGTCCAwGgAwIBAgIHDUSFpInn/zANBgkqhkiG9w0BAQsFADCBozELMAkGA1UE
++BhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBHYXRvczEU
++MBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNlY3VyaXR5
++ICgzNzMxNTA5NDM3NDYyNDg1KTEmMCQGA1UEAwwdTmFtZSBDb25zdHJhaW50cyBU
++ZXN0IFJvb3QgQ0EwHhcNMTcwMjA4MjExNTA0WhcNMTgwMjA4MjAyNDU4WjCBmTEL
++MAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExEjAQBgNVBAcMCUxvcyBH
++YXRvczEUMBIGA1UECgwLTmV0ZmxpeCBJbmMxLTArBgNVBAsMJFBsYXRmb3JtIFNl
++Y3VyaXR5ICgzNzM0NTE1NDc5MDY0NjAyKTEcMBoGA1UEAwwTTG9jYWwgUm9vdCBm
++b3IgMzM5MjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJymcnX29ekc
++7+MLyr8QuAzoHWznmGdDd2sITwWRjM89/21cdlHCGKSpULUNdFp9HDLWvYECtxt+
++8TuzKiQz7qAerzGUT1zI5McIjHy0e/i4xIkfiBiNeTCuB/N9QRbZlcfM80ErkaA4
++gCAFK8qZAcWkHIl6e+KaQFMPLKk9kckgAnVDHEJe8oLNCogCJ15558b65g05p9eb
++5Lg+E98hoPRTQaDwlz3CZPfTTA2EiEZInSi8qzodFCbTpJUVTbiVUH/JtVjlibbb
++smdcx5PORK+8ZJkhLEh54AjaWOX4tB/7Tkk8stg2VBmrIARt/j4UVj7cTrIWU3bV
++m8TwHJG+YgsCAwEAAaNaMFgwDwYDVR0TAQH/BAUwAwEB/zBFBgNVHR4EPjA8oBww
++CocICgEAAP//AAAwDoIMYmVuZGVyLmxvY2FsoRwwCocICgEAAP//AAAwDoIMYmVu
++ZGVyLmxvY2FsMA0GCSqGSIb3DQEBCwUAA4IBAQAMjbheffPxtSKSv9NySW+8qmHs
++n7Mb5GGyCFu+cMZSoSaabstbml+zHEFJvWz6/1E95K4F8jKhAcu/CwDf4IZrSD2+
++Hee0DolVSQhZpnHgPyj7ZATz48e3aJaQPUlhCEOh0wwF4Y0N4FV0t7R6woLylYRZ
++yU1yRHUqUYpN0DWFpsPbBqgM6uUAVO2ayBFhPgWUaqkmSbZ/Nq7isGvknaTmcIwT
++6mOAFN0qFb4RGzfGJW7x6z7KCULS7qVDp6fU3tRoScHFEgRubks6jzQ1W5ooSm4o
+++NQCZDd5eFeU8PpNX7rgaYE4GPq+EEmLVCBYmdctr8QVdqJ//8Xu3+1phjDy
++-----END CERTIFICATE-----`
++
+ var unknownAuthorityErrorTests = []struct {
+ 	cert     string
+ 	expected string
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 3065fe2602..549b64b830 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -689,6 +689,7 @@ type Certificate struct {
+ 	// Name constraints
+ 	PermittedDNSDomainsCritical bool // if true then the name constraints are marked critical.
+ 	PermittedDNSDomains         []string
++	ExcludedDNSDomains          []string
+ 
+ 	// CRL Distribution Points
+ 	CRLDistributionPoints []string
+@@ -1183,19 +1184,27 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 					return nil, errors.New("x509: trailing data after X.509 NameConstraints")
+ 				}
+ 
+-				if len(constraints.Excluded) > 0 && e.Critical {
+-					return out, UnhandledCriticalExtension{}
+-				}
+-
+-				for _, subtree := range constraints.Permitted {
+-					if len(subtree.Name) == 0 {
+-						if e.Critical {
+-							return out, UnhandledCriticalExtension{}
++				getDNSNames := func(subtrees []generalSubtree, isCritical bool) (dnsNames []string, err error) {
++					for _, subtree := range subtrees {
++						if len(subtree.Name) == 0 {
++							if isCritical {
++								return nil, UnhandledCriticalExtension{}
++							}
++							continue
+ 						}
+-						continue
++						dnsNames = append(dnsNames, subtree.Name)
+ 					}
+-					out.PermittedDNSDomains = append(out.PermittedDNSDomains, subtree.Name)
++
++					return dnsNames, nil
++				}
++
++				if out.PermittedDNSDomains, err = getDNSNames(constraints.Permitted, e.Critical); err != nil {
++					return out, err
++				}
++				if out.ExcludedDNSDomains, err = getDNSNames(constraints.Excluded, e.Critical); err != nil {
++					return out, err
+ 				}
++				out.PermittedDNSDomainsCritical = e.Critical
+ 
+ 			case 31:
+ 				// RFC 5280, 4.2.1.13
+@@ -1579,16 +1588,22 @@ func buildExtensions(template *Certificate, authorityKeyId []byte) (ret []pkix.E
+ 		n++
+ 	}
+ 
+-	if len(template.PermittedDNSDomains) > 0 &&
++	if (len(template.PermittedDNSDomains) > 0 || len(template.ExcludedDNSDomains) > 0) &&
+ 		!oidInExtensions(oidExtensionNameConstraints, template.ExtraExtensions) {
+ 		ret[n].Id = oidExtensionNameConstraints
+ 		ret[n].Critical = template.PermittedDNSDomainsCritical
+ 
+ 		var out nameConstraints
++
+ 		out.Permitted = make([]generalSubtree, len(template.PermittedDNSDomains))
+ 		for i, permitted := range template.PermittedDNSDomains {
+ 			out.Permitted[i] = generalSubtree{Name: permitted}
+ 		}
++		out.Excluded = make([]generalSubtree, len(template.ExcludedDNSDomains))
++		for i, excluded := range template.ExcludedDNSDomains {
++			out.Excluded[i] = generalSubtree{Name: excluded}
++		}
++
+ 		ret[n].Value, err = asn1.Marshal(out)
+ 		if err != nil {
+ 			return
+@@ -1704,10 +1719,10 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
+ 
+ // CreateCertificate creates a new certificate based on a template. The
+ // following members of template are used: AuthorityKeyId,
+-// BasicConstraintsValid, DNSNames, ExtKeyUsage, IsCA, KeyUsage, MaxPathLen,
+-// NotAfter, NotBefore, PermittedDNSDomains, PermittedDNSDomainsCritical,
+-// SerialNumber, SignatureAlgorithm, Subject, SubjectKeyId, and
+-// UnknownExtKeyUsage.
++// BasicConstraintsValid, DNSNames, ExcludedDNSDomains, ExtKeyUsage, IsCA,
++// KeyUsage, MaxPathLen, NotAfter, NotBefore, PermittedDNSDomains,
++// PermittedDNSDomainsCritical, SerialNumber, SignatureAlgorithm, Subject,
++// SubjectKeyId, and UnknownExtKeyUsage.
+ //
+ // The certificate is signed by parent. If parent is equal to template then the
+ // certificate is self-signed. The parameter pub is the public key of the
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index b085dad90f..2d1acf93bf 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -405,6 +405,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 
+ 			PolicyIdentifiers:   []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+ 			PermittedDNSDomains: []string{".example.com", "example.com"},
++			ExcludedDNSDomains:  []string{"bar.example.com"},
+ 
+ 			CRLDistributionPoints: []string{"http://crl1.example.com/ca1.crl", "http://crl2.example.com/ca1.crl"},
+ 
+@@ -442,6 +443,10 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			t.Errorf("%s: failed to parse name constraints: %#v", test.name, cert.PermittedDNSDomains)
+ 		}
+ 
++		if len(cert.ExcludedDNSDomains) != 1 || cert.ExcludedDNSDomains[0] != "bar.example.com" {
++			t.Errorf("%s: failed to parse name constraint exclusions: %#v", test.name, cert.ExcludedDNSDomains)
++		}
++
+ 		if cert.Subject.CommonName != commonName {
+ 			t.Errorf("%s: subject wasn't correctly copied from the template. Got %s, want %s", test.name, cert.Subject.CommonName, commonName)
+ 		}

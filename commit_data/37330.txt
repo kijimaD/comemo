@@ -22,7 +22,54 @@ Date:   Tue Jul 17 14:38:52 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue26416.go             | 27 +++++++++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1b68e057fc..51dd0dba87 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3152,7 +3152,7 @@ func typecheckcomplit(n *Node) *Node {
+ 					// dotpath returns the parent embedded types in reverse order.
+ 					var ep []string
+ 					for ei := len(p) - 1; ei >= 0; ei-- {
+-						ep = append(ep, p[ei].field.Type.Sym.Name)
++						ep = append(ep, p[ei].field.Sym.Name)
+ 					}
+ 					ep = append(ep, l.Sym.Name)
+ 					yyerror("cannot use promoted field %v in struct literal of type %v", strings.Join(ep, "."), t)
+diff --git a/test/fixedbugs/issue26416.go b/test/fixedbugs/issue26416.go
+new file mode 100644
+index 0000000000..bc37fd9d3a
+--- /dev/null
++++ b/test/fixedbugs/issue26416.go
+@@ -0,0 +1,27 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type t1 struct {
++	t1f1 int
++	t1f2 int
++}
++type t2 struct {
++	t2f1 int
++	t2f2 int
++	*t1
++}
++type t3 struct {
++	t3f1 int
++	*t2
++}
++
++var (
++	_ = t2{t1f1: 600} // ERROR "cannot use promoted field t1.t1f1 in struct literal of type t2"
++	_ = t3{t1f2: 800} // ERROR "cannot use promoted field t2.t1.t1f2 in struct literal of type t3"
++	_ = t3{t2f1: 900} // ERROR "cannot use promoted field t2.t2f1 in struct literal of type t3"
++)

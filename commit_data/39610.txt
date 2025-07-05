@@ -28,7 +28,93 @@ Date:   Fri Mar 1 17:20:28 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/164877
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/test.go                   | 10 ++++++
  .../script/cover_pkgall_multiple_mains.txt         | 37 ++++++++++++++++++++++
  2 files changed, 47 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 0a9548e5c8..99a2247ede 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -129,6 +129,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
+ 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
+ 		ptest.Internal.ForceLibrary = true
++		ptest.Internal.BuildInfo = ""
+ 		ptest.Internal.Build = new(build.Package)
+ 		*ptest.Internal.Build = *p.Internal.Build
+ 		m := map[string][]token.Position{}
+@@ -186,6 +187,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
+ 		},
+ 		Internal: PackageInternal{
+ 			Build:      &build.Package{Name: "main"},
++			BuildInfo:  p.Internal.BuildInfo,
+ 			Asmflags:   p.Internal.Asmflags,
+ 			Gcflags:    p.Internal.Gcflags,
+ 			Ldflags:    p.Internal.Ldflags,
+@@ -352,6 +354,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
+ 			copy(p1.Imports, p.Imports)
+ 			p = p1
+ 			p.Target = ""
++			p.Internal.BuildInfo = ""
+ 		}
+ 
+ 		// Update p.Internal.Imports to use test copies.
+@@ -361,6 +364,13 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
+ 				p.Internal.Imports[i] = p1
+ 			}
+ 		}
++
++		// Don't compile build info from a main package. This can happen
++		// if -coverpkg patterns include main packages, since those packages
++		// are imported by pmain.
++		if p.Internal.BuildInfo != "" && p != pmain {
++			split()
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt b/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt
+new file mode 100644
+index 0000000000..8ee4848d0a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_pkgall_multiple_mains.txt
+@@ -0,0 +1,37 @@
++# This test checks that multiple main packages can be tested
++# with -coverpkg=all without duplicate symbol errors.
++# Verifies golang.org/issue/30374.
++
++env GO111MODULE=on
++
++[short] skip
++
++go test -coverpkg=all ./main1 ./main2
++
++-- go.mod --
++module example.com/cov
++
++-- main1/main1.go --
++package main
++
++func main() {}
++
++-- main1/main1_test.go --
++package main
++
++import "testing"
++
++func TestMain1(t *testing.T) {}
++
++-- main2/main2.go --
++package main
++
++func main() {}
++
++-- main2/main2_test.go --
++package main
++
++import "testing"
++
++func TestMain2(t *testing.T) {}
++

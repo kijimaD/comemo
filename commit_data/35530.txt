@@ -56,7 +56,7 @@ Date:   Sun Aug 13 22:36:47 2017 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm64/ssa.go           |   7 +-
  src/cmd/compile/internal/gc/asm_test.go         |  13 +
  src/cmd/compile/internal/gc/swt.go              |   2 +-
@@ -75,3 +75,2520 @@ Date:   Sun Aug 13 22:36:47 2017 +0000
  src/cmd/compile/internal/ssa/rewriteARM64.go    | 579 +++++++++++++++---------
  src/cmd/compile/internal/ssa/value.go           |   2 +
  17 files changed, 1025 insertions(+), 290 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 2a58738ffe..018cdff03d 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -581,15 +581,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = (v.Args[0].Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0
+-	case ssa.OpARM64CSELULT,
+-		ssa.OpARM64CSELULT0:
++	case ssa.OpARM64CSEL, ssa.OpARM64CSEL0:
+ 		r1 := int16(arm64.REGZERO)
+-		if v.Op == ssa.OpARM64CSELULT {
++		if v.Op != ssa.OpARM64CSEL0 {
+ 			r1 = v.Args[1].Reg()
+ 		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+-		p.From.Reg = arm64.COND_LO
++		p.From.Reg = condBits[v.Aux.(ssa.Op)]
+ 		p.Reg = v.Args[0].Reg()
+ 		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: r1})
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 0f41f3044d..77fa4eb738 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -2890,6 +2890,19 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"FRINTZD"},
+ 	},
++	{
++		// make sure that CSEL is emitted for conditional moves
++		fn: `
++		func f37(c int) int {
++		     x := c + 4
++		     if c < 0 {
++		     	x = 182
++		     }
++		     return x
++		}
++		`,
++		pos: []string{"\tCSEL\t"},
++	},
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 8d425506d3..8509795790 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -568,7 +568,7 @@ Outer:
+ 		if !ok {
+ 			// First entry for this hash.
+ 			nn = append(nn, c.node)
+-			seen[c.hash] = nn[len(nn)-1 : len(nn) : len(nn)]
++			seen[c.hash] = nn[len(nn)-1 : len(nn):len(nn)]
+ 			continue
+ 		}
+ 		for _, n := range prev {
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+new file mode 100644
+index 0000000000..a37b8f06e1
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -0,0 +1,248 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// branchelim tries to elminiate branches by
++// generating CondSelect instructions.
++//
++// Search for basic blocks that look like
++//
++// bb0            bb0
++//  | \          /   \
++//  | bb1  or  bb1   bb2    <- trivial if/else blocks
++//  | /          \   /
++// bb2            bb3
++//
++// where the intermediate blocks are mostly empty (with no side-effects);
++// rewrite Phis in the postdominator as CondSelects.
++func branchelim(f *Func) {
++	// FIXME: add support for lowering CondSelects on more architectures
++	if f.Config.arch != "arm64" {
++		return
++	}
++
++	change := true
++	for change {
++		change = false
++		for _, b := range f.Blocks {
++			change = elimIf(f, b) || elimIfElse(f, b) || change
++		}
++	}
++}
++
++func canCondSelect(v *Value) bool {
++	// For now, stick to simple scalars that fit in registers
++	sz := v.Type.Size()
++	return sz <= v.Block.Func.Config.RegSize && (v.Type.IsInteger() || v.Type.IsPtrShaped())
++}
++
++func elimIf(f *Func, dom *Block) bool {
++	// See if dom is an If with one arm that
++	// is trivial and succeeded by the other
++	// successor of dom.
++	if dom.Kind != BlockIf || dom.Likely != BranchUnknown {
++		return false
++	}
++	var simple, post *Block
++	for i := range dom.Succs {
++		bb, other := dom.Succs[i].Block(), dom.Succs[i^1].Block()
++		if isLeafPlain(bb) && bb.Succs[0].Block() == other {
++			simple = bb
++			post = other
++			break
++		}
++	}
++	if simple == nil || len(post.Preds) != 2 || post == dom {
++		return false
++	}
++
++	// We've found our diamond CFG of blocks.
++	// Now decide if fusing 'simple' into dom+post
++	// looks profitable.
++
++	// Check that there are Phis, and that all of them
++	// can be safely rewritten to CondSelect.
++	hasphis := false
++	for _, v := range post.Values {
++		if v.Op == OpPhi {
++			hasphis = true
++			if !canCondSelect(v) {
++				return false
++			}
++		}
++	}
++	if !hasphis {
++		return false
++	}
++
++	// Pick some upper bound for the number of instructions
++	// we'd be willing to execute just to generate a dead
++	// argument to CondSelect. In the worst case, this is
++	// the number of useless instructions executed.
++	const maxfuseinsts = 2
++
++	if len(simple.Values) > maxfuseinsts || !allTrivial(simple) {
++		return false
++	}
++
++	// Replace Phi instructions in b with CondSelect instructions
++	swap := (post.Preds[0].Block() == dom) != (dom.Succs[0].Block() == post)
++	for _, v := range post.Values {
++		if v.Op != OpPhi {
++			continue
++		}
++		v.Op = OpCondSelect
++		if swap {
++			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
++		}
++		v.AddArg(dom.Control)
++	}
++
++	// Put all of the instructions into 'dom'
++	// and update the CFG appropriately.
++	dom.Kind = post.Kind
++	dom.SetControl(post.Control)
++	dom.Aux = post.Aux
++	dom.Succs = append(dom.Succs[:0], post.Succs...)
++	for i := range dom.Succs {
++		e := dom.Succs[i]
++		e.b.Preds[e.i].b = dom
++	}
++
++	for i := range simple.Values {
++		simple.Values[i].Block = dom
++	}
++	for i := range post.Values {
++		post.Values[i].Block = dom
++	}
++	dom.Values = append(dom.Values, simple.Values...)
++	dom.Values = append(dom.Values, post.Values...)
++
++	// Trash 'post' and 'simple'
++	clobberBlock(post)
++	clobberBlock(simple)
++
++	f.invalidateCFG()
++	return true
++}
++
++// is this a BlockPlain with one predecessor?
++func isLeafPlain(b *Block) bool {
++	return b.Kind == BlockPlain && len(b.Preds) == 1
++}
++
++func clobberBlock(b *Block) {
++	b.Values = nil
++	b.Preds = nil
++	b.Succs = nil
++	b.Aux = nil
++	b.SetControl(nil)
++	b.Kind = BlockInvalid
++}
++
++func elimIfElse(f *Func, b *Block) bool {
++	// See if 'b' ends in an if/else: it should
++	// have two successors, both of which are BlockPlain
++	// and succeeded by the same block.
++	if b.Kind != BlockIf || b.Likely != BranchUnknown {
++		return false
++	}
++	yes, no := b.Succs[0].Block(), b.Succs[1].Block()
++	if !isLeafPlain(yes) || len(yes.Values) > 1 || !allTrivial(yes) {
++		return false
++	}
++	if !isLeafPlain(no) || len(no.Values) > 1 || !allTrivial(no) {
++		return false
++	}
++	if b.Succs[0].Block().Succs[0].Block() != b.Succs[1].Block().Succs[0].Block() {
++		return false
++	}
++	// block that postdominates the if/else
++	post := b.Succs[0].Block().Succs[0].Block()
++	if len(post.Preds) != 2 || post == b {
++		return false
++	}
++	hasphis := false
++	for _, v := range post.Values {
++		if v.Op == OpPhi {
++			hasphis = true
++			if !canCondSelect(v) {
++				return false
++			}
++		}
++	}
++	if !hasphis {
++		return false
++	}
++
++	// now we're committed: rewrite each Phi as a CondSelect
++	swap := post.Preds[0].Block() != b.Succs[0].Block()
++	for _, v := range post.Values {
++		if v.Op != OpPhi {
++			continue
++		}
++		v.Op = OpCondSelect
++		if swap {
++			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
++		}
++		v.AddArg(b.Control)
++	}
++
++	// Move the contents of all of these
++	// blocks into 'b' and update CFG edges accordingly
++	b.Kind = post.Kind
++	b.SetControl(post.Control)
++	b.Aux = post.Aux
++	b.Succs = append(b.Succs[:0], post.Succs...)
++	for i := range b.Succs {
++		e := b.Succs[i]
++		e.b.Preds[e.i].b = b
++	}
++	for i := range post.Values {
++		post.Values[i].Block = b
++	}
++	for i := range yes.Values {
++		yes.Values[i].Block = b
++	}
++	for i := range no.Values {
++		no.Values[i].Block = b
++	}
++	b.Values = append(b.Values, yes.Values...)
++	b.Values = append(b.Values, no.Values...)
++	b.Values = append(b.Values, post.Values...)
++
++	// trash post, yes, and no
++	clobberBlock(yes)
++	clobberBlock(no)
++	clobberBlock(post)
++
++	f.invalidateCFG()
++	return true
++}
++
++func allTrivial(b *Block) bool {
++	// don't fuse memory ops, Phi ops, divides (can panic),
++	// or anything else with side-effects
++	for _, v := range b.Values {
++		if v.Op == OpPhi || isDivMod(v.Op) || v.Type.IsMemory() ||
++			v.MemoryArg() != nil || opcodeTable[v.Op].hasSideEffects {
++			return false
++		}
++	}
++	return true
++}
++
++func isDivMod(op Op) bool {
++	switch op {
++	case OpDiv8, OpDiv8u, OpDiv16, OpDiv16u,
++		OpDiv32, OpDiv32u, OpDiv64, OpDiv64u, OpDiv128u,
++		OpDiv32F, OpDiv64F,
++		OpMod8, OpMod8u, OpMod16, OpMod16u,
++		OpMod32, OpMod32u, OpMod64, OpMod64u:
++		return true
++	default:
++		return false
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/branchelim_test.go b/src/cmd/compile/internal/ssa/branchelim_test.go
+new file mode 100644
+index 0000000000..979ba1d961
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/branchelim_test.go
+@@ -0,0 +1,138 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import (
++	"cmd/compile/internal/types"
++	"testing"
++)
++
++// Test that a trivial 'if' is eliminated
++func TestBranchElimIf(t *testing.T) {
++	c := testConfig(t)
++	c.config.arch = "arm64" // FIXME
++	boolType := types.New(types.TBOOL)
++	intType := types.New(types.TINT32)
++	fun := c.Fun("entry",
++		Bloc("entry",
++			Valu("start", OpInitMem, types.TypeMem, 0, nil),
++			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("const1", OpConst32, intType, 1, nil),
++			Valu("const2", OpConst32, intType, 2, nil),
++			Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
++			Valu("cond", OpLoad, boolType, 0, nil, "addr", "start"),
++			If("cond", "b2", "b3")),
++		Bloc("b2",
++			Goto("b3")),
++		Bloc("b3",
++			Valu("phi", OpPhi, intType, 0, nil, "const1", "const2"),
++			Valu("retstore", OpStore, types.TypeMem, 0, nil, "phi", "sb", "start"),
++			Exit("retstore")))
++
++	CheckFunc(fun.f)
++	branchelim(fun.f)
++	CheckFunc(fun.f)
++	Deadcode(fun.f)
++	CheckFunc(fun.f)
++
++	if len(fun.f.Blocks) != 1 {
++		t.Errorf("expected 1 block after branchelim and deadcode; found %d", len(fun.f.Blocks))
++	}
++	if fun.values["phi"].Op != OpCondSelect {
++		t.Errorf("expected phi op to be CondSelect; found op %s", fun.values["phi"].Op)
++	}
++	if fun.values["phi"].Args[2] != fun.values["cond"] {
++		t.Errorf("expected CondSelect condition to be %s; found %s", fun.values["cond"], fun.values["phi"].Args[2])
++	}
++	if fun.blocks["entry"].Kind != BlockExit {
++		t.Errorf("expected entry to be BlockExit; found kind %s", fun.blocks["entry"].Kind.String())
++	}
++}
++
++// Test that a trivial if/else is eliminated
++func TestBranchElimIfElse(t *testing.T) {
++	c := testConfig(t)
++	c.config.arch = "arm64" // FIXME
++	boolType := types.New(types.TBOOL)
++	intType := types.New(types.TINT32)
++	fun := c.Fun("entry",
++		Bloc("entry",
++			Valu("start", OpInitMem, types.TypeMem, 0, nil),
++			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("const1", OpConst32, intType, 1, nil),
++			Valu("const2", OpConst32, intType, 2, nil),
++			Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
++			Valu("cond", OpLoad, boolType, 0, nil, "addr", "start"),
++			If("cond", "b2", "b3")),
++		Bloc("b2",
++			Goto("b4")),
++		Bloc("b3",
++			Goto("b4")),
++		Bloc("b4",
++			Valu("phi", OpPhi, intType, 0, nil, "const1", "const2"),
++			Valu("retstore", OpStore, types.TypeMem, 0, nil, "phi", "sb", "start"),
++			Exit("retstore")))
++
++	CheckFunc(fun.f)
++	branchelim(fun.f)
++	CheckFunc(fun.f)
++	Deadcode(fun.f)
++	CheckFunc(fun.f)
++
++	if len(fun.f.Blocks) != 1 {
++		t.Errorf("expected 1 block after branchelim; found %d", len(fun.f.Blocks))
++	}
++	if fun.values["phi"].Op != OpCondSelect {
++		t.Errorf("expected phi op to be CondSelect; found op %s", fun.values["phi"].Op)
++	}
++	if fun.values["phi"].Args[2] != fun.values["cond"] {
++		t.Errorf("expected CondSelect condition to be %s; found %s", fun.values["cond"], fun.values["phi"].Args[2])
++	}
++	if fun.blocks["entry"].Kind != BlockExit {
++		t.Errorf("expected entry to be BlockExit; found kind %s", fun.blocks["entry"].Kind.String())
++	}
++}
++
++// Test that an if/else CFG that loops back
++// into itself does *not* get eliminated.
++func TestNoBranchElimLoop(t *testing.T) {
++	c := testConfig(t)
++	c.config.arch = "arm64" // FIXME
++	boolType := types.New(types.TBOOL)
++	intType := types.New(types.TINT32)
++
++	// The control flow here is totally bogus,
++	// but a dead cycle seems like the only plausible
++	// way to arrive at a diamond CFG that is also a loop.
++	fun := c.Fun("entry",
++		Bloc("entry",
++			Valu("start", OpInitMem, types.TypeMem, 0, nil),
++			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
++			Valu("const2", OpConst32, intType, 2, nil),
++			Valu("const3", OpConst32, intType, 3, nil),
++			Goto("b5")),
++		Bloc("b2",
++			Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
++			Valu("cond", OpLoad, boolType, 0, nil, "addr", "start"),
++			Valu("phi", OpPhi, intType, 0, nil, "const2", "const3"),
++			If("cond", "b3", "b4")),
++		Bloc("b3",
++			Goto("b2")),
++		Bloc("b4",
++			Goto("b2")),
++		Bloc("b5",
++			Exit("start")))
++
++	CheckFunc(fun.f)
++	branchelim(fun.f)
++	CheckFunc(fun.f)
++
++	if len(fun.f.Blocks) != 5 {
++		t.Errorf("expected 5 block after branchelim; found %d", len(fun.f.Blocks))
++	}
++	if fun.values["phi"].Op != OpPhi {
++		t.Errorf("expected phi op to be CondSelect; found op %s", fun.values["phi"].Op)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 721e451f05..faa0ba5d62 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -160,6 +160,11 @@ func checkFunc(f *Func) {
+ 				}
+ 				canHaveAuxInt = true
+ 				canHaveAux = true
++			case auxCCop:
++				if _, ok := v.Aux.(Op); !ok {
++					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
++				}
++				canHaveAux = true
+ 			default:
+ 				f.Fatalf("unknown aux type for %s", v.Op)
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 82b9e2cbce..0e06843c22 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -348,6 +348,7 @@ var passes = [...]pass{
+ 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+ 	{name: "generic deadcode", fn: deadcode},
+ 	{name: "check bce", fn: checkbce},
++	{name: "branchelim", fn: branchelim},
+ 	{name: "fuse", fn: fuse},
+ 	{name: "dse", fn: dse},
+ 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index b24ecaa4c4..4e22c965fe 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -27,6 +27,9 @@ func ReachableBlocks(f *Func) []bool {
+ 		}
+ 		for _, e := range s {
+ 			c := e.b
++			if int(c.ID) >= len(reachable) {
++				f.Fatalf("block %s >= f.NumBlocks()=%d?", c, len(reachable))
++			}
+ 			if !reachable[c.ID] {
+ 				reachable[c.ID] = true
+ 				p = append(p, c) // push
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 646b983a64..0e269dc753 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -121,65 +121,65 @@
+ // shifts
+ // hardware instruction uses only the low 6 bits of the shift
+ // we compare to 64 to ensure Go semantics for large shifts
+-(Lsh64x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Lsh64x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Lsh64x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Lsh64x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Lsh32x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Lsh32x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Lsh32x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Lsh32x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Lsh16x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Lsh16x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Lsh16x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Lsh16x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Lsh8x64 <t> x y) -> (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Lsh8x32 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Lsh8x16 <t> x y) -> (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Lsh8x8  <t> x y) -> (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Rsh64Ux64 <t> x y) -> (CSELULT (SRL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Rsh64Ux32 <t> x y) -> (CSELULT (SRL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Rsh64Ux16 <t> x y) -> (CSELULT (SRL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Rsh64Ux8  <t> x y) -> (CSELULT (SRL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Rsh32Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Rsh32Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Rsh32Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Rsh32Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Rsh16Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Rsh16Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Rsh16Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Rsh16Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Rsh8Ux64 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
+-(Rsh8Ux32 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+-(Rsh8Ux16 <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+-(Rsh8Ux8  <t> x y) -> (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+-
+-(Rsh64x64 x y) -> (SRA x (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+-(Rsh64x32 x y) -> (SRA x (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+-(Rsh64x16 x y) -> (SRA x (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+-(Rsh64x8  x y) -> (SRA x (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+-
+-(Rsh32x64 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+-(Rsh32x32 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+-(Rsh32x16 x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+-(Rsh32x8  x y) -> (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+-
+-(Rsh16x64 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+-(Rsh16x32 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+-(Rsh16x16 x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+-(Rsh16x8  x y) -> (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+-
+-(Rsh8x64 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
+-(Rsh8x32 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+-(Rsh8x16 x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+-(Rsh8x8  x y) -> (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++(Lsh64x64 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
++(Lsh64x32 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Lsh64x16 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Lsh64x8  <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Lsh32x64 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
++(Lsh32x32 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Lsh32x16 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Lsh32x8  <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Lsh16x64 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
++(Lsh16x32 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Lsh16x16 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Lsh16x8  <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Lsh8x64 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
++(Lsh8x32 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Lsh8x16 <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Lsh8x8  <t> x y) -> (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Rsh64Ux64 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
++(Rsh64Ux32 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Rsh64Ux16 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Rsh64Ux8  <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Rsh32Ux64 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
++(Rsh32Ux32 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Rsh32Ux16 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Rsh32Ux8  <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Rsh16Ux64 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
++(Rsh16Ux32 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Rsh16Ux16 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Rsh16Ux8  <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Rsh8Ux64 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
++(Rsh8Ux32 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++(Rsh8Ux16 <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++(Rsh8Ux8  <t> x y) -> (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++
++(Rsh64x64 x y) -> (SRA x (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
++(Rsh64x32 x y) -> (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++(Rsh64x16 x y) -> (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++(Rsh64x8  x y) -> (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++
++(Rsh32x64 x y) -> (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
++(Rsh32x32 x y) -> (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++(Rsh32x16 x y) -> (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++(Rsh32x8  x y) -> (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++
++(Rsh16x64 x y) -> (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
++(Rsh16x32 x y) -> (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++(Rsh16x16 x y) -> (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++(Rsh16x8  x y) -> (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++
++(Rsh8x64 x y) -> (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
++(Rsh8x32 x y) -> (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++(Rsh8x16 x y) -> (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++(Rsh8x8  x y) -> (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+ 
+ // constants
+ (Const64 [val]) -> (MOVDconst [val])
+@@ -305,6 +305,10 @@
+ (Geq32U x y) -> (GreaterEqualU (CMPW x y))
+ (Geq64U x y) -> (GreaterEqualU (CMP x y))
+ 
++// CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
++(CondSelect x y bool) && flagArg(bool) != nil -> (CSEL {bool.Op} x y flagArg(bool))
++(CondSelect x y bool) && flagArg(bool) == nil -> (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
++
+ (OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
+ (OffPtr [off] ptr) -> (ADDconst [off] ptr)
+ 
+@@ -847,7 +851,8 @@
+ (XOR x x) -> (MOVDconst [0])
+ (BIC x x) -> (MOVDconst [0])
+ (AND x (MVN y)) -> (BIC x y)
+-(CSELULT x (MOVDconst [0]) flag) -> (CSELULT0 x flag)
++(CSEL {cc} x (MOVDconst [0]) flag) -> (CSEL0 {cc} x flag)
++(CSEL {cc} (MOVDconst [0]) y flag) -> (CSEL0 {arm64Negate(cc.(Op))} y flag)
+ (SUB x (SUB y z)) -> (SUB (ADD <v.Type> x z) y)
+ (SUB (SUB x y) z) -> (SUB x (ADD <y.Type> y z))
+ 
+@@ -1003,6 +1008,10 @@
+ (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
+ (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+ 
++// absorb InvertFlags into CSEL(0)
++(CSEL {cc} x y (InvertFlags cmp)) -> (CSEL {arm64Invert(cc.(Op))} x y cmp)
++(CSEL0 {cc} x (InvertFlags cmp)) -> (CSEL0 {arm64Invert(cc.(Op))} x cmp)
++
+ // absorb flag constants into boolean values
+ (Equal (FlagEQ)) -> (MOVDconst [1])
+ (Equal (FlagLT_ULT)) -> (MOVDconst [0])
+@@ -1081,16 +1090,20 @@
+ (MOVBUreg x) && x.Type.IsBoolean() -> (MOVDreg x)
+ 
+ // absorb flag constants into conditional instructions
+-(CSELULT _ y (FlagEQ)) -> y
+-(CSELULT x _ (FlagLT_ULT)) -> x
+-(CSELULT _ y (FlagLT_UGT)) -> y
+-(CSELULT x _ (FlagGT_ULT)) -> x
+-(CSELULT _ y (FlagGT_UGT)) -> y
+-(CSELULT0 _ (FlagEQ)) -> (MOVDconst [0])
+-(CSELULT0 x (FlagLT_ULT)) -> x
+-(CSELULT0 _ (FlagLT_UGT)) -> (MOVDconst [0])
+-(CSELULT0 x (FlagGT_ULT)) -> x
+-(CSELULT0 _ (FlagGT_UGT)) -> (MOVDconst [0])
++(CSEL {cc} x _ flag) && ccARM64Eval(cc, flag) > 0 -> x
++(CSEL {cc} _ y flag) && ccARM64Eval(cc, flag) < 0 -> y
++(CSEL0 {cc} x flag) && ccARM64Eval(cc, flag) > 0 -> x
++(CSEL0 {cc} _ flag) && ccARM64Eval(cc, flag) < 0 -> (MOVDconst [0])
++
++// absorb flags back into boolean CSEL
++(CSEL {cc} x y (CMPWconst [0] bool)) && cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil ->
++      (CSEL {bool.Op} x y flagArg(bool))
++(CSEL {cc} x y (CMPWconst [0] bool)) && cc.(Op) == OpARM64Equal && flagArg(bool) != nil ->
++      (CSEL {arm64Negate(bool.Op)} x y flagArg(bool))
++(CSEL0 {cc} x (CMPWconst [0] bool)) && cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil ->
++      (CSEL0 {bool.Op} x flagArg(bool))
++(CSEL0 {cc} x (CMPWconst [0] bool)) && cc.(Op) == OpARM64Equal && flagArg(bool) != nil ->
++      (CSEL0 {arm64Negate(bool.Op)} x flagArg(bool))
+ 
+ // absorb shifts into ops
+ (ADD x0 x1:(SLLconst [c] y)) && clobberIfDead(x1) -> (ADDshiftLL x0 y [c])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index bed0fb3ccf..a5755659b8 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -329,9 +329,10 @@ func init() {
+ 		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"},
+ 		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"},
+ 
+-		// conditional instructions
+-		{name: "CSELULT", argLength: 3, reg: gp2flags1, asm: "CSEL"},  // returns arg0 if flags indicates unsigned LT, arg1 otherwise, arg2=flags
+-		{name: "CSELULT0", argLength: 2, reg: gp1flags1, asm: "CSEL"}, // returns arg0 if flags indicates unsigned LT, 0 otherwise, arg1=flags
++		// conditional instructions; auxint is
++		// one of the arm64 comparison pseudo-ops (LessThan, LessThanU, etc.)
++		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop"},  // aux(flags) ? arg0 : arg1
++		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"}, // aux(flags) ? arg0 : 0
+ 
+ 		// function calls
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                           // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index e970b8519b..6cfa9d2e71 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -217,6 +217,11 @@ var genericOps = []opData{
+ 	{name: "Geq32F", argLength: 2, typ: "Bool"},
+ 	{name: "Geq64F", argLength: 2, typ: "Bool"},
+ 
++	// the type of a CondSelect is the same as the type of its first
++	// two arguments, which should be register-width scalars; the third
++	// argument should be a boolean
++	{name: "CondSelect", argLength: 3}, // arg2 ? arg0 : arg1
++
+ 	// boolean ops
+ 	{name: "AndB", argLength: 2, commutative: true, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
+ 	{name: "OrB", argLength: 2, commutative: true, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 6330cdb182..170b0105e6 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -727,7 +727,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
+ 	}
+ 	if aux != "" {
+ 		switch op.aux {
+-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize":
++		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize", "CCop":
+ 		default:
+ 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 92560cdffb..621063cbbb 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -72,6 +72,7 @@ const (
+ 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+ 	auxTyp                  // aux is a type
+ 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
++	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+ 
+ 	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
+ )
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index fad17c2acd..2dff261ca4 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1097,8 +1097,8 @@ const (
+ 	OpARM64FRINTMD
+ 	OpARM64FRINTPD
+ 	OpARM64FRINTZD
+-	OpARM64CSELULT
+-	OpARM64CSELULT0
++	OpARM64CSEL
++	OpARM64CSEL0
+ 	OpARM64CALLstatic
+ 	OpARM64CALLclosure
+ 	OpARM64CALLinter
+@@ -1888,6 +1888,7 @@ const (
+ 	OpGeq64U
+ 	OpGeq32F
+ 	OpGeq64F
++	OpCondSelect
+ 	OpAndB
+ 	OpOrB
+ 	OpEqB
+@@ -14028,9 +14029,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CSELULT",
+-		argLen: 3,
+-		asm:    arm64.ACSEL,
++		name:    "CSEL",
++		auxType: auxCCop,
++		argLen:  3,
++		asm:     arm64.ACSEL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+@@ -14042,9 +14044,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CSELULT0",
+-		argLen: 2,
+-		asm:    arm64.ACSEL,
++		name:    "CSEL0",
++		auxType: auxCCop,
++		argLen:  2,
++		asm:     arm64.ACSEL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+@@ -23465,6 +23468,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "CondSelect",
++		argLen:  3,
++		generic: true,
++	},
+ 	{
+ 		name:        "AndB",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index e595962f74..df5f6c9fa4 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -534,6 +534,131 @@ func warnRule(cond bool, v *Value, s string) bool {
+ 	return true
+ }
+ 
++// for a pseudo-op like (LessThan x), extract x
++func flagArg(v *Value) *Value {
++	if len(v.Args) != 1 || !v.Args[0].Type.IsFlags() {
++		return nil
++	}
++	return v.Args[0]
++}
++
++// arm64Negate finds the complement to an ARM64 condition code,
++// for example Equal -> NotEqual or LessThan -> GreaterEqual
++//
++// TODO: add floating-point conditions
++func arm64Negate(op Op) Op {
++	switch op {
++	case OpARM64LessThan:
++		return OpARM64GreaterEqual
++	case OpARM64LessThanU:
++		return OpARM64GreaterEqualU
++	case OpARM64GreaterThan:
++		return OpARM64LessEqual
++	case OpARM64GreaterThanU:
++		return OpARM64LessEqualU
++	case OpARM64LessEqual:
++		return OpARM64GreaterThan
++	case OpARM64LessEqualU:
++		return OpARM64GreaterThanU
++	case OpARM64GreaterEqual:
++		return OpARM64LessThan
++	case OpARM64GreaterEqualU:
++		return OpARM64LessThanU
++	case OpARM64Equal:
++		return OpARM64NotEqual
++	case OpARM64NotEqual:
++		return OpARM64Equal
++	default:
++		panic("unreachable")
++	}
++}
++
++// arm64Invert evaluates (InvertFlags op), which
++// is the same as altering the condition codes such
++// that the same result would be produced if the arguments
++// to the flag-generating instruction were reversed, e.g.
++// (InvertFlags (CMP x y)) -> (CMP y x)
++//
++// TODO: add floating-point conditions
++func arm64Invert(op Op) Op {
++	switch op {
++	case OpARM64LessThan:
++		return OpARM64GreaterThan
++	case OpARM64LessThanU:
++		return OpARM64GreaterThanU
++	case OpARM64GreaterThan:
++		return OpARM64LessThan
++	case OpARM64GreaterThanU:
++		return OpARM64LessThanU
++	case OpARM64LessEqual:
++		return OpARM64GreaterEqual
++	case OpARM64LessEqualU:
++		return OpARM64GreaterEqualU
++	case OpARM64GreaterEqual:
++		return OpARM64LessEqual
++	case OpARM64GreaterEqualU:
++		return OpARM64LessEqualU
++	case OpARM64Equal, OpARM64NotEqual:
++		return op
++	default:
++		panic("unreachable")
++	}
++}
++
++// evaluate an ARM64 op against a flags value
++// that is potentially constant; return 1 for true,
++// -1 for false, and 0 for not constant.
++func ccARM64Eval(cc interface{}, flags *Value) int {
++	op := cc.(Op)
++	fop := flags.Op
++	switch fop {
++	case OpARM64InvertFlags:
++		return -ccARM64Eval(op, flags.Args[0])
++	case OpARM64FlagEQ:
++		switch op {
++		case OpARM64Equal, OpARM64GreaterEqual, OpARM64LessEqual,
++			OpARM64GreaterEqualU, OpARM64LessEqualU:
++			return 1
++		default:
++			return -1
++		}
++	case OpARM64FlagLT_ULT:
++		switch op {
++		case OpARM64LessThan, OpARM64LessThanU,
++			OpARM64LessEqual, OpARM64LessEqualU:
++			return 1
++		default:
++			return -1
++		}
++	case OpARM64FlagLT_UGT:
++		switch op {
++		case OpARM64LessThan, OpARM64GreaterThanU,
++			OpARM64LessEqual, OpARM64GreaterEqualU:
++			return 1
++		default:
++			return -1
++		}
++	case OpARM64FlagGT_ULT:
++		switch op {
++		case OpARM64GreaterThan, OpARM64LessThanU,
++			OpARM64GreaterEqual, OpARM64LessEqualU:
++			return 1
++		default:
++			return -1
++		}
++	case OpARM64FlagGT_UGT:
++		switch op {
++		case OpARM64GreaterThan, OpARM64GreaterThanU,
++			OpARM64GreaterEqual, OpARM64GreaterEqualU:
++			return 1
++		default:
++			return -1
++		}
++	default:
++		return 0
++	}
++}
++
+ // logRule logs the use of the rule s. This will only be enabled if
+ // rewrite rules were generated with the -log option, see gen/rulegen.go.
+ func logRule(s string) {
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index db30fd3ba5..405a8970fc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -59,10 +59,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64CMPshiftRA_0(v)
+ 	case OpARM64CMPshiftRL:
+ 		return rewriteValueARM64_OpARM64CMPshiftRL_0(v)
+-	case OpARM64CSELULT:
+-		return rewriteValueARM64_OpARM64CSELULT_0(v)
+-	case OpARM64CSELULT0:
+-		return rewriteValueARM64_OpARM64CSELULT0_0(v)
++	case OpARM64CSEL:
++		return rewriteValueARM64_OpARM64CSEL_0(v)
++	case OpARM64CSEL0:
++		return rewriteValueARM64_OpARM64CSEL0_0(v)
+ 	case OpARM64DIV:
+ 		return rewriteValueARM64_OpARM64DIV_0(v)
+ 	case OpARM64DIVW:
+@@ -301,6 +301,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpCom64_0(v)
+ 	case OpCom8:
+ 		return rewriteValueARM64_OpCom8_0(v)
++	case OpCondSelect:
++		return rewriteValueARM64_OpCondSelect_0(v)
+ 	case OpConst16:
+ 		return rewriteValueARM64_OpConst16_0(v)
+ 	case OpConst32:
+@@ -2598,11 +2600,12 @@ func rewriteValueARM64_OpARM64CMPshiftRL_0(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueARM64_OpARM64CSELULT_0(v *Value) bool {
+-	// match: (CSELULT x (MOVDconst [0]) flag)
++func rewriteValueARM64_OpARM64CSEL_0(v *Value) bool {
++	// match: (CSEL {cc} x (MOVDconst [0]) flag)
+ 	// cond:
+-	// result: (CSELULT0 x flag)
++	// result: (CSEL0 {cc} x flag)
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[2]
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -2613,34 +2616,62 @@ func rewriteValueARM64_OpARM64CSELULT_0(v *Value) bool {
+ 			break
+ 		}
+ 		flag := v.Args[2]
+-		v.reset(OpARM64CSELULT0)
++		v.reset(OpARM64CSEL0)
++		v.Aux = cc
+ 		v.AddArg(x)
+ 		v.AddArg(flag)
+ 		return true
+ 	}
+-	// match: (CSELULT _ y (FlagEQ))
++	// match: (CSEL {cc} (MOVDconst [0]) y flag)
+ 	// cond:
+-	// result: y
++	// result: (CSEL0 {arm64Negate(cc.(Op))} y flag)
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[2]
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		if v_0.AuxInt != 0 {
++			break
++		}
++		y := v.Args[1]
++		flag := v.Args[2]
++		v.reset(OpARM64CSEL0)
++		v.Aux = arm64Negate(cc.(Op))
++		v.AddArg(y)
++		v.AddArg(flag)
++		return true
++	}
++	// match: (CSEL {cc} x y (InvertFlags cmp))
++	// cond:
++	// result: (CSEL {arm64Invert(cc.(Op))} x y cmp)
++	for {
++		cc := v.Aux
++		_ = v.Args[2]
++		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v_2 := v.Args[2]
+-		if v_2.Op != OpARM64FlagEQ {
++		if v_2.Op != OpARM64InvertFlags {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = y.Type
++		cmp := v_2.Args[0]
++		v.reset(OpARM64CSEL)
++		v.Aux = arm64Invert(cc.(Op))
++		v.AddArg(x)
+ 		v.AddArg(y)
++		v.AddArg(cmp)
+ 		return true
+ 	}
+-	// match: (CSELULT x _ (FlagLT_ULT))
+-	// cond:
++	// match: (CSEL {cc} x _ flag)
++	// cond: ccARM64Eval(cc, flag) > 0
+ 	// result: x
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[2]
+ 		x := v.Args[0]
+-		v_2 := v.Args[2]
+-		if v_2.Op != OpARM64FlagLT_ULT {
++		flag := v.Args[2]
++		if !(ccARM64Eval(cc, flag) > 0) {
+ 			break
+ 		}
+ 		v.reset(OpCopy)
+@@ -2648,14 +2679,15 @@ func rewriteValueARM64_OpARM64CSELULT_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (CSELULT _ y (FlagLT_UGT))
+-	// cond:
++	// match: (CSEL {cc} _ y flag)
++	// cond: ccARM64Eval(cc, flag) < 0
+ 	// result: y
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[2]
+ 		y := v.Args[1]
+-		v_2 := v.Args[2]
+-		if v_2.Op != OpARM64FlagLT_UGT {
++		flag := v.Args[2]
++		if !(ccARM64Eval(cc, flag) < 0) {
+ 			break
+ 		}
+ 		v.reset(OpCopy)
+@@ -2663,60 +2695,88 @@ func rewriteValueARM64_OpARM64CSELULT_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
+-	// match: (CSELULT x _ (FlagGT_ULT))
+-	// cond:
+-	// result: x
++	// match: (CSEL {cc} x y (CMPWconst [0] bool))
++	// cond: cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil
++	// result: (CSEL {bool.Op} x y flagArg(bool))
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[2]
+ 		x := v.Args[0]
++		y := v.Args[1]
+ 		v_2 := v.Args[2]
+-		if v_2.Op != OpARM64FlagGT_ULT {
++		if v_2.Op != OpARM64CMPWconst {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		if v_2.AuxInt != 0 {
++			break
++		}
++		bool := v_2.Args[0]
++		if !(cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil) {
++			break
++		}
++		v.reset(OpARM64CSEL)
++		v.Aux = bool.Op
+ 		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(flagArg(bool))
+ 		return true
+ 	}
+-	// match: (CSELULT _ y (FlagGT_UGT))
+-	// cond:
+-	// result: y
++	// match: (CSEL {cc} x y (CMPWconst [0] bool))
++	// cond: cc.(Op) == OpARM64Equal && flagArg(bool) != nil
++	// result: (CSEL {arm64Negate(bool.Op)} x y flagArg(bool))
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[2]
++		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v_2 := v.Args[2]
+-		if v_2.Op != OpARM64FlagGT_UGT {
++		if v_2.Op != OpARM64CMPWconst {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = y.Type
++		if v_2.AuxInt != 0 {
++			break
++		}
++		bool := v_2.Args[0]
++		if !(cc.(Op) == OpARM64Equal && flagArg(bool) != nil) {
++			break
++		}
++		v.reset(OpARM64CSEL)
++		v.Aux = arm64Negate(bool.Op)
++		v.AddArg(x)
+ 		v.AddArg(y)
++		v.AddArg(flagArg(bool))
+ 		return true
+ 	}
+ 	return false
+ }
+-func rewriteValueARM64_OpARM64CSELULT0_0(v *Value) bool {
+-	// match: (CSELULT0 _ (FlagEQ))
++func rewriteValueARM64_OpARM64CSEL0_0(v *Value) bool {
++	// match: (CSEL0 {cc} x (InvertFlags cmp))
+ 	// cond:
+-	// result: (MOVDconst [0])
++	// result: (CSEL0 {arm64Invert(cc.(Op))} x cmp)
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[1]
++		x := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpARM64FlagEQ {
++		if v_1.Op != OpARM64InvertFlags {
+ 			break
+ 		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		cmp := v_1.Args[0]
++		v.reset(OpARM64CSEL0)
++		v.Aux = arm64Invert(cc.(Op))
++		v.AddArg(x)
++		v.AddArg(cmp)
+ 		return true
+ 	}
+-	// match: (CSELULT0 x (FlagLT_ULT))
+-	// cond:
++	// match: (CSEL0 {cc} x flag)
++	// cond: ccARM64Eval(cc, flag) > 0
+ 	// result: x
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpARM64FlagLT_ULT {
++		flag := v.Args[1]
++		if !(ccARM64Eval(cc, flag) > 0) {
+ 			break
+ 		}
+ 		v.reset(OpCopy)
+@@ -2724,45 +2784,66 @@ func rewriteValueARM64_OpARM64CSELULT0_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (CSELULT0 _ (FlagLT_UGT))
+-	// cond:
++	// match: (CSEL0 {cc} _ flag)
++	// cond: ccARM64Eval(cc, flag) < 0
+ 	// result: (MOVDconst [0])
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[1]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpARM64FlagLT_UGT {
++		flag := v.Args[1]
++		if !(ccARM64Eval(cc, flag) < 0) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDconst)
+ 		v.AuxInt = 0
+ 		return true
+ 	}
+-	// match: (CSELULT0 x (FlagGT_ULT))
+-	// cond:
+-	// result: x
++	// match: (CSEL0 {cc} x (CMPWconst [0] bool))
++	// cond: cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil
++	// result: (CSEL0 {bool.Op} x flagArg(bool))
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpARM64FlagGT_ULT {
++		if v_1.Op != OpARM64CMPWconst {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		if v_1.AuxInt != 0 {
++			break
++		}
++		bool := v_1.Args[0]
++		if !(cc.(Op) == OpARM64NotEqual && flagArg(bool) != nil) {
++			break
++		}
++		v.reset(OpARM64CSEL0)
++		v.Aux = bool.Op
+ 		v.AddArg(x)
++		v.AddArg(flagArg(bool))
+ 		return true
+ 	}
+-	// match: (CSELULT0 _ (FlagGT_UGT))
+-	// cond:
+-	// result: (MOVDconst [0])
++	// match: (CSEL0 {cc} x (CMPWconst [0] bool))
++	// cond: cc.(Op) == OpARM64Equal && flagArg(bool) != nil
++	// result: (CSEL0 {arm64Negate(bool.Op)} x flagArg(bool))
+ 	for {
++		cc := v.Aux
+ 		_ = v.Args[1]
++		x := v.Args[0]
+ 		v_1 := v.Args[1]
+-		if v_1.Op != OpARM64FlagGT_UGT {
++		if v_1.Op != OpARM64CMPWconst {
+ 			break
+ 		}
+-		v.reset(OpARM64MOVDconst)
+-		v.AuxInt = 0
++		if v_1.AuxInt != 0 {
++			break
++		}
++		bool := v_1.Args[0]
++		if !(cc.(Op) == OpARM64Equal && flagArg(bool) != nil) {
++			break
++		}
++		v.reset(OpARM64CSEL0)
++		v.Aux = arm64Negate(bool.Op)
++		v.AddArg(x)
++		v.AddArg(flagArg(bool))
+ 		return true
+ 	}
+ 	return false
+@@ -11399,6 +11480,50 @@ func rewriteValueARM64_OpCom8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM64_OpCondSelect_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (CondSelect x y bool)
++	// cond: flagArg(bool) != nil
++	// result: (CSEL {bool.Op} x y flagArg(bool))
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		bool := v.Args[2]
++		if !(flagArg(bool) != nil) {
++			break
++		}
++		v.reset(OpARM64CSEL)
++		v.Aux = bool.Op
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(flagArg(bool))
++		return true
++	}
++	// match: (CondSelect x y bool)
++	// cond: flagArg(bool) == nil
++	// result: (CSEL {OpARM64NotEqual} x y (CMPWconst [0] bool))
++	for {
++		_ = v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		bool := v.Args[2]
++		if !(flagArg(bool) == nil) {
++			break
++		}
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64NotEqual
++		v.AddArg(x)
++		v.AddArg(y)
++		v0 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
++		v0.AuxInt = 0
++		v0.AddArg(bool)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpConst16_0(v *Value) bool {
+ 	// match: (Const16 [val])
+ 	// cond:
+@@ -13216,20 +13341,21 @@ func rewriteValueARM64_OpLsh16x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh16x16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13248,20 +13374,21 @@ func rewriteValueARM64_OpLsh16x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh16x32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13278,18 +13405,19 @@ func rewriteValueARM64_OpLsh16x64_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Lsh16x64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v1.AuxInt = 0
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13306,20 +13434,21 @@ func rewriteValueARM64_OpLsh16x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh16x8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13338,20 +13467,21 @@ func rewriteValueARM64_OpLsh32x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh32x16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13370,20 +13500,21 @@ func rewriteValueARM64_OpLsh32x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh32x32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13400,18 +13531,19 @@ func rewriteValueARM64_OpLsh32x64_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Lsh32x64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v1.AuxInt = 0
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13428,20 +13560,21 @@ func rewriteValueARM64_OpLsh32x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh32x8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13460,20 +13593,21 @@ func rewriteValueARM64_OpLsh64x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh64x16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13492,20 +13626,21 @@ func rewriteValueARM64_OpLsh64x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh64x32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13522,18 +13657,19 @@ func rewriteValueARM64_OpLsh64x64_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Lsh64x64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v1.AuxInt = 0
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13550,20 +13686,21 @@ func rewriteValueARM64_OpLsh64x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh64x8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13582,20 +13719,21 @@ func rewriteValueARM64_OpLsh8x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh8x16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13614,20 +13752,21 @@ func rewriteValueARM64_OpLsh8x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh8x32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13644,18 +13783,19 @@ func rewriteValueARM64_OpLsh8x64_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Lsh8x64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v1.AuxInt = 0
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -13672,20 +13812,21 @@ func rewriteValueARM64_OpLsh8x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Lsh8x8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SLL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SLL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14789,13 +14930,14 @@ func rewriteValueARM64_OpRsh16Ux16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16Ux16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -14804,7 +14946,7 @@ func rewriteValueARM64_OpRsh16Ux16_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14823,13 +14965,14 @@ func rewriteValueARM64_OpRsh16Ux32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16Ux32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -14838,7 +14981,7 @@ func rewriteValueARM64_OpRsh16Ux32_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14857,20 +15000,21 @@ func rewriteValueARM64_OpRsh16Ux64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16Ux64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt16to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14887,13 +15031,14 @@ func rewriteValueARM64_OpRsh16Ux8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16Ux8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt16to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -14902,7 +15047,7 @@ func rewriteValueARM64_OpRsh16Ux8_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14921,7 +15066,7 @@ func rewriteValueARM64_OpRsh16x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16x16 x y)
+ 	// cond:
+-	// result: (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -14930,11 +15075,12 @@ func rewriteValueARM64_OpRsh16x16_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14954,7 +15100,7 @@ func rewriteValueARM64_OpRsh16x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16x32 x y)
+ 	// cond:
+-	// result: (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -14963,11 +15109,12 @@ func rewriteValueARM64_OpRsh16x32_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -14987,7 +15134,7 @@ func rewriteValueARM64_OpRsh16x64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16x64 x y)
+ 	// cond:
+-	// result: (SRA (SignExt16to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
++	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -14996,9 +15143,10 @@ func rewriteValueARM64_OpRsh16x64_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v1.AddArg(y)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v2 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v2.AuxInt = 63
+ 		v1.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15016,7 +15164,7 @@ func rewriteValueARM64_OpRsh16x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh16x8 x y)
+ 	// cond:
+-	// result: (SRA (SignExt16to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++	// result: (SRA (SignExt16to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15025,11 +15173,12 @@ func rewriteValueARM64_OpRsh16x8_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt16to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15049,13 +15198,14 @@ func rewriteValueARM64_OpRsh32Ux16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32Ux16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -15064,7 +15214,7 @@ func rewriteValueARM64_OpRsh32Ux16_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15083,13 +15233,14 @@ func rewriteValueARM64_OpRsh32Ux32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32Ux32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -15098,7 +15249,7 @@ func rewriteValueARM64_OpRsh32Ux32_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15117,20 +15268,21 @@ func rewriteValueARM64_OpRsh32Ux64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32Ux64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt32to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15147,13 +15299,14 @@ func rewriteValueARM64_OpRsh32Ux8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32Ux8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt32to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -15162,7 +15315,7 @@ func rewriteValueARM64_OpRsh32Ux8_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15181,7 +15334,7 @@ func rewriteValueARM64_OpRsh32x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32x16 x y)
+ 	// cond:
+-	// result: (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15190,11 +15343,12 @@ func rewriteValueARM64_OpRsh32x16_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15214,7 +15368,7 @@ func rewriteValueARM64_OpRsh32x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32x32 x y)
+ 	// cond:
+-	// result: (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15223,11 +15377,12 @@ func rewriteValueARM64_OpRsh32x32_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15247,7 +15402,7 @@ func rewriteValueARM64_OpRsh32x64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32x64 x y)
+ 	// cond:
+-	// result: (SRA (SignExt32to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
++	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15256,9 +15411,10 @@ func rewriteValueARM64_OpRsh32x64_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v1.AddArg(y)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v2 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v2.AuxInt = 63
+ 		v1.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15276,7 +15432,7 @@ func rewriteValueARM64_OpRsh32x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh32x8 x y)
+ 	// cond:
+-	// result: (SRA (SignExt32to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++	// result: (SRA (SignExt32to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15285,11 +15441,12 @@ func rewriteValueARM64_OpRsh32x8_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15309,20 +15466,21 @@ func rewriteValueARM64_OpRsh64Ux16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh64Ux16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> x (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15341,20 +15499,21 @@ func rewriteValueARM64_OpRsh64Ux32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh64Ux32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> x (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15371,18 +15530,19 @@ func rewriteValueARM64_OpRsh64Ux64_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Rsh64Ux64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> x y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> x y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v0.AddArg(x)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v1 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v1.AuxInt = 0
+ 		v.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15399,20 +15559,21 @@ func rewriteValueARM64_OpRsh64Ux8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh64Ux8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> x (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> x (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v0.AddArg(x)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15431,18 +15592,19 @@ func rewriteValueARM64_OpRsh64x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh64x16 x y)
+ 	// cond:
+-	// result: (SRA x (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpARM64SRA)
+ 		v.AddArg(x)
+-		v0 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v0 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v0.Aux = OpARM64LessThanU
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v2 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v2.AuxInt = 63
+ 		v0.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15462,18 +15624,19 @@ func rewriteValueARM64_OpRsh64x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh64x32 x y)
+ 	// cond:
+-	// result: (SRA x (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpARM64SRA)
+ 		v.AddArg(x)
+-		v0 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v0 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v0.Aux = OpARM64LessThanU
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v2 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v2.AuxInt = 63
+ 		v0.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15491,16 +15654,17 @@ func rewriteValueARM64_OpRsh64x64_0(v *Value) bool {
+ 	_ = b
+ 	// match: (Rsh64x64 x y)
+ 	// cond:
+-	// result: (SRA x (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
++	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpARM64SRA)
+ 		v.AddArg(x)
+-		v0 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v0 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v0.Aux = OpARM64LessThanU
+ 		v0.AddArg(y)
+-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v1 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v1.AuxInt = 63
+ 		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15518,18 +15682,19 @@ func rewriteValueARM64_OpRsh64x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh64x8 x y)
+ 	// cond:
+-	// result: (SRA x (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++	// result: (SRA x (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+ 		v.reset(OpARM64SRA)
+ 		v.AddArg(x)
+-		v0 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v0 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v0.Aux = OpARM64LessThanU
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(y)
+ 		v0.AddArg(v1)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v2 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v2.AuxInt = 63
+ 		v0.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15549,13 +15714,14 @@ func rewriteValueARM64_OpRsh8Ux16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8Ux16 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt16to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt16to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -15564,7 +15730,7 @@ func rewriteValueARM64_OpRsh8Ux16_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15583,13 +15749,14 @@ func rewriteValueARM64_OpRsh8Ux32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8Ux32 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt32to64 y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt32to64 y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -15598,7 +15765,7 @@ func rewriteValueARM64_OpRsh8Ux32_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15617,20 +15784,21 @@ func rewriteValueARM64_OpRsh8Ux64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8Ux64 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt8to64 x) y) (MOVDconst <t> [0]) (CMPconst [64] y))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) y) (Const64 <t> [0]) (CMPconst [64] y))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+ 		v0.AddArg(y)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v2 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v2.AuxInt = 0
+ 		v.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15647,13 +15815,14 @@ func rewriteValueARM64_OpRsh8Ux8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8Ux8 <t> x y)
+ 	// cond:
+-	// result: (CSELULT (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (MOVDconst <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
++	// result: (CSEL {OpARM64LessThanU} (SRL <t> (ZeroExt8to64 x) (ZeroExt8to64  y)) (Const64 <t> [0]) (CMPconst [64] (ZeroExt8to64  y)))
+ 	for {
+ 		t := v.Type
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARM64CSELULT)
++		v.reset(OpARM64CSEL)
++		v.Aux = OpARM64LessThanU
+ 		v0 := b.NewValue0(v.Pos, OpARM64SRL, t)
+ 		v1 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v1.AddArg(x)
+@@ -15662,7 +15831,7 @@ func rewriteValueARM64_OpRsh8Ux8_0(v *Value) bool {
+ 		v2.AddArg(y)
+ 		v0.AddArg(v2)
+ 		v.AddArg(v0)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, t)
++		v3 := b.NewValue0(v.Pos, OpConst64, t)
+ 		v3.AuxInt = 0
+ 		v.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15681,7 +15850,7 @@ func rewriteValueARM64_OpRsh8x16_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8x16 x y)
+ 	// cond:
+-	// result: (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt16to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
++	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt16to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt16to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15690,11 +15859,12 @@ func rewriteValueARM64_OpRsh8x16_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15714,7 +15884,7 @@ func rewriteValueARM64_OpRsh8x32_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8x32 x y)
+ 	// cond:
+-	// result: (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt32to64 y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
++	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt32to64 y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt32to64 y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15723,11 +15893,12 @@ func rewriteValueARM64_OpRsh8x32_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15747,7 +15918,7 @@ func rewriteValueARM64_OpRsh8x64_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8x64 x y)
+ 	// cond:
+-	// result: (SRA (SignExt8to64 x) (CSELULT <y.Type> y (MOVDconst <y.Type> [63]) (CMPconst [64] y)))
++	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15756,9 +15927,10 @@ func rewriteValueARM64_OpRsh8x64_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v1.AddArg(y)
+-		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v2 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v2.AuxInt = 63
+ 		v1.AddArg(v2)
+ 		v3 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+@@ -15776,7 +15948,7 @@ func rewriteValueARM64_OpRsh8x8_0(v *Value) bool {
+ 	_ = typ
+ 	// match: (Rsh8x8 x y)
+ 	// cond:
+-	// result: (SRA (SignExt8to64 x) (CSELULT <y.Type> (ZeroExt8to64  y) (MOVDconst <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
++	// result: (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
+ 	for {
+ 		_ = v.Args[1]
+ 		x := v.Args[0]
+@@ -15785,11 +15957,12 @@ func rewriteValueARM64_OpRsh8x8_0(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpSignExt8to64, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpARM64CSELULT, y.Type)
++		v1 := b.NewValue0(v.Pos, OpARM64CSEL, y.Type)
++		v1.Aux = OpARM64LessThanU
+ 		v2 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+ 		v2.AddArg(y)
+ 		v1.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, y.Type)
++		v3 := b.NewValue0(v.Pos, OpConst64, y.Type)
+ 		v3.AuxInt = 63
+ 		v1.AddArg(v3)
+ 		v4 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 832ed8d320..ecf7b80115 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -166,6 +166,8 @@ func (v *Value) auxString() string {
+ 			s = fmt.Sprintf(" {%v}", v.Aux)
+ 		}
+ 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
++	case auxCCop:
++		return fmt.Sprintf(" {%s}", v.Aux.(Op))
+ 	}
+ 	return ""
+ }

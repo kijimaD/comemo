@@ -13,6 +13,20 @@ Date:   Tue Nov 9 10:37:43 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_get_direct.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_direct.txt b/src/cmd/go/testdata/script/mod_get_direct.txt
+index 42ccbcd38a..856e05bc32 100644
+--- a/src/cmd/go/testdata/script/mod_get_direct.txt
++++ b/src/cmd/go/testdata/script/mod_get_direct.txt
+@@ -10,7 +10,7 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+-go list -m cloud.google.com/go@master
++go list -m cloud.google.com/go@main
+ ! stdout 'v0.0.0-'
+ 
+ -- go.mod --

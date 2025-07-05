@@ -24,6 +24,31 @@ Date:   Tue Oct 4 07:10:09 2022 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/type.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 339c982087..b06b7ffd9e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2005,13 +2005,15 @@ var funcTypesMutex sync.Mutex
+ func initFuncTypes(n int) Type {
+ 	funcTypesMutex.Lock()
+ 	defer funcTypesMutex.Unlock()
+-	if n < len(funcTypes) && funcTypes[n] != nil {
++	if n >= len(funcTypes) {
++		newFuncTypes := make([]Type, n+1)
++		copy(newFuncTypes, funcTypes)
++		funcTypes = newFuncTypes
++	}
++	if funcTypes[n] != nil {
+ 		return funcTypes[n]
+ 	}
+ 
+-	newFuncTypes := make([]Type, n+1)
+-	copy(newFuncTypes, funcTypes)
+-	funcTypes = newFuncTypes
+ 	funcTypes[n] = StructOf([]StructField{
+ 		{
+ 			Name: "FuncType",

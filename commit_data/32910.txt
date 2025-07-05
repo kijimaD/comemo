@@ -24,7 +24,7 @@ Date:   Mon Jun 12 22:36:03 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_unix_test.go                 | 13 +++++
  src/runtime/os_nacl.go                         |  5 ++
  src/runtime/os_plan9.go                        |  5 ++
@@ -36,3 +36,326 @@ Date:   Mon Jun 12 22:36:03 2017 -0700
  src/syscall/exec_linux.go                      |  3 ++
  src/syscall/exec_solaris.go                    |  3 ++
  10 files changed, 158 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 182c84b639..fdb3267006 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -251,3 +251,16 @@ func TestSignalIgnoreSIGTRAP(t *testing.T) {
+ 		t.Fatalf("want %s, got %s\n", want, output)
+ 	}
+ }
++
++func TestSignalDuringExec(t *testing.T) {
++	switch runtime.GOOS {
++	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
++	default:
++		t.Skipf("skipping test on %s", runtime.GOOS)
++	}
++	output := runTestProg(t, "testprognet", "SignalDuringExec")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("want %s, got %s\n", want, output)
++	}
++}
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index ee632d9813..18e6ce6232 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -87,6 +87,11 @@ func msigsave(mp *m) {
+ func msigrestore(sigmask sigset) {
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
++func clearSignalHandlers() {
++}
++
+ //go:nosplit
+ func sigblock() {
+ }
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index ba2d5c5525..45e881aa41 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -173,6 +173,11 @@ func msigsave(mp *m) {
+ func msigrestore(sigmask sigset) {
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
++func clearSignalHandlers() {
++}
++
+ func sigblock() {
+ }
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 3df3d28ed0..72b57ad7dc 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -656,6 +656,11 @@ func msigsave(mp *m) {
+ func msigrestore(sigmask sigset) {
+ }
+ 
++//go:nosplit
++//go:nowritebarrierrec
++func clearSignalHandlers() {
++}
++
+ //go:nosplit
+ func sigblock() {
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9e53716992..f6e07f8ec0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2804,12 +2804,12 @@ func exitsyscall0(gp *g) {
+ func beforefork() {
+ 	gp := getg().m.curg
+ 
+-	// Fork can hang if preempted with signals frequently enough (see issue 5517).
+-	// Ensure that we stay on the same M where we disable profiling.
++	// Block signals during a fork, so that the child does not run
++	// a signal handler before exec if a signal is sent to the process
++	// group. See issue #18600.
+ 	gp.m.locks++
+-	if gp.m.profilehz != 0 {
+-		setThreadCPUProfiler(0)
+-	}
++	msigsave(gp.m)
++	sigblock()
+ 
+ 	// This function is called before fork in syscall package.
+ 	// Code between fork and exec must not allocate memory nor even try to grow stack.
+@@ -2828,13 +2828,11 @@ func syscall_runtime_BeforeFork() {
+ func afterfork() {
+ 	gp := getg().m.curg
+ 
+-	// See the comment in beforefork.
++	// See the comments in beforefork.
+ 	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 
+-	hz := sched.profilehz
+-	if hz != 0 {
+-		setThreadCPUProfiler(hz)
+-	}
++	msigrestore(gp.m.sigmask)
++
+ 	gp.m.locks--
+ }
+ 
+@@ -2845,6 +2843,20 @@ func syscall_runtime_AfterFork() {
+ 	systemstack(afterfork)
+ }
+ 
++// Called from syscall package after fork in child.
++// It resets non-sigignored signals to the default handler, and
++// restores the signal mask in preparation for the exec.
++//go:linkname syscall_runtime_AfterForkInChild syscall.runtime_AfterForkInChild
++//go:nosplit
++//go:nowritebarrierrec
++func syscall_runtime_AfterForkInChild() {
++	clearSignalHandlers()
++
++	// When we are the child we are the only thread running,
++	// so we know that nothing else has changed gp.m.sigmask.
++	msigrestore(getg().m.sigmask)
++}
++
+ // Allocate a new g, with a stack big enough for stacksize bytes.
+ func malg(stacksize int32) *g {
+ 	newg := new(g)
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index e0ea724f97..539b165ba1 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -204,6 +204,20 @@ func sigignore(sig uint32) {
+ 	}
+ }
+ 
++// clearSignalHandlers clears all signal handlers that are not ignored
++// back to the default. This is called by the child after a fork, so that
++// we can enable the signal mask for the exec without worrying about
++// running a signal handler in the child.
++//go:nosplit
++//go:nowritebarrierrec
++func clearSignalHandlers() {
++	for i := uint32(0); i < _NSIG; i++ {
++		if atomic.Load(&handlingSig[i]) != 0 {
++			setsig(i, _SIG_DFL)
++		}
++	}
++}
++
+ // setProcessCPUProfiler is called when the profiling timer changes.
+ // It is called with prof.lock held. hz is the new timer, and is 0 if
+ // profiling is being disabled. Enable or disable the signal as
+@@ -310,6 +324,11 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	}
+ 
+ 	setg(g.m.gsignal)
++
++	if g.stackguard0 == stackFork {
++		signalDuringFork(sig)
++	}
++
+ 	c := &sigctxt{info, ctx}
+ 	c.fixsigcode(sig)
+ 	sighandler(sig, info, ctx, g)
+@@ -521,6 +540,16 @@ func sigNotOnStack(sig uint32) {
+ 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
+ }
+ 
++// signalDuringFork is called if we receive a signal while doing a fork.
++// We do not want signals at that time, as a signal sent to the process
++// group may be delivered to the child process, causing confusion.
++// This should never be called, because we block signals across the fork;
++// this function is just a safety check. See issue 18600 for background.
++func signalDuringFork(sig uint32) {
++	println("signal", sig, "received during fork")
++	throw("signal received during fork")
++}
++
+ // This runs on a foreign stack, without an m or a g. No stack split.
+ //go:nosplit
+ //go:norace
+diff --git a/src/runtime/testdata/testprognet/signalexec.go b/src/runtime/testdata/testprognet/signalexec.go
+new file mode 100644
+index 0000000000..4a988ef6c1
+--- /dev/null
++++ b/src/runtime/testdata/testprognet/signalexec.go
+@@ -0,0 +1,70 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++// This is in testprognet instead of testprog because testprog
++// must not import anything (like net, but also like os/signal)
++// that kicks off background goroutines during init.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"os/signal"
++	"sync"
++	"syscall"
++	"time"
++)
++
++func init() {
++	register("SignalDuringExec", SignalDuringExec)
++	register("Nop", Nop)
++}
++
++func SignalDuringExec() {
++	pgrp := syscall.Getpgrp()
++
++	const tries = 10
++
++	var wg sync.WaitGroup
++	c := make(chan os.Signal, tries)
++	signal.Notify(c, syscall.SIGWINCH)
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		for range c {
++		}
++	}()
++
++	for i := 0; i < tries; i++ {
++		time.Sleep(time.Microsecond)
++		wg.Add(2)
++		go func() {
++			defer wg.Done()
++			cmd := exec.Command(os.Args[0], "Nop")
++			cmd.Stdout = os.Stdout
++			cmd.Stderr = os.Stderr
++			if err := cmd.Run(); err != nil {
++				fmt.Printf("Start failed: %v", err)
++			}
++		}()
++		go func() {
++			defer wg.Done()
++			syscall.Kill(-pgrp, syscall.SIGWINCH)
++		}()
++	}
++
++	signal.Stop(c)
++	close(c)
++	wg.Wait()
++
++	fmt.Println("OK")
++}
++
++func Nop() {
++	// This is just for SignalDuringExec.
++}
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 730b63d1e5..17ca6f06cf 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -27,6 +27,7 @@ type SysProcAttr struct {
+ // Implemented in runtime package.
+ func runtime_BeforeFork()
+ func runtime_AfterFork()
++func runtime_AfterForkInChild()
+ 
+ // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
+ // If a dup or exec fails, write the errno error to pipe.
+@@ -88,6 +89,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// Fork succeeded, now in child.
+ 
++	runtime_AfterForkInChild()
++
+ 	// Enable tracing if requested.
+ 	if sys.Ptrace {
+ 		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 5f53eaaa36..e631cd6470 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -50,6 +50,7 @@ var (
+ // Implemented in runtime package.
+ func runtime_BeforeFork()
+ func runtime_AfterFork()
++func runtime_AfterForkInChild()
+ 
+ // Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
+ // If a dup or exec fails, write the errno error to pipe.
+@@ -133,6 +134,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// Fork succeeded, now in child.
+ 
++	runtime_AfterForkInChild()
++
+ 	// Wait for User ID/Group ID mappings to be written.
+ 	if sys.UidMappings != nil || sys.GidMappings != nil {
+ 		if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(p[1]), 0, 0); err1 != 0 {
+diff --git a/src/syscall/exec_solaris.go b/src/syscall/exec_solaris.go
+index abeed56b13..448207ee1b 100644
+--- a/src/syscall/exec_solaris.go
++++ b/src/syscall/exec_solaris.go
+@@ -23,6 +23,7 @@ type SysProcAttr struct {
+ // Implemented in runtime package.
+ func runtime_BeforeFork()
+ func runtime_AfterFork()
++func runtime_AfterForkInChild()
+ 
+ func chdir(path uintptr) (err Errno)
+ func chroot1(path uintptr) (err Errno)
+@@ -93,6 +94,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	// Fork succeeded, now in child.
+ 
++	runtime_AfterForkInChild()
++
+ 	// Session ID
+ 	if sys.Setsid {
+ 		_, err1 = setsid()

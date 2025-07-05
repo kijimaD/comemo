@@ -13,6 +13,20 @@ Date:   Sat Apr 30 04:02:43 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/403076
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/url/url.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 58b30411a4..db4d6385e3 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -428,7 +428,7 @@ func (u *Userinfo) String() string {
+ }
+ 
+ // Maybe rawURL is of the form scheme:path.
+-// (Scheme must be [a-zA-Z][a-zA-Z0-9+-.]*)
++// (Scheme must be [a-zA-Z][a-zA-Z0-9+.-]*)
+ // If so, return scheme, path; else return "", rawURL.
+ func getScheme(rawURL string) (scheme, path string, err error) {
+ 	for i := 0; i < len(rawURL); i++ {

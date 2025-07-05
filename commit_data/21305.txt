@@ -12,6 +12,22 @@ Date:   Fri Dec 19 17:31:16 2014 -0800
     Change-Id: I7aa720f603f09f7d597fb7536dbf46ef09144e28
     Reviewed-on: https://go-review.googlesource.com/1902
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/testing/example.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/example.go b/src/testing/example.go
+index f5762e4db4..61339a6465 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -56,8 +56,8 @@ func runExample(eg InternalExample) (ok bool) {
+ 	os.Stdout = w
+ 	outC := make(chan string)
+ 	go func() {
+-		buf := new(bytes.Buffer)
+-		_, err := io.Copy(buf, r)
++		var buf bytes.Buffer
++		_, err := io.Copy(&buf, r)
+ 		r.Close()
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)

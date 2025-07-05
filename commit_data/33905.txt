@@ -53,7 +53,7 @@ Date:   Thu Aug 31 14:52:20 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go      |   9 +-
  src/archive/tar/reader.go      | 155 ++++++++++++-----------
  src/archive/tar/reader_test.go | 134 +++++++++++---------
@@ -61,3 +61,1375 @@ Date:   Thu Aug 31 14:52:20 2017 -0700
  src/archive/tar/writer.go      | 103 ++++++++++------
  src/archive/tar/writer_test.go | 270 ++++++++++++++++++++++-------------------
  6 files changed, 558 insertions(+), 291 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index c67115e49d..8813d089d0 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -323,10 +323,13 @@ func invertSparseEntries(src []SparseEntry, size int64) []SparseEntry {
+ 	return append(dst, pre)
+ }
+ 
++// fileState tracks the number of logical (includes sparse holes) and physical
++// (actual in tar archive) bytes remaining for the current file.
++//
++// Invariant: LogicalRemaining >= PhysicalRemaining
+ type fileState interface {
+-	// Remaining reports the number of remaining bytes in the current file.
+-	// This count includes any sparse holes that may exist.
+-	Remaining() int64
++	LogicalRemaining() int64
++	PhysicalRemaining() int64
+ }
+ 
+ // allowedFormats determines which formats can be used.
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index dc0c95a00a..c2e3041d92 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -32,7 +32,7 @@ type fileReader interface {
+ 	io.Reader
+ 	fileState
+ 
+-	Discard(n int64) (int64, error)
++	WriteTo(io.Writer) (int64, error)
+ }
+ 
+ // NewReader creates a new Reader reading from r.
+@@ -67,7 +67,7 @@ func (tr *Reader) next() (*Header, error) {
+ loop:
+ 	for {
+ 		// Discard the remainder of the file and any padding.
+-		if _, err := tr.curr.Discard(tr.curr.Remaining()); err != nil {
++		if err := discard(tr.r, tr.curr.PhysicalRemaining()); err != nil {
+ 			return nil, err
+ 		}
+ 		if _, err := tryReadFull(tr.r, tr.blk[:tr.pad]); err != nil {
+@@ -625,21 +625,19 @@ func (tr *Reader) Read(b []byte) (int, error) {
+ 	return n, err
+ }
+ 
+-// TODO(dsnet): Export the Reader.Discard method to assist in quickly
+-// skipping over sections of a file. This is especially useful:
+-// * when skipping through an underlying io.Reader that is also an io.Seeker.
+-// * when skipping over large holes in a sparse file.
+-
+-// discard skips the next n bytes in the current file,
+-// returning the number of bytes discarded.
+-// If fewer than n bytes are discarded, it returns an non-nil error,
+-// which may be io.EOF if there are no more remaining bytes in the current file.
+-func (tr *Reader) discard(n int64) (int64, error) {
++// WriteTo writes the content of the current file to w.
++// The bytes written matches the number of remaining bytes in the current file.
++//
++// If the current file is sparse and w is an io.WriteSeeker,
++// then WriteTo uses Seek to skip past holes defined in Header.SparseHoles,
++// assuming that skipped regions are filled with NULs.
++// This always writes the last byte to ensure w is the right size.
++func (tr *Reader) WriteTo(w io.Writer) (int64, error) {
+ 	if tr.err != nil {
+ 		return 0, tr.err
+ 	}
+-	n, err := tr.curr.Discard(n)
+-	if err != nil && err != io.EOF {
++	n, err := tr.curr.WriteTo(w)
++	if err != nil {
+ 		tr.err = err
+ 	}
+ 	return n, err
+@@ -667,47 +665,14 @@ func (fr *regFileReader) Read(b []byte) (int, error) {
+ 	}
+ }
+ 
+-func (fr *regFileReader) Discard(n int64) (int64, error) {
+-	overread := n > fr.Remaining()
+-	if overread {
+-		n = fr.Remaining()
+-	}
+-
+-	// If possible, Seek to the last byte before the end of the data section.
+-	// Do this because Seek is often lazy about reporting errors; this will mask
+-	// the fact that the stream may be truncated. We can rely on the
+-	// io.CopyN done shortly afterwards to trigger any IO errors.
+-	var seekSkipped int64 // Number of bytes skipped via Seek
+-	if sr, ok := fr.r.(io.Seeker); ok && n > 1 {
+-		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
+-		// io.Seeker, but calling Seek always returns an error and performs
+-		// no action. Thus, we try an innocent seek to the current position
+-		// to see if Seek is really supported.
+-		pos1, err := sr.Seek(0, io.SeekCurrent)
+-		if pos1 >= 0 && err == nil {
+-			// Seek seems supported, so perform the real Seek.
+-			pos2, err := sr.Seek(n-1, io.SeekCurrent)
+-			if pos2 < 0 || err != nil {
+-				return 0, err
+-			}
+-			seekSkipped = pos2 - pos1
+-		}
+-	}
+-
+-	copySkipped, err := io.CopyN(ioutil.Discard, fr.r, n-seekSkipped)
+-	discarded := seekSkipped + copySkipped
+-	fr.nb -= discarded
+-	switch {
+-	case err == io.EOF && discarded < n:
+-		return discarded, io.ErrUnexpectedEOF
+-	case err == nil && overread:
+-		return discarded, io.EOF
+-	default:
+-		return discarded, err
+-	}
++func (fr *regFileReader) WriteTo(w io.Writer) (int64, error) {
++	return io.Copy(w, struct{ io.Reader }{fr})
+ }
+ 
+-func (rf regFileReader) Remaining() int64 {
++func (rf regFileReader) LogicalRemaining() int64 {
++	return rf.nb
++}
++func (rf regFileReader) PhysicalRemaining() int64 {
+ 	return rf.nb
+ }
+ 
+@@ -719,9 +684,9 @@ type sparseFileReader struct {
+ }
+ 
+ func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
+-	finished := int64(len(b)) >= sr.Remaining()
++	finished := int64(len(b)) >= sr.LogicalRemaining()
+ 	if finished {
+-		b = b[:sr.Remaining()]
++		b = b[:sr.LogicalRemaining()]
+ 	}
+ 
+ 	b0 := b
+@@ -749,7 +714,7 @@ func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
+ 		return n, errMissData // Less data in dense file than sparse file
+ 	case err != nil:
+ 		return n, err
+-	case sr.Remaining() == 0 && sr.fr.Remaining() > 0:
++	case sr.LogicalRemaining() == 0 && sr.PhysicalRemaining() > 0:
+ 		return n, errUnrefData // More data in dense file than sparse file
+ 	case finished:
+ 		return n, io.EOF
+@@ -758,22 +723,32 @@ func (sr *sparseFileReader) Read(b []byte) (n int, err error) {
+ 	}
+ }
+ 
+-func (sr *sparseFileReader) Discard(n int64) (int64, error) {
+-	overread := n > sr.Remaining()
+-	if overread {
+-		n = sr.Remaining()
++func (sr *sparseFileReader) WriteTo(w io.Writer) (n int64, err error) {
++	ws, ok := w.(io.WriteSeeker)
++	if ok {
++		if _, err := ws.Seek(0, io.SeekCurrent); err != nil {
++			ok = false // Not all io.Seeker can really seek
++		}
++	}
++	if !ok {
++		return io.Copy(w, struct{ io.Reader }{sr})
+ 	}
+ 
+-	var realDiscard int64 // Number of real data bytes to discard
+-	endPos := sr.pos + n
+-	for endPos > sr.pos {
++	var writeLastByte bool
++	pos0 := sr.pos
++	for sr.LogicalRemaining() > 0 && !writeLastByte && err == nil {
+ 		var nf int64 // Size of fragment
+ 		holeStart, holeEnd := sr.sp[0].Offset, sr.sp[0].endOffset()
+ 		if sr.pos < holeStart { // In a data fragment
+-			nf = min(endPos-sr.pos, holeStart-sr.pos)
+-			realDiscard += nf
++			nf = holeStart - sr.pos
++			nf, err = io.CopyN(ws, sr.fr, nf)
+ 		} else { // In a hole fragment
+-			nf = min(endPos-sr.pos, holeEnd-sr.pos)
++			nf = holeEnd - sr.pos
++			if sr.PhysicalRemaining() == 0 {
++				writeLastByte = true
++				nf--
++			}
++			_, err = ws.Seek(nf, io.SeekCurrent)
+ 		}
+ 		sr.pos += nf
+ 		if sr.pos >= holeEnd && len(sr.sp) > 1 {
+@@ -781,24 +756,32 @@ func (sr *sparseFileReader) Discard(n int64) (int64, error) {
+ 		}
+ 	}
+ 
+-	_, err := sr.fr.Discard(realDiscard)
++	// If the last fragment is a hole, then seek to 1-byte before EOF, and
++	// write a single byte to ensure the file is the right size.
++	if writeLastByte && err == nil {
++		_, err = ws.Write([]byte{0})
++		sr.pos++
++	}
++
++	n = sr.pos - pos0
+ 	switch {
+ 	case err == io.EOF:
+ 		return n, errMissData // Less data in dense file than sparse file
+ 	case err != nil:
+ 		return n, err
+-	case sr.Remaining() == 0 && sr.fr.Remaining() > 0:
++	case sr.LogicalRemaining() == 0 && sr.PhysicalRemaining() > 0:
+ 		return n, errUnrefData // More data in dense file than sparse file
+-	case overread:
+-		return n, io.EOF
+ 	default:
+ 		return n, nil
+ 	}
+ }
+ 
+-func (sr sparseFileReader) Remaining() int64 {
++func (sr sparseFileReader) LogicalRemaining() int64 {
+ 	return sr.sp[len(sr.sp)-1].endOffset() - sr.pos
+ }
++func (sr sparseFileReader) PhysicalRemaining() int64 {
++	return sr.fr.PhysicalRemaining()
++}
+ 
+ type zeroReader struct{}
+ 
+@@ -832,3 +815,33 @@ func tryReadFull(r io.Reader, b []byte) (n int, err error) {
+ 	}
+ 	return n, err
+ }
++
++// discard skips n bytes in r, reporting an error if unable to do so.
++func discard(r io.Reader, n int64) error {
++	// If possible, Seek to the last byte before the end of the data section.
++	// Do this because Seek is often lazy about reporting errors; this will mask
++	// the fact that the stream may be truncated. We can rely on the
++	// io.CopyN done shortly afterwards to trigger any IO errors.
++	var seekSkipped int64 // Number of bytes skipped via Seek
++	if sr, ok := r.(io.Seeker); ok && n > 1 {
++		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
++		// io.Seeker, but calling Seek always returns an error and performs
++		// no action. Thus, we try an innocent seek to the current position
++		// to see if Seek is really supported.
++		pos1, err := sr.Seek(0, io.SeekCurrent)
++		if pos1 >= 0 && err == nil {
++			// Seek seems supported, so perform the real Seek.
++			pos2, err := sr.Seek(n-1, io.SeekCurrent)
++			if pos2 < 0 || err != nil {
++				return err
++			}
++			seekSkipped = pos2 - pos1
++		}
++	}
++
++	copySkipped, err := io.CopyN(ioutil.Discard, r, n-seekSkipped)
++	if err == io.EOF && seekSkipped+copySkipped < n {
++		err = io.ErrUnexpectedEOF
++	}
++	return err
++}
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 3b9903eb7a..256f0eaca1 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -923,17 +923,17 @@ func TestReadTruncation(t *testing.T) {
+ 				}
+ 				cnt++
+ 				if s2 == "manual" {
+-					if _, err = io.Copy(ioutil.Discard, tr); err != nil {
++					if _, err = tr.WriteTo(ioutil.Discard); err != nil {
+ 						break
+ 					}
+ 				}
+ 			}
+ 			if err != v.err {
+-				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %v, want %v",
++				t.Errorf("test %d, NewReader(%s) with %s discard: got %v, want %v",
+ 					i, s1, s2, err, v.err)
+ 			}
+ 			if cnt != v.cnt {
+-				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %d headers, want %d headers",
++				t.Errorf("test %d, NewReader(%s) with %s discard: got %d headers, want %d headers",
+ 					i, s1, s2, cnt, v.cnt)
+ 			}
+ 		}
+@@ -1402,15 +1402,16 @@ func TestFileReader(t *testing.T) {
+ 			wantStr string
+ 			wantErr error
+ 		}
+-		testDiscard struct { // Discard(cnt) == (wantCnt, wantErr)
+-			cnt     int64
++		testWriteTo struct { // WriteTo(testFile{ops}) == (wantCnt, wantErr)
++			ops     fileOps
+ 			wantCnt int64
+ 			wantErr error
+ 		}
+-		testRemaining struct { // Remaining() == wantCnt
+-			wantCnt int64
++		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
++			wantLCnt int64
++			wantPCnt int64
+ 		}
+-		testFnc interface{} // testRead | testDiscard | testRemaining
++		testFnc interface{} // testRead | testWriteTo | testRemaining
+ 	)
+ 
+ 	type (
+@@ -1432,102 +1433,112 @@ func TestFileReader(t *testing.T) {
+ 	}{{
+ 		maker: makeReg{"", 0},
+ 		tests: []testFnc{
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 			testRead{0, "", io.EOF},
+ 			testRead{1, "", io.EOF},
+-			testDiscard{0, 0, nil},
+-			testDiscard{1, 0, io.EOF},
+-			testRemaining{0},
++			testWriteTo{nil, 0, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{"", 1},
+ 		tests: []testFnc{
+-			testRemaining{1},
++			testRemaining{1, 1},
+ 			testRead{0, "", io.ErrUnexpectedEOF},
+ 			testRead{5, "", io.ErrUnexpectedEOF},
+-			testDiscard{0, 0, nil},
+-			testDiscard{1, 0, io.ErrUnexpectedEOF},
+-			testRemaining{1},
++			testWriteTo{nil, 0, io.ErrUnexpectedEOF},
++			testRemaining{1, 1},
+ 		},
+ 	}, {
+ 		maker: makeReg{"hello", 5},
+ 		tests: []testFnc{
+-			testRemaining{5},
++			testRemaining{5, 5},
+ 			testRead{5, "hello", io.EOF},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{"hello, world", 50},
+ 		tests: []testFnc{
+-			testRemaining{50},
+-			testDiscard{7, 7, nil},
+-			testRemaining{43},
++			testRemaining{50, 50},
++			testRead{7, "hello, ", nil},
++			testRemaining{43, 43},
+ 			testRead{5, "world", nil},
+-			testRemaining{38},
+-			testDiscard{1, 0, io.ErrUnexpectedEOF},
++			testRemaining{38, 38},
++			testWriteTo{nil, 0, io.ErrUnexpectedEOF},
+ 			testRead{1, "", io.ErrUnexpectedEOF},
+-			testRemaining{38},
++			testRemaining{38, 38},
+ 		},
+ 	}, {
+ 		maker: makeReg{"hello, world", 5},
+ 		tests: []testFnc{
+-			testRemaining{5},
++			testRemaining{5, 5},
+ 			testRead{0, "", nil},
+ 			testRead{4, "hell", nil},
+-			testRemaining{1},
+-			testDiscard{5, 1, io.EOF},
+-			testRemaining{0},
+-			testDiscard{5, 0, io.EOF},
++			testRemaining{1, 1},
++			testWriteTo{fileOps{"o"}, 1, nil},
++			testRemaining{0, 0},
++			testWriteTo{nil, 0, nil},
+ 			testRead{0, "", io.EOF},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{0, 2}, {5, 3}}, 8},
+ 		tests: []testFnc{
+-			testRemaining{8},
++			testRemaining{8, 5},
+ 			testRead{3, "ab\x00", nil},
+ 			testRead{10, "\x00\x00cde", io.EOF},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{0, 2}, {5, 3}}, 8},
+ 		tests: []testFnc{
+-			testRemaining{8},
+-			testDiscard{100, 8, io.EOF},
+-			testRemaining{0},
++			testRemaining{8, 5},
++			testWriteTo{fileOps{"ab", int64(3), "cde"}, 8, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{0, 2}, {5, 3}}, 10},
+ 		tests: []testFnc{
+-			testRemaining{10},
++			testRemaining{10, 5},
+ 			testRead{100, "ab\x00\x00\x00cde\x00\x00", io.EOF},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abc", 5}, sparseDatas{{0, 2}, {5, 3}}, 10},
+ 		tests: []testFnc{
+-			testRemaining{10},
++			testRemaining{10, 5},
+ 			testRead{100, "ab\x00\x00\x00c", io.ErrUnexpectedEOF},
+-			testRemaining{4},
++			testRemaining{4, 2},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}}, 8},
+ 		tests: []testFnc{
+-			testRemaining{8},
++			testRemaining{8, 5},
+ 			testRead{8, "\x00abc\x00\x00de", io.EOF},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 0}, {6, 0}, {6, 2}}, 8},
+ 		tests: []testFnc{
+-			testRemaining{8},
++			testRemaining{8, 5},
+ 			testRead{8, "\x00abc\x00\x00de", io.EOF},
+-			testRemaining{0},
++			testRemaining{0, 0},
++		},
++	}, {
++		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 0}, {6, 0}, {6, 2}}, 8},
++		tests: []testFnc{
++			testRemaining{8, 5},
++			testWriteTo{fileOps{int64(1), "abc", int64(2), "de"}, 8, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}}, 10},
+ 		tests: []testFnc{
+ 			testRead{100, "\x00abc\x00\x00de\x00\x00", io.EOF},
+ 		},
++	}, {
++		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}}, 10},
++		tests: []testFnc{
++			testWriteTo{fileOps{int64(1), "abc", int64(2), "de", int64(1), "\x00"}, 10, nil},
++		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 2}, {8, 0}, {8, 0}, {8, 0}, {8, 0}}, 10},
+ 		tests: []testFnc{
+@@ -1568,6 +1579,11 @@ func TestFileReader(t *testing.T) {
+ 		tests: []testFnc{
+ 			testRead{100, "\x00abc\x00\x00de", errMissData},
+ 		},
++	}, {
++		maker: makeSparse{makeReg{"abcde", 5}, sparseDatas{{1, 3}, {6, 5}}, 15},
++		tests: []testFnc{
++			testWriteTo{fileOps{int64(1), "abc", int64(2), "de"}, 8, errMissData},
++		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcde", 8}, sparseDatas{{1, 3}, {6, 5}}, 15},
+ 		tests: []testFnc{
+@@ -1576,18 +1592,18 @@ func TestFileReader(t *testing.T) {
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcdefghEXTRA", 13}, sparseDatas{{1, 3}, {6, 5}}, 15},
+ 		tests: []testFnc{
+-			testRemaining{15},
++			testRemaining{15, 13},
+ 			testRead{100, "\x00abc\x00\x00defgh\x00\x00\x00\x00", errUnrefData},
+-			testDiscard{100, 0, errUnrefData},
+-			testRemaining{0},
++			testWriteTo{nil, 0, errUnrefData},
++			testRemaining{0, 5},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{"abcdefghEXTRA", 13}, sparseDatas{{1, 3}, {6, 5}}, 15},
+ 		tests: []testFnc{
+-			testRemaining{15},
+-			testDiscard{100, 15, errUnrefData},
++			testRemaining{15, 13},
++			testWriteTo{fileOps{int64(1), "abc", int64(2), "defgh", int64(4)}, 15, errUnrefData},
+ 			testRead{100, "", errUnrefData},
+-			testRemaining{0},
++			testRemaining{0, 5},
+ 		},
+ 	}}
+ 
+@@ -1617,15 +1633,23 @@ func TestFileReader(t *testing.T) {
+ 				if got := string(b[:n]); got != tf.wantStr || err != tf.wantErr {
+ 					t.Errorf("test %d.%d, Read(%d):\ngot  (%q, %v)\nwant (%q, %v)", i, j, tf.cnt, got, err, tf.wantStr, tf.wantErr)
+ 				}
+-			case testDiscard:
+-				got, err := fr.Discard(tf.cnt)
+-				if got != tf.wantCnt || err != tf.wantErr {
+-					t.Errorf("test %d.%d, Discard(%d) = (%d, %v), want (%d, %v)", i, j, tf.cnt, got, err, tf.wantCnt, tf.wantErr)
++			case testWriteTo:
++				f := &testFile{ops: tf.ops}
++				got, err := fr.WriteTo(f)
++				if _, ok := err.(testError); ok {
++					t.Errorf("test %d.%d, WriteTo(): %v", i, j, err)
++				} else if got != tf.wantCnt || err != tf.wantErr {
++					t.Errorf("test %d.%d, WriteTo() = (%d, %v), want (%d, %v)", i, j, got, err, tf.wantCnt, tf.wantErr)
++				}
++				if len(f.ops) > 0 {
++					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
+ 				}
+ 			case testRemaining:
+-				got := fr.Remaining()
+-				if got != tf.wantCnt {
+-					t.Errorf("test %d.%d, Remaining() = %d, want %d", i, j, got, tf.wantCnt)
++				if got := fr.LogicalRemaining(); got != tf.wantLCnt {
++					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
++				}
++				if got := fr.PhysicalRemaining(); got != tf.wantPCnt {
++					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
+ 				}
+ 			default:
+ 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index 04b0a48027..f2e1d75c78 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -6,6 +6,8 @@ package tar
+ 
+ import (
+ 	"bytes"
++	"errors"
++	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+@@ -19,6 +21,83 @@ import (
+ 	"time"
+ )
+ 
++type testError struct{ error }
++
++type fileOps []interface{} // []T where T is (string | int64)
++
++// testFile is an io.ReadWriteSeeker where the IO operations performed
++// on it must match the list of operations in ops.
++type testFile struct {
++	ops fileOps
++	pos int64
++}
++
++func (f *testFile) Read(b []byte) (int, error) {
++	if len(b) == 0 {
++		return 0, nil
++	}
++	if len(f.ops) == 0 {
++		return 0, io.EOF
++	}
++	s, ok := f.ops[0].(string)
++	if !ok {
++		return 0, errors.New("unexpected Read operation")
++	}
++
++	n := copy(b, s)
++	if len(s) > n {
++		f.ops[0] = s[n:]
++	} else {
++		f.ops = f.ops[1:]
++	}
++	f.pos += int64(len(b))
++	return n, nil
++}
++
++func (f *testFile) Write(b []byte) (int, error) {
++	if len(b) == 0 {
++		return 0, nil
++	}
++	if len(f.ops) == 0 {
++		return 0, errors.New("unexpected Write operation")
++	}
++	s, ok := f.ops[0].(string)
++	if !ok {
++		return 0, errors.New("unexpected Write operation")
++	}
++
++	if !strings.HasPrefix(s, string(b)) {
++		return 0, testError{fmt.Errorf("got Write(%q), want Write(%q)", b, s)}
++	}
++	if len(s) > len(b) {
++		f.ops[0] = s[len(b):]
++	} else {
++		f.ops = f.ops[1:]
++	}
++	f.pos += int64(len(b))
++	return len(b), nil
++}
++
++func (f *testFile) Seek(pos int64, whence int) (int64, error) {
++	if pos == 0 && whence == io.SeekCurrent {
++		return f.pos, nil
++	}
++	if len(f.ops) == 0 {
++		return 0, errors.New("unexpected Seek operation")
++	}
++	s, ok := f.ops[0].(int64)
++	if !ok {
++		return 0, errors.New("unexpected Seek operation")
++	}
++
++	if s != pos || whence != io.SeekCurrent {
++		return 0, testError{fmt.Errorf("got Seek(%d, %d), want Seek(%d, %d)", pos, whence, s, io.SeekCurrent)}
++	}
++	f.pos += s
++	f.ops = f.ops[1:]
++	return f.pos, nil
++}
++
+ func equalSparseEntries(x, y []SparseEntry) bool {
+ 	return (len(x) == 0 && len(y) == 0) || reflect.DeepEqual(x, y)
+ }
+@@ -687,6 +766,105 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ 	}
+ }
+ 
++func TestSparseFiles(t *testing.T) {
++	vectors := []struct {
++		label     string
++		sparseMap sparseHoles
++	}{
++		{"EmptyFile", sparseHoles{{0, 0}}},
++		{"BigData", sparseHoles{{1e6, 0}}},
++		{"BigHole", sparseHoles{{0, 1e6}}},
++		{"DataFront", sparseHoles{{1e3, 1e6 - 1e3}}},
++		{"HoleFront", sparseHoles{{0, 1e6 - 1e3}, {1e6, 0}}},
++		{"DataMiddle", sparseHoles{{0, 5e5 - 1e3}, {5e5, 5e5}}},
++		{"HoleMiddle", sparseHoles{{1e3, 1e6 - 2e3}, {1e6, 0}}},
++		{"Multiple", func() (sph []SparseEntry) {
++			for i := 0; i < 20; i++ {
++				sph = append(sph, SparseEntry{1e6 * int64(i), 1e6 - 1e3})
++			}
++			sph = append(sph, SparseEntry{20e6, 0})
++			return
++		}()},
++	}
++
++	for _, v := range vectors {
++		sph := v.sparseMap
++		t.Run(v.label, func(t *testing.T) {
++			src, err := ioutil.TempFile("", "")
++			if err != nil {
++				t.Fatalf("unexpected TempFile error: %v", err)
++			}
++			defer os.Remove(src.Name())
++			dst, err := ioutil.TempFile("", "")
++			if err != nil {
++				t.Fatalf("unexpected TempFile error: %v", err)
++			}
++			defer os.Remove(dst.Name())
++
++			// Create the source sparse file.
++			hdr := Header{
++				Typeflag:    TypeReg,
++				Name:        "sparse.db",
++				Size:        sph[len(sph)-1].endOffset(),
++				SparseHoles: sph,
++			}
++			// TODO: Explicitly punch holes in the sparse file.
++			if err := src.Truncate(hdr.Size); err != nil {
++				t.Fatalf("unexpected Truncate error: %v", err)
++			}
++			var pos int64
++			for _, s := range sph {
++				b := bytes.Repeat([]byte{'Y'}, int(s.Offset-pos))
++				if _, err := src.WriteAt(b, pos); err != nil {
++					t.Fatalf("unexpected WriteAt error: %v", err)
++				}
++				pos = s.endOffset()
++			}
++
++			// Round-trip the sparse file to/from a tar archive.
++			b := new(bytes.Buffer)
++			tw := NewWriter(b)
++			if err := tw.WriteHeader(&hdr); err != nil {
++				t.Fatalf("unexpected WriteHeader error: %v", err)
++			}
++			if _, err := tw.ReadFrom(src); err != nil {
++				t.Fatalf("unexpected ReadFrom error: %v", err)
++			}
++			if err := tw.Close(); err != nil {
++				t.Fatalf("unexpected Close error: %v", err)
++			}
++			tr := NewReader(b)
++			if _, err := tr.Next(); err != nil {
++				t.Fatalf("unexpected Next error: %v", err)
++			}
++			// TODO: Explicitly punch holes in the sparse file.
++			if err := dst.Truncate(hdr.Size); err != nil {
++				t.Fatalf("unexpected Truncate error: %v", err)
++			}
++			if _, err := tr.WriteTo(dst); err != nil {
++				t.Fatalf("unexpected Copy error: %v", err)
++			}
++
++			// Verify the sparse file matches.
++			// Even if the OS and underlying FS do not support sparse files,
++			// the content should still match (i.e., holes read as zeros).
++			got, err := ioutil.ReadFile(dst.Name())
++			if err != nil {
++				t.Fatalf("unexpected ReadFile error: %v", err)
++			}
++			want, err := ioutil.ReadFile(src.Name())
++			if err != nil {
++				t.Fatalf("unexpected ReadFile error: %v", err)
++			}
++			if !bytes.Equal(got, want) {
++				t.Fatal("sparse files mismatch")
++			}
++
++			// TODO: Actually check that the file is sparse.
++		})
++	}
++}
++
+ func Benchmark(b *testing.B) {
+ 	type file struct {
+ 		hdr  *Header
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 26491ddc07..0772d8b206 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -40,7 +40,7 @@ type fileWriter interface {
+ 	io.Writer
+ 	fileState
+ 
+-	FillZeros(n int64) (int64, error)
++	ReadFrom(io.Reader) (int64, error)
+ }
+ 
+ // Flush finishes writing the current file's block padding.
+@@ -52,7 +52,7 @@ func (tw *Writer) Flush() error {
+ 	if tw.err != nil {
+ 		return tw.err
+ 	}
+-	if nb := tw.curr.Remaining(); nb > 0 {
++	if nb := tw.curr.LogicalRemaining(); nb > 0 {
+ 		return fmt.Errorf("tar: missed writing %d bytes", nb)
+ 	}
+ 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
+@@ -406,19 +406,18 @@ func (tw *Writer) Write(b []byte) (int, error) {
+ 	return n, err
+ }
+ 
+-// TODO(dsnet): Export the Writer.FillZeros method to assist in quickly zeroing
+-// out sections of a file. This is especially useful for efficiently
+-// skipping over large holes in a sparse file.
+-
+-// fillZeros writes n bytes of zeros to the current file,
+-// returning the number of bytes written.
+-// If fewer than n bytes are discarded, it returns an non-nil error,
+-// which may be ErrWriteTooLong if the current file is complete.
+-func (tw *Writer) fillZeros(n int64) (int64, error) {
++// ReadFrom populates the content of the current file by reading from r.
++// The bytes read must match the number of remaining bytes in the current file.
++//
++// If the current file is sparse and r is an io.ReadSeeker,
++// then ReadFrom uses Seek to skip past holes defined in Header.SparseHoles,
++// assuming that skipped regions are all NULs.
++// This always reads the last byte to ensure r is the right size.
++func (tw *Writer) ReadFrom(r io.Reader) (int64, error) {
+ 	if tw.err != nil {
+ 		return 0, tw.err
+ 	}
+-	n, err := tw.curr.FillZeros(n)
++	n, err := tw.curr.ReadFrom(r)
+ 	if err != nil && err != ErrWriteTooLong {
+ 		tw.err = err
+ 	}
+@@ -470,11 +469,14 @@ func (fw *regFileWriter) Write(b []byte) (int, error) {
+ 	}
+ }
+ 
+-func (fw *regFileWriter) FillZeros(n int64) (int64, error) {
+-	return io.CopyN(fw, zeroReader{}, n)
++func (fw *regFileWriter) ReadFrom(r io.Reader) (int64, error) {
++	return io.Copy(struct{ io.Writer }{fw}, r)
+ }
+ 
+-func (fw regFileWriter) Remaining() int64 {
++func (fw regFileWriter) LogicalRemaining() int64 {
++	return fw.nb
++}
++func (fw regFileWriter) PhysicalRemaining() int64 {
+ 	return fw.nb
+ }
+ 
+@@ -486,9 +488,9 @@ type sparseFileWriter struct {
+ }
+ 
+ func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
+-	overwrite := int64(len(b)) > sw.Remaining()
++	overwrite := int64(len(b)) > sw.LogicalRemaining()
+ 	if overwrite {
+-		b = b[:sw.Remaining()]
++		b = b[:sw.LogicalRemaining()]
+ 	}
+ 
+ 	b0 := b
+@@ -516,7 +518,7 @@ func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
+ 		return n, errMissData // Not possible; implies bug in validation logic
+ 	case err != nil:
+ 		return n, err
+-	case sw.Remaining() == 0 && sw.fw.Remaining() > 0:
++	case sw.LogicalRemaining() == 0 && sw.PhysicalRemaining() > 0:
+ 		return n, errUnrefData // Not possible; implies bug in validation logic
+ 	case overwrite:
+ 		return n, ErrWriteTooLong
+@@ -525,22 +527,32 @@ func (sw *sparseFileWriter) Write(b []byte) (n int, err error) {
+ 	}
+ }
+ 
+-func (sw *sparseFileWriter) FillZeros(n int64) (int64, error) {
+-	overwrite := n > sw.Remaining()
+-	if overwrite {
+-		n = sw.Remaining()
++func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
++	rs, ok := r.(io.ReadSeeker)
++	if ok {
++		if _, err := rs.Seek(0, io.SeekCurrent); err != nil {
++			ok = false // Not all io.Seeker can really seek
++		}
++	}
++	if !ok {
++		return io.Copy(struct{ io.Writer }{sw}, r)
+ 	}
+ 
+-	var realFill int64 // Number of real data bytes to fill
+-	endPos := sw.pos + n
+-	for endPos > sw.pos {
++	var readLastByte bool
++	pos0 := sw.pos
++	for sw.LogicalRemaining() > 0 && !readLastByte && err == nil {
+ 		var nf int64 // Size of fragment
+ 		dataStart, dataEnd := sw.sp[0].Offset, sw.sp[0].endOffset()
+ 		if sw.pos < dataStart { // In a hole fragment
+-			nf = min(endPos-sw.pos, dataStart-sw.pos)
++			nf = dataStart - sw.pos
++			if sw.PhysicalRemaining() == 0 {
++				readLastByte = true
++				nf--
++			}
++			_, err = rs.Seek(nf, io.SeekCurrent)
+ 		} else { // In a data fragment
+-			nf = min(endPos-sw.pos, dataEnd-sw.pos)
+-			realFill += nf
++			nf = dataEnd - sw.pos
++			nf, err = io.CopyN(sw.fw, rs, nf)
+ 		}
+ 		sw.pos += nf
+ 		if sw.pos >= dataEnd && len(sw.sp) > 1 {
+@@ -548,24 +560,34 @@ func (sw *sparseFileWriter) FillZeros(n int64) (int64, error) {
+ 		}
+ 	}
+ 
+-	_, err := sw.fw.FillZeros(realFill)
++	// If the last fragment is a hole, then seek to 1-byte before EOF, and
++	// read a single byte to ensure the file is the right size.
++	if readLastByte && err == nil {
++		_, err = mustReadFull(rs, []byte{0})
++		sw.pos++
++	}
++
++	n = sw.pos - pos0
+ 	switch {
++	case err == io.EOF:
++		return n, io.ErrUnexpectedEOF
+ 	case err == ErrWriteTooLong:
+ 		return n, errMissData // Not possible; implies bug in validation logic
+ 	case err != nil:
+ 		return n, err
+-	case sw.Remaining() == 0 && sw.fw.Remaining() > 0:
++	case sw.LogicalRemaining() == 0 && sw.PhysicalRemaining() > 0:
+ 		return n, errUnrefData // Not possible; implies bug in validation logic
+-	case overwrite:
+-		return n, ErrWriteTooLong
+ 	default:
+-		return n, nil
++		return n, ensureEOF(rs)
+ 	}
+ }
+ 
+-func (sw sparseFileWriter) Remaining() int64 {
++func (sw sparseFileWriter) LogicalRemaining() int64 {
+ 	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
+ }
++func (sw sparseFileWriter) PhysicalRemaining() int64 {
++	return sw.fw.PhysicalRemaining()
++}
+ 
+ // zeroWriter may only be written with NULs, otherwise it returns errWriteHole.
+ type zeroWriter struct{}
+@@ -578,3 +600,16 @@ func (zeroWriter) Write(b []byte) (int, error) {
+ 	}
+ 	return len(b), nil
+ }
++
++// ensureEOF checks whether r is at EOF, reporting ErrWriteTooLong if not so.
++func ensureEOF(r io.Reader) error {
++	n, err := tryReadFull(r, []byte{0})
++	switch {
++	case n > 0:
++		return ErrWriteTooLong
++	case err == io.EOF:
++		return nil
++	default:
++		return err
++	}
++}
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 42b0a201ca..122ec7d3d9 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -50,24 +50,24 @@ func bytediff(a, b []byte) string {
+ 
+ func TestWriter(t *testing.T) {
+ 	type (
+-		testHeader struct { // WriteHeader(&hdr) == wantErr
++		testHeader struct { // WriteHeader(hdr) == wantErr
+ 			hdr     Header
+ 			wantErr error
+ 		}
+-		testWrite struct { // Write([]byte(str)) == (wantCnt, wantErr)
++		testWrite struct { // Write(str) == (wantCnt, wantErr)
+ 			str     string
+ 			wantCnt int
+ 			wantErr error
+ 		}
+-		testFill struct { // fillZeros(cnt) == (wantCnt, wantErr)
+-			cnt     int64
++		testReadFrom struct { // ReadFrom(testFile{ops}) == (wantCnt, wantErr)
++			ops     fileOps
+ 			wantCnt int64
+ 			wantErr error
+ 		}
+ 		testClose struct { // Close() == wantErr
+ 			wantErr error
+ 		}
+-		testFnc interface{} // testHeader | testWrite | testFill | testClose
++		testFnc interface{} // testHeader | testWrite | testReadFrom | testClose
+ 	)
+ 
+ 	vectors := []struct {
+@@ -402,20 +402,20 @@ func TestWriter(t *testing.T) {
+ 					{Offset: 5e10, Length: 1e10 - 100},
+ 				},
+ 			}, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 0, ErrWriteTooLong},
+-			testWrite{strings.Repeat("0123456789", 10), 0, ErrWriteTooLong},
++			testReadFrom{fileOps{
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++			}, 6e10, nil},
+ 			testClose{nil},
+ 		},
+ 	}, {
+@@ -434,20 +434,20 @@ func TestWriter(t *testing.T) {
+ 					{Offset: 5e10, Length: 1e10 - 100},
+ 				},
+ 			}, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 1e10 - 100, nil},
+-			testWrite{strings.Repeat("0123456789", 10), 100, nil},
+-			testFill{1e10 - 100, 0, ErrWriteTooLong},
+-			testWrite{strings.Repeat("0123456789", 10), 0, ErrWriteTooLong},
++			testReadFrom{fileOps{
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++				int64(1e10 - blockSize),
++				strings.Repeat("\x00", blockSize-100) + strings.Repeat("0123456789", 10),
++			}, 6e10, nil},
+ 			testClose{nil},
+ 		},
+ 	}}
+@@ -478,10 +478,16 @@ func TestWriter(t *testing.T) {
+ 					if got != tf.wantCnt || !equalError(err, tf.wantErr) {
+ 						t.Fatalf("test %d, Write() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
+ 					}
+-				case testFill:
+-					got, err := tw.fillZeros(tf.cnt)
+-					if got != tf.wantCnt || !equalError(err, tf.wantErr) {
+-						t.Fatalf("test %d, fillZeros() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
++				case testReadFrom:
++					f := &testFile{ops: tf.ops}
++					got, err := tw.ReadFrom(f)
++					if _, ok := err.(testError); ok {
++						t.Errorf("test %d, ReadFrom(): %v", i, err)
++					} else if got != tf.wantCnt || !equalError(err, tf.wantErr) {
++						t.Errorf("test %d, ReadFrom() = (%d, %v), want (%d, %v)", i, got, err, tf.wantCnt, tf.wantErr)
++					}
++					if len(f.ops) > 0 {
++						t.Errorf("test %d, expected %d more operations", i, len(f.ops))
+ 					}
+ 				case testClose:
+ 					err := tw.Close()
+@@ -988,15 +994,16 @@ func TestFileWriter(t *testing.T) {
+ 			wantCnt int
+ 			wantErr error
+ 		}
+-		testFill struct { // FillZeros(cnt) == (wantCnt, wantErr)
+-			cnt     int64
++		testReadFrom struct { // ReadFrom(testFile{ops}) == (wantCnt, wantErr)
++			ops     fileOps
+ 			wantCnt int64
+ 			wantErr error
+ 		}
+-		testRemaining struct { // Remaining() == wantCnt
+-			wantCnt int64
++		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
++			wantLCnt int64
++			wantPCnt int64
+ 		}
+-		testFnc interface{} // testWrite | testFill | testRemaining
++		testFnc interface{} // testWrite | testReadFrom | testRemaining
+ 	)
+ 
+ 	type (
+@@ -1018,149 +1025,160 @@ func TestFileWriter(t *testing.T) {
+ 	}{{
+ 		maker: makeReg{0, ""},
+ 		tests: []testFnc{
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 			testWrite{"", 0, nil},
+ 			testWrite{"a", 0, ErrWriteTooLong},
+-			testFill{0, 0, nil},
+-			testFill{1, 0, ErrWriteTooLong},
+-			testRemaining{0},
++			testReadFrom{fileOps{""}, 0, nil},
++			testReadFrom{fileOps{"a"}, 0, ErrWriteTooLong},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{1, "a"},
+ 		tests: []testFnc{
+-			testRemaining{1},
++			testRemaining{1, 1},
+ 			testWrite{"", 0, nil},
+ 			testWrite{"a", 1, nil},
+ 			testWrite{"bcde", 0, ErrWriteTooLong},
+ 			testWrite{"", 0, nil},
+-			testFill{0, 0, nil},
+-			testFill{1, 0, ErrWriteTooLong},
+-			testRemaining{0},
++			testReadFrom{fileOps{""}, 0, nil},
++			testReadFrom{fileOps{"a"}, 0, ErrWriteTooLong},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{5, "hello"},
+ 		tests: []testFnc{
+-			testRemaining{5},
++			testRemaining{5, 5},
+ 			testWrite{"hello", 5, nil},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{5, "\x00\x00\x00\x00\x00"},
+ 		tests: []testFnc{
+-			testRemaining{5},
+-			testFill{5, 5, nil},
+-			testRemaining{0},
++			testRemaining{5, 5},
++			testReadFrom{fileOps{"\x00\x00\x00\x00\x00"}, 5, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{5, "\x00\x00\x00\x00\x00"},
+ 		tests: []testFnc{
+-			testRemaining{5},
+-			testFill{10, 5, ErrWriteTooLong},
+-			testRemaining{0},
++			testRemaining{5, 5},
++			testReadFrom{fileOps{"\x00\x00\x00\x00\x00extra"}, 5, ErrWriteTooLong},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{5, "abc\x00\x00"},
+ 		tests: []testFnc{
+-			testRemaining{5},
++			testRemaining{5, 5},
+ 			testWrite{"abc", 3, nil},
+-			testRemaining{2},
+-			testFill{2, 2, nil},
+-			testRemaining{0},
++			testRemaining{2, 2},
++			testReadFrom{fileOps{"\x00\x00"}, 2, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeReg{5, "\x00\x00abc"},
+ 		tests: []testFnc{
+-			testRemaining{5},
+-			testFill{2, 2, nil},
+-			testRemaining{3},
++			testRemaining{5, 5},
++			testWrite{"\x00\x00", 2, nil},
++			testRemaining{3, 3},
+ 			testWrite{"abc", 3, nil},
+-			testFill{1, 0, ErrWriteTooLong},
++			testReadFrom{fileOps{"z"}, 0, ErrWriteTooLong},
+ 			testWrite{"z", 0, ErrWriteTooLong},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+-			testRemaining{8},
++			testRemaining{8, 5},
+ 			testWrite{"ab\x00\x00\x00cde", 8, nil},
+ 			testWrite{"a", 0, ErrWriteTooLong},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+ 			testWrite{"ab\x00\x00\x00cdez", 8, ErrWriteTooLong},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+ 			testWrite{"ab\x00", 3, nil},
+-			testRemaining{5},
++			testRemaining{5, 3},
+ 			testWrite{"\x00\x00cde", 5, nil},
+ 			testWrite{"a", 0, ErrWriteTooLong},
+-			testRemaining{0},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+ 			testWrite{"ab", 2, nil},
+-			testRemaining{6},
+-			testFill{3, 3, nil},
+-			testRemaining{3},
+-			testWrite{"cde", 3, nil},
+-			testRemaining{0},
++			testRemaining{6, 3},
++			testReadFrom{fileOps{int64(3), "cde"}, 6, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+-		maker: makeSparse{makeReg{5, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
++		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+-			testFill{8, 8, nil},
+-			testRemaining{0},
++			testReadFrom{fileOps{"ab", int64(3), "cde"}, 8, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+-		maker: makeSparse{makeReg{5, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
++		maker: makeSparse{makeReg{5, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+-			testFill{9, 8, ErrWriteTooLong},
+-			testRemaining{0},
++			testReadFrom{fileOps{"ab", int64(3), "cdeX"}, 8, ErrWriteTooLong},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+-		maker: makeSparse{makeReg{4, "\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
++		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+-			testFill{9, 8, errMissData},
+-			testRemaining{0},
++			testReadFrom{fileOps{"ab", int64(3), "cd"}, 7, io.ErrUnexpectedEOF},
++			testRemaining{1, 0},
+ 		},
+ 	}, {
+-		maker: makeSparse{makeReg{6, "\x00\x00\x00\x00\x00"}, sparseHoles{{2, 3}}, 8},
++		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
++		tests: []testFnc{
++			testReadFrom{fileOps{"ab", int64(3), "cde"}, 7, errMissData},
++			testRemaining{1, 0},
++		},
++	}, {
++		maker: makeSparse{makeReg{6, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+-			testFill{9, 8, errUnrefData},
+-			testRemaining{0},
++			testReadFrom{fileOps{"ab", int64(3), "cde"}, 8, errUnrefData},
++			testRemaining{0, 1},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{4, "abcd"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+ 			testWrite{"ab", 2, nil},
+-			testRemaining{6},
+-			testFill{3, 3, nil},
+-			testRemaining{3},
++			testRemaining{6, 2},
++			testWrite{"\x00\x00\x00", 3, nil},
++			testRemaining{3, 2},
+ 			testWrite{"cde", 2, errMissData},
+-			testRemaining{1},
++			testRemaining{1, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{6, "abcde"}, sparseHoles{{2, 3}}, 8},
+ 		tests: []testFnc{
+ 			testWrite{"ab", 2, nil},
+-			testRemaining{6},
+-			testFill{3, 3, nil},
+-			testRemaining{3},
++			testRemaining{6, 4},
++			testWrite{"\x00\x00\x00", 3, nil},
++			testRemaining{3, 4},
+ 			testWrite{"cde", 3, errUnrefData},
+-			testRemaining{0},
++			testRemaining{0, 1},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+ 		tests: []testFnc{
+-			testRemaining{7},
++			testRemaining{7, 3},
+ 			testWrite{"\x00\x00abc\x00\x00", 7, nil},
+-			testRemaining{0},
++			testRemaining{0, 0},
++		},
++	}, {
++		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
++		tests: []testFnc{
++			testRemaining{7, 3},
++			testReadFrom{fileOps{int64(2), "abc", int64(1), "\x00"}, 7, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{3, ""}, sparseHoles{{0, 2}, {5, 2}}, 7},
+@@ -1176,43 +1194,31 @@ func TestFileWriter(t *testing.T) {
+ 		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+ 		tests: []testFnc{
+ 			testWrite{"\x00\x00abc\x00\x00z", 7, ErrWriteTooLong},
+-			testRemaining{0},
+-		},
+-	}, {
+-		maker: makeSparse{makeReg{3, "\x00\x00\x00"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+-		tests: []testFnc{
+-			testFill{7, 7, nil},
+-			testFill{1, 0, ErrWriteTooLong},
+-		},
+-	}, {
+-		maker: makeSparse{makeReg{3, "\x00\x00\x00"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+-		tests: []testFnc{
+-			testFill{4, 4, nil},
+-			testFill{8, 3, ErrWriteTooLong},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{3, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+ 		tests: []testFnc{
+-			testFill{2, 2, nil},
+-			testRemaining{5},
++			testWrite{"\x00\x00", 2, nil},
++			testRemaining{5, 3},
+ 			testWrite{"abc", 3, nil},
+-			testRemaining{2},
+-			testFill{2, 2, nil},
+-			testRemaining{0},
++			testRemaining{2, 0},
++			testWrite{"\x00\x00", 2, nil},
++			testRemaining{0, 0},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{2, "ab"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+ 		tests: []testFnc{
+-			testFill{2, 2, nil},
++			testWrite{"\x00\x00", 2, nil},
+ 			testWrite{"abc", 2, errMissData},
+-			testFill{2, 2, errMissData},
++			testWrite{"\x00\x00", 0, errMissData},
+ 		},
+ 	}, {
+ 		maker: makeSparse{makeReg{4, "abc"}, sparseHoles{{0, 2}, {5, 2}}, 7},
+ 		tests: []testFnc{
+-			testFill{2, 2, nil},
++			testWrite{"\x00\x00", 2, nil},
+ 			testWrite{"abc", 3, nil},
+-			testFill{2, 2, errUnrefData},
++			testWrite{"\x00\x00", 2, errUnrefData},
+ 		},
+ 	}}
+ 
+@@ -1243,15 +1249,23 @@ func TestFileWriter(t *testing.T) {
+ 				if got != tf.wantCnt || err != tf.wantErr {
+ 					t.Errorf("test %d.%d, Write(%s):\ngot  (%d, %v)\nwant (%d, %v)", i, j, tf.str, got, err, tf.wantCnt, tf.wantErr)
+ 				}
+-			case testFill:
+-				got, err := fw.FillZeros(tf.cnt)
+-				if got != tf.wantCnt || err != tf.wantErr {
+-					t.Errorf("test %d.%d, FillZeros(%d) = (%d, %v), want (%d, %v)", i, j, tf.cnt, got, err, tf.wantCnt, tf.wantErr)
++			case testReadFrom:
++				f := &testFile{ops: tf.ops}
++				got, err := fw.ReadFrom(f)
++				if _, ok := err.(testError); ok {
++					t.Errorf("test %d.%d, ReadFrom(): %v", i, j, err)
++				} else if got != tf.wantCnt || err != tf.wantErr {
++					t.Errorf("test %d.%d, ReadFrom() = (%d, %v), want (%d, %v)", i, j, got, err, tf.wantCnt, tf.wantErr)
++				}
++				if len(f.ops) > 0 {
++					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
+ 				}
+ 			case testRemaining:
+-				got := fw.Remaining()
+-				if got != tf.wantCnt {
+-					t.Errorf("test %d.%d, Remaining() = %d, want %d", i, j, got, tf.wantCnt)
++				if got := fw.LogicalRemaining(); got != tf.wantLCnt {
++					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
++				}
++				if got := fw.PhysicalRemaining(); got != tf.wantPCnt {
++					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
+ 				}
+ 			default:
+ 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)

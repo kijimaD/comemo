@@ -22,7 +22,7 @@ Date:   Sun Dec 1 23:53:23 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/632715
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/escape/call.go | 44 +++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/inline/inl.go  | 15 +++++++++++
  src/cmd/compile/internal/walk/expr.go   | 14 +++++++++++
@@ -31,3 +31,258 @@ Date:   Sun Dec 1 23:53:23 2024 -0500
  src/hash/maphash/maphash_runtime.go     |  2 ++
  src/hash/maphash/maphash_test.go        | 31 +++++++++++++++++++++++
  7 files changed, 122 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 4a3753ada9..1d7a0c9089 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
++	"strings"
+ )
+ 
+ // call evaluates a call expressions, including builtin calls. ks
+@@ -82,6 +83,29 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 			argument(e.tagHole(ks, fn, param), arg)
+ 		}
+ 
++		// hash/maphash.escapeForHash forces its argument to be on
++		// the heap, if it contains a non-string pointer. We cannot
++		// hash pointers to local variables, as the address of the
++		// local variable might change on stack growth.
++		// Strings are okay as the hash depends on only the content,
++		// not the pointer.
++		// The actual call we match is
++		//   hash/maphash.escapeForHash[go.shape.T](dict, go.shape.T)
++		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
++			ps := fntype.Params()
++			if len(ps) == 2 && ps[1].Type.IsShape() {
++				if !hasNonStringPointers(ps[1].Type) {
++					argumentParam = func(param *types.Field, arg ir.Node) {
++						argument(e.discardHole(), arg)
++					}
++				} else {
++					argumentParam = func(param *types.Field, arg ir.Node) {
++						argument(e.heapHole(), arg)
++					}
++				}
++			}
++		}
++
+ 		args := call.Args
+ 		if recvParam := fntype.Recv(); recvParam != nil {
+ 			if recvArg == nil {
+@@ -359,3 +383,23 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
+ 
+ 	return e.teeHole(tagKs...)
+ }
++
++func hasNonStringPointers(t *types.Type) bool {
++	if !t.HasPointers() {
++		return false
++	}
++	switch t.Kind() {
++	case types.TSTRING:
++		return false
++	case types.TSTRUCT:
++		for _, f := range t.Fields() {
++			if hasNonStringPointers(f.Type) {
++				return true
++			}
++		}
++		return false
++	case types.TARRAY:
++		return hasNonStringPointers(t.Elem())
++	}
++	return true
++}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index d64ab6b487..f298f69ec1 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -31,6 +31,7 @@ import (
+ 	"go/constant"
+ 	"internal/buildcfg"
+ 	"strconv"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/inline/inlheur"
+@@ -481,6 +482,12 @@ opSwitch:
+ 					case "panicrangestate":
+ 						cheap = true
+ 					}
++				case "hash/maphash":
++					if strings.HasPrefix(fn, "escapeForHash[") {
++						// hash/maphash.escapeForHash[T] is a compiler intrinsic
++						// implemented in the escape analysis phase.
++						cheap = true
++					}
+ 				}
+ 			}
+ 			// Special case for coverage counter updates; although
+@@ -803,6 +810,14 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
+ 			}
+ 		}
+ 	}
++
++	// hash/maphash.escapeForHash[T] is a compiler intrinsic implemented
++	// in the escape analysis phase.
++	if fn := ir.StaticCalleeName(call.Fun); fn != nil && fn.Sym().Pkg.Path == "hash/maphash" &&
++		strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
++		return false, true
++	}
++
+ 	if ir.IsIntrinsicCall(call) {
+ 		return false, true
+ 	}
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 7afbc11042..8cb3803190 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -582,6 +582,20 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		return walkExpr(n, init)
+ 	}
+ 
++	if n.Op() == ir.OCALLFUNC {
++		fn := ir.StaticCalleeName(n.Fun)
++		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
++			// hash/maphash.escapeForHash[T] is a compiler intrinsic
++			// for the escape analysis to escape its argument based on
++			// the type. The call itself is no-op. Just walk the
++			// argument.
++			ps := fn.Type().Params()
++			if len(ps) == 2 && ps[1].Type.IsShape() {
++				return walkExpr(n.Args[1], init)
++			}
++		}
++	}
++
+ 	if name, ok := n.Fun.(*ir.Name); ok {
+ 		sym := name.Sym()
+ 		if sym.Pkg.Path == "go.runtime" && sym.Name == "deferrangefunc" {
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 20735671a7..a8872d72a5 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -13,7 +13,6 @@
+ package maphash
+ 
+ import (
+-	"internal/abi"
+ 	"internal/byteorder"
+ 	"math"
+ )
+@@ -286,21 +285,26 @@ func (h *Hash) BlockSize() int { return len(h.buf) }
+ // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
+ // If v != v, then the resulting hash is randomly distributed.
+ func Comparable[T comparable](seed Seed, v T) uint64 {
+-	comparableReady(v)
++	escapeForHash(v)
+ 	return comparableHash(v, seed)
+ }
+ 
+-func comparableReady[T comparable](v T) {
+-	// Force v to be on the heap.
+-	// We cannot hash pointers to local variables,
+-	// as the address of the local variable
+-	// might change on stack growth.
+-	abi.Escape(v)
+-}
++// escapeForHash forces v to be on the heap, if v contains a
++// non-string pointer. We cannot hash pointers to local variables,
++// as the address of the local variable might change on stack growth.
++// Strings are okay as the hash depends on only the content, not
++// the pointer.
++//
++// This is essentially
++//
++//	if hasNonStringPointers(T) { abi.Escape(v) }
++//
++// Implemented as a compiler intrinsic.
++func escapeForHash[T comparable](v T) { panic("intrinsic") }
+ 
+ // WriteComparable adds x to the data hashed by h.
+ func WriteComparable[T comparable](h *Hash, x T) {
+-	comparableReady(x)
++	escapeForHash(x)
+ 	// writeComparable (not in purego mode) directly operates on h.state
+ 	// without using h.buf. Mix in the buffer length so it won't
+ 	// commute with a buffered write, which either changes h.n or changes
+diff --git a/src/hash/maphash/maphash_purego.go b/src/hash/maphash/maphash_purego.go
+index 687626a8a2..53636a48ca 100644
+--- a/src/hash/maphash/maphash_purego.go
++++ b/src/hash/maphash/maphash_purego.go
+@@ -14,6 +14,8 @@ import (
+ 	"reflect"
+ )
+ 
++const purego = true
++
+ var hashkey [4]uint64
+ 
+ func init() {
+diff --git a/src/hash/maphash/maphash_runtime.go b/src/hash/maphash/maphash_runtime.go
+index 3f049a9924..91e7d49e2c 100644
+--- a/src/hash/maphash/maphash_runtime.go
++++ b/src/hash/maphash/maphash_runtime.go
+@@ -13,6 +13,8 @@ import (
+ 	"unsafe"
+ )
+ 
++const purego = false
++
+ //go:linkname runtime_rand runtime.rand
+ func runtime_rand() uint64
+ 
+diff --git a/src/hash/maphash/maphash_test.go b/src/hash/maphash/maphash_test.go
+index f5bccdaca8..4a85c8a6ac 100644
+--- a/src/hash/maphash/maphash_test.go
++++ b/src/hash/maphash/maphash_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"hash"
++	"internal/asan"
+ 	"math"
+ 	"reflect"
+ 	"strings"
+@@ -420,6 +421,36 @@ func TestWriteComparableNoncommute(t *testing.T) {
+ 	}
+ }
+ 
++func TestComparableAllocations(t *testing.T) {
++	if purego {
++		t.Skip("skip allocation test in purego mode - reflect-based implementation allocates more")
++	}
++	if asan.Enabled {
++		t.Skip("skip allocation test under -asan")
++	}
++	seed := MakeSeed()
++	x := heapStr(t)
++	allocs := testing.AllocsPerRun(10, func() {
++		s := "s" + x
++		Comparable(seed, s)
++	})
++	if allocs > 0 {
++		t.Errorf("got %v allocs, want 0", allocs)
++	}
++
++	type S struct {
++		a int
++		b string
++	}
++	allocs = testing.AllocsPerRun(10, func() {
++		s := S{123, "s" + x}
++		Comparable(seed, s)
++	})
++	if allocs > 0 {
++		t.Errorf("got %v allocs, want 0", allocs)
++	}
++}
++
+ // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
+ var _ hash.Hash = &Hash{}
+ var _ hash.Hash64 = &Hash{}

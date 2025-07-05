@@ -9,7 +9,50 @@ Date:   Sun Feb 12 23:14:48 2012 -0500
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5653070
-
+---
  src/pkg/net/http/server.go |  4 +++-
  src/pkg/net/http/sniff.go  | 14 +++++++-------
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 8c4822ec74..fb3bc81756 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -59,7 +59,9 @@ type ResponseWriter interface {
+ 
+ 	// Write writes the data to the connection as part of an HTTP reply.
+ 	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
+-	// before writing the data.
++	// before writing the data.  If the Header does not contain a
++	// Content-Type line, Write adds a Content-Type set to the result of passing
++	// the initial 512 bytes of written data to DetectContentType.
+ 	Write([]byte) (int, error)
+ 
+ 	// WriteHeader sends an HTTP response header with status code.
+diff --git a/src/pkg/net/http/sniff.go b/src/pkg/net/http/sniff.go
+index c1c78e2417..68f519b054 100644
+--- a/src/pkg/net/http/sniff.go
++++ b/src/pkg/net/http/sniff.go
+@@ -9,15 +9,15 @@ import (
+ 	"encoding/binary"
+ )
+ 
+-// Content-type sniffing algorithm.
+-// References in this file refer to this draft specification:
+-//   http://mimesniff.spec.whatwg.org/
+-
+-// The algorithm prefers to use sniffLen bytes to make its decision.
++// The algorithm uses at most sniffLen bytes to make its decision.
+ const sniffLen = 512
+ 
+-// DetectContentType returns the sniffed Content-Type string
+-// for the given data. This function always returns a valid MIME type.
++// DetectContentType implements the algorithm described
++// at http://mimesniff.spec.whatwg.org/ to determine the
++// Content-Type of the given data.  It considers at most the
++// first 512 bytes of data.  DetectContentType always returns
++// a valid MIME type: if it cannot determine a more specific one, it
++// returns "application/octet-stream".
+ func DetectContentType(data []byte) string {
+ 	if len(data) > sniffLen {
+ 		data = data[:sniffLen]

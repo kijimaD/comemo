@@ -12,7 +12,98 @@ Date:   Tue Sep 29 07:27:49 2009 -0700
     DELTA=13  (7 added, 0 deleted, 6 changed)
     OCL=35072
     CL=35080
-
+---
  src/cmd/5g/gsubr.c | 9 +++++----
  test/arm-pass.txt  | 6 ++++++
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 4ad7647973..8d22912707 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -351,7 +351,7 @@ nodarg(Type *t, int fp)
+ 			fatal("nodarg: bad struct");
+ 		if(first->width == BADWIDTH)
+ 			fatal("nodarg: offset not computed for %T", t);
+-		n->xoffset = first->width + 4;
++		n->xoffset = first->width;
+ 		n->addable = 1;
+ 		goto fp;
+ 	}
+@@ -364,7 +364,7 @@ nodarg(Type *t, int fp)
+ 	n->sym = t->sym;
+ 	if(t->width == BADWIDTH)
+ 		fatal("nodarg: offset not computed for %T", t);
+-	n->xoffset = t->width + 4;
++	n->xoffset = t->width;
+ 	n->addable = 1;
+ 
+ fp:
+@@ -372,12 +372,13 @@ fp:
+ 	default:
+ 		fatal("nodarg %T %d", t, fp);
+ 
+-	case 0:		// output arg
++	case 0:		// output arg for calling another function
+ 		n->op = OINDREG;
+ 		n->val.u.reg = REGSP;
++		n->xoffset += 4;
+ 		break;
+ 
+-	case 1:		// input arg
++	case 1:		// input arg to current function
+ 		n->class = PPARAM;
+ 		break;
+ 	}
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 2ed92d53b5..b6c33be01f 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -8,6 +8,7 @@ bugs/bug193.go
+ bugs/bug196.go
+ bugs/bug198.go
+ chan/perm.go
++cmp1.go
+ cmp2.go
+ cmp3.go
+ cmp4.go
+@@ -41,6 +42,7 @@ fixedbugs/bug022.go
+ fixedbugs/bug023.go
+ fixedbugs/bug024.go
+ fixedbugs/bug026.go
++fixedbugs/bug028.go
+ fixedbugs/bug030.go
+ fixedbugs/bug031.go
+ fixedbugs/bug035.go
+@@ -161,6 +163,7 @@ fixedbugs/bug175.go
+ fixedbugs/bug176.go
+ fixedbugs/bug178.go
+ fixedbugs/bug179.go
++fixedbugs/bug180.go
+ fixedbugs/bug181.go
+ fixedbugs/bug182.go
+ fixedbugs/bug183.go
+@@ -173,6 +176,7 @@ fixedbugs/bug192.go
+ fixedbugs/bug194.go
+ fixedbugs/bug195.go
+ fixedbugs/bug197.go
++fixedbugs/bug199.go
+ fixedbugs/bug200.go
+ fixedbugs/bug201.go
+ fixedbugs/bug202.go
+@@ -209,6 +213,7 @@ ken/mfunc.go
+ ken/robfor.go
+ ken/robif.go
+ ken/simpbool.go
++ken/simpfun.go
+ ken/simpprint.go
+ ken/simpswitch.go
+ ken/simpvar.go
+@@ -220,6 +225,7 @@ parentype.go
+ printbig.go
+ rename1.go
+ sieve.go
++simassign.go
+ switch.go
+ test0.go
+ varinit.go

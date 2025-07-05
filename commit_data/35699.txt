@@ -85,8 +85,175 @@ Date:   Thu Feb 15 07:40:44 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 39 +++++++++++++++++++++++++++++------
  src/cmd/compile/internal/gc/scope.go | 40 +++---------------------------------
  src/cmd/internal/dwarf/dwarf.go      |  6 ++++++
  3 files changed, 42 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e911ac6e42..a4cf3a14f5 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -128,6 +128,12 @@ type noder struct {
+ 	pragcgobuf string
+ 	err        chan syntax.Error
+ 	scope      ScopeID
++
++	// scopeVars is a stack tracking the number of variables declared in the
++	// current function at the moment each open scope was opened.
++	scopeVars []int
++
++	lastCloseScopePos syntax.Pos
+ }
+ 
+ func (p *noder) funchdr(n *Node) ScopeID {
+@@ -147,6 +153,7 @@ func (p *noder) openScope(pos syntax.Pos) {
+ 
+ 	if trackScopes {
+ 		Curfn.Func.Parents = append(Curfn.Func.Parents, p.scope)
++		p.scopeVars = append(p.scopeVars, len(Curfn.Func.Dcl))
+ 		p.scope = ScopeID(len(Curfn.Func.Parents))
+ 
+ 		p.markScope(pos)
+@@ -154,9 +161,34 @@ func (p *noder) openScope(pos syntax.Pos) {
+ }
+ 
+ func (p *noder) closeScope(pos syntax.Pos) {
++	p.lastCloseScopePos = pos
+ 	types.Popdcl()
+ 
+ 	if trackScopes {
++		scopeVars := p.scopeVars[len(p.scopeVars)-1]
++		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
++		if scopeVars == len(Curfn.Func.Dcl) {
++			// no variables were declared in this scope, so we can retract it.
++
++			if int(p.scope) != len(Curfn.Func.Parents) {
++				Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
++			}
++
++			p.scope = Curfn.Func.Parents[p.scope-1]
++			Curfn.Func.Parents = Curfn.Func.Parents[:len(Curfn.Func.Parents)-1]
++
++			nmarks := len(Curfn.Func.Marks)
++			Curfn.Func.Marks[nmarks-1].Scope = p.scope
++			prevScope := ScopeID(0)
++			if nmarks >= 2 {
++				prevScope = Curfn.Func.Marks[nmarks-2].Scope
++			}
++			if Curfn.Func.Marks[nmarks-1].Scope == prevScope {
++				Curfn.Func.Marks = Curfn.Func.Marks[:nmarks-1]
++			}
++			return
++		}
++
+ 		p.scope = Curfn.Func.Parents[p.scope-1]
+ 
+ 		p.markScope(pos)
+@@ -177,12 +209,7 @@ func (p *noder) markScope(pos syntax.Pos) {
+ // "if" statements, as their implicit blocks always end at the same
+ // position as an explicit block.
+ func (p *noder) closeAnotherScope() {
+-	types.Popdcl()
+-
+-	if trackScopes {
+-		p.scope = Curfn.Func.Parents[p.scope-1]
+-		Curfn.Func.Marks[len(Curfn.Func.Marks)-1].Scope = p.scope
+-	}
++	p.closeScope(p.lastCloseScopePos)
+ }
+ 
+ // linkname records a //go:linkname directive.
+diff --git a/src/cmd/compile/internal/gc/scope.go b/src/cmd/compile/internal/gc/scope.go
+index ebdaa19994..b019329067 100644
+--- a/src/cmd/compile/internal/gc/scope.go
++++ b/src/cmd/compile/internal/gc/scope.go
+@@ -87,21 +87,12 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
+ 		pcs = append(pcs, scopedPCs{start: p0.Pc, end: fnsym.Size, pos: p0.Pos})
+ 	}
+ 
+-	// Sort PCs by source position, and walk in parallel with
+-	// scope marks to assign a lexical scope to each PC interval.
+-	sort.Sort(pcsByPos(pcs))
+-	var marki int
+-	var scope ScopeID
++	// Assign scopes to each chunk of instructions.
+ 	for i := range pcs {
+-		for marki < len(marks) && !xposBefore(pcs[i].pos, marks[marki].Pos) {
+-			scope = marks[marki].Scope
+-			marki++
+-		}
+-		pcs[i].scope = scope
++		pcs[i].scope = findScope(marks, pcs[i].pos)
+ 	}
+ 
+-	// Re-sort to create sorted PC ranges for each DWARF scope.
+-	sort.Sort(pcsByPC(pcs))
++	// Create sorted PC ranges for each DWARF scope.
+ 	for _, pc := range pcs {
+ 		r := &dwarfScopes[pc.scope].Ranges
+ 		if i := len(*r); i > 0 && (*r)[i-1].End == pc.start {
+@@ -113,23 +104,6 @@ func scopePCs(fnsym *obj.LSym, marks []Mark, dwarfScopes []dwarf.Scope) {
+ }
+ 
+ func compactScopes(dwarfScopes []dwarf.Scope) []dwarf.Scope {
+-	// Forward pass to collapse empty scopes into parents.
+-	remap := make([]int32, len(dwarfScopes))
+-	j := int32(1)
+-	for i := 1; i < len(dwarfScopes); i++ {
+-		s := &dwarfScopes[i]
+-		s.Parent = remap[s.Parent]
+-		if len(s.Vars) == 0 {
+-			dwarfScopes[s.Parent].UnifyRanges(s)
+-			remap[i] = s.Parent
+-			continue
+-		}
+-		remap[i] = j
+-		dwarfScopes[j] = *s
+-		j++
+-	}
+-	dwarfScopes = dwarfScopes[:j]
+-
+ 	// Reverse pass to propagate PC ranges to parent scopes.
+ 	for i := len(dwarfScopes) - 1; i > 0; i-- {
+ 		s := &dwarfScopes[i]
+@@ -147,14 +121,6 @@ func (s pcsByPC) Less(i, j int) bool {
+ 	return s[i].start < s[j].start
+ }
+ 
+-type pcsByPos []scopedPCs
+-
+-func (s pcsByPos) Len() int      { return len(s) }
+-func (s pcsByPos) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+-func (s pcsByPos) Less(i, j int) bool {
+-	return xposBefore(s[i].pos, s[j].pos)
+-}
+-
+ type varsByScopeAndOffset struct {
+ 	vars   []*dwarf.Var
+ 	scopes []ScopeID
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index b9cf95bf75..3b352aa5aa 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -1304,6 +1304,11 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
+ 			return curscope
+ 		}
+ 
++		if len(scopes[curscope].Vars) == 0 {
++			curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
++			continue
++		}
++
+ 		if len(scope.Ranges) == 1 {
+ 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
+ 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, s.StartPC)
+@@ -1316,6 +1321,7 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
+ 		}
+ 
+ 		curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
++
+ 		Uleb128put(ctxt, s.Info, 0)
+ 	}
+ 	return curscope

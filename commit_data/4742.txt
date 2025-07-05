@@ -9,6 +9,21 @@ Date:   Mon Feb 1 17:17:25 2010 +1100
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/197041
-
+---
  src/cmd/godoc/godoc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 812d23824e..0ec85991e5 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -995,6 +995,9 @@ func serveFile(c *http.Conn, r *http.Request) {
+ 	}
+ 
+ 	if dir != nil && dir.IsDirectory() {
++		if redirect(c, r) {
++			return
++		}
+ 		if index := path + "/index.html"; isTextFile(index) {
+ 			serveHTMLDoc(c, r, index)
+ 			return

@@ -11,7 +11,35 @@ Date:   Wed Feb 20 00:58:31 2013 +0800
     R=minux.ma, iant
     CC=dave, golang-dev
     https://golang.org/cl/7354043
-
+---
  src/pkg/debug/dwarf/const.go | 1 +
  src/pkg/debug/dwarf/entry.go | 4 ++++
  2 files changed, 5 insertions(+)
+
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+index 918b153d07..ad696dc326 100644
+--- a/src/pkg/debug/dwarf/const.go
++++ b/src/pkg/debug/dwarf/const.go
+@@ -207,6 +207,7 @@ const (
+ 	formRef8        format = 0x14
+ 	formRefUdata    format = 0x15
+ 	formIndirect    format = 0x16
++	formFlagPresent format = 0x19
+ )
+ 
+ // A Tag is the classification (the type) of an Entry.
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index 2885d8fa26..f376e40880 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -185,6 +185,10 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		// flag
+ 		case formFlag:
+ 			val = b.uint8() == 1
++		case formFlagPresent:
++			// The attribute is implicitly indicated as present, and no value is
++			// encoded in the debugging information entry itself.
++			val = true
+ 
+ 		// reference to other entry
+ 		case formRefAddr:

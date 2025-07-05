@@ -7,7 +7,37 @@ Date:   Thu Aug 19 16:33:58 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2018041
-
+---
  src/pkg/Makefile             |  1 +
  src/pkg/crypto/ocsp/Makefile | 11 +++++++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 5c4bbadb10..c544078a82 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -39,6 +39,7 @@ DIRS=\
+ 	crypto/hmac\
+ 	crypto/md4\
+ 	crypto/md5\
++	crypto/ocsp\
+ 	crypto/rand\
+ 	crypto/rc4\
+ 	crypto/ripemd160\
+diff --git a/src/pkg/crypto/ocsp/Makefile b/src/pkg/crypto/ocsp/Makefile
+new file mode 100644
+index 0000000000..6e132ff9b0
+--- /dev/null
++++ b/src/pkg/crypto/ocsp/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=crypto/ocsp
++GOFILES=\
++	ocsp.go\
++
++include ../../../Make.pkg

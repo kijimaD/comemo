@@ -7,6 +7,20 @@ Date:   Tue Jan 26 16:29:47 2016 +0900
     Change-Id: I8c647e709d93a76636e04375609fceadf3754aa1
     Reviewed-on: https://go-review.googlesource.com/18954
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/response_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index b4bf09aa9b..d8a53400cf 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -822,7 +822,7 @@ func TestReadResponseErrors(t *testing.T) {
+ 		if err := matchErr(rerr, tt.wantErr); err != nil {
+ 			name := tt.name
+ 			if name == "" {
+-				name = fmt.Sprintf("%i. input %q", i, tt.in)
++				name = fmt.Sprintf("%d. input %q", i, tt.in)
+ 			}
+ 			t.Errorf("%s: %v", name, err)
+ 		}

@@ -9,7 +9,58 @@ Date:   Mon Dec 28 21:35:48 2015 +0900
     Change-Id: I53cfc4ecae90c35b6f1074f3be08489c408a6464
     Reviewed-on: https://go-review.googlesource.com/18181
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/os_windows_test.go | 29 +++++++++++++++++++++++++++++
  src/os/stat_windows.go    |  2 +-
  2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 66e5d42b00..3f4a01e983 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -150,3 +150,32 @@ func TestBadNetPathError(t *testing.T) {
+ 		t.Fatal("os.IsNotExist(syscall.Errno(53)) is false, but want true")
+ 	}
+ }
++
++func TestStatDir(t *testing.T) {
++	defer chtmpdir(t)()
++
++	f, err := os.Open(".")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++
++	fi, err := f.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	err = os.Chdir("..")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	fi2, err := f.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if !os.SameFile(fi, fi2) {
++		t.Fatal("race condition occured")
++	}
++}
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index 966163b2ba..0b6c22c8e8 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -20,7 +20,7 @@ func (file *File) Stat() (FileInfo, error) {
+ 	}
+ 	if file.isdir() {
+ 		// I don't know any better way to do that for directory
+-		return Stat(file.name)
++		return Stat(file.dirinfo.path)
+ 	}
+ 	if file.name == DevNull {
+ 		return &devNullStat, nil

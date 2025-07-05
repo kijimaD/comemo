@@ -15,6 +15,26 @@ Date:   Wed May 29 16:10:27 2024 +0000
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/event.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index e30e20ecbb..a5d5637e60 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -663,11 +663,11 @@ func (e Event) Experimental() ExperimentalEvent {
+ 		panic("Experimental called on non-Experimental event")
+ 	}
+ 	spec := go122.Specs()[e.base.typ]
+-	argNames := spec.Args[1:]
++	argNames := spec.Args[1:] // Skip timestamp; already handled.
+ 	return ExperimentalEvent{
+ 		Name:     spec.Name,
+-		ArgNames: argNames, // Skip timestamp; already handled.
+-		Args:     e.base.args[1 : 1+len(argNames)],
++		ArgNames: argNames,
++		Args:     e.base.args[:len(argNames)],
+ 		Data:     e.table.expData[spec.Experiment],
+ 	}
+ }

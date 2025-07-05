@@ -9,6 +9,20 @@ Date:   Tue May 19 00:25:47 2015 -0400
     Change-Id: I7ae25a500df493c1e78183d69d89b3e2a64a0d1a
     Reviewed-on: https://go-review.googlesource.com/10223
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/time/time.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 0300e846a4..fbf3f8d3c8 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -966,6 +966,8 @@ func (t *Time) UnmarshalText(data []byte) (err error) {
+ // Unix returns the local Time corresponding to the given Unix time,
+ // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+ // It is valid to pass nsec outside the range [0, 999999999].
++// Not all sec values have a corresponding time value. Notable such
++// values are -1<<63 and 1<<63-1.
+ func Unix(sec int64, nsec int64) Time {
+ 	if nsec < 0 || nsec >= 1e9 {
+ 		n := nsec / 1e9

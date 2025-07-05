@@ -9,7 +9,63 @@ Date:   Tue Apr 5 18:22:23 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/os1_windows.go | 22 +++++++++-------------
  src/runtime/os_windows.go  |  2 +-
  2 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 315dd9816a..a36def0ffe 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -110,28 +110,24 @@ func asmstdcall(fn unsafe.Pointer)
+ 
+ var asmstdcallAddr unsafe.Pointer
+ 
+-func windowsFindfunc(name []byte, lib uintptr) stdFunction {
++func windowsFindfunc(lib uintptr, name []byte) stdFunction {
++	if name[len(name)-1] != 0 {
++		throw("usage")
++	}
+ 	f := stdcall2(_GetProcAddress, lib, uintptr(unsafe.Pointer(&name[0])))
+ 	return stdFunction(unsafe.Pointer(f))
+ }
+ 
+ func loadOptionalSyscalls() {
+-	var (
+-		kernel32dll                 = []byte("kernel32.dll\000")
+-		addVectoredContinueHandler  = []byte("AddVectoredContinueHandler\000")
+-		getQueuedCompletionStatusEx = []byte("GetQueuedCompletionStatusEx\000")
+-		addDllDirectory             = []byte("AddDllDirectory\000")
+-		loadLibraryExW              = []byte("LoadLibraryExW\000")
+-	)
+-
++	var kernel32dll = []byte("kernel32.dll\000")
+ 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
+ 	if k32 == 0 {
+ 		throw("kernel32.dll not found")
+ 	}
+-	_AddDllDirectory = windowsFindfunc(addDllDirectory, k32)
+-	_AddVectoredContinueHandler = windowsFindfunc(addVectoredContinueHandler, k32)
+-	_GetQueuedCompletionStatusEx = windowsFindfunc(getQueuedCompletionStatusEx, k32)
+-	_LoadLibraryExW = windowsFindfunc(loadLibraryExW, k32)
++	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
++	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
++	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
++	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 8bdf5a271f..24b3b8cf29 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -10,7 +10,7 @@ type mOS struct {
+ 	waitsema uintptr // semaphore for parking on locks
+ }
+ 
+-type stdFunction *byte
++type stdFunction unsafe.Pointer
+ 
+ //go:linkname os_sigpipe os.sigpipe
+ func os_sigpipe() {

@@ -13,8 +13,168 @@ Date:   Tue May 22 15:30:13 2012 +1000
     R=golang-dev, rsc, nigeltao
     CC=golang-dev
     https://golang.org/cl/6220062
-
+---
  src/pkg/exp/html/parse.go                 | 55 +++++++++++++++----------------
  src/pkg/exp/html/testlogs/tests18.dat.log |  6 ++--
  src/pkg/exp/html/testlogs/tests7.dat.log  |  4 +--
  3 files changed, 31 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 4cd7973853..6688b324fc 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -69,6 +69,7 @@ const (
+ 	tableScope
+ 	tableRowScope
+ 	tableBodyScope
++	selectScope
+ )
+ 
+ // popUntil pops the stack of open elements at the highest element whose tag
+@@ -123,6 +124,10 @@ func (p *parser) indexOfElementInScope(s scope, matchTags ...string) int {
+ 				if tag == "html" || tag == "table" {
+ 					return -1
+ 				}
++			case selectScope:
++				if tag != "optgroup" && tag != "option" {
++					return -1
++				}
+ 			default:
+ 				panic("unreachable")
+ 			}
+@@ -1500,16 +1505,16 @@ func inCellIM(p *parser) bool {
+ 
+ // Section 12.2.5.4.16.
+ func inSelectIM(p *parser) bool {
+-	endSelect := false
+ 	switch p.tok.Type {
+ 	case ErrorToken:
+-		// TODO.
++		// Stop parsing.
++		return true
+ 	case TextToken:
+-		p.addText(p.tok.Data)
++		p.addText(strings.Replace(p.tok.Data, "\x00", "", -1))
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+ 		case "html":
+-			// TODO.
++			return inBodyIM(p)
+ 		case "option":
+ 			if p.top().Data == "option" {
+ 				p.oe.pop()
+@@ -1524,13 +1529,17 @@ func inSelectIM(p *parser) bool {
+ 			}
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 		case "select":
+-			endSelect = true
++			p.tok.Type = EndTagToken
++			return false
+ 		case "input", "keygen", "textarea":
+-			// TODO.
+-		case "script":
+-			// TODO.
+-		default:
++			if p.elementInScope(selectScope, "select") {
++				p.parseImpliedToken(EndTagToken, "select", nil)
++				return false
++			}
+ 			// Ignore the token.
++			return true
++		case "script":
++			return inHeadIM(p)
+ 		}
+ 	case EndTagToken:
+ 		switch p.tok.Data {
+@@ -1547,19 +1556,20 @@ func inSelectIM(p *parser) bool {
+ 				p.oe = p.oe[:i]
+ 			}
+ 		case "select":
+-			endSelect = true
+-		default:
+-			// Ignore the token.
++			if p.popUntil(selectScope, "select") {
++				p.resetInsertionMode()
++			}
+ 		}
+ 	case CommentToken:
+ 		p.doc.Add(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
++	case DoctypeToken:
++		// Ignore the token.
++		return true
+ 	}
+-	if endSelect {
+-		p.endSelect()
+-	}
++
+ 	return true
+ }
+ 
+@@ -1570,7 +1580,7 @@ func inSelectInTableIM(p *parser) bool {
+ 		switch p.tok.Data {
+ 		case "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th":
+ 			if p.tok.Type == StartTagToken || p.elementInScope(tableScope, p.tok.Data) {
+-				p.endSelect()
++				p.parseImpliedToken(EndTagToken, "select", nil)
+ 				return false
+ 			} else {
+ 				// Ignore the token.
+@@ -1581,19 +1591,6 @@ func inSelectInTableIM(p *parser) bool {
+ 	return inSelectIM(p)
+ }
+ 
+-func (p *parser) endSelect() {
+-	for i := len(p.oe) - 1; i >= 0; i-- {
+-		switch p.oe[i].Data {
+-		case "option", "optgroup":
+-			continue
+-		case "select":
+-			p.oe = p.oe[:i]
+-			p.resetInsertionMode()
+-		}
+-		return
+-	}
+-}
+-
+ // Section 12.2.5.4.18.
+ func afterBodyIM(p *parser) bool {
+ 	switch p.tok.Type {
+diff --git a/src/pkg/exp/html/testlogs/tests18.dat.log b/src/pkg/exp/html/testlogs/tests18.dat.log
+index 8fdc01d515..6f4708062e 100644
+--- a/src/pkg/exp/html/testlogs/tests18.dat.log
++++ b/src/pkg/exp/html/testlogs/tests18.dat.log
+@@ -9,9 +9,9 @@ PASS "<!doctype html><table><tr><style></script></style>abc"
+ PASS "<!doctype html><table><tr><script></style></script>abc"
+ PASS "<!doctype html><table><caption><style></script></style>abc"
+ PASS "<!doctype html><table><td><style></script></style>abc"
+-FAIL "<!doctype html><select><script></style></script>abc"
+-FAIL "<!doctype html><table><select><script></style></script>abc"
+-FAIL "<!doctype html><table><tr><select><script></style></script>abc"
++PASS "<!doctype html><select><script></style></script>abc"
++PASS "<!doctype html><table><select><script></style></script>abc"
++PASS "<!doctype html><table><tr><select><script></style></script>abc"
+ PASS "<!doctype html><frameset></frameset><noframes>abc"
+ PASS "<!doctype html><frameset></frameset><noframes>abc</noframes><!--abc-->"
+ PASS "<!doctype html><frameset></frameset></html><noframes>abc"
+diff --git a/src/pkg/exp/html/testlogs/tests7.dat.log b/src/pkg/exp/html/testlogs/tests7.dat.log
+index c18848acb6..85d6c77088 100644
+--- a/src/pkg/exp/html/testlogs/tests7.dat.log
++++ b/src/pkg/exp/html/testlogs/tests7.dat.log
+@@ -10,7 +10,7 @@ PASS "<!doctype html><table><style> <tr>x </style> </table>"
+ PASS "<!doctype html><table><TBODY><script> <tr>x </script> </table>"
+ PASS "<!doctype html><p><applet><p>X</p></applet>"
+ PASS "<!doctype html><listing>\nX</listing>"
+-FAIL "<!doctype html><select><input>X"
++PASS "<!doctype html><select><input>X"
+ PASS "<!doctype html><select><select>X"
+ PASS "<!doctype html><table><input type=hidDEN></table>"
+ PASS "<!doctype html><table>X<input type=hidDEN></table>"
+@@ -27,4 +27,4 @@ PASS "<table><tr><td><code></code> </table>"
+ PASS "<table><b><tr><td>aaa</td></tr>bbb</table>ccc"
+ PASS "A<table><tr> B</tr> B</table>"
+ FAIL "A<table><tr> B</tr> </em>C</table>"
+-FAIL "<select><keygen>"
++PASS "<select><keygen>"

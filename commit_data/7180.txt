@@ -7,6 +7,25 @@ Date:   Thu Jan 20 12:41:59 2011 +1100
     R=r, brainman, rsc1
     CC=golang-dev
     https://golang.org/cl/4023043
-
+---
  src/pkg/syscall/ztypes_windows_386.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index e67165f232..b1271aff17 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -295,9 +295,10 @@ const (
+ 	AF_INET6   = 23
+ 	AF_NETBIOS = 17
+ 
+-	SOCK_STREAM = 1
+-	SOCK_DGRAM  = 2
+-	SOCK_RAW    = 3
++	SOCK_STREAM    = 1
++	SOCK_DGRAM     = 2
++	SOCK_RAW       = 3
++	SOCK_SEQPACKET = 5
+ 
+ 	IPPROTO_IP  = 0
+ 	IPPROTO_TCP = 6

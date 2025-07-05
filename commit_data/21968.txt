@@ -7,8 +7,207 @@ Date:   Fri Feb 13 18:12:48 2015 +1100
     Change-Id: Icf212a4b890725c803b16e76e1a88294b8b62cb8
     Reviewed-on: https://go-review.googlesource.com/4800
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/color/ycbcr.go      | 55 +++++++++++++++++++++++++++
  src/image/color/ycbcr_test.go | 23 ++++++++++--
  src/image/image.go            | 86 +++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 161 insertions(+), 3 deletions(-)
+
+diff --git a/src/image/color/ycbcr.go b/src/image/color/ycbcr.go
+index 4c2f29ea02..b7df672784 100644
+--- a/src/image/color/ycbcr.go
++++ b/src/image/color/ycbcr.go
+@@ -97,3 +97,58 @@ func yCbCrModel(c Color) Color {
+ 	y, u, v := RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
+ 	return YCbCr{y, u, v}
+ }
++
++// RGBToCMYK converts an RGB triple to a CMYK quadruple.
++func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
++	rr := uint32(r)
++	gg := uint32(g)
++	bb := uint32(b)
++	w := rr
++	if w < gg {
++		w = gg
++	}
++	if w < bb {
++		w = bb
++	}
++	if w == 0 {
++		return 0, 0, 0, 255
++	}
++	c := (w - rr) * 255 / w
++	m := (w - gg) * 255 / w
++	y := (w - bb) * 255 / w
++	return uint8(c), uint8(m), uint8(y), uint8(255 - w)
++}
++
++// CMYKToRGB converts a CMYK quadruple to an RGB triple.
++func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
++	w := uint32(255 - k)
++	r := uint32(255-c) * w / 255
++	g := uint32(255-m) * w / 255
++	b := uint32(255-y) * w / 255
++	return uint8(r), uint8(g), uint8(b)
++}
++
++// CMYK represents a fully opaque CMYK color, having 8 bits for each of cyan,
++// magenta, yellow and black.
++//
++// It is not associated with any particular color profile.
++type CMYK struct {
++	C, M, Y, K uint8
++}
++
++func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
++	r, g, b := CMYKToRGB(c.C, c.M, c.Y, c.K)
++	return uint32(r) * 0x101, uint32(g) * 0x101, uint32(b) * 0x101, 0xffff
++}
++
++// CMYKModel is the Model for CMYK colors.
++var CMYKModel Model = ModelFunc(cmykModel)
++
++func cmykModel(c Color) Color {
++	if _, ok := c.(CMYK); ok {
++		return c
++	}
++	r, g, b, _ := c.RGBA()
++	cc, mm, yy, kk := RGBToCMYK(uint8(r>>8), uint8(g>>8), uint8(b>>8))
++	return CMYK{cc, mm, yy, kk}
++}
+diff --git a/src/image/color/ycbcr_test.go b/src/image/color/ycbcr_test.go
+index 92a0e6ff1e..94c23dd9ea 100644
+--- a/src/image/color/ycbcr_test.go
++++ b/src/image/color/ycbcr_test.go
+@@ -15,9 +15,9 @@ func delta(x, y uint8) uint8 {
+ 	return y - x
+ }
+ 
+-// Test that a subset of RGB space can be converted to YCbCr and back to within
+-// 1/256 tolerance.
+-func TestRoundtrip(t *testing.T) {
++// TestYCbCrRoundtrip tests that a subset of RGB space can be converted to YCbCr
++// and back to within 1/256 tolerance.
++func TestYCbCrRoundtrip(t *testing.T) {
+ 	for r := 0; r < 255; r += 7 {
+ 		for g := 0; g < 255; g += 5 {
+ 			for b := 0; b < 255; b += 3 {
+@@ -31,3 +31,20 @@ func TestRoundtrip(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// TestCMYKRoundtrip tests that a subset of RGB space can be converted to CMYK
++// and back to within 1/256 tolerance.
++func TestCMYKRoundtrip(t *testing.T) {
++	for r := 0; r < 255; r += 7 {
++		for g := 0; g < 255; g += 5 {
++			for b := 0; b < 255; b += 3 {
++				r0, g0, b0 := uint8(r), uint8(g), uint8(b)
++				c, m, y, k := RGBToCMYK(r0, g0, b0)
++				r1, g1, b1 := CMYKToRGB(c, m, y, k)
++				if delta(r0, r1) > 1 || delta(g0, g1) > 1 || delta(b0, b1) > 1 {
++					t.Fatalf("r0, g0, b0 = %d, %d, %d   r1, g1, b1 = %d, %d, %d", r0, g0, b0, r1, g1, b1)
++				}
++			}
++		}
++	}
++}
+diff --git a/src/image/image.go b/src/image/image.go
+index 951cc8ae05..a5993d217a 100644
+--- a/src/image/image.go
++++ b/src/image/image.go
+@@ -826,6 +826,92 @@ func NewGray16(r Rectangle) *Gray16 {
+ 	return &Gray16{pix, 2 * w, r}
+ }
+ 
++// CMYK is an in-memory image whose At method returns color.CMYK values.
++type CMYK struct {
++	// Pix holds the image's pixels, in C, M, Y, K order. The pixel at
++	// (x, y) starts at Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)*4].
++	Pix []uint8
++	// Stride is the Pix stride (in bytes) between vertically adjacent pixels.
++	Stride int
++	// Rect is the image's bounds.
++	Rect Rectangle
++}
++
++func (p *CMYK) ColorModel() color.Model { return color.CMYKModel }
++
++func (p *CMYK) Bounds() Rectangle { return p.Rect }
++
++func (p *CMYK) At(x, y int) color.Color {
++	return p.CMYKAt(x, y)
++}
++
++func (p *CMYK) CMYKAt(x, y int) color.CMYK {
++	if !(Point{x, y}.In(p.Rect)) {
++		return color.CMYK{}
++	}
++	i := p.PixOffset(x, y)
++	return color.CMYK{p.Pix[i+0], p.Pix[i+1], p.Pix[i+2], p.Pix[i+3]}
++}
++
++// PixOffset returns the index of the first element of Pix that corresponds to
++// the pixel at (x, y).
++func (p *CMYK) PixOffset(x, y int) int {
++	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
++}
++
++func (p *CMYK) Set(x, y int, c color.Color) {
++	if !(Point{x, y}.In(p.Rect)) {
++		return
++	}
++	i := p.PixOffset(x, y)
++	c1 := color.CMYKModel.Convert(c).(color.CMYK)
++	p.Pix[i+0] = c1.C
++	p.Pix[i+1] = c1.M
++	p.Pix[i+2] = c1.Y
++	p.Pix[i+3] = c1.K
++}
++
++func (p *CMYK) SetCMYK(x, y int, c color.CMYK) {
++	if !(Point{x, y}.In(p.Rect)) {
++		return
++	}
++	i := p.PixOffset(x, y)
++	p.Pix[i+0] = c.C
++	p.Pix[i+1] = c.M
++	p.Pix[i+2] = c.Y
++	p.Pix[i+3] = c.K
++}
++
++// SubImage returns an image representing the portion of the image p visible
++// through r. The returned value shares pixels with the original image.
++func (p *CMYK) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &CMYK{}
++	}
++	i := p.PixOffset(r.Min.X, r.Min.Y)
++	return &CMYK{
++		Pix:    p.Pix[i:],
++		Stride: p.Stride,
++		Rect:   r,
++	}
++}
++
++// Opaque scans the entire image and reports whether it is fully opaque.
++func (p *CMYK) Opaque() bool {
++	return true
++}
++
++// NewCMYK returns a new CMYK with the given bounds.
++func NewCMYK(r Rectangle) *CMYK {
++	w, h := r.Dx(), r.Dy()
++	buf := make([]uint8, 4*w*h)
++	return &CMYK{buf, 4 * w, r}
++}
++
+ // Paletted is an in-memory image of uint8 indices into a given palette.
+ type Paletted struct {
+ 	// Pix holds the image's pixels, as palette indices. The pixel at

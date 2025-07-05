@@ -6,10 +6,249 @@ Date:   Wed Jul 16 17:00:48 2008 -0700
     - more work on packages
     
     SVN=127671
-
+---
  usr/gri/gosrc/compilation.go | 51 ++++++++++++++++++++++++++++++++++++++------
  usr/gri/gosrc/export.go      |  5 +++--
  usr/gri/gosrc/package.go     |  3 ++-
  usr/gri/gosrc/parser.go      | 15 +++++++------
  usr/gri/gosrc/scanner.go     | 23 ++++++++++++++++++--
  5 files changed, 79 insertions(+), 18 deletions(-)
+
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index 9a76ae1f17..ac2ac59aff 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -11,6 +11,7 @@ import Universe "universe"
+ import Package "package"
+ import Scanner "scanner"
+ import Parser "parser"
++import Export "export"
+ 
+ 
+ export Compilation
+@@ -22,20 +23,57 @@ type Compilation struct {
+ }
+ 
+ 
+-func (C *Compilation) Lookup(pkg_name string) *Package.Package {
+-	panic "UNIMPLEMENTED";
++func (C *Compilation) Lookup(file_name string) *Package.Package {
++	for i := 0; i < C.nimports; i++ {
++		pkg := C.imports[i];
++		if pkg.file_name == file_name {
++			return pkg;
++		}
++	}
+ 	return nil;
+ }
+ 
+ 
+ func (C *Compilation) Insert(pkg *Package.Package) {
+-	panic "UNIMPLEMENTED";
++	if C.Lookup(pkg.file_name) != nil {
++		panic "package already inserted";
++	}
++	pkg.pno = C.nimports;
++	C.imports[C.nimports] = pkg;
++	C.nimports++;
+ }
+ 
+ 
+ func (C *Compilation) InsertImport(pkg *Package.Package) *Package.Package {
+-	panic "UNIMPLEMENTED";
+-	return nil;
++	p := C.Lookup(pkg.file_name);
++	if (p == nil) {
++		// no primary package found
++		C.Insert(pkg);
++		p = pkg;
++	}
++	return p;
++}
++
++
++func BaseName(s string) string {
++	// TODO this is not correct for non-ASCII strings!
++	i := len(s);
++	for i >= 0 && s[i] != '/' {
++		if s[i] > 128 {
++			panic "non-ASCII string"
++		}
++		i--;
++	}
++	return s[i + 1 : len(s)];
++}
++
++
++func FixExt(s string) string {
++	i := len(s) - 3;  // 3 == len(".go");
++	if s[i : len(s)] == ".go" {
++		s = s[0 : i];
++	}
++	return s + ".7"
+ }
+ 
+ 
+@@ -45,7 +83,8 @@ func (C *Compilation) Import(pkg_name string) (pno int) {
+ 
+ 
+ func (C *Compilation) Export() {
+-	panic "UNIMPLEMENTED";
++	file_name := FixExt(BaseName(C.src_name));  // strip src dir
++	Export.Export(file_name/*, C */);
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 9cc2a03019..6a321cafda 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -8,6 +8,7 @@ import Globals "globals"
+ import Object "object"
+ import Type "type"
+ import Package "package"
++//import Compilation "compilation"
+ 
+ 
+ type Exporter struct {
+@@ -253,7 +254,7 @@ func (E *Exporter) WritePackage(pkg *Package.Package) {
+ 	E.pkg_ref++;
+ 
+ 	E.WriteString(pkg.ident);
+-	E.WriteString(pkg.path);
++	E.WriteString(pkg.file_name);
+ 	E.WriteString(pkg.key);
+ }
+ 
+@@ -294,7 +295,7 @@ func (E *Exporter) Export(/*Compilation* comp, BBuffer* buf*/) {
+ 
+ 
+ export Export
+-func Export(/*Compilation* comp, BBuffer* buf*/) {
++func Export(file_name string /*comp *Compilation.Compilation*/) {
+ 	/*
+ 	Exporter exp;
+ 	exp.Export(comp, buf);
+diff --git a/usr/gri/gosrc/package.go b/usr/gri/gosrc/package.go
+index fa2578b963..bea260b572 100644
+--- a/usr/gri/gosrc/package.go
++++ b/usr/gri/gosrc/package.go
+@@ -9,10 +9,11 @@ import Globals "globals"
+ export Package
+ type Package struct {
+ 	ref int;
++	file_name string;
+ 	ident string;
+-	path string;
+ 	key string;
+ 	scope *Globals.Scope;
++	pno int;
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index dc80cb8787..f93567a2c6 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -292,8 +292,8 @@ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	P.Trace("ChannelType");
+ 	P.Expect(Scanner.CHAN);
+ 	switch P.tok {
+-	case Scanner.LSS: fallthrough
+-	case Scanner.GTR:
++	case Scanner.SEND: fallthrough
++	case Scanner.RECV:
+ 		P.Next();
+ 	}
+ 	P.ParseType();
+@@ -681,9 +681,8 @@ func (P *Parser) ParseUnaryExpr() {
+ 	case Scanner.SUB: fallthrough;
+ 	case Scanner.NOT: fallthrough;
+ 	case Scanner.XOR: fallthrough;
+-	case Scanner.LSS: fallthrough;
+-	case Scanner.GTR: fallthrough;
+ 	case Scanner.MUL: fallthrough;
++	case Scanner.RECV: fallthrough;
+ 	case Scanner.AND:
+ 		P.Next();
+ 		P.ParseUnaryExpr();
+@@ -702,12 +701,14 @@ func Precedence(tok int) int {
+ 		return 1;
+ 	case Scanner.LAND:
+ 		return 2;
+-	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
++	case Scanner.SEND, Scanner.RECV:
+ 		return 3;
+-	case Scanner.ADD, Scanner.SUB, Scanner.OR, Scanner.XOR:
++	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
+ 		return 4;
+-	case Scanner.MUL, Scanner.QUO, Scanner.REM, Scanner.SHL, Scanner.SHR, Scanner.AND:
++	case Scanner.ADD, Scanner.SUB, Scanner.OR, Scanner.XOR:
+ 		return 5;
++	case Scanner.MUL, Scanner.QUO, Scanner.REM, Scanner.SHL, Scanner.SHR, Scanner.AND:
++		return 6;
+ 	}
+ 	return 0;
+ }
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index 2ae3031d57..a5c63e20f9 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -14,6 +14,7 @@ export
+ 	ADD, SUB, MUL, QUO, REM,
+ 	EQL, NEQ, LSS, LEQ, GTR, GEQ,
+ 	SHL, SHR,
++	SEND, RECV,
+ 	ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, QUO_ASSIGN, REM_ASSIGN,
+ 	AND_ASSIGN, OR_ASSIGN, XOR_ASSIGN, SHL_ASSIGN, SHR_ASSIGN,
+ 	LAND, LOR,
+@@ -67,6 +68,9 @@ const (
+ 
+ 	SHL;
+ 	SHR;
++	
++	SEND;
++	RECV;
+ 
+ 	ADD_ASSIGN;
+ 	SUB_ASSIGN;
+@@ -171,6 +175,9 @@ func TokenName(tok int) string {
+ 
+ 	case SHL: return "<<";
+ 	case SHR: return ">>";
++	
++	case SEND: return "-<";
++	case RECV: return "<-";
+ 
+ 	case ADD_ASSIGN: return "+=";
+ 	case SUB_ASSIGN: return "-=";
+@@ -767,7 +774,13 @@ func (S *Scanner) Scan () (tok, beg, end int) {
+ 		case '{': tok = LBRACE;
+ 		case '}': tok = RBRACE;
+ 		case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
+-		case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
++		case '-':
++			if S.ch == '<' {
++				S.Next();
++				tok = SEND;
++			} else {
++				tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
++			}
+ 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+@@ -779,7 +792,13 @@ func (S *Scanner) Scan () (tok, beg, end int) {
+ 			tok = S.Select2(QUO, QUO_ASSIGN);
+ 		case '%': tok = S.Select2(REM, REM_ASSIGN);
+ 		case '^': tok = S.Select2(XOR, XOR_ASSIGN);
+-		case '<': tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
++		case '<':
++			if S.ch == '-' {
++				S.Next();
++				tok = RECV;
++			} else {
++				tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
++			}
+ 		case '>': tok = S.Select4(GTR, GEQ, '>', SHR, SHR_ASSIGN);
+ 		case '=': tok = S.Select2(ASSIGN, EQL);
+ 		case '!': tok = S.Select2(NOT, NEQ);

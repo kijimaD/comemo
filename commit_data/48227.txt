@@ -25,9 +25,82 @@ Date:   Sat May 1 15:41:34 2021 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/user/getgrouplist_unix.go                             | 4 ++--
  src/os/user/{listgroups_solaris.go => listgroups_illumos.go} | 6 +++---
  src/os/user/listgroups_unix.go                               | 4 ++--
  src/os/user/user_test.go                                     | 2 +-
  4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/user/getgrouplist_unix.go b/src/os/user/getgrouplist_unix.go
+index 8393c5a474..fd66961ccf 100644
+--- a/src/os/user/getgrouplist_unix.go
++++ b/src/os/user/getgrouplist_unix.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (dragonfly || freebsd || (!android && linux) || netbsd || openbsd) && cgo && !osusergo
+-// +build dragonfly freebsd !android,linux netbsd openbsd
++//go:build (dragonfly || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
++// +build dragonfly freebsd !android,linux netbsd openbsd solaris,!illumos
+ // +build cgo
+ // +build !osusergo
+ 
+diff --git a/src/os/user/listgroups_solaris.go b/src/os/user/listgroups_illumos.go
+similarity index 74%
+rename from src/os/user/listgroups_solaris.go
+rename to src/os/user/listgroups_illumos.go
+index d993d30570..d25e0339b9 100644
+--- a/src/os/user/listgroups_solaris.go
++++ b/src/os/user/listgroups_illumos.go
+@@ -1,4 +1,4 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -6,7 +6,7 @@
+ // +build cgo,!osusergo
+ 
+ // Even though this file requires no C, it is used to provide a
+-// listGroup stub because all the other Solaris calls work.  Otherwise,
++// listGroup stub because all the other illumos calls work.  Otherwise,
+ // this stub will conflict with the lookup_stubs.go fallback.
+ 
+ package user
+@@ -14,5 +14,5 @@ package user
+ import "fmt"
+ 
+ func listGroups(u *User) ([]string, error) {
+-	return nil, fmt.Errorf("user: list groups for %s: not supported on Solaris", u.Username)
++	return nil, fmt.Errorf("user: list groups for %s: not supported on illumos", u.Username)
+ }
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index c7b72062d5..38aa7653b0 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (dragonfly || darwin || freebsd || (!android && linux) || netbsd || openbsd) && cgo && !osusergo
+-// +build dragonfly darwin freebsd !android,linux netbsd openbsd
++//go:build (dragonfly || darwin || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
++// +build dragonfly darwin freebsd !android,linux netbsd openbsd solaris,!illumos
+ // +build cgo
+ // +build !osusergo
+ 
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index 8c4c817c2b..49920317be 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -132,7 +132,7 @@ func TestGroupIds(t *testing.T) {
+ 	if runtime.GOOS == "aix" {
+ 		t.Skip("skipping GroupIds, see golang.org/issue/30563")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
++	if runtime.GOOS == "illumos" {
+ 		t.Skip("skipping GroupIds, see golang.org/issue/14709")
+ 	}
+ 	user, err := Current()

@@ -10,10 +10,210 @@ Date:   Mon Jul 13 10:26:58 2009 -0700
     DELTA=150  (148 added, 0 deleted, 2 changed)
     OCL=31481
     CL=31517
-
+---
  src/cmd/clean.bash           |   2 +-
  src/cmd/ebnflint/Makefile    |  24 +++++++++
  src/cmd/ebnflint/ebnflint.go | 120 +++++++++++++++++++++++++++++++++++++++++++
  src/make.bash                |   2 +-
  src/run.bash                 |   6 +++
  5 files changed, 152 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 7431e6f1f3..bba191c994 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cov gobuild godefs godoc gofmt prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cov ebnflint gobuild godefs godoc gofmt prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/ebnflint/Makefile b/src/cmd/ebnflint/Makefile
+new file mode 100644
+index 0000000000..e223002986
+--- /dev/null
++++ b/src/cmd/ebnflint/Makefile
+@@ -0,0 +1,24 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=ebnflint
++OFILES=\
++	ebnflint.$O\
++
++$(TARG): $(OFILES)
++	$(LD) -o $(TARG) $(OFILES)
++
++test: $(TARG)
++	$(TARG) -start="SourceFile" $(GOROOT)/doc/go_spec.html
++
++clean:
++	rm -f $(OFILES) $(TARG)
++
++install: $(TARG)
++	cp $(TARG) $(HOME)/bin/$(TARG)
++
++%.$O:	%.go
++	$(GC) $<
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+new file mode 100644
+index 0000000000..7757085dd5
+--- /dev/null
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -0,0 +1,120 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes";
++	"ebnf";
++	"flag";
++	"fmt";
++	"io";
++	"os";
++	"path";
++	"sort";
++	"strings";
++)
++
++
++var start = flag.String("start", "Start", "name of start production");
++
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: ebnflint [flags] [filename]\n");
++	flag.PrintDefaults();
++	os.Exit(1);
++}
++
++
++// Markers around EBNF sections in .html files
++var (
++	open = strings.Bytes(`<pre class="ebnf">`);
++	close = strings.Bytes(`</pre>`);
++)
++
++
++func extractEBNF(src []byte) []byte {
++	var buf bytes.Buffer;
++
++	for i, j, n := 0, 0, len(src); ; {
++		// i = beginning of EBNF section
++		i = bytes.Index(src[j : n], open);
++		if i < 0 {
++			break;
++		}
++		i += j+len(open);
++
++		// write as many newlines as found in the excluded text
++		// to maintain correct line numbers in error messages 
++		for _, ch := range src[j : i] {
++			if ch == '\n' {
++				buf.WriteByte('\n');
++			}
++		}
++
++		// j = end of EBNF section
++		j = bytes.Index(src[i : n], close);
++		if j < 0 {
++			// missing closing
++			// TODO(gri) should this be an error?
++			j = n-i;
++		}
++		j += i;
++
++		// copy EBNF section
++		buf.Write(src[i : j]);
++	}
++
++	return buf.Data();
++}
++
++
++// TODO(gri) This is the same code for reportError as in gofmt.
++//           Should factor this out as part of some parsing framework
++//           that could also deal with reading various input sources.
++
++func reportError(filename string, err os.Error) {
++	if errors, ok := err.(ebnf.ErrorList); ok {
++		sort.Sort(errors);
++		for _, e := range errors {
++			fmt.Fprintf(os.Stderr, "%s:%v\n", filename, e);
++		}
++	} else {
++		fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
++	}
++	os.Exit(1);
++}
++
++
++func main() {
++	flag.Parse();
++
++	var filename string;
++	switch flag.NArg() {
++	case 0:
++		filename = "/dev/stdin";
++	case 1:
++		filename = flag.Arg(0);
++	default:
++		usage();
++	}
++
++	src, err := io.ReadFile(filename);
++	if err != nil {
++		reportError(filename, err);
++	}
++
++	if path.Ext(filename) == ".html" {
++		src = extractEBNF(src);
++	}
++
++	grammar, err := ebnf.Parse(src);
++	if err != nil {
++		reportError(filename, err);
++	}
++
++	if err = ebnf.Verify(grammar, *start); err != nil {
++		reportError(filename, err);
++	}
++}
+diff --git a/src/make.bash b/src/make.bash
+index 00cc6b4fd3..6374f0b9e5 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -18,7 +18,7 @@ rm -f $HOME/bin/quietgcc
+ cp quietgcc.bash $HOME/bin/quietgcc
+ chmod +x $HOME/bin/quietgcc
+ 
+-for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/gobuild cmd/godoc cmd/gofmt
+ do
+ 	# The ( ) here are to preserve the current directory
+ 	# for the next round despite the cd $i below.
+diff --git a/src/run.bash b/src/run.bash
+index f275d990ce..23c10facf9 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -42,6 +42,12 @@ time make
+ time make smoketest
+ ) || exit $?
+ 
++(xcd cmd/ebnflint
++make clean
++time make
++time make test
++) || exit $?
++
+ (xcd ../doc/progs
+ time ./run
+ ) || exit $?

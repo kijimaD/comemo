@@ -21,10 +21,149 @@ Date:   Mon Dec 28 17:06:43 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go        | 11 ++++++++---
  src/cmd/compile/internal/ir/node_gen.go    |  7 +------
  src/cmd/compile/internal/ssagen/ssa.go     |  8 ++++----
  src/cmd/compile/internal/typecheck/expr.go |  2 +-
  src/cmd/compile/internal/walk/expr.go      |  7 ++++---
  5 files changed, 18 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 872f81a447..825d4ace78 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -109,7 +109,7 @@ func NewAddStringExpr(pos src.XPos, list []Node) *AddStringExpr {
+ type AddrExpr struct {
+ 	miniExpr
+ 	X     Node
+-	Alloc Node // preallocated storage if any
++	Alloc *Name // preallocated storage if any
+ }
+ 
+ func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
+@@ -660,8 +660,13 @@ func (n *StarExpr) SetOTYPE(t *types.Type) {
+ type TypeAssertExpr struct {
+ 	miniExpr
+ 	X     Node
+-	Ntype Node  // TODO: Should be Ntype, but reused as address of type structure
+-	Itab  Nodes // Itab[0] is itab
++	Ntype Ntype
++
++	// Runtime type information provided by walkDotType.
++	// Caution: These aren't always populated; see walkDotType.
++	SrcType *AddrExpr // *runtime._type for X's type
++	DstType *AddrExpr // *runtime._type for Type
++	Itab    *AddrExpr // *runtime.itab for Type implementing X's type
+ }
+ 
+ func NewTypeAssertExpr(pos src.XPos, x Node, typ Ntype) *TypeAssertExpr {
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index a1ce9a4e9d..1d24904a3f 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -32,13 +32,11 @@ func (n *AddrExpr) doChildren(do func(Node) error) error {
+ 	var err error
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.X, err, do)
+-	err = maybeDo(n.Alloc, err, do)
+ 	return err
+ }
+ func (n *AddrExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.X = maybeEdit(n.X, edit)
+-	n.Alloc = maybeEdit(n.Alloc, edit)
+ }
+ 
+ func (n *ArrayType) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -954,7 +952,6 @@ func (n *TypeAssertExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+ func (n *TypeAssertExpr) copy() Node {
+ 	c := *n
+ 	c.init = c.init.Copy()
+-	c.Itab = c.Itab.Copy()
+ 	return &c
+ }
+ func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
+@@ -962,14 +959,12 @@ func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	err = maybeDo(n.X, err, do)
+ 	err = maybeDo(n.Ntype, err, do)
+-	err = maybeDoList(n.Itab, err, do)
+ 	return err
+ }
+ func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
+ 	editList(n.init, edit)
+ 	n.X = maybeEdit(n.X, edit)
+-	n.Ntype = maybeEdit(n.Ntype, edit)
+-	editList(n.Itab, edit)
++	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
+ }
+ 
+ func (n *TypeSwitchGuard) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0da6ab3272..509d53f8c9 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5978,8 +5978,8 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
+ // commaok indicates whether to panic or return a bool.
+ // If commaok is false, resok will be nil.
+ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
+-	iface := s.expr(n.X)      // input interface
+-	target := s.expr(n.Ntype) // target type
++	iface := s.expr(n.X)        // input interface
++	target := s.expr(n.DstType) // target type
+ 	byteptr := s.f.Config.Types.BytePtr
+ 
+ 	if n.Type().IsInterface() {
+@@ -6086,7 +6086,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 		targetITab = target
+ 	} else {
+ 		// Looking for pointer to itab for target type and source interface.
+-		targetITab = s.expr(n.Itab[0])
++		targetITab = s.expr(n.Itab)
+ 	}
+ 
+ 	var tmp ir.Node     // temporary for use with large types
+@@ -6113,7 +6113,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 	if !commaok {
+ 		// on failure, panic by calling panicdottype
+ 		s.startBlock(bFail)
+-		taddr := s.expr(n.Ntype.(*ir.AddrExpr).Alloc)
++		taddr := s.expr(n.SrcType)
+ 		if n.X.Type().IsEmptyInterface() {
+ 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
+ 		} else {
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 0682548c27..29d7a08011 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -649,7 +649,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
+ 	}
+ 
+ 	if n.Ntype != nil {
+-		n.Ntype = typecheck(n.Ntype, ctxType)
++		n.Ntype = typecheckNtype(n.Ntype)
+ 		n.SetType(n.Ntype.Type())
+ 		n.Ntype = nil
+ 		if n.Type() == nil {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 7cc6758024..f40aa6adb5 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -639,12 +639,13 @@ func walkDot(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+ 	// Set up interface type addresses for back end.
+-	n.Ntype = reflectdata.TypePtr(n.Type())
++
++	n.DstType = reflectdata.TypePtr(n.Type())
+ 	if n.Op() == ir.ODOTTYPE {
+-		n.Ntype.(*ir.AddrExpr).Alloc = reflectdata.TypePtr(n.X.Type())
++		n.SrcType = reflectdata.TypePtr(n.X.Type())
+ 	}
+ 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
+-		n.Itab = []ir.Node{reflectdata.ITabAddr(n.Type(), n.X.Type())}
++		n.Itab = reflectdata.ITabAddr(n.Type(), n.X.Type())
+ 	}
+ 	return n
+ }

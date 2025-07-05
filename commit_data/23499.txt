@@ -10,6 +10,20 @@ Date:   Tue May 19 10:47:24 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/10195
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/flag/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 4e4279069f..060660248e 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -31,7 +31,7 @@
+ 		fmt.Println("ip has value ", *ip)
+ 		fmt.Println("flagvar has value ", flagvar)
+ 
+-	After parsing, the arguments after the flag are available as the
++	After parsing, the arguments following the flags are available as the
+ 	slice flag.Args() or individually as flag.Arg(i).
+ 	The arguments are indexed from 0 through flag.NArg()-1.
+ 

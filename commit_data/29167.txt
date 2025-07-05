@@ -12,10 +12,85 @@ Date:   Tue Aug 30 01:05:18 2016 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/context/context.go     | 4 ++--
  src/crypto/tls/tls.go      | 2 +-
  src/net/fd_poll_runtime.go | 2 +-
  src/net/http/client.go     | 2 +-
  src/net/http/serve_test.go | 2 +-
  5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index f8ce9ccdb8..e40b63ef3c 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -376,7 +376,7 @@ func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
+ 		deadline:  deadline,
+ 	}
+ 	propagateCancel(parent, c)
+-	d := deadline.Sub(time.Now())
++	d := time.Until(deadline)
+ 	if d <= 0 {
+ 		c.cancel(true, DeadlineExceeded) // deadline has already passed
+ 		return c, func() { c.cancel(true, Canceled) }
+@@ -406,7 +406,7 @@ func (c *timerCtx) Deadline() (deadline time.Time, ok bool) {
+ }
+ 
+ func (c *timerCtx) String() string {
+-	return fmt.Sprintf("%v.WithDeadline(%s [%s])", c.cancelCtx.Context, c.deadline, c.deadline.Sub(time.Now()))
++	return fmt.Sprintf("%v.WithDeadline(%s [%s])", c.cancelCtx.Context, c.deadline, time.Until(c.deadline))
+ }
+ 
+ func (c *timerCtx) cancel(removeFromParent bool, err error) {
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 8eef884a0f..e11e7dd567 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -102,7 +102,7 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
+ 	timeout := dialer.Timeout
+ 
+ 	if !dialer.Deadline.IsZero() {
+-		deadlineTimeout := dialer.Deadline.Sub(time.Now())
++		deadlineTimeout := time.Until(dialer.Deadline)
+ 		if timeout == 0 || deadlineTimeout < timeout {
+ 			timeout = deadlineTimeout
+ 		}
+diff --git a/src/net/fd_poll_runtime.go b/src/net/fd_poll_runtime.go
+index bfa62c9f2d..62b69fcbf1 100644
+--- a/src/net/fd_poll_runtime.go
++++ b/src/net/fd_poll_runtime.go
+@@ -122,7 +122,7 @@ func (fd *netFD) setWriteDeadline(t time.Time) error {
+ }
+ 
+ func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
+-	diff := int64(t.Sub(time.Now()))
++	diff := int64(time.Until(t))
+ 	d := runtimeNano() + diff
+ 	if d <= 0 && diff > 0 {
+ 		// If the user has a deadline in the future, but the delay calculation
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 993c247eef..58b584c8ab 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -324,7 +324,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
+ 	var once sync.Once
+ 	stopTimer = func() { once.Do(func() { close(stopTimerCh) }) }
+ 
+-	timer := time.NewTimer(deadline.Sub(time.Now()))
++	timer := time.NewTimer(time.Until(deadline))
+ 	go func() {
+ 		select {
+ 		case <-initialReqCancel:
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 3cfe57dd04..360d3a37b3 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1737,7 +1737,7 @@ restart:
+ 		if !c.rd.IsZero() {
+ 			// If the deadline falls in the middle of our sleep window, deduct
+ 			// part of the sleep, then return a timeout.
+-			if remaining := c.rd.Sub(time.Now()); remaining < cue {
++			if remaining := time.Until(c.rd); remaining < cue {
+ 				c.script[0] = cue - remaining
+ 				time.Sleep(remaining)
+ 				return 0, syscall.ETIMEDOUT

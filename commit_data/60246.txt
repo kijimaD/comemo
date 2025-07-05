@@ -13,6 +13,26 @@ Date:   Wed May 29 10:38:15 2024 -0700
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_shim_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index b9db73de81..09b20a1c70 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -301,6 +301,14 @@ func TestBogoSuite(t *testing.T) {
+ 		t.Skip("#66913: windows network connections are flakey on builders")
+ 	}
+ 
++	// In order to make Go test caching work as expected, we stat the
++	// bogo_config.json file, so that the Go testing hooks know that it is
++	// important for this test and will invalidate a cached test result if the
++	// file changes.
++	if _, err := os.Stat("bogo_config.json"); err != nil {
++		t.Fatal(err)
++	}
++
+ 	var bogoDir string
+ 	if *bogoLocalDir != "" {
+ 		bogoDir = *bogoLocalDir

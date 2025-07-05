@@ -25,6 +25,20 @@ Date:   Tue Apr 27 03:01:08 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index acba232308..c1e3eaa0f3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2563,7 +2563,7 @@ func mainPackagesOnly(pkgs []*Package, patterns []string) []*Package {
+ 	mainCount := make([]int, len(patterns))
+ 	nonMainCount := make([]int, len(patterns))
+ 	for _, pkg := range pkgs {
+-		if pkg.Name == "main" {
++		if pkg.Name == "main" || (pkg.Incomplete && pkg.Name == "") {
+ 			matchedPkgs = append(matchedPkgs, pkg)
+ 			for i := range patterns {
+ 				if matchers[i] != nil && matchers[i](pkg.ImportPath) {

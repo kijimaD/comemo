@@ -11,6 +11,24 @@ Date:   Mon Aug 8 02:04:52 2016 +0430
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/example_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index a28255254b..9c890c4519 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -52,3 +52,12 @@ func ExampleFileMode() {
+ 		fmt.Println("named pipe")
+ 	}
+ }
++
++func ExampleIsNotExist() {
++	filename := "a-nonexistent-file"
++	if _, err := os.Stat(filename); os.IsNotExist(err) {
++		fmt.Printf("file does not exist")
++	}
++	// Output:
++	// file does not exist
++}

@@ -8,7 +8,7 @@ Date:   Tue Oct 6 19:40:35 2009 -0700
     DELTA=566  (4 added, 14 deleted, 548 changed)
     OCL=35410
     CL=35419
-
+---
  src/pkg/malloc/malloc.go        |   8 +-
  src/pkg/math/all_test.go        | 274 ++++++++++++++++++++--------------------
  src/pkg/math/atan.go            |   9 +-
@@ -53,3 +53,2555 @@ Date:   Tue Oct 6 19:40:35 2009 -0700
  src/pkg/os/time.go              |   3 +-
  src/pkg/os/types.go             |  45 ++++---
  43 files changed, 534 insertions(+), 544 deletions(-)
+
+diff --git a/src/pkg/malloc/malloc.go b/src/pkg/malloc/malloc.go
+index fec53f08fd..838b92f5f2 100644
+--- a/src/pkg/malloc/malloc.go
++++ b/src/pkg/malloc/malloc.go
+@@ -9,11 +9,11 @@
+ package malloc
+ 
+ type Stats struct {
+-	Alloc	uint64;
+-	Sys	uint64;
+-	Stacks	uint64;
++	Alloc		uint64;
++	Sys		uint64;
++	Stacks		uint64;
+ 	InusePages	uint64;
+-	NextGC	uint64;
++	NextGC		uint64;
+ 	EnableGC	bool;
+ }
+ 
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index 9a7075899e..9d899d1ce4 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -5,156 +5,156 @@
+ package math_test
+ 
+ import (
+-	. "math";
+-	"testing";
++	.	"math";
++		"testing";
+ )
+ 
+-var vf = []float64 {
+-	  4.9790119248836735e+00,
+-	  7.7388724745781045e+00,
+-	 -2.7688005719200159e-01,
+-	 -5.0106036182710749e+00,
+-	  9.6362937071984173e+00,
+-	  2.9263772392439646e+00,
+-	  5.2290834314593066e+00,
+-	  2.7279399104360102e+00,
+-	  1.8253080916808550e+00,
+-	 -8.6859247685756013e+00,
++var vf = []float64{
++	4.9790119248836735e+00,
++	7.7388724745781045e+00,
++	-2.7688005719200159e-01,
++	-5.0106036182710749e+00,
++	9.6362937071984173e+00,
++	2.9263772392439646e+00,
++	5.2290834314593066e+00,
++	2.7279399104360102e+00,
++	1.8253080916808550e+00,
++	-8.6859247685756013e+00,
+ }
+-var asin = []float64 {
+-	  5.2117697218417440e-01,
+-	  8.8495619865825236e-01,
+-	 -2.7691544662819413e-02,
+-	 -5.2482360935268932e-01,
+-	  1.3002662421166553e+00,
+-	  2.9698415875871901e-01,
+-	  5.5025938468083364e-01,
+-	  2.7629597861677200e-01,
+-	  1.8355989225745148e-01,
+-	 -1.0523547536021498e+00,
++var asin = []float64{
++	5.2117697218417440e-01,
++	8.8495619865825236e-01,
++	-2.7691544662819413e-02,
++	-5.2482360935268932e-01,
++	1.3002662421166553e+00,
++	2.9698415875871901e-01,
++	5.5025938468083364e-01,
++	2.7629597861677200e-01,
++	1.8355989225745148e-01,
++	-1.0523547536021498e+00,
+ }
+-var atan = []float64 {
+-	  1.3725902621296217e+00,
+-	  1.4422906096452980e+00,
+-	 -2.7011324359471755e-01,
+-	 -1.3738077684543379e+00,
+-	  1.4673921193587666e+00,
+-	  1.2415173565870167e+00,
+-	  1.3818396865615167e+00,
+-	  1.2194305844639670e+00,
+-	  1.0696031952318783e+00,
+-	 -1.4561721938838085e+00,
++var atan = []float64{
++	1.3725902621296217e+00,
++	1.4422906096452980e+00,
++	-2.7011324359471755e-01,
++	-1.3738077684543379e+00,
++	1.4673921193587666e+00,
++	1.2415173565870167e+00,
++	1.3818396865615167e+00,
++	1.2194305844639670e+00,
++	1.0696031952318783e+00,
++	-1.4561721938838085e+00,
+ }
+-var exp = []float64 {
+-	  1.4533071302642137e+02,
+-	  2.2958822575694450e+03,
+-	  7.5814542574851666e-01,
+-	  6.6668778421791010e-03,
+-	  1.5310493273896035e+04,
+-	  1.8659907517999329e+01,
+-	  1.8662167355098713e+02,
+-	  1.5301332413189379e+01,
+-	  6.2047063430646876e+00,
+-	  1.6894712385826522e-04,
++var exp = []float64{
++	1.4533071302642137e+02,
++	2.2958822575694450e+03,
++	7.5814542574851666e-01,
++	6.6668778421791010e-03,
++	1.5310493273896035e+04,
++	1.8659907517999329e+01,
++	1.8662167355098713e+02,
++	1.5301332413189379e+01,
++	6.2047063430646876e+00,
++	1.6894712385826522e-04,
+ }
+-var floor = []float64 {
+-	  4.0000000000000000e+00,
+-	  7.0000000000000000e+00,
+-	 -1.0000000000000000e+00,
+-	 -6.0000000000000000e+00,
+-	  9.0000000000000000e+00,
+-	  2.0000000000000000e+00,
+-	  5.0000000000000000e+00,
+-	  2.0000000000000000e+00,
+-	  1.0000000000000000e+00,
+-	 -9.0000000000000000e+00,
++var floor = []float64{
++	4.0000000000000000e+00,
++	7.0000000000000000e+00,
++	-1.0000000000000000e+00,
++	-6.0000000000000000e+00,
++	9.0000000000000000e+00,
++	2.0000000000000000e+00,
++	5.0000000000000000e+00,
++	2.0000000000000000e+00,
++	1.0000000000000000e+00,
++	-9.0000000000000000e+00,
+ }
+-var log = []float64 {
+-	  1.6052314626930630e+00,
+-	  2.0462560018708768e+00,
+-	 -1.2841708730962657e+00,
+-	  1.6115563905281544e+00,
+-	  2.2655365644872018e+00,
+-	  1.0737652208918380e+00,
+-	  1.6542360106073545e+00,
+-	  1.0035467127723465e+00,
+-	  6.0174879014578053e-01,
+-	  2.1617038728473527e+00,
++var log = []float64{
++	1.6052314626930630e+00,
++	2.0462560018708768e+00,
++	-1.2841708730962657e+00,
++	1.6115563905281544e+00,
++	2.2655365644872018e+00,
++	1.0737652208918380e+00,
++	1.6542360106073545e+00,
++	1.0035467127723465e+00,
++	6.0174879014578053e-01,
++	2.1617038728473527e+00,
+ }
+-var pow = []float64 {
+-	  9.5282232631648415e+04,
+-	  5.4811599352999900e+07,
+-	  5.2859121715894400e-01,
+-	  9.7587991957286472e-06,
+-	  4.3280643293460450e+09,
+-	  8.4406761805034551e+02,
+-	  1.6946633276191194e+05,
+-	  5.3449040147551940e+02,
+-	  6.6881821384514159e+01,
+-	  2.0609869004248744e-09,
++var pow = []float64{
++	9.5282232631648415e+04,
++	5.4811599352999900e+07,
++	5.2859121715894400e-01,
++	9.7587991957286472e-06,
++	4.3280643293460450e+09,
++	8.4406761805034551e+02,
++	1.6946633276191194e+05,
++	5.3449040147551940e+02,
++	6.6881821384514159e+01,
++	2.0609869004248744e-09,
+ }
+-var sin = []float64 {
+-	 -9.6466616586009283e-01,
+-	  9.9338225271646543e-01,
+-	 -2.7335587039794395e-01,
+-	  9.5586257685042800e-01,
+-	 -2.0994210667799692e-01,
+-	  2.1355787807998605e-01,
+-	 -8.6945689711673619e-01,
+-	  4.0195666811555783e-01,
+-	  9.6778633541688000e-01,
+-	 -6.7344058690503452e-01,
++var sin = []float64{
++	-9.6466616586009283e-01,
++	9.9338225271646543e-01,
++	-2.7335587039794395e-01,
++	9.5586257685042800e-01,
++	-2.0994210667799692e-01,
++	2.1355787807998605e-01,
++	-8.6945689711673619e-01,
++	4.0195666811555783e-01,
++	9.6778633541688000e-01,
++	-6.7344058690503452e-01,
+ }
+-var sinh = []float64 {
+-	  7.2661916084208533e+01,
+-	  1.1479409110035194e+03,
+-	 -2.8043136512812520e-01,
+-	 -7.4994290911815868e+01,
+-	  7.6552466042906761e+03,
+-	  9.3031583421672010e+00,
+-	  9.3308157558281088e+01,
+-	  7.6179893137269143e+00,
+-	  3.0217691805496156e+00,
+-	 -2.9595057572444951e+03,
++var sinh = []float64{
++	7.2661916084208533e+01,
++	1.1479409110035194e+03,
++	-2.8043136512812520e-01,
++	-7.4994290911815868e+01,
++	7.6552466042906761e+03,
++	9.3031583421672010e+00,
++	9.3308157558281088e+01,
++	7.6179893137269143e+00,
++	3.0217691805496156e+00,
++	-2.9595057572444951e+03,
+ }
+-var sqrt = []float64 {
+-	  2.2313699659365484e+00,
+-	  2.7818829009464263e+00,
+-	  5.2619393496314792e-01,
+-	  2.2384377628763938e+00,
+-	  3.1042380236055380e+00,
+-	  1.7106657298385224e+00,
+-	  2.2867189227054791e+00,
+-	  1.6516476350711160e+00,
+-	  1.3510396336454586e+00,
+-	  2.9471892997524950e+00,
++var sqrt = []float64{
++	2.2313699659365484e+00,
++	2.7818829009464263e+00,
++	5.2619393496314792e-01,
++	2.2384377628763938e+00,
++	3.1042380236055380e+00,
++	1.7106657298385224e+00,
++	2.2867189227054791e+00,
++	1.6516476350711160e+00,
++	1.3510396336454586e+00,
++	2.9471892997524950e+00,
+ }
+-var tan = []float64 {
+-	 -3.6613165650402277e+00,
+-	  8.6490023264859754e+00,
+-	 -2.8417941955033615e-01,
+-	  3.2532901859747287e+00,
+-	  2.1472756403802937e-01,
+-	 -2.1860091071106700e-01,
+-	 -1.7600028178723679e+00,
+-	 -4.3898089147528178e-01,
+-	 -3.8438855602011305e+00,
+-	  9.1098879337768517e-01,
++var tan = []float64{
++	-3.6613165650402277e+00,
++	8.6490023264859754e+00,
++	-2.8417941955033615e-01,
++	3.2532901859747287e+00,
++	2.1472756403802937e-01,
++	-2.1860091071106700e-01,
++	-1.7600028178723679e+00,
++	-4.3898089147528178e-01,
++	-3.8438855602011305e+00,
++	9.1098879337768517e-01,
+ }
+-var tanh = []float64 {
+-	  9.9990531206936328e-01,
+-	  9.9999962057085307e-01,
+-	 -2.7001505097318680e-01,
+-	 -9.9991110943061700e-01,
+-	  9.9999999146798441e-01,
+-	  9.9427249436125233e-01,
+-	  9.9994257600983156e-01,
+-	  9.9149409509772863e-01,
+-	  9.4936501296239700e-01,
+-	 -9.9999994291374019e-01,
++var tanh = []float64{
++	9.9990531206936328e-01,
++	9.9999962057085307e-01,
++	-2.7001505097318680e-01,
++	-9.9991110943061700e-01,
++	9.9999999146798441e-01,
++	9.9427249436125233e-01,
++	9.9994257600983156e-01,
++	9.9149409509772863e-01,
++	9.4936501296239700e-01,
++	-9.9999994291374019e-01,
+ }
+ 
+-func tolerance(a,b,e float64) bool {
++func tolerance(a, b, e float64) bool {
+ 	d := a-b;
+ 	if d < 0 {
+ 		d = -d;
+@@ -168,10 +168,10 @@ func tolerance(a,b,e float64) bool {
+ 	}
+ 	return d < e;
+ }
+-func close(a,b float64) bool {
++func close(a, b float64) bool {
+ 	return tolerance(a, b, 1e-14);
+ }
+-func veryclose(a,b float64) bool {
++func veryclose(a, b float64) bool {
+ 	return tolerance(a, b, 4e-16);
+ }
+ 
+diff --git a/src/pkg/math/atan.go b/src/pkg/math/atan.go
+index bc13b3bfae..37b49c7842 100644
+--- a/src/pkg/math/atan.go
++++ b/src/pkg/math/atan.go
+@@ -19,8 +19,7 @@ package math
+  *	range [-0.414...,+0.414...]. (tan(pi/8))
+  */
+ func xatan(arg float64) float64 {
+-	const
+-	(
++	const (
+ 		P4	= .161536412982230228262e2;
+ 		P3	= .26842548195503973794141e3;
+ 		P2	= .11530293515404850115428136e4;
+@@ -34,7 +33,7 @@ func xatan(arg float64) float64 {
+ 	)
+ 	sq := arg*arg;
+ 	value := ((((P4*sq + P3)*sq + P2)*sq + P1)*sq + P0);
+-	value = value/(((((sq + Q4)*sq + Q3)*sq + Q2)*sq + Q1)*sq + Q0);
++	value = value/(((((sq+Q4)*sq + Q3)*sq + Q2)*sq + Q1)*sq + Q0);
+ 	return value*arg;
+ }
+ 
+@@ -43,10 +42,10 @@ func xatan(arg float64) float64 {
+  *	to the range [0,0.414...] and calls xatan.
+  */
+ func satan(arg float64) float64 {
+-	if arg < Sqrt2 - 1 {
++	if arg < Sqrt2-1 {
+ 		return xatan(arg);
+ 	}
+-	if arg > Sqrt2 + 1 {
++	if arg > Sqrt2+1 {
+ 		return Pi/2 - xatan(1/arg);
+ 	}
+ 	return Pi/4 + xatan((arg-1)/(arg+1));
+diff --git a/src/pkg/math/atan2.go b/src/pkg/math/atan2.go
+index efd5cb9268..5ded1a412f 100644
+--- a/src/pkg/math/atan2.go
++++ b/src/pkg/math/atan2.go
+@@ -14,14 +14,14 @@ func Atan2(x, y float64) float64 {
+ 		if x >= 0 {
+ 			return Pi/2;
+ 		}
+-		return -Pi/2;
++		return -Pi / 2;
+ 	}
+ 	q := Atan(x/y);
+ 	if y < 0 {
+ 		if q <= 0 {
+-			return q + Pi;
++			return q+Pi;
+ 		}
+-		return q - Pi;
++		return q-Pi;
+ 	}
+ 	return q;
+ }
+diff --git a/src/pkg/math/const.go b/src/pkg/math/const.go
+index 13ecbcb08a..19fa8fa7e0 100644
+--- a/src/pkg/math/const.go
++++ b/src/pkg/math/const.go
+@@ -8,18 +8,18 @@ package math
+ // Mathematical constants.
+ // Reference: http://www.research.att.com/~njas/sequences/Axxxxxx
+ const (
+-	E	= 2.71828182845904523536028747135266249775724709369995957496696763;  // A001113
+-	Pi	= 3.14159265358979323846264338327950288419716939937510582097494459;  // A000796
+-	Phi	= 1.61803398874989484820458683436563811772030917980576286213544862;  // A001622
++	E	= 2.71828182845904523536028747135266249775724709369995957496696763;	// A001113
++	Pi	= 3.14159265358979323846264338327950288419716939937510582097494459;	// A000796
++	Phi	= 1.61803398874989484820458683436563811772030917980576286213544862;	// A001622
+ 
+-	Sqrt2	= 1.41421356237309504880168872420969807856967187537694807317667974;  // A002193
+-	SqrtE	= 1.64872127070012814684865078781416357165377610071014801157507931;  // A019774
+-	SqrtPi	= 1.77245385090551602729816748334114518279754945612238712821380779;  // A002161
+-	SqrtPhi	= 1.27201964951406896425242246173749149171560804184009624861664038;  // A139339
++	Sqrt2	= 1.41421356237309504880168872420969807856967187537694807317667974;	// A002193
++	SqrtE	= 1.64872127070012814684865078781416357165377610071014801157507931;	// A019774
++	SqrtPi	= 1.77245385090551602729816748334114518279754945612238712821380779;	// A002161
++	SqrtPhi	= 1.27201964951406896425242246173749149171560804184009624861664038;	// A139339
+ 
+-	Ln2	= 0.693147180559945309417232121458176568075500134360255254120680009; // A002162
++	Ln2	= 0.693147180559945309417232121458176568075500134360255254120680009;	// A002162
+ 	Log2E	= 1/Ln2;
+-	Ln10	= 2.30258509299404568401799145468436420760110148862877297603332790;  // A002392
++	Ln10	= 2.30258509299404568401799145468436420760110148862877297603332790;	// A002392
+ 	Log10E	= 1/Ln10;
+ )
+ 
+@@ -27,27 +27,27 @@ const (
+ // Max is the largest finite value representable by the type.
+ // Min is the smallest nonzero value representable by the type.
+ const (
+-	MaxFloat32 = 3.40282346638528859811704183484516925440e+38;	/* 2^127 * (2^24 - 1) / 2^23 */
+-	MinFloat32 = 1.401298464324817070923729583289916131280e-45;	/* 1 / 2^(127 - 1 + 23) */
++	MaxFloat32	= 3.40282346638528859811704183484516925440e+38;		/* 2^127 * (2^24 - 1) / 2^23 */
++	MinFloat32	= 1.401298464324817070923729583289916131280e-45;	/* 1 / 2^(127 - 1 + 23) */
+ 
+-	MaxFloat64 = 1.797693134862315708145274237317043567981e+308;	/* 2^1023 * (2^53 - 1) / 2^52 */
+-	MinFloat64 = 4.940656458412465441765687928682213723651e-324;	/* 1 / 2^(1023 - 1 + 52) */
++	MaxFloat64	= 1.797693134862315708145274237317043567981e+308;	/* 2^1023 * (2^53 - 1) / 2^52 */
++	MinFloat64	= 4.940656458412465441765687928682213723651e-324;	/* 1 / 2^(1023 - 1 + 52) */
+ )
+ 
+ // Integer limit values.
+ const (
+-	MaxInt8 = 1<<7 - 1;
+-	MinInt8 = -1<<7;
+-	MaxInt16 = 1<<15 - 1;
+-	MinInt16 = -1<<15;
+-	MaxInt32 = 1<<31 - 1;
+-	MinInt32 = -1<<31;
+-	MaxInt64 = 1<<63 - 1;
+-	MinInt64 = -1<<63;
+-	MaxUint8 = 1<<8 - 1;
+-	MaxUint16 = 1<<16 - 1;
+-	MaxUint32 = 1<<32 - 1;
+-	MaxUint64 = 1<<64 - 1;
++	MaxInt8		= 1<<7 - 1;
++	MinInt8		= -1 << 7;
++	MaxInt16	= 1<<15 - 1;
++	MinInt16	= -1 << 15;
++	MaxInt32	= 1<<31 - 1;
++	MinInt32	= -1 << 31;
++	MaxInt64	= 1<<63 - 1;
++	MinInt64	= -1 << 63;
++	MaxUint8	= 1<<8 - 1;
++	MaxUint16	= 1<<16 - 1;
++	MaxUint32	= 1<<32 - 1;
++	MaxUint64	= 1<<64 - 1;
+ )
+ 
+ // BUG(rsc): The manual should define the special cases for all of these functions.
+diff --git a/src/pkg/math/exp.go b/src/pkg/math/exp.go
+index 22014daace..2bf80bcdd6 100644
+--- a/src/pkg/math/exp.go
++++ b/src/pkg/math/exp.go
+@@ -93,16 +93,15 @@ func Exp(x float64) float64 {
+ 		Ln2Hi	= 6.93147180369123816490e-01;
+ 		Ln2Lo	= 1.90821492927058770002e-10;
+ 		Log2e	= 1.44269504088896338700e+00;
+-
+-		P1   =  1.66666666666666019037e-01; /* 0x3FC55555; 0x5555553E */
+-		P2   = -2.77777777770155933842e-03; /* 0xBF66C16C; 0x16BEBD93 */
+-		P3   =  6.61375632143793436117e-05; /* 0x3F11566A; 0xAF25DE2C */
+-		P4   = -1.65339022054652515390e-06; /* 0xBEBBBD41; 0xC5D26BF1 */
+-		P5   =  4.13813679705723846039e-08; /* 0x3E663769; 0x72BEA4D0 */
++		P1	= 1.66666666666666019037e-01;	/* 0x3FC55555; 0x5555553E */
++		P2	= -2.77777777770155933842e-03;	/* 0xBF66C16C; 0x16BEBD93 */
++		P3	= 6.61375632143793436117e-05;	/* 0x3F11566A; 0xAF25DE2C */
++		P4	= -1.65339022054652515390e-06;	/* 0xBEBBBD41; 0xC5D26BF1 */
++		P5	= 4.13813679705723846039e-08;	/* 0x3E663769; 0x72BEA4D0 */
+ 
+ 		Overflow	= 7.09782712893383973096e+02;
+ 		Underflow	= -7.45133219101941108420e+02;
+-		NearZero	= 1.0/(1<<28);		// 2^-28
++		NearZero	= 1.0/(1<<28);	// 2^-28
+ 	)
+ 
+ 	// special cases
+@@ -129,12 +128,12 @@ func Exp(x float64) float64 {
+ 	}
+ 	hi := x - float64(k)*Ln2Hi;
+ 	lo := float64(k)*Ln2Lo;
+-	r := hi - lo;
++	r := hi-lo;
+ 
+ 	// compute
+-	t := r * r;
+-	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
+-	y := 1 - ((lo - (r*c)/(2-c)) - hi);
++	t := r*r;
++	c := r - t*(P1 + t*(P2 + t*(P3 + t*(P4 + t*P5))));
++	y := 1-((lo - (r*c)/(2-c))-hi);
+ 	// TODO(rsc): make sure Ldexp can handle boundary k
+ 	return Ldexp(y, k);
+ }
+diff --git a/src/pkg/math/fabs.go b/src/pkg/math/fabs.go
+index 9427c57262..254756cc4e 100644
+--- a/src/pkg/math/fabs.go
++++ b/src/pkg/math/fabs.go
+@@ -11,4 +11,3 @@ func Fabs(x float64) float64 {
+ 	}
+ 	return x;
+ }
+-
+diff --git a/src/pkg/math/fmod.go b/src/pkg/math/fmod.go
+index 681c921bb9..a01c257d9b 100644
+--- a/src/pkg/math/fmod.go
++++ b/src/pkg/math/fmod.go
+@@ -29,7 +29,7 @@ func Fmod(x, y float64) float64 {
+ 	for r >= y {
+ 		rfr, rexp := Frexp(r);
+ 		if rfr < yfr {
+-			rexp = rexp - 1;
++			rexp = rexp-1;
+ 		}
+ 		r = r - Ldexp(y, rexp-yexp);
+ 	}
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index 411f74e4ff..6ba8fb7946 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -45,5 +45,5 @@ func Hypot(p, q float64) float64 {
+ 		q = q*r;
+ 		r = q/p;
+ 	}
+-	panic("unreachable")
++	panic("unreachable");
+ }
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index 4f9a376062..22df7ac1b0 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -43,7 +43,7 @@ package math
+ //	    |                             |
+ //	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
+ //	In order to guarantee error in log below 1ulp, we compute log by
+-//		log(1+f) = f - s*(f - R)	(if f is not too large)
++//		log(1+f) = f - s*(f - R)		(if f is not too large)
+ //		log(1+f) = f - (hfsq - s*(hfsq+R)).	(better accuracy)
+ //
+ //	3. Finally,  log(x) = k*Ln2 + log(1+f).
+@@ -76,15 +76,15 @@ package math
+ //	Log(NaN) = NaN
+ func Log(x float64) float64 {
+ 	const (
+-		Ln2Hi = 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
+-		Ln2Lo = 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
+-		L1 = 6.666666666666735130e-01;  /* 3FE55555 55555593 */
+-		L2 = 3.999999999940941908e-01;  /* 3FD99999 9997FA04 */
+-		L3 = 2.857142874366239149e-01;  /* 3FD24924 94229359 */
+-		L4 = 2.222219843214978396e-01;  /* 3FCC71C5 1D8E78AF */
+-		L5 = 1.818357216161805012e-01;  /* 3FC74664 96CB03DE */
+-		L6 = 1.531383769920937332e-01;  /* 3FC39A09 D078C69F */
+-		L7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
++		Ln2Hi	= 6.93147180369123816490e-01;	/* 3fe62e42 fee00000 */
++		Ln2Lo	= 1.90821492927058770002e-10;	/* 3dea39ef 35793c76 */
++		L1	= 6.666666666666735130e-01;	/* 3FE55555 55555593 */
++		L2	= 3.999999999940941908e-01;	/* 3FD99999 9997FA04 */
++		L3	= 2.857142874366239149e-01;	/* 3FD24924 94229359 */
++		L4	= 2.222219843214978396e-01;	/* 3FCC71C5 1D8E78AF */
++		L5	= 1.818357216161805012e-01;	/* 3FC74664 96CB03DE */
++		L6	= 1.531383769920937332e-01;	/* 3FC39A09 D078C69F */
++		L7	= 1.479819860511658591e-01;	/* 3FC2F112 DF3E5244 */
+ 	)
+ 
+ 	// special cases
+@@ -103,7 +103,7 @@ func Log(x float64) float64 {
+ 		f1 *= 2;
+ 		ki--;
+ 	}
+-	f := f1 - 1;
++	f := f1-1;
+ 	k := float64(ki);
+ 
+ 	// compute
+@@ -112,9 +112,9 @@ func Log(x float64) float64 {
+ 	s4 := s2*s2;
+ 	t1 := s2*(L1 + s4*(L3 + s4*(L5 + s4*L7)));
+ 	t2 := s4*(L2 + s4*(L4 + s4*L6));
+-	R :=  t1 + t2;
++	R := t1+t2;
+ 	hfsq := 0.5*f*f;
+-	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
++	return k*Ln2Hi - ((hfsq-(s*(hfsq+R) + k*Ln2Lo))-f);
+ }
+ 
+ // Log10 returns the decimal logarithm of x.
+@@ -123,6 +123,5 @@ func Log10(x float64) float64 {
+ 	if x <= 0 {
+ 		return NaN();
+ 	}
+-	return Log(x) * (1/Ln10);
++	return Log(x)*(1/Ln10);
+ }
+-
+diff --git a/src/pkg/math/pow.go b/src/pkg/math/pow.go
+index 93f4fa8e9d..b5364fe7f7 100644
+--- a/src/pkg/math/pow.go
++++ b/src/pkg/math/pow.go
+@@ -20,7 +20,7 @@ func Pow(x, y float64) float64 {
+ 	case y == 0.5:
+ 		return Sqrt(x);
+ 	case y == -0.5:
+-		return 1 / Sqrt(x);
++		return 1/Sqrt(x);
+ 	}
+ 
+ 	absy := y;
+@@ -34,7 +34,7 @@ func Pow(x, y float64) float64 {
+ 		return NaN();
+ 	}
+ 	if yi >= 1<<63 {
+-		return Exp(y * Log(x));
++		return Exp(y*Log(x));
+ 	}
+ 
+ 	// ans = a1 * 2^ae (= 1 for now).
+@@ -47,7 +47,7 @@ func Pow(x, y float64) float64 {
+ 			yf--;
+ 			yi++;
+ 		}
+-		a1 = Exp(yf * Log(x));
++		a1 = Exp(yf*Log(x));
+ 	}
+ 
+ 	// ans *= x^yi
+@@ -72,7 +72,7 @@ func Pow(x, y float64) float64 {
+ 	// if flip { ans = 1 / ans }
+ 	// but in the opposite order
+ 	if flip {
+-		a1 = 1 / a1;
++		a1 = 1/a1;
+ 		ae = -ae;
+ 	}
+ 	return Ldexp(a1, ae);
+diff --git a/src/pkg/math/pow10.go b/src/pkg/math/pow10.go
+index fcdd6e0a11..72a6121cb3 100644
+--- a/src/pkg/math/pow10.go
++++ b/src/pkg/math/pow10.go
+@@ -13,12 +13,12 @@ package math
+  * than multipication of lower powers of 10.
+  */
+ 
+-var	pow10tab	[70]float64;
++var pow10tab [70]float64
+ 
+ // Pow10 returns 10**x, the base-10 exponential of x.
+ func Pow10(e int) float64 {
+ 	if e < 0 {
+-		return 1/Pow10(-e);
++		return 1 / Pow10(-e);
+ 	}
+ 	if e < len(pow10tab) {
+ 		return pow10tab[e];
+@@ -30,8 +30,8 @@ func Pow10(e int) float64 {
+ func init() {
+ 	pow10tab[0] = 1.0e0;
+ 	pow10tab[1] = 1.0e1;
+-	for i:=2; i<len(pow10tab); i++ {
++	for i := 2; i < len(pow10tab); i++ {
+ 		m := i/2;
+-		pow10tab[i] = pow10tab[m] * pow10tab[i-m];
++		pow10tab[i] = pow10tab[m]*pow10tab[i-m];
+ 	}
+ }
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 779a86e946..973aef5544 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -7,34 +7,33 @@ package math
+ 
+ func sinus(x float64, quad int) float64 {
+ 	// Coefficients are #3370 from Hart & Cheney (18.80D).
+-	const
+-	(
+-		P0	=  .1357884097877375669092680e8;
++	const (
++		P0	= .1357884097877375669092680e8;
+ 		P1	= -.4942908100902844161158627e7;
+-		P2	=  .4401030535375266501944918e6;
++		P2	= .4401030535375266501944918e6;
+ 		P3	= -.1384727249982452873054457e5;
+-		P4	=  .1459688406665768722226959e3;
+-		Q0	=  .8644558652922534429915149e7;
+-		Q1	=  .4081792252343299749395779e6;
+-		Q2	=  .9463096101538208180571257e4;
+-		Q3	=  .1326534908786136358911494e3;
++		P4	= .1459688406665768722226959e3;
++		Q0	= .8644558652922534429915149e7;
++		Q1	= .4081792252343299749395779e6;
++		Q2	= .9463096101538208180571257e4;
++		Q3	= .1326534908786136358911494e3;
+ 	)
+ 	if x < 0 {
+ 		x = -x;
+ 		quad = quad+2;
+ 	}
+-	x = x * (2/Pi);	/* underflow? */
++	x = x*(2/Pi);	/* underflow? */
+ 	var y float64;
+ 	if x > 32764 {
+ 		var e float64;
+ 		e, y = Modf(x);
+-		e = e + float64(quad);
++		e = e+float64(quad);
+ 		_, f := Modf(0.25*e);
+ 		quad = int(e - 4*f);
+ 	} else {
+ 		k := int32(x);
+-		y = x - float64(k);
+-		quad = (quad + int(k)) & 3;
++		y = x-float64(k);
++		quad = (quad+int(k))&3;
+ 	}
+ 
+ 	if quad&1 != 0 {
+@@ -45,8 +44,8 @@ func sinus(x float64, quad int) float64 {
+ 	}
+ 
+ 	yy := y*y;
+-	temp1 := ((((P4*yy+P3)*yy+P2)*yy+P1)*yy+P0)*y;
+-	temp2 := ((((yy+Q3)*yy+Q2)*yy+Q1)*yy+Q0);
++	temp1 := ((((P4*yy + P3)*yy + P2)*yy + P1)*yy + P0)*y;
++	temp2 := ((((yy+Q3)*yy + Q2)*yy + Q1)*yy + Q0);
+ 	return temp1/temp2;
+ }
+ 
+diff --git a/src/pkg/math/sinh.go b/src/pkg/math/sinh.go
+index 1e55f0ba58..255ea2851e 100644
+--- a/src/pkg/math/sinh.go
++++ b/src/pkg/math/sinh.go
+@@ -20,14 +20,13 @@ package math
+ // Sinh returns the hyperbolic sine of x.
+ func Sinh(x float64) float64 {
+ 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
+-	const
+-	(
++	const (
+ 		P0	= -0.6307673640497716991184787251e+6;
+ 		P1	= -0.8991272022039509355398013511e+5;
+ 		P2	= -0.2894211355989563807284660366e+4;
+ 		P3	= -0.2630563213397497062819489e+2;
+ 		Q0	= -0.6307673640497716991212077277e+6;
+-		Q1	=  0.1521517378790019070696485176e+5;
++		Q1	= 0.1521517378790019070696485176e+5;
+ 		Q2	= -0.173678953558233699533450911e+3;
+ 	)
+ 
+@@ -47,8 +46,8 @@ func Sinh(x float64) float64 {
+ 
+ 	default:
+ 		sq := x*x;
+-		temp = (((P3*sq+P2)*sq+P1)*sq+P0)*x;
+-		temp = temp/(((sq+Q2)*sq+Q1)*sq+Q0);
++		temp = (((P3*sq + P2)*sq + P1)*sq + P0)*x;
++		temp = temp/(((sq+Q2)*sq + Q1)*sq + Q0);
+ 	}
+ 
+ 	if sign {
+@@ -60,7 +59,7 @@ func Sinh(x float64) float64 {
+ // Cosh returns the hyperbolic cosine of x.
+ func Cosh(x float64) float64 {
+ 	if x < 0 {
+-		x = - x;
++		x = -x;
+ 	}
+ 	if x > 21 {
+ 		return Exp(x)/2;
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index 09bdf6b4c7..49ebc6c762 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -40,25 +40,25 @@ func Sqrt(x float64) float64 {
+ 		y = y*2;
+ 		exp = exp-1;
+ 	}
+-	temp := 0.5 * (1+y);
++	temp := 0.5*(1+y);
+ 
+ 	for exp > 60 {
+ 		temp = temp * float64(1<<30);
+-		exp = exp - 60;
++		exp = exp-60;
+ 	}
+ 	for exp < -60 {
+ 		temp = temp / float64(1<<30);
+-		exp = exp + 60;
++		exp = exp+60;
+ 	}
+ 	if exp >= 0 {
+ 		exp = 1 << uint(exp/2);
+-		temp = temp * float64(exp);
++		temp = temp*float64(exp);
+ 	} else {
+-		exp = 1 << uint(-exp/2);
+-		temp = temp / float64(exp);
++		exp = 1 << uint(-exp / 2);
++		temp = temp/float64(exp);
+ 	}
+ 
+-	for i:=0; i<=4; i++ {
++	for i := 0; i <= 4; i++ {
+ 		temp = 0.5*(temp + x/temp);
+ 	}
+ 	return temp;
+diff --git a/src/pkg/math/sqrt_decl.go b/src/pkg/math/sqrt_decl.go
+index 4e9112d268..e507746458 100644
+--- a/src/pkg/math/sqrt_decl.go
++++ b/src/pkg/math/sqrt_decl.go
+@@ -5,4 +5,3 @@
+ package math
+ 
+ func Sqrt(x float64) float64
+-
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index a8e6b15c91..7287d80efe 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -12,15 +12,14 @@ package math
+ // Tan returns the tangent of x.
+ func Tan(x float64) float64 {
+ 	// Coefficients are #4285 from Hart & Cheney. (19.74D)
+-	const
+-	(
++	const (
+ 		P0	= -.1306820264754825668269611177e+5;
+-		P1	=  .1055970901714953193602353981e+4;
++		P1	= .1055970901714953193602353981e+4;
+ 		P2	= -.1550685653483266376941705728e+2;
+-		P3	=  .3422554387241003435328470489e-1;
+-		P4	=  .3386638642677172096076369e-4;
++		P3	= .3422554387241003435328470489e-1;
++		P4	= .3386638642677172096076369e-4;
+ 		Q0	= -.1663895238947119001851464661e+5;
+-		Q1	=  .4765751362916483698926655581e+4;
++		Q1	= .4765751362916483698926655581e+4;
+ 		Q2	= -.1555033164031709966900124574e+3;
+ 	)
+ 
+@@ -30,14 +29,14 @@ func Tan(x float64) float64 {
+ 		x = -x;
+ 		sign = true;
+ 	}
+-	x = x * (4/Pi);   /* overflow? */
++	x = x*(4/Pi);	/* overflow? */
+ 	var e float64;
+ 	e, x = Modf(x);
+ 	i := int32(e);
+ 
+-	switch i & 3 {
++	switch i&3 {
+ 	case 1:
+-		x = 1 - x;
++		x = 1-x;
+ 		flag = true;
+ 
+ 	case 2:
+@@ -45,13 +44,13 @@ func Tan(x float64) float64 {
+ 		flag = true;
+ 
+ 	case 3:
+-		x = 1 - x;
++		x = 1-x;
+ 		sign = !sign;
+ 	}
+ 
+ 	xsq := x*x;
+-	temp := ((((P4*xsq+P3)*xsq+P2)*xsq+P1)*xsq+P0)*x;
+-	temp = temp/(((xsq+Q2)*xsq+Q1)*xsq+Q0);
++	temp := ((((P4*xsq + P3)*xsq + P2)*xsq + P1)*xsq + P0)*x;
++	temp = temp/(((xsq+Q2)*xsq + Q1)*xsq + Q0);
+ 
+ 	if flag {
+ 		if temp == 0 {
+diff --git a/src/pkg/math/tanh.go b/src/pkg/math/tanh.go
+index 20dc5b79d0..dd403a4e05 100644
+--- a/src/pkg/math/tanh.go
++++ b/src/pkg/math/tanh.go
+@@ -20,7 +20,7 @@ func Tanh(x float64) float64 {
+ 		if x > 21 {
+ 			return -1;
+ 		}
+-		return -Sinh(x)/Cosh(x);
++		return -Sinh(x) / Cosh(x);
+ 	}
+ 	if x > 21 {
+ 		return 1;
+diff --git a/src/pkg/once/once.go b/src/pkg/once/once.go
+index a87189ccc8..3270f9aec4 100644
+--- a/src/pkg/once/once.go
++++ b/src/pkg/once/once.go
+@@ -9,12 +9,12 @@ package once
+ import "sync"
+ 
+ type job struct {
+-	done bool;
++	done		bool;
+ 	sync.Mutex;	// should probably be sync.Notification or some such
+ }
+ 
+ var jobs = make(map[func()]*job)
+-var joblock sync.Mutex;
++var joblock sync.Mutex
+ 
+ // Do is the the only exported piece of the package.
+ // For one-time initialization that is not done during init,
+@@ -27,7 +27,7 @@ var joblock sync.Mutex;
+ // Since a func() expression typically evaluates to a differerent
+ // function value each time it is evaluated, it is incorrect to
+ // pass such values to Do.  For example,
+-// 	func f(x int) {
++//	func f(x int) {
+ //		Do(func() { fmt.Println(x) })
+ //	}
+ // behaves the same as
+diff --git a/src/pkg/once/once_test.go b/src/pkg/once/once_test.go
+index 749805aead..e2e6c2c09e 100644
+--- a/src/pkg/once/once_test.go
++++ b/src/pkg/once/once_test.go
+@@ -9,9 +9,10 @@ import (
+ 	"testing";
+ )
+ 
+-var ncall int;
++var ncall int
++
+ func call() {
+-	ncall++
++	ncall++;
+ }
+ 
+ func TestDo(t *testing.T) {
+diff --git a/src/pkg/os/dir_darwin_386.go b/src/pkg/os/dir_darwin_386.go
+index 0131ab1b06..c207a19fd4 100644
+--- a/src/pkg/os/dir_darwin_386.go
++++ b/src/pkg/os/dir_darwin_386.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096	// TODO(r): use statfs
++	blockSize = 4096;	// TODO(r): use statfs
+ )
+ 
+ // Readdirnames reads the contents of the directory associated with file and
+@@ -29,7 +29,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+-		size = 100
++		size = 100;
+ 	}
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+@@ -44,7 +44,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 				return names, NewSyscallError("getdirentries", errno);
+ 			}
+ 			if d.nbuf <= 0 {
+-				break	// EOF
++				break;	// EOF
+ 			}
+ 		}
+ 		// Drain the buffer
+@@ -52,28 +52,28 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+ 			if dirent.Reclen == 0 {
+ 				d.bufp = d.nbuf;
+-				break
++				break;
+ 			}
+ 			d.bufp += int(dirent.Reclen);
+ 			if dirent.Ino == 0 {	// File absent in directory.
+-				continue
++				continue;
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+-			var name = string(bytes[0:dirent.Namlen]);
++			var name = string(bytes[0 : dirent.Namlen]);
+ 			if name == "." || name == ".." {	// Useless names
+-				continue
++				continue;
+ 			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+ 				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
++					nnames[i] = names[i];
+ 				}
+ 				names = nnames;
+ 			}
+-			names = names[0:len(names)+1];
++			names = names[0 : len(names)+1];
+ 			names[len(names)-1] = name;
+ 		}
+ 	}
+-	return names, nil
++	return names, nil;
+ }
+diff --git a/src/pkg/os/dir_darwin_amd64.go b/src/pkg/os/dir_darwin_amd64.go
+index 7701b7d0db..d42c59e91b 100644
+--- a/src/pkg/os/dir_darwin_amd64.go
++++ b/src/pkg/os/dir_darwin_amd64.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096	// TODO(r): use statfs
++	blockSize = 4096;	// TODO(r): use statfs
+ )
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+@@ -24,7 +24,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+-		size = 100
++		size = 100;
+ 	}
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+@@ -39,7 +39,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 				return names, NewSyscallError("getdirentries", errno);
+ 			}
+ 			if d.nbuf <= 0 {
+-				break	// EOF
++				break;	// EOF
+ 			}
+ 		}
+ 		// Drain the buffer
+@@ -47,28 +47,28 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+ 			if dirent.Reclen == 0 {
+ 				d.bufp = d.nbuf;
+-				break
++				break;
+ 			}
+ 			d.bufp += int(dirent.Reclen);
+ 			if dirent.Ino == 0 {	// File absent in directory.
+-				continue
++				continue;
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+-			var name = string(bytes[0:dirent.Namlen]);
++			var name = string(bytes[0 : dirent.Namlen]);
+ 			if name == "." || name == ".." {	// Useless names
+-				continue
++				continue;
+ 			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+ 				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
++					nnames[i] = names[i];
+ 				}
+ 				names = nnames;
+ 			}
+-			names = names[0:len(names)+1];
++			names = names[0 : len(names)+1];
+ 			names[len(names)-1] = name;
+ 		}
+ 	}
+-	return names, nil
++	return names, nil;
+ }
+diff --git a/src/pkg/os/dir_linux_386.go b/src/pkg/os/dir_linux_386.go
+index 0e70f0ba07..64db8827b3 100644
+--- a/src/pkg/os/dir_linux_386.go
++++ b/src/pkg/os/dir_linux_386.go
+@@ -14,16 +14,16 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096	// TODO(r): use statfs
++	blockSize = 4096;	// TODO(r): use statfs
+ )
+ 
+ func clen(n []byte) int {
+ 	for i := 0; i < len(n); i++ {
+ 		if n[i] == 0 {
+-			return i
++			return i;
+ 		}
+ 	}
+-	return len(n)
++	return len(n);
+ }
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+@@ -37,7 +37,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+-		size = 100
++		size = 100;
+ 	}
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+@@ -46,10 +46,10 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			var errno int;
+ 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+ 			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno)
++				return names, NewSyscallError("getdents", errno);
+ 			}
+ 			if d.nbuf <= 0 {
+-				break	// EOF
++				break;	// EOF
+ 			}
+ 			d.bufp = 0;
+ 		}
+@@ -58,22 +58,22 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+ 			d.bufp += int(dirent.Reclen);
+ 			if dirent.Ino == 0 {	// File absent in directory.
+-				continue
++				continue;
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+ 			var name = string(bytes[0:clen(bytes)]);
+ 			if name == "." || name == ".." {	// Useless names
+-				continue
++				continue;
+ 			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+ 				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
++					nnames[i] = names[i];
+ 				}
+ 				names = nnames;
+ 			}
+-			names = names[0:len(names)+1];
++			names = names[0 : len(names)+1];
+ 			names[len(names)-1] = name;
+ 		}
+ 	}
+diff --git a/src/pkg/os/dir_linux_amd64.go b/src/pkg/os/dir_linux_amd64.go
+index 8bd29b27c9..d6e77016cc 100644
+--- a/src/pkg/os/dir_linux_amd64.go
++++ b/src/pkg/os/dir_linux_amd64.go
+@@ -10,16 +10,16 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096	// TODO(r): use statfs
++	blockSize = 4096;	// TODO(r): use statfs
+ )
+ 
+ func clen(n []byte) int {
+ 	for i := 0; i < len(n); i++ {
+ 		if n[i] == 0 {
+-			return i
++			return i;
+ 		}
+ 	}
+-	return len(n)
++	return len(n);
+ }
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+@@ -33,7 +33,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+-		size = 100
++		size = 100;
+ 	}
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+@@ -42,10 +42,10 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			var errno int;
+ 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+ 			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno)
++				return names, NewSyscallError("getdents", errno);
+ 			}
+ 			if d.nbuf <= 0 {
+-				break	// EOF
++				break;	// EOF
+ 			}
+ 			d.bufp = 0;
+ 		}
+@@ -54,22 +54,22 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+ 			d.bufp += int(dirent.Reclen);
+ 			if dirent.Ino == 0 {	// File absent in directory.
+-				continue
++				continue;
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+ 			var name = string(bytes[0:clen(bytes)]);
+ 			if name == "." || name == ".." {	// Useless names
+-				continue
++				continue;
+ 			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+ 				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
++					nnames[i] = names[i];
+ 				}
+ 				names = nnames;
+ 			}
+-			names = names[0:len(names)+1];
++			names = names[0 : len(names)+1];
+ 			names[len(names)-1] = name;
+ 		}
+ 	}
+diff --git a/src/pkg/os/dir_linux_arm.go b/src/pkg/os/dir_linux_arm.go
+index 0e70f0ba07..64db8827b3 100644
+--- a/src/pkg/os/dir_linux_arm.go
++++ b/src/pkg/os/dir_linux_arm.go
+@@ -14,16 +14,16 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096	// TODO(r): use statfs
++	blockSize = 4096;	// TODO(r): use statfs
+ )
+ 
+ func clen(n []byte) int {
+ 	for i := 0; i < len(n); i++ {
+ 		if n[i] == 0 {
+-			return i
++			return i;
+ 		}
+ 	}
+-	return len(n)
++	return len(n);
+ }
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+@@ -37,7 +37,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+-		size = 100
++		size = 100;
+ 	}
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+@@ -46,10 +46,10 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			var errno int;
+ 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+ 			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno)
++				return names, NewSyscallError("getdents", errno);
+ 			}
+ 			if d.nbuf <= 0 {
+-				break	// EOF
++				break;	// EOF
+ 			}
+ 			d.bufp = 0;
+ 		}
+@@ -58,22 +58,22 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+ 			d.bufp += int(dirent.Reclen);
+ 			if dirent.Ino == 0 {	// File absent in directory.
+-				continue
++				continue;
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+ 			var name = string(bytes[0:clen(bytes)]);
+ 			if name == "." || name == ".." {	// Useless names
+-				continue
++				continue;
+ 			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+ 				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
++					nnames[i] = names[i];
+ 				}
+ 				names = nnames;
+ 			}
+-			names = names[0:len(names)+1];
++			names = names[0 : len(names)+1];
+ 			names[len(names)-1] = name;
+ 		}
+ 	}
+diff --git a/src/pkg/os/dir_nacl_386.go b/src/pkg/os/dir_nacl_386.go
+index 90072d54d3..97767ddc02 100644
+--- a/src/pkg/os/dir_nacl_386.go
++++ b/src/pkg/os/dir_nacl_386.go
+@@ -14,16 +14,16 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096	// TODO(r): use statfs
++	blockSize = 4096;	// TODO(r): use statfs
+ )
+ 
+ func clen(n []byte) int {
+ 	for i := 0; i < len(n); i++ {
+ 		if n[i] == 0 {
+-			return i
++			return i;
+ 		}
+ 	}
+-	return len(n)
++	return len(n);
+ }
+ 
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+@@ -37,7 +37,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	d := file.dirinfo;
+ 	size := count;
+ 	if size < 0 {
+-		size = 100
++		size = 100;
+ 	}
+ 	names = make([]string, 0, size);	// Empty with room to grow.
+ 	for count != 0 {
+@@ -46,10 +46,10 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			var errno int;
+ 			d.nbuf, errno = syscall.Getdents(file.fd, d.buf);
+ 			if errno != 0 {
+-				return names, NewSyscallError("getdents", errno)
++				return names, NewSyscallError("getdents", errno);
+ 			}
+ 			if d.nbuf <= 0 {
+-				break	// EOF
++				break;	// EOF
+ 			}
+ 			d.bufp = 0;
+ 		}
+@@ -58,22 +58,22 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 			dirent := (*syscall.Dirent)(unsafe.Pointer(&d.buf[d.bufp]));
+ 			d.bufp += int(dirent.Reclen);
+ 			if dirent.Ino == 0 {	// File absent in directory.
+-				continue
++				continue;
+ 			}
+ 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
+ 			var name = string(bytes[0:clen(bytes)]);
+ 			if name == "." || name == ".." {	// Useless names
+-				continue
++				continue;
+ 			}
+ 			count--;
+ 			if len(names) == cap(names) {
+ 				nnames := make([]string, len(names), 2*len(names));
+ 				for i := 0; i < len(names); i++ {
+-					nnames[i] = names[i]
++					nnames[i] = names[i];
+ 				}
+ 				names = nnames;
+ 			}
+-			names = names[0:len(names)+1];
++			names = names[0 : len(names)+1];
+ 			names[len(names)-1] = name;
+ 		}
+ 	}
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 04d759128d..3523f57e41 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -11,17 +11,17 @@ import (
+ )
+ 
+ // ENOENV is the Error indicating that an environment variable does not exist.
+-var ENOENV = NewError("no such environment variable");
++var ENOENV = NewError("no such environment variable")
+ 
+-var env map[string] string;
++var env map[string]string
+ 
+ 
+ func copyenv() {
+-	env = make(map[string] string);
++	env = make(map[string]string);
+ 	for _, s := range Envs {
+ 		for j := 0; j < len(s); j++ {
+ 			if s[j] == '=' {
+-				env[s[0:j]] = s[j+1:len(s)];
++				env[s[0:j]] = s[j+1 : len(s)];
+ 				break;
+ 			}
+ 		}
+@@ -65,7 +65,7 @@ func Setenv(key, value string) Error {
+ // Clearenv deletes all environment variables.
+ func Clearenv() {
+ 	once.Do(copyenv);	// prevent copyenv in Getenv/Setenv
+-	env = make(map[string] string);
++	env = make(map[string]string);
+ }
+ 
+ // Environ returns an array of strings representing the environment,
+@@ -78,7 +78,7 @@ func Environ() []string {
+ 		// check i < len(a) for safety,
+ 		// in case env is changing underfoot.
+ 		if i < len(a) {
+-			a[i] = k + "=" + v;
++			a[i] = k+"="+v;
+ 			i++;
+ 		}
+ 	}
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 5430a4b301..eca45dd269 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -8,73 +8,75 @@ import syscall "syscall"
+ 
+ // An Error can represent any printable error condition.
+ type Error interface {
+-	String() string
++	String() string;
+ }
+ 
+ // A helper type that can be embedded or wrapped to simplify satisfying
+ // Error.
+ type ErrorString string
++
+ func (e ErrorString) String() string {
+-	return string(e)
++	return string(e);
+ }
+ 
+ // NewError converts s to an ErrorString, which satisfies the Error interface.
+ func NewError(s string) Error {
+-	return ErrorString(s)
++	return ErrorString(s);
+ }
+ 
+ // Errno is the Unix error number.  Names such as EINVAL are simple
+ // wrappers to convert the error number into an Error.
+ type Errno int64
++
+ func (e Errno) String() string {
+-	return syscall.Errstr(int(e))
++	return syscall.Errstr(int(e));
+ }
+ 
+ // Commonly known Unix errors.
+ var (
+-	EPERM Error = Errno(syscall.EPERM);
+-	ENOENT Error = Errno(syscall.ENOENT);
+-	ESRCH Error = Errno(syscall.ESRCH);
+-	EINTR Error = Errno(syscall.EINTR);
+-	EIO Error = Errno(syscall.EIO);
+-	ENXIO Error = Errno(syscall.ENXIO);
+-	E2BIG Error = Errno(syscall.E2BIG);
+-	ENOEXEC Error = Errno(syscall.ENOEXEC);
+-	EBADF Error = Errno(syscall.EBADF);
+-	ECHILD Error = Errno(syscall.ECHILD);
+-	EDEADLK Error = Errno(syscall.EDEADLK);
+-	ENOMEM Error = Errno(syscall.ENOMEM);
+-	EACCES Error = Errno(syscall.EACCES);
+-	EFAULT Error = Errno(syscall.EFAULT);
+-	EBUSY Error = Errno(syscall.EBUSY);
+-	EEXIST Error = Errno(syscall.EEXIST);
+-	EXDEV Error = Errno(syscall.EXDEV);
+-	ENODEV Error = Errno(syscall.ENODEV);
+-	ENOTDIR Error = Errno(syscall.ENOTDIR);
+-	EISDIR Error = Errno(syscall.EISDIR);
+-	EINVAL Error = Errno(syscall.EINVAL);
+-	ENFILE Error = Errno(syscall.ENFILE);
+-	EMFILE Error = Errno(syscall.EMFILE);
+-	ENOTTY Error = Errno(syscall.ENOTTY);
+-	EFBIG Error = Errno(syscall.EFBIG);
+-	ENOSPC Error = Errno(syscall.ENOSPC);
+-	ESPIPE Error = Errno(syscall.ESPIPE);
+-	EROFS Error = Errno(syscall.EROFS);
+-	EMLINK Error = Errno(syscall.EMLINK);
+-	EPIPE Error = Errno(syscall.EPIPE);
+-	EAGAIN Error = Errno(syscall.EAGAIN);
+-	EDOM Error = Errno(syscall.EDOM);
+-	ERANGE Error = Errno(syscall.ERANGE);
+-	EADDRINUSE Error = Errno(syscall.EADDRINUSE);
+-	ECONNREFUSED Error = Errno(syscall.ECONNREFUSED);
+-	ENAMETOOLONG Error = Errno(syscall.ENAMETOOLONG);
++	EPERM		Error	= Errno(syscall.EPERM);
++	ENOENT		Error	= Errno(syscall.ENOENT);
++	ESRCH		Error	= Errno(syscall.ESRCH);
++	EINTR		Error	= Errno(syscall.EINTR);
++	EIO		Error	= Errno(syscall.EIO);
++	ENXIO		Error	= Errno(syscall.ENXIO);
++	E2BIG		Error	= Errno(syscall.E2BIG);
++	ENOEXEC		Error	= Errno(syscall.ENOEXEC);
++	EBADF		Error	= Errno(syscall.EBADF);
++	ECHILD		Error	= Errno(syscall.ECHILD);
++	EDEADLK		Error	= Errno(syscall.EDEADLK);
++	ENOMEM		Error	= Errno(syscall.ENOMEM);
++	EACCES		Error	= Errno(syscall.EACCES);
++	EFAULT		Error	= Errno(syscall.EFAULT);
++	EBUSY		Error	= Errno(syscall.EBUSY);
++	EEXIST		Error	= Errno(syscall.EEXIST);
++	EXDEV		Error	= Errno(syscall.EXDEV);
++	ENODEV		Error	= Errno(syscall.ENODEV);
++	ENOTDIR		Error	= Errno(syscall.ENOTDIR);
++	EISDIR		Error	= Errno(syscall.EISDIR);
++	EINVAL		Error	= Errno(syscall.EINVAL);
++	ENFILE		Error	= Errno(syscall.ENFILE);
++	EMFILE		Error	= Errno(syscall.EMFILE);
++	ENOTTY		Error	= Errno(syscall.ENOTTY);
++	EFBIG		Error	= Errno(syscall.EFBIG);
++	ENOSPC		Error	= Errno(syscall.ENOSPC);
++	ESPIPE		Error	= Errno(syscall.ESPIPE);
++	EROFS		Error	= Errno(syscall.EROFS);
++	EMLINK		Error	= Errno(syscall.EMLINK);
++	EPIPE		Error	= Errno(syscall.EPIPE);
++	EAGAIN		Error	= Errno(syscall.EAGAIN);
++	EDOM		Error	= Errno(syscall.EDOM);
++	ERANGE		Error	= Errno(syscall.ERANGE);
++	EADDRINUSE	Error	= Errno(syscall.EADDRINUSE);
++	ECONNREFUSED	Error	= Errno(syscall.ECONNREFUSED);
++	ENAMETOOLONG	Error	= Errno(syscall.ENAMETOOLONG);
+ )
+ 
+ // PathError records an error and the operation and file path that caused it.
+ type PathError struct {
+-	Op string;
+-	Path string;
+-	Error Error;
++	Op	string;
++	Path	string;
++	Error	Error;
+ }
+ 
+ func (e *PathError) String() string {
+@@ -83,8 +85,8 @@ func (e *PathError) String() string {
+ 
+ // SyscallError records an error from a specific system call.
+ type SyscallError struct {
+-	Syscall string;
+-	Errno Errno;
++	Syscall	string;
++	Errno	Errno;
+ }
+ 
+ func (e *SyscallError) String() string {
+@@ -98,5 +100,5 @@ func NewSyscallError(syscall string, errno int) Error {
+ 	if errno == 0 {
+ 		return nil;
+ 	}
+-	return &SyscallError{syscall, Errno(errno)}
++	return &SyscallError{syscall, Errno(errno)};
+ }
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index c80ef43cb6..ac158c8d32 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -15,9 +15,7 @@ import (
+ // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
+ // will cause the child to have no open file descriptor with that index.
+ // If dir is not empty, the child chdirs into the directory before execing the program.
+-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File)
+-	(pid int, err Error)
+-{
++func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
+ 	// Create array of integer (system) fds.
+ 	intfd := make([]int, len(fd));
+ 	for i, f := range fd {
+@@ -59,17 +57,17 @@ func Exec(argv0 string, argv []string, envv []string) Error {
+ 
+ // Waitmsg stores the information about an exited process as reported by Wait.
+ type Waitmsg struct {
+-	Pid int;	// The process's id.
++	Pid			int;	// The process's id.
+ 	syscall.WaitStatus;	// System-dependent status info.
+-	Rusage *syscall.Rusage;	// System-dependent resource usage info.
++	Rusage			*syscall.Rusage;	// System-dependent resource usage info.
+ }
+ 
+ // Options for Wait.
+ const (
+-	WNOHANG = syscall.WNOHANG;	// Don't wait if no process has exited.
+-	WSTOPPED = syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
+-	WUNTRACED = WSTOPPED;
+-	WRUSAGE = 1<<20;	// Record resource usage.
++	WNOHANG		= syscall.WNOHANG;	// Don't wait if no process has exited.
++	WSTOPPED	= syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
++	WUNTRACED	= WSTOPPED;
++	WRUSAGE		= 1<<20;	// Record resource usage.
+ )
+ 
+ // WRUSAGE must not be too high a bit, to avoid clashing with Linux's
+@@ -82,7 +80,7 @@ const (
+ func Wait(pid int, options int) (w *Waitmsg, err Error) {
+ 	var status syscall.WaitStatus;
+ 	var rusage *syscall.Rusage;
+-	if options & WRUSAGE != 0 {
++	if options&WRUSAGE != 0 {
+ 		rusage = new(syscall.Rusage);
+ 		options ^= WRUSAGE;
+ 	}
+@@ -100,7 +98,7 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
+ // Convert i to decimal string.
+ func itod(i int) string {
+ 	if i == 0 {
+-		return "0"
++		return "0";
+ 	}
+ 
+ 	u := uint64(i);
+@@ -113,15 +111,15 @@ func itod(i int) string {
+ 	bp := len(b);
+ 	for ; u > 0; u /= 10 {
+ 		bp--;
+-		b[bp] = byte(u%10) + '0'
++		b[bp] = byte(u%10) + '0';
+ 	}
+ 
+ 	if i < 0 {
+ 		bp--;
+-		b[bp] = '-'
++		b[bp] = '-';
+ 	}
+ 
+-	return string(b[bp:len(b)])
++	return string(b[bp:len(b)]);
+ }
+ 
+ func (w Waitmsg) String() string {
+@@ -141,7 +139,7 @@ func (w Waitmsg) String() string {
+ 		res = "continued";
+ 	}
+ 	if w.CoreDump() {
+-		res += " (core dumped)"
++		res += " (core dumped)";
+ 	}
+ 	return res;
+ }
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index c9c00788ff..1f1d86f4e2 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -19,52 +19,52 @@ type dirInfo struct {
+ 
+ // File represents an open file descriptor.
+ type File struct {
+-	fd int;
++	fd	int;
+ 	name	string;
+ 	dirinfo	*dirInfo;	// nil unless directory being read
+-	nepipe	int;	// number of consecutive EPIPE in Write
++	nepipe	int;		// number of consecutive EPIPE in Write
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+ func (file *File) Fd() int {
+-	return file.fd
++	return file.fd;
+ }
+ 
+ // Name returns the name of the file as presented to Open.
+ func (file *File) Name() string {
+-	return file.name
++	return file.name;
+ }
+ 
+ // NewFile returns a new File with the given file descriptor and name.
+ func NewFile(fd int, name string) *File {
+ 	if fd < 0 {
+-		return nil
++		return nil;
+ 	}
+-	return &File{fd, name, nil, 0}
++	return &File{fd, name, nil, 0};
+ }
+ 
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+ // standard output, and standard error file descriptors.
+ var (
+-	Stdin  = NewFile(0, "/dev/stdin");
+-	Stdout = NewFile(1, "/dev/stdout");
+-	Stderr = NewFile(2, "/dev/stderr");
++	Stdin	= NewFile(0, "/dev/stdin");
++	Stdout	= NewFile(1, "/dev/stdout");
++	Stderr	= NewFile(2, "/dev/stderr");
+ )
+ 
+ // Flags to Open wrapping those of the underlying system. Not all flags
+ // may be implemented on a given system.
+ const (
+-	O_RDONLY = syscall.O_RDONLY;	// open the file read-only.
+-	O_WRONLY = syscall.O_WRONLY;	// open the file write-only.
+-	O_RDWR = syscall.O_RDWR;	// open the file read-write.
+-	O_APPEND = syscall.O_APPEND;	// open the file append-only.
+-	O_ASYNC = syscall.O_ASYNC;	// generate a signal when I/O is available.
+-	O_CREAT = syscall.O_CREAT;	// create a new file if none exists.
+-	O_NOCTTY = syscall.O_NOCTTY;	// do not make file the controlling tty.
+-	O_NONBLOCK = syscall.O_NONBLOCK;	// open in non-blocking mode.
+-	O_NDELAY = O_NONBLOCK;		// synonym for O_NONBLOCK
+-	O_SYNC = syscall.O_SYNC;	// open for synchronous I/O.
+-	O_TRUNC = syscall.O_TRUNC;	// if possible, truncate file when opened.
++	O_RDONLY	= syscall.O_RDONLY;	// open the file read-only.
++	O_WRONLY	= syscall.O_WRONLY;	// open the file write-only.
++	O_RDWR		= syscall.O_RDWR;	// open the file read-write.
++	O_APPEND	= syscall.O_APPEND;	// open the file append-only.
++	O_ASYNC		= syscall.O_ASYNC;	// generate a signal when I/O is available.
++	O_CREAT		= syscall.O_CREAT;	// create a new file if none exists.
++	O_NOCTTY	= syscall.O_NOCTTY;	// do not make file the controlling tty.
++	O_NONBLOCK	= syscall.O_NONBLOCK;	// open in non-blocking mode.
++	O_NDELAY	= O_NONBLOCK;		// synonym for O_NONBLOCK
++	O_SYNC		= syscall.O_SYNC;	// open for synchronous I/O.
++	O_TRUNC		= syscall.O_TRUNC;	// if possible, truncate file when opened.
+ )
+ 
+ // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+@@ -89,19 +89,20 @@ func Open(name string, flag int, perm int) (file *File, err Error) {
+ // It returns an Error, if any.
+ func (file *File) Close() Error {
+ 	if file == nil {
+-		return EINVAL
++		return EINVAL;
+ 	}
+ 	var err Error;
+ 	if e := syscall.Close(file.fd); e != 0 {
+ 		err = &PathError{"close", file.name, Errno(e)};
+ 	}
+-	file.fd = -1;  // so it can't be closed again
++	file.fd = -1;	// so it can't be closed again
+ 	return err;
+ }
+ 
+ type eofError int
++
+ func (eofError) String() string {
+-	return "EOF"
++	return "EOF";
+ }
+ 
+ // EOF is the Error returned by Read when no more input is available.
+@@ -117,19 +118,19 @@ var EOF Error = eofError(0)
+ // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
+ func (file *File) Read(b []byte) (n int, err Error) {
+ 	if file == nil {
+-		return 0, EINVAL
++		return 0, EINVAL;
+ 	}
+ 	n, e := syscall.Read(file.fd, b);
+ 	if n < 0 {
+ 		n = 0;
+ 	}
+ 	if n == 0 && e == 0 {
+-		return 0, EOF
++		return 0, EOF;
+ 	}
+ 	if e != 0 {
+ 		err = &PathError{"read", file.name, Errno(e)};
+ 	}
+-	return n, err
++	return n, err;
+ }
+ 
+ // ReadAt reads len(b) bytes from the File starting at byte offset off.
+@@ -158,11 +159,11 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
+ // Write returns a non-nil Error when n != len(b).
+ func (file *File) Write(b []byte) (n int, err Error) {
+ 	if file == nil {
+-		return 0, EINVAL
++		return 0, EINVAL;
+ 	}
+ 	n, e := syscall.Write(file.fd, b);
+ 	if n < 0 {
+-		n = 0
++		n = 0;
+ 	}
+ 	if e == syscall.EPIPE {
+ 		file.nepipe++;
+@@ -175,7 +176,7 @@ func (file *File) Write(b []byte) (n int, err Error) {
+ 	if e != 0 {
+ 		err = &PathError{"write", file.name, Errno(e)};
+ 	}
+-	return n, err
++	return n, err;
+ }
+ 
+ // WriteAt writes len(b) bytes to the File starting at byte offset off.
+@@ -210,17 +211,17 @@ func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
+ 	if e != 0 {
+ 		return 0, &PathError{"seek", file.name, Errno(e)};
+ 	}
+-	return r, nil
++	return r, nil;
+ }
+ 
+ // WriteString is like Write, but writes the contents of string s rather than
+ // an array of bytes.
+ func (file *File) WriteString(s string) (ret int, err Error) {
+ 	if file == nil {
+-		return 0, EINVAL
++		return 0, EINVAL;
+ 	}
+ 	b := syscall.StringByteSlice(s);
+-	b = b[0:len(b)-1];
++	b = b[0 : len(b)-1];
+ 	return file.Write(b);
+ }
+ 
+@@ -240,7 +241,7 @@ func Pipe() (r *File, w *File, err Error) {
+ 	syscall.CloseOnExec(p[1]);
+ 	syscall.ForkLock.RUnlock();
+ 
+-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
++	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil;
+ }
+ 
+ // Mkdir creates a new directory with the specified name and permission bits.
+@@ -271,7 +272,7 @@ func Stat(name string) (dir *Dir, err Error) {
+ 			statp = &stat;
+ 		}
+ 	}
+-	return dirFromStat(name, new(Dir), &lstat, statp), nil
++	return dirFromStat(name, new(Dir), &lstat, statp), nil;
+ }
+ 
+ // Stat returns the Dir structure describing file.
+@@ -282,7 +283,7 @@ func (file *File) Stat() (dir *Dir, err Error) {
+ 	if e != 0 {
+ 		return nil, &PathError{"stat", file.name, Errno(e)};
+ 	}
+-	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
++	return dirFromStat(file.name, new(Dir), &stat, &stat), nil;
+ }
+ 
+ // Lstat returns the Dir structure describing the named file and an error, if any.
+@@ -294,7 +295,7 @@ func Lstat(name string) (dir *Dir, err Error) {
+ 	if e != 0 {
+ 		return nil, &PathError{"lstat", name, Errno(e)};
+ 	}
+-	return dirFromStat(name, new(Dir), &stat, &stat), nil
++	return dirFromStat(name, new(Dir), &stat, &stat), nil;
+ }
+ 
+ // Readdir reads the contents of the directory associated with file and
+@@ -310,18 +311,18 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 	dirname += "/";
+ 	names, err1 := file.Readdirnames(count);
+ 	if err1 != nil {
+-		return nil, err1
++		return nil, err1;
+ 	}
+ 	dirs = make([]Dir, len(names));
+ 	for i, filename := range names {
+-		dirp, err := Stat(dirname + filename);
+-		if dirp ==  nil || err != nil {
+-			dirs[i].Name = filename	// rest is already zeroed out
++		dirp, err := Stat(dirname+filename);
++		if dirp == nil || err != nil {
++			dirs[i].Name = filename;	// rest is already zeroed out
+ 		} else {
+-			dirs[i] = *dirp
++			dirs[i] = *dirp;
+ 		}
+ 	}
+-	return
++	return;
+ }
+ 
+ // Chdir changes the current working directory to the named directory.
+@@ -374,10 +375,10 @@ func Remove(name string) Error {
+ // LinkError records an error during a link or symlink
+ // system call and the paths that caused it.
+ type LinkError struct {
+-	Op string;
+-	Old string;
+-	New string;
+-	Error Error;
++	Op	string;
++	Old	string;
++	New	string;
++	Error	Error;
+ }
+ 
+ func (e *LinkError) String() string {
+@@ -479,4 +480,3 @@ func (f *File) Truncate(size int64) Error {
+ 	}
+ 	return nil;
+ }
+-
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index e23f74df05..bb8637b2be 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -5,7 +5,7 @@
+ package os
+ 
+ import (
+-	"syscall"
++	"syscall";
+ )
+ 
+ // Getwd returns a rooted path name corresponding to the
+@@ -27,11 +27,11 @@ func Getwd() (string, Error) {
+ 
+ 	// Clumsy but widespread kludge:
+ 	// if $PWD is set and matches ".", use it.
+-	pwd:= Getenv("PWD");
++	pwd := Getenv("PWD");
+ 	if len(pwd) > 0 && pwd[0] == '/' {
+ 		d, err := Stat(pwd);
+ 		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
+-			return pwd, nil
++			return pwd, nil;
+ 		}
+ 	}
+ 
+@@ -43,14 +43,14 @@ func Getwd() (string, Error) {
+ 		return "", err;
+ 	}
+ 	if root.Dev == dot.Dev && root.Ino == dot.Ino {
+-		return "/", nil
++		return "/", nil;
+ 	}
+ 
+ 	// General algorithm: find name in parent
+ 	// and then find name of parent.  Each iteration
+ 	// adds /name to the beginning of pwd.
+ 	pwd = "";
+-	for parent := "..";; parent = "../" + parent {
++	for parent := ".."; ; parent = "../"+parent {
+ 		if len(parent) >= 1024 {	// Sanity check
+ 			return "", ENAMETOOLONG;
+ 		}
+@@ -66,9 +66,9 @@ func Getwd() (string, Error) {
+ 				return "", err;
+ 			}
+ 			for _, name := range names {
+-				d, _ := Lstat(parent + "/" + name);
++				d, _ := Lstat(parent+"/"+name);
+ 				if d.Dev == dot.Dev && d.Ino == dot.Ino {
+-					pwd = "/" + name + pwd;
++					pwd = "/"+name+pwd;
+ 					goto Found;
+ 				}
+ 			}
+@@ -88,5 +88,5 @@ func Getwd() (string, Error) {
+ 		// Set up for next round.
+ 		dot = pd;
+ 	}
+-	return pwd, nil
++	return pwd, nil;
+ }
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index f711f73a53..2f77db20c9 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -5,12 +5,12 @@
+ package os_test
+ 
+ import (
+-	"bytes";
+-	"fmt";
+-	"io";
+-	. "os";
+-	"strings";
+-	"testing";
++		"bytes";
++		"fmt";
++		"io";
++	.	"os";
++		"strings";
++		"testing";
+ )
+ 
+ var dot = []string{
+@@ -23,7 +23,7 @@ var dot = []string{
+ 	"time.go",
+ 	"types.go",
+ 	"stat_darwin_amd64.go",
+-	"stat_linux_amd64.go"
++	"stat_linux_amd64.go",
+ }
+ 
+ var etc = []string{
+@@ -44,13 +44,13 @@ func size(name string, t *testing.T) uint64 {
+ 		n, e := file.Read(&buf);
+ 		len += n;
+ 		if e == EOF {
+-			break
++			break;
+ 		}
+ 		if e != nil {
+ 			t.Fatal("read failed:", err);
+ 		}
+ 	}
+-	return uint64(len)
++	return uint64(len);
+ }
+ 
+ func TestStat(t *testing.T) {
+@@ -120,7 +120,7 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ 				if found {
+ 					t.Error("present twice:", m);
+ 				}
+-				found = true
++				found = true;
+ 			}
+ 		}
+ 		if !found {
+@@ -146,7 +146,7 @@ func testReaddir(dir string, contents []string, t *testing.T) {
+ 				if found {
+ 					t.Error("present twice:", m);
+ 				}
+-				found = true
++				found = true;
+ 			}
+ 		}
+ 		if !found {
+@@ -175,12 +175,12 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ 			t.Fatalf("readdir %q failed: %v", file.Name(), err);
+ 		}
+ 		if len(d) == 0 {
+-			break
++			break;
+ 		}
+ 		names[count] = d[0];
+ 		count++;
+ 	}
+-	return names[0:count]
++	return names[0:count];
+ }
+ 
+ // Check that reading a directory one entry at a time gives the same result
+@@ -210,8 +210,8 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 
+ func TestHardLink(t *testing.T) {
+ 	from, to := "hardlinktestfrom", "hardlinktestto";
+-	Remove(from); // Just in case.
+-	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
++	Remove(from);	// Just in case.
++	file, err := Open(to, O_CREAT|O_WRONLY, 0666);
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", to, err);
+ 	}
+@@ -239,8 +239,8 @@ func TestHardLink(t *testing.T) {
+ 
+ func TestSymLink(t *testing.T) {
+ 	from, to := "symlinktestfrom", "symlinktestto";
+-	Remove(from); // Just in case.
+-	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
++	Remove(from);	// Just in case.
++	file, err := Open(to, O_CREAT|O_WRONLY, 0666);
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", to, err);
+ 	}
+@@ -297,7 +297,7 @@ func TestSymLink(t *testing.T) {
+ 
+ func TestLongSymlink(t *testing.T) {
+ 	s := "0123456789abcdef";
+-	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
++	s = s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s;
+ 	from := "longsymlinktestfrom";
+ 	err := Symlink(s, from);
+ 	if err != nil {
+@@ -347,7 +347,7 @@ func checkMode(t *testing.T, path string, mode uint32) {
+ func TestChmod(t *testing.T) {
+ 	MkdirAll("_obj", 0777);
+ 	const Path = "_obj/_TestChmod_";
+-	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
++	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %s: %s", Path, err);
+ 	}
+@@ -386,7 +386,7 @@ func TestChown(t *testing.T) {
+ 	// basically useless.
+ 
+ 	const Path = "/tmp/_TestChown_";
+-	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
++	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %s: %s", Path, err);
+ 	}
+@@ -439,7 +439,7 @@ func checkSize(t *testing.T, path string, size uint64) {
+ func TestTruncate(t *testing.T) {
+ 	MkdirAll("_obj", 0777);
+ 	const Path = "_obj/_TestTruncate_";
+-	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
++	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %s: %s", Path, err);
+ 	}
+@@ -454,7 +454,7 @@ func TestTruncate(t *testing.T) {
+ 	fd.Truncate(0);
+ 	checkSize(t, Path, 0);
+ 	fd.Write(strings.Bytes("surprise!"));
+-	checkSize(t, Path, 13 + 9);	// wrote at offset past where hello, world was.
++	checkSize(t, Path, 13+9);	// wrote at offset past where hello, world was.
+ 	fd.Close();
+ 	Remove(Path);
+ }
+@@ -466,7 +466,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	}
+ 	// These are chosen carefully not to be symlinks on a Mac
+ 	// (unlike, say, /var, /etc, and /tmp).
+-	dirs := []string{ "/bin", "/", "/usr/bin" };
++	dirs := []string{"/bin", "/", "/usr/bin"};
+ 	for mode := 0; mode < 2; mode++ {
+ 		for _, d := range dirs {
+ 			if mode == 0 {
+@@ -529,19 +529,19 @@ func TestSeek(t *testing.T) {
+ 	io.WriteString(f, data);
+ 
+ 	type test struct {
+-		in int64;
+-		whence int;
+-		out int64;
+-	}
+-	var tests = []test {
+-		test{ 0, 1, int64(len(data)) },
+-		test{ 0, 0, 0 },
+-		test{ 5, 0, 5 },
+-		test{ 0, 2, int64(len(data)) },
+-		test{ 0, 0, 0 },
+-		test{ -1, 2, int64(len(data)) - 1 },
+-		test{ 1<<40, 0, 1<<40 },
+-		test{ 1<<40, 2, 1<<40 + int64(len(data)) }
++		in	int64;
++		whence	int;
++		out	int64;
++	}
++	var tests = []test{
++		test{0, 1, int64(len(data))},
++		test{0, 0, 0},
++		test{5, 0, 5},
++		test{0, 2, int64(len(data))},
++		test{0, 0, 0},
++		test{-1, 2, int64(len(data))-1},
++		test{1<<40, 0, 1<<40},
++		test{1<<40, 2, 1<<40 + int64(len(data))},
+ 	};
+ 	for i, tt := range tests {
+ 		off, err := f.Seek(tt.in, tt.whence);
+@@ -553,23 +553,23 @@ func TestSeek(t *testing.T) {
+ }
+ 
+ type openErrorTest struct {
+-	path string;
+-	mode int;
+-	error string;
++	path	string;
++	mode	int;
++	error	string;
+ }
+ 
+-var openErrorTests = []openErrorTest {
+-	openErrorTest {
++var openErrorTests = []openErrorTest{
++	openErrorTest{
+ 		"/etc/no-such-file",
+ 		O_RDONLY,
+ 		"open /etc/no-such-file: no such file or directory",
+ 	},
+-	openErrorTest {
++	openErrorTest{
+ 		"/etc",
+ 		O_WRONLY,
+ 		"open /etc: is a directory",
+ 	},
+-	openErrorTest {
++	openErrorTest{
+ 		"/etc/passwd/group",
+ 		O_WRONLY,
+ 		"open /etc/passwd/group: not a directory",
+@@ -607,7 +607,7 @@ func run(t *testing.T, cmd []string) string {
+ 	Wait(pid, 0);
+ 	output := b.String();
+ 	if n := len(output); n > 0 && output[n-1] == '\n' {
+-		output = output[0:n-1];
++		output = output[0 : n-1];
+ 	}
+ 	if output == "" {
+ 		t.Fatalf("%v produced no output", cmd);
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index ca157e50c5..de4b020d40 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -35,7 +35,7 @@ func MkdirAll(path string, perm int) Error {
+ 
+ 	if j > 0 {
+ 		// Create parent
+-		err = MkdirAll(path[0:j-1], perm);
++		err = MkdirAll(path[0 : j-1], perm);
+ 		if err != nil {
+ 			return err;
+ 		}
+@@ -91,7 +91,7 @@ func RemoveAll(path string) Error {
+ 	for {
+ 		names, err1 := fd.Readdirnames(100);
+ 		for _, name := range names {
+-			err1 := RemoveAll(path + "/" + name);
++			err1 := RemoveAll(path+"/"+name);
+ 			if err == nil {
+ 				err = err1;
+ 			}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index d7f595711d..cfdd64fc03 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -5,8 +5,8 @@
+ package os_test
+ 
+ import (
+-	. "os";
+-	"testing";
++	.	"os";
++		"testing";
+ )
+ 
+ func TestMkdirAll(t *testing.T) {
+@@ -26,7 +26,7 @@ func TestMkdirAll(t *testing.T) {
+ 
+ 	// Make file.
+ 	fpath := path + "/file";
+-	_, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
++	_, err = Open(fpath, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+@@ -65,13 +65,13 @@ func TestRemoveAll(t *testing.T) {
+ 	// Work directory.
+ 	path := "_obj/_TestRemoveAll_";
+ 	fpath := path + "/file";
+-	dpath := path + "/dir";
++	dpath := path+"/dir";
+ 
+ 	// Make directory with 1 file and remove.
+ 	if err := MkdirAll(path, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err);
+ 	}
+-	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
++	fd, err := Open(fpath, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+@@ -87,12 +87,12 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = MkdirAll(dpath, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", dpath, err);
+ 	}
+-	fd, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
++	fd, err = Open(fpath, O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+ 	fd.Close();
+-	fd, err = Open(dpath+"/file", O_WRONLY | O_CREAT, 0666);
++	fd, err = Open(dpath + "/file", O_WRONLY|O_CREAT, 0666);
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err);
+ 	}
+@@ -109,8 +109,8 @@ func TestRemoveAll(t *testing.T) {
+ 		t.Fatalf("MkdirAll %q: %s", dpath, err);
+ 	}
+ 
+-	for _, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
+-		fd, err = Open(s, O_WRONLY | O_CREAT, 0666);
++	for _, s := range []string{fpath, dpath + "/file1", path+"/zzz"} {
++		fd, err = Open(s, O_WRONLY|O_CREAT, 0666);
+ 		if err != nil {
+ 			t.Fatalf("create %q: %s", s, err);
+ 		}
+diff --git a/src/pkg/os/proc.go b/src/pkg/os/proc.go
+index 3a6f5a16f9..0dd295edf5 100644
+--- a/src/pkg/os/proc.go
++++ b/src/pkg/os/proc.go
+@@ -8,8 +8,8 @@ package os
+ 
+ import "syscall"
+ 
+-var Args []string;	// provided by runtime
+-var Envs []string;	// provided by runtime
++var Args []string	// provided by runtime
++var Envs []string	// provided by runtime
+ 
+ 
+ // Getuid returns the numeric user id of the caller.
+@@ -43,4 +43,3 @@ func Getgroups() ([]int, Error) {
+ func Exit(code int) {
+ 	syscall.Exit(code);
+ }
+-
+diff --git a/src/pkg/os/stat_darwin_386.go b/src/pkg/os/stat_darwin_386.go
+index cc6e549666..b8b2fe3a2a 100644
+--- a/src/pkg/os/stat_darwin_386.go
++++ b/src/pkg/os/stat_darwin_386.go
+@@ -9,7 +9,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -26,9 +26,9 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec));
+-	for i := len(name) - 1; i >= 0; i-- {
++	for i := len(name)-1; i >= 0; i-- {
+ 		if name[i] == '/' {
+-			name = name[i+1:len(name)];
++			name = name[i+1 : len(name)];
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/os/stat_darwin_amd64.go b/src/pkg/os/stat_darwin_amd64.go
+index c6f031a244..d7400b210d 100644
+--- a/src/pkg/os/stat_darwin_amd64.go
++++ b/src/pkg/os/stat_darwin_amd64.go
+@@ -9,7 +9,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -26,9 +26,9 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atimespec));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtimespec));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctimespec));
+-	for i := len(name) - 1; i >= 0; i-- {
++	for i := len(name)-1; i >= 0; i-- {
+ 		if name[i] == '/' {
+-			name = name[i+1:len(name)];
++			name = name[i+1 : len(name)];
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/os/stat_linux_386.go b/src/pkg/os/stat_linux_386.go
+index d08fabcc60..a1df330280 100644
+--- a/src/pkg/os/stat_linux_386.go
++++ b/src/pkg/os/stat_linux_386.go
+@@ -13,7 +13,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -30,9 +30,9 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
+-	for i := len(name) - 1; i >= 0; i-- {
++	for i := len(name)-1; i >= 0; i-- {
+ 		if name[i] == '/' {
+-			name = name[i+1:len(name)];
++			name = name[i+1 : len(name)];
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/os/stat_linux_amd64.go b/src/pkg/os/stat_linux_amd64.go
+index f4c300b2c8..dcc29c04e0 100644
+--- a/src/pkg/os/stat_linux_amd64.go
++++ b/src/pkg/os/stat_linux_amd64.go
+@@ -9,7 +9,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -26,9 +26,9 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
+-	for i := len(name) - 1; i >= 0; i-- {
++	for i := len(name)-1; i >= 0; i-- {
+ 		if name[i] == '/' {
+-			name = name[i+1:len(name)];
++			name = name[i+1 : len(name)];
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/os/stat_linux_arm.go b/src/pkg/os/stat_linux_arm.go
+index d08fabcc60..a1df330280 100644
+--- a/src/pkg/os/stat_linux_arm.go
++++ b/src/pkg/os/stat_linux_arm.go
+@@ -13,7 +13,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -30,9 +30,9 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Atime_ns = uint64(syscall.TimespecToNsec(stat.Atim));
+ 	dir.Mtime_ns = uint64(syscall.TimespecToNsec(stat.Mtim));
+ 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
+-	for i := len(name) - 1; i >= 0; i-- {
++	for i := len(name)-1; i >= 0; i-- {
+ 		if name[i] == '/' {
+-			name = name[i+1:len(name)];
++			name = name[i+1 : len(name)];
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/os/stat_nacl_386.go b/src/pkg/os/stat_nacl_386.go
+index 83b0d6c38c..67b2ba8c8c 100644
+--- a/src/pkg/os/stat_nacl_386.go
++++ b/src/pkg/os/stat_nacl_386.go
+@@ -13,7 +13,7 @@ package os
+ import "syscall"
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+ }
+ 
+ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+@@ -27,12 +27,12 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Size = uint64(stat.Size);
+ 	dir.Blksize = uint64(stat.Blksize);
+ 	dir.Blocks = uint64(stat.Blocks);
+-	dir.Atime_ns = uint64(stat.Atime)*1e9;
+-	dir.Mtime_ns = uint64(stat.Mtime)*1e9;
+-	dir.Ctime_ns = uint64(stat.Ctime)*1e9;
+-	for i := len(name) - 1; i >= 0; i-- {
++	dir.Atime_ns = uint64(stat.Atime) * 1e9;
++	dir.Mtime_ns = uint64(stat.Mtime) * 1e9;
++	dir.Ctime_ns = uint64(stat.Ctime) * 1e9;
++	for i := len(name)-1; i >= 0; i-- {
+ 		if name[i] == '/' {
+-			name = name[i+1:len(name)];
++			name = name[i+1 : len(name)];
+ 			break;
+ 		}
+ 	}
+diff --git a/src/pkg/os/time.go b/src/pkg/os/time.go
+index d0ba6e1fa5..f5c2880a18 100644
+--- a/src/pkg/os/time.go
++++ b/src/pkg/os/time.go
+@@ -16,6 +16,5 @@ func Time() (sec int64, nsec int64, err Error) {
+ 	if errno := syscall.Gettimeofday(&tv); errno != 0 {
+ 		return 0, 0, NewSyscallError("gettimeofday", errno);
+ 	}
+-	return int64(tv.Sec), int64(tv.Usec)*1000, err;
++	return int64(tv.Sec), int64(tv.Usec) * 1000, err;
+ }
+-
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index b5db866606..7ed547c9b7 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -10,66 +10,65 @@ import "syscall"
+ // OS-specific routines in this directory convert the OS-local versions to these.
+ 
+ // Getpagesize returns the underlying system's memory page size.
+-func Getpagesize() int{
+-	return syscall.Getpagesize()
++func Getpagesize() int {
++	return syscall.Getpagesize();
+ }
+ 
+ // A Dir describes a file and is returned by Stat, Fstat, and Lstat
+ type Dir struct {
+-	Dev	uint64;	// device number of file system holding file.
+-	Ino	uint64;	// inode number.
+-	Nlink	uint64;	// number of hard links.
+-	Mode	uint32;	// permission and mode bits.
+-	Uid	uint32;	// user id of owner.
+-	Gid	uint32;	// group id of owner.
+-	Rdev	uint64;	// device type for special file.
+-	Size	uint64;	// length in bytes.
+-	Blksize	uint64;	// size of blocks, in bytes.
+-	Blocks	uint64;	// number of blocks allocated for file.
++	Dev		uint64;	// device number of file system holding file.
++	Ino		uint64;	// inode number.
++	Nlink		uint64;	// number of hard links.
++	Mode		uint32;	// permission and mode bits.
++	Uid		uint32;	// user id of owner.
++	Gid		uint32;	// group id of owner.
++	Rdev		uint64;	// device type for special file.
++	Size		uint64;	// length in bytes.
++	Blksize		uint64;	// size of blocks, in bytes.
++	Blocks		uint64;	// number of blocks allocated for file.
+ 	Atime_ns	uint64;	// access time; nanoseconds since epoch.
+ 	Mtime_ns	uint64;	// modified time; nanoseconds since epoch.
+ 	Ctime_ns	uint64;	// status change time; nanoseconds since epoch.
+-	Name	string;	// name of file as presented to Open.
+-	FollowedSymlink	bool;		// followed a symlink to get this information
++	Name		string;	// name of file as presented to Open.
++	FollowedSymlink	bool;	// followed a symlink to get this information
+ }
+ 
+ // IsFifo reports whether the Dir describes a FIFO file.
+ func (dir *Dir) IsFifo() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFIFO
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFIFO;
+ }
+ 
+ // IsChar reports whether the Dir describes a character special file.
+ func (dir *Dir) IsChar() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFCHR
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFCHR;
+ }
+ 
+ // IsDirectory reports whether the Dir describes a directory.
+ func (dir *Dir) IsDirectory() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFDIR
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFDIR;
+ }
+ 
+ // IsBlock reports whether the Dir describes a block special file.
+ func (dir *Dir) IsBlock() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFBLK
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFBLK;
+ }
+ 
+ // IsRegular reports whether the Dir describes a regular file.
+ func (dir *Dir) IsRegular() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFREG
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFREG;
+ }
+ 
+ // IsSymlink reports whether the Dir describes a symbolic link.
+ func (dir *Dir) IsSymlink() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFLNK
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFLNK;
+ }
+ 
+ // IsSocket reports whether the Dir describes a socket.
+ func (dir *Dir) IsSocket() bool {
+-	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFSOCK
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFSOCK;
+ }
+ 
+ // Permission returns the file permission bits.
+ func (dir *Dir) Permission() int {
+-	return int(dir.Mode & 0777)
++	return int(dir.Mode & 0777);
+ }
+-

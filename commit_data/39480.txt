@@ -17,8 +17,57 @@ Date:   Tue Feb 26 23:21:59 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/base/base.go    | 2 +-
  src/cmd/go/internal/test/test.go    | 8 +++++++-
  src/cmd/go/testdata/script/help.txt | 2 +-
  3 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index bf810ff762..028f9b6aef 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -30,7 +30,7 @@ type Command struct {
+ 	Run func(cmd *Command, args []string)
+ 
+ 	// UsageLine is the one-line usage message.
+-	// The first word in the line is taken to be the command name.
++	// The words between "go" and the first flag or argument in the line are taken to be the command name.
+ 	UsageLine string
+ 
+ 	// Short is the short description shown in the 'go help' output.
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 8dfb3df22d..fe90af3be5 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -514,10 +514,16 @@ var testVetFlags = []string{
+ 	// "-unusedresult",
+ }
+ 
++func testCmdUsage() {
++	fmt.Fprintf(os.Stderr, "usage: %s\n", CmdTest.UsageLine)
++	fmt.Fprintf(os.Stderr, "Run 'go help %s' and 'go help %s' for details.\n", CmdTest.LongName(), HelpTestflag.LongName())
++	os.Exit(2)
++}
++
+ func runTest(cmd *base.Command, args []string) {
+ 	modload.LoadTests = true
+ 
+-	pkgArgs, testArgs = testFlags(cmd.Usage, args)
++	pkgArgs, testArgs = testFlags(testCmdUsage, args)
+ 
+ 	work.FindExecCmd() // initialize cached result
+ 
+diff --git a/src/cmd/go/testdata/script/help.txt b/src/cmd/go/testdata/script/help.txt
+index e6cbc82928..9752ede2e3 100644
+--- a/src/cmd/go/testdata/script/help.txt
++++ b/src/cmd/go/testdata/script/help.txt
+@@ -42,7 +42,7 @@ stderr 'Run ''go tool vet -help'' for the vet tool''s flags'
+ # lines.
+ ! go test -h
+ stderr 'usage: go test'
+-stderr 'Run ''go help test'' for details'
++stderr 'Run ''go help test'' and ''go help testflag'' for details.'
+ 
+ # go help get shows usage for get
+ go help get

@@ -10,9 +10,82 @@ Date:   Fri Mar 29 15:06:43 2013 +0900
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/8063043
-
+---
  src/pkg/net/tcpsock_plan9.go |  4 ++--
  src/pkg/net/tcpsock_posix.go |  8 ++++----
  src/pkg/net/udpsock_plan9.go |  5 ++++-
  src/pkg/net/udpsock_posix.go | 11 +++++++----
  4 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index ed36646038..517e671ac6 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -165,8 +165,8 @@ func (l *TCPListener) File() (f *os.File, err error) { return l.dup() }
+ 
+ // ListenTCP announces on the TCP address laddr and returns a TCP
+ // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+-// port of 0, it means to listen on some available port.  The caller
+-// can use l.Addr() to retrieve the chosen address.
++// port of 0, ListenTCP will choose an available port.  The caller can
++// use the Addr method of TCPListener to retrieve the chosen address.
+ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index bd5a2a2877..60908c3cd0 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -272,10 +272,10 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ // Closing l does not affect f, and closing f does not affect l.
+ func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
+ 
+-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
+-// Net must be "tcp", "tcp4", or "tcp6".
+-// If laddr has a port of 0, it means to listen on some available port.
+-// The caller can use l.Addr() to retrieve the chosen address.
++// ListenTCP announces on the TCP address laddr and returns a TCP
++// listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
++// port of 0, ListenTCP will choose an available port.  The caller can
++// use the Addr method of TCPListener to retrieve the chosen address.
+ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 66dcbab7c5..4cf0ca37aa 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -164,7 +164,10 @@ func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
+ }
+ 
+ // ListenUDP listens for incoming UDP packets addressed to the local
+-// address laddr.  The returned connection c's ReadFrom and WriteTo
++// address laddr.  Net must be "udp", "udp4", or "udp6".  If laddr has
++// a port of 0, ListenUDP will choose an available port.
++// The LocalAddr method of the returned UDPConn can be used to
++// discover the port.  The returned connection's ReadFrom and WriteTo
+ // methods can be used to receive and send UDP packets with per-packet
+ // addressing.
+ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index 9aafb7083a..39abea210f 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -180,10 +180,13 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
+ 	return newUDPConn(fd), nil
+ }
+ 
+-// ListenUDP listens for incoming UDP packets addressed to the
+-// local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send UDP
+-// packets with per-packet addressing.
++// ListenUDP listens for incoming UDP packets addressed to the local
++// address laddr.  Net must be "udp", "udp4", or "udp6".  If laddr has
++// a port of 0, ListenUDP will choose an available port.
++// The LocalAddr method of the returned UDPConn can be used to
++// discover the port.  The returned connection's ReadFrom and WriteTo
++// methods can be used to receive and send UDP packets with per-packet
++// addressing.
+ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":

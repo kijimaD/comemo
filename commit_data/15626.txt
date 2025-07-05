@@ -7,6 +7,29 @@ Date:   Thu Mar 7 19:17:18 2013 +0900
     R=golang-dev, akumar
     CC=golang-dev
     https://golang.org/cl/7523044
-
+---
  src/pkg/net/protoconn_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 2fe7d1d1fb..25b0dfbca9 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -163,7 +163,7 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ func TestIPConnSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+-		t.Skipf("skipping read test on %q", runtime.GOOS)
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 	if os.Getuid() != 0 {
+ 		t.Skipf("skipping test; must be root")
+@@ -220,7 +220,7 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ func TestUnixListenerSpecificMethods(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		t.Skipf("skipping read test on %q", runtime.GOOS)
++		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+ 	addr := testUnixAddr()

@@ -28,7 +28,115 @@ Date:   Wed May 25 12:31:11 2011 -0700
     R=dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/4526077
-
+---
  src/pkg/http/transport.go      | 33 ++++++++++++++++++++++++++++++++-
  src/pkg/http/transport_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/transport.go b/src/pkg/http/transport.go
+index fdb1b0829a..2b5e5a4250 100644
+--- a/src/pkg/http/transport.go
++++ b/src/pkg/http/transport.go
+@@ -36,6 +36,7 @@ const DefaultMaxIdleConnsPerHost = 2
+ type Transport struct {
+ 	lk       sync.Mutex
+ 	idleConn map[string][]*persistConn
++	altProto map[string]RoundTripper // nil or map of URI scheme => RoundTripper
+ 
+ 	// TODO: tunable on global max cached connections
+ 	// TODO: tunable on timeout on cached connections
+@@ -97,7 +98,16 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+ 		}
+ 	}
+ 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
+-		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
++		t.lk.Lock()
++		var rt RoundTripper
++		if t.altProto != nil {
++			rt = t.altProto[req.URL.Scheme]
++		}
++		t.lk.Unlock()
++		if rt == nil {
++			return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
++		}
++		return rt.RoundTrip(req)
+ 	}
+ 
+ 	cm, err := t.connectMethodForRequest(req)
+@@ -117,6 +127,27 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err os.Error) {
+ 	return pconn.roundTrip(req)
+ }
+ 
++// RegisterProtocol registers a new protocol with scheme.
++// The Transport will pass requests using the given scheme to rt.
++// It is rt's responsibility to simulate HTTP request semantics.
++//
++// RegisterProtocol can be used by other packages to provide
++// implementations of protocol schemes like "ftp" or "file".
++func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
++	if scheme == "http" || scheme == "https" {
++		panic("protocol " + scheme + " already registered")
++	}
++	t.lk.Lock()
++	defer t.lk.Unlock()
++	if t.altProto == nil {
++		t.altProto = make(map[string]RoundTripper)
++	}
++	if _, exists := t.altProto[scheme]; exists {
++		panic("protocol " + scheme + " already registered")
++	}
++	t.altProto[scheme] = rt
++}
++
+ // CloseIdleConnections closes any connections which were previously
+ // connected from previous requests but are now sitting idle in
+ // a "keep-alive" state. It does not interrupt any connections currently
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index 9cd18ffecf..76e97640e3 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"strconv"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -531,6 +532,36 @@ func TestTransportGzipRecursive(t *testing.T) {
+ 	}
+ }
+ 
++type fooProto struct{}
++
++func (fooProto) RoundTrip(req *Request) (*Response, os.Error) {
++	res := &Response{
++		Status:     "200 OK",
++		StatusCode: 200,
++		Header:     make(Header),
++		Body:       ioutil.NopCloser(strings.NewReader("You wanted " + req.URL.String())),
++	}
++	return res, nil
++}
++
++func TestTransportAltProto(t *testing.T) {
++	tr := &Transport{}
++	c := &Client{Transport: tr}
++	tr.RegisterProtocol("foo", fooProto{})
++	res, err := c.Get("foo://bar.com/path")
++	if err != nil {
++		t.Fatal(err)
++	}
++	bodyb, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	body := string(bodyb)
++	if e := "You wanted foo://bar.com/path"; body != e {
++		t.Errorf("got response %q, want %q", body, e)
++	}
++}
++
+ // rgz is a gzip quine that uncompresses to itself.
+ var rgz = []byte{
+ 	0x1f, 0x8b, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00,

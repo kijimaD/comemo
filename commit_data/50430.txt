@@ -19,7 +19,7 @@ Date:   Tue Aug 10 09:50:56 2021 -0500
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go         |  3 +++
  src/cmd/asm/internal/asm/testdata/ppc64.s | 16 ++++++-------
  src/cmd/internal/obj/ppc64/a.out.go       | 39 +++++++++++++++++++++++++++++--
@@ -29,3 +29,193 @@ Date:   Tue Aug 10 09:50:56 2021 -0500
  src/cmd/internal/obj/ppc64/doc.go         |  6 +++++
  src/cmd/internal/obj/ppc64/list9.go       |  5 ++++
  8 files changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index cffa9a26a4..8c71b79965 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -378,6 +378,9 @@ func archPPC64(linkArch *obj.LinkArch) *Arch {
+ 	for i := ppc64.REG_MSR; i <= ppc64.REG_CR; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++	for i := ppc64.REG_CR0LT; i <= ppc64.REG_CR7SO; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
+ 	register["CR"] = ppc64.REG_CR
+ 	register["XER"] = ppc64.REG_XER
+ 	register["LR"] = ppc64.REG_LR
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index b9da48acdd..c140fd025a 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -342,14 +342,14 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	NOP F2
+ 	NOP $4
+ 
+-	CRAND CR1, CR2, CR3             // 4c620a02
+-	CRANDN CR1, CR2, CR3            // 4c620902
+-	CREQV CR1, CR2, CR3             // 4c620a42
+-	CRNAND CR1, CR2, CR3            // 4c6209c2
+-	CRNOR CR1, CR2, CR3             // 4c620842
+-	CROR CR1, CR2, CR3              // 4c620b82
+-	CRORN CR1, CR2, CR3             // 4c620b42
+-	CRXOR CR1, CR2, CR3             // 4c620982
++	CRAND CR0GT, CR0EQ, CR0SO       // 4c620a02
++	CRANDN CR0GT, CR0EQ, CR0SO      // 4c620902
++	CREQV CR0GT, CR0EQ, CR0SO       // 4c620a42
++	CRNAND CR0GT, CR0EQ, CR0SO      // 4c6209c2
++	CRNOR CR0GT, CR0EQ, CR0SO       // 4c620842
++	CROR CR0GT, CR0EQ, CR0SO        // 4c620b82
++	CRORN CR0GT, CR0EQ, CR0SO       // 4c620b42
++	CRXOR CR0GT, CR0EQ, CR0SO       // 4c620982
+ 
+ 	ISEL $1, R3, R4, R5             // 7ca3205e
+ 	ISEL $0, R3, R4, R5             // 7ca3201e
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index fe18296034..1e74e64a29 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -79,10 +79,44 @@ const (
+ 	REG_R30
+ 	REG_R31
+ 
++	// CR bits. Use Book 1, chapter 2 naming for bits. Keep aligned to 32
++	REG_CR0LT
++	REG_CR0GT
++	REG_CR0EQ
++	REG_CR0SO
++	REG_CR1LT
++	REG_CR1GT
++	REG_CR1EQ
++	REG_CR1SO
++	REG_CR2LT
++	REG_CR2GT
++	REG_CR2EQ
++	REG_CR2SO
++	REG_CR3LT
++	REG_CR3GT
++	REG_CR3EQ
++	REG_CR3SO
++	REG_CR4LT
++	REG_CR4GT
++	REG_CR4EQ
++	REG_CR4SO
++	REG_CR5LT
++	REG_CR5GT
++	REG_CR5EQ
++	REG_CR5SO
++	REG_CR6LT
++	REG_CR6GT
++	REG_CR6EQ
++	REG_CR6SO
++	REG_CR7LT
++	REG_CR7GT
++	REG_CR7EQ
++	REG_CR7SO
++
+ 	/* Align FPR and VSR vectors such that when masked with 0x3F they produce
+ 	   an equivalent VSX register. */
+ 	/* F0=4160 ... F31=4191 */
+-	REG_F0 = obj.RBasePPC64 + iota + 32
++	REG_F0
+ 	REG_F1
+ 	REG_F2
+ 	REG_F3
+@@ -358,7 +392,8 @@ const (
+ 	C_VREG     /* Any vector register */
+ 	C_VSREGP   /* An even numbered vsx register which can be used as a vsx register pair argument */
+ 	C_VSREG    /* Any vector-scalar register */
+-	C_CREG     /* The condition registor (CR) or a condition register field (CRx) */
++	C_CREG     /* The condition registor (CR) */
++	C_CRBIT    /* A single bit of the CR register (0-31) */
+ 	C_SPR      /* special processor register */
+ 	C_ZCON     /* The constant zero */
+ 	C_U1CON    /* 1 bit unsigned constant */
+diff --git a/src/cmd/internal/obj/ppc64/anames9.go b/src/cmd/internal/obj/ppc64/anames9.go
+index 3b2aba77ab..05bfd944d1 100644
+--- a/src/cmd/internal/obj/ppc64/anames9.go
++++ b/src/cmd/internal/obj/ppc64/anames9.go
+@@ -14,6 +14,7 @@ var cnames9 = []string{
+ 	"VSREGP",
+ 	"VSREG",
+ 	"CREG",
++	"CRBIT",
+ 	"SPR",
+ 	"ZCON",
+ 	"U1CON",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 08fb5118f0..31fbb7f7bf 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -335,7 +335,7 @@ var optab = []Optab{
+ 	{as: ALDMX, a1: C_SOREG, a6: C_REG, type_: 45, size: 4},                       /* load doubleword monitored, x-form */
+ 	{as: AMADDHD, a1: C_REG, a2: C_REG, a3: C_REG, a6: C_REG, type_: 83, size: 4}, /* multiply-add high/low doubleword, va-form */
+ 	{as: AADDEX, a1: C_REG, a2: C_REG, a3: C_SCON, a6: C_REG, type_: 94, size: 4}, /* add extended using alternate carry, z23-form */
+-	{as: ACRAND, a1: C_CREG, a2: C_CREG, a6: C_CREG, type_: 2, size: 4},           /* logical ops for condition register bits xl-form */
++	{as: ACRAND, a1: C_CRBIT, a2: C_CRBIT, a6: C_CRBIT, type_: 2, size: 4},        /* logical ops for condition register bits xl-form */
+ 
+ 	/* Vector instructions */
+ 
+@@ -856,6 +856,9 @@ func (c *ctxt9) aclassreg(reg int16) int {
+ 	if REG_CR0 <= reg && reg <= REG_CR7 || reg == REG_CR {
+ 		return C_CREG
+ 	}
++	if REG_CR0LT <= reg && reg <= REG_CR7SO {
++		return C_CRBIT
++	}
+ 	if REG_SPR0 <= reg && reg <= REG_SPR0+1023 {
+ 		switch reg {
+ 		case REG_LR:
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index 3a9b87363c..ee2e5962f7 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -435,6 +435,7 @@ func TestRegValueAlignment(t *testing.T) {
+ 		{REG_F0, REG_F31, 63, 0},
+ 		{REG_SPR0, REG_SPR0 + 1023, 1023, 0},
+ 		{REG_CR0, REG_CR7, 7, 0},
++		{REG_CR0LT, REG_CR7SO, 31, 0},
+ 	}
+ 	for _, t := range testType {
+ 		tstFunc(t.rstart, t.rend, t.msk, t.rout)
+@@ -463,6 +464,7 @@ func TestAddrClassifier(t *testing.T) {
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_VS2}, C_VSREGP},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR}, C_CREG},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1}, C_CREG},
++		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_CR1SO}, C_CRBIT},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0}, C_SPR},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 1}, C_XER},
+ 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
+diff --git a/src/cmd/internal/obj/ppc64/doc.go b/src/cmd/internal/obj/ppc64/doc.go
+index 6e601df82e..a9d89c93b4 100644
+--- a/src/cmd/internal/obj/ppc64/doc.go
++++ b/src/cmd/internal/obj/ppc64/doc.go
+@@ -239,6 +239,12 @@ Register naming
+   VSn is used for vector-scalar registers. V0-V31 overlap with VS32-VS63. (0-63)
+   CTR represents the count register.
+   LR represents the link register.
++  CR represents the condition register
++  CRn represents a condition register field. (0-7)
++  CRnLT represents CR bit 0 of CR field n. (0-7)
++  CRnGT represents CR bit 1 of CR field n. (0-7)
++  CRnEQ represents CR bit 2 of CR field n. (0-7)
++  CRnSO represents CR bit 3 of CR field n. (0-7)
+ 
+ */
+ package ppc64
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index 8b0b36f375..ea0dae9e02 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -62,6 +62,11 @@ func rconv(r int) string {
+ 	if REG_CR0 <= r && r <= REG_CR7 {
+ 		return fmt.Sprintf("CR%d", r-REG_CR0)
+ 	}
++	if REG_CR0LT <= r && r <= REG_CR7SO {
++		bits := [4]string{"LT", "GT", "EQ", "SO"}
++		crf := (r - REG_CR0LT) / 4
++		return fmt.Sprintf("CR%d%s", crf, bits[r%4])
++	}
+ 	if r == REG_CR {
+ 		return "CR"
+ 	}

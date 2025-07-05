@@ -10,8 +10,111 @@ Date:   Mon Mar 25 17:43:30 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7962044
-
+---
  src/pkg/database/sql/convert.go      | 22 ++++++++++++++++++----
  src/pkg/database/sql/convert_test.go |  3 ++-
  src/pkg/database/sql/sql.go          | 18 ------------------
  3 files changed, 20 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/database/sql/convert.go b/src/pkg/database/sql/convert.go
+index 5530a5d905..c04adde1fc 100644
+--- a/src/pkg/database/sql/convert.go
++++ b/src/pkg/database/sql/convert.go
+@@ -112,15 +112,13 @@ func convertAssign(dest, src interface{}) error {
+ 			if d == nil {
+ 				return errNilPtr
+ 			}
+-			bcopy := make([]byte, len(s))
+-			copy(bcopy, s)
+-			*d = bcopy
++			*d = cloneBytes(s)
+ 			return nil
+ 		case *[]byte:
+ 			if d == nil {
+ 				return errNilPtr
+ 			}
+-			*d = s
++			*d = cloneBytes(s)
+ 			return nil
+ 		case *RawBytes:
+ 			if d == nil {
+@@ -131,6 +129,12 @@ func convertAssign(dest, src interface{}) error {
+ 		}
+ 	case nil:
+ 		switch d := dest.(type) {
++		case *interface{}:
++			if d == nil {
++				return errNilPtr
++			}
++			*d = nil
++			return nil
+ 		case *[]byte:
+ 			if d == nil {
+ 				return errNilPtr
+@@ -250,6 +254,16 @@ func convertAssign(dest, src interface{}) error {
+ 	return fmt.Errorf("unsupported driver -> Scan pair: %T -> %T", src, dest)
+ }
+ 
++func cloneBytes(b []byte) []byte {
++	if b == nil {
++		return nil
++	} else {
++		c := make([]byte, len(b))
++		copy(c, b)
++		return c
++	}
++}
++
+ func asString(src interface{}) string {
+ 	switch v := src.(type) {
+ 	case string:
+diff --git a/src/pkg/database/sql/convert_test.go b/src/pkg/database/sql/convert_test.go
+index 6aedeb0a46..950e24fc3a 100644
+--- a/src/pkg/database/sql/convert_test.go
++++ b/src/pkg/database/sql/convert_test.go
+@@ -143,6 +143,7 @@ var conversionTests = []conversionTest{
+ 	{s: []byte("byteslice"), d: &scaniface, wantiface: []byte("byteslice")},
+ 	{s: true, d: &scaniface, wantiface: true},
+ 	{s: nil, d: &scaniface},
++	{s: []byte(nil), d: &scaniface, wantiface: []byte(nil)},
+ }
+ 
+ func intPtrValue(intptr interface{}) interface{} {
+@@ -221,7 +222,7 @@ func TestConversions(t *testing.T) {
+ 			}
+ 			if srcBytes, ok := ct.s.([]byte); ok {
+ 				dstBytes := (*ifptr).([]byte)
+-				if &dstBytes[0] == &srcBytes[0] {
++				if len(srcBytes) > 0 && &dstBytes[0] == &srcBytes[0] {
+ 					errf("copy into interface{} didn't copy []byte data")
+ 				}
+ 			}
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index 236e2c095d..d89aa59792 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -1301,24 +1301,6 @@ func (rs *Rows) Scan(dest ...interface{}) error {
+ 			return fmt.Errorf("sql: Scan error on column index %d: %v", i, err)
+ 		}
+ 	}
+-	for _, dp := range dest {
+-		b, ok := dp.(*[]byte)
+-		if !ok {
+-			continue
+-		}
+-		if *b == nil {
+-			// If the []byte is now nil (for a NULL value),
+-			// don't fall through to below which would
+-			// turn it into a non-nil 0-length byte slice
+-			continue
+-		}
+-		if _, ok = dp.(*RawBytes); ok {
+-			continue
+-		}
+-		clone := make([]byte, len(*b))
+-		copy(clone, *b)
+-		*b = clone
+-	}
+ 	return nil
+ }
+ 

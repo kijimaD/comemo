@@ -15,8 +15,131 @@ Date:   Mon Aug 26 20:00:10 2024 +0200
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/runtime/os_linux.go   | 12 ++++++++++--
  src/runtime/os_openbsd.go |  3 +++
  src/runtime/rand.go       | 37 +++++++++++++++++++++++++++++++++----
  3 files changed, 46 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 979761cc6a..8f5cf6db8a 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -296,13 +296,19 @@ func sysargs(argc int32, argv **byte) {
+ var secureMode bool
+ 
+ func sysauxv(auxv []uintptr) (pairs int) {
++	// Process the auxiliary vector entries provided by the kernel when the
++	// program is executed. See getauxval(3).
+ 	var i int
+ 	for ; auxv[i] != _AT_NULL; i += 2 {
+ 		tag, val := auxv[i], auxv[i+1]
+ 		switch tag {
+ 		case _AT_RANDOM:
+-			// The kernel provides a pointer to 16-bytes
+-			// worth of random data.
++			// The kernel provides a pointer to 16 bytes of cryptographically
++			// random data. Note that in cgo programs this value may have
++			// already been used by libc at this point, and in particular glibc
++			// and musl use the value as-is for stack and pointer protector
++			// cookies from libc_start_main and/or dl_start. Also, cgo programs
++			// may use the value after we do.
+ 			startupRand = (*[16]byte)(unsafe.Pointer(val))[:]
+ 
+ 		case _AT_PAGESZ:
+@@ -354,6 +360,8 @@ func osinit() {
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ func readRandom(r []byte) int {
++	// Note that all supported Linux kernels should provide AT_RANDOM which
++	// populates startupRand, so this fallback should be unreachable.
+ 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
+ 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
+ 	closefd(fd)
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 9a21d6a8d0..574bfa8b17 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -139,6 +139,9 @@ func osinit() {
+ 	physPageSize = getPageSize()
+ }
+ 
++// TODO(#69781): set startupRand using the .openbsd.randomdata ELF section.
++// See SPECS.randomdata.
++
+ var urandom_dev = []byte("/dev/urandom\x00")
+ 
+ //go:nosplit
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index 11be6552aa..2e44858ee2 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -7,6 +7,7 @@
+ package runtime
+ 
+ import (
++	"internal/byteorder"
+ 	"internal/chacha8rand"
+ 	"internal/goarch"
+ 	"internal/runtime/math"
+@@ -41,14 +42,15 @@ func randinit() {
+ 	}
+ 
+ 	seed := &globalRand.seed
+-	if startupRand != nil {
++	if len(startupRand) >= 16 &&
++		// Check that at least the first two words of startupRand weren't
++		// cleared by any libc initialization.
++		!allZero(startupRand[:8]) && !allZero(startupRand[8:16]) {
+ 		for i, c := range startupRand {
+ 			seed[i%len(seed)] ^= c
+ 		}
+-		clear(startupRand)
+-		startupRand = nil
+ 	} else {
+-		if readRandom(seed[:]) != len(seed) {
++		if readRandom(seed[:]) != len(seed) || allZero(seed[:]) {
+ 			// readRandom should never fail, but if it does we'd rather
+ 			// not make Go binaries completely unusable, so make up
+ 			// some random data based on the current time.
+@@ -58,6 +60,25 @@ func randinit() {
+ 	}
+ 	globalRand.state.Init(*seed)
+ 	clear(seed[:])
++
++	if startupRand != nil {
++		// Overwrite startupRand instead of clearing it, in case cgo programs
++		// access it after we used it.
++		for len(startupRand) > 0 {
++			buf := make([]byte, 8)
++			for {
++				if x, ok := globalRand.state.Next(); ok {
++					byteorder.BePutUint64(buf, x)
++					break
++				}
++				globalRand.state.Refill()
++			}
++			n := copy(startupRand, buf)
++			startupRand = startupRand[n:]
++		}
++		startupRand = nil
++	}
++
+ 	globalRand.init = true
+ 	unlock(&globalRand.lock)
+ }
+@@ -88,6 +109,14 @@ func readTimeRandom(r []byte) {
+ 	}
+ }
+ 
++func allZero(b []byte) bool {
++	var acc byte
++	for _, x := range b {
++		acc |= x
++	}
++	return acc == 0
++}
++
+ // bootstrapRand returns a random uint64 from the global random generator.
+ func bootstrapRand() uint64 {
+ 	lock(&globalRand.lock)

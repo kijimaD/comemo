@@ -12,6 +12,20 @@ Date:   Fri Aug 23 13:19:17 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/bytes.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index ac15ab9b69..bdb0366897 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -187,7 +187,7 @@ func IndexRune(s []byte, r rune) int {
+ 		return -1
+ 
+ 	fallback:
+-		// Switch to bytealg.Index, if available, or a brute for search when
++		// Switch to bytealg.Index, if available, or a brute force search when
+ 		// IndexByte returns too many false positives.
+ 		if haveFastIndex {
+ 			if j := bytealg.Index(s[i-last:], b[:n]); j >= 0 {

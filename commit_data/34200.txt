@@ -11,7 +11,38 @@ Date:   Tue Oct 10 09:35:11 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go |  1 -
  test/inline.go                     | 10 ++++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 35da0de6dd..c65eb14413 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -23,7 +23,6 @@
+ //
+ // TODO:
+ //   - inline functions with ... args
+-//   - handle T.meth(f()) with func f() (t T, arg, arg, )
+ 
+ package gc
+ 
+diff --git a/test/inline.go b/test/inline.go
+index 773b047cf7..7bb86ef8b2 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -72,3 +72,13 @@ func switchType(x interface{}) int { // ERROR "switchType x does not escape"
+ 		return 0
+ 	}
+ }
++
++type T struct{}
++
++func (T) meth(int, int) {} // ERROR "can inline T.meth"
++
++func k() (T, int, int) { return T{}, 0, 0 } // ERROR "can inline k"
++
++func _() { // ERROR "can inline _"
++	T.meth(k()) // ERROR "inlining call to k" "inlining call to T.meth"
++}

@@ -13,7 +13,82 @@ Date:   Wed Mar 28 11:44:10 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go      | 13 +++++++++++--
  src/net/http/client_test.go | 34 ++++++++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index a02c805f38..a71d70818a 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -515,9 +515,9 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 		method := valueOrDefault(reqs[0].Method, "GET")
+ 		var urlStr string
+ 		if resp != nil && resp.Request != nil {
+-			urlStr = resp.Request.URL.String()
++			urlStr = stripPassword(resp.Request.URL)
+ 		} else {
+-			urlStr = req.URL.String()
++			urlStr = stripPassword(req.URL)
+ 		}
+ 		return &url.Error{
+ 			Op:  method[:1] + strings.ToLower(method[1:]),
+@@ -880,3 +880,12 @@ func isDomainOrSubdomain(sub, parent string) bool {
+ 	}
+ 	return sub[len(sub)-len(parent)-1] == '.'
+ }
++
++func stripPassword(u *url.URL) string {
++	pass, passSet := u.User.Password()
++	if passSet {
++		return strings.Replace(u.String(), pass+"@", "***@", 1)
++	}
++
++	return u.String()
++}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index eea3b16fb3..bfc793e638 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -1162,6 +1162,40 @@ func TestBasicAuthHeadersPreserved(t *testing.T) {
+ 
+ }
+ 
++func TestStripPasswordFromError(t *testing.T) {
++	client := &Client{Transport: &recordingTransport{}}
++	testCases := []struct {
++		desc string
++		in   string
++		out  string
++	}{
++		{
++			desc: "Strip password from error message",
++			in:   "http://user:password@dummy.faketld/",
++			out:  "Get http://user:***@dummy.faketld/: dummy impl",
++		},
++		{
++			desc: "Don't Strip password from domain name",
++			in:   "http://user:password@password.faketld/",
++			out:  "Get http://user:***@password.faketld/: dummy impl",
++		},
++		{
++			desc: "Don't Strip password from path",
++			in:   "http://user:password@dummy.faketld/password",
++			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
++		},
++	}
++	for _, tC := range testCases {
++		t.Run(tC.desc, func(t *testing.T) {
++			_, err := client.Get(tC.in)
++			if err.Error() != tC.out {
++				t.Errorf("Unexpected output for %q: expected %q, actual %q",
++					tC.in, tC.out, err.Error())
++			}
++		})
++	}
++}
++
+ func TestClientTimeout_h1(t *testing.T) { testClientTimeout(t, h1Mode) }
+ func TestClientTimeout_h2(t *testing.T) { testClientTimeout(t, h2Mode) }
+ 

@@ -15,7 +15,78 @@ Date:   Thu Aug 23 17:28:59 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go |  6 +++---
  src/net/http/server.go            | 28 +++++++++++++++++++++++++---
  2 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 3e88c64b6f..465bae1478 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1474,11 +1474,11 @@ func testWriteHeaderAfterWrite(t *testing.T, h2, hijack bool) {
+ 		return
+ 	}
+ 	gotLog := strings.TrimSpace(errorLog.String())
+-	wantLog := "http: multiple response.WriteHeader calls"
++	wantLog := "http: superfluous response.WriteHeader call from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
+ 	if hijack {
+-		wantLog = "http: response.WriteHeader on hijacked connection"
++		wantLog = "http: response.WriteHeader on hijacked connection from net/http_test.testWriteHeaderAfterWrite.func1 (clientserver_test.go:"
+ 	}
+-	if gotLog != wantLog {
++	if !strings.HasPrefix(gotLog, wantLog) {
+ 		t.Errorf("stderr output = %q; want %q", gotLog, wantLog)
+ 	}
+ }
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 449cfe5121..4227343fbe 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1093,13 +1093,34 @@ func checkWriteHeaderCode(code int) {
+ 	}
+ }
+ 
++// relevantCaller searches the call stack for the first function outside of net/http.
++// The purpose of this function is to provide more helpful error messages.
++func relevantCaller() runtime.Frame {
++	pc := make([]uintptr, 16)
++	n := runtime.Callers(1, pc)
++	frames := runtime.CallersFrames(pc[:n])
++	var frame runtime.Frame
++	for {
++		frame, more := frames.Next()
++		if !strings.HasPrefix(frame.Function, "net/http.") {
++			return frame
++		}
++		if !more {
++			break
++		}
++	}
++	return frame
++}
++
+ func (w *response) WriteHeader(code int) {
+ 	if w.conn.hijacked() {
+-		w.conn.server.logf("http: response.WriteHeader on hijacked connection")
++		caller := relevantCaller()
++		w.conn.server.logf("http: response.WriteHeader on hijacked connection from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
+ 		return
+ 	}
+ 	if w.wroteHeader {
+-		w.conn.server.logf("http: multiple response.WriteHeader calls")
++		caller := relevantCaller()
++		w.conn.server.logf("http: superfluous response.WriteHeader call from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
+ 		return
+ 	}
+ 	checkWriteHeaderCode(code)
+@@ -1529,7 +1550,8 @@ func (w *response) WriteString(data string) (n int, err error) {
+ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err error) {
+ 	if w.conn.hijacked() {
+ 		if lenData > 0 {
+-			w.conn.server.logf("http: response.Write on hijacked connection")
++			caller := relevantCaller()
++			w.conn.server.logf("http: response.Write on hijacked connection from %s (%s:%d)", caller.Function, path.Base(caller.File), caller.Line)
+ 		}
+ 		return 0, ErrHijacked
+ 	}

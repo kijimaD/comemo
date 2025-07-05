@@ -12,6 +12,20 @@ Date:   Tue Aug 28 14:22:37 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/syscall/unix/empty.s | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/internal/syscall/unix/empty.s b/src/internal/syscall/unix/empty.s
+deleted file mode 100644
+index 7151ab838b..0000000000
+--- a/src/internal/syscall/unix/empty.s
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is here just to make the go tool happy. It allows
+-// empty function declarations (no function body).
+-// It is used with "go:linkname".

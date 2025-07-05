@@ -13,8 +13,57 @@ Date:   Wed May 31 12:32:29 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/codegen/structs.go      | 3 +++
  test/fixedbugs/issue15747.go | 3 +++
  test/fixedbugs/issue20250.go | 5 ++++-
  3 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/test/codegen/structs.go b/test/codegen/structs.go
+index c4bcb55c63..fc49a69375 100644
+--- a/test/codegen/structs.go
++++ b/test/codegen/structs.go
+@@ -1,5 +1,8 @@
+ // asmcheck
+ 
++//go:build !goexperiment.cgocheck2
++// +build !goexperiment.cgocheck2
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index c7ef96d581..7825958066 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -1,5 +1,8 @@
+ // errorcheck -0 -live
+ 
++//go:build !goexperiment.cgocheck2
++// +build !goexperiment.cgocheck2
++
+ // Copyright 2016 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+index a6283c7595..c739b6fb12 100644
+--- a/test/fixedbugs/issue20250.go
++++ b/test/fixedbugs/issue20250.go
+@@ -1,5 +1,8 @@
+ // errorcheck -0 -live -l
+ 
++//go:build !goexperiment.cgocheck2
++// +build !goexperiment.cgocheck2
++
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -16,7 +19,7 @@ type T struct {
+ 
+ func f(a T) { // ERROR "live at entry to f: a$"
+ 	var e interface{} // ERROR "stack object e interface \{\}$"
+-	func() { // ERROR "live at entry to f.func1: &e a$"
++	func() {          // ERROR "live at entry to f.func1: &e a$"
+ 		e = a.s // ERROR "live at call to convT: &e$" "stack object a T$"
+ 	}()
+ 	// Before the fix, both a and e were live at the previous line.

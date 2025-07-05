@@ -7,7 +7,7 @@ Date:   Sat Jun 4 12:45:09 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4433047
-
+---
  src/pkg/Makefile                 |   1 +
  src/pkg/go/build/Makefile        |  22 ++++
  src/pkg/go/build/build.go        | 268 +++++++++++++++++++++++++++++++++++++++
@@ -17,3 +17,842 @@ Date:   Sat Jun 4 12:45:09 2011 +1000
  src/pkg/go/build/path.go         | 163 ++++++++++++++++++++++++
  src/pkg/go/build/syslist_test.go |  62 +++++++++
  8 files changed, 785 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index fc5548e98e..453232cb3e 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -84,6 +84,7 @@ DIRS=\
+ 	flag\
+ 	fmt\
+ 	go/ast\
++	go/build\
+ 	go/doc\
+ 	go/parser\
+ 	go/printer\
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+new file mode 100644
+index 0000000000..4411940ae4
+--- /dev/null
++++ b/src/pkg/go/build/Makefile
+@@ -0,0 +1,22 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=go/build
++GOFILES=\
++	build.go\
++	dir.go\
++	path.go\
++	syslist.go\
++
++CLEANFILES+=syslist.go
++
++include ../../../Make.pkg
++
++syslist.go: ../../../Make.inc Makefile
++	echo '// Generated automatically by make.' >$@
++	echo 'package build' >>$@
++	echo 'const goosList = "$(GOOS_LIST)"' >>$@
++	echo 'const goarchList = "$(GOARCH_LIST)"' >>$@
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+new file mode 100644
+index 0000000000..2d17952768
+--- /dev/null
++++ b/src/pkg/go/build/build.go
+@@ -0,0 +1,268 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package build provides tools for building Go packages.
++package build
++
++import (
++	"exec"
++	"fmt"
++	"os"
++	"path/filepath"
++	"runtime"
++	"strings"
++)
++
++func (d *DirInfo) Build(targ string) ([]*Cmd, os.Error) {
++	b := &build{obj: "_obj/"}
++
++	goarch := runtime.GOARCH
++	if g := os.Getenv("GOARCH"); g != "" {
++		goarch = g
++	}
++	var err os.Error
++	b.arch, err = ArchChar(goarch)
++	if err != nil {
++		return nil, err
++	}
++
++	var gofiles = d.GoFiles // .go files to be built with gc
++	var ofiles []string     // *.GOARCH files to be linked or packed
++
++	// make build directory
++	b.mkdir(b.obj)
++
++	// cgo
++	if len(d.CgoFiles) > 0 {
++		outGo, outObj := b.cgo(d.CgoFiles)
++		gofiles = append(gofiles, outGo...)
++		ofiles = append(ofiles, outObj...)
++	}
++
++	// compile
++	if len(gofiles) > 0 {
++		ofile := b.obj + "_go_." + b.arch
++		b.gc(ofile, gofiles...)
++		ofiles = append(ofiles, ofile)
++	}
++
++	// assemble
++	for _, sfile := range d.SFiles {
++		ofile := b.obj + sfile[:len(sfile)-1] + b.arch
++		b.asm(ofile, sfile)
++		ofiles = append(ofiles, ofile)
++	}
++
++	if len(ofiles) == 0 {
++		return nil, os.NewError("make: no object files to build")
++	}
++
++	if d.IsCommand() {
++		b.ld(targ, ofiles...)
++	} else {
++		b.gopack(targ, ofiles...)
++	}
++
++	return b.cmds, nil
++}
++
++type Cmd struct {
++	Args   []string // command-line
++	Stdout string   // write standard output to this file, "" is passthrough
++	Input  []string // file paths (dependencies)
++	Output []string // file paths
++}
++
++func (c *Cmd) String() string {
++	return strings.Join(c.Args, " ")
++}
++
++func (c *Cmd) Run(dir string) os.Error {
++	cmd := exec.Command(c.Args[0], c.Args[1:]...)
++	cmd.Dir = dir
++	if c.Stdout != "" {
++		f, err := os.Create(filepath.Join(dir, c.Stdout))
++		if err != nil {
++			return err
++		}
++		defer f.Close()
++		cmd.Stdout = f
++	}
++	if err := cmd.Run(); err != nil {
++		return fmt.Errorf("command %q: %v", c, err)
++	}
++	return nil
++}
++
++func (c *Cmd) Clean(dir string) (err os.Error) {
++	for _, fn := range c.Output {
++		if e := os.RemoveAll(fn); err == nil {
++			err = e
++		}
++	}
++	return
++}
++
++// ArchChar returns the architecture character for the given goarch.
++// For example, ArchChar("amd64") returns "6".
++func ArchChar(goarch string) (string, os.Error) {
++	switch goarch {
++	case "386":
++		return "8", nil
++	case "amd64":
++		return "6", nil
++	case "arm":
++		return "5", nil
++	}
++	return "", os.NewError("unsupported GOARCH " + goarch)
++}
++
++type build struct {
++	cmds []*Cmd
++	obj  string
++	arch string
++}
++
++func (b *build) add(c Cmd) {
++	b.cmds = append(b.cmds, &c)
++}
++
++func (b *build) mkdir(name string) {
++	b.add(Cmd{
++		Args:   []string{"mkdir", "-p", name},
++		Output: []string{name},
++	})
++}
++
++func (b *build) gc(ofile string, gofiles ...string) {
++	gc := b.arch + "g"
++	args := append([]string{gc, "-o", ofile}, gcImportArgs...)
++	args = append(args, gofiles...)
++	b.add(Cmd{
++		Args:   args,
++		Input:  gofiles,
++		Output: []string{ofile},
++	})
++}
++
++func (b *build) asm(ofile string, sfile string) {
++	asm := b.arch + "a"
++	b.add(Cmd{
++		Args:   []string{asm, "-o", ofile, sfile},
++		Input:  []string{sfile},
++		Output: []string{ofile},
++	})
++}
++
++func (b *build) ld(targ string, ofiles ...string) {
++	ld := b.arch + "l"
++	args := append([]string{ld, "-o", targ}, ldImportArgs...)
++	args = append(args, ofiles...)
++	b.add(Cmd{
++		Args:   args,
++		Input:  ofiles,
++		Output: []string{targ},
++	})
++}
++
++func (b *build) gopack(targ string, ofiles ...string) {
++	b.add(Cmd{
++		Args:   append([]string{"gopack", "grc", targ}, ofiles...),
++		Input:  ofiles,
++		Output: []string{targ},
++	})
++}
++
++func (b *build) cc(ofile string, cfiles ...string) {
++	cc := b.arch + "c"
++	dir := fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH)
++	inc := filepath.Join(runtime.GOROOT(), "pkg", dir)
++	args := []string{cc, "-FVw", "-I", inc, "-o", ofile}
++	b.add(Cmd{
++		Args:   append(args, cfiles...),
++		Input:  cfiles,
++		Output: []string{ofile},
++	})
++}
++
++func (b *build) gccCompile(ofile, cfile string) {
++	b.add(Cmd{
++		Args:   gccArgs(b.arch, "-o", ofile, "-c", cfile),
++		Input:  []string{cfile},
++		Output: []string{ofile},
++	})
++}
++
++func (b *build) gccLink(ofile string, ofiles ...string) {
++	b.add(Cmd{
++		Args:   append(gccArgs(b.arch, "-o", ofile), ofiles...),
++		Input:  ofiles,
++		Output: []string{ofile},
++	})
++}
++
++func gccArgs(arch string, args ...string) []string {
++	// TODO(adg): HOST_CC
++	m := "-m32"
++	if arch == "6" {
++		m = "-m64"
++	}
++	return append([]string{"gcc", m, "-I", ".", "-g", "-fPIC", "-O2"}, args...)
++}
++
++func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
++	// cgo
++	// TODO(adg): CGOPKGPATH
++	// TODO(adg): CGO_FLAGS
++	gofiles := []string{b.obj + "_cgo_gotypes.go"}
++	cfiles := []string{b.obj + "_cgo_main.c", b.obj + "_cgo_export.c"}
++	for _, fn := range cgofiles {
++		f := b.obj + fn[:len(fn)-2]
++		gofiles = append(gofiles, f+"cgo1.go")
++		cfiles = append(cfiles, f+"cgo2.c")
++	}
++	defunC := b.obj + "_cgo_defun.c"
++	output := append([]string{defunC}, gofiles...)
++	output = append(output, cfiles...)
++	b.add(Cmd{
++		Args:   append([]string{"cgo", "--"}, cgofiles...),
++		Input:  cgofiles,
++		Output: output,
++	})
++	outGo = append(outGo, gofiles...)
++
++	// cc _cgo_defun.c
++	defunObj := b.obj + "_cgo_defun." + b.arch
++	b.cc(defunObj, defunC)
++	outObj = append(outObj, defunObj)
++
++	// gcc
++	linkobj := make([]string, 0, len(cfiles))
++	for _, cfile := range cfiles {
++		ofile := cfile[:len(cfile)-1] + "o"
++		b.gccCompile(ofile, cfile)
++		linkobj = append(linkobj, ofile)
++		if !strings.HasSuffix(ofile, "_cgo_main.o") {
++			outObj = append(outObj, ofile)
++		}
++	}
++	dynObj := b.obj + "_cgo1_.o"
++	b.gccLink(dynObj, linkobj...)
++
++	// cgo -dynimport
++	importC := b.obj + "_cgo_import.c"
++	b.add(Cmd{
++		Args:   []string{"cgo", "-dynimport", dynObj},
++		Stdout: importC,
++		Input:  []string{dynObj},
++		Output: []string{importC},
++	})
++
++	// cc _cgo_import.ARCH
++	importObj := b.obj + "_cgo_import." + b.arch
++	b.cc(importObj, importC)
++	outObj = append(outObj, importObj)
++
++	return
++}
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+new file mode 100644
+index 0000000000..790cdac3da
+--- /dev/null
++++ b/src/pkg/go/build/build_test.go
+@@ -0,0 +1,52 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"os"
++	"path/filepath"
++	"runtime"
++	"testing"
++)
++
++var buildDirs = []string{
++	"pkg/path",
++	"cmd/gofix",
++	"pkg/big",
++	"pkg/go/build/cgotest",
++}
++
++func TestBuild(t *testing.T) {
++	out, err := filepath.Abs("_test/out")
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, d := range buildDirs {
++		dir := filepath.Join(runtime.GOROOT(), "src", d)
++		testBuild(t, dir, out)
++	}
++}
++
++func testBuild(t *testing.T, dir, targ string) {
++	d, err := ScanDir(dir, true)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	defer os.Remove(targ)
++	cmds, err := d.Build(targ)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	for _, c := range cmds {
++		t.Log("Run:", c)
++		err = c.Run(dir)
++		if err != nil {
++			t.Error(c, err)
++			return
++		}
++	}
++}
+diff --git a/src/pkg/go/build/cgotest/file.go b/src/pkg/go/build/cgotest/file.go
+new file mode 100644
+index 0000000000..021cbf909c
+--- /dev/null
++++ b/src/pkg/go/build/cgotest/file.go
+@@ -0,0 +1,44 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++A trivial example of wrapping a C library in Go.
++For a more complex example and explanation,
++see ../gmp/gmp.go.
++*/
++
++package stdio
++
++/*
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/stat.h>
++#include <errno.h>
++
++char* greeting = "hello, world";
++*/
++import "C"
++import "unsafe"
++
++type File C.FILE
++
++var Stdout = (*File)(C.stdout)
++var Stderr = (*File)(C.stderr)
++
++// Test reference to library symbol.
++// Stdout and stderr are too special to be a reliable test.
++var myerr = C.sys_errlist
++
++func (f *File) WriteString(s string) {
++	p := C.CString(s)
++	C.fputs(p, (*C.FILE)(f))
++	C.free(unsafe.Pointer(p))
++	f.Flush()
++}
++
++func (f *File) Flush() {
++	C.fflush((*C.FILE)(f))
++}
++
++var Greeting = C.GoString(C.greeting)
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+new file mode 100644
+index 0000000000..77e80bff0b
+--- /dev/null
++++ b/src/pkg/go/build/dir.go
+@@ -0,0 +1,173 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"go/parser"
++	"go/token"
++	"log"
++	"os"
++	"path/filepath"
++	"strconv"
++	"strings"
++	"runtime"
++)
++
++type DirInfo struct {
++	GoFiles  []string // .go files in dir (excluding CgoFiles)
++	CgoFiles []string // .go files that import "C"
++	CFiles   []string // .c files in dir
++	SFiles   []string // .s files in dir
++	Imports  []string // All packages imported by goFiles
++	PkgName  string   // Name of package in dir
++}
++
++func (d *DirInfo) IsCommand() bool {
++	return d.PkgName == "main"
++}
++
++// ScanDir returns a structure with details about the Go content found
++// in the given directory. The file lists exclude:
++//
++//	- files in package main (unless allowMain is true)
++//	- files in package documentation
++//	- files ending in _test.go
++// 	- files starting with _ or .
++//
++// Only files that satisfy the goodOSArch function are included.
++func ScanDir(dir string, allowMain bool) (info *DirInfo, err os.Error) {
++	f, err := os.Open(dir)
++	if err != nil {
++		return nil, err
++	}
++	dirs, err := f.Readdir(-1)
++	f.Close()
++	if err != nil {
++		return nil, err
++	}
++
++	var di DirInfo
++	imported := make(map[string]bool)
++	pkgName := ""
++	fset := token.NewFileSet()
++	for i := range dirs {
++		d := &dirs[i]
++		if strings.HasPrefix(d.Name, "_") ||
++			strings.HasPrefix(d.Name, ".") {
++			continue
++		}
++		if !goodOSArch(d.Name) {
++			continue
++		}
++
++		switch filepath.Ext(d.Name) {
++		case ".go":
++			if strings.HasSuffix(d.Name, "_test.go") {
++				continue
++			}
++		case ".c":
++			di.CFiles = append(di.CFiles, d.Name)
++			continue
++		case ".s":
++			di.SFiles = append(di.SFiles, d.Name)
++			continue
++		default:
++			continue
++		}
++
++		filename := filepath.Join(dir, d.Name)
++		pf, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
++		if err != nil {
++			return nil, err
++		}
++		s := string(pf.Name.Name)
++		if s == "main" && !allowMain {
++			continue
++		}
++		if s == "documentation" {
++			continue
++		}
++		if pkgName == "" {
++			pkgName = s
++		} else if pkgName != s {
++			// Only if all files in the directory are in package main
++			// do we return pkgName=="main".
++			// A mix of main and another package reverts
++			// to the original (allowMain=false) behaviour.
++			if s == "main" || pkgName == "main" {
++				return ScanDir(dir, false)
++			}
++			return nil, os.ErrorString("multiple package names in " + dir)
++		}
++		isCgo := false
++		for _, spec := range pf.Imports {
++			quoted := string(spec.Path.Value)
++			path, err := strconv.Unquote(quoted)
++			if err != nil {
++				log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
++			}
++			imported[path] = true
++			if path == "C" {
++				isCgo = true
++			}
++		}
++		if isCgo {
++			di.CgoFiles = append(di.CgoFiles, d.Name)
++		} else {
++			di.GoFiles = append(di.GoFiles, d.Name)
++		}
++	}
++	di.Imports = make([]string, len(imported))
++	i := 0
++	for p := range imported {
++		di.Imports[i] = p
++		i++
++	}
++	return &di, nil
++}
++
++// goodOSArch returns false if the filename contains a $GOOS or $GOARCH
++// suffix which does not match the current system.
++// The recognized filename formats are:
++//
++//     name_$(GOOS).*
++//     name_$(GOARCH).*
++//     name_$(GOOS)_$(GOARCH).*
++//
++func goodOSArch(filename string) bool {
++	if dot := strings.Index(filename, "."); dot != -1 {
++		filename = filename[:dot]
++	}
++	l := strings.Split(filename, "_", -1)
++	n := len(l)
++	if n == 0 {
++		return true
++	}
++	if good, known := goodOS[l[n-1]]; known {
++		return good
++	}
++	if good, known := goodArch[l[n-1]]; known {
++		if !good || n < 2 {
++			return false
++		}
++		good, known = goodOS[l[n-2]]
++		return good || !known
++	}
++	return true
++}
++
++var goodOS = make(map[string]bool)
++var goodArch = make(map[string]bool)
++
++func init() {
++	goodOS = make(map[string]bool)
++	goodArch = make(map[string]bool)
++	for _, v := range strings.Fields(goosList) {
++		goodOS[v] = v == runtime.GOOS
++	}
++	for _, v := range strings.Fields(goarchList) {
++		goodArch[v] = v == runtime.GOARCH
++	}
++}
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+new file mode 100644
+index 0000000000..8ad39fb0f2
+--- /dev/null
++++ b/src/pkg/go/build/path.go
+@@ -0,0 +1,163 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"fmt"
++	"log"
++	"os"
++	"path/filepath"
++	"runtime"
++	"strings"
++)
++
++// Path is a validated list of Trees derived from $GOPATH at init.
++var Path []*Tree
++
++// Tree describes a Go source tree, either $GOROOT or one from $GOPATH.
++type Tree struct {
++	Path   string
++	Goroot bool
++}
++
++func newTree(p string) (*Tree, os.Error) {
++	if !filepath.IsAbs(p) {
++		return nil, os.NewError("must be absolute")
++	}
++	ep, err := filepath.EvalSymlinks(p)
++	if err != nil {
++		return nil, err
++	}
++	return &Tree{Path: ep}, nil
++}
++
++// SrcDir returns the tree's package source directory.
++func (t *Tree) SrcDir() string {
++	if t.Goroot {
++		return filepath.Join(t.Path, "src", "pkg")
++	}
++	return filepath.Join(t.Path, "src")
++}
++
++// PkgDir returns the tree's package object directory.
++func (t *Tree) PkgDir() string {
++	goos, goarch := runtime.GOOS, runtime.GOARCH
++	if e := os.Getenv("GOOS"); e != "" {
++		goos = e
++	}
++	if e := os.Getenv("GOARCH"); e != "" {
++		goarch = e
++	}
++	return filepath.Join(t.Path, "pkg", goos+"_"+goarch)
++}
++
++// BinDir returns the tree's binary executable directory.
++func (t *Tree) BinDir() string {
++	return filepath.Join(t.Path, "bin")
++}
++
++// HasSrc returns whether the given package's
++// source can be found inside this Tree.
++func (t *Tree) HasSrc(pkg string) bool {
++	fi, err := os.Stat(filepath.Join(t.SrcDir(), pkg))
++	if err != nil {
++		return false
++	}
++	return fi.IsDirectory()
++}
++
++// HasPkg returns whether the given package's
++// object file can be found inside this Tree.
++func (t *Tree) HasPkg(pkg string) bool {
++	fi, err := os.Stat(filepath.Join(t.PkgDir(), pkg+".a"))
++	if err != nil {
++		return false
++	}
++	return fi.IsRegular()
++	// TODO(adg): check object version is consistent
++}
++
++var ErrNotFound = os.NewError("package could not be found locally")
++
++// FindTree takes an import or filesystem path and returns the
++// tree where the package source should be and the package import path.
++func FindTree(path string) (tree *Tree, pkg string, err os.Error) {
++	if isLocalPath(path) {
++		if path, err = filepath.Abs(path); err != nil {
++			return
++		}
++		for _, t := range Path {
++			tpath := t.SrcDir() + string(filepath.Separator)
++			if !strings.HasPrefix(path, tpath) {
++				continue
++			}
++			tree = t
++			pkg = path[len(tpath):]
++			return
++		}
++		err = fmt.Errorf("path %q not inside a GOPATH", path)
++		return
++	}
++	tree = defaultTree
++	pkg = path
++	for _, t := range Path {
++		if t.HasSrc(pkg) {
++			tree = t
++			return
++		}
++	}
++	err = ErrNotFound
++	return
++}
++
++// isLocalPath returns whether the given path is local (/foo ./foo ../foo . ..)
++func isLocalPath(s string) bool {
++	const sep = string(filepath.Separator)
++	return strings.HasPrefix(s, sep) || strings.HasPrefix(s, "."+sep) || strings.HasPrefix(s, ".."+sep) || s == "." || s == ".."
++}
++
++var (
++	// argument lists used by the build's gc and ld methods
++	gcImportArgs []string
++	ldImportArgs []string
++
++	// default tree for remote packages
++	defaultTree *Tree
++)
++
++// set up Path: parse and validate GOROOT and GOPATH variables
++func init() {
++	root := runtime.GOROOT()
++	p, err := newTree(root)
++	if err != nil {
++		log.Fatalf("Invalid GOROOT %q: %v", root, err)
++	}
++	p.Goroot = true
++	Path = []*Tree{p}
++
++	for _, p := range filepath.SplitList(os.Getenv("GOPATH")) {
++		if p == "" {
++			continue
++		}
++		t, err := newTree(p)
++		if err != nil {
++			log.Printf("Invalid GOPATH %q: %v", p, err)
++			continue
++		}
++		Path = append(Path, t)
++		gcImportArgs = append(gcImportArgs, "-I", t.PkgDir())
++		ldImportArgs = append(ldImportArgs, "-L", t.PkgDir())
++
++		// select first GOPATH entry as default
++		if defaultTree == nil {
++			defaultTree = t
++		}
++	}
++
++	// use GOROOT if no valid GOPATH specified
++	if defaultTree == nil {
++		defaultTree = Path[0]
++	}
++}
+diff --git a/src/pkg/go/build/syslist_test.go b/src/pkg/go/build/syslist_test.go
+new file mode 100644
+index 0000000000..eb0e5dcb6b
+--- /dev/null
++++ b/src/pkg/go/build/syslist_test.go
+@@ -0,0 +1,62 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"runtime"
++	"testing"
++)
++
++var (
++	thisOS    = runtime.GOOS
++	thisArch  = runtime.GOARCH
++	otherOS   = anotherOS()
++	otherArch = anotherArch()
++)
++
++func anotherOS() string {
++	if thisOS != "darwin" {
++		return "darwin"
++	}
++	return "linux"
++}
++
++func anotherArch() string {
++	if thisArch != "amd64" {
++		return "amd64"
++	}
++	return "386"
++}
++
++type GoodFileTest struct {
++	name   string
++	result bool
++}
++
++var tests = []GoodFileTest{
++	{"file.go", true},
++	{"file.c", true},
++	{"file_foo.go", true},
++	{"file_" + thisArch + ".go", true},
++	{"file_" + otherArch + ".go", false},
++	{"file_" + thisOS + ".go", true},
++	{"file_" + otherOS + ".go", false},
++	{"file_" + thisOS + "_" + thisArch + ".go", true},
++	{"file_" + otherOS + "_" + thisArch + ".go", false},
++	{"file_" + thisOS + "_" + otherArch + ".go", false},
++	{"file_" + otherOS + "_" + otherArch + ".go", false},
++	{"file_foo_" + thisArch + ".go", true},
++	{"file_foo_" + otherArch + ".go", false},
++	{"file_" + thisOS + ".c", true},
++	{"file_" + otherOS + ".c", false},
++}
++
++func TestGoodOSArch(t *testing.T) {
++	for _, test := range tests {
++		if goodOSArch(test.name) != test.result {
++			t.Fatalf("goodOSArch(%q) != %v", test.name, test.result)
++		}
++	}
++}

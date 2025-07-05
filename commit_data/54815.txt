@@ -13,7 +13,7 @@ Date:   Mon Nov 14 12:13:46 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  api/next/52221.txt                       |  2 +-
  src/crypto/ecdh/ecdh.go                  | 32 +++++++++++++++++++-------------
  src/crypto/ecdh/ecdh_test.go             | 12 ++++++------
@@ -23,3 +23,214 @@ Date:   Mon Nov 14 12:13:46 2022 +0100
  src/crypto/tls/handshake_server_tls13.go |  2 +-
  src/crypto/tls/key_agreement.go          |  4 ++--
  8 files changed, 32 insertions(+), 26 deletions(-)
+
+diff --git a/api/next/52221.txt b/api/next/52221.txt
+index c288e4660b..ed4a487b8c 100644
+--- a/api/next/52221.txt
++++ b/api/next/52221.txt
+@@ -4,13 +4,13 @@ pkg crypto/ecdh, func P521() Curve #52221
+ pkg crypto/ecdh, func X25519() Curve #52221
+ pkg crypto/ecdh, method (*PrivateKey) Bytes() []uint8 #52221
+ pkg crypto/ecdh, method (*PrivateKey) Curve() Curve #52221
++pkg crypto/ecdh, method (*PrivateKey) ECDH(*PublicKey) ([]uint8, error) #52221
+ pkg crypto/ecdh, method (*PrivateKey) Equal(crypto.PrivateKey) bool #52221
+ pkg crypto/ecdh, method (*PrivateKey) Public() crypto.PublicKey #52221
+ pkg crypto/ecdh, method (*PrivateKey) PublicKey() *PublicKey #52221
+ pkg crypto/ecdh, method (*PublicKey) Bytes() []uint8 #52221
+ pkg crypto/ecdh, method (*PublicKey) Curve() Curve #52221
+ pkg crypto/ecdh, method (*PublicKey) Equal(crypto.PublicKey) bool #52221
+-pkg crypto/ecdh, type Curve interface, ECDH(*PrivateKey, *PublicKey) ([]uint8, error) #52221
+ pkg crypto/ecdh, type Curve interface, GenerateKey(io.Reader) (*PrivateKey, error) #52221
+ pkg crypto/ecdh, type Curve interface, NewPrivateKey([]uint8) (*PrivateKey, error) #52221
+ pkg crypto/ecdh, type Curve interface, NewPublicKey([]uint8) (*PublicKey, error) #52221
+diff --git a/src/crypto/ecdh/ecdh.go b/src/crypto/ecdh/ecdh.go
+index 73a5c68d50..e5270d840b 100644
+--- a/src/crypto/ecdh/ecdh.go
++++ b/src/crypto/ecdh/ecdh.go
+@@ -15,16 +15,6 @@ import (
+ )
+ 
+ type Curve interface {
+-	// ECDH performs a ECDH exchange and returns the shared secret.
+-	//
+-	// For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
+-	// Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
+-	// Version 2.0, Section 2.3.5. The result is never the point at infinity.
+-	//
+-	// For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
+-	// the result is the all-zero value, ECDH returns an error.
+-	ECDH(local *PrivateKey, remote *PublicKey) ([]byte, error)
+-
+ 	// GenerateKey generates a new PrivateKey from rand.
+ 	GenerateKey(rand io.Reader) (*PrivateKey, error)
+ 
+@@ -49,15 +39,19 @@ type Curve interface {
+ 	// selected public keys can cause ECDH to return an error.
+ 	NewPublicKey(key []byte) (*PublicKey, error)
+ 
++	// ecdh performs a ECDH exchange and returns the shared secret. It's exposed
++	// as the PrivateKey.ECDH method.
++	//
++	// The private method also allow us to expand the ECDH interface with more
++	// methods in the future without breaking backwards compatibility.
++	ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error)
++
+ 	// privateKeyToPublicKey converts a PrivateKey to a PublicKey. It's exposed
+ 	// as the PrivateKey.PublicKey method.
+ 	//
+ 	// This method always succeeds: for X25519, the zero key can't be
+ 	// constructed due to clamping; for NIST curves, it is rejected by
+ 	// NewPrivateKey.
+-	//
+-	// The private method also allow us to expand the ECDH interface with more
+-	// methods in the future without breaking backwards compatibility.
+ 	privateKeyToPublicKey(*PrivateKey) *PublicKey
+ }
+ 
+@@ -107,6 +101,18 @@ type PrivateKey struct {
+ 	publicKeyOnce sync.Once
+ }
+ 
++// ECDH performs a ECDH exchange and returns the shared secret.
++//
++// For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
++// Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
++// Version 2.0, Section 2.3.5. The result is never the point at infinity.
++//
++// For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
++// the result is the all-zero value, ECDH returns an error.
++func (k *PrivateKey) ECDH(remote *PublicKey) ([]byte, error) {
++	return k.curve.ecdh(k, remote)
++}
++
+ // Bytes returns a copy of the encoding of the private key.
+ func (k *PrivateKey) Bytes() []byte {
+ 	// Copy the private key to a fixed size buffer that can get allocated on the
+diff --git a/src/crypto/ecdh/ecdh_test.go b/src/crypto/ecdh/ecdh_test.go
+index 0846268c45..426850a146 100644
+--- a/src/crypto/ecdh/ecdh_test.go
++++ b/src/crypto/ecdh/ecdh_test.go
+@@ -68,11 +68,11 @@ func TestECDH(t *testing.T) {
+ 			t.Error("encoded and decoded private keys are different")
+ 		}
+ 
+-		bobSecret, err := curve.ECDH(bobKey, aliceKey.PublicKey())
++		bobSecret, err := bobKey.ECDH(aliceKey.PublicKey())
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		aliceSecret, err := curve.ECDH(aliceKey, bobKey.PublicKey())
++		aliceSecret, err := aliceKey.ECDH(bobKey.PublicKey())
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -169,7 +169,7 @@ func TestVectors(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		secret, err := curve.ECDH(key, peer)
++		secret, err := key.ECDH(peer)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+@@ -216,7 +216,7 @@ func testX25519Failure(t *testing.T, private, public []byte) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	secret, err := ecdh.X25519().ECDH(priv, pub)
++	secret, err := priv.ECDH(pub)
+ 	if err == nil {
+ 		t.Error("expected ECDH error")
+ 	}
+@@ -392,7 +392,7 @@ func BenchmarkECDH(b *testing.B) {
+ 			if err != nil {
+ 				b.Fatal(err)
+ 			}
+-			secret, err := curve.ECDH(key, peerPubKey)
++			secret, err := key.ECDH(peerPubKey)
+ 			if err != nil {
+ 				b.Fatal(err)
+ 			}
+@@ -432,7 +432,7 @@ func main() {
+ 	if err != nil { panic(err) }
+ 	_, err = curve.NewPrivateKey(key.Bytes())
+ 	if err != nil { panic(err) }
+-	_, err = curve.ECDH(key, key.PublicKey())
++	_, err = key.ECDH(key.PublicKey())
+ 	if err != nil { panic(err) }
+ 	println("OK")
+ }
+diff --git a/src/crypto/ecdh/nist.go b/src/crypto/ecdh/nist.go
+index 6d30b7bbb2..01354fa2cf 100644
+--- a/src/crypto/ecdh/nist.go
++++ b/src/crypto/ecdh/nist.go
+@@ -188,7 +188,7 @@ func (c *nistCurve[Point]) NewPublicKey(key []byte) (*PublicKey, error) {
+ 	return k, nil
+ }
+ 
+-func (c *nistCurve[Point]) ECDH(local *PrivateKey, remote *PublicKey) ([]byte, error) {
++func (c *nistCurve[Point]) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error) {
+ 	// Note that this function can't return an error, as NewPublicKey rejects
+ 	// invalid points and the point at infinity, and NewPrivateKey rejects
+ 	// invalid scalars and the zero value. BytesX returns an error for the point
+diff --git a/src/crypto/ecdh/x25519.go b/src/crypto/ecdh/x25519.go
+index 21127ffb95..dbc3ea9dc8 100644
+--- a/src/crypto/ecdh/x25519.go
++++ b/src/crypto/ecdh/x25519.go
+@@ -74,7 +74,7 @@ func (c *x25519Curve) NewPublicKey(key []byte) (*PublicKey, error) {
+ 	}, nil
+ }
+ 
+-func (c *x25519Curve) ECDH(local *PrivateKey, remote *PublicKey) ([]byte, error) {
++func (c *x25519Curve) ecdh(local *PrivateKey, remote *PublicKey) ([]byte, error) {
+ 	out := make([]byte, x25519SharedSecretSize)
+ 	x25519ScalarMult(out, local.privateKey, remote.publicKey)
+ 	if isZero(out) {
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 12ff3a4a4f..3bdd9373d6 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -353,7 +353,7 @@ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid server key share")
+ 	}
+-	sharedKey, err := hs.ecdheKey.Curve().ECDH(hs.ecdheKey, peerKey)
++	sharedKey, err := hs.ecdheKey.ECDH(peerKey)
+ 	if err != nil {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid server key share")
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 9b7356a32b..80d4dce3c5 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -220,7 +220,7 @@ GroupSelection:
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid client key share")
+ 	}
+-	hs.sharedKey, err = key.Curve().ECDH(key, peerKey)
++	hs.sharedKey, err = key.ECDH(peerKey)
+ 	if err != nil {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid client key share")
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 027060d090..2c8c5b8d77 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -264,7 +264,7 @@ func (ka *ecdheKeyAgreement) processClientKeyExchange(config *Config, cert *Cert
+ 	if err != nil {
+ 		return nil, errClientKeyExchange
+ 	}
+-	preMasterSecret, err := ka.key.Curve().ECDH(ka.key, peerKey)
++	preMasterSecret, err := ka.key.ECDH(peerKey)
+ 	if err != nil {
+ 		return nil, errClientKeyExchange
+ 	}
+@@ -307,7 +307,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
+ 	if err != nil {
+ 		return errServerKeyExchange
+ 	}
+-	ka.preMasterSecret, err = key.Curve().ECDH(key, peerKey)
++	ka.preMasterSecret, err = key.ECDH(peerKey)
+ 	if err != nil {
+ 		return errServerKeyExchange
+ 	}

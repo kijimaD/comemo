@@ -7,7 +7,7 @@ Date:   Thu Oct 13 16:36:53 2011 -0700
     R=r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5269043
-
+---
  src/cmd/Makefile                              | 1 -
  src/pkg/Makefile                              | 2 +-
  src/{cmd => pkg/exp}/gotype/Makefile          | 4 ++--
@@ -16,3 +16,75 @@ Date:   Thu Oct 13 16:36:53 2011 -0700
  src/{cmd => pkg/exp}/gotype/gotype_test.go    | 0
  src/{cmd => pkg/exp}/gotype/testdata/test1.go | 0
  7 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index d9da50a66b..42088fdf11 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -43,7 +43,6 @@ CLEANDIRS=\
+ 	gofmt\
+ 	goinstall\
+ 	gotest\
+-	gotype\
+ 	goyacc\
+ 	hgpatch\
+ 
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index d823d2f3be..7fce462c36 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -78,6 +78,7 @@ DIRS=\
+ 	exec\
+ 	exp/ebnf\
+ 	exp/ebnflint\
++	exp/gotype\
+ 	exp/gui\
+ 	exp/gui/x11\
+ 	exp/norm\
+@@ -177,7 +178,6 @@ DIRS=\
+ 	../cmd/gofmt\
+ 	../cmd/goinstall\
+ 	../cmd/gotest\
+-	../cmd/gotype\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\
+diff --git a/src/cmd/gotype/Makefile b/src/pkg/exp/gotype/Makefile
+similarity index 82%
+rename from src/cmd/gotype/Makefile
+rename to src/pkg/exp/gotype/Makefile
+index 18171945df..230242c582 100644
+--- a/src/cmd/gotype/Makefile
++++ b/src/pkg/exp/gotype/Makefile
+@@ -2,13 +2,13 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+ TARG=gotype
+ GOFILES=\
+ 	gotype.go\
+ 
+-include ../../Make.cmd
++include ../../../Make.cmd
+ 
+ test:
+ 	gotest
+diff --git a/src/cmd/gotype/doc.go b/src/pkg/exp/gotype/doc.go
+similarity index 100%
+rename from src/cmd/gotype/doc.go
+rename to src/pkg/exp/gotype/doc.go
+diff --git a/src/cmd/gotype/gotype.go b/src/pkg/exp/gotype/gotype.go
+similarity index 100%
+rename from src/cmd/gotype/gotype.go
+rename to src/pkg/exp/gotype/gotype.go
+diff --git a/src/cmd/gotype/gotype_test.go b/src/pkg/exp/gotype/gotype_test.go
+similarity index 100%
+rename from src/cmd/gotype/gotype_test.go
+rename to src/pkg/exp/gotype/gotype_test.go
+diff --git a/src/cmd/gotype/testdata/test1.go b/src/pkg/exp/gotype/testdata/test1.go
+similarity index 100%
+rename from src/cmd/gotype/testdata/test1.go
+rename to src/pkg/exp/gotype/testdata/test1.go

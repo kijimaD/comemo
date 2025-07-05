@@ -14,7 +14,46 @@ Date:   Fri Jun 16 15:24:56 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 8 ++++++++
  src/go/types/stdlib_test.go                    | 8 ++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 9a03526b68..ee852f5c4c 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -206,6 +206,14 @@ func firstComment(filename string) (first string) {
+ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 	files, err := os.ReadDir(path)
+ 	if err != nil {
++		// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
++		// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
++		// suppress false-positive skips.
++		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "test")); os.IsNotExist(err) {
++			if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
++				t.Skipf("skipping: GOROOT/test not present")
++			}
++		}
+ 		t.Fatal(err)
+ 	}
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 770d3bf52a..07c9222537 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -209,6 +209,14 @@ func firstComment(filename string) string {
+ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 	files, err := os.ReadDir(path)
+ 	if err != nil {
++		// cmd/distpack deletes GOROOT/test, so skip the test if it isn't present.
++		// cmd/distpack also requires GOROOT/VERSION to exist, so use that to
++		// suppress false-positive skips.
++		if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "test")); os.IsNotExist(err) {
++			if _, err := os.Stat(filepath.Join(testenv.GOROOT(t), "VERSION")); err == nil {
++				t.Skipf("skipping: GOROOT/test not present")
++			}
++		}
+ 		t.Fatal(err)
+ 	}
+ 

@@ -11,8 +11,65 @@ Date:   Fri Aug 14 14:39:19 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue40252.dir/a.go    | 14 ++++++++++++++
  test/fixedbugs/issue40252.dir/main.go | 16 ++++++++++++++++
  test/fixedbugs/issue40252.go          |  8 ++++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/test/fixedbugs/issue40252.dir/a.go b/test/fixedbugs/issue40252.dir/a.go
+new file mode 100644
+index 0000000000..5519e9331a
+--- /dev/null
++++ b/test/fixedbugs/issue40252.dir/a.go
+@@ -0,0 +1,14 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I interface {
++	Func()
++}
++
++func Call() {
++	f := I.Func
++	f(nil)
++}
+diff --git a/test/fixedbugs/issue40252.dir/main.go b/test/fixedbugs/issue40252.dir/main.go
+new file mode 100644
+index 0000000000..93f5b70624
+--- /dev/null
++++ b/test/fixedbugs/issue40252.dir/main.go
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	defer func() {
++		if recover() == nil {
++			panic("expected nil pointer dereference")
++		}
++	}()
++	a.Call()
++}
+diff --git a/test/fixedbugs/issue40252.go b/test/fixedbugs/issue40252.go
+new file mode 100644
+index 0000000000..9be4e665d2
+--- /dev/null
++++ b/test/fixedbugs/issue40252.go
+@@ -0,0 +1,8 @@
++// rundir
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// gccgo got an undefined symbol reference when inlining a method expression.
++package ignored

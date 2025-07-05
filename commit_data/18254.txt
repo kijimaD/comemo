@@ -7,6 +7,24 @@ Date:   Tue Jan 14 15:04:16 2014 -0800
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/52360043
-
+---
  src/pkg/reflect/value.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 89d329257b..30b5e2a92f 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1832,9 +1832,9 @@ func (v Value) String() string {
+ 
+ // TryRecv attempts to receive a value from the channel v but will not block.
+ // It panics if v's Kind is not Chan.
+-// If the receive cannot finish without blocking, x is the zero Value.
+-// The boolean ok is true if the value x corresponds to a send
+-// on the channel, false if it is a zero value received because the channel is closed.
++// If the receive delivers a value, x is the transferred value and ok is true.
++// If the receive cannot finish without blocking, x is the zero Value and ok is false.
++// If the channel is closed, x is the zero value for the channel's element type and ok is false.
+ func (v Value) TryRecv() (x Value, ok bool) {
+ 	v.mustBe(Chan)
+ 	v.mustBeExported()

@@ -14,7 +14,7 @@ Date:   Tue Nov 11 17:07:54 2014 -0500
     R=r, austin
     CC=dvyukov, golang-codereviews, iant, khr
     https://golang.org/cl/172250043
-
+---
  src/runtime/export_test.go   |  72 ++++----------
  src/runtime/lfstack.c        |  87 -----------------
  src/runtime/lfstack.go       |  51 ++++++++++
@@ -23,3 +23,736 @@ Date:   Tue Nov 11 17:07:54 2014 -0500
  src/runtime/parfor.c         | 226 -------------------------------------------
  src/runtime/parfor.go        | 186 +++++++++++++++++++++++++++++++++++
  7 files changed, 281 insertions(+), 366 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index be352557fb..0ecf91fdf8 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -34,21 +34,11 @@ func lfstackpush_m()
+ func lfstackpop_m()
+ 
+ func LFStackPush(head *uint64, node *LFNode) {
+-	mp := acquirem()
+-	mp.ptrarg[0] = unsafe.Pointer(head)
+-	mp.ptrarg[1] = unsafe.Pointer(node)
+-	onM(lfstackpush_m)
+-	releasem(mp)
++	lfstackpush(head, (*lfnode)(unsafe.Pointer(node)))
+ }
+ 
+ func LFStackPop(head *uint64) *LFNode {
+-	mp := acquirem()
+-	mp.ptrarg[0] = unsafe.Pointer(head)
+-	onM(lfstackpop_m)
+-	node := (*LFNode)(unsafe.Pointer(mp.ptrarg[0]))
+-	mp.ptrarg[0] = nil
+-	releasem(mp)
+-	return node
++	return (*LFNode)(unsafe.Pointer(lfstackpop(head)))
+ }
+ 
+ type ParFor struct {
+@@ -68,64 +58,44 @@ func parfordo_m()
+ func parforiters_m()
+ 
+ func NewParFor(nthrmax uint32) *ParFor {
+-	mp := acquirem()
+-	mp.scalararg[0] = uintptr(nthrmax)
+-	onM(newparfor_m)
+-	desc := (*ParFor)(mp.ptrarg[0])
+-	mp.ptrarg[0] = nil
+-	releasem(mp)
++	var desc *ParFor
++	onM(func() {
++		desc = (*ParFor)(unsafe.Pointer(parforalloc(nthrmax)))
++	})
+ 	return desc
+ }
+ 
+ func ParForSetup(desc *ParFor, nthr, n uint32, ctx *byte, wait bool, body func(*ParFor, uint32)) {
+-	mp := acquirem()
+-	mp.ptrarg[0] = unsafe.Pointer(desc)
+-	mp.ptrarg[1] = unsafe.Pointer(ctx)
+-	mp.ptrarg[2] = unsafe.Pointer(funcPC(body)) // TODO(rsc): Should be a scalar.
+-	mp.scalararg[0] = uintptr(nthr)
+-	mp.scalararg[1] = uintptr(n)
+-	mp.scalararg[2] = 0
+-	if wait {
+-		mp.scalararg[2] = 1
+-	}
+-	onM(parforsetup_m)
+-	releasem(mp)
++	onM(func() {
++		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, unsafe.Pointer(ctx), wait,
++			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
++	})
+ }
+ 
+ func ParForDo(desc *ParFor) {
+-	mp := acquirem()
+-	mp.ptrarg[0] = unsafe.Pointer(desc)
+-	onM(parfordo_m)
+-	releasem(mp)
++	onM(func() {
++		parfordo((*parfor)(unsafe.Pointer(desc)))
++	})
+ }
+ 
+ func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
+-	mp := acquirem()
+-	mp.ptrarg[0] = unsafe.Pointer(desc)
+-	mp.scalararg[0] = uintptr(tid)
+-	onM(parforiters_m)
+-	begin := uint32(mp.scalararg[0])
+-	end := uint32(mp.scalararg[1])
+-	releasem(mp)
+-	return begin, end
++	desc1 := (*parfor)(unsafe.Pointer(desc))
++	pos := desc_thr_index(desc1, tid).pos
++	return uint32(pos), uint32(pos >> 32)
+ }
+ 
+-// in mgc0.c
+-//go:noescape
+-func getgcmask(data unsafe.Pointer, typ *_type, array **byte, len *uint)
+-
+ func GCMask(x interface{}) (ret []byte) {
+ 	e := (*eface)(unsafe.Pointer(&x))
+ 	s := (*slice)(unsafe.Pointer(&ret))
+ 	onM(func() {
+-		getgcmask(e.data, e._type, &s.array, &s.len)
++		var len uintptr
++		getgcmask(e.data, e._type, &s.array, &len)
++		s.len = uint(len)
+ 		s.cap = s.len
+ 	})
+ 	return
+ }
+ 
+-func testSchedLocalQueue()
+-func testSchedLocalQueueSteal()
+ func RunSchedLocalQueueTest() {
+ 	onM(testSchedLocalQueue)
+ }
+@@ -149,10 +119,6 @@ func GogoBytes() int32 {
+ 	return _RuntimeGogoBytes
+ }
+ 
+-// in string.c
+-//go:noescape
+-func gostringw(w *uint16) string
+-
+ // entry point for testing
+ func GostringW(w []uint16) (s string) {
+ 	onM(func() {
+diff --git a/src/runtime/lfstack.c b/src/runtime/lfstack.c
+deleted file mode 100644
+index 57e0af2829..0000000000
+--- a/src/runtime/lfstack.c
++++ /dev/null
+@@ -1,87 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Lock-free stack.
+-// The following code runs only on g0 stack.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-
+-#ifdef _64BIT
+-// Amd64 uses 48-bit virtual addresses, 47-th bit is used as kernel/user flag.
+-// So we use 17msb of pointers as ABA counter.
+-# define PTR_BITS 47
+-#else
+-# define PTR_BITS 32
+-#endif
+-#define PTR_MASK ((1ull<<PTR_BITS)-1)
+-#define CNT_MASK (0ull-1)
+-
+-#ifdef _64BIT
+-#ifdef GOOS_solaris
+-// SPARC64 and Solaris on AMD64 uses all 64 bits of virtual addresses.
+-// Use low-order three bits as ABA counter.
+-// http://docs.oracle.com/cd/E19120-01/open.solaris/816-5138/6mba6ua5p/index.html
+-#undef PTR_BITS
+-#undef CNT_MASK
+-#undef PTR_MASK
+-#define PTR_BITS 0
+-#define CNT_MASK 7
+-#define PTR_MASK ((0ull-1)<<3)
+-#endif
+-#endif
+-
+-void
+-runtime·lfstackpush(uint64 *head, LFNode *node)
+-{
+-	uint64 old, new;
+-
+-	if((uintptr)node != ((uintptr)node&PTR_MASK)) {
+-		runtime·printf("p=%p\n", node);
+-		runtime·throw("runtime·lfstackpush: invalid pointer");
+-	}
+-
+-	node->pushcnt++;
+-	new = (uint64)(uintptr)node|(((uint64)node->pushcnt&CNT_MASK)<<PTR_BITS);
+-	for(;;) {
+-		old = runtime·atomicload64(head);
+-		node->next = (LFNode*)(uintptr)(old&PTR_MASK);
+-		if(runtime·cas64(head, old, new))
+-			break;
+-	}
+-}
+-
+-LFNode*
+-runtime·lfstackpop(uint64 *head)
+-{
+-	LFNode *node, *node2;
+-	uint64 old, new;
+-
+-	for(;;) {
+-		old = runtime·atomicload64(head);
+-		if(old == 0)
+-			return nil;
+-		node = (LFNode*)(uintptr)(old&PTR_MASK);
+-		node2 = runtime·atomicloadp(&node->next);
+-		new = 0;
+-		if(node2 != nil)
+-			new = (uint64)(uintptr)node2|(((uint64)node2->pushcnt&CNT_MASK)<<PTR_BITS);
+-		if(runtime·cas64(head, old, new))
+-			return node;
+-	}
+-}
+-
+-void
+-runtime·lfstackpush_m(void)
+-{
+-	runtime·lfstackpush(g->m->ptrarg[0], g->m->ptrarg[1]);
+-	g->m->ptrarg[0] = nil;
+-	g->m->ptrarg[1] = nil;
+-}
+-
+-void
+-runtime·lfstackpop_m(void)
+-{
+-	g->m->ptrarg[0] = runtime·lfstackpop(g->m->ptrarg[0]);
+-}
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+new file mode 100644
+index 0000000000..c5dc94f073
+--- /dev/null
++++ b/src/runtime/lfstack.go
+@@ -0,0 +1,51 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Lock-free stack.
++// The following code runs only on g0 stack.
++
++package runtime
++
++import "unsafe"
++
++const (
++	// lfPtrBits and lfCountMask are defined in lfstack_*.go.
++	lfPtrMask = 1<<lfPtrBits - 1
++)
++
++func lfstackpush(head *uint64, node *lfnode) {
++	unode := uintptr(unsafe.Pointer(node))
++	if unode&^lfPtrMask != 0 {
++		print("p=", node, "\n")
++		gothrow("lfstackpush: invalid pointer")
++	}
++
++	node.pushcnt++
++	new := uint64(unode) | (uint64(node.pushcnt)&lfCountMask)<<lfPtrBits
++	for {
++		old := atomicload64(head)
++		node.next = (*lfnode)(unsafe.Pointer(uintptr(old & lfPtrMask)))
++		if cas64(head, old, new) {
++			break
++		}
++	}
++}
++
++func lfstackpop(head *uint64) unsafe.Pointer {
++	for {
++		old := atomicload64(head)
++		if old == 0 {
++			return nil
++		}
++		node := (*lfnode)(unsafe.Pointer(uintptr(old & lfPtrMask)))
++		node2 := (*lfnode)(atomicloadp(unsafe.Pointer(&node.next)))
++		new := uint64(0)
++		if node2 != nil {
++			new = uint64(uintptr(unsafe.Pointer(node2))) | uint64(node2.pushcnt&lfCountMask)<<lfPtrBits
++		}
++		if cas64(head, old, new) {
++			return unsafe.Pointer(node)
++		}
++	}
++}
+diff --git a/src/runtime/lfstack_32bit.go b/src/runtime/lfstack_32bit.go
+new file mode 100644
+index 0000000000..0eebbd9740
+--- /dev/null
++++ b/src/runtime/lfstack_32bit.go
+@@ -0,0 +1,13 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 arm
++
++package runtime
++
++// On 32-bit systems, the stored uint64 has a 32-bit pointer and 32-bit count.
++const (
++	lfPtrBits   = 32
++	lfCountMask = 1<<32 - 1
++)
+diff --git a/src/runtime/lfstack_amd64.go b/src/runtime/lfstack_amd64.go
+new file mode 100644
+index 0000000000..1245557819
+--- /dev/null
++++ b/src/runtime/lfstack_amd64.go
+@@ -0,0 +1,12 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// Amd64 uses 48-bit virtual addresses, 47-th bit is used as kernel/user flag.
++// So we use 17msb of pointers as ABA counter.
++const (
++	lfPtrBits   = 47
++	lfCountMask = 1<<17 - 1
++)
+diff --git a/src/runtime/parfor.c b/src/runtime/parfor.c
+deleted file mode 100644
+index e449568400..0000000000
+--- a/src/runtime/parfor.c
++++ /dev/null
+@@ -1,226 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Parallel for algorithm.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-
+-struct ParForThread
+-{
+-	// the thread's iteration space [32lsb, 32msb)
+-	uint64 pos;
+-	// stats
+-	uint64 nsteal;
+-	uint64 nstealcnt;
+-	uint64 nprocyield;
+-	uint64 nosyield;
+-	uint64 nsleep;
+-	byte pad[CacheLineSize];
+-};
+-
+-void
+-runtime·parforsetup(ParFor *desc, uint32 nthr, uint32 n, void *ctx, bool wait, void (*body)(ParFor*, uint32))
+-{
+-	uint32 i, begin, end;
+-	uint64 *pos;
+-
+-	if(desc == nil || nthr == 0 || nthr > desc->nthrmax || body == nil) {
+-		runtime·printf("desc=%p nthr=%d count=%d body=%p\n", desc, nthr, n, body);
+-		runtime·throw("parfor: invalid args");
+-	}
+-
+-	desc->body = body;
+-	desc->done = 0;
+-	desc->nthr = nthr;
+-	desc->thrseq = 0;
+-	desc->cnt = n;
+-	desc->ctx = ctx;
+-	desc->wait = wait;
+-	desc->nsteal = 0;
+-	desc->nstealcnt = 0;
+-	desc->nprocyield = 0;
+-	desc->nosyield = 0;
+-	desc->nsleep = 0;
+-	for(i=0; i<nthr; i++) {
+-		begin = (uint64)n*i / nthr;
+-		end = (uint64)n*(i+1) / nthr;
+-		pos = &desc->thr[i].pos;
+-		if(((uintptr)pos & 7) != 0)
+-			runtime·throw("parforsetup: pos is not aligned");
+-		*pos = (uint64)begin | (((uint64)end)<<32);
+-	}
+-}
+-
+-void
+-runtime·parfordo(ParFor *desc)
+-{
+-	ParForThread *me;
+-	uint32 tid, begin, end, begin2, try, victim, i;
+-	uint64 *mypos, *victimpos, pos, newpos;
+-	void (*body)(ParFor*, uint32);
+-	bool idle;
+-
+-	// Obtain 0-based thread index.
+-	tid = runtime·xadd(&desc->thrseq, 1) - 1;
+-	if(tid >= desc->nthr) {
+-		runtime·printf("tid=%d nthr=%d\n", tid, desc->nthr);
+-		runtime·throw("parfor: invalid tid");
+-	}
+-
+-	// If single-threaded, just execute the for serially.
+-	if(desc->nthr==1) {
+-		for(i=0; i<desc->cnt; i++)
+-			desc->body(desc, i);
+-		return;
+-	}
+-
+-	body = desc->body;
+-	me = &desc->thr[tid];
+-	mypos = &me->pos;
+-	for(;;) {
+-		for(;;) {
+-			// While there is local work,
+-			// bump low index and execute the iteration.
+-			pos = runtime·xadd64(mypos, 1);
+-			begin = (uint32)pos-1;
+-			end = (uint32)(pos>>32);
+-			if(begin < end) {
+-				body(desc, begin);
+-				continue;
+-			}
+-			break;
+-		}
+-
+-		// Out of work, need to steal something.
+-		idle = false;
+-		for(try=0;; try++) {
+-			// If we don't see any work for long enough,
+-			// increment the done counter...
+-			if(try > desc->nthr*4 && !idle) {
+-				idle = true;
+-				runtime·xadd(&desc->done, 1);
+-			}
+-			// ...if all threads have incremented the counter,
+-			// we are done.
+-			if(desc->done + !idle == desc->nthr) {
+-				if(!idle)
+-					runtime·xadd(&desc->done, 1);
+-				goto exit;
+-			}
+-			// Choose a random victim for stealing.
+-			victim = runtime·fastrand1() % (desc->nthr-1);
+-			if(victim >= tid)
+-				victim++;
+-			victimpos = &desc->thr[victim].pos;
+-			for(;;) {
+-				// See if it has any work.
+-				pos = runtime·atomicload64(victimpos);
+-				begin = (uint32)pos;
+-				end = (uint32)(pos>>32);
+-				if(begin+1 >= end) {
+-					begin = end = 0;
+-					break;
+-				}
+-				if(idle) {
+-					runtime·xadd(&desc->done, -1);
+-					idle = false;
+-				}
+-				begin2 = begin + (end-begin)/2;
+-				newpos = (uint64)begin | (uint64)begin2<<32;
+-				if(runtime·cas64(victimpos, pos, newpos)) {
+-					begin = begin2;
+-					break;
+-				}
+-			}
+-			if(begin < end) {
+-				// Has successfully stolen some work.
+-				if(idle)
+-					runtime·throw("parfor: should not be idle");
+-				runtime·atomicstore64(mypos, (uint64)begin | (uint64)end<<32);
+-				me->nsteal++;
+-				me->nstealcnt += end-begin;
+-				break;
+-			}
+-			// Backoff.
+-			if(try < desc->nthr) {
+-				// nothing
+-			} else if (try < 4*desc->nthr) {
+-				me->nprocyield++;
+-				runtime·procyield(20);
+-			// If a caller asked not to wait for the others, exit now
+-			// (assume that most work is already done at this point).
+-			} else if (!desc->wait) {
+-				if(!idle)
+-					runtime·xadd(&desc->done, 1);
+-				goto exit;
+-			} else if (try < 6*desc->nthr) {
+-				me->nosyield++;
+-				runtime·osyield();
+-			} else {
+-				me->nsleep++;
+-				runtime·usleep(1);
+-			}
+-		}
+-	}
+-exit:
+-	runtime·xadd64(&desc->nsteal, me->nsteal);
+-	runtime·xadd64(&desc->nstealcnt, me->nstealcnt);
+-	runtime·xadd64(&desc->nprocyield, me->nprocyield);
+-	runtime·xadd64(&desc->nosyield, me->nosyield);
+-	runtime·xadd64(&desc->nsleep, me->nsleep);
+-	me->nsteal = 0;
+-	me->nstealcnt = 0;
+-	me->nprocyield = 0;
+-	me->nosyield = 0;
+-	me->nsleep = 0;
+-}
+-
+-// For testing from Go.
+-void
+-runtime·newparfor_m(void)
+-{
+-	g->m->ptrarg[0] = runtime·parforalloc(g->m->scalararg[0]);
+-}
+-
+-void
+-runtime·parforsetup_m(void)
+-{
+-	ParFor *desc;
+-	void *ctx;
+-	void (*body)(ParFor*, uint32);
+-
+-	desc = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	ctx = g->m->ptrarg[1];
+-	g->m->ptrarg[1] = nil;
+-	body = g->m->ptrarg[2];
+-	g->m->ptrarg[2] = nil;
+-
+-	runtime·parforsetup(desc, g->m->scalararg[0], g->m->scalararg[1], ctx, g->m->scalararg[2], body);
+-}
+-
+-void
+-runtime·parfordo_m(void)
+-{
+-	ParFor *desc;
+-
+-	desc = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	runtime·parfordo(desc);
+-}
+-
+-void
+-runtime·parforiters_m(void)
+-{
+-	ParFor *desc;
+-	uintptr tid;
+-
+-	desc = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	tid = g->m->scalararg[0];
+-	g->m->scalararg[0] = desc->thr[tid].pos;
+-	g->m->scalararg[1] = desc->thr[tid].pos>>32;
+-}
+diff --git a/src/runtime/parfor.go b/src/runtime/parfor.go
+new file mode 100644
+index 0000000000..14870c9feb
+--- /dev/null
++++ b/src/runtime/parfor.go
+@@ -0,0 +1,186 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Parallel for algorithm.
++
++package runtime
++
++import "unsafe"
++
++type parforthread struct {
++	// the thread's iteration space [32lsb, 32msb)
++	pos uint64
++	// stats
++	nsteal     uint64
++	nstealcnt  uint64
++	nprocyield uint64
++	nosyield   uint64
++	nsleep     uint64
++	pad        [_CacheLineSize]byte
++}
++
++func desc_thr_index(desc *parfor, i uint32) *parforthread {
++	return (*parforthread)(add(unsafe.Pointer(desc.thr), uintptr(i)*unsafe.Sizeof(*desc.thr)))
++}
++
++func parforsetup(desc *parfor, nthr, n uint32, ctx unsafe.Pointer, wait bool, body func(*parfor, uint32)) {
++	if desc == nil || nthr == 0 || nthr > desc.nthrmax || body == nil {
++		print("desc=", desc, " nthr=", nthr, " count=", n, " body=", body, "\n")
++		gothrow("parfor: invalid args")
++	}
++
++	desc.body = *(*unsafe.Pointer)(unsafe.Pointer(&body))
++	desc.done = 0
++	desc.nthr = nthr
++	desc.thrseq = 0
++	desc.cnt = n
++	desc.ctx = ctx
++	desc.wait = wait
++	desc.nsteal = 0
++	desc.nstealcnt = 0
++	desc.nprocyield = 0
++	desc.nosyield = 0
++	desc.nsleep = 0
++
++	for i := uint32(0); i < nthr; i++ {
++		begin := uint32(uint64(n) * uint64(i) / uint64(nthr))
++		end := uint32(uint64(n) * uint64(i+1) / uint64(nthr))
++		pos := &desc_thr_index(desc, i).pos
++		if uintptr(unsafe.Pointer(pos))&7 != 0 {
++			gothrow("parforsetup: pos is not aligned")
++		}
++		*pos = uint64(begin) | uint64(end)<<32
++	}
++}
++
++func parfordo(desc *parfor) {
++	// Obtain 0-based thread index.
++	tid := xadd(&desc.thrseq, 1) - 1
++	if tid >= desc.nthr {
++		print("tid=", tid, " nthr=", desc.nthr, "\n")
++		gothrow("parfor: invalid tid")
++	}
++
++	// If single-threaded, just execute the for serially.
++	body := *(*func(*parfor, uint32))(unsafe.Pointer(&desc.body))
++	if desc.nthr == 1 {
++		for i := uint32(0); i < desc.cnt; i++ {
++			body(desc, i)
++		}
++		return
++	}
++
++	me := desc_thr_index(desc, tid)
++	mypos := &me.pos
++	for {
++		for {
++			// While there is local work,
++			// bump low index and execute the iteration.
++			pos := xadd64(mypos, 1)
++			begin := uint32(pos) - 1
++			end := uint32(pos >> 32)
++			if begin < end {
++				body(desc, begin)
++				continue
++			}
++			break
++		}
++
++		// Out of work, need to steal something.
++		idle := false
++		for try := uint32(0); ; try++ {
++			// If we don't see any work for long enough,
++			// increment the done counter...
++			if try > desc.nthr*4 && !idle {
++				idle = true
++				xadd(&desc.done, 1)
++			}
++
++			// ...if all threads have incremented the counter,
++			// we are done.
++			extra := uint32(0)
++			if !idle {
++				extra = 1
++			}
++			if desc.done+extra == desc.nthr {
++				if !idle {
++					xadd(&desc.done, 1)
++				}
++				goto exit
++			}
++
++			// Choose a random victim for stealing.
++			var begin, end uint32
++			victim := fastrand1() % (desc.nthr - 1)
++			if victim >= tid {
++				victim++
++			}
++			victimpos := &desc_thr_index(desc, victim).pos
++			for {
++				// See if it has any work.
++				pos := atomicload64(victimpos)
++				begin = uint32(pos)
++				end = uint32(pos >> 32)
++				if begin+1 >= end {
++					end = 0
++					begin = end
++					break
++				}
++				if idle {
++					xadd(&desc.done, -1)
++					idle = false
++				}
++				begin2 := begin + (end-begin)/2
++				newpos := uint64(begin) | uint64(begin2)<<32
++				if cas64(victimpos, pos, newpos) {
++					begin = begin2
++					break
++				}
++			}
++			if begin < end {
++				// Has successfully stolen some work.
++				if idle {
++					gothrow("parfor: should not be idle")
++				}
++				atomicstore64(mypos, uint64(begin)|uint64(end)<<32)
++				me.nsteal++
++				me.nstealcnt += uint64(end) - uint64(begin)
++				break
++			}
++
++			// Backoff.
++			if try < desc.nthr {
++				// nothing
++			} else if try < 4*desc.nthr {
++				me.nprocyield++
++				procyield(20)
++			} else if !desc.wait {
++				// If a caller asked not to wait for the others, exit now
++				// (assume that most work is already done at this point).
++				if !idle {
++					xadd(&desc.done, 1)
++				}
++				goto exit
++			} else if try < 6*desc.nthr {
++				me.nosyield++
++				osyield()
++			} else {
++				me.nsleep++
++				usleep(1)
++			}
++		}
++	}
++
++exit:
++	xadd64(&desc.nsteal, int64(me.nsteal))
++	xadd64(&desc.nstealcnt, int64(me.nstealcnt))
++	xadd64(&desc.nprocyield, int64(me.nprocyield))
++	xadd64(&desc.nosyield, int64(me.nosyield))
++	xadd64(&desc.nsleep, int64(me.nsleep))
++	me.nsteal = 0
++	me.nstealcnt = 0
++	me.nprocyield = 0
++	me.nosyield = 0
++	me.nsleep = 0
++}

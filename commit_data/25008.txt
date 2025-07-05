@@ -35,7 +35,7 @@ Date:   Sun Sep 13 23:57:28 2015 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dcl.go   | 10 ---------
  src/cmd/compile/internal/gc/esc.go   | 18 +++-------------
  src/cmd/compile/internal/gc/go.go    |  6 ------
@@ -45,3 +45,269 @@ Date:   Sun Sep 13 23:57:28 2015 +0200
  src/cmd/compile/internal/gc/swt.go   | 41 ------------------------------------
  src/cmd/compile/internal/gc/walk.go  |  2 --
  8 files changed, 3 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 06092742fa..92b09e62b3 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -79,16 +79,6 @@ func popdcl() {
+ 	block = d.Block
+ }
+ 
+-func poptodcl() {
+-	// pop the old marker and push a new one
+-	// (cannot reuse the existing one)
+-	// because we use the markers to identify blocks
+-	// for the goto restriction checks.
+-	popdcl()
+-
+-	markdcl()
+-}
+-
+ func markdcl() {
+ 	d := push()
+ 	d.Name = "" // used as a mark in fifo
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 585b327c9a..d07f4733c0 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -248,17 +248,6 @@ func satInc8(x int8) int8 {
+ 	return x + 1
+ }
+ 
+-func satAdd8(x, y int8) int8 {
+-	z := x + y
+-	if x^y < 0 || x^z >= 0 {
+-		return z
+-	}
+-	if x < 0 {
+-		return -128
+-	}
+-	return 127
+-}
+-
+ func min8(a, b int8) int8 {
+ 	if a < b {
+ 		return a
+@@ -385,10 +374,9 @@ func escMax(e, etype uint16) uint16 {
+ // something whose address is returned -- but that implies stored into the heap,
+ // hence EscHeap, which means that the details are not currently relevant. )
+ const (
+-	bitsPerOutputInTag = 3                                         // For each output, the number of bits for a tag
+-	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1         // The bit mask to extract a single tag.
+-	outputsPerTag      = (16 - EscReturnBits) / bitsPerOutputInTag // The number of outputs that can be tagged.
+-	maxEncodedLevel    = int(bitsMaskForTag - 1)                   // The largest level that can be stored in a tag.
++	bitsPerOutputInTag = 3                                 // For each output, the number of bits for a tag
++	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1 // The bit mask to extract a single tag.
++	maxEncodedLevel    = int(bitsMaskForTag - 1)           // The largest level that can be stored in a tag.
+ )
+ 
+ type EscState struct {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f3cf17306b..91c2d76958 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -630,12 +630,6 @@ var typesw *Node
+ 
+ var nblank *Node
+ 
+-var hunk string
+-
+-var nhunk int32
+-
+-var thunk int32
+-
+ var Funcdepth int32
+ 
+ var typecheckok bool
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index ec74009681..484c776b55 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -187,10 +187,6 @@ func duint32(s *Sym, off int, v uint32) int {
+ 	return duintxx(s, off, uint64(v), 4)
+ }
+ 
+-func duint64(s *Sym, off int, v uint64) int {
+-	return duintxx(s, off, v, 8)
+-}
+-
+ func duintptr(s *Sym, off int, v uint64) int {
+ 	return duintxx(s, off, v, Widthptr)
+ }
+@@ -284,25 +280,6 @@ func slicebytes(nam *Node, s string, len int) {
+ 	duintxx(nam.Sym, off, uint64(len), Widthint)
+ }
+ 
+-func dstringptr(s *Sym, off int, str string) int {
+-	off = int(Rnd(int64(off), int64(Widthptr)))
+-	p := Thearch.Gins(obj.ADATA, nil, nil)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = Linksym(s)
+-	p.From.Offset = int64(off)
+-	p.From3 = new(obj.Addr)
+-	p.From3.Type = obj.TYPE_CONST
+-	p.From3.Offset = int64(Widthptr)
+-
+-	Datastring(str+"\x00", &p.To) // TODO(rsc): Remove NUL
+-	p.To.Type = obj.TYPE_ADDR
+-	p.To.Etype = Simtype[TINT]
+-	off += Widthptr
+-
+-	return off
+-}
+-
+ func Datastring(s string, a *obj.Addr) {
+ 	_, symdata := stringsym(s)
+ 	a.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index fa8bc20f14..4d7f0f72a9 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -92,14 +92,6 @@ type Liveness struct {
+ 	livepointers     []Bvec
+ }
+ 
+-func xmalloc(size uint32) interface{} {
+-	result := (interface{})(make([]byte, size))
+-	if result == nil {
+-		Fatalf("malloc failed")
+-	}
+-	return result
+-}
+-
+ // Constructs a new basic block containing a single instruction.
+ func newblock(prog *obj.Prog) *BasicBlock {
+ 	if prog == nil {
+@@ -115,13 +107,6 @@ func newblock(prog *obj.Prog) *BasicBlock {
+ 	return result
+ }
+ 
+-// Frees a basic block and all of its leaf data structures.
+-func freeblock(bb *BasicBlock) {
+-	if bb == nil {
+-		Fatalf("freeblock: cannot free nil")
+-	}
+-}
+-
+ // Adds an edge between two basic blocks by making from a predecessor of to and
+ // to a successor of from.
+ func addedge(from *BasicBlock, to *BasicBlock) {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 312c95f825..b056023c0e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -347,23 +347,6 @@ func importdot(opkg *Pkg, pack *Node) {
+ 	}
+ }
+ 
+-func gethunk() {
+-	nh := int32(NHUNK)
+-	if thunk >= 10*NHUNK {
+-		nh = 10 * NHUNK
+-	}
+-	h := string(make([]byte, nh))
+-	if h == "" {
+-		Flusherrors()
+-		Yyerror("out of memory")
+-		errorexit()
+-	}
+-
+-	hunk = h
+-	nhunk = nh
+-	thunk += nh
+-}
+-
+ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	n := new(Node)
+ 	n.Op = uint8(op)
+@@ -1966,19 +1949,6 @@ func cheapexpr(n *Node, init **NodeList) *Node {
+ 	return copyexpr(n, n.Type, init)
+ }
+ 
+-/*
+- * return n in a local variable of type t if it is not already.
+- * the value is guaranteed not to change except by direct
+- * assignment to it.
+- */
+-func localexpr(n *Node, t *Type, init **NodeList) *Node {
+-	if n.Op == ONAME && (!n.Addrtaken || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
+-		return n
+-	}
+-
+-	return copyexpr(n, t, init)
+-}
+-
+ func Setmaxarg(t *Type, extra int32) {
+ 	dowidth(t)
+ 	w := t.Argwid
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index a0e0c4158d..f5952fc3dc 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
+-	"fmt"
+ 	"sort"
+ 	"strconv"
+ )
+@@ -806,43 +805,3 @@ func (x caseClauseByType) Less(i, j int) bool {
+ 	// sort by ordinal
+ 	return c1.ordinal < c2.ordinal
+ }
+-
+-func dumpcase(cc []*caseClause) {
+-	for _, c := range cc {
+-		switch c.typ {
+-		case caseKindDefault:
+-			fmt.Printf("case-default\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-
+-		case caseKindExprConst:
+-			fmt.Printf("case-exprconst\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-
+-		case caseKindExprVar:
+-			fmt.Printf("case-exprvar\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-			fmt.Printf("\top=%v\n", Oconv(int(c.node.Left.Op), 0))
+-
+-		case caseKindTypeNil:
+-			fmt.Printf("case-typenil\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-
+-		case caseKindTypeConst:
+-			fmt.Printf("case-typeconst\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-			fmt.Printf("\thash=%x\n", c.hash)
+-
+-		case caseKindTypeVar:
+-			fmt.Printf("case-typevar\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-
+-		default:
+-			fmt.Printf("case-???\n")
+-			fmt.Printf("\tord=%d\n", c.ordinal)
+-			fmt.Printf("\top=%v\n", Oconv(int(c.node.Left.Op), 0))
+-			fmt.Printf("\thash=%x\n", c.hash)
+-		}
+-	}
+-
+-	fmt.Printf("\n")
+-}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ae19e6fda5..4ce1db6241 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2225,8 +2225,6 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 
+ // TODO(rsc): Perhaps componentgen should run before this.
+ 
+-var applywritebarrier_bv Bvec
+-
+ func applywritebarrier(n *Node, init **NodeList) *Node {
+ 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
+ 		if Debug_wb > 1 {

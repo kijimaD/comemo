@@ -11,8 +11,71 @@ Date:   Mon May 25 03:23:30 2020 +1000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/asm_linux_riscv64.s      | 22 ++++++++++++++++++++++
  src/syscall/exec_linux.go            |  6 +++++-
  src/syscall/syscall_linux_riscv64.go |  4 +---
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/asm_linux_riscv64.s b/src/syscall/asm_linux_riscv64.s
+index ad0b6b17d9..f172dd3d9b 100644
+--- a/src/syscall/asm_linux_riscv64.s
++++ b/src/syscall/asm_linux_riscv64.s
+@@ -104,6 +104,28 @@ err:
+ 	MOV	A0, err+72(FP)	// errno
+ 	RET
+ 
++// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
++TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-32
++	MOV	a1+8(FP), A0
++	MOV	ZERO, A1
++	MOV	ZERO, A2
++	MOV	ZERO, A3
++	MOV	ZERO, A4
++	MOV	ZERO, A5
++	MOV	trap+0(FP), A7	// syscall entry
++	ECALL
++	MOV	$-4096, T0
++	BLTU	T0, A0, err
++	MOV	A0, r1+16(FP)	// r1
++	MOV	ZERO, err+24(FP)	// errno
++	RET
++err:
++	MOV	$-1, T0
++	MOV	T0, r1+16(FP)	// r1
++	SUB	A0, ZERO, A0
++	MOV	A0, err+24(FP)	// errno
++	RET
++
+ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+ 	MOV	a1+8(FP), A0
+ 	MOV	a2+16(FP), A1
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index b7351cda82..b6acad96ea 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -207,7 +207,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		}
+ 	}
+ 
+-	hasRawVforkSyscall := runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "s390x" || runtime.GOARCH == "arm64"
++	var hasRawVforkSyscall bool
++	switch runtime.GOARCH {
++	case "amd64", "arm64", "ppc64", "riscv64", "s390x":
++		hasRawVforkSyscall = true
++	}
+ 
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index d54bd38510..088e23439f 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -199,6 +199,4 @@ func Pause() error {
+ 	return err
+ }
+ 
+-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno) {
+-	panic("not implemented")
+-}
++func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

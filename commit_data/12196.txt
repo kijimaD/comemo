@@ -7,7 +7,7 @@ Date:   Fri Feb 24 16:24:24 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5694065
-
+---
  test/ken/array.go      | 2 ++
  test/ken/chan.go       | 2 ++
  test/ken/chan1.go      | 2 ++
@@ -49,3 +49,520 @@ Date:   Fri Feb 24 16:24:24 2012 +1100
  test/ken/string.go     | 1 +
  test/ken/strvar.go     | 1 +
  40 files changed, 75 insertions(+), 1 deletion(-)
+
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 53f6fc88e1..9412e3502d 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test arrays and slices.
++
+ package main
+ 
+ func setpd(a []int) {
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index 3bfa5b2d2b..36b18f80ea 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test communication operations including select.
++
+ package main
+ 
+ import "os"
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index ccb2619959..798b058ce4 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test communication with multiple simultanous goroutines.
++
+ package main
+ 
+ import "runtime"
+diff --git a/test/ken/complit.go b/test/ken/complit.go
+index cab3bca38c..bc50bbe224 100644
+--- a/test/ken/complit.go
++++ b/test/ken/complit.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test composite literals.
++
+ package main
+ 
+ type	M	map[int]int
+diff --git a/test/ken/convert.go b/test/ken/convert.go
+index 83e573a3f1..33acbd8cd2 100644
+--- a/test/ken/convert.go
++++ b/test/ken/convert.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// near-exhaustive test of converting numbers between types.
++// Test, near-exhaustive, of converting numbers between types.
++// No complex numbers though.
+ 
+ package main
+ 
+diff --git a/test/ken/cplx0.go b/test/ken/cplx0.go
+index 912b8c489b..665e52a5f3 100644
+--- a/test/ken/cplx0.go
++++ b/test/ken/cplx0.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test trivial, bootstrap-level complex numbers, including printing.
++
+ package main
+ 
+ const (
+diff --git a/test/ken/cplx1.go b/test/ken/cplx1.go
+index 9421c53e1e..78240a5639 100644
+--- a/test/ken/cplx1.go
++++ b/test/ken/cplx1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple arithmetic and assignment for complex numbers.
++
+ package main
+ 
+ const (
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+index a3c1570ba3..eb1da7b8c0 100644
+--- a/test/ken/cplx2.go
++++ b/test/ken/cplx2.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test arithmetic on complex numbers, including multiplication and division.
++
+ package main
+ 
+ const (
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index 092354983d..be0b8646ab 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test composition, decomposition, and reflection on complex numbers.
++
+ package main
+ 
+ import "unsafe"
+diff --git a/test/ken/cplx4.go b/test/ken/cplx4.go
+index 8104ff14d0..97d5d16f4a 100644
+--- a/test/ken/cplx4.go
++++ b/test/ken/cplx4.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test complex numbers,including fmt support.
++// Used to crash.
++
+ package main
+ 
+ import "fmt"
+diff --git a/test/ken/cplx5.go b/test/ken/cplx5.go
+index 0e2c88221e..4e8f4433d3 100644
+--- a/test/ken/cplx5.go
++++ b/test/ken/cplx5.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test compound types made of complex numbers.
++
+ package main
+ 
+ var a [12]complex128
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 46786fb67c..670e07417a 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test integer division by constants.
++
+ package main
+ 
+ import "math/rand"
+diff --git a/test/ken/divmod.go b/test/ken/divmod.go
+index 02c762dd04..f1bd56ec66 100644
+--- a/test/ken/divmod.go
++++ b/test/ken/divmod.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test integer division and modulus.
++
+ package main
+ 
+ const (
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index a3e1980e84..9b35c56acf 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test embedded fields of structs, including methods.
++
+ package main
+ 
+ 
+diff --git a/test/ken/for.go b/test/ken/for.go
+index 914229b582..db35548db8 100644
+--- a/test/ken/for.go
++++ b/test/ken/for.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple for loop.
+ 
+ package main
+ 
+diff --git a/test/ken/interbasic.go b/test/ken/interbasic.go
+index 113fe3c9be..d8fbb95a31 100644
+--- a/test/ken/interbasic.go
++++ b/test/ken/interbasic.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test interfaces on basic types.
++
+ package main
+ 
+ type myint int
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index ca875e8378..9432181df2 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test interfaces and methods.
++
+ package main
+ 
+ type S struct {
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index 30815d06b8..8a2fca0d4b 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test interface assignment.
++
+ package main
+ 
+ type	Iputs	interface {
+diff --git a/test/ken/label.go b/test/ken/label.go
+index b8867a7d1c..fcb3e611d9 100644
+--- a/test/ken/label.go
++++ b/test/ken/label.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test goto and labels.
++
+ package main
+ 
+ func main() {
+diff --git a/test/ken/litfun.go b/test/ken/litfun.go
+index 4c40ee24cc..e241d4edb7 100644
+--- a/test/ken/litfun.go
++++ b/test/ken/litfun.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple function literals.
+ 
+ package main
+ 
+diff --git a/test/ken/mfunc.go b/test/ken/mfunc.go
+index 2213b8132b..ef2499194f 100644
+--- a/test/ken/mfunc.go
++++ b/test/ken/mfunc.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple multi-argument multi-valued function.
++
+ package main
+ 
+ func
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index 3905b8123c..d88cf10032 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test integer modulus by contstants.
++
+ package main
+ 
+ import "math/rand"
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index b115931566..af806cfd92 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test method invocation with pointer receivers and function-valued fields.
+ 
+ package main
+ 
+diff --git a/test/ken/ptrvar.go b/test/ken/ptrvar.go
+index c6b4656fc5..d78170c9d2 100644
+--- a/test/ken/ptrvar.go
++++ b/test/ken/ptrvar.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test pointers and the . (selector) operator on structs.
+ 
+ package main
+ 
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 07d0e9a677..89c14e5c35 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test 'for range' on arrays, slices, and maps.
++
+ package main
+ 
+ const size = 16
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index 35720c928c..3042a671bf 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test general operation using a list implementation.
++
+ package main
+ 
+ type Item interface {
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index bd8a435158..4b4410ee85 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test general operation using s-list.
++// First Go program ever run (although not in this exact form).
++
+ package main
+ 
+ import "fmt"
+diff --git a/test/ken/robfor.go b/test/ken/robfor.go
+index 958efca3a2..c6a420b39d 100644
+--- a/test/ken/robfor.go
++++ b/test/ken/robfor.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test for loops of many forms.
++
+ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index 40c5b9042a..885267e30c 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test functions of many signatures.
++
+ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+diff --git a/test/ken/shift.go b/test/ken/shift.go
+index c60143d700..af8789615e 100644
+--- a/test/ken/shift.go
++++ b/test/ken/shift.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test shift.
++
+ package main
+ 
+ var	ians	[18]int;
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index 553bc4d689..0e81a341b8 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple operations on arrays.
++
+ package main
+ 
+ var b[10] float32;
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+index 4a8324ccb7..ab2ecc21aa 100644
+--- a/test/ken/simpbool.go
++++ b/test/ken/simpbool.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test basic operations on bool.
++
+ package main
+ 
+ type s struct {
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index 9dc7ebf934..22cad2ad0e 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple arithmetic conversion.
++
+ package main
+ 
+ type vlong int64
+diff --git a/test/ken/simpfun.go b/test/ken/simpfun.go
+index b2c803e891..e5dc2b2495 100644
+--- a/test/ken/simpfun.go
++++ b/test/ken/simpfun.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple functions.
+ 
+ package main
+ 
+diff --git a/test/ken/simpswitch.go b/test/ken/simpswitch.go
+index cc5f281fcf..b28250b1d3 100644
+--- a/test/ken/simpswitch.go
++++ b/test/ken/simpswitch.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple switch.
++
+ package main
+ 
+ func main() {
+diff --git a/test/ken/simpvar.go b/test/ken/simpvar.go
+index 324008d236..c6eefbb5ad 100644
+--- a/test/ken/simpvar.go
++++ b/test/ken/simpvar.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test scoping of variables.
++
+ 
+ package main
+ 
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index e0f2d322b5..6cf676c588 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test basic operations of slices and arrays.
++
+ package main
+ 
+ var bx [10]byte
+diff --git a/test/ken/sliceslice.go b/test/ken/sliceslice.go
+index ed1a5fe5a1..c07c591252 100644
+--- a/test/ken/sliceslice.go
++++ b/test/ken/sliceslice.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test slicing and re-slicing.
++
+ package main
+ 
+ var bx []byte
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 9bd905d3d9..6df8dc4ddf 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test string operations including printing.
+ 
+ package main
+ 
+diff --git a/test/ken/strvar.go b/test/ken/strvar.go
+index 34b2621b17..4d511fe673 100644
+--- a/test/ken/strvar.go
++++ b/test/ken/strvar.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test struct-valued variables (not pointers).
+ 
+ package main
+ 

@@ -16,7 +16,35 @@ Date:   Wed Oct 30 11:30:57 2019 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_unix.go      | 2 +-
  src/syscall/syscall_unix_test.go | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 457be311c4..b8b8a7c111 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -138,7 +138,7 @@ func (e Errno) Is(target error) bool {
+ }
+ 
+ func (e Errno) Temporary() bool {
+-	return e == EINTR || e == EMFILE || e.Timeout()
++	return e == EINTR || e == EMFILE || e == ENFILE || e.Timeout()
+ }
+ 
+ func (e Errno) Timeout() bool {
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 62109ac3e7..ff47a0c81a 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -384,3 +384,9 @@ func TestSetsockoptString(t *testing.T) {
+ 		t.Fatalf("SetsockoptString: did not fail")
+ 	}
+ }
++
++func TestENFILETemporary(t *testing.T) {
++	if !syscall.ENFILE.Temporary() {
++		t.Error("ENFILE is not treated as a temporary error")
++	}
++}

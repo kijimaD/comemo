@@ -11,7 +11,7 @@ Date:   Tue Feb 26 01:56:08 2013 +0100
     R=rsc, rminnich, ality
     CC=golang-dev
     https://golang.org/cl/7379051
-
+---
  src/pkg/runtime/sys_plan9_amd64.s      |  6 ++++++
  src/pkg/runtime/thread_plan9.c         | 28 ----------------------------
  src/pkg/runtime/time_plan9_386.c       | 34 ++++++++++++++++++++++++++++++++++
@@ -20,3 +20,194 @@ Date:   Tue Feb 26 01:56:08 2013 +0100
  src/pkg/syscall/syscall_plan9_amd64.go |  7 +++++++
  src/pkg/syscall/zsysnum_plan9_amd64.go |  1 +
  7 files changed, 75 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index be164a0460..b34f98a685 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -104,6 +104,12 @@ TEXT runtime·plan9_semrelease(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·nanotime(SB),7,$0
++	MOVQ	$0x8000, AX
++	MOVQ	$60, BP
++	SYSCALL
++	RET
++
+ TEXT runtime·rfork(SB),7,$0
+ 	MOVQ	$0x8000, AX
+ 	MOVQ	$19, BP // rfork
+diff --git a/src/pkg/runtime/thread_plan9.c b/src/pkg/runtime/thread_plan9.c
+index 625c8b48d4..f2169e8e68 100644
+--- a/src/pkg/runtime/thread_plan9.c
++++ b/src/pkg/runtime/thread_plan9.c
+@@ -115,34 +115,6 @@ runtime·usleep(uint32 µs)
+ 	runtime·sleep(ms);
+ }
+ 
+-int64
+-runtime·nanotime(void)
+-{
+-	static int32 fd = -1;
+-	byte b[8];
+-	uint32 hi, lo;
+-
+-	// As long as all goroutines share the same file
+-	// descriptor table we can get away with using
+-	// just a static fd.  Without a lock the file can
+-	// be opened twice but that's okay.
+-	//
+-	// Using /dev/bintime gives us a latency on the
+-	// order of ten microseconds between two calls.
+-	//
+-	// The naïve implementation (without the cached
+-	// file descriptor) is roughly four times slower
+-	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
+-
+-	if(fd < 0 && (fd = runtime·open((byte*)"/dev/bintime", OREAD|OCEXEC)) < 0)
+-		return 0;
+-	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
+-		return 0;
+-	hi = b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
+-	lo = b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7];
+-	return (int64)hi<<32 | (int64)lo;
+-}
+-
+ void
+ time·now(int64 sec, int32 nsec)
+ {
+diff --git a/src/pkg/runtime/time_plan9_386.c b/src/pkg/runtime/time_plan9_386.c
+new file mode 100644
+index 0000000000..a29d45715c
+--- /dev/null
++++ b/src/pkg/runtime/time_plan9_386.c
+@@ -0,0 +1,34 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "os_GOOS.h"
++
++int64
++runtime·nanotime(void)
++{
++	static int32 fd = -1;
++	byte b[8];
++	uint32 hi, lo;
++
++	// As long as all goroutines share the same file
++	// descriptor table we can get away with using
++	// just a static fd.  Without a lock the file can
++	// be opened twice but that's okay.
++	//
++	// Using /dev/bintime gives us a latency on the
++	// order of ten microseconds between two calls.
++	//
++	// The naïve implementation (without the cached
++	// file descriptor) is roughly four times slower
++	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
++
++	if(fd < 0 && (fd = runtime·open((byte*)"/dev/bintime", OREAD|OCEXEC)) < 0)
++		return 0;
++	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
++		return 0;
++	hi = b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3];
++	lo = b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7];
++	return (int64)hi<<32 | (int64)lo;
++}
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 94bed0981f..ef5bc5e8cd 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -312,29 +312,12 @@ func DecodeBintime(b []byte) (nsec int64, err error) {
+ 	return
+ }
+ 
+-func Gettimeofday(tv *Timeval) (err error) {
+-	// TODO(paulzhol):
+-	// avoid reopening a file descriptor for /dev/bintime on each call,
+-	// use lower-level calls to avoid allocation.
+-
+-	var b [8]byte
+-	var nsec int64
+-
+-	fd, e := Open("/dev/bintime", O_RDONLY)
++func Gettimeofday(tv *Timeval) error {
++	nsec, e := nanotime()
+ 	if e != nil {
+ 		return e
+ 	}
+-	defer Close(fd)
+-
+-	if _, e = Pread(fd, b[:], 0); e != nil {
+-		return e
+-	}
+-
+-	if nsec, e = DecodeBintime(b[:]); e != nil {
+-		return e
+-	}
+ 	*tv = NsecToTimeval(nsec)
+-
+ 	return e
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_plan9_386.go b/src/pkg/syscall/syscall_plan9_386.go
+index 4e4c7511e5..7357e0ba67 100644
+--- a/src/pkg/syscall/syscall_plan9_386.go
++++ b/src/pkg/syscall/syscall_plan9_386.go
+@@ -5,3 +5,28 @@
+ package syscall
+ 
+ func Getpagesize() int { return 0x1000 }
++
++func nanotime() (nsec int64, err error) {
++	// TODO(paulzhol):
++	// avoid reopening a file descriptor for /dev/bintime on each call,
++	// use lower-level calls to avoid allocation.
++
++	var b [8]byte
++	nsec = -1
++
++	fd, err := Open("/dev/bintime", O_RDONLY)
++	if err != nil {
++		return
++	}
++	defer Close(fd)
++
++	if _, err = Pread(fd, b[:], 0); err != nil {
++		return
++	}
++
++	if nsec, err = DecodeBintime(b[:]); err != nil {
++		return -1, err
++	}
++
++	return
++}
+diff --git a/src/pkg/syscall/syscall_plan9_amd64.go b/src/pkg/syscall/syscall_plan9_amd64.go
+index 6f752f2136..9387db3e52 100644
+--- a/src/pkg/syscall/syscall_plan9_amd64.go
++++ b/src/pkg/syscall/syscall_plan9_amd64.go
+@@ -5,3 +5,10 @@
+ package syscall
+ 
+ func Getpagesize() int { return 0x200000 }
++
++// Used by Gettimeofday, which expects
++// an error return value.
++func nanotime() (int64, error) {
++	r1, _, _ := RawSyscall(SYS_NANOTIME, 0, 0, 0)
++	return int64(r1), nil
++}
+diff --git a/src/pkg/syscall/zsysnum_plan9_amd64.go b/src/pkg/syscall/zsysnum_plan9_amd64.go
+index 4135b8d819..c038646474 100644
+--- a/src/pkg/syscall/zsysnum_plan9_amd64.go
++++ b/src/pkg/syscall/zsysnum_plan9_amd64.go
+@@ -44,4 +44,5 @@ const (
+ 	SYS_AWAIT      = 47
+ 	SYS_PREAD      = 50
+ 	SYS_PWRITE     = 51
++	SYS_NANOTIME   = 60
+ )

@@ -13,6 +13,30 @@ Date:   Fri May 27 17:34:22 2016 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index e109fa4528..aabe52da3c 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime_test
+ 
+ import (
+@@ -207,6 +211,10 @@ func TestGdbBacktrace(t *testing.T) {
+ 	checkGdbEnvironment(t)
+ 	checkGdbVersion(t)
+ 
++	if runtime.GOOS == "netbsd" {
++		testenv.SkipFlaky(t, 15603)
++	}
++
+ 	dir, err := ioutil.TempDir("", "go-build")
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp directory: %v", err)

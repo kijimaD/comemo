@@ -15,7 +15,49 @@ Date:   Mon Oct 26 12:38:47 2015 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go      |  2 +-
  src/runtime/malloc_test.go | 17 +++++++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 564e2296a2..ae28a3c319 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -615,7 +615,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 			(*[2]uint64)(x)[1] = 0
+ 			// See if we need to replace the existing tiny block with the new one
+ 			// based on amount of remaining free space.
+-			if size < c.tinyoffset {
++			if size < c.tinyoffset || c.tiny == nil {
+ 				c.tiny = x
+ 				c.tinyoffset = size
+ 			}
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index f0e73baea5..b8278bb4bc 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -82,6 +82,23 @@ func TestStringConcatenationAllocs(t *testing.T) {
+ 	}
+ }
+ 
++func TestTinyAlloc(t *testing.T) {
++	const N = 16
++	var v [N]unsafe.Pointer
++	for i := range v {
++		v[i] = unsafe.Pointer(new(byte))
++	}
++
++	chunks := make(map[uintptr]bool, N)
++	for _, p := range v {
++		chunks[uintptr(p)&^7] = true
++	}
++
++	if len(chunks) == N {
++		t.Fatal("no bytes allocated within the same 8-byte chunk")
++	}
++}
++
+ var mallocSink uintptr
+ 
+ func BenchmarkMalloc8(b *testing.B) {

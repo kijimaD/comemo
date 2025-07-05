@@ -14,8 +14,55 @@ Date:   Thu Feb 25 11:40:51 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/stack.go | 2 +-
  src/runtime/stack.go          | 2 +-
  test/nosplit.go               | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index 1a2ee12291..80f6c6c164 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -11,7 +11,7 @@ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+ 	StackBig    = 4096
+-	StackGuard  = 1024*stackGuardMultiplier + StackSystem
++	StackGuard  = 720*stackGuardMultiplier + StackSystem
+ 	StackSmall  = 128
+ 	StackLimit  = StackGuard - StackSystem - StackSmall
+ )
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index ba1a1bb143..81059965d9 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -90,7 +90,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 1024*sys.StackGuardMultiplier + _StackSystem
++	_StackGuard = 720*sys.StackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 2bf7077808..082fc3b0e6 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -302,13 +302,13 @@ TestCases:
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first stack frame to use up the extra bytes.
+ 				if i == 0 {
+-					size += (1024 - 128) - 128
++					size += (720 - 128) - 128
+ 					// Noopt builds have a larger stackguard.
+ 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
+ 					// This increase is included in obj.StackGuard
+ 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+ 						if s == "-N" {
+-							size += 1024
++							size += 720
+ 						}
+ 					}
+ 				}

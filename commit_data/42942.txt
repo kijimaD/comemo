@@ -10,7 +10,63 @@ Date:   Wed Feb 26 04:01:29 2020 +1100
     Change-Id: I3f8ca2d5affd1403db8fa79b356f248e6e9332c5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220923
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules |  3 +--
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 25 +++++++++----------------
  2 files changed, 10 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 1ffb9575e0..316e5f3726 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -141,8 +141,7 @@
+ // For positive x, bit 63 of x-1 is always 0, so the result is -1.
+ // For zero x, bit 63 of x-1 is 1, so the result is 0.
+ //
+-// TODO(prattmic): Use XORconst etc instead of XOR (MOVDconst).
+-(Slicemask <t> x) -> (XOR (MOVDconst [-1]) (SRA <t> (SUB <t> x (MOVDconst [1])) (MOVDconst [63])))
++(Slicemask <t> x) -> (XORI [-1] (SRAI <t> [63] (ADDI <t> [-1] x)))
+ 
+ // Truncations
+ // We ignore the unused high parts of registers, so truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 61da7a41bd..3b8d42b035 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -4230,27 +4230,20 @@ func rewriteValueRISCV64_OpSignExt8to64(v *Value) bool {
+ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	typ := &b.Func.Config.Types
+ 	// match: (Slicemask <t> x)
+-	// result: (XOR (MOVDconst [-1]) (SRA <t> (SUB <t> x (MOVDconst [1])) (MOVDconst [63])))
++	// result: (XORI [-1] (SRAI <t> [63] (ADDI <t> [-1] x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		v.reset(OpRISCV64XOR)
+-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v0.AuxInt = -1
++		v.reset(OpRISCV64XORI)
++		v.AuxInt = -1
++		v0 := b.NewValue0(v.Pos, OpRISCV64SRAI, t)
++		v0.AuxInt = 63
++		v1 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
++		v1.AuxInt = -1
++		v1.AddArg(x)
++		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpRISCV64SRA, t)
+-		v2 := b.NewValue0(v.Pos, OpRISCV64SUB, t)
+-		v2.AddArg(x)
+-		v3 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v3.AuxInt = 1
+-		v2.AddArg(v3)
+-		v1.AddArg(v2)
+-		v4 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
+-		v4.AuxInt = 63
+-		v1.AddArg(v4)
+-		v.AddArg(v1)
+ 		return true
+ 	}
+ }

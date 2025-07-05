@@ -11,6 +11,48 @@ Date:   Tue Mar 18 21:12:00 2014 +0900
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/76470043
-
+---
  src/pkg/net/http/transport_test.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 7584db992b..3b8c29a61c 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -349,10 +349,11 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
+ 		resp, err := c.Get(ts.URL)
+ 		if err != nil {
+ 			t.Error(err)
++			return
+ 		}
+-		_, err = ioutil.ReadAll(resp.Body)
+-		if err != nil {
+-			t.Fatalf("ReadAll: %v", err)
++		if _, err := ioutil.ReadAll(resp.Body); err != nil {
++			t.Errorf("ReadAll: %v", err)
++			return
+ 		}
+ 		donech <- true
+ 	}
+@@ -1808,15 +1809,18 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
+ 		cl := &Client{Transport: tr}
+ 		_, err := cl.Get("https://dummy.tld/")
+ 		if err == nil {
+-			t.Fatal("expected error")
++			t.Error("expected error")
++			return
+ 		}
+ 		ue, ok := err.(*url.Error)
+ 		if !ok {
+-			t.Fatalf("expected url.Error; got %#v", err)
++			t.Errorf("expected url.Error; got %#v", err)
++			return
+ 		}
+ 		ne, ok := ue.Err.(net.Error)
+ 		if !ok {
+-			t.Fatalf("expected net.Error; got %#v", err)
++			t.Errorf("expected net.Error; got %#v", err)
++			return
+ 		}
+ 		if !ne.Timeout() {
+ 			t.Error("expected timeout error; got %v", err)

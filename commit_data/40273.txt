@@ -14,7 +14,127 @@ Date:   Wed Apr 24 14:32:21 2019 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/run/run.go                     | 34 ++++++++-------
  .../go/testdata/script/run_set_executable_name.txt | 48 ++++++++++++++++++++++
  2 files changed, 68 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 8b3006bf2c..71da5adc93 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -8,6 +8,7 @@ package run
+ import (
+ 	"fmt"
+ 	"os"
++	"path"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+@@ -94,10 +95,10 @@ func runRun(cmd *base.Command, args []string) {
+ 		base.Fatalf("go run: no go files listed")
+ 	}
+ 	cmdArgs := args[i:]
+-
+ 	if p.Error != nil {
+ 		base.Fatalf("%s", p.Error)
+ 	}
++
+ 	p.Internal.OmitDebug = true
+ 	if len(p.DepsErrors) > 0 {
+ 		// Since these are errors in dependencies,
+@@ -117,21 +118,26 @@ func runRun(cmd *base.Command, args []string) {
+ 		base.Fatalf("go run: cannot run non-main package")
+ 	}
+ 	p.Target = "" // must build - not up to date
+-	var src string
+-	if len(p.GoFiles) > 0 {
+-		src = p.GoFiles[0]
+-	} else if len(p.CgoFiles) > 0 {
+-		src = p.CgoFiles[0]
+-	} else {
+-		// this case could only happen if the provided source uses cgo
+-		// while cgo is disabled.
+-		hint := ""
+-		if !cfg.BuildContext.CgoEnabled {
+-			hint = " (cgo is disabled)"
++	if p.Internal.CmdlineFiles {
++		//set executable name if go file is given as cmd-argument
++		var src string
++		if len(p.GoFiles) > 0 {
++			src = p.GoFiles[0]
++		} else if len(p.CgoFiles) > 0 {
++			src = p.CgoFiles[0]
++		} else {
++			// this case could only happen if the provided source uses cgo
++			// while cgo is disabled.
++			hint := ""
++			if !cfg.BuildContext.CgoEnabled {
++				hint = " (cgo is disabled)"
++			}
++			base.Fatalf("go run: no suitable source files%s", hint)
+ 		}
+-		base.Fatalf("go run: no suitable source files%s", hint)
++		p.Internal.ExeName = src[:len(src)-len(".go")]
++	} else {
++		p.Internal.ExeName = path.Base(p.ImportPath)
+ 	}
+-	p.Internal.ExeName = src[:len(src)-len(".go")] // name temporary executable for first go file
+ 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
+ 	a := &work.Action{Mode: "go run", Func: buildRunProgram, Args: cmdArgs, Deps: []*work.Action{a1}}
+ 	b.Do(a)
+diff --git a/src/cmd/go/testdata/script/run_set_executable_name.txt b/src/cmd/go/testdata/script/run_set_executable_name.txt
+new file mode 100644
+index 0000000000..e12aed0f00
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_set_executable_name.txt
+@@ -0,0 +1,48 @@
++env GO111MODULE=on
++# Check for correct naming of temporary executable
++
++#Test for single file specified
++cd x/y/z
++go run foo.go
++stderr 'foo'
++
++#Test for current directory
++go run .
++stderr 'z'
++
++#Test for set path
++go run m/x/y/z/
++stderr 'z'
++
++-- m/x/y/z/foo.go --
++package main
++import(
++	"os"
++	"path/filepath"
++)
++func main() {
++	println(filepath.Base(os.Args[0]))
++}
++
++-- x/y/z/foo.go --
++package main
++import(
++	"os"
++	"path/filepath"
++)
++func main() {
++	println(filepath.Base(os.Args[0]))
++}
++
++-- x/y/z/foo.go --
++package main
++import(
++	"os"
++	"path/filepath"
++)
++func main() {
++	println(filepath.Base(os.Args[0]))
++}
++
++-- go.mod --
++module m
+\ No newline at end of file

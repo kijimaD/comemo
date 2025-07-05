@@ -9,6 +9,20 @@ Date:   Mon Feb 9 00:27:38 2015 +0100
     Change-Id: Ia6fa5272aa7869124a637d2eeda81c4f35ef46c8
     Reviewed-on: https://go-review.googlesource.com/4201
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index b52b54ed8f..0a446c8255 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -296,7 +296,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+ //    and Jukka Teuhola; Nordic Journal of Computing 3,1 (1996), 27-40:
+ //    The given algorithms are in-place, number of Swap and Assignments
+ //    grow as n log n but the algorithm is not stable.
+-//  - "Fast Stable In-Plcae Sorting with O(n) Data Moves" J.I. Munro and
++//  - "Fast Stable In-Place Sorting with O(n) Data Moves" J.I. Munro and
+ //    V. Raman in Algorithmica (1996) 16, 115-160:
+ //    This algorithm either needs additional 2n bits or works only if there
+ //    are enough different elements available to encode some permutations

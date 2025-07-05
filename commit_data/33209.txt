@@ -13,8 +13,64 @@ Date:   Wed Aug 2 12:06:58 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/52851
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/main.go              |  5 +++--
  src/cmd/vet/testdata/cgo/cgo3.go | 13 +++++++++++++
  src/cmd/vet/vet_test.go          | 12 ++++++++++++
  3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 77376c90ed..34c5297b89 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -349,8 +349,9 @@ func doPackage(directory string, names []string, basePkg *Package) *Package {
+ 	pkg.files = files
+ 	// Type check the package.
+ 	err := pkg.check(fs, astFiles)
+-	if err != nil && *verbose {
+-		warnf("%s", err)
++	if err != nil {
++		// Note that we only report this error when *verbose.
++		Println(err)
+ 	}
+ 
+ 	// Check.
+diff --git a/src/cmd/vet/testdata/cgo/cgo3.go b/src/cmd/vet/testdata/cgo/cgo3.go
+new file mode 100644
+index 0000000000..0b1518e1f9
+--- /dev/null
++++ b/src/cmd/vet/testdata/cgo/cgo3.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Used by TestVetVerbose to test that vet -v doesn't fail because it
++// can't find "C".
++
++package testdata
++
++import "C"
++
++func F() {
++}
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index b3d5c663a7..8db8ff4d20 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -205,3 +205,15 @@ func TestTags(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// Issue #21188.
++func TestVetVerbose(t *testing.T) {
++	t.Parallel()
++	Build(t)
++	cmd := exec.Command("./"+binary, "-v", "-all", "testdata/cgo/cgo3.go")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Logf("%s", out)
++		t.Error(err)
++	}
++}

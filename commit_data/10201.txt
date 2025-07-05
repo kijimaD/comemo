@@ -8,6 +8,20 @@ Date:   Tue Nov 1 20:57:17 2011 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5327062
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7c89dafca3..ce03a49c91 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -763,7 +763,7 @@ The length is part of the array's type and must be a
+ integer value.  The length of array <code>a</code> can be discovered
+ using the built-in function <a href="#Length_and_capacity"><code>len(a)</code></a>.
+ The elements can be indexed by integer
+-indices 0 through the <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
++indices 0 through <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
+ Array types are always one-dimensional but may be composed to form
+ multi-dimensional types.
+ </p>

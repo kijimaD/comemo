@@ -13,7 +13,77 @@ Date:   Fri May 6 16:24:57 2016 +0000
     Change-Id: I826dc2a6f6da55add89ae9c6db892b3b2f7b526b
     Reviewed-on: https://go-review.googlesource.com/22852
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/testenv/testenv.go |  7 +++++++
  src/net/lookup_test.go          | 11 +++++++++--
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 9e684e3034..f134f6b04a 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -16,6 +16,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -133,3 +134,9 @@ func SkipFlaky(t *testing.T, issue int) {
+ 		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
+ 	}
+ }
++
++func SkipFlakyNet(t *testing.T) {
++	if v, _ := strconv.ParseBool(os.Getenv("GO_BUILDER_FLAKY_NET")); v {
++		t.Skip("skipping test on builder known to have frequent network failures")
++	}
++}
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 6e54fdba76..fb3cf18d3b 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -498,6 +498,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
+ func testDots(t *testing.T, mode string) {
+ 	names, err := LookupAddr("8.8.8.8") // Google dns server
+ 	if err != nil {
++		testenv.SkipFlakyNet(t)
+ 		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
+ 	} else {
+ 		for _, name := range names {
+@@ -509,12 +510,16 @@ func testDots(t *testing.T, mode string) {
+ 	}
+ 
+ 	cname, err := LookupCNAME("www.mit.edu")
+-	if err != nil || !strings.HasSuffix(cname, ".") {
+-		t.Errorf("LookupCNAME(www.mit.edu) = %v, %v, want cname ending in . with trailing dot (mode=%v)", cname, err, mode)
++	if err != nil {
++		testenv.SkipFlakyNet(t)
++		t.Errorf("LookupCNAME(www.mit.edu, mode=%v): %v", mode, err)
++	} else if !strings.HasSuffix(cname, ".") {
++		t.Errorf("LookupCNAME(www.mit.edu) = %v, want cname ending in . with trailing dot (mode=%v)", cname, mode)
+ 	}
+ 
+ 	mxs, err := LookupMX("google.com")
+ 	if err != nil {
++		testenv.SkipFlakyNet(t)
+ 		t.Errorf("LookupMX(google.com): %v (mode=%v)", err, mode)
+ 	} else {
+ 		for _, mx := range mxs {
+@@ -527,6 +532,7 @@ func testDots(t *testing.T, mode string) {
+ 
+ 	nss, err := LookupNS("google.com")
+ 	if err != nil {
++		testenv.SkipFlakyNet(t)
+ 		t.Errorf("LookupNS(google.com): %v (mode=%v)", err, mode)
+ 	} else {
+ 		for _, ns := range nss {
+@@ -539,6 +545,7 @@ func testDots(t *testing.T, mode string) {
+ 
+ 	cname, srvs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+ 	if err != nil {
++		testenv.SkipFlakyNet(t)
+ 		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
+ 	} else {
+ 		if !strings.HasSuffix(cname, ".google.com.") {

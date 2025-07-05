@@ -22,6 +22,49 @@ Date:   Mon Jun 3 12:02:40 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/alg.go | 22 ----------------------
  1 file changed, 22 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index e183452fbe..07c115f74d 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -57,8 +57,6 @@ var useAeshash bool
+ //   - github.com/outcaste-io/ristretto
+ //   - github.com/puzpuzpuz/xsync/v2
+ //   - github.com/puzpuzpuz/xsync/v3
+-//   - github.com/segmentio/parquet-go
+-//   - github.com/parquet-go/parquet-go
+ //   - github.com/authzed/spicedb
+ //   - github.com/pingcap/badger
+ //
+@@ -68,28 +66,8 @@ var useAeshash bool
+ //go:linkname memhash
+ func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+ 
+-// memhash32 should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/segmentio/parquet-go
+-//   - github.com/parquet-go/parquet-go
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname memhash32
+ func memhash32(p unsafe.Pointer, h uintptr) uintptr
+ 
+-// memhash64 should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/segmentio/parquet-go
+-//   - github.com/parquet-go/parquet-go
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname memhash64
+ func memhash64(p unsafe.Pointer, h uintptr) uintptr
+ 
+ // strhash should be an internal detail,

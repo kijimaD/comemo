@@ -18,7 +18,7 @@ Date:   Fri Nov 23 14:20:19 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/link.go                |   2 +
  src/cmd/internal/obj/objfile.go             |  11 +++
  src/cmd/internal/obj/ppc64/a.out.go         |   1 +
@@ -32,3 +32,465 @@ Date:   Fri Nov 23 14:20:19 2018 +0100
  src/cmd/link/internal/sym/symkind.go        |   2 +-
  src/cmd/link/internal/sym/symkind_string.go |   4 +-
  12 files changed, 240 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2989831a0a..6cff335ddf 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -214,6 +214,8 @@ const (
+ 	// Indicates auto that was optimized away, but whose type
+ 	// we want to preserve in the DWARF debug info.
+ 	NAME_DELETED_AUTO
++	// Indicates that this is a reference to a TOC anchor.
++	NAME_TOCREF
+ )
+ 
+ //go:generate stringer -type AddrType
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 94334d8361..4fbaafe347 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -98,6 +98,17 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+ 		w.writeRefs(s)
+ 		w.addLengths(s)
+ 	}
++
++	if ctxt.Headtype == objabi.Haix {
++		// Data must be sorted to keep a constant order in TOC symbols.
++		// As they are created during Progedit, two symbols can be switched between
++		// two different compilations. Therefore, BuildID will be different.
++		// TODO: find a better place and optimize to only sort TOC symbols
++		SortSlice(ctxt.Data, func(i, j int) bool {
++			return ctxt.Data[i].Name < ctxt.Data[j].Name
++		})
++	}
++
+ 	for _, s := range ctxt.Data {
+ 		w.writeRefs(s)
+ 		w.addLengths(s)
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 3c374579ec..0fd9c81039 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -391,6 +391,7 @@ const (
+ 	C_GOK
+ 	C_ADDR
+ 	C_GOTADDR
++	C_TOCADDR
+ 	C_TLS_LE
+ 	C_TLS_IE
+ 	C_TEXTSIZE
+diff --git a/src/cmd/internal/obj/ppc64/anames9.go b/src/cmd/internal/obj/ppc64/anames9.go
+index 6ec7b7b518..4699a15d3b 100644
+--- a/src/cmd/internal/obj/ppc64/anames9.go
++++ b/src/cmd/internal/obj/ppc64/anames9.go
+@@ -26,6 +26,7 @@ var cnames9 = []string{
+ 	"DACON",
+ 	"SBRA",
+ 	"LBRA",
++	"LBRAPIC",
+ 	"SAUTO",
+ 	"LAUTO",
+ 	"SEXT",
+@@ -42,6 +43,7 @@ var cnames9 = []string{
+ 	"GOK",
+ 	"ADDR",
+ 	"GOTADDR",
++	"TOCADDR",
+ 	"TLS_LE",
+ 	"TLS_IE",
+ 	"TEXTSIZE",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index a36565c9fd..51a9a18601 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -287,6 +287,7 @@ var optab = []Optab{
+ 	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_REG, 80, 8, 0},
+ 
+ 	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_REG, 81, 8, 0},
++	{AMOVD, C_TOCADDR, C_NONE, C_NONE, C_REG, 95, 8, 0},
+ 
+ 	/* load constant */
+ 	{AMOVD, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB},
+@@ -846,6 +847,9 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 		case obj.NAME_GOTREF:
+ 			return C_GOTADDR
+ 
++		case obj.NAME_TOCREF:
++			return C_TOCADDR
++
+ 		case obj.NAME_AUTO:
+ 			c.instoffset = int64(c.autosize) + a.Offset
+ 			if c.instoffset >= -BIG && c.instoffset < BIG {
+@@ -1019,7 +1023,7 @@ func (c *ctxt9) oplook(p *obj.Prog) *Optab {
+ 		}
+ 	}
+ 
+-	//print("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4);
++	// c.ctxt.Logf("oplook %v %d %d %d %d\n", p, a1, a2, a3, a4)
+ 	ops := oprange[p.As&obj.AMask]
+ 	c1 := &xcmp[a1]
+ 	c3 := &xcmp[a3]
+@@ -2207,6 +2211,10 @@ func (c *ctxt9) opform(insn uint32) int {
+ // Encode instructions and create relocation for accessing s+d according to the
+ // instruction op with source or destination (as appropriate) register reg.
+ func (c *ctxt9) symbolAccess(s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
++	if c.ctxt.Headtype == objabi.Haix {
++		// Every symbol accesses must be made via a TOC anchor.
++		c.ctxt.Diag("symbolAccess called for %s", s.Name)
++	}
+ 	var base uint32
+ 	form := c.opform(op)
+ 	if c.ctxt.Flag_shared {
+@@ -3647,6 +3655,24 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		/* operand order: RA, RB, CY, RT */
+ 		cy := int(c.regoff(p.GetFrom3()))
+ 		o1 = AOP_Z23I(c.oprrr(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(cy))
++
++	case 95: /* Retrieve TOC symbol */
++		v := c.vregoff(&p.To)
++		if v != 0 {
++			c.ctxt.Diag("invalid offset against TOC slot %v", p)
++		}
++
++		if c.opform(c.opload(p.As)) != DS_FORM {
++			c.ctxt.Diag("invalid form for a TOC access in %v", p)
++		}
++
++		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
++		o2 = AOP_IRR(c.opload(AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
++		rel := obj.Addrel(c.cursym)
++		rel.Off = int32(c.pc)
++		rel.Siz = 8
++		rel.Sym = p.From.Sym
++		rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
+ 	}
+ 
+ 	out[0] = o1
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7a07b5058c..a9928742de 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -108,9 +108,122 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	}
+ 	if c.ctxt.Flag_dynlink {
+ 		c.rewriteToUseGot(p)
++	} else if c.ctxt.Headtype == objabi.Haix {
++		c.rewriteToUseTOC(p)
+ 	}
+ }
+ 
++// Rewrite p, if necessary, to access a symbol using its TOC anchor.
++func (c *ctxt9) rewriteToUseTOC(p *obj.Prog) {
++	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
++		return
++	}
++
++	var source *obj.Addr
++	if p.From.Name == obj.NAME_EXTERN || p.From.Name == obj.NAME_STATIC {
++		if p.From.Type == obj.TYPE_ADDR {
++			if p.As == ADWORD {
++				// ADWORD $sym doesn't need TOC anchor
++				return
++			}
++			if p.As != AMOVD {
++				c.ctxt.Diag("do not know how to handle TYPE_ADDR in %v", p)
++				return
++			}
++			if p.To.Type != obj.TYPE_REG {
++				c.ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v", p)
++				return
++			}
++		} else if p.From.Type != obj.TYPE_MEM {
++			c.ctxt.Diag("do not know how to handle %v without TYPE_MEM", p)
++			return
++		}
++		source = &p.From
++
++	} else if p.To.Name == obj.NAME_EXTERN || p.To.Name == obj.NAME_STATIC {
++		if p.To.Type != obj.TYPE_MEM {
++			c.ctxt.Diag("do not know how to handle %v without TYPE_MEM", p)
++			return
++		}
++		if source != nil {
++			c.ctxt.Diag("cannot handle symbols on both sides in %v", p)
++			return
++		}
++		source = &p.To
++	} else {
++		return
++
++	}
++
++	if source.Sym == nil {
++		c.ctxt.Diag("do not know how to handle nil symbol in %v", p)
++		return
++	}
++
++	if source.Sym.Type == objabi.STLSBSS {
++		return
++	}
++
++	// Retrieve or create the TOC anchor.
++	symtoc := c.ctxt.LookupInit("TOC."+source.Sym.Name, func(s *obj.LSym) {
++		s.Type = objabi.SDATA
++		s.Set(obj.AttrDuplicateOK, true)
++		c.ctxt.Data = append(c.ctxt.Data, s)
++		s.WriteAddr(c.ctxt, 0, 8, source.Sym, 0)
++	})
++
++	if source.Type == obj.TYPE_ADDR {
++		// MOVD $sym, Rx becomes MOVD symtoc, Rx
++		// MOVD $sym+<off>, Rx becomes MOVD symtoc, Rx; ADD <off>, Rx
++		p.From.Type = obj.TYPE_MEM
++		p.From.Sym = symtoc
++		p.From.Name = obj.NAME_TOCREF
++
++		if p.From.Offset != 0 {
++			q := obj.Appendp(p, c.newprog)
++			q.As = AADD
++			q.From.Type = obj.TYPE_CONST
++			q.From.Offset = p.From.Offset
++			p.From.Offset = 0
++			q.To = p.To
++		}
++		return
++
++	}
++
++	// MOVx sym, Ry becomes MOVD symtoc, REGTMP; MOVx (REGTMP), Ry
++	// MOVx Ry, sym becomes MOVD symtoc, REGTMP; MOVx Ry, (REGTMP)
++	// An addition may be inserted between the two MOVs if there is an offset.
++
++	q := obj.Appendp(p, c.newprog)
++	q.As = AMOVD
++	q.From.Type = obj.TYPE_MEM
++	q.From.Sym = symtoc
++	q.From.Name = obj.NAME_TOCREF
++	q.To.Type = obj.TYPE_REG
++	q.To.Reg = REGTMP
++
++	q = obj.Appendp(q, c.newprog)
++	q.As = p.As
++	q.From = p.From
++	q.To = p.To
++	if p.From.Name != obj.NAME_NONE {
++		q.From.Type = obj.TYPE_MEM
++		q.From.Reg = REGTMP
++		q.From.Name = obj.NAME_NONE
++		q.From.Sym = nil
++	} else if p.To.Name != obj.NAME_NONE {
++		q.To.Type = obj.TYPE_MEM
++		q.To.Reg = REGTMP
++		q.To.Name = obj.NAME_NONE
++		q.To.Sym = nil
++	} else {
++		c.ctxt.Diag("unreachable case in rewriteToUseTOC with %v", p)
++	}
++
++	obj.Nopout(p)
++}
++
+ // Rewrite p, if necessary, to access global data via the global offset table.
+ func (c *ctxt9) rewriteToUseGot(p *obj.Prog) {
+ 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index da938c998a..46c3d7b17b 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -372,6 +372,17 @@ func Mconv(a *Addr) string {
+ 		} else {
+ 			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
+ 		}
++	case NAME_TOCREF:
++		reg := "SB"
++		if a.Reg != REG_NONE {
++			reg = Rconv(int(a.Reg))
++		}
++		if a.Sym != nil {
++			str = fmt.Sprintf("%s%s(%s)", a.Sym.Name, offConv(a.Offset), reg)
++		} else {
++			str = fmt.Sprintf("%s(%s)", offConv(a.Offset), reg)
++		}
++
+ 	}
+ 	return str
+ }
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 39746f5a4f..ffa20bb637 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -314,14 +314,18 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
+ 
+ 				break
+ 			}
+-			// On AIX, if a relocated symbol is in .data, a second relocation
+-			// must be done by the loader, as the section .data will be moved.
++
++			// On AIX, a second relocation must be done by the loader,
++			// as section addresses can change once loaded.
+ 			// The "default" symbol address is still needed by the loader so
+ 			// the current relocation can't be skipped.
+-			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT && r.Sym.Sect.Seg == &Segdata {
+-				// It's not possible to make a loader relocation to a DWARF section.
+-				// FIXME
+-				if s.Sect.Seg != &Segdwarf {
++			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT {
++				// It's not possible to make a loader relocation in a
++				// symbol which is not inside .data section.
++				// FIXME: It should be forbidden to have R_ADDR from a
++				// symbol which isn't in .data. However, as .text has the
++				// same address once loaded, this is possible.
++				if s.Sect.Seg == &Segdata {
+ 					Xcoffadddynrel(ctxt, s, r)
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index e77e2d8b80..a82bbb65df 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -913,8 +913,8 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s *sym.Symbol) {
+ // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
+ // This relocation will be made by the loader.
+ func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
+-	if s.Type <= sym.SPCLNTAB && r.Sym.Type >= sym.SELFSECT && r.Sym.Type <= sym.SXREF {
+-		Errorf(s, "cannot have a relocation in a text section with a data symbol: %s ", r.Sym.Name)
++	if s.Type <= sym.SPCLNTAB {
++		Errorf(s, "cannot have a relocation to %s in a text section symbol", r.Sym.Name)
+ 		return false
+ 	}
+ 
+@@ -936,9 +936,22 @@ func Xcoffadddynrel(ctxt *Link, s *sym.Symbol, r *sym.Reloc) bool {
+ 					break
+ 				}
+ 			}
+-		} else if s.Type == sym.SDATA && r.Sym.Type >= sym.SELFSECT && r.Sym.Type <= sym.SXREF {
+-			// .data to .data relocation
+-			ldr.symndx = 1 // .data
++		} else if s.Type == sym.SDATA {
++			switch r.Sym.Sect.Seg {
++			default:
++				Errorf(s, "unknown segment for .loader relocation with symbol %s", r.Sym.Name)
++			case &Segtext:
++			case &Segrodata:
++				ldr.symndx = 0 // .text
++			case &Segdata:
++				if r.Sym.Type == sym.SBSS || r.Sym.Type == sym.SNOPTRBSS {
++					ldr.symndx = 2 // .bss
++				} else {
++					ldr.symndx = 1 // .data
++				}
++
++			}
++
+ 		} else {
+ 			Errorf(s, "unexpected type for .loader relocation R_ADDR for symbol %s: %s to %s", r.Sym.Name, s.Type, r.Sym.Type)
+ 			return false
+@@ -1009,6 +1022,12 @@ func (ctxt *Link) doxcoff() {
+ 	})
+ 
+ 	xfile.genDynSym(ctxt)
++
++	for _, s := range ctxt.Syms.Allsym {
++		if strings.HasPrefix(s.Name, "TOC.") {
++			s.Type = sym.SXCOFFTOC
++		}
++	}
+ }
+ 
+ // Loader section
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 4a974a546b..4f5d8b5539 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -489,7 +489,40 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
+ 	return toc.Value
+ }
+ 
++func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
++	var o1, o2 uint32
++
++	o1 = uint32(val >> 32)
++	o2 = uint32(val)
++
++	t := ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value // sym addr
++	if t != int64(int32(t)) {
++		ld.Errorf(s, "TOC relocation for %s is too big to relocate %s: 0x%x", s.Name, r.Sym, t)
++	}
++
++	if t&0x8000 != 0 {
++		t += 0x10000
++	}
++
++	o1 |= uint32((t >> 16) & 0xFFFF)
++
++	switch r.Type {
++	case objabi.R_ADDRPOWER_TOCREL_DS:
++		if t&3 != 0 {
++			ld.Errorf(s, "bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
++		}
++		o2 |= uint32(t) & 0xFFFC
++	default:
++		return -1
++	}
++
++	return int64(o1)<<32 | int64(o2)
++}
++
+ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
++	if ctxt.HeadType == objabi.Haix {
++		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
++	}
+ 	var o1, o2 uint32
+ 	if ctxt.Arch.ByteOrder == binary.BigEndian {
+ 		o1 = uint32(val >> 32)
+@@ -508,7 +541,7 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64
+ 
+ 	t := ld.Symaddr(r.Sym) + r.Add
+ 	if t < 0 || t >= 1<<31 {
+-		ld.Errorf(s, "relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
++		ld.Errorf(s, "relocation for %s is too big (>=2G): 0x%x", s.Name, ld.Symaddr(r.Sym))
+ 	}
+ 	if t&0x8000 != 0 {
+ 		t += 0x10000
+@@ -682,6 +715,8 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
+ 		return r.Add, true
+ 	case objabi.R_GOTOFF:
+ 		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
++	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
++		return archreloctoc(ctxt, r, s, val), true
+ 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
+ 		return archrelocaddr(ctxt, r, s, val), true
+ 	case objabi.R_CALLPOWER:
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 6e1e1b58a1..82e4b9eda4 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -89,10 +89,10 @@ const (
+ 	SNOPTRDATA
+ 	SINITARR
+ 	SDATA
++	SXCOFFTOC
+ 	SBSS
+ 	SNOPTRBSS
+ 	STLSBSS
+-	SXCOFFTOC
+ 	SXREF
+ 	SMACHOSYMSTR
+ 	SMACHOSYMTAB
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 4da6c656f7..9c8e1569f6 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -4,9 +4,9 @@ package sym
+ 
+ import "strconv"
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASBSSSNOPTRBSSSTLSBSSSXCOFFTOCSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISCSABIALIAS"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISCSABIALIAS"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 271, 280, 287, 296, 301, 313, 325, 342, 359, 368, 374, 384, 392, 402, 412, 423, 432, 442, 451}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 214, 220, 229, 237, 244, 254, 262, 267, 276, 280, 289, 296, 301, 313, 325, 342, 359, 368, 374, 384, 392, 402, 412, 423, 432, 442, 451}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

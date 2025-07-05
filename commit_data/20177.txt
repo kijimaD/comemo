@@ -8,6 +8,19 @@ Date:   Sat Aug 23 21:11:57 2014 +0400
     R=daniel.morsing, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/130500044
-
+---
  src/pkg/runtime/proc.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index dbe47d2af7..6767622846 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1868,7 +1868,6 @@ newproc_m(void)
+ 	void *callerpc;
+ 	FuncVal *fn;
+ 	int32 siz;
+-	G *spawng;
+ 
+ 	siz = g->m->scalararg[0];
+ 	callerpc = (void*)g->m->scalararg[1];	

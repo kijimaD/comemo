@@ -7,6 +7,20 @@ Date:   Sat May 5 13:08:17 2018 +0000
     Change-Id: I64958f8f1a935adc07868362975447d0c0033084
     Reviewed-on: https://go-review.googlesource.com/111716
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/plugin/plugin_stubs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugin/plugin_stubs.go b/src/plugin/plugin_stubs.go
+index f0bcb4a3bd..40a41643b1 100644
+--- a/src/plugin/plugin_stubs.go
++++ b/src/plugin/plugin_stubs.go
+@@ -8,7 +8,7 @@ package plugin
+ 
+ import "errors"
+ 
+-func lookup(p *Plugin, symName string) (interface{}, error) {
++func lookup(p *Plugin, symName string) (Symbol, error) {
+ 	return nil, errors.New("plugin: not implemented")
+ }
+ 

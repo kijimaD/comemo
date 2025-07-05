@@ -15,6 +15,19 @@ Date:   Mon Oct 7 17:59:58 2024 +0200
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/crypto/rand/rand_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 0743a2dd04..2372413279 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -158,6 +158,7 @@ func TestAllocations(t *testing.T) {
+ 	if race.Enabled {
+ 		t.Skip("urandomRead allocates under -race")
+ 	}
++	testenv.SkipIfOptimizationOff(t)
+ 
+ 	n := int(testing.AllocsPerRun(10, func() {
+ 		buf := make([]byte, 32)

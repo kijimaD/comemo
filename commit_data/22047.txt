@@ -9,6 +9,43 @@ Date:   Fri Feb 20 16:46:48 2015 +1100
     Change-Id: Iab37051078755a132f211ad48e756422f7c55a39
     Reviewed-on: https://go-review.googlesource.com/5416
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/path/filepath/example_unix_test.go | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
+
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index f3fe076c3c..27d85d15c6 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -37,3 +37,31 @@ func ExampleRel() {
+ 	// "/b/c": "../b/c" <nil>
+ 	// "./b/c": "" Rel: can't make b/c relative to /a
+ }
++
++func ExampleSplit() {
++	paths := []string{
++		"/home/arnie/amelia.jpg",
++		"/mnt/photos/",
++		"rabbit.jpg",
++		"/usr/local//go",
++	}
++	fmt.Println("On Unix:")
++	for _, p := range paths {
++		dir, file := filepath.Split(p)
++		fmt.Printf("input: %q\n\tdir: %q\n\tfile: %q\n", p, dir, file)
++	}
++	// Output:
++	// On Unix:
++	// input: "/home/arnie/amelia.jpg"
++	// 	dir: "/home/arnie/"
++	// 	file: "amelia.jpg"
++	// input: "/mnt/photos/"
++	// 	dir: "/mnt/photos/"
++	// 	file: ""
++	// input: "rabbit.jpg"
++	// 	dir: ""
++	// 	file: "rabbit.jpg"
++	// input: "/usr/local//go"
++	// 	dir: "/usr/local//"
++	// 	file: "go"
++}

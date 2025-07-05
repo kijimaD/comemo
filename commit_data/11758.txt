@@ -9,6 +9,23 @@ Date:   Fri Feb 10 11:48:22 2012 +1100
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/5653052
-
+---
  src/make.bat | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/make.bat b/src/make.bat
+index 804c35ad04..3a456513fa 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -16,9 +16,9 @@ goto fail
+ :: backslashes.  Then we wrap that in quotes to create
+ :: a C string.
+ cd ..
+-set GOROOT="%CD%"
++set GOROOT=%CD%
+ cd src
+-if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL="%GOROOT%"
++if "x%GOROOT_FINAL%"=="x" set GOROOT_FINAL=%GOROOT%
+ set DEFGOROOT=-DGOROOT_FINAL="\"%GOROOT_FINAL:\=\\%\""
+ 
+ echo # Building C bootstrap tool.

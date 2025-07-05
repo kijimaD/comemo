@@ -8,6 +8,20 @@ Date:   Thu Aug 7 08:17:41 2014 -0400
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/123880043
-
+---
  src/cmd/gc/mparith1.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 1519caec7a..d33a81e09d 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -591,7 +591,7 @@ Fconv(Fmt *fp)
+ 			d = mpgetflt(fvp);
+ 			if(d >= 0 && (fp->flags & FmtSign))
+ 				fmtprint(fp, "+");
+-			return fmtprint(fp, "%g", d, exp, fvp);
++			return fmtprint(fp, "%g", d);
+ 		}
+ 		
+ 		// very out of range. compute decimal approximation by hand.

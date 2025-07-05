@@ -15,6 +15,30 @@ Date:   Fri Sep 17 16:21:43 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/symtab.go | 12 +++++-------
  1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index aa9dd7b40c..87b4eeb220 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -568,13 +568,11 @@ const debugPcln = false
+ func moduledataverify1(datap *moduledata) {
+ 	// Check that the pclntab's format is valid.
+ 	hdr := datap.pcHeader
+-	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 || hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize {
+-		print("runtime: function symbol table header:", hex(hdr.magic), hex(hdr.pad1), hex(hdr.pad2), hex(hdr.minLC), hex(hdr.ptrSize))
+-		if datap.pluginpath != "" {
+-			print(", plugin:", datap.pluginpath)
+-		}
+-		println()
+-		throw("invalid function symbol table\n")
++	if hdr.magic != 0xfffffffa || hdr.pad1 != 0 || hdr.pad2 != 0 ||
++		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize {
++		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
++			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pluginpath=", datap.pluginpath)
++		throw("invalid function symbol table")
+ 	}
+ 
+ 	// ftab is lookup table for function by program counter.

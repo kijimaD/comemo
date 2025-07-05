@@ -12,7 +12,96 @@ Date:   Fri Feb 7 23:58:21 2014 +0100
     R=khr, iant, rsc
     CC=golang-codereviews
     https://golang.org/cl/51740044
-
+---
  src/cmd/6g/cgen.c | 35 +++++++++++++++++++++++++++--------
  src/cmd/6g/ggen.c | 24 +++++++++++++++++++-----
  2 files changed, 46 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index da16071a8d..76ece93b04 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1436,14 +1436,33 @@ sgen(Node *n, Node *ns, int64 w)
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+ 			q--;
+ 		}
+-
+-		if(c >= 4) {
+-			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
+-			c -= 4;
+-		}
+-		while(c > 0) {
+-			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
+-			c--;
++		// copy the remaining c bytes
++		if(w < 4 || c <= 1 || (odst < osrc && osrc < odst+w)) {
++			while(c > 0) {
++				gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
++				c--;
++			}
++		} else if(w < 8 || c <= 4) {
++			nodsi.op = OINDREG;
++			noddi.op = OINDREG;
++			nodsi.type = types[TINT32];
++			noddi.type = types[TINT32];
++			if(c > 4) {
++				nodsi.xoffset = 0;
++				noddi.xoffset = 0;
++				gmove(&nodsi, &noddi);
++			}
++			nodsi.xoffset = c-4;
++			noddi.xoffset = c-4;
++			gmove(&nodsi, &noddi);
++		} else {
++			nodsi.op = OINDREG;
++			noddi.op = OINDREG;
++			nodsi.type = types[TINT64];
++			noddi.type = types[TINT64];
++			nodsi.xoffset = c-8;
++			noddi.xoffset = c-8;
++			gmove(&nodsi, &noddi);
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 2bdb12bdd0..1b8bf7e400 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -1016,7 +1016,8 @@ void
+ clearfat(Node *nl)
+ {
+ 	int64 w, c, q;
+-	Node n1, oldn1, ax, oldax;
++	Node n1, oldn1, ax, oldax, di, z;
++	Prog *p;
+ 
+ 	/* clear a fat object */
+ 	if(debug['g'])
+@@ -1048,10 +1049,23 @@ clearfat(Node *nl)
+ 		q--;
+ 	}
+ 
+-	if(c >= 4) {
+-		gconreg(AMOVQ, c, D_CX);
+-		gins(AREP, N, N);	// repeat
+-		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
++	z = ax;
++	di = n1;
++	if(w >= 8 && c >= 4) {
++		di.op = OINDREG;
++		di.type = z.type = types[TINT64];
++		p = gins(AMOVQ, &z, &di);
++		p->to.scale = 1;
++		p->to.offset = c-8;
++	} else if(c >= 4) {
++		di.op = OINDREG;
++		di.type = z.type = types[TINT32];
++		p = gins(AMOVL, &z, &di);
++		if(c > 4) {
++			p = gins(AMOVL, &z, &di);
++			p->to.scale = 1;
++			p->to.offset = c-4;
++		}
+ 	} else
+ 	while(c > 0) {
+ 		gins(ASTOSB, N, N);	// STOB AL,*(DI)+

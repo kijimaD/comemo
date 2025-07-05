@@ -18,7 +18,7 @@ Date:   Wed Apr 15 14:52:38 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228383
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                  | 58 +++++++++++++++-
  .../example.com_retract_rationale_v1.0.0-block.txt |  6 ++
  ...m_retract_rationale_v1.0.0-blockwithcomment.txt |  6 ++
@@ -33,3 +33,413 @@ Date:   Wed Apr 15 14:52:38 2020 -0400
  src/cmd/go/testdata/script/mod_get_retract.txt     | 49 ++++++++++++++
  .../go/testdata/script/mod_retract_rationale.txt   | 79 ++++++++++++++++++++++
  13 files changed, 296 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 06d59d9e0d..4ca7f5b529 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -702,6 +702,15 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Everything succeeded. Update go.mod.
+ 	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
++	modload.DisallowWriteGoMod()
++
++	// Report warnings if any retracted versions are in the build list.
++	// This must be done after writing go.mod to avoid spurious '// indirect'
++	// comments. These functions read and write global state.
++	// TODO(golang.org/issue/40775): ListModules resets modload.loader, which
++	// contains information about direct dependencies that WriteGoMod uses.
++	// Refactor to avoid these kinds of global side effects.
++	reportRetractions(ctx)
+ 
+ 	// If -d was specified, we're done after the module work.
+ 	// We've already downloaded modules by loading packages above.
+@@ -804,6 +813,14 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
+ 		base.Fatalf("go get: internal error: prevM may be set if and only if forceModulePath is set")
+ 	}
+ 
++	// If vers is a query like "latest", we should ignore retracted and excluded
++	// versions. If vers refers to a specific version or commit like "v1.0.0"
++	// or "master", we should only ignore excluded versions.
++	allowed := modload.CheckAllowed
++	if modload.IsRevisionQuery(vers) {
++		allowed = modload.CheckExclusions
++	}
++
+ 	// If the query must be a module path, try only that module path.
+ 	if forceModulePath {
+ 		if path == modload.Target.Path {
+@@ -812,7 +829,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
+ 			}
+ 		}
+ 
+-		info, err := modload.Query(ctx, path, vers, prevM.Version, modload.CheckAllowed)
++		info, err := modload.Query(ctx, path, vers, prevM.Version, allowed)
+ 		if err == nil {
+ 			if info.Version != vers && info.Version != prevM.Version {
+ 				logOncef("go: %s %s => %s", path, vers, info.Version)
+@@ -838,7 +855,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
+ 	// If it turns out to only exist as a module, we can detect the resulting
+ 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
+ 	// all of the configured proxies.
+-	results, err := modload.QueryPattern(ctx, path, vers, modload.CheckAllowed)
++	results, err := modload.QueryPattern(ctx, path, vers, allowed)
+ 	if err != nil {
+ 		// If the path doesn't contain a wildcard, check whether it was actually a
+ 		// module path instead. If so, return that.
+@@ -1050,6 +1067,43 @@ func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error)
+ 	return r.Reqs.Required(mod)
+ }
+ 
++// reportRetractions prints warnings if any modules in the build list are
++// retracted.
++func reportRetractions(ctx context.Context) {
++	// Query for retractions of modules in the build list.
++	// Use modload.ListModules, since that provides information in the same format
++	// as 'go list -m'. Don't query for "all", since that's not allowed outside a
++	// module.
++	buildList := modload.BuildList()
++	args := make([]string, 0, len(buildList))
++	for _, m := range buildList {
++		if m.Version == "" {
++			// main module or dummy target module
++			continue
++		}
++		args = append(args, m.Path+"@"+m.Version)
++	}
++	listU := false
++	listVersions := false
++	listRetractions := true
++	mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
++	retractPath := ""
++	for _, mod := range mods {
++		if len(mod.Retracted) > 0 {
++			if retractPath == "" {
++				retractPath = mod.Path
++			} else {
++				retractPath = "<module>"
++			}
++			rationale := modload.ShortRetractionRationale(mod.Retracted[0])
++			logOncef("go: warning: %s@%s is retracted: %s", mod.Path, mod.Version, rationale)
++		}
++	}
++	if modload.HasModRoot() && retractPath != "" {
++		logOncef("go: run 'go get %s@latest' to switch to the latest unretracted version", retractPath)
++	}
++}
++
+ var loggedLines sync.Map
+ 
+ func logOncef(format string, args ...interface{}) {
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-block.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-block.txt
+new file mode 100644
+index 0000000000..c4a53e1d80
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-block.txt
+@@ -0,0 +1,6 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-block"}
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-blockwithcomment.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-blockwithcomment.txt
+new file mode 100644
+index 0000000000..92573b62e3
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-blockwithcomment.txt
+@@ -0,0 +1,6 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-blockwithcomment"}
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-empty.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-empty.txt
+new file mode 100644
+index 0000000000..1f0894aa8b
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-empty.txt
+@@ -0,0 +1,8 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-empty"}
++-- empty.go --
++package empty
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-long.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-long.txt
+new file mode 100644
+index 0000000000..1b5e753428
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-long.txt
+@@ -0,0 +1,8 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-long"}
++-- empty.go --
++package empty
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-multiline1.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-multiline1.txt
+new file mode 100644
+index 0000000000..b1ffe27225
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-multiline1.txt
+@@ -0,0 +1,8 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-multiline1"}
++-- empty.go --
++package empty
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-multiline2.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-multiline2.txt
+new file mode 100644
+index 0000000000..72f80b3254
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-multiline2.txt
+@@ -0,0 +1,8 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-multiline2"}
++-- empty.go --
++package empty
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-order.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-order.txt
+new file mode 100644
+index 0000000000..1b0450462b
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-order.txt
+@@ -0,0 +1,6 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-order"}
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-unprintable.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-unprintable.txt
+new file mode 100644
+index 0000000000..949612431e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.0-unprintable.txt
+@@ -0,0 +1,8 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.0-unprintable"}
++-- empty.go --
++package empty
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.1-order.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.1-order.txt
+new file mode 100644
+index 0000000000..3be7d5b56e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.0.1-order.txt
+@@ -0,0 +1,6 @@
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++-- .info --
++{"Version":"v1.0.1-order"}
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.9.0.txt b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.9.0.txt
+new file mode 100644
+index 0000000000..6975d4ebd4
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_rationale_v1.9.0.txt
+@@ -0,0 +1,48 @@
++Module example.com/retract/description retracts all versions of itself.
++The rationale comments have various problems.
++
++-- .mod --
++module example.com/retract/rationale
++
++go 1.14
++
++retract (
++	v1.0.0-empty
++
++	// short description
++	// more
++	//
++	// detail
++	v1.0.0-multiline1 // suffix
++	// after not included
++)
++
++// short description
++// more
++//
++// detail
++retract v1.0.0-multiline2 // suffix
++
++// loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong
++retract v1.0.0-long
++
++// Ends with a BEL character. Beep!
++retract v1.0.0-unprintable
++
++// block comment
++retract (
++	v1.0.0-block
++
++	// inner comment
++	v1.0.0-blockwithcomment
++)
++
++retract (
++	[v1.0.0-order, v1.0.0-order] // degenerate range
++	v1.0.0-order // single version
++
++	v1.0.1-order // single version
++	[v1.0.1-order, v1.0.1-order] // degenerate range
++)
++-- .info --
++{"Version":"v1.9.0"}
+diff --git a/src/cmd/go/testdata/script/mod_get_retract.txt b/src/cmd/go/testdata/script/mod_get_retract.txt
+new file mode 100644
+index 0000000000..da6c25523f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_retract.txt
+@@ -0,0 +1,49 @@
++# 'go get pkg' should not upgrade to a retracted version.
++cp go.mod.orig go.mod
++go mod edit -require example.com/retract/self/prev@v1.1.0
++go get -d example.com/retract/self/prev
++go list -m example.com/retract/self/prev
++stdout '^example.com/retract/self/prev v1.1.0$'
++
++# 'go get pkg' should not downgrade from a retracted version when no higher
++# version is available.
++cp go.mod.orig go.mod
++go mod edit -require example.com/retract/self/prev@v1.9.0
++go get -d example.com/retract/self/prev
++stderr '^go: warning: example.com/retract/self/prev@v1.9.0 is retracted: self$'
++go list -m example.com/retract/self/prev
++stdout '^example.com/retract/self/prev v1.9.0$'
++
++# 'go get pkg@latest' should downgrade from a retracted version.
++cp go.mod.orig go.mod
++go mod edit -require example.com/retract/self/prev@v1.9.0
++go get -d example.com/retract/self/prev@latest
++go list -m example.com/retract/self/prev
++stdout '^example.com/retract/self/prev v1.1.0$'
++
++# 'go get pkg@version' should update to a specific version, even if that
++# version is retracted.
++cp go.mod.orig go.mod
++go get -d example.com/retract@v1.0.0-bad
++stderr '^go: warning: example.com/retract@v1.0.0-bad is retracted: bad$'
++go list -m example.com/retract
++stdout '^example.com/retract v1.0.0-bad$'
++
++# 'go get -u' should not downgrade from a retracted version when no higher
++# version is available.
++cp go.mod.orig go.mod
++go mod edit -require example.com/retract/self/prev@v1.9.0
++go get -d -u .
++stderr '^go: warning: example.com/retract/self/prev@v1.9.0 is retracted: self$'
++go list -m example.com/retract/self/prev
++stdout '^example.com/retract/self/prev v1.9.0$'
++
++-- go.mod.orig --
++module example.com/use
++
++go 1.15
++
++-- use.go --
++package use
++
++import _ "example.com/retract/self/prev"
+diff --git a/src/cmd/go/testdata/script/mod_retract_rationale.txt b/src/cmd/go/testdata/script/mod_retract_rationale.txt
+new file mode 100644
+index 0000000000..584c3a3849
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_retract_rationale.txt
+@@ -0,0 +1,79 @@
++# When there is no rationale, 'go get' should print a hard-coded message.
++go get -d example.com/retract/rationale@v1.0.0-empty
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-empty is retracted: retracted by module author$'
++
++# 'go list' should print the same hard-coded message.
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
++stdout '^\[retracted by module author\]$'
++
++
++# When there is a multi-line message, 'go get' should print the first line.
++go get -d example.com/retract/rationale@v1.0.0-multiline1
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline1 is retracted: short description$'
++! stderr 'detail'
++
++# 'go list' should show the full message.
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
++cmp stdout multiline
++
++# 'go get' output should be the same whether the retraction appears at top-level
++# or in a block.
++go get -d example.com/retract/rationale@v1.0.0-multiline2
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-multiline2 is retracted: short description$'
++! stderr 'detail'
++
++# Same for 'go list'.
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
++cmp stdout multiline
++
++
++# 'go get' should omit long messages.
++go get -d example.com/retract/rationale@v1.0.0-long
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-long is retracted: \(rationale omitted: too long\)'
++
++# 'go list' should show the full message.
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
++stdout '^\[lo{500}ng\]$'
++
++
++# 'go get' should omit messages with unprintable characters.
++go get -d example.com/retract/rationale@v1.0.0-unprintable
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-unprintable is retracted: \(rationale omitted: contains non-printable characters\)'
++
++# 'go list' should show the full message.
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale
++stdout '^\[Ends with a BEL character. Beep!\x07\]$'
++
++
++# When there is a comment on a block, but not on individual retractions within
++# the block, the rationale should come from the block comment.
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale@v1.0.0-block
++stdout '^\[block comment\]$'
++go list -m -retracted -f '{{.Retracted}}' example.com/retract/rationale@v1.0.0-blockwithcomment
++stdout '^\[inner comment\]$'
++
++
++# When a version is covered by multiple retractions, all retractions should
++# be reported in the order they appear in the file.
++go list -m -retracted -f '{{range .Retracted}}{{.}},{{end}}' example.com/retract/rationale@v1.0.0-order
++stdout '^degenerate range,single version,$'
++go list -m -retracted -f '{{range .Retracted}}{{.}},{{end}}' example.com/retract/rationale@v1.0.1-order
++stdout '^single version,degenerate range,$'
++
++# 'go get' will only report the first retraction to avoid being too verbose.
++go get -d example.com/retract/rationale@v1.0.0-order
++stderr '^go: warning: example.com/retract/rationale@v1.0.0-order is retracted: degenerate range$'
++go get -d example.com/retract/rationale@v1.0.1-order
++stderr '^go: warning: example.com/retract/rationale@v1.0.1-order is retracted: single version$'
++
++-- go.mod --
++module m
++
++go 1.14
++
++-- multiline --
++[short description
++more
++
++detail
++suffix]

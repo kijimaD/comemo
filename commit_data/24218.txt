@@ -7,6 +7,29 @@ Date:   Thu Jul 16 11:13:42 2015 +1000
     Change-Id: I6f79d201aa4e8c0e3be8d965f14ed36518536036
     Reviewed-on: https://go-review.googlesource.com/12281
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/color/ycbcr_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/color/ycbcr_test.go b/src/image/color/ycbcr_test.go
+index d64e38ef46..5da49d379a 100644
+--- a/src/image/color/ycbcr_test.go
++++ b/src/image/color/ycbcr_test.go
+@@ -68,7 +68,7 @@ func TestYCbCrToRGBConsistency(t *testing.T) {
+ func TestYCbCrGray(t *testing.T) {
+ 	for i := 0; i < 256; i++ {
+ 		if err := eq(YCbCr{uint8(i), 0x80, 0x80}, Gray{uint8(i)}); err != nil {
+-			t.Errorf("i=0x%02d:\n%v", i, err)
++			t.Errorf("i=0x%02x:\n%v", i, err)
+ 		}
+ 	}
+ }
+@@ -117,7 +117,7 @@ func TestCMYKToRGBConsistency(t *testing.T) {
+ func TestCMYKGray(t *testing.T) {
+ 	for i := 0; i < 256; i++ {
+ 		if err := eq(CMYK{0x00, 0x00, 0x00, uint8(255 - i)}, Gray{uint8(i)}); err != nil {
+-			t.Errorf("i=0x%02d:\n%v", i, err)
++			t.Errorf("i=0x%02x:\n%v", i, err)
+ 		}
+ 	}
+ }

@@ -19,7 +19,66 @@ Date:   Fri May 8 15:08:55 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s |  3 +++
  src/cmd/internal/obj/arm64/asm7.go        | 10 +++++-----
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index c0e2fb7e0e..69267bfa63 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -274,6 +274,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	ADDW	$0x60060, R2                        // ADDW	$393312, R2                     // 4280011142804111
+ 	CMPW	$0x60060, R2                        // CMPW	$393312, R2                     // 1b0c8052db00a0725f001b6b
+ 
++	// TODO: this could have better encoding
++	ANDW	$-1, R10 // 1b0080124a011b0a
++
+ 	AND	$8, R0, RSP // 1f007d92
+ 	ORR	$8, R0, RSP // 1f007db2
+ 	EOR	$8, R0, RSP // 1f007dd2
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 9a1908a655..7f5cba645a 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1639,12 +1639,12 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 	}
+ 	if isaddcon(int64(v)) {
+ 		if v <= 0xFFF {
+-			if isbitcon(uint64(v)) {
++			if isbitcon(uint64(a.Offset)) {
+ 				return C_ABCON0
+ 			}
+ 			return C_ADDCON0
+ 		}
+-		if isbitcon(uint64(v)) {
++		if isbitcon(uint64(a.Offset)) {
+ 			return C_ABCON
+ 		}
+ 		if movcon(int64(v)) >= 0 {
+@@ -1658,7 +1658,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 
+ 	t := movcon(int64(v))
+ 	if t >= 0 {
+-		if isbitcon(uint64(v)) {
++		if isbitcon(uint64(a.Offset)) {
+ 			return C_MBCON
+ 		}
+ 		return C_MOVCON
+@@ -1666,13 +1666,13 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 
+ 	t = movcon(int64(^v))
+ 	if t >= 0 {
+-		if isbitcon(uint64(v)) {
++		if isbitcon(uint64(a.Offset)) {
+ 			return C_MBCON
+ 		}
+ 		return C_MOVCON
+ 	}
+ 
+-	if isbitcon(uint64(v)) {
++	if isbitcon(uint64(a.Offset)) {
+ 		return C_BITCON
+ 	}
+ 

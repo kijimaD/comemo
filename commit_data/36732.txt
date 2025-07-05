@@ -100,7 +100,86 @@ Date:   Sat Apr 21 16:15:41 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go  | 36 ++++++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/cache.go |  2 ++
  2 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 07b1354a89..4d5e6ff560 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -500,6 +500,11 @@ func (m liveRegMask) niceString(config *ssa.Config) string {
+ 	return str
+ }
+ 
++type livenessFuncCache struct {
++	be          []BlockEffects
++	livenessMap LivenessMap
++}
++
+ // Constructs a new liveness structure used to hold the global state of the
+ // liveness computation. The cfg argument is a slice of *BasicBlocks and the
+ // vars argument is a slice of *Nodes.
+@@ -510,11 +515,26 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
+ 		vars:       vars,
+ 		idx:        idx,
+ 		stkptrsize: stkptrsize,
+-		be:         make([]BlockEffects, f.NumBlocks()),
+ 
+ 		regMapSet: make(map[liveRegMask]int),
+ 	}
+ 
++	// Significant sources of allocation are kept in the ssa.Cache
++	// and reused. Surprisingly, the bit vectors themselves aren't
++	// a major source of allocation, but the slices are.
++	if lc, _ := f.Cache.Liveness.(*livenessFuncCache); lc == nil {
++		// Prep the cache so liveness can fill it later.
++		f.Cache.Liveness = new(livenessFuncCache)
++	} else {
++		if cap(lc.be) >= f.NumBlocks() {
++			lv.be = lc.be[:f.NumBlocks()]
++		}
++		lv.livenessMap = LivenessMap{lc.livenessMap.m[:0]}
++	}
++	if lv.be == nil {
++		lv.be = make([]BlockEffects, f.NumBlocks())
++	}
++
+ 	nblocks := int32(len(f.Blocks))
+ 	nvars := int32(len(vars))
+ 	bulk := bvbulkalloc(nvars, nblocks*7)
+@@ -1683,6 +1703,20 @@ func liveness(e *ssafn, f *ssa.Func) LivenessMap {
+ 		lv.printDebug()
+ 	}
+ 
++	// Update the function cache.
++	{
++		cache := f.Cache.Liveness.(*livenessFuncCache)
++		if cap(lv.be) < 2000 { // Threshold from ssa.Cache slices.
++			for i := range lv.be {
++				lv.be[i] = BlockEffects{}
++			}
++			cache.be = lv.be
++		}
++		if cap(lv.livenessMap.m) < 2000 {
++			cache.livenessMap = lv.livenessMap
++		}
++	}
++
+ 	// Emit the live pointer map data structures
+ 	if ls := e.curfn.Func.lsym; ls != nil {
+ 		lv.emit(&ls.Func.GCArgs, &ls.Func.GCLocals, &ls.Func.GCRegs)
+diff --git a/src/cmd/compile/internal/ssa/cache.go b/src/cmd/compile/internal/ssa/cache.go
+index f306a1959e..7438a81b72 100644
+--- a/src/cmd/compile/internal/ssa/cache.go
++++ b/src/cmd/compile/internal/ssa/cache.go
+@@ -28,6 +28,8 @@ type Cache struct {
+ 
+ 	ValueToProgAfter []*obj.Prog
+ 	debugState       debugState
++
++	Liveness interface{} // *gc.livenessFuncCache
+ }
+ 
+ func (c *Cache) Reset() {

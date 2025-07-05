@@ -7,6 +7,23 @@ Date:   Fri Sep 26 11:00:49 2014 +1000
     LGTM=r
     R=r, rsc, iant, agl
     https://golang.org/cl/142650045
-
+---
  doc/devel/release.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index a8f5963ca7..f8ffaf716e 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -27,6 +27,11 @@ go1.3.1 (released 2014/08/13) includes bug fixes to the compiler and the <code>r
+ See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=073fc578434bf3e1e22749b559d273c8da728ebb">change history</a> for details.
+ </p>
+ 
++<p>
++go1.3.2 (released 2014/09/25) includes bug fixes to cgo and the crypto/tls packages.
++See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=go1.3.2">change history</a> for details.
++</p>
++
+ <h2 id="go1.2">go1.2 (released 2013/12/01)</h2>
+ 
+ <p>

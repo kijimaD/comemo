@@ -12,6 +12,25 @@ Date:   Fri Dec 2 17:06:15 2022 -0500
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
-
+---
  doc/go1.20.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 177b27eaeb..26f65f28d0 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -67,6 +67,13 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="ports">Ports</h2>
+ 
++<h3 id="darwin">Darwin and iOS</h3>
++
++<p><!-- golang.org/issue/23011 -->
++  Go 1.20 is the last release that will run on macOS 10.13 High Sierra or 10.14 Mojave.
++  Go 1.21 will require macOS 10.15 Catalina or later.
++</p>
++
+ <h3 id="freebsd-riscv">FreeBSD/RISC-V</h3>
+ 
+ <p><!-- https://go.dev/issue/53466 -->

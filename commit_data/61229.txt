@@ -29,6 +29,23 @@ Date:   Mon Oct 21 13:09:58 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/621636
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/wasm/asm.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 2a4c1ee7ea..3728cc6dc3 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -365,9 +365,8 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
+ func writeMemorySec(ctxt *ld.Link, ldr *loader.Loader) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
+ 
+-	dataSection := ldr.SymSect(ldr.Lookup("runtime.data", 0))
+-	dataEnd := dataSection.Vaddr + dataSection.Length
+-	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
++	dataEnd := uint64(ldr.SymValue(ldr.Lookup("runtime.end", 0)))
++	var initialSize = dataEnd + 1<<20 // 1 MB, for runtime init allocating a few pages
+ 
+ 	const wasmPageSize = 64 << 10 // 64KB
+ 

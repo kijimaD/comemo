@@ -11,7 +11,46 @@ Date:   Tue Jul 14 01:14:08 2015 -0400
     Change-Id: I2fcf2d95430643370aa29165d89a188988dee446
     Reviewed-on: https://go-review.googlesource.com/12174
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/go_test.go | 17 +++++++++++++++++
  src/cmd/go/test.go    |  2 +-
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 61eecbebad..59e90b7f60 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2077,3 +2077,20 @@ func TestGoInstallPkgdir(t *testing.T) {
+ 	_, err = os.Stat(filepath.Join(pkg, "runtime.a"))
+ 	tg.must(err)
+ }
++
++func TestGoTestRaceInstallCgo(t *testing.T) {
++	// golang.org/issue/10500.
++	// This used to install a race-enabled cgo.
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("tool", "-n", "cgo")
++	cgo := strings.TrimSpace(tg.stdout.String())
++	old, err := os.Stat(cgo)
++	tg.must(err)
++	tg.run("test", "-race", "-i", "runtime/race")
++	new, err := os.Stat(cgo)
++	tg.must(err)
++	if new.ModTime() != old.ModTime() {
++		t.Fatalf("go test -i runtime/race reinstalled cmd/cgo")
++	}
++}
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 7ea8d53ad1..e62f4bd19d 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -386,7 +386,7 @@ func runTest(cmd *Command, args []string) {
+ 		if deps["C"] {
+ 			delete(deps, "C")
+ 			deps["runtime/cgo"] = true
+-			if buildContext.GOOS == runtime.GOOS && buildContext.GOARCH == runtime.GOARCH {
++			if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
+ 				deps["cmd/cgo"] = true
+ 			}
+ 		}

@@ -10,7 +10,101 @@ Date:   Tue Apr 2 17:55:49 2013 -0700
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/8294043
-
+---
  src/pkg/runtime/map_test.go      | 37 +++++++++++++++++++++++++++++++++----
  src/pkg/runtime/mapspeed_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 57 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/map_test.go b/src/pkg/runtime/map_test.go
+index fcce9a4fe6..209355e930 100644
+--- a/src/pkg/runtime/map_test.go
++++ b/src/pkg/runtime/map_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"sort"
++	"strings"
+ 	"sync"
+ 	"testing"
+ )
+@@ -317,9 +318,37 @@ func TestEmptyKeyAndValue(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkNewEmptyMap(b *testing.B) {
+-	b.ReportAllocs()
+-	for i := 0; i < b.N; i++ {
+-		_ = make(map[int]int)
++// Tests a map with a single bucket, with same-lengthed short keys
++// ("quick keys") as well as long keys.
++func TestSingleBucketMapStringKeys_DupLen(t *testing.T) {
++	testMapLookups(t, map[string]string{
++		"x":    "x1val",
++		"xx":   "x2val",
++		"foo":  "fooval",
++		"bar":  "barval", // same key length as "foo"
++		"xxxx": "x4val",
++		strings.Repeat("x", 128): "longval1",
++		strings.Repeat("y", 128): "longval2",
++	})
++}
++
++// Tests a map with a single bucket, with all keys having different lengths.
++func TestSingleBucketMapStringKeys_NoDupLen(t *testing.T) {
++	testMapLookups(t, map[string]string{
++		"x":                      "x1val",
++		"xx":                     "x2val",
++		"foo":                    "fooval",
++		"xxxx":                   "x4val",
++		"xxxxx":                  "x5val",
++		"xxxxxx":                 "x6val",
++		strings.Repeat("x", 128): "longval",
++	})
++}
++
++func testMapLookups(t *testing.T, m map[string]string) {
++	for k, v := range m {
++		if m[k] != v {
++			t.Fatalf("m[%q] = %q; want %q", k, m[k], v)
++		}
+ 	}
+ }
+diff --git a/src/pkg/runtime/mapspeed_test.go b/src/pkg/runtime/mapspeed_test.go
+index 73be434535..3b7fbfd638 100644
+--- a/src/pkg/runtime/mapspeed_test.go
++++ b/src/pkg/runtime/mapspeed_test.go
+@@ -150,6 +150,23 @@ func BenchmarkSmallStrMap(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMapStringKeysEight_16(b *testing.B) { benchmarkMapStringKeysEight(b, 16) }
++func BenchmarkMapStringKeysEight_32(b *testing.B) { benchmarkMapStringKeysEight(b, 32) }
++func BenchmarkMapStringKeysEight_64(b *testing.B) { benchmarkMapStringKeysEight(b, 64) }
++func BenchmarkMapStringKeysEight_1M(b *testing.B) { benchmarkMapStringKeysEight(b, 1<<20) }
++
++func benchmarkMapStringKeysEight(b *testing.B, keySize int) {
++	m := make(map[string]bool)
++	for i := 0; i < 8; i++ {
++		m[strings.Repeat("K", i+1)] = true
++	}
++	key := strings.Repeat("K", keySize)
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		_ = m[key]
++	}
++}
++
+ func BenchmarkIntMap(b *testing.B) {
+ 	m := make(map[int]bool)
+ 	for i := 0; i < 8; i++ {
+@@ -182,3 +199,10 @@ func benchmarkRepeatedLookup(b *testing.B, lookupKeySize int) {
+ 
+ func BenchmarkRepeatedLookupStrMapKey32(b *testing.B) { benchmarkRepeatedLookup(b, 32) }
+ func BenchmarkRepeatedLookupStrMapKey1M(b *testing.B) { benchmarkRepeatedLookup(b, 1<<20) }
++
++func BenchmarkNewEmptyMap(b *testing.B) {
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		_ = make(map[int]int)
++	}
++}

@@ -9,7 +9,121 @@ Date:   Thu Apr 5 16:15:52 2018 -0400
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/trace/annotations.go      | 17 +++++++++--------
  src/cmd/trace/annotations_test.go | 24 +++++++++++++++++++++---
  2 files changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index ffe8ed48ae..0d2bdfcbba 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -306,13 +306,15 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 	// combine span info.
+ 	analyzeGoroutines(events)
+ 	for goid, stats := range gs {
++		// gs is a global var defined in goroutines.go as a result
++		// of analyzeGoroutines. TODO(hyangah): fix this not to depend
++		// on a 'global' var.
+ 		for _, s := range stats.Spans {
+-			if s.TaskID == 0 {
+-				continue
++			if s.TaskID != 0 {
++				task := tasks.task(s.TaskID)
++				task.goroutines[goid] = struct{}{}
++				task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
+ 			}
+-			task := tasks.task(s.TaskID)
+-			task.goroutines[goid] = struct{}{}
+-			task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
+ 			var frame trace.Frame
+ 			if s.Start != nil {
+ 				frame = *s.Start.Stk[0]
+@@ -322,7 +324,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 		}
+ 	}
+ 
+-	// sort spans based on the timestamps.
++	// sort spans in tasks based on the timestamps.
+ 	for _, task := range tasks {
+ 		sort.SliceStable(task.spans, func(i, j int) bool {
+ 			si, sj := task.spans[i].firstTimestamp(), task.spans[j].firstTimestamp()
+@@ -408,7 +410,6 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
+ 
+ func (task *taskDesc) addEvent(ev *trace.Event) {
+ 	if task == nil {
+-		// TODO(hyangah): handle spans with no task.
+ 		return
+ 	}
+ 
+@@ -1229,7 +1230,7 @@ function reloadTable(key, value) {
+ {{range .Data}}
+   <tr>
+     <td> <a href="/trace?goid={{.G}}">{{.G}}</a> </td>
+-    <td> <a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a> </td>
++    <td> {{if .TaskID}}<a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a>{{end}} </td>
+     <td> {{prettyDuration .TotalTime}} </td>
+     <td>
+         <div class="stacked-bar-graph">
+diff --git a/src/cmd/trace/annotations_test.go b/src/cmd/trace/annotations_test.go
+index a6d271bdf4..96b83734d7 100644
+--- a/src/cmd/trace/annotations_test.go
++++ b/src/cmd/trace/annotations_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"reflect"
+ 	"runtime/debug"
+ 	"runtime/trace"
++	"sort"
+ 	"sync"
+ 	"testing"
+ 	"time"
+@@ -98,7 +99,6 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to analyzeAnnotations: %v", err)
+ 	}
+-	tasks := res.tasks
+ 
+ 	// For prog0, we expect
+ 	//   - task with name = "task0", with three spans.
+@@ -119,14 +119,14 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 		},
+ 	}
+ 
+-	for _, task := range tasks {
++	for _, task := range res.tasks {
+ 		want, ok := wantTasks[task.name]
+ 		if !ok {
+ 			t.Errorf("unexpected task: %s", task)
+ 			continue
+ 		}
+ 		if task.complete() != want.complete || len(task.goroutines) != want.goroutines || !reflect.DeepEqual(spanNames(task), want.spans) {
+-			t.Errorf("got %v; want %+v", task, want)
++			t.Errorf("got task %v; want %+v", task, want)
+ 		}
+ 
+ 		delete(wantTasks, task.name)
+@@ -134,6 +134,24 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 	if len(wantTasks) > 0 {
+ 		t.Errorf("no more tasks; want %+v", wantTasks)
+ 	}
++
++	wantSpans := []string{
++		"", // an auto-created span for the goroutine 3
++		"taskless.span",
++		"task0.span0",
++		"task0.span1",
++		"task0.span2",
++	}
++	var gotSpans []string
++	for spanID := range res.spans {
++		gotSpans = append(gotSpans, spanID.Type)
++	}
++
++	sort.Strings(wantSpans)
++	sort.Strings(gotSpans)
++	if !reflect.DeepEqual(gotSpans, wantSpans) {
++		t.Errorf("got spans %q, want spans %q", gotSpans, wantSpans)
++	}
+ }
+ 
+ // prog1 creates a task hierarchy consisting of three tasks.

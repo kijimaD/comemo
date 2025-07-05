@@ -8,6 +8,20 @@ Date:   Mon Oct 20 15:08:53 2008 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=17476
     CL=17499
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 72a5406215..bd3067e35c 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -19,7 +19,7 @@ make test
+ (xcd ../usr/gri/gosrc
+ make clean
+ time make
+-make test
++# make test
+ )
+ 
+ (xcd ../usr/gri/pretty

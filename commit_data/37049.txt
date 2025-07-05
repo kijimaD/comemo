@@ -9,6 +9,57 @@ Date:   Wed Jun 20 14:00:04 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/flag/example_value_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 44 insertions(+)
+
+diff --git a/src/flag/example_value_test.go b/src/flag/example_value_test.go
+new file mode 100644
+index 0000000000..9d464c62e8
+--- /dev/null
++++ b/src/flag/example_value_test.go
+@@ -0,0 +1,44 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flag_test
++
++import (
++	"flag"
++	"fmt"
++	"net/url"
++)
++
++type URLValue struct {
++	URL *url.URL
++}
++
++func (v URLValue) String() string {
++	if v.URL != nil {
++		return v.URL.String()
++	}
++	return ""
++}
++
++func (v URLValue) Set(s string) error {
++	if u, err := url.Parse(s); err != nil {
++		return err
++	} else {
++		*v.URL = *u
++	}
++	return nil
++}
++
++var u = &url.URL{}
++
++func ExampleValue() {
++	fs := flag.NewFlagSet("ExampleValue", flag.ExitOnError)
++	fs.Var(&URLValue{u}, "url", "URL to parse")
++
++	fs.Parse([]string{"-url", "https://golang.org/pkg/flag/"})
++	fmt.Printf(`{scheme: %q, host: %q, path: %q}`, u.Scheme, u.Host, u.Path)
++
++	// Output:
++	// {scheme: "https", host: "golang.org", path: "/pkg/flag/"}
++}

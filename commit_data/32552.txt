@@ -11,6 +11,30 @@ Date:   Sun Apr 30 15:51:55 2017 +1000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/os_windows_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 84066dee00..fcf6fa6d1b 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -429,6 +429,8 @@ func TestDirectorySymbolicLink(t *testing.T) {
+ func TestNetworkSymbolicLink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
++	const _NERR_ServerNotStarted = syscall.Errno(2114)
++
+ 	dir, err := ioutil.TempDir("", "TestNetworkSymbolicLink")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -479,6 +481,9 @@ func TestNetworkSymbolicLink(t *testing.T) {
+ 		if err == syscall.ERROR_ACCESS_DENIED {
+ 			t.Skip("you don't have enough privileges to add network share")
+ 		}
++		if err == _NERR_ServerNotStarted {
++			t.Skip(_NERR_ServerNotStarted.Error())
++		}
+ 		t.Fatal(err)
+ 	}
+ 	defer func() {

@@ -7,6 +7,50 @@ Date:   Tue Jan 5 09:20:02 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181135
-
+---
  src/pkg/net/net.go | 18 +++++++++++++++---
  1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 5e6ba8c201..2f145a72cb 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -134,7 +134,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 				goto Error
+ 			}
+ 		}
+-		return DialTCP(net, la, ra)
++		c, err := DialTCP(net, la, ra)
++		if err != nil {
++			return nil, err
++		}
++		return c, nil
+ 	case "udp", "udp4", "upd6":
+ 		var la, ra *UDPAddr
+ 		if laddr != "" {
+@@ -147,7 +151,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 				goto Error
+ 			}
+ 		}
+-		return DialUDP(net, la, ra)
++		c, err := DialUDP(net, la, ra)
++		if err != nil {
++			return nil, err
++		}
++		return c, nil
+ 	case "unix", "unixgram":
+ 		var la, ra *UnixAddr
+ 		if raddr != "" {
+@@ -160,7 +168,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
+ 				goto Error
+ 			}
+ 		}
+-		return DialUnix(net, la, ra)
++		c, err = DialUnix(net, la, ra)
++		if err != nil {
++			return nil, err
++		}
++		return c, nil
+ 	}
+ 	err = UnknownNetworkError(net)
+ Error:

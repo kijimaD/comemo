@@ -15,6 +15,36 @@ Date:   Wed Mar 16 09:24:06 2022 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/expr.go | 11 ++++++-----
  1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index ebb84ad78f..ff3cc8ed6e 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -973,6 +973,12 @@ var IsIntrinsicCall = func(*CallExpr) bool { return false }
+ // lvalue expression is for OSLICE and OAPPEND optimizations, and it
+ // is correct in those settings.
+ func SameSafeExpr(l Node, r Node) bool {
++	for l.Op() == OCONVNOP {
++		l = l.(*ConvExpr).X
++	}
++	for r.Op() == OCONVNOP {
++		r = r.(*ConvExpr).X
++	}
+ 	if l.Op() != r.Op() || !types.Identical(l.Type(), r.Type()) {
+ 		return false
+ 	}
+@@ -996,11 +1002,6 @@ func SameSafeExpr(l Node, r Node) bool {
+ 		r := r.(*UnaryExpr)
+ 		return SameSafeExpr(l.X, r.X)
+ 
+-	case OCONVNOP:
+-		l := l.(*ConvExpr)
+-		r := r.(*ConvExpr)
+-		return SameSafeExpr(l.X, r.X)
+-
+ 	case OCONV:
+ 		l := l.(*ConvExpr)
+ 		r := r.(*ConvExpr)

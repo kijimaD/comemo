@@ -7,8 +7,62 @@ Date:   Fri Dec 9 00:12:07 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5467049
-
+---
  src/cmd/gc/go.h  | 2 --
  src/cmd/gc/lex.c | 7 ++-----
  test/rune.go     | 3 ++-
  3 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b8c40fcb9d..9f593ce3d9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -828,8 +828,6 @@ EXTERN	int	funcdepth;
+ EXTERN	int	typecheckok;
+ EXTERN	int	compiling_runtime;
+ 
+-EXTERN	int	rune32;
+-
+ /*
+  *	y.tab.c
+  */
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 1963bfbdaf..27878c4623 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -37,7 +37,7 @@ static struct {
+ 	char *name;
+ 	int *val;
+ } exper[] = {
+-	{"rune32", &rune32},
++//	{"rune32", &rune32},
+ };
+ 
+ static void
+@@ -1842,10 +1842,7 @@ lexinit1(void)
+ 	// rune alias
+ 	s = lookup("rune");
+ 	s->lexical = LNAME;
+-	if(rune32)
+-		runetype = typ(TINT32);
+-	else
+-		runetype = typ(TINT);
++	runetype = typ(TINT32);
+ 	runetype->sym = s;
+ 	s1 = pkglookup("rune", builtinpkg);
+ 	s1->lexical = LNAME;
+diff --git a/test/rune.go b/test/rune.go
+index b2c73775d4..3386972b6d 100644
+--- a/test/rune.go
++++ b/test/rune.go
+@@ -14,8 +14,9 @@ var (
+ 	r4 = 'a'/2
+ 	r5 = 'a'<<1
+ 	r6 = 'b'<<2
++	r7 int32
+ 
+-	r = []rune{r0, r1, r2, r3, r4, r5, r6}
++	r = []rune{r0, r1, r2, r3, r4, r5, r6, r7}
+ )
+ 
+ var (

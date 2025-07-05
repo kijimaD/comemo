@@ -13,7 +13,7 @@ Date:   Wed Jan 18 14:11:31 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5543054
-
+---
  src/pkg/go/doc/doc_test.go           | 189 +++++++---------
  src/pkg/go/doc/testdata/a.out        |  13 ++
  src/pkg/go/doc/testdata/a0.go        |   8 +
@@ -26,3 +26,1343 @@ Date:   Wed Jan 18 14:11:31 2012 -0800
  src/pkg/go/doc/testdata/testing.go   | 404 +++++++++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/testing.out  | 144 +++++++++++++
  11 files changed, 1141 insertions(+), 108 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc_test.go b/src/pkg/go/doc/doc_test.go
+index 317d3abae8..cb9fffc896 100644
+--- a/src/pkg/go/doc/doc_test.go
++++ b/src/pkg/go/doc/doc_test.go
+@@ -6,132 +6,105 @@ package doc
+ 
+ import (
+ 	"bytes"
+-	"fmt"
+-	"go/ast"
++	"flag"
+ 	"go/parser"
++	"go/printer"
+ 	"go/token"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
+ 	"testing"
+ 	"text/template"
+ )
+ 
+-type sources map[string]string // filename -> file contents
++var update = flag.Bool("update", false, "update golden (.out) files")
+ 
+-type testCase struct {
+-	name       string
+-	importPath string
+-	mode       Mode
+-	srcs       sources
+-	doc        string
++const dataDir = "testdata"
++
++var templateTxt = readTemplate("template.txt")
++
++func readTemplate(filename string) *template.Template {
++	t := template.New(filename)
++	t.Funcs(template.FuncMap{
++		"node":     nodeFmt,
++		"synopsis": synopsisFmt,
++	})
++	return template.Must(t.ParseFiles(filepath.Join(dataDir, filename)))
+ }
+ 
+-var tests = make(map[string]*testCase)
+-
+-// To register a new test case, use the pattern:
+-//
+-//	var _ = register(&testCase{ ... })
+-//
+-// (The result value of register is always 0 and only present to enable the pattern.)
+-//
+-func register(test *testCase) int {
+-	if _, found := tests[test.name]; found {
+-		panic(fmt.Sprintf("registration failed: test case %q already exists", test.name))
+-	}
+-	tests[test.name] = test
+-	return 0
++func nodeFmt(node interface{}, fset *token.FileSet) string {
++	var buf bytes.Buffer
++	printer.Fprint(&buf, fset, node)
++	return strings.Replace(strings.TrimSpace(buf.String()), "\n", "\n\t", -1)
+ }
+ 
+-func runTest(t *testing.T, test *testCase) {
+-	// create AST
+-	fset := token.NewFileSet()
+-	var pkg ast.Package
+-	pkg.Files = make(map[string]*ast.File)
+-	for filename, src := range test.srcs {
+-		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
+-		if err != nil {
+-			t.Errorf("test %s: %v", test.name, err)
+-			return
++func synopsisFmt(s string) string {
++	const n = 64
++	if len(s) > n {
++		// cut off excess text and go back to a word boundary
++		s = s[0:n]
++		if i := strings.LastIndexAny(s, "\t\n "); i >= 0 {
++			s = s[0:i]
+ 		}
+-		switch {
+-		case pkg.Name == "":
+-			pkg.Name = file.Name.Name
+-		case pkg.Name != file.Name.Name:
+-			t.Errorf("test %s: different package names in test files", test.name)
+-			return
+-		}
+-		pkg.Files[filename] = file
++		s = strings.TrimSpace(s) + " ..."
+ 	}
++	return "// " + strings.Replace(s, "\n", " ", -1)
++}
+ 
+-	doc := New(&pkg, test.importPath, test.mode).String()
+-	if doc != test.doc {
+-		//TODO(gri) Enable this once the sorting issue of comments is fixed
+-		//t.Errorf("test %s\n\tgot : %s\n\twant: %s", test.name, doc, test.doc)
+-	}
++func isGoFile(fi os.FileInfo) bool {
++	name := fi.Name()
++	return !fi.IsDir() &&
++		len(name) > 0 && name[0] != '.' && // ignore .files
++		filepath.Ext(name) == ".go"
++}
++
++type bundle struct {
++	*Package
++	FSet *token.FileSet
+ }
+ 
+ func Test(t *testing.T) {
+-	for _, test := range tests {
+-		runTest(t, test)
++	// get all packages
++	fset := token.NewFileSet()
++	pkgs, err := parser.ParseDir(fset, dataDir, isGoFile, parser.ParseComments)
++	if err != nil {
++		t.Fatal(err)
+ 	}
+-}
+ 
+-// ----------------------------------------------------------------------------
+-// Printing support
++	// test all packages
++	for _, pkg := range pkgs {
++		importpath := dataDir + "/" + pkg.Name
++		doc := New(pkg, importpath, 0)
+ 
+-func (pkg *Package) String() string {
+-	var buf bytes.Buffer
+-	docText.Execute(&buf, pkg) // ignore error - test will fail w/ incorrect output
+-	return buf.String()
+-}
++		// print documentation
++		var buf bytes.Buffer
++		if err := templateTxt.Execute(&buf, bundle{doc, fset}); err != nil {
++			t.Error(err)
++			continue
++		}
++		got := buf.Bytes()
++
++		// update golden file if necessary
++		golden := filepath.Join(dataDir, pkg.Name+".out")
++		if *update {
++			err := ioutil.WriteFile(golden, got, 0644)
++			if err != nil {
++				t.Error(err)
++			}
++			continue
++		}
+ 
+-// TODO(gri) complete template
+-var docText = template.Must(template.New("docText").Parse(
+-	`
+-PACKAGE {{.Name}}
+-DOC {{printf "%q" .Doc}}
+-IMPORTPATH {{.ImportPath}}
+-FILENAMES {{.Filenames}}
+-`))
+-
+-// ----------------------------------------------------------------------------
+-// Test cases
+-
+-// Test that all package comments and bugs are collected,
+-// and that the importPath is correctly set.
+-//
+-var _ = register(&testCase{
+-	name:       "p",
+-	importPath: "p",
+-	srcs: sources{
+-		"p1.go": "// comment 1\npackage p\n//BUG(uid): bug1",
+-		"p0.go": "// comment 0\npackage p\n// BUG(uid): bug0",
+-	},
+-	doc: `
+-PACKAGE p
+-DOC "comment 0\n\ncomment 1\n"
+-IMPORTPATH p
+-FILENAMES [p0.go p1.go]
+-`,
+-})
+-
+-// Test basic functionality.
+-//
+-var _ = register(&testCase{
+-	name:       "p1",
+-	importPath: "p",
+-	srcs: sources{
+-		"p.go": `
+-package p
+-import "a"
+-const pi = 3.14       // pi
+-type T struct{}       // T
+-var V T               // v
+-func F(x int) int {}  // F
+-`,
+-	},
+-	doc: `
+-PACKAGE p
+-DOC ""
+-IMPORTPATH p
+-FILENAMES [p.go]
+-`,
+-})
++		// get golden file
++		want, err := ioutil.ReadFile(golden)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++
++		// compare
++		if bytes.Compare(got, want) != 0 {
++			t.Errorf("package %s\n\tgot:\n%s\n\twant:\n%s", pkg.Name, got, want)
++		}
++	}
++}
+diff --git a/src/pkg/go/doc/testdata/a.out b/src/pkg/go/doc/testdata/a.out
+new file mode 100644
+index 0000000000..24db02d348
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/a.out
+@@ -0,0 +1,13 @@
++// comment 0  comment 1 
++PACKAGE a
++
++IMPORTPATH
++	testdata/a
++
++FILENAMES
++	testdata/a0.go
++	testdata/a1.go
++
++BUGS
++	// bug0 
++	// bug1 
+diff --git a/src/pkg/go/doc/testdata/a0.go b/src/pkg/go/doc/testdata/a0.go
+new file mode 100644
+index 0000000000..dc552989ec
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/a0.go
+@@ -0,0 +1,8 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// comment 0
++package a
++
++//BUG(uid): bug0
+diff --git a/src/pkg/go/doc/testdata/a1.go b/src/pkg/go/doc/testdata/a1.go
+new file mode 100644
+index 0000000000..098776c1b0
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/a1.go
+@@ -0,0 +1,8 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// comment 1
++package a
++
++//BUG(uid): bug1
+diff --git a/src/pkg/go/doc/testdata/b.go b/src/pkg/go/doc/testdata/b.go
+new file mode 100644
+index 0000000000..cdc77ef784
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/b.go
+@@ -0,0 +1,13 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++const Pi = 3.14   // Pi
++var MaxInt int    // MaxInt
++type T struct{}   // T
++var V T           // v
++func F(x int) int {} // F
+diff --git a/src/pkg/go/doc/testdata/b.out b/src/pkg/go/doc/testdata/b.out
+new file mode 100644
+index 0000000000..80e2deb429
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/b.out
+@@ -0,0 +1,31 @@
++// 
++PACKAGE b
++
++IMPORTPATH
++	testdata/b
++
++FILENAMES
++	testdata/b.go
++
++CONSTANTS
++	// 
++	const Pi = 3.14	// Pi
++
++
++VARIABLES
++	// 
++	var MaxInt int	// MaxInt
++
++
++FUNCTIONS
++	// 
++	func F(x int) int
++
++
++TYPES
++	// 
++	type T struct{}	// T
++
++	// 
++	var V T	// v
++
+diff --git a/src/pkg/go/doc/testdata/benchmark.go b/src/pkg/go/doc/testdata/benchmark.go
+new file mode 100644
+index 0000000000..0bf567b7c4
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/benchmark.go
+@@ -0,0 +1,293 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"runtime"
++	"time"
++)
++
++var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
++var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
++
++// An internal type but exported because it is cross-package; part of the implementation
++// of gotest.
++type InternalBenchmark struct {
++	Name string
++	F    func(b *B)
++}
++
++// B is a type passed to Benchmark functions to manage benchmark
++// timing and to specify the number of iterations to run.
++type B struct {
++	common
++	N         int
++	benchmark InternalBenchmark
++	bytes     int64
++	timerOn   bool
++	result    BenchmarkResult
++}
++
++// StartTimer starts timing a test.  This function is called automatically
++// before a benchmark starts, but it can also used to resume timing after
++// a call to StopTimer.
++func (b *B) StartTimer() {
++	if !b.timerOn {
++		b.start = time.Now()
++		b.timerOn = true
++	}
++}
++
++// StopTimer stops timing a test.  This can be used to pause the timer
++// while performing complex initialization that you don't
++// want to measure.
++func (b *B) StopTimer() {
++	if b.timerOn {
++		b.duration += time.Now().Sub(b.start)
++		b.timerOn = false
++	}
++}
++
++// ResetTimer sets the elapsed benchmark time to zero.
++// It does not affect whether the timer is running.
++func (b *B) ResetTimer() {
++	if b.timerOn {
++		b.start = time.Now()
++	}
++	b.duration = 0
++}
++
++// SetBytes records the number of bytes processed in a single operation.
++// If this is called, the benchmark will report ns/op and MB/s.
++func (b *B) SetBytes(n int64) { b.bytes = n }
++
++func (b *B) nsPerOp() int64 {
++	if b.N <= 0 {
++		return 0
++	}
++	return b.duration.Nanoseconds() / int64(b.N)
++}
++
++// runN runs a single benchmark for the specified number of iterations.
++func (b *B) runN(n int) {
++	// Try to get a comparable environment for each run
++	// by clearing garbage from previous runs.
++	runtime.GC()
++	b.N = n
++	b.ResetTimer()
++	b.StartTimer()
++	b.benchmark.F(b)
++	b.StopTimer()
++}
++
++func min(x, y int) int {
++	if x > y {
++		return y
++	}
++	return x
++}
++
++func max(x, y int) int {
++	if x < y {
++		return y
++	}
++	return x
++}
++
++// roundDown10 rounds a number down to the nearest power of 10.
++func roundDown10(n int) int {
++	var tens = 0
++	// tens = floor(log_10(n))
++	for n > 10 {
++		n = n / 10
++		tens++
++	}
++	// result = 10^tens
++	result := 1
++	for i := 0; i < tens; i++ {
++		result *= 10
++	}
++	return result
++}
++
++// roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
++func roundUp(n int) int {
++	base := roundDown10(n)
++	if n < (2 * base) {
++		return 2 * base
++	}
++	if n < (5 * base) {
++		return 5 * base
++	}
++	return 10 * base
++}
++
++// run times the benchmark function in a separate goroutine.
++func (b *B) run() BenchmarkResult {
++	go b.launch()
++	<-b.signal
++	return b.result
++}
++
++// launch launches the benchmark function.  It gradually increases the number
++// of benchmark iterations until the benchmark runs for a second in order
++// to get a reasonable measurement.  It prints timing information in this form
++//		testing.BenchmarkHello	100000		19 ns/op
++// launch is run by the fun function as a separate goroutine.
++func (b *B) launch() {
++	// Run the benchmark for a single iteration in case it's expensive.
++	n := 1
++
++	// Signal that we're done whether we return normally
++	// or by FailNow's runtime.Goexit.
++	defer func() {
++		b.signal <- b
++	}()
++
++	b.runN(n)
++	// Run the benchmark for at least the specified amount of time.
++	d := time.Duration(*benchTime * float64(time.Second))
++	for !b.failed && b.duration < d && n < 1e9 {
++		last := n
++		// Predict iterations/sec.
++		if b.nsPerOp() == 0 {
++			n = 1e9
++		} else {
++			n = int(d.Nanoseconds() / b.nsPerOp())
++		}
++		// Run more iterations than we think we'll need for a second (1.5x).
++		// Don't grow too fast in case we had timing errors previously.
++		// Be sure to run at least one more than last time.
++		n = max(min(n+n/2, 100*last), last+1)
++		// Round up to something easy to read.
++		n = roundUp(n)
++		b.runN(n)
++	}
++	b.result = BenchmarkResult{b.N, b.duration, b.bytes}
++}
++
++// The results of a benchmark run.
++type BenchmarkResult struct {
++	N     int           // The number of iterations.
++	T     time.Duration // The total time taken.
++	Bytes int64         // Bytes processed in one iteration.
++}
++
++func (r BenchmarkResult) NsPerOp() int64 {
++	if r.N <= 0 {
++		return 0
++	}
++	return r.T.Nanoseconds() / int64(r.N)
++}
++
++func (r BenchmarkResult) mbPerSec() float64 {
++	if r.Bytes <= 0 || r.T <= 0 || r.N <= 0 {
++		return 0
++	}
++	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
++}
++
++func (r BenchmarkResult) String() string {
++	mbs := r.mbPerSec()
++	mb := ""
++	if mbs != 0 {
++		mb = fmt.Sprintf("\t%7.2f MB/s", mbs)
++	}
++	nsop := r.NsPerOp()
++	ns := fmt.Sprintf("%10d ns/op", nsop)
++	if r.N > 0 && nsop < 100 {
++		// The format specifiers here make sure that
++		// the ones digits line up for all three possible formats.
++		if nsop < 10 {
++			ns = fmt.Sprintf("%13.2f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
++		} else {
++			ns = fmt.Sprintf("%12.1f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
++		}
++	}
++	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
++}
++
++// An internal function but exported because it is cross-package; part of the implementation
++// of gotest.
++func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
++	// If no flag was specified, don't run benchmarks.
++	if len(*matchBenchmarks) == 0 {
++		return
++	}
++	for _, Benchmark := range benchmarks {
++		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
++			os.Exit(1)
++		}
++		if !matched {
++			continue
++		}
++		for _, procs := range cpuList {
++			runtime.GOMAXPROCS(procs)
++			b := &B{
++				common: common{
++					signal: make(chan interface{}),
++				},
++				benchmark: Benchmark,
++			}
++			benchName := Benchmark.Name
++			if procs != 1 {
++				benchName = fmt.Sprintf("%s-%d", Benchmark.Name, procs)
++			}
++			fmt.Printf("%s\t", benchName)
++			r := b.run()
++			if b.failed {
++				// The output could be very long here, but probably isn't.
++				// We print it all, regardless, because we don't want to trim the reason
++				// the benchmark failed.
++				fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
++				continue
++			}
++			fmt.Printf("%v\n", r)
++			// Unlike with tests, we ignore the -chatty flag and always print output for
++			// benchmarks since the output generation time will skew the results.
++			if len(b.output) > 0 {
++				b.trimOutput()
++				fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
++			}
++			if p := runtime.GOMAXPROCS(-1); p != procs {
++				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
++			}
++		}
++	}
++}
++
++// trimOutput shortens the output from a benchmark, which can be very long.
++func (b *B) trimOutput() {
++	// The output is likely to appear multiple times because the benchmark
++	// is run multiple times, but at least it will be seen. This is not a big deal
++	// because benchmarks rarely print, but just in case, we trim it if it's too long.
++	const maxNewlines = 10
++	for nlCount, j := 0, 0; j < len(b.output); j++ {
++		if b.output[j] == '\n' {
++			nlCount++
++			if nlCount >= maxNewlines {
++				b.output = append(b.output[:j], "\n\t... [output truncated]\n"...)
++				break
++			}
++		}
++	}
++}
++
++// Benchmark benchmarks a single function. Useful for creating
++// custom benchmarks that do not use gotest.
++func Benchmark(f func(b *B)) BenchmarkResult {
++	b := &B{
++		common: common{
++			signal: make(chan interface{}),
++		},
++		benchmark: InternalBenchmark{"", f},
++	}
++	return b.run()
++}
+diff --git a/src/pkg/go/doc/testdata/example.go b/src/pkg/go/doc/testdata/example.go
+new file mode 100644
+index 0000000000..fdeda137e7
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/example.go
+@@ -0,0 +1,81 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"os"
++	"strings"
++	"time"
++)
++
++type InternalExample struct {
++	Name   string
++	F      func()
++	Output string
++}
++
++func RunExamples(examples []InternalExample) (ok bool) {
++	ok = true
++
++	var eg InternalExample
++
++	stdout, stderr := os.Stdout, os.Stderr
++	defer func() {
++		os.Stdout, os.Stderr = stdout, stderr
++		if e := recover(); e != nil {
++			fmt.Printf("--- FAIL: %s\npanic: %v\n", eg.Name, e)
++			os.Exit(1)
++		}
++	}()
++
++	for _, eg = range examples {
++		if *chatty {
++			fmt.Printf("=== RUN: %s\n", eg.Name)
++		}
++
++		// capture stdout and stderr
++		r, w, err := os.Pipe()
++		if err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			os.Exit(1)
++		}
++		os.Stdout, os.Stderr = w, w
++		outC := make(chan string)
++		go func() {
++			buf := new(bytes.Buffer)
++			_, err := io.Copy(buf, r)
++			if err != nil {
++				fmt.Fprintf(stderr, "testing: copying pipe: %v\n", err)
++				os.Exit(1)
++			}
++			outC <- buf.String()
++		}()
++
++		// run example
++		t0 := time.Now()
++		eg.F()
++		dt := time.Now().Sub(t0)
++
++		// close pipe, restore stdout/stderr, get output
++		w.Close()
++		os.Stdout, os.Stderr = stdout, stderr
++		out := <-outC
++
++		// report any errors
++		tstr := fmt.Sprintf("(%.2f seconds)", dt.Seconds())
++		if g, e := strings.TrimSpace(out), strings.TrimSpace(eg.Output); g != e {
++			fmt.Printf("--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
++				eg.Name, tstr, g, e)
++			ok = false
++		} else if *chatty {
++			fmt.Printf("--- PASS: %s %s\n", eg.Name, tstr)
++		}
++	}
++
++	return
++}
+diff --git a/src/pkg/go/doc/testdata/template.txt b/src/pkg/go/doc/testdata/template.txt
+new file mode 100644
+index 0000000000..b10dfc4b72
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/template.txt
+@@ -0,0 +1,65 @@
++{{synopsis .Doc}}
++PACKAGE {{.Name}}
++
++IMPORTPATH
++	{{.ImportPath}}
++
++{{with .Imports}}
++IMPORTS
++{{range .}}	{{.}}
++{{end}}{{end}}{{/*
++
++*/}}FILENAMES
++{{range .Filenames}}	{{.}}
++{{end}}{{/*
++
++*/}}{{with .Consts}}
++CONSTANTS
++{{range .}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{end}}{{/*
++
++*/}}{{with .Vars}}
++VARIABLES
++{{range .}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{end}}{{/*
++
++*/}}{{with .Funcs}}
++FUNCTIONS
++{{range .}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{end}}{{/*
++
++*/}}{{with .Types}}
++TYPES
++{{range .}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{range .Consts}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{/*
++
++*/}}{{range .Vars}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{/*
++
++*/}}{{range .Funcs}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{/*
++
++*/}}{{range .Methods}}	{{synopsis .Doc}}
++	{{node .Decl $.FSet}}
++
++{{end}}{{end}}{{end}}{{/*
++
++*/}}{{with .Bugs}}
++BUGS
++{{range .}}	{{synopsis .}}
++{{end}}{{end}}
+\ No newline at end of file
+diff --git a/src/pkg/go/doc/testdata/testing.go b/src/pkg/go/doc/testdata/testing.go
+new file mode 100644
+index 0000000000..cfe212dc1d
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/testing.go
+@@ -0,0 +1,404 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package testing provides support for automated testing of Go packages.
++// It is intended to be used in concert with the ``gotest'' utility, which automates
++// execution of any function of the form
++//     func TestXxx(*testing.T)
++// where Xxx can be any alphanumeric string (but the first letter must not be in
++// [a-z]) and serves to identify the test routine.
++// These TestXxx routines should be declared within the package they are testing.
++//
++// Functions of the form
++//     func BenchmarkXxx(*testing.B)
++// are considered benchmarks, and are executed by gotest when the -test.bench
++// flag is provided.
++//
++// A sample benchmark function looks like this:
++//     func BenchmarkHello(b *testing.B) {
++//         for i := 0; i < b.N; i++ {
++//             fmt.Sprintf("hello")
++//         }
++//     }
++// The benchmark package will vary b.N until the benchmark function lasts
++// long enough to be timed reliably.  The output
++//     testing.BenchmarkHello    10000000    282 ns/op
++// means that the loop ran 10000000 times at a speed of 282 ns per loop.
++//
++// If a benchmark needs some expensive setup before running, the timer
++// may be stopped:
++//     func BenchmarkBigLen(b *testing.B) {
++//         b.StopTimer()
++//         big := NewBig()
++//         b.StartTimer()
++//         for i := 0; i < b.N; i++ {
++//             big.Len()
++//         }
++//     }
++package testing
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"runtime"
++	"runtime/pprof"
++	"strconv"
++	"strings"
++	"time"
++)
++
++var (
++	// The short flag requests that tests run more quickly, but its functionality
++	// is provided by test writers themselves.  The testing package is just its
++	// home.  The all.bash installation script sets it to make installation more
++	// efficient, but by default the flag is off so a plain "gotest" will do a
++	// full test of the package.
++	short = flag.Bool("test.short", false, "run smaller test suite to save time")
++
++	// Report as tests are run; default is silent for success.
++	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
++	match          = flag.String("test.run", "", "regular expression to select tests to run")
++	memProfile     = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
++	memProfileRate = flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
++	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
++	timeout        = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
++	cpuListStr     = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
++	parallel       = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
++
++	cpuList []int
++)
++
++// common holds the elements common between T and B and
++// captures common methods such as Errorf.
++type common struct {
++	output   []byte    // Output generated by test or benchmark.
++	failed   bool      // Test or benchmark has failed.
++	start    time.Time // Time test or benchmark started
++	duration time.Duration
++	self     interface{}      // To be sent on signal channel when done.
++	signal   chan interface{} // Output for serial tests.
++}
++
++// Short reports whether the -test.short flag is set.
++func Short() bool {
++	return *short
++}
++
++// decorate inserts the final newline if needed and indentation tabs for formatting.
++// If addFileLine is true, it also prefixes the string with the file and line of the call site.
++func decorate(s string, addFileLine bool) string {
++	if addFileLine {
++		_, file, line, ok := runtime.Caller(3) // decorate + log + public function.
++		if ok {
++			// Truncate file name at last file name separator.
++			if index := strings.LastIndex(file, "/"); index >= 0 {
++				file = file[index+1:]
++			} else if index = strings.LastIndex(file, "\\"); index >= 0 {
++				file = file[index+1:]
++			}
++		} else {
++			file = "???"
++			line = 1
++		}
++		s = fmt.Sprintf("%s:%d: %s", file, line, s)
++	}
++	s = "\t" + s // Every line is indented at least one tab.
++	n := len(s)
++	if n > 0 && s[n-1] != '\n' {
++		s += "\n"
++		n++
++	}
++	for i := 0; i < n-1; i++ { // -1 to avoid final newline
++		if s[i] == '\n' {
++			// Second and subsequent lines are indented an extra tab.
++			return s[0:i+1] + "\t" + decorate(s[i+1:n], false)
++		}
++	}
++	return s
++}
++
++// T is a type passed to Test functions to manage test state and support formatted test logs.
++// Logs are accumulated during execution and dumped to standard error when done.
++type T struct {
++	common
++	name          string    // Name of test.
++	startParallel chan bool // Parallel tests will wait on this.
++}
++
++// Fail marks the function as having failed but continues execution.
++func (c *common) Fail() { c.failed = true }
++
++// Failed returns whether the function has failed.
++func (c *common) Failed() bool { return c.failed }
++
++// FailNow marks the function as having failed and stops its execution.
++// Execution will continue at the next Test.
++func (c *common) FailNow() {
++	c.Fail()
++
++	// Calling runtime.Goexit will exit the goroutine, which
++	// will run the deferred functions in this goroutine,
++	// which will eventually run the deferred lines in tRunner,
++	// which will signal to the test loop that this test is done.
++	//
++	// A previous version of this code said:
++	//
++	//	c.duration = ...
++	//	c.signal <- c.self
++	//	runtime.Goexit()
++	//
++	// This previous version duplicated code (those lines are in
++	// tRunner no matter what), but worse the goroutine teardown
++	// implicit in runtime.Goexit was not guaranteed to complete
++	// before the test exited.  If a test deferred an important cleanup
++	// function (like removing temporary files), there was no guarantee
++	// it would run on a test failure.  Because we send on c.signal during
++	// a top-of-stack deferred function now, we know that the send
++	// only happens after any other stacked defers have completed.
++	runtime.Goexit()
++}
++
++// log generates the output. It's always at the same stack depth.
++func (c *common) log(s string) {
++	c.output = append(c.output, decorate(s, true)...)
++}
++
++// Log formats its arguments using default formatting, analogous to Println(),
++// and records the text in the error log.
++func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
++
++// Logf formats its arguments according to the format, analogous to Printf(),
++// and records the text in the error log.
++func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
++
++// Error is equivalent to Log() followed by Fail().
++func (c *common) Error(args ...interface{}) {
++	c.log(fmt.Sprintln(args...))
++	c.Fail()
++}
++
++// Errorf is equivalent to Logf() followed by Fail().
++func (c *common) Errorf(format string, args ...interface{}) {
++	c.log(fmt.Sprintf(format, args...))
++	c.Fail()
++}
++
++// Fatal is equivalent to Log() followed by FailNow().
++func (c *common) Fatal(args ...interface{}) {
++	c.log(fmt.Sprintln(args...))
++	c.FailNow()
++}
++
++// Fatalf is equivalent to Logf() followed by FailNow().
++func (c *common) Fatalf(format string, args ...interface{}) {
++	c.log(fmt.Sprintf(format, args...))
++	c.FailNow()
++}
++
++// Parallel signals that this test is to be run in parallel with (and only with) 
++// other parallel tests in this CPU group.
++func (t *T) Parallel() {
++	t.signal <- (*T)(nil) // Release main testing loop
++	<-t.startParallel     // Wait for serial tests to finish
++}
++
++// An internal type but exported because it is cross-package; part of the implementation
++// of gotest.
++type InternalTest struct {
++	Name string
++	F    func(*T)
++}
++
++func tRunner(t *T, test *InternalTest) {
++	t.start = time.Now()
++
++	// When this goroutine is done, either because test.F(t)
++	// returned normally or because a test failure triggered 
++	// a call to runtime.Goexit, record the duration and send
++	// a signal saying that the test is done.
++	defer func() {
++		t.duration = time.Now().Sub(t.start)
++		t.signal <- t
++	}()
++
++	test.F(t)
++}
++
++// An internal function but exported because it is cross-package; part of the implementation
++// of gotest.
++func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
++	flag.Parse()
++	parseCpuList()
++
++	before()
++	startAlarm()
++	testOk := RunTests(matchString, tests)
++	exampleOk := RunExamples(examples)
++	if !testOk || !exampleOk {
++		fmt.Println("FAIL")
++		os.Exit(1)
++	}
++	fmt.Println("PASS")
++	stopAlarm()
++	RunBenchmarks(matchString, benchmarks)
++	after()
++}
++
++func (t *T) report() {
++	tstr := fmt.Sprintf("(%.2f seconds)", t.duration.Seconds())
++	format := "--- %s: %s %s\n%s"
++	if t.failed {
++		fmt.Printf(format, "FAIL", t.name, tstr, t.output)
++	} else if *chatty {
++		fmt.Printf(format, "PASS", t.name, tstr, t.output)
++	}
++}
++
++func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
++	ok = true
++	if len(tests) == 0 {
++		fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
++		return
++	}
++	for _, procs := range cpuList {
++		runtime.GOMAXPROCS(procs)
++		// We build a new channel tree for each run of the loop.
++		// collector merges in one channel all the upstream signals from parallel tests.
++		// If all tests pump to the same channel, a bug can occur where a test
++		// kicks off a goroutine that Fails, yet the test still delivers a completion signal,
++		// which skews the counting.
++		var collector = make(chan interface{})
++
++		numParallel := 0
++		startParallel := make(chan bool)
++
++		for i := 0; i < len(tests); i++ {
++			matched, err := matchString(*match, tests[i].Name)
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
++				os.Exit(1)
++			}
++			if !matched {
++				continue
++			}
++			testName := tests[i].Name
++			if procs != 1 {
++				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
++			}
++			t := &T{
++				common: common{
++					signal: make(chan interface{}),
++				},
++				name:          testName,
++				startParallel: startParallel,
++			}
++			t.self = t
++			if *chatty {
++				fmt.Printf("=== RUN %s\n", t.name)
++			}
++			go tRunner(t, &tests[i])
++			out := (<-t.signal).(*T)
++			if out == nil { // Parallel run.
++				go func() {
++					collector <- <-t.signal
++				}()
++				numParallel++
++				continue
++			}
++			t.report()
++			ok = ok && !out.failed
++		}
++
++		running := 0
++		for numParallel+running > 0 {
++			if running < *parallel && numParallel > 0 {
++				startParallel <- true
++				running++
++				numParallel--
++				continue
++			}
++			t := (<-collector).(*T)
++			t.report()
++			ok = ok && !t.failed
++			running--
++		}
++	}
++	return
++}
++
++// before runs before all testing.
++func before() {
++	if *memProfileRate > 0 {
++		runtime.MemProfileRate = *memProfileRate
++	}
++	if *cpuProfile != "" {
++		f, err := os.Create(*cpuProfile)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: %s", err)
++			return
++		}
++		if err := pprof.StartCPUProfile(f); err != nil {
++			fmt.Fprintf(os.Stderr, "testing: can't start cpu profile: %s", err)
++			f.Close()
++			return
++		}
++		// Could save f so after can call f.Close; not worth the effort.
++	}
++
++}
++
++// after runs after all testing.
++func after() {
++	if *cpuProfile != "" {
++		pprof.StopCPUProfile() // flushes profile to disk
++	}
++	if *memProfile != "" {
++		f, err := os.Create(*memProfile)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "testing: %s", err)
++			return
++		}
++		if err = pprof.WriteHeapProfile(f); err != nil {
++			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s", *memProfile, err)
++		}
++		f.Close()
++	}
++}
++
++var timer *time.Timer
++
++// startAlarm starts an alarm if requested.
++func startAlarm() {
++	if *timeout > 0 {
++		timer = time.AfterFunc(*timeout, alarm)
++	}
++}
++
++// stopAlarm turns off the alarm.
++func stopAlarm() {
++	if *timeout > 0 {
++		timer.Stop()
++	}
++}
++
++// alarm is called if the timeout expires.
++func alarm() {
++	panic("test timed out")
++}
++
++func parseCpuList() {
++	if len(*cpuListStr) == 0 {
++		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
++	} else {
++		for _, val := range strings.Split(*cpuListStr, ",") {
++			cpu, err := strconv.Atoi(val)
++			if err != nil || cpu <= 0 {
++				fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu", val)
++				os.Exit(1)
++			}
++			cpuList = append(cpuList, cpu)
++		}
++	}
++}
+diff --git a/src/pkg/go/doc/testdata/testing.out b/src/pkg/go/doc/testdata/testing.out
+new file mode 100644
+index 0000000000..97111993cd
+--- /dev/null
++++ b/src/pkg/go/doc/testdata/testing.out
+@@ -0,0 +1,144 @@
++// Package testing provides support for automated testing of Go ...
++PACKAGE testing
++
++IMPORTPATH
++	testdata/testing
++
++FILENAMES
++	testdata/benchmark.go
++	testdata/example.go
++	testdata/testing.go
++
++FUNCTIONS
++	// An internal function but exported because it is cross-package; ...
++	func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample)
++
++	// An internal function but exported because it is cross-package; ...
++	func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark)
++
++	// 
++	func RunExamples(examples []InternalExample) (ok bool)
++
++	// 
++	func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool)
++
++	// Short reports whether the -test.short flag is set. 
++	func Short() bool
++
++
++TYPES
++	// B is a type passed to Benchmark functions to manage benchmark ...
++	type B struct {
++		N int
++		// contains filtered or unexported fields
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *B) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *B) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *B) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *B) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *B) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *B) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *B) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *B) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *B) Logf(format string, args ...interface{})
++
++	// ResetTimer sets the elapsed benchmark time to zero. It does not ...
++	func (b *B) ResetTimer()
++
++	// SetBytes records the number of bytes processed in a single ...
++	func (b *B) SetBytes(n int64)
++
++	// StartTimer starts timing a test.  This function is called ...
++	func (b *B) StartTimer()
++
++	// StopTimer stops timing a test.  This can be used to pause the ...
++	func (b *B) StopTimer()
++
++	// The results of a benchmark run. 
++	type BenchmarkResult struct {
++		N	int		// The number of iterations.
++		T	time.Duration	// The total time taken.
++		Bytes	int64		// Bytes processed in one iteration.
++	}
++
++	// Benchmark benchmarks a single function. Useful for creating ...
++	func Benchmark(f func(b *B)) BenchmarkResult
++
++	// 
++	func (r BenchmarkResult) NsPerOp() int64
++
++	// 
++	func (r BenchmarkResult) String() string
++
++	// An internal type but exported because it is cross-package; part ...
++	type InternalBenchmark struct {
++		Name	string
++		F	func(b *B)
++	}
++
++	// 
++	type InternalExample struct {
++		Name	string
++		F	func()
++		Output	string
++	}
++
++	// An internal type but exported because it is cross-package; part ...
++	type InternalTest struct {
++		Name	string
++		F	func(*T)
++	}
++
++	// T is a type passed to Test functions to manage test state and ...
++	type T struct {
++		// contains filtered or unexported fields
++	}
++
++	// Error is equivalent to Log() followed by Fail(). 
++	func (c *T) Error(args ...interface{})
++
++	// Errorf is equivalent to Logf() followed by Fail(). 
++	func (c *T) Errorf(format string, args ...interface{})
++
++	// Fail marks the function as having failed but continues ...
++	func (c *T) Fail()
++
++	// FailNow marks the function as having failed and stops its ...
++	func (c *T) FailNow()
++
++	// Failed returns whether the function has failed. 
++	func (c *T) Failed() bool
++
++	// Fatal is equivalent to Log() followed by FailNow(). 
++	func (c *T) Fatal(args ...interface{})
++
++	// Fatalf is equivalent to Logf() followed by FailNow(). 
++	func (c *T) Fatalf(format string, args ...interface{})
++
++	// Log formats its arguments using default formatting, analogous ...
++	func (c *T) Log(args ...interface{})
++
++	// Logf formats its arguments according to the format, analogous ...
++	func (c *T) Logf(format string, args ...interface{})
++
++	// Parallel signals that this test is to be run in parallel with ...
++	func (t *T) Parallel()
++

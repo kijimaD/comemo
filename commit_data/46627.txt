@@ -33,7 +33,7 @@ Date:   Sat Jan 16 16:59:19 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go     |   5 +-
  src/cmd/compile/internal/ir/mini.go     |   5 +-
  src/cmd/compile/internal/ir/node.go     |   3 -
@@ -42,3 +42,363 @@ Date:   Sat Jan 16 16:59:19 2021 -0800
  src/cmd/compile/internal/walk/expr.go   |  18 ++--
  src/cmd/compile/internal/walk/walk.go   | 155 ++++++++++----------------------
  7 files changed, 65 insertions(+), 156 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index dd91e347bd..4631476973 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -32,8 +32,7 @@ type miniExpr struct {
+ }
+ 
+ const (
+-	miniExprHasCall = 1 << iota
+-	miniExprNonNil
++	miniExprNonNil = 1 << iota
+ 	miniExprTransient
+ 	miniExprBounded
+ 	miniExprImplicit // for use by implementations; not supported by every Expr
+@@ -44,8 +43,6 @@ func (*miniExpr) isExpr() {}
+ 
+ func (n *miniExpr) Type() *types.Type     { return n.typ }
+ func (n *miniExpr) SetType(x *types.Type) { n.typ = x }
+-func (n *miniExpr) HasCall() bool         { return n.flags&miniExprHasCall != 0 }
+-func (n *miniExpr) SetHasCall(b bool)     { n.flags.set(miniExprHasCall, b) }
+ func (n *miniExpr) NonNil() bool          { return n.flags&miniExprNonNil != 0 }
+ func (n *miniExpr) MarkNonNil()           { n.flags |= miniExprNonNil }
+ func (n *miniExpr) Transient() bool       { return n.flags&miniExprTransient != 0 }
+diff --git a/src/cmd/compile/internal/ir/mini.go b/src/cmd/compile/internal/ir/mini.go
+index 429f4ed360..a7ff4ac9c7 100644
+--- a/src/cmd/compile/internal/ir/mini.go
++++ b/src/cmd/compile/internal/ir/mini.go
+@@ -57,8 +57,7 @@ const (
+ 	miniWalkdefShift   = 0 // TODO(mdempsky): Move to Name.flags.
+ 	miniTypecheckShift = 2
+ 	miniDiag           = 1 << 4
+-	miniHasCall        = 1 << 5 // for miniStmt
+-	miniWalked         = 1 << 6 // to prevent/catch re-walking
++	miniWalked         = 1 << 5 // to prevent/catch re-walking
+ )
+ 
+ func (n *miniNode) Typecheck() uint8 { return n.bits.get2(miniTypecheckShift) }
+@@ -89,7 +88,5 @@ func (n *miniNode) Name() *Name             { return nil }
+ func (n *miniNode) Sym() *types.Sym         { return nil }
+ func (n *miniNode) Val() constant.Value     { panic(n.no("Val")) }
+ func (n *miniNode) SetVal(v constant.Value) { panic(n.no("SetVal")) }
+-func (n *miniNode) HasCall() bool           { return false }
+-func (n *miniNode) SetHasCall(bool)         { panic(n.no("SetHasCall")) }
+ func (n *miniNode) NonNil() bool            { return false }
+ func (n *miniNode) MarkNonNil()             { panic(n.no("MarkNonNil")) }
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index de03800da2..a44bf42e78 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -52,8 +52,6 @@ type Node interface {
+ 	SetTypecheck(x uint8)
+ 	NonNil() bool
+ 	MarkNonNil()
+-	HasCall() bool
+-	SetHasCall(x bool)
+ }
+ 
+ // Line returns n's position as a string. If n has been inlined,
+@@ -544,7 +542,6 @@ func InitExpr(init []Node, expr Node) Node {
+ 	}
+ 
+ 	n.PtrInit().Prepend(init...)
+-	n.SetHasCall(true)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 4e4c0df993..0358569a1f 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -50,11 +50,9 @@ type miniStmt struct {
+ 
+ func (*miniStmt) isStmt() {}
+ 
+-func (n *miniStmt) Init() Nodes       { return n.init }
+-func (n *miniStmt) SetInit(x Nodes)   { n.init = x }
+-func (n *miniStmt) PtrInit() *Nodes   { return &n.init }
+-func (n *miniStmt) HasCall() bool     { return n.bits&miniHasCall != 0 }
+-func (n *miniStmt) SetHasCall(b bool) { n.bits.set(miniHasCall, b) }
++func (n *miniStmt) Init() Nodes     { return n.init }
++func (n *miniStmt) SetInit(x Nodes) { n.init = x }
++func (n *miniStmt) PtrInit() *Nodes { return &n.init }
+ 
+ // An AssignListStmt is an assignment statement with
+ // more than one item on at least one side: Lhs = Rhs.
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 320a3464cc..6e8075a35f 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -248,18 +248,6 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
+ 	return n
+ }
+ 
+-// fncall reports whether assigning an rvalue of type rt to an lvalue l might involve a function call.
+-func fncall(l ir.Node, rt *types.Type) bool {
+-	if l.HasCall() || l.Op() == ir.OINDEXMAP {
+-		return true
+-	}
+-	if types.Identical(l.Type(), rt) {
+-		return false
+-	}
+-	// There might be a conversion required, which might involve a runtime call.
+-	return true
+-}
+-
+ // check assign type list to
+ // an expression list. called in
+ //	expr-list = func()
+@@ -275,9 +263,9 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 		}
+ 		r := nr.Field(i)
+ 
+-		// Any assignment to an lvalue that might cause a function call must be
+-		// deferred until all the returned values have been read.
+-		if fncall(l, r.Type) {
++		// Order should have created autotemps of the appropriate type for
++		// us to store results into.
++		if tmp, ok := l.(*ir.Name); !ok || !tmp.AutoTemp() || !types.Identical(tmp.Type(), r.Type) {
+ 			base.FatalfAt(l.Pos(), "assigning %v to %+v", r.Type, l)
+ 		}
+ 
+@@ -286,14 +274,7 @@ func ascompatet(nl ir.Nodes, nr *types.Type) []ir.Node {
+ 		res.SetType(r.Type)
+ 		res.SetTypecheck(1)
+ 
+-		a := convas(ir.NewAssignStmt(base.Pos, l, res), &nn)
+-		updateHasCall(a)
+-		if a.HasCall() {
+-			ir.Dump("ascompatet ucount", a)
+-			base.Fatalf("ascompatet: too many function calls evaluating parameters")
+-		}
+-
+-		nn.Append(a)
++		nn.Append(ir.NewAssignStmt(base.Pos, l, res))
+ 	}
+ 	return nn
+ }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 510f568576..a1e8e63785 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -67,8 +67,6 @@ func walkExpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		_ = staticdata.StringSym(n.Pos(), constant.StringVal(n.Val()))
+ 	}
+ 
+-	updateHasCall(n)
+-
+ 	if base.Flag.LowerW != 0 && n != nil {
+ 		ir.Dump("after walk expr", n)
+ 	}
+@@ -527,15 +525,17 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 	// For any argument whose evaluation might require a function call,
+ 	// store that argument into a temporary variable,
+ 	// to prevent that calls from clobbering arguments already on the stack.
+-	// When instrumenting, all arguments might require function calls.
+ 	var tempAssigns []ir.Node
+ 	for i, arg := range args {
+-		updateHasCall(arg)
+-		// Determine param type.
+-		t := params.Field(i).Type
+-		if base.Flag.Cfg.Instrumenting || fncall(arg, t) {
+-			// make assignment of fncall to Temp
+-			tmp := typecheck.Temp(t)
++		// Validate argument and parameter types match.
++		param := params.Field(i)
++		if !types.Identical(arg.Type(), param.Type) {
++			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
++		}
++
++		if mayCall(arg) {
++			// assignment of arg to Temp
++			tmp := typecheck.Temp(param.Type)
+ 			a := convas(ir.NewAssignStmt(base.Pos, tmp, arg), init)
+ 			tempAssigns = append(tempAssigns, a)
+ 			// replace arg with temp
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index f95440d60d..a9672a261b 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -67,8 +67,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
+ 	if n.Op() != ir.OAS {
+ 		base.Fatalf("convas: not OAS %v", n.Op())
+ 	}
+-	defer updateHasCall(n)
+-
+ 	n.SetTypecheck(1)
+ 
+ 	if n.X == nil || n.Y == nil {
+@@ -274,123 +272,64 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+ 	return ptr, length
+ }
+ 
+-// updateHasCall checks whether expression n contains any function
+-// calls and sets the n.HasCall flag if so.
+-func updateHasCall(n ir.Node) {
+-	if n == nil {
+-		return
+-	}
+-	n.SetHasCall(calcHasCall(n))
+-}
+-
+-func calcHasCall(n ir.Node) bool {
+-	if len(n.Init()) != 0 {
+-		// TODO(mdempsky): This seems overly conservative.
++// mayCall reports whether evaluating expression n may require
++// function calls, which could clobber function call arguments/results
++// currently on the stack.
++func mayCall(n ir.Node) bool {
++	// When instrumenting, any expression might require function calls.
++	if base.Flag.Cfg.Instrumenting {
+ 		return true
+ 	}
+ 
+-	switch n.Op() {
+-	default:
+-		base.Fatalf("calcHasCall %+v", n)
+-		panic("unreachable")
++	isSoftFloat := func(typ *types.Type) bool {
++		return types.IsFloat[typ.Kind()] || types.IsComplex[typ.Kind()]
++	}
+ 
+-	case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.OTYPE, ir.ONAMEOFFSET:
+-		if n.HasCall() {
+-			base.Fatalf("OLITERAL/ONAME/OTYPE should never have calls: %+v", n)
+-		}
+-		return false
+-	case ir.OCALL, ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+-		return true
+-	case ir.OANDAND, ir.OOROR:
+-		// hard with instrumented code
+-		n := n.(*ir.LogicalExpr)
+-		if base.Flag.Cfg.Instrumenting {
+-			return true
++	return ir.Any(n, func(n ir.Node) bool {
++		// walk should have already moved any Init blocks off of
++		// expressions.
++		if len(n.Init()) != 0 {
++			base.FatalfAt(n.Pos(), "mayCall %+v", n)
+ 		}
+-		return n.X.HasCall() || n.Y.HasCall()
+-	case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
+-		ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
+-		// These ops might panic, make sure they are done
+-		// before we start marshaling args for a call. See issue 16760.
+-		return true
+ 
+-	// When using soft-float, these ops might be rewritten to function calls
+-	// so we ensure they are evaluated first.
+-	case ir.OADD, ir.OSUB, ir.OMUL:
+-		n := n.(*ir.BinaryExpr)
+-		if ssagen.Arch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
+-			return true
+-		}
+-		return n.X.HasCall() || n.Y.HasCall()
+-	case ir.ONEG:
+-		n := n.(*ir.UnaryExpr)
+-		if ssagen.Arch.SoftFloat && (types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) {
+-			return true
+-		}
+-		return n.X.HasCall()
+-	case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
+-		n := n.(*ir.BinaryExpr)
+-		if ssagen.Arch.SoftFloat && (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()]) {
++		switch n.Op() {
++		default:
++			base.FatalfAt(n.Pos(), "mayCall %+v", n)
++
++		case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
+ 			return true
+-		}
+-		return n.X.HasCall() || n.Y.HasCall()
+-	case ir.OCONV:
+-		n := n.(*ir.ConvExpr)
+-		if ssagen.Arch.SoftFloat && ((types.IsFloat[n.Type().Kind()] || types.IsComplex[n.Type().Kind()]) || (types.IsFloat[n.X.Type().Kind()] || types.IsComplex[n.X.Type().Kind()])) {
++
++		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
++			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODIV, ir.OMOD:
++			// These ops might panic, make sure they are done
++			// before we start marshaling args for a call. See issue 16760.
+ 			return true
++
++		// When using soft-float, these ops might be rewritten to function calls
++		// so we ensure they are evaluated first.
++		case ir.OADD, ir.OSUB, ir.OMUL, ir.ONEG:
++			return ssagen.Arch.SoftFloat && isSoftFloat(n.Type())
++		case ir.OLT, ir.OEQ, ir.ONE, ir.OLE, ir.OGE, ir.OGT:
++			n := n.(*ir.BinaryExpr)
++			return ssagen.Arch.SoftFloat && isSoftFloat(n.X.Type())
++		case ir.OCONV:
++			n := n.(*ir.ConvExpr)
++			return ssagen.Arch.SoftFloat && (isSoftFloat(n.Type()) || isSoftFloat(n.X.Type()))
++
++		case ir.OLITERAL, ir.ONIL, ir.ONAME, ir.ONAMEOFFSET, ir.OMETHEXPR,
++			ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOMPLEX, ir.OEFACE,
++			ir.OANDAND, ir.OOROR,
++			ir.OADDR, ir.OBITNOT, ir.ONOT, ir.OPLUS,
++			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
++			ir.OCONVNOP, ir.ODOT,
++			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
++			ir.OBYTES2STRTMP, ir.OGETG, ir.OSLICEHEADER:
++			// ok: operations that don't require function calls.
++			// Expand as needed.
+ 		}
+-		return n.X.HasCall()
+-
+-	case ir.OAND, ir.OANDNOT, ir.OLSH, ir.OOR, ir.ORSH, ir.OXOR, ir.OCOPY, ir.OCOMPLEX, ir.OEFACE:
+-		n := n.(*ir.BinaryExpr)
+-		return n.X.HasCall() || n.Y.HasCall()
+-
+-	case ir.OAS:
+-		n := n.(*ir.AssignStmt)
+-		return n.X.HasCall() || n.Y != nil && n.Y.HasCall()
+-
+-	case ir.OADDR:
+-		n := n.(*ir.AddrExpr)
+-		return n.X.HasCall()
+-	case ir.OPAREN:
+-		n := n.(*ir.ParenExpr)
+-		return n.X.HasCall()
+-	case ir.OBITNOT, ir.ONOT, ir.OPLUS, ir.ORECV,
+-		ir.OALIGNOF, ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.ONEW,
+-		ir.OOFFSETOF, ir.OPANIC, ir.OREAL, ir.OSIZEOF,
+-		ir.OCHECKNIL, ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR, ir.OVARDEF, ir.OVARKILL, ir.OVARLIVE:
+-		n := n.(*ir.UnaryExpr)
+-		return n.X.HasCall()
+-	case ir.ODOT, ir.ODOTMETH, ir.ODOTINTER:
+-		n := n.(*ir.SelectorExpr)
+-		return n.X.HasCall()
+-
+-	case ir.OGETG, ir.OMETHEXPR:
+-		return false
+ 
+-	// TODO(rsc): These look wrong in various ways but are what calcHasCall has always done.
+-	case ir.OADDSTR:
+-		// TODO(rsc): This used to check left and right, which are not part of OADDSTR.
+ 		return false
+-	case ir.OBLOCK:
+-		// TODO(rsc): Surely the block's statements matter.
+-		return false
+-	case ir.OCONVIFACE, ir.OCONVNOP, ir.OBYTES2STR, ir.OBYTES2STRTMP, ir.ORUNES2STR, ir.OSTR2BYTES, ir.OSTR2BYTESTMP, ir.OSTR2RUNES, ir.ORUNESTR:
+-		// TODO(rsc): Some conversions are themselves calls, no?
+-		n := n.(*ir.ConvExpr)
+-		return n.X.HasCall()
+-	case ir.ODOTTYPE2:
+-		// TODO(rsc): Shouldn't this be up with ODOTTYPE above?
+-		n := n.(*ir.TypeAssertExpr)
+-		return n.X.HasCall()
+-	case ir.OSLICEHEADER:
+-		// TODO(rsc): What about len and cap?
+-		n := n.(*ir.SliceHeaderExpr)
+-		return n.Ptr.HasCall()
+-	case ir.OAS2DOTTYPE, ir.OAS2FUNC:
+-		// TODO(rsc): Surely we need to check List and Rlist.
+-		return false
+-	}
++	})
+ }
+ 
+ // itabType loads the _type field from a runtime.itab struct.

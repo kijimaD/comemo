@@ -19,6 +19,29 @@ Date:   Thu Oct 18 14:43:51 2018 -0400
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index f1783a9532..9e19bb85b0 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -8,6 +8,7 @@ import "container/heap"
+ 
+ const (
+ 	ScorePhi = iota // towards top of block
++	ScoreArg
+ 	ScoreNilCheck
+ 	ScoreReadTuple
+ 	ScoreVarDef
+@@ -113,6 +114,9 @@ func schedule(f *Func) {
+ 			case v.Op == OpVarDef:
+ 				// We want all the vardefs next.
+ 				score[v.ID] = ScoreVarDef
++			case v.Op == OpArg:
++				// We want all the args as early as possible, for better debugging.
++				score[v.ID] = ScoreArg
+ 			case v.Type.IsMemory():
+ 				// Schedule stores as early as possible. This tends to
+ 				// reduce register pressure. It also helps make sure

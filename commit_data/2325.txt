@@ -7,8 +7,86 @@ Date:   Wed May 27 10:16:13 2009 -0700
     R=ken
     OCL=29448
     CL=29448
-
+---
  src/cmd/gc/const.c                 | 17 +++++++++++------
  test/{bugs => fixedbugs}/bug154.go |  0
  test/golden.out                    |  7 -------
  3 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 5dbacece7e..33acec6fc4 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -13,16 +13,20 @@ static Val copyval(Val);
+ 
+ /*
+  * truncate float literal fv to 32-bit or 64-bit precision
+- * according to type.
++ * according to type; return truncated value.
+  */
+-void
+-truncfltlit(Mpflt *fv, Type *t)
++Mpflt*
++truncfltlit(Mpflt *oldv, Type *t)
+ {
+ 	double d;
+ 	float f;
++	Mpflt *fv;
+ 
+ 	if(t == T)
+-		return;
++		return oldv;
++
++	fv = mal(sizeof *fv);
++	*fv = *oldv;
+ 
+ 	// convert large precision literal floating
+ 	// into limited precision (float64 or float32)
+@@ -41,6 +45,7 @@ truncfltlit(Mpflt *fv, Type *t)
+ 		mpmovecflt(fv, d);
+ 		break;
+ 	}
++	return fv;
+ }
+ 
+ /*
+@@ -154,7 +159,7 @@ convlit1(Node *n, Type *t, int explicit)
+ 			else if(ct != CTFLT)
+ 				goto bad;
+ 			overflow(n->val, t);
+-			truncfltlit(n->val.u.fval, t);
++			n->val.u.fval = truncfltlit(n->val.u.fval, t);
+ 		} else if(et == TSTRING && ct == CTINT && explicit)
+ 			n->val = tostr(n->val);
+ 		else
+@@ -607,7 +612,7 @@ ret:
+ 
+ 	// truncate precision for non-ideal float.
+ 	if(v.ctype == CTFLT && n->type->etype != TIDEAL)
+-		truncfltlit(v.u.fval, n->type);
++		n->val.u.fval = truncfltlit(v.u.fval, n->type);
+ 	return;
+ 
+ settrue:
+diff --git a/test/bugs/bug154.go b/test/fixedbugs/bug154.go
+similarity index 100%
+rename from test/bugs/bug154.go
+rename to test/fixedbugs/bug154.go
+diff --git a/test/golden.out b/test/golden.out
+index 239ef80bff..6a7756babb 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -112,13 +112,6 @@ BUG: should compile
+ BUG: errchk: bugs/bug153.go:9: error message does not match 'nil'
+ bugs/bug153.go:9: fatal error: dowidth: unknown type: E-34
+ 
+-=========== bugs/bug154.go
+-r0 = 3.141592
+-r1 = 3.141592025756836
+-r0 and r1 should be the same
+-panic PC=xxx
+-BUG: should not panic
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

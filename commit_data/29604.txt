@@ -7,6 +7,31 @@ Date:   Tue Sep 27 17:23:08 2016 +0200
     Change-Id: I9b2e6c45f7e83543a06d0aafd08a911f7b6485fd
     Reviewed-on: https://go-review.googlesource.com/29874
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index f33a97c167..6b3f5600af 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -4,19 +4,6 @@
+ 
+ package gc
+ 
+-//	case OADD:
+-//		if(n->right->op == OLITERAL) {
+-//			v = n->right->vconst;
+-//			naddr(n->left, a, canemitcode);
+-//		} else
+-//		if(n->left->op == OLITERAL) {
+-//			v = n->left->vconst;
+-//			naddr(n->right, a, canemitcode);
+-//		} else
+-//			goto bad;
+-//		a->offset += v;
+-//		break;
+-
+ // a function named init is a special case.
+ // it is called by the initialization before
+ // main is run. to make it unique within a

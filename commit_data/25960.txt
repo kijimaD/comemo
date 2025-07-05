@@ -12,6 +12,25 @@ Date:   Fri Dec 4 23:19:02 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/17457
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/signal1_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 3a8b5ba460..405713b371 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -228,11 +228,11 @@ func ensureSigM() {
+ 		for {
+ 			select {
+ 			case sig := <-enableSigChan:
+-				if b := sig - 1; b >= 0 {
++				if b := sig - 1; sig > 0 {
+ 					sigBlocked[b/32] &^= (1 << (b & 31))
+ 				}
+ 			case sig := <-disableSigChan:
+-				if b := sig - 1; b >= 0 {
++				if b := sig - 1; sig > 0 {
+ 					sigBlocked[b/32] |= (1 << (b & 31))
+ 				}
+ 			}

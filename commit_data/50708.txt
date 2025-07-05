@@ -12,8 +12,89 @@ Date:   Sun Oct 31 23:22:38 2021 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dnsclient.go           |  5 +++++
  src/net/dnsclient_unix_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  src/net/lookup.go              |  4 +---
  3 files changed, 47 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index 3c1a12995a..a779c37e53 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -76,6 +76,11 @@ func equalASCIIName(x, y dnsmessage.Name) bool {
+ // (currently restricted to hostname-compatible "preferred name" LDH labels and
+ // SRV-like "underscore labels"; see golang.org/issue/12421).
+ func isDomainName(s string) bool {
++	// The root domain name is valid. See golang.org/issue/45715.
++	if s == "." {
++		return true
++	}
++
+ 	// See RFC 1035, RFC 3696.
+ 	// Presentation format has dots before every label except the first, and the
+ 	// terminal empty label is optional here because we assume fully-qualified
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 1d704d021e..14366eca8c 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2120,3 +2120,44 @@ func TestNullMX(t *testing.T) {
+ 		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
+ 	}
+ }
++
++func TestRootNS(t *testing.T) {
++	// See https://golang.org/issue/45715.
++	fake := fakeDNSServer{
++		rh: func(n, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			r := dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:       q.Header.ID,
++					Response: true,
++					RCode:    dnsmessage.RCodeSuccess,
++				},
++				Questions: q.Questions,
++				Answers: []dnsmessage.Resource{
++					{
++						Header: dnsmessage.ResourceHeader{
++							Name:  q.Questions[0].Name,
++							Type:  dnsmessage.TypeNS,
++							Class: dnsmessage.ClassINET,
++						},
++						Body: &dnsmessage.NSResource{
++							NS: dnsmessage.MustNewName("i.root-servers.net."),
++						},
++					},
++				},
++			}
++			return r, nil
++		},
++	}
++	r := Resolver{PreferGo: true, Dial: fake.DialContext}
++	rrset, err := r.LookupNS(context.Background(), ".")
++	if err != nil {
++		t.Fatalf("LookupNS: %v", err)
++	}
++	if want := []*NS{&NS{Host: "i.root-servers.net."}}; !reflect.DeepEqual(rrset, want) {
++		records := []string{}
++		for _, rr := range rrset {
++			records = append(records, fmt.Sprintf("%v", rr))
++		}
++		t.Errorf("records = [%v]; want [%v]", strings.Join(records, " "), want[0])
++	}
++}
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index e10c71ae75..ff4ddbeb82 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -558,9 +558,7 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
+ 		if mx == nil {
+ 			continue
+ 		}
+-		// Bypass the hostname validity check for targets which contain only a dot,
+-		// as this is used to represent a 'Null' MX record.
+-		if mx.Host != "." && !isDomainName(mx.Host) {
++		if !isDomainName(mx.Host) {
+ 			continue
+ 		}
+ 		filteredMX = append(filteredMX, mx)

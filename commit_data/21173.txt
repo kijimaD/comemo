@@ -10,6 +10,37 @@ Date:   Sat Nov 22 13:37:46 2014 -0500
     R=rsc, dave, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/176170043
-
+---
  src/cmd/go/tool.go | 12 +-----------
  1 file changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index c96161e0f9..3f11c3e3d4 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -47,7 +47,7 @@ const toolWindowsExtension = ".exe"
+ 
+ func tool(toolName string) string {
+ 	toolPath := filepath.Join(toolDir, toolName)
+-	if toolIsWindows && toolName != "pprof" {
++	if toolIsWindows {
+ 		toolPath += toolWindowsExtension
+ 	}
+ 	// Give a nice message if there is no tool with that name.
+@@ -91,16 +91,6 @@ func runTool(cmd *Command, args []string) {
+ 	if toolPath == "" {
+ 		return
+ 	}
+-	if toolIsWindows && toolName == "pprof" {
+-		args = append([]string{"perl", toolPath}, args[1:]...)
+-		var err error
+-		toolPath, err = exec.LookPath("perl")
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, "go tool: perl not found\n")
+-			setExitStatus(3)
+-			return
+-		}
+-	}
+ 	if toolN {
+ 		fmt.Printf("%s %s\n", toolPath, strings.Join(args[1:], " "))
+ 		return

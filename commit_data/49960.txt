@@ -30,7 +30,7 @@ Date:   Mon Aug 30 10:25:11 2021 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/crypto/md5/md5_test.go               | 14 ++++++++++++++
  src/crypto/md5/md5block_generic.go       |  4 +++-
  src/crypto/sha1/sha1_test.go             | 14 ++++++++++++++
@@ -39,3 +39,140 @@ Date:   Mon Aug 30 10:25:11 2021 -0700
  src/crypto/sha256/sha256block_generic.go |  4 +++-
  src/crypto/sha512/sha512_test.go         | 14 ++++++++++++++
  7 files changed, 65 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index acd456af21..851e7fb10d 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -211,6 +211,20 @@ func TestLargeHashes(t *testing.T) {
+ 	}
+ }
+ 
++func TestAllocations(t *testing.T) {
++	in := []byte("hello, world!")
++	out := make([]byte, 0, Size)
++	h := New()
++	n := int(testing.AllocsPerRun(10, func() {
++		h.Reset()
++		h.Write(in)
++		out = h.Sum(out[:0])
++	}))
++	if n > 0 {
++		t.Errorf("allocs = %d, want 0", n)
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 1024*1024*8+1)
+ var sum = make([]byte, bench.Size())
+diff --git a/src/crypto/md5/md5block_generic.go b/src/crypto/md5/md5block_generic.go
+index ea4fbcd0b4..23ed75304f 100644
+--- a/src/crypto/md5/md5block_generic.go
++++ b/src/crypto/md5/md5block_generic.go
+@@ -9,4 +9,6 @@ package md5
+ 
+ const haveAsm = false
+ 
+-var block = blockGeneric
++func block(dig *digest, p []byte) {
++	blockGeneric(dig, p)
++}
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index c3e6010af1..ab43c7792d 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -210,6 +210,20 @@ func TestLargeHashes(t *testing.T) {
+ 	}
+ }
+ 
++func TestAllocations(t *testing.T) {
++	in := []byte("hello, world!")
++	out := make([]byte, 0, Size)
++	h := New()
++	n := int(testing.AllocsPerRun(10, func() {
++		h.Reset()
++		h.Write(in)
++		out = h.Sum(out[:0])
++	}))
++	if n > 0 {
++		t.Errorf("allocs = %d, want 0", n)
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/crypto/sha1/sha1block_generic.go b/src/crypto/sha1/sha1block_generic.go
+index feaba5a23a..105aa31832 100644
+--- a/src/crypto/sha1/sha1block_generic.go
++++ b/src/crypto/sha1/sha1block_generic.go
+@@ -7,4 +7,6 @@
+ 
+ package sha1
+ 
+-var block = blockGeneric
++func block(dig *digest, p []byte) {
++	blockGeneric(dig, p)
++}
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index a2794b015d..702aa0b371 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -289,6 +289,20 @@ func TestLargeHashes(t *testing.T) {
+ 	}
+ }
+ 
++func TestAllocations(t *testing.T) {
++	in := []byte("hello, world!")
++	out := make([]byte, 0, Size)
++	h := New()
++	n := int(testing.AllocsPerRun(10, func() {
++		h.Reset()
++		h.Write(in)
++		out = h.Sum(out[:0])
++	}))
++	if n > 0 {
++		t.Errorf("allocs = %d, want 0", n)
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/crypto/sha256/sha256block_generic.go b/src/crypto/sha256/sha256block_generic.go
+index 620c048b93..0f2bf8b231 100644
+--- a/src/crypto/sha256/sha256block_generic.go
++++ b/src/crypto/sha256/sha256block_generic.go
+@@ -7,4 +7,6 @@
+ 
+ package sha256
+ 
+-var block = blockGeneric
++func block(dig *digest, p []byte) {
++	blockGeneric(dig, p)
++}
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 0e1528fc69..aea772c7da 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -888,6 +888,20 @@ func TestLargeHashes(t *testing.T) {
+ 	}
+ }
+ 
++func TestAllocations(t *testing.T) {
++	in := []byte("hello, world!")
++	out := make([]byte, 0, Size)
++	h := New()
++	n := int(testing.AllocsPerRun(10, func() {
++		h.Reset()
++		h.Write(in)
++		out = h.Sum(out[:0])
++	}))
++	if n > 0 {
++		t.Errorf("allocs = %d, want 0", n)
++	}
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 

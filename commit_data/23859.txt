@@ -9,7 +9,7 @@ Date:   Wed Jun 17 15:35:15 2015 -0700
     Change-Id: I53b26a1caf0684b9f5d8d749b10d9f3ba18a3001
     Reviewed-on: https://go-review.googlesource.com/11193
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/go/types/api_test.go        | 20 +++-----------------
  src/go/types/check_test.go      |  3 ++-
  src/go/types/eval_test.go       |  3 ++-
@@ -17,3 +17,187 @@ Date:   Wed Jun 17 15:35:15 2015 -0700
  src/go/types/stdlib_test.go     |  9 +++++----
  src/go/types/typestring_test.go |  3 ++-
  6 files changed, 16 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 3ab909c8dd..bdf47e77f1 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -11,27 +11,13 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
+-	"runtime"
++	"internal/testenv"
+ 	"strings"
+ 	"testing"
+ 
+ 	. "go/types"
+ )
+ 
+-// skipSpecialPlatforms causes the test to be skipped for platforms where
+-// builders (build.golang.org) don't have access to compiled packages for
+-// import.
+-func skipSpecialPlatforms(t *testing.T) {
+-	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
+-	case "nacl-amd64p32",
+-		"nacl-386",
+-		"nacl-arm",
+-		"darwin-arm",
+-		"darwin-arm64":
+-		t.Skipf("no compiled packages available for import on %s", platform)
+-	}
+-}
+-
+ func pkgFor(path, source string, info *Info) (*Package, error) {
+ 	fset := token.NewFileSet()
+ 	f, err := parser.ParseFile(fset, path, source, 0)
+@@ -299,7 +285,7 @@ func predString(tv TypeAndValue) string {
+ }
+ 
+ func TestPredicatesInfo(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	var tests = []struct {
+ 		src  string
+@@ -385,7 +371,7 @@ func TestPredicatesInfo(t *testing.T) {
+ }
+ 
+ func TestScopesInfo(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	var tests = []struct {
+ 		src    string
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 25843927d0..5e34c65b63 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -32,6 +32,7 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"regexp"
+ 	"strings"
+@@ -279,7 +280,7 @@ func checkFiles(t *testing.T, testfiles []string) {
+ }
+ 
+ func TestCheck(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	// Declare builtins for testing.
+ 	DefPredeclaredTestFuncs()
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 7d932d5f4c..7e0be43e72 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"internal/testenv"
+ 	"strings"
+ 	"testing"
+ 
+@@ -86,7 +87,7 @@ func TestEvalArith(t *testing.T) {
+ }
+ 
+ func TestEvalPos(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	// The contents of /*-style comments are of the form
+ 	//	expr => value, type
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index f48d380a1d..34deae268e 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"internal/testenv"
+ 	"sort"
+ 	"testing"
+ 
+@@ -35,7 +36,7 @@ func (imp *resolveTestImporter) Import(path string) (*Package, error) {
+ }
+ 
+ func TestResolveIdents(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	sources := []string{
+ 		`
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 28a66cebe3..c7fe8dfeae 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/parser"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -36,7 +37,7 @@ var (
+ )
+ 
+ func TestStdlib(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	start = time.Now()
+ 	walkDirs(t, filepath.Join(runtime.GOROOT(), "src"))
+@@ -124,7 +125,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ }
+ 
+ func TestStdTest(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	// test/recover4.go is only built for Linux and Darwin.
+ 	// TODO(gri) Remove once tests consider +build tags (issue 10370).
+@@ -139,7 +140,7 @@ func TestStdTest(t *testing.T) {
+ }
+ 
+ func TestStdFixed(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+ 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+@@ -151,7 +152,7 @@ func TestStdFixed(t *testing.T) {
+ }
+ 
+ func TestStdKen(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
+ }
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index ecc4ba83c0..9945ed8c12 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"go/importer"
+ 	"go/parser"
+ 	"go/token"
++	"internal/testenv"
+ 	"testing"
+ 
+ 	. "go/types"
+@@ -117,7 +118,7 @@ var dependentTestTypes = []testEntry{
+ }
+ 
+ func TestTypeString(t *testing.T) {
+-	skipSpecialPlatforms(t)
++	testenv.MustHaveGoBuild(t)
+ 
+ 	var tests []testEntry
+ 	tests = append(tests, independentTestTypes...)

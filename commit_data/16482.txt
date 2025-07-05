@@ -9,10 +9,86 @@ Date:   Tue Jun 4 08:18:36 2013 +0200
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/9953044
-
+---
  src/cmd/gc/export.c                       |  1 +
  test/fixedbugs/issue5614.dir/rethinkgo.go | 16 ++++++++++++++++
  test/fixedbugs/issue5614.dir/x.go         |  7 +++++++
  test/fixedbugs/issue5614.dir/y.go         |  5 +++++
  test/fixedbugs/issue5614.go               | 11 +++++++++++
  5 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index d7b46b1145..4a9b8c8ba3 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -164,6 +164,7 @@ reexportdep(Node *n)
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
+ 	case OSTRUCTLIT:
++	case OARRAYLIT:
+ 	case OPTRLIT:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
+diff --git a/test/fixedbugs/issue5614.dir/rethinkgo.go b/test/fixedbugs/issue5614.dir/rethinkgo.go
+new file mode 100644
+index 0000000000..4ae66d679e
+--- /dev/null
++++ b/test/fixedbugs/issue5614.dir/rethinkgo.go
+@@ -0,0 +1,16 @@
++package rethinkgo
++
++type Session struct {
++}
++
++func (s *Session) Run(query Exp) *int { return nil }
++
++type List []interface{}
++
++type Exp struct {
++	args []interface{}
++}
++
++func (e Exp) UseOutdated(useOutdated bool) Exp {
++	return Exp{args: List{e, useOutdated}}
++}
+diff --git a/test/fixedbugs/issue5614.dir/x.go b/test/fixedbugs/issue5614.dir/x.go
+new file mode 100644
+index 0000000000..7e4f3a7e6b
+--- /dev/null
++++ b/test/fixedbugs/issue5614.dir/x.go
+@@ -0,0 +1,7 @@
++package x
++
++import "./rethinkgo"
++
++var S *rethinkgo.Session
++
++
+diff --git a/test/fixedbugs/issue5614.dir/y.go b/test/fixedbugs/issue5614.dir/y.go
+new file mode 100644
+index 0000000000..97cc93a79d
+--- /dev/null
++++ b/test/fixedbugs/issue5614.dir/y.go
+@@ -0,0 +1,5 @@
++package y
++
++import "./x"
++
++var T = x.S
+diff --git a/test/fixedbugs/issue5614.go b/test/fixedbugs/issue5614.go
+new file mode 100644
+index 0000000000..f2518d2a0c
+--- /dev/null
++++ b/test/fixedbugs/issue5614.go
+@@ -0,0 +1,11 @@
++// compiledir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 5614: exported data for inlining may miss
++// named types when used in implicit conversion to
++// their underlying type.
++
++package ignored

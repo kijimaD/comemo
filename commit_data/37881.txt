@@ -7,6 +7,20 @@ Date:   Wed Sep 5 22:35:01 2018 -0600
     Change-Id: Ibc40237981fdd20316f73f7f6f3dfa918dd0af5d
     Reviewed-on: https://go-review.googlesource.com/133658
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/expvar/expvar.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 174873a7d4..b7928aab17 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -221,7 +221,7 @@ func (v *String) Value() string {
+ 	return p
+ }
+ 
+-// String implements the Val interface. To get the unquoted string
++// String implements the Var interface. To get the unquoted string
+ // use Value.
+ func (v *String) String() string {
+ 	s := v.Value()

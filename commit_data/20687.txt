@@ -10,6 +10,20 @@ Date:   Tue Sep 30 12:30:16 2014 -0400
     R=golang-codereviews, iant
     CC=bradfitz, golang-codereviews
     https://golang.org/cl/145600044
-
+---
  src/log/syslog/syslog_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/syslog/syslog_unix.go b/src/log/syslog/syslog_unix.go
+index f6d2f1b7a3..1cdabec692 100644
+--- a/src/log/syslog/syslog_unix.go
++++ b/src/log/syslog/syslog_unix.go
+@@ -16,7 +16,7 @@ import (
+ 
+ func unixSyslog() (conn serverConn, err error) {
+ 	logTypes := []string{"unixgram", "unix"}
+-	logPaths := []string{"/dev/log", "/var/run/syslog"}
++	logPaths := []string{"/dev/log", "/var/run/syslog", "/var/run/log"}
+ 	for _, network := range logTypes {
+ 		for _, path := range logPaths {
+ 			conn, err := net.Dial(network, path)

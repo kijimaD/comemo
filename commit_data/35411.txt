@@ -13,6 +13,37 @@ Date:   Thu Jan 11 22:19:01 2018 +0530
     Change-Id: I64352a3e966a22d86fc9d381332bade49d74714a
     Reviewed-on: https://go-review.googlesource.com/87375
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/articles/wiki/index.html | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index 3e0d532d7f..b7ab2cc622 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -268,6 +268,12 @@ view a wiki page. It will handle URLs prefixed with "/view/".
+ 
+ {{code "doc/articles/wiki/part2.go" `/^func viewHandler/` `/^}/`}}
+ 
++<p>
++Again, note the use of <code>_</code> to ignore the <code>error</code>
++return value from <code>loadPage</code>. This is done here for simplicity
++and generally considered bad practice. We will attend to this later.
++</p>
++
+ <p>
+ First, this function extracts the page title from <code>r.URL.Path</code>,
+ the path component of the request URL.
+@@ -282,12 +288,6 @@ The function then loads the page data, formats the page with a string of simple
+ HTML, and writes it to <code>w</code>, the <code>http.ResponseWriter</code>.
+ </p>
+ 
+-<p>
+-Again, note the use of <code>_</code> to ignore the <code>error</code>
+-return value from <code>loadPage</code>. This is done here for simplicity
+-and generally considered bad practice. We will attend to this later.
+-</p>
+-
+ <p>
+ To use this handler, we rewrite our <code>main</code> function to
+ initialize <code>http</code> using the <code>viewHandler</code> to handle

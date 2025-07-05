@@ -8,7 +8,7 @@ Date:   Mon Jul 14 16:17:17 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/112970044
-
+---
  src/pkg/go/ast/ast.go                         |  6 +++---
  src/pkg/go/parser/parser.go                   | 19 +++++++++++++++----
  src/pkg/go/parser/short_test.go               |  1 +
@@ -16,3 +16,153 @@ Date:   Mon Jul 14 16:17:17 2014 -0700
  src/pkg/go/printer/testdata/statements.golden |  9 +++++++++
  src/pkg/go/printer/testdata/statements.input  |  5 +++++
  6 files changed, 44 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 6e635cd016..312e3d1b98 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -699,9 +699,9 @@ type (
+ 	// A RangeStmt represents a for statement with a range clause.
+ 	RangeStmt struct {
+ 		For        token.Pos   // position of "for" keyword
+-		Key, Value Expr        // Value may be nil
+-		TokPos     token.Pos   // position of Tok
+-		Tok        token.Token // ASSIGN, DEFINE
++		Key, Value Expr        // Key, Value may be nil
++		TokPos     token.Pos   // position of Tok; invalid if Key == nil
++		Tok        token.Token // ILLEGAL if Key == nil, ASSIGN, DEFINE
+ 		X          Expr        // value to range over
+ 		Body       *BlockStmt
+ 	}
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index d16ba4cef3..8291f3f42d 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -2041,7 +2041,16 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		prevLev := p.exprLev
+ 		p.exprLev = -1
+ 		if p.tok != token.SEMICOLON {
+-			s2, isRange = p.parseSimpleStmt(rangeOk)
++			if p.tok == token.RANGE {
++				// "for range x" (nil lhs in assignment)
++				pos := p.pos
++				p.next()
++				y := []ast.Expr{&ast.UnaryExpr{OpPos: pos, Op: token.RANGE, X: p.parseRhs()}}
++				s2 = &ast.AssignStmt{Rhs: y}
++				isRange = true
++			} else {
++				s2, isRange = p.parseSimpleStmt(rangeOk)
++			}
+ 		}
+ 		if !isRange && p.tok == token.SEMICOLON {
+ 			p.next()
+@@ -2066,12 +2075,14 @@ func (p *parser) parseForStmt() ast.Stmt {
+ 		// check lhs
+ 		var key, value ast.Expr
+ 		switch len(as.Lhs) {
+-		case 2:
+-			key, value = as.Lhs[0], as.Lhs[1]
++		case 0:
++			// nothing to do
+ 		case 1:
+ 			key = as.Lhs[0]
++		case 2:
++			key, value = as.Lhs[0], as.Lhs[1]
+ 		default:
+-			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions")
++			p.errorExpected(as.Lhs[len(as.Lhs)-1].Pos(), "at most 2 expressions")
+ 			return &ast.BadStmt{From: pos, To: p.safePos(body.End())}
+ 		}
+ 		// parseSimpleStmt returned a right-hand side that
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index 9b8ac44717..8a3c33868b 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -38,6 +38,7 @@ var valids = []string{
+ 	`package p; func ((T),) m() {}`,
+ 	`package p; func ((*T),) m() {}`,
+ 	`package p; func (*(T),) m() {}`,
++	`package p; func _(x []int) { for range x {} }`,
+ }
+ 
+ func TestValid(t *testing.T) {
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 04b5f1a76a..6e26f9a636 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -1216,14 +1216,17 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
+ 
+ 	case *ast.RangeStmt:
+ 		p.print(token.FOR, blank)
+-		p.expr(s.Key)
+-		if s.Value != nil {
+-			// use position of value following the comma as
+-			// comma position for correct comment placement
+-			p.print(s.Value.Pos(), token.COMMA, blank)
+-			p.expr(s.Value)
+-		}
+-		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
++		if s.Key != nil {
++			p.expr(s.Key)
++			if s.Value != nil {
++				// use position of value following the comma as
++				// comma position for correct comment placement
++				p.print(s.Value.Pos(), token.COMMA, blank)
++				p.expr(s.Value)
++			}
++			p.print(blank, s.TokPos, s.Tok, blank)
++		}
++		p.print(token.RANGE, blank)
+ 		p.expr(stripParens(s.X))
+ 		p.print(blank)
+ 		p.block(s.Body, 1)
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 3b298f95ef..324b6cdd0f 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -309,6 +309,9 @@ func _() {
+ 	for x := expr; expr; expr = false {
+ 		use(x)
+ 	}
++	for range []int{} {
++		println("foo")
++	}
+ 	for x := range []int{} {
+ 		use(x)
+ 	}
+@@ -338,6 +341,12 @@ func _() {
+ 		a[i] = i
+ 	}	// multiple lines
+ 
++	for range a {
++	}
++	for _ = range a {
++	}
++	for _, _ = range a {
++	}
+ 	for i := range a {
+ 	}
+ 	for i := range a {
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index e7fcc0e540..cade1576bf 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -269,6 +269,8 @@ func _() {
+ 	for x := expr;expr;expr = false {
+ 	use(x)
+ 	}
++	for range []int{} {
++	println("foo")}
+ 	for x := range []int{} {
+ 	use(x) }
+ 	for x := range (([]int{})) {
+@@ -289,6 +291,9 @@ func _() {
+ 	for i := 0; i < len(a); 1++ { a[i] = i
+ 	} // multiple lines
+ 
++	for range a{}
++	for _ = range a{}
++	for _, _ = range a{}
+ 	for i := range a {}
+ 	for i := range a { a[i] = i }
+ 	for i := range a { a[i] = i

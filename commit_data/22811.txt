@@ -11,7 +11,63 @@ Date:   Wed Apr 8 14:55:45 2015 -0700
     Change-Id: Iac783187786065e1389ad6e8d7ef02c579ed7bd8
     Reviewed-on: https://go-review.googlesource.com/8665
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/log/log.go      |  2 +-
  src/log/log_test.go | 17 ++++++++++++++++-
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 17646a12fa..9b6800891c 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -156,7 +156,7 @@ func (l *Logger) Output(calldepth int, s string) error {
+ 	l.buf = l.buf[:0]
+ 	l.formatHeader(&l.buf, now, file, line)
+ 	l.buf = append(l.buf, s...)
+-	if len(s) > 0 && s[len(s)-1] != '\n' {
++	if len(s) == 0 || s[len(s)-1] != '\n' {
+ 		l.buf = append(l.buf, '\n')
+ 	}
+ 	_, err := l.out.Write(l.buf)
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index 14e0b29263..d7d2490062 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"os"
+ 	"regexp"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -17,7 +18,7 @@ const (
+ 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
+ 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
+ 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
+-	Rline         = `(54|56):` // must update if the calls to l.Printf / l.Print below move
++	Rline         = `(55|57):` // must update if the calls to l.Printf / l.Print below move
+ 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
+ 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
+ )
+@@ -118,6 +119,20 @@ func TestFlagAndPrefixSetting(t *testing.T) {
+ 	}
+ }
+ 
++func TestEmptyPrintCreatesLine(t *testing.T) {
++	var b bytes.Buffer
++	l := New(&b, "Header:", LstdFlags)
++	l.Print()
++	l.Println("non-empty")
++	output := b.String()
++	if n := strings.Count(output, "Header"); n != 2 {
++		t.Errorf("expected 2 headers, got %d", n)
++	}
++	if n := strings.Count(output, "\n"); n != 2 {
++		t.Errorf("expected 2 lines, got %d", n)
++	}
++}
++
+ func BenchmarkItoa(b *testing.B) {
+ 	dst := make([]byte, 0, 64)
+ 	for i := 0; i < b.N; i++ {

@@ -29,7 +29,7 @@ Date:   Fri Aug 27 15:07:15 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/build.go       |   2 +-
  src/cmd/go/internal/modload/buildlist.go   | 217 +++++++++++++++--------------
  src/cmd/go/internal/modload/edit.go        | 114 +++++++--------
@@ -39,3 +39,1206 @@ Date:   Fri Aug 27 15:07:15 2021 -0400
  src/cmd/go/internal/modload/load.go        |  83 ++++++-----
  src/cmd/go/internal/modload/modfile.go     |  39 +++---
  8 files changed, 257 insertions(+), 230 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 0efd84123a..8a9792089b 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -80,7 +80,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
+ 		v  string
+ 		ok bool
+ 	)
+-	if rs.depth == lazy {
++	if rs.pruning == pruned {
+ 		v, ok = rs.rootSelected(path)
+ 	}
+ 	if !ok {
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 94414278ab..777e29af10 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -30,14 +30,15 @@ func capVersionSlice(s []module.Version) []module.Version {
+ 
+ // A Requirements represents a logically-immutable set of root module requirements.
+ type Requirements struct {
+-	// depth is the depth at which the requirement graph is computed.
++	// pruning is the pruning at which the requirement graph is computed.
+ 	//
+-	// If eager, the graph includes all transitive requirements regardless of depth.
++	// If unpruned, the graph includes all transitive requirements regardless
++	// of whether the requiring module supports pruning.
+ 	//
+-	// If lazy, the graph includes only the root modules, the explicit
++	// If pruned, the graph includes only the root modules, the explicit
+ 	// requirements of those root modules, and the transitive requirements of only
+-	// the *non-lazy* root modules.
+-	depth modDepth
++	// the root modules that do not support pruning.
++	pruning modPruning
+ 
+ 	// rootModules is the set of module versions explicitly required by the main
+ 	// modules, sorted and capped to length. It may contain duplicates, and may
+@@ -97,7 +98,7 @@ var requirements *Requirements
+ //
+ // If vendoring is in effect, the caller must invoke initVendor on the returned
+ // *Requirements before any other method.
+-func newRequirements(depth modDepth, rootModules []module.Version, direct map[string]bool) *Requirements {
++func newRequirements(pruning modPruning, rootModules []module.Version, direct map[string]bool) *Requirements {
+ 	for i, m := range rootModules {
+ 		if m.Version == "" && MainModules.Contains(m.Path) {
+ 			panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is a main module", i))
+@@ -114,7 +115,7 @@ func newRequirements(depth modDepth, rootModules []module.Version, direct map[st
+ 	}
+ 
+ 	rs := &Requirements{
+-		depth:          depth,
++		pruning:        pruning,
+ 		rootModules:    capVersionSlice(rootModules),
+ 		maxRootVersion: make(map[string]string, len(rootModules)),
+ 		direct:         direct,
+@@ -143,10 +144,10 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 		}
+ 		mainModule := MainModules.Versions()[0]
+ 
+-		if rs.depth == lazy {
+-			// The roots of a lazy module should already include every module in the
+-			// vendor list, because the vendored modules are the same as those
+-			// maintained as roots by the lazy loading “import invariant”.
++		if rs.pruning == pruned {
++			// The roots of a pruned module should already include every module in the
++			// vendor list, because the vendored modules are the same as those needed
++			// for graph pruning.
+ 			//
+ 			// Just to be sure, we'll double-check that here.
+ 			inconsistent := false
+@@ -161,8 +162,8 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 			}
+ 
+ 			// Now we can treat the rest of the module graph as effectively “pruned
+-			// out”, like a more aggressive version of lazy loading: in vendor mode,
+-			// the root requirements *are* the complete module graph.
++			// out”, as though we are viewing the main module from outside: in vendor
++			// mode, the root requirements *are* the complete module graph.
+ 			mg.g.Require(mainModule, rs.rootModules)
+ 		} else {
+ 			// The transitive requirements of the main module are not in general available
+@@ -219,7 +220,7 @@ func (rs *Requirements) hasRedundantRoot() bool {
+ // returns a non-nil error of type *mvs.BuildListError.
+ func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
+ 	rs.graphOnce.Do(func() {
+-		mg, mgErr := readModGraph(ctx, rs.depth, rs.rootModules)
++		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules)
+ 		rs.graph.Store(cachedGraph{mg, mgErr})
+ 	})
+ 	cached := rs.graph.Load().(cachedGraph)
+@@ -259,8 +260,16 @@ var readModGraphDebugOnce sync.Once
+ //
+ // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
+ // inconsistent roots.
+-func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (*ModuleGraph, error) {
+-	if depth == lazy {
++func readModGraph(ctx context.Context, pruning modPruning, roots []module.Version) (*ModuleGraph, error) {
++	if pruning == pruned {
++		// Enable diagnostics for lazy module loading
++		// (https://golang.org/ref/mod#lazy-loading) only if the module graph is
++		// pruned.
++		//
++		// In unpruned modules,we load the module graph much more aggressively (in
++		// order to detect inconsistencies that wouldn't be feasible to spot-check),
++		// so it wouldn't be useful to log when that occurs (because it happens in
++		// normal operation all the time).
+ 		readModGraphDebugOnce.Do(func() {
+ 			for _, f := range strings.Split(os.Getenv("GODEBUG"), ",") {
+ 				switch f {
+@@ -292,13 +301,13 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
+ 	}
+ 
+ 	var (
+-		loadQueue    = par.NewQueue(runtime.GOMAXPROCS(0))
+-		loadingEager sync.Map // module.Version → nil; the set of modules that have been or are being loaded via eager roots
++		loadQueue       = par.NewQueue(runtime.GOMAXPROCS(0))
++		loadingUnpruned sync.Map // module.Version → nil; the set of modules that have been or are being loaded via roots that do not support pruning
+ 	)
+ 
+ 	// loadOne synchronously loads the explicit requirements for module m.
+ 	// It does not load the transitive requirements of m even if the go version in
+-	// m's go.mod file indicates eager loading.
++	// m's go.mod file indicates that it supports graph pruning.
+ 	loadOne := func(m module.Version) (*modFileSummary, error) {
+ 		cached := mg.loadCache.Do(m, func() interface{} {
+ 			summary, err := goModSummary(m)
+@@ -317,15 +326,15 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
+ 		return cached.summary, cached.err
+ 	}
+ 
+-	var enqueue func(m module.Version, depth modDepth)
+-	enqueue = func(m module.Version, depth modDepth) {
++	var enqueue func(m module.Version, pruning modPruning)
++	enqueue = func(m module.Version, pruning modPruning) {
+ 		if m.Version == "none" {
+ 			return
+ 		}
+ 
+-		if depth == eager {
+-			if _, dup := loadingEager.LoadOrStore(m, nil); dup {
+-				// m has already been enqueued for loading. Since eager loading may
++		if pruning == unpruned {
++			if _, dup := loadingUnpruned.LoadOrStore(m, nil); dup {
++				// m has already been enqueued for loading. Since unpruned loading may
+ 				// follow cycles in the the requirement graph, we need to return early
+ 				// to avoid making the load queue infinitely long.
+ 				return
+@@ -338,21 +347,21 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
+ 				return // findError will report the error later.
+ 			}
+ 
+-			// If the version in m's go.mod file implies eager loading, then we cannot
+-			// assume that the explicit requirements of m (added by loadOne) are
+-			// sufficient to build the packages it contains. We must load its full
++			// If the version in m's go.mod file does not support pruning, then we
++			// cannot assume that the explicit requirements of m (added by loadOne)
++			// are sufficient to build the packages it contains. We must load its full
+ 			// transitive dependency graph to be sure that we see all relevant
+ 			// dependencies.
+-			if depth == eager || summary.depth == eager {
++			if pruning == unpruned || summary.pruning == unpruned {
+ 				for _, r := range summary.require {
+-					enqueue(r, eager)
++					enqueue(r, unpruned)
+ 				}
+ 			}
+ 		})
+ 	}
+ 
+ 	for _, m := range roots {
+-		enqueue(m, depth)
++		enqueue(m, pruning)
+ 	}
+ 	<-loadQueue.Idle()
+ 
+@@ -363,8 +372,7 @@ func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (
+ }
+ 
+ // RequiredBy returns the dependencies required by module m in the graph,
+-// or ok=false if module m's dependencies are not relevant (such as if they
+-// are pruned out by lazy loading).
++// or ok=false if module m's dependencies are pruned out.
+ //
+ // The caller must not modify the returned slice, but may safely append to it
+ // and may rely on it not to be modified.
+@@ -441,12 +449,12 @@ func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
+ 	rs := LoadModFile(ctx)
+ 
+ 	if goVersion != "" {
+-		depth := modDepthFromGoVersion(goVersion)
+-		if depth == eager && rs.depth != eager {
++		pruning := pruningForGoVersion(goVersion)
++		if pruning == unpruned && rs.pruning != unpruned {
+ 			// Use newRequirements instead of convertDepth because convertDepth
+ 			// also updates roots; here, we want to report the unmodified roots
+ 			// even though they may seem inconsistent.
+-			rs = newRequirements(eager, rs.rootModules, rs.direct)
++			rs = newRequirements(unpruned, rs.rootModules, rs.direct)
+ 		}
+ 
+ 		mg, err := rs.Graph(ctx)
+@@ -469,9 +477,8 @@ func LoadModGraph(ctx context.Context, goVersion string) *ModuleGraph {
+ //
+ // If the complete graph reveals that some root of rs is not actually the
+ // selected version of its path, expandGraph computes a new set of roots that
+-// are consistent. (When lazy loading is implemented, this may result in
+-// upgrades to other modules due to requirements that were previously pruned
+-// out.)
++// are consistent. (With a pruned module graph, this may result in upgrades to
++// other modules due to requirements that were previously pruned out.)
+ //
+ // expandGraph returns the updated roots, along with the module graph loaded
+ // from those roots and any error encountered while loading that graph.
+@@ -487,9 +494,9 @@ func expandGraph(ctx context.Context, rs *Requirements) (*Requirements, *ModuleG
+ 
+ 	if !mg.allRootsSelected() {
+ 		// The roots of rs are not consistent with the rest of the graph. Update
+-		// them. In an eager module this is a no-op for the build list as a whole —
++		// them. In an unpruned module this is a no-op for the build list as a whole —
+ 		// it just promotes what were previously transitive requirements to be
+-		// roots — but in a lazy module it may pull in previously-irrelevant
++		// roots — but in a pruned module it may pull in previously-irrelevant
+ 		// transitive dependencies.
+ 
+ 		newRS, rsErr := updateRoots(ctx, rs.direct, rs, nil, nil, false)
+@@ -558,24 +565,25 @@ type Conflict struct {
+ 
+ // tidyRoots trims the root dependencies to the minimal requirements needed to
+ // both retain the same versions of all packages in pkgs and satisfy the
+-// lazy loading invariants (if applicable).
++// graph-pruning invariants (if applicable).
+ func tidyRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Requirements, error) {
+ 	mainModule := MainModules.mustGetSingleMainModule()
+-	if rs.depth == eager {
+-		return tidyEagerRoots(ctx, mainModule, rs.direct, pkgs)
++	if rs.pruning == unpruned {
++		return tidyUnprunedRoots(ctx, mainModule, rs.direct, pkgs)
+ 	}
+-	return tidyLazyRoots(ctx, mainModule, rs.direct, pkgs)
++	return tidyPrunedRoots(ctx, mainModule, rs.direct, pkgs)
+ }
+ 
+ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
+-	if rs.depth == eager {
+-		return updateEagerRoots(ctx, direct, rs, add)
++	if rs.pruning == unpruned {
++		return updateUnprunedRoots(ctx, direct, rs, add)
+ 	}
+-	return updateLazyRoots(ctx, direct, rs, pkgs, add, rootsImported)
++	return updatePrunedRoots(ctx, direct, rs, pkgs, add, rootsImported)
+ }
+ 
+-// tidyLazyRoots returns a minimal set of root requirements that maintains the
+-// "lazy loading" invariants of the go.mod file for the given packages:
++// tidyPrunedRoots returns a minimal set of root requirements that maintains the
++// invariants of the go.mod file needed to support graph pruning for the given
++// packages:
+ //
+ // 	1. For each package marked with pkgInAll, the module path that provided that
+ // 	   package is included as a root.
+@@ -589,7 +597,7 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements,
+ // To ensure that the loading process eventually converges, the caller should
+ // add any needed roots from the tidy root set (without removing existing untidy
+ // roots) until the set of roots has converged.
+-func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
++func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
+ 	var (
+ 		roots        []module.Version
+ 		pathIncluded = map[string]bool{mainModule.Path: true}
+@@ -620,7 +628,7 @@ func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[st
+ 		queued[pkg] = true
+ 	}
+ 	module.Sort(roots)
+-	tidy := newRequirements(lazy, roots, direct)
++	tidy := newRequirements(pruned, roots, direct)
+ 
+ 	for len(queue) > 0 {
+ 		roots = tidy.rootModules
+@@ -656,7 +664,7 @@ func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[st
+ 
+ 		if len(roots) > len(tidy.rootModules) {
+ 			module.Sort(roots)
+-			tidy = newRequirements(lazy, roots, tidy.direct)
++			tidy = newRequirements(pruned, roots, tidy.direct)
+ 		}
+ 	}
+ 
+@@ -667,8 +675,8 @@ func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[st
+ 	return tidy, nil
+ }
+ 
+-// updateLazyRoots returns a set of root requirements that maintains the “lazy
+-// loading” invariants of the go.mod file:
++// updatePrunedRoots returns a set of root requirements that maintains the
++// invariants of the go.mod file needed to support graph pruning:
+ //
+ // 	1. The selected version of the module providing each package marked with
+ // 	   either pkgInAll or pkgIsRoot is included as a root.
+@@ -685,7 +693,7 @@ func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[st
+ // The packages in pkgs are assumed to have been loaded from either the roots of
+ // rs or the modules selected in the graph of rs.
+ //
+-// The above invariants together imply the “lazy loading” invariants for the
++// The above invariants together imply the graph-pruning invariants for the
+ // go.mod file:
+ //
+ // 	1. (The import invariant.) Every module that provides a package transitively
+@@ -705,13 +713,13 @@ func tidyLazyRoots(ctx context.Context, mainModule module.Version, direct map[st
+ // 	   it requires explicitly. This invariant is left up to the caller, who must
+ // 	   not load packages from outside the module graph but may add roots to the
+ // 	   graph, but is facilited by (3). If the caller adds roots to the graph in
+-// 	   order to resolve missing packages, then updateLazyRoots will retain them,
++// 	   order to resolve missing packages, then updatePrunedRoots will retain them,
+ // 	   the selected versions of those roots cannot regress, and they will
+ // 	   eventually be written back to the main module's go.mod file.
+ //
+ // (See https://golang.org/design/36460-lazy-module-loading#invariants for more
+ // detail.)
+-func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
++func updatePrunedRoots(ctx context.Context, direct map[string]bool, rs *Requirements, pkgs []*loadPkg, add []module.Version, rootsImported bool) (*Requirements, error) {
+ 	roots := rs.rootModules
+ 	rootsUpgraded := false
+ 
+@@ -732,11 +740,11 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 			// pkg is transitively imported by a package or test in the main module.
+ 			// We need to promote the module that maintains it to a root: if some
+ 			// other module depends on the main module, and that other module also
+-			// uses lazy loading, it will expect to find all of our transitive
+-			// dependencies by reading just our go.mod file, not the go.mod files of
+-			// everything we depend on.
++			// uses a pruned module graph, it will expect to find all of our
++			// transitive dependencies by reading just our go.mod file, not the go.mod
++			// files of everything we depend on.
+ 			//
+-			// (This is the “import invariant” that makes lazy loading possible.)
++			// (This is the “import invariant” that makes graph pruning possible.)
+ 
+ 		case rootsImported && pkg.flags.has(pkgFromRoot):
+ 			// pkg is a transitive dependency of some root, and we are treating the
+@@ -747,17 +755,18 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 			// it matches a command-line argument.) We want future invocations of the
+ 			// 'go' command — such as 'go test' on the same package — to continue to
+ 			// use the same versions of its dependencies that we are using right now.
+-			// So we need to bring this package's dependencies inside the lazy-loading
+-			// horizon.
++			// So we need to bring this package's dependencies inside the pruned
++			// module graph.
+ 			//
+ 			// Making the module containing this package a root of the module graph
+-			// does exactly that: if the module containing the package is lazy it
+-			// should satisfy the import invariant itself, so all of its dependencies
+-			// should be in its go.mod file, and if the module containing the package
+-			// is eager then if we make it a root we will load all of its transitive
+-			// dependencies into the module graph.
++			// does exactly that: if the module containing the package supports graph
++			// pruning then it should satisfy the import invariant itself, so all of
++			// its dependencies should be in its go.mod file, and if the module
++			// containing the package does not support pruning then if we make it a
++			// root we will load all of its (unpruned) transitive dependencies into
++			// the module graph.
+ 			//
+-			// (This is the “argument invariant” of lazy loading, and is important for
++			// (This is the “argument invariant”, and is important for
+ 			// reproducibility.)
+ 
+ 		default:
+@@ -824,14 +833,13 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 			// requirements.
+ 			if mustHaveCompleteRequirements() {
+ 				// Our changes to the roots may have moved dependencies into or out of
+-				// the lazy-loading horizon, which could in turn change the selected
+-				// versions of other modules. (Unlike for eager modules, for lazy
+-				// modules adding or removing an explicit root is a semantic change, not
+-				// just a cosmetic one.)
++				// the graph-pruning horizon, which could in turn change the selected
++				// versions of other modules. (For pruned modules adding or removing an
++				// explicit root is a semantic change, not just a cosmetic one.)
+ 				return rs, errGoModDirty
+ 			}
+ 
+-			rs = newRequirements(lazy, roots, direct)
++			rs = newRequirements(pruned, roots, direct)
+ 			var err error
+ 			mg, err = rs.Graph(ctx)
+ 			if err != nil {
+@@ -846,7 +854,7 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 			if rs.graph.Load() != nil {
+ 				// We've already loaded the full module graph, which includes the
+ 				// requirements of all of the root modules — even the transitive
+-				// requirements, if they are eager!
++				// requirements, if they are unpruned!
+ 				mg, _ = rs.Graph(ctx)
+ 			} else if cfg.BuildMod == "vendor" {
+ 				// We can't spot-check the requirements of other modules because we
+@@ -925,12 +933,12 @@ func updateLazyRoots(ctx context.Context, direct map[string]bool, rs *Requiremen
+ 		}
+ 	}
+ 
+-	if rs.depth == lazy && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+-		// The root set is unchanged and rs was already lazy, so keep rs to
++	if rs.pruning == pruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
++		// The root set is unchanged and rs was already pruned, so keep rs to
+ 		// preserve its cached ModuleGraph (if any).
+ 		return rs, nil
+ 	}
+-	return newRequirements(lazy, roots, direct), nil
++	return newRequirements(pruned, roots, direct), nil
+ }
+ 
+ // spotCheckRoots reports whether the versions of the roots in rs satisfy the
+@@ -972,10 +980,10 @@ func spotCheckRoots(ctx context.Context, rs *Requirements, mods map[module.Versi
+ 	return true
+ }
+ 
+-// tidyEagerRoots returns a minimal set of root requirements that maintains the
++// tidyUnprunedRoots returns a minimal set of root requirements that maintains the
+ // selected version of every module that provided a package in pkgs, and
+ // includes the selected version of every such module in direct as a root.
+-func tidyEagerRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
++func tidyUnprunedRoots(ctx context.Context, mainModule module.Version, direct map[string]bool, pkgs []*loadPkg) (*Requirements, error) {
+ 	var (
+ 		keep     []module.Version
+ 		keptPath = map[string]bool{}
+@@ -1002,10 +1010,10 @@ func tidyEagerRoots(ctx context.Context, mainModule module.Version, direct map[s
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return newRequirements(eager, min, direct), nil
++	return newRequirements(unpruned, min, direct), nil
+ }
+ 
+-// updateEagerRoots returns a set of root requirements that includes the selected
++// updateUnprunedRoots returns a set of root requirements that includes the selected
+ // version of every module path in direct as a root, and maintains the selected
+ // version of every module selected in the graph of rs.
+ //
+@@ -1019,7 +1027,7 @@ func tidyEagerRoots(ctx context.Context, mainModule module.Version, direct map[s
+ // 	   by a dependency in add.
+ // 	4. Every version in add is selected at its given version unless upgraded by
+ // 	   (the dependencies of) an existing root or another module in add.
+-func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
++func updateUnprunedRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
+ 	mg, err := rs.Graph(ctx)
+ 	if err != nil {
+ 		// We can't ignore errors in the module graph even if the user passed the -e
+@@ -1084,7 +1092,7 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
+ 
+ 	// “The selected version of every module path in direct is included as a root.”
+ 	//
+-	// This is only for convenience and clarity for end users: in an eager module,
++	// This is only for convenience and clarity for end users: in an unpruned module,
+ 	// the choice of explicit vs. implicit dependency has no impact on MVS
+ 	// selection (for itself or any other module).
+ 	keep := append(mg.BuildList()[MainModules.Len():], add...)
+@@ -1107,41 +1115,40 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
+ 	if MainModules.Len() > 1 {
+ 		module.Sort(roots)
+ 	}
+-	if rs.depth == eager && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+-		// The root set is unchanged and rs was already eager, so keep rs to
++	if rs.pruning == unpruned && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
++		// The root set is unchanged and rs was already unpruned, so keep rs to
+ 		// preserve its cached ModuleGraph (if any).
+ 		return rs, nil
+ 	}
+ 
+-	return newRequirements(eager, roots, direct), nil
++	return newRequirements(unpruned, roots, direct), nil
+ }
+ 
+-// convertDepth returns a version of rs with the given depth.
+-// If rs already has the given depth, convertDepth returns rs unmodified.
+-func convertDepth(ctx context.Context, rs *Requirements, depth modDepth) (*Requirements, error) {
+-	if rs.depth == depth {
++// convertPruning returns a version of rs with the given pruning behavior.
++// If rs already has the given pruning, convertPruning returns rs unmodified.
++func convertPruning(ctx context.Context, rs *Requirements, pruning modPruning) (*Requirements, error) {
++	if rs.pruning == pruning {
+ 		return rs, nil
+ 	}
+ 
+-	if depth == eager {
+-		// We are converting a lazy module to an eager one. The roots of an eager
+-		// module graph are a superset of the roots of a lazy graph, so we don't
+-		// need to add any new roots — we just need to prune away the ones that are
+-		// redundant given eager loading, which is exactly what updateEagerRoots
+-		// does.
+-		return updateEagerRoots(ctx, rs.direct, rs, nil)
++	if pruning == unpruned {
++		// We are converting a pruned module to an unpruned one. The roots of a
++		// ppruned module graph are a superset of the roots of an unpruned one, so
++		// we don't need to add any new roots — we just need to drop the ones that
++		// are redundant, which is exactly what updateUnprunedRoots does.
++		return updateUnprunedRoots(ctx, rs.direct, rs, nil)
+ 	}
+ 
+-	// We are converting an eager module to a lazy one. The module graph of an
+-	// eager module includes the transitive dependencies of every module in the
+-	// build list.
++	// We are converting an unpruned module to a pruned one.
+ 	//
+-	// Hey, we can express that as a lazy root set! “Include the transitive
+-	// dependencies of every module in the build list” is exactly what happens in
+-	// a lazy module if we promote every module in the build list to a root!
++	// An unpruned module graph includes the transitive dependencies of every
++	// module in the build list. As it turns out, we can express that as a pruned
++	// root set! “Include the transitive dependencies of every module in the build
++	// list” is exactly what happens in a pruned module if we promote every module
++	// in the build list to a root.
+ 	mg, err := rs.Graph(ctx)
+ 	if err != nil {
+ 		return rs, err
+ 	}
+-	return newRequirements(lazy, mg.BuildList()[MainModules.Len():], rs.direct), nil
++	return newRequirements(pruned, mg.BuildList()[MainModules.Len():], rs.direct), nil
+ }
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 12a23468af..b99ac1242b 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -21,7 +21,7 @@ import (
+ // 	2. Each module version in tryUpgrade is upgraded toward the indicated
+ // 	   version as far as can be done without violating (1).
+ //
+-// 	3. Each module version in rs.rootModules (or rs.graph, if rs.depth is eager)
++// 	3. Each module version in rs.rootModules (or rs.graph, if rs is unpruned)
+ // 	   is downgraded from its original version only to the extent needed to
+ // 	   satisfy (1), or upgraded only to the extent needed to satisfy (1) and
+ // 	   (2).
+@@ -69,10 +69,11 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 	}
+ 
+ 	var roots []module.Version
+-	if rs.depth == eager {
+-		// In an eager module, modules that provide packages imported by the main
+-		// module may either be explicit roots or implicit transitive dependencies.
+-		// We promote the modules in mustSelect to be explicit requirements.
++	if rs.pruning == unpruned {
++		// In a module without graph pruning, modules that provide packages imported
++		// by the main module may either be explicit roots or implicit transitive
++		// dependencies. We promote the modules in mustSelect to be explicit
++		// requirements.
+ 		var rootPaths []string
+ 		for _, m := range mustSelect {
+ 			if !MainModules.Contains(m.Path) && m.Version != "none" {
+@@ -102,8 +103,8 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 			return nil, false, err
+ 		}
+ 	} else {
+-		// In a lazy module, every module that provides a package imported by the
+-		// main module must be retained as a root.
++		// In a module with a pruned graph, every module that provides a package
++		// imported by the main module must be retained as a root.
+ 		roots = mods
+ 		if !changed {
+ 			// Because the roots we just computed are unchanged, the entire graph must
+@@ -126,7 +127,7 @@ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSel
+ 			direct[m.Path] = true
+ 		}
+ 	}
+-	return newRequirements(rs.depth, roots, direct), changed, nil
++	return newRequirements(rs.pruning, roots, direct), changed, nil
+ }
+ 
+ // limiterForEdit returns a versionLimiter with its max versions set such that
+@@ -149,11 +150,12 @@ func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelec
+ 		}
+ 	}
+ 
+-	if rs.depth == eager {
+-		// Eager go.mod files don't indicate which transitive dependencies are
+-		// actually relevant to the main module, so we have to assume that any module
+-		// that could have provided any package — that is, any module whose selected
+-		// version was not "none" — may be relevant.
++	if rs.pruning == unpruned {
++		// go.mod files that do not support graph pruning don't indicate which
++		// transitive dependencies are actually relevant to the main module, so we
++		// have to assume that any module that could have provided any package —
++		// that is, any module whose selected version was not "none" — may be
++		// relevant.
+ 		for _, m := range mg.BuildList() {
+ 			restrictTo(m)
+ 		}
+@@ -175,7 +177,7 @@ func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelec
+ 		}
+ 	}
+ 
+-	if err := raiseLimitsForUpgrades(ctx, maxVersion, rs.depth, tryUpgrade, mustSelect); err != nil {
++	if err := raiseLimitsForUpgrades(ctx, maxVersion, rs.pruning, tryUpgrade, mustSelect); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -185,7 +187,7 @@ func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelec
+ 		restrictTo(m)
+ 	}
+ 
+-	return newVersionLimiter(rs.depth, maxVersion), nil
++	return newVersionLimiter(rs.pruning, maxVersion), nil
+ }
+ 
+ // raiseLimitsForUpgrades increases the module versions in maxVersions to the
+@@ -195,12 +197,12 @@ func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelec
+ //
+ // Versions not present in maxVersion are unrestricted, and it is assumed that
+ // they will not be promoted to root requirements (and thus will not contribute
+-// their own dependencies if the main module is lazy).
++// their own dependencies if the main module supports graph pruning).
+ //
+ // These limits provide an upper bound on how far a module may be upgraded as
+ // part of an incidental downgrade, if downgrades are needed in order to select
+ // the versions in mustSelect.
+-func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, depth modDepth, tryUpgrade []module.Version, mustSelect []module.Version) error {
++func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, pruning modPruning, tryUpgrade []module.Version, mustSelect []module.Version) error {
+ 	// allow raises the limit for m.Path to at least m.Version.
+ 	// If m.Path was already unrestricted, it remains unrestricted.
+ 	allow := func(m module.Version) {
+@@ -213,9 +215,9 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
+ 		}
+ 	}
+ 
+-	var eagerUpgrades []module.Version
+-	if depth == eager {
+-		eagerUpgrades = tryUpgrade
++	var unprunedUpgrades []module.Version
++	if pruning == unpruned {
++		unprunedUpgrades = tryUpgrade
+ 	} else {
+ 		for _, m := range tryUpgrade {
+ 			if MainModules.Contains(m.Path) {
+@@ -229,11 +231,11 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
+ 			if err != nil {
+ 				return err
+ 			}
+-			if summary.depth == eager {
+-				// For efficiency, we'll load all of the eager upgrades as one big
++			if summary.pruning == unpruned {
++				// For efficiency, we'll load all of the unpruned upgrades as one big
+ 				// graph, rather than loading the (potentially-overlapping) subgraph for
+ 				// each upgrade individually.
+-				eagerUpgrades = append(eagerUpgrades, m)
++				unprunedUpgrades = append(unprunedUpgrades, m)
+ 				continue
+ 			}
+ 
+@@ -244,14 +246,14 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
+ 		}
+ 	}
+ 
+-	if len(eagerUpgrades) > 0 {
+-		// Compute the max versions for eager upgrades all together.
+-		// Since these modules are eager, we'll end up scanning all of their
++	if len(unprunedUpgrades) > 0 {
++		// Compute the max versions for unpruned upgrades all together.
++		// Since these modules are unpruned, we'll end up scanning all of their
+ 		// transitive dependencies no matter which versions end up selected,
+ 		// and since we have a large dependency graph to scan we might get
+ 		// a significant benefit from not revisiting dependencies that are at
+ 		// common versions among multiple upgrades.
+-		upgradeGraph, err := readModGraph(ctx, eager, eagerUpgrades)
++		upgradeGraph, err := readModGraph(ctx, unpruned, unprunedUpgrades)
+ 		if err != nil {
+ 			// Compute the requirement path from a module path in tryUpgrade to the
+ 			// error, and the requirement path (if any) from rs.rootModules to the
+@@ -268,7 +270,7 @@ func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, d
+ 	}
+ 
+ 	if len(mustSelect) > 0 {
+-		mustGraph, err := readModGraph(ctx, depth, mustSelect)
++		mustGraph, err := readModGraph(ctx, pruning, mustSelect)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -300,7 +302,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
+ 	}
+ 
+ 	var initial []module.Version
+-	if rs.depth == eager {
++	if rs.pruning == unpruned {
+ 		mg, err := rs.Graph(ctx)
+ 		if err != nil {
+ 			return nil, false, err
+@@ -327,7 +329,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
+ 	// downgraded module may require a higher (but still allowed) version of
+ 	// another. The lower version may require extraneous dependencies that aren't
+ 	// actually relevant, so we need to compute the actual selected versions.
+-	mg, err := readModGraph(ctx, rs.depth, mods)
++	mg, err := readModGraph(ctx, rs.pruning, mods)
+ 	if err != nil {
+ 		return nil, false, err
+ 	}
+@@ -349,16 +351,16 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
+ // A versionLimiter tracks the versions that may be selected for each module
+ // subject to constraints on the maximum versions of transitive dependencies.
+ type versionLimiter struct {
+-	// depth is the depth at which the dependencies of the modules passed to
++	// pruning is the pruning at which the dependencies of the modules passed to
+ 	// Select and UpgradeToward are loaded.
+-	depth modDepth
++	pruning modPruning
+ 
+ 	// max maps each module path to the maximum version that may be selected for
+ 	// that path.
+ 	//
+ 	// Paths with no entry are unrestricted, and we assume that they will not be
+ 	// promoted to root dependencies (so will not contribute dependencies if the
+-	// main module is lazy).
++	// main module supports graph pruning).
+ 	max map[string]string
+ 
+ 	// selected maps each module path to a version of that path (if known) whose
+@@ -410,16 +412,16 @@ func (dq dqState) isDisqualified() bool {
+ // in the map are unrestricted. The limiter assumes that unrestricted paths will
+ // not be promoted to root dependencies.
+ //
+-// If depth is lazy, then if a module passed to UpgradeToward or Select is
+-// itself lazy, its unrestricted dependencies are skipped when scanning
+-// requirements.
+-func newVersionLimiter(depth modDepth, max map[string]string) *versionLimiter {
++// If module graph pruning is in effect, then if a module passed to
++// UpgradeToward or Select supports pruning, its unrestricted dependencies are
++// skipped when scanning requirements.
++func newVersionLimiter(pruning modPruning, max map[string]string) *versionLimiter {
+ 	selected := make(map[string]string)
+ 	for _, m := range MainModules.Versions() {
+ 		selected[m.Path] = m.Version
+ 	}
+ 	return &versionLimiter{
+-		depth:     depth,
++		pruning:   pruning,
+ 		max:       max,
+ 		selected:  selected,
+ 		dqReason:  map[module.Version]dqState{},
+@@ -430,8 +432,8 @@ func newVersionLimiter(depth modDepth, max map[string]string) *versionLimiter {
+ // UpgradeToward attempts to upgrade the selected version of m.Path as close as
+ // possible to m.Version without violating l's maximum version limits.
+ //
+-// If depth is lazy and m itself is lazy, the the dependencies of unrestricted
+-// dependencies of m will not be followed.
++// If module graph pruning is in effect and m itself supports pruning, the
++// dependencies of unrestricted dependencies of m will not be followed.
+ func (l *versionLimiter) UpgradeToward(ctx context.Context, m module.Version) error {
+ 	selected, ok := l.selected[m.Path]
+ 	if ok {
+@@ -443,7 +445,7 @@ func (l *versionLimiter) UpgradeToward(ctx context.Context, m module.Version) er
+ 		selected = "none"
+ 	}
+ 
+-	if l.check(m, l.depth).isDisqualified() {
++	if l.check(m, l.pruning).isDisqualified() {
+ 		candidates, err := versions(ctx, m.Path, CheckAllowed)
+ 		if err != nil {
+ 			// This is likely a transient error reaching the repository,
+@@ -460,7 +462,7 @@ func (l *versionLimiter) UpgradeToward(ctx context.Context, m module.Version) er
+ 		})
+ 		candidates = candidates[:i]
+ 
+-		for l.check(m, l.depth).isDisqualified() {
++		for l.check(m, l.pruning).isDisqualified() {
+ 			n := len(candidates)
+ 			if n == 0 || cmpVersion(selected, candidates[n-1]) >= 0 {
+ 				// We couldn't find a suitable candidate above the already-selected version.
+@@ -477,7 +479,7 @@ func (l *versionLimiter) UpgradeToward(ctx context.Context, m module.Version) er
+ 
+ // Select attempts to set the selected version of m.Path to exactly m.Version.
+ func (l *versionLimiter) Select(m module.Version) (conflict module.Version, err error) {
+-	dq := l.check(m, l.depth)
++	dq := l.check(m, l.pruning)
+ 	if !dq.isDisqualified() {
+ 		l.selected[m.Path] = m.Version
+ 	}
+@@ -487,14 +489,14 @@ func (l *versionLimiter) Select(m module.Version) (conflict module.Version, err
+ // check determines whether m (or its transitive dependencies) would violate l's
+ // maximum version limits if added to the module requirement graph.
+ //
+-// If depth is lazy and m itself is lazy, then the dependencies of unrestricted
+-// dependencies of m will not be followed. If the lazy loading invariants hold
+-// for the main module up to this point, the packages in those modules are at
+-// best only imported by tests of dependencies that are themselves loaded from
+-// outside modules. Although we would like to keep 'go test all' as reproducible
+-// as is feasible, we don't want to retain test dependencies that are only
+-// marginally relevant at best.
+-func (l *versionLimiter) check(m module.Version, depth modDepth) dqState {
++// If pruning is in effect and m itself supports graph pruning, the dependencies
++// of unrestricted dependencies of m will not be followed. If the graph-pruning
++// invariants hold for the main module up to this point, the packages in those
++// modules are at best only imported by tests of dependencies that are
++// themselves loaded from outside modules. Although we would like to keep
++// 'go test all' as reproducible as is feasible, we don't want to retain test
++// dependencies that are only marginally relevant at best.
++func (l *versionLimiter) check(m module.Version, pruning modPruning) dqState {
+ 	if m.Version == "none" || m == MainModules.mustGetSingleMainModule() {
+ 		// version "none" has no requirements, and the dependencies of Target are
+ 		// tautological.
+@@ -525,20 +527,20 @@ func (l *versionLimiter) check(m module.Version, depth modDepth) dqState {
+ 		return l.disqualify(m, dqState{err: err})
+ 	}
+ 
+-	if summary.depth == eager {
+-		depth = eager
++	if summary.pruning == unpruned {
++		pruning = unpruned
+ 	}
+ 	for _, r := range summary.require {
+-		if depth == lazy {
++		if pruning == pruned {
+ 			if _, restricted := l.max[r.Path]; !restricted {
+ 				// r.Path is unrestricted, so we don't care at what version it is
+ 				// selected. We assume that r.Path will not become a root dependency, so
+-				// since m is lazy, r's dependencies won't be followed.
++				// since m supports pruning, r's dependencies won't be followed.
+ 				continue
+ 			}
+ 		}
+ 
+-		if dq := l.check(r, depth); dq.isDisqualified() {
++		if dq := l.check(r, pruning); dq.isDisqualified() {
+ 			return l.disqualify(m, dq)
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 98145887e9..11310489ad 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -69,7 +69,7 @@ func TestQueryImport(t *testing.T) {
+ 	RootMode = NoRoot
+ 
+ 	ctx := context.Background()
+-	rs := newRequirements(eager, nil, nil)
++	rs := newRequirements(unpruned, nil, nil)
+ 
+ 	for _, tt := range importTests {
+ 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 0843e1ad4d..bc155c7310 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -625,7 +625,7 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 		MainModules = makeMainModules([]module.Version{mainModule}, []string{""}, []*modfile.File{nil}, []*modFileIndex{nil}, "")
+ 		goVersion := LatestGoVersion()
+ 		rawGoVersion.Store(mainModule, goVersion)
+-		requirements = newRequirements(modDepthFromGoVersion(goVersion), nil, nil)
++		requirements = newRequirements(pruningForGoVersion(goVersion), nil, nil)
+ 		return requirements, false
+ 	}
+ 
+@@ -712,11 +712,11 @@ func loadModFile(ctx context.Context) (rs *Requirements, needCommit bool) {
+ 
+ 			// We need to add a 'go' version to the go.mod file, but we must assume
+ 			// that its existing contents match something between Go 1.11 and 1.16.
+-			// Go 1.11 through 1.16 have eager requirements, but the latest Go
+-			// version uses lazy requirements instead — so we need to convert the
+-			// requirements to be lazy.
++			// Go 1.11 through 1.16 do not support graph pruning, but the latest Go
++			// version uses a pruned module graph — so we need to convert the
++			// requirements to support pruning.
+ 			var err error
+-			rs, err = convertDepth(ctx, rs, lazy)
++			rs, err = convertPruning(ctx, rs, pruned)
+ 			if err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+@@ -978,7 +978,7 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ 		}
+ 	}
+ 	module.Sort(roots)
+-	rs := newRequirements(modDepthFromGoVersion(MainModules.GoVersion()), roots, direct)
++	rs := newRequirements(pruningForGoVersion(MainModules.GoVersion()), roots, direct)
+ 	return rs
+ }
+ 
+@@ -1485,12 +1485,13 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 				continue
+ 			}
+ 
+-			if rs.depth == lazy && pkg.mod.Path != "" {
++			if rs.pruning == pruned && pkg.mod.Path != "" {
+ 				if v, ok := rs.rootSelected(pkg.mod.Path); ok && v == pkg.mod.Version {
+-					// pkg was loaded from a root module, and because the main module is
+-					// lazy we do not check non-root modules for conflicts for packages
+-					// that can be found in roots. So we only need the checksums for the
+-					// root modules that may contain pkg, not all possible modules.
++					// pkg was loaded from a root module, and because the main module has
++					// a pruned module graph we do not check non-root modules for
++					// conflicts for packages that can be found in roots. So we only need
++					// the checksums for the root modules that may contain pkg, not all
++					// possible modules.
+ 					for prefix := pkg.path; prefix != "."; prefix = path.Dir(prefix) {
+ 						if v, ok := rs.rootSelected(prefix); ok && v != "none" {
+ 							m := module.Version{Path: prefix, Version: v}
+@@ -1514,8 +1515,7 @@ func keepSums(ctx context.Context, ld *loader, rs *Requirements, which whichSums
+ 	}
+ 
+ 	if rs.graph.Load() == nil {
+-		// The module graph was not loaded, possibly because the main module is lazy
+-		// or possibly because we haven't needed to load the graph yet.
++		// We haven't needed to load the module graph so far.
+ 		// Save sums for the root modules (or their replacements), but don't
+ 		// incur the cost of loading the graph just to find and retain the sums.
+ 		for _, m := range rs.rootModules {
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 9c5018f340..ac10a42c5a 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -105,7 +105,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 			path := arg[:i]
+ 			vers := arg[i+1:]
+ 			if vers == "upgrade" || vers == "patch" {
+-				if _, ok := rs.rootSelected(path); !ok || rs.depth == eager {
++				if _, ok := rs.rootSelected(path); !ok || rs.pruning == unpruned {
+ 					needFullGraph = true
+ 					if !HasModRoot() {
+ 						base.Fatalf("go: cannot match %q: %v", arg, ErrNoModRoot)
+@@ -114,7 +114,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
+ 			}
+ 			continue
+ 		}
+-		if _, ok := rs.rootSelected(arg); !ok || rs.depth == eager {
++		if _, ok := rs.rootSelected(arg); !ok || rs.pruning == unpruned {
+ 			needFullGraph = true
+ 			if mode&ListVersions == 0 && !HasModRoot() {
+ 				base.Fatalf("go: cannot match %q without -versions or an explicit version: %v", arg, ErrNoModRoot)
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index efe6ad1319..20c007a03a 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -40,9 +40,10 @@ package modload
+ // 	- the main module specifies a go version ≤ 1.15, and the package is imported
+ // 	  by a *test of* another package in "all".
+ //
+-// When we implement lazy loading, we will record the modules providing packages
+-// in "all" even when we are only loading individual packages, so we set the
+-// pkgInAll flag regardless of the whether the "all" pattern is a root.
++// When graph pruning is in effect, we want to spot-check the graph-pruning
++// invariants — which depend on which packages are known to be in "all" — even
++// when we are only loading individual packages, so we set the pkgInAll flag
++// regardless of the whether the "all" pattern is a root.
+ // (This is necessary to maintain the “import invariant” described in
+ // https://golang.org/design/36460-lazy-module-loading.)
+ //
+@@ -367,7 +368,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 
+ 			for _, m := range initialRS.rootModules {
+ 				var unused bool
+-				if ld.requirements.depth == eager {
++				if ld.requirements.pruning == unpruned {
+ 					// m is unused if it was dropped from the module graph entirely. If it
+ 					// was only demoted from direct to indirect, it may still be in use via
+ 					// a transitive import.
+@@ -386,7 +387,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		}
+ 
+ 		keep := keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly)
+-		if compatDepth := modDepthFromGoVersion(ld.TidyCompatibleVersion); compatDepth != ld.requirements.depth {
++		if compatDepth := pruningForGoVersion(ld.TidyCompatibleVersion); compatDepth != ld.requirements.pruning {
+ 			compatRS := newRequirements(compatDepth, ld.requirements.rootModules, ld.requirements.direct)
+ 			ld.checkTidyCompatibility(ctx, compatRS)
+ 
+@@ -622,7 +623,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 		return path.Join(m.Path, filepath.ToSlash(sub)), true
+ 	}
+ 
+-	if rs.depth == lazy {
++	if rs.pruning == pruned {
+ 		for _, m := range rs.rootModules {
+ 			if v, _ := rs.rootSelected(m.Path); v != m.Version {
+ 				continue // m is a root, but we have a higher root for the same path.
+@@ -635,9 +636,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 		}
+ 	}
+ 
+-	// None of the roots contained dir, or we're in eager mode and want to load
+-	// the full module graph more aggressively. Either way, check the full graph
+-	// to see if the directory is a non-root dependency.
++	// None of the roots contained dir, or the graph is unpruned (so we don't want
++	// to distinguish between roots and transitive dependencies). Either way,
++	// check the full graph to see if the directory is a non-root dependency.
+ 	//
+ 	// If the roots are not consistent with the full module graph, the selected
+ 	// versions of root modules may differ from what we already checked above.
+@@ -986,18 +987,26 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 	}
+ 
+ 	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+-		// The module's go version explicitly predates the change in "all" for lazy
+-		// loading, so continue to use the older interpretation.
++		// The module's go version explicitly predates the change in "all" for graph
++		// pruning, so continue to use the older interpretation.
+ 		ld.allClosesOverTests = true
+ 	}
+ 
+ 	var err error
+-	ld.requirements, err = convertDepth(ctx, ld.requirements, modDepthFromGoVersion(ld.GoVersion))
++	ld.requirements, err = convertPruning(ctx, ld.requirements, pruningForGoVersion(ld.GoVersion))
+ 	if err != nil {
+ 		ld.errorf("go: %v\n", err)
+ 	}
+ 
+-	if ld.requirements.depth == eager {
++	if ld.requirements.pruning == unpruned {
++		// If the module graph does not support pruning, we assume that we will need
++		// the full module graph in order to load package dependencies.
++		//
++		// This might not be strictly necessary, but it matches the historical
++		// behavior of the 'go' command and keeps the go.mod file more consistent in
++		// case of erroneous hand-edits — which are less likely to be detected by
++		// spot-checks in modules that do not maintain the expanded go.mod
++		// requirements needed for graph pruning.
+ 		var err error
+ 		ld.requirements, _, err = expandGraph(ctx, ld.requirements)
+ 		if err != nil {
+@@ -1014,7 +1023,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		// build list we're using.
+ 		rootPkgs := ld.listRoots(ld.requirements)
+ 
+-		if ld.requirements.depth == lazy && cfg.BuildMod == "mod" {
++		if ld.requirements.pruning == pruned && cfg.BuildMod == "mod" {
+ 			// Before we start loading transitive imports of packages, locate all of
+ 			// the root packages and promote their containing modules to root modules
+ 			// dependencies. If their go.mod files are tidy (the common case) and the
+@@ -1125,11 +1134,11 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			ld.errorf("go: %v\n", err)
+ 		}
+ 
+-		if ld.requirements.depth == lazy {
++		if ld.requirements.pruning == pruned {
+ 			// We continuously add tidy roots to ld.requirements during loading, so at
+ 			// this point the tidy roots should be a subset of the roots of
+ 			// ld.requirements, ensuring that no new dependencies are brought inside
+-			// the lazy-loading horizon.
++			// the graph-pruning horizon.
+ 			// If that is not the case, there is a bug in the loading loop above.
+ 			for _, m := range rs.rootModules {
+ 				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+@@ -1257,14 +1266,14 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 
+ 	var addRoots []module.Version
+ 	if ld.Tidy {
+-		// When we are tidying a lazy module, we may need to add roots to preserve
+-		// the versions of indirect, test-only dependencies that are upgraded
+-		// above or otherwise missing from the go.mod files of direct
+-		// dependencies. (For example, the direct dependency might be a very
++		// When we are tidying a module with a pruned dependency graph, we may need
++		// to add roots to preserve the versions of indirect, test-only dependencies
++		// that are upgraded above or otherwise missing from the go.mod files of
++		// direct dependencies. (For example, the direct dependency might be a very
+ 		// stable codebase that predates modules and thus lacks a go.mod file, or
+-		// the author of the direct dependency may have forgotten to commit a
+-		// change to the go.mod file, or may have made an erroneous hand-edit that
+-		// causes it to be untidy.)
++		// the author of the direct dependency may have forgotten to commit a change
++		// to the go.mod file, or may have made an erroneous hand-edit that causes
++		// it to be untidy.)
+ 		//
+ 		// Promoting an indirect dependency to a root adds the next layer of its
+ 		// dependencies to the module graph, which may increase the selected
+@@ -1571,7 +1580,8 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
+ 				// module to a root to ensure that any other packages this package
+ 				// imports are resolved from correct dependency versions.
+ 				//
+-				// (This is the “argument invariant” from the lazy loading design.)
++				// (This is the “argument invariant” from
++				// https://golang.org/design/36460-lazy-module-loading.)
+ 				need := <-needc
+ 				need[m] = true
+ 				needc <- need
+@@ -1633,7 +1643,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
+ 	}
+ 
+ 	var mg *ModuleGraph
+-	if ld.requirements.depth == eager {
++	if ld.requirements.pruning == unpruned {
+ 		var err error
+ 		mg, err = ld.requirements.Graph(ctx)
+ 		if err != nil {
+@@ -1961,9 +1971,10 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 		case mismatch.err != nil:
+ 			// pkg resolved successfully, but errors out using the requirements in rs.
+ 			//
+-			// This could occur because the import is provided by a single lazy root
+-			// (and is thus unambiguous in lazy mode) and also one or more
+-			// transitive dependencies (and is ambiguous in eager mode).
++			// This could occur because the import is provided by a single root (and
++			// is thus unambiguous in a main module with a pruned module graph) and
++			// also one or more transitive dependencies (and is ambiguous with an
++			// unpruned graph).
+ 			//
+ 			// It could also occur because some transitive dependency upgrades the
+ 			// module that previously provided the package to a version that no
+@@ -2001,18 +2012,18 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements)
+ 			}
+ 
+ 		case pkg.err != nil:
+-			// pkg had an error in lazy mode (presumably suppressed with the -e flag),
+-			// but not in eager mode.
++			// pkg had an error in with a pruned module graph (presumably suppressed
++			// with the -e flag), but the error went away using an unpruned graph.
+ 			//
+-			// This is possible, if, say, the import is unresolved in lazy mode
++			// This is possible, if, say, the import is unresolved in the pruned graph
+ 			// (because the "latest" version of each candidate module either is
+-			// unavailable or does not contain the package), but is resolved in
+-			// eager mode due to a newer-than-latest dependency that is normally
+-			// runed out of the module graph.
++			// unavailable or does not contain the package), but is resolved in the
++			// unpruned graph due to a newer-than-latest dependency that is normally
++			// pruned out.
+ 			//
+ 			// This could also occur if the source code for the module providing the
+-			// package in lazy mode has a checksum error, but eager mode upgrades
+-			// that module to a version with a correct checksum.
++			// package in the pruned graph has a checksum error, but the unpruned
++			// graph upgrades that module to a version with a correct checksum.
+ 			//
+ 			// pkg.err should have already been logged elsewhere — along with a
+ 			// stack trace — so log only the import path and non-error info here.
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index d2b13fb89f..79ac1227ca 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -33,10 +33,13 @@ const (
+ 	// tests outside of the main module.
+ 	narrowAllVersionV = "v1.16"
+ 
+-	// lazyLoadingVersionV is the Go version (plus leading "v") at which a
++	// explicitIndirectVersionV is the Go version (plus leading "v") at which a
+ 	// module's go.mod file is expected to list explicit requirements on every
+ 	// module that provides any package transitively imported by that module.
+-	lazyLoadingVersionV = "v1.17"
++	//
++	// Other indirect dependencies of such a module can be safely pruned out of
++	// the module graph; see https://golang.org/ref/mod#graph-pruning.
++	explicitIndirectVersionV = "v1.17"
+ 
+ 	// separateIndirectVersionV is the Go version (plus leading "v") at which
+ 	// "// indirect" dependencies are added in a block separate from the direct
+@@ -57,9 +60,9 @@ func modFileGoVersion(modFile *modfile.File) string {
+ 		// has been erroneously hand-edited.
+ 		//
+ 		// The semantics of the go.mod file are more-or-less the same from Go 1.11
+-		// through Go 1.16, changing at 1.17 for lazy loading. So even though a
+-		// go.mod file without a 'go' directive is theoretically a Go 1.11 file,
+-		// scripts may assume that it ends up as a Go 1.16 module.
++		// through Go 1.16, changing at 1.17 to support module graph pruning.
++		// So even though a go.mod file without a 'go' directive is theoretically a
++		// Go 1.11 file, scripts may assume that it ends up as a Go 1.16 module.
+ 		return "1.16"
+ 	}
+ 	return modFile.Go.Version
+@@ -82,19 +85,23 @@ type requireMeta struct {
+ 	indirect bool
+ }
+ 
+-// A modDepth indicates which dependencies should be loaded for a go.mod file.
+-type modDepth uint8
++// A modPruning indicates whether transitive dependencies of Go 1.17 dependencies
++// are pruned out of the module subgraph rooted at a given module.
++// (See https://golang.org/ref/mod#graph-pruning.)
++type modPruning uint8
+ 
+ const (
+-	lazy  modDepth = iota // load dependencies only as needed
+-	eager                 // load all transitive dependencies eagerly
++	pruned   modPruning = iota // transitive dependencies of modules at go 1.17 and higher are pruned out
++	unpruned                   // no transitive dependencies are pruned out
+ )
+ 
+-func modDepthFromGoVersion(goVersion string) modDepth {
+-	if semver.Compare("v"+goVersion, lazyLoadingVersionV) < 0 {
+-		return eager
++func pruningForGoVersion(goVersion string) modPruning {
++	if semver.Compare("v"+goVersion, explicitIndirectVersionV) < 0 {
++		// The go.mod file does not duplicate relevant information about transitive
++		// dependencies, so they cannot be pruned out.
++		return unpruned
+ 	}
+-	return lazy
++	return pruned
+ }
+ 
+ // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
+@@ -468,7 +475,7 @@ var rawGoVersion sync.Map // map[module.Version]string
+ type modFileSummary struct {
+ 	module     module.Version
+ 	goVersion  string
+-	depth      modDepth
++	pruning    modPruning
+ 	require    []module.Version
+ 	retract    []retraction
+ 	deprecated string
+@@ -620,9 +627,9 @@ func rawGoModSummary(m module.Version, replacedFrom string) (*modFileSummary, er
+ 		if f.Go != nil && f.Go.Version != "" {
+ 			rawGoVersion.LoadOrStore(m, f.Go.Version)
+ 			summary.goVersion = f.Go.Version
+-			summary.depth = modDepthFromGoVersion(f.Go.Version)
++			summary.pruning = pruningForGoVersion(f.Go.Version)
+ 		} else {
+-			summary.depth = eager
++			summary.pruning = unpruned
+ 		}
+ 		if len(f.Require) > 0 {
+ 			summary.require = make([]module.Version, 0, len(f.Require))

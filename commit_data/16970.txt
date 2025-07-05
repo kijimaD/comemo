@@ -10,7 +10,32 @@ Date:   Thu Aug 1 00:23:30 2013 -0400
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/12227043
-
+---
  src/pkg/runtime/vlrt_386.c | 1 +
  src/pkg/runtime/vlrt_arm.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/vlrt_386.c b/src/pkg/runtime/vlrt_386.c
+index 1631dbe108..78e3f02a17 100644
+--- a/src/pkg/runtime/vlrt_386.c
++++ b/src/pkg/runtime/vlrt_386.c
+@@ -423,6 +423,7 @@ _rshlv(Vlong *r, Vlong a, int b)
+ 	r->lo = (t << (32-b)) | (a.lo >> b);
+ }
+ 
++#pragma textflag 7
+ void
+ _lshv(Vlong *r, Vlong a, int b)
+ {
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index 11813f91c4..b58c5fbc0e 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -421,6 +421,7 @@ _rshlv(Vlong *r, Vlong a, int b)
+ 	r->lo = (t << (32-b)) | (a.lo >> b);
+ }
+ 
++#pragma textflag 7
+ void
+ _lshv(Vlong *r, Vlong a, int b)
+ {

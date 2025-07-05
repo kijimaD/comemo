@@ -21,7 +21,7 @@ Date:   Fri Aug 14 17:44:22 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/test/test.go                   |   8 +-
  src/cmd/go/testdata/script/test_json_exit.txt      | 102 +++++++++++++++++++++
  src/cmd/internal/test2json/test2json.go            |  44 +++++----
@@ -29,3 +29,288 @@ Date:   Fri Aug 14 17:44:22 2020 -0400
  src/cmd/internal/test2json/testdata/empty.json     |   1 -
  src/cmd/test2json/main.go                          |   6 +-
  6 files changed, 139 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 9c120e08dc..9cef8cf89c 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1098,9 +1098,13 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 	}
+ 
+ 	var stdout io.Writer = os.Stdout
++	var err error
+ 	if testJSON {
+ 		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+-		defer json.Close()
++		defer func() {
++			json.Exited(err)
++			json.Close()
++		}()
+ 		stdout = json
+ 	}
+ 
+@@ -1204,7 +1208,7 @@ func (c *runCache) builderRunTest(b *work.Builder, ctx context.Context, a *work.
+ 	}
+ 
+ 	t0 := time.Now()
+-	err := cmd.Start()
++	err = cmd.Start()
+ 
+ 	// This is a last-ditch deadline to detect and
+ 	// stop wedged test binaries, to keep the builders
+diff --git a/src/cmd/go/testdata/script/test_json_exit.txt b/src/cmd/go/testdata/script/test_json_exit.txt
+new file mode 100644
+index 0000000000..dc7ffb06cf
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_exit.txt
+@@ -0,0 +1,102 @@
++[short] skip
++
++go test -c -o mainpanic.exe ./mainpanic &
++go test -c -o mainexit0.exe ./mainexit0 &
++go test -c -o testpanic.exe ./testpanic &
++go test -c -o testbgpanic.exe ./testbgpanic &
++wait
++
++# Test binaries that panic in TestMain should be marked as failing.
++
++! go test -json ./mainpanic
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++! go tool test2json ./mainpanic.exe
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++# Test binaries that exit with status 0 should be marked as passing.
++
++go test -json ./mainexit0
++stdout '"Action":"pass"'
++! stdout '"Action":"fail"'
++
++go tool test2json ./mainexit0.exe
++stdout '"Action":"pass"'
++! stdout '"Action":"fail"'
++
++# Test functions that panic should never be marked as passing
++# (https://golang.org/issue/40132).
++
++! go test -json ./testpanic
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++! go tool test2json ./testpanic.exe -test.v
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++! go tool test2json ./testpanic.exe
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++# Tests that panic in a background goroutine should be marked as failing.
++
++! go test -json ./testbgpanic
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++! go tool test2json ./testbgpanic.exe -test.v
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++! go tool test2json ./testbgpanic.exe
++stdout '"Action":"fail"'
++! stdout '"Action":"pass"'
++
++-- go.mod --
++module m
++go 1.14
++-- mainpanic/mainpanic_test.go --
++package mainpanic_test
++
++import "testing"
++
++func TestMain(m *testing.M) {
++	panic("haha no")
++}
++-- mainexit0/mainexit0_test.go --
++package mainexit0_test
++
++import (
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	fmt.Println("nothing to do")
++	os.Exit(0)
++}
++-- testpanic/testpanic_test.go --
++package testpanic_test
++
++import "testing"
++
++func TestPanic(*testing.T) {
++	panic("haha no")
++}
++-- testbgpanic/testbgpanic_test.go --
++package testbgpanic_test
++
++import "testing"
++
++func TestPanicInBackground(*testing.T) {
++	c := make(chan struct{})
++	go func() {
++		panic("haha no")
++		close(c)
++	}()
++	<-c
++}
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index a01a8900e8..4eb6dd4838 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -45,10 +45,10 @@ type textBytes []byte
+ 
+ func (b textBytes) MarshalText() ([]byte, error) { return b, nil }
+ 
+-// A converter holds the state of a test-to-JSON conversion.
++// A Converter holds the state of a test-to-JSON conversion.
+ // It implements io.WriteCloser; the caller writes test output in,
+ // and the converter writes JSON output to w.
+-type converter struct {
++type Converter struct {
+ 	w        io.Writer  // JSON output stream
+ 	pkg      string     // package to name in events
+ 	mode     Mode       // mode bits
+@@ -100,9 +100,9 @@ var (
+ //
+ // The pkg string, if present, specifies the import path to
+ // report in the JSON stream.
+-func NewConverter(w io.Writer, pkg string, mode Mode) io.WriteCloser {
+-	c := new(converter)
+-	*c = converter{
++func NewConverter(w io.Writer, pkg string, mode Mode) *Converter {
++	c := new(Converter)
++	*c = Converter{
+ 		w:     w,
+ 		pkg:   pkg,
+ 		mode:  mode,
+@@ -122,11 +122,20 @@ func NewConverter(w io.Writer, pkg string, mode Mode) io.WriteCloser {
+ }
+ 
+ // Write writes the test input to the converter.
+-func (c *converter) Write(b []byte) (int, error) {
++func (c *Converter) Write(b []byte) (int, error) {
+ 	c.input.write(b)
+ 	return len(b), nil
+ }
+ 
++// Exited marks the test process as having exited with the given error.
++func (c *Converter) Exited(err error) {
++	if err == nil {
++		c.result = "pass"
++	} else {
++		c.result = "fail"
++	}
++}
++
+ var (
+ 	// printed by test on successful run.
+ 	bigPass = []byte("PASS\n")
+@@ -160,7 +169,7 @@ var (
+ // handleInputLine handles a single whole test output line.
+ // It must write the line to c.output but may choose to do so
+ // before or after emitting other events.
+-func (c *converter) handleInputLine(line []byte) {
++func (c *Converter) handleInputLine(line []byte) {
+ 	// Final PASS or FAIL.
+ 	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
+ 		c.flushReport(0)
+@@ -286,7 +295,7 @@ func (c *converter) handleInputLine(line []byte) {
+ }
+ 
+ // flushReport flushes all pending PASS/FAIL reports at levels >= depth.
+-func (c *converter) flushReport(depth int) {
++func (c *Converter) flushReport(depth int) {
+ 	c.testName = ""
+ 	for len(c.report) > depth {
+ 		e := c.report[len(c.report)-1]
+@@ -298,23 +307,22 @@ func (c *converter) flushReport(depth int) {
+ // Close marks the end of the go test output.
+ // It flushes any pending input and then output (only partial lines at this point)
+ // and then emits the final overall package-level pass/fail event.
+-func (c *converter) Close() error {
++func (c *Converter) Close() error {
+ 	c.input.flush()
+ 	c.output.flush()
+-	e := &event{Action: "pass"}
+ 	if c.result != "" {
+-		e.Action = c.result
+-	}
+-	if c.mode&Timestamp != 0 {
+-		dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
+-		e.Elapsed = &dt
++		e := &event{Action: c.result}
++		if c.mode&Timestamp != 0 {
++			dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
++			e.Elapsed = &dt
++		}
++		c.writeEvent(e)
+ 	}
+-	c.writeEvent(e)
+ 	return nil
+ }
+ 
+ // writeOutputEvent writes a single output event with the given bytes.
+-func (c *converter) writeOutputEvent(out []byte) {
++func (c *Converter) writeOutputEvent(out []byte) {
+ 	c.writeEvent(&event{
+ 		Action: "output",
+ 		Output: (*textBytes)(&out),
+@@ -323,7 +331,7 @@ func (c *converter) writeOutputEvent(out []byte) {
+ 
+ // writeEvent writes a single event.
+ // It adds the package, time (if requested), and test name (if needed).
+-func (c *converter) writeEvent(e *event) {
++func (c *Converter) writeEvent(e *event) {
+ 	e.Package = c.pkg
+ 	if c.mode&Timestamp != 0 {
+ 		t := time.Now()
+diff --git a/src/cmd/internal/test2json/testdata/benchshort.json b/src/cmd/internal/test2json/testdata/benchshort.json
+index 28e287c848..34b03b9362 100644
+--- a/src/cmd/internal/test2json/testdata/benchshort.json
++++ b/src/cmd/internal/test2json/testdata/benchshort.json
+@@ -4,4 +4,3 @@
+ {"Action":"output","Output":"# but to avoid questions of timing, we just use a file with no \\n at all.\n"}
+ {"Action":"output","Output":"BenchmarkFoo   \t"}
+ {"Action":"output","Output":"10000 early EOF"}
+-{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/empty.json b/src/cmd/internal/test2json/testdata/empty.json
+index 80b5217501..e69de29bb2 100644
+--- a/src/cmd/internal/test2json/testdata/empty.json
++++ b/src/cmd/internal/test2json/testdata/empty.json
+@@ -1 +0,0 @@
+-{"Action":"pass"}
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 0385d8f246..57a874193e 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -118,12 +118,16 @@ func main() {
+ 		w := &countWriter{0, c}
+ 		cmd.Stdout = w
+ 		cmd.Stderr = w
+-		if err := cmd.Run(); err != nil {
++		err := cmd.Run()
++		if err != nil {
+ 			if w.n > 0 {
+ 				// Assume command printed why it failed.
+ 			} else {
+ 				fmt.Fprintf(c, "test2json: %v\n", err)
+ 			}
++		}
++		c.Exited(err)
++		if err != nil {
+ 			c.Close()
+ 			os.Exit(1)
+ 		}

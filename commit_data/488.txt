@@ -8,7 +8,7 @@ Date:   Tue Aug 5 14:21:42 2008 -0700
     R=r
     OCL=13888
     CL=13888
-
+---
  src/runtime/chan.c             |  2 +-
  src/runtime/proc.c             | 34 +++++++++++++++++-----------------
  src/runtime/rt0_amd64.s        |  2 +-
@@ -19,3 +19,386 @@ Date:   Tue Aug 5 14:21:42 2008 -0700
  src/runtime/runtime.h          |  2 +-
  src/runtime/sys_amd64_linux.s  |  6 +++---
  9 files changed, 42 insertions(+), 42 deletions(-)
+
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 6520e96312..be7812c9d4 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -262,7 +262,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
+ 		*pres = false;
+ 		return;
+ 	}
+-		
++
+ 	sg = allocsg(c);
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index dc1a13e292..2652679b27 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -41,17 +41,17 @@ struct Sched {
+ 	Lock;
+ 
+ 	G *gfree;	// available gs (status == Gdead)
+-	
++
+ 	G *ghead;	// gs waiting to run
+ 	G *gtail;
+ 	int32 gwait;	// number of gs waiting to run
+ 	int32 gcount;	// number of gs that are alive
+-	
++
+ 	M *mhead;	// ms waiting for work
+ 	int32 mwait;	// number of ms waiting for work
+ 	int32 mcount;	// number of ms that are alive
+ 	int32 mmax;	// max number of ms allowed
+-	
++
+ 	int32 predawn;	// running initialization, don't run new gs.
+ };
+ 
+@@ -76,7 +76,7 @@ schedinit(void)
+ {
+ 	int32 n;
+ 	byte *p;
+-	
++
+ 	sched.mmax = 1;
+ 	p = getenv("gomaxprocs");
+ 	if(p != nil && (n = atoi(p)) != 0)
+@@ -90,7 +90,7 @@ void
+ m0init(void)
+ {
+ 	int32 i;
+-	
++
+ 	// Let's go.
+ 	sched.predawn = 0;
+ 
+@@ -163,7 +163,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ 	sched.gcount++;
+ 	goidgen++;
+ 	newg->goid = goidgen;
+-	
++
+ 	readylocked(newg);
+ 	unlock(&sched);
+ 
+@@ -205,7 +205,7 @@ static G*
+ gget(void)
+ {
+ 	G *g;
+-	
++
+ 	g = sched.ghead;
+ 	if(g){
+ 		sched.ghead = g->schedlink;
+@@ -230,7 +230,7 @@ static M*
+ mget(void)
+ {
+ 	M *m;
+-	
++
+ 	m = sched.mhead;
+ 	if(m){
+ 		sched.mhead = m->schedlink;
+@@ -252,7 +252,7 @@ static G*
+ gfget(void)
+ {
+ 	G *g;
+-	
++
+ 	g = sched.gfree;
+ 	if(g)
+ 		sched.gfree = g->schedlink;
+@@ -267,7 +267,7 @@ ready(G *g)
+ 	// have queued itself on a channel but not yet gotten
+ 	// a chance to call sys·gosched and actually go to sleep).
+ 	notesleep(&g->stopped);
+-	
++
+ 	lock(&sched);
+ 	readylocked(g);
+ 	unlock(&sched);
+@@ -300,7 +300,7 @@ readylocked(G *g)
+ 		m->nextg = g;
+ 		notewakeup(&m->havenextg);
+ 	}
+-	
++
+ 	// Else put g on queue, kicking off new m if needed.
+ 	else{
+ 		gput(g);
+@@ -327,7 +327,7 @@ nextgandunlock(void)
+ 	m->nextg = nil;
+ 	noteclear(&m->havenextg);
+ 	unlock(&sched);
+-	
++
+ 	notesleep(&m->havenextg);
+ 	if((gp = m->nextg) == nil)
+ 		throw("bad m->nextg in nextgoroutine");
+@@ -373,7 +373,7 @@ scheduler(void)
+ 
+ 	// Find (or wait for) g to run.  Unlocks sched.
+ 	gp = nextgandunlock();
+-	
++
+ 	noteclear(&gp->stopped);
+ 	gp->status = Grunning;
+ 	m->curg = gp;
+@@ -406,13 +406,13 @@ mnew(void)
+ 	M *m;
+ 	G *g;
+ 	byte *stk, *stktop;
+-	
++
+ 	sched.mcount++;
+ 	if(debug){
+ 		sys·printint(sched.mcount);
+ 		prints(" threads\n");
+ 	}
+-	
++
+ 	// Allocate m, g, stack in one chunk.
+ 	// 1024 and 104 are the magic constants
+ 	// use in rt0_amd64.s when setting up g0.
+@@ -420,7 +420,7 @@ mnew(void)
+ 	g = (G*)(m+1);
+ 	stk = (byte*)g + 104;
+ 	stktop = stk + 1024;
+-	
++
+ 	m->g0 = g;
+ 	g->stackguard = stk;
+ 	g->stackbase = stktop;
+@@ -521,7 +521,7 @@ newstack(void)
+ 	m->curg->stackguard = stk + 160;
+ 
+ 	sp = (byte*)top;
+-	
++
+ 	if(siz2 > 0) {
+ 		siz2 = (siz2+7) & ~7;
+ 		sp -= siz2;
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index f1c1634d57..2898da56b4 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -35,7 +35,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	CALL	args(SB)
+ 	CALL	schedinit(SB)
+ 	CALL	main·init_function(SB) // initialization
+-	
++
+ 	// create a new goroutine to start program
+ 
+ 	PUSHQ	$main·main(SB)		// entry
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index 85f05af3ee..e99d07984b 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -146,11 +146,11 @@ sighandler(int32 sig, siginfo *info, void *context)
+ 	prints("\nFaulting address: 0x");  sys·printpointer(info->si_addr);
+ 	prints("\npc: 0x");  sys·printpointer((void *)ss->__rip);
+ 	prints("\n\n");
+-        
++
+ 	traceback((void *)ss->__rip, (void *)ss->__rsp, (void*)ss->__r15);
+ 	tracebackothers((void*)ss->__r15);
+ 	print_thread_state(ss);
+-        
++
+ 	sys·exit(2);
+ }
+ 
+diff --git a/src/runtime/rt1_amd64_linux.c b/src/runtime/rt1_amd64_linux.c
+index f415851e74..baff4889c9 100644
+--- a/src/runtime/rt1_amd64_linux.c
++++ b/src/runtime/rt1_amd64_linux.c
+@@ -187,10 +187,10 @@ initsig(void)
+ // Futexsleep is allowed to wake up spuriously.
+ 
+ enum
+-{	
++{
+ 	FUTEX_WAIT = 0,
+ 	FUTEX_WAKE = 1,
+-	
++
+ 	EINTR = 4,
+ 	EAGAIN = 11,
+ };
+@@ -213,7 +213,7 @@ static void
+ futexsleep(uint32 *addr, uint32 val)
+ {
+ 	int64 ret;
+-	
++
+ 	ret = futex(addr, FUTEX_WAIT, val, &longtime, nil, 0);
+ 	if(ret >= 0 || ret == -EAGAIN || ret == -EINTR)
+ 		return;
+@@ -233,14 +233,14 @@ static void
+ futexwakeup(uint32 *addr)
+ {
+ 	int64 ret;
+-	
++
+ 	ret = futex(addr, FUTEX_WAKE, 1, nil, nil, 0);
+ 
+ 	if(ret >= 0)
+ 		return;
+ 
+ 	// I don't know that futex wakeup can return
+-	// EAGAIN or EINTR, but if it does, it would be 
++	// EAGAIN or EINTR, but if it does, it would be
+ 	// safe to loop and call futex again.
+ 
+ 	prints("futexwakeup addr=");
+@@ -279,11 +279,11 @@ again:
+ 		}
+ 		goto again;
+ 	}
+-	
++
+ 	// Lock was held; try to add ourselves to the waiter count.
+ 	if(!cas(&l->key, v, v+2))
+ 		goto again;
+-	
++
+ 	// We're accounted for, now sleep in the kernel.
+ 	//
+ 	// We avoid the obvious lock/unlock race because
+@@ -294,7 +294,7 @@ again:
+ 	// and in fact there is a futex variant that could
+ 	// accomodate that check, but let's not get carried away.)
+ 	futexsleep(&l->key, v+2);
+-	
++
+ 	// We're awake: remove ourselves from the count.
+ 	for(;;){
+ 		v = l->key;
+@@ -303,7 +303,7 @@ again:
+ 		if(cas(&l->key, v, v-2))
+ 			break;
+ 	}
+-	
++
+ 	// Try for the lock again.
+ 	goto again;
+ }
+@@ -388,7 +388,7 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+ 	int64 ret;
+ 	int32 flags;
+-	
++
+ 	flags = CLONE_PARENT	/* getppid doesn't change in child */
+ 		| CLONE_VM	/* share memory */
+ 		| CLONE_FS	/* share cwd, etc */
+diff --git a/src/runtime/rune.c b/src/runtime/rune.c
+index 3e1fb14d63..d705a5e36f 100644
+--- a/src/runtime/rune.c
++++ b/src/runtime/rune.c
+@@ -26,7 +26,7 @@ enum
+ 	Bit2	= 5,
+ 	Bit3	= 4,
+ 	Bit4	= 3,
+-	Bit5	= 2, 
++	Bit5	= 2,
+ 
+ 	T1	= ((1<<(Bit1+1))-1) ^ 0xFF,	/* 0000 0000 */
+ 	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
+@@ -48,15 +48,15 @@ enum
+ 	Runeself	= 0x80,
+ 
+ 	Bad	= Runeerror,
+-	
++
+ 	Runemax	= 0x10FFFF,	/* maximum rune value */
+ };
+ 
+ /*
+  * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
+- * This is a slower but "safe" version of the old chartorune 
++ * This is a slower but "safe" version of the old chartorune
+  * that works on strings that are not necessarily null-terminated.
+- * 
++ *
+  * If you know for sure that your string is null-terminated,
+  * chartorune will be a bit faster.
+  *
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 10bdb79eb4..fdb7d9404d 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -512,7 +512,7 @@ getenv(int8 *s)
+ {
+ 	int32 i, j, len;
+ 	byte *v, *bs;
+-	
++
+ 	bs = (byte*)s;
+ 	len = findnull(s);
+ 	for(i=0; i<envc; i++){
+@@ -532,7 +532,7 @@ int32
+ atoi(byte *p)
+ {
+ 	int32 n;
+-	
++
+ 	n = 0;
+ 	while('0' <= *p && *p <= '9')
+ 		n = n*10 + *p++ - '0';
+@@ -635,7 +635,7 @@ check(void)
+ 		throw("cas1");
+ 	if(z != 2)
+ 		throw("cas2");
+-	
++
+ 	z = 4;
+ 	if(cas(&z, 5, 6))
+ 		throw("cas3");
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index dbfc0029fa..591af542dc 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -243,7 +243,7 @@ void	unlock(Lock*);
+ 
+ /*
+  * sleep and wakeup on one-time events.
+- * before any calls to notesleep or notewakeup, 
++ * before any calls to notesleep or notewakeup,
+  * must call noteclear to initialize the Note.
+  * then, any number of threads can call notesleep
+  * and exactly one thread can call notewakeup (once).
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index a5744712b9..178971b718 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -146,7 +146,7 @@ TEXT futex(SB),7,$0
+ TEXT clone(SB),7,$0
+ 	MOVL	flags+8(SP), DI
+ 	MOVQ	stack+16(SP), SI
+-	
++
+ 	// Copy m, g, fn off parent stack for use by child.
+ 	// Careful: Linux system call clobbers CX and R11.
+ 	MOVQ	m+24(SP), R8
+@@ -160,13 +160,13 @@ TEXT clone(SB),7,$0
+ 	CMPQ	AX, $0
+ 	JEQ	2(PC)
+ 	RET
+-	
++
+ 	// In child, call fn on new stack
+ 	MOVQ	SI, SP
+ 	MOVQ	R8, R14	// m
+ 	MOVQ	R9, R15	// g
+ 	CALL	R12
+-	
++
+ 	// It shouldn't return.  If it does, exi
+ 	MOVL	$111, DI
+ 	MOVL	$60, AX

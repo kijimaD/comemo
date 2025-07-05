@@ -9,6 +9,25 @@ Date:   Wed Mar 13 10:29:14 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a93692579c..af7ce070ce 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -445,13 +445,6 @@ func legacyModInit() {
+ 	}
+ }
+ 
+-// InitGoStmt adds a go statement, unless there already is one.
+-func InitGoStmt() {
+-	if modFile.Go == nil {
+-		addGoStmt()
+-	}
+-}
+-
+ // addGoStmt adds a go statement referring to the current version.
+ func addGoStmt() {
+ 	tags := build.Default.ReleaseTags

@@ -27,7 +27,101 @@ Date:   Wed Nov 4 06:55:59 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/os/dir.go     | 16 ++++++++++++++++
  src/os/os_test.go | 12 ++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/os/dir.go b/src/os/dir.go
+index b56d998459..1d90b970e7 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -36,6 +36,12 @@ func (f *File) Readdir(n int) ([]FileInfo, error) {
+ 		return nil, ErrInvalid
+ 	}
+ 	_, _, infos, err := f.readdir(n, readdirFileInfo)
++	if infos == nil {
++		// Readdir has historically always returned a non-nil empty slice, never nil,
++		// even on error (except misuse with nil receiver above).
++		// Keep it that way to avoid breaking overly sensitive callers.
++		infos = []FileInfo{}
++	}
+ 	return infos, err
+ }
+ 
+@@ -59,6 +65,12 @@ func (f *File) Readdirnames(n int) (names []string, err error) {
+ 		return nil, ErrInvalid
+ 	}
+ 	names, _, _, err = f.readdir(n, readdirName)
++	if names == nil {
++		// Readdirnames has historically always returned a non-nil empty slice, never nil,
++		// even on error (except misuse with nil receiver above).
++		// Keep it that way to avoid breaking overly sensitive callers.
++		names = []string{}
++	}
+ 	return names, err
+ }
+ 
+@@ -81,6 +93,10 @@ func (f *File) ReadDir(n int) ([]DirEntry, error) {
+ 		return nil, ErrInvalid
+ 	}
+ 	_, dirents, _, err := f.readdir(n, readdirDirEntry)
++	if dirents == nil {
++		// Match Readdir and Readdirnames: don't return nil slices.
++		dirents = []DirEntry{}
++	}
+ 	return dirents, err
+ }
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 378ddf58dd..a1c0578887 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -330,6 +330,9 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ 			t.Error("could not find", m)
+ 		}
+ 	}
++	if s == nil {
++		t.Error("Readdirnames returned nil instead of empty slice")
++	}
+ }
+ 
+ func testReaddir(dir string, contents []string, t *testing.T) {
+@@ -360,6 +363,9 @@ func testReaddir(dir string, contents []string, t *testing.T) {
+ 			t.Error("could not find", m)
+ 		}
+ 	}
++	if s == nil {
++		t.Error("Readdir returned nil instead of empty slice")
++	}
+ }
+ 
+ func testReadDir(dir string, contents []string, t *testing.T) {
+@@ -408,21 +414,27 @@ func testReadDir(dir string, contents []string, t *testing.T) {
+ 			t.Error("could not find", m)
+ 		}
+ 	}
++	if s == nil {
++		t.Error("ReadDir returned nil instead of empty slice")
++	}
+ }
+ 
+ func TestReaddirnames(t *testing.T) {
+ 	testReaddirnames(".", dot, t)
+ 	testReaddirnames(sysdir.name, sysdir.files, t)
++	testReaddirnames(t.TempDir(), nil, t)
+ }
+ 
+ func TestReaddir(t *testing.T) {
+ 	testReaddir(".", dot, t)
+ 	testReaddir(sysdir.name, sysdir.files, t)
++	testReaddir(t.TempDir(), nil, t)
+ }
+ 
+ func TestReadDir(t *testing.T) {
+ 	testReadDir(".", dot, t)
+ 	testReadDir(sysdir.name, sysdir.files, t)
++	testReadDir(t.TempDir(), nil, t)
+ }
+ 
+ func benchmarkReaddirname(path string, b *testing.B) {

@@ -12,6 +12,34 @@ Date:   Mon Dec 4 12:35:35 2023 -0800
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.22.html | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.22.html b/doc/go1.22.html
+index c1535cc275..7642ff5bfd 100644
+--- a/doc/go1.22.html
++++ b/doc/go1.22.html
+@@ -508,8 +508,9 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="go/types"><dt><a href="/pkg/go/types/">go/types</a></dt>
+   <dd>
+-    <p><!-- https://go.dev/issue/62037 -->
+-      TODO: <a href="https://go.dev/issue/62037">https://go.dev/issue/62037</a>: add Info.PkgName method
++    <p><!-- https://go.dev/issue/62037, CL 541575 -->
++      The new helper method <a href="/pkg/go/types#Info.PkgNameOf"><code>PkgNameOf</code></a> returns the local package name
++      for the given import declaration.
+     </p>
+ 
+     <p><!-- https://go.dev/issue/63223 -->
+@@ -523,10 +524,6 @@ Do not send CLs removing the interior tags from such phrases.
+       <code>types.SizesFor("gc", "amd64")</code>.
+     </p>
+ 
+-    <p><!-- CL 541575 -->
+-      TODO: <a href="https://go.dev/cl/541575">https://go.dev/cl/541575</a>: go/types, types2: implement Info.PkgNameOf; modified api/next/62037.txt
+-    </p>
+-
+     <p><!-- CL 541737 -->
+       TODO: <a href="https://go.dev/cl/541737">https://go.dev/cl/541737</a>: go/types, types2: implement Alias proposal (export API); modified api/next/63223.txt
+     </p>

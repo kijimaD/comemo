@@ -15,7 +15,49 @@ Date:   Thu Jun 3 13:05:22 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types/sym.go |  8 ++++++++
  test/fixedbugs/issue46556.go          | 16 ++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 534cf7e237..fb642f52f8 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -110,6 +110,14 @@ func (a *Sym) Less(b *Sym) bool {
+ 		return false
+ 	}
+ 
++	// Nil before non-nil.
++	if a == nil {
++		return true
++	}
++	if b == nil {
++		return false
++	}
++
+ 	// Exported symbols before non-exported.
+ 	ea := IsExported(a.Name)
+ 	eb := IsExported(b.Name)
+diff --git a/test/fixedbugs/issue46556.go b/test/fixedbugs/issue46556.go
+new file mode 100644
+index 0000000000..b159f61b0c
+--- /dev/null
++++ b/test/fixedbugs/issue46556.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A = interface{}
++type B interface{}
++
++// Test that embedding both anonymous and defined types is supported.
++type C interface {
++	A
++	B
++}

@@ -31,7 +31,203 @@ Date:   Fri Jan 25 10:20:19 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7182045
-
+---
  src/pkg/net/http/response_test.go | 105 ++++++++++++++++++++++++++++++--------
  src/pkg/net/http/transfer.go      |  15 +-----
  2 files changed, 87 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index f31e5d09fe..a00a4ae0a9 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -124,7 +124,7 @@ var respTests = []respTest{
+ 
+ 	// Chunked response without Content-Length.
+ 	{
+-		"HTTP/1.0 200 OK\r\n" +
++		"HTTP/1.1 200 OK\r\n" +
+ 			"Transfer-Encoding: chunked\r\n" +
+ 			"\r\n" +
+ 			"0a\r\n" +
+@@ -137,12 +137,12 @@ var respTests = []respTest{
+ 		Response{
+ 			Status:           "200 OK",
+ 			StatusCode:       200,
+-			Proto:            "HTTP/1.0",
++			Proto:            "HTTP/1.1",
+ 			ProtoMajor:       1,
+-			ProtoMinor:       0,
++			ProtoMinor:       1,
+ 			Request:          dummyReq("GET"),
+ 			Header:           Header{},
+-			Close:            true,
++			Close:            false,
+ 			ContentLength:    -1,
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+@@ -152,7 +152,7 @@ var respTests = []respTest{
+ 
+ 	// Chunked response with Content-Length.
+ 	{
+-		"HTTP/1.0 200 OK\r\n" +
++		"HTTP/1.1 200 OK\r\n" +
+ 			"Transfer-Encoding: chunked\r\n" +
+ 			"Content-Length: 10\r\n" +
+ 			"\r\n" +
+@@ -164,12 +164,12 @@ var respTests = []respTest{
+ 		Response{
+ 			Status:           "200 OK",
+ 			StatusCode:       200,
+-			Proto:            "HTTP/1.0",
++			Proto:            "HTTP/1.1",
+ 			ProtoMajor:       1,
+-			ProtoMinor:       0,
++			ProtoMinor:       1,
+ 			Request:          dummyReq("GET"),
+ 			Header:           Header{},
+-			Close:            true,
++			Close:            false,
+ 			ContentLength:    -1, // TODO(rsc): Fix?
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+@@ -177,23 +177,88 @@ var respTests = []respTest{
+ 		"Body here\n",
+ 	},
+ 
+-	// Chunked response in response to a HEAD request (the "chunked" should
+-	// be ignored, as HEAD responses never have bodies)
++	// Chunked response in response to a HEAD request
+ 	{
+-		"HTTP/1.0 200 OK\r\n" +
++		"HTTP/1.1 200 OK\r\n" +
+ 			"Transfer-Encoding: chunked\r\n" +
+ 			"\r\n",
+ 
+ 		Response{
+-			Status:        "200 OK",
+-			StatusCode:    200,
+-			Proto:         "HTTP/1.0",
+-			ProtoMajor:    1,
+-			ProtoMinor:    0,
+-			Request:       dummyReq("HEAD"),
+-			Header:        Header{},
+-			Close:         true,
+-			ContentLength: -1,
++			Status:           "200 OK",
++			StatusCode:       200,
++			Proto:            "HTTP/1.1",
++			ProtoMajor:       1,
++			ProtoMinor:       1,
++			Request:          dummyReq("HEAD"),
++			Header:           Header{},
++			TransferEncoding: []string{"chunked"},
++			Close:            false,
++			ContentLength:    -1,
++		},
++
++		"",
++	},
++
++	// Content-Length in response to a HEAD request
++	{
++		"HTTP/1.0 200 OK\r\n" +
++			"Content-Length: 256\r\n" +
++			"\r\n",
++
++		Response{
++			Status:           "200 OK",
++			StatusCode:       200,
++			Proto:            "HTTP/1.0",
++			ProtoMajor:       1,
++			ProtoMinor:       0,
++			Request:          dummyReq("HEAD"),
++			Header:           Header{"Content-Length": {"256"}},
++			TransferEncoding: nil,
++			Close:            true,
++			ContentLength:    256,
++		},
++
++		"",
++	},
++
++	// Content-Length in response to a HEAD request with HTTP/1.1
++	{
++		"HTTP/1.1 200 OK\r\n" +
++			"Content-Length: 256\r\n" +
++			"\r\n",
++
++		Response{
++			Status:           "200 OK",
++			StatusCode:       200,
++			Proto:            "HTTP/1.1",
++			ProtoMajor:       1,
++			ProtoMinor:       1,
++			Request:          dummyReq("HEAD"),
++			Header:           Header{"Content-Length": {"256"}},
++			TransferEncoding: nil,
++			Close:            false,
++			ContentLength:    256,
++		},
++
++		"",
++	},
++
++	// No Content-Length or Chunked in response to a HEAD request
++	{
++		"HTTP/1.0 200 OK\r\n" +
++			"\r\n",
++
++		Response{
++			Status:           "200 OK",
++			StatusCode:       200,
++			Proto:            "HTTP/1.0",
++			ProtoMajor:       1,
++			ProtoMinor:       0,
++			Request:          dummyReq("HEAD"),
++			Header:           Header{},
++			TransferEncoding: nil,
++			Close:            true,
++			ContentLength:    -1,
+ 		},
+ 
+ 		"",
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 70ea15b8e4..25b34addec 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -87,10 +87,8 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 	// Sanitize Body,ContentLength,TransferEncoding
+ 	if t.ResponseToHEAD {
+ 		t.Body = nil
+-		t.TransferEncoding = nil
+-		// ContentLength is expected to hold Content-Length
+-		if t.ContentLength < 0 {
+-			return nil, ErrMissingContentLength
++		if chunked(t.TransferEncoding) {
++			t.ContentLength = -1
+ 		}
+ 	} else {
+ 		if !atLeastHTTP11 || t.Body == nil {
+@@ -122,9 +120,6 @@ func (t *transferWriter) shouldSendContentLength() bool {
+ 	if t.ContentLength > 0 {
+ 		return true
+ 	}
+-	if t.ResponseToHEAD {
+-		return true
+-	}
+ 	// Many servers expect a Content-Length for these methods
+ 	if t.Method == "POST" || t.Method == "PUT" {
+ 		return true
+@@ -380,12 +375,6 @@ func fixTransferEncoding(requestMethod string, header Header) ([]string, error)
+ 
+ 	delete(header, "Transfer-Encoding")
+ 
+-	// Head responses have no bodies, so the transfer encoding
+-	// should be ignored.
+-	if requestMethod == "HEAD" {
+-		return nil, nil
+-	}
+-
+ 	encodings := strings.Split(raw[0], ",")
+ 	te := make([]string, 0, len(encodings))
+ 	// TODO: Even though we only support "identity" and "chunked"

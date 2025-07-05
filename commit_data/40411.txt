@@ -17,7 +17,72 @@ Date:   Fri May 10 11:10:50 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  .../go/testdata/script/mod_get_upgrade_pseudo.txt   | 21 ++++++++-------------
  .../go/testdata/script/mod_list_upgrade_pseudo.txt  | 21 ++++++++-------------
  2 files changed, 16 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+index 69acea57bb..80b240130f 100644
+--- a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+@@ -1,19 +1,14 @@
+ env GO111MODULE=on
+ 
+-# Testing that a pseudo version with schematically higher version than the latest
+-# tagged version isn't downgraded when running 'go get -u'.
++# For this test module there are three versions:
++#   * v0.1.1-0.20190429073117-b5426c86b553
++#   * v0.1.0
++#   * v0.0.0-20190429073000-30950c05d534
++# Only v0.1.0 is tagged.
++#
++# The latest pseudo-version is semantically higher than the latest tag.
++# 'get -u' should not downgrade to the (lower) tagged version.
+ 
+-[!net] skip
+-[!exec:git] skip
+-
+-# For this test repository there are three commits:
+-#   * b5426c8 "master" (v0.1.1-0.20190429073117-b5426c86b553)
+-#   * a90cfd2 (tag: v0.1.0)
+-#   * 30950c0
+-
+-# When requesting master as specific version, a pseudo version is created with a
+-# higher version than the latest tag. Running 'go get -u' doesn't downgrade the
+-# version.
+ go get -m example.com/pseudoupgrade@b5426c8
+ go get -u
+ go list -m -u all
+diff --git a/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
+index 6935e03d6e..143e029e52 100644
+--- a/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
+@@ -1,19 +1,14 @@
+ env GO111MODULE=on
+ 
+-# Testing that a pseudo version with schematically higher version than the latest
+-# tagged version isn't listed as upgradable when calling 'go list -m -u'.
++# For this test module there are three versions:
++#   * v0.1.1-0.20190429073117-b5426c86b553
++#   * v0.1.0
++#   * v0.0.0-20190429073000-30950c05d534
++# Only v0.1.0 is tagged.
++#
++# The latest pseudo-version is semantically higher than the latest tag.
++# 'list -u' should not suggest a lower version as an upgrade.
+ 
+-[!net] skip
+-[!exec:git] skip
+-
+-# For this test repository there are three commits:
+-#   * b5426c8 "master" (v0.1.1-0.20190429073117-b5426c86b553)
+-#   * a90cfd2 (tag: v0.1.0)
+-#   * 30950c0
+-
+-# When requesting master as specific version, a pseudo version is created with a
+-# higher version than the latest tag. Listing upgrades doesn't suggest the lower
+-# version as upgrade.
+ go get -m example.com/pseudoupgrade@b5426c8
+ go list -m -u all
+ stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'

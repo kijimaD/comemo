@@ -7,7 +7,7 @@ Date:   Thu Sep 8 11:58:48 2011 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4977054
-
+---
  src/pkg/sync/atomic/asm_386.s       |  28 ++++
  src/pkg/sync/atomic/asm_amd64.s     |  18 +++
  src/pkg/sync/atomic/asm_arm.s       |  24 ++++
@@ -15,3 +15,571 @@ Date:   Thu Sep 8 11:58:48 2011 +0400
  src/pkg/sync/atomic/atomic_test.go  | 279 ++++++++++++++++++++++++++++++++++--
  src/pkg/sync/atomic/doc.go          |  14 +-
  6 files changed, 362 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 4cab426547..0d9dec2167 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -98,6 +98,19 @@ TEXT ·LoadUint32(SB),7,$0
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
++TEXT ·LoadInt64(SB),7,$0
++	JMP	·LoadUint64(SB)
++
++TEXT ·LoadUint64(SB),7,$0
++	MOVL	addrptr+0(FP), AX
++	// MOVQ (%EAX), %MM0
++	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
++	// MOVQ %MM0, 0x8(%ESP)
++	BYTE $0x0f; BYTE $0x7f; BYTE $0x44; BYTE $0x24; BYTE $0x08
++	// EMMS
++	BYTE $0x0F; BYTE $0x77
++	RET
++
+ TEXT ·LoadUintptr(SB),7,$0
+ 	JMP	·LoadUint32(SB)
+ 
+@@ -113,6 +126,21 @@ TEXT ·StoreUint32(SB),7,$0
+ 	XCHGL	AX, 0(BP)
+ 	RET
+ 
++TEXT ·StoreInt64(SB),7,$0
++	JMP	·StoreUint64(SB)
++
++TEXT ·StoreUint64(SB),7,$0
++	MOVL	addrptr+0(FP), AX
++	// MOVQ 0x8(%ESP), %MM0
++	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
++	// MOVQ %MM0, (%EAX)
++	BYTE $0x0f; BYTE $0x7f; BYTE $0x00 
++	// EMMS
++	BYTE $0x0F; BYTE $0x77
++	// MFENCE
++	BYTE $0x0f; BYTE $0xae; BYTE $0xf0
++	RET
++
+ TEXT ·StoreUintptr(SB),7,$0
+ 	JMP	·StoreUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index d903f365a2..6f8bde068d 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -70,6 +70,15 @@ TEXT ·LoadUint32(SB),7,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
++TEXT ·LoadInt64(SB),7,$0
++	JMP	·LoadUint64(SB)
++
++TEXT ·LoadUint64(SB),7,$0
++	MOVQ	addrptr+0(FP), AX
++	MOVQ	0(AX), AX
++	MOVQ	AX, ret+8(FP)
++	RET
++
+ TEXT ·LoadUintptr(SB),7,$0
+ 	JMP	·LoadPointer(SB)
+ 
+@@ -88,6 +97,15 @@ TEXT ·StoreUint32(SB),7,$0
+ 	XCHGL	AX, 0(BP)
+ 	RET
+ 
++TEXT ·StoreInt64(SB),7,$0
++	JMP	·StoreUint64(SB)
++
++TEXT ·StoreUint64(SB),7,$0
++	MOVQ	addrptr+0(FP), BP
++	MOVQ	val+8(FP), AX
++	XCHGQ	AX, 0(BP)
++	RET
++
+ TEXT ·StoreUintptr(SB),7,$0
+ 	JMP	·StorePointer(SB)
+ 
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 95e2f5be41..2d10a922b4 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -79,6 +79,30 @@ add64loop:
+ 	MOVW	R5, rethi+16(FP)
+ 	RET
+ 
++TEXT ·armLoadUint64(SB),7,$0
++	BL	fastCheck64<>(SB)
++	MOVW	addrptr+0(FP), R1
++load64loop:
++	LDREXD	(R1), R2	// loads R2 and R3
++	STREXD	R2, (R1), R0	// stores R2 and R3
++	CMP	$0, R0
++	BNE	load64loop
++	MOVW	R2, vallo+4(FP)
++	MOVW	R3, valhi+8(FP)
++	RET
++
++TEXT ·armStoreUint64(SB),7,$0
++	BL	fastCheck64<>(SB)
++	MOVW	addrptr+0(FP), R1
++	MOVW	vallo+4(FP), R2
++	MOVW	valhi+8(FP), R3
++store64loop:
++	LDREXD	(R1), R4	// loads R4 and R5
++	STREXD	R2, (R1), R0	// stores R2 and R3
++	CMP	$0, R0
++	BNE	store64loop
++	RET
++
+ // Check for broken 64-bit LDREXD as found in QEMU.
+ // LDREXD followed by immediate STREXD should succeed.
+ // If it fails, try a few times just to be sure (maybe our thread got
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index ff44191c79..25dc85804e 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -100,6 +100,12 @@ loadloop1:
+ 	MOVW	R1, val+4(FP)
+ 	RET
+ 
++TEXT ·LoadInt64(SB),7,$0
++	B	·armLoadUint64(SB)
++
++TEXT ·LoadUint64(SB),7,$0
++	B	·armLoadUint64(SB)
++
+ TEXT ·LoadUintptr(SB),7,$0
+ 	B	·LoadUint32(SB)
+ 
+@@ -118,6 +124,12 @@ storeloop1:
+ 	BCC	storeloop1
+ 	RET
+ 
++TEXT ·StoreInt64(SB),7,$0
++	B	·armStoreUint64(SB)
++
++TEXT ·StoreUint64(SB),7,$0
++	B	·armStoreUint64(SB)
++
+ TEXT ·StoreUintptr(SB),7,$0
+ 	B	·StoreUint32(SB)
+ 
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index ea224375c1..02ee24b355 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -379,6 +379,54 @@ func TestLoadUint32(t *testing.T) {
+ 	}
+ }
+ 
++func TestLoadInt64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
++	var x struct {
++		before int64
++		i      int64
++		after  int64
++	}
++	x.before = magic64
++	x.after = magic64
++	for delta := int64(1); delta+delta > delta; delta += delta {
++		k := LoadInt64(&x.i)
++		if k != x.i {
++			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
++		}
++		x.i += delta
++	}
++	if x.before != magic64 || x.after != magic64 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
++	}
++}
++
++func TestLoadUint64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
++	var x struct {
++		before uint64
++		i      uint64
++		after  uint64
++	}
++	x.before = magic64
++	x.after = magic64
++	for delta := uint64(1); delta+delta > delta; delta += delta {
++		k := LoadUint64(&x.i)
++		if k != x.i {
++			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
++		}
++		x.i += delta
++	}
++	if x.before != magic64 || x.after != magic64 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
++	}
++}
++
+ func TestLoadUintptr(t *testing.T) {
+ 	var x struct {
+ 		before uintptr
+@@ -465,6 +513,56 @@ func TestStoreUint32(t *testing.T) {
+ 	}
+ }
+ 
++func TestStoreInt64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
++	var x struct {
++		before int64
++		i      int64
++		after  int64
++	}
++	x.before = magic64
++	x.after = magic64
++	v := int64(0)
++	for delta := int64(1); delta+delta > delta; delta += delta {
++		StoreInt64(&x.i, v)
++		if x.i != v {
++			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
++		}
++		v += delta
++	}
++	if x.before != magic64 || x.after != magic64 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
++	}
++}
++
++func TestStoreUint64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
++	var x struct {
++		before uint64
++		i      uint64
++		after  uint64
++	}
++	x.before = magic64
++	x.after = magic64
++	v := uint64(0)
++	for delta := uint64(1); delta+delta > delta; delta += delta {
++		StoreUint64(&x.i, v)
++		if x.i != v {
++			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
++		}
++		v += delta
++	}
++	if x.before != magic64 || x.after != magic64 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, uint64(magic64), uint64(magic64))
++	}
++}
++
+ func TestStoreUintptr(t *testing.T) {
+ 	var x struct {
+ 		before uintptr
+@@ -777,7 +875,7 @@ func hammerStoreLoadInt32(t *testing.T, valp unsafe.Pointer) {
+ 	vlo := v & ((1 << 16) - 1)
+ 	vhi := v >> 16
+ 	if vlo != vhi {
+-		t.Fatalf("LoadInt32: %#x != %#x", vlo, vhi)
++		t.Fatalf("Int32: %#x != %#x", vlo, vhi)
+ 	}
+ 	new := v + 1 + 1<<16
+ 	if vlo == 1e4 {
+@@ -792,7 +890,7 @@ func hammerStoreLoadUint32(t *testing.T, valp unsafe.Pointer) {
+ 	vlo := v & ((1 << 16) - 1)
+ 	vhi := v >> 16
+ 	if vlo != vhi {
+-		t.Fatalf("LoadUint32: %#x != %#x", vlo, vhi)
++		t.Fatalf("Uint32: %#x != %#x", vlo, vhi)
+ 	}
+ 	new := v + 1 + 1<<16
+ 	if vlo == 1e4 {
+@@ -801,6 +899,30 @@ func hammerStoreLoadUint32(t *testing.T, valp unsafe.Pointer) {
+ 	StoreUint32(val, new)
+ }
+ 
++func hammerStoreLoadInt64(t *testing.T, valp unsafe.Pointer) {
++	val := (*int64)(valp)
++	v := LoadInt64(val)
++	vlo := v & ((1 << 32) - 1)
++	vhi := v >> 32
++	if vlo != vhi {
++		t.Fatalf("Int64: %#x != %#x", vlo, vhi)
++	}
++	new := v + 1 + 1<<32
++	StoreInt64(val, new)
++}
++
++func hammerStoreLoadUint64(t *testing.T, valp unsafe.Pointer) {
++	val := (*uint64)(valp)
++	v := LoadUint64(val)
++	vlo := v & ((1 << 32) - 1)
++	vhi := v >> 32
++	if vlo != vhi {
++		t.Fatalf("Uint64: %#x != %#x", vlo, vhi)
++	}
++	new := v + 1 + 1<<32
++	StoreUint64(val, new)
++}
++
+ func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+ 	val := (*uintptr)(valp)
+ 	var test64 uint64 = 1 << 50
+@@ -811,7 +933,7 @@ func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+ 		vlo := v & ((1 << 16) - 1)
+ 		vhi := v >> 16
+ 		if vlo != vhi {
+-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
++			t.Fatalf("Uintptr: %#x != %#x", vlo, vhi)
+ 		}
+ 		new = v + 1 + 1<<16
+ 		if vlo == 1e4 {
+@@ -821,7 +943,7 @@ func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+ 		vlo := v & ((1 << 32) - 1)
+ 		vhi := v >> 32
+ 		if vlo != vhi {
+-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
++			t.Fatalf("Uintptr: %#x != %#x", vlo, vhi)
+ 		}
+ 		inc := uint64(1 + 1<<32)
+ 		new = v + uintptr(inc)
+@@ -839,7 +961,7 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
+ 		vlo := v & ((1 << 16) - 1)
+ 		vhi := v >> 16
+ 		if vlo != vhi {
+-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
++			t.Fatalf("Pointer: %#x != %#x", vlo, vhi)
+ 		}
+ 		new = v + 1 + 1<<16
+ 		if vlo == 1e4 {
+@@ -849,7 +971,7 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
+ 		vlo := v & ((1 << 32) - 1)
+ 		vhi := v >> 32
+ 		if vlo != vhi {
+-			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
++			t.Fatalf("Pointer: %#x != %#x", vlo, vhi)
+ 		}
+ 		inc := uint64(1 + 1<<32)
+ 		new = v + uintptr(inc)
+@@ -858,8 +980,12 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
+ }
+ 
+ func TestHammerStoreLoad(t *testing.T) {
+-	tests := [...]func(*testing.T, unsafe.Pointer){hammerStoreLoadInt32, hammerStoreLoadUint32,
+-		hammerStoreLoadUintptr, hammerStoreLoadPointer}
++	var tests []func(*testing.T, unsafe.Pointer)
++	tests = append(tests, hammerStoreLoadInt32, hammerStoreLoadUint32,
++		hammerStoreLoadUintptr, hammerStoreLoadPointer)
++	if test64err == nil {
++		tests = append(tests, hammerStoreLoadInt64, hammerStoreLoadUint64)
++	}
+ 	n := int(1e6)
+ 	if testing.Short() {
+ 		n = int(1e4)
+@@ -883,7 +1009,7 @@ func TestHammerStoreLoad(t *testing.T) {
+ 	}
+ }
+ 
+-func TestStoreLoadSeqCst(t *testing.T) {
++func TestStoreLoadSeqCst32(t *testing.T) {
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	N := int32(1e3)
+ 	if testing.Short() {
+@@ -898,13 +1024,54 @@ func TestStoreLoadSeqCst(t *testing.T) {
+ 			for i := int32(1); i < N; i++ {
+ 				StoreInt32(&X[me], i)
+ 				my := LoadInt32(&X[he])
+-				ack[me][i%3] = my
+-				for w := 1; ack[he][i%3] == -1; w++ {
++				StoreInt32(&ack[me][i%3], my)
++				for w := 1; LoadInt32(&ack[he][i%3]) == -1; w++ {
++					if w%1000 == 0 {
++						runtime.Gosched()
++					}
++				}
++				his := LoadInt32(&ack[he][i%3])
++				if (my != i && my != i-1) || (his != i && his != i-1) {
++					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
++				}
++				if my != i && his != i {
++					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
++				}
++				ack[me][(i-1)%3] = -1
++			}
++			c <- true
++		}(p)
++	}
++	<-c
++	<-c
++}
++
++func TestStoreLoadSeqCst64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	N := int64(1e3)
++	if testing.Short() {
++		N = int64(1e2)
++	}
++	c := make(chan bool, 2)
++	X := [2]int64{}
++	ack := [2][3]int64{{-1, -1, -1}, {-1, -1, -1}}
++	for p := 0; p < 2; p++ {
++		go func(me int) {
++			he := 1 - me
++			for i := int64(1); i < N; i++ {
++				StoreInt64(&X[me], i)
++				my := LoadInt64(&X[he])
++				StoreInt64(&ack[me][i%3], my)
++				for w := 1; LoadInt64(&ack[he][i%3]) == -1; w++ {
+ 					if w%1000 == 0 {
+ 						runtime.Gosched()
+ 					}
+ 				}
+-				his := ack[he][i%3]
++				his := LoadInt64(&ack[he][i%3])
+ 				if (my != i && my != i-1) || (his != i && his != i-1) {
+ 					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
+ 				}
+@@ -919,3 +1086,91 @@ func TestStoreLoadSeqCst(t *testing.T) {
+ 	<-c
+ 	<-c
+ }
++
++func TestStoreLoadRelAcq32(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	N := int32(1e3)
++	if testing.Short() {
++		N = int32(1e2)
++	}
++	c := make(chan bool, 2)
++	type Data struct {
++		signal int32
++		pad1   [128]int8
++		data1  int32
++		pad2   [128]int8
++		data2  float32
++	}
++	var X Data
++	for p := int32(0); p < 2; p++ {
++		go func(p int32) {
++			for i := int32(1); i < N; i++ {
++				if (i+p)%2 == 0 {
++					X.data1 = i
++					X.data2 = float32(i)
++					StoreInt32(&X.signal, i)
++				} else {
++					for w := 1; LoadInt32(&X.signal) != i; w++ {
++						if w%1000 == 0 {
++							runtime.Gosched()
++						}
++					}
++					d1 := X.data1
++					d2 := X.data2
++					if d1 != i || d2 != float32(i) {
++						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
++					}
++				}
++			}
++			c <- true
++		}(p)
++	}
++	<-c
++	<-c
++}
++
++func TestStoreLoadRelAcq64(t *testing.T) {
++	if test64err != nil {
++		t.Logf("Skipping 64-bit tests: %v", test64err)
++		return
++	}
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	N := int64(1e3)
++	if testing.Short() {
++		N = int64(1e2)
++	}
++	c := make(chan bool, 2)
++	type Data struct {
++		signal int64
++		pad1   [128]int8
++		data1  int64
++		pad2   [128]int8
++		data2  float64
++	}
++	var X Data
++	for p := int64(0); p < 2; p++ {
++		go func(p int64) {
++			for i := int64(1); i < N; i++ {
++				if (i+p)%2 == 0 {
++					X.data1 = i
++					X.data2 = float64(i)
++					StoreInt64(&X.signal, i)
++				} else {
++					for w := 1; LoadInt64(&X.signal) != i; w++ {
++						if w%1000 == 0 {
++							runtime.Gosched()
++						}
++					}
++					d1 := X.data1
++					d2 := X.data2
++					if d1 != i || d2 != float64(i) {
++						t.Fatalf("incorrect data: %d/%d (%d)", d1, d2, i)
++					}
++				}
++			}
++			c <- true
++		}(p)
++	}
++	<-c
++	<-c
++}
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index 987f8c93d7..ecb4808ce5 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -28,7 +28,7 @@ import (
+ 
+ // BUG(rsc): On ARM, the 64-bit functions use instructions unavailable before ARM 11.
+ //
+-// On x86-32, the 64-bit functions use instructions unavailable before the Pentium.
++// On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
+ 
+ // CompareAndSwapInt32 executes the compare-and-swap operation for an int32 value.
+ func CompareAndSwapInt32(val *int32, old, new int32) (swapped bool)
+@@ -66,9 +66,15 @@ func AddUintptr(val *uintptr, delta uintptr) (new uintptr)
+ // LoadInt32 atomically loads *addr.
+ func LoadInt32(addr *int32) (val int32)
+ 
++// LoadInt64 atomically loads *addr.
++func LoadInt64(addr *int64) (val int64)
++
+ // LoadUint32 atomically loads *addr.
+ func LoadUint32(addr *uint32) (val uint32)
+ 
++// LoadUint64 atomically loads *addr.
++func LoadUint64(addr *uint64) (val uint64)
++
+ // LoadUintptr atomically loads *addr.
+ func LoadUintptr(addr *uintptr) (val uintptr)
+ 
+@@ -78,9 +84,15 @@ func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
+ // StoreInt32 atomically stores val into *addr.
+ func StoreInt32(addr *int32, val int32)
+ 
++// StoreInt64 atomically stores val into *addr.
++func StoreInt64(addr *int64, val int64)
++
+ // StoreUint32 atomically stores val into *addr.
+ func StoreUint32(addr *uint32, val uint32)
+ 
++// StoreUint64 atomically stores val into *addr.
++func StoreUint64(addr *uint64, val uint64)
++
+ // StoreUintptr atomically stores val into *addr.
+ func StoreUintptr(addr *uintptr, val uintptr)
+ 

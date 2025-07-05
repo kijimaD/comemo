@@ -10,7 +10,7 @@ Date:   Wed Jan 12 14:01:44 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/378175
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go            |  5 +++
  src/cmd/compile/internal/types2/instantiate.go     |  5 ++-
  .../types2/testdata/fixedbugs/issue49541.go2       | 44 ++++++++++++++++++++++
@@ -20,3 +20,194 @@ Date:   Wed Jan 12 14:01:44 2022 -0800
  src/go/types/testdata/fixedbugs/issue49541.go2     | 44 ++++++++++++++++++++++
  src/go/types/typeset.go                            |  2 +-
  8 files changed, 108 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ea1c27aa2b..15a42ca3dc 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -531,6 +531,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
++		// Don't report another error if the underlying type was invalid (issue #49541).
++		if under(x.typ) == Typ[Invalid] {
++			goto Error
++		}
++
+ 		if index != nil {
+ 			// TODO(gri) should provide actual type where the conflict happens
+ 			check.errorf(e.Sel, "ambiguous selector %s.%s", x.expr, sel)
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index b2e1087c41..5d5a660419 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -161,7 +161,10 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+-		return nil
++		return nil // avoid follow-on errors
++	}
++	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
++		return nil // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
+ 	errorf := func(format string, args ...interface{}) error {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2
+new file mode 100644
+index 0000000000..b7bf12a186
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue49541.go2
+@@ -0,0 +1,44 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S[A, B any] struct {
++	f int
++}
++
++func (S[A, B]) m() {}
++
++// TODO(gri) We should only report one error below. See issue #50588.
++
++func _[A any](s S /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [A]) {
++	// we should see no follow-on errors below
++	s.f = 1
++	s.m()
++}
++
++// another test case from the issue
++
++func _() {
++	X(Interface[*F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
++}
++
++func X[Q Qer](fs Interface[Q]) {
++}
++
++type Impl struct{}
++
++func (Impl) M() {}
++
++type Interface[Q Qer] interface {
++	M()
++}
++
++type Qer interface {
++	Q()
++}
++
++type F[A, B any] struct{}
++
++func (f *F[A, B]) Q() {}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 0d8d02662b..8670c17861 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -135,7 +135,7 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
+ 
+ // underIs calls f with the underlying types of the specific type terms
+ // of s and reports whether all calls to f returned true. If there are
+-// no specific terms, is returns the result of f(nil).
++// no specific terms, underIs returns the result of f(nil).
+ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+ 	if !s.hasTerms() {
+ 		return f(nil)
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index d5b83451c4..aa87c48a65 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -533,6 +533,11 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 
+ 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
+ 	if obj == nil {
++		// Don't report another error if the underlying type was invalid (issue #49541).
++		if under(x.typ) == Typ[Invalid] {
++			goto Error
++		}
++
+ 		if index != nil {
+ 			// TODO(gri) should provide actual type where the conflict happens
+ 			check.errorf(e.Sel, _AmbiguousSelector, "ambiguous selector %s.%s", x.expr, sel)
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index e6a5cbf8ae..1a0823575b 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -161,7 +161,10 @@ func (check *Checker) implements(V, T Type, qf Qualifier) error {
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
+-		return nil
++		return nil // avoid follow-on errors
++	}
++	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
++		return nil // avoid follow-on errors (see issue #49541 for an example)
+ 	}
+ 
+ 	errorf := func(format string, args ...any) error {
+diff --git a/src/go/types/testdata/fixedbugs/issue49541.go2 b/src/go/types/testdata/fixedbugs/issue49541.go2
+new file mode 100644
+index 0000000000..b7bf12a186
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49541.go2
+@@ -0,0 +1,44 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type S[A, B any] struct {
++	f int
++}
++
++func (S[A, B]) m() {}
++
++// TODO(gri) We should only report one error below. See issue #50588.
++
++func _[A any](s S /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [A]) {
++	// we should see no follow-on errors below
++	s.f = 1
++	s.m()
++}
++
++// another test case from the issue
++
++func _() {
++	X(Interface[*F /* ERROR cannot infer B */ /* ERROR got 1 arguments but 2 type parameters */ [string]](Impl{}))
++}
++
++func X[Q Qer](fs Interface[Q]) {
++}
++
++type Impl struct{}
++
++func (Impl) M() {}
++
++type Interface[Q Qer] interface {
++	M()
++}
++
++type Qer interface {
++	Q()
++}
++
++type F[A, B any] struct{}
++
++func (f *F[A, B]) Q() {}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 96f740e5cf..3739cd83d6 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -133,7 +133,7 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
+ 
+ // underIs calls f with the underlying types of the specific type terms
+ // of s and reports whether all calls to f returned true. If there are
+-// no specific terms, is returns the result of f(nil).
++// no specific terms, underIs returns the result of f(nil).
+ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+ 	if !s.hasTerms() {
+ 		return f(nil)

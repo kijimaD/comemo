@@ -7,7 +7,38 @@ Date:   Wed Oct 29 13:40:00 2008 -0700
     R=r
     OCL=18030
     CL=18030
-
+---
  src/cmd/6g/obj.c  | 2 --
  src/cmd/gc/subr.c | 2 +-
  2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index 74f8908fb5..6c5973ed65 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -616,12 +616,10 @@ dumpsigt(void)
+ 	for(d=signatlist; d!=D; d=d->forw) {
+ 		if(d->op != OTYPE)
+ 			continue;
+-
+ 		t = d->dtype;
+ 		et = t->etype;
+ 		if(et == TINTER)
+ 			continue;
+-
+ 		at.sym = signame(t, d->block);
+ 		if(at.sym == S)
+ 			continue;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1a45d4ce53..ea3de1a06b 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1650,7 +1650,7 @@ globalsig(Type *t)
+ 		return S;
+ 	if(strcmp(t->sym->name, types[et]->sym->name) != 0)
+ 		return S;
+-	snprint(buf, sizeof(buf), "%s_%S", "sigt", t->sym);
++	snprint(buf, sizeof(buf), "%s_%S", "sigt", types[simtype[et]]->sym);
+ 
+ out:
+ 	s = pkglookup(buf, glob);

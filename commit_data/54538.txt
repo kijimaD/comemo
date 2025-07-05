@@ -20,7 +20,7 @@ Date:   Fri Oct 28 12:13:37 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/doc.go                           |  3 ++
  src/cmd/cgo/gcc.go                           | 12 +++---
  src/cmd/cgo/main.go                          |  9 +++++
@@ -29,3 +29,232 @@ Date:   Fri Oct 28 12:13:37 2022 -0700
  src/cmd/go/internal/work/gccgo.go            | 60 ++++++++++++++++++++++++++++
  src/cmd/go/testdata/script/build_overlay.txt |  9 ++---
  7 files changed, 93 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 366844d150..1c24b76407 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -498,6 +498,9 @@ The following options are available when running cgo directly:
+ 		The -fgo-prefix option to be used with gccgo.
+ 	-gccgopkgpath path
+ 		The -fgo-pkgpath option to be used with gccgo.
++	-gccgo_define_cgoincomplete
++		Define cgo.Incomplete locally rather than importing it from
++		the "runtime/cgo" package. Used for old gccgo versions.
+ 	-godefs
+ 		Write out input file in Go syntax replacing C package
+ 		names with real values. Used to generate files in the
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 06cf46f63f..c25aa0c7f8 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -47,6 +47,8 @@ var nameToC = map[string]string{
+ 	"complexdouble": "double _Complex",
+ }
+ 
++var incomplete = "_cgopackage.Incomplete"
++
+ // cname returns the C name to use for C.s.
+ // The expansions are listed in nameToC and also
+ // struct_foo becomes "struct foo", and similarly for
+@@ -2565,7 +2567,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			// get writebarrier-ed or adjusted during a stack copy. This should handle
+ 			// all the cases badPointerTypedef used to handle, but hopefully will
+ 			// continue to work going forward without any more need for cgo changes.
+-			tt.Go = c.Ident("_cgopackage.Incomplete")
++			tt.Go = c.Ident(incomplete)
+ 			typedef[name.Name] = &tt
+ 			break
+ 		}
+@@ -2592,7 +2594,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 			}
+ 			tt.Go = g
+ 			if c.incompleteStructs[tag] {
+-				tt.Go = c.Ident("_cgopackage.Incomplete")
++				tt.Go = c.Ident(incomplete)
+ 			}
+ 			typedef[name.Name] = &tt
+ 		}
+@@ -2640,7 +2642,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 		if c.badVoidPointerTypedef(dt) {
+ 			// Treat this typedef as a pointer to a _cgopackage.Incomplete.
+ 			s := *sub
+-			s.Go = c.Ident("*_cgopackage.Incomplete")
++			s.Go = c.Ident("*" + incomplete)
+ 			sub = &s
+ 			// Make sure we update any previously computed type.
+ 			if oldType := typedef[name.Name]; oldType != nil {
+@@ -2656,7 +2658,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
+ 					// Make sure we update any previously computed type.
+ 					name := "_Ctype_struct_" + strct.StructName
+ 					if oldType := typedef[name]; oldType != nil {
+-						oldType.Go = c.Ident("_cgopackage.Incomplete")
++						oldType.Go = c.Ident(incomplete)
+ 					}
+ 				}
+ 			}
+@@ -3196,7 +3198,7 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
+ // non-pointers in this type.
+ // TODO: Currently our best solution is to find these manually and list them as
+ // they come up. A better solution is desired.
+-// Note: DEPRECATED. There is now a better solution. Search for _cgopackage.Incomplete in this file.
++// Note: DEPRECATED. There is now a better solution. Search for incomplete in this file.
+ func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {
+ 	if c.badCFType(dt) {
+ 		return true
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index b71923a433..f78969e696 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -242,6 +242,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
+ var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
+ var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
+ var gccgoMangler func(string) string
++var gccgoDefineCgoIncomplete = flag.Bool("gccgo_define_cgoincomplete", false, "define cgo.Incomplete for older gccgo/GoLLVM")
+ var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
+ var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
+ var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
+@@ -253,6 +254,14 @@ func main() {
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagparse(usage)
+ 
++	if *gccgoDefineCgoIncomplete {
++		if !*gccgo {
++			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
++			os.Exit(2)
++		}
++		incomplete = "_cgopackage_Incomplete"
++	}
++
+ 	if *dynobj != "" {
+ 		// cgo -dynimport is essentially a separate helper command
+ 		// built into the cgo binary. It scans a gcc-produced executable
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 971b845530..d26f9e76a3 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -85,8 +85,13 @@ func (p *Package) writeDefs() {
+ 		fmt.Fprintf(fgo2, "import \"syscall\"\n\n")
+ 	}
+ 	if *importRuntimeCgo {
+-		fmt.Fprintf(fgo2, "import _cgopackage \"runtime/cgo\"\n\n")
+-		fmt.Fprintf(fgo2, "type _ _cgopackage.Incomplete\n") // prevent import-not-used error
++		if !*gccgoDefineCgoIncomplete {
++			fmt.Fprintf(fgo2, "import _cgopackage \"runtime/cgo\"\n\n")
++			fmt.Fprintf(fgo2, "type _ _cgopackage.Incomplete\n") // prevent import-not-used error
++		} else {
++			fmt.Fprintf(fgo2, "//go:notinheap\n")
++			fmt.Fprintf(fgo2, "type _cgopackage_Incomplete struct{ _ struct{ _ struct{} } }\n")
++		}
+ 	}
+ 	if *importSyscall {
+ 		fmt.Fprintf(fgo2, "var _ syscall.Errno\n")
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 29d75001cb..d0b5cbb53c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2953,6 +2953,9 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
+ 			cgoflags = append(cgoflags, "-gccgopkgpath="+pkgpath)
+ 		}
++		if !BuildToolchain.(gccgoToolchain).supportsCgoIncomplete(b) {
++			cgoflags = append(cgoflags, "-gccgo_define_cgoincomplete")
++		}
+ 	}
+ 
+ 	switch cfg.BuildBuildmode {
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index a65c61ffd5..08a4c2d816 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -617,3 +617,63 @@ func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) strin
+ 
+ 	return gccgoToSymbolFunc(gccgoPkgpath(p))
+ }
++
++var (
++	gccgoSupportsCgoIncompleteOnce sync.Once
++	gccgoSupportsCgoIncomplete     bool
++)
++
++const gccgoSupportsCgoIncompleteCode = `
++package p
++
++import "runtime/cgo"
++
++type I cgo.Incomplete
++`
++
++// supportsCgoIncomplete reports whether the gccgo/GoLLVM compiler
++// being used supports cgo.Incomplete, which was added in GCC 13.
++func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
++	gccgoSupportsCgoIncompleteOnce.Do(func() {
++		fail := func(err error) {
++			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
++			base.SetExitStatus(2)
++			base.Exit()
++		}
++
++		tmpdir := b.WorkDir
++		if cfg.BuildN {
++			tmpdir = os.TempDir()
++		}
++		f, err := os.CreateTemp(tmpdir, "*_gccgo_cgoincomplete.go")
++		if err != nil {
++			fail(err)
++		}
++		fn := f.Name()
++		f.Close()
++		defer os.Remove(fn)
++
++		if err := os.WriteFile(fn, []byte(gccgoSupportsCgoIncompleteCode), 0644); err != nil {
++			fail(err)
++		}
++
++		on := strings.TrimSuffix(fn, ".go") + ".o"
++		if cfg.BuildN || cfg.BuildX {
++			b.Showcmd(tmpdir, "%s -c -o %s %s || true", tools.compiler(), on, fn)
++			// Since this function affects later builds,
++			// and only generates temporary files,
++			// we run the command even with -n.
++		}
++		cmd := exec.Command(tools.compiler(), "-c", "-o", on, fn)
++		cmd.Dir = tmpdir
++		var buf strings.Builder
++		cmd.Stdout = &buf
++		cmd.Stderr = &buf
++		err = cmd.Run()
++		if out := buf.String(); len(out) > 0 {
++			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), buf.String())
++		}
++		gccgoSupportsCgoIncomplete = err == nil
++	})
++	return gccgoSupportsCgoIncomplete
++}
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index c9c6a7f9da..b64bc02614 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -83,11 +83,6 @@ go build -compiler=gccgo -overlay overlay.json -o print_trimpath_gccgo$GOEXE -tr
+ exec ./print_trimpath_gccgo$GOEXE
+ stdout ^\.[/\\]printpath[/\\]main.go
+ 
+-go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
+-exec ./main_call_asm_gccgo$GOEXE
+-! stdout .
+-
+-skip 'broken as of CL 421879: see https://go.dev/issue/54761'
+ 
+ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_replace_gccgo$GOEXE ./cgo_hello_replace
+ exec ./main_cgo_replace_gccgo$GOEXE
+@@ -101,6 +96,10 @@ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./
+ exec ./main_cgo_angle_gccgo$GOEXE
+ stdout '^hello cgo\r?\n'
+ 
++go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
++exec ./main_call_asm_gccgo$GOEXE
++! stdout .
++
+ 
+ -- m/go.mod --
+ // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)

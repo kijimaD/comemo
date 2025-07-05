@@ -15,7 +15,71 @@ Date:   Mon May 21 19:04:00 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/build.go      | 28 +++-------------------------
  src/go/build/build_test.go | 12 ++++++++++++
  2 files changed, 15 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 38380d323d..b19df28a63 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1565,32 +1565,10 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
+ 	}
+ 	n := len(l)
+ 	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+-		if allTags != nil {
+-			allTags[l[n-2]] = true
+-			allTags[l[n-1]] = true
+-		}
+-		if l[n-1] != ctxt.GOARCH {
+-			return false
+-		}
+-		if ctxt.GOOS == "android" && l[n-2] == "linux" {
+-			return true
+-		}
+-		return l[n-2] == ctxt.GOOS
++		return ctxt.match(l[n-1], allTags) && ctxt.match(l[n-2], allTags)
+ 	}
+-	if n >= 1 && knownOS[l[n-1]] {
+-		if allTags != nil {
+-			allTags[l[n-1]] = true
+-		}
+-		if ctxt.GOOS == "android" && l[n-1] == "linux" {
+-			return true
+-		}
+-		return l[n-1] == ctxt.GOOS
+-	}
+-	if n >= 1 && knownArch[l[n-1]] {
+-		if allTags != nil {
+-			allTags[l[n-1]] = true
+-		}
+-		return l[n-1] == ctxt.GOARCH
++	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
++		return ctxt.match(l[n-1], allTags)
+ 	}
+ 	return true
+ }
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index cb2ae3c775..3d4c92dcec 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -176,6 +176,18 @@ func TestShouldBuild(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoodOSArchFile(t *testing.T) {
++	ctx := &Context{BuildTags: []string{"linux"}, GOOS:"darwin"}
++	m := map[string]bool{}
++	want := map[string]bool{"linux": true}
++	if !ctx.goodOSArchFile("hello_linux.go", m) {
++		t.Errorf("goodOSArchFile(hello_linux.go) = false, want true")
++	}
++	if !reflect.DeepEqual(m, want) {
++		t.Errorf("goodOSArchFile(hello_linux.go) tags = %v, want %v", m, want)
++	}
++}
++
+ type readNopCloser struct {
+ 	io.Reader
+ }

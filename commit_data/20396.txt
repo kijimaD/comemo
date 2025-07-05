@@ -36,9 +36,84 @@ Date:   Thu Sep 4 22:48:08 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/133620043
-
+---
  src/pkg/runtime/asm_386.s    | 7 ++++++-
  src/pkg/runtime/asm_amd64.s  | 7 ++++++-
  src/pkg/runtime/asm_arm.s    | 7 ++++++-
  src/pkg/runtime/traceback.go | 2 --
  4 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 87dd1fa0f5..40271567b0 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -233,7 +233,12 @@ oncurg:
+ 
+ 	// switch to g0
+ 	MOVL	DX, g(CX)
+-	MOVL	(g_sched+gobuf_sp)(DX), SP
++	MOVL	(g_sched+gobuf_sp)(DX), BX
++	// make it look like mstart called onM on g0, to stop traceback
++	SUBL	$4, BX
++	MOVL	$runtime·mstart(SB), DX
++	MOVL	DX, 0(BX)
++	MOVL	BX, SP
+ 
+ 	// call target function
+ 	ARGSIZE(0)
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 80c2ab3c54..9103ef29e3 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -226,7 +226,12 @@ oncurg:
+ 
+ 	// switch to g0
+ 	MOVQ	DX, g(CX)
+-	MOVQ	(g_sched+gobuf_sp)(DX), SP
++	MOVQ	(g_sched+gobuf_sp)(DX), BX
++	// make it look like mstart called onM on g0, to stop traceback
++	SUBQ	$8, BX
++	MOVQ	$runtime·mstart(SB), DX
++	MOVQ	DX, 0(BX)
++	MOVQ	BX, SP
+ 
+ 	// call target function
+ 	ARGSIZE(0)
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 54ef836211..3869696f60 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -219,7 +219,12 @@ oncurg:
+ 
+ 	// switch to g0
+ 	MOVW	R2, g
+-	MOVW	(g_sched+gobuf_sp)(R2), SP
++	MOVW	(g_sched+gobuf_sp)(R2), R3
++	// make it look like mstart called onM on g0, to stop traceback
++	SUB	$4, R3, R3
++	MOVW	$runtime·mstart(SB), R4
++	MOVW	R4, 0(R3)
++	MOVW	R3, SP
+ 
+ 	// call target function
+ 	ARGSIZE(0)
+diff --git a/src/pkg/runtime/traceback.go b/src/pkg/runtime/traceback.go
+index adb03440b3..ec7be28dc0 100644
+--- a/src/pkg/runtime/traceback.go
++++ b/src/pkg/runtime/traceback.go
+@@ -40,7 +40,6 @@ var (
+ 	mstartPC    = funcPC(mstart)
+ 	newprocPC   = funcPC(newproc)
+ 	newstackPC  = funcPC(newstack)
+-	onMPC       = funcPC(onM)
+ 	rt0_goPC    = funcPC(rt0_go)
+ 	sigpanicPC  = funcPC(sigpanic)
+ 
+@@ -633,7 +632,6 @@ func topofstack(f *_func) bool {
+ 	return pc == goexitPC ||
+ 		pc == mstartPC ||
+ 		pc == mcallPC ||
+-		pc == onMPC ||
+ 		pc == morestackPC ||
+ 		pc == lessstackPC ||
+ 		pc == rt0_goPC ||

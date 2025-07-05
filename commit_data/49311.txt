@@ -20,9 +20,82 @@ Date:   Mon Aug 2 12:18:19 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/abi/abi_amd64.go   |  3 ---
  src/internal/abi/abi_generic.go |  4 ++--
  src/internal/buildcfg/exp.go    |  4 +++-
  src/runtime/stubs.go            | 10 ++--------
  4 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/src/internal/abi/abi_amd64.go b/src/internal/abi/abi_amd64.go
+index aff71f6a58..d3c5678223 100644
+--- a/src/internal/abi/abi_amd64.go
++++ b/src/internal/abi/abi_amd64.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.regabireflect
+-// +build goexperiment.regabireflect
+-
+ package abi
+ 
+ const (
+diff --git a/src/internal/abi/abi_generic.go b/src/internal/abi/abi_generic.go
+index 69400f930f..e8f94f805f 100644
+--- a/src/internal/abi/abi_generic.go
++++ b/src/internal/abi/abi_generic.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !goexperiment.regabireflect
+-// +build !goexperiment.regabireflect
++//go:build !goexperiment.regabireflect && !amd64
++// +build !goexperiment.regabireflect,!amd64
+ 
+ package abi
+ 
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 0245574ec1..384f2f96af 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -105,9 +105,11 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
+ 		}
+ 	}
+ 
+-	// regabiwrappers is always enabled on amd64.
++	// regabi is always enabled on amd64.
+ 	if goarch == "amd64" {
+ 		flags.RegabiWrappers = true
++		flags.RegabiReflect = true
++		flags.RegabiArgs = true
+ 	}
+ 	// regabi is only supported on amd64 and arm64.
+ 	if goarch != "amd64" && goarch != "arm64" {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index fc29a1bac3..8a520d7839 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"internal/goexperiment"
+ 	"unsafe"
+ )
+@@ -419,12 +420,5 @@ func sigpanic0()
+ // structure that is at least large enough to hold the
+ // registers the system supports.
+ //
+-// Currently it's set to zero because using the actual
+-// constant will break every part of the toolchain that
+-// uses finalizers or Windows callbacks to call functions
+-// The value that is currently commented out there should be
+-// the actual value once we're ready to use the register ABI
+-// everywhere.
+-//
+ // Protected by finlock.
+-var intArgRegs = abi.IntArgRegs * goexperiment.RegabiArgsInt
++var intArgRegs = abi.IntArgRegs * (goexperiment.RegabiArgsInt | goarch.IsAmd64)

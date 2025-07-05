@@ -172,3 +172,152 @@ Date:   Tue Jan 5 10:10:56 2021 -0800
  test/fixedbugs/issue43479.go                       |    7 +
  test/fixedbugs/issue43480.go                       |   33 +
  88 files changed, 3389 insertions(+), 2754 deletions(-)
+
+diff --cc src/cmd/compile/internal/noder/noder.go
+index c1356be52f,76913c62a6..938ffe05ce
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@@ -28,6 -25,20 +28,26 @@@ import 
+  	"cmd/internal/src"
+  )
+  
++ func LoadPackage(filenames []string) {
++ 	base.Timer.Start("fe", "parse")
++ 	lines := ParseFiles(filenames)
++ 	base.Timer.Stop()
++ 	base.Timer.AddEvent(int64(lines), "lines")
++ 
+++	if base.Flag.G != 0 && base.Flag.G < 3 {
+++		// can only parse generic code for now
+++		base.ExitIfErrors()
+++		return
+++	}
+++
++ 	// Typecheck.
++ 	Package()
++ 
++ 	// With all user code typechecked, it's now safe to verify unused dot imports.
++ 	CheckDotImports()
++ 	base.ExitIfErrors()
++ }
++ 
+  // ParseFiles concurrently parses files into *syntax.File structures.
+  // Each declaration in every *syntax.File is converted to a syntax tree
+  // and its root represented by *Node is appended to Target.Decls.
+@@@ -167,26 -95,73 +187,89 @@@ func ParseFiles(filenames []string) (li
+  	}
+  
+  	types.LocalPkg.Height = myheight
+ -
+ -	return lines
+ +	return
+  }
+  
++ func Package() {
++ 	typecheck.DeclareUniverse()
++ 
++ 	typecheck.TypecheckAllowed = true
++ 
++ 	// Process top-level declarations in phases.
++ 
++ 	// Phase 1: const, type, and names and types of funcs.
++ 	//   This will gather all the information about types
++ 	//   and methods but doesn't depend on any of it.
++ 	//
++ 	//   We also defer type alias declarations until phase 2
++ 	//   to avoid cycles like #18640.
++ 	//   TODO(gri) Remove this again once we have a fix for #25838.
++ 
++ 	// Don't use range--typecheck can add closures to Target.Decls.
++ 	base.Timer.Start("fe", "typecheck", "top1")
++ 	for i := 0; i < len(typecheck.Target.Decls); i++ {
++ 		n := typecheck.Target.Decls[i]
++ 		if op := n.Op(); op != ir.ODCL && op != ir.OAS && op != ir.OAS2 && (op != ir.ODCLTYPE || !n.(*ir.Decl).X.Alias()) {
++ 			typecheck.Target.Decls[i] = typecheck.Stmt(n)
++ 		}
++ 	}
++ 
++ 	// Phase 2: Variable assignments.
++ 	//   To check interface assignments, depends on phase 1.
++ 
++ 	// Don't use range--typecheck can add closures to Target.Decls.
++ 	base.Timer.Start("fe", "typecheck", "top2")
++ 	for i := 0; i < len(typecheck.Target.Decls); i++ {
++ 		n := typecheck.Target.Decls[i]
++ 		if op := n.Op(); op == ir.ODCL || op == ir.OAS || op == ir.OAS2 || op == ir.ODCLTYPE && n.(*ir.Decl).X.Alias() {
++ 			typecheck.Target.Decls[i] = typecheck.Stmt(n)
++ 		}
++ 	}
++ 
++ 	// Phase 3: Type check function bodies.
++ 	// Don't use range--typecheck can add closures to Target.Decls.
++ 	base.Timer.Start("fe", "typecheck", "func")
++ 	var fcount int64
++ 	for i := 0; i < len(typecheck.Target.Decls); i++ {
++ 		n := typecheck.Target.Decls[i]
++ 		if n.Op() == ir.ODCLFUNC {
++ 			typecheck.FuncBody(n.(*ir.Func))
++ 			fcount++
++ 		}
++ 	}
++ 
++ 	// Phase 4: Check external declarations.
++ 	// TODO(mdempsky): This should be handled when type checking their
++ 	// corresponding ODCL nodes.
++ 	base.Timer.Start("fe", "typecheck", "externdcls")
++ 	for i, n := range typecheck.Target.Externs {
++ 		if n.Op() == ir.ONAME {
++ 			typecheck.Target.Externs[i] = typecheck.Expr(typecheck.Target.Externs[i])
++ 		}
++ 	}
++ 
++ 	// Phase 5: With all user code type-checked, it's now safe to verify map keys.
++ 	typecheck.CheckMapKeys()
++ 
++ }
++ 
+ +// Temporary import helper to get type2-based type-checking going.
+ +type gcimports struct {
+ +	packages map[string]*types2.Package
+ +	lookup   func(path string) (io.ReadCloser, error)
+ +}
+ +
+ +func (m *gcimports) Import(path string) (*types2.Package, error) {
+ +	return m.ImportFrom(path, "" /* no vendoring */, 0)
+ +}
+ +
+ +func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*types2.Package, error) {
+ +	if mode != 0 {
+ +		panic("mode must be 0")
+ +	}
+ +	return importer.Import(m.packages, path, srcDir, m.lookup)
+ +}
+ +
+  // makeSrcPosBase translates from a *syntax.PosBase to a *src.PosBase.
+  func (p *noder) makeSrcPosBase(b0 *syntax.PosBase) *src.PosBase {
+  	// fast path: most likely PosBase hasn't changed
+diff --cc test/fixedbugs/issue15055.go
+index b6c3d96da6,33cf63aaad..81758d141c
+--- a/test/fixedbugs/issue15055.go
++++ b/test/fixedbugs/issue15055.go
+@@@ -8,10 -8,12 +8,12 @@@ package mai
+  
+  func main() {
+  	type name string
+ -	_ = []byte("abc", "def", 12)    // ERROR "too many arguments to conversion to \[\]byte: \[\]byte\(.abc., .def., 12\)"
+ -	_ = string("a", "b", nil)       // ERROR "too many arguments to conversion to string: string\(.a., .b., nil\)"
+ -	_ = []byte()                    // ERROR "missing argument to conversion to \[\]byte: \[\]byte\(\)"
+ -	_ = string()                    // ERROR "missing argument to conversion to string: string\(\)"
+ -	_ = *int()                      // ERROR "missing argument to conversion to int: int\(\)"
+ -	_ = (*int)()                    // ERROR "missing argument to conversion to \*int: \(\*int\)\(\)"
+ -	_ = name("a", 1, 3.3)           // ERROR "too many arguments to conversion to name: name\(.a., 1, 3.3\)"
+ -	_ = map[string]string(nil, nil) // ERROR "too many arguments to conversion to map\[string\]string: map\[string\]string\(nil, nil\)"
+ +	_ = []byte("abc", "def", 12)    // ERROR "too many arguments (to conversion to \[\]byte: \(\[\]byte\)\(.abc., .def., 12\))?"
+ +	_ = string("a", "b", nil)       // ERROR "too many arguments (to conversion to string: string\(.a., .b., nil\))?"
+ +	_ = []byte()                    // ERROR "missing argument (to conversion to \[\]byte: \(\[\]byte\)\(\))?"
+ +	_ = string()                    // ERROR "missing argument (to conversion to string: string\(\))?"
+++	_ = *int()                      // ERROR "missing argument (to conversion to int: int\(\))?"
+++	_ = (*int)()                    // ERROR "missing argument (to conversion to \*int: \(\*int\)\(\))?"
+ +	_ = name("a", 1, 3.3)           // ERROR "too many arguments (to conversion to name: name\(.a., 1, 3.3\))?"
+ +	_ = map[string]string(nil, nil) // ERROR "too many arguments (to conversion to map\[string\]string: \(map\[string\]string\)\(nil, nil\))?"
+  }

@@ -33,8 +33,139 @@ Date:   Wed Apr 7 17:11:48 2021 -0700
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go | 24 ++++++++++++++++--------
  src/internal/fuzz/coverage.go    | 23 ++++++++++++++++++++++-
  src/internal/fuzz/trace.go       | 29 +++++++++++++++++++++++++++++
  3 files changed, 67 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 92d38bb63e..a089caa1a9 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1746,7 +1746,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 
+ 	// Coverage instrumentation counters for libfuzzer.
+ 	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+-		state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
++		sect := state.allocateNamedSectionAndAssignSyms(&Segdata, "__libfuzzer_extra_counters", sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx, 06)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._counters", 0), sect)
++		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._ecounters", 0), sect)
+ 	}
+ 
+ 	if len(state.data[sym.STLSBSS]) > 0 {
+@@ -2410,6 +2412,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	var noptr *sym.Section
+ 	var bss *sym.Section
+ 	var noptrbss *sym.Section
++	var fuzzCounters *sym.Section
+ 	for i, s := range Segdata.Sections {
+ 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && s.Name == ".tbss" {
+ 			continue
+@@ -2421,17 +2424,17 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		s.Vaddr = va
+ 		va += uint64(vlen)
+ 		Segdata.Length = va - Segdata.Vaddr
+-		if s.Name == ".data" {
++		switch s.Name {
++		case ".data":
+ 			data = s
+-		}
+-		if s.Name == ".noptrdata" {
++		case ".noptrdata":
+ 			noptr = s
+-		}
+-		if s.Name == ".bss" {
++		case ".bss":
+ 			bss = s
+-		}
+-		if s.Name == ".noptrbss" {
++		case ".noptrbss":
+ 			noptrbss = s
++		case "__libfuzzer_extra_counters":
++			fuzzCounters = s
+ 		}
+ 	}
+ 
+@@ -2548,6 +2551,11 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
+ 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+ 
++	if fuzzCounters != nil {
++		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_EXTRA_COUNTER, int64(fuzzCounters.Vaddr))
++		ctxt.xdefine("internal/fuzz._ecounters", sym.SLIBFUZZER_EXTRA_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
++	}
++
+ 	if ctxt.IsSolaris() {
+ 		// On Solaris, in the runtime it sets the external names of the
+ 		// end symbols. Unset them and define separate symbols, so we
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index 7624b56e0a..74872541c9 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -4,8 +4,29 @@
+ 
+ package fuzz
+ 
++import (
++	"internal/unsafeheader"
++	"unsafe"
++)
++
+ // coverage returns a []byte containing unique 8-bit counters for each edge of
+ // the instrumented source code. This coverage data will only be generated if
+ // `-d=libfuzzer` is set at build time. This can be used to understand the code
+ // coverage of a test execution.
+-func coverage() []byte { return nil }
++func coverage() []byte {
++	addr := unsafe.Pointer(&_counters)
++	size := uintptr(unsafe.Pointer(&_ecounters)) - uintptr(addr)
++
++	var res []byte
++	*(*unsafeheader.Slice)(unsafe.Pointer(&res)) = unsafeheader.Slice{
++		Data: addr,
++		Len:  int(size),
++		Cap:  int(size),
++	}
++	return res
++}
++
++// _counters and _ecounters mark the start and end, respectively, of where
++// the 8-bit coverage counters reside in memory. They're known to cmd/link,
++// which specially assigns their addresses for this purpose.
++var _counters, _ecounters [0]byte
+diff --git a/src/internal/fuzz/trace.go b/src/internal/fuzz/trace.go
+new file mode 100644
+index 0000000000..f70b1a6f5b
+--- /dev/null
++++ b/src/internal/fuzz/trace.go
+@@ -0,0 +1,29 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !libfuzzer
++
++package fuzz
++
++import _ "unsafe" // for go:linkname
++
++//go:linkname libfuzzerTraceCmp1 runtime.libfuzzerTraceCmp1
++//go:linkname libfuzzerTraceCmp2 runtime.libfuzzerTraceCmp2
++//go:linkname libfuzzerTraceCmp4 runtime.libfuzzerTraceCmp4
++//go:linkname libfuzzerTraceCmp8 runtime.libfuzzerTraceCmp8
++
++//go:linkname libfuzzerTraceConstCmp1 runtime.libfuzzerTraceConstCmp1
++//go:linkname libfuzzerTraceConstCmp2 runtime.libfuzzerTraceConstCmp2
++//go:linkname libfuzzerTraceConstCmp4 runtime.libfuzzerTraceConstCmp4
++//go:linkname libfuzzerTraceConstCmp8 runtime.libfuzzerTraceConstCmp8
++
++func libfuzzerTraceCmp1(arg0, arg1 uint8)  {}
++func libfuzzerTraceCmp2(arg0, arg1 uint16) {}
++func libfuzzerTraceCmp4(arg0, arg1 uint32) {}
++func libfuzzerTraceCmp8(arg0, arg1 uint64) {}
++
++func libfuzzerTraceConstCmp1(arg0, arg1 uint8)  {}
++func libfuzzerTraceConstCmp2(arg0, arg1 uint16) {}
++func libfuzzerTraceConstCmp4(arg0, arg1 uint32) {}
++func libfuzzerTraceConstCmp8(arg0, arg1 uint64) {}

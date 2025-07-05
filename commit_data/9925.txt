@@ -12,7 +12,105 @@ Date:   Tue Oct 11 15:47:00 2011 -0400
     R=golang-dev, mikioh.mikioh, rsc
     CC=golang-dev
     https://golang.org/cl/5240047
-
+---
  src/pkg/syscall/types_linux.c       | 24 ++++++++++++++++++++++--
  src/pkg/syscall/ztypes_linux_arm.go | 14 ++++++--------
  2 files changed, 28 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index 3cf0e2e0d0..8ede62fc1c 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -103,9 +103,20 @@ struct sockaddr_any {
+ 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+ };
+ 
++// copied from /usr/include/linux/un.h 
++struct my_sockaddr_un {
++	sa_family_t sun_family;
++#ifdef __ARM_EABI__
++	// on ARM char is by default unsigned
++	signed char sun_path[108];
++#else
++	char sun_path[108];
++#endif
++};
++
+ typedef struct sockaddr_in $RawSockaddrInet4;
+ typedef struct sockaddr_in6 $RawSockaddrInet6;
+-typedef struct sockaddr_un $RawSockaddrUnix;
++typedef struct my_sockaddr_un $RawSockaddrUnix;
+ typedef struct sockaddr_ll $RawSockaddrLinklayer;
+ typedef struct sockaddr_nl $RawSockaddrNetlink;
+ typedef struct sockaddr $RawSockaddr;
+@@ -251,7 +262,11 @@ enum {
+ // Ptrace
+ 
+ // Register structures
+-typedef struct user_regs_struct $PtraceRegs;
++#ifdef __ARM_EABI__
++	typedef struct user_regs $PtraceRegs;
++#else
++	typedef struct user_regs_struct $PtraceRegs;
++#endif
+ 
+ // Misc
+ 
+@@ -263,6 +278,11 @@ typedef struct ustat $Ustat_t;
+ // The real epoll_event is a union, and godefs doesn't handle it well.
+ struct my_epoll_event {
+ 	uint32_t events;
++#ifdef __ARM_EABI__
++	// padding is not specified in linux/eventpoll.h but added to conform to the
++	// alignment requirements of EABI
++	int32_t padFd;
++#endif
+ 	int32_t fd;
+ 	int32_t pad;
+ };
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 9fb7e347b6..ca45a3cbe7 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -2,11 +2,6 @@
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+-// Manual corrections: TODO(rsc): need to fix godefs
+-//	remove duplicate PtraceRegs type
+-//	change RawSockaddrUnix field to Path [108]int8 (was uint8)
+-//	add padding to EpollEvent
+-
+ package syscall
+ 
+ // Constants
+@@ -61,7 +56,7 @@ const (
+ 	IFLA_LINKINFO           = 0x12
+ 	IFLA_NET_NS_PID         = 0x13
+ 	IFLA_IFALIAS            = 0x14
+-	IFLA_MAX                = 0x14
++	IFLA_MAX                = 0x1c
+ 	RT_SCOPE_UNIVERSE       = 0
+ 	RT_SCOPE_SITE           = 0xc8
+ 	RT_SCOPE_LINK           = 0xfd
+@@ -239,7 +234,8 @@ type Statfs_t struct {
+ 	Fsid         [8]byte /* __fsid_t */
+ 	Namelen      int32
+ 	Frsize       int32
+-	Spare        [5]int32
++	Flags        int32
++	Spare        [4]int32
+ 	Pad_godefs_0 [4]byte
+ }
+ 
+@@ -443,7 +439,9 @@ type InotifyEvent struct {
+ 	Len    uint32
+ }
+ 
+-type PtraceRegs struct{}
++type PtraceRegs struct {
++	Uregs [18]uint32
++}
+ 
+ type FdSet struct {
+ 	Bits [32]int32

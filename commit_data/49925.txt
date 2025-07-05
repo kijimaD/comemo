@@ -18,9 +18,122 @@ Date:   Tue Sep 21 10:54:08 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351310
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go   | 21 +--------------------
  src/cmd/compile/internal/types2/named.go    |  4 ++--
  src/cmd/compile/internal/types2/object.go   | 23 +++++++++++++++++++++--
  src/cmd/compile/internal/types2/resolver.go |  2 +-
  4 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index eb460ca200..e0fd74482a 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -216,7 +216,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 			//        is shorthand for (&x).m()".
+ 			if f, _ := obj.(*Func); f != nil {
+ 				// determine if method has a pointer receiver
+-				hasPtrRecv := tpar == nil && ptrRecv(f)
++				hasPtrRecv := tpar == nil && f.hasPtrRecv()
+ 				if hasPtrRecv && !indirect && !addressable {
+ 					return nil, nil, true // pointer/addressable receiver required
+ 				}
+@@ -474,22 +474,3 @@ func lookupMethod(methods []*Func, pkg *Package, name string) (int, *Func) {
+ 	}
+ 	return -1, nil
+ }
+-
+-// ptrRecv reports whether the receiver is of the form *T.
+-func ptrRecv(f *Func) bool {
+-	// If a method's receiver type is set, use that as the source of truth for the receiver.
+-	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
+-	// signature. We may reach here before the signature is fully set up: we must explicitly
+-	// check if the receiver is set (we cannot just look for non-nil f.typ).
+-	if sig, _ := f.typ.(*Signature); sig != nil && sig.recv != nil {
+-		_, isPtr := deref(sig.recv.typ)
+-		return isPtr
+-	}
+-
+-	// If a method's type is not set it may be a method/function that is:
+-	// 1) client-supplied (via NewFunc with no signature), or
+-	// 2) internally created but not yet type-checked.
+-	// For case 1) we can't do anything; the client must know what they are doing.
+-	// For case 2) we can use the information gathered by the resolver.
+-	return f.hasPtrRecv
+-}
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 36a8b88f25..1db993afc9 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -255,7 +255,7 @@ func expandNamed(env *Environment, n *Named, instPos syntax.Pos) (tparams *TypeP
+ 			// During type checking origm may not have a fully set up type, so defer
+ 			// instantiation of its signature until later.
+ 			m := NewFunc(origm.pos, origm.pkg, origm.name, nil)
+-			m.hasPtrRecv = ptrRecv(origm)
++			m.hasPtrRecv_ = origm.hasPtrRecv()
+ 			// Setting instRecv here allows us to complete later (we need the
+ 			// instRecv to get targs and the original method).
+ 			m.instRecv = n
+@@ -314,7 +314,7 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
+ 		sig = &copy
+ 	}
+ 	var rtyp Type
+-	if ptrRecv(m) {
++	if m.hasPtrRecv() {
+ 		rtyp = NewPointer(rbase)
+ 	} else {
+ 		rtyp = rbase
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index f44e1a9353..2e1cd7bff1 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -363,8 +363,8 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
+ // An abstract method may belong to many interfaces due to embedding.
+ type Func struct {
+ 	object
+-	instRecv   *Named // if non-nil, the receiver type for an incomplete instance method
+-	hasPtrRecv bool   // only valid for methods that don't have a type yet
++	instRecv    *Named // if non-nil, the receiver type for an incomplete instance method
++	hasPtrRecv_ bool   // only valid for methods that don't have a type yet; use hasPtrRecv() to read
+ }
+ 
+ // NewFunc returns a new function with the given signature, representing
+@@ -389,6 +389,25 @@ func (obj *Func) FullName() string {
+ // Scope returns the scope of the function's body block.
+ func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
+ 
++// hasPtrRecv reports whether the receiver is of the form *T for the given method obj.
++func (obj *Func) hasPtrRecv() bool {
++	// If a method's receiver type is set, use that as the source of truth for the receiver.
++	// Caution: Checker.funcDecl (decl.go) marks a function by setting its type to an empty
++	// signature. We may reach here before the signature is fully set up: we must explicitly
++	// check if the receiver is set (we cannot just look for non-nil obj.typ).
++	if sig, _ := obj.typ.(*Signature); sig != nil && sig.recv != nil {
++		_, isPtr := deref(sig.recv.typ)
++		return isPtr
++	}
++
++	// If a method's type is not set it may be a method/function that is:
++	// 1) client-supplied (via NewFunc with no signature), or
++	// 2) internally created but not yet type-checked.
++	// For case 1) we can't do anything; the client must know what they are doing.
++	// For case 2) we can use the information gathered by the resolver.
++	return obj.hasPtrRecv_
++}
++
+ func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
+ 
+ // A Label represents a declared label.
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 34fbc3d41b..a8cb244c55 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -509,7 +509,7 @@ func (check *Checker) collectObjects() {
+ 			// Determine the receiver base type and associate m with it.
+ 			ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
+ 			if base != nil {
+-				m.obj.hasPtrRecv = ptr
++				m.obj.hasPtrRecv_ = ptr
+ 				check.methods[base] = append(check.methods[base], m.obj)
+ 			}
+ 		}

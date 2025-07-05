@@ -16,9 +16,101 @@ Date:   Fri Feb 26 17:37:26 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/compile/internal/ssa/op.go     |  9 ++++++---
  src/cmd/compile/internal/ssagen/ssa.go |  4 ++--
  test/abi/f_ret_z_not.go                | 33 +++++++++++++++++++++++++++++++++
  test/abi/f_ret_z_not.out               |  1 +
  4 files changed, 42 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 6949bdca31..ece274b083 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -86,12 +86,15 @@ type AuxCall struct {
+ 	abiInfo *abi.ABIParamResultInfo // TODO remove fields above redundant with this information.
+ }
+ 
+-// ResultForOffset returns the index of the result at a particular offset among the results
++// ResultForOffsetAndType returns the index of a t-typed result at *A* particular offset among the results.
++// An arbitrary number of zero-width-typed results may reside at the same offset with a single not-zero-width
++// typed result, but the ones with the same type are all indistinguishable so it doesn't matter "which one"
++// is obtained.
+ // This does not include the mem result for the call opcode.
+-func (a *AuxCall) ResultForOffset(offset int64) int64 {
++func (a *AuxCall) ResultForOffsetAndType(offset int64, t *types.Type) int64 {
+ 	which := int64(-1)
+ 	for i := int64(0); i < a.NResults(); i++ { // note aux NResults does not include mem result.
+-		if a.OffsetOfResult(i) == offset {
++		if a.OffsetOfResult(i) == offset && a.TypeOfResult(i) == t {
+ 			which = i
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index ba00b9c7f6..865630dd3e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2909,7 +2909,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
+ 			return s.rawLoad(n.Type(), addr)
+ 		}
+-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Offset)
++		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
+ 		if which == -1 {
+ 			// Do the old thing // TODO: Panic instead.
+ 			addr := s.constOffPtrSP(types.NewPtr(n.Type()), n.Offset)
+@@ -5119,7 +5119,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 		if s.prevCall == nil || s.prevCall.Op != ssa.OpStaticLECall && s.prevCall.Op != ssa.OpInterLECall && s.prevCall.Op != ssa.OpClosureLECall {
+ 			return s.constOffPtrSP(t, n.Offset)
+ 		}
+-		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffset(n.Offset)
++		which := s.prevCall.Aux.(*ssa.AuxCall).ResultForOffsetAndType(n.Offset, n.Type())
+ 		if which == -1 {
+ 			// Do the old thing // TODO: Panic instead.
+ 			return s.constOffPtrSP(t, n.Offset)
+diff --git a/test/abi/f_ret_z_not.go b/test/abi/f_ret_z_not.go
+new file mode 100644
+index 0000000000..b072aea75e
+--- /dev/null
++++ b/test/abi/f_ret_z_not.go
+@@ -0,0 +1,33 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++type Z struct {
++}
++
++type NZ struct {
++	x, y int
++}
++
++//go:noinline
++func f(x,y int) (Z,NZ,Z) {
++	var z Z
++	return z,NZ{x,y},z
++}
++
++//go:noinline
++func g() (Z,NZ,Z) {
++	a,b,c := f(3,4)
++	return c,b,a
++}
++
++func main() {
++	_,b,_ := g()
++	fmt.Println(b.x+b.y)
++}
+diff --git a/test/abi/f_ret_z_not.out b/test/abi/f_ret_z_not.out
+new file mode 100644
+index 0000000000..7f8f011eb7
+--- /dev/null
++++ b/test/abi/f_ret_z_not.out
+@@ -0,0 +1 @@
++7

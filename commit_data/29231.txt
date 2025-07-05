@@ -17,6 +17,20 @@ Date:   Fri Sep 2 12:14:38 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/stack.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 9528405c96..d022b8274b 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -598,7 +598,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 				// Live analysis wrong?
+ 				getg().m.traceback = 2
+ 				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
+-				throw("invalid stack pointer")
++				throw("invalid pointer found on stack")
+ 			}
+ 			if minp <= p && p < maxp {
+ 				if stackDebug >= 3 {

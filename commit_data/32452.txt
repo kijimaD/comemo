@@ -11,6 +11,22 @@ Date:   Tue Apr 25 23:13:05 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/dist/test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8c143a0c18..6026d26a9b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -750,6 +750,10 @@ func (t *tester) internalLink() bool {
+ 	if t.goarch == "arm64" || t.goarch == "mips64" || t.goarch == "mips64le" || t.goarch == "mips" || t.goarch == "mipsle" {
+ 		return false
+ 	}
++	if isAlpineLinux() {
++		// Issue 18243.
++		return false
++	}
+ 	return true
+ }
+ 

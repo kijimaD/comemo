@@ -7,7 +7,87 @@ Date:   Wed Sep 22 15:18:41 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2248043
-
+---
  misc/dashboard/builder/exec.go | 13 +++++++++++--
  misc/dashboard/builder/main.go | 14 +++-----------
  2 files changed, 14 insertions(+), 13 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index bdc740c103..009c7694ea 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -4,11 +4,12 @@ import (
+ 	"bytes"
+ 	"exec"
+ 	"os"
++	"strings"
+ )
+ 
+ // run is a simple wrapper for exec.Run/Close
+ func run(envv []string, dir string, argv ...string) os.Error {
+-	bin, err := exec.LookPath(argv[0])
++	bin, err := pathLookup(argv[0])
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -22,7 +23,7 @@ func run(envv []string, dir string, argv ...string) os.Error {
+ 
+ // runLog runs a process and returns the combined stdout/stderr
+ func runLog(envv []string, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
+-	bin, err := exec.LookPath(argv[0])
++	bin, err := pathLookup(argv[0])
+ 	if err != nil {
+ 		return
+ 	}
+@@ -43,3 +44,11 @@ func runLog(envv []string, dir string, argv ...string) (output string, exitStatu
+ 	}
+ 	return b.String(), w.WaitStatus.ExitStatus(), nil
+ }
++
++// Find bin in PATH if a relative or absolute path hasn't been specified
++func pathLookup(s string) (string, os.Error) {
++	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, "./")  || strings.HasPrefix(s, "../") {
++		return s, nil
++	} 
++	return exec.LookPath(s)
++}
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 0302638bd3..ce0caf80f5 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -41,6 +41,7 @@ var (
+ 	runBenchmarks = flag.Bool("bench", false, "Run benchmarks")
+ 	buildRelease  = flag.Bool("release", false, "Build and upload binary release archives")
+ 	buildRevision = flag.String("rev", "", "Build specified revision and exit")
++	buildCmd      = flag.String("cmd", "./all.bash", "Build command (specify absolute or relative to go/src/)")
+ )
+ 
+ var (
+@@ -265,17 +266,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	}
+ 	srcDir := path.Join(workpath, "go", "src")
+ 
+-	// check for all-${GOARCH,GOOS}.bash and use it if found
+-	allbash := "all.bash"
+-	if a := "all-"+b.goarch+".bash"; isFile(path.Join(srcDir, a)) {
+-		allbash = a
+-	}
+-	if a := "all-"+b.goos+".bash"; isFile(path.Join(srcDir, a)) {
+-		allbash = a
+-	}
+-
+ 	// build
+-	buildLog, status, err := runLog(env, srcDir, "bash", allbash)
++	buildLog, status, err := runLog(env, srcDir, *buildCmd)
+ 	if err != nil {
+ 		return errf("all.bash: %s", err)
+ 	}
+@@ -307,7 +299,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	// if this is a release, create tgz and upload to google code
+ 	if release := releaseRegexp.FindString(c.desc); release != "" {
+ 		// clean out build state
+-		err = run(env, srcDir, "sh", "clean.bash", "--nopkg")
++		err = run(env, srcDir, "./clean.bash", "--nopkg")
+ 		if err != nil {
+ 			return errf("clean.bash: %s", err)
+ 		}

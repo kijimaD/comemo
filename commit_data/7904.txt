@@ -24,7 +24,7 @@ Date:   Mon Mar 28 23:28:42 2011 -0400
     R=golang-dev, dsymonds, adg, rh
     CC=golang-dev
     https://golang.org/cl/4244055
-
+---
  src/pkg/crypto/tls/handshake_client_test.go |  2 +-
  src/pkg/crypto/tls/tls.go                   |  5 +-
  src/pkg/net/Makefile                        |  2 +
@@ -48,3 +48,1019 @@ Date:   Mon Mar 28 23:28:42 2011 -0400
  src/pkg/net/timeout_test.go                 |  2 +-
  src/pkg/net/udpsock.go                      |  2 +-
  22 files changed, 353 insertions(+), 146 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client_test.go b/src/pkg/crypto/tls/handshake_client_test.go
+index fd1f145cfc..3f91c7acf1 100644
+--- a/src/pkg/crypto/tls/handshake_client_test.go
++++ b/src/pkg/crypto/tls/handshake_client_test.go
+@@ -50,7 +50,7 @@ func TestRunClient(t *testing.T) {
+ 
+ 	testConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
+ 
+-	conn, err := Dial("tcp", "", "127.0.0.1:10443", testConfig)
++	conn, err := Dial("tcp", "127.0.0.1:10443", testConfig)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index e8290d728d..f66449c822 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -87,8 +87,9 @@ func Listen(network, laddr string, config *Config) (*Listener, os.Error) {
+ // Dial interprets a nil configuration as equivalent to
+ // the zero configuration; see the documentation of Config
+ // for the defaults.
+-func Dial(network, laddr, raddr string, config *Config) (*Conn, os.Error) {
+-	c, err := net.Dial(network, laddr, raddr)
++func Dial(network, addr string, config *Config) (*Conn, os.Error) {
++	raddr := addr
++	c, err := net.Dial(network, raddr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 3f48907446..7ce6502798 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -6,6 +6,7 @@ include ../../Make.inc
+ 
+ TARG=net
+ GOFILES=\
++	cgo_stub.go\
+ 	dial.go\
+ 	dnsmsg.go\
+ 	fd_$(GOOS).go\
+@@ -13,6 +14,7 @@ GOFILES=\
+ 	ip.go\
+ 	ipsock.go\
+ 	iprawsock.go\
++	lookup.go\
+ 	net.go\
+ 	parse.go\
+ 	pipe.go\
+diff --git a/src/pkg/net/cgo_stub.go b/src/pkg/net/cgo_stub.go
+new file mode 100644
+index 0000000000..e28f6622e9
+--- /dev/null
++++ b/src/pkg/net/cgo_stub.go
+@@ -0,0 +1,21 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Stub cgo routines for systems that do not use cgo to do network lookups.
++
++package net
++
++import "os"
++
++func cgoLookupHost(name string) (addrs []string, err os.Error, completed bool) {
++	return nil, nil, false
++}
++
++func cgoLookupPort(network, service string) (port int, err os.Error, completed bool) {
++	return 0, nil, false
++}
++
++func cgoLookupIP(name string) (addrs []IP, err os.Error, completed bool) {
++	return nil, nil, false
++}
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 1cf8e79159..66cb09b19b 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -6,9 +6,7 @@ package net
+ 
+ import "os"
+ 
+-// Dial connects to the remote address raddr on the network net.
+-// If the string laddr is not empty, it is used as the local address
+-// for the connection.
++// Dial connects to the address addr on the network net.
+ //
+ // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+ // "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
+@@ -16,79 +14,56 @@ import "os"
+ //
+ // For IP networks, addresses have the form host:port.  If host is
+ // a literal IPv6 address, it must be enclosed in square brackets.
++// The functions JoinHostPort and SplitHostPort manipulate 
++// addresses in this form.
+ //
+ // Examples:
+-//	Dial("tcp", "", "12.34.56.78:80")
+-//	Dial("tcp", "", "google.com:80")
+-//	Dial("tcp", "", "[de:ad:be:ef::ca:fe]:80")
+-//	Dial("tcp", "127.0.0.1:123", "127.0.0.1:88")
++//	Dial("tcp", "12.34.56.78:80")
++//	Dial("tcp", "google.com:80")
++//	Dial("tcp", "[de:ad:be:ef::ca:fe]:80")
+ //
+-func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
++func Dial(net, addr string) (c Conn, err os.Error) {
++	raddr := addr
++	if raddr == "" {
++		return nil, &OpError{"dial", net, nil, errMissingAddress}
++	}
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+-		var la, ra *TCPAddr
+-		if laddr != "" {
+-			if la, err = ResolveTCPAddr(laddr); err != nil {
+-				goto Error
+-			}
+-		}
+-		if raddr != "" {
+-			if ra, err = ResolveTCPAddr(raddr); err != nil {
+-				goto Error
+-			}
++		var ra *TCPAddr
++		if ra, err = ResolveTCPAddr(raddr); err != nil {
++			goto Error
+ 		}
+-		c, err := DialTCP(net, la, ra)
++		c, err := DialTCP(net, nil, ra)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		return c, nil
+ 	case "udp", "udp4", "udp6":
+-		var la, ra *UDPAddr
+-		if laddr != "" {
+-			if la, err = ResolveUDPAddr(laddr); err != nil {
+-				goto Error
+-			}
+-		}
+-		if raddr != "" {
+-			if ra, err = ResolveUDPAddr(raddr); err != nil {
+-				goto Error
+-			}
++		var ra *UDPAddr
++		if ra, err = ResolveUDPAddr(raddr); err != nil {
++			goto Error
+ 		}
+-		c, err := DialUDP(net, la, ra)
++		c, err := DialUDP(net, nil, ra)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		return c, nil
+ 	case "unix", "unixgram", "unixpacket":
+-		var la, ra *UnixAddr
+-		if raddr != "" {
+-			if ra, err = ResolveUnixAddr(net, raddr); err != nil {
+-				goto Error
+-			}
+-		}
+-		if laddr != "" {
+-			if la, err = ResolveUnixAddr(net, laddr); err != nil {
+-				goto Error
+-			}
++		var ra *UnixAddr
++		if ra, err = ResolveUnixAddr(net, raddr); err != nil {
++			goto Error
+ 		}
+-		c, err = DialUnix(net, la, ra)
++		c, err = DialUnix(net, nil, ra)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 		return c, nil
+ 	case "ip", "ip4", "ip6":
+-		var la, ra *IPAddr
+-		if laddr != "" {
+-			if la, err = ResolveIPAddr(laddr); err != nil {
+-				goto Error
+-			}
+-		}
+-		if raddr != "" {
+-			if ra, err = ResolveIPAddr(raddr); err != nil {
+-				goto Error
+-			}
++		var ra *IPAddr
++		if ra, err = ResolveIPAddr(raddr); err != nil {
++			goto Error
+ 		}
+-		c, err := DialIP(net, la, ra)
++		c, err := DialIP(net, nil, ra)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index a432800cfe..9a9c02ebd7 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -32,7 +32,7 @@ func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
+ }
+ 
+ func doDial(t *testing.T, network, addr string) {
+-	fd, err := Dial(network, "", addr)
++	fd, err := Dial(network, addr)
+ 	if err != nil {
+ 		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err)
+ 		return
+@@ -55,6 +55,13 @@ var googleaddrs = []string{
+ 	"[2001:4860:0:2001::68]:80", // ipv6.google.com; removed if ipv6 flag not set
+ }
+ 
++func TestLookupCNAME(t *testing.T) {
++	cname, err := LookupCNAME("www.google.com")
++	if cname != "www.l.google.com." || err != nil {
++		t.Errorf(`LookupCNAME("www.google.com.") = %q, %v, want "www.l.google.com.", nil`, cname, err)
++	}
++}
++
+ func TestDialGoogle(t *testing.T) {
+ 	// If no ipv6 tunnel, don't try the last address.
+ 	if !*ipv6 {
+@@ -64,14 +71,14 @@ func TestDialGoogle(t *testing.T) {
+ 	// Insert an actual IP address for google.com
+ 	// into the table.
+ 
+-	_, addrs, err := LookupHost("www.google.com")
++	addrs, err := LookupIP("www.google.com")
+ 	if err != nil {
+ 		t.Fatalf("lookup www.google.com: %v", err)
+ 	}
+ 	if len(addrs) == 0 {
+ 		t.Fatalf("no addresses for www.google.com")
+ 	}
+-	ip := ParseIP(addrs[0]).To4()
++	ip := addrs[0].To4()
+ 
+ 	for i, s := range googleaddrs {
+ 		if strings.Contains(s, "%") {
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 3252dd4540..32cea6125e 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -159,7 +159,7 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs
+ 		// all the cfg.servers[i] are IP addresses, which
+ 		// Dial will use without a DNS lookup.
+ 		server := cfg.servers[i] + ":53"
+-		c, cerr := Dial("udp", "", server)
++		c, cerr := Dial("udp", server)
+ 		if cerr != nil {
+ 			err = cerr
+ 			continue
+@@ -178,12 +178,23 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (cname string, addrs
+ 	return
+ }
+ 
+-func convertRR_A(records []dnsRR) []string {
+-	addrs := make([]string, len(records))
++func convertRR_A(records []dnsRR) []IP {
++	addrs := make([]IP, len(records))
+ 	for i := 0; i < len(records); i++ {
+ 		rr := records[i]
+ 		a := rr.(*dnsRR_A).A
+-		addrs[i] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String()
++		addrs[i] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a))
++	}
++	return addrs
++}
++
++func convertRR_AAAA(records []dnsRR) []IP {
++	addrs := make([]IP, len(records))
++	for i := 0; i < len(records); i++ {
++		rr := records[i]
++		a := make(IP, 16)
++		copy(a, rr.(*dnsRR_AAAA).AAAA[:])
++		addrs[i] = a
+ 	}
+ 	return addrs
+ }
+@@ -294,10 +305,8 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
+ 	return
+ }
+ 
+-// LookupHost looks for name using the local hosts file and DNS resolver.
+-// It returns the canonical name for the host and an array of that
+-// host's addresses.
+-func LookupHost(name string) (cname string, addrs []string, err os.Error) {
++// goLookupHost is the native Go implementation of LookupHost.
++func goLookupHost(name string) (addrs []string, err os.Error) {
+ 	onceLoadConfig.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+ 		err = dnserr
+@@ -306,18 +315,69 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 	// Use entries from /etc/hosts if they match.
+ 	addrs = lookupStaticHost(name)
+ 	if len(addrs) > 0 {
+-		cname = name
++		return
++	}
++	ips, err := goLookupIP(name)
++	if err != nil {
++		return
++	}
++	addrs = make([]string, 0, len(ips))
++	for _, ip := range ips {
++		addrs = append(addrs, ip.String())
++	}
++	return
++}
++
++// goLookupIP is the native Go implementation of LookupIP.
++func goLookupIP(name string) (addrs []IP, err os.Error) {
++	onceLoadConfig.Do(loadConfig)
++	if dnserr != nil || cfg == nil {
++		err = dnserr
+ 		return
+ 	}
+ 	var records []dnsRR
++	var cname string
+ 	cname, records, err = lookup(name, dnsTypeA)
+ 	if err != nil {
+ 		return
+ 	}
+ 	addrs = convertRR_A(records)
++	if cname != "" {
++		name = cname
++	}
++	_, records, err = lookup(name, dnsTypeAAAA)
++	if err != nil && len(addrs) > 0 {
++		// Ignore error because A lookup succeeded.
++		err = nil
++	}
++	if err != nil {
++		return
++	}
++	addrs = append(addrs, convertRR_AAAA(records)...)
++	return
++}
++
++// LookupCNAME returns the canonical DNS host for the given name.
++// Callers that do not care about the canonical name can call
++// LookupHost or LookupIP directly; both take care of resolving
++// the canonical name as part of the lookup.
++func LookupCNAME(name string) (cname string, err os.Error) {
++	onceLoadConfig.Do(loadConfig)
++	if dnserr != nil || cfg == nil {
++		err = dnserr
++		return
++	}
++	_, rr, err := lookup(name, dnsTypeCNAME)
++	if err != nil {
++		return
++	}
++	if len(rr) >= 0 {
++		cname = rr[0].(*dnsRR_CNAME).Cname
++	}
+ 	return
+ }
+ 
++// An SRV represents a single DNS SRV record.
+ type SRV struct {
+ 	Target   string
+ 	Port     uint16
+@@ -344,11 +404,13 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err os.
+ 	return
+ }
+ 
++// An MX represents a single DNS MX record.
+ type MX struct {
+ 	Host string
+ 	Pref uint16
+ }
+ 
++// LookupMX returns the DNS MX records associated with name.
+ func LookupMX(name string) (entries []*MX, err os.Error) {
+ 	var records []dnsRR
+ 	_, records, err = lookup(name, dnsTypeMX)
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index dc195caf80..5209c1a06a 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -50,6 +50,7 @@ const (
+ 	dnsTypeMINFO = 14
+ 	dnsTypeMX    = 15
+ 	dnsTypeTXT   = 16
++	dnsTypeAAAA  = 28
+ 	dnsTypeSRV   = 33
+ 
+ 	// valid dnsQuestion.qtype only
+@@ -244,8 +245,18 @@ type dnsRR_A struct {
+ 	A   uint32 "ipv4"
+ }
+ 
+-func (rr *dnsRR_A) Header() *dnsRR_Header { return &rr.Hdr }
++func (rr *dnsRR_A) Header() *dnsRR_Header {
++	return &rr.Hdr
++}
++
++type dnsRR_AAAA struct {
++	Hdr  dnsRR_Header
++	AAAA [16]byte "ipv6"
++}
+ 
++func (rr *dnsRR_AAAA) Header() *dnsRR_Header {
++	return &rr.Hdr
++}
+ 
+ // Packing and unpacking.
+ //
+@@ -270,6 +281,7 @@ var rr_mk = map[int]func() dnsRR{
+ 	dnsTypeTXT:   func() dnsRR { return new(dnsRR_TXT) },
+ 	dnsTypeSRV:   func() dnsRR { return new(dnsRR_SRV) },
+ 	dnsTypeA:     func() dnsRR { return new(dnsRR_A) },
++	dnsTypeAAAA:  func() dnsRR { return new(dnsRR_AAAA) },
+ }
+ 
+ // Pack a domain name s into msg[off:].
+@@ -377,7 +389,7 @@ Loop:
+ 
+ // TODO(rsc): Move into generic library?
+ // Pack a reflect.StructValue into msg.  Struct members can only be uint16, uint32, string,
+-// and other (often anonymous) structs.
++// [n]byte, and other (often anonymous) structs.
+ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
+ 	for i := 0; i < val.NumField(); i++ {
+ 		f := val.Type().(*reflect.StructType).Field(i)
+@@ -410,6 +422,16 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 				msg[off+3] = byte(i)
+ 				off += 4
+ 			}
++		case *reflect.ArrayValue:
++			if fv.Type().(*reflect.ArrayType).Elem().Kind() != reflect.Uint8 {
++				goto BadType
++			}
++			n := fv.Len()
++			if off+n > len(msg) {
++				return len(msg), false
++			}
++			reflect.Copy(reflect.NewValue(msg[off:off+n]).(*reflect.SliceValue), fv)
++			off += n
+ 		case *reflect.StringValue:
+ 			// There are multiple string encodings.
+ 			// The tag distinguishes ordinary strings from domain names.
+@@ -478,6 +500,16 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 				fv.Set(uint64(i))
+ 				off += 4
+ 			}
++		case *reflect.ArrayValue:
++			if fv.Type().(*reflect.ArrayType).Elem().Kind() != reflect.Uint8 {
++				goto BadType
++			}
++			n := fv.Len()
++			if off+n > len(msg) {
++				return len(msg), false
++			}
++			reflect.Copy(fv, reflect.NewValue(msg[off:off+n]).(*reflect.SliceValue))
++			off += n
+ 		case *reflect.StringValue:
+ 			var s string
+ 			switch f.Tag {
+@@ -515,7 +547,8 @@ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ 
+ // Generic struct printer.
+ // Doesn't care about the string tag "domain-name",
+-// but does look for an "ipv4" tag on uint32 variables,
++// but does look for an "ipv4" tag on uint32 variables
++// and the "ipv6" tag on array variables,
+ // printing them as IP addresses.
+ func printStructValue(val *reflect.StructValue) string {
+ 	s := "{"
+@@ -533,6 +566,9 @@ func printStructValue(val *reflect.StructValue) string {
+ 		} else if fv, ok := fval.(*reflect.UintValue); ok && f.Tag == "ipv4" {
+ 			i := fv.Get()
+ 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String()
++		} else if fv, ok := fval.(*reflect.ArrayValue); ok && f.Tag == "ipv6" {
++			i := fv.Interface().([]byte)
++			s += IP(i).String()
+ 		} else {
+ 			s += fmt.Sprint(fval.Interface())
+ 		}
+diff --git a/src/pkg/net/hosts_test.go b/src/pkg/net/hosts_test.go
+index 84cd92e376..470e35f786 100644
+--- a/src/pkg/net/hosts_test.go
++++ b/src/pkg/net/hosts_test.go
+@@ -13,7 +13,6 @@ type hostTest struct {
+ 	ips  []IP
+ }
+ 
+-
+ var hosttests = []hostTest{
+ 	{"odin", []IP{
+ 		IPv4(127, 0, 0, 2),
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 1904af0d6a..12bb6f351a 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -474,13 +474,13 @@ func parseIPv6(s string) IP {
+ 	return p
+ }
+ 
+-// A SyntaxError represents a malformed text string and the type of string that was expected.
+-type SyntaxError struct {
++// A ParseError represents a malformed text string and the type of string that was expected.
++type ParseError struct {
+ 	Type string
+ 	Text string
+ }
+ 
+-func (e *SyntaxError) String() string {
++func (e *ParseError) String() string {
+ 	return "invalid " + e.Type + ": " + e.Text
+ }
+ 
+@@ -507,33 +507,46 @@ func ParseIP(s string) IP {
+ }
+ 
+ // ParseCIDR parses s as a CIDR notation IP address and mask,
+-// like "192.168.100.1/24" or "2001:DB8::/48".
++// like "192.168.100.1/24", "2001:DB8::/48", as defined in
++// RFC 4632 and RFC 4291.
+ func ParseCIDR(s string) (ip IP, mask IPMask, err os.Error) {
+ 	i := byteIndex(s, '/')
+ 	if i < 0 {
+-		return nil, nil, &SyntaxError{"CIDR address", s}
++		return nil, nil, &ParseError{"CIDR address", s}
+ 	}
+ 	ipstr, maskstr := s[:i], s[i+1:]
+-	ip = ParseIP(ipstr)
++	iplen := 4
++	ip = parseIPv4(ipstr)
++	if ip == nil {
++		iplen = 16
++		ip = parseIPv6(ipstr)
++	}
+ 	nn, i, ok := dtoi(maskstr, 0)
+-	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*len(ip) {
+-		return nil, nil, &SyntaxError{"CIDR address", s}
++	if ip == nil || !ok || i != len(maskstr) || nn < 0 || nn > 8*iplen {
++		return nil, nil, &ParseError{"CIDR address", s}
+ 	}
+ 	n := uint(nn)
+-	if len(ip) == 4 {
++	if iplen == 4 {
+ 		v4mask := ^uint32(0xffffffff >> n)
+-		mask = IPMask(IPv4(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask)))
+-		return ip, mask, nil
+-	}
+-	mask = make(IPMask, 16)
+-	for i := 0; i < 16; i++ {
+-		if n >= 8 {
+-			mask[i] = 0xff
+-			n -= 8
+-			continue
++		mask = IPv4Mask(byte(v4mask>>24), byte(v4mask>>16), byte(v4mask>>8), byte(v4mask))
++	} else {
++		mask = make(IPMask, 16)
++		for i := 0; i < 16; i++ {
++			if n >= 8 {
++				mask[i] = 0xff
++				n -= 8
++				continue
++			}
++			mask[i] = ^byte(0xff >> n)
++			n = 0
++
++		}
++	}
++	// address must not have any bits not in mask
++	for i := range ip {
++		if ip[i]&^mask[i] != 0 {
++			return nil, nil, &ParseError{"CIDR address", s}
+ 		}
+-		mask[i] = ^byte(0xff >> n)
+-		n = 0
+ 	}
+ 	return ip, mask, nil
+ }
+diff --git a/src/pkg/net/ip_test.go b/src/pkg/net/ip_test.go
+index e29c3021da..f1a4716d22 100644
+--- a/src/pkg/net/ip_test.go
++++ b/src/pkg/net/ip_test.go
+@@ -5,30 +5,26 @@
+ package net
+ 
+ import (
++	"bytes"
++	"reflect"
+ 	"testing"
++	"os"
+ )
+ 
+-func isEqual(a, b IP) bool {
++func isEqual(a, b []byte) bool {
+ 	if a == nil && b == nil {
+ 		return true
+ 	}
+-	if a == nil || b == nil || len(a) != len(b) {
++	if a == nil || b == nil {
+ 		return false
+ 	}
+-	for i := 0; i < len(a); i++ {
+-		if a[i] != b[i] {
+-			return false
+-		}
+-	}
+-	return true
++	return bytes.Equal(a, b)
+ }
+ 
+-type parseIPTest struct {
++var parseiptests = []struct {
+ 	in  string
+ 	out IP
+-}
+-
+-var parseiptests = []parseIPTest{
++}{
+ 	{"127.0.1.2", IPv4(127, 0, 1, 2)},
+ 	{"127.0.0.1", IPv4(127, 0, 0, 1)},
+ 	{"127.0.0.256", nil},
+@@ -43,20 +39,17 @@ var parseiptests = []parseIPTest{
+ }
+ 
+ func TestParseIP(t *testing.T) {
+-	for i := 0; i < len(parseiptests); i++ {
+-		tt := parseiptests[i]
++	for _, tt := range parseiptests {
+ 		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
+ 			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out)
+ 		}
+ 	}
+ }
+ 
+-type ipStringTest struct {
++var ipstringtests = []struct {
+ 	in  IP
+ 	out string
+-}
+-
+-var ipstringtests = []ipStringTest{
++}{
+ 	// cf. RFC 5952 (A Recommendation for IPv6 Address Text Representation)
+ 	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0,
+ 		0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
+@@ -85,10 +78,67 @@ var ipstringtests = []ipStringTest{
+ }
+ 
+ func TestIPString(t *testing.T) {
+-	for i := 0; i < len(ipstringtests); i++ {
+-		tt := ipstringtests[i]
++	for _, tt := range ipstringtests {
+ 		if out := tt.in.String(); out != tt.out {
+ 			t.Errorf("IP.String(%v) = %#q, want %#q", tt.in, out, tt.out)
+ 		}
+ 	}
+ }
++
++var parsecidrtests = []struct {
++	in   string
++	ip   IP
++	mask IPMask
++	err  os.Error
++}{
++	{"135.104.0.0/32", IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 255), nil},
++	{"0.0.0.0/24", IPv4(0, 0, 0, 0), IPv4Mask(255, 255, 255, 0), nil},
++	{"135.104.0.0/24", IPv4(135, 104, 0, 0), IPv4Mask(255, 255, 255, 0), nil},
++	{"135.104.0.1/32", IPv4(135, 104, 0, 1), IPv4Mask(255, 255, 255, 255), nil},
++	{"135.104.0.1/24", nil, nil, &ParseError{"CIDR address", "135.104.0.1/24"}},
++	{"::1/128", ParseIP("::1"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")), nil},
++	{"abcd:2345::/127", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe")), nil},
++	{"abcd:2345::/65", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff:8000::")), nil},
++	{"abcd:2345::/64", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:ffff::")), nil},
++	{"abcd:2345::/63", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:ffff:fffe::")), nil},
++	{"abcd:2345::/33", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff:8000::")), nil},
++	{"abcd:2345::/32", ParseIP("abcd:2345::"), IPMask(ParseIP("ffff:ffff::")), nil},
++	{"abcd:2344::/31", ParseIP("abcd:2344::"), IPMask(ParseIP("ffff:fffe::")), nil},
++	{"abcd:2300::/24", ParseIP("abcd:2300::"), IPMask(ParseIP("ffff:ff00::")), nil},
++	{"abcd:2345::/24", nil, nil, &ParseError{"CIDR address", "abcd:2345::/24"}},
++	{"2001:DB8::/48", ParseIP("2001:DB8::"), IPMask(ParseIP("ffff:ffff:ffff::")), nil},
++}
++
++func TestParseCIDR(t *testing.T) {
++	for _, tt := range parsecidrtests {
++		if ip, mask, err := ParseCIDR(tt.in); !isEqual(ip, tt.ip) || !isEqual(mask, tt.mask) || !reflect.DeepEqual(err, tt.err) {
++			t.Errorf("ParseCIDR(%q) = %v, %v, %v; want %v, %v, %v", tt.in, ip, mask, err, tt.ip, tt.mask, tt.err)
++		}
++	}
++}
++
++var splitjointests = []struct {
++	Host string
++	Port string
++	Join string
++}{
++	{"www.google.com", "80", "www.google.com:80"},
++	{"127.0.0.1", "1234", "127.0.0.1:1234"},
++	{"::1", "80", "[::1]:80"},
++}
++
++func TestSplitHostPort(t *testing.T) {
++	for _, tt := range splitjointests {
++		if host, port, err := SplitHostPort(tt.Join); host != tt.Host || port != tt.Port || err != nil {
++			t.Errorf("SplitHostPort(%q) = %q, %q, %v; want %q, %q, nil", tt.Join, host, port, err, tt.Host, tt.Port)
++		}
++	}
++}
++
++func TestJoinHostPort(t *testing.T) {
++	for _, tt := range splitjointests {
++		if join := JoinHostPort(tt.Host, tt.Port); join != tt.Join {
++			t.Errorf("JoinHostPort(%q, %q) = %q; want %q", tt.Host, tt.Port, join, tt.Join)
++		}
++	}
++}
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 81a918ce5c..60433303ae 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -240,7 +240,7 @@ func hostToIP(host string) (ip IP, err os.Error) {
+ 	addr = ParseIP(host)
+ 	if addr == nil {
+ 		// Not an IP address.  Try as a DNS name.
+-		_, addrs, err1 := LookupHost(host)
++		addrs, err1 := LookupHost(host)
+ 		if err1 != nil {
+ 			err = err1
+ 			goto Error
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index ae4204b48a..80bc3eea5d 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -170,9 +170,10 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 	return nil, InvalidAddrError("unexpected socket family")
+ }
+ 
+-// Split "host:port" into "host" and "port".
+-// Host cannot contain colons unless it is bracketed.
+-func splitHostPort(hostport string) (host, port string, err os.Error) {
++// SplitHostPort splits a network address of the form
++// "host:port" or "[host]:port" into host and port.
++// The latter form must be used when host contains a colon.
++func SplitHostPort(hostport string) (host, port string, err os.Error) {
+ 	// The port starts after the last colon.
+ 	i := last(hostport, ':')
+ 	if i < 0 {
+@@ -195,9 +196,9 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
+ 	return
+ }
+ 
+-// Join "host" and "port" into "host:port".
+-// If host contains colons, will join into "[host]:port".
+-func joinHostPort(host, port string) string {
++// JoinHostPort combines host and port into a network address
++// of the form "host:port" or, if host contains a colon, "[host]:port".
++func JoinHostPort(host, port string) string {
+ 	// If host has colons, have to bracket it.
+ 	if byteIndex(host, ':') >= 0 {
+ 		return "[" + host + "]:" + port
+@@ -207,7 +208,7 @@ func joinHostPort(host, port string) string {
+ 
+ // Convert "host:port" into IP address and port.
+ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+-	host, port, err := splitHostPort(hostport)
++	host, port, err := SplitHostPort(hostport)
+ 	if err != nil {
+ 		goto Error
+ 	}
+@@ -218,7 +219,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 		addr = ParseIP(host)
+ 		if addr == nil {
+ 			// Not an IP address.  Try as a DNS name.
+-			_, addrs, err1 := LookupHost(host)
++			addrs, err1 := LookupHost(host)
+ 			if err1 != nil {
+ 				err = err1
+ 				goto Error
+diff --git a/src/pkg/net/lookup.go b/src/pkg/net/lookup.go
+new file mode 100644
+index 0000000000..7b2185ed41
+--- /dev/null
++++ b/src/pkg/net/lookup.go
+@@ -0,0 +1,38 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"os"
++)
++
++// LookupHost looks up the given host using the local resolver.
++// It returns an array of that host's addresses.
++func LookupHost(host string) (addrs []string, err os.Error) {
++	addrs, err, ok := cgoLookupHost(host)
++	if !ok {
++		addrs, err = goLookupHost(host)
++	}
++	return
++}
++
++// LookupIP looks up host using the local resolver.
++// It returns an array of that host's IPv4 and IPv6 addresses.
++func LookupIP(host string) (addrs []IP, err os.Error) {
++	addrs, err, ok := cgoLookupIP(host)
++	if !ok {
++		addrs, err = goLookupIP(host)
++	}
++	return
++}
++
++// LookupPort looks up the port for the given network and service.
++func LookupPort(network, service string) (port int, err os.Error) {
++	port, err, ok := cgoLookupPort(network, service)
++	if !ok {
++		port, err = goLookupPort(network, service)
++	}
++	return
++}
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 1e6e99eec7..f7eae56fea 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -15,50 +15,49 @@ var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check f
+ 
+ type DialErrorTest struct {
+ 	Net     string
+-	Laddr   string
+ 	Raddr   string
+ 	Pattern string
+ }
+ 
+ var dialErrorTests = []DialErrorTest{
+ 	{
+-		"datakit", "", "mh/astro/r70",
++		"datakit", "mh/astro/r70",
+ 		"dial datakit mh/astro/r70: unknown network datakit",
+ 	},
+ 	{
+-		"tcp", "", "127.0.0.1:☺",
++		"tcp", "127.0.0.1:☺",
+ 		"dial tcp 127.0.0.1:☺: unknown port tcp/☺",
+ 	},
+ 	{
+-		"tcp", "", "no-such-name.google.com.:80",
++		"tcp", "no-such-name.google.com.:80",
+ 		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
+ 	},
+ 	{
+-		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
++		"tcp", "no-such-name.no-such-top-level-domain.:80",
+ 		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no (.*)",
+ 	},
+ 	{
+-		"tcp", "", "no-such-name:80",
++		"tcp", "no-such-name:80",
+ 		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
+ 	},
+ 	{
+-		"tcp", "", "mh/astro/r70:http",
++		"tcp", "mh/astro/r70:http",
+ 		"dial tcp mh/astro/r70:http: lookup mh/astro/r70: invalid domain name",
+ 	},
+ 	{
+-		"unix", "", "/etc/file-not-found",
++		"unix", "/etc/file-not-found",
+ 		"dial unix /etc/file-not-found: no such file or directory",
+ 	},
+ 	{
+-		"unix", "", "/etc/",
++		"unix", "/etc/",
+ 		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
+ 	},
+ 	{
+-		"unixpacket", "", "/etc/file-not-found",
++		"unixpacket", "/etc/file-not-found",
+ 		"dial unixpacket /etc/file-not-found: no such file or directory",
+ 	},
+ 	{
+-		"unixpacket", "", "/etc/",
++		"unixpacket", "/etc/",
+ 		"dial unixpacket /etc/: (permission denied|socket operation on non-socket|connection refused)",
+ 	},
+ }
+@@ -69,7 +68,7 @@ func TestDialError(t *testing.T) {
+ 		return
+ 	}
+ 	for i, tt := range dialErrorTests {
+-		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr)
++		c, e := Dial(tt.Net, tt.Raddr)
+ 		if c != nil {
+ 			c.Close()
+ 		}
+diff --git a/src/pkg/net/port.go b/src/pkg/net/port.go
+index 7d25058b29..8f8327a373 100644
+--- a/src/pkg/net/port.go
++++ b/src/pkg/net/port.go
+@@ -50,8 +50,8 @@ func readServices() {
+ 	file.close()
+ }
+ 
+-// LookupPort looks up the port for the given network and service.
+-func LookupPort(network, service string) (port int, err os.Error) {
++// goLookupPort is the native Go implementation of LookupPort.
++func goLookupPort(network, service string) (port int, err os.Error) {
+ 	onceReadServices.Do(readServices)
+ 
+ 	switch network {
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 3dda500e58..37695a068d 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -54,13 +54,15 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done
+ }
+ 
+ func connect(t *testing.T, network, addr string, isEmpty bool) {
+-	var laddr string
++	var fd Conn
++	var err os.Error
+ 	if network == "unixgram" {
+-		laddr = addr + ".local"
++		fd, err = DialUnix(network, &UnixAddr{addr + ".local", network}, &UnixAddr{addr, network})
++	} else {
++		fd, err = Dial(network, addr)
+ 	}
+-	fd, err := Dial(network, laddr, addr)
+ 	if err != nil {
+-		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err)
++		t.Fatalf("net.Dial(%q, %q) = _, %v", network, addr, err)
+ 	}
+ 	fd.SetReadTimeout(1e9) // 1s
+ 
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 8ad3548add..26816264c3 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -167,9 +167,9 @@ func (e *UnknownSocketError) String() string {
+ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
+ 	switch a := sa.(type) {
+ 	case *syscall.SockaddrInet4:
+-		return joinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
++		return JoinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
+ 	case *syscall.SockaddrInet6:
+-		return joinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
++		return JoinHostPort(IP(a.Addr[0:]).String(), itoa(a.Port)), nil
+ 	case *syscall.SockaddrUnix:
+ 		return a.Name, nil
+ 	}
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index a4bca11bb4..b484be20b4 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -34,7 +34,7 @@ func (a *TCPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
+-	return joinHostPort(a.IP.String(), itoa(a.Port))
++	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
+ func (a *TCPAddr) family() int {
+@@ -213,8 +213,9 @@ func (c *TCPConn) SetNoDelay(noDelay bool) os.Error {
+ // Closing c does not affect f, and closing f does not affect c.
+ func (c *TCPConn) File() (f *os.File, err os.Error) { return c.fd.dup() }
+ 
+-// DialTCP is like Dial but can only connect to TCP networks
+-// and returns a TCPConn structure.
++// DialTCP connects to the remote address raddr on the network net,
++// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
++// as the local address for the connection.
+ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
+diff --git a/src/pkg/net/textproto/textproto.go b/src/pkg/net/textproto/textproto.go
+index f62009c523..fbfad9d61c 100644
+--- a/src/pkg/net/textproto/textproto.go
++++ b/src/pkg/net/textproto/textproto.go
+@@ -78,7 +78,7 @@ func (c *Conn) Close() os.Error {
+ // Dial connects to the given address on the given network using net.Dial
+ // and then returns a new Conn for the connection.
+ func Dial(network, addr string) (*Conn, os.Error) {
+-	c, err := net.Dial(network, "", addr)
++	c, err := net.Dial(network, addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 09a257dc81..0dbab5846a 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+-	fd, err := Dial(network, "", addr)
++	fd, err := Dial(network, addr)
+ 	if err != nil {
+ 		t.Errorf("dial %s %s failed: %v", network, addr, err)
+ 		return
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index f9274493e6..44d618dab0 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -34,7 +34,7 @@ func (a *UDPAddr) String() string {
+ 	if a == nil {
+ 		return "<nil>"
+ 	}
+-	return joinHostPort(a.IP.String(), itoa(a.Port))
++	return JoinHostPort(a.IP.String(), itoa(a.Port))
+ }
+ 
+ func (a *UDPAddr) family() int {

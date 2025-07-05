@@ -12,7 +12,114 @@ Date:   Fri Mar 20 16:05:24 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 49 +++++++++++++++++++++++++++--------------
  src/cmd/internal/obj/plist.go   | 23 +++++++++++++++++--
  2 files changed, 53 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index c0f8f9bbb8..3e97c614b8 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -507,11 +507,17 @@ func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
+ func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
+ 	ls := s.(*LSym)
+ 	rsym := f.(*LSym)
+-	fidx := c.Link.PosTable.FileIndex(rsym.Name)
+-	// Note the +1 here -- the value we're writing is going to be an
+-	// index into the DWARF line table file section, whose entries
+-	// are numbered starting at 1, not 0.
+-	ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
++	if c.Link.Flag_go115newobj {
++		fidx := c.Link.PosTable.FileIndex(rsym.Name)
++		// Note the +1 here -- the value we're writing is going to be an
++		// index into the DWARF line table file section, whose entries
++		// are numbered starting at 1, not 0.
++		ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
++	} else {
++		ls.WriteAddr(c.Link, ls.Size, 4, rsym, 0)
++		r := &ls.R[len(ls.R)-1]
++		r.Type = objabi.R_DWARFFILEREF
++	}
+ }
+ 
+ func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {
+@@ -549,23 +555,32 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym,
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+ 	if s.Func.dwarfInfoSym == nil {
+-		s.Func.dwarfInfoSym = &LSym{
+-			Type: objabi.SDWARFINFO,
+-		}
+-		if ctxt.Flag_locationlists {
+-			s.Func.dwarfLocSym = &LSym{
+-				Type: objabi.SDWARFLOC,
++		if ctxt.Flag_go115newobj {
++			s.Func.dwarfInfoSym = &LSym{
++				Type: objabi.SDWARFINFO,
+ 			}
+-		}
+-		s.Func.dwarfRangesSym = &LSym{
+-			Type: objabi.SDWARFRANGE,
++			if ctxt.Flag_locationlists {
++				s.Func.dwarfLocSym = &LSym{
++					Type: objabi.SDWARFLOC,
++				}
++			}
++			s.Func.dwarfRangesSym = &LSym{
++				Type: objabi.SDWARFRANGE,
++			}
++			s.Func.dwarfDebugLinesSym = &LSym{
++				Type: objabi.SDWARFLINES,
++			}
++		} else {
++			s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
++			if ctxt.Flag_locationlists {
++				s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
++			}
++			s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
++			s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
+ 		}
+ 		if s.WasInlined() {
+ 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 		}
+-		s.Func.dwarfDebugLinesSym = &LSym{
+-			Type: objabi.SDWARFLINES,
+-		}
+ 	}
+ 	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
+ }
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 57438d57ea..44ec4602de 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -138,8 +138,27 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	s.Type = objabi.STEXT
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+-	// Set up DWARF entries for s.
+-	ctxt.dwarfSym(s)
++	// Set up DWARF entries for s
++	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
++
++	// When using new object files, the DWARF symbols are unnamed aux
++	// symbols and don't need to be added to ctxt.Data.
++	// But the old object file still needs them.
++	if !ctxt.Flag_go115newobj {
++		info.Type = objabi.SDWARFINFO
++		info.Set(AttrDuplicateOK, s.DuplicateOK())
++		if loc != nil {
++			loc.Type = objabi.SDWARFLOC
++			loc.Set(AttrDuplicateOK, s.DuplicateOK())
++			ctxt.Data = append(ctxt.Data, loc)
++		}
++		ranges.Type = objabi.SDWARFRANGE
++		ranges.Set(AttrDuplicateOK, s.DuplicateOK())
++		ctxt.Data = append(ctxt.Data, info, ranges)
++		lines.Type = objabi.SDWARFLINES
++		lines.Set(AttrDuplicateOK, s.DuplicateOK())
++		ctxt.Data = append(ctxt.Data, lines)
++	}
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

@@ -16,7 +16,7 @@ Date:   Sun Mar 29 20:19:20 2015 +0900
     Change-Id: Iacf0ebea23cdd8f6c0333d70c667a5a5f5eb0ed2
     Reviewed-on: https://go-review.googlesource.com/8220
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial_gen.go      | 10 ++----
  src/net/dial_gen_test.go | 11 -------
  src/net/dial_test.go     | 83 ------------------------------------------------
@@ -25,3 +25,255 @@ Date:   Sun Mar 29 20:19:20 2015 +0900
  src/net/hook_windows.go  |  7 +++-
  src/net/timeout_test.go  | 48 ++++++++++++++++++++++++++++
  7 files changed, 67 insertions(+), 103 deletions(-)
+
+diff --git a/src/net/dial_gen.go b/src/net/dial_gen.go
+index ada6233003..654ef9383a 100644
+--- a/src/net/dial_gen.go
++++ b/src/net/dial_gen.go
+@@ -6,11 +6,7 @@
+ 
+ package net
+ 
+-import (
+-	"time"
+-)
+-
+-var testingIssue5349 bool // used during tests
++import "time"
+ 
+ // dialChannel is the simple pure-Go implementation of dial, still
+ // used on operating systems where the deadline hasn't been pushed
+@@ -31,9 +27,7 @@ func dialChannel(net string, ra Addr, dialer func(time.Time) (Conn, error), dead
+ 	}
+ 	ch := make(chan racer, 1)
+ 	go func() {
+-		if testingIssue5349 {
+-			time.Sleep(time.Millisecond)
+-		}
++		testHookDialChannel()
+ 		c, err := dialer(noDeadline)
+ 		ch <- racer{c, err}
+ 	}()
+diff --git a/src/net/dial_gen_test.go b/src/net/dial_gen_test.go
+deleted file mode 100644
+index c857acd06d..0000000000
+--- a/src/net/dial_gen_test.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build windows plan9
+-
+-package net
+-
+-func init() {
+-	testingIssue5349 = true
+-}
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 42898d669f..15ee71b9a0 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -31,89 +31,6 @@ func newLocalListener(t *testing.T) Listener {
+ 	return ln
+ }
+ 
+-func TestDialTimeout(t *testing.T) {
+-	origBacklog := listenerBacklog
+-	defer func() {
+-		listenerBacklog = origBacklog
+-	}()
+-	listenerBacklog = 1
+-
+-	ln := newLocalListener(t)
+-	defer ln.Close()
+-
+-	errc := make(chan error)
+-
+-	numConns := listenerBacklog + 100
+-
+-	// TODO(bradfitz): It's hard to test this in a portable
+-	// way. This is unfortunate, but works for now.
+-	switch runtime.GOOS {
+-	case "linux":
+-		// The kernel will start accepting TCP connections before userspace
+-		// gets a chance to not accept them, so fire off a bunch to fill up
+-		// the kernel's backlog.  Then we test we get a failure after that.
+-		for i := 0; i < numConns; i++ {
+-			go func() {
+-				_, err := DialTimeout("tcp", ln.Addr().String(), 200*time.Millisecond)
+-				errc <- err
+-			}()
+-		}
+-	case "darwin", "plan9", "windows":
+-		// At least OS X 10.7 seems to accept any number of
+-		// connections, ignoring listen's backlog, so resort
+-		// to connecting to a hopefully-dead 127/8 address.
+-		// Same for windows.
+-		//
+-		// Use an IANA reserved port (49151) instead of 80, because
+-		// on our 386 builder, this Dial succeeds, connecting
+-		// to an IIS web server somewhere.  The data center
+-		// or VM or firewall must be stealing the TCP connection.
+-		//
+-		// IANA Service Name and Transport Protocol Port Number Registry
+-		// <http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml>
+-		go func() {
+-			c, err := DialTimeout("tcp", "127.0.71.111:49151", 200*time.Millisecond)
+-			if err == nil {
+-				err = fmt.Errorf("unexpected: connected to %s!", c.RemoteAddr())
+-				c.Close()
+-			}
+-			errc <- err
+-		}()
+-	default:
+-		// TODO(bradfitz):
+-		// OpenBSD may have a reject route to 127/8 except 127.0.0.1/32
+-		// by default. FreeBSD likely works, but is untested.
+-		// TODO(rsc):
+-		// The timeout never happens on Windows.  Why?  Issue 3016.
+-		t.Skipf("skipping test on %q; untested.", runtime.GOOS)
+-	}
+-
+-	connected := 0
+-	for {
+-		select {
+-		case <-time.After(15 * time.Second):
+-			t.Fatal("too slow")
+-		case err := <-errc:
+-			if err == nil {
+-				connected++
+-				if connected == numConns {
+-					t.Fatal("all connections connected; expected some to time out")
+-				}
+-			} else {
+-				terr, ok := err.(timeout)
+-				if !ok {
+-					t.Fatalf("got error %q; want error with timeout interface", err)
+-				}
+-				if !terr.Timeout() {
+-					t.Fatalf("got error %q; not a timeout", err)
+-				}
+-				// Pass. We saw a timeout error.
+-				return
+-			}
+-		}
+-	}
+-}
+-
+ func TestSelfConnect(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		// TODO(brainman): do not know why it hangs.
+diff --git a/src/net/hook_plan9.go b/src/net/hook_plan9.go
+new file mode 100644
+index 0000000000..e053348505
+--- /dev/null
++++ b/src/net/hook_plan9.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "time"
++
++var testHookDialChannel = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
+diff --git a/src/net/hook_unix.go b/src/net/hook_unix.go
+index 626d07fbb0..bb198e0228 100644
+--- a/src/net/hook_unix.go
++++ b/src/net/hook_unix.go
+@@ -9,6 +9,8 @@ package net
+ import "syscall"
+ 
+ var (
++	testHookDialChannel = func() {} // see golang.org/issue/5349
++
+ 	// Placeholders for socket system calls.
+ 	socketFunc        func(int, int, int) (int, error)         = syscall.Socket
+ 	closeFunc         func(int) error                          = syscall.Close
+diff --git a/src/net/hook_windows.go b/src/net/hook_windows.go
+index 2a6e5bf267..59c32d2c98 100644
+--- a/src/net/hook_windows.go
++++ b/src/net/hook_windows.go
+@@ -4,9 +4,14 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ var (
++	testHookDialChannel = func() { time.Sleep(time.Millisecond) } // see golang.org/issue/5349
++
+ 	// Placeholders for socket system calls.
+ 	socketFunc    func(int, int, int) (syscall.Handle, error)                                               = syscall.Socket
+ 	closeFunc     func(syscall.Handle) error                                                                = syscall.Closesocket
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 9ef0c4d15c..b46321b13b 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -8,11 +8,59 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
++	"net/internal/socktest"
+ 	"runtime"
+ 	"testing"
+ 	"time"
+ )
+ 
++func TestDialTimeout(t *testing.T) {
++	const T = 100 * time.Millisecond
++
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		origTestHookDialChannel := testHookDialChannel
++		testHookDialChannel = func() { time.Sleep(2 * T) }
++		defer func() { testHookDialChannel = origTestHookDialChannel }()
++		if runtime.GOOS == "plan9" {
++			break
++		}
++		fallthrough
++	default:
++		sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
++			time.Sleep(2 * T)
++			return nil, errTimeout
++		})
++		defer sw.Set(socktest.FilterConnect, nil)
++	}
++
++	ch := make(chan error)
++	go func() {
++		// This dial never starts to send any SYN segment
++		// because of above socket filter and test hook.
++		c, err := DialTimeout("tcp", "127.0.0.1:0", T)
++		if err == nil {
++			err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
++			c.Close()
++		}
++		ch <- err
++	}()
++	tmo := time.NewTimer(3 * T)
++	defer tmo.Stop()
++	select {
++	case <-tmo.C:
++		t.Fatal("dial has not returned")
++	case err := <-ch:
++		nerr, ok := err.(Error)
++		if !ok {
++			t.Fatalf("got %v; want error implements Error interface", err)
++		}
++		if !nerr.Timeout() {
++			t.Fatalf("got %v; want timeout error", err)
++		}
++	}
++}
++
+ func isTimeout(err error) bool {
+ 	e, ok := err.(Error)
+ 	return ok && e.Timeout()

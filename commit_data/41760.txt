@@ -10,6 +10,34 @@ Date:   Mon Oct 21 12:18:27 2019 -0400
     Change-Id: Ida39516ab1c14a34a62c2232476a75e83f4e3f75
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202657
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/env_plan9.go | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/env_plan9.go b/src/syscall/env_plan9.go
+index 9a8a837e7d..e403a25e31 100644
+--- a/src/syscall/env_plan9.go
++++ b/src/syscall/env_plan9.go
+@@ -74,7 +74,21 @@ func Setenv(key, value string) error {
+ }
+ 
+ func Clearenv() {
+-	RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
++	// Creating a new environment group using rfork(RFCENVG) can race
++	// with access to files in /env (e.g. from Setenv or Getenv).
++	// Remove all environment variables in current environment group instead.
++	fd, err := open("/env", O_RDONLY)
++	if err != nil {
++		return
++	}
++	defer Close(fd)
++	files, err := readdirnames(fd)
++	if err != nil {
++		return
++	}
++	for _, key := range files {
++		Remove("/env/" + key)
++	}
+ }
+ 
+ func Unsetenv(key string) error {

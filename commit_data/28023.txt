@@ -12,6 +12,36 @@ Date:   Tue Apr 26 21:37:49 2016 +1200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f7b9b79c2f..53428bb1c6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1204,6 +1204,24 @@ func hostlink() {
+ 
+ 	argv = append(argv, ldflag...)
+ 
++	if flag_race != 0 {
++		// On a system where the toolchain creates position independent
++		// executables by default, tsan initialization can fail. So we pass
++		// -no-pie here, but support for that flag is quite new and we test
++		// for its support first.
++		src := filepath.Join(tmpdir, "trivial.c")
++		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
++			Ctxt.Diag("WriteFile trivial.c failed: %v", err)
++		}
++		cmd := exec.Command(argv[0], "-no-pie", "trivial.c")
++		cmd.Dir = tmpdir
++		out, err := cmd.CombinedOutput()
++		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
++		if supported {
++			argv = append(argv, "-no-pie")
++		}
++	}
++
+ 	for _, p := range strings.Fields(extldflags) {
+ 		argv = append(argv, p)
+ 

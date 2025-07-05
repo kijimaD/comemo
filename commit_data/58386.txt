@@ -12,9 +12,312 @@ Date:   Wed Aug 30 10:06:00 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modcmd/download.go             |  81 ++++++++++++----
  src/cmd/go/testdata/script/gotoolchain_modcmds.txt |   8 --
  .../script/mod_download_exec_toolchain.txt         | 106 +++++++++++++++++++++
  src/cmd/go/testdata/script/mod_get_future.txt      |   3 +-
  4 files changed, 173 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index e49cd9fe0c..b1f26975bc 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"os"
+ 	"runtime"
++	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -17,6 +18,7 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/toolchain"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -194,8 +196,16 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// from the resulting TooNewError), all before we try the actual full download
+ 	// of each module.
+ 	//
+-	// For now, we just let it fail: the user can explicitly set GOTOOLCHAIN
+-	// and retry if they want to.
++	// For now, we go ahead and try all the downloads and collect the errors, and
++	// if any download failed due to a TooNewError, we switch toolchains and try
++	// again. Any downloads that already succeeded will still be in cache.
++	// That won't give optimal concurrency (we'll do two batches of concurrent
++	// downloads instead of all in one batch), and it might add a little overhead
++	// to look up the downloads from the first batch in the module cache when
++	// we see them again in the second batch. On the other hand, it's way simpler
++	// to implement, and not really any more expensive if the user is requesting
++	// no explicit arguments (their go.mod file should already list an appropriate
++	// toolchain version) or only one module (as is used by the Go Module Proxy).
+ 
+ 	if !haveExplicitArgs && modload.WorkFilePath() == "" {
+ 		// 'go mod download' is sometimes run without arguments to pre-populate the
+@@ -211,8 +221,17 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		if err := modload.WriteGoMod(ctx, modload.WriteOpts{}); err != nil {
+ 			base.Fatal(err)
+ 		}
++	} else if infosErr != nil {
++		var sw toolchain.Switcher
++		sw.Error(infosErr)
++		if sw.NeedSwitch() {
++			sw.Switch(ctx)
++		}
++		// Otherwise, wait to report infosErr after we have downloaded
++		// when we can.
+ 	}
+ 
++	var downloadErrs sync.Map
+ 	for _, info := range infos {
+ 		if info.Replace != nil {
+ 			info = info.Replace
+@@ -239,7 +258,11 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		sem <- token{}
+ 		go func() {
+-			DownloadModule(ctx, m)
++			err := DownloadModule(ctx, m)
++			if err != nil {
++				downloadErrs.Store(m, err)
++				m.Error = err.Error()
++			}
+ 			<-sem
+ 		}()
+ 	}
+@@ -249,6 +272,39 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 		sem <- token{}
+ 	}
+ 
++	// If there were explicit arguments
++	// (like 'go mod download golang.org/x/tools@latest'),
++	// check whether we need to upgrade the toolchain in order to download them.
++	//
++	// (If invoked without arguments, we expect the module graph to already
++	// be tidy and the go.mod file to declare a 'go' version that satisfies
++	// transitive requirements. If that invariant holds, then we should have
++	// already upgraded when we loaded the module graph, and should not need
++	// an additional check here. See https://go.dev/issue/45551.)
++	//
++	// We also allow upgrades if in a workspace because in workspace mode
++	// with no arguments we download the module pattern "all",
++	// which may include dependencies that are normally pruned out
++	// of the individual modules in the workspace.
++	if haveExplicitArgs || modload.WorkFilePath() != "" {
++		var sw toolchain.Switcher
++		// Add errors to the Switcher in deterministic order so that they will be
++		// logged deterministically.
++		for _, m := range mods {
++			if erri, ok := downloadErrs.Load(m); ok {
++				sw.Error(erri.(error))
++			}
++		}
++		// Only call sw.Switch if it will actually switch.
++		// Otherwise, we may want to write the errors as JSON
++		// (instead of using base.Error as sw.Switch would),
++		// and we may also have other errors to report from the
++		// initial infos returned by ListModules.
++		if sw.NeedSwitch() {
++			sw.Switch(ctx)
++		}
++	}
++
+ 	if *downloadJSON {
+ 		for _, m := range mods {
+ 			b, err := json.MarshalIndent(m, "", "\t")
+@@ -302,34 +358,27 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ // DownloadModule runs 'go mod download' for m.Path@m.Version,
+ // leaving the results (including any error) in m itself.
+-func DownloadModule(ctx context.Context, m *ModuleJSON) {
++func DownloadModule(ctx context.Context, m *ModuleJSON) error {
+ 	var err error
+ 	_, file, err := modfetch.InfoFile(ctx, m.Path, m.Version)
+ 	if err != nil {
+-		m.Error = err.Error()
+-		return
++		return err
+ 	}
+ 	m.Info = file
+ 	m.GoMod, err = modfetch.GoModFile(ctx, m.Path, m.Version)
+ 	if err != nil {
+-		m.Error = err.Error()
+-		return
++		return err
+ 	}
+ 	m.GoModSum, err = modfetch.GoModSum(ctx, m.Path, m.Version)
+ 	if err != nil {
+-		m.Error = err.Error()
+-		return
++		return err
+ 	}
+ 	mod := module.Version{Path: m.Path, Version: m.Version}
+ 	m.Zip, err = modfetch.DownloadZip(ctx, mod)
+ 	if err != nil {
+-		m.Error = err.Error()
+-		return
++		return err
+ 	}
+ 	m.Sum = modfetch.Sum(ctx, mod)
+ 	m.Dir, err = modfetch.Download(ctx, mod)
+-	if err != nil {
+-		m.Error = err.Error()
+-		return
+-	}
++	return err
+ }
+diff --git a/src/cmd/go/testdata/script/gotoolchain_modcmds.txt b/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
+index 83b75f0abb..64db6d9666 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_modcmds.txt
+@@ -7,12 +7,6 @@ env TESTGO_VERSION_SWITCH=switch
+ # they can't interpret the graph themselves, and they aren't allowed to update
+ # the go.mod file to record a specific, stable toolchain version that can.
+ 
+-! go mod download rsc.io/future@v1.0.0
+-stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+-
+-! go mod download rsc.io/future
+-stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+-
+ ! go mod download
+ stderr '^go: rsc.io/future@v1.0.0: module rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21.0\)'
+ 
+@@ -33,8 +27,6 @@ stderr '^go: added toolchain go1.999testmod$'
+ 
+ # Now, the various 'go mod' subcommands should succeed.
+ 
+-go mod download rsc.io/future@v1.0.0
+-go mod download rsc.io/future
+ go mod download
+ 
+ go mod verify
+diff --git a/src/cmd/go/testdata/script/mod_download_exec_toolchain.txt b/src/cmd/go/testdata/script/mod_download_exec_toolchain.txt
+new file mode 100644
+index 0000000000..e441457754
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_exec_toolchain.txt
+@@ -0,0 +1,106 @@
++env TESTGO_VERSION=go1.21
++env TESTGO_VERSION_SWITCH=switch
++
++# First, test 'go mod download' outside of a module.
++#
++# There is no go.mod file into which we can record the selected toolchain,
++# so unfortunately these version switches won't be as reproducible as other
++# go commands, but that's still preferable to failing entirely or downloading
++# a module zip that we don't understand.
++
++# GOTOOLCHAIN=auto should run the newer toolchain
++env GOTOOLCHAIN=auto
++go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++! stderr '\(running'
++
++# GOTOOLCHAIN=min+auto should run the newer toolchain
++env GOTOOLCHAIN=go1.21+auto
++go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++! stderr '\(running'
++
++# GOTOOLCHAIN=go1.21 should NOT run the newer toolchain
++env GOTOOLCHAIN=go1.21
++! go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
++! stderr switching
++stderr 'rsc.io/needgo122@v0.0.1 requires go >= 1.22'
++stderr 'rsc.io/needgo123@v0.0.1 requires go >= 1.23'
++stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
++stderr 'requires go >= 1.23'
++! stderr 'requires go >= 1.21' # that's us!
++
++
++# JSON output should be emitted exactly once,
++# and non-JSON output should go to stderr instead of stdout.
++env GOTOOLCHAIN=auto
++go mod download -json rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++! stderr '\(running'
++stdout -count=1 '"Path": "rsc.io/needgo121",'
++stdout -count=1 '"Path": "rsc.io/needgo122",'
++stdout -count=1 '"Path": "rsc.io/needgo123",'
++stdout -count=1 '"Path": "rsc.io/needall",'
++
++# GOTOOLCHAIN=go1.21 should write the errors in the JSON Error fields, not to stderr.
++env GOTOOLCHAIN=go1.21
++! go mod download -json rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
++! stderr switching
++stdout -count=1 '"Error": "rsc.io/needgo122@v0.0.1 requires go .*= 1.22 \(running go 1.21; GOTOOLCHAIN=go1.21\)"'
++stdout -count=1 '"Error": "rsc.io/needgo123@v0.0.1 requires go .*= 1.23 \(running go 1.21; GOTOOLCHAIN=go1.21\)"'
++stdout -count=1 '"Error": "rsc.io/needall@v0.0.1 requires go .*= 1.23 \(running go 1.21; GOTOOLCHAIN=go1.21\)"'
++! stdout '"Error": "rsc.io/needgo121'  # We can handle this one.
++! stderr .
++
++
++# Within a module, 'go mod download' of explicit versions should upgrade if
++# needed to perform the download, but should not change the main module's
++# toolchain version (because the downloaded modules are still not required by
++# the main module).
++
++cd example
++cp go.mod go.mod.orig
++
++env GOTOOLCHAIN=auto
++go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
++stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
++! stderr '\(running'
++cmp go.mod go.mod.orig
++
++
++# However, 'go mod download' without arguments should fix up the
++# 'go' and 'toolchain' lines to be consistent with the existing
++# requirements in the module graph.
++
++go mod edit -require=rsc.io/needall@v0.0.1
++cp go.mod go.mod.121
++
++# If an upgrade is needed, GOTOOLCHAIN=go1.21 should cause
++# the command to fail without changing go.mod.
++
++env GOTOOLCHAIN=go1.21
++! go mod download
++stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
++! stderr switching
++cmp go.mod go.mod.121
++
++# If an upgrade is needed, GOTOOLCHAIN=auto should perform
++# the upgrade and record the resulting toolchain version.
++
++env GOTOOLCHAIN=go1.21
++! go mod download
++stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
++! stderr switching
++cmp go.mod go.mod.final
++
++
++-- example/go.mod --
++module example
++
++go 1.21
++-- example/go.mod.final --
++module example
++
++go 1.21
++
++require rsc.io/needall v0.0.1
+diff --git a/src/cmd/go/testdata/script/mod_get_future.txt b/src/cmd/go/testdata/script/mod_get_future.txt
+index 72c0b97804..3f1c777d96 100644
+--- a/src/cmd/go/testdata/script/mod_get_future.txt
++++ b/src/cmd/go/testdata/script/mod_get_future.txt
+@@ -1,6 +1,7 @@
+ env TESTGO_VERSION=go1.21
++env GOTOOLCHAIN=local
+ ! go mod download rsc.io/future@v1.0.0
+-stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21\)$'
++stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21; GOTOOLCHAIN=local\)$'
+ 
+ -- go.mod --
+ module m

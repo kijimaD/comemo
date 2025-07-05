@@ -5,6 +5,20 @@ Date:   Wed Mar 19 21:20:25 2008 -0700
     - added extra escaped chars
     
     SVN=113258
-
+---
  doc/go_lang.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 31e4106905..f71810002a 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -399,7 +399,7 @@ The rules are:
+   little_u_value = "\" "u" hex_digit hex_digit hex_digit hex_digit .
+   big_u_value = "\" "U" hex_digit hex_digit hex_digit hex_digit
+                       hex_digit hex_digit hex_digit hex_digit .
+-  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" ) .
++  escaped_char = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | "\"" ) .
+ 
+ A UnicodeValue takes one of four forms:
+ 

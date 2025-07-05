@@ -24,7 +24,7 @@ Date:   Wed Apr 20 15:21:59 2011 -0400
     R=iant, r, mikioh
     CC=golang-dev
     https://golang.org/cl/4437053
-
+---
  src/pkg/net/Makefile           |  19 +++++-
  src/pkg/net/cgo_stub.go        |   4 ++
  src/pkg/net/cgo_unix.go        | 148 +++++++++++++++++++++++++++++++++++++++++
@@ -40,3 +40,558 @@ Date:   Wed Apr 20 15:21:59 2011 -0400
  src/pkg/net/tcpsock.go         |   4 +-
  src/pkg/net/udpsock.go         |   4 +-
  14 files changed, 279 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index 7ce6502798..a14027eb90 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -6,7 +6,6 @@ include ../../Make.inc
+ 
+ TARG=net
+ GOFILES=\
+-	cgo_stub.go\
+ 	dial.go\
+ 	dnsmsg.go\
+ 	fd_$(GOOS).go\
+@@ -31,6 +30,9 @@ GOFILES_freebsd=\
+ 	dnsclient.go\
+ 	port.go\
+ 
++CGOFILES_freebsd=\
++	cgo_unix.go\
++
+ GOFILES_darwin=\
+ 	newpollserver.go\
+ 	fd.go\
+@@ -38,6 +40,9 @@ GOFILES_darwin=\
+ 	dnsconfig.go\
+ 	dnsclient.go\
+ 	port.go\
++
++CGOFILES_darwin=\
++	cgo_unix.go\
+ 	
+ GOFILES_linux=\
+ 	newpollserver.go\
+@@ -47,10 +52,22 @@ GOFILES_linux=\
+ 	dnsclient.go\
+ 	port.go\
+ 
++ifeq ($(GOARCH),arm)
++# ARM has no cgo, so use the stubs.
++GOFILES_linux+=cgo_stub.go
++else
++CGOFILES_linux=\
++	cgo_unix.go
++endif
++
+ GOFILES_windows=\
++	cgo_stub.go\
+ 	resolv_windows.go\
+ 	file_windows.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
++ifneq ($(CGOFILES_$(GOOS)),)
++CGOFILES+=$(CGOFILES_$(GOOS))
++endif
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/net/cgo_stub.go b/src/pkg/net/cgo_stub.go
+index e28f6622e9..c6277cb657 100644
+--- a/src/pkg/net/cgo_stub.go
++++ b/src/pkg/net/cgo_stub.go
+@@ -19,3 +19,7 @@ func cgoLookupPort(network, service string) (port int, err os.Error, completed b
+ func cgoLookupIP(name string) (addrs []IP, err os.Error, completed bool) {
+ 	return nil, nil, false
+ }
++
++func cgoLookupCNAME(name string) (cname string, err os.Error, completed bool) {
++	return "", nil, false
++}
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+new file mode 100644
+index 0000000000..fdf061ccf1
+--- /dev/null
++++ b/src/pkg/net/cgo_unix.go
+@@ -0,0 +1,148 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++/*
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <netdb.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <string.h>
++*/
++import "C"
++
++import (
++	"os"
++	"syscall"
++	"unsafe"
++)
++
++func cgoLookupHost(name string) (addrs []string, err os.Error, completed bool) {
++	ip, err, completed := cgoLookupIP(name)
++	for _, p := range ip {
++		addrs = append(addrs, p.String())
++	}
++	return
++}
++
++func cgoLookupPort(net, service string) (port int, err os.Error, completed bool) {
++	var res *C.struct_addrinfo
++	var hints C.struct_addrinfo
++
++	switch net {
++	case "":
++		// no hints
++	case "tcp", "tcp4", "tcp6":
++		hints.ai_socktype = C.SOCK_STREAM
++		hints.ai_protocol = C.IPPROTO_TCP
++	case "udp", "udp4", "udp6":
++		hints.ai_socktype = C.SOCK_DGRAM
++		hints.ai_protocol = C.IPPROTO_UDP
++	default:
++		return 0, UnknownNetworkError(net), true
++	}
++	if len(net) >= 4 {
++		switch net[3] {
++		case '4':
++			hints.ai_family = C.AF_INET
++		case '6':
++			hints.ai_family = C.AF_INET6
++		}
++	}
++
++	s := C.CString(service)
++	defer C.free(unsafe.Pointer(s))
++	if C.getaddrinfo(nil, s, &hints, &res) == 0 {
++		defer C.freeaddrinfo(res)
++		for r := res; r != nil; r = r.ai_next {
++			switch r.ai_family {
++			default:
++				continue
++			case C.AF_INET:
++				sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(r.ai_addr))
++				p := (*[2]byte)(unsafe.Pointer(&sa.Port))
++				return int(p[0])<<8 | int(p[1]), nil, true
++			case C.AF_INET6:
++				sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
++				p := (*[2]byte)(unsafe.Pointer(&sa.Port))
++				return int(p[0])<<8 | int(p[1]), nil, true
++			}
++		}
++	}
++	return 0, &AddrError{"unknown port", net + "/" + service}, true
++}
++
++func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err os.Error, completed bool) {
++	var res *C.struct_addrinfo
++	var hints C.struct_addrinfo
++
++	// NOTE(rsc): In theory there are approximately balanced
++	// arguments for and against including AI_ADDRCONFIG
++	// in the flags (it includes IPv4 results only on IPv4 systems,
++	// and similarly for IPv6), but in practice setting it causes
++	// getaddrinfo to return the wrong canonical name on Linux.
++	// So definitely leave it out.
++	hints.ai_flags = C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME
++
++	h := C.CString(name)
++	defer C.free(unsafe.Pointer(h))
++	gerrno, err := C.getaddrinfo(h, nil, &hints, &res)
++	if gerrno != 0 {
++		var str string
++		if gerrno == C.EAI_NONAME {
++			str = noSuchHost
++		} else if gerrno == C.EAI_SYSTEM {
++			str = err.String()
++		} else {
++			str = C.GoString(C.gai_strerror(gerrno))
++		}
++		return nil, "", &DNSError{Error: str, Name: name}, true
++	}
++	defer C.freeaddrinfo(res)
++	if res != nil {
++		cname = C.GoString(res.ai_canonname)
++		if cname == "" {
++			cname = name
++		}
++		if len(cname) > 0 && cname[len(cname)-1] != '.' {
++			cname += "."
++		}
++	}
++	for r := res; r != nil; r = r.ai_next {
++		// Everything comes back twice, once for UDP and once for TCP.
++		if r.ai_socktype != C.SOCK_STREAM {
++			continue
++		}
++		switch r.ai_family {
++		default:
++			continue
++		case C.AF_INET:
++			sa := (*syscall.RawSockaddrInet4)(unsafe.Pointer(r.ai_addr))
++			addrs = append(addrs, copyIP(sa.Addr[:]))
++		case C.AF_INET6:
++			sa := (*syscall.RawSockaddrInet6)(unsafe.Pointer(r.ai_addr))
++			addrs = append(addrs, copyIP(sa.Addr[:]))
++		}
++	}
++	return addrs, cname, nil, true
++}
++
++func cgoLookupIP(name string) (addrs []IP, err os.Error, completed bool) {
++	addrs, _, err, completed = cgoLookupIPCNAME(name)
++	return
++}
++
++func cgoLookupCNAME(name string) (cname string, err os.Error, completed bool) {
++	_, cname, err, completed = cgoLookupIPCNAME(name)
++	return
++}
++
++func copyIP(x IP) IP {
++	y := make(IP, len(x))
++	copy(y, x)
++	return y
++}
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 66cb09b19b..16896b4269 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -30,7 +30,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 		var ra *TCPAddr
+-		if ra, err = ResolveTCPAddr(raddr); err != nil {
++		if ra, err = ResolveTCPAddr(net, raddr); err != nil {
+ 			goto Error
+ 		}
+ 		c, err := DialTCP(net, nil, ra)
+@@ -40,7 +40,7 @@ func Dial(net, addr string) (c Conn, err os.Error) {
+ 		return c, nil
+ 	case "udp", "udp4", "udp6":
+ 		var ra *UDPAddr
+-		if ra, err = ResolveUDPAddr(raddr); err != nil {
++		if ra, err = ResolveUDPAddr(net, raddr); err != nil {
+ 			goto Error
+ 		}
+ 		c, err := DialUDP(net, nil, ra)
+@@ -83,7 +83,7 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
+ 	case "tcp", "tcp4", "tcp6":
+ 		var la *TCPAddr
+ 		if laddr != "" {
+-			if la, err = ResolveTCPAddr(laddr); err != nil {
++			if la, err = ResolveTCPAddr(net, laddr); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+@@ -116,7 +116,7 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
+ 	case "udp", "udp4", "udp6":
+ 		var la *UDPAddr
+ 		if laddr != "" {
+-			if la, err = ResolveUDPAddr(laddr); err != nil {
++			if la, err = ResolveUDPAddr(net, laddr); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 316ba3c2d3..c25089ba46 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -78,17 +78,22 @@ func TestDialGoogle(t *testing.T) {
+ 		googleaddrs[len(googleaddrs)-1] = ""
+ 	}
+ 
+-	// Insert an actual IP address for google.com
++	// Insert an actual IPv4 address for google.com
+ 	// into the table.
+-
+ 	addrs, err := LookupIP("www.google.com")
+ 	if err != nil {
+ 		t.Fatalf("lookup www.google.com: %v", err)
+ 	}
+-	if len(addrs) == 0 {
+-		t.Fatalf("no addresses for www.google.com")
++	var ip IP
++	for _, addr := range addrs {
++		if x := addr.To4(); x != nil {
++			ip = x
++			break
++		}
++	}
++	if ip == nil {
++		t.Fatalf("no IPv4 addresses for www.google.com")
+ 	}
+-	ip := addrs[0].To4()
+ 
+ 	for i, s := range googleaddrs {
+ 		if strings.Contains(s, "%") {
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index c3e727bcef..d3e4049ad2 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -307,6 +307,11 @@ func lookup(name string, qtype uint16) (cname string, addrs []dnsRR, err os.Erro
+ }
+ 
+ // goLookupHost is the native Go implementation of LookupHost.
++// Used only if cgoLookupHost refuses to handle the request
++// (that is, only if cgoLookupHost is the stub in cgo_stub.go).
++// Normally we let cgo use the C library resolver instead of
++// depending on our lookup code, so that Go and C get the same
++// answers.
+ func goLookupHost(name string) (addrs []string, err os.Error) {
+ 	onceLoadConfig.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+@@ -330,6 +335,11 @@ func goLookupHost(name string) (addrs []string, err os.Error) {
+ }
+ 
+ // goLookupIP is the native Go implementation of LookupIP.
++// Used only if cgoLookupIP refuses to handle the request
++// (that is, only if cgoLookupIP is the stub in cgo_stub.go).
++// Normally we let cgo use the C library resolver instead of
++// depending on our lookup code, so that Go and C get the same
++// answers.
+ func goLookupIP(name string) (addrs []IP, err os.Error) {
+ 	onceLoadConfig.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+@@ -358,11 +368,13 @@ func goLookupIP(name string) (addrs []IP, err os.Error) {
+ 	return
+ }
+ 
+-// LookupCNAME returns the canonical DNS host for the given name.
+-// Callers that do not care about the canonical name can call
+-// LookupHost or LookupIP directly; both take care of resolving
+-// the canonical name as part of the lookup.
+-func LookupCNAME(name string) (cname string, err os.Error) {
++// goLookupCNAME is the native Go implementation of LookupCNAME.
++// Used only if cgoLookupCNAME refuses to handle the request
++// (that is, only if cgoLookupCNAME is the stub in cgo_stub.go).
++// Normally we let cgo use the C library resolver instead of
++// depending on our lookup code, so that Go and C get the same
++// answers.
++func goLookupCNAME(name string) (cname string, err os.Error) {
+ 	onceLoadConfig.Do(loadConfig)
+ 	if dnserr != nil || cfg == nil {
+ 		err = dnserr
+diff --git a/src/pkg/net/hosts_test.go b/src/pkg/net/hosts_test.go
+index 470e35f786..e5793eef2c 100644
+--- a/src/pkg/net/hosts_test.go
++++ b/src/pkg/net/hosts_test.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"sort"
+ 	"testing"
+ )
+ 
+@@ -51,3 +52,17 @@ func TestLookupStaticHost(t *testing.T) {
+ 	}
+ 	hostsPath = p
+ }
++
++func TestLookupHost(t *testing.T) {
++	// Can't depend on this to return anything in particular,
++	// but if it does return something, make sure it doesn't
++	// duplicate addresses (a common bug due to the way
++	// getaddrinfo works).
++	addrs, _ := LookupHost("localhost")
++	sort.SortStrings(addrs)
++	for i := 0; i+1 < len(addrs); i++ {
++		if addrs[i] == addrs[i+1] {
++			t.Fatalf("LookupHost(\"localhost\") = %v, has duplicate addresses", addrs)
++		}
++	}
++}
+diff --git a/src/pkg/net/iprawsock.go b/src/pkg/net/iprawsock.go
+index 60433303ae..5be6fe4e0b 100644
+--- a/src/pkg/net/iprawsock.go
++++ b/src/pkg/net/iprawsock.go
+@@ -245,7 +245,7 @@ func hostToIP(host string) (ip IP, err os.Error) {
+ 			err = err1
+ 			goto Error
+ 		}
+-		addr = firstSupportedAddr(addrs)
++		addr = firstSupportedAddr(anyaddr, addrs)
+ 		if addr == nil {
+ 			// should not happen
+ 			err = &AddrError{"LookupHost returned invalid address", addrs[0]}
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 80bc3eea5d..e8bcac6460 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -35,15 +35,28 @@ func kernelSupportsIPv6() bool {
+ 
+ var preferIPv4 = !kernelSupportsIPv6()
+ 
+-func firstSupportedAddr(addrs []string) (addr IP) {
++func firstSupportedAddr(filter func(IP) IP, addrs []string) IP {
+ 	for _, s := range addrs {
+-		addr = ParseIP(s)
+-		if !preferIPv4 || addr.To4() != nil {
+-			break
++		if addr := filter(ParseIP(s)); addr != nil {
++			return addr
+ 		}
+-		addr = nil
+ 	}
+-	return addr
++	return nil
++}
++
++func anyaddr(x IP) IP  { return x }
++func ipv4only(x IP) IP { return x.To4() }
++
++func ipv6only(x IP) IP {
++	// Only return addresses that we can use
++	// with the kernel's IPv6 addressing modes.
++	// If preferIPv4 is set, it means the IPv6 stack
++	// cannot take IPv4 addresses directly (we prefer
++	// to use the IPv4 stack) so reject IPv4 addresses.
++	if x.To4() != nil && preferIPv4 {
++		return nil
++	}
++	return x
+ }
+ 
+ // TODO(rsc): if syscall.OS == "linux", we're supposd to read
+@@ -131,7 +144,6 @@ func (e InvalidAddrError) String() string  { return string(e) }
+ func (e InvalidAddrError) Timeout() bool   { return false }
+ func (e InvalidAddrError) Temporary() bool { return false }
+ 
+-
+ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
+ 	switch family {
+ 	case syscall.AF_INET:
+@@ -218,13 +230,31 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
+ 		// Try as an IP address.
+ 		addr = ParseIP(host)
+ 		if addr == nil {
++			filter := anyaddr
++			if len(net) >= 4 && net[3] == '4' {
++				filter = ipv4only
++			} else if len(net) >= 4 && net[3] == '6' {
++				filter = ipv6only
++			}
+ 			// Not an IP address.  Try as a DNS name.
+ 			addrs, err1 := LookupHost(host)
+ 			if err1 != nil {
+ 				err = err1
+ 				goto Error
+ 			}
+-			addr = firstSupportedAddr(addrs)
++			if filter == anyaddr {
++				// We'll take any IP address, but since the dialing code
++				// does not yet try multiple addresses, prefer to use
++				// an IPv4 address if possible.  This is especially relevant
++				// if localhost resolves to [ipv6-localhost, ipv4-localhost].
++				// Too much code assumes localhost == ipv4-localhost.
++				addr = firstSupportedAddr(ipv4only, addrs)
++				if addr == nil {
++					addr = firstSupportedAddr(anyaddr, addrs)
++				}
++			} else {
++				addr = firstSupportedAddr(filter, addrs)
++			}
+ 			if addr == nil {
+ 				// should not happen
+ 				err = &AddrError{"LookupHost returned invalid address", addrs[0]}
+diff --git a/src/pkg/net/lookup.go b/src/pkg/net/lookup.go
+index 7b2185ed41..eeb22a8ae3 100644
+--- a/src/pkg/net/lookup.go
++++ b/src/pkg/net/lookup.go
+@@ -36,3 +36,15 @@ func LookupPort(network, service string) (port int, err os.Error) {
+ 	}
+ 	return
+ }
++
++// LookupCNAME returns the canonical DNS host for the given name.
++// Callers that do not care about the canonical name can call
++// LookupHost or LookupIP directly; both take care of resolving
++// the canonical name as part of the lookup.
++func LookupCNAME(name string) (cname string, err os.Error) {
++	cname, err, ok := cgoLookupCNAME(name)
++	if !ok {
++		cname, err = goLookupCNAME(name)
++	}
++	return
++}
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 37695a068d..075748b83b 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -108,12 +108,10 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+ }
+ 
+ func TestTCPServer(t *testing.T) {
+-	doTest(t, "tcp", "0.0.0.0", "127.0.0.1")
+-	doTest(t, "tcp", "", "127.0.0.1")
++	doTest(t, "tcp", "127.0.0.1", "127.0.0.1")
+ 	if kernelSupportsIPv6() {
+-		doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]")
+-		doTest(t, "tcp", "[::]", "127.0.0.1")
+-		doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]")
++		doTest(t, "tcp", "[::1]", "[::1]")
++		doTest(t, "tcp", "127.0.0.1", "[::ffff:127.0.0.1]")
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/srv_test.go b/src/pkg/net/srv_test.go
+index 8ebb4a4035..f1c7a0ab49 100644
+--- a/src/pkg/net/srv_test.go
++++ b/src/pkg/net/srv_test.go
+@@ -8,11 +8,15 @@
+ package net
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
++var avoidMacFirewall = runtime.GOOS == "darwin"
++
+ func TestGoogleSRV(t *testing.T) {
+-	if testing.Short() {
++	if testing.Short() || avoidMacFirewall {
++		t.Logf("skipping test to avoid external network")
+ 		return
+ 	}
+ 	_, addrs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index b484be20b4..d9aa7cf19a 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -62,8 +62,8 @@ func (a *TCPAddr) toAddr() sockaddr {
+ // host:port and resolves domain names or port names to
+ // numeric addresses.  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]:80".
+-func ResolveTCPAddr(addr string) (*TCPAddr, os.Error) {
+-	ip, port, err := hostPortToIP("tcp", addr)
++func ResolveTCPAddr(network, addr string) (*TCPAddr, os.Error) {
++	ip, port, err := hostPortToIP(network, addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/udpsock.go b/src/pkg/net/udpsock.go
+index 44d618dab0..67684471b7 100644
+--- a/src/pkg/net/udpsock.go
++++ b/src/pkg/net/udpsock.go
+@@ -62,8 +62,8 @@ func (a *UDPAddr) toAddr() sockaddr {
+ // host:port and resolves domain names or port names to
+ // numeric addresses.  A literal IPv6 host address must be
+ // enclosed in square brackets, as in "[::]:80".
+-func ResolveUDPAddr(addr string) (*UDPAddr, os.Error) {
+-	ip, port, err := hostPortToIP("udp", addr)
++func ResolveUDPAddr(network, addr string) (*UDPAddr, os.Error) {
++	ip, port, err := hostPortToIP(network, addr)
+ 	if err != nil {
+ 		return nil, err
+ 	}

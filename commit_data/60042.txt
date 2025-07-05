@@ -12,7 +12,34 @@ Date:   Wed May 15 14:52:35 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/cmd/link/internal/ld/main.go | 2 +-
  src/cmd/link/link_test.go        | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index e6608fd791..9f50ad183a 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -96,7 +96,7 @@ var (
+ 	FlagS             = flag.Bool("s", false, "disable symbol table")
+ 	flag8             bool // use 64-bit addresses in symbol table
+ 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+-	flagCheckLinkname = flag.Bool("checklinkname", false, "check linkname symbol references")
++	flagCheckLinkname = flag.Bool("checklinkname", true, "check linkname symbol references")
+ 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
+ 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index e33494f7f1..ea377e77cc 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -1448,7 +1448,7 @@ func TestCheckLinkname(t *testing.T) {
+ 			t.Parallel()
+ 			src := filepath.Join("testdata", "linkname", test.src)
+ 			exe := filepath.Join(tmpdir, test.src+".exe")
+-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-checklinkname=1", "-o", exe, src)
++			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
+ 			out, err := cmd.CombinedOutput()
+ 			if test.ok && err != nil {
+ 				t.Errorf("build failed unexpectedly: %v:\n%s", err, out)

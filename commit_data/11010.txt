@@ -8,7 +8,51 @@ Date:   Mon Dec 26 23:49:24 2011 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5505073
-
+---
  src/pkg/bytes/buffer.go      |  5 ++++-
  src/pkg/bytes/buffer_test.go | 13 +++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index e66ac026e5..066023a3ec 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -200,13 +200,16 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
+ 
+ // Read reads the next len(p) bytes from the buffer or until the buffer
+ // is drained.  The return value n is the number of bytes read.  If the
+-// buffer has no data to return, err is io.EOF even if len(p) is zero;
++// buffer has no data to return, err is io.EOF (unless len(p) is zero);
+ // otherwise it is nil.
+ func (b *Buffer) Read(p []byte) (n int, err error) {
+ 	b.lastRead = opInvalid
+ 	if b.off >= len(b.buf) {
+ 		// Buffer is empty, reset to recover space.
+ 		b.Truncate(0)
++		if len(p) == 0 {
++			return
++		}
+ 		return 0, io.EOF
+ 	}
+ 	n = copy(p, b.buf[b.off:])
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index adb93302a5..d0af11f104 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -373,3 +373,16 @@ func TestReadBytes(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Was a bug: used to give EOF reading empty slice at EOF.
++func TestReadEmptyAtEOF(t *testing.T) {
++	b := new(Buffer)
++	slice := make([]byte, 0)
++	n, err := b.Read(slice)
++	if err != nil {
++		t.Errorf("read error: %v", err)
++	}
++	if n != 0 {
++		t.Errorf("wrong count; got %d want 0", n)
++	}
++}

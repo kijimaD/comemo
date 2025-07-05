@@ -9,6 +9,20 @@ Date:   Mon Jan 30 15:34:34 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5576077
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 61998ac5d9..3343bf9505 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -99,7 +99,7 @@ gomake clean
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/test
+ gomake clean
+-make test
++gomake test
+ ) || exit $?
+ 
+ [ "$CGO_ENABLED" != 1 ] ||

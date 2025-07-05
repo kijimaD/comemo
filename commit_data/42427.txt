@@ -10,7 +10,115 @@ Date:   Wed Dec 18 19:59:41 2019 -0800
     Change-Id: I1213ef37b6595af63dbe202a8ade65741caf1356
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212001
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/all_test.go | 21 +++++++++++++++++++++
  src/reflect/type.go     | 21 ++++++++++++++++++---
  2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 7443666fa6..5f2f600174 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4853,6 +4853,9 @@ func TestStructOfExportRules(t *testing.T) {
+ 			if exported != test.exported {
+ 				t.Errorf("test-%d: got exported=%v want exported=%v", i, exported, test.exported)
+ 			}
++			if field.PkgPath != test.field.PkgPath {
++				t.Errorf("test-%d: got PkgPath=%q want pkgPath=%q", i, field.PkgPath, test.field.PkgPath)
++			}
+ 		})
+ 	}
+ }
+@@ -5308,6 +5311,24 @@ func TestStructOfTooManyFields(t *testing.T) {
+ 	}
+ }
+ 
++func TestStructOfDifferentPkgPath(t *testing.T) {
++	fields := []StructField{
++		{
++			Name:    "f1",
++			PkgPath: "p1",
++			Type:    TypeOf(int(0)),
++		},
++		{
++			Name:    "f2",
++			PkgPath: "p2",
++			Type:    TypeOf(int(0)),
++		},
++	}
++	shouldPanic(func() {
++		StructOf(fields)
++	})
++}
++
+ func TestChanOf(t *testing.T) {
+ 	// check construction and use of type not in binary
+ 	type T string
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index fc31e31eee..cd8522d904 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2371,6 +2371,7 @@ func StructOf(fields []StructField) Type {
+ 
+ 	lastzero := uintptr(0)
+ 	repr = append(repr, "struct {"...)
++	pkgpath := ""
+ 	for i, field := range fields {
+ 		if field.Name == "" {
+ 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no name")
+@@ -2381,11 +2382,18 @@ func StructOf(fields []StructField) Type {
+ 		if field.Type == nil {
+ 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no type")
+ 		}
+-		f := runtimeStructField(field)
++		f, fpkgpath := runtimeStructField(field)
+ 		ft := f.typ
+ 		if ft.kind&kindGCProg != 0 {
+ 			hasGCProg = true
+ 		}
++		if fpkgpath != "" {
++			if pkgpath == "" {
++				pkgpath = fpkgpath
++			} else if pkgpath != fpkgpath {
++				panic("reflect.Struct: fields with different PkgPath " + pkgpath + " and " + fpkgpath)
++			}
++		}
+ 
+ 		// Update string and hash
+ 		name := f.name.name()
+@@ -2617,6 +2625,9 @@ func StructOf(fields []StructField) Type {
+ 	prototype := *(**structType)(unsafe.Pointer(&istruct))
+ 	*typ = *prototype
+ 	typ.fields = fs
++	if pkgpath != "" {
++		typ.pkgPath = newName(pkgpath, "", false)
++	}
+ 
+ 	// Look in cache.
+ 	if ts, ok := structLookupCache.m.Load(hash); ok {
+@@ -2741,7 +2752,10 @@ func StructOf(fields []StructField) Type {
+ 	return addToCache(&typ.rtype)
+ }
+ 
+-func runtimeStructField(field StructField) structField {
++// runtimeStructField takes a StructField value passed to StructOf and
++// returns both the corresponding internal representation, of type
++// structField, and the pkgpath value to use for this field.
++func runtimeStructField(field StructField) (structField, string) {
+ 	if field.Anonymous && field.PkgPath != "" {
+ 		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
+ 	}
+@@ -2762,11 +2776,12 @@ func runtimeStructField(field StructField) structField {
+ 	}
+ 
+ 	resolveReflectType(field.Type.common()) // install in runtime
+-	return structField{
++	f := structField{
+ 		name:        newName(field.Name, string(field.Tag), exported),
+ 		typ:         field.Type.common(),
+ 		offsetEmbed: offsetEmbed,
+ 	}
++	return f, field.PkgPath
+ }
+ 
+ // typeptrdata returns the length in bytes of the prefix of t

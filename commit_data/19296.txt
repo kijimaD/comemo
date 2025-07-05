@@ -24,7 +24,7 @@ Date:   Wed May 7 13:17:10 2014 -0700
     R=golang-codereviews, khr, bradfitz, josharian, dave, rsc
     CC=golang-codereviews
     https://golang.org/cl/92760044
-
+---
  src/cmd/5g/cgen.c               |  38 +++-
  src/cmd/5g/ggen.c               | 101 +++++++---
  src/cmd/5g/peep.c               |  22 ++-
@@ -36,3 +36,828 @@ Date:   Wed May 7 13:17:10 2014 -0700
  src/pkg/runtime/asm_arm.s       | 408 ++++++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/memmove_test.go |  12 +-
  10 files changed, 568 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index aeee2f4d60..57e4e39366 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1411,7 +1411,7 @@ stkof(Node *n)
+ void
+ sgen(Node *n, Node *res, int64 w)
+ {
+-	Node dst, src, tmp, nend;
++	Node dst, src, tmp, nend, r0, r1, r2, *f;
+ 	int32 c, odst, osrc;
+ 	int dir, align, op;
+ 	Prog *p, *ploop;
+@@ -1495,6 +1495,42 @@ sgen(Node *n, Node *res, int64 w)
+ 	if(osrc < odst && odst < osrc+w)
+ 		dir = -dir;
+ 
++	if(op == AMOVW && dir > 0 && c >= 4 && c <= 128) {
++		r0.op = OREGISTER;
++		r0.val.u.reg = REGALLOC_R0;
++		r1.op = OREGISTER;
++		r1.val.u.reg = REGALLOC_R0 + 1;
++		r2.op = OREGISTER;
++		r2.val.u.reg = REGALLOC_R0 + 2;
++
++		regalloc(&src, types[tptr], &r1);
++		regalloc(&dst, types[tptr], &r2);
++		if(n->ullman >= res->ullman) {
++			// eval n first
++			agen(n, &src);
++			if(res->op == ONAME)
++				gvardef(res);
++			agen(res, &dst);
++		} else {
++			// eval res first
++			if(res->op == ONAME)
++				gvardef(res);
++			agen(res, &dst);
++			agen(n, &src);
++		}
++		regalloc(&tmp, types[tptr], &r0);
++		f = sysfunc("duffcopy");
++		p = gins(ADUFFCOPY, N, f);
++		afunclit(&p->to, f);
++		// 8 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
++		p->to.offset = 8*(128-c);
++
++		regfree(&tmp);
++		regfree(&src);
++		regfree(&dst);
++		return;
++	}
++	
+ 	if(n->ullman >= res->ullman) {
+ 		agenr(n, &dst, res);	// temporarily use dst
+ 		regalloc(&src, types[tptr], N);
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index b5173a2137..fb32c2f366 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -10,15 +10,16 @@
+ #include "opt.h"
+ 
+ static Prog* appendpp(Prog*, int, int, int, int32, int, int, int32);
++static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *r0);
+ 
+ void
+ defframe(Prog *ptxt)
+ {
+-	uint32 frame;
+-	Prog *p, *p1;
++	uint32 frame, r0;
++	Prog *p;
++	vlong hi, lo;
+ 	NodeList *l;
+ 	Node *n;
+-	vlong i;
+ 
+ 	// fill in argument size
+ 	ptxt->to.type = D_CONST2;
+@@ -31,11 +32,9 @@ defframe(Prog *ptxt)
+ 	// insert code to contain ambiguously live variables
+ 	// so that garbage collector only sees initialized values
+ 	// when it looks for pointers.
+-	//
+-	// TODO: determine best way to zero the given values.
+-	// among other problems, R0 is initialized to 0 multiple times,
+-	// but that's really the tip of the iceberg.
+ 	p = ptxt;
++	lo = hi = 0;
++	r0 = 0;
+ 	for(l=curfn->dcl; l != nil; l = l->next) {
+ 		n = l->n;
+ 		if(!n->needzero)
+@@ -44,24 +43,60 @@ defframe(Prog *ptxt)
+ 			fatal("needzero class %d", n->class);
+ 		if(n->type->width % widthptr != 0 || n->xoffset % widthptr != 0 || n->type->width == 0)
+ 			fatal("var %lN has size %d offset %d", n, (int)n->type->width, (int)n->xoffset);
+-		if(n->type->width <= 8*widthptr) {
+-			p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+-			for(i = 0; i < n->type->width; i += widthptr) 
+-				p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame+n->xoffset+i);
+-		} else {
+-			p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
+-			p = appendpp(p, AADD, D_CONST, NREG, 4+frame+n->xoffset, D_REG, 1, 0);
+-			p->reg = REGSP;	
+-			p = appendpp(p, AADD, D_CONST, NREG, n->type->width, D_REG, 2, 0);	
+-			p->reg = 1;	
+-			p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);	
+-			p->scond |= C_PBIT;	
+-			p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);	
+-			p->reg = 2;	
+-			p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);	
+-			patch(p, p1);
++		if(lo != hi && n->xoffset + n->type->width >= lo - 2*widthptr) {
++			// merge with range we already have
++			lo = rnd(n->xoffset, widthptr);
++			continue;
+ 		}
+-	}	
++		// zero old range
++		p = zerorange(p, frame, lo, hi, &r0);
++
++		// set new range
++		hi = n->xoffset + n->type->width;
++		lo = n->xoffset;
++	}
++	// zero final range
++	zerorange(p, frame, lo, hi, &r0);
++}
++
++static Prog*
++zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *r0)
++{
++	vlong cnt, i;
++	Prog *p1;
++	Node *f;
++
++	cnt = hi - lo;
++	if(cnt == 0)
++		return p;
++	if(*r0 == 0) {
++		p = appendpp(p, AMOVW, D_CONST, NREG, 0, D_REG, 0, 0);
++		*r0 = 1;
++	}
++	if(cnt < 4*widthptr) {
++		for(i = 0; i < cnt; i += widthptr) 
++			p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, REGSP, 4+frame+lo+i);
++	} else if(cnt <= 128*widthptr) {
++		p = appendpp(p, AADD, D_CONST, NREG, 4+frame+lo, D_REG, 1, 0);
++		p->reg = REGSP;
++		p = appendpp(p, ADUFFZERO, D_NONE, NREG, 0, D_OREG, NREG, 0);
++		f = sysfunc("duffzero");
++		naddr(f, &p->to, 1);
++		afunclit(&p->to, f);
++		p->to.offset = 4*(128-cnt/widthptr);
++	} else {
++		p = appendpp(p, AADD, D_CONST, NREG, 4+frame+lo, D_REG, 1, 0);
++		p->reg = REGSP;
++		p = appendpp(p, AADD, D_CONST, NREG, cnt, D_REG, 2, 0);
++		p->reg = 1;
++		p1 = p = appendpp(p, AMOVW, D_REG, 0, 0, D_OREG, 1, 4);
++		p->scond |= C_PBIT;
++		p = appendpp(p, ACMP, D_REG, 1, 0, D_NONE, 0, 0);
++		p->reg = 2;
++		p = appendpp(p, ABNE, D_NONE, NREG, 0, D_BRANCH, NREG, 0);
++		patch(p, p1);
++	}
++	return p;
+ }
+ 
+ static Prog*	
+@@ -829,7 +864,7 @@ void
+ clearfat(Node *nl)
+ {
+ 	uint32 w, c, q;
+-	Node dst, nc, nz, end;
++	Node dst, nc, nz, end, r0, r1, *f;
+ 	Prog *p, *pl;
+ 
+ 	/* clear a fat object */
+@@ -844,13 +879,17 @@ clearfat(Node *nl)
+ 	c = w % 4;	// bytes
+ 	q = w / 4;	// quads
+ 
+-	regalloc(&dst, types[tptr], N);
++	r0.op = OREGISTER;
++	r0.val.u.reg = REGALLOC_R0;
++	r1.op = OREGISTER;
++	r1.val.u.reg = REGALLOC_R0 + 1;
++	regalloc(&dst, types[tptr], &r1);
+ 	agen(nl, &dst);
+ 	nodconst(&nc, types[TUINT32], 0);
+-	regalloc(&nz, types[TUINT32], 0);
++	regalloc(&nz, types[TUINT32], &r0);
+ 	cgen(&nc, &nz);
+ 
+-	if(q >= 4) {
++	if(q > 128) {
+ 		regalloc(&end, types[tptr], N);
+ 		p = gins(AMOVW, &dst, &end);
+ 		p->from.type = D_CONST;
+@@ -867,6 +906,12 @@ clearfat(Node *nl)
+ 		patch(gbranch(ABNE, T, 0), pl);
+ 
+ 		regfree(&end);
++	} else if(q >= 4) {
++		f = sysfunc("duffzero");
++		p = gins(ADUFFZERO, N, f);
++		afunclit(&p->to, f);
++		// 4 and 128 = magic constants: see ../../pkg/runtime/asm_arm.s
++		p->to.offset = 4*(128-q);
+ 	} else
+ 	while(q > 0) {
+ 		p = gins(AMOVW, &nz, &dst);
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 493c828ddb..4aa6452061 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1157,7 +1157,27 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(copyau(&p->to, v))
+ 			return 4;
+ 		return 3;
+-
++	case ADUFFZERO:
++		// R0 is zero, used by DUFFZERO, cannot be substituted.
++		// R1 is ptr to memory, used and set, cannot be substituted.
++		if(v->type == D_REG) {
++			if(v->reg == REGALLOC_R0)
++				return 1;
++			if(v->reg == REGALLOC_R0+1)
++				return 2;
++		}
++		return 0;
++	case ADUFFCOPY:
++		// R0 is scratch, set by DUFFCOPY, cannot be substituted.
++		// R1, R2 areptr to src, dst, used and set, cannot be substituted.
++		if(v->type == D_REG) {
++			if(v->reg == REGALLOC_R0)
++				return 3;
++			if(v->reg == REGALLOC_R0+1 || v->reg == REGALLOC_R0+2)
++				return 2;
++		}
++		return 0;
++			
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+ 			if(v->reg == REGARG)
+diff --git a/src/cmd/5g/prog.c b/src/cmd/5g/prog.c
+index 86ab1dc48a..797bc0718e 100644
+--- a/src/cmd/5g/prog.c
++++ b/src/cmd/5g/prog.c
+@@ -93,6 +93,12 @@ static ProgInfo progtable[ALAST] = {
+ 	[AMOVF]=		{SizeF | LeftRead | RightWrite | Move},
+ 	[AMOVH]=		{SizeW | LeftRead | RightWrite | Move},
+ 	[AMOVW]=		{SizeL | LeftRead | RightWrite | Move},
++	// In addtion, duffzero reads R0,R1 and writes R1.  This fact is
++	// encoded in peep.c
++	[ADUFFZERO]=		{Call},
++	// In addtion, duffcopy reads R1,R2 and writes R0,R1,R2.  This fact is
++	// encoded in peep.c
++	[ADUFFCOPY]=		{Call},
+ 
+ 	// These should be split into the two different conversions instead
+ 	// of overloading the one.
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 8350e4c50c..b4032fff8d 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -562,6 +562,10 @@ addsplits(void)
+ 			continue;
+ 		if(r->f.prog->as == ABL)
+ 			continue;
++		if(r->f.prog->as == ADUFFZERO)
++			continue;
++		if(r->f.prog->as == ADUFFCOPY)
++			continue;
+ 		for(r1 = (Reg*)r->f.p2; r1 != R; r1 = (Reg*)r1->f.p2link) {
+ 			if(r1->f.loop <= 1)
+ 				continue;
+diff --git a/src/cmd/5l/5.out.h b/src/cmd/5l/5.out.h
+index bcee45163d..9e8aceecb5 100644
+--- a/src/cmd/5l/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -200,6 +200,8 @@ enum	as
+ 	ACHECKNIL,
+ 	AVARDEF,
+ 	AVARKILL,
++	ADUFFCOPY,
++	ADUFFZERO,
+ 
+ 	AMRC, // MRC/MCR
+ 
+diff --git a/src/liblink/asm5.c b/src/liblink/asm5.c
+index b62223d8eb..465b645b27 100644
+--- a/src/liblink/asm5.c
++++ b/src/liblink/asm5.c
+@@ -356,6 +356,9 @@ static Optab	optab[] =
+ 	{ APCDATA,	C_LCON,	C_NONE,	C_LCON,		0, 0, 0 },
+ 	{ AFUNCDATA,	C_LCON,	C_NONE,	C_ADDR,	0, 0, 0 },
+ 
++	{ ADUFFZERO,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
++	{ ADUFFCOPY,	C_NONE,	C_NONE,	C_SBRA,		 5, 4, 0 },  // same as ABL
++
+ 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
+ };
+ 
+@@ -1138,6 +1141,8 @@ buildop(Link *ctxt)
+ 		case ABL:
+ 		case ABX:
+ 		case ABXRET:
++		case ADUFFZERO:
++		case ADUFFCOPY:
+ 		case ASWI:
+ 		case AWORD:
+ 		case AMOVM:
+@@ -1301,6 +1306,7 @@ if(0 /*debug['G']*/) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->na
+ 			rel->off = ctxt->pc;
+ 			rel->siz = 4;
+ 			rel->sym = p->to.sym;
++			v += p->to.offset;
+ 			rel->add = o1 | ((v >> 2) & 0xffffff);
+ 			rel->type = R_CALLARM;
+ 			break;
+@@ -2213,7 +2219,7 @@ opbra(Link *ctxt, int a, int sc)
+ 	if(sc & (C_SBIT|C_PBIT|C_WBIT))
+ 		ctxt->diag(".nil/.nil/.W on bra instruction");
+ 	sc &= C_SCOND;
+-	if(a == ABL)
++	if(a == ABL || a == ADUFFZERO || a == ADUFFCOPY)
+ 		return (sc<<28)|(0x5<<25)|(0x1<<24);
+ 	if(sc != 0xe)
+ 		ctxt->diag(".COND on bcond instruction");
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 1b1c7df5fe..ccd4c81c79 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -101,6 +101,8 @@ progedit(Link *ctxt, Prog *p)
+ 	switch(p->as) {
+ 	case AB:
+ 	case ABL:
++	case ADUFFZERO:
++	case ADUFFCOPY:
+ 		if(p->to.type == D_OREG && (p->to.name == D_EXTERN || p->to.name == D_STATIC) && p->to.sym != nil)
+ 			p->to.type = D_BRANCH;
+ 		break;
+@@ -352,6 +354,8 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 
+ 		case ABL:
+ 		case ABX:
++		case ADUFFZERO:
++		case ADUFFCOPY:
+ 			cursym->text->mark &= ~LEAF;
+ 
+ 		case ABCASE:
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index c691b04a85..3ce3deb2e2 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -750,3 +750,411 @@ _sib_notfound:
+ 
+ TEXT runtime·timenow(SB), NOSPLIT, $0-0
+ 	B	time·now(SB)
++
++// A Duff's device for zeroing memory.
++// The compiler jumps to computed addresses within
++// this routine to zero chunks of memory.  Do not
++// change this code without also changing the code
++// in ../../cmd/5g/ggen.c:clearfat.
++// R0: zero
++// R1: ptr to memory to be zeroed
++// R1 is updated as a side effect.
++TEXT runtime·duffzero(SB), NOSPLIT, $0-0
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	MOVW.P	R0, 4(R1)
++	RET
++
++// A Duff's device for copying memory.
++// The compiler jumps to computed addresses within
++// this routine to copy chunks of memory.  Source
++// and destination must not overlap.  Do not
++// change this code without also changing the code
++// in ../../cmd/5g/cgen.c:sgen.
++// R0: scratch space
++// R1: ptr to source memory
++// R2: ptr to destination memory
++// R1 and R2 are updated as a side effect
++TEXT runtime·duffcopy(SB), NOSPLIT, $0-0
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	MOVW.P	4(R1), R0
++	MOVW.P	R0, 4(R2)
++	RET
+diff --git a/src/pkg/runtime/memmove_test.go b/src/pkg/runtime/memmove_test.go
+index cc43fd5f20..540f0feb54 100644
+--- a/src/pkg/runtime/memmove_test.go
++++ b/src/pkg/runtime/memmove_test.go
+@@ -200,42 +200,42 @@ func BenchmarkClearFat1024(b *testing.B) {
+ }
+ 
+ func BenchmarkCopyFat32(b *testing.B) {
+-	var x [32]byte
++	var x [32 / 4]uint32
+ 	for i := 0; i < b.N; i++ {
+ 		y := x
+ 		_ = y
+ 	}
+ }
+ func BenchmarkCopyFat64(b *testing.B) {
+-	var x [64]byte
++	var x [64 / 4]uint32
+ 	for i := 0; i < b.N; i++ {
+ 		y := x
+ 		_ = y
+ 	}
+ }
+ func BenchmarkCopyFat128(b *testing.B) {
+-	var x [128]byte
++	var x [128 / 4]uint32
+ 	for i := 0; i < b.N; i++ {
+ 		y := x
+ 		_ = y
+ 	}
+ }
+ func BenchmarkCopyFat256(b *testing.B) {
+-	var x [256]byte
++	var x [256 / 4]uint32
+ 	for i := 0; i < b.N; i++ {
+ 		y := x
+ 		_ = y
+ 	}
+ }
+ func BenchmarkCopyFat512(b *testing.B) {
+-	var x [512]byte
++	var x [512 / 4]uint32
+ 	for i := 0; i < b.N; i++ {
+ 		y := x
+ 		_ = y
+ 	}
+ }
+ func BenchmarkCopyFat1024(b *testing.B) {
+-	var x [1024]byte
++	var x [1024 / 4]uint32
+ 	for i := 0; i < b.N; i++ {
+ 		y := x
+ 		_ = y

@@ -31,7 +31,7 @@ Date:   Wed Dec 23 00:58:27 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/{gc => dwarfgen}/dwarf.go | 83 ++++++++++++++++++++--
  src/cmd/compile/internal/{gc => dwarfgen}/dwinl.go |  9 +--
  src/cmd/compile/internal/{gc => dwarfgen}/scope.go |  5 +-
@@ -40,3 +40,391 @@ Date:   Wed Dec 23 00:58:27 2020 -0500
  src/cmd/compile/internal/gc/obj.go                 |  2 +-
  src/cmd/compile/internal/gc/subr.go                |  8 ---
  7 files changed, 94 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+similarity index 85%
+rename from src/cmd/compile/internal/gc/dwarf.go
+rename to src/cmd/compile/internal/dwarfgen/dwarf.go
+index e853c51422..19cb70058c 100644
+--- a/src/cmd/compile/internal/gc/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -2,13 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package dwarfgen
+ 
+ import (
++	"bytes"
++	"flag"
++	"fmt"
+ 	"sort"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/types"
+@@ -18,7 +22,7 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
++func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+ 	fn := curfn.(*ir.Func)
+ 
+ 	if fn.Nname != nil {
+@@ -86,7 +90,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 				continue
+ 			}
+ 			apdecls = append(apdecls, n)
+-			fnsym.Func().RecordAutoType(ngotype(n).Linksym())
++			fnsym.Func().RecordAutoType(reflectdata.TypeSym(n.Type()).Linksym())
+ 		}
+ 	}
+ 
+@@ -236,7 +240,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			ChildIndex:    -1,
+ 		})
+ 		// Record go type of to insure that it gets emitted by the linker.
+-		fnsym.Func().RecordAutoType(ngotype(n).Linksym())
++		fnsym.Func().RecordAutoType(reflectdata.TypeSym(n.Type()).Linksym())
+ 	}
+ 
+ 	return decls, vars
+@@ -305,7 +309,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	}
+ 
+ 	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
+-	delete(fnsym.Func().Autot, ngotype(n).Linksym())
++	delete(fnsym.Func().Autot, reflectdata.TypeSym(n.Type()).Linksym())
+ 	inlIndex := 0
+ 	if base.Flag.GenDwarfInl > 1 {
+ 		if n.Name().InlFormal() || n.Name().InlLocal() {
+@@ -372,7 +376,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 		return nil
+ 	}
+ 
+-	gotype := ngotype(n).Linksym()
++	gotype := reflectdata.TypeSym(n.Type()).Linksym()
+ 	delete(fnsym.Func().Autot, gotype)
+ 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+ 	inlIndex := 0
+@@ -410,3 +414,70 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 	}
+ 	return dvar
+ }
++
++// RecordFlags records the specified command-line flags to be placed
++// in the DWARF info.
++func RecordFlags(flags ...string) {
++	if base.Ctxt.Pkgpath == "" {
++		// We can't record the flags if we don't know what the
++		// package name is.
++		return
++	}
++
++	type BoolFlag interface {
++		IsBoolFlag() bool
++	}
++	type CountFlag interface {
++		IsCountFlag() bool
++	}
++	var cmd bytes.Buffer
++	for _, name := range flags {
++		f := flag.Lookup(name)
++		if f == nil {
++			continue
++		}
++		getter := f.Value.(flag.Getter)
++		if getter.String() == f.DefValue {
++			// Flag has default value, so omit it.
++			continue
++		}
++		if bf, ok := f.Value.(BoolFlag); ok && bf.IsBoolFlag() {
++			val, ok := getter.Get().(bool)
++			if ok && val {
++				fmt.Fprintf(&cmd, " -%s", f.Name)
++				continue
++			}
++		}
++		if cf, ok := f.Value.(CountFlag); ok && cf.IsCountFlag() {
++			val, ok := getter.Get().(int)
++			if ok && val == 1 {
++				fmt.Fprintf(&cmd, " -%s", f.Name)
++				continue
++			}
++		}
++		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
++	}
++
++	if cmd.Len() == 0 {
++		return
++	}
++	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + base.Ctxt.Pkgpath)
++	s.Type = objabi.SDWARFCUINFO
++	// Sometimes (for example when building tests) we can link
++	// together two package main archives. So allow dups.
++	s.Set(obj.AttrDuplicateOK, true)
++	base.Ctxt.Data = append(base.Ctxt.Data, s)
++	s.P = cmd.Bytes()[1:]
++}
++
++// RecordPackageName records the name of the package being
++// compiled, so that the linker can save it in the compile unit's DIE.
++func RecordPackageName() {
++	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + base.Ctxt.Pkgpath)
++	s.Type = objabi.SDWARFCUINFO
++	// Sometimes (for example when building tests) we can link
++	// together two package main archives. So allow dups.
++	s.Set(obj.AttrDuplicateOK, true)
++	base.Ctxt.Data = append(base.Ctxt.Data, s)
++	s.P = []byte(types.LocalPkg.Name)
++}
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/dwarfgen/dwinl.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/dwinl.go
+rename to src/cmd/compile/internal/dwarfgen/dwinl.go
+index d9eb930037..d5687cb1d7 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/dwarfgen/dwinl.go
+@@ -2,16 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package dwarfgen
+ 
+ import (
++	"fmt"
++	"strings"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+-	"fmt"
+-	"strings"
+ )
+ 
+ // To identify variables by original source position.
+@@ -206,7 +207,7 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ // late in the compilation when it is determined that we need an
+ // abstract function DIE for an inlined routine imported from a
+ // previously compiled package.
+-func genAbstractFunc(fn *obj.LSym) {
++func AbstractFunc(fn *obj.LSym) {
+ 	ifn := base.Ctxt.DwFixups.GetPrecursorFunc(fn)
+ 	if ifn == nil {
+ 		base.Ctxt.Diag("failed to locate precursor fn for %v", fn)
+diff --git a/src/cmd/compile/internal/gc/scope.go b/src/cmd/compile/internal/dwarfgen/scope.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/scope.go
+rename to src/cmd/compile/internal/dwarfgen/scope.go
+index 9ab33583c8..1c040edc28 100644
+--- a/src/cmd/compile/internal/gc/scope.go
++++ b/src/cmd/compile/internal/dwarfgen/scope.go
+@@ -2,15 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc
++package dwarfgen
+ 
+ import (
++	"sort"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+-	"sort"
+ )
+ 
+ // See golang.org/issue/20390.
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+similarity index 99%
+rename from src/cmd/compile/internal/gc/scope_test.go
+rename to src/cmd/compile/internal/dwarfgen/scope_test.go
+index b0e038d27f..fcfcf85f84 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gc_test
++package dwarfgen
+ 
+ import (
+-	"cmd/internal/objfile"
+ 	"debug/dwarf"
+ 	"fmt"
+ 	"internal/testenv"
+@@ -18,6 +17,8 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++
++	"cmd/internal/objfile"
+ )
+ 
+ type testline struct {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 154235f744..2a8012b462 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -10,6 +10,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/dwarfgen"
+ 	"cmd/compile/internal/escape"
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+@@ -114,7 +115,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
++	dwarfgen.RecordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre")
+ 
+ 	if !base.EnableTrace && base.Flag.LowerT {
+ 		log.Fatalf("compiler not built with support for -t")
+@@ -134,8 +135,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	}
+ 
+ 	if base.Flag.Dwarf {
+-		base.Ctxt.DebugInfo = debuginfo
+-		base.Ctxt.GenAbstractFunc = genAbstractFunc
++		base.Ctxt.DebugInfo = dwarfgen.Info
++		base.Ctxt.GenAbstractFunc = dwarfgen.AbstractFunc
+ 		base.Ctxt.DwFixups = obj.NewDwarfFixupTable(base.Ctxt)
+ 	} else {
+ 		// turn off inline generation if no dwarf at all
+@@ -211,7 +212,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	ssagen.CgoSymABIs()
+ 	base.Timer.Stop()
+ 	base.Timer.AddEvent(int64(lines), "lines")
+-	recordPackageName()
++	dwarfgen.RecordPackageName()
+ 
+ 	// Typecheck.
+ 	typecheck.Package()
+@@ -364,73 +365,6 @@ func writebench(filename string) error {
+ 	return f.Close()
+ }
+ 
+-// recordFlags records the specified command-line flags to be placed
+-// in the DWARF info.
+-func recordFlags(flags ...string) {
+-	if base.Ctxt.Pkgpath == "" {
+-		// We can't record the flags if we don't know what the
+-		// package name is.
+-		return
+-	}
+-
+-	type BoolFlag interface {
+-		IsBoolFlag() bool
+-	}
+-	type CountFlag interface {
+-		IsCountFlag() bool
+-	}
+-	var cmd bytes.Buffer
+-	for _, name := range flags {
+-		f := flag.Lookup(name)
+-		if f == nil {
+-			continue
+-		}
+-		getter := f.Value.(flag.Getter)
+-		if getter.String() == f.DefValue {
+-			// Flag has default value, so omit it.
+-			continue
+-		}
+-		if bf, ok := f.Value.(BoolFlag); ok && bf.IsBoolFlag() {
+-			val, ok := getter.Get().(bool)
+-			if ok && val {
+-				fmt.Fprintf(&cmd, " -%s", f.Name)
+-				continue
+-			}
+-		}
+-		if cf, ok := f.Value.(CountFlag); ok && cf.IsCountFlag() {
+-			val, ok := getter.Get().(int)
+-			if ok && val == 1 {
+-				fmt.Fprintf(&cmd, " -%s", f.Name)
+-				continue
+-			}
+-		}
+-		fmt.Fprintf(&cmd, " -%s=%v", f.Name, getter.Get())
+-	}
+-
+-	if cmd.Len() == 0 {
+-		return
+-	}
+-	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "producer." + base.Ctxt.Pkgpath)
+-	s.Type = objabi.SDWARFCUINFO
+-	// Sometimes (for example when building tests) we can link
+-	// together two package main archives. So allow dups.
+-	s.Set(obj.AttrDuplicateOK, true)
+-	base.Ctxt.Data = append(base.Ctxt.Data, s)
+-	s.P = cmd.Bytes()[1:]
+-}
+-
+-// recordPackageName records the name of the package being
+-// compiled, so that the linker can save it in the compile unit's DIE.
+-func recordPackageName() {
+-	s := base.Ctxt.Lookup(dwarf.CUInfoPrefix + "packagename." + base.Ctxt.Pkgpath)
+-	s.Type = objabi.SDWARFCUINFO
+-	// Sometimes (for example when building tests) we can link
+-	// together two package main archives. So allow dups.
+-	s.Set(obj.AttrDuplicateOK, true)
+-	base.Ctxt.Data = append(base.Ctxt.Data, s)
+-	s.P = []byte(types.LocalPkg.Name)
+-}
+-
+ func makePos(b *src.PosBase, line, col uint) src.XPos {
+ 	return base.Ctxt.PosTable.XPos(src.MakePos(b, line, col))
+ }
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 4db2ad9d4a..f159256da6 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -319,7 +319,7 @@ func litsym(n *ir.Name, noff int64, c ir.Node, wid int) {
+ 
+ func ggloblnod(nam ir.Node) {
+ 	s := nam.Sym().Linksym()
+-	s.Gotype = ngotype(nam).Linksym()
++	s.Gotype = reflectdata.TypeSym(nam.Type()).Linksym()
+ 	flags := 0
+ 	if nam.Name().Readonly() {
+ 		flags = obj.RODATA
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 02a4c0a688..17bbd1c3a2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -7,7 +7,6 @@ package gc
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -305,13 +304,6 @@ func cheapexpr(n ir.Node, init *ir.Nodes) ir.Node {
+ 	return copyexpr(n, n.Type(), init)
+ }
+ 
+-func ngotype(n ir.Node) *types.Sym {
+-	if n.Type() != nil {
+-		return reflectdata.TypeSym(n.Type())
+-	}
+-	return nil
+-}
+-
+ // itabType loads the _type field from a runtime.itab struct.
+ func itabType(itab ir.Node) ir.Node {
+ 	typ := ir.NewSelectorExpr(base.Pos, ir.ODOTPTR, itab, nil)

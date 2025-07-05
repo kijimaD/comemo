@@ -15,7 +15,7 @@ Date:   Fri Aug 16 01:29:18 2024 +0300
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/godebug.md                                |  7 ++++++
  doc/next/6-stdlib/99-minor/math/rand/67273.md |  3 +++
  src/internal/godebugs/table.go                |  1 +
@@ -23,3 +23,135 @@ Date:   Fri Aug 16 01:29:18 2024 +0300
  src/math/rand/rand_test.go                    | 36 +++++++++++++++++++++++++++
  src/runtime/metrics/doc.go                    |  4 +++
  6 files changed, 62 insertions(+)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index b3a43664c4..d19de2374a 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -150,6 +150,13 @@ for example,
+ see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
+ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
++### Go 1.24
++
++Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
++no-op. This setting is controlled by the `randseednop` setting.
++For Go 1.24 it defaults to `randseednop=1`.
++Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
++
+ ### Go 1.23
+ 
+ Go 1.23 changed the channels created by package time to be unbuffered
+diff --git a/doc/next/6-stdlib/99-minor/math/rand/67273.md b/doc/next/6-stdlib/99-minor/math/rand/67273.md
+new file mode 100644
+index 0000000000..9882a3a332
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/math/rand/67273.md
+@@ -0,0 +1,3 @@
++Calls to the deprecated top-level [Seed] function no longer have any effect. To
++restore the old behavior set `GODEBUG=randseednop=0`. For more background see
++the proposal [#67273](/issue/67273).
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a802ac9c37..f8d30db5a3 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -47,6 +47,7 @@ var All = []Info{
+ 	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
++	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
+ 	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tls3des", Package: "crypto/tls", Changed: 23, Old: "1"},
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 61ff5c1b38..4be1ca208a 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -313,6 +313,9 @@ var globalRandGenerator atomic.Pointer[Rand]
+ 
+ var randautoseed = godebug.New("randautoseed")
+ 
++// randseednop controls whether the global Seed is a no-op.
++var randseednop = godebug.New("randseednop")
++
+ // globalRand returns the generator to use for the top-level convenience
+ // functions.
+ func globalRand() *Rand {
+@@ -391,7 +394,15 @@ func (fs *runtimeSource) read(p []byte, readVal *int64, readPos *int8) (n int, e
+ // a random value. Programs that call Seed with a known value to get
+ // a specific sequence of results should use New(NewSource(seed)) to
+ // obtain a local random generator.
++//
++// As of Go 1.24 [Seed] is a no-op. To restore the previous behavior set
++// GODEBUG=randseednop=0.
+ func Seed(seed int64) {
++	if randseednop.Value() != "0" {
++		return
++	}
++	randseednop.IncNonDefault()
++
+ 	orig := globalRandGenerator.Load()
+ 
+ 	// If we are already using a lockedSource, we can just re-seed it.
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index 7906f29674..1e1fad79ce 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -556,6 +556,42 @@ func TestUniformFactorial(t *testing.T) {
+ 	}
+ }
+ 
++func TestSeedNop(t *testing.T) {
++	// If the global Seed takes effect, then resetting it to a certain value
++	// should provide predictable output to functions using it.
++	t.Run("randseednop=0", func(t *testing.T) {
++		t.Setenv("GODEBUG", "randseednop=0")
++		Seed(1)
++		before := Int63()
++		Seed(1)
++		after := Int63()
++		if before != after {
++			t.Fatal("global Seed should take effect")
++		}
++	})
++	// If calls to the global Seed are no-op then functions using it should
++	// provide different output, even if it was reset to the same value.
++	t.Run("randseednop=1", func(t *testing.T) {
++		t.Setenv("GODEBUG", "randseednop=1")
++		Seed(1)
++		before := Int63()
++		Seed(1)
++		after := Int63()
++		if before == after {
++			t.Fatal("global Seed should be a no-op")
++		}
++	})
++	t.Run("GODEBUG unset", func(t *testing.T) {
++		Seed(1)
++		before := Int63()
++		Seed(1)
++		after := Int63()
++		if before == after {
++			t.Fatal("global Seed should default to being a no-op")
++		}
++	})
++}
++
+ // Benchmarks
+ 
+ func BenchmarkInt63Threadsafe(b *testing.B) {
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index da3d956d48..906abb4102 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -306,6 +306,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the math/rand
+ 		package due to a non-default GODEBUG=randautoseed=... setting.
+ 
++	/godebug/non-default-behavior/randseednop:events
++		The number of non-default behaviors executed by the math/rand
++		package due to a non-default GODEBUG=randseednop=... setting.
++
+ 	/godebug/non-default-behavior/tarinsecurepath:events
+ 		The number of non-default behaviors executed by the archive/tar
+ 		package due to a non-default GODEBUG=tarinsecurepath=...

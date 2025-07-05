@@ -17,7 +17,7 @@ Date:   Fri Mar 8 13:26:04 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/addr2line/addr2line_test.go             |  2 --
  src/cmd/compile/internal/gc/scope_test.go       |  2 --
  src/cmd/cover/cover_test.go                     |  2 --
@@ -36,3 +36,251 @@ Date:   Fri Mar 8 13:26:04 2019 -0500
  src/runtime/crash_test.go                       |  2 --
  src/runtime/pprof/proto_test.go                 |  2 --
  17 files changed, 56 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 183a22f8f3..22bf1379bb 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -115,5 +115,3 @@ func TestAddr2Line(t *testing.T) {
+ 	testAddr2Line(t, exepath, syms[symName])
+ 	testAddr2Line(t, exepath, "0x"+syms[symName])
+ }
+-
+-func init() { testenv.SetModVendor() }
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index e4861c686c..e327dc02af 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -202,8 +202,6 @@ var testfile = []testline{
+ 
+ const detailOutput = false
+ 
+-func init() { testenv.SetModVendor() }
+-
+ // Compiles testfile checks that the description of lexical blocks emitted
+ // by the linker in debug_info, for each function in the main package,
+ // corresponds to what we expect it to be.
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index d7e6ca99b7..f002442b63 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -77,8 +77,6 @@ var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
+ // We use TestMain to set up a temporary directory and remove it when
+ // the tests are done.
+ func TestMain(m *testing.M) {
+-	testenv.SetModVendor()
+-
+ 	dir, err := ioutil.TempDir("", "gotestcover")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, err)
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index 2b1a729c8f..c5399744f2 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -134,8 +134,6 @@ func parseOutput(t *testing.T, td *ParsedTestData, asmout []byte) {
+ 	}
+ }
+ 
+-func init() { testenv.SetModVendor() }
+-
+ func TestDynlink(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 219b2a63ca..0816429316 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -13,8 +13,6 @@ import (
+ 	"testing"
+ )
+ 
+-func init() { testenv.SetModVendor() }
+-
+ func TestUndefinedRelocErrors(t *testing.T) {
+ 	t.Parallel()
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 5043a778ca..5200c3a6f0 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -38,8 +38,6 @@ func TestLargeSymName(t *testing.T) {
+ 	_ = AuthorPaidByTheColumnInch
+ }
+ 
+-func init() { testenv.SetModVendor() }
+-
+ func TestIssue21703(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 82f4235510..8176ddd7f4 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -30,8 +30,6 @@ func testMain(m *testing.M) int {
+ 		return 0
+ 	}
+ 
+-	testenv.SetModVendor()
+-
+ 	tmpDir, err := ioutil.TempDir("", "TestNM")
+ 	if err != nil {
+ 		fmt.Println("TempDir failed:", err)
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 7c874e853b..be9fe5274a 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -24,7 +24,6 @@ func TestMain(m *testing.M) {
+ 	if !testenv.HasGoBuild() {
+ 		return
+ 	}
+-	testenv.SetModVendor()
+ 
+ 	var exitcode int
+ 	if err := buildObjdump(); err == nil {
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 018eba4d6e..6e4a4e297e 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -44,7 +44,6 @@ func main() {
+ 	log.SetPrefix("vet/all: ")
+ 	log.SetFlags(log.Lshortfile)
+ 
+-	testenv.SetModVendor()
+ 	var err error
+ 	cmdGoPath, err = testenv.GoTool()
+ 	if err != nil {
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 62c28fb9a2..5d8139d977 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -32,8 +32,6 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func testMain(m *testing.M) int {
+-	testenv.SetModVendor()
+-
+ 	dir, err := ioutil.TempDir("", "vet_test")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, err)
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index fbcdb7b58e..f5851f1f11 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1146,8 +1146,6 @@ func TestParsePEMCRL(t *testing.T) {
+ 	// Can't check the signature here without a package cycle.
+ }
+ 
+-func init() { testenv.SetModVendor() }
+-
+ func TestImports(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index c67fb66f0d..d21f0e24a8 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -21,8 +21,6 @@ var (
+ 	pclinetestBinary string
+ )
+ 
+-func init() { testenv.SetModVendor() }
+-
+ func dotest(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	// For now, only works on amd64 platforms.
+diff --git a/src/go/importer/importer_test.go b/src/go/importer/importer_test.go
+index 2887ec6ea5..ff6e12c0da 100644
+--- a/src/go/importer/importer_test.go
++++ b/src/go/importer/importer_test.go
+@@ -16,8 +16,6 @@ import (
+ 	"testing"
+ )
+ 
+-func init() { testenv.SetModVendor() }
+-
+ func TestForCompiler(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 06472447a6..b84672610c 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -18,8 +18,6 @@ import (
+ 	"time"
+ )
+ 
+-func init() { testenv.SetModVendor() }
+-
+ const maxTime = 2 * time.Second
+ 
+ var importer = New(&build.Default, token.NewFileSet(), make(map[string]*types.Package))
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 72e4d803cb..8f69fe0da5 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -19,7 +19,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+-	"sync"
+ 	"testing"
+ )
+ 
+@@ -78,31 +77,6 @@ func MustHaveGoRun(t testing.TB) {
+ 	}
+ }
+ 
+-var modVendorOnce sync.Once
+-
+-// SetModVendor adds the "-mod=vendor" flag to the GOFLAGS environment variable.
+-// This allows tests whose working directories are within the cmd and std
+-// modules to run ``go'' commands without accessing the network to load
+-// dependencies modules.
+-//
+-// SetModVendor must be called before any test may read the GOFLAGS environment
+-// variable.
+-//
+-// TODO(golang.org/issue/30240): If we load go.mod files from vendor/
+-// automatically, this will probably no longer be necessary.
+-func SetModVendor() {
+-	modVendorOnce.Do(func() {
+-		var goflags []string
+-		for _, f := range strings.Fields(os.Getenv("GOFLAGS")) {
+-			if !strings.HasPrefix(f, "-mod=") && !strings.HasPrefix(f, "--mod=") {
+-				goflags = append(goflags, f)
+-			}
+-		}
+-		goflags = append(goflags, "-mod=vendor")
+-		os.Setenv("GOFLAGS", strings.Join(goflags, " "))
+-	})
+-}
+-
+ // GoToolPath reports the path to the Go tool.
+ // It is a convenience wrapper around GoTool.
+ // If the tool is unavailable GoToolPath calls t.Skip.
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 3a27b269a1..03ebf022a6 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -25,8 +25,6 @@ import (
+ var toRemove []string
+ 
+ func TestMain(m *testing.M) {
+-	testenv.SetModVendor()
+-
+ 	status := m.Run()
+ 	for _, file := range toRemove {
+ 		os.RemoveAll(file)
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index a276d81c49..4452d51231 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -301,8 +301,6 @@ func TestProcSelfMaps(t *testing.T) {
+ 	})
+ }
+ 
+-func init() { testenv.SetModVendor() }
+-
+ // TestMapping checkes the mapping section of CPU profiles
+ // has the HasFunctions field set correctly. If all PCs included
+ // in the samples are successfully symbolized, the corresponding

@@ -22,8 +22,80 @@ Date:   Tue Feb 21 14:42:18 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/typestring.go      |  7 ++++++
  src/go/types/typestring.go                         |  9 ++++++++
  .../types/testdata/fixedbugs/issue58611.go         | 27 ++++++++++++++++++++++
  3 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index ecabe013e3..2f4fb5220d 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -317,6 +317,13 @@ func (w *typeWriter) typ(typ Type) {
+ 			if w.tpSubscripts || w.ctxt != nil {
+ 				w.string(subscript(t.id))
+ 			}
++			// If the type parameter name is the same as a predeclared object
++			// (say int), point out where it is declared to avoid confusing
++			// error messages. This doesn't need to be super-elegant; we just
++			// need a clear indication that this is not a predeclared name.
++			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
++				w.string(sprintf(nil, false, " /* with %s declared at %s */", t.obj.name, t.obj.Pos()))
++			}
+ 		}
+ 
+ 	default:
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 9683a0ad1d..9615e24157 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -318,6 +318,15 @@ func (w *typeWriter) typ(typ Type) {
+ 			if w.tpSubscripts || w.ctxt != nil {
+ 				w.string(subscript(t.id))
+ 			}
++			// If the type parameter name is the same as a predeclared object
++			// (say int), point out where it is declared to avoid confusing
++			// error messages. This doesn't need to be super-elegant; we just
++			// need a clear indication that this is not a predeclared name.
++			// Note: types2 prints position information here - we can't do
++			//       that because we don't have a token.FileSet accessible.
++			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
++				w.string("/* type parameter */")
++			}
+ 		}
+ 
+ 	default:
+diff --git a/src/internal/types/testdata/fixedbugs/issue58611.go b/src/internal/types/testdata/fixedbugs/issue58611.go
+new file mode 100644
+index 0000000000..1ff30f74fa
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue58611.go
+@@ -0,0 +1,27 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import (
++	"sort"
++	"strings"
++)
++
++func f[int any](x int) {
++	x = 0 /* ERRORx "cannot use 0.*(as int.*with int declared at|type parameter)" */
++}
++
++// test case from issue
++
++type Set[T comparable] map[T]struct{}
++
++func (s *Set[string]) String() string {
++	keys := make([]string, 0, len(*s))
++	for k := range *s {
++		keys = append(keys, k)
++	}
++	sort.Strings(keys /* ERRORx "cannot use keys.*with string declared at.*|type parameter" */ )
++	return strings /* ERROR "cannot use strings.Join" */ .Join(keys /* ERRORx "cannot use keys.*with string declared at.*|type parameter" */ , ",")
++}

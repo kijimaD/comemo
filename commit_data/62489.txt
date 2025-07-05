@@ -29,6 +29,21 @@ Date:   Wed Mar 5 12:08:35 2025 +0100
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/fips140/bigmod/nat.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/fips140/bigmod/nat.go b/src/crypto/internal/fips140/bigmod/nat.go
+index 6757cccd02..7b690178b9 100644
+--- a/src/crypto/internal/fips140/bigmod/nat.go
++++ b/src/crypto/internal/fips140/bigmod/nat.go
+@@ -96,7 +96,8 @@ func (x *Nat) reset(n int) *Nat {
+ 		x.limbs = make([]uint, n)
+ 		return x
+ 	}
+-	clear(x.limbs)
++	// Clear both the returned limbs and the previously used ones.
++	clear(x.limbs[:max(n, len(x.limbs))])
+ 	x.limbs = x.limbs[:n]
+ 	return x
+ }

@@ -8,6 +8,23 @@ Date:   Mon Sep 13 12:59:59 2010 +1000
     R=golang-dev, adg1, rsc, adg
     CC=golang-dev
     https://golang.org/cl/2124046
-
+---
  src/cmd/goinstall/main.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 2d410cd4fc..07ab622af0 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -148,6 +148,11 @@ func install(pkg, parent string) {
+ 	// If remote, download or update it.
+ 	var dir string
+ 	local := false
++	if strings.HasPrefix(pkg, "http://") {
++		fmt.Fprintf(os.Stderr, "%s: %s: 'http://' used in remote path, try '%s'\n", argv0, pkg, pkg[7:])
++		errors = true
++		return
++	}
+ 	if isLocalPath(pkg) {
+ 		dir = pkg
+ 		local = true

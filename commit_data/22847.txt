@@ -7,6 +7,20 @@ Date:   Sat Apr 11 21:25:35 2015 +0300
     Change-Id: I440435927fc9f417d81ed4e8656a73787bf0968a
     Reviewed-on: https://go-review.googlesource.com/8801
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testflag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 8767c2525b..db1266ea94 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -170,7 +170,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			case "set", "count", "atomic":
+ 				testCoverMode = value
+ 			default:
+-				fatalf("invalid flag argument for -cover: %q", value)
++				fatalf("invalid flag argument for -covermode: %q", value)
+ 			}
+ 			testCover = true
+ 		case "outputdir":

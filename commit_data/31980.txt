@@ -11,6 +11,26 @@ Date:   Tue Mar 28 11:17:52 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 92ecaed8ec..e143116471 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -49,12 +49,10 @@ func walk(fn *Node) {
+ 			if defn.Left.Used() {
+ 				continue
+ 			}
+-			lineno = defn.Left.Pos
+-			yyerror("%v declared and not used", ln.Sym)
++			yyerrorl(defn.Left.Pos, "%v declared and not used", ln.Sym)
+ 			defn.Left.SetUsed(true) // suppress repeats
+ 		} else {
+-			lineno = ln.Pos
+-			yyerror("%v declared and not used", ln.Sym)
++			yyerrorl(ln.Pos, "%v declared and not used", ln.Sym)
+ 		}
+ 	}
+ 

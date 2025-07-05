@@ -32,8 +32,108 @@ Date:   Tue Mar 6 09:07:34 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go |  3 +++
  src/math/big/nat.go                     | 34 ++++++++++++++++++++-------------
  src/math/big/nat_test.go                | 19 ++++++++++++++++++
  3 files changed, 43 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index a937c15432..d1dc6fbbfa 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -133,6 +133,9 @@ func TestIntendedInlining(t *testing.T) {
+ 		"regexp": {
+ 			"(*bitState).push",
+ 		},
++		"math/big": {
++			"bigEndianWord",
++		},
+ 	}
+ 
+ 	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" {
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 3bb818f5f2..c1812e3544 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -9,6 +9,7 @@
+ package big
+ 
+ import (
++	"encoding/binary"
+ 	"math/bits"
+ 	"math/rand"
+ 	"sync"
+@@ -1208,25 +1209,32 @@ func (z nat) bytes(buf []byte) (i int) {
+ 	return
+ }
+ 
++// bigEndianWord returns the contents of buf interpreted as a big-endian encoded Word value.
++func bigEndianWord(buf []byte) Word {
++	if _W == 64 {
++		return Word(binary.BigEndian.Uint64(buf))
++	} else { // Explicit else is required to get inlining. See #23521
++		return Word(binary.BigEndian.Uint32(buf))
++	}
++}
++
+ // setBytes interprets buf as the bytes of a big-endian unsigned
+ // integer, sets z to that value, and returns z.
+ func (z nat) setBytes(buf []byte) nat {
+ 	z = z.make((len(buf) + _S - 1) / _S)
+ 
+-	k := 0
+-	s := uint(0)
+-	var d Word
+-	for i := len(buf); i > 0; i-- {
+-		d |= Word(buf[i-1]) << s
+-		if s += 8; s == _S*8 {
+-			z[k] = d
+-			k++
+-			s = 0
+-			d = 0
+-		}
++	i := len(buf)
++	for k := 0; i >= _S; k++ {
++		z[k] = bigEndianWord(buf[i-_S : i])
++		i -= _S
+ 	}
+-	if k < len(z) {
+-		z[k] = d
++	if i > 0 {
++		var d Word
++		for s := uint(0); i > 0; s += 8 {
++			d |= Word(buf[i-1]) << s
++			i--
++		}
++		z[len(z)-1] = d
+ 	}
+ 
+ 	return z.norm()
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index c25cdf00a3..9bb96b1157 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -665,3 +665,22 @@ func BenchmarkNatSqr(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkNatSetBytes(b *testing.B) {
++	const maxLength = 128
++	lengths := []int{
++		// No remainder:
++		8, 24, maxLength,
++		// With remainder:
++		7, 23, maxLength - 1,
++	}
++	n := make(nat, maxLength/_W) // ensure n doesn't need to grow during the test
++	buf := make([]byte, maxLength)
++	for _, l := range lengths {
++		b.Run(fmt.Sprint(l), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				n.setBytes(buf[:l])
++			}
++		})
++	}
++}

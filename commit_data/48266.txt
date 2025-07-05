@@ -33,7 +33,71 @@ Date:   Mon May 3 18:11:55 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/dist/test.go      | 28 ++++++++++++++++++++++++++++
  src/cmd/go/script_test.go |  2 +-
  2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 33fabd3554..50bf80ba59 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -42,6 +42,7 @@ func cmdtest() {
+ 	if noRebuild {
+ 		t.rebuild = false
+ 	}
++
+ 	t.run()
+ }
+ 
+@@ -117,6 +118,21 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
++	// Set GOTRACEBACK to system if the user didn't set a level explicitly.
++	// Since we're running tests for Go, we want as much detail as possible
++	// if something goes wrong.
++	//
++	// Set it before running any commands just in case something goes wrong.
++	if ok := isEnvSet("GOTRACEBACK"); !ok {
++		if err := os.Setenv("GOTRACEBACK", "system"); err != nil {
++			if t.keepGoing {
++				log.Printf("Failed to set GOTRACEBACK: %v", err)
++			} else {
++				fatalf("Failed to set GOTRACEBACK: %v", err)
++			}
++		}
++	}
++
+ 	if t.rebuild {
+ 		t.out("Building packages and commands.")
+ 		// Force rebuild the whole toolchain.
+@@ -1664,3 +1680,15 @@ func isUnsupportedVMASize(w *work) bool {
+ 	unsupportedVMA := []byte("unsupported VMA range")
+ 	return w.dt.name == "race" && bytes.Contains(w.out, unsupportedVMA)
+ }
++
++// isEnvSet reports whether the environment variable evar is
++// set in the environment.
++func isEnvSet(evar string) bool {
++	evarEq := evar + "="
++	for _, e := range os.Environ() {
++		if strings.HasPrefix(e, evarEq) {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 2274335a75..327eaff445 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -170,7 +170,7 @@ func (ts *testScript) setup() {
+ 		"GOPRIVATE=",
+ 		"GOROOT=" + testGOROOT,
+ 		"GOROOT_FINAL=" + os.Getenv("GOROOT_FINAL"), // causes spurious rebuilds and breaks the "stale" built-in if not propagated
+-		"GOTRACEBACK=all",
++		"GOTRACEBACK=system",
+ 		"TESTGO_GOROOT=" + testGOROOT,
+ 		"GOSUMDB=" + testSumDBVerifierKey,
+ 		"GONOPROXY=",

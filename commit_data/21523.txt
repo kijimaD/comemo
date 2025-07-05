@@ -14,6 +14,27 @@ Date:   Tue Jan 13 16:33:55 2015 +1100
     Change-Id: I79737deb06fd8e0f28910f21f41bd3dc1726781e
     Reviewed-on: https://go-review.googlesource.com/2713
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/sys_nacl_amd64p32.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_nacl_amd64p32.s b/src/runtime/sys_nacl_amd64p32.s
+index f5624ca8df..7657482fd1 100644
+--- a/src/runtime/sys_nacl_amd64p32.s
++++ b/src/runtime/sys_nacl_amd64p32.s
+@@ -94,13 +94,13 @@ playback:
+ 	MOVL n+8(FP), DX
+ 	BSWAPL DX
+ 	MOVL DX, 12(SP)
+-	MOVL $1, DI // standard output
++	MOVL fd+0(FP), DI
+ 	MOVL SP, SI
+ 	MOVL $16, DX
+ 	NACL_SYSCALL(SYS_write)
+ 
+ 	// Write actual data.
+-	MOVL $1, DI // standard output
++	MOVL fd+0(FP), DI
+ 	MOVL p+4(FP), SI
+ 	MOVL n+8(FP), DX
+ 	NACL_SYSCALL(SYS_write)

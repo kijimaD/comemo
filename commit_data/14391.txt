@@ -9,7 +9,7 @@ Date:   Tue Nov 13 16:18:37 2012 +0900
     R=ality, golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6820124
-
+---
  src/pkg/net/fd_plan9.go      | 115 ++++++++++++++++++++++++
  src/pkg/net/ipsock_plan9.go  | 202 ++++---------------------------------------
  src/pkg/net/net.go           |  97 +++++++++++++++++++++
@@ -17,3 +17,945 @@ Date:   Tue Nov 13 16:18:37 2012 +0900
  src/pkg/net/tcpsock_plan9.go | 115 ++++++++++++++++++++----
  src/pkg/net/udpsock_plan9.go |  36 ++++----
  6 files changed, 349 insertions(+), 326 deletions(-)
+
+diff --git a/src/pkg/net/fd_plan9.go b/src/pkg/net/fd_plan9.go
+new file mode 100644
+index 0000000000..6d7ab388ae
+--- /dev/null
++++ b/src/pkg/net/fd_plan9.go
+@@ -0,0 +1,115 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"io"
++	"os"
++	"syscall"
++	"time"
++)
++
++// Network file descritor.
++type netFD struct {
++	proto, name, dir string
++	ctl, data        *os.File
++	laddr, raddr     Addr
++}
++
++var canCancelIO = true // used for testing current package
++
++func sysInit() {
++}
++
++func newFD(proto, name string, ctl *os.File, laddr, raddr Addr) *netFD {
++	return &netFD{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
++}
++
++func (fd *netFD) ok() bool { return fd != nil && fd.ctl != nil }
++
++func (fd *netFD) Read(b []byte) (n int, err error) {
++	if !fd.ok() {
++		return 0, syscall.EINVAL
++	}
++	if fd.data == nil {
++		fd.data, err = os.OpenFile(fd.dir+"/data", os.O_RDWR, 0)
++		if err != nil {
++			return 0, err
++		}
++	}
++	n, err = fd.data.Read(b)
++	if fd.proto == "udp" && err == io.EOF {
++		n = 0
++		err = nil
++	}
++	return
++}
++
++func (fd *netFD) Write(b []byte) (n int, err error) {
++	if !fd.ok() {
++		return 0, syscall.EINVAL
++	}
++	if fd.data == nil {
++		fd.data, err = os.OpenFile(fd.dir+"/data", os.O_RDWR, 0)
++		if err != nil {
++			return 0, err
++		}
++	}
++	return fd.data.Write(b)
++}
++
++func (fd *netFD) CloseRead() error {
++	if !fd.ok() {
++		return syscall.EINVAL
++	}
++	return syscall.EPLAN9
++}
++
++func (fd *netFD) CloseWrite() error {
++	if !fd.ok() {
++		return syscall.EINVAL
++	}
++	return syscall.EPLAN9
++}
++
++func (fd *netFD) Close() error {
++	if !fd.ok() {
++		return syscall.EINVAL
++	}
++	err := fd.ctl.Close()
++	if err != nil {
++		return err
++	}
++	if fd.data != nil {
++		err = fd.data.Close()
++	}
++	fd.ctl = nil
++	fd.data = nil
++	return err
++}
++
++func (fd *netFD) dup() (*os.File, error) {
++	return nil, syscall.EPLAN9
++}
++
++func setDeadline(fd *netFD, t time.Time) error {
++	return syscall.EPLAN9
++}
++
++func setReadDeadline(fd *netFD, t time.Time) error {
++	return syscall.EPLAN9
++}
++
++func setWriteDeadline(fd *netFD, t time.Time) error {
++	return syscall.EPLAN9
++}
++
++func setReadBuffer(fd *netFD, bytes int) error {
++	return syscall.EPLAN9
++}
++
++func setWriteBuffer(fd *netFD, bytes int) error {
++	return syscall.EPLAN9
++}
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 4111acfc2e..138c3b4855 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -8,10 +8,7 @@ package net
+ 
+ import (
+ 	"errors"
+-	"io"
+ 	"os"
+-	"syscall"
+-	"time"
+ )
+ 
+ // /sys/include/ape/sys/socket.h:/SOMAXCONN
+@@ -24,11 +21,6 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	return false, false
+ }
+ 
+-var canCancelIO = true // used for testing current package
+-
+-func sysInit() {
+-}
+-
+ // parsePlan9Addr parses address of the form [ip!]port (e.g. 127.0.0.1!80).
+ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 	addr := IPv4zero // address contains port only
+@@ -76,120 +68,6 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
+ 	return addr, nil
+ }
+ 
+-type plan9Conn struct {
+-	proto, name, dir string
+-	ctl, data        *os.File
+-	laddr, raddr     Addr
+-}
+-
+-func newPlan9Conn(proto, name string, ctl *os.File, laddr, raddr Addr) *plan9Conn {
+-	return &plan9Conn{proto, name, "/net/" + proto + "/" + name, ctl, nil, laddr, raddr}
+-}
+-
+-func (c *plan9Conn) ok() bool { return c != nil && c.ctl != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the Conn Read method.
+-func (c *plan9Conn) Read(b []byte) (n int, err error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	if c.data == nil {
+-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
+-	n, err = c.data.Read(b)
+-	if c.proto == "udp" && err == io.EOF {
+-		n = 0
+-		err = nil
+-	}
+-	return
+-}
+-
+-// Write implements the Conn Write method.
+-func (c *plan9Conn) Write(b []byte) (n int, err error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	if c.data == nil {
+-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
+-	return c.data.Write(b)
+-}
+-
+-// Close closes the connection.
+-func (c *plan9Conn) Close() error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	err := c.ctl.Close()
+-	if err != nil {
+-		return err
+-	}
+-	if c.data != nil {
+-		err = c.data.Close()
+-	}
+-	c.ctl = nil
+-	c.data = nil
+-	return err
+-}
+-
+-// LocalAddr returns the local network address.
+-func (c *plan9Conn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.laddr
+-}
+-
+-// RemoteAddr returns the remote network address.
+-func (c *plan9Conn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.raddr
+-}
+-
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *plan9Conn) SetDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *plan9Conn) SetReadDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetReadBuffer sets the size of the operating system's receive
+-// buffer associated with the connection.
+-func (c *plan9Conn) SetReadBuffer(bytes int) error {
+-	return syscall.EPLAN9
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's transmit
+-// buffer associated with the connection.
+-func (c *plan9Conn) SetWriteBuffer(bytes int) error {
+-	return syscall.EPLAN9
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking
+-// mode.  It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *plan9Conn) File() (f *os.File, err error) {
+-	return nil, syscall.EPLAN9
+-}
+-
+ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
+ 	var (
+ 		ip   IP
+@@ -226,114 +104,72 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string,
+ 	return f, dest, proto, string(buf[:n]), nil
+ }
+ 
+-func dialPlan9(net string, laddr, raddr Addr) (c *plan9Conn, err error) {
++func dialPlan9(net string, laddr, raddr Addr) (*netFD, error) {
+ 	f, dest, proto, name, err := startPlan9(net, raddr)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	_, err = f.WriteString("connect " + dest)
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+ 	raddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/remote")
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+-	return newPlan9Conn(proto, name, f, laddr, raddr), nil
++	return newFD(proto, name, f, laddr, raddr), nil
+ }
+ 
+-type plan9Listener struct {
+-	proto, name, dir string
+-	ctl              *os.File
+-	laddr            Addr
+-}
+-
+-func listenPlan9(net string, laddr Addr) (l *plan9Listener, err error) {
++func listenPlan9(net string, laddr Addr) (*netFD, error) {
+ 	f, dest, proto, name, err := startPlan9(net, laddr)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	_, err = f.WriteString("announce " + dest)
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+ 	laddr, err = readPlan9Addr(proto, "/net/"+proto+"/"+name+"/local")
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+-	l = new(plan9Listener)
+-	l.proto = proto
+-	l.name = name
+-	l.dir = "/net/" + proto + "/" + name
+-	l.ctl = f
+-	l.laddr = laddr
+-	return l, nil
++	return &netFD{proto: proto, name: name, dir: "/net/" + proto + "/" + name, ctl: f, laddr: laddr}, nil
+ }
+ 
+-func (l *plan9Listener) plan9Conn() *plan9Conn {
+-	return newPlan9Conn(l.proto, l.name, l.ctl, l.laddr, nil)
++func (l *netFD) netFD() *netFD {
++	return newFD(l.proto, l.name, l.ctl, l.laddr, nil)
+ }
+ 
+-func (l *plan9Listener) acceptPlan9() (c *plan9Conn, err error) {
++func (l *netFD) acceptPlan9() (*netFD, error) {
+ 	f, err := os.Open(l.dir + "/listen")
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	var buf [16]byte
+ 	n, err := f.Read(buf[:])
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+ 	name := string(buf[:n])
+ 	laddr, err := readPlan9Addr(l.proto, l.dir+"/local")
+ 	if err != nil {
+ 		f.Close()
+-		return
++		return nil, err
+ 	}
+ 	raddr, err := readPlan9Addr(l.proto, l.dir+"/remote")
+ 	if err != nil {
+ 		f.Close()
+-		return
+-	}
+-	return newPlan9Conn(l.proto, name, f, laddr, raddr), nil
+-}
+-
+-func (l *plan9Listener) Accept() (c Conn, err error) {
+-	c1, err := l.acceptPlan9()
+-	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	return c1, nil
+-}
+-
+-func (l *plan9Listener) Close() error {
+-	if l == nil || l.ctl == nil {
+-		return syscall.EINVAL
+-	}
+-	return l.ctl.Close()
+-}
+-
+-func (l *plan9Listener) Addr() Addr { return l.laddr }
+-
+-// SetDeadline sets the deadline associated with the listener.
+-// A zero time value disables the deadline.
+-func (l *plan9Listener) SetDeadline(t time.Time) error {
+-	return syscall.EPLAN9
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking
+-// mode.  It is the caller's responsibility to close f when finished.
+-// Closing l does not affect f, and closing f does not affect l.
+-func (l *plan9Listener) File() (f *os.File, err error) {
+-	return nil, syscall.EPLAN9
++	return newFD(l.proto, name, f, laddr, raddr), nil
+ }
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index 4f0edd4d29..feb92a2737 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -44,6 +44,8 @@ package net
+ 
+ import (
+ 	"errors"
++	"os"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -103,6 +105,101 @@ type Conn interface {
+ 	SetWriteDeadline(t time.Time) error
+ }
+ 
++type conn struct {
++	fd *netFD
++}
++
++func (c *conn) ok() bool { return c != nil && c.fd != nil }
++
++// Implementation of the Conn interface.
++
++// Read implements the Conn Read method.
++func (c *conn) Read(b []byte) (int, error) {
++	if !c.ok() {
++		return 0, syscall.EINVAL
++	}
++	return c.fd.Read(b)
++}
++
++// Write implements the Conn Write method.
++func (c *conn) Write(b []byte) (int, error) {
++	if !c.ok() {
++		return 0, syscall.EINVAL
++	}
++	return c.fd.Write(b)
++}
++
++// Close closes the connection.
++func (c *conn) Close() error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return c.fd.Close()
++}
++
++// LocalAddr returns the local network address.
++func (c *conn) LocalAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.laddr
++}
++
++// RemoteAddr returns the remote network address.
++func (c *conn) RemoteAddr() Addr {
++	if !c.ok() {
++		return nil
++	}
++	return c.fd.raddr
++}
++
++// SetDeadline implements the Conn SetDeadline method.
++func (c *conn) SetDeadline(t time.Time) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setDeadline(c.fd, t)
++}
++
++// SetReadDeadline implements the Conn SetReadDeadline method.
++func (c *conn) SetReadDeadline(t time.Time) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setReadDeadline(c.fd, t)
++}
++
++// SetWriteDeadline implements the Conn SetWriteDeadline method.
++func (c *conn) SetWriteDeadline(t time.Time) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setWriteDeadline(c.fd, t)
++}
++
++// SetReadBuffer sets the size of the operating system's
++// receive buffer associated with the connection.
++func (c *conn) SetReadBuffer(bytes int) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setReadBuffer(c.fd, bytes)
++}
++
++// SetWriteBuffer sets the size of the operating system's
++// transmit buffer associated with the connection.
++func (c *conn) SetWriteBuffer(bytes int) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++	return setWriteBuffer(c.fd, bytes)
++}
++
++// File returns a copy of the underlying os.File, set to blocking mode.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
++
+ // An Error represents a network error.
+ type Error interface {
+ 	error
+diff --git a/src/pkg/net/net_posix.go b/src/pkg/net/net_posix.go
+deleted file mode 100644
+index 3bcc54fe53..0000000000
+--- a/src/pkg/net/net_posix.go
++++ /dev/null
+@@ -1,110 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build darwin freebsd linux netbsd openbsd windows
+-
+-// Base posix socket functions.
+-
+-package net
+-
+-import (
+-	"os"
+-	"syscall"
+-	"time"
+-)
+-
+-type conn struct {
+-	fd *netFD
+-}
+-
+-func (c *conn) ok() bool { return c != nil && c.fd != nil }
+-
+-// Implementation of the Conn interface - see Conn for documentation.
+-
+-// Read implements the Conn Read method.
+-func (c *conn) Read(b []byte) (int, error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Read(b)
+-}
+-
+-// Write implements the Conn Write method.
+-func (c *conn) Write(b []byte) (int, error) {
+-	if !c.ok() {
+-		return 0, syscall.EINVAL
+-	}
+-	return c.fd.Write(b)
+-}
+-
+-// LocalAddr returns the local network address.
+-func (c *conn) LocalAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.laddr
+-}
+-
+-// RemoteAddr returns the remote network address.
+-func (c *conn) RemoteAddr() Addr {
+-	if !c.ok() {
+-		return nil
+-	}
+-	return c.fd.raddr
+-}
+-
+-// SetDeadline implements the Conn SetDeadline method.
+-func (c *conn) SetDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setDeadline(c.fd, t)
+-}
+-
+-// SetReadDeadline implements the Conn SetReadDeadline method.
+-func (c *conn) SetReadDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadDeadline(c.fd, t)
+-}
+-
+-// SetWriteDeadline implements the Conn SetWriteDeadline method.
+-func (c *conn) SetWriteDeadline(t time.Time) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteDeadline(c.fd, t)
+-}
+-
+-// SetReadBuffer sets the size of the operating system's
+-// receive buffer associated with the connection.
+-func (c *conn) SetReadBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setReadBuffer(c.fd, bytes)
+-}
+-
+-// SetWriteBuffer sets the size of the operating system's
+-// transmit buffer associated with the connection.
+-func (c *conn) SetWriteBuffer(bytes int) error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return setWriteBuffer(c.fd, bytes)
+-}
+-
+-// File returns a copy of the underlying os.File, set to blocking mode.
+-// It is the caller's responsibility to close f when finished.
+-// Closing c does not affect f, and closing f does not affect c.
+-func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
+-
+-// Close closes the connection.
+-func (c *conn) Close() error {
+-	if !c.ok() {
+-		return syscall.EINVAL
+-	}
+-	return c.fd.Close()
+-}
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index d4d39e80f4..cec5bd2aa5 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -7,6 +7,8 @@
+ package net
+ 
+ import (
++	"io"
++	"os"
+ 	"syscall"
+ 	"time"
+ )
+@@ -14,7 +16,16 @@ import (
+ // TCPConn is an implementation of the Conn interface for TCP network
+ // connections.
+ type TCPConn struct {
+-	plan9Conn
++	conn
++}
++
++func newTCPConn(fd *netFD) *TCPConn {
++	return &TCPConn{conn{fd}}
++}
++
++// ReadFrom implements the io.ReaderFrom ReadFrom method.
++func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
++	return 0, syscall.EPLAN9
+ }
+ 
+ // CloseRead shuts down the reading side of the TCP connection.
+@@ -23,7 +34,7 @@ func (c *TCPConn) CloseRead() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
+-	return syscall.EPLAN9
++	return c.fd.CloseRead()
+ }
+ 
+ // CloseWrite shuts down the writing side of the TCP connection.
+@@ -32,6 +43,35 @@ func (c *TCPConn) CloseWrite() error {
+ 	if !c.ok() {
+ 		return syscall.EINVAL
+ 	}
++	return c.fd.CloseWrite()
++}
++
++// SetLinger sets the behavior of Close() on a connection which still
++// has data waiting to be sent or to be acknowledged.
++//
++// If sec < 0 (the default), Close returns immediately and the
++// operating system finishes sending the data in the background.
++//
++// If sec == 0, Close returns immediately and the operating system
++// discards any unsent or unacknowledged data.
++//
++// If sec > 0, Close blocks for at most sec seconds waiting for data
++// to be sent and acknowledged.
++func (c *TCPConn) SetLinger(sec int) error {
++	return syscall.EPLAN9
++}
++
++// SetKeepAlive sets whether the operating system should send
++// keepalive messages on the connection.
++func (c *TCPConn) SetKeepAlive(keepalive bool) error {
++	return syscall.EPLAN9
++}
++
++// SetNoDelay controls whether the operating system should delay
++// packet transmission in hopes of sending fewer packets (Nagle's
++// algorithm).  The default is true (no delay), meaning that data is
++// sent as soon as possible after a Write.
++func (c *TCPConn) SetNoDelay(noDelay bool) error {
+ 	return syscall.EPLAN9
+ }
+ 
+@@ -42,7 +82,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
+ 	return dialTCP(net, laddr, raddr, noDeadline)
+ }
+ 
+-func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (c *TCPConn, err error) {
++func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
+ 	if !deadline.IsZero() {
+ 		panic("net.dialTCP: deadline not implemented on Plan 9")
+ 	}
+@@ -54,35 +94,80 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (c *TCPConn,
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
+-	c1, err := dialPlan9(net, laddr, raddr)
++	fd, err := dialPlan9(net, laddr, raddr)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	return &TCPConn{*c1}, nil
++	return &TCPConn{conn{fd}}, nil
+ }
+ 
+ // TCPListener is a TCP network listener.  Clients should typically
+ // use variables of type Listener instead of assuming TCP.
+ type TCPListener struct {
+-	plan9Listener
++	fd *netFD
+ }
+ 
++// AcceptTCP accepts the next incoming call and returns the new
++// connection and the remote address.
++func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
++	if l == nil || l.fd == nil || l.fd.ctl == nil {
++		return nil, syscall.EINVAL
++	}
++	fd, err := l.fd.acceptPlan9()
++	if err != nil {
++		return nil, err
++	}
++	return newTCPConn(fd), nil
++}
++
++// Accept implements the Accept method in the Listener interface; it
++// waits for the next call and returns a generic Conn.
++func (l *TCPListener) Accept() (Conn, error) {
++	if l == nil || l.fd == nil || l.fd.ctl == nil {
++		return nil, syscall.EINVAL
++	}
++	c, err := l.AcceptTCP()
++	if err != nil {
++		return nil, err
++	}
++	return c, nil
++}
++
++// Close stops listening on the TCP address.
++// Already Accepted connections are not closed.
+ func (l *TCPListener) Close() error {
+-	if l == nil || l.ctl == nil {
++	if l == nil || l.fd == nil || l.fd.ctl == nil {
+ 		return syscall.EINVAL
+ 	}
+-	if _, err := l.ctl.WriteString("hangup"); err != nil {
+-		l.ctl.Close()
++	if _, err := l.fd.ctl.WriteString("hangup"); err != nil {
++		l.fd.ctl.Close()
+ 		return err
+ 	}
+-	return l.ctl.Close()
++	return l.fd.ctl.Close()
+ }
+ 
++// Addr returns the listener's network address, a *TCPAddr.
++func (l *TCPListener) Addr() Addr { return l.fd.laddr }
++
++// SetDeadline sets the deadline associated with the listener.
++// A zero time value disables the deadline.
++func (l *TCPListener) SetDeadline(t time.Time) error {
++	if l == nil || l.fd == nil || l.fd.ctl == nil {
++		return syscall.EINVAL
++	}
++	return setDeadline(l.fd, t)
++}
++
++// File returns a copy of the underlying os.File, set to blocking
++// mode.  It is the caller's responsibility to close f when finished.
++// Closing l does not affect f, and closing f does not affect l.
++func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
++
+ // ListenTCP announces on the TCP address laddr and returns a TCP
+ // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+ // port of 0, it means to listen on some available port.  The caller
+ // can use l.Addr() to retrieve the chosen address.
+-func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
++func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+ 	default:
+@@ -91,9 +176,9 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+ 	}
+-	l1, err := listenPlan9(net, laddr)
++	fd, err := listenPlan9(net, laddr)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	return &TCPListener{*l1}, nil
++	return &TCPListener{fd}, nil
+ }
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 767a421cba..6a828e14d2 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -16,7 +16,7 @@ import (
+ // UDPConn is the implementation of the Conn and PacketConn
+ // interfaces for UDP network connections.
+ type UDPConn struct {
+-	plan9Conn
++	conn
+ }
+ 
+ // UDP-specific methods.
+@@ -32,14 +32,14 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+ 	}
+-	if c.data == nil {
+-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
++	if c.fd.data == nil {
++		c.fd.data, err = os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
+ 		if err != nil {
+ 			return 0, nil, err
+ 		}
+ 	}
+ 	buf := make([]byte, udpHeaderSize+len(b))
+-	m, err := c.data.Read(buf)
++	m, err := c.fd.data.Read(buf)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -81,23 +81,23 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+ 	}
+-	if c.data == nil {
+-		c.data, err = os.OpenFile(c.dir+"/data", os.O_RDWR, 0)
++	if c.fd.data == nil {
++		c.fd.data, err = os.OpenFile(c.fd.dir+"/data", os.O_RDWR, 0)
+ 		if err != nil {
+ 			return 0, err
+ 		}
+ 	}
+ 	h := new(udpHeader)
+ 	h.raddr = addr.IP.To16()
+-	h.laddr = c.laddr.(*UDPAddr).IP.To16()
++	h.laddr = c.fd.laddr.(*UDPAddr).IP.To16()
+ 	h.ifcaddr = IPv6zero // ignored (receive only)
+ 	h.rport = uint16(addr.Port)
+-	h.lport = uint16(c.laddr.(*UDPAddr).Port)
++	h.lport = uint16(c.fd.laddr.(*UDPAddr).Port)
+ 
+ 	buf := make([]byte, udpHeaderSize+len(b))
+ 	i := copy(buf, h.Bytes())
+ 	copy(buf[i:], b)
+-	return c.data.Write(buf)
++	return c.fd.data.Write(buf)
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+@@ -107,7 +107,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	}
+ 	a, ok := addr.(*UDPAddr)
+ 	if !ok {
+-		return 0, &OpError{"write", c.dir, addr, syscall.EINVAL}
++		return 0, &OpError{"write", c.fd.dir, addr, syscall.EINVAL}
+ 	}
+ 	return c.WriteToUDP(b, a)
+ }
+@@ -126,7 +126,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
+ 	return dialUDP(net, laddr, raddr, noDeadline)
+ }
+ 
+-func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (c *UDPConn, err error) {
++func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
+ 	if !deadline.IsZero() {
+ 		panic("net.dialUDP: deadline not implemented on Plan 9")
+ 	}
+@@ -138,11 +138,11 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (c *UDPConn,
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
+-	c1, err := dialPlan9(net, laddr, raddr)
++	fd, err := dialPlan9(net, laddr, raddr)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	return &UDPConn{*c1}, nil
++	return &UDPConn{conn{fd}}, nil
+ }
+ 
+ const udpHeaderSize = 16*3 + 2*2
+@@ -177,7 +177,7 @@ func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
+ // address laddr.  The returned connection c's ReadFrom and WriteTo
+ // methods can be used to receive and send UDP packets with per-packet
+ // addressing.
+-func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
++func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+ 	default:
+@@ -188,13 +188,13 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ 	}
+ 	l, err := listenPlan9(net, laddr)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 	_, err = l.ctl.WriteString("headers")
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	return &UDPConn{*l.plan9Conn()}, nil
++	return &UDPConn{conn{l.netFD()}}, nil
+ }
+ 
+ // ListenMulticastUDP listens for incoming multicast UDP packets

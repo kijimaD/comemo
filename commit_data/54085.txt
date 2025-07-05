@@ -25,6 +25,60 @@ Date:   Thu Sep 22 18:53:12 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/walk/expr.go | 33 ++++++---------------------------
  1 file changed, 6 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index c12fb20106..ede904c8a3 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -842,19 +842,14 @@ func walkSlice(n *ir.SliceExpr, init *ir.Nodes) ir.Node {
+ 	n.High = walkExpr(n.High, init)
+ 	n.Max = walkExpr(n.Max, init)
+ 
+-	if n.Op().IsSlice3() {
+-		if n.Max != nil && n.Max.Op() == ir.OCAP && ir.SameSafeExpr(n.X, n.Max.(*ir.UnaryExpr).X) {
+-			// Reduce x[i:j:cap(x)] to x[i:j].
+-			if n.Op() == ir.OSLICE3 {
+-				n.SetOp(ir.OSLICE)
+-			} else {
+-				n.SetOp(ir.OSLICEARR)
+-			}
+-			return reduceSlice(n)
++	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
++		// Reduce x[:] to x.
++		if base.Debug.Slice > 0 {
++			base.Warn("slice: omit slice operation")
+ 		}
+-		return n
++		return n.X
+ 	}
+-	return reduceSlice(n)
++	return n
+ }
+ 
+ // walkSliceHeader walks an OSLICEHEADER node.
+@@ -872,22 +867,6 @@ func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
+ 	return n
+ }
+ 
+-// TODO(josharian): combine this with its caller and simplify
+-func reduceSlice(n *ir.SliceExpr) ir.Node {
+-	if n.High != nil && n.High.Op() == ir.OLEN && ir.SameSafeExpr(n.X, n.High.(*ir.UnaryExpr).X) {
+-		// Reduce x[i:len(x)] to x[i:].
+-		n.High = nil
+-	}
+-	if (n.Op() == ir.OSLICE || n.Op() == ir.OSLICESTR) && n.Low == nil && n.High == nil {
+-		// Reduce x[:] to x.
+-		if base.Debug.Slice > 0 {
+-			base.Warn("slice: omit slice operation")
+-		}
+-		return n.X
+-	}
+-	return n
+-}
+-
+ // return 1 if integer n must be in range [0, max), 0 otherwise
+ func bounded(n ir.Node, max int64) bool {
+ 	if n.Type() == nil || !n.Type().IsInteger() {

@@ -7,6 +7,68 @@ Date:   Fri Dec 16 19:50:55 2011 +0900
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/5493058
-
+---
  src/pkg/net/Makefile | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index a345e1a962..15b733c5a9 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -21,14 +21,14 @@ GOFILES=\
+ 	udpsock.go\
+ 	unixsock.go\
+ 
+-GOFILES_freebsd=\
++GOFILES_darwin=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+ 	fd.go\
+ 	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_bsd.go\
+-	interface_freebsd.go\
++	interface_darwin.go\
+ 	iprawsock_posix.go\
+ 	ipsock_posix.go\
+ 	lookup_unix.go\
+@@ -42,21 +42,21 @@ GOFILES_freebsd=\
+ 	unixsock_posix.go\
+ 
+ ifeq ($(CGO_ENABLED),1)
+-CGOFILES_freebsd=\
++CGOFILES_darwin=\
+ 	cgo_bsd.go\
+ 	cgo_unix.go
+ else
+-GOFILES_freebsd+=cgo_stub.go
++GOFILES_darwin+=cgo_stub.go
+ endif
+ 
+-GOFILES_darwin=\
++GOFILES_freebsd=\
+ 	dnsclient_unix.go\
+ 	dnsconfig.go\
+ 	fd.go\
+ 	fd_$(GOOS).go\
+ 	file.go\
+ 	interface_bsd.go\
+-	interface_darwin.go\
++	interface_freebsd.go\
+ 	iprawsock_posix.go\
+ 	ipsock_posix.go\
+ 	lookup_unix.go\
+@@ -70,11 +70,11 @@ GOFILES_darwin=\
+ 	unixsock_posix.go\
+ 
+ ifeq ($(CGO_ENABLED),1)
+-CGOFILES_darwin=\
++CGOFILES_freebsd=\
+ 	cgo_bsd.go\
+ 	cgo_unix.go
+ else
+-GOFILES_darwin+=cgo_stub.go
++GOFILES_freebsd+=cgo_stub.go
+ endif
+ 
+ GOFILES_linux=\

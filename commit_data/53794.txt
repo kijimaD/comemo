@@ -25,8 +25,73 @@ Date:   Thu Sep 1 16:06:11 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go |  7 +++++--
  src/cmd/compile/internal/noder/writer.go |  1 +
  test/codegen/ifaces.go                   | 21 +++++++++++++++++++++
  3 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index e69d8edc0b..c37f49c1ea 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -2432,6 +2432,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		pos := r.pos()
+ 		typeWord, srcRType := r.convRTTI(pos)
+ 		dstTypeParam := r.Bool()
++		identical := r.Bool()
+ 		x := r.expr()
+ 
+ 		// TODO(mdempsky): Stop constructing expressions of untyped type.
+@@ -2460,8 +2461,10 @@ func (r *reader) expr() (res ir.Node) {
+ 		// Should this be moved down into typecheck.{Assign,Convert}op?
+ 		// This would be a non-issue if itabs were unique for each
+ 		// *underlying* interface type instead.
+-		if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OCONVNOP && n.Type().IsInterface() && !n.Type().IsEmptyInterface() && (n.Type().HasShape() || n.X.Type().HasShape()) {
+-			n.SetOp(ir.OCONVIFACE)
++		if !identical {
++			if n, ok := n.(*ir.ConvExpr); ok && n.Op() == ir.OCONVNOP && n.Type().IsInterface() && !n.Type().IsEmptyInterface() && (n.Type().HasShape() || n.X.Type().HasShape()) {
++				n.SetOp(ir.OCONVIFACE)
++			}
+ 		}
+ 
+ 		// spec: "If the type is a type parameter, the constant is converted
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c2ff639b00..a03593e743 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -2085,6 +2085,7 @@ func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
+ 	w.pos(expr)
+ 	w.convRTTI(src, dst)
+ 	w.Bool(isTypeParam(dst))
++	w.Bool(identical)
+ 	w.expr(expr)
+ }
+ 
+diff --git a/test/codegen/ifaces.go b/test/codegen/ifaces.go
+new file mode 100644
+index 0000000000..d773845e8e
+--- /dev/null
++++ b/test/codegen/ifaces.go
+@@ -0,0 +1,21 @@
++// asmcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++type I interface { M() }
++
++func NopConvertIface(x I) I {
++        // amd64:-`.*runtime.convI2I`
++	return I(x)
++}
++
++func NopConvertGeneric[T any](x T) T {
++        // amd64:-`.*runtime.convI2I`
++        return T(x)
++}
++
++var NopConvertGenericIface = NopConvertGeneric[I]

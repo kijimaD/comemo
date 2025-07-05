@@ -11,9 +11,246 @@ Date:   Wed Apr 13 15:12:28 2011 -0400
     R=rsc, rog, peterGo
     CC=golang-dev
     https://golang.org/cl/4389046
-
+---
  src/pkg/bufio/bufio.go                |  27 ++++++++
  src/pkg/bufio/bufio_test.go           | 126 ++++++++++++++++++++++++++++++++++
  src/pkg/crypto/openpgp/armor/armor.go |   6 +-
  src/pkg/http/cgi/host.go              |   4 +-
  4 files changed, 158 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index cd08be31b6..32a25afae9 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -282,6 +282,33 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ 	panic("not reached")
+ }
+ 
++// ReadLine tries to return a single line, not including the end-of-line bytes.
++// If the line was too long for the buffer then isPrefix is set and the
++// beginning of the line is returned. The rest of the line will be returned
++// from future calls. isPrefix will be false when returning the last fragment
++// of the line. The returned buffer is only valid until the next call to
++// ReadLine. ReadLine either returns a non-nil line or it returns an error,
++// never both.
++func (b *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
++	line, err = b.ReadSlice('\n')
++	if err == ErrBufferFull {
++		return line, true, nil
++	}
++
++	if len(line) == 0 {
++		return
++	}
++	err = nil
++
++	if line[len(line)-1] == '\n' {
++		line = line[:len(line)-1]
++	}
++	if len(line) > 0 && line[len(line)-1] == '\r' {
++		line = line[:len(line)-1]
++	}
++	return
++}
++
+ // ReadBytes reads until the first occurrence of delim in the input,
+ // returning a slice containing the data up to and including the delimiter.
+ // If ReadBytes encounters an error before finding a delimiter,
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 8028e04dcd..123adac29a 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -570,3 +571,128 @@ func TestPeekThenUnreadRune(t *testing.T) {
+ 	r.UnreadRune()
+ 	r.ReadRune() // Used to panic here
+ }
++
++var testOutput = []byte("0123456789abcdefghijklmnopqrstuvwxy")
++var testInput = []byte("012\n345\n678\n9ab\ncde\nfgh\nijk\nlmn\nopq\nrst\nuvw\nxy")
++var testInputrn = []byte("012\r\n345\r\n678\r\n9ab\r\ncde\r\nfgh\r\nijk\r\nlmn\r\nopq\r\nrst\r\nuvw\r\nxy\r\n\n\r\n")
++
++// TestReader wraps a []byte and returns reads of a specific length.
++type testReader struct {
++	data   []byte
++	stride int
++}
++
++func (t *testReader) Read(buf []byte) (n int, err os.Error) {
++	n = t.stride
++	if n > len(t.data) {
++		n = len(t.data)
++	}
++	if n > len(buf) {
++		n = len(buf)
++	}
++	copy(buf, t.data)
++	t.data = t.data[n:]
++	if len(t.data) == 0 {
++		err = os.EOF
++	}
++	return
++}
++
++func testReadLine(t *testing.T, input []byte) {
++	//for stride := 1; stride < len(input); stride++ {
++	for stride := 1; stride < 2; stride++ {
++		done := 0
++		reader := testReader{input, stride}
++		l, _ := NewReaderSize(&reader, len(input)+1)
++		for {
++			line, isPrefix, err := l.ReadLine()
++			if len(line) > 0 && err != nil {
++				t.Errorf("ReadLine returned both data and error: %s", err)
++			}
++			if isPrefix {
++				t.Errorf("ReadLine returned prefix")
++			}
++			if err != nil {
++				if err != os.EOF {
++					t.Fatalf("Got unknown error: %s", err)
++				}
++				break
++			}
++			if want := testOutput[done : done+len(line)]; !bytes.Equal(want, line) {
++				t.Errorf("Bad line at stride %d: want: %x got: %x", stride, want, line)
++			}
++			done += len(line)
++		}
++		if done != len(testOutput) {
++			t.Errorf("ReadLine didn't return everything: got: %d, want: %d (stride: %d)", done, len(testOutput), stride)
++		}
++	}
++}
++
++func TestReadLine(t *testing.T) {
++	testReadLine(t, testInput)
++	testReadLine(t, testInputrn)
++}
++
++func TestLineTooLong(t *testing.T) {
++	buf := bytes.NewBuffer([]byte("aaabbbcc\n"))
++	l, _ := NewReaderSize(buf, 3)
++	line, isPrefix, err := l.ReadLine()
++	if !isPrefix || !bytes.Equal(line, []byte("aaa")) || err != nil {
++		t.Errorf("bad result for first line: %x %s", line, err)
++	}
++	line, isPrefix, err = l.ReadLine()
++	if !isPrefix || !bytes.Equal(line, []byte("bbb")) || err != nil {
++		t.Errorf("bad result for second line: %x", line)
++	}
++	line, isPrefix, err = l.ReadLine()
++	if isPrefix || !bytes.Equal(line, []byte("cc")) || err != nil {
++		t.Errorf("bad result for third line: %x", line)
++	}
++	line, isPrefix, err = l.ReadLine()
++	if isPrefix || err == nil {
++		t.Errorf("expected no more lines: %x %s", line, err)
++	}
++}
++
++func TestReadAfterLines(t *testing.T) {
++	line1 := "line1"
++	restData := "line2\nline 3\n"
++	inbuf := bytes.NewBuffer([]byte(line1 + "\n" + restData))
++	outbuf := new(bytes.Buffer)
++	maxLineLength := len(line1) + len(restData)/2
++	l, _ := NewReaderSize(inbuf, maxLineLength)
++	line, isPrefix, err := l.ReadLine()
++	if isPrefix || err != nil || string(line) != line1 {
++		t.Errorf("bad result for first line: isPrefix=%v err=%v line=%q", isPrefix, err, string(line))
++	}
++	n, err := io.Copy(outbuf, l)
++	if int(n) != len(restData) || err != nil {
++		t.Errorf("bad result for Read: n=%d err=%v", n, err)
++	}
++	if outbuf.String() != restData {
++		t.Errorf("bad result for Read: got %q; expected %q", outbuf.String(), restData)
++	}
++}
++
++func TestReadEmptyBuffer(t *testing.T) {
++	l, _ := NewReaderSize(bytes.NewBuffer(nil), 10)
++	line, isPrefix, err := l.ReadLine()
++	if err != os.EOF {
++		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
++	}
++}
++
++func TestLinesAfterRead(t *testing.T) {
++	l, _ := NewReaderSize(bytes.NewBuffer([]byte("foo")), 10)
++	_, err := ioutil.ReadAll(l)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	line, isPrefix, err := l.ReadLine()
++	if err != os.EOF {
++		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/armor/armor.go b/src/pkg/crypto/openpgp/armor/armor.go
+index 0c5ae9d716..d695a8c332 100644
+--- a/src/pkg/crypto/openpgp/armor/armor.go
++++ b/src/pkg/crypto/openpgp/armor/armor.go
+@@ -7,10 +7,10 @@
+ package armor
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"crypto/openpgp/error"
+ 	"encoding/base64"
+-	"encoding/line"
+ 	"io"
+ 	"os"
+ )
+@@ -63,7 +63,7 @@ var armorEndOfLine = []byte("-----")
+ // lineReader wraps a line based reader. It watches for the end of an armor
+ // block and records the expected CRC value.
+ type lineReader struct {
+-	in  *line.Reader
++	in  *bufio.Reader
+ 	buf []byte
+ 	eof bool
+ 	crc uint32
+@@ -156,7 +156,7 @@ func (r *openpgpReader) Read(p []byte) (n int, err os.Error) {
+ // given Reader is not usable after calling this function: an arbitary amount
+ // of data may have been read past the end of the block.
+ func Decode(in io.Reader) (p *Block, err os.Error) {
+-	r := line.NewReader(in, 100)
++	r, _ := bufio.NewReaderSize(in, 100)
+ 	var line []byte
+ 	ignoreNext := false
+ 
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 2272387374..a713d7c3c3 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -15,8 +15,8 @@
+ package cgi
+ 
+ import (
++	"bufio"
+ 	"bytes"
+-	"encoding/line"
+ 	"exec"
+ 	"fmt"
+ 	"http"
+@@ -142,7 +142,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		go io.Copy(cmd.Stdin, req.Body)
+ 	}
+ 
+-	linebody := line.NewReader(cmd.Stdout, 1024)
++	linebody, _ := bufio.NewReaderSize(cmd.Stdout, 1024)
+ 	headers := rw.Header()
+ 	statusCode := http.StatusOK
+ 	for {

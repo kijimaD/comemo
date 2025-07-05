@@ -7,7 +7,7 @@ Date:   Thu Aug 28 15:17:37 2008 -0700
     R=r
     OCL=14634
     CL=14634
-
+---
  src/cmd/6g/align.c  |  7 +++----
  src/cmd/6g/cgen.c   | 12 ++++++------
  src/cmd/6g/gsubr.c  |  1 -
@@ -17,3 +17,424 @@ Date:   Thu Aug 28 15:17:37 2008 -0700
  src/cmd/gc/subr.c   | 52 +++++++++++++++++++++++++++-------------------------
  src/cmd/gc/walk.c   | 33 +++++++++++++++++----------------
  8 files changed, 64 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 8c837dd885..cab2a93c11 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -157,14 +157,13 @@ dowidth(Type *t)
+ 	case TSTRING:		// implemented as pointer
+ 		w = wptr;
+ 		break;
+-	case TDARRAY:
+-		fatal("width of a dynamic array");
+ 	case TARRAY:
++		if(t->bound < 0)
++			fatal("width of a dynamic array");
+ 		if(t->type == T)
+ 			break;
+ 		dowidth(t->type);
+-		w = t->bound * t->type->width
+-;//			+ offsetof(Array, b[0]);
++		w = t->bound * t->type->width;
+ 		break;
+ 
+ 	case TSTRUCT:
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 7870a8f7e6..f85b8e4e1a 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -136,7 +136,7 @@ cgen(Node *n, Node *res)
+ 		}
+ 		regalloc(&n1, nl->type, res);
+ 		cgen(nl, &n1);
+-		if(isptrto(n->type, TARRAY) && isptrto(nl->type, TDARRAY)) {
++		if(isptrarray(n->type) && isptrdarray(nl->type)) {
+ 			// convert dynamic array to static array
+ 			n2 = n1;
+ 			n2.op = OINDREG;
+@@ -144,7 +144,7 @@ cgen(Node *n, Node *res)
+ 			n2.type = types[tptr];
+ 			gins(AMOVQ, &n2, &n1);
+ 		}
+-		if(isptrto(n->type, TDARRAY) && isptrto(nl->type, TARRAY)) {
++		if(isptrdarray(n->type) && isptrarray(nl->type)) {
+ 			// conver static array to dynamic array
+ 			// it is assumed that the dope is just before the array
+ 			nodconst(&n2, types[tptr], offsetof(Array,b));
+@@ -187,7 +187,7 @@ cgen(Node *n, Node *res)
+ 			regfree(&n1);
+ 			break;
+ 		}
+-		if(isptrto(nl->type, TDARRAY)) {
++		if(isptrdarray(nl->type)) {
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+ 			n1.op = OINDREG;
+@@ -201,7 +201,7 @@ cgen(Node *n, Node *res)
+ 		break;
+ 
+ 	case OCAP:
+-		if(isptrto(nl->type, TDARRAY)) {
++		if(isptrdarray(nl->type)) {
+ 			regalloc(&n1, types[tptr], res);
+ 			cgen(nl, &n1);
+ 			n1.op = OINDREG;
+@@ -387,7 +387,7 @@ agen(Node *n, Node *res)
+ 		// i is in &n1
+ 		// w is width
+ 
+-		if(isptrto(nl->type, TDARRAY)) {
++		if(isptrdarray(nl->type)) {
+ 			regalloc(&n2, types[tptr], res);
+ 			gmove(res, &n2);
+ 
+@@ -418,7 +418,7 @@ agen(Node *n, Node *res)
+ 			if(!debug['B']) {
+ 				// check bounds
+ 				nodconst(&n3, types[TUINT32], nl->type->bound);
+-				if(isptrto(nl->type, TARRAY))
++				if(isptrarray(nl->type))
+ 					nodconst(&n3, types[TUINT32], nl->type->type->bound);
+ 				gins(optoas(OCMP, types[TUINT32]), &n1, &n3);
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index d6dff2c0b8..20654fa9d8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1604,7 +1604,6 @@ isfat(Type *t)
+ 	switch(t->etype) {
+ 	case TSTRUCT:
+ 	case TARRAY:
+-	case TDARRAY:
+ 	case TINTER:	// maybe remove later
+ 		return 1;
+ 	}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 2db8c325c4..54c437d3cd 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -481,7 +481,7 @@ loop:
+ 	if(n->op != ODCLFIELD || n->type == T)
+ 		fatal("stotype: oops %N\n", n);
+ 
+-	if(n->type->etype == TDARRAY)
++	if(n->type->etype == TARRAY && n->type->bound < 0)
+ 		yyerror("type of a structure field cannot be an open array");
+ 
+ 	f = typ(TFIELD);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 57f823d6f2..226952fcc8 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -147,18 +147,16 @@ dumpexporttype(Sym *s)
+ 		break;
+ 
+ 	case TARRAY:
+-	case TDARRAY:
+ 		reexport(t->type);
+ 
+ 		/* type 2 */
+ 		Bprint(bout, "\ttype ");
+ 		if(s->export != 0)
+ 			Bprint(bout, "!");
+-		if(et == TDARRAY) {
++		if(t->bound >= 0)
++			Bprint(bout, "%lS [%lud] %lS\n", s, t->bound, t->type->sym);
++		else
+ 			Bprint(bout, "%lS [] %lS\n", s, t->type->sym);
+-			break;
+-		}
+-		Bprint(bout, "%lS [%lud] %lS\n", s, t->bound, t->type->sym);
+ 		break;
+ 
+ 	case TPTR32:
+@@ -522,13 +520,10 @@ doimport2(Node *ss, Val *b, Node *st)
+ 	Type *t;
+ 	Sym *s;
+ 
+-	if(b == nil) {
+-		t = typ(TDARRAY);
+-		t->dbound = N;
+-	} else {
+-		t = typ(TARRAY);
++	t = typ(TARRAY);
++	t->bound = -1;
++	if(b != nil)
+ 		t->bound = mpgetfix(b->u.xval);
+-	}
+ 	s = pkglookup(st->sym->name, st->psym->name);
+ 	t->type = s->otype;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 02e15810b6..4237278f92 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -140,8 +140,7 @@ struct	Type
+ 	vlong	argwid;
+ 
+ 	// TARRAY
+-	int32	bound;
+-	Node*	dbound;
++	int32	bound;		// negative is dynamic array
+ };
+ #define	T	((Type*)0)
+ 
+@@ -303,7 +302,7 @@ enum
+ 
+ 	TFUNC,
+ 	TARRAY,
+-	TDARRAY,
++	T_old_DARRAY,
+ 	TSTRUCT,
+ 	TCHAN,
+ 	TMAP,
+@@ -558,6 +557,8 @@ void	dump(char*, Node*);
+ Type*	aindex(Node*, Type*);
+ int	isnil(Node*);
+ int	isptrto(Type*, int);
++int	isptrarray(Type*);
++int	isptrdarray(Type*);
+ int	isinter(Type*);
+ int	isbytearray(Type*);
+ int	eqtype(Type*, Type*, int);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 66e20b863d..b925e5061e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -376,38 +376,28 @@ aindex(Node *b, Type *t)
+ 	Type *r;
+ 	int bound;
+ 
++	bound = -1;	// open bound
+ 	walktype(b, Erv);
+ 	switch(whatis(b)) {
+ 	default:	// variable bound
+-		walktype(b, Erv);
+-		if(b->type != T && isint[b->type->etype])
+-			goto dyn;
+ 		yyerror("array bound must be an integer expression");
+-		bound = 0;
+ 		break;
+ 
+ 	case Wnil:	// open bound
+-		goto dyn;
++		break;
+ 
+ 	case Wlitint:	// fixed bound
+ 		bound = mpgetfix(b->val.u.xval);
++		if(bound < 0)
++			yyerror("array bound must be non negative");
+ 		break;
+ 	}
+ 
+ 	// fixed array
+ 	r = typ(TARRAY);
+ 	r->type = t;
+-	r->dbound = b;
+ 	r->bound = bound;
+ 	return r;
+-
+-dyn:
+-	// dynamic array
+-	r = typ(TDARRAY);
+-	r->type = t;
+-	r->dbound = b;
+-	r->bound = 0;
+-	return r;
+ }
+ 
+ void
+@@ -806,7 +796,7 @@ etnames[] =
+ 	[TPTR64]	= "PTR64",
+ 	[TFUNC]		= "FUNC",
+ 	[TARRAY]	= "ARRAY",
+-	[TDARRAY]	= "DARRAY",
++//	[TDARRAY]	= "DARRAY",
+ 	[TSTRUCT]	= "STRUCT",
+ 	[TCHAN]		= "CHAN",
+ 	[TMAP]		= "MAP",
+@@ -1008,14 +998,10 @@ Tconv(Fmt *fp)
+ 		break;
+ 
+ 	case TARRAY:
+-		snprint(buf1, sizeof(buf1), "[%ld]%T", t->bound, t->type);
+-		strncat(buf, buf1, sizeof(buf));
+-		break;
+-
+-	case TDARRAY:
+-		snprint(buf1, sizeof(buf1), "[]%T", t->type);
+-		if(t->dbound != N)
+-			snprint(buf1, sizeof(buf1), "[<expr>]%T", t->type);
++		if(t->bound >= 0)
++			snprint(buf1, sizeof(buf1), "[%ld]%T", t->bound, t->type);
++		else
++			snprint(buf1, sizeof(buf1), "[]%T", t->type);
+ 		strncat(buf, buf1, sizeof(buf));
+ 		break;
+ 
+@@ -1216,6 +1202,24 @@ isptrto(Type *t, int et)
+ 	return 1;
+ }
+ 
++int
++isptrarray(Type *t)
++{
++	if(isptrto(t, TARRAY))
++		if(t->type->bound >= 0)
++			return 1;
++	return 0;
++}
++
++int
++isptrdarray(Type *t)
++{
++	if(isptrto(t, TARRAY))
++		if(t->type->bound < 0)
++			return 1;
++	return 0;
++}
++
+ int
+ isinter(Type *t)
+ {
+@@ -1324,7 +1328,6 @@ loop:
+ 	case TPTR64:
+ 	case TCHAN:
+ 	case TARRAY:
+-	case TDARRAY:
+ 		stp = &st->type;
+ 		goto loop;
+ 
+@@ -1395,7 +1398,6 @@ deep(Type *t)
+ 	case TPTR64:
+ 	case TCHAN:
+ 	case TARRAY:
+-	case TDARRAY:
+ 		nt = shallow(t);
+ 		nt->type = deep(t->type);
+ 		break;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5b2fc97539..23ec5dbc3b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -430,7 +430,7 @@ loop:
+ 		}
+ 
+ 		// convert dynamic to static generated by ONEW
+-		if(isptrto(t, TARRAY) && isptrto(l->type, TDARRAY))
++		if(isptrarray(t) && isptrdarray(l->type))
+ 			goto ret;
+ 
+ //		if(t->etype == TARRAY) {
+@@ -560,10 +560,10 @@ loop:
+ 			goto badt;
+ 		case TSTRING:
+ 		case TMAP:
+-		case TDARRAY:
+ 			break;
+ 		case TARRAY:
+-			nodconst(n, types[TINT32], t->bound);
++			if(t->bound >= 0)
++				nodconst(n, types[TINT32], t->bound);
+ 			break;
+ 		}
+ 		n->type = types[TINT32];
+@@ -582,10 +582,9 @@ loop:
+ 		switch(t->etype) {
+ 		default:
+ 			goto badt;
+-		case TDARRAY:
+-			break;
+ 		case TARRAY:
+-			nodconst(n, types[TINT32], t->bound);
++			if(t->bound >= 0)
++				nodconst(n, types[TINT32], t->bound);
+ 			break;
+ 		}
+ 		n->type = types[TINT32];
+@@ -652,7 +651,6 @@ loop:
+ 				*n = *mapop(n, top);
+ 			break;
+ 
+-		case TDARRAY:
+ 		case TARRAY:
+ 			// right side must be an int
+ 			if(n->right->type == T) {
+@@ -704,7 +702,7 @@ loop:
+ 			*n = *stringop(n, top);
+ 			goto ret;
+ 		}
+-		if(t->etype == TDARRAY || t->etype == TARRAY) {
++		if(t->etype == TARRAY) {
+ 			*n = *arrayop(n, top);
+ 			goto ret;
+ 		}
+@@ -1435,8 +1433,8 @@ ascompat(Type *t1, Type *t2)
+ 		if(isptrto(t1, TSTRUCT))
+ 			return 1;
+ 
+-	if(isptrto(t1, TDARRAY))
+-		if(isptrto(t2, TARRAY))
++	if(isptrdarray(t1))
++		if(isptrarray(t2))
+ 			return 1;
+ 	return 0;
+ }
+@@ -1542,7 +1540,6 @@ newcompat(Node *n)
+ 		r = chanop(n, Erv);
+ 		return r;
+ 
+-	case TDARRAY:
+ 	case TARRAY:
+ 		r = arrayop(n, Erv);
+ 		return r;
+@@ -2134,7 +2131,7 @@ fixarray(Type *tm)
+ 		return T;
+ 	}
+ 
+-	if(t->etype != TDARRAY && t->etype != TARRAY) {
++	if(t->etype != TARRAY) {
+ 		fatal("fixarray: %lT not array", tm);
+ 		return T;
+ 	}
+@@ -2172,15 +2169,19 @@ arrayop(Node *n, int top)
+ 		r = a;
+ 
+ 		a = listfirst(&save, &n->left);		// max
++		a = listnext(&save);
+ 		if(a == N)
+ 			a = nodintconst(0);
+ 		a = nod(OCONV, a, N);
+ 		a->type = types[TUINT32];
+ 		r = list(a, r);
+ 
+-		a = t->dbound;				// nel
+-		if(a == N)
++		a = listfirst(&save, &n->left);		// nel
++		if(a == N) {
++			if(t->bound < 0)
++				yyerror("new open array must have size");
+ 			a = nodintconst(t->bound);
++		}
+ 		a = nod(OCONV, a, N);
+ 		a->type = types[TUINT32];
+ 		r = list(a, r);
+@@ -2221,7 +2222,7 @@ arrayop(Node *n, int top)
+ 		return n;
+ 
+ 	case OSLICE:
+-		if(isptrto(n->left->type, TARRAY))
++		if(isptrarray(n->left->type))
+ 			goto slicestatic;
+ 
+ 		// arrayslices(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any)
+@@ -2381,7 +2382,7 @@ convas(Node *n)
+ 		return n;
+ 	}
+ 
+-	if(isptrto(lt, TDARRAY) && isptrto(rt, TARRAY)) {
++	if(isptrdarray(lt) && isptrarray(rt)) {
+ 		if(!eqtype(lt->type->type, rt->type->type, 0))
+ 			goto bad;
+ 		*n = *arrayop(n, Etop);

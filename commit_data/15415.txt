@@ -13,6 +13,19 @@ Date:   Mon Feb 25 10:43:04 2013 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/7401051
-
+---
  src/cmd/go/vet.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index e197719f59..eb0b89ccad 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -32,6 +32,6 @@ func runVet(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(tool("vet"), relPaths(pkg.allgofiles))
++		run(tool("vet"), relPaths(pkg.gofiles))
+ 	}
+ }

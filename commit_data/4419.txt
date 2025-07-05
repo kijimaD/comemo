@@ -16,6 +16,21 @@ Date:   Tue Dec 15 13:57:24 2009 -0800
     
     R=rsc
     https://golang.org/cl/180044
-
+---
  test/fixedbugs/bug215.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug215.go b/test/fixedbugs/bug215.go
+index d58786c16a..8f7fb2d3c2 100644
+--- a/test/fixedbugs/bug215.go
++++ b/test/fixedbugs/bug215.go
+@@ -9,8 +9,6 @@
+ 
+ package main
+ 
+-type A struct {
+-	a A;
+-}			// ERROR "recursive"
++type A struct {	a A }	// ERROR "recursive"
+ func foo()		{ new(A).bar() }
+ func (a A) bar()	{}

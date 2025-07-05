@@ -7,6 +7,20 @@ Date:   Fri Aug 26 12:36:46 2011 +1000
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4955042
-
+---
  src/pkg/syscall/ztypes_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 728812b843..01984473a8 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -349,7 +349,7 @@ const (
+ 	IPPROTO_IPV6 = 0x29
+ 	IPV6_V6ONLY  = 0x1b
+ 
+-	SOMAXCONN = 5
++	SOMAXCONN = 0x7fffffff
+ 
+ 	TCP_NODELAY = 1
+ 

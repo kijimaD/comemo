@@ -26,8 +26,82 @@ Date:   Fri Sep 4 18:33:35 2015 -0700
     Run-TryBot: Paul Marks <pmarks@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/ipsock_posix.go  | 11 ++++++-----
  src/net/platform_test.go |  2 +-
  src/net/server_test.go   |  6 +++---
  3 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 83eaf855b4..4419aaf8a0 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -101,10 +101,11 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ //
+ //	1. A wild-wild listen, "tcp" + ""
+ //	If the platform supports both IPv6 and IPv6 IPv4-mapping
+-//	capabilities, we assume that the user want to listen on
+-//	both IPv4 and IPv6 wildcard address over an AF_INET6
+-//	socket with IPV6_V6ONLY=0.  Otherwise we prefer an IPv4
+-//	wildcard address listen over an AF_INET socket.
++//	capabilities, or does not support IPv4, we assume that
++//	the user wants to listen on both IPv4 and IPv6 wildcard
++//	addresses over an AF_INET6 socket with IPV6_V6ONLY=0.
++//	Otherwise we prefer an IPv4 wildcard address listen over
++//	an AF_INET socket.
+ //
+ //	2. A wild-ipv4wild listen, "tcp" + "0.0.0.0"
+ //	Same as 1.
+@@ -137,7 +138,7 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ 	}
+ 
+ 	if mode == "listen" && (laddr == nil || laddr.isWildcard()) {
+-		if supportsIPv4map {
++		if supportsIPv4map || !supportsIPv4 {
+ 			return syscall.AF_INET6, false
+ 		}
+ 		if laddr == nil {
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index d6248520f3..c9415d1038 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -134,7 +134,7 @@ func testableListenArgs(network, address, client string) bool {
+ 
+ 	// Test functionality of IPv4 communication using AF_INET6
+ 	// sockets.
+-	if !supportsIPv4map && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
++	if !supportsIPv4map && supportsIPv4 && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
+ 		// At this point, we prefer IPv4 when ip is nil.
+ 		// See favoriteAddrFamily for further information.
+ 		if ip.To16() != nil && ip.To4() == nil && cip.To4() != nil { // a pair of IPv6 server and IPv4 client
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index fe0006b11f..2e998e23a8 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -55,7 +55,7 @@ func TestTCPServer(t *testing.T) {
+ 
+ 	for i, tt := range tcpServerTests {
+ 		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+-			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"->"+tt.taddr)
++			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
+ 			continue
+ 		}
+ 
+@@ -251,7 +251,7 @@ var udpServerTests = []struct {
+ func TestUDPServer(t *testing.T) {
+ 	for i, tt := range udpServerTests {
+ 		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
+-			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"->"+tt.taddr)
++			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
+ 			continue
+ 		}
+ 
+@@ -329,7 +329,7 @@ var unixgramServerTests = []struct {
+ func TestUnixgramServer(t *testing.T) {
+ 	for i, tt := range unixgramServerTests {
+ 		if !testableListenArgs("unixgram", tt.saddr, "") {
+-			t.Logf("skipping %s test", "unixgram "+tt.saddr+"->"+tt.caddr)
++			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)
+ 			continue
+ 		}
+ 

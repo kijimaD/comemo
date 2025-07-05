@@ -7,9 +7,357 @@ Date:   Fri Aug 29 13:24:53 2008 -0700
     R=r
     OCL=14656
     CL=14656
-
+---
  src/cmd/gc/const.c |  14 ++++-
  src/cmd/gc/walk.c  |   3 +-
  test/ken/array.go  | 156 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  test/ken/shift.go  | 131 ++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 301 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 90eaff269e..f8c6acbc0e 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -11,9 +11,19 @@ convlit(Node *n, Type *t)
+ 	int et;
+ 	Node *n1;
+ 
+-	if(n == N || n->op != OLITERAL || t == T)
++	if(n == N || t == T)
+ 		return;
+-
++	switch(n->op) {
++	default:
++		return;
++	case OLITERAL:
++		break;
++	case OLSH:
++	case ORSH:
++		convlit(n->left, t);
++		n->type = n->left->type;
++		return;
++	}
+ 	et = t->etype;
+ 	switch(whatis(n)) {
+ 	default:
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index b018e999c2..b9ec0c1e10 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -496,8 +496,8 @@ loop:
+ 		evconst(n);
+ 		if(n->op == OLITERAL)
+ 			goto ret;
+-		convlit(n->left, n->left->type);
+ 		convlit(n->right, types[TUINT32]);
++		convlit(n->left, types[TINT32]);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+ 		if(issigned[n->right->type->etype])
+@@ -1458,6 +1458,7 @@ ascompat(Type *t1, Type *t2)
+ 	if(isptrdarray(t1))
+ 		if(isptrarray(t2))
+ 			return 1;
++
+ 	return 0;
+ }
+ 
+diff --git a/test/ken/array.go b/test/ken/array.go
+new file mode 100644
+index 0000000000..bd17f645c5
+--- /dev/null
++++ b/test/ken/array.go
+@@ -0,0 +1,156 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package	main
++
++export func
++setpd(a *[]int)
++{
++//	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	for i:=0; i<len(a); i++ {
++		a[i] = i;
++	}
++}
++
++export func
++sumpd(a *[]int) int
++{
++//	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	t := 0;
++	for i:=0; i<len(a); i++ {
++		t += a[i];
++	}
++//	print("sumpd t=", t, "\n");
++	return t;
++}
++
++export func
++setpf(a *[20]int)
++{
++//	print("setpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	for i:=0; i<len(a); i++ {
++		a[i] = i;
++	}
++}
++
++export func
++sumpf(a *[20]int) int
++{
++//	print("sumpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
++	t := 0;
++	for i:=0; i<len(a); i++ {
++		t += a[i];
++	}
++//	print("sumpf t=", t, "\n");
++	return t;
++}
++
++func
++res(t int, lb, hb int)
++{
++	sb := (hb-lb)*(hb+lb-1)/2;
++	if t != sb {
++		print(	"lb=", lb,
++			"; hb=", hb,
++			"; t=", t,
++			"; sb=", sb,
++			"\n");
++		panic("res")
++	}
++}
++
++// call ptr dynamic with ptr dynamic
++func
++testpdpd()
++{
++	a := new([]int, 10, 100);
++	if len(a) != 10 && cap(a) != 100 {
++		panic("len and cap from new: ", len(a), " ", cap(a), "\n");
++	}
++
++	a = a[0:100];
++	setpd(a);
++
++	a = a[0:10];
++	res(sumpd(a), 0, 10);
++
++	a = a[5:25];
++	res(sumpd(a), 5, 25);
++}
++
++// call ptr fixed with ptr fixed
++func
++testpfpf()
++{
++	var a [20]int;
++
++	setpf(&a);
++	res(sumpf(&a), 0, 20);
++}
++
++// call ptr dynamic with ptr fixed from new
++func
++testpdpf1()
++{
++	a := new([40]int);
++	setpd(a);
++	res(sumpd(a), 0, 40);
++
++	b := a[5:30];
++	res(sumpd(b), 5, 30);
++}
++
++// call ptr dynamic with ptr fixed from var
++func
++testpdpf2()
++{
++	var a [80]int;
++
++	setpd(&a);
++	res(sumpd(&a), 0, 80);
++}
++
++// generate bounds error with ptr dynamic
++func
++testpdfault()
++{
++	a := new([]int, 100);
++
++	print("good\n");
++	for i:=0; i<100; i++ {
++		a[i] = 0;
++	}
++	print("should fault\n");
++	a[100] = 0;
++	print("bad\n");
++}
++
++// generate bounds error with ptr fixed
++func
++testfdfault()
++{
++	var a [80]int;
++
++	print("good\n");
++	for i:=0; i<80; i++ {
++		a[i] = 0;
++	}
++	print("should fault\n");
++	a[80] = 0;
++	print("bad\n");
++}
++
++func
++main()
++{
++	print("testpdpd\n");	testpdpd();
++	print("testpfpf\n");	testpfpf();
++	print("testpdpf1\n");	testpdpf1();
++	print("testpdpf2\n");	testpdpf2();
++//	print("testpdfault\n");	testpdfault();
++//	print("testfdfault\n");	testfdfault();
++}
+diff --git a/test/ken/shift.go b/test/ken/shift.go
+new file mode 100644
+index 0000000000..180abbf3fc
+--- /dev/null
++++ b/test/ken/shift.go
+@@ -0,0 +1,131 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++package main
++
++var	ians	[18]int;
++var	uans	[18]uint;
++var	pass	string;
++
++func
++testi(i int, t1,t2,t3 int)
++{
++	n := ((t1*3) + t2)*2 + t3;
++	if i != ians[n] {
++		print("itest ", t1,t2,t3,pass,
++			" is ", i, " sb ", ians[n], "\n");
++	}
++}
++
++func
++index(t1,t2,t3 int) int
++{
++	return ((t1*3) + t2)*2 + t3;
++}
++
++func
++testu(u uint, t1,t2,t3 int)
++{
++	n := index(t1,t2,t3);
++	if u != uans[n] {
++		print("utest ", t1,t2,t3,pass,
++			" is ", u, " sb ", uans[n], "\n");
++	}
++}
++
++func
++main()
++{
++	var i int;
++	var u,c uint;
++
++	/*
++	 * test constant evaluations
++	 */
++	pass = "con";	// constant part
++
++	testi( int(1234) <<    0, 0,0,0);
++	testi( int(1234) >>    0, 0,0,1);
++	testi( int(1234) <<    5, 0,1,0);
++	testi( int(1234) >>    5, 0,1,1);
++	testi( int(1234) << 1025, 0,2,0);
++	testi( int(1234) >> 1025, 0,2,1);
++
++	testi(int(-1234) <<    0, 1,0,0);
++	testi(int(-1234) >>    0, 1,0,1);
++	testi(int(-1234) <<    5, 1,1,0);
++	testi(int(-1234) >>    5, 1,1,1);
++	testi(int(-1234) << 1025, 1,2,0);
++	testi(int(-1234) >> 1025, 1,2,1);
++
++	testu(uint(5678) <<    0, 2,0,0);
++	testu(uint(5678) >>    0, 2,0,1);
++	testu(uint(5678) <<    5, 2,1,0);
++	testu(uint(5678) >>    5, 2,1,1);
++	testu(uint(5678) << 1025, 2,2,0);
++	testu(uint(5678) >> 1025, 2,2,1);
++
++	/*
++	 * test variable evaluations
++	 */
++	pass = "var";	// variable part
++
++	for t1:=0; t1<3; t1++ {	// +int, -int, uint
++	for t2:=0; t2<3; t2++ {	// 0, +small, +large
++	for t3:=0; t3<2; t3++ {	// <<, >>
++		switch t1 {
++		case 0:	i =  1234;
++		case 1:	i = -1234;
++		case 2:	u =  5678;
++		}
++		switch t2 {
++		case 0:	c =    0;
++		case 1:	c =    5;
++		case 2:	c = 1025;
++		}
++		switch t3 {
++		case 0:	i <<= c; u <<= c;
++		case 1:	i >>= c; u >>= c;
++		}
++		switch t1 {
++		case 0:	testi(i,t1,t2,t3);
++		case 1:	testi(i,t1,t2,t3);
++		case 2:	testu(u,t1,t2,t3);
++		}
++	}
++	}
++	}
++}
++
++func
++init()
++{
++	/*
++	 * set the 'correct' answer
++	 */
++
++	ians[index(0,0,0)] =   1234;
++	ians[index(0,0,1)] =   1234;
++	ians[index(0,1,0)] =  39488;
++	ians[index(0,1,1)] =     38;
++	ians[index(0,2,0)] =      0;
++	ians[index(0,2,1)] =      0;
++
++	ians[index(1,0,0)] =  -1234;
++	ians[index(1,0,1)] =  -1234;
++	ians[index(1,1,0)] = -39488;
++	ians[index(1,1,1)] =    -39;
++	ians[index(1,2,0)] =      0;
++	ians[index(1,2,1)] =     -1;
++
++	uans[index(2,0,0)] =   5678;
++	uans[index(2,0,1)] =   5678;
++	uans[index(2,1,0)] = 181696;
++	uans[index(2,1,1)] =    177;
++	uans[index(2,2,0)] =      0;
++	uans[index(2,2,1)] =      0;
++}

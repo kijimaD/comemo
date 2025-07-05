@@ -7,8 +7,56 @@ Date:   Wed Oct 22 17:45:47 2008 -0700
     R=ken
     OCL=17679
     CL=17679
-
+---
  src/cmd/6g/gsubr.c | 4 +---
  src/cmd/gc/dcl.c   | 6 +-----
  src/cmd/gc/subr.c  | 2 +-
  3 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index b5cb9fd229..b158f09b9c 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1002,10 +1002,8 @@ naddr(Node *n, Addr *a)
+ 		a->etype = n->etype;
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+-		if(a->sym == S) {
++		if(a->sym == S)
+ 			a->sym = lookup(".noname");
+-			fatal("noname");
+-		}
+ 		if(n->method) {
+ 			if(n->type != T)
+ 			if(n->type->sym != S)
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 9a4fe73036..f836f3ba74 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -472,12 +472,8 @@ loop:
+ 	if(n->left != N && n->left->op == ONAME) {
+ 		f->nname = n->left;
+ 		f->embedded = n->embedded;
+-	} else {
+-		vargen++;
+-		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
+-		f->nname = newname(lookup(buf));
++		f->sym = f->nname->sym;
+ 	}
+-	f->sym = f->nname->sym;
+ 
+ 	*t = f;
+ 	t = &f->down;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b66bd2bc8a..d81c47c9f4 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1061,7 +1061,7 @@ Tpretty(Fmt *fp, Type *t)
+ 		return fmtprint(fp, " }");
+ 
+ 	case TFIELD:
+-		if(t->sym == S || t->sym->name[0] == '_' || t->embedded) {
++		if(t->sym == S || t->embedded) {
+ 			if(exporting)
+ 				fmtprint(fp, "? ");
+ 			return fmtprint(fp, "%T", t->type);

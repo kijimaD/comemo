@@ -5,7 +5,7 @@ Date:   Wed Jun 11 21:06:26 2008 -0700
     import/export
     
     SVN=122309
-
+---
  src/cmd/6g/gen.c    |  6 +++---
  src/cmd/6g/gg.h     |  2 --
  src/cmd/6g/gsubr.c  |  6 ++++++
@@ -16,3 +16,410 @@ Date:   Wed Jun 11 21:06:26 2008 -0700
  src/cmd/gc/lex.c    |  4 +++-
  src/cmd/gc/walk.c   | 41 ++++++++++++++++++++++++++++++++---------
  9 files changed, 105 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 1a0385dc12..b755afacee 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -36,9 +36,6 @@ compile(Node *fn)
+ 	if(debug['w'])
+ 		dump("--- pre walk ---", curfn->nbody);
+ 
+-	maxarg = 0;
+-	stksize = 0;
+-
+ 	walk(curfn);
+ 	if(nerrors != 0)
+ 		return;
+@@ -592,6 +589,8 @@ cgen_callmeth(Node *n)
+ 	// (p.f)(...) goes to (f)(p,...)
+ 
+ 	l = n->left;
++	if(l->op != ODOTMETH)
++		fatal("cgen_callmeth: not dotmethod: %N");
+ 
+ 	n->op = OCALL;
+ 	n->left = n->left->right;
+@@ -647,6 +646,7 @@ cgen_call(Node *n)
+ 	}
+ 
+ 	// call direct
++	n->left->method = 1;
+ 	gins(ACALL, N, n->left);
+ }
+ 
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index eadd6dedde..fa89cc8894 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -92,8 +92,6 @@ EXTERN	uchar	reg[D_NONE];
+ EXTERN	ushort	txt[NTYPE*NTYPE];
+ EXTERN	long	maxround;
+ EXTERN	long	widthptr;
+-EXTERN	long	maxarg;
+-EXTERN	long	stksize;
+ EXTERN	Sym*	symstringo;	// string objects
+ EXTERN	long	stringo;	// size of string objects
+ EXTERN	long	pcloc;		// instruction counter
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 42eab9fe9b..4aa5ef47a4 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1047,6 +1047,12 @@ naddr(Node *n, Addr *a)
+ 		a->sym = n->sym;
+ 		if(a->sym == S)
+ 			a->sym = lookup(".noname");
++		if(n->method) {
++			if(n->type != T)
++			if(n->type->sym != S)
++			if(n->type->sym->opackage != nil)
++				a->sym = pkglookup(a->sym->name, n->type->sym->opackage);
++		}
+ 
+ 		switch(n->class) {
+ 		default:
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 3eae5f33b6..63c6485879 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -5,6 +5,18 @@
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
++int
++dflag(void)
++{
++	if(!debug['d'])
++		return 0;
++	if(debug['y'])
++		return 1;
++	if(inimportsys)
++		return 0;
++	return 1;
++}
++
+ void
+ dodclvar(Node *n, Type *t)
+ {
+@@ -70,7 +82,7 @@ loop:
+ 	r->back->forw = d;
+ 	r->back = d;
+ 
+-	if(debug['d'])
++	if(dflag())
+ 		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
+ }
+ 
+@@ -321,7 +333,7 @@ funchdr(Node *n)
+ 		n->type = on->type;
+ 		n->class = on->class;
+ 		n->sym = s;
+-		if(debug['d'])
++		if(dflag())
+ 			print("forew  var-dcl %S %T\n", n->sym, n->type);
+ 	}
+ 
+@@ -497,14 +509,14 @@ popdcl(char *why)
+ {
+ 	Sym *d, *s;
+ 
+-//	if(debug['d'])
++//	if(dflag())
+ //		print("revert\n");
+ 	for(d=dclstack; d!=S; d=d->link) {
+ 		if(d->name == nil)
+ 			break;
+ 		s = pkglookup(d->name, d->package);
+ 		dcopy(s, d);
+-		if(debug['d'])
++		if(dflag())
+ 			print("\t%ld pop %S\n", curio.lineno, s);
+ 	}
+ 	if(d == S)
+@@ -524,7 +536,7 @@ poptodcl(void)
+ 			break;
+ 		s = pkglookup(d->name, d->package);
+ 		dcopy(s, d);
+-		if(debug['d'])
++		if(dflag())
+ 			print("\t%ld pop %S\n", curio.lineno, s);
+ 	}
+ 	if(d == S)
+@@ -539,7 +551,7 @@ markdcl(char *why)
+ 	d = push();
+ 	d->name = nil;		// used as a mark in fifo
+ 	d->package = why;	// diagnostic for unmatched
+-//	if(debug['d'])
++//	if(dflag())
+ //		print("markdcl\n");
+ }
+ 
+@@ -639,7 +651,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 	r->back->forw = d;
+ 	r->back = d;
+ 
+-	if(debug['d']) {
++	if(dflag()) {
+ 		if(ctxt == PEXTERN)
+ 			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
+ 		else
+@@ -666,7 +678,7 @@ addtyp(Type *n, Type *t, int ctxt)
+ 			// allow nil interface to be
+ 			// redeclared as an interface
+ 			if(ot->etype == TINTER && ot->type == T && t->etype == TINTER) {
+-				if(debug['d'])
++				if(dflag())
+ 					print("forew  typ-dcl %S G%ld %T\n", s, s->vargen, t);
+ 				s->otype = t;
+ 				return;
+@@ -710,7 +722,7 @@ addtyp(Type *n, Type *t, int ctxt)
+ 	r->back->forw = d;
+ 	r->back = d;
+ 
+-	if(debug['d']) {
++	if(dflag()) {
+ 		if(ctxt == PEXTERN)
+ 			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, t);
+ 		else
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 336ad63685..b1ddfea625 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -266,18 +266,34 @@ dumpexport(void)
+ /*
+  * ******* import *******
+  */
++Sym*
++getimportsym(Node *ss)
++{
++	char *pkg;
++	Sym *s;
++
++	if(ss->op != OIMPORT)
++		fatal("getimportsym: oops1 %N\n", ss);
++
++	pkg = ss->psym->name;
++	if(pkgmyname != S)
++		pkg = pkgmyname->name;
++
++	s = pkglookup(ss->sym->name, pkg);
++
++	/* botch - need some diagnostic checking for the following assignment */
++	s->opackage = ss->osym->name;
++	return s;
++}
++
+ Type*
+ importlooktype(Node *n)
+ {
+ 	Sym *s;
+ 
+-	if(n->op != OIMPORT)
+-		fatal("importlooktype: oops1 %N\n", n);
+-
+-	s = pkglookup(n->sym->name, n->psym->name);
++	s = getimportsym(n);
+ 	if(s->otype == T)
+ 		fatal("importlooktype: oops2 %S\n", s);
+-
+ 	return s->otype;
+ }
+ 
+@@ -367,31 +383,22 @@ importfuncnam(Type *t)
+ 	}
+ }
+ 
+-Sym*
+-getimportsym(Node *ss)
+-{
+-	char *pkg;
+-	Sym *s;
+-
+-	pkg = ss->psym->name;
+-	if(pkgmyname != S)
+-		pkg = pkgmyname->name;
+-
+-	s = pkglookup(ss->sym->name, pkg);
+-	/* botch - need some diagnostic checking for the following assignment */
+-	s->opackage = ss->osym->name;
+-	return s;
+-}
+-
+ void
+ importaddtyp(Node *ss, Type *t)
+ {
+ 	Sym *s;
+ 
+ 	s = getimportsym(ss);
+-	if(s->otype == T || !eqtype(t, s->otype, 0)) {
++	if(s->otype == T) {
+ 		addtyp(newtype(s), t, PEXTERN);
++		return;
++	}
++	if(!eqtype(t, s->otype, 0)) {
++		print("redeclaring %S %lT => %lT\n", s, s->otype, t);
++		addtyp(newtype(s), t, PEXTERN);
++		return;
+ 	}
++	print("sametype %S %lT => %lT\n", s, s->otype, t);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1f501db5a1..3ccefa8484 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -137,6 +137,7 @@ struct	Node
+ 	uchar	trecur;		// to detect loops
+ 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+ 	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
++	uchar	method;		// OCALLMETH name
+ 	long	vargen;		// unique name for OTYPE/ONAME
+ 	ulong	lineno;
+ 	vlong	xoffset;
+@@ -353,12 +354,15 @@ EXTERN	Dcl*	externdcl;
+ EXTERN	Dcl*	exportlist;
+ EXTERN	int	dclcontext;	// PEXTERN/PAUTO
+ EXTERN	int	importflag;
++EXTERN	int	inimportsys;
+ 
+ EXTERN	Node*	booltrue;
+ EXTERN	Node*	boolfalse;
+ EXTERN	ulong	iota;
+ EXTERN	long	vargen;
+ EXTERN	long	exportgen;
++EXTERN	long	maxarg;
++EXTERN	long	stksize;
+ 
+ EXTERN	Node*	retnil;
+ EXTERN	Node*	fskel;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 0225145576..ce7c89a810 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -829,10 +829,14 @@ keyval:
+  * all in one place to show how crappy it all is
+  */
+ xfndcl:
+-	LFUNC fndcl fnbody
++	LFUNC
+ 	{
+-		$$ = $2;
+-		$$->nbody = $3;
++		maxarg = 0;
++		stksize = 0;
++	} fndcl fnbody
++	{
++		$$ = $3;
++		$$->nbody = $4;
+ 		funcbody($$);
+ 	}
+ 
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 22bcaf70d2..96380c647b 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -111,7 +111,7 @@ importfile(Val *f)
+ 		return;
+ 	}
+ 	// BOTCH need to get .8 from backend
+-	snprint(namebuf, sizeof(namebuf), "%Z.8", f->sval);
++	snprint(namebuf, sizeof(namebuf), "%Z.6", f->sval);
+ 
+ 	imp = Bopen(namebuf, OREAD);
+ 	if(imp == nil) {
+@@ -154,6 +154,7 @@ unimportfile(void)
+ 	}
+ 	curio = pushedio;
+ 	pushedio.bin = nil;
++	inimportsys = 0;
+ }
+ 
+ void
+@@ -166,6 +167,7 @@ cannedimports(void)
+ 	curio.infile = "internal sys.go";
+ 	curio.cp = sysimport;
+ 	pkgmyname = S;
++	inimportsys = 1;
+ }
+ 
+ long
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 49c1ef4bc1..3952ad2e60 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1301,7 +1301,7 @@ Node*
+ reorder1(Node *n)
+ {
+ 	Iter save;
+-	Node *l, *r, *f;
++	Node *l, *r, *f, *a, *g;
+ 	int c, t;
+ 
+ 	/*
+@@ -1321,10 +1321,6 @@ loop1:
+ 	if(l == N) {
+ 		if(c == 0 || t == 1)
+ 			return n;
+-		if(c > 1) {
+-			yyerror("reorder1: too many function calls evaluating parameters");
+-			return n;
+-		}
+ 		goto pass2;
+ 	}
+ 	if(l->op == OLIST)
+@@ -1338,23 +1334,50 @@ loop1:
+ 
+ pass2:
+ 	l = listfirst(&save, &n);
+-	r = N;	// rest
+-	f = N;	// fncall
++	g = N;	// fncalls assigned to tempnames
++	f = N;	// one fncall assigned to stack
++	r = N;	// non fncalls and tempnames assigned to stack
+ 
+ loop2:
+ 	if(l == N) {
+-		r = nod(OLIST, f, r);
+ 		r = rev(r);
++		g = rev(g);
++		if(g != N)
++			f = nod(OLIST, g, f);
++		r = nod(OLIST, f, r);
+ 		return r;
+ 	}
+-	if(l->ullman >= UINF)
++	if(l->ullman < UINF) {
++		if(r == N)
++			r = l;
++		else
++			r = nod(OLIST, l, r);
++		goto more;
++	}
++	if(f == N) {
+ 		f = l;
++		goto more;
++	}
++
++	// make assignment of fncall to tempname
++	a = nod(OXXX, N, N);
++	tempname(a, l->right->type);
++	a = nod(OAS, a, l->right);
++
++	if(g == N)
++		g = a;
+ 	else
++		g = nod(OLIST, a, g);
++
++	// put normal arg assignment on list
++	// with fncall replaced by tempname
++	l->right = a->left;
+ 	if(r == N)
+ 		r = l;
+ 	else
+ 		r = nod(OLIST, l, r);
+ 
++more:
+ 	l = listnext(&save);
+ 	goto loop2;
+ }

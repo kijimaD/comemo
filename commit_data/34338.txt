@@ -18,6 +18,20 @@ Date:   Wed Oct 18 14:29:21 2017 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/debug/dwarf/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index 72ef816cc2..4352092ed0 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -154,7 +154,7 @@ type StructField struct {
+ 	Name       string
+ 	Type       Type
+ 	ByteOffset int64
+-	ByteSize   int64
++	ByteSize   int64 // usually zero; use Type.Size() for normal fields
+ 	BitOffset  int64 // within the ByteSize bytes at ByteOffset
+ 	BitSize    int64 // zero if not a bit field
+ }

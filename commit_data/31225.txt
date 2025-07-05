@@ -10,6 +10,28 @@ Date:   Mon Feb 6 23:33:21 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36481
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index dfa4222f6e..603c1e75b4 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 6, 2017",
++	"Subtitle": "Version of February 7, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -6468,7 +6468,7 @@ The following minimal alignment properties are guaranteed:
+ </li>
+ 
+ <li>For a variable <code>x</code> of array type: <code>unsafe.Alignof(x)</code> is the same as
+-   <code>unsafe.Alignof(x[0])</code>, but at least 1.
++	the alignment of a variable of the array's element type.
+ </li>
+ </ol>
+ 

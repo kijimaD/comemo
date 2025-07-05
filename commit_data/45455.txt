@@ -14,9 +14,128 @@ Date:   Thu Jul 23 22:16:46 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go | 7 +++++--
  src/runtime/mcache.go      | 8 +++++---
  src/runtime/mheap.go       | 4 ----
  src/runtime/mstats.go      | 6 ++++--
  4 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d5a90ca65b..d71b180f76 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -339,7 +339,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 
+ 		// Add in frees. readmemstats_m flushed the cached stats, so
+ 		// these are up-to-date.
+-		var largeFree, smallFree uint64
++		var tinyAllocs, largeFree, smallFree uint64
+ 		for _, p := range allp {
+ 			c := p.mcache
+ 			if c == nil {
+@@ -349,6 +349,9 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			largeFree += uint64(c.local_largefree)
+ 			slow.Frees += uint64(c.local_nlargefree)
+ 
++			// Collect tiny allocation stats.
++			tinyAllocs += uint64(c.local_tinyallocs)
++
+ 			// Collect per-sizeclass stats.
+ 			for i := 0; i < _NumSizeClasses; i++ {
+ 				slow.Frees += uint64(c.local_nsmallfree[i])
+@@ -357,7 +360,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 				smallFree += uint64(c.local_nsmallfree[i]) * uint64(class_to_size[i])
+ 			}
+ 		}
+-		slow.Frees += memstats.tinyallocs
++		slow.Frees += tinyAllocs
+ 		slow.Mallocs += slow.Frees
+ 
+ 		slow.TotalAlloc = slow.Alloc + largeFree + smallFree
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 4d2ba6dff0..fe603116a2 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -32,9 +32,8 @@ type mcache struct {
+ 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
+ 	// we handle it by clearing it in releaseAll during mark
+ 	// termination.
+-	tiny             uintptr
+-	tinyoffset       uintptr
+-	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
++	tiny       uintptr
++	tinyoffset uintptr
+ 
+ 	// The rest is not accessed on every malloc.
+ 
+@@ -49,6 +48,7 @@ type mcache struct {
+ 	// When read with stats from other mcaches and with the world
+ 	// stopped, the result will accurately reflect the state of the
+ 	// application.
++	local_tinyallocs  uintptr                  // number of tiny allocs not counted in other stats
+ 	local_largealloc  uintptr                  // bytes allocated for large objects
+ 	local_nlargealloc uintptr                  // number of large object allocations
+ 	local_nsmallalloc [_NumSizeClasses]uintptr // number of allocs for small objects
+@@ -151,6 +151,8 @@ func (c *mcache) donate(d *mcache) {
+ 		d.local_nsmallfree[i] += c.local_nsmallfree[i]
+ 		c.local_nsmallfree[i] = 0
+ 	}
++	d.local_tinyallocs += c.local_tinyallocs
++	c.local_tinyallocs = 0
+ }
+ 
+ // refill acquires a new span of span class spc for c. This span will
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 5635dc6784..47f86ee38c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1163,8 +1163,6 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
+ 		}
+ 		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 		c.local_scan = 0
+-		memstats.tinyallocs += uint64(c.local_tinyallocs)
+-		c.local_tinyallocs = 0
+ 
+ 		// heap_scan was been updated.
+ 		if gcBlackenEnabled != 0 {
+@@ -1358,8 +1356,6 @@ func (h *mheap) freeSpan(s *mspan) {
+ 		lock(&h.lock)
+ 		atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 		c.local_scan = 0
+-		memstats.tinyallocs += uint64(c.local_tinyallocs)
+-		c.local_tinyallocs = 0
+ 		if msanenabled {
+ 			// Tell msan that this entire span is no longer in use.
+ 			base := unsafe.Pointer(s.base())
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 44cf17c85b..341906fced 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -550,6 +550,7 @@ func updatememstats() {
+ 	memstats.total_alloc = 0
+ 	memstats.nmalloc = 0
+ 	memstats.nfree = 0
++	memstats.tinyallocs = 0
+ 	for i := 0; i < len(memstats.by_size); i++ {
+ 		memstats.by_size[i].nmalloc = 0
+ 		memstats.by_size[i].nfree = 0
+@@ -572,6 +573,9 @@ func updatememstats() {
+ 		totalFree += uint64(c.local_largefree)
+ 		memstats.nfree += uint64(c.local_nlargefree)
+ 
++		// Collect tiny allocation stats.
++		memstats.tinyallocs += uint64(c.local_tinyallocs)
++
+ 		// Collect per-sizeclass stats.
+ 		for i := 0; i < _NumSizeClasses; i++ {
+ 			// Malloc stats.
+@@ -644,8 +648,6 @@ func purgecachedstats(c *mcache) {
+ 	// Protected by heap lock.
+ 	atomic.Xadd64(&memstats.heap_scan, int64(c.local_scan))
+ 	c.local_scan = 0
+-	memstats.tinyallocs += uint64(c.local_tinyallocs)
+-	c.local_tinyallocs = 0
+ }
+ 
+ // Atomically increases a given *system* memory stat. We are counting on this

@@ -12,6 +12,23 @@ Date:   Wed Sep 28 21:24:10 2022 +0800
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/asm/internal/arch/arm64.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index 6790c6e7df..e63601de64 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -118,10 +118,7 @@ func IsARM64STLXR(op obj.As) bool {
+ 		return true
+ 	}
+ 	// LDADDx/SWPx/CASx atomic instructions
+-	if arm64.IsAtomicInstruction(op) {
+-		return true
+-	}
+-	return false
++	return arm64.IsAtomicInstruction(op)
+ }
+ 
+ // IsARM64TBL reports whether the op (as defined by an arm64.A*

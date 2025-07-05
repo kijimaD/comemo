@@ -12,7 +12,51 @@ Date:   Thu May 7 11:22:43 2015 -0700
     Change-Id: Ib4d394d49a9941eeeaff866dc59d80483e312a98
     Reviewed-on: https://go-review.googlesource.com/9769
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/fmt_test.go |  5 +++++
  src/fmt/format.go   | 12 ++++++++++--
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index ab3ffaea6e..ba99cb0f6a 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -557,6 +557,11 @@ var fmtTests = []struct {
+ 	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
+ 	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
+ 
++	// Used to panic: integer function didn't look at f.prec or f.unicode.
++	{"%#.80x", 42, "0x0000000000000000000000000000000000000000000000000000000000000000000000000000002a"},
++	{"%.80U", 42, "U+0000000000000000000000000000000000000000000000000000000000000000000000000000002A"},
++	{"%#.80U", '日', "U+000000000000000000000000000000000000000000000000000000000000000000000000000065E5 '日'"},
++
+ 	// Comparison of padding rules with C printf.
+ 	/*
+ 		C program:
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index 86673aba6a..099f8a5e00 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -163,12 +163,20 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+ 	}
+ 
+ 	var buf []byte = f.intbuf[0:]
+-	if f.widPresent {
+-		width := f.wid
++	if f.widPresent || f.precPresent {
++		width := f.wid + f.prec // Only one will be set, both are positive; this provides the maximum.
+ 		if base == 16 && f.sharp {
+ 			// Also adds "0x".
+ 			width += 2
+ 		}
++		if f.unicode {
++			// Also adds "U+".
++			width += 2
++			if f.uniQuote {
++				// Also adds " 'x'".
++				width += 1 + 1 + utf8.UTFMax + 1
++			}
++		}
+ 		if width > nByte {
+ 			// We're going to need a bigger boat.
+ 			buf = make([]byte, width)

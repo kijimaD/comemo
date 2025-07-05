@@ -7,7 +7,7 @@ Date:   Tue Dec 22 15:14:10 2009 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/180108
-
+---
  src/pkg/exp/vector/intvector.go         | 3 +++
  src/pkg/exp/vector/intvector_test.go    | 4 +++-
  src/pkg/exp/vector/stringvector.go      | 3 +++
@@ -15,3 +15,94 @@ Date:   Tue Dec 22 15:14:10 2009 -0800
  src/pkg/exp/vector/vector.go            | 3 +++
  src/pkg/exp/vector/vector_test.go       | 4 +++-
  6 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/vector/intvector.go b/src/pkg/exp/vector/intvector.go
+index 374287a764..a1754a94f1 100644
+--- a/src/pkg/exp/vector/intvector.go
++++ b/src/pkg/exp/vector/intvector.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// CAUTION: If this file is not vector.go, it was generated
++// automatically from vector.go - DO NOT EDIT in that case!
++
+ package vector
+ 
+ 
+diff --git a/src/pkg/exp/vector/intvector_test.go b/src/pkg/exp/vector/intvector_test.go
+index ef4386bf2b..51dd766db0 100644
+--- a/src/pkg/exp/vector/intvector_test.go
++++ b/src/pkg/exp/vector/intvector_test.go
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package vector
++// CAUTION: If this file is not vector_test.go, it was generated
++// automatically from vector_test.go - DO NOT EDIT in that case!
+ 
++package vector
+ 
+ import "testing"
+ 
+diff --git a/src/pkg/exp/vector/stringvector.go b/src/pkg/exp/vector/stringvector.go
+index 5a54a07e11..fad20f58a5 100644
+--- a/src/pkg/exp/vector/stringvector.go
++++ b/src/pkg/exp/vector/stringvector.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// CAUTION: If this file is not vector.go, it was generated
++// automatically from vector.go - DO NOT EDIT in that case!
++
+ package vector
+ 
+ 
+diff --git a/src/pkg/exp/vector/stringvector_test.go b/src/pkg/exp/vector/stringvector_test.go
+index cfa6947754..ed65a157cc 100644
+--- a/src/pkg/exp/vector/stringvector_test.go
++++ b/src/pkg/exp/vector/stringvector_test.go
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package vector
++// CAUTION: If this file is not vector_test.go, it was generated
++// automatically from vector_test.go - DO NOT EDIT in that case!
+ 
++package vector
+ 
+ import "testing"
+ 
+diff --git a/src/pkg/exp/vector/vector.go b/src/pkg/exp/vector/vector.go
+index 68df23f41c..99c7753da3 100644
+--- a/src/pkg/exp/vector/vector.go
++++ b/src/pkg/exp/vector/vector.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// CAUTION: If this file is not vector.go, it was generated
++// automatically from vector.go - DO NOT EDIT in that case!
++
+ package vector
+ 
+ 
+diff --git a/src/pkg/exp/vector/vector_test.go b/src/pkg/exp/vector/vector_test.go
+index ed2cfd5bd0..3206c7fce6 100644
+--- a/src/pkg/exp/vector/vector_test.go
++++ b/src/pkg/exp/vector/vector_test.go
+@@ -2,8 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package vector
++// CAUTION: If this file is not vector_test.go, it was generated
++// automatically from vector_test.go - DO NOT EDIT in that case!
+ 
++package vector
+ 
+ import "testing"
+ 

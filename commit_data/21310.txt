@@ -9,7 +9,43 @@ Date:   Sat Dec 20 16:57:02 2014 +1100
     Change-Id: I1c7e57f0f0a9b00fb3ddc7fa4844ac53ea6df46f
     Reviewed-on: https://go-review.googlesource.com/1876
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/draw/clip_test.go | 10 ++++++++++
  src/image/draw/draw.go      |  6 ++++--
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/draw/clip_test.go b/src/image/draw/clip_test.go
+index 65381f72f6..20de4e3332 100644
+--- a/src/image/draw/clip_test.go
++++ b/src/image/draw/clip_test.go
+@@ -191,3 +191,13 @@ func TestClip(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestClipWithNilMP(t *testing.T) {
++	src := image.NewRGBA(image.Rect(0, 0, 100, 100))
++	// dst must be smaller than src for clipping to occur
++	dst := image.NewRGBA(image.Rect(50, 50, 100, 100))
++	r := image.Rect(0, 0, 100, 100)
++	sp := image.ZP
++	// issue 9177: floydSteinberg.Draw passes nil for mp, which used to cause clip to panic
++	clip(dst, &r, src, &sp, nil, nil)
++}
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 661230e7c5..a060fa5e74 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -83,8 +83,10 @@ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask
+ 	}
+ 	(*sp).X += dx
+ 	(*sp).Y += dy
+-	(*mp).X += dx
+-	(*mp).Y += dy
++	if mp != nil {
++		(*mp).X += dx
++		(*mp).Y += dy
++	}
+ }
+ 
+ func processBackward(dst Image, r image.Rectangle, src image.Image, sp image.Point) bool {

@@ -20,7 +20,7 @@ Date:   Thu Feb 24 13:35:16 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/signature.go       | 105 ++++++++++----------
  .../types2/testdata/fixedbugs/issue51232.go2       |  29 ++++++
  .../types2/testdata/fixedbugs/issue51233.go2       |  25 +++++
@@ -30,3 +30,456 @@ Date:   Thu Feb 24 13:35:16 2022 -0800
  test/typeparam/issue51232.go                       |  31 ++++++
  test/typeparam/issue51233.go                       |  22 +++++
  8 files changed, 274 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 76e588254d..c98024f924 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -194,66 +194,69 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		case 1:
+ 			recv = recvList[0]
+ 		}
++		sig.recv = recv
+ 
+-		// TODO(gri) We should delay rtyp expansion to when we actually need the
+-		//           receiver; thus all checks here should be delayed to later.
+-		rtyp, _ := deref(recv.typ)
++		// Delay validation of receiver type as it may cause premature expansion
++		// of types the receiver type is dependent on (see issues #51232, #51233).
++		check.later(func() {
++			rtyp, _ := deref(recv.typ)
+ 
+-		// spec: "The receiver type must be of the form T or *T where T is a type name."
+-		// (ignore invalid types - error was reported before)
+-		if rtyp != Typ[Invalid] {
+-			var err string
+-			switch T := rtyp.(type) {
+-			case *Named:
+-				T.resolve(check.bestContext(nil))
+-				// The receiver type may be an instantiated type referred to
+-				// by an alias (which cannot have receiver parameters for now).
+-				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+-					check.errorf(recv.pos, "cannot define methods on instantiated type %s", recv.typ)
+-					break
+-				}
+-				// spec: "The type denoted by T is called the receiver base type; it must not
+-				// be a pointer or interface type and it must be declared in the same package
+-				// as the method."
+-				if T.obj.pkg != check.pkg {
+-					err = "type not defined in this package"
++			// spec: "The receiver type must be of the form T or *T where T is a type name."
++			// (ignore invalid types - error was reported before)
++			if rtyp != Typ[Invalid] {
++				var err string
++				switch T := rtyp.(type) {
++				case *Named:
++					T.resolve(check.bestContext(nil))
++					// The receiver type may be an instantiated type referred to
++					// by an alias (which cannot have receiver parameters for now).
++					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
++						check.errorf(recv.pos, "cannot define methods on instantiated type %s", recv.typ)
++						break
++					}
++					// spec: "The type denoted by T is called the receiver base type; it must not
++					// be a pointer or interface type and it must be declared in the same package
++					// as the method."
++					if T.obj.pkg != check.pkg {
++						err = "type not defined in this package"
++						if check.conf.CompilerErrorMessages {
++							check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
++							err = ""
++						}
++					} else {
++						// The underlying type of a receiver base type can be a type parameter;
++						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
++						// TODO(gri) Such declarations are currently disallowed.
++						//           Revisit the need for underIs.
++						underIs(T, func(u Type) bool {
++							switch u := u.(type) {
++							case *Basic:
++								// unsafe.Pointer is treated like a regular pointer
++								if u.kind == UnsafePointer {
++									err = "unsafe.Pointer"
++									return false
++								}
++							case *Pointer, *Interface:
++								err = "pointer or interface type"
++								return false
++							}
++							return true
++						})
++					}
++				case *Basic:
++					err = "basic or unnamed type"
+ 					if check.conf.CompilerErrorMessages {
+ 						check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+ 						err = ""
+ 					}
+-				} else {
+-					// The underlying type of a receiver base type can be a type parameter;
+-					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+-					underIs(T, func(u Type) bool {
+-						switch u := u.(type) {
+-						case *Basic:
+-							// unsafe.Pointer is treated like a regular pointer
+-							if u.kind == UnsafePointer {
+-								err = "unsafe.Pointer"
+-								return false
+-							}
+-						case *Pointer, *Interface:
+-							err = "pointer or interface type"
+-							return false
+-						}
+-						return true
+-					})
++				default:
++					check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
+ 				}
+-			case *Basic:
+-				err = "basic or unnamed type"
+-				if check.conf.CompilerErrorMessages {
+-					check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+-					err = ""
++				if err != "" {
++					check.errorf(recv.pos, "invalid receiver type %s (%s)", recv.typ, err)
+ 				}
+-			default:
+-				check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
+ 			}
+-			if err != "" {
+-				check.errorf(recv.pos, "invalid receiver type %s (%s)", recv.typ, err)
+-				// ok to continue
+-			}
+-		}
+-		sig.recv = recv
++		}).describef(recv, "validate receiver %s", recv)
+ 	}
+ 
+ 	sig.params = NewTuple(params...)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2
+new file mode 100644
+index 0000000000..6e575a376d
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51232.go2
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type RC[RG any] interface {
++	~[]RG
++}
++
++type Fn[RCT RC[RG], RG any] func(RCT)
++
++type F[RCT RC[RG], RG any] interface {
++	Fn() Fn[RCT]
++}
++
++type concreteF[RCT RC[RG], RG any] struct {
++	makeFn func() Fn[RCT]
++}
++
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++	return c.makeFn()
++}
++
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
++	return &concreteF[RCT]{
++		makeFn: nil,
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2
+new file mode 100644
+index 0000000000..5c8393d039
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue51233.go2
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type RC[RG any] interface {
++	~[]RG
++}
++
++type Fn[RCT RC[RG], RG any] func(RCT)
++
++type FFn[RCT RC[RG], RG any] func() Fn[RCT]
++
++type F[RCT RC[RG], RG any] interface {
++	Fn() Fn[RCT]
++}
++
++type concreteF[RCT RC[RG], RG any] struct {
++	makeFn FFn[RCT]
++}
++
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++	return c.makeFn()
++}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index f174516268..a340ac701e 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -193,66 +193,77 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		switch len(recvList) {
+ 		case 0:
+ 			// error reported by resolver
+-			recv = NewParam(0, nil, "", Typ[Invalid]) // ignore recv below
++			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
+ 		default:
+ 			// more than one receiver
+-			check.error(recvList[len(recvList)-1], _BadRecv, "method must have exactly one receiver")
++			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
+ 			fallthrough // continue with first receiver
+ 		case 1:
+ 			recv = recvList[0]
+ 		}
++		sig.recv = recv
+ 
+-		// TODO(gri) We should delay rtyp expansion to when we actually need the
+-		//           receiver; thus all checks here should be delayed to later.
+-		rtyp, _ := deref(recv.typ)
++		// Delay validation of receiver type as it may cause premature expansion
++		// of types the receiver type is dependent on (see issues #51232, #51233).
++		check.later(func() {
++			rtyp, _ := deref(recv.typ)
+ 
+-		// spec: "The receiver type must be of the form T or *T where T is a type name."
+-		// (ignore invalid types - error was reported before)
+-		if rtyp != Typ[Invalid] {
+-			var err string
+-			switch T := rtyp.(type) {
+-			case *Named:
+-				T.resolve(check.bestContext(nil))
+-				// The receiver type may be an instantiated type referred to
+-				// by an alias (which cannot have receiver parameters for now).
+-				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+-					check.errorf(atPos(recv.pos), _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
+-					break
+-				}
+-				// spec: "The type denoted by T is called the receiver base type; it must not
+-				// be a pointer or interface type and it must be declared in the same package
+-				// as the method."
+-				if T.obj.pkg != check.pkg {
+-					err = "type not defined in this package"
+-				} else {
+-					// The underlying type of a receiver base type can be a type parameter;
+-					// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+-					underIs(T, func(u Type) bool {
+-						switch u := u.(type) {
+-						case *Basic:
+-							// unsafe.Pointer is treated like a regular pointer
+-							if u.kind == UnsafePointer {
+-								err = "unsafe.Pointer"
++			// spec: "The receiver type must be of the form T or *T where T is a type name."
++			// (ignore invalid types - error was reported before)
++			if rtyp != Typ[Invalid] {
++				var err string
++				switch T := rtyp.(type) {
++				case *Named:
++					T.resolve(check.bestContext(nil))
++					// The receiver type may be an instantiated type referred to
++					// by an alias (which cannot have receiver parameters for now).
++					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
++						check.errorf(recv, _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
++						break
++					}
++					// spec: "The type denoted by T is called the receiver base type; it must not
++					// be a pointer or interface type and it must be declared in the same package
++					// as the method."
++					if T.obj.pkg != check.pkg {
++						err = "type not defined in this package"
++						if compilerErrorMessages {
++							check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
++							err = ""
++						}
++					} else {
++						// The underlying type of a receiver base type can be a type parameter;
++						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
++						// TODO(gri) Such declarations are currently disallowed.
++						//           Revisit the need for underIs.
++						underIs(T, func(u Type) bool {
++							switch u := u.(type) {
++							case *Basic:
++								// unsafe.Pointer is treated like a regular pointer
++								if u.kind == UnsafePointer {
++									err = "unsafe.Pointer"
++									return false
++								}
++							case *Pointer, *Interface:
++								err = "pointer or interface type"
+ 								return false
+ 							}
+-						case *Pointer, *Interface:
+-							err = "pointer or interface type"
+-							return false
+-						}
+-						return true
+-					})
++							return true
++						})
++					}
++				case *Basic:
++					err = "basic or unnamed type"
++					if compilerErrorMessages {
++						check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
++						err = ""
++					}
++				default:
++					check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
++				}
++				if err != "" {
++					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
+ 				}
+-			case *Basic:
+-				err = "basic or unnamed type"
+-			default:
+-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+-			}
+-			if err != "" {
+-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
+-				// ok to continue
+ 			}
+-		}
+-		sig.recv = recv
++		}).describef(recv, "validate receiver %s", recv)
+ 	}
+ 
+ 	sig.params = NewTuple(params...)
+diff --git a/src/go/types/testdata/fixedbugs/issue51232.go2 b/src/go/types/testdata/fixedbugs/issue51232.go2
+new file mode 100644
+index 0000000000..6e575a376d
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51232.go2
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type RC[RG any] interface {
++	~[]RG
++}
++
++type Fn[RCT RC[RG], RG any] func(RCT)
++
++type F[RCT RC[RG], RG any] interface {
++	Fn() Fn[RCT]
++}
++
++type concreteF[RCT RC[RG], RG any] struct {
++	makeFn func() Fn[RCT]
++}
++
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++	return c.makeFn()
++}
++
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
++	return &concreteF[RCT]{
++		makeFn: nil,
++	}
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue51233.go2 b/src/go/types/testdata/fixedbugs/issue51233.go2
+new file mode 100644
+index 0000000000..5c8393d039
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue51233.go2
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type RC[RG any] interface {
++	~[]RG
++}
++
++type Fn[RCT RC[RG], RG any] func(RCT)
++
++type FFn[RCT RC[RG], RG any] func() Fn[RCT]
++
++type F[RCT RC[RG], RG any] interface {
++	Fn() Fn[RCT]
++}
++
++type concreteF[RCT RC[RG], RG any] struct {
++	makeFn FFn[RCT]
++}
++
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++	return c.makeFn()
++}
+diff --git a/test/typeparam/issue51232.go b/test/typeparam/issue51232.go
+new file mode 100644
+index 0000000000..2272dcdfcd
+--- /dev/null
++++ b/test/typeparam/issue51232.go
+@@ -0,0 +1,31 @@
++// compile -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type RC[RG any] interface {
++	~[]RG
++}
++
++type Fn[RCT RC[RG], RG any] func(RCT)
++
++type F[RCT RC[RG], RG any] interface {
++	Fn() Fn[RCT]
++}
++
++type concreteF[RCT RC[RG], RG any] struct {
++	makeFn func() Fn[RCT]
++}
++
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++	return c.makeFn()
++}
++
++func NewConcrete[RCT RC[RG], RG any](Rc RCT) F[RCT] {
++	return &concreteF[RCT]{
++		makeFn: nil,
++	}
++}
+diff --git a/test/typeparam/issue51233.go b/test/typeparam/issue51233.go
+new file mode 100644
+index 0000000000..523f0b34d6
+--- /dev/null
++++ b/test/typeparam/issue51233.go
+@@ -0,0 +1,22 @@
++// compile -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package p
++
++type RC[RG any] interface {
++	~[]RG
++}
++type Fn[RCT RC[RG], RG any] func(RCT)
++type FFn[RCT RC[RG], RG any] func() Fn[RCT]
++type F[RCT RC[RG], RG any] interface {
++	Fn() Fn[RCT]
++}
++type concreteF[RCT RC[RG], RG any] struct {
++	makeFn FFn[RCT]
++}
++
++func (c *concreteF[RCT, RG]) Fn() Fn[RCT] {
++	return c.makeFn()
++}

@@ -10,7 +10,48 @@ Date:   Mon Jul 27 12:00:19 2020 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/244918
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go | 7 ++-----
  src/cmd/compile/internal/ssa/func.go    | 7 ++++---
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index dbdd027716..444475d67a 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -160,15 +160,12 @@ func Compile(f *Func) {
+ 	phaseName = ""
+ }
+ 
+-// TODO: should be a config field
+-var dumpFileSeq int
+-
+ // dumpFile creates a file from the phase name and function name
+ // Dumping is done to files to avoid buffering huge strings before
+ // output.
+ func (f *Func) dumpFile(phaseName string) {
+-	dumpFileSeq++
+-	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, dumpFileSeq, phaseName)
++	f.dumpFileSeq++
++	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
+ 	fname = strings.Replace(fname, " ", "_", -1)
+ 	fname = strings.Replace(fname, "/", "_", -1)
+ 	fname = strings.Replace(fname, ":", "_", -1)
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 4b9189fb3e..9e40b6214c 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -44,9 +44,10 @@ type Func struct {
+ 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+ 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
+ 
+-	scheduled bool // Values in Blocks are in final order
+-	laidout   bool // Blocks are ordered
+-	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.
++	scheduled   bool  // Values in Blocks are in final order
++	laidout     bool  // Blocks are ordered
++	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
++	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
+ 
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location

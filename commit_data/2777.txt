@@ -11,7 +11,38 @@ Date:   Tue Jul 21 19:45:06 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=31980
     CL=31983
-
+---
  test/errchk     | 2 +-
  test/golden.out | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+index c85f36f9b6..31e548aa55 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -36,7 +36,7 @@ rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG
+ trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG" 0 1 2 3 14 15
+ 
+ if $* >$TMPOUT 2>$TMPERR; then
+-  echo 1>&2 "BUG: errchk: command succeeded unexpectedly: " "$@"
++  echo 1>&2 "BUG: errchk: command succeeded unexpectedly"
+   cat $TMPOUT
+   cat 1>&2 $TMPERR
+   rm -f $TMPOUT $TMPERR
+diff --git a/test/golden.out b/test/golden.out
+index 48283452fd..5c50da5a75 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -107,10 +107,10 @@ BUG: bug159
+ BUG: should fail
+ 
+ =========== bugs/bug169.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug169.go
++BUG: errchk: command succeeded unexpectedly
+ 
+ =========== bugs/bug170.go
+-BUG: errchk: command succeeded unexpectedly:  6g bugs/bug170.go
++BUG: errchk: command succeeded unexpectedly
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint

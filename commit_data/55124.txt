@@ -13,6 +13,16 @@ Date:   Fri Jan 13 10:31:21 2023 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cover/testdata/pkgcfg/go.mod | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/cover/testdata/pkgcfg/go.mod b/src/cmd/cover/testdata/pkgcfg/go.mod
+deleted file mode 100644
+index 3d2ee96414..0000000000
+--- a/src/cmd/cover/testdata/pkgcfg/go.mod
++++ /dev/null
+@@ -1,3 +0,0 @@
+-module cfg
+-
+-go 1.19

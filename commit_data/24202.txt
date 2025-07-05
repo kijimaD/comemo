@@ -9,7 +9,63 @@ Date:   Tue Jul 14 19:31:44 2015 -0400
     Change-Id: I45b879124691e485b86c1e99a3227032283850d2
     Reviewed-on: https://go-review.googlesource.com/12208
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/encoding/json/decode.go      |  1 +
  src/encoding/json/decode_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 613641afbb..02deac4c9f 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -682,6 +682,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			} else {
+ 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
+ 			}
++			return
+ 		}
+ 		s, ok := unquoteBytes(item)
+ 		if !ok {
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 4834c062cc..41fc9ba673 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding"
+ 	"fmt"
+ 	"image"
++	"net"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+@@ -1394,6 +1395,30 @@ func TestInvalidUnmarshal(t *testing.T) {
+ 	}
+ }
+ 
++var invalidUnmarshalTextTests = []struct {
++	v    interface{}
++	want string
++}{
++	{nil, "json: Unmarshal(nil)"},
++	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
++	{(*int)(nil), "json: Unmarshal(nil *int)"},
++	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
++}
++
++func TestInvalidUnmarshalText(t *testing.T) {
++	buf := []byte(`123`)
++	for _, tt := range invalidUnmarshalTextTests {
++		err := Unmarshal(buf, tt.v)
++		if err == nil {
++			t.Errorf("Unmarshal expecting error, got nil")
++			continue
++		}
++		if got := err.Error(); got != tt.want {
++			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
++		}
++	}
++}
++
+ // Test that string option is ignored for invalid types.
+ // Issue 9812.
+ func TestInvalidStringOption(t *testing.T) {

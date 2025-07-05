@@ -26,7 +26,35 @@ Date:   Tue Apr 9 20:16:35 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modcmd/init.go          | 3 +++
  src/cmd/go/testdata/script/mod_off_init.txt | 7 +++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index 0f7421e584..b94453bab0 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -35,6 +35,9 @@ func runInit(cmd *base.Command, args []string) {
+ 	if len(args) == 1 {
+ 		modload.CmdModModule = args[0]
+ 	}
++	if os.Getenv("GO111MODULE") == "off" {
++		base.Fatalf("go mod init: modules disabled by GO111MODULE=off; see 'go help modules'")
++	}
+ 	if _, err := os.Stat("go.mod"); err == nil {
+ 		base.Fatalf("go mod init: go.mod already exists")
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_off_init.txt b/src/cmd/go/testdata/script/mod_off_init.txt
+new file mode 100644
+index 0000000000..f9a4e10bd4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_off_init.txt
+@@ -0,0 +1,7 @@
++env GO111MODULE=off
++
++# This script tests that running go mod init with
++# GO111MODULE=off when outside of GOPATH will fatal
++# with an error message.
++! go mod init
++stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''

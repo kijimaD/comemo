@@ -13,9 +13,120 @@ Date:   Fri Mar 15 13:58:21 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue30862.dir/a.go    | 15 +++++++++++++++
  test/fixedbugs/issue30862.dir/b.go    | 29 +++++++++++++++++++++++++++++
  test/fixedbugs/issue30862.dir/main.go | 28 ++++++++++++++++++++++++++++
  test/fixedbugs/issue30862.go          | 14 ++++++++++++++
  4 files changed, 86 insertions(+)
+
+diff --git a/test/fixedbugs/issue30862.dir/a.go b/test/fixedbugs/issue30862.dir/a.go
+new file mode 100644
+index 0000000000..c23f4de1ef
+--- /dev/null
++++ b/test/fixedbugs/issue30862.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var pl int
++
++type NoitfStruct struct {
++	F int
++	G int
++}
++
++//go:nointerface
++func (t *NoitfStruct) NoInterfaceMethod() {}
+diff --git a/test/fixedbugs/issue30862.dir/b.go b/test/fixedbugs/issue30862.dir/b.go
+new file mode 100644
+index 0000000000..3e501bb8dc
+--- /dev/null
++++ b/test/fixedbugs/issue30862.dir/b.go
+@@ -0,0 +1,29 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type EmbedImported struct {
++	a.NoitfStruct
++}
++
++func Test() []string {
++	bad := []string{}
++	x := interface{}(new(a.NoitfStruct))
++	if _, ok := x.(interface {
++		NoInterfaceMethod()
++	}); ok {
++		bad = append(bad, "fail 1")
++	}
++
++	x = interface{}(new(EmbedImported))
++	if _, ok := x.(interface {
++		NoInterfaceMethod()
++	}); ok {
++		bad = append(bad, "fail 2")
++	}
++	return bad
++}
+diff --git a/test/fixedbugs/issue30862.dir/main.go b/test/fixedbugs/issue30862.dir/main.go
+new file mode 100644
+index 0000000000..80db0e13a8
+--- /dev/null
++++ b/test/fixedbugs/issue30862.dir/main.go
+@@ -0,0 +1,28 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++
++	"./b"
++)
++
++// Test case for issue 30862.
++
++// Be aware that unless GOEXPERIMENT=fieldtrack is set when building
++// the compiler, this test will fail if executed with a regular GC
++// compiler.
++
++func main() {
++	bad := b.Test()
++	if len(bad) > 0 {
++		for _, s := range bad {
++			fmt.Fprintf(os.Stderr, "test failed: %s\n", s)
++		}
++		os.Exit(1)
++	}
++}
+diff --git a/test/fixedbugs/issue30862.go b/test/fixedbugs/issue30862.go
+new file mode 100644
+index 0000000000..ba122cc3c8
+--- /dev/null
++++ b/test/fixedbugs/issue30862.go
+@@ -0,0 +1,14 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 30862.  This test as written will
++// fail for the main 'gc' compiler unless GOEXPERIMENT=fieldtrack
++// is set when building it, whereas gccgo has field tracking
++// enabled by default (hence the build tag below).
++
++// +build gccgo
++
++package ignored

@@ -9,7 +9,32 @@ Date:   Mon Feb 10 20:27:21 2014 -0500
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/55870046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 89078f5bdd..2d25b2a325 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -61,6 +61,7 @@ Bjorn Tillenius <bjorn@tillenius.me>
+ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
++Brendan Daniel Tracey <tracey.brendan@gmail.com>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>
+ Brian Gitonga Marete <marete@toshnix.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e5313529d6..8bc4ea8433 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -103,6 +103,7 @@ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+ Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>
+ Brad Garcia <bgarcia@golang.org>
++Brendan Daniel Tracey <tracey.brendan@gmail.com>
+ Brendan O'Dea <bod@golang.org>
+ Brian Dellisanti <briandellisanti@gmail.com>
+ Brian G. Merrell <bgmerrell@gmail.com>

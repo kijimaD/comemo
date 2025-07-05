@@ -16,7 +16,7 @@ Date:   Fri Apr 30 00:04:19 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.17.html                                    | 10 +++
  src/cmd/go/internal/modcmd/vendor.go               | 57 +++++++++-----
  src/cmd/go/internal/modload/vendor.go              |  5 ++
@@ -25,3 +25,341 @@ Date:   Fri Apr 30 00:04:19 2021 -0400
  src/cmd/vendor/modules.txt                         | 16 ++--
  src/vendor/modules.txt                             |  8 +-
  7 files changed, 154 insertions(+), 33 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index eab4e1eeeb..ef1472d90a 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -120,6 +120,16 @@ Do not send CLs removing the interior tags from such phrases.
+   files.)
+ </p>
+ 
++<h4 id="vendor-go-versions"><code>go</code> versions in <code>vendor/modules.txt</code></h4>
++
++<p><!-- golang.org/issue/36876 -->
++  If the main module specifies <code>go</code> <code>1.17</code> or higher,
++  <code>go</code> <code>mod</code> <code>vendor</code> now annotates
++  <code>vendor/modules.txt</code> with the <code>go</code> version indicated by
++  each vendored module in its own <code>go.mod</code> file. The annotated
++  version is used when building the module's packages from vendored source code.
++</p>
++
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p>
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 6ebc18dcd8..86eab89065 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -88,15 +88,23 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	includeAllReplacements := false
++	includeGoVersions := false
+ 	isExplicit := map[module.Version]bool{}
+-	if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.14") >= 0 {
+-		// If the Go version is at least 1.14, annotate all explicit 'require' and
+-		// 'replace' targets found in the go.mod file so that we can perform a
+-		// stronger consistency check when -mod=vendor is set.
+-		for _, r := range modload.ModFile().Require {
+-			isExplicit[r.Mod] = true
++	if gv := modload.ModFile().Go; gv != nil {
++		if semver.Compare("v"+gv.Version, "v1.14") >= 0 {
++			// If the Go version is at least 1.14, annotate all explicit 'require' and
++			// 'replace' targets found in the go.mod file so that we can perform a
++			// stronger consistency check when -mod=vendor is set.
++			for _, r := range modload.ModFile().Require {
++				isExplicit[r.Mod] = true
++			}
++			includeAllReplacements = true
++		}
++		if semver.Compare("v"+gv.Version, "v1.17") >= 0 {
++			// If the Go version is at least 1.17, annotate all modules with their
++			// 'go' version directives.
++			includeGoVersions = true
+ 		}
+-		includeAllReplacements = true
+ 	}
+ 
+ 	var vendorMods []module.Version
+@@ -110,26 +118,35 @@ func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	module.Sort(vendorMods)
+ 
+-	var buf bytes.Buffer
++	var (
++		buf bytes.Buffer
++		w   io.Writer = &buf
++	)
++	if cfg.BuildV {
++		w = io.MultiWriter(&buf, os.Stderr)
++	}
++
+ 	for _, m := range vendorMods {
+ 		line := moduleLine(m, modload.Replacement(m))
+-		buf.WriteString(line)
+-		if cfg.BuildV {
+-			os.Stderr.WriteString(line)
++		io.WriteString(w, line)
++
++		goVersion := ""
++		if includeGoVersions {
++			goVersion = modload.ModuleInfo(ctx, m.Path).GoVersion
+ 		}
+-		if isExplicit[m] {
+-			buf.WriteString("## explicit\n")
+-			if cfg.BuildV {
+-				os.Stderr.WriteString("## explicit\n")
+-			}
++		switch {
++		case isExplicit[m] && goVersion != "":
++			fmt.Fprintf(w, "## explicit; go %s\n", goVersion)
++		case isExplicit[m]:
++			io.WriteString(w, "## explicit\n")
++		case goVersion != "":
++			fmt.Fprintf(w, "## go %s\n", goVersion)
+ 		}
++
+ 		pkgs := modpkgs[m]
+ 		sort.Strings(pkgs)
+ 		for _, pkg := range pkgs {
+-			fmt.Fprintf(&buf, "%s\n", pkg)
+-			if cfg.BuildV {
+-				fmt.Fprintf(os.Stderr, "%s\n", pkg)
+-			}
++			fmt.Fprintf(w, "%s\n", pkg)
+ 			vendorPkg(vdir, pkg)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index d8fd91f1fe..80713b0812 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -31,6 +31,7 @@ var (
+ type vendorMetadata struct {
+ 	Explicit    bool
+ 	Replacement module.Version
++	GoVersion   string
+ }
+ 
+ // readVendorList reads the list of vendored modules from vendor/modules.txt.
+@@ -104,6 +105,10 @@ func readVendorList() {
+ 					if entry == "explicit" {
+ 						meta.Explicit = true
+ 					}
++					if strings.HasPrefix(entry, "go ") {
++						meta.GoVersion = strings.TrimPrefix(entry, "go ")
++						rawGoVersion.Store(mod, meta.GoVersion)
++					}
+ 					// All other tokens are reserved for future use.
+ 				}
+ 				vendorMeta[mod] = meta
+diff --git a/src/cmd/go/testdata/script/mod_go_version_vendor.txt b/src/cmd/go/testdata/script/mod_go_version_vendor.txt
+index 05be54886f..6364e17daa 100644
+--- a/src/cmd/go/testdata/script/mod_go_version_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_go_version_vendor.txt
+@@ -4,7 +4,6 @@
+ 
+ [short] skip
+ 
+-go mod init example.com/foo
+ go mod edit -replace=example.com/use113@v0.1.0=./use113
+ 
+ go mod vendor
+@@ -20,7 +19,10 @@ go mod vendor
+ ! grep 1.13 vendor/modules.txt
+ go build .
+ 
++-- go.mod --
++module example.com/foo
+ 
++go 1.16
+ -- foo.go --
+ package foo
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_goversion.txt b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+new file mode 100644
+index 0000000000..7bc67ef30f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_goversion.txt
+@@ -0,0 +1,87 @@
++# https://golang.org/issue/36876: As of Go 1.17, vendor/modules.txt should
++# indicate the language version used by each dependency.
++
++[short] skip
++
++
++# Control case: without a vendor directory, need117 builds and bad114 doesn't.
++
++go build example.net/need117
++! go build example.net/bad114
++stderr '^bad114[/\\]bad114.go:15:2: duplicate method Y$'
++
++
++# With a vendor/modules.txt lacking language versions, the world is topsy-turvy.
++# Things that ought to build shouldn't, and things that shouldn't build do.
++
++go mod vendor
++go build example.net/bad114
++! go build example.net/need117
++stderr '^vendor[/\\]example\.net[/\\]need117[/\\]need117.go:5:18: .*\n\tconversion of slices to array pointers only supported as of -lang=go1\.17'
++
++
++# Upgrading the main module to 1.17 adds version annotations.
++# Then everything is once again consistent with the non-vendored world.
++
++go mod edit -go=1.17
++go mod vendor
++go build example.net/need117
++! go build example.net/bad114
++stderr '^vendor[/\\]example\.net[/\\]bad114[/\\]bad114.go:15:2: duplicate method Y$'
++
++
++-- go.mod --
++module example.net/m
++
++go 1.16
++
++require (
++	example.net/bad114 v0.1.0
++	example.net/need117 v0.1.0
++)
++
++replace (
++	example.net/bad114 v0.1.0 => ./bad114
++	example.net/need117 v0.1.0 => ./need117
++)
++-- m.go --
++package m
++
++import _ "example.net/bad114"
++import _ "example.net/need117"
++
++-- bad114/go.mod --
++// Module bad114 requires Go 1.14 or higher, but declares Go 1.13.
++module example.net/bad114
++
++go 1.13
++-- bad114/bad114.go --
++package bad114
++
++type XY interface {
++	X()
++	Y()
++}
++
++type YZ interface {
++	Y()
++	Z()
++}
++
++type XYZ interface {
++	XY
++	YZ
++}
++
++-- need117/go.mod --
++// Module need117 requires Go 1.17 or higher.
++module example.net/need117
++
++go 1.17
++-- need117/need117.go --
++package need117
++
++func init() {
++		 s := make([]byte, 4)
++		 _ = (*[4]byte)(s)
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 0457b374b0..69d10d074a 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,5 +1,5 @@
+ # github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
+-## explicit
++## explicit; go 1.14
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils
+ github.com/google/pprof/internal/driver
+@@ -19,17 +19,17 @@ github.com/google/pprof/third_party/svgpan
+ ## explicit
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+-## explicit
++## explicit; go 1.11
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+ # golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+-## explicit
++## explicit; go 1.11
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ # golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24
+-## explicit
++## explicit; go 1.12
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+ golang.org/x/mod/module
+@@ -40,16 +40,16 @@ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+ # golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57
+-## explicit
++## explicit; go 1.12
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+-## explicit
++## explicit; go 1.11
+ golang.org/x/term
+ # golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe
+-## explicit
++## explicit; go 1.12
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+@@ -93,6 +93,6 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
+ # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+-## explicit
++## explicit; go 1.11
+ golang.org/x/xerrors
+ golang.org/x/xerrors/internal
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 499e6fc3fa..d849d6553c 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,5 +1,5 @@
+ # golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+-## explicit
++## explicit; go 1.11
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
+@@ -9,7 +9,7 @@ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/subtle
+ golang.org/x/crypto/poly1305
+ # golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+-## explicit
++## explicit; go 1.11
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+ golang.org/x/net/http/httpproxy
+@@ -19,10 +19,10 @@ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+ # golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57
+-## explicit
++## explicit; go 1.12
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.6-0.20210227105805-e3aa4adf54f6
+-## explicit
++## explicit; go 1.11
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/bidi

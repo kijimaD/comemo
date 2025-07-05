@@ -13,9 +13,282 @@ Date:   Thu Feb 16 21:13:15 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/runtime/pprof/map.go        | 89 +++++++++++++++++++++++++++++++++++++++++
  src/runtime/pprof/pprof.go      |  4 +-
  src/runtime/pprof/proto.go      | 88 +++++++++++++++-------------------------
  src/runtime/pprof/proto_test.go |  2 +-
  4 files changed, 125 insertions(+), 58 deletions(-)
+
+diff --git a/src/runtime/pprof/map.go b/src/runtime/pprof/map.go
+new file mode 100644
+index 0000000000..a271ad022e
+--- /dev/null
++++ b/src/runtime/pprof/map.go
+@@ -0,0 +1,89 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package pprof
++
++import "unsafe"
++
++// A profMap is a map from (stack, tag) to mapEntry.
++// It grows without bound, but that's assumed to be OK.
++type profMap struct {
++	hash    map[uintptr]*profMapEntry
++	all     *profMapEntry
++	last    *profMapEntry
++	free    []profMapEntry
++	freeStk []uintptr
++}
++
++// A profMapEntry is a single entry in the profMap.
++type profMapEntry struct {
++	nextHash *profMapEntry // next in hash list
++	nextAll  *profMapEntry // next in list of all entries
++	stk      []uintptr
++	tag      unsafe.Pointer
++	count    int64
++}
++
++func (m *profMap) lookup(stk []uint64, tag unsafe.Pointer) *profMapEntry {
++	// Compute hash of (stk, tag).
++	h := uintptr(0)
++	for _, x := range stk {
++		h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
++		h += uintptr(x) * 41
++	}
++	h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
++	h += uintptr(tag) * 41
++
++	// Find entry if present.
++	var last *profMapEntry
++Search:
++	for e := m.hash[h]; e != nil; last, e = e, e.nextHash {
++		if len(e.stk) != len(stk) || e.tag != tag {
++			continue
++		}
++		for j := range stk {
++			if e.stk[j] != uintptr(stk[j]) {
++				continue Search
++			}
++		}
++		// Move to front.
++		if last != nil {
++			last.nextHash = e.nextHash
++			e.nextHash = m.hash[h]
++			m.hash[h] = e
++		}
++		return e
++	}
++
++	// Add new entry.
++	if len(m.free) < 1 {
++		m.free = make([]profMapEntry, 128)
++	}
++	e := &m.free[0]
++	m.free = m.free[1:]
++	e.nextHash = m.hash[h]
++	e.tag = tag
++
++	if len(m.freeStk) < len(stk) {
++		m.freeStk = make([]uintptr, 1024)
++	}
++	e.stk = m.freeStk[:len(stk)]
++	m.freeStk = m.freeStk[len(stk):]
++
++	for j := range stk {
++		e.stk[j] = uintptr(stk[j])
++	}
++	if m.hash == nil {
++		m.hash = make(map[uintptr]*profMapEntry)
++	}
++	m.hash[h] = e
++	if m.all == nil {
++		m.all = e
++		m.last = e
++	} else {
++		m.last.nextAll = e
++		m.last = e
++	}
++	return e
++}
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index e91ed38d1a..5529978a31 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -709,8 +709,8 @@ func profileWriter(w io.Writer) {
+ 	var err error
+ 	for {
+ 		time.Sleep(100 * time.Millisecond)
+-		data, _, eof := readProfile()
+-		if e := b.addCPUData(data); e != nil && err == nil {
++		data, tags, eof := readProfile()
++		if e := b.addCPUData(data, tags); e != nil && err == nil {
+ 			err = e
+ 		}
+ 		if eof {
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 6822b7a17b..fd912957dc 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -36,25 +36,8 @@ type profileBuilder struct {
+ 	p          *profile.Profile
+ 	start      time.Time
+ 	havePeriod bool
+-	locs       map[uint64]*profile.Location
+-	samples    map[sampleKey]*profile.Sample
+-}
+-
+-// A sampleKey is the key for the map from stack to profile.Sample.
+-// It is an unbounded array of profile.Location, broken into
+-// fixed-size chunks. The chunks are chained by the next field,
+-// which is an interface{} holding a sampleKey so that the default
+-// Go equality will consider the whole array contents.
+-// (In contrast, if next were *sampleKey or the interface{} held a
+-// *sampleKey, equality would only look at the pointer, not the values
+-// in the next sampleKey in the chain.)
+-// This is a bit of a hack, but it has the right effect and is expedient.
+-// At some point we will want to do a better job, so that lookups
+-// of large stacks need not allocate just to build a key.
+-type sampleKey struct {
+-	loc  [8]*profile.Location
+-	i    int
+-	next interface{}
++	locs       map[uintptr]*profile.Location
++	m          profMap
+ }
+ 
+ // newProfileBuilder returns a new profileBuilder.
+@@ -72,17 +55,16 @@ func newProfileBuilder() *profileBuilder {
+ 		TimeNanos: int64(start.UnixNano()),
+ 	}
+ 	return &profileBuilder{
+-		p:       p,
+-		start:   start,
+-		locs:    make(map[uint64]*profile.Location),
+-		samples: make(map[sampleKey]*profile.Sample),
++		p:     p,
++		start: start,
++		locs:  make(map[uintptr]*profile.Location),
+ 	}
+ }
+ 
+ // addCPUData adds the CPU profiling data to the profile.
+ // The data must be a whole number of records,
+ // as delivered by the runtime.
+-func (b *profileBuilder) addCPUData(data []uint64) error {
++func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error {
+ 	p := b.p
+ 	if !b.havePeriod {
+ 		// first record is period
+@@ -112,17 +94,22 @@ func (b *profileBuilder) addCPUData(data []uint64) error {
+ 	// there can be larger counts.
+ 	// Because many samples with the same stack arrive,
+ 	// we want to deduplicate immediately, which we do
+-	// using the b.samples map.
++	// using the b.m profMap.
+ 	for len(data) > 0 {
+ 		if len(data) < 3 || data[0] > uint64(len(data)) {
+ 			return fmt.Errorf("truncated profile")
+ 		}
+-		if data[0] < 3 {
++		if data[0] < 3 || tags != nil && len(tags) < 1 {
+ 			return fmt.Errorf("malformed profile")
+ 		}
+ 		count := data[2]
+ 		stk := data[3:data[0]]
+ 		data = data[data[0]:]
++		var tag unsafe.Pointer
++		if tags != nil {
++			tag = tags[0]
++			tags = tags[1:]
++		}
+ 
+ 		if count == 0 && len(stk) == 1 {
+ 			// overflow record
+@@ -131,11 +118,22 @@ func (b *profileBuilder) addCPUData(data []uint64) error {
+ 				uint64(funcPC(lostProfileEvent)),
+ 			}
+ 		}
++		b.m.lookup(stk, tag).count += int64(count)
++	}
++	return nil
++}
++
++// build completes and returns the constructed profile.
++func (b *profileBuilder) build() *profile.Profile {
++	b.p.DurationNanos = time.Since(b.start).Nanoseconds()
+ 
+-		sloc := make([]*profile.Location, len(stk))
+-		skey := sampleKey{}
+-		for i, addr := range stk {
+-			addr := uint64(addr)
++	for e := b.m.all; e != nil; e = e.nextAll {
++		s := &profile.Sample{
++			Value:    []int64{e.count, e.count * int64(b.p.Period)},
++			Location: make([]*profile.Location, len(e.stk)),
++		}
++		for i, addr := range e.stk {
++			addr := uintptr(addr)
+ 			// Addresses from stack traces point to the next instruction after
+ 			// each call.  Adjust by -1 to land somewhere on the actual call
+ 			// (except for the leaf, which is not a call).
+@@ -145,37 +143,17 @@ func (b *profileBuilder) addCPUData(data []uint64) error {
+ 			loc := b.locs[addr]
+ 			if loc == nil {
+ 				loc = &profile.Location{
+-					ID:      uint64(len(p.Location) + 1),
+-					Address: addr,
++					ID:      uint64(len(b.p.Location) + 1),
++					Address: uint64(addr),
+ 				}
+ 				b.locs[addr] = loc
+-				p.Location = append(p.Location, loc)
+-			}
+-			sloc[i] = loc
+-			if skey.i == len(skey.loc) {
+-				skey = sampleKey{next: skey}
++				b.p.Location = append(b.p.Location, loc)
+ 			}
+-			skey.loc[skey.i] = loc
+-			skey.i++
++			s.Location[i] = loc
+ 		}
+-		s := b.samples[skey]
+-		if s == nil {
+-			s = &profile.Sample{
+-				Value:    []int64{0, 0},
+-				Location: sloc,
+-			}
+-			b.samples[skey] = s
+-			p.Sample = append(p.Sample, s)
+-		}
+-		s.Value[0] += int64(count)
+-		s.Value[1] += int64(count) * int64(p.Period)
++		b.p.Sample = append(b.p.Sample, s)
+ 	}
+-	return nil
+-}
+ 
+-// build completes and returns the constructed profile.
+-func (b *profileBuilder) build() *profile.Profile {
+-	b.p.DurationNanos = time.Since(b.start).Nanoseconds()
+ 	if runtime.GOOS == "linux" {
+ 		addMappings(b.p)
+ 	}
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index d41bc43098..8eafc732c5 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -20,7 +20,7 @@ import (
+ // data into the profileBuilder as it becomes available.
+ func translateCPUProfile(data []uint64) (*profile.Profile, error) {
+ 	b := newProfileBuilder()
+-	if err := b.addCPUData(data); err != nil {
++	if err := b.addCPUData(data, nil); err != nil {
+ 		return nil, err
+ 	}
+ 	return b.build(), nil

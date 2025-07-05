@@ -13,6 +13,32 @@ Date:   Sat Jul 23 00:00:49 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 14 +-------------
  1 file changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index d7ec9f2ebb..fbbce7e80f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1786,19 +1786,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		case ir.OANDAND, ir.OOROR:
+ 			return typecheck.Expr(ir.NewLogicalExpr(pos, op, x, y))
+ 		}
+-		n := typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+-		switch n.Op() {
+-		case ir.OEQ, ir.ONE:
+-			n := n.(*ir.BinaryExpr)
+-			if n.X.Type().IsInterface() != n.Y.Type().IsInterface() {
+-				typ := n.X.Type()
+-				if typ.IsInterface() {
+-					typ = n.Y.Type()
+-				}
+-				n.RType = reflectdata.TypePtrAt(pos, typ)
+-			}
+-		}
+-		return n
++		return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+ 
+ 	case exprCall:
+ 		fun := r.expr()

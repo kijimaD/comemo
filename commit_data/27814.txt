@@ -7,7 +7,7 @@ Date:   Wed Apr 13 18:41:59 2016 -0700
     Change-Id: I9bda2ce6f45fb8292503f86d8f9f161601f222b7
     Reviewed-on: https://go-review.googlesource.com/22053
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/asm/main.go                      |  4 +---
  src/cmd/compile/internal/gc/cgen.go      |  2 +-
  src/cmd/compile/internal/gc/main.go      |  8 +-------
@@ -24,3 +24,387 @@ Date:   Wed Apr 13 18:41:59 2016 -0700
  src/cmd/internal/obj/x86/asm6.go         | 22 +++++++++++-----------
  src/cmd/internal/obj/x86/obj6.go         |  4 ++--
  15 files changed, 35 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index f010ca93f1..40e1d9c4a9 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -39,9 +39,7 @@ func main() {
+ 	}
+ 	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+-	if *flags.Shared || *flags.Dynlink {
+-		ctxt.Flag_shared = 1
+-	}
++	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+ 
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 9de2a19f68..32ca1ae940 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -2363,7 +2363,7 @@ func Ginscall(f *Node, proc int) {
+ 					// If the MOVD is not needed, insert a hardware NOP
+ 					// so that the same number of instructions are used
+ 					// on ppc64 in both shared and non-shared modes.
+-					if Ctxt.Flag_shared != 0 {
++					if Ctxt.Flag_shared {
+ 						p := Thearch.Gins(ppc64.AMOVD, nil, nil)
+ 						p.From.Type = obj.TYPE_MEM
+ 						p.From.Offset = 24
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f41097b83b..2baf9f6585 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -207,13 +207,7 @@ func Main() {
+ 	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
+ 	obj.Flagparse(usage)
+ 
+-	if flag_dynlink {
+-		flag_shared = true
+-	}
+-	if flag_shared {
+-		// TODO(mdempsky): Change Flag_shared to bool.
+-		Ctxt.Flag_shared = 1
+-	}
++	Ctxt.Flag_shared = flag_dynlink || flag_shared
+ 	Ctxt.Flag_dynlink = flag_dynlink
+ 	Ctxt.Flag_optimize = Debug['N'] == 0
+ 
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 04fa4cfc78..a83dff9a8b 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func betypeinit() {
+-	if gc.Ctxt.Flag_shared != 0 {
++	if gc.Ctxt.Flag_shared {
+ 		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R2)
+ 		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R12)
+ 	}
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index de6e2fbe05..eb6cd2c5e9 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -580,7 +580,7 @@ func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	case obj.ACALL:
+ 		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
+ 			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
+-			if gc.Ctxt.Flag_shared != 0 {
++			if gc.Ctxt.Flag_shared {
+ 				// Make sure function pointer is in R12 as well when
+ 				// compiling Go into PIC.
+ 				// TODO(mwhudson): it would obviously be better to
+@@ -602,7 +602,7 @@ func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = ppc64.REG_CTR
+ 
+-			if gc.Ctxt.Flag_shared != 0 {
++			if gc.Ctxt.Flag_shared {
+ 				// When compiling Go into PIC, the function we just
+ 				// called via pointer might have been implemented in
+ 				// a separate module and so overwritten the TOC
+diff --git a/src/cmd/compile/internal/ppc64/reg.go b/src/cmd/compile/internal/ppc64/reg.go
+index 447679e207..558ba4a4f4 100644
+--- a/src/cmd/compile/internal/ppc64/reg.go
++++ b/src/cmd/compile/internal/ppc64/reg.go
+@@ -113,7 +113,7 @@ func excludedregs() uint64 {
+ 	// Exclude registers with fixed functions
+ 	regbits := 1<<0 | RtoB(ppc64.REGSP) | RtoB(ppc64.REGG) | RtoB(ppc64.REGTLS) | RtoB(ppc64.REGTMP)
+ 
+-	if gc.Ctxt.Flag_shared != 0 {
++	if gc.Ctxt.Flag_shared {
+ 		// When compiling Go into PIC, R2 is reserved to be the TOC pointer
+ 		// and R12 so that calls via function pointer can stomp on it.
+ 		regbits |= RtoB(ppc64.REG_R2)
+diff --git a/src/cmd/compile/internal/x86/reg.go b/src/cmd/compile/internal/x86/reg.go
+index 76d90b8e89..d49a1aed9d 100644
+--- a/src/cmd/compile/internal/x86/reg.go
++++ b/src/cmd/compile/internal/x86/reg.go
+@@ -62,7 +62,7 @@ func regnames(n *int) []string {
+ }
+ 
+ func excludedregs() uint64 {
+-	if gc.Ctxt.Flag_shared != 0 {
++	if gc.Ctxt.Flag_shared {
+ 		return RtoB(x86.REG_SP) | RtoB(x86.REG_CX)
+ 	} else {
+ 		return RtoB(x86.REG_SP)
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index f49ee65a04..564f96a94e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -870,7 +870,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 		t.To.Type = a.Type
+ 		t.To.Name = a.Name
+ 
+-		if ctxt.Flag_shared != 0 && t.To.Sym != nil {
++		if ctxt.Flag_shared && t.To.Sym != nil {
+ 			t.Rel = p
+ 		}
+ 
+@@ -1015,7 +1015,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 
+ 			ctxt.Instoffset = 0 // s.b. unused but just in case
+ 			if a.Sym.Type == obj.STLSBSS {
+-				if ctxt.Flag_shared != 0 {
++				if ctxt.Flag_shared {
+ 					return C_TLS_IE
+ 				} else {
+ 					return C_TLS_LE
+@@ -1322,7 +1322,7 @@ func buildop(ctxt *obj.Link) {
+ 	}
+ 	for n = 0; optab[n].as != obj.AXXX; n++ {
+ 		if optab[n].flag&LPCREL != 0 {
+-			if ctxt.Flag_shared != 0 {
++			if ctxt.Flag_shared {
+ 				optab[n].size += int8(optab[n].pcrelsiz)
+ 			} else {
+ 				optab[n].flag &^= LPCREL
+@@ -1633,7 +1633,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			rel.Sym = p.To.Sym
+ 			rel.Add = p.To.Offset
+ 
+-			if ctxt.Flag_shared != 0 {
++			if ctxt.Flag_shared {
+ 				if p.To.Name == obj.NAME_GOTREF {
+ 					rel.Type = obj.R_GOTPCREL
+ 				} else {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index d0ae6115cb..55397132e0 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -972,7 +972,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Sym != nil { // use relocation
+ 				if a.Sym.Type == obj.STLSBSS {
+-					if ctxt.Flag_shared != 0 {
++					if ctxt.Flag_shared {
+ 						return C_TLS_IE
+ 					} else {
+ 						return C_TLS_LE
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 55c9f4f9e2..5f257f60ab 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -617,7 +617,7 @@ type Link struct {
+ 	Debugvlog     int32
+ 	Debugdivmod   int32
+ 	Debugpcln     int32
+-	Flag_shared   int32
++	Flag_shared   bool
+ 	Flag_dynlink  bool
+ 	Flag_optimize bool
+ 	Bso           *bufio.Writer
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 0497d3b678..e793f26803 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -585,7 +585,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Sym != nil { // use relocation
+ 				if a.Sym.Type == obj.STLSBSS {
+-					if ctxt.Flag_shared != 0 {
++					if ctxt.Flag_shared {
+ 						return C_TLS_IE
+ 					} else {
+ 						return C_TLS_LE
+@@ -1413,7 +1413,7 @@ func opform(ctxt *obj.Link, insn uint32) int {
+ func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
+ 	var base uint32
+ 	form := opform(ctxt, op)
+-	if ctxt.Flag_shared != 0 {
++	if ctxt.Flag_shared {
+ 		base = REG_R2
+ 	} else {
+ 		base = REG_R0
+@@ -1425,7 +1425,7 @@ func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op uint32) (o
+ 	rel.Siz = 8
+ 	rel.Sym = s
+ 	rel.Add = d
+-	if ctxt.Flag_shared != 0 {
++	if ctxt.Flag_shared {
+ 		switch form {
+ 		case D_FORM:
+ 			rel.Type = obj.R_ADDRPOWER_TOCREL
+@@ -1646,7 +1646,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			if v != 0 {
+ 				ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			if ctxt.Flag_shared != 0 && r == REG_R13 {
++			if ctxt.Flag_shared && r == REG_R13 {
+ 				rel := obj.Addrel(ctxt.Cursym)
+ 				rel.Off = int32(ctxt.Pc)
+ 				rel.Siz = 4
+@@ -1677,7 +1677,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			if v != 0 {
+ 				ctxt.Diag("illegal indexed instruction\n%v", p)
+ 			}
+-			if ctxt.Flag_shared != 0 && r == REG_R13 {
++			if ctxt.Flag_shared && r == REG_R13 {
+ 				rel := obj.Addrel(ctxt.Cursym)
+ 				rel.Off = int32(ctxt.Pc)
+ 				rel.Siz = 4
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7a24d1d1bf..4f9b3943cf 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -470,7 +470,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 
+ 			q = p
+ 
+-			if ctxt.Flag_shared != 0 && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" && cursym.Name != "runtime.stackBarrier" {
++			if ctxt.Flag_shared && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" && cursym.Name != "runtime.stackBarrier" {
+ 				// When compiling Go into PIC, all functions must start
+ 				// with instructions to load the TOC pointer into r2:
+ 				//
+@@ -558,7 +558,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 				q.Spadj = int32(-aoffset)
+ 			}
+ 
+-			if ctxt.Flag_shared != 0 {
++			if ctxt.Flag_shared {
+ 				q = obj.Appendp(ctxt, q)
+ 				q.As = AMOVD
+ 				q.Lineno = p.Lineno
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index bae4dc3ce7..9b26580d11 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -473,7 +473,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Sym.Type == obj.STLSBSS {
+-				if ctxt.Flag_shared != 0 {
++				if ctxt.Flag_shared {
+ 					return C_TLS_IE // initial exec model
+ 				}
+ 				return C_TLS_LE // local exec model
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index c563a7a48d..e806a834fd 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2165,7 +2165,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 					return 0x64 // FS
+ 				}
+ 
+-				if ctxt.Flag_shared != 0 {
++				if ctxt.Flag_shared {
+ 					log.Fatalf("unknown TLS base register for linux with -shared")
+ 				} else {
+ 					return 0x64 // FS
+@@ -2185,7 +2185,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 	}
+ 
+ 	if p.Mode == 32 {
+-		if a.Index == REG_TLS && ctxt.Flag_shared != 0 {
++		if a.Index == REG_TLS && ctxt.Flag_shared {
+ 			// When building for inclusion into a shared library, an instruction of the form
+ 			//     MOVL 0(CX)(TLS*1), AX
+ 			// becomes
+@@ -2214,7 +2214,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 		return 0x26
+ 
+ 	case REG_TLS:
+-		if ctxt.Flag_shared != 0 {
++		if ctxt.Flag_shared {
+ 			// When building for inclusion into a shared library, an instruction of the form
+ 			//     MOV 0(CX)(TLS*1), AX
+ 			// becomes
+@@ -2288,7 +2288,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 
+ 		case obj.NAME_EXTERN,
+ 			obj.NAME_STATIC:
+-			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && ctxt.Flag_shared == 0) {
++			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && !ctxt.Flag_shared) {
+ 				return Yi32
+ 			}
+ 			return Yiauto // use pc-relative addressing
+@@ -2707,7 +2707,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 		if a.Name == obj.NAME_GOTREF {
+ 			r.Siz = 4
+ 			r.Type = obj.R_GOTPCREL
+-		} else if isextern(s) || (p.Mode != 64 && ctxt.Flag_shared == 0) {
++		} else if isextern(s) || (p.Mode != 64 && !ctxt.Flag_shared) {
+ 			r.Siz = 4
+ 			r.Type = obj.R_ADDR
+ 		} else {
+@@ -2728,7 +2728,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 			log.Fatalf("reloc")
+ 		}
+ 
+-		if ctxt.Flag_shared == 0 || isAndroid {
++		if !ctxt.Flag_shared || isAndroid {
+ 			r.Type = obj.R_TLS_LE
+ 			r.Siz = 4
+ 			r.Off = -1 // caller must fill in
+@@ -2793,7 +2793,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 			if !isextern(a.Sym) && p.Mode == 64 {
+ 				goto bad
+ 			}
+-			if p.Mode == 32 && ctxt.Flag_shared != 0 {
++			if p.Mode == 32 && ctxt.Flag_shared {
+ 				base = REG_CX
+ 			} else {
+ 				base = REG_NONE
+@@ -2838,7 +2838,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 		if a.Sym == nil {
+ 			ctxt.Diag("bad addr: %v", p)
+ 		}
+-		if p.Mode == 32 && ctxt.Flag_shared != 0 {
++		if p.Mode == 32 && ctxt.Flag_shared {
+ 			base = REG_CX
+ 		} else {
+ 			base = REG_NONE
+@@ -2892,7 +2892,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 	}
+ 
+ 	if REG_AX <= base && base <= REG_R15 {
+-		if a.Index == REG_TLS && ctxt.Flag_shared == 0 {
++		if a.Index == REG_TLS && !ctxt.Flag_shared {
+ 			rel = obj.Reloc{}
+ 			rel.Type = obj.R_TLS_LE
+ 			rel.Siz = 4
+@@ -3945,7 +3945,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 						case obj.Hlinux,
+ 							obj.Hnacl:
+-							if ctxt.Flag_shared != 0 {
++							if ctxt.Flag_shared {
+ 								// Note that this is not generating the same insns as the other cases.
+ 								//     MOV TLS, R_to
+ 								// becomes
+@@ -4019,7 +4019,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 						log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
+ 
+ 					case obj.Hlinux:
+-						if ctxt.Flag_shared == 0 {
++						if !ctxt.Flag_shared {
+ 							log.Fatalf("unknown TLS base location for linux without -shared")
+ 						}
+ 						// Note that this is not generating the same insn as the other cases.
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 302a597f4c..b638c048e8 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -66,7 +66,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+ 		obj.Hwindows:
+ 		return false
+ 	case obj.Hlinux:
+-		return ctxt.Flag_shared == 0
++		return !ctxt.Flag_shared
+ 	}
+ 
+ 	return true
+@@ -314,7 +314,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 		rewriteToUseGot(ctxt, p)
+ 	}
+ 
+-	if ctxt.Flag_shared != 0 && p.Mode == 32 {
++	if ctxt.Flag_shared && p.Mode == 32 {
+ 		rewriteToPcrel(ctxt, p)
+ 	}
+ }

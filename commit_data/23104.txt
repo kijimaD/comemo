@@ -11,6 +11,24 @@ Date:   Fri Apr 24 14:11:29 2015 -0400
     Change-Id: Iafd583ee5529a8aef5439b9f1f6ce0185e4b1331
     Reviewed-on: https://go-review.googlesource.com/9304
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testcshared/test.bash | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index ef8229542d..9a078e6485 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -40,7 +40,11 @@ function run() {
+ 			args[$i]=${args[$i]//.\//${androidpath}\/}
+ 			args[$i]=${args[$i]//=./=${androidpath}}
+ 		done
+-		echo $(adb shell ${args} | tr -d '\r')
++		output=$(adb shell ${args} | tr -d '\r')
++		case $output in
++			*PASS) echo "PASS";; 
++			*) echo "$output";;
++		esac
+ 		;;
+ 	*)
+ 		echo $(env $@)

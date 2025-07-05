@@ -9,6 +9,20 @@ Date:   Mon Jun 4 15:20:07 2018 +0000
     GitHub-Pull-Request: golang/go#25716
     Reviewed-on: https://go-review.googlesource.com/116115
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9da276d453..9f4feebfd7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1942,7 +1942,7 @@ func startTemplateThread() {
+ 	newm(templateThread, nil)
+ }
+ 
+-// tmeplateThread is a thread in a known-good state that exists solely
++// templateThread is a thread in a known-good state that exists solely
+ // to start new threads in known-good states when the calling thread
+ // may not be a a good state.
+ //

@@ -12,9 +12,154 @@ Date:   Thu Jun 7 20:25:10 2018 +1000
     Run-TryBot: David Symonds <dsymonds@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/cover_test.go              | 59 ++++++++++++++++++++++++++++++++
  src/cmd/cover/testdata/html/html.go      | 18 ++++++++++
  src/cmd/cover/testdata/html/html.golden  | 10 ++++++
  src/cmd/cover/testdata/html/html_test.go |  7 ++++
  4 files changed, 94 insertions(+)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index f20fbb4b71..a677ab67e9 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -5,6 +5,7 @@
+ package main_test
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
+@@ -17,6 +18,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+@@ -36,6 +38,12 @@ var (
+ 	coverInput   = filepath.Join(testdata, "test_line.go")
+ 	coverOutput  = filepath.Join(testdata, "test_cover.go")
+ 	coverProfile = filepath.Join(testdata, "profile.cov")
++
++	// The HTML test files are in a separate directory
++	// so they are a complete package.
++	htmlProfile = filepath.Join(testdata, "html", "html.cov")
++	htmlHTML    = filepath.Join(testdata, "html", "html.html")
++	htmlGolden  = filepath.Join(testdata, "html", "html.golden")
+ )
+ 
+ var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
+@@ -256,6 +264,57 @@ func TestCoverFunc(t *testing.T) {
+ 	}
+ }
+ 
++// Check that cover produces correct HTML.
++// Issue #25767.
++func TestCoverHTML(t *testing.T) {
++	if _, err := exec.LookPath("diff"); err != nil {
++		t.Skipf("skip test on %s: diff command is required", runtime.GOOS)
++	}
++	testenv.MustHaveGoBuild(t)
++	if !*debug {
++		defer os.Remove(testcover)
++		defer os.Remove(htmlProfile)
++		defer os.Remove(htmlHTML)
++	}
++	// go build -o testcover
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", testcover)
++	run(cmd, t)
++	// go test -coverprofile testdata/html/html.cov cmd/cover/testdata/html
++	cmd = exec.Command(testenv.GoToolPath(t), "test", "-coverprofile", htmlProfile, "cmd/cover/testdata/html")
++	run(cmd, t)
++	// ./testcover -html testdata/html/html.cov -o testdata/html/html.html
++	cmd = exec.Command(testcover, "-html", htmlProfile, "-o", htmlHTML)
++	run(cmd, t)
++
++	// Extract the parts of the HTML with comment markers,
++	// and compare against a golden file.
++	entireHTML, err := ioutil.ReadFile(htmlHTML)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var out bytes.Buffer
++	scan := bufio.NewScanner(bytes.NewReader(entireHTML))
++	in := false
++	for scan.Scan() {
++		line := scan.Text()
++		if strings.Contains(line, "// START") {
++			in = true
++		}
++		if in {
++			fmt.Fprintln(&out, line)
++		}
++		if strings.Contains(line, "// END") {
++			in = false
++		}
++	}
++	if err := ioutil.WriteFile(htmlHTML, out.Bytes(), 0644); err != nil {
++		t.Fatal(err)
++	}
++	// diff -ud testdata/html/html.html testdata/html/html.golden
++	cmd = exec.Command("diff", "-udw", htmlHTML, htmlGolden)
++	run(cmd, t)
++}
++
+ func run(c *exec.Cmd, t *testing.T) {
+ 	t.Helper()
+ 	c.Stdout = os.Stdout
+diff --git a/src/cmd/cover/testdata/html/html.go b/src/cmd/cover/testdata/html/html.go
+new file mode 100644
+index 0000000000..5c7b81f063
+--- /dev/null
++++ b/src/cmd/cover/testdata/html/html.go
+@@ -0,0 +1,18 @@
++package html
++
++// This file is tested by html_test.go.
++// The comments below are markers for extracting the annotated source
++// from the HTML output.
++
++// This is a regression test for incorrect sorting of boundaries
++// that coincide, specifically for empty select clauses.
++// START f
++func f() {
++	ch := make(chan int)
++	select {
++	case <-ch:
++	default:
++	}
++}
++
++// END f
+diff --git a/src/cmd/cover/testdata/html/html.golden b/src/cmd/cover/testdata/html/html.golden
+new file mode 100644
+index 0000000000..2a2abd65a5
+--- /dev/null
++++ b/src/cmd/cover/testdata/html/html.golden
+@@ -0,0 +1,10 @@
++// START f
++func f() <span class="cov8" title="1">{
++	ch := make(chan int)
++	select </span>{
++	case &lt;-ch:<span class="cov0" title="0"></span>
++	default:<span class="cov8" title="1"></span>
++	}
++}
++
++// END f
+diff --git a/src/cmd/cover/testdata/html/html_test.go b/src/cmd/cover/testdata/html/html_test.go
+new file mode 100644
+index 0000000000..d52cf51149
+--- /dev/null
++++ b/src/cmd/cover/testdata/html/html_test.go
+@@ -0,0 +1,7 @@
++package html
++
++import "testing"
++
++func TestAll(t *testing.T) {
++	f()
++}

@@ -19,7 +19,94 @@ Date:   Wed Sep 12 20:35:58 2018 -0600
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go       | 44 ++++++++++++++++++++++
  .../go/testdata/script/mod_git_export_subst.txt    | 21 +++++++++++
  2 files changed, 65 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 87940a8f02..bcf8609826 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -694,6 +694,10 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 		return nil, "", err
+ 	}
+ 
++	if err := ensureGitAttributes(r.dir); err != nil {
++		return nil, "", err
++	}
++
+ 	// Incredibly, git produces different archives depending on whether
+ 	// it is running on a Windows system or not, in an attempt to normalize
+ 	// text file line endings. Setting -c core.autocrlf=input means only
+@@ -709,3 +713,43 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 
+ 	return ioutil.NopCloser(bytes.NewReader(archive)), "", nil
+ }
++
++// ensureGitAttributes makes sure export-subst and export-ignore features are
++// disabled for this repo. This is intended to be run prior to running git
++// archive so that zip files are generated that produce consistent ziphashes
++// for a given revision, independent of variables such as git version and the
++// size of the repo.
++//
++// See: https://github.com/golang/go/issues/27153
++func ensureGitAttributes(repoDir string) (err error) {
++	const attr = "\n* -export-subst -export-ignore\n"
++
++	d := repoDir + "/info"
++	p := d + "/attributes"
++
++	if err := os.MkdirAll(d, 0755); err != nil {
++		return err
++	}
++
++	f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
++	if err != nil {
++		return err
++	}
++	defer func() {
++		closeErr := f.Close()
++		if closeErr != nil {
++			err = closeErr
++		}
++	}()
++
++	b, err := ioutil.ReadAll(f)
++	if err != nil {
++		return err
++	}
++	if !bytes.HasSuffix(b, []byte(attr)) {
++		_, err := f.WriteString(attr)
++		return err
++	}
++
++	return nil
++}
+diff --git a/src/cmd/go/testdata/script/mod_git_export_subst.txt b/src/cmd/go/testdata/script/mod_git_export_subst.txt
+new file mode 100644
+index 0000000000..2b8e2bc7bc
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_git_export_subst.txt
+@@ -0,0 +1,21 @@
++env GO111MODULE=on
++env GOPROXY=
++
++# Testing that git export-subst is disabled
++[!net] skip
++[!exec:git] skip
++go build
++
++-- x.go --
++package x
++
++import _ "github.com/jasonkeene/export-subst"
++
++-- go.mod --
++module x
++
++require github.com/jasonkeene/export-subst v0.0.0-20180927204031-5845945ec626
++
++-- go.sum --
++github.com/jasonkeene/export-subst v0.0.0-20180927204031-5845945ec626 h1:AUkXi/xFnm7lH2pgtvVkGb7buRn1ywFHw+xDpZ29Rz0=
++github.com/jasonkeene/export-subst v0.0.0-20180927204031-5845945ec626/go.mod h1:DwJXqVtrgrQkv3Giuf2Jh4YyubVe7y41S1eOIaysTJw=

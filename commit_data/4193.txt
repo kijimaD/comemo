@@ -35,6 +35,20 @@ Date:   Mon Nov 23 14:26:30 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/159050
-
+---
  src/pkg/xml/xml.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 6e7b3d30bf..1a8d89ab89 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -761,7 +761,7 @@ Input:
+ 				if r, ok := entity[s]; ok {
+ 					text = string(r);
+ 					haveText = true;
+-				} else {
++				} else if p.Entity != nil {
+ 					text, haveText = p.Entity[s]
+ 				}
+ 			}

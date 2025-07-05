@@ -9,6 +9,27 @@ Date:   Fri Jul 7 03:45:50 2017 +0000
     Change-Id: I4a59de0556cffeae9af2eaa41609601e086211b2
     Reviewed-on: https://go-review.googlesource.com/47731
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.9.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index c657ebbc71..ea91843006 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -99,6 +99,15 @@ type T1 = T2
+   hardware.
+ <p>
+ 
++<h3 id="freebsd">FreeBSD</h3>
++
++<p>
++  Go 1.9 is the last release that will run on FreeBSD 9.3,
++  which is already
++  <a href="https://www.freebsd.org/security/unsupported.html">unsupported by FreeBSD</a>.
++  Go 1.10 will require FreeBSD 10.3+.
++</p>
++
+ <h3 id="openbsd">OpenBSD 6.0</h3>
+ 
+ <p> <!-- CL 40331 -->

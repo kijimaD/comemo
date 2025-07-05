@@ -16,6 +16,29 @@ Date:   Mon Sep 25 15:17:28 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 730b64cd19..023ab2f6ea 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -141,7 +141,7 @@ const (
+ 
+ 	// sweepMinHeapDistance is a lower bound on the heap distance
+ 	// (in bytes) reserved for concurrent sweeping between GC
+-	// cycles. This will be scaled by gcpercent/100.
++	// cycles.
+ 	sweepMinHeapDistance = 1024 * 1024
+ )
+ 
+@@ -803,7 +803,7 @@ func gcSetTriggerRatio(triggerRatio float64) {
+ 			// that concurrent sweep has some heap growth
+ 			// in which to perform sweeping before we
+ 			// start the next GC cycle.
+-			sweepMin := atomic.Load64(&memstats.heap_live) + sweepMinHeapDistance*uint64(gcpercent)/100
++			sweepMin := atomic.Load64(&memstats.heap_live) + sweepMinHeapDistance
+ 			if sweepMin > minTrigger {
+ 				minTrigger = sweepMin
+ 			}

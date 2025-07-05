@@ -7,7 +7,46 @@ Date:   Thu Jan 7 18:23:41 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/181156
-
+---
  doc/devel/index.html | 7 +++++++
  lib/godoc/godoc.html | 9 +++------
  2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/doc/devel/index.html b/doc/devel/index.html
+new file mode 100644
+index 0000000000..c8af0214ef
+--- /dev/null
++++ b/doc/devel/index.html
+@@ -0,0 +1,7 @@
++<!-- The Go project -->
++
++<ul>
++<li><a href="roadmap.html">Roadmap</a></li>
++<li><a href="release.html">Release History</a></li>
++<li><a href="../contribute.html">Contributing code</a></li>
++</ul>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 72ad1a5eaf..56163e075e 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -88,17 +88,14 @@
+     <li><a href="/doc/go_mem.html">Memory Model</a></li>
+     <li><a href="/doc/go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
+ 
+-    <li class="blank">&nbsp;</li>
+-    <li class="navhead">How To</li>
+-    <li><a href="/doc/install.html">Install Go</a></li>
+-    <li><a href="/doc/code.html">Write code</a></li>
+-    <li><a href="/doc/contribute.html">Contribute code</a></li>
+-
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Programming</li>
++    <li><a href="/doc/install.html">How to install Go</a></li>
++    <li><a href="/doc/code.html">How to write code</a></li>
+     <li><a href="/cmd">Command documentation</a></li>
+     <li><a href="/pkg">Package documentation</a></li>
+     <li><a href="/src">Source files</a></li>
++    <li><a href="/doc/devel/">The Go project</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Help</li>

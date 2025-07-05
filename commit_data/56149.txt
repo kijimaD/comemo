@@ -15,7 +15,7 @@ Date:   Mon Mar 27 09:27:43 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/log/slog/attr.go                       |  2 ++
  src/log/slog/example_wrap_test.go          |  2 +-
  src/log/slog/handler.go                    | 28 ++++++++++++----------------
@@ -25,3 +25,182 @@ Date:   Mon Mar 27 09:27:43 2023 -0400
  src/log/slog/text_handler_test.go          |  2 +-
  src/log/slog/value_test.go                 |  1 -
  8 files changed, 28 insertions(+), 24 deletions(-)
+
+diff --git a/src/log/slog/attr.go b/src/log/slog/attr.go
+index 2e9bc0e6ef..cd3bacca43 100644
+--- a/src/log/slog/attr.go
++++ b/src/log/slog/attr.go
+@@ -83,6 +83,8 @@ func (a Attr) String() string {
+ 	return fmt.Sprintf("%s=%s", a.Key, a.Value)
+ }
+ 
++// isEmpty reports whether a has an empty key and a nil value.
++// That can be written as Attr{} or Any("", nil).
+ func (a Attr) isEmpty() bool {
+ 	return a.Key == "" && a.Value.num == 0 && a.Value.any == nil
+ }
+diff --git a/src/log/slog/example_wrap_test.go b/src/log/slog/example_wrap_test.go
+index 1aad16dc5a..b96de11320 100644
+--- a/src/log/slog/example_wrap_test.go
++++ b/src/log/slog/example_wrap_test.go
+@@ -30,7 +30,7 @@ func Example_wrapping() {
+ 	replace := func(groups []string, a slog.Attr) slog.Attr {
+ 		// Remove time.
+ 		if a.Key == slog.TimeKey && len(groups) == 0 {
+-			a.Key = ""
++			return slog.Attr{}
+ 		}
+ 		// Remove the directory from the source's filename.
+ 		if a.Key == slog.SourceKey {
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 597159e203..1fd0e76459 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -50,8 +50,8 @@ type Handler interface {
+ 	// Handle methods that produce output should observe the following rules:
+ 	//   - If r.Time is the zero time, ignore the time.
+ 	//   - If r.PC is zero, ignore it.
+-	//   - If an Attr's key is the empty string and the value is not a group,
+-	//     ignore the Attr.
++	//   - If an Attr's key and value are both the zero value, ignore the Attr.
++	//     This can be tested with attr.Equal(Attr{}).
+ 	//   - If a group's key is empty, inline the group's Attrs.
+ 	//   - If a group has no Attrs (even if it has a non-empty key),
+ 	//     ignore it.
+@@ -437,26 +437,22 @@ func (s *handleState) closeGroup(name string) {
+ // It handles replacement and checking for an empty key.
+ // after replacement).
+ func (s *handleState) appendAttr(a Attr) {
+-	v := a.Value
+-	// Elide a non-group with an empty key.
+-	if a.Key == "" && v.Kind() != KindGroup {
+-		return
+-	}
+-	if rep := s.h.opts.ReplaceAttr; rep != nil && v.Kind() != KindGroup {
++	if rep := s.h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != KindGroup {
+ 		var gs []string
+ 		if s.groups != nil {
+ 			gs = *s.groups
+ 		}
+-		a = rep(gs, Attr{a.Key, v})
+-		if a.Key == "" {
+-			return
+-		}
++		a = rep(gs, a)
+ 		// Although all attributes in the Record are already resolved,
+ 		// This one came from the user, so it may not have been.
+-		v = a.Value.Resolve()
++		a.Value = a.Value.Resolve()
++	}
++	// Elide empty Attrs.
++	if a.isEmpty() {
++		return
+ 	}
+-	if v.Kind() == KindGroup {
+-		attrs := v.Group()
++	if a.Value.Kind() == KindGroup {
++		attrs := a.Value.Group()
+ 		// Output only non-empty groups.
+ 		if len(attrs) > 0 {
+ 			// Inline a group with an empty key.
+@@ -472,7 +468,7 @@ func (s *handleState) appendAttr(a Attr) {
+ 		}
+ 	} else {
+ 		s.appendKey(a.Key)
+-		s.appendValue(v)
++		s.appendValue(a.Value)
+ 	}
+ }
+ 
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 2c374d6a20..0ddd312645 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -108,12 +108,10 @@ func TestDefaultHandle(t *testing.T) {
+ func TestJSONAndTextHandlers(t *testing.T) {
+ 	ctx := context.Background()
+ 
+-	// ReplaceAttr functions
+-
+ 	// remove all Attrs
+ 	removeAll := func(_ []string, a Attr) Attr { return Attr{} }
+ 
+-	attrs := []Attr{String("a", "one"), Int("b", 2), Any("", "ignore me")}
++	attrs := []Attr{String("a", "one"), Int("b", 2), Any("", nil)}
+ 	preAttrs := []Attr{Int("pre", 3), String("x", "y")}
+ 
+ 	for _, test := range []struct {
+@@ -131,6 +129,12 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: "time=2000-01-02T03:04:05.000Z level=INFO msg=message a=one b=2",
+ 			wantJSON: `{"time":"2000-01-02T03:04:05Z","level":"INFO","msg":"message","a":"one","b":2}`,
+ 		},
++		{
++			name:     "empty key",
++			attrs:    append(slices.Clip(attrs), Any("", "v")),
++			wantText: `time=2000-01-02T03:04:05.000Z level=INFO msg=message a=one b=2 ""=v`,
++			wantJSON: `{"time":"2000-01-02T03:04:05Z","level":"INFO","msg":"message","a":"one","b":2,"":"v"}`,
++		},
+ 		{
+ 			name:     "cap keys",
+ 			replace:  upperCaseKey,
+@@ -296,7 +300,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantJSON: `{"msg":"message","a":1,"b":2,"c":3,"d":4}`,
+ 		},
+ 	} {
+-		r := NewRecord(testTime, LevelInfo, "message", 1)
++		r := NewRecord(testTime, LevelInfo, "message", 0)
+ 		r.AddAttrs(test.attrs...)
+ 		var buf bytes.Buffer
+ 		opts := HandlerOptions{ReplaceAttr: test.replace}
+diff --git a/src/log/slog/internal/slogtest/slogtest.go b/src/log/slog/internal/slogtest/slogtest.go
+index f44e6b5f89..d587662844 100644
+--- a/src/log/slog/internal/slogtest/slogtest.go
++++ b/src/log/slog/internal/slogtest/slogtest.go
+@@ -12,7 +12,7 @@ import "log/slog"
+ // to make example output deterministic.
+ func RemoveTime(groups []string, a slog.Attr) slog.Attr {
+ 	if a.Key == slog.TimeKey && len(groups) == 0 {
+-		a.Key = ""
++		return slog.Attr{}
+ 	}
+ 	return a
+ }
+diff --git a/src/log/slog/text_handler.go b/src/log/slog/text_handler.go
+index 739c662f85..4981eb67d2 100644
+--- a/src/log/slog/text_handler.go
++++ b/src/log/slog/text_handler.go
+@@ -138,6 +138,9 @@ func byteSlice(a any) ([]byte, bool) {
+ }
+ 
+ func needsQuoting(s string) bool {
++	if len(s) == 0 {
++		return true
++	}
+ 	for i := 0; i < len(s); {
+ 		b := s[i]
+ 		if b < utf8.RuneSelf {
+diff --git a/src/log/slog/text_handler_test.go b/src/log/slog/text_handler_test.go
+index a35f8438c2..0979c3436c 100644
+--- a/src/log/slog/text_handler_test.go
++++ b/src/log/slog/text_handler_test.go
+@@ -185,7 +185,7 @@ func TestNeedsQuoting(t *testing.T) {
+ 		in   string
+ 		want bool
+ 	}{
+-		{"", false},
++		{"", true},
+ 		{"ab", false},
+ 		{"a=b", true},
+ 		{`"ab"`, true},
+diff --git a/src/log/slog/value_test.go b/src/log/slog/value_test.go
+index 55f3100a80..d2c427b96e 100644
+--- a/src/log/slog/value_test.go
++++ b/src/log/slog/value_test.go
+@@ -185,7 +185,6 @@ func TestLogValue(t *testing.T) {
+ 	if !attrsEqual(got2, want2) {
+ 		t.Errorf("got %v, want %v", got2, want2)
+ 	}
+-
+ }
+ 
+ func TestZeroTime(t *testing.T) {

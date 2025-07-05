@@ -6,6 +6,19 @@ Date:   Sun Oct 19 10:33:50 2014 -0700
     
     CC=golang-codereviews
     https://golang.org/cl/161820043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index 833d331cb0..df98de5c76 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -23,6 +23,7 @@ asm: make textflag.h available outside of cmd/ld (CL 128050043)
+ bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
+ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+ crypto/tls: support programmatic selection of server certificates (CL 107400043)
++flag: it is now an error to set a flag multiple times (CL 156390043)
+ fmt: print type *map[T]T as &map[k:v] (CL 154870043)
+ encoding/gob: remove unsafe (CL 102680045)
+ misc: deleted editor support; refer to https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins instead (CL 105470043)

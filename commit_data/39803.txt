@@ -19,7 +19,98 @@ Date:   Thu Mar 21 15:08:41 2019 +1100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/gif/writer.go      |  5 ++++-
  src/image/gif/writer_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index 5e80feb33f..5819df0dd0 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -435,12 +435,15 @@ func Encode(w io.Writer, m image.Image, o *Options) error {
+ 
+ 	pm, ok := m.(*image.Paletted)
+ 	if !ok || len(pm.Palette) > opts.NumColors {
++		// Set pm to be a palettedized copy of m, including its bounds, which
++		// might not start at (0, 0).
++		//
+ 		// TODO: Pick a better sub-sample of the Plan 9 palette.
+ 		pm = image.NewPaletted(b, palette.Plan9[:opts.NumColors])
+ 		if opts.Quantizer != nil {
+ 			pm.Palette = opts.Quantizer.Quantize(make(color.Palette, 0, opts.NumColors), m)
+ 		}
+-		opts.Drawer.Draw(pm, b, m, image.ZP)
++		opts.Drawer.Draw(pm, b, m, b.Min)
+ 	}
+ 
+ 	// When calling Encode instead of EncodeAll, the single-frame image is
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 69042ec674..91275bb907 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -339,7 +339,10 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
+ 		{+2, +2},
+ 	}
+ 	for _, p := range points {
+-		src := image.NewPaletted(image.Rectangle{Min: p, Max: p.Add(image.Point{6, 6})}, palette.Plan9)
++		src := image.NewPaletted(image.Rectangle{
++			Min: p,
++			Max: p.Add(image.Point{6, 6}),
++		}, palette.Plan9)
+ 		var buf bytes.Buffer
+ 		if err := Encode(&buf, src, nil); err != nil {
+ 			t.Errorf("p=%v: Encode: %v", p, err)
+@@ -354,6 +357,52 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
+ 			t.Errorf("p=%v: got %v, want %v", p, got, want)
+ 		}
+ 	}
++
++	// Also test having a source image (gray on the diagonal) that has a
++	// non-zero Bounds().Min, but isn't an image.Paletted.
++	{
++		p := image.Point{+2, +2}
++		src := image.NewRGBA(image.Rectangle{
++			Min: p,
++			Max: p.Add(image.Point{6, 6}),
++		})
++		src.SetRGBA(2, 2, color.RGBA{0x22, 0x22, 0x22, 0xFF})
++		src.SetRGBA(3, 3, color.RGBA{0x33, 0x33, 0x33, 0xFF})
++		src.SetRGBA(4, 4, color.RGBA{0x44, 0x44, 0x44, 0xFF})
++		src.SetRGBA(5, 5, color.RGBA{0x55, 0x55, 0x55, 0xFF})
++		src.SetRGBA(6, 6, color.RGBA{0x66, 0x66, 0x66, 0xFF})
++		src.SetRGBA(7, 7, color.RGBA{0x77, 0x77, 0x77, 0xFF})
++
++		var buf bytes.Buffer
++		if err := Encode(&buf, src, nil); err != nil {
++			t.Errorf("gray-diagonal: Encode: %v", err)
++			return
++		}
++		m, err := Decode(&buf)
++		if err != nil {
++			t.Errorf("gray-diagonal: Decode: %v", err)
++			return
++		}
++		if got, want := m.Bounds(), image.Rect(0, 0, 6, 6); got != want {
++			t.Errorf("gray-diagonal: got %v, want %v", got, want)
++			return
++		}
++
++		rednessAt := func(x int, y int) uint32 {
++			r, _, _, _ := m.At(x, y).RGBA()
++			// Shift by 8 to convert from 16 bit color to 8 bit color.
++			return r >> 8
++		}
++
++		// Round-tripping a still (non-animated) image.Image through
++		// Encode+Decode should shift the origin to (0, 0).
++		if got, want := rednessAt(0, 0), uint32(0x22); got != want {
++			t.Errorf("gray-diagonal: rednessAt(0, 0): got 0x%02x, want 0x%02x", got, want)
++		}
++		if got, want := rednessAt(5, 5), uint32(0x77); got != want {
++			t.Errorf("gray-diagonal: rednessAt(5, 5): got 0x%02x, want 0x%02x", got, want)
++		}
++	}
+ }
+ 
+ func TestEncodeImplicitConfigSize(t *testing.T) {

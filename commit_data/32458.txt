@@ -19,9 +19,162 @@ Date:   Tue Apr 25 17:30:08 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bitset.go      | 11 +++++++
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/syntax.go      | 47 +++++++++++++++++-------------
  src/cmd/compile/internal/gc/typecheck.go   | 10 +++----
  4 files changed, 43 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bitset.go b/src/cmd/compile/internal/gc/bitset.go
+index c8992fa217..bc5a8789bc 100644
+--- a/src/cmd/compile/internal/gc/bitset.go
++++ b/src/cmd/compile/internal/gc/bitset.go
+@@ -23,3 +23,14 @@ func (f *bitset32) set(mask uint32, b bool) {
+ 		*(*uint32)(f) &^= mask
+ 	}
+ }
++
++func (f bitset32) get2(shift uint8) uint8 {
++	return uint8(f>>shift) & 3
++}
++
++func (f *bitset32) set2(shift uint8, b uint8) {
++	// Clear old bits.
++	*(*uint32)(f) &^= 3 << shift
++	// Set new bits.
++	*(*uint32)(f) |= uint32(b) << shift
++}
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index ca5d0cd9ae..2f15ce02fb 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -25,7 +25,7 @@ func TestSizeof(t *testing.T) {
+ 		{Func{}, 100, 168},
+ 		{Name{}, 36, 56},
+ 		{Param{}, 28, 56},
+-		{Node{}, 84, 136},
++		{Node{}, 80, 136},
+ 	}
+ 
+ 	for _, tt := range tests {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index d59e77c7e9..3db656e85e 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -59,7 +59,6 @@ type Node struct {
+ 	Etype     types.EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN, for OINDEXMAP 1=LHS,0=RHS
+ 	Class     Class       // PPARAM, PAUTO, PEXTERN, etc
+ 	Embedded  uint8       // ODCLFIELD embedded type
+-	Walkdef   uint8       // tracks state during typecheckdef; 2 == loop detected
+ 	Typecheck uint8       // tracks state during typechecking; 2 == loop detected
+ 	Initorder uint8
+ }
+@@ -74,28 +73,32 @@ func (n *Node) IsAutoTmp() bool {
+ }
+ 
+ const (
+-	nodeHasBreak = 1 << iota
+-	nodeIsClosureVar
+-	nodeIsOutputParamHeapAddr
+-	nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+-	nodeAssigned  // is the variable ever assigned to
+-	nodeAddrtaken // address taken, even if not moved to heap
+-	nodeImplicit
+-	nodeIsddd    // is the argument variadic
+-	nodeLocal    // type created in this file (see also Type.Local)
+-	nodeDiag     // already printed error about this
+-	nodeColas    // OAS resulting from :=
+-	nodeNonNil   // guaranteed to be non-nil
+-	nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+-	nodeBounded  // bounds check unnecessary
+-	nodeAddable  // addressable
+-	nodeUsed     // for variable/label declared and not used error
+-	nodeHasCall  // expression contains a function call
+-	nodeLikely   // if statement condition likely
+-	nodeHasVal   // node.E contains a Val
+-	nodeHasOpt   // node.E contains an Opt
++	nodeWalkdef, _ = iota, 1 << iota // tracks state during typecheckdef; 2 == loop detected; two bits
++	_, _                             // second nodeWalkdef bit
++	_, nodeHasBreak
++	_, nodeIsClosureVar
++	_, nodeIsOutputParamHeapAddr
++	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
++	_, nodeAssigned  // is the variable ever assigned to
++	_, nodeAddrtaken // address taken, even if not moved to heap
++	_, nodeImplicit
++	_, nodeIsddd    // is the argument variadic
++	_, nodeLocal    // type created in this file (see also Type.Local)
++	_, nodeDiag     // already printed error about this
++	_, nodeColas    // OAS resulting from :=
++	_, nodeNonNil   // guaranteed to be non-nil
++	_, nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
++	_, nodeBounded  // bounds check unnecessary
++	_, nodeAddable  // addressable
++	_, nodeUsed     // for variable/label declared and not used error
++	_, nodeHasCall  // expression contains a function call
++	_, nodeLikely   // if statement condition likely
++	_, nodeHasVal   // node.E contains a Val
++	_, nodeHasOpt   // node.E contains an Opt
+ )
+ 
++func (n *Node) Walkdef() uint8 { return n.flags.get2(nodeWalkdef) }
++
+ func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
+ func (n *Node) IsClosureVar() bool          { return n.flags&nodeIsClosureVar != 0 }
+ func (n *Node) NoInline() bool              { return n.flags&nodeNoInline != 0 }
+@@ -117,6 +120,8 @@ func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
+ func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
+ func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+ 
++func (n *Node) SetWalkdef(b uint8) { n.flags.set2(nodeWalkdef, b) }
++
+ func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
+ func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
+ func (n *Node) SetNoInline(b bool)              { n.flags.set(nodeNoInline, b) }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b61ea0d0b0..d274a79e30 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3628,12 +3628,12 @@ func typecheckdef(n *Node) *Node {
+ 		return n
+ 	}
+ 
+-	if n.Walkdef == 1 {
++	if n.Walkdef() == 1 {
+ 		return n
+ 	}
+ 
+ 	typecheckdefstack = append(typecheckdefstack, n)
+-	if n.Walkdef == 2 {
++	if n.Walkdef() == 2 {
+ 		flusherrors()
+ 		fmt.Printf("typecheckdef loop:")
+ 		for i := len(typecheckdefstack) - 1; i >= 0; i-- {
+@@ -3644,7 +3644,7 @@ func typecheckdef(n *Node) *Node {
+ 		Fatalf("typecheckdef loop")
+ 	}
+ 
+-	n.Walkdef = 2
++	n.SetWalkdef(2)
+ 
+ 	if n.Type != nil || n.Sym == nil { // builtin or no name
+ 		goto ret
+@@ -3766,7 +3766,7 @@ func typecheckdef(n *Node) *Node {
+ 		if Curfn != nil {
+ 			defercheckwidth()
+ 		}
+-		n.Walkdef = 1
++		n.SetWalkdef(1)
+ 		n.Type = types.New(TFORW)
+ 		n.Type.Nod = asTypesNode(n)
+ 		n.Type.Sym = n.Sym // TODO(gri) this also happens in typecheckdeftype(n) - where should it happen?
+@@ -3794,7 +3794,7 @@ ret:
+ 	typecheckdefstack = typecheckdefstack[:last]
+ 
+ 	lineno = lno
+-	n.Walkdef = 1
++	n.SetWalkdef(1)
+ 	return n
+ }
+ 

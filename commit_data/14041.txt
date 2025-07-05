@@ -12,8 +12,100 @@ Date:   Sun Oct 7 00:52:40 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6620067
-
+---
  src/cmd/gc/gen.c         | 16 +++++++++-------
  src/cmd/gc/sinit.c       |  2 ++
  test/fixedbugs/bug459.go | 35 +++++++++++++++++++++++++++++++++++
  3 files changed, 46 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 7801415677..4f5aa3c3a6 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -509,22 +509,24 @@ ret:
+ void
+ cgen_callmeth(Node *n, int proc)
+ {
++	Node n2;
+ 	Node *l;
+ 
+-	// generate a rewrite for method call
++	// generate a rewrite in n2 for the method call
+ 	// (p.f)(...) goes to (f)(p,...)
+ 
+ 	l = n->left;
+ 	if(l->op != ODOTMETH)
+ 		fatal("cgen_callmeth: not dotmethod: %N");
+ 
+-	n->op = OCALLFUNC;
+-	n->left = n->left->right;
+-	n->left->type = l->type;
++	n2 = *n;
++	n2.op = OCALLFUNC;
++	n2.left = l->right;
++	n2.left->type = l->type;
+ 
+-	if(n->left->op == ONAME)
+-		n->left->class = PFUNC;
+-	cgen_call(n, proc);
++	if(n2.left->op == ONAME)
++		n2.left->class = PFUNC;
++	cgen_call(&n2, proc);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 8e943e45a1..d1438f1003 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -36,7 +36,9 @@ init1(Node *n, NodeList **out)
+ 	init1(n->right, out);
+ 	for(l=n->list; l; l=l->next)
+ 		init1(l->n, out);
++
+ 	if(n->left && n->type && n->left->op == OTYPE && n->class == PFUNC) {
++		// Methods called as Type.Method(receiver, ...).
+ 		// Definitions for method expressions are stored in type->nname.
+ 		init1(n->type->nname, out);
+ 	}
+diff --git a/test/fixedbugs/bug459.go b/test/fixedbugs/bug459.go
+new file mode 100644
+index 0000000000..80abe5d518
+--- /dev/null
++++ b/test/fixedbugs/bug459.go
+@@ -0,0 +1,35 @@
++// errorcheck
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3890: missing detection of init loop involving
++// method calls in function bodies.
++
++package flag
++
++var commandLine = NewFlagSet() // ERROR "loop"
++
++type FlagSet struct {
++}
++
++func (f *FlagSet) failf(format string, a ...interface{}) {
++	f.usage()
++}
++
++func (f *FlagSet) usage() {
++	if f == commandLine {
++		panic(3)
++	}
++}
++
++func NewFlagSet() *FlagSet {
++	f := &FlagSet{}
++	f.setErrorHandling(true)
++	return f
++}
++
++func (f *FlagSet) setErrorHandling(b bool) {
++	f.failf("DIE")
++}

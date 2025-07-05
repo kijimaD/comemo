@@ -10,9 +10,196 @@ Date:   Fri May 16 16:51:27 2014 +0200
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/91500044
-
+---
  src/cmd/addr2line/addr2line_test.go |  3 --
  src/cmd/addr2line/main.go           | 54 +++++++++++++++++++++++++++++++++++
  src/cmd/objdump/main.go             | 57 +++++++++++++++++++++++++++++++++++++
  src/cmd/objdump/objdump_test.go     |  3 --
  4 files changed, 111 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 5bcaffd914..1b7f8b5f54 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -92,9 +92,6 @@ func testAddr2Line(t *testing.T, exepath, addr string) {
+ 
+ // This is line 93. The test depends on that.
+ func TestAddr2Line(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7947")
+-	}
+ 	syms := loadSyms(t)
+ 
+ 	tmpDir, err := ioutil.TempDir("", "TestAddr2Line")
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index f4a7789f9b..b94ba12efd 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -23,6 +23,7 @@ import (
+ 	"debug/gosym"
+ 	"debug/macho"
+ 	"debug/pe"
++	"debug/plan9obj"
+ 	"flag"
+ 	"fmt"
+ 	"log"
+@@ -159,6 +160,21 @@ func loadTables(f *os.File) (textStart uint64, symtab, pclntab []byte, err error
+ 		return textStart, symtab, pclntab, nil
+ 	}
+ 
++	if obj, err := plan9obj.NewFile(f); err == nil {
++		sym, err := findPlan9Symbol(obj, "text")
++		if err != nil {
++			return 0, nil, nil, err
++		}
++		textStart = sym.Value
++		if pclntab, err = loadPlan9Table(obj, "pclntab", "epclntab"); err != nil {
++			return 0, nil, nil, err
++		}
++		if symtab, err = loadPlan9Table(obj, "symtab", "esymtab"); err != nil {
++			return 0, nil, nil, err
++		}
++		return textStart, symtab, pclntab, nil
++	}
++
+ 	return 0, nil, nil, fmt.Errorf("unrecognized binary format")
+ }
+ 
+@@ -197,3 +213,41 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
+ 	}
+ 	return data[ssym.Value:esym.Value], nil
+ }
++
++func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
++	syms, err := f.Symbols()
++	if err != nil {
++		return nil, err
++	}
++	for _, s := range syms {
++		if s.Name != name {
++			continue
++		}
++		return &s, nil
++	}
++	return nil, fmt.Errorf("no %s symbol found", name)
++}
++
++func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
++	ssym, err := findPlan9Symbol(f, sname)
++	if err != nil {
++		return nil, err
++	}
++	esym, err := findPlan9Symbol(f, ename)
++	if err != nil {
++		return nil, err
++	}
++	text, err := findPlan9Symbol(f, "text")
++	if err != nil {
++		return nil, err
++	}
++	sect := f.Section("text")
++	if sect == nil {
++		return nil, err
++	}
++	data, err := sect.Data()
++	if err != nil {
++		return nil, err
++	}
++	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
++}
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index fb79ba3a2a..79fed98198 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -41,6 +41,7 @@ import (
+ 	"debug/gosym"
+ 	"debug/macho"
+ 	"debug/pe"
++	"debug/plan9obj"
+ 	"flag"
+ 	"fmt"
+ 	"io"
+@@ -340,6 +341,24 @@ func loadTables(f *os.File) (textStart uint64, textData, symtab, pclntab []byte,
+ 		return textStart, textData, symtab, pclntab, nil
+ 	}
+ 
++	if obj, err := plan9obj.NewFile(f); err == nil {
++		sym, err := findPlan9Symbol(obj, "text")
++		if err != nil {
++			return 0, nil, nil, nil, err
++		}
++		textStart = sym.Value
++		if sect := obj.Section("text"); sect != nil {
++			textData, _ = sect.Data()
++		}
++		if pclntab, err = loadPlan9Table(obj, "pclntab", "epclntab"); err != nil {
++			return 0, nil, nil, nil, err
++		}
++		if symtab, err = loadPlan9Table(obj, "symtab", "esymtab"); err != nil {
++			return 0, nil, nil, nil, err
++		}
++		return textStart, textData, symtab, pclntab, nil
++	}
++
+ 	return 0, nil, nil, nil, fmt.Errorf("unrecognized binary format")
+ }
+ 
+@@ -379,6 +398,44 @@ func loadPETable(f *pe.File, sname, ename string) ([]byte, error) {
+ 	return data[ssym.Value:esym.Value], nil
+ }
+ 
++func findPlan9Symbol(f *plan9obj.File, name string) (*plan9obj.Sym, error) {
++	syms, err := f.Symbols()
++	if err != nil {
++		return nil, err
++	}
++	for _, s := range syms {
++		if s.Name != name {
++			continue
++		}
++		return &s, nil
++	}
++	return nil, fmt.Errorf("no %s symbol found", name)
++}
++
++func loadPlan9Table(f *plan9obj.File, sname, ename string) ([]byte, error) {
++	ssym, err := findPlan9Symbol(f, sname)
++	if err != nil {
++		return nil, err
++	}
++	esym, err := findPlan9Symbol(f, ename)
++	if err != nil {
++		return nil, err
++	}
++	text, err := findPlan9Symbol(f, "text")
++	if err != nil {
++		return nil, err
++	}
++	sect := f.Section("text")
++	if sect == nil {
++		return nil, err
++	}
++	data, err := sect.Data()
++	if err != nil {
++		return nil, err
++	}
++	return data[ssym.Value-text.Value : esym.Value-text.Value], nil
++}
++
+ // TODO(rsc): This code is taken from cmd/nm. Arrange some way to share the code.
+ 
+ var exitCode = 0
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 24f292a6b8..6ad74c87dc 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -87,9 +87,6 @@ func testObjDump(t *testing.T, exe, startaddr, endaddr string) {
+ 
+ // This is line 88. The test depends on that.
+ func TestObjDump(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see http://golang.org/issue/7947")
+-	}
+ 	syms := loadSyms(t)
+ 
+ 	tmp, exe := buildObjdump(t)

@@ -7,7 +7,55 @@ Date:   Thu Jun 7 02:15:23 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6307050
-
+---
  src/cmd/gc/dcl.c | 17 +----------------
  src/cmd/gc/go.h  |  1 -
  2 files changed, 1 insertion(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 4121a45ab2..32f334b710 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -432,21 +432,6 @@ oldname(Sym *s)
+ 	return n;
+ }
+ 
+-/*
+- * same for types
+- */
+-Type*
+-newtype(Sym *s)
+-{
+-	Type *t;
+-
+-	t = typ(TFORW);
+-	t->sym = s;
+-	t->type = T;
+-	return t;
+-}
+-
+-
+ /*
+  * := declarations
+  */
+@@ -1311,7 +1296,7 @@ addmethod(Sym *sf, Type *t, int local)
+ 		}
+ 		// Should have picked off all the reasons above,
+ 		// but just in case, fall back to generic error.
+-		yyerror("invalid receiver type %T", pa);
++		yyerror("invalid receiver type %T (%lT / %lT)", pa, pa, t);
+ 		return;
+ 	}
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 82fe05be5d..6f387c3b03 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -942,7 +942,6 @@ Node*	methodname(Node *n, Type *t);
+ Node*	methodname1(Node *n, Node *t);
+ Sym*	methodsym(Sym *nsym, Type *t0, int iface);
+ Node*	newname(Sym *s);
+-Type*	newtype(Sym *s);
+ Node*	oldname(Sym *s);
+ void	popdcl(void);
+ void	poptodcl(void);

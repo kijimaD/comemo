@@ -9,6 +9,26 @@ Date:   Mon Feb 11 08:05:46 2013 -0500
     R=daniel.morsing, adg
     CC=golang-dev
     https://golang.org/cl/7308045
-
+---
  src/pkg/sync/waitgroup.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/waitgroup.go b/src/pkg/sync/waitgroup.go
+index 9b0ffec58b..1277f1c6de 100644
+--- a/src/pkg/sync/waitgroup.go
++++ b/src/pkg/sync/waitgroup.go
+@@ -34,8 +34,13 @@ type WaitGroup struct {
+ // G3: Wait() // G1 still hasn't run, G3 finds sema == 1, unblocked! Bug.
+ 
+ // Add adds delta, which may be negative, to the WaitGroup counter.
+-// If the counter becomes zero, all goroutines blocked on Wait() are released.
++// If the counter becomes zero, all goroutines blocked on Wait are released.
+ // If the counter goes negative, Add panics.
++//
++// Note that calls with positive delta must happen before the call to Wait,
++// or else Wait may wait for too small a group. Typically this means the calls
++// to Add should execute before the statement creating the goroutine or
++// other event to be waited for. See the WaitGroup example.
+ func (wg *WaitGroup) Add(delta int) {
+ 	if raceenabled {
+ 		raceReleaseMerge(unsafe.Pointer(wg))

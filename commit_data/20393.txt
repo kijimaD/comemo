@@ -10,7 +10,7 @@ Date:   Thu Sep 4 21:12:48 2014 -0400
     R=golang-codereviews, khr, 0intro, iant
     CC=dvyukov, golang-codereviews, r
     https://golang.org/cl/139210043
-
+---
  src/pkg/runtime/mem_darwin.c    |  2 ++
  src/pkg/runtime/mem_dragonfly.c |  2 ++
  src/pkg/runtime/mem_freebsd.c   |  2 ++
@@ -22,3 +22,230 @@ Date:   Thu Sep 4 21:12:48 2014 -0400
  src/pkg/runtime/mem_solaris.c   |  2 ++
  src/pkg/runtime/mem_windows.c   |  2 ++
  10 files changed, 46 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/mem_darwin.c b/src/pkg/runtime/mem_darwin.c
+index ca0ac72de9..72a2d18ad6 100644
+--- a/src/pkg/runtime/mem_darwin.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -7,7 +7,9 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_dragonfly.c b/src/pkg/runtime/mem_dragonfly.c
+index 55410cef64..11457b2c03 100644
+--- a/src/pkg/runtime/mem_dragonfly.c
++++ b/src/pkg/runtime/mem_dragonfly.c
+@@ -7,12 +7,14 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "textflag.h"
+ 
+ enum
+ {
+ 	ENOMEM = 12,
+ };
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_freebsd.c b/src/pkg/runtime/mem_freebsd.c
+index a033bfcdc0..18a9a2f5b3 100644
+--- a/src/pkg/runtime/mem_freebsd.c
++++ b/src/pkg/runtime/mem_freebsd.c
+@@ -7,12 +7,14 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "textflag.h"
+ 
+ enum
+ {
+ 	ENOMEM = 12,
+ };
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index 429f820f8b..01e7707bbc 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -7,6 +7,7 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum
+ {
+@@ -57,6 +58,7 @@ mmap_fixed(byte *v, uintptr n, int32 prot, int32 flags, int32 fd, uint32 offset)
+ 	return p;
+ }
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_nacl.c b/src/pkg/runtime/mem_nacl.c
+index 5c5f806324..968fe8da54 100644
+--- a/src/pkg/runtime/mem_nacl.c
++++ b/src/pkg/runtime/mem_nacl.c
+@@ -7,12 +7,14 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum
+ {
+ 	Debug = 0,
+ };
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index cf4b24f920..8d04c832ce 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -7,12 +7,14 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum
+ {
+ 	ENOMEM = 12,
+ };
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index cf4b24f920..8d04c832ce 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -7,12 +7,14 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum
+ {
+ 	ENOMEM = 12,
+ };
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index aec652995f..4f753adb4d 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -7,6 +7,7 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "os_GOOS.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ extern byte runtime·end[];
+ static byte *bloc = { runtime·end };
+@@ -31,18 +32,41 @@ brk(uintptr nbytes)
+ 	}
+ 	bloc = (byte*)bl + nbytes;
+ 	runtime·unlock(&memlock);
+-	return (void*)bl;
+-	
++	return (void*)bl;	
+ }
+ 
+-void*
+-runtime·sysAlloc(uintptr nbytes, uint64 *stat)
++static void
++sysalloc(void)
+ {
++	uintptr nbytes;
++	uint64 *stat;
+ 	void *p;
+ 
++	nbytes = g->m->scalararg[0];
++	stat = g->m->ptrarg[0];
++	g->m->scalararg[0] = 0;
++	g->m->ptrarg[0] = nil;
++
+ 	p = brk(nbytes);
+ 	if(p != nil)
+ 		runtime·xadd64(stat, nbytes);
++
++	g->m->ptrarg[0] = p;
++}
++
++#pragma textflag NOSPLIT
++void*
++runtime·sysAlloc(uintptr nbytes, uint64 *stat)
++{
++	void (*fn)(void);
++	void *p;
++
++	g->m->scalararg[0] = nbytes;
++	g->m->ptrarg[0] = stat;
++	fn = sysalloc;
++	runtime·onM(&fn);
++	p = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
+ 	return p;
+ }
+ 
+diff --git a/src/pkg/runtime/mem_solaris.c b/src/pkg/runtime/mem_solaris.c
+index 87536f6837..01cbe9e1a4 100644
+--- a/src/pkg/runtime/mem_solaris.c
++++ b/src/pkg/runtime/mem_solaris.c
+@@ -7,12 +7,14 @@
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum
+ {
+ 	ENOMEM = 12,
+ };
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index cb1c9de907..33ce003d28 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -7,6 +7,7 @@
+ #include "os_GOOS.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "malloc.h"
++#include "../../cmd/ld/textflag.h"
+ 
+ enum {
+ 	MEM_COMMIT = 0x1000,
+@@ -25,6 +26,7 @@ extern void *runtime·VirtualAlloc;
+ extern void *runtime·VirtualFree;
+ extern void *runtime·VirtualProtect;
+ 
++#pragma textflag NOSPLIT
+ void*
+ runtime·sysAlloc(uintptr n, uint64 *stat)
+ {

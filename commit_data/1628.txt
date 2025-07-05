@@ -14,7 +14,7 @@ Date:   Fri Feb 6 11:10:25 2009 -0800
     R=r
     OCL=24545
     CL=24545
-
+---
  usr/gri/pretty/Makefile       |  12 +-
  usr/gri/pretty/ast.go         | 206 +--------------------
  usr/gri/pretty/compilation.go |  77 ++++----
@@ -26,3 +26,1290 @@ Date:   Fri Feb 6 11:10:25 2009 -0800
  usr/gri/pretty/typechecker.go |   1 -
  usr/gri/pretty/universe.go    | 123 -------------
  10 files changed, 495 insertions(+), 427 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 2b5883a874..ebf75218ed 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -29,19 +29,19 @@ pretty.6:	 platform.6 printer.6 compilation.6
+ 
+ compilation.6:	 platform.6 scanner.6 parser.6 ast.6 typechecker.6
+ 
+-ast.6:	 scanner.6
++typechecker.6:	 ast.6 scanner.6
+ 
+ scanner.6:	 utils.6
+ 
+-parser.6:	 scanner.6 ast.6
++ast.6:	 scanner.6 symboltable.6
+ 
+-platform.6:	 utils.6
++symboltable.6:	
+ 
+-printer.6:	 scanner.6 ast.6 utils.6
++parser.6:	 scanner.6 ast.6 symboltable.6
+ 
+-typechecker.6:	ast.6 universe.6
++platform.6:	 utils.6
+ 
+-universe.6:	ast.6
++printer.6:	 utils.6 scanner.6 ast.6 symboltable.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index ddcc1af80b..b3260a1fa4 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -6,16 +6,12 @@ package AST
+ 
+ import (
+ 	"array";
+-	"utf8";
+-	"unicode";
+ 	Scanner "scanner";
++	SymbolTable "symboltable";
+ )
+ 
+ 
+ type (
+-	Object struct;
+-	Type struct;
+-
+ 	Block struct;
+ 	Expr interface;
+ 	Decl struct;
+@@ -32,91 +28,6 @@ func assert(pred bool) {
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Objects
+-
+-// Object represents a language object, such as a constant, variable, type, etc.
+-
+-const /* kind */ (
+-	BADOBJ = iota;  // error handling
+-	NONE;  // kind unknown
+-	CONST; TYPE; VAR; FIELD; FUNC; BUILTIN; PACKAGE; LABEL;
+-	END;  // end of scope (import/export only)
+-)
+-
+-
+-func KindStr(kind int) string {
+-	switch kind {
+-	case BADOBJ: return "BADOBJ";
+-	case NONE: return "NONE";
+-	case CONST: return "CONST";
+-	case TYPE: return "TYPE";
+-	case VAR: return "VAR";
+-	case FIELD: return "FIELD";
+-	case FUNC: return "FUNC";
+-	case BUILTIN: return "BUILTIN";
+-	case PACKAGE: return "PACKAGE";
+-	case LABEL: return "LABEL";
+-	case END: return "END";
+-	}
+-	return "<unknown Object kind>";
+-}
+-
+-
+-type Object struct {
+-	Id int;  // unique id
+-
+-	Pos int;  // source position (< 0 if unknown position)
+-	Kind int;  // object kind
+-	Ident string;
+-	Typ *Type;  // nil for packages
+-	Pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
+-
+-	// attached values
+-	Body *Block;  // function body
+-}
+-
+-
+-func (obj *Object) IsExported() bool {
+-	switch obj.Kind {
+-	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
+-		ch, size := utf8.DecodeRuneInString(obj.Ident,  0);
+-		return unicode.IsUpper(ch);
+-	}
+-	return false;
+-}
+-
+-
+-func (obj* Object) String() string {
+-	if obj != nil {
+-		return
+-			"Object(" +
+-			KindStr(obj.Kind) + ", " +
+-			obj.Ident +
+-			")";
+-	}
+-	return "nil";
+-}
+-
+-
+-var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
+-var objectId int;
+-
+-func NewObject(pos, kind int, ident string) *Object {
+-	obj := new(Object);
+-	obj.Id = objectId;
+-	objectId++;
+-
+-	obj.Pos = pos;
+-	obj.Kind = kind;
+-	obj.Ident = ident;
+-	obj.Typ = Universe_void_typ;  // TODO would it be better to use nil instead?
+-	obj.Pnolev = 0;
+-
+-	return obj;
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // All nodes have a source position and a token.
+ 
+@@ -126,113 +37,20 @@ type Node struct {
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Scopes
+-
+-type Scope struct {
+-	Parent *Scope;
+-	entries map[string] *Object;
+-}
+-
+-
+-func NewScope(parent *Scope) *Scope {
+-	scope := new(Scope);
+-	scope.Parent = parent;
+-	scope.entries = make(map[string]*Object, 8);
+-	return scope;
+-}
+-
+-
+-func (scope *Scope) LookupLocal(ident string) *Object {
+-	obj, found := scope.entries[ident];
+-	if found {
+-		return obj;
+-	}
+-	return nil;
+-}
+-
+-
+-func (scope *Scope) Lookup(ident string) *Object {
+-	for scope != nil {
+-		obj := scope.LookupLocal(ident);
+-		if obj != nil {
+-			return obj;
+-		}
+-		scope = scope.Parent;
+-	}
+-	return nil;
+-}
+-
+-
+-func (scope *Scope) add(obj* Object) {
+-	scope.entries[obj.Ident] = obj;
+-}
+-
+-
+-func (scope *Scope) Insert(obj *Object) {
+-	if scope.LookupLocal(obj.Ident) != nil {
+-		panic("obj already inserted");
+-	}
+-	scope.add(obj);
+-}
+-
+-
+-func (scope *Scope) InsertImport(obj *Object) *Object {
+-	 p := scope.LookupLocal(obj.Ident);
+-	 if p == nil {
+-		scope.add(obj);
+-		p = obj;
+-	 }
+-	 return p;
+-}
+-
+-
+-func (scope *Scope) Print() {
+-	print("scope {");
+-	for key := range scope.entries {
+-		print("\n  ", key);
+-	}
+-	print("\n}\n");
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // Types
+ 
+ const /* form */ (
+-	// internal types
+-	// We should never see one of these.
+-	UNDEF = iota;
+-
+-	// VOID types are used when we don't have a type. Never exported.
+-	// (exported type forms must be > 0)
+-	VOID;
+-
+ 	// BADTYPE types are compatible with any type and don't cause further errors.
+ 	// They are introduced only as a result of an error in the source code. A
+ 	// correct program cannot have BAD types.
+-	BADTYPE;
+-
+-	// FORWARD types are forward-declared (incomplete) types. They can only
+-	// be used as element types of pointer types and must be resolved before
+-	// their internals are accessible.
+-	FORWARD;
+-
+-	// TUPLE types represent multi-valued result types of functions and
+-	// methods.
+-	TUPLE;
+-
+-	// The type of nil.
+-	NIL;
++	BADTYPE = iota;
+ 
+ 	// A type name
+ 	TYPENAME;
+ 
+-	// basic types
+-	BOOL; UINT; INT; FLOAT; STRING; INTEGER;
+-
+ 	// composite types
+-	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; METHOD; POINTER;
++	ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER;
+ 
+ 	// open-ended parameter type
+ 	ELLIPSIS
+@@ -241,25 +59,14 @@ const /* form */ (
+ 
+ func FormStr(form int) string {
+ 	switch form {
+-	case VOID: return "VOID";
+ 	case BADTYPE: return "BADTYPE";
+-	case FORWARD: return "FORWARD";
+-	case TUPLE: return "TUPLE";
+-	case NIL: return "NIL";
+ 	case TYPENAME: return "TYPENAME";
+-	case BOOL: return "BOOL";
+-	case UINT: return "UINT";
+-	case INT: return "INT";
+-	case FLOAT: return "FLOAT";
+-	case STRING: return "STRING";
+-	case ALIAS: return "ALIAS";
+ 	case ARRAY: return "ARRAY";
+ 	case STRUCT: return "STRUCT";
+ 	case INTERFACE: return "INTERFACE";
+ 	case MAP: return "MAP";
+ 	case CHANNEL: return "CHANNEL";
+ 	case FUNCTION: return "FUNCTION";
+-	case METHOD: return "METHOD";
+ 	case POINTER: return "POINTER";
+ 	case ELLIPSIS: return "ELLIPSIS";
+ 	}
+@@ -277,11 +84,9 @@ const /* channel mode */ (
+ type Type struct {
+ 	Id int;  // unique id
+ 
+-	Ref int;  // for exporting only: >= 0 means already exported
+ 	Form int;  // type form
+ 	Size int;  // size in bytes
+-	Obj *Object;  // primary type object or nil
+-	Scope *Scope;  // locals, fields & methods
++	Scope *SymbolTable.Scope;  // locals, fields & methods
+ 
+ 	// syntactic components
+ 	Pos int;  // source position (< 0 if unknown position)
+@@ -300,7 +105,6 @@ func NewType(pos, form int) *Type {
+ 	typ.Id = typeId;
+ 	typeId++;
+ 
+-	typ.Ref = -1;  // not yet exported
+ 	typ.Pos = pos;
+ 	typ.Form = form;
+ 
+@@ -339,7 +143,7 @@ type (
+ 
+ 	Ident struct {
+ 		Pos_ int;
+-		Obj *Object;
++		Obj *SymbolTable.Object;
+ 	};
+ 
+ 	BinaryExpr struct {
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index bab2977783..fa87d28d1b 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -7,7 +7,8 @@ package Compilation
+ import (
+ 	"array";
+ 	"utf8";
+-	OS "os";
++	"fmt";
++	"os";
+ 	Platform "platform";
+ 	Scanner "scanner";
+ 	Parser "parser";
+@@ -29,7 +30,6 @@ type Flags struct {
+ 	Deps bool;
+ 	Columns bool;
+ 	Testmode bool;
+-	Tokenchan bool;
+ }
+ 
+ 
+@@ -129,13 +129,8 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	var scanner Scanner.Scanner;
+ 	scanner.Init(&err, src, true, flags.Testmode);
+ 
+-	var tstream <-chan *Scanner.Token;
+-	if flags.Tokenchan {
+-		tstream = scanner.TokenStream();
+-	}
+-
+ 	var parser Parser.Parser;
+-	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner, tstream);
++	parser.Open(flags.Verbose, flags.Sixg, flags.Deps, &scanner);
+ 
+ 	prog := parser.ParseProgram();
+ 
+@@ -148,18 +143,36 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 
+ 
+ func fileExists(name string) bool {
+-	fd, err := OS.Open(name, OS.O_RDONLY, 0);
+-	if err == nil {
+-		fd.Close();
+-		return true;
++	fd, err := os.Open(name, os.O_RDONLY, 0);
++	defer fd.Close();
++	return err == nil;
++}
++
++
++func printDep(localset map [string] bool, wset *array.Array, decl *AST.Decl) {
++	src := decl.Val.(*AST.BasicLit).Val;
++	src = src[1 : len(src) - 1];  // strip "'s
++
++	// ignore files when they are seen a 2nd time
++	dummy, found := localset[src];
++	if !found {
++		localset[src] = true;
++		if fileExists(src + ".go") {
++			wset.Push(src);
++			fmt.Printf(" %s.6", src);
++		} else if
++			fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
++			fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
++
++		} else {
++			// TODO should collect these and print later
++			//print("missing file: ", src, "\n");
++		}
+ 	}
+-	return false;
+ }
+ 
+ 
+ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+-	panic();
+-	/*
+ 	dummy, found := globalset[src_file];
+ 	if !found {
+ 		globalset[src_file] = true;
+@@ -171,40 +184,34 @@ func addDeps(globalset map [string] bool, wset *array.Array, src_file string, fl
+ 
+ 		nimports := prog.Decls.Len();
+ 		if nimports > 0 {
+-			print(src_file, ".6:\t");
++			fmt.Printf("%s.6:\t", src_file);
+ 
+ 			localset := make(map [string] bool);
+ 			for i := 0; i < nimports; i++ {
+ 				decl := prog.Decls.At(i).(*AST.Decl);
+-				assert(decl.Tok == Scanner.IMPORT && decl.Val.Tok == Scanner.STRING);
+-				src := decl.Val.Obj.Ident;
+-				src = src[1 : len(src) - 1];  // strip "'s
+-
+-				// ignore files when they are seen a 2nd time
+-				dummy, found := localset[src];
+-				if !found {
+-					localset[src] = true;
+-					if fileExists(src + ".go") {
+-						wset.Push(src);
+-						print(" ", src, ".6");
+-					} else if
+-						fileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+-						fileExists(Platform.GOROOT + "/pkg/" + src + ".a") {
+-
+-					} else {
+-						// TODO should collect these and print later
+-						//print("missing file: ", src, "\n");
++				assert(decl.Tok == Scanner.IMPORT);
++				if decl.List == nil {
++					printDep(localset, wset, decl);
++				} else {
++					for j := 0; j < decl.List.Len(); j++ {
++						printDep(localset, wset, decl.List.At(j).(*AST.Decl));
+ 					}
+ 				}
+ 			}
+ 			print("\n\n");
+ 		}
+ 	}
+-	*/
+ }
+ 
+ 
+ func ComputeDeps(src_file string, flags *Flags) {
++	// string ".go" extension, if any
++	{	n := len(src_file);
++		if src_file[n-3 : n] == ".go" {
++			src_file = src_file[0 : n-3];
++		}
++	}
++	// compute deps
+ 	globalset := make(map [string] bool);
+ 	wset := array.New(0);
+ 	wset.Push(src_file);
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 72d19d500b..189fcf43ca 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -10,6 +10,7 @@ import (
+ 	"array";
+ 	Scanner "scanner";
+ 	AST "ast";
++	SymbolTable "symboltable";
+ )
+ 
+ 
+@@ -20,7 +21,6 @@ type Parser struct {
+ 
+ 	// Scanner
+ 	scanner *Scanner.Scanner;
+-	tokchan <-chan *Scanner.Token;
+ 	comments *array.Array;
+ 
+ 	// Scanner.Token
+@@ -36,7 +36,7 @@ type Parser struct {
+ 	scope_lev int;  // 0 = global scope, 1 = function scope of global functions, etc.
+ 
+ 	// Scopes
+-	top_scope *AST.Scope;
++	top_scope *SymbolTable.Scope;
+ };
+ 
+ 
+@@ -65,7 +65,7 @@ func assert(pred bool) {
+ 
+ func (P *Parser) printIndent() {
+ 	i := P.indent;
+-	// reduce tracing time by a factor of 2
++	// reduce printing time by a factor of 2 or more
+ 	for ; i > 10; i -= 10 {
+ 		fmt.Printf(". . . . . . . . . . ");
+ 	}
+@@ -91,12 +91,7 @@ func un/*trace*/(P *Parser) {
+ 
+ 
+ func (P *Parser) next0() {
+-	if P.tokchan == nil {
+-		P.pos, P.tok, P.val = P.scanner.Scan();
+-	} else {
+-		t := <-P.tokchan;
+-		P.tok, P.pos, P.val = t.Tok, t.Pos, t.Val;
+-	}
++	P.pos, P.tok, P.val = P.scanner.Scan();
+ 	P.opt_semi = false;
+ 
+ 	if P.trace {
+@@ -124,14 +119,13 @@ func (P *Parser) next() {
+ }
+ 
+ 
+-func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner, tokchan <-chan *Scanner.Token) {
++func (P *Parser) Open(trace, sixg, deps bool, scanner *Scanner.Scanner) {
+ 	P.trace = trace;
+ 	P.sixg = sixg;
+ 	P.deps = deps;
+ 	P.indent = 0;
+ 
+ 	P.scanner = scanner;
+-	P.tokchan = tokchan;
+ 	P.comments = array.New(0);
+ 
+ 	P.next();
+@@ -169,7 +163,7 @@ func (P *Parser) OptSemicolon() {
+ // Scopes
+ 
+ func (P *Parser) openScope() {
+-	P.top_scope = AST.NewScope(P.top_scope);
++	P.top_scope = SymbolTable.NewScope(P.top_scope);
+ }
+ 
+ 
+@@ -178,21 +172,22 @@ func (P *Parser) closeScope() {
+ }
+ 
+ 
+-func (P *Parser) declareInScope(scope *AST.Scope, x AST.Expr, kind int, typ *AST.Type) {
++func (P *Parser) declareInScope(scope *SymbolTable.Scope, x AST.Expr, kind int, typ *AST.Type) {
+ 	if P.scope_lev < 0 {
+ 		panic("cannot declare objects in other packages");
+ 	}
+ 	if ident, ok := x.(*AST.Ident); ok {  // ignore bad exprs
+ 		obj := ident.Obj;
+ 		obj.Kind = kind;
+-		obj.Typ = typ;
++		//TODO fix typ setup!
++		//obj.Typ = typ;
+ 		obj.Pnolev = P.scope_lev;
+ 		switch {
+ 		case scope.LookupLocal(obj.Ident) == nil:
+ 			scope.Insert(obj);
+-		case kind == AST.TYPE:
++		case kind == SymbolTable.TYPE:
+ 			// possibly a forward declaration
+-		case kind == AST.FUNC:
++		case kind == SymbolTable.FUNC:
+ 			// possibly a forward declaration
+ 		default:
+ 			P.error(obj.Pos, `"` + obj.Ident + `" is declared already`);
+@@ -263,20 +258,20 @@ func (P *Parser) parseDeclaration() *AST.Decl;
+ 
+ 
+ // If scope != nil, lookup identifier in scope. Otherwise create one.
+-func (P *Parser) parseIdent(scope *AST.Scope) *AST.Ident {
++func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
+ 	if P.trace {
+ 		defer un(trace(P, "Ident"));
+ 	}
+ 
+ 	if P.tok == Scanner.IDENT {
+-		var obj *AST.Object;
++		var obj *SymbolTable.Object;
+ 		if scope != nil {
+ 			obj = scope.Lookup(P.val);
+ 		}
+ 		if obj == nil {
+-			obj = AST.NewObject(P.pos, AST.NONE, P.val);
++			obj = SymbolTable.NewObject(P.pos, SymbolTable.NONE, P.val);
+ 		} else {
+-			assert(obj.Kind != AST.NONE);
++			assert(obj.Kind != SymbolTable.NONE);
+ 		}
+ 		x := &AST.Ident{P.pos, obj};
+ 		P.next();
+@@ -665,7 +660,7 @@ func (P *Parser) parseStructType() *AST.Type {
+ 		P.next();
+ 
+ 		t.List = array.New(0);
+-		t.Scope = AST.NewScope(nil);
++		t.Scope = SymbolTable.NewScope(nil);
+ 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 			P.parseVarList(t.List, false);
+ 			if P.tok == Scanner.STRING {
+@@ -686,7 +681,7 @@ func (P *Parser) parseStructType() *AST.Type {
+ 		// enter fields into struct scope
+ 		for i, n := 0, t.List.Len(); i < n; i++ {
+ 			if x, ok := t.List.At(i).(*AST.Ident); ok {
+-				P.declareInScope(t.Scope, x, AST.FIELD, nil);
++				P.declareInScope(t.Scope, x, SymbolTable.FIELD, nil);
+ 			}
+ 		}
+ 	}
+@@ -777,7 +772,7 @@ func (P *Parser) parseBlock(ftyp *AST.Type, tok int) *AST.Block {
+ 		if ftyp.List != nil {
+ 			for i, n := 0, ftyp.List.Len(); i < n; i++ {
+ 				if x, ok := ftyp.List.At(i).(*AST.Ident); ok {
+-					P.declareInScope(P.top_scope, x, AST.VAR, nil);
++					P.declareInScope(P.top_scope, x, SymbolTable.VAR, nil);
+ 				}
+ 			}
+ 		}
+@@ -1520,13 +1515,13 @@ func (P *Parser) parseVarSpec(d *AST.Decl) {
+ 
+ 
+ func (P *Parser) parseSpec(d *AST.Decl) {
+-	kind := AST.NONE;
++	kind := SymbolTable.NONE;
+ 	
+ 	switch d.Tok {
+-	case Scanner.IMPORT: P.parseImportSpec(d); kind = AST.PACKAGE;
+-	case Scanner.CONST: P.parseConstSpec(d); kind = AST.CONST;
+-	case Scanner.TYPE: P.parseTypeSpec(d); kind = AST.TYPE;
+-	case Scanner.VAR: P.parseVarSpec(d); kind = AST.VAR;
++	case Scanner.IMPORT: P.parseImportSpec(d); kind = SymbolTable.PACKAGE;
++	case Scanner.CONST: P.parseConstSpec(d); kind = SymbolTable.CONST;
++	case Scanner.TYPE: P.parseTypeSpec(d); kind = SymbolTable.TYPE;
++	case Scanner.VAR: P.parseVarSpec(d); kind = SymbolTable.VAR;
+ 	default: unreachable();
+ 	}
+ 
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index 75989c9247..96e57f7a9c 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -20,11 +20,9 @@ var (
+ func init() {
+ 	Flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
+ 	Flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
+-	//TODO fix this code again
+-	//Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
++	Flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
+ 	Flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
+ 	Flag.BoolVar(&flags.Testmode, "t", false, "test mode: interprets /* ERROR */ and /* SYNC */ comments");
+-	Flag.BoolVar(&flags.Tokenchan, "token_chan", false, "use token channel for scanner-parser connection");
+ }
+ 
+ 
+@@ -46,7 +44,7 @@ func main() {
+ 	for i := 0; i < Flag.NArg(); i++ {
+ 		src_file := Flag.Arg(i);
+ 
+-		if false /* DISABLED flags.deps */ {
++		if flags.Deps {
+ 			Compilation.ComputeDeps(src_file, &flags);
+ 
+ 		} else {
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 1f11097efa..d69833d94a 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -14,6 +14,7 @@ import (
+ 	Utils "utils";
+ 	Scanner "scanner";
+ 	AST "ast";
++	SymbolTable "symboltable";
+ )
+ 
+ var (
+@@ -411,7 +412,7 @@ func (P *Printer) HtmlEpilogue() {
+ 
+ func (P *Printer) HtmlIdentifier(x *AST.Ident) {
+ 	obj := x.Obj;
+-	if *html && obj.Kind != AST.NONE {
++	if *html && obj.Kind != SymbolTable.NONE {
+ 		// depending on whether we have a declaration or use, generate different html
+ 		// - no need to htmlEscape ident
+ 		id := Utils.IntToString(obj.Id, 10);
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 0fcf104362..18e5d57921 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -107,9 +107,6 @@ const (
+ 	TYPE;
+ 	VAR;
+ 	keywords_end;
+-
+-	// AST use only
+-	EXPRSTAT;
+ )
+ 
+ 
+@@ -208,8 +205,6 @@ func TokenString(tok int) string {
+ 	case SWITCH: return "switch";
+ 	case TYPE: return "type";
+ 	case VAR: return "var";
+-
+-	case EXPRSTAT: return "EXPRSTAT";
+ 	}
+ 
+ 	return "token(" + Utils.IntToString(tok, 10) + ")";
+@@ -754,26 +749,3 @@ loop:
+ 
+ 	return pos, tok, val;
+ }
+-
+-
+-type Token struct {
+-	Pos int;
+-	Tok int;
+-	Val string;
+-}
+-
+-
+-func (S *Scanner) TokenStream() <-chan *Token {
+-	ch := make(chan *Token, 100);
+-	go func(S *Scanner, ch chan <- *Token) {
+-		for {
+-			t := new(Token);
+-			t.Pos, t.Tok, t.Val = S.Scan();
+-			ch <- t;
+-			if t.Tok == EOF {
+-				break;
+-			}
+-		}
+-	}(S, ch);
+-	return ch;
+-}
+diff --git a/usr/gri/pretty/symboltable.go b/usr/gri/pretty/symboltable.go
+new file mode 100644
+index 0000000000..26c81ea42c
+--- /dev/null
++++ b/usr/gri/pretty/symboltable.go
+@@ -0,0 +1,415 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package SymbolTable
++
++import (
++	"utf8";
++	"unicode";
++	"array";
++)
++
++
++type Type struct;
++
++
++// ----------------------------------------------------------------------------
++// Support
++
++func assert(pred bool) {
++	if !pred {
++		panic("assertion failed");
++	}
++}
++
++
++// ----------------------------------------------------------------------------
++// Objects
++
++// Object represents a language object, such as a constant, variable, type, etc.
++
++const /* kind */ (
++	BADOBJ = iota;  // error handling
++	NONE;  // kind unknown
++	CONST; TYPE; VAR; FIELD; FUNC; BUILTIN; PACKAGE; LABEL;
++	END;  // end of scope (import/export only)
++)
++
++
++func KindStr(kind int) string {
++	switch kind {
++	case BADOBJ: return "BADOBJ";
++	case NONE: return "NONE";
++	case CONST: return "CONST";
++	case TYPE: return "TYPE";
++	case VAR: return "VAR";
++	case FIELD: return "FIELD";
++	case FUNC: return "FUNC";
++	case BUILTIN: return "BUILTIN";
++	case PACKAGE: return "PACKAGE";
++	case LABEL: return "LABEL";
++	case END: return "END";
++	}
++	return "<unknown Object kind>";
++}
++
++
++type Object struct {
++	Id int;  // unique id
++
++	Pos int;  // source position (< 0 if unknown position)
++	Kind int;  // object kind
++	Ident string;
++	Typ *Type;  // nil for packages
++	Pnolev int;  // >= 0: package no., <= 0: function nesting level, 0: global level
++}
++
++
++func (obj *Object) IsExported() bool {
++	switch obj.Kind {
++	case NONE /* FUNC for now */, CONST, TYPE, VAR, FUNC:
++		ch, size := utf8.DecodeRuneInString(obj.Ident,  0);
++		return unicode.IsUpper(ch);
++	}
++	return false;
++}
++
++
++func (obj* Object) String() string {
++	if obj != nil {
++		return
++			"Object(" +
++			KindStr(obj.Kind) + ", " +
++			obj.Ident +
++			")";
++	}
++	return "nil";
++}
++
++
++var Universe_void_typ *Type  // initialized by Universe to Universe.void_typ
++var objectId int;
++
++func NewObject(pos, kind int, ident string) *Object {
++	obj := new(Object);
++	obj.Id = objectId;
++	objectId++;
++
++	obj.Pos = pos;
++	obj.Kind = kind;
++	obj.Ident = ident;
++	obj.Typ = Universe_void_typ;  // TODO would it be better to use nil instead?
++	obj.Pnolev = 0;
++
++	return obj;
++}
++
++
++// ----------------------------------------------------------------------------
++// Scopes
++
++type Scope struct {
++	Parent *Scope;
++	entries map[string] *Object;
++}
++
++
++func NewScope(parent *Scope) *Scope {
++	scope := new(Scope);
++	scope.Parent = parent;
++	scope.entries = make(map[string] *Object, 8);
++	return scope;
++}
++
++
++func (scope *Scope) LookupLocal(ident string) *Object {
++	obj, found := scope.entries[ident];
++	if found {
++		return obj;
++	}
++	return nil;
++}
++
++
++func (scope *Scope) Lookup(ident string) *Object {
++	for scope != nil {
++		obj := scope.LookupLocal(ident);
++		if obj != nil {
++			return obj;
++		}
++		scope = scope.Parent;
++	}
++	return nil;
++}
++
++
++func (scope *Scope) add(obj *Object) {
++	scope.entries[obj.Ident] = obj;
++}
++
++
++func (scope *Scope) Insert(obj *Object) {
++	if scope.LookupLocal(obj.Ident) != nil {
++		panic("obj already inserted");
++	}
++	scope.add(obj);
++}
++
++
++func (scope *Scope) InsertImport(obj *Object) *Object {
++	 p := scope.LookupLocal(obj.Ident);
++	 if p == nil {
++		scope.add(obj);
++		p = obj;
++	 }
++	 return p;
++}
++
++
++func (scope *Scope) Print() {
++	print("scope {");
++	for key := range scope.entries {
++		print("\n  ", key);
++	}
++	print("\n}\n");
++}
++
++
++// ----------------------------------------------------------------------------
++// Types
++
++const /* form */ (
++	// internal types
++	// We should never see one of these.
++	UNDEF = iota;
++
++	// VOID types are used when we don't have a type. Never exported.
++	// (exported type forms must be > 0)
++	VOID;
++
++	// BADTYPE types are compatible with any type and don't cause further errors.
++	// They are introduced only as a result of an error in the source code. A
++	// correct program cannot have BAD types.
++	BADTYPE;
++
++	// FORWARD types are forward-declared (incomplete) types. They can only
++	// be used as element types of pointer types and must be resolved before
++	// their internals are accessible.
++	FORWARD;
++
++	// TUPLE types represent multi-valued result types of functions and
++	// methods.
++	TUPLE;
++
++	// The type of nil.
++	NIL;
++
++	// A type name
++	TYPENAME;
++
++	// basic types
++	BOOL; UINT; INT; FLOAT; STRING; INTEGER;
++
++	// composite types
++	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; METHOD; POINTER;
++
++	// open-ended parameter type
++	ELLIPSIS
++)
++
++
++func FormStr(form int) string {
++	switch form {
++	case VOID: return "VOID";
++	case BADTYPE: return "BADTYPE";
++	case FORWARD: return "FORWARD";
++	case TUPLE: return "TUPLE";
++	case NIL: return "NIL";
++	case TYPENAME: return "TYPENAME";
++	case BOOL: return "BOOL";
++	case UINT: return "UINT";
++	case INT: return "INT";
++	case FLOAT: return "FLOAT";
++	case STRING: return "STRING";
++	case ALIAS: return "ALIAS";
++	case ARRAY: return "ARRAY";
++	case STRUCT: return "STRUCT";
++	case INTERFACE: return "INTERFACE";
++	case MAP: return "MAP";
++	case CHANNEL: return "CHANNEL";
++	case FUNCTION: return "FUNCTION";
++	case METHOD: return "METHOD";
++	case POINTER: return "POINTER";
++	case ELLIPSIS: return "ELLIPSIS";
++	}
++	return "<unknown Type form>";
++}
++
++
++const /* channel mode */ (
++	FULL = iota;
++	SEND;
++	RECV;
++)
++
++
++type Type struct {
++	Id int;  // unique id
++
++	Ref int;  // for exporting only: >= 0 means already exported
++	Form int;  // type form
++	Size int;  // size in bytes
++	Obj *Object;  // primary type object or nil
++	Scope *Scope;  // locals, fields & methods
++
++	// syntactic components
++	Pos int;  // source position (< 0 if unknown position)
++	Len int;  // array length
++	Mode int;  // channel mode
++	Key *Type;  // receiver type or map key
++	Elt *Type;  // type name type, array, map, channel or pointer element type, function result type
++	List *array.Array; End int;  // struct fields, interface methods, function parameters
++}
++
++
++var typeId int;
++
++func NewType(pos, form int) *Type {
++	typ := new(Type);
++	typ.Id = typeId;
++	typeId++;
++
++	typ.Ref = -1;  // not yet exported
++	typ.Pos = pos;
++	typ.Form = form;
++
++	return typ;
++}
++
++
++func (typ* Type) String() string {
++	if typ != nil {
++		return
++			"Type(" +
++			FormStr(typ.Form) +
++			")";
++	}
++	return "nil";
++}
++
++
++// ----------------------------------------------------------------------------
++// Universe scope
++
++var (
++	Universe *Scope;
++	PredeclaredTypes array.Array;
++
++	// internal types
++	Void_typ,
++	Bad_typ,
++	Nil_typ,
++
++	// basic types
++	Bool_typ,
++	Uint8_typ,
++	Uint16_typ,
++	Uint32_typ,
++	Uint64_typ,
++	Int8_typ,
++	Int16_typ,
++	Int32_typ,
++	Int64_typ,
++	Float32_typ,
++	Float64_typ,
++	Float80_typ,
++	String_typ,
++	Integer_typ,
++
++	// convenience types
++	Byte_typ,
++	Uint_typ,
++	Int_typ,
++	Float_typ,
++	Uintptr_typ *Type;
++
++	True_obj,
++	False_obj,
++	Iota_obj,
++	Nil_obj *Object;
++)
++
++
++func declObj(kind int, ident string, typ *Type) *Object {
++	obj := NewObject(-1 /* no source pos */, kind, ident);
++	obj.Typ = typ;
++	if kind == TYPE && typ.Obj == nil {
++		typ.Obj = obj;  // set primary type object
++	}
++	Universe.Insert(obj);
++	return obj
++}
++
++
++func declType(form int, ident string, size int) *Type {
++  typ := NewType(-1 /* no source pos */, form);
++  typ.Size = size;
++  return declObj(TYPE, ident, typ).Typ;
++}
++
++
++func register(typ *Type) *Type {
++	typ.Ref = PredeclaredTypes.Len();
++	PredeclaredTypes.Push(typ);
++	return typ;
++}
++
++
++func init() {
++	Universe = NewScope(nil);  // universe has no parent
++	PredeclaredTypes.Init(32);
++
++	// Interal types
++	Void_typ = NewType(-1 /* no source pos */, VOID);
++	Universe_void_typ = Void_typ;
++	Bad_typ = NewType(-1 /* no source pos */, BADTYPE);
++	Nil_typ = NewType(-1 /* no source pos */, NIL);
++
++	// Basic types
++	Bool_typ = register(declType(BOOL, "bool", 1));
++	Uint8_typ = register(declType(UINT, "uint8", 1));
++	Uint16_typ = register(declType(UINT, "uint16", 2));
++	Uint32_typ = register(declType(UINT, "uint32", 4));
++	Uint64_typ = register(declType(UINT, "uint64", 8));
++	Int8_typ = register(declType(INT, "int8", 1));
++	Int16_typ = register(declType(INT, "int16", 2));
++	Int32_typ = register(declType(INT, "int32", 4));
++	Int64_typ = register(declType(INT, "int64", 8));
++	Float32_typ = register(declType(FLOAT, "float32", 4));
++	Float64_typ = register(declType(FLOAT, "float64", 8));
++	Float80_typ = register(declType(FLOAT, "float80", 10));
++	String_typ = register(declType(STRING, "string", 8));
++	Integer_typ = register(declType(INTEGER, "integer", 8));
++
++	// All but 'byte' should be platform-dependent, eventually.
++	Byte_typ = register(declType(UINT, "byte", 1));
++	Uint_typ = register(declType(UINT, "uint", 4));
++	Int_typ = register(declType(INT, "int", 4));
++	Float_typ = register(declType(FLOAT, "float", 4));
++	Uintptr_typ = register(declType(UINT, "uintptr", 8));
++
++	// Predeclared constants
++	True_obj = declObj(CONST, "true", Bool_typ);
++	False_obj = declObj(CONST, "false", Bool_typ);
++	Iota_obj = declObj(CONST, "iota", Int_typ);
++	Nil_obj = declObj(CONST, "nil", Nil_typ);
++
++	// Builtin functions
++	declObj(BUILTIN, "len", Void_typ);
++	declObj(BUILTIN, "new", Void_typ);
++	declObj(BUILTIN, "panic", Void_typ);
++	declObj(BUILTIN, "print", Void_typ);
++
++	// scope.Print();
++}
+diff --git a/usr/gri/pretty/typechecker.go b/usr/gri/pretty/typechecker.go
+index 7bdd41758e..e8e04b32b2 100644
+--- a/usr/gri/pretty/typechecker.go
++++ b/usr/gri/pretty/typechecker.go
+@@ -7,7 +7,6 @@ package TypeChecker
+ import (
+ 	AST "ast";
+ 	Scanner "scanner";
+-	Universe "universe";
+ )
+ 
+ 
+diff --git a/usr/gri/pretty/universe.go b/usr/gri/pretty/universe.go
+deleted file mode 100755
+index 22ae4266a8..0000000000
+--- a/usr/gri/pretty/universe.go
++++ /dev/null
+@@ -1,123 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package Universe
+-
+-import (
+-	"array";
+-	AST "ast";
+-)
+-
+-
+-var (
+-	Scope *AST.Scope;
+-	Types array.Array;
+-
+-	// internal types
+-	Void_typ,
+-	Bad_typ,
+-	Nil_typ,
+-
+-	// basic types
+-	Bool_typ,
+-	Uint8_typ,
+-	Uint16_typ,
+-	Uint32_typ,
+-	Uint64_typ,
+-	Int8_typ,
+-	Int16_typ,
+-	Int32_typ,
+-	Int64_typ,
+-	Float32_typ,
+-	Float64_typ,
+-	Float80_typ,
+-	String_typ,
+-	Integer_typ,
+-
+-	// convenience types
+-	Byte_typ,
+-	Uint_typ,
+-	Int_typ,
+-	Float_typ,
+-	Uintptr_typ *AST.Type;
+-
+-	True_obj,
+-	False_obj,
+-	Iota_obj,
+-	Nil_obj *AST.Object;
+-)
+-
+-
+-func declObj(kind int, ident string, typ *AST.Type) *AST.Object {
+-	obj := AST.NewObject(-1 /* no source pos */, kind, ident);
+-	obj.Typ = typ;
+-	if kind == AST.TYPE && typ.Obj == nil {
+-		typ.Obj = obj;  // set primary type object
+-	}
+-	Scope.Insert(obj);
+-	return obj
+-}
+-
+-
+-func declType(form int, ident string, size int) *AST.Type {
+-  typ := AST.NewType(-1 /* no source pos */, form);
+-  typ.Size = size;
+-  return declObj(AST.TYPE, ident, typ).Typ;
+-}
+-
+-
+-func register(typ *AST.Type) *AST.Type {
+-	typ.Ref = Types.Len();
+-	Types.Push(typ);
+-	return typ;
+-}
+-
+-
+-func init() {
+-	Scope = AST.NewScope(nil);  // universe has no parent
+-	Types.Init(32);
+-
+-	// Interal types
+-	Void_typ = AST.NewType(-1 /* no source pos */, AST.VOID);
+-	AST.Universe_void_typ = Void_typ;
+-	Bad_typ = AST.NewType(-1 /* no source pos */, AST.BADTYPE);
+-	Nil_typ = AST.NewType(-1 /* no source pos */, AST.NIL);
+-
+-	// Basic types
+-	Bool_typ = register(declType(AST.BOOL, "bool", 1));
+-	Uint8_typ = register(declType(AST.UINT, "uint8", 1));
+-	Uint16_typ = register(declType(AST.UINT, "uint16", 2));
+-	Uint32_typ = register(declType(AST.UINT, "uint32", 4));
+-	Uint64_typ = register(declType(AST.UINT, "uint64", 8));
+-	Int8_typ = register(declType(AST.INT, "int8", 1));
+-	Int16_typ = register(declType(AST.INT, "int16", 2));
+-	Int32_typ = register(declType(AST.INT, "int32", 4));
+-	Int64_typ = register(declType(AST.INT, "int64", 8));
+-	Float32_typ = register(declType(AST.FLOAT, "float32", 4));
+-	Float64_typ = register(declType(AST.FLOAT, "float64", 8));
+-	Float80_typ = register(declType(AST.FLOAT, "float80", 10));
+-	String_typ = register(declType(AST.STRING, "string", 8));
+-	Integer_typ = register(declType(AST.INTEGER, "integer", 8));
+-
+-	// All but 'byte' should be platform-dependent, eventually.
+-	Byte_typ = register(declType(AST.UINT, "byte", 1));
+-	Uint_typ = register(declType(AST.UINT, "uint", 4));
+-	Int_typ = register(declType(AST.INT, "int", 4));
+-	Float_typ = register(declType(AST.FLOAT, "float", 4));
+-	Uintptr_typ = register(declType(AST.UINT, "uintptr", 8));
+-
+-	// Predeclared constants
+-	True_obj = declObj(AST.CONST, "true", Bool_typ);
+-	False_obj = declObj(AST.CONST, "false", Bool_typ);
+-	Iota_obj = declObj(AST.CONST, "iota", Int_typ);
+-	Nil_obj = declObj(AST.CONST, "nil", Nil_typ);
+-
+-	// Builtin functions
+-	declObj(AST.BUILTIN, "len", Void_typ);
+-	declObj(AST.BUILTIN, "new", Void_typ);
+-	declObj(AST.BUILTIN, "panic", Void_typ);
+-	declObj(AST.BUILTIN, "print", Void_typ);
+-
+-	// scope.Print();
+-}

@@ -7,7 +7,309 @@ Date:   Mon Aug 4 14:23:51 2008 -0700
     R=gri
     OCL=13819
     CL=13819
-
+---
  src/syscall/errstr_darwin.go | 113 +----------------------------------
  src/syscall/errstr_linux.go  | 138 +------------------------------------------
  2 files changed, 4 insertions(+), 247 deletions(-)
+
+diff --git a/src/syscall/errstr_darwin.go b/src/syscall/errstr_darwin.go
+index 9ce75ac3be..8f060c550d 100644
+--- a/src/syscall/errstr_darwin.go
++++ b/src/syscall/errstr_darwin.go
+@@ -4,9 +4,7 @@
+ 
+ package syscall
+ 
+-export errstr
+-
+-const (
++export const (
+ 	ENONE=0;
+ 	EPERM=1;
+ 	ENOENT=2;
+@@ -113,113 +111,6 @@ const (
+ 	ELAST=103;
+ )
+ 
+-export (
+-	ENONE,
+-	EPERM,
+-	ENOENT,
+-	ESRCH,
+-	EINTR,
+-	EIO,
+-	ENXIO,
+-	E2BIG,
+-	ENOEXEC,
+-	EBADF,
+-	ECHILD,
+-	EDEADLK,
+-	ENOMEM,
+-	EACCES,
+-	EFAULT,
+-	ENOTBLK,
+-	EBUSY,
+-	EEXIST,
+-	EXDEV,
+-	ENODEV,
+-	ENOTDIR,
+-	EISDIR,
+-	EINVAL,
+-	ENFILE,
+-	EMFILE,
+-	ENOTTY,
+-	ETXTBSY,
+-	EFBIG,
+-	ENOSPC,
+-	ESPIPE,
+-	EROFS,
+-	EMLINK,
+-	EPIPE,
+-	EDOM,
+-	ERANGE,
+-	EAGAIN,
+-	EINPROGRESS,
+-	EALREADY,
+-	ENOTSOCK,
+-	EDESTADDRREQ,
+-	EMSGSIZE,
+-	EPROTOTYPE,
+-	ENOPROTOOPT,
+-	EPROTONOSUPPORT,
+-	ESOCKTNOSUPPORT,
+-	ENOTSUP,
+-	EPFNOSUPPORT,
+-	EAFNOSUPPORT,
+-	EADDRINUSE,
+-	EADDRNOTAVAIL,
+-	ENETDOWN,
+-	ENETUNREACH,
+-	ENETRESET,
+-	ECONNABORTED,
+-	ECONNRESET,
+-	ENOBUFS,
+-	EISCONN,
+-	ENOTCONN,
+-	ESHUTDOWN,
+-	ETOOMANYREFS,
+-	ETIMEDOUT,
+-	ECONNREFUSED,
+-	ELOOP,
+-	ENAMETOOLONG,
+-	EHOSTDOWN,
+-	EHOSTUNREACH,
+-	ENOTEMPTY,
+-	EPROCLIM,
+-	EUSERS,
+-	EDQUOT,
+-	ESTALE,
+-	EREMOTE,
+-	EBADRPC,
+-	ERPCMISMATCH,
+-	EPROGUNAVAIL,
+-	EPROGMISMATCH,
+-	EPROCUNAVAIL,
+-	ENOLCK,
+-	ENOSYS,
+-	EFTYPE,
+-	EAUTH,
+-	ENEEDAUTH,
+-	EPWROFF,
+-	EDEVERR,
+-	EOVERFLOW,
+-	EBADEXEC,
+-	EBADARCH,
+-	ESHLIBVERS,
+-	EBADMACHO,
+-	ECANCELED,
+-	EIDRM,
+-	ENOMSG,
+-	EILSEQ,
+-	ENOATTR,
+-	EBADMSG,
+-	EMULTIHOP,
+-	ENODATA,
+-	ENOLINK,
+-	ENOSR,
+-	ENOSTR,
+-	EPROTO,
+-	ETIME,
+-	EOPNOTSUPP,
+-	ELAST
+-)
+-
+ var error [ELAST]string;
+ 
+ func init(){
+@@ -344,7 +235,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+-func errstr(errno int64) string {
++export func errstr(errno int64) string {
+ 	if errno < 0 || errno >= len(error) {
+ 		return "Error " + str(errno)
+ 	}
+diff --git a/src/syscall/errstr_linux.go b/src/syscall/errstr_linux.go
+index 021861a243..20b46f28fa 100644
+--- a/src/syscall/errstr_linux.go
++++ b/src/syscall/errstr_linux.go
+@@ -4,9 +4,7 @@
+ 
+ package syscall
+ 
+-export errstr
+-
+-const (
++export const (
+ 	ENONE=0;
+ 	EPERM=1;
+ 	ENOENT=2;
+@@ -138,138 +136,6 @@ const (
+ 	ELAST=130;
+ )
+ 
+-export (
+-	ENONE,
+-	EPERM,
+-	ENOENT,
+-	ESRCH,
+-	EINTR,
+-	EIO,
+-	ENXIO,
+-	E2BIG,
+-	ENOEXEC,
+-	EBADF,
+-	ECHILD,
+-	EAGAIN,
+-	ENOMEM,
+-	EACCES,
+-	EFAULT,
+-	ENOTBLK,
+-	EBUSY,
+-	EEXIST,
+-	EXDEV,
+-	ENODEV,
+-	ENOTDIR,
+-	EISDIR,
+-	EINVAL,
+-	ENFILE,
+-	EMFILE,
+-	ENOTTY,
+-	ETXTBSY,
+-	EFBIG,
+-	ENOSPC,
+-	ESPIPE,
+-	EROFS,
+-	EMLINK,
+-	EPIPE,
+-	EDOM,
+-	ERANGE,
+-	EDEADLK,
+-	ENAMETOOLONG,
+-	ENOLCK,
+-	ENOSYS,
+-	ENOTEMPTY,
+-	ELOOP,
+-	ENOMSG,
+-	EIDRM,
+-	ECHRNG,
+-	EL2NSYNC,
+-	EL3HLT,
+-	EL3RST,
+-	ELNRNG,
+-	EUNATCH,
+-	ENOCSI,
+-	EL2HLT,
+-	EBADE,
+-	EBADR,
+-	EXFULL,
+-	ENOANO,
+-	EBADRQC,
+-	EBADSLT,
+-	EBFONT,
+-	ENOSTR,
+-	ENODATA,
+-	ETIME,
+-	ENOSR,
+-	ENONET,
+-	ENOPKG,
+-	EREMOTE,
+-	ENOLINK,
+-	EADV,
+-	ESRMNT,
+-	ECOMM,
+-	EPROTO,
+-	EMULTIHOP,
+-	EDOTDOT,
+-	EBADMSG,
+-	EOVERFLOW,
+-	ENOTUNIQ,
+-	EBADFD,
+-	EREMCHG,
+-	ELIBACC,
+-	ELIBBAD,
+-	ELIBSCN,
+-	ELIBMAX,
+-	ELIBEXEC,
+-	EILSEQ,
+-	ERESTART,
+-	ESTRPIPE,
+-	EUSERS,
+-	ENOTSOCK,
+-	EDESTADDRREQ,
+-	EMSGSIZE,
+-	EPROTOTYPE,
+-	ENOPROTOOPT,
+-	EPROTONOSUPPORT,
+-	ESOCKTNOSUPPORT,
+-	EOPNOTSUPP,
+-	EPFNOSUPPORT,
+-	EAFNOSUPPORT,
+-	EADDRINUSE,
+-	EADDRNOTAVAIL,
+-	ENETDOWN,
+-	ENETUNREACH,
+-	ENETRESET,
+-	ECONNABORTED,
+-	ECONNRESET,
+-	ENOBUFS,
+-	EISCONN,
+-	ENOTCONN,
+-	ESHUTDOWN,
+-	ETOOMANYREFS,
+-	ETIMEDOUT,
+-	ECONNREFUSED,
+-	EHOSTDOWN,
+-	EHOSTUNREACH,
+-	EALREADY,
+-	EINPROGRESS,
+-	ESTALE,
+-	EUCLEAN,
+-	ENOTNAM,
+-	ENAVAIL,
+-	EISNAM,
+-	EREMOTEIO,
+-	EDQUOT,
+-	ENOMEDIUM,
+-	EMEDIUMTYPE,
+-	ECANCELED,
+-	ENOKEY,
+-	EKEYEXPIRED,
+-	EKEYREVOKED,
+-	EKEYREJECTED,
+-	ELAST
+-)
+-
+ var error [ELAST]string;
+ 
+ func init(){
+@@ -418,7 +284,7 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+-func errstr(errno int64) string {
++export func errstr(errno int64) string {
+ 	if errno < 0 || errno >= len(error) {
+ 		return "Error " + str(errno)
+ 	}

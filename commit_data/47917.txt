@@ -10,8 +10,96 @@ Date:   Mon Apr 12 17:19:03 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/308952
     Trust: Damien Neil <dneil@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go      | 22 +++++++++++-----------
  src/net/http/request_test.go |  4 ++++
  src/net/http/server.go       |  5 +----
  3 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index ff21f19942..4a07eb1c79 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -1010,16 +1010,16 @@ func putTextprotoReader(r *textproto.Reader) {
+ // requests and handle them via the Handler interface. ReadRequest
+ // only supports HTTP/1.x requests. For HTTP/2, use golang.org/x/net/http2.
+ func ReadRequest(b *bufio.Reader) (*Request, error) {
+-	return readRequest(b, deleteHostHeader)
+-}
++	req, err := readRequest(b)
++	if err != nil {
++		return nil, err
++	}
+ 
+-// Constants for readRequest's deleteHostHeader parameter.
+-const (
+-	deleteHostHeader = true
+-	keepHostHeader   = false
+-)
++	delete(req.Header, "Host")
++	return req, err
++}
+ 
+-func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err error) {
++func readRequest(b *bufio.Reader) (req *Request, err error) {
+ 	tp := newTextprotoReader(b)
+ 	req = new(Request)
+ 
+@@ -1077,6 +1077,9 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
+ 		return nil, err
+ 	}
+ 	req.Header = Header(mimeHeader)
++	if len(req.Header["Host"]) > 1 {
++		return nil, fmt.Errorf("too many Host headers")
++	}
+ 
+ 	// RFC 7230, section 5.3: Must treat
+ 	//	GET /index.html HTTP/1.1
+@@ -1089,9 +1092,6 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
+ 	if req.Host == "" {
+ 		req.Host = req.Header.get("Host")
+ 	}
+-	if deleteHostHeader {
+-		delete(req.Header, "Host")
+-	}
+ 
+ 	fixPragmaCacheControl(req.Header)
+ 
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index f09c63ed7e..07b3d6a1c7 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -469,6 +469,10 @@ var readRequestErrorTests = []struct {
+ 		in:     "HEAD / HTTP/1.1\r\nContent-Length:0\r\nContent-Length: 0\r\n\r\n",
+ 		header: Header{"Content-Length": {"0"}},
+ 	},
++	11: {
++		in:  "HEAD / HTTP/1.1\r\nHost: foo\r\nHost: bar\r\n\r\n\r\n\r\n",
++		err: "too many Host headers",
++	},
+ }
+ 
+ func TestReadRequestErrors(t *testing.T) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d90418b56d..e52a78e652 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -983,7 +983,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
+ 		c.bufr.Discard(numLeadingCRorLF(peek))
+ 	}
+-	req, err := readRequest(c.bufr, keepHostHeader)
++	req, err := readRequest(c.bufr)
+ 	if err != nil {
+ 		if c.r.hitReadLimit() {
+ 			return nil, errTooLarge
+@@ -1003,9 +1003,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) && !isH2Upgrade && req.Method != "CONNECT" {
+ 		return nil, badRequestError("missing required Host header")
+ 	}
+-	if len(hosts) > 1 {
+-		return nil, badRequestError("too many Host headers")
+-	}
+ 	if len(hosts) == 1 && !httpguts.ValidHostHeader(hosts[0]) {
+ 		return nil, badRequestError("malformed Host header")
+ 	}

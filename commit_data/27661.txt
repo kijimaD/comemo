@@ -13,6 +13,21 @@ Date:   Thu Apr 7 11:47:32 2016 +1200
     Change-Id: I52e061a0de97be41d684dd8b748fa9087d6f1aef
     Reviewed-on: https://go-review.googlesource.com/21599
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/proc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5145c84aea..1f55b0fa21 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -449,6 +449,9 @@ func schedinit() {
+ 
+ 	sched.lastpoll = uint64(nanotime())
+ 	procs := int(ncpu)
++	if procs > _MaxGomaxprocs {
++		procs = _MaxGomaxprocs
++	}
+ 	if n := atoi(gogetenv("GOMAXPROCS")); n > 0 {
+ 		if n > _MaxGomaxprocs {
+ 			n = _MaxGomaxprocs

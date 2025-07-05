@@ -8,6 +8,19 @@ Date:   Wed Aug 6 00:24:31 2014 -0400
     R=rsc, iant, bradfitz, dave, ruiu
     CC=golang-codereviews
     https://golang.org/cl/116610043
-
+---
  src/pkg/runtime/sys_linux_amd64.s | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 03b9d6a7c4..c402c86164 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -221,7 +221,6 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	8(SP), DI
+-	MOVQ	$0, SI
+ 	MOVQ	16(SP), SI
+ 	MOVL	24(SP), DX
+ 	MOVL	28(SP), R10

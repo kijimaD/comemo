@@ -13,8 +13,99 @@ Date:   Tue Aug 28 01:03:37 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  src/os/exec_plan9.go     | 10 ++++++++++
  src/os/exec_posix.go     | 10 ++++++++++
  3 files changed, 63 insertions(+)
+
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 7bb230806f..f0bba11c5a 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -168,6 +168,49 @@ func TestExitStatus(t *testing.T) {
+ 	}
+ }
+ 
++func TestExitCode(t *testing.T) {
++	// Test that exit code are returned correctly
++	cmd := helperCommand(t, "exit", "42")
++	cmd.Run()
++	want := 42
++	got := cmd.ProcessState.ExitCode()
++	if want != got {
++		t.Errorf("ExitCode got %d, want %d", got, want)
++	}
++
++	cmd = helperCommand(t, "/no-exist-executable")
++	cmd.Run()
++	want = 2
++	got = cmd.ProcessState.ExitCode()
++	if want != got {
++		t.Errorf("ExitCode got %d, want %d", got, want)
++	}
++
++	cmd = helperCommand(t, "exit", "255")
++	cmd.Run()
++	want = 255
++	got = cmd.ProcessState.ExitCode()
++	if want != got {
++		t.Errorf("ExitCode got %d, want %d", got, want)
++	}
++
++	cmd = helperCommand(t, "cat")
++	cmd.Run()
++	want = 0
++	got = cmd.ProcessState.ExitCode()
++	if want != got {
++		t.Errorf("ExitCode got %d, want %d", got, want)
++	}
++
++	// Test when command does not call Run().
++	cmd = helperCommand(t, "cat")
++	want = -1
++	got = cmd.ProcessState.ExitCode()
++	if want != got {
++		t.Errorf("ExitCode got %d, want %d", got, want)
++	}
++}
++
+ func TestPipes(t *testing.T) {
+ 	check := func(what string, err error) {
+ 		if err != nil {
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index 6b4d28c93d..bab16ccad3 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -136,3 +136,13 @@ func (p *ProcessState) String() string {
+ 	}
+ 	return "exit status: " + p.status.Msg
+ }
++
++// ExitCode returns the exit code of the exited process, or -1
++// if the process hasn't exited or was terminated by a signal.
++func (p *ProcessState) ExitCode() int {
++	// return -1 if the process hasn't started.
++	if p == nil {
++		return -1
++	}
++	return p.status.ExitStatus()
++}
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index ec5cf33236..e837e1c4d9 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -106,3 +106,13 @@ func (p *ProcessState) String() string {
+ 	}
+ 	return res
+ }
++
++// ExitCode returns the exit code of the exited process, or -1
++// if the process hasn't exited or was terminated by a signal.
++func (p *ProcessState) ExitCode() int {
++	// return -1 if the process hasn't started.
++	if p == nil {
++		return -1
++	}
++	return p.status.ExitStatus()
++}

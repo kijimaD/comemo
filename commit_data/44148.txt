@@ -20,6 +20,29 @@ Date:   Mon May 18 09:34:17 2020 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/runtime/os_plan9.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index b534cdba5d..2bea1058f2 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -293,7 +293,6 @@ func osinit() {
+ 	ncpu = getproccount()
+ 	physPageSize = getPageSize()
+ 	getg().m.procid = getpid()
+-	notify(unsafe.Pointer(funcPC(sigtramp)))
+ }
+ 
+ //go:nosplit
+@@ -311,6 +310,9 @@ func goenvs() {
+ }
+ 
+ func initsig(preinit bool) {
++	if !preinit {
++		notify(unsafe.Pointer(funcPC(sigtramp)))
++	}
+ }
+ 
+ //go:nosplit

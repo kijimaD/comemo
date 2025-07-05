@@ -63,7 +63,7 @@ Date:   Tue Sep 25 15:54:11 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/types/type.go |  2 +-
  src/reflect/all_test.go                |  4 +--
  src/reflect/asm_386.s                  | 10 ++++--
@@ -84,3 +84,880 @@ Date:   Tue Sep 25 15:54:11 2018 -0700
  test/fixedbugs/issue27695.go           | 62 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue27695b.go          | 64 ++++++++++++++++++++++++++++++++++
  19 files changed, 288 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index d367cd1944..25f8f826e6 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -817,7 +817,7 @@ func (t *Type) ChanArgs() *Type {
+ 	return t.Extra.(ChanArgs).T
+ }
+ 
+-// FuncArgs returns the channel type for TFUNCARGS type t.
++// FuncArgs returns the func type for TFUNCARGS type t.
+ func (t *Type) FuncArgs() *Type {
+ 	t.wantEtype(TFUNCARGS)
+ 	return t.Extra.(FuncArgs).T
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index c616b37008..5b8bbad383 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5844,7 +5844,7 @@ func clobber() {
+ type funcLayoutTest struct {
+ 	rcvr, t                  Type
+ 	size, argsize, retOffset uintptr
+-	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar (or uninitialized)
++	stack                    []byte // pointer bitmap: 1 is pointer, 0 is scalar
+ 	gc                       []byte
+ }
+ 
+@@ -5866,7 +5866,7 @@ func init() {
+ 			6 * PtrSize,
+ 			4 * PtrSize,
+ 			4 * PtrSize,
+-			[]byte{1, 0, 1},
++			[]byte{1, 0, 1, 0, 1},
+ 			[]byte{1, 0, 1, 0, 1},
+ 		})
+ 
+diff --git a/src/reflect/asm_386.s b/src/reflect/asm_386.s
+index d827360006..e79beb6dc9 100644
+--- a/src/reflect/asm_386.s
++++ b/src/reflect/asm_386.s
+@@ -9,11 +9,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
++	MOVB	$0, 12(SP)
++	LEAL	12(SP), AX
++	MOVL	AX, 8(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+ 
+@@ -21,10 +24,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
++	MOVB	$0, 12(SP)
++	LEAL	12(SP), AX
++	MOVL	AX, 8(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_amd64.s b/src/reflect/asm_amd64.s
+index 1272c489de..fb28ab87f1 100644
+--- a/src/reflect/asm_amd64.s
++++ b/src/reflect/asm_amd64.s
+@@ -9,11 +9,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
++	MOVB	$0, 24(SP)
++	LEAQ	24(SP), AX
++	MOVQ	AX, 16(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+ 
+@@ -21,10 +24,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+ 	MOVQ	CX, 8(SP)
++	MOVB	$0, 24(SP)
++	LEAQ	24(SP), AX
++	MOVQ	AX, 16(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_amd64p32.s b/src/reflect/asm_amd64p32.s
+index d827360006..e79beb6dc9 100644
+--- a/src/reflect/asm_amd64p32.s
++++ b/src/reflect/asm_amd64p32.s
+@@ -9,11 +9,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
++	MOVB	$0, 12(SP)
++	LEAL	12(SP), AX
++	MOVL	AX, 8(SP)
+ 	CALL	·callReflect(SB)
+ 	RET
+ 
+@@ -21,10 +24,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+ 	MOVL	CX, 4(SP)
++	MOVB	$0, 12(SP)
++	LEAL	12(SP), AX
++	MOVL	AX, 8(SP)
+ 	CALL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_arm.s b/src/reflect/asm_arm.s
+index b721ed28c6..cd50d33918 100644
+--- a/src/reflect/asm_arm.s
++++ b/src/reflect/asm_arm.s
+@@ -9,11 +9,15 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
++	MOVW	$0, R1
++	MOVB	R1, 16(R13)
++	ADD	$16, R13, R1
++	MOVW	R1, 12(R13)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -21,10 +25,14 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No argsize here, gc generates argsize info at call site.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R13)
++	MOVW	$0, R1
++	MOVB	R1, 16(R13)
++	ADD	$16, R13, R1
++	MOVW	R1, 12(R13)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_arm64.s b/src/reflect/asm_arm64.s
+index d1563709f2..28bb86c2a4 100644
+--- a/src/reflect/asm_arm64.s
++++ b/src/reflect/asm_arm64.s
+@@ -9,11 +9,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$24
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(RSP)
++	MOVB	$0, 32(RSP)
++	ADD	$32, RSP, R3
++	MOVD	R3, 24(RSP)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -21,10 +24,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$24
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$24
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$40
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R26, 8(RSP)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(RSP)
++	MOVB	$0, 32(RSP)
++	ADD	$32, RSP, R3
++	MOVD	R3, 24(RSP)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_mips64x.s b/src/reflect/asm_mips64x.s
+index 98afb52f6a..6f76685567 100644
+--- a/src/reflect/asm_mips64x.s
++++ b/src/reflect/asm_mips64x.s
+@@ -13,11 +13,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVV	REGCTXT, 8(R29)
+ 	MOVV	$argframe+0(FP), R1
+ 	MOVV	R1, 16(R29)
++	MOVB	R0, 32(R29)
++	ADDV	$32, R29, R1
++	MOVV	R1, 24(R29)
+ 	JAL	·callReflect(SB)
+ 	RET
+ 
+@@ -25,10 +28,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVV	REGCTXT, 8(R29)
+ 	MOVV	$argframe+0(FP), R1
+ 	MOVV	R1, 16(R29)
++	MOVB	R0, 32(R29)
++	ADDV	$32, R29, R1
++	MOVV	R1, 24(R29)
+ 	JAL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_mipsx.s b/src/reflect/asm_mipsx.s
+index b6df4e636e..5a5c53ef9f 100644
+--- a/src/reflect/asm_mipsx.s
++++ b/src/reflect/asm_mipsx.s
+@@ -13,11 +13,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVW	REGCTXT, 4(R29)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R29)
++	MOVB	R0, 16(R29)
++	ADD	$16, R29, R1
++	MOVW	R1, 12(R29)
+ 	JAL	·callReflect(SB)
+ 	RET
+ 
+@@ -25,10 +28,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$8
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$8
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	NO_LOCAL_POINTERS
+ 	MOVW	REGCTXT, 4(R29)
+ 	MOVW	$argframe+0(FP), R1
+ 	MOVW	R1, 8(R29)
++	MOVB	R0, 16(R29)
++	ADD	$16, R29, R1
++	MOVW	R1, 12(R29)
+ 	JAL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_ppc64x.s b/src/reflect/asm_ppc64x.s
+index 42f57743e6..4609f6bb75 100644
+--- a/src/reflect/asm_ppc64x.s
++++ b/src/reflect/asm_ppc64x.s
+@@ -12,11 +12,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R11, FIXED_FRAME+0(R1)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, FIXED_FRAME+8(R1)
++	MOVB	R0, FIXED_FRAME+24(R1)
++	ADD	$FIXED_FRAME+24, R1, R3
++	MOVD	R3, FIXED_FRAME+16(R1)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -24,10 +27,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R11, FIXED_FRAME+0(R1)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, FIXED_FRAME+8(R1)
++	MOVB	R0, FIXED_FRAME+24(R1)
++	ADD	$FIXED_FRAME+24, R1, R3
++	MOVD	R3, FIXED_FRAME+16(R1)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_s390x.s b/src/reflect/asm_s390x.s
+index e6b86cfaa9..2ab5481c9b 100644
+--- a/src/reflect/asm_s390x.s
++++ b/src/reflect/asm_s390x.s
+@@ -9,11 +9,14 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here, runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R12, 8(R15)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R15)
++	MOVB	R0, 32(R15)
++	ADD	$32, R15, R3
++	MOVD	R3, 24(R15)
+ 	BL	·callReflect(SB)
+ 	RET
+ 
+@@ -21,10 +24,13 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 	MOVD	R12, 8(R15)
+ 	MOVD	$argframe+0(FP), R3
+ 	MOVD	R3, 16(R15)
++	MOVB	R0, 32(R15)
++	ADD	$32, R15, R3
++	MOVD	R3, 24(R15)
+ 	BL	·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/asm_wasm.s b/src/reflect/asm_wasm.s
+index 0f9b5aa130..627e295769 100644
+--- a/src/reflect/asm_wasm.s
++++ b/src/reflect/asm_wasm.s
+@@ -9,7 +9,7 @@
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 
+ 	MOVD CTXT, 0(SP)
+@@ -21,6 +21,9 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ 	I64Add
+ 	I64Store $8
+ 
++	MOVB $0, 24(SP)
++	MOVD $24(SP), 16(SP)
++
+ 	CALL ·callReflect(SB)
+ 	RET
+ 
+@@ -28,7 +31,7 @@ TEXT ·makeFuncStub(SB),(NOSPLIT|WRAPPER),$16
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
+ // No arg size here; runtime pulls arg map out of the func value.
+-TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
++TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$32
+ 	NO_LOCAL_POINTERS
+ 
+ 	MOVD CTXT, 0(SP)
+@@ -40,5 +43,8 @@ TEXT ·methodValueCall(SB),(NOSPLIT|WRAPPER),$16
+ 	I64Add
+ 	I64Store $8
+ 
++	MOVB $0, 24(SP)
++	MOVD $24(SP), 16(SP)
++
+ 	CALL ·callMethod(SB)
+ 	RET
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 14a6981fde..3c47d6712f 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -25,9 +25,9 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 	var ft *rtype
+ 	var s *bitVector
+ 	if rcvr != nil {
+-		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), rcvr.(*rtype))
++		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
+ 	} else {
+-		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), nil)
++		ft, argSize, retOffset, s, _ = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
+ 	}
+ 	frametype = ft
+ 	for i := uint32(0); i < s.n; i++ {
+diff --git a/src/reflect/makefunc.go b/src/reflect/makefunc.go
+index 885966db6f..67dc4859b9 100644
+--- a/src/reflect/makefunc.go
++++ b/src/reflect/makefunc.go
+@@ -12,14 +12,15 @@ import (
+ 
+ // makeFuncImpl is the closure value implementing the function
+ // returned by MakeFunc.
+-// The first two words of this type must be kept in sync with
++// The first three words of this type must be kept in sync with
+ // methodValue and runtime.reflectMethodValue.
+ // Any changes should be reflected in all three.
+ type makeFuncImpl struct {
+-	code  uintptr
+-	stack *bitVector
+-	typ   *funcType
+-	fn    func([]Value) []Value
++	code   uintptr
++	stack  *bitVector // ptrmap for both args and results
++	argLen uintptr    // just args
++	ftyp   *funcType
++	fn     func([]Value) []Value
+ }
+ 
+ // MakeFunc returns a new function of the given Type
+@@ -59,9 +60,9 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ 	code := **(**uintptr)(unsafe.Pointer(&dummy))
+ 
+ 	// makeFuncImpl contains a stack map for use by the runtime
+-	_, _, _, stack, _ := funcLayout(t, nil)
++	_, argLen, _, stack, _ := funcLayout(ftyp, nil)
+ 
+-	impl := &makeFuncImpl{code: code, stack: stack, typ: ftyp, fn: fn}
++	impl := &makeFuncImpl{code: code, stack: stack, argLen: argLen, ftyp: ftyp, fn: fn}
+ 
+ 	return Value{t, unsafe.Pointer(impl), flag(Func)}
+ }
+@@ -73,12 +74,13 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+ // word in the passed-in argument frame.
+ func makeFuncStub()
+ 
+-// The first two words of this type must be kept in sync with
++// The first 3 words of this type must be kept in sync with
+ // makeFuncImpl and runtime.reflectMethodValue.
+ // Any changes should be reflected in all three.
+ type methodValue struct {
+ 	fn     uintptr
+-	stack  *bitVector
++	stack  *bitVector // ptrmap for both args and results
++	argLen uintptr    // just args
+ 	method int
+ 	rcvr   Value
+ }
+@@ -101,7 +103,7 @@ func makeMethodValue(op string, v Value) Value {
+ 	rcvr := Value{v.typ, v.ptr, fl}
+ 
+ 	// v.Type returns the actual type of the method value.
+-	funcType := v.Type().(*rtype)
++	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
+ 
+ 	// Indirect Go func value (dummy) to obtain
+ 	// actual code address. (A Go func value is a pointer
+@@ -110,11 +112,12 @@ func makeMethodValue(op string, v Value) Value {
+ 	code := **(**uintptr)(unsafe.Pointer(&dummy))
+ 
+ 	// methodValue contains a stack map for use by the runtime
+-	_, _, _, stack, _ := funcLayout(funcType, nil)
++	_, argLen, _, stack, _ := funcLayout(ftyp, nil)
+ 
+ 	fv := &methodValue{
+ 		fn:     code,
+ 		stack:  stack,
++		argLen: argLen,
+ 		method: int(v.flag) >> flagMethodShift,
+ 		rcvr:   rcvr,
+ 	}
+@@ -124,7 +127,7 @@ func makeMethodValue(op string, v Value) Value {
+ 	// but we want Interface() and other operations to fail early.
+ 	methodReceiver(op, fv.rcvr, fv.method)
+ 
+-	return Value{funcType, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
++	return Value{&ftyp.rtype, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+ }
+ 
+ // methodValueCall is an assembly function that is the code half of
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 6b0ce431a6..d8971d620e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -3022,8 +3022,8 @@ func toType(t *rtype) Type {
+ }
+ 
+ type layoutKey struct {
+-	t    *rtype // function signature
+-	rcvr *rtype // receiver type, or nil if none
++	ftyp *funcType // function signature
++	rcvr *rtype    // receiver type, or nil if none
+ }
+ 
+ type layoutType struct {
+@@ -3042,7 +3042,7 @@ var layoutCache sync.Map // map[layoutKey]layoutType
+ // The returned type exists only for GC, so we only fill out GC relevant info.
+ // Currently, that's just size and the GC program. We also fill in
+ // the name for possible debugging use.
+-func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
++func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset uintptr, stk *bitVector, framePool *sync.Pool) {
+ 	if t.Kind() != Func {
+ 		panic("reflect: funcLayout of non-func type")
+ 	}
+@@ -3055,8 +3055,6 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 		return lt.t, lt.argSize, lt.retOffset, lt.stack, lt.framePool
+ 	}
+ 
+-	tt := (*funcType)(unsafe.Pointer(t))
+-
+ 	// compute gc program & stack bitmap for arguments
+ 	ptrmap := new(bitVector)
+ 	var offset uintptr
+@@ -3071,19 +3069,18 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 		}
+ 		offset += ptrSize
+ 	}
+-	for _, arg := range tt.in() {
++	for _, arg := range t.in() {
+ 		offset += -offset & uintptr(arg.align-1)
+ 		addTypeBits(ptrmap, offset, arg)
+ 		offset += arg.size
+ 	}
+-	argN := ptrmap.n
+ 	argSize = offset
+ 	if runtime.GOARCH == "amd64p32" {
+ 		offset += -offset & (8 - 1)
+ 	}
+ 	offset += -offset & (ptrSize - 1)
+ 	retOffset = offset
+-	for _, res := range tt.out() {
++	for _, res := range t.out() {
+ 		offset += -offset & uintptr(res.align-1)
+ 		addTypeBits(ptrmap, offset, res)
+ 		offset += res.size
+@@ -3104,7 +3101,6 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
+ 	} else {
+ 		x.kind |= kindNoPointers
+ 	}
+-	ptrmap.n = argN
+ 
+ 	var s string
+ 	if rcvr != nil {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 854a5b153e..6d2862dbab 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -325,7 +325,7 @@ var callGC bool // for testing; see TestCallMethodJump
+ 
+ func (v Value) call(op string, in []Value) []Value {
+ 	// Get function pointer, type.
+-	t := v.typ
++	t := (*funcType)(unsafe.Pointer(v.typ))
+ 	var (
+ 		fn       unsafe.Pointer
+ 		rcvr     Value
+@@ -499,8 +499,13 @@ func (v Value) call(op string, in []Value) []Value {
+ // NOTE: This function must be marked as a "wrapper" in the generated code,
+ // so that the linker can make it work correctly for panic and recover.
+ // The gc compilers know to do that for the name "reflect.callReflect".
+-func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+-	ftyp := ctxt.typ
++//
++// ctxt is the "closure" generated by MakeFunc.
++// frame is a pointer to the arguments to that closure on the stack.
++// retValid points to a boolean which should be set when the results
++// section of frame is set.
++func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
++	ftyp := ctxt.ftyp
+ 	f := ctxt.fn
+ 
+ 	// Copy argument frame into Values.
+@@ -565,6 +570,16 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ 		}
+ 	}
+ 
++	// Announce that the return values are valid.
++	// After this point the runtime can depend on the return values being valid.
++	*retValid = true
++
++	// We have to make sure that the out slice lives at least until
++	// the runtime knows the return values are valid. Otherwise, the
++	// return values might not be scanned by anyone during a GC.
++	// (out would be dead, and the return slots not yet alive.)
++	runtime.KeepAlive(out)
++
+ 	// runtime.getArgInfo expects to be able to find ctxt on the
+ 	// stack when it finds our caller, makeFuncStub. Make sure it
+ 	// doesn't get garbage collected.
+@@ -578,7 +593,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer) {
+ // The return value rcvrtype gives the method's actual receiver type.
+ // The return value t gives the method type signature (without the receiver).
+ // The return value fn is a pointer to the method code.
+-func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn unsafe.Pointer) {
++func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *funcType, fn unsafe.Pointer) {
+ 	i := methodIndex
+ 	if v.typ.Kind() == Interface {
+ 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
+@@ -595,7 +610,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
+ 		}
+ 		rcvrtype = iface.itab.typ
+ 		fn = unsafe.Pointer(&iface.itab.fun[i])
+-		t = tt.typeOff(m.typ)
++		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.typ)))
+ 	} else {
+ 		rcvrtype = v.typ
+ 		ms := v.typ.exportedMethods()
+@@ -608,7 +623,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
+ 		}
+ 		ifn := v.typ.textOff(m.ifn)
+ 		fn = unsafe.Pointer(&ifn)
+-		t = v.typ.typeOff(m.mtyp)
++		t = (*funcType)(unsafe.Pointer(v.typ.typeOff(m.mtyp)))
+ 	}
+ 	return
+ }
+@@ -647,25 +662,31 @@ func align(x, n uintptr) uintptr {
+ // NOTE: This function must be marked as a "wrapper" in the generated code,
+ // so that the linker can make it work correctly for panic and recover.
+ // The gc compilers know to do that for the name "reflect.callMethod".
+-func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
++//
++// ctxt is the "closure" generated by makeVethodValue.
++// frame is a pointer to the arguments to that closure on the stack.
++// retValid points to a boolean which should be set when the results
++// section of frame is set.
++func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
+ 	rcvr := ctxt.rcvr
+ 	rcvrtype, t, fn := methodReceiver("call", rcvr, ctxt.method)
+ 	frametype, argSize, retOffset, _, framePool := funcLayout(t, rcvrtype)
+ 
+ 	// Make a new frame that is one word bigger so we can store the receiver.
+-	args := framePool.Get().(unsafe.Pointer)
++	// This space is used for both arguments and return values.
++	scratch := framePool.Get().(unsafe.Pointer)
+ 
+ 	// Copy in receiver and rest of args.
+ 	// Avoid constructing out-of-bounds pointers if there are no args.
+-	storeRcvr(rcvr, args)
++	storeRcvr(rcvr, scratch)
+ 	if argSize-ptrSize > 0 {
+-		typedmemmovepartial(frametype, add(args, ptrSize, "argSize > ptrSize"), frame, ptrSize, argSize-ptrSize)
++		typedmemmovepartial(frametype, add(scratch, ptrSize, "argSize > ptrSize"), frame, ptrSize, argSize-ptrSize)
+ 	}
+ 
+ 	// Call.
+-	// Call copies the arguments from args to the stack, calls fn,
+-	// and then copies the results back into args.
+-	call(frametype, fn, args, uint32(frametype.size), uint32(retOffset))
++	// Call copies the arguments from scratch to the stack, calls fn,
++	// and then copies the results back into scratch.
++	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset))
+ 
+ 	// Copy return values. On amd64p32, the beginning of return values
+ 	// is 64-bit aligned, so the caller's frame layout (which doesn't have
+@@ -680,13 +701,19 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+ 		}
+ 		// This copies to the stack. Write barriers are not needed.
+ 		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
+-			add(args, retOffset, "frametype.size > retOffset"),
++			add(scratch, retOffset, "frametype.size > retOffset"),
+ 			frametype.size-retOffset)
+ 	}
+ 
+-	// Put the args scratch space back in the pool.
+-	typedmemclr(frametype, args)
+-	framePool.Put(args)
++	// Tell the runtime it can now depend on the return values
++	// being properly initialized.
++	*retValid = true
++
++	// Clear the scratch space and put it back in the pool.
++	// This must happen after the statement above, so that the return
++	// values will always be scanned by someone.
++	typedmemclr(frametype, scratch)
++	framePool.Put(scratch)
+ 
+ 	// See the comment in callReflect.
+ 	runtime.KeepAlive(ctxt)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 4c2010493a..8e104ae89e 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -571,8 +571,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ // reflectMethodValue is a partial duplicate of reflect.makeFuncImpl
+ // and reflect.methodValue.
+ type reflectMethodValue struct {
+-	fn    uintptr
+-	stack *bitvector // args bitmap
++	fn     uintptr
++	stack  *bitvector // ptrmap for both args and results
++	argLen uintptr    // just args
+ }
+ 
+ // getArgInfoFast returns the argument frame information for a call to f.
+@@ -601,6 +602,7 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
+ 			// These take a *reflect.methodValue as their
+ 			// context register.
+ 			var mv *reflectMethodValue
++			var retValid bool
+ 			if ctxt != nil {
+ 				// This is not an actual call, but a
+ 				// deferred call. The function value
+@@ -614,6 +616,10 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
+ 				// 0(SP).
+ 				arg0 := frame.sp + sys.MinFrameSize
+ 				mv = *(**reflectMethodValue)(unsafe.Pointer(arg0))
++				// Figure out whether the return values are valid.
++				// Reflect will update this value after it copies
++				// in the return values.
++				retValid = *(*bool)(unsafe.Pointer(arg0 + 3*sys.PtrSize))
+ 			}
+ 			if mv.fn != f.entry {
+ 				print("runtime: confused by ", funcname(f), "\n")
+@@ -621,6 +627,9 @@ func getArgInfo(frame *stkframe, f funcInfo, needArgMap bool, ctxt *funcval) (ar
+ 			}
+ 			bv := mv.stack
+ 			arglen = uintptr(bv.n * sys.PtrSize)
++			if !retValid {
++				arglen = uintptr(mv.argLen) &^ (sys.PtrSize - 1)
++			}
+ 			argmap = bv
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue27695.go b/test/fixedbugs/issue27695.go
+new file mode 100644
+index 0000000000..8bd4939e7e
+--- /dev/null
++++ b/test/fixedbugs/issue27695.go
+@@ -0,0 +1,62 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure return values are always scanned, when
++// calling methods (+functions, TODO) with reflect.
++
++package main
++
++import (
++	"reflect"
++	"runtime/debug"
++	"sync"
++)
++
++func main() {
++	debug.SetGCPercent(1) // run GC frequently
++	var wg sync.WaitGroup
++	for i := 0; i < 20; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for i := 0; i < 2000; i++ {
++				_test()
++			}
++		}()
++	}
++	wg.Wait()
++}
++
++type Stt struct {
++	Data interface{}
++}
++
++type My struct {
++	b byte
++}
++
++func (this *My) Run(rawData []byte) (Stt, error) {
++	var data string = "hello"
++	stt := Stt{
++		Data: data,
++	}
++	return stt, nil
++}
++
++func _test() (interface{}, error) {
++	f := reflect.ValueOf(&My{}).MethodByName("Run")
++	if method, ok := f.Interface().(func([]byte) (Stt, error)); ok {
++		s, e := method(nil)
++		// The bug in issue27695 happens here, during the return
++		// from the above call (at the end of reflect.callMethod
++		// when preparing to return). The result value that
++		// is assigned to s was not being scanned if GC happens
++		// to occur there.
++		i := interface{}(s)
++		return i, e
++	}
++	return nil, nil
++}
+diff --git a/test/fixedbugs/issue27695b.go b/test/fixedbugs/issue27695b.go
+new file mode 100644
+index 0000000000..d80acfb8b4
+--- /dev/null
++++ b/test/fixedbugs/issue27695b.go
+@@ -0,0 +1,64 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure return values aren't scanned until they
++// are initialized, when calling functions and methods
++// via reflect.
++
++package main
++
++import (
++	"reflect"
++	"runtime"
++	"unsafe"
++)
++
++var badPtr uintptr
++
++var sink []byte
++
++func init() {
++	// Allocate large enough to use largeAlloc.
++	b := make([]byte, 1<<16-1)
++	sink = b // force heap allocation
++	//  Any space between the object and the end of page is invalid to point to.
++	badPtr = uintptr(unsafe.Pointer(&b[len(b)-1])) + 1
++}
++
++func f(d func() *byte) *byte {
++	// Initialize callee args section with a bad pointer.
++	g(badPtr)
++
++	// Then call a function which returns a pointer.
++	// That return slot starts out holding a bad pointer.
++	return d()
++}
++
++//go:noinline
++func g(x uintptr) {
++}
++
++type T struct {
++}
++
++func (t *T) Foo() *byte {
++	runtime.GC()
++	return nil
++}
++
++func main() {
++	// Functions
++	d := reflect.MakeFunc(reflect.TypeOf(func() *byte { return nil }),
++		func(args []reflect.Value) []reflect.Value {
++			runtime.GC()
++			return []reflect.Value{reflect.ValueOf((*byte)(nil))}
++		}).Interface().(func() *byte)
++	f(d)
++
++	// Methods
++	e := reflect.ValueOf(&T{}).Method(0).Interface().(func() *byte)
++	f(e)
++}

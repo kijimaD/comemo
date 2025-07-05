@@ -12,7 +12,7 @@ Date:   Sat Nov 18 13:51:35 2023 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: shuang cui <imcusg@gmail.com>
-
+---
  src/cmd/compile/internal/pgo/irgraph.go | 2 +-
  src/cmd/compile/internal/ssa/func.go    | 2 +-
  src/cmd/compile/internal/ssa/prove.go   | 7 ++++---
@@ -23,3 +23,138 @@ Date:   Sat Nov 18 13:51:35 2023 +0800
  src/runtime/mgcscavenge.go              | 2 +-
  src/runtime/runtime2.go                 | 2 +-
  9 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 7a7cd20f2b..54ac650272 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -129,7 +129,7 @@ type Profile struct {
+ 	// the percentage threshold for hot/cold partitioning.
+ 	TotalWeight int64
+ 
+-	// EdgeMap contains all unique call edges in the profile and their
++	// NamedEdgeMap contains all unique call edges in the profile and their
+ 	// edge weight.
+ 	NamedEdgeMap NamedEdgeMap
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index e94cb77f92..529c119dc3 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -64,7 +64,7 @@ type Func struct {
+ 
+ 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+ 	RegArgs []Spill
+-	// AuxCall describing parameters and results for this function.
++	// OwnAux describes parameters and results for this function.
+ 	OwnAux *AuxCall
+ 
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 91f5fbe765..842719fb4c 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -100,10 +100,11 @@ func (d domain) String() string {
+ }
+ 
+ type pair struct {
+-	v, w *Value // a pair of values, ordered by ID.
++	// a pair of values, ordered by ID.
+ 	// v can be nil, to mean the zero value.
+ 	// for booleans the zero value (v == nil) is false.
+-	d domain
++	v, w *Value
++	d    domain
+ }
+ 
+ // fact is a pair plus a relation for that pair.
+@@ -165,7 +166,7 @@ type factsTable struct {
+ 	facts map[pair]relation // current known set of relation
+ 	stack []fact            // previous sets of relations
+ 
+-	// order is a couple of partial order sets that record information
++	// order* is a couple of partial order sets that record information
+ 	// about relations between SSA values in the signed and unsigned
+ 	// domain.
+ 	orderS *poset
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index b78c1c4621..498ba6c2ff 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -55,7 +55,7 @@ type query struct {
+ 	// path.
+ 	matchWildcard func(path string) bool
+ 
+-	// canMatchWildcard, if non-nil, reports whether the module with the given
++	// canMatchWildcardInModule, if non-nil, reports whether the module with the given
+ 	// path could lexically contain a package matching pattern, which must be a
+ 	// wildcard.
+ 	canMatchWildcardInModule func(mPath string) bool
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 44b202192a..4f1197dc6e 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1979,9 +1979,9 @@ type Conn struct {
+ 	// Once done, all operations fail with ErrConnDone.
+ 	done atomic.Bool
+ 
+-	// releaseConn is a cache of c.closemuRUnlockCondReleaseConn
++	releaseConnOnce sync.Once
++	// releaseConnCache is a cache of c.closemuRUnlockCondReleaseConn
+ 	// to save allocations in a call to grabConn.
+-	releaseConnOnce  sync.Once
+ 	releaseConnCache releaseConn
+ }
+ 
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index ac85a415b1..5397a2796f 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -118,7 +118,7 @@ type readerDict struct {
+ 	// tparams is a slice of the constructed TypeParams for the element.
+ 	tparams []*types.TypeParam
+ 
+-	// devived is a slice of types derived from tparams, which may be
++	// derived is a slice of types derived from tparams, which may be
+ 	// instantiated while reading the current element.
+ 	derived      []derivedInfo
+ 	derivedTypes []types.Type // lazily instantiated from derived
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index e72c03a3d4..43b3416b27 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -573,7 +573,7 @@ type x int // comment
+ var parseDepthTests = []struct {
+ 	name   string
+ 	format string
+-	// multiplier is used when a single statement may result in more than one
++	// parseMultiplier is used when a single statement may result in more than one
+ 	// change in the depth level, for instance "1+(..." produces a BinaryExpr
+ 	// followed by a UnaryExpr, which increments the depth twice. The test
+ 	// case comment explains which nodes are triggering the multiple depth
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index e6725b4622..86c2103f18 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -307,7 +307,7 @@ type scavengerState struct {
+ 	// See sleepRatio for more details.
+ 	sleepController piController
+ 
+-	// cooldown is the time left in nanoseconds during which we avoid
++	// controllerCooldown is the time left in nanoseconds during which we avoid
+ 	// using the controller and we hold sleepRatio at a conservative
+ 	// value. Used if the controller's assumptions fail to hold.
+ 	controllerCooldown int64
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 6d40c7c466..01f1a50670 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -857,7 +857,7 @@ type schedt struct {
+ 	sysmonwait atomic.Bool
+ 	sysmonnote note
+ 
+-	// safepointFn should be called on each P at the next GC
++	// safePointFn should be called on each P at the next GC
+ 	// safepoint if p.runSafePointFn is set.
+ 	safePointFn   func(*p)
+ 	safePointWait int32

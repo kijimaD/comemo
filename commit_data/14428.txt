@@ -26,8 +26,120 @@ Date:   Sun Nov 18 02:23:34 2012 +0800
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/6782072
-
+---
  src/pkg/crypto/md5/gen.go      |  2 ++
  src/pkg/crypto/md5/md5_test.go | 42 ++++++++++++++++++++++++++++++++++--------
  src/pkg/crypto/md5/md5block.go |  2 ++
  3 files changed, 38 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/crypto/md5/gen.go b/src/pkg/crypto/md5/gen.go
+index 1a9c4ab33d..966bdae267 100644
+--- a/src/pkg/crypto/md5/gen.go
++++ b/src/pkg/crypto/md5/gen.go
+@@ -203,6 +203,8 @@ func block(dig *digest, p []byte) {
+ 			// less code and run 1.3x faster if we take advantage of that.
+ 			// My apologies.
+ 			X = (*[16]uint32)(unsafe.Pointer(&p[0]))
++		} else if uintptr(unsafe.Pointer(&p[0]))&(unsafe.Alignof(uint32(0))-1) == 0 {
++			X = (*[16]uint32)(unsafe.Pointer(&p[0]))
+ 		} else {
+ 			X = &xbuf
+ 			j := 0
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index c810251ff2..cac39ad054 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ type md5Test struct {
+@@ -54,13 +55,19 @@ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
+ 		c := md5.New()
+-		for j := 0; j < 3; j++ {
++		buf := make([]byte, len(g.in)+4)
++		for j := 0; j < 3+4; j++ {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+-			} else {
++			} else if j == 2 {
+ 				io.WriteString(c, g.in[0:len(g.in)/2])
+ 				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
++			} else if j > 2 {
++				// test unaligned write
++				buf = buf[1:]
++				copy(buf, g.in)
++				c.Write(buf[:len(g.in)])
+ 			}
+ 			s := fmt.Sprintf("%x", c.Sum(nil))
+ 			if s != g.out {
+@@ -80,11 +87,18 @@ func ExampleNew() {
+ }
+ 
+ var bench = md5.New()
+-var buf = make([]byte, 8192)
++var buf = make([]byte, 8192+1)
++var sum = make([]byte, bench.Size())
+ 
+-func benchmarkSize(b *testing.B, size int) {
++func benchmarkSize(b *testing.B, size int, unaligned bool) {
+ 	b.SetBytes(int64(size))
+-	sum := make([]byte, bench.Size())
++	buf := buf
++	if unaligned {
++		if uintptr(unsafe.Pointer(&buf[0]))&(unsafe.Alignof(uint32(0))-1) == 0 {
++			buf = buf[1:]
++		}
++	}
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		bench.Reset()
+ 		bench.Write(buf[:size])
+@@ -93,13 +107,25 @@ func benchmarkSize(b *testing.B, size int) {
+ }
+ 
+ func BenchmarkHash8Bytes(b *testing.B) {
+-	benchmarkSize(b, 8)
++	benchmarkSize(b, 8, false)
+ }
+ 
+ func BenchmarkHash1K(b *testing.B) {
+-	benchmarkSize(b, 1024)
++	benchmarkSize(b, 1024, false)
+ }
+ 
+ func BenchmarkHash8K(b *testing.B) {
+-	benchmarkSize(b, 8192)
++	benchmarkSize(b, 8192, false)
++}
++
++func BenchmarkHash8BytesUnaligned(b *testing.B) {
++	benchmarkSize(b, 8, true)
++}
++
++func BenchmarkHash1KUnaligned(b *testing.B) {
++	benchmarkSize(b, 1024, true)
++}
++
++func BenchmarkHash8KUnaligned(b *testing.B) {
++	benchmarkSize(b, 8192, true)
+ }
+diff --git a/src/pkg/crypto/md5/md5block.go b/src/pkg/crypto/md5/md5block.go
+index 5dbdf5606b..59f8f6f5af 100644
+--- a/src/pkg/crypto/md5/md5block.go
++++ b/src/pkg/crypto/md5/md5block.go
+@@ -22,6 +22,8 @@ func block(dig *digest, p []byte) {
+ 			// less code and run 1.3x faster if we take advantage of that.
+ 			// My apologies.
+ 			X = (*[16]uint32)(unsafe.Pointer(&p[0]))
++		} else if uintptr(unsafe.Pointer(&p[0]))&(unsafe.Alignof(uint32(0))-1) == 0 {
++			X = (*[16]uint32)(unsafe.Pointer(&p[0]))
+ 		} else {
+ 			X = &xbuf
+ 			j := 0

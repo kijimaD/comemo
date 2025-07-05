@@ -41,7 +41,7 @@ Date:   Sun Nov 8 11:57:42 2020 +0100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Alex Brainman <alex.brainman@gmail.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/cmd/link/internal/ld/lib.go                    |   2 +-
  src/cmd/link/internal/ld/pe.go                     |  60 ++++++++++++---------
  src/cmd/link/internal/loadpe/ldpe.go               |  49 +++++++++--------
@@ -49,3 +49,370 @@ Date:   Sun Nov 8 11:57:42 2020 +0100
  src/cmd/link/testdata/testPErsrc-complex/main.go   |  43 +++++++++++++++
  src/cmd/link/testdata/testPErsrc-complex/rsrc.syso | Bin 0 -> 352 bytes
  6 files changed, 124 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 833b3eb9db..bf95745d8d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1820,7 +1820,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 				Errorf(nil, "%v", err)
+ 				return
+ 			}
+-			if rsrc != 0 {
++			if len(rsrc) != 0 {
+ 				setpersrc(ctxt, rsrc)
+ 			}
+ 			ctxt.Textp = append(ctxt.Textp, textp...)
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index adbf516d5c..5edaf54dd2 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -253,7 +253,7 @@ type Dll struct {
+ }
+ 
+ var (
+-	rsrcsym     loader.Sym
++	rsrcsyms    []loader.Sym
+ 	PESECTHEADR int32
+ 	PEFILEHEADR int32
+ 	pe64        int
+@@ -1508,46 +1508,56 @@ func (ctxt *Link) dope() {
+ 	initdynexport(ctxt)
+ }
+ 
+-func setpersrc(ctxt *Link, sym loader.Sym) {
+-	if rsrcsym != 0 {
++func setpersrc(ctxt *Link, syms []loader.Sym) {
++	if len(rsrcsyms) != 0 {
+ 		Errorf(nil, "too many .rsrc sections")
+ 	}
+-
+-	rsrcsym = sym
++	rsrcsyms = syms
+ }
+ 
+ func addpersrc(ctxt *Link) {
+-	if rsrcsym == 0 {
++	if len(rsrcsyms) == 0 {
+ 		return
+ 	}
+ 
+-	data := ctxt.loader.Data(rsrcsym)
+-	size := len(data)
+-	h := pefile.addSection(".rsrc", size, size)
++	var size int64
++	for _, rsrcsym := range rsrcsyms {
++		size += ctxt.loader.SymSize(rsrcsym)
++	}
++	h := pefile.addSection(".rsrc", int(size), int(size))
+ 	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_CNT_INITIALIZED_DATA
+ 	h.checkOffset(ctxt.Out.Offset())
+ 
+-	// relocation
+-	relocs := ctxt.loader.Relocs(rsrcsym)
+-	for i := 0; i < relocs.Count(); i++ {
+-		r := relocs.At(i)
+-		p := data[r.Off():]
+-		val := uint32(int64(h.virtualAddress) + r.Add())
+-
+-		// 32-bit little-endian
+-		p[0] = byte(val)
+-
+-		p[1] = byte(val >> 8)
+-		p[2] = byte(val >> 16)
+-		p[3] = byte(val >> 24)
++	for _, rsrcsym := range rsrcsyms {
++		// A split resource happens when the actual resource data and its relocations are
++		// split across multiple sections, denoted by a $01 or $02 at the end of the .rsrc
++		// section name.
++		splitResources := strings.Contains(ctxt.loader.SymName(rsrcsym), ".rsrc$")
++		relocs := ctxt.loader.Relocs(rsrcsym)
++		data := ctxt.loader.Data(rsrcsym)
++		for ri := 0; ri < relocs.Count(); ri++ {
++			r := relocs.At(ri)
++			p := data[r.Off():]
++			val := uint32(int64(h.virtualAddress) + r.Add())
++			if splitResources {
++				// If we're a split resource section, and that section has relocation
++				// symbols, then the data that it points to doesn't actually begin at
++				// the virtual address listed in this current section, but rather
++				// begins at the section immediately after this one. So, in order to
++				// calculate the proper virtual address of the data it's pointing to,
++				// we have to add the length of this section to the virtual address.
++				// This works because .rsrc sections are divided into two (but not more)
++				// of these sections.
++				val += uint32(len(data))
++			}
++			binary.LittleEndian.PutUint32(p, val)
++		}
++		ctxt.Out.Write(data)
+ 	}
+-
+-	ctxt.Out.Write(data)
+ 	h.pad(ctxt.Out, uint32(size))
+ 
+ 	// update data directory
+ 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress
+-
+ 	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
+ }
+ 
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 1e6f978531..a5c025de8f 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -157,8 +157,9 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
+ 
+ // Load loads the PE file pn from input.
+ // Symbols are written into syms, and a slice of the text symbols is returned.
+-// If an .rsrc section is found, its symbol is returned as rsrc.
+-func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc loader.Sym, err error) {
++// If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
++// returned as rsrc.
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
+ 	lookup := func(name string, version int) (*loader.SymbolBuilder, loader.Sym) {
+ 		s := l.LookupOrCreateSym(name, version)
+ 		sb := l.MakeSymbolUpdater(s)
+@@ -176,7 +177,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 	// TODO: replace pe.NewFile with pe.Load (grep for "add Load function" in debug/pe for details)
+ 	f, err := pe.NewFile(sr)
+ 	if err != nil {
+-		return nil, 0, err
++		return nil, nil, err
+ 	}
+ 	defer f.Close()
+ 
+@@ -211,21 +212,21 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			bld.SetType(sym.STEXT)
+ 
+ 		default:
+-			return nil, 0, fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
++			return nil, nil, fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
+ 		}
+ 
+ 		if bld.Type() != sym.SNOPTRBSS {
+ 			data, err := sect.Data()
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, nil, err
+ 			}
+ 			sectdata[sect] = data
+ 			bld.SetData(data)
+ 		}
+ 		bld.SetSize(int64(sect.Size))
+ 		sectsyms[sect] = s
+-		if sect.Name == ".rsrc" {
+-			rsrc = s
++		if sect.Name == ".rsrc" || strings.HasPrefix(sect.Name, ".rsrc$") {
++			rsrc = append(rsrc, s)
+ 		}
+ 	}
+ 
+@@ -246,22 +247,23 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			continue
+ 		}
+ 
++		splitResources := strings.HasPrefix(rsect.Name, ".rsrc$")
+ 		sb := l.MakeSymbolUpdater(sectsyms[rsect])
+ 		for j, r := range rsect.Relocs {
+ 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
+-				return nil, 0, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
++				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
+ 			}
+ 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
+ 			_, gosym, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
+ 			if err != nil {
+-				return nil, 0, err
++				return nil, nil, err
+ 			}
+ 			if gosym == 0 {
+ 				name, err := pesym.FullName(f.StringTable)
+ 				if err != nil {
+ 					name = string(pesym.Name[:])
+ 				}
+-				return nil, 0, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
++				return nil, nil, fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
+ 			}
+ 
+ 			rSym := gosym
+@@ -271,11 +273,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			var rType objabi.RelocType
+ 			switch arch.Family {
+ 			default:
+-				return nil, 0, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
++				return nil, nil, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
+ 			case sys.I386, sys.AMD64:
+ 				switch r.Type {
+ 				default:
+-					return nil, 0, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
++					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
+ 
+ 				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
+ 					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
+@@ -302,7 +304,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			case sys.ARM:
+ 				switch r.Type {
+ 				default:
+-					return nil, 0, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
++					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
+ 
+ 				case IMAGE_REL_ARM_SECREL:
+ 					rType = objabi.R_PCREL
+@@ -323,8 +325,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 
+ 			// ld -r could generate multiple section symbols for the
+ 			// same section but with different values, we have to take
+-			// that into account
+-			if issect(pesym) {
++			// that into account, or in the case of split resources,
++			// the section and its symbols are split into two sections.
++			if issect(pesym) || splitResources {
+ 				rAdd += int64(pesym.Value)
+ 			}
+ 
+@@ -346,7 +349,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 
+ 		name, err := pesym.FullName(f.StringTable)
+ 		if err != nil {
+-			return nil, 0, err
++			return nil, nil, err
+ 		}
+ 		if name == "" {
+ 			continue
+@@ -384,7 +387,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 
+ 		bld, s, err := readpesym(l, arch, l.LookupOrCreateSym, f, pesym, sectsyms, localSymVersion)
+ 		if err != nil {
+-			return nil, 0, err
++			return nil, nil, err
+ 		}
+ 
+ 		if pesym.SectionNumber == 0 { // extern
+@@ -402,14 +405,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		} else if pesym.SectionNumber > 0 && int(pesym.SectionNumber) <= len(f.Sections) {
+ 			sect = f.Sections[pesym.SectionNumber-1]
+ 			if _, found := sectsyms[sect]; !found {
+-				return nil, 0, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
++				return nil, nil, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
+ 			}
+ 		} else {
+-			return nil, 0, fmt.Errorf("%s: %v: sectnum < 0!", pn, s)
++			return nil, nil, fmt.Errorf("%s: %v: sectnum < 0!", pn, s)
+ 		}
+ 
+ 		if sect == nil {
+-			return nil, 0, nil
++			return nil, nil, nil
+ 		}
+ 
+ 		if l.OuterSym(s) != 0 {
+@@ -418,7 +421,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 			}
+ 			outerName := l.SymName(l.OuterSym(s))
+ 			sectName := l.SymName(sectsyms[sect])
+-			return nil, 0, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, l.SymName(s), outerName, sectName)
++			return nil, nil, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, l.SymName(s), outerName, sectName)
+ 		}
+ 
+ 		bld = makeUpdater(l, bld, s)
+@@ -429,7 +432,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		bld.SetSize(4)
+ 		if l.SymType(sectsym) == sym.STEXT {
+ 			if bld.External() && !bld.DuplicateOK() {
+-				return nil, 0, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
++				return nil, nil, fmt.Errorf("%s: duplicate symbol definition", l.SymName(s))
+ 			}
+ 			bld.SetExternal(true)
+ 		}
+@@ -446,7 +449,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		if l.SymType(s) == sym.STEXT {
+ 			for ; s != 0; s = l.SubSym(s) {
+ 				if l.AttrOnList(s) {
+-					return nil, 0, fmt.Errorf("symbol %s listed multiple times", l.SymName(s))
++					return nil, nil, fmt.Errorf("symbol %s listed multiple times", l.SymName(s))
+ 				}
+ 				l.SetAttrOnList(s, true)
+ 				textp = append(textp, s)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 4eb02c9e8a..7eeb7ef568 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -786,6 +786,25 @@ func TestPErsrc(t *testing.T) {
+ 	if !bytes.Contains(b, []byte("Hello Gophers!")) {
+ 		t.Fatalf("binary does not contain expected content")
+ 	}
++
++	pkgdir = filepath.Join("testdata", "testPErsrc-complex")
++	exe = filepath.Join(tmpdir, "a.exe")
++	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
++	cmd.Dir = pkgdir
++	// cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64") // uncomment if debugging in a cross-compiling environment
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("building failed: %v, output:\n%s", err, out)
++	}
++
++	// Check that the binary contains the rsrc data
++	b, err = ioutil.ReadFile(exe)
++	if err != nil {
++		t.Fatalf("reading output failed: %v", err)
++	}
++	if !bytes.Contains(b, []byte("resname RCDATA a.rc")) {
++		t.Fatalf("binary does not contain expected content")
++	}
+ }
+ 
+ func TestContentAddressableSymbols(t *testing.T) {
+diff --git a/src/cmd/link/testdata/testPErsrc-complex/main.go b/src/cmd/link/testdata/testPErsrc-complex/main.go
+new file mode 100644
+index 0000000000..affd6eada2
+--- /dev/null
++++ b/src/cmd/link/testdata/testPErsrc-complex/main.go
+@@ -0,0 +1,43 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a PE rsrc section is handled correctly, when the object files
++// have been created by llvm-rc or msvc's rc.exe, which means there's the
++// @feat.00 symbol as well as split .rsrc$00 and .rsrc$01 section to deal with.
++//
++// rsrc.syso is created with:
++//    windres -i a.rc -o rsrc.syso -O coff
++// where this windres calls into llvm-rc and llvm-cvtres. The source file,
++// a.rc, simply contains a reference to its own bytes:
++//
++//    resname RCDATA a.rc
++//
++// Object dumping the resultant rsrc.syso, we can see the split sections and
++// the @feat.00 SEH symbol:
++//
++//     rsrc.syso:      file format coff-x86-64
++//
++//     architecture: x86_64
++//     start address: 0x0000000000000000
++//
++//     Export Table:
++//     Sections:
++//     Idx Name          Size     VMA              Type
++//       0 .rsrc$01      00000068 0000000000000000 DATA
++//       1 .rsrc$02      00000018 0000000000000000 DATA
++//
++//     SYMBOL TABLE:
++//     [ 0](sec -1)(fl 0x00)(ty   0)(scl   3) (nx 0) 0x00000011 @feat.00
++//     [ 1](sec  1)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .rsrc$01
++//     AUX scnlen 0x68 nreloc 1 nlnno 0 checksum 0x0 assoc 0 comdat 0
++//     [ 3](sec  2)(fl 0x00)(ty   0)(scl   3) (nx 1) 0x00000000 .rsrc$02
++//     AUX scnlen 0x18 nreloc 0 nlnno 0 checksum 0x0 assoc 0 comdat 0
++//     [ 5](sec  2)(fl 0x00)(ty   0)(scl   3) (nx 0) 0x00000000 $R000000
++//     RELOCATION RECORDS FOR [.rsrc$01]:
++//     OFFSET           TYPE                     VALUE
++//     0000000000000048 IMAGE_REL_AMD64_ADDR32NB $R000000
++
++package main
++
++func main() {}
+diff --git a/src/cmd/link/testdata/testPErsrc-complex/rsrc.syso b/src/cmd/link/testdata/testPErsrc-complex/rsrc.syso
+new file mode 100644
+index 0000000000..eff630b8a2
+Binary files /dev/null and b/src/cmd/link/testdata/testPErsrc-complex/rsrc.syso differ

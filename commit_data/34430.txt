@@ -19,7 +19,77 @@ Date:   Mon Oct 2 15:47:41 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/70980
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  4 ++--
  test/fixedbugs/issue22083.go       | 41 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9c1b3ca69f..63e9622983 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -282,7 +282,7 @@ type state struct {
+ 
+ type funcLine struct {
+ 	f    *obj.LSym
+-	file string
++	base *src.PosBase
+ 	line uint
+ }
+ 
+@@ -3456,7 +3456,7 @@ func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
+ 	line := s.peekPos()
+ 	pos := Ctxt.PosTable.Pos(line)
+-	fl := funcLine{f: fn, file: pos.Filename(), line: pos.Line()}
++	fl := funcLine{f: fn, base: pos.Base(), line: pos.Line()}
+ 	bPanic := s.panics[fl]
+ 	if bPanic == nil {
+ 		bPanic = s.f.NewBlock(ssa.BlockPlain)
+diff --git a/test/fixedbugs/issue22083.go b/test/fixedbugs/issue22083.go
+new file mode 100644
+index 0000000000..a385102d08
+--- /dev/null
++++ b/test/fixedbugs/issue22083.go
+@@ -0,0 +1,41 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The compiler was panicking on the wrong line number, where
++// the panic was occurring in an inlined call.
++
++package main
++
++import (
++	"runtime/debug"
++	"strings"
++)
++
++type Wrapper struct {
++	a []int
++}
++
++func (w Wrapper) Get(i int) int {
++	return w.a[i]
++}
++
++func main() {
++	defer func() {
++		e := recover()
++		if e == nil {
++			panic("bounds check didn't fail")
++		}
++		stk := string(debug.Stack())
++		if !strings.Contains(stk, "issue22083.go:40") {
++			panic("wrong stack trace: " + stk)
++		}
++	}()
++	foo := Wrapper{a: []int{0, 1, 2}}
++	_ = foo.Get(0)
++	_ = foo.Get(1)
++	_ = foo.Get(2)
++	_ = foo.Get(3) // stack trace should mention this line
++}

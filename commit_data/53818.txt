@@ -28,7 +28,7 @@ Date:   Thu Aug 18 13:43:47 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/poll/copy_file_range_linux.go        | 37 +-------------
  src/internal/syscall/unix/kernel_version_linux.go | 49 ++++++++++++++++++
  src/internal/syscall/unix/kernel_version_other.go | 11 ++++
@@ -38,3 +38,321 @@ Date:   Thu Aug 18 13:43:47 2022 -0700
  src/runtime/pprof/uname_linux_test.go             | 61 -----------------------
  src/runtime/pprof/uname_other_test.go             | 15 ------
  8 files changed, 71 insertions(+), 155 deletions(-)
+
+diff --git a/src/internal/poll/copy_file_range_linux.go b/src/internal/poll/copy_file_range_linux.go
+index c2347ba7f2..ba33f5145d 100644
+--- a/src/internal/poll/copy_file_range_linux.go
++++ b/src/internal/poll/copy_file_range_linux.go
+@@ -17,46 +17,11 @@ var (
+ 
+ const maxCopyFileRangeRound = 1 << 30
+ 
+-func kernelVersion() (major int, minor int) {
+-	var uname syscall.Utsname
+-	if err := syscall.Uname(&uname); err != nil {
+-		return
+-	}
+-
+-	rl := uname.Release
+-	var values [2]int
+-	vi := 0
+-	value := 0
+-	for _, c := range rl {
+-		if '0' <= c && c <= '9' {
+-			value = (value * 10) + int(c-'0')
+-		} else {
+-			// Note that we're assuming N.N.N here.  If we see anything else we are likely to
+-			// mis-parse it.
+-			values[vi] = value
+-			vi++
+-			if vi >= len(values) {
+-				break
+-			}
+-			value = 0
+-		}
+-	}
+-	switch vi {
+-	case 0:
+-		return 0, 0
+-	case 1:
+-		return values[0], 0
+-	case 2:
+-		return values[0], values[1]
+-	}
+-	return
+-}
+-
+ // CopyFileRange copies at most remain bytes of data from src to dst, using
+ // the copy_file_range system call. dst and src must refer to regular files.
+ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err error) {
+ 	kernelVersion53Once.Do(func() {
+-		major, minor := kernelVersion()
++		major, minor := unix.KernelVersion()
+ 		// copy_file_range(2) is broken in various ways on kernels older than 5.3,
+ 		// see issue #42400 and
+ 		// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
+diff --git a/src/internal/syscall/unix/kernel_version_linux.go b/src/internal/syscall/unix/kernel_version_linux.go
+new file mode 100644
+index 0000000000..bb1d4de3a6
+--- /dev/null
++++ b/src/internal/syscall/unix/kernel_version_linux.go
+@@ -0,0 +1,49 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++)
++
++// KernelVersion returns major and minor kernel version numbers, parsed from
++// the syscall.Uname's Release field, or 0, 0 if the version can't be obtained
++// or parsed.
++//
++// Currently only implemented for Linux.
++func KernelVersion() (major int, minor int) {
++	var uname syscall.Utsname
++	if err := syscall.Uname(&uname); err != nil {
++		return
++	}
++
++	rl := uname.Release
++	var values [2]int
++	vi := 0
++	value := 0
++	for _, c := range rl {
++		if '0' <= c && c <= '9' {
++			value = (value * 10) + int(c-'0')
++		} else {
++			// Note that we're assuming N.N.N here.
++			// If we see anything else, we are likely to mis-parse it.
++			values[vi] = value
++			vi++
++			if vi >= len(values) {
++				break
++			}
++			value = 0
++		}
++	}
++	switch vi {
++	case 0:
++		return 0, 0
++	case 1:
++		return values[0], 0
++	case 2:
++		return values[0], values[1]
++	}
++	return
++}
+diff --git a/src/internal/syscall/unix/kernel_version_other.go b/src/internal/syscall/unix/kernel_version_other.go
+new file mode 100644
+index 0000000000..00af9f2ba0
+--- /dev/null
++++ b/src/internal/syscall/unix/kernel_version_other.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux
++
++package unix
++
++func KernelVersion() (major int, minor int) {
++	return 0, 0
++}
+diff --git a/src/net/sock_linux.go b/src/net/sock_linux.go
+index 2513f9ba7b..cffe9a236f 100644
+--- a/src/net/sock_linux.go
++++ b/src/net/sock_linux.go
+@@ -4,42 +4,10 @@
+ 
+ package net
+ 
+-import "syscall"
+-
+-func kernelVersion() (major int, minor int) {
+-	var uname syscall.Utsname
+-	if err := syscall.Uname(&uname); err != nil {
+-		return
+-	}
+-
+-	rl := uname.Release
+-	var values [2]int
+-	vi := 0
+-	value := 0
+-	for _, c := range rl {
+-		if c >= '0' && c <= '9' {
+-			value = (value * 10) + int(c-'0')
+-		} else {
+-			// Note that we're assuming N.N.N here.  If we see anything else we are likely to
+-			// mis-parse it.
+-			values[vi] = value
+-			vi++
+-			if vi >= len(values) {
+-				break
+-			}
+-			value = 0
+-		}
+-	}
+-	switch vi {
+-	case 0:
+-		return 0, 0
+-	case 1:
+-		return values[0], 0
+-	case 2:
+-		return values[0], values[1]
+-	}
+-	return
+-}
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
+ 
+ // Linux stores the backlog as:
+ //
+@@ -50,7 +18,7 @@ func kernelVersion() (major int, minor int) {
+ //
+ // See issue 5030 and 41470.
+ func maxAckBacklog(n int) int {
+-	major, minor := kernelVersion()
++	major, minor := unix.KernelVersion()
+ 	size := 16
+ 	if major > 4 || (major == 4 && minor >= 1) {
+ 		size = 32
+diff --git a/src/net/sock_linux_test.go b/src/net/sock_linux_test.go
+index 5df02935c3..11303cfff1 100644
+--- a/src/net/sock_linux_test.go
++++ b/src/net/sock_linux_test.go
+@@ -5,12 +5,13 @@
+ package net
+ 
+ import (
++	"internal/syscall/unix"
+ 	"testing"
+ )
+ 
+ func TestMaxAckBacklog(t *testing.T) {
+ 	n := 196602
+-	major, minor := kernelVersion()
++	major, minor := unix.KernelVersion()
+ 	backlog := maxAckBacklog(n)
+ 	expected := 1<<16 - 1
+ 	if major > 4 || (major == 4 && minor >= 1) {
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 28b8f4319e..31a4024be8 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/profile"
++	"internal/syscall/unix"
+ 	"internal/testenv"
+ 	"io"
+ 	"math"
+@@ -116,11 +117,8 @@ func TestCPUProfileMultithreadMagnitude(t *testing.T) {
+ 
+ 	// Linux [5.9,5.16) has a kernel bug that can break CPU timers on newly
+ 	// created threads, breaking our CPU accounting.
+-	major, minor, patch, err := linuxKernelVersion()
+-	if err != nil {
+-		t.Errorf("Error determining kernel version: %v", err)
+-	}
+-	t.Logf("Running on Linux %d.%d.%d", major, minor, patch)
++	major, minor := unix.KernelVersion()
++	t.Logf("Running on Linux %d.%d", major, minor)
+ 	defer func() {
+ 		if t.Failed() {
+ 			t.Logf("Failure of this test may indicate that your system suffers from a known Linux kernel bug fixed on newer kernels. See https://golang.org/issue/49065.")
+diff --git a/src/runtime/pprof/uname_linux_test.go b/src/runtime/pprof/uname_linux_test.go
+deleted file mode 100644
+index 8374c83f74..0000000000
+--- a/src/runtime/pprof/uname_linux_test.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build linux
+-
+-package pprof
+-
+-import (
+-	"fmt"
+-	"regexp"
+-	"strconv"
+-	"syscall"
+-)
+-
+-var versionRe = regexp.MustCompile(`^(\d+)(?:\.(\d+)(?:\.(\d+))).*$`)
+-
+-func linuxKernelVersion() (major, minor, patch int, err error) {
+-	var uname syscall.Utsname
+-	if err := syscall.Uname(&uname); err != nil {
+-		return 0, 0, 0, err
+-	}
+-
+-	buf := make([]byte, 0, len(uname.Release))
+-	for _, b := range uname.Release {
+-		if b == 0 {
+-			break
+-		}
+-		buf = append(buf, byte(b))
+-	}
+-	rl := string(buf)
+-
+-	m := versionRe.FindStringSubmatch(rl)
+-	if m == nil {
+-		return 0, 0, 0, fmt.Errorf("error matching version number in %q", rl)
+-	}
+-
+-	v, err := strconv.ParseInt(m[1], 10, 64)
+-	if err != nil {
+-		return 0, 0, 0, fmt.Errorf("error parsing major version %q in %s: %w", m[1], rl, err)
+-	}
+-	major = int(v)
+-
+-	if len(m) >= 3 {
+-		v, err := strconv.ParseInt(m[2], 10, 64)
+-		if err != nil {
+-			return 0, 0, 0, fmt.Errorf("error parsing minor version %q in %s: %w", m[2], rl, err)
+-		}
+-		minor = int(v)
+-	}
+-
+-	if len(m) >= 4 {
+-		v, err := strconv.ParseInt(m[3], 10, 64)
+-		if err != nil {
+-			return 0, 0, 0, fmt.Errorf("error parsing patch version %q in %s: %w", m[3], rl, err)
+-		}
+-		patch = int(v)
+-	}
+-
+-	return
+-}
+diff --git a/src/runtime/pprof/uname_other_test.go b/src/runtime/pprof/uname_other_test.go
+deleted file mode 100644
+index 327640755b..0000000000
+--- a/src/runtime/pprof/uname_other_test.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !linux
+-
+-package pprof
+-
+-import (
+-	"errors"
+-)
+-
+-func linuxKernelVersion() (major, minor, patch int, err error) {
+-	return 0, 0, 0, errors.New("not running on linux")
+-}

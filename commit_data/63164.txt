@@ -25,6 +25,19 @@ Date:   Fri May 16 14:40:27 2025 -0400
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Bypass: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/tls/bogo_config.json | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 64781b3fba..d46b073029 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -61,7 +61,6 @@
+         "BadRSAClientKeyExchange-4": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
+         "BadRSAClientKeyExchange-5": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
+         "CheckLeafCurve": "TODO: first pass, this should be fixed",
+-        "DisabledCurve-HelloRetryRequest-TLS13": "TODO: first pass, this should be fixed",
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",

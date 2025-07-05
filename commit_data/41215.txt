@@ -16,7 +16,48 @@ Date:   Wed Sep 11 07:22:35 2019 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/interface.go   |  2 +-
  src/go/parser/parser_test.go | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 9de160a798..0c3f824c98 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -173,7 +173,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ // be a valid Go (type or value) expression. Specifically, fset must not
+ // be nil.
+ //
+-func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (ast.Expr, error) {
++func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (expr ast.Expr, err error) {
+ 	if fset == nil {
+ 		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
+ 	}
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index fb35a88ba1..18c05bce20 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -42,6 +42,22 @@ func nameFilter(filename string) bool {
+ 
+ func dirFilter(f os.FileInfo) bool { return nameFilter(f.Name()) }
+ 
++func TestParseFile(t *testing.T) {
++	src := "package p\nvar _=s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
++	_, err := ParseFile(token.NewFileSet(), "", src, 0)
++	if err == nil {
++		t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
++	}
++}
++
++func TestParseExprFrom(t *testing.T) {
++	src := "s[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]+\ns[::]"
++	_, err := ParseExprFrom(token.NewFileSet(), "", src, 0)
++	if err == nil {
++		t.Errorf("ParseExprFrom(%s) succeeded unexpectedly", src)
++	}
++}
++
+ func TestParseDir(t *testing.T) {
+ 	path := "."
+ 	pkgs, err := ParseDir(token.NewFileSet(), path, dirFilter, 0)

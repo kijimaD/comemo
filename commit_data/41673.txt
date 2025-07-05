@@ -16,7 +16,7 @@ Date:   Fri Oct 18 15:02:49 2019 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go.mod                                                     | 2 +-
  src/cmd/go.sum                                                     | 4 ++--
  .../golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go       | 5 -----
@@ -25,3 +25,139 @@ Date:   Fri Oct 18 15:02:49 2019 -0700
  src/cmd/vendor/modules.txt                                         | 2 +-
  src/cmd/vet/testdata/print/print.go                                | 5 ++---
  7 files changed, 8 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index e4a2eaa908..77ec02a8a9 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
++	golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 7c3ee7304b..6a3d609416 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,7 +14,7 @@ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dz
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b h1:gyG4T6EqWG9fqSgT0VbHhzp8bHbFux5mvlgz1gUkEaQ=
+-golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5 h1:TFUhCYbgGMOGnRxJv+j0iAcxCjk8oGjXXWNejQBhUUs=
++golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index d41c4e97e3..6e7a76e8c8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -79,7 +79,6 @@ var (
+ 	asmArchArm      = asmArch{name: "arm", bigEndian: false, stack: "R13", lr: true}
+ 	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true}
+ 	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false}
+-	asmArchAmd64p32 = asmArch{name: "amd64p32", bigEndian: false, stack: "SP", lr: false}
+ 	asmArchMips     = asmArch{name: "mips", bigEndian: true, stack: "R29", lr: true}
+ 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
+ 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
+@@ -94,7 +93,6 @@ var (
+ 		&asmArchArm,
+ 		&asmArchArm64,
+ 		&asmArchAmd64,
+-		&asmArchAmd64p32,
+ 		&asmArchMips,
+ 		&asmArchMipsLE,
+ 		&asmArchMips64,
+@@ -635,9 +633,6 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
+ 	case "amd64.LEAQ":
+ 		dst = 8
+ 		addr = true
+-	case "amd64p32.LEAL":
+-		dst = 4
+-		addr = true
+ 	default:
+ 		switch fn.arch.name {
+ 		case "386", "amd64":
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index f0d7e44c65..b501538055 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -766,8 +766,8 @@ var printVerbs = []printVerb{
+ 	{'U', "-#", argRune | argInt},
+ 	{'v', allFlags, anyType},
+ 	{'w', allFlags, argError},
+-	{'x', sharpNumFlag, argRune | argInt | argString | argPointer},
+-	{'X', sharpNumFlag, argRune | argInt | argString | argPointer},
++	{'x', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
++	{'X', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
+ }
+ 
+ // okPrintfArg compares the formatState to the arguments actually present,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+index b984ab6c2d..be98143461 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/validate.go
+@@ -9,13 +9,10 @@ import (
+ // Validate reports an error if any of the analyzers are misconfigured.
+ // Checks include:
+ // that the name is a valid identifier;
+-// that analyzer names are unique;
+ // that the Requires graph is acyclic;
+ // that analyzer fact types are unique;
+ // that each fact type is a pointer.
+ func Validate(analyzers []*Analyzer) error {
+-	names := make(map[string]bool)
+-
+ 	// Map each fact type to its sole generating analyzer.
+ 	factTypes := make(map[reflect.Type]*Analyzer)
+ 
+@@ -39,10 +36,6 @@ func Validate(analyzers []*Analyzer) error {
+ 			if !validIdent(a.Name) {
+ 				return fmt.Errorf("invalid analyzer name %q", a)
+ 			}
+-			if names[a.Name] {
+-				return fmt.Errorf("duplicate analyzer name %q", a)
+-			}
+-			names[a.Name] = true
+ 
+ 			if a.Doc == "" {
+ 				return fmt.Errorf("analyzer %q is undocumented", a)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6ed3e16e2a..12f8740f4d 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -31,7 +31,7 @@ golang.org/x/crypto/ssh/terminal
+ ## explicit
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190925211824-e4ea94538f5b
++# golang.org/x/tools v0.0.0-20191018203202-04252eccb9d5
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+diff --git a/src/cmd/vet/testdata/print/print.go b/src/cmd/vet/testdata/print/print.go
+index 7a4783aee4..fca594925f 100644
+--- a/src/cmd/vet/testdata/print/print.go
++++ b/src/cmd/vet/testdata/print/print.go
+@@ -81,8 +81,8 @@ func PrintfTests() {
+ 	fmt.Printf("%T %T", 3, i)
+ 	fmt.Printf("%U %U", 3, i)
+ 	fmt.Printf("%v %v", 3, i)
+-	fmt.Printf("%x %x %x %x", 3, i, "hi", s)
+-	fmt.Printf("%X %X %X %X", 3, i, "hi", s)
++	fmt.Printf("%x %x %x %x %x %x %x", 3, i, "hi", s, x, c, fslice)
++	fmt.Printf("%X %X %X %X %X %X %X", 3, i, "hi", s, x, c, fslice)
+ 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 2.3)
+ 	fmt.Printf("%s", &stringerv)
+ 	fmt.Printf("%v", &stringerv)
+@@ -125,7 +125,6 @@ func PrintfTests() {
+ 	fmt.Printf("%t", 23)                        // ERROR "Printf format %t has arg 23 of wrong type int"
+ 	fmt.Printf("%U", x)                         // ERROR "Printf format %U has arg x of wrong type float64"
+ 	fmt.Printf("%x", nil)                       // ERROR "Printf format %x has arg nil of wrong type untyped nil"
+-	fmt.Printf("%X", 2.3)                       // ERROR "Printf format %X has arg 2.3 of wrong type float64"
+ 	fmt.Printf("%s", stringerv)                 // ERROR "Printf format %s has arg stringerv of wrong type .*print.ptrStringer"
+ 	fmt.Printf("%t", stringerv)                 // ERROR "Printf format %t has arg stringerv of wrong type .*print.ptrStringer"
+ 	fmt.Printf("%s", embeddedStringerv)         // ERROR "Printf format %s has arg embeddedStringerv of wrong type .*print.embeddedStringer"

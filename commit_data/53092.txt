@@ -12,7 +12,42 @@ Date:   Sat Jul 9 18:38:45 2022 +0100
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/url/url.go      |  2 +-
  src/net/url/url_test.go | 10 ++++++++++
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index db4d6385e3..e82ae6aeef 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -1193,7 +1193,7 @@ func (u *URL) UnmarshalBinary(text []byte) error {
+ func (u *URL) JoinPath(elem ...string) *URL {
+ 	url := *u
+ 	if len(elem) > 0 {
+-		elem = append([]string{u.Path}, elem...)
++		elem = append([]string{u.EscapedPath()}, elem...)
+ 		p := path.Join(elem...)
+ 		// path.Join will remove any trailing slashes.
+ 		// Preserve at least one.
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 478cc34872..263eddffcf 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -2119,6 +2119,16 @@ func TestJoinPath(t *testing.T) {
+ 			elem: nil,
+ 			out:  "https://go.googlesource.com/",
+ 		},
++		{
++			base: "https://go.googlesource.com/a%2fb",
++			elem: []string{"c"},
++			out:  "https://go.googlesource.com/a%2fb/c",
++		},
++		{
++			base: "https://go.googlesource.com/a%2fb",
++			elem: []string{"c%2fd"},
++			out:  "https://go.googlesource.com/a%2fb/c%2fd",
++		},
+ 		{
+ 			base: "/",
+ 			elem: nil,

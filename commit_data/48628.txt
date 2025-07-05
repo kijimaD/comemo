@@ -17,9 +17,116 @@ Date:   Wed Jun 2 12:22:50 2021 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/func.go  | 12 ++++++++++++
  src/cmd/compile/internal/types2/builtins.go | 10 ++++++++++
  src/go/types/builtins.go                    | 10 ++++++++++
  test/fixedbugs/issue46525.go                | 14 ++++++++++++++
  4 files changed, 46 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index f381e1dbdc..a6dfbbf569 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -981,6 +981,12 @@ func tcRecover(n *ir.CallExpr) ir.Node {
+ 
+ // tcUnsafeAdd typechecks an OUNSAFEADD node.
+ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
++	if !types.AllowsGoVersion(curpkg(), 1, 17) {
++		base.ErrorfVers("go1.17", "unsafe.Add")
++		n.SetType(nil)
++		return n
++	}
++
+ 	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
+ 	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
+ 	if n.X.Type() == nil || n.Y.Type() == nil {
+@@ -997,6 +1003,12 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
+ 
+ // tcUnsafeSlice typechecks an OUNSAFESLICE node.
+ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
++	if !types.AllowsGoVersion(curpkg(), 1, 17) {
++		base.ErrorfVers("go1.17", "unsafe.Slice")
++		n.SetType(nil)
++		return n
++	}
++
+ 	n.X = Expr(n.X)
+ 	n.Y = Expr(n.Y)
+ 	if n.X.Type() == nil || n.Y.Type() == nil {
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index b9e178dd57..f90e06f226 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -579,6 +579,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Add:
+ 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
++		if !check.allowVersion(check.pkg, 1, 17) {
++			check.error(call.Fun, "unsafe.Add requires go1.17 or later")
++			return
++		}
++
+ 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
+ 		if x.mode == invalid {
+ 			return
+@@ -675,6 +680,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
++		if !check.allowVersion(check.pkg, 1, 17) {
++			check.error(call.Fun, "unsafe.Slice requires go1.17 or later")
++			return
++		}
++
+ 		typ := asPointer(x.typ)
+ 		if typ == nil {
+ 			check.errorf(x, invalidArg+"%s is not a pointer", x)
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 739051cc61..2a2d54da88 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -588,6 +588,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Add:
+ 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
++		if !check.allowVersion(check.pkg, 1, 17) {
++			check.errorf(call.Fun, _InvalidUnsafeAdd, "unsafe.Add requires go1.17 or later")
++			return
++		}
++
+ 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
+ 		if x.mode == invalid {
+ 			return
+@@ -684,6 +689,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Slice:
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
++		if !check.allowVersion(check.pkg, 1, 17) {
++			check.errorf(call.Fun, _InvalidUnsafeSlice, "unsafe.Slice requires go1.17 or later")
++			return
++		}
++
+ 		typ := asPointer(x.typ)
+ 		if typ == nil {
+ 			check.invalidArg(x, _InvalidUnsafeSlice, "%s is not a pointer", x)
+diff --git a/test/fixedbugs/issue46525.go b/test/fixedbugs/issue46525.go
+new file mode 100644
+index 0000000000..164e1473ce
+--- /dev/null
++++ b/test/fixedbugs/issue46525.go
+@@ -0,0 +1,14 @@
++// errorcheck -lang=go1.16
++
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package p
++
++import "unsafe"
++
++func main() {
++	_ = unsafe.Add(unsafe.Pointer(nil), 0) // ERROR "unsafe.Add requires go1.17 or later"
++	_ = unsafe.Slice(new(byte), 1)         // ERROR "unsafe.Slice requires go1.17 or later"
++}

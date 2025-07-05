@@ -20,6 +20,22 @@ Date:   Sun Aug 7 19:21:15 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/runtime/cgo/cgo.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index 298aa63675..4b7046e2cc 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -23,7 +23,9 @@ package cgo
+ #cgo solaris LDFLAGS: -lxnet
+ #cgo solaris LDFLAGS: -lsocket
+ 
+-#cgo CFLAGS: -Wall -Werror
++// We use -fno-stack-protector because internal linking won't find
++// the support functions. See issues #52919 and #54313.
++#cgo CFLAGS: -Wall -Werror -fno-stack-protector
+ 
+ #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS
+ 

@@ -12,7 +12,7 @@ Date:   Tue Feb 11 10:47:20 2025 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/67002.txt                         |  1 +
  doc/next/6-stdlib/99-minor/os/67002.md     |  1 +
  src/internal/syscall/unix/utimes.go        | 15 ++++++++++
@@ -25,3 +25,337 @@ Date:   Tue Feb 11 10:47:20 2025 -0800
  src/os/root_unix.go                        | 10 +++++++
  src/os/root_windows.go                     | 23 +++++++++++++++
  11 files changed, 178 insertions(+), 5 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index 216d3a3afe..2e6b6fe662 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -1,2 +1,3 @@
+ pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
+ pkg os, method (*Root) Chown(string, int, int) error #67002
++pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+index 04ff6d5de0..0f82fb31e6 100644
+--- a/doc/next/6-stdlib/99-minor/os/67002.md
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -2,3 +2,4 @@ The [os.Root] type supports the following additional methods:
+ 
+   * [os.Root.Chmod]
+   * [os.Root.Chown]
++  * [os.Root.Chtimes]
+diff --git a/src/internal/syscall/unix/utimes.go b/src/internal/syscall/unix/utimes.go
+new file mode 100644
+index 0000000000..332a4b69bb
+--- /dev/null
++++ b/src/internal/syscall/unix/utimes.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix && !wasip1
++
++package unix
++
++import (
++	"syscall"
++	_ "unsafe" // for //go:linkname
++)
++
++//go:linkname Utimensat syscall.utimensat
++func Utimensat(dirfd int, path string, times *[2]syscall.Timespec, flag int) error
+diff --git a/src/internal/syscall/unix/utimes_wasip1.go b/src/internal/syscall/unix/utimes_wasip1.go
+new file mode 100644
+index 0000000000..a0711b0c04
+--- /dev/null
++++ b/src/internal/syscall/unix/utimes_wasip1.go
+@@ -0,0 +1,42 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build wasip1
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:wasmimport wasi_snapshot_preview1 path_filestat_set_times
++//go:noescape
++func path_filestat_set_times(fd int32, flags uint32, path *byte, pathLen size, atim uint64, mtim uint64, fstflags uint32) syscall.Errno
++
++func Utimensat(dirfd int, path string, times *[2]syscall.Timespec, flag int) error {
++	if path == "" {
++		return syscall.EINVAL
++	}
++	atime := syscall.TimespecToNsec(times[0])
++	mtime := syscall.TimespecToNsec(times[1])
++
++	var fflag uint32
++	if times[0].Nsec != UTIME_OMIT {
++		fflag |= syscall.FILESTAT_SET_ATIM
++	}
++	if times[1].Nsec != UTIME_OMIT {
++		fflag |= syscall.FILESTAT_SET_MTIM
++	}
++	errno := path_filestat_set_times(
++		int32(dirfd),
++		syscall.LOOKUP_SYMLINK_FOLLOW,
++		unsafe.StringData(path),
++		size(len(path)),
++		uint64(atime),
++		uint64(mtime),
++		fflag,
++	)
++	return errnoErr(errno)
++}
+diff --git a/src/os/file_posix.go b/src/os/file_posix.go
+index 8b06227d42..68904f62e1 100644
+--- a/src/os/file_posix.go
++++ b/src/os/file_posix.go
+@@ -177,6 +177,14 @@ func (f *File) Sync() error {
+ // less precise time unit.
+ // If there is an error, it will be of type [*PathError].
+ func Chtimes(name string, atime time.Time, mtime time.Time) error {
++	utimes := chtimesUtimes(atime, mtime)
++	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
++		return &PathError{Op: "chtimes", Path: name, Err: e}
++	}
++	return nil
++}
++
++func chtimesUtimes(atime, mtime time.Time) [2]syscall.Timespec {
+ 	var utimes [2]syscall.Timespec
+ 	set := func(i int, t time.Time) {
+ 		if t.IsZero() {
+@@ -187,10 +195,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	}
+ 	set(0, atime)
+ 	set(1, mtime)
+-	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
+-		return &PathError{Op: "chtimes", Path: name, Err: e}
+-	}
+-	return nil
++	return utimes
+ }
+ 
+ // Chdir changes the current working directory to the file,
+diff --git a/src/os/root.go b/src/os/root.go
+index 41342fcf53..bcabb496bc 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -12,6 +12,7 @@ import (
+ 	"io/fs"
+ 	"runtime"
+ 	"slices"
++	"time"
+ )
+ 
+ // OpenInRoot opens the file name in the directory dir.
+@@ -54,7 +55,7 @@ func OpenInRoot(dir, name string) (*File, error) {
+ //
+ //   - When GOOS=windows, file names may not reference Windows reserved device names
+ //     such as NUL and COM1.
+-//   - On Unix, [Root.Chmod] and [Root.Chown] are vulnerable to a race condition.
++//   - On Unix, [Root.Chmod], [Root.Chown], and [Root.Chtimes] are vulnerable to a race condition.
+ //     If the target of the operation is changed from a regular file to a symlink
+ //     while the operation is in progress, the operation may be peformed on the link
+ //     rather than the link target.
+@@ -158,6 +159,12 @@ func (r *Root) Chown(name string, uid, gid int) error {
+ 	return rootChown(r, name, uid, gid)
+ }
+ 
++// Chtimes changes the access and modification times of the named file in the root.
++// See [Chtimes] for more details.
++func (r *Root) Chtimes(name string, atime time.Time, mtime time.Time) error {
++	return rootChtimes(r, name, atime, mtime)
++}
++
+ // Remove removes the named file or (empty) directory in the root.
+ // See [Remove] for more details.
+ func (r *Root) Remove(name string) error {
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index 919e78c777..186a382df3 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -9,6 +9,7 @@ package os
+ import (
+ 	"errors"
+ 	"sync/atomic"
++	"time"
+ )
+ 
+ // root implementation for platforms with no openat.
+@@ -115,6 +116,16 @@ func rootChown(r *Root, name string, uid, gid int) error {
+ 	return nil
+ }
+ 
++func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
++	if err := checkPathEscapes(r, name); err != nil {
++		return &PathError{Op: "chtimesat", Path: name, Err: err}
++	}
++	if err := Chtimes(joinPath(r.root.name, name), atime, mtime); err != nil {
++		return &PathError{Op: "chtimesat", Path: name, Err: underlyingError(err)}
++	}
++	return nil
++}
++
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	if err := checkPathEscapes(r, name); err != nil {
+ 		return &PathError{Op: "mkdirat", Path: name, Err: err}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index e25cba64af..e28b192f4c 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -11,6 +11,7 @@ import (
+ 	"slices"
+ 	"sync"
+ 	"syscall"
++	"time"
+ )
+ 
+ // root implementation for platforms with a function to open a file
+@@ -87,6 +88,16 @@ func rootChown(r *Root, name string, uid, gid int) error {
+ 	return nil
+ }
+ 
++func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
++	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
++		return struct{}{}, chtimesat(parent, name, atime, mtime)
++	})
++	if err != nil {
++		return &PathError{Op: "chtimesat", Path: name, Err: err}
++	}
++	return err
++}
++
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, mkdirat(parent, name, perm)
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 5560d435de..5f0e733fe1 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -426,6 +426,53 @@ func TestRootChmod(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootChtimes(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			if target != "" {
++				if err := os.WriteFile(target, nil, 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++			for _, times := range []struct {
++				atime, mtime time.Time
++			}{{
++				atime: time.Now().Add(-1 * time.Minute),
++				mtime: time.Now().Add(-1 * time.Minute),
++			}, {
++				atime: time.Now().Add(1 * time.Minute),
++				mtime: time.Now().Add(1 * time.Minute),
++			}, {
++				atime: time.Time{},
++				mtime: time.Now(),
++			}, {
++				atime: time.Now(),
++				mtime: time.Time{},
++			}} {
++				if runtime.GOOS == "js" {
++					times.atime = times.atime.Truncate(1 * time.Second)
++					times.mtime = times.mtime.Truncate(1 * time.Second)
++				}
++
++				err := root.Chtimes(test.open, times.atime, times.mtime)
++				if errEndsTest(t, err, test.wantError, "root.Chtimes(%q)", test.open) {
++					return
++				}
++				st, err := os.Stat(target)
++				if err != nil {
++					t.Fatalf("os.Stat(%q) = %v", target, err)
++				}
++				if got := st.ModTime(); !times.mtime.IsZero() && !got.Equal(times.mtime) {
++					t.Errorf("after root.Chtimes(%q, %v, %v): got mtime=%v, want %v", test.open, times.atime, times.mtime, got, times.mtime)
++				}
++				if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
++					t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
++				}
++			}
++		})
++	}
++}
++
+ func TestRootMkdir(t *testing.T) {
+ 	for _, test := range rootTestCases {
+ 		test.run(t, func(t *testing.T, target string, root *os.Root) {
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index f2f8e52bb2..884c1a38d9 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/syscall/unix"
+ 	"runtime"
+ 	"syscall"
++	"time"
+ )
+ 
+ type sysfdType = int
+@@ -165,6 +166,15 @@ func chownat(parent int, name string, uid, gid int) error {
+ 	})
+ }
+ 
++func chtimesat(parent int, name string, atime time.Time, mtime time.Time) error {
++	return afterResolvingSymlink(parent, name, func() error {
++		return ignoringEINTR(func() error {
++			utimes := chtimesUtimes(atime, mtime)
++			return unix.Utimensat(parent, name, &utimes, unix.AT_SYMLINK_NOFOLLOW)
++		})
++	})
++}
++
+ func mkdirat(fd int, name string, perm FileMode) error {
+ 	return ignoringEINTR(func() error {
+ 		return unix.Mkdirat(fd, name, syscallMode(perm))
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 4f391cb2a7..eed81ea51b 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -13,6 +13,7 @@ import (
+ 	"internal/syscall/windows"
+ 	"runtime"
+ 	"syscall"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -287,3 +288,25 @@ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
+ func removeat(dirfd syscall.Handle, name string) error {
+ 	return windows.Deleteat(dirfd, name)
+ }
++
++func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Time) error {
++	h, err := windows.Openat(dirfd, name, syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY|windows.O_WRITE_ATTRS, 0)
++	if err == syscall.ELOOP || err == syscall.ENOTDIR {
++		if link, err := readReparseLinkAt(dirfd, name); err == nil {
++			return errSymlink(link)
++		}
++	}
++	if err != nil {
++		return err
++	}
++	defer syscall.CloseHandle(h)
++	a := syscall.Filetime{}
++	w := syscall.Filetime{}
++	if !atime.IsZero() {
++		a = syscall.NsecToFiletime(atime.UnixNano())
++	}
++	if !mtime.IsZero() {
++		w = syscall.NsecToFiletime(mtime.UnixNano())
++	}
++	return syscall.SetFileTime(h, nil, &a, &w)
++}

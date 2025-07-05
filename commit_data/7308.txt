@@ -12,10 +12,133 @@ Date:   Tue Feb 1 12:12:51 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4058047
-
+---
  src/cmd/goinstall/main.go  |  3 +--
  src/pkg/exec/exec.go       | 11 +++++++++++
  src/pkg/exec/lp_test.go    | 33 +++++++++++++++++++++++++++++++++
  src/pkg/exec/lp_unix.go    |  4 ++--
  src/pkg/exec/lp_windows.go |  4 ++--
  5 files changed, 49 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index b0f08efdf2..f13aeb3bc0 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -244,8 +244,7 @@ func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
+ func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
+ 	bin, err := exec.LookPath(cmd[0])
+ 	if err != nil {
+-		// report binary as well as the error
+-		return os.NewError(cmd[0] + ": " + err.String())
++		return err
+ 	}
+ 	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
+ 	if *verbose {
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index ba9bd2472a..4f4c8c7770 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -7,6 +7,7 @@ package exec
+ 
+ import (
+ 	"os"
++	"strconv"
+ )
+ 
+ // Arguments to Run.
+@@ -29,6 +30,16 @@ type Cmd struct {
+ 	Pid    int
+ }
+ 
++// PathError records the name of a binary that was not
++// found on the current $PATH.
++type PathError struct {
++	Name string
++}
++
++func (e *PathError) String() string {
++	return "command " + strconv.Quote(e.Name) + " not found in $PATH"
++}
++
+ // Given mode (DevNull, etc), return file for child
+ // and file to record in Cmd structure.
+ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+diff --git a/src/pkg/exec/lp_test.go b/src/pkg/exec/lp_test.go
+new file mode 100644
+index 0000000000..0ef6d252fa
+--- /dev/null
++++ b/src/pkg/exec/lp_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"testing"
++)
++
++var nonExistentPaths = []string{
++	"some-non-existent-path",
++	"non-existent-path/slashed",
++}
++
++func TestLookPathNotFound(t *testing.T) {
++	for _, name := range nonExistentPaths {
++		path, err := LookPath(name)
++		if err == nil {
++			t.Fatalf("LookPath found %q in $PATH", name)
++		}
++		if path != "" {
++			t.Fatalf("LookPath path == %q when err != nil", path)
++		}
++		perr, ok := err.(*PathError)
++		if !ok {
++			t.Fatal("LookPath error is not a PathError")
++		}
++		if perr.Name != name {
++			t.Fatal("want PathError name %q, got %q", name, perr.Name)
++		}
++	}
++}
+diff --git a/src/pkg/exec/lp_unix.go b/src/pkg/exec/lp_unix.go
+index 292e24fccd..44f84347b9 100644
+--- a/src/pkg/exec/lp_unix.go
++++ b/src/pkg/exec/lp_unix.go
+@@ -29,7 +29,7 @@ func LookPath(file string) (string, os.Error) {
+ 		if canExec(file) {
+ 			return file, nil
+ 		}
+-		return "", &os.PathError{"lookpath", file, os.ENOENT}
++		return "", &PathError{file}
+ 	}
+ 	pathenv := os.Getenv("PATH")
+ 	for _, dir := range strings.Split(pathenv, ":", -1) {
+@@ -41,5 +41,5 @@ func LookPath(file string) (string, os.Error) {
+ 			return dir + "/" + file, nil
+ 		}
+ 	}
+-	return "", &os.PathError{"lookpath", file, os.ENOENT}
++	return "", &PathError{file}
+ }
+diff --git a/src/pkg/exec/lp_windows.go b/src/pkg/exec/lp_windows.go
+index 7b56afa856..d357575fdb 100644
+--- a/src/pkg/exec/lp_windows.go
++++ b/src/pkg/exec/lp_windows.go
+@@ -49,7 +49,7 @@ func LookPath(file string) (string, os.Error) {
+ 		if f, ok := canExec(file, exts); ok {
+ 			return f, nil
+ 		}
+-		return ``, &os.PathError{"lookpath", file, os.ENOENT}
++		return ``, &PathError{file}
+ 	}
+ 	if pathenv := os.Getenv(`PATH`); pathenv == `` {
+ 		if f, ok := canExec(`.\`+file, exts); ok {
+@@ -62,5 +62,5 @@ func LookPath(file string) (string, os.Error) {
+ 			}
+ 		}
+ 	}
+-	return ``, &os.PathError{"lookpath", file, os.ENOENT}
++	return ``, &PathError{file}
+ }

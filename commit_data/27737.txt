@@ -12,8 +12,113 @@ Date:   Mon Apr 11 05:12:43 2016 +0000
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/http.go       |  8 ++++++++
  src/net/http/serve_test.go | 17 +++++++++++++++++
  src/net/http/server.go     | 21 +++++++++++++++------
  3 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index a40b23dfdb..7484348f52 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -10,3 +10,11 @@ const maxInt64 = 1<<63 - 1
+ 
+ // TODO(bradfitz): move common stuff here. The other files have accumulated
+ // generic http stuff in random places.
++
++// contextKey is a value for use with context.WithValue. It's used as
++// a pointer so it fits in an interface{} without allocation.
++type contextKey struct {
++	name string
++}
++
++func (k *contextKey) String() string { return "net/http context value " + k.name }
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index e0094234de..5f206b1873 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4056,6 +4056,23 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
+ 	}
+ }
+ 
++func TestServerContext_ServerContextKey(t *testing.T) {
++	defer afterTest(t)
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		ctx := r.Context()
++		got := ctx.Value(ServerContextKey)
++		if _, ok := got.(*Server); !ok {
++			t.Errorf("context value = %T; want *http.Server")
++		}
++	}))
++	defer ts.Close()
++	res, err := Get(ts.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7a6950aee4..deb170c334 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -147,6 +147,14 @@ type CloseNotifier interface {
+ 	CloseNotify() <-chan bool
+ }
+ 
++var (
++	// ServerContextKey is a context key. It can be used in HTTP
++	// handlers with context.WithValue to access the server that
++	// started the handler. The associated value will be of
++	// type *Server.
++	ServerContextKey = &contextKey{"http-server"}
++)
++
+ // A conn represents the server side of an HTTP connection.
+ type conn struct {
+ 	// server is the server on which the connection arrived.
+@@ -1402,7 +1410,7 @@ type badRequestError string
+ func (e badRequestError) Error() string { return "Bad Request: " + string(e) }
+ 
+ // Serve a new connection.
+-func (c *conn) serve() {
++func (c *conn) serve(ctx context.Context) {
+ 	c.remoteAddr = c.rwc.RemoteAddr().String()
+ 	defer func() {
+ 		if err := recover(); err != nil {
+@@ -1445,10 +1453,7 @@ func (c *conn) serve() {
+ 	c.bufr = newBufioReader(c.r)
+ 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+ 
+-	// TODO: allow changing base context? can't imagine concrete
+-	// use cases yet.
+-	baseCtx := context.Background()
+-	ctx, cancelCtx := context.WithCancel(baseCtx)
++	ctx, cancelCtx := context.WithCancel(ctx)
+ 	defer cancelCtx()
+ 
+ 	for {
+@@ -2151,6 +2156,10 @@ func (srv *Server) Serve(l net.Listener) error {
+ 	if err := srv.setupHTTP2(); err != nil {
+ 		return err
+ 	}
++	// TODO: allow changing base context? can't imagine concrete
++	// use cases yet.
++	baseCtx := context.Background()
++	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
+ 	for {
+ 		rw, e := l.Accept()
+ 		if e != nil {
+@@ -2172,7 +2181,7 @@ func (srv *Server) Serve(l net.Listener) error {
+ 		tempDelay = 0
+ 		c := srv.newConn(rw)
+ 		c.setState(c.rwc, StateNew) // before Serve can return
+-		go c.serve()
++		go c.serve(ctx)
+ 	}
+ }
+ 

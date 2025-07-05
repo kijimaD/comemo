@@ -13,8 +13,110 @@ Date:   Fri Apr 7 14:03:55 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Eli Bendersky <eliben@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/54768.txt        |  1 +
  src/slices/slices.go      | 26 ++++++++++++++++++++++++++
  src/slices/slices_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 73 insertions(+)
+
+diff --git a/api/next/54768.txt b/api/next/54768.txt
+new file mode 100644
+index 0000000000..b824c50ad1
+--- /dev/null
++++ b/api/next/54768.txt
+@@ -0,0 +1 @@
++pkg slices, func DeleteFunc[$0 interface{ ~[]$1 }, $1 interface{}]($0, func($1) bool) $0 #54768
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 1a837c53c1..ea1dea573c 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -109,6 +109,32 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
+ 	return append(s[:i], s[j:]...)
+ }
+ 
++// DeleteFunc removes any elements from s for which del returns true,
++// returning the modified slice.
++// DeleteFunc modifies the contents of the slice s;
++// it does not create a new slice.
++// When DeleteFunc removes m elements, it might not modify the elements
++// s[len(s)-m:len(s)]. If those elements contain pointers you might consider
++// zeroing those elements so that objects they reference can be garbage
++// collected.
++func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
++	// Don't start copying elements until we find one to delete.
++	for i, v := range s {
++		if del(v) {
++			j := i
++			for i++; i < len(s); i++ {
++				v = s[i]
++				if !del(v) {
++					s[j] = v
++					j++
++				}
++			}
++			return s[:j]
++		}
++	}
++	return s
++}
++
+ // Replace replaces the elements s[i:j] by the given v, and returns the
+ // modified slice. Replace panics if s[i:j] is not a valid slice of s.
+ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 80efb34fc8..720e731ddf 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -304,6 +304,52 @@ func TestDelete(t *testing.T) {
+ 	}
+ }
+ 
++var deleteFuncTests = []struct {
++	s    []int
++	fn   func(int) bool
++	want []int
++}{
++	{
++		nil,
++		func(int) bool { return true },
++		nil,
++	},
++	{
++		[]int{1, 2, 3},
++		func(int) bool { return true },
++		nil,
++	},
++	{
++		[]int{1, 2, 3},
++		func(int) bool { return false },
++		[]int{1, 2, 3},
++	},
++	{
++		[]int{1, 2, 3},
++		func(i int) bool { return i > 2 },
++		[]int{1, 2},
++	},
++	{
++		[]int{1, 2, 3},
++		func(i int) bool { return i < 2 },
++		[]int{2, 3},
++	},
++	{
++		[]int{10, 2, 30},
++		func(i int) bool { return i >= 10 },
++		[]int{2},
++	},
++}
++
++func TestDeleteFunc(t *testing.T) {
++	for i, test := range deleteFuncTests {
++		copy := Clone(test.s)
++		if got := DeleteFunc(copy, test.fn); !Equal(got, test.want) {
++			t.Errorf("DeleteFunc case %d: got %v, want %v", i, got, test.want)
++		}
++	}
++}
++
+ func panics(f func()) (b bool) {
+ 	defer func() {
+ 		if x := recover(); x != nil {

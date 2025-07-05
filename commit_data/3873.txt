@@ -7,6 +7,26 @@ Date:   Fri Nov 6 18:40:30 2009 -0800
     R=r
     CC=vish
     http://go/go-review/1026013
-
+---
  lib/codereview/codereview.py | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index a169157182..2cd3018617 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -594,11 +594,11 @@ def CheckGofmt(ui, repo, files, just_warn=False):
+ 		ui.warn("gofmt errors:\n" + errors.rstrip() + "\n")
+ 		return
+ 	if len(data) > 0:
+-		msg = "gofmt needs to format these files (run hg gofmt):\n" + data
++		msg = "gofmt needs to format these files (run hg gofmt):\n" + Indent(data, "\t").rstrip()
+ 		if just_warn:
+-			ui.warn("warning: " + msg)
++			ui.warn("warning: " + msg + "\n")
+ 		else:
+-			raise util.Abort()
++			raise util.Abort(msg)
+ 	return
+ 
+ #######################################################################

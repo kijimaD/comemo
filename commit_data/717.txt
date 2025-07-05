@@ -11,7 +11,106 @@ Date:   Wed Sep 24 10:25:28 2008 -0700
     R=r
     OCL=15748
     CL=15750
-
+---
  src/runtime/rt1_amd64_darwin.c | 33 ++++++++++++++++++++++++++-------
  src/runtime/runtime.h          |  8 +++++++-
  2 files changed, 33 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/rt1_amd64_darwin.c b/src/runtime/rt1_amd64_darwin.c
+index 02f03cdf72..2456bd7888 100644
+--- a/src/runtime/rt1_amd64_darwin.c
++++ b/src/runtime/rt1_amd64_darwin.c
+@@ -262,7 +262,7 @@ xadd(uint32 volatile *val, int32 delta)
+ // releases the lock by decrementing l->key, l->key will
+ // be >0, so it will increment the semaphore to wake up
+ // one of the others.  This is the same algorithm used
+-// in Plan 9's user-space locks.
++// in Plan 9's user-level locks.
+ //
+ // Note that semaphores are never destroyed (the kernel
+ // will clean up when the process exits).  We assume for now
+@@ -287,6 +287,25 @@ unlock(Lock *l)
+ }
+ 
+ 
++// User-level semaphore implementation:
++// try to do the operations in user space on u,
++// but when it's time to block, fall back on the kernel semaphore k.
++// This is the same algorithm used in Plan 9.
++void
++usemacquire(Usema *s)
++{
++	if((int32)xadd(&s->u, -1) < 0)
++		semacquire(s->k);
++}
++
++void
++usemrelease(Usema *s)
++{
++	if((int32)xadd(&s->u, 1) <= 0)
++		semrelease(s->k);
++}
++
++
+ // Event notifications.
+ void
+ noteclear(Note *n)
+@@ -297,19 +316,19 @@ noteclear(Note *n)
+ void
+ notesleep(Note *n)
+ {
+-	if(n->sema == 0)
+-		initsema(&n->sema);
++	if(n->sema.k == 0)
++		initsema(&n->sema.k);
+ 	while(!n->wakeup)
+-		semacquire(n->sema);
++		usemacquire(&n->sema);
+ }
+ 
+ void
+ notewakeup(Note *n)
+ {
+-	if(n->sema == 0)
+-		initsema(&n->sema);
++	if(n->sema.k == 0)
++		initsema(&n->sema.k);
+ 	n->wakeup = 1;
+-	semrelease(n->sema);
++	usemrelease(&n->sema);
+ }
+ 
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 3d439ca452..411b6046bf 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -43,6 +43,7 @@ typedef	struct	Alg		Alg;
+ typedef	struct	Lock		Lock;
+ typedef	union	Note	Note;
+ typedef	struct	Mem		Mem;
++typedef	struct	Usema	Usema;
+ 
+ /*
+  * per cpu declaration
+@@ -77,6 +78,11 @@ struct	Lock
+ 	uint32	key;
+ 	uint32	sema;	// for OS X
+ };
++struct	Usema
++{
++	uint32	u;
++	uint32	k;
++};
+ union	Note
+ {
+ 	struct {	// Linux
+@@ -84,7 +90,7 @@ union	Note
+ 	};
+ 	struct {	// OS X
+ 		int32	wakeup;
+-		uint32	sema;
++		Usema	sema;
+ 	};
+ };
+ struct String

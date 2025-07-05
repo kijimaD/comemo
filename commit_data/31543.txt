@@ -19,7 +19,55 @@ Date:   Tue Feb 28 21:21:45 2017 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go      | 12 +++++++++++-
  src/strings/strings_test.go | 13 +++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 188d8cbc09..9ca222fdfa 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -406,7 +406,17 @@ func Map(mapping func(rune) rune, s string) string {
+ 				nbytes += utf8.EncodeRune(b[nbytes:], r)
+ 			}
+ 		}
+-		i += utf8.RuneLen(c)
++
++		if c == utf8.RuneError {
++			// RuneError is the result of either decoding
++			// an invalid sequence or '\uFFFD'. Determine
++			// the correct number of bytes we need to advance.
++			_, w := utf8.DecodeRuneInString(s[i:])
++			i += w
++		} else {
++			i += utf8.RuneLen(c)
++		}
++
+ 		s = s[i:]
+ 		break
+ 	}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 3378d54fe2..97041eb9ac 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -625,6 +625,19 @@ func TestMap(t *testing.T) {
+ 		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
+ 		t.Error("unexpected copy during identity map")
+ 	}
++
++	// 7. Handle invalid UTF-8 sequence
++	replaceNotLatin := func(r rune) rune {
++		if unicode.Is(unicode.Latin, r) {
++			return r
++		}
++		return '?'
++	}
++	m = Map(replaceNotLatin, "Hello\255World")
++	expect = "Hello?World"
++	if m != expect {
++		t.Errorf("replace invalid sequence: expected %q got %q", expect, m)
++	}
+ }
+ 
+ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }

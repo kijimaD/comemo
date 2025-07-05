@@ -17,7 +17,7 @@ Date:   Mon Mar 7 10:54:53 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4172055
-
+---
  .hgignore                         |  1 +
  src/Make.inc                      | 35 ++++++++++++++----------
  src/cmd/goinstall/Makefile        | 12 +++++++++
@@ -25,3 +25,247 @@ Date:   Mon Mar 7 10:54:53 2011 -0500
  src/cmd/goinstall/syslist_test.go | 56 +++++++++++++++++++++++++++++++++++++++
  src/pkg/Makefile                  |  1 -
  6 files changed, 138 insertions(+), 15 deletions(-)
+
+diff --git a/.hgignore b/.hgignore
+index 59aeeeb15f..9abdbf1ffb 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -37,6 +37,7 @@ src/cmd/gc/opnames.h
+ src/cmd/gc/y.output
+ src/cmd/gc/y1.tab.c
+ src/cmd/gc/yerr.h
++src/cmd/goinstall/syslist.go
+ src/pkg/Make.deps
+ src/pkg/exp/ogle/ogle
+ src/pkg/os/signal/unix.go
+diff --git a/src/Make.inc b/src/Make.inc
+index 2889c7edf2..a6edb165a7 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -29,14 +29,20 @@ ifeq ($(GOOS),)
+ GOOS:=$(GOHOSTOS)
+ endif
+ 
+-ifeq ($(GOOS),darwin)
+-else ifeq ($(GOOS),freebsd)
+-else ifeq ($(GOOS),linux)
+-else ifeq ($(GOOS),tiny)
+-else ifeq ($(GOOS),plan9)
+-else ifeq ($(GOOS),windows)
+-else
+-$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, plan9, tiny, or windows)
++GOOS_LIST=\
++	darwin\
++	freebsd\
++	linux\
++	plan9\
++	windows\
++
++GOARCH_LIST=\
++	386\
++	amd64\
++	arm\
++
++ifeq ($(filter $(GOOS),$(GOOS_LIST)),)
++$(error Invalid $$GOOS '$(GOOS)'; must be one of: $(GOOS_LIST))
+ endif
+ 
+ ifeq ($(GOHOSTARCH),)
+@@ -59,24 +65,25 @@ ifeq ($(GOOS),darwin)
+ GOHOSTARCH:=$(GOARCH)
+ endif
+ 
++ifeq ($(filter $(GOARCH),$(GOARCH_LIST)),)
++$(error Invalid $$GOARCH '$(GOARCH)'; must be one of: $(GOARCH_LIST))
++endif
++
+ ifeq ($(GOARCH),386)
+ O:=8
+ else ifeq ($(GOARCH),amd64)
+ O:=6
+ else ifeq ($(GOARCH),arm)
+-
+ O:=5
+-ifeq ($(GOOS),linux)
+-else
++ifneq ($(GOOS),linux)
+ $(error Invalid $$GOOS '$(GOOS)' for GOARCH=arm; must be linux)
+ endif
+-
+ else
+-$(error Invalid $$GOARCH '$(GOARCH)'; must be 386, amd64, or arm)
++$(error Missing $$O for '$(GOARCH)')
+ endif
+ 
+ # Save for recursive make to avoid recomputing.
+-export GOARCH GOOS GOHOSTARCH GOHOSTOS
++export GOARCH GOOS GOHOSTARCH GOHOSTOS GOARCH_LIST GOOS_LIST
+ 
+ # ugly hack to deal with whitespaces in $GOROOT
+ nullstring :=
+diff --git a/src/cmd/goinstall/Makefile b/src/cmd/goinstall/Makefile
+index 6ddb32be72..6900bcb61d 100644
+--- a/src/cmd/goinstall/Makefile
++++ b/src/cmd/goinstall/Makefile
+@@ -10,5 +10,17 @@ GOFILES=\
+ 	main.go\
+ 	make.go\
+ 	parse.go\
++	syslist.go\
++
++CLEANFILES+=syslist.go
+ 
+ include ../../Make.cmd
++
++syslist.go:
++	echo '// Generated automatically by make.' >$@
++	echo 'package main' >>$@
++	echo 'const goosList = "$(GOOS_LIST)"' >>$@
++	echo 'const goarchList = "$(GOARCH_LIST)"' >>$@
++
++test:
++	gotest
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index 014b8fcb20..564ec46bc9 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -14,6 +14,7 @@ import (
+ 	"path/filepath"
+ 	"strconv"
+ 	"strings"
++	"runtime"
+ )
+ 
+ 
+@@ -57,6 +58,9 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
+ 		if strings.HasPrefix(d.Name, "_") || strings.Index(d.Name, ".cgo") != -1 {
+ 			continue
+ 		}
++		if !goodOSArch(d.Name) {
++			continue
++		}
+ 		if strings.HasSuffix(d.Name, ".c") {
+ 			cFiles = append(cFiles, d.Name)
+ 			continue
+@@ -108,3 +112,47 @@ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
+ 	}
+ 	return &dirInfo{goFiles, cgoFiles, cFiles, imports, pkgName}, nil
+ }
++
++// goodOSArch returns false if the filename contains a $GOOS or $GOARCH
++// suffix which does not match the current system.
++// The recognized filename formats are:
++//
++//     name_$(GOOS).*
++//     name_$(GOARCH).*
++//     name_$(GOOS)_$(GOARCH).*
++//
++func goodOSArch(filename string) bool {
++	if dot := strings.Index(filename, "."); dot != -1 {
++		filename = filename[:dot]
++	}
++	l := strings.Split(filename, "_", -1)
++	n := len(l)
++	if n == 0 {
++		return true
++	}
++	if good, known := goodOS[l[n-1]]; known {
++		return good
++	}
++	if good, known := goodArch[l[n-1]]; known {
++		if !good || n < 2 {
++			return false
++		}
++		good, known = goodOS[l[n-2]]
++		return good || !known
++	}
++	return true
++}
++
++var goodOS = make(map[string]bool)
++var goodArch = make(map[string]bool)
++
++func init() {
++	goodOS = make(map[string]bool)
++	goodArch = make(map[string]bool)
++	for _, v := range strings.Fields(goosList) {
++		goodOS[v] = v == runtime.GOOS
++	}
++	for _, v := range strings.Fields(goarchList) {
++		goodArch[v] = v == runtime.GOARCH
++	}
++}
+diff --git a/src/cmd/goinstall/syslist_test.go b/src/cmd/goinstall/syslist_test.go
+new file mode 100644
+index 0000000000..a660e69193
+--- /dev/null
++++ b/src/cmd/goinstall/syslist_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package main
++
++import (
++	"runtime"
++	"testing"
++)
++
++var (
++	thisOS    = runtime.GOOS
++	thisArch  = runtime.GOARCH
++	otherOS   = "freebsd"
++	otherArch = "arm"
++)
++
++func init() {
++	if thisOS == otherOS {
++		otherOS = "linux"
++	}
++	if thisArch == otherArch {
++		otherArch = "amd64"
++	}
++}
++
++type GoodFileTest struct {
++	name   string
++	result bool
++}
++
++var tests = []GoodFileTest{
++	{"file.go", true},
++	{"file.c", true},
++	{"file_foo.go", true},
++	{"file_" + thisArch + ".go", true},
++	{"file_" + otherArch + ".go", false},
++	{"file_" + thisOS + ".go", true},
++	{"file_" + otherOS + ".go", false},
++	{"file_" + thisOS + "_" + thisArch + ".go", true},
++	{"file_" + otherOS + "_" + thisArch + ".go", false},
++	{"file_" + thisOS + "_" + otherArch + ".go", false},
++	{"file_" + otherOS + "_" + otherArch + ".go", false},
++	{"file_foo_" + thisArch + ".go", true},
++	{"file_foo_" + otherArch + ".go", false},
++	{"file_" + thisOS + ".c", true},
++	{"file_" + otherOS + ".c", false},
++}
++
++func TestGoodOSArch(t *testing.T) {
++	for _, test := range tests {
++		if goodOSArch(test.name) != test.result {
++			t.Fatalf("goodOSArch(%q) != %v", test.name, test.result)
++		}
++	}
++}
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6e70690d1b..9de2bd2f7d 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -189,7 +189,6 @@ NOTEST=\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+ 	../cmd/gofmt\
+-	../cmd/goinstall\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\

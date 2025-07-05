@@ -13,6 +13,25 @@ Date:   Wed Oct 5 18:04:54 2016 -0400
     Change-Id: Idc97f885ee48ef085f1eb4dacbd1c2cf55f94ff5
     Reviewed-on: https://go-review.googlesource.com/30375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_linux.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/root_linux.go b/src/crypto/x509/root_linux.go
+index cfeca6958c..38dd72d3ed 100644
+--- a/src/crypto/x509/root_linux.go
++++ b/src/crypto/x509/root_linux.go
+@@ -6,8 +6,9 @@ package x509
+ 
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{
+-	"/etc/ssl/certs/ca-certificates.crt", // Debian/Ubuntu/Gentoo etc.
+-	"/etc/pki/tls/certs/ca-bundle.crt",   // Fedora/RHEL
+-	"/etc/ssl/ca-bundle.pem",             // OpenSUSE
+-	"/etc/pki/tls/cacert.pem",            // OpenELEC
++	"/etc/ssl/certs/ca-certificates.crt",                // Debian/Ubuntu/Gentoo etc.
++	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", // CentOS/RHEL 7
++	"/etc/pki/tls/certs/ca-bundle.crt",                  // Fedora/RHEL 6
++	"/etc/ssl/ca-bundle.pem",                            // OpenSUSE
++	"/etc/pki/tls/cacert.pem",                           // OpenELEC
+ }

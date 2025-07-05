@@ -15,7 +15,34 @@ Date:   Thu Mar 21 08:15:08 2024 +0000
     Run-TryBot: Rob Pike <r@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/gob/dump.go   | 1 +
  src/encoding/gob/encgen.go | 3 +++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/encoding/gob/dump.go b/src/encoding/gob/dump.go
+index f4b1bebfba..b14d84164b 100644
+--- a/src/encoding/gob/dump.go
++++ b/src/encoding/gob/dump.go
+@@ -24,6 +24,7 @@ func main() {
+ 			fmt.Fprintf(os.Stderr, "dump: %s\n", err)
+ 			os.Exit(1)
+ 		}
++		defer file.Close()
+ 	}
+ 	gob.Debug(file)
+ }
+diff --git a/src/encoding/gob/encgen.go b/src/encoding/gob/encgen.go
+index e5f68786a0..64f5c69bd4 100644
+--- a/src/encoding/gob/encgen.go
++++ b/src/encoding/gob/encgen.go
+@@ -170,6 +170,9 @@ func main() {
+ 	if _, err := fd.Write(source); err != nil {
+ 		log.Fatal(err)
+ 	}
++	if err := fd.Close(); err != nil {
++		log.Fatal(err)
++	}
+ }
+ 
+ func printMaps(b *bytes.Buffer, upperClass string) {

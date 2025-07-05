@@ -18,7 +18,7 @@ Date:   Wed Aug 9 19:38:27 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |    6 +-
  src/cmd/go.sum                                     |   12 +-
  src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    3 +-
@@ -88,3 +88,3959 @@ Date:   Wed Aug 9 19:38:27 2023 +0000
  src/net/http/h2_bundle.go                          |   31 +-
  src/vendor/modules.txt                             |    8 +-
  68 files changed, 2505 insertions(+), 221 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 886bb857cf..d5870db501 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,9 +7,9 @@ require (
+ 	golang.org/x/arch v0.4.0
+ 	golang.org/x/mod v0.12.0
+ 	golang.org/x/sync v0.3.0
+-	golang.org/x/sys v0.10.0
+-	golang.org/x/term v0.10.0
+-	golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b
++	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
++	golang.org/x/term v0.11.0
++	golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index b7245ea447..5cb7a32fec 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -8,9 +8,9 @@ golang.org/x/mod v0.12.0 h1:rmsUpXtvNzj340zd98LZ4KntptpfRHwpFOHG188oHXc=
+ golang.org/x/mod v0.12.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.3.0 h1:ftCYgMx6zT/asHUrPw8BLLscYtGznsLAnjq5RH9P66E=
+ golang.org/x/sync v0.3.0/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
+-golang.org/x/sys v0.10.0 h1:SqMFp9UcQJZa+pmYuAKjd9xq1f0j5rLcDIk0mj4qAsA=
+-golang.org/x/sys v0.10.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/term v0.10.0 h1:3R7pNqamzBraeqj/Tj8qt1aQ2HpmlC+Cx/qL/7hn4/c=
+-golang.org/x/term v0.10.0/go.mod h1:lpqdcUyK/oCiQxvxVrppt5ggO2KCZ5QblwqPnfZ6d5o=
+-golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b h1:KIZCni6lCdxd4gxHx49Zp9mhckTFRbI/ZPDbR3jKu90=
+-golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b/go.mod h1:anzJrxPjNtfgiYQYirP2CPGzGLxrH2u2QBhn6Bf3qY8=
++golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c h1:2aG9DV1z3tUfHVJRevogC4OmVcZiaiysJgsnG4ZKD6s=
++golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.11.0 h1:F9tnn/DA/Im8nCwm+fX+1/eBwi4qFjRT++MhtVC4ZX0=
++golang.org/x/term v0.11.0/go.mod h1:zC9APTIj3jG3FdV/Ons+XE1riIZXG4aZ4GTHiPZJPIU=
++golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1 h1:lOyXDTLvOo2yR4Lca/u2uape32O+leQ3+TUM9YqYh1Y=
++golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1/go.mod h1:Sc0INKfu04TlqNoRA1hgpFZbhYXHPr4V5DzpSBTPqQM=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index 0c4d14929a..47fa6a7ebd 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -583,6 +583,7 @@ ccflags="$@"
+ 		$2 ~ /^PERF_/ ||
+ 		$2 ~ /^SECCOMP_MODE_/ ||
+ 		$2 ~ /^SEEK_/ ||
++		$2 ~ /^SCHED_/ ||
+ 		$2 ~ /^SPLICE_/ ||
+ 		$2 ~ /^SYNC_FILE_RANGE_/ ||
+ 		$2 !~ /IOC_MAGIC/ &&
+@@ -624,7 +625,7 @@ ccflags="$@"
+ 		$2 ~ /^MEM/ ||
+ 		$2 ~ /^WG/ ||
+ 		$2 ~ /^FIB_RULE_/ ||
+-		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE)/ {printf("\t%s = C.%s\n", $2, $2)}
++		$2 ~ /^BLK[A-Z]*(GET$|SET$|BUF$|PART$|SIZE|IOMIN$|IOOPT$|ALIGNOFF$|DISCARD|ROTATIONAL$|ZEROOUT$|GETDISKSEQ$)/ {printf("\t%s = C.%s\n", $2, $2)}
+ 		$2 ~ /^__WCOREFLAG$/ {next}
+ 		$2 ~ /^__W[A-Z0-9]+$/ {printf("\t%s = C.%s\n", substr($2,3), $2)}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mmap_nomremap.go b/src/cmd/vendor/golang.org/x/sys/unix/mmap_nomremap.go
+new file mode 100644
+index 0000000000..ca0513632e
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mmap_nomremap.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || openbsd || solaris
++// +build aix darwin dragonfly freebsd openbsd solaris
++
++package unix
++
++var mapper = &mmapper{
++	active: make(map[*byte][]byte),
++	mmap:   mmap,
++	munmap: munmap,
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mremap.go b/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
+index 86213c05d6..fa93d0aa90 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux
+-// +build linux
++//go:build linux || netbsd
++// +build linux netbsd
+ 
+ package unix
+ 
+@@ -14,8 +14,17 @@ type mremapMmapper struct {
+ 	mremap func(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
+ }
+ 
++var mapper = &mremapMmapper{
++	mmapper: mmapper{
++		active: make(map[*byte][]byte),
++		mmap:   mmap,
++		munmap: munmap,
++	},
++	mremap: mremap,
++}
++
+ func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
+-	if newLength <= 0 || len(oldData) == 0 || len(oldData) != cap(oldData) || flags&MREMAP_FIXED != 0 {
++	if newLength <= 0 || len(oldData) == 0 || len(oldData) != cap(oldData) || flags&mremapFixed != 0 {
+ 		return nil, EINVAL
+ 	}
+ 
+@@ -32,9 +41,13 @@ func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data [
+ 	}
+ 	bNew := unsafe.Slice((*byte)(unsafe.Pointer(newAddr)), newLength)
+ 	pNew := &bNew[cap(bNew)-1]
+-	if flags&MREMAP_DONTUNMAP == 0 {
++	if flags&mremapDontunmap == 0 {
+ 		delete(m.active, pOld)
+ 	}
+ 	m.active[pNew] = bNew
+ 	return bNew, nil
+ }
++
++func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
++	return mapper.Mremap(oldData, newLength, flags)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index c406ae00f4..9a6e5acacb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -535,21 +535,6 @@ func Fsync(fd int) error {
+ //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = nsendmsg
+ 
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+-
+-var mapper = &mmapper{
+-	active: make(map[*byte][]byte),
+-	mmap:   mmap,
+-	munmap: munmap,
+-}
+-
+-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+-	return mapper.Mmap(fd, offset, length, prot, flags)
+-}
+-
+-func Munmap(b []byte) (err error) {
+-	return mapper.Munmap(b)
+-}
+-
+ //sys	Madvise(b []byte, advice int) (err error)
+ //sys	Mprotect(b []byte, prot int) (err error)
+ //sys	Mlock(b []byte) (err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
+index 7705c3270b..4217de518b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_bsd.go
+@@ -601,20 +601,6 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
+ //	Gethostuuid(uuid *byte, timeout *Timespec) (err error)
+ //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, err error)
+ 
+-var mapper = &mmapper{
+-	active: make(map[*byte][]byte),
+-	mmap:   mmap,
+-	munmap: munmap,
+-}
+-
+-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+-	return mapper.Mmap(fd, offset, length, prot, flags)
+-}
+-
+-func Munmap(b []byte) (err error) {
+-	return mapper.Munmap(b)
+-}
+-
+ //sys	Madvise(b []byte, behav int) (err error)
+ //sys	Mlock(b []byte) (err error)
+ //sys	Mlockall(flags int) (err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 206921504c..135cc3cd75 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -510,30 +510,36 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Find size.
+-	n := uintptr(0)
+-	if err := sysctl(mib, nil, &n, nil, 0); err != nil {
+-		return nil, err
+-	}
+-	if n == 0 {
+-		return nil, nil
+-	}
+-	if n%SizeofKinfoProc != 0 {
+-		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+-	}
++	for {
++		// Find size.
++		n := uintptr(0)
++		if err := sysctl(mib, nil, &n, nil, 0); err != nil {
++			return nil, err
++		}
++		if n == 0 {
++			return nil, nil
++		}
++		if n%SizeofKinfoProc != 0 {
++			return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
++		}
+ 
+-	// Read into buffer of that size.
+-	buf := make([]KinfoProc, n/SizeofKinfoProc)
+-	if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
+-		return nil, err
+-	}
+-	if n%SizeofKinfoProc != 0 {
+-		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+-	}
++		// Read into buffer of that size.
++		buf := make([]KinfoProc, n/SizeofKinfoProc)
++		if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
++			if err == ENOMEM {
++				// Process table grew. Try again.
++				continue
++			}
++			return nil, err
++		}
++		if n%SizeofKinfoProc != 0 {
++			return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
++		}
+ 
+-	// The actual call may return less than the original reported required
+-	// size so ensure we deal with that.
+-	return buf[:n/SizeofKinfoProc], nil
++		// The actual call may return less than the original reported required
++		// size so ensure we deal with that.
++		return buf[:n/SizeofKinfoProc], nil
++	}
+ }
+ 
+ //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 39de5f1430..0ba030197f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1885,7 +1885,7 @@ func Getpgrp() (pid int) {
+ //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
+ //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
+ //sys	Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
+-//sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) = SYS_PSELECT6
++//sys	pselect6(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_argpack) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Removexattr(path string, attr string) (err error)
+ //sys	Renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags uint) (err error)
+@@ -2125,28 +2125,6 @@ func writevRacedetect(iovecs []Iovec, n int) {
+ // mmap varies by architecture; see syscall_linux_*.go.
+ //sys	munmap(addr uintptr, length uintptr) (err error)
+ //sys	mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (xaddr uintptr, err error)
+-
+-var mapper = &mremapMmapper{
+-	mmapper: mmapper{
+-		active: make(map[*byte][]byte),
+-		mmap:   mmap,
+-		munmap: munmap,
+-	},
+-	mremap: mremap,
+-}
+-
+-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+-	return mapper.Mmap(fd, offset, length, prot, flags)
+-}
+-
+-func Munmap(b []byte) (err error) {
+-	return mapper.Munmap(b)
+-}
+-
+-func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
+-	return mapper.Mremap(oldData, newLength, flags)
+-}
+-
+ //sys	Madvise(b []byte, advice int) (err error)
+ //sys	Mprotect(b []byte, prot int) (err error)
+ //sys	Mlock(b []byte) (err error)
+@@ -2155,6 +2133,12 @@ func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
+ //sys	Munlock(b []byte) (err error)
+ //sys	Munlockall() (err error)
+ 
++const (
++	mremapFixed     = MREMAP_FIXED
++	mremapDontunmap = MREMAP_DONTUNMAP
++	mremapMaymove   = MREMAP_MAYMOVE
++)
++
+ // Vmsplice splices user pages from a slice of Iovecs into a pipe specified by fd,
+ // using the specified flags.
+ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) {
+@@ -2454,6 +2438,62 @@ func Getresgid() (rgid, egid, sgid int) {
+ 	return int(r), int(e), int(s)
+ }
+ 
++// Pselect is a wrapper around the Linux pselect6 system call.
++// This version does not modify the timeout argument.
++func Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
++	// Per https://man7.org/linux/man-pages/man2/select.2.html#NOTES,
++	// The Linux pselect6() system call modifies its timeout argument.
++	// [Not modifying the argument] is the behavior required by POSIX.1-2001.
++	var mutableTimeout *Timespec
++	if timeout != nil {
++		mutableTimeout = new(Timespec)
++		*mutableTimeout = *timeout
++	}
++
++	// The final argument of the pselect6() system call is not a
++	// sigset_t * pointer, but is instead a structure
++	var kernelMask *sigset_argpack
++	if sigmask != nil {
++		wordBits := 32 << (^uintptr(0) >> 63) // see math.intSize
++
++		// A sigset stores one bit per signal,
++		// offset by 1 (because signal 0 does not exist).
++		// So the number of words needed is ⌈__C_NSIG - 1 / wordBits⌉.
++		sigsetWords := (_C__NSIG - 1 + wordBits - 1) / (wordBits)
++
++		sigsetBytes := uintptr(sigsetWords * (wordBits / 8))
++		kernelMask = &sigset_argpack{
++			ss:    sigmask,
++			ssLen: sigsetBytes,
++		}
++	}
++
++	return pselect6(nfd, r, w, e, mutableTimeout, kernelMask)
++}
++
++//sys	schedSetattr(pid int, attr *SchedAttr, flags uint) (err error)
++//sys	schedGetattr(pid int, attr *SchedAttr, size uint, flags uint) (err error)
++
++// SchedSetAttr is a wrapper for sched_setattr(2) syscall.
++// https://man7.org/linux/man-pages/man2/sched_setattr.2.html
++func SchedSetAttr(pid int, attr *SchedAttr, flags uint) error {
++	if attr == nil {
++		return EINVAL
++	}
++	attr.Size = SizeofSchedAttr
++	return schedSetattr(pid, attr, flags)
++}
++
++// SchedGetAttr is a wrapper for sched_getattr(2) syscall.
++// https://man7.org/linux/man-pages/man2/sched_getattr.2.html
++func SchedGetAttr(pid int, flags uint) (*SchedAttr, error) {
++	attr := &SchedAttr{}
++	if err := schedGetattr(pid, attr, SizeofSchedAttr, flags); err != nil {
++		return nil, err
++	}
++	return attr, nil
++}
++
+ /*
+  * Unimplemented
+  */
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go
+index 5b21fcfd75..70601ce369 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_amd64.go
+@@ -40,7 +40,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	if timeout != nil {
+ 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+ 	}
+-	return Pselect(nfd, r, w, e, ts, nil)
++	return pselect6(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+index a81f5742b8..f5266689af 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+@@ -33,7 +33,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	if timeout != nil {
+ 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+ 	}
+-	return Pselect(nfd, r, w, e, ts, nil)
++	return pselect6(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go
+index 69d2d7c3db..f6ab02ec15 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go
+@@ -28,7 +28,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	if timeout != nil {
+ 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+ 	}
+-	return Pselect(nfd, r, w, e, ts, nil)
++	return pselect6(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go
+index 76d564095e..93fe59d25d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_mips64x.go
+@@ -31,7 +31,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	if timeout != nil {
+ 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+ 	}
+-	return Pselect(nfd, r, w, e, ts, nil)
++	return pselect6(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+index 35851ef70b..5e6ceee129 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+@@ -32,7 +32,7 @@ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err
+ 	if timeout != nil {
+ 		ts = &Timespec{Sec: timeout.Sec, Nsec: timeout.Usec * 1000}
+ 	}
+-	return Pselect(nfd, r, w, e, ts, nil)
++	return pselect6(nfd, r, w, e, ts, nil)
+ }
+ 
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+@@ -177,3 +177,14 @@ func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error
+ 	}
+ 	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
+ }
++
++//sys	riscvHWProbe(pairs []RISCVHWProbePairs, cpuCount uintptr, cpus *CPUSet, flags uint) (err error)
++
++func RISCVHWProbe(pairs []RISCVHWProbePairs, set *CPUSet, flags uint) (err error) {
++	var setSize uintptr
++
++	if set != nil {
++		setSize = uintptr(unsafe.Sizeof(*set))
++	}
++	return riscvHWProbe(pairs, setSize, set, flags)
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_netbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_netbsd.go
+index 018d7d4782..ddd1ac8534 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_netbsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_netbsd.go
+@@ -360,6 +360,18 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
+ //sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
+ 
++const (
++	mremapFixed     = MAP_FIXED
++	mremapDontunmap = 0
++	mremapMaymove   = 0
++)
++
++//sys	mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) = SYS_MREMAP
++
++func mremap(oldaddr uintptr, oldlength uintptr, newlength uintptr, flags int, newaddr uintptr) (uintptr, error) {
++	return mremapNetBSD(oldaddr, oldlength, newaddr, newlength, flags)
++}
++
+ /*
+  * Unimplemented
+  */
+@@ -564,7 +576,6 @@ func Statvfs(path string, buf *Statvfs_t) (err error) {
+ // mq_timedreceive
+ // mq_timedsend
+ // mq_unlink
+-// mremap
+ // msgget
+ // msgrcv
+ // msgsnd
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
+index b600a289d3..72d23575fa 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_solaris.go
+@@ -716,20 +716,6 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
+ 	return
+ }
+ 
+-var mapper = &mmapper{
+-	active: make(map[*byte][]byte),
+-	mmap:   mmap,
+-	munmap: munmap,
+-}
+-
+-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+-	return mapper.Mmap(fd, offset, length, prot, flags)
+-}
+-
+-func Munmap(b []byte) (err error) {
+-	return mapper.Munmap(b)
+-}
+-
+ // Event Ports
+ 
+ type fileObjCookie struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+index 8e48c29ec3..8bb30e7ce3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+@@ -147,6 +147,14 @@ func (m *mmapper) Munmap(data []byte) (err error) {
+ 	return nil
+ }
+ 
++func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
++	return mapper.Mmap(fd, offset, length, prot, flags)
++}
++
++func Munmap(b []byte) (err error) {
++	return mapper.Munmap(b)
++}
++
+ func Read(fd int, p []byte) (n int, err error) {
+ 	n, err = read(fd, p)
+ 	if raceenabled {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
+index d3d49ec3ed..44e72edb42 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_zos_s390x.go
+@@ -285,25 +285,11 @@ func Close(fd int) (err error) {
+ 	return
+ }
+ 
+-var mapper = &mmapper{
+-	active: make(map[*byte][]byte),
+-	mmap:   mmap,
+-	munmap: munmap,
+-}
+-
+ // Dummy function: there are no semantics for Madvise on z/OS
+ func Madvise(b []byte, advice int) (err error) {
+ 	return
+ }
+ 
+-func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, err error) {
+-	return mapper.Mmap(fd, offset, length, prot, flags)
+-}
+-
+-func Munmap(b []byte) (err error) {
+-	return mapper.Munmap(b)
+-}
+-
+ //sys   Gethostname(buf []byte) (err error) = SYS___GETHOSTNAME_A
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (uid int)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 3784f402e5..0787a043be 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -2821,6 +2821,23 @@ const (
+ 	RWF_SUPPORTED                               = 0x1f
+ 	RWF_SYNC                                    = 0x4
+ 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
++	SCHED_BATCH                                 = 0x3
++	SCHED_DEADLINE                              = 0x6
++	SCHED_FIFO                                  = 0x1
++	SCHED_FLAG_ALL                              = 0x7f
++	SCHED_FLAG_DL_OVERRUN                       = 0x4
++	SCHED_FLAG_KEEP_ALL                         = 0x18
++	SCHED_FLAG_KEEP_PARAMS                      = 0x10
++	SCHED_FLAG_KEEP_POLICY                      = 0x8
++	SCHED_FLAG_RECLAIM                          = 0x2
++	SCHED_FLAG_RESET_ON_FORK                    = 0x1
++	SCHED_FLAG_UTIL_CLAMP                       = 0x60
++	SCHED_FLAG_UTIL_CLAMP_MAX                   = 0x40
++	SCHED_FLAG_UTIL_CLAMP_MIN                   = 0x20
++	SCHED_IDLE                                  = 0x5
++	SCHED_NORMAL                                = 0x0
++	SCHED_RESET_ON_FORK                         = 0x40000000
++	SCHED_RR                                    = 0x2
+ 	SCM_CREDENTIALS                             = 0x2
+ 	SCM_RIGHTS                                  = 0x1
+ 	SCM_TIMESTAMP                               = 0x1d
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index a46df0f1e5..cfb1430018 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80041270
+ 	BLKBSZSET                        = 0x40041271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80041272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index 6cd4a3ea9d..df64f2d590 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80081270
+ 	BLKBSZSET                        = 0x40081271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80081272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index c7ebee24df..3025cd5b2d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80041270
+ 	BLKBSZSET                        = 0x40041271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80041272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index 12a9a1389e..09e1ffbef9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80081270
+ 	BLKBSZSET                        = 0x40081271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80081272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+index f26a164f4a..a457235407 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80081270
+ 	BLKBSZSET                        = 0x40081271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80081272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index 890bc3c9b7..fee7dfb819 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40041270
+ 	BLKBSZSET                        = 0x80041271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40041272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index 549f26ac64..a5b2373aea 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40081270
+ 	BLKBSZSET                        = 0x80081271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40081272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index e0365e32c1..5dde82c98a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40081270
+ 	BLKBSZSET                        = 0x80081271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40081272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index fdccce15ca..2e80ea6b33 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40041270
+ 	BLKBSZSET                        = 0x80041271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40041272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+index b2205c83fa..a65dcd7cbe 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x10
+ 	B576000                          = 0x15
+ 	B921600                          = 0x16
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40041270
+ 	BLKBSZSET                        = 0x80041271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40041272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1f
+ 	BS1                              = 0x8000
+ 	BSDLY                            = 0x8000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index 81aa5ad0f6..cbd34e3d89 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x10
+ 	B576000                          = 0x15
+ 	B921600                          = 0x16
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40081270
+ 	BLKBSZSET                        = 0x80081271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40081272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1f
+ 	BS1                              = 0x8000
+ 	BSDLY                            = 0x8000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index 76807a1fd4..e4afa7a317 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x10
+ 	B576000                          = 0x15
+ 	B921600                          = 0x16
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40081270
+ 	BLKBSZSET                        = 0x80081271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40081272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1f
+ 	BS1                              = 0x8000
+ 	BSDLY                            = 0x8000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index d4a5ab9e4e..44f45a039d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80081270
+ 	BLKBSZSET                        = 0x40081271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80081272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index 66e65db951..74733e260f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -27,22 +27,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x127a
+ 	BLKBSZGET                        = 0x80081270
+ 	BLKBSZSET                        = 0x40081271
++	BLKDISCARD                       = 0x1277
++	BLKDISCARDZEROES                 = 0x127c
+ 	BLKFLSBUF                        = 0x1261
+ 	BLKFRAGET                        = 0x1265
+ 	BLKFRASET                        = 0x1264
++	BLKGETDISKSEQ                    = 0x80081280
+ 	BLKGETSIZE                       = 0x1260
+ 	BLKGETSIZE64                     = 0x80081272
++	BLKIOMIN                         = 0x1278
++	BLKIOOPT                         = 0x1279
+ 	BLKPBSZGET                       = 0x127b
+ 	BLKRAGET                         = 0x1263
+ 	BLKRASET                         = 0x1262
+ 	BLKROGET                         = 0x125e
+ 	BLKROSET                         = 0x125d
++	BLKROTATIONAL                    = 0x127e
+ 	BLKRRPART                        = 0x125f
++	BLKSECDISCARD                    = 0x127d
+ 	BLKSECTGET                       = 0x1267
+ 	BLKSECTSET                       = 0x1266
+ 	BLKSSZGET                        = 0x1268
++	BLKZEROOUT                       = 0x127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index 48984202c6..f5f3934b1a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -30,22 +30,31 @@ const (
+ 	B57600                           = 0x1001
+ 	B576000                          = 0x1006
+ 	B921600                          = 0x1007
++	BLKALIGNOFF                      = 0x2000127a
+ 	BLKBSZGET                        = 0x40081270
+ 	BLKBSZSET                        = 0x80081271
++	BLKDISCARD                       = 0x20001277
++	BLKDISCARDZEROES                 = 0x2000127c
+ 	BLKFLSBUF                        = 0x20001261
+ 	BLKFRAGET                        = 0x20001265
+ 	BLKFRASET                        = 0x20001264
++	BLKGETDISKSEQ                    = 0x40081280
+ 	BLKGETSIZE                       = 0x20001260
+ 	BLKGETSIZE64                     = 0x40081272
++	BLKIOMIN                         = 0x20001278
++	BLKIOOPT                         = 0x20001279
+ 	BLKPBSZGET                       = 0x2000127b
+ 	BLKRAGET                         = 0x20001263
+ 	BLKRASET                         = 0x20001262
+ 	BLKROGET                         = 0x2000125e
+ 	BLKROSET                         = 0x2000125d
++	BLKROTATIONAL                    = 0x2000127e
+ 	BLKRRPART                        = 0x2000125f
++	BLKSECDISCARD                    = 0x2000127d
+ 	BLKSECTGET                       = 0x20001267
+ 	BLKSECTSET                       = 0x20001266
+ 	BLKSSZGET                        = 0x20001268
++	BLKZEROOUT                       = 0x2000127f
+ 	BOTHER                           = 0x1000
+ 	BS1                              = 0x2000
+ 	BSDLY                            = 0x2000
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index 7ceec233fb..14ab34a565 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -1356,7 +1356,7 @@ func Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) {
++func pselect6(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_argpack) (n int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_PSELECT6, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), uintptr(unsafe.Pointer(sigmask)))
+ 	n = int(r0)
+ 	if e1 != 0 {
+@@ -2197,3 +2197,23 @@ func getresgid(rgid *_C_int, egid *_C_int, sgid *_C_int) {
+ 	RawSyscallNoError(SYS_GETRESGID, uintptr(unsafe.Pointer(rgid)), uintptr(unsafe.Pointer(egid)), uintptr(unsafe.Pointer(sgid)))
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func schedSetattr(pid int, attr *SchedAttr, flags uint) (err error) {
++	_, _, e1 := Syscall(SYS_SCHED_SETATTR, uintptr(pid), uintptr(unsafe.Pointer(attr)), uintptr(flags))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func schedGetattr(pid int, attr *SchedAttr, size uint, flags uint) (err error) {
++	_, _, e1 := Syscall6(SYS_SCHED_GETATTR, uintptr(pid), uintptr(unsafe.Pointer(attr)), uintptr(size), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go
+index 0b29239583..0ab4f2ed72 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux_riscv64.go
+@@ -531,3 +531,19 @@ func kexecFileLoad(kernelFd int, initrdFd int, cmdlineLen int, cmdline string, f
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func riscvHWProbe(pairs []RISCVHWProbePairs, cpuCount uintptr, cpus *CPUSet, flags uint) (err error) {
++	var _p0 unsafe.Pointer
++	if len(pairs) > 0 {
++		_p0 = unsafe.Pointer(&pairs[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	_, _, e1 := Syscall6(SYS_RISCV_HWPROBE, uintptr(_p0), uintptr(len(pairs)), uintptr(cpuCount), uintptr(unsafe.Pointer(cpus)), uintptr(flags), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_386.go
+index cdb2af5ae0..35f499b32a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_386.go
+@@ -1858,3 +1858,14 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) {
++	r0, _, e1 := Syscall6(SYS_MREMAP, uintptr(oldp), uintptr(oldsize), uintptr(newp), uintptr(newsize), uintptr(flags), 0)
++	xaddr = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_amd64.go
+index 9d25f76b0b..3cda65b0da 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_amd64.go
+@@ -1858,3 +1858,14 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) {
++	r0, _, e1 := Syscall6(SYS_MREMAP, uintptr(oldp), uintptr(oldsize), uintptr(newp), uintptr(newsize), uintptr(flags), 0)
++	xaddr = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm.go
+index d3f8035169..1e1fea902b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm.go
+@@ -1858,3 +1858,14 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) {
++	r0, _, e1 := Syscall6(SYS_MREMAP, uintptr(oldp), uintptr(oldsize), uintptr(newp), uintptr(newsize), uintptr(flags), 0)
++	xaddr = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm64.go
+index 887188a529..3b77da1107 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_netbsd_arm64.go
+@@ -1858,3 +1858,14 @@ func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error
+ 	}
+ 	return
+ }
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func mremapNetBSD(oldp uintptr, oldsize uintptr, newp uintptr, newsize uintptr, flags int) (xaddr uintptr, err error) {
++	r0, _, e1 := Syscall6(SYS_MREMAP, uintptr(oldp), uintptr(oldsize), uintptr(newp), uintptr(newsize), uintptr(flags), 0)
++	xaddr = uintptr(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+index 3e594a8c09..ef285c567b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+@@ -251,6 +251,8 @@ const (
+ 	SYS_ACCEPT4                 = 242
+ 	SYS_RECVMMSG                = 243
+ 	SYS_ARCH_SPECIFIC_SYSCALL   = 244
++	SYS_RISCV_HWPROBE           = 258
++	SYS_RISCV_FLUSH_ICACHE      = 259
+ 	SYS_WAIT4                   = 260
+ 	SYS_PRLIMIT64               = 261
+ 	SYS_FANOTIFY_INIT           = 262
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index 02e2462c8f..494493c78c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -866,6 +866,11 @@ const (
+ 	POLLNVAL = 0x20
+ )
+ 
++type sigset_argpack struct {
++	ss    *Sigset_t
++	ssLen uintptr
++}
++
+ type SignalfdSiginfo struct {
+ 	Signo     uint32
+ 	Errno     int32
+@@ -5863,3 +5868,18 @@ const (
+ 	VIRTIO_NET_HDR_GSO_UDP_L4 = 0x5
+ 	VIRTIO_NET_HDR_GSO_ECN    = 0x80
+ )
++
++type SchedAttr struct {
++	Size     uint32
++	Policy   uint32
++	Flags    uint64
++	Nice     int32
++	Priority uint32
++	Runtime  uint64
++	Deadline uint64
++	Period   uint64
++	Util_min uint32
++	Util_max uint32
++}
++
++const SizeofSchedAttr = 0x38
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+index 9ea54b7b86..83c69c119f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+@@ -718,3 +718,26 @@ type SysvShmDesc struct {
+ 	_      uint64
+ 	_      uint64
+ }
++
++type RISCVHWProbePairs struct {
++	Key   int64
++	Value uint64
++}
++
++const (
++	RISCV_HWPROBE_KEY_MVENDORID          = 0x0
++	RISCV_HWPROBE_KEY_MARCHID            = 0x1
++	RISCV_HWPROBE_KEY_MIMPID             = 0x2
++	RISCV_HWPROBE_KEY_BASE_BEHAVIOR      = 0x3
++	RISCV_HWPROBE_BASE_BEHAVIOR_IMA      = 0x1
++	RISCV_HWPROBE_KEY_IMA_EXT_0          = 0x4
++	RISCV_HWPROBE_IMA_FD                 = 0x1
++	RISCV_HWPROBE_IMA_C                  = 0x2
++	RISCV_HWPROBE_KEY_CPUPERF_0          = 0x5
++	RISCV_HWPROBE_MISALIGNED_UNKNOWN     = 0x0
++	RISCV_HWPROBE_MISALIGNED_EMULATED    = 0x1
++	RISCV_HWPROBE_MISALIGNED_SLOW        = 0x2
++	RISCV_HWPROBE_MISALIGNED_FAST        = 0x3
++	RISCV_HWPROBE_MISALIGNED_UNSUPPORTED = 0x4
++	RISCV_HWPROBE_MISALIGNED_MASK        = 0x7
++)
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 9645900754..88e60c8763 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -135,14 +135,14 @@ func Getpagesize() int { return 4096 }
+ 
+ // NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
+ // This is useful when interoperating with Windows code requiring callbacks.
+-// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
++// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+ func NewCallback(fn interface{}) uintptr {
+ 	return syscall.NewCallback(fn)
+ }
+ 
+ // NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
+ // This is useful when interoperating with Windows code requiring callbacks.
+-// The argument is expected to be a function with with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
++// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
+ func NewCallbackCDecl(fn interface{}) uintptr {
+ 	return syscall.NewCallbackCDecl(fn)
+ }
+@@ -437,6 +437,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	DwmGetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, size uint32) (ret error) = dwmapi.DwmGetWindowAttribute
+ //sys	DwmSetWindowAttribute(hwnd HWND, attribute uint32, value unsafe.Pointer, size uint32) (ret error) = dwmapi.DwmSetWindowAttribute
+ 
++// Windows Multimedia API
++//sys TimeBeginPeriod (period uint32) (err error) [failretval != 0] = winmm.timeBeginPeriod
++//sys TimeEndPeriod (period uint32) (err error) [failretval != 0] = winmm.timeEndPeriod
++
+ // syscall interface implementation for other packages
+ 
+ // GetCurrentProcess returns the handle for the current process.
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 566dd3e315..1c31758eac 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -55,6 +55,7 @@ var (
+ 	moduser32   = NewLazySystemDLL("user32.dll")
+ 	moduserenv  = NewLazySystemDLL("userenv.dll")
+ 	modversion  = NewLazySystemDLL("version.dll")
++	modwinmm    = NewLazySystemDLL("winmm.dll")
+ 	modwintrust = NewLazySystemDLL("wintrust.dll")
+ 	modws2_32   = NewLazySystemDLL("ws2_32.dll")
+ 	modwtsapi32 = NewLazySystemDLL("wtsapi32.dll")
+@@ -468,6 +469,8 @@ var (
+ 	procGetFileVersionInfoSizeW                              = modversion.NewProc("GetFileVersionInfoSizeW")
+ 	procGetFileVersionInfoW                                  = modversion.NewProc("GetFileVersionInfoW")
+ 	procVerQueryValueW                                       = modversion.NewProc("VerQueryValueW")
++	proctimeBeginPeriod                                      = modwinmm.NewProc("timeBeginPeriod")
++	proctimeEndPeriod                                        = modwinmm.NewProc("timeEndPeriod")
+ 	procWinVerifyTrustEx                                     = modwintrust.NewProc("WinVerifyTrustEx")
+ 	procFreeAddrInfoW                                        = modws2_32.NewProc("FreeAddrInfoW")
+ 	procGetAddrInfoW                                         = modws2_32.NewProc("GetAddrInfoW")
+@@ -4017,6 +4020,22 @@ func _VerQueryValue(block unsafe.Pointer, subBlock *uint16, pointerToBufferPoint
+ 	return
+ }
+ 
++func TimeBeginPeriod(period uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
++	if r1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func TimeEndPeriod(period uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
++	if r1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func WinVerifyTrustEx(hwnd HWND, actionId *GUID, data *WinTrustData) (ret error) {
+ 	r0, _, _ := syscall.Syscall(procWinVerifyTrustEx.Addr(), 3, uintptr(hwnd), uintptr(unsafe.Pointer(actionId)), uintptr(unsafe.Pointer(data)))
+ 	if r0 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index e51e58b3d2..5da33c7e6e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -139,28 +139,24 @@ type Pass struct {
+ 	// See comments for ExportObjectFact.
+ 	ExportPackageFact func(fact Fact)
+ 
+-	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
+-	// in unspecified order.
+-	// WARNING: This is an experimental API and may change in the future.
++	// AllPackageFacts returns a new slice containing all package
++	// facts of the analysis's FactTypes in unspecified order.
+ 	AllPackageFacts func() []PackageFact
+ 
+-	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
+-	// in unspecified order.
+-	// WARNING: This is an experimental API and may change in the future.
++	// AllObjectFacts returns a new slice containing all object
++	// facts of the analysis's FactTypes in unspecified order.
+ 	AllObjectFacts func() []ObjectFact
+ 
+ 	/* Further fields may be added in future. */
+ }
+ 
+ // PackageFact is a package together with an associated fact.
+-// WARNING: This is an experimental API and may change in the future.
+ type PackageFact struct {
+ 	Package *types.Package
+ 	Fact    Fact
+ }
+ 
+ // ObjectFact is an object together with an associated fact.
+-// WARNING: This is an experimental API and may change in the future.
+ type ObjectFact struct {
+ 	Object types.Object
+ 	Fact   Fact
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+index 7646ad0d49..f67c97294b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/diagnostic.go
+@@ -31,14 +31,13 @@ type Diagnostic struct {
+ 	// see https://pkg.go.dev/net/url#URL.ResolveReference.
+ 	URL string
+ 
+-	// SuggestedFixes contains suggested fixes for a diagnostic which can be used to perform
+-	// edits to a file that address the diagnostic.
+-	// TODO(matloob): Should multiple SuggestedFixes be allowed for a diagnostic?
++	// SuggestedFixes contains suggested fixes for a diagnostic
++	// which can be used to perform edits to a file that address
++	// the diagnostic.
++	//
+ 	// Diagnostics should not contain SuggestedFixes that overlap.
+-	// Experimental: This API is experimental and may change in the future.
+ 	SuggestedFixes []SuggestedFix // optional
+ 
+-	// Experimental: This API is experimental and may change in the future.
+ 	Related []RelatedInformation // optional
+ }
+ 
+@@ -52,12 +51,12 @@ type RelatedInformation struct {
+ 	Message string
+ }
+ 
+-// A SuggestedFix is a code change associated with a Diagnostic that a user can choose
+-// to apply to their code. Usually the SuggestedFix is meant to fix the issue flagged
+-// by the diagnostic.
+-// TextEdits for a SuggestedFix should not overlap. TextEdits for a SuggestedFix
+-// should not contain edits for other packages.
+-// Experimental: This API is experimental and may change in the future.
++// A SuggestedFix is a code change associated with a Diagnostic that a
++// user can choose to apply to their code. Usually the SuggestedFix is
++// meant to fix the issue flagged by the diagnostic.
++//
++// TextEdits for a SuggestedFix should not overlap,
++// nor contain edits for other packages.
+ type SuggestedFix struct {
+ 	// A description for this suggested fix to be shown to a user deciding
+ 	// whether to accept it.
+@@ -67,7 +66,6 @@ type SuggestedFix struct {
+ 
+ // A TextEdit represents the replacement of the code between Pos and End with the new text.
+ // Each TextEdit should apply to a single file. End should not be earlier in the file than Pos.
+-// Experimental: This API is experimental and may change in the future.
+ type TextEdit struct {
+ 	// For a pure insertion, End can either be set to Pos or token.NoPos.
+ 	Pos     token.Pos
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index a2a4a89b3a..55bdad78b7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -40,7 +40,7 @@ func runBuildTag(pass *analysis.Pass) (interface{}, error) {
+ 	}
+ 	for _, name := range pass.IgnoredFiles {
+ 		if strings.HasSuffix(name, ".go") {
+-			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments)
++			f, err := parser.ParseFile(pass.Fset, name, nil, parser.ParseComments|parser.SkipObjectResolution)
+ 			if err != nil {
+ 				// Not valid Go source code - not our job to diagnose, so ignore.
+ 				return nil, nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index c18b84b714..98d9a777a7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -180,7 +180,7 @@ func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*a
+ 		// If f is a cgo-generated file, Position reports
+ 		// the original file, honoring //line directives.
+ 		filename := fset.Position(raw.Pos()).Filename
+-		f, err := parser.ParseFile(fset, filename, nil, parser.Mode(0))
++		f, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
+ 		if err != nil {
+ 			return nil, nil, fmt.Errorf("can't parse raw cgo file: %v", err)
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index 20fb70806a..c7a49776fe 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -37,7 +37,7 @@ should be replaced by:
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "composites",
+ 	Doc:              Doc,
+-	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composites",
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composite",
+ 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index b3ca8ada40..ff2b41ac4a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -242,29 +242,23 @@ func lockPathRhs(pass *analysis.Pass, x ast.Expr) typePath {
+ // lockPath returns a typePath describing the location of a lock value
+ // contained in typ. If there is no contained lock, it returns nil.
+ //
+-// The seenTParams map is used to short-circuit infinite recursion via type
+-// parameters.
+-func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.TypeParam]bool) typePath {
+-	if typ == nil {
++// The seen map is used to short-circuit infinite recursion due to type cycles.
++func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typePath {
++	if typ == nil || seen[typ] {
+ 		return nil
+ 	}
++	if seen == nil {
++		seen = make(map[types.Type]bool)
++	}
++	seen[typ] = true
+ 
+ 	if tpar, ok := typ.(*typeparams.TypeParam); ok {
+-		if seenTParams == nil {
+-			// Lazily allocate seenTParams, since the common case will not involve
+-			// any type parameters.
+-			seenTParams = make(map[*typeparams.TypeParam]bool)
+-		}
+-		if seenTParams[tpar] {
+-			return nil
+-		}
+-		seenTParams[tpar] = true
+ 		terms, err := typeparams.StructuralTerms(tpar)
+ 		if err != nil {
+ 			return nil // invalid type
+ 		}
+ 		for _, term := range terms {
+-			subpath := lockPath(tpkg, term.Type(), seenTParams)
++			subpath := lockPath(tpkg, term.Type(), seen)
+ 			if len(subpath) > 0 {
+ 				if term.Tilde() {
+ 					// Prepend a tilde to our lock path entry to clarify the resulting
+@@ -298,7 +292,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.T
+ 	ttyp, ok := typ.Underlying().(*types.Tuple)
+ 	if ok {
+ 		for i := 0; i < ttyp.Len(); i++ {
+-			subpath := lockPath(tpkg, ttyp.At(i).Type(), seenTParams)
++			subpath := lockPath(tpkg, ttyp.At(i).Type(), seen)
+ 			if subpath != nil {
+ 				return append(subpath, typ.String())
+ 			}
+@@ -332,7 +326,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seenTParams map[*typeparams.T
+ 	nfields := styp.NumFields()
+ 	for i := 0; i < nfields; i++ {
+ 		ftyp := styp.Field(i).Type()
+-		subpath := lockPath(tpkg, ftyp, seenTParams)
++		subpath := lockPath(tpkg, ftyp, seen)
+ 		if subpath != nil {
+ 			return append(subpath, typ.String())
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 10c76bc627..88527d7a8e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -288,13 +288,13 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 	analyzers = filtered
+ 
+ 	// Read facts from imported packages.
+-	read := func(imp *types.Package) ([]byte, error) {
+-		if vetx, ok := cfg.PackageVetx[imp.Path()]; ok {
++	read := func(pkgPath string) ([]byte, error) {
++		if vetx, ok := cfg.PackageVetx[pkgPath]; ok {
+ 			return ioutil.ReadFile(vetx)
+ 		}
+ 		return nil, nil // no .vetx file, no facts
+ 	}
+-	facts, err := facts.NewDecoder(pkg).Decode(read)
++	facts, err := facts.NewDecoder(pkg).Decode(false, read)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -393,7 +393,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		results[i].diagnostics = act.diagnostics
+ 	}
+ 
+-	data := facts.Encode()
++	data := facts.Encode(false)
+ 	if err := ioutil.WriteFile(cfg.VetxOutput, data, 0666); err != nil {
+ 		return nil, fmt.Errorf("failed to write analysis facts: %v", err)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index f2ce77fd59..fa5834baf7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -29,8 +29,10 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	_ "unsafe"
+ 
+ 	"golang.org/x/tools/internal/typeparams"
++	"golang.org/x/tools/internal/typesinternal"
+ )
+ 
+ // A Path is an opaque name that identifies a types.Object
+@@ -121,8 +123,20 @@ func For(obj types.Object) (Path, error) {
+ // An Encoder amortizes the cost of encoding the paths of multiple objects.
+ // The zero value of an Encoder is ready to use.
+ type Encoder struct {
+-	scopeMemo        map[*types.Scope][]types.Object // memoization of scopeObjects
+-	namedMethodsMemo map[*types.Named][]*types.Func  // memoization of namedMethods()
++	scopeMemo         map[*types.Scope][]types.Object // memoization of scopeObjects
++	namedMethodsMemo  map[*types.Named][]*types.Func  // memoization of namedMethods()
++	skipMethodSorting bool
++}
++
++// Expose back doors so that gopls can avoid method sorting, which can dominate
++// analysis on certain repositories.
++//
++// TODO(golang/go#61443): remove this.
++func init() {
++	typesinternal.SkipEncoderMethodSorting = func(enc interface{}) {
++		enc.(*Encoder).skipMethodSorting = true
++	}
++	typesinternal.ObjectpathObject = object
+ }
+ 
+ // For returns the path to an object relative to its package,
+@@ -314,16 +328,31 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
+ 		// Inspect declared methods of defined types.
+ 		if T, ok := o.Type().(*types.Named); ok {
+ 			path = append(path, opType)
+-			// Note that method index here is always with respect
+-			// to canonical ordering of methods, regardless of how
+-			// they appear in the underlying type.
+-			for i, m := range enc.namedMethods(T) {
+-				path2 := appendOpArg(path, opMethod, i)
+-				if m == obj {
+-					return Path(path2), nil // found declared method
++			if !enc.skipMethodSorting {
++				// Note that method index here is always with respect
++				// to canonical ordering of methods, regardless of how
++				// they appear in the underlying type.
++				for i, m := range enc.namedMethods(T) {
++					path2 := appendOpArg(path, opMethod, i)
++					if m == obj {
++						return Path(path2), nil // found declared method
++					}
++					if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
++						return Path(r), nil
++					}
+ 				}
+-				if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
+-					return Path(r), nil
++			} else {
++				// This branch must match the logic in the branch above, using go/types
++				// APIs without sorting.
++				for i := 0; i < T.NumMethods(); i++ {
++					m := T.Method(i)
++					path2 := appendOpArg(path, opMethod, i)
++					if m == obj {
++						return Path(path2), nil // found declared method
++					}
++					if r := find(obj, m.Type(), append(path2, opType), nil); r != nil {
++						return Path(r), nil
++					}
+ 				}
+ 			}
+ 		}
+@@ -418,10 +447,23 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
+ 	path := make([]byte, 0, len(name)+8)
+ 	path = append(path, name...)
+ 	path = append(path, opType)
+-	for i, m := range enc.namedMethods(named) {
+-		if m == meth {
+-			path = appendOpArg(path, opMethod, i)
+-			return Path(path), true
++
++	if !enc.skipMethodSorting {
++		for i, m := range enc.namedMethods(named) {
++			if m == meth {
++				path = appendOpArg(path, opMethod, i)
++				return Path(path), true
++			}
++		}
++	} else {
++		// This branch must match the logic of the branch above, using go/types
++		// APIs without sorting.
++		for i := 0; i < named.NumMethods(); i++ {
++			m := named.Method(i)
++			if m == meth {
++				path = appendOpArg(path, opMethod, i)
++				return Path(path), true
++			}
+ 		}
+ 	}
+ 
+@@ -534,11 +576,16 @@ func findTypeParam(obj types.Object, list *typeparams.TypeParamList, path []byte
+ 
+ // Object returns the object denoted by path p within the package pkg.
+ func Object(pkg *types.Package, p Path) (types.Object, error) {
+-	if p == "" {
++	return object(pkg, string(p), false)
++}
++
++// Note: the skipMethodSorting parameter must match the value of
++// Encoder.skipMethodSorting used during encoding.
++func object(pkg *types.Package, pathstr string, skipMethodSorting bool) (types.Object, error) {
++	if pathstr == "" {
+ 		return nil, fmt.Errorf("empty path")
+ 	}
+ 
+-	pathstr := string(p)
+ 	var pkgobj, suffix string
+ 	if dot := strings.IndexByte(pathstr, opType); dot < 0 {
+ 		pkgobj = pathstr
+@@ -697,11 +744,15 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 				obj = t.Method(index) // Id-ordered
+ 
+ 			case *types.Named:
+-				methods := namedMethods(t) // (unmemoized)
+-				if index >= len(methods) {
+-					return nil, fmt.Errorf("method index %d out of range [0-%d)", index, len(methods))
++				if index >= t.NumMethods() {
++					return nil, fmt.Errorf("method index %d out of range [0-%d)", index, t.NumMethods())
++				}
++				if skipMethodSorting {
++					obj = t.Method(index)
++				} else {
++					methods := namedMethods(t) // (unmemoized)
++					obj = methods[index]       // Id-ordered
+ 				}
+-				obj = methods[index] // Id-ordered
+ 
+ 			default:
+ 				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want interface or named)", code, t, t)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+index 954b42d696..ec11d5e0af 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+@@ -48,6 +48,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/types/objectpath"
++	"golang.org/x/tools/internal/typesinternal"
+ )
+ 
+ const debug = false
+@@ -195,7 +196,7 @@ func NewDecoderFunc(pkg *types.Package, getPackage GetPackageFunc) *Decoder {
+ type GetPackageFunc = func(pkgPath string) *types.Package
+ 
+ // Decode decodes all the facts relevant to the analysis of package
+-// pkg. The read function reads serialized fact data from an external
++// pkgPath. The read function reads serialized fact data from an external
+ // source for one of pkg's direct imports, identified by package path.
+ // The empty file is a valid encoding of an empty fact set.
+ //
+@@ -204,7 +205,9 @@ type GetPackageFunc = func(pkgPath string) *types.Package
+ //
+ // Concurrent calls to Decode are safe, so long as the
+ // [GetPackageFunc] (if any) is also concurrency-safe.
+-func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error) {
++//
++// TODO(golang/go#61443): eliminate skipMethodSorting one way or the other.
++func (d *Decoder) Decode(skipMethodSorting bool, read func(pkgPath string) ([]byte, error)) (*Set, error) {
+ 	// Read facts from imported packages.
+ 	// Facts may describe indirectly imported packages, or their objects.
+ 	m := make(map[key]analysis.Fact) // one big bucket
+@@ -218,7 +221,7 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
+ 		}
+ 
+ 		// Read the gob-encoded facts.
+-		data, err := read(imp)
++		data, err := read(imp.Path())
+ 		if err != nil {
+ 			return nil, fmt.Errorf("in %s, can't import facts for package %q: %v",
+ 				d.pkg.Path(), imp.Path(), err)
+@@ -244,7 +247,7 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
+ 			key := key{pkg: factPkg, t: reflect.TypeOf(f.Fact)}
+ 			if f.Object != "" {
+ 				// object fact
+-				obj, err := objectpath.Object(factPkg, f.Object)
++				obj, err := typesinternal.ObjectpathObject(factPkg, string(f.Object), skipMethodSorting)
+ 				if err != nil {
+ 					// (most likely due to unexported object)
+ 					// TODO(adonovan): audit for other possibilities.
+@@ -268,7 +271,11 @@ func (d *Decoder) Decode(read func(*types.Package) ([]byte, error)) (*Set, error
+ //
+ // It may fail if one of the Facts could not be gob-encoded, but this is
+ // a sign of a bug in an Analyzer.
+-func (s *Set) Encode() []byte {
++func (s *Set) Encode(skipMethodSorting bool) []byte {
++	encoder := new(objectpath.Encoder)
++	if skipMethodSorting {
++		typesinternal.SkipEncoderMethodSorting(encoder)
++	}
+ 
+ 	// TODO(adonovan): opt: use a more efficient encoding
+ 	// that avoids repeating PkgPath for each fact.
+@@ -281,9 +288,36 @@ func (s *Set) Encode() []byte {
+ 		if debug {
+ 			log.Printf("%v => %s\n", k, fact)
+ 		}
++
++		// Don't export facts that we imported from another
++		// package, unless they represent fields or methods,
++		// or package-level types.
++		// (Facts about packages, and other package-level
++		// objects, are only obtained from direct imports so
++		// they needn't be reexported.)
++		//
++		// This is analogous to the pruning done by "deep"
++		// export data for types, but not as precise because
++		// we aren't careful about which structs or methods
++		// we rexport: it should be only those referenced
++		// from the API of s.pkg.
++		// TOOD(adonovan): opt: be more precise. e.g.
++		// intersect with the set of objects computed by
++		// importMap(s.pkg.Imports()).
++		// TOOD(adonovan): opt: implement "shallow" facts.
++		if k.pkg != s.pkg {
++			if k.obj == nil {
++				continue // imported package fact
++			}
++			if _, isType := k.obj.(*types.TypeName); !isType &&
++				k.obj.Parent() == k.obj.Pkg().Scope() {
++				continue // imported fact about package-level non-type object
++			}
++		}
++
+ 		var object objectpath.Path
+ 		if k.obj != nil {
+-			path, err := objectpath.For(k.obj)
++			path, err := encoder.For(k.obj)
+ 			if err != nil {
+ 				if debug {
+ 					log.Printf("discarding fact %s about %s\n", fact, k.obj)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+index b18e62d1d7..f64695ea52 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+@@ -55,7 +55,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 			// infinite expansions:
+ 			//     type N[T any] struct { F *N[N[T]] }
+ 			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
+-			T = typeparams.NamedTypeOrigin(T).(*types.Named)
++			T = typeparams.NamedTypeOrigin(T)
+ 			if !typs[T] {
+ 				typs[T] = true
+ 				addObj(T.Obj())
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index b9e87c691a..d0d0649fe2 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -23,6 +23,7 @@
+ package typeparams
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -125,6 +126,11 @@ func OriginMethod(fn *types.Func) *types.Func {
+ 		}
+ 	}
+ 
++	// In golang/go#61196, we observe another crash, this time inexplicable.
++	if gfn == nil {
++		panic(fmt.Sprintf("missing origin method for %s.%s; named == origin: %t, named.NumMethods(): %d, origin.NumMethods(): %d", named, fn, named == orig, named.NumMethods(), orig.NumMethods()))
++	}
++
+ 	return gfn.(*types.Func)
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+index b4788978ff..7ed86e1711 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+@@ -129,7 +129,7 @@ func NamedTypeArgs(*types.Named) *TypeList {
+ }
+ 
+ // NamedTypeOrigin is the identity method at this Go version.
+-func NamedTypeOrigin(named *types.Named) types.Type {
++func NamedTypeOrigin(named *types.Named) *types.Named {
+ 	return named
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+index 114a36b866..cf301af1db 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+@@ -103,7 +103,7 @@ func NamedTypeArgs(named *types.Named) *TypeList {
+ }
+ 
+ // NamedTypeOrigin returns named.Orig().
+-func NamedTypeOrigin(named *types.Named) types.Type {
++func NamedTypeOrigin(named *types.Named) *types.Named {
+ 	return named.Origin()
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
+new file mode 100644
+index 0000000000..07484073a5
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
+@@ -0,0 +1,1560 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package typesinternal
++
++//go:generate stringer -type=ErrorCode
++
++type ErrorCode int
++
++// This file defines the error codes that can be produced during type-checking.
++// Collectively, these codes provide an identifier that may be used to
++// implement special handling for certain types of errors.
++//
++// Error codes should be fine-grained enough that the exact nature of the error
++// can be easily determined, but coarse enough that they are not an
++// implementation detail of the type checking algorithm. As a rule-of-thumb,
++// errors should be considered equivalent if there is a theoretical refactoring
++// of the type checker in which they are emitted in exactly one place. For
++// example, the type checker emits different error messages for "too many
++// arguments" and "too few arguments", but one can imagine an alternative type
++// checker where this check instead just emits a single "wrong number of
++// arguments", so these errors should have the same code.
++//
++// Error code names should be as brief as possible while retaining accuracy and
++// distinctiveness. In most cases names should start with an adjective
++// describing the nature of the error (e.g. "invalid", "unused", "misplaced"),
++// and end with a noun identifying the relevant language object. For example,
++// "DuplicateDecl" or "InvalidSliceExpr". For brevity, naming follows the
++// convention that "bad" implies a problem with syntax, and "invalid" implies a
++// problem with types.
++
++const (
++	// InvalidSyntaxTree occurs if an invalid syntax tree is provided
++	// to the type checker. It should never happen.
++	InvalidSyntaxTree ErrorCode = -1
++)
++
++const (
++	_ ErrorCode = iota
++
++	// Test is reserved for errors that only apply while in self-test mode.
++	Test
++
++	/* package names */
++
++	// BlankPkgName occurs when a package name is the blank identifier "_".
++	//
++	// Per the spec:
++	//  "The PackageName must not be the blank identifier."
++	BlankPkgName
++
++	// MismatchedPkgName occurs when a file's package name doesn't match the
++	// package name already established by other files.
++	MismatchedPkgName
++
++	// InvalidPkgUse occurs when a package identifier is used outside of a
++	// selector expression.
++	//
++	// Example:
++	//  import "fmt"
++	//
++	//  var _ = fmt
++	InvalidPkgUse
++
++	/* imports */
++
++	// BadImportPath occurs when an import path is not valid.
++	BadImportPath
++
++	// BrokenImport occurs when importing a package fails.
++	//
++	// Example:
++	//  import "amissingpackage"
++	BrokenImport
++
++	// ImportCRenamed occurs when the special import "C" is renamed. "C" is a
++	// pseudo-package, and must not be renamed.
++	//
++	// Example:
++	//  import _ "C"
++	ImportCRenamed
++
++	// UnusedImport occurs when an import is unused.
++	//
++	// Example:
++	//  import "fmt"
++	//
++	//  func main() {}
++	UnusedImport
++
++	/* initialization */
++
++	// InvalidInitCycle occurs when an invalid cycle is detected within the
++	// initialization graph.
++	//
++	// Example:
++	//  var x int = f()
++	//
++	//  func f() int { return x }
++	InvalidInitCycle
++
++	/* decls */
++
++	// DuplicateDecl occurs when an identifier is declared multiple times.
++	//
++	// Example:
++	//  var x = 1
++	//  var x = 2
++	DuplicateDecl
++
++	// InvalidDeclCycle occurs when a declaration cycle is not valid.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type T struct {
++	//  	a [n]int
++	//  }
++	//
++	//  var n = unsafe.Sizeof(T{})
++	InvalidDeclCycle
++
++	// InvalidTypeCycle occurs when a cycle in type definitions results in a
++	// type that is not well-defined.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type T [unsafe.Sizeof(T{})]int
++	InvalidTypeCycle
++
++	/* decls > const */
++
++	// InvalidConstInit occurs when a const declaration has a non-constant
++	// initializer.
++	//
++	// Example:
++	//  var x int
++	//  const _ = x
++	InvalidConstInit
++
++	// InvalidConstVal occurs when a const value cannot be converted to its
++	// target type.
++	//
++	// TODO(findleyr): this error code and example are not very clear. Consider
++	// removing it.
++	//
++	// Example:
++	//  const _ = 1 << "hello"
++	InvalidConstVal
++
++	// InvalidConstType occurs when the underlying type in a const declaration
++	// is not a valid constant type.
++	//
++	// Example:
++	//  const c *int = 4
++	InvalidConstType
++
++	/* decls > var (+ other variable assignment codes) */
++
++	// UntypedNilUse occurs when the predeclared (untyped) value nil is used to
++	// initialize a variable declared without an explicit type.
++	//
++	// Example:
++	//  var x = nil
++	UntypedNilUse
++
++	// WrongAssignCount occurs when the number of values on the right-hand side
++	// of an assignment or or initialization expression does not match the number
++	// of variables on the left-hand side.
++	//
++	// Example:
++	//  var x = 1, 2
++	WrongAssignCount
++
++	// UnassignableOperand occurs when the left-hand side of an assignment is
++	// not assignable.
++	//
++	// Example:
++	//  func f() {
++	//  	const c = 1
++	//  	c = 2
++	//  }
++	UnassignableOperand
++
++	// NoNewVar occurs when a short variable declaration (':=') does not declare
++	// new variables.
++	//
++	// Example:
++	//  func f() {
++	//  	x := 1
++	//  	x := 2
++	//  }
++	NoNewVar
++
++	// MultiValAssignOp occurs when an assignment operation (+=, *=, etc) does
++	// not have single-valued left-hand or right-hand side.
++	//
++	// Per the spec:
++	//  "In assignment operations, both the left- and right-hand expression lists
++	//  must contain exactly one single-valued expression"
++	//
++	// Example:
++	//  func f() int {
++	//  	x, y := 1, 2
++	//  	x, y += 1
++	//  	return x + y
++	//  }
++	MultiValAssignOp
++
++	// InvalidIfaceAssign occurs when a value of type T is used as an
++	// interface, but T does not implement a method of the expected interface.
++	//
++	// Example:
++	//  type I interface {
++	//  	f()
++	//  }
++	//
++	//  type T int
++	//
++	//  var x I = T(1)
++	InvalidIfaceAssign
++
++	// InvalidChanAssign occurs when a chan assignment is invalid.
++	//
++	// Per the spec, a value x is assignable to a channel type T if:
++	//  "x is a bidirectional channel value, T is a channel type, x's type V and
++	//  T have identical element types, and at least one of V or T is not a
++	//  defined type."
++	//
++	// Example:
++	//  type T1 chan int
++	//  type T2 chan int
++	//
++	//  var x T1
++	//  // Invalid assignment because both types are named
++	//  var _ T2 = x
++	InvalidChanAssign
++
++	// IncompatibleAssign occurs when the type of the right-hand side expression
++	// in an assignment cannot be assigned to the type of the variable being
++	// assigned.
++	//
++	// Example:
++	//  var x []int
++	//  var _ int = x
++	IncompatibleAssign
++
++	// UnaddressableFieldAssign occurs when trying to assign to a struct field
++	// in a map value.
++	//
++	// Example:
++	//  func f() {
++	//  	m := make(map[string]struct{i int})
++	//  	m["foo"].i = 42
++	//  }
++	UnaddressableFieldAssign
++
++	/* decls > type (+ other type expression codes) */
++
++	// NotAType occurs when the identifier used as the underlying type in a type
++	// declaration or the right-hand side of a type alias does not denote a type.
++	//
++	// Example:
++	//  var S = 2
++	//
++	//  type T S
++	NotAType
++
++	// InvalidArrayLen occurs when an array length is not a constant value.
++	//
++	// Example:
++	//  var n = 3
++	//  var _ = [n]int{}
++	InvalidArrayLen
++
++	// BlankIfaceMethod occurs when a method name is '_'.
++	//
++	// Per the spec:
++	//  "The name of each explicitly specified method must be unique and not
++	//  blank."
++	//
++	// Example:
++	//  type T interface {
++	//  	_(int)
++	//  }
++	BlankIfaceMethod
++
++	// IncomparableMapKey occurs when a map key type does not support the == and
++	// != operators.
++	//
++	// Per the spec:
++	//  "The comparison operators == and != must be fully defined for operands of
++	//  the key type; thus the key type must not be a function, map, or slice."
++	//
++	// Example:
++	//  var x map[T]int
++	//
++	//  type T []int
++	IncomparableMapKey
++
++	// InvalidIfaceEmbed occurs when a non-interface type is embedded in an
++	// interface.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func (T) m()
++	//
++	//  type I interface {
++	//  	T
++	//  }
++	InvalidIfaceEmbed
++
++	// InvalidPtrEmbed occurs when an embedded field is of the pointer form *T,
++	// and T itself is itself a pointer, an unsafe.Pointer, or an interface.
++	//
++	// Per the spec:
++	//  "An embedded field must be specified as a type name T or as a pointer to
++	//  a non-interface type name *T, and T itself may not be a pointer type."
++	//
++	// Example:
++	//  type T *int
++	//
++	//  type S struct {
++	//  	*T
++	//  }
++	InvalidPtrEmbed
++
++	/* decls > func and method */
++
++	// BadRecv occurs when a method declaration does not have exactly one
++	// receiver parameter.
++	//
++	// Example:
++	//  func () _() {}
++	BadRecv
++
++	// InvalidRecv occurs when a receiver type expression is not of the form T
++	// or *T, or T is a pointer type.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func (**T) m() {}
++	InvalidRecv
++
++	// DuplicateFieldAndMethod occurs when an identifier appears as both a field
++	// and method name.
++	//
++	// Example:
++	//  type T struct {
++	//  	m int
++	//  }
++	//
++	//  func (T) m() {}
++	DuplicateFieldAndMethod
++
++	// DuplicateMethod occurs when two methods on the same receiver type have
++	// the same name.
++	//
++	// Example:
++	//  type T struct {}
++	//  func (T) m() {}
++	//  func (T) m(i int) int { return i }
++	DuplicateMethod
++
++	/* decls > special */
++
++	// InvalidBlank occurs when a blank identifier is used as a value or type.
++	//
++	// Per the spec:
++	//  "The blank identifier may appear as an operand only on the left-hand side
++	//  of an assignment."
++	//
++	// Example:
++	//  var x = _
++	InvalidBlank
++
++	// InvalidIota occurs when the predeclared identifier iota is used outside
++	// of a constant declaration.
++	//
++	// Example:
++	//  var x = iota
++	InvalidIota
++
++	// MissingInitBody occurs when an init function is missing its body.
++	//
++	// Example:
++	//  func init()
++	MissingInitBody
++
++	// InvalidInitSig occurs when an init function declares parameters or
++	// results.
++	//
++	// Example:
++	//  func init() int { return 1 }
++	InvalidInitSig
++
++	// InvalidInitDecl occurs when init is declared as anything other than a
++	// function.
++	//
++	// Example:
++	//  var init = 1
++	InvalidInitDecl
++
++	// InvalidMainDecl occurs when main is declared as anything other than a
++	// function, in a main package.
++	InvalidMainDecl
++
++	/* exprs */
++
++	// TooManyValues occurs when a function returns too many values for the
++	// expression context in which it is used.
++	//
++	// Example:
++	//  func ReturnTwo() (int, int) {
++	//  	return 1, 2
++	//  }
++	//
++	//  var x = ReturnTwo()
++	TooManyValues
++
++	// NotAnExpr occurs when a type expression is used where a value expression
++	// is expected.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func f() {
++	//  	T
++	//  }
++	NotAnExpr
++
++	/* exprs > const */
++
++	// TruncatedFloat occurs when a float constant is truncated to an integer
++	// value.
++	//
++	// Example:
++	//  var _ int = 98.6
++	TruncatedFloat
++
++	// NumericOverflow occurs when a numeric constant overflows its target type.
++	//
++	// Example:
++	//  var x int8 = 1000
++	NumericOverflow
++
++	/* exprs > operation */
++
++	// UndefinedOp occurs when an operator is not defined for the type(s) used
++	// in an operation.
++	//
++	// Example:
++	//  var c = "a" - "b"
++	UndefinedOp
++
++	// MismatchedTypes occurs when operand types are incompatible in a binary
++	// operation.
++	//
++	// Example:
++	//  var a = "hello"
++	//  var b = 1
++	//  var c = a - b
++	MismatchedTypes
++
++	// DivByZero occurs when a division operation is provable at compile
++	// time to be a division by zero.
++	//
++	// Example:
++	//  const divisor = 0
++	//  var x int = 1/divisor
++	DivByZero
++
++	// NonNumericIncDec occurs when an increment or decrement operator is
++	// applied to a non-numeric value.
++	//
++	// Example:
++	//  func f() {
++	//  	var c = "c"
++	//  	c++
++	//  }
++	NonNumericIncDec
++
++	/* exprs > ptr */
++
++	// UnaddressableOperand occurs when the & operator is applied to an
++	// unaddressable expression.
++	//
++	// Example:
++	//  var x = &1
++	UnaddressableOperand
++
++	// InvalidIndirection occurs when a non-pointer value is indirected via the
++	// '*' operator.
++	//
++	// Example:
++	//  var x int
++	//  var y = *x
++	InvalidIndirection
++
++	/* exprs > [] */
++
++	// NonIndexableOperand occurs when an index operation is applied to a value
++	// that cannot be indexed.
++	//
++	// Example:
++	//  var x = 1
++	//  var y = x[1]
++	NonIndexableOperand
++
++	// InvalidIndex occurs when an index argument is not of integer type,
++	// negative, or out-of-bounds.
++	//
++	// Example:
++	//  var s = [...]int{1,2,3}
++	//  var x = s[5]
++	//
++	// Example:
++	//  var s = []int{1,2,3}
++	//  var _ = s[-1]
++	//
++	// Example:
++	//  var s = []int{1,2,3}
++	//  var i string
++	//  var _ = s[i]
++	InvalidIndex
++
++	// SwappedSliceIndices occurs when constant indices in a slice expression
++	// are decreasing in value.
++	//
++	// Example:
++	//  var _ = []int{1,2,3}[2:1]
++	SwappedSliceIndices
++
++	/* operators > slice */
++
++	// NonSliceableOperand occurs when a slice operation is applied to a value
++	// whose type is not sliceable, or is unaddressable.
++	//
++	// Example:
++	//  var x = [...]int{1, 2, 3}[:1]
++	//
++	// Example:
++	//  var x = 1
++	//  var y = 1[:1]
++	NonSliceableOperand
++
++	// InvalidSliceExpr occurs when a three-index slice expression (a[x:y:z]) is
++	// applied to a string.
++	//
++	// Example:
++	//  var s = "hello"
++	//  var x = s[1:2:3]
++	InvalidSliceExpr
++
++	/* exprs > shift */
++
++	// InvalidShiftCount occurs when the right-hand side of a shift operation is
++	// either non-integer, negative, or too large.
++	//
++	// Example:
++	//  var (
++	//  	x string
++	//  	y int = 1 << x
++	//  )
++	InvalidShiftCount
++
++	// InvalidShiftOperand occurs when the shifted operand is not an integer.
++	//
++	// Example:
++	//  var s = "hello"
++	//  var x = s << 2
++	InvalidShiftOperand
++
++	/* exprs > chan */
++
++	// InvalidReceive occurs when there is a channel receive from a value that
++	// is either not a channel, or is a send-only channel.
++	//
++	// Example:
++	//  func f() {
++	//  	var x = 1
++	//  	<-x
++	//  }
++	InvalidReceive
++
++	// InvalidSend occurs when there is a channel send to a value that is not a
++	// channel, or is a receive-only channel.
++	//
++	// Example:
++	//  func f() {
++	//  	var x = 1
++	//  	x <- "hello!"
++	//  }
++	InvalidSend
++
++	/* exprs > literal */
++
++	// DuplicateLitKey occurs when an index is duplicated in a slice, array, or
++	// map literal.
++	//
++	// Example:
++	//  var _ = []int{0:1, 0:2}
++	//
++	// Example:
++	//  var _ = map[string]int{"a": 1, "a": 2}
++	DuplicateLitKey
++
++	// MissingLitKey occurs when a map literal is missing a key expression.
++	//
++	// Example:
++	//  var _ = map[string]int{1}
++	MissingLitKey
++
++	// InvalidLitIndex occurs when the key in a key-value element of a slice or
++	// array literal is not an integer constant.
++	//
++	// Example:
++	//  var i = 0
++	//  var x = []string{i: "world"}
++	InvalidLitIndex
++
++	// OversizeArrayLit occurs when an array literal exceeds its length.
++	//
++	// Example:
++	//  var _ = [2]int{1,2,3}
++	OversizeArrayLit
++
++	// MixedStructLit occurs when a struct literal contains a mix of positional
++	// and named elements.
++	//
++	// Example:
++	//  var _ = struct{i, j int}{i: 1, 2}
++	MixedStructLit
++
++	// InvalidStructLit occurs when a positional struct literal has an incorrect
++	// number of values.
++	//
++	// Example:
++	//  var _ = struct{i, j int}{1,2,3}
++	InvalidStructLit
++
++	// MissingLitField occurs when a struct literal refers to a field that does
++	// not exist on the struct type.
++	//
++	// Example:
++	//  var _ = struct{i int}{j: 2}
++	MissingLitField
++
++	// DuplicateLitField occurs when a struct literal contains duplicated
++	// fields.
++	//
++	// Example:
++	//  var _ = struct{i int}{i: 1, i: 2}
++	DuplicateLitField
++
++	// UnexportedLitField occurs when a positional struct literal implicitly
++	// assigns an unexported field of an imported type.
++	UnexportedLitField
++
++	// InvalidLitField occurs when a field name is not a valid identifier.
++	//
++	// Example:
++	//  var _ = struct{i int}{1: 1}
++	InvalidLitField
++
++	// UntypedLit occurs when a composite literal omits a required type
++	// identifier.
++	//
++	// Example:
++	//  type outer struct{
++	//  	inner struct { i int }
++	//  }
++	//
++	//  var _ = outer{inner: {1}}
++	UntypedLit
++
++	// InvalidLit occurs when a composite literal expression does not match its
++	// type.
++	//
++	// Example:
++	//  type P *struct{
++	//  	x int
++	//  }
++	//  var _ = P {}
++	InvalidLit
++
++	/* exprs > selector */
++
++	// AmbiguousSelector occurs when a selector is ambiguous.
++	//
++	// Example:
++	//  type E1 struct { i int }
++	//  type E2 struct { i int }
++	//  type T struct { E1; E2 }
++	//
++	//  var x T
++	//  var _ = x.i
++	AmbiguousSelector
++
++	// UndeclaredImportedName occurs when a package-qualified identifier is
++	// undeclared by the imported package.
++	//
++	// Example:
++	//  import "go/types"
++	//
++	//  var _ = types.NotAnActualIdentifier
++	UndeclaredImportedName
++
++	// UnexportedName occurs when a selector refers to an unexported identifier
++	// of an imported package.
++	//
++	// Example:
++	//  import "reflect"
++	//
++	//  type _ reflect.flag
++	UnexportedName
++
++	// UndeclaredName occurs when an identifier is not declared in the current
++	// scope.
++	//
++	// Example:
++	//  var x T
++	UndeclaredName
++
++	// MissingFieldOrMethod occurs when a selector references a field or method
++	// that does not exist.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  var x = T{}.f
++	MissingFieldOrMethod
++
++	/* exprs > ... */
++
++	// BadDotDotDotSyntax occurs when a "..." occurs in a context where it is
++	// not valid.
++	//
++	// Example:
++	//  var _ = map[int][...]int{0: {}}
++	BadDotDotDotSyntax
++
++	// NonVariadicDotDotDot occurs when a "..." is used on the final argument to
++	// a non-variadic function.
++	//
++	// Example:
++	//  func printArgs(s []string) {
++	//  	for _, a := range s {
++	//  		println(a)
++	//  	}
++	//  }
++	//
++	//  func f() {
++	//  	s := []string{"a", "b", "c"}
++	//  	printArgs(s...)
++	//  }
++	NonVariadicDotDotDot
++
++	// MisplacedDotDotDot occurs when a "..." is used somewhere other than the
++	// final argument to a function call.
++	//
++	// Example:
++	//  func printArgs(args ...int) {
++	//  	for _, a := range args {
++	//  		println(a)
++	//  	}
++	//  }
++	//
++	//  func f() {
++	//  	a := []int{1,2,3}
++	//  	printArgs(0, a...)
++	//  }
++	MisplacedDotDotDot
++
++	// InvalidDotDotDotOperand occurs when a "..." operator is applied to a
++	// single-valued operand.
++	//
++	// Example:
++	//  func printArgs(args ...int) {
++	//  	for _, a := range args {
++	//  		println(a)
++	//  	}
++	//  }
++	//
++	//  func f() {
++	//  	a := 1
++	//  	printArgs(a...)
++	//  }
++	//
++	// Example:
++	//  func args() (int, int) {
++	//  	return 1, 2
++	//  }
++	//
++	//  func printArgs(args ...int) {
++	//  	for _, a := range args {
++	//  		println(a)
++	//  	}
++	//  }
++	//
++	//  func g() {
++	//  	printArgs(args()...)
++	//  }
++	InvalidDotDotDotOperand
++
++	// InvalidDotDotDot occurs when a "..." is used in a non-variadic built-in
++	// function.
++	//
++	// Example:
++	//  var s = []int{1, 2, 3}
++	//  var l = len(s...)
++	InvalidDotDotDot
++
++	/* exprs > built-in */
++
++	// UncalledBuiltin occurs when a built-in function is used as a
++	// function-valued expression, instead of being called.
++	//
++	// Per the spec:
++	//  "The built-in functions do not have standard Go types, so they can only
++	//  appear in call expressions; they cannot be used as function values."
++	//
++	// Example:
++	//  var _ = copy
++	UncalledBuiltin
++
++	// InvalidAppend occurs when append is called with a first argument that is
++	// not a slice.
++	//
++	// Example:
++	//  var _ = append(1, 2)
++	InvalidAppend
++
++	// InvalidCap occurs when an argument to the cap built-in function is not of
++	// supported type.
++	//
++	// See https://golang.org/ref/spec#Lengthand_capacity for information on
++	// which underlying types are supported as arguments to cap and len.
++	//
++	// Example:
++	//  var s = 2
++	//  var x = cap(s)
++	InvalidCap
++
++	// InvalidClose occurs when close(...) is called with an argument that is
++	// not of channel type, or that is a receive-only channel.
++	//
++	// Example:
++	//  func f() {
++	//  	var x int
++	//  	close(x)
++	//  }
++	InvalidClose
++
++	// InvalidCopy occurs when the arguments are not of slice type or do not
++	// have compatible type.
++	//
++	// See https://golang.org/ref/spec#Appendingand_copying_slices for more
++	// information on the type requirements for the copy built-in.
++	//
++	// Example:
++	//  func f() {
++	//  	var x []int
++	//  	y := []int64{1,2,3}
++	//  	copy(x, y)
++	//  }
++	InvalidCopy
++
++	// InvalidComplex occurs when the complex built-in function is called with
++	// arguments with incompatible types.
++	//
++	// Example:
++	//  var _ = complex(float32(1), float64(2))
++	InvalidComplex
++
++	// InvalidDelete occurs when the delete built-in function is called with a
++	// first argument that is not a map.
++	//
++	// Example:
++	//  func f() {
++	//  	m := "hello"
++	//  	delete(m, "e")
++	//  }
++	InvalidDelete
++
++	// InvalidImag occurs when the imag built-in function is called with an
++	// argument that does not have complex type.
++	//
++	// Example:
++	//  var _ = imag(int(1))
++	InvalidImag
++
++	// InvalidLen occurs when an argument to the len built-in function is not of
++	// supported type.
++	//
++	// See https://golang.org/ref/spec#Lengthand_capacity for information on
++	// which underlying types are supported as arguments to cap and len.
++	//
++	// Example:
++	//  var s = 2
++	//  var x = len(s)
++	InvalidLen
++
++	// SwappedMakeArgs occurs when make is called with three arguments, and its
++	// length argument is larger than its capacity argument.
++	//
++	// Example:
++	//  var x = make([]int, 3, 2)
++	SwappedMakeArgs
++
++	// InvalidMake occurs when make is called with an unsupported type argument.
++	//
++	// See https://golang.org/ref/spec#Makingslices_maps_and_channels for
++	// information on the types that may be created using make.
++	//
++	// Example:
++	//  var x = make(int)
++	InvalidMake
++
++	// InvalidReal occurs when the real built-in function is called with an
++	// argument that does not have complex type.
++	//
++	// Example:
++	//  var _ = real(int(1))
++	InvalidReal
++
++	/* exprs > assertion */
++
++	// InvalidAssert occurs when a type assertion is applied to a
++	// value that is not of interface type.
++	//
++	// Example:
++	//  var x = 1
++	//  var _ = x.(float64)
++	InvalidAssert
++
++	// ImpossibleAssert occurs for a type assertion x.(T) when the value x of
++	// interface cannot have dynamic type T, due to a missing or mismatching
++	// method on T.
++	//
++	// Example:
++	//  type T int
++	//
++	//  func (t *T) m() int { return int(*t) }
++	//
++	//  type I interface { m() int }
++	//
++	//  var x I
++	//  var _ = x.(T)
++	ImpossibleAssert
++
++	/* exprs > conversion */
++
++	// InvalidConversion occurs when the argument type cannot be converted to the
++	// target.
++	//
++	// See https://golang.org/ref/spec#Conversions for the rules of
++	// convertibility.
++	//
++	// Example:
++	//  var x float64
++	//  var _ = string(x)
++	InvalidConversion
++
++	// InvalidUntypedConversion occurs when an there is no valid implicit
++	// conversion from an untyped value satisfying the type constraints of the
++	// context in which it is used.
++	//
++	// Example:
++	//  var _ = 1 + ""
++	InvalidUntypedConversion
++
++	/* offsetof */
++
++	// BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
++	// that is not a selector expression.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Offsetof(x)
++	BadOffsetofSyntax
++
++	// InvalidOffsetof occurs when unsafe.Offsetof is called with a method
++	// selector, rather than a field selector, or when the field is embedded via
++	// a pointer.
++	//
++	// Per the spec:
++	//
++	//  "If f is an embedded field, it must be reachable without pointer
++	//  indirections through fields of the struct. "
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type T struct { f int }
++	//  type S struct { *T }
++	//  var s S
++	//  var _ = unsafe.Offsetof(s.f)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  type S struct{}
++	//
++	//  func (S) m() {}
++	//
++	//  var s S
++	//  var _ = unsafe.Offsetof(s.m)
++	InvalidOffsetof
++
++	/* control flow > scope */
++
++	// UnusedExpr occurs when a side-effect free expression is used as a
++	// statement. Such a statement has no effect.
++	//
++	// Example:
++	//  func f(i int) {
++	//  	i*i
++	//  }
++	UnusedExpr
++
++	// UnusedVar occurs when a variable is declared but unused.
++	//
++	// Example:
++	//  func f() {
++	//  	x := 1
++	//  }
++	UnusedVar
++
++	// MissingReturn occurs when a function with results is missing a return
++	// statement.
++	//
++	// Example:
++	//  func f() int {}
++	MissingReturn
++
++	// WrongResultCount occurs when a return statement returns an incorrect
++	// number of values.
++	//
++	// Example:
++	//  func ReturnOne() int {
++	//  	return 1, 2
++	//  }
++	WrongResultCount
++
++	// OutOfScopeResult occurs when the name of a value implicitly returned by
++	// an empty return statement is shadowed in a nested scope.
++	//
++	// Example:
++	//  func factor(n int) (i int) {
++	//  	for i := 2; i < n; i++ {
++	//  		if n%i == 0 {
++	//  			return
++	//  		}
++	//  	}
++	//  	return 0
++	//  }
++	OutOfScopeResult
++
++	/* control flow > if */
++
++	// InvalidCond occurs when an if condition is not a boolean expression.
++	//
++	// Example:
++	//  func checkReturn(i int) {
++	//  	if i {
++	//  		panic("non-zero return")
++	//  	}
++	//  }
++	InvalidCond
++
++	/* control flow > for */
++
++	// InvalidPostDecl occurs when there is a declaration in a for-loop post
++	// statement.
++	//
++	// Example:
++	//  func f() {
++	//  	for i := 0; i < 10; j := 0 {}
++	//  }
++	InvalidPostDecl
++
++	// InvalidChanRange occurs when a send-only channel used in a range
++	// expression.
++	//
++	// Example:
++	//  func sum(c chan<- int) {
++	//  	s := 0
++	//  	for i := range c {
++	//  		s += i
++	//  	}
++	//  }
++	InvalidChanRange
++
++	// InvalidIterVar occurs when two iteration variables are used while ranging
++	// over a channel.
++	//
++	// Example:
++	//  func f(c chan int) {
++	//  	for k, v := range c {
++	//  		println(k, v)
++	//  	}
++	//  }
++	InvalidIterVar
++
++	// InvalidRangeExpr occurs when the type of a range expression is not array,
++	// slice, string, map, or channel.
++	//
++	// Example:
++	//  func f(i int) {
++	//  	for j := range i {
++	//  		println(j)
++	//  	}
++	//  }
++	InvalidRangeExpr
++
++	/* control flow > switch */
++
++	// MisplacedBreak occurs when a break statement is not within a for, switch,
++	// or select statement of the innermost function definition.
++	//
++	// Example:
++	//  func f() {
++	//  	break
++	//  }
++	MisplacedBreak
++
++	// MisplacedContinue occurs when a continue statement is not within a for
++	// loop of the innermost function definition.
++	//
++	// Example:
++	//  func sumeven(n int) int {
++	//  	proceed := func() {
++	//  		continue
++	//  	}
++	//  	sum := 0
++	//  	for i := 1; i <= n; i++ {
++	//  		if i % 2 != 0 {
++	//  			proceed()
++	//  		}
++	//  		sum += i
++	//  	}
++	//  	return sum
++	//  }
++	MisplacedContinue
++
++	// MisplacedFallthrough occurs when a fallthrough statement is not within an
++	// expression switch.
++	//
++	// Example:
++	//  func typename(i interface{}) string {
++	//  	switch i.(type) {
++	//  	case int64:
++	//  		fallthrough
++	//  	case int:
++	//  		return "int"
++	//  	}
++	//  	return "unsupported"
++	//  }
++	MisplacedFallthrough
++
++	// DuplicateCase occurs when a type or expression switch has duplicate
++	// cases.
++	//
++	// Example:
++	//  func printInt(i int) {
++	//  	switch i {
++	//  	case 1:
++	//  		println("one")
++	//  	case 1:
++	//  		println("One")
++	//  	}
++	//  }
++	DuplicateCase
++
++	// DuplicateDefault occurs when a type or expression switch has multiple
++	// default clauses.
++	//
++	// Example:
++	//  func printInt(i int) {
++	//  	switch i {
++	//  	case 1:
++	//  		println("one")
++	//  	default:
++	//  		println("One")
++	//  	default:
++	//  		println("1")
++	//  	}
++	//  }
++	DuplicateDefault
++
++	// BadTypeKeyword occurs when a .(type) expression is used anywhere other
++	// than a type switch.
++	//
++	// Example:
++	//  type I interface {
++	//  	m()
++	//  }
++	//  var t I
++	//  var _ = t.(type)
++	BadTypeKeyword
++
++	// InvalidTypeSwitch occurs when .(type) is used on an expression that is
++	// not of interface type.
++	//
++	// Example:
++	//  func f(i int) {
++	//  	switch x := i.(type) {}
++	//  }
++	InvalidTypeSwitch
++
++	// InvalidExprSwitch occurs when a switch expression is not comparable.
++	//
++	// Example:
++	//  func _() {
++	//  	var a struct{ _ func() }
++	//  	switch a /* ERROR cannot switch on a */ {
++	//  	}
++	//  }
++	InvalidExprSwitch
++
++	/* control flow > select */
++
++	// InvalidSelectCase occurs when a select case is not a channel send or
++	// receive.
++	//
++	// Example:
++	//  func checkChan(c <-chan int) bool {
++	//  	select {
++	//  	case c:
++	//  		return true
++	//  	default:
++	//  		return false
++	//  	}
++	//  }
++	InvalidSelectCase
++
++	/* control flow > labels and jumps */
++
++	// UndeclaredLabel occurs when an undeclared label is jumped to.
++	//
++	// Example:
++	//  func f() {
++	//  	goto L
++	//  }
++	UndeclaredLabel
++
++	// DuplicateLabel occurs when a label is declared more than once.
++	//
++	// Example:
++	//  func f() int {
++	//  L:
++	//  L:
++	//  	return 1
++	//  }
++	DuplicateLabel
++
++	// MisplacedLabel occurs when a break or continue label is not on a for,
++	// switch, or select statement.
++	//
++	// Example:
++	//  func f() {
++	//  L:
++	//  	a := []int{1,2,3}
++	//  	for _, e := range a {
++	//  		if e > 10 {
++	//  			break L
++	//  		}
++	//  		println(a)
++	//  	}
++	//  }
++	MisplacedLabel
++
++	// UnusedLabel occurs when a label is declared but not used.
++	//
++	// Example:
++	//  func f() {
++	//  L:
++	//  }
++	UnusedLabel
++
++	// JumpOverDecl occurs when a label jumps over a variable declaration.
++	//
++	// Example:
++	//  func f() int {
++	//  	goto L
++	//  	x := 2
++	//  L:
++	//  	x++
++	//  	return x
++	//  }
++	JumpOverDecl
++
++	// JumpIntoBlock occurs when a forward jump goes to a label inside a nested
++	// block.
++	//
++	// Example:
++	//  func f(x int) {
++	//  	goto L
++	//  	if x > 0 {
++	//  	L:
++	//  		print("inside block")
++	//  	}
++	// }
++	JumpIntoBlock
++
++	/* control flow > calls */
++
++	// InvalidMethodExpr occurs when a pointer method is called but the argument
++	// is not addressable.
++	//
++	// Example:
++	//  type T struct {}
++	//
++	//  func (*T) m() int { return 1 }
++	//
++	//  var _ = T.m(T{})
++	InvalidMethodExpr
++
++	// WrongArgCount occurs when too few or too many arguments are passed by a
++	// function call.
++	//
++	// Example:
++	//  func f(i int) {}
++	//  var x = f()
++	WrongArgCount
++
++	// InvalidCall occurs when an expression is called that is not of function
++	// type.
++	//
++	// Example:
++	//  var x = "x"
++	//  var y = x()
++	InvalidCall
++
++	/* control flow > suspended */
++
++	// UnusedResults occurs when a restricted expression-only built-in function
++	// is suspended via go or defer. Such a suspension discards the results of
++	// these side-effect free built-in functions, and therefore is ineffectual.
++	//
++	// Example:
++	//  func f(a []int) int {
++	//  	defer len(a)
++	//  	return i
++	//  }
++	UnusedResults
++
++	// InvalidDefer occurs when a deferred expression is not a function call,
++	// for example if the expression is a type conversion.
++	//
++	// Example:
++	//  func f(i int) int {
++	//  	defer int32(i)
++	//  	return i
++	//  }
++	InvalidDefer
++
++	// InvalidGo occurs when a go expression is not a function call, for example
++	// if the expression is a type conversion.
++	//
++	// Example:
++	//  func f(i int) int {
++	//  	go int32(i)
++	//  	return i
++	//  }
++	InvalidGo
++
++	// All codes below were added in Go 1.17.
++
++	/* decl */
++
++	// BadDecl occurs when a declaration has invalid syntax.
++	BadDecl
++
++	// RepeatedDecl occurs when an identifier occurs more than once on the left
++	// hand side of a short variable declaration.
++	//
++	// Example:
++	//  func _() {
++	//  	x, y, y := 1, 2, 3
++	//  }
++	RepeatedDecl
++
++	/* unsafe */
++
++	// InvalidUnsafeAdd occurs when unsafe.Add is called with a
++	// length argument that is not of integer type.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var p unsafe.Pointer
++	//  var _ = unsafe.Add(p, float64(1))
++	InvalidUnsafeAdd
++
++	// InvalidUnsafeSlice occurs when unsafe.Slice is called with a
++	// pointer argument that is not of pointer type or a length argument
++	// that is not of integer type, negative, or out of bounds.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(x, 1)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, float64(1))
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, -1)
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.Slice(&x, uint64(1) << 63)
++	InvalidUnsafeSlice
++
++	// All codes below were added in Go 1.18.
++
++	/* features */
++
++	// UnsupportedFeature occurs when a language feature is used that is not
++	// supported at this Go version.
++	UnsupportedFeature
++
++	/* type params */
++
++	// NotAGenericType occurs when a non-generic type is used where a generic
++	// type is expected: in type or function instantiation.
++	//
++	// Example:
++	//  type T int
++	//
++	//  var _ T[int]
++	NotAGenericType
++
++	// WrongTypeArgCount occurs when a type or function is instantiated with an
++	// incorrent number of type arguments, including when a generic type or
++	// function is used without instantiation.
++	//
++	// Errors inolving failed type inference are assigned other error codes.
++	//
++	// Example:
++	//  type T[p any] int
++	//
++	//  var _ T[int, string]
++	//
++	// Example:
++	//  func f[T any]() {}
++	//
++	//  var x = f
++	WrongTypeArgCount
++
++	// CannotInferTypeArgs occurs when type or function type argument inference
++	// fails to infer all type arguments.
++	//
++	// Example:
++	//  func f[T any]() {}
++	//
++	//  func _() {
++	//  	f()
++	//  }
++	//
++	// Example:
++	//   type N[P, Q any] struct{}
++	//
++	//   var _ N[int]
++	CannotInferTypeArgs
++
++	// InvalidTypeArg occurs when a type argument does not satisfy its
++	// corresponding type parameter constraints.
++	//
++	// Example:
++	//  type T[P ~int] struct{}
++	//
++	//  var _ T[string]
++	InvalidTypeArg // arguments? InferenceFailed
++
++	// InvalidInstanceCycle occurs when an invalid cycle is detected
++	// within the instantiation graph.
++	//
++	// Example:
++	//  func f[T any]() { f[*T]() }
++	InvalidInstanceCycle
++
++	// InvalidUnion occurs when an embedded union or approximation element is
++	// not valid.
++	//
++	// Example:
++	//  type _ interface {
++	//   	~int | interface{ m() }
++	//  }
++	InvalidUnion
++
++	// MisplacedConstraintIface occurs when a constraint-type interface is used
++	// outside of constraint position.
++	//
++	// Example:
++	//   type I interface { ~int }
++	//
++	//   var _ I
++	MisplacedConstraintIface
++
++	// InvalidMethodTypeParams occurs when methods have type parameters.
++	//
++	// It cannot be encountered with an AST parsed using go/parser.
++	InvalidMethodTypeParams
++
++	// MisplacedTypeParam occurs when a type parameter is used in a place where
++	// it is not permitted.
++	//
++	// Example:
++	//  type T[P any] P
++	//
++	// Example:
++	//  type T[P any] struct{ *P }
++	MisplacedTypeParam
++
++	// InvalidUnsafeSliceData occurs when unsafe.SliceData is called with
++	// an argument that is not of slice type. It also occurs if it is used
++	// in a package compiled for a language version before go1.20.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var x int
++	//  var _ = unsafe.SliceData(x)
++	InvalidUnsafeSliceData
++
++	// InvalidUnsafeString occurs when unsafe.String is called with
++	// a length argument that is not of integer type, negative, or
++	// out of bounds. It also occurs if it is used in a package
++	// compiled for a language version before go1.20.
++	//
++	// Example:
++	//  import "unsafe"
++	//
++	//  var b [10]byte
++	//  var _ = unsafe.String(&b[0], -1)
++	InvalidUnsafeString
++
++	// InvalidUnsafeStringData occurs if it is used in a package
++	// compiled for a language version before go1.20.
++	_ // not used anymore
++
++)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode_string.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode_string.go
+new file mode 100644
+index 0000000000..15ecf7c5de
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode_string.go
+@@ -0,0 +1,179 @@
++// Code generated by "stringer -type=ErrorCode"; DO NOT EDIT.
++
++package typesinternal
++
++import "strconv"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[InvalidSyntaxTree - -1]
++	_ = x[Test-1]
++	_ = x[BlankPkgName-2]
++	_ = x[MismatchedPkgName-3]
++	_ = x[InvalidPkgUse-4]
++	_ = x[BadImportPath-5]
++	_ = x[BrokenImport-6]
++	_ = x[ImportCRenamed-7]
++	_ = x[UnusedImport-8]
++	_ = x[InvalidInitCycle-9]
++	_ = x[DuplicateDecl-10]
++	_ = x[InvalidDeclCycle-11]
++	_ = x[InvalidTypeCycle-12]
++	_ = x[InvalidConstInit-13]
++	_ = x[InvalidConstVal-14]
++	_ = x[InvalidConstType-15]
++	_ = x[UntypedNilUse-16]
++	_ = x[WrongAssignCount-17]
++	_ = x[UnassignableOperand-18]
++	_ = x[NoNewVar-19]
++	_ = x[MultiValAssignOp-20]
++	_ = x[InvalidIfaceAssign-21]
++	_ = x[InvalidChanAssign-22]
++	_ = x[IncompatibleAssign-23]
++	_ = x[UnaddressableFieldAssign-24]
++	_ = x[NotAType-25]
++	_ = x[InvalidArrayLen-26]
++	_ = x[BlankIfaceMethod-27]
++	_ = x[IncomparableMapKey-28]
++	_ = x[InvalidIfaceEmbed-29]
++	_ = x[InvalidPtrEmbed-30]
++	_ = x[BadRecv-31]
++	_ = x[InvalidRecv-32]
++	_ = x[DuplicateFieldAndMethod-33]
++	_ = x[DuplicateMethod-34]
++	_ = x[InvalidBlank-35]
++	_ = x[InvalidIota-36]
++	_ = x[MissingInitBody-37]
++	_ = x[InvalidInitSig-38]
++	_ = x[InvalidInitDecl-39]
++	_ = x[InvalidMainDecl-40]
++	_ = x[TooManyValues-41]
++	_ = x[NotAnExpr-42]
++	_ = x[TruncatedFloat-43]
++	_ = x[NumericOverflow-44]
++	_ = x[UndefinedOp-45]
++	_ = x[MismatchedTypes-46]
++	_ = x[DivByZero-47]
++	_ = x[NonNumericIncDec-48]
++	_ = x[UnaddressableOperand-49]
++	_ = x[InvalidIndirection-50]
++	_ = x[NonIndexableOperand-51]
++	_ = x[InvalidIndex-52]
++	_ = x[SwappedSliceIndices-53]
++	_ = x[NonSliceableOperand-54]
++	_ = x[InvalidSliceExpr-55]
++	_ = x[InvalidShiftCount-56]
++	_ = x[InvalidShiftOperand-57]
++	_ = x[InvalidReceive-58]
++	_ = x[InvalidSend-59]
++	_ = x[DuplicateLitKey-60]
++	_ = x[MissingLitKey-61]
++	_ = x[InvalidLitIndex-62]
++	_ = x[OversizeArrayLit-63]
++	_ = x[MixedStructLit-64]
++	_ = x[InvalidStructLit-65]
++	_ = x[MissingLitField-66]
++	_ = x[DuplicateLitField-67]
++	_ = x[UnexportedLitField-68]
++	_ = x[InvalidLitField-69]
++	_ = x[UntypedLit-70]
++	_ = x[InvalidLit-71]
++	_ = x[AmbiguousSelector-72]
++	_ = x[UndeclaredImportedName-73]
++	_ = x[UnexportedName-74]
++	_ = x[UndeclaredName-75]
++	_ = x[MissingFieldOrMethod-76]
++	_ = x[BadDotDotDotSyntax-77]
++	_ = x[NonVariadicDotDotDot-78]
++	_ = x[MisplacedDotDotDot-79]
++	_ = x[InvalidDotDotDotOperand-80]
++	_ = x[InvalidDotDotDot-81]
++	_ = x[UncalledBuiltin-82]
++	_ = x[InvalidAppend-83]
++	_ = x[InvalidCap-84]
++	_ = x[InvalidClose-85]
++	_ = x[InvalidCopy-86]
++	_ = x[InvalidComplex-87]
++	_ = x[InvalidDelete-88]
++	_ = x[InvalidImag-89]
++	_ = x[InvalidLen-90]
++	_ = x[SwappedMakeArgs-91]
++	_ = x[InvalidMake-92]
++	_ = x[InvalidReal-93]
++	_ = x[InvalidAssert-94]
++	_ = x[ImpossibleAssert-95]
++	_ = x[InvalidConversion-96]
++	_ = x[InvalidUntypedConversion-97]
++	_ = x[BadOffsetofSyntax-98]
++	_ = x[InvalidOffsetof-99]
++	_ = x[UnusedExpr-100]
++	_ = x[UnusedVar-101]
++	_ = x[MissingReturn-102]
++	_ = x[WrongResultCount-103]
++	_ = x[OutOfScopeResult-104]
++	_ = x[InvalidCond-105]
++	_ = x[InvalidPostDecl-106]
++	_ = x[InvalidChanRange-107]
++	_ = x[InvalidIterVar-108]
++	_ = x[InvalidRangeExpr-109]
++	_ = x[MisplacedBreak-110]
++	_ = x[MisplacedContinue-111]
++	_ = x[MisplacedFallthrough-112]
++	_ = x[DuplicateCase-113]
++	_ = x[DuplicateDefault-114]
++	_ = x[BadTypeKeyword-115]
++	_ = x[InvalidTypeSwitch-116]
++	_ = x[InvalidExprSwitch-117]
++	_ = x[InvalidSelectCase-118]
++	_ = x[UndeclaredLabel-119]
++	_ = x[DuplicateLabel-120]
++	_ = x[MisplacedLabel-121]
++	_ = x[UnusedLabel-122]
++	_ = x[JumpOverDecl-123]
++	_ = x[JumpIntoBlock-124]
++	_ = x[InvalidMethodExpr-125]
++	_ = x[WrongArgCount-126]
++	_ = x[InvalidCall-127]
++	_ = x[UnusedResults-128]
++	_ = x[InvalidDefer-129]
++	_ = x[InvalidGo-130]
++	_ = x[BadDecl-131]
++	_ = x[RepeatedDecl-132]
++	_ = x[InvalidUnsafeAdd-133]
++	_ = x[InvalidUnsafeSlice-134]
++	_ = x[UnsupportedFeature-135]
++	_ = x[NotAGenericType-136]
++	_ = x[WrongTypeArgCount-137]
++	_ = x[CannotInferTypeArgs-138]
++	_ = x[InvalidTypeArg-139]
++	_ = x[InvalidInstanceCycle-140]
++	_ = x[InvalidUnion-141]
++	_ = x[MisplacedConstraintIface-142]
++	_ = x[InvalidMethodTypeParams-143]
++	_ = x[MisplacedTypeParam-144]
++	_ = x[InvalidUnsafeSliceData-145]
++	_ = x[InvalidUnsafeString-146]
++}
++
++const (
++	_ErrorCode_name_0 = "InvalidSyntaxTree"
++	_ErrorCode_name_1 = "TestBlankPkgNameMismatchedPkgNameInvalidPkgUseBadImportPathBrokenImportImportCRenamedUnusedImportInvalidInitCycleDuplicateDeclInvalidDeclCycleInvalidTypeCycleInvalidConstInitInvalidConstValInvalidConstTypeUntypedNilUseWrongAssignCountUnassignableOperandNoNewVarMultiValAssignOpInvalidIfaceAssignInvalidChanAssignIncompatibleAssignUnaddressableFieldAssignNotATypeInvalidArrayLenBlankIfaceMethodIncomparableMapKeyInvalidIfaceEmbedInvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDotInvalidDotDotDotOperandInvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDeclInvalidChanRangeInvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGoBadDeclRepeatedDeclInvalidUnsafeAddInvalidUnsafeSliceUnsupportedFeatureNotAGenericTypeWrongTypeArgCountCannotInferTypeArgsInvalidTypeArgInvalidInstanceCycleInvalidUnionMisplacedConstraintIfaceInvalidMethodTypeParamsMisplacedTypeParamInvalidUnsafeSliceDataInvalidUnsafeString"
++)
++
++var (
++	_ErrorCode_index_1 = [...]uint16{0, 4, 16, 33, 46, 59, 71, 85, 97, 113, 126, 142, 158, 174, 189, 205, 218, 234, 253, 261, 277, 295, 312, 330, 354, 362, 377, 393, 411, 428, 443, 450, 461, 484, 499, 511, 522, 537, 551, 566, 581, 594, 603, 617, 632, 643, 658, 667, 683, 703, 721, 740, 752, 771, 790, 806, 823, 842, 856, 867, 882, 895, 910, 926, 940, 956, 971, 988, 1006, 1021, 1031, 1041, 1058, 1080, 1094, 1108, 1128, 1146, 1166, 1184, 1207, 1223, 1238, 1251, 1261, 1273, 1284, 1298, 1311, 1322, 1332, 1347, 1358, 1369, 1382, 1398, 1415, 1439, 1456, 1471, 1481, 1490, 1503, 1519, 1535, 1546, 1561, 1577, 1591, 1607, 1621, 1638, 1658, 1671, 1687, 1701, 1718, 1735, 1752, 1767, 1781, 1795, 1806, 1818, 1831, 1848, 1861, 1872, 1885, 1897, 1906, 1913, 1925, 1941, 1959, 1977, 1992, 2009, 2028, 2042, 2062, 2074, 2098, 2121, 2139, 2161, 2180}
++)
++
++func (i ErrorCode) String() string {
++	switch {
++	case i == -1:
++		return _ErrorCode_name_0
++	case 1 <= i && i <= 146:
++		i -= 1
++		return _ErrorCode_name_1[_ErrorCode_index_1[i]:_ErrorCode_index_1[i+1]]
++	default:
++		return "ErrorCode(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/objectpath.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/objectpath.go
+new file mode 100644
+index 0000000000..5e96e89557
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/objectpath.go
+@@ -0,0 +1,24 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package typesinternal
++
++import "go/types"
++
++// This file contains back doors that allow gopls to avoid method sorting when
++// using the objectpath package.
++//
++// This is performance-critical in certain repositories, but changing the
++// behavior of the objectpath package is still being discussed in
++// golang/go#61443. If we decide to remove the sorting in objectpath we can
++// simply delete these back doors. Otherwise, we should add a new API to
++// objectpath that allows controlling the sorting.
++
++// SkipEncoderMethodSorting marks enc (which must be an *objectpath.Encoder) as
++// not requiring sorted methods.
++var SkipEncoderMethodSorting func(enc interface{})
++
++// ObjectpathObject is like objectpath.Object, but allows suppressing method
++// sorting.
++var ObjectpathObject func(pkg *types.Package, p string, skipMethodSorting bool) (types.Object, error)
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
+new file mode 100644
+index 0000000000..ce7d4351b2
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types.go
+@@ -0,0 +1,52 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package typesinternal provides access to internal go/types APIs that are not
++// yet exported.
++package typesinternal
++
++import (
++	"go/token"
++	"go/types"
++	"reflect"
++	"unsafe"
++)
++
++func SetUsesCgo(conf *types.Config) bool {
++	v := reflect.ValueOf(conf).Elem()
++
++	f := v.FieldByName("go115UsesCgo")
++	if !f.IsValid() {
++		f = v.FieldByName("UsesCgo")
++		if !f.IsValid() {
++			return false
++		}
++	}
++
++	addr := unsafe.Pointer(f.UnsafeAddr())
++	*(*bool)(addr) = true
++
++	return true
++}
++
++// ReadGo116ErrorData extracts additional information from types.Error values
++// generated by Go version 1.16 and later: the error code, start position, and
++// end position. If all positions are valid, start <= err.Pos <= end.
++//
++// If the data could not be read, the final result parameter will be false.
++func ReadGo116ErrorData(err types.Error) (code ErrorCode, start, end token.Pos, ok bool) {
++	var data [3]int
++	// By coincidence all of these fields are ints, which simplifies things.
++	v := reflect.ValueOf(err)
++	for i, name := range []string{"go116code", "go116start", "go116end"} {
++		f := v.FieldByName(name)
++		if !f.IsValid() {
++			return 0, 0, 0, false
++		}
++		data[i] = int(f.Int())
++	}
++	return ErrorCode(data[0]), token.Pos(data[1]), token.Pos(data[2]), true
++}
++
++var SetGoVersion = func(conf *types.Config, version string) bool { return false }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types_118.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types_118.go
+new file mode 100644
+index 0000000000..a42b072a67
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/types_118.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.18
++// +build go1.18
++
++package typesinternal
++
++import (
++	"go/types"
++)
++
++func init() {
++	SetGoVersion = func(conf *types.Config, version string) bool {
++		conf.GoVersion = version
++		return true
++	}
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index fe71cb4d3b..b740954219 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -37,16 +37,16 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.3.0
+ ## explicit; go 1.17
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.10.0
++# golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.10.0
++# golang.org/x/term v0.11.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.11.1-0.20230712164437-1ca21856af7b
++# golang.org/x/tools v0.12.1-0.20230809190736-59fd05da6bc1
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -94,3 +94,4 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/bisect
+ golang.org/x/tools/internal/facts
+ golang.org/x/tools/internal/typeparams
++golang.org/x/tools/internal/typesinternal
+diff --git a/src/go.mod b/src/go.mod
+index fa2f97ae13..beb4d13d8b 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.22
+ 
+ require (
+-	golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d
+-	golang.org/x/net v0.12.1-0.20230712162946-57553cbff163
++	golang.org/x/crypto v0.12.0
++	golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9
+ )
+ 
+ require (
+-	golang.org/x/sys v0.10.0 // indirect
+-	golang.org/x/text v0.11.0 // indirect
++	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c // indirect
++	golang.org/x/text v0.12.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index e474b8be31..81b83159f7 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d h1:LiA25/KWKuXfIq5pMIBq1s5hz3HQxhJJSu/SUGlD+SM=
+-golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d/go.mod h1:xgJhtzW8F9jGdVFWZESrid1U1bjeNy4zgy5cRr/CIio=
+-golang.org/x/net v0.12.1-0.20230712162946-57553cbff163 h1:1EDKNuaCsog7zGLEml1qRuO4gt23jORUQX2f0IKZ860=
+-golang.org/x/net v0.12.1-0.20230712162946-57553cbff163/go.mod h1:zEVYFnQC7m/vmpQFELhcD1EWkZlX69l4oqgmer6hfKA=
+-golang.org/x/sys v0.10.0 h1:SqMFp9UcQJZa+pmYuAKjd9xq1f0j5rLcDIk0mj4qAsA=
+-golang.org/x/sys v0.10.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/text v0.11.0 h1:LAntKIrcmeSKERyiOh0XMV39LXS8IE9UL2yP7+f5ij4=
+-golang.org/x/text v0.11.0/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
++golang.org/x/crypto v0.12.0 h1:tFM/ta59kqch6LlvYnPa0yx5a83cL2nHflFhYKvv9Yk=
++golang.org/x/crypto v0.12.0/go.mod h1:NF0Gs7EO5K4qLn+Ylc+fih8BSTeIjAP05siRnAh98yw=
++golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9 h1:eQR0jFW5dN2q8lFzSF7rjkRCOOnBf0llczNvITm6ICs=
++golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9/go.mod h1:PpSgVXXLK0OxS0F31C1/tv6XNguvCrnXIDrFMspZIUI=
++golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c h1:2aG9DV1z3tUfHVJRevogC4OmVcZiaiysJgsnG4ZKD6s=
++golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/text v0.12.0 h1:k+n5B8goJNdU7hSvEtMUz3d1Q6D/XW4COJSJR6fN0mc=
++golang.org/x/text v0.12.0/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index dc3e099c83..c95fbc47ce 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -33,6 +33,7 @@ import (
+ 	"io/fs"
+ 	"log"
+ 	"math"
++	"math/bits"
+ 	mathrand "math/rand"
+ 	"net"
+ 	"net/http/httptrace"
+@@ -8702,7 +8703,28 @@ func (cs *http2clientStream) frameScratchBufferLen(maxFrameSize int) int {
+ 	return int(n) // doesn't truncate; max is 512K
+ }
+ 
+-var http2bufPool sync.Pool // of *[]byte
++// Seven bufPools manage different frame sizes. This helps to avoid scenarios where long-running
++// streaming requests using small frame sizes occupy large buffers initially allocated for prior
++// requests needing big buffers. The size ranges are as follows:
++// {0 KB, 16 KB], {16 KB, 32 KB], {32 KB, 64 KB], {64 KB, 128 KB], {128 KB, 256 KB],
++// {256 KB, 512 KB], {512 KB, infinity}
++// In practice, the maximum scratch buffer size should not exceed 512 KB due to
++// frameScratchBufferLen(maxFrameSize), thus the "infinity pool" should never be used.
++// It exists mainly as a safety measure, for potential future increases in max buffer size.
++var http2bufPools [7]sync.Pool // of *[]byte
++
++func http2bufPoolIndex(size int) int {
++	if size <= 16384 {
++		return 0
++	}
++	size -= 1
++	bits := bits.Len(uint(size))
++	index := bits - 14
++	if index >= len(http2bufPools) {
++		return len(http2bufPools) - 1
++	}
++	return index
++}
+ 
+ func (cs *http2clientStream) writeRequestBody(req *Request) (err error) {
+ 	cc := cs.cc
+@@ -8720,12 +8742,13 @@ func (cs *http2clientStream) writeRequestBody(req *Request) (err error) {
+ 	// Scratch buffer for reading into & writing from.
+ 	scratchLen := cs.frameScratchBufferLen(maxFrameSize)
+ 	var buf []byte
+-	if bp, ok := http2bufPool.Get().(*[]byte); ok && len(*bp) >= scratchLen {
+-		defer http2bufPool.Put(bp)
++	index := http2bufPoolIndex(scratchLen)
++	if bp, ok := http2bufPools[index].Get().(*[]byte); ok && len(*bp) >= scratchLen {
++		defer http2bufPools[index].Put(bp)
+ 		buf = *bp
+ 	} else {
+ 		buf = make([]byte, scratchLen)
+-		defer http2bufPool.Put(&buf)
++		defer http2bufPools[index].Put(&buf)
+ 	}
+ 
+ 	var sawEOF bool
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 2b5f965f8f..abd3f0b519 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d
++# golang.org/x/crypto v0.12.0
+ ## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.12.1-0.20230712162946-57553cbff163
++# golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,10 +17,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.10.0
++# golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.11.0
++# golang.org/x/text v0.12.0
+ ## explicit; go 1.17
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

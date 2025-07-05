@@ -13,7 +13,72 @@ Date:   Thu Apr 11 15:47:33 2019 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/fixedbugs/issue31412a.go | 32 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue31412b.go | 20 ++++++++++++++++++++
  2 files changed, 52 insertions(+)
+
+diff --git a/test/fixedbugs/issue31412a.go b/test/fixedbugs/issue31412a.go
+new file mode 100644
+index 0000000000..75021c68d2
+--- /dev/null
++++ b/test/fixedbugs/issue31412a.go
+@@ -0,0 +1,32 @@
++// compile
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This code was incorrectly flagged as erroneous by gccgo.
++
++package main
++
++type Name string
++
++type EFunc func(int) int
++
++func Register(f EFunc, names ...Name) int {
++	return f(len(names))
++}
++
++const (
++	B Name = "B"
++)
++
++func RegisterIt() {
++	n := B + "Duck"
++	d := B + "Goose"
++	f := func(x int) int { return x + 9 }
++	Register(f, n, d)
++}
++
++func main() {
++	RegisterIt()
++}
+diff --git a/test/fixedbugs/issue31412b.go b/test/fixedbugs/issue31412b.go
+new file mode 100644
+index 0000000000..6c4ec00dc9
+--- /dev/null
++++ b/test/fixedbugs/issue31412b.go
+@@ -0,0 +1,20 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This code was incorrectly accepted by gccgo.
++
++package main
++
++type N string
++type M string
++
++const B N = "B"
++const C M = "C"
++
++func main() {
++	q := B + C // ERROR "mismatched types|incompatible types"
++	println(q)
++}

@@ -21,8 +21,111 @@ Date:   Wed Sep 2 01:08:02 2020 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.16.html         |  6 +++++
  src/net/http/fs.go      | 10 +++++++--
  src/net/http/fs_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 72 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 7738cbdada..8dd806e9f2 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -167,3 +167,9 @@ Do not send CLs removing the interior tags from such phrases.
+   handler serves a 404 instead of its previous behavior of invoking the
+   underlying handler with a mismatched <code>Path</code>/<code>RawPath</code> pair.
+ </p>
++
++<p>
++ The <a href="/pkg/net/http/"><code>net/http</code></a> package now rejects HTTP range requests
++ of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
++ example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
++</p>
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 922706ada1..d718fffba0 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -771,9 +771,15 @@ func parseRange(s string, size int64) ([]httpRange, error) {
+ 		var r httpRange
+ 		if start == "" {
+ 			// If no start is specified, end specifies the
+-			// range start relative to the end of the file.
++			// range start relative to the end of the file,
++			// and we are dealing with <suffix-length>
++			// which has to be a non-negative integer as per
++			// RFC 7233 Section 2.1 "Byte-Ranges".
++			if end == "" || end[0] == '-' {
++				return nil, errors.New("invalid range")
++			}
+ 			i, err := strconv.ParseInt(end, 10, 64)
+-			if err != nil {
++			if i < 0 || err != nil {
+ 				return nil, errors.New("invalid range")
+ 			}
+ 			if i > size {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 245d9ce65c..4ac73b728f 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1316,3 +1316,61 @@ func Test_scanETag(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 40940: Ensure that we only accept non-negative suffix-lengths
++// in "Range": "bytes=-N", and should reject "bytes=--2".
++func TestServeFileRejectsInvalidSuffixLengths_h1(t *testing.T) {
++	testServeFileRejectsInvalidSuffixLengths(t, h1Mode)
++}
++func TestServeFileRejectsInvalidSuffixLengths_h2(t *testing.T) {
++	testServeFileRejectsInvalidSuffixLengths(t, h2Mode)
++}
++
++func testServeFileRejectsInvalidSuffixLengths(t *testing.T, h2 bool) {
++	defer afterTest(t)
++	cst := httptest.NewUnstartedServer(FileServer(Dir("testdata")))
++	cst.EnableHTTP2 = h2
++	cst.StartTLS()
++	defer cst.Close()
++
++	tests := []struct {
++		r        string
++		wantCode int
++		wantBody string
++	}{
++		{"bytes=--6", 416, "invalid range\n"},
++		{"bytes=--0", 416, "invalid range\n"},
++		{"bytes=---0", 416, "invalid range\n"},
++		{"bytes=-6", 206, "hello\n"},
++		{"bytes=6-", 206, "html says hello\n"},
++		{"bytes=-6-", 416, "invalid range\n"},
++		{"bytes=-0", 206, ""},
++		{"bytes=", 200, "index.html says hello\n"},
++	}
++
++	for _, tt := range tests {
++		tt := tt
++		t.Run(tt.r, func(t *testing.T) {
++			req, err := NewRequest("GET", cst.URL+"/index.html", nil)
++			if err != nil {
++				t.Fatal(err)
++			}
++			req.Header.Set("Range", tt.r)
++			res, err := cst.Client().Do(req)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if g, w := res.StatusCode, tt.wantCode; g != w {
++				t.Errorf("StatusCode mismatch: got %d want %d", g, w)
++			}
++			slurp, err := ioutil.ReadAll(res.Body)
++			res.Body.Close()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if g, w := string(slurp), tt.wantBody; g != w {
++				t.Fatalf("Content mismatch:\nGot:  %q\nWant: %q", g, w)
++			}
++		})
++	}
++}

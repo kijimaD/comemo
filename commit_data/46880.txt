@@ -16,6 +16,28 @@ Date:   Wed Feb 10 14:46:54 2021 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index c9e14a3fec..59c9ce3c43 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Feb 2, 2021",
++	"Subtitle": "Version of Feb 10, 2021",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3446,7 +3446,7 @@ In a function call, the function value and arguments are evaluated in
+ After they are evaluated, the parameters of the call are passed by value to the function
+ and the called function begins execution.
+ The return parameters of the function are passed by value
+-back to the calling function when the function returns.
++back to the caller when the function returns.
+ </p>
+ 
+ <p>

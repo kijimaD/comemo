@@ -14,7 +14,7 @@ Date:   Tue Feb 27 21:51:31 2024 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/internal/abi/type.go            |  1 +
  src/internal/reflectlite/swapper.go |  2 +-
  src/reflect/deepequal.go            |  2 +-
@@ -38,3 +38,584 @@ Date:   Tue Feb 27 21:51:31 2024 +0000
  src/runtime/mfinal.go               |  2 +-
  src/runtime/slice.go                |  8 ++++----
  22 files changed, 58 insertions(+), 57 deletions(-)
+
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 009cc86d50..6474007de4 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -172,6 +172,7 @@ func (t *Type) HasName() bool {
+ 	return t.TFlag&TFlagNamed != 0
+ }
+ 
++// Pointers reports whether t contains pointers.
+ func (t *Type) Pointers() bool { return t.PtrBytes != 0 }
+ 
+ // IfaceIndir reports whether t is stored indirectly in an interface value.
+diff --git a/src/internal/reflectlite/swapper.go b/src/internal/reflectlite/swapper.go
+index ac17d9bbc4..e5ea535d5f 100644
+--- a/src/internal/reflectlite/swapper.go
++++ b/src/internal/reflectlite/swapper.go
+@@ -33,7 +33,7 @@ func Swapper(slice any) func(i, j int) {
+ 
+ 	typ := v.Type().Elem().common()
+ 	size := typ.Size()
+-	hasPtr := typ.PtrBytes != 0
++	hasPtr := typ.Pointers()
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index 961e170118..502ea9f146 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -39,7 +39,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 	hard := func(v1, v2 Value) bool {
+ 		switch v1.Kind() {
+ 		case Pointer:
+-			if v1.typ().PtrBytes == 0 {
++			if !v1.typ().Pointers() {
+ 				// not-in-heap pointers can't be cyclic.
+ 				// At least, all of our current uses of runtime/internal/sys.NotInHeap
+ 				// have that property. The runtime ones aren't cyclic (and we don't use
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 55eb50a425..902f4bfa10 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -63,7 +63,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 	}
+ 
+ 	// Expand frame type's GC bitmap into byte-map.
+-	ptrs = ft.PtrBytes != 0
++	ptrs = ft.Pointers()
+ 	if ptrs {
+ 		nptrs := ft.PtrBytes / goarch.PtrSize
+ 		gcdata := ft.GcSlice(0, (nptrs+7)/8)
+diff --git a/src/reflect/swapper.go b/src/reflect/swapper.go
+index 1e8f4ed163..78f6a19e4a 100644
+--- a/src/reflect/swapper.go
++++ b/src/reflect/swapper.go
+@@ -34,7 +34,7 @@ func Swapper(slice any) func(i, j int) {
+ 
+ 	typ := v.Type().Elem().common()
+ 	size := typ.Size()
+-	hasPtr := typ.PtrBytes != 0
++	hasPtr := typ.Pointers()
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1609084699..56cecc80c6 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2035,7 +2035,7 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
+ 		panic("reflect: bad size computation in MapOf")
+ 	}
+ 
+-	if ktyp.PtrBytes != 0 || etyp.PtrBytes != 0 {
++	if ktyp.Pointers() || etyp.Pointers() {
+ 		nptr := (abi.MapBucketCount*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
+ 		n := (nptr + 7) / 8
+ 
+@@ -2044,12 +2044,12 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
+ 		mask := make([]byte, n)
+ 		base := uintptr(abi.MapBucketCount / goarch.PtrSize)
+ 
+-		if ktyp.PtrBytes != 0 {
++		if ktyp.Pointers() {
+ 			emitGCMask(mask, base, ktyp, abi.MapBucketCount)
+ 		}
+ 		base += abi.MapBucketCount * ktyp.Size_ / goarch.PtrSize
+ 
+-		if etyp.PtrBytes != 0 {
++		if etyp.Pointers() {
+ 			emitGCMask(mask, base, etyp, abi.MapBucketCount)
+ 		}
+ 		base += abi.MapBucketCount * etyp.Size_ / goarch.PtrSize
+@@ -2729,7 +2729,7 @@ func ArrayOf(length int, elem Type) Type {
+ 		}
+ 	}
+ 	array.Size_ = typ.Size_ * uintptr(length)
+-	if length > 0 && typ.PtrBytes != 0 {
++	if length > 0 && typ.Pointers() {
+ 		array.PtrBytes = typ.Size_*uintptr(length-1) + typ.PtrBytes
+ 	}
+ 	array.Align_ = typ.Align_
+@@ -2738,7 +2738,7 @@ func ArrayOf(length int, elem Type) Type {
+ 	array.Slice = &(SliceOf(elem).(*rtype).t)
+ 
+ 	switch {
+-	case typ.PtrBytes == 0 || array.Size_ == 0:
++	case !typ.Pointers() || array.Size_ == 0:
+ 		// No pointers.
+ 		array.GCData = nil
+ 		array.PtrBytes = 0
+@@ -2938,7 +2938,7 @@ func (bv *bitVector) append(bit uint8) {
+ }
+ 
+ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
+-	if t.PtrBytes == 0 {
++	if !t.Pointers() {
+ 		return
+ 	}
+ 
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ae24eea795..5fa2daae86 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2203,7 +2203,7 @@ func (v Value) Pointer() uintptr {
+ 	k := v.kind()
+ 	switch k {
+ 	case Pointer:
+-		if v.typ().PtrBytes == 0 {
++		if !v.typ().Pointers() {
+ 			val := *(*uintptr)(v.ptr)
+ 			// Since it is a not-in-heap pointer, all pointers to the heap are
+ 			// forbidden! See comment in Value.Elem and issue #48399.
+@@ -2783,7 +2783,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ 	k := v.kind()
+ 	switch k {
+ 	case Pointer:
+-		if v.typ().PtrBytes == 0 {
++		if !v.typ().Pointers() {
+ 			// Since it is a not-in-heap pointer, all pointers to the heap are
+ 			// forbidden! See comment in Value.Elem and issue #48399.
+ 			if !verifyNotInHeapPtr(*(*uintptr)(v.ptr)) {
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index e1fae834d7..3fdd4cbdd6 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -482,7 +482,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
+ 	mp.mallocing = 1
+ 
+ 	var ptr unsafe.Pointer
+-	if typ.PtrBytes == 0 {
++	if !typ.Pointers() {
+ 		// Allocate pointer-less objects from the tail end of the chunk.
+ 		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.Align_)
+ 		if ok {
+@@ -504,7 +504,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
+ 		throw("arena chunk needs zeroing, but should already be zeroed")
+ 	}
+ 	// Set up heap bitmap and do extra accounting.
+-	if typ.PtrBytes != 0 {
++	if typ.Pointers() {
+ 		if cap >= 0 {
+ 			userArenaHeapBitsSetSliceType(typ, cap, ptr, s)
+ 		} else {
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index f2dd98702d..05fa47158a 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -541,7 +541,7 @@ const cgoResultFail = "cgo result is unpinned Go pointer or points to unpinned G
+ // level, where Go pointers are allowed. Go pointers to pinned objects are
+ // allowed as long as they don't reference other unpinned pointers.
+ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+-	if t.PtrBytes == 0 || p == nil {
++	if !t.Pointers() || p == nil {
+ 		// If the type has no pointers there is nothing to do.
+ 		return
+ 	}
+@@ -604,7 +604,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !top && !isPinned(p) {
+ 			panic(errorString(msg))
+ 		}
+-		if st.Elem.PtrBytes == 0 {
++		if !st.Elem.Pointers() {
+ 			return
+ 		}
+ 		for i := 0; i < s.cap; i++ {
+@@ -629,7 +629,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			return
+ 		}
+ 		for _, f := range st.Fields {
+-			if f.Typ.PtrBytes == 0 {
++			if !f.Typ.Pointers() {
+ 				continue
+ 			}
+ 			cgoCheckArg(f.Typ, add(p, f.Offset), true, top, msg)
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 3d6de4f855..fd87723dfc 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -90,7 +90,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if typ.PtrBytes == 0 {
++	if !typ.Pointers() {
+ 		return
+ 	}
+ 	if !cgoIsGoPointer(src) {
+@@ -111,7 +111,7 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+-	if typ.PtrBytes == 0 {
++	if !typ.Pointers() {
+ 		return
+ 	}
+ 	if !cgoIsGoPointer(src) {
+@@ -247,7 +247,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ //go:nowritebarrier
+ //go:systemstack
+ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+-	if typ.PtrBytes == 0 {
++	if !typ.Pointers() {
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index c48b85f576..c793d6cef3 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -96,7 +96,7 @@ func makechan(t *chantype, size int) *hchan {
+ 		c = (*hchan)(mallocgc(hchanSize, nil, true))
+ 		// Race detector uses this location for synchronization.
+ 		c.buf = c.raceaddr()
+-	case elem.PtrBytes == 0:
++	case !elem.Pointers():
+ 		// Elements do not contain pointers.
+ 		// Allocate hchan and buf in one call.
+ 		c = (*hchan)(mallocgc(hchanSize+mem, nil, true))
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+index 3c49645a44..810787bff5 100644
+--- a/src/runtime/checkptr.go
++++ b/src/runtime/checkptr.go
+@@ -16,7 +16,7 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+ 	// Note that we allow unaligned pointers if the types they point to contain
+ 	// no pointers themselves. See issue 37298.
+ 	// TODO(mdempsky): What about fieldAlign?
+-	if elem.PtrBytes != 0 && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
++	if elem.Pointers() && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
+ 		throw("checkptr: misaligned pointer conversion")
+ 	}
+ 
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 4588240f9e..9b84e96e50 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -351,7 +351,7 @@ func benchSetType(n int, resetTimer func(), len int, x unsafe.Pointer, t *_type)
+ 
+ 	// Round up the size to the size class to make the benchmark a little more
+ 	// realistic. However, validate it, to make sure this is safe.
+-	allocSize := roundupsize(size, t.PtrBytes == 0)
++	allocSize := roundupsize(size, !t.Pointers())
+ 	if s.npages*pageSize < allocSize {
+ 		panic("backing span not large enough for benchmark")
+ 	}
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index cca6172960..8bae8c0636 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -206,7 +206,7 @@ func dumptype(t *_type) {
+ 		dwritebyte('.')
+ 		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
+ 	}
+-	dumpbool(t.Kind_&kindDirectIface == 0 || t.PtrBytes != 0)
++	dumpbool(t.Kind_&kindDirectIface == 0 || t.Pointers())
+ }
+ 
+ // dump an object.
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e2cb2e456e..271e4c43db 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1043,7 +1043,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	var span *mspan
+ 	var header **_type
+ 	var x unsafe.Pointer
+-	noscan := typ == nil || typ.PtrBytes == 0
++	noscan := typ == nil || !typ.Pointers()
+ 	// In some cases block zeroing can profitably (for latency reduction purposes)
+ 	// be delayed till preemption is possible; delayedZeroing tracks that state.
+ 	delayedZeroing := false
+@@ -1188,7 +1188,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 				// Array allocation. If there are any
+ 				// pointers, GC has to scan to the last
+ 				// element.
+-				if typ.PtrBytes != 0 {
++				if typ.Pointers() {
+ 					scanSize = dataSize - typ.Size_ + typ.PtrBytes
+ 				}
+ 			} else {
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 98bd792d2a..bb3ac39e94 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -256,7 +256,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
+ 		ovf = (*bmap)(newobject(t.Bucket))
+ 	}
+ 	h.incrnoverflow()
+-	if t.Bucket.PtrBytes == 0 {
++	if !t.Bucket.Pointers() {
+ 		h.createOverflow()
+ 		*h.extra.overflow = append(*h.extra.overflow, ovf)
+ 	}
+@@ -346,7 +346,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ 		// used with this value of b.
+ 		nbuckets += bucketShift(b - 4)
+ 		sz := t.Bucket.Size_ * nbuckets
+-		up := roundupsize(sz, t.Bucket.PtrBytes == 0)
++		up := roundupsize(sz, !t.Bucket.Pointers())
+ 		if up != sz {
+ 			nbuckets = up / t.Bucket.Size_
+ 		}
+@@ -360,7 +360,7 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ 		// but may not be empty.
+ 		buckets = dirtyalloc
+ 		size := t.Bucket.Size_ * nbuckets
+-		if t.Bucket.PtrBytes != 0 {
++		if t.Bucket.Pointers() {
+ 			memclrHasPointers(buckets, size)
+ 		} else {
+ 			memclrNoHeapPointers(buckets, size)
+@@ -741,13 +741,13 @@ search:
+ 			// Only clear key if there are pointers in it.
+ 			if t.IndirectKey() {
+ 				*(*unsafe.Pointer)(k) = nil
+-			} else if t.Key.PtrBytes != 0 {
++			} else if t.Key.Pointers() {
+ 				memclrHasPointers(k, t.Key.Size_)
+ 			}
+ 			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*uintptr(t.KeySize)+i*uintptr(t.ValueSize))
+ 			if t.IndirectElem() {
+ 				*(*unsafe.Pointer)(e) = nil
+-			} else if t.Elem.PtrBytes != 0 {
++			} else if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {
+ 				memclrNoHeapPointers(e, t.Elem.Size_)
+@@ -824,7 +824,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	// grab snapshot of bucket state
+ 	it.B = h.B
+ 	it.buckets = h.buckets
+-	if t.Bucket.PtrBytes == 0 {
++	if !t.Bucket.Pointers() {
+ 		// Allocate the current slice and remember pointers to both current and old.
+ 		// This preserves all relevant overflow buckets alive even if
+ 		// the table grows and/or overflow buckets are added to the table
+@@ -1252,7 +1252,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.Bucket.PtrBytes != 0 {
++		if h.flags&oldIterator == 0 && t.Bucket.Pointers() {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.BucketSize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 3290321782..01a81439e3 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -302,13 +302,13 @@ search:
+ 			// Only clear key if there are pointers in it.
+ 			// This can only happen if pointers are 32 bit
+ 			// wide as 64 bit pointers do not fit into a 32 bit key.
+-			if goarch.PtrSize == 4 && t.Key.PtrBytes != 0 {
++			if goarch.PtrSize == 4 && t.Key.Pointers() {
+ 				// The key must be a pointer as we checked pointers are
+ 				// 32 bits wide and the key is 32 bits wide also.
+ 				*(*unsafe.Pointer)(k) = nil
+ 			}
+-			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*4+i*uintptr(t.ValueSize))
+-			if t.Elem.PtrBytes != 0 {
++      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*4+i*uintptr(t.ValueSize))
++			if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {
+ 				memclrNoHeapPointers(e, t.Elem.Size_)
+@@ -428,7 +428,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(abi.MapBucketCount-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if goarch.PtrSize == 4 && t.Key.PtrBytes != 0 && writeBarrier.enabled {
++				if goarch.PtrSize == 4 && t.Key.Pointers() && writeBarrier.enabled {
+ 					// Write with a write barrier.
+ 					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+ 				} else {
+@@ -446,7 +446,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.Bucket.PtrBytes != 0 {
++		if h.flags&oldIterator == 0 && t.Bucket.Pointers() {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.BucketSize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 48dea02e39..f47bc96f70 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -300,7 +300,7 @@ search:
+ 				continue
+ 			}
+ 			// Only clear key if there are pointers in it.
+-			if t.Key.PtrBytes != 0 {
++			if t.Key.Pointers() {
+ 				if goarch.PtrSize == 8 {
+ 					*(*unsafe.Pointer)(k) = nil
+ 				} else {
+@@ -309,8 +309,8 @@ search:
+ 					memclrHasPointers(k, 8)
+ 				}
+ 			}
+-			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*8+i*uintptr(t.ValueSize))
+-			if t.Elem.PtrBytes != 0 {
++      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*8+i*uintptr(t.ValueSize))
++			if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {
+ 				memclrNoHeapPointers(e, t.Elem.Size_)
+@@ -430,7 +430,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(abi.MapBucketCount-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if t.Key.PtrBytes != 0 && writeBarrier.enabled {
++				if t.Key.Pointers() && writeBarrier.enabled {
+ 					if goarch.PtrSize == 8 {
+ 						// Write with a write barrier.
+ 						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+@@ -454,7 +454,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.Bucket.PtrBytes != 0 {
++		if h.flags&oldIterator == 0 && t.Bucket.Pointers() {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.BucketSize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 19636e777f..a9898ba1ca 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -335,8 +335,8 @@ search:
+ 			}
+ 			// Clear key's pointer.
+ 			k.str = nil
+-			e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*2*goarch.PtrSize+i*uintptr(t.ValueSize))
+-			if t.Elem.PtrBytes != 0 {
++      e := add(unsafe.Pointer(b), dataOffset+abi.MapBucketCount*2*goarch.PtrSize+i*uintptr(t.ValueSize))
++			if t.Elem.Pointers() {
+ 				memclrHasPointers(e, t.Elem.Size_)
+ 			} else {
+ 				memclrNoHeapPointers(e, t.Elem.Size_)
+@@ -469,7 +469,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.Bucket.PtrBytes != 0 {
++		if h.flags&oldIterator == 0 && t.Bucket.Pointers() {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.BucketSize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index c4b6c2a789..dc6922da54 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -153,7 +153,7 @@ func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
+ 	if dst == src {
+ 		return
+ 	}
+-	if writeBarrier.enabled && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.Pointers() {
+ 		// This always copies a full value of type typ so it's safe
+ 		// to pass typ along as an optimization. See the comment on
+ 		// bulkBarrierPreWrite.
+@@ -232,7 +232,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ //
+ //go:nosplit
+ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
+-	if writeBarrier.enabled && typ != nil && typ.PtrBytes != 0 && size >= goarch.PtrSize {
++	if writeBarrier.enabled && typ != nil && typ.Pointers() && size >= goarch.PtrSize {
+ 		// Pass nil for the type. dst does not point to value of type typ,
+ 		// but rather points into one, so applying the optimization is not
+ 		// safe. See the comment on this function.
+@@ -305,7 +305,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 
+ //go:linkname reflect_typedslicecopy reflect.typedslicecopy
+ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+-	if elemType.PtrBytes == 0 {
++	if !elemType.Pointers() {
+ 		return slicecopy(dst.array, dst.len, src.array, src.len, elemType.Size_)
+ 	}
+ 	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
+@@ -323,7 +323,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ //
+ //go:nosplit
+ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+-	if writeBarrier.enabled && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.Pointers() {
+ 		// This always clears a whole value of type typ, so it's
+ 		// safe to pass a type here and apply the optimization.
+ 		// See the comment on bulkBarrierPreWrite.
+@@ -339,7 +339,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+ 
+ //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
+ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+-	if writeBarrier.enabled && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.Pointers() {
+ 		// Pass nil for the type. ptr does not point to value of type typ,
+ 		// but rather points into one so it's not safe to apply the optimization.
+ 		// See the comment on this function in the reflect package and the
+@@ -352,7 +352,7 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
+ //go:linkname reflect_typedarrayclear reflect.typedarrayclear
+ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+ 	size := typ.Size_ * uintptr(len)
+-	if writeBarrier.enabled && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.Pointers() {
+ 		// This always clears whole elements of an array, so it's
+ 		// safe to pass a type here. See the comment on bulkBarrierPreWrite.
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, size, typ)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 7d9d547c0f..ea3d8a4579 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -449,7 +449,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 	if uintptr(e.data) != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).
+-		if ot.Elem == nil || ot.Elem.PtrBytes != 0 || ot.Elem.Size_ >= maxTinySize {
++		if ot.Elem == nil || ot.Elem.Pointers() || ot.Elem.Size_ >= maxTinySize {
+ 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
+ 		}
+ 	}
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 8c1023c1e8..4fbe056b78 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -53,7 +53,7 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 	}
+ 
+ 	var to unsafe.Pointer
+-	if et.PtrBytes == 0 {
++	if !et.Pointers() {
+ 		to = mallocgc(tomem, nil, false)
+ 		if copymem < tomem {
+ 			memclrNoHeapPointers(add(to, copymem), tomem-copymem)
+@@ -183,7 +183,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 	// For 1 we don't need any division/multiplication.
+ 	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
+ 	// For powers of 2, use a variable shift.
+-	noscan := et.PtrBytes == 0
++	noscan := !et.Pointers()
+ 	switch {
+ 	case et.Size_ == 1:
+ 		lenmem = uintptr(oldLen)
+@@ -238,7 +238,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 	}
+ 
+ 	var p unsafe.Pointer
+-	if et.PtrBytes == 0 {
++	if !et.Pointers() {
+ 		p = mallocgc(capmem, nil, false)
+ 		// The append() that calls growslice is going to overwrite from oldLen to newLen.
+ 		// Only clear the part that will not be overwritten.
+@@ -308,7 +308,7 @@ func reflect_growslice(et *_type, old slice, num int) slice {
+ 	// the memory will be overwritten by an append() that called growslice.
+ 	// Since the caller of reflect_growslice is not append(),
+ 	// zero out this region before returning the slice to the reflect package.
+-	if et.PtrBytes == 0 {
++	if !et.Pointers() {
+ 		oldcapmem := uintptr(old.cap) * et.Size_
+ 		newlenmem := uintptr(new.len) * et.Size_
+ 		memclrNoHeapPointers(add(new.array, oldcapmem), newlenmem-oldcapmem)

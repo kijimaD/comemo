@@ -18,7 +18,71 @@ Date:   Wed Oct 7 11:15:01 2020 -0700
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_windows.go      |  3 +++
  src/syscall/exec_windows_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 500321ef0d..4a1d74ba3f 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -24,6 +24,9 @@ var ForkLock sync.RWMutex
+ // - finally, s is wrapped with double quotes (arg -> "arg"),
+ //   but only if there is space or tab inside s.
+ func EscapeArg(s string) string {
++	if len(s) == 0 {
++		return `""`
++	}
+ 	for i := 0; i < len(s); i++ {
+ 		switch s[i] {
+ 		case '"', '\\', ' ', '\t':
+diff --git a/src/syscall/exec_windows_test.go b/src/syscall/exec_windows_test.go
+new file mode 100644
+index 0000000000..eda1d36877
+--- /dev/null
++++ b/src/syscall/exec_windows_test.go
+@@ -0,0 +1,43 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall_test
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestEscapeArg(t *testing.T) {
++	var tests = []struct {
++		input, output string
++	}{
++		{``, `""`},
++		{`a`, `a`},
++		{` `, `" "`},
++		{`\`, `\`},
++		{`"`, `\"`},
++		{`\"`, `\\\"`},
++		{`\\"`, `\\\\\"`},
++		{`\\ `, `"\\ "`},
++		{` \\`, `" \\\\"`},
++		{`a `, `"a "`},
++		{`C:\`, `C:\`},
++		{`C:\Program Files (x32)\Common\`, `"C:\Program Files (x32)\Common\\"`},
++		{`C:\Users\Игорь\`, `C:\Users\Игорь\`},
++		{`Андрей\file`, `Андрей\file`},
++		{`C:\Windows\temp`, `C:\Windows\temp`},
++		{`c:\temp\newfile`, `c:\temp\newfile`},
++		{`\\?\C:\Windows`, `\\?\C:\Windows`},
++		{`\\?\`, `\\?\`},
++		{`\\.\C:\Windows\`, `\\.\C:\Windows\`},
++		{`\\server\share\file`, `\\server\share\file`},
++		{`\\newserver\tempshare\really.txt`, `\\newserver\tempshare\really.txt`},
++	}
++	for _, test := range tests {
++		if got := syscall.EscapeArg(test.input); got != test.output {
++			t.Errorf("EscapeArg(%#q) = %#q, want %#q", test.input, got, test.output)
++		}
++	}
++}

@@ -7,6 +7,23 @@ Date:   Mon Sep 28 10:47:39 2015 -0700
     Change-Id: I63da54832548c325e47dc54aaa5b5112e1f3b3ba
     Reviewed-on: https://go-review.googlesource.com/15048
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/encoding/json/encode.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 90782deb70..21f403e788 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -30,7 +30,10 @@ import (
+ // Marshal traverses the value v recursively.
+ // If an encountered value implements the Marshaler interface
+ // and is not a nil pointer, Marshal calls its MarshalJSON method
+-// to produce JSON.  The nil pointer exception is not strictly necessary
++// to produce JSON. If no MarshalJSON method is present but the
++// value implements encoding.TextMarshaler instead, Marshal calls
++// its MarshalText method.
++// The nil pointer exception is not strictly necessary
+ // but mimics a similar, necessary exception in the behavior of
+ // UnmarshalJSON.
+ //

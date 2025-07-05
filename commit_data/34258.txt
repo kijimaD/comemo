@@ -15,6 +15,24 @@ Date:   Thu Oct 12 18:41:06 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/70270
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/os_darwin.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 635f71f126..4ab5a76373 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -188,7 +188,11 @@ func minit() {
+ // Called from dropm to undo the effect of an minit.
+ //go:nosplit
+ func unminit() {
+-	unminitSignals()
++	// The alternate signal stack is buggy on arm and arm64.
++	// See minit.
++	if GOARCH != "arm" && GOARCH != "arm64" {
++		unminitSignals()
++	}
+ }
+ 
+ // Mach IPC, to get at semaphores

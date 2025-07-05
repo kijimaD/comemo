@@ -13,7 +13,61 @@ Date:   Thu Oct 27 21:20:44 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5331045
-
+---
  src/pkg/fmt/doc.go   | 10 +++++++---
  src/pkg/fmt/print.go | 17 ++++++++++++++---
  2 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index c993e57a40..6713f0a16e 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -89,10 +89,14 @@
+ 	If an operand implements interface Formatter, that interface
+ 	can be used for fine control of formatting.
+ 
+-	If an operand implements method String() string that method
++	Next, if an operand implements the error interface, the Error method
+ 	will be used to convert the object to a string, which will then
+-	be formatted as required by the verb (if any). To avoid
+-	recursion in cases such as
++	be formatted as required by the verb (if any).
++
++	Finally, if an operand implements method String() string that method
++	will be used to convert the object to a string, which will then
++	be formatted as required by the verb (if any).
++	To avoid recursion in cases such as
+ 		type X int
+ 		func (x X) String() string { return Sprintf("%d", x) }
+ 	cast the value before recurring:
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index f80ce7c927..5e0237f454 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -630,12 +630,23 @@ func (p *pp) handleMethods(verb rune, plus, goSyntax bool, depth int) (wasString
+ 			return
+ 		}
+ 	} else {
+-		// Is it a Stringer?
+-		if stringer, ok := p.field.(Stringer); ok {
++		// Is it an error or Stringer?
++		// The duplication in the bodies is necessary:
++		// setting wasString and handled and deferring catchPanic
++		// must happen before calling the method.
++		switch v := p.field.(type) {
++		case os.Error:
+ 			wasString = false
+ 			handled = true
+ 			defer p.catchPanic(p.field, verb)
+-			p.printField(stringer.String(), verb, plus, false, depth)
++			p.printField(v.String(), verb, plus, false, depth)
++			return
++
++		case Stringer:
++			wasString = false
++			handled = true
++			defer p.catchPanic(p.field, verb)
++			p.printField(v.String(), verb, plus, false, depth)
+ 			return
+ 		}
+ 	}

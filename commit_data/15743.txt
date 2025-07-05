@@ -10,6 +10,20 @@ Date:   Wed Mar 13 08:00:01 2013 +0800
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/7776043
-
+---
  src/pkg/net/multicast_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 7d2e9c0e34..1eb6a420dc 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -117,7 +117,7 @@ func TestIPv6MulticastListener(t *testing.T) {
+ 		// routing stuff for finding out an appropriate
+ 		// nexthop containing both network and link layer
+ 		// adjacencies.
+-		if ifi == nil && !*testExternal {
++		if ifi == nil && (!*testExternal || !*testIPv6) {
+ 			continue
+ 		}
+ 		for _, tt := range ipv6MulticastListenerTests {

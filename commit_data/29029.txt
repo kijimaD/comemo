@@ -11,7 +11,41 @@ Date:   Tue May 31 15:02:40 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/swt.go | 1 +
  test/switch6.go                    | 8 ++++----
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 09ce443530..07d324c593 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -107,6 +107,7 @@ func typecheckswitch(n *Node) {
+ 		if ncase.List.Len() == 0 {
+ 			// default
+ 			if def != nil {
++				setlineno(ncase)
+ 				Yyerror("multiple defaults in switch (first at %v)", def.Line())
+ 			} else {
+ 				def = ncase
+diff --git a/test/switch6.go b/test/switch6.go
+index bd62c620b6..32392d8f73 100644
+--- a/test/switch6.go
++++ b/test/switch6.go
+@@ -21,12 +21,12 @@ func f0(e error) {
+ 
+ // Verify that the compiler rejects multiple default cases.
+ func f1(e interface{}) {
+-	switch e { // ERROR "multiple defaults in switch"
+-	default:
++	switch e {
+ 	default:
++	default: // ERROR "multiple defaults in switch"
+ 	}
+-	switch e.(type) { // ERROR "multiple defaults in switch"
+-	default:
++	switch e.(type) {
+ 	default:
++	default: // ERROR "multiple defaults in switch"
+ 	}
+ }

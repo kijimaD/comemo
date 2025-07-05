@@ -12,8 +12,68 @@ Date:   Thu Mar 6 18:36:32 2014 -0500
     R=golang-codereviews, bradfitz, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/71230049
-
+---
  src/cmd/go/test.bash                   | 10 ++++++++++
  src/cmd/go/testdata/cgocover/p.go      | 19 +++++++++++++++++++
  src/cmd/go/testdata/cgocover/p_test.go |  7 +++++++
  3 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 0e4af62754..507f2885dd 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -568,6 +568,16 @@ TEST coverage runs
+ ./testgo test -short -coverpkg=strings strings regexp || ok=false
+ ./testgo test -short -cover strings math regexp || ok=false
+ 
++TEST coverage with cgo
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++./testgo test -short -cover ./testdata/cgocover >$d/cgo.out 2>&1 || ok=false
++cat $d/cgo.out
++if grep 'coverage: 0.0%' $d/cgo.out >/dev/null; then 
++	ok=false
++	echo no coverage for cgo package
++	ok=false
++fi
++
+ TEST cgo depends on syscall
+ rm -rf $GOROOT/pkg/*_race
+ d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+diff --git a/src/cmd/go/testdata/cgocover/p.go b/src/cmd/go/testdata/cgocover/p.go
+new file mode 100644
+index 0000000000..a6a3891cd4
+--- /dev/null
++++ b/src/cmd/go/testdata/cgocover/p.go
+@@ -0,0 +1,19 @@
++package p
++
++/*
++void
++f(void)
++{
++}
++*/
++import "C"
++
++var b bool
++
++func F() {
++	if b {
++		for {
++		}
++	}
++	C.f()
++}
+diff --git a/src/cmd/go/testdata/cgocover/p_test.go b/src/cmd/go/testdata/cgocover/p_test.go
+new file mode 100644
+index 0000000000..a8f057e358
+--- /dev/null
++++ b/src/cmd/go/testdata/cgocover/p_test.go
+@@ -0,0 +1,7 @@
++package p
++
++import "testing"
++
++func TestF(t *testing.T) {
++	F()
++}

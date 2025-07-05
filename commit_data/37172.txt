@@ -17,6 +17,21 @@ Date:   Fri Jun 29 14:38:56 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/dir_unix.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 09c3d2eb61..79d61c783f 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -13,7 +13,8 @@ import (
+ )
+ 
+ const (
+-	blockSize = 4096
++	// More than 5760 to work around https://golang.org/issue/24015.
++	blockSize = 8192
+ )
+ 
+ func (f *File) readdir(n int) (fi []FileInfo, err error) {

@@ -14,8 +14,111 @@ Date:   Mon Nov 18 12:35:55 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/207608
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                       | 38 -----------------------------
  src/cmd/go/testdata/script/devnull.txt      | 26 ++++++++++++++++++++
  src/cmd/go/testdata/script/test_devnull.txt | 15 ------------
  3 files changed, 26 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 8dc655ff88..102ee73a28 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1380,44 +1380,6 @@ func TestInstallIntoGOPATH(t *testing.T) {
+ 	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
+ }
+ 
+-// Issue 12407
+-func TestBuildOutputToDevNull(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	fi1, err1 := os.Lstat(os.DevNull)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("build", "-o", os.DevNull, "go-cmd-test")
+-	fi2, err2 := os.Lstat(os.DevNull)
+-	if err1 == nil {
+-		if err2 != nil {
+-			t.Errorf("second stat of /dev/null failed: %v", err2)
+-		} else if !os.SameFile(fi1, fi2) {
+-			t.Errorf("/dev/null changed: now %v was %v", fi1, fi2)
+-		}
+-	}
+-}
+-
+-// Issue 28549.
+-func TestTestOutputToDevNull(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	fi1, err1 := os.Lstat(os.DevNull)
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.tempFile("src/p/p.go", "package p\n")
+-	tg.tempFile("src/p/p_test.go", "package p\nimport \"testing\"\nfunc TestX(t *testing.T) {}\n")
+-	tg.run("test", "-o", os.DevNull, "-c", "p")
+-	tg.mustNotExist("p.test")
+-	fi2, err2 := os.Lstat(os.DevNull)
+-	if err1 == nil {
+-		if err2 != nil {
+-			t.Errorf("second stat of /dev/null failed: %v", err2)
+-		} else if !os.SameFile(fi1, fi2) {
+-			t.Errorf("/dev/null changed: now %v was %v", fi1, fi2)
+-		}
+-	}
+-}
+-
+ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
+ 	tooSlow(t)
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/script/devnull.txt b/src/cmd/go/testdata/script/devnull.txt
+new file mode 100644
+index 0000000000..ccb866aed1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/devnull.txt
+@@ -0,0 +1,26 @@
++env GO111MODULE=off
++
++# Issue 28035: go test -c -o NUL should work.
++# Issue 28549: go test -c -o /dev/null should not overwrite /dev/null when run as root.
++cd x
++cmp $devnull $WORK/empty.txt
++go test -o=$devnull -c
++! exists x.test$GOEXE
++cmp $devnull $WORK/empty.txt
++
++# Issue 12407: go build -o /dev/null should succeed.
++cd ..
++go build -o $devnull y
++cmp $devnull $WORK/empty.txt
++
++-- x/x_test.go --
++package x_test
++import (
++    "testing"
++)
++func TestNUL(t *testing.T) {
++}
++-- y/y.go --
++package y
++func main() {}
++-- $WORK/empty.txt --
+diff --git a/src/cmd/go/testdata/script/test_devnull.txt b/src/cmd/go/testdata/script/test_devnull.txt
+deleted file mode 100644
+index 33071679a2..0000000000
+--- a/src/cmd/go/testdata/script/test_devnull.txt
++++ /dev/null
+@@ -1,15 +0,0 @@
+-env GO111MODULE=off
+-
+-# go test -c -o NUL
+-# should work (see golang.org/issue/28035).
+-cd x
+-go test -o=$devnull -c
+-! exists x.test$GOEXE
+-
+--- x/x_test.go --
+-package x_test
+-import (
+-    "testing"
+-)
+-func TestNUL(t *testing.T) {
+-}

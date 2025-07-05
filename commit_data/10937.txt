@@ -25,10 +25,455 @@ Date:   Wed Dec 21 21:39:00 2011 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5489062
-
+---
  src/pkg/net/interface_bsd.go   | 95 +++++++++++++++++++++---------------------
  src/pkg/net/interface_linux.go | 73 +++++++++++++++-----------------
  src/pkg/net/interface_test.go  | 57 +++++++++++++++++--------
  src/pkg/net/ip.go              |  3 ++
  src/pkg/syscall/route_bsd.go   | 23 ++++++----
  5 files changed, 139 insertions(+), 112 deletions(-)
+
+diff --git a/src/pkg/net/interface_bsd.go b/src/pkg/net/interface_bsd.go
+index cdfb3dbd1e..907f80a80f 100644
+--- a/src/pkg/net/interface_bsd.go
++++ b/src/pkg/net/interface_bsd.go
+@@ -18,21 +18,16 @@ import (
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+-	var (
+-		tab  []byte
+-		e    error
+-		msgs []syscall.RoutingMessage
+-		ift  []Interface
+-	)
+-
+-	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route rib", e)
++	var ift []Interface
++
++	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
++	if err != nil {
++		return nil, os.NewSyscallError("route rib", err)
+ 	}
+ 
+-	msgs, e = syscall.ParseRoutingMessage(tab)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route message", e)
++	msgs, err := syscall.ParseRoutingMessage(tab)
++	if err != nil {
++		return nil, os.NewSyscallError("route message", err)
+ 	}
+ 
+ 	for _, m := range msgs {
+@@ -54,9 +49,9 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ func newLink(m *syscall.InterfaceMessage) ([]Interface, error) {
+ 	var ift []Interface
+ 
+-	sas, e := syscall.ParseRoutingSockaddr(m)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route sockaddr", e)
++	sas, err := syscall.ParseRoutingSockaddr(m)
++	if err != nil {
++		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+ 
+ 	for _, s := range sas {
+@@ -108,21 +103,16 @@ func linkFlags(rawFlags int32) Flags {
+ // for all network interfaces.  Otherwise it returns addresses
+ // for a specific interface.
+ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+-	var (
+-		tab  []byte
+-		e    error
+-		msgs []syscall.RoutingMessage
+-		ifat []Addr
+-	)
+-
+-	tab, e = syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route rib", e)
++	var ifat []Addr
++
++	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
++	if err != nil {
++		return nil, os.NewSyscallError("route rib", err)
+ 	}
+ 
+-	msgs, e = syscall.ParseRoutingMessage(tab)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route message", e)
++	msgs, err := syscall.ParseRoutingMessage(tab)
++	if err != nil {
++		return nil, os.NewSyscallError("route message", err)
+ 	}
+ 
+ 	for _, m := range msgs {
+@@ -133,7 +123,7 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ 				if err != nil {
+ 					return nil, err
+ 				}
+-				ifat = append(ifat, ifa...)
++				ifat = append(ifat, ifa)
+ 			}
+ 		}
+ 	}
+@@ -141,32 +131,41 @@ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+ 	return ifat, nil
+ }
+ 
+-func newAddr(m *syscall.InterfaceAddrMessage) ([]Addr, error) {
+-	var ifat []Addr
++func newAddr(m *syscall.InterfaceAddrMessage) (Addr, error) {
++	ifa := &IPNet{}
+ 
+-	sas, e := syscall.ParseRoutingSockaddr(m)
+-	if e != nil {
+-		return nil, os.NewSyscallError("route sockaddr", e)
++	sas, err := syscall.ParseRoutingSockaddr(m)
++	if err != nil {
++		return nil, os.NewSyscallError("route sockaddr", err)
+ 	}
+ 
+-	for _, s := range sas {
++	for i, s := range sas {
+ 		switch v := s.(type) {
+ 		case *syscall.SockaddrInet4:
+-			ifa := &IPAddr{IP: IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])}
+-			ifat = append(ifat, ifa.toAddr())
++			switch i {
++			case 0:
++				ifa.Mask = IPv4Mask(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
++			case 1:
++				ifa.IP = IPv4(v.Addr[0], v.Addr[1], v.Addr[2], v.Addr[3])
++			}
+ 		case *syscall.SockaddrInet6:
+-			ifa := &IPAddr{IP: make(IP, IPv6len)}
+-			copy(ifa.IP, v.Addr[:])
+-			// NOTE: KAME based IPv6 protcol stack usually embeds
+-			// the interface index in the interface-local or link-
+-			// local address as the kernel-internal form.
+-			if ifa.IP.IsLinkLocalUnicast() {
+-				// remove embedded scope zone ID
+-				ifa.IP[2], ifa.IP[3] = 0, 0
++			switch i {
++			case 0:
++				ifa.Mask = make(IPMask, IPv6len)
++				copy(ifa.Mask, v.Addr[:])
++			case 1:
++				ifa.IP = make(IP, IPv6len)
++				copy(ifa.IP, v.Addr[:])
++				// NOTE: KAME based IPv6 protcol stack usually embeds
++				// the interface index in the interface-local or link-
++				// local address as the kernel-internal form.
++				if ifa.IP.IsLinkLocalUnicast() {
++					// remove embedded scope zone ID
++					ifa.IP[2], ifa.IP[3] = 0, 0
++				}
+ 			}
+-			ifat = append(ifat, ifa.toAddr())
+ 		}
+ 	}
+ 
+-	return ifat, nil
++	return ifa, nil
+ }
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index 96db7186af..c0887c57ef 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -17,21 +17,16 @@ import (
+ // network interfaces.  Otheriwse it returns a mapping of a specific
+ // interface.
+ func interfaceTable(ifindex int) ([]Interface, error) {
+-	var (
+-		ift  []Interface
+-		tab  []byte
+-		msgs []syscall.NetlinkMessage
+-		e    error
+-	)
++	var ift []Interface
+ 
+-	tab, e = syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
+-	if e != nil {
+-		return nil, os.NewSyscallError("netlink rib", e)
++	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
++	if err != nil {
++		return nil, os.NewSyscallError("netlink rib", err)
+ 	}
+ 
+-	msgs, e = syscall.ParseNetlinkMessage(tab)
+-	if e != nil {
+-		return nil, os.NewSyscallError("netlink message", e)
++	msgs, err := syscall.ParseNetlinkMessage(tab)
++	if err != nil {
++		return nil, os.NewSyscallError("netlink message", err)
+ 	}
+ 
+ 	for _, m := range msgs {
+@@ -41,11 +36,11 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 		case syscall.RTM_NEWLINK:
+ 			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
+ 			if ifindex == 0 || ifindex == int(ifim.Index) {
+-				attrs, e := syscall.ParseNetlinkRouteAttr(&m)
+-				if e != nil {
+-					return nil, os.NewSyscallError("netlink routeattr", e)
++				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
++				if err != nil {
++					return nil, os.NewSyscallError("netlink routeattr", err)
+ 				}
+-				ifi := newLink(attrs, ifim)
++				ifi := newLink(ifim, attrs)
+ 				ift = append(ift, ifi)
+ 			}
+ 		}
+@@ -55,7 +50,7 @@ done:
+ 	return ift, nil
+ }
+ 
+-func newLink(attrs []syscall.NetlinkRouteAttr, ifim *syscall.IfInfomsg) Interface {
++func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) Interface {
+ 	ifi := Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
+ 	for _, a := range attrs {
+ 		switch a.Attr.Type {
+@@ -102,19 +97,19 @@ func linkFlags(rawFlags uint32) Flags {
+ // for all network interfaces.  Otherwise it returns addresses
+ // for a specific interface.
+ func interfaceAddrTable(ifindex int) ([]Addr, error) {
+-	tab, e := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+-	if e != nil {
+-		return nil, os.NewSyscallError("netlink rib", e)
++	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
++	if err != nil {
++		return nil, os.NewSyscallError("netlink rib", err)
+ 	}
+ 
+-	msgs, e := syscall.ParseNetlinkMessage(tab)
+-	if e != nil {
+-		return nil, os.NewSyscallError("netlink message", e)
++	msgs, err := syscall.ParseNetlinkMessage(tab)
++	if err != nil {
++		return nil, os.NewSyscallError("netlink message", err)
+ 	}
+ 
+-	ifat, e := addrTable(msgs, ifindex)
+-	if e != nil {
+-		return nil, e
++	ifat, err := addrTable(msgs, ifindex)
++	if err != nil {
++		return nil, err
+ 	}
+ 
+ 	return ifat, nil
+@@ -130,11 +125,11 @@ func addrTable(msgs []syscall.NetlinkMessage, ifindex int) ([]Addr, error) {
+ 		case syscall.RTM_NEWADDR:
+ 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+ 			if ifindex == 0 || ifindex == int(ifam.Index) {
+-				attrs, e := syscall.ParseNetlinkRouteAttr(&m)
+-				if e != nil {
+-					return nil, os.NewSyscallError("netlink routeattr", e)
++				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
++				if err != nil {
++					return nil, os.NewSyscallError("netlink routeattr", err)
+ 				}
+-				ifat = append(ifat, newAddr(attrs, int(ifam.Family))...)
++				ifat = append(ifat, newAddr(attrs, int(ifam.Family), int(ifam.Prefixlen)))
+ 			}
+ 		}
+ 	}
+@@ -143,25 +138,23 @@ done:
+ 	return ifat, nil
+ }
+ 
+-func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
+-	var ifat []Addr
+-
++func newAddr(attrs []syscall.NetlinkRouteAttr, family, pfxlen int) Addr {
++	ifa := &IPNet{}
+ 	for _, a := range attrs {
+ 		switch a.Attr.Type {
+ 		case syscall.IFA_ADDRESS:
+ 			switch family {
+ 			case syscall.AF_INET:
+-				ifa := &IPAddr{IP: IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])}
+-				ifat = append(ifat, ifa.toAddr())
++				ifa.IP = IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3])
++				ifa.Mask = CIDRMask(pfxlen, 8*IPv4len)
+ 			case syscall.AF_INET6:
+-				ifa := &IPAddr{IP: make(IP, IPv6len)}
++				ifa.IP = make(IP, IPv6len)
+ 				copy(ifa.IP, a.Value[:])
+-				ifat = append(ifat, ifa.toAddr())
++				ifa.Mask = CIDRMask(pfxlen, 8*IPv6len)
+ 			}
+ 		}
+ 	}
+-
+-	return ifat
++	return ifa
+ }
+ 
+ // If the ifindex is zero, interfaceMulticastAddrTable returns
+@@ -169,8 +162,8 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, error) {
+ 	var (
+-		ifi *Interface
+ 		err error
++		ifi *Interface
+ 	)
+ 
+ 	if ifindex > 0 {
+diff --git a/src/pkg/net/interface_test.go b/src/pkg/net/interface_test.go
+index cc614910fa..4ce01dc906 100644
+--- a/src/pkg/net/interface_test.go
++++ b/src/pkg/net/interface_test.go
+@@ -24,7 +24,7 @@ func sameInterface(i, j *Interface) bool {
+ func TestInterfaces(t *testing.T) {
+ 	ift, err := Interfaces()
+ 	if err != nil {
+-		t.Fatalf("Interfaces() failed: %v", err)
++		t.Fatalf("Interfaces failed: %v", err)
+ 	}
+ 	t.Logf("table: len/cap = %v/%v\n", len(ift), cap(ift))
+ 
+@@ -43,34 +43,57 @@ func TestInterfaces(t *testing.T) {
+ 		if !sameInterface(ifxn, &ifi) {
+ 			t.Fatalf("InterfaceByName(%#q) = %v, want %v", ifi.Name, *ifxn, ifi)
+ 		}
+-		ifat, err := ifi.Addrs()
+-		if err != nil {
+-			t.Fatalf("Interface.Addrs() failed: %v", err)
+-		}
+-		ifmat, err := ifi.MulticastAddrs()
+-		if err != nil {
+-			t.Fatalf("Interface.MulticastAddrs() failed: %v", err)
+-		}
+ 		t.Logf("%q: flags %q, ifindex %v, mtu %v\n", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
+-		for _, ifa := range ifat {
+-			t.Logf("\tinterface address %q\n", ifa.String())
+-		}
+-		for _, ifma := range ifmat {
+-			t.Logf("\tjoined group address %q\n", ifma.String())
+-		}
+ 		t.Logf("\thardware address %q", ifi.HardwareAddr.String())
++		testInterfaceAddrs(t, &ifi)
++		testInterfaceMulticastAddrs(t, &ifi)
+ 	}
+ }
+ 
+ func TestInterfaceAddrs(t *testing.T) {
+ 	ifat, err := InterfaceAddrs()
+ 	if err != nil {
+-		t.Fatalf("InterfaceAddrs() failed: %v", err)
++		t.Fatalf("InterfaceAddrs failed: %v", err)
+ 	}
+ 	t.Logf("table: len/cap = %v/%v\n", len(ifat), cap(ifat))
++	testAddrs(t, ifat)
++}
++
++func testInterfaceAddrs(t *testing.T, ifi *Interface) {
++	ifat, err := ifi.Addrs()
++	if err != nil {
++		t.Fatalf("Interface.Addrs failed: %v", err)
++	}
++	testAddrs(t, ifat)
++}
++
++func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) {
++	ifmat, err := ifi.MulticastAddrs()
++	if err != nil {
++		t.Fatalf("Interface.MulticastAddrs failed: %v", err)
++	}
++	testMulticastAddrs(t, ifmat)
++}
+ 
++func testAddrs(t *testing.T, ifat []Addr) {
+ 	for _, ifa := range ifat {
+-		t.Logf("interface address %q\n", ifa.String())
++		switch ifa.(type) {
++		case *IPAddr, *IPNet:
++			t.Logf("\tinterface address %q\n", ifa.String())
++		default:
++			t.Errorf("\tunexpected type: %T", ifa)
++		}
++	}
++}
++
++func testMulticastAddrs(t *testing.T, ifmat []Addr) {
++	for _, ifma := range ifmat {
++		switch ifma.(type) {
++		case *IPAddr:
++			t.Logf("\tjoined group address %q\n", ifma.String())
++		default:
++			t.Errorf("\tunexpected type: %T", ifma)
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index 4a38882787..979d7acd53 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -450,6 +450,9 @@ func (n *IPNet) String() string {
+ 	return nn.String() + "/" + itod(uint(l))
+ }
+ 
++// Network returns the address's network name, "ip+net".
++func (n *IPNet) Network() string { return "ip+net" }
++
+ // Parse IPv4 address (d.d.d.d).
+ func parseIPv4(s string) IP {
+ 	var p [IPv4len]byte
+diff --git a/src/pkg/syscall/route_bsd.go b/src/pkg/syscall/route_bsd.go
+index 85c26c5703..e17d976b15 100644
+--- a/src/pkg/syscall/route_bsd.go
++++ b/src/pkg/syscall/route_bsd.go
+@@ -85,8 +85,8 @@ func (m *RouteMessage) sockaddr() []Sockaddr {
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
+ 		switch i {
+ 		case RTAX_DST, RTAX_GATEWAY:
+-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+-			if e != nil {
++			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if err != nil {
+ 				return nil
+ 			}
+ 			if i == RTAX_DST {
+@@ -128,8 +128,8 @@ func (m *InterfaceMessage) sockaddr() (sas []Sockaddr) {
+ 	if m.Header.Addrs&RTA_IFP == 0 {
+ 		return nil
+ 	}
+-	sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(&m.Data[0])))
+-	if e != nil {
++	sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(&m.Data[0])))
++	if err != nil {
+ 		return nil
+ 	}
+ 	return append(sas, sa)
+@@ -157,12 +157,21 @@ func (m *InterfaceAddrMessage) sockaddr() (sas []Sockaddr) {
+ 		rsa := (*RawSockaddr)(unsafe.Pointer(&buf[0]))
+ 		switch i {
+ 		case RTAX_IFA:
+-			sa, e := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
+-			if e != nil {
++			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if err != nil {
+ 				return nil
+ 			}
+ 			sas = append(sas, sa)
+-		case RTAX_NETMASK, RTAX_BRD:
++		case RTAX_NETMASK:
++			if rsa.Family == AF_UNSPEC {
++				rsa.Family = AF_INET // an old fasion, AF_UNSPEC means AF_INET
++			}
++			sa, err := anyToSockaddr((*RawSockaddrAny)(unsafe.Pointer(rsa)))
++			if err != nil {
++				return nil
++			}
++			sas = append(sas, sa)
++		case RTAX_BRD:
+ 			// nothing to do
+ 		}
+ 		buf = buf[rsaAlignOf(int(rsa.Len)):]

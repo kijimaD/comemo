@@ -13,6 +13,27 @@ Date:   Wed Dec 14 21:52:41 2011 -0800
     R=golang-dev, adg, r, gri, rsc, iant
     CC=golang-dev
     https://golang.org/cl/5491043
-
+---
  doc/go_spec.html | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 945caba9d9..015404041b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of December 13, 2011 -->
++<!-- subtitle Version of December 14, 2011 -->
+ 
+ <!--
+ TODO
+@@ -454,6 +454,8 @@ back quote. The value of a raw string literal is the
+ string composed of the uninterpreted characters between the quotes;
+ in particular, backslashes have no special meaning and the string may
+ span multiple lines.
++Carriage returns inside raw string literals
++are discarded from the raw string value.
+ </p>
+ <p>
+ Interpreted string literals are character sequences between double

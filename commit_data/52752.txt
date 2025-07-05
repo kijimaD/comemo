@@ -25,9 +25,204 @@ Date:   Fri May 20 17:42:40 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go        | 32 +++++++++++++++++-----
  .../types2/testdata/fixedbugs/issue52915.go        | 23 ++++++++++++++++
  src/go/types/builtins.go                           | 32 +++++++++++++++++-----
  src/go/types/testdata/fixedbugs/issue52915.go      | 23 ++++++++++++++++
  4 files changed, 96 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 1bd2fdce06..b504c2bd5d 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -623,7 +623,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		if hasVarSize(x.typ) {
++		if hasVarSize(x.typ, nil) {
+ 			x.mode = value
+ 			if check.Types != nil {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+@@ -687,7 +687,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// the part of the struct which is variable-sized. This makes both the rules
+ 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
+ 		// arranging struct fields if it wanted to.
+-		if hasVarSize(base) {
++		if hasVarSize(base, nil) {
+ 			x.mode = value
+ 			if check.Types != nil {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
+@@ -706,7 +706,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		if hasVarSize(x.typ) {
++		if hasVarSize(x.typ, nil) {
+ 			x.mode = value
+ 			if check.Types != nil {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+@@ -788,14 +788,32 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	return true
+ }
+ 
+-// hasVarSize reports if the size of type t is variable due to type parameters.
+-func hasVarSize(t Type) bool {
++// hasVarSize reports if the size of type t is variable due to type parameters
++// or if the type is infinitely-sized due to a cycle for which the type has not
++// yet been checked.
++func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
++	// Cycles are only possible through *Named types.
++	// The seen map is used to detect cycles and track
++	// the results of previously seen types.
++	if named, _ := t.(*Named); named != nil {
++		if v, ok := seen[named]; ok {
++			return v
++		}
++		if seen == nil {
++			seen = make(map[*Named]bool)
++		}
++		seen[named] = true // possibly cyclic until proven otherwise
++		defer func() {
++			seen[named] = varSized // record final determination for named
++		}()
++	}
++
+ 	switch u := under(t).(type) {
+ 	case *Array:
+-		return hasVarSize(u.elem)
++		return hasVarSize(u.elem, seen)
+ 	case *Struct:
+ 		for _, f := range u.fields {
+-			if hasVarSize(f.typ) {
++			if hasVarSize(f.typ, seen) {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52915.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52915.go
+new file mode 100644
+index 0000000000..2c38e5bcca
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue52915.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type T[P any] struct {
++	T /* ERROR illegal cycle */ [P]
++}
++
++func _[P any]() {
++	_ = unsafe.Sizeof(T[int]{})
++	_ = unsafe.Sizeof(struct{ T[int] }{})
++
++	_ = unsafe.Sizeof(T[P]{})
++	_ = unsafe.Sizeof(struct{ T[P] }{})
++}
++
++// TODO(gri) This is a follow-on error due to T[int] being invalid.
++//           We should try to avoid it.
++const _ = unsafe /* ERROR not constant */ .Sizeof(T[int]{})
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 414c2c3ea0..463d814a2f 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -632,7 +632,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		if hasVarSize(x.typ) {
++		if hasVarSize(x.typ, nil) {
+ 			x.mode = value
+ 			if check.Types != nil {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+@@ -696,7 +696,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// the part of the struct which is variable-sized. This makes both the rules
+ 		// simpler and also permits (or at least doesn't prevent) a compiler from re-
+ 		// arranging struct fields if it wanted to.
+-		if hasVarSize(base) {
++		if hasVarSize(base, nil) {
+ 			x.mode = value
+ 			if check.Types != nil {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], obj.Type()))
+@@ -715,7 +715,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			return
+ 		}
+ 
+-		if hasVarSize(x.typ) {
++		if hasVarSize(x.typ, nil) {
+ 			x.mode = value
+ 			if check.Types != nil {
+ 				check.recordBuiltinType(call.Fun, makeSig(Typ[Uintptr], x.typ))
+@@ -797,14 +797,32 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	return true
+ }
+ 
+-// hasVarSize reports if the size of type t is variable due to type parameters.
+-func hasVarSize(t Type) bool {
++// hasVarSize reports if the size of type t is variable due to type parameters
++// or if the type is infinitely-sized due to a cycle for which the type has not
++// yet been checked.
++func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
++	// Cycles are only possible through *Named types.
++	// The seen map is used to detect cycles and track
++	// the results of previously seen types.
++	if named, _ := t.(*Named); named != nil {
++		if v, ok := seen[named]; ok {
++			return v
++		}
++		if seen == nil {
++			seen = make(map[*Named]bool)
++		}
++		seen[named] = true // possibly cyclic until proven otherwise
++		defer func() {
++			seen[named] = varSized // record final determination for named
++		}()
++	}
++
+ 	switch u := under(t).(type) {
+ 	case *Array:
+-		return hasVarSize(u.elem)
++		return hasVarSize(u.elem, seen)
+ 	case *Struct:
+ 		for _, f := range u.fields {
+-			if hasVarSize(f.typ) {
++			if hasVarSize(f.typ, seen) {
+ 				return true
+ 			}
+ 		}
+diff --git a/src/go/types/testdata/fixedbugs/issue52915.go b/src/go/types/testdata/fixedbugs/issue52915.go
+new file mode 100644
+index 0000000000..2c38e5bcca
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue52915.go
+@@ -0,0 +1,23 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "unsafe"
++
++type T[P any] struct {
++	T /* ERROR illegal cycle */ [P]
++}
++
++func _[P any]() {
++	_ = unsafe.Sizeof(T[int]{})
++	_ = unsafe.Sizeof(struct{ T[int] }{})
++
++	_ = unsafe.Sizeof(T[P]{})
++	_ = unsafe.Sizeof(struct{ T[P] }{})
++}
++
++// TODO(gri) This is a follow-on error due to T[int] being invalid.
++//           We should try to avoid it.
++const _ = unsafe /* ERROR not constant */ .Sizeof(T[int]{})

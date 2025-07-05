@@ -7,6 +7,17 @@ Date:   Mon Apr 8 00:09:35 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/8491044
-
+---
  test/mapnan.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/mapnan.go b/test/mapnan.go
+index 8974540026..60b35fbeaf 100644
+--- a/test/mapnan.go
++++ b/test/mapnan.go
+@@ -1,4 +1,4 @@
+-// +build darwin,linux
++// +build darwin linux
+ // run
+ 
+ // Copyright 2013 The Go Authors. All rights reserved.

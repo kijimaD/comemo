@@ -34,7 +34,7 @@ Date:   Mon Aug 9 20:29:14 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/android/go_android_exec.go                        | 1 +
  misc/cgo/gmp/fib.go                                    | 1 +
  misc/cgo/gmp/pi.go                                     | 1 +
@@ -87,3 +87,622 @@ Date:   Mon Aug 9 20:29:14 2021 -0400
  src/syscall/js/js.go                                   | 1 +
  src/syscall/js/js_test.go                              | 1 +
  51 files changed, 55 insertions(+), 2 deletions(-)
+
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index 3af2bee583..168ebe88a2 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ // This program can be used as go_android_GOARCH_exec by the Go tool.
+diff --git a/misc/cgo/gmp/fib.go b/misc/cgo/gmp/fib.go
+index f1091b1c54..f453fcf184 100644
+--- a/misc/cgo/gmp/fib.go
++++ b/misc/cgo/gmp/fib.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ // Compute Fibonacci numbers with two goroutines
+diff --git a/misc/cgo/gmp/pi.go b/misc/cgo/gmp/pi.go
+index d5851e8e6b..5ea034900a 100644
+--- a/misc/cgo/gmp/pi.go
++++ b/misc/cgo/gmp/pi.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/test/cgo_thread_lock.go b/misc/cgo/test/cgo_thread_lock.go
+index b105068518..3b9ac84549 100644
+--- a/misc/cgo/test/cgo_thread_lock.go
++++ b/misc/cgo/test/cgo_thread_lock.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && freebsd && openbsd
+ // +build linux,freebsd,openbsd
+ 
+ package cgotest
+diff --git a/misc/cgo/test/cgo_unix_test.go b/misc/cgo/test/cgo_unix_test.go
+index e3d5916649..a324503a22 100644
+--- a/misc/cgo/test/cgo_unix_test.go
++++ b/misc/cgo/test/cgo_unix_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ package cgotest
+diff --git a/misc/cgo/test/issue1435.go b/misc/cgo/test/issue1435.go
+index 92c6b99846..91db155c90 100644
+--- a/misc/cgo/test/issue1435.go
++++ b/misc/cgo/test/issue1435.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux && cgo
+ // +build linux,cgo
+ 
+ package cgotest
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index f92d6c7f93..e50f9ae530 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ // Issue 18146: pthread_create failure during syscall.Exec.
+diff --git a/misc/cgo/test/issue21897.go b/misc/cgo/test/issue21897.go
+index d13246bd84..8f39252e68 100644
+--- a/misc/cgo/test/issue21897.go
++++ b/misc/cgo/test/issue21897.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin && cgo && !internal
+ // +build darwin,cgo,!internal
+ 
+ package cgotest
+diff --git a/misc/cgo/test/issue21897b.go b/misc/cgo/test/issue21897b.go
+index 08b5f4d808..50aece3528 100644
+--- a/misc/cgo/test/issue21897b.go
++++ b/misc/cgo/test/issue21897b.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !darwin || !cgo || internal
+ // +build !darwin !cgo internal
+ 
+ package cgotest
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index b2d131833a..90ca08cbfb 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !windows,!static
++//go:build !windows && !static && (!darwin || (!internal_pie && !arm64))
++// +build !windows
++// +build !static
+ // +build !darwin !internal_pie,!arm64
+ 
+ // Excluded in darwin internal linking PIE mode, as dynamic export is not
+diff --git a/misc/cgo/test/issue4029w.go b/misc/cgo/test/issue4029w.go
+index b969bdd0fe..c2f59485e4 100644
+--- a/misc/cgo/test/issue4029w.go
++++ b/misc/cgo/test/issue4029w.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows || static || (darwin && internal_pie) || (darwin && arm64)
+ // +build windows static darwin,internal_pie darwin,arm64
+ 
+ package cgotest
+diff --git a/misc/cgo/test/issue6997_linux.go b/misc/cgo/test/issue6997_linux.go
+index f19afb8b7a..4acc8c1a07 100644
+--- a/misc/cgo/test/issue6997_linux.go
++++ b/misc/cgo/test/issue6997_linux.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !android
+ // +build !android
+ 
+ // Test that pthread_cancel works as expected
+diff --git a/misc/cgo/test/issue8517.go b/misc/cgo/test/issue8517.go
+index 4e431df921..7316ab0335 100644
+--- a/misc/cgo/test/issue8517.go
++++ b/misc/cgo/test/issue8517.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ package cgotest
+diff --git a/misc/cgo/test/issue8694.go b/misc/cgo/test/issue8694.go
+index 89be7ea090..19071ce159 100644
+--- a/misc/cgo/test/issue8694.go
++++ b/misc/cgo/test/issue8694.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !android
+ // +build !android
+ 
+ package cgotest
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index 034cc4b371..6b371897a7 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows && !android
+ // +build !windows,!android
+ 
+ // Test that the Go runtime still works if C code changes the signal stack.
+diff --git a/misc/cgo/test/sigprocmask.go b/misc/cgo/test/sigprocmask.go
+index e2b939f05e..983734cc7b 100644
+--- a/misc/cgo/test/sigprocmask.go
++++ b/misc/cgo/test/sigprocmask.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ package cgotest
+diff --git a/misc/cgo/test/test_unix.go b/misc/cgo/test/test_unix.go
+index 4a234469db..831b9ca625 100644
+--- a/misc/cgo/test/test_unix.go
++++ b/misc/cgo/test/test_unix.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ package cgotest
+diff --git a/misc/cgo/testso/noso_test.go b/misc/cgo/testso/noso_test.go
+index c88aebfb02..1014534d62 100644
+--- a/misc/cgo/testso/noso_test.go
++++ b/misc/cgo/testso/noso_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !cgo
+ // +build !cgo
+ 
+ package so_test
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index 2023c51f11..6d14e32dc6 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
+ // +build cgo
+ 
+ package so_test
+diff --git a/misc/cgo/testsovar/noso_test.go b/misc/cgo/testsovar/noso_test.go
+index c88aebfb02..1014534d62 100644
+--- a/misc/cgo/testsovar/noso_test.go
++++ b/misc/cgo/testsovar/noso_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !cgo
+ // +build !cgo
+ 
+ package so_test
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index 2023c51f11..6d14e32dc6 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
+ // +build cgo
+ 
+ package so_test
+diff --git a/misc/cgo/testtls/tls_test.go b/misc/cgo/testtls/tls_test.go
+index 3076c2d594..a3b67c0044 100644
+--- a/misc/cgo/testtls/tls_test.go
++++ b/misc/cgo/testtls/tls_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !windows
+ // +build !windows
+ 
+ package cgotlstest
+diff --git a/misc/ios/detect.go b/misc/ios/detect.go
+index cde5723892..1cb8ae5ff7 100644
+--- a/misc/ios/detect.go
++++ b/misc/ios/detect.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ // detect attempts to autodetect the correct
+diff --git a/misc/reboot/experiment_toolid_test.go b/misc/reboot/experiment_toolid_test.go
+index 4f40284d80..87a828e32f 100644
+--- a/misc/reboot/experiment_toolid_test.go
++++ b/misc/reboot/experiment_toolid_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build explicit
+ // +build explicit
+ 
+ // Package experiment_toolid_test verifies that GOEXPERIMENT settings built
+diff --git a/src/cmd/compile/internal/base/bootstrap_false.go b/src/cmd/compile/internal/base/bootstrap_false.go
+index de86644527..c77fcd7308 100644
+--- a/src/cmd/compile/internal/base/bootstrap_false.go
++++ b/src/cmd/compile/internal/base/bootstrap_false.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !compiler_bootstrap
+ // +build !compiler_bootstrap
+ 
+ package base
+diff --git a/src/cmd/compile/internal/base/bootstrap_true.go b/src/cmd/compile/internal/base/bootstrap_true.go
+index 81a17e1f6e..1eb58b2f9d 100644
+--- a/src/cmd/compile/internal/base/bootstrap_true.go
++++ b/src/cmd/compile/internal/base/bootstrap_true.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build compiler_bootstrap
+ // +build compiler_bootstrap
+ 
+ package base
+diff --git a/src/cmd/compile/internal/noder/frames_go1.go b/src/cmd/compile/internal/noder/frames_go1.go
+index 2958efd622..d00e0f51f9 100644
+--- a/src/cmd/compile/internal/noder/frames_go1.go
++++ b/src/cmd/compile/internal/noder/frames_go1.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !go1.7
+ // +build !go1.7
+ 
+ // TODO(mdempsky): Remove after #44505 is resolved
+diff --git a/src/cmd/compile/internal/noder/frames_go17.go b/src/cmd/compile/internal/noder/frames_go17.go
+index 273217e39a..48d77625b4 100644
+--- a/src/cmd/compile/internal/noder/frames_go17.go
++++ b/src/cmd/compile/internal/noder/frames_go17.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build go1.7
+ // +build go1.7
+ 
+ package noder
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index c4b49fbb23..91f33c8374 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index 77f251c0d3..a18cd4289d 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index b92e8cb9f1..8177c7e2d1 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index f7198b90c3..d7d8a33a0a 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 0ac9c5f62a..0774d4c654 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 5b33ba710e..00fce8e0e5 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/WasmOps.go b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+index c92878ca73..7f7ae5e837 100644
+--- a/src/cmd/compile/internal/ssa/gen/WasmOps.go
++++ b/src/cmd/compile/internal/ssa/gen/WasmOps.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64Ops.go b/src/cmd/compile/internal/ssa/gen/dec64Ops.go
+index 8c5883bc56..78fcea885a 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/dec64Ops.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/cmd/compile/internal/ssa/gen/decOps.go b/src/cmd/compile/internal/ssa/gen/decOps.go
+index b826481c9f..d5cd79378c 100644
+--- a/src/cmd/compile/internal/ssa/gen/decOps.go
++++ b/src/cmd/compile/internal/ssa/gen/decOps.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/src/internal/syscall/windows/exec_windows_test.go b/src/internal/syscall/windows/exec_windows_test.go
+index 283d7cea94..0db626636e 100644
+--- a/src/internal/syscall/windows/exec_windows_test.go
++++ b/src/internal/syscall/windows/exec_windows_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ package windows_test
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 599f07601b..39f745db7a 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build generate
+ // +build generate
+ 
+ package windows
+diff --git a/src/internal/syscall/windows/registry/export_test.go b/src/internal/syscall/windows/registry/export_test.go
+index 8badf6fdcf..d02d93f287 100644
+--- a/src/internal/syscall/windows/registry/export_test.go
++++ b/src/internal/syscall/windows/registry/export_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ package registry
+diff --git a/src/internal/syscall/windows/registry/key.go b/src/internal/syscall/windows/registry/key.go
+index 612c48f084..ebe73a2e02 100644
+--- a/src/internal/syscall/windows/registry/key.go
++++ b/src/internal/syscall/windows/registry/key.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ // Package registry provides access to the Windows registry.
+diff --git a/src/internal/syscall/windows/registry/mksyscall.go b/src/internal/syscall/windows/registry/mksyscall.go
+index 320abf7fc6..0a007df7cc 100644
+--- a/src/internal/syscall/windows/registry/mksyscall.go
++++ b/src/internal/syscall/windows/registry/mksyscall.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build generate
+ // +build generate
+ 
+ package registry
+diff --git a/src/internal/syscall/windows/registry/registry_test.go b/src/internal/syscall/windows/registry/registry_test.go
+index 5797162900..69b84e1c4c 100644
+--- a/src/internal/syscall/windows/registry/registry_test.go
++++ b/src/internal/syscall/windows/registry/registry_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ package registry_test
+diff --git a/src/internal/syscall/windows/registry/syscall.go b/src/internal/syscall/windows/registry/syscall.go
+index a6525dac5d..bb61279361 100644
+--- a/src/internal/syscall/windows/registry/syscall.go
++++ b/src/internal/syscall/windows/registry/syscall.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ package registry
+diff --git a/src/internal/syscall/windows/registry/value.go b/src/internal/syscall/windows/registry/value.go
+index dc3930a6bc..e1fc99c40d 100644
+--- a/src/internal/syscall/windows/registry/value.go
++++ b/src/internal/syscall/windows/registry/value.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ package registry
+diff --git a/src/internal/syscall/windows/sysdll/sysdll.go b/src/internal/syscall/windows/sysdll/sysdll.go
+index c587c19c77..61b998e4cf 100644
+--- a/src/internal/syscall/windows/sysdll/sysdll.go
++++ b/src/internal/syscall/windows/sysdll/sysdll.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build windows
+ // +build windows
+ 
+ // Package sysdll is an internal leaf package that records and reports
+diff --git a/src/runtime/msan/msan.go b/src/runtime/msan/msan.go
+index c81577ddda..9908a8ec22 100644
+--- a/src/runtime/msan/msan.go
++++ b/src/runtime/msan/msan.go
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build msan,linux
++//go:build msan && linux && (amd64 || arm64)
++// +build msan
++// +build linux
+ // +build amd64 arm64
+ 
+ package msan
+diff --git a/src/syscall/js/export_test.go b/src/syscall/js/export_test.go
+index 1b5ed3ce84..4bd9c5d595 100644
+--- a/src/syscall/js/export_test.go
++++ b/src/syscall/js/export_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build js && wasm
+ // +build js,wasm
+ 
+ package js
+diff --git a/src/syscall/js/func.go b/src/syscall/js/func.go
+index da4cf68774..ab23e5fbfc 100644
+--- a/src/syscall/js/func.go
++++ b/src/syscall/js/func.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build js && wasm
+ // +build js,wasm
+ 
+ package js
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index a48bbd4dd7..d805d69166 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build js && wasm
+ // +build js,wasm
+ 
+ // Package js gives access to the WebAssembly host environment when using the js/wasm architecture.
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 5fc9107d40..8088a897f6 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build js && wasm
+ // +build js,wasm
+ 
+ // To run these tests:

@@ -9,9 +9,341 @@ Date:   Thu Jul 1 18:04:25 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1680048
-
+---
  src/cmd/gc/range.c     |  17 ++++-
  src/cmd/gc/typecheck.c |   2 +-
  src/cmd/gc/walk.c      |  18 ++++-
  test/range.go          | 199 ++++++++++++++++++++++++++++++++++++++++++++++++-
  4 files changed, 227 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 09d54b3ee6..dca3a54542 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -24,6 +24,8 @@ typecheckrange(Node *n)
+ 	typecheck(&n->right, Erv);
+ 	if((t = n->right->type) == T)
+ 		goto out;
++	if(isptr[t->etype] && isfixedarray(t->type))
++		t = t->type;
+ 	n->type = t;
+ 
+ 	switch(t->etype) {
+@@ -104,9 +106,6 @@ walkrange(Node *n)
+ 		a = nod(OCONV, n->right, N);
+ 		a->type = types[TSTRING];
+ 	}
+-	ha = nod(OXXX, N, N);
+-	tempname(ha, a->type);
+-	init = list(init, nod(OAS, ha, a));
+ 
+ 	v1 = n->list->n;
+ 	hv1 = N;
+@@ -116,6 +115,16 @@ walkrange(Node *n)
+ 		v2 = n->list->next->n;
+ 	hv2 = N;
+ 
++	if(v2 == N && t->etype == TARRAY) {
++		// will have just one reference to argument.
++		// no need to make a potentially expensive copy.
++		ha = a;
++	} else {
++		ha = nod(OXXX, N, N);
++		tempname(ha, a->type);
++		init = list(init, nod(OAS, ha, a));
++	}
++
+ 	switch(t->etype) {
+ 	default:
+ 		fatal("walkrange");
+@@ -131,7 +140,7 @@ walkrange(Node *n)
+ 		init = list(init, nod(OAS, hn, nod(OLEN, ha, N)));
+ 		if(v2) {
+ 			hp = nod(OXXX, N, N);
+-			tempname(hp, ptrto(a->type->type));
++			tempname(hp, ptrto(n->type->type));
+ 			tmp = nod(OINDEX, ha, nodintconst(0));
+ 			tmp->etype = 1;	// no bounds check
+ 			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 457b82b4cc..71be98c487 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -802,7 +802,7 @@ reswitch:
+ 				nodconst(n, types[TINT], l->val.u.sval->len);
+ 			break;
+ 		case TARRAY:
+-			if(t->bound >= 0)
++			if(t->bound >= 0 && l->op == ONAME)
+ 				nodconst(n, types[TINT], t->bound);
+ 			break;
+ 		}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 4f59d55989..2e233bfdd9 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -594,8 +594,6 @@ walkexpr(Node **np, NodeList **init)
+ 	case OMINUS:
+ 	case OPLUS:
+ 	case OCOM:
+-	case OLEN:
+-	case OCAP:
+ 	case OREAL:
+ 	case OIMAG:
+ 	case ODOT:
+@@ -606,6 +604,22 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
++	case OLEN:
++	case OCAP:
++		walkexpr(&n->left, init);
++		
++		// replace len(*[10]int) with 10.
++		// delayed until now to preserve side effects.
++		t = n->left->type;
++		if(isptr[t->etype])
++			t = t->type;
++		if(isfixedarray(t)) {
++			safeexpr(n->left, init);
++			nodconst(n, n->type, t->bound);
++			n->typecheck = 1;
++		}
++		goto ret;
++	
+ 	case OLSH:
+ 	case ORSH:
+ 	case OAND:
+diff --git a/test/range.go b/test/range.go
+index 9093d714bc..91ccd6307a 100644
+--- a/test/range.go
++++ b/test/range.go
+@@ -32,18 +32,59 @@ func testchan() {
+ 	}
+ }
+ 
+-// test that range over array only evaluates
++// test that range over slice only evaluates
+ // the expression after "range" once.
+ 
+ var nmake = 0
+ 
+-func makearray() []int {
++func makeslice() []int {
+ 	nmake++
+ 	return []int{1, 2, 3, 4, 5}
+ }
+ 
++func testslice() {
++	s := 0
++	nmake = 0
++	for _, v := range makeslice() {
++		s += v
++	}
++	if nmake != 1 {
++		println("range called makeslice", nmake, "times")
++		panic("fail")
++	}
++	if s != 15 {
++		println("wrong sum ranging over makeslice")
++		panic("fail")
++	}
++}
++
++func testslice1() {
++	s := 0
++	nmake = 0
++	for i := range makeslice() {
++		s += i
++	}
++	if nmake != 1 {
++		println("range called makeslice", nmake, "times")
++		panic("fail")
++	}
++	if s != 10 {
++		println("wrong sum ranging over makeslice")
++		panic("fail")
++	}
++}
++
++// test that range over array only evaluates
++// the expression after "range" once.
++
++func makearray() [5]int {
++	nmake++
++	return [5]int{1, 2, 3, 4, 5}
++}
++
+ func testarray() {
+ 	s := 0
++	nmake = 0
+ 	for _, v := range makearray() {
+ 		s += v
+ 	}
+@@ -57,6 +98,151 @@ func testarray() {
+ 	}
+ }
+ 
++func testarray1() {
++	s := 0
++	nmake = 0
++	for i := range makearray() {
++		s += i
++	}
++	if nmake != 1 {
++		println("range called makearray", nmake, "times")
++		panic("fail")
++	}
++	if s != 10 {
++		println("wrong sum ranging over makearray")
++		panic("fail")
++	}
++}
++
++func makearrayptr() *[5]int {
++	nmake++
++	return &[5]int{1, 2, 3, 4, 5}
++}
++
++func testarrayptr() {
++	nmake = 0
++	x := len(makearrayptr())
++	if x != 5 || nmake != 1 {
++		println("len called makearrayptr", nmake, "times and got len", x)
++		panic("fail")
++	}
++	nmake = 0
++	x = cap(makearrayptr())
++	if x != 5 || nmake != 1 {
++		println("cap called makearrayptr", nmake, "times and got len", x)
++		panic("fail")
++	}
++	s := 0
++	nmake = 0
++	for _, v := range makearrayptr() {
++		s += v
++	}
++	if nmake != 1 {
++		println("range called makearrayptr", nmake, "times")
++		panic("fail")
++	}
++	if s != 15 {
++		println("wrong sum ranging over makearrayptr")
++		panic("fail")
++	}
++}
++
++func testarrayptr1() {
++	s := 0
++	nmake = 0
++	for i := range makearrayptr() {
++		s += i
++	}
++	if nmake != 1 {
++		println("range called makearrayptr", nmake, "times")
++		panic("fail")
++	}
++	if s != 10 {
++		println("wrong sum ranging over makearrayptr")
++		panic("fail")
++	}
++}
++
++// test that range over string only evaluates
++// the expression after "range" once.
++
++func makestring() string {
++	nmake++
++	return "abcd☺"
++}
++
++func teststring() {
++	s := 0
++	nmake = 0
++	for _, v := range makestring() {
++		s += v
++	}
++	if nmake != 1 {
++		println("range called makestring", nmake, "times")
++		panic("fail")
++	}
++	if s != 'a'+'b'+'c'+'d'+'☺' {
++		println("wrong sum ranging over makestring")
++		panic("fail")
++	}
++}
++
++func teststring1() {
++	s := 0
++	nmake = 0
++	for i := range makestring() {
++		s += i
++	}
++	if nmake != 1 {
++		println("range called makestring", nmake, "times")
++		panic("fail")
++	}
++	if s != 10 {
++		println("wrong sum ranging over makestring")
++		panic("fail")
++	}
++}
++
++// test that range over map only evaluates
++// the expression after "range" once.
++
++func makemap() map[int]int {
++	nmake++
++	return map[int]int{0:'a', 1:'b', 2:'c', 3:'d', 4:'☺'}
++}
++
++func testmap() {
++	s := 0
++	nmake = 0
++	for _, v := range makemap() {
++		s += v
++	}
++	if nmake != 1 {
++		println("range called makemap", nmake, "times")
++		panic("fail")
++	}
++	if s != 'a'+'b'+'c'+'d'+'☺' {
++		println("wrong sum ranging over makemap")
++		panic("fail")
++	}
++}
++
++func testmap1() {
++	s := 0
++	nmake = 0
++	for i := range makemap() {
++		s += i
++	}
++	if nmake != 1 {
++		println("range called makemap", nmake, "times")
++		panic("fail")
++	}
++	if s != 10 {
++		println("wrong sum ranging over makemap")
++		panic("fail")
++	}
++}
++
+ // test that range evaluates the index and value expressions
+ // exactly once per iteration.
+ 
+@@ -98,5 +284,14 @@ func testcalls() {
+ func main() {
+ 	testchan()
+ 	testarray()
++	testarray1()
++	testarrayptr()
++	testarrayptr1()
++	testslice()
++	testslice1()
++	teststring()
++	teststring1()
++	testmap()
++	testmap1()
+ 	testcalls()
+ }

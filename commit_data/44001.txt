@@ -10,6 +10,24 @@ Date:   Fri May 1 14:12:48 2020 -0400
     Change-Id: Ica9737aa7b51f97320bab74457388dcab8188370
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231597
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index c91a18a167..7c58a62975 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -159,8 +159,10 @@ func (d *deadcodePass) flood() {
+ 			if a.Type() == goobj2.AuxGotype && !d.ctxt.linkShared {
+ 				// A symbol being reachable doesn't imply we need its
+ 				// type descriptor. Don't mark it.
+-				// XXX we need that for GCProg generation when linking
+-				// shared library. why?
++				// TODO: when -linkshared, the GCProg generation code
++				// seems to need it. I'm not sure why. I think it could
++				// just reach to the type descriptor's data without
++				// requiring to mark it reachable.
+ 				continue
+ 			}
+ 			d.mark(a.Sym(), symIdx)

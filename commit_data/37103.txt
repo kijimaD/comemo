@@ -11,6 +11,26 @@ Date:   Wed Jun 27 21:40:22 2018 -0500
     Change-Id: I268196f04b98c2bd4d5d0cf1fecd2c9bafeec0f1
     Reviewed-on: https://go-review.googlesource.com/121357
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_darwin.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index bc35a1cf21..9d7b3a6ffb 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -181,12 +181,12 @@ func verifyCertWithSystem(block *pem.Block, cert *Certificate) bool {
+ 	}
+ 	if err := cmd.Run(); err != nil {
+ 		if debugExecDarwinRoots {
+-			println(fmt.Sprintf("crypto/x509: verify-cert rejected %s: %q", cert.Subject.CommonName, bytes.TrimSpace(stderr.Bytes())))
++			println(fmt.Sprintf("crypto/x509: verify-cert rejected %s: %q", cert.Subject, bytes.TrimSpace(stderr.Bytes())))
+ 		}
+ 		return false
+ 	}
+ 	if debugExecDarwinRoots {
+-		println(fmt.Sprintf("crypto/x509: verify-cert approved %s", cert.Subject.CommonName))
++		println(fmt.Sprintf("crypto/x509: verify-cert approved %s", cert.Subject))
+ 	}
+ 	return true
+ }

@@ -13,7 +13,34 @@ Date:   Tue Jun 11 10:30:16 2024 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
-
+---
  src/cmd/go/alldocs.go               | 2 +-
  src/cmd/go/internal/help/helpdoc.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index bc198267c2..972f9e111f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2388,7 +2388,7 @@
+ //	GORISCV64
+ //		For GOARCH=riscv64, the RISC-V user-mode application profile for which
+ //		to compile. Valid values are rva20u64 (default), rva22u64.
+-//		See https://github.com/riscv/riscv-profiles/blob/main/profiles.adoc
++//		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
+ //	GOWASM
+ //		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ //		Valid values are satconv, signext.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index e1d719be4f..791013dbfe 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -629,7 +629,7 @@ Architecture-specific environment variables:
+ 	GORISCV64
+ 		For GOARCH=riscv64, the RISC-V user-mode application profile for which
+ 		to compile. Valid values are rva20u64 (default), rva22u64.
+-		See https://github.com/riscv/riscv-profiles/blob/main/profiles.adoc
++		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
+ 	GOWASM
+ 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ 		Valid values are satconv, signext.

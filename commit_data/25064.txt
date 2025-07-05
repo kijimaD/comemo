@@ -9,8 +9,230 @@ Date:   Sat Sep 19 23:55:27 2015 +0200
     Change-Id: I2a87d31da74affdf3d0f358d0efdb3f1c646d917
     Reviewed-on: https://go-review.googlesource.com/14759
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/pgen.go      | 39 ++++++++--------
  src/cmd/compile/internal/gc/pgen_test.go | 76 +++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/syntax.go    | 13 +++---
  3 files changed, 100 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 7c918c5d37..cd8e66c11a 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -165,10 +165,7 @@ func emitptrargsmap() {
+ }
+ 
+ // cmpstackvarlt reports whether the stack variable a sorts before b.
+-func cmpstackvarlt(a, b *Node) bool {
+-	return cmpstackvar(a, b) < 0
+-}
+-
++//
+ // Sort the list of stack variables. Autos after anything else,
+ // within autos, unused after used, within used, things with
+ // pointers first, zeroed things first, and then decreasing size.
+@@ -177,48 +174,48 @@ func cmpstackvarlt(a, b *Node) bool {
+ // really means, in memory, things with pointers needing zeroing at
+ // the top of the stack and increasing in size.
+ // Non-autos sort on offset.
+-func cmpstackvar(a *Node, b *Node) int {
++func cmpstackvarlt(a, b *Node) bool {
+ 	if a.Class != b.Class {
+ 		if a.Class == PAUTO {
+-			return +1
++			return false
+ 		}
+-		return -1
++		return true
+ 	}
+ 
+ 	if a.Class != PAUTO {
+ 		if a.Xoffset < b.Xoffset {
+-			return -1
++			return true
+ 		}
+ 		if a.Xoffset > b.Xoffset {
+-			return +1
++			return false
+ 		}
+-		return 0
++		return false
+ 	}
+ 
+ 	if a.Used != b.Used {
+-		return obj.Bool2int(b.Used) - obj.Bool2int(a.Used)
++		return a.Used
+ 	}
+ 
+-	ap := obj.Bool2int(haspointers(a.Type))
+-	bp := obj.Bool2int(haspointers(b.Type))
++	ap := haspointers(a.Type)
++	bp := haspointers(b.Type)
+ 	if ap != bp {
+-		return bp - ap
++		return ap
+ 	}
+ 
+-	ap = obj.Bool2int(a.Name.Needzero)
+-	bp = obj.Bool2int(b.Name.Needzero)
++	ap = a.Name.Needzero
++	bp = b.Name.Needzero
+ 	if ap != bp {
+-		return bp - ap
++		return ap
+ 	}
+ 
+ 	if a.Type.Width < b.Type.Width {
+-		return +1
++		return false
+ 	}
+ 	if a.Type.Width > b.Type.Width {
+-		return -1
++		return true
+ 	}
+ 
+-	return stringsCompare(a.Sym.Name, b.Sym.Name)
++	return a.Sym.Name < b.Sym.Name
+ }
+ 
+ // stkdelta records the stack offset delta for a node
+@@ -244,7 +241,7 @@ func allocauto(ptxt *obj.Prog) {
+ 
+ 	markautoused(ptxt)
+ 
+-	listsort(&Curfn.Func.Dcl, cmpstackvar)
++	listsort(&Curfn.Func.Dcl, cmpstackvarlt)
+ 
+ 	// Unused autos are at the end, chop 'em off.
+ 	ll := Curfn.Func.Dcl
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index ce8b2b3aeb..ebc9101135 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -4,7 +4,10 @@
+ 
+ package gc
+ 
+-import "testing"
++import (
++	"reflect"
++	"testing"
++)
+ 
+ // Test all code paths for cmpstackvarlt.
+ func TestCmpstackvar(t *testing.T) {
+@@ -100,3 +103,74 @@ func TestCmpstackvar(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func slice2nodelist(s []*Node) *NodeList {
++	var nl *NodeList
++	for _, n := range s {
++		nl = list(nl, n)
++	}
++	return nl
++}
++
++func nodelist2slice(nl *NodeList) []*Node {
++	var s []*Node
++	for l := nl; l != nil; l = l.Next {
++		s = append(s, l.N)
++	}
++	return s
++}
++
++func TestListsort(t *testing.T) {
++	inp := []*Node{
++		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PFUNC, Xoffset: 0, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Used: true, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{Needzero: true}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
++	}
++	want := []*Node{
++		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PFUNC, Xoffset: 0, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Used: true, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{Needzero: true}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
++		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
++		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
++	}
++	// haspointers updates Type.Haspointers as a side effect, so
++	// exercise this function on all inputs so that reflect.DeepEqual
++	// doesn't produce false positives.
++	for i := range want {
++		haspointers(want[i].Type)
++		haspointers(inp[i].Type)
++	}
++
++	nl := slice2nodelist(inp)
++	listsort(&nl, cmpstackvarlt)
++	got := nodelist2slice(nl)
++	if !reflect.DeepEqual(want, got) {
++		t.Error("listsort failed")
++		for i := range got {
++			g := got[i]
++			w := want[i]
++			eq := reflect.DeepEqual(w, g)
++			if !eq {
++				t.Log(i, w, g)
++			}
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5081ea0cb9..dd185f18f5 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -409,9 +409,10 @@ func list(l *NodeList, n *Node) *NodeList {
+ 	return concat(l, list1(n))
+ }
+ 
+-// listsort sorts *l in place according to the 3-way comparison function f.
++// listsort sorts *l in place according to the comparison function lt.
++// The algorithm expects lt(a, b) to be equivalent to a < b.
+ // The algorithm is mergesort, so it is guaranteed to be O(n log n).
+-func listsort(l **NodeList, f func(*Node, *Node) int) {
++func listsort(l **NodeList, lt func(*Node, *Node) bool) {
+ 	if *l == nil || (*l).Next == nil {
+ 		return
+ 	}
+@@ -436,10 +437,10 @@ func listsort(l **NodeList, f func(*Node, *Node) int) {
+ 	(*l).End = l1
+ 
+ 	l1 = *l
+-	listsort(&l1, f)
+-	listsort(&l2, f)
++	listsort(&l1, lt)
++	listsort(&l2, lt)
+ 
+-	if f(l1.N, l2.N) < 0 {
++	if lt(l1.N, l2.N) {
+ 		*l = l1
+ 	} else {
+ 		*l = l2
+@@ -451,7 +452,7 @@ func listsort(l **NodeList, f func(*Node, *Node) int) {
+ 
+ 	var le *NodeList
+ 	for (l1 != nil) && (l2 != nil) {
+-		for (l1.Next != nil) && f(l1.Next.N, l2.N) < 0 {
++		for (l1.Next != nil) && lt(l1.Next.N, l2.N) {
+ 			l1 = l1.Next
+ 		}
+ 

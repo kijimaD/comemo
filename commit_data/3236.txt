@@ -7,7 +7,7 @@ Date:   Tue Sep 8 23:16:19 2009 -0700
     R=ken
     OCL=34465
     CL=34470
-
+---
  src/cmd/5g/ggen.c        |  2 +-
  src/cmd/6g/ggen.c        |  2 +-
  src/cmd/8g/ggen.c        |  2 +-
@@ -24,3 +24,576 @@ Date:   Tue Sep 8 23:16:19 2009 -0700
  test/blank1.go           | 12 +++++++
  test/fixedbugs/bug154.go |  2 +-
  15 files changed, 235 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 4b4a5e6b6e..a3306b44f7 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -48,7 +48,7 @@ compile(Node *fn)
+ 
+ 	hasdefer = 0;
+ 	walk(curfn);
+-	if(nerrors != 0)
++	if(nerrors != 0 || isblank(curfn->nname))
+ 		goto ret;
+ 
+ 	allocparams();
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 8fd3a49d9d..a6c1c6d11f 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -49,7 +49,7 @@ compile(Node *fn)
+ 
+ 	hasdefer = 0;
+ 	walk(curfn);
+-	if(nerrors != 0)
++	if(nerrors != 0 || isblank(curfn->nname))
+ 		goto ret;
+ 
+ 	allocparams();
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 14ad872aa6..7c4dfdbc28 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -47,7 +47,7 @@ compile(Node *fn)
+ 
+ 	hasdefer = 0;
+ 	walk(curfn);
+-	if(nerrors != 0)
++	if(nerrors != 0 || isblank(curfn->nname))
+ 		goto ret;
+ 
+ 	allocparams();
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index c7c1dfd622..15738435f6 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -139,7 +139,7 @@ dowidth(Type *t)
+ 	w = 0;
+ 	switch(et) {
+ 	default:
+-		fatal("dowidth: unknown type: %E", t->etype);
++		fatal("dowidth: unknown type: %T", t);
+ 		break;
+ 
+ 	/* compiler-specific stuff */
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 96a87eeff9..456e2e4eae 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -164,6 +164,9 @@ declare(Node *n, int ctxt)
+ 	int gen;
+ 	static int typegen, vargen;
+ 
++	if(isblank(n))
++		return;
++
+ 	s = n->sym;
+ 	gen = 0;
+ 	if(ctxt == PEXTERN) {
+@@ -301,7 +304,6 @@ variter(NodeList *vl, Node *t, NodeList *el)
+ 	int doexpr;
+ 	Node *v, *e;
+ 	NodeList *init;
+-	Sym *s;
+ 
+ 	init = nil;
+ 	doexpr = el != nil;
+@@ -317,8 +319,6 @@ variter(NodeList *vl, Node *t, NodeList *el)
+ 			e = N;
+ 
+ 		v = vl->n;
+-		s = v->sym;
+-
+ 		v->op = ONAME;
+ 		declare(v, dclcontext);
+ 		v->ntype = t;
+@@ -550,6 +550,8 @@ colasdefn(NodeList *left, Node *defn)
+ 	nnew = 0;
+ 	for(l=left; l; l=l->next) {
+ 		n = l->n;
++		if(isblank(n))
++			continue;
+ 		if(!colasname(n)) {
+ 			yyerror("non-name %#N on left side of :=", n);
+ 			continue;
+@@ -838,7 +840,7 @@ stotype(NodeList *l, int et, Type **t)
+ 			f->sym = f->nname->sym;
+ 			if(pkgimportname != S && !exportname(f->sym->name))
+ 				f->sym = pkglookup(f->sym->name, structpkg);
+-			if(f->sym) {
++			if(f->sym && !isblank(f->nname)) {
+ 				for(t1=*t0; t1!=T; t1=t1->down) {
+ 					if(t1->sym == f->sym) {
+ 						yyerror("duplicate field %s", t1->sym->name);
+@@ -963,6 +965,8 @@ checkarglist(NodeList *all)
+ 			t = n;
+ 			n = N;
+ 		}
++		if(isblank(n))
++			n = N;
+ 		if(n != N && n->sym == S) {
+ 			t = n;
+ 			n = N;
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 1259b030a6..a64b0a3ca2 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -430,6 +430,60 @@ cgen_dcl(Node *n)
+ 	cgen_as(n->heapaddr, n->alloc);
+ }
+ 
++/*
++ * generate discard of value
++ */
++void
++cgen_discard(Node *nr)
++{
++	Node tmp;
++
++	if(nr == N)
++		return;
++
++	switch(nr->op) {
++	case ONAME:
++		break;
++
++	// unary
++	case OADD:
++	case OAND:
++	case ODIV:
++	case OEQ:
++	case OGE:
++	case OGT:
++	case OLE:
++	case OLSH:
++	case OLT:
++	case OMOD:
++	case OMUL:
++	case ONE:
++	case OOR:
++	case ORSH:
++	case OSUB:
++	case OXOR:
++		cgen_discard(nr->left);
++		cgen_discard(nr->right);
++		break;
++
++	// binary
++	case OCAP:
++	case OCOM:
++	case OLEN:
++	case OMINUS:
++	case ONOT:
++	case OPLUS:
++		cgen_discard(nr->left);
++		break;
++
++	// special enough to just evaluate
++	default:
++		tempname(&tmp, nr->type);
++		cgen_as(&tmp, nr);
++		gused(&tmp);
++	}
++}
++
+ /*
+  * generate assignment:
+  *	nl = nr
+@@ -450,6 +504,11 @@ cgen_as(Node *nl, Node *nr)
+ 		dump("cgen_as = ", nr);
+ 	}
+ 
++	if(isblank(nl)) {
++		cgen_discard(nr);
++		return;
++	}
++
+ 	iszer = 0;
+ 	if(nr == N || isnil(nr)) {
+ 		// externals and heaps should already be clear
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 34f5802d30..ea348c0dc4 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -6,6 +6,10 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ 
++// avoid <ctype.h>
++#undef isblank
++#define isblank goisblank
++
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+@@ -421,6 +425,7 @@ enum
+ 	// pseudo-types for literals
+ 	TIDEAL,
+ 	TNIL,
++	TBLANK,
+ 
+ 	NTYPE,
+ };
+@@ -467,6 +472,7 @@ enum
+ 	Ecall = 1<<4,	// call-only expressions are ok
+ 	Efnstruct = 1<<5,	// multivalue function returns are ok
+ 	Eiota = 1<<6,		// iota is ok
++	Easgn = 1<<7,		// assigning to expression
+ };
+ 
+ #define	BITS	5
+@@ -803,6 +809,7 @@ int	isinter(Type*);
+ int	isnilinter(Type*);
+ int	isddd(Type*);
+ int	isideal(Type*);
++int	isblank(Node*);
+ Type*	maptype(Type*, Type*);
+ Type*	methtype(Type*);
+ Node*	typename(Type*);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index bcd27b0819..73223c8fb4 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1352,6 +1352,13 @@ lexinit(void)
+ 	// (the type of x in const x = "hello").
+ 	// TODO(rsc): this may need some more thought.
+ 	idealstring = typ(TSTRING);
++
++	s = lookup("_");
++	s->block = -100;
++	s->def = nod(ONAME, N, N);
++	s->def->sym = s;
++	types[TBLANK] = typ(TBLANK);
++	s->def->type = types[TBLANK];
+ }
+ 
+ struct
+@@ -1431,6 +1438,9 @@ mkpackage(char* pkg)
+ 	int32 h;
+ 	char *p;
+ 
++	if(strcmp(pkg, "_") == 0)
++		yyerror("invalid package name _");
++
+ 	if(package == nopackage) {
+ 		// redefine all names to be this package.
+ 		for(h=0; h<NHASH; h++)
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index bc51ee6ac4..3e34906712 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -19,7 +19,7 @@ typecheckrange(Node *n)
+ 	// delicate little dance.  see typecheckas2
+ 	for(ll=n->list; ll; ll=ll->next)
+ 		if(ll->n->defn != n)
+-			typecheck(&ll->n, Erv);
++			typecheck(&ll->n, Erv | Easgn);
+ 
+ 	typecheck(&n->right, Erv);
+ 	if((t = n->right->type) == T)
+@@ -121,7 +121,7 @@ walkrange(Node *n)
+ 
+ 	case TARRAY:
+ 		hv1 = nod(OXXX, N, n);
+-		tempname(hv1, v1->type);
++		tempname(hv1, types[TINT]);
+ 
+ 		init = list(init, nod(OAS, hv1, N));
+ 		n->ntest = nod(OLT, hv1, nod(OLEN, ha, N));
+@@ -169,7 +169,7 @@ walkrange(Node *n)
+ 
+ 	case TCHAN:
+ 		hv1 = nod(OXXX, N, n);
+-		tempname(hv1, v1->type);
++		tempname(hv1, t->type);
+ 
+ 		n->ntest = nod(ONOT, nod(OCLOSED, ha, N), N);
+ 		n->ntest->ninit = list1(nod(OAS, hv1, nod(ORECV, ha, N)));
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7ef113d2f7..bfd91cf143 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -953,6 +953,7 @@ basicnames[] =
+ 	[TSTRING]		= "string",
+ 	[TNIL]		= "nil",
+ 	[TIDEAL]		= "ideal",
++	[TBLANK]		= "blank",
+ };
+ 
+ int
+@@ -1421,6 +1422,19 @@ isslice(Type *t)
+ 	return t != T && t->etype == TARRAY && t->bound < 0;
+ }
+ 
++int
++isblank(Node *n)
++{
++	char *p;
++
++	if(n == N || n->sym == S)
++		return 0;
++	p = n->sym->name;
++	if(p == nil)
++		return 0;
++	return p[0] == '_' && p[1] == '\0';
++}
++
+ int
+ isselect(Node *n)
+ {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 67c6777cf9..e83646f53a 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -61,7 +61,10 @@ typecheck(Node **np, int top)
+ 	n = *np;
+ 	if(n == N)
+ 		return N;
+-	if(n->typecheck == 1 && n->op != ONAME)	// XXX for test/func4.go
++	
++	// Skip typecheck if already done.
++	// But re-typecheck ONAME node in case context has changed.
++	if(n->typecheck == 1 && n->op != ONAME)
+ 		return n;
+ 	if(n->typecheck == 2)
+ 		fatal("typecheck loop");
+@@ -85,8 +88,10 @@ reswitch:
+ 	 */
+ 	case OLITERAL:
+ 		ok |= Erv;
+-		if(n->iota && !(top & Eiota))
++		if(n->iota && !(top & Eiota)) {
+ 			yyerror("use of iota not in constant initializer");
++			goto error;
++		}
+ 		if(n->val.ctype == CTSTR)
+ 			n->type = idealstring;
+ 		goto ret;
+@@ -100,6 +105,10 @@ reswitch:
+ 			ok |= Ecall;
+ 			goto ret;
+ 		}
++		if(isblank(n) && !(top & Easgn)) {
++			yyerror("cannot use _ as value");
++			goto error;
++		}
+ 		ok |= Erv;
+ 		goto ret;
+ 
+@@ -581,7 +590,7 @@ reswitch:
+ 		}
+ 		yyerror("cannot slice %#N (type %T)", l, t);
+ 		goto error;
+-
++	
+ 	/*
+ 	 * call and call like
+ 	 */
+@@ -970,6 +979,7 @@ ret:
+ 		case TFORW:
+ 		case TIDEAL:
+ 		case TNIL:
++		case TBLANK:
+ 			break;
+ 		default:
+ 			checkwidth(t);
+@@ -1165,6 +1175,11 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ 	 */
+ 	if(nt == T)
+ 		return 0;
++	
++	if(t->etype == TBLANK) {
++		*op = OCONVNOP;
++		return 0;
++	}
+ 
+ 	if(eqtype(t, nt)) {
+ 		exportassignok(t);
+@@ -1804,7 +1819,7 @@ typecheckas(Node *n)
+ 	// will not look at defn, so it is okay (and desirable,
+ 	// so that the conversion below happens).
+ 	if(n->left->defn != n || n->left->ntype)
+-		typecheck(&n->left, Erv);
++		typecheck(&n->left, Erv | Easgn);
+ 
+ 	checkassign(n->left);
+ 	typecheck(&n->right, Erv);
+@@ -1820,7 +1835,7 @@ typecheckas(Node *n)
+ 	// just to get it over with.  see dance above.
+ 	n->typecheck = 1;
+ 	if(n->left->typecheck == 0)
+-		typecheck(&n->left, Erv);
++		typecheck(&n->left, Erv | Easgn);
+ }
+ 
+ static void
+@@ -1835,7 +1850,7 @@ typecheckas2(Node *n)
+ 	for(ll=n->list; ll; ll=ll->next) {
+ 		// delicate little dance.
+ 		if(ll->n->defn != n || ll->n->ntype)
+-			typecheck(&ll->n, Erv);
++			typecheck(&ll->n, Erv | Easgn);
+ 	}
+ 	cl = count(n->list);
+ 	cr = count(n->rlist);
+@@ -1946,7 +1961,7 @@ typecheckfunc(Node *n)
+ {
+ 	Type *t, *rcvr;
+ 
+-	typecheck(&n->nname, Erv);
++	typecheck(&n->nname, Erv | Easgn);
+ 	if((t = n->nname->type) == T)
+ 		return;
+ 	n->type = t;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6a4e52eeea..a8af6db49a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1103,7 +1103,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
+ }
+ 
+ /*
+- * n is an lv and t is the type of an rv
++ * l is an lv and rt is the type of an rv
+  * return 1 if this implies a function call
+  * evaluating the lv or a function call
+  * in the conversion of the types
+@@ -1141,6 +1141,10 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 		if(r == T)
+ 			break;
+ 		l = ll->n;
++		if(isblank(l)) {
++			r = structnext(&saver);
++			continue;
++		}
+ 
+ 		// any lv that causes a fn call must be
+ 		// deferred until all the return arguments
+diff --git a/test/blank.go b/test/blank.go
+new file mode 100644
+index 0000000000..4919841a42
+--- /dev/null
++++ b/test/blank.go
+@@ -0,0 +1,90 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var call string
++
++type T struct {
++	_, _, _ int;
++}
++
++const (
++	c0 = iota;
++	_;
++	_;
++	_;
++	c4;
++)
++
++var ints = []string {
++	"1",
++	"2",
++	"3"
++}
++
++func f() (int, int) {
++	call += "f";
++	return 1,2
++}
++
++func g() (float, float) {
++	call += "g";
++	return 3,4
++}
++
++func h(_ int, _ float) {
++}
++
++func i() int {
++	call += "i";
++	return 23;
++}
++
++func main()
++{
++	_, _ = f();
++	a, _ := f();
++	if a != 1 {panic(a)}
++	b, _ := g();
++	if b != 3 {panic(b)}
++	_, a = f();
++	if a != 2 {panic(a)}
++	_, b = g();
++	if b != 4 {panic(b)}
++	_ = i();
++	if call != "ffgfgi" {panic(call)}
++	if c4 != 4 {panic(c4)}
++
++	out := "";
++	for _, s := range ints {
++		out += s;
++	}
++	if out != "123" {panic(out)}
++
++	sum := 0;
++	for s, _ := range ints {
++		sum += s;
++	}
++	if sum != 3 {panic(sum)}
++
++	h(a,b);
++}
++
++// useless but legal
++var _ int = 1;
++var _ = 2;
++var _, _ = 3, 4;
++const _ = 3;
++const _, _ = 4, 5;
++type _ int;
++func _() {
++	panic("oops")
++}
++
++func ff() {
++	var _ int = 1;
++}
+diff --git a/test/blank1.go b/test/blank1.go
+new file mode 100644
+index 0000000000..2fa6e9f8f7
+--- /dev/null
++++ b/test/blank1.go
+@@ -0,0 +1,12 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package _	// ERROR "invalid package name _"
++
++func main() {
++	_();	// ERROR "cannot use _ as value"
++	x := _+1;	// ERROR "cannot use _ as value"
++}
+diff --git a/test/fixedbugs/bug154.go b/test/fixedbugs/bug154.go
+index 60bcb8e500..66f7212b57 100644
+--- a/test/fixedbugs/bug154.go
++++ b/test/fixedbugs/bug154.go
+@@ -16,7 +16,7 @@ func f0() string {
+ 
+ func f1() string {
+ 	const f = 3.141592;
+-	_ := float64(float32(f));  // appears to change the precision of f
++	x := float64(float32(f));  // appears to change the precision of f
+ 	return fmt.Sprintf("%v", float64(f));
+ }
+ 

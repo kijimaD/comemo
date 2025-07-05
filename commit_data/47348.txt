@@ -31,7 +31,20 @@ Date:   Tue Mar 9 23:27:11 2021 -0500
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  favicon.ico | Bin 5686 -> 0 bytes
  robots.txt  |   2 --
  2 files changed, 2 deletions(-)
+
+diff --git a/favicon.ico b/favicon.ico
+deleted file mode 100644
+index 8d225846db..0000000000
+Binary files a/favicon.ico and /dev/null differ
+diff --git a/robots.txt b/robots.txt
+deleted file mode 100644
+index 1f53798bb4..0000000000
+--- a/robots.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-User-agent: *
+-Disallow: /

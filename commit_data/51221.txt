@@ -12,6 +12,19 @@ Date:   Thu Dec 16 15:15:32 2021 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt b/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt
+index b08713dcfd..896bbab9fc 100644
+--- a/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt
++++ b/src/cmd/go/testdata/script/mod_list_compiled_concurrent.txt
+@@ -1,6 +1,7 @@
+ env GO111MODULE=on
+ 
+ [short] skip
++[!cgo] skip
+ 
+ # Regression test for golang.org/issue/29667:
+ # spurious 'failed to cache compiled Go files' errors.

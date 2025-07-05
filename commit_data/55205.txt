@@ -19,6 +19,20 @@ Date:   Sat Nov 5 07:40:49 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/asm_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 13c8de499e..5d163da132 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -168,7 +168,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+ 	MOVQ	$runtime·g0(SB), DI
+-	LEAQ	(-64*1024+104)(SP), BX
++	LEAQ	(-64*1024)(SP), BX
+ 	MOVQ	BX, g_stackguard0(DI)
+ 	MOVQ	BX, g_stackguard1(DI)
+ 	MOVQ	BX, (g_stack+stack_lo)(DI)

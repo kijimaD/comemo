@@ -10,6 +10,26 @@ Date:   Mon Feb 7 15:23:22 2022 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.18.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 7e11f73820..ed32a93bc3 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -493,6 +493,14 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="linker">Linker</h2>
+ 
++<p>
++  The linker emits <a href="https://tailscale.com/blog/go-linker/">far fewer relocations</a>.
++  As a result, most codebases will link faster, require less memory to link,
++  and generate smaller binaries.
++  Tools that process Go binaries should use Go 1.18's <code>debug/gosym</code> package
++  to transparently handle both old and new binaries.
++</p>
++
+ <p><!-- CL 298610 -->
+   The new linker <code>-asan</code> option supports the
+   new <code>go</code> command <code>-asan</code> option.

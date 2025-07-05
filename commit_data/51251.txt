@@ -12,6 +12,20 @@ Date:   Tue Dec 21 13:13:01 2021 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/373358
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/os_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 717330e86a..5a813e0a7d 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2434,8 +2434,6 @@ func TestRemoveAllRace(t *testing.T) {
+ // Test that reading from a pipe doesn't use up a thread.
+ func TestPipeThreads(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "freebsd":
+-		t.Skip("skipping on FreeBSD; issue 19093")
+ 	case "illumos", "solaris":
+ 		t.Skip("skipping on Solaris and illumos; issue 19111")
+ 	case "windows":

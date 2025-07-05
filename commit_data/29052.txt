@@ -12,7 +12,7 @@ Date:   Thu Jun 16 12:59:09 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 78 +++++++++++++++++++++++++++++++++-
  src/cmd/go/build.go                    |  7 +++
  src/cmd/link/internal/ld/lib.go        |  4 +-
@@ -20,3 +20,205 @@ Date:   Thu Jun 16 12:59:09 2016 -0700
  src/cmd/link/internal/x86/asm.go       | 15 ++++++-
  src/cmd/link/internal/x86/obj.go       |  2 +-
  6 files changed, 101 insertions(+), 9 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index ab14c007a9..14de439bce 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -6,6 +6,7 @@ package carchive_test
+ 
+ import (
+ 	"bufio"
++	"debug/elf"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -84,8 +85,13 @@ func init() {
+ 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+ 	}
+ 	libgodir = GOOS + "_" + GOARCH
+-	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") {
+-		libgodir = GOOS + "_" + GOARCH + "_shared"
++	switch GOOS {
++	case "darwin":
++		if GOARCH == "arm" || GOARCH == "arm64" {
++			libgodir += "_shared"
++		}
++	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++		libgodir += "_shared"
+ 	}
+ 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
+ 
+@@ -487,3 +493,71 @@ func TestExtar(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestPIE(t *testing.T) {
++	switch GOOS {
++	case "windows", "darwin", "plan9":
++		t.Skipf("skipping PIE test on %s", GOOS)
++	}
++
++	defer func() {
++		os.Remove("testp" + exeSuffix)
++		os.RemoveAll("pkg")
++	}()
++
++	cmd := exec.Command("go", "install", "-buildmode=c-archive", "libgo")
++	cmd.Env = gopathEnv
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join("pkg", libgodir, "libgo.a"))
++	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	binArgs := append(bin, "arg1", "arg2")
++	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
++		t.Logf("%s", out)
++		t.Fatal(err)
++	}
++
++	f, err := elf.Open("testp" + exeSuffix)
++	if err != nil {
++		t.Fatal("elf.Open failed: ", err)
++	}
++	defer f.Close()
++	if hasDynTag(t, f, elf.DT_TEXTREL) {
++		t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
++	}
++}
++
++func hasDynTag(t *testing.T, f *elf.File, tag elf.DynTag) bool {
++	ds := f.SectionByType(elf.SHT_DYNAMIC)
++	if ds == nil {
++		t.Error("no SHT_DYNAMIC section")
++		return false
++	}
++	d, err := ds.Data()
++	if err != nil {
++		t.Errorf("can't read SHT_DYNAMIC contents: %v", err)
++		return false
++	}
++	for len(d) > 0 {
++		var t elf.DynTag
++		switch f.Class {
++		case elf.ELFCLASS32:
++			t = elf.DynTag(f.ByteOrder.Uint32(d[:4]))
++			d = d[8:]
++		case elf.ELFCLASS64:
++			t = elf.DynTag(f.ByteOrder.Uint64(d[:8]))
++			d = d[16:]
++		}
++		if t == tag {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 3c0b994ef2..1c9d3b2ba2 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -338,6 +338,13 @@ func buildModeInit() {
+ 		case "darwin/arm", "darwin/arm64":
+ 			codegenArg = "-shared"
+ 		default:
++			switch goos {
++			case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
++				// Use -shared so that the result is
++				// suitable for inclusion in a PIE or
++				// shared library.
++				codegenArg = "-shared"
++			}
+ 		}
+ 		exeSuffix = ".a"
+ 		ldBuildmode = "c-archive"
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e0dd87819a..68719a89d0 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -163,7 +163,7 @@ func DynlinkingGo() bool {
+ // relro.
+ func UseRelro() bool {
+ 	switch Buildmode {
+-	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
++	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+ 		return Iself
+ 	default:
+ 		return *FlagLinkshared
+@@ -1642,7 +1642,7 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
+ 		// onlyctxt.Diagnose the direct caller.
+ 		// TODO(mwhudson): actually think about this.
+ 		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() &&
+-			Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
++			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
+ 			ctxt.Diag("call to external function %s", s.Name)
+ 		}
+ 		return -1
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 6a2a6d2908..bb40282638 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -155,7 +155,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
+ 	if x.Type&obj.SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
+-	if (Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+ 		// On ppc64 the top three bits of the st_other field indicate how
+ 		// many instructions separate the global and local entry points. In
+ 		// our case it is two instructions, indicated by the value 3.
+@@ -362,7 +362,7 @@ func (ctxt *Link) symtab() {
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+ 	var symtype *Symbol
+ 	var symtyperel *Symbol
+-	if UseRelro() && (Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
++	if UseRelro() && (Buildmode == BuildmodeCArchive || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
+ 		s = Linklookup(ctxt, "type.*", 0)
+ 
+ 		s.Type = obj.STYPE
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index e7eace0781..63a7e1537e 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -51,8 +51,19 @@ func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
+ }
+ 
+ func gentext(ctxt *ld.Link) {
+-	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE && ld.Buildmode != ld.BuildmodeCShared {
+-		return
++	if ld.DynlinkingGo() {
++		// We need get_pc_thunk.
++	} else {
++		switch ld.Buildmode {
++		case ld.BuildmodeCArchive:
++			if !ld.Iself {
++				return
++			}
++		case ld.BuildmodePIE, ld.BuildmodeCShared:
++			// We need get_pc_thunk.
++		default:
++			return
++		}
+ 	}
+ 
+ 	// Generate little thunks that load the PC of the next instruction into a register.
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index d356f720e0..46ca62c28b 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -85,7 +85,7 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ld.DynlinkingGo() {
++	if (ld.Buildmode == ld.BuildmodeCArchive && ld.Iself) || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ld.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 		got := ld.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+ 		got.Type = obj.SDYNIMPORT

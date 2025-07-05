@@ -7,6 +7,19 @@ Date:   Wed Dec 9 14:20:36 2015 +1100
     Change-Id: I1164c7a76cf6e6c48ca5153d4c163f5962c4f0cd
     Reviewed-on: https://go-review.googlesource.com/17622
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 7bed167244..fb141cecf9 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -33,6 +33,7 @@ net/http: HTTP/2.0 support (many CLs)
+ net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
+ path/filepath: Join("c:", "a") now returns `c:a` instead of `c:\a` on windows (https://golang.org/cl/17470)
+ runtime: only one goroutine in traceback (https://golang.org/cl/16512) maybe
++runtime: best-effort detection of concurrent misuse of maps (https://golang.org/cl/17501)
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
+ text/template: trimming spaces (https://golang.org/cl/14391/)

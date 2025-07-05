@@ -14,6 +14,20 @@ Date:   Tue Jun 20 08:55:49 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 8cd1e563eb..dc4c2d92bd 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -140,7 +140,7 @@ type HandlerOptions struct {
+ 
+ 	// ReplaceAttr is called to rewrite each non-group attribute before it is logged.
+ 	// The attribute's value has been resolved (see [Value.Resolve]).
+-	// If ReplaceAttr returns an Attr with Key == "", the attribute is discarded.
++	// If ReplaceAttr returns a zero Attr, the attribute is discarded.
+ 	//
+ 	// The built-in attributes with keys "time", "level", "source", and "msg"
+ 	// are passed to this function, except that time is omitted

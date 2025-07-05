@@ -16,7 +16,202 @@ Date:   Sun Nov 8 11:45:04 2015 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/h2_bundle.go | 87 +++++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/transport.go | 62 +++------------------------------
  2 files changed, 92 insertions(+), 57 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 92ad5d2d92..7736f44dbe 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -130,6 +130,71 @@ func http2filterOutClientConn(in []*http2ClientConn, exclude *http2ClientConn) [
+ 	return out
+ }
+ 
++func http2configureTransport(t1 *Transport) error {
++	connPool := new(http2clientConnPool)
++	t2 := &http2Transport{ConnPool: http2noDialClientConnPool{connPool}}
++	if err := http2registerHTTPSProtocol(t1, http2noDialH2RoundTripper{t2}); err != nil {
++		return err
++	}
++	if t1.TLSClientConfig == nil {
++		t1.TLSClientConfig = new(tls.Config)
++	}
++	if !http2strSliceContains(t1.TLSClientConfig.NextProtos, "h2") {
++		t1.TLSClientConfig.NextProtos = append([]string{"h2"}, t1.TLSClientConfig.NextProtos...)
++	}
++	upgradeFn := func(authority string, c *tls.Conn) RoundTripper {
++		cc, err := t2.NewClientConn(c)
++		if err != nil {
++			c.Close()
++			return http2erringRoundTripper{err}
++		}
++		connPool.addConn(http2authorityAddr(authority), cc)
++		return t2
++	}
++	if m := t1.TLSNextProto; len(m) == 0 {
++		t1.TLSNextProto = map[string]func(string, *tls.Conn) RoundTripper{
++			"h2": upgradeFn,
++		}
++	} else {
++		m["h2"] = upgradeFn
++	}
++	return nil
++}
++
++// registerHTTPSProtocol calls Transport.RegisterProtocol but
++// convering panics into errors.
++func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
++	defer func() {
++		if e := recover(); e != nil {
++			err = fmt.Errorf("%v", e)
++		}
++	}()
++	t.RegisterProtocol("https", rt)
++	return nil
++}
++
++// noDialClientConnPool is an implementation of http2.ClientConnPool
++// which never dials.  We let the HTTP/1.1 client dial and use its TLS
++// connection instead.
++type http2noDialClientConnPool struct{ *http2clientConnPool }
++
++func (p http2noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
++	const doDial = false
++	return p.getClientConn(req, addr, doDial)
++}
++
++// noDialH2RoundTripper is a RoundTripper which only tries to complete the request
++// if there's already has a cached connection to the host.
++type http2noDialH2RoundTripper struct{ t *http2Transport }
++
++func (rt http2noDialH2RoundTripper) RoundTrip(req *Request) (*Response, error) {
++	res, err := rt.t.RoundTrip(req)
++	if err == http2ErrNoCachedConn {
++		return nil, ErrSkipAltProtocol
++	}
++	return res, err
++}
++
+ // An ErrCode is an unsigned 32-bit error code as defined in the HTTP/2 spec.
+ type http2ErrCode uint32
+ 
+@@ -3609,6 +3674,15 @@ type http2Transport struct {
+ 	connPoolOrDef http2ClientConnPool // non-nil version of ConnPool
+ }
+ 
++var http2errTransportVersion = errors.New("http2: ConfigureTransport is only supported starting at Go 1.6")
++
++// ConfigureTransport configures a net/http HTTP/1 Transport to use HTTP/2.
++// It requires Go 1.6 or later and returns an error if the net/http package is too old
++// or if t1 has already been HTTP/2-enabled.
++func http2ConfigureTransport(t1 *Transport) error {
++	return http2configureTransport(t1)
++}
++
+ func (t *http2Transport) connPool() http2ClientConnPool {
+ 	t.connPoolOnce.Do(t.initConnPool)
+ 	return t.connPoolOrDef
+@@ -4578,6 +4652,19 @@ func (t *http2Transport) logf(format string, args ...interface{}) {
+ 
+ var http2noBody io.ReadCloser = ioutil.NopCloser(bytes.NewReader(nil))
+ 
++func http2strSliceContains(ss []string, s string) bool {
++	for _, v := range ss {
++		if v == s {
++			return true
++		}
++	}
++	return false
++}
++
++type http2erringRoundTripper struct{ err error }
++
++func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
++
+ // writeFramer is implemented by any type that is used to write frames.
+ type http2writeFramer interface {
+ 	writeFrame(http2writeContext) error
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index cb35be20ce..46ade72be6 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -25,28 +25,6 @@ import (
+ 	"time"
+ )
+ 
+-// HTTP/2 transport, integrated with the DefaultTransport.
+-var (
+-	// h2ConnPool is the connection pool for HTTP/2 connections.
+-	h2ConnPool = &http2clientConnPool{}
+-	// h2Transport is the HTTP/2 version of DefaultTransport.
+-	h2Transport = &http2Transport{ConnPool: noDialClientConnPool{h2ConnPool}}
+-)
+-
+-func init() {
+-	h2ConnPool.t = h2Transport // avoid decalaration loop
+-}
+-
+-// noDialClientConnPool is an implementation of http2.ClientConnPool
+-// which never dials.  We let the HTTP/1.1 client dial and use its TLS
+-// connection instead.
+-type noDialClientConnPool struct{ *http2clientConnPool }
+-
+-func (p noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
+-	const doDial = false
+-	return p.getClientConn(req, addr, doDial)
+-}
+-
+ // DefaultTransport is the default implementation of Transport and is
+ // used by DefaultClient. It establishes network connections as needed
+ // and caches them for reuse by subsequent calls. It uses HTTP proxies
+@@ -62,43 +40,13 @@ var DefaultTransport RoundTripper = &Transport{
+ 	ExpectContinueTimeout: 1 * time.Second,
+ }
+ 
+-// Wire up HTTP/2 support to the DefaultTransport, unless GODEBUG=h2client=0.
+ func init() {
+-	if strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
+-		return
+-	}
+-	t := DefaultTransport.(*Transport)
+-	t.RegisterProtocol("https", noDialH2RoundTripper{})
+-	t.TLSClientConfig = &tls.Config{
+-		NextProtos: []string{"h2"},
+-	}
+-	t.TLSNextProto = map[string]func(string, *tls.Conn) RoundTripper{
+-		"h2": func(authority string, c *tls.Conn) RoundTripper {
+-			cc, err := h2Transport.NewClientConn(c)
+-			if err != nil {
+-				c.Close()
+-				return erringRoundTripper{err}
+-			}
+-			h2ConnPool.addConn(http2authorityAddr(authority), cc)
+-			return h2Transport
+-		},
+-	}
+-}
+-
+-type erringRoundTripper struct{ err error }
+-
+-func (rt erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
+-
+-// noDialH2RoundTripper is a RoundTripper which only tries to complete the request
+-// if there's already has a cached connection to the host.
+-type noDialH2RoundTripper struct{}
+-
+-func (noDialH2RoundTripper) RoundTrip(req *Request) (*Response, error) {
+-	res, err := h2Transport.RoundTrip(req)
+-	if err == http2ErrNoCachedConn {
+-		return nil, ErrSkipAltProtocol
++	if !strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
++		err := http2ConfigureTransport(DefaultTransport.(*Transport))
++		if err != nil {
++			panic(err)
++		}
+ 	}
+-	return res, err
+ }
+ 
+ // DefaultMaxIdleConnsPerHost is the default value of Transport's

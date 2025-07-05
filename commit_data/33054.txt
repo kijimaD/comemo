@@ -9,6 +9,21 @@ Date:   Wed Jun 28 23:12:41 2017 +0000
     Change-Id: I462cbc432fe9d4a9e6e79a9833b0013d82a0780e
     Reviewed-on: https://go-review.googlesource.com/47093
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/binary/binary.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 3834254596..2d01a3cb28 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -152,7 +152,8 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // When reading into structs, the field data for fields with
+ // blank (_) field names is skipped; i.e., blank field names
+ // may be used for padding.
+-// When reading into a struct, all non-blank fields must be exported.
++// When reading into a struct, all non-blank fields must be exported
++// or Read may panic.
+ //
+ // The error is EOF only if no bytes were read.
+ // If an EOF happens after reading some but not all the bytes,

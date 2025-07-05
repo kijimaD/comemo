@@ -11,7 +11,7 @@ Date:   Thu Sep 17 15:02:26 2020 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 2 +-
  src/cmd/doc/doc_test.go                | 2 +-
  src/cmd/go/internal/work/build_test.go | 6 ++----
@@ -23,3 +23,163 @@ Date:   Thu Sep 17 15:02:26 2020 -0400
  src/runtime/debug/panic_test.go        | 4 ++--
  src/syscall/syscall_unix_test.go       | 2 +-
  10 files changed, 14 insertions(+), 21 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 2e223ea369..6ed25d8948 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -603,7 +603,7 @@ func TestExtar(t *testing.T) {
+ 	if runtime.Compiler == "gccgo" {
+ 		t.Skip("skipping -extar test when using gccgo")
+ 	}
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("shell scripts are not executable on iOS hosts")
+ 	}
+ 
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 47602833d3..39530e3c2d 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func maybeSkip(t *testing.T) {
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("iOS does not have a full file tree")
+ 	}
+ }
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index afed0fba72..904aee0684 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -221,10 +221,8 @@ func pkgImportPath(pkgpath string) *load.Package {
+ // See https://golang.org/issue/18878.
+ func TestRespectSetgidDir(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "darwin", "ios":
+-		if runtime.GOARCH == "arm64" {
+-			t.Skip("can't set SetGID bit with chmod on iOS")
+-		}
++	case "ios":
++		t.Skip("can't set SetGID bit with chmod on iOS")
+ 	case "windows", "plan9":
+ 		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
+ 	}
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 22c62ce87d..2f2e80b5a8 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -120,7 +120,7 @@ func TestMultiplePackageImport(t *testing.T) {
+ }
+ 
+ func TestLocalDirectory(t *testing.T) {
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+@@ -250,7 +250,7 @@ func TestMatchFile(t *testing.T) {
+ }
+ 
+ func TestImportCmd(t *testing.T) {
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		t.Skipf("skipping on %s/%s, no valid GOROOT", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index dd2f83e04f..30abfae550 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -51,12 +51,7 @@ func testableNetwork(network string) bool {
+ 	switch network {
+ 	case "unix", "unixgram":
+ 		switch runtime.GOOS {
+-		case "darwin", "ios":
+-			switch runtime.GOARCH {
+-			case "arm64":
+-				return false
+-			}
+-		case "android":
++		case "ios", "android":
+ 			return false
+ 		}
+ 	}
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 2706de4442..57cf5554ad 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -990,7 +990,7 @@ func TestDialerControl(t *testing.T) {
+ // except that it won't skip testing on non-mobile builders.
+ func mustHaveExternalNetwork(t *testing.T) {
+ 	t.Helper()
+-	mobile := runtime.GOOS == "android" || (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64"
++	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
+ 	if testenv.Builder() == "" || mobile {
+ 		testenv.MustHaveExternalNetwork(t)
+ 	}
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 4b92bb6df0..2da23dedce 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -82,7 +82,7 @@ func testableNetwork(network string) bool {
+ }
+ 
+ func iOS() bool {
+-	return (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64"
++	return runtime.GOOS == "ios"
+ }
+ 
+ // testableAddress reports whether address of network is testable on
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index ca100ff071..6a8700e413 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -431,7 +431,7 @@ func chtmpdir(t *testing.T) (restore func()) {
+ }
+ 
+ func TestWalk(t *testing.T) {
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		restore := chtmpdir(t)
+ 		defer restore()
+ 	}
+@@ -1278,7 +1278,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ }
+ 
+ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
+diff --git a/src/runtime/debug/panic_test.go b/src/runtime/debug/panic_test.go
+index 93be216985..b67a3de4f9 100644
+--- a/src/runtime/debug/panic_test.go
++++ b/src/runtime/debug/panic_test.go
+@@ -20,8 +20,8 @@ func TestPanicOnFault(t *testing.T) {
+ 	if runtime.GOARCH == "s390x" {
+ 		t.Skip("s390x fault addresses are missing the low order bits")
+ 	}
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
+-		t.Skip("darwin/arm64 doesn't provide fault addresses")
++	if runtime.GOOS == "ios" {
++		t.Skip("iOS doesn't provide fault addresses")
+ 	}
+ 	m, err := syscall.Mmap(-1, 0, 0x1000, syscall.PROT_READ /* Note: no PROT_WRITE */, syscall.MAP_SHARED|syscall.MAP_ANON)
+ 	if err != nil {
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 7e9bb0c3ac..d754c075f1 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -70,7 +70,7 @@ func _() {
+ // Thus this test also verifies that the Flock_t structure can be
+ // roundtripped with F_SETLK and F_GETLK.
+ func TestFcntlFlock(t *testing.T) {
+-	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
++	if runtime.GOOS == "ios" {
+ 		t.Skip("skipping; no child processes allowed on iOS")
+ 	}
+ 	flock := syscall.Flock_t{

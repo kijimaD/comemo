@@ -11,7 +11,69 @@ Date:   Wed Sep 10 12:37:28 2014 -0700
     R=golang-codereviews, rsc
     CC=golang-codereviews
     https://golang.org/cl/141330043
-
+---
  src/reflect/value.go | 29 +++--------------------------
  src/runtime/thunk.s  |  3 +++
  2 files changed, 6 insertions(+), 26 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 368116a507..20d0e92ed1 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -15,32 +15,6 @@ const bigEndian = false // can be smarter if we find a big-endian machine
+ const ptrSize = unsafe.Sizeof((*byte)(nil))
+ const cannotSet = "cannot set value obtained from unexported struct field"
+ 
+-// TODO: This will have to go away when
+-// the new gc goes in.
+-func memmove(adst, asrc unsafe.Pointer, n uintptr) {
+-	dst := uintptr(adst)
+-	src := uintptr(asrc)
+-	switch {
+-	case src < dst && src+n > dst:
+-		// byte copy backward
+-		// careful: i is unsigned
+-		for i := n; i > 0; {
+-			i--
+-			*(*byte)(unsafe.Pointer(dst + i)) = *(*byte)(unsafe.Pointer(src + i))
+-		}
+-	case (n|src|dst)&(ptrSize-1) != 0:
+-		// byte copy forward
+-		for i := uintptr(0); i < n; i++ {
+-			*(*byte)(unsafe.Pointer(dst + i)) = *(*byte)(unsafe.Pointer(src + i))
+-		}
+-	default:
+-		// word copy forward
+-		for i := uintptr(0); i < n; i += ptrSize {
+-			*(*uintptr)(unsafe.Pointer(dst + i)) = *(*uintptr)(unsafe.Pointer(src + i))
+-		}
+-	}
+-}
+-
+ // Value is the reflection interface to a Go value.
+ //
+ // Not all methods apply to all kinds of values.  Restrictions,
+@@ -2703,6 +2677,9 @@ func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+ 
+ func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+ 
++//go:noescape
++func memmove(adst, asrc unsafe.Pointer, n uintptr)
++
+ // Dummy annotation marking that the value x escapes,
+ // for use in cases where the reflect code is so clever that
+ // the compiler cannot follow.
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 7ba22d705e..3b66cf47d3 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -74,6 +74,9 @@ TEXT reflect·chansend(SB), NOSPLIT, $0-0
+ TEXT reflect·chanrecv(SB), NOSPLIT, $0-0
+ 	JMP	runtime·reflect_chanrecv(SB)
+ 
++TEXT reflect·memmove(SB), NOSPLIT, $0-0
++	JMP	runtime·memmove(SB)
++
+ TEXT runtime∕debug·freeOSMemory(SB), NOSPLIT, $0-0
+ 	JMP	runtime·freeOSMemory(SB)
+ 

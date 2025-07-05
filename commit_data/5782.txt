@@ -18,6 +18,32 @@ Date:   Mon Jul 12 13:17:32 2010 -0700
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/1792042
-
+---
  test/fixedbugs/bug243.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/test/fixedbugs/bug243.go b/test/fixedbugs/bug243.go
+index 30dbc4ed4d..690e0a1bc2 100644
+--- a/test/fixedbugs/bug243.go
++++ b/test/fixedbugs/bug243.go
+@@ -10,20 +10,16 @@ package main
+ import (
+ 	"fmt"
+ 	"net"
+-	"os"
+ )
+ 
+ func main() {
+-	os.Stdout.Close()
+ 	var listen, _ = net.Listen("tcp", "127.0.0.1:0")
+ 
+ 	go func() {
+ 		for {
+ 			var conn, _ = listen.Accept()
+-			fmt.Println("[SERVER] ", conn)
+ 		}
+ 	}()
+ 
+ 	var conn, _ = net.Dial("tcp", "", listen.Addr().String())
+-	fmt.Println("[CLIENT] ", conn)
+ }

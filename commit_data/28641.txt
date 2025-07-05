@@ -12,6 +12,28 @@ Date:   Sun Jun 19 17:30:29 2016 -0700
     Change-Id: Id45e2867390f7e679ab40d7a66db1f7b9d92ce17
     Reviewed-on: https://go-review.googlesource.com/24250
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.7.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 0acfb6c8fc..105e3b4eab 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -855,6 +855,16 @@ so that <code>w.WriteHeader(5)</code> uses the HTTP response
+ status <code>005</code>, not just <code>5</code>.
+ </p>
+ 
++<p>
++The server implementation now correctly sends only one "Transfer-Encoding" header when "chunked"
++is set explicitly, following <a href="https://tools.ietf.org/html/rfc2616#section-3.6">RFC 2616</a>.
++</p>
++
++<p>
++In the server, a 200 status code is sent back by the timeout handler on an empty
++response body, instead of sending back 0 as the status code.
++</p>
++
+ <p>
+ In the client, the
+ <a href="/pkg/net/http/#Transport"><code>Transport</code></a> implementation passes the request context

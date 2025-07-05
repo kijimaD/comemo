@@ -39,7 +39,7 @@ Date:   Thu Nov 30 22:09:35 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_cgo_test.go                | 13 ++++
  src/runtime/os3_plan9.go                     |  3 +
  src/runtime/os_nacl.go                       |  3 +
@@ -49,3 +49,231 @@ Date:   Thu Nov 30 22:09:35 2017 -0500
  src/runtime/signal_windows.go                |  3 +
  src/runtime/testdata/testprogcgo/sigstack.go | 95 ++++++++++++++++++++++++++++
  8 files changed, 131 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 25ff34397f..50b634dda4 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -468,3 +468,16 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
+ 		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
+ 	}
+ }
++
++func TestSigStackSwapping(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skip("no sigaltstack on %s", runtime.GOOS)
++	}
++	t.Parallel()
++	got := runTestProg(t, "testprogcgo", "SigStack")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q got %v", want, got)
++	}
++}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 5d4b5a6698..3b65a2c9ba 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -153,3 +153,6 @@ func setThreadCPUProfiler(hz int32) {
+ 	// TODO: Enable profiling interrupts.
+ 	getg().m.profilehz = hz
+ }
++
++// gsignalStack is unused on Plan 9.
++type gsignalStack struct{}
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 3a99ddc409..6830da4c4f 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -288,6 +288,9 @@ func sigenable(uint32)                                    {}
+ func sigignore(uint32)                                    {}
+ func closeonexec(int32)                                   {}
+ 
++// gsignalStack is unused on nacl.
++type gsignalStack struct{}
++
+ var writelock uint32 // test-and-set spin lock for write
+ 
+ /*
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5912fc61d1..ff441badde 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1286,13 +1286,7 @@ func mexit(osStack bool) {
+ 	unminit()
+ 
+ 	// Free the gsignal stack.
+-	//
+-	// If the signal stack was created outside Go, then gsignal
+-	// will be non-nil, but unminitSignals set stack.lo to 0
+-	// (e.g., Android's libc creates all threads with a signal
+-	// stack, so it's possible for Go to exit them but not control
+-	// the signal stack).
+-	if m.gsignal != nil && m.gsignal.stack.lo != 0 {
++	if m.gsignal != nil {
+ 		stackfree(m.gsignal.stack)
+ 	}
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c75f0b1b7a..556f13d1c1 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -405,10 +405,11 @@ type m struct {
+ 	divmod  uint32 // div/mod denominator for arm - known to liblink
+ 
+ 	// Fields not known to debuggers.
+-	procid        uint64     // for debuggers, but offset not hard-coded
+-	gsignal       *g         // signal-handling g
+-	sigmask       sigset     // storage for saved signal mask
+-	tls           [6]uintptr // thread-local storage (for x86 extern register)
++	procid        uint64       // for debuggers, but offset not hard-coded
++	gsignal       *g           // signal-handling g
++	goSigStack    gsignalStack // Go-allocated signal handling stack
++	sigmask       sigset       // storage for saved signal mask
++	tls           [6]uintptr   // thread-local storage (for x86 extern register)
+ 	mstartfn      func()
+ 	curg          *g       // current running goroutine
+ 	caughtsig     guintptr // goroutine running during fatal signal
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index e1ba2dbc78..2cd3d71800 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -720,7 +720,7 @@ func minitSignalStack() {
+ 		signalstack(&_g_.m.gsignal.stack)
+ 		_g_.m.newSigstack = true
+ 	} else {
+-		setGsignalStack(&st, nil)
++		setGsignalStack(&st, &_g_.m.goSigStack)
+ 		_g_.m.newSigstack = false
+ 	}
+ }
+@@ -751,9 +751,13 @@ func unminitSignals() {
+ 		st := stackt{ss_flags: _SS_DISABLE}
+ 		sigaltstack(&st, nil)
+ 	} else {
+-		// We got the signal stack from someone else. Clear it
+-		// so we don't get confused.
+-		getg().m.gsignal.stack = stack{}
++		// We got the signal stack from someone else. Restore
++		// the Go-allocated stack in case this M gets reused
++		// for another thread (e.g., it's an extram). Also, on
++		// Android, libc allocates a signal stack for all
++		// threads, so it's important to restore the Go stack
++		// even on Go-created threads so we can free it.
++		restoreGsignalStack(&getg().m.goSigStack)
+ 	}
+ }
+ 
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index b26be5f30b..7d230517f6 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -223,3 +223,6 @@ func crash() {
+ 	// It's okay to leave this empty for now: if crash returns
+ 	// the ordinary exit-after-panic happens.
+ }
++
++// gsignalStack is unused on Windows.
++type gsignalStack struct{}
+diff --git a/src/runtime/testdata/testprogcgo/sigstack.go b/src/runtime/testdata/testprogcgo/sigstack.go
+new file mode 100644
+index 0000000000..526ed4232b
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/sigstack.go
+@@ -0,0 +1,95 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++// Test handling of Go-allocated signal stacks when calling from
++// C-created threads with and without signal stacks. (See issue
++// #22930.)
++
++package main
++
++/*
++#include <pthread.h>
++#include <signal.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/mman.h>
++
++#ifndef MAP_STACK
++#define MAP_STACK 0
++#endif
++
++extern void SigStackCallback();
++
++static void* WithSigStack(void* arg __attribute__((unused))) {
++	// Set up an alternate system stack.
++	void* base = mmap(0, SIGSTKSZ, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0);
++	if (base == MAP_FAILED) {
++		perror("mmap failed");
++		abort();
++	}
++	stack_t st = {}, ost = {};
++	st.ss_sp = (char*)base;
++	st.ss_flags = 0;
++	st.ss_size = SIGSTKSZ;
++	if (sigaltstack(&st, &ost) < 0) {
++		perror("sigaltstack failed");
++		abort();
++	}
++
++	// Call Go.
++	SigStackCallback();
++
++	// Disable signal stack and protect it so we can detect reuse.
++	if (ost.ss_flags & SS_DISABLE) {
++		// Darwin libsystem has a bug where it checks ss_size
++		// even if SS_DISABLE is set. (The kernel gets it right.)
++		ost.ss_size = SIGSTKSZ;
++	}
++	if (sigaltstack(&ost, NULL) < 0) {
++		perror("sigaltstack restore failed");
++		abort();
++	}
++	mprotect(base, SIGSTKSZ, PROT_NONE);
++	return NULL;
++}
++
++static void* WithoutSigStack(void* arg __attribute__((unused))) {
++	SigStackCallback();
++	return NULL;
++}
++
++static void DoThread(int sigstack) {
++	pthread_t tid;
++	if (sigstack) {
++		pthread_create(&tid, NULL, WithSigStack, NULL);
++	} else {
++		pthread_create(&tid, NULL, WithoutSigStack, NULL);
++	}
++	pthread_join(tid, NULL);
++}
++*/
++import "C"
++
++func init() {
++	register("SigStack", SigStack)
++}
++
++func SigStack() {
++	C.DoThread(0)
++	C.DoThread(1)
++	C.DoThread(0)
++	C.DoThread(1)
++	println("OK")
++}
++
++var BadPtr *int
++
++//export SigStackCallback
++func SigStackCallback() {
++	// Cause the Go signal handler to run.
++	defer func() { recover() }()
++	*BadPtr = 42
++}

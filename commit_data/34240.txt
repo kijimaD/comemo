@@ -8,6 +8,23 @@ Date:   Wed Oct 11 16:30:45 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/70073
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/deps.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 4425f7a4d9..47560cf33b 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -679,8 +679,9 @@ var builddeps = map[string][]string{
+ 	},
+ 
+ 	"io": {
+-		"errors", // io
+-		"sync",   // io
++		"errors",      // io
++		"sync",        // io
++		"sync/atomic", // io
+ 	},
+ 
+ 	"io/ioutil": {

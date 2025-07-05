@@ -7,6 +7,11 @@ Date:   Fri Oct 30 18:04:32 2009 -0700
     R=rsc
     CC=go-dev
     http://go/go-review/1018007
-
+---
  doc/go_talk-20091030.pdf | Bin 0 -> 1153663 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/go_talk-20091030.pdf b/doc/go_talk-20091030.pdf
+new file mode 100644
+index 0000000000..5fe33ce69a
+Binary files /dev/null and b/doc/go_talk-20091030.pdf differ

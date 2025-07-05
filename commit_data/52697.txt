@@ -21,6 +21,39 @@ Date:   Thu May 12 14:58:29 2022 -0400
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Tatiana Bradley <tatiana@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/tls/handshake_server_tls13.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 09674764e2..03a477f7be 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto"
+ 	"crypto/hmac"
+ 	"crypto/rsa"
++	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ 	"io"
+@@ -745,6 +746,19 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
+ 	}
+ 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
+ 
++	// ticket_age_add is a random 32-bit value. See RFC 8446, section 4.6.1
++	// The value is not stored anywhere; we never need to check the ticket age
++	// because 0-RTT is not supported.
++	ageAdd := make([]byte, 4)
++	_, err = hs.c.config.rand().Read(ageAdd)
++	if err != nil {
++		return err
++	}
++	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
++
++	// ticket_nonce, which must be unique per connection, is always left at
++	// zero because we only ever send one ticket per connection.
++
+ 	if _, err := c.writeRecord(recordTypeHandshake, m.marshal()); err != nil {
+ 		return err
+ 	}

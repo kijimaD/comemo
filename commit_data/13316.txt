@@ -9,9 +9,67 @@ Date:   Thu Jun 7 12:05:34 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6302054
-
+---
  src/cmd/5g/gobj.c | 3 ++-
  src/cmd/6g/gobj.c | 3 ++-
  src/cmd/8g/gobj.c | 3 ++-
  src/cmd/gc/doc.go | 4 +++-
  4 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index b562ba888b..2763e7b167 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -198,7 +198,8 @@ dumpfuncs(void)
+ 		if(isblank(pl->name))
+ 			continue;
+ 
+-		if(debug['S']) {
++		// -S prints code; -SS prints code and data
++		if(debug['S'] && (pl->name || debug['S']>1)) {
+ 			s = S;
+ 			if(pl->name != N)
+ 				s = pl->name->sym;
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 80de2f750b..8c9208374a 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -244,7 +244,8 @@ dumpfuncs(void)
+ 		if(isblank(pl->name))
+ 			continue;
+ 
+-		if(debug['S']) {
++		// -S prints code; -SS prints code and data
++		if(debug['S'] && (pl->name || debug['S']>1)) {
+ 			s = S;
+ 			if(pl->name != N)
+ 				s = pl->name->sym;
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index d8c8f5ab9f..da0055cd9b 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -242,7 +242,8 @@ dumpfuncs(void)
+ 		if(isblank(pl->name))
+ 			continue;
+ 
+-		if(debug['S']) {
++		// -S prints code; -SS prints code and data
++		if(debug['S'] && (pl->name || debug['S']>1)) {
+ 			s = S;
+ 			if(pl->name != N)
+ 				s = pl->name->sym;
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 163d3862c3..8d8f8967b7 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -47,7 +47,9 @@ Flags:
+ 	-N
+ 		disable optimizations
+ 	-S
+-		write assembly language text to standard output
++		write assembly language text to standard output (code only)
++	-SS
++		write assembly language text to standard output (code and data)
+ 	-u
+ 		disallow importing packages not marked as safe
+ 	-V

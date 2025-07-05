@@ -9,7 +9,84 @@ Date:   Fri Apr 8 11:53:23 2016 +0200
     Change-Id: I7fdb6464afd0b7af9b6652051416f0fddd34dc9a
     Reviewed-on: https://go-review.googlesource.com/21730
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/trace/parser.go      |  4 ++-
  src/internal/trace/parser_test.go | 52 +++++++++++++++++++++++++++++++++++++++
  2 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 82ddb8b6c8..3099b0ffeb 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -372,8 +372,10 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 		return
+ 	}
+ 	minTs := events[0].Ts
++	// Use floating point to avoid integer overflows.
++	freq := 1e9 / float64(ticksPerSec)
+ 	for _, ev := range events {
+-		ev.Ts = (ev.Ts - minTs) * 1e9 / ticksPerSec
++		ev.Ts = int64(float64(ev.Ts-minTs) * freq)
+ 		// Move timers and syscalls to separate fake Ps.
+ 		if timerGoid != 0 && ev.G == timerGoid && ev.Type == EvGoUnblock {
+ 			ev.P = TimerP
+diff --git a/src/internal/trace/parser_test.go b/src/internal/trace/parser_test.go
+index db8d2a30ce..337d5a85d7 100644
+--- a/src/internal/trace/parser_test.go
++++ b/src/internal/trace/parser_test.go
+@@ -85,3 +85,55 @@ func TestParseVersion(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestTimestampOverflow(t *testing.T) {
++	// Test that parser correctly handles large timestamps (long tracing).
++	w := newWriter()
++	w.emit(EvBatch, 0, 0, 0)
++	w.emit(EvFrequency, 1e9, 0)
++	for ts := uint64(1); ts < 1e16; ts *= 2 {
++		w.emit(EvGoCreate, 1, ts, ts, 1, 0)
++	}
++	if _, err := Parse(w, ""); err != nil {
++		t.Fatalf("failed to parse: %v", err)
++	}
++}
++
++type writer struct {
++	bytes.Buffer
++}
++
++func newWriter() *writer {
++	w := new(writer)
++	w.Write([]byte("go 1.7 trace\x00\x00\x00\x00"))
++	return w
++}
++
++func (w *writer) emit(typ byte, args ...uint64) {
++	nargs := byte(len(args)) - 2
++	if nargs > 3 {
++		nargs = 3
++	}
++	buf := []byte{typ | nargs<<6}
++	if nargs == 3 {
++		buf = append(buf, 0)
++	}
++	for _, a := range args {
++		buf = appendVarint(buf, a)
++	}
++	if nargs == 3 {
++		buf[1] = byte(len(buf) - 2)
++	}
++	n, err := w.Write(buf)
++	if n != len(buf) || err != nil {
++		panic("failed to write")
++	}
++}
++
++func appendVarint(buf []byte, v uint64) []byte {
++	for ; v >= 0x80; v >>= 7 {
++		buf = append(buf, 0x80|byte(v))
++	}
++	buf = append(buf, byte(v))
++	return buf
++}

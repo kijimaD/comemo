@@ -12,7 +12,7 @@ Date:   Thu Apr 2 23:11:39 2015 +0900
     Change-Id: Ic38b8681a3a2ddbcd69ba3696f24a61d418a0346
     Reviewed-on: https://go-review.googlesource.com/8398
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/conn_test.go       |  50 +++++++--------------
  src/net/dial_test.go       |  76 ++++++++++++++++----------------
  src/net/mockserver_test.go | 105 +++++++++++++++++++++++++++++++++++++-------
@@ -21,3 +21,816 @@ Date:   Thu Apr 2 23:11:39 2015 +0900
  src/net/timeout_test.go    | 107 +++++++++++++++++++++++++++++++--------------
  src/net/unix_test.go       |  18 ++++----
  7 files changed, 247 insertions(+), 144 deletions(-)
+
+diff --git a/src/net/conn_test.go b/src/net/conn_test.go
+index 912c084c70..c5d11b99ee 100644
+--- a/src/net/conn_test.go
++++ b/src/net/conn_test.go
+@@ -8,57 +8,42 @@
+ package net
+ 
+ import (
+-	"os"
+ 	"testing"
+ 	"time"
+ )
+ 
+-var connTests = []struct {
+-	net  string
+-	addr string
+-}{
+-	{"tcp", "127.0.0.1:0"},
+-	{"unix", testUnixAddr()},
+-	{"unixpacket", testUnixAddr()},
+-}
+-
+ // someTimeout is used just to test that net.Conn implementations
+ // don't explode when their SetFooDeadline methods are called.
+ // It isn't actually used for testing timeouts.
+ const someTimeout = 10 * time.Second
+ 
+ func TestConnAndListener(t *testing.T) {
+-	for _, tt := range connTests {
+-		if !testableNetwork(tt.net) {
+-			t.Logf("skipping %s test", tt.net)
++	handler := func(ls *localServer, ln Listener) { transponder(t, ln) }
++	for _, network := range []string{"tcp", "unix", "unixpacket"} {
++		if !testableNetwork(network) {
++			t.Logf("skipping %s test", network)
+ 			continue
+ 		}
+ 
+-		ln, err := Listen(tt.net, tt.addr)
++		ls, err := newLocalServer(network)
+ 		if err != nil {
+ 			t.Fatalf("Listen failed: %v", err)
+ 		}
+-		defer func(ln Listener, net, addr string) {
+-			ln.Close()
+-			switch net {
+-			case "unix", "unixpacket":
+-				os.Remove(addr)
+-			}
+-		}(ln, tt.net, tt.addr)
+-		if ln.Addr().Network() != tt.net {
+-			t.Fatalf("got %v; expected %v", ln.Addr().Network(), tt.net)
++		defer ls.teardown()
++		if err := ls.buildup(handler); err != nil {
++			t.Fatal(err)
++		}
++		if ls.Listener.Addr().Network() != network {
++			t.Fatalf("got %s; want %s", ls.Listener.Addr().Network(), network)
+ 		}
+ 
+-		done := make(chan int)
+-		go transponder(t, ln, done)
+-
+-		c, err := Dial(tt.net, ln.Addr().String())
++		c, err := Dial(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+ 		if err != nil {
+ 			t.Fatalf("Dial failed: %v", err)
+ 		}
+ 		defer c.Close()
+-		if c.LocalAddr().Network() != tt.net || c.LocalAddr().Network() != tt.net {
+-			t.Fatalf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), tt.net, tt.net)
++		if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
++			t.Fatalf("got %v->%v; want %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+ 		}
+ 		c.SetDeadline(time.Now().Add(someTimeout))
+ 		c.SetReadDeadline(time.Now().Add(someTimeout))
+@@ -71,14 +56,10 @@ func TestConnAndListener(t *testing.T) {
+ 		if _, err := c.Read(rb); err != nil {
+ 			t.Fatalf("Conn.Read failed: %v", err)
+ 		}
+-
+-		<-done
+ 	}
+ }
+ 
+-func transponder(t *testing.T, ln Listener, done chan<- int) {
+-	defer func() { done <- 1 }()
+-
++func transponder(t *testing.T, ln Listener) {
+ 	switch ln := ln.(type) {
+ 	case *TCPListener:
+ 		ln.SetDeadline(time.Now().Add(someTimeout))
+@@ -91,6 +72,7 @@ func transponder(t *testing.T, ln Listener, done chan<- int) {
+ 		return
+ 	}
+ 	defer c.Close()
++
+ 	network := ln.Addr().Network()
+ 	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
+ 		t.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 448faac744..d808ae2257 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -19,17 +19,6 @@ import (
+ 	"time"
+ )
+ 
+-func newLocalListener(t *testing.T) Listener {
+-	ln, err := Listen("tcp", "127.0.0.1:0")
+-	if err != nil {
+-		ln, err = Listen("tcp6", "[::1]:0")
+-	}
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return ln
+-}
+-
+ func TestSelfConnect(t *testing.T) {
+ 	if runtime.GOOS == "windows" {
+ 		// TODO(brainman): do not know why it hangs.
+@@ -249,7 +238,7 @@ func TestDialMultiFDLeak(t *testing.T) {
+ 		t.Skip("neither ipv4 nor ipv6 is supported")
+ 	}
+ 
+-	halfDeadServer := func(dss *dualStackServer, ln Listener) {
++	handler := func(dss *dualStackServer, ln Listener) {
+ 		for {
+ 			if c, err := ln.Accept(); err != nil {
+ 				return
+@@ -262,14 +251,14 @@ func TestDialMultiFDLeak(t *testing.T) {
+ 		}
+ 	}
+ 	dss, err := newDualStackServer([]streamListener{
+-		{net: "tcp4", addr: "127.0.0.1"},
+-		{net: "tcp6", addr: "[::1]"},
++		{network: "tcp4", address: "127.0.0.1"},
++		{network: "tcp6", address: "::1"},
+ 	})
+ 	if err != nil {
+ 		t.Fatalf("newDualStackServer failed: %v", err)
+ 	}
+ 	defer dss.teardown()
+-	if err := dss.buildup(halfDeadServer); err != nil {
++	if err := dss.buildup(handler); err != nil {
+ 		t.Fatalf("dualStackServer.buildup failed: %v", err)
+ 	}
+ 
+@@ -319,14 +308,9 @@ func TestDialMultiFDLeak(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDialer(t *testing.T) {
+-	ln, err := Listen("tcp4", "127.0.0.1:0")
+-	if err != nil {
+-		t.Fatalf("Listen failed: %v", err)
+-	}
+-	defer ln.Close()
++func TestDialerLocalAddr(t *testing.T) {
+ 	ch := make(chan error, 1)
+-	go func() {
++	handler := func(ls *localServer, ln Listener) {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+ 			ch <- fmt.Errorf("Accept failed: %v", err)
+@@ -334,14 +318,23 @@ func TestDialer(t *testing.T) {
+ 		}
+ 		defer c.Close()
+ 		ch <- nil
+-	}()
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
+ 
+-	laddr, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
++	laddr, err := ResolveTCPAddr(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+ 	if err != nil {
+ 		t.Fatalf("ResolveTCPAddr failed: %v", err)
+ 	}
++	laddr.Port = 0
+ 	d := &Dialer{LocalAddr: laddr}
+-	c, err := d.Dial("tcp4", ln.Addr().String())
++	c, err := d.Dial(ls.Listener.Addr().Network(), ls.Addr().String())
+ 	if err != nil {
+ 		t.Fatalf("Dial failed: %v", err)
+ 	}
+@@ -353,7 +346,7 @@ func TestDialer(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDialDualStackLocalhost(t *testing.T) {
++func TestDialerDualStack(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "nacl":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+@@ -365,7 +358,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
+ 		t.Skip("localhost doesn't have a pair of different address family IP addresses")
+ 	}
+ 
+-	touchAndByeServer := func(dss *dualStackServer, ln Listener) {
++	handler := func(dss *dualStackServer, ln Listener) {
+ 		for {
+ 			if c, err := ln.Accept(); err != nil {
+ 				return
+@@ -375,20 +368,20 @@ func TestDialDualStackLocalhost(t *testing.T) {
+ 		}
+ 	}
+ 	dss, err := newDualStackServer([]streamListener{
+-		{net: "tcp4", addr: "127.0.0.1"},
+-		{net: "tcp6", addr: "[::1]"},
++		{network: "tcp4", address: "127.0.0.1"},
++		{network: "tcp6", address: "::1"},
+ 	})
+ 	if err != nil {
+ 		t.Fatalf("newDualStackServer failed: %v", err)
+ 	}
+ 	defer dss.teardown()
+-	if err := dss.buildup(touchAndByeServer); err != nil {
++	if err := dss.buildup(handler); err != nil {
+ 		t.Fatalf("dualStackServer.buildup failed: %v", err)
+ 	}
+ 
+ 	d := &Dialer{DualStack: true}
+ 	for range dss.lns {
+-		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
++		if c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port)); err != nil {
+ 			t.Errorf("Dial failed: %v", err)
+ 		} else {
+ 			if addr := c.LocalAddr().(*TCPAddr); addr.IP.To4() != nil {
+@@ -402,12 +395,7 @@ func TestDialDualStackLocalhost(t *testing.T) {
+ }
+ 
+ func TestDialerKeepAlive(t *testing.T) {
+-	ln := newLocalListener(t)
+-	defer ln.Close()
+-	defer func() {
+-		testHookSetKeepAlive = func() {}
+-	}()
+-	go func() {
++	handler := func(ls *localServer, ln Listener) {
+ 		for {
+ 			c, err := ln.Accept()
+ 			if err != nil {
+@@ -415,7 +403,19 @@ func TestDialerKeepAlive(t *testing.T) {
+ 			}
+ 			c.Close()
+ 		}
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
++	defer func() {
++		testHookSetKeepAlive = func() {}
+ 	}()
++
+ 	for _, keepAlive := range []bool{false, true} {
+ 		got := false
+ 		testHookSetKeepAlive = func() { got = true }
+@@ -423,7 +423,7 @@ func TestDialerKeepAlive(t *testing.T) {
+ 		if keepAlive {
+ 			d.KeepAlive = 30 * time.Second
+ 		}
+-		c, err := d.Dial("tcp", ln.Addr().String())
++		c, err := d.Dial("tcp", ls.Listener.Addr().String())
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 68ded5d757..3a21452f71 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -4,11 +4,74 @@
+ 
+ package net
+ 
+-import "sync"
++import (
++	"fmt"
++	"os"
++	"sync"
++)
++
++func newLocalListener(network string) (Listener, error) {
++	switch network {
++	case "tcp", "tcp4", "tcp6":
++		if supportsIPv4 {
++			return Listen("tcp4", "127.0.0.1:0")
++		}
++		if supportsIPv6 {
++			return Listen("tcp6", "[::1]:0")
++		}
++	case "unix", "unixpacket":
++		return Listen(network, testUnixAddr())
++	}
++	return nil, fmt.Errorf("%s is not supported", network)
++}
++
++type localServer struct {
++	lnmu sync.RWMutex
++	Listener
++	done chan bool // signal that indicates server stopped
++}
++
++func (ls *localServer) buildup(handler func(*localServer, Listener)) error {
++	go func() {
++		handler(ls, ls.Listener)
++		close(ls.done)
++	}()
++	return nil
++}
++
++func (ls *localServer) teardown() error {
++	ls.lnmu.Lock()
++	if ls.Listener != nil {
++		network := ls.Listener.Addr().Network()
++		address := ls.Listener.Addr().String()
++		ls.Listener.Close()
++		<-ls.done
++		ls.Listener = nil
++		switch network {
++		case "unix", "unixpacket":
++			os.Remove(address)
++		}
++	}
++	ls.lnmu.Unlock()
++	return nil
++}
++
++func newLocalServer(network string) (*localServer, error) {
++	ln, err := newLocalListener(network)
++	if err != nil {
++		return nil, err
++	}
++	return &localServer{Listener: ln, done: make(chan bool)}, nil
++}
+ 
+ type streamListener struct {
+-	net, addr string
+-	ln        Listener
++	network, address string
++	Listener
++	done chan bool // signal that indicates server stopped
++}
++
++func (sl *streamListener) newLocalServer() (*localServer, error) {
++	return &localServer{Listener: sl.Listener, done: make(chan bool)}, nil
+ }
+ 
+ type dualStackServer struct {
+@@ -20,9 +83,12 @@ type dualStackServer struct {
+ 	cs  []Conn // established connections at the passive open side
+ }
+ 
+-func (dss *dualStackServer) buildup(server func(*dualStackServer, Listener)) error {
++func (dss *dualStackServer) buildup(handler func(*dualStackServer, Listener)) error {
+ 	for i := range dss.lns {
+-		go server(dss, dss.lns[i].ln)
++		go func(i int) {
++			handler(dss, dss.lns[i].Listener)
++			close(dss.lns[i].done)
++		}(i)
+ 	}
+ 	return nil
+ }
+@@ -34,12 +100,13 @@ func (dss *dualStackServer) putConn(c Conn) error {
+ 	return nil
+ }
+ 
+-func (dss *dualStackServer) teardownNetwork(net string) error {
++func (dss *dualStackServer) teardownNetwork(network string) error {
+ 	dss.lnmu.Lock()
+ 	for i := range dss.lns {
+-		if net == dss.lns[i].net && dss.lns[i].ln != nil {
+-			dss.lns[i].ln.Close()
+-			dss.lns[i].ln = nil
++		if network == dss.lns[i].network && dss.lns[i].Listener != nil {
++			dss.lns[i].Listener.Close()
++			<-dss.lns[i].done
++			dss.lns[i].Listener = nil
+ 		}
+ 	}
+ 	dss.lnmu.Unlock()
+@@ -49,15 +116,18 @@ func (dss *dualStackServer) teardownNetwork(net string) error {
+ func (dss *dualStackServer) teardown() error {
+ 	dss.lnmu.Lock()
+ 	for i := range dss.lns {
+-		if dss.lns[i].ln != nil {
+-			dss.lns[i].ln.Close()
++		if dss.lns[i].Listener != nil {
++			dss.lns[i].Listener.Close()
++			<-dss.lns[i].done
+ 		}
+ 	}
++	dss.lns = dss.lns[:0]
+ 	dss.lnmu.Unlock()
+ 	dss.cmu.Lock()
+ 	for _, c := range dss.cs {
+ 		c.Close()
+ 	}
++	dss.cs = dss.cs[:0]
+ 	dss.cmu.Unlock()
+ 	return nil
+ }
+@@ -65,15 +135,20 @@ func (dss *dualStackServer) teardown() error {
+ func newDualStackServer(lns []streamListener) (*dualStackServer, error) {
+ 	dss := &dualStackServer{lns: lns, port: "0"}
+ 	for i := range dss.lns {
+-		ln, err := Listen(dss.lns[i].net, dss.lns[i].addr+":"+dss.port)
++		ln, err := Listen(dss.lns[i].network, JoinHostPort(dss.lns[i].address, dss.port))
+ 		if err != nil {
+-			dss.teardown()
++			for _, ln := range dss.lns {
++				ln.Listener.Close()
++			}
+ 			return nil, err
+ 		}
+-		dss.lns[i].ln = ln
++		dss.lns[i].Listener = ln
++		dss.lns[i].done = make(chan bool)
+ 		if dss.port == "0" {
+ 			if _, dss.port, err = SplitHostPort(ln.Addr().String()); err != nil {
+-				dss.teardown()
++				for _, ln := range dss.lns {
++					ln.Listener.Close()
++				}
+ 				return nil, err
+ 			}
+ 		}
+diff --git a/src/net/protoconn_test.go b/src/net/protoconn_test.go
+index 3a16ec5bc0..aad8686720 100644
+--- a/src/net/protoconn_test.go
++++ b/src/net/protoconn_test.go
+@@ -84,13 +84,17 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("ListenTCP failed: %v", err)
+ 	}
+-	defer ln.Close()
+-	ln.Addr()
+-
+-	done := make(chan int)
+-	go transponder(t, ln, done)
++	handler := func(ls *localServer, ln Listener) { transponder(t, ls.Listener) }
++	ls, err := (&streamListener{Listener: ln}).newLocalServer()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
+ 
+-	ra, err := ResolveTCPAddr("tcp4", ln.Addr().String())
++	ra, err := ResolveTCPAddr("tcp4", ls.Listener.Addr().String())
+ 	if err != nil {
+ 		t.Fatalf("ResolveTCPAddr failed: %v", err)
+ 	}
+@@ -116,8 +120,6 @@ func TestTCPConnSpecificMethods(t *testing.T) {
+ 	if _, err := c.Read(rb); err != nil {
+ 		t.Fatalf("TCPConn.Read failed: %v", err)
+ 	}
+-
+-	<-done
+ }
+ 
+ func TestUDPConnSpecificMethods(t *testing.T) {
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index e33e5f2f29..2991357288 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -414,6 +414,7 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 			{"tcp6", "[ip6-localhost%" + ifi.Name + "]:0", true},
+ 		}...)
+ 	}
++	handler := func(ls *localServer, ln Listener) { transponder(t, ln) }
+ 	for _, tt := range tests {
+ 		ln, err := Listen(tt.net, tt.addr)
+ 		if err != nil {
+@@ -422,15 +423,19 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 			t.Logf("Listen failed: %v", err)
+ 			continue
+ 		}
+-		defer ln.Close()
++		ls, err := (&streamListener{Listener: ln}).newLocalServer()
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer ls.teardown()
++		if err := ls.buildup(handler); err != nil {
++			t.Fatal(err)
++		}
+ 		if la, ok := ln.Addr().(*TCPAddr); !ok || !tt.nameLookup && la.Zone == "" {
+ 			t.Fatalf("got %v; expected a proper address with zone identifier", la)
+ 		}
+ 
+-		done := make(chan int)
+-		go transponder(t, ln, done)
+-
+-		c, err := Dial(tt.net, ln.Addr().String())
++		c, err := Dial(tt.net, ls.Listener.Addr().String())
+ 		if err != nil {
+ 			t.Fatalf("Dial failed: %v", err)
+ 		}
+@@ -449,8 +454,6 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		if _, err := c.Read(b); err != nil {
+ 			t.Fatalf("Conn.Read failed: %v", err)
+ 		}
+-
+-		<-done
+ 	}
+ }
+ 
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 361f822d9e..6c98a96afb 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -78,23 +78,26 @@ func TestAcceptTimeout(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t).(*TCPListener)
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer ln.Close()
+-	ln.SetDeadline(time.Now().Add(-1 * time.Second))
++	ln.(*TCPListener).SetDeadline(time.Now().Add(-1 * time.Second))
+ 	if _, err := ln.Accept(); !isTimeout(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+ 	if _, err := ln.Accept(); !isTimeout(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+-	ln.SetDeadline(time.Now().Add(100 * time.Millisecond))
++	ln.(*TCPListener).SetDeadline(time.Now().Add(100 * time.Millisecond))
+ 	if _, err := ln.Accept(); !isTimeout(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+ 	if _, err := ln.Accept(); !isTimeout(err) {
+ 		t.Fatalf("Accept: expected err %v, got %v", errTimeout, err)
+ 	}
+-	ln.SetDeadline(noDeadline)
++	ln.(*TCPListener).SetDeadline(noDeadline)
+ 	errc := make(chan error)
+ 	go func() {
+ 		_, err := ln.Accept()
+@@ -125,7 +128,10 @@ func TestReadTimeout(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t)
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer ln.Close()
+ 	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
+ 	if err != nil {
+@@ -183,7 +189,10 @@ func TestWriteTimeout(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t)
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer ln.Close()
+ 	c, err := DialTCP("tcp", nil, ln.Addr().(*TCPAddr))
+ 	if err != nil {
+@@ -475,14 +484,12 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 	}
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+-	ln := newLocalListener(t)
+-	defer ln.Close()
+-	acceptc := make(chan error, 1)
+ 
++	acceptc := make(chan error, 1)
+ 	// The server, with no timeouts of its own, sending bytes to clients
+ 	// as fast as it can.
+ 	servec := make(chan copyRes)
+-	go func() {
++	handler := func(ls *localServer, ln Listener) {
+ 		for {
+ 			c, err := ln.Accept()
+ 			if err != nil {
+@@ -497,7 +504,15 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 				servec <- copyRes{n, err, d}
+ 			}()
+ 		}
+-	}()
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	for _, timeout := range []time.Duration{
+ 		1 * time.Nanosecond,
+@@ -531,7 +546,7 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 			name := fmt.Sprintf("%v run %d/%d", timeout, run+1, numRuns)
+ 			t.Log(name)
+ 
+-			c, err := Dial("tcp", ln.Addr().String())
++			c, err := Dial("tcp", ls.Listener.Addr().String())
+ 			if err != nil {
+ 				t.Fatalf("Dial: %v", err)
+ 			}
+@@ -577,12 +592,9 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t)
+-	defer ln.Close()
+-
+ 	servec := make(chan copyRes)
+ 	const msg = "data client shouldn't read, even though it'll be waiting"
+-	go func() {
++	handler := func(ls *localServer, ln Listener) {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+ 			t.Errorf("Accept: %v", err)
+@@ -591,9 +603,17 @@ func TestReadDeadlineDataAvailable(t *testing.T) {
+ 		defer c.Close()
+ 		n, err := c.Write([]byte(msg))
+ 		servec <- copyRes{n: int64(n), err: err}
+-	}()
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
+ 
+-	c, err := Dial("tcp", ln.Addr().String())
++	c, err := Dial("tcp", ls.Listener.Addr().String())
+ 	if err != nil {
+ 		t.Fatalf("Dial: %v", err)
+ 	}
+@@ -617,11 +637,8 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t)
+-	defer ln.Close()
+-
+ 	servec := make(chan copyRes)
+-	go func() {
++	handler := func(ls *localServer, ln Listener) {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+ 			t.Errorf("Accept: %v", err)
+@@ -631,9 +648,17 @@ func TestWriteDeadlineBufferAvailable(t *testing.T) {
+ 		c.SetWriteDeadline(time.Now().Add(-5 * time.Second)) // in the past
+ 		n, err := c.Write([]byte{'x'})
+ 		servec <- copyRes{n: int64(n), err: err}
+-	}()
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
+ 
+-	c, err := Dial("tcp", ln.Addr().String())
++	c, err := Dial("tcp", ls.Listener.Addr().String())
+ 	if err != nil {
+ 		t.Fatalf("Dial: %v", err)
+ 	}
+@@ -655,7 +680,10 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t).(*TCPListener)
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer ln.Close()
+ 
+ 	go func() {
+@@ -669,7 +697,7 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+ 		c.Read(buf[:]) // block until the connection or listener is closed
+ 	}()
+ 	time.Sleep(10 * time.Millisecond)
+-	ln.SetDeadline(time.Now().Add(-5 * time.Second)) // in the past
++	ln.(*TCPListener).SetDeadline(time.Now().Add(-5 * time.Second)) // in the past
+ 	c, err := ln.Accept()
+ 	if err == nil {
+ 		defer c.Close()
+@@ -682,7 +710,10 @@ func TestAcceptDeadlineConnectionAvailable(t *testing.T) {
+ // TestConnectDeadlineInThePast tests that connect deadlines work, even
+ // if the connection can be established w/o blocking.
+ func TestConnectDeadlineInThePast(t *testing.T) {
+-	ln := newLocalListener(t).(*TCPListener)
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer ln.Close()
+ 
+ 	go func() {
+@@ -709,10 +740,8 @@ func TestProlongTimeout(t *testing.T) {
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+ 
+-	ln := newLocalListener(t)
+-	defer ln.Close()
+ 	connected := make(chan bool)
+-	go func() {
++	handler := func(ls *localServer, ln Listener) {
+ 		s, err := ln.Accept()
+ 		connected <- true
+ 		if err != nil {
+@@ -739,8 +768,17 @@ func TestProlongTimeout(t *testing.T) {
+ 			}
+ 			s.SetDeadline(time.Now().Add(time.Hour))
+ 		}
+-	}()
+-	c, err := Dial("tcp", ln.Addr().String())
++	}
++	ls, err := newLocalServer("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer ls.teardown()
++	if err := ls.buildup(handler); err != nil {
++		t.Fatal(err)
++	}
++
++	c, err := Dial("tcp", ls.Listener.Addr().String())
+ 	if err != nil {
+ 		t.Fatalf("DialTCP: %v", err)
+ 	}
+@@ -763,7 +801,10 @@ func TestDeadlineRace(t *testing.T) {
+ 		N = 50
+ 	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+-	ln := newLocalListener(t)
++	ln, err := newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	defer ln.Close()
+ 	c, err := Dial("tcp", ln.Addr().String())
+ 	if err != nil {
+diff --git a/src/net/unix_test.go b/src/net/unix_test.go
+index 85d1ff422f..ca7872e4ee 100644
+--- a/src/net/unix_test.go
++++ b/src/net/unix_test.go
+@@ -235,6 +235,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 		t.Skip("unix test")
+ 	}
+ 
++	handler := func(ls *localServer, ln Listener) {}
+ 	for _, laddr := range []string{"", testUnixAddr()} {
+ 		laddr := laddr
+ 		taddr := testUnixAddr()
+@@ -246,13 +247,14 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("ListenUnix failed: %v", err)
+ 		}
+-		defer func() {
+-			ln.Close()
+-			os.Remove(taddr)
+-		}()
+-
+-		done := make(chan int)
+-		go transponder(t, ln, done)
++		ls, err := (&streamListener{Listener: ln}).newLocalServer()
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer ls.teardown()
++		if err := ls.buildup(handler); err != nil {
++			t.Fatal(err)
++		}
+ 
+ 		la, err := ResolveUnixAddr("unix", laddr)
+ 		if err != nil {
+@@ -288,8 +290,6 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
+ 			}
+ 		}
+-
+-		<-done
+ 	}
+ }
+ 

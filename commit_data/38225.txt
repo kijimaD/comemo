@@ -13,7 +13,92 @@ Date:   Wed Oct 10 14:13:49 2018 -0700
     Change-Id: Iba5da841f40036e53f48f9be23f933f362e67f5e
     Reviewed-on: https://go-review.googlesource.com/c/141337
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/go/scanner/scanner.go      | 18 +++++++++++++-----
  src/go/scanner/scanner_test.go | 20 +++++++++++++++++++-
  2 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 23bbb2885f..e78abf12a2 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -85,6 +85,15 @@ func (s *Scanner) next() {
+ 	}
+ }
+ 
++// peek returns the byte following the most recently read character without
++// advancing the scanner. If the scanner is at EOF, peek returns 0.
++func (s *Scanner) peek() byte {
++	if s.rdOffset < len(s.src) {
++		return s.src[s.rdOffset]
++	}
++	return 0
++}
++
+ // A mode value is a set of flags (or 0).
+ // They control scanner behavior.
+ //
+@@ -735,14 +744,13 @@ scanAgain:
+ 			if '0' <= s.ch && s.ch <= '9' {
+ 				insertSemi = true
+ 				tok, lit = s.scanNumber(true)
+-			} else if s.ch == '.' {
+-				s.next()
+-				if s.ch == '.' {
++			} else {
++				tok = token.PERIOD
++				if s.ch == '.' && s.peek() == '.' {
+ 					s.next()
++					s.next() // consume last '.'
+ 					tok = token.ELLIPSIS
+ 				}
+-			} else {
+-				tok = token.PERIOD
+ 			}
+ 		case ',':
+ 			tok = token.COMMA
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index 0aad368099..36c962209c 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -757,6 +757,7 @@ var errors = []struct {
+ 	{"\a", token.ILLEGAL, 0, "", "illegal character U+0007"},
+ 	{`#`, token.ILLEGAL, 0, "", "illegal character U+0023 '#'"},
+ 	{`…`, token.ILLEGAL, 0, "", "illegal character U+2026 '…'"},
++	{"..", token.PERIOD, 0, "", ""}, // two periods, not invalid token (issue #28112)
+ 	{`' '`, token.CHAR, 0, `' '`, ""},
+ 	{`''`, token.CHAR, 0, `''`, "illegal rune literal"},
+ 	{`'12'`, token.CHAR, 0, `'12'`, "illegal rune literal"},
+@@ -822,7 +823,7 @@ func TestScanErrors(t *testing.T) {
+ 
+ // Verify that no comments show up as literal values when skipping comments.
+ func TestIssue10213(t *testing.T) {
+-	var src = `
++	const src = `
+ 		var (
+ 			A = 1 // foo
+ 		)
+@@ -855,6 +856,23 @@ func TestIssue10213(t *testing.T) {
+ 	}
+ }
+ 
++func TestIssue28112(t *testing.T) {
++	const src = "... .. 0.. .." // make sure to have stand-alone ".." immediately before EOF to test EOF behavior
++	tokens := []token.Token{token.ELLIPSIS, token.PERIOD, token.PERIOD, token.FLOAT, token.PERIOD, token.PERIOD, token.PERIOD, token.EOF}
++	var s Scanner
++	s.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), nil, 0)
++	for _, want := range tokens {
++		pos, got, lit := s.Scan()
++		if got != want {
++			t.Errorf("%s: got %s, want %s", fset.Position(pos), got, want)
++		}
++		// literals expect to have a (non-empty) literal string and we don't care about other tokens for this test
++		if tokenclass(got) == literal && lit == "" {
++			t.Errorf("%s: for %s got empty literal string", fset.Position(pos), got)
++		}
++	}
++}
++
+ func BenchmarkScan(b *testing.B) {
+ 	b.StopTimer()
+ 	fset := token.NewFileSet()

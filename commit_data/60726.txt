@@ -12,8 +12,41 @@ Date:   Wed Feb 14 19:08:02 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/51473.txt                          | 1 +
  doc/next/6-stdlib/99-minor/runtime/51473.md | 3 +++
  src/runtime/extern.go                       | 5 +++++
  3 files changed, 9 insertions(+)
+
+diff --git a/api/next/51473.txt b/api/next/51473.txt
+new file mode 100644
+index 0000000000..c47a629d73
+--- /dev/null
++++ b/api/next/51473.txt
+@@ -0,0 +1 @@
++pkg runtime, func GOROOT //deprecated #51473
+diff --git a/doc/next/6-stdlib/99-minor/runtime/51473.md b/doc/next/6-stdlib/99-minor/runtime/51473.md
+new file mode 100644
+index 0000000000..9083766a4d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/51473.md
+@@ -0,0 +1,3 @@
++The [GOROOT] function is now deprecated.
++In new code prefer to use the system path to locate the “go” binary,
++and use `go env GOROOT` to find its GOROOT.
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 2019be4dde..f8f81be8ef 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -336,6 +336,11 @@ var defaultGOROOT string // set by cmd/link
+ // GOROOT returns the root of the Go tree. It uses the
+ // GOROOT environment variable, if set at process start,
+ // or else the root used during the Go build.
++//
++// Deprecated: The root used during the Go build will not be
++// meaningful if the binary is copied to another machine.
++// Use the system path to locate the “go” binary, and use
++// “go env GOROOT” to find its GOROOT.
+ func GOROOT() string {
+ 	s := gogetenv("GOROOT")
+ 	if s != "" {

@@ -10,6 +10,33 @@ Date:   Fri Apr 20 11:37:34 2018 -0400
     Change-Id: I933ab1003585f75ba96723563107f1ba8126cb72
     Reviewed-on: https://go-review.googlesource.com/108557
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/sync/cond_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/sync/cond_test.go b/src/sync/cond_test.go
+index 9019f8f102..9d0d9adc74 100644
+--- a/src/sync/cond_test.go
++++ b/src/sync/cond_test.go
+@@ -4,9 +4,9 @@
+ package sync_test
+ 
+ import (
+-	. "sync"
+-
++	"reflect"
+ 	"runtime"
++	. "sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -251,7 +251,8 @@ func TestCondCopy(t *testing.T) {
+ 	}()
+ 	c := Cond{L: &Mutex{}}
+ 	c.Signal()
+-	c2 := c
++	var c2 Cond
++	reflect.ValueOf(&c2).Elem().Set(reflect.ValueOf(&c).Elem()) // c2 := c, hidden from vet
+ 	c2.Signal()
+ }
+ 

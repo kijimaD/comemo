@@ -9,6 +9,20 @@ Date:   Fri Apr 8 14:27:35 2016 +1200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 621c41c6b2..88b0147364 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1451,7 +1451,7 @@ const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
+ 
+ void *_cgoPREFIX_Cfunc_CBytes(struct __go_open_array b) {
+ 	char *p = malloc(b.__count);
+-	memmove(p, b.__data, b.__count);
++	memmove(p, b.__values, b.__count);
+ 	return p;
+ }
+ 

@@ -17,10 +17,85 @@ Date:   Thu Nov 15 15:23:48 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/doc.go                  | 2 ++
  src/cmd/asm/internal/flags/flags.go | 2 +-
  src/cmd/dist/build.go               | 2 +-
  src/cmd/go/internal/work/gc.go      | 4 ++--
  test/run.go                         | 2 +-
  5 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/doc.go b/src/cmd/asm/doc.go
+index c39cab3c19..8bf0acac25 100644
+--- a/src/cmd/asm/doc.go
++++ b/src/cmd/asm/doc.go
+@@ -39,6 +39,8 @@ Flags:
+ 		Generate code that can be linked into a shared library.
+ 	-trimpath prefix
+ 		Remove prefix from recorded source file paths.
++	-gensymabis
++		Write symbol ABI information to output file. Don't assemble.
+ Input language:
+ 
+ The assembler uses mostly the same syntax for all architectures,
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 752a1d4526..5fe3fd9d53 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -22,7 +22,7 @@ var (
+ 	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+ 	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+-	SymABIs    = flag.Bool("symabis", false, "write symbol ABI information to output file, don't assemble")
++	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+ )
+ 
+ var (
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a94a43fd66..8d7b14d17c 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -804,7 +804,7 @@ func runInstall(dir string, ch chan struct{}) {
+ 	if len(sfiles) > 0 {
+ 		symabis = pathf("%s/symabis", workdir)
+ 		var wg sync.WaitGroup
+-		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-symabis", "-o", symabis)
++		asmabis := append(asmArgs[:len(asmArgs):len(asmArgs)], "-gensymabis", "-o", symabis)
+ 		asmabis = append(asmabis, sfiles...)
+ 		if err := ioutil.WriteFile(goasmh, nil, 0666); err != nil {
+ 			fatalf("cannot write empty go_asm.h: %s", err)
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 89ef2da8cb..a14a970ffb 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -265,7 +265,7 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, error) {
+ 	mkSymabis := func(p *load.Package, sfiles []string, path string) error {
+ 		args := asmArgs(a, p)
+-		args = append(args, "-symabis", "-o", path)
++		args = append(args, "-gensymabis", "-o", path)
+ 		for _, sfile := range sfiles {
+ 			if p.ImportPath == "runtime/cgo" && strings.HasPrefix(sfile, "gcc_") {
+ 				continue
+@@ -274,7 +274,7 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
+ 		}
+ 
+ 		// Supply an empty go_asm.h as if the compiler had been run.
+-		// -symabis parsing is lax enough that we don't need the
++		// -gensymabis parsing is lax enough that we don't need the
+ 		// actual definitions that would appear in go_asm.h.
+ 		if err := b.writeFile(a.Objdir+"go_asm.h", nil); err != nil {
+ 			return err
+diff --git a/test/run.go b/test/run.go
+index 3a9e267940..39647d7252 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -813,7 +813,7 @@ func (t *test) run() {
+ 				t.err = fmt.Errorf("write empty go_asm.h: %s", err)
+ 				return
+ 			}
+-			cmd := []string{goTool(), "tool", "asm", "-symabis", "-o", "symabis"}
++			cmd := []string{goTool(), "tool", "asm", "-gensymabis", "-o", "symabis"}
+ 			cmd = append(cmd, asms...)
+ 			_, err = runcmd(cmd...)
+ 			if err != nil {

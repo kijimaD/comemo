@@ -10,8 +10,122 @@ Date:   Thu Feb 16 14:04:51 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5656073
-
+---
  src/pkg/os/exec_plan9.go      | 12 ++----------
  src/pkg/os/file_plan9.go      | 19 ++++++++++---------
  src/pkg/syscall/exec_plan9.go | 13 ++++++++-----
  3 files changed, 20 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 08f16b86d5..b725aeb8d6 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -20,18 +20,10 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		Sys: attr.Sys,
+ 	}
+ 
+-	// Create array of integer (system) fds.
+-	intfd := make([]int, len(attr.Files))
+-	for i, f := range attr.Files {
+-		if f == nil {
+-			intfd[i] = -1
+-		} else {
+-			intfd[i] = f.Fd()
+-		}
++	for _, f := range attr.Files {
++		sysattr.Files = append(sysattr.Files, f.Fd())
+ 	}
+ 
+-	sysattr.Files = intfd
+-
+ 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+ 	if e != nil {
+ 		return nil, &PathError{"fork/exec", name, e}
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index fed2b80917..c28ea3471c 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -26,19 +26,20 @@ type file struct {
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+-func (file *File) Fd() int {
+-	if file == nil {
+-		return -1
++func (f *File) Fd() uintptr {
++	if f == nil {
++		return ^(uintptr(0))
+ 	}
+-	return file.fd
++	return uintptr(f.fd)
+ }
+ 
+ // NewFile returns a new File with the given file descriptor and name.
+-func NewFile(fd int, name string) *File {
+-	if fd < 0 {
++func NewFile(fd uintptr, name string) *File {
++	fdi := int(fd)
++	if fdi < 0 {
+ 		return nil
+ 	}
+-	f := &File{&file{fd: fd, name: name}}
++	f := &File{&file{fd: fdi, name: name}}
+ 	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+@@ -128,7 +129,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 		}
+ 	}
+ 
+-	return NewFile(fd, name), nil
++	return NewFile(uintptr(fd), name), nil
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+@@ -330,7 +331,7 @@ func Pipe() (r *File, w *File, err error) {
+ 	}
+ 	syscall.ForkLock.RUnlock()
+ 
+-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
++	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
+ }
+ 
+ // not supported on Plan 9
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index de6421c239..c6c975c7ec 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -182,7 +182,10 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
+ 	)
+ 
+ 	// guard against side effects of shuffling fds below.
+-	fd := append([]int(nil), attr.Files...)
++	fd := make([]int, len(attr.Files))
++	for i, ufd := range attr.Files {
++		fd[i] = int(ufd)
++	}
+ 
+ 	if envv != nil {
+ 		clearenv = RFCENVG
+@@ -338,9 +341,9 @@ type envItem struct {
+ }
+ 
+ type ProcAttr struct {
+-	Dir   string   // Current working directory.
+-	Env   []string // Environment.
+-	Files []int    // File descriptors.
++	Dir   string    // Current working directory.
++	Env   []string  // Environment.
++	Files []uintptr // File descriptors.
+ 	Sys   *SysProcAttr
+ }
+ 
+@@ -423,7 +426,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 	for _, fd := range openFds {
+ 		isReserved := false
+ 		for _, reservedFd := range attr.Files {
+-			if fd == reservedFd {
++			if fd == int(reservedFd) {
+ 				isReserved = true
+ 				break
+ 			}

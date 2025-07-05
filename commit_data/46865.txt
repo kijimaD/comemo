@@ -28,7 +28,7 @@ Date:   Mon Feb 8 14:33:51 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 19 +++++--
  src/cmd/compile/internal/noder/helpers.go | 10 ++++
  src/cmd/compile/internal/noder/stencil.go | 77 +++++++++++++++++++++++----
@@ -36,3 +36,351 @@ Date:   Mon Feb 8 14:33:51 2021 -0800
  test/typeparam/map.go                     | 39 ++++++++++++++
  test/typeparam/stringer.go                | 88 +++++++++++++++++++++++++++++++
  6 files changed, 219 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 568ec216e3..3d6fba2dfe 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -87,11 +87,13 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.CompositeLit:
+ 		return g.compLit(typ, expr)
++
+ 	case *syntax.FuncLit:
+ 		return g.funcLit(typ, expr)
+ 
+ 	case *syntax.AssertExpr:
+ 		return Assert(pos, g.expr(expr.X), g.typeExpr(expr.Type))
++
+ 	case *syntax.CallExpr:
+ 		fun := g.expr(expr.Fun)
+ 		if inferred, ok := g.info.Inferred[expr]; ok && len(inferred.Targs) > 0 {
+@@ -114,6 +116,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 		}
+ 		return Call(pos, g.typ(typ), fun, g.exprs(expr.ArgList), expr.HasDots)
++
+ 	case *syntax.IndexExpr:
+ 		var targs []ir.Node
+ 		if _, ok := expr.Index.(*syntax.ListExpr); ok {
+@@ -139,6 +142,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.ParenExpr:
+ 		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
++
+ 	case *syntax.SelectorExpr:
+ 		// Qualified identifier.
+ 		if name, ok := expr.X.(*syntax.Name); ok {
+@@ -147,8 +151,8 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 				return typecheck.Expr(g.use(expr.Sel))
+ 			}
+ 		}
++		return g.selectorExpr(pos, typ, expr)
+ 
+-		return g.selectorExpr(pos, expr)
+ 	case *syntax.SliceExpr:
+ 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+ 
+@@ -172,15 +176,22 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ // selectorExpr resolves the choice of ODOT, ODOTPTR, OCALLPART (eventually
+ // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
+ // than in typecheck.go.
+-func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
+-	selinfo := g.info.Selections[expr]
++func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
++	x := g.expr(expr.X)
++	if x.Type().Kind() == types.TTYPEPARAM {
++		// Leave a method call on a type param as an OXDOT, since it can
++		// only be fully transformed once it has an instantiated type.
++		n := ir.NewSelectorExpr(pos, ir.OXDOT, x, typecheck.Lookup(expr.Sel.Value))
++		typed(g.typ(typ), n)
++		return n
++	}
+ 
++	selinfo := g.info.Selections[expr]
+ 	// Everything up to the last selection is an implicit embedded field access,
+ 	// and the last selection is determined by selinfo.Kind().
+ 	index := selinfo.Index()
+ 	embeds, last := index[:len(index)-1], index[len(index)-1]
+ 
+-	x := g.expr(expr.X)
+ 	origx := x
+ 	for _, ix := range embeds {
+ 		x = Implicit(DotField(pos, x, ix))
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index bb17a5331a..2bf125bdd8 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -119,6 +119,16 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	n := ir.NewCallExpr(pos, ir.OCALL, fun, args)
+ 	n.IsDDD = dots
+ 
++	if fun.Op() == ir.OXDOT {
++		if fun.(*ir.SelectorExpr).X.Type().Kind() != types.TTYPEPARAM {
++			base.FatalfAt(pos, "Expecting type param receiver in %v", fun)
++		}
++		// For methods called in a generic function, don't do any extra
++		// transformations. We will do those later when we create the
++		// instantiated function and have the correct receiver type.
++		typed(typ, n)
++		return n
++	}
+ 	if fun.Op() != ir.OFUNCINST {
+ 		// If no type params, still do normal typechecking, since we're
+ 		// still missing some things done by tcCall below (mainly
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 0c4eadcf44..64320237d9 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -173,6 +173,33 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			m.SetType(subst.typ(x.Type()))
+ 		}
+ 		ir.EditChildren(m, edit)
++
++		// A method value/call via a type param will have been left as an
++		// OXDOT. When we see this during stenciling, finish the
++		// typechecking, now that we have the instantiated receiver type.
++		// We need to do this now, since the access/selection to the
++		// method for the real type is very different from the selection
++		// for the type param.
++		if x.Op() == ir.OXDOT {
++			// Will transform to an OCALLPART
++			m.SetTypecheck(0)
++			typecheck.Expr(m)
++		}
++		if x.Op() == ir.OCALL {
++			call := m.(*ir.CallExpr)
++			if call.X.Op() != ir.OCALLPART {
++				base.FatalfAt(call.Pos(), "Expecting OXDOT with CALL")
++			}
++			// Redo the typechecking, now that we know the method
++			// value is being called
++			call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
++			call.X.SetTypecheck(0)
++			call.X.SetType(nil)
++			typecheck.Callee(call.X)
++			m.SetTypecheck(0)
++			typecheck.Call(m.(*ir.CallExpr))
++		}
++
+ 		if x.Op() == ir.OCLOSURE {
+ 			x := x.(*ir.ClosureExpr)
+ 			// Need to save/duplicate x.Func.Nname,
+@@ -206,6 +233,31 @@ func (subst *subster) list(l []ir.Node) []ir.Node {
+ 	return s
+ }
+ 
++// tstruct substitutes type params in a structure type
++func (subst *subster) tstruct(t *types.Type) *types.Type {
++	if t.NumFields() == 0 {
++		return t
++	}
++	var newfields []*types.Field
++	for i, f := range t.Fields().Slice() {
++		t2 := subst.typ(f.Type)
++		if t2 != f.Type && newfields == nil {
++			newfields = make([]*types.Field, t.NumFields())
++			for j := 0; j < i; j++ {
++				newfields[j] = t.Field(j)
++			}
++		}
++		if newfields != nil {
++			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
++		}
++	}
++	if newfields != nil {
++		return types.NewStruct(t.Pkg(), newfields)
++	}
++	return t
++
++}
++
+ // typ substitutes any type parameter found with the corresponding type argument.
+ func (subst *subster) typ(t *types.Type) *types.Type {
+ 	for i, tp := range subst.tparams.Slice() {
+@@ -237,20 +289,23 @@ func (subst *subster) typ(t *types.Type) *types.Type {
+ 		}
+ 
+ 	case types.TSTRUCT:
+-		newfields := make([]*types.Field, t.NumFields())
+-		change := false
+-		for i, f := range t.Fields().Slice() {
+-			t2 := subst.typ(f.Type)
+-			if t2 != f.Type {
+-				change = true
+-			}
+-			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
++		newt := subst.tstruct(t)
++		if newt != t {
++			return newt
+ 		}
+-		if change {
+-			return types.NewStruct(t.Pkg(), newfields)
++
++	case types.TFUNC:
++		newrecvs := subst.tstruct(t.Recvs())
++		newparams := subst.tstruct(t.Params())
++		newresults := subst.tstruct(t.Results())
++		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() {
++			var newrecv *types.Field
++			if newrecvs.NumFields() > 0 {
++				newrecv = newrecvs.Field(0)
++			}
++			return types.NewSignature(t.Pkg(), newrecv, nil, newparams.FieldSlice(), newresults.FieldSlice())
+ 		}
+ 
+-		// TODO: case TFUNC
+ 		// TODO: case TCHAN
+ 		// TODO: case TMAP
+ 		// TODO: case TINTER
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 8d07b88ecd..987aa11454 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1657,6 +1657,7 @@ func NewInterface(pkg *Pkg, methods []*Field) *Type {
+ // not really be needed except for the type checker).
+ func NewTypeParam(pkg *Pkg, constraint *Type) *Type {
+ 	t := New(TTYPEPARAM)
++	constraint.wantEtype(TINTER)
+ 	t.methods = constraint.methods
+ 	t.Extra.(*Interface).pkg = pkg
+ 	return t
+diff --git a/test/typeparam/map.go b/test/typeparam/map.go
+new file mode 100644
+index 0000000000..720a52ffbd
+--- /dev/null
++++ b/test/typeparam/map.go
+@@ -0,0 +1,39 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++	"strconv"
++)
++
++// Map calls the function f on every element of the slice s,
++// returning a new slice of the results.
++func mapper[F, T any](s []F, f func(F) T) []T {
++	r := make([]T, len(s))
++	for i, v := range s {
++		r[i] = f(v)
++	}
++	return r
++}
++
++func main() {
++	got := mapper([]int{1, 2, 3}, strconv.Itoa)
++	want := []string{"1", "2", "3"}
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("Got %s, want %s", got, want))
++	}
++
++	fgot := mapper([]float64{2.5, 2.3, 3.5}, func(f float64) string {
++		return strconv.FormatFloat(f, 'f', -1, 64)
++	})
++	fwant := []string{"2.5", "2.3", "3.5"}
++	if !reflect.DeepEqual(fgot, fwant) {
++		panic(fmt.Sprintf("Got %s, want %s", fgot, fwant))
++	}
++}
+diff --git a/test/typeparam/stringer.go b/test/typeparam/stringer.go
+new file mode 100644
+index 0000000000..5086ac72f8
+--- /dev/null
++++ b/test/typeparam/stringer.go
+@@ -0,0 +1,88 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test method calls on type parameters
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++	"strconv"
++)
++
++// Simple constraint
++type Stringer interface {
++	String() string
++}
++
++func stringify[T Stringer](s []T) (ret []string) {
++	for _, v := range s {
++		ret = append(ret, v.String())
++	}
++	return ret
++}
++
++type myint int
++
++func (i myint) String() string {
++	return strconv.Itoa(int(i))
++}
++
++// Constraint with an embedded interface, but still only requires String()
++type Stringer2 interface {
++	CanBeStringer2() int
++	SubStringer2
++}
++
++type SubStringer2 interface {
++	CanBeSubStringer2() int
++	String() string
++}
++
++func stringify2[T Stringer2](s []T) (ret []string) {
++	for _, v := range s {
++		ret = append(ret, v.String())
++	}
++	return ret
++}
++
++func (myint) CanBeStringer2() int {
++	return 0
++}
++
++func (myint) CanBeSubStringer2() int {
++	return 0
++}
++
++// Test use of method values that are not called
++func stringify3[T Stringer](s []T) (ret []string) {
++	for _, v := range s {
++		f := v.String
++		ret = append(ret, f())
++	}
++	return ret
++}
++
++func main() {
++	x := []myint{myint(1), myint(2), myint(3)}
++
++	got := stringify(x)
++	want := []string{"1", "2", "3"}
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("Got %s, want %s", got, want))
++	}
++
++	got = stringify2(x)
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("Got %s, want %s", got, want))
++	}
++
++	got = stringify3(x)
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("Got %s, want %s", got, want))
++	}
++}

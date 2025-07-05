@@ -12,6 +12,42 @@ Date:   Wed Nov 4 11:52:43 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/os/dir_unix.go | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index 3e5a698350..0e1eab1c96 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -36,9 +36,16 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
+ 	}
+ 	d := f.dirinfo
+ 
+-	size := n
+-	if size <= 0 {
+-		size = 100
++	// Change the meaning of n for the implementation below.
++	//
++	// The n above was for the public interface of "if n <= 0,
++	// Readdir returns all the FileInfo from the directory in a
++	// single slice".
++	//
++	// But below, we use only negative to mean looping until the
++	// end and positive to mean bounded, with positive
++	// terminating at 0.
++	if n == 0 {
+ 		n = -1
+ 	}
+ 
+@@ -88,7 +95,9 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
+ 		if string(name) == "." || string(name) == ".." {
+ 			continue
+ 		}
+-		n--
++		if n > 0 { // see 'n == 0' comment above
++			n--
++		}
+ 		if mode == readdirName {
+ 			names = append(names, string(name))
+ 		} else if mode == readdirDirEntry {

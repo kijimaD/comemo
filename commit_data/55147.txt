@@ -17,10 +17,156 @@ Date:   Thu Jan 5 15:07:04 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/irgen.go          |  4 ++--
  src/cmd/compile/internal/syntax/walk.go          | 22 +++-------------------
  src/cmd/compile/internal/types2/issues_test.go   |  4 ++--
  src/cmd/compile/internal/types2/resolver_test.go | 16 ++++++++--------
  src/go/types/resolver_test.go                    |  2 +-
  5 files changed, 16 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index d0349260e8..b5e10236ce 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -359,9 +359,9 @@ Outer:
+ 
+ 		// Double check for any type-checking inconsistencies. This can be
+ 		// removed once we're confident in IR generation results.
+-		syntax.Crawl(p.file, func(n syntax.Node) bool {
++		syntax.Inspect(p.file, func(n syntax.Node) bool {
+ 			g.validate(n)
+-			return false
++			return true
+ 		})
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/walk.go b/src/cmd/compile/internal/syntax/walk.go
+index 8f1d566155..b03a7c14b0 100644
+--- a/src/cmd/compile/internal/syntax/walk.go
++++ b/src/cmd/compile/internal/syntax/walk.go
+@@ -8,10 +8,9 @@ package syntax
+ 
+ import "fmt"
+ 
+-// Inspect traverses an AST in pre-order: It starts by calling
+-// f(node); node must not be nil. If f returns true, Inspect invokes f
+-// recursively for each of the non-nil children of node, followed by a
+-// call of f(nil).
++// Inspect traverses an AST in pre-order: it starts by calling f(root);
++// root must not be nil. If f returns true, Inspect invokes f recursively
++// for each of the non-nil children of root, followed by a call of f(nil).
+ //
+ // See Walk for caveats about shared nodes.
+ func Inspect(root Node, f func(Node) bool) {
+@@ -27,21 +26,6 @@ func (v inspector) Visit(node Node) Visitor {
+ 	return nil
+ }
+ 
+-// Crawl traverses a syntax in pre-order: It starts by calling f(root);
+-// root must not be nil. If f returns false (== "continue"), Crawl calls
+-// f recursively for each of the non-nil children of that node; if f
+-// returns true (== "stop"), Crawl does not traverse the respective node's
+-// children.
+-//
+-// See Walk for caveats about shared nodes.
+-//
+-// Deprecated: Use Inspect instead.
+-func Crawl(root Node, f func(Node) bool) {
+-	Inspect(root, func(node Node) bool {
+-		return node != nil && !f(node)
+-	})
+-}
+-
+ // Walk traverses an AST in pre-order: It starts by calling
+ // v.Visit(node); node must not be nil. If the visitor w returned by
+ // v.Visit(node) is not nil, Walk is invoked recursively with visitor
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 52784207d7..0ea5df5d5b 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -302,7 +302,7 @@ func TestIssue25627(t *testing.T) {
+ 			}
+ 		}
+ 
+-		syntax.Crawl(f, func(n syntax.Node) bool {
++		syntax.Inspect(f, func(n syntax.Node) bool {
+ 			if decl, _ := n.(*syntax.TypeDecl); decl != nil {
+ 				if tv, ok := info.Types[decl.Type]; ok && decl.Name.Value == "T" {
+ 					want := strings.Count(src, ";") + 1
+@@ -311,7 +311,7 @@ func TestIssue25627(t *testing.T) {
+ 					}
+ 				}
+ 			}
+-			return false
++			return true
+ 		})
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/resolver_test.go b/src/cmd/compile/internal/types2/resolver_test.go
+index e303d34827..cafbfc9af6 100644
+--- a/src/cmd/compile/internal/types2/resolver_test.go
++++ b/src/cmd/compile/internal/types2/resolver_test.go
+@@ -139,23 +139,23 @@ func TestResolveIdents(t *testing.T) {
+ 
+ 	// check that qualified identifiers are resolved
+ 	for _, f := range files {
+-		syntax.Crawl(f, func(n syntax.Node) bool {
++		syntax.Inspect(f, func(n syntax.Node) bool {
+ 			if s, ok := n.(*syntax.SelectorExpr); ok {
+ 				if x, ok := s.X.(*syntax.Name); ok {
+ 					obj := uses[x]
+ 					if obj == nil {
+ 						t.Errorf("%s: unresolved qualified identifier %s", x.Pos(), x.Value)
+-						return true
++						return false
+ 					}
+ 					if _, ok := obj.(*PkgName); ok && uses[s.Sel] == nil {
+ 						t.Errorf("%s: unresolved selector %s", s.Sel.Pos(), s.Sel.Value)
+-						return true
++						return false
+ 					}
+-					return true
++					return false
+ 				}
+ 				return true
+ 			}
+-			return false
++			return true
+ 		})
+ 	}
+ 
+@@ -173,7 +173,7 @@ func TestResolveIdents(t *testing.T) {
+ 	foundDefs := make(map[*syntax.Name]bool)
+ 	var both []string
+ 	for _, f := range files {
+-		syntax.Crawl(f, func(n syntax.Node) bool {
++		syntax.Inspect(f, func(n syntax.Node) bool {
+ 			if x, ok := n.(*syntax.Name); ok {
+ 				var objects int
+ 				if _, found := uses[x]; found {
+@@ -190,9 +190,9 @@ func TestResolveIdents(t *testing.T) {
+ 				case 3:
+ 					both = append(both, x.Value)
+ 				}
+-				return true
++				return false
+ 			}
+-			return false
++			return true
+ 		})
+ 	}
+ 
+diff --git a/src/go/types/resolver_test.go b/src/go/types/resolver_test.go
+index 376ecfbea0..284ad8e998 100644
+--- a/src/go/types/resolver_test.go
++++ b/src/go/types/resolver_test.go
+@@ -156,7 +156,7 @@ func TestResolveIdents(t *testing.T) {
+ 					}
+ 					return false
+ 				}
+-				return false
++				return true
+ 			}
+ 			return true
+ 		})

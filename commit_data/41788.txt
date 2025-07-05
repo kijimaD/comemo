@@ -13,6 +13,20 @@ Date:   Fri Oct 25 07:44:57 2019 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/singleflight/singleflight_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/singleflight/singleflight_test.go b/src/internal/singleflight/singleflight_test.go
+index 5e6f1b328e..6404a1775a 100644
+--- a/src/internal/singleflight/singleflight_test.go
++++ b/src/internal/singleflight/singleflight_test.go
+@@ -28,7 +28,7 @@ func TestDo(t *testing.T) {
+ 
+ func TestDoErr(t *testing.T) {
+ 	var g Group
+-	someErr := errors.New("Some error")
++	someErr := errors.New("some error")
+ 	v, err, _ := g.Do("key", func() (interface{}, error) {
+ 		return nil, someErr
+ 	})

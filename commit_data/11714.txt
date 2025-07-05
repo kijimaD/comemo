@@ -11,7 +11,74 @@ Date:   Wed Feb 8 14:39:16 2012 -0500
     R=rsc, cw
     CC=golang-dev
     https://golang.org/cl/5634050
-
+---
  src/pkg/runtime/malloc.goc  | 11 ++++++-----
  src/pkg/runtime/mem_linux.c | 15 ++++++++++++---
  2 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index f1509cd9d9..4e6bbe1b0f 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -289,12 +289,13 @@ runtime·mallocinit(void)
+ 		// Actually we reserve 17 GB (because the bitmap ends up being 1 GB)
+ 		// but it hardly matters: fc is not valid UTF-8 either, and we have to
+ 		// allocate 15 GB before we get that far.
++		//
++		// If this fails we fall back to the 32 bit memory mechanism
+ 		arena_size = 16LL<<30;
+ 		bitmap_size = arena_size / (sizeof(void*)*8/4);
+ 		p = runtime·SysReserve((void*)(0x00f8ULL<<32), bitmap_size + arena_size);
+-		if(p == nil)
+-			runtime·throw("runtime: cannot reserve arena virtual address space");
+-	} else {
++	}
++	if (p == nil) {
+ 		// On a 32-bit machine, we can't typically get away
+ 		// with a giant virtual address space reservation.
+ 		// Instead we map the memory information bitmap
+@@ -359,8 +360,8 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 		return p;
+ 	}
+ 	
+-	// On 64-bit, our reservation is all we have.
+-	if(sizeof(void*) == 8)
++	// If using 64-bit, our reservation is all we have.
++	if(sizeof(void*) == 8 && (uintptr)h->bitmap >= 0xffffffffU)
+ 		return nil;
+ 
+ 	// On 32-bit, once the reservation is gone we can
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index fdf02c2cac..47287939ad 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -73,9 +73,18 @@ runtime·SysReserve(void *v, uintptr n)
+ 
+ 	// On 64-bit, people with ulimit -v set complain if we reserve too
+ 	// much address space.  Instead, assume that the reservation is okay
+-	// and check the assumption in SysMap.
+-	if(sizeof(void*) == 8)
++	// if we can reserve at least 64K and check the assumption in SysMap.
++	// Only user-mode Linux (UML) rejects these requests.
++	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
++		p = runtime·mmap(v, 64<<10, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
++		if (p != v) {
++			return nil;
++		}
++		runtime·munmap(p, 64<<10);
++		
++		
+ 		return v;
++	}
+ 	
+ 	p = runtime·mmap(v, n, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if((uintptr)p < 4096 || -(uintptr)p < 4096) {
+@@ -92,7 +101,7 @@ runtime·SysMap(void *v, uintptr n)
+ 	mstats.sys += n;
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+-	if(sizeof(void*) == 8) {
++	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
+ 		p = runtime·mmap(v, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 		if(p != v && addrspace_free(v, n)) {
+ 			// On some systems, mmap ignores v without

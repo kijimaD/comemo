@@ -7,6 +7,16 @@ Date:   Thu Aug 20 17:36:21 2009 -0700
     TBR=r
     OCL=33623
     CL=33623
-
+---
  test/golden.out | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index 69a55d2d55..1c4981b352 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -168,4 +168,3 @@ bugs/bug190.go:13: invalid recursive type chan S
+ bugs/bug190.go:16: invalid recursive type S
+ bugs/bug190.go:15: invalid recursive type func(S) (S)
+ BUG: should compile
+-bugs/bug191.go succeeded with no output.

@@ -15,8 +15,68 @@ Date:   Fri Apr 6 05:00:25 2018 +1000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/sys_openbsd_386.s   |  9 ---------
  src/runtime/sys_openbsd_amd64.s |  5 +----
  src/runtime/sys_openbsd_arm.s   | 10 +---------
  3 files changed, 2 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 475a937798..21f13c806e 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -19,17 +19,8 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVL	$0xf1, 0xf1		// crash
+ 	RET
+ 
+-GLOBL exitStack<>(SB),RODATA,$8
+-DATA exitStack<>+0x00(SB)/4, $0
+-DATA exitStack<>+0x04(SB)/4, $0
+-
+ // func exitThread(wait *uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+-	MOVL	wait+0(FP), AX
+-	// We're done using the stack.
+-	MOVL	$0, (AX)
+-	// sys__lwp_exit takes 1 argument, which it expects on the stack.
+-	MOVL	$exitStack<>(SB), SP
+ 	MOVL	$302, AX		// sys___threxit
+ 	INT	$0x80
+ 	MOVL	$0xf1, 0xf1		// crash
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 658f2c49dc..38ac38d9bf 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -90,10 +90,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-8
+ 
+ // func exitThread(wait *uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+-	MOVQ	wait+0(FP), AX
+-	// We're done using the stack.
+-	MOVL	$0, (AX)
+-	MOVQ	$0, DI			// arg 1 - notdead
++	MOVQ	wait+0(FP), DI		// arg 1 - notdead
+ 	MOVL	$302, AX		// sys___threxit
+ 	SYSCALL
+ 	MOVL	$0xf1, 0xf1		// crash
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 76a3fe8d91..ff1c1da9b9 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -24,15 +24,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
+ 
+ // func exitThread(wait *uint32)
+ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+-	MOVW	wait+0(FP), R0
+-	// We're done using the stack.
+-	MOVW	$0, R2
+-storeloop:
+-	LDREX	(R0), R4          // loads R4
+-	STREX	R2, (R0), R1      // stores R2
+-	CMP	$0, R1
+-	BNE	storeloop
+-	MOVW	$0, R0			// arg 1 - notdead
++	MOVW	wait+0(FP), R0		// arg 1 - notdead
+ 	MOVW	$302, R12		// sys___threxit
+ 	SWI	$0
+ 	MOVW.CS	$1, R8			// crash on syscall failure

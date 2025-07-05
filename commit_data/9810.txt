@@ -7,6 +7,19 @@ Date:   Tue Sep 27 09:13:00 2011 -0400
     TBR=bradfitz
     CC=golang-dev
     https://golang.org/cl/5124049
-
+---
  test/sigchld.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/sigchld.go b/test/sigchld.go
+index 25bccab72a..74d428efc2 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,5 +1,5 @@
+-// [ "$GOOS" = windows ] ||
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// ([ "$GOOS" = windows ] && echo survived SIGCHLD) ||
++// ($G $D/$F.go && $L $F.$A && ./$A.out)
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -17,6 +17,23 @@ Date:   Thu Nov 2 15:41:10 2017 -0700
     Change-Id: I56652a9369978d11650e2e6314104831c2ce5e78
     Reviewed-on: https://go-review.googlesource.com/75671
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/client.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 65e0fa2bc4..6f6024ed4d 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -127,7 +127,10 @@ type RoundTripper interface {
+ 	// authentication, or cookies.
+ 	//
+ 	// RoundTrip should not modify the request, except for
+-	// consuming and closing the Request's Body.
++	// consuming and closing the Request's Body. RoundTrip may
++	// read fields of the request in a separate goroutine. Callers
++	// should not mutate the request until the Response's Body has
++	// been closed.
+ 	//
+ 	// RoundTrip must always close the body, including on errors,
+ 	// but depending on the implementation may do so in a separate

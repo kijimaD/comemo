@@ -9,6 +9,24 @@ Date:   Tue Apr 4 12:48:38 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/ld.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ld.go b/src/cmd/internal/obj/ld.go
+index c9294ee40f..0dd99bcdb7 100644
+--- a/src/cmd/internal/obj/ld.go
++++ b/src/cmd/internal/obj/ld.go
+@@ -76,12 +76,6 @@ func mkfwd(sym *LSym) {
+ 	}
+ }
+ 
+-func Copyp(ctxt *Link, q *Prog) *Prog {
+-	p := ctxt.NewProg()
+-	*p = *q
+-	return p
+-}
+-
+ func Appendp(ctxt *Link, q *Prog) *Prog {
+ 	p := ctxt.NewProg()
+ 	p.Link = q.Link

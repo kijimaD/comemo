@@ -8,10 +8,167 @@ Date:   Wed Jan 13 15:18:56 2010 -0800
     R=rsc
     CC=golang-dev, rog
     https://golang.org/cl/189059
-
+---
  lib/godoc/dirlist.html |  2 +-
  lib/godoc/godoc.html   |  2 +-
  lib/godoc/package.html | 14 +++++++-------
  lib/godoc/search.html  |  8 ++++----
  src/cmd/godoc/godoc.go |  9 +++++++++
  5 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/lib/godoc/dirlist.html b/lib/godoc/dirlist.html
+index b35da55d8d..a94f249d91 100644
+--- a/lib/godoc/dirlist.html
++++ b/lib/godoc/dirlist.html
+@@ -18,7 +18,7 @@
+ </tr>
+ {.repeated section @}
+ <tr>
+-	<td align="left"><a href="{Name|html}{@|dir/}">{Name|html}{@|dir/}</a></td>
++	<td align="left"><a href="{Name|html-esc}{@|dir/}">{Name|html}{@|dir/}</a></td>
+ 	<td></td>
+ 	<td align="right">{Size|html}</td>
+ 	<td></td>
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 56163e075e..5f5cf310fd 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -106,7 +106,7 @@
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Go code search</li>
+     <form method="GET" action="/search" class="search">
+-    <input type="search" name="q" value="{Query|html}" size="25" style="width:80%; max-width:200px" />
++    <input type="search" name="q" value="{Query|html-esc}" size="25" style="width:80%; max-width:200px" />
+     <input type="submit" value="Go" />
+     </form>
+ 
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 99e588cfd5..6a799c2fd8 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -16,7 +16,7 @@
+ 			<h4>Package files</h4>
+ 			<span style="font-size:90%">
+ 			{.repeated section @}
+-				<a href="/{FilePath|html}/{@|html}">{@|html}</a>
++				<a href="/{FilePath|html-esc}/{@|html-esc}">{@|html}</a>
+ 			{.end}
+ 			</span>
+ 			</p>
+@@ -38,14 +38,14 @@
+ 	{.end}
+ 	{.section Funcs}
+ 		{.repeated section @}
+-			<h2 id="{Name|html}">func <a href="{Decl|link}">{Name|html}</a></h2>
++			<h2 id="{Name|html-esc}">func <a href="{Decl|link}">{Name|html}</a></h2>
+ 			<p><code>{Decl|html}</code></p>
+ 			{Doc|html-comment}
+ 		{.end}
+ 	{.end}
+ 	{.section Types}
+ 		{.repeated section @}
+-			<h2 id="{Type.Name|html}">type <a href="{Decl|link}">{Type.Name|html}</a></h2>
++			<h2 id="{Type.Name|html-esc}">type <a href="{Decl|link}">{Type.Name|html}</a></h2>
+ 			{Doc|html-comment}
+ 			<p><pre>{Decl|html}</pre></p>
+ 			{.repeated section Consts}
+@@ -57,12 +57,12 @@
+ 				<pre>{Decl|html}</pre>
+ 			{.end}
+ 			{.repeated section Factories}
+-				<h3 id="{Type.Name|html}.{Name|html}">func <a href="{Decl|link}">{Name|html}</a></h3>
++				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func <a href="{Decl|link}">{Name|html}</a></h3>
+ 				<p><code>{Decl|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+ 			{.repeated section Methods}
+-				<h3 id="{Type.Name|html}.{Name|html}">func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
++				<h3 id="{Type.Name|html-esc}.{Name|html-esc}">func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
+ 				<p><code>{Decl|html}</code></p>
+ 				{Doc|html-comment}
+ 			{.end}
+@@ -80,7 +80,7 @@
+ 	<p>
+ 	<table class="layout">
+ 	<tr>
+-	<th align="left" colspan="{MaxHeight|html}">Name</th>
++	<th align="left" colspan="{MaxHeight|html-esc}">Name</th>
+ 	<td width="25">&nbsp;</td>
+ 	<th align="left">Synopsis</th>
+ 	</tr>
+@@ -90,7 +90,7 @@
+ 	{.repeated section List}
+ 		<tr>
+ 		{Depth|padding}
+-		<td align="left" colspan="{Height|html}"><a href="{Path|html}">{Name|html}<a></td>
++		<td align="left" colspan="{Height|html-esc}"><a href="{Path|html-esc}">{Name|html}<a></td>
+ 		<td></td>
+ 		<td align="left">{Synopsis|html}</td>
+ 		</tr>
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index d82e52e8af..254f9b66f3 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -14,7 +14,7 @@
+ 	<p>
+ 	<span class="alert" style="font-size:120%">Did you mean: </span>
+ 	{.repeated section Alts}
+-		<a href="search?q={@|html}" style="font-size:120%">{@|html}</a>
++		<a href="search?q={@|html-esc}" style="font-size:120%">{@|html}</a>
+ 	{.end}
+ 	</p>
+ {.end}
+@@ -26,7 +26,7 @@
+ 			{.repeated section Files}
+ 				{.repeated section Groups}
+ 					{.repeated section Infos}
+-						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
++						<a href="{File.Path|html-esc}?h={Query|html-esc}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
+ 						<pre>{@|infoSnippet}</pre>
+ 					{.end}
+ 				{.end}
+@@ -38,7 +38,7 @@
+ 		{.repeated section @}
+ 			<h3 id="Local_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+ 			{.repeated section Files}
+-				<a href="{File.Path|html}?h={Query|html}">{File.Path|html}</a>
++				<a href="{File.Path|html-esc}?h={Query|html-esc}">{File.Path|html}</a>
+ 				<table class="layout">
+ 				{.repeated section Groups}
+ 					<tr>
+@@ -47,7 +47,7 @@
+ 					<td align="left" width="4"></td>
+ 					<td>
+ 					{.repeated section Infos}
+-						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{@|infoLine}</a>
++						<a href="{File.Path|html-esc}?h={Query|html-esc}#L{@|infoLine}">{@|infoLine}</a>
+ 					{.end}
+ 					</td>
+ 					</tr>
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index b590cd2971..df0f948ade 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -587,6 +587,14 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
+ }
+ 
+ 
++// Template formatter for "html-esc" format.
++func htmlEscFmt(w io.Writer, x interface{}, format string) {
++	var buf bytes.Buffer
++	writeAny(&buf, x, false)
++	template.HTMLEscape(w, buf.Bytes())
++}
++
++
+ // Template formatter for "html-comment" format.
+ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+ 	var buf bytes.Buffer
+@@ -705,6 +713,7 @@ func dirslashFmt(w io.Writer, x interface{}, format string) {
+ var fmap = template.FormatterMap{
+ 	"": textFmt,
+ 	"html": htmlFmt,
++	"html-esc": htmlEscFmt,
+ 	"html-comment": htmlCommentFmt,
+ 	"path": pathFmt,
+ 	"link": linkFmt,

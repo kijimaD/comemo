@@ -13,7 +13,7 @@ Date:   Thu Aug 22 12:40:52 2019 -0400
     Change-Id: I032ffebaa76ed67eb9d748e7645ca73f26144ea0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191337
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.13.html                | 7 +++++++
  src/syscall/syscall_js.go      | 6 ++++++
  src/syscall/syscall_nacl.go    | 6 ++++++
@@ -21,3 +21,107 @@ Date:   Thu Aug 22 12:40:52 2019 -0400
  src/syscall/syscall_unix.go    | 6 ++++++
  src/syscall/syscall_windows.go | 6 ++++++
  6 files changed, 37 insertions(+)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 6cee0b28e6..5760669fe5 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -961,6 +961,13 @@ godoc
+       <a href="/pkg/syscall/?GOOS=windows#Chmod"><code>Chmod</code></a> mode on Windows.
+     </p>
+ 
++    <p><!-- CL 191337 -->
++      Values of type <code>Errno</code> can be tested against error values in
++      the <code>os</code> package,
++      like <a href="/pkg/os/#ErrExist"><code>ErrExist</code></a>, using
++      <a href="/pkg/errors/#Is"><code>errors.Is</code></a>.
++    </p>
++
+ </dl><!-- syscall -->
+ 
+ <dl id="syscall/js"><dt><a href="/pkg/syscall/js/">syscall/js</a></dt>
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 175fe47fca..24fbd51189 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -44,6 +44,12 @@ const PathMax = 256
+ //	if errno != 0 {
+ //		err = errno
+ //	}
++//
++// Errno values can be tested against error values from the the os package
++// using errors.Is. For example:
++//
++//	_, _, err := syscall.Syscall(...)
++//	if errors.Is(err, os.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func (e Errno) Error() string {
+diff --git a/src/syscall/syscall_nacl.go b/src/syscall/syscall_nacl.go
+index e887b1e04e..efc986a6f4 100644
+--- a/src/syscall/syscall_nacl.go
++++ b/src/syscall/syscall_nacl.go
+@@ -51,6 +51,12 @@ const PathMax = 256
+ //	if errno != 0 {
+ //		err = errno
+ //	}
++//
++// Errno values can be tested against error values from the the os package
++// using errors.Is. For example:
++//
++//	_, _, err := syscall.Syscall(...)
++//	if errors.Is(err, os.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func (e Errno) Error() string {
+diff --git a/src/syscall/syscall_plan9.go b/src/syscall/syscall_plan9.go
+index c11f030531..52a9d2aabe 100644
+--- a/src/syscall/syscall_plan9.go
++++ b/src/syscall/syscall_plan9.go
+@@ -20,6 +20,12 @@ const ImplementsGetwd = true
+ const bitSize16 = 2
+ 
+ // ErrorString implements Error's String method by returning itself.
++//
++// ErrorString values can be tested against error values from the the os package
++// using errors.Is. For example:
++//
++//	_, _, err := syscall.Syscall(...)
++//	if errors.Is(err, os.ErrNotExist) ...
+ type ErrorString string
+ 
+ func (e ErrorString) Error() string { return string(e) }
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 59c8c34933..4a6305e4c5 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -107,6 +107,12 @@ func (m *mmapper) Munmap(data []byte) (err error) {
+ //	if errno != 0 {
+ //		err = errno
+ //	}
++//
++// Errno values can be tested against error values from the the os package
++// using errors.Is. For example:
++//
++//	_, _, err := syscall.Syscall(...)
++//	if errors.Is(err, os.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func (e Errno) Error() string {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 2e8edc7acc..cfa9d9c5d0 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -77,6 +77,12 @@ func UTF16PtrFromString(s string) (*uint16, error) {
+ }
+ 
+ // Errno is the Windows error number.
++//
++// Errno values can be tested against error values from the the os package
++// using errors.Is. For example:
++//
++//	_, _, err := syscall.Syscall(...)
++//	if errors.Is(err, os.ErrNotExist) ...
+ type Errno uintptr
+ 
+ func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }

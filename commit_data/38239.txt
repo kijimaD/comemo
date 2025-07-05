@@ -80,7 +80,239 @@ Date:   Tue Oct 2 10:23:58 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/regexp/exec.go   |  27 ++++--------
  src/regexp/regexp.go | 119 ++++++++++++++++++++++++++++++---------------------
  2 files changed, 80 insertions(+), 66 deletions(-)
+
+diff --git a/src/regexp/exec.go b/src/regexp/exec.go
+index 23908d22d5..e1870021f2 100644
+--- a/src/regexp/exec.go
++++ b/src/regexp/exec.go
+@@ -92,20 +92,6 @@ func (i *inputs) init(r io.RuneReader, b []byte, s string) (input, int) {
+ 	return i.newString(s), len(s)
+ }
+ 
+-// progMachine returns a new machine running the prog p.
+-func progMachine(p *syntax.Prog) *machine {
+-	m := &machine{p: p}
+-	n := len(m.p.Inst)
+-	m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
+-	m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
+-	ncap := p.NumCap
+-	if ncap < 2 {
+-		ncap = 2
+-	}
+-	m.matchcap = make([]int, ncap)
+-	return m
+-}
+-
+ func (m *machine) init(ncap int) {
+ 	for _, t := range m.pool {
+ 		t.cap = t.cap[:ncap]
+@@ -274,6 +260,7 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond sy
+ // empty-width conditions satisfied by cond.  pos gives the current position
+ // in the input.
+ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.EmptyOp, t *thread) *thread {
++Again:
+ 	if pc == 0 {
+ 		return t
+ 	}
+@@ -296,13 +283,16 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
+ 		// nothing
+ 	case syntax.InstAlt, syntax.InstAltMatch:
+ 		t = m.add(q, i.Out, pos, cap, cond, t)
+-		t = m.add(q, i.Arg, pos, cap, cond, t)
++		pc = i.Arg
++		goto Again
+ 	case syntax.InstEmptyWidth:
+ 		if syntax.EmptyOp(i.Arg)&^cond == 0 {
+-			t = m.add(q, i.Out, pos, cap, cond, t)
++			pc = i.Out
++			goto Again
+ 		}
+ 	case syntax.InstNop:
+-		t = m.add(q, i.Out, pos, cap, cond, t)
++		pc = i.Out
++		goto Again
+ 	case syntax.InstCapture:
+ 		if int(i.Arg) < len(cap) {
+ 			opos := cap[i.Arg]
+@@ -310,7 +300,8 @@ func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond syntax.Empty
+ 			m.add(q, i.Out, pos, cap, cond, nil)
+ 			cap[i.Arg] = opos
+ 		} else {
+-			t = m.add(q, i.Out, pos, cap, cond, t)
++			pc = i.Out
++			goto Again
+ 		}
+ 	case syntax.InstMatch, syntax.InstRune, syntax.InstRune1, syntax.InstRuneAny, syntax.InstRuneAnyNotNL:
+ 		if t == nil {
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index 3730552c13..98146031c0 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -79,15 +79,6 @@ import (
+ // A Regexp is safe for concurrent use by multiple goroutines,
+ // except for configuration methods, such as Longest.
+ type Regexp struct {
+-	// read-only after Compile
+-	regexpRO
+-
+-	// cache of machines for running regexp
+-	mu      sync.Mutex
+-	machine []*machine
+-}
+-
+-type regexpRO struct {
+ 	expr           string       // as passed to Compile
+ 	prog           *syntax.Prog // compiled program
+ 	onepass        *onePassProg // onepass program or nil
+@@ -98,9 +89,14 @@ type regexpRO struct {
+ 	prefixBytes    []byte         // prefix, as a []byte
+ 	prefixRune     rune           // first rune in prefix
+ 	prefixEnd      uint32         // pc for last rune in prefix
++	mpool          int            // pool for machines
++	matchcap       int            // size of recorded match lengths
+ 	prefixComplete bool           // prefix is the entire regexp
+ 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+-	longest        bool
++
++	// This field can be modified by the Longest method,
++	// but it is otherwise read-only.
++	longest bool // whether regexp prefers leftmost-longest match
+ }
+ 
+ // String returns the source text used to compile the regular expression.
+@@ -113,11 +109,8 @@ func (re *Regexp) String() string {
+ // When using a Regexp in multiple goroutines, giving each goroutine
+ // its own copy helps to avoid lock contention.
+ func (re *Regexp) Copy() *Regexp {
+-	// It is not safe to copy Regexp by value
+-	// since it contains a sync.Mutex.
+-	return &Regexp{
+-		regexpRO: re.regexpRO,
+-	}
++	re2 := *re
++	return &re2
+ }
+ 
+ // Compile parses a regular expression and returns, if successful,
+@@ -180,16 +173,19 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	matchcap := prog.NumCap
++	if matchcap < 2 {
++		matchcap = 2
++	}
+ 	regexp := &Regexp{
+-		regexpRO: regexpRO{
+-			expr:        expr,
+-			prog:        prog,
+-			onepass:     compileOnePass(prog),
+-			numSubexp:   maxCap,
+-			subexpNames: capNames,
+-			cond:        prog.StartCond(),
+-			longest:     longest,
+-		},
++		expr:        expr,
++		prog:        prog,
++		onepass:     compileOnePass(prog),
++		numSubexp:   maxCap,
++		subexpNames: capNames,
++		cond:        prog.StartCond(),
++		longest:     longest,
++		matchcap:    matchcap,
+ 	}
+ 	if regexp.onepass == nil {
+ 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
+@@ -203,37 +199,64 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
+ 		regexp.prefixBytes = []byte(regexp.prefix)
+ 		regexp.prefixRune, _ = utf8.DecodeRuneInString(regexp.prefix)
+ 	}
++
++	n := len(prog.Inst)
++	i := 0
++	for matchSize[i] != 0 && matchSize[i] < n {
++		i++
++	}
++	regexp.mpool = i
++
+ 	return regexp, nil
+ }
+ 
++// Pools of *machine for use during (*Regexp).doExecute,
++// split up by the size of the execution queues.
++// matchPool[i] machines have queue size matchSize[i].
++// On a 64-bit system each queue entry is 16 bytes,
++// so matchPool[0] has 16*2*128 = 4kB queues, etc.
++// The final matchPool is a catch-all for very large queues.
++var (
++	matchSize = [...]int{128, 512, 2048, 16384, 0}
++	matchPool [len(matchSize)]sync.Pool
++)
++
+ // get returns a machine to use for matching re.
+ // It uses the re's machine cache if possible, to avoid
+ // unnecessary allocation.
+ func (re *Regexp) get() *machine {
+-	re.mu.Lock()
+-	if n := len(re.machine); n > 0 {
+-		z := re.machine[n-1]
+-		re.machine = re.machine[:n-1]
+-		re.mu.Unlock()
+-		return z
+-	}
+-	re.mu.Unlock()
+-	z := progMachine(re.prog)
+-	z.re = re
+-	return z
+-}
+-
+-// put returns a machine to the re's machine cache.
+-// There is no attempt to limit the size of the cache, so it will
+-// grow to the maximum number of simultaneous matches
+-// run using re.  (The cache empties when re gets garbage collected.)
+-func (re *Regexp) put(z *machine) {
+-	// Remove references to input data that we no longer need.
+-	z.inputs.clear()
+-
+-	re.mu.Lock()
+-	re.machine = append(re.machine, z)
+-	re.mu.Unlock()
++	m, ok := matchPool[re.mpool].Get().(*machine)
++	if !ok {
++		m = new(machine)
++	}
++	m.re = re
++	m.p = re.prog
++	if cap(m.matchcap) < re.matchcap {
++		m.matchcap = make([]int, re.matchcap)
++		for _, t := range m.pool {
++			t.cap = make([]int, re.matchcap)
++		}
++	}
++
++	// Allocate queues if needed.
++	// Or reallocate, for "large" match pool.
++	n := matchSize[re.mpool]
++	if n == 0 { // large pool
++		n = len(re.prog.Inst)
++	}
++	if len(m.q0.sparse) < n {
++		m.q0 = queue{make([]uint32, n), make([]entry, 0, n)}
++		m.q1 = queue{make([]uint32, n), make([]entry, 0, n)}
++	}
++	return m
++}
++
++// put returns a machine to the correct machine pool.
++func (re *Regexp) put(m *machine) {
++	m.re = nil
++	m.p = nil
++	m.inputs.clear()
++	matchPool[re.mpool].Put(m)
+ }
+ 
+ // MustCompile is like Compile but panics if the expression cannot be parsed.

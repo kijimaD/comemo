@@ -7,6 +7,20 @@ Date:   Mon Apr 5 23:36:52 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/867044
-
+---
  src/pkg/io/ioutil/ioutil.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index 65f457b249..ebdcf224f7 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -31,7 +31,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ 	// read, so let's try it but be prepared for the answer to be wrong.
+ 	dir, err := f.Stat()
+ 	var n uint64
+-	if err != nil && dir.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
++	if err == nil && dir.Size < 2e9 { // Don't preallocate a huge buffer, just in case.
+ 		n = dir.Size
+ 	}
+ 	// Add a little extra in case Size is zero, and to avoid another allocation after

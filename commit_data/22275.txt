@@ -18,7 +18,7 @@ Date:   Mon Mar 2 16:21:15 2015 -0500
     Change-Id: I5a48d5c9add996dc43ad04a905641d901522de0b
     Reviewed-on: https://go-review.googlesource.com/6600
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/gc/export.go    |  13 ++--
  src/cmd/internal/gc/fmt.go       |   2 +-
  src/cmd/internal/gc/go.go        |   7 +-
@@ -30,3 +30,494 @@ Date:   Mon Mar 2 16:21:15 2015 -0500
  src/cmd/internal/gc/typecheck.go |  20 ++----
  src/cmd/internal/gc/y.go         |   2 +-
  10 files changed, 114 insertions(+), 156 deletions(-)
+
+diff --git a/src/cmd/internal/gc/export.go b/src/cmd/internal/gc/export.go
+index 54ed515d08..e36ea76080 100644
+--- a/src/cmd/internal/gc/export.go
++++ b/src/cmd/internal/gc/export.go
+@@ -372,12 +372,9 @@ func dumpexport() {
+ 	}
+ 	fmt.Fprintf(bout, "\n")
+ 
+-	var p *Pkg
+-	for i := int32(0); i < int32(len(phash)); i++ {
+-		for p = phash[i]; p != nil; p = p.Link {
+-			if p.Direct != 0 {
+-				dumppkg(p)
+-			}
++	for _, p := range pkgs {
++		if p.Direct != 0 {
++			dumppkg(p)
+ 		}
+ 	}
+ 
+@@ -432,6 +429,8 @@ func pkgtype(s *Sym) *Type {
+ 	return s.Def.Type
+ }
+ 
++var numImport = make(map[string]int)
++
+ func importimport(s *Sym, path string) {
+ 	// Informational: record package name
+ 	// associated with import path, for use in
+@@ -443,7 +442,7 @@ func importimport(s *Sym, path string) {
+ 	p := mkpkg(path)
+ 	if p.Name == "" {
+ 		p.Name = s.Name
+-		Pkglookup(s.Name, nil).Npkg++
++		numImport[s.Name]++
+ 	} else if p.Name != s.Name {
+ 		Yyerror("conflicting names %s and %s for package %q", p.Name, s.Name, p.Path)
+ 	}
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index cd62cef993..99aad0c785 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -426,7 +426,7 @@ func symfmt(s *Sym, flag int) string {
+ 			}
+ 
+ 			// If the name was used by multiple packages, display the full path,
+-			if s.Pkg.Name != "" && Pkglookup(s.Pkg.Name, nil).Npkg > 1 {
++			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
+ 				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
+ 			}
+ 			var fp string
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 706e973df3..d23cdd4959 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -110,11 +110,11 @@ type Pkg struct {
+ 	Path     string
+ 	Pathsym  *Sym
+ 	Prefix   string
+-	Link     *Pkg
+ 	Imported uint8
+ 	Exported int8
+ 	Direct   int8
+ 	Safe     bool
++	Syms     map[string]*Sym
+ }
+ 
+ type Sym struct {
+@@ -122,7 +122,6 @@ type Sym struct {
+ 	Flags      uint8
+ 	Sym        uint8
+ 	Link       *Sym
+-	Npkg       int32
+ 	Uniqgen    uint32
+ 	Importdef  *Pkg
+ 	Linkname   string
+@@ -753,8 +752,6 @@ var debugstr string
+ 
+ var Debug_checknil int
+ 
+-var hash [NHASH]*Sym
+-
+ var importmyname *Sym // my name for package
+ 
+ var localpkg *Pkg // package being compiled
+@@ -787,8 +784,6 @@ var trackpkg *Pkg // fake package for field tracking
+ 
+ var rawpkg *Pkg // fake package for raw symbol names
+ 
+-var phash [128]*Pkg
+-
+ var Tptr int // either TPTR32 or TPTR64
+ 
+ var myimportpath string
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index 96d5cbe58b..0961da248a 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -249,7 +249,7 @@ import_package:
+ 	{
+ 		if importpkg.Name == "" {
+ 			importpkg.Name = $2.Name;
+-			Pkglookup($2.Name, nil).Npkg++;
++			numImport[$2.Name]++
+ 		} else if importpkg.Name != $2.Name {
+ 			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
+ 		}
+diff --git a/src/cmd/internal/gc/init.go b/src/cmd/internal/gc/init.go
+index 5b1dca08e0..c57e50b13d 100644
+--- a/src/cmd/internal/gc/init.go
++++ b/src/cmd/internal/gc/init.go
+@@ -88,14 +88,8 @@ func anyinit(n *NodeList) bool {
+ 	}
+ 
+ 	// are there any imported init functions
+-	for h := uint32(0); h < NHASH; h++ {
+-		for s = hash[h]; s != nil; s = s.Link {
+-			if s.Name[0] != 'i' || s.Name != "init" {
+-				continue
+-			}
+-			if s.Def == nil {
+-				continue
+-			}
++	for _, s := range initSyms {
++		if s.Def != nil {
+ 			return true
+ 		}
+ 	}
+@@ -161,22 +155,10 @@ func fninit(n *NodeList) {
+ 	r = list(r, a)
+ 
+ 	// (7)
+-	var s *Sym
+-	for h := uint32(0); h < NHASH; h++ {
+-		for s = hash[h]; s != nil; s = s.Link {
+-			if s.Name[0] != 'i' || s.Name != "init" {
+-				continue
+-			}
+-			if s.Def == nil {
+-				continue
+-			}
+-			if s == initsym {
+-				continue
+-			}
+-
++	for _, s := range initSyms {
++		if s.Def != nil && s != initsym {
+ 			// could check that it is fn of no args/returns
+ 			a = Nod(OCALL, s.Def, nil)
+-
+ 			r = list(r, a)
+ 		}
+ 	}
+@@ -188,7 +170,7 @@ func fninit(n *NodeList) {
+ 	// could check that it is fn of no args/returns
+ 	for i := 1; ; i++ {
+ 		namebuf = fmt.Sprintf("init.%d", i)
+-		s = Lookup(namebuf)
++		s := Lookup(namebuf)
+ 		if s.Def == nil {
+ 			break
+ 		}
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index e447f4ce10..32f7240a09 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -1377,7 +1377,7 @@ talph:
+ 	cp = nil
+ 	ungetc(c)
+ 
+-	s = Lookup(lexbuf.String())
++	s = LookupBytes(lexbuf.Bytes())
+ 	switch s.Lexical {
+ 	case LIGNORE:
+ 		goto l0
+@@ -3120,36 +3120,33 @@ func mkpackage(pkgname string) {
+ 		if pkgname != localpkg.Name {
+ 			Yyerror("package %s; expected %s", pkgname, localpkg.Name)
+ 		}
+-		var s *Sym
+-		for h := int32(0); h < NHASH; h++ {
+-			for s = hash[h]; s != nil; s = s.Link {
+-				if s.Def == nil || s.Pkg != localpkg {
+-					continue
+-				}
+-				if s.Def.Op == OPACK {
+-					// throw away top-level package name leftover
+-					// from previous file.
+-					// leave s->block set to cause redeclaration
+-					// errors if a conflicting top-level name is
+-					// introduced by a different file.
+-					if s.Def.Used == 0 && nsyntaxerrors == 0 {
+-						pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
+-					}
+-					s.Def = nil
+-					continue
++		for _, s := range localpkg.Syms {
++			if s.Def == nil {
++				continue
++			}
++			if s.Def.Op == OPACK {
++				// throw away top-level package name leftover
++				// from previous file.
++				// leave s->block set to cause redeclaration
++				// errors if a conflicting top-level name is
++				// introduced by a different file.
++				if s.Def.Used == 0 && nsyntaxerrors == 0 {
++					pkgnotused(int(s.Def.Lineno), s.Def.Pkg.Path, s.Name)
+ 				}
++				s.Def = nil
++				continue
++			}
+ 
+-				if s.Def.Sym != s {
+-					// throw away top-level name left over
+-					// from previous import . "x"
+-					if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
+-						pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
+-						s.Def.Pack.Used = 1
+-					}
+-
+-					s.Def = nil
+-					continue
++			if s.Def.Sym != s {
++				// throw away top-level name left over
++				// from previous import . "x"
++				if s.Def.Pack != nil && s.Def.Pack.Used == 0 && nsyntaxerrors == 0 {
++					pkgnotused(int(s.Def.Pack.Lineno), s.Def.Pack.Pkg.Path, "")
++					s.Def.Pack.Used = 1
+ 				}
++
++				s.Def = nil
++				continue
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index a1ddf779d1..797f62a144 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1246,12 +1246,9 @@ func dumptypestructs() {
+ 	}
+ 
+ 	// generate import strings for imported packages
+-	var p *Pkg
+-	for i := 0; i < len(phash); i++ {
+-		for p = phash[i]; p != nil; p = p.Link {
+-			if p.Direct != 0 {
+-				dimportpath(p)
+-			}
++	for _, p := range pkgs {
++		if p.Direct != 0 {
++			dimportpath(p)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 7449dad9d9..675befc91c 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -275,54 +275,54 @@ func setlineno(n *Node) int32 {
+ 	return lno
+ }
+ 
+-func stringhash(p string) uint32 {
+-	var c int
++func Lookup(name string) *Sym {
++	return localpkg.Lookup(name)
++}
+ 
+-	h := uint32(0)
+-	for {
+-		c, p = intstarstringplusplus(p)
+-		if c == 0 {
+-			break
+-		}
+-		h = h*PRIME1 + uint32(c)
+-	}
++func LookupBytes(name []byte) *Sym {
++	return localpkg.LookupBytes(name)
++}
+ 
+-	if int32(h) < 0 {
+-		h = -h
+-		if int32(h) < 0 {
+-			h = 0
+-		}
++var initSyms []*Sym
++
++var nopkg = new(Pkg)
++
++func (pkg *Pkg) Lookup(name string) *Sym {
++	if pkg == nil {
++		pkg = nopkg
++	}
++	if s := pkg.Syms[name]; s != nil {
++		return s
+ 	}
+ 
+-	return h
++	s := &Sym{
++		Name:    name,
++		Pkg:     pkg,
++		Lexical: LNAME,
++	}
++	if s.Name == "init" {
++		initSyms = append(initSyms, s)
++	}
++	if pkg.Syms == nil {
++		pkg.Syms = make(map[string]*Sym)
++	}
++	pkg.Syms[name] = s
++	return s
+ }
+ 
+-func Lookup(name string) *Sym {
+-	return Pkglookup(name, localpkg)
++func (pkg *Pkg) LookupBytes(name []byte) *Sym {
++	if pkg == nil {
++		pkg = nopkg
++	}
++	if s := pkg.Syms[string(name)]; s != nil {
++		return s
++	}
++	str := internString(name)
++	return pkg.Lookup(str)
+ }
+ 
+ func Pkglookup(name string, pkg *Pkg) *Sym {
+-	h := stringhash(name) % NHASH
+-	c := int(name[0])
+-	for s := hash[h]; s != nil; s = s.Link {
+-		if int(s.Name[0]) != c || s.Pkg != pkg {
+-			continue
+-		}
+-		if s.Name == name {
+-			return s
+-		}
+-	}
+-
+-	s := new(Sym)
+-	s.Name = name
+-
+-	s.Pkg = pkg
+-
+-	s.Link = hash[h]
+-	hash[h] = s
+-	s.Lexical = LNAME
+-
+-	return s
++	return pkg.Lookup(name)
+ }
+ 
+ func restrictlookup(name string, pkg *Pkg) *Sym {
+@@ -335,35 +335,29 @@ func restrictlookup(name string, pkg *Pkg) *Sym {
+ // find all the exported symbols in package opkg
+ // and make them available in the current package
+ func importdot(opkg *Pkg, pack *Node) {
+-	var s *Sym
+ 	var s1 *Sym
+ 	var pkgerror string
+ 
+ 	n := 0
+-	for h := uint32(0); h < NHASH; h++ {
+-		for s = hash[h]; s != nil; s = s.Link {
+-			if s.Pkg != opkg {
+-				continue
+-			}
+-			if s.Def == nil {
+-				continue
+-			}
+-			if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
+-				continue
+-			}
+-			s1 = Lookup(s.Name)
+-			if s1.Def != nil {
+-				pkgerror = fmt.Sprintf("during import %q", opkg.Path)
+-				redeclare(s1, pkgerror)
+-				continue
+-			}
+-
+-			s1.Def = s.Def
+-			s1.Block = s.Block
+-			s1.Def.Pack = pack
+-			s1.Origpkg = opkg
+-			n++
++	for _, s := range opkg.Syms {
++		if s.Def == nil {
++			continue
+ 		}
++		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
++			continue
++		}
++		s1 = Lookup(s.Name)
++		if s1.Def != nil {
++			pkgerror = fmt.Sprintf("during import %q", opkg.Path)
++			redeclare(s1, pkgerror)
++			continue
++		}
++
++		s1.Def = s.Def
++		s1.Block = s.Block
++		s1.Def.Pack = pack
++		s1.Origpkg = opkg
++		n++
+ 	}
+ 
+ 	if n == 0 {
+@@ -3583,19 +3577,19 @@ func pathtoprefix(s string) string {
+ 	return s
+ }
+ 
++var pkgMap = make(map[string]*Pkg)
++var pkgs []*Pkg
++
+ func mkpkg(path string) *Pkg {
+-	h := int(stringhash(path) & uint32(len(phash)-1))
+-	for p := phash[h]; p != nil; p = p.Link {
+-		if p.Path == path {
+-			return p
+-		}
++	if p := pkgMap[path]; p != nil {
++		return p
+ 	}
+ 
+ 	p := new(Pkg)
+ 	p.Path = path
+ 	p.Prefix = pathtoprefix(path)
+-	p.Link = phash[h]
+-	phash[h] = p
++	pkgMap[path] = p
++	pkgs = append(pkgs, p)
+ 	return p
+ }
+ 
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 72c2bba42b..0ff8224e62 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -2659,21 +2659,16 @@ toomany:
+ /*
+  * type check composite
+  */
+-func fielddup(n *Node, hash []*Node) {
++func fielddup(n *Node, hash map[string]bool) {
+ 	if n.Op != ONAME {
+ 		Fatal("fielddup: not ONAME")
+ 	}
+-	s := n.Sym.Name
+-	h := uint(stringhash(s) % uint32(len(hash)))
+-	for a := hash[h]; a != nil; a = a.Ntest {
+-		if a.Sym.Name == s {
+-			Yyerror("duplicate field name in struct literal: %s", s)
+-			return
+-		}
++	name := n.Sym.Name
++	if hash[name] {
++		Yyerror("duplicate field name in struct literal: %s", name)
++		return
+ 	}
+-
+-	n.Ntest = hash[h]
+-	hash[h] = n
++	hash[name] = true
+ }
+ 
+ func keydup(n *Node, hash []*Node) {
+@@ -3019,8 +3014,7 @@ func typecheckcomplit(np **Node) {
+ 				Yyerror("too few values in struct initializer")
+ 			}
+ 		} else {
+-			var autohash [101]*Node
+-			hash := inithash(n, autohash[:])
++			hash := make(map[string]bool)
+ 
+ 			// keyed list
+ 			var s *Sym
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index 365777144b..e1871ffe32 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -1226,7 +1226,7 @@ yydefault:
+ 		{
+ 			if importpkg.Name == "" {
+ 				importpkg.Name = yyDollar[2].sym.Name
+-				Pkglookup(yyDollar[2].sym.Name, nil).Npkg++
++				numImport[yyDollar[2].sym.Name]++
+ 			} else if importpkg.Name != yyDollar[2].sym.Name {
+ 				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
+ 			}

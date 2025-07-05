@@ -9,6 +9,20 @@ Date:   Sun Apr 17 11:24:57 2016 -0700
     Change-Id: I0b006deefb58ccfc47beae4e1b8da3d77fafda6b
     Reviewed-on: https://go-review.googlesource.com/22148
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 2f2ee24207..fefc10c19d 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -62,7 +62,7 @@
+ 	For compound objects, the elements are printed using these rules, recursively,
+ 	laid out like this:
+ 		struct:             {field0 field1 ...}
+-		array, slice:       [elem0  elem1 ...]
++		array, slice:       [elem0 elem1 ...]
+ 		maps:               map[key1:value1 key2:value2]
+ 		pointer to above:   &{}, &[], &map[]
+ 

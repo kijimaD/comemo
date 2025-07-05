@@ -12,6 +12,29 @@ Date:   Fri Aug 20 11:35:31 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/gcc101994.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/gcc101994.go b/test/fixedbugs/gcc101994.go
+new file mode 100644
+index 0000000000..6e1e2b8075
+--- /dev/null
++++ b/test/fixedbugs/gcc101994.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// https://gcc.gnu.org/PR101994
++// gccgo compiler crash with zero-sized result.
++
++package p
++
++type Empty struct{}
++
++func F() (int, Empty) {
++	return 0, Empty{}
++}

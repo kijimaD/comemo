@@ -7,7 +7,7 @@ Date:   Tue Jul 7 11:03:04 2009 -0700
     R=ken
     OCL=31122
     CL=31278
-
+---
  src/cmd/6g/gobj.c         |  40 +++
  src/cmd/8g/gobj.c         |  41 +++
  src/cmd/gc/Makefile       |   1 +
@@ -20,3 +20,1512 @@ Date:   Tue Jul 7 11:03:04 2009 -0700
  src/cmd/gc/unsafe.go      |   6 +-
  src/cmd/gc/walk.c         |  21 +-
  11 files changed, 808 insertions(+), 506 deletions(-)
+
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 02dffbe4c5..1d7c07eba0 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -488,6 +488,46 @@ dstringptr(Sym *s, int off, char *str)
+ 	return off;
+ }
+ 
++int
++dgostrlitptr(Sym *s, int off, Strlit *lit)
++{
++	Prog *p;
++
++	if(lit == nil)
++		return duintptr(s, off, 0);
++
++	off = rnd(off, widthptr);
++	p = gins(ADATA, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++	p->from.offset = off;
++	p->from.scale = widthptr;
++	datagostring(lit, &p->to);
++	p->to.index = p->to.type;
++	p->to.type = D_ADDR;
++	p->to.etype = TINT32;
++	off += widthptr;
++
++	return off;
++}
++
++int
++dgostringptr(Sym *s, int off, char *str)
++{
++	int n;
++	Strlit *lit;
++
++	if(str == nil)
++		return duintptr(s, off, 0);
++
++	n = strlen(str);
++	lit = mal(sizeof *lit + n);
++	strcpy(lit->s, str);
++	lit->len = n;
++	return dgostrlitptr(s, off, lit);
++}
++
+ int
+ duintxx(Sym *s, int off, uint64 v, int wid)
+ {
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 1e20add3fe..96762375f2 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -486,6 +486,47 @@ dstringptr(Sym *s, int off, char *str)
+ 	return off;
+ }
+ 
++int
++dgostrlitptr(Sym *s, int off, Strlit *lit)
++{
++	Prog *p;
++
++	if(lit == nil)
++		return duintptr(s, off, 0);
++
++	off = rnd(off, widthptr);
++	p = gins(ADATA, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++	p->from.offset = off;
++	p->from.scale = widthptr;
++	datagostring(lit, &p->to);
++	p->to.index = p->to.type;
++	p->to.type = D_ADDR;
++	p->to.etype = TINT32;
++	off += widthptr;
++
++	return off;
++}
++
++int
++dgostringptr(Sym *s, int off, char *str)
++{
++	int n;
++	Strlit *lit;
++
++	if(str == nil)
++		return duintptr(s, off, 0);
++
++	n = strlen(str);
++	lit = mal(sizeof *lit + n);
++	strcpy(lit->s, str);
++	lit->len = n;
++	return dgostrlitptr(s, off, lit);
++}
++
++
+ int
+ duintxx(Sym *s, int off, uint64 v, int wid)
+ {
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index e5cabbb37f..516542dbb0 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -15,6 +15,7 @@ YFILES=\
+ 	go.y\
+ 
+ OFILES=\
++	reflect.$O\
+ 	y.tab.$O\
+ 	lex.$O\
+ 	subr.$O\
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index ff974f8d9f..e142ca9716 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -243,6 +243,10 @@ typeinit(void)
+ 	isptr[TPTR32] = 1;
+ 	isptr[TPTR64] = 1;
+ 
++	isforw[TFORW] = 1;
++	isforw[TFORWSTRUCT] = 1;
++	isforw[TFORWINTER] = 1;
++
+ 	issigned[TINT] = 1;
+ 	issigned[TINT8] = 1;
+ 	issigned[TINT16] = 1;
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 4096e18ed4..e3d9444840 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -26,17 +26,17 @@ char *sysimport =
+ 	"func sys.stringiter (? string, ? int) (? int)\n"
+ 	"func sys.stringiter2 (? string, ? int) (retk int, retv int)\n"
+ 	"func sys.ifaceI2E (iface any) (ret any)\n"
+-	"func sys.ifaceE2I (sigi *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceT2E (sigt *uint8, elem any) (ret any)\n"
+-	"func sys.ifaceE2T (sigt *uint8, elem any) (ret any)\n"
+-	"func sys.ifaceE2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
+-	"func sys.ifaceE2T2 (sigt *uint8, elem any) (ret any, ok bool)\n"
+-	"func sys.ifaceT2I (sigi *uint8, sigt *uint8, elem any) (ret any)\n"
+-	"func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
+-	"func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceI2Ix (sigi *uint8, iface any) (ret any)\n"
+-	"func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
++	"func sys.ifaceE2I (typ *uint8, iface any) (ret any)\n"
++	"func sys.ifaceT2E (typ *uint8, elem any) (ret any)\n"
++	"func sys.ifaceE2T (typ *uint8, elem any) (ret any)\n"
++	"func sys.ifaceE2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func sys.ifaceE2T2 (typ *uint8, elem any) (ret any, ok bool)\n"
++	"func sys.ifaceT2I (typ1 *uint8, typ2 *uint8, elem any) (ret any)\n"
++	"func sys.ifaceI2T (typ *uint8, iface any) (ret any)\n"
++	"func sys.ifaceI2T2 (typ *uint8, iface any) (ret any, ok bool)\n"
++	"func sys.ifaceI2I (typ *uint8, iface any) (ret any)\n"
++	"func sys.ifaceI2Ix (typ *uint8, iface any) (ret any)\n"
++	"func sys.ifaceI2I2 (typ *uint8, iface any) (ret any, ok bool)\n"
+ 	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"func sys.efaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"func sys.ifacethash (i1 any) (ret uint32)\n"
+@@ -80,7 +80,8 @@ char *unsafeimport =
+ 	"func unsafe.Offsetof (? any) (? int)\n"
+ 	"func unsafe.Sizeof (? any) (? int)\n"
+ 	"func unsafe.Alignof (? any) (? int)\n"
+-	"func unsafe.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
+-	"func unsafe.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
++	"func unsafe.Typeof (i interface { }) (typ interface { })\n"
++	"func unsafe.Reflect (i interface { }) (typ interface { }, addr unsafe.Pointer)\n"
++	"func unsafe.Unreflect (typ interface { }, addr unsafe.Pointer) (ret interface { })\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index eb7e94ca54..b9af878599 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -391,6 +391,7 @@ enum
+ enum
+ {
+ 	/* types of channel */
++	/* must match ../../pkg/nreflect/type.go:/Chandir */
+ 	Cxxx,
+ 	Crecv = 1<<0,
+ 	Csend = 1<<1,
+@@ -457,7 +458,10 @@ typedef	struct	Sig	Sig;
+ struct Sig
+ {
+ 	char*	name;
+-	Sym*	sym;
++	char*	package;
++	Sym*	isym;
++	Sym*	tsym;
++	Type*	type;
+ 	uint32	hash;
+ 	int32	perm;
+ 	int32	offset;
+@@ -736,7 +740,7 @@ int	isnilinter(Type*);
+ int	isddd(Type*);
+ Type*	maptype(Type*, Type*);
+ Type*	methtype(Type*);
+-Node*	signame(Type*);
++Node*	typename(Type*);
+ int	eqtype(Type*, Type*);
+ int	cvttype(Type*, Type*);
+ int	eqtypenoname(Type*, Type*);
+@@ -782,7 +786,6 @@ Type*	funcnext(Iter*);
+ int	brcom(int);
+ int	brrev(int);
+ void	setmaxarg(Type*);
+-Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
+ int	dotoffset(Node*, int*, Node**);
+ void	tempname(Node*, Type*);
+ 
+@@ -1073,7 +1076,7 @@ int	isfat(Type*);
+ void	clearfat(Node *n);
+ void	cgen(Node*, Node*);
+ void	gused(Node*);
+-void	dumpsignatures(void);
++void	dumptypestructs(void);
+ void	dumpfuncs(void);
+ void	dumpdata(void);
+ void	ggloblnod(Node *nam, int32 width);
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index e43a97383d..6bd66d79db 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -28,7 +28,7 @@ dumpobj(void)
+ 	newplist();
+ 
+ 	dumpglobls();
+-	dumpsignatures();
++	dumptypestructs();
+ 	dumpdata();
+ 	dumpfuncs();
+ 
+@@ -169,414 +169,3 @@ duintptr(Sym *s, int off, uint64 v)
+ {
+ 	return duintxx(s, off, v, widthptr);
+ }
+-
+-static int
+-sigcmp(Sig *a, Sig *b)
+-{
+-	return strcmp(a->name, b->name);
+-}
+-
+-/*
+- * Add DATA for signature s.
+- *	progt - type in program
+- *	ifacet - type stored in interface (==progt if small, ==ptrto(progt) if large)
+- *	rcvrt - type used as method interface.  eqtype(ifacet, rcvrt) is always true,
+- *		but ifacet might have a name that rcvrt does not.
+- *	methodt - type with methods hanging off it (progt==*methodt sometimes)
+- *
+- * memory layout is Sigt struct from iface.c:
+- *	struct	Sigt
+- *	{
+- *		byte*	name;                   // name of basic type
+- *		Sigt*	link;			// for linking into hash tables
+- *		uint32	thash;                  // hash of type
+- *		uint32	mhash;                  // hash of methods
+- *		uint16	width;			// width of base type in bytes
+- *		uint16	alg;			// algorithm
+- *		struct {
+- *			byte*	fname;
+- *			uint32	fhash;		// hash of type
+- *			uint32	offset;		// offset of substruct
+- *			void	(*fun)(void);
+- *		} meth[1];			// one or more - last name is nil
+- *	};
+- */
+-void
+-dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
+-{
+-	Type *f;
+-	int o;
+-	Sig *a, *b;
+-	char buf[NSYMB];
+-	Type *this;
+-	Prog *oldlist;
+-	Sym *method;
+-	uint32 sighash;
+-	int ot;
+-
+-	if(debug['r']) {
+-		print("dumpsigt progt=%T ifacet=%T rcvrt=%T methodt=%T s=%S\n",
+-			progt, ifacet, rcvrt, methodt, s);
+-	}
+-
+-	a = nil;
+-	o = 0;
+-	oldlist = nil;
+-	sighash = typehash(progt, 1, 0);
+-	for(f=methodt->method; f!=T; f=f->down) {
+-		if(f->type->etype != TFUNC)
+-			continue;
+-
+-		if(f->etype != TFIELD)
+-			fatal("dumpsignatures: not field");
+-
+-		method = f->sym;
+-		if(method == nil)
+-			continue;
+-
+-		// get receiver type for this particular method.
+-		this = getthisx(f->type)->type->type;
+-		if(f->embedded != 2 && isptr[this->etype] && !isptr[progt->etype] && !isifacemethod(f)) {
+-			// pointer receiver method but value method set.
+-			// ignore.
+-			if(debug['r'])
+-				print("ignore %T for %T\n", f, progt);
+-			continue;
+-		}
+-
+-		b = mal(sizeof(*b));
+-		b->link = a;
+-		a = b;
+-
+-		a->name = method->name;
+-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
+-		if(!exportname(a->name))
+-			a->hash += PRIME10*stringhash(package);
+-		a->perm = o;
+-		a->sym = methodsym(method, rcvrt);
+-
+-		sighash = sighash*100003 + a->hash;
+-
+-		if(!a->sym->siggen) {
+-			a->sym->siggen = 1;
+-
+-			if(!eqtype(this, ifacet)) {
+-				if(oldlist == nil)
+-					oldlist = pc;
+-
+-				// It would be okay to call genwrapper here always,
+-				// but we can generate more efficient code
+-				// using genembedtramp if all that is necessary
+-				// is a pointer adjustment and a JMP.
+-				if(f->embedded && isptr[ifacet->etype] && !isifacemethod(f))
+-					genembedtramp(ifacet, f, a->sym);
+-				else
+-					genwrapper(ifacet, f, a->sym);
+-			}
+-		}
+-		o++;
+-	}
+-
+-	// restore data output
+-	if(oldlist) {
+-		// old list ended with AEND; change to ANOP
+-		// so that the trampolines that follow can be found.
+-		nopout(oldlist);
+-
+-		// start new data list
+-		newplist();
+-	}
+-
+-	a = lsort(a, sigcmp);
+-	ot = 0;
+-	ot = rnd(ot, maxround);	// base structure
+-
+-	// base of type signature contains parameters
+-	snprint(buf, sizeof buf, "%#T", progt);
+-	ot = dstringptr(s, ot, buf);		// name
+-	ot = duintptr(s, ot, 0);	// skip link
+-	ot = duint32(s, ot, typehash(progt, 1, 0));	// thash
+-	ot = duint32(s, ot, sighash);			// mhash
+-	ot = duint16(s, ot, progt->width);		// width
+-	ot = duint16(s, ot, algtype(progt));		// algorithm
+-
+-	for(b=a; b!=nil; b=b->link) {
+-		ot = rnd(ot, maxround);		// base of substructure
+-		ot = dstringptr(s, ot, b->name);	// field name
+-		ot = duint32(s, ot, b->hash);		// hash
+-		ot = duint32(s, ot, 0);		// offset
+-		ot = dsymptr(s, ot, b->sym, 0);		// &method
+-	}
+-
+-	// nil field name at end
+-	ot = rnd(ot, maxround);
+-	ot = duintptr(s, ot, 0);
+-
+-	// set DUPOK to allow other .6s to contain
+-	// the same signature.  only one will be chosen.
+-	// should only happen for empty signatures
+-	ggloblsym(s, ot, a == nil);
+-}
+-
+-/*
+- * memory layout is Sigi struct from iface.c:
+- *	struct	Sigi
+- *	{
+- *		byte*	name;
+- *		uint32	hash;
+- *		uint32	size;			// number of methods
+- *		struct {
+- *			byte*	fname;
+- *			uint32	fhash;
+- *			uint32	perm;		// location of fun in Sigt
+- *		} meth[1];			// [size+1] - last name is nil
+- *	};
+- */
+-void
+-dumpsigi(Type *t, Sym *s)
+-{
+-	Type *f;
+-	Sym *s1;
+-	int o;
+-	Sig *a, *b;
+-	char buf[NSYMB];
+-	uint32 sighash;
+-	int ot;
+-
+-	a = nil;
+-	o = 0;
+-	sighash = 0;
+-	for(f=t->type; f!=T; f=f->down) {
+-		if(f->type->etype != TFUNC)
+-			continue;
+-
+-		if(f->etype != TFIELD)
+-			fatal("dumpsignatures: not field");
+-
+-		s1 = f->sym;
+-		if(s1 == nil)
+-			continue;
+-
+-		b = mal(sizeof(*b));
+-		b->link = a;
+-		a = b;
+-
+-		a->name = s1->name;
+-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
+-		if(!exportname(a->name))
+-			a->hash += PRIME10*stringhash(package);
+-		a->perm = o;
+-		a->sym = methodsym(f->sym, t);
+-		a->offset = 0;
+-
+-		sighash = sighash*100003 + a->hash;
+-
+-		o++;
+-	}
+-
+-	a = lsort(a, sigcmp);
+-	ot = 0;
+-	ot = rnd(ot, maxround);	// base structure
+-
+-	// sigi[0].name = type name, for runtime error message
+-	snprint(buf, sizeof buf, "%#T", t);
+-	ot = dstringptr(s, ot, buf);
+-
+-	// first field of an interface signature
+-	// contains the count and is not a real entry
+-
+-	// sigi[0].hash = sighash
+-	ot = duint32(s, ot, sighash);
+-
+-	// sigi[0].offset = count
+-	o = 0;
+-	for(b=a; b!=nil; b=b->link)
+-		o++;
+-	ot = duint32(s, ot, o);
+-
+-	for(b=a; b!=nil; b=b->link) {
+-//print("	%s\n", b->name);
+-		ot = rnd(ot, maxround);	// base structure
+-
+-		// sigx[++].name = "fieldname"
+-		// sigx[++].hash = hashcode
+-		// sigi[++].perm = mapped offset of method
+-		ot = dstringptr(s, ot, b->name);
+-		ot = duint32(s, ot, b->hash);
+-		ot = duint32(s, ot, b->perm);
+-	}
+-
+-	// nil field name at end
+-	ot = rnd(ot, maxround);
+-	ot = duintptr(s, ot, 0);
+-
+-	// TODO(rsc): DUPOK should not be necessary here,
+-	// and I am a bit worried that it is.  If I turn it off,
+-	// I get multiple definitions for sigi.dotdotdot.
+-	ggloblsym(s, ot, 1);
+-}
+-
+-void
+-dumpsignatures(void)
+-{
+-	int et;
+-	Dcl *d, *x;
+-	Type *t, *progt, *methodt, *ifacet, *rcvrt;
+-	Sym *s;
+-	Node *n;
+-
+-	// copy externdcl list to signatlist
+-	for(d=externdcl; d!=D; d=d->forw) {
+-		if(d->op != OTYPE)
+-			continue;
+-
+-		t = d->dtype;
+-		if(t == T)
+-			continue;
+-
+-		n = signame(t);
+-		if(n == N || n->sym == S)
+-			continue;
+-		s = n->sym;
+-
+-		x = mal(sizeof(*d));
+-		x->op = OTYPE;
+-		if(t->etype == TINTER)
+-			x->dtype = t;
+-		else
+-			x->dtype = ptrto(t);
+-		x->forw = signatlist;
+-		x->block = 0;
+-		signatlist = x;
+-//print("SIG = %lS %lS %lT\n", d->dsym, s, t);
+-	}
+-
+-	// process signatlist
+-	for(d=signatlist; d!=D; d=d->forw) {
+-		if(d->op != OTYPE)
+-			continue;
+-		t = d->dtype;
+-		et = t->etype;
+-		n = signame(t);
+-//print("signame %S for %T\n", s, t);
+-		if(n == N || n->sym == S)
+-			continue;
+-		s = n->sym;
+-
+-		// only emit one
+-		if(s->siggen)
+-			continue;
+-		s->siggen = 1;
+-
+-		// interface is easy
+-		if(et == TINTER || et == TDDD) {
+-			if(t->sym && !t->local)
+-				continue;
+-			dumpsigi(t, s);
+-			continue;
+-		}
+-
+-		// non-interface is more complex
+-		progt = t;
+-		methodt = t;
+-		ifacet = t;
+-		rcvrt = t;
+-
+-		// if there's a pointer, methods are on base.
+-		methodt = methtype(progt);
+-		if(methodt == T) {
+-			// if that failed, go back to progt,
+-			// assuming we're writing out a signature
+-			// for a type with no methods
+-			methodt = progt;
+-		} else {
+-			expandmeth(methodt->sym, methodt);
+-		}
+-
+-		// if ifacet is too wide, the methods will see a pointer.
+-		if(ifacet->width > widthptr) {
+-			ifacet = ptrto(progt);
+-			rcvrt = ptrto(progt);
+-		}
+-
+-		// don't emit non-trivial signatures for types defined outside this file.
+-		// non-trivial signatures might also drag in generated trampolines,
+-		// and ar can't handle duplicate functions.
+-		// only pay attention to types with symbols, because
+-		// the ... structs and maybe other internal structs
+-		// don't get marked as local.
+-		if(methodt->method && methodt->sym && !methodt->local)
+-			continue;
+-
+-//print("s=%S\n", s);
+-		dumpsigt(progt, ifacet, rcvrt, methodt, s);
+-	}
+-}
+-
+-Sig*
+-lsort(Sig *l, int(*f)(Sig*, Sig*))
+-{
+-	Sig *l1, *l2, *le;
+-
+-	if(l == 0 || l->link == 0)
+-		return l;
+-
+-	l1 = l;
+-	l2 = l;
+-	for(;;) {
+-		l2 = l2->link;
+-		if(l2 == 0)
+-			break;
+-		l2 = l2->link;
+-		if(l2 == 0)
+-			break;
+-		l1 = l1->link;
+-	}
+-
+-	l2 = l1->link;
+-	l1->link = 0;
+-	l1 = lsort(l, f);
+-	l2 = lsort(l2, f);
+-
+-	/* set up lead element */
+-	if((*f)(l1, l2) < 0) {
+-		l = l1;
+-		l1 = l1->link;
+-	} else {
+-		l = l2;
+-		l2 = l2->link;
+-	}
+-	le = l;
+-
+-	for(;;) {
+-		if(l1 == 0) {
+-			while(l2) {
+-				le->link = l2;
+-				le = l2;
+-				l2 = l2->link;
+-			}
+-			le->link = 0;
+-			break;
+-		}
+-		if(l2 == 0) {
+-			while(l1) {
+-				le->link = l1;
+-				le = l1;
+-				l1 = l1->link;
+-			}
+-			break;
+-		}
+-		if((*f)(l1, l2) < 0) {
+-			le->link = l1;
+-			le = l1;
+-			l1 = l1->link;
+-		} else {
+-			le->link = l2;
+-			le = l2;
+-			l2 = l2->link;
+-		}
+-	}
+-	le->link = 0;
+-	return l;
+-}
+-
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+new file mode 100644
+index 0000000000..2e2e68c8bf
+--- /dev/null
++++ b/src/cmd/gc/reflect.c
+@@ -0,0 +1,692 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go.h"
++
++/*
++ * runtime interface and reflection data structures
++ */
++
++static Sym* dtypesym(Type*);
++
++static int
++sigcmp(Sig *a, Sig *b)
++{
++	return strcmp(a->name, b->name);
++}
++
++static Sig*
++lsort(Sig *l, int(*f)(Sig*, Sig*))
++{
++	Sig *l1, *l2, *le;
++
++	if(l == 0 || l->link == 0)
++		return l;
++
++	l1 = l;
++	l2 = l;
++	for(;;) {
++		l2 = l2->link;
++		if(l2 == 0)
++			break;
++		l2 = l2->link;
++		if(l2 == 0)
++			break;
++		l1 = l1->link;
++	}
++
++	l2 = l1->link;
++	l1->link = 0;
++	l1 = lsort(l, f);
++	l2 = lsort(l2, f);
++
++	/* set up lead element */
++	if((*f)(l1, l2) < 0) {
++		l = l1;
++		l1 = l1->link;
++	} else {
++		l = l2;
++		l2 = l2->link;
++	}
++	le = l;
++
++	for(;;) {
++		if(l1 == 0) {
++			while(l2) {
++				le->link = l2;
++				le = l2;
++				l2 = l2->link;
++			}
++			le->link = 0;
++			break;
++		}
++		if(l2 == 0) {
++			while(l1) {
++				le->link = l1;
++				le = l1;
++				l1 = l1->link;
++			}
++			break;
++		}
++		if((*f)(l1, l2) < 0) {
++			le->link = l1;
++			le = l1;
++			l1 = l1->link;
++		} else {
++			le->link = l2;
++			le = l2;
++			l2 = l2->link;
++		}
++	}
++	le->link = 0;
++	return l;
++}
++
++/*
++ * f is method type, with receiver.
++ * return function type, receiver as first argument.
++ */
++static Type*
++methodfunc(Type *f)
++{
++	Node *in, *out, *d;
++	Type *t;
++
++	in = N;
++	if(!isifacemethod(f)) {
++		d = nod(ODCLFIELD, N, N);
++		d->type = getthisx(f->type)->type->type;
++		in = list(in, d);
++	}
++	for(t=getinargx(f->type)->type; t; t=t->down) {
++		d = nod(ODCLFIELD, N, N);
++		d->type = t->type;
++		in = list(in, d);
++	}
++
++	out = N;
++	for(t=getoutargx(f->type)->type; t; t=t->down) {
++		d = nod(ODCLFIELD, N, N);
++		d->type = t->type;
++		out = list(out, d);
++	}
++
++	return functype(N, rev(in), rev(out));
++}
++
++/*
++ * return methods of non-interface type t,
++ * sorted by hash.
++ * generates stub functions as needed.
++ */
++static Sig*
++methods(Type *t)
++{
++	int o;
++	Type *f, *mt, *it, *this;
++	Sig *a, *b;
++	Sym *method;
++	Prog *oldlist;
++
++	// named method type
++	mt = methtype(t);
++	if(mt == T)
++		return nil;
++	expandmeth(mt->sym, mt);
++
++	// type stored in interface word
++	it = t;
++	if(it->width > widthptr)
++		it = ptrto(t);
++
++	// make list of methods for t,
++	// generating code if necessary.
++	a = nil;
++	o = 0;
++	oldlist = nil;
++	for(f=mt->method; f; f=f->down) {
++		if(f->type->etype != TFUNC)
++			continue;
++		if(f->etype != TFIELD)
++			fatal("methods: not field");
++		method = f->sym;
++		if(method == nil)
++			continue;
++
++		// get receiver type for this particular method.
++		// if pointer receiver but non-pointer t and
++		// this is not an embedded pointer inside a struct,
++		// method does not apply.
++		this = getthisx(f->type)->type->type;
++		if(isptr[this->etype] && !isptr[t->etype]
++		&& f->embedded != 2 && !isifacemethod(f))
++			continue;
++
++		b = mal(sizeof(*b));
++		b->link = a;
++		a = b;
++
++		a->name = method->name;
++		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
++		if(!exportname(a->name)) {
++			a->package = method->package;
++			a->hash += PRIME10*stringhash(a->package);
++		}
++		a->perm = o++;
++		a->isym = methodsym(method, it);
++		a->tsym = methodsym(method, t);
++		a->type = methodfunc(f);
++
++		if(!a->isym->siggen) {
++			a->isym->siggen = 1;
++			if(!eqtype(this, it)) {
++				if(oldlist == nil)
++					oldlist = pc;
++				// Is okay to call genwrapper here always,
++				// but we can generate more efficient code
++				// using genembedtramp if all that is necessary
++				// is a pointer adjustment and a JMP.
++				if(isptr[it->etype] && isptr[this->etype]
++				&& f->embedded && !isifacemethod(f))
++					genembedtramp(it, f, a->isym);
++				else
++					genwrapper(it, f, a->isym);
++			}
++		}
++
++		if(!a->tsym->siggen) {
++			a->tsym->siggen = 1;
++			if(!eqtype(this, t)) {
++				if(oldlist == nil)
++					oldlist = pc;
++				if(isptr[it->etype] && isptr[this->etype]
++				&& f->embedded && !isifacemethod(f))
++					genembedtramp(t, f, a->tsym);
++				else
++					genwrapper(t, f, a->tsym);
++			}
++		}
++	}
++
++	// restore data output
++	if(oldlist) {
++		// old list ended with AEND; change to ANOP
++		// so that the trampolines that follow can be found.
++		nopout(oldlist);
++
++		// start new data list
++		newplist();
++	}
++
++	return lsort(a, sigcmp);
++}
++
++/*
++ * return methods of interface type t, sorted by hash.
++ */
++Sig*
++imethods(Type *t)
++{
++	Sig *a, *b;
++	int o;
++	Type *f;
++
++	a = nil;
++	o = 0;
++	for(f=t->type; f; f=f->down) {
++		if(f->etype != TFIELD)
++			fatal("imethods: not field");
++		if(f->type->etype != TFUNC || f->sym == nil)
++			continue;
++		b = mal(sizeof(*b));
++		b->link = a;
++		a = b;
++
++		a->name = f->sym->name;
++		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
++		if(!exportname(a->name)) {
++			a->package = f->sym->package;
++			a->hash += PRIME10*stringhash(a->package);
++		}
++		a->perm = o++;
++		a->offset = 0;
++		a->type = methodfunc(f);
++	}
++
++	return lsort(a, sigcmp);
++}
++
++/*
++ * uncommonType
++ * ../../pkg/runtime/type.go:/uncommonType
++ */
++static Sym*
++dextratype(Type *t)
++{
++	int ot, n;
++	char *p;
++	Sym *s;
++	Sig *a, *m;
++
++	m = methods(t);
++	if(t->sym == nil && m == nil)
++		return nil;
++
++	n = 0;
++	for(a=m; a; a=a->link) {
++		dtypesym(a->type);
++		n++;
++	}
++
++	p = smprint("%#-T", t);
++	s = pkglookup(p, "extratype");
++	ot = 0;
++	if(t->sym) {
++		ot = dgostringptr(s, ot, t->sym->name);
++		if(t != types[t->etype])
++			ot = dgostringptr(s, ot, t->sym->package);
++		else
++			ot = dgostringptr(s, ot, nil);
++	} else {
++		ot = dgostringptr(s, ot, nil);
++		ot = dgostringptr(s, ot, nil);
++	}
++
++	// slice header
++	ot = dsymptr(s, ot, s, ot + widthptr + 2*4);
++	ot = duint32(s, ot, n);
++	ot = duint32(s, ot, n);
++
++	// methods
++	for(a=m; a; a=a->link) {
++		// method
++		// ../../pkg/runtime/type.go:/method
++		ot = duint32(s, ot, a->hash);
++		ot = rnd(ot, widthptr);
++		ot = dgostringptr(s, ot, a->name);
++		ot = dgostringptr(s, ot, a->package);
++		ot = dsymptr(s, ot, dtypesym(a->type), 0);
++		if(a->isym)
++			ot = dsymptr(s, ot, a->isym, 0);
++		else
++			ot = duintptr(s, ot, 0);
++		if(a->tsym)
++			ot = dsymptr(s, ot, a->tsym, 0);
++		else
++			ot = duintptr(s, ot, 0);
++	}
++	ggloblsym(s, ot, 1);
++
++	return s;
++}
++
++static char*
++structnames[] =
++{
++	[TINT]		= "*runtime.IntType",
++	[TUINT]		= "*runtime.UintType",
++	[TINT8]		= "*runtime.Int8Type",
++	[TUINT8]	= "*runtime.Uint8Type",
++	[TINT16]	= "*runtime.Int16Type",
++	[TUINT16]	= "*runtime.Uint16Type",
++	[TINT32]	= "*runtime.Int32Type",
++	[TUINT32]	= "*runtime.Uint32Type",
++	[TINT64]	= "*runtime.Int64Type",
++	[TUINT64]	= "*runtime.Uint64Type",
++	[TUINTPTR]	= "*runtime.UintptrType",
++	[TFLOAT]	= "*runtime.FloatType",
++	[TFLOAT32]	= "*runtime.Float32Type",
++	[TFLOAT64]	= "*runtime.Float64Type",
++	[TBOOL]		= "*runtime.BoolType",
++	[TSTRING]		= "*runtime.StringType",
++	[TDDD]		= "*runtime.DotDotDotType",
++
++	[TPTR32]		= "*runtime.PtrType",
++	[TPTR64]		= "*runtime.PtrType",
++	[TSTRUCT]	= "*runtime.StructType",
++	[TINTER]		= "*runtime.InterfaceType",
++	[TCHAN]		= "*runtime.ChanType",
++	[TMAP]		= "*runtime.MapType",
++	[TARRAY]		= "*runtime.ArrayType",
++	[TFUNC]		= "*runtime.FuncType",
++};
++
++static Sym*
++typestruct(Type *t)
++{
++	char *name;
++	int et;
++
++	et = t->etype;
++	if(et < 0 || et >= nelem(structnames) || (name = structnames[et]) == nil) {
++		fatal("typestruct %lT", t);
++		return nil;	// silence gcc
++	}
++
++	if(isslice(t))
++		name = "*runtime.SliceType";
++
++	if(isptr[et] && t->type->etype == TANY)
++		name = "*runtime.UnsafePointerType";
++
++	return pkglookup(name, "type");
++}
++
++/*
++ * commonType
++ * ../../pkg/runtime/type.go:/commonType
++ */
++static int
++dcommontype(Sym *s, int ot, Type *t)
++{
++	int i;
++	Sym *s1;
++	Type *elem;
++	char *p;
++
++	s1 = dextratype(t);
++
++	// empty interface pointing at this type.
++	// all the references that we emit are *interface{};
++	// they point here.
++	ot = rnd(ot, widthptr);
++	ot = dsymptr(s, ot, typestruct(t), 0);
++	ot = dsymptr(s, ot, s, 2*widthptr);
++
++	// ../../pkg/runtime/type.go:/commonType
++	// actual type structure
++	//	type commonType struct {
++	//		size uintptr;
++	//		hash uint32;
++	//		alg uint8;
++	//		align uint8;
++	//		fieldAlign uint8;
++	//		string *string;
++	//		*nameInfo;
++	//	}
++	ot = duintptr(s, ot, t->width);
++	ot = duint32(s, ot, typehash(t, 1, 0));
++	ot = duint8(s, ot, algtype(t));
++	elem = t;
++	while(elem->etype == TARRAY && elem->bound >= 0)
++		elem = elem->type;
++	i = elem->width;
++	if(i > maxround)
++		i = maxround;
++	ot = duint8(s, ot, i);	// align
++	ot = duint8(s, ot, i);	// fieldAlign
++	p = smprint("%#-T", t);
++	ot = dgostringptr(s, ot, p);	// string
++	free(p);
++	if(s1)
++		ot = dsymptr(s, ot, s1, 0);	// extraType
++	else
++		ot = duintptr(s, ot, 0);
++
++	return ot;
++}
++
++Sym*
++typesym(Type *t)
++{
++	char *p;
++	Sym *s;
++
++	p = smprint("%#-T", t);
++	s = pkglookup(p, "type");
++	free(p);
++	return s;
++}
++
++Node*
++typename(Type *t)
++{
++	Sym *s;
++	Node *n;
++	Dcl *d;
++
++	s = typesym(t);
++	if(s->def == N) {
++		n = nod(ONAME, N, N);
++		n->sym = s;
++		n->type = types[TUINT8];
++		n->addable = 1;
++		n->ullman = 1;
++		n->class = PEXTERN;
++		n->xoffset = 0;
++		s->def = n;
++
++		// copy to signatlist
++		d = dcl();
++		d->dsym = s;
++		d->dtype = t;
++		d->op = OTYPE;
++		d->forw = signatlist;
++		signatlist = d;
++	}
++
++	n = nod(OADDR, s->def, N);
++	n->type = ptrto(s->def->type);
++	n->addable = 1;
++	n->ullman = 2;
++	return n;
++}
++
++Sym*
++dtypesym(Type *t)
++{
++	int ot, n;
++	Sym *s, *s1, *s2;
++	Sig *a, *m;
++	Type *t1;
++
++	s = typesym(t);
++	if(s->siggen)
++		return s;
++	s->siggen = 1;
++
++	// special case (look for runtime below):
++	// when compiling package runtime,
++	// emit the type structures for int, float, etc.
++	t1 = T;
++	if(isptr[t->etype])
++		t1 = t->type;
++
++	if(strcmp(package, "runtime") == 0) {
++		if(t == types[t->etype])
++			goto ok;
++		if(t1 && t1 == types[t1->etype])
++			goto ok;
++	}
++
++	// named types from other files are defined in those files
++	if(t->sym && !t->local)
++		return s;
++	if(!t->sym && t1 && t1->sym && !t1->local)
++		return s;
++	if(isforw[t->etype] || (t1 && isforw[t1->etype]))
++		return s;
++
++ok:
++	ot = 0;
++	switch(t->etype) {
++	default:
++		ot = dcommontype(s, ot, t);
++		break;
++
++	case TARRAY:
++		// ../../pkg/runtime/type.go:/ArrayType
++		s1 = dtypesym(t->type);
++		ot = dcommontype(s, ot, t);
++		ot = dsymptr(s, ot, s1, 0);
++		if(t->bound < 0)
++			ot = duintptr(s, ot, -1);
++		else
++			ot = duintptr(s, ot, t->bound);
++		break;
++
++	case TCHAN:
++		// ../../pkg/runtime/type.go:/ChanType
++		s1 = dtypesym(t->type);
++		ot = dcommontype(s, ot, t);
++		ot = dsymptr(s, ot, s1, 0);
++		ot = duintptr(s, ot, t->chan);
++		break;
++
++	case TFORWSTRUCT:
++	case TFORWINTER:
++		return s;
++
++	case TFUNC:
++		for(t1=getthisx(t)->type; t1; t1=t1->down)
++			dtypesym(t1->type);
++		for(t1=getinargx(t)->type; t1; t1=t1->down)
++			dtypesym(t1->type);
++		for(t1=getoutargx(t)->type; t1; t1=t1->down)
++			dtypesym(t1->type);
++
++		ot = dcommontype(s, ot, t);
++
++		// two slice headers: in and out.
++		ot = dsymptr(s, ot, s, ot+2*(widthptr+2*4));
++		n = t->thistuple + t->intuple;
++		ot = duint32(s, ot, n);
++		ot = duint32(s, ot, n);
++		ot = dsymptr(s, ot, s, ot+1*(widthptr+2*4)+n*widthptr);
++		ot = duint32(s, ot, t->outtuple);
++		ot = duint32(s, ot, t->outtuple);
++
++		// slice data
++		for(t1=getthisx(t)->type; t1; t1=t1->down, n++)
++			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++		for(t1=getinargx(t)->type; t1; t1=t1->down, n++)
++			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++		for(t1=getoutargx(t)->type; t1; t1=t1->down, n++)
++			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++		break;
++
++	case TINTER:
++		m = imethods(t);
++		n = 0;
++		for(a=m; a; a=a->link) {
++			dtypesym(a->type);
++			n++;
++		}
++
++		// ../../pkg/runtime/type.go:/InterfaceType
++		ot = dcommontype(s, ot, t);
++		ot = dsymptr(s, ot, s, ot+widthptr+2*4);
++		ot = duint32(s, ot, n);
++		ot = duint32(s, ot, n);
++		for(a=m; a; a=a->link) {
++			// ../../pkg/runtime/type.go:/imethod
++			ot = duint32(s, ot, a->hash);
++			ot = duint32(s, ot, a->perm);
++			ot = dgostringptr(s, ot, a->name);
++			ot = dgostringptr(s, ot, a->package);
++			ot = dsymptr(s, ot, dtypesym(a->type), 0);
++		}
++		break;
++
++	case TMAP:
++		// ../../pkg/runtime/type.go:/MapType
++		s1 = dtypesym(t->down);
++		s2 = dtypesym(t->type);
++		ot = dcommontype(s, ot, t);
++		ot = dsymptr(s, ot, s1, 0);
++		ot = dsymptr(s, ot, s2, 0);
++		break;
++
++	case TPTR32:
++	case TPTR64:
++		if(t->type->etype == TANY) {
++			ot = dcommontype(s, ot, t);
++			break;
++		}
++		// ../../pkg/runtime/type.go:/PtrType
++		s1 = dtypesym(t->type);
++		ot = dcommontype(s, ot, t);
++		ot = dsymptr(s, ot, s1, 0);
++		break;
++
++	case TSTRUCT:
++		// ../../pkg/runtime/type.go:/StructType
++		// for security, only the exported fields.
++		n = 0;
++		for(t1=t->type; t1!=T; t1=t1->down) {
++			dtypesym(t1->type);
++			n++;
++		}
++		ot = dcommontype(s, ot, t);
++		ot = dsymptr(s, ot, s, ot+widthptr+2*4);
++		ot = duint32(s, ot, n);
++		ot = duint32(s, ot, n);
++		for(t1=t->type; t1!=T; t1=t1->down) {
++			// ../../pkg/runtime/type.go:/structField
++			if(t1->sym) {
++				ot = dgostringptr(s, ot, t1->sym->name);
++				if(exportname(t1->sym->name))
++					ot = dgostringptr(s, ot, nil);
++				else
++					ot = dgostringptr(s, ot, t1->sym->package);
++			} else {
++				ot = dgostringptr(s, ot, nil);
++				ot = dgostringptr(s, ot, nil);
++			}
++			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++			ot = dgostrlitptr(s, ot, t1->note);
++			ot = duintptr(s, ot, t1->width);	// field offset
++		}
++		break;
++	}
++
++	ggloblsym(s, ot, 1);
++	return s;
++}
++
++void
++dumptypestructs(void)
++{
++	int i;
++	Dcl *d, *x;
++	Type *t;
++
++	// copy types from externdcl list to signatlist
++	for(d=externdcl; d!=D; d=d->forw) {
++		if(d->op != OTYPE)
++			continue;
++		t = d->dtype;
++		x = mal(sizeof(*x));
++		x->op = OTYPE;
++		x->dtype = t;
++		x->forw = signatlist;
++		x->block = 0;
++		signatlist = x;
++	}
++
++	// process signatlist
++	for(d=signatlist; d!=D; d=d->forw) {
++		if(d->op != OTYPE)
++			continue;
++		t = d->dtype;
++		dtypesym(t);
++		if(t->sym && !isptr[t->etype])
++			dtypesym(ptrto(t));
++	}
++
++	// do basic types if compiling package runtime, type.go.
++	// they have to be in at least one package,
++	// and reflect is always loaded implicitly,
++	// so this is as good as any.
++	// another possible choice would be package main,
++	// but using runtime means fewer copies in .6 files.
++	if(strcmp(package, "runtime") == 0 && strcmp(filename, "type") == 0) {
++		for(i=1; i<=TBOOL; i++)
++			if(i != TFLOAT80)
++				dtypesym(ptrto(types[i]));
++		dtypesym(ptrto(types[TSTRING]));
++		dtypesym(typ(TDDD));
++		dtypesym(ptrto(pkglookup("Pointer", "unsafe")->def->type));
++	}
++}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e397284de0..d922c8b019 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1613,64 +1613,6 @@ iscomposite(Type *t)
+ 	return 0;
+ }
+ 
+-Node*
+-signame(Type *t)
+-{
+-	Sym *ss;
+-	char *e;
+-	Dcl *x;
+-	char buf[NSYMB];
+-
+-//print("signame %T\n", t);
+-	if(t == T)
+-		goto bad;
+-
+-	e = "sigt";
+-	if(t->etype == TINTER || t->etype == TDDD)
+-		e = "sigi";
+-
+-	// name is exported name, like *[]byte or *Struct or Interface
+-	// (special symbols don't bother the linker).
+-	snprint(buf, sizeof(buf), "%#T", t);
+-
+-	// special case: empty interface is named sigi.empty
+-	// so that it can be referred to by the runtime.
+-	if(strcmp(buf, "interface { }") == 0)
+-		strcpy(buf, "empty");
+-
+-	// special case: sigi.... is just too hard to read in assembly.
+-	if(strcmp(buf, "...") == 0)
+-		strcpy(buf, "dotdotdot");
+-
+-	ss = pkglookup(buf, e);
+-	if(ss->def == N) {
+-		ss->def = newname(ss);
+-		ss->def->type = types[TUINT8];
+-		ss->def->class = PEXTERN;
+-	}
+-
+-//print("siggen %T %d\n", t, t->siggen);
+-	if(!t->siggen) {
+-		// special case: don't generate the empty interface
+-		if(strcmp(buf, "empty") == 0)
+-			goto out;
+-
+-		// record internal type for signature generation
+-		x = mal(sizeof(*x));
+-		x->op = OTYPE;
+-		x->dtype = t;
+-		x->forw = signatlist;
+-		t->siggen = 1;
+-		signatlist = x;
+-	}
+-
+-out:
+-	return ss->def;
+-
+-bad:
+-	return N;
+-}
+-
+ int
+ eqtype1(Type *t1, Type *t2, int d, int names)
+ {
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index 9289a9ca8e..eff7b0d405 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-
+ package PACKAGE
+ 
+ type	Pointer	*any;
+ func	Offsetof(any) int;
+ func	Sizeof(any) int;
+ func	Alignof(any) int;
+-func	Reflect(i interface { }) (uint64, string, bool);
+-func	Unreflect(uint64, string, bool) (ret interface { });
++func	Typeof(i interface { }) (typ interface{});
++func	Reflect(i interface { }) (typ interface{}, addr Pointer);
++func	Unreflect(typ interface{}, addr Pointer) (ret interface { });
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index e0617259f4..08be5bfcb4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1309,7 +1309,7 @@ walkconv(Node *n)
+ 		n->op = OCONVNOP;
+ 		return;
+ 	}
+-	
++
+ 	// to/from interface.
+ 	// ifaceas1 will generate a good error
+ 	// if the conversion is invalid.
+@@ -1940,7 +1940,6 @@ loop:
+ Type*
+ sigtype(Type *st)
+ {
+-	Dcl *x;
+ 	Sym *s;
+ 	Type *t;
+ 	static int sigdddgen;
+@@ -1954,16 +1953,6 @@ sigtype(Type *st)
+ 	t = dodcltype(t);
+ 	updatetype(t, st);
+ 	t->local = 1;
+-
+-	// record internal type for signature generation
+-	x = mal(sizeof(*x));
+-	x->op = OTYPE;
+-	x->dsym = s;
+-	x->dtype = t;
+-	x->forw = signatlist;
+-	x->block = block;
+-	signatlist = x;
+-
+ 	return t;
+ }
+ 
+@@ -3260,10 +3249,10 @@ ifacecvt(Type *tl, Node *n, int et)
+ 		a = n;				// elem
+ 		r = a;
+ 
+-		a = nod(OADDR, signame(tr), N);	// sigt
++		a = typename(tr);	// sigt
+ 		r = list(a, r);
+ 
+-		a = nod(OADDR, signame(tl), N);	// sigi
++		a = typename(tl);	// sigi
+ 		r = list(a, r);
+ 
+ 		on = syslook("ifaceT2I", 1);
+@@ -3284,7 +3273,7 @@ ifacecvt(Type *tl, Node *n, int et)
+ 		a = n;				// interface
+ 		r = a;
+ 
+-		a = nod(OADDR, signame(tl), N);	// sigi or sigt
++		a = typename(tl);	// sigi or sigt
+ 		r = list(a, r);
+ 
+ 		on = syslook(ifacename[et], 1);
+@@ -3308,7 +3297,7 @@ ifacecvt(Type *tl, Node *n, int et)
+ 		a = n;				// elem
+ 		r = a;
+ 
+-		a = nod(OADDR, signame(tr), N);	// sigt
++		a = typename(tr);	// sigt
+ 		r = list(a, r);
+ 
+ 		on = syslook("ifaceT2E", 1);

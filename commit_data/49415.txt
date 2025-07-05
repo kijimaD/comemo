@@ -8,7 +8,7 @@ Date:   Fri Jul 23 22:28:26 2021 +0900
     Reviewed-on: https://go-review.googlesource.com/c/go/+/336889
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go                                | 2 +-
  .../mod/example.com_split-incompatible_v2.0.0+incompatible.txt      | 2 +-
  .../mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt  | 2 +-
@@ -24,3 +24,199 @@ Date:   Fri Jul 23 22:28:26 2021 +0900
  src/strconv/ftoaryu.go                                              | 2 +-
  test/typeparam/slices.go                                            | 2 +-
  14 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index b133ba7ea9..4e01dfab1e 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -242,7 +242,7 @@ func vendorPkg(vdir, pkg string) {
+ 	if err != nil {
+ 		if errors.As(err, &noGoError) {
+ 			return // No source files in this package are built. Skip embeds in ignored files.
+-		} else if !errors.As(err, &multiplePackageError) { // multiplePackgeErrors are okay, but others are not.
++		} else if !errors.As(err, &multiplePackageError) { // multiplePackageErrors are OK, but others are not.
+ 			base.Fatalf("internal error: failed to find embedded files of %s: %v\n", pkg, err)
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt
+index 35c3f27710..00076d74fc 100644
+--- a/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt
++++ b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.0.0+incompatible.txt
+@@ -1,6 +1,6 @@
+ Written by hand.
+ Test case for getting a package that has been moved to a nested module,
+-with a +incompatible verison (and thus no go.mod file) at the root module.
++with a +incompatible version (and thus no go.mod file) at the root module.
+ 
+ -- .mod --
+ module example.com/split-incompatible
+diff --git a/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt
+index 917fc0f559..bb1c1fecc9 100644
+--- a/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt
++++ b/src/cmd/go/testdata/mod/example.com_split-incompatible_v2.1.0-pre+incompatible.txt
+@@ -1,6 +1,6 @@
+ Written by hand.
+ Test case for getting a package that has been moved to a nested module,
+-with a +incompatible verison (and thus no go.mod file) at the root module.
++with a +incompatible version (and thus no go.mod file) at the root module.
+ 
+ -- .mod --
+ module example.com/split-incompatible
+diff --git a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+index 97718c4513..60d4187b11 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+@@ -66,7 +66,7 @@ stdout '^b v0.1.0 '
+ ! stdout '^c '
+ 
+ # After adding a new direct import of b/y,
+-# the existing verison of b should be promoted to a root,
++# the existing version of b should be promoted to a root,
+ # bringing the version of c required by b into the build list.
+ 
+ cp m.go.new m.go
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat.txt b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+index e6edef5ee3..29cae17881 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+@@ -20,7 +20,7 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+ # + ---- example.net/lazy v0.1.0 ---- example.com/version v1.0.1
+ #
+ # Go 1.17 avoids loading the go.mod file for example.com/version v1.0.1
+-# (because it is lower than the verison explicitly required by m,
++# (because it is lower than the version explicitly required by m,
+ # and the module that requires it — m — specifies 'go 1.17').
+ #
+ # That go.mod file happens not to affect the final 1.16 module graph anyway,
+diff --git a/src/crypto/ed25519/internal/edwards25519/tables.go b/src/crypto/ed25519/internal/edwards25519/tables.go
+index beec956bf7..5ca40f7bfa 100644
+--- a/src/crypto/ed25519/internal/edwards25519/tables.go
++++ b/src/crypto/ed25519/internal/edwards25519/tables.go
+@@ -40,7 +40,7 @@ func (v *projLookupTable) FromP3(q *Point) {
+ 	for i := 0; i < 7; i++ {
+ 		// Compute (i+1)*Q as Q + i*Q and convert to a ProjCached
+ 		// This is needlessly complicated because the API has explicit
+-		// recievers instead of creating stack objects and relying on RVO
++		// receivers instead of creating stack objects and relying on RVO
+ 		v.points[i+1].FromP3(tmpP3.fromP1xP1(tmpP1xP1.Add(q, &v.points[i])))
+ 	}
+ }
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index f085162a4e..c2770f3f08 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -214,16 +214,16 @@ func parseValidity(der cryptobyte.String) (time.Time, time.Time, error) {
+ func parseExtension(der cryptobyte.String) (pkix.Extension, error) {
+ 	var ext pkix.Extension
+ 	if !der.ReadASN1ObjectIdentifier(&ext.Id) {
+-		return ext, errors.New("x509: malformed extention OID field")
++		return ext, errors.New("x509: malformed extension OID field")
+ 	}
+ 	if der.PeekASN1Tag(cryptobyte_asn1.BOOLEAN) {
+ 		if !der.ReadASN1Boolean(&ext.Critical) {
+-			return ext, errors.New("x509: malformed extention critical field")
++			return ext, errors.New("x509: malformed extension critical field")
+ 		}
+ 	}
+ 	var val cryptobyte.String
+ 	if !der.ReadASN1(&val, cryptobyte_asn1.OCTET_STRING) {
+-		return ext, errors.New("x509: malformed extention value field")
++		return ext, errors.New("x509: malformed extension value field")
+ 	}
+ 	ext.Value = val
+ 	return ext, nil
+diff --git a/src/math/sinh_s390x.s b/src/math/sinh_s390x.s
+index 73701f24f1..d684968a3a 100644
+--- a/src/math/sinh_s390x.s
++++ b/src/math/sinh_s390x.s
+@@ -56,11 +56,11 @@ GLOBL sinhe9<>+0(SB), RODATA, $8
+ 
+ TEXT ·sinhAsm(SB),NOSPLIT,$0-16
+ 	FMOVD   x+0(FP), F0
+-	//specail case Sinh(±0) = ±0
++	//special case Sinh(±0) = ±0
+ 	FMOVD   $(0.0), F1
+ 	FCMPU   F0, F1
+ 	BEQ     sinhIsZero
+-	//specail case Sinh(±Inf = ±Inf
++	//special case Sinh(±Inf) = ±Inf
+ 	FMOVD   $1.797693134862315708145274237317043567981e+308, F1
+ 	FCMPU   F1, F0
+ 	BLEU    sinhIsInf
+diff --git a/src/math/tan_s390x.s b/src/math/tan_s390x.s
+index b6e2295874..82267608b9 100644
+--- a/src/math/tan_s390x.s
++++ b/src/math/tan_s390x.s
+@@ -38,7 +38,7 @@ GLOBL ·tanxadd<> + 0(SB), RODATA, $8
+ 
+ TEXT	·tanAsm(SB), NOSPLIT, $0-16
+ 	FMOVD	x+0(FP), F0
+-	//specail case Tan(±0) = ±0
++	//special case Tan(±0) = ±0
+ 	FMOVD   $(0.0), F1
+ 	FCMPU   F0, F1
+ 	BEQ     atanIsZero
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index d350ef7fc0..02beaca7e1 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -620,6 +620,6 @@ func (r *Resolver) LookupAddr(ctx context.Context, addr string) ([]string, error
+ }
+ 
+ // errMalformedDNSRecordsDetail is the DNSError detail which is returned when a Resolver.Lookup...
+-// method recieves DNS records which contain invalid DNS names. This may be returned alongside
++// method receives DNS records which contain invalid DNS names. This may be returned alongside
+ // results which have had the malformed records filtered out.
+ var errMalformedDNSRecordsDetail = "DNS response contained records which contain invalid names"
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index b4b2d2e38b..e641a7957c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -930,7 +930,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 
+ 	// Deal with the receiver. It's guaranteed to only be one word in size.
+ 	if st := methodABI.call.steps[0]; st.kind == abiStepStack {
+-		// Only copy the reciever to the stack if the ABI says so.
++		// Only copy the receiver to the stack if the ABI says so.
+ 		// Otherwise, it'll be in a register already.
+ 		storeRcvr(rcvr, methodFrame)
+ 	} else {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index addfa6faac..8c0979eec2 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -566,7 +566,7 @@ func printArgs(f funcInfo, argp unsafe.Pointer) {
+ 
+ 	print1 := func(off, sz uint8) {
+ 		x := readUnaligned64(add(argp, uintptr(off)))
+-		// mask out irrelavant bits
++		// mask out irrelevant bits
+ 		if sz < 8 {
+ 			shift := 64 - sz*8
+ 			if goarch.BigEndian {
+diff --git a/src/strconv/ftoaryu.go b/src/strconv/ftoaryu.go
+index 1c61288b9f..f2e74bed17 100644
+--- a/src/strconv/ftoaryu.go
++++ b/src/strconv/ftoaryu.go
+@@ -291,7 +291,7 @@ func ryuFtoaShortest(d *decimalSlice, mant uint64, exp int, flt *floatInfo) {
+ 	// Is it allowed to use 'du' as a result?
+ 	// It is always allowed when it is truncated, but also
+ 	// if it is exact and the original binary mantissa is even
+-	// When disallowed, we can substract 1.
++	// When disallowed, we can subtract 1.
+ 	uok := !du0 || fracu > 0
+ 	if du0 && fracu == 0 {
+ 		uok = mant&1 == 0
+diff --git a/test/typeparam/slices.go b/test/typeparam/slices.go
+index b5e8e0c606..4bdf10748e 100644
+--- a/test/typeparam/slices.go
++++ b/test/typeparam/slices.go
+@@ -60,7 +60,7 @@ func _Equal[Elem comparable](s1, s2 []Elem) bool {
+ 	return true
+ }
+ 
+-// _EqualFn reports whether two slices are equal using a comparision
++// _EqualFn reports whether two slices are equal using a comparison
+ // function on each element.
+ func _EqualFn[Elem any](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
+ 	if len(s1) != len(s2) {

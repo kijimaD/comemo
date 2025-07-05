@@ -20,7 +20,7 @@ Date:   Mon Jan 29 21:40:57 2018 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go |  2 --
  src/cmd/link/internal/ld/decodesym.go  |  2 +-
  src/reflect/type.go                    |  1 -
@@ -29,3 +29,130 @@ Date:   Mon Jan 29 21:40:57 2018 +0100
  src/runtime/map_test.go                | 12 ++++++++++++
  src/runtime/type.go                    |  1 -
  7 files changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index df6f8dc151..cbd65c2934 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1247,12 +1247,10 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 		s1 := dtypesym(t.Key())
+ 		s2 := dtypesym(t.Elem())
+ 		s3 := dtypesym(bmap(t))
+-		s4 := dtypesym(hmap(t))
+ 		ot = dcommontype(lsym, t)
+ 		ot = dsymptr(lsym, ot, s1, 0)
+ 		ot = dsymptr(lsym, ot, s2, 0)
+ 		ot = dsymptr(lsym, ot, s3, 0)
+-		ot = dsymptr(lsym, ot, s4, 0)
+ 		if t.Key().Width > MAXKEYSIZE {
+ 			ot = duint8(lsym, ot, uint8(Widthptr))
+ 			ot = duint8(lsym, ot, 1) // indirect
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 3afb38948f..b5025831b8 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -359,7 +359,7 @@ func decodetypeMethods(arch *sys.Arch, s *sym.Symbol) []methodsig {
+ 	case kindChan: // reflect.chanType
+ 		off += 2 * arch.PtrSize
+ 	case kindMap: // reflect.mapType
+-		off += 4*arch.PtrSize + 8
++		off += 3*arch.PtrSize + 8
+ 	case kindInterface: // reflect.interfaceType
+ 		off += 3 * arch.PtrSize
+ 	default:
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 021258e63b..f432c0fcb8 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -398,7 +398,6 @@ type mapType struct {
+ 	key           *rtype // map key type
+ 	elem          *rtype // map element (value) type
+ 	bucket        *rtype // internal bucket structure
+-	hmap          *rtype // internal map header
+ 	keysize       uint8  // size of key slot
+ 	indirectkey   uint8  // store ptr to key instead of key itself
+ 	valuesize     uint8  // size of value slot
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 2575df1e39..8c428dc119 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -376,6 +376,8 @@ func (rw *RWMutex) Unlock() {
+ 	rw.rw.unlock()
+ }
+ 
++const RuntimeHmapSize = unsafe.Sizeof(hmap{})
++
+ func MapBucketsCount(m map[int]int) int {
+ 	h := *(**hmap)(unsafe.Pointer(&m))
+ 	return 1 << h.B
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 2ffd59cb25..1926123458 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -296,13 +296,6 @@ func makemap_small() *hmap {
+ // If h != nil, the map can be created directly in h.
+ // If h.buckets != nil, bucket pointed to can be used as the first bucket.
+ func makemap(t *maptype, hint int, h *hmap) *hmap {
+-	// The size of hmap should be 48 bytes on 64 bit
+-	// and 28 bytes on 32 bit platforms.
+-	if sz := unsafe.Sizeof(hmap{}); sz != 8+5*sys.PtrSize {
+-		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
+-		throw("bad hmap size")
+-	}
+-
+ 	if hint < 0 || hint > int(maxSliceCap(t.bucket.size)) {
+ 		hint = 0
+ 	}
+@@ -1150,10 +1143,6 @@ func ismapkey(t *_type) bool {
+ //go:linkname reflect_makemap reflect.makemap
+ func reflect_makemap(t *maptype, cap int) *hmap {
+ 	// Check invariants and reflects math.
+-	if sz := unsafe.Sizeof(hmap{}); sz != t.hmap.size {
+-		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
+-		throw("bad hmap size")
+-	}
+ 	if !ismapkey(t.key) {
+ 		throw("runtime.reflect_makemap: unsupported map key type")
+ 	}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 5c6bbc5c31..0f20c84e77 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"math"
+ 	"reflect"
+ 	"runtime"
++	"runtime/internal/sys"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -16,6 +17,17 @@ import (
+ 	"testing"
+ )
+ 
++func TestHmapSize(t *testing.T) {
++	// The structure of hmap is defined in runtime/map.go
++	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
++	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
++	var hmapSize = uintptr(8 + 5*sys.PtrSize)
++	if runtime.RuntimeHmapSize != hmapSize {
++		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
++	}
++
++}
++
+ // negative zero is a good test because:
+ //  1) 0 and -0 are equal, yet have distinct representations.
+ //  2) 0 is represented as all zeros, -0 isn't.
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index b72f5c06d6..d44a4f3883 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -350,7 +350,6 @@ type maptype struct {
+ 	key           *_type
+ 	elem          *_type
+ 	bucket        *_type // internal type representing a hash bucket
+-	hmap          *_type // internal type representing a hmap
+ 	keysize       uint8  // size of key slot
+ 	indirectkey   bool   // store ptr to key instead of key itself
+ 	valuesize     uint8  // size of value slot

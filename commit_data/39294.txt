@@ -19,10 +19,258 @@ Date:   Thu Feb 14 17:34:29 2019 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go          | 28 ++++++++++++++----
  src/cmd/compile/internal/syntax/scanner.go      |  3 --
  src/cmd/compile/internal/syntax/scanner_test.go | 20 +++++++------
  src/cmd/compile/internal/syntax/tokens.go       |  3 ++
  test/literal2.go                                | 38 +++++++++++++------------
  5 files changed, 58 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index b3a9af452a..c1bbd3c1b4 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -183,15 +183,33 @@ func (a *Mpflt) SetString(as string) {
+ 	// TODO(gri) remove this code once math/big.Float.Parse can handle separators
+ 	as = strings.Replace(as, "_", "", -1) // strip separators
+ 
++	// TODO(gri) why is this needed?
+ 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
+ 		as = as[1:]
+ 	}
+ 
+-	f, _, err := a.Val.Parse(as, 0)
+-	if err != nil {
+-		yyerror("malformed constant: %s (%v)", as, err)
+-		a.Val.SetFloat64(0)
+-		return
++	// Currently, Val.Parse below (== math/big.Float.Parse) does not
++	// handle the 0o-octal prefix which can appear with octal integers
++	// with 'i' suffix, which end up here as imaginary components of
++	// complex numbers. Handle explicitly for now.
++	// TODO(gri) remove once Float.Parse can handle octals (it handles 0b/0B)
++	var f *big.Float
++	if strings.HasPrefix(as, "0o") || strings.HasPrefix(as, "0O") {
++		x, ok := new(big.Int).SetString(as[2:], 8)
++		if !ok {
++			yyerror("malformed constant: %s", as)
++			a.Val.SetFloat64(0)
++			return
++		}
++		f = a.Val.SetInt(x)
++	} else {
++		var err error
++		f, _, err = a.Val.Parse(as, 0)
++		if err != nil {
++			yyerror("malformed constant: %s (%v)", as, err)
++			a.Val.SetFloat64(0)
++			return
++		}
+ 	}
+ 
+ 	if f.IsInf() {
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index 0a77d48b3d..fbb3e1a40e 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -512,9 +512,6 @@ func (s *scanner) number(c rune) {
+ 	// suffix 'i'
+ 	if c == 'i' {
+ 		s.kind = ImagLit
+-		if prefix != 0 && prefix != '0' {
+-			s.error("invalid suffix 'i' on " + litname(prefix))
+-		}
+ 		c = s.getr()
+ 	}
+ 	s.ungetr()
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 0f0579e2a5..bfc44950be 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -347,13 +347,14 @@ func TestNumbers(t *testing.T) {
+ 		{IntLit, "0b0190", "0b0190", "invalid digit '9' in binary literal"},
+ 		{IntLit, "0b01a0", "0b01 a0", ""}, // only accept 0-9
+ 
+-		// binary floats and imaginaries (invalid)
+ 		{FloatLit, "0b.", "0b.", "invalid radix point in binary literal"},
+ 		{FloatLit, "0b.1", "0b.1", "invalid radix point in binary literal"},
+ 		{FloatLit, "0b1.0", "0b1.0", "invalid radix point in binary literal"},
+ 		{FloatLit, "0b1e10", "0b1e10", "'e' exponent requires decimal mantissa"},
+ 		{FloatLit, "0b1P-1", "0b1P-1", "'P' exponent requires hexadecimal mantissa"},
+-		{ImagLit, "0b10i", "0b10i", "invalid suffix 'i' on binary literal"},
++
++		{ImagLit, "0b10i", "0b10i", ""},
++		{ImagLit, "0b10.0i", "0b10.0i", "invalid radix point in binary literal"},
+ 
+ 		// octals
+ 		{IntLit, "0o0", "0o0", ""},
+@@ -365,13 +366,14 @@ func TestNumbers(t *testing.T) {
+ 		{IntLit, "0o1293", "0o1293", "invalid digit '9' in octal literal"},
+ 		{IntLit, "0o12a3", "0o12 a3", ""}, // only accept 0-9
+ 
+-		// octal floats and imaginaries (invalid)
+ 		{FloatLit, "0o.", "0o.", "invalid radix point in octal literal"},
+ 		{FloatLit, "0o.2", "0o.2", "invalid radix point in octal literal"},
+ 		{FloatLit, "0o1.2", "0o1.2", "invalid radix point in octal literal"},
+ 		{FloatLit, "0o1E+2", "0o1E+2", "'E' exponent requires decimal mantissa"},
+ 		{FloatLit, "0o1p10", "0o1p10", "'p' exponent requires hexadecimal mantissa"},
+-		{ImagLit, "0o10i", "0o10i", "invalid suffix 'i' on octal literal"},
++
++		{ImagLit, "0o10i", "0o10i", ""},
++		{ImagLit, "0o10e0i", "0o10e0i", "'e' exponent requires decimal mantissa"},
+ 
+ 		// 0-octals
+ 		{IntLit, "0", "0", ""},
+@@ -389,6 +391,9 @@ func TestNumbers(t *testing.T) {
+ 
+ 		{IntLit, "1f", "1 f", ""}, // only accept 0-9
+ 
++		{ImagLit, "0i", "0i", ""},
++		{ImagLit, "0678i", "0678i", ""},
++
+ 		// decimal floats
+ 		{FloatLit, "0.", "0.", ""},
+ 		{FloatLit, "123.", "123.", ""},
+@@ -424,7 +429,6 @@ func TestNumbers(t *testing.T) {
+ 		{FloatLit, "0p0", "0p0", "'p' exponent requires hexadecimal mantissa"},
+ 		{FloatLit, "1.0P-1", "1.0P-1", "'P' exponent requires hexadecimal mantissa"},
+ 
+-		// decimal imaginaries
+ 		{ImagLit, "0.i", "0.i", ""},
+ 		{ImagLit, ".123i", ".123i", ""},
+ 		{ImagLit, "123.123i", "123.123i", ""},
+@@ -441,6 +445,8 @@ func TestNumbers(t *testing.T) {
+ 		{IntLit, "0x", "0x", "hexadecimal literal has no digits"},
+ 		{IntLit, "0x1g", "0x1 g", ""},
+ 
++		{ImagLit, "0xf00i", "0xf00i", ""},
++
+ 		// hexadecimal floats
+ 		{FloatLit, "0x0p0", "0x0p0", ""},
+ 		{FloatLit, "0x12efp-123", "0x12efp-123", ""},
+@@ -459,9 +465,7 @@ func TestNumbers(t *testing.T) {
+ 		{FloatLit, "0x1234PAB", "0x1234P AB", "exponent has no digits"},
+ 		{FloatLit, "0x1.2p1a", "0x1.2p1 a", ""},
+ 
+-		// hexadecimal imaginaries (invalid)
+-		{ImagLit, "0xf00i", "0xf00i", "invalid suffix 'i' on hexadecimal literal"},
+-		{ImagLit, "0xf00.bap+12i", "0xf00.bap+12i", "invalid suffix 'i' on hexadecimal literal"},
++		{ImagLit, "0xf00.bap+12i", "0xf00.bap+12i", ""},
+ 
+ 		// separators
+ 		{IntLit, "0b_1000_0001", "0b_1000_0001", ""},
+diff --git a/src/cmd/compile/internal/syntax/tokens.go b/src/cmd/compile/internal/syntax/tokens.go
+index e00255a45e..9b26c9f12f 100644
+--- a/src/cmd/compile/internal/syntax/tokens.go
++++ b/src/cmd/compile/internal/syntax/tokens.go
+@@ -92,6 +92,9 @@ func contains(tokset uint64, tok token) bool {
+ 
+ type LitKind uint
+ 
++// TODO(gri) With the 'i' (imaginary) suffix now permitted on integer
++//           and floating-point numbers, having a single ImagLit does
++//           not represent the literal kind well anymore. Remove it?
+ const (
+ 	IntLit LitKind = iota
+ 	FloatLit
+diff --git a/test/literal2.go b/test/literal2.go
+index dbe22a012e..f552e33ada 100644
+--- a/test/literal2.go
++++ b/test/literal2.go
+@@ -5,7 +5,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test Go2 literal syntax for basic types.
+-// TODO add more tests
++// Avoid running gofmt on this file to preserve the
++// test cases with upper-case prefixes (0B, 0O, 0X).
+ 
+ package main
+ 
+@@ -17,7 +18,7 @@ func assert(cond bool) {
+ 	}
+ }
+ 
+-func equal(x, y float64) bool {
++func equal(x, y interface{}) bool {
+ 	if x != y {
+ 		fmt.Printf("%g != %g\n", x, y)
+ 		return false
+@@ -30,24 +31,30 @@ func main() {
+ 	assert(0_1 == 01)
+ 	assert(012 == 012)
+ 	assert(0_1_2 == 012)
++	assert(0_1_2i == complex(0, 12)) // decimal digits despite leading 0 for backward-compatibility
++	assert(00089i == complex(0, 89)) // decimal digits despite leading 0 for backward-compatibility
+ 
+ 	// decimals
+ 	assert(1_000_000 == 1000000)
++	assert(1_000i == complex(0, 1000))
+ 
+ 	// hexadecimals
+ 	assert(0x_1 == 0x1)
+ 	assert(0x1_2 == 0x12)
+-	assert(0X_cafe_f00d == 0xcafef00d)
++	assert(0x_cafe_f00d == 0xcafef00d)
++	assert(0x_cafei == complex(0, 0xcafe))
+ 
+ 	// octals
+ 	assert(0o_1 == 01)
+ 	assert(0o12 == 012)
+-	assert(0O_1_2 == 012)
++	assert(0o_1_2 == 012)
++	assert(0o_1_2i == complex(0, 0o12))
+ 
+ 	// binaries
+ 	assert(0b_1 == 1)
+ 	assert(0b10 == 2)
+ 	assert(0b_1_0 == 2)
++	assert(0b_1_0i == complex(0, 2))
+ 
+ 	// decimal floats
+ 	assert(0. == 0.0)
+@@ -55,34 +62,29 @@ func main() {
+ 	assert(1_0. == 10.0)
+ 	assert(.0_1 == 0.01)
+ 	assert(1_0.0_1 == 10.01)
++	assert(1_0.0_1i == complex(0, 10.01))
+ 
+ 	assert(0.e1_0 == 0.0e10)
+ 	assert(.0e1_0 == 0.0e10)
+ 	assert(1_0.e1_0 == 10.0e10)
+ 	assert(.0_1e1_0 == 0.01e10)
+ 	assert(1_0.0_1e1_0 == 10.01e10)
++	assert(1_0.0_1e1_0i == complex(0, 10.01e10))
+ 
+ 	// hexadecimal floats
+ 	assert(equal(0x1p-2, 0.25))
+ 	assert(equal(0x2.p10, 2048.0))
+ 	assert(equal(0x1.Fp+0, 1.9375))
+-	assert(equal(0X.8p-0, 0.5))
+-	assert(equal(0X1FFFP-16, 0.1249847412109375))
++	assert(equal(0x.8p-0, 0.5))
++	assert(equal(0x1FFFp-16, 0.1249847412109375))
+ 	assert(equal(0x1.fffffffffffffp1023, 1.7976931348623157e308))
++	assert(equal(0x1.fffffffffffffp1023i, complex(0, 1.7976931348623157e308)))
+ 
+ 	assert(equal(0x_1p-2, 0.25))
+ 	assert(equal(0x2.p1_0, 2048.0))
+ 	assert(equal(0x1_0.Fp+0, 16.9375))
+-	assert(equal(0X_0.8p-0, 0.5))
+-	assert(equal(0X_1FF_FP-16, 0.1249847412109375))
+-	assert(equal(0x1.f_ffff_ffff_ffffP1_023, 1.7976931348623157e308))
+-
+-	// imaginaries
+-	assert(0i == complex(0, 0))
+-	assert(09i == complex(0, 9)) // "09i" is a decimal int followed by "i"
+-	assert(1.2e+3i == complex(0, 1.2e+3))
+-
+-	assert(0_0i == complex(0, 0))
+-	assert(0_9i == complex(0, 9)) // "0_9i" is a decimal int followed by "i"
+-	assert(1.2_0e+0_3i == complex(0, 1.2e+3))
++	assert(equal(0x_0.8p-0, 0.5))
++	assert(equal(0x_1FF_Fp-16, 0.1249847412109375))
++	assert(equal(0x1.f_ffff_ffff_ffffp1_023, 1.7976931348623157e308))
++	assert(equal(0x1.f_ffff_ffff_ffffp1_023i, complex(0, 1.7976931348623157e308)))
+ }

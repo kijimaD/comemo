@@ -14,6 +14,68 @@ Date:   Thu Sep 1 16:02:49 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go | 41 +++++++++++++++++---------------
  1 file changed, 22 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index e7aa5c1c49..c2ff639b00 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1794,14 +1794,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		if tv.IsType() {
+ 			assert(len(expr.ArgList) == 1)
+ 			assert(!expr.HasDots)
+-
+-			w.Code(exprConvert)
+-			w.Bool(false) // explicit
+-			w.typ(tv.Type)
+-			w.pos(expr)
+-			w.convRTTI(w.p.typeOf(expr.ArgList[0]), tv.Type)
+-			w.Bool(isTypeParam(tv.Type))
+-			w.expr(expr.ArgList[0])
++			w.convertExpr(tv.Type, expr.ArgList[0], false)
+ 			break
+ 		}
+ 
+@@ -2069,19 +2062,29 @@ func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syn
+ // from expr's type, then an implicit conversion operation is inserted
+ // at expr's position.
+ func (w *writer) implicitConvExpr(dst types2.Type, expr syntax.Expr) {
++	w.convertExpr(dst, expr, true)
++}
++
++func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
+ 	src := w.p.typeOf(expr)
+-	if dst != nil && !types2.Identical(src, dst) {
+-		if !types2.AssignableTo(src, dst) {
+-			w.p.fatalf(expr.Pos(), "%v is not assignable to %v", src, dst)
+-		}
+-		w.Code(exprConvert)
+-		w.Bool(true) // implicit
+-		w.typ(dst)
+-		w.pos(expr)
+-		w.convRTTI(src, dst)
+-		w.Bool(isTypeParam(dst))
+-		// fallthrough
++
++	// Omit implicit no-op conversions.
++	identical := dst == nil || types2.Identical(src, dst)
++	if implicit && identical {
++		w.expr(expr)
++		return
+ 	}
++
++	if implicit && !types2.AssignableTo(src, dst) {
++		w.p.fatalf(expr, "%v is not assignable to %v", src, dst)
++	}
++
++	w.Code(exprConvert)
++	w.Bool(implicit)
++	w.typ(dst)
++	w.pos(expr)
++	w.convRTTI(src, dst)
++	w.Bool(isTypeParam(dst))
+ 	w.expr(expr)
+ }
+ 

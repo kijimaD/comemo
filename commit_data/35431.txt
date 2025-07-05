@@ -12,7 +12,73 @@ Date:   Mon Feb 12 17:00:01 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/internal/atomic/atomic_arm.go   | 5 +++++
  src/runtime/internal/atomic/sys_linux_arm.s | 5 ++++-
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index 72af5842b9..b67a6b6c5a 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -109,6 +109,7 @@ func Cas64(addr *uint64, old, new uint64) bool {
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+ 		*(*int)(nil) = 0 // crash on unaligned uint64
+ 	}
++	_ = *addr // if nil, fault before taking the lock
+ 	var ok bool
+ 	addrLock(addr).lock()
+ 	if *addr == old {
+@@ -124,6 +125,7 @@ func Xadd64(addr *uint64, delta int64) uint64 {
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+ 		*(*int)(nil) = 0 // crash on unaligned uint64
+ 	}
++	_ = *addr // if nil, fault before taking the lock
+ 	var r uint64
+ 	addrLock(addr).lock()
+ 	r = *addr + uint64(delta)
+@@ -137,6 +139,7 @@ func Xchg64(addr *uint64, v uint64) uint64 {
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+ 		*(*int)(nil) = 0 // crash on unaligned uint64
+ 	}
++	_ = *addr // if nil, fault before taking the lock
+ 	var r uint64
+ 	addrLock(addr).lock()
+ 	r = *addr
+@@ -150,6 +153,7 @@ func Load64(addr *uint64) uint64 {
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+ 		*(*int)(nil) = 0 // crash on unaligned uint64
+ 	}
++	_ = *addr // if nil, fault before taking the lock
+ 	var r uint64
+ 	addrLock(addr).lock()
+ 	r = *addr
+@@ -162,6 +166,7 @@ func Store64(addr *uint64, v uint64) {
+ 	if uintptr(unsafe.Pointer(addr))&7 != 0 {
+ 		*(*int)(nil) = 0 // crash on unaligned uint64
+ 	}
++	_ = *addr // if nil, fault before taking the lock
+ 	addrLock(addr).lock()
+ 	*addr = v
+ 	addrLock(addr).unlock()
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index f8de2a2a41..6151e7c019 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -11,6 +11,9 @@ TEXT cas<>(SB),NOSPLIT,$0
+ 
+ TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
+ 	MOVW	ptr+0(FP), R2
++	// trigger potential paging fault here,
++	// because we don't know how to traceback through __kuser_cmpxchg
++	MOVW    (R2), R0
+ 	MOVW	old+4(FP), R0
+ loop:
+ 	MOVW	new+8(FP), R1
+@@ -39,4 +42,4 @@ TEXT runtime∕internal∕atomic·Casp1(SB),NOSPLIT,$0
+ // a memory barrier, but it requires writing to a coprocessor
+ // register. ARMv7 introduced the DMB instruction, but it's expensive
+ // even on single-core devices. The kernel helper takes care of all of
+-// this for us.
+\ No newline at end of file
++// this for us.

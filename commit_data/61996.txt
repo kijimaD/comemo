@@ -24,7 +24,110 @@ Date:   Mon Jan 6 16:02:38 2025 -0500
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/cache/prog.go                  | 22 +++++++++++++++++-
  .../testdata/script/build_cacheprog_issue70848.txt | 27 ++++++++++++++++++++++
  2 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/prog.go b/src/cmd/go/internal/cache/prog.go
+index 01ed9438e3..bfddf5e4de 100644
+--- a/src/cmd/go/internal/cache/prog.go
++++ b/src/cmd/go/internal/cache/prog.go
+@@ -153,6 +153,12 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
+ 		res := new(cacheprog.Response)
+ 		if err := jd.Decode(res); err != nil {
+ 			if c.closing.Load() {
++				c.mu.Lock()
++				for _, ch := range c.inFlight {
++					close(ch)
++				}
++				c.inFlight = nil
++				c.mu.Unlock()
+ 				return // quietly
+ 			}
+ 			if err == io.EOF {
+@@ -175,6 +181,8 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
+ 	}
+ }
+ 
++var errCacheprogClosed = errors.New("GOCACHEPROG program closed unexpectedly")
++
+ func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cacheprog.Response, error) {
+ 	resc := make(chan *cacheprog.Response, 1)
+ 	if err := c.writeToChild(req, resc); err != nil {
+@@ -182,6 +190,9 @@ func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cachepro
+ 	}
+ 	select {
+ 	case res := <-resc:
++		if res == nil {
++			return nil, errCacheprogClosed
++		}
+ 		if res.Err != "" {
+ 			return nil, errors.New(res.Err)
+ 		}
+@@ -193,6 +204,9 @@ func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cachepro
+ 
+ func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.Response) (err error) {
+ 	c.mu.Lock()
++	if c.inFlight == nil {
++		return errCacheprogClosed
++	}
+ 	c.nextID++
+ 	req.ID = c.nextID
+ 	c.inFlight[req.ID] = resc
+@@ -201,7 +215,9 @@ func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.
+ 	defer func() {
+ 		if err != nil {
+ 			c.mu.Lock()
+-			delete(c.inFlight, req.ID)
++			if c.inFlight != nil {
++				delete(c.inFlight, req.ID)
++			}
+ 			c.mu.Unlock()
+ 		}
+ 	}()
+@@ -348,6 +364,10 @@ func (c *ProgCache) Close() error {
+ 	// the context that kills the process.
+ 	if c.can[cacheprog.CmdClose] {
+ 		_, err = c.send(c.ctx, &cacheprog.Request{Command: cacheprog.CmdClose})
++		if errors.Is(err, errCacheprogClosed) {
++			// Allow the child to quit without responding to close.
++			err = nil
++		}
+ 	}
+ 	// Cancel the context, which will close the helper's stdin.
+ 	c.ctxCancel()
+diff --git a/src/cmd/go/testdata/script/build_cacheprog_issue70848.txt b/src/cmd/go/testdata/script/build_cacheprog_issue70848.txt
+new file mode 100644
+index 0000000000..194fd47d93
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_cacheprog_issue70848.txt
+@@ -0,0 +1,27 @@
++[short] skip 'builds go programs'
++
++go build -o cacheprog$GOEXE cacheprog.go
++env GOCACHEPROG=$GOPATH/src/cacheprog$GOEXE
++
++# This should not deadlock
++go build simple.go
++! stderr 'cacheprog closed'
++
++-- simple.go --
++package main
++
++func main() {}
++-- cacheprog.go --
++// This is a minimal GOCACHEPROG program that doesn't respond to close.
++package main
++
++import (
++    "encoding/json"
++    "os"
++)
++
++func main() {
++    json.NewEncoder(os.Stdout).Encode(map[string][]string{"KnownCommands": {"close"}})
++    var res struct{}
++    json.NewDecoder(os.Stdin).Decode(&res)
++}
+\ No newline at end of file

@@ -8,7 +8,42 @@ Date:   Fri Aug 14 15:13:32 2009 -0700
     DELTA=16  (16 added, 0 deleted, 0 changed)
     OCL=33292
     CL=33303
-
+---
  test/bugs/bug189.go | 17 +++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 20 insertions(+)
+
+diff --git a/test/bugs/bug189.go b/test/bugs/bug189.go
+new file mode 100644
+index 0000000000..3befe82f69
+--- /dev/null
++++ b/test/bugs/bug189.go
+@@ -0,0 +1,17 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct {
++	a, b int
++}
++
++func main() {
++	s1 := S{a: 7};	// ok - field is named
++	s3 := S{7, 11};	// ok - all fields have values
++	s2 := S{7};	// bug - should not compile since not all fields have values
++}
+diff --git a/test/golden.out b/test/golden.out
+index c3a38b3130..4ced667c85 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -156,3 +156,6 @@ BUG: errchk: command succeeded unexpectedly
+ 
+ =========== bugs/bug187.go
+ BUG: 0 1
++
++=========== bugs/bug189.go
++BUG: errchk: command succeeded unexpectedly

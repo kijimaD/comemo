@@ -9,7 +9,44 @@ Date:   Fri Sep 6 12:00:27 2013 -0700
     R=golang-dev, rsc, dave
     CC=golang-dev
     https://golang.org/cl/13523044
-
+---
  src/pkg/crypto/rand/example_test.go | 3 +--
  src/pkg/crypto/rand/rand.go         | 7 +++++--
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/example_test.go b/src/pkg/crypto/rand/example_test.go
+index 5db9e92cb7..8a27173002 100644
+--- a/src/pkg/crypto/rand/example_test.go
++++ b/src/pkg/crypto/rand/example_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"crypto/rand"
+ 	"fmt"
+-	"io"
+ )
+ 
+ // This example reads 10 cryptographically secure pseudorandom numbers from
+@@ -16,7 +15,7 @@ import (
+ func ExampleRead() {
+ 	c := 10
+ 	b := make([]byte, c)
+-	_, err := io.ReadFull(rand.Reader, b)
++	_, err := rand.Read(b)
+ 	if err != nil {
+ 		fmt.Println("error:", err)
+ 		return
+diff --git a/src/pkg/crypto/rand/rand.go b/src/pkg/crypto/rand/rand.go
+index 59759038ee..4da3adb701 100644
+--- a/src/pkg/crypto/rand/rand.go
++++ b/src/pkg/crypto/rand/rand.go
+@@ -14,5 +14,8 @@ import "io"
+ // On Windows systems, Reader uses the CryptGenRandom API.
+ var Reader io.Reader
+ 
+-// Read is a helper function that calls Reader.Read.
+-func Read(b []byte) (n int, err error) { return Reader.Read(b) }
++// Read is a helper function that calls Reader.Read using io.ReadFull.
++// On return, n == len(b) if and only if err == nil.
++func Read(b []byte) (n int, err error) {
++	return io.ReadFull(Reader, b)
++}

@@ -12,6 +12,30 @@ Date:   Wed Jan 6 15:45:16 2016 +1100
     Change-Id: Idfd8cc852e733c44211e77cf0e22720b1fdca39b
     Reviewed-on: https://go-review.googlesource.com/18273
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/transport.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 8d9e58cc2e..6ca1c5a9fd 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -46,7 +46,17 @@ const DefaultMaxIdleConnsPerHost = 2
+ 
+ // Transport is an implementation of RoundTripper that supports HTTP,
+ // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
+-// Transport can also cache connections for future re-use.
++//
++// By default, Transport caches connections for future re-use.
++// This may leave many open connections when accessing many hosts.
++// This behavior can be managed using Transport's CloseIdleConnections method
++// and the MaxIdleConnsPerHost and DisableKeepAlives fields.
++//
++// Transports should be reused instead of created as needed.
++// Transports are safe for concurrent use by multiple goroutines.
++//
++// A Transport is a low-level primitive for making HTTP and HTTPS requests.
++// For high-level functionality, such as cookies and redirects, see Client.
+ type Transport struct {
+ 	idleMu     sync.Mutex
+ 	wantIdle   bool // user has requested to close all idle conns

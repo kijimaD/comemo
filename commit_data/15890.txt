@@ -7,6 +7,36 @@ Date:   Fri Mar 22 14:54:20 2013 +1100
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/7835046
-
+---
  src/pkg/math/sqrt.go | 11 ++---------
  1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index 21336df2ae..1bd4437f15 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -4,15 +4,6 @@
+ 
+ package math
+ 
+-// Sqrt returns the square root of x.
+-//
+-// Special cases are:
+-//	Sqrt(+Inf) = +Inf
+-//	Sqrt(±0) = ±0
+-//	Sqrt(x < 0) = NaN
+-//	Sqrt(NaN) = NaN
+-func Sqrt(x float64) float64
+-
+ // The original C code and the long comment below are
+ // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
+ // came with this notice.  The go code is a simplified
+@@ -98,6 +89,8 @@ func Sqrt(x float64) float64
+ //	Sqrt(±0) = ±0
+ //	Sqrt(x < 0) = NaN
+ //	Sqrt(NaN) = NaN
++func Sqrt(x float64) float64
++
+ func sqrt(x float64) float64 {
+ 	// special cases
+ 	switch {

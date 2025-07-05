@@ -12,6 +12,25 @@ Date:   Fri Mar 1 03:09:39 2024 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/cgi/host_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index f29395fe84..7fe0e6257d 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -385,12 +385,11 @@ func TestCopyError(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Write: %v", err)
+ 	}
+-
+ 	res, err := http.ReadResponse(bufio.NewReader(conn), req)
+ 	if err != nil {
+ 		t.Fatalf("ReadResponse: %v", err)
+ 	}
+-
++	defer res.Body.Close()
+ 	var buf [5000]byte
+ 	n, err := io.ReadFull(res.Body, buf[:])
+ 	if err != nil {

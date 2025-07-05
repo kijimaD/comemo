@@ -14,7 +14,93 @@ Date:   Tue Feb 24 22:20:38 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/5881
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 30 +++++++++++++++++++-----------
  src/runtime/mgcmark.go | 11 ++---------
  2 files changed, 21 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 88d44b2b75..e87d80618a 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -339,13 +339,9 @@ func gc(mode int) {
+ 		})
+ 	} else {
+ 		// For non-concurrent GC (mode != gcBackgroundMode)
+-		// The g stacks have not been scanned so set gcscanvalid
++		// The g stacks have not been scanned so clear g state
+ 		// such that mark termination scans all stacks.
+-		// No races here since we are in a STW phase.
+-		for _, gp := range allgs {
+-			gp.gcworkdone = false  // set to true in gcphasework
+-			gp.gcscanvalid = false // stack has not been scanned
+-		}
++		gcResetGState()
+ 	}
+ 
+ 	startTime := nanotime()
+@@ -384,11 +380,7 @@ func gc(mode int) {
+ 			// The g stacks have been scanned so
+ 			// they have gcscanvalid==true and gcworkdone==true.
+ 			// Reset these so that all stacks will be rescanned.
+-			// No races here since we are in a STW phase.
+-			for _, gp := range allgs {
+-				gp.gcworkdone = false  // set to true in gcphasework
+-				gp.gcscanvalid = false // stack has not been scanned
+-			}
++			gcResetGState()
+ 			finishsweep_m()
+ 			gcMark(startTime)
+ 			gcSweep(mode)
+@@ -606,6 +598,22 @@ func gcCopySpans() {
+ 	unlock(&mheap_.lock)
+ }
+ 
++// gcResetGState resets the GC state of all G's and returns the length
++// of allgs.
++func gcResetGState() int {
++	// This may be called during a concurrent phase, so make sure
++	// allgs doesn't change.
++	lock(&allglock)
++	local_allglen := allglen
++	for i := uintptr(0); i < local_allglen; i++ {
++		gp := allgs[i]
++		gp.gcworkdone = false  // set to true in gcphasework
++		gp.gcscanvalid = false // stack has not been scanned
++	}
++	unlock(&allglock)
++	return int(local_allglen)
++}
++
+ // Hooks for other packages
+ 
+ var poolcleanup func()
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1d6c1e8e22..50e125dc27 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -27,14 +27,7 @@ func gcscan_m() {
+ 	// At the bottom we will want to return this p back to the scheduler.
+ 
+ 	// Prepare flag indicating that the scan has not been completed.
+-	lock(&allglock)
+-	local_allglen := allglen
+-	for i := uintptr(0); i < local_allglen; i++ {
+-		gp := allgs[i]
+-		gp.gcworkdone = false  // set to true in gcphasework
+-		gp.gcscanvalid = false // stack has not been scanned
+-	}
+-	unlock(&allglock)
++	local_allglen := gcResetGState()
+ 
+ 	work.nwait = 0
+ 	work.ndone = 0
+@@ -45,7 +38,7 @@ func gcscan_m() {
+ 
+ 	lock(&allglock)
+ 	// Check that gc work is done.
+-	for i := uintptr(0); i < local_allglen; i++ {
++	for i := 0; i < local_allglen; i++ {
+ 		gp := allgs[i]
+ 		if !gp.gcworkdone {
+ 			throw("scan missed a g")

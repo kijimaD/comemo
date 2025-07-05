@@ -64,6 +64,29 @@ Date:   Tue Apr 26 22:07:46 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: mzh <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/buildcfg/exp.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 87b1686c20..6118c49d7f 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -65,6 +65,8 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	case "amd64", "arm64", "ppc64le", "ppc64":
+ 		regabiAlwaysOn = true
+ 		regabiSupported = true
++	case "riscv64":
++		regabiSupported = true
+ 	}
+ 
+ 	baseline := goexperiment.Flags{
+@@ -128,7 +130,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		flags.RegabiWrappers = true
+ 		flags.RegabiArgs = true
+ 	}
+-	// regabi is only supported on amd64, arm64, ppc64 and ppc64le.
++	// regabi is only supported on amd64, arm64, riscv64, ppc64 and ppc64le.
+ 	if !regabiSupported {
+ 		flags.RegabiArgs = false
+ 	}

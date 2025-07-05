@@ -23,6 +23,19 @@ Date:   Fri Jul 9 11:15:23 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/internal/buildcfg/exp.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 6e8bf30743..0245574ec1 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -111,7 +111,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (flags, baseline goexperiment
+ 	}
+ 	// regabi is only supported on amd64 and arm64.
+ 	if goarch != "amd64" && goarch != "arm64" {
+-		flags.RegabiWrappers = false
+ 		flags.RegabiReflect = false
+ 		flags.RegabiArgs = false
+ 	}

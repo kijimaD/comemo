@@ -11,6 +11,22 @@ Date:   Thu Sep 29 20:52:42 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/internal/obj/pcln.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index ea2d59492f..30cf43f172 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -294,9 +294,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 		inlMarkProgs[inlMark.p] = struct{}{}
+ 	}
+ 	for p := fn.Text; p != nil; p = p.Link {
+-		if _, ok := inlMarkProgs[p]; ok {
+-			delete(inlMarkProgs, p)
+-		}
++		delete(inlMarkProgs, p)
+ 	}
+ 	if len(inlMarkProgs) > 0 {
+ 		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")

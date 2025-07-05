@@ -15,7 +15,7 @@ Date:   Thu Jan 22 12:10:59 2015 -0500
     Change-Id: I754cf553402ccdd4963e51b7039f589286219c29
     Reviewed-on: https://go-review.googlesource.com/3278
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/gc/array.c     | 10 +++++-----
  src/cmd/gc/closure.c   |  2 +-
  src/cmd/gc/dcl.c       |  4 ++--
@@ -30,3 +30,558 @@ Date:   Thu Jan 22 12:10:59 2015 -0500
  src/cmd/gc/typecheck.c | 22 +++++++++++-----------
  src/cmd/gc/walk.c      | 40 ++++++++++++++++++++--------------------
  13 files changed, 99 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/gc/array.c b/src/cmd/gc/array.c
+index f911a741f6..d5d9646d6a 100644
+--- a/src/cmd/gc/array.c
++++ b/src/cmd/gc/array.c
+@@ -11,7 +11,7 @@ enum {
+ };
+ 
+ Array*
+-arraynew(int32 capacity, int32 size)
++arraynew(int capacity, int32 size)
+ {
+ 	Array *result;
+ 
+@@ -40,14 +40,14 @@ arrayfree(Array *array)
+ 	free(array);
+ }
+ 
+-int32
++int
+ arraylength(Array *array)
+ {
+ 	return array->length;
+ }
+ 
+ void*
+-arrayget(Array *array, int32 index)
++arrayget(Array *array, int index)
+ {
+ 	if(array == nil)
+ 		fatal("arrayget: array is nil\n");
+@@ -57,7 +57,7 @@ arrayget(Array *array, int32 index)
+ }
+ 
+ void
+-arrayset(Array *array, int32 index, void *element)
++arrayset(Array *array, int index, void *element)
+ {
+ 	if(array == nil)
+ 		fatal("arrayset: array is nil\n");
+@@ -69,7 +69,7 @@ arrayset(Array *array, int32 index, void *element)
+ }
+ 
+ static void
+-ensurecapacity(Array *array, int32 capacity)
++ensurecapacity(Array *array, int capacity)
+ {
+ 	int32 newcapacity;
+ 	char *newdata;
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index ad4e5bd02b..603a026852 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -315,7 +315,7 @@ makepartialcall(Node *fn, Type *t0, Node *meth)
+ 		spkg = basetype->sym->pkg;
+ 	if(spkg == nil) {
+ 		if(gopkg == nil)
+-			gopkg = mkpkg(strlit("go"));
++			gopkg = mkpkg(newstrlit("go"));
+ 		spkg = gopkg;
+ 	}
+ 	sym = pkglookup(p, spkg);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index dfcf47520a..556660c923 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1284,7 +1284,7 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 	}
+ 	if(spkg == nil) {
+ 		if(toppkg == nil)
+-			toppkg = mkpkg(strlit("go"));
++			toppkg = mkpkg(newstrlit("go"));
+ 		spkg = toppkg;
+ 	}
+ 	s = pkglookup(p, spkg);
+@@ -1413,7 +1413,7 @@ addmethod(Sym *sf, Type *t, int local, int nointerface)
+ 	for(f=pa->method; f!=T; f=f->down) {
+ 		d = f;
+ 		if(f->etype != TFIELD)
+-			fatal("addmethod: not TFIELD: %N", f);
++			fatal("addmethod: not TFIELD: %lT", f);
+ 		if(strcmp(sf->name, f->sym->name) != 0)
+ 			continue;
+ 		if(!eqtype(t, f->type))
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 324f24fcf8..7c7095c820 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -241,7 +241,7 @@ mktag(int mask)
+ 		return tags[mask];
+ 
+ 	snprint(buf, sizeof buf, "esc:0x%x", mask);
+-	s = strlit(buf);
++	s = newstrlit(buf);
+ 	if(mask < nelem(tags))
+ 		tags[mask] = s;
+ 	return s;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 9f3f1b582c..4aa93b25b2 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1422,7 +1422,7 @@ int	simsimtype(Type *t);
+ void	smagic(Magic *m);
+ Type*	sortinter(Type *t);
+ uint32	stringhash(char *p);
+-Strlit*	strlit(char *s);
++Strlit*	newstrlit(char *s);
+ int	structcount(Type *t);
+ Type*	structfirst(Iter *s, Type **nn);
+ Type*	structnext(Iter *s);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 968eb174a4..8e6c236acc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -128,12 +128,15 @@ catcher(void *v, char *s)
+ void
+ doversion(void)
+ {
+-	char *p;
++	char *p, *sep;
+ 
+ 	p = expstring();
+ 	if(strcmp(p, "X:none") == 0)
+ 		p = "";
+-	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), *p ? " " : "", p);
++	sep = "";
++	if(*p)
++		sep = " ";
++	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), sep, p);
+ 	exits(0);
+ }
+ 
+@@ -167,42 +170,42 @@ gcmain(int argc, char *argv[])
+ 	ctxt->bso = &bstdout;
+ 	Binit(&bstdout, 1, OWRITE);
+ 
+-	localpkg = mkpkg(strlit(""));
++	localpkg = mkpkg(newstrlit(""));
+ 	localpkg->prefix = "\"\"";
+ 	
+ 	// pseudo-package, for scoping
+-	builtinpkg = mkpkg(strlit("go.builtin"));
++	builtinpkg = mkpkg(newstrlit("go.builtin"));
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+-	unsafepkg = mkpkg(strlit("unsafe"));
++	unsafepkg = mkpkg(newstrlit("unsafe"));
+ 	unsafepkg->name = "unsafe";
+ 
+ 	// real package, referred to by generated runtime calls
+-	runtimepkg = mkpkg(strlit("runtime"));
++	runtimepkg = mkpkg(newstrlit("runtime"));
+ 	runtimepkg->name = "runtime";
+ 
+ 	// pseudo-packages used in symbol tables
+-	gostringpkg = mkpkg(strlit("go.string"));
++	gostringpkg = mkpkg(newstrlit("go.string"));
+ 	gostringpkg->name = "go.string";
+ 	gostringpkg->prefix = "go.string";	// not go%2estring
+ 
+-	itabpkg = mkpkg(strlit("go.itab"));
++	itabpkg = mkpkg(newstrlit("go.itab"));
+ 	itabpkg->name = "go.itab";
+ 	itabpkg->prefix = "go.itab";	// not go%2eitab
+ 
+-	weaktypepkg = mkpkg(strlit("go.weak.type"));
++	weaktypepkg = mkpkg(newstrlit("go.weak.type"));
+ 	weaktypepkg->name = "go.weak.type";
+ 	weaktypepkg->prefix = "go.weak.type";  // not go%2eweak%2etype
+ 	
+-	typelinkpkg = mkpkg(strlit("go.typelink"));
++	typelinkpkg = mkpkg(newstrlit("go.typelink"));
+ 	typelinkpkg->name = "go.typelink";
+ 	typelinkpkg->prefix = "go.typelink"; // not go%2etypelink
+ 
+-	trackpkg = mkpkg(strlit("go.track"));
++	trackpkg = mkpkg(newstrlit("go.track"));
+ 	trackpkg->name = "go.track";
+ 	trackpkg->prefix = "go.track";  // not go%2etrack
+ 
+-	typepkg = mkpkg(strlit("type"));
++	typepkg = mkpkg(newstrlit("type"));
+ 	typepkg->name = "type";
+ 
+ 	goroot = getgoroot();
+@@ -271,7 +274,7 @@ gcmain(int argc, char *argv[])
+ 		usage();
+ 
+ 	if(flag_race) {
+-		racepkg = mkpkg(strlit("runtime/race"));
++		racepkg = mkpkg(newstrlit("runtime/race"));
+ 		racepkg->name = "race";
+ 	}
+ 	
+@@ -620,7 +623,7 @@ findpkg(Strlit *name)
+ static void
+ fakeimport(void)
+ {
+-	importpkg = mkpkg(strlit("fake"));
++	importpkg = mkpkg(newstrlit("fake"));
+ 	cannedimports("fake.6", "$$\n");
+ }
+ 
+@@ -693,7 +696,7 @@ importfile(Val *f, int line)
+ 		strcat(cleanbuf, "/");
+ 		strcat(cleanbuf, path->s);
+ 		cleanname(cleanbuf);
+-		path = strlit(cleanbuf);
++		path = newstrlit(cleanbuf);
+ 		
+ 		if(isbadimport(path)) {
+ 			fakeimport();
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 9e38da6709..a19b4c272f 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -386,8 +386,11 @@ cmpstackvar(Node *a, Node *b)
+ {
+ 	int ap, bp;
+ 
+-	if (a->class != b->class)
+-		return (a->class == PAUTO) ? +1 : -1;
++	if (a->class != b->class) {
++		if(a->class == PAUTO)
++			return +1;
++		return -1;
++	}
+ 	if (a->class != PAUTO) {
+ 		if (a->xoffset < b->xoffset)
+ 			return -1;
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 3c8f66245f..fa9e7dc003 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -618,15 +618,15 @@ freecfg(Array *cfg)
+ 	BasicBlock *bb0;
+ 	Prog *p;
+ 	int32 i;
+-	int32 len;
++	int32 n;
+ 
+-	len = arraylength(cfg);
+-	if(len > 0) {
++	n = arraylength(cfg);
++	if(n > 0) {
+ 		bb0 = *(BasicBlock**)arrayget(cfg, 0);
+ 		for(p = bb0->first; p != P; p = p->link) {
+ 			p->opt = nil;
+ 		}
+-		for(i = 0; i < len; i++) {
++		for(i = 0; i < n; i++) {
+ 			bb = *(BasicBlock**)arrayget(cfg, i);
+ 			freeblock(bb);
+ 		}
+@@ -1670,12 +1670,17 @@ enum
+ static uint32
+ hashbitmap(uint32 h, Bvec *bv)
+ {
+-	uchar *p, *ep;
++	int i, n;
++	uint32 w;
+ 	
+-	p = (uchar*)bv->b;
+-	ep = p + 4*((bv->n+31)/32);
+-	while(p < ep)
+-		h = (h*Hp) ^ *p++;
++	n = (bv->n+31)/32;
++	for(i=0; i<n; i++) {
++		w = bv->b[i];
++		h = (h*Hp) ^ (w&0xff);
++		h = (h*Hp) ^ ((w>>8)&0xff);
++		h = (h*Hp) ^ ((w>>16)&0xff);
++		h = (h*Hp) ^ ((w>>24)&0xff);
++	}
+ 	return h;
+ }
+ 
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index de9e32b2a8..f3134dab23 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -474,6 +474,7 @@ isartificial(Node *n)
+ static int
+ callinstr(Node **np, NodeList **init, int wr, int skip)
+ {
++	char *name;
+ 	Node *f, *b, *n;
+ 	Type *t;
+ 	int class, hascalls;
+@@ -508,10 +509,16 @@ callinstr(Node **np, NodeList **init, int wr, int skip)
+ 		n = treecopy(n);
+ 		makeaddable(n);
+ 		if(t->etype == TSTRUCT || isfixedarray(t)) {
+-			f = mkcall(wr ? "racewriterange" : "racereadrange", T, init, uintptraddr(n),
+-					nodintconst(t->width));
+-		} else
+-			f = mkcall(wr ? "racewrite" : "raceread", T, init, uintptraddr(n));
++			name = "racereadrange";
++			if(wr)
++				name = "racewriterange";
++			f = mkcall(name, T, init, uintptraddr(n), nodintconst(t->width));
++		} else {
++			name = "raceread";
++			if(wr)
++				name = "racewrite";
++			f = mkcall(name, T, init, uintptraddr(n));
++		}
+ 		*init = list(*init, f);
+ 		return 1;
+ 	}
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index bc6c530939..8d302b5ec7 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -511,7 +511,7 @@ dimportpath(Pkg *p)
+ 		return;
+ 
+ 	if(gopkg == nil) {
+-		gopkg = mkpkg(strlit("go"));
++		gopkg = mkpkg(newstrlit("go"));
+ 		gopkg->name = "go";
+ 	}
+ 	nam = smprint("importpath.%s.", p->prefix);
+@@ -540,7 +540,7 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
+ 		static Sym *ns;
+ 
+ 		if(ns == nil)
+-			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
++			ns = pkglookup("importpath.\"\".", mkpkg(newstrlit("go")));
+ 		return arch.dsymptr(s, ot, ns, 0);
+ 	}
+ 
+@@ -1302,7 +1302,7 @@ dumptypestructs(void)
+ 		dimportpath(runtimepkg);
+ 		if(flag_race)
+ 			dimportpath(racepkg);
+-		dimportpath(mkpkg(strlit("main")));
++		dimportpath(mkpkg(newstrlit("main")));
+ 	}
+ }
+ 
+@@ -1411,7 +1411,7 @@ gengcmask(Type *t, uint8 gcmask[16])
+ 
+ 	// Unfold the mask for the GC bitmap format:
+ 	// 4 bits per word, 2 high bits encode pointer info.
+-	pos = (uint8*)gcmask;
++	pos = gcmask;
+ 	nptr = (t->width+widthptr-1)/widthptr;
+ 	half = 0;
+ 	// If number of words is odd, repeat the mask.
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 39d6d96bda..3ed194ee8f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1979,7 +1979,7 @@ brcom(int a)
+ 	case OLE:	return OGT;
+ 	case OGE:	return OLT;
+ 	}
+-	fatal("brcom: no com for %A\n", a);
++	fatal("brcom: no com for %O\n", a);
+ 	return a;
+ }
+ 
+@@ -1998,7 +1998,7 @@ brrev(int a)
+ 	case OLE:	return OGE;
+ 	case OGE:	return OLE;
+ 	}
+-	fatal("brcom: no rev for %A\n", a);
++	fatal("brcom: no rev for %O\n", a);
+ 	return a;
+ }
+ 
+@@ -2566,11 +2566,11 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		// so no space cost to use them here.
+ 		l = nil;
+ 		v.ctype = CTSTR;
+-		v.u.sval = strlit(rcvr->type->sym->pkg->name);  // package name
++		v.u.sval = newstrlit(rcvr->type->sym->pkg->name);  // package name
+ 		l = list(l, nodlit(v));
+-		v.u.sval = strlit(rcvr->type->sym->name);  // type name
++		v.u.sval = newstrlit(rcvr->type->sym->name);  // type name
+ 		l = list(l, nodlit(v));
+-		v.u.sval = strlit(method->sym->name);
++		v.u.sval = newstrlit(method->sym->name);
+ 		l = list(l, nodlit(v));  // method name
+ 		call = nod(OCALL, syslook("panicwrap", 0), N);
+ 		call->list = l;
+@@ -3723,7 +3723,7 @@ mkpkg(Strlit *path)
+ }
+ 
+ Strlit*
+-strlit(char *s)
++newstrlit(char *s)
+ {
+ 	Strlit *t;
+ 	
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 222fd5296b..3727fdde9c 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2349,7 +2349,7 @@ toomany:
+  */
+ 
+ static void
+-fielddup(Node *n, Node *hash[], ulong nhash)
++fielddup(Node *n, Node **hash, ulong nhash)
+ {
+ 	uint h;
+ 	char *s;
+@@ -2370,7 +2370,7 @@ fielddup(Node *n, Node *hash[], ulong nhash)
+ }
+ 
+ static void
+-keydup(Node *n, Node *hash[], ulong nhash)
++keydup(Node *n, Node **hash, ulong nhash)
+ {
+ 	uint h;
+ 	ulong b;
+@@ -2437,7 +2437,7 @@ keydup(Node *n, Node *hash[], ulong nhash)
+ }
+ 
+ static void
+-indexdup(Node *n, Node *hash[], ulong nhash)
++indexdup(Node *n, Node **hash, ulong nhash)
+ {
+ 	uint h;
+ 	Node *a;
+@@ -2552,7 +2552,7 @@ static void
+ typecheckcomplit(Node **np)
+ {
+ 	int bad, i, nerr;
+-	int64 len;
++	int64 length;
+ 	Node *l, *n, *norig, *r, **hash;
+ 	NodeList *ll;
+ 	Type *t, *f;
+@@ -2606,7 +2606,7 @@ typecheckcomplit(Node **np)
+ 	case TARRAY:
+ 		nhash = inithash(n, &hash, autohash, nelem(autohash));
+ 
+-		len = 0;
++		length = 0;
+ 		i = 0;
+ 		for(ll=n->list; ll; ll=ll->next) {
+ 			l = ll->n;
+@@ -2629,11 +2629,11 @@ typecheckcomplit(Node **np)
+ 			if(i >= 0)
+ 				indexdup(l->left, hash, nhash);
+ 			i++;
+-			if(i > len) {
+-				len = i;
+-				if(t->bound >= 0 && len > t->bound) {
++			if(i > length) {
++				length = i;
++				if(t->bound >= 0 && length > t->bound) {
+ 					setlineno(l);
+-					yyerror("array index %lld out of bounds [0:%lld]", len-1, t->bound);
++					yyerror("array index %lld out of bounds [0:%lld]", length-1, t->bound);
+ 					t->bound = -1;	// no more errors
+ 				}
+ 			}
+@@ -2645,9 +2645,9 @@ typecheckcomplit(Node **np)
+ 			l->right = assignconv(r, t->type, "array element");
+ 		}
+ 		if(t->bound == -100)
+-			t->bound = len;
++			t->bound = length;
+ 		if(t->bound < 0)
+-			n->right = nodintconst(len);
++			n->right = nodintconst(length);
+ 		n->op = OARRAYLIT;
+ 		break;
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3350a0dfe0..b1d1bdd336 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -417,7 +417,7 @@ walkexpr(Node **np, NodeList **init)
+ 	int32 lno;
+ 	Node *n, *fn, *n1, *n2;
+ 	Sym *sym;
+-	char buf[100], *p;
++	char buf[100], *p, *from, *to;
+ 
+ 	n = *np;
+ 
+@@ -672,14 +672,17 @@ walkexpr(Node **np, NodeList **init)
+ 			n1 = nod(OADDR, n->left, N);
+ 			r = n->right; // i.(T)
+ 
+-			strcpy(buf, "assertI2T");
++			from = "I";
++			to = "T";
+ 			if(isnilinter(r->left->type))
+-				buf[6] = 'E';
++				from = "E";
+ 			if(isnilinter(r->type))
+-				buf[8] = 'E';
++				to = "E";
+ 			else if(isinter(r->type))
+-				buf[8] = 'I';
++				to = "I";
+ 			
++			snprint(buf, sizeof buf, "assert%s2%s", from, to);
++
+ 			fn = syslook(buf, 1);
+ 			argtype(fn, r->left->type);
+ 			argtype(fn, r->type);
+@@ -850,13 +853,15 @@ walkexpr(Node **np, NodeList **init)
+ 			n1 = nod(OADDR, n->list->n, N);
+ 		n1->etype = 1; // addr does not escape
+ 
+-		strcpy(buf, "assertI2T2");
++		from = "I";
++		to = "T";
+ 		if(isnilinter(r->left->type))
+-			buf[6] = 'E';
++			from = "E";
+ 		if(isnilinter(r->type))
+-			buf[8] = 'E';
++			to = "E";
+ 		else if(isinter(r->type))
+-			buf[8] = 'I';
++			to = "I";
++		snprint(buf, sizeof buf, "assert%s2%s2", from, to);
+ 		
+ 		fn = syslook(buf, 1);
+ 		argtype(fn, r->left->type);
+@@ -890,20 +895,15 @@ walkexpr(Node **np, NodeList **init)
+ 		// Build name of function: convI2E etc.
+ 		// Not all names are possible
+ 		// (e.g., we'll never generate convE2E or convE2I).
+-		strcpy(buf, "conv");
+-		p = buf+strlen(buf);
++		from = "T";
++		to = "I";
+ 		if(isnilinter(n->left->type))
+-			*p++ = 'E';
++			from = "E";
+ 		else if(isinter(n->left->type))
+-			*p++ = 'I';
+-		else
+-			*p++ = 'T';
+-		*p++ = '2';
++			from = "I";
+ 		if(isnilinter(n->type))
+-			*p++ = 'E';
+-		else
+-			*p++ = 'I';
+-		*p = '\0';
++			to = "E";
++		snprint(buf, sizeof buf, "conv%s2%s", from, to);
+ 
+ 		fn = syslook(buf, 1);
+ 		ll = nil;

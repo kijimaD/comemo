@@ -14,7 +14,75 @@ Date:   Mon Jan 18 09:42:53 2021 +0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 37 +++++++------------------
  src/cmd/compile/internal/staticinit/sched.go    |  2 +-
  2 files changed, 11 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index fe0bd26927..bd89b62ff5 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -836,39 +836,22 @@ func TypeLinksym(t *types.Type) *obj.LSym {
+ }
+ 
+ func TypePtr(t *types.Type) *ir.AddrExpr {
+-	s := TypeSym(t)
+-	if s.Def == nil {
+-		n := ir.NewNameAt(src.NoXPos, s)
+-		n.SetType(types.Types[types.TUINT8])
+-		n.Class = ir.PEXTERN
+-		n.SetTypecheck(1)
+-		s.Def = n
+-	}
+-
+-	n := typecheck.NodAddr(ir.AsNode(s.Def))
+-	n.SetType(types.NewPtr(s.Def.Type()))
+-	n.SetTypecheck(1)
+-	return n
++	n := ir.NewLinksymExpr(base.Pos, TypeLinksym(t), types.Types[types.TUINT8])
++	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+ }
+ 
+ func ITabAddr(t, itype *types.Type) *ir.AddrExpr {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
+ 		base.Fatalf("ITabAddr(%v, %v)", t, itype)
+ 	}
+-	s := ir.Pkgs.Itab.Lookup(t.ShortString() + "," + itype.ShortString())
+-	if s.Def == nil {
+-		n := typecheck.NewName(s)
+-		n.SetType(types.Types[types.TUINT8])
+-		n.Class = ir.PEXTERN
+-		n.SetTypecheck(1)
+-		s.Def = n
+-		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: n.Linksym()})
+-	}
+-
+-	n := typecheck.NodAddr(ir.AsNode(s.Def))
+-	n.SetType(types.NewPtr(s.Def.Type()))
+-	n.SetTypecheck(1)
+-	return n
++	s, existed := ir.Pkgs.Itab.LookupOK(t.ShortString() + "," + itype.ShortString())
++	if !existed {
++		itabs = append(itabs, itabEntry{t: t, itype: itype, lsym: s.Linksym()})
++	}
++
++	lsym := s.Linksym()
++	n := ir.NewLinksymExpr(base.Pos, lsym, types.Types[types.TUINT8])
++	return typecheck.Expr(typecheck.NodAddr(n)).(*ir.AddrExpr)
+ }
+ 
+ // needkeyupdate reports whether map updates with t as a key
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index cf1b416462..f3ad82e7b6 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -344,7 +344,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		// Create a copy of l to modify while we emit data.
+ 
+ 		// Emit itab, advance offset.
+-		staticdata.InitAddr(l, loff, itab.X.(*ir.Name).Linksym())
++		staticdata.InitAddr(l, loff, itab.X.(*ir.LinksymOffsetExpr).Linksym)
+ 
+ 		// Emit data.
+ 		if types.IsDirectIface(val.Type()) {

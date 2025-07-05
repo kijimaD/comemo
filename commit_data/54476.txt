@@ -23,7 +23,94 @@ Date:   Fri Oct 21 12:57:21 2022 -0400
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cover/cfg_test.go |  3 ++-
  src/cmd/cover/cover.go    | 24 ++++++++++++++++++------
  2 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index a3576ddf01..9497800d0c 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -129,7 +129,6 @@ func TestCoverWithCfg(t *testing.T) {
+ 		},
+ 	}
+ 
+-	tag := "first"
+ 	var incfg string
+ 	for _, scenario := range scenarios {
+ 		// Instrument package "a", producing a set of instrumented output
+@@ -138,6 +137,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 		pname := "a"
+ 		mode := scenario.mode
+ 		gran := scenario.gran
++		tag := mode + "_" + gran
+ 		incfg = writePkgConfig(t, instdira, tag, ppath, pname, gran)
+ 		ofs, outcfg, _ := runPkgCover(t, instdira, tag, incfg, mode,
+ 			pfiles("a"), false)
+@@ -158,6 +158,7 @@ func TestCoverWithCfg(t *testing.T) {
+ 	// Expect error if config file inaccessible/unreadable.
+ 	mode := "atomic"
+ 	errExpected := true
++	tag := "errors"
+ 	_, _, errmsg := runPkgCover(t, instdira, tag, "/not/a/file", mode,
+ 		pfiles("a"), errExpected)
+ 	want := "error reading pkgconfig file"
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 60cfcb5bc2..25574de773 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -426,7 +426,9 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 		if *pkgcfg != "" {
+ 			f.preFunc(n, fname)
+ 		}
+-		ast.Walk(f, n.Body)
++		if pkgconfig.Granularity != "perfunc" {
++			ast.Walk(f, n.Body)
++		}
+ 		if *pkgcfg != "" {
+ 			flit := true
+ 			f.postFunc(n, fname, flit, n.Body)
+@@ -465,6 +467,13 @@ func (f *File) preFunc(fn ast.Node, fname string) {
+ }
+ 
+ func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.BlockStmt) {
++
++	// Tack on single counter write if we are in "perfunc" mode.
++	singleCtr := ""
++	if pkgconfig.Granularity == "perfunc" {
++		singleCtr = "; " + f.newCounter(fn.Pos(), fn.Pos(), 1)
++	}
++
+ 	// record the length of the counter var required.
+ 	nc := len(f.fn.units) + coverage.FirstCtrOffset
+ 	f.pkg.counterLengths = append(f.pkg.counterLengths, nc)
+@@ -504,12 +513,16 @@ func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.Block
+ 	cv := f.fn.counterVar
+ 	regHook := hookWrite(cv, 0, strconv.Itoa(len(f.fn.units))) + " ; " +
+ 		hookWrite(cv, 1, mkPackageIdExpression()) + " ; " +
+-		hookWrite(cv, 2, strconv.Itoa(int(funcId)))
++		hookWrite(cv, 2, strconv.Itoa(int(funcId))) + singleCtr
++
++	// Insert the registration sequence into the function. We want this sequence to
++	// appear before any counter updates, so use a hack to ensure that this edit
++	// applies before the edit corresponding to the prolog counter update.
+ 
+-	// Insert the registration sequence into the function.
+ 	boff := f.offset(body.Pos())
+-	ipos := f.fset.File(body.Pos()).Pos(boff + 1)
+-	f.edit.Insert(f.offset(ipos), regHook+" ; ")
++	ipos := f.fset.File(body.Pos()).Pos(boff)
++	ip := f.offset(ipos)
++	f.edit.Replace(ip, ip+1, string(f.content[ipos-1])+regHook+" ; ")
+ 
+ 	f.fn.counterVar = ""
+ }
+@@ -661,7 +674,6 @@ func (f *File) newCounter(start, end token.Pos, numStmt int) string {
+ 			NxStmts: uint32(numStmt),
+ 		}
+ 		f.fn.units = append(f.fn.units, unit)
+-
+ 	} else {
+ 		stmt = counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar,
+ 			len(f.blocks)))

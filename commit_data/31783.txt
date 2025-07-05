@@ -14,6 +14,39 @@ Date:   Mon Feb 13 21:27:53 2017 -0500
     Change-Id: Iab13c6817edc12be8a048d18699b4450fa7ed712
     Reviewed-on: https://go-review.googlesource.com/36940
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier_test.go | 24 +++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier_test.go b/src/cmd/compile/internal/ssa/writebarrier_test.go
+index aaaa35a064..422bc94c3f 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier_test.go
++++ b/src/cmd/compile/internal/ssa/writebarrier_test.go
+@@ -27,3 +27,27 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
+ 	writebarrier(fun.f)
+ 	CheckFunc(fun.f)
+ }
++
++func TestWriteBarrierPhi(t *testing.T) {
++	// Make sure writebarrier phase works for single-block loop, where
++	// a Phi op takes the store in the same block as argument.
++	// See issue #19067.
++	c := testConfig(t)
++	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
++	fun := Fun(c, "entry",
++		Bloc("entry",
++			Valu("start", OpInitMem, TypeMem, 0, nil),
++			Valu("sb", OpSB, TypeInvalid, 0, nil),
++			Valu("sp", OpSP, TypeInvalid, 0, nil),
++			Goto("loop")),
++		Bloc("loop",
++			Valu("phi", OpPhi, TypeMem, 0, nil, "start", "wb"),
++			Valu("v", OpConstNil, ptrType, 0, nil),
++			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
++			Valu("wb", OpStore, TypeMem, 8, ptrType, "addr", "v", "phi"), // has write barrier
++			Goto("loop")))
++
++	CheckFunc(fun.f)
++	writebarrier(fun.f)
++	CheckFunc(fun.f)
++}

@@ -21,7 +21,7 @@ Date:   Wed Sep 4 18:30:35 2024 +0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/cgo/main.go                           |  6 +++---
  src/cmd/compile/internal/liveness/plive.go    |  4 ++--
  src/cmd/compile/internal/noder/reader.go      |  4 ++--
@@ -38,3 +38,456 @@ Date:   Wed Sep 4 18:30:35 2024 +0700
  src/cmd/link/internal/ld/macho_update_uuid.go |  4 ++--
  src/cmd/objdump/objdump_test.go               |  4 ++--
  15 files changed, 49 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 28a4631181..946245bbe7 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -27,7 +27,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/internal/edit"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/telemetry/counter"
+ )
+@@ -388,8 +388,8 @@ func main() {
+ 	// we use to coordinate between gcc and ourselves.
+ 	// We already put _cgo_ at the beginning, so the main
+ 	// concern is other cgo wrappers for the same functions.
+-	// Use the beginning of the notsha256 of the input to disambiguate.
+-	h := notsha256.New()
++	// Use the beginning of the 32 bytes hash of the input to disambiguate.
++	h := hash.New32()
+ 	io.WriteString(h, *importPath)
+ 	var once sync.Once
+ 	var wg sync.WaitGroup
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index a38ea776f9..09af864b69 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -29,7 +29,7 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/typebits"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 
+@@ -979,7 +979,7 @@ func (lv *liveness) enableClobber() {
+ 		// Clobber only functions where the hash of the function name matches a pattern.
+ 		// Useful for binary searching for a miscompiled function.
+ 		hstr := ""
+-		for _, b := range notsha256.Sum256([]byte(lv.f.Name)) {
++		for _, b := range hash.Sum32([]byte(lv.f.Name)) {
+ 			hstr += fmt.Sprintf("%08b", b)
+ 		}
+ 		if !strings.HasSuffix(hstr, h) {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 98ae60d51e..1dae4da167 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -23,7 +23,7 @@ import (
+ 	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -940,7 +940,7 @@ func shapify(targ *types.Type, basic bool) *types.Type {
+ 	uls := under.LinkString()
+ 	if base.Debug.MaxShapeLen != 0 &&
+ 		len(uls) > base.Debug.MaxShapeLen {
+-		h := notsha256.Sum256([]byte(uls))
++		h := hash.Sum32([]byte(uls))
+ 		uls = hex.EncodeToString(h[:])
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 0d3b5d9e34..ed7f154249 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -9,7 +9,7 @@ import (
+ 	"io"
+ 	"strings"
+ 
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -18,7 +18,7 @@ func printFunc(f *Func) {
+ }
+ 
+ func hashFunc(f *Func) []byte {
+-	h := notsha256.New()
++	h := hash.New32()
+ 	p := stringFuncPrinter{w: h, printDead: true}
+ 	fprintFunc(p, f)
+ 	return h.Sum(nil)
+@@ -33,7 +33,7 @@ func (f *Func) String() string {
+ 
+ // rewriteHash returns a hash of f suitable for detecting rewrite cycles.
+ func (f *Func) rewriteHash() string {
+-	h := notsha256.New()
++	h := hash.New32()
+ 	p := stringFuncPrinter{w: h, printDead: false}
+ 	fprintFunc(p, f)
+ 	return fmt.Sprintf("%x", h.Sum(nil))
+diff --git a/src/cmd/compile/internal/staticdata/data.go b/src/cmd/compile/internal/staticdata/data.go
+index 78c332eeb8..b6ca615c6e 100644
+--- a/src/cmd/compile/internal/staticdata/data.go
++++ b/src/cmd/compile/internal/staticdata/data.go
+@@ -18,7 +18,7 @@ import (
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -78,7 +78,7 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
+ 		// Indulge in some paranoia by writing the length of s, too,
+ 		// as protection against length extension attacks.
+ 		// Same pattern is known to fileStringSym below.
+-		h := notsha256.New()
++		h := hash.New32()
+ 		io.WriteString(h, s)
+ 		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
+ 	} else {
+@@ -115,9 +115,9 @@ const maxFileSize = int64(2e9)
+ // or other file with the same content and is placed in a read-only section.
+ // If readonly is false, the symbol is a read-write copy separate from any other,
+ // for use as the backing store of a []byte.
+-// The content hash of file is copied into hash. (If hash is nil, nothing is copied.)
++// The content hash of file is copied into hashBytes. (If hash is nil, nothing is copied.)
+ // The returned symbol contains the data itself, not a string header.
+-func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.LSym, int64, error) {
++func fileStringSym(pos src.XPos, file string, readonly bool, hashBytes []byte) (*obj.LSym, int64, error) {
+ 	f, err := os.Open(file)
+ 	if err != nil {
+ 		return nil, 0, err
+@@ -145,9 +145,9 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 		} else {
+ 			sym = slicedata(pos, string(data))
+ 		}
+-		if len(hash) > 0 {
+-			sum := notsha256.Sum256(data)
+-			copy(hash, sum[:])
++		if len(hashBytes) > 0 {
++			sum := hash.Sum32(data)
++			copy(hashBytes, sum[:])
+ 		}
+ 		return sym, size, nil
+ 	}
+@@ -160,10 +160,10 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 	}
+ 
+ 	// File is too big to read and keep in memory.
+-	// Compute hash if needed for read-only content hashing or if the caller wants it.
++	// Compute hashBytes if needed for read-only content hashing or if the caller wants it.
+ 	var sum []byte
+-	if readonly || len(hash) > 0 {
+-		h := notsha256.New()
++	if readonly || len(hashBytes) > 0 {
++		h := hash.New32()
+ 		n, err := io.Copy(h, f)
+ 		if err != nil {
+ 			return nil, 0, err
+@@ -172,7 +172,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
+ 			return nil, 0, fmt.Errorf("file changed between reads")
+ 		}
+ 		sum = h.Sum(nil)
+-		copy(hash, sum)
++		copy(hashBytes, sum)
+ 	}
+ 
+ 	var symdata *obj.LSym
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index d6cc2483a6..f316a23b90 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -12,7 +12,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/compile/internal/base"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ )
+ 
+ // BuiltinPkg is a fake package that declares the universe block.
+@@ -644,7 +644,7 @@ func SplitVargenSuffix(name string) (base, suffix string) {
+ func TypeHash(t *Type) uint32 {
+ 	p := t.LinkString()
+ 
+-	// Using SHA256 is overkill, but reduces accidental collisions.
+-	h := notsha256.Sum256([]byte(p))
++	// Using 32 bytes hash is overkill, but reduces accidental collisions.
++	h := hash.Sum32([]byte(p))
+ 	return binary.LittleEndian.Uint32(h[:4])
+ }
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 09fa44e429..ddb003e118 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -44,6 +44,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/edit",
+ 	"cmd/internal/gcprog",
+ 	"cmd/internal/goobj",
++	"cmd/internal/hash",
+ 	"cmd/internal/notsha256",
+ 	"cmd/internal/obj/...",
+ 	"cmd/internal/objabi",
+diff --git a/src/cmd/internal/codesign/codesign.go b/src/cmd/internal/codesign/codesign.go
+index 1116393b5c..24496e2000 100644
+--- a/src/cmd/internal/codesign/codesign.go
++++ b/src/cmd/internal/codesign/codesign.go
+@@ -11,11 +11,12 @@
+ package codesign
+ 
+ import (
++	"crypto/sha256"
+ 	"debug/macho"
+ 	"encoding/binary"
+ 	"io"
+ 
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ )
+ 
+ // Code signature layout.
+@@ -191,7 +192,7 @@ func Size(codeSize int64, id string) int64 {
+ 	nhashes := (codeSize + pageSize - 1) / pageSize
+ 	idOff := int64(codeDirectorySize)
+ 	hashOff := idOff + int64(len(id)+1)
+-	cdirSz := hashOff + nhashes*notsha256.Size
++	cdirSz := hashOff + nhashes*hash.Size32
+ 	return int64(superBlobSize+blobSize) + cdirSz
+ }
+ 
+@@ -227,7 +228,7 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
+ 		identOffset:  uint32(idOff),
+ 		nCodeSlots:   uint32(nhashes),
+ 		codeLimit:    uint32(codeSize),
+-		hashSize:     notsha256.Size,
++		hashSize:     hash.Size32,
+ 		hashType:     CS_HASHTYPE_SHA256,
+ 		pageSize:     uint8(pageSizeBits),
+ 		execSegBase:  uint64(textOff),
+@@ -246,12 +247,7 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
+ 	outp = puts(outp, []byte(id+"\000"))
+ 
+ 	// emit hashes
+-	// NOTE(rsc): These must be SHA256, but for cgo bootstrap reasons
+-	// we cannot import crypto/sha256 when GOEXPERIMENT=boringcrypto
+-	// and the host is linux/amd64. So we use NOT-SHA256
+-	// and then apply a NOT ourselves to get SHA256. Sigh.
+ 	var buf [pageSize]byte
+-	h := notsha256.New()
+ 	p := 0
+ 	for p < int(codeSize) {
+ 		n, err := io.ReadFull(data, buf[:])
+@@ -265,12 +261,7 @@ func Sign(out []byte, data io.Reader, id string, codeSize, textOff, textSize int
+ 			n = int(codeSize) - p
+ 		}
+ 		p += n
+-		h.Reset()
+-		h.Write(buf[:n])
+-		b := h.Sum(nil)
+-		for i := range b {
+-			b[i] ^= 0xFF // convert notsha256 to sha256
+-		}
++		b := sha256.Sum256(buf[:n])
+ 		outp = puts(outp, b[:])
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index bf135af554..6aa208a1c0 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -10,7 +10,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/goobj"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmp"
+@@ -494,7 +494,7 @@ func contentHash64(s *LSym) goobj.Hash64Type {
+ // For now, we assume there is no circular dependencies among
+ // hashed symbols.
+ func (w *writer) contentHash(s *LSym) goobj.HashType {
+-	h := notsha256.New()
++	h := hash.New32()
+ 	var tmp [14]byte
+ 
+ 	// Include the size of the symbol in the hash.
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 943be3c38c..0fd0eb7f0f 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -33,7 +33,7 @@ package obj
+ 
+ import (
+ 	"cmd/internal/goobj"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/objabi"
+ 	"encoding/base64"
+ 	"encoding/binary"
+@@ -207,7 +207,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
+ 
+ // GCLocalsSym generates a content-addressable sym containing data.
+ func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
+-	sum := notsha256.Sum256(data)
++	sum := hash.Sum32(data)
+ 	str := base64.StdEncoding.EncodeToString(sum[:16])
+ 	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
+ 		lsym.P = data
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 5dcef1cc22..527b97d23b 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -9,7 +9,7 @@ package main
+ import (
+ 	"bytes"
+ 	"cmd/internal/buildid"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/link/internal/ld"
+ 	"debug/elf"
+ 	"fmt"
+@@ -224,7 +224,7 @@ func TestGNUBuildIDDerivedFromGoBuildID(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	expectedGoBuildID := notsha256.Sum256([]byte("0x1234"))
++	expectedGoBuildID := hash.Sum32([]byte("0x1234"))
+ 
+ 	gnuBuildID, err := buildid.ReadELFNote(outFile, string(ld.ELF_NOTE_BUILDINFO_NAME), ld.ELF_NOTE_BUILDINFO_TAG)
+ 	if err != nil || gnuBuildID == nil {
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3a1bcbfd63..f6f957a333 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -5,7 +5,7 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -812,7 +812,7 @@ func addbuildinfo(val string) {
+ 			Exitf("-B gobuildid requires a Go build ID supplied via -buildid")
+ 		}
+ 
+-		hashedBuildID := notsha256.Sum256([]byte(buildID))
++		hashedBuildID := hash.Sum32([]byte(buildID))
+ 		buildinfo = hashedBuildID[:20]
+ 
+ 		return
+@@ -1677,11 +1677,11 @@ func (ctxt *Link) doelf() {
+ 		sb.SetType(sym.SRODATA)
+ 		ldr.SetAttrSpecial(s, true)
+ 		sb.SetReachable(true)
+-		sb.SetSize(notsha256.Size)
++		sb.SetSize(hash.Size32)
+ 		slices.SortFunc(ctxt.Library, func(a, b *sym.Library) int {
+ 			return strings.Compare(a.Pkg, b.Pkg)
+ 		})
+-		h := notsha256.New()
++		h := hash.New32()
+ 		for _, l := range ctxt.Library {
+ 			h.Write(l.Fingerprint[:])
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 39361aa815..61bca49176 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -51,7 +51,7 @@ import (
+ 
+ 	"cmd/internal/bio"
+ 	"cmd/internal/goobj"
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loadelf"
+@@ -1012,12 +1012,12 @@ func typeSymbolMangle(name string) string {
+ 		return name
+ 	}
+ 	if isType {
+-		hash := notsha256.Sum256([]byte(name[5:]))
++		hb := hash.Sum32([]byte(name[5:]))
+ 		prefix := "type:"
+ 		if name[5] == '.' {
+ 			prefix = "type:."
+ 		}
+-		return prefix + base64.StdEncoding.EncodeToString(hash[:6])
++		return prefix + base64.StdEncoding.EncodeToString(hb[:6])
+ 	}
+ 	// instantiated symbol, replace type name in []
+ 	i := strings.IndexByte(name, '[')
+@@ -1025,8 +1025,8 @@ func typeSymbolMangle(name string) string {
+ 	if j == -1 || j <= i {
+ 		j = len(name)
+ 	}
+-	hash := notsha256.Sum256([]byte(name[i+1 : j]))
+-	return name[:i+1] + base64.StdEncoding.EncodeToString(hash[:6]) + name[j:]
++	hb := hash.Sum32([]byte(name[i+1 : j]))
++	return name[:i+1] + base64.StdEncoding.EncodeToString(hb[:6]) + name[j:]
+ }
+ 
+ /*
+diff --git a/src/cmd/link/internal/ld/macho_update_uuid.go b/src/cmd/link/internal/ld/macho_update_uuid.go
+index de27e655d5..26978fc424 100644
+--- a/src/cmd/link/internal/ld/macho_update_uuid.go
++++ b/src/cmd/link/internal/ld/macho_update_uuid.go
+@@ -18,7 +18,7 @@ package ld
+ // final executable generated by the external linker.
+ 
+ import (
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"debug/macho"
+ 	"io"
+ 	"os"
+@@ -32,7 +32,7 @@ func uuidFromGoBuildId(buildID string) []byte {
+ 	if buildID == "" {
+ 		return make([]byte, 16)
+ 	}
+-	hashedBuildID := notsha256.Sum256([]byte(buildID))
++	hashedBuildID := hash.Sum32([]byte(buildID))
+ 	rv := hashedBuildID[:16]
+ 
+ 	// RFC 4122 conformance (see RFC 4122 Sections 4.2.2, 4.1.3). We
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index d256e59afe..103517641e 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"cmd/internal/notsha256"
++	"cmd/internal/hash"
+ 	"flag"
+ 	"fmt"
+ 	"internal/platform"
+@@ -126,7 +126,7 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
+ 		goarch = f[1]
+ 	}
+ 
+-	hash := notsha256.Sum256([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
++	hash := hash.Sum32([]byte(fmt.Sprintf("%v-%v-%v-%v", srcfname, flags, printCode, printGnuAsm)))
+ 	tmp := t.TempDir()
+ 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
+ 	args := []string{"build", "-o", hello}

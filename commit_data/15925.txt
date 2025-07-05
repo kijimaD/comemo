@@ -7,6 +7,20 @@ Date:   Mon Mar 25 08:43:51 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/8012043
-
+---
  src/pkg/math/tanh.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/tanh.go b/src/pkg/math/tanh.go
+index 7305be66c7..cf0ffa1923 100644
+--- a/src/pkg/math/tanh.go
++++ b/src/pkg/math/tanh.go
+@@ -65,7 +65,7 @@ var tanhQ = [...]float64{
+ 	4.84406305325125486048E3,
+ }
+ 
+-// Tanh computes the hyperbolic tangent of x.
++// Tanh returns the hyperbolic tangent of x.
+ //
+ // Special cases are:
+ //	Tanh(±0) = ±0

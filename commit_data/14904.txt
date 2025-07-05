@@ -7,7 +7,14 @@ Date:   Fri Jan 18 02:41:17 2013 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7128048
-
+---
  src/cmd/gofmt/testdata/crlf.input           | 0
  src/pkg/mime/multipart/testdata/nested-mime | 0
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/gofmt/testdata/crlf.input b/src/cmd/gofmt/testdata/crlf.input
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/mime/multipart/testdata/nested-mime b/src/pkg/mime/multipart/testdata/nested-mime
+old mode 100755
+new mode 100644

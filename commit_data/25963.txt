@@ -7,6 +7,19 @@ Date:   Sun Dec 6 17:14:50 2015 +1100
     Change-Id: I321eba716319bf88695ac49580837b6254f1279e
     Reviewed-on: https://go-review.googlesource.com/17474
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index a3b2c17f8f..7bed167244 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -31,6 +31,7 @@ image: add NYCbCrA types (https://golang.org/cl/15671)
+ math/rand: add Read (https://golang.org/cl/14522)
+ net/http: HTTP/2.0 support (many CLs)
+ net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
++path/filepath: Join("c:", "a") now returns `c:a` instead of `c:\a` on windows (https://golang.org/cl/17470)
+ runtime: only one goroutine in traceback (https://golang.org/cl/16512) maybe
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)

@@ -15,7 +15,72 @@ Date:   Fri May 7 05:48:18 2021 +0000
     Trust: eric fang <eric.fang@arm.com>
     Run-TryBot: eric fang <eric.fang@arm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64error.s | 10 ++++++++++
  src/cmd/internal/obj/arm64/asm7.go             | 24 +++++++++++-------------
  2 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 66fc910759..cf57179e43 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -52,6 +52,16 @@ TEXT errors(SB),$0
+ 	NEGSW	R7@>2, R5                                        // ERROR "unsupported shift operator"
+ 	CINC	CS, R2, R3, R4                                   // ERROR "illegal combination"
+ 	CSEL	LT, R1, R2                                       // ERROR "illegal combination"
++	CINC	AL, R2, R3                                       // ERROR "invalid condition"
++	CINC	NV, R2, R3                                       // ERROR "invalid condition"
++	CINVW	AL, R2, R3                                       // ERROR "invalid condition"
++	CINV	NV, R2, R3                                       // ERROR "invalid condition"
++	CNEG	AL, R2, R3                                       // ERROR "invalid condition"
++	CNEGW	NV, R2, R3                                       // ERROR "invalid condition"
++	CSET	AL, R2                                           // ERROR "invalid condition"
++	CSET	NV, R2                                           // ERROR "invalid condition"
++	CSETMW	AL, R2                                           // ERROR "invalid condition"
++	CSETM	NV, R2                                           // ERROR "invalid condition"
+ 	LDP.P	8(R2), (R2, R3)                                  // ERROR "constrained unpredictable behavior"
+ 	LDP.W	8(R3), (R2, R3)                                  // ERROR "constrained unpredictable behavior"
+ 	LDP	(R1), (R2, R2)                                   // ERROR "constrained unpredictable behavior"
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 575436d764..b8c3cd97c7 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3536,27 +3536,25 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = c.oprrr(p, p.As)
+ 
+ 		cond := int(p.From.Reg)
+-		if cond < COND_EQ || cond > COND_NV {
++		// AL and NV are not allowed for CINC/CINV/CNEG/CSET/CSETM instructions
++		if cond < COND_EQ || cond > COND_NV || (cond == COND_AL || cond == COND_NV) && p.From3Type() == obj.TYPE_NONE {
+ 			c.ctxt.Diag("invalid condition: %v", p)
+ 		} else {
+ 			cond -= COND_EQ
+ 		}
+ 
+ 		r := int(p.Reg)
+-		var rf int
+-		if r != 0 {
+-			if p.From3Type() == obj.TYPE_NONE {
+-				/* CINC/CINV/CNEG */
+-				rf = r
+-				cond ^= 1
+-			} else {
+-				rf = int(p.GetFrom3().Reg) /* CSEL */
++		var rf int = r
++		if p.From3Type() == obj.TYPE_NONE {
++			/* CINC/CINV/CNEG or CSET/CSETM*/
++			if r == 0 {
++				/* CSET/CSETM */
++				rf = REGZERO
++				r = rf
+ 			}
+-		} else {
+-			/* CSET */
+-			rf = REGZERO
+-			r = rf
+ 			cond ^= 1
++		} else {
++			rf = int(p.GetFrom3().Reg) /* CSEL */
+ 		}
+ 
+ 		rt := int(p.To.Reg)

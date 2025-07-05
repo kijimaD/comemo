@@ -7,6 +7,23 @@ Date:   Thu May 24 13:42:02 2012 +1000
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/6250043
-
+---
  src/pkg/flag/flag.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index f0842a18a2..5444ad141c 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -620,8 +620,9 @@ func (f *FlagSet) Var(value Value, name string, usage string) {
+ 	flag := &Flag{name, usage, value, value.String()}
+ 	_, alreadythere := f.formal[name]
+ 	if alreadythere {
+-		fmt.Fprintf(f.out(), "%s flag redefined: %s\n", f.name, name)
+-		panic("flag redefinition") // Happens only if flags are declared with identical names
++		msg := fmt.Sprintf("%s flag redefined: %s", f.name, name)
++		fmt.Fprintln(f.out(), msg)
++		panic(msg) // Happens only if flags are declared with identical names
+ 	}
+ 	if f.formal == nil {
+ 		f.formal = make(map[string]*Flag)

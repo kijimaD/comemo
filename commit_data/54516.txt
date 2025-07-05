@@ -15,9 +15,142 @@ Date:   Tue Oct 25 12:53:30 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/ssagen/pgen.go |  9 ---------
  src/crypto/rand/rand_batched_test.go    |  5 -----
  src/math/rand/example_test.go           | 24 ------------------------
  src/strconv/atof_test.go                |  2 --
  4 files changed, 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 9aaf4b81e0..7e7c13adc9 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -6,11 +6,8 @@ package ssagen
+ 
+ import (
+ 	"internal/buildcfg"
+-	"internal/race"
+-	"math/rand"
+ 	"sort"
+ 	"sync"
+-	"time"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -214,12 +211,6 @@ func Compile(fn *ir.Func, worker int) {
+ 	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
+ }
+ 
+-func init() {
+-	if race.Enabled {
+-		rand.Seed(time.Now().UnixNano())
+-	}
+-}
+-
+ // StackOffset returns the stack location of a LocalSlot relative to the
+ // stack pointer, suitable for use in a DWARF location entry. This has nothing
+ // to do with its offset in the user variable.
+diff --git a/src/crypto/rand/rand_batched_test.go b/src/crypto/rand/rand_batched_test.go
+index 89953776a8..02f48931e3 100644
+--- a/src/crypto/rand/rand_batched_test.go
++++ b/src/crypto/rand/rand_batched_test.go
+@@ -8,7 +8,6 @@ package rand
+ 
+ import (
+ 	"bytes"
+-	"encoding/binary"
+ 	"errors"
+ 	prand "math/rand"
+ 	"testing"
+@@ -33,10 +32,6 @@ func TestBatched(t *testing.T) {
+ }
+ 
+ func TestBatchedBuffering(t *testing.T) {
+-	var prandSeed [8]byte
+-	Read(prandSeed[:])
+-	prand.Seed(int64(binary.LittleEndian.Uint64(prandSeed[:])))
+-
+ 	backingStore := make([]byte, 1<<23)
+ 	prand.Read(backingStore)
+ 	backingMarker := backingStore[:]
+diff --git a/src/math/rand/example_test.go b/src/math/rand/example_test.go
+index f691e39d64..d656f470eb 100644
+--- a/src/math/rand/example_test.go
++++ b/src/math/rand/example_test.go
+@@ -16,10 +16,6 @@ import (
+ // the output of the random number generator when given a fixed seed.
+ 
+ func Example() {
+-	// Seeding with the same value results in the same random sequence each run.
+-	// For different numbers, seed with a different value, such as
+-	// time.Now().UnixNano(), which yields a constantly-changing number.
+-	rand.Seed(42)
+ 	answers := []string{
+ 		"It is certain",
+ 		"It is decidedly so",
+@@ -43,7 +39,6 @@ func Example() {
+ 		"Very doubtful",
+ 	}
+ 	fmt.Println("Magic 8-Ball says:", answers[rand.Intn(len(answers))])
+-	// Output: Magic 8-Ball says: As I see it yes
+ }
+ 
+ // This example shows the use of each of the methods on a *Rand.
+@@ -116,9 +111,6 @@ func ExampleShuffle() {
+ 		words[i], words[j] = words[j], words[i]
+ 	})
+ 	fmt.Println(words)
+-
+-	// Output:
+-	// [mouth my the of runs corners from ink]
+ }
+ 
+ func ExampleShuffle_slicesInUnison() {
+@@ -132,26 +124,10 @@ func ExampleShuffle_slicesInUnison() {
+ 	for i := range numbers {
+ 		fmt.Printf("%c: %c\n", letters[i], numbers[i])
+ 	}
+-
+-	// Output:
+-	// C: 3
+-	// D: 4
+-	// A: 1
+-	// E: 5
+-	// B: 2
+ }
+ 
+ func ExampleIntn() {
+-	// Seeding with the same value results in the same random sequence each run.
+-	// For different numbers, seed with a different value, such as
+-	// time.Now().UnixNano(), which yields a constantly-changing number.
+-	rand.Seed(86)
+ 	fmt.Println(rand.Intn(100))
+ 	fmt.Println(rand.Intn(100))
+ 	fmt.Println(rand.Intn(100))
+-
+-	// Output:
+-	// 42
+-	// 76
+-	// 30
+ }
+diff --git a/src/strconv/atof_test.go b/src/strconv/atof_test.go
+index aa587a473c..7b287b4219 100644
+--- a/src/strconv/atof_test.go
++++ b/src/strconv/atof_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
+-	"time"
+ )
+ 
+ type atofTest struct {
+@@ -463,7 +462,6 @@ func initAtofOnce() {
+ 	}
+ 
+ 	// Generate random inputs for tests and benchmarks
+-	rand.Seed(time.Now().UnixNano())
+ 	if testing.Short() {
+ 		atofRandomTests = make([]atofSimpleTest, 100)
+ 	} else {

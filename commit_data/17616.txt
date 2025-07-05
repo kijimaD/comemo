@@ -12,8 +12,46 @@ Date:   Mon Sep 16 14:04:55 2013 -0400
     R=golang-dev, iant, minux.ma
     CC=golang-dev
     https://golang.org/cl/13345048
-
+---
  misc/cgo/test/cgo_test.go      | 1 +
  src/cmd/cgo/out.go             | 2 ++
  src/pkg/runtime/cgo/gcc_util.c | 2 ++
  3 files changed, 5 insertions(+)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index e36f93597c..38151abca8 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -46,5 +46,6 @@ func Test3250(t *testing.T)                { test3250(t) }
+ func TestCallbackStack(t *testing.T)       { testCallbackStack(t) }
+ func TestFpVar(t *testing.T)               { testFpVar(t) }
+ func Test4339(t *testing.T)                { test4339(t) }
++func Test6390(t *testing.T)                { test6390(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index efa55a335b..9cf8dc55be 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1225,6 +1225,8 @@ Slice GoBytes(char *p, int32_t n) {
+ extern void runtime_throw(const char *):
+ void *Cmalloc(size_t n) {
+         void *p = malloc(n);
++        if(p == NULL && n == 0)
++                p = malloc(1);
+         if(p == NULL)
+                 runtime_throw("runtime: C malloc failed");
+         return p;
+diff --git a/src/pkg/runtime/cgo/gcc_util.c b/src/pkg/runtime/cgo/gcc_util.c
+index 20913d7369..143734e94b 100644
+--- a/src/pkg/runtime/cgo/gcc_util.c
++++ b/src/pkg/runtime/cgo/gcc_util.c
+@@ -14,6 +14,8 @@ x_cgo_malloc(void *p)
+ 	} *a = p;
+ 
+ 	a->ret = malloc(a->n);
++	if(a->ret == NULL && a->n == 0)
++		a->ret = malloc(1);
+ }
+ 
+ /* Stub for calling free from Go */

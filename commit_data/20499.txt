@@ -12,10 +12,85 @@ Date:   Fri Sep 12 11:18:12 2014 -0700
     R=adonovan, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/142020043
-
+---
  src/go/printer/nodes.go                    | 2 +-
  src/go/printer/testdata/expressions.golden | 5 +++++
  src/go/printer/testdata/expressions.input  | 5 +++++
  src/go/printer/testdata/expressions.raw    | 5 +++++
  src/go/printer/testdata/statements.golden  | 2 +-
  5 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index e52236ddc6..d5a69349be 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -736,7 +736,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		if _, hasParens := x.X.(*ast.ParenExpr); hasParens {
+ 			// don't print parentheses around an already parenthesized expression
+ 			// TODO(gri) consider making this more general and incorporate precedence levels
+-			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth
++			p.expr0(x.X, depth)
+ 		} else {
+ 			p.print(token.LPAREN)
+ 			p.expr0(x.X, reduceDepth(depth)) // parentheses undo one level of depth
+diff --git a/src/go/printer/testdata/expressions.golden b/src/go/printer/testdata/expressions.golden
+index fbe8275b3a..e3d17a4653 100644
+--- a/src/go/printer/testdata/expressions.golden
++++ b/src/go/printer/testdata/expressions.golden
+@@ -94,6 +94,11 @@ func _() {
+ 	_ = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666)
+ 	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
+ 
++	// test case for issue 8021
++	// want:
++	//  ([]bool{})[([]int{})[((1)+(((1)+((((1)*(((1)+(1))+(1)))+(1))*(1)))+(1)))]]
++	_ = ([]bool{})[([]int{})[((1)+(((1)+((((1)*(((1)+(1))+(1)))+(1))*(1)))+(1)))]]
++
+ 	// the parser does not restrict expressions that may appear as statements
+ 	true
+ 	42
+diff --git a/src/go/printer/testdata/expressions.input b/src/go/printer/testdata/expressions.input
+index f4d20fa0f7..d20a59350e 100644
+--- a/src/go/printer/testdata/expressions.input
++++ b/src/go/printer/testdata/expressions.input
+@@ -95,6 +95,11 @@ func _() {
+ 	_ = Open(dpath + "/file", O_WRONLY | O_CREAT, 0666)
+ 	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
+ 
++	// test case for issue 8021
++	// want:
++	//  ([]bool{})[([]int{})[((1)+(((1)+((((1)*(((1)+(1))+(1)))+(1))*(1)))+(1)))]]
++	_ = ([]bool{})[([]int{})[((1) + (((((1) + (((((((1) * (((((1) + (1))) + (1))))) + (1))) * (1))))) + (1))))]]
++
+ 	// the parser does not restrict expressions that may appear as statements
+ 	true
+ 	42
+diff --git a/src/go/printer/testdata/expressions.raw b/src/go/printer/testdata/expressions.raw
+index 97bc81dad8..2357336957 100644
+--- a/src/go/printer/testdata/expressions.raw
++++ b/src/go/printer/testdata/expressions.raw
+@@ -94,6 +94,11 @@ func _() {
+ 	_ = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666)
+ 	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx)
+ 
++	// test case for issue 8021
++	// want:
++	//  ([]bool{})[([]int{})[((1)+(((1)+((((1)*(((1)+(1))+(1)))+(1))*(1)))+(1)))]]
++	_ = ([]bool{})[([]int{})[((1)+(((1)+((((1)*(((1)+(1))+(1)))+(1))*(1)))+(1)))]]
++
+ 	// the parser does not restrict expressions that may appear as statements
+ 	true
+ 	42
+diff --git a/src/go/printer/testdata/statements.golden b/src/go/printer/testdata/statements.golden
+index 324b6cdd0f..4b13460473 100644
+--- a/src/go/printer/testdata/statements.golden
++++ b/src/go/printer/testdata/statements.golden
+@@ -444,7 +444,7 @@ func _() {
+ 	}
+ 	if x == a+b*(T{42}[0]) {
+ 	}
+-	if x == a+(b * (T{42}[0])) {
++	if x == a+(b*(T{42}[0])) {
+ 	}
+ 	if x == a+b*(T{42}[0]) {
+ 	}

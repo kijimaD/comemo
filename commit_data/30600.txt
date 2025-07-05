@@ -16,8 +16,86 @@ Date:   Tue Nov 15 17:55:28 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go     |  4 ++--
  src/os/exec/exec.go      |  7 +++++++
  src/os/exec/exec_test.go | 26 ++++++++++++++++++++++++++
  3 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index e7027a67cd..03edbdfc19 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1055,7 +1055,7 @@ func (t *tester) runFlag(rx string) string {
+ func (t *tester) raceTest(dt *distTest) error {
+ 	t.addCmd(dt, "src", "go", "test", "-race", "-i", "runtime/race", "flag", "os/exec")
+ 	t.addCmd(dt, "src", "go", "test", "-race", t.runFlag("Output"), "runtime/race")
+-	t.addCmd(dt, "src", "go", "test", "-race", "-short", t.runFlag("TestParse|TestEcho"), "flag", "os/exec")
++	t.addCmd(dt, "src", "go", "test", "-race", "-short", t.runFlag("TestParse|TestEcho|TestStdinCloseRace"), "flag", "os/exec")
+ 	// We don't want the following line, because it
+ 	// slows down all.bash (by 10 seconds on my laptop).
+ 	// The race builder should catch any error here, but doesn't.
+@@ -1068,7 +1068,7 @@ func (t *tester) raceTest(dt *distTest) error {
+ 	}
+ 	if t.extLink() {
+ 		// Test with external linking; see issue 9133.
+-		t.addCmd(dt, "src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", t.runFlag("TestParse|TestEcho"), "flag", "os/exec")
++		t.addCmd(dt, "src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", t.runFlag("TestParse|TestEcho|TestStdinCloseRace"), "flag", "os/exec")
+ 	}
+ 	return nil
+ }
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index a3a0f20ebc..c4c5168b98 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -579,6 +579,13 @@ func (c *closeOnce) Write(b []byte) (int, error) {
+ 	return n, err
+ }
+ 
++func (c *closeOnce) WriteString(s string) (int, error) {
++	c.writers.RLock()
++	n, err := c.File.WriteString(s)
++	c.writers.RUnlock()
++	return n, err
++}
++
+ // StdoutPipe returns a pipe that will be connected to the command's
+ // standard output when the command starts.
+ //
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 67fe14faae..d3ac7ab4b9 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -246,6 +246,32 @@ func TestStdinClose(t *testing.T) {
+ 	check("Wait", cmd.Wait())
+ }
+ 
++// Issue 17647.
++func TestStdinCloseRace(t *testing.T) {
++	cmd := helperCommand(t, "stdinClose")
++	stdin, err := cmd.StdinPipe()
++	if err != nil {
++		t.Fatalf("StdinPipe: %v", err)
++	}
++	if err := cmd.Start(); err != nil {
++		t.Fatalf("Start: %v", err)
++	}
++	go func() {
++		if err := cmd.Process.Kill(); err != nil {
++			t.Errorf("Kill: %v", err)
++		}
++	}()
++	go func() {
++		io.Copy(stdin, strings.NewReader(stdinCloseTestString))
++		if err := stdin.Close(); err != nil {
++			t.Errorf("stdin.Close: %v", err)
++		}
++	}()
++	if err := cmd.Wait(); err == nil {
++		t.Fatalf("Wait: succeeded unexpectedly")
++	}
++}
++
+ // Issue 5071
+ func TestPipeLookPathLeak(t *testing.T) {
+ 	fd0, lsof0 := numOpenFDS(t)

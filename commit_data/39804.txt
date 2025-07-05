@@ -16,7 +16,169 @@ Date:   Sun Mar 17 15:51:30 2019 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go  | 31 ++++++++++++++-------
  src/cmd/link/internal/wasm/asm.go | 57 ++++++++++++++++++++++++++++++++++++---
  2 files changed, 75 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ff339af303..717597dfd5 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -32,6 +32,7 @@
+ package ld
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"cmd/internal/gcprog"
+ 	"cmd/internal/objabi"
+@@ -684,7 +685,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+ 		ctxt.Logf("codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
+ 	}
+ 
+-	blk(ctxt, ctxt.Textp, addr, size, pad)
++	blk(ctxt.Out, ctxt.Textp, addr, size, pad)
+ 
+ 	/* again for printing */
+ 	if !*flagA {
+@@ -742,7 +743,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+ 	}
+ }
+ 
+-func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
++func blk(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
+ 	for i, s := range syms {
+ 		if !s.Attr.SubSymbol() && s.Value >= addr {
+ 			syms = syms[i:]
+@@ -767,13 +768,13 @@ func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
+ 			errorexit()
+ 		}
+ 		if addr < s.Value {
+-			ctxt.Out.WriteStringPad("", int(s.Value-addr), pad)
++			out.WriteStringPad("", int(s.Value-addr), pad)
+ 			addr = s.Value
+ 		}
+-		ctxt.Out.Write(s.P)
++		out.Write(s.P)
+ 		addr += int64(len(s.P))
+ 		if addr < s.Value+s.Size {
+-			ctxt.Out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
++			out.WriteStringPad("", int(s.Value+s.Size-addr), pad)
+ 			addr = s.Value + s.Size
+ 		}
+ 		if addr != s.Value+s.Size {
+@@ -786,17 +787,29 @@ func blk(ctxt *Link, syms []*sym.Symbol, addr, size int64, pad []byte) {
+ 	}
+ 
+ 	if addr < eaddr {
+-		ctxt.Out.WriteStringPad("", int(eaddr-addr), pad)
++		out.WriteStringPad("", int(eaddr-addr), pad)
+ 	}
+-	ctxt.Out.Flush()
++	out.Flush()
+ }
+ 
+ func Datblk(ctxt *Link, addr int64, size int64) {
++	writeDatblkToOutBuf(ctxt, ctxt.Out, addr, size)
++}
++
++func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
++	buf := bytes.NewBuffer(make([]byte, 0, size))
++	out := &OutBuf{w: bufio.NewWriter(buf)}
++	writeDatblkToOutBuf(ctxt, out, addr, size)
++	out.Flush()
++	return buf.Bytes()
++}
++
++func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
+ 	if *flagA {
+ 		ctxt.Logf("datblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
+ 	}
+ 
+-	blk(ctxt, datap, addr, size, zeros[:])
++	blk(out, datap, addr, size, zeros[:])
+ 
+ 	/* again for printing */
+ 	if !*flagA {
+@@ -870,7 +883,7 @@ func Dwarfblk(ctxt *Link, addr int64, size int64) {
+ 		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
+ 	}
+ 
+-	blk(ctxt, dwarfp, addr, size, zeros[:])
++	blk(ctxt.Out, dwarfp, addr, size, zeros[:])
+ }
+ 
+ var zeros [512]byte
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 737de59928..2665659fe0 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -417,14 +417,63 @@ func writeDataSec(ctxt *ld.Link) {
+ 		ctxt.Syms.Lookup("runtime.data", 0).Sect,
+ 	}
+ 
+-	writeUleb128(ctxt.Out, uint64(len(sections))) // number of data entries
++	type dataSegment struct {
++		offset int32
++		data   []byte
++	}
++
++	// Omit blocks of zeroes and instead emit data segments with offsets skipping the zeroes.
++	// This reduces the size of the WebAssembly binary. We use 8 bytes as an estimate for the
++	// overhead of adding a new segment (same as wasm-opt's memory-packing optimization uses).
++	const segmentOverhead = 8
+ 
++	var segments []*dataSegment
+ 	for _, sec := range sections {
++		data := ld.DatblkBytes(ctxt, int64(sec.Vaddr), int64(sec.Length))
++		offset := int32(sec.Vaddr)
++
++		// skip leading zeroes
++		for len(data) > 0 && data[0] == 0 {
++			data = data[1:]
++			offset++
++		}
++
++		for len(data) > 0 {
++			dataLen := int32(len(data))
++			var segmentEnd, zeroEnd int32
++			for {
++				// look for beginning of zeroes
++				for segmentEnd < dataLen && data[segmentEnd] != 0 {
++					segmentEnd++
++				}
++				// look for end of zeroes
++				zeroEnd = segmentEnd
++				for zeroEnd < dataLen && data[zeroEnd] == 0 {
++					zeroEnd++
++				}
++				// emit segment if omitting zeroes reduces the output size
++				if zeroEnd-segmentEnd >= segmentOverhead || zeroEnd == dataLen {
++					break
++				}
++				segmentEnd = zeroEnd
++			}
++
++			segments = append(segments, &dataSegment{
++				offset: offset,
++				data:   data[:segmentEnd],
++			})
++			data = data[zeroEnd:]
++			offset += zeroEnd
++		}
++	}
++
++	writeUleb128(ctxt.Out, uint64(len(segments))) // number of data entries
++	for _, seg := range segments {
+ 		writeUleb128(ctxt.Out, 0) // memidx
+-		writeI32Const(ctxt.Out, int32(sec.Vaddr))
++		writeI32Const(ctxt.Out, seg.offset)
+ 		ctxt.Out.WriteByte(0x0b) // end
+-		writeUleb128(ctxt.Out, uint64(sec.Length))
+-		ld.Datblk(ctxt, int64(sec.Vaddr), int64(sec.Length))
++		writeUleb128(ctxt.Out, uint64(len(seg.data)))
++		ctxt.Out.Write(seg.data)
+ 	}
+ 
+ 	writeSecSize(ctxt, sizeOffset)

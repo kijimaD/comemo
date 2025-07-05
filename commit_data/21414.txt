@@ -10,6 +10,38 @@ Date:   Sat Jan 3 00:12:34 2015 -0500
     Change-Id: I3a19ab5d820bdb94586a97f4507b3837d7040525
     Reviewed-on: https://go-review.googlesource.com/2271
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 5cfcf5ab1f..29f90fa36d 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -7,9 +7,9 @@
+ package runtime_test
+ 
+ import (
++	"os/exec"
+ 	"runtime"
+ 	"strings"
+-	"syscall"
+ 	"testing"
+ )
+ 
+@@ -59,12 +59,12 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 	case "darwin":
+ 		// static constructor needs external linking, but we don't support
+ 		// external linking on OS X 10.6.
+-		osver, err := syscall.Sysctl("kern.osrelease")
++		out, err := exec.Command("uname", "-r").Output()
+ 		if err != nil {
+-			t.Fatalf("Sysctl(kern.osrelease) failed: %v", err)
++			t.Fatalf("uname -r failed: %v", err)
+ 		}
+ 		// OS X 10.6 == Darwin 10.x
+-		if strings.HasPrefix(osver, "10.") {
++		if strings.HasPrefix(string(out), "10.") {
+ 			t.Skipf("no external linking on OS X 10.6")
+ 		}
+ 	}

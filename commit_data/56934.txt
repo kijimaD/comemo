@@ -11,6 +11,36 @@ Date:   Thu Jun 1 05:57:58 2023 -0700
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Bypass: Eli Bendersky‎ <eliben@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.21.html | 16 +++-------------
  1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 78977a173d..29feac2b71 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -144,21 +144,11 @@ Do not send CLs removing the interior tags from such phrases.
+   <!-- cmd/dist: default to GOARM=7 on all non-arm systems -->
+ </p>
+ 
+-<!-- https://go.dev/issue/38248 -->
+-<p>
+-  <!-- replace CallImport with go:wasmimport directive -->
+-</p>
+-
+ <h3 id="wasm">WebAssembly</h3>
+ 
+-<!-- https://go.dev/issue/59149 -->
+-<p>
+-  <!-- allow the use of go:wasmimport globally -->
+-</p>
+-
+-<!-- CL 489255 -->
+-<p>
+-  <!-- cmd/compile: remove go:wasmimport restriction -->
++<p><!-- https://go.dev/issue/38248, https://go.dev/issue/59149, CL 489255 -->
++  The new <code>go:wasmimport</code> directive can now be used in Go programs
++  to import functions from the WebAssembly host.
+ </p>
+ 
+ <!-- https://go.dev/issue/56100 -->

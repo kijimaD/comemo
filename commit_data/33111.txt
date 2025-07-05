@@ -7,6 +7,52 @@ Date:   Thu Jul 13 11:48:51 2017 -0600
     Change-Id: I73fdc793bbc3ffe9ace1bfa78799f84c31630d61
     Reviewed-on: https://go-review.googlesource.com/48391
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.9.html | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index db1d3ee58c..e19ebd241b 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -233,7 +233,7 @@ type T1 = T2
+   Profiles produced by the <code>runtime/pprof</code> package now
+   include symbol information, so they can be viewed
+   in <code>go</code> <code>tool</code> <code>pprof</code>
+-  without binary that produced the profile.
++  without the binary that produced the profile.
+ </p>
+ 
+ <p> <!-- CL 38343 -->
+@@ -520,7 +520,7 @@ version of gccgo.
+ 
+ <dl id="encoding/base32"><dt><a href="/pkg/encoding/base32/">encoding/base32</a></dt>
+   <dd>
+-    <p><!-- CL 38634 --> 
++    <p><!-- CL 38634 -->
+ 	  The new <a href="/pkg/encoding/base32/#Encoding.WithPadding">Encoding.WithPadding</a>
+ 	  method adds support for custom padding characters and disabling padding.
+     </p>
+@@ -913,7 +913,7 @@ version of gccgo.
+       interface describes some types in the
+       <a href="/pkg/net/"><code>net</code></a>
+       package that can provide access to their underlying file descriptor
+-      using the new 
++      using the new
+       <a href="/pkg/syscall/#RawConn"><code>RawConn</code></a>
+       interface.
+     </p>
+@@ -955,7 +955,7 @@ version of gccgo.
+     <p><!-- CL 36615 -->
+       The new methods
+       <a href="/pkg/time/#Duration.Round"><code>Duration.Round</code></a>
+-      and 
++      and
+       <a href="/pkg/time/#Duration.Truncate"><code>Duration.Truncate</code></a>
+       handle rounding and truncating durations to multiples of a given duration.
+     </p>
+@@ -978,4 +978,3 @@ version of gccgo.
+     </p>
+ 
+ </dl><!-- time -->
+-

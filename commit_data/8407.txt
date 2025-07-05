@@ -7,9 +7,98 @@ Date:   Mon May 16 16:15:13 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4535074
-
+---
  src/cmd/5c/gc.h   | 4 ++--
  src/cmd/5c/peep.c | 4 ++--
  src/cmd/5g/gg.h   | 4 ++--
  src/cmd/5g/peep.c | 4 ++--
  4 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 9e9d1bd7d5..549e0c88a2 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -69,7 +69,7 @@ struct	Adr
+ 
+ 	Sym*	sym;
+ 	char	type;
+-	char	reg;
++	uchar	reg;
+ 	char	name;
+ 	char	etype;
+ };
+@@ -83,7 +83,7 @@ struct	Prog
+ 	Prog*	link;
+ 	int32	lineno;
+ 	char	as;
+-	char	reg;
++	uchar	reg;
+ 	uchar	scond;
+ };
+ #define	P	((Prog*)0)
+diff --git a/src/cmd/5c/peep.c b/src/cmd/5c/peep.c
+index 8945ee7321..c15bf0fc4c 100644
+--- a/src/cmd/5c/peep.c
++++ b/src/cmd/5c/peep.c
+@@ -1100,7 +1100,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1118,7 +1118,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 3;
+ 		return 0;
+ 	}
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 78e6833b2a..fe404ed79e 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -26,7 +26,7 @@ struct	Addr
+ 	int	width;
+ 	uchar	type;
+ 	char	name;
+-	char	reg;
++	uchar	reg;
+ 	char pun;
+ 	uchar	etype;
+ };
+@@ -41,7 +41,7 @@ struct	Prog
+ 	Addr	to;		// dst address
+ 	Prog*	link;		// next instruction in this func
+ 	void*	regp;		// points to enclosing Reg struct
+-	char	reg;		// doubles as width in DATA op
++	uchar	reg;		// doubles as width in DATA op
+ 	uchar	scond;
+ };
+ 
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index ca12d70f26..6f36e12d42 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1134,7 +1134,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		if(v->type == D_REG) {
+ 			if(v->reg <= REGEXT && v->reg > exregoffset)
+ 				return 2;
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 2;
+ 		}
+ 		if(v->type == D_FREG)
+@@ -1152,7 +1152,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 
+ 	case ATEXT:	/* funny */
+ 		if(v->type == D_REG)
+-			if(v->reg == REGARG)
++			if(v->reg == (uchar)REGARG)
+ 				return 3;
+ 		return 0;
+ 	}

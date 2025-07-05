@@ -13,7 +13,87 @@ Date:   Fri Oct 27 07:04:49 2017 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Sam Whited <sam@samwhited.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/xml/read.go      |  3 ++-
  src/encoding/xml/read_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/xml/read.go b/src/encoding/xml/read.go
+index 2fd6e06688..6709d5aeba 100644
+--- a/src/encoding/xml/read.go
++++ b/src/encoding/xml/read.go
+@@ -107,7 +107,8 @@ import (
+ // to the newly created value.
+ //
+ // Unmarshal maps an XML element or attribute value to a bool by
+-// setting it to the boolean value represented by the string.
++// setting it to the boolean value represented by the string. Whitespace
++// is trimmed and ignored.
+ //
+ // Unmarshal maps an XML element or attribute value to an integer or
+ // floating-point field by setting the field to the result of
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index bd6260d6d4..08c3e3b4fe 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -908,3 +908,60 @@ func TestUnmarshalEmptyValues(t *testing.T) {
+ 		t.Fatalf("populated: Unmarshal:\nhave:  %#+v\nwant: %#+v", v, want)
+ 	}
+ }
++
++type WhitespaceValuesParent struct {
++	BFalse bool
++	BTrue  bool
++}
++
++const whitespaceValuesXML = `
++<WhitespaceValuesParent>
++    <BFalse>   false   </BFalse>
++    <BTrue>   true   </BTrue>
++</WhitespaceValuesParent>
++`
++
++// golang.org/issues/22146
++func TestUnmarshalWhitespaceValues(t *testing.T) {
++	v := WhitespaceValuesParent{}
++	if err := Unmarshal([]byte(whitespaceValuesXML), &v); err != nil {
++		t.Fatalf("whitespace values: Unmarshal failed: got %v", err)
++	}
++
++	want := WhitespaceValuesParent{
++		BFalse: false,
++		BTrue:  true,
++	}
++	if v != want {
++		t.Fatalf("whitespace values: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
++	}
++}
++
++type WhitespaceAttrsParent struct {
++	BFalse bool `xml:",attr"`
++	BTrue  bool `xml:",attr"`
++}
++
++const whitespaceAttrsXML = `
++<WhitespaceAttrsParent
++    BFalse="  false  "
++    BTrue="  true  "
++>
++</WhitespaceAttrsParent>
++`
++
++// golang.org/issues/22146
++func TestUnmarshalWhitespaceAttrs(t *testing.T) {
++	v := WhitespaceAttrsParent{}
++	if err := Unmarshal([]byte(whitespaceAttrsXML), &v); err != nil {
++		t.Fatalf("whitespace attrs: Unmarshal failed: got %v", err)
++	}
++
++	want := WhitespaceAttrsParent{
++		BFalse: false,
++		BTrue:  true,
++	}
++	if v != want {
++		t.Fatalf("whitespace attrs: Unmarshal:\nhave: %#+v\nwant: %#+v", v, want)
++	}
++}

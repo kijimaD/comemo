@@ -13,10 +13,286 @@ Date:   Tue May 3 16:12:01 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go       |   4 --
  src/cmd/compile/internal/ir/node.go      |   6 --
  src/cmd/compile/internal/ir/node_gen.go  |  26 -------
  src/cmd/compile/internal/ir/op_string.go |  49 +++++++------
  src/cmd/compile/internal/ir/type.go      | 116 ++-----------------------------
  5 files changed, 29 insertions(+), 172 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index c97bc5831b..760ae7df1e 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -210,7 +210,6 @@ var OpPrec = []int{
+ 	OSTR2BYTES:     8,
+ 	OSTR2RUNES:     8,
+ 	OSTRUCTLIT:     8,
+-	OTFUNC:         8,
+ 	OTYPE:          8,
+ 	OUNSAFEADD:     8,
+ 	OUNSAFESLICE:   8,
+@@ -645,9 +644,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		}
+ 		fmt.Fprintf(s, "%v", n.Type())
+ 
+-	case OTFUNC:
+-		fmt.Fprint(s, "<func>")
+-
+ 	case OCLOSURE:
+ 		n := n.(*ClosureExpr)
+ 		if !exportFormat {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 0d91d17344..3b69f98426 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -286,12 +286,6 @@ const (
+ 	OTYPESW
+ 	OFUNCINST // instantiation of a generic function
+ 
+-	// types
+-	// OTFUNC: func() - Recv is receiver field, Params is list of param fields, Results is
+-	// list of result fields.
+-	// TODO(mdempsky): Remove.
+-	OTFUNC
+-
+ 	// misc
+ 	// intermediate representation of an inlined call.  Uses Init (assignments
+ 	// for the captured variables, parameters, retvars, & INLMARK op),
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 5b82b55694..30d5b23de9 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -513,32 +513,6 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
+ 
+ func (n *Func) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ 
+-func (n *FuncType) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+-func (n *FuncType) copy() Node {
+-	c := *n
+-	c.Recv = copyField(c.Recv)
+-	c.Params = copyFields(c.Params)
+-	c.Results = copyFields(c.Results)
+-	return &c
+-}
+-func (n *FuncType) doChildren(do func(Node) bool) bool {
+-	if doField(n.Recv, do) {
+-		return true
+-	}
+-	if doFields(n.Params, do) {
+-		return true
+-	}
+-	if doFields(n.Results, do) {
+-		return true
+-	}
+-	return false
+-}
+-func (n *FuncType) editChildren(edit func(Node) Node) {
+-	editField(n.Recv, edit)
+-	editFields(n.Params, edit)
+-	editFields(n.Results, edit)
+-}
+-
+ func (n *GoDeferStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *GoDeferStmt) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index 8927f18cea..5d475a7995 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -140,34 +140,33 @@ func _() {
+ 	_ = x[OSWITCH-129]
+ 	_ = x[OTYPESW-130]
+ 	_ = x[OFUNCINST-131]
+-	_ = x[OTFUNC-132]
+-	_ = x[OINLCALL-133]
+-	_ = x[OEFACE-134]
+-	_ = x[OITAB-135]
+-	_ = x[OIDATA-136]
+-	_ = x[OSPTR-137]
+-	_ = x[OCFUNC-138]
+-	_ = x[OCHECKNIL-139]
+-	_ = x[OVARDEF-140]
+-	_ = x[OVARKILL-141]
+-	_ = x[OVARLIVE-142]
+-	_ = x[ORESULT-143]
+-	_ = x[OINLMARK-144]
+-	_ = x[OLINKSYMOFFSET-145]
+-	_ = x[OJUMPTABLE-146]
+-	_ = x[ODYNAMICDOTTYPE-147]
+-	_ = x[ODYNAMICDOTTYPE2-148]
+-	_ = x[ODYNAMICTYPE-149]
+-	_ = x[OTAILCALL-150]
+-	_ = x[OGETG-151]
+-	_ = x[OGETCALLERPC-152]
+-	_ = x[OGETCALLERSP-153]
+-	_ = x[OEND-154]
++	_ = x[OINLCALL-132]
++	_ = x[OEFACE-133]
++	_ = x[OITAB-134]
++	_ = x[OIDATA-135]
++	_ = x[OSPTR-136]
++	_ = x[OCFUNC-137]
++	_ = x[OCHECKNIL-138]
++	_ = x[OVARDEF-139]
++	_ = x[OVARKILL-140]
++	_ = x[OVARLIVE-141]
++	_ = x[ORESULT-142]
++	_ = x[OINLMARK-143]
++	_ = x[OLINKSYMOFFSET-144]
++	_ = x[OJUMPTABLE-145]
++	_ = x[ODYNAMICDOTTYPE-146]
++	_ = x[ODYNAMICDOTTYPE2-147]
++	_ = x[ODYNAMICTYPE-148]
++	_ = x[OTAILCALL-149]
++	_ = x[OGETG-150]
++	_ = x[OGETCALLERPC-151]
++	_ = x[OGETCALLERSP-152]
++	_ = x[OEND-153]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTFUNCINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETJUMPTABLEDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 722, 726, 728, 733, 735, 740, 746, 752, 758, 764, 772, 777, 784, 789, 793, 798, 802, 807, 815, 821, 828, 835, 841, 848, 861, 870, 884, 899, 910, 918, 922, 933, 944, 947}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 722, 726, 728, 733, 735, 740, 746, 752, 758, 764, 772, 779, 784, 788, 793, 797, 802, 810, 816, 823, 830, 836, 843, 856, 865, 879, 894, 905, 913, 917, 928, 939, 942}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 39d36b3f4a..e2ed5ecd76 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -26,70 +26,13 @@ type Ntype interface {
+ 	CanBeNtype()
+ }
+ 
+-// A miniType is a minimal type syntax Node implementation,
+-// to be embedded as the first field in a larger node implementation.
+-type miniType struct {
+-	miniNode
+-	typ *types.Type
+-}
+-
+-func (*miniType) CanBeNtype() {}
+-
+-func (n *miniType) Type() *types.Type { return n.typ }
+-
+-// setOTYPE changes n to be an OTYPE node returning t.
+-// Rewriting the node in place this way should not be strictly
+-// necessary (we should be able to update the uses with
+-// proper OTYPE nodes), but it's mostly harmless and easy
+-// to keep doing for now.
+-//
+-// setOTYPE also records t.Nod = self if t.Nod is not already set.
+-// (Some types are shared by multiple OTYPE nodes, so only
+-// the first such node is used as t.Nod.)
+-func (n *miniType) setOTYPE(t *types.Type, self Ntype) {
+-	if n.typ != nil {
+-		panic(n.op.String() + " SetType: type already set")
+-	}
+-	n.op = OTYPE
+-	n.typ = t
+-	t.SetNod(self)
+-}
+-
+-func (n *miniType) Sym() *types.Sym { return nil }   // for Format OTYPE
+-func (n *miniType) Implicit() bool  { return false } // for Format OTYPE
+-
+-// A FuncType represents a func(Args) Results type syntax.
+-type FuncType struct {
+-	miniType
+-	Recv    *Field
+-	Params  []*Field
+-	Results []*Field
+-}
+-
+-func NewFuncType(pos src.XPos, rcvr *Field, args, results []*Field) *FuncType {
+-	n := &FuncType{Recv: rcvr, Params: args, Results: results}
+-	n.op = OTFUNC
+-	n.pos = pos
+-	return n
+-}
+-
+-func (n *FuncType) SetOTYPE(t *types.Type) {
+-	n.setOTYPE(t, n)
+-	n.Recv = nil
+-	n.Params = nil
+-	n.Results = nil
+-}
+-
+-// A Field is a declared struct field, interface method, or function argument.
++// A Field is a declared function parameter.
+ // It is not a Node.
+ type Field struct {
+-	Pos      src.XPos
+-	Sym      *types.Sym
+-	Type     *types.Type
+-	Embedded bool
+-	IsDDD    bool
+-	Note     string
+-	Decl     *Name
++	Pos   src.XPos
++	Sym   *types.Sym
++	Type  *types.Type
++	IsDDD bool
+ }
+ 
+ func NewField(pos src.XPos, sym *types.Sym, typ *types.Type) *Field {
+@@ -103,55 +46,6 @@ func (f *Field) String() string {
+ 	return fmt.Sprint(f.Type)
+ }
+ 
+-// TODO(mdempsky): Make Field a Node again so these can be generated?
+-// Fields are Nodes in go/ast and cmd/compile/internal/syntax.
+-
+-func copyField(f *Field) *Field {
+-	if f == nil {
+-		return nil
+-	}
+-	c := *f
+-	return &c
+-}
+-func doField(f *Field, do func(Node) bool) bool {
+-	if f == nil {
+-		return false
+-	}
+-	if f.Decl != nil && do(f.Decl) {
+-		return true
+-	}
+-	return false
+-}
+-func editField(f *Field, edit func(Node) Node) {
+-	if f == nil {
+-		return
+-	}
+-	if f.Decl != nil {
+-		f.Decl = edit(f.Decl).(*Name)
+-	}
+-}
+-
+-func copyFields(list []*Field) []*Field {
+-	out := make([]*Field, len(list))
+-	for i, f := range list {
+-		out[i] = copyField(f)
+-	}
+-	return out
+-}
+-func doFields(list []*Field, do func(Node) bool) bool {
+-	for _, x := range list {
+-		if doField(x, do) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-func editFields(list []*Field, edit func(Node) Node) {
+-	for _, f := range list {
+-		editField(f, edit)
+-	}
+-}
+-
+ // A typeNode is a Node wrapper for type t.
+ type typeNode struct {
+ 	miniNode

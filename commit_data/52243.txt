@@ -13,7 +13,7 @@ Date:   Wed Jan 12 13:28:33 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/base/env.go                | 12 ++++++++++--
  src/cmd/go/internal/generate/generate_test.go  | 17 +++++++++++------
  src/cmd/go/internal/vcs/vcs.go                 | 16 +++++++++++++---
@@ -21,3 +21,190 @@ Date:   Wed Jan 12 13:28:33 2022 -0500
  src/cmd/go/internal/work/exec.go               |  9 ++++++---
  src/cmd/go/testdata/script/mod_list_direct.txt |  2 +-
  6 files changed, 42 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/env.go b/src/cmd/go/internal/base/env.go
+index 5f2665d236..2f47300f2e 100644
+--- a/src/cmd/go/internal/base/env.go
++++ b/src/cmd/go/internal/base/env.go
+@@ -4,12 +4,20 @@
+ 
+ package base
+ 
++import (
++	"fmt"
++	"path/filepath"
++)
++
+ // AppendPWD returns the result of appending PWD=dir to the environment base.
+ //
+ // The resulting environment makes os.Getwd more efficient for a subprocess
+ // running in dir.
+ func AppendPWD(base []string, dir string) []string {
+-	// Internally we only use absolute paths, so dir is absolute.
+-	// Even if dir is not absolute, no harm done.
++	// POSIX requires PWD to be absolute.
++	// Internally we only use absolute paths, so dir should already be absolute.
++	if !filepath.IsAbs(dir) {
++		panic(fmt.Sprintf("AppendPWD with relative path %q", dir))
++	}
+ 	return append(base, "PWD="+dir)
+ }
+diff --git a/src/cmd/go/internal/generate/generate_test.go b/src/cmd/go/internal/generate/generate_test.go
+index 15b1279f36..d61ecf104a 100644
+--- a/src/cmd/go/internal/generate/generate_test.go
++++ b/src/cmd/go/internal/generate/generate_test.go
+@@ -5,7 +5,9 @@
+ package generate
+ 
+ import (
++	"internal/testenv"
+ 	"os"
++	"path/filepath"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -41,10 +43,11 @@ var splitTests = []splitTest{
+ }
+ 
+ func TestGenerateCommandParse(t *testing.T) {
++	dir := filepath.Join(testenv.GOROOT(t), "src", "sys")
+ 	g := &Generator{
+ 		r:        nil, // Unused here.
+-		path:     "/usr/ken/sys/proc.go",
+-		dir:      "/usr/ken/sys",
++		path:     filepath.Join(dir, "proc.go"),
++		dir:      dir,
+ 		file:     "proc.go",
+ 		pkg:      "sys",
+ 		commands: make(map[string][]string),
+@@ -84,10 +87,11 @@ var defEnvMap = map[string]string{
+ //     before executing the test.  i.e., execute the split as if it
+ //     processing that source line.
+ func TestGenerateCommandShorthand(t *testing.T) {
++	dir := filepath.Join(testenv.GOROOT(t), "src", "sys")
+ 	g := &Generator{
+ 		r:        nil, // Unused here.
+-		path:     "/usr/ken/sys/proc.go",
+-		dir:      "/usr/ken/sys",
++		path:     filepath.Join(dir, "proc.go"),
++		dir:      dir,
+ 		file:     "proc.go",
+ 		pkg:      "sys",
+ 		commands: make(map[string][]string),
+@@ -222,10 +226,11 @@ var splitTestsLines = []splitTestWithLine{
+ //     before executing the test.  i.e., execute the split as if it
+ //     processing that source line.
+ func TestGenerateCommandShortHand2(t *testing.T) {
++	dir := filepath.Join(testenv.GOROOT(t), "src", "sys")
+ 	g := &Generator{
+ 		r:        nil, // Unused here.
+-		path:     "/usr/ken/sys/proc.go",
+-		dir:      "/usr/ken/sys",
++		path:     filepath.Join(dir, "proc.go"),
++		dir:      dir,
+ 		file:     "proc.go",
+ 		pkg:      "sys",
+ 		commands: make(map[string][]string),
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 2acabf7aaf..77208ab762 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -669,7 +669,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
+ 			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+ 				os.Stderr.Write(ee.Stderr)
+ 			} else {
+-				fmt.Fprintf(os.Stderr, err.Error())
++				fmt.Fprintln(os.Stderr, err.Error())
+ 			}
+ 		}
+ 	}
+@@ -678,14 +678,24 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
+ 
+ // Ping pings to determine scheme to use.
+ func (v *Cmd) Ping(scheme, repo string) error {
+-	return v.runVerboseOnly(".", v.PingCmd, "scheme", scheme, "repo", repo)
++	// Run the ping command in an arbitrary working directory,
++	// but don't let the current working directory pollute the results.
++	// In module mode, we expect GOMODCACHE to exist and be a safe place for
++	// commands; in GOPATH mode, we expect that to be true of GOPATH/src.
++	dir := cfg.GOMODCACHE
++	if !cfg.ModulesEnabled {
++		dir = filepath.Join(cfg.BuildContext.GOPATH, "src")
++	}
++	os.MkdirAll(dir, 0777) // Ignore errors — if unsuccessful, the command will likely fail.
++
++	return v.runVerboseOnly(dir, v.PingCmd, "scheme", scheme, "repo", repo)
+ }
+ 
+ // Create creates a new copy of repo in dir.
+ // The parent of dir must exist; dir must not.
+ func (v *Cmd) Create(dir, repo string) error {
+ 	for _, cmd := range v.CreateCmd {
+-		if err := v.run(".", cmd, "dir", dir, "repo", repo); err != nil {
++		if err := v.run(filepath.Dir(dir), cmd, "dir", dir, "repo", repo); err != nil {
+ 			return err
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 76335e9bb1..ac98aa344c 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -160,7 +160,6 @@ func (b *Builder) toolID(name string) string {
+ 
+ 	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	var stdout, stderr bytes.Buffer
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+@@ -219,9 +218,8 @@ func (b *Builder) gccToolID(name, language string) (string, error) {
+ 	// compile an empty file on standard input.
+ 	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
+ 	// Force untranslated output so that we see the string "version".
+-	cmd.Env = append(cmd.Env, "LC_ALL=C")
++	cmd.Env = append(os.Environ(), "LC_ALL=C")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		return "", fmt.Errorf("%s: %v; output: %q", name, err, out)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 9c9d58b2a1..f0e6c80029 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2116,8 +2116,11 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...any) ([
+ 	cmd.Stderr = &buf
+ 	cleanup := passLongArgsInResponseFiles(cmd)
+ 	defer cleanup()
+-	cmd.Dir = dir
+-	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
++	cmd.Env = os.Environ()
++	if dir != "." {
++		cmd.Dir = dir
++		cmd.Env = base.AppendPWD(cmd.Env, dir)
++	}
+ 
+ 	// Add the TOOLEXEC_IMPORTPATH environment variable for -toolexec tools.
+ 	// It doesn't really matter if -toolexec isn't being used.
+@@ -3071,7 +3074,7 @@ var (
+ )
+ 
+ func (b *Builder) swigDoVersionCheck() error {
+-	out, err := b.runOut(nil, "", nil, "swig", "-version")
++	out, err := b.runOut(nil, ".", nil, "swig", "-version")
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_list_direct.txt b/src/cmd/go/testdata/script/mod_list_direct.txt
+index 9b7a04c504..3aa1881554 100644
+--- a/src/cmd/go/testdata/script/mod_list_direct.txt
++++ b/src/cmd/go/testdata/script/mod_list_direct.txt
+@@ -10,7 +10,7 @@ env GOSUMDB=off
+ # For a while, (*modfetch.codeRepo).Stat was not checking for a go.mod file,
+ # which would produce a hard error at the subsequent call to GoMod.
+ 
+-go get
++go get -v
+ 
+ -- go.mod --
+ module example.com

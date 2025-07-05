@@ -10,6 +10,22 @@ Date:   Mon Aug 17 11:40:57 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=33378
     CL=33384
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index c6c75ddae7..768084385b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -695,8 +695,8 @@ struct {
+ A field declared with a type but no field identifier is an <i>anonymous field</i>.
+ Such a field type must be specified as
+ a type name <code>T</code> or as a pointer to a type name <code>*T</code>,
+-and <code>T</code> itself, may not be
+-a pointer or interface type. The unqualified type name acts as the field identifier.
++and <code>T</code> itself may not be
++a pointer type. The unqualified type name acts as the field identifier.
+ </p>
+ 
+ <pre>

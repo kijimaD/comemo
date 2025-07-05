@@ -12,7 +12,7 @@ Date:   Tue Nov 8 15:38:47 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5340050
-
+---
  doc/effective_go.html                 |  9 +++---
  doc/effective_go.tmpl                 |  2 +-
  src/pkg/deps.bash                     | 59 -----------------------------------
@@ -80,3 +80,1028 @@ Date:   Tue Nov 8 15:38:47 2011 -0800
  src/pkg/unicode/utf8/Makefile         |  2 +-
  test/fixedbugs/bug358.go              |  2 +-
  66 files changed, 87 insertions(+), 144 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index a58989ab55..41c7206b8b 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -1996,7 +1996,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ <code>http.ResponseWriter</code>.)
+ For reference, here's how to attach such a server to a node on the URL tree.
+ <pre>
+-import "http"
++import "net/http"
+ ...
+ ctr := new(Counter)
+ http.Handle("/counter", ctr)
+@@ -2925,12 +2925,13 @@ An explanation follows.
+ 
+ import (
+     &#34;flag&#34;
+-    &#34;http&#34;
+     &#34;log&#34;
+-    &#34;template&#34;
++    &#34;net/http&#34;
++    &#34;text/template&#34;
+ )
+ 
+-var addr = flag.String(&#34;addr&#34;, &#34;:1718&#34;, &#34;http service address&#34;) // Q=17, R=18
++var // Q=17, R=18
++addr = flag.String(&#34;addr&#34;, &#34;:1718&#34;, &#34;http service address&#34;)
+ 
+ var templ = template.Must(template.New(&#34;qr&#34;).Parse(templateStr))
+ 
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index 842f026e10..22e1c1d80a 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -1934,7 +1934,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ <code>http.ResponseWriter</code>.)
+ For reference, here's how to attach such a server to a node on the URL tree.
+ <pre>
+-import "http"
++import "net/http"
+ ...
+ ctr := new(Counter)
+ http.Handle("/counter", ctr)
+diff --git a/src/pkg/deps.bash b/src/pkg/deps.bash
+index ad752a093e..c4c44f6b40 100755
+--- a/src/pkg/deps.bash
++++ b/src/pkg/deps.bash
+@@ -23,36 +23,6 @@ dirpat=$(echo $dirs C | awk '{
+ 	}
+ }')
+ 
+-# Append old names of renamed packages. TODO: clean up after renaming.
+-dirpat="$dirpat
+-/^(asn1)$/
+-/^(big)$/
+-/^(cmath)$/
+-/^(csv)$/
+-/^(exec)$/
+-/^(exp\/template\/html)$/
+-/^(gob)$/
+-/^(http)/
+-/^(http\/cgi)$/
+-/^(http\/fcgi)$/
+-/^(http\/httptest)$/
+-/^(http\/pprof)$/
+-/^(json)$/
+-/^(mail)$/
+-/^(rand)$/
+-/^(rpc)$/
+-/^(scanner)$/
+-/^(smtp)$/
+-/^(syslog)$/
+-/^(tabwriter)$/
+-/^(url)$/
+-/^(template)$/
+-/^(template\/parse)$/
+-/^(utf16)$/
+-/^(utf8)$/
+-/^(xml)$/
+-"
+-
+ for dir in $dirs; do (
+ 	cd $dir >/dev/null || exit 1
+ 
+@@ -69,35 +39,6 @@ for dir in $dirs; do (
+ 		awk "$dirpat" |
+ 		grep -v "^$dir\$" |
+ 		sed 's/$/.install/' |
+-		# TODO: rename the dependencies for renamed directories.  TODO: clean up after renaming.
+-		sed 's;^asn1.install$;encoding/asn1.install;
+-		s;^big.install$;math/big.install;
+-		s;^cmath.install$;math/cmplx.install;
+-		s;^csv.install$;encoding/csv.install;
+-		s;^exec.install$;os/exec.install;
+-		s;^exp/template/html.install$;html/template.install;
+-		s;^gob.install$;encoding/gob.install;
+-		s;^http.install$;net/http.install;
+-		s;^http/cgi.install$;net/http/cgi.install;
+-		s;^http/fcgi.install$;net/http/fcgi.install;
+-		s;^http/httptest.install$;net/http/httptest.install;
+-		s;^http/pprof.install$;net/http/pprof.install;
+-		s;^json.install$;encoding/json.install;
+-		s;^mail.install$;net/mail.install;
+-		s;^rpc.install$;net/rpc.install;
+-		s;^rpc/jsonrpc.install$;net/rpc/jsonrpc.install;
+-		s;^scanner.install$;text/scanner.install;
+-		s;^smtp.install$;net/smtp.install;
+-		s;^syslog.install$;log/syslog.install;
+-		s;^tabwriter.install$;text/tabwriter.install;
+-		s;^template.install$;text/template.install;
+-		s;^template/parse.install$;text/template/parse.install;
+-		s;^rand.install$;math/rand.install;
+-		s;^url.install$;net/url.install;
+-		s;^utf16.install$;unicode/utf16.install;
+-		s;^utf8.install$;unicode/utf8.install;
+-		s;^xml.install$;encoding/xml.install;' |
+-		# TODO: end of renamings.
+ 		sed 's;^C\.install;runtime/cgo.install;' |
+ 		sort -u
+ 	)
+diff --git a/src/pkg/encoding/asn1/Makefile b/src/pkg/encoding/asn1/Makefile
+index 692c469878..1c046dc369 100644
+--- a/src/pkg/encoding/asn1/Makefile
++++ b/src/pkg/encoding/asn1/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=asn1
++TARG=encoding/asn1
+ GOFILES=\
+ 	asn1.go\
+ 	common.go\
+diff --git a/src/pkg/encoding/csv/Makefile b/src/pkg/encoding/csv/Makefile
+index 7476d816a1..9e04c5b90d 100644
+--- a/src/pkg/encoding/csv/Makefile
++++ b/src/pkg/encoding/csv/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=csv
++TARG=encoding/csv
+ GOFILES=\
+ 	reader.go\
+ 	writer.go\
+diff --git a/src/pkg/encoding/gob/Makefile b/src/pkg/encoding/gob/Makefile
+index 70ea22f94b..6c7693cba3 100644
+--- a/src/pkg/encoding/gob/Makefile
++++ b/src/pkg/encoding/gob/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=gob
++TARG=encoding/gob
+ GOFILES=\
+ 	decode.go\
+ 	decoder.go\
+diff --git a/src/pkg/encoding/json/Makefile b/src/pkg/encoding/json/Makefile
+index 203cf3ca98..37223e75e9 100644
+--- a/src/pkg/encoding/json/Makefile
++++ b/src/pkg/encoding/json/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=json
++TARG=encoding/json
+ GOFILES=\
+ 	decode.go\
+ 	encode.go\
+diff --git a/src/pkg/encoding/xml/Makefile b/src/pkg/encoding/xml/Makefile
+index 731d2ad959..dccb1009fd 100644
+--- a/src/pkg/encoding/xml/Makefile
++++ b/src/pkg/encoding/xml/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=xml
++TARG=encoding/xml
+ 
+ GOFILES=\
+ 	marshal.go\
+diff --git a/src/pkg/html/template/Makefile b/src/pkg/html/template/Makefile
+index 57f0346149..d27601a33b 100644
+--- a/src/pkg/html/template/Makefile
++++ b/src/pkg/html/template/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=exp/template/html
++TARG=html/template
+ GOFILES=\
+ 	attr.go\
+ 	clone.go\
+diff --git a/src/pkg/html/template/attr.go b/src/pkg/html/template/attr.go
+index 6a36c7b718..3ea02880d4 100644
+--- a/src/pkg/html/template/attr.go
++++ b/src/pkg/html/template/attr.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"strings"
+diff --git a/src/pkg/html/template/clone.go b/src/pkg/html/template/clone.go
+index 803a64de12..d0d8ea4673 100644
+--- a/src/pkg/html/template/clone.go
++++ b/src/pkg/html/template/clone.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+-	"template/parse"
++	"text/template/parse"
+ )
+ 
+ // clone clones a template Node.
+diff --git a/src/pkg/html/template/clone_test.go b/src/pkg/html/template/clone_test.go
+index 9e557d2880..ed1698acd8 100644
+--- a/src/pkg/html/template/clone_test.go
++++ b/src/pkg/html/template/clone_test.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+-	"template"
+-	"template/parse"
+ 	"testing"
++	"text/template"
++	"text/template/parse"
+ )
+ 
+ func TestClone(t *testing.T) {
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index dcaff8c15c..d720d4ba68 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"fmt"
+diff --git a/src/pkg/html/template/content_test.go b/src/pkg/html/template/content_test.go
+index bee2ed1c18..c96a521a59 100644
+--- a/src/pkg/html/template/content_test.go
++++ b/src/pkg/html/template/content_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+diff --git a/src/pkg/html/template/context.go b/src/pkg/html/template/context.go
+index c44df4debc..7202221b83 100644
+--- a/src/pkg/html/template/context.go
++++ b/src/pkg/html/template/context.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"fmt"
+diff --git a/src/pkg/html/template/css.go b/src/pkg/html/template/css.go
+index c26ae78d17..b0a2f013d2 100644
+--- a/src/pkg/html/template/css.go
++++ b/src/pkg/html/template/css.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+ 	"fmt"
+ 	"unicode"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // endsWithCSSKeyword returns whether b ends with an ident that
+diff --git a/src/pkg/html/template/css_test.go b/src/pkg/html/template/css_test.go
+index b3b83e855d..0d94bdcf18 100644
+--- a/src/pkg/html/template/css_test.go
++++ b/src/pkg/html/template/css_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"strconv"
+diff --git a/src/pkg/html/template/doc.go b/src/pkg/html/template/doc.go
+index 8aca42f56b..0324c9c0ee 100644
+--- a/src/pkg/html/template/doc.go
++++ b/src/pkg/html/template/doc.go
+@@ -3,8 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Package html is a specialization of package template that automates the
+-construction of HTML output that is safe against code injection.
++Package template (html/template) is a specialization of package text/template
++that automates the construction of HTML output that is safe against code
++injection.
+ 
+ 
+ Introduction
+@@ -182,4 +183,4 @@ Least Surprise Property
+ knows that contextual autoescaping happens should be able to look at a {{.}}
+ and correctly infer what sanitization happens."
+ */
+-package html
++package template
+diff --git a/src/pkg/html/template/error.go b/src/pkg/html/template/error.go
+index cb2994bc8a..9622d7e48e 100644
+--- a/src/pkg/html/template/error.go
++++ b/src/pkg/html/template/error.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"fmt"
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index e8eae8f174..8ac07eae24 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+ 	"fmt"
+ 	"html"
+-	"template"
+-	"template/parse"
++	"text/template"
++	"text/template/parse"
+ )
+ 
+ // escape rewrites each action in the template to guarantee that the output is
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index f705947a0e..d8bfa32112 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -2,16 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"fmt"
+-	"json"
+ 	"strings"
+-	"template"
+-	"template/parse"
+ 	"testing"
++	"text/template"
++	"text/template/parse"
+ )
+ 
+ type badMarshaler struct{}
+@@ -224,7 +224,7 @@ func TestEscape(t *testing.T) {
+ 		{
+ 			"badMarshaller",
+ 			`<button onclick='alert(1/{{.B}}in numbers)'>`,
+-			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *html.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
++			`<button onclick='alert(1/ /* json: error calling MarshalJSON for type *template.badMarshaler: invalid character &#39;f&#39; looking for beginning of object key string */null in numbers)'>`,
+ 		},
+ 		{
+ 			"jsMarshaller",
+diff --git a/src/pkg/html/template/html.go b/src/pkg/html/template/html.go
+index 92d8f41994..7b77d6531a 100644
+--- a/src/pkg/html/template/html.go
++++ b/src/pkg/html/template/html.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+ 	"fmt"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // htmlNospaceEscaper escapes for inclusion in unquoted attribute values.
+diff --git a/src/pkg/html/template/html_test.go b/src/pkg/html/template/html_test.go
+index e178d0f27e..b9b9703875 100644
+--- a/src/pkg/html/template/html_test.go
++++ b/src/pkg/html/template/html_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"html"
+diff --git a/src/pkg/html/template/js.go b/src/pkg/html/template/js.go
+index 22be4183d7..68c53e5ca3 100644
+--- a/src/pkg/html/template/js.go
++++ b/src/pkg/html/template/js.go
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"fmt"
+-	"json"
+ 	"strings"
+-	"utf8"
++	"unicode/utf8"
+ )
+ 
+ // nextJSCtx returns the context that determines whether a slash after the
+diff --git a/src/pkg/html/template/js_test.go b/src/pkg/html/template/js_test.go
+index e7764054a3..311e1d2c4e 100644
+--- a/src/pkg/html/template/js_test.go
++++ b/src/pkg/html/template/js_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 04066ab40e..4733429938 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"fmt"
+ 	"io"
+ 	"path/filepath"
+-	"template"
++	"text/template"
+ )
+ 
+ // Set is a specialized template.Set that produces a safe HTML document
+diff --git a/src/pkg/html/template/transition.go b/src/pkg/html/template/transition.go
+index 49a1451174..96a4f6678b 100644
+--- a/src/pkg/html/template/transition.go
++++ b/src/pkg/html/template/transition.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+diff --git a/src/pkg/html/template/url.go b/src/pkg/html/template/url.go
+index 5b19df0840..454c791ec3 100644
+--- a/src/pkg/html/template/url.go
++++ b/src/pkg/html/template/url.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"bytes"
+diff --git a/src/pkg/html/template/url_test.go b/src/pkg/html/template/url_test.go
+index b84623151c..5182e9d794 100644
+--- a/src/pkg/html/template/url_test.go
++++ b/src/pkg/html/template/url_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package html
++package template
+ 
+ import (
+ 	"testing"
+diff --git a/src/pkg/log/syslog/Makefile b/src/pkg/log/syslog/Makefile
+index 27cdedb6f0..225307cf98 100644
+--- a/src/pkg/log/syslog/Makefile
++++ b/src/pkg/log/syslog/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=syslog
++TARG=log/syslog
+ GOFILES=\
+ 	syslog.go\
+ 	syslog_unix.go\
+diff --git a/src/pkg/math/big/Makefile b/src/pkg/math/big/Makefile
+index 8e9f956dac..1ba0818125 100644
+--- a/src/pkg/math/big/Makefile
++++ b/src/pkg/math/big/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=big
++TARG=math/big
+ GOFILES=\
+ 	arith.go\
+ 	arith_decl.go\
+diff --git a/src/pkg/math/cmplx/Makefile b/src/pkg/math/cmplx/Makefile
+index c95b856826..b6e8aa334e 100644
+--- a/src/pkg/math/cmplx/Makefile
++++ b/src/pkg/math/cmplx/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=cmath
++TARG=math/cmplx
+ 
+ GOFILES=\
+ 	abs.go\
+diff --git a/src/pkg/math/cmplx/abs.go b/src/pkg/math/cmplx/abs.go
+index f3199cad56..f3cd1073ed 100644
+--- a/src/pkg/math/cmplx/abs.go
++++ b/src/pkg/math/cmplx/abs.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package cmath provides basic constants and mathematical functions for
++// Package cmplx provides basic constants and mathematical functions for
+ // complex numbers.
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/asin.go b/src/pkg/math/cmplx/asin.go
+index 01ce80a194..61880a257d 100644
+--- a/src/pkg/math/cmplx/asin.go
++++ b/src/pkg/math/cmplx/asin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/cmath_test.go b/src/pkg/math/cmplx/cmath_test.go
+index 6a595b0a60..610ca8cebb 100644
+--- a/src/pkg/math/cmplx/cmath_test.go
++++ b/src/pkg/math/cmplx/cmath_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import (
+ 	"math"
+diff --git a/src/pkg/math/cmplx/conj.go b/src/pkg/math/cmplx/conj.go
+index 776b57da7b..34a4277c11 100644
+--- a/src/pkg/math/cmplx/conj.go
++++ b/src/pkg/math/cmplx/conj.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ // Conj returns the complex conjugate of x.
+ func Conj(x complex128) complex128 { return complex(real(x), -imag(x)) }
+diff --git a/src/pkg/math/cmplx/exp.go b/src/pkg/math/cmplx/exp.go
+index 64c1ef4093..485ed2c78d 100644
+--- a/src/pkg/math/cmplx/exp.go
++++ b/src/pkg/math/cmplx/exp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/isinf.go b/src/pkg/math/cmplx/isinf.go
+index f23d2dea78..d5a65b44b3 100644
+--- a/src/pkg/math/cmplx/isinf.go
++++ b/src/pkg/math/cmplx/isinf.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/isnan.go b/src/pkg/math/cmplx/isnan.go
+index 2063bb8356..05d0cce633 100644
+--- a/src/pkg/math/cmplx/isnan.go
++++ b/src/pkg/math/cmplx/isnan.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/log.go b/src/pkg/math/cmplx/log.go
+index 8e6964fee8..881a064d8b 100644
+--- a/src/pkg/math/cmplx/log.go
++++ b/src/pkg/math/cmplx/log.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/phase.go b/src/pkg/math/cmplx/phase.go
+index 2d67aa34c7..03cece8a57 100644
+--- a/src/pkg/math/cmplx/phase.go
++++ b/src/pkg/math/cmplx/phase.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/polar.go b/src/pkg/math/cmplx/polar.go
+index 033676acc5..9b192bc624 100644
+--- a/src/pkg/math/cmplx/polar.go
++++ b/src/pkg/math/cmplx/polar.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ // Polar returns the absolute value r and phase θ of x,
+ // such that x = r * e**θi.
+diff --git a/src/pkg/math/cmplx/pow.go b/src/pkg/math/cmplx/pow.go
+index 68e1207c67..4dbc58398b 100644
+--- a/src/pkg/math/cmplx/pow.go
++++ b/src/pkg/math/cmplx/pow.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/rect.go b/src/pkg/math/cmplx/rect.go
+index b955f0bf7d..bf94d787ea 100644
+--- a/src/pkg/math/cmplx/rect.go
++++ b/src/pkg/math/cmplx/rect.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/sin.go b/src/pkg/math/cmplx/sin.go
+index 486b717877..2c57536edf 100644
+--- a/src/pkg/math/cmplx/sin.go
++++ b/src/pkg/math/cmplx/sin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/sqrt.go b/src/pkg/math/cmplx/sqrt.go
+index 4e7e8050f9..179b5396ab 100644
+--- a/src/pkg/math/cmplx/sqrt.go
++++ b/src/pkg/math/cmplx/sqrt.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/cmplx/tan.go b/src/pkg/math/cmplx/tan.go
+index 67dc22ad0f..9485315d8d 100644
+--- a/src/pkg/math/cmplx/tan.go
++++ b/src/pkg/math/cmplx/tan.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cmath
++package cmplx
+ 
+ import "math"
+ 
+diff --git a/src/pkg/math/rand/Makefile b/src/pkg/math/rand/Makefile
+index 81c2d88c2b..d2903d59b3 100644
+--- a/src/pkg/math/rand/Makefile
++++ b/src/pkg/math/rand/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=rand
++TARG=math/rand
+ GOFILES=\
+ 	exp.go\
+ 	normal.go\
+diff --git a/src/pkg/net/http/Makefile b/src/pkg/net/http/Makefile
+index 13705e7381..4bf33a629d 100644
+--- a/src/pkg/net/http/Makefile
++++ b/src/pkg/net/http/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=http
++TARG=net/http
+ GOFILES=\
+ 	chunked.go\
+ 	client.go\
+diff --git a/src/pkg/net/http/cgi/Makefile b/src/pkg/net/http/cgi/Makefile
+index fce7aed41b..0d6be0180d 100644
+--- a/src/pkg/net/http/cgi/Makefile
++++ b/src/pkg/net/http/cgi/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=http/cgi
++TARG=net/http/cgi
+ GOFILES=\
+ 	child.go\
+ 	host.go\
+diff --git a/src/pkg/net/http/fcgi/Makefile b/src/pkg/net/http/fcgi/Makefile
+index 65914361b9..9a75f1a80c 100644
+--- a/src/pkg/net/http/fcgi/Makefile
++++ b/src/pkg/net/http/fcgi/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=http/fcgi
++TARG=net/http/fcgi
+ GOFILES=\
+ 	child.go\
+ 	fcgi.go\
+diff --git a/src/pkg/net/http/httptest/Makefile b/src/pkg/net/http/httptest/Makefile
+index 217cb9bbd6..3bb445419e 100644
+--- a/src/pkg/net/http/httptest/Makefile
++++ b/src/pkg/net/http/httptest/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=http/httptest
++TARG=net/http/httptest
+ GOFILES=\
+ 	recorder.go\
+ 	server.go\
+diff --git a/src/pkg/net/http/pprof/Makefile b/src/pkg/net/http/pprof/Makefile
+index 9b60273bf8..b78fce8e41 100644
+--- a/src/pkg/net/http/pprof/Makefile
++++ b/src/pkg/net/http/pprof/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=http/pprof
++TARG=net/http/pprof
+ GOFILES=\
+ 	pprof.go\
+ 
+diff --git a/src/pkg/net/mail/Makefile b/src/pkg/net/mail/Makefile
+index 5ab8acfa1c..acb1c2a6de 100644
+--- a/src/pkg/net/mail/Makefile
++++ b/src/pkg/net/mail/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=mail
++TARG=net/mail
+ GOFILES=\
+ 	message.go\
+ 
+diff --git a/src/pkg/net/rpc/Makefile b/src/pkg/net/rpc/Makefile
+index b1872d6d09..0e6c9846bf 100644
+--- a/src/pkg/net/rpc/Makefile
++++ b/src/pkg/net/rpc/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=rpc
++TARG=net/rpc
+ GOFILES=\
+ 	client.go\
+ 	debug.go\
+diff --git a/src/pkg/net/rpc/jsonrpc/Makefile b/src/pkg/net/rpc/jsonrpc/Makefile
+index 1bb2a0d0e3..c5ea5373d8 100644
+--- a/src/pkg/net/rpc/jsonrpc/Makefile
++++ b/src/pkg/net/rpc/jsonrpc/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=rpc/jsonrpc
++TARG=net/rpc/jsonrpc
+ GOFILES=\
+ 	client.go\
+ 	server.go\
+diff --git a/src/pkg/net/smtp/Makefile b/src/pkg/net/smtp/Makefile
+index 810f3ff914..d9812d5cb7 100644
+--- a/src/pkg/net/smtp/Makefile
++++ b/src/pkg/net/smtp/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=smtp
++TARG=net/smtp
+ GOFILES=\
+ 	auth.go\
+ 	smtp.go\
+diff --git a/src/pkg/net/url/Makefile b/src/pkg/net/url/Makefile
+index f583cdf636..bef0647a4b 100644
+--- a/src/pkg/net/url/Makefile
++++ b/src/pkg/net/url/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=url
++TARG=net/url
+ GOFILES=\
+ 	url.go\
+ 
+diff --git a/src/pkg/os/exec/Makefile b/src/pkg/os/exec/Makefile
+index 702d6a3827..ff86a58f55 100644
+--- a/src/pkg/os/exec/Makefile
++++ b/src/pkg/os/exec/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=exec
++TARG=os/exec
+ GOFILES=\
+ 	exec.go\
+ 
+diff --git a/src/pkg/text/scanner/Makefile b/src/pkg/text/scanner/Makefile
+index 6b6e075dfe..c0f28dc944 100644
+--- a/src/pkg/text/scanner/Makefile
++++ b/src/pkg/text/scanner/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=scanner
++TARG=text/scanner
+ GOFILES=\
+ 	scanner.go\
+ 
+diff --git a/src/pkg/text/tabwriter/Makefile b/src/pkg/text/tabwriter/Makefile
+index 70ad25cea7..ba1bf57953 100644
+--- a/src/pkg/text/tabwriter/Makefile
++++ b/src/pkg/text/tabwriter/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=tabwriter
++TARG=text/tabwriter
+ GOFILES=\
+ 	tabwriter.go\
+ 
+diff --git a/src/pkg/text/template/Makefile b/src/pkg/text/template/Makefile
+index 159b5a7c2f..3a3173d208 100644
+--- a/src/pkg/text/template/Makefile
++++ b/src/pkg/text/template/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=template
++TARG=text/template
+ GOFILES=\
+ 	doc.go\
+ 	exec.go\
+diff --git a/src/pkg/text/template/parse/Makefile b/src/pkg/text/template/parse/Makefile
+index 39986b943c..72bb55064d 100644
+--- a/src/pkg/text/template/parse/Makefile
++++ b/src/pkg/text/template/parse/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=template/parse
++TARG=text/template/parse
+ GOFILES=\
+ 	lex.go\
+ 	node.go\
+diff --git a/src/pkg/unicode/utf16/Makefile b/src/pkg/unicode/utf16/Makefile
+index b60a5e7316..f64b3c86ed 100644
+--- a/src/pkg/unicode/utf16/Makefile
++++ b/src/pkg/unicode/utf16/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=utf16
++TARG=unicode/utf16
+ GOFILES=\
+ 	utf16.go\
+ 
+diff --git a/src/pkg/unicode/utf8/Makefile b/src/pkg/unicode/utf8/Makefile
+index 4ffc31f08a..9863433b02 100644
+--- a/src/pkg/unicode/utf8/Makefile
++++ b/src/pkg/unicode/utf8/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=utf8
++TARG=unicode/utf8
+ GOFILES=\
+ 	string.go\
+ 	utf8.go\
+diff --git a/test/fixedbugs/bug358.go b/test/fixedbugs/bug358.go
+index f43709b7e2..82fbf7f815 100644
+--- a/test/fixedbugs/bug358.go
++++ b/test/fixedbugs/bug358.go
+@@ -10,8 +10,8 @@
+ package main
+ 
+ import (
+-	"http"
+ 	"io/ioutil"	// GCCGO_ERROR "imported and not used"
++	"net/http"
+ 	"os"
+ )
+ 

@@ -7,6 +7,21 @@ Date:   Mon Nov 24 16:23:49 2008 -0800
     R=ken
     OCL=19943
     CL=19943
-
+---
  test/ken/array.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 0dac2a6893..918bb5b6fc 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -139,7 +139,8 @@ testfdfault()
+ 		a[i] = 0;
+ 	}
+ 	print("should fault\n");
+-	a[80] = 0;
++	x := 80;
++	a[x] = 0;
+ 	print("bad\n");
+ }
+ 

@@ -14,7 +14,7 @@ Date:   Thu Nov 14 15:27:28 2024 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
     Commit-Queue: Filippo Valsorda <filippo@golang.org>
-
+---
  src/cmd/compile/internal/ssa/stmtlines_test.go     |  2 +-
  src/crypto/ecdh/nist.go                            |  2 +-
  src/crypto/ecdsa/ecdsa.go                          |  2 +-
@@ -61,3 +61,754 @@ Date:   Thu Nov 14 15:27:28 2024 +0100
  .../internal/{nistec => fipstest}/nistec_test.go   | 56 +----------------
  src/go/build/deps_test.go                          |  4 +-
  45 files changed, 130 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 8a8f18c811..f04ca706b6 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -103,7 +103,7 @@ func TestStmtLines(t *testing.T) {
+ 		if pkgname == "runtime" {
+ 			continue
+ 		}
+-		if pkgname == "crypto/internal/nistec/fiat" {
++		if pkgname == "crypto/internal/fips/nistec/fiat" {
+ 			continue // golang.org/issue/49372
+ 		}
+ 		if e.Val(dwarf.AttrStmtList) == nil {
+diff --git a/src/crypto/ecdh/nist.go b/src/crypto/ecdh/nist.go
+index b91e8f38a5..85b53b4c1a 100644
+--- a/src/crypto/ecdh/nist.go
++++ b/src/crypto/ecdh/nist.go
+@@ -6,7 +6,7 @@ package ecdh
+ 
+ import (
+ 	"crypto/internal/boring"
+-	"crypto/internal/nistec"
++	"crypto/internal/fips/nistec"
+ 	"crypto/internal/randutil"
+ 	"errors"
+ 	"internal/byteorder"
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 2179b01e8e..95a4b4be69 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -33,7 +33,7 @@ import (
+ 	"crypto/internal/bigmod"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+-	"crypto/internal/nistec"
++	"crypto/internal/fips/nistec"
+ 	"crypto/internal/randutil"
+ 	"crypto/sha512"
+ 	"crypto/subtle"
+diff --git a/src/crypto/elliptic/nistec.go b/src/crypto/elliptic/nistec.go
+index d906c57074..b785b2cca6 100644
+--- a/src/crypto/elliptic/nistec.go
++++ b/src/crypto/elliptic/nistec.go
+@@ -5,7 +5,7 @@
+ package elliptic
+ 
+ import (
+-	"crypto/internal/nistec"
++	"crypto/internal/fips/nistec"
+ 	"errors"
+ 	"math/big"
+ )
+@@ -18,7 +18,7 @@ func initP224() {
+ 	p224.params = &CurveParams{
+ 		Name:    "P-224",
+ 		BitSize: 224,
+-		// FIPS 186-4, section D.1.2.2
++		// SP 800-186, Section 3.2.1.2
+ 		P:  bigFromDecimal("26959946667150639794667015087019630673557916260026308143510066298881"),
+ 		N:  bigFromDecimal("26959946667150639794667015087019625940457807714424391721682722368061"),
+ 		B:  bigFromHex("b4050a850c04b3abf54132565044b0b7d7bfd8ba270b39432355ffb4"),
+@@ -39,7 +39,7 @@ func initP256() {
+ 	p256.params = &CurveParams{
+ 		Name:    "P-256",
+ 		BitSize: 256,
+-		// FIPS 186-4, section D.1.2.3
++		// SP 800-186, Section 3.2.1.3
+ 		P:  bigFromDecimal("115792089210356248762697446949407573530086143415290314195533631308867097853951"),
+ 		N:  bigFromDecimal("115792089210356248762697446949407573529996955224135760342422259061068512044369"),
+ 		B:  bigFromHex("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b"),
+@@ -56,7 +56,7 @@ func initP384() {
+ 	p384.params = &CurveParams{
+ 		Name:    "P-384",
+ 		BitSize: 384,
+-		// FIPS 186-4, section D.1.2.4
++		// SP 800-186, Section 3.2.1.4
+ 		P: bigFromDecimal("394020061963944792122790401001436138050797392704654" +
+ 			"46667948293404245721771496870329047266088258938001861606973112319"),
+ 		N: bigFromDecimal("394020061963944792122790401001436138050797392704654" +
+@@ -78,7 +78,7 @@ func initP521() {
+ 	p521.params = &CurveParams{
+ 		Name:    "P-521",
+ 		BitSize: 521,
+-		// FIPS 186-4, section D.1.2.5
++		// SP 800-186, Section 3.2.1.5
+ 		P: bigFromDecimal("68647976601306097149819007990813932172694353001433" +
+ 			"0540939446345918554318339765605212255964066145455497729631139148" +
+ 			"0858037121987999716643812574028291115057151"),
+diff --git a/src/crypto/elliptic/nistec_p256.go b/src/crypto/elliptic/nistec_p256.go
+index 304f8f2659..14bf167774 100644
+--- a/src/crypto/elliptic/nistec_p256.go
++++ b/src/crypto/elliptic/nistec_p256.go
+@@ -7,7 +7,7 @@
+ package elliptic
+ 
+ import (
+-	"crypto/internal/nistec"
++	"crypto/internal/fips/nistec"
+ 	"math/big"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/_asm/go.mod b/src/crypto/internal/fips/nistec/_asm/go.mod
+similarity index 80%
+rename from src/crypto/internal/nistec/_asm/go.mod
+rename to src/crypto/internal/fips/nistec/_asm/go.mod
+index 116284483d..d631322e10 100644
+--- a/src/crypto/internal/nistec/_asm/go.mod
++++ b/src/crypto/internal/fips/nistec/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/internal/nistec/_asm
++module std/crypto/internal/fips/nistec/_asm
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/internal/nistec/_asm/go.sum b/src/crypto/internal/fips/nistec/_asm/go.sum
+similarity index 100%
+rename from src/crypto/internal/nistec/_asm/go.sum
+rename to src/crypto/internal/fips/nistec/_asm/go.sum
+diff --git a/src/crypto/internal/nistec/_asm/p256_asm.go b/src/crypto/internal/fips/nistec/_asm/p256_asm.go
+similarity index 99%
+rename from src/crypto/internal/nistec/_asm/p256_asm.go
+rename to src/crypto/internal/fips/nistec/_asm/p256_asm.go
+index 0591b25a93..5616513a24 100644
+--- a/src/crypto/internal/nistec/_asm/p256_asm.go
++++ b/src/crypto/internal/fips/nistec/_asm/p256_asm.go
+@@ -43,7 +43,7 @@ var (
+ )
+ 
+ func main() {
+-	Package("crypto/internal/nistec")
++	Package("crypto/internal/fips/nistec")
+ 	ConstraintExpr("!purego")
+ 	p256MovCond()
+ 	p256NegCond()
+diff --git a/src/crypto/internal/fips/nistec/benchmark_test.go b/src/crypto/internal/fips/nistec/benchmark_test.go
+new file mode 100644
+index 0000000000..17d131e05b
+--- /dev/null
++++ b/src/crypto/internal/fips/nistec/benchmark_test.go
+@@ -0,0 +1,71 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package nistec_test
++
++import (
++	"crypto/internal/fips/nistec"
++	"crypto/rand"
++	"testing"
++)
++
++type nistPoint[T any] interface {
++	Bytes() []byte
++	SetGenerator() T
++	SetBytes([]byte) (T, error)
++	Add(T, T) T
++	Double(T) T
++	ScalarMult(T, []byte) (T, error)
++	ScalarBaseMult([]byte) (T, error)
++}
++
++func BenchmarkScalarMult(b *testing.B) {
++	b.Run("P224", func(b *testing.B) {
++		benchmarkScalarMult(b, nistec.NewP224Point().SetGenerator(), 28)
++	})
++	b.Run("P256", func(b *testing.B) {
++		benchmarkScalarMult(b, nistec.NewP256Point().SetGenerator(), 32)
++	})
++	b.Run("P384", func(b *testing.B) {
++		benchmarkScalarMult(b, nistec.NewP384Point().SetGenerator(), 48)
++	})
++	b.Run("P521", func(b *testing.B) {
++		benchmarkScalarMult(b, nistec.NewP521Point().SetGenerator(), 66)
++	})
++}
++
++func benchmarkScalarMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
++	scalar := make([]byte, scalarSize)
++	rand.Read(scalar)
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		p.ScalarMult(p, scalar)
++	}
++}
++
++func BenchmarkScalarBaseMult(b *testing.B) {
++	b.Run("P224", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP224Point().SetGenerator(), 28)
++	})
++	b.Run("P256", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP256Point().SetGenerator(), 32)
++	})
++	b.Run("P384", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP384Point().SetGenerator(), 48)
++	})
++	b.Run("P521", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP521Point().SetGenerator(), 66)
++	})
++}
++
++func benchmarkScalarBaseMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
++	scalar := make([]byte, scalarSize)
++	rand.Read(scalar)
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		p.ScalarBaseMult(scalar)
++	}
++}
+diff --git a/src/crypto/internal/nistec/fiat/Dockerfile b/src/crypto/internal/fips/nistec/fiat/Dockerfile
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/Dockerfile
+rename to src/crypto/internal/fips/nistec/fiat/Dockerfile
+diff --git a/src/crypto/internal/nistec/fiat/README b/src/crypto/internal/fips/nistec/fiat/README
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/README
+rename to src/crypto/internal/fips/nistec/fiat/README
+diff --git a/src/crypto/internal/nistec/fiat/fiat_test.go b/src/crypto/internal/fips/nistec/fiat/benchmark_test.go
+similarity index 97%
+rename from src/crypto/internal/nistec/fiat/fiat_test.go
+rename to src/crypto/internal/fips/nistec/fiat/benchmark_test.go
+index dee9f68222..013d76f7ba 100644
+--- a/src/crypto/internal/nistec/fiat/fiat_test.go
++++ b/src/crypto/internal/fips/nistec/fiat/benchmark_test.go
+@@ -5,7 +5,7 @@
+ package fiat_test
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
++	"crypto/internal/fips/nistec/fiat"
+ 	"testing"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/fiat/generate.go b/src/crypto/internal/fips/nistec/fiat/generate.go
+similarity index 99%
+rename from src/crypto/internal/nistec/fiat/generate.go
+rename to src/crypto/internal/fips/nistec/fiat/generate.go
+index db57021531..831524970b 100644
+--- a/src/crypto/internal/nistec/fiat/generate.go
++++ b/src/crypto/internal/fips/nistec/fiat/generate.go
+@@ -152,7 +152,7 @@ const tmplWrapper = `// Copyright 2021 The Go Authors. All rights reserved.
+ package fiat
+ 
+ import (
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/fiat/p224.go b/src/crypto/internal/fips/nistec/fiat/p224.go
+similarity index 99%
+rename from src/crypto/internal/nistec/fiat/p224.go
+rename to src/crypto/internal/fips/nistec/fiat/p224.go
+index e1a78db33e..0973f173c1 100644
+--- a/src/crypto/internal/nistec/fiat/p224.go
++++ b/src/crypto/internal/fips/nistec/fiat/p224.go
+@@ -7,7 +7,7 @@
+ package fiat
+ 
+ import (
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/fiat/p224_fiat64.go b/src/crypto/internal/fips/nistec/fiat/p224_fiat64.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p224_fiat64.go
+rename to src/crypto/internal/fips/nistec/fiat/p224_fiat64.go
+diff --git a/src/crypto/internal/nistec/fiat/p224_invert.go b/src/crypto/internal/fips/nistec/fiat/p224_invert.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p224_invert.go
+rename to src/crypto/internal/fips/nistec/fiat/p224_invert.go
+diff --git a/src/crypto/internal/nistec/fiat/p256.go b/src/crypto/internal/fips/nistec/fiat/p256.go
+similarity index 99%
+rename from src/crypto/internal/nistec/fiat/p256.go
+rename to src/crypto/internal/fips/nistec/fiat/p256.go
+index 7705904ca1..7933e05bcf 100644
+--- a/src/crypto/internal/nistec/fiat/p256.go
++++ b/src/crypto/internal/fips/nistec/fiat/p256.go
+@@ -7,7 +7,7 @@
+ package fiat
+ 
+ import (
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/fiat/p256_fiat64.go b/src/crypto/internal/fips/nistec/fiat/p256_fiat64.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p256_fiat64.go
+rename to src/crypto/internal/fips/nistec/fiat/p256_fiat64.go
+diff --git a/src/crypto/internal/nistec/fiat/p256_invert.go b/src/crypto/internal/fips/nistec/fiat/p256_invert.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p256_invert.go
+rename to src/crypto/internal/fips/nistec/fiat/p256_invert.go
+diff --git a/src/crypto/internal/nistec/fiat/p384.go b/src/crypto/internal/fips/nistec/fiat/p384.go
+similarity index 99%
+rename from src/crypto/internal/nistec/fiat/p384.go
+rename to src/crypto/internal/fips/nistec/fiat/p384.go
+index aed0c013c8..667c62b01c 100644
+--- a/src/crypto/internal/nistec/fiat/p384.go
++++ b/src/crypto/internal/fips/nistec/fiat/p384.go
+@@ -7,7 +7,7 @@
+ package fiat
+ 
+ import (
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/fiat/p384_fiat64.go b/src/crypto/internal/fips/nistec/fiat/p384_fiat64.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p384_fiat64.go
+rename to src/crypto/internal/fips/nistec/fiat/p384_fiat64.go
+diff --git a/src/crypto/internal/nistec/fiat/p384_invert.go b/src/crypto/internal/fips/nistec/fiat/p384_invert.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p384_invert.go
+rename to src/crypto/internal/fips/nistec/fiat/p384_invert.go
+diff --git a/src/crypto/internal/nistec/fiat/p521.go b/src/crypto/internal/fips/nistec/fiat/p521.go
+similarity index 99%
+rename from src/crypto/internal/nistec/fiat/p521.go
+rename to src/crypto/internal/fips/nistec/fiat/p521.go
+index 43ac7d06a0..7106470572 100644
+--- a/src/crypto/internal/nistec/fiat/p521.go
++++ b/src/crypto/internal/fips/nistec/fiat/p521.go
+@@ -7,7 +7,7 @@
+ package fiat
+ 
+ import (
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/fiat/p521_fiat64.go b/src/crypto/internal/fips/nistec/fiat/p521_fiat64.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p521_fiat64.go
+rename to src/crypto/internal/fips/nistec/fiat/p521_fiat64.go
+diff --git a/src/crypto/internal/nistec/fiat/p521_invert.go b/src/crypto/internal/fips/nistec/fiat/p521_invert.go
+similarity index 100%
+rename from src/crypto/internal/nistec/fiat/p521_invert.go
+rename to src/crypto/internal/fips/nistec/fiat/p521_invert.go
+diff --git a/src/crypto/internal/nistec/generate.go b/src/crypto/internal/fips/nistec/generate.go
+similarity index 99%
+rename from src/crypto/internal/nistec/generate.go
+rename to src/crypto/internal/fips/nistec/generate.go
+index 27e8d13943..5f52edda6e 100644
+--- a/src/crypto/internal/nistec/generate.go
++++ b/src/crypto/internal/fips/nistec/generate.go
+@@ -152,8 +152,8 @@ const tmplNISTEC = `// Copyright 2022 The Go Authors. All rights reserved.
+ package nistec
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
+-	"crypto/subtle"
++	"crypto/internal/fips/nistec/fiat"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ 	"sync"
+ )
+diff --git a/src/crypto/internal/nistec/nistec.go b/src/crypto/internal/fips/nistec/nistec.go
+similarity index 89%
+rename from src/crypto/internal/nistec/nistec.go
+rename to src/crypto/internal/fips/nistec/nistec.go
+index d898d409ca..d1c63dacd5 100644
+--- a/src/crypto/internal/nistec/nistec.go
++++ b/src/crypto/internal/fips/nistec/nistec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package nistec implements the NIST P elliptic curves from FIPS 186-4.
++// Package nistec implements the elliptic curves from NIST SP 800-186.
+ //
+ // This package uses fiat-crypto or specialized assembly and Go code for its
+ // backend field arithmetic (not math/big) and exposes constant-time, heap
+diff --git a/src/crypto/internal/nistec/p224.go b/src/crypto/internal/fips/nistec/p224.go
+similarity index 99%
+rename from src/crypto/internal/nistec/p224.go
+rename to src/crypto/internal/fips/nistec/p224.go
+index faa971d7ed..ef6e7e6baf 100644
+--- a/src/crypto/internal/nistec/p224.go
++++ b/src/crypto/internal/fips/nistec/p224.go
+@@ -7,8 +7,8 @@
+ package nistec
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
+-	"crypto/subtle"
++	"crypto/internal/fips/nistec/fiat"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ 	"sync"
+ )
+diff --git a/src/crypto/internal/nistec/p224_sqrt.go b/src/crypto/internal/fips/nistec/p224_sqrt.go
+similarity index 98%
+rename from src/crypto/internal/nistec/p224_sqrt.go
+rename to src/crypto/internal/fips/nistec/p224_sqrt.go
+index 0c775790da..c83e965bb4 100644
+--- a/src/crypto/internal/nistec/p224_sqrt.go
++++ b/src/crypto/internal/fips/nistec/p224_sqrt.go
+@@ -5,7 +5,7 @@
+ package nistec
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
++	"crypto/internal/fips/nistec/fiat"
+ 	"sync"
+ )
+ 
+diff --git a/src/crypto/internal/nistec/p256.go b/src/crypto/internal/fips/nistec/p256.go
+similarity index 98%
+rename from src/crypto/internal/nistec/p256.go
+rename to src/crypto/internal/fips/nistec/p256.go
+index d0a0d60fe4..e83fc034bd 100644
+--- a/src/crypto/internal/nistec/p256.go
++++ b/src/crypto/internal/fips/nistec/p256.go
+@@ -7,11 +7,11 @@
+ package nistec
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
+-	"crypto/subtle"
++	"crypto/internal/fips/nistec/fiat"
++	"crypto/internal/fips/subtle"
++	"crypto/internal/fipsdeps/byteorder"
++	"crypto/internal/fipsdeps/cpu"
+ 	"errors"
+-	"internal/byteorder"
+-	"internal/goarch"
+ 	"math/bits"
+ 	"sync"
+ 	"unsafe"
+@@ -402,10 +402,10 @@ func (s *p256OrdElement) SetBytes(x []byte) (*p256OrdElement, error) {
+ 		return nil, errors.New("invalid scalar length")
+ 	}
+ 
+-	s[0] = byteorder.BeUint64(x[24:])
+-	s[1] = byteorder.BeUint64(x[16:])
+-	s[2] = byteorder.BeUint64(x[8:])
+-	s[3] = byteorder.BeUint64(x[:])
++	s[0] = byteorder.BEUint64(x[24:])
++	s[1] = byteorder.BEUint64(x[16:])
++	s[2] = byteorder.BEUint64(x[8:])
++	s[3] = byteorder.BEUint64(x[:])
+ 
+ 	// Ensure s is in the range [0, ord(G)-1]. Since 2 * ord(G) > 2²⁵⁶, we can
+ 	// just conditionally subtract ord(G), keeping the result if it doesn't
+@@ -425,10 +425,10 @@ func (s *p256OrdElement) SetBytes(x []byte) (*p256OrdElement, error) {
+ 
+ func (s *p256OrdElement) Bytes() []byte {
+ 	var out [32]byte
+-	byteorder.BePutUint64(out[24:], s[0])
+-	byteorder.BePutUint64(out[16:], s[1])
+-	byteorder.BePutUint64(out[8:], s[2])
+-	byteorder.BePutUint64(out[:], s[3])
++	byteorder.BEPutUint64(out[24:], s[0])
++	byteorder.BEPutUint64(out[16:], s[1])
++	byteorder.BEPutUint64(out[8:], s[2])
++	byteorder.BEPutUint64(out[:], s[3])
+ 	return out[:]
+ }
+ 
+@@ -570,10 +570,10 @@ var p256GeneratorTables *[43]p256AffineTable
+ 
+ func init() {
+ 	p256GeneratorTablesPtr := unsafe.Pointer(&p256PrecomputedEmbed)
+-	if goarch.BigEndian {
++	if cpu.BigEndian {
+ 		var newTable [43 * 32 * 2 * 4]uint64
+ 		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(p256GeneratorTablesPtr) {
+-			newTable[i] = byteorder.LeUint64(x[:])
++			newTable[i] = byteorder.LEUint64(x[:])
+ 		}
+ 		p256GeneratorTablesPtr = unsafe.Pointer(&newTable)
+ 	}
+diff --git a/src/crypto/internal/nistec/p256_asm.go b/src/crypto/internal/fips/nistec/p256_asm.go
+similarity index 98%
+rename from src/crypto/internal/nistec/p256_asm.go
+rename to src/crypto/internal/fips/nistec/p256_asm.go
+index ca16441920..08e771cc10 100644
+--- a/src/crypto/internal/nistec/p256_asm.go
++++ b/src/crypto/internal/fips/nistec/p256_asm.go
+@@ -15,8 +15,8 @@
+ package nistec
+ 
+ import (
++	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+-	"internal/byteorder"
+ 	"math/bits"
+ 	"runtime"
+ 	"unsafe"
+@@ -182,10 +182,10 @@ func p256BigToLittle(l *p256Element, b *[32]byte) {
+ }
+ 
+ func bytesToLimbs(l *[4]uint64, b *[32]byte) {
+-	l[0] = byteorder.BeUint64(b[24:])
+-	l[1] = byteorder.BeUint64(b[16:])
+-	l[2] = byteorder.BeUint64(b[8:])
+-	l[3] = byteorder.BeUint64(b[:])
++	l[0] = byteorder.BEUint64(b[24:])
++	l[1] = byteorder.BEUint64(b[16:])
++	l[2] = byteorder.BEUint64(b[8:])
++	l[3] = byteorder.BEUint64(b[:])
+ }
+ 
+ func p256LittleToBig(b *[32]byte, l *p256Element) {
+@@ -193,10 +193,10 @@ func p256LittleToBig(b *[32]byte, l *p256Element) {
+ }
+ 
+ func limbsToBytes(b *[32]byte, l *[4]uint64) {
+-	byteorder.BePutUint64(b[24:], l[0])
+-	byteorder.BePutUint64(b[16:], l[1])
+-	byteorder.BePutUint64(b[8:], l[2])
+-	byteorder.BePutUint64(b[:], l[3])
++	byteorder.BEPutUint64(b[24:], l[0])
++	byteorder.BEPutUint64(b[16:], l[1])
++	byteorder.BEPutUint64(b[8:], l[2])
++	byteorder.BEPutUint64(b[:], l[3])
+ }
+ 
+ // p256Add sets res = x + y.
+@@ -333,7 +333,7 @@ func init() {
+ 	if runtime.GOARCH == "s390x" {
+ 		var newTable [43 * 32 * 2 * 4]uint64
+ 		for i, x := range (*[43 * 32 * 2 * 4][8]byte)(p256PrecomputedPtr) {
+-			newTable[i] = byteorder.LeUint64(x[:])
++			newTable[i] = byteorder.LEUint64(x[:])
+ 		}
+ 		p256PrecomputedPtr = unsafe.Pointer(&newTable)
+ 	}
+diff --git a/src/crypto/internal/nistec/p256_asm_amd64.s b/src/crypto/internal/fips/nistec/p256_asm_amd64.s
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_asm_amd64.s
+rename to src/crypto/internal/fips/nistec/p256_asm_amd64.s
+diff --git a/src/crypto/internal/nistec/p256_asm_arm64.s b/src/crypto/internal/fips/nistec/p256_asm_arm64.s
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_asm_arm64.s
+rename to src/crypto/internal/fips/nistec/p256_asm_arm64.s
+diff --git a/src/crypto/internal/nistec/p256_asm_ppc64le.s b/src/crypto/internal/fips/nistec/p256_asm_ppc64le.s
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_asm_ppc64le.s
+rename to src/crypto/internal/fips/nistec/p256_asm_ppc64le.s
+diff --git a/src/crypto/internal/nistec/p256_asm_s390x.s b/src/crypto/internal/fips/nistec/p256_asm_s390x.s
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_asm_s390x.s
+rename to src/crypto/internal/fips/nistec/p256_asm_s390x.s
+diff --git a/src/crypto/internal/nistec/p256_asm_test.go b/src/crypto/internal/fips/nistec/p256_asm_test.go
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_asm_test.go
+rename to src/crypto/internal/fips/nistec/p256_asm_test.go
+diff --git a/src/crypto/internal/nistec/p256_ordinv.go b/src/crypto/internal/fips/nistec/p256_ordinv.go
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_ordinv.go
+rename to src/crypto/internal/fips/nistec/p256_ordinv.go
+diff --git a/src/crypto/internal/nistec/p256_ordinv_noasm.go b/src/crypto/internal/fips/nistec/p256_ordinv_noasm.go
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_ordinv_noasm.go
+rename to src/crypto/internal/fips/nistec/p256_ordinv_noasm.go
+diff --git a/src/crypto/internal/nistec/p256_table.go b/src/crypto/internal/fips/nistec/p256_table.go
+similarity index 100%
+rename from src/crypto/internal/nistec/p256_table.go
+rename to src/crypto/internal/fips/nistec/p256_table.go
+diff --git a/src/crypto/internal/nistec/p256_test.go b/src/crypto/internal/fips/nistec/p256_table_test.go
+similarity index 96%
+rename from src/crypto/internal/nistec/p256_test.go
+rename to src/crypto/internal/fips/nistec/p256_table_test.go
+index 7ebe7209dc..0fb95ccf82 100644
+--- a/src/crypto/internal/nistec/p256_test.go
++++ b/src/crypto/internal/fips/nistec/p256_table_test.go
+@@ -8,7 +8,7 @@ package nistec
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/nistec/fiat"
++	"crypto/internal/fips/nistec/fiat"
+ 	"fmt"
+ 	"testing"
+ )
+diff --git a/src/crypto/internal/nistec/p384.go b/src/crypto/internal/fips/nistec/p384.go
+similarity index 99%
+rename from src/crypto/internal/nistec/p384.go
+rename to src/crypto/internal/fips/nistec/p384.go
+index b452ec9aea..49226d96df 100644
+--- a/src/crypto/internal/nistec/p384.go
++++ b/src/crypto/internal/fips/nistec/p384.go
+@@ -7,8 +7,8 @@
+ package nistec
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
+-	"crypto/subtle"
++	"crypto/internal/fips/nistec/fiat"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ 	"sync"
+ )
+diff --git a/src/crypto/internal/nistec/p521.go b/src/crypto/internal/fips/nistec/p521.go
+similarity index 99%
+rename from src/crypto/internal/nistec/p521.go
+rename to src/crypto/internal/fips/nistec/p521.go
+index a57ad24c4d..f724d0233a 100644
+--- a/src/crypto/internal/nistec/p521.go
++++ b/src/crypto/internal/fips/nistec/p521.go
+@@ -7,8 +7,8 @@
+ package nistec
+ 
+ import (
+-	"crypto/internal/nistec/fiat"
+-	"crypto/subtle"
++	"crypto/internal/fips/nistec/fiat"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ 	"sync"
+ )
+diff --git a/src/crypto/internal/nistec/p256_ordinv_test.go b/src/crypto/internal/fipstest/nistec_ordinv_test.go
+similarity index 97%
+rename from src/crypto/internal/nistec/p256_ordinv_test.go
+rename to src/crypto/internal/fipstest/nistec_ordinv_test.go
+index ca323a3ae2..60317e0e44 100644
+--- a/src/crypto/internal/nistec/p256_ordinv_test.go
++++ b/src/crypto/internal/fipstest/nistec_ordinv_test.go
+@@ -4,12 +4,12 @@
+ 
+ //go:build (amd64 || arm64) && !purego
+ 
+-package nistec_test
++package fipstest
+ 
+ import (
+ 	"bytes"
+ 	"crypto/elliptic"
+-	"crypto/internal/nistec"
++	"crypto/internal/fips/nistec"
+ 	"math/big"
+ 	"testing"
+ )
+diff --git a/src/crypto/internal/nistec/nistec_test.go b/src/crypto/internal/fipstest/nistec_test.go
+similarity index 82%
+rename from src/crypto/internal/nistec/nistec_test.go
+rename to src/crypto/internal/fipstest/nistec_test.go
+index d608b4bd17..42c671c238 100644
+--- a/src/crypto/internal/nistec/nistec_test.go
++++ b/src/crypto/internal/fipstest/nistec_test.go
+@@ -2,20 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package nistec_test
++package fipstest
+ 
+ import (
+ 	"bytes"
+ 	"crypto/elliptic"
+ 	"crypto/internal/cryptotest"
+-	"crypto/internal/nistec"
++	"crypto/internal/fips/nistec"
+ 	"fmt"
+ 	"math/big"
+ 	"math/rand"
+ 	"testing"
+ )
+ 
+-func TestAllocations(t *testing.T) {
++func TestNISTECAllocations(t *testing.T) {
+ 	cryptotest.SkipTestAllocations(t)
+ 	t.Run("P224", func(t *testing.T) {
+ 		if allocs := testing.AllocsPerRun(10, func() {
+@@ -258,53 +258,3 @@ func fatalIfErr(t *testing.T, err error) {
+ 		t.Fatal(err)
+ 	}
+ }
+-
+-func BenchmarkScalarMult(b *testing.B) {
+-	b.Run("P224", func(b *testing.B) {
+-		benchmarkScalarMult(b, nistec.NewP224Point().SetGenerator(), 28)
+-	})
+-	b.Run("P256", func(b *testing.B) {
+-		benchmarkScalarMult(b, nistec.NewP256Point().SetGenerator(), 32)
+-	})
+-	b.Run("P384", func(b *testing.B) {
+-		benchmarkScalarMult(b, nistec.NewP384Point().SetGenerator(), 48)
+-	})
+-	b.Run("P521", func(b *testing.B) {
+-		benchmarkScalarMult(b, nistec.NewP521Point().SetGenerator(), 66)
+-	})
+-}
+-
+-func benchmarkScalarMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
+-	scalar := make([]byte, scalarSize)
+-	rand.Read(scalar)
+-	b.ReportAllocs()
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		p.ScalarMult(p, scalar)
+-	}
+-}
+-
+-func BenchmarkScalarBaseMult(b *testing.B) {
+-	b.Run("P224", func(b *testing.B) {
+-		benchmarkScalarBaseMult(b, nistec.NewP224Point().SetGenerator(), 28)
+-	})
+-	b.Run("P256", func(b *testing.B) {
+-		benchmarkScalarBaseMult(b, nistec.NewP256Point().SetGenerator(), 32)
+-	})
+-	b.Run("P384", func(b *testing.B) {
+-		benchmarkScalarBaseMult(b, nistec.NewP384Point().SetGenerator(), 48)
+-	})
+-	b.Run("P521", func(b *testing.B) {
+-		benchmarkScalarBaseMult(b, nistec.NewP521Point().SetGenerator(), 66)
+-	})
+-}
+-
+-func benchmarkScalarBaseMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
+-	scalar := make([]byte, scalarSize)
+-	rand.Read(scalar)
+-	b.ReportAllocs()
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		p.ScalarBaseMult(scalar)
+-	}
+-}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8649f247a2..5aac83f95b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -471,6 +471,8 @@ var depsRules = `
+ 	< crypto/internal/fips/ssh
+ 	< crypto/internal/fips/tls12
+ 	< crypto/internal/fips/tls13
++	< crypto/internal/fips/nistec/fiat
++	< crypto/internal/fips/nistec
+ 	< FIPS;
+ 
+ 	FIPS < crypto/internal/fips/check/checktest;
+@@ -497,8 +499,6 @@ var depsRules = `
+ 	crypto/internal/fips/alias, math/rand/v2,
+ 	crypto/subtle, embed
+ 	< crypto/internal/randutil
+-	< crypto/internal/nistec/fiat
+-	< crypto/internal/nistec
+ 	< crypto/internal/edwards25519/field
+ 	< crypto/internal/edwards25519;
+ 

@@ -11,8 +11,134 @@ Date:   Thu Apr 23 18:06:21 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/script_test.go                          | 38 ++++++++++++++++++++++
  src/cmd/go/testdata/script/README                  |  1 +
  src/cmd/go/testdata/script/list_case_collision.txt | 25 +++++---------
  3 files changed, 48 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 2e8f18a897..986646252a 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"testing"
+ 	"time"
+ 
+@@ -296,6 +297,8 @@ Script:
+ 				ok = os.Geteuid() == 0
+ 			case "symlink":
+ 				ok = testenv.HasSymlink()
++			case "case-sensitive":
++				ok = isCaseSensitive(ts.t)
+ 			default:
+ 				if strings.HasPrefix(cond.tag, "exec:") {
+ 					prog := cond.tag[len("exec:"):]
+@@ -364,6 +367,41 @@ Script:
+ 	}
+ }
+ 
++var (
++	onceCaseSensitive sync.Once
++	caseSensitive     bool
++)
++
++func isCaseSensitive(t *testing.T) bool {
++	onceCaseSensitive.Do(func() {
++		tmpdir, err := ioutil.TempDir("", "case-sensitive")
++		if err != nil {
++			t.Fatal("failed to create directory to determine case-sensitivity:", err)
++		}
++		defer os.RemoveAll(tmpdir)
++
++		fcap := filepath.Join(tmpdir, "FILE")
++		if err := ioutil.WriteFile(fcap, []byte{}, 0644); err != nil {
++			t.Fatal("error writing file to determine case-sensitivity:", err)
++		}
++
++		flow := filepath.Join(tmpdir, "file")
++		_, err = ioutil.ReadFile(flow)
++		switch {
++		case err == nil:
++			caseSensitive = false
++			return
++		case os.IsNotExist(err):
++			caseSensitive = true
++			return
++		default:
++			t.Fatal("unexpected error reading file when determining case-sensitivity:", err)
++		}
++	})
++
++	return caseSensitive
++}
++
+ // scriptCmds are the script command implementations.
+ // Keep list and the implementations below sorted by name.
+ //
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 76d6651718..d658cebfce 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -85,6 +85,7 @@ should only run when the condition is satisfied. The available conditions are:
+    - [link] for testenv.HasLink()
+    - [root] for os.Geteuid() == 0
+    - [symlink] for testenv.HasSymlink()
++   - [case-sensitive] for whether the file system is case-sensitive
+    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+    - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
+    - [buildmode:value] for whether -buildmode=value is supported
+diff --git a/src/cmd/go/testdata/script/list_case_collision.txt b/src/cmd/go/testdata/script/list_case_collision.txt
+index 1b5f305587..73f44b63a0 100644
+--- a/src/cmd/go/testdata/script/list_case_collision.txt
++++ b/src/cmd/go/testdata/script/list_case_collision.txt
+@@ -6,23 +6,20 @@ stdout 'case-insensitive import collision'
+ ! go build example/a
+ stderr 'case-insensitive import collision'
+ 
+-# If we're not guaranteed to have a case-sensitive file system, list files explicitly on command line.
+-# Otherwise, let directory read find both files.
+-[darwin] ! go list example/b/file.go example/b/FILE.go
+-[windows] ! go list example/b/file.go example/b/FILE.go
+-[!darwin] [!windows] ! go list example/b
++# List files explicitly on command line, to encounter case-checking
++# logic even on case-insensitive filesystems.
++cp example/b/file.go example/b/FILE.go  # no-op on case-insensitive filesystems
++! go list example/b/file.go example/b/FILE.go
+ stderr 'case-insensitive file name collision'
+ 
++mkdir example/a/Pkg  # no-op on case-insensitive filesystems
++cp example/a/pkg/pkg.go example/a/Pkg/pkg.go  # no-op on case-insensitive filesystems
+ ! go list example/a/pkg example/a/Pkg
+-stderr 'case-insensitive import collision'
+-go list -json -e example/a/pkg example/a/Pkg
+-stdout 'case-insensitive import collision'
+-! go build example/a/pkg example/a/Pkg
+-stderr 'case-insensitive import collision'
+ 
+ # Test that the path reported with an indirect import is correct.
+-[!darwin] [!windows] ! go build example/c
+-[!darwin] [!windows] stderr '^package example/c\n\timports example/b: case-insensitive file name collision: "FILE.go" and "file.go"$'
++cp example/b/file.go example/b/FILE.go
++[case-sensitive] ! go build example/c
++[case-sensitive] stderr '^package example/c\n\timports example/b: case-insensitive file name collision: "FILE.go" and "file.go"$'
+ 
+ -- example/a/a.go --
+ package p
+@@ -32,12 +29,8 @@ import (
+ )
+ -- example/a/pkg/pkg.go --
+ package pkg
+--- example/a/Pkg/pkg.go --
+-package pkg
+ -- example/b/file.go --
+ package b
+--- example/b/FILE.go --
+-package b
+ -- example/c/c.go --
+ package c
+ 

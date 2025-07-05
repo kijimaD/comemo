@@ -13,7 +13,7 @@ Date:   Sat Mar 3 14:24:54 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/bytes_decl.go                     |   4 +-
  src/cmd/vet/all/whitelist/386.txt           |   4 +-
  src/cmd/vet/all/whitelist/amd64.txt         |   4 +-
@@ -44,3 +44,2652 @@ Date:   Sat Mar 3 14:24:54 2018 -0800
  src/runtime/noasm.go                        |  63 ------
  src/runtime/stubs_asm.go                    |  11 -
  29 files changed, 1275 insertions(+), 1084 deletions(-)
+
+diff --git a/src/bytes/bytes_decl.go b/src/bytes/bytes_decl.go
+index d144fccf4b..af0f8b179f 100644
+--- a/src/bytes/bytes_decl.go
++++ b/src/bytes/bytes_decl.go
+@@ -14,11 +14,11 @@ func IndexByte(b []byte, c byte) int // in internal/bytealg
+ // Equal returns a boolean reporting whether a and b
+ // are the same length and contain the same bytes.
+ // A nil argument is equivalent to an empty slice.
+-func Equal(a, b []byte) bool // ../runtime/asm_$GOARCH.s
++func Equal(a, b []byte) bool // in internal/bytealg
+ 
+ //go:noescape
+ 
+ // Compare returns an integer comparing two byte slices lexicographically.
+ // The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+ // A nil argument is equivalent to an empty slice.
+-func Compare(a, b []byte) int // ../runtime/noasm.go or ../runtime/asm_{386,amd64}.s
++func Compare(a, b []byte) int // in internal/bytealg
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 4caa8aade4..76e82317ed 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -1,6 +1,7 @@
+ // 386-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // startup code uses non-standard calling convention and intentionally
+ // omits args.
+@@ -15,7 +16,6 @@ runtime/asm_386.s: [386] morestack: use of 4(SP) points beyond argument frame
+ runtime/asm_386.s: [386] ldt0setup: function ldt0setup missing Go declaration
+ runtime/asm_386.s: [386] emptyfunc: function emptyfunc missing Go declaration
+ runtime/asm_386.s: [386] aeshashbody: function aeshashbody missing Go declaration
+-runtime/asm_386.s: [386] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_386.s: [386] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_386.s: [386] duffzero: function duffzero missing Go declaration
+ runtime/duff_386.s: [386] duffcopy: function duffcopy missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index ec1e846410..0e8ff74194 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -1,5 +1,7 @@
+ // amd64-specific vet whitelist. See readme.txt for details.
+ 
++internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // False positives.
+ 
+@@ -11,7 +13,6 @@ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument fram
+ 
+ // Nothing much to do about cross-package assembly. Unfortunate.
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package strings
+-runtime/asm_amd64.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: indexShortStr is in package bytes
+ 
+ // Intentionally missing declarations. These are special assembly routines.
+@@ -20,7 +21,6 @@ runtime/asm_amd64.s: [amd64] cannot check cross-package assembly function: index
+ // Others use the platform ABI.
+ // There is no sensible corresponding Go prototype.
+ runtime/asm_amd64.s: [amd64] aeshashbody: function aeshashbody missing Go declaration
+-runtime/asm_amd64.s: [amd64] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 770008c9f0..77f846037b 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -1,12 +1,12 @@
+ // arm-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // Intentionally missing declarations.
+ runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+ runtime/asm_arm.s: [arm] abort: function abort missing Go declaration
+ runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration
+-runtime/asm_arm.s: [arm] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
+ runtime/asm_arm.s: [arm] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_arm.s: [arm] duffzero: function duffzero missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 24fc6f4223..e5ae6eab91 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -1,6 +1,7 @@
+ // arm64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // Intentionally missing declarations.
+ runtime/asm_arm64.s: [arm64] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index ff6c0e613b..1488915d25 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -1,9 +1,11 @@
+ // mips/mipsle-specific vet whitelist. See readme.txt for details.
+ 
++internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
++
+ runtime/asm_mipsx.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] load_g: function load_g missing Go declaration
+-runtime/asm_mipsx.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 4(R29) should be flags+0(FP)
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 8(R29) should be stk+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 9900af9b6b..9280c68d2c 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -1,5 +1,8 @@
+ // nacl/amd64p32-specific vet whitelist. See readme.txt for details.
+ 
++internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: cmpstring is in package runtime
++
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
+@@ -20,8 +23,6 @@ runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go decla
+ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argc
+ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+ 
+-runtime/asm_amd64p32.s: [amd64p32] cannot check cross-package assembly function: Compare is in package bytes
+-runtime/asm_amd64p32.s: [amd64p32] cmpbody: function cmpbody missing Go declaration
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+ 
+ runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+index 379a2c06ac..bfa0fd9d63 100644
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -1,6 +1,7 @@
+ // ppc64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+ runtime/asm_ppc64x.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index bd577d0de1..025c9dce52 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,7 +1,6 @@
+ runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
+-runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
+-runtime/asm_s390x.s: [s390x] cmpbody: function cmpbody missing Go declaration
+-runtime/asm_s390x.s: [s390x] cmpbodyclc: function cmpbodyclc missing Go declaration
++internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
++internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
+ runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: supportsVX is in package strings
+ runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: supportsVX is in package bytes
+ runtime/asm_s390x.s: [s390x] cannot check cross-package assembly function: indexShortStr is in package strings
+diff --git a/src/internal/bytealg/compare_386.s b/src/internal/bytealg/compare_386.s
+new file mode 100644
+index 0000000000..f2a7fcce24
+--- /dev/null
++++ b/src/internal/bytealg/compare_386.s
+@@ -0,0 +1,151 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT,$0-28
++	MOVL	a_base+0(FP), SI
++	MOVL	a_len+4(FP), BX
++	MOVL	b_base+12(FP), DI
++	MOVL	b_len+16(FP), DX
++	LEAL	ret+24(FP), AX
++	JMP	cmpbody<>(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
++	MOVL	a_base+0(FP), SI
++	MOVL	a_len+4(FP), BX
++	MOVL	b_base+12(FP), DI
++	MOVL	b_len+16(FP), DX
++	LEAL	ret+24(FP), AX
++	JMP	cmpbody<>(SB)
++
++TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
++	MOVL	a_base+0(FP), SI
++	MOVL	a_len+4(FP), BX
++	MOVL	b_base+8(FP), DI
++	MOVL	b_len+12(FP), DX
++	LEAL	ret+16(FP), AX
++	JMP	cmpbody<>(SB)
++
++// input:
++//   SI = a
++//   DI = b
++//   BX = alen
++//   DX = blen
++//   AX = address of return word (set to 1/0/-1)
++TEXT cmpbody<>(SB),NOSPLIT,$0-0
++	MOVL	DX, BP
++	SUBL	BX, DX // DX = blen-alen
++	JLE	2(PC)
++	MOVL	BX, BP // BP = min(alen, blen)
++	CMPL	SI, DI
++	JEQ	allsame
++	CMPL	BP, $4
++	JB	small
++	CMPB	runtime·support_sse2(SB), $1
++	JNE	mediumloop
++largeloop:
++	CMPL	BP, $16
++	JB	mediumloop
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, BX
++	XORL	$0xffff, BX	// convert EQ to NE
++	JNE	diff16	// branch if at least one byte is not equal
++	ADDL	$16, SI
++	ADDL	$16, DI
++	SUBL	$16, BP
++	JMP	largeloop
++
++diff16:
++	BSFL	BX, BX	// index of first byte that differs
++	XORL	DX, DX
++	MOVB	(SI)(BX*1), CX
++	CMPB	CX, (DI)(BX*1)
++	SETHI	DX
++	LEAL	-1(DX*2), DX	// convert 1/0 to +1/-1
++	MOVL	DX, (AX)
++	RET
++
++mediumloop:
++	CMPL	BP, $4
++	JBE	_0through4
++	MOVL	(SI), BX
++	MOVL	(DI), CX
++	CMPL	BX, CX
++	JNE	diff4
++	ADDL	$4, SI
++	ADDL	$4, DI
++	SUBL	$4, BP
++	JMP	mediumloop
++
++_0through4:
++	MOVL	-4(SI)(BP*1), BX
++	MOVL	-4(DI)(BP*1), CX
++	CMPL	BX, CX
++	JEQ	allsame
++
++diff4:
++	BSWAPL	BX	// reverse order of bytes
++	BSWAPL	CX
++	XORL	BX, CX	// find bit differences
++	BSRL	CX, CX	// index of highest bit difference
++	SHRL	CX, BX	// move a's bit to bottom
++	ANDL	$1, BX	// mask bit
++	LEAL	-1(BX*2), BX // 1/0 => +1/-1
++	MOVL	BX, (AX)
++	RET
++
++	// 0-3 bytes in common
++small:
++	LEAL	(BP*8), CX
++	NEGL	CX
++	JEQ	allsame
++
++	// load si
++	CMPB	SI, $0xfc
++	JA	si_high
++	MOVL	(SI), SI
++	JMP	si_finish
++si_high:
++	MOVL	-4(SI)(BP*1), SI
++	SHRL	CX, SI
++si_finish:
++	SHLL	CX, SI
++
++	// same for di
++	CMPB	DI, $0xfc
++	JA	di_high
++	MOVL	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVL	-4(DI)(BP*1), DI
++	SHRL	CX, DI
++di_finish:
++	SHLL	CX, DI
++
++	BSWAPL	SI	// reverse order of bytes
++	BSWAPL	DI
++	XORL	SI, DI	// find bit differences
++	JEQ	allsame
++	BSRL	DI, CX	// index of highest bit difference
++	SHRL	CX, SI	// move a's bit to bottom
++	ANDL	$1, SI	// mask bit
++	LEAL	-1(SI*2), BX // 1/0 => +1/-1
++	MOVL	BX, (AX)
++	RET
++
++	// all the bytes in common are the same, so we just need
++	// to compare the lengths.
++allsame:
++	XORL	BX, BX
++	XORL	CX, CX
++	TESTL	DX, DX
++	SETLT	BX	// 1 if alen > blen
++	SETEQ	CX	// 1 if alen == blen
++	LEAL	-1(CX)(BX*2), BX	// 1,0,-1 result
++	MOVL	BX, (AX)
++	RET
+diff --git a/src/internal/bytealg/compare_amd64.s b/src/internal/bytealg/compare_amd64.s
+new file mode 100644
+index 0000000000..7d950286e3
+--- /dev/null
++++ b/src/internal/bytealg/compare_amd64.s
+@@ -0,0 +1,236 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT,$0-56
++	MOVQ	a_base+0(FP), SI
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_base+24(FP), DI
++	MOVQ	b_len+32(FP), DX
++	LEAQ	ret+48(FP), R9
++	JMP	cmpbody<>(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-56
++	MOVQ	a_base+0(FP), SI
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_base+24(FP), DI
++	MOVQ	b_len+32(FP), DX
++	LEAQ	ret+48(FP), R9
++	JMP	cmpbody<>(SB)
++
++TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
++	MOVQ	a_base+0(FP), SI
++	MOVQ	a_len+8(FP), BX
++	MOVQ	b_base+16(FP), DI
++	MOVQ	b_len+24(FP), DX
++	LEAQ	ret+32(FP), R9
++	JMP	cmpbody<>(SB)
++
++// input:
++//   SI = a
++//   DI = b
++//   BX = alen
++//   DX = blen
++//   R9 = address of output word (stores -1/0/1 here)
++TEXT cmpbody<>(SB),NOSPLIT,$0-0
++	CMPQ	SI, DI
++	JEQ	allsame
++	CMPQ	BX, DX
++	MOVQ	DX, R8
++	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
++	CMPQ	R8, $8
++	JB	small
++
++	CMPQ	R8, $63
++	JBE	loop
++	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	JEQ     big_loop_avx2
++	JMP	big_loop
++loop:
++	CMPQ	R8, $16
++	JBE	_0through16
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX	// convert EQ to NE
++	JNE	diff16	// branch if at least one byte is not equal
++	ADDQ	$16, SI
++	ADDQ	$16, DI
++	SUBQ	$16, R8
++	JMP	loop
++	
++diff64:
++	ADDQ	$48, SI
++	ADDQ	$48, DI
++	JMP	diff16
++diff48:
++	ADDQ	$32, SI
++	ADDQ	$32, DI
++	JMP	diff16
++diff32:
++	ADDQ	$16, SI
++	ADDQ	$16, DI
++	// AX = bit mask of differences
++diff16:
++	BSFQ	AX, BX	// index of first byte that differs
++	XORQ	AX, AX
++	MOVB	(SI)(BX*1), CX
++	CMPB	CX, (DI)(BX*1)
++	SETHI	AX
++	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
++	MOVQ	AX, (R9)
++	RET
++
++	// 0 through 16 bytes left, alen>=8, blen>=8
++_0through16:
++	CMPQ	R8, $8
++	JBE	_0through8
++	MOVQ	(SI), AX
++	MOVQ	(DI), CX
++	CMPQ	AX, CX
++	JNE	diff8
++_0through8:
++	MOVQ	-8(SI)(R8*1), AX
++	MOVQ	-8(DI)(R8*1), CX
++	CMPQ	AX, CX
++	JEQ	allsame
++
++	// AX and CX contain parts of a and b that differ.
++diff8:
++	BSWAPQ	AX	// reverse order of bytes
++	BSWAPQ	CX
++	XORQ	AX, CX
++	BSRQ	CX, CX	// index of highest bit difference
++	SHRQ	CX, AX	// move a's bit to bottom
++	ANDQ	$1, AX	// mask bit
++	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
++	MOVQ	AX, (R9)
++	RET
++
++	// 0-7 bytes in common
++small:
++	LEAQ	(R8*8), CX	// bytes left -> bits left
++	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
++	JEQ	allsame
++
++	// load bytes of a into high bytes of AX
++	CMPB	SI, $0xf8
++	JA	si_high
++	MOVQ	(SI), SI
++	JMP	si_finish
++si_high:
++	MOVQ	-8(SI)(R8*1), SI
++	SHRQ	CX, SI
++si_finish:
++	SHLQ	CX, SI
++
++	// load bytes of b in to high bytes of BX
++	CMPB	DI, $0xf8
++	JA	di_high
++	MOVQ	(DI), DI
++	JMP	di_finish
++di_high:
++	MOVQ	-8(DI)(R8*1), DI
++	SHRQ	CX, DI
++di_finish:
++	SHLQ	CX, DI
++
++	BSWAPQ	SI	// reverse order of bytes
++	BSWAPQ	DI
++	XORQ	SI, DI	// find bit differences
++	JEQ	allsame
++	BSRQ	DI, CX	// index of highest bit difference
++	SHRQ	CX, SI	// move a's bit to bottom
++	ANDQ	$1, SI	// mask bit
++	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
++	MOVQ	AX, (R9)
++	RET
++
++allsame:
++	XORQ	AX, AX
++	XORQ	CX, CX
++	CMPQ	BX, DX
++	SETGT	AX	// 1 if alen > blen
++	SETEQ	CX	// 1 if alen == blen
++	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
++	MOVQ	AX, (R9)
++	RET
++
++	// this works for >= 64 bytes of data.
++big_loop:
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX
++	JNE	diff16
++
++	MOVOU	16(SI), X0
++	MOVOU	16(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX
++	JNE	diff32
++
++	MOVOU	32(SI), X0
++	MOVOU	32(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX
++	JNE	diff48
++
++	MOVOU	48(SI), X0
++	MOVOU	48(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX
++	JNE	diff64
++
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, R8
++	CMPQ	R8, $64
++	JBE	loop
++	JMP	big_loop
++
++	// Compare 64-bytes per loop iteration.
++	// Loop is unrolled and uses AVX2.
++big_loop_avx2:
++	VMOVDQU	(SI), Y2
++	VMOVDQU	(DI), Y3
++	VMOVDQU	32(SI), Y4
++	VMOVDQU	32(DI), Y5
++	VPCMPEQB Y2, Y3, Y0
++	VPMOVMSKB Y0, AX
++	XORL	$0xffffffff, AX
++	JNE	diff32_avx2
++	VPCMPEQB Y4, Y5, Y6
++	VPMOVMSKB Y6, AX
++	XORL	$0xffffffff, AX
++	JNE	diff64_avx2
++
++	ADDQ	$64, SI
++	ADDQ	$64, DI
++	SUBQ	$64, R8
++	CMPQ	R8, $64
++	JB	big_loop_avx2_exit
++	JMP	big_loop_avx2
++
++	// Avoid AVX->SSE transition penalty and search first 32 bytes of 64 byte chunk.
++diff32_avx2:
++	VZEROUPPER
++	JMP diff16
++
++	// Same as diff32_avx2, but for last 32 bytes.
++diff64_avx2:
++	VZEROUPPER
++	JMP diff48
++
++	// For <64 bytes remainder jump to normal loop.
++big_loop_avx2_exit:
++	VZEROUPPER
++	JMP loop
+diff --git a/src/internal/bytealg/compare_amd64p32.s b/src/internal/bytealg/compare_amd64p32.s
+new file mode 100644
+index 0000000000..0f23147338
+--- /dev/null
++++ b/src/internal/bytealg/compare_amd64p32.s
+@@ -0,0 +1,151 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT,$0-28
++	MOVL	a_base+0(FP), SI
++	MOVL	a_len+4(FP), BX
++	MOVL	b_base+12(FP), DI
++	MOVL	b_len+16(FP), DX
++	CALL	cmpbody<>(SB)
++	MOVL	AX, ret+24(FP)
++	RET
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
++	MOVL	a_base+0(FP), SI
++	MOVL	a_len+4(FP), BX
++	MOVL	b_base+12(FP), DI
++	MOVL	b_len+16(FP), DX
++	CALL	cmpbody<>(SB)
++	MOVL	AX, ret+24(FP)
++	RET
++
++TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
++	MOVL	a_base+0(FP), SI
++	MOVL	a_len+4(FP), BX
++	MOVL	b_base+8(FP), DI
++	MOVL	b_len+12(FP), DX
++	CALL	cmpbody<>(SB)
++	MOVL	AX, ret+16(FP)
++	RET
++
++// input:
++//   SI = a
++//   DI = b
++//   BX = alen
++//   DX = blen
++// output:
++//   AX = 1/0/-1
++TEXT cmpbody<>(SB),NOSPLIT,$0-0
++	CMPQ	SI, DI
++	JEQ	allsame
++	CMPQ	BX, DX
++	MOVQ	DX, R8
++	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
++	CMPQ	R8, $8
++	JB	small
++
++loop:
++	CMPQ	R8, $16
++	JBE	_0through16
++	MOVOU	(SI), X0
++	MOVOU	(DI), X1
++	PCMPEQB X0, X1
++	PMOVMSKB X1, AX
++	XORQ	$0xffff, AX	// convert EQ to NE
++	JNE	diff16	// branch if at least one byte is not equal
++	ADDQ	$16, SI
++	ADDQ	$16, DI
++	SUBQ	$16, R8
++	JMP	loop
++	
++	// AX = bit mask of differences
++diff16:
++	BSFQ	AX, BX	// index of first byte that differs
++	XORQ	AX, AX
++	ADDQ	BX, SI
++	MOVB	(SI), CX
++	ADDQ	BX, DI
++	CMPB	CX, (DI)
++	SETHI	AX
++	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
++	RET
++
++	// 0 through 16 bytes left, alen>=8, blen>=8
++_0through16:
++	CMPQ	R8, $8
++	JBE	_0through8
++	MOVQ	(SI), AX
++	MOVQ	(DI), CX
++	CMPQ	AX, CX
++	JNE	diff8
++_0through8:
++	ADDQ	R8, SI
++	ADDQ	R8, DI
++	MOVQ	-8(SI), AX
++	MOVQ	-8(DI), CX
++	CMPQ	AX, CX
++	JEQ	allsame
++
++	// AX and CX contain parts of a and b that differ.
++diff8:
++	BSWAPQ	AX	// reverse order of bytes
++	BSWAPQ	CX
++	XORQ	AX, CX
++	BSRQ	CX, CX	// index of highest bit difference
++	SHRQ	CX, AX	// move a's bit to bottom
++	ANDQ	$1, AX	// mask bit
++	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
++	RET
++
++	// 0-7 bytes in common
++small:
++	LEAQ	(R8*8), CX	// bytes left -> bits left
++	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
++	JEQ	allsame
++
++	// load bytes of a into high bytes of AX
++	CMPB	SI, $0xf8
++	JA	si_high
++	MOVQ	(SI), SI
++	JMP	si_finish
++si_high:
++	ADDQ	R8, SI
++	MOVQ	-8(SI), SI
++	SHRQ	CX, SI
++si_finish:
++	SHLQ	CX, SI
++
++	// load bytes of b in to high bytes of BX
++	CMPB	DI, $0xf8
++	JA	di_high
++	MOVQ	(DI), DI
++	JMP	di_finish
++di_high:
++	ADDQ	R8, DI
++	MOVQ	-8(DI), DI
++	SHRQ	CX, DI
++di_finish:
++	SHLQ	CX, DI
++
++	BSWAPQ	SI	// reverse order of bytes
++	BSWAPQ	DI
++	XORQ	SI, DI	// find bit differences
++	JEQ	allsame
++	BSRQ	DI, CX	// index of highest bit difference
++	SHRQ	CX, SI	// move a's bit to bottom
++	ANDQ	$1, SI	// mask bit
++	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
++	RET
++
++allsame:
++	XORQ	AX, AX
++	XORQ	CX, CX
++	CMPQ	BX, DX
++	SETGT	AX	// 1 if alen > blen
++	SETEQ	CX	// 1 if alen == blen
++	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
++	RET
+diff --git a/src/internal/bytealg/compare_arm.s b/src/internal/bytealg/compare_arm.s
+new file mode 100644
+index 0000000000..72cae3309c
+--- /dev/null
++++ b/src/internal/bytealg/compare_arm.s
+@@ -0,0 +1,67 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	a_base+0(FP), R2
++	MOVW	a_len+4(FP), R0
++	MOVW	b_base+12(FP), R3
++	MOVW	b_len+16(FP), R1
++	ADD	$28, R13, R7
++	B	cmpbody<>(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-28
++	MOVW	a_base+0(FP), R2
++	MOVW	a_len+4(FP), R0
++	MOVW	b_base+12(FP), R3
++	MOVW	b_len+16(FP), R1
++	ADD	$28, R13, R7
++	B	cmpbody<>(SB)
++
++TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-20
++	MOVW	a_base+0(FP), R2
++	MOVW	a_len+4(FP), R0
++	MOVW	b_base+8(FP), R3
++	MOVW	b_len+12(FP), R1
++	ADD	$20, R13, R7
++	B	cmpbody<>(SB)
++
++// On entry:
++// R0 is the length of a
++// R1 is the length of b
++// R2 points to the start of a
++// R3 points to the start of b
++// R7 points to return value (-1/0/1 will be written here)
++//
++// On exit:
++// R4, R5, and R6 are clobbered
++TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
++	CMP	R2, R3
++	BEQ	samebytes
++	CMP 	R0, R1
++	MOVW 	R0, R6
++	MOVW.LT	R1, R6	// R6 is min(R0, R1)
++
++	ADD	R2, R6	// R2 is current byte in a, R6 is last byte in a to compare
++loop:
++	CMP	R2, R6
++	BEQ	samebytes // all compared bytes were the same; compare lengths
++	MOVBU.P	1(R2), R4
++	MOVBU.P	1(R3), R5
++	CMP	R4, R5
++	BEQ	loop
++	// bytes differed
++	MOVW.LT	$1, R0
++	MOVW.GT	$-1, R0
++	MOVW	R0, (R7)
++	RET
++samebytes:
++	CMP	R0, R1
++	MOVW.LT	$1, R0
++	MOVW.GT	$-1, R0
++	MOVW.EQ	$0, R0
++	MOVW	R0, (R7)
++	RET
+diff --git a/src/internal/bytealg/compare_arm64.s b/src/internal/bytealg/compare_arm64.s
+new file mode 100644
+index 0000000000..9b6354715a
+--- /dev/null
++++ b/src/internal/bytealg/compare_arm64.s
+@@ -0,0 +1,66 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	a_base+0(FP), R2
++	MOVD	a_len+8(FP), R0
++	MOVD	b_base+24(FP), R3
++	MOVD	b_len+32(FP), R1
++	ADD	$56, RSP, R7
++	B	cmpbody<>(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	a_base+0(FP), R2
++	MOVD	a_len+8(FP), R0
++	MOVD	b_base+24(FP), R3
++	MOVD	b_len+32(FP), R1
++	ADD	$56, RSP, R7
++	B	cmpbody<>(SB)
++
++TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	a_base+0(FP), R2
++	MOVD	a_len+8(FP), R0
++	MOVD	b_base+16(FP), R3
++	MOVD	b_len+24(FP), R1
++	ADD	$40, RSP, R7
++	B	cmpbody<>(SB)
++
++// On entry:
++// R0 is the length of a
++// R1 is the length of b
++// R2 points to the start of a
++// R3 points to the start of b
++// R7 points to return value (-1/0/1 will be written here)
++//
++// On exit:
++// R4, R5, and R6 are clobbered
++TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
++	CMP	R2, R3
++	BEQ	samebytes // same starting pointers; compare lengths
++	CMP	R0, R1
++	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
++
++	ADD	R2, R6	// R2 is current byte in a, R6 is last byte in a to compare
++loop:
++	CMP	R2, R6
++	BEQ	samebytes // all compared bytes were the same; compare lengths
++	MOVBU.P	1(R2), R4
++	MOVBU.P	1(R3), R5
++	CMP	R4, R5
++	BEQ	loop
++	// bytes differed
++	MOVD	$1, R4
++	CSNEG	LT, R4, R4, R4
++	MOVD	R4, (R7)
++	RET
++samebytes:
++	MOVD	$1, R4
++	CMP	R0, R1
++	CSNEG	LT, R4, R4, R4
++	CSEL	EQ, ZR, R4, R4
++	MOVD	R4, (R7)
++	RET
+diff --git a/src/internal/bytealg/compare_generic.go b/src/internal/bytealg/compare_generic.go
+new file mode 100644
+index 0000000000..69610517b2
+--- /dev/null
++++ b/src/internal/bytealg/compare_generic.go
+@@ -0,0 +1,88 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !386,!amd64,!amd64p32,!s390x,!arm,!arm64,!ppc64,!ppc64le,!mips,!mipsle
++
++package bytealg
++
++import _ "unsafe" // for go:linkname
++
++func Compare(a, b []byte) int {
++	l := len(a)
++	if len(b) < l {
++		l = len(b)
++	}
++	if l == 0 || &a[0] == &b[0] {
++		goto samebytes
++	}
++	for i := 0; i < l; i++ {
++		c1, c2 := a[i], b[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++	}
++samebytes:
++	if len(a) < len(b) {
++		return -1
++	}
++	if len(a) > len(b) {
++		return +1
++	}
++	return 0
++}
++
++//go:linkname bytes_Compare bytes.Compare
++func bytes_Compare(a, b []byte) int {
++	l := len(a)
++	if len(b) < l {
++		l = len(b)
++	}
++	if l == 0 || &a[0] == &b[0] {
++		goto samebytes
++	}
++	for i := 0; i < l; i++ {
++		c1, c2 := a[i], b[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++	}
++samebytes:
++	if len(a) < len(b) {
++		return -1
++	}
++	if len(a) > len(b) {
++		return +1
++	}
++	return 0
++}
++
++//go:linkname runtime_cmpstring runtime.cmpstring
++func runtime_cmpstring(a, b string) int {
++	l := len(a)
++	if len(b) < l {
++		l = len(b)
++	}
++	for i := 0; i < l; i++ {
++		c1, c2 := a[i], b[i]
++		if c1 < c2 {
++			return -1
++		}
++		if c1 > c2 {
++			return +1
++		}
++	}
++	if len(a) < len(b) {
++		return -1
++	}
++	if len(a) > len(b) {
++		return +1
++	}
++	return 0
++}
+diff --git a/src/internal/bytealg/compare_mipsx.s b/src/internal/bytealg/compare_mipsx.s
+new file mode 100644
+index 0000000000..b8e225ea85
+--- /dev/null
++++ b/src/internal/bytealg/compare_mipsx.s
+@@ -0,0 +1,104 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build mips mipsle
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT,$0-28
++	MOVW	a_base+0(FP), R3
++	MOVW	b_base+12(FP), R4
++	MOVW	a_len+4(FP), R1
++	MOVW	b_len+16(FP), R2
++	BEQ	R3, R4, samebytes
++	SGTU	R1, R2, R7
++	MOVW	R1, R8
++	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
++
++	ADDU	R3, R8	// R3 is current byte in a, R8 is last byte in a to compare
++loop:
++	BEQ	R3, R8, samebytes
++
++	MOVBU	(R3), R6
++	ADDU	$1, R3
++	MOVBU	(R4), R7
++	ADDU	$1, R4
++	BEQ	R6, R7 , loop
++
++	SGTU	R6, R7, R8
++	MOVW	$-1, R6
++	CMOVZ	R8, R6, R8
++	JMP	cmp_ret
++samebytes:
++	SGTU	R1, R2, R6
++	SGTU	R2, R1, R7
++	SUBU	R7, R6, R8
++cmp_ret:
++	MOVW	R8, ret+24(FP)
++	RET
++
++TEXT bytes·Compare(SB),NOSPLIT,$0-28
++	MOVW	a_base+0(FP), R3
++	MOVW	b_base+12(FP), R4
++	MOVW	a_len+4(FP), R1
++	MOVW	b_len+16(FP), R2
++	BEQ	R3, R4, samebytes
++	SGTU	R1, R2, R7
++	MOVW	R1, R8
++	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
++
++	ADDU	R3, R8	// R3 is current byte in a, R8 is last byte in a to compare
++loop:
++	BEQ	R3, R8, samebytes
++
++	MOVBU	(R3), R6
++	ADDU	$1, R3
++	MOVBU	(R4), R7
++	ADDU	$1, R4
++	BEQ	R6, R7 , loop
++
++	SGTU	R6, R7, R8
++	MOVW	$-1, R6
++	CMOVZ	R8, R6, R8
++	JMP	cmp_ret
++samebytes:
++	SGTU	R1, R2, R6
++	SGTU	R2, R1, R7
++	SUBU	R7, R6, R8
++cmp_ret:
++	MOVW	R8, ret+24(FP)
++	RET
++
++TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
++	MOVW	a_base+0(FP), R3
++	MOVW	a_len+4(FP), R1
++	MOVW	b_base+8(FP), R4
++	MOVW	b_len+12(FP), R2
++	BEQ	R3, R4, samebytes
++	SGTU	R1, R2, R7
++	MOVW	R1, R8
++	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
++
++	ADDU	R3, R8	// R3 is current byte in a, R8 is last byte in a to compare
++loop:
++	BEQ	R3, R8, samebytes	// all compared bytes were the same; compare lengths
++
++	MOVBU	(R3), R6
++	ADDU	$1, R3
++	MOVBU	(R4), R7
++	ADDU	$1, R4
++	BEQ	R6, R7 , loop
++	// bytes differed
++	SGTU	R6, R7, R8
++	MOVW	$-1, R6
++	CMOVZ	R8, R6, R8
++	JMP	cmp_ret
++samebytes:
++	SGTU	R1, R2, R6
++	SGTU	R2, R1, R7
++	SUBU	R7, R6, R8
++cmp_ret:
++	MOVW	R8, ret+16(FP)
++	RET
+diff --git a/src/internal/bytealg/compare_native.go b/src/internal/bytealg/compare_native.go
+new file mode 100644
+index 0000000000..8ffade55be
+--- /dev/null
++++ b/src/internal/bytealg/compare_native.go
+@@ -0,0 +1,10 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build 386 amd64 amd64p32 s390x arm arm64 ppc64 ppc64le mips mipsle
++
++package bytealg
++
++//go:noescape
++func Compare(a, b []byte) int
+diff --git a/src/internal/bytealg/compare_ppc64x.s b/src/internal/bytealg/compare_ppc64x.s
+new file mode 100644
+index 0000000000..9b13c9a14d
+--- /dev/null
++++ b/src/internal/bytealg/compare_ppc64x.s
+@@ -0,0 +1,307 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ppc64 ppc64le
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	a_base+0(FP), R5
++	MOVD	b_base+24(FP), R6
++	MOVD	a_len+8(FP), R3
++	CMP	R5,R6,CR7
++	MOVD	b_len+32(FP), R4
++	MOVD	$ret+48(FP), R7
++	CMP	R3,R4,CR6
++	BEQ	CR7,equal
++
++#ifdef	GOARCH_ppc64le
++	BR	cmpbodyLE<>(SB)
++#else
++	BR      cmpbodyBE<>(SB)
++#endif
++
++equal:
++	BEQ	CR6,done
++	MOVD	$1, R8
++	BGT	CR6,greater
++	NEG	R8
++
++greater:
++	MOVD	R8, (R7)
++	RET
++
++done:
++	MOVD	$0, (R7)
++	RET
++
++TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	a_base+0(FP), R5
++	MOVD	b_base+24(FP), R6
++	MOVD	a_len+8(FP), R3
++	CMP	R5,R6,CR7
++	MOVD	b_len+32(FP), R4
++	MOVD	$ret+48(FP), R7
++	CMP	R3,R4,CR6
++	BEQ	CR7,equal
++
++#ifdef	GOARCH_ppc64le
++	BR	cmpbodyLE<>(SB)
++#else
++	BR      cmpbodyBE<>(SB)
++#endif
++
++equal:
++	BEQ	CR6,done
++	MOVD	$1, R8
++	BGT	CR6,greater
++	NEG	R8
++
++greater:
++	MOVD	R8, (R7)
++	RET
++
++done:
++	MOVD	$0, (R7)
++	RET
++
++TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	a_base+0(FP), R5
++	MOVD	b_base+16(FP), R6
++	MOVD	a_len+8(FP), R3
++	CMP	R5,R6,CR7
++	MOVD	b_len+24(FP), R4
++	MOVD	$ret+32(FP), R7
++	CMP	R3,R4,CR6
++	BEQ	CR7,equal
++
++#ifdef	GOARCH_ppc64le
++	BR	cmpbodyLE<>(SB)
++#else
++	BR      cmpbodyBE<>(SB)
++#endif
++
++equal:
++	BEQ	CR6,done
++	MOVD	$1, R8
++	BGT	CR6,greater
++	NEG	R8
++
++greater:
++	MOVD	R8, (R7)
++	RET
++
++done:
++	MOVD	$0, (R7)
++	RET
++
++// Do an efficient memcmp for ppc64le
++// R3 = a len
++// R4 = b len
++// R5 = a addr
++// R6 = b addr
++// R7 = addr of return value
++TEXT cmpbodyLE<>(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	R3,R8		// set up length
++	CMP	R3,R4,CR2	// unequal?
++	BC	12,8,setuplen	// BLT CR2
++	MOVD	R4,R8		// use R4 for comparison len
++setuplen:
++	MOVD	R8,CTR		// set up loop counter
++	CMP	R8,$8		// only optimize >=8
++	BLT	simplecheck
++	DCBT	(R5)		// cache hint
++	DCBT	(R6)
++	CMP	R8,$32		// optimize >= 32
++	MOVD	R8,R9
++	BLT	setup8a		// 8 byte moves only
++setup32a:
++	SRADCC	$5,R8,R9	// number of 32 byte chunks
++	MOVD	R9,CTR
++
++        // Special processing for 32 bytes or longer.
++        // Loading this way is faster and correct as long as the
++	// doublewords being compared are equal. Once they
++	// are found unequal, reload them in proper byte order
++	// to determine greater or less than.
++loop32a:
++	MOVD	0(R5),R9	// doublewords to compare
++	MOVD	0(R6),R10	// get 4 doublewords
++	MOVD	8(R5),R14
++	MOVD	8(R6),R15
++	CMPU	R9,R10		// bytes equal?
++	MOVD	$0,R16		// set up for cmpne
++	BNE	cmpne		// further compare for LT or GT
++	MOVD	16(R5),R9	// get next pair of doublewords
++	MOVD	16(R6),R10
++	CMPU	R14,R15		// bytes match?
++	MOVD	$8,R16		// set up for cmpne
++	BNE	cmpne		// further compare for LT or GT
++	MOVD	24(R5),R14	// get next pair of doublewords
++	MOVD    24(R6),R15
++	CMPU	R9,R10		// bytes match?
++	MOVD	$16,R16		// set up for cmpne
++	BNE	cmpne		// further compare for LT or GT
++	MOVD	$-8,R16		// for cmpne, R5,R6 already inc by 32
++	ADD	$32,R5		// bump up to next 32
++	ADD	$32,R6
++	CMPU    R14,R15		// bytes match?
++	BC	8,2,loop32a	// br ctr and cr
++	BNE	cmpne
++	ANDCC	$24,R8,R9	// Any 8 byte chunks?
++	BEQ	leftover	// and result is 0
++setup8a:
++	SRADCC	$3,R9,R9	// get the 8 byte count
++	BEQ	leftover	// shifted value is 0
++	MOVD	R9,CTR		// loop count for doublewords
++loop8:
++	MOVDBR	(R5+R0),R9	// doublewords to compare
++	MOVDBR	(R6+R0),R10	// LE compare order
++	ADD	$8,R5
++	ADD	$8,R6
++	CMPU	R9,R10		// match?
++	BC	8,2,loop8	// bt ctr <> 0 && cr
++	BGT	greater
++	BLT	less
++leftover:
++	ANDCC	$7,R8,R9	// check for leftover bytes
++	MOVD	R9,CTR		// save the ctr
++	BNE	simple		// leftover bytes
++	BC	12,10,equal	// test CR2 for length comparison
++	BC	12,8,less
++	BR	greater
++simplecheck:
++	CMP	R8,$0		// remaining compare length 0
++	BNE	simple		// do simple compare
++	BC	12,10,equal	// test CR2 for length comparison
++	BC	12,8,less	// 1st len < 2nd len, result less
++	BR	greater		// 1st len > 2nd len must be greater
++simple:
++	MOVBZ	0(R5), R9	// get byte from 1st operand
++	ADD	$1,R5
++	MOVBZ	0(R6), R10	// get byte from 2nd operand
++	ADD	$1,R6
++	CMPU	R9, R10
++	BC	8,2,simple	// bc ctr <> 0 && cr
++	BGT	greater		// 1st > 2nd
++	BLT	less		// 1st < 2nd
++	BC	12,10,equal	// test CR2 for length comparison
++	BC	12,9,greater	// 2nd len > 1st len
++	BR	less		// must be less
++cmpne:				// only here is not equal
++	MOVDBR	(R5+R16),R8	// reload in reverse order
++	MOVDBR	(R6+R16),R9
++	CMPU	R8,R9		// compare correct endianness
++	BGT	greater		// here only if NE
++less:
++	MOVD	$-1,R3
++	MOVD	R3,(R7)		// return value if A < B
++	RET
++equal:
++	MOVD	$0,(R7)		// return value if A == B
++	RET
++greater:
++	MOVD	$1,R3
++	MOVD	R3,(R7)		// return value if A > B
++	RET
++
++// Do an efficient memcmp for ppc64 (BE)
++// R3 = a len
++// R4 = b len
++// R5 = a addr
++// R6 = b addr
++// R7 = addr of return value
++TEXT cmpbodyBE<>(SB),NOSPLIT|NOFRAME,$0-0
++	MOVD	R3,R8		// set up length
++	CMP	R3,R4,CR2	// unequal?
++	BC	12,8,setuplen	// BLT CR2
++	MOVD	R4,R8		// use R4 for comparison len
++setuplen:
++	MOVD	R8,CTR		// set up loop counter
++	CMP	R8,$8		// only optimize >=8
++	BLT	simplecheck
++	DCBT	(R5)		// cache hint
++	DCBT	(R6)
++	CMP	R8,$32		// optimize >= 32
++	MOVD	R8,R9
++	BLT	setup8a		// 8 byte moves only
++
++setup32a:
++	SRADCC	$5,R8,R9	// number of 32 byte chunks
++	MOVD	R9,CTR
++loop32a:
++	MOVD	0(R5),R9	// doublewords to compare
++	MOVD	0(R6),R10	// get 4 doublewords
++	MOVD	8(R5),R14
++	MOVD	8(R6),R15
++	CMPU	R9,R10		// bytes equal?
++	BLT	less		// found to be less
++	BGT	greater		// found to be greater
++	MOVD	16(R5),R9	// get next pair of doublewords
++	MOVD	16(R6),R10
++	CMPU	R14,R15		// bytes match?
++	BLT	less		// found less
++	BGT	greater		// found greater
++	MOVD	24(R5),R14	// get next pair of doublewords
++	MOVD	24(R6),R15
++	CMPU	R9,R10		// bytes match?
++	BLT	less		// found to be less
++	BGT	greater		// found to be greater
++	ADD	$32,R5		// bump up to next 32
++	ADD	$32,R6
++	CMPU	R14,R15		// bytes match?
++	BC	8,2,loop32a	// br ctr and cr
++	BLT	less		// with BE, byte ordering is
++	BGT	greater		// good for compare
++	ANDCC	$24,R8,R9	// Any 8 byte chunks?
++	BEQ	leftover	// and result is 0
++setup8a:
++	SRADCC	$3,R9,R9	// get the 8 byte count
++	BEQ	leftover	// shifted value is 0
++	MOVD	R9,CTR		// loop count for doublewords
++loop8:
++	MOVD	(R5),R9
++	MOVD	(R6),R10
++	ADD	$8,R5
++	ADD	$8,R6
++	CMPU	R9,R10		// match?
++	BC	8,2,loop8	// bt ctr <> 0 && cr
++	BGT	greater
++	BLT	less
++leftover:
++	ANDCC	$7,R8,R9	// check for leftover bytes
++	MOVD	R9,CTR		// save the ctr
++	BNE	simple		// leftover bytes
++	BC	12,10,equal	// test CR2 for length comparison
++	BC	12,8,less
++	BR	greater
++simplecheck:
++	CMP	R8,$0		// remaining compare length 0
++	BNE	simple		// do simple compare
++	BC	12,10,equal	// test CR2 for length comparison
++	BC 	12,8,less	// 1st len < 2nd len, result less
++	BR	greater		// same len, must be equal
++simple:
++	MOVBZ	0(R5),R9	// get byte from 1st operand
++	ADD	$1,R5
++	MOVBZ	0(R6),R10	// get byte from 2nd operand
++	ADD	$1,R6
++	CMPU	R9,R10
++	BC	8,2,simple	// bc ctr <> 0 && cr
++	BGT	greater		// 1st > 2nd
++	BLT	less		// 1st < 2nd
++	BC	12,10,equal	// test CR2 for length comparison
++	BC	12,9,greater	// 2nd len > 1st len
++less:
++	MOVD	$-1,R3
++	MOVD    R3,(R7)		// return value if A < B
++	RET
++equal:
++	MOVD    $0,(R7)		// return value if A == B
++	RET
++greater:
++	MOVD	$1,R3
++	MOVD	R3,(R7)		// return value if A > B
++	RET
+diff --git a/src/internal/bytealg/compare_s390x.s b/src/internal/bytealg/compare_s390x.s
+new file mode 100644
+index 0000000000..7f27b08c0e
+--- /dev/null
++++ b/src/internal/bytealg/compare_s390x.s
+@@ -0,0 +1,75 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	a_base+0(FP), R3
++	MOVD	a_len+8(FP), R4
++	MOVD	b_base+24(FP), R5
++	MOVD	b_len+32(FP), R6
++	LA	ret+48(FP), R7
++	BR	cmpbody<>(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
++	MOVD	a_base+0(FP), R3
++	MOVD	a_len+8(FP), R4
++	MOVD	b_base+24(FP), R5
++	MOVD	b_len+32(FP), R6
++	LA	ret+48(FP), R7
++	BR	cmpbody<>(SB)
++
++TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
++	MOVD	a_base+0(FP), R3
++	MOVD	a_len+8(FP), R4
++	MOVD	b_base+16(FP), R5
++	MOVD	b_len+24(FP), R6
++	LA	ret+32(FP), R7
++	BR	cmpbody<>(SB)
++
++// input:
++//   R3 = a
++//   R4 = alen
++//   R5 = b
++//   R6 = blen
++//   R7 = address of output word (stores -1/0/1 here)
++TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
++	CMPBEQ	R3, R5, cmplengths
++	MOVD	R4, R8
++	CMPBLE	R4, R6, amin
++	MOVD	R6, R8
++amin:
++	CMPBEQ	R8, $0, cmplengths
++	CMP	R8, $256
++	BLE	tail
++loop:
++	CLC	$256, 0(R3), 0(R5)
++	BGT	gt
++	BLT	lt
++	SUB	$256, R8
++	CMP	R8, $256
++	BGT	loop
++tail:
++	SUB	$1, R8
++	EXRL	$cmpbodyclc<>(SB), R8
++	BGT	gt
++	BLT	lt
++cmplengths:
++	CMP	R4, R6
++	BEQ	eq
++	BLT	lt
++gt:
++	MOVD	$1, 0(R7)
++	RET
++lt:
++	MOVD	$-1, 0(R7)
++	RET
++eq:
++	MOVD	$0, 0(R7)
++	RET
++
++TEXT cmpbodyclc<>(SB),NOSPLIT|NOFRAME,$0-0
++	CLC	$1, 0(R3), 0(R5)
++	RET
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index d075759bcf..d1935d28da 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1343,143 +1343,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	SETEQ	ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+-	MOVL	s1_base+0(FP), SI
+-	MOVL	s1_len+4(FP), BX
+-	MOVL	s2_base+8(FP), DI
+-	MOVL	s2_len+12(FP), DX
+-	LEAL	ret+16(FP), AX
+-	JMP	runtime·cmpbody(SB)
+-
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+-	MOVL	s1+0(FP), SI
+-	MOVL	s1+4(FP), BX
+-	MOVL	s2+12(FP), DI
+-	MOVL	s2+16(FP), DX
+-	LEAL	ret+24(FP), AX
+-	JMP	runtime·cmpbody(SB)
+-
+-// input:
+-//   SI = a
+-//   DI = b
+-//   BX = alen
+-//   DX = blen
+-//   AX = address of return word (set to 1/0/-1)
+-TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
+-	MOVL	DX, BP
+-	SUBL	BX, DX // DX = blen-alen
+-	JLE	2(PC)
+-	MOVL	BX, BP // BP = min(alen, blen)
+-	CMPL	SI, DI
+-	JEQ	allsame
+-	CMPL	BP, $4
+-	JB	small
+-	CMPB	runtime·support_sse2(SB), $1
+-	JNE	mediumloop
+-largeloop:
+-	CMPL	BP, $16
+-	JB	mediumloop
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, BX
+-	XORL	$0xffff, BX	// convert EQ to NE
+-	JNE	diff16	// branch if at least one byte is not equal
+-	ADDL	$16, SI
+-	ADDL	$16, DI
+-	SUBL	$16, BP
+-	JMP	largeloop
+-
+-diff16:
+-	BSFL	BX, BX	// index of first byte that differs
+-	XORL	DX, DX
+-	MOVB	(SI)(BX*1), CX
+-	CMPB	CX, (DI)(BX*1)
+-	SETHI	DX
+-	LEAL	-1(DX*2), DX	// convert 1/0 to +1/-1
+-	MOVL	DX, (AX)
+-	RET
+-
+-mediumloop:
+-	CMPL	BP, $4
+-	JBE	_0through4
+-	MOVL	(SI), BX
+-	MOVL	(DI), CX
+-	CMPL	BX, CX
+-	JNE	diff4
+-	ADDL	$4, SI
+-	ADDL	$4, DI
+-	SUBL	$4, BP
+-	JMP	mediumloop
+-
+-_0through4:
+-	MOVL	-4(SI)(BP*1), BX
+-	MOVL	-4(DI)(BP*1), CX
+-	CMPL	BX, CX
+-	JEQ	allsame
+-
+-diff4:
+-	BSWAPL	BX	// reverse order of bytes
+-	BSWAPL	CX
+-	XORL	BX, CX	// find bit differences
+-	BSRL	CX, CX	// index of highest bit difference
+-	SHRL	CX, BX	// move a's bit to bottom
+-	ANDL	$1, BX	// mask bit
+-	LEAL	-1(BX*2), BX // 1/0 => +1/-1
+-	MOVL	BX, (AX)
+-	RET
+-
+-	// 0-3 bytes in common
+-small:
+-	LEAL	(BP*8), CX
+-	NEGL	CX
+-	JEQ	allsame
+-
+-	// load si
+-	CMPB	SI, $0xfc
+-	JA	si_high
+-	MOVL	(SI), SI
+-	JMP	si_finish
+-si_high:
+-	MOVL	-4(SI)(BP*1), SI
+-	SHRL	CX, SI
+-si_finish:
+-	SHLL	CX, SI
+-
+-	// same for di
+-	CMPB	DI, $0xfc
+-	JA	di_high
+-	MOVL	(DI), DI
+-	JMP	di_finish
+-di_high:
+-	MOVL	-4(DI)(BP*1), DI
+-	SHRL	CX, DI
+-di_finish:
+-	SHLL	CX, DI
+-
+-	BSWAPL	SI	// reverse order of bytes
+-	BSWAPL	DI
+-	XORL	SI, DI	// find bit differences
+-	JEQ	allsame
+-	BSRL	DI, CX	// index of highest bit difference
+-	SHRL	CX, SI	// move a's bit to bottom
+-	ANDL	$1, SI	// mask bit
+-	LEAL	-1(SI*2), BX // 1/0 => +1/-1
+-	MOVL	BX, (AX)
+-	RET
+-
+-	// all the bytes in common are the same, so we just need
+-	// to compare the lengths.
+-allsame:
+-	XORL	BX, BX
+-	XORL	CX, CX
+-	TESTL	DX, DX
+-	SETLT	BX	// 1 if alen > blen
+-	SETEQ	CX	// 1 if alen == blen
+-	LEAL	-1(CX)(BX*2), BX	// 1,0,-1 result
+-	MOVL	BX, (AX)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 386307afa5..f91a01da72 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1358,228 +1358,6 @@ DATA shifts<>+0xf0(SB)/8, $0x0807060504030201
+ DATA shifts<>+0xf8(SB)/8, $0xff0f0e0d0c0b0a09
+ GLOBL shifts<>(SB),RODATA,$256
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+-	MOVQ	s1_base+0(FP), SI
+-	MOVQ	s1_len+8(FP), BX
+-	MOVQ	s2_base+16(FP), DI
+-	MOVQ	s2_len+24(FP), DX
+-	LEAQ	ret+32(FP), R9
+-	JMP	runtime·cmpbody(SB)
+-
+-TEXT bytes·Compare(SB),NOSPLIT,$0-56
+-	MOVQ	s1+0(FP), SI
+-	MOVQ	s1+8(FP), BX
+-	MOVQ	s2+24(FP), DI
+-	MOVQ	s2+32(FP), DX
+-	LEAQ	res+48(FP), R9
+-	JMP	runtime·cmpbody(SB)
+-
+-// input:
+-//   SI = a
+-//   DI = b
+-//   BX = alen
+-//   DX = blen
+-//   R9 = address of output word (stores -1/0/1 here)
+-TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
+-	CMPQ	SI, DI
+-	JEQ	allsame
+-	CMPQ	BX, DX
+-	MOVQ	DX, R8
+-	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
+-	CMPQ	R8, $8
+-	JB	small
+-
+-	CMPQ	R8, $63
+-	JBE	loop
+-	CMPB    runtime·support_avx2(SB), $1
+-	JEQ     big_loop_avx2
+-	JMP	big_loop
+-loop:
+-	CMPQ	R8, $16
+-	JBE	_0through16
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORQ	$0xffff, AX	// convert EQ to NE
+-	JNE	diff16	// branch if at least one byte is not equal
+-	ADDQ	$16, SI
+-	ADDQ	$16, DI
+-	SUBQ	$16, R8
+-	JMP	loop
+-	
+-diff64:
+-	ADDQ	$48, SI
+-	ADDQ	$48, DI
+-	JMP	diff16
+-diff48:
+-	ADDQ	$32, SI
+-	ADDQ	$32, DI
+-	JMP	diff16
+-diff32:
+-	ADDQ	$16, SI
+-	ADDQ	$16, DI
+-	// AX = bit mask of differences
+-diff16:
+-	BSFQ	AX, BX	// index of first byte that differs
+-	XORQ	AX, AX
+-	MOVB	(SI)(BX*1), CX
+-	CMPB	CX, (DI)(BX*1)
+-	SETHI	AX
+-	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
+-	MOVQ	AX, (R9)
+-	RET
+-
+-	// 0 through 16 bytes left, alen>=8, blen>=8
+-_0through16:
+-	CMPQ	R8, $8
+-	JBE	_0through8
+-	MOVQ	(SI), AX
+-	MOVQ	(DI), CX
+-	CMPQ	AX, CX
+-	JNE	diff8
+-_0through8:
+-	MOVQ	-8(SI)(R8*1), AX
+-	MOVQ	-8(DI)(R8*1), CX
+-	CMPQ	AX, CX
+-	JEQ	allsame
+-
+-	// AX and CX contain parts of a and b that differ.
+-diff8:
+-	BSWAPQ	AX	// reverse order of bytes
+-	BSWAPQ	CX
+-	XORQ	AX, CX
+-	BSRQ	CX, CX	// index of highest bit difference
+-	SHRQ	CX, AX	// move a's bit to bottom
+-	ANDQ	$1, AX	// mask bit
+-	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
+-	MOVQ	AX, (R9)
+-	RET
+-
+-	// 0-7 bytes in common
+-small:
+-	LEAQ	(R8*8), CX	// bytes left -> bits left
+-	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
+-	JEQ	allsame
+-
+-	// load bytes of a into high bytes of AX
+-	CMPB	SI, $0xf8
+-	JA	si_high
+-	MOVQ	(SI), SI
+-	JMP	si_finish
+-si_high:
+-	MOVQ	-8(SI)(R8*1), SI
+-	SHRQ	CX, SI
+-si_finish:
+-	SHLQ	CX, SI
+-
+-	// load bytes of b in to high bytes of BX
+-	CMPB	DI, $0xf8
+-	JA	di_high
+-	MOVQ	(DI), DI
+-	JMP	di_finish
+-di_high:
+-	MOVQ	-8(DI)(R8*1), DI
+-	SHRQ	CX, DI
+-di_finish:
+-	SHLQ	CX, DI
+-
+-	BSWAPQ	SI	// reverse order of bytes
+-	BSWAPQ	DI
+-	XORQ	SI, DI	// find bit differences
+-	JEQ	allsame
+-	BSRQ	DI, CX	// index of highest bit difference
+-	SHRQ	CX, SI	// move a's bit to bottom
+-	ANDQ	$1, SI	// mask bit
+-	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
+-	MOVQ	AX, (R9)
+-	RET
+-
+-allsame:
+-	XORQ	AX, AX
+-	XORQ	CX, CX
+-	CMPQ	BX, DX
+-	SETGT	AX	// 1 if alen > blen
+-	SETEQ	CX	// 1 if alen == blen
+-	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+-	MOVQ	AX, (R9)
+-	RET
+-
+-	// this works for >= 64 bytes of data.
+-big_loop:
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORQ	$0xffff, AX
+-	JNE	diff16
+-
+-	MOVOU	16(SI), X0
+-	MOVOU	16(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORQ	$0xffff, AX
+-	JNE	diff32
+-
+-	MOVOU	32(SI), X0
+-	MOVOU	32(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORQ	$0xffff, AX
+-	JNE	diff48
+-
+-	MOVOU	48(SI), X0
+-	MOVOU	48(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORQ	$0xffff, AX
+-	JNE	diff64
+-
+-	ADDQ	$64, SI
+-	ADDQ	$64, DI
+-	SUBQ	$64, R8
+-	CMPQ	R8, $64
+-	JBE	loop
+-	JMP	big_loop
+-
+-	// Compare 64-bytes per loop iteration.
+-	// Loop is unrolled and uses AVX2.
+-big_loop_avx2:
+-	VMOVDQU	(SI), Y2
+-	VMOVDQU	(DI), Y3
+-	VMOVDQU	32(SI), Y4
+-	VMOVDQU	32(DI), Y5
+-	VPCMPEQB Y2, Y3, Y0
+-	VPMOVMSKB Y0, AX
+-	XORL	$0xffffffff, AX
+-	JNE	diff32_avx2
+-	VPCMPEQB Y4, Y5, Y6
+-	VPMOVMSKB Y6, AX
+-	XORL	$0xffffffff, AX
+-	JNE	diff64_avx2
+-
+-	ADDQ	$64, SI
+-	ADDQ	$64, DI
+-	SUBQ	$64, R8
+-	CMPQ	R8, $64
+-	JB	big_loop_avx2_exit
+-	JMP	big_loop_avx2
+-
+-	// Avoid AVX->SSE transition penalty and search first 32 bytes of 64 byte chunk.
+-diff32_avx2:
+-	VZEROUPPER
+-	JMP diff16
+-
+-	// Same as diff32_avx2, but for last 32 bytes.
+-diff64_avx2:
+-	VZEROUPPER
+-	JMP diff48
+-
+-	// For <64 bytes remainder jump to normal loop.
+-big_loop_avx2_exit:
+-	VZEROUPPER
+-	JMP loop
+-
+ TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
+ 	MOVQ s+0(FP), DI
+ 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 1109b98022..0c104b23e7 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -575,142 +575,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+-	MOVL	s1_base+0(FP), SI
+-	MOVL	s1_len+4(FP), BX
+-	MOVL	s2_base+8(FP), DI
+-	MOVL	s2_len+12(FP), DX
+-	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+-	MOVL	s1+0(FP), SI
+-	MOVL	s1+4(FP), BX
+-	MOVL	s2+12(FP), DI
+-	MOVL	s2+16(FP), DX
+-	CALL	runtime·cmpbody(SB)
+-	MOVL	AX, res+24(FP)
+-	RET
+-
+-// input:
+-//   SI = a
+-//   DI = b
+-//   BX = alen
+-//   DX = blen
+-// output:
+-//   AX = 1/0/-1
+-TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
+-	CMPQ	SI, DI
+-	JEQ	allsame
+-	CMPQ	BX, DX
+-	MOVQ	DX, R8
+-	CMOVQLT	BX, R8 // R8 = min(alen, blen) = # of bytes to compare
+-	CMPQ	R8, $8
+-	JB	small
+-
+-loop:
+-	CMPQ	R8, $16
+-	JBE	_0through16
+-	MOVOU	(SI), X0
+-	MOVOU	(DI), X1
+-	PCMPEQB X0, X1
+-	PMOVMSKB X1, AX
+-	XORQ	$0xffff, AX	// convert EQ to NE
+-	JNE	diff16	// branch if at least one byte is not equal
+-	ADDQ	$16, SI
+-	ADDQ	$16, DI
+-	SUBQ	$16, R8
+-	JMP	loop
+-	
+-	// AX = bit mask of differences
+-diff16:
+-	BSFQ	AX, BX	// index of first byte that differs
+-	XORQ	AX, AX
+-	ADDQ	BX, SI
+-	MOVB	(SI), CX
+-	ADDQ	BX, DI
+-	CMPB	CX, (DI)
+-	SETHI	AX
+-	LEAQ	-1(AX*2), AX	// convert 1/0 to +1/-1
+-	RET
+-
+-	// 0 through 16 bytes left, alen>=8, blen>=8
+-_0through16:
+-	CMPQ	R8, $8
+-	JBE	_0through8
+-	MOVQ	(SI), AX
+-	MOVQ	(DI), CX
+-	CMPQ	AX, CX
+-	JNE	diff8
+-_0through8:
+-	ADDQ	R8, SI
+-	ADDQ	R8, DI
+-	MOVQ	-8(SI), AX
+-	MOVQ	-8(DI), CX
+-	CMPQ	AX, CX
+-	JEQ	allsame
+-
+-	// AX and CX contain parts of a and b that differ.
+-diff8:
+-	BSWAPQ	AX	// reverse order of bytes
+-	BSWAPQ	CX
+-	XORQ	AX, CX
+-	BSRQ	CX, CX	// index of highest bit difference
+-	SHRQ	CX, AX	// move a's bit to bottom
+-	ANDQ	$1, AX	// mask bit
+-	LEAQ	-1(AX*2), AX // 1/0 => +1/-1
+-	RET
+-
+-	// 0-7 bytes in common
+-small:
+-	LEAQ	(R8*8), CX	// bytes left -> bits left
+-	NEGQ	CX		//  - bits lift (== 64 - bits left mod 64)
+-	JEQ	allsame
+-
+-	// load bytes of a into high bytes of AX
+-	CMPB	SI, $0xf8
+-	JA	si_high
+-	MOVQ	(SI), SI
+-	JMP	si_finish
+-si_high:
+-	ADDQ	R8, SI
+-	MOVQ	-8(SI), SI
+-	SHRQ	CX, SI
+-si_finish:
+-	SHLQ	CX, SI
+-
+-	// load bytes of b in to high bytes of BX
+-	CMPB	DI, $0xf8
+-	JA	di_high
+-	MOVQ	(DI), DI
+-	JMP	di_finish
+-di_high:
+-	ADDQ	R8, DI
+-	MOVQ	-8(DI), DI
+-	SHRQ	CX, DI
+-di_finish:
+-	SHLQ	CX, DI
+-
+-	BSWAPQ	SI	// reverse order of bytes
+-	BSWAPQ	DI
+-	XORQ	SI, DI	// find bit differences
+-	JEQ	allsame
+-	BSRQ	DI, CX	// index of highest bit difference
+-	SHRQ	CX, SI	// move a's bit to bottom
+-	ANDQ	$1, SI	// mask bit
+-	LEAQ	-1(SI*2), AX // 1/0 => +1/-1
+-	RET
+-
+-allsame:
+-	XORQ	AX, AX
+-	XORQ	CX, CX
+-	CMPQ	BX, DX
+-	SETGT	AX	// 1 if alen > blen
+-	SETEQ	CX	// 1 if alen == blen
+-	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVL	$0, AX
+ 	RET
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 423e1b9abb..d54dc62ba4 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -801,59 +801,6 @@ TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-20
+-	MOVW	s1_base+0(FP), R2
+-	MOVW	s1_len+4(FP), R0
+-	MOVW	s2_base+8(FP), R3
+-	MOVW	s2_len+12(FP), R1
+-	ADD	$20, R13, R7
+-	B	runtime·cmpbody(SB)
+-
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-28
+-	MOVW	s1+0(FP), R2
+-	MOVW	s1+4(FP), R0
+-	MOVW	s2+12(FP), R3
+-	MOVW	s2+16(FP), R1
+-	ADD	$28, R13, R7
+-	B	runtime·cmpbody(SB)
+-
+-// On entry:
+-// R0 is the length of s1
+-// R1 is the length of s2
+-// R2 points to the start of s1
+-// R3 points to the start of s2
+-// R7 points to return value (-1/0/1 will be written here)
+-//
+-// On exit:
+-// R4, R5, and R6 are clobbered
+-TEXT runtime·cmpbody(SB),NOSPLIT|NOFRAME,$0-0
+-	CMP	R2, R3
+-	BEQ	samebytes
+-	CMP 	R0, R1
+-	MOVW 	R0, R6
+-	MOVW.LT	R1, R6	// R6 is min(R0, R1)
+-
+-	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
+-loop:
+-	CMP	R2, R6
+-	BEQ	samebytes // all compared bytes were the same; compare lengths
+-	MOVBU.P	1(R2), R4
+-	MOVBU.P	1(R3), R5
+-	CMP	R4, R5
+-	BEQ	loop
+-	// bytes differed
+-	MOVW.LT	$1, R0
+-	MOVW.GT	$-1, R0
+-	MOVW	R0, (R7)
+-	RET
+-samebytes:
+-	CMP	R0, R1
+-	MOVW.LT	$1, R0
+-	MOVW.GT	$-1, R0
+-	MOVW.EQ	$0, R0
+-	MOVW	R0, (R7)
+-	RET
+-
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 00999d4664..ef32beecb5 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -712,58 +712,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	(ZR)
+ 	UNDEF
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+-	MOVD	s1_base+0(FP), R2
+-	MOVD	s1_len+8(FP), R0
+-	MOVD	s2_base+16(FP), R3
+-	MOVD	s2_len+24(FP), R1
+-	ADD	$40, RSP, R7
+-	B	runtime·cmpbody<>(SB)
+-
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	MOVD	s1+0(FP), R2
+-	MOVD	s1+8(FP), R0
+-	MOVD	s2+24(FP), R3
+-	MOVD	s2+32(FP), R1
+-	ADD	$56, RSP, R7
+-	B	runtime·cmpbody<>(SB)
+-
+-// On entry:
+-// R0 is the length of s1
+-// R1 is the length of s2
+-// R2 points to the start of s1
+-// R3 points to the start of s2
+-// R7 points to return value (-1/0/1 will be written here)
+-//
+-// On exit:
+-// R4, R5, and R6 are clobbered
+-TEXT runtime·cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
+-	CMP	R2, R3
+-	BEQ	samebytes // same starting pointers; compare lengths
+-	CMP	R0, R1
+-	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
+-
+-	ADD	R2, R6	// R2 is current byte in s1, R6 is last byte in s1 to compare
+-loop:
+-	CMP	R2, R6
+-	BEQ	samebytes // all compared bytes were the same; compare lengths
+-	MOVBU.P	1(R2), R4
+-	MOVBU.P	1(R3), R5
+-	CMP	R4, R5
+-	BEQ	loop
+-	// bytes differed
+-	MOVD	$1, R4
+-	CSNEG	LT, R4, R4, R4
+-	MOVD	R4, (R7)
+-	RET
+-samebytes:
+-	MOVD	$1, R4
+-	CMP	R0, R1
+-	CSNEG	LT, R4, R4, R4
+-	CSEL	EQ, ZR, R4, R4
+-	MOVD	R4, (R7)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R0
+ 	RET
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index b3e2a24618..0eb9bb1e6c 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -633,69 +633,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0
+ // Not implemented.
+ TEXT runtime·aeshashstr(SB),NOSPLIT,$0
+ 	UNDEF
+-TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+-	MOVW	s1_base+0(FP), R3
+-	MOVW	s1_len+4(FP), R1
+-	MOVW	s2_base+8(FP), R4
+-	MOVW	s2_len+12(FP), R2
+-	BEQ	R3, R4, samebytes
+-	SGTU	R1, R2, R7
+-	MOVW	R1, R8
+-	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
+-
+-	ADDU	R3, R8	// R3 is current byte in s1, R8 is last byte in s1 to compare
+-loop:
+-	BEQ	R3, R8, samebytes	// all compared bytes were the same; compare lengths
+-
+-	MOVBU	(R3), R6
+-	ADDU	$1, R3
+-	MOVBU	(R4), R7
+-	ADDU	$1, R4
+-	BEQ	R6, R7 , loop
+-	// bytes differed
+-	SGTU	R6, R7, R8
+-	MOVW	$-1, R6
+-	CMOVZ	R8, R6, R8
+-	JMP	cmp_ret
+-samebytes:
+-	SGTU	R1, R2, R6
+-	SGTU	R2, R1, R7
+-	SUBU	R7, R6, R8
+-cmp_ret:
+-	MOVW	R8, ret+16(FP)
+-	RET
+-
+-TEXT bytes·Compare(SB),NOSPLIT,$0-28
+-	MOVW	s1_base+0(FP), R3
+-	MOVW	s2_base+12(FP), R4
+-	MOVW	s1_len+4(FP), R1
+-	MOVW	s2_len+16(FP), R2
+-	BEQ	R3, R4, samebytes
+-	SGTU	R1, R2, R7
+-	MOVW	R1, R8
+-	CMOVN	R7, R2, R8	// R8 is min(R1, R2)
+-
+-	ADDU	R3, R8	// R3 is current byte in s1, R8 is last byte in s1 to compare
+-loop:
+-	BEQ	R3, R8, samebytes
+-
+-	MOVBU	(R3), R6
+-	ADDU	$1, R3
+-	MOVBU	(R4), R7
+-	ADDU	$1, R4
+-	BEQ	R6, R7 , loop
+-
+-	SGTU	R6, R7, R8
+-	MOVW	$-1, R6
+-	CMOVZ	R8, R6, R8
+-	JMP	cmp_ret
+-samebytes:
+-	SGTU	R1, R2, R6
+-	SGTU	R2, R1, R7
+-	SUBU	R7, R6, R8
+-cmp_ret:
+-	MOVW	R8, ret+24(FP)
+-	RET
+ 
+ TEXT runtime·return0(SB),NOSPLIT,$0
+ 	MOVW	$0, R1
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 1aff8218b9..fef603dc30 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -738,276 +738,6 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
+ TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVW	(R0), R1
+ 
+-// Do an efficient memcmp for ppc64le
+-// R3 = s1 len
+-// R4 = s2 len
+-// R5 = s1 addr
+-// R6 = s2 addr
+-// R7 = addr of return value
+-TEXT cmpbodyLE<>(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD	R3,R8		// set up length
+-	CMP	R3,R4,CR2	// unequal?
+-	BC	12,8,setuplen	// BLT CR2
+-	MOVD	R4,R8		// use R4 for comparison len
+-setuplen:
+-	MOVD	R8,CTR		// set up loop counter
+-	CMP	R8,$8		// only optimize >=8
+-	BLT	simplecheck
+-	DCBT	(R5)		// cache hint
+-	DCBT	(R6)
+-	CMP	R8,$32		// optimize >= 32
+-	MOVD	R8,R9
+-	BLT	setup8a		// 8 byte moves only
+-setup32a:
+-	SRADCC	$5,R8,R9	// number of 32 byte chunks
+-	MOVD	R9,CTR
+-
+-        // Special processing for 32 bytes or longer.
+-        // Loading this way is faster and correct as long as the
+-	// doublewords being compared are equal. Once they
+-	// are found unequal, reload them in proper byte order
+-	// to determine greater or less than.
+-loop32a:
+-	MOVD	0(R5),R9	// doublewords to compare
+-	MOVD	0(R6),R10	// get 4 doublewords
+-	MOVD	8(R5),R14
+-	MOVD	8(R6),R15
+-	CMPU	R9,R10		// bytes equal?
+-	MOVD	$0,R16		// set up for cmpne
+-	BNE	cmpne		// further compare for LT or GT
+-	MOVD	16(R5),R9	// get next pair of doublewords
+-	MOVD	16(R6),R10
+-	CMPU	R14,R15		// bytes match?
+-	MOVD	$8,R16		// set up for cmpne
+-	BNE	cmpne		// further compare for LT or GT
+-	MOVD	24(R5),R14	// get next pair of doublewords
+-	MOVD    24(R6),R15
+-	CMPU	R9,R10		// bytes match?
+-	MOVD	$16,R16		// set up for cmpne
+-	BNE	cmpne		// further compare for LT or GT
+-	MOVD	$-8,R16		// for cmpne, R5,R6 already inc by 32
+-	ADD	$32,R5		// bump up to next 32
+-	ADD	$32,R6
+-	CMPU    R14,R15		// bytes match?
+-	BC	8,2,loop32a	// br ctr and cr
+-	BNE	cmpne
+-	ANDCC	$24,R8,R9	// Any 8 byte chunks?
+-	BEQ	leftover	// and result is 0
+-setup8a:
+-	SRADCC	$3,R9,R9	// get the 8 byte count
+-	BEQ	leftover	// shifted value is 0
+-	MOVD	R9,CTR		// loop count for doublewords
+-loop8:
+-	MOVDBR	(R5+R0),R9	// doublewords to compare
+-	MOVDBR	(R6+R0),R10	// LE compare order
+-	ADD	$8,R5
+-	ADD	$8,R6
+-	CMPU	R9,R10		// match?
+-	BC	8,2,loop8	// bt ctr <> 0 && cr
+-	BGT	greater
+-	BLT	less
+-leftover:
+-	ANDCC	$7,R8,R9	// check for leftover bytes
+-	MOVD	R9,CTR		// save the ctr
+-	BNE	simple		// leftover bytes
+-	BC	12,10,equal	// test CR2 for length comparison
+-	BC	12,8,less
+-	BR	greater
+-simplecheck:
+-	CMP	R8,$0		// remaining compare length 0
+-	BNE	simple		// do simple compare
+-	BC	12,10,equal	// test CR2 for length comparison
+-	BC	12,8,less	// 1st len < 2nd len, result less
+-	BR	greater		// 1st len > 2nd len must be greater
+-simple:
+-	MOVBZ	0(R5), R9	// get byte from 1st operand
+-	ADD	$1,R5
+-	MOVBZ	0(R6), R10	// get byte from 2nd operand
+-	ADD	$1,R6
+-	CMPU	R9, R10
+-	BC	8,2,simple	// bc ctr <> 0 && cr
+-	BGT	greater		// 1st > 2nd
+-	BLT	less		// 1st < 2nd
+-	BC	12,10,equal	// test CR2 for length comparison
+-	BC	12,9,greater	// 2nd len > 1st len
+-	BR	less		// must be less
+-cmpne:				// only here is not equal
+-	MOVDBR	(R5+R16),R8	// reload in reverse order
+-	MOVDBR	(R6+R16),R9
+-	CMPU	R8,R9		// compare correct endianness
+-	BGT	greater		// here only if NE
+-less:
+-	MOVD	$-1,R3
+-	MOVD	R3,(R7)		// return value if A < B
+-	RET
+-equal:
+-	MOVD	$0,(R7)		// return value if A == B
+-	RET
+-greater:
+-	MOVD	$1,R3
+-	MOVD	R3,(R7)		// return value if A > B
+-	RET
+-
+-// Do an efficient memcmp for ppc64 (BE)
+-// R3 = s1 len
+-// R4 = s2 len
+-// R5 = s1 addr
+-// R6 = s2 addr
+-// R7 = addr of return value
+-TEXT cmpbodyBE<>(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVD	R3,R8		// set up length
+-	CMP	R3,R4,CR2	// unequal?
+-	BC	12,8,setuplen	// BLT CR2
+-	MOVD	R4,R8		// use R4 for comparison len
+-setuplen:
+-	MOVD	R8,CTR		// set up loop counter
+-	CMP	R8,$8		// only optimize >=8
+-	BLT	simplecheck
+-	DCBT	(R5)		// cache hint
+-	DCBT	(R6)
+-	CMP	R8,$32		// optimize >= 32
+-	MOVD	R8,R9
+-	BLT	setup8a		// 8 byte moves only
+-
+-setup32a:
+-	SRADCC	$5,R8,R9	// number of 32 byte chunks
+-	MOVD	R9,CTR
+-loop32a:
+-	MOVD	0(R5),R9	// doublewords to compare
+-	MOVD	0(R6),R10	// get 4 doublewords
+-	MOVD	8(R5),R14
+-	MOVD	8(R6),R15
+-	CMPU	R9,R10		// bytes equal?
+-	BLT	less		// found to be less
+-	BGT	greater		// found to be greater
+-	MOVD	16(R5),R9	// get next pair of doublewords
+-	MOVD	16(R6),R10
+-	CMPU	R14,R15		// bytes match?
+-	BLT	less		// found less
+-	BGT	greater		// found greater
+-	MOVD	24(R5),R14	// get next pair of doublewords
+-	MOVD	24(R6),R15
+-	CMPU	R9,R10		// bytes match?
+-	BLT	less		// found to be less
+-	BGT	greater		// found to be greater
+-	ADD	$32,R5		// bump up to next 32
+-	ADD	$32,R6
+-	CMPU	R14,R15		// bytes match?
+-	BC	8,2,loop32a	// br ctr and cr
+-	BLT	less		// with BE, byte ordering is
+-	BGT	greater		// good for compare
+-	ANDCC	$24,R8,R9	// Any 8 byte chunks?
+-	BEQ	leftover	// and result is 0
+-setup8a:
+-	SRADCC	$3,R9,R9	// get the 8 byte count
+-	BEQ	leftover	// shifted value is 0
+-	MOVD	R9,CTR		// loop count for doublewords
+-loop8:
+-	MOVD	(R5),R9
+-	MOVD	(R6),R10
+-	ADD	$8,R5
+-	ADD	$8,R6
+-	CMPU	R9,R10		// match?
+-	BC	8,2,loop8	// bt ctr <> 0 && cr
+-	BGT	greater
+-	BLT	less
+-leftover:
+-	ANDCC	$7,R8,R9	// check for leftover bytes
+-	MOVD	R9,CTR		// save the ctr
+-	BNE	simple		// leftover bytes
+-	BC	12,10,equal	// test CR2 for length comparison
+-	BC	12,8,less
+-	BR	greater
+-simplecheck:
+-	CMP	R8,$0		// remaining compare length 0
+-	BNE	simple		// do simple compare
+-	BC	12,10,equal	// test CR2 for length comparison
+-	BC 	12,8,less	// 1st len < 2nd len, result less
+-	BR	greater		// same len, must be equal
+-simple:
+-	MOVBZ	0(R5),R9	// get byte from 1st operand
+-	ADD	$1,R5
+-	MOVBZ	0(R6),R10	// get byte from 2nd operand
+-	ADD	$1,R6
+-	CMPU	R9,R10
+-	BC	8,2,simple	// bc ctr <> 0 && cr
+-	BGT	greater		// 1st > 2nd
+-	BLT	less		// 1st < 2nd
+-	BC	12,10,equal	// test CR2 for length comparison
+-	BC	12,9,greater	// 2nd len > 1st len
+-less:
+-	MOVD	$-1,R3
+-	MOVD    R3,(R7)		// return value if A < B
+-	RET
+-equal:
+-	MOVD    $0,(R7)		// return value if A == B
+-	RET
+-greater:
+-	MOVD	$1,R3
+-	MOVD	R3,(R7)		// return value if A > B
+-	RET
+-
+-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+-	MOVD	s1_base+0(FP), R5
+-	MOVD	s2_base+16(FP), R6
+-	MOVD	s1_len+8(FP), R3
+-	CMP	R5,R6,CR7
+-	MOVD	s2_len+24(FP), R4
+-	MOVD	$ret+32(FP), R7
+-	CMP	R3,R4,CR6
+-	BEQ	CR7,equal
+-
+-notequal:
+-#ifdef	GOARCH_ppc64le
+-	BR	cmpbodyLE<>(SB)
+-#else
+-	BR      cmpbodyBE<>(SB)
+-#endif
+-
+-equal:
+-	BEQ	CR6,done
+-	MOVD	$1, R8
+-	BGT	CR6,greater
+-	NEG	R8
+-
+-greater:
+-	MOVD	R8, (R7)
+-	RET
+-
+-done:
+-	MOVD	$0, (R7)
+-	RET
+-
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	MOVD	s1+0(FP), R5
+-	MOVD	s2+24(FP), R6
+-	MOVD	s1+8(FP), R3
+-	CMP	R5,R6,CR7
+-	MOVD	s2+32(FP), R4
+-	MOVD	$ret+48(FP), R7
+-	CMP	R3,R4,CR6
+-	BEQ	CR7,equal
+-
+-#ifdef	GOARCH_ppc64le
+-	BR	cmpbodyLE<>(SB)
+-#else
+-	BR      cmpbodyBE<>(SB)
+-#endif
+-
+-equal:
+-	BEQ	CR6,done
+-	MOVD	$1, R8
+-	BGT	CR6,greater
+-	NEG	R8
+-
+-greater:
+-	MOVD	R8, (R7)
+-	RET
+-
+-done:
+-	MOVD	$0, (R7)
+-	RET
+-
+ TEXT runtime·return0(SB), NOSPLIT, $0
+ 	MOVW	$0, R3
+ 	RET
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index a386de726c..ed4cd6b3d3 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -796,67 +796,6 @@ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+         // compile barrier.
+ 	RET
+ 
+-TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
+-	MOVD	s1_base+0(FP), R3
+-	MOVD	s1_len+8(FP), R4
+-	MOVD	s2_base+16(FP), R5
+-	MOVD	s2_len+24(FP), R6
+-	LA	ret+32(FP), R7
+-	BR	runtime·cmpbody(SB)
+-
+-TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
+-	MOVD	s1+0(FP), R3
+-	MOVD	s1+8(FP), R4
+-	MOVD	s2+24(FP), R5
+-	MOVD	s2+32(FP), R6
+-	LA	res+48(FP), R7
+-	BR	runtime·cmpbody(SB)
+-
+-// input:
+-//   R3 = a
+-//   R4 = alen
+-//   R5 = b
+-//   R6 = blen
+-//   R7 = address of output word (stores -1/0/1 here)
+-TEXT runtime·cmpbody(SB),NOSPLIT|NOFRAME,$0-0
+-	CMPBEQ	R3, R5, cmplengths
+-	MOVD	R4, R8
+-	CMPBLE	R4, R6, amin
+-	MOVD	R6, R8
+-amin:
+-	CMPBEQ	R8, $0, cmplengths
+-	CMP	R8, $256
+-	BLE	tail
+-loop:
+-	CLC	$256, 0(R3), 0(R5)
+-	BGT	gt
+-	BLT	lt
+-	SUB	$256, R8
+-	CMP	R8, $256
+-	BGT	loop
+-tail:
+-	SUB	$1, R8
+-	EXRL	$runtime·cmpbodyclc(SB), R8
+-	BGT	gt
+-	BLT	lt
+-cmplengths:
+-	CMP	R4, R6
+-	BEQ	eq
+-	BLT	lt
+-gt:
+-	MOVD	$1, 0(R7)
+-	RET
+-lt:
+-	MOVD	$-1, 0(R7)
+-	RET
+-eq:
+-	MOVD	$0, 0(R7)
+-	RET
+-
+-TEXT runtime·cmpbodyclc(SB),NOSPLIT|NOFRAME,$0-0
+-	CLC	$1, 0(R3), 0(R5)
+-	RET
+-
+ // func supportsVX() bool
+ TEXT strings·supportsVX(SB),NOSPLIT,$0-1
+ 	MOVBZ	runtime·cpu+facilities_hasVX(SB), R0
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+deleted file mode 100644
+index 586836c789..0000000000
+--- a/src/runtime/noasm.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x,s390x}.s
+-// These routines have corresponding stubs in stubs_asm.go.
+-
+-// +build mips64 mips64le
+-
+-package runtime
+-
+-import _ "unsafe" // for go:linkname
+-
+-func cmpstring(s1, s2 string) int {
+-	l := len(s1)
+-	if len(s2) < l {
+-		l = len(s2)
+-	}
+-	for i := 0; i < l; i++ {
+-		c1, c2 := s1[i], s2[i]
+-		if c1 < c2 {
+-			return -1
+-		}
+-		if c1 > c2 {
+-			return +1
+-		}
+-	}
+-	if len(s1) < len(s2) {
+-		return -1
+-	}
+-	if len(s1) > len(s2) {
+-		return +1
+-	}
+-	return 0
+-}
+-
+-//go:linkname bytes_Compare bytes.Compare
+-func bytes_Compare(s1, s2 []byte) int {
+-	l := len(s1)
+-	if len(s2) < l {
+-		l = len(s2)
+-	}
+-	if l == 0 || &s1[0] == &s2[0] {
+-		goto samebytes
+-	}
+-	for i := 0; i < l; i++ {
+-		c1, c2 := s1[i], s2[i]
+-		if c1 < c2 {
+-			return -1
+-		}
+-		if c1 > c2 {
+-			return +1
+-		}
+-	}
+-samebytes:
+-	if len(s1) < len(s2) {
+-		return -1
+-	}
+-	if len(s1) > len(s2) {
+-		return +1
+-	}
+-	return 0
+-}
+diff --git a/src/runtime/stubs_asm.go b/src/runtime/stubs_asm.go
+deleted file mode 100644
+index fd2eed95d6..0000000000
+--- a/src/runtime/stubs_asm.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !mips64,!mips64le
+-
+-// Declarations for routines that are implemented in noasm.go.
+-
+-package runtime
+-
+-func cmpstring(s1, s2 string) int

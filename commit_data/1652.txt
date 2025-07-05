@@ -8,8 +8,117 @@ Date:   Mon Feb 9 12:50:54 2009 -0800
     DELTA=71  (71 added, 0 deleted, 0 changed)
     OCL=24687
     CL=24694
-
+---
  src/lib/os/os_types.go                | 34 ++++++++++++++++++++++++++++++++++
  src/lib/syscall/types_amd64_darwin.go | 19 +++++++++++++++++++
  src/lib/syscall/types_amd64_linux.go  | 18 ++++++++++++++++++
  3 files changed, 71 insertions(+)
+
+diff --git a/src/lib/os/os_types.go b/src/lib/os/os_types.go
+index 2e8ce3b9bf..5157dca8e0 100644
+--- a/src/lib/os/os_types.go
++++ b/src/lib/os/os_types.go
+@@ -4,6 +4,8 @@
+ 
+ package os
+ 
++import "syscall"
++
+ // An operating-system independent representation of Unix data structures.
+ // OS-specific routines in this directory convert the OS-local versions to these.
+ 
+@@ -24,3 +26,35 @@ type Dir struct {
+ 	Ctime_ns	uint64;	// nanoseconds since 1970
+ 	Name	string;
+ }
++
++func (dir *Dir) IsFifo() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFIFO
++}
++
++func (dir *Dir) IsChar() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFCHR
++}
++
++func (dir *Dir) IsDirectory() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFDIR
++}
++
++func (dir *Dir) IsBlock() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFBLK
++}
++
++func (dir *Dir) IsRegular() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFREG
++}
++
++func (dir *Dir) IsSymlink() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFLNK
++}
++
++func (dir *Dir) IsSocket() bool {
++	return (dir.Mode & syscall.S_IFMT) == syscall.S_IFSOCK
++}
++
++func (dir *Dir) Permission() int {
++	return int(dir.Mode & 0777)
++}
+diff --git a/src/lib/syscall/types_amd64_darwin.go b/src/lib/syscall/types_amd64_darwin.go
+index dedf63f363..101f223b85 100644
+--- a/src/lib/syscall/types_amd64_darwin.go
++++ b/src/lib/syscall/types_amd64_darwin.go
+@@ -69,6 +69,25 @@ const (
+ 	NAME_MAX = 255;
+ )
+ 
++// Dir.Mode bits
++const (
++	S_IFMT = 0170000;	      /* type of file */
++		S_IFIFO  = 0010000;  /* named pipe (fifo) */
++		S_IFCHR  = 0020000;  /* character special */
++		S_IFDIR  = 0040000;  /* directory */
++		S_IFBLK  = 0060000;  /* block special */
++		S_IFREG  = 0100000;  /* regular */
++		S_IFLNK  = 0120000;  /* symbolic link */
++		S_IFSOCK = 0140000;  /* socket */
++		S_IFWHT  = 0160000;  /* whiteout */
++	S_ISUID = 0004000;  /* set user id on execution */
++	S_ISGID = 0002000;  /* set group id on execution */
++	S_ISVTX = 0001000;  /* save swapped text even after use */
++	S_IRUSR = 0000400;  /* read permission, owner */
++	S_IWUSR = 0000200;  /* write permission, owner */
++	S_IXUSR = 0000100;  /* execute/search permission, owner */
++)
++
+ type Stat_t struct {
+ 	Dev	uint32;
+ 	Mode	uint16;
+diff --git a/src/lib/syscall/types_amd64_linux.go b/src/lib/syscall/types_amd64_linux.go
+index a83c8ef835..ebfe21c866 100644
+--- a/src/lib/syscall/types_amd64_linux.go
++++ b/src/lib/syscall/types_amd64_linux.go
+@@ -69,6 +69,24 @@ const (
+ 	NAME_MAX = 255;
+ )
+ 
++// Dir.Mode bits
++const (
++	S_IFMT = 0170000;	      /* type of file */
++		S_IFIFO  = 0010000;  /* named pipe (fifo) */
++		S_IFCHR  = 0020000;  /* character special */
++		S_IFDIR  = 0040000;  /* directory */
++		S_IFBLK  = 0060000;  /* block special */
++		S_IFREG  = 0100000;  /* regular */
++		S_IFLNK  = 0120000;  /* symbolic link */
++		S_IFSOCK = 0140000;  /* socket */
++	S_ISUID = 0004000;  /* set user id on execution */
++	S_ISGID = 0002000;  /* set group id on execution */
++	S_ISVTX = 0001000;  /* save swapped text even after use */
++	S_IRUSR = 0000400;  /* read permission, owner */
++	S_IWUSR = 0000200;  /* write permission, owner */
++	S_IXUSR = 0000100;  /* execute/search permission, owner */
++)
++
+ type Stat_t struct {
+ 	Dev	uint64;
+ 	Ino	uint64;

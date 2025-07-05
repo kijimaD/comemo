@@ -12,6 +12,30 @@ Date:   Sun Mar 19 22:31:02 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/plist.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 4ff71632a0..9baf1775e5 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -102,8 +102,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 			continue
+ 		}
+ 		found := false
+-		var p *Prog
+-		for p = s.Text; p != nil; p = p.Link {
++		for p := s.Text; p != nil; p = p.Link {
+ 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
+ 				found = true
+ 				break
+@@ -111,7 +110,7 @@ func flushplist(ctxt *Link, plist *Plist, freeProgs bool) {
+ 		}
+ 
+ 		if !found {
+-			p = Appendp(ctxt, s.Text)
++			p := Appendp(ctxt, s.Text)
+ 			p.As = AFUNCDATA
+ 			p.From.Type = TYPE_CONST
+ 			p.From.Offset = FUNCDATA_ArgsPointerMaps

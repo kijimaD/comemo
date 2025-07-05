@@ -7,6 +7,19 @@ Date:   Mon Jun 27 14:39:38 2011 -0400
     R=rsc, n13m3y3r, gustavo
     CC=golang-dev
     https://golang.org/cl/4661050
-
+---
  src/cmd/ld/symtab.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index c66eca1485..e6dafab53a 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -372,5 +372,7 @@ symtab(void)
+ 		}
+ 	}
+ 
++	if(debug['s'])
++		return;
+ 	genasmsym(putsymb);
+ }

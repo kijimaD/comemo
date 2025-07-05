@@ -47,7 +47,7 @@ Date:   Tue Aug 13 19:11:58 2024 +0800
     Run-TryBot: Andy Pan <panjf2000@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/internal/poll/sendfile_bsd.go     |  5 +++-
  src/internal/poll/sendfile_linux.go   |  5 +++-
  src/internal/poll/sendfile_solaris.go |  5 +++-
@@ -56,3 +56,222 @@ Date:   Tue Aug 13 19:11:58 2024 +0800
  src/os/readfrom_solaris_test.go       | 12 ++++----
  src/os/readfrom_unix_test.go          | 16 +++++-----
  7 files changed, 89 insertions(+), 21 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 669df94cc1..f82af4407d 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -10,7 +10,10 @@ import "syscall"
+ 
+ // maxSendfileSize is the largest chunk size we ask the kernel to copy
+ // at a time.
+-const maxSendfileSize int = 4 << 20
++// sendfile(2)s on *BSD and Darwin don't have a limit on the size of
++// data to copy at a time, we pick the typical SSIZE_MAX on 32-bit systems,
++// which ought to be sufficient for all practical purposes.
++const maxSendfileSize int = 1<<31 - 1
+ 
+ // SendFile wraps the sendfile system call.
+ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, handled bool) {
+diff --git a/src/internal/poll/sendfile_linux.go b/src/internal/poll/sendfile_linux.go
+index d1c4d5c0d3..1b618a72a2 100644
+--- a/src/internal/poll/sendfile_linux.go
++++ b/src/internal/poll/sendfile_linux.go
+@@ -8,7 +8,10 @@ import "syscall"
+ 
+ // maxSendfileSize is the largest chunk size we ask the kernel to copy
+ // at a time.
+-const maxSendfileSize int = 4 << 20
++// sendfile(2) on Linux will transfer at most 0x7ffff000 (2,147,479,552)
++// bytes, which is true on both 32-bit and 64-bit systems.
++// See https://man7.org/linux/man-pages/man2/sendfile.2.html#NOTES for details.
++const maxSendfileSize int = 0x7ffff000
+ 
+ // SendFile wraps the sendfile system call.
+ func SendFile(dstFD *FD, src int, remain int64) (written int64, err error, handled bool) {
+diff --git a/src/internal/poll/sendfile_solaris.go b/src/internal/poll/sendfile_solaris.go
+index a5bf0ab142..e6f2d908a1 100644
+--- a/src/internal/poll/sendfile_solaris.go
++++ b/src/internal/poll/sendfile_solaris.go
+@@ -15,7 +15,10 @@ import "syscall"
+ 
+ // maxSendfileSize is the largest chunk size we ask the kernel to copy
+ // at a time.
+-const maxSendfileSize int = 4 << 20
++// sendfile(2)s on SunOS derivatives don't have a limit on the size of
++// data to copy at a time, we pick the typical SSIZE_MAX on 32-bit systems,
++// which ought to be sufficient for all practical purposes.
++const maxSendfileSize int = 1<<31 - 1
+ 
+ // SendFile wraps the sendfile system call.
+ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error, handled bool) {
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index c719d6a099..2dcc7f0cf8 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -345,18 +345,20 @@ func hookCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
+ 	return
+ }
+ 
+-func hookSendFileOverCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
+-	name = "hookSendFileOverCopyFileRange"
++func hookSendFileOverCopyFileRange(t *testing.T) (*copyFileHook, string) {
++	return hookSendFileTB(t), "hookSendFileOverCopyFileRange"
++}
+ 
++func hookSendFileTB(tb testing.TB) *copyFileHook {
+ 	// Disable poll.CopyFileRange to force the fallback to poll.SendFile.
+ 	originalCopyFileRange := *PollCopyFileRangeP
+ 	*PollCopyFileRangeP = func(dst, src *poll.FD, remain int64) (written int64, handled bool, err error) {
+ 		return 0, false, nil
+ 	}
+ 
+-	hook = new(copyFileHook)
++	hook := new(copyFileHook)
+ 	orig := poll.TestHookDidSendFile
+-	t.Cleanup(func() {
++	tb.Cleanup(func() {
+ 		*PollCopyFileRangeP = originalCopyFileRange
+ 		poll.TestHookDidSendFile = orig
+ 	})
+@@ -368,7 +370,7 @@ func hookSendFileOverCopyFileRange(t *testing.T) (hook *copyFileHook, name strin
+ 		hook.err = err
+ 		hook.handled = handled
+ 	}
+-	return
++	return hook
+ }
+ 
+ func hookSpliceFile(t *testing.T) *spliceFileHook {
+diff --git a/src/os/readfrom_sendfile_test.go b/src/os/readfrom_sendfile_test.go
+new file mode 100644
+index 0000000000..dbe1603bd1
+--- /dev/null
++++ b/src/os/readfrom_sendfile_test.go
+@@ -0,0 +1,55 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux || solaris
++
++package os_test
++
++import (
++	"io"
++	. "os"
++	"testing"
++)
++
++func BenchmarkSendFile(b *testing.B) {
++	hook := hookSendFileTB(b)
++
++	// 1 GiB file size for copy.
++	const fileSize = 1 << 30
++
++	src, _ := createTempFile(b, "benchmark-sendfile-src", int64(fileSize))
++	dst, err := CreateTemp(b.TempDir(), "benchmark-sendfile-dst")
++	if err != nil {
++		b.Fatalf("failed to create temporary file of destination: %v", err)
++	}
++	b.Cleanup(func() {
++		dst.Close()
++	})
++
++	b.ReportAllocs()
++	b.SetBytes(int64(fileSize))
++	b.ResetTimer()
++
++	for i := 0; i <= b.N; i++ {
++		sent, err := io.Copy(dst, src)
++
++		if err != nil {
++			b.Fatalf("failed to copy data: %v", err)
++		}
++		if !hook.called {
++			b.Fatalf("should have called the sendfile(2)")
++		}
++		if sent != int64(fileSize) {
++			b.Fatalf("sent %d bytes, want %d", sent, fileSize)
++		}
++
++		// Rewind the files for the next iteration.
++		if _, err := src.Seek(0, io.SeekStart); err != nil {
++			b.Fatalf("failed to rewind the source file: %v", err)
++		}
++		if _, err := dst.Seek(0, io.SeekStart); err != nil {
++			b.Fatalf("failed to rewind the destination file: %v", err)
++		}
++	}
++}
+diff --git a/src/os/readfrom_solaris_test.go b/src/os/readfrom_solaris_test.go
+index 2019a3c030..b11fbef0ff 100644
+--- a/src/os/readfrom_solaris_test.go
++++ b/src/os/readfrom_solaris_test.go
+@@ -38,12 +38,14 @@ func newSendfileTest(t *testing.T, size int64) (dst, src *File, data []byte, hoo
+ 	return
+ }
+ 
+-func hookSendFile(t *testing.T) (hook *copyFileHook, name string) {
+-	name = "hookSendFile"
++func hookSendFile(t *testing.T) (*copyFileHook, string) {
++	return hookSendFileTB(t), "hookSendFile"
++}
+ 
+-	hook = new(copyFileHook)
++func hookSendFileTB(tb testing.TB) *copyFileHook {
++	hook := new(copyFileHook)
+ 	orig := poll.TestHookDidSendFile
+-	t.Cleanup(func() {
++	tb.Cleanup(func() {
+ 		poll.TestHookDidSendFile = orig
+ 	})
+ 	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+@@ -54,5 +56,5 @@ func hookSendFile(t *testing.T) (hook *copyFileHook, name string) {
+ 		hook.err = err
+ 		hook.handled = handled
+ 	}
+-	return
++	return hook
+ }
+diff --git a/src/os/readfrom_unix_test.go b/src/os/readfrom_unix_test.go
+index 98a4e6af81..35e3ab43b8 100644
+--- a/src/os/readfrom_unix_test.go
++++ b/src/os/readfrom_unix_test.go
+@@ -428,28 +428,28 @@ type copyFileHook struct {
+ 	err     error
+ }
+ 
+-func createTempFile(t *testing.T, name string, size int64) (*File, []byte) {
+-	f, err := CreateTemp(t.TempDir(), name)
++func createTempFile(tb testing.TB, name string, size int64) (*File, []byte) {
++	f, err := CreateTemp(tb.TempDir(), name)
+ 	if err != nil {
+-		t.Fatalf("failed to create temporary file: %v", err)
++		tb.Fatalf("failed to create temporary file: %v", err)
+ 	}
+-	t.Cleanup(func() {
++	tb.Cleanup(func() {
+ 		f.Close()
+ 	})
+ 
+ 	randSeed := time.Now().Unix()
+-	t.Logf("random data seed: %d\n", randSeed)
++	tb.Logf("random data seed: %d\n", randSeed)
+ 	prng := rand.New(rand.NewSource(randSeed))
+ 	data := make([]byte, size)
+ 	prng.Read(data)
+ 	if _, err := f.Write(data); err != nil {
+-		t.Fatalf("failed to create and feed the file: %v", err)
++		tb.Fatalf("failed to create and feed the file: %v", err)
+ 	}
+ 	if err := f.Sync(); err != nil {
+-		t.Fatalf("failed to save the file: %v", err)
++		tb.Fatalf("failed to save the file: %v", err)
+ 	}
+ 	if _, err := f.Seek(0, io.SeekStart); err != nil {
+-		t.Fatalf("failed to rewind the file: %v", err)
++		tb.Fatalf("failed to rewind the file: %v", err)
+ 	}
+ 
+ 	return f, data

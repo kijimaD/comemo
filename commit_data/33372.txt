@@ -32,7 +32,99 @@ Date:   Mon Aug 14 15:33:46 2017 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/writer.go      | 16 +++++++++-------
  src/archive/tar/writer_test.go | 19 +++++++++++++++++++
  2 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index be600895d5..d88e5ef340 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -94,7 +94,7 @@ func (tw *Writer) writeUSTARHeader(hdr *Header) error {
+ 	if f.err != nil {
+ 		return f.err // Should never happen since header is validated
+ 	}
+-	return tw.writeRawHeader(blk, hdr.Size)
++	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+ }
+ 
+ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+@@ -133,7 +133,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 	if f.err != nil && len(paxHdrs) == 0 {
+ 		return f.err // Should never happen, otherwise PAX headers would be used
+ 	}
+-	return tw.writeRawHeader(blk, hdr.Size)
++	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+ }
+ 
+ func (tw *Writer) writeGNUHeader(hdr *Header) error {
+@@ -151,7 +151,7 @@ func (tw *Writer) writeGNUHeader(hdr *Header) error {
+ 	if f.err != nil {
+ 		return f.err // Should never happen since header is validated
+ 	}
+-	return tw.writeRawHeader(blk, hdr.Size)
++	return tw.writeRawHeader(blk, hdr.Size, hdr.Typeflag)
+ }
+ 
+ type (
+@@ -219,7 +219,7 @@ func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
+ 	}
+ 
+ 	// Write the header and data.
+-	if err := tw.writeRawHeader(&tw.blk, int64(len(data))); err != nil {
++	if err := tw.writeRawHeader(&tw.blk, int64(len(data)), flag); err != nil {
+ 		return err
+ 	}
+ 	_, err := io.WriteString(tw, data)
+@@ -228,15 +228,17 @@ func (tw *Writer) writeRawFile(name, data string, flag byte, format int) error {
+ 
+ // writeRawHeader writes the value of blk, regardless of its value.
+ // It sets up the Writer such that it can accept a file of the given size.
+-func (tw *Writer) writeRawHeader(blk *block, size int64) error {
++// If the flag is a special header-only flag, then the size is treated as zero.
++func (tw *Writer) writeRawHeader(blk *block, size int64, flag byte) error {
+ 	if err := tw.Flush(); err != nil {
+ 		return err
+ 	}
+ 	if _, err := tw.w.Write(blk[:]); err != nil {
+ 		return err
+ 	}
+-	// TODO(dsnet): Set Size implicitly to zero for header-only entries.
+-	// See https://golang.org/issue/15565
++	if isHeaderOnlyType(flag) {
++		size = 0
++	}
+ 	tw.nb = size
+ 	tw.pad = -size & (blockSize - 1) // blockSize is a power of two
+ 	return nil
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 3b58511d18..8980871144 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -553,6 +553,25 @@ func TestValidTypeflagWithPAXHeader(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteHeaderOnly(t *testing.T) {
++	tw := NewWriter(new(bytes.Buffer))
++	hdr := &Header{Name: "dir/", Typeflag: TypeDir}
++	if err := tw.WriteHeader(hdr); err != nil {
++		t.Fatalf("WriteHeader() = %v, want nil", err)
++	}
++	if _, err := tw.Write([]byte{0x00}); err != ErrWriteTooLong {
++		t.Fatalf("Write() = %v, want %v", err, ErrWriteTooLong)
++	}
++}
++
++func TestWriteNegativeSize(t *testing.T) {
++	tw := NewWriter(new(bytes.Buffer))
++	hdr := &Header{Name: "small.txt", Size: -1}
++	if err := tw.WriteHeader(hdr); err != ErrHeader {
++		t.Fatalf("WriteHeader() = nil, want %v", ErrHeader)
++	}
++}
++
+ func TestWriteAfterClose(t *testing.T) {
+ 	var buffer bytes.Buffer
+ 	tw := NewWriter(&buffer)

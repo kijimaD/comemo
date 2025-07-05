@@ -8,6 +8,29 @@ Date:   Wed Oct 30 13:56:12 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204318
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/netpoll_aix.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index e1512f826c..76ee876771 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -185,13 +185,12 @@ retry:
+ 			for read(rdwake, unsafe.Pointer(&b[0]), 1) == 1 {
+ 			}
+ 		}
+-		// Do not look at the other fds in this case as the mode may have changed
+-		// XXX only additions of flags are made, so maybe it is ok
+-		unlock(&mtxset)
+-		goto retry
++		// Still look at the other fds even if the mode may have
++		// changed, as netpollBreak might have been called.
++		n--
+ 	}
+ 	var toRun gList
+-	for i := 0; i < len(pfds) && n > 0; i++ {
++	for i := 1; i < len(pfds) && n > 0; i++ {
+ 		pfd := &pfds[i]
+ 
+ 		var mode int32

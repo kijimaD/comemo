@@ -15,7 +15,32 @@ Date:   Mon Jul 3 13:16:59 2023 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/mstats.go    | 1 +
  src/runtime/traceback.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index ab383dd8e3..9a247b87b5 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -347,6 +347,7 @@ func init() {
+ // which is a snapshot as of the most recently completed garbage
+ // collection cycle.
+ func ReadMemStats(m *MemStats) {
++	_ = m.Alloc // nil check test before we switch stacks, see issue 61158
+ 	stopTheWorld(stwReadMemStats)
+ 
+ 	systemstack(func() {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index d6f89210a4..86df1155b5 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1147,6 +1147,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 
+ // isExportedRuntime reports whether name is an exported runtime function.
+ // It is only for runtime functions, so ASCII A-Z is fine.
++// TODO: this handles exported functions but not exported methods.
+ func isExportedRuntime(name string) bool {
+ 	const n = len("runtime.")
+ 	return len(name) > n && name[:n] == "runtime." && 'A' <= name[n] && name[n] <= 'Z'

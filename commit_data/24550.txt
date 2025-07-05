@@ -9,6 +9,29 @@ Date:   Tue Aug 4 09:11:06 2015 +0200
     Change-Id: I694e0f209d043c7ffecb113f1825175bf963dde3
     Reviewed-on: https://go-review.googlesource.com/13074
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 3197fd8e90..e449b47802 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -1222,14 +1222,14 @@ adds new <a href="/pkg/os/signal/#Ignore"><code>Ignore</code></a> and
+ 
+ <li>
+ The <a href="/pkg/runtime/"><code>runtime</code></a>,
+-<a href="/pkg/runtime/pprof/"><code>runtime/pprof</code></a>,
++<a href="/pkg/runtime/pprof/"><code>runtime/trace</code></a>,
+ and <a href="/pkg/net/http/pprof/"><code>net/http/pprof</code></a> packages
+ each have new functions to support the tracing facilities described above:
+ <a href="/pkg/runtime/#ReadTrace"><code>ReadTrace</code></a>,
+ <a href="/pkg/runtime/#StartTrace"><code>StartTrace</code></a>,
+ <a href="/pkg/runtime/#StopTrace"><code>StopTrace</code></a>,
+-<a href="/pkg/runtime/pprof/#StartTrace"><code>StartTrace</code></a>,
+-<a href="/pkg/runtime/pprof/#StopTrace"><code>StopTrace</code></a>, and
++<a href="/pkg/runtime/trace/#Start"><code>Start</code></a>,
++<a href="/pkg/runtime/trace/#Stop"><code>Stop</code></a>, and
+ <a href="/pkg/net/http/pprof/#Trace"><code>Trace</code></a>.
+ See the respective documentation for details.
+ </li>

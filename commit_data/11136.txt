@@ -9,6 +9,22 @@ Date:   Thu Jan 12 13:15:40 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5539045
-
+---
  src/pkg/net/http/request.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 66178490e3..260301005e 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -368,8 +368,8 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
+ 	if err != nil {
+ 		return err
+ 	}
+-	bw.Flush()
+-	return nil
++
++	return bw.Flush()
+ }
+ 
+ // Convert decimal at s[i:len(s)] to integer,

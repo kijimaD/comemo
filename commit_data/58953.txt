@@ -14,8 +14,85 @@ Date:   Mon Jan 8 07:42:00 2024 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/http/client.go      |  4 ++--
  src/net/http/client_test.go | 19 +++++++++++++++++++
  src/net/http/transport.go   | 12 +++++++-----
  3 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index ee6de24fc1..45b9b915b4 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -726,7 +726,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 			reqBodyClosed = true
+ 			if !deadline.IsZero() && didTimeout() {
+ 				err = &httpError{
+-					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
++					err:     fmt.Errorf("%w (Client.Timeout exceeded while awaiting headers)", err),
+ 					timeout: true,
+ 				}
+ 			}
+@@ -969,7 +969,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
+ 	}
+ 	if b.reqDidTimeout() {
+ 		err = &httpError{
+-			err:     err.Error() + " (Client.Timeout or context cancellation while reading body)",
++			err:     fmt.Errorf("%w (Client.Timeout exceeded or context cancellation while reading body)", err),
+ 			timeout: true,
+ 		}
+ 	}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 7459b9cb6e..7c71da139a 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -2127,3 +2127,22 @@ func testProbeZeroLengthBody(t *testing.T, mode testMode) {
+ 		t.Fatalf("server got body %q, want %q", gotBody, content)
+ 	}
+ }
++
++func TestClientTimeoutReturnsContextDeadlineExceeded(t *testing.T) {
++	run(t, testClientTimeoutReturnsContextDeadlineExceeded)
++}
++func testClientTimeoutReturnsContextDeadlineExceeded(t *testing.T, mode testMode) {
++	doneCh := make(chan struct{})
++	defer close(doneCh)
++	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		<-doneCh
++		w.WriteHeader(200)
++	}))
++	// check that, upon exceeding Client.Timeout, the returned error is context.DeadlineExceeded.
++	cst.c.Timeout = 1 * time.Millisecond
++	req, _ := NewRequest("GET", cst.ts.URL, nil)
++	_, err := cst.c.Do(req)
++	if !errors.Is(err, context.DeadlineExceeded) {
++		t.Fatalf("expected context.DeadlineExceeded, got %v", err)
++	}
++}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 57c70e72f9..6a1234e7f2 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2556,15 +2556,17 @@ type writeRequest struct {
+ }
+ 
+ type httpError struct {
+-	err     string
++	err     error
+ 	timeout bool
+ }
+ 
+-func (e *httpError) Error() string   { return e.err }
+-func (e *httpError) Timeout() bool   { return e.timeout }
+-func (e *httpError) Temporary() bool { return true }
++func (e *httpError) Error() string        { return e.err.Error() }
++func (e *httpError) Timeout() bool        { return e.timeout }
++func (e *httpError) Temporary() bool      { return true }
++func (e *httpError) Is(target error) bool { return errors.Is(e.err, target) }
++func (e *httpError) Unwrap() error        { return e.err }
+ 
+-var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
++var errTimeout error = &httpError{err: errors.New("net/http: timeout awaiting response headers"), timeout: true}
+ 
+ // errRequestCanceled is set to be identical to the one from h2 to facilitate
+ // testing.

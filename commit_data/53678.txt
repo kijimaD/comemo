@@ -19,8 +19,57 @@ Date:   Wed Aug 24 03:28:16 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 4 ++++
  src/cmd/internal/obj/arm64/asm7.go        | 4 ++--
  src/cmd/internal/obj/arm64/obj7.go        | 2 ++
  3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 4d04be52e4..d055d3961f 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -234,6 +234,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	FMOVD	$(0.1796875), F2                // 02f0681e
+ 	FMOVS	$(0.96875), F3                  // 03f02d1e
+ 	FMOVD	$(28.0), F4                     // 0490671e
++	FMOVD	$0, F0                          // e003679e
++	FMOVS	$0, F0                          // e003271e
++	FMOVD	ZR, F0                          // e003679e
++	FMOVS	ZR, F0                          // e003271e
+ 	VUADDW	V9.B8, V12.H8, V14.H8           // 8e11292e
+ 	VUADDW	V13.H4, V10.S4, V11.S4          // 4b116d2e
+ 	VUADDW	V21.S2, V24.D2, V29.D2          // 1d13b52e
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 027556fc6e..1e36985654 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3884,13 +3884,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 29: /* op Rn, Rd */
+ 		fc := c.aclass(&p.From)
+ 		tc := c.aclass(&p.To)
+-		if (p.As == AFMOVD || p.As == AFMOVS) && (fc == C_REG || tc == C_REG) {
++		if (p.As == AFMOVD || p.As == AFMOVS) && (fc == C_REG || fc == C_ZREG || tc == C_REG) {
+ 			// FMOV Rx, Fy or FMOV Fy, Rx
+ 			o1 = FPCVTI(0, 0, 0, 0, 6)
+ 			if p.As == AFMOVD {
+ 				o1 |= 1<<31 | 1<<22 // 64-bit
+ 			}
+-			if fc == C_REG {
++			if fc == C_REG || fc == C_ZREG {
+ 				o1 |= 1 << 16 // FMOV Rx, Fy
+ 			}
+ 		} else {
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index a3c4bedbad..318468371d 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -69,6 +69,8 @@ var zrReplace = map[obj.As]bool{
+ 	AADCW:  true,
+ 	AADCS:  true,
+ 	AADCSW: true,
++	AFMOVD: true,
++	AFMOVS: true,
+ }
+ 
+ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {

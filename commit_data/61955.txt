@@ -23,7 +23,125 @@ Date:   Fri Dec 27 07:21:53 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/work/security.go      | 22 +++++++++++++++-
  src/cmd/go/internal/work/security_test.go | 44 +++++++++++++++++++++++++++++++
  2 files changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 50bfd0ab70..33341a4f4d 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -227,6 +227,21 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
+ }
+ 
++var validLinkerFlagsOnDarwin = []*lazyregexp.Regexp{
++	// The GNU linker interprets `@file` as "read command-line options from
++	// file". Thus, we forbid values starting with `@` on linker flags.
++	// However, this causes a problem when targeting Darwin.
++	// `@executable_path`, `@loader_path`, and `@rpath` are special values
++	// used in Mach-O to change the library search path and can be used in
++	// conjunction with the `-install_name` and `-rpath` linker flags.
++	// Since the GNU linker does not support Mach-O, targeting Darwin
++	// implies not using the GNU linker. Therefore, we allow @ in the linker
++	// flags if and only if cfg.Goos == "darwin" || cfg.Goos == "ios".
++	re(`-Wl,-dylib_install_name,@rpath(/[^,]*)?`),
++	re(`-Wl,-install_name,@rpath(/[^,]*)?`),
++	re(`-Wl,-rpath,@(executable_path|loader_path)(/[^,]*)?`),
++}
++
+ var validLinkerFlagsWithNextArg = []string{
+ 	"-arch",
+ 	"-F",
+@@ -249,8 +264,13 @@ func checkCompilerFlags(name, source string, list []string) error {
+ }
+ 
+ func checkLinkerFlags(name, source string, list []string) error {
++	validLinkerFlagsForPlatform := validLinkerFlags
++	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
++		validLinkerFlagsForPlatform = append(validLinkerFlags, validLinkerFlagsOnDarwin...)
++	}
++
+ 	checkOverrides := true
+-	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
++	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlagsForPlatform, validLinkerFlagsWithNextArg, checkOverrides)
+ }
+ 
+ // checkCompilerFlagsForInternalLink returns an error if 'list'
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 35af621764..52e54e25e4 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"os"
+ 	"strings"
+ 	"testing"
++
++	"cmd/go/internal/cfg"
+ )
+ 
+ var goodCompilerFlags = [][]string{
+@@ -245,6 +247,8 @@ var badLinkerFlags = [][]string{
+ 	{"-Wl,--hash-style=foo"},
+ 	{"-x", "--c"},
+ 	{"-x", "@obj"},
++	{"-Wl,-dylib_install_name,@foo"},
++	{"-Wl,-install_name,@foo"},
+ 	{"-Wl,-rpath,@foo"},
+ 	{"-Wl,-R,foo,bar"},
+ 	{"-Wl,-R,@foo"},
+@@ -261,6 +265,21 @@ var badLinkerFlags = [][]string{
+ 	{"./-Wl,--push-state,-R.c"},
+ }
+ 
++var goodLinkerFlagsOnDarwin = [][]string{
++	{"-Wl,-dylib_install_name,@rpath"},
++	{"-Wl,-dylib_install_name,@rpath/"},
++	{"-Wl,-dylib_install_name,@rpath/foo"},
++	{"-Wl,-install_name,@rpath"},
++	{"-Wl,-install_name,@rpath/"},
++	{"-Wl,-install_name,@rpath/foo"},
++	{"-Wl,-rpath,@executable_path"},
++	{"-Wl,-rpath,@executable_path/"},
++	{"-Wl,-rpath,@executable_path/foo"},
++	{"-Wl,-rpath,@loader_path"},
++	{"-Wl,-rpath,@loader_path/"},
++	{"-Wl,-rpath,@loader_path/foo"},
++}
++
+ func TestCheckLinkerFlags(t *testing.T) {
+ 	for _, f := range goodLinkerFlags {
+ 		if err := checkLinkerFlags("test", "test", f); err != nil {
+@@ -272,6 +291,31 @@ func TestCheckLinkerFlags(t *testing.T) {
+ 			t.Errorf("missing error for %q", f)
+ 		}
+ 	}
++
++	goos := cfg.Goos
++
++	cfg.Goos = "darwin"
++	for _, f := range goodLinkerFlagsOnDarwin {
++		if err := checkLinkerFlags("test", "test", f); err != nil {
++			t.Errorf("unexpected error for %q: %v", f, err)
++		}
++	}
++
++	cfg.Goos = "ios"
++	for _, f := range goodLinkerFlagsOnDarwin {
++		if err := checkLinkerFlags("test", "test", f); err != nil {
++			t.Errorf("unexpected error for %q: %v", f, err)
++		}
++	}
++
++	cfg.Goos = "linux"
++	for _, f := range goodLinkerFlagsOnDarwin {
++		if err := checkLinkerFlags("test", "test", f); err == nil {
++			t.Errorf("missing error for %q", f)
++		}
++	}
++
++	cfg.Goos = goos
+ }
+ 
+ func TestCheckFlagAllowDisallow(t *testing.T) {

@@ -18,9 +18,156 @@ Date:   Tue Jul 2 17:03:27 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.13.html                                    |  6 +++--
  src/cmd/go/internal/modfetch/coderepo.go           | 30 ++++++++++++++++++----
  src/cmd/go/internal/modfetch/coderepo_test.go      | 22 +++++++++++++++-
  src/cmd/go/testdata/script/mod_invalid_version.txt | 18 ++++++++++---
  4 files changed, 64 insertions(+), 12 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 4240d4b1a7..69bb1b0741 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -302,8 +302,10 @@ go env -w GOSUMDB=off
+   between <a href="/cmd/go#hdr-Pseudo_versions">pseudo-versions</a> and
+   version-control metadata. Specifically:
+   <ul>
+-    <li>The version prefix must be derived from a tag on the named revision or
+-    one of its ancestors, or be of the form <code>vX.0.0</code>.</li>
++    <li>The version prefix must be of the form <code>vX.0.0</code>, or derived
++    from a tag on an ancestor of the named revision, or derived from a tag that
++    includes <a href="https://semver.org/#spec-item-10">build metadata</a> on
++    the named revision itself.</li>
+ 
+     <li>The date string must match the UTC timestamp of the revision.</li>
+ 
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 491fe11f50..548c6846d2 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -479,6 +479,11 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
+ 	}
+ 
++	tagPrefix := ""
++	if r.codeDir != "" {
++		tagPrefix = r.codeDir + "/"
++	}
++
+ 	// A pseudo-version should have a precedence just above its parent revisions,
+ 	// and no higher. Otherwise, it would be possible for library authors to "pin"
+ 	// dependency versions (and bypass the usual minimum version selection) by
+@@ -504,11 +509,26 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
+ 			return fmt.Errorf("major version without preceding tag must be v0, not v1")
+ 		}
+ 		return nil
+-	}
+-
+-	tagPrefix := ""
+-	if r.codeDir != "" {
+-		tagPrefix = r.codeDir + "/"
++	} else {
++		for _, tag := range info.Tags {
++			versionOnly := strings.TrimPrefix(tag, tagPrefix)
++			if versionOnly == base {
++				// The base version is canonical, so if the version from the tag is
++				// literally equal (not just equivalent), then the tag is canonical too.
++				//
++				// We allow pseudo-versions to be derived from non-canonical tags on the
++				// same commit, so that tags like "v1.1.0+some-metadata" resolve as
++				// close as possible to the canonical version ("v1.1.0") while still
++				// enforcing a total ordering ("v1.1.1-0.[…]" with a unique suffix).
++				//
++				// However, canonical tags already have a total ordering, so there is no
++				// reason not to use the canonical tag directly, and we know that the
++				// canonical tag must already exist because the pseudo-version is
++				// derived from it. In that case, referring to the revision by a
++				// pseudo-version derived from its own canonical tag is just confusing.
++				return fmt.Errorf("tag (%s) found on revision %s is already canonical, so should not be replaced with a pseudo-version derived from that tag", tag, rev)
++			}
++		}
+ 	}
+ 
+ 	tags, err := r.code.Tags(tagPrefix + base)
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index b5c9be52ad..1f2b95bd23 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -83,6 +83,26 @@ var codeRepoTests = []codeRepoTest{
+ 			"pkg/p.go",
+ 		},
+ 	},
++	{
++		vcs:     "git",
++		path:    "github.com/rsc/vgotest1",
++		rev:     "v0.0.0-20180219231006-80d85c5d4d17",
++		version: "v0.0.0-20180219231006-80d85c5d4d17",
++		name:    "80d85c5d4d17598a0e9055e7c175a32b415d6128",
++		short:   "80d85c5d4d17",
++		time:    time.Date(2018, 2, 19, 23, 10, 6, 0, time.UTC),
++		zip: []string{
++			"LICENSE",
++			"README.md",
++			"pkg/p.go",
++		},
++	},
++	{
++		vcs:  "git",
++		path: "github.com/rsc/vgotest1",
++		rev:  "v0.0.1-0.20180219231006-80d85c5d4d17",
++		err:  `github.com/rsc/vgotest1@v0.0.1-0.20180219231006-80d85c5d4d17: invalid pseudo-version: tag (v0.0.0) found on revision 80d85c5d4d17 is already canonical, so should not be replaced with a pseudo-version derived from that tag`,
++	},
+ 	{
+ 		vcs:     "git",
+ 		path:    "github.com/rsc/vgotest1",
+@@ -515,7 +535,7 @@ func TestCodeRepo(t *testing.T) {
+ }
+ 
+ var hgmap = map[string]string{
+-	"github.com/rsc/vgotest1/":                 "vcs-test.golang.org/hg/vgotest1.hg/",
++	"github.com/rsc/vgotest1":                  "vcs-test.golang.org/hg/vgotest1.hg",
+ 	"f18795870fb14388a21ef3ebc1d75911c8694f31": "a9ad6d1d14eb544f459f446210c7eb3b009807c6",
+ 	"ea65f87c8f52c15ea68f3bdd9925ef17e20d91e9": "f1fc0f22021b638d073d31c752847e7bf385def7",
+ 	"b769f2de407a4db81af9c5de0a06016d60d2ea09": "92c7eb888b4fac17f1c6bd2e1060a1b881a3b832",
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 2be0d01cce..a587b4422f 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -144,6 +144,16 @@ cd ..
+ ! go list -m golang.org/x/text
+ stderr 'golang.org/x/text@v0.2.1-0.20170915032832-14c0d48ead0c: invalid pseudo-version: revision 14c0d48ead0c is not a descendent of preceding tag \(v0.2.0\)'
+ 
++# A pseudo-version derived from a canonical tag on the same revision is invalid.
++cp go.mod.orig go.mod
++go mod edit -require golang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac
++cd outside
++! go list -m golang.org/x/text
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
++cd ..
++! go list -m golang.org/x/text
++stderr 'golang.org/x/text@v0.2.1-0.20171213102548-c4d099d611ac: invalid pseudo-version: tag \(v0.2.0\) found on revision c4d099d611ac is already canonical, so should not be replaced with a pseudo-version derived from that tag'
++
+ # A +incompatible suffix is not allowed on a version that is actually compatible.
+ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text@v0.1.1-0.20170915032832-14c0d48ead0c+incompatible
+@@ -165,15 +175,15 @@ go list -m github.com/pierrec/lz4
+ stdout 'github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1'
+ cd ..
+ 
+-# A +incompatible version for a module that has an explicit go.mod file is invalid.
++# A +incompatible pseudo-version for a module that has an explicit go.mod file is invalid.
+ cp go.mod.orig go.mod
+-go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1+incompatible
++go mod edit -require github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d+incompatible
+ cd outside
+ ! go list -m github.com/pierrec/lz4
+-stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++stderr 'go: example.com@v0.0.0 requires\n\tgithub.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+ cd ..
+ ! go list -m github.com/pierrec/lz4
+-stderr 'github.com/pierrec/lz4@v2.0.9-0.20190131084431-473cd7ce01a1\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
++stderr 'github.com/pierrec/lz4@v2.0.9-0.20190209155647-9a39efadad3d\+incompatible: invalid version: \+incompatible suffix not allowed: module contains a go.mod file, so semantic import versioning is required'
+ 
+ # A +incompatible pseudo-version is valid for a revision of the module
+ # that lacks a go.mod file.

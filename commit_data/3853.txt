@@ -6,7 +6,33 @@ Date:   Fri Nov 6 11:00:06 2009 -0800
     
     R=agl
     http://go/go-review/1024009
-
+---
  src/pkg/big/int_test.go          | 2 +-
  src/pkg/crypto/x509/x509_test.go | 3 +--
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index be49e7434c..3b110ca86a 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -284,7 +284,7 @@ func TestDivStepD6(t *testing.T) {
+ 	const expectedQ32 = "4294967293";
+ 	const expectedR32 = "39614081266355540837921718287";
+ 	if q.String() != expectedQ64 && q.String() != expectedQ32 ||
+-	   r.String() != expectedR64 && r.String() != expectedR32 {
++		r.String() != expectedR64 && r.String() != expectedR32 {
+ 		t.Errorf("got (%s, %s) want (%s, %s) or (%s, %s)", q, r, expectedQ64, expectedR64, expectedQ32, expectedR32);
+ 	}
+ }
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 035f5855af..da82db1df9 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -62,5 +62,4 @@ var rsaPrivateKey = &rsa.PrivateKey{
+ 	Q: bigFromString("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
+ }
+ 
+-*/
+-
++*/
+\ No newline at end of file

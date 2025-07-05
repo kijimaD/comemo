@@ -9,7 +9,7 @@ Date:   Fri Dec 17 11:37:11 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/3746041
-
+---
  misc/cgo/life/c-life.c |  2 ++
  misc/cgo/life/life.go  |  2 +-
  misc/cgo/life/life.h   |  1 +
@@ -17,3 +17,133 @@ Date:   Fri Dec 17 11:37:11 2010 -0800
  src/Make.pkg           |  8 ++------
  src/cmd/cgo/out.go     | 14 ++++++++++++--
  6 files changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/misc/cgo/life/c-life.c b/misc/cgo/life/c-life.c
+index 71555a9c7a..6572455951 100644
+--- a/misc/cgo/life/c-life.c
++++ b/misc/cgo/life/c-life.c
+@@ -6,6 +6,8 @@
+ #include "life.h"
+ #include "_cgo_export.h"
+ 
++const int MYCONST = 0;
++
+ // Do the actual manipulation of the life board in C.  This could be
+ // done easily in Go, we are just using C for demonstration
+ // purposes.
+diff --git a/misc/cgo/life/life.go b/misc/cgo/life/life.go
+index 0368028537..ec000ce3a3 100644
+--- a/misc/cgo/life/life.go
++++ b/misc/cgo/life/life.go
+@@ -23,7 +23,7 @@ var chans [4]chan bool
+ //export GoStart
+ // Double return value is just for testing.
+ func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
+-	c := make(chan bool)
++	c := make(chan bool, int(C.MYCONST))
+ 	go func() {
+ 		C.DoStep(xdim, ydim, xstart, xend, ystart, yend, a, n)
+ 		c <- true
+diff --git a/misc/cgo/life/life.h b/misc/cgo/life/life.h
+index b6e94cf1d3..b2011b25fc 100644
+--- a/misc/cgo/life/life.h
++++ b/misc/cgo/life/life.h
+@@ -4,3 +4,4 @@
+ 
+ extern void Step(int, int, int *, int *);
+ extern void DoStep(int, int, int, int, int, int, int *, int *);
++extern const int MYCONST;
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+index 1f461f2939..021cbf909c 100644
+--- a/misc/cgo/stdio/file.go
++++ b/misc/cgo/stdio/file.go
+@@ -26,6 +26,10 @@ type File C.FILE
+ var Stdout = (*File)(C.stdout)
+ var Stderr = (*File)(C.stderr)
+ 
++// Test reference to library symbol.
++// Stdout and stderr are too special to be a reliable test.
++var myerr = C.sys_errlist
++
+ func (f *File) WriteString(s string) {
+ 	p := C.CString(s)
+ 	C.fputs(p, (*C.FILE)(f))
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 420f610030..e4cdaae30b 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -116,8 +116,8 @@ _cgo_defun.c: $(CGOFILES)
+ 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+ endif
+ 
+-# Ugly but necessary
+-_cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
++# Ugly but necessary - cgo writes these files too.
++_cgo_gotypes.go _cgo_export.c _cgo_export.h _cgo_main.c: _cgo_defun.c
+ 	@true
+ 
+ %.cgo1.go %.cgo2.c: _cgo_defun.c
+@@ -134,10 +134,6 @@ _cgo_gotypes.go _cgo_export.c _cgo_export.h: _cgo_defun.c
+ # and libraries are involved, instead of duplicating gcc's logic ourselves.
+ # After main we have to define all the symbols that will be provided
+ # by Go code.  That's crosscall2 and any exported symbols.
+-_cgo_main.c: _cgo_defun.c
+-	echo 'int main() { return 0; }' >$@
+-	echo 'int crosscall2;' >>$@
+-	awk -F'(' '/^_cgoexp_/ {print "int " $$1 ";"}' _cgo_defun.c >>$@
+ 
+ _cgo_main.o: _cgo_main.c
+ 	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c $(CGO_CFLAGS) _cgo_main.c
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index d960079e1a..4be9116169 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -30,6 +30,11 @@ func (p *Package) writeDefs() {
+ 
+ 	fgo2 := creat("_cgo_gotypes.go")
+ 	fc := creat("_cgo_defun.c")
++	fm := creat("_cgo_main.c")
++
++	// Write C main file for using gcc to resolve imports.
++	fmt.Fprintf(fm, "int main() { return 0; }\n")
++	fmt.Fprintf(fm, "int crosscall2;\n\n")
+ 
+ 	// Write second Go output: definitions of _C_xxx.
+ 	// In a separate file so that the import of "unsafe" does not
+@@ -58,6 +63,9 @@ func (p *Package) writeDefs() {
+ 		}
+ 		cVars = append(cVars, n.C)
+ 
++		fmt.Fprintf(fm, "extern char %s[];\n", n.C)
++		fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
++
+ 		fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+ 		fmt.Fprintf(fc, "void *·%s = &%s;\n", n.Mangle, n.C)
+ 		fmt.Fprintf(fc, "\n")
+@@ -81,7 +89,7 @@ func (p *Package) writeDefs() {
+ 		}
+ 	}
+ 
+-	p.writeExports(fgo2, fc)
++	p.writeExports(fgo2, fc, fm)
+ 
+ 	fgo2.Close()
+ 	fc.Close()
+@@ -320,7 +328,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 
+ // Write out the various stubs we need to support functions exported
+ // from Go so that they are callable from C.
+-func (p *Package) writeExports(fgo2, fc *os.File) {
++func (p *Package) writeExports(fgo2, fc, fm *os.File) {
+ 	fgcc := creat("_cgo_export.c")
+ 	fgcch := creat("_cgo_export.h")
+ 
+@@ -460,6 +468,8 @@ func (p *Package) writeExports(fgo2, fc *os.File) {
+ 		fmt.Fprintf(fc, "\truntime·cgocallback(·%s, a, n);\n", goname)
+ 		fmt.Fprintf(fc, "}\n")
+ 
++		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
++
+ 		// Calling a function with a receiver from C requires
+ 		// a Go wrapper function.
+ 		if fn.Recv != nil {

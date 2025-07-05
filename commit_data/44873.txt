@@ -12,7 +12,7 @@ Date:   Wed Sep 9 15:58:05 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  .../mod/example.com_retract_missingmod_v1.0.0.txt   |  2 ++
  src/cmd/go/testdata/script/mod_auth.txt             |  2 +-
  src/cmd/go/testdata/script/mod_case.txt             |  7 ++++++-
@@ -66,3 +66,984 @@ Date:   Wed Sep 9 15:58:05 2020 -0400
  src/cmd/go/testdata/script/version.txt              |  1 +
  src/cmd/go/testdata/script/version_replace.txt      |  2 +-
  52 files changed, 146 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_missingmod_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_retract_missingmod_v1.0.0.txt
+index 2023c7b096..1d8d81071e 100644
+--- a/src/cmd/go/testdata/mod/example.com_retract_missingmod_v1.0.0.txt
++++ b/src/cmd/go/testdata/mod/example.com_retract_missingmod_v1.0.0.txt
+@@ -6,3 +6,5 @@ module example.com/retract/missingmod
+ go 1.14
+ -- .info --
+ {"Version":"v1.0.0"}
++-- missingmod.go --
++package missingmod
+diff --git a/src/cmd/go/testdata/script/mod_auth.txt b/src/cmd/go/testdata/script/mod_auth.txt
+index 5bcbcd1a18..544acbc1f8 100644
+--- a/src/cmd/go/testdata/script/mod_auth.txt
++++ b/src/cmd/go/testdata/script/mod_auth.txt
+@@ -7,7 +7,7 @@ env GOSUMDB=off
+ # Without credentials, downloading a module from a path that requires HTTPS
+ # basic auth should fail.
+ env NETRC=$WORK/empty
+-! go list all
++! go mod tidy
+ stderr '^\tserver response: ACCESS DENIED, buddy$'
+ stderr '^\tserver response: File\? What file\?$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_case.txt b/src/cmd/go/testdata/script/mod_case.txt
+index ee818c2c07..6f8d869c44 100644
+--- a/src/cmd/go/testdata/script/mod_case.txt
++++ b/src/cmd/go/testdata/script/mod_case.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-go get rsc.io/QUOTE
++go get -d
+ go list -m all
+ stdout '^rsc.io/quote v1.5.2'
+ stdout '^rsc.io/QUOTE v1.5.2'
+@@ -18,3 +18,8 @@ stdout '!q!u!o!t!e@v1.5.3-!p!r!e'
+ 
+ -- go.mod --
+ module x
++
++-- use.go --
++package use
++
++import _ "rsc.io/QUOTE/QUOTE"
+diff --git a/src/cmd/go/testdata/script/mod_concurrent.txt b/src/cmd/go/testdata/script/mod_concurrent.txt
+index e03e5e5edb..8c21525158 100644
+--- a/src/cmd/go/testdata/script/mod_concurrent.txt
++++ b/src/cmd/go/testdata/script/mod_concurrent.txt
+@@ -1,6 +1,7 @@
+ env GO111MODULE=on
+ 
+ # Concurrent builds should succeed, even if they need to download modules.
++go get -d ./x ./y
+ go build ./x &
+ go build ./y
+ wait
+diff --git a/src/cmd/go/testdata/script/mod_doc.txt b/src/cmd/go/testdata/script/mod_doc.txt
+index aac3db00be..595ad679fc 100644
+--- a/src/cmd/go/testdata/script/mod_doc.txt
++++ b/src/cmd/go/testdata/script/mod_doc.txt
+@@ -1,6 +1,7 @@
+ # go doc should find module documentation
+ 
+ env GO111MODULE=on
++env GOFLAGS=-mod=mod
+ [short] skip
+ 
+ # Check when module x is inside GOPATH/src.
+@@ -48,6 +49,7 @@ stderr '^doc: cannot find module providing package example.com/hello: module loo
+ # path used in source code, not to the absolute path relative to GOROOT.
+ 
+ cd $GOROOT/src
++env GOFLAGS=
+ go doc cryptobyte
+ stdout '// import "golang.org/x/crypto/cryptobyte"'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_domain_root.txt b/src/cmd/go/testdata/script/mod_domain_root.txt
+index e34cc29fa6..14745b5812 100644
+--- a/src/cmd/go/testdata/script/mod_domain_root.txt
++++ b/src/cmd/go/testdata/script/mod_domain_root.txt
+@@ -2,7 +2,7 @@
+ # (example.com not example.com/something)
+ 
+ env GO111MODULE=on
+-go build
++go get -d
+ 
+ -- go.mod --
+ module x
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 5acb83266b..b9bf67cad5 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -46,7 +46,7 @@ go mod edit -require rsc.io/quote@v1.5.3-pre1
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+ 
+ # module loading will page in the info and mod files
+-go list -m all
++go list -m -mod=mod all
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.info
+ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.mod
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
+diff --git a/src/cmd/go/testdata/script/mod_download_partial.txt b/src/cmd/go/testdata/script/mod_download_partial.txt
+index 4978982dab..8d31970160 100644
+--- a/src/cmd/go/testdata/script/mod_download_partial.txt
++++ b/src/cmd/go/testdata/script/mod_download_partial.txt
+@@ -1,5 +1,5 @@
+-# Download a module
+-go mod download -modcacherw rsc.io/quote
++# Download modules and populate go.sum.
++go get -d -modcacherw
+ exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+ 
+ # 'go mod verify' should fail if we delete a file.
+@@ -61,4 +61,9 @@ go 1.14
+ 
+ require rsc.io/quote v1.5.2
+ 
++-- use.go --
++package use
++
++import _ "rsc.io/quote"
++
+ -- empty --
+diff --git a/src/cmd/go/testdata/script/mod_get_incompatible.txt b/src/cmd/go/testdata/script/mod_get_incompatible.txt
+index b210715a5d..b28718a694 100644
+--- a/src/cmd/go/testdata/script/mod_get_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_get_incompatible.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-go list x
++go get -d x
+ go list -m all
+ stdout 'rsc.io/breaker v2.0.0\+incompatible'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_indirect.txt b/src/cmd/go/testdata/script/mod_get_indirect.txt
+index f25e170a49..e1cc1ab411 100644
+--- a/src/cmd/go/testdata/script/mod_get_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_indirect.txt
+@@ -27,7 +27,7 @@ grep 'golang.org/x/text v0.3.0 // indirect$' go.mod
+ 
+ # indirect tag should be removed upon seeing direct import.
+ cp $WORK/tmp/uselang.go x.go
+-go list
++go get -d
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_latest_pseudo.txt b/src/cmd/go/testdata/script/mod_get_latest_pseudo.txt
+index 825ee8cf89..241a0c2f0d 100644
+--- a/src/cmd/go/testdata/script/mod_get_latest_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_latest_pseudo.txt
+@@ -5,6 +5,6 @@
+ env GO111MODULE=on
+ 
+ go mod init m
+-go list example.com/notags
++go get -d example.com/notags
+ go list -m all
+ stdout '^example.com/notags v0.0.0-20190507143103-cc8cbe209b64$'
+diff --git a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+index 7b5d90c50b..3b38d8ba7d 100644
+--- a/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
++++ b/src/cmd/go/testdata/script/mod_get_trailing_slash.txt
+@@ -1,3 +1,6 @@
++# Populate go.sum
++go mod download
++
+ # go list should succeed to load a package ending with ".go" if the path does
+ # not correspond to an existing local file. Listing a pattern ending with
+ # ".go/" should try to list a package regardless of whether a file exists at the
+diff --git a/src/cmd/go/testdata/script/mod_import.txt b/src/cmd/go/testdata/script/mod_import.txt
+index 3985b43144..28358b5b0c 100644
+--- a/src/cmd/go/testdata/script/mod_import.txt
++++ b/src/cmd/go/testdata/script/mod_import.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ 
+ # latest rsc.io/quote should be v1.5.2 not v1.5.3-pre1
+-go list
++go get -d
+ go list -m all
+ stdout 'rsc.io/quote v1.5.2'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_in_testdata_dir.txt b/src/cmd/go/testdata/script/mod_in_testdata_dir.txt
+index f582569798..66f79faa6d 100644
+--- a/src/cmd/go/testdata/script/mod_in_testdata_dir.txt
++++ b/src/cmd/go/testdata/script/mod_in_testdata_dir.txt
+@@ -8,8 +8,8 @@ env GO111MODULE=on
+ cd $WORK/testdata
+ go mod init testdata.tld/foo
+ 
+-# Building a package within that module should resolve its dependencies.
+-go build
++# Getting a package within that module should resolve its dependencies.
++go get -d
+ grep 'rsc.io/quote' go.mod
+ 
+ # Tidying the module should preserve those dependencies.
+@@ -26,7 +26,7 @@ exists vendor/rsc.io/quote
+ cd $WORK/_ignored
+ go mod init testdata.tld/foo
+ 
+-go build
++go get
+ grep 'rsc.io/quote' go.mod
+ 
+ go mod tidy
+diff --git a/src/cmd/go/testdata/script/mod_init_dep.txt b/src/cmd/go/testdata/script/mod_init_dep.txt
+index 755076eae8..f8cf1d563a 100644
+--- a/src/cmd/go/testdata/script/mod_init_dep.txt
++++ b/src/cmd/go/testdata/script/mod_init_dep.txt
+@@ -1,24 +1,14 @@
+ env GO111MODULE=on
++env GOFLAGS=-mod=mod
+ 
+ # modconv uses git directly to examine what old 'go get' would
+ [!net] skip
+ [!exec:git] skip
+ 
+-# go build should populate go.mod from Gopkg.lock
+-cp go.mod1 go.mod
+-go build
++# go mod init should populate go.mod from Gopkg.lock
++go mod init x
+ stderr 'copying requirements from Gopkg.lock'
+ go list -m all
+-! stderr 'copying requirements from Gopkg.lock'
+-stdout 'rsc.io/sampler v1.0.0'
+-
+-# go list should populate go.mod from Gopkg.lock
+-cp go.mod1 go.mod
+-go list
+-stderr 'copying requirements from Gopkg.lock'
+-go list
+-! stderr 'copying requirements from Gopkg.lock'
+-go list -m all
+ stdout 'rsc.io/sampler v1.0.0'
+ 
+ # test dep replacement
+@@ -26,9 +16,6 @@ cd y
+ go mod init
+ cmpenv go.mod go.mod.replace
+ 
+--- go.mod1 --
+-module x
+-
+ -- x.go --
+ package x
+ 
+@@ -54,4 +41,4 @@ go $goversion
+ 
+ replace z v1.0.0 => rsc.io/quote v1.0.0
+ 
+-require rsc.io/quote v1.0.0
+\ No newline at end of file
++require rsc.io/quote v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_install_versioned.txt b/src/cmd/go/testdata/script/mod_install_versioned.txt
+index 03986d06a0..c6bce418b4 100644
+--- a/src/cmd/go/testdata/script/mod_install_versioned.txt
++++ b/src/cmd/go/testdata/script/mod_install_versioned.txt
+@@ -1,9 +1,11 @@
+ env GO111MODULE=on
+ 
++go get -d rsc.io/fortune
+ go list -f '{{.Target}}' rsc.io/fortune
+ ! stdout fortune@v1
+ stdout 'fortune(\.exe)?$'
+ 
++go get -d rsc.io/fortune/v2
+ go list -f '{{.Target}}' rsc.io/fortune/v2
+ ! stdout v2
+ stdout 'fortune(\.exe)?$'
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index 1193d528ec..687269d18f 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -3,30 +3,34 @@ env GO111MODULE=on
+ 
+ # golang.org/x/internal should be importable from other golang.org/x modules.
+ go mod edit -module=golang.org/x/anything
+-go build .
++go get -d .
+ 
+ # ...and their tests...
+ go test
+ stdout PASS
+ 
+ # ...but that should not leak into other modules.
++go get -d ./baddep
+ ! go build ./baddep
+ stderr golang.org[/\\]notx[/\\]useinternal
+ stderr 'use of internal package golang.org/x/.* not allowed'
+ 
+ # Internal packages in the standard library should not leak into modules.
++go get -d ./fromstd
+ ! go build ./fromstd
+ stderr 'use of internal package internal/testenv not allowed'
+ 
+ # Dependencies should be able to use their own internal modules...
+ go mod edit -module=golang.org/notx
+-go build ./throughdep
++go get -d ./throughdep
+ 
+ # ... but other modules should not, even if they have transitive dependencies.
++go get -d .
+ ! go build .
+ stderr 'use of internal package golang.org/x/.* not allowed'
+ 
+ # And transitive dependencies still should not leak.
++go get -d ./baddep
+ ! go build ./baddep
+ stderr golang.org[/\\]notx[/\\]useinternal
+ stderr 'use of internal package golang.org/x/.* not allowed'
+@@ -34,15 +38,17 @@ stderr 'use of internal package golang.org/x/.* not allowed'
+ # Replacing an internal module should keep it internal to the same paths.
+ go mod edit -module=golang.org/notx
+ go mod edit -replace golang.org/x/internal=./replace/golang.org/notx/internal
+-go build ./throughdep
++go get -d ./throughdep
+ 
++go get -d ./baddep
+ ! go build ./baddep
+ stderr golang.org[/\\]notx[/\\]useinternal
+ stderr 'use of internal package golang.org/x/.* not allowed'
+ 
+ go mod edit -replace golang.org/x/internal=./vendor/golang.org/x/internal
+-go build ./throughdep
++go get -d ./throughdep
+ 
++go get -d ./baddep
+ ! go build ./baddep
+ stderr golang.org[/\\]notx[/\\]useinternal
+ stderr 'use of internal package golang.org/x/.* not allowed'
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 6dddd4b036..f9dfdd6346 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -4,6 +4,7 @@
+ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
++env GOFLAGS=-mod=mod
+ 
+ # Regression test for golang.org/issue/27173: if the user (or go.mod file)
+ # requests a pseudo-version that does not match both the module path and commit
+diff --git a/src/cmd/go/testdata/script/mod_list.txt b/src/cmd/go/testdata/script/mod_list.txt
+index 17b33fcc7b..1ba6d7c910 100644
+--- a/src/cmd/go/testdata/script/mod_list.txt
++++ b/src/cmd/go/testdata/script/mod_list.txt
+@@ -2,12 +2,12 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # list {{.Dir}} shows main module and go.mod but not not-yet-downloaded dependency dir.
+-go list -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
++go list -mod=mod -m -f '{{.Path}} {{.Main}} {{.GoMod}} {{.Dir}}' all
+ stdout '^x true .*[\\/]src[\\/]go.mod .*[\\/]src$'
+ stdout '^rsc.io/quote false .*[\\/]v1.5.2.mod $'
+ 
+ # list {{.Dir}} shows dependency after download (and go list without -m downloads it)
+-go list -f '{{.Dir}}' rsc.io/quote
++go list -mod=mod -f '{{.Dir}}' rsc.io/quote
+ stdout '.*mod[\\/]rsc.io[\\/]quote@v1.5.2$'
+ 
+ # downloaded dependencies are read-only
+@@ -20,7 +20,7 @@ go clean -modcache
+ 
+ # list {{.Dir}} shows replaced directories
+ cp go.mod2 go.mod
+-go list -f {{.Dir}} rsc.io/quote
++go list -mod=mod -f {{.Dir}} rsc.io/quote
+ go list -m -f '{{.Path}} {{.Version}} {{.Dir}}{{with .Replace}} {{.GoMod}} => {{.Version}} {{.Dir}} {{.GoMod}}{{end}}' all
+ stdout 'mod[\\/]rsc.io[\\/]quote@v1.5.1'
+ stdout 'v1.3.0.*mod[\\/]rsc.io[\\/]sampler@v1.3.1 .*[\\/]v1.3.1.mod => v1.3.1.*sampler@v1.3.1 .*[\\/]v1.3.1.mod'
+@@ -30,7 +30,7 @@ go list std
+ stdout ^math/big
+ 
+ # rsc.io/quote/buggy should be listable as a package
+-go list rsc.io/quote/buggy
++go list -mod=mod rsc.io/quote/buggy
+ 
+ # rsc.io/quote/buggy should not be listable as a module
+ go list -m -e -f '{{.Error.Err}}' nonexist rsc.io/quote/buggy
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index 6653435a06..1adab8f027 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -2,6 +2,9 @@
+ 
+ # go list with path to directory should work
+ 
++# populate go.sum
++go get -d
++
+ env GO111MODULE=off
+ go list -f '{{.ImportPath}}' $GOROOT/src/math
+ stdout ^math$
+@@ -29,3 +32,5 @@ require rsc.io/quote v1.5.2
+ 
+ -- x.go --
+ package x
++
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_list_direct.txt b/src/cmd/go/testdata/script/mod_list_direct.txt
+index 8f85871189..62a472f475 100644
+--- a/src/cmd/go/testdata/script/mod_list_direct.txt
++++ b/src/cmd/go/testdata/script/mod_list_direct.txt
+@@ -10,7 +10,7 @@ env GOSUMDB=off
+ # For a while, (*modfetch.codeRepo).Stat was not checking for a go.mod file,
+ # which would produce a hard error at the subsequent call to GoMod.
+ 
+-go list all
++go get -d
+ 
+ -- go.mod --
+ module example.com
+diff --git a/src/cmd/go/testdata/script/mod_list_replace_dir.txt b/src/cmd/go/testdata/script/mod_list_replace_dir.txt
+index cad7fe2528..f2f2d2b2bb 100644
+--- a/src/cmd/go/testdata/script/mod_list_replace_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_replace_dir.txt
+@@ -2,8 +2,11 @@
+ # module within the module cache.
+ # Verifies golang.org/issue/29548
+ 
+-env GO111MODULE=on
+-go mod download rsc.io/quote@v1.5.1 rsc.io/quote@v1.5.2
++# Populate go.sum and download dependencies.
++go get -d
++
++# Ensure v1.5.2 is also in the cache so we can list it.
++go mod download rsc.io/quote@v1.5.2
+ 
+ ! go list $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ stderr '^directory ..[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2 outside available modules$'
+@@ -17,3 +20,8 @@ module example.com/quoter
+ require rsc.io/quote v1.5.2
+ 
+ replace rsc.io/quote => rsc.io/quote v1.5.1
++
++-- use.go --
++package use
++
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_list_upgrade.txt b/src/cmd/go/testdata/script/mod_list_upgrade.txt
+index 474df0dc26..0cef04b89a 100644
+--- a/src/cmd/go/testdata/script/mod_list_upgrade.txt
++++ b/src/cmd/go/testdata/script/mod_list_upgrade.txt
+@@ -1,5 +1,9 @@
+ env GO111MODULE=on
+ 
++# Populate go.sum
++go list -m -mod=mod all
++
++# Check for upgrades.
+ go list -m -u all
+ stdout 'rsc.io/quote v1.2.0 \[v1\.5\.2\]'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index 67d9a1584f..e943179c54 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -28,10 +28,10 @@ cmp stderr list-expected
+ # Try listing a package that imports a package
+ # in a module without a requirement.
+ go mod edit -droprequire example.com/badchain/a
+-! go list m/use
++! go list -mod=mod m/use
+ cmp stderr list-missing-expected
+ 
+-! go list -test m/testuse
++! go list -mod=mod -test m/testuse
+ cmp stderr list-missing-test-expected
+ 
+ -- go.mod.orig --
+diff --git a/src/cmd/go/testdata/script/mod_load_badmod.txt b/src/cmd/go/testdata/script/mod_load_badmod.txt
+index 68c8b3792b..fa22e1808b 100644
+--- a/src/cmd/go/testdata/script/mod_load_badmod.txt
++++ b/src/cmd/go/testdata/script/mod_load_badmod.txt
+@@ -1,14 +1,13 @@
+ # Unknown lines should be ignored in dependency go.mod files.
+-env GO111MODULE=on
+-go list -m all
++go list -m -mod=mod all
+ 
+ # ... and in replaced dependency go.mod files.
+ cp go.mod go.mod.usesub
+-go list -m all
++go list -m -mod=mod all
+ 
+ # ... but not in the main module.
+ cp go.mod.bad go.mod
+-! go list -m all
++! go list -m -mod=mod all
+ stderr 'unknown directive: hello'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_load_badzip.txt b/src/cmd/go/testdata/script/mod_load_badzip.txt
+index c5ba18e9f0..65374d2a6d 100644
+--- a/src/cmd/go/testdata/script/mod_load_badzip.txt
++++ b/src/cmd/go/testdata/script/mod_load_badzip.txt
+@@ -5,10 +5,8 @@ env GO111MODULE=on
+ stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
+ ! grep rsc.io/badzip go.mod
+ 
+-# TODO(golang.org/issue/31730): 'go build' should print the error below if the
+-# requirement is not present.
+ go mod edit -require rsc.io/badzip@v1.0.0
+-! go build rsc.io/badzip
++! go build -mod=mod rsc.io/badzip
+ stderr 'zip for rsc.io/badzip@v1.0.0 has unexpected file rsc.io/badzip@v1.0.0.txt'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+index 1ba8d3d22a..9c250e7d1c 100644
+--- a/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
++++ b/src/cmd/go/testdata/script/mod_missingpkg_prerelease.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-! go list -deps use.go
++! go list -mod=mod -deps use.go
+ stderr '^use.go:4:2: package example.com/missingpkg/deprecated provided by example.com/missingpkg at latest version v1.0.0 but not at required version v1.0.1-beta$'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_modinfo.txt b/src/cmd/go/testdata/script/mod_modinfo.txt
+index fb31f9e43b..d9e9fdec21 100644
+--- a/src/cmd/go/testdata/script/mod_modinfo.txt
++++ b/src/cmd/go/testdata/script/mod_modinfo.txt
+@@ -6,6 +6,7 @@ env GO111MODULE=on
+ cd x
+ go mod edit -require=rsc.io/quote@v1.5.2
+ go mod edit -replace=rsc.io/quote@v1.5.2=rsc.io/quote@v1.0.0
++go mod tidy # populate go.sum
+ 
+ # Build a binary and ensure that it can output its own debug info.
+ # The debug info should be accessible before main starts (golang.org/issue/29628).
+diff --git a/src/cmd/go/testdata/script/mod_multirepo.txt b/src/cmd/go/testdata/script/mod_multirepo.txt
+index 7f977e80f6..0f335a11f0 100644
+--- a/src/cmd/go/testdata/script/mod_multirepo.txt
++++ b/src/cmd/go/testdata/script/mod_multirepo.txt
+@@ -7,6 +7,7 @@ go list -deps -f {{.Dir}}
+ # v2 import should use a downloaded module
+ # both without an explicit go.mod entry ...
+ cp tmp/use_v2.go x.go
++go get -d .
+ go list -deps -f {{.Dir}}
+ stdout 'pkg[\\/]mod[\\/]rsc.io[\\/]quote[\\/]v2@v2.0.1$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_notall.txt b/src/cmd/go/testdata/script/mod_notall.txt
+index 29ca6066fa..1657c8d2d0 100644
+--- a/src/cmd/go/testdata/script/mod_notall.txt
++++ b/src/cmd/go/testdata/script/mod_notall.txt
+@@ -5,6 +5,7 @@
+ # module, but not should not include test dependencies of packages imported only
+ # by other root patterns.
+ 
++env GOFLAGS=-mod=mod
+ cp go.mod go.mod.orig
+ 
+ go list -deps all x/otherroot
+diff --git a/src/cmd/go/testdata/script/mod_permissions.txt b/src/cmd/go/testdata/script/mod_permissions.txt
+index 11fb4754f8..2d32dcd10f 100644
+--- a/src/cmd/go/testdata/script/mod_permissions.txt
++++ b/src/cmd/go/testdata/script/mod_permissions.txt
+@@ -12,7 +12,7 @@ chmod 0640 go.mod
+ chmod 0604 go.sum
+ go mod edit -module=golang.org/issue/34634
+ 
+-go build .
++go get -d
+ cmp go.mod go.mod.want
+ cmp go.sum go.sum.want
+ 
+diff --git a/src/cmd/go/testdata/script/mod_query.txt b/src/cmd/go/testdata/script/mod_query.txt
+index e87ca302f0..e10185709d 100644
+--- a/src/cmd/go/testdata/script/mod_query.txt
++++ b/src/cmd/go/testdata/script/mod_query.txt
+@@ -1,5 +1,10 @@
+ env GO111MODULE=on
+ 
++# Populate go.sum.
++# TODO(golang.org/issue/41297): we shouldn't need go.sum. None of the commands
++# below depend on the build list.
++go mod download
++
+ go list -m -versions rsc.io/quote
+ stdout '^rsc.io/quote v1.0.0 v1.1.0 v1.2.0 v1.2.1 v1.3.0 v1.4.0 v1.5.0 v1.5.1 v1.5.2 v1.5.3-pre1$'
+ 
+@@ -30,3 +35,8 @@ stdout 'no matching versions for query ">v1.5.3"'
+ -- go.mod --
+ module x
+ require rsc.io/quote v1.0.0
++
++-- use.go --
++package use
++
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_replace.txt b/src/cmd/go/testdata/script/mod_replace.txt
+index c21f172002..dc9667f1d0 100644
+--- a/src/cmd/go/testdata/script/mod_replace.txt
++++ b/src/cmd/go/testdata/script/mod_replace.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=on
+ cp go.mod go.mod.orig
+ 
+ # Make sure the test builds without replacement.
+-go build -o a1.exe .
++go build -mod=mod -o a1.exe .
+ exec ./a1.exe
+ stdout 'Don''t communicate by sharing memory'
+ 
+@@ -32,7 +32,7 @@ stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/
+ # Modules that do not (yet) exist upstream can be replaced too.
+ cp go.mod.orig go.mod
+ go mod edit -replace=not-rsc.io/quote/v3@v3.1.0=./local/rsc.io/quote/v3
+-go build -o a5.exe ./usenewmodule
++go build -mod=mod -o a5.exe ./usenewmodule
+ ! stderr 'finding not-rsc.io/quote/v3'
+ grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
+ exec ./a5.exe
+diff --git a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+index 674c99cb0c..df752d9716 100644
+--- a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
++++ b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+@@ -11,6 +11,7 @@
+ env GO111MODULE=on
+ env GOPROXY=direct
+ env GOSUMDB=off
++env GOFLAGS=-mod=mod
+ 
+ # Replacing gopkg.in/[…].vN with a repository with a root go.mod file
+ # specifying […].vN and a compatible version should succeed, even if
+diff --git a/src/cmd/go/testdata/script/mod_replace_import.txt b/src/cmd/go/testdata/script/mod_replace_import.txt
+index 54b1a12448..b4de5c50f7 100644
+--- a/src/cmd/go/testdata/script/mod_replace_import.txt
++++ b/src/cmd/go/testdata/script/mod_replace_import.txt
+@@ -7,6 +7,7 @@ cp go.mod go.mod.orig
+ cmp go.mod go.mod.orig
+ 
+ # 'go list' should resolve imports using replacements.
++go get -d
+ go list all
+ stdout 'example.com/a/b$'
+ stdout 'example.com/x/v3$'
+diff --git a/src/cmd/go/testdata/script/mod_require_exclude.txt b/src/cmd/go/testdata/script/mod_require_exclude.txt
+index 1a0fc3097b..9156d4ce5d 100644
+--- a/src/cmd/go/testdata/script/mod_require_exclude.txt
++++ b/src/cmd/go/testdata/script/mod_require_exclude.txt
+@@ -20,7 +20,7 @@ cmp go.mod go.mod.orig
+ # With the selected version excluded, commands that load only modules should
+ # drop the excluded module.
+ 
+-go list -m all
++go list -m -mod=mod all
+ stderr '^go: dropping requirement on excluded version rsc.io/sampler v1\.99\.99$'
+ stdout '^x$'
+ ! stdout '^rsc.io/sampler'
+@@ -30,7 +30,7 @@ cmp go.mod go.moddrop
+ # from the next-highest version.
+ 
+ cp go.mod.orig go.mod
+-go list -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
++go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+ stderr '^go: dropping requirement on excluded version rsc.io/sampler v1\.99\.99$'
+ stdout '^x $'
+ ! stdout '^rsc.io/sampler v1.99.99'
+@@ -38,13 +38,13 @@ stdout '^rsc.io/sampler v1.3.0'
+ 
+ # build with newer version available
+ cp go.mod2 go.mod
+-go list -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
++go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+ stderr '^go: dropping requirement on excluded version rsc.io/quote v1\.5\.1$'
+ stdout 'rsc.io/quote v1.5.2'
+ 
+ # build with excluded newer version
+ cp go.mod3 go.mod
+-go list -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
++go list -mod=mod -f '{{with .Module}}{{.Path}} {{.Version}}{{end}}' all
+ ! stderr '^go: dropping requirement'
+ stdout 'rsc.io/quote v1.5.1'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_retention.txt b/src/cmd/go/testdata/script/mod_retention.txt
+index 1d83e6c07e..a4441c4b3c 100644
+--- a/src/cmd/go/testdata/script/mod_retention.txt
++++ b/src/cmd/go/testdata/script/mod_retention.txt
+@@ -7,7 +7,7 @@ env GO111MODULE=on
+ 
+ # Control case: verify that go.mod.tidy is actually tidy.
+ cp go.mod.tidy go.mod
+-go list all
++go list -mod=mod all
+ cmp go.mod go.mod.tidy
+ 
+ 
+@@ -35,7 +35,7 @@ cmp go.mod go.mod.tidy
+ # "// indirect" comments should be removed if direct dependencies are seen.
+ # changes.
+ cp go.mod.indirect go.mod
+-go list all
++go list -mod=mod all
+ cmp go.mod go.mod.tidy
+ 
+ # "// indirect" comments should be added if appropriate.
+@@ -63,7 +63,7 @@ cmp go.mod go.mod.tidy
+ # A missing "go" version directive should be added.
+ # However, that should not remove other redundant requirements.
+ cp go.mod.nogo go.mod
+-go list all
++go list -mod=mod all
+ cmpenv go.mod go.mod.currentgo
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/mod_retract.txt b/src/cmd/go/testdata/script/mod_retract.txt
+index 5d21902043..a52e05bc72 100644
+--- a/src/cmd/go/testdata/script/mod_retract.txt
++++ b/src/cmd/go/testdata/script/mod_retract.txt
+@@ -1,5 +1,8 @@
+ cp go.mod go.mod.orig
+ 
++# Populate go.sum.
++go mod download
++
+ # 'go list pkg' does not report an error when a retracted version is used.
+ go list -e -f '{{if .Error}}{{.Error}}{{end}}' ./use
+ ! stdout .
+@@ -17,7 +20,7 @@ exists $GOPATH/pkg/mod/cache/download/example.com/retract/@v/v1.0.0-bad.mod
+ 
+ # Importing a package from a module with a retracted latest version will
+ # select the latest non-retracted version.
+-go list ./use_self_prev
++go get -d ./use_self_prev
+ go list -m example.com/retract/self/prev
+ stdout '^example.com/retract/self/prev v1.1.0$'
+ exists $GOPATH/pkg/mod/cache/download/example.com/retract/self/prev/@v/v1.9.0.mod
+diff --git a/src/cmd/go/testdata/script/mod_retract_replace.txt b/src/cmd/go/testdata/script/mod_retract_replace.txt
+index b710485fa7..7aec438dda 100644
+--- a/src/cmd/go/testdata/script/mod_retract_replace.txt
++++ b/src/cmd/go/testdata/script/mod_retract_replace.txt
+@@ -1,6 +1,9 @@
+ # If the latest unretracted version of a module is replaced, 'go list' should
+ # obtain retractions from the replacement.
+ 
++# Populate go.sum.
++go get -d
++
+ # The latest version, v1.9.0, is not available on the proxy.
+ ! go list -m -retracted example.com/retract/missingmod
+ stderr '^go list -m: loading module retractions: example.com/retract/missingmod@v1.9.0:.*404 Not Found$'
+@@ -24,9 +27,9 @@ go list -m -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
+ go list -m -retracted -f '{{if .Replace}}replaced{{end}}' example.com/retract
+ ! stdout .
+ go mod edit -replace example.com/retract@v1.0.0-good=example.com/retract@v1.0.0-bad
+-go list -m -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
++go list -m -mod=mod -retracted -f '{{range .Retracted}}{{.}}{{end}}' example.com/retract
+ stdout '^bad$'
+-go list -m -retracted -f '{{with .Replace}}{{range .Retracted}}{{.}}{{end}}{{end}}' example.com/retract
++go list -m -mod=mod -retracted -f '{{with .Replace}}{{range .Retracted}}{{.}}{{end}}{{end}}' example.com/retract
+ stdout '^bad$'
+ 
+ -- go.mod --
+@@ -38,6 +41,13 @@ require (
+ 	example.com/retract v1.0.0-good
+ 	example.com/retract/missingmod v1.0.0
+ )
++-- use.go --
++package use
++
++import (
++	_ "example.com/retract"
++	_ "example.com/retract/missingmod"
++)
+ -- missingmod-v1.0.0/go.mod --
+ module example.com/retract/missingmod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_sum_lookup.txt b/src/cmd/go/testdata/script/mod_sum_lookup.txt
+index ed80a44984..e021921380 100644
+--- a/src/cmd/go/testdata/script/mod_sum_lookup.txt
++++ b/src/cmd/go/testdata/script/mod_sum_lookup.txt
+@@ -1,13 +1,14 @@
+ # When we attempt to resolve an import that doesn't exist, we should not save
+ # hashes for downloaded modules.
+ # Verifies golang.org/issue/36260.
+-go list -e -tags=ignore ./noexist
++# TODO(golang.org/issue/26603): use 'go mod tidy -e' when implemented.
++go list -e -mod=mod -tags=ignore ./noexist
+ ! exists go.sum
+ 
+ # When an import is resolved successfully, we should only save hashes for
+ # the module that provides the package, not for other modules looked up.
+ # Verifies golang.org/issue/31580.
+-go list ./exist
++go get -d ./exist
+ grep '^example.com/join v1.1.0 h1:' go.sum
+ ! grep '^example.com/join/subpkg' go.sum
+ cp go.sum go.list.sum
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index d9fb63acb0..cc0b0da474 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -34,7 +34,7 @@ cmp go.sum saved.sum
+ # Should use the checksum database to validate new go.sum lines,
+ # but not need to fetch any new data from the proxy.
+ rm go.sum
+-go list -x rsc.io/quote
++go list -mod=mod -x rsc.io/quote
+ ! stderr github
+ ! stderr proxy.golang.org/rsc.io/quote
+ stderr sum.golang.org/tile
+@@ -45,7 +45,7 @@ cmp go.sum saved.sum
+ env TESTGOPROXY404=1
+ go clean -modcache
+ rm go.sum
+-go list -x rsc.io/quote
++go list -mod=mod -x rsc.io/quote
+ stderr 'proxy.golang.org.*404 testing'
+ stderr github.com/rsc
+ cmp go.sum saved.sum
+diff --git a/src/cmd/go/testdata/script/mod_symlink.txt b/src/cmd/go/testdata/script/mod_symlink.txt
+index 49bece2b84..dbc23fb8f0 100644
+--- a/src/cmd/go/testdata/script/mod_symlink.txt
++++ b/src/cmd/go/testdata/script/mod_symlink.txt
+@@ -1,16 +1,19 @@
+ env GO111MODULE=on
+ [!symlink] skip
+ 
+-# 'go list' should resolve modules of imported packages.
++# 'go get -d' should resolve modules of imported packages.
++go get -d
+ go list -deps -f '{{.Module}}' .
+ stdout golang.org/x/text
+ 
++go get -d ./subpkg
+ go list -deps -f '{{.Module}}' ./subpkg
+ stdout golang.org/x/text
+ 
+ # Create a copy of the module using symlinks in src/links.
+ mkdir links
+ symlink links/go.mod -> $GOPATH/src/go.mod
++symlink links/go.sum -> $GOPATH/src/go.sum
+ symlink links/issue.go -> $GOPATH/src/issue.go
+ mkdir links/subpkg
+ symlink links/subpkg/issue.go -> $GOPATH/src/subpkg/issue.go
+diff --git a/src/cmd/go/testdata/script/mod_test.txt b/src/cmd/go/testdata/script/mod_test.txt
+index 8f2da2f2a5..50f00355c1 100644
+--- a/src/cmd/go/testdata/script/mod_test.txt
++++ b/src/cmd/go/testdata/script/mod_test.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++env GOFLAGS=-mod=mod
+ [short] skip
+ 
+ # TODO(bcmills): Convert the 'go test' calls below to 'go list -test' once 'go
+diff --git a/src/cmd/go/testdata/script/mod_tidy_replace.txt b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+index c3158f8610..7b00bf1384 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_replace.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+@@ -1,4 +1,5 @@
+ env GO111MODULE=on
++env GOFLAGS=-mod=mod
+ [short] skip
+ 
+ # golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
+diff --git a/src/cmd/go/testdata/script/mod_upgrade_patch.txt b/src/cmd/go/testdata/script/mod_upgrade_patch.txt
+index 3939e54c1b..1ef25b9aef 100644
+--- a/src/cmd/go/testdata/script/mod_upgrade_patch.txt
++++ b/src/cmd/go/testdata/script/mod_upgrade_patch.txt
+@@ -2,6 +2,7 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # Initially, we are at v1.0.0 for all dependencies.
++go get -d
+ cp go.mod go.mod.orig
+ go list -m all
+ stdout '^patch.example.com/direct v1.0.0'
+diff --git a/src/cmd/go/testdata/script/mod_vcs_missing.txt b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+index a755935b53..f8be43cf4c 100644
+--- a/src/cmd/go/testdata/script/mod_vcs_missing.txt
++++ b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+@@ -5,14 +5,14 @@ env GO111MODULE=on
+ env GOPROXY=direct
+ 
+ cd empty
+-! go list launchpad.net/gocheck
++! go get -d launchpad.net/gocheck
+ stderr '"bzr": executable file not found'
+ cd ..
+ 
+ # 1.11 used to give the cryptic error "cannot find module for path" here, but
+ # only for a main package.
+ cd main
+-! go build
++! go build -mod=mod
+ stderr '"bzr": executable file not found'
+ cd ..
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_build.txt b/src/cmd/go/testdata/script/mod_vendor_build.txt
+index 0c359cea6e..4efda55e08 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_build.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_build.txt
+@@ -1,6 +1,9 @@
+ env GO111MODULE=on
+ [short] skip
+ 
++# Populate go.mod and go.sum.
++go mod tidy
++
+ # initial conditions: using sampler v1.3.0, not listed in go.mod.
+ go list -deps
+ stdout rsc.io/sampler
+diff --git a/src/cmd/go/testdata/script/mod_verify.txt b/src/cmd/go/testdata/script/mod_verify.txt
+index 3918400435..43812d069f 100644
+--- a/src/cmd/go/testdata/script/mod_verify.txt
++++ b/src/cmd/go/testdata/script/mod_verify.txt
+@@ -56,7 +56,7 @@ go mod tidy
+ # Packages below module root should not be mentioned in go.sum.
+ rm go.sum
+ go mod edit -droprequire rsc.io/quote
+-go list rsc.io/quote/buggy # re-resolves import path and updates go.mod
++go get -d rsc.io/quote/buggy
+ grep '^rsc.io/quote v1.5.2/go.mod ' go.sum
+ ! grep buggy go.sum
+ 
+diff --git a/src/cmd/go/testdata/script/mod_why.txt b/src/cmd/go/testdata/script/mod_why.txt
+index 10a4f9fbea..c0ff4647a7 100644
+--- a/src/cmd/go/testdata/script/mod_why.txt
++++ b/src/cmd/go/testdata/script/mod_why.txt
+@@ -1,6 +1,9 @@
+ env GO111MODULE=on
+ [short] skip
+ 
++# Populate go.sum.
++go mod tidy
++
+ go list -test all
+ stdout rsc.io/quote
+ stdout golang.org/x/text/language
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index f05bf03fbf..0ad0880817 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -37,10 +37,10 @@ go mod why rsc.io/quote
+ # 'go list' and other commands with build flags should work.
+ # They should update the alternate go.mod when a dependency is missing.
+ go mod edit -droprequire rsc.io/quote
+-go list .
++go list -mod=mod .
+ grep rsc.io/quote go.alt.mod
+-go build -n .
+-go test -n .
++go build -n -mod=mod .
++go test -n -mod=mod .
+ go get -d rsc.io/quote
+ 
+ 
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 0123ac6d53..81ca698620 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -14,6 +14,7 @@ env GO111MODULE=on
+ [short] skip
+ 
+ # Check that 'go version' and 'go version -m' work on a binary built in module mode.
++go get -d rsc.io/fortune
+ go build -o fortune.exe rsc.io/fortune
+ go version fortune.exe
+ stdout '^fortune.exe: .+'
+diff --git a/src/cmd/go/testdata/script/version_replace.txt b/src/cmd/go/testdata/script/version_replace.txt
+index b657086f09..ec98f4e3f3 100644
+--- a/src/cmd/go/testdata/script/version_replace.txt
++++ b/src/cmd/go/testdata/script/version_replace.txt
+@@ -1,7 +1,7 @@
+ [short] skip
+ 
+ go mod download example.com/printversion@v0.1.0 example.com/printversion@v1.0.0
+-
++go get -d example.com/printversion@v0.1.0
+ go install example.com/printversion
+ 
+ go run example.com/printversion

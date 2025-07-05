@@ -13,7 +13,7 @@ Date:   Tue May 22 13:41:04 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/114079
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/cmd/vendor/README                              |  21 ++
  src/cmd/vendor/github.com/google/pprof/AUTHORS     |   7 -
  .../vendor/github.com/google/pprof/CONTRIBUTING.md |  77 ------
@@ -28,3 +28,1325 @@ Date:   Tue May 22 13:41:04 2018 -0400
  .../github.com/ianlancetaylor/demangle/c++filt.go  | 144 ----------
  src/cmd/vendor/vendor.json                         | 125 +++++++--
  13 files changed, 125 insertions(+), 1099 deletions(-)
+
+diff --git a/src/cmd/vendor/README b/src/cmd/vendor/README
+new file mode 100644
+index 0000000000..740905c652
+--- /dev/null
++++ b/src/cmd/vendor/README
+@@ -0,0 +1,21 @@
++How to update the vendored packages:
++
++Assuming the govendor tool is available
++run the govendor tool from src/cmd directory
++
++  $ go get -u github.com/kardianos/govendor
++
++To update packages used by cmd/pprof:
++
++  $ cd $GOROOT/src/cmd
++  $ GOPATH=$GOROOT govendor fetch github.com/google/pprof/...
++
++To update packages used by internal/objfile/*:
++
++  $ GOPATH=$GOROOT govendor fetch golang.org/x/arch/...
++
++GOPATH=$GOROOT in the above commands is a hack to
++make govendor work and will create the .cache folder in
++$GOROOT as a side-effect. Please make sure to delete
++the directory and not to include the directory in the
++commit by accident.
+diff --git a/src/cmd/vendor/github.com/google/pprof/AUTHORS b/src/cmd/vendor/github.com/google/pprof/AUTHORS
+deleted file mode 100644
+index fd736cb1cf..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/AUTHORS
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# This is the official list of pprof authors for copyright purposes.
+-# This file is distinct from the CONTRIBUTORS files.
+-# See the latter for an explanation.
+-# Names should be added to this file as:
+-# Name or Organization <email address>
+-# The email address is not required for organizations.
+-Google Inc.
+\ No newline at end of file
+diff --git a/src/cmd/vendor/github.com/google/pprof/CONTRIBUTING.md b/src/cmd/vendor/github.com/google/pprof/CONTRIBUTING.md
+deleted file mode 100644
+index e793970674..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/CONTRIBUTING.md
++++ /dev/null
+@@ -1,77 +0,0 @@
+-Want to contribute? Great: read the page (including the small print at the end).
+-
+-# Before you contribute
+-
+-As an individual, sign the [Google Individual Contributor License
+-Agreement](https://cla.developers.google.com/about/google-individual) (CLA)
+-online. This is required for any of your code to be accepted.
+-
+-Before you start working on a larger contribution, get in touch with us first
+-through the issue tracker with your idea so that we can help out and possibly
+-guide you. Coordinating up front makes it much easier to avoid frustration later
+-on.
+-
+-# Development
+-
+-Make sure `GOPATH` is set in your current shell. The common way is to have
+-something like `export GOPATH=$HOME/gocode` in your `.bashrc` file so that it's
+-automatically set in all console sessions.
+-
+-To get the source code, run
+-
+-```
+-go get github.com/google/pprof
+-```
+-
+-To run the tests, do
+-
+-```
+-cd $GOPATH/src/github.com/google/pprof
+-go test -v ./...
+-```
+-
+-When you wish to work with your own fork of the source (which is required to be
+-able to create a pull request), you'll want to get your fork repo as another Git
+-remote in the same `github.com/google/pprof` directory. Otherwise, if you'll `go
+-get` your fork directly, you'll be getting errors like `use of internal package
+-not allowed` when running tests.  To set up the remote do something like
+-
+-```
+-cd $GOPATH/src/github.com/google/pprof
+-git remote add aalexand git@github.com:aalexand/pprof.git
+-git fetch aalexand
+-git checkout -b my-new-feature
+-# hack hack hack
+-go test -v ./...
+-git commit -a -m "Add new feature."
+-git push aalexand
+-```
+-
+-where `aalexand` is your GitHub user ID. Then proceed to the GitHub UI to send a
+-code review.
+-
+-# Code reviews
+-
+-All submissions, including submissions by project members, require review.
+-We use GitHub pull requests for this purpose.
+-
+-The pprof source code is in Go with a bit of JavaScript, CSS and HTML. If you
+-are new to Go, read [Effective Go](https://golang.org/doc/effective_go.html) and
+-the [summary on typical comments during Go code
+-reviews](https://github.com/golang/go/wiki/CodeReviewComments).
+-
+-Cover all new functionality with tests. Enable Travis on your forked repo,
+-enable builds of branches and make sure Travis is happily green for the branch
+-with your changes.
+-
+-The code coverage is measured for each pull request. The code coverage is
+-expected to go up with every change.
+-
+-Pull requests not meeting the above guidelines will get less attention than good
+-ones, so make sure your submissions are high quality.
+-
+-# The small print
+-
+-Contributions made by corporations are covered by a different agreement than the
+-one above, the [Software Grant and Corporate Contributor License
+-Agreement](https://cla.developers.google.com/about/google-corporate).
+diff --git a/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS b/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS
+deleted file mode 100644
+index 0ef5e2f240..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/CONTRIBUTORS
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# People who have agreed to one of the CLAs and can contribute patches.
+-# The AUTHORS file lists the copyright holders; this file
+-# lists people.  For example, Google employees are listed here
+-# but not in AUTHORS, because Google holds the copyright.
+-#
+-# https://developers.google.com/open-source/cla/individual
+-# https://developers.google.com/open-source/cla/corporate
+-#
+-# Names should be added to this file as:
+-#     Name <email address>
+-Raul Silvera <rsilvera@google.com>
+-Tipp Moseley <tipp@google.com>
+-Hyoun Kyu Cho <netforce@google.com>
+-Martin Spier <spiermar@gmail.com>
+-Taco de Wolff <tacodewolff@gmail.com>
+diff --git a/src/cmd/vendor/github.com/google/pprof/README.md b/src/cmd/vendor/github.com/google/pprof/README.md
+deleted file mode 100644
+index 81e5d3939d..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/README.md
++++ /dev/null
+@@ -1,109 +0,0 @@
+-[![Build Status](https://travis-ci.org/google/pprof.svg?branch=master)](https://travis-ci.org/google/pprof)
+-[![codecov](https://codecov.io/gh/google/pprof/graph/badge.svg)](https://codecov.io/gh/google/pprof)
+-
+-# Introduction
+-
+-pprof is a tool for visualization and analysis of profiling data.
+-
+-pprof reads a collection of profiling samples in profile.proto format and
+-generates reports to visualize and help analyze the data. It can generate both
+-text and graphical reports (through the use of the dot visualization package).
+-
+-profile.proto is a protocol buffer that describes a set of callstacks
+-and symbolization information. A common usage is to represent a set of
+-sampled callstacks from statistical profiling. The format is
+-described on the [proto/profile.proto](./proto/profile.proto) file. For details on protocol
+-buffers, see https://developers.google.com/protocol-buffers
+-
+-Profiles can be read from a local file, or over http. Multiple
+-profiles of the same type can be aggregated or compared.
+-
+-If the profile samples contain machine addresses, pprof can symbolize
+-them through the use of the native binutils tools (addr2line and nm).
+-
+-**This is not an official Google product.**
+-
+-# Building pprof
+-
+-Prerequisites:
+-
+-- Go development kit. Requires Go 1.7 or newer.
+-  Follow [these instructions](http://golang.org/doc/code.html) to install the 
+-  go tool and set up GOPATH.
+-
+-- Graphviz: http://www.graphviz.org/
+-  Optional, used to generate graphic visualizations of profiles
+-
+-To build and install it, use the `go get` tool.
+-
+-    go get github.com/google/pprof
+-
+-Remember to set GOPATH to the directory where you want pprof to be
+-installed.  The binary will be in `$GOPATH/bin` and the sources under
+-`$GOPATH/src/github.com/google/pprof`.
+-
+-# Basic usage
+-
+-pprof can read a profile from a file or directly from a server via http.
+-Specify the profile input(s) in the command line, and use options to
+-indicate how to format the report.
+-
+-## Generate a text report of the profile, sorted by hotness:
+-
+-```
+-% pprof -top [main_binary] profile.pb.gz
+-Where
+-    main_binary:  Local path to the main program binary, to enable symbolization
+-    profile.pb.gz: Local path to the profile in a compressed protobuf, or
+-                   URL to the http service that serves a profile.
+-```
+-
+-## Generate a graph in an SVG file, and open it with a web browser:
+-
+-```
+-pprof -web [main_binary] profile.pb.gz
+-```
+-
+-## Run pprof on interactive mode:
+-
+-If no output formatting option is specified, pprof runs on interactive mode,
+-where reads the profile and accepts interactive commands for visualization and
+-refinement of the profile.
+-
+-```
+-pprof [main_binary] profile.pb.gz
+-
+-This will open a simple shell that takes pprof commands to generate reports.
+-Type 'help' for available commands/options.
+-```
+-
+-## Run pprof via a web interface
+-
+-If the `-http` flag is specified, pprof starts a web server at
+-the specified host:port that provides an interactive web-based interface to pprof.
+-Host is optional, and is "localhost" by default. Port is optional, and is a
+-random available port by default. `-http=":"` starts a server locally at
+-a random port.
+-
+-```
+-pprof -http=[host]:[port] [main_binary] profile.pb.gz
+-```
+-
+-The preceding command should automatically open your web browser at
+-the right page; if not, you can manually visit the specified port in
+-your web browser.
+-
+-## Using pprof with Linux Perf
+-
+-pprof can read `perf.data` files generated by the
+-[Linux perf](https://perf.wiki.kernel.org/index.php/Main_Page) tool by using the
+-`perf_to_profile` program from the
+-[perf_data_converter](https://github.com/google/perf_data_converter) package.
+-
+-## Further documentation
+-
+-See [doc/README.md](doc/README.md) for more detailed end-user documentation.
+-
+-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution documentation.
+-
+-See [proto/README.md](proto/README.md) for a description of the profile.proto format.
+diff --git a/src/cmd/vendor/github.com/google/pprof/doc/README.md b/src/cmd/vendor/github.com/google/pprof/doc/README.md
+deleted file mode 100644
+index de7c393e78..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/doc/README.md
++++ /dev/null
+@@ -1,289 +0,0 @@
+-# pprof
+-
+-pprof is a tool for visualization and analysis of profiling data.
+-
+-pprof reads a collection of profiling samples in profile.proto format and
+-generates reports to visualize and help analyze the data. It can generate both
+-text and graphical reports (through the use of the dot visualization package).
+-
+-profile.proto is a protocol buffer that describes a set of callstacks
+-and symbolization information. A common usage is to represent a set of
+-sampled callstacks from statistical profiling. The format is
+-described on the src/proto/profile.proto file. For details on protocol
+-buffers, see https://developers.google.com/protocol-buffers
+-
+-Profiles can be read from a local file, or over http. Multiple
+-profiles of the same type can be aggregated or compared.
+-
+-If the profile samples contain machine addresses, pprof can symbolize
+-them through the use of the native binutils tools (addr2line and nm).
+-
+-# pprof profiles
+-
+-pprof operates on data in the profile.proto format. Each profile is a collection
+-of samples, where each sample is associated to a point in a location hierarchy,
+-one or more numeric values, and a set of labels. Often these profiles represents
+-data collected through statistical sampling of a program, so each sample
+-describes a program call stack and a number or weight of samples collected at a
+-location. pprof is agnostic to the profile semantics, so other uses are
+-possible. The interpretation of the reports generated by pprof depends on the
+-semantics defined by the source of the profile.
+-
+-# Usage Modes
+-
+-There are few different ways of using `pprof`.
+-
+-## Report generation
+-
+-If a report format is requested on the command line:
+-
+-    pprof <format> [options] source
+-
+-pprof will generate a report in the specified format and exit.
+-Formats can be either text, or graphical. See below for details about
+-supported formats, options, and sources.
+-
+-## Interactive terminal use
+-
+-Without a format specifier:
+-
+-    pprof [options] source
+-
+-pprof will start an interactive shell in which the user can type
+-commands.  Type `help` to get online help.
+-
+-## Web interface
+-
+-If a host:port is specified on the command line:
+-
+-    pprof -http=[host]:[port] [options] source
+-
+-pprof will start serving HTTP requests on the specified port.  Visit
+-the HTTP url corresponding to the port (typically `http://<host>:<port>/`)
+-in a browser to see the interface.
+-
+-# Details
+-
+-The objective of pprof is to generate a report for a profile. The report is
+-generated from a location hierarchy, which is reconstructed from the profile
+-samples. Each location contains two values: *flat* is the value of the location
+-itself, while *cum* is the value of the location plus all its
+-descendants. Samples that include a location multiple times (eg for recursive
+-functions) are counted only once per location.
+-
+-## Options
+-
+-*options* configure the contents of a report. Each option has a value,
+-which can be boolean, numeric, or strings. While only one format can
+-be specified, most options can be selected independently of each
+-other.
+-
+-Some common pprof options are:
+-
+-* **-flat [default]:** Sort entries based on their flat weight, on text reports.
+-* **-cum:** Sort entries based on cumulative weight, on text reports.
+-* **-functions [default]:** Accumulate samples at the function level; profile
+-  locations that describe the same function will be merged into a report entry.
+-* **-lines:** Accumulate samples at the source line level; profile locations that
+-  describe the same function will be merged into a report entry.
+-* **-addresses:** Accumulate samples at the instruction address; profile locations
+-  that describe the same function address will be merged into a report entry.
+-* **-nodecount= _int_:** Maximum number of entries in the report. pprof will only print
+-  this many entries and will use heuristics to select which entries to trim.
+-* **-focus= _regex_:** Only include samples that include a report entry matching
+-  *regex*.
+-* **-ignore= _regex_:** Do not include samples that include a report entry matching
+-  *regex*.
+-* **-show\_from= _regex_:** Do not show entries above the first one that 
+-  matches *regex*.
+-* **-show= _regex_:** Only show entries that match *regex*.
+-* **-hide= _regex_:** Do not show entries that match *regex*.
+-
+-Each sample in a profile may include multiple values, representing different
+-entities associated to the sample. pprof reports include a single sample value,
+-which by convention is the last one specified in the report. The `sample_index=`
+-option selects which value to use, and can be set to a number (from 0 to the
+-number of values - 1) or the name of the sample value.
+-
+-Sample values are numeric values associated to a unit. If pprof can recognize
+-these units, it will attempt to scale the values to a suitable unit for
+-visualization. The `unit=` option will force the use of a specific unit. For
+-example, `unit=sec` will force any time values to be reported in
+-seconds. pprof recognizes most common time and memory size units.
+-
+-## Tag filtering
+-
+-Samples in a profile may have tags. These tags have a name and a value; this
+-value can be either numeric or a string. pprof can select samples from a
+-profile based on these tags using the `-tagfocus` and `-tagignore` options.
+-
+-Generally, these options work as follows:
+-* **-tagfocus=_regex_** or **-tagfocus=_range_:** Restrict to samples with tags
+-  matched by regexp or in range.
+-* **-tagignore=_regex_** or **-tagignore=_range_:** Discard samples with tags
+-  matched by regexp or in range.
+-
+-When using `-tagfocus=regex` and `-tagignore=regex`, the regex will be compared
+-to each value associated with each tag. If one specifies a value
+-like `regex1,regex2`, then only samples with a tag value matching `regex1`
+-and a tag value matching `regex2` will be kept.
+-
+-In addition to being able to filter on tag values, one can specify the name of
+-the tag which a certain value must be associated with using the notation
+-`-tagfocus=tagName=value`. Here, the `tagName` must match the tag's name
+-exactly, and the value can be either a regex or a range. If one specifies
+-a value like `regex1,regex2`, then samples with a tag value (paired with the
+-specified tag name) matching either `regex1` or matching `regex2` will match.
+-
+-Here are examples explaining how `tagfocus` can be used:
+-
+-* `-tagfocus 128kb:512kb` accepts a sample iff it has any numeric tag with
+-  memory value in the specified range.
+-* `-tagfocus mytag=128kb:512kb` accepts a sample iff it has a numeric tag
+-  `mytag` with memory value in the specified range. There isn't a way to say
+-   `-tagfocus mytag=128kb:512kb,16kb:32kb`
+-   or `-tagfocus mytag=128kb:512kb,mytag2=128kb:512kb`. Just single value or
+-   range for numeric tags.
+-* `-tagfocus someregex` accepts a sample iff it has any string tag with
+-  `tagName:tagValue` string matching specified regexp. In the future, this
+-  will change to accept sample iff it has any string tag with `tagValue` string
+-  matching specified regexp.
+-* `-tagfocus mytag=myvalue1,myvalue2` matches if either of the two tag values
+-  are present.
+-
+-`-tagignore` works similarly, except that it discards matching samples, instead
+-of keeping them.
+-
+-If both the `-tagignore` and `-tagfocus` expressions (either a regexp or a
+-range) match a given sample, then the sample will be discarded.
+-
+-## Text reports
+-
+-pprof text reports show the location hierarchy in text format.
+-
+-* **-text:** Prints the location entries, one per line, including the flat and cum
+-  values.
+-* **-tree:** Prints each location entry with its predecessors and successors.
+-* **-peek= _regex_:** Print the location entry with all its predecessors and
+-  successors, without trimming any entries.
+-* **-traces:** Prints each sample with a location per line.
+-
+-## Graphical reports
+-
+-pprof can generate graphical reports on the DOT format, and convert them to
+-multiple formats using the graphviz package.
+-
+-These reports represent the location hierarchy as a graph, with a report entry
+-represented as a node. Solid edges represent a direct connection between
+-entries, while dotted edges represent a connection where some intermediate nodes
+-have been removed. Nodes are removed using heuristics to limit the size of
+-the graph, controlled by the *nodecount* option.
+-
+-The size of each node represents the flat weight of the node, and the width of
+-each edge represents the cumulative weight of all samples going through
+-it. Nodes are colored according to their cumulative weight, highlighting the
+-paths with the highest cum weight.
+-
+-* **-dot:** Generates a report in .dot format. All other formats are generated from
+-  this one.
+-* **-svg:** Generates a report in SVG format.
+-* **-web:** Generates a report in SVG format on a temp file, and starts a web
+-  browser to view it.
+-* **-png, -jpg, -gif, -pdf:** Generates a report in these formats,
+-
+-## Annotated code
+-
+-pprof can also generate reports of annotated source with samples associated to
+-them. For these, the source or binaries must be locally available, and the
+-profile must contain data with the appropriate level of detail.
+-
+-pprof will look for source files on its current working directory and all its
+-ancestors. pprof will look for binaries on the directories specified in the
+-`$PPROF_BINARY_PATH` environment variable, by default `$HOME/pprof/binaries`
+-(`%USERPROFILE%\pprof\binaries` on Windows). It will look binaries up by name,
+-and if the profile includes linker build ids, it will also search for them in
+-a directory named as the build id.
+-
+-pprof uses the binutils tools to examine and disassemble the binaries. By
+-default it will search for those tools in the current path, but it can also
+-search for them in a directory pointed to by the environment variable
+-`$PPROF_TOOLS`.
+-
+-* **-disasm= _regex_:** Generates an annotated source listing for functions matching
+-  regex, with flat/cum weights for each source line.
+-* **-list= _regex_:** Generates an annotated disassembly listing for functions
+-  matching *regex*.
+-* **-weblist= _regex_:** Generates a source/assembly combined annotated listing for
+-  functions matching *regex*, and starts a web browser to display it.
+-
+-# Fetching profiles
+-
+-pprof can read profiles from a file or directly from a URL over http. Its native
+-format is a gzipped profile.proto file, but it can also accept some legacy
+-formats generated by [gperftools](https://github.com/gperftools/gperftools).
+-
+-When fetching from a URL handler, pprof accepts options to indicate how much to
+-wait for the profile.
+-
+-* **-seconds= _int_:** Makes pprof request for a profile with the specified duration
+-  in seconds. Only makes sense for profiles based on elapsed time, such as CPU
+-  profiles.
+-* **-timeout= _int_:** Makes pprof wait for the specified timeout when retrieving a
+-  profile over http. If not specified, pprof will use heuristics to determine a
+-  reasonable timeout.
+-
+-If multiple profiles are specified, pprof will fetch them all and merge
+-them. This is useful to combine profiles from multiple processes of a
+-distributed job. The profiles may be from different programs but must be
+-compatible (for example, CPU profiles cannot be combined with heap profiles).
+-
+-pprof can subtract a profile from another in order to compare them. For that,
+-use the **-base= _profile_** option, where *profile* is the filename or URL for the
+-profile to be subtracted. This may result on some report entries having negative
+-values.
+-
+-## Symbolization
+-
+-pprof can add symbol information to a profile that was collected only with
+-address information. This is useful for profiles for compiled languages, where
+-it may not be easy or even possible for the profile source to include function
+-names or source coordinates.
+-
+-pprof can extract the symbol information locally by examining the binaries using
+-the binutils tools, or it can ask running jobs that provide a symbolization
+-interface.
+-
+-pprof will attempt symbolizing profiles by default, and its `-symbolize` option
+-provides some control over symbolization:
+-
+-* **-symbolize=none:** Disables any symbolization from pprof.
+-
+-* **-symbolize=local:** Only attempts symbolizing the profile from local
+-  binaries using the binutils tools.
+-
+-* **-symbolize=remote:** Only attempts to symbolize running jobs by contacting
+-  their symbolization handler.
+-
+-For local symbolization, pprof will look for the binaries on the paths specified
+-by the profile, and then it will search for them on the path specified by the
+-environment variable `$PPROF_BINARY_PATH`. Also, the name of the main binary can
+-be passed directly to pprof as its first parameter, to override the name or
+-location of the main binary of the profile, like this:
+-
+-    pprof /path/to/binary profile.pb.gz
+-
+-By default pprof will attempt to demangle and simplify C++ names, to provide
+-readable names for C++ symbols. It will aggressively discard template and
+-function parameters. This can be controlled with the `-symbolize=demangle`
+-option. Note that for remote symbolization mangled names may not be provided by
+-the symbolization handler.
+-
+-* **--symbolize=demangle=none:** Do not perform any demangling. Show mangled
+-  names if available.
+-
+-* **-symbolize=demangle=full:** Demangle, but do not perform any
+-  simplification. Show full demangled names if available.
+-
+-* **-symbolize=demangle=templates:** Demangle, and trim function parameters, but
+-  not template parameters.
+-
+diff --git a/src/cmd/vendor/github.com/google/pprof/proto/README.md b/src/cmd/vendor/github.com/google/pprof/proto/README.md
+deleted file mode 100644
+index d3b0b84191..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/proto/README.md
++++ /dev/null
+@@ -1,149 +0,0 @@
+-This is a description of the profile.proto format.
+-
+-# Overview
+-
+-Profile.proto is a data representation for profile data. It is independent of
+-the type of data being collected and the sampling process used to collect that
+-data. On disk, it is represented as a gzip-compressed protocol buffer, described
+-at src/proto/profile.proto
+-
+-A profile in this context refers to a collection of samples, each one
+-representing measurements performed at a certain point in the life of a job. A
+-sample associates a set of measurement values with a list of locations, commonly
+-representing the program call stack when the sample was taken.
+-
+-Tools such as pprof analyze these samples and display this information in
+-multiple forms, such as identifying hottest locations, building graphical call
+-graphs or trees, etc.
+-
+-# General structure of a profile
+-
+-A profile is represented on a Profile message, which contain the following
+-fields:
+-
+-* *sample*: A profile sample, with the values measured and the associated call
+-  stack as a list of location ids. Samples with identical call stacks can be
+-  merged by adding their respective values, element by element.
+-* *location*: A unique place in the program, commonly mapped to a single
+-  instruction address. It has a unique nonzero id, to be referenced from the
+-  samples. It contains source information in the form of lines, and a mapping id
+-  that points to a binary.
+-* *function*: A program function as defined in the program source. It has a
+-  unique nonzero id, referenced from the location lines. It contains a
+-  human-readable name for the function (eg a C++ demangled name), a system name
+-  (eg a C++ mangled name), the name of the corresponding source file, and other
+-  function attributes.
+-* *mapping*: A binary that is part of the program during the profile
+-  collection. It has a unique nonzero id, referenced from the locations. It
+-  includes details on how the binary was mapped during program execution. By
+-  convention the main program binary is the first mapping, followed by any
+-  shared libraries.
+-* *string_table*: All strings in the profile are represented as indices into
+-  this repeating field. The first string is empty, so index == 0 always
+-  represents the empty string.
+-
+-# Measurement values
+-
+-Measurement values are represented as 64-bit integers. The profile contains an
+-explicit description of each value represented, using a ValueType message, with
+-two fields:
+-
+-* *Type*: A human-readable description of the type semantics. For example “cpu”
+-  to represent CPU time, “wall” or “time” for wallclock time, or “memory” for
+-  bytes allocated.
+-* *Unit*: A human-readable name of the unit represented by the 64-bit integer
+-  values. For example, it could be “nanoseconds” or “milliseconds” for a time
+-  value, or “bytes” or “megabytes” for a memory size. If this is just
+-  representing a number of events, the recommended unit name is “count”.
+-
+-A profile can represent multiple measurements per sample, but all samples must
+-have the same number and type of measurements. The actual values are stored in
+-the Sample.value fields, each one described by the corresponding
+-Profile.sample_type field.
+-
+-Some profiles have a uniform period that describe the granularity of the data
+-collection. For example, a CPU profile may have a period of 100ms, or a memory
+-allocation profile may have a period of 512kb. Profiles can optionally describe
+-such a value on the Profile.period and Profile.period_type fields. The profile
+-period is meant for human consumption and does not affect the interpretation of
+-the profiling data.
+-
+-By convention, the first value on all profiles is the number of samples
+-collected at this call stack, with unit “count”. Because the profile does not
+-describe the sampling process beyond the optional period, it must include
+-unsampled values for all measurements. For example, a CPU profile could have
+-value[0] == samples, and value[1] == time in milliseconds.
+-
+-## Locations, functions and mappings
+-
+-Each sample lists the id of each location where the sample was collected, in
+-bottom-up order. Each location has an explicit unique nonzero integer id,
+-independent of its position in the profile, and holds additional information to
+-identify the corresponding source.
+-
+-The profile source is expected to perform any adjustment required to the
+-locations in order to point to the calls in the stack. For example, if the
+-profile source extracts the call stack by walking back over the program stack,
+-it must adjust the instruction addresses to point to the actual call
+-instruction, instead of the instruction that each call will return to.
+-
+-Sources usually generate profiles that fall into these two categories:
+-
+-* *Unsymbolized profiles*: These only contain instruction addresses, and are to
+-  be symbolized by a separate tool. It is critical for each location to point to
+-  a valid mapping, which will provide the information required for
+-  symbolization. These are used for profiles of compiled languages, such as C++
+-  and Go.
+-
+-* *Symbolized profiles*: These contain all the symbol information available for
+-  the profile. Mappings and instruction addresses are optional for symbolized
+-  locations. These are used for profiles of interpreted or jitted languages,
+-  such as Java or Python.  Also, the profile format allows the generation of
+-  mixed profiles, with symbolized and unsymbolized locations.
+-
+-The symbol information is represented in the repeating lines field of the
+-Location message. A location has multiple lines if it reflects multiple program
+-sources, for example if representing inlined call stacks. Lines reference
+-functions by their unique nonzero id, and the source line number within the
+-source file listed by the function. A function contains the source attributes
+-for a function, including its name, source file, etc. Functions include both a
+-user and a system form of the name, for example to include C++ demangled and
+-mangled names. For profiles where only a single name exists, both should be set
+-to the same string.
+-
+-Mappings are also referenced from locations by their unique nonzero id, and
+-include all information needed to symbolize addresses within the mapping. It
+-includes similar information to the Linux /proc/self/maps file. Locations
+-associated to a mapping should have addresses that land between the mapping
+-start and limit. Also, if available, mappings should include a build id to
+-uniquely identify the version of the binary being used.
+-
+-## Labels
+-
+-Samples optionally contain labels, which are annotations to discriminate samples
+-with identical locations. For example, a label can be used on a malloc profile
+-to indicate allocation size, so two samples on the same call stack with sizes
+-2MB and 4MB do not get merged into a single sample with two allocations and a
+-size of 6MB.
+-
+-Labels can be string-based or numeric. They are represented by the Label
+-message, with a key identifying the label and either a string or numeric
+-value. For numeric labels, the measurement unit can be specified in the profile.
+-If no unit is specified and the key is "request" or "alignment",
+-then the units are assumed to be "bytes". Otherwise when no unit is specified
+-the key will be used as the measurement unit of the numeric value. All tags with
+-the same key should have the same unit.
+-
+-## Keep and drop expressions
+-
+-Some profile sources may have knowledge of locations that are uninteresting or
+-irrelevant. However, if symbolization is needed in order to identify these
+-locations, the profile source may not be able to remove them when the profile is
+-generated. The profile format provides a mechanism to identify these frames by
+-name, through regular expressions.
+-
+-These expressions must match the function name in its entirety. Frames that
+-match Profile.drop\_frames will be dropped from the profile, along with any
+-frames below it. Frames that match Profile.keep\_frames will be kept, even if
+-they match drop\_frames.
+-
+diff --git a/src/cmd/vendor/github.com/google/pprof/proto/profile.proto b/src/cmd/vendor/github.com/google/pprof/proto/profile.proto
+deleted file mode 100644
+index 669f71133e..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/proto/profile.proto
++++ /dev/null
+@@ -1,203 +0,0 @@
+-// Copyright (c) 2016, Google Inc.
+-// All rights reserved.
+-//
+-////////////////////////////////////////////////////////////////////////////////
+-
+-// Profile is a common stacktrace profile format.
+-//
+-// Measurements represented with this format should follow the
+-// following conventions:
+-//
+-// - Consumers should treat unset optional fields as if they had been
+-//   set with their default value.
+-//
+-// - When possible, measurements should be stored in "unsampled" form
+-//   that is most useful to humans.  There should be enough
+-//   information present to determine the original sampled values.
+-//
+-// - On-disk, the serialized proto must be gzip-compressed.
+-//
+-// - The profile is represented as a set of samples, where each sample
+-//   references a sequence of locations, and where each location belongs
+-//   to a mapping.
+-// - There is a N->1 relationship from sample.location_id entries to
+-//   locations. For every sample.location_id entry there must be a
+-//   unique Location with that id.
+-// - There is an optional N->1 relationship from locations to
+-//   mappings. For every nonzero Location.mapping_id there must be a
+-//   unique Mapping with that id.
+-
+-syntax = "proto3";
+-
+-package perftools.profiles;
+-
+-option java_package = "com.google.perftools.profiles";
+-option java_outer_classname = "ProfileProto";
+-
+-message Profile {
+-  // A description of the samples associated with each Sample.value.
+-  // For a cpu profile this might be:
+-  //   [["cpu","nanoseconds"]] or [["wall","seconds"]] or [["syscall","count"]]
+-  // For a heap profile, this might be:
+-  //   [["allocations","count"], ["space","bytes"]],
+-  // If one of the values represents the number of events represented
+-  // by the sample, by convention it should be at index 0 and use
+-  // sample_type.unit == "count".
+-  repeated ValueType sample_type = 1;
+-  // The set of samples recorded in this profile.
+-  repeated Sample sample = 2;
+-  // Mapping from address ranges to the image/binary/library mapped
+-  // into that address range.  mapping[0] will be the main binary.
+-  repeated Mapping mapping = 3;
+-  // Useful program location
+-  repeated Location location = 4;
+-  // Functions referenced by locations
+-  repeated Function function = 5;
+-  // A common table for strings referenced by various messages.
+-  // string_table[0] must always be "".
+-  repeated string string_table = 6;
+-  // frames with Function.function_name fully matching the following
+-  // regexp will be dropped from the samples, along with their successors.
+-  int64 drop_frames = 7;   // Index into string table.
+-  // frames with Function.function_name fully matching the following
+-  // regexp will be kept, even if it matches drop_functions.
+-  int64 keep_frames = 8;  // Index into string table.
+-
+-  // The following fields are informational, do not affect
+-  // interpretation of results.
+-
+-  // Time of collection (UTC) represented as nanoseconds past the epoch.
+-  int64 time_nanos = 9;
+-  // Duration of the profile, if a duration makes sense.
+-  int64 duration_nanos = 10;
+-  // The kind of events between sampled ocurrences.
+-  // e.g [ "cpu","cycles" ] or [ "heap","bytes" ]
+-  ValueType period_type = 11;
+-  // The number of events between sampled occurrences.
+-  int64 period = 12;
+-  // Freeform text associated to the profile.
+-  repeated int64 comment = 13; // Indices into string table.
+-  // Index into the string table of the type of the preferred sample
+-  // value. If unset, clients should default to the last sample value.
+-  int64 default_sample_type = 14;
+-}
+-
+-// ValueType describes the semantics and measurement units of a value.
+-message ValueType {
+-  int64 type = 1; // Index into string table.
+-  int64 unit = 2; // Index into string table.
+-}
+-
+-// Each Sample records values encountered in some program
+-// context. The program context is typically a stack trace, perhaps
+-// augmented with auxiliary information like the thread-id, some
+-// indicator of a higher level request being handled etc.
+-message Sample {
+-  // The ids recorded here correspond to a Profile.location.id.
+-  // The leaf is at location_id[0].
+-  repeated uint64 location_id = 1;
+-  // The type and unit of each value is defined by the corresponding
+-  // entry in Profile.sample_type. All samples must have the same
+-  // number of values, the same as the length of Profile.sample_type.
+-  // When aggregating multiple samples into a single sample, the
+-  // result has a list of values that is the elemntwise sum of the
+-  // lists of the originals.
+-  repeated int64 value = 2;
+-  // label includes additional context for this sample. It can include
+-  // things like a thread id, allocation size, etc
+-  repeated Label label = 3;
+-}
+-
+-message Label {
+-  int64 key = 1;   // Index into string table
+-
+-  // At most one of the following must be present
+-  int64 str = 2;   // Index into string table
+-  int64 num = 3;
+-
+-  // Should only be present when num is present.
+-  // Specifies the units of num.
+-  // Use arbitrary string (for example, "requests") as a custom count unit.
+-  // If no unit is specified, consumer may apply heuristic to deduce the unit.
+-  // Consumers may also  interpret units like "bytes" and "kilobytes" as memory
+-  // units and units like "seconds" and "nanoseconds" as time units,
+-  // and apply appropriate unit conversions to these.
+-  int64 num_unit = 4;  // Index into string table
+-}
+-
+-message Mapping {
+-  // Unique nonzero id for the mapping.
+-  uint64 id = 1;
+-  // Address at which the binary (or DLL) is loaded into memory.
+-  uint64 memory_start = 2;
+-  // The limit of the address range occupied by this mapping.
+-  uint64 memory_limit = 3;
+-  // Offset in the binary that corresponds to the first mapped address.
+-  uint64 file_offset = 4;
+-  // The object this entry is loaded from.  This can be a filename on
+-  // disk for the main binary and shared libraries, or virtual
+-  // abstractions like "[vdso]".
+-  int64 filename = 5;  // Index into string table
+-  // A string that uniquely identifies a particular program version
+-  // with high probability. E.g., for binaries generated by GNU tools,
+-  // it could be the contents of the .note.gnu.build-id field.
+-  int64 build_id = 6;  // Index into string table
+-
+-  // The following fields indicate the resolution of symbolic info.
+-  bool has_functions = 7;
+-  bool has_filenames = 8;
+-  bool has_line_numbers = 9;
+-  bool has_inline_frames = 10;
+-}
+-
+-// Describes function and line table debug information.
+-message Location {
+-  // Unique nonzero id for the location.  A profile could use
+-  // instruction addresses or any integer sequence as ids.
+-  uint64 id = 1;
+-  // The id of the corresponding profile.Mapping for this location.
+-  // It can be unset if the mapping is unknown or not applicable for
+-  // this profile type.
+-  uint64 mapping_id = 2;
+-  // The instruction address for this location, if available.  It
+-  // should be within [Mapping.memory_start...Mapping.memory_limit]
+-  // for the corresponding mapping. A non-leaf address may be in the
+-  // middle of a call instruction. It is up to display tools to find
+-  // the beginning of the instruction if necessary.
+-  uint64 address = 3;
+-  // Multiple line indicates this location has inlined functions,
+-  // where the last entry represents the caller into which the
+-  // preceding entries were inlined.
+-  //
+-  // E.g., if memcpy() is inlined into printf:
+-  //    line[0].function_name == "memcpy"
+-  //    line[1].function_name == "printf"
+-  repeated Line line = 4;
+-  // Provides an indication that multiple symbols map to this location's
+-  // address, for example due to identical code folding by the linker. In that
+-  // case the line information above represents one of the multiple
+-  // symbols. This field must be recomputed when the symbolization state of the
+-  // profile changes.
+-  bool is_folded = 5;
+-}
+-
+-message Line {
+-  // The id of the corresponding profile.Function for this line.
+-  uint64 function_id = 1;
+-  // Line number in source code.
+-  int64 line = 2;
+-}
+-
+-message Function {
+-  // Unique nonzero id for the function.
+-  uint64 id = 1;
+-  // Name of the function, in human-readable form if available.
+-  int64 name = 2; // Index into string table
+-  // Name of the function, as identified by the system.
+-  // For instance, it can be a C++ mangled name.
+-  int64 system_name = 3; // Index into string table
+-  // Source file containing the function.
+-  int64 filename = 4; // Index into string table
+-  // Line number in source file.
+-  int64 start_line = 5;
+-}
+diff --git a/src/cmd/vendor/github.com/google/pprof/test.sh b/src/cmd/vendor/github.com/google/pprof/test.sh
+deleted file mode 100755
+index e9aff2b409..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/test.sh
++++ /dev/null
+@@ -1,26 +0,0 @@
+-#!/usr/bin/env bash
+-
+-set -e
+-set -x
+-MODE=atomic
+-echo "mode: $MODE" > coverage.txt
+-
+-# All packages.
+-PKG=$(go list ./...)
+-
+-staticcheck $PKG
+-unused $PKG
+-
+-# Packages that have any tests.
+-PKG=$(go list -f '{{if .TestGoFiles}} {{.ImportPath}} {{end}}' ./...)
+-
+-go test -v $PKG
+-
+-for d in $PKG; do
+-  go test -race -coverprofile=profile.out -covermode=$MODE $d
+-  if [ -f profile.out ]; then
+-    cat profile.out | grep -v "^mode: " >> coverage.txt
+-    rm profile.out
+-  fi
+-done
+-
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/update_d3flamegraph.sh b/src/cmd/vendor/github.com/google/pprof/third_party/update_d3flamegraph.sh
+deleted file mode 100755
+index d742b188f1..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/update_d3flamegraph.sh
++++ /dev/null
+@@ -1,46 +0,0 @@
+-#!/usr/bin/env bash
+-
+-set -eu
+-set -o pipefail
+-
+-D3FLAMEGRAPH_REPO="https://raw.githubusercontent.com/spiermar/d3-flame-graph"
+-D3FLAMEGRAPH_VERSION="2.0.0-alpha4"
+-D3FLAMEGRAPH_JS="d3-flamegraph.js"
+-D3FLAMEGRAPH_CSS="d3-flamegraph.css"
+-
+-cd $(dirname $0)
+-
+-D3FLAMEGRAPH_DIR=d3flamegraph
+-
+-generate_d3flamegraph_go() {
+-    local d3_js=$(curl -s "${D3FLAMEGRAPH_REPO}/${D3FLAMEGRAPH_VERSION}/dist/${D3FLAMEGRAPH_JS}" | sed 's/`/`+"`"+`/g')
+-    local d3_css=$(curl -s "${D3FLAMEGRAPH_REPO}/${D3FLAMEGRAPH_VERSION}/dist/${D3FLAMEGRAPH_CSS}")
+-
+-    cat <<-EOF > $D3FLAMEGRAPH_DIR/d3_flame_graph.go
+-// A D3.js plugin that produces flame graphs from hierarchical data.
+-// https://github.com/spiermar/d3-flame-graph
+-// Version $D3FLAMEGRAPH_VERSION
+-// See LICENSE file for license details
+-
+-package d3flamegraph
+-
+-// JSSource returns the $D3FLAMEGRAPH_JS file
+-const JSSource = \`
+-$d3_js
+-\`
+-
+-// CSSSource returns the $D3FLAMEGRAPH_CSS file
+-const CSSSource = \`
+-$d3_css
+-\`
+-EOF
+-    gofmt -w $D3FLAMEGRAPH_DIR/d3_flame_graph.go
+-}
+-
+-get_license() {
+-    curl -s -o $D3FLAMEGRAPH_DIR/LICENSE "${D3FLAMEGRAPH_REPO}/${D3FLAMEGRAPH_VERSION}/LICENSE"
+-}
+-
+-mkdir -p $D3FLAMEGRAPH_DIR
+-get_license
+-generate_d3flamegraph_go
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/.gitignore b/src/cmd/vendor/github.com/ianlancetaylor/demangle/.gitignore
+deleted file mode 100644
+index 4a8b38f46b..0000000000
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/.gitignore
++++ /dev/null
+@@ -1,13 +0,0 @@
+-*.o
+-*.a
+-*.so
+-._*
+-.nfs.*
+-a.out
+-*~
+-*.orig
+-*.rej
+-*.exe
+-.*.swp
+-core
+-demangle.test
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/c++filt.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/c++filt.go
+deleted file mode 100644
+index 7ba817c9fe..0000000000
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/c++filt.go
++++ /dev/null
+@@ -1,144 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// This is a program that works like the GNU c++filt program.
+-// It's here for testing purposes and as an example.
+-
+-package main
+-
+-import (
+-	"bufio"
+-	"flag"
+-	"fmt"
+-	"io"
+-	"os"
+-	"strings"
+-	"unicode"
+-
+-	"github.com/ianlancetaylor/demangle"
+-)
+-
+-func flagUsage() {
+-	usage(os.Stderr, 2)
+-}
+-
+-func usage(w io.Writer, status int) {
+-	fmt.Fprintf(w, "Usage: %s [options] [mangled names]\n", os.Args[0])
+-	flag.CommandLine.SetOutput(w)
+-	flag.PrintDefaults()
+-	fmt.Fprintln(w, `Demangled names are displayed to stdout
+-If a name cannot be demangled it is just echoed to stdout.
+-If no names are provided on the command line, stdin is read.`)
+-	os.Exit(status)
+-}
+-
+-var stripUnderscore = flag.Bool("_", false, "Ignore first leading underscore")
+-var noParams = flag.Bool("p", false, "Do not display function argument types")
+-var noVerbose = flag.Bool("i", false, "Do not show implementation details (if any)")
+-var help = flag.Bool("h", false, "Display help information")
+-var debug = flag.Bool("d", false, "Display debugging information for strings on command line")
+-
+-// Unimplemented c++filt flags:
+-// -n (opposite of -_)
+-// -t (demangle types)
+-// -s (set demangling style)
+-// -V (print version information)
+-
+-// Characters considered to be part of a symbol.
+-const symbolChars = "_$."
+-
+-func main() {
+-	flag.Usage = func() { usage(os.Stderr, 1) }
+-	flag.Parse()
+-
+-	if *help {
+-		usage(os.Stdout, 0)
+-	}
+-
+-	out := bufio.NewWriter(os.Stdout)
+-
+-	if flag.NArg() > 0 {
+-		for _, f := range flag.Args() {
+-			if *debug {
+-				a, err := demangle.ToAST(f, options()...)
+-				if err != nil {
+-					fmt.Fprintf(os.Stderr, "%s: %v\n", f, err)
+-				} else {
+-					fmt.Fprintf(out, "%#v\n", a)
+-				}
+-			} else {
+-				doDemangle(out, f)
+-			}
+-			out.WriteByte('\n')
+-		}
+-		if err := out.Flush(); err != nil {
+-			fmt.Fprintln(os.Stderr, err)
+-			os.Exit(2)
+-		}
+-		return
+-	}
+-
+-	scanner := bufio.NewScanner(bufio.NewReader(os.Stdin))
+-	for scanner.Scan() {
+-		line := scanner.Text()
+-		start := -1
+-		for i, c := range line {
+-			if unicode.IsLetter(c) || unicode.IsNumber(c) || strings.ContainsRune(symbolChars, c) {
+-				if start < 0 {
+-					start = i
+-				}
+-			} else {
+-				if start >= 0 {
+-					doDemangle(out, line[start:i])
+-				}
+-				out.WriteRune(c)
+-				start = -1
+-			}
+-		}
+-		if start >= 0 {
+-			doDemangle(out, line[start:])
+-			start = -1
+-		}
+-		out.WriteByte('\n')
+-		if err := out.Flush(); err != nil {
+-			fmt.Fprintln(os.Stderr, err)
+-			os.Exit(2)
+-		}
+-	}
+-}
+-
+-// Demangle a string just as the GNU c++filt program does.
+-func doDemangle(out *bufio.Writer, name string) {
+-	skip := 0
+-	if name[0] == '.' || name[0] == '$' {
+-		skip++
+-	}
+-	if *stripUnderscore && name[skip] == '_' {
+-		skip++
+-	}
+-	result := demangle.Filter(name[skip:], options()...)
+-	if result == name[skip:] {
+-		out.WriteString(name)
+-	} else {
+-		if name[0] == '.' {
+-			out.WriteByte('.')
+-		}
+-		out.WriteString(result)
+-	}
+-}
+-
+-// options returns the demangling options to use based on the command
+-// line flags.
+-func options() []demangle.Option {
+-	var options []demangle.Option
+-	if *noParams {
+-		options = append(options, demangle.NoParams)
+-	}
+-	if !*noVerbose {
+-		options = append(options, demangle.Verbose)
+-	}
+-	return options
+-}
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 82ba2a10be..c6a36413f1 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -1,40 +1,123 @@
+ {
++	"comment": "",
++	"ignore": "",
+ 	"package": [
+ 		{
+-			"canonical": "github.com/ianlancetaylor/demangle",
+-			"local": "github.com/ianlancetaylor/demangle",
+-			"revision": "4883227f66371e02c4948937d3e2be1664d9be38",
+-			"revisionTime": "2016-09-27T19:13:59Z"
++			"checksumSHA1": "G9UsR+iruMWxwUefhy+ID+VIFNs=",
++			"path": "github.com/google/pprof/driver",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
+ 		},
+ 		{
+-			"canonical": "github.com/google/pprof",
+-			"local": "github.com/google/pprof",
+-			"revision": "520140b6bf47519c766e8380e5f094576347b016",
+-			"revisionTime": "2018-05-08T15:00:43Z"
++			"checksumSHA1": "LzGfApA19baVJIbQEqziWpRS3zE=",
++			"path": "github.com/google/pprof/internal/binutils",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
+ 		},
+ 		{
+-			"canonical": "golang.org/x/arch/x86/x86asm",
+-			"local": "golang.org/x/arch/x86/x86asm",
+-			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
+-			"revisionTime": "2018-04-06T10:28:20Z"
++			"checksumSHA1": "f7aprpcWR7iZX1PJgKBZrpt++XY=",
++			"path": "github.com/google/pprof/internal/driver",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
+ 		},
+ 		{
+-			"canonical": "golang.org/x/arch/arm/armasm",
+-			"local": "golang.org/x/arch/arm/armasm",
+-			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
+-			"revisionTime": "2018-04-06T10:28:20Z"
++			"checksumSHA1": "IhuyU2pFSHhQxzadDBw1nHbcsrY=",
++			"path": "github.com/google/pprof/internal/elfexec",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "8vah+aXLGpbtn55JR8MkCAEOMrk=",
++			"path": "github.com/google/pprof/internal/graph",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "QPWfnT5pEU2jOOb8l8hpiFzQJ7Q=",
++			"path": "github.com/google/pprof/internal/measurement",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "PWZdFtGfGz/zbQTfvel9737NZdY=",
++			"path": "github.com/google/pprof/internal/plugin",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "LmDglu/S6vFmgqkxubKDZemFHaY=",
++			"path": "github.com/google/pprof/internal/proftest",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "gdyWnzbjgwmqJ2EN/WAp+QPu7d0=",
++			"path": "github.com/google/pprof/internal/report",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "rWdirHgJi1+TdRwv5v3zjgFKcJA=",
++			"path": "github.com/google/pprof/internal/symbolizer",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "5lS2AF207MVYyjF+82qHkWK2V64=",
++			"path": "github.com/google/pprof/internal/symbolz",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
+ 		},
+ 		{
+-			"canonical": "golang.org/x/arch/ppc64/ppc64asm",
+-			"local": "golang.org/x/arch/ppc64/ppc64asm",
++			"checksumSHA1": "RvwtpZ+NVtPRCo4EiFvLFFHpoBo=",
++			"path": "github.com/google/pprof/profile",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "xmqfYca88U2c/I4642r3ps9uIRg=",
++			"path": "github.com/google/pprof/third_party/d3",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "LzWzD56Trzpq+0hLR00Yw5Gpepw=",
++			"path": "github.com/google/pprof/third_party/d3flamegraph",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "738v1E0v0qRW6oAKdCpBEtyVNnY=",
++			"path": "github.com/google/pprof/third_party/svgpan",
++			"revision": "4d67f66d7c9469639518a80f378434bb7e9156b7",
++			"revisionTime": "2018-05-09T15:07:09Z"
++		},
++		{
++			"checksumSHA1": "UDJQBwUTuQYEHHJ/D7nPBv1qNqI=",
++			"path": "github.com/ianlancetaylor/demangle",
++			"revision": "4883227f66371e02c4948937d3e2be1664d9be38",
++			"revisionTime": "2016-09-27T19:13:59Z"
++		},
++		{
++			"path": "golang.org/x/arch/arm/armasm",
+ 			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
+ 			"revisionTime": "2018-04-06T10:28:20Z"
+ 		},
+ 		{
+-			"canonical": "golang.org/x/arch/arm64/arm6464asm",
+-			"local": "golang.org/x/arch/arm64/arm64asm",
++			"path": "golang.org/x/arch/arm64/arm64asm",
+ 			"revision": "9111c30535f37e70dcaf5956d34b03233f90f3b6",
+ 			"revisionTime": "2018-03-13T04:07:09Z"
++		},
++		{
++			"path": "golang.org/x/arch/ppc64/ppc64asm",
++			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
++			"revisionTime": "2018-04-06T10:28:20Z"
++		},
++		{
++			"path": "golang.org/x/arch/x86/x86asm",
++			"revision": "5099b4b992f2813e39cfe2623c6f638718bd0fc6",
++			"revisionTime": "2018-04-06T10:28:20Z"
+ 		}
+-	]
++	],
++	"rootPath": "/cmd"
+ }

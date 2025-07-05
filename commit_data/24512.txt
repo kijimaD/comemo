@@ -19,7 +19,52 @@ Date:   Mon Aug 3 10:04:42 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/12909
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/server.go   | 4 +++-
  src/net/http/transfer.go | 7 +++----
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 905a8b9ad8..1b292ea2de 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -880,17 +880,19 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 				discard = true
+ 			}
+ 		case *body:
++			bdy.mu.Lock()
+ 			switch {
+ 			case bdy.closed:
+ 				if !bdy.sawEOF {
+ 					// Body was closed in handler with non-EOF error.
+ 					w.closeAfterReply = true
+ 				}
+-			case bdy.unreadDataSize() >= maxPostHandlerReadBytes:
++			case bdy.unreadDataSizeLocked() >= maxPostHandlerReadBytes:
+ 				tooBig = true
+ 			default:
+ 				discard = true
+ 			}
++			bdy.mu.Unlock()
+ 		default:
+ 			discard = true
+ 		}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index d1762ebbd2..c128a1d3cd 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -737,11 +737,10 @@ func mergeSetHeader(dst *Header, src Header) {
+ 	}
+ }
+ 
+-// unreadDataSize returns the number of bytes of unread input.
++// unreadDataSizeLocked returns the number of bytes of unread input.
+ // It returns -1 if unknown.
+-func (b *body) unreadDataSize() int64 {
+-	b.mu.Lock()
+-	defer b.mu.Unlock()
++// b.mu must be held.
++func (b *body) unreadDataSizeLocked() int64 {
+ 	if lr, ok := b.src.(*io.LimitedReader); ok {
+ 		return lr.N
+ 	}

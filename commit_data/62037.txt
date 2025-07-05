@@ -16,8 +16,57 @@ Date:   Thu Jan 16 16:08:26 2025 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/typexpr.go          |  5 -----
  src/go/types/typexpr.go                             |  5 -----
  src/internal/types/testdata/fixedbugs/issue71284.go | 10 ++++++++++
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index fa6a6f622a..e9b5ca9aa6 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -423,11 +423,6 @@ func setDefType(def *TypeName, typ Type) {
+ 	if def != nil {
+ 		switch t := def.typ.(type) {
+ 		case *Alias:
+-			// t.fromRHS should always be set, either to an invalid type
+-			// in the beginning, or to typ in certain cyclic declarations.
+-			if t.fromRHS != Typ[Invalid] && t.fromRHS != typ {
+-				panic(sprintf(nil, true, "t.fromRHS = %s, typ = %s\n", t.fromRHS, typ))
+-			}
+ 			t.fromRHS = typ
+ 		case *Basic:
+ 			assert(t == Typ[Invalid])
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index e560f2c131..7928ed8ef3 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -419,11 +419,6 @@ func setDefType(def *TypeName, typ Type) {
+ 	if def != nil {
+ 		switch t := def.typ.(type) {
+ 		case *Alias:
+-			// t.fromRHS should always be set, either to an invalid type
+-			// in the beginning, or to typ in certain cyclic declarations.
+-			if t.fromRHS != Typ[Invalid] && t.fromRHS != typ {
+-				panic(sprintf(nil, nil, true, "t.fromRHS = %s, typ = %s\n", t.fromRHS, typ))
+-			}
+ 			t.fromRHS = typ
+ 		case *Basic:
+ 			assert(t == Typ[Invalid])
+diff --git a/src/internal/types/testdata/fixedbugs/issue71284.go b/src/internal/types/testdata/fixedbugs/issue71284.go
+new file mode 100644
+index 0000000000..4b73087a78
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue71284.go
+@@ -0,0 +1,10 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package A
++
++type (
++	_ = A
++	A /* ERROR "invalid recursive type: A refers to itself" */ = A
++)

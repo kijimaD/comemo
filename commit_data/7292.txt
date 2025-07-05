@@ -10,7 +10,66 @@ Date:   Mon Jan 31 13:13:02 2011 -0800
     R=gri, gri1
     CC=golang-dev
     https://golang.org/cl/4121045
-
+---
  src/pkg/index/suffixarray/qsufsort.go         | 28 ++++++++++++++++-----------
  src/pkg/index/suffixarray/suffixarray_test.go |  6 ++++++
  2 files changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/index/suffixarray/qsufsort.go b/src/pkg/index/suffixarray/qsufsort.go
+index 0e6894a8b5..9751b5c766 100644
+--- a/src/pkg/index/suffixarray/qsufsort.go
++++ b/src/pkg/index/suffixarray/qsufsort.go
+@@ -146,19 +146,25 @@ func (x *suffixSortable) Swap(i, j int)      { x.sa[i], x.sa[j] = x.sa[j], x.sa[
+ 
+ 
+ func (x *suffixSortable) updateGroups(offset int) {
+-	prev := len(x.sa) - 1
+-	group := x.inv[x.sa[prev]+x.h]
+-	for i := prev; i >= 0; i-- {
+-		if g := x.inv[x.sa[i]+x.h]; g < group {
+-			if prev == i+1 { // previous group had size 1 and is thus sorted
+-				x.sa[i+1] = -1
+-			}
++	bounds := make([]int, 0, 4)
++	group := x.inv[x.sa[0]+x.h]
++	for i := 1; i < len(x.sa); i++ {
++		if g := x.inv[x.sa[i]+x.h]; g > group {
++			bounds = append(bounds, i)
+ 			group = g
+-			prev = i
+ 		}
+-		x.inv[x.sa[i]] = prev + offset
+-		if prev == 0 { // first group has size 1 and is thus sorted
+-			x.sa[0] = -1
++	}
++	bounds = append(bounds, len(x.sa))
++
++	// update the group numberings after all new groups are determined
++	prev := 0
++	for _, b := range bounds {
++		for i := prev; i < b; i++ {
++			x.inv[x.sa[i]] = offset + b - 1
++		}
++		if b-prev == 1 {
++			x.sa[prev] = -1
+ 		}
++		prev = b
+ 	}
+ }
+diff --git a/src/pkg/index/suffixarray/suffixarray_test.go b/src/pkg/index/suffixarray/suffixarray_test.go
+index b3486a96d0..e85267f17f 100644
+--- a/src/pkg/index/suffixarray/suffixarray_test.go
++++ b/src/pkg/index/suffixarray/suffixarray_test.go
+@@ -99,6 +99,12 @@ var testCases = []testCase{
+ 			"to (come|the)?",
+ 		},
+ 	},
++
++	{
++		"godoc simulation",
++		"package main\n\nimport(\n    \"rand\"\n    ",
++		[]string{},
++	},
+ }
+ 
+ 

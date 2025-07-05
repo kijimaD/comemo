@@ -15,7 +15,37 @@ Date:   Wed May 11 23:52:05 2011 -0400
     R=rsc, paulzhol, taruti
     CC=golang-dev
     https://golang.org/cl/4511041
-
+---
  src/cmd/8l/obj.c  | 2 +-
  src/cmd/ld/data.c | 4 +---
  2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 2a38f7ef0a..f84a30f390 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -188,7 +188,7 @@ main(int argc, char *argv[])
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		if(INITRND == -1)
+-			INITRND = 1;
++			INITRND = 4096;
+ 		break;
+ 	case Hmsdoscom:	/* MS-DOS .COM */
+ 		HEADR = 0;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 0cb2b2138f..f6f71305fd 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -899,10 +899,8 @@ address(void)
+ 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+ 	if(HEADTYPE == Hwindows)
+ 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
+-	if(HEADTYPE == Hplan9x32) {
+-		segdata.vaddr = va = rnd(va, 4096);
++	if(HEADTYPE == Hplan9x32)
+ 		segdata.fileoff = segtext.fileoff + segtext.filelen;
+-	}
+ 	for(s=segdata.sect; s != nil; s=s->next) {
+ 		s->vaddr = va;
+ 		va += s->len;

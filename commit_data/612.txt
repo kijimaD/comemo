@@ -8,8 +8,60 @@ Date:   Thu Sep 11 15:09:10 2008 -0700
     DELTA=16  (14 added, 0 deleted, 2 changed)
     OCL=15156
     CL=15163
-
+---
  src/lib/os/os_file.go            | 14 ++++++++++++++
  src/syscall/file_amd64_darwin.go |  2 +-
  src/syscall/file_amd64_linux.go  |  2 +-
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 333c70c69f..0867b60853 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -27,6 +27,20 @@ export var (
+ 	Stderr = NewFD(2);
+ )
+ 
++export const (
++	O_RDONLY = syscall.O_RDONLY;
++	O_WRONLY = syscall.O_WRONLY;
++	O_RDWR = syscall.O_RDWR;
++	O_APPEND = syscall.O_APPEND;
++	O_ASYNC = syscall.O_ASYNC;
++	O_CREAT = syscall.O_CREAT;
++	O_NOCTTY = syscall.O_NOCTTY;
++	O_NONBLOCK = syscall.O_NONBLOCK;
++	O_NDELAY = O_NONBLOCK;
++	O_SYNC = syscall.O_SYNC;
++	O_TRUNC = syscall.O_TRUNC;
++)
++
+ export func Open(name string, mode int64, flags int64) (fd *FD, err *Error) {
+ 	r, e := syscall.open(name, mode, flags);
+ 	return NewFD(r), ErrnoToError(e)
+diff --git a/src/syscall/file_amd64_darwin.go b/src/syscall/file_amd64_darwin.go
+index 95d3ce55d4..6bf60b9276 100644
+--- a/src/syscall/file_amd64_darwin.go
++++ b/src/syscall/file_amd64_darwin.go
+@@ -51,7 +51,7 @@ export type Stat struct {
+  	st_qspare[2]	int64;
+ }
+ 
+-const (
++export const (
+ 	O_RDONLY = 0x0;
+ 	O_WRONLY = 0x1;
+ 	O_RDWR = 0x2;
+diff --git a/src/syscall/file_amd64_linux.go b/src/syscall/file_amd64_linux.go
+index dc99d7de39..1757bf7c7f 100644
+--- a/src/syscall/file_amd64_linux.go
++++ b/src/syscall/file_amd64_linux.go
+@@ -52,7 +52,7 @@ export type Stat struct {
+ 	st_unused6	int64;
+ }
+ 
+-const (
++export const (
+ 	O_RDONLY = 0x0;
+ 	O_WRONLY = 0x1;
+ 	O_RDWR = 0x2;

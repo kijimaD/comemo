@@ -7,6 +7,21 @@ Date:   Mon Oct 31 17:50:25 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5307078
-
+---
  src/pkg/runtime/pprof/pprof.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index fdeceb4e8d..7022896454 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -17,6 +17,9 @@ import (
+ 	"sync"
+ )
+ 
++// BUG(rsc): CPU profiling is broken on OS X, due to an Apple kernel bug.
++// For details, see http://code.google.com/p/go/source/detail?r=35b716c94225.
++
+ // WriteHeapProfile writes a pprof-formatted heap profile to w.
+ // If a write to w returns an error, WriteHeapProfile returns that error.
+ // Otherwise, WriteHeapProfile returns nil.

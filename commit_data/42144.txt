@@ -19,7 +19,7 @@ Date:   Fri Nov 8 13:05:56 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/206144
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/git_test.go  |  11 ++-
  src/cmd/go/internal/search/search.go               |  64 ++++++++-----
  src/cmd/go/testdata/script/build_trimpath.txt      | 102 ++++++++++++++-------
@@ -30,3 +30,365 @@ Date:   Fri Nov 8 13:05:56 2019 -0500
  src/cmd/go/testdata/script/mod_vendor_auto.txt     |   6 +-
  src/cmd/go/testdata/script/version.txt             |   5 +
  9 files changed, 130 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index 39c904f92c..cc32a1eb51 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -78,7 +78,16 @@ func testMain(m *testing.M) int {
+ 
+ func testRepo(remote string) (Repo, error) {
+ 	if remote == "localGitRepo" {
+-		return LocalGitRepo(filepath.ToSlash(localGitRepo))
++		// Convert absolute path to file URL. LocalGitRepo will not accept
++		// Windows absolute paths because they look like a host:path remote.
++		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
++		var url string
++		if strings.HasPrefix(localGitRepo, "/") {
++			url = "file://" + localGitRepo
++		} else {
++			url = "file:///" + filepath.ToSlash(localGitRepo)
++		}
++		return LocalGitRepo(url)
+ 	}
+ 	kind := "git"
+ 	for _, k := range []string{"hg"} {
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index ef3835bfa4..ad33e60af1 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -125,32 +125,43 @@ func SetModRoot(dir string) {
+ 	modRoot = dir
+ }
+ 
+-// MatchPackagesInFS is like allPackages but is passed a pattern
+-// beginning ./ or ../, meaning it should scan the tree rooted
+-// at the given directory. There are ... in the pattern too.
+-// (See go help packages for pattern syntax.)
++// MatchPackagesInFS is like MatchPackages but is passed a pattern that
++// begins with an absolute path or "./" or "../". On Windows, the pattern may
++// use slash or backslash separators or a mix of both.
++//
++// MatchPackagesInFS scans the tree rooted at the directory that contains the
++// first "..." wildcard and returns a match with packages that
+ func MatchPackagesInFS(pattern string) *Match {
+ 	m := &Match{
+ 		Pattern: pattern,
+ 		Literal: false,
+ 	}
+ 
++	// Clean the path and create a matching predicate.
++	// filepath.Clean removes "./" prefixes (and ".\" on Windows). We need to
++	// preserve these, since they are meaningful in MatchPattern and in
++	// returned import paths.
++	cleanPattern := filepath.Clean(pattern)
++	isLocal := strings.HasPrefix(pattern, "./") || (os.PathSeparator == '\\' && strings.HasPrefix(pattern, `.\`))
++	prefix := ""
++	if cleanPattern != "." && isLocal {
++		prefix = "./"
++		cleanPattern = "." + string(os.PathSeparator) + cleanPattern
++	}
++	slashPattern := filepath.ToSlash(cleanPattern)
++	match := MatchPattern(slashPattern)
++
+ 	// Find directory to begin the scan.
+ 	// Could be smarter but this one optimization
+ 	// is enough for now, since ... is usually at the
+ 	// end of a path.
+-	i := strings.Index(pattern, "...")
+-	dir, _ := path.Split(pattern[:i])
++	i := strings.Index(cleanPattern, "...")
++	dir, _ := filepath.Split(cleanPattern[:i])
+ 
+ 	// pattern begins with ./ or ../.
+ 	// path.Clean will discard the ./ but not the ../.
+ 	// We need to preserve the ./ for pattern matching
+ 	// and in the returned import paths.
+-	prefix := ""
+-	if strings.HasPrefix(pattern, "./") {
+-		prefix = "./"
+-	}
+-	match := MatchPattern(pattern)
+ 
+ 	if modRoot != "" {
+ 		abs, err := filepath.Abs(dir)
+@@ -381,21 +392,26 @@ func CleanPatterns(patterns []string) []string {
+ 			v = a[i:]
+ 		}
+ 
+-		// Arguments are supposed to be import paths, but
+-		// as a courtesy to Windows developers, rewrite \ to /
+-		// in command-line arguments. Handles .\... and so on.
+-		if filepath.Separator == '\\' {
+-			p = strings.ReplaceAll(p, `\`, `/`)
+-		}
++		// Arguments may be either file paths or import paths.
++		// As a courtesy to Windows developers, rewrite \ to /
++		// in arguments that look like import paths.
++		// Don't replace slashes in absolute paths.
++		if filepath.IsAbs(p) {
++			p = filepath.Clean(p)
++		} else {
++			if filepath.Separator == '\\' {
++				p = strings.ReplaceAll(p, `\`, `/`)
++			}
+ 
+-		// Put argument in canonical form, but preserve leading ./.
+-		if strings.HasPrefix(p, "./") {
+-			p = "./" + path.Clean(p)
+-			if p == "./." {
+-				p = "."
++			// Put argument in canonical form, but preserve leading ./.
++			if strings.HasPrefix(p, "./") {
++				p = "./" + path.Clean(p)
++				if p == "./." {
++					p = "."
++				}
++			} else {
++				p = path.Clean(p)
+ 			}
+-		} else {
+-			p = path.Clean(p)
+ 		}
+ 
+ 		out = append(out, p+v)
+diff --git a/src/cmd/go/testdata/script/build_trimpath.txt b/src/cmd/go/testdata/script/build_trimpath.txt
+index 2c39e4cec4..ba414372d3 100644
+--- a/src/cmd/go/testdata/script/build_trimpath.txt
++++ b/src/cmd/go/testdata/script/build_trimpath.txt
+@@ -1,61 +1,93 @@
+ [short] skip
+-
+-env -r GOROOT_REGEXP=$GOROOT
+-env -r WORK_REGEXP='$WORK'  # don't expand $WORK; grep replaces $WORK in text before matching.
+-env GOROOT GOROOT_REGEXP WORK WORK_REGEXP
++env GO111MODULE=on
+ 
+ # A binary built without -trimpath should contain the current workspace
+ # and GOROOT for debugging and stack traces.
+ cd a
+-go build -o hello.exe hello.go
+-grep -q $WORK_REGEXP hello.exe
+-grep -q $GOROOT_REGEXP hello.exe
++go build -o $WORK/paths-a.exe paths.go
++exec $WORK/paths-a.exe $WORK/paths-a.exe
++stdout 'binary contains GOPATH: true'
++stdout 'binary contains GOROOT: true'
+ 
+ # A binary built with -trimpath should not contain the current workspace
+ # or GOROOT.
+-go build -trimpath -o hello.exe hello.go
+-! grep -q $GOROOT_REGEXP hello.exe
+-! grep -q $WORK_REGEXP hello.exe
++go build -trimpath -o $WORK/paths-a.exe paths.go
++exec $WORK/paths-a.exe $WORK/paths-a.exe
++stdout 'binary contains GOPATH: false'
++stdout 'binary contains GOROOT: false'
+ 
+ # A binary from an external module built with -trimpath should not contain
+ # the current workspace or GOROOT.
+ cd $WORK
+-env GO111MODULE=on
+ go get -trimpath rsc.io/fortune
+-! grep -q $GOROOT_REGEXP $GOPATH/bin/fortune$GOEXE
+-! grep -q $WORK_REGEXP $GOPATH/bin/fortune$GOEXE
++exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
++stdout 'binary contains GOPATH: false'
++stdout 'binary contains GOROOT: false'
+ 
+ # Two binaries built from identical packages in different directories
+ # should be identical.
+-cd $GOPATH/src/a
+-go build -trimpath -o $WORK/a-GOPATH.exe .
+-cd $WORK/_alt/src/a
+-go build -trimpath -o $WORK/a-alt.exe .
+-cmp -q $WORK/a-GOPATH.exe $WORK/a-alt.exe
++# TODO(golang.org/issue/35435): at the moment, they are not.
++#mkdir $GOPATH/src/b
++#cp $GOPATH/src/a/go.mod $GOPATH/src/b/go.mod
++#cp $GOPATH/src/a/paths.go $GOPATH/src/b/paths.go
++#cd $GOPATH/src/b
++#go build -trimpath -o $WORK/paths-b.exe .
++#cmp -q $WORK/paths-a.exe $WORK/paths-b.exe
+ 
+ [!exec:gccgo] stop
+ 
+-# Binaries built using gccgo should also be identical to each other.
++# A binary built with gccgo without -trimpath should contain the current
++# GOPATH and GOROOT.
+ env GO111MODULE=off # The current released gccgo does not support builds in module mode.
+ cd $GOPATH/src/a
+-go build -compiler=gccgo -trimpath -o $WORK/gccgo-GOPATH.exe .
++go build -compiler=gccgo -o $WORK/gccgo-paths-a.exe .
++exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
++stdout 'binary contains GOPATH: true'
++stdout 'binary contains GOROOT: true'
+ 
+-env old_gopath=$GOPATH
+-env GOPATH=$WORK/_alt
+-cd $WORK/_alt/src/a
+-go build -compiler=gccgo -trimpath -o $WORK/gccgo-alt.exe .
+-cd $WORK
+-! grep -q $GOROOT_REGEXP gccgo-GOPATH.exe
+-! grep -q $WORK_REGEXP gccgo-GOPATH.exe
+-cmp -q gccgo-GOPATH.exe gccgo-alt.exe
++# A binary built with gccgo with -trimpath should not contain GOPATH or GOROOT.
++go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-a.exe .
++exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
++stdout 'binary contains GOPATH: false'
++stdout 'binary contains GOROOT: false'
++
++# Two binaries built from identical packages in different directories
++# should be identical.
++# TODO(golang.org/issue/35435): at the moment, they are not.
++#cd ../b
++#go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-b.exe .
++#cmp -q $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+ 
+--- $GOPATH/src/a/hello.go --
++-- $GOPATH/src/a/paths.go --
+ package main
+-func main() { println("hello") }
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"log"
++	"os"
++	"path/filepath"
++)
++
++func main() {
++	exe := os.Args[1]
++	data, err := ioutil.ReadFile(exe)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	gopath := []byte(filepath.ToSlash(os.Getenv("GOPATH")))
++	if len(gopath) == 0 {
++		log.Fatal("GOPATH not set")
++	}
++	fmt.Printf("binary contains GOPATH: %v\n", bytes.Contains(data, gopath))
++
++	goroot := []byte(filepath.ToSlash(os.Getenv("GOROOT")))
++	if len(goroot) == 0 {
++		log.Fatal("GOROOT not set")
++	}
++	fmt.Printf("binary contains GOROOT: %v\n", bytes.Contains(data, goroot))
++}
+ -- $GOPATH/src/a/go.mod --
+ module example.com/a
+--- $WORK/_alt/src/a/hello.go --
+-package main
+-func main() { println("hello") }
+--- $WORK/_alt/src/a/go.mod --
+-module example.com/a
+diff --git a/src/cmd/go/testdata/script/mod_getx.txt b/src/cmd/go/testdata/script/mod_getx.txt
+index 36f33426df..ccb8d1375a 100644
+--- a/src/cmd/go/testdata/script/mod_getx.txt
++++ b/src/cmd/go/testdata/script/mod_getx.txt
+@@ -1,5 +1,6 @@
+ [short] skip
+ [!net] skip
++[!exec:git] skip
+ 
+ env GO111MODULE=on
+ env GOPROXY=direct
+diff --git a/src/cmd/go/testdata/script/mod_list_dir.txt b/src/cmd/go/testdata/script/mod_list_dir.txt
+index a8023cce9c..f6994c1e66 100644
+--- a/src/cmd/go/testdata/script/mod_list_dir.txt
++++ b/src/cmd/go/testdata/script/mod_list_dir.txt
+@@ -12,10 +12,10 @@ stdout ^math$
+ go list -f '{{.ImportPath}}' .
+ stdout ^x$
+ ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stderr '^can.t load package: package '$WORK'[/\\]gopath/pkg/mod/rsc.io/quote@v1.5.2: can only use path@version syntax with .go get.'
++stderr '^can.t load package: package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
+ 
+ go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+-stdout '^package '$WORK'[/\\]gopath/pkg/mod/rsc.io/quote@v1.5.2: can only use path@version syntax with .go get.'
++stdout '^package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
+ go mod download rsc.io/quote@v1.5.2
+ go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
+ stdout '^rsc.io/quote$'
+diff --git a/src/cmd/go/testdata/script/mod_prefer_compatible.txt b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+index c5cf17c2b2..aa6260f63c 100644
+--- a/src/cmd/go/testdata/script/mod_prefer_compatible.txt
++++ b/src/cmd/go/testdata/script/mod_prefer_compatible.txt
+@@ -34,6 +34,7 @@ stdout '^github.com/russross/blackfriday v1\.'
+ # order to determine whether it contains a go.mod file, and part of the point of
+ # the proxy is to avoid fetching unnecessary data.)
+ 
++[!exec:git] stop
+ env GOPROXY=direct
+ 
+ go list -versions -m github.com/russross/blackfriday github.com/russross/blackfriday
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+index 7ccce23356..6108c0a5d3 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_file_path.txt
+@@ -13,7 +13,7 @@ env GOPATH=$WORK/gopath1
+ [windows] env GOPROXY=file:///$WORK/sumproxy,https://proxy.golang.org
+ [!windows] env GOPROXY=file://$WORK/sumproxy,https://proxy.golang.org
+ ! go get -d golang.org/x/text@v0.3.2
+-stderr '^go get golang.org/x/text@v0.3.2: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the file specified.*)'
++stderr '^go get golang.org/x/text@v0.3.2: golang.org/x/text@v0.3.2: verifying module: golang.org/x/text@v0.3.2: reading file://.*/sumdb/sum.golang.org/lookup/golang.org/x/text@v0.3.2: (no such file or directory|.*cannot find the path specified.*)'
+ 
+ # If the proxy does not claim to support the database,
+ # checksum verification should fall through to the next proxy,
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index a15db7ca18..53120dcfa1 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -62,7 +62,7 @@ stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
+ go mod edit -go=1.14
+ 
+ ! go list -f {{.Dir}} -tags tools all
+-stderr '^go: inconsistent vendoring in '$WORK/auto':$'
++stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
+ stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
+ stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+ stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+@@ -131,7 +131,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ cp go.mod.orig go.mod
+ go mod edit -go=1.14
+ ! go list -f {{.Dir}} -tags tools all
+-stderr '^go: inconsistent vendoring in '$WORK/auto':$'
++stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
+ stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
+ stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+ stderr '^\texample.com/version@v1.2.0: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
+@@ -149,7 +149,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ # ...but a version mismatch for an explicit dependency should be noticed.
+ cp $WORK/modules-bad-1.13.txt vendor/modules.txt
+ ! go list -mod=vendor -f {{.Dir}} -tags tools all
+-stderr '^go: inconsistent vendoring in '$WORK/auto':$'
++stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
+ stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but vendor/modules.txt indicates example.com/printversion@v1.1.0$'
+ stderr '\n\nrun .go mod vendor. to sync, or use -mod=mod or -mod=readonly to ignore the vendor directory$'
+ 
+diff --git a/src/cmd/go/testdata/script/version.txt b/src/cmd/go/testdata/script/version.txt
+index 9086f047e4..42526247f1 100644
+--- a/src/cmd/go/testdata/script/version.txt
++++ b/src/cmd/go/testdata/script/version.txt
+@@ -1,6 +1,7 @@
+ env GO111MODULE=on
+ [short] skip
+ 
++# Check that 'go version' and 'go version -m' work on a binary built in module mode.
+ go build -o fortune.exe rsc.io/fortune
+ go version fortune.exe
+ stdout '^fortune.exe: .+'
+@@ -8,6 +9,10 @@ go version -m fortune.exe
+ stdout '^\tpath\trsc.io/fortune'
+ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+ 
++# Repeat the test with -buildmode=pie.
++# TODO(golang.org/issue/27144): don't skip after -buildmode=pie is implemented
++# on Windows.
++[windows] skip # -buildmode=pie not supported
+ go build -buildmode=pie -o external.exe rsc.io/fortune
+ go version external.exe
+ stdout '^external.exe: .+'

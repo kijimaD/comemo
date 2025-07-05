@@ -25,7 +25,66 @@ Date:   Thu Feb 29 15:02:44 2024 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/copyelim.go | 11 +++++++++++
  test/fixedbugs/issue65808.go             | 30 ++++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 17f65127ee..17471e3b5f 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -11,6 +11,17 @@ func copyelim(f *Func) {
+ 	// of OpCopy) is a copy.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
++
++			// This is an early place in SSA where all values are examined.
++			// Rewrite all 0-sized Go values to remove accessors, dereferences, loads, etc.
++			if t := v.Type; (t.IsStruct() || t.IsArray()) && t.Size() == 0 {
++				if t.IsStruct() {
++					v.reset(OpStructMake0)
++				} else {
++					v.reset(OpArrayMake0)
++				}
++			}
++
+ 			copyelimValue(v)
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue65808.go b/test/fixedbugs/issue65808.go
+new file mode 100644
+index 0000000000..e6c4cf1ed0
+--- /dev/null
++++ b/test/fixedbugs/issue65808.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.package main
++
++package main
++
++type Stringer interface {
++	String() string
++}
++
++type (
++	stringer  struct{}
++	stringers [2]stringer
++	foo       struct {
++		stringers
++	}
++)
++
++func (stringer) String() string  { return "" }
++func toString(s Stringer) string { return s.String() }
++
++func (v stringers) toStrings() []string {
++	return []string{toString(v[0]), toString(v[1])}
++}
++
++func main() {
++	_ = stringers{}
++}

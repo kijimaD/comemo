@@ -56,3 +56,4 @@ Date:   Thu Jul 8 13:04:25 2021 -0700
  test/fixedbugs/issue47087.dir/main.go              |  19 ++
  test/fixedbugs/issue47087.go                       |   7 +
  25 files changed, 401 insertions(+), 201 deletions(-)
+

@@ -9,6 +9,22 @@ Date:   Thu Aug 15 12:13:00 2013 +1000
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/12898044
-
+---
  src/run.bat | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/run.bat b/src/run.bat
+index bf038d1a76..48f6711ff5 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -54,7 +54,9 @@ echo.
+ 
+ if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
+ echo # Testing race detector.
+-go test -race -i flag
++go test -race -i runtime/race flag
++if errorlevel 1 goto fail
++go test -race -run=Output runtime/race
+ if errorlevel 1 goto fail
+ go test -race -short flag
+ if errorlevel 1 goto fail

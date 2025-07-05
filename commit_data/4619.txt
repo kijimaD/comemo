@@ -14,7 +14,7 @@ Date:   Fri Jan 15 13:43:14 2010 -0800
     R=cw, rsc
     CC=golang-dev
     https://golang.org/cl/183066
-
+---
  src/pkg/net/Makefile       |  1 +
  src/pkg/net/dnsclient.go   |  9 ++++--
  src/pkg/net/hosts.go       | 78 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -22,3 +22,212 @@ Date:   Fri Jan 15 13:43:14 2010 -0800
  src/pkg/net/hosts_testdata | 10 ++++++
  src/pkg/net/ip.go          |  4 +++
  6 files changed, 148 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index bb2cb39787..f5e78fb84c 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -11,6 +11,7 @@ GOFILES=\
+ 	dnsmsg.go\
+ 	fd.go\
+ 	fd_$(GOOS).go\
++	hosts.go\
+ 	ip.go\
+ 	ipsock.go\
+ 	net.go\
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 439cae806a..7820244b28 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -224,7 +224,7 @@ func isDomainName(s string) bool {
+ 	return ok
+ }
+ 
+-// LookupHost looks up the host name using the local DNS resolver.
++// LookupHost looks for name using the local hosts file and DNS resolver.
+ // It returns the canonical name for the host and an array of that
+ // host's addresses.
+ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+@@ -236,7 +236,12 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 		err = dnserr
+ 		return
+ 	}
+-
++	// Use entries from /etc/hosts if they match.
++	addrs = lookupStaticHost(name)
++	if len(addrs) > 0 {
++		cname = name
++		return
++	}
+ 	// If name is rooted (trailing dot) or has enough dots,
+ 	// try it by itself first.
+ 	rooted := len(name) > 0 && name[len(name)-1] == '.'
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+new file mode 100644
+index 0000000000..5596c9dc72
+--- /dev/null
++++ b/src/pkg/net/hosts.go
+@@ -0,0 +1,78 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Read static host/IP entries from /etc/hosts.
++
++package net
++
++import (
++	"os"
++	"sync"
++)
++
++const cacheMaxAge = int64(300) // 5 minutes.
++
++// hostsPath points to the file with static IP/address entries.
++var hostsPath = "/etc/hosts"
++
++// Simple cache.
++var hosts struct {
++	sync.Mutex
++	data map[string][]string
++	time int64
++	path string
++}
++
++func readHosts() {
++	now, _, _ := os.Time()
++	hp := hostsPath
++	if len(hosts.data) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
++		hs := make(map[string][]string)
++		var file *file
++		file, _ = open(hp)
++		for line, ok := file.readLine(); ok; line, ok = file.readLine() {
++			if i := byteIndex(line, '#'); i >= 0 {
++				// Discard comments.
++				line = line[0:i]
++			}
++			f := getFields(line)
++			if len(f) < 2 || ParseIP(f[0]) == nil {
++				continue
++			}
++			h := f[1]
++			old, _ := hs[h]
++			hs[h] = appendHost(old, f[0])
++		}
++		// Update the data cache.
++		hosts.time, _, _ = os.Time()
++		hosts.path = hp
++		hosts.data = hs
++		file.close()
++	}
++}
++
++func appendHost(hosts []string, address string) []string {
++	n := len(hosts)
++	if n+1 > cap(hosts) { // reallocate
++		a := make([]string, n, 2*n+1)
++		copy(a, hosts)
++		hosts = a
++	}
++	hosts = hosts[0 : n+1]
++	hosts[n] = address
++	return hosts
++}
++
++// lookupStaticHosts looks up the addresses for the given host from /etc/hosts.
++func lookupStaticHost(host string) []string {
++	hosts.Lock()
++	defer hosts.Unlock()
++	readHosts()
++	if len(hosts.data) != 0 {
++		if ips, ok := hosts.data[host]; ok {
++			return ips
++		}
++	}
++	return nil
++}
+diff --git a/src/pkg/net/hosts_test.go b/src/pkg/net/hosts_test.go
+new file mode 100644
+index 0000000000..a05ee10e7c
+--- /dev/null
++++ b/src/pkg/net/hosts_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"testing"
++)
++
++type hostTest struct {
++	host string
++	ips  []IP
++}
++
++
++var hosttests = []hostTest{
++	hostTest{"odin", []IP{
++		IPv4(127, 0, 0, 2),
++		IPv4(127, 0, 0, 3),
++		ParseIP("::2"),
++	}},
++	hostTest{"thor", []IP{
++		IPv4(127, 1, 1, 1),
++	}},
++	hostTest{"loki", []IP{}},
++}
++
++func TestLookupStaticHost(t *testing.T) {
++	p := hostsPath
++	hostsPath = "hosts_testdata"
++	for i := 0; i < len(hosttests); i++ {
++		tt := hosttests[i]
++		ips := lookupStaticHost(tt.host)
++		if len(ips) != len(tt.ips) {
++			t.Errorf("# of hosts = %v; want %v",
++				len(ips), len(tt.ips))
++			return
++		}
++		for k, v := range ips {
++			if tt.ips[k].String() != v {
++				t.Errorf("lookupStaticHost(%q) = %v; want %v",
++					tt.host, v, tt.ips[k])
++			}
++		}
++	}
++	hostsPath = p
++}
+diff --git a/src/pkg/net/hosts_testdata b/src/pkg/net/hosts_testdata
+new file mode 100644
+index 0000000000..7cf6fbbc79
+--- /dev/null
++++ b/src/pkg/net/hosts_testdata
+@@ -0,0 +1,10 @@
++255.255.255.255	broadcasthost
++127.0.0.2	odin
++127.0.0.3	odin  # inline comment 
++::2             odin
++127.1.1.1	thor
++# Bogus entries that must be ignored.
++123.123.123	loki
++321.321.321.321
++# TODO(yvesj): Should we be able to parse this? From a Darwin system.
++fe80::1%lo0	localhost
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index e090d3aa62..206e5824cf 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -278,6 +278,10 @@ func parseIPv4(s string) IP {
+ 	var p [IPv4len]byte
+ 	i := 0
+ 	for j := 0; j < IPv4len; j++ {
++		if i >= len(s) {
++			// Missing octets.
++			return nil
++		}
+ 		if j > 0 {
+ 			if s[i] != '.' {
+ 				return nil

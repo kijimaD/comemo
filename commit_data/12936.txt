@@ -9,7 +9,302 @@ Date:   Mon Apr 23 15:39:01 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6061043
-
+---
  src/cmd/gc/esc.c |  70 ++++++++++++++++------------
  test/escape2.go  | 137 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 175 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 2614b5f356..8a265ce59a 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -131,7 +131,12 @@ escfunc(Node *func)
+ 	}
+ 
+ 	// walk will take the address of cvar->closure later and assign it to cvar.
+-	// handle that here by linking a fake oaddr node directly to the closure.
++	// linking a fake oaddr node directly to the closure handles the case
++	// of the closure itself leaking.  Following the flow of the value to th
++	// paramref is done in escflow, because if we did that here, it would look
++	// like the original is assigned out of its loop depth, whereas it's just
++	// assigned to something in an inner function.  A paramref itself is never
++	// moved to the heap, only its original.
+ 	for(ll=curfn->cvars; ll; ll=ll->next) {
+ 		if(ll->n->op == OXXX)  // see dcl.c:398
+ 			continue;
+@@ -221,16 +226,19 @@ esc(Node *n)
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		loopdepth++;
+ 
+-	esc(n->left);
+-	esc(n->right);
+-	esc(n->ntest);
+-	esc(n->nincr);
+-	esclist(n->ninit);
+-	esclist(n->nbody);
+-	esclist(n->nelse);
+-	esclist(n->list);
+-	esclist(n->rlist);
+-
++	if(n->op == OCLOSURE) {
++		escfunc(n);
++	} else {
++		esc(n->left);
++		esc(n->right);
++		esc(n->ntest);
++		esc(n->nincr);
++		esclist(n->ninit);
++		esclist(n->nbody);
++		esclist(n->nelse);
++		esclist(n->list);
++		esclist(n->rlist);
++	}
+ 	if(n->op == OFOR || n->op == ORANGE)
+ 		loopdepth--;
+ 
+@@ -379,8 +387,8 @@ esc(Node *n)
+ 		}
+ 		break;
+ 	
+-	case OADDR:
+ 	case OCLOSURE:
++	case OADDR:
+ 	case OMAKECHAN:
+ 	case OMAKEMAP:
+ 	case OMAKESLICE:
+@@ -407,8 +415,8 @@ escassign(Node *dst, Node *src)
+ 		return;
+ 
+ 	if(debug['m'] > 1)
+-		print("%L:[%d] %S escassign: %hN = %hN\n", lineno, loopdepth,
+-		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, src);
++		print("%L:[%d] %S escassign: %hN(%hJ) = %hN(%hJ)\n", lineno, loopdepth,
++		      (curfn && curfn->nname) ? curfn->nname->sym : S, dst, dst, src, src);
+ 
+ 	setlineno(dst);
+ 	
+@@ -467,7 +475,11 @@ escassign(Node *dst, Node *src)
+ 	case OARRAYLIT:
+ 	case OMAPLIT:
+ 	case OSTRUCTLIT:
+-		// loopdepth was set in the defining statement or function header
++	case OMAKECHAN:
++	case OMAKEMAP:
++	case OMAKESLICE:
++	case ONEW:
++	case OCLOSURE:
+ 		escflows(dst, src);
+ 		break;
+ 
+@@ -500,18 +512,6 @@ escassign(Node *dst, Node *src)
+ 			escassign(dst, src->left);
+ 		break;
+ 
+-	case OMAKECHAN:
+-	case OMAKEMAP:
+-	case OMAKESLICE:
+-	case ONEW:
+-		escflows(dst, src);
+-		break;
+-
+-	case OCLOSURE:
+-		escflows(dst, src);
+-		escfunc(src);
+-		break;
+-
+ 	case OADD:
+ 	case OSUB:
+ 	case OOR:
+@@ -543,7 +543,7 @@ escassign(Node *dst, Node *src)
+ // This is a bit messier than fortunate, pulled out of escassign's big
+ // switch for clarity.	We either have the paramnodes, which may be
+ // connected to other things throug flows or we have the parameter type
+-// nodes, which may be marked 'n(ofloworescape)'. Navigating the ast is slightly
++// nodes, which may be marked "noescape". Navigating the ast is slightly
+ // different for methods vs plain functions and for imported vs
+ // this-package
+ static void
+@@ -711,8 +711,8 @@ escwalk(int level, Node *dst, Node *src)
+ 	src->walkgen = walkgen;
+ 
+ 	if(debug['m']>1)
+-		print("escwalk: level:%d depth:%d %.*s %hN scope:%S[%d]\n",
+-		      level, pdepth, pdepth, "\t\t\t\t\t\t\t\t\t\t", src,
++		print("escwalk: level:%d depth:%d %.*s %hN(%hJ) scope:%S[%d]\n",
++		      level, pdepth, pdepth, "\t\t\t\t\t\t\t\t\t\t", src, src,
+ 		      (src->curfn && src->curfn->nname) ? src->curfn->nname->sym : S, src->escloopdepth);
+ 
+ 	pdepth++;
+@@ -726,6 +726,16 @@ escwalk(int level, Node *dst, Node *src)
+ 			if(debug['m'])
+ 				warnl(src->lineno, "leaking param: %hN", src);
+ 		}
++		// handle the missing flow ref <- orig
++		// a paramref is automagically dereferenced, and taking its
++		// address produces the address of the original, so all we have to do here
++		// is keep track of the value flow, so level is unchanged.
++		// alternatively, we could have substituted PPARAMREFs with their ->closure in esc/escassign/flow,
++		if(src->class == PPARAMREF) {
++			if(leaks && debug['m'])
++				warnl(src->lineno, "leaking closure reference %hN", src);
++			escwalk(level, dst, src->closure);
++		}
+ 		break;
+ 
+ 	case OPTRLIT:
+diff --git a/test/escape2.go b/test/escape2.go
+index 624ea80b55..0bf02c5342 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -1051,7 +1051,7 @@ func foo122() {
+ 
+ 	goto L1
+ L1:
+-	i = new(int) // ERROR "does not escape"
++	i = new(int) // ERROR "new.int. does not escape"
+ 	_ = i
+ }
+ 
+@@ -1060,8 +1060,141 @@ func foo123() {
+ 	var i *int
+ 
+ L1:
+-	i = new(int) // ERROR "escapes"
++	i = new(int) // ERROR "new.int. escapes to heap"
+ 
+ 	goto L1
+ 	_ = i
+ }
++
++func foo124(x **int) {	// ERROR "x does not escape"
++	var i int	// ERROR "moved to heap: i"
++	p := &i 	// ERROR "&i escapes"
++	func() {	// ERROR "func literal does not escape"
++		*x = p	// ERROR "leaking closure reference p"
++	}()
++}
++
++func foo125(ch chan *int) {	// ERROR "does not escape"
++	var i int	// ERROR "moved to heap"
++	p := &i 	// ERROR "&i escapes to heap"
++	func() {	// ERROR "func literal does not escape"
++		ch <- p	// ERROR "leaking closure reference p"
++	}()
++}
++
++func foo126() {
++	var px *int  // loopdepth 0
++	for {
++		// loopdepth 1
++		var i int  // ERROR "moved to heap"
++		func() {  // ERROR "func literal does not escape"
++			px = &i  // ERROR "&i escapes"
++		}()
++	}
++}
++
++var px *int
++
++func foo127() {
++	var i int  // ERROR "moved to heap: i"
++	p := &i  // ERROR "&i escapes to heap"
++	q := p
++	px = q
++}
++
++func foo128() {
++	var i int
++	p := &i // ERROR "&i does not escape"
++	q := p
++	_ = q
++}
++
++func foo129() {
++	var i int  // ERROR "moved to heap: i"
++	p := &i  // ERROR "&i escapes to heap"
++	func() {  // ERROR "func literal does not escape"
++		q := p  // ERROR "leaking closure reference p"
++		func() {  // ERROR "func literal does not escape"
++			r := q  // ERROR "leaking closure reference q"
++			px = r
++		}()
++	}()
++}
++
++func foo130() {
++	for {
++		var i int  // ERROR "moved to heap"
++		func() {  // ERROR "func literal does not escape"
++			px = &i  // ERROR "&i escapes" "leaking closure reference i"
++		}()
++	}
++}
++
++func foo131() {
++	var i int  // ERROR "moved to heap"
++	func() {  // ERROR "func literal does not escape"
++		px = &i  // ERROR "&i escapes" "leaking closure reference i"
++	}()
++}
++
++func foo132() {
++	var i int  // ERROR "moved to heap"
++	go func() {  // ERROR "func literal escapes to heap"
++		px = &i  // ERROR "&i escapes" "leaking closure reference i"
++	}()
++}
++
++func foo133() {
++	var i int  // ERROR "moved to heap"
++	defer func() {  // ERROR "func literal does not escape"
++		px = &i  // ERROR "&i escapes" "leaking closure reference i"
++	}()
++}
++
++func foo134() {
++	var i int
++	p := &i  // ERROR "&i does not escape"
++	func() {  // ERROR "func literal does not escape"
++		q := p
++		func() {  // ERROR "func literal does not escape"
++			r := q
++			_ = r
++		}()
++	}()
++}
++
++func foo135() {
++	var i int  // ERROR "moved to heap: i"
++	p := &i  // ERROR "&i escapes to heap" "moved to heap: p"
++	go func() {  // ERROR "func literal escapes to heap"
++		q := p  // ERROR "&p escapes to heap"
++		func() {  // ERROR "func literal does not escape"
++			r := q
++			_ = r
++		}()
++	}()
++}
++
++func foo136() {
++	var i int  // ERROR "moved to heap: i"
++	p := &i  // ERROR "&i escapes to heap" "moved to heap: p"
++	go func() {  // ERROR "func literal escapes to heap"
++		q := p  // ERROR "&p escapes to heap" "leaking closure reference p"
++		func() {  // ERROR "func literal does not escape"
++			r := q // ERROR "leaking closure reference q"
++			px = r
++		}()
++	}()
++}
++
++func foo137() {
++	var i int  // ERROR "moved to heap: i"
++	p := &i  // ERROR "&i escapes to heap"
++	func() {  // ERROR "func literal does not escape"
++		q := p  // ERROR "leaking closure reference p" "moved to heap: q"
++		go func() { // ERROR "func literal escapes to heap"
++			r := q  // ERROR "&q escapes to heap"
++			_ = r
++		}()
++	}()
++}

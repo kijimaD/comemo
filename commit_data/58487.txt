@@ -14,6 +14,33 @@ Date:   Mon Nov 13 14:51:33 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/loadpe/ldpe.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index d1b7ae2b22..e4134607c4 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -182,9 +182,6 @@ type peImportSymsState struct {
+ 	// Text and non-text sections read in by the host object loader.
+ 	secSyms []loader.Sym
+ 
+-	// SDYNIMPORT symbols encountered along the way
+-	dynimports map[loader.Sym]struct{}
+-
+ 	// Loader and arch, for use in postprocessing.
+ 	l    *loader.Loader
+ 	arch *sys.Arch
+@@ -197,9 +194,8 @@ func createImportSymsState(l *loader.Loader, arch *sys.Arch) {
+ 		return
+ 	}
+ 	importSymsState = &peImportSymsState{
+-		dynimports: make(map[loader.Sym]struct{}),
+-		l:          l,
+-		arch:       arch,
++		l:    l,
++		arch: arch,
+ 	}
+ }
+ 

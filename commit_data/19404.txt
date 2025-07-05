@@ -10,7 +10,49 @@ Date:   Tue May 20 01:32:31 2014 -0400
     R=rsc, iant, r, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/100390043
-
+---
  doc/go1.3.html     |  7 +++++++
  src/cmd/cgo/doc.go | 12 ++++++++++++
  2 files changed, 19 insertions(+)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 5404f4ec66..900f6c77fc 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -226,6 +226,13 @@ supports a new <code>-i</code> option to install dependencies
+ of the specified target, but not the target itself.
+ </p>
+ 
++<p>
++Cross compiling with <a href="/cmd/cgo/"><code>cgo</code></a> enabled
++is now supported. The CC_FOR_TARGET and CXX_FOR_TARGET environment
++variables are used when running all.bash to specify the cross compilers
++for C and C++ code, respectively.
++</p>
++
+ <p>
+ Finally, the go command now supports packages that import Objective-C
+ files (suffixed <code>.m</code>) through cgo.
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 057d25f5b4..e95915e55e 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -63,6 +63,18 @@ compilers may be changed by the CC and CXX environment variables,
+ respectively; those environment variables may include command line
+ options.
+ 
++To enable cgo during cross compiling builds, set the CGO_ENABLED
++environment variable to 1 when building the Go tools with make.bash.
++Also, set CC_FOR_TARGET to the C cross compiler for the target.  CC will
++be used for compiling for the host.
++
++After the Go tools are built, when running the go command, CC_FOR_TARGET is
++ignored.  The value of CC_FOR_TARGET when running make.bash is the default
++compiler.  However, you can set the environment variable CC, not CC_FOR_TARGET,
++to control the compiler when running the go tool.
++
++CXX_FOR_TARGET works in a similar way for C++ code.
++
+ Go references to C
+ 
+ Within the Go file, C's struct field names that are keywords in Go

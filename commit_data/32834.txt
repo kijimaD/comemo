@@ -14,6 +14,63 @@ Date:   Tue Jun 6 17:31:57 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_test.go | 43 ++++++++++++++++++++++++++++++-------------
  1 file changed, 30 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index b08dd87d9b..7753809d45 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -579,21 +579,38 @@ func TestPanicRace(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
+-	if err == nil {
+-		t.Error("program exited successfully, should have failed")
+-	}
++	// The test is intentionally racy, and in my testing does not
++	// produce the expected output about 0.05% of the time.
++	// So run the program in a loop and only fail the test if we
++	// get the wrong output ten times in a row.
++	const tries = 10
++retry:
++	for i := 0; i < tries; i++ {
++		got, err := testEnv(exec.Command(exe, "PanicRace")).CombinedOutput()
++		if err == nil {
++			t.Logf("try %d: program exited successfully, should have failed", i+1)
++			continue
++		}
+ 
+-	t.Logf("%s\n", got)
++		if i > 0 {
++			t.Logf("try %d:\n", i+1)
++		}
++		t.Logf("%s\n", got)
+ 
+-	wants := []string{
+-		"panic: crash",
+-		"PanicRace",
+-		"created by ",
+-	}
+-	for _, want := range wants {
+-		if !bytes.Contains(got, []byte(want)) {
+-			t.Errorf("did not find expected string %q", want)
++		wants := []string{
++			"panic: crash",
++			"PanicRace",
++			"created by ",
++		}
++		for _, want := range wants {
++			if !bytes.Contains(got, []byte(want)) {
++				t.Logf("did not find expected string %q", want)
++				continue retry
++			}
+ 		}
++
++		// Test generated expected output.
++		return
+ 	}
++	t.Errorf("test ran %d times without producing expected output", tries)
+ }

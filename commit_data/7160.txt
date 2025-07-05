@@ -7,8 +7,61 @@ Date:   Wed Jan 19 14:34:53 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3766042
-
+---
  src/pkg/net/fd.go                | 2 +-
  src/pkg/syscall/syscall_bsd.go   | 4 ++--
  src/pkg/syscall/syscall_linux.go | 6 +++++-
  3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 5ec91845df..896178f18e 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -417,7 +417,7 @@ func (fd *netFD) ReadMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.S
+ 	var oserr os.Error
+ 	for {
+ 		var errno int
+-		n, oobn, flags, errno = syscall.Recvmsg(fd.sysfd, p, oob, sa, 0)
++		n, oobn, flags, sa, errno = syscall.Recvmsg(fd.sysfd, p, oob, 0)
+ 		if errno == syscall.EAGAIN && fd.rdeadline >= 0 {
+ 			pollserver.WaitRead(fd)
+ 			continue
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index ff99fd9e6d..3c4ac51dc0 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -485,8 +485,8 @@ func Futimes(fd int, tv []Timeval) (errno int) {
+ 
+ //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
+ 
+-func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
+-	return 0, 0, 0, EAFNOSUPPORT
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
++	return 0, 0, 0, nil, EAFNOSUPPORT
+ }
+ 
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (errno int) {
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index d0f314c88b..d20c035b5a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -450,7 +450,7 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+ 	return sendto(fd, p, flags, ptr, n)
+ }
+ 
+-func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recvflags int, errno int) {
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, errno int) {
+ 	var msg Msghdr
+ 	var rsa RawSockaddrAny
+ 	msg.Name = (*byte)(unsafe.Pointer(&rsa))
+@@ -477,6 +477,10 @@ func Recvmsg(fd int, p, oob []byte, from Sockaddr, flags int) (n, oobn int, recv
+ 	}
+ 	oobn = int(msg.Controllen)
+ 	recvflags = int(msg.Flags)
++	// source address is only specified if the socket is unconnected
++	if rsa.Addr.Family != 0 {
++		from, errno = anyToSockaddr(&rsa)
++	}
+ 	return
+ }
+ 

@@ -10,7 +10,94 @@ Date:   Fri Feb 19 09:39:01 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/294270
     Reviewed-by: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/expr.go | 44 ++++++++++++++++++++-------------
  src/cmd/compile/internal/types2/type.go | 11 +--------
  2 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index a284c8c8b6..584b8ee6a0 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -59,11 +59,16 @@ the type (and constant value, if any) is recorded via Info.Types, if present.
+ 
+ type opPredicates map[syntax.Operator]func(Type) bool
+ 
+-var unaryOpPredicates = opPredicates{
+-	syntax.Add: isNumeric,
+-	syntax.Sub: isNumeric,
+-	syntax.Xor: isInteger,
+-	syntax.Not: isBoolean,
++var unaryOpPredicates opPredicates
++
++func init() {
++	// Setting unaryOpPredicates in init avoids declaration cycles.
++	unaryOpPredicates = opPredicates{
++		syntax.Add: isNumeric,
++		syntax.Sub: isNumeric,
++		syntax.Xor: isInteger,
++		syntax.Not: isBoolean,
++	}
+ }
+ 
+ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
+@@ -896,20 +901,25 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
+ 	x.mode = value
+ }
+ 
+-var binaryOpPredicates = opPredicates{
+-	syntax.Add: isNumericOrString,
+-	syntax.Sub: isNumeric,
+-	syntax.Mul: isNumeric,
+-	syntax.Div: isNumeric,
+-	syntax.Rem: isInteger,
++var binaryOpPredicates opPredicates
+ 
+-	syntax.And:    isInteger,
+-	syntax.Or:     isInteger,
+-	syntax.Xor:    isInteger,
+-	syntax.AndNot: isInteger,
++func init() {
++	// Setting binaryOpPredicates in init avoids declaration cycles.
++	binaryOpPredicates = opPredicates{
++		syntax.Add: isNumericOrString,
++		syntax.Sub: isNumeric,
++		syntax.Mul: isNumeric,
++		syntax.Div: isNumeric,
++		syntax.Rem: isInteger,
+ 
+-	syntax.AndAnd: isBoolean,
+-	syntax.OrOr:   isBoolean,
++		syntax.And:    isInteger,
++		syntax.Or:     isInteger,
++		syntax.Xor:    isInteger,
++		syntax.AndNot: isInteger,
++
++		syntax.AndAnd: isBoolean,
++		syntax.OrOr:   isBoolean,
++	}
+ }
+ 
+ // If e != nil, it must be the binary expression; it may be nil for non-constant expressions
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 1025c18b23..52bd99deab 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -881,16 +881,7 @@ func (t *top) String() string       { return TypeString(t, nil) }
+ // If it doesn't exist, the result is Typ[Invalid].
+ // under must only be called when a type is known
+ // to be fully set up.
+-//
+-// under is set to underf to avoid an initialization cycle.
+-// TODO(gri) this doesn't happen in go/types - investigate
+-var under func(Type) Type
+-
+-func init() {
+-	under = underf
+-}
+-
+-func underf(t Type) Type {
++func under(t Type) Type {
+ 	// TODO(gri) is this correct for *Sum?
+ 	if n := asNamed(t); n != nil {
+ 		return n.under()

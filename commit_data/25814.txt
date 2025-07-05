@@ -14,6 +14,27 @@ Date:   Fri Sep 11 10:15:17 2015 +1000
     Change-Id: I4e7d3046031cd8c08f39634bdd91da6e00054caf
     Reviewed-on: https://go-review.googlesource.com/14485
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index df6c15df69..0f2678ad4c 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -40,8 +40,13 @@ func TestCgoCallbackGC(t *testing.T) {
+ 	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+-	if testing.Short() && runtime.GOOS == "dragonfly" {
+-		t.Skip("see golang.org/issue/11990")
++	if testing.Short() {
++		switch {
++		case runtime.GOOS == "dragonfly":
++			t.Skip("see golang.org/issue/11990")
++		case runtime.GOOS == "linux" && runtime.GOARCH == "arm":
++			t.Skip("too slow for arm builders")
++		}
+ 	}
+ 	got := executeTest(t, cgoCallbackGCSource, nil)
+ 	want := "OK\n"

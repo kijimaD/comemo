@@ -15,9 +15,62 @@ Date:   Thu Nov 6 14:37:39 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/170100043
-
+---
  src/cmd/5g/gobj.c | 2 +-
  src/cmd/6g/gobj.c | 2 +-
  src/cmd/8g/gobj.c | 2 +-
  src/cmd/9g/gobj.c | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 5e988878f7..65f731685e 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -86,7 +86,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	sym = stringsym(sval->s, sval->len);
+ 	a->type = D_OREG;
+ 	a->name = D_EXTERN;
+-	a->etype = TINT32;
++	a->etype = TSTRING;
+ 	a->offset = 0;  // header
+ 	a->reg = NREG;
+ 	a->sym = linksym(sym);
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 04e837b138..dbb4ff62c4 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -81,7 +81,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	a->sym = linksym(sym);
+ 	a->node = sym->def;
+ 	a->offset = 0;  // header
+-	a->etype = TINT32;
++	a->etype = TSTRING;
+ }
+ 
+ void
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index fa0605e6c7..af287f7023 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -81,7 +81,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	a->sym = linksym(sym);
+ 	a->node = sym->def;
+ 	a->offset = 0;  // header
+-	a->etype = TINT32;
++	a->etype = TSTRING;
+ }
+ 
+ void
+diff --git a/src/cmd/9g/gobj.c b/src/cmd/9g/gobj.c
+index fdd7606bcd..3da55878a7 100644
+--- a/src/cmd/9g/gobj.c
++++ b/src/cmd/9g/gobj.c
+@@ -89,7 +89,7 @@ datagostring(Strlit *sval, Addr *a)
+ 	a->reg = NREG;
+ 	a->node = sym->def;
+ 	a->offset = 0;  // header
+-	a->etype = TINT32;
++	a->etype = TSTRING;
+ }
+ 
+ void

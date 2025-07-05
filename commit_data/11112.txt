@@ -9,6 +9,25 @@ Date:   Wed Jan 11 12:44:31 2012 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/5533068
-
+---
  src/cmd/go/test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ad34ba22ac..0272614e17 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -469,7 +469,12 @@ func (b *builder) runTest(a *action) error {
+ 
+ 	t0 := time.Now()
+ 	err := cmd.Start()
+-	const deadline = 1 * time.Minute
++
++	// This is a last-ditch deadline to detect and
++	// stop wedged test binaries, to keep the builders
++	// running.
++	const deadline = 10 * time.Minute
++
+ 	tick := time.NewTimer(deadline)
+ 	if err == nil {
+ 		done := make(chan error)

@@ -7,6 +7,34 @@ Date:   Fri Dec 2 10:13:02 2011 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5449063
-
+---
  src/pkg/encoding/asn1/asn1_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index 2e6fccf7b8..09f94139f9 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -225,19 +225,19 @@ func TestUTCTime(t *testing.T) {
+ 		ret, err := parseUTCTime([]byte(test.in))
+ 		if err != nil {
+ 			if test.ok {
+-				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, err)
++				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, test.in, err)
+ 			}
+ 			continue
+ 		}
+ 		if !test.ok {
+-			t.Errorf("#%d: parseUTCTime(%q) succeeded, should have failed", i)
++			t.Errorf("#%d: parseUTCTime(%q) succeeded, should have failed", i, test.in)
+ 			continue
+ 		}
+ 		const format = "Jan _2 15:04:05 -0700 2006" // ignore zone name, just offset
+ 		have := ret.Format(format)
+ 		want := test.out.Format(format)
+ 		if have != want {
+-			t.Errorf("#%d: parseUTCTime(%q) = %s, want %s", test.in, have, want)
++			t.Errorf("#%d: parseUTCTime(%q) = %s, want %s", i, test.in, have, want)
+ 		}
+ 	}
+ }

@@ -7,8 +7,69 @@ Date:   Tue Feb 14 14:57:57 2012 +0900
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5661055
-
+---
  src/pkg/net/fd.go               | 8 ++++----
  src/pkg/net/fd_windows.go       | 3 ++-
  src/pkg/net/sendfile_windows.go | 2 +-
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 596cf33004..bf0a387775 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -18,9 +18,9 @@ import (
+ // Network file descriptor.
+ type netFD struct {
+ 	// locking/lifetime of sysfd
+-	sysmu   sync.Mutex
+-	sysref  int
+-	
++	sysmu  sync.Mutex
++	sysref int
++
+ 	// must lock both sysmu and pollserver to write
+ 	// can lock either to read
+ 	closing bool
+@@ -376,7 +376,7 @@ func (fd *netFD) decref() {
+ }
+ 
+ func (fd *netFD) Close() error {
+-	pollserver.Lock()  // needed for both fd.incref(true) and pollserver.Evict
++	pollserver.Lock() // needed for both fd.incref(true) and pollserver.Evict
+ 	defer pollserver.Unlock()
+ 	if err := fd.incref(true); err != nil {
+ 		return err
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index ee8f162120..efd846e5d8 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -518,7 +519,7 @@ func (o *acceptOp) Name() string {
+ 
+ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	if err := fd.incref(false); err != nil {
+-		return 0, err
++		return nil, err
+ 	}
+ 	defer fd.decref()
+ 
+diff --git a/src/pkg/net/sendfile_windows.go b/src/pkg/net/sendfile_windows.go
+index 6f9b4a04c6..f5a6d8804d 100644
+--- a/src/pkg/net/sendfile_windows.go
++++ b/src/pkg/net/sendfile_windows.go
+@@ -50,7 +50,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 
+ 	c.wio.Lock()
+ 	defer c.wio.Unlock()
+-	if err := c.incref(); err != nil {
++	if err := c.incref(false); err != nil {
+ 		return 0, err, true
+ 	}
+ 	defer c.decref()

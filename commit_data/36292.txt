@@ -11,7 +11,51 @@ Date:   Tue Apr 17 16:55:42 2018 -0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/hex/hex.go      |  5 ++++-
  src/encoding/hex/hex_test.go | 13 +++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index edc53954a1..4cb26b6673 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -282,10 +282,13 @@ func (h *dumper) Write(data []byte) (n int, err error) {
+ 
+ func (h *dumper) Close() (err error) {
+ 	// See the comments in Write() for the details of this format.
+-	if h.used == 0 || h.closed {
++	if h.closed {
+ 		return
+ 	}
+ 	h.closed = true
++	if h.used == 0 {
++		return
++	}
+ 	h.buf[0] = ' '
+ 	h.buf[1] = ' '
+ 	h.buf[2] = ' '
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index f222316649..6ba054ef9a 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -204,6 +204,19 @@ func TestDumper_doubleclose(t *testing.T) {
+ 	}
+ }
+ 
++func TestDumper_earlyclose(t *testing.T) {
++	var out bytes.Buffer
++	dumper := Dumper(&out)
++
++	dumper.Close()
++	dumper.Write([]byte(`gopher`))
++
++	expected := ""
++	if out.String() != expected {
++		t.Fatalf("got:\n%#v\nwant:\n%#v", out.String(), expected)
++	}
++}
++
+ func TestDump(t *testing.T) {
+ 	var in [40]byte
+ 	for i := range in {

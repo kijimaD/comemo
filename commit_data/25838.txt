@@ -9,7 +9,39 @@ Date:   Tue Oct 20 11:21:21 2015 -0400
     Change-Id: I936db2f57f7c4dc80bb8ec32715c4c6b7bf0d708
     Reviewed-on: https://go-review.googlesource.com/16112
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/regexp/syntax/regexp.go        | 4 ++--
  src/regexp/syntax/simplify_test.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/regexp/syntax/regexp.go b/src/regexp/syntax/regexp.go
+index cea7d9e04f..75822cf981 100644
+--- a/src/regexp/syntax/regexp.go
++++ b/src/regexp/syntax/regexp.go
+@@ -166,9 +166,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
+ 	case OpAnyChar:
+ 		b.WriteString(`(?s:.)`)
+ 	case OpBeginLine:
+-		b.WriteRune('^')
++		b.WriteString(`(?m:^)`)
+ 	case OpEndLine:
+-		b.WriteRune('$')
++		b.WriteString(`(?m:$)`)
+ 	case OpBeginText:
+ 		b.WriteString(`\A`)
+ 	case OpEndText:
+diff --git a/src/regexp/syntax/simplify_test.go b/src/regexp/syntax/simplify_test.go
+index 879eff5be7..5d0f1dea5e 100644
+--- a/src/regexp/syntax/simplify_test.go
++++ b/src/regexp/syntax/simplify_test.go
+@@ -19,8 +19,8 @@ var simplifyTests = []struct {
+ 	{`(ab)+`, `(ab)+`},
+ 	{`(ab)?`, `(ab)?`},
+ 	{`.`, `(?s:.)`},
+-	{`^`, `^`},
+-	{`$`, `$`},
++	{`^`, `(?m:^)`},
++	{`$`, `(?m:$)`},
+ 	{`[ac]`, `[ac]`},
+ 	{`[^ac]`, `[^ac]`},
+ 

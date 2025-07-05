@@ -8,6 +8,20 @@ Date:   Wed Apr 24 03:51:31 2013 +0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/8698046
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 62851871c5..e546c083b6 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2947,7 +2947,7 @@ func Serve(queue chan *Request) {
+         go func() {
+             process(req)
+             sem &lt;- 1
+-        }
++        }()
+     }
+ }</pre>
+ 

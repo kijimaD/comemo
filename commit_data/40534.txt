@@ -11,7 +11,57 @@ Date:   Wed May 22 10:05:04 2019 +0200
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 13 +++++++++++++
  src/cmd/doc/pkg.go      |  7 +++++--
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 22468db1ff..bc870aca58 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -602,6 +602,19 @@ var tests = []test{
+ 			`Comment about exported interface`,
+ 		},
+ 	},
++	// Interface method at package level.
++	{
++		"interface method at package level",
++		[]string{p, `ExportedMethod`},
++		[]string{
++			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
++			`Comment about exported method`,
++		},
++		[]string{
++			`Comment before exported method.*\n.*ExportedMethod\(\)` +
++				`.*Comment on line with exported method`,
++		},
++	},
+ 
+ 	// Method.
+ 	{
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 12b76c2ad0..32810bd581 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -914,8 +914,8 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
+ }
+ 
+ // printMethodDoc prints the docs for matches of symbol.method.
+-// If symbol is empty, it prints all methods that match the name.
+-// It reports whether it found any methods.
++// If symbol is empty, it prints all methods for any concrete type
++// that match the name. It reports whether it found any methods.
+ func (pkg *Package) printMethodDoc(symbol, method string) bool {
+ 	defer pkg.flush()
+ 	types := pkg.findTypes(symbol)
+@@ -937,6 +937,9 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
+ 			}
+ 			continue
+ 		}
++		if symbol == "" {
++			continue
++		}
+ 		// Type may be an interface. The go/doc package does not attach
+ 		// an interface's methods to the doc.Type. We need to dig around.
+ 		spec := pkg.findTypeSpec(typ.Decl, typ.Name)

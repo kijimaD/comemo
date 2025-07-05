@@ -9,6 +9,37 @@ Date:   Sat Jul 28 01:22:24 2018 +0300
     Run-TryBot: Yury Smolsky <yury@smolsky.by>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/cover/cover.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index f496f4cff6..54cf4be25e 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -16,7 +16,6 @@ import (
+ 	"log"
+ 	"os"
+ 	"sort"
+-	"strconv"
+ 
+ 	"cmd/internal/edit"
+ 	"cmd/internal/objabi"
+@@ -294,17 +293,6 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 	return f
+ }
+ 
+-// unquote returns the unquoted string.
+-func unquote(s string) string {
+-	t, err := strconv.Unquote(s)
+-	if err != nil {
+-		log.Fatalf("cover: improperly quoted string %q\n", s)
+-	}
+-	return t
+-}
+-
+-var slashslash = []byte("//")
+-
+ func annotate(name string) {
+ 	fset := token.NewFileSet()
+ 	content, err := ioutil.ReadFile(name)

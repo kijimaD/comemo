@@ -7,6 +7,20 @@ Date:   Mon Feb 9 11:25:47 2009 -0800
     R=rsc
     OCL=24681
     CL=24681
-
+---
  src/lib/os/dir_amd64_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 0ad1475ca6..f1401825c8 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -107,7 +107,7 @@ func Readdir(fd *FD, count int) (dirs []Dir, err *os.Error) {
+ 			dirs = dirs[0:len(dirs)+1];
+ 			filename := string(dirent.Name[0:dirent.Namlen]);
+ 			dirp, err := Stat(dirname + filename);
+-			if dir == nil || err != nil {
++			if dirp == nil || err != nil {
+ 				dirs[len(dirs)-1].Name = filename;	// rest will be zeroed out
+ 			} else {
+ 				dirs[len(dirs)-1] = *dirp;

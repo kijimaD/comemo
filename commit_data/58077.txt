@@ -14,6 +14,38 @@ Date:   Mon Sep 25 15:11:04 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/vcs/vcs.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index a86ed07d3f..4d6cdbca07 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -283,15 +283,13 @@ var vcsGit = &Cmd{
+ var scpSyntaxRe = lazyregexp.New(`^(\w+)@([\w.-]+):(.*)$`)
+ 
+ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
+-	cmd := "config remote.origin.url"
+-	errParse := errors.New("unable to parse output of git " + cmd)
+-	errRemoteOriginNotFound := errors.New("remote origin not found")
++	const cmd = "config remote.origin.url"
+ 	outb, err := vcsGit.run1(rootDir, cmd, nil, false)
+ 	if err != nil {
+ 		// if it doesn't output any message, it means the config argument is correct,
+ 		// but the config value itself doesn't exist
+ 		if outb != nil && len(outb) == 0 {
+-			return "", errRemoteOriginNotFound
++			return "", errors.New("remote origin not found")
+ 		}
+ 		return "", err
+ 	}
+@@ -323,7 +321,7 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
+ 			return repoURL.String(), nil
+ 		}
+ 	}
+-	return "", errParse
++	return "", errors.New("unable to parse output of git " + cmd)
+ }
+ 
+ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {

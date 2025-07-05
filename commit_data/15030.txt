@@ -9,7 +9,32 @@ Date:   Wed Jan 30 08:46:40 2013 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7230054
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 02ebb31ebb..7c544cb84a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -87,6 +87,7 @@ Dustin Shields-Cloues <dcloues@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Egon Elbre <egonelbre@gmail.com>
+ Eivind Uggedal <eivind@uggedal.com>
++Elias Naur <elias.naur@gmail.com>
+ Emil Hessman <c.emil.hessman@gmail.com>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index af938c6681..956d3f3e10 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -141,6 +141,7 @@ Dustin Shields-Cloues <dcloues@gmail.com>
+ Eden Li <eden.li@gmail.com>
+ Egon Elbre <egonelbre@gmail.com>
+ Eivind Uggedal <eivind@uggedal.com>
++Elias Naur <elias.naur@gmail.com>
+ Emil Hessman <c.emil.hessman@gmail.com>
+ Eoghan Sherry <ejsherry@gmail.com>
+ Eric Clark <zerohp@gmail.com>

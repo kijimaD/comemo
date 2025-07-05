@@ -19,7 +19,178 @@ Date:   Fri Jan 5 13:38:55 2018 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/work/build_test.go | 49 +++++++++++++++++++++-
  src/cmd/go/internal/work/exec.go       | 77 ++++++++++++++++++++++++----------
  2 files changed, 101 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build_test.go b/src/cmd/go/internal/work/build_test.go
+index ca2d0bb137..010e17ee48 100644
+--- a/src/cmd/go/internal/work/build_test.go
++++ b/src/cmd/go/internal/work/build_test.go
+@@ -42,15 +42,60 @@ func TestSplitPkgConfigOutput(t *testing.T) {
+ 	}{
+ 		{[]byte(`-r:foo -L/usr/white\ space/lib -lfoo\ bar -lbar\ baz`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
+ 		{[]byte(`-lextra\ fun\ arg\\`), []string{`-lextra fun arg\`}},
+-		{[]byte(`broken flag\`), []string{"broken", "flag"}},
+ 		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace"}},
+ 		{[]byte("     \r\n      "), nil},
++		{[]byte(`"-r:foo" "-L/usr/white space/lib" "-lfoo bar" "-lbar baz"`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
++		{[]byte(`"-lextra fun arg\\"`), []string{`-lextra fun arg\`}},
++		{[]byte(`"     \r\n\      "`), []string{`     \r\n\      `}},
++		{[]byte(`""`), nil},
++		{[]byte(``), nil},
++		{[]byte(`"\\"`), []string{`\`}},
++		{[]byte(`"\x"`), []string{`\x`}},
++		{[]byte(`"\\x"`), []string{`\x`}},
++		{[]byte(`'\\'`), []string{`\`}},
++		{[]byte(`'\x'`), []string{`\x`}},
++		{[]byte(`"\\x"`), []string{`\x`}},
++		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='"/test/share/doc"'`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
++		{[]byte(`-fPIC -I/test/include/foo -DQUOTED="/test/share/doc"`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
++		{[]byte(`-fPIC -I/test/include/foo -DQUOTED=\"/test/share/doc\"`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
++		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='/test/share/doc'`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
++		{[]byte(`-DQUOTED='/te\st/share/d\oc'`), []string{`-DQUOTED=/te\st/share/d\oc`}},
++		{[]byte(`-Dhello=10 -Dworld=+32 -DDEFINED_FROM_PKG_CONFIG=hello\ world`), []string{"-Dhello=10", "-Dworld=+32", "-DDEFINED_FROM_PKG_CONFIG=hello world"}},
++		{[]byte(`"broken\"" \\\a "a"`), []string{"broken\"", "\\a", "a"}},
+ 	} {
+-		got := splitPkgConfigOutput(test.in)
++		got, err := splitPkgConfigOutput(test.in)
++		if err != nil {
++			t.Errorf("splitPkgConfigOutput on %v failed with error %v", test.in, err)
++			continue
++		}
++		if !reflect.DeepEqual(got, test.want) {
++			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
++		}
++	}
++
++	for _, test := range []struct {
++		in   []byte
++		want []string
++	}{
++		// broken quotation
++		{[]byte(`"     \r\n      `), nil},
++		{[]byte(`"-r:foo" "-L/usr/white space/lib "-lfoo bar" "-lbar baz"`), nil},
++		{[]byte(`"-lextra fun arg\\`), nil},
++		// broken char escaping
++		{[]byte(`broken flag\`), nil},
++		{[]byte(`extra broken flag \`), nil},
++		{[]byte(`\`), nil},
++		{[]byte(`"broken\"" "extra" \`), nil},
++	} {
++		got, err := splitPkgConfigOutput(test.in)
++		if err == nil {
++			t.Errorf("splitPkgConfigOutput(%v) = %v; haven't failed with error as expected.", test.in, got)
++		}
+ 		if !reflect.DeepEqual(got, test.want) {
+ 			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
+ 		}
+ 	}
++
+ }
+ 
+ func TestSharedLibName(t *testing.T) {
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 502d0d4132..5420dc2872 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -900,36 +900,64 @@ func (b *Builder) PkgconfigCmd() string {
+ }
+ 
+ // splitPkgConfigOutput parses the pkg-config output into a slice of
+-// flags. pkg-config always uses \ to escape special characters.
+-func splitPkgConfigOutput(out []byte) []string {
++// flags. This implements the algorithm from pkgconf/libpkgconf/argvsplit.c.
++func splitPkgConfigOutput(out []byte) ([]string, error) {
+ 	if len(out) == 0 {
+-		return nil
++		return nil, nil
+ 	}
+ 	var flags []string
+-	flag := make([]byte, len(out))
+-	r, w := 0, 0
+-	for r < len(out) {
+-		switch out[r] {
+-		case ' ', '\t', '\r', '\n':
+-			if w > 0 {
+-				flags = append(flags, string(flag[:w]))
++	flag := make([]byte, 0, len(out))
++	escaped := false
++	quote := byte(0)
++
++	for _, c := range out {
++		if escaped {
++			if quote != 0 {
++				switch c {
++				case '$', '`', '"', '\\':
++				default:
++					flag = append(flag, '\\')
++				}
++				flag = append(flag, c)
++			} else {
++				flag = append(flag, c)
+ 			}
+-			w = 0
+-		case '\\':
+-			r++
+-			fallthrough
+-		default:
+-			if r < len(out) {
+-				flag[w] = out[r]
+-				w++
++			escaped = false
++		} else if quote != 0 {
++			if c == quote {
++				quote = 0
++			} else {
++				switch c {
++				case '\\':
++					escaped = true
++				default:
++					flag = append(flag, c)
++				}
+ 			}
++		} else if strings.IndexByte(" \t\n\v\f\r", c) < 0 {
++			switch c {
++			case '\\':
++				escaped = true
++			case '\'', '"':
++				quote = c
++			default:
++				flag = append(flag, c)
++			}
++		} else if len(flag) != 0 {
++			flags = append(flags, string(flag))
++			flag = flag[:0]
+ 		}
+-		r++
+ 	}
+-	if w > 0 {
+-		flags = append(flags, string(flag[:w]))
++	if escaped {
++		return nil, errors.New("broken character escaping in pkgconf output ")
++	}
++	if quote != 0 {
++		return nil, errors.New("unterminated quoted string in pkgconf output ")
++	} else if len(flag) != 0 {
++		flags = append(flags, string(flag))
+ 	}
+-	return flags
++
++	return flags, nil
+ }
+ 
+ // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
+@@ -961,7 +989,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string,
+ 			return nil, nil, errPrintedOutput
+ 		}
+ 		if len(out) > 0 {
+-			cflags = splitPkgConfigOutput(out)
++			cflags, err = splitPkgConfigOutput(out)
++			if err != nil {
++				return nil, nil, err
++			}
+ 			if err := checkCompilerFlags("CFLAGS", "pkg-config --cflags", cflags); err != nil {
+ 				return nil, nil, err
+ 			}

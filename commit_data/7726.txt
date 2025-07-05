@@ -7,7 +7,58 @@ Date:   Thu Mar 10 07:22:53 2011 -0800
     R=agl, agl1
     CC=golang-dev, rsc
     https://golang.org/cl/4248078
-
+---
  src/pkg/crypto/tls/common.go |  4 ++++
  src/pkg/crypto/tls/conn.go   | 10 +---------
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index 7135f3d0f7..81b5a07446 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"crypto/rand"
+ 	"crypto/rsa"
++	"crypto/x509"
+ 	"io"
+ 	"io/ioutil"
+ 	"sync"
+@@ -95,6 +96,9 @@ type ConnectionState struct {
+ 	HandshakeComplete  bool
+ 	CipherSuite        uint16
+ 	NegotiatedProtocol string
++
++	// the certificate chain that was presented by the other side
++	PeerCertificates []*x509.Certificate
+ }
+ 
+ // A Config structure is used to configure a TLS client or server. After one
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index d203e8d516..1e6fe60aec 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -762,6 +762,7 @@ func (c *Conn) ConnectionState() ConnectionState {
+ 	if c.handshakeComplete {
+ 		state.NegotiatedProtocol = c.clientProtocol
+ 		state.CipherSuite = c.cipherSuite
++		state.PeerCertificates = c.peerCertificates
+ 	}
+ 
+ 	return state
+@@ -776,15 +777,6 @@ func (c *Conn) OCSPResponse() []byte {
+ 	return c.ocspResponse
+ }
+ 
+-// PeerCertificates returns the certificate chain that was presented by the
+-// other side.
+-func (c *Conn) PeerCertificates() []*x509.Certificate {
+-	c.handshakeMutex.Lock()
+-	defer c.handshakeMutex.Unlock()
+-
+-	return c.peerCertificates
+-}
+-
+ // VerifyHostname checks that the peer certificate chain is valid for
+ // connecting to host.  If so, it returns nil; if not, it returns an os.Error
+ // describing the problem.

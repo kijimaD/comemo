@@ -13,7 +13,7 @@ Date:   Tue Mar 31 00:22:59 2009 -0700
     R=ken
     OCL=26943
     CL=26943
-
+---
  src/cmd/8g/Makefile |  39 ++++
  src/cmd/8g/align.c  |  38 ++++
  src/cmd/8g/gen.c    | 184 ++++++++++++++++++
@@ -21,3 +21,1271 @@ Date:   Tue Mar 31 00:22:59 2009 -0700
  src/cmd/8g/list.c   | 298 +++++++++++++++++++++++++++++
  src/cmd/8g/obj.c    | 532 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 1231 insertions(+)
+
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+new file mode 100644
+index 0000000000..485cc56206
+--- /dev/null
++++ b/src/cmd/8g/Makefile
+@@ -0,0 +1,39 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++TARG=\
++	8g
++
++HFILES=\
++	../gc/go.h\
++	../8l/8.out.h\
++	gg.h\
++#	opt.h\
++
++OFILES=\
++	../8l/enam.$O\
++	list.$O\
++	align.$O\
++	obj.$O\
++	gen.$O\
++	gsubr.$O\
++	cgen.$O\
++#	peep.$O\
++#	reg.$O\
++
++LIB=\
++	../gc/gc.a$O
++
++$(TARG): $(OFILES) $(LIB)
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9 -lm
++
++$(OFILES): $(HFILES)
++
++clean:
++	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/8g/align.c b/src/cmd/8g/align.c
+new file mode 100644
+index 0000000000..351cd01b77
+--- /dev/null
++++ b/src/cmd/8g/align.c
+@@ -0,0 +1,38 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "gg.h"
++
++int	thechar	= '8';
++char*	thestring	= "386";
++
++
++/*
++ * go declares several platform-specific type aliases:
++ * int, uint, float, and uintptr
++ */
++Typedef	typedefs[] =
++{
++	"int",		TINT,		TINT32,
++	"uint",		TUINT,		TUINT32,
++	"uintptr",	TUINTPTR,	TUINT32,
++	"float",	TFLOAT,		TFLOAT32,
++	0
++};
++
++void
++betypeinit(void)
++{
++	maxround = 4;
++	widthptr = 4;
++
++	zprog.link = P;
++	zprog.as = AGOK;
++	zprog.from.type = D_NONE;
++	zprog.from.index = D_NONE;
++	zprog.from.scale = 0;
++	zprog.to = zprog.from;
++
++	listinit();
++}
+diff --git a/src/cmd/8g/gen.c b/src/cmd/8g/gen.c
+new file mode 100644
+index 0000000000..9f57464406
+--- /dev/null
++++ b/src/cmd/8g/gen.c
+@@ -0,0 +1,184 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#undef	EXTERN
++#define	EXTERN
++#include "gg.h"
++
++void
++compile(Node *fn)
++{
++	Plist *pl;
++	Node nod1;
++	Prog *ptxt;
++	int32 lno;
++	Type *t;
++	Iter save;
++
++	if(newproc == N) {
++		newproc = sysfunc("newproc");
++		deferproc = sysfunc("deferproc");
++		deferreturn = sysfunc("deferreturn");
++		throwindex = sysfunc("throwindex");
++		throwreturn = sysfunc("throwreturn");
++	}
++
++	if(fn->nbody == N)
++		return;
++
++	// set up domain for labels
++	labellist = L;
++
++	lno = setlineno(fn);
++
++	curfn = fn;
++	dowidth(curfn->type);
++
++	if(curfn->type->outnamed) {
++		// add clearing of the output parameters
++		t = structfirst(&save, getoutarg(curfn->type));
++		while(t != T) {
++			if(t->nname != N)
++				curfn->nbody = list(nod(OAS, t->nname, N), curfn->nbody);
++			t = structnext(&save);
++		}
++	}
++
++	hasdefer = 0;
++	walk(curfn);
++	if(nerrors != 0)
++		goto ret;
++
++	allocparams();
++
++	continpc = P;
++	breakpc = P;
++
++	pl = newplist();
++	pl->name = curfn->nname;
++	pl->locals = autodcl;
++
++	nodconst(&nod1, types[TINT32], 0);
++	ptxt = gins(ATEXT, curfn->nname, &nod1);
++	afunclit(&ptxt->from);
++
++//	ginit();
++	gen(curfn->enter);
++	gen(curfn->nbody);
++//	gclean();
++	checklabels();
++
++//	if(curfn->type->outtuple != 0)
++//		ginscall(throwreturn, 0);
++
++//	if(hasdefer)
++//		ginscall(deferreturn, 0);
++	pc->as = ARET;	// overwrite AEND
++	pc->lineno = lineno;
++
++//	if(!debug['N'] || debug['R'] || debug['P'])
++//		regopt(ptxt);
++
++	// fill in argument size
++	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
++
++	// fill in final stack size
++	ptxt->to.offset = rnd(stksize+maxarg, maxround);
++
++	if(debug['f'])
++		frame(0);
++
++ret:
++	lineno = lno;
++}
++
++void
++clearfat(Node *nl)
++{
++	fatal("clearfat");
++}
++
++/*
++ * generate:
++ *	call f
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
++ */
++void
++ginscall(Node *f, int proc)
++{
++	Prog *p;
++	Node reg, con;
++
++	switch(proc) {
++	default:
++		fatal("ginscall: bad proc %d", proc);
++		break;
++
++	case 0:	// normal call
++		p = gins(ACALL, N, f);
++		afunclit(&p->to);
++		break;
++
++	case 1:	// call in new proc (go)
++	case 2:	// defered call (defer)
++		nodreg(&reg, types[TINT32], D_AX);
++		gins(APUSHL, f, N);
++		nodconst(&con, types[TINT32], argsize(f->type));
++		gins(APUSHL, &con, N);
++		if(proc == 1)
++			ginscall(newproc, 0);
++		else
++			ginscall(deferproc, 0);
++		gins(APOPL, N, &reg);
++		gins(APOPL, N, &reg);
++		break;
++	}
++}
++
++/*
++ * n is call to interface method.
++ * generate res = n.
++ */
++void
++cgen_callinter(Node *n, Node *res, int proc)
++{
++	fatal("cgen_call");
++}
++
++/*
++ * generate function call;
++ *	proc=0	normal call
++ *	proc=1	goroutine run in new proc
++ *	proc=2	defer call save away stack
++ */
++void
++cgen_call(Node *n, int proc)
++{
++	fatal("cgen_call");
++}
++
++/*
++ * generate return.
++ * n->left is assignments to return values.
++ */
++void
++cgen_ret(Node *n)
++{
++	gen(n->left);		// copy out args
++	if(hasdefer)
++		ginscall(deferreturn, 0);
++	gins(ARET, N, N);
++}
++
++/*
++ * generate += *= etc.
++ */
++void
++cgen_asop(Node *n)
++{
++	fatal("cgen_asop");
++}
++
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+new file mode 100644
+index 0000000000..7ad143e594
+--- /dev/null
++++ b/src/cmd/8g/gg.h
+@@ -0,0 +1,140 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++#include <u.h>
++#include <libc.h>
++
++#include "../gc/go.h"
++#include "../8l/8.out.h"
++
++#ifndef	EXTERN
++#define EXTERN	extern
++#endif
++
++typedef	struct	Addr	Addr;
++
++struct	Addr
++{
++	int32	offset;
++	int32	offset2;
++
++	double	dval;
++	Prog*	branch;
++	char	sval[NSNAME];
++
++	Sym*	sym;
++	uchar	type;
++	uchar	index;
++	uchar	etype;
++	uchar	scale;	/* doubles as width in DATA op */
++};
++#define	A	((Addr*)0)
++
++struct	Prog
++{
++	short	as;		// opcode
++	uint32	loc;		// pc offset in this func
++	uint32	lineno;		// source line that generated this
++	Addr	from;		// src address
++	Addr	to;		// dst address
++	Prog*	link;		// next instruction in this func
++	void*	reg;		// pointer to containing Reg struct
++};
++
++EXTERN	Biobuf*	bout;
++EXTERN	int32	dynloc;
++EXTERN	uchar	reg[D_NONE];
++EXTERN	int32	pcloc;		// instruction counter
++EXTERN	String	emptystring;
++extern	char*	anames[];
++EXTERN	Hist*	hist;
++EXTERN	Prog	zprog;
++EXTERN	Node*	curfn;
++EXTERN	Node*	newproc;
++EXTERN	Node*	deferproc;
++EXTERN	Node*	deferreturn;
++EXTERN	Node*	throwindex;
++EXTERN	Node*	throwreturn;
++
++/*
++ * gen.c
++ */
++void	compile(Node*);
++void	proglist(void);
++void	gen(Node*);
++Node*	lookdot(Node*, Node*, int);
++void	cgen_as(Node*, Node*);
++void	cgen_callmeth(Node*, int);
++void	cgen_callinter(Node*, Node*, int);
++void	cgen_proc(Node*, int);
++void	cgen_callret(Node*, Node*);
++void	cgen_div(int, Node*, Node*, Node*);
++void	cgen_bmul(int, Node*, Node*, Node*);
++void	cgen_shift(int, Node*, Node*, Node*);
++void	cgen_dcl(Node*);
++int	needconvert(Type*, Type*);
++void	genconv(Type*, Type*);
++void	allocparams(void);
++void	checklabels();
++void	ginscall(Node*, int);
++
++/*
++ * cgen
++ */
++void	agen(Node*, Node*);
++void	igen(Node*, Node*, Node*);
++vlong	fieldoffset(Type*, Node*);
++void	bgen(Node*, int, Prog*);
++void	sgen(Node*, Node*, int32);
++void	gmove(Node*, Node*);
++Prog*	gins(int, Node*, Node*);
++int	samaddr(Node*, Node*);
++void	naddr(Node*, Addr*);
++void	cgen_aret(Node*, Node*);
++
++/*
++ * gsubr.c
++ */
++void	clearp(Prog*);
++void	proglist(void);
++Prog*	gbranch(int, Type*);
++Prog*	prog(int);
++void	gaddoffset(Node*);
++void	gconv(int, int);
++int	conv2pt(Type*);
++vlong	convvtox(vlong, int);
++void	fnparam(Type*, int, int);
++Prog*	gop(int, Node*, Node*, Node*);
++void	setconst(Addr*, vlong);
++void	setaddr(Addr*, Node*);
++int	optoas(int, Type*);
++void	ginit(void);
++void	gclean(void);
++void	regalloc(Node*, Type*, Node*);
++void	regfree(Node*);
++Node*	nodarg(Type*, int);
++void	nodreg(Node*, Type*, int);
++void	nodindreg(Node*, Type*, int);
++void	nodconst(Node*, Type*, vlong);
++void	gconreg(int, vlong, int);
++void	buildtxt(void);
++Plist*	newplist(void);
++int	isfat(Type*);
++void	sudoclean(void);
++int	sudoaddable(Node*, Addr*);
++void	afunclit(Addr*);
++
++/*
++ * list.c
++ */
++int	Aconv(Fmt*);
++int	Dconv(Fmt*);
++int	Pconv(Fmt*);
++int	Rconv(Fmt*);
++int	Yconv(Fmt*);
++void	listinit(void);
++
++void	zaddr(Biobuf*, Addr*, int);
++
+diff --git a/src/cmd/8g/list.c b/src/cmd/8g/list.c
+new file mode 100644
+index 0000000000..4320e9daa0
+--- /dev/null
++++ b/src/cmd/8g/list.c
+@@ -0,0 +1,298 @@
++// Derived from Inferno utils/8c/list.c
++// http://code.google.com/p/inferno-os/source/browse/utils/8c/list.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include "gg.h"
++
++static	int	sconsize;
++void
++listinit(void)
++{
++
++	fmtinstall('A', Aconv);		// as
++	fmtinstall('P', Pconv);		// Prog*
++	fmtinstall('D', Dconv);		// Addr*
++	fmtinstall('R', Rconv);		// reg
++	fmtinstall('Y', Yconv);		// sconst
++}
++
++int
++Pconv(Fmt *fp)
++{
++	char str[STRINGSZ];
++	Prog *p;
++
++	p = va_arg(fp->args, Prog*);
++	sconsize = 8;
++	switch(p->as) {
++	default:
++		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
++			p->loc, p->lineno, p->as, &p->from, &p->to);
++		break;
++
++	case ADATA:
++		sconsize = p->from.scale;
++		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
++			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
++		break;
++
++	case ATEXT:
++		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%lD",
++			p->loc, p->lineno, p->as, &p->from, &p->to);
++		break;
++	}
++	return fmtstrcpy(fp, str);
++}
++
++int
++Dconv(Fmt *fp)
++{
++	char str[100], s[100];
++	Addr *a;
++	int i;
++	uint32 d1, d2;
++
++	a = va_arg(fp->args, Addr*);
++	i = a->type;
++	if(i >= D_INDIR) {
++		if(a->offset)
++			snprint(str, sizeof(str), "%ld(%R)", a->offset, i-D_INDIR);
++		else
++			snprint(str, sizeof(str), "(%R)", i-D_INDIR);
++		goto brk;
++	}
++	switch(i) {
++
++	default:
++		if(a->offset)
++			snprint(str, sizeof(str), "$%ld,%R", a->offset, i);
++		else
++			snprint(str, sizeof(str), "%R", i);
++		break;
++
++	case D_NONE:
++		str[0] = 0;
++		break;
++
++	case D_BRANCH:
++		snprint(str, sizeof(str), "%ld", a->branch->loc);
++		break;
++
++	case D_EXTERN:
++		snprint(str, sizeof(str), "%S+%ld(SB)", a->sym, a->offset);
++		break;
++
++	case D_STATIC:
++		snprint(str, sizeof(str), "%S<>+%ld(SB)", a->sym, a->offset);
++		break;
++
++	case D_AUTO:
++		snprint(str, sizeof(str), "%S+%ld(SP)", a->sym, a->offset);
++		break;
++
++	case D_PARAM:
++		snprint(str, sizeof(str), "%S+%ld(FP)", a->sym, a->offset);
++		break;
++
++	case D_CONST:
++		if(fp->flags & FmtLong) {
++			d1 = a->offset;
++			d2 = a->offset2;
++			snprint(str, sizeof(str), "$%lud-%lud", (ulong)d1, (ulong)d2);
++			break;
++		}
++		snprint(str, sizeof(str), "$%ld", a->offset);
++		break;
++
++	case D_FCONST:
++		snprint(str, sizeof(str), "$(%.17e)", a->dval);
++		break;
++
++	case D_SCONST:
++		snprint(str, sizeof(str), "$\"%Y\"", a->sval);
++		break;
++
++	case D_ADDR:
++		a->type = a->index;
++		a->index = D_NONE;
++		snprint(str, sizeof(str), "$%D", a);
++		a->index = a->type;
++		a->type = D_ADDR;
++		goto conv;
++	}
++brk:
++	if(a->index != D_NONE) {
++		snprint(s, sizeof(s), "(%R*%d)", (int)a->index, (int)a->scale);
++		strcat(str, s);
++	}
++conv:
++	return fmtstrcpy(fp, str);
++}
++
++static	char*	regstr[] =
++{
++	"AL",		/* [D_AL] */
++	"CL",
++	"DL",
++	"BL",
++
++	"AH",	/* [D_AH] */
++	"CH",
++	"DH",
++	"BH",
++
++	"AX",		/* [D_AX] */
++	"CX",
++	"DX",
++	"BX",
++	"SP",
++	"BP",
++	"SI",
++	"DI",
++
++	"F0",		/* [D_F0] */
++	"F1",
++	"F2",
++	"F3",
++	"F4",
++	"F5",
++	"F6",
++	"F7",
++
++	"CS",		/* [D_CS] */
++	"SS",
++	"DS",
++	"ES",
++	"FS",
++	"GS",
++
++	"GDTR",		/* [D_GDTR] */
++	"IDTR",		/* [D_IDTR] */
++	"LDTR",		/* [D_LDTR] */
++	"MSW",		/* [D_MSW] */
++	"TASK",		/* [D_TASK] */
++
++	"CR0",		/* [D_CR] */
++	"CR1",
++	"CR2",
++	"CR3",
++	"CR4",
++	"CR5",
++	"CR6",
++	"CR7",
++
++	"DR0",		/* [D_DR] */
++	"DR1",
++	"DR2",
++	"DR3",
++	"DR4",
++	"DR5",
++	"DR6",
++	"DR7",
++
++	"TR0",		/* [D_TR] */
++	"TR1",
++	"TR2",
++	"TR3",
++	"TR4",
++	"TR5",
++	"TR6",
++	"TR7",
++
++	"NONE",		/* [D_NONE] */
++};
++
++int
++Rconv(Fmt *fp)
++{
++	char str[STRINGSZ];
++	int r;
++
++	r = va_arg(fp->args, int);
++	if(r < 0 || r >= nelem(regstr) || regstr[r] == nil) {
++		snprint(str, sizeof(str), "BAD_R(%d)", r);
++		return fmtstrcpy(fp, str);
++	}
++	return fmtstrcpy(fp, regstr[r]);
++}
++
++int
++Aconv(Fmt *fp)
++{
++	int i;
++
++	i = va_arg(fp->args, int);
++	return fmtstrcpy(fp, anames[i]);
++}
++
++
++int
++Yconv(Fmt *fp)
++{
++	int i, c;
++	char str[30], *p, *a;
++
++	a = va_arg(fp->args, char*);
++	p = str;
++	for(i=0; i<sconsize; i++) {
++		c = a[i] & 0xff;
++		if((c >= 'a' && c <= 'z') ||
++		   (c >= 'A' && c <= 'Z') ||
++		   (c >= '0' && c <= '9')) {
++			*p++ = c;
++			continue;
++		}
++		*p++ = '\\';
++		switch(c) {
++		default:
++			if(c < 040 || c >= 0177)
++				break;	/* not portable */
++			p[-1] = c;
++			continue;
++		case 0:
++			*p++ = 'z';
++			continue;
++		case '\\':
++		case '"':
++			*p++ = c;
++			continue;
++		case '\n':
++			*p++ = 'n';
++			continue;
++		case '\t':
++			*p++ = 't';
++			continue;
++		}
++		*p++ = (c>>6) + '0';
++		*p++ = ((c>>3) & 7) + '0';
++		*p++ = (c & 7) + '0';
++	}
++	*p = 0;
++	return fmtstrcpy(fp, str);
++}
+diff --git a/src/cmd/8g/obj.c b/src/cmd/8g/obj.c
+new file mode 100644
+index 0000000000..79d1cf037d
+--- /dev/null
++++ b/src/cmd/8g/obj.c
+@@ -0,0 +1,532 @@
++// Derived from Inferno utils/8c/swt.c
++// http://code.google.com/p/inferno-os/source/browse/utils/8c/swt.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include "gg.h"
++
++void
++zname(Biobuf *b, Sym *s, int t)
++{
++	char *n;
++
++	Bputc(b, ANAME);	/* as */
++	Bputc(b, ANAME>>8);	/* as */
++	Bputc(b, t);		/* type */
++	Bputc(b, s->sym);	/* sym */
++
++	for(n=s->opackage; *n; n++)
++		Bputc(b, *n);
++	Bputdot(b);
++	for(n=s->name; *n; n++)
++		Bputc(b, *n);
++	Bputc(b, 0);
++}
++
++void
++zfile(Biobuf *b, char *p, int n)
++{
++	Bputc(b, ANAME);
++	Bputc(b, ANAME>>8);
++	Bputc(b, D_FILE);
++	Bputc(b, 1);
++	Bputc(b, '<');
++	Bwrite(b, p, n);
++	Bputc(b, 0);
++}
++
++void
++zhist(Biobuf *b, int line, vlong offset)
++{
++	Addr a;
++
++	Bputc(b, AHISTORY);
++	Bputc(b, AHISTORY>>8);
++	Bputc(b, line);
++	Bputc(b, line>>8);
++	Bputc(b, line>>16);
++	Bputc(b, line>>24);
++	zaddr(b, &zprog.from, 0);
++	a = zprog.to;
++	if(offset != 0) {
++		a.offset = offset;
++		a.type = D_CONST;
++	}
++	zaddr(b, &a, 0);
++}
++
++void
++zaddr(Biobuf *b, Addr *a, int s)
++{
++	int32 l;
++	uint64 e;
++	int i, t;
++	char *n;
++
++	t = 0;
++	if(a->index != D_NONE || a->scale != 0)
++		t |= T_INDEX;
++	if(s != 0)
++		t |= T_SYM;
++
++	switch(a->type) {
++
++	case D_BRANCH:
++		a->offset = a->branch->loc;
++
++	default:
++		t |= T_TYPE;
++
++	case D_NONE:
++		if(a->offset != 0)
++			t |= T_OFFSET;
++		if(a->offset2 != 0)
++			t |= T_OFFSET2;
++		break;
++	case D_FCONST:
++		t |= T_FCONST;
++		break;
++	case D_SCONST:
++		t |= T_SCONST;
++		break;
++	}
++	Bputc(b, t);
++
++	if(t & T_INDEX) {	/* implies index, scale */
++		Bputc(b, a->index);
++		Bputc(b, a->scale);
++	}
++	if(t & T_OFFSET) {	/* implies offset */
++		l = a->offset;
++		Bputc(b, l);
++		Bputc(b, l>>8);
++		Bputc(b, l>>16);
++		Bputc(b, l>>24);
++	}
++	if(t & T_OFFSET2) {	/* implies offset */
++		l = a->offset2;
++		Bputc(b, l);
++		Bputc(b, l>>8);
++		Bputc(b, l>>16);
++		Bputc(b, l>>24);
++	}
++	if(t & T_SYM)		/* implies sym */
++		Bputc(b, s);
++	if(t & T_FCONST) {
++		ieeedtod(&e, a->dval);
++		l = e;
++		Bputc(b, l);
++		Bputc(b, l>>8);
++		Bputc(b, l>>16);
++		Bputc(b, l>>24);
++		l = e >> 32;
++		Bputc(b, l);
++		Bputc(b, l>>8);
++		Bputc(b, l>>16);
++		Bputc(b, l>>24);
++		return;
++	}
++	if(t & T_SCONST) {
++		n = a->sval;
++		for(i=0; i<NSNAME; i++) {
++			Bputc(b, *n);
++			n++;
++		}
++		return;
++	}
++	if(t & T_TYPE)
++		Bputc(b, a->type);
++}
++
++void
++dumpfuncs(void)
++{
++	Plist *pl;
++	int sf, st, t, sym;
++	struct { Sym *sym; short type; } h[NSYM];
++	Sym *s;
++	Prog *p;
++
++	for(sym=0; sym<NSYM; sym++) {
++		h[sym].sym = S;
++		h[sym].type = 0;
++	}
++	sym = 1;
++
++	// fix up pc
++	pcloc = 0;
++	for(pl=plist; pl!=nil; pl=pl->link) {
++		for(p=pl->firstpc; p!=P; p=p->link) {
++			p->loc = pcloc;
++			pcloc++;
++		}
++	}
++
++	// put out functions
++	for(pl=plist; pl!=nil; pl=pl->link) {
++
++		if(debug['S']) {
++			s = S;
++			if(pl->name != N)
++				s = pl->name->sym;
++			print("\n--- prog list \"%S\" ---\n", s);
++			for(p=pl->firstpc; p!=P; p=p->link)
++				print("%P\n", p);
++		}
++
++		for(p=pl->firstpc; p!=P; p=p->link) {
++		jackpot:
++			sf = 0;
++			s = p->from.sym;
++			while(s != S) {
++				sf = s->sym;
++				if(sf < 0 || sf >= NSYM)
++					sf = 0;
++				t = p->from.type;
++				if(t == D_ADDR)
++					t = p->from.index;
++				if(h[sf].type == t)
++				if(h[sf].sym == s)
++					break;
++				s->sym = sym;
++				zname(bout, s, t);
++				h[sym].sym = s;
++				h[sym].type = t;
++				sf = sym;
++				sym++;
++				if(sym >= NSYM)
++					sym = 1;
++				break;
++			}
++			st = 0;
++			s = p->to.sym;
++			while(s != S) {
++				st = s->sym;
++				if(st < 0 || st >= NSYM)
++					st = 0;
++				t = p->to.type;
++				if(t == D_ADDR)
++					t = p->to.index;
++				if(h[st].type == t)
++				if(h[st].sym == s)
++					break;
++				s->sym = sym;
++				zname(bout, s, t);
++				h[sym].sym = s;
++				h[sym].type = t;
++				st = sym;
++				sym++;
++				if(sym >= NSYM)
++					sym = 1;
++				if(st == sf)
++					goto jackpot;
++				break;
++			}
++			Bputc(bout, p->as);
++			Bputc(bout, p->as>>8);
++			Bputc(bout, p->lineno);
++			Bputc(bout, p->lineno>>8);
++			Bputc(bout, p->lineno>>16);
++			Bputc(bout, p->lineno>>24);
++			zaddr(bout, &p->from, sf);
++			zaddr(bout, &p->to, st);
++		}
++	}
++}
++
++void
++datastring(char *s, int len)
++{
++	int w;
++	Prog *p;
++	Addr ac, ao;
++
++	// string
++	memset(&ao, 0, sizeof(ao));
++	ao.type = D_STATIC;
++	ao.index = D_NONE;
++	ao.etype = TINT32;
++	ao.sym = symstringo;
++	ao.offset = 0;		// fill in
++
++	// constant
++	memset(&ac, 0, sizeof(ac));
++	ac.type = D_CONST;
++	ac.index = D_NONE;
++	ac.offset = 0;		// fill in
++
++	for(w=0; w<len; w+=8) {
++		p = pc;
++		gins(ADATA, N, N);
++
++		// .stringo<>+oo, [NSNAME], $"xxx"
++		p->from = ao;
++		p->from.offset = stringo;
++
++		p->from.scale = NSNAME;
++		if(w+8 > len)
++			p->from.scale = len-w;
++
++		p->to = ac;
++		p->to.type = D_SCONST;
++		p->to.offset = len;
++		memmove(p->to.sval, s+w, p->from.scale);
++		stringo += p->from.scale;
++	}
++}
++
++void
++dumpstrings(void)
++{
++	Pool *l;
++	Prog *p;
++	Addr ac, ao;
++	int32 wi;
++
++	if(poolist == nil)
++		return;
++
++	memset(&ac, 0, sizeof(ac));
++	memset(&ao, 0, sizeof(ao));
++
++	// constant
++	ac.type = D_CONST;
++	ac.index = D_NONE;
++	ac.offset = 0;			// fill in
++
++	// string len+ptr
++	ao.type = D_STATIC;
++	ao.index = D_NONE;
++	ao.etype = TINT32;
++	ao.sym = symstringo;
++	ao.offset = 0;			// fill in
++
++	wi = types[TINT32]->width;
++
++	// lay out (count+string)
++	for(l=poolist; l!=nil; l=l->link) {
++
++		p = pc;
++		gins(ADATA, N, N);
++
++		// .stringo<>+xx, wi, $len
++		stringo = rnd(stringo, wi);
++		p->from = ao;
++		p->from.offset = stringo;
++		p->from.scale = wi;
++		p->to = ac;
++		p->to.offset = l->sval->len;
++		stringo += wi;
++
++		datastring(l->sval->s, l->sval->len);
++	}
++}
++
++int
++dstringptr(Sym *s, int off, char *str)
++{
++	Prog *p;
++
++	off = rnd(off, widthptr);
++	p = gins(ADATA, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++	p->from.offset = off;
++	p->from.scale = widthptr;
++	p->to.type = D_ADDR;
++	p->to.index = D_STATIC;
++	p->to.etype = TINT32;
++	p->to.sym = symstringo;
++	p->to.offset = stringo;
++	off += widthptr;
++
++	datastring(str, strlen(str)+1);
++	return off;
++}
++
++int
++duintxx(Sym *s, int off, uint64 v, int wid)
++{
++	Prog *p;
++
++	off = rnd(off, wid);
++
++	p = gins(ADATA, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++	p->from.offset = off;
++	p->from.scale = wid;
++	p->to.type = D_CONST;
++	p->to.index = D_NONE;
++	p->to.offset = v;
++	off += wid;
++
++	return off;
++}
++
++int
++duint32(Sym *s, int off, uint32 v)
++{
++	return duintxx(s, off, v, 4);
++}
++
++int
++duint16(Sym *s, int off, uint32 v)
++{
++	return duintxx(s, off, v, 2);
++}
++
++int
++duintptr(Sym *s, int off, uint32 v)
++{
++	return duintxx(s, off, v, 8);
++}
++
++int
++dsymptr(Sym *s, int off, Sym *x)
++{
++	Prog *p;
++
++	off = rnd(off, widthptr);
++
++	p = gins(ADATA, N, N);
++	p->from.type = D_EXTERN;
++	p->from.index = D_NONE;
++	p->from.sym = s;
++	p->from.offset = off;
++	p->from.scale = widthptr;
++	p->to.type = D_ADDR;
++	p->to.index = D_EXTERN;
++	p->to.sym = x;
++	p->to.offset = 0;
++	off += widthptr;
++
++	return off;
++}
++
++
++void
++genembedtramp(Type *t, Sig *b)
++{
++	Sym *e;
++	int c, d, o;
++	Prog *p;
++	Type *f;
++
++	e = lookup(b->name);
++	for(d=0; d<nelem(dotlist); d++) {
++		c = adddot1(e, t, d, nil);
++		if(c == 1)
++			goto out;
++	}
++	fatal("genembedtramp %T.%s", t, b->name);
++
++out:
++	if(d == 0)
++		return;
++
++//	print("genembedtramp %d\n", d);
++//	print("	t    = %lT\n", t);
++//	print("	name = %s\n", b->name);
++//	print("	sym  = %S\n", b->sym);
++//	print("	hash = 0x%ux\n", b->hash);
++
++	newplist()->name = newname(b->sym);
++
++	//TEXT	main·S_test2(SB),7,$0
++	p = pc;
++	gins(ATEXT, N, N);
++	p->from.type = D_EXTERN;
++	p->from.sym = b->sym;
++	p->to.type = D_CONST;
++	p->to.offset = 0;
++	p->from.scale = 7;
++//print("1. %P\n", p);
++
++	//MOVL	4(SP), AX
++	p = pc;
++	gins(AMOVL, N, N);
++	p->from.type = D_INDIR+D_SP;
++	p->from.offset = 4;
++	p->to.type = D_AX;
++//print("2. %P\n", p);
++
++	o = 0;
++	for(c=d-1; c>=0; c--) {
++		f = dotlist[c].field;
++		o += f->width;
++		if(!isptr[f->type->etype])
++			continue;
++		//MOVL	o(AX), AX
++		p = pc;
++		gins(AMOVL, N, N);
++		p->from.type = D_INDIR+D_AX;
++		p->from.offset = o;
++		p->to.type = D_AX;
++//print("3. %P\n", p);
++		o = 0;
++	}
++	if(o != 0) {
++		//ADDL	$XX, AX
++		p = pc;
++		gins(AADDL, N, N);
++		p->from.type = D_CONST;
++		p->from.offset = o;
++		p->to.type = D_AX;
++//print("4. %P\n", p);
++	}
++
++	//MOVL	AX, 4(SP)
++	p = pc;
++	gins(AMOVL, N, N);
++	p->from.type = D_AX;
++	p->to.type = D_INDIR+D_SP;
++	p->to.offset = 8;
++//print("5. %P\n", p);
++
++	f = dotlist[0].field;
++	//JMP	main·*Sub_test2(SB)
++	if(isptr[f->type->etype])
++		f = f->type;
++	p = pc;
++	gins(AJMP, N, N);
++	p->to.type = D_EXTERN;
++	p->to.sym = methodsym(lookup(b->name), ptrto(f->type));
++//print("6. %P\n", p);
++
++	pc->as = ARET;	// overwrite AEND
++}
++
++void
++nopout(Prog *p)
++{
++	p->as = ANOP;
++}
++

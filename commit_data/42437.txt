@@ -14,7 +14,111 @@ Date:   Thu Dec 12 11:28:07 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go      | 41 +++++++++++++++++++++++++++++
  src/cmd/link/internal/loader/loader_test.go | 35 ++++++++++++++++++++++++
  2 files changed, 76 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 64ab620798..b28ba467dd 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1006,6 +1006,47 @@ func (l *Loader) InitReachable() {
+ 	l.growAttrBitmaps(l.NSym() + 1)
+ }
+ 
++type symWithVal struct {
++	s Sym
++	v int64
++}
++type bySymValue []symWithVal
++
++func (s bySymValue) Len() int           { return len(s) }
++func (s bySymValue) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s bySymValue) Less(i, j int) bool { return s[i].v < s[j].v }
++
++// SortSub walks through the sub-symbols for 's' and sorts them
++// in place by increasing value. Return value is the new
++// sub symbol for the specified outer symbol.
++func (l *Loader) SortSub(s Sym) Sym {
++
++	if s == 0 || l.sub[s] == 0 {
++		return s
++	}
++
++	// Sort symbols using a slice first. Use a stable sort on the off
++	// chance that there's more than once symbol with the same value,
++	// so as to preserve reproducible builds.
++	sl := []symWithVal{}
++	for ss := l.sub[s]; ss != 0; ss = l.sub[ss] {
++		sl = append(sl, symWithVal{s: ss, v: l.SymValue(ss)})
++	}
++	sort.Stable(bySymValue(sl))
++
++	// Then apply any changes needed to the sub map.
++	ns := Sym(0)
++	for i := len(sl) - 1; i >= 0; i-- {
++		s := sl[i].s
++		l.sub[s] = ns
++		ns = s
++	}
++
++	// Update sub for outer symbol, then return
++	l.sub[s] = sl[0].s
++	return sl[0].s
++}
++
+ // Insure that reachable bitmap and its siblings have enough size.
+ func (l *Loader) growAttrBitmaps(reqLen int) {
+ 	if reqLen > l.attrReachable.len() {
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 0bfcfb59bc..a2967831e8 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -121,6 +121,9 @@ func TestOuterSub(t *testing.T) {
+ 	es1 := ldr.AddExtSym("outer", 0)
+ 	es2 := ldr.AddExtSym("sub1", 0)
+ 	es3 := ldr.AddExtSym("sub2", 0)
++	es4 := ldr.AddExtSym("sub3", 0)
++	es5 := ldr.AddExtSym("sub4", 0)
++	es6 := ldr.AddExtSym("sub5", 0)
+ 
+ 	// Should not have an outer sym initially
+ 	if ldr.OuterSym(es1) != 0 {
+@@ -162,4 +165,36 @@ func TestOuterSub(t *testing.T) {
+ 	if ldr.SubSym(es3) != es2 {
+ 		t.Errorf("ldr.SubSym(es3) got %d wanted %d", ldr.SubSym(es3), es2)
+ 	}
++
++	// Some more
++	ldr.PrependSub(es1, es4)
++	ldr.PrependSub(es1, es5)
++	ldr.PrependSub(es1, es6)
++
++	// Set values.
++	ldr.SetSymValue(es2, 7)
++	ldr.SetSymValue(es3, 1)
++	ldr.SetSymValue(es4, 13)
++	ldr.SetSymValue(es5, 101)
++	ldr.SetSymValue(es6, 3)
++
++	// Sort
++	news := ldr.SortSub(es1)
++	if news != es3 {
++		t.Errorf("ldr.SortSub leader got %d wanted %d", news, es3)
++	}
++	pv := int64(-1)
++	count := 0
++	for ss := ldr.SubSym(es1); ss != 0; ss = ldr.SubSym(ss) {
++		v := ldr.SymValue(ss)
++		if v <= pv {
++			t.Errorf("ldr.SortSub sortfail at %d: val %d >= prev val %d",
++				ss, v, pv)
++		}
++		pv = v
++		count++
++	}
++	if count != 5 {
++		t.Errorf("expected %d in sub list got %d", 5, count)
++	}
+ }

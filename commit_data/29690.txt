@@ -11,6 +11,23 @@ Date:   Tue Oct 4 05:21:58 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/regexp/onepass.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index 4991954820..1b0564c3fd 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -287,11 +287,6 @@ func (p runeSlice) Len() int           { return len(p) }
+ func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
+ func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+-// Sort is a convenience method.
+-func (p runeSlice) Sort() {
+-	sort.Sort(p)
+-}
+-
+ var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
+ var anyRune = []rune{0, unicode.MaxRune}
+ 

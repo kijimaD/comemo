@@ -12,7 +12,38 @@ Date:   Wed Feb 1 12:13:46 2012 +1100
     R=golang-dev, bradfitz, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5610044
-
+---
  src/pkg/net/multicast_test.go  | 2 +-
  src/pkg/net/sockopt_windows.go | 6 +-----
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index bf0fe4d8d0..4112f47cb2 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -86,7 +86,7 @@ func TestListenMulticastUDP(t *testing.T) {
+ 
+ func TestSimpleListenMulticastUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9":
++	case "plan9", "windows":
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index 2b861de30b..842bccc8f4 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -27,11 +27,7 @@ func setDefaultSockopts(s syscall.Handle, f, t int) error {
+ 	// to be handled by the correct socket.
+ 
+ 	// Allow broadcast.
+-	err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+-	if err != nil {
+-		return os.NewSyscallError("setsockopt", err)
+-	}
+-
++	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1)
+ 	return nil
+ }
+ 

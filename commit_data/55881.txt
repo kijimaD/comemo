@@ -26,8 +26,110 @@ Date:   Tue Mar 7 08:44:08 2023 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules |  8 ++++----
  src/cmd/compile/internal/ssa/rewriteARM64.go  | 16 ++++++++--------
  test/codegen/comparisons.go                   |  4 ++++
  3 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index a896e7c8bd..fdfd7858fb 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -706,10 +706,10 @@
+ 
+ (Equal (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (Equal (TSTconst [c] y))
+ (NotEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (NotEqual (TSTconst [c] y))
+-(LessThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessThan (TSTconst [c] y))
+-(LessEqual (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessEqual (TSTconst [c] y))
+-(GreaterThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterThan (TSTconst [c] y))
+-(GreaterEqual (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterEqual (TSTconst [c] y))
++(LessThan (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessThan (TSTconst [c] y))
++(LessEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessEqual (TSTconst [c] y))
++(GreaterThan (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterThan (TSTconst [c] y))
++(GreaterEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterEqual (TSTconst [c] y))
+ 
+ (EQ (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (EQ (CMNconst [c] y) yes no)
+ (NE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (NE (CMNconst [c] y) yes no)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index f84d7b3c19..41d9513160 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -5698,11 +5698,11 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (GreaterEqual (CMPWconst [0] x:(ANDconst [c] y)))
++	// match: (GreaterEqual (CMPconst [0] x:(ANDconst [c] y)))
+ 	// cond: x.Uses == 1
+ 	// result: (GreaterEqual (TSTconst [c] y))
+ 	for {
+-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
++		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+@@ -5856,11 +5856,11 @@ func rewriteValueARM64_OpARM64GreaterThan(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (GreaterThan (CMPWconst [0] x:(ANDconst [c] y)))
++	// match: (GreaterThan (CMPconst [0] x:(ANDconst [c] y)))
+ 	// cond: x.Uses == 1
+ 	// result: (GreaterThan (TSTconst [c] y))
+ 	for {
+-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
++		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+@@ -6064,11 +6064,11 @@ func rewriteValueARM64_OpARM64LessEqual(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (LessEqual (CMPWconst [0] x:(ANDconst [c] y)))
++	// match: (LessEqual (CMPconst [0] x:(ANDconst [c] y)))
+ 	// cond: x.Uses == 1
+ 	// result: (LessEqual (TSTconst [c] y))
+ 	for {
+-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
++		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+@@ -6222,11 +6222,11 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (LessThan (CMPWconst [0] x:(ANDconst [c] y)))
++	// match: (LessThan (CMPconst [0] x:(ANDconst [c] y)))
+ 	// cond: x.Uses == 1
+ 	// result: (LessThan (TSTconst [c] y))
+ 	for {
+-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
++		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+ 			break
+ 		}
+ 		x := v_0.Args[0]
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index c613e13ced..ee732e06d9 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -234,6 +234,8 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
+ 	c7 := e&(f<<3) < 0
+ 	// arm64:`CMN\sR[0-9]+<<3,\sR[0-9]+`
+ 	c8 := e+(f<<3) < 0
++	// arm64:`TST\sR[0-9],\sR[0-9]+`
++	c9 := e&17 < 0
+ 	if c0 {
+ 		return 1
+ 	} else if c1 {
+@@ -252,6 +254,8 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
+ 		return 9
+ 	} else if c8 {
+ 		return 10
++	} else if c9 {
++		return 11
+ 	} else if deOptC0 {
+ 		return b + d
+ 	} else if deOptC1 {

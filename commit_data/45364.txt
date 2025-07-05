@@ -14,7 +14,51 @@ Date:   Tue Oct 20 13:50:52 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/x509.go      |  8 ++++++--
  src/crypto/x509/x509_test.go | 16 ++++++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index bcef54ddb4..b421d75973 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2156,8 +2156,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 	}
+ 
+ 	// Check the signature to ensure the crypto.Signer behaved correctly.
+-	if err := checkSignature(getSignatureAlgorithmFromAI(signatureAlgorithm), c.Raw, signature, key.Public()); err != nil {
+-		return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
++	// We skip this check if the signature algorithm is MD5WithRSA as we
++	// only support this algorithm for signing, and not verification.
++	if sigAlg := getSignatureAlgorithmFromAI(signatureAlgorithm); sigAlg != MD5WithRSA {
++		if err := checkSignature(sigAlg, c.Raw, signature, key.Public()); err != nil {
++			return nil, fmt.Errorf("x509: signature over certificate returned by signer is invalid: %w", err)
++		}
+ 	}
+ 
+ 	return signedCert, nil
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 5a39e61b3c..47d78cf02a 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2896,3 +2896,19 @@ func TestCreateCertificateBrokenSigner(t *testing.T) {
+ 		t.Fatalf("CreateCertificate returned an unexpected error: got %q, want %q", err, expectedErr)
+ 	}
+ }
++
++func TestCreateCertificateMD5(t *testing.T) {
++	template := &Certificate{
++		SerialNumber:       big.NewInt(10),
++		DNSNames:           []string{"example.com"},
++		SignatureAlgorithm: MD5WithRSA,
++	}
++	k, err := rsa.GenerateKey(rand.Reader, 1024)
++	if err != nil {
++		t.Fatalf("failed to generate test key: %s", err)
++	}
++	_, err = CreateCertificate(rand.Reader, template, template, k.Public(), &brokenSigner{k.Public()})
++	if err != nil {
++		t.Fatalf("CreateCertificate failed when SignatureAlgorithm = MD5WithRSA: %s", err)
++	}
++}

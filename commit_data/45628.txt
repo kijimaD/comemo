@@ -21,7 +21,7 @@ Date:   Thu Oct 22 22:32:20 2020 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/testcshared/cshared_test.go |  9 +++++----
  src/cmd/go/go_test.go                | 33 +++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go      |  3 ---
@@ -29,3 +29,147 @@ Date:   Thu Oct 22 22:32:20 2020 +0200
  src/runtime/cgo/gcc_windows_amd64.c  |  1 +
  src/runtime/cgo/libcgo_windows.h     | 12 ++++++++++++
  6 files changed, 52 insertions(+), 7 deletions(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index e1835afa51..3a4886cf30 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -401,7 +401,7 @@ func main() {
+ 	defer f.Close()
+ 	section := f.Section(".edata")
+ 	if section == nil {
+-		t.Error(".edata section is not present")
++		t.Fatalf(".edata section is not present")
+ 	}
+ 
+ 	// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
+@@ -418,7 +418,8 @@ func main() {
+ 		t.Fatalf("binary.Read failed: %v", err)
+ 	}
+ 
+-	expectedNumber := uint32(2)
++	// Only the two exported functions and _cgo_dummy_export should be exported
++	expectedNumber := uint32(3)
+ 
+ 	if exportAllSymbols {
+ 		if e.NumberOfFunctions <= expectedNumber {
+@@ -429,10 +430,10 @@ func main() {
+ 		}
+ 	} else {
+ 		if e.NumberOfFunctions != expectedNumber {
+-			t.Fatalf("too many exported functions: %v", e.NumberOfFunctions)
++			t.Fatalf("got %d exported functions; want %d", e.NumberOfFunctions, expectedNumber)
+ 		}
+ 		if e.NumberOfNames != expectedNumber {
+-			t.Fatalf("too many exported names: %v", e.NumberOfNames)
++			t.Fatalf("got %d exported names; want %d", e.NumberOfNames, expectedNumber)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1fb1325519..7bbadd3974 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"debug/pe"
++	"encoding/binary"
+ 	"flag"
+ 	"fmt"
+ 	"go/format"
+@@ -2129,6 +2130,38 @@ func testBuildmodePIE(t *testing.T, useCgo, setBuildmodeToPIE bool) {
+ 		if (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
+ 			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
+ 		}
++		if useCgo {
++			// Test that only one symbol is exported (#40795).
++			// PIE binaries don´t require .edata section but unfortunately
++			// binutils doesn´t generate a .reloc section unless there is
++			// at least one symbol exported.
++			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
++			section := f.Section(".edata")
++			if section == nil {
++				t.Fatalf(".edata section is not present")
++			}
++			// TODO: deduplicate this struct from cmd/link/internal/ld/pe.go
++			type IMAGE_EXPORT_DIRECTORY struct {
++				_                 [2]uint32
++				_                 [2]uint16
++				_                 [2]uint32
++				NumberOfFunctions uint32
++				NumberOfNames     uint32
++				_                 [3]uint32
++			}
++			var e IMAGE_EXPORT_DIRECTORY
++			if err := binary.Read(section.Open(), binary.LittleEndian, &e); err != nil {
++				t.Fatalf("binary.Read failed: %v", err)
++			}
++
++			// Only _cgo_dummy_export should be exported
++			if e.NumberOfFunctions != 1 {
++				t.Fatalf("got %d exported functions; want 1", e.NumberOfFunctions)
++			}
++			if e.NumberOfNames != 1 {
++				t.Fatalf("got %d exported names; want 1", e.NumberOfNames)
++			}
++		}
+ 	default:
+ 		panic("unreachable")
+ 	}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 73e0b35bc0..735b84d37d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1320,9 +1320,6 @@ func (ctxt *Link) hostlink() {
+ 		case objabi.Hdarwin, objabi.Haix:
+ 		case objabi.Hwindows:
+ 			argv = addASLRargs(argv)
+-			// Work around binutils limitation that strips relocation table for dynamicbase.
+-			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+-			argv = append(argv, "-Wl,--export-all-symbols")
+ 		default:
+ 			// ELF.
+ 			if ctxt.UseRelro() {
+diff --git a/src/runtime/cgo/gcc_windows_386.c b/src/runtime/cgo/gcc_windows_386.c
+index 9184b91393..60cb011bf2 100644
+--- a/src/runtime/cgo/gcc_windows_386.c
++++ b/src/runtime/cgo/gcc_windows_386.c
+@@ -9,6 +9,7 @@
+ #include <stdio.h>
+ #include <errno.h>
+ #include "libcgo.h"
++#include "libcgo_windows.h"
+ 
+ static void threadentry(void*);
+ 
+diff --git a/src/runtime/cgo/gcc_windows_amd64.c b/src/runtime/cgo/gcc_windows_amd64.c
+index 7192a24631..0f8c817f0e 100644
+--- a/src/runtime/cgo/gcc_windows_amd64.c
++++ b/src/runtime/cgo/gcc_windows_amd64.c
+@@ -9,6 +9,7 @@
+ #include <stdio.h>
+ #include <errno.h>
+ #include "libcgo.h"
++#include "libcgo_windows.h"
+ 
+ static void threadentry(void*);
+ 
+diff --git a/src/runtime/cgo/libcgo_windows.h b/src/runtime/cgo/libcgo_windows.h
+new file mode 100644
+index 0000000000..0013f06bae
+--- /dev/null
++++ b/src/runtime/cgo/libcgo_windows.h
+@@ -0,0 +1,12 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure there's one symbol marked __declspec(dllexport).
++// If there are no exported symbols, the unfortunate behavior of
++// the binutils linker is to also strip the relocations table,
++// resulting in non-PIE binary. The other option is the
++// --export-all-symbols flag, but we don't need to export all symbols
++// and this may overflow the export table (#40795).
++// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
++__declspec(dllexport) int _cgo_dummy_export;

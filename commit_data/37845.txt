@@ -7,6 +7,34 @@ Date:   Sat Sep 1 10:56:00 2018 -0700
     Change-Id: I58ba1f5d5c942d6a345c19df1bca80b63fb5abf5
     Reviewed-on: https://go-review.googlesource.com/132777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/example_test.go | 16 ++++++++++++++++
  1 file changed, 16 insertions(+)
+
+diff --git a/src/strconv/example_test.go b/src/strconv/example_test.go
+index 5c2e8a9b56..15725456e2 100644
+--- a/src/strconv/example_test.go
++++ b/src/strconv/example_test.go
+@@ -167,6 +167,22 @@ func ExampleFormatUint() {
+ 	// string, 2a
+ }
+ 
++func ExampleIsGraphic() {
++	shamrock := strconv.IsGraphic('☘')
++	fmt.Println(shamrock)
++
++	a := strconv.IsGraphic('a')
++	fmt.Println(a)
++
++	bel := strconv.IsGraphic('\007')
++	fmt.Println(bel)
++
++	// Output:
++	// true
++	// true
++	// false
++}
++
+ func ExampleIsPrint() {
+ 	c := strconv.IsPrint('\u263a')
+ 	fmt.Println(c)

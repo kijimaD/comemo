@@ -12,9 +12,122 @@ Date:   Thu Jun 13 16:24:26 2024 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go | 13 ++++++++-----
  src/cmd/compile/internal/types2/stmt.go     |  8 +-------
  src/go/types/api_test.go                    | 13 ++++++++-----
  src/go/types/stmt.go                        |  8 +-------
  4 files changed, 18 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 5126ac5111..f23c50ba46 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1884,6 +1884,9 @@ func TestScopeLookupParent(t *testing.T) {
+ 	// Each /*name=kind:line*/ comment makes the test look up the
+ 	// name at that point and checks that it resolves to a decl of
+ 	// the specified kind and line number.  "undef" means undefined.
++	// Note that type switch case clauses with an empty body (but for
++	// comments) need the ";" to ensure that the recorded scope extends
++	// past the comments.
+ 	mainSrc := `
+ /*lib=pkgname:5*/ /*X=var:1*/ /*Pi=const:8*/ /*T=typename:9*/ /*Y=var:10*/ /*F=func:12*/
+ package main
+@@ -1907,17 +1910,17 @@ func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, r
+ 
+ 	var i interface{}
+ 	switch y := i.(type) { /*y=undef*/
+-	case /*y=undef*/ int /*y=var:23*/ :
+-	case float32, /*y=undef*/ float64 /*y=var:23*/ :
+-	default /*y=var:23*/:
++	case /*y=undef*/ int /*y=undef*/ : /*y=var:23*/ ;
++	case float32, /*y=undef*/ float64 /*y=undef*/ : /*y=var:23*/ ;
++	default /*y=undef*/ : /*y=var:23*/
+ 		println(y)
+ 	}
+ 	/*y=undef*/
+ 
+         switch int := i.(type) {
+-        case /*int=typename:0*/ int /*int=var:31*/ :
++        case /*int=typename:0*/ int /*int=typename:0*/ : /*int=var:31*/
+         	println(int)
+-        default /*int=var:31*/ :
++        default /*int=typename:0*/ : /*int=var:31*/ ;
+         }
+ 
+ 	_ = param1
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index b471fb1f34..e0e4ee6a02 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -818,13 +818,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 		// If lhs exists, declare a corresponding variable in the case-local scope.
+ 		if lhs != nil {
+ 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
+-			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
+-			// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
+-			scopePos := clause.Pos() // for default clause (len(List) == 0)
+-			if n := len(cases); n > 0 {
+-				scopePos = syntax.EndPos(cases[n-1])
+-			}
+-			check.declare(check.scope, nil, obj, scopePos)
++			check.declare(check.scope, nil, obj, clause.Colon)
+ 			check.recordImplicit(clause, obj)
+ 			// For the "declared and not used" error, all lhs variables act as
+ 			// one; i.e., if any one of them is 'used', all of them are 'used'.
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index beed94f355..0854a119c2 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1885,6 +1885,9 @@ func TestScopeLookupParent(t *testing.T) {
+ 	// Each /*name=kind:line*/ comment makes the test look up the
+ 	// name at that point and checks that it resolves to a decl of
+ 	// the specified kind and line number.  "undef" means undefined.
++	// Note that type switch case clauses with an empty body (but for
++	// comments) need the ";" to ensure that the recorded scope extends
++	// past the comments.
+ 	mainSrc := `
+ /*lib=pkgname:5*/ /*X=var:1*/ /*Pi=const:8*/ /*T=typename:9*/ /*Y=var:10*/ /*F=func:12*/
+ package main
+@@ -1908,17 +1911,17 @@ func F[T *U, U any](param1, param2 int) /*param1=undef*/ (res1 /*res1=undef*/, r
+ 
+ 	var i interface{}
+ 	switch y := i.(type) { /*y=undef*/
+-	case /*y=undef*/ int /*y=var:23*/ :
+-	case float32, /*y=undef*/ float64 /*y=var:23*/ :
+-	default /*y=var:23*/:
++	case /*y=undef*/ int /*y=undef*/ : /*y=var:23*/ ;
++	case float32, /*y=undef*/ float64 /*y=undef*/ : /*y=var:23*/ ;
++	default /*y=undef*/ : /*y=var:23*/
+ 		println(y)
+ 	}
+ 	/*y=undef*/
+ 
+         switch int := i.(type) {
+-        case /*int=typename:0*/ int /*int=var:31*/ :
++        case /*int=typename:0*/ int /*int=typename:0*/ : /*int=var:31*/
+         	println(int)
+-        default /*int=var:31*/ :
++        default /*int=typename:0*/ : /*int=var:31*/ ;
+         }
+ 
+ 	_ = param1
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 74a64f40aa..f8514fdbb7 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -763,13 +763,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			// If lhs exists, declare a corresponding variable in the case-local scope.
+ 			if lhs != nil {
+ 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
+-				// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
+-				// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
+-				scopePos := clause.Pos() + token.Pos(len("default")) // for default clause (len(List) == 0)
+-				if n := len(clause.List); n > 0 {
+-					scopePos = clause.List[n-1].End()
+-				}
+-				check.declare(check.scope, nil, obj, scopePos)
++				check.declare(check.scope, nil, obj, clause.Colon)
+ 				check.recordImplicit(clause, obj)
+ 				// For the "declared and not used" error, all lhs variables act as
+ 				// one; i.e., if any one of them is 'used', all of them are 'used'.

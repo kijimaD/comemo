@@ -15,6 +15,22 @@ Date:   Wed Aug 24 15:53:40 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/pe/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 9181ebdf15..7adf3e122e 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -603,8 +603,8 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
+ // its size and number of data directories as seen in optional header.
+ // It parses the given size of bytes and returns given number of data directories.
+ func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {
+-	ddSz := binary.Size(DataDirectory{})
+-	if uint32(sz) != n*uint32(ddSz) {
++	ddSz := uint64(binary.Size(DataDirectory{}))
++	if uint64(sz) != uint64(n)*ddSz {
+ 		return nil, fmt.Errorf("size of data directories(%d) is inconsistent with number of data directories(%d)", sz, n)
+ 	}
+ 

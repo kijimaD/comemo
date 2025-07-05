@@ -8,7 +8,7 @@ Date:   Fri Nov 14 16:35:08 2008 -0800
     DELTA=129  (81 added, 0 deleted, 48 changed)
     OCL=19283
     CL=19291
-
+---
  src/cmd/6l/go.c     | 10 +++++++---
  src/cmd/ar/ar.c     | 47 +++++++++++++++++++++++++++++++----------------
  src/cmd/gc/dcl.c    | 16 ++++++++--------
@@ -16,3 +16,423 @@ Date:   Fri Nov 14 16:35:08 2008 -0800
  src/cmd/gc/go.h     |  5 +++--
  src/cmd/gc/go.y     | 20 ++++++++++++++++++--
  6 files changed, 116 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/6l/go.c b/src/cmd/6l/go.c
+index 4d2f5ec541..e073959ded 100644
+--- a/src/cmd/6l/go.c
++++ b/src/cmd/6l/go.c
+@@ -188,12 +188,16 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
+ 	if(p == ep || strncmp(p, "$$\n", 3) == 0)
+ 		return 0;
+ 
+-	// [export ]
++	// [export|package ]
+ 	*exportp = 0;
+ 	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
+ 		*exportp = 1;
+ 		p += 7;
+ 	}
++	else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
++		*exportp = 2;
++		p += 8;
++	}
+ 
+ 	// prefix: (var|type|func|const)
+ 	prefix = p;
+@@ -210,7 +214,7 @@ parsepkgdata(char *file, char **pp, char *ep, int *exportp, char **prefixp, char
+ 	else if(strncmp(p, "const ", 6) == 0)
+ 		p += 6;
+ 	else{
+-		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
++		fprint(2, "6l: confused in pkg data near <<%.20s>>\n", p);
+ 		nerrors++;
+ 		return -1;
+ 	}
+@@ -283,7 +287,7 @@ parsemethod(char **pp, char *ep, char **methp)
+ 	while(p < ep && *p != '\n')
+ 		p++;
+ 	if(p >= ep) {
+-		fprint(2, "ar: lost end of line in method definition\n");
++		fprint(2, "6l: lost end of line in method definition\n");
+ 		*pp = ep;
+ 		return -1;
+ 	}
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 513d6af436..056753ac30 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -1445,7 +1445,7 @@ typedef struct Import Import;
+ struct Import
+ {
+ 	Import *hash;	// next in hash table
+-	int export;	// marked as export?
++	char *export;	// marked as export or package?
+ 	char *prefix;	// "type", "var", "func", "const"
+ 	char *name;
+ 	char *def;
+@@ -1476,12 +1476,12 @@ ilookup(char *name)
+ }
+ 
+ int parsemethod(char**, char*, char**);
+-int parsepkgdata(char**, char*, int*, char**, char**, char**);
++int parsepkgdata(char**, char*, char**, char**, char**, char**);
+ 
+ void
+ loadpkgdata(char *data, int len)
+ {
+-	int export;
++	char *export;
+ 	char *p, *ep, *prefix, *name, *def;
+ 	Import *x;
+ 
+@@ -1509,16 +1509,24 @@ loadpkgdata(char *data, int len)
+ 				errors++;
+ 			}
+ 
+-			// okay if some .6 say export and others don't.
+-			// all it takes is one.
+-			if(export)
+-				x->export = 1;
++			// okay if some .6 say export/package and others don't.
++			// all it takes is one.  not okay if some say export
++			// and others say package.
++			if(export) {
++				if(x->export == nil)
++					x->export = export;
++				else if(strcmp(x->export, export) != 0) {
++					fprint(2, "ar: conflicting scopes for %s\n", name);
++					fprint(2, "%s:\t%s\n", x->file, x->export);
++					fprint(2, "%s:\t%s\n", file, export);
++				}
++			}
+ 		}
+ 	}
+ }
+ 
+ int
+-parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, char **defp)
++parsepkgdata(char **pp, char *ep, char **exportp, char **prefixp, char **namep, char **defp)
+ {
+ 	char *p, *prefix, *name, *def, *edef, *meth;
+ 	int n;
+@@ -1530,11 +1538,14 @@ parsepkgdata(char **pp, char *ep, int *exportp, char **prefixp, char **namep, ch
+ 	if(p == ep)
+ 		return 0;
+ 
+-	// [export ]
++	// [export|package ]
+ 	*exportp = 0;
+ 	if(p + 7 <= ep && strncmp(p, "export ", 7) == 0) {
+-		*exportp = 1;
++		*exportp = "export";
+ 		p += 7;
++	} else if(p + 8 <= ep && strncmp(p, "package ", 8) == 0) {
++		*exportp = "package";
++		p += 8;
+ 	}
+ 
+ 	// prefix: (var|type|func|const)
+@@ -1672,8 +1683,10 @@ getpkgdef(char **datap, int *lenp)
+ 	Import **all, *x;
+ 
+ 	if(pkgstmt == nil) {
+-		*datap = nil;
+-		*lenp = 0;
++		// Write out non-empty, parseable __.PKGDEF,
++		// so that import of an empty archive works.
++		*datap = "import\n$$\npackage __emptypackage__\n$$\n";
++		*lenp = strlen(*datap);
+ 		return;
+ 	}
+ 
+@@ -1688,7 +1701,7 @@ getpkgdef(char **datap, int *lenp)
+ 				+ strlen(x->name) + 1
+ 				+ strlen(x->def) + 1;
+ 			if(x->export)
+-				len += 7;
++				len += strlen(x->export) + 1;
+ 		}
+ 	}
+ 	if(j != nimport) {
+@@ -1712,9 +1725,11 @@ getpkgdef(char **datap, int *lenp)
+ 	p = strappend(p, "\n");
+ 	for(i=0; i<nimport; i++) {
+ 		x = all[i];
+-		// [export] prefix name def\n
+-		if(x->export)
+-			p = strappend(p, "export ");
++		// [export|package] prefix name def\n
++		if(x->export) {
++			p = strappend(p, x->export);
++			p = strappend(p, " ");
++		}
+ 		p = strappend(p, x->prefix);
+ 		p = strappend(p, " ");
+ 		p = strappend(p, x->name);
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index ef1ddbc717..ca76bd712f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -35,8 +35,8 @@ dodclvar(Node *n, Type *t)
+ 		t = typ(TFORW);
+ 
+ 	addvar(n, t, dclcontext);
+-	if(exportadj)
+-		exportsym(n->sym);
++	if(dcladj)
++		dcladj(n->sym);
+ }
+ 
+ void
+@@ -49,8 +49,8 @@ dodclconst(Node *n, Node *e)
+ 		dodclconst(n, e);
+ 
+ 	addconst(n, e, dclcontext);
+-	if(exportadj)
+-		exportsym(n->sym);
++	if(dcladj)
++		dcladj(n->sym);
+ }
+ 
+ /*
+@@ -79,8 +79,8 @@ dodcltype(Type *n)
+ 
+ found:
+ 	n->sym->local = 1;
+-	if(exportadj)
+-		exportsym(n->sym);
++	if(dcladj)
++		dcladj(n->sym);
+ 	return n;
+ }
+ 
+@@ -226,7 +226,7 @@ Node*
+ methodname(Node *n, Type *t)
+ {
+ 	Sym *s;
+-	
++
+ 	s = methodsym(n->sym, t);
+ 	if(s == S)
+ 		return n;
+@@ -1191,7 +1191,7 @@ embedded(Sym *s)
+ {
+ 	Node *n;
+ 	char *name;
+-	
++
+ 	// Names sometimes have disambiguation junk
+ 	// appended after a center dot.  Discard it when
+ 	// making the name for the embedded struct field.
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 3498aa3dfa..41d3fc4143 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -28,13 +28,30 @@ exportsym(Sym *s)
+ {
+ 	if(s == S)
+ 		return;
+-	if(s->export != 0)
++	if(s->export != 0) {
++		if(s->export != 1)
++			yyerror("export/package mismatch: %S", s);
+ 		return;
++	}
+ 	s->export = 1;
+ 
+ 	addexportsym(s);
+ }
+ 
++void
++packagesym(Sym *s)
++{
++	if(s == S)
++		return;
++	if(s->export != 0) {
++		if(s->export != 2)
++			yyerror("export/package mismatch: %S", s);
++		return;
++	}
++	s->export = 2;
++
++	addexportsym(s);
++}
+ 
+ void
+ dumpprereq(Type *t)
+@@ -67,8 +84,10 @@ dumpexportconst(Sym *s)
+ 		dumpprereq(t);
+ 
+ 	Bprint(bout, "\t");
+-	if(s->export != 0)
++	if(s->export == 1)
+ 		Bprint(bout, "export ");
++	else if(s->export == 2)
++		Bprint(bout, "package ");
+ 	Bprint(bout, "const %lS ", s);
+ 	if(t != T)
+ 		Bprint(bout, "%#T ", t);
+@@ -110,8 +129,10 @@ dumpexportvar(Sym *s)
+ 	dumpprereq(t);
+ 
+ 	Bprint(bout, "\t");
+-	if(s->export != 0)
++	if(s->export == 1)
+ 		Bprint(bout, "export ");
++	else if(s->export == 2)
++		Bprint(bout, "package ");
+ 	if(t->etype == TFUNC)
+ 		Bprint(bout, "func ");
+ 	else
+@@ -124,8 +145,10 @@ dumpexporttype(Sym *s)
+ {
+ 	dumpprereq(s->otype);
+ 	Bprint(bout, "\t");
+-	if(s->export != 0)
++	if(s->export == 1)
+ 		Bprint(bout, "export ");
++	else if(s->export == 2)
++		Bprint(bout, "package ");
+ 	switch (s->otype->etype) {
+ 	case TFORW:
+ 	case TFORWSTRUCT:
+@@ -290,12 +313,21 @@ pkgtype(char *name, char *pkg)
+ 	return s->otype;
+ }
+ 
++static int
++mypackage(Node *ss)
++{
++	return strcmp(ss->psym->name, package) == 0;
++}
++
+ void
+ importconst(int export, Node *ss, Type *t, Val *v)
+ {
+ 	Node *n;
+ 	Sym *s;
+ 
++	if(export == 2 && !mypackage(ss))
++		return;
++
+ 	n = nod(OLITERAL, N, N);
+ 	n->val = *v;
+ 	n->type = t;
+@@ -307,6 +339,7 @@ importconst(int export, Node *ss, Type *t, Val *v)
+ 	}
+ 
+ 	dodclconst(newname(s), n);
++	s->export = export;
+ 
+ 	if(debug['e'])
+ 		print("import const %S\n", s);
+@@ -317,6 +350,9 @@ importvar(int export, Node *ss, Type *t)
+ {
+ 	Sym *s;
+ 
++	if(export == 2 && !mypackage(ss))
++		return;
++
+ 	s = importsym(ss, LNAME);
+ 	if(s->oname != N) {
+ 		if(eqtype(t, s->oname->type, 0))
+@@ -326,6 +362,7 @@ importvar(int export, Node *ss, Type *t)
+ 	}
+ 	checkwidth(t);
+ 	addvar(newname(s), t, PEXTERN);
++	s->export = export;
+ 
+ 	if(debug['e'])
+ 		print("import var %S %lT\n", s, t);
+@@ -352,6 +389,14 @@ importtype(int export, Node *ss, Type *t)
+ 	s->otype->sym = s;
+ 	checkwidth(s->otype);
+ 
++	// If type name should not be visible to importers,
++	// hide it by setting the lexical type to name.
++	// This will make references in the ordinary program
++	// (but not the import sections) look at s->oname,
++	// which is nil, as for an undefined name.
++	if(export == 0 || (export == 2 && !mypackage(ss)))
++		s->lexical = LNAME;
++
+ 	if(debug['e'])
+ 		print("import type %S %lT\n", s, t);
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c76adf6925..cc842bc94f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -41,7 +41,7 @@ enum
+ 	ASTRING,
+ 	APTR,
+ 	AINTER,
+-	
++
+ 	BADWIDTH	= -1000000000
+ };
+ 
+@@ -438,7 +438,7 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
+ EXTERN	char*	filename;	// name to uniqify names
+-EXTERN	int	exportadj;	// declaration is being exported
++EXTERN	void	(*dcladj)(Sym*);	// declaration is being exported/packaged
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	uchar	simtype[NTYPE];
+@@ -710,6 +710,7 @@ Node*	embedded(Sym*);
+  */
+ void	renamepkg(Node*);
+ void	exportsym(Sym*);
++void	packagesym(Sym*);
+ void	dumpe(Sym*);
+ void	dumpexport(void);
+ void	dumpexporttype(Sym*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 861f4fb29d..0772318101 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -193,10 +193,16 @@ xdcl:
+ 	{
+ 		$$ = N;
+ 	}
+-|	LEXPORT { exportadj = 1; stksize = initstksize; } common_dcl
++|	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
+ 	{
+ 		$$ = $3;
+-		exportadj = 0;
++		dcladj = 0;
++		initstksize = stksize;
++	}
++|	LPACKAGE { dcladj = packagesym; stksize = initstksize; } common_dcl
++	{
++		$$ = $3;
++		dcladj = 0;
+ 		initstksize = stksize;
+ 	}
+ |	LEXPORT '(' export_list_r ')'
+@@ -209,6 +215,12 @@ xdcl:
+ 			exportsym($2->nname->sym);
+ 		$$ = N;
+ 	}
++|	LPACKAGE xfndcl
++	{
++		if($2 != N && $2->nname != N)
++			packagesym($2->nname->sym);
++		$$ = N;
++	}
+ |	';'
+ 	{
+ 		$$ = N;
+@@ -1773,6 +1785,10 @@ oexport:
+ 	{
+ 		$$ = 1;
+ 	}
++|	LPACKAGE
++	{
++		$$ = 2;
++	}
+ 
+ oliteral:
+ 	{

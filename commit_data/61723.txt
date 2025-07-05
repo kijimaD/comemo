@@ -13,8 +13,98 @@ Date:   Wed Nov 20 17:00:57 2024 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/630396
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/eloop_netbsd.go | 19 +++++++++++++++++++
  src/os/eloop_other.go  | 27 +++++++++++++++++++++++++++
  src/os/root_unix.go    |  6 +++---
  3 files changed, 49 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/eloop_netbsd.go b/src/os/eloop_netbsd.go
+new file mode 100644
+index 0000000000..670c88a835
+--- /dev/null
++++ b/src/os/eloop_netbsd.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build netbsd
++
++package os
++
++import "syscall"
++
++// isNoFollowErr reports whether err may result from O_NOFOLLOW blocking an open operation.
++func isNoFollowErr(err error) bool {
++	// NetBSD returns EFTYPE, but check the other possibilities as well.
++	switch err {
++	case syscall.ELOOP, syscall.EMLINK, syscall.EFTYPE:
++		return true
++	}
++	return false
++}
+diff --git a/src/os/eloop_other.go b/src/os/eloop_other.go
+new file mode 100644
+index 0000000000..aace57bd39
+--- /dev/null
++++ b/src/os/eloop_other.go
+@@ -0,0 +1,27 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || dragonfly || freebsd || linux || openbsd || solaris || wasip1
++
++package os
++
++import (
++	"runtime"
++	"syscall"
++)
++
++// isNoFollowErr reports whether err may result from O_NOFOLLOW blocking an open operation.
++func isNoFollowErr(err error) bool {
++	switch err {
++	case syscall.ELOOP, syscall.EMLINK:
++		return true
++	}
++	if runtime.GOOS == "dragonfly" {
++		// Dragonfly appears to return EINVAL from openat in this case.
++		if err == syscall.EINVAL {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 568c47506e..4b52b81de7 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -61,7 +61,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
+ 	fd, err := doInRoot(r, name, func(parent int, name string) (fd int, err error) {
+ 		ignoringEINTR(func() error {
+ 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+-			if err == syscall.ELOOP || err == syscall.EMLINK {
++			if isNoFollowErr(err) {
+ 				err = checkSymlink(parent, name, err)
+ 			}
+ 			return err
+@@ -79,7 +79,7 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
+ 	fd, err := doInRoot(root, name, func(parent int, name string) (fd int, err error) {
+ 		ignoringEINTR(func() error {
+ 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
+-			if err == syscall.ELOOP || err == syscall.ENOTDIR || err == syscall.EMLINK {
++			if isNoFollowErr(err) || err == syscall.ENOTDIR {
+ 				err = checkSymlink(parent, name, err)
+ 			}
+ 			return err
+@@ -100,7 +100,7 @@ func rootOpenDir(parent int, name string) (int, error) {
+ 	)
+ 	ignoringEINTR(func() error {
+ 		fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
+-		if err == syscall.ELOOP || err == syscall.ENOTDIR || err == syscall.EMLINK {
++		if isNoFollowErr(err) || err == syscall.ENOTDIR {
+ 			err = checkSymlink(parent, name, err)
+ 		} else if err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP {
+ 			// ENOTSUP and EOPNOTSUPP are often, but not always, the same errno.

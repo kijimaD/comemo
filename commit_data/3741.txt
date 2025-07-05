@@ -9,7 +9,7 @@ Date:   Tue Nov 3 16:05:47 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1018029
-
+---
  src/cmd/5c/doc.go | 14 ++++++++++++++
  src/cmd/5l/doc.go | 26 ++++++++++++++++++++++++++
  src/cmd/6c/doc.go | 14 ++++++++++++++
@@ -17,3 +17,172 @@ Date:   Tue Nov 3 16:05:47 2009 -0800
  src/cmd/8c/doc.go | 14 ++++++++++++++
  src/cmd/8l/doc.go | 32 ++++++++++++++++++++++++++++++++
  6 files changed, 132 insertions(+)
+
+diff --git a/src/cmd/5c/doc.go b/src/cmd/5c/doc.go
+new file mode 100644
+index 0000000000..f1b3fa152e
+--- /dev/null
++++ b/src/cmd/5c/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++5c is a version of the Plan 9 C compiler documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2c
++
++Its target architecture is the ARM, referred to by these tools as arm.
++
++*/
++package documentation
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+new file mode 100644
+index 0000000000..1d22e3907f
+--- /dev/null
++++ b/src/cmd/5l/doc.go
+@@ -0,0 +1,26 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++5l is a modified version of the Plan 9 loader documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2l
++
++Its target architecture is the ARM, referred to by these tools as arm.
++
++Major changes include:
++	- support for segmented stacks (this feature is implemented here, not in the compilers).
++
++
++Original options are listed in the link above.
++
++Options new in this version:
++-L dir1,dir2,..
++	Search for libraries (package files) in the comma-separated list of directories.
++	The default is the single location $GOROOT/pkg/$GOOS_arm.
++
++
++*/
++package documentation
+diff --git a/src/cmd/6c/doc.go b/src/cmd/6c/doc.go
+new file mode 100644
+index 0000000000..b71aad98ec
+--- /dev/null
++++ b/src/cmd/6c/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++6c is a version of the Plan 9 C compiler documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2c
++
++Its target architecture is the x86-64, referred to by these tools as amd64.
++
++*/
++package documentation
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+new file mode 100644
+index 0000000000..0417fa377a
+--- /dev/null
++++ b/src/cmd/6l/doc.go
+@@ -0,0 +1,32 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++6l is a modified version of the Plan 9 loader documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2l
++
++Its target architecture is the x86-64, referred to by these tools as amd64.
++
++Major changes include:
++	- support for ELF and Mach-O binary files 
++	- support for segmented stacks (this feature is implemented here, not in the compilers).
++
++
++Original options are listed in the link above.
++
++Options new in this version:
++
++-H6
++	Write Apple Mach-O binaries (default when $GOOS is darwin)
++-H7
++	Write Linux ELF binaries (default when $GOOS is linux)
++-L dir1,dir2,..
++	Search for libraries (package files) in the comma-separated list of directories.
++	The default is the single location $GOROOT/pkg/$GOOS_amd64.
++
++
++*/
++package documentation
+diff --git a/src/cmd/8c/doc.go b/src/cmd/8c/doc.go
+new file mode 100644
+index 0000000000..c16ae4e89d
+--- /dev/null
++++ b/src/cmd/8c/doc.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++8c is a version of the Plan 9 C compiler documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2c
++
++Its target architecture is the x86, referred to by these tools for historical reasons as 386.
++
++*/
++package documentation
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+new file mode 100644
+index 0000000000..62d588d68c
+--- /dev/null
++++ b/src/cmd/8l/doc.go
+@@ -0,0 +1,32 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++
++8l is a modified version of the Plan 9 loader documented at
++
++	http://plan9.bell-labs.com/magic/man2html/1/2l
++
++Its target architecture is the x86, referred to by these tools for historical reasons as 386.
++
++Major changes include:
++	- support for ELF and Mach-O binary files 
++	- support for segmented stacks (this feature is implemented here, not in the compilers).
++
++
++Original options are listed in the link above.
++
++Options new in this version:
++
++-H6
++	Write Apple Mach-O binaries (default when $GOOS is darwin)
++-H7
++	Write Linux ELF binaries (default when $GOOS is linux)
++-L dir1,dir2,..
++	Search for libraries (package files) in the comma-separated list of directories.
++	The default is the single location $GOROOT/pkg/$GOOS_386.
++
++
++*/
++package documentation

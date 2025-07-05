@@ -12,8 +12,109 @@ Date:   Thu Nov 29 02:30:26 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/auth.go                   | 36 ++++++++++++++++++++++++++++++--
  src/crypto/tls/handshake_client_tls13.go |  3 +--
  src/crypto/tls/handshake_server_tls13.go |  3 +--
  3 files changed, 36 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index b277e74b53..6fe9718505 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -143,7 +143,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
+ 		return nil
+ 	}
+ 
+-	switch priv := priv.Public().(type) {
++	switch pub := priv.Public().(type) {
+ 	case *ecdsa.PublicKey:
+ 		if version != VersionTLS13 {
+ 			// In TLS 1.2 and earlier, ECDSA algorithms are not
+@@ -155,7 +155,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
+ 				ECDSAWithSHA1,
+ 			}
+ 		}
+-		switch priv.Curve {
++		switch pub.Curve {
+ 		case elliptic.P256():
+ 			return []SignatureScheme{ECDSAWithP256AndSHA256}
+ 		case elliptic.P384():
+@@ -187,3 +187,35 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
+ 		return nil
+ 	}
+ }
++
++// unsupportedCertificateError returns a helpful error for certificates with
++// an unsupported private key.
++func unsupportedCertificateError(cert *Certificate) error {
++	switch cert.PrivateKey.(type) {
++	case rsa.PrivateKey, ecdsa.PrivateKey:
++		return fmt.Errorf("tls: unsupported certificate: private key is %T, expected *%T",
++			cert.PrivateKey, cert.PrivateKey)
++	}
++
++	signer, ok := cert.PrivateKey.(crypto.Signer)
++	if !ok {
++		return fmt.Errorf("tls: certificate private key (%T) does not implement crypto.Signer",
++			cert.PrivateKey)
++	}
++
++	switch pub := signer.Public().(type) {
++	case *ecdsa.PublicKey:
++		switch pub.Curve {
++		case elliptic.P256():
++		case elliptic.P384():
++		case elliptic.P521():
++		default:
++			return fmt.Errorf("tls: unsupported certificate curve (%s)", pub.Curve.Params().Name)
++		}
++	case *rsa.PublicKey:
++	default:
++		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)
++	}
++
++	return fmt.Errorf("tls: internal error: unsupported key (%T)", cert.PrivateKey)
++}
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index f8e90f9457..85715b721c 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/hmac"
+ 	"crypto/rsa"
+ 	"errors"
+-	"fmt"
+ 	"hash"
+ 	"sync/atomic"
+ 	"time"
+@@ -559,7 +558,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
+ 	supportedAlgs := signatureSchemesForCertificate(c.vers, cert)
+ 	if supportedAlgs == nil {
+ 		c.sendAlert(alertInternalError)
+-		return fmt.Errorf("tls: unsupported certificate key (%T)", cert.PrivateKey)
++		return unsupportedCertificateError(cert)
+ 	}
+ 	// Pick signature scheme in server preference order, as the client
+ 	// preference order is not configurable.
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 6f20d61aa4..fa76f7ca06 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/hmac"
+ 	"crypto/rsa"
+ 	"errors"
+-	"fmt"
+ 	"hash"
+ 	"io"
+ 	"sync/atomic"
+@@ -372,7 +371,7 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
+ 	supportedAlgs := signatureSchemesForCertificate(c.vers, certificate)
+ 	if supportedAlgs == nil {
+ 		c.sendAlert(alertInternalError)
+-		return fmt.Errorf("tls: unsupported certificate key (%T)", certificate.PrivateKey)
++		return unsupportedCertificateError(certificate)
+ 	}
+ 	// Pick signature scheme in client preference order, as the server
+ 	// preference order is not configurable.

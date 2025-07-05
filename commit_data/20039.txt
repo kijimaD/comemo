@@ -8,7 +8,45 @@ Date:   Tue Aug 12 20:57:32 2014 -0400
     R=rsc, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/121630043
-
+---
  src/cmd/gc/pgen.c | 4 ++--
  src/cmd/gc/popt.c | 4 ++++
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index cabba6824e..5ac46e774e 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -428,7 +428,7 @@ allocauto(Prog* ptxt)
+ 		stksize = rnd(stksize, n->type->align);
+ 		if(haspointers(n->type))
+ 			stkptrsize = stksize;
+-		if(thechar == '5')
++		if(thechar == '5' || thechar == '9')
+ 			stksize = rnd(stksize, widthptr);
+ 		if(stksize >= (1ULL<<31)) {
+ 			setlineno(curfn);
+@@ -485,7 +485,7 @@ cgen_checknil(Node *n)
+ 		dump("checknil", n);
+ 		fatal("bad checknil");
+ 	}
+-	if((thechar == '5' && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
++	if(((thechar == '5' || thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
+ 		regalloc(&reg, types[tptr], n);
+ 		cgen(n, &reg);
+ 		gins(ACHECKNIL, &reg, N);
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index c8d60c5add..4c75e6c265 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -847,6 +847,10 @@ nilopt(Prog *firstp)
+ 	Graph *g;
+ 	int ncheck, nkill;
+ 
++	// TODO(minux): nilopt on power64 throw away seemly random segment of code.
++	if(thechar == '9')
++		return;
++
+ 	g = flowstart(firstp, sizeof(NilFlow));
+ 	if(g == nil)
+ 		return;

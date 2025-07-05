@@ -18,8 +18,106 @@ Date:   Fri May 12 15:36:37 2023 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go |  3 ++-
  src/cmd/compile/internal/base/flag.go  |  1 +
  src/cmd/compile/internal/inline/inl.go | 16 ++++++++++------
  3 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index ec20b18134..e217b3e9b0 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -50,9 +50,10 @@ type DebugFlags struct {
+ 	WB                    int    `help:"print information about write barriers"`
+ 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
+ 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
++	PGODebug              int    `help:"debug profile-guided optimizations"`
++	PGOInline             int    `help:"enable profile-guided inlining" concurrent:"ok"`
+ 	PGOInlineCDFThreshold string `help:"cumulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
+-	PGOInline             int    `help:"debug profile-guided inlining"`
+ 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
+ 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+ 
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 9305aaa88a..f1656fc98c 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -168,6 +168,7 @@ func ParseFlags() {
+ 	Debug.ConcurrentOk = true
+ 	Debug.InlFuncsWithClosures = 1
+ 	Debug.InlStaticInit = 1
++	Debug.PGOInline = 1
+ 	Debug.SyncFrames = -1 // disable sync markers by default
+ 
+ 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index f8b5c4abae..ff7e929ef4 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -87,7 +87,7 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
+ 	}
+ 	var hotCallsites []pgo.NodeMapKey
+ 	inlineHotCallSiteThresholdPercent, hotCallsites = hotNodesFromCDF(p)
+-	if base.Debug.PGOInline > 0 {
++	if base.Debug.PGODebug > 0 {
+ 		fmt.Printf("hot-callsite-thres-from-CDF=%v\n", inlineHotCallSiteThresholdPercent)
+ 	}
+ 
+@@ -107,7 +107,7 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
+ 		}
+ 	}
+ 
+-	if base.Debug.PGOInline >= 2 {
++	if base.Debug.PGODebug >= 2 {
+ 		fmt.Printf("hot-cg before inline in dot format:")
+ 		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
+ 	}
+@@ -156,6 +156,10 @@ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
+ 
+ // InlinePackage finds functions that can be inlined and clones them before walk expands them.
+ func InlinePackage(p *pgo.Profile) {
++	if base.Debug.PGOInline == 0 {
++		p = nil
++	}
++
+ 	InlineDecls(p, typecheck.Target.Decls, true)
+ 
+ 	// Perform a garbage collection of hidden closures functions that
+@@ -365,7 +369,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
+ 			if _, ok := candHotCalleeMap[n]; ok {
+ 				budget = int32(inlineHotMaxBudget)
+-				if base.Debug.PGOInline > 0 {
++				if base.Debug.PGODebug > 0 {
+ 					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
+ 				}
+ 			}
+@@ -557,7 +561,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
+ 				lineOffset := pgo.NodeLineOffset(n, fn)
+ 				csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: v.curFunc}
+ 				if _, o := candHotEdgeMap[csi]; o {
+-					if base.Debug.PGOInline > 0 {
++					if base.Debug.PGODebug > 0 {
+ 						fmt.Printf("hot-callsite identified at line=%v for func=%v\n", ir.Line(n), ir.PkgFuncName(v.curFunc))
+ 					}
+ 				}
+@@ -991,7 +995,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 	// Hot
+ 
+ 	if bigCaller {
+-		if base.Debug.PGOInline > 0 {
++		if base.Debug.PGODebug > 0 {
+ 			fmt.Printf("hot-big check disallows inlining for call %s (cost %d) at %v in big function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+ 		}
+ 		return false, maxCost
+@@ -1001,7 +1005,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 		return false, inlineHotMaxBudget
+ 	}
+ 
+-	if base.Debug.PGOInline > 0 {
++	if base.Debug.PGODebug > 0 {
+ 		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+ 	}
+ 

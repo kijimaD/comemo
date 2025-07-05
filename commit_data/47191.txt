@@ -15,7 +15,155 @@ Date:   Wed Mar 3 13:33:24 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go                  | 33 +++++++++-----
  src/go/types/fixedbugs/issue44688.go2 | 83 +++++++++++++++++++++++++++++++++++
  2 files changed, 105 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index f23ca02e1d..ae0a245b2b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -592,31 +592,42 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 	// methods may not have a fully set up signature yet
+ 	if m, _ := obj.(*Func); m != nil {
+ 		check.objDecl(m, nil)
+-		// If m has a parameterized receiver type, infer the type parameter
+-		// values from the actual receiver provided and then substitute the
+-		// type parameters in the signature accordingly.
++		// If m has a parameterized receiver type, infer the type arguments from
++		// the actual receiver provided and then substitute the type parameters in
++		// the signature accordingly.
+ 		// TODO(gri) factor this code out
+ 		sig := m.typ.(*Signature)
+ 		if len(sig.rparams) > 0 {
++			// For inference to work, we must use the receiver type
++			// matching the receiver in the actual method declaration.
++			// If the method is embedded, the matching receiver is the
++			// embedded struct or interface that declared the method.
++			// Traverse the embedding to find that type (issue #44688).
++			recv := x.typ
++			for i := 0; i < len(index)-1; i++ {
++				// The embedded type is either a struct or a pointer to
++				// a struct except for the last one (which we don't need).
++				recv = asStruct(derefStructPtr(recv)).Field(index[i]).typ
++			}
++
+ 			// The method may have a pointer receiver, but the actually provided receiver
+ 			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
+ 			// only care about inferring receiver type parameters; to make the inference
+ 			// work, match up pointer-ness of receiver and argument.
+-			arg := x
+-			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(arg.typ) {
+-				copy := *arg
++			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(recv) {
+ 				if ptrRecv {
+-					copy.typ = NewPointer(arg.typ)
++					recv = NewPointer(recv)
+ 				} else {
+-					copy.typ = arg.typ.(*Pointer).base
++					recv = recv.(*Pointer).base
+ 				}
+-				arg = &copy
+ 			}
+-			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{arg})
++			arg := operand{mode: variable, expr: x.expr, typ: recv}
++			targs, failed := check.infer(sig.rparams, NewTuple(sig.recv), []*operand{&arg})
+ 			if failed >= 0 {
+ 				// We may reach here if there were other errors (see issue #40056).
+ 				// check.infer will report a follow-up error.
+-				// TODO(gri) avoid the follow-up error or provide better explanation.
++				// TODO(gri) avoid the follow-up error as it is confusing
++				//           (there's no inference in the source code)
+ 				goto Error
+ 			}
+ 			// Don't modify m. Instead - for now - make a copy of m and use that instead.
+diff --git a/src/go/types/fixedbugs/issue44688.go2 b/src/go/types/fixedbugs/issue44688.go2
+new file mode 100644
+index 0000000000..512bfcc922
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue44688.go2
+@@ -0,0 +1,83 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package P
++
++type A1[T any] struct{}
++
++func (*A1[T]) m1(T) {}
++
++type A2[T any] interface {
++	m2(T)
++}
++
++type B1[T any] struct {
++	filler int
++	*A1[T]
++	A2[T]
++}
++
++type B2[T any] interface {
++	A2[T]
++}
++
++type C[T any] struct {
++	filler1 int
++	filler2 int
++	B1[T]
++}
++
++type D[T any] struct {
++	filler1 int
++	filler2 int
++	filler3 int
++	C[T]
++}
++
++func _() {
++	// calling embedded methods
++	var b1 B1[string]
++
++	b1.A1.m1("")
++	b1.m1("")
++
++	b1.A2.m2("")
++	b1.m2("")
++
++	var b2 B2[string]
++	b2.m2("")
++
++	// a deeper nesting
++	var d D[string]
++	d.m1("")
++	d.m2("")
++
++	// calling method expressions
++	m1x := B1[string].m1
++	m1x(b1, "")
++	m2x := B2[string].m2
++	m2x(b2, "")
++
++	// calling method values
++	m1v := b1.m1
++	m1v("")
++	m2v := b1.m2
++	m2v("")
++	b2v := b2.m2
++	b2v("")
++}
++
++// actual test case from issue
++
++type A[T any] struct{}
++
++func (*A[T]) f(T) {}
++
++type B[T any] struct{ A[T] }
++
++func _() {
++	var b B[string]
++	b.A.f("")
++	b.f("")
++}

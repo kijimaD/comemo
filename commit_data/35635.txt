@@ -36,7 +36,7 @@ Date:   Wed Jan 3 14:38:55 2018 -0800
     Reviewed-on: https://go-review.googlesource.com/86035
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  15 +
  src/cmd/compile/internal/gc/asm_test.go      |  65 ++-
  src/cmd/compile/internal/ssa/flagalloc.go    | 106 ++++-
@@ -47,3 +47,1352 @@ Date:   Wed Jan 3 14:38:55 2018 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 685 ++++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/schedule.go     |   2 +-
  9 files changed, 1029 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index d5e9fd32f0..92d3ec22fc 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -500,6 +500,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Args[0].Reg()
++	case ssa.OpAMD64CMPQmem, ssa.OpAMD64CMPLmem, ssa.OpAMD64CMPWmem, ssa.OpAMD64CMPBmem:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Args[1].Reg()
++	case ssa.OpAMD64CMPQconstmem, ssa.OpAMD64CMPLconstmem, ssa.OpAMD64CMPWconstmem, ssa.OpAMD64CMPBconstmem:
++		sc := v.AuxValAndOff()
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = v.Args[0].Reg()
++		gc.AddAux2(&p.From, v, sc.Off())
++		p.To.Type = obj.TYPE_CONST
++		p.To.Offset = sc.Val()
+ 	case ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
+ 		x := v.Reg()
+ 
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index cceaa798fc..6f34740239 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -923,14 +923,14 @@ var linuxAMD64Tests = []*asmTest{
+ 		func f65(a string) bool {
+ 		    return a == "xx"
+ 		}`,
+-		pos: []string{"\tCMPW\t[A-Z]"},
++		pos: []string{"\tCMPW\t\\(.*\\), [$]"},
+ 	},
+ 	{
+ 		fn: `
+ 		func f66(a string) bool {
+ 		    return a == "xxxx"
+ 		}`,
+-		pos: []string{"\tCMPL\t[A-Z]"},
++		pos: []string{"\tCMPL\t\\(.*\\), [$]"},
+ 	},
+ 	{
+ 		fn: `
+@@ -1002,42 +1002,51 @@ var linuxAMD64Tests = []*asmTest{
+ 		func f68(a,b [2]byte) bool {
+ 		    return a == b
+ 		}`,
+-		pos: []string{"\tCMPW\t[A-Z]"},
++		pos: []string{"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]"},
+ 	},
+ 	{
+ 		fn: `
+ 		func f69(a,b [3]uint16) bool {
+ 		    return a == b
+ 		}`,
+-		pos: []string{"\tCMPL\t[A-Z]"},
++		pos: []string{
++			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
++			"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
++		},
+ 	},
+ 	{
+ 		fn: `
+ 		func $(a,b [3]int16) bool {
+ 		    return a == b
+ 		}`,
+-		pos: []string{"\tCMPL\t[A-Z]"},
++		pos: []string{
++			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
++			"\tCMPW\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
++		},
+ 	},
+ 	{
+ 		fn: `
+ 		func $(a,b [12]int8) bool {
+ 		    return a == b
+ 		}`,
+-		pos: []string{"\tCMPQ\t[A-Z]", "\tCMPL\t[A-Z]"},
++		pos: []string{
++			"\tCMPQ\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
++			"\tCMPL\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]",
++		},
+ 	},
+ 	{
+ 		fn: `
+ 		func f70(a,b [15]byte) bool {
+ 		    return a == b
+ 		}`,
+-		pos: []string{"\tCMPQ\t[A-Z]"},
++		pos: []string{"\tCMPQ\t\"\"[.+_a-z0-9]+\\(SP\\), [A-Z]"},
+ 	},
+ 	{
+ 		fn: `
+ 		func f71(a,b unsafe.Pointer) bool { // This was a TODO in mapaccess1_faststr
+ 		    return *((*[4]byte)(a)) != *((*[4]byte)(b))
+ 		}`,
+-		pos: []string{"\tCMPL\t[A-Z]"},
++		pos: []string{"\tCMPL\t\\(.*\\), [A-Z]"},
+ 	},
+ 	{
+ 		// make sure assembly output has matching offset and base register.
+@@ -1767,6 +1776,46 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		neg: []string{"TESTB"},
+ 	},
++	{
++		fn: `
++		func $(p int, q *int) bool {
++			return p < *q
++		}
++		`,
++		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
++	},
++	{
++		fn: `
++		func $(p *int, q int) bool {
++			return *p < q
++		}
++		`,
++		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
++	},
++	{
++		fn: `
++		func $(p *int) bool {
++			return *p < 7
++		}
++		`,
++		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
++	},
++	{
++		fn: `
++		func $(p *int) bool {
++			return 7 < *p
++		}
++		`,
++		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
++	},
++	{
++		fn: `
++		func $(p **int) {
++			*p = nil
++		}
++		`,
++		pos: []string{"CMPL\truntime.writeBarrier\\(SB\\), [$]0"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 24b6a0ec89..3c910a1afd 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -59,13 +59,47 @@ func flagalloc(f *Func) {
+ 		}
+ 	}
+ 
+-	// Add flag recomputations where they are needed.
++	// Compute which flags values will need to be spilled.
++	spill := map[ID]bool{}
++	for _, b := range f.Blocks {
++		var flag *Value
++		if len(b.Preds) > 0 {
++			flag = end[b.Preds[0].b.ID]
++		}
++		for _, v := range b.Values {
++			for _, a := range v.Args {
++				if !a.Type.IsFlags() {
++					continue
++				}
++				if a == flag {
++					continue
++				}
++				// a will need to be restored here.
++				spill[a.ID] = true
++				flag = a
++			}
++			if v.clobbersFlags() {
++				flag = nil
++			}
++			if v.Type.IsFlags() {
++				flag = v
++			}
++		}
++		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
++			spill[v.ID] = true
++		}
++		if v := end[b.ID]; v != nil && v != flag {
++			spill[v.ID] = true
++		}
++	}
++
++	// Add flag spill and recomputation where they are needed.
+ 	// TODO: Remove original instructions if they are never used.
+ 	var oldSched []*Value
+ 	for _, b := range f.Blocks {
+ 		oldSched = append(oldSched[:0], b.Values...)
+ 		b.Values = b.Values[:0]
+-		// The current live flag value the pre-flagalloc copy).
++		// The current live flag value (the pre-flagalloc copy).
+ 		var flag *Value
+ 		if len(b.Preds) > 0 {
+ 			flag = end[b.Preds[0].b.ID]
+@@ -81,6 +115,72 @@ func flagalloc(f *Func) {
+ 			if v.Op == OpPhi && v.Type.IsFlags() {
+ 				f.Fatalf("phi of flags not supported: %s", v.LongString())
+ 			}
++
++			// If v will be spilled, and v uses memory, then we must split it
++			// into a load + a flag generator.
++			// TODO: figure out how to do this without arch-dependent code.
++			if spill[v.ID] && v.MemoryArg() != nil {
++				switch v.Op {
++				case OpAMD64CMPQmem:
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVQload, f.Config.Types.UInt64, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = OpAMD64CMPQ
++					v.AuxInt = 0
++					v.Aux = nil
++					v.SetArgs2(load, v.Args[1])
++				case OpAMD64CMPLmem:
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVLload, f.Config.Types.UInt32, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = OpAMD64CMPL
++					v.AuxInt = 0
++					v.Aux = nil
++					v.SetArgs2(load, v.Args[1])
++				case OpAMD64CMPWmem:
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVWload, f.Config.Types.UInt16, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = OpAMD64CMPW
++					v.AuxInt = 0
++					v.Aux = nil
++					v.SetArgs2(load, v.Args[1])
++				case OpAMD64CMPBmem:
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVBload, f.Config.Types.UInt8, v.AuxInt, v.Aux, v.Args[0], v.Args[2])
++					v.Op = OpAMD64CMPB
++					v.AuxInt = 0
++					v.Aux = nil
++					v.SetArgs2(load, v.Args[1])
++
++				case OpAMD64CMPQconstmem:
++					vo := v.AuxValAndOff()
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVQload, f.Config.Types.UInt64, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = OpAMD64CMPQconst
++					v.AuxInt = vo.Val()
++					v.Aux = nil
++					v.SetArgs1(load)
++				case OpAMD64CMPLconstmem:
++					vo := v.AuxValAndOff()
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVLload, f.Config.Types.UInt32, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = OpAMD64CMPLconst
++					v.AuxInt = vo.Val()
++					v.Aux = nil
++					v.SetArgs1(load)
++				case OpAMD64CMPWconstmem:
++					vo := v.AuxValAndOff()
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVWload, f.Config.Types.UInt16, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = OpAMD64CMPWconst
++					v.AuxInt = vo.Val()
++					v.Aux = nil
++					v.SetArgs1(load)
++				case OpAMD64CMPBconstmem:
++					vo := v.AuxValAndOff()
++					load := b.NewValue2IA(v.Pos, OpAMD64MOVBload, f.Config.Types.UInt8, vo.Off(), v.Aux, v.Args[0], v.Args[1])
++					v.Op = OpAMD64CMPBconst
++					v.AuxInt = vo.Val()
++					v.Aux = nil
++					v.SetArgs1(load)
++
++				default:
++					f.Fatalf("can't split flag generator: %s", v.LongString())
++				}
++
++			}
++
+ 			// Make sure any flag arg of v is in the flags register.
+ 			// If not, recompute it.
+ 			for i, a := range v.Args {
+@@ -108,7 +208,7 @@ func flagalloc(f *Func) {
+ 		}
+ 		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
+ 			// Recalculate control value.
+-			c := v.copyInto(b)
++			c := copyFlags(v, b)
+ 			b.SetControl(c)
+ 			flag = v
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 62550df0cc..7e8f68bf87 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -350,6 +350,19 @@ func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
+ 	return v
+ }
+ 
++// NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
++func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux interface{}, arg0, arg1 *Value) *Value {
++	v := b.Func.newValue(op, t, b, pos)
++	v.AuxInt = auxint
++	v.Aux = aux
++	v.Args = v.argstorage[:2]
++	v.argstorage[0] = arg0
++	v.argstorage[1] = arg1
++	arg0.Uses++
++	arg1.Uses++
++	return v
++}
++
+ // NewValue3 returns a new value in the block with three arguments and zero aux values.
+ func (b *Block) NewValue3(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index fa313f7e5d..b4fc4d3834 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2284,3 +2284,26 @@
+ // LEAQ is rematerializeable, so this helps to avoid register spill.
+ // See isuue 22947 for details
+ (ADDQconst [off] x:(SP)) -> (LEAQ [off] x)
++
++// Fold loads into compares
++// Note: these may be undone by the flagalloc pass.
++(CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l, x) && clobber(l) -> (CMP(Q|L|W|B)mem {sym} [off] ptr x mem)
++(CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l, x) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)mem {sym} [off] ptr x mem))
++
++(CMP(Q|L|W|B)const l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) [c])
++	&& l.Uses == 1
++	&& validValAndOff(c, off)
++	&& clobber(l) ->
++  @l.Block (CMP(Q|L|W|B)constmem {sym} [makeValAndOff(c,off)] ptr mem)
++
++(CMPQmem {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++(CMPLmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++(CMPWmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)),off) -> (CMPWconstmem {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
++(CMPBmem {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)),off) -> (CMPBconstmem {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
++
++(TEST(Q|L|W|B)  l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) l2)
++        && l == l2
++	&& l.Uses == 2
++	&& validValAndOff(0,off)
++	&& clobber(l) ->
++  @l.Block (CMP(Q|L|W|B)constmem {sym} [makeValAndOff(0,off)] ptr mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 77c7409eb8..d3394606f4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -118,9 +118,11 @@ func init() {
+ 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
+ 		gp21hmul  = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
+ 
+-		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}}
+-		gp1flags = regInfo{inputs: []regMask{gpsp}}
+-		flagsgp  = regInfo{inputs: nil, outputs: gponly}
++		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
++		gp1flags     = regInfo{inputs: []regMask{gpsp}}
++		gp0flagsLoad = regInfo{inputs: []regMask{gpspsb, 0}}
++		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
++		flagsgp      = regInfo{inputs: nil, outputs: gponly}
+ 
+ 		gp11flags = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
+ 
+@@ -246,6 +248,18 @@ func init() {
+ 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", typ: "Flags", aux: "Int16"}, // arg0 compare to auxint
+ 		{name: "CMPBconst", argLength: 1, reg: gp1flags, asm: "CMPB", typ: "Flags", aux: "Int8"},  // arg0 compare to auxint
+ 
++		// compare *(arg0+auxint+aux) to arg1 (in that order). arg2=mem.
++		{name: "CMPQmem", argLength: 3, reg: gp1flagsLoad, asm: "CMPQ", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPLmem", argLength: 3, reg: gp1flagsLoad, asm: "CMPL", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPWmem", argLength: 3, reg: gp1flagsLoad, asm: "CMPW", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPBmem", argLength: 3, reg: gp1flagsLoad, asm: "CMPB", aux: "SymOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++
++		// compare *(arg0+ValAndOff(AuxInt).Off()+aux) to ValAndOff(AuxInt).Val() (in that order). arg1=mem.
++		{name: "CMPQconstmem", argLength: 2, reg: gp0flagsLoad, asm: "CMPQ", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPLconstmem", argLength: 2, reg: gp0flagsLoad, asm: "CMPL", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPWconstmem", argLength: 2, reg: gp0flagsLoad, asm: "CMPW", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++		{name: "CMPBconstmem", argLength: 2, reg: gp0flagsLoad, asm: "CMPB", aux: "SymValAndOff", typ: "Flags", symEffect: "Read", faultOnNilArg0: true},
++
+ 		{name: "UCOMISS", argLength: 2, reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
+ 		{name: "UCOMISD", argLength: 2, reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 09008d3032..dda8cba047 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -487,6 +487,14 @@ const (
+ 	OpAMD64CMPLconst
+ 	OpAMD64CMPWconst
+ 	OpAMD64CMPBconst
++	OpAMD64CMPQmem
++	OpAMD64CMPLmem
++	OpAMD64CMPWmem
++	OpAMD64CMPBmem
++	OpAMD64CMPQconstmem
++	OpAMD64CMPLconstmem
++	OpAMD64CMPWconstmem
++	OpAMD64CMPBconstmem
+ 	OpAMD64UCOMISS
+ 	OpAMD64UCOMISD
+ 	OpAMD64BTL
+@@ -5687,6 +5695,114 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "CMPQmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPLmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPWmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPBmem",
++		auxType:        auxSymOff,
++		argLen:         3,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPQconstmem",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPLconstmem",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPWconstmem",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
++	{
++		name:           "CMPBconstmem",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymRead,
++		asm:            x86.ACMPB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++		},
++	},
+ 	{
+ 		name:   "UCOMISS",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c73837fc49..734c280490 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -61,18 +61,26 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64CMPB_0(v)
+ 	case OpAMD64CMPBconst:
+ 		return rewriteValueAMD64_OpAMD64CMPBconst_0(v)
++	case OpAMD64CMPBmem:
++		return rewriteValueAMD64_OpAMD64CMPBmem_0(v)
+ 	case OpAMD64CMPL:
+ 		return rewriteValueAMD64_OpAMD64CMPL_0(v)
+ 	case OpAMD64CMPLconst:
+-		return rewriteValueAMD64_OpAMD64CMPLconst_0(v)
++		return rewriteValueAMD64_OpAMD64CMPLconst_0(v) || rewriteValueAMD64_OpAMD64CMPLconst_10(v)
++	case OpAMD64CMPLmem:
++		return rewriteValueAMD64_OpAMD64CMPLmem_0(v)
+ 	case OpAMD64CMPQ:
+ 		return rewriteValueAMD64_OpAMD64CMPQ_0(v)
+ 	case OpAMD64CMPQconst:
+ 		return rewriteValueAMD64_OpAMD64CMPQconst_0(v) || rewriteValueAMD64_OpAMD64CMPQconst_10(v)
++	case OpAMD64CMPQmem:
++		return rewriteValueAMD64_OpAMD64CMPQmem_0(v)
+ 	case OpAMD64CMPW:
+ 		return rewriteValueAMD64_OpAMD64CMPW_0(v)
+ 	case OpAMD64CMPWconst:
+ 		return rewriteValueAMD64_OpAMD64CMPWconst_0(v)
++	case OpAMD64CMPWmem:
++		return rewriteValueAMD64_OpAMD64CMPWmem_0(v)
+ 	case OpAMD64CMPXCHGLlock:
+ 		return rewriteValueAMD64_OpAMD64CMPXCHGLlock_0(v)
+ 	case OpAMD64CMPXCHGQlock:
+@@ -2928,9 +2936,65 @@ func rewriteValueAMD64_OpAMD64CMPB_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPB l:(MOVBload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPBmem {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64CMPBmem)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPB x l:(MOVBload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPBmem {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPBmem, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPBconst_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (CMPBconst (MOVLconst [x]) [y])
+ 	// cond: int8(x)==int8(y)
+ 	// result: (FlagEQ)
+@@ -3077,6 +3141,60 @@ func rewriteValueAMD64_OpAMD64CMPBconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPBconst l:(MOVBload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPBconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPBconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64CMPBmem_0(v *Value) bool {
++	// match: (CMPBmem {sym} [off] ptr (MOVLconst [c]) mem)
++	// cond: validValAndOff(int64(int8(c)),off)
++	// result: (CMPBconstmem {sym} [makeValAndOff(int64(int8(c)),off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(int64(int8(c)), off)) {
++			break
++		}
++		v.reset(OpAMD64CMPBconstmem)
++		v.AuxInt = makeValAndOff(int64(int8(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPL_0(v *Value) bool {
+@@ -3116,6 +3234,60 @@ func rewriteValueAMD64_OpAMD64CMPL_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPL l:(MOVLload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPLmem {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64CMPLmem)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPL x l:(MOVLload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPLmem {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPLmem, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPLconst_0(v *Value) bool {
+@@ -3283,6 +3455,65 @@ func rewriteValueAMD64_OpAMD64CMPLconst_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64CMPLconst_10(v *Value) bool {
++	b := v.Block
++	_ = b
++	// match: (CMPLconst l:(MOVLload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64CMPLmem_0(v *Value) bool {
++	// match: (CMPLmem {sym} [off] ptr (MOVLconst [c]) mem)
++	// cond: validValAndOff(c,off)
++	// result: (CMPLconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(c, off)) {
++			break
++		}
++		v.reset(OpAMD64CMPLconstmem)
++		v.AuxInt = makeValAndOff(c, off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64CMPQ_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3326,6 +3557,60 @@ func rewriteValueAMD64_OpAMD64CMPQ_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPQ l:(MOVQload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPQmem {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64CMPQmem)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPQ x l:(MOVQload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPQmem {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPQmem, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPQconst_0(v *Value) bool {
+@@ -3513,6 +3798,8 @@ func rewriteValueAMD64_OpAMD64CMPQconst_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPQconst_10(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (CMPQconst (SHRQconst _ [c]) [n])
+ 	// cond: 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n)
+ 	// result: (FlagLT_ULT)
+@@ -3611,6 +3898,60 @@ func rewriteValueAMD64_OpAMD64CMPQconst_10(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPQconst l:(MOVQload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64CMPQmem_0(v *Value) bool {
++	// match: (CMPQmem {sym} [off] ptr (MOVQconst [c]) mem)
++	// cond: validValAndOff(c,off)
++	// result: (CMPQconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVQconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(c, off)) {
++			break
++		}
++		v.reset(OpAMD64CMPQconstmem)
++		v.AuxInt = makeValAndOff(c, off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPW_0(v *Value) bool {
+@@ -3650,9 +3991,65 @@ func rewriteValueAMD64_OpAMD64CMPW_0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (CMPW l:(MOVWload {sym} [off] ptr mem) x)
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (CMPWmem {sym} [off] ptr x mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		x := v.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64CMPWmem)
++		v.AuxInt = off
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(x)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (CMPW x l:(MOVWload {sym} [off] ptr mem))
++	// cond: canMergeLoad(v, l, x) && clobber(l)
++	// result: (InvertFlags (CMPWmem {sym} [off] ptr x mem))
++	for {
++		_ = v.Args[1]
++		x := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(canMergeLoad(v, l, x) && clobber(l)) {
++			break
++		}
++		v.reset(OpAMD64InvertFlags)
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPWmem, types.TypeFlags)
++		v0.AuxInt = off
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(x)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPWconst_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (CMPWconst (MOVLconst [x]) [y])
+ 	// cond: int16(x)==int16(y)
+ 	// result: (FlagEQ)
+@@ -3799,6 +4196,60 @@ func rewriteValueAMD64_OpAMD64CMPWconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPWconst l:(MOVWload {sym} [off] ptr mem) [c])
++	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
++	// result: @l.Block (CMPWconstmem {sym} [makeValAndOff(c,off)] ptr mem)
++	for {
++		c := v.AuxInt
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(c, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64CMPWmem_0(v *Value) bool {
++	// match: (CMPWmem {sym} [off] ptr (MOVLconst [c]) mem)
++	// cond: validValAndOff(int64(int16(c)),off)
++	// result: (CMPWconstmem {sym} [makeValAndOff(int64(int16(c)),off)] ptr mem)
++	for {
++		off := v.AuxInt
++		sym := v.Aux
++		_ = v.Args[2]
++		ptr := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAMD64MOVLconst {
++			break
++		}
++		c := v_1.AuxInt
++		mem := v.Args[2]
++		if !(validValAndOff(int64(int16(c)), off)) {
++			break
++		}
++		v.reset(OpAMD64CMPWconstmem)
++		v.AuxInt = makeValAndOff(int64(int16(c)), off)
++		v.Aux = sym
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPXCHGLlock_0(v *Value) bool {
+@@ -41000,6 +41451,8 @@ func rewriteValueAMD64_OpAMD64SUBSSmem_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64TESTB_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (TESTB (MOVLconst [c]) x)
+ 	// cond:
+ 	// result: (TESTBconst [c] x)
+@@ -41032,9 +41485,67 @@ func rewriteValueAMD64_OpAMD64TESTB_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (TESTB l:(MOVBload {sym} [off] ptr mem) l2)
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPBconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		l2 := v.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPBconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (TESTB l2 l:(MOVBload {sym} [off] ptr mem))
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPBconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l2 := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVBload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPBconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64TESTL_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (TESTL (MOVLconst [c]) x)
+ 	// cond:
+ 	// result: (TESTLconst [c] x)
+@@ -41067,9 +41578,67 @@ func rewriteValueAMD64_OpAMD64TESTL_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (TESTL l:(MOVLload {sym} [off] ptr mem) l2)
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPLconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		l2 := v.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (TESTL l2 l:(MOVLload {sym} [off] ptr mem))
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPLconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l2 := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVLload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64TESTQ_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (TESTQ (MOVQconst [c]) x)
+ 	// cond: is32Bit(c)
+ 	// result: (TESTQconst [c] x)
+@@ -41108,9 +41677,67 @@ func rewriteValueAMD64_OpAMD64TESTQ_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (TESTQ l:(MOVQload {sym} [off] ptr mem) l2)
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPQconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		l2 := v.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (TESTQ l2 l:(MOVQload {sym} [off] ptr mem))
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPQconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l2 := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVQload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64TESTW_0(v *Value) bool {
++	b := v.Block
++	_ = b
+ 	// match: (TESTW (MOVLconst [c]) x)
+ 	// cond:
+ 	// result: (TESTWconst [c] x)
+@@ -41143,6 +41770,62 @@ func rewriteValueAMD64_OpAMD64TESTW_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (TESTW l:(MOVWload {sym} [off] ptr mem) l2)
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPWconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l := v.Args[0]
++		if l.Op != OpAMD64MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		l2 := v.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
++	// match: (TESTW l2 l:(MOVWload {sym} [off] ptr mem))
++	// cond: l == l2 && l.Uses == 2 && validValAndOff(0,off) && clobber(l)
++	// result: @l.Block (CMPWconstmem {sym} [makeValAndOff(0,off)] ptr mem)
++	for {
++		_ = v.Args[1]
++		l2 := v.Args[0]
++		l := v.Args[1]
++		if l.Op != OpAMD64MOVWload {
++			break
++		}
++		off := l.AuxInt
++		sym := l.Aux
++		_ = l.Args[1]
++		ptr := l.Args[0]
++		mem := l.Args[1]
++		if !(l == l2 && l.Uses == 2 && validValAndOff(0, off) && clobber(l)) {
++			break
++		}
++		b = l.Block
++		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconstmem, types.TypeFlags)
++		v.reset(OpCopy)
++		v.AddArg(v0)
++		v0.AuxInt = makeValAndOff(0, off)
++		v0.Aux = sym
++		v0.AddArg(ptr)
++		v0.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64XADDLlock_0(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index c44c243eac..8109908475 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -264,7 +264,7 @@ func schedule(f *Func) {
+ 			}
+ 		}
+ 		if len(order) != len(b.Values) {
+-			f.Fatalf("schedule does not include all values")
++			f.Fatalf("schedule does not include all values in block %s", b)
+ 		}
+ 		for i := 0; i < len(b.Values); i++ {
+ 			b.Values[i] = order[len(b.Values)-1-i]

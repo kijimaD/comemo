@@ -12,6 +12,57 @@ Date:   Tue Aug 3 16:24:20 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/typeparam.go | 34 +++++++++++++++++++++-------------
  1 file changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index a3d60c1648..8cb44ea25e 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -60,24 +60,32 @@ func (t *TypeParam) _SetId(id uint64) {
+ 	t.id = id
+ }
+ 
+-// TODO(rfindley): document the Bound and SetBound methods.
++// Constraint returns the type constraint specified for t.
++func (t *TypeParam) Constraint() Type {
++	// compute the type set if possible (we may not have an interface)
++	if iface, _ := under(t.bound).(*Interface); iface != nil {
++		// use the type bound position if we have one
++		pos := token.NoPos
++		if n, _ := t.bound.(*Named); n != nil {
++			pos = n.obj.pos
++		}
++		computeTypeSet(t.check, pos, iface)
++	}
++	return t.bound
++}
+ 
++// Bound returns the underlying type of the type parameter's
++// constraint.
++// Deprecated for external use. Use Constraint instead.
+ func (t *TypeParam) Bound() *Interface {
+-	// we may not have an interface (error reported elsewhere)
+-	iface, _ := under(t.bound).(*Interface)
+-	if iface == nil {
+-		return &emptyInterface
++	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
++		return iface
+ 	}
+-	// use the type bound position if we have one
+-	pos := token.NoPos
+-	if n, _ := t.bound.(*Named); n != nil {
+-		pos = n.obj.pos
+-	}
+-	// TODO(rFindley) switch this to an unexported method on Checker.
+-	computeTypeSet(t.check, pos, iface)
+-	return iface
++	return &emptyInterface
+ }
+ 
++// TODO(rfindley): document the SetBound methods.
++
+ func (t *TypeParam) SetBound(bound Type) {
+ 	if bound == nil {
+ 		panic("internal error: bound must not be nil")

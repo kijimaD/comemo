@@ -18,9 +18,71 @@ Date:   Fri Jun 29 21:51:10 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go          | 2 --
  src/net/http/serve_test.go     | 2 +-
  src/net/http/transport_test.go | 2 --
  src/time/sleep_test.go         | 4 ----
  4 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 85cae90f87..ada1ddde3b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4008,8 +4008,6 @@ func TestCgoConsistentResults(t *testing.T) {
+ 		t.Skip("skipping because cgo not enabled")
+ 	}
+ 	switch runtime.GOOS {
+-	case "freebsd":
+-		testenv.SkipFlaky(t, 15405)
+ 	case "solaris":
+ 		testenv.SkipFlaky(t, 13247)
+ 	}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index a4385419d0..8dae95678d 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2988,7 +2988,7 @@ func testRequestBodyLimit(t *testing.T, h2 bool) {
+ // side of their TCP connection, the server doesn't send a 400 Bad Request.
+ func TestClientWriteShutdown(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping test; see https://golang.org/issue/7237")
++		t.Skip("skipping test; see https://golang.org/issue/17906")
+ 	}
+ 	defer afterTest(t)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index aa8beb9357..73e6e30331 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -21,7 +21,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/nettrace"
+-	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -2726,7 +2725,6 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
+ // Trying to repro golang.org/issue/3514
+ func TestTLSServerClosesConnection(t *testing.T) {
+ 	defer afterTest(t)
+-	testenv.SkipFlaky(t, 7634)
+ 
+ 	closedc := make(chan bool, 1)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index a31494d47b..c97e6df399 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -425,10 +425,6 @@ func TestOverflowSleep(t *testing.T) {
+ // Test that a panic while deleting a timer does not leave
+ // the timers mutex held, deadlocking a ticker.Stop in a defer.
+ func TestIssue5745(t *testing.T) {
+-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm" {
+-		t.Skipf("skipping on %s/%s, see issue 10043", runtime.GOOS, runtime.GOARCH)
+-	}
+-
+ 	ticker := NewTicker(Hour)
+ 	defer func() {
+ 		// would deadlock here before the fix due to

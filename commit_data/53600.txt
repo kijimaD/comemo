@@ -12,7 +12,46 @@ Date:   Tue Aug 23 14:06:19 2022 +0200
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httputil/dump.go      |  3 ---
  src/net/http/httputil/dump_test.go | 13 +++++++++++++
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index d7baecd9c1..6f5fa0d01d 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -258,9 +258,6 @@ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
+ 	if len(req.TransferEncoding) > 0 {
+ 		fmt.Fprintf(&b, "Transfer-Encoding: %s\r\n", strings.Join(req.TransferEncoding, ","))
+ 	}
+-	if req.Close {
+-		fmt.Fprintf(&b, "Connection: close\r\n")
+-	}
+ 
+ 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)
+ 	if err != nil {
+diff --git a/src/net/http/httputil/dump_test.go b/src/net/http/httputil/dump_test.go
+index 5df2ee8075..764750e2f7 100644
+--- a/src/net/http/httputil/dump_test.go
++++ b/src/net/http/httputil/dump_test.go
+@@ -236,6 +236,19 @@ var dumpTests = []dumpTest{
+ 			"Transfer-Encoding: chunked\r\n" +
+ 			"Accept-Encoding: gzip\r\n\r\n",
+ 	},
++
++	// Issue 54616: request with Connection header doesn't result in duplicate header.
++	{
++		GetReq: func() *http.Request {
++			return mustReadRequest("GET / HTTP/1.1\r\n" +
++				"Host: example.com\r\n" +
++				"Connection: close\r\n\r\n")
++		},
++		NoBody: true,
++		WantDump: "GET / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"Connection: close\r\n\r\n",
++	},
+ }
+ 
+ func TestDumpRequest(t *testing.T) {

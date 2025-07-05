@@ -14,7 +14,7 @@ Date:   Sat Apr 11 22:15:58 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |  22 +
  src/cmd/compile/internal/gc/bench_test.go       |  21 +
  src/cmd/compile/internal/ssa/addressingmodes.go |  37 ++
@@ -22,3 +22,757 @@ Date:   Sat Apr 11 22:15:58 2020 -0700
  src/cmd/compile/internal/ssa/opGen.go           | 525 ++++++++++++++++++++++++
  test/codegen/memops.go                          |  22 +-
  6 files changed, 657 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 2b75bd6549..e348e24a95 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -840,6 +840,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[1].Reg()
++		gc.AddAux(&p.From, v)
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++		if v.Reg() != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++	case ssa.OpAMD64ADDLloadidx1, ssa.OpAMD64ADDLloadidx4, ssa.OpAMD64ADDLloadidx8, ssa.OpAMD64ADDQloadidx1, ssa.OpAMD64ADDQloadidx8,
++		ssa.OpAMD64SUBLloadidx1, ssa.OpAMD64SUBLloadidx4, ssa.OpAMD64SUBLloadidx8, ssa.OpAMD64SUBQloadidx1, ssa.OpAMD64SUBQloadidx8,
++		ssa.OpAMD64ANDLloadidx1, ssa.OpAMD64ANDLloadidx4, ssa.OpAMD64ANDLloadidx8, ssa.OpAMD64ANDQloadidx1, ssa.OpAMD64ANDQloadidx8,
++		ssa.OpAMD64ORLloadidx1, ssa.OpAMD64ORLloadidx4, ssa.OpAMD64ORLloadidx8, ssa.OpAMD64ORQloadidx1, ssa.OpAMD64ORQloadidx8,
++		ssa.OpAMD64XORLloadidx1, ssa.OpAMD64XORLloadidx4, ssa.OpAMD64XORLloadidx8, ssa.OpAMD64XORQloadidx1, ssa.OpAMD64XORQloadidx8:
++		p := s.Prog(v.Op.Asm())
++
++		r, i := v.Args[1].Reg(), v.Args[2].Reg()
++		p.From.Type = obj.TYPE_MEM
++		p.From.Scale = v.Op.Scale()
++		if p.From.Scale == 1 && i == x86.REG_SP {
++			r, i = i, r
++		}
++		p.From.Reg = r
++		p.From.Index = i
++
+ 		gc.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+diff --git a/src/cmd/compile/internal/gc/bench_test.go b/src/cmd/compile/internal/gc/bench_test.go
+new file mode 100644
+index 0000000000..b20adefa43
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/bench_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import "testing"
++
++var globl int64
++
++func BenchmarkLoadAdd(b *testing.B) {
++	x := make([]int64, 1024)
++	y := make([]int64, 1024)
++	for i := 0; i < b.N; i++ {
++		var s int64
++		for i := range x {
++			s ^= x[i] + y[i]
++		}
++		globl = s
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/addressingmodes.go b/src/cmd/compile/internal/ssa/addressingmodes.go
+index eff0f8686a..0f68923e1f 100644
+--- a/src/cmd/compile/internal/ssa/addressingmodes.go
++++ b/src/cmd/compile/internal/ssa/addressingmodes.go
+@@ -217,6 +217,43 @@ var combine = map[[2]Op]Op{
+ 	[2]Op{OpAMD64CMPQconstload, OpAMD64LEAQ1}: OpAMD64CMPQconstloadidx1,
+ 	[2]Op{OpAMD64CMPQconstload, OpAMD64LEAQ8}: OpAMD64CMPQconstloadidx8,
+ 
++	[2]Op{OpAMD64ADDLload, OpAMD64ADDQ}: OpAMD64ADDLloadidx1,
++	[2]Op{OpAMD64ADDQload, OpAMD64ADDQ}: OpAMD64ADDQloadidx1,
++	[2]Op{OpAMD64SUBLload, OpAMD64ADDQ}: OpAMD64SUBLloadidx1,
++	[2]Op{OpAMD64SUBQload, OpAMD64ADDQ}: OpAMD64SUBQloadidx1,
++	[2]Op{OpAMD64ANDLload, OpAMD64ADDQ}: OpAMD64ANDLloadidx1,
++	[2]Op{OpAMD64ANDQload, OpAMD64ADDQ}: OpAMD64ANDQloadidx1,
++	[2]Op{OpAMD64ORLload, OpAMD64ADDQ}:  OpAMD64ORLloadidx1,
++	[2]Op{OpAMD64ORQload, OpAMD64ADDQ}:  OpAMD64ORQloadidx1,
++	[2]Op{OpAMD64XORLload, OpAMD64ADDQ}: OpAMD64XORLloadidx1,
++	[2]Op{OpAMD64XORQload, OpAMD64ADDQ}: OpAMD64XORQloadidx1,
++
++	[2]Op{OpAMD64ADDLload, OpAMD64LEAQ1}: OpAMD64ADDLloadidx1,
++	[2]Op{OpAMD64ADDLload, OpAMD64LEAQ4}: OpAMD64ADDLloadidx4,
++	[2]Op{OpAMD64ADDLload, OpAMD64LEAQ8}: OpAMD64ADDLloadidx8,
++	[2]Op{OpAMD64ADDQload, OpAMD64LEAQ1}: OpAMD64ADDQloadidx1,
++	[2]Op{OpAMD64ADDQload, OpAMD64LEAQ8}: OpAMD64ADDQloadidx8,
++	[2]Op{OpAMD64SUBLload, OpAMD64LEAQ1}: OpAMD64SUBLloadidx1,
++	[2]Op{OpAMD64SUBLload, OpAMD64LEAQ4}: OpAMD64SUBLloadidx4,
++	[2]Op{OpAMD64SUBLload, OpAMD64LEAQ8}: OpAMD64SUBLloadidx8,
++	[2]Op{OpAMD64SUBQload, OpAMD64LEAQ1}: OpAMD64SUBQloadidx1,
++	[2]Op{OpAMD64SUBQload, OpAMD64LEAQ8}: OpAMD64SUBQloadidx8,
++	[2]Op{OpAMD64ANDLload, OpAMD64LEAQ1}: OpAMD64ANDLloadidx1,
++	[2]Op{OpAMD64ANDLload, OpAMD64LEAQ4}: OpAMD64ANDLloadidx4,
++	[2]Op{OpAMD64ANDLload, OpAMD64LEAQ8}: OpAMD64ANDLloadidx8,
++	[2]Op{OpAMD64ANDQload, OpAMD64LEAQ1}: OpAMD64ANDQloadidx1,
++	[2]Op{OpAMD64ANDQload, OpAMD64LEAQ8}: OpAMD64ANDQloadidx8,
++	[2]Op{OpAMD64ORLload, OpAMD64LEAQ1}:  OpAMD64ORLloadidx1,
++	[2]Op{OpAMD64ORLload, OpAMD64LEAQ4}:  OpAMD64ORLloadidx4,
++	[2]Op{OpAMD64ORLload, OpAMD64LEAQ8}:  OpAMD64ORLloadidx8,
++	[2]Op{OpAMD64ORQload, OpAMD64LEAQ1}:  OpAMD64ORQloadidx1,
++	[2]Op{OpAMD64ORQload, OpAMD64LEAQ8}:  OpAMD64ORQloadidx8,
++	[2]Op{OpAMD64XORLload, OpAMD64LEAQ1}: OpAMD64XORLloadidx1,
++	[2]Op{OpAMD64XORLload, OpAMD64LEAQ4}: OpAMD64XORLloadidx4,
++	[2]Op{OpAMD64XORLload, OpAMD64LEAQ8}: OpAMD64XORLloadidx8,
++	[2]Op{OpAMD64XORQload, OpAMD64LEAQ1}: OpAMD64XORQloadidx1,
++	[2]Op{OpAMD64XORQload, OpAMD64LEAQ8}: OpAMD64XORQloadidx8,
++
+ 	// 386
+ 	[2]Op{Op386MOVBload, Op386ADDL}:  Op386MOVBloadidx1,
+ 	[2]Op{Op386MOVWload, Op386ADDL}:  Op386MOVWloadidx1,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index a5c1e5c84d..0ecbc940e5 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -136,10 +136,11 @@ func init() {
+ 		readflags = regInfo{inputs: nil, outputs: gponly}
+ 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
+ 
+-		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
+-		gp21load  = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
+-		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
+-		gp21pax   = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
++		gpload      = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
++		gp21load    = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
++		gploadidx   = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
++		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsb, gpsp, 0}, outputs: gponly}
++		gp21pax     = regInfo{inputs: []regMask{gp &^ ax, gp}, outputs: []regMask{gp &^ ax}, clobbers: ax}
+ 
+ 		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+ 		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
+@@ -409,6 +410,32 @@ func init() {
+ 		{name: "XORQload", argLength: 3, reg: gp21load, asm: "XORQ", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
+ 		{name: "XORLload", argLength: 3, reg: gp21load, asm: "XORL", aux: "SymOff", resultInArg0: true, clobberFlags: true, faultOnNilArg1: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+auxint+aux, arg2 = mem
+ 
++		{name: "ADDLloadidx1", argLength: 4, reg: gp21loadidx, asm: "ADDL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "ADDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ADDL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "ADDLloadidx8", argLength: 4, reg: gp21loadidx, asm: "ADDL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "ADDQloadidx1", argLength: 4, reg: gp21loadidx, asm: "ADDQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "ADDQloadidx8", argLength: 4, reg: gp21loadidx, asm: "ADDQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 + tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "SUBLloadidx1", argLength: 4, reg: gp21loadidx, asm: "SUBL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "SUBLloadidx4", argLength: 4, reg: gp21loadidx, asm: "SUBL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "SUBLloadidx8", argLength: 4, reg: gp21loadidx, asm: "SUBL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "SUBQloadidx1", argLength: 4, reg: gp21loadidx, asm: "SUBQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "SUBQloadidx8", argLength: 4, reg: gp21loadidx, asm: "SUBQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 - tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "ANDLloadidx1", argLength: 4, reg: gp21loadidx, asm: "ANDL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "ANDLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ANDL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "ANDLloadidx8", argLength: 4, reg: gp21loadidx, asm: "ANDL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "ANDQloadidx1", argLength: 4, reg: gp21loadidx, asm: "ANDQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "ANDQloadidx8", argLength: 4, reg: gp21loadidx, asm: "ANDQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 & tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "ORLloadidx1", argLength: 4, reg: gp21loadidx, asm: "ORL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "ORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "ORL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "ORLloadidx8", argLength: 4, reg: gp21loadidx, asm: "ORL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "ORQloadidx1", argLength: 4, reg: gp21loadidx, asm: "ORQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "ORQloadidx8", argLength: 4, reg: gp21loadidx, asm: "ORQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"},   // arg0 | tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "XORLloadidx1", argLength: 4, reg: gp21loadidx, asm: "XORL", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "XORLloadidx4", argLength: 4, reg: gp21loadidx, asm: "XORL", scale: 4, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "XORLloadidx8", argLength: 4, reg: gp21loadidx, asm: "XORL", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "XORQloadidx1", argLength: 4, reg: gp21loadidx, asm: "XORQ", scale: 1, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+  arg2+auxint+aux, arg3 = mem
++		{name: "XORQloadidx8", argLength: 4, reg: gp21loadidx, asm: "XORQ", scale: 8, aux: "SymOff", resultInArg0: true, clobberFlags: true, symEffect: "Read"}, // arg0 ^ tmp, tmp loaded from  arg1+8*arg2+auxint+aux, arg3 = mem
++
+ 		// direct binary-op on memory (read-modify-write)
+ 		{name: "ADDQmodify", argLength: 3, reg: gpstore, asm: "ADDQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) += arg1, arg2=mem
+ 		{name: "SUBQmodify", argLength: 3, reg: gpstore, asm: "SUBQ", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write"}, // *(arg0+auxint+aux) -= arg1, arg2=mem
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 614147ff2d..2bc3a5bc1d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -718,6 +718,31 @@ const (
+ 	OpAMD64ORLload
+ 	OpAMD64XORQload
+ 	OpAMD64XORLload
++	OpAMD64ADDLloadidx1
++	OpAMD64ADDLloadidx4
++	OpAMD64ADDLloadidx8
++	OpAMD64ADDQloadidx1
++	OpAMD64ADDQloadidx8
++	OpAMD64SUBLloadidx1
++	OpAMD64SUBLloadidx4
++	OpAMD64SUBLloadidx8
++	OpAMD64SUBQloadidx1
++	OpAMD64SUBQloadidx8
++	OpAMD64ANDLloadidx1
++	OpAMD64ANDLloadidx4
++	OpAMD64ANDLloadidx8
++	OpAMD64ANDQloadidx1
++	OpAMD64ANDQloadidx8
++	OpAMD64ORLloadidx1
++	OpAMD64ORLloadidx4
++	OpAMD64ORLloadidx8
++	OpAMD64ORQloadidx1
++	OpAMD64ORQloadidx8
++	OpAMD64XORLloadidx1
++	OpAMD64XORLloadidx4
++	OpAMD64XORLloadidx8
++	OpAMD64XORQloadidx1
++	OpAMD64XORQloadidx8
+ 	OpAMD64ADDQmodify
+ 	OpAMD64SUBQmodify
+ 	OpAMD64ANDQmodify
+@@ -9021,6 +9046,506 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "ADDLloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ADDLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ADDLloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ADDQloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ADDQloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SUBLloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SUBLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SUBLloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SUBQloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "SUBQloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ANDLloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AANDL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ANDLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AANDL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ANDLloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AANDL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ANDQloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AANDQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ANDQloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AANDQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ORLloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AORL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ORLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AORL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ORLloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AORL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ORQloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AORQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "ORQloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AORQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "XORLloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AXORL,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "XORLloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AXORL,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "XORLloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AXORL,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "XORQloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AXORQ,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "XORQloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		clobberFlags: true,
++		symEffect:    SymRead,
++		asm:          x86.AXORQ,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:           "ADDQmodify",
+ 		auxType:        auxSymOff,
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index dbe4263d8d..701735f875 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -205,23 +205,43 @@ func idxFloat64(x, y []float64, i int) {
+ 	y[16*i+1] = t
+ }
+ 
+-func idxLoadPlusOp(x []int32, i int) int32 {
++func idxLoadPlusOp32(x []int32, i int) int32 {
+ 	s := x[0]
+ 	// 386: `ADDL\t4\([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
++	// amd64: `ADDL\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	s += x[i+1]
+ 	// 386: `SUBL\t8\([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
++	// amd64: `SUBL\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	s -= x[i+2]
+ 	// 386: `IMULL\t12\([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
+ 	s *= x[i+3]
+ 	// 386: `ANDL\t16\([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
++	// amd64: `ANDL\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	s &= x[i+4]
+ 	// 386: `ORL\t20\([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
++	// amd64: `ORL\t20\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	s |= x[i+5]
+ 	// 386: `XORL\t24\([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
++	// amd64: `XORL\t24\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), [A-Z]+[0-9]*`
+ 	s ^= x[i+6]
+ 	return s
+ }
+ 
++func idxLoadPlusOp64(x []int64, i int) int64 {
++	s := x[0]
++	// amd64: `ADDQ\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s += x[i+1]
++	// amd64: `SUBQ\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s -= x[i+2]
++	// amd64: `ANDQ\t24\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s &= x[i+3]
++	// amd64: `ORQ\t32\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s |= x[i+4]
++	// amd64: `XORQ\t40\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), [A-Z]+[0-9]*`
++	s ^= x[i+5]
++	return s
++}
++
+ func idxStorePlusOp(x []int32, i int, v int32) {
+ 	// 386: `ADDL\t[A-Z]+, 4\([A-Z]+\)\([A-Z]+\*4\)`
+ 	x[i+1] += v

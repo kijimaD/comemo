@@ -12,8 +12,64 @@ Date:   Wed Sep 2 22:26:42 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 8 ++++++--
  src/cmd/dist/test.go               | 2 +-
  src/cmd/go/build.go                | 2 +-
  3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 63cdd9b9ce..32c6b41d10 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -21,6 +21,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -203,11 +204,14 @@ func TestNoTextrel(t *testing.T) {
+ }
+ 
+ // The install command should have created a "shlibname" file for the
+-// listed packages (and runtime/cgo) indicating the name of the shared
+-// library containing it.
++// listed packages (and runtime/cgo, and math on arm) indicating the
++// name of the shared library containing it.
+ func TestShlibnameFiles(t *testing.T) {
+ 	pkgs := append([]string{}, minpkgs...)
+ 	pkgs = append(pkgs, "runtime/cgo")
++	if runtime.GOARCH == "arm" {
++		pkgs = append(pkgs, "math")
++	}
+ 	for _, pkg := range pkgs {
+ 		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
+ 		contentsb, err := ioutil.ReadFile(shlibnamefile)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6fa1036a13..99e0c69078 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -587,7 +587,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		return false
+ 	case "shared":
+ 		switch pair {
+-		case "linux-amd64":
++		case "linux-amd64", "linux-arm":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4c2eea79ad..ea27ae1dd1 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -378,7 +378,7 @@ func buildModeInit() {
+ 			fatalf("-buildmode=pie not supported by gccgo")
+ 		} else {
+ 			switch platform {
+-			case "android/arm", "linux/amd64", "android/amd64", "linux/ppc64le":
++			case "linux/arm", "android/arm", "linux/amd64", "android/amd64", "linux/ppc64le":
+ 				codegenArg = "-shared"
+ 			default:
+ 				fatalf("-buildmode=pie not supported on %s\n", platform)

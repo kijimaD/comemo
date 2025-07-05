@@ -9,7 +9,34 @@ Date:   Sat Apr 27 04:10:01 2019 +0000
     GitHub-Pull-Request: golang/go#31711
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174086
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/go/alldocs.go                  | 2 +-
  src/cmd/go/internal/version/version.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index aa311a0188..425cfce582 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1373,7 +1373,7 @@
+ // during a directory scan. The -v flag causes it to report unrecognized files.
+ //
+ // The -m flag causes go version to print each executable's embedded
+-// module version information, when available. In the output, the modul
++// module version information, when available. In the output, the module
+ // information consists of multiple lines following the version line, each
+ // indented by a leading tab character.
+ //
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 2b071f6087..857548c7ed 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -34,7 +34,7 @@ By default, go version does not report unrecognized files found
+ during a directory scan. The -v flag causes it to report unrecognized files.
+ 
+ The -m flag causes go version to print each executable's embedded
+-module version information, when available. In the output, the modul
++module version information, when available. In the output, the module
+ information consists of multiple lines following the version line, each
+ indented by a leading tab character.
+ 

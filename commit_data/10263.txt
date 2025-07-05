@@ -9,7 +9,39 @@ Date:   Sun Nov 6 22:14:15 2011 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5346044
-
+---
  src/cmd/gc/range.c | 4 ++++
  test/chan/perm.go  | 5 ++++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 1909c9ec77..25d1131ec3 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -46,6 +46,10 @@ typecheckrange(Node *n)
+ 		break;
+ 
+ 	case TCHAN:
++		if(!(t->chan & Crecv)) {
++			yyerror("invalid operation: range %N (receive from send-only type %T)", n->right, n->right->type);
++			goto out;
++		}
+ 		t1 = t->type;
+ 		t2 = nil;
+ 		if(count(n->list) == 2)
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index af054450ea..a43df19821 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -48,7 +48,10 @@ func main() {
+ 	case x := <-cs: // ERROR "receive"
+ 		_ = x
+ 	}
+-	
++
++	for _ = range cs {// ERROR "receive"
++	}
++
+ 	close(c)
+ 	close(cs)
+ 	close(cr)  // ERROR "receive"

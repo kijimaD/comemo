@@ -7,7 +7,34 @@ Date:   Sun Feb 19 19:26:05 2012 +0100
     R=r, r, rsc
     CC=golang-dev
     https://golang.org/cl/5656108
-
+---
  doc/go1.html | 2 +-
  doc/go1.tmpl | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 9e98a9782f..05d3eb5031 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1705,7 +1705,7 @@ for full details.
+ <tr>
+ <td colspan="2"><hr></td>
+ </tr>
+-<tr><td>Ftoa32(x, f, p)</td> <td>FormatFloat(x, float64(f), p, 32)</td></tr>
++<tr><td>Ftoa32(x, f, p)</td> <td>FormatFloat(float64(x), f, p, 32)</td></tr>
+ <tr><td>Ftoa64(x, f, p)</td> <td>FormatFloat(x, f, p, 64)</td></tr>
+ <tr><td>FtoaN(x, f, p, n)</td> <td>FormatFloat(x, f, p, n)</td></tr>
+ <tr>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 6155fb41cf..7a28be3c3a 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1590,7 +1590,7 @@ for full details.
+ <tr>
+ <td colspan="2"><hr></td>
+ </tr>
+-<tr><td>Ftoa32(x, f, p)</td> <td>FormatFloat(x, float64(f), p, 32)</td></tr>
++<tr><td>Ftoa32(x, f, p)</td> <td>FormatFloat(float64(x), f, p, 32)</td></tr>
+ <tr><td>Ftoa64(x, f, p)</td> <td>FormatFloat(x, f, p, 64)</td></tr>
+ <tr><td>FtoaN(x, f, p, n)</td> <td>FormatFloat(x, f, p, n)</td></tr>
+ <tr>

@@ -13,9 +13,66 @@ Date:   Sun Mar 4 13:41:30 2018 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/time_js_wasm.s | 11 +++++++++++
  src/syscall/timestruct.go  |  2 +-
  src/time/sys_unix.go       |  2 +-
  src/time/zoneinfo_unix.go  |  2 +-
  4 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/time_js_wasm.s b/src/syscall/time_js_wasm.s
+new file mode 100644
+index 0000000000..f08b17006d
+--- /dev/null
++++ b/src/syscall/time_js_wasm.s
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++TEXT ·startTimer(SB),NOSPLIT,$0
++	JMP time·startTimer(SB)
++
++TEXT ·stopTimer(SB),NOSPLIT,$0
++	JMP time·stopTimer(SB)
+diff --git a/src/syscall/timestruct.go b/src/syscall/timestruct.go
+index 49c3383b4f..84a00a77d8 100644
+--- a/src/syscall/timestruct.go
++++ b/src/syscall/timestruct.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package syscall
+ 
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index 0ef597fd9b..e064e0046c 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
++// +build darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+ 
+ package time
+ 
+diff --git a/src/time/zoneinfo_unix.go b/src/time/zoneinfo_unix.go
+index 88313aa0ed..a37fd742df 100644
+--- a/src/time/zoneinfo_unix.go
++++ b/src/time/zoneinfo_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin,386 darwin,amd64 dragonfly freebsd linux,!android nacl netbsd openbsd solaris
++// +build darwin,386 darwin,amd64 dragonfly freebsd js,wasm linux,!android nacl netbsd openbsd solaris
+ 
+ // Parse "zoneinfo" time zone file.
+ // This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.

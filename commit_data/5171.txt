@@ -7,6 +7,20 @@ Date:   Mon Mar 29 18:41:55 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/826042
-
+---
  src/pkg/go/printer/printer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index d9df2e819d..5a12c6edb5 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -964,7 +964,7 @@ type Config struct {
+ // Fprint "pretty-prints" an AST node to output and returns the number
+ // of bytes written and an error (if any) for a given configuration cfg.
+ // The node type must be *ast.File, or assignment-compatible to ast.Expr,
+-// ast.Decl, or ast.Stmt.
++// ast.Decl, ast.Spec, or ast.Stmt.
+ //
+ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
+ 	// redirect output through a trimmer to eliminate trailing whitespace

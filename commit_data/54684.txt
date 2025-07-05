@@ -11,7 +11,7 @@ Date:   Wed Nov 9 19:53:15 2022 +0800
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/api/testdata/src/pkg/p1/p1.go            | 4 ++++
  src/cmd/api/testdata/src/pkg/p2/p2.go            | 4 ++++
  src/cmd/api/testdata/src/pkg/p3/p3.go            | 4 ++++
@@ -32,3 +32,232 @@ Date:   Wed Nov 9 19:53:15 2022 +0800
  src/reflect/internal/example2/example.go         | 4 ++++
  src/syscall/const_plan9.go                       | 4 ++++
  19 files changed, 76 insertions(+)
+
+diff --git a/src/cmd/api/testdata/src/pkg/p1/p1.go b/src/cmd/api/testdata/src/pkg/p1/p1.go
+index 81826d768b..de00baf75f 100644
+--- a/src/cmd/api/testdata/src/pkg/p1/p1.go
++++ b/src/cmd/api/testdata/src/pkg/p1/p1.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package p1
+ 
+ import (
+diff --git a/src/cmd/api/testdata/src/pkg/p2/p2.go b/src/cmd/api/testdata/src/pkg/p2/p2.go
+index 6b107b5079..b179a399ee 100644
+--- a/src/cmd/api/testdata/src/pkg/p2/p2.go
++++ b/src/cmd/api/testdata/src/pkg/p2/p2.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package p2
+ 
+ type Twoer interface {
+diff --git a/src/cmd/api/testdata/src/pkg/p3/p3.go b/src/cmd/api/testdata/src/pkg/p3/p3.go
+index 1b2b1a4262..3a0686abb0 100644
+--- a/src/cmd/api/testdata/src/pkg/p3/p3.go
++++ b/src/cmd/api/testdata/src/pkg/p3/p3.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package p3
+ 
+ type ThirdBase struct{}
+diff --git a/src/cmd/compile/internal/compare/compare_test.go b/src/cmd/compile/internal/compare/compare_test.go
+index 85c11bfd40..db34657334 100644
+--- a/src/cmd/compile/internal/compare/compare_test.go
++++ b/src/cmd/compile/internal/compare/compare_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package compare
+ 
+ import (
+diff --git a/src/cmd/compile/internal/ssa/fuse_test.go b/src/cmd/compile/internal/ssa/fuse_test.go
+index 27a14b1781..fa7921a18f 100644
+--- a/src/cmd/compile/internal/ssa/fuse_test.go
++++ b/src/cmd/compile/internal/ssa/fuse_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package ssa
+ 
+ import (
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index 673c88a600..4dadfe8630 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package ssa_test
+ 
+ import (
+diff --git a/src/cmd/dist/quoted.go b/src/cmd/dist/quoted.go
+index e87b8a3965..9f3058198e 100644
+--- a/src/cmd/dist/quoted.go
++++ b/src/cmd/dist/quoted.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ import "fmt"
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 7ff4538d41..b5754f40ca 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // Package fsys is an abstraction for reading files that
+ // allows for virtual overlays on top of the files on disk.
+ package fsys
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 41da4f4b02..b441e19afe 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package fsys
+ 
+ import (
+diff --git a/src/cmd/go/internal/load/pkg_test.go b/src/cmd/go/internal/load/pkg_test.go
+index 1e59fb989c..3bcddee30b 100644
+--- a/src/cmd/go/internal/load/pkg_test.go
++++ b/src/cmd/go/internal/load/pkg_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package load
+ 
+ import (
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index 7207e1e523..712257ac21 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package modindex
+ 
+ import (
+diff --git a/src/cmd/internal/obj/x86/obj6_test.go b/src/cmd/internal/obj/x86/obj6_test.go
+index 6384fa07d8..354454fe24 100644
+--- a/src/cmd/internal/obj/x86/obj6_test.go
++++ b/src/cmd/internal/obj/x86/obj6_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package x86_test
+ 
+ import (
+diff --git a/src/internal/goos/nonunix.go b/src/internal/goos/nonunix.go
+index 0f1373ff31..2ba5c8555a 100644
+--- a/src/internal/goos/nonunix.go
++++ b/src/internal/goos/nonunix.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ //go:build !unix
+ 
+ package goos
+diff --git a/src/internal/goos/unix.go b/src/internal/goos/unix.go
+index 6ef2a2c7d1..6cfd5ef675 100644
+--- a/src/internal/goos/unix.go
++++ b/src/internal/goos/unix.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ //go:build unix
+ 
+ package goos
+diff --git a/src/internal/profile/proto_test.go b/src/internal/profile/proto_test.go
+index c2613fc375..46c6d83063 100644
+--- a/src/internal/profile/proto_test.go
++++ b/src/internal/profile/proto_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package profile
+ 
+ import (
+diff --git a/src/path/filepath/symlink_unix.go b/src/path/filepath/symlink_unix.go
+index f8980d5ad3..4cac063be0 100644
+--- a/src/path/filepath/symlink_unix.go
++++ b/src/path/filepath/symlink_unix.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ //go:build !windows && !plan9
+ 
+ package filepath
+diff --git a/src/reflect/internal/example1/example.go b/src/reflect/internal/example1/example.go
+index 0f829a86bf..181dd993af 100644
+--- a/src/reflect/internal/example1/example.go
++++ b/src/reflect/internal/example1/example.go
+@@ -1,3 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package example1
+ 
+ type MyStruct struct {
+diff --git a/src/reflect/internal/example2/example.go b/src/reflect/internal/example2/example.go
+index df64ba1ff9..8a55826a1c 100644
+--- a/src/reflect/internal/example2/example.go
++++ b/src/reflect/internal/example2/example.go
+@@ -1,3 +1,7 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package example2
+ 
+ type MyStruct struct {
+diff --git a/src/syscall/const_plan9.go b/src/syscall/const_plan9.go
+index 063d5dfd7c..64a4b50eec 100644
+--- a/src/syscall/const_plan9.go
++++ b/src/syscall/const_plan9.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package syscall
+ 
+ // Plan 9 Constants

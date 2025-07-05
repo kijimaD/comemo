@@ -29,7 +29,69 @@ Date:   Wed May 18 11:58:53 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/walk/complit.go |  8 +++++++-
  test/fixedbugs/issue52953.go             | 29 +++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 748a53df33..595fe8538c 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -618,6 +618,12 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+ 		// not a special composite literal assignment
+ 		return false
+ 	}
++	if x.Addrtaken() {
++		// If x is address-taken, the RHS may (implicitly) uses LHS.
++		// Not safe to do a special composite literal assignment
++		// (which may expand to multiple assignments).
++		return false
++	}
+ 
+ 	switch n.Y.Op() {
+ 	default:
+@@ -626,7 +632,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
+ 
+ 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+ 		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
+-			// not a special composite literal assignment
++			// not safe to do a special composite literal assignment if RHS uses LHS.
+ 			return false
+ 		}
+ 		anylit(n.Y, n.X, init)
+diff --git a/test/fixedbugs/issue52953.go b/test/fixedbugs/issue52953.go
+new file mode 100644
+index 0000000000..2085e4e3fe
+--- /dev/null
++++ b/test/fixedbugs/issue52953.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 52953: miscompilation for composite literal assignment
++// when LHS is address-taken.
++
++package main
++
++type T struct {
++	Field1 bool
++}
++
++func main() {
++	var ret T
++	ret.Field1 = true
++	var v *bool = &ret.Field1
++	ret = T{Field1: *v}
++	check(ret.Field1)
++}
++
++//go:noinline
++func check(b bool) {
++	if !b {
++		panic("FAIL")
++	}
++}

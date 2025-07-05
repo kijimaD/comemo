@@ -39,7 +39,7 @@ Date:   Wed Oct 23 11:25:38 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/cgocheck.go    |  2 +-
  src/runtime/export_test.go |  6 +--
  src/runtime/heapdump.go    |  8 ++--
@@ -50,3 +50,501 @@ Date:   Wed Oct 23 11:25:38 2019 -0400
  src/runtime/signal_unix.go |  2 +-
  src/runtime/stack.go       |  4 +-
  9 files changed, 104 insertions(+), 57 deletions(-)
+
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index ed854e5e2b..9c5b26e4f3 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -133,7 +133,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	}
+ 
+ 	s := spanOfUnchecked(uintptr(src))
+-	if s.state == mSpanManual {
++	if s.state.get() == mSpanManual {
+ 		// There are no heap bits for value stored on the stack.
+ 		// For a channel receive src might be on the stack of some
+ 		// other goroutine, so we can't unwind the stack even if
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 0bd5c902e8..831f3f13d4 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -256,7 +256,7 @@ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 	pagesInUse = uintptr(mheap_.pagesInUse)
+ 
+ 	for _, s := range mheap_.allspans {
+-		if s.state == mSpanInUse {
++		if s.state.get() == mSpanInUse {
+ 			counted += s.npages
+ 		}
+ 	}
+@@ -318,7 +318,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 
+ 		// Add up current allocations in spans.
+ 		for _, s := range mheap_.allspans {
+-			if s.state != mSpanInUse {
++			if s.state.get() != mSpanInUse {
+ 				continue
+ 			}
+ 			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
+@@ -542,7 +542,7 @@ func UnscavHugePagesSlow() (uintptr, uintptr) {
+ 		lock(&mheap_.lock)
+ 		base = mheap_.free.unscavHugePages
+ 		for _, s := range mheap_.allspans {
+-			if s.state == mSpanFree && !s.scavenged {
++			if s.state.get() == mSpanFree && !s.scavenged {
+ 				slow += s.hugePages()
+ 			}
+ 		}
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 4d55b316f7..cfd5c251b4 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -435,7 +435,7 @@ func dumproots() {
+ 
+ 	// mspan.types
+ 	for _, s := range mheap_.allspans {
+-		if s.state == mSpanInUse {
++		if s.state.get() == mSpanInUse {
+ 			// Finalizers
+ 			for sp := s.specials; sp != nil; sp = sp.next {
+ 				if sp.kind != _KindSpecialFinalizer {
+@@ -458,7 +458,7 @@ var freemark [_PageSize / 8]bool
+ 
+ func dumpobjs() {
+ 	for _, s := range mheap_.allspans {
+-		if s.state != mSpanInUse {
++		if s.state.get() != mSpanInUse {
+ 			continue
+ 		}
+ 		p := s.base()
+@@ -621,7 +621,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ func dumpmemprof() {
+ 	iterate_memprof(dumpmemprof_callback)
+ 	for _, s := range mheap_.allspans {
+-		if s.state != mSpanInUse {
++		if s.state.get() != mSpanInUse {
+ 			continue
+ 		}
+ 		for sp := s.specials; sp != nil; sp = sp.next {
+@@ -642,7 +642,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
+ func mdump() {
+ 	// make sure we're done sweeping
+ 	for _, s := range mheap_.allspans {
+-		if s.state == mSpanInUse {
++		if s.state.get() == mSpanInUse {
+ 			s.ensureSwept()
+ 		}
+ 	}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 9600cddac8..55c0282403 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -243,6 +243,10 @@ func (s *mspan) nextFreeIndex() uintptr {
+ }
+ 
+ // isFree reports whether the index'th object in s is unallocated.
++//
++// The caller must ensure s.state is mSpanInUse, and there must have
++// been no preemption points since ensuring this (which could allow a
++// GC transition, which would allow the state to change).
+ func (s *mspan) isFree(index uintptr) bool {
+ 	if index < s.freeindex {
+ 		return false
+@@ -361,12 +365,13 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
+ 	// in allocated spans.
+ 	printlock()
+ 	print("runtime: pointer ", hex(p))
+-	if s.state != mSpanInUse {
++	state := s.state.get()
++	if state != mSpanInUse {
+ 		print(" to unallocated span")
+ 	} else {
+ 		print(" to unused region of span")
+ 	}
+-	print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
++	print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", state, "\n")
+ 	if refBase != 0 {
+ 		print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
+ 		gcDumpObject("object", refBase, refOff)
+@@ -397,9 +402,12 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ 		return
+ 	}
+ 	// If p is a bad pointer, it may not be in s's bounds.
+-	if p < s.base() || p >= s.limit || s.state != mSpanInUse {
++	//
++	// Check s.state to synchronize with span initialization
++	// before checking other fields. See also spanOfHeap.
++	if state := s.state.get(); state != mSpanInUse || p < s.base() || p >= s.limit {
+ 		// Pointers into stacks are also ok, the runtime manages these explicitly.
+-		if s.state == mSpanManual {
++		if state == mSpanManual {
+ 			return
+ 		}
+ 		// The following ensures that we are rigorous about what data
+@@ -620,7 +628,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 			}
+ 		}
+ 		return
+-	} else if s.state != mSpanInUse || dst < s.base() || s.limit <= dst {
++	} else if s.state.get() != mSpanInUse || dst < s.base() || s.limit <= dst {
+ 		// dst was heap memory at some point, but isn't now.
+ 		// It can't be a global. It must be either our stack,
+ 		// or in the case of direct channel sends, it could be
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 338983424c..2987d3572b 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -321,7 +321,9 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	// entered the scan phase, so addfinalizer will have ensured
+ 	// the above invariants for them.
+ 	for _, s := range spans {
+-		if s.state != mSpanInUse {
++		// This is racing with spans being initialized, so
++		// check the state carefully.
++		if s.state.get() != mSpanInUse {
+ 			continue
+ 		}
+ 		// Check that this span was swept (it may be cached or uncached).
+@@ -1310,15 +1312,15 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 		return
+ 	}
+ 	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.spanclass=", s.spanclass, " s.elemsize=", s.elemsize, " s.state=")
+-	if 0 <= s.state && int(s.state) < len(mSpanStateNames) {
+-		print(mSpanStateNames[s.state], "\n")
++	if state := s.state.get(); 0 <= state && int(state) < len(mSpanStateNames) {
++		print(mSpanStateNames[state], "\n")
+ 	} else {
+-		print("unknown(", s.state, ")\n")
++		print("unknown(", state, ")\n")
+ 	}
+ 
+ 	skipped := false
+ 	size := s.elemsize
+-	if s.state == mSpanManual && size == 0 {
++	if s.state.get() == mSpanManual && size == 0 {
+ 		// We're printing something from a stack frame. We
+ 		// don't know how big it is, so just show up to an
+ 		// including off.
+@@ -1406,7 +1408,7 @@ var useCheckmark = false
+ func initCheckmarks() {
+ 	useCheckmark = true
+ 	for _, s := range mheap_.allspans {
+-		if s.state == mSpanInUse {
++		if s.state.get() == mSpanInUse {
+ 			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
+ 		}
+ 	}
+@@ -1415,7 +1417,7 @@ func initCheckmarks() {
+ func clearCheckmarks() {
+ 	useCheckmark = false
+ 	for _, s := range mheap_.allspans {
+-		if s.state == mSpanInUse {
++		if s.state.get() == mSpanInUse {
+ 			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
+ 		}
+ 	}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 5f1c90bfe0..580de7a715 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -114,12 +114,12 @@ func sweepone() uintptr {
+ 			atomic.Store(&mheap_.sweepdone, 1)
+ 			break
+ 		}
+-		if s.state != mSpanInUse {
++		if state := s.state.get(); state != mSpanInUse {
+ 			// This can happen if direct sweeping already
+ 			// swept this span, but in that case the sweep
+ 			// generation should always be up-to-date.
+ 			if !(s.sweepgen == sg || s.sweepgen == sg+3) {
+-				print("runtime: bad span s.state=", s.state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
++				print("runtime: bad span s.state=", state, " s.sweepgen=", s.sweepgen, " sweepgen=", sg, "\n")
+ 				throw("non in-use span in unswept list")
+ 			}
+ 			continue
+@@ -211,8 +211,8 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		throw("mspan.sweep: m is not locked")
+ 	}
+ 	sweepgen := mheap_.sweepgen
+-	if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+-		print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
++	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
++		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+ 		throw("mspan.sweep: bad span state")
+ 	}
+ 
+@@ -351,8 +351,8 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	if freeToHeap || nfreed == 0 {
+ 		// The span must be in our exclusive ownership until we update sweepgen,
+ 		// check for potential races.
+-		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
+-			print("mspan.sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
++		if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
++			print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
+ 			throw("mspan.sweep: bad span state after sweep")
+ 		}
+ 		// Serialization point.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d9c8bbae7e..83ee310cda 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -305,6 +305,14 @@ type arenaHint struct {
+ // * During GC (gcphase != _GCoff), a span *must not* transition from
+ //   manual or in-use to free. Because concurrent GC may read a pointer
+ //   and then look up its span, the span state must be monotonic.
++//
++// Setting mspan.state to mSpanInUse or mSpanManual must be done
++// atomically and only after all other span fields are valid.
++// Likewise, if inspecting a span is contingent on it being
++// mSpanInUse, the state should be loaded atomically and checked
++// before depending on other fields. This allows the garbage collector
++// to safely deal with potentially invalid pointers, since resolving
++// such pointers may race with a span being allocated.
+ type mSpanState uint8
+ 
+ const (
+@@ -323,6 +331,21 @@ var mSpanStateNames = []string{
+ 	"mSpanFree",
+ }
+ 
++// mSpanStateBox holds an mSpanState and provides atomic operations on
++// it. This is a separate type to disallow accidental comparison or
++// assignment with mSpanState.
++type mSpanStateBox struct {
++	s mSpanState
++}
++
++func (b *mSpanStateBox) set(s mSpanState) {
++	atomic.Store8((*uint8)(&b.s), uint8(s))
++}
++
++func (b *mSpanStateBox) get() mSpanState {
++	return mSpanState(atomic.Load8((*uint8)(&b.s)))
++}
++
+ // mSpanList heads a linked list of spans.
+ //
+ //go:notinheap
+@@ -404,19 +427,19 @@ type mspan struct {
+ 	// h->sweepgen is incremented by 2 after every GC
+ 
+ 	sweepgen    uint32
+-	divMul      uint16     // for divide by elemsize - divMagic.mul
+-	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
+-	allocCount  uint16     // number of allocated objects
+-	spanclass   spanClass  // size class and noscan (uint8)
+-	state       mSpanState // mspaninuse etc
+-	needzero    uint8      // needs to be zeroed before allocation
+-	divShift    uint8      // for divide by elemsize - divMagic.shift
+-	divShift2   uint8      // for divide by elemsize - divMagic.shift2
+-	scavenged   bool       // whether this span has had its pages released to the OS
+-	elemsize    uintptr    // computed from sizeclass or from npages
+-	limit       uintptr    // end of data in span
+-	speciallock mutex      // guards specials list
+-	specials    *special   // linked list of special records sorted by offset.
++	divMul      uint16        // for divide by elemsize - divMagic.mul
++	baseMask    uint16        // if non-0, elemsize is a power of 2, & this will get object allocation base
++	allocCount  uint16        // number of allocated objects
++	spanclass   spanClass     // size class and noscan (uint8)
++	state       mSpanStateBox // mSpanInUse etc; accessed atomically (get/set methods)
++	needzero    uint8         // needs to be zeroed before allocation
++	divShift    uint8         // for divide by elemsize - divMagic.shift
++	divShift2   uint8         // for divide by elemsize - divMagic.shift2
++	scavenged   bool          // whether this span has had its pages released to the OS
++	elemsize    uintptr       // computed from sizeclass or from npages
++	limit       uintptr       // end of data in span
++	speciallock mutex         // guards specials list
++	specials    *special      // linked list of special records sorted by offset.
+ }
+ 
+ func (s *mspan) base() uintptr {
+@@ -483,7 +506,7 @@ func (h *mheap) coalesce(s *mspan) {
+ 		// The size is potentially changing so the treap needs to delete adjacent nodes and
+ 		// insert back as a combined node.
+ 		h.free.removeSpan(other)
+-		other.state = mSpanDead
++		other.state.set(mSpanDead)
+ 		h.spanalloc.free(unsafe.Pointer(other))
+ 	}
+ 
+@@ -525,7 +548,7 @@ func (h *mheap) coalesce(s *mspan) {
+ 
+ 	// Coalesce with earlier, later spans.
+ 	var hpBefore uintptr
+-	if before := spanOf(s.base() - 1); before != nil && before.state == mSpanFree {
++	if before := spanOf(s.base() - 1); before != nil && before.state.get() == mSpanFree {
+ 		if s.scavenged == before.scavenged {
+ 			hpBefore = before.hugePages()
+ 			merge(before, s, before)
+@@ -536,7 +559,7 @@ func (h *mheap) coalesce(s *mspan) {
+ 
+ 	// Now check to see if next (greater addresses) span is free and can be coalesced.
+ 	var hpAfter uintptr
+-	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state == mSpanFree {
++	if after := spanOf(s.base() + s.npages*pageSize); after != nil && after.state.get() == mSpanFree {
+ 		if s.scavenged == after.scavenged {
+ 			hpAfter = after.hugePages()
+ 			merge(s, after, after)
+@@ -733,7 +756,7 @@ func inHeapOrStack(b uintptr) bool {
+ 	if s == nil || b < s.base() {
+ 		return false
+ 	}
+-	switch s.state {
++	switch s.state.get() {
+ 	case mSpanInUse, mSpanManual:
+ 		return b < s.limit
+ 	default:
+@@ -800,9 +823,12 @@ func spanOfUnchecked(p uintptr) *mspan {
+ //go:nosplit
+ func spanOfHeap(p uintptr) *mspan {
+ 	s := spanOf(p)
+-	// If p is not allocated, it may point to a stale span, so we
+-	// have to check the span's bounds and state.
+-	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
++	// s is nil if it's never been allocated. Otherwise, we check
++	// its state first because we don't trust this pointer, so we
++	// have to synchronize with span initialization. Then, it's
++	// still possible we picked up a stale span pointer, so we
++	// have to check the span's bounds.
++	if s == nil || s.state.get() != mSpanInUse || p < s.base() || p >= s.limit {
+ 		return nil
+ 	}
+ 	return s
+@@ -1042,7 +1068,6 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 		// able to map interior pointer to containing span.
+ 		atomic.Store(&s.sweepgen, h.sweepgen)
+ 		h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
+-		s.state = mSpanInUse
+ 		s.allocCount = 0
+ 		s.spanclass = spanclass
+ 		s.elemsize = elemSize
+@@ -1066,6 +1091,18 @@ func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 		s.gcmarkBits = gcmarkBits
+ 		s.allocBits = allocBits
+ 
++		// Now that the span is filled in, set its state. This
++		// is a publication barrier for the other fields in
++		// the span. While valid pointers into this span
++		// should never be visible until the span is returned,
++		// if the garbage collector finds an invalid pointer,
++		// access to the span may race with initialization of
++		// the span. We resolve this race by atomically
++		// setting the state after the span is fully
++		// initialized, and atomically checking the state in
++		// any situation where a pointer is suspect.
++		s.state.set(mSpanInUse)
++
+ 		// Mark in-use span in arena page bitmap.
+ 		arena, pageIdx, pageMask := pageIndexOf(s.base())
+ 		arena.pageInUse[pageIdx] |= pageMask
+@@ -1143,13 +1180,13 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+ 	lock(&h.lock)
+ 	s := h.allocSpanLocked(npage, stat)
+ 	if s != nil {
+-		s.state = mSpanManual
+ 		s.manualFreeList = 0
+ 		s.allocCount = 0
+ 		s.spanclass = 0
+ 		s.nelems = 0
+ 		s.elemsize = 0
+ 		s.limit = s.base() + s.npages<<_PageShift
++		s.state.set(mSpanManual) // Publish the span
+ 		// Manually managed memory doesn't count toward heap_sys.
+ 		memstats.heap_sys -= uint64(s.npages << _PageShift)
+ 	}
+@@ -1201,7 +1238,7 @@ func (h *mheap) allocSpanLocked(npage uintptr, stat *uint64) *mspan {
+ 
+ HaveSpan:
+ 	s := t.span()
+-	if s.state != mSpanFree {
++	if s.state.get() != mSpanFree {
+ 		throw("candidate mspan for allocation is not free")
+ 	}
+ 
+@@ -1332,7 +1369,7 @@ func (h *mheap) growAddSpan(v unsafe.Pointer, size uintptr) {
+ 	s := (*mspan)(h.spanalloc.alloc())
+ 	s.init(uintptr(v), size/pageSize)
+ 	h.setSpans(s.base(), s.npages, s)
+-	s.state = mSpanFree
++	s.state.set(mSpanFree)
+ 	// [v, v+size) is always in the Prepared state. The new span
+ 	// must be marked scavenged so the allocator transitions it to
+ 	// Ready when allocating from it.
+@@ -1395,7 +1432,7 @@ func (h *mheap) freeManual(s *mspan, stat *uint64) {
+ }
+ 
+ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+-	switch s.state {
++	switch s.state.get() {
+ 	case mSpanManual:
+ 		if s.allocCount != 0 {
+ 			throw("mheap.freeSpanLocked - invalid stack free")
+@@ -1420,7 +1457,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+ 	if acctidle {
+ 		memstats.heap_idle += uint64(s.npages << _PageShift)
+ 	}
+-	s.state = mSpanFree
++	s.state.set(mSpanFree)
+ 
+ 	// Coalesce span with neighbors.
+ 	h.coalesce(s)
+@@ -1481,7 +1518,7 @@ func (h *mheap) scavengeSplit(t treapIter, size uintptr) *mspan {
+ 		h.setSpan(n.base(), n)
+ 		h.setSpan(n.base()+nbytes-1, n)
+ 		n.needzero = s.needzero
+-		n.state = s.state
++		n.state.set(s.state.get())
+ 	})
+ 	return n
+ }
+@@ -1580,7 +1617,6 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.allocCount = 0
+ 	span.spanclass = 0
+ 	span.elemsize = 0
+-	span.state = mSpanDead
+ 	span.scavenged = false
+ 	span.speciallock.key = 0
+ 	span.specials = nil
+@@ -1588,6 +1624,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.freeindex = 0
+ 	span.allocBits = nil
+ 	span.gcmarkBits = nil
++	span.state.set(mSpanDead)
+ }
+ 
+ func (span *mspan) inList() bool {
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 27552c9f33..e0757acbed 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -305,7 +305,7 @@ func sigFetchG(c *sigctxt) *g {
+ 			// work.
+ 			sp := getcallersp()
+ 			s := spanOf(sp)
+-			if s != nil && s.state == mSpanManual && s.base() < sp && sp < s.limit {
++			if s != nil && s.state.get() == mSpanManual && s.base() < sp && sp < s.limit {
+ 				gp := *(**g)(unsafe.Pointer(s.base()))
+ 				return gp
+ 			}
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index ecefce1e32..b87aa0d61b 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -219,7 +219,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ // Adds stack x to the free pool. Must be called with stackpool[order].item.mu held.
+ func stackpoolfree(x gclinkptr, order uint8) {
+ 	s := spanOfUnchecked(uintptr(x))
+-	if s.state != mSpanManual {
++	if s.state.get() != mSpanManual {
+ 		throw("freeing stack not in a stack span")
+ 	}
+ 	if s.manualFreeList.ptr() == nil {
+@@ -467,7 +467,7 @@ func stackfree(stk stack) {
+ 		}
+ 	} else {
+ 		s := spanOfUnchecked(uintptr(v))
+-		if s.state != mSpanManual {
++		if s.state.get() != mSpanManual {
+ 			println(hex(s.base()), v)
+ 			throw("bad span state")
+ 		}

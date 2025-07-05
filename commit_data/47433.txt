@@ -11,6 +11,41 @@ Date:   Wed Mar 17 01:39:11 2021 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302229
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 45e39478fa..293062b8ec 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4019,25 +4019,25 @@ func InitTables() {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.PPC64, sys.S390X)
++		sys.AMD64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "And",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.PPC64, sys.S390X)
++		sys.AMD64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Or8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("runtime/internal/atomic", "Or",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.PPC64, sys.S390X)
++		sys.AMD64, sys.MIPS, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+ 	atomicAndOrEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
+ 		s.vars[memVar] = s.newValue3(op, types.TypeMem, args[0], args[1], s.mem())

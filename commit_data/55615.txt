@@ -20,7 +20,60 @@ Date:   Tue Sep 13 22:20:06 2022 -0700
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/compress/zlib/reader.go | 7 ++++---
  src/compress/zlib/writer.go | 2 +-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/compress/zlib/reader.go b/src/compress/zlib/reader.go
+index 343a18bf68..10954eaad7 100644
+--- a/src/compress/zlib/reader.go
++++ b/src/compress/zlib/reader.go
+@@ -26,6 +26,7 @@ package zlib
+ import (
+ 	"bufio"
+ 	"compress/flate"
++	"encoding/binary"
+ 	"errors"
+ 	"hash"
+ 	"hash/adler32"
+@@ -110,7 +111,7 @@ func (z *reader) Read(p []byte) (int, error) {
+ 		return n, z.err
+ 	}
+ 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
+-	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
++	checksum := binary.BigEndian.Uint32(z.scratch[:4])
+ 	if checksum != z.digest.Sum32() {
+ 		z.err = ErrChecksum
+ 		return n, z.err
+@@ -145,7 +146,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
+ 		}
+ 		return z.err
+ 	}
+-	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
++	h := binary.BigEndian.Uint16(z.scratch[:2])
+ 	if (z.scratch[0]&0x0f != zlibDeflate) || (z.scratch[0]>>4 > zlibMaxWindow) || (h%31 != 0) {
+ 		z.err = ErrHeader
+ 		return z.err
+@@ -159,7 +160,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
+ 			}
+ 			return z.err
+ 		}
+-		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])
++		checksum := binary.BigEndian.Uint32(z.scratch[:4])
+ 		if checksum != adler32.Checksum(dict) {
+ 			z.err = ErrDictionary
+ 			return z.err
+diff --git a/src/compress/zlib/writer.go b/src/compress/zlib/writer.go
+index 9986e3834d..c65e80f742 100644
+--- a/src/compress/zlib/writer.go
++++ b/src/compress/zlib/writer.go
+@@ -115,7 +115,7 @@ func (z *Writer) writeHeader() (err error) {
+ 	if z.dict != nil {
+ 		z.scratch[1] |= 1 << 5
+ 	}
+-	z.scratch[1] += uint8(31 - (uint16(z.scratch[0])<<8+uint16(z.scratch[1]))%31)
++	z.scratch[1] += uint8(31 - binary.BigEndian.Uint16(z.scratch[:2])%31)
+ 	if _, err = z.w.Write(z.scratch[0:2]); err != nil {
+ 		return err
+ 	}

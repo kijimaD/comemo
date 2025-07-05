@@ -16,7 +16,91 @@ Date:   Mon Jun 22 19:02:00 2020 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/test/test.go | 18 ++++++++++++++++++
  src/cmd/go/internal/vet/vet.go   | 25 +++++++++++++++++++++++--
  2 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index cda51053fb..9c120e08dc 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -31,6 +31,7 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
++	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/test2json"
+ )
+@@ -571,6 +572,23 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	pkgArgs, testArgs = testFlags(args)
+ 
++	if cfg.DebugTrace != "" {
++		var close func() error
++		var err error
++		ctx, close, err = trace.Start(ctx, cfg.DebugTrace)
++		if err != nil {
++			base.Fatalf("failed to start trace: %v", err)
++		}
++		defer func() {
++			if err := close(); err != nil {
++				base.Fatalf("failed to stop trace: %v", err)
++			}
++		}()
++	}
++
++	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
++	defer span.Done()
++
+ 	work.FindExecCmd() // initialize cached result
+ 
+ 	work.BuildInit()
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index b306572281..cf2c8d59e8 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -6,12 +6,16 @@
+ package vet
+ 
+ import (
++	"context"
++	"fmt"
++	"path/filepath"
++
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
++	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
+-	"context"
+-	"path/filepath"
+ )
+ 
+ // Break init loop.
+@@ -54,6 +58,23 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	vetFlags, pkgArgs := vetFlags(args)
+ 
++	if cfg.DebugTrace != "" {
++		var close func() error
++		var err error
++		ctx, close, err = trace.Start(ctx, cfg.DebugTrace)
++		if err != nil {
++			base.Fatalf("failed to start trace: %v", err)
++		}
++		defer func() {
++			if err := close(); err != nil {
++				base.Fatalf("failed to stop trace: %v", err)
++			}
++		}()
++	}
++
++	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
++	defer span.Done()
++
+ 	work.BuildInit()
+ 	work.VetFlags = vetFlags
+ 	if len(vetFlags) > 0 {

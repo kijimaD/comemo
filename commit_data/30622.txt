@@ -16,8 +16,169 @@ Date:   Wed Nov 16 16:13:22 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 19 +++++++++++-------
  src/reflect/all_test.go                | 36 +++++++++++++++++++++++-----------
  src/reflect/type.go                    | 29 +++++++++++++++------------
  3 files changed, 54 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 3554dc2e99..ed1733ee23 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -494,26 +494,31 @@ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+ }
+ 
+ // isExportedField reports whether a struct field is exported.
+-func isExportedField(ft *Field) bool {
++// It also returns the package to use for PkgPath for an unexported field.
++func isExportedField(ft *Field) (bool, *Pkg) {
+ 	if ft.Sym != nil && ft.Embedded == 0 {
+-		return exportname(ft.Sym.Name)
++		return exportname(ft.Sym.Name), ft.Sym.Pkg
+ 	} else {
+ 		if ft.Type.Sym != nil &&
+ 			(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
+-			return false
++			return false, ft.Type.Sym.Pkg
+ 		} else {
+-			return true
++			return true, nil
+ 		}
+ 	}
+ }
+ 
+ // dnameField dumps a reflect.name for a struct field.
+-func dnameField(s *Sym, ot int, ft *Field) int {
++func dnameField(s *Sym, ot int, spkg *Pkg, ft *Field) int {
+ 	var name string
+ 	if ft.Sym != nil && ft.Embedded == 0 {
+ 		name = ft.Sym.Name
+ 	}
+-	nsym := dname(name, ft.Note, nil, isExportedField(ft))
++	isExported, fpkg := isExportedField(ft)
++	if isExported || fpkg == spkg {
++		fpkg = nil
++	}
++	nsym := dname(name, ft.Note, fpkg, isExported)
+ 	return dsymptrLSym(Linksym(s), ot, nsym, 0)
+ }
+ 
+@@ -1332,7 +1337,7 @@ ok:
+ 
+ 		for _, f := range t.Fields().Slice() {
+ 			// ../../../../runtime/type.go:/structField
+-			ot = dnameField(s, ot, f)
++			ot = dnameField(s, ot, pkg, f)
+ 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
+ 			ot = duintptr(s, ot, uint64(f.Offset))
+ 		}
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 7dfdfd8709..e26c20148f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2325,25 +2325,39 @@ func TestFieldPkgPath(t *testing.T) {
+ 		unexported string
+ 		OtherPkgFields
+ 	}{})
+-	for _, test := range []struct {
++
++	type pkgpathTest struct {
+ 		index     []int
+ 		pkgPath   string
+ 		anonymous bool
+-	}{
++	}
++
++	checkPkgPath := func(name string, s []pkgpathTest) {
++		for _, test := range s {
++			f := typ.FieldByIndex(test.index)
++			if got, want := f.PkgPath, test.pkgPath; got != want {
++				t.Errorf("%s: Field(%d).PkgPath = %q, want %q", name, test.index, got, want)
++			}
++			if got, want := f.Anonymous, test.anonymous; got != want {
++				t.Errorf("%s: Field(%d).Anonymous = %v, want %v", name, test.index, got, want)
++			}
++		}
++	}
++
++	checkPkgPath("testStruct", []pkgpathTest{
+ 		{[]int{0}, "", false},             // Exported
+ 		{[]int{1}, "reflect_test", false}, // unexported
+ 		{[]int{2}, "", true},              // OtherPkgFields
+ 		{[]int{2, 0}, "", false},          // OtherExported
+ 		{[]int{2, 1}, "reflect", false},   // otherUnexported
+-	} {
+-		f := typ.FieldByIndex(test.index)
+-		if got, want := f.PkgPath, test.pkgPath; got != want {
+-			t.Errorf("Field(%d).PkgPath = %q, want %q", test.index, got, want)
+-		}
+-		if got, want := f.Anonymous, test.anonymous; got != want {
+-			t.Errorf("Field(%d).Anonymous = %v, want %v", test.index, got, want)
+-		}
+-	}
++	})
++
++	type localOtherPkgFields OtherPkgFields
++	typ = TypeOf(localOtherPkgFields{})
++	checkPkgPath("localOtherPkgFields", []pkgpathTest{
++		{[]int{0}, "", false},        // OtherExported
++		{[]int{1}, "reflect", false}, // otherUnexported
++	})
+ }
+ 
+ func TestVariadicType(t *testing.T) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e04eff7931..28276a5ac0 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1226,8 +1226,10 @@ func (t *structType) Field(i int) (f StructField) {
+ 		f.Anonymous = true
+ 	}
+ 	if !p.name.isExported() {
+-		// Fields never have an import path in their name.
+-		f.PkgPath = t.pkgPath.name()
++		f.PkgPath = p.name.pkgPath()
++		if f.PkgPath == "" {
++			f.PkgPath = t.pkgPath.name()
++		}
+ 	}
+ 	if tag := p.name.tag(); tag != "" {
+ 		f.Tag = StructTag(tag)
+@@ -1680,7 +1682,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 		if len(t.fields) != len(v.fields) {
+ 			return false
+ 		}
+-		allExported := true
+ 		for i := range t.fields {
+ 			tf := &t.fields[i]
+ 			vf := &v.fields[i]
+@@ -1696,15 +1697,19 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
+ 			if tf.offset != vf.offset {
+ 				return false
+ 			}
+-			allExported = allExported && tf.name.isExported()
+-		}
+-		if !allExported && t.pkgPath.name() != v.pkgPath.name() {
+-			// An unexported field of a struct is not
+-			// visible outside of the package that defines
+-			// it, so the package path is implicitly part
+-			// of the definition of any struct with an
+-			// unexported field.
+-			return false
++			if !tf.name.isExported() {
++				tp := tf.name.pkgPath()
++				if tp == "" {
++					tp = t.pkgPath.name()
++				}
++				vp := vf.name.pkgPath()
++				if vp == "" {
++					vp = v.pkgPath.name()
++				}
++				if tp != vp {
++					return false
++				}
++			}
+ 		}
+ 		return true
+ 	}

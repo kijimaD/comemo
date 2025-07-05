@@ -27,7 +27,187 @@ Date:   Mon Apr 7 10:39:24 2014 -0700
     R=rsc, dave
     CC=golang-codereviews, iant
     https://golang.org/cl/84230043
-
+---
  src/pkg/net/textproto/reader.go      | 112 +++++++++++++++++------------------
  src/pkg/net/textproto/reader_test.go |  28 ++++-----
  2 files changed, 65 insertions(+), 75 deletions(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index b0c07413c1..eea9207f25 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -562,19 +562,12 @@ const toLower = 'a' - 'A'
+ // allowed to mutate the provided byte slice before returning the
+ // string.
+ func canonicalMIMEHeaderKey(a []byte) string {
+-	// Look for it in commonHeaders , so that we can avoid an
+-	// allocation by sharing the strings among all users
+-	// of textproto. If we don't find it, a has been canonicalized
+-	// so just return string(a).
+ 	upper := true
+-	lo := 0
+-	hi := len(commonHeaders)
+-	for i := 0; i < len(a); i++ {
++	for i, c := range a {
+ 		// Canonicalize: first letter upper case
+ 		// and upper case after each dash.
+ 		// (Host, User-Agent, If-Modified-Since).
+ 		// MIME headers are ASCII only, so no Unicode issues.
+-		c := a[i]
+ 		if c == ' ' {
+ 			c = '-'
+ 		} else if upper && 'a' <= c && c <= 'z' {
+@@ -584,60 +577,61 @@ func canonicalMIMEHeaderKey(a []byte) string {
+ 		}
+ 		a[i] = c
+ 		upper = c == '-' // for next time
+-
+-		if lo < hi {
+-			for lo < hi && (len(commonHeaders[lo]) <= i || commonHeaders[lo][i] < c) {
+-				lo++
+-			}
+-			for hi > lo && commonHeaders[hi-1][i] > c {
+-				hi--
+-			}
+-		}
+ 	}
+-	if lo < hi && len(commonHeaders[lo]) == len(a) {
+-		return commonHeaders[lo]
++	// The compiler recognizes m[string(byteSlice)] as a special
++	// case, so a copy of a's bytes into a new string does not
++	// happen in this map lookup:
++	if v := commonHeader[string(a)]; v != "" {
++		return v
+ 	}
+ 	return string(a)
+ }
+ 
+-var commonHeaders = []string{
+-	"Accept",
+-	"Accept-Charset",
+-	"Accept-Encoding",
+-	"Accept-Language",
+-	"Accept-Ranges",
+-	"Cache-Control",
+-	"Cc",
+-	"Connection",
+-	"Content-Id",
+-	"Content-Language",
+-	"Content-Length",
+-	"Content-Transfer-Encoding",
+-	"Content-Type",
+-	"Cookie",
+-	"Date",
+-	"Dkim-Signature",
+-	"Etag",
+-	"Expires",
+-	"From",
+-	"Host",
+-	"If-Modified-Since",
+-	"If-None-Match",
+-	"In-Reply-To",
+-	"Last-Modified",
+-	"Location",
+-	"Message-Id",
+-	"Mime-Version",
+-	"Pragma",
+-	"Received",
+-	"Return-Path",
+-	"Server",
+-	"Set-Cookie",
+-	"Subject",
+-	"To",
+-	"User-Agent",
+-	"Via",
+-	"X-Forwarded-For",
+-	"X-Imforwards",
+-	"X-Powered-By",
++// commonHeader interns common header strings.
++var commonHeader = make(map[string]string)
++
++func init() {
++	for _, v := range []string{
++		"Accept",
++		"Accept-Charset",
++		"Accept-Encoding",
++		"Accept-Language",
++		"Accept-Ranges",
++		"Cache-Control",
++		"Cc",
++		"Connection",
++		"Content-Id",
++		"Content-Language",
++		"Content-Length",
++		"Content-Transfer-Encoding",
++		"Content-Type",
++		"Cookie",
++		"Date",
++		"Dkim-Signature",
++		"Etag",
++		"Expires",
++		"From",
++		"Host",
++		"If-Modified-Since",
++		"If-None-Match",
++		"In-Reply-To",
++		"Last-Modified",
++		"Location",
++		"Message-Id",
++		"Mime-Version",
++		"Pragma",
++		"Received",
++		"Return-Path",
++		"Server",
++		"Set-Cookie",
++		"Subject",
++		"To",
++		"User-Agent",
++		"Via",
++		"X-Forwarded-For",
++		"X-Imforwards",
++		"X-Powered-By",
++	} {
++		commonHeader[v] = v
++	}
+ }
+diff --git a/src/pkg/net/textproto/reader_test.go b/src/pkg/net/textproto/reader_test.go
+index cc12912b63..cbc0ed183e 100644
+--- a/src/pkg/net/textproto/reader_test.go
++++ b/src/pkg/net/textproto/reader_test.go
+@@ -247,24 +247,20 @@ func TestRFC959Lines(t *testing.T) {
+ }
+ 
+ func TestCommonHeaders(t *testing.T) {
+-	// need to disable the commonHeaders-based optimization
+-	// during this check, or we'd not be testing anything
+-	oldch := commonHeaders
+-	commonHeaders = []string{}
+-	defer func() { commonHeaders = oldch }()
+-
+-	last := ""
+-	for _, h := range oldch {
+-		if last > h {
+-			t.Errorf("%v is out of order", h)
+-		}
+-		if last == h {
+-			t.Errorf("%v is duplicated", h)
++	for h := range commonHeader {
++		if h != CanonicalMIMEHeaderKey(h) {
++			t.Errorf("Non-canonical header %q in commonHeader", h)
+ 		}
+-		if canon := CanonicalMIMEHeaderKey(h); h != canon {
+-			t.Errorf("%v is not canonical", h)
++	}
++	b := []byte("content-Length")
++	want := "Content-Length"
++	n := testing.AllocsPerRun(200, func() {
++		if x := canonicalMIMEHeaderKey(b); x != want {
++			t.Fatalf("canonicalMIMEHeaderKey(%q) = %q; want %q", b, x, want)
+ 		}
+-		last = h
++	})
++	if n > 0 {
++		t.Errorf("canonicalMIMEHeaderKey allocs = %v; want 0", n)
+ 	}
+ }
+ 

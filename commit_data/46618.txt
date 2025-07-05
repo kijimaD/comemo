@@ -21,8 +21,104 @@ Date:   Fri Jan 8 15:35:19 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/282714
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/compile/internal/gc/embed.go        |  9 ++------
  src/embed/internal/embedtest/embed_test.go  | 32 ++++++++++-------------------
  src/embed/internal/embedtest/embedx_test.go | 14 -------------
  3 files changed, 13 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index 103949c1f9..6db246eece 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -133,13 +133,8 @@ func varEmbed(p *noder, names []*Node, typ *Node, exprs []*Node, embeds []Pragma
+ 
+ 	v := names[0]
+ 	if dclcontext != PEXTERN {
+-		numLocalEmbed++
+-		v = newnamel(v.Pos, lookupN("embed.", numLocalEmbed))
+-		v.Sym.Def = asTypesNode(v)
+-		v.Name.Param.Ntype = typ
+-		v.SetClass(PEXTERN)
+-		externdcl = append(externdcl, v)
+-		exprs = []*Node{v}
++		p.yyerrorpos(pos, "go:embed cannot apply to var inside func")
++		return exprs
+ 	}
+ 
+ 	v.Name.Param.SetEmbedFiles(list)
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index c6a7bea7a3..40f65ffc3f 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -73,24 +73,11 @@ func TestGlobal(t *testing.T) {
+ 	testString(t, string(glass), "glass", "I can eat glass and it doesn't hurt me.\n")
+ }
+ 
+-func TestLocal(t *testing.T) {
+-	//go:embed testdata/k*.txt
+-	var local embed.FS
+-	testFiles(t, local, "testdata/ken.txt", "If a program is too slow, it must have a loop.\n")
+-
+-	//go:embed testdata/k*.txt
+-	var s string
+-	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
+-
+-	//go:embed testdata/h*.txt
+-	var b []byte
+-	testString(t, string(b), "local variable b", "hello, world\n")
+-}
++//go:embed testdata
++var testDirAll embed.FS
+ 
+ func TestDir(t *testing.T) {
+-	//go:embed testdata
+-	var all embed.FS
+-
++	all := testDirAll
+ 	testFiles(t, all, "testdata/hello.txt", "hello, world\n")
+ 	testFiles(t, all, "testdata/i/i18n.txt", "internationalization\n")
+ 	testFiles(t, all, "testdata/i/j/k/k8s.txt", "kubernetes\n")
+@@ -102,12 +89,15 @@ func TestDir(t *testing.T) {
+ 	testDir(t, all, "testdata/i/j/k", "k8s.txt")
+ }
+ 
+-func TestHidden(t *testing.T) {
+-	//go:embed testdata
+-	var dir embed.FS
++//go:embed testdata
++var testHiddenDir embed.FS
+ 
+-	//go:embed testdata/*
+-	var star embed.FS
++//go:embed testdata/*
++var testHiddenStar embed.FS
++
++func TestHidden(t *testing.T) {
++	dir := testHiddenDir
++	star := testHiddenStar
+ 
+ 	t.Logf("//go:embed testdata")
+ 
+diff --git a/src/embed/internal/embedtest/embedx_test.go b/src/embed/internal/embedtest/embedx_test.go
+index 20d5a28c11..27fa11614e 100644
+--- a/src/embed/internal/embedtest/embedx_test.go
++++ b/src/embed/internal/embedtest/embedx_test.go
+@@ -90,17 +90,3 @@ func TestXGlobal(t *testing.T) {
+ 	}
+ 	bbig[0] = old
+ }
+-
+-func TestXLocal(t *testing.T) {
+-	//go:embed testdata/*o.txt
+-	var local embed.FS
+-	testFiles(t, local, "testdata/hello.txt", "hello, world\n")
+-
+-	//go:embed testdata/k*.txt
+-	var s string
+-	testString(t, s, "local variable s", "If a program is too slow, it must have a loop.\n")
+-
+-	//go:embed testdata/h*.txt
+-	var b []byte
+-	testString(t, string(b), "local variable b", "hello, world\n")
+-}

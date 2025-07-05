@@ -13,7 +13,51 @@ Date:   Mon Nov 23 19:25:32 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/metrics/description.go | 9 ++++-----
  src/runtime/metrics/doc.go         | 7 +++----
  2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 9d3611b64c..32af5d1727 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -113,14 +113,13 @@ var allDesc = []Description{
+ 		Kind: KindUint64,
+ 	},
+ 	{
+-		Name: "/memory/classes/heap/stacks:bytes",
+-		Description: "Memory allocated from the heap that is reserved for stack space. Not all of it is necessarily " +
+-			"simultaneously in use, but it may not be used for any other purpose.",
+-		Kind: KindUint64,
++		Name:        "/memory/classes/heap/stacks:bytes",
++		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use.",
++		Kind:        KindUint64,
+ 	},
+ 	{
+ 		Name:        "/memory/classes/heap/unused:bytes",
+-		Description: "Memory that is reserved for heap objects but is otherwise not currently used to hold heap objects.",
++		Description: "Memory that is reserved for heap objects but is not currently used to hold heap objects.",
+ 		Kind:        KindUint64,
+ 	},
+ 	{
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index f58cdcdd03..42b5bc3724 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -86,12 +86,11 @@ Supported metrics
+ 
+ 	/memory/classes/heap/stacks:bytes
+ 		Memory allocated from the heap that is reserved for stack
+-		space. Not all of it is necessarily simultaneously in use, but
+-		it may not be used for any other purpose.
++		space, whether or not it is currently in-use.
+ 
+ 	/memory/classes/heap/unused:bytes
+-		Memory that is reserved for heap objects but is otherwise not
+-		currently used to hold heap objects.
++		Memory that is reserved for heap objects but is not currently
++		used to hold heap objects.
+ 
+ 	/memory/classes/metadata/mcache/free:bytes
+ 		Memory that is reserved for runtime mcache structures, but

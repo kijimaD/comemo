@@ -37,7 +37,7 @@ Date:   Thu Mar 27 14:06:15 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/80860044
-
+---
  src/pkg/runtime/mgc0.c          | 24 +++++++++++++++++++-----
  src/pkg/runtime/runtime.c       |  5 ++++-
  src/pkg/runtime/runtime.h       |  1 +
@@ -45,3 +45,185 @@ Date:   Thu Mar 27 14:06:15 2014 -0400
  src/pkg/runtime/traceback_arm.c |  6 ++++--
  src/pkg/runtime/traceback_x86.c |  6 ++++--
  6 files changed, 33 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index c2519d32c3..40106534c2 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1447,7 +1447,7 @@ scaninterfacedata(uintptr bits, byte *scanp, bool afterprologue, void *wbufp)
+ 
+ // Starting from scanp, scans words corresponding to set bits.
+ static void
+-scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
++scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+ {
+ 	uintptr word, bits;
+ 	uint32 *wordp;
+@@ -1473,8 +1473,16 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+ 				break;
+ 			case BitsPointer:
+ 				p = *(byte**)scanp;
+-				if(p != nil)
++				if(p != nil) {
++					if(precise && p < (byte*)PageSize) {
++						// Looks like a junk value in a pointer slot.
++						// Liveness analysis wrong?
++						m->traceback = 2;
++						runtime·printf("bad pointer in frame %s at %p: %p\n", runtime·funcname(f), scanp, p);
++						runtime·throw("bad pointer in scanbitvector");
++					}
+ 					enqueue1(wbufp, (Obj){scanp, PtrSize, 0});
++				}
+ 				break;
+ 			case BitsMultiWord:
+ 				p = *(byte**)scanp;
+@@ -1498,8 +1506,11 @@ scanbitvector(byte *scanp, BitVector *bv, bool afterprologue, void *wbufp)
+ 							markonly(p);
+ 						break;
+ 					case BitsSlice:
+-						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len)
++						if(((Slice*)(scanp - PtrSize))->cap < ((Slice*)(scanp - PtrSize))->len) {
++							m->traceback = 2;
++							runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), scanp, ((byte**)scanp)[0], ((byte**)scanp)[1], ((byte**)scanp)[2]);
+ 							runtime·throw("slice capacity smaller than length");
++						}
+ 						if(((Slice*)(scanp - PtrSize))->cap != 0)
+ 							enqueue1(wbufp, (Obj){scanp - PtrSize, PtrSize, 0});
+ 						break;
+@@ -1527,6 +1538,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	uintptr targetpc;
+ 	int32 pcdata;
+ 	bool afterprologue;
++	bool precise;
+ 
+ 	f = frame->fn;
+ 	targetpc = frame->pc;
+@@ -1543,6 +1555,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	// Scan local variables if stack frame has been allocated.
+ 	// Use pointer information if known.
+ 	afterprologue = (frame->varp > (byte*)frame->sp);
++	precise = false;
+ 	if(afterprologue) {
+ 		stackmap = runtime·funcdata(f, FUNCDATA_LocalsPointerMaps);
+ 		if(stackmap == nil) {
+@@ -1564,7 +1577,8 @@ scanframe(Stkframe *frame, void *wbufp)
+ 			}
+ 			bv = runtime·stackmapdata(stackmap, pcdata);
+ 			size = (bv->n * PtrSize) / BitsPerPointer;
+-			scanbitvector(frame->varp - size, bv, afterprologue, wbufp);
++			precise = true;
++			scanbitvector(f, true, frame->varp - size, bv, afterprologue, wbufp);
+ 		}
+ 	}
+ 
+@@ -1573,7 +1587,7 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+ 	if(stackmap != nil) {
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+-		scanbitvector(frame->argp, bv, true, wbufp);
++		scanbitvector(f, precise, frame->argp, bv, true, wbufp);
+ 	} else
+ 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
+ 	return true;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index d77ff08af4..d995bf97ae 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -25,8 +25,11 @@ runtime·gotraceback(bool *crash)
+ 	if(crash != nil)
+ 		*crash = false;
+ 	p = runtime·getenv("GOTRACEBACK");
+-	if(p == nil || p[0] == '\0')
++	if(p == nil || p[0] == '\0') {
++		if(m->traceback != 0)
++			return m->traceback;
+ 		return 1;	// default is on
++	}
+ 	if(runtime·strcmp(p, (byte*)"crash") == 0) {
+ 		if(crash != nil)
+ 			*crash = true;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1a06b8a113..28c831a068 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -342,6 +342,7 @@ struct	M
+ 	uint32	waitsemalock;
+ 	GCStats	gcstats;
+ 	bool	needextram;
++	uint8	traceback;
+ 	bool	(*waitunlockf)(G*, void*);
+ 	void*	waitlock;
+ 	uintptr	forkstackguard;
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 4d21c719b0..27543a5778 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -365,6 +365,7 @@ adjustpointers(byte **scanp, BitVector *bv, AdjustInfo *adjinfo, Func *f)
+ 			if(f != nil && (byte*)0 < p && p < (byte*)PageSize) {
+ 				// Looks like a junk value in a pointer slot.
+ 				// Live analysis wrong?
++				m->traceback = 2;
+ 				runtime·printf("%p: %p %s\n", &scanp[i], p, runtime·funcname(f));
+ 				runtime·throw("bad pointer!");
+ 			}
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 171672a89d..f5cd4133d4 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -12,13 +12,15 @@ void runtime·sigpanic(void);
+ int32
+ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+-	int32 i, n, nprint, line;
++	int32 i, n, nprint, line, gotraceback;
+ 	uintptr x, tracepc;
+ 	bool waspanic, printing;
+ 	Func *f, *flr;
+ 	Stkframe frame;
+ 	Stktop *stk;
+ 	String file;
++	
++	gotraceback = runtime·gotraceback(nil);
+ 
+ 	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
+ 		if(gp->syscallstack != (uintptr)nil) {
+@@ -167,7 +169,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				runtime·printf("\t%S:%d", file, line);
+ 				if(frame.pc > f->entry)
+ 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
+-				if(m->throwing > 0 && gp == m->curg)
++				if(m->throwing > 0 && gp == m->curg || gotraceback >= 2)
+ 					runtime·printf(" fp=%p", frame.fp);
+ 				runtime·printf("\n");
+ 				nprint++;
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 20003350ae..4c8074e9e4 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -28,7 +28,7 @@ void runtime·sigtramp(void);
+ int32
+ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip, uintptr *pcbuf, int32 max, bool (*callback)(Stkframe*, void*), void *v, bool printall)
+ {
+-	int32 i, n, nprint, line;
++	int32 i, n, nprint, line, gotraceback;
+ 	uintptr tracepc;
+ 	bool waspanic, printing;
+ 	Func *f, *flr;
+@@ -38,6 +38,8 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 
+ 	USED(lr0);
+ 	
++	gotraceback = runtime·gotraceback(nil);
++	
+ 	if(pc0 == ~(uintptr)0 && sp0 == ~(uintptr)0) { // Signal to fetch saved values from gp.
+ 		if(gp->syscallstack != (uintptr)nil) {
+ 			pc0 = gp->syscallpc;
+@@ -228,7 +230,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 				runtime·printf("\t%S:%d", file, line);
+ 				if(frame.pc > f->entry)
+ 					runtime·printf(" +%p", (uintptr)(frame.pc - f->entry));
+-				if(m->throwing > 0 && gp == m->curg)
++				if(m->throwing > 0 && gp == m->curg || gotraceback >= 2)
+ 					runtime·printf(" fp=%p", frame.fp);
+ 				runtime·printf("\n");
+ 				nprint++;

@@ -31,7 +31,45 @@ Date:   Mon Feb 6 14:24:16 2017 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go |  2 +-
  test/writebarrier.go                 | 16 ++++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 756c31d954..19b2222861 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -585,7 +585,7 @@ func isliteral(n *Node) bool {
+ }
+ 
+ func (n *Node) isSimpleName() bool {
+-	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP
++	return n.Op == ONAME && n.Addable && n.Class != PAUTOHEAP && n.Class != PEXTERN
+ }
+ 
+ func litas(l *Node, r *Node, init *Nodes) {
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 6460a6f9da..13f7b54608 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -220,3 +220,19 @@ func f22(x *int) (y *int) {
+ 	*p = x // no barrier
+ 	return
+ }
++
++type T23 struct {
++	p *int
++	a int
++}
++
++var t23 T23
++var i23 int
++
++func f23() {
++	// zeroing global needs write barrier for the hybrid barrier.
++	t23 = T23{} // ERROR "write barrier"
++	// also test partial assignments
++	t23 = T23{a: 1}    // ERROR "write barrier"
++	t23 = T23{p: &i23} // ERROR "write barrier"
++}

@@ -7,6 +7,32 @@ Date:   Thu Dec 19 00:58:23 2013 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/43480050
-
+---
  src/pkg/syscall/dir_plan9.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/pkg/syscall/dir_plan9.go b/src/pkg/syscall/dir_plan9.go
+index b7ab4cd108..d9fb26b133 100644
+--- a/src/pkg/syscall/dir_plan9.go
++++ b/src/pkg/syscall/dir_plan9.go
+@@ -11,6 +11,7 @@ import "errors"
+ var (
+ 	ErrShortStat = errors.New("stat buffer too short")
+ 	ErrBadStat   = errors.New("malformed stat buffer")
++	ErrBadName   = errors.New("bad character in file name")
+ )
+ 
+ // A Qid represents a 9P server's unique identification for a file.
+@@ -65,6 +66,12 @@ func (d *Dir) Marshal(b []byte) (n int, err error) {
+ 		return n, ErrShortStat
+ 	}
+ 
++	for _, c := range d.Name {
++		if c == '/' {
++			return n, ErrBadName
++		}
++	}
++
+ 	b = pbit16(b, uint16(n)-2)
+ 	b = pbit16(b, d.Type)
+ 	b = pbit32(b, d.Dev)

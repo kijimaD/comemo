@@ -12,6 +12,20 @@ Date:   Fri Jan 22 15:00:35 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285675
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/runtime/mgcscavenge.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 38f09309dc..a7c5bc49b8 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -562,7 +562,7 @@ func (p *pageAlloc) scavengeUnreserve(r addrRange, gen uint32) {
+ func (p *pageAlloc) scavengeOne(work addrRange, max uintptr, mayUnlock bool) (uintptr, addrRange) {
+ 	assertLockHeld(p.mheapLock)
+ 
+-	// Defensively check if we've recieved an empty address range.
++	// Defensively check if we've received an empty address range.
+ 	// If so, just return.
+ 	if work.size() == 0 {
+ 		// Nothing to do.

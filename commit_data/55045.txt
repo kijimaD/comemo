@@ -17,6 +17,29 @@ Date:   Wed Dec 7 13:27:22 2022 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/user/cgo_lookup_unix.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index b745ffd9cf..3735971eb4 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -8,6 +8,7 @@ package user
+ 
+ import (
+ 	"fmt"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"syscall"
+@@ -170,6 +171,9 @@ func retryWithBuffer(startSize bufferKind, f func([]byte) syscall.Errno) error {
+ 		errno := f(buf)
+ 		if errno == 0 {
+ 			return nil
++		} else if runtime.GOOS == "aix" && errno+1 == 0 {
++			// On AIX getpwuid_r appears to return -1,
++			// not ERANGE, on buffer overflow.
+ 		} else if errno != syscall.ERANGE {
+ 			return errno
+ 		}

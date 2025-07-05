@@ -15,7 +15,50 @@ Date:   Wed Jun 19 17:25:27 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                  | 14 ++++++++++----
  src/cmd/go/testdata/script/install_cmd_gobin.txt | 10 ++++++++++
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index b1e9fc9ff5..35b0790bc9 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -662,11 +662,17 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
+ 			data.p, data.err = cfg.BuildContext.Import(r.path, parentDir, buildMode)
+ 		}
+ 		data.p.ImportPath = r.path
+-		if cfg.GOBIN != "" {
+-			data.p.BinDir = cfg.GOBIN
+-		} else if cfg.ModulesEnabled && !data.p.Goroot {
+-			data.p.BinDir = ModBinDir()
++
++		// Set data.p.BinDir in cases where go/build.Context.Import
++		// may give us a path we don't want.
++		if !data.p.Goroot {
++			if cfg.GOBIN != "" {
++				data.p.BinDir = cfg.GOBIN
++			} else if cfg.ModulesEnabled {
++				data.p.BinDir = ModBinDir()
++			}
+ 		}
++
+ 		if !cfg.ModulesEnabled && data.err == nil &&
+ 			data.p.ImportComment != "" && data.p.ImportComment != path &&
+ 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
+diff --git a/src/cmd/go/testdata/script/install_cmd_gobin.txt b/src/cmd/go/testdata/script/install_cmd_gobin.txt
+new file mode 100644
+index 0000000000..38fd66c0e8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/install_cmd_gobin.txt
+@@ -0,0 +1,10 @@
++# Check that commands in cmd are install to $GOROOT/bin, not $GOBIN.
++# Verifies golang.org/issue/32674.
++env GOBIN=gobin
++mkdir gobin
++go list -f '{{.Target}}' cmd/go
++stdout $GOROOT[/\\]bin[/\\]go$GOEXE
++
++# Check that tools are installed to $GOTOOLDIR, not $GOBIN.
++go list -f '{{.Target}}' cmd/compile
++stdout $GOROOT[/\\]pkg[/\\]tool[/\\]${GOOS}_${GOARCH}[/\\]compile$GOEXE

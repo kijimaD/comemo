@@ -11,6 +11,22 @@ Date:   Sun Mar 6 14:57:05 2011 -0500
     R=rsc, bradfitz, rsc1
     CC=golang-dev
     https://golang.org/cl/4259056
-
+---
  src/pkg/syscall/exec_unix.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 04c066918f..2e09539eea 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -238,6 +238,10 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 		dirp = StringBytePtr(dir)
+ 	}
+ 
++	if OS == "freebsd" && len(argv[0]) > len(argv0) {
++		argvp[0] = argv0p
++	}
++
+ 	// Acquire the fork lock so that no other threads
+ 	// create new fds that are not yet close-on-exec
+ 	// before we fork.

@@ -13,6 +13,19 @@ Date:   Mon Sep 9 18:47:43 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/encode.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index f085b5a08d..2e1f56f882 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -164,7 +164,6 @@ func Marshal(v interface{}) ([]byte, error) {
+ 	}
+ 	buf := append([]byte(nil), e.Bytes()...)
+ 
+-	e.Reset()
+ 	encodeStatePool.Put(e)
+ 
+ 	return buf, nil

@@ -9,7 +9,7 @@ Date:   Mon Mar 29 13:06:26 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/815041
-
+---
  src/cmd/godoc/main.go          |  3 ++-
  src/pkg/expvar/expvar.go       | 42 ++++++++++++++++++++++++++++++++++--
  src/pkg/runtime/extern.go      | 48 ++++++++++++++++++++++++++++++------------
@@ -19,3 +19,382 @@ Date:   Mon Mar 29 13:06:26 2010 -0700
  src/pkg/runtime/mheap.c        | 12 +++++++++--
  src/pkg/runtime/pprof/pprof.go | 16 ++++++++++----
  8 files changed, 145 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 074ce4028f..75afcad8de 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -29,8 +29,9 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	_ "expvar" // to serve /debug/vars
+ 	"http"
+-	_ "http/pprof"
++	_ "http/pprof" // to serve /debug/pprof/*
+ 	"io"
+ 	"log"
+ 	"os"
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index b8f9bae5d0..bed31db5dc 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -5,13 +5,28 @@
+ // The expvar package provides a standardized interface to public variables,
+ // such as operation counters in servers. It exposes these variables via
+ // HTTP at /debug/vars in JSON format.
++//
++// In addition to adding the HTTP handler, this package registers the
++// following variables:
++//
++//	cmdline   os.Args
++//	memstats  runtime.Memstats
++//
++// The package is sometimes only imported for the side effect of
++// registering its HTTP handler and the above variables.  To use it
++// this way, simply link this package into your program:
++//	import _ "expvar"
++//
+ package expvar
+ 
+ import (
+ 	"bytes"
+ 	"fmt"
+ 	"http"
++	"json"
+ 	"log"
++	"os"
++	"runtime"
+ 	"strconv"
+ 	"sync"
+ )
+@@ -128,6 +143,12 @@ type IntFunc func() int64
+ 
+ func (v IntFunc) String() string { return strconv.Itoa64(v()) }
+ 
++// StringFunc wraps a func() string to create value that satisfies the Var interface.
++// The function will be called each time the Var is evaluated.
++type StringFunc func() string
++
++func (f StringFunc) String() string { return f() }
++
+ 
+ // All published variables.
+ var vars map[string]Var = make(map[string]Var)
+@@ -204,9 +225,26 @@ func expvarHandler(c *http.Conn, req *http.Request) {
+ 			fmt.Fprintf(c, ",\n")
+ 		}
+ 		first = false
+-		fmt.Fprintf(c, "  %q: %s", name, value)
++		fmt.Fprintf(c, "%q: %s", name, value)
+ 	}
+ 	fmt.Fprintf(c, "\n}\n")
+ }
+ 
+-func init() { http.Handle("/debug/vars", http.HandlerFunc(expvarHandler)) }
++func memstats() string {
++	var buf bytes.Buffer
++	json.MarshalIndent(&buf, &runtime.MemStats, "    ")
++	s := buf.String()
++	return s[0 : len(s)-1] // chop final \n
++}
++
++func cmdline() string {
++	var buf bytes.Buffer
++	json.Marshal(&buf, os.Args)
++	return buf.String()
++}
++
++func init() {
++	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler))
++	Publish("cmdline", StringFunc(cmdline))
++	Publish("memstats", StringFunc(memstats))
++}
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 17ef634407..bcef7244aa 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -134,20 +134,40 @@ func Signame(sig int32) string
+ func Siginit()
+ 
+ type MemStatsType struct {
+-	Alloc      uint64
+-	TotalAlloc uint64
+-	Sys        uint64
+-	Stacks     uint64
+-	InusePages uint64
+-	NextGC     uint64
+-	HeapAlloc  uint64
+-	Lookups    uint64
+-	Mallocs    uint64
+-	PauseNs    uint64
+-	NumGC      uint32
+-	EnableGC   bool
+-	DebugGC    bool
+-	BySize     [67]struct {
++	// General statistics.
++	// Not locked during update; approximate.
++	Alloc      uint64 // bytes allocated and still in use
++	TotalAlloc uint64 // bytes allocated (even if freed)
++	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
++	Lookups    uint64 // number of pointer lookups
++	Mallocs    uint64 // number of mallocs
++
++	// Main allocation heap statistics.
++	HeapAlloc uint64 // bytes allocated and still in use
++	HeapSys   uint64 // bytes obtained from system
++	HeapIdle  uint64 // bytes in idle spans
++	HeapInuse uint64 // bytes in non-idle span
++
++	// Low-level fixed-size structure allocator statistics.
++	//	Inuse is bytes used now.
++	//	Sys is bytes obtained from system.
++	StackInuse  uint64 // bootstrap stacks
++	StackSys    uint64
++	MSpanInuse  uint64 // mspan structures
++	MSpanSys    uint64
++	MCacheInuse uint64 // mcache structures
++	MCacheSys   uint64
++
++	// Garbage collector statistics.
++	NextGC   uint64
++	PauseNs  uint64
++	NumGC    uint32
++	EnableGC bool
++	DebugGC  bool
++
++	// Per-size allocation statistics.
++	// Not locked during update; approximate.
++	BySize [67]struct {
+ 		Size    uint32
+ 		Mallocs uint64
+ 		Frees   uint64
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.cgo
+index fed8e037cf..2e7818a396 100644
+--- a/src/pkg/runtime/malloc.cgo
++++ b/src/pkg/runtime/malloc.cgo
+@@ -234,7 +234,12 @@ mlookup(void *v, byte **base, uintptr *size, MSpan **sp, uint32 **ref)
+ MCache*
+ allocmcache(void)
+ {
+-	return FixAlloc_Alloc(&mheap.cachealloc);
++	MCache *c;
++
++	c = FixAlloc_Alloc(&mheap.cachealloc);
++	mstats.mcache_inuse = mheap.cachealloc.inuse;
++	mstats.mcache_sys = mheap.cachealloc.sys;
++	return c;
+ }
+ 
+ void
+@@ -289,6 +294,8 @@ stackalloc(uint32 n)
+ 			throw("stackalloc");
+ 		}
+ 		v = FixAlloc_Alloc(&stacks);
++		mstats.stacks_inuse = stacks.inuse;
++		mstats.stacks_sys = stacks.sys;
+ 		unlock(&stacks);
+ 		return v;
+ 	}
+@@ -305,6 +312,8 @@ stackfree(void *v)
+ 	if(m->mallocing || m->gcing) {
+ 		lock(&stacks);
+ 		FixAlloc_Free(&stacks, v);
++		mstats.stacks_inuse = stacks.inuse;
++		mstats.stacks_sys = stacks.sys;
+ 		unlock(&stacks);
+ 		return;
+ 	}
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 621394bda1..ff869cacbd 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -157,6 +157,8 @@ struct FixAlloc
+ 	MLink *list;
+ 	byte *chunk;
+ 	uint32 nchunk;
++	uintptr inuse;	// in-use bytes now
++	uintptr sys;	// bytes obtained from system
+ };
+ 
+ void	FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(void*, byte*), void *arg);
+@@ -168,19 +170,39 @@ void	FixAlloc_Free(FixAlloc *f, void *p);
+ // Shared with Go: if you edit this structure, also edit extern.go.
+ struct MStats
+ {
+-	uint64	alloc;	// unprotected (approximate)
+-	uint64	total_alloc;	// unprotected (approximate)
+-	uint64	sys;
+-	uint64	stacks;
+-	uint64	inuse_pages;	// protected by mheap.Lock
+-	uint64	next_gc;	// protected by mheap.Lock
+-	uint64	heap_alloc;	// protected by mheap.Lock
+-	uint64	nlookup;	// unprotected (approximate)
+-	uint64	nmalloc;	// unprotected (approximate)
++	// General statistics.  No locking; approximate.
++	uint64	alloc;		// bytes allocated and still in use
++	uint64	total_alloc;	// bytes allocated (even if freed)
++	uint64	sys;		// bytes obtained from system (should be sum of xxx_sys below)
++	uint64	nlookup;	// number of pointer lookups
++	uint64	nmalloc;	// number of mallocs
++	
++	// Statistics about malloc heap.
++	// protected by mheap.Lock
++	uint64	heap_alloc;	// bytes allocated and still in use
++	uint64	heap_sys;	// bytes obtained from system
++	uint64	heap_idle;	// bytes in idle spans
++	uint64	heap_inuse;	// bytes in non-idle spans
++
++	// Statistics about allocation of low-level fixed-size structures.
++	// Protected by FixAlloc locks.
++	uint64	stacks_inuse;	// bootstrap stacks
++	uint64	stacks_sys;
++	uint64	mspan_inuse;	// MSpan structures
++	uint64	mspan_sys;
++	uint64	mcache_inuse;	// MCache structures
++	uint64	mcache_sys;
++	
++	// Statistics about garbage collector.
++	// Protected by stopping the world during GC.
++	uint64	next_gc;	// next GC (in heap_alloc time)
+ 	uint64	pause_ns;
+ 	uint32	numgc;
+ 	bool	enablegc;
+ 	bool	debuggc;
++	
++	// Statistics about allocation size classes.
++	// No locking; approximate.
+ 	struct {
+ 		uint32 size;
+ 		uint64 nmalloc;
+diff --git a/src/pkg/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+index dd4f3f2518..8347a1539a 100644
+--- a/src/pkg/runtime/mfixalloc.c
++++ b/src/pkg/runtime/mfixalloc.c
+@@ -21,6 +21,8 @@ FixAlloc_Init(FixAlloc *f, uintptr size, void *(*alloc)(uintptr), void (*first)(
+ 	f->list = nil;
+ 	f->chunk = nil;
+ 	f->nchunk = 0;
++	f->inuse = 0;
++	f->sys = 0;
+ }
+ 
+ void*
+@@ -31,9 +33,11 @@ FixAlloc_Alloc(FixAlloc *f)
+ 	if(f->list) {
+ 		v = f->list;
+ 		f->list = *(void**)f->list;
++		f->inuse += f->size;
+ 		return v;
+ 	}
+ 	if(f->nchunk < f->size) {
++		f->sys += FixAllocChunk;
+ 		f->chunk = f->alloc(FixAllocChunk);
+ 		if(f->chunk == nil)
+ 			throw("out of memory (FixAlloc)");
+@@ -44,12 +48,14 @@ FixAlloc_Alloc(FixAlloc *f)
+ 		f->first(f->arg, v);
+ 	f->chunk += f->size;
+ 	f->nchunk -= f->size;
++	f->inuse += f->size;
+ 	return v;
+ }
+ 
+ void
+ FixAlloc_Free(FixAlloc *f, void *p)
+ {
++	f->inuse -= f->size;
+ 	*(void**)p = f->list;
+ 	f->list = p;
+ }
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 5f9406b697..1b47b3fe27 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -62,7 +62,7 @@ MHeap_Alloc(MHeap *h, uintptr npage, int32 sizeclass, int32 acct)
+ 	m->mcache->local_alloc = 0;
+ 	s = MHeap_AllocLocked(h, npage, sizeclass);
+ 	if(s != nil) {
+-		mstats.inuse_pages += npage;
++		mstats.heap_inuse += npage<<PageShift;
+ 		if(acct)
+ 			mstats.heap_alloc += npage<<PageShift;
+ 	}
+@@ -104,6 +104,8 @@ HaveSpan:
+ 	if(s->npages > npage) {
+ 		// Trim extra and put it back in the heap.
+ 		t = FixAlloc_Alloc(&h->spanalloc);
++		mstats.mspan_inuse = h->spanalloc.inuse;
++		mstats.mspan_sys = h->spanalloc.sys;
+ 		MSpan_Init(t, s->start + npage, s->npages - npage);
+ 		s->npages = npage;
+ 		MHeapMap_Set(&h->map, t->start - 1, s);
+@@ -191,6 +193,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	// Create a fake "in use" span and free it, so that the
+ 	// right coalescing happens.
+ 	s = FixAlloc_Alloc(&h->spanalloc);
++	mstats.mspan_inuse = h->spanalloc.inuse;
++	mstats.mspan_sys = h->spanalloc.sys;
+ 	MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
+ 	MHeapMap_Set(&h->map, s->start, s);
+ 	MHeapMap_Set(&h->map, s->start + s->npages - 1, s);
+@@ -235,7 +239,7 @@ MHeap_Free(MHeap *h, MSpan *s, int32 acct)
+ 	lock(h);
+ 	mstats.heap_alloc += m->mcache->local_alloc;
+ 	m->mcache->local_alloc = 0;
+-	mstats.inuse_pages -= s->npages;
++	mstats.heap_inuse -= s->npages<<PageShift;
+ 	if(acct)
+ 		mstats.heap_alloc -= s->npages<<PageShift;
+ 	MHeap_FreeLocked(h, s);
+@@ -262,6 +266,8 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 		MSpanList_Remove(t);
+ 		t->state = MSpanDead;
+ 		FixAlloc_Free(&h->spanalloc, t);
++		mstats.mspan_inuse = h->spanalloc.inuse;
++		mstats.mspan_sys = h->spanalloc.sys;
+ 	}
+ 	if((t = MHeapMap_Get(&h->map, s->start + s->npages)) != nil && t->state != MSpanInUse) {
+ 		s->npages += t->npages;
+@@ -269,6 +275,8 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 		MSpanList_Remove(t);
+ 		t->state = MSpanDead;
+ 		FixAlloc_Free(&h->spanalloc, t);
++		mstats.mspan_inuse = h->spanalloc.inuse;
++		mstats.mspan_sys = h->spanalloc.sys;
+ 	}
+ 
+ 	// Insert s into appropriate list.
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 71bca1e07c..3a60551283 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -77,16 +77,24 @@ func WriteHeapProfile(w io.Writer) os.Error {
+ 	fmt.Fprintf(b, "# Alloc = %d\n", s.Alloc)
+ 	fmt.Fprintf(b, "# TotalAlloc = %d\n", s.TotalAlloc)
+ 	fmt.Fprintf(b, "# Sys = %d\n", s.Sys)
+-	fmt.Fprintf(b, "# Stacks = %d\n", s.Stacks)
+-	fmt.Fprintf(b, "# InusePages = %d\n", s.InusePages)
+-	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
+-	fmt.Fprintf(b, "# HeapAlloc = %d\n", s.HeapAlloc)
+ 	fmt.Fprintf(b, "# Lookups = %d\n", s.Lookups)
+ 	fmt.Fprintf(b, "# Mallocs = %d\n", s.Mallocs)
++
++	fmt.Fprintf(b, "# HeapAlloc = %d\n", s.HeapAlloc)
++	fmt.Fprintf(b, "# HeapSys = %d\n", s.HeapSys)
++	fmt.Fprintf(b, "# HeapIdle = %d\n", s.HeapIdle)
++	fmt.Fprintf(b, "# HeapInuse = %d\n", s.HeapInuse)
++
++	fmt.Fprintf(b, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
++	fmt.Fprintf(b, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
++	fmt.Fprintf(b, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
++
++	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
+ 	fmt.Fprintf(b, "# PauseNs = %d\n", s.PauseNs)
+ 	fmt.Fprintf(b, "# NumGC = %d\n", s.NumGC)
+ 	fmt.Fprintf(b, "# EnableGC = %v\n", s.EnableGC)
+ 	fmt.Fprintf(b, "# DebugGC = %v\n", s.DebugGC)
++
+ 	fmt.Fprintf(b, "# BySize = Size * (Active = Mallocs - Frees)\n")
+ 	for _, t := range s.BySize {
+ 		if t.Mallocs > 0 {

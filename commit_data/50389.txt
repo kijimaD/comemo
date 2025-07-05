@@ -17,9 +17,82 @@ Date:   Mon Jan 4 16:23:01 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/298610
     Trust: fannie zhang <Fannie.Zhang@arm.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/doc.go                | 2 ++
  src/cmd/link/internal/ld/config.go | 4 ++++
  src/cmd/link/internal/ld/lib.go    | 7 +++++++
  src/cmd/link/internal/ld/main.go   | 1 +
  4 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 604675caec..98c954f0f1 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -45,6 +45,8 @@ Flags:
+ 		Note that before Go 1.5 this option took two separate arguments.
+ 	-a
+ 		Disassemble output.
++	-asan
++		Link with C/C++ address sanitizer support.
+ 	-buildid id
+ 		Record id as Go toolchain build id.
+ 	-buildmode mode
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 4045c97dd7..72616ff62f 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -193,6 +193,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		return true, "msan"
+ 	}
+ 
++	if *flagAsan {
++		return true, "asan"
++	}
++
+ 	// Internally linking cgo is incomplete on some architectures.
+ 	// https://golang.org/issue/14449
+ 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.RISCV64) {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3221d60f80..01ab6474b8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -385,6 +385,9 @@ func libinit(ctxt *Link) {
+ 	} else if *flagMsan {
+ 		suffixsep = "_"
+ 		suffix = "msan"
++	} else if *flagAsan {
++		suffixsep = "_"
++		suffix = "asan"
+ 	}
+ 
+ 	Lflag(ctxt, filepath.Join(buildcfg.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", buildcfg.GOOS, buildcfg.GOARCH, suffixsep, suffix)))
+@@ -529,6 +532,9 @@ func (ctxt *Link) loadlib() {
+ 	if *flagMsan {
+ 		loadinternal(ctxt, "runtime/msan")
+ 	}
++	if *flagAsan {
++		loadinternal(ctxt, "runtime/asan")
++	}
+ 	loadinternal(ctxt, "runtime")
+ 	for ; i < len(ctxt.Library); i++ {
+ 		lib := ctxt.Library[i]
+@@ -1015,6 +1021,7 @@ var internalpkg = []string{
+ 	"runtime/cgo",
+ 	"runtime/race",
+ 	"runtime/msan",
++	"runtime/asan",
+ }
+ 
+ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), headType objabi.HeadType, f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 4d3b8b904c..a5a5a71250 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -69,6 +69,7 @@ var (
+ 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
+ 	flagRace          = flag.Bool("race", false, "enable race detector")
+ 	flagMsan          = flag.Bool("msan", false, "enable MSan interface")
++	flagAsan          = flag.Bool("asan", false, "enable ASan interface")
+ 	flagAslr          = flag.Bool("aslr", true, "enable ASLR for buildmode=c-shared on windows")
+ 
+ 	flagFieldTrack = flag.String("k", "", "set field tracking `symbol`")

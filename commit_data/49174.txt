@@ -10,10 +10,144 @@ Date:   Mon Jul 26 12:13:45 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/struct.go                      |  4 +++-
  src/cmd/compile/internal/types2/testdata/check/typeparams.go2  |  4 ++--
  .../compile/internal/types2/testdata/fixedbugs/issue39938.go2  |  4 ++--
  test/typeparam/interfacearg.go                                 | 10 +++++-----
  test/typeparam/lockable.go                                     | 10 +++++-----
  5 files changed, 17 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index f1d82fb50c..f0c27c0150 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -135,7 +135,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 			embeddedPos := pos
+ 			check.later(func() {
+ 				t, isPtr := deref(embeddedTyp)
+-				switch t := optype(t).(type) {
++				switch t := under(t).(type) {
+ 				case *Basic:
+ 					if t == Typ[Invalid] {
+ 						// error was reported before
+@@ -147,6 +147,8 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 					}
+ 				case *Pointer:
+ 					check.error(embeddedPos, "embedded field type cannot be a pointer")
++				case *TypeParam:
++					check.error(embeddedPos, "embedded field type cannot be a (pointer to a) type parameter")
+ 				case *Interface:
+ 					if isPtr {
+ 						check.error(embeddedPos, "embedded field type cannot be a pointer to an interface")
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 2755a539e5..54efd1485b 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -79,11 +79,11 @@ var _ *int = new[int]()
+ 
+ func _[T any](map[T /* ERROR invalid map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
+ 
+-func f1[T1 any](struct{T1}) int
++func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int
+ var _ = f1[int](struct{T1}{})
+ type T1 = int
+ 
+-func f2[t1 any](struct{t1; x float32}) int
++func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int
+ var _ = f2[t1](struct{t1; x float32}{})
+ type t1 = int
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
+index 76e7e369ca..0da6e103fd 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue39938.go2
+@@ -8,8 +8,8 @@ package p
+ 
+ type E0[P any] P
+ type E1[P any] *P
+-type E2[P any] struct{ P }
+-type E3[P any] struct{ *P }
++type E2[P any] struct{ _ P }
++type E3[P any] struct{ _ *P }
+ 
+ type T0 /* ERROR illegal cycle */ struct {
+         _ E0[T0]
+diff --git a/test/typeparam/interfacearg.go b/test/typeparam/interfacearg.go
+index e2d85e3647..1d19499318 100644
+--- a/test/typeparam/interfacearg.go
++++ b/test/typeparam/interfacearg.go
+@@ -9,14 +9,14 @@ package main
+ type I interface{}
+ 
+ type _S[T any] struct {
+-	*T
++	x *T
+ }
+ 
+ // F is a non-generic function, but has a type _S[I] which is instantiated from a
+ // generic type. Test that _S[I] is successfully exported.
+ func F() {
+ 	v := _S[I]{}
+-	if v.T != nil {
++	if v.x != nil {
+ 		panic(v)
+ 	}
+ }
+@@ -33,9 +33,9 @@ func _F1[T interface{ M() }](t T) {
+ }
+ 
+ func F2() {
+-        _F1(&S1{})
+-        _F1(S2{})
+-        _F1(&S2{})
++	_F1(&S1{})
++	_F1(S2{})
++	_F1(&S2{})
+ }
+ 
+ func main() {
+diff --git a/test/typeparam/lockable.go b/test/typeparam/lockable.go
+index 3a03652cd8..9372c76b4d 100644
+--- a/test/typeparam/lockable.go
++++ b/test/typeparam/lockable.go
+@@ -11,7 +11,7 @@ import "sync"
+ // A Lockable is a value that may be safely simultaneously accessed
+ // from multiple goroutines via the Get and Set methods.
+ type Lockable[T any] struct {
+-	T
++	x T
+ 	mu sync.Mutex
+ }
+ 
+@@ -19,18 +19,18 @@ type Lockable[T any] struct {
+ func (l *Lockable[T]) get() T {
+ 	l.mu.Lock()
+ 	defer l.mu.Unlock()
+-	return l.T
++	return l.x
+ }
+ 
+ // set sets the value in a Lockable.
+ func (l *Lockable[T]) set(v T) {
+ 	l.mu.Lock()
+ 	defer l.mu.Unlock()
+-	l.T = v
++	l.x = v
+ }
+ 
+ func main() {
+-	sl := Lockable[string]{T: "a"}
++	sl := Lockable[string]{x: "a"}
+ 	if got := sl.get(); got != "a" {
+ 		panic(got)
+ 	}
+@@ -39,7 +39,7 @@ func main() {
+ 		panic(got)
+ 	}
+ 
+-	il := Lockable[int]{T: 1}
++	il := Lockable[int]{x: 1}
+ 	if got := il.get(); got != 1 {
+ 		panic(got)
+ 	}

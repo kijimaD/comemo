@@ -16,6 +16,51 @@ Date:   Mon Sep 13 17:26:03 2021 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 543dd5caac..0aeaa7565c 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -614,9 +614,6 @@ func TestInlinedRoutineRecords(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
+-	}
+ 
+ 	t.Parallel()
+ 
+@@ -851,9 +848,6 @@ func TestAbstractOriginSanity(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
+-	}
+ 
+ 	if wd, err := os.Getwd(); err == nil {
+ 		gopathdir := filepath.Join(wd, "testdata", "httptest")
+@@ -869,9 +863,6 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
+-	}
+ 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
+ 		t.Skip("skipping on not-amd64 not-386; location lists not supported")
+ 	}
+@@ -890,9 +881,6 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+-	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
+-		t.Skip("skipping on solaris, illumos, pending resolution of issue #23168")
+-	}
+ 	if wd, err := os.Getwd(); err == nil {
+ 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
+ 		abstractOriginSanity(t, gopathdir, DefaultOpt)

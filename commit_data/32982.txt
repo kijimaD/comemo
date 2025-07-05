@@ -7,7 +7,7 @@ Date:   Wed Jun 21 19:48:22 2017 +0900
     Change-Id: I6265ac81e5c38b201e14ddba2d6b9f0e73d8445c
     Reviewed-on: https://go-review.googlesource.com/46310
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/cgo/gcc_darwin_386.c      | 2 +-
  src/runtime/cgo/gcc_darwin_amd64.c    | 2 +-
  src/runtime/cgo/gcc_darwin_arm.c      | 2 +-
@@ -30,3 +30,277 @@ Date:   Wed Jun 21 19:48:22 2017 +0900
  src/runtime/cgo/gcc_openbsd_386.c     | 2 +-
  src/runtime/cgo/gcc_openbsd_amd64.c   | 2 +-
  21 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_386.c b/src/runtime/cgo/gcc_darwin_386.c
+index 83092dbeac..4ab3267d64 100644
+--- a/src/runtime/cgo/gcc_darwin_386.c
++++ b/src/runtime/cgo/gcc_darwin_386.c
+@@ -122,7 +122,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_amd64.c b/src/runtime/cgo/gcc_darwin_amd64.c
+index 93a6b8e3ed..181d0ab490 100644
+--- a/src/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/runtime/cgo/gcc_darwin_amd64.c
+@@ -93,7 +93,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_arm.c b/src/runtime/cgo/gcc_darwin_arm.c
+index bcdddd1016..e2f96e9dc8 100644
+--- a/src/runtime/cgo/gcc_darwin_arm.c
++++ b/src/runtime/cgo/gcc_darwin_arm.c
+@@ -64,7 +64,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index 0a69c5d646..25106b75a5 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -66,7 +66,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_dragonfly_amd64.c b/src/runtime/cgo/gcc_dragonfly_amd64.c
+index bdfbf6b561..d25db91900 100644
+--- a/src/runtime/cgo/gcc_dragonfly_amd64.c
++++ b/src/runtime/cgo/gcc_dragonfly_amd64.c
+@@ -41,7 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_386.c b/src/runtime/cgo/gcc_freebsd_386.c
+index c6d4f258c0..9097a2af90 100644
+--- a/src/runtime/cgo/gcc_freebsd_386.c
++++ b/src/runtime/cgo/gcc_freebsd_386.c
+@@ -41,7 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_amd64.c b/src/runtime/cgo/gcc_freebsd_amd64.c
+index bdfbf6b561..d25db91900 100644
+--- a/src/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/runtime/cgo/gcc_freebsd_amd64.c
+@@ -41,7 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_freebsd_arm.c b/src/runtime/cgo/gcc_freebsd_arm.c
+index 746ca89322..74f2e0ede5 100644
+--- a/src/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/runtime/cgo/gcc_freebsd_arm.c
+@@ -57,7 +57,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_386.c b/src/runtime/cgo/gcc_linux_386.c
+index 457a2c7e3a..6be4569b7a 100644
+--- a/src/runtime/cgo/gcc_linux_386.c
++++ b/src/runtime/cgo/gcc_linux_386.c
+@@ -52,7 +52,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_amd64.c b/src/runtime/cgo/gcc_linux_amd64.c
+index 5d8ff10140..42008c3191 100644
+--- a/src/runtime/cgo/gcc_linux_amd64.c
++++ b/src/runtime/cgo/gcc_linux_amd64.c
+@@ -69,7 +69,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_arm.c b/src/runtime/cgo/gcc_linux_arm.c
+index 31ced5e03c..870a8a4a82 100644
+--- a/src/runtime/cgo/gcc_linux_arm.c
++++ b/src/runtime/cgo/gcc_linux_arm.c
+@@ -32,7 +32,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index 35b8e27967..b328407f39 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -32,7 +32,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+index e0ce08f4e5..afcd3234e8 100644
+--- a/src/runtime/cgo/gcc_linux_mips64x.c
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -36,7 +36,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_mipsx.c b/src/runtime/cgo/gcc_linux_mipsx.c
+index 7ed9d87575..2a5f64a727 100644
+--- a/src/runtime/cgo/gcc_linux_mipsx.c
++++ b/src/runtime/cgo/gcc_linux_mipsx.c
+@@ -36,7 +36,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.c b/src/runtime/cgo/gcc_linux_ppc64x.c
+index fcf77cfe47..9cb6e0ce4b 100644
+--- a/src/runtime/cgo/gcc_linux_ppc64x.c
++++ b/src/runtime/cgo/gcc_linux_ppc64x.c
+@@ -42,7 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_linux_s390x.c b/src/runtime/cgo/gcc_linux_s390x.c
+index cdc9c23f49..bb600482e1 100644
+--- a/src/runtime/cgo/gcc_linux_s390x.c
++++ b/src/runtime/cgo/gcc_linux_s390x.c
+@@ -40,7 +40,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_386.c b/src/runtime/cgo/gcc_netbsd_386.c
+index fb317c1c68..5495f0fd72 100644
+--- a/src/runtime/cgo/gcc_netbsd_386.c
++++ b/src/runtime/cgo/gcc_netbsd_386.c
+@@ -40,7 +40,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_amd64.c b/src/runtime/cgo/gcc_netbsd_amd64.c
+index 77a553f5fa..dc966fc45b 100644
+--- a/src/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/runtime/cgo/gcc_netbsd_amd64.c
+@@ -41,7 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_netbsd_arm.c b/src/runtime/cgo/gcc_netbsd_arm.c
+index 672f49c3d8..b0c80ea7c4 100644
+--- a/src/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/runtime/cgo/gcc_netbsd_arm.c
+@@ -41,7 +41,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index cfc09e504c..127a1b683b 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -40,7 +40,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_amd64.c b/src/runtime/cgo/gcc_openbsd_amd64.c
+index ce626c4e37..34319fb0b8 100644
+--- a/src/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/runtime/cgo/gcc_openbsd_amd64.c
+@@ -40,7 +40,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 
+-	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
++	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+ 	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 

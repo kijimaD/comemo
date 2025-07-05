@@ -8,6 +8,27 @@ Date:   Fri Apr 8 11:55:05 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/21741
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/main.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index e52b718699..f92e02eac3 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/arm64"
+ 	"cmd/link/internal/mips64"
+ 	"cmd/link/internal/ppc64"
++	"cmd/link/internal/s390x"
+ 	"cmd/link/internal/x86"
+ 	"fmt"
+ 	"os"
+@@ -33,5 +34,7 @@ func main() {
+ 		mips64.Main()
+ 	case "ppc64", "ppc64le":
+ 		ppc64.Main()
++	case "s390x":
++		s390x.Main()
+ 	}
+ }

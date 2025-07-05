@@ -9,7 +9,70 @@ Date:   Wed Aug 27 17:38:01 2014 -0400
     TBR=0intro
     CC=golang-codereviews
     https://golang.org/cl/135900043
-
+---
  src/pkg/runtime/sys_plan9_386.s   | 7 ++++---
  src/pkg/runtime/sys_plan9_amd64.s | 7 ++++---
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 08d0b32395..e40721d342 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -183,11 +183,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVL	BP, SP
+ 
+ 	// make room for args and g
+-	SUBL	$16, SP
++	SUBL	$24, SP
+ 
+ 	// save g
+ 	MOVL	g(AX), BP
+-	MOVL	BP, 12(SP)
++	MOVL	BP, 20(SP)
+ 
+ 	// g = m->gsignal
+ 	MOVL	m_gsignal(BX), DI
+@@ -199,10 +199,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVL	BP, 8(SP)
+ 
+ 	CALL	runtime·sighandler(SB)
++	MOVL	12(SP), AX
+ 
+ 	// restore g
+ 	get_tls(BX)
+-	MOVL	12(SP), BP
++	MOVL	20(SP), BP
+ 	MOVL	BP, g(BX)
+ 
+ 	// call noted(AX)
+diff --git a/src/pkg/runtime/sys_plan9_amd64.s b/src/pkg/runtime/sys_plan9_amd64.s
+index c8fa444996..d83a57e2ac 100644
+--- a/src/pkg/runtime/sys_plan9_amd64.s
++++ b/src/pkg/runtime/sys_plan9_amd64.s
+@@ -174,11 +174,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVQ	BP, SP
+ 
+ 	// make room for args and g
+-	SUBQ	$32, SP
++	SUBQ	$40, SP
+ 
+ 	// save g
+ 	MOVQ	g(AX), BP
+-	MOVQ	BP, 24(SP)
++	MOVQ	BP, 32(SP)
+ 
+ 	// g = m->gsignal
+ 	MOVQ	R10, g(AX)
+@@ -189,10 +189,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
+ 	MOVQ	BP, 16(SP)
+ 
+ 	CALL	runtime·sighandler(SB)
++	MOVL	24(SP), AX
+ 
+ 	// restore g
+ 	get_tls(BX)
+-	MOVQ	24(SP), R10
++	MOVQ	32(SP), R10
+ 	MOVQ	R10, g(BX)
+ 
+ 	// call noted(AX)

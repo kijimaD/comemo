@@ -21,10 +21,79 @@ Date:   Tue Oct 20 11:06:02 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/263801
     Trust: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/internal/cpu/cpu_mips.go    |  3 +++
  src/internal/cpu/cpu_mipsle.go  |  3 +++
  src/internal/cpu/cpu_no_init.go | 18 ------------------
  src/internal/cpu/cpu_riscv64.go |  3 +++
  src/internal/cpu/cpu_wasm.go    |  3 +++
  5 files changed, 12 insertions(+), 18 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_mips.go b/src/internal/cpu/cpu_mips.go
+index 0f821e44e7..14a9c975ea 100644
+--- a/src/internal/cpu/cpu_mips.go
++++ b/src/internal/cpu/cpu_mips.go
+@@ -5,3 +5,6 @@
+ package cpu
+ 
+ const CacheLinePadSize = 32
++
++func doinit() {
++}
+diff --git a/src/internal/cpu/cpu_mipsle.go b/src/internal/cpu/cpu_mipsle.go
+index 0f821e44e7..14a9c975ea 100644
+--- a/src/internal/cpu/cpu_mipsle.go
++++ b/src/internal/cpu/cpu_mipsle.go
+@@ -5,3 +5,6 @@
+ package cpu
+ 
+ const CacheLinePadSize = 32
++
++func doinit() {
++}
+diff --git a/src/internal/cpu/cpu_no_init.go b/src/internal/cpu/cpu_no_init.go
+deleted file mode 100644
+index fb381e1ce2..0000000000
+--- a/src/internal/cpu/cpu_no_init.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !386
+-// +build !amd64
+-// +build !arm
+-// +build !arm64
+-// +build !ppc64
+-// +build !ppc64le
+-// +build !s390x
+-// +build !mips64
+-// +build !mips64le
+-
+-package cpu
+-
+-func doinit() {
+-}
+diff --git a/src/internal/cpu/cpu_riscv64.go b/src/internal/cpu/cpu_riscv64.go
+index c49cab79fd..54b8c3378b 100644
+--- a/src/internal/cpu/cpu_riscv64.go
++++ b/src/internal/cpu/cpu_riscv64.go
+@@ -5,3 +5,6 @@
+ package cpu
+ 
+ const CacheLinePadSize = 32
++
++func doinit() {
++}
+diff --git a/src/internal/cpu/cpu_wasm.go b/src/internal/cpu/cpu_wasm.go
+index b459738770..2310ad6a48 100644
+--- a/src/internal/cpu/cpu_wasm.go
++++ b/src/internal/cpu/cpu_wasm.go
+@@ -5,3 +5,6 @@
+ package cpu
+ 
+ const CacheLinePadSize = 64
++
++func doinit() {
++}

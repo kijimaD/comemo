@@ -16,7 +16,7 @@ Date:   Thu Aug 15 22:34:06 2013 -0400
     R=khr, r, dvyukov
     CC=golang-dev
     https://golang.org/cl/12541052
-
+---
  src/pkg/runtime/crash_test.go    | 42 +++++++++++++++++++++++++++++++---------
  src/pkg/runtime/debug/garbage.go | 15 ++++++++++++++
  src/pkg/runtime/panic.c          |  4 +++-
@@ -24,3 +24,218 @@ Date:   Thu Aug 15 22:34:06 2013 -0400
  src/pkg/runtime/runtime.h        |  2 ++
  src/pkg/runtime/stack.c          | 19 +++++++++++++++++-
  6 files changed, 80 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 31697beb59..7ea1b6b61a 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -74,10 +74,10 @@ func testCrashHandler(t *testing.T, cgo bool) {
+ 	type crashTest struct {
+ 		Cgo bool
+ 	}
+-	got := executeTest(t, crashSource, &crashTest{Cgo: cgo})
++	output := executeTest(t, crashSource, &crashTest{Cgo: cgo})
+ 	want := "main: recovered done\nnew-thread: recovered done\nsecond-new-thread: recovered done\nmain-again: recovered done\n"
+-	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++	if output != want {
++		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+ 	}
+ }
+ 
+@@ -86,10 +86,10 @@ func TestCrashHandler(t *testing.T) {
+ }
+ 
+ func testDeadlock(t *testing.T, source string) {
+-	got := executeTest(t, source, nil)
++	output := executeTest(t, source, nil)
+ 	want := "fatal error: all goroutines are asleep - deadlock!\n"
+-	if !strings.HasPrefix(got, want) {
+-		t.Fatalf("expected %q, but got %q", want, got)
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+@@ -110,10 +110,18 @@ func TestLockedDeadlock2(t *testing.T) {
+ }
+ 
+ func TestGoexitDeadlock(t *testing.T) {
+-	got := executeTest(t, goexitDeadlockSource, nil)
++	output := executeTest(t, goexitDeadlockSource, nil)
+ 	want := ""
+-	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++	if output != "" {
++		t.Fatalf("expected no output:\n%s", want, output)
++	}
++}
++
++func TestStackOverflow(t *testing.T) {
++	output := executeTest(t, stackOverflowSource, nil)
++	want := "runtime: goroutine stack exceeds 4194304-byte limit\nfatal error: stack overflow"
++	if !strings.HasPrefix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+@@ -219,3 +227,19 @@ func main() {
+       runtime.Goexit()
+ }
+ `
++
++const stackOverflowSource = `
++package main
++
++import "runtime/debug"
++
++func main() {
++	debug.SetMaxStack(4<<20)
++	f(make([]byte, 10))
++}
++
++func f(x []byte) byte {
++	var buf [64<<10]byte
++	return x[0] + f(buf[:])
++}
++`
+diff --git a/src/pkg/runtime/debug/garbage.go b/src/pkg/runtime/debug/garbage.go
+index 8f30264264..3658feaaf8 100644
+--- a/src/pkg/runtime/debug/garbage.go
++++ b/src/pkg/runtime/debug/garbage.go
+@@ -24,6 +24,7 @@ func readGCStats(*[]time.Duration)
+ func enableGC(bool) bool
+ func setGCPercent(int) int
+ func freeOSMemory()
++func setMaxStack(int) int
+ 
+ // ReadGCStats reads statistics about garbage collection into stats.
+ // The number of entries in the pause history is system-dependent;
+@@ -99,3 +100,17 @@ func SetGCPercent(percent int) int {
+ func FreeOSMemory() {
+ 	freeOSMemory()
+ }
++
++// SetMaxStack sets the maximum amount of memory that
++// can be used by a single goroutine stack.
++// If any goroutine exceeds this limit while growing its stack,
++// the program crashes.
++// SetMaxStack returns the previous setting.
++// The initial setting is 1 GB on 64-bit systems, 250 MB on 32-bit systems.
++//
++// SetMaxStack is useful mainly for limiting the damage done by
++// goroutines that enter an infinite recursion. It only limits future
++// stack growth.
++func SetMaxStack(bytes int) int {
++	return setMaxStack(bytes)
++}
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 61afbf6e73..4fbbed1071 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -320,8 +320,10 @@ runtime·unwindstack(G *gp, byte *sp)
+ 		gp->stackbase = top->stackbase;
+ 		gp->stackguard = top->stackguard;
+ 		gp->stackguard0 = gp->stackguard;
+-		if(top->free != 0)
++		if(top->free != 0) {
++			gp->stacksize -= top->free;
+ 			runtime·stackfree(stk, top->free);
++		}
+ 	}
+ 
+ 	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c8d9ae4f92..690c1760eb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -168,6 +168,14 @@ void
+ runtime·main(void)
+ {
+ 	Defer d;
++	
++	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
++	// Using decimal instead of binary GB and MB because
++	// they look nicer in the stack overflow failure message.
++	if(sizeof(void*) == 8)
++		runtime·maxstacksize = 1000000000;
++	else
++		runtime·maxstacksize = 250000000;
+ 
+ 	newm(sysmon, nil);
+ 
+@@ -1668,6 +1676,7 @@ runtime·malg(int32 stacksize)
+ 			stk = g->param;
+ 			g->param = nil;
+ 		}
++		g->stacksize = StackSystem + stacksize;
+ 		newg->stack0 = (uintptr)stk;
+ 		newg->stackguard = (uintptr)stk + StackGuard;
+ 		newg->stackguard0 = newg->stackguard;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b80e2ad41a..b87e64dfa1 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -259,6 +259,7 @@ struct	G
+ 	uintptr	syscallguard;		// if status==Gsyscall, syscallguard = stackguard to use during gc
+ 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
+ 	uintptr	stack0;
++	uintptr	stacksize;
+ 	G*	alllink;	// on allg
+ 	void*	param;		// passed parameter on wakeup
+ 	int16	status;
+@@ -713,6 +714,7 @@ extern	uint32	runtime·Hchansize;
+ extern	uint32	runtime·cpuid_ecx;
+ extern	uint32	runtime·cpuid_edx;
+ extern	DebugVars	runtime·debug;
++extern	uintptr	runtime·maxstacksize;
+ 
+ /*
+  * common functions and data
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 812ba17e2d..dd823705da 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -176,13 +176,17 @@ runtime·oldstack(void)
+ 	gp->stackguard = top->stackguard;
+ 	gp->stackguard0 = gp->stackguard;
+ 
+-	if(top->free != 0)
++	if(top->free != 0) {
++		gp->stacksize -= top->free;
+ 		runtime·stackfree(old, top->free);
++	}
+ 
+ 	gp->status = oldstatus;
+ 	runtime·gogo(&gp->sched);
+ }
+ 
++uintptr runtime·maxstacksize = 1<<20; // enough until runtime.main sets it for real
++
+ // Called from runtime·newstackcall or from runtime·morestack when a new
+ // stack segment is needed.  Allocate a new stack big enough for
+ // m->moreframesize bytes, copy m->moreargsize bytes to the new frame,
+@@ -285,6 +289,11 @@ runtime·newstack(void)
+ 		if(framesize < StackMin)
+ 			framesize = StackMin;
+ 		framesize += StackSystem;
++		gp->stacksize += framesize;
++		if(gp->stacksize > runtime·maxstacksize) {
++			runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
++			runtime·throw("stack overflow");
++		}
+ 		stk = runtime·stackalloc(framesize);
+ 		top = (Stktop*)(stk+framesize-sizeof(*top));
+ 		free = framesize;
+@@ -353,3 +362,11 @@ runtime·gostartcallfn(Gobuf *gobuf, FuncVal *fv)
+ {
+ 	runtime·gostartcall(gobuf, fv->fn, fv);
+ }
++
++void
++runtime∕debug·setMaxStack(intgo in, intgo out)
++{
++	out = runtime·maxstacksize;
++	runtime·maxstacksize = in;
++	FLUSH(&out);
++}

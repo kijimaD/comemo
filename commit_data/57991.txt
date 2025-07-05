@@ -15,7 +15,33 @@ Date:   Tue Aug 1 12:04:12 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/518257
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go            | 1 +
  src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 78a6cc5325..325063fed5 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -76,6 +76,7 @@ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
+ 	if err := cstab.merge(fcstab); err != nil {
+ 		base.FatalfAt(fn.Pos(), "%v", err)
+ 	}
++	fn.SetNeverReturns(entry.props.Flags&FuncPropNeverReturns != 0)
+ 	fpmap[fn] = entry
+ 	if fn.Inl != nil && fn.Inl.Properties == "" {
+ 		fn.Inl.Properties = entry.props.SerializeToString()
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 463fa36a69..15f5bd5f35 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -194,7 +194,7 @@ func isExitCall(n ir.Node) bool {
+ 			return true
+ 		}
+ 	}
+-	return false
++	return name.Func.NeverReturns()
+ }
+ 
+ // pessimize is called to record the fact that we saw something in the

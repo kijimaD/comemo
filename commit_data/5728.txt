@@ -8,7 +8,66 @@ Date:   Tue Jun 29 16:39:17 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1673049
-
+---
  src/pkg/strconv/ftoa.go      | 14 ++++++++++----
  src/pkg/strconv/ftoa_test.go | 11 +++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 656d81c981..3659243c79 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -154,21 +154,27 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
+ 	case 'f':
+ 		return fmtF(neg, d, prec)
+ 	case 'g', 'G':
+-		// trailing zeros are removed.
+-		if prec > d.nd {
+-			prec = d.nd
++		// trailing fractional zeros in 'e' form will be trimmed.
++		eprec := prec
++		if eprec > d.nd && d.nd >= d.dp {
++			eprec = d.nd
+ 		}
+ 		// %e is used if the exponent from the conversion
+ 		// is less than -4 or greater than or equal to the precision.
+ 		// if precision was the shortest possible, use precision 6 for this decision.
+-		eprec := prec
+ 		if shortest {
+ 			eprec = 6
+ 		}
+ 		exp := d.dp - 1
+ 		if exp < -4 || exp >= eprec {
++			if prec > d.nd {
++				prec = d.nd
++			}
+ 			return fmtE(neg, d, prec-1, fmt+'e'-'g')
+ 		}
++		if prec > d.dp {
++			prec = d.nd
++		}
+ 		return fmtF(neg, d, max(prec-d.dp, 0))
+ 	}
+ 
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 85510b79c7..cc01ccd780 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -34,6 +34,17 @@ var ftoatests = []ftoaTest{
+ 	ftoaTest{200000, 'g', -1, "200000"},
+ 	ftoaTest{2000000, 'g', -1, "2e+06"},
+ 
++	// g conversion and zero suppression
++	ftoaTest{400, 'g', 2, "4e+02"},
++	ftoaTest{40, 'g', 2, "40"},
++	ftoaTest{4, 'g', 2, "4"},
++	ftoaTest{.4, 'g', 2, "0.4"},
++	ftoaTest{.04, 'g', 2, "0.04"},
++	ftoaTest{.004, 'g', 2, "0.004"},
++	ftoaTest{.0004, 'g', 2, "0.0004"},
++	ftoaTest{.00004, 'g', 2, "4e-05"},
++	ftoaTest{.000004, 'g', 2, "4e-06"},
++
+ 	ftoaTest{0, 'e', 5, "0.00000e+00"},
+ 	ftoaTest{0, 'f', 5, "0.00000"},
+ 	ftoaTest{0, 'g', 5, "0"},

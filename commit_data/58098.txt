@@ -21,8 +21,216 @@ Date:   Wed Sep 20 15:45:08 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/slog/handler.go                | 59 +++++++++++++++++++++++++++-------
  src/log/slog/handler_test.go           | 31 ++++++++++++++++--
  src/log/slog/internal/buffer/buffer.go | 10 +++++-
  3 files changed, 84 insertions(+), 16 deletions(-)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index c9183997fa..03d631c0ac 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -239,15 +239,18 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
+ 			state.sep = ""
+ 		}
+ 	}
++	// Remember the position in the buffer, in case all attrs are empty.
++	pos := state.buf.Len()
+ 	state.openGroups()
+-	for _, a := range as {
+-		state.appendAttr(a)
++	if !state.appendAttrs(as) {
++		state.buf.SetLen(pos)
++	} else {
++		// Remember the new prefix for later keys.
++		h2.groupPrefix = state.prefix.String()
++		// Remember how many opened groups are in preformattedAttrs,
++		// so we don't open them again when we handle a Record.
++		h2.nOpenGroups = len(h2.groups)
+ 	}
+-	// Remember the new prefix for later keys.
+-	h2.groupPrefix = state.prefix.String()
+-	// Remember how many opened groups are in preformattedAttrs,
+-	// so we don't open them again when we handle a Record.
+-	h2.nOpenGroups = len(h2.groups)
+ 	return h2
+ }
+ 
+@@ -327,12 +330,24 @@ func (s *handleState) appendNonBuiltIns(r Record) {
+ 	nOpenGroups := s.h.nOpenGroups
+ 	if r.NumAttrs() > 0 {
+ 		s.prefix.WriteString(s.h.groupPrefix)
++		// The group may turn out to be empty even though it has attrs (for
++		// example, ReplaceAttr may delete all the attrs).
++		// So remember where we are in the buffer, to restore the position
++		// later if necessary.
++		pos := s.buf.Len()
+ 		s.openGroups()
+ 		nOpenGroups = len(s.h.groups)
++		empty := true
+ 		r.Attrs(func(a Attr) bool {
+-			s.appendAttr(a)
++			if s.appendAttr(a) {
++				empty = false
++			}
+ 			return true
+ 		})
++		if empty {
++			s.buf.SetLen(pos)
++			nOpenGroups = s.h.nOpenGroups
++		}
+ 	}
+ 	if s.h.json {
+ 		// Close all open groups.
+@@ -434,10 +449,23 @@ func (s *handleState) closeGroup(name string) {
+ 	}
+ }
+ 
++// appendAttrs appends the slice of Attrs.
++// It reports whether something was appended.
++func (s *handleState) appendAttrs(as []Attr) bool {
++	nonEmpty := false
++	for _, a := range as {
++		if s.appendAttr(a) {
++			nonEmpty = true
++		}
++	}
++	return nonEmpty
++}
++
+ // appendAttr appends the Attr's key and value using app.
+ // It handles replacement and checking for an empty key.
+ // after replacement).
+-func (s *handleState) appendAttr(a Attr) {
++// It reports whether something was appended.
++func (s *handleState) appendAttr(a Attr) bool {
+ 	a.Value = a.Value.Resolve()
+ 	if rep := s.h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != KindGroup {
+ 		var gs []string
+@@ -451,7 +479,7 @@ func (s *handleState) appendAttr(a Attr) {
+ 	}
+ 	// Elide empty Attrs.
+ 	if a.isEmpty() {
+-		return
++		return false
+ 	}
+ 	// Special case: Source.
+ 	if v := a.Value; v.Kind() == KindAny {
+@@ -467,12 +495,18 @@ func (s *handleState) appendAttr(a Attr) {
+ 		attrs := a.Value.Group()
+ 		// Output only non-empty groups.
+ 		if len(attrs) > 0 {
++			// The group may turn out to be empty even though it has attrs (for
++			// example, ReplaceAttr may delete all the attrs).
++			// So remember where we are in the buffer, to restore the position
++			// later if necessary.
++			pos := s.buf.Len()
+ 			// Inline a group with an empty key.
+ 			if a.Key != "" {
+ 				s.openGroup(a.Key)
+ 			}
+-			for _, aa := range attrs {
+-				s.appendAttr(aa)
++			if !s.appendAttrs(attrs) {
++				s.buf.SetLen(pos)
++				return false
+ 			}
+ 			if a.Key != "" {
+ 				s.closeGroup(a.Key)
+@@ -482,6 +516,7 @@ func (s *handleState) appendAttr(a Attr) {
+ 		s.appendKey(a.Key)
+ 		s.appendValue(a.Value)
+ 	}
++	return true
+ }
+ 
+ func (s *handleState) appendError(err error) {
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index ec200d4b85..8ce34526d0 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -435,6 +435,13 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: `time.mins=3 time.secs=2 msg=message`,
+ 			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
+ 		},
++		{
++			name:     "replace empty",
++			replace:  func([]string, Attr) Attr { return Attr{} },
++			attrs:    []Attr{Group("g", Int("a", 1))},
++			wantText: "",
++			wantJSON: `{}`,
++		},
+ 		{
+ 			name: "replace empty 1",
+ 			with: func(h Handler) Handler {
+@@ -443,7 +450,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			replace:  func([]string, Attr) Attr { return Attr{} },
+ 			attrs:    []Attr{Group("h", Int("b", 2))},
+ 			wantText: "",
+-			wantJSON: `{"g":{"h":{}}}`,
++			wantJSON: `{}`,
+ 		},
+ 		{
+ 			name: "replace empty 2",
+@@ -453,7 +460,25 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			replace:  func([]string, Attr) Attr { return Attr{} },
+ 			attrs:    []Attr{Group("i", Int("c", 3))},
+ 			wantText: "",
+-			wantJSON: `{"g":{"h":{"i":{}}}}`,
++			wantJSON: `{}`,
++		},
++		{
++			name:     "replace empty 3",
++			with:     func(h Handler) Handler { return h.WithGroup("g") },
++			replace:  func([]string, Attr) Attr { return Attr{} },
++			attrs:    []Attr{Int("a", 1)},
++			wantText: "",
++			wantJSON: `{}`,
++		},
++		{
++			name: "replace empty inline",
++			with: func(h Handler) Handler {
++				return h.WithGroup("g").WithAttrs([]Attr{Int("a", 1)}).WithGroup("h").WithAttrs([]Attr{Int("b", 2)})
++			},
++			replace:  func([]string, Attr) Attr { return Attr{} },
++			attrs:    []Attr{Group("", Int("c", 3))},
++			wantText: "",
++			wantJSON: `{}`,
+ 		},
+ 		{
+ 			name: "replace partial empty attrs 1",
+@@ -489,7 +514,7 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			},
+ 			attrs:    []Attr{Group("i", Int("c", 3))},
+ 			wantText: "g.x=0 g.n=4 g.h.b=2",
+-			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2,"i":{}}}}`,
++			wantJSON: `{"g":{"x":0,"n":4,"h":{"b":2}}}`,
+ 		},
+ 		{
+ 			name: "replace resolved group",
+diff --git a/src/log/slog/internal/buffer/buffer.go b/src/log/slog/internal/buffer/buffer.go
+index 13546d42fd..310ec37d4a 100644
+--- a/src/log/slog/internal/buffer/buffer.go
++++ b/src/log/slog/internal/buffer/buffer.go
+@@ -32,7 +32,7 @@ func (b *Buffer) Free() {
+ }
+ 
+ func (b *Buffer) Reset() {
+-	*b = (*b)[:0]
++	b.SetLen(0)
+ }
+ 
+ func (b *Buffer) Write(p []byte) (int, error) {
+@@ -53,3 +53,11 @@ func (b *Buffer) WriteByte(c byte) error {
+ func (b *Buffer) String() string {
+ 	return string(*b)
+ }
++
++func (b *Buffer) Len() int {
++	return len(*b)
++}
++
++func (b *Buffer) SetLen(n int) {
++	*b = (*b)[:n]
++}

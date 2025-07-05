@@ -12,7 +12,109 @@ Date:   Wed Oct 2 08:52:51 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/14171043
-
+---
  misc/vim/autoload/go/complete.vim |  6 ++++++
  misc/vim/plugin/godoc.vim         | 36 ++++++++++++++++++++----------------
  2 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/misc/vim/autoload/go/complete.vim b/misc/vim/autoload/go/complete.vim
+index 80fa451583..5b8406b771 100644
+--- a/misc/vim/autoload/go/complete.vim
++++ b/misc/vim/autoload/go/complete.vim
+@@ -31,6 +31,12 @@ endif
+ function! go#complete#Package(ArgLead, CmdLine, CursorPos)
+   let dirs = []
+ 
++  let words = split(a:CmdLine, '\s\+', 1)
++  if len(words) > 2
++    " TODO Complete package members
++    return []
++  endif
++
+   if executable('go')
+     let goroot = substitute(system('go env GOROOT'), '\n', '', 'g')
+     if v:shell_error
+diff --git a/misc/vim/plugin/godoc.vim b/misc/vim/plugin/godoc.vim
+index 33c9ec05bf..a145d313fe 100644
+--- a/misc/vim/plugin/godoc.vim
++++ b/misc/vim/plugin/godoc.vim
+@@ -31,7 +31,7 @@ if !exists('g:go_godoc_commands')
+ endif
+ 
+ if g:go_godoc_commands
+-  command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<q-args>)
++  command! -nargs=* -range -complete=customlist,go#complete#Package Godoc :call s:Godoc(<f-args>)
+ endif
+ 
+ nnoremap <silent> <Plug>(godoc-keyword) :<C-u>call <SID>Godoc('')<CR>
+@@ -71,7 +71,7 @@ function! s:GodocWord(word)
+     echo "godoc command not found."
+     echo "  install with: go get code.google.com/p/go.tools/cmd/godoc"
+     echohl None
+-    return
++    return 0
+   endif
+   let word = a:word
+   silent! let content = system('godoc ' . word)
+@@ -80,12 +80,12 @@ function! s:GodocWord(word)
+       silent! let content = system('godoc ' . s:last_word.'/'.word)
+       if v:shell_error || !len(content)
+         echo 'No documentation found for "' . word . '".'
+-        return
++        return 0
+       endif
+       let word = s:last_word.'/'.word
+     else
+       echo 'No documentation found for "' . word . '".'
+-      return
++      return 0
+     endif
+   endif
+   let s:last_word = word
+@@ -96,30 +96,34 @@ function! s:GodocWord(word)
+   silent! normal gg
+   setlocal nomodifiable
+   setfiletype godoc
++  return 1
+ endfunction
+ 
+ function! s:Godoc(...)
+-  let word = join(a:000, ' ')
+-  if !len(word)
++  if !len(a:000)
+     let oldiskeyword = &iskeyword
+     setlocal iskeyword+=.
+     let word = expand('<cword>')
+     let &iskeyword = oldiskeyword
++    let word = substitute(word, '[^a-zA-Z0-9\\/._~-]', '', 'g')
++    let words = split(word, '\.\ze[^./]\+$')
++  else
++    let words = a:000
+   endif
+-  let word = substitute(word, '[^a-zA-Z0-9\\/._~-]', '', 'g')
+-  let words = split(word, '\.')
+   if !len(words)
+     return
+   endif
+-  call s:GodocWord(words[0])
+-  if len(words) > 1
+-    if search('^\%(const\|var\|type\|\s\+\) ' . words[1] . '\s\+=\s')
+-      return
+-    endif
+-    if search('^func ' . words[1] . '(')
+-      return
++  if s:GodocWord(words[0])
++    if len(words) > 1
++      if search('^\%(const\|var\|type\|\s\+\) ' . words[1] . '\s\+=\s')
++        return
++      endif
++      if search('^func ' . words[1] . '(')
++        silent! normal zt
++        return
++      endif
++      echo 'No documentation found for "' . words[1] . '".'
+     endif
+-    echo 'No documentation found for "' . word . '".'
+   endif
+ endfunction
+ 

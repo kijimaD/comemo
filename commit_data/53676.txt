@@ -17,6 +17,33 @@ Date:   Fri Aug 19 16:01:33 2022 +1000
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
-
+---
  src/image/png/reader.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index b608bec2ef..3a717344c2 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -51,6 +51,10 @@ func cbPaletted(cb int) bool {
+ 	return cbP1 <= cb && cb <= cbP8
+ }
+ 
++func cbTrueColor(cb int) bool {
++	return cb == cbTC8 || cb == cbTC16
++}
++
+ // Filter type, as per the PNG spec.
+ const (
+ 	ftNone    = 0
+@@ -898,6 +902,10 @@ func (d *decoder) parseChunk(configOnly bool) error {
+ 			if d.stage != dsSeenPLTE {
+ 				return chunkOrderError
+ 			}
++		} else if cbTrueColor(d.cb) {
++			if d.stage != dsSeenIHDR && d.stage != dsSeenPLTE {
++				return chunkOrderError
++			}
+ 		} else if d.stage != dsSeenIHDR {
+ 			return chunkOrderError
+ 		}

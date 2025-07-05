@@ -12,7 +12,75 @@ Date:   Thu Feb 25 17:16:42 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 15 ++++++---------
  src/go/parser/parser.go               | 26 +++++++++++---------------
  2 files changed, 17 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 25754e5663..ffa20711b7 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1142,17 +1142,14 @@ func (p *parser) bexpr(prec int) *Node {
+ 	// don't trace bexpr - only leads to overly nested trace output
+ 
+ 	x := p.uexpr()
+-	t := prectab[p.tok]
+-	for tprec := t.prec; tprec >= prec; tprec-- {
+-		for tprec == prec {
+-			p.next()
+-			y := p.bexpr(t.prec + 1)
+-			x = Nod(t.op, x, y)
+-			t = prectab[p.tok]
+-			tprec = t.prec
++	for {
++		t := prectab[p.tok]
++		if t.prec < prec {
++			return x
+ 		}
++		p.next()
++		x = Nod(t.op, x, p.bexpr(t.prec+1))
+ 	}
+-	return x
+ }
+ 
+ func (p *parser) expr() *Node {
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index f3a26032ee..d3ef7db31e 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1597,23 +1597,19 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
+ 	}
+ 
+ 	x := p.parseUnaryExpr(lhs)
+-	for _, prec := p.tokPrec(); prec >= prec1; prec-- {
+-		for {
+-			op, oprec := p.tokPrec()
+-			if oprec != prec {
+-				break
+-			}
+-			pos := p.expect(op)
+-			if lhs {
+-				p.resolve(x)
+-				lhs = false
+-			}
+-			y := p.parseBinaryExpr(false, prec+1)
+-			x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
++	for {
++		op, oprec := p.tokPrec()
++		if oprec < prec1 {
++			return x
++		}
++		pos := p.expect(op)
++		if lhs {
++			p.resolve(x)
++			lhs = false
+ 		}
++		y := p.parseBinaryExpr(false, oprec+1)
++		x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
+ 	}
+-
+-	return x
+ }
+ 
+ // If lhs is set and the result is an identifier, it is not resolved.

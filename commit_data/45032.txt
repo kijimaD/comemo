@@ -15,6 +15,20 @@ Date:   Sun Sep 13 14:40:51 2020 +0000
     Trust: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index ea5eca51ef..483b9d8f2d 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -236,6 +236,8 @@ func (e *UnsupportedTypeError) Error() string {
+ 	return "json: unsupported type: " + e.Type.String()
+ }
+ 
++// An UnsupportedValueError is returned by Marshal when attempting
++// to encode an unsupported value.
+ type UnsupportedValueError struct {
+ 	Value reflect.Value
+ 	Str   string

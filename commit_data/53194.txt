@@ -14,6 +14,20 @@ Date:   Mon Aug 1 21:19:29 2022 +0800
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.19.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 9a85765064..8fc28b94bf 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -490,7 +490,7 @@ as well as support for rendering them to HTML, Markdown, and text.
+ <dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+   <dd>
+     <p><!-- CL 396735 -->
+-      The new <code>EM_LONGARCH</code> and <code>R_LARCH_*</code> constants
++      The new <code>EM_LOONGARCH</code> and <code>R_LARCH_*</code> constants
+       support the loong64 port.
+     </p>
+   </dd>

@@ -7,6 +7,20 @@ Date:   Fri Jan 14 09:27:51 2011 +1100
     R=bradfitz, dangabrad
     CC=golang-dev
     https://golang.org/cl/3998041
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 317cb525b3..9bfc5237bc 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -54,7 +54,7 @@ Ben Eitzen <eitzenb@golang.org>
+ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
+-Brad Fitzpatrick <brad@danga.com> <bradfitz@gmail.com>
++Brad Fitzpatrick <bradfitz@golang.org> <brad@danga.com> <bradfitz@gmail.com>
+ Brendan O'Dea <bod@golang.org>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Cary Hull <chull@google.com>

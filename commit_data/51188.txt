@@ -13,9 +13,97 @@ Date:   Mon Dec 13 10:24:07 2021 -0500
     Trust: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/mips/obj0.go  | 12 +++++++++---
  src/cmd/internal/obj/s390x/objz.go |  9 +++++++--
  test/retjmp.dir/a.s                |  4 ++++
  test/retjmp.dir/main.go            |  8 +++++++-
  4 files changed, 27 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 9e2ccc1929..b96a28a944 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -466,9 +466,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = c.newprog()
+ 				q.As = AJMP
+ 				q.Pos = p.Pos
+-				q.To.Type = obj.TYPE_MEM
+-				q.To.Offset = 0
+-				q.To.Reg = REGLINK
++				if retSym != nil { // retjmp
++					q.To.Type = obj.TYPE_BRANCH
++					q.To.Name = obj.NAME_EXTERN
++					q.To.Sym = retSym
++				} else {
++					q.To.Type = obj.TYPE_MEM
++					q.To.Reg = REGLINK
++					q.To.Offset = 0
++				}
+ 				q.Mark |= BRANCH
+ 				q.Spadj = +autosize
+ 
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index de40ff05af..aebbf8dbc5 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -488,8 +488,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(p, c.newprog)
+ 				q.As = ABR
+ 				q.From = obj.Addr{}
+-				q.To.Type = obj.TYPE_REG
+-				q.To.Reg = REG_LR
++				if retTarget == nil {
++					q.To.Type = obj.TYPE_REG
++					q.To.Reg = REG_LR
++				} else {
++					q.To.Type = obj.TYPE_BRANCH
++					q.To.Sym = retTarget
++				}
+ 				q.Mark |= BRANCH
+ 				q.Spadj = autosize
+ 				break
+diff --git a/test/retjmp.dir/a.s b/test/retjmp.dir/a.s
+index c67a06638f..101b3428fc 100644
+--- a/test/retjmp.dir/a.s
++++ b/test/retjmp.dir/a.s
+@@ -10,3 +10,7 @@ TEXT	·f(SB), 4, $8-0
+ TEXT	·leaf(SB), 4, $0-0
+ 	RET	·f3(SB)
+ 	JMP	·unreachable(SB)
++
++TEXT	·leaf2(SB), 4, $32-0 // nonzero frame size
++	RET	·f4(SB)
++	JMP	·unreachable(SB)
+diff --git a/test/retjmp.dir/main.go b/test/retjmp.dir/main.go
+index cb4bd018bf..0bed5a61b7 100644
+--- a/test/retjmp.dir/main.go
++++ b/test/retjmp.dir/main.go
+@@ -6,8 +6,9 @@ package main
+ 
+ func f()
+ func leaf()
++func leaf2()
+ 
+-var f1called, f2called, f3called bool
++var f1called, f2called, f3called, f4called bool
+ 
+ func main() {
+ 	f()
+@@ -21,11 +22,16 @@ func main() {
+ 	if !f3called {
+ 		panic("f3 not called")
+ 	}
++	leaf2()
++	if !f4called {
++		panic("f4 not called")
++	}
+ }
+ 
+ func f1() { f1called = true }
+ func f2() { f2called = true }
+ func f3() { f3called = true }
++func f4() { f4called = true }
+ 
+ func unreachable() {
+ 	panic("unreachable function called")

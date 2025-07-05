@@ -7,6 +7,29 @@ Date:   Mon Dec 16 10:44:23 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/42370043
-
+---
  src/pkg/strings/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+index 7350131b85..62a9af74d0 100644
+--- a/src/pkg/strings/example_test.go
++++ b/src/pkg/strings/example_test.go
+@@ -68,6 +68,17 @@ func ExampleIndex() {
+ 	// -1
+ }
+ 
++func ExampleIndexFunc() {
++	f := func(c rune) bool {
++		return unicode.Is(unicode.Han, c)
++	}
++	fmt.Println(strings.IndexFunc("Hello, 世界", f))
++	fmt.Println(strings.IndexFunc("Hello, world", f))
++	// Output:
++	// 7
++	// -1
++}
++
+ func ExampleIndexRune() {
+ 	fmt.Println(strings.IndexRune("chicken", 'k'))
+ 	fmt.Println(strings.IndexRune("chicken", 'd'))

@@ -11,7 +11,7 @@ Date:   Fri Nov 15 19:49:30 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/trace/trace_viewer_full.html              | 2 +-
  src/cmd/compile/internal/gc/bexport.go         | 2 +-
  src/cmd/compile/internal/gc/plive.go           | 2 +-
@@ -44,3 +44,432 @@ Date:   Fri Nov 15 19:49:30 2019 +0000
  src/runtime/slice.go                           | 2 +-
  src/runtime/stack.go                           | 2 +-
  31 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/misc/trace/trace_viewer_full.html b/misc/trace/trace_viewer_full.html
+index 29360698ba..c8689ba79f 100644
+--- a/misc/trace/trace_viewer_full.html
++++ b/misc/trace/trace_viewer_full.html
+@@ -6307,7 +6307,7 @@ function define(className,opt_parentConstructor,opt_tagNS){if(typeof className==
+ className=className.toLowerCase();if(opt_parentConstructor&&!opt_parentConstructor.tagName){throw new Error('opt_parentConstructor was not '+'created by tr.ui.b.define');}
+ let tagName=className;let tagNS=undefined;if(opt_parentConstructor){if(opt_tagNS){throw new Error('Must not specify tagNS if parentConstructor is given');}
+ let parent=opt_parentConstructor;while(parent&&parent.tagName){tagName=parent.tagName;tagNS=parent.tagNS;parent=parent.parentConstructor;}}else{tagNS=opt_tagNS;}
+-function f(){if(opt_parentConstructor&&f.prototype.__proto__!==opt_parentConstructor.prototype){throw new Error(className+' prototye\'s __proto__ field is messed up. '+'It MUST be the prototype of '+opt_parentConstructor.tagName);}
++function f(){if(opt_parentConstructor&&f.prototype.__proto__!==opt_parentConstructor.prototype){throw new Error(className+' prototype\'s __proto__ field is messed up. '+'It MUST be the prototype of '+opt_parentConstructor.tagName);}
+ let el;if(tagNS===undefined){el=tr.doc.createElement(tagName);}else{el=tr.doc.createElementNS(tagNS,tagName);}
+ f.decorate.call(this,el,arguments);return el;}
+ f.decorate=function(el){el.__proto__=f.prototype;el.decorate.apply(el,arguments[1]);el.constructor=f;};f.className=className;f.tagName=tagName;f.tagNS=tagNS;f.parentConstructor=(opt_parentConstructor?opt_parentConstructor:undefined);f.toString=function(){if(!f.parentConstructor){return f.tagName;}
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index e67506f4e1..5ced66c0da 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -127,7 +127,7 @@ const (
+ )
+ 
+ // untype returns the "pseudo" untyped type for a Ctype (import/export use only).
+-// (we can't use an pre-initialized array because we must be sure all types are
++// (we can't use a pre-initialized array because we must be sure all types are
+ // set up)
+ func untype(ctype Ctype) *types.Type {
+ 	switch ctype {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index c205a09d1c..5b9f31426d 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -652,7 +652,7 @@ func (lv *Liveness) markUnsafePoints() {
+ 
+ 	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
+ 
+-	// Mark architecture-specific unsafe pointes.
++	// Mark architecture-specific unsafe points.
+ 	for _, b := range lv.f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op.UnsafePoint() {
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 02131e32be..1cf0a0862f 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -101,7 +101,7 @@ func typecheckrangeExpr(n *Node) {
+ 		v2 = n.List.Second()
+ 	}
+ 
+-	// this is not only a optimization but also a requirement in the spec.
++	// this is not only an optimization but also a requirement in the spec.
+ 	// "if the second iteration variable is the blank identifier, the range
+ 	// clause is equivalent to the same clause with only the first variable
+ 	// present."
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 73ab7e3b1c..eadd5700ba 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -223,7 +223,7 @@ func (b *Block) CopyControls(from *Block) {
+ }
+ 
+ // Reset sets the block to the provided kind and clears all the blocks control
+-// and auxilliary values. Other properties of the block, such as its successors,
++// and auxiliary values. Other properties of the block, such as its successors,
+ // predecessors and values are left unmodified.
+ func (b *Block) Reset(kind BlockKind) {
+ 	b.Kind = kind
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index a9bf64488e..e1b41d5b89 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -359,7 +359,7 @@
+ (Geq32U x y) -> (GreaterEqualU (CMPW x y))
+ (Geq64U x y) -> (GreaterEqualU (CMP x y))
+ 
+-// Optimize comparision between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
++// Optimize comparison between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
+ (FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)
+ (FCMPS (FMOVSconst [0]) x) -> (InvertFlags (FCMPS0 x))
+ (FCMPD x (FMOVDconst [0])) -> (FCMPD0 x)
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 12ca57ea6e..87cfd3da0f 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1180,7 +1180,7 @@
+ 
+ // Divisibility checks x%c == 0 convert to multiply and rotate.
+ // Note, x%c == 0 is rewritten as x == c*(x/c) during the opt pass
+-// where (x/c) is peformed using multiplication with magic constants.
++// where (x/c) is performed using multiplication with magic constants.
+ // To rewrite x%c == 0 requires pattern matching the rewritten expression
+ // and checking that the division by the same constant wasn't already calculated.
+ // This check is made by counting uses of the magic constant multiplication.
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index e984069022..f728e8ee25 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -294,7 +294,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ 	}
+ }
+ 
+-// TestNilcheckInFalseBranch tests that nil checks in the false branch of an nilcheck
++// TestNilcheckInFalseBranch tests that nil checks in the false branch of a nilcheck
+ // block are *not* removed.
+ func TestNilcheckInFalseBranch(t *testing.T) {
+ 	c := testConfig(t)
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index f9cb0e98c3..6eba39bcf7 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1133,7 +1133,7 @@ func writelines(ctxt *Link, unit *sym.CompilationUnit, ls *sym.Symbol) {
+ 		lastAddr = addr
+ 
+ 		// Output the line table.
+-		// TODO: Now that we have all the debug information in seperate
++		// TODO: Now that we have all the debug information in separate
+ 		// symbols, it would make sense to use a rope, and concatenate them all
+ 		// together rather then the append() below. This would allow us to have
+ 		// the compiler emit the DW_LNE_set_address and a rope data structure
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 353f6e0863..8b6aac338c 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -459,16 +459,16 @@ func readpesym(arch *sys.Arch, lookup func(string, int) *sym.Symbol, f *pe.File,
+ 		case sys.AMD64:
+ 			if name == "__imp___acrt_iob_func" {
+ 				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
+-				// becasue __imp___acrt_iob_func symbol is real
+-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for detials).
++				// because __imp___acrt_iob_func symbol is real
++				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
+ 			} else {
+ 				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+ 			}
+ 		case sys.I386:
+ 			if name == "__imp____acrt_iob_func" {
+ 				// Do not rename __imp____acrt_iob_func into ___acrt_iob_func,
+-				// becasue __imp____acrt_iob_func symbol is real
+-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for detials).
++				// because __imp____acrt_iob_func symbol is real
++				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
+ 			} else {
+ 				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+ 			}
+diff --git a/src/crypto/dsa/dsa_test.go b/src/crypto/dsa/dsa_test.go
+index 7332a3a540..28ac00e6ce 100644
+--- a/src/crypto/dsa/dsa_test.go
++++ b/src/crypto/dsa/dsa_test.go
+@@ -108,7 +108,7 @@ func TestSignAndVerifyWithBadPublicKey(t *testing.T) {
+ 	}
+ 
+ 	if Verify(&pub, []byte("testing"), fromHex("2"), fromHex("4")) {
+-		t.Errorf("Verify unexpected success with non-existant mod inverse of Q")
++		t.Errorf("Verify unexpected success with non-existent mod inverse of Q")
+ 	}
+ }
+ 
+diff --git a/src/crypto/elliptic/p256.go b/src/crypto/elliptic/p256.go
+index 80e123a734..aa9eeb5061 100644
+--- a/src/crypto/elliptic/p256.go
++++ b/src/crypto/elliptic/p256.go
+@@ -85,7 +85,7 @@ func (p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int)
+ 
+ // Field elements are represented as nine, unsigned 32-bit words.
+ //
+-// The value of an field element is:
++// The value of a field element is:
+ //   x[0] + (x[1] * 2**29) + (x[2] * 2**57) + ... + (x[8] * 2**228)
+ //
+ // That is, each limb is alternately 29 or 28-bits wide in little-endian
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index a5937007e3..b16415a03c 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -241,7 +241,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+ 
+ 	if hs.ecdheOk {
+-		// Although omiting the ec_point_formats extension is permitted, some
++		// Although omitting the ec_point_formats extension is permitted, some
+ 		// old OpenSSL version will refuse to handshake if not present.
+ 		//
+ 		// Per RFC 4492, section 5.1.2, implementations MUST support the
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 2a44af08d3..1e5da1e12e 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -274,7 +274,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
+ }
+ 
+ func TestTLSPointFormats(t *testing.T) {
+-	// Test that a Server returns the ec_point_format extention when ECC is
++	// Test that a Server returns the ec_point_format extension when ECC is
+ 	// negotiated, and not returned on RSA handshake.
+ 	tests := []struct {
+ 		name                string
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 42e575e182..b13d13ebf0 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -818,6 +818,6 @@ func TestIssue10996(t *testing.T) {
+ 		"0000")
+ 	_, err := NewFile(bytes.NewReader(data))
+ 	if err == nil {
+-		t.Fatalf("opening invalid ELF file unexpectedly suceeded")
++		t.Fatalf("opening invalid ELF file unexpectedly succeeded")
+ 	}
+ }
+diff --git a/src/debug/pe/file.go b/src/debug/pe/file.go
+index 14ad245224..7d763fff19 100644
+--- a/src/debug/pe/file.go
++++ b/src/debug/pe/file.go
+@@ -475,7 +475,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
+ 		var (
+ 			oh32 OptionalHeader32
+ 			// There can be 0 or more data directories. So the minimum size of optional
+-			// header is calculated by substracting oh32.DataDirectory size from oh32 size.
++			// header is calculated by subtracting oh32.DataDirectory size from oh32 size.
+ 			oh32MinSz = binary.Size(oh32) - binary.Size(oh32.DataDirectory)
+ 		)
+ 
+@@ -529,7 +529,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
+ 		var (
+ 			oh64 OptionalHeader64
+ 			// There can be 0 or more data directories. So the minimum size of optional
+-			// header is calculated by substracting oh64.DataDirectory size from oh64 size.
++			// header is calculated by subtracting oh64.DataDirectory size from oh64 size.
+ 			oh64MinSz = binary.Size(oh64) - binary.Size(oh64.DataDirectory)
+ 		)
+ 
+diff --git a/src/internal/bytealg/count_s390x.s b/src/internal/bytealg/count_s390x.s
+index e2d90e7551..2a3b5c03e9 100644
+--- a/src/internal/bytealg/count_s390x.s
++++ b/src/internal/bytealg/count_s390x.s
+@@ -95,7 +95,7 @@ TEXT countbytebody<>(SB), NOSPLIT|NOFRAME, $0-0
+ vxchunks:
+ 	// Load 0x01 into every byte element in the 16-byte mask vector.
+ 	VREPIB $1, V_MASK // V_MASK = [16]byte{1, 1, ..., 1, 1}
+-	VZERO  V_CNT      // intial uint128 count of 0
++	VZERO  V_CNT      // initial uint128 count of 0
+ 
+ vxloop:
+ 	// Load input bytes in 16-byte chunks.
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 9d7da1ee16..1b771ca7c6 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -886,7 +886,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
+ 		//    u = q̂ (v - v_l) + rh << s + u_l
+ 		// After the above step, u contains a remainder:
+ 		//    u = rh << s + u_l
+-		// and we need to substract q̂ v_l
++		// and we need to subtract q̂ v_l
+ 		//
+ 		// But it may be a bit too large, in which case q̂ needs to be smaller.
+ 		qhatv := tmp.make(3 * n)
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index af43421fce..9077c0c122 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4352,7 +4352,7 @@ func TestCloseWrite(t *testing.T) {
+ 
+ // This verifies that a handler can Flush and then Hijack.
+ //
+-// An similar test crashed once during development, but it was only
++// A similar test crashed once during development, but it was only
+ // testing this tangentially and temporarily until another TODO was
+ // fixed.
+ //
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index e28d0be020..1d6a987545 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -633,11 +633,11 @@ func chunked(te []string) bool { return len(te) > 0 && te[len(te)-1] == "chunked
+ // implicitlyChunked is a helper to check for implicity of chunked, because
+ // RFC 7230 Section 3.3.1 says that the sender MUST apply chunked as the final
+ // payload body to ensure that the message is framed for both the request
+-// and the body. Since "identity" is incompatabile with any other transformational
++// and the body. Since "identity" is incompatible with any other transformational
+ // encoding cannot co-exist, the presence of "identity" will cause implicitlyChunked
+ // to return false.
+ func implicitlyChunked(te []string) bool {
+-	if len(te) == 0 { // No transfer-encodings passed in, so not implicity chunked.
++	if len(te) == 0 { // No transfer-encodings passed in, so not implicitly chunked.
+ 		return false
+ 	}
+ 	for _, tei := range te {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index bdc767a236..f3cf31c8a7 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -89,7 +89,7 @@ const DefaultMaxIdleConnsPerHost = 2
+ // Request.GetBody defined. HTTP requests are considered idempotent if
+ // they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
+ // Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
+-// entry. If the idempotency key value is an zero-length slice, the
++// entry. If the idempotency key value is a zero-length slice, the
+ // request is treated as idempotent but the header is not sent on the
+ // wire.
+ type Transport struct {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 62f1e36b38..517b03bf48 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3717,7 +3717,7 @@ func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
+ 	}
+ }
+ 
+-// This tests that an client requesting a content range won't also
++// This tests that a client requesting a content range won't also
+ // implicitly ask for gzip support. If they want that, they need to do it
+ // on their own.
+ // golang.org/issue/8923
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 5570ed118d..8763d579fb 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -162,7 +162,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 		// of IP node.
+ 		//
+ 		// When the IP node supports IPv4-mapped IPv6 address,
+-		// we allow an listener to listen to the wildcard
++		// we allow a listener to listen to the wildcard
+ 		// address of both IP addressing spaces by specifying
+ 		// IPv6 wildcard address.
+ 		if len(ip) == 0 || ip.Equal(IPv4zero) {
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index adf1e368e1..cb840ae238 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -375,7 +375,7 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
+ 
+ // returns the last CNAME in chain
+ func resolveCNAME(name *uint16, r *syscall.DNSRecord) *uint16 {
+-	// limit cname resolving to 10 in case of a infinite CNAME loop
++	// limit cname resolving to 10 in case of an infinite CNAME loop
+ Cname:
+ 	for cnameloop := 0; cnameloop < 10; cnameloop++ {
+ 		for p := r; p != nil; p = p.Next {
+diff --git a/src/runtime/defs_aix.go b/src/runtime/defs_aix.go
+index a8924133c5..23a6cac2bb 100644
+--- a/src/runtime/defs_aix.go
++++ b/src/runtime/defs_aix.go
+@@ -8,7 +8,7 @@
+ Input to cgo -godefs
+ GOARCH=ppc64 go tool cgo -godefs defs_aix.go > defs_aix_ppc64_tmp.go
+ 
+-This is only an helper to create defs_aix_ppc64.go
++This is only a helper to create defs_aix_ppc64.go
+ Go runtime functions require the "linux" name of fields (ss_sp, si_addr, etc)
+ However, AIX structures don't provide such names and must be modified.
+ 
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index 0085dfc824..555befa43d 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -88,7 +88,7 @@ func (e plainError) Error() string {
+ 	return string(e)
+ }
+ 
+-// An boundsError represents a an indexing or slicing operation gone wrong.
++// A boundsError represents an indexing or slicing operation gone wrong.
+ type boundsError struct {
+ 	x int64
+ 	y int
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index b3f9cca10d..9c45ce8c87 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -521,7 +521,7 @@ func fillAligned(x uint64, m uint) uint64 {
+ 		// "[It] works by first zeroing the high bits of the [8]
+ 		// bytes in the word. Subsequently, it adds a number that
+ 		// will result in an overflow to the high bit of a byte if
+-		// any of the low bits were initialy set. Next the high
++		// any of the low bits were initially set. Next the high
+ 		// bits of the original word are ORed with these values;
+ 		// thus, the high bit of a byte is set iff any bit in the
+ 		// byte was set. Finally, we determine if any of these high
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index e87da93326..3f3e36728b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1419,7 +1419,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
+ // unscav and adds it into scav before continuing.
+ func (h *mheap) scavengeAll() {
+ 	// Disallow malloc or panic while holding the heap lock. We do
+-	// this here because this is an non-mallocgc entry-point to
++	// this here because this is a non-mallocgc entry-point to
+ 	// the mheap API.
+ 	gp := getg()
+ 	gp.m.mallocing++
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 9eba0078a5..64e03aeccf 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -112,7 +112,7 @@ func containsInlinedCall(f interface{}, maxBytes int) bool {
+ }
+ 
+ // findInlinedCall returns the PC of an inlined function call within
+-// the funtion body for the function f if any.
++// the function body for the function f if any.
+ func findInlinedCall(f interface{}, maxBytes int) (pc uint64, found bool) {
+ 	fFunc := runtime.FuncForPC(uintptr(funcPC(f)))
+ 	if fFunc == nil || fFunc.Entry() == 0 {
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 79cfc69c54..16937a2a01 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -16,7 +16,7 @@ type slice struct {
+ 	cap   int
+ }
+ 
+-// An notInHeapSlice is a slice backed by go:notinheap memory.
++// A notInHeapSlice is a slice backed by go:notinheap memory.
+ type notInHeapSlice struct {
+ 	array *notInHeap
+ 	len   int
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 68b24432a4..84fbd33329 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -627,7 +627,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
+ 	}
+ 	if f.funcID == funcID_systemstack_switch {
+-		// A special routine at the bottom of stack of a goroutine that does an systemstack call.
++		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
+ 		// We will allow it to be copied even though we don't
+ 		// have full GC info for it (because it is written in asm).
+ 		return true

@@ -16,6 +16,36 @@ Date:   Thu May 14 07:51:10 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  test/fixedbugs/issue37246.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/test/fixedbugs/issue37246.go b/test/fixedbugs/issue37246.go
+new file mode 100644
+index 0000000000..fe476daa39
+--- /dev/null
++++ b/test/fixedbugs/issue37246.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var n, a, b int64
++	for i := int64(2); i < 10; i++ {
++		for j := i; j < 10; j++ {
++			if ((n % (i * j)) == 0) && (j > 1 && (n/(i*j)) == 1) {
++				a, b = i, 0
++				a = n / (i * j)
++			}
++		}
++	}
++
++	if a != b && a != n {
++		println("yes")
++	}
++}

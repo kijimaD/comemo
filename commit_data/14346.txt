@@ -10,8 +10,76 @@ Date:   Wed Nov 7 21:36:15 2012 +0100
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6810090
-
+---
  src/cmd/6g/reg.c            | 10 ++++++++++
  src/cmd/8g/reg.c            | 10 ++++++++++
  test/fixedbugs/issue4353.go | 19 +++++++++++++++++++
  3 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index d45c024e7d..f9d0b11aec 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -247,6 +247,16 @@ regopt(Prog *firstp)
+ 			}
+ 		}
+ 
++		// Addressing makes some registers used.
++		if(p->from.type >= D_INDIR)
++			r->use1.b[0] |= RtoB(p->from.type-D_INDIR);
++		if(p->from.index != D_NONE)
++			r->use1.b[0] |= RtoB(p->from.index);
++		if(p->to.type >= D_INDIR)
++			r->use2.b[0] |= RtoB(p->to.type-D_INDIR);
++		if(p->to.index != D_NONE)
++			r->use2.b[0] |= RtoB(p->to.index);
++
+ 		bit = mkvar(r, &p->from);
+ 		if(bany(&bit))
+ 		switch(p->as) {
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index e32fba6516..1e6178e7e8 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -212,6 +212,16 @@ regopt(Prog *firstp)
+ 			}
+ 		}
+ 
++		// Addressing makes some registers used.
++		if(p->from.type >= D_INDIR)
++			r->use1.b[0] |= RtoB(p->from.type-D_INDIR);
++		if(p->from.index != D_NONE)
++			r->use1.b[0] |= RtoB(p->from.index);
++		if(p->to.type >= D_INDIR)
++			r->use2.b[0] |= RtoB(p->to.type-D_INDIR);
++		if(p->to.index != D_NONE)
++			r->use2.b[0] |= RtoB(p->to.index);
++
+ 		bit = mkvar(r, &p->from);
+ 		if(bany(&bit))
+ 		switch(p->as) {
+diff --git a/test/fixedbugs/issue4353.go b/test/fixedbugs/issue4353.go
+new file mode 100644
+index 0000000000..defe7c324c
+--- /dev/null
++++ b/test/fixedbugs/issue4353.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4353. An optimizer bug in 8g triggers a runtime fault
++// instead of an out of bounds panic.
++
++package main
++
++var aib [100000]int
++var paib *[100000]int = &aib
++var i64 int64 = 100023
++
++func main() {
++	defer func() { recover() }()
++	_ = paib[i64]
++}

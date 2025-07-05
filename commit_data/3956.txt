@@ -6,6 +6,20 @@ Date:   Tue Nov 10 14:47:23 2009 -0800
     
     R=r
     http://go/go-review/1024049
-
+---
  lib/godoc/godoc.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index 4f34c68a77..ea57c8a23e 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -83,7 +83,7 @@
+     <li><a href="/doc/effective_go.html">Effective Go</a></li>
+     <li><a href="/doc/go_faq.html">FAQ</a></li>
+     <li><a href="/doc/go_lang_faq.html">Language Design FAQ</a></li>
+-    <li><a href="http://www.youtube.com/watch?v=rKnDgT73v8s">Tech talk (1 hour)</a> (<a href="/doc/go_talk-20091030.pdf">PDF</a>)</li>
++    <li><a href="http://www.youtube.com/watch?v=rKnDgT73v8s">Tech talk (coming soon)</a> (<a href="/doc/go_talk-20091030.pdf">PDF</a>)</li>
+     <li><a href="/doc/go_spec.html">Language Specification</a></li>
+     <li><a href="/doc/go_mem.html">Memory Model</a></li>
+     <li><a href="/doc/go_for_cpp_programmers.html">Go for C++ Programmers</a></li>

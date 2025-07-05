@@ -19,8 +19,52 @@ Date:   Mon May 6 10:55:45 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/image/png/reader.go                    |   2 +-
  src/image/png/reader_test.go               |  15 +++++++++++++++
  src/image/png/testdata/invalid-palette.png | Bin 0 -> 1122 bytes
  3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/png/reader.go b/src/image/png/reader.go
+index 53fbf3e00a..6771973bda 100644
+--- a/src/image/png/reader.go
++++ b/src/image/png/reader.go
+@@ -706,7 +706,7 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
+ 				}
+ 			}
+ 		case cbP8:
+-			if len(paletted.Palette) != 255 {
++			if len(paletted.Palette) != 256 {
+ 				for x := 0; x < width; x++ {
+ 					if len(paletted.Palette) <= int(cdat[x]) {
+ 						paletted.Palette = paletted.Palette[:int(cdat[x])+1]
+diff --git a/src/image/png/reader_test.go b/src/image/png/reader_test.go
+index 33dcd3debc..3325d2e8a5 100644
+--- a/src/image/png/reader_test.go
++++ b/src/image/png/reader_test.go
+@@ -584,6 +584,21 @@ func TestUnknownChunkLengthUnderflow(t *testing.T) {
+ 	}
+ }
+ 
++func TestPaletted8OutOfRangePixel(t *testing.T) {
++	// IDAT contains a reference to a palette index that does not exist in the file.
++	img, err := readPNG("testdata/invalid-palette.png")
++	if err != nil {
++		t.Errorf("decoding invalid-palette.png: unexpected error %v", err)
++		return
++	}
++
++	// Expect that the palette is extended with opaque black.
++	want := color.RGBA{0x00, 0x00, 0x00, 0xff}
++	if got := img.At(15, 15); got != want {
++		t.Errorf("got %F %v, expected %T %v", got, got, want, want)
++	}
++}
++
+ func TestGray8Transparent(t *testing.T) {
+ 	// These bytes come from https://golang.org/issues/19553
+ 	m, err := Decode(bytes.NewReader([]byte{
+diff --git a/src/image/png/testdata/invalid-palette.png b/src/image/png/testdata/invalid-palette.png
+new file mode 100644
+index 0000000000..a747e59444
+Binary files /dev/null and b/src/image/png/testdata/invalid-palette.png differ

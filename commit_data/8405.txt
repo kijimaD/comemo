@@ -7,7 +7,245 @@ Date:   Mon May 16 11:16:48 2011 -0700
     R=agl
     CC=golang-dev
     https://golang.org/cl/4517072
-
+---
  src/pkg/crypto/x509/x509.go      | 78 ++++++++++++++++++++++++++++++++--------
  src/pkg/crypto/x509/x509_test.go | 62 ++++++++++++++++++++++++++++++++
  2 files changed, 125 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 3797fb897a..ef912a2b40 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"container/vector"
+ 	"crypto"
++	"crypto/dsa"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
+ 	"crypto/x509/crl"
+@@ -168,8 +169,13 @@ type tbsCertificate struct {
+ 	Extensions         []extension    "optional,explicit,tag:3"
+ }
+ 
++type dsaAlgorithmParameters struct {
++	P, Q, G asn1.RawValue
++}
++
+ type algorithmIdentifier struct {
+-	Algorithm asn1.ObjectIdentifier
++	Algorithm  asn1.ObjectIdentifier
++	Parameters asn1.RawValue "optional"
+ }
+ 
+ type rdnSequence []relativeDistinguishedNameSET
+@@ -219,6 +225,7 @@ type PublicKeyAlgorithm int
+ const (
+ 	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
+ 	RSA
++	DSA
+ )
+ 
+ // Name represents an X.509 distinguished name. This only includes the common
+@@ -337,15 +344,27 @@ func getSignatureAlgorithmFromOID(oid []int) SignatureAlgorithm {
+ 	return UnknownSignatureAlgorithm
+ }
+ 
+-func getPublicKeyAlgorithmFromOID(oid []int) PublicKeyAlgorithm {
+-	if len(oid) == 7 && oid[0] == 1 && oid[1] == 2 && oid[2] == 840 &&
+-		oid[3] == 113549 && oid[4] == 1 && oid[5] == 1 {
+-		switch oid[6] {
+-		case 1:
+-			return RSA
+-		}
+-	}
++// RFC 3279, 2.3 Public Key Algorithms
++//
++// pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
++//    rsadsi(113549) pkcs(1) 1 }
++//
++// rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
++//
++// id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
++//    x9-57(10040) x9cm(4) 1 }
++var (
++	oidPublicKeyRsa = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
++	oidPublicKeyDsa = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
++)
+ 
++func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm {
++	switch {
++	case oid.Equal(oidPublicKeyRsa):
++		return RSA
++	case oid.Equal(oidPublicKeyDsa):
++		return DSA
++	}
+ 	return UnknownPublicKeyAlgorithm
+ }
+ 
+@@ -562,7 +581,8 @@ type generalSubtree struct {
+ 	Max  int    "optional,tag:1"
+ }
+ 
+-func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.Error) {
++func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, os.Error) {
++	asn1Data := keyData.PublicKey.RightAlign()
+ 	switch algo {
+ 	case RSA:
+ 		p := new(rsaPublicKey)
+@@ -580,10 +600,38 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
+ 			N: new(big.Int).SetBytes(p.N.Bytes),
+ 		}
+ 		return pub, nil
++	case DSA:
++		p := new(asn1.RawValue)
++		_, err := asn1.Unmarshal(asn1Data, p)
++		if err != nil {
++			return nil, err
++		}
++		if !rawValueIsInteger(p) {
++			return nil, asn1.StructuralError{"tags don't match"}
++		}
++		paramsData := keyData.Algorithm.Parameters.FullBytes
++		params := new(dsaAlgorithmParameters)
++		_, err = asn1.Unmarshal(paramsData, params)
++		if err != nil {
++			return nil, err
++		}
++		if !rawValueIsInteger(&params.P) ||
++			!rawValueIsInteger(&params.Q) ||
++			!rawValueIsInteger(&params.G) {
++			return nil, asn1.StructuralError{"tags don't match"}
++		}
++		pub := &dsa.PublicKey{
++			Parameters: dsa.Parameters{
++				P: new(big.Int).SetBytes(params.P.Bytes),
++				Q: new(big.Int).SetBytes(params.Q.Bytes),
++				G: new(big.Int).SetBytes(params.G.Bytes),
++			},
++			Y: new(big.Int).SetBytes(p.Bytes),
++		}
++		return pub, nil
+ 	default:
+ 		return nil, nil
+ 	}
+-
+ 	panic("unreachable")
+ }
+ 
+@@ -600,7 +648,7 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
+ 	out.PublicKeyAlgorithm =
+ 		getPublicKeyAlgorithmFromOID(in.TBSCertificate.PublicKey.Algorithm.Algorithm)
+ 	var err os.Error
+-	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, in.TBSCertificate.PublicKey.PublicKey.RightAlign())
++	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, &in.TBSCertificate.PublicKey)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -1004,11 +1052,11 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 	c := tbsCertificate{
+ 		Version:            2,
+ 		SerialNumber:       asn1.RawValue{Bytes: template.SerialNumber, Tag: 2},
+-		SignatureAlgorithm: algorithmIdentifier{oidSHA1WithRSA},
++		SignatureAlgorithm: algorithmIdentifier{Algorithm: oidSHA1WithRSA},
+ 		Issuer:             parent.Subject.toRDNSequence(),
+ 		Validity:           validity{template.NotBefore, template.NotAfter},
+ 		Subject:            template.Subject.toRDNSequence(),
+-		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{oidRSA}, encodedPublicKey},
++		PublicKey:          publicKeyInfo{nil, algorithmIdentifier{Algorithm: oidRSA}, encodedPublicKey},
+ 		Extensions:         extensions,
+ 	}
+ 
+@@ -1031,7 +1079,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub *rsa.P
+ 	cert, err = asn1.Marshal(certificate{
+ 		nil,
+ 		c,
+-		algorithmIdentifier{oidSHA1WithRSA},
++		algorithmIdentifier{Algorithm: oidSHA1WithRSA},
+ 		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+ 	})
+ 	return
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index a42113addd..b7b50c9c3a 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -7,6 +7,7 @@ package x509
+ import (
+ 	"asn1"
+ 	"big"
++	"crypto/dsa"
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"encoding/hex"
+@@ -54,6 +55,12 @@ func fromBase10(base10 string) *big.Int {
+ 	return i
+ }
+ 
++func bigFromHexString(s string) *big.Int {
++	ret := new(big.Int)
++	ret.SetString(s, 16)
++	return ret
++}
++
+ var rsaPrivateKey = &rsa.PrivateKey{
+ 	PublicKey: rsa.PublicKey{
+ 		N: bigFromString("9353930466774385905609975137998169297361893554149986716853295022578535724979677252958524466350471210367835187480748268864277464700638583474144061408845077"),
+@@ -245,3 +252,58 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		return
+ 	}
+ }
++
++var dsaCertPem = `-----BEGIN CERTIFICATE-----
++MIIEDTCCA82gAwIBAgIJALHPghaoxeDhMAkGByqGSM44BAMweTELMAkGA1UEBhMC
++VVMxCzAJBgNVBAgTAk5DMQ8wDQYDVQQHEwZOZXd0b24xFDASBgNVBAoTC0dvb2ds
++ZSwgSW5jMRIwEAYDVQQDEwlKb24gQWxsaWUxIjAgBgkqhkiG9w0BCQEWE2pvbmFs
++bGllQGdvb2dsZS5jb20wHhcNMTEwNTE0MDMwMTQ1WhcNMTEwNjEzMDMwMTQ1WjB5
++MQswCQYDVQQGEwJVUzELMAkGA1UECBMCTkMxDzANBgNVBAcTBk5ld3RvbjEUMBIG
++A1UEChMLR29vZ2xlLCBJbmMxEjAQBgNVBAMTCUpvbiBBbGxpZTEiMCAGCSqGSIb3
++DQEJARYTam9uYWxsaWVAZ29vZ2xlLmNvbTCCAbcwggEsBgcqhkjOOAQBMIIBHwKB
++gQC8hLUnQ7FpFYu4WXTj6DKvXvz8QrJkNJCVMTpKAT7uBpobk32S5RrPKXocd4gN
++8lyGB9ggS03EVlEwXvSmO0DH2MQtke2jl9j1HLydClMf4sbx5V6TV9IFw505U1iW
++jL7awRMgxge+FsudtJK254FjMFo03ZnOQ8ZJJ9E6AEDrlwIVAJpnBn9moyP11Ox5
++Asc/5dnjb6dPAoGBAJFHd4KVv1iTVCvEG6gGiYop5DJh28hUQcN9kul+2A0yPUSC
++X93oN00P8Vh3eYgSaCWZsha7zDG53MrVJ0Zf6v/X/CoZNhLldeNOepivTRAzn+Rz
++kKUYy5l1sxYLHQKF0UGNCXfFKZT0PCmgU+PWhYNBBMn6/cIh44vp85ideo5CA4GE
++AAKBgFmifCafzeRaohYKXJgMGSEaggCVCRq5xdyDCat+wbOkjC4mfG01/um3G8u5
++LxasjlWRKTR/tcAL7t0QuokVyQaYdVypZXNaMtx1db7YBuHjj3aP+8JOQRI9xz8c
++bp5NDJ5pISiFOv4p3GZfqZPcqckDt78AtkQrmnal2txhhjF6o4HeMIHbMB0GA1Ud
++DgQWBBQVyyr7hO11ZFFpWX50298Sa3V+rzCBqwYDVR0jBIGjMIGggBQVyyr7hO11
++ZFFpWX50298Sa3V+r6F9pHsweTELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAk5DMQ8w
++DQYDVQQHEwZOZXd0b24xFDASBgNVBAoTC0dvb2dsZSwgSW5jMRIwEAYDVQQDEwlK
++b24gQWxsaWUxIjAgBgkqhkiG9w0BCQEWE2pvbmFsbGllQGdvb2dsZS5jb22CCQCx
++z4IWqMXg4TAMBgNVHRMEBTADAQH/MAkGByqGSM44BAMDLwAwLAIUPtn/5j8Q1jJI
++7ggOIsgrhgUdjGQCFCsmDq1H11q9+9Wp9IMeGrTSKHIM
++-----END CERTIFICATE-----
++`
++
++func TestParseCertificateWithDsaPublicKey(t *testing.T) {
++	expectedKey := &dsa.PublicKey{
++		Parameters: dsa.Parameters{
++			P: bigFromHexString("00BC84B52743B169158BB85974E3E832AF5EFCFC42B264349095313A4A013EEE069A1B937D92E51ACF297A1C77880DF25C8607D8204B4DC45651305EF4A63B40C7D8C42D91EDA397D8F51CBC9D0A531FE2C6F1E55E9357D205C39D395358968CBEDAC11320C607BE16CB9DB492B6E78163305A34DD99CE43C64927D13A0040EB97"),
++			Q: bigFromHexString("009A67067F66A323F5D4EC7902C73FE5D9E36FA74F"),
++			G: bigFromHexString("009147778295BF5893542BC41BA806898A29E43261DBC85441C37D92E97ED80D323D44825FDDE8374D0FF15877798812682599B216BBCC31B9DCCAD527465FEAFFD7FC2A193612E575E34E7A98AF4D10339FE47390A518CB9975B3160B1D0285D1418D0977C52994F43C29A053E3D685834104C9FAFDC221E38BE9F3989D7A8E42"),
++		},
++		Y: bigFromHexString("59A27C269FCDE45AA2160A5C980C19211A820095091AB9C5DC8309AB7EC1B3A48C2E267C6D35FEE9B71BCBB92F16AC8E559129347FB5C00BEEDD10BA8915C90698755CA965735A32DC7575BED806E1E38F768FFBC24E41123DC73F1C6E9E4D0C9E692128853AFE29DC665FA993DCA9C903B7BF00B6442B9A76A5DADC6186317A"),
++	}
++	pemBlock, _ := pem.Decode([]byte(dsaCertPem))
++	cert, err := ParseCertificate(pemBlock.Bytes)
++	if err != nil {
++		t.Fatal("Failed to parse certificate: %s", err)
++	}
++	if cert.PublicKeyAlgorithm != DSA {
++		t.Errorf("Parsed key algorithm was not DSA")
++	}
++	parsedKey, ok := cert.PublicKey.(*dsa.PublicKey)
++	if !ok {
++		t.Fatal("Parsed key was not a DSA key: %s", err)
++	}
++	if expectedKey.Y.Cmp(parsedKey.Y) != 0 ||
++		expectedKey.P.Cmp(parsedKey.P) != 0 ||
++		expectedKey.Q.Cmp(parsedKey.Q) != 0 ||
++		expectedKey.G.Cmp(parsedKey.G) != 0 {
++		t.Fatal("Parsed key differs from expected key")
++	}
++}

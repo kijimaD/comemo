@@ -14,6 +14,20 @@ Date:   Mon Jul 20 10:18:26 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0f2c9a6f6a..8701d34709 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -259,7 +259,7 @@ func (t *tester) registerStdTest(pkg string) {
+ 				"test",
+ 				"-short",
+ 				t.tags(),
+-				t.timeout(120),
++				t.timeout(180),
+ 				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
+ 			}
+ 			if t.race {

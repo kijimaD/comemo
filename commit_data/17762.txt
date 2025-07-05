@@ -9,7 +9,7 @@ Date:   Tue Oct 8 11:14:35 2013 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/14383043
-
+---
  doc/articles/wiki/Makefile               | 12 +----
  doc/articles/wiki/final-noclosure.go     | 14 +++---
  doc/articles/wiki/final-noerror.go       |  6 +--
@@ -25,3 +25,465 @@ Date:   Tue Oct 8 11:14:35 2013 +1100
  doc/articles/wiki/srcextract.go          | 76 --------------------------------
  doc/articles/wiki/test.bash              |  9 +++-
  14 files changed, 51 insertions(+), 162 deletions(-)
+
+diff --git a/doc/articles/wiki/Makefile b/doc/articles/wiki/Makefile
+index 0cb9071850..e40b1311ed 100644
+--- a/doc/articles/wiki/Makefile
++++ b/doc/articles/wiki/Makefile
+@@ -4,17 +4,7 @@
+ 
+ all: index.html
+ 
+-CLEANFILES:=srcextract.bin htmlify.bin get.bin
+-
+-index.html: wiki.html srcextract.bin htmlify.bin
+-	PATH=.:$$PATH awk '/^!/{system(substr($$0,2)); next} {print}' < wiki.html | tr -d '\r' > index.html
+-
+-test: get.bin
+-	bash ./test.sh
+-	rm -f get.6 get.bin
+-
+-%.bin: %.go
+-	go build -o $@ $^
++CLEANFILES:=get.bin final-test.bin a.out
+ 
+ clean:
+ 	rm -f $(CLEANFILES)
+diff --git a/doc/articles/wiki/final-noclosure.go b/doc/articles/wiki/final-noclosure.go
+index a23cf7a27a..d72ca805b8 100644
+--- a/doc/articles/wiki/final-noclosure.go
++++ b/doc/articles/wiki/final-noclosure.go
+@@ -83,17 +83,15 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	}
+ }
+ 
+-const lenPath = len("/view/")
++var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+ 
+-var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
+-
+-func getTitle(w http.ResponseWriter, r *http.Request) (title string, err error) {
+-	title = r.URL.Path[lenPath:]
+-	if !titleValidator.MatchString(title) {
++func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
++	m := validPath.FindStringSubmatch(r.URL.Path)
++	if m == nil {
+ 		http.NotFound(w, r)
+-		err = errors.New("Invalid Page Title")
++		return "", errors.New("Invalid Page Title")
+ 	}
+-	return
++	return m[2], nil // The title is the second subexpression.
+ }
+ 
+ func main() {
+diff --git a/doc/articles/wiki/final-noerror.go b/doc/articles/wiki/final-noerror.go
+index e11d268e2f..86d8da751f 100644
+--- a/doc/articles/wiki/final-noerror.go
++++ b/doc/articles/wiki/final-noerror.go
+@@ -29,10 +29,8 @@ func loadPage(title string) (*Page, error) {
+ 	return &Page{Title: title, Body: body}, nil
+ }
+ 
+-const lenPath = len("/view/")
+-
+ func editHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/edit/"):]
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		p = &Page{Title: title}
+@@ -42,7 +40,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/view/"):]
+ 	p, _ := loadPage(title)
+ 	t, _ := template.ParseFiles("view.html")
+ 	t.Execute(w, p)
+diff --git a/doc/articles/wiki/final-parsetemplate.go b/doc/articles/wiki/final-parsetemplate.go
+index 6234c08f2e..5ff8bf60c5 100644
+--- a/doc/articles/wiki/final-parsetemplate.go
++++ b/doc/articles/wiki/final-parsetemplate.go
+@@ -70,18 +70,16 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	}
+ }
+ 
+-const lenPath = len("/view/")
+-
+-var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
++var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+ 
+ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+ 	return func(w http.ResponseWriter, r *http.Request) {
+-		title := r.URL.Path[lenPath:]
+-		if !titleValidator.MatchString(title) {
++		m := validPath.FindStringSubmatch(r.URL.Path)
++		if m == nil {
+ 			http.NotFound(w, r)
+ 			return
+ 		}
+-		fn(w, r, title)
++		fn(w, r, m[2])
+ 	}
+ }
+ 
+diff --git a/doc/articles/wiki/final-template.go b/doc/articles/wiki/final-template.go
+index f295b9d600..719157da95 100644
+--- a/doc/articles/wiki/final-template.go
++++ b/doc/articles/wiki/final-template.go
+@@ -29,10 +29,8 @@ func loadPage(title string) (*Page, error) {
+ 	return &Page{Title: title, Body: body}, nil
+ }
+ 
+-const lenPath = len("/view/")
+-
+ func editHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/edit/"):]
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		p = &Page{Title: title}
+@@ -41,13 +39,13 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/view/"):]
+ 	p, _ := loadPage(title)
+ 	renderTemplate(w, "view", p)
+ }
+ 
+ func saveHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/save/"):]
+ 	body := r.FormValue("body")
+ 	p := &Page{Title: title, Body: []byte(body)}
+ 	p.save()
+diff --git a/doc/articles/wiki/final.go b/doc/articles/wiki/final.go
+index e93cdee479..f15794d660 100644
+--- a/doc/articles/wiki/final.go
++++ b/doc/articles/wiki/final.go
+@@ -67,18 +67,16 @@ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	}
+ }
+ 
+-const lenPath = len("/view/")
+-
+-var titleValidator = regexp.MustCompile("^[a-zA-Z0-9]+$")
++var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+ 
+ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+ 	return func(w http.ResponseWriter, r *http.Request) {
+-		title := r.URL.Path[lenPath:]
+-		if !titleValidator.MatchString(title) {
++		m := validPath.FindStringSubmatch(r.URL.Path)
++		if m == nil {
+ 			http.NotFound(w, r)
+ 			return
+ 		}
+-		fn(w, r, title)
++		fn(w, r, m[2])
+ 	}
+ }
+ 
+diff --git a/doc/articles/wiki/htmlify.go b/doc/articles/wiki/htmlify.go
+deleted file mode 100644
+index 2a845a1740..0000000000
+--- a/doc/articles/wiki/htmlify.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"io/ioutil"
+-	"os"
+-	"text/template"
+-)
+-
+-func main() {
+-	b, _ := ioutil.ReadAll(os.Stdin)
+-	template.HTMLEscape(os.Stdout, b)
+-}
+diff --git a/doc/articles/wiki/index.html b/doc/articles/wiki/index.html
+index f57857a7f3..7bf7213e88 100644
+--- a/doc/articles/wiki/index.html
++++ b/doc/articles/wiki/index.html
+@@ -260,18 +260,15 @@ Let's create a handler, <code>viewHandler</code> that will allow users to
+ view a wiki page. It will handle URLs prefixed with "/view/".
+ </p>
+ 
+-{{code "doc/articles/wiki/part2.go" `/^const lenPath/`}}
+-
+ {{code "doc/articles/wiki/part2.go" `/^func viewHandler/` `/^}/`}}
+ 
+ <p>
+ First, this function extracts the page title from <code>r.URL.Path</code>,
+-the path component of the request URL. The global constant
+-<code>lenPath</code> is the length of the leading <code>"/view/"</code>
+-component of the request path.
+-The <code>Path</code> is re-sliced with <code>[lenPath:]</code> to drop the
+-first 6 characters of the string. This is because the path will invariably
+-begin with <code>"/view/"</code>, which is not part of the page's title.
++the path component of the request URL.
++The <code>Path</code> is re-sliced with <code>[len("/view/"):]</code> to drop
++the leading <code>"/view/"</code> component of the request path.
++This is because the path will invariably begin with <code>"/view/"</code>,
++which is not part of the page's title.
+ </p>
+ 
+ <p>
+@@ -431,6 +428,11 @@ to its own function:
+ </p>
+ 
+ {{code "doc/articles/wiki/final-template.go" `/^func renderTemplate/` `/^}/`}}
++
++<p>
++And modify the handlers to use that function:
++</p>
++
+ {{code "doc/articles/wiki/final-template.go" `/^func viewHandler/` `/^}/`}}
+ {{code "doc/articles/wiki/final-template.go" `/^func editHandler/` `/^}/`}}
+ 
+@@ -573,10 +575,11 @@ this, we can write a function to validate the title with a regular expression.
+ 
+ <p>
+ First, add <code>"regexp"</code> to the <code>import</code> list.
+-Then we can create a global variable to store our validation regexp:
++Then we can create a global variable to store our validation 
++expression:
+ </p>
+ 
+-{{code "doc/articles/wiki/final-noclosure.go" `/^var titleValidator/`}}
++{{code "doc/articles/wiki/final-noclosure.go" `/^var validPath/`}}
+ 
+ <p>
+ The function <code>regexp.MustCompile</code> will parse and compile the
+@@ -587,9 +590,8 @@ an <code>error</code> as a second parameter.
+ </p>
+ 
+ <p>
+-Now, let's write a function, <code>getTitle</code>, that extracts the title
+-string from the request URL, and tests it against our
+-<code>TitleValidator</code> expression:
++Now, let's write a function that uses the <code>validPath</code>
++expression to validate path and extract the page title:
+ </p>
+ 
+ {{code "doc/articles/wiki/final-noclosure.go" `/func getTitle/` `/^}/`}}
+diff --git a/doc/articles/wiki/notemplate.go b/doc/articles/wiki/notemplate.go
+index 33006ac958..be214d1111 100644
+--- a/doc/articles/wiki/notemplate.go
++++ b/doc/articles/wiki/notemplate.go
+@@ -29,16 +29,14 @@ func loadPage(title string) (*Page, error) {
+ 	return &Page{Title: title, Body: body}, nil
+ }
+ 
+-const lenPath = len("/view/")
+-
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/view/"):]
+ 	p, _ := loadPage(title)
+ 	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Title, p.Body)
+ }
+ 
+ func editHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/edit/"):]
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		p = &Page{Title: title}
+diff --git a/doc/articles/wiki/part2.go b/doc/articles/wiki/part2.go
+index dd4365c822..c0231693ef 100644
+--- a/doc/articles/wiki/part2.go
++++ b/doc/articles/wiki/part2.go
+@@ -29,10 +29,8 @@ func loadPage(title string) (*Page, error) {
+ 	return &Page{Title: title, Body: body}, nil
+ }
+ 
+-const lenPath = len("/view/")
+-
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/view/"):]
+ 	p, _ := loadPage(title)
+ 	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Title, p.Body)
+ }
+diff --git a/doc/articles/wiki/part3-errorhandling.go b/doc/articles/wiki/part3-errorhandling.go
+index 945aa1e391..bb4ecda84b 100644
+--- a/doc/articles/wiki/part3-errorhandling.go
++++ b/doc/articles/wiki/part3-errorhandling.go
+@@ -29,15 +29,13 @@ func loadPage(title string) (*Page, error) {
+ 	return &Page{Title: title, Body: body}, nil
+ }
+ 
+-const lenPath = len("/view/")
+-
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	t, _ := template.ParseFiles(tmpl + ".html")
+ 	t.Execute(w, p)
+ }
+ 
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/view/"):]
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+@@ -47,7 +45,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ func editHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/edit/"):]
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		p = &Page{Title: title}
+@@ -56,7 +54,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ func saveHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/save/"):]
+ 	body := r.FormValue("body")
+ 	p := &Page{Title: title, Body: []byte(body)}
+ 	err := p.save()
+diff --git a/doc/articles/wiki/part3.go b/doc/articles/wiki/part3.go
+index 7fe4351af9..174f3abcd7 100644
+--- a/doc/articles/wiki/part3.go
++++ b/doc/articles/wiki/part3.go
+@@ -29,21 +29,19 @@ func loadPage(title string) (*Page, error) {
+ 	return &Page{Title: title, Body: body}, nil
+ }
+ 
+-const lenPath = len("/view/")
+-
+ func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+ 	t, _ := template.ParseFiles(tmpl + ".html")
+ 	t.Execute(w, p)
+ }
+ 
+ func viewHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/view/"):]
+ 	p, _ := loadPage(title)
+ 	renderTemplate(w, "view", p)
+ }
+ 
+ func editHandler(w http.ResponseWriter, r *http.Request) {
+-	title := r.URL.Path[lenPath:]
++	title := r.URL.Path[len("/edit/"):]
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		p = &Page{Title: title}
+diff --git a/doc/articles/wiki/srcextract.go b/doc/articles/wiki/srcextract.go
+deleted file mode 100644
+index 813e252833..0000000000
+--- a/doc/articles/wiki/srcextract.go
++++ /dev/null
+@@ -1,76 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"flag"
+-	"go/ast"
+-	"go/parser"
+-	"go/printer"
+-	"go/token"
+-	"log"
+-	"os"
+-	"text/template"
+-)
+-
+-var (
+-	srcFn   = flag.String("src", "", "source filename")
+-	getName = flag.String("name", "", "func/type name to output")
+-	html    = flag.Bool("html", true, "output HTML")
+-	showPkg = flag.Bool("pkg", false, "show package in output")
+-)
+-
+-func main() {
+-	// handle input
+-	flag.Parse()
+-	if *srcFn == "" || *getName == "" {
+-		flag.Usage()
+-		os.Exit(2)
+-	}
+-	// load file
+-	fs := token.NewFileSet()
+-	file, err := parser.ParseFile(fs, *srcFn, nil, 0)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	// create filter
+-	filter := func(name string) bool {
+-		return name == *getName
+-	}
+-	// filter
+-	if !ast.FilterFile(file, filter) {
+-		os.Exit(1)
+-	}
+-	// print the AST
+-	var b bytes.Buffer
+-	printer.Fprint(&b, fs, file)
+-	// drop package declaration
+-	if !*showPkg {
+-		for {
+-			c, err := b.ReadByte()
+-			if c == '\n' || err != nil {
+-				break
+-			}
+-		}
+-	}
+-	// drop leading newlines
+-	for {
+-		b, err := b.ReadByte()
+-		if err != nil {
+-			break
+-		}
+-		if b != '\n' {
+-			os.Stdout.Write([]byte{b})
+-			break
+-		}
+-	}
+-	// output
+-	if *html {
+-		template.HTMLEscape(os.Stdout, b.Bytes())
+-	} else {
+-		b.WriteTo(os.Stdout)
+-	}
+-}
+diff --git a/doc/articles/wiki/test.bash b/doc/articles/wiki/test.bash
+index 02ed1894a5..54a632c308 100755
+--- a/doc/articles/wiki/test.bash
++++ b/doc/articles/wiki/test.bash
+@@ -7,10 +7,17 @@ set -e
+ wiki_pid=
+ cleanup() {
+ 	kill $wiki_pid
+-	rm -f test_*.out Test.txt final-test.bin final-test.go
++	rm -f test_*.out Test.txt final-test.bin final-test.go a.out get.bin
+ }
+ trap cleanup 0 INT
+ 
++# If called with -all, check that all code snippets compile.
++if [ "$1" == "-all" ]; then
++	for fn in *.go; do
++		go build -o a.out $fn
++	done
++fi
++
+ go build -o get.bin get.go
+ addr=$(./get.bin -addr)
+ sed s/:8080/$addr/ < final.go > final-test.go

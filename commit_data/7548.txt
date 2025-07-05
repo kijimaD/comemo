@@ -26,8 +26,48 @@ Date:   Wed Feb 23 13:21:39 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4226042
-
+---
  src/cmd/5g/gg.h    | 1 +
  src/cmd/5g/gsubr.c | 1 +
  src/cmd/5g/reg.c   | 4 ++--
  3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 603c09fc8a..ce4575be95 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -27,6 +27,7 @@ struct	Addr
+ 	uchar	type;
+ 	char	name;
+ 	char	reg;
++	char pun;
+ 	uchar	etype;
+ };
+ #define	A	((Addr*)0)
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 133a21b3e8..83a9949d6c 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1168,6 +1168,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			a->etype = simtype[n->type->etype];
+ 			a->width = n->type->width;
+ 		}
++		a->pun = n->pun;
+ 		a->offset = n->xoffset;
+ 		a->sym = n->sym;
+ 		if(a->sym == S)
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index f31f70535e..1cbeb3e3de 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -697,8 +697,8 @@ mkvar(Reg *r, Adr *a)
+ 	n = D_NONE;
+ 
+ 	flag = 0;
+-//	if(a->pun)
+-//		flag = 1;
++	if(a->pun)
++		flag = 1;
+ 
+ 	switch(t) {
+ 	default:

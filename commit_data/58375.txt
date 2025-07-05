@@ -27,8 +27,107 @@ Date:   Tue Oct 24 16:24:39 2023 +0800
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Meidan Li <limeidan@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/63725.txt                     | 18 ++++++++++++++++++
  src/cmd/link/internal/loadelf/ldelf.go | 18 +++++++++++++++++-
  src/debug/elf/elf.go                   | 18 ++++++++++++++++++
  3 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/63725.txt b/api/next/63725.txt
+new file mode 100644
+index 0000000000..ff3e05348b
+--- /dev/null
++++ b/api/next/63725.txt
+@@ -0,0 +1,18 @@
++pkg debug/elf, const R_LARCH_64_PCREL = 109 #63725
++pkg debug/elf, const R_LARCH_64_PCREL R_LARCH #63725
++pkg debug/elf, const R_LARCH_ADD6 = 105 #63725
++pkg debug/elf, const R_LARCH_ADD6 R_LARCH #63725
++pkg debug/elf, const R_LARCH_ADD_ULEB128 = 107 #63725
++pkg debug/elf, const R_LARCH_ADD_ULEB128 R_LARCH #63725
++pkg debug/elf, const R_LARCH_ALIGN = 102 #63725
++pkg debug/elf, const R_LARCH_ALIGN R_LARCH #63725
++pkg debug/elf, const R_LARCH_CFA = 104 #63725
++pkg debug/elf, const R_LARCH_CFA R_LARCH #63725
++pkg debug/elf, const R_LARCH_DELETE = 101 #63725
++pkg debug/elf, const R_LARCH_DELETE R_LARCH #63725
++pkg debug/elf, const R_LARCH_PCREL20_S2 = 103 #63725
++pkg debug/elf, const R_LARCH_PCREL20_S2 R_LARCH #63725
++pkg debug/elf, const R_LARCH_SUB6 = 106 #63725
++pkg debug/elf, const R_LARCH_SUB6 R_LARCH #63725
++pkg debug/elf, const R_LARCH_SUB_ULEB128 = 108 #63725
++pkg debug/elf, const R_LARCH_SUB_ULEB128 R_LARCH #63725
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 5f802f5547..82e7dc30b7 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1022,16 +1022,32 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		MIPS64 | uint32(elf.R_MIPS_PC32)<<16:
+ 		return 4, 4, nil
+ 
++	case LOONG64 | uint32(elf.R_LARCH_ADD8)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SUB8)<<16:
++		return 1, 1, nil
++
++	case LOONG64 | uint32(elf.R_LARCH_ADD16)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SUB16)<<16:
++		return 2, 2, nil
++
+ 	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_GPREL)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_ABSOLUTE)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
++		LOONG64 | uint32(elf.R_LARCH_ADD24)<<16,
++		LOONG64 | uint32(elf.R_LARCH_ADD32)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SUB24)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SUB32)<<16,
++		LOONG64 | uint32(elf.R_LARCH_B26)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_32_PCREL)<<16:
+ 		return 4, 4, nil
+ 
+-	case LOONG64 | uint32(elf.R_LARCH_64)<<16:
++	case LOONG64 | uint32(elf.R_LARCH_64)<<16,
++		LOONG64 | uint32(elf.R_LARCH_ADD64)<<16,
++		LOONG64 | uint32(elf.R_LARCH_SUB64)<<16,
++		LOONG64 | uint32(elf.R_LARCH_64_PCREL)<<16:
+ 		return 8, 8, nil
+ 
+ 	case S390X | uint32(elf.R_390_8)<<16:
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index 35b0e3bc83..534cfa9127 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -2368,6 +2368,15 @@ const (
+ 	R_LARCH_TLS_GD_HI20                R_LARCH = 98
+ 	R_LARCH_32_PCREL                   R_LARCH = 99
+ 	R_LARCH_RELAX                      R_LARCH = 100
++	R_LARCH_DELETE                     R_LARCH = 101
++	R_LARCH_ALIGN                      R_LARCH = 102
++	R_LARCH_PCREL20_S2                 R_LARCH = 103
++	R_LARCH_CFA                        R_LARCH = 104
++	R_LARCH_ADD6                       R_LARCH = 105
++	R_LARCH_SUB6                       R_LARCH = 106
++	R_LARCH_ADD_ULEB128                R_LARCH = 107
++	R_LARCH_SUB_ULEB128                R_LARCH = 108
++	R_LARCH_64_PCREL                   R_LARCH = 109
+ )
+ 
+ var rlarchStrings = []intName{
+@@ -2460,6 +2469,15 @@ var rlarchStrings = []intName{
+ 	{98, "R_LARCH_TLS_GD_HI20"},
+ 	{99, "R_LARCH_32_PCREL"},
+ 	{100, "R_LARCH_RELAX"},
++	{101, "R_LARCH_DELETE"},
++	{102, "R_LARCH_ALIGN"},
++	{103, "R_LARCH_PCREL20_S2"},
++	{104, "R_LARCH_CFA"},
++	{105, "R_LARCH_ADD6"},
++	{106, "R_LARCH_SUB6"},
++	{107, "R_LARCH_ADD_ULEB128"},
++	{108, "R_LARCH_SUB_ULEB128"},
++	{109, "R_LARCH_64_PCREL"},
+ }
+ 
+ func (i R_LARCH) String() string   { return stringName(uint32(i), rlarchStrings, false) }

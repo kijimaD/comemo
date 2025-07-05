@@ -27,7 +27,67 @@ Date:   Mon Jun 1 18:53:58 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 10 +++++++---
  src/cmd/internal/obj/sym.go            | 10 ----------
  2 files changed, 7 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 32cc50fda1..328260fc59 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -207,6 +207,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/goobj2"
+ 	"cmd/internal/src"
++	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"io"
+@@ -295,12 +296,15 @@ func iexport(out *bufio.Writer) {
+ 	hdr.uint64(dataLen)
+ 
+ 	// Flush output.
+-	io.Copy(out, &hdr)
+-	io.Copy(out, &p.strings)
+-	io.Copy(out, &p.data0)
++	h := md5.New()
++	wr := io.MultiWriter(out, h)
++	io.Copy(wr, &hdr)
++	io.Copy(wr, &p.strings)
++	io.Copy(wr, &p.data0)
+ 
+ 	// Add fingerprint (used by linker object file).
+ 	// Attach this to the end, so tools (e.g. gcimporter) don't care.
++	copy(Ctxt.Fingerprint[:], h.Sum(nil)[:])
+ 	out.Write(Ctxt.Fingerprint[:])
+ }
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 4cbcb87b48..72a314aae0 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -34,7 +34,6 @@ package obj
+ import (
+ 	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+-	"crypto/md5"
+ 	"fmt"
+ 	"log"
+ 	"math"
+@@ -238,15 +237,6 @@ func (ctxt *Link) NumberSyms() {
+ 		ctxt.pkgIdx[pkg] = ipkg
+ 		ipkg++
+ 	})
+-
+-	// Compute a fingerprint of the indices, for exporting.
+-	if !ctxt.IsAsm {
+-		h := md5.New()
+-		for _, s := range ctxt.defs {
+-			h.Write([]byte(s.Name))
+-		}
+-		copy(ctxt.Fingerprint[:], h.Sum(nil)[:])
+-	}
+ }
+ 
+ // Returns whether s is a non-package symbol, which needs to be referenced

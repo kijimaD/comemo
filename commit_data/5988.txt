@@ -7,6 +7,29 @@ Date:   Tue Aug 10 17:56:57 2010 +1000
     R=adg
     CC=golang-dev
     https://golang.org/cl/1952041
-
+---
  src/pkg/image/image.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index b7e62bfae4..b5a2f0bbcb 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -330,7 +330,7 @@ func NewAlpha16(w, h int) *Alpha16 {
+ 	return &Alpha16{pix, w, Rectangle{ZP, Point{w, h}}}
+ }
+ 
+-// An Gray is an in-memory image of GrayColor values.
++// A Gray is an in-memory image of GrayColor values.
+ type Gray struct {
+ 	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+ 	Pix    []GrayColor
+@@ -368,7 +368,7 @@ func NewGray(w, h int) *Gray {
+ 	return &Gray{pix, w, Rectangle{ZP, Point{w, h}}}
+ }
+ 
+-// An Gray16 is an in-memory image of Gray16Color values.
++// A Gray16 is an in-memory image of Gray16Color values.
+ type Gray16 struct {
+ 	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
+ 	Pix    []Gray16Color

@@ -11,8 +11,91 @@ Date:   Mon Mar 21 14:41:16 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/go/build/deps_test.go       |  2 +-
  src/internal/testenv/testenv.go | 17 +++++++++++++++++
  src/net/http/http_test.go       | 14 +++-----------
  3 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 04523f8022..1bd1f4ec20 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -168,7 +168,7 @@ var pkgDeps = map[string][]string{
+ 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+ 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
+-	"internal/testenv": {"L2", "os", "testing"},
++	"internal/testenv": {"L2", "OS", "testing"},
+ 
+ 	// L4 is defined as L3+fmt+log+time, because in general once
+ 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 99b2a2ea15..6c007f185c 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -12,6 +12,7 @@ package testenv
+ 
+ import (
+ 	"os"
++	"os/exec"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -62,6 +63,22 @@ func MustHaveGoRun(t *testing.T) {
+ 	}
+ }
+ 
++// GoToolPath reports the path to the Go tool.
++// If the tool is unavailable GoToolPath calls t.Skip.
++// If the tool should be available and isn't, GoToolPath calls t.Fatal.
++func GoToolPath(t *testing.T) string {
++	MustHaveGoBuild(t)
++	var exeSuffix string
++	if runtime.GOOS == "windows" {
++		exeSuffix = ".exe"
++	}
++	goBin, err := exec.LookPath("go" + exeSuffix)
++	if err != nil {
++		t.Fatal("cannot find go tool: %v", err)
++	}
++	return goBin
++}
++
+ // HasExec reports whether the current system can start new processes
+ // using os.StartProcess or (more commonly) exec.Command.
+ func HasExec() bool {
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index 7fd3181f6f..34da4bbb59 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -10,9 +10,7 @@ import (
+ 	"bytes"
+ 	"internal/testenv"
+ 	"os/exec"
+-	"path/filepath"
+ 	"reflect"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -67,16 +65,10 @@ func TestCleanHost(t *testing.T) {
+ // This catches accidental dependencies between the HTTP transport and
+ // server code.
+ func TestCmdGoNoHTTPServer(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	var exeSuffix string
+-	if runtime.GOOS == "windows" {
+-		exeSuffix = ".exe"
+-	}
+-
+-	goBin := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+-	out, err := exec.Command("go", "tool", "nm", goBin).Output()
++	goBin := testenv.GoToolPath(t)
++	out, err := exec.Command("go", "tool", "nm", goBin).CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("go tool nm: %v", err)
++		t.Fatalf("go tool nm: %v: %s", err, out)
+ 	}
+ 	wantSym := map[string]bool{
+ 		// Verify these exist: (sanity checking this test)

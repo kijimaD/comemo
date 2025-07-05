@@ -13,7 +13,51 @@ Date:   Wed Feb 14 16:57:28 2018 -0800
     Change-Id: Ib45ebac57c83b3e39ae4a1b137ffa291dec5b50d
     Reviewed-on: https://go-review.googlesource.com/94156
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  2 +-
  test/fixedbugs/issue23586.go              | 24 ++++++++++++++++++++++++
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 832f991a6d..5b7ac6cc40 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -758,7 +758,7 @@ func (p *parser) callStmt() *CallStmt {
+ 		// already progressed, no need to advance
+ 		cx = new(CallExpr)
+ 		cx.pos = x.Pos()
+-		cx.Fun = p.bad()
++		cx.Fun = x // assume common error of missing parentheses (function invocation)
+ 	}
+ 
+ 	s.Call = cx
+diff --git a/test/fixedbugs/issue23586.go b/test/fixedbugs/issue23586.go
+new file mode 100644
+index 0000000000..c2d4c9ffb5
+--- /dev/null
++++ b/test/fixedbugs/issue23586.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we type-check deferred/go functions even
++// if they are not called (a common error). Specifically,
++// we don't want to see errors such as import or variable
++// declared but not used.
++
++package p
++
++import (
++	"fmt"
++	"math"
++)
++
++func f() {
++	var i int
++	defer func() { fmt.Println() } // ERROR "must be function call"
++	go func() { _ = math.Sin(0) }  // ERROR "must be function call"
++	go func() { _ = i}             // ERROR "must be function call"
++}

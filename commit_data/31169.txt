@@ -18,7 +18,7 @@ Date:   Fri Jan 13 13:52:44 2017 -0500
     Change-Id: I63f578f5ac99c707b599ac5659293c46b275567d
     Reviewed-on: https://go-review.googlesource.com/36190
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/build.go            | 35 +++++++--------
  src/cmd/go/fix.go              |  4 +-
  src/cmd/go/fmt.go              |  3 +-
@@ -31,3 +31,630 @@ Date:   Fri Jan 13 13:52:44 2017 -0500
  src/cmd/go/test.go             | 18 +++-----
  src/cmd/go/vet.go              | 10 +++--
  11 files changed, 154 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index d00090cf19..3cd6dca17d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/go/internal/str"
+ 	"container/heap"
+ 	"debug/elf"
+ 	"errors"
+@@ -2091,7 +2092,7 @@ func (b *builder) run(dir string, desc string, env []string, cmdargs ...interfac
+ 	out, err := b.runOut(dir, desc, env, cmdargs...)
+ 	if len(out) > 0 {
+ 		if desc == "" {
+-			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
++			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
+ 		}
+ 		b.showOutput(dir, desc, b.processOutput(out))
+ 		if err != nil {
+@@ -2121,7 +2122,7 @@ func (b *builder) processOutput(out []byte) string {
+ // runOut runs the command given by cmdline in the directory dir.
+ // It returns the command output and any errors that occurred.
+ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...interface{}) ([]byte, error) {
+-	cmdline := stringList(cmdargs...)
++	cmdline := str.StringList(cmdargs...)
+ 	if buildN || buildX {
+ 		var envcmdline string
+ 		for i := range env {
+@@ -2450,7 +2451,7 @@ func toolVerify(b *builder, p *Package, newTool string, ofile string, args []int
+ 		return err
+ 	}
+ 	if !bytes.Equal(data1, data2) {
+-		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(stringList(args...), " "), strings.Join(stringList(newArgs...), " "))
++		return fmt.Errorf("%s and %s produced different output files:\n%s\n%s", filepath.Base(args[1].(string)), newTool, strings.Join(str.StringList(args...), " "), strings.Join(str.StringList(newArgs...), " "))
+ 	}
+ 	os.Remove(ofile + ".new")
+ 	return nil
+@@ -2477,7 +2478,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	}
+ 
+ 	if buildN || buildX {
+-		cmdline := stringList("pack", "r", absAfile, absOfiles)
++		cmdline := str.StringList("pack", "r", absAfile, absOfiles)
+ 		b.showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
+ 	}
+ 	if buildN {
+@@ -2692,7 +2693,7 @@ func (tools gccgoToolchain) gc(b *builder, p *Package, archive, obj string, asmh
+ 	if p.localPrefix != "" {
+ 		gcargs = append(gcargs, "-fgo-relative-import-path="+p.localPrefix)
+ 	}
+-	args := stringList(tools.compiler(), importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
++	args := str.StringList(tools.compiler(), importArgs, "-c", gcargs, "-o", ofile, buildGccgoflags)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+@@ -2913,7 +2914,7 @@ func (tools gccgoToolchain) link(b *builder, root *action, out string, allaction
+ 		ldflags = append(ldflags, root.p.CgoLDFLAGS...)
+ 	}
+ 
+-	ldflags = stringList("-Wl,-(", ldflags, "-Wl,-)")
++	ldflags = str.StringList("-Wl,-(", ldflags, "-Wl,-)")
+ 
+ 	for _, shlib := range shlibs {
+ 		ldflags = append(
+@@ -3244,11 +3245,11 @@ func envList(key, def string) []string {
+ func (b *builder) cflags(p *Package) (cppflags, cflags, cxxflags, fflags, ldflags []string) {
+ 	defaults := "-g -O2"
+ 
+-	cppflags = stringList(envList("CGO_CPPFLAGS", ""), p.CgoCPPFLAGS)
+-	cflags = stringList(envList("CGO_CFLAGS", defaults), p.CgoCFLAGS)
+-	cxxflags = stringList(envList("CGO_CXXFLAGS", defaults), p.CgoCXXFLAGS)
+-	fflags = stringList(envList("CGO_FFLAGS", defaults), p.CgoFFLAGS)
+-	ldflags = stringList(envList("CGO_LDFLAGS", defaults), p.CgoLDFLAGS)
++	cppflags = str.StringList(envList("CGO_CPPFLAGS", ""), p.CgoCPPFLAGS)
++	cflags = str.StringList(envList("CGO_CFLAGS", defaults), p.CgoCFLAGS)
++	cxxflags = str.StringList(envList("CGO_CXXFLAGS", defaults), p.CgoCXXFLAGS)
++	fflags = str.StringList(envList("CGO_FFLAGS", defaults), p.CgoFFLAGS)
++	ldflags = str.StringList(envList("CGO_LDFLAGS", defaults), p.CgoLDFLAGS)
+ 	return
+ }
+ 
+@@ -3354,7 +3355,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
+ 	outGo = append(outGo, gofiles...)
+ 
+ 	// gcc
+-	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
++	cflags := str.StringList(cgoCPPFLAGS, cgoCFLAGS)
+ 	for _, cfile := range cfiles {
+ 		ofile := obj + cfile[:len(cfile)-1] + "o"
+ 		if err := b.gcc(p, ofile, cflags, obj+cfile); err != nil {
+@@ -3372,7 +3373,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
+-	cxxflags := stringList(cgoCPPFLAGS, cgoCXXFLAGS)
++	cxxflags := str.StringList(cgoCPPFLAGS, cgoCXXFLAGS)
+ 	for _, file := range gxxfiles {
+ 		// Append .o to the file, just in case the pkg has file.c and file.cpp
+ 		ofile := obj + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
+@@ -3391,7 +3392,7 @@ func (b *builder) cgo(a *action, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofil
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
+-	fflags := stringList(cgoCPPFLAGS, cgoFFLAGS)
++	fflags := str.StringList(cgoCPPFLAGS, cgoFFLAGS)
+ 	for _, file := range ffiles {
+ 		// Append .o to the file, just in case the pkg has file.c and file.f
+ 		ofile := obj + cgoRe.ReplaceAllString(filepath.Base(file), "_") + ".o"
+@@ -3440,7 +3441,7 @@ func (b *builder) dynimport(p *Package, obj, importGo, cgoExe string, cflags, cg
+ 		return err
+ 	}
+ 
+-	linkobj := stringList(ofile, outObj, p.SysoFiles)
++	linkobj := str.StringList(ofile, outObj, p.SysoFiles)
+ 	dynobj := obj + "_cgo_.o"
+ 
+ 	// we need to use -pie for Linux/ARM to get accurate imported sym
+@@ -3672,9 +3673,9 @@ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx b
+ 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _ := b.cflags(p)
+ 	var cflags []string
+ 	if cxx {
+-		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
++		cflags = str.StringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
+ 	} else {
+-		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCFLAGS)
++		cflags = str.StringList(cgoCPPFLAGS, pcCFLAGS, cgoCFLAGS)
+ 	}
+ 
+ 	n := 5 // length of ".swig"
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index 3af7adb4e1..01d5bbcc38 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -4,6 +4,8 @@
+ 
+ package main
+ 
++import "cmd/go/internal/str"
++
+ var cmdFix = &Command{
+ 	Run:       runFix,
+ 	UsageLine: "fix [packages]",
+@@ -25,6 +27,6 @@ func runFix(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList(buildToolExec, tool("fix"), relPaths(pkg.allgofiles)))
++		run(str.StringList(buildToolExec, tool("fix"), relPaths(pkg.allgofiles)))
+ 	}
+ }
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 4ed7722575..4c40f9ab0b 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/str"
+ 	"os"
+ 	"path/filepath"
+ )
+@@ -39,7 +40,7 @@ func runFmt(cmd *Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		run(stringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
++		run(str.StringList(gofmt, "-l", "-w", relPaths(pkg.allgofiles)))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 1d7677c615..c433cff812 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/str"
+ 	"fmt"
+ 	"go/build"
+ 	"os"
+@@ -302,7 +303,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 	// due to wildcard expansion.
+ 	for _, p := range pkgs {
+ 		if *getFix {
+-			run(buildToolExec, stringList(tool("fix"), relPaths(p.allgofiles)))
++			run(buildToolExec, str.StringList(tool("fix"), relPaths(p.allgofiles)))
+ 
+ 			// The imports might have changed, so reload again.
+ 			p = reloadPackage(arg, stk)
+@@ -324,7 +325,7 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 			// Process test dependencies when -t is specified.
+ 			// (But don't get test dependencies for test dependencies:
+ 			// we always pass mode 0 to the recursive calls below.)
+-			imports = stringList(imports, p.TestImports, p.XTestImports)
++			imports = str.StringList(imports, p.TestImports, p.XTestImports)
+ 		}
+ 		for i, path := range imports {
+ 			if path == "C" {
+diff --git a/src/cmd/go/internal/str/str.go b/src/cmd/go/internal/str/str.go
+new file mode 100644
+index 0000000000..d3583b48e4
+--- /dev/null
++++ b/src/cmd/go/internal/str/str.go
+@@ -0,0 +1,97 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package str provides string manipulation utilities.
++package str
++
++import (
++	"bytes"
++	"fmt"
++	"unicode"
++	"unicode/utf8"
++)
++
++// StringList flattens its arguments into a single []string.
++// Each argument in args must have type string or []string.
++func StringList(args ...interface{}) []string {
++	var x []string
++	for _, arg := range args {
++		switch arg := arg.(type) {
++		case []string:
++			x = append(x, arg...)
++		case string:
++			x = append(x, arg)
++		default:
++			panic("stringList: invalid argument of type " + fmt.Sprintf("%T", arg))
++		}
++	}
++	return x
++}
++
++// toFold returns a string with the property that
++//	strings.EqualFold(s, t) iff toFold(s) == toFold(t)
++// This lets us test a large set of strings for fold-equivalent
++// duplicates without making a quadratic number of calls
++// to EqualFold. Note that strings.ToUpper and strings.ToLower
++// do not have the desired property in some corner cases.
++func toFold(s string) string {
++	// Fast path: all ASCII, no upper case.
++	// Most paths look like this already.
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if c >= utf8.RuneSelf || 'A' <= c && c <= 'Z' {
++			goto Slow
++		}
++	}
++	return s
++
++Slow:
++	var buf bytes.Buffer
++	for _, r := range s {
++		// SimpleFold(x) cycles to the next equivalent rune > x
++		// or wraps around to smaller values. Iterate until it wraps,
++		// and we've found the minimum value.
++		for {
++			r0 := r
++			r = unicode.SimpleFold(r0)
++			if r <= r0 {
++				break
++			}
++		}
++		// Exception to allow fast path above: A-Z => a-z
++		if 'A' <= r && r <= 'Z' {
++			r += 'a' - 'A'
++		}
++		buf.WriteRune(r)
++	}
++	return buf.String()
++}
++
++// FoldDup reports a pair of strings from the list that are
++// equal according to strings.EqualFold.
++// It returns "", "" if there are no such strings.
++func FoldDup(list []string) (string, string) {
++	clash := map[string]string{}
++	for _, s := range list {
++		fold := toFold(s)
++		if t := clash[fold]; t != "" {
++			if s > t {
++				s, t = t, s
++			}
++			return s, t
++		}
++		clash[fold] = s
++	}
++	return "", ""
++}
++
++// Contains reports whether x contains s.
++func Contains(x []string, s string) bool {
++	for _, t := range x {
++		if t == s {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index dfd0e9aa1f..abccc6e0fa 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/go/internal/str"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+@@ -453,7 +454,7 @@ func exitIfErrors() {
+ }
+ 
+ func run(cmdargs ...interface{}) {
+-	cmdline := stringList(cmdargs...)
++	cmdline := str.StringList(cmdargs...)
+ 	if buildN || buildX {
+ 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
+ 		if buildN {
+@@ -730,77 +731,3 @@ func matchPackagesInFS(pattern string) []string {
+ 	})
+ 	return pkgs
+ }
+-
+-// stringList's arguments should be a sequence of string or []string values.
+-// stringList flattens them into a single []string.
+-func stringList(args ...interface{}) []string {
+-	var x []string
+-	for _, arg := range args {
+-		switch arg := arg.(type) {
+-		case []string:
+-			x = append(x, arg...)
+-		case string:
+-			x = append(x, arg)
+-		default:
+-			panic("stringList: invalid argument of type " + fmt.Sprintf("%T", arg))
+-		}
+-	}
+-	return x
+-}
+-
+-// toFold returns a string with the property that
+-//	strings.EqualFold(s, t) iff toFold(s) == toFold(t)
+-// This lets us test a large set of strings for fold-equivalent
+-// duplicates without making a quadratic number of calls
+-// to EqualFold. Note that strings.ToUpper and strings.ToLower
+-// have the desired property in some corner cases.
+-func toFold(s string) string {
+-	// Fast path: all ASCII, no upper case.
+-	// Most paths look like this already.
+-	for i := 0; i < len(s); i++ {
+-		c := s[i]
+-		if c >= utf8.RuneSelf || 'A' <= c && c <= 'Z' {
+-			goto Slow
+-		}
+-	}
+-	return s
+-
+-Slow:
+-	var buf bytes.Buffer
+-	for _, r := range s {
+-		// SimpleFold(x) cycles to the next equivalent rune > x
+-		// or wraps around to smaller values. Iterate until it wraps,
+-		// and we've found the minimum value.
+-		for {
+-			r0 := r
+-			r = unicode.SimpleFold(r0)
+-			if r <= r0 {
+-				break
+-			}
+-		}
+-		// Exception to allow fast path above: A-Z => a-z
+-		if 'A' <= r && r <= 'Z' {
+-			r += 'a' - 'A'
+-		}
+-		buf.WriteRune(r)
+-	}
+-	return buf.String()
+-}
+-
+-// foldDup reports a pair of strings from the list that are
+-// equal according to strings.EqualFold.
+-// It returns "", "" if there are no such strings.
+-func foldDup(list []string) (string, string) {
+-	clash := map[string]string{}
+-	for _, s := range list {
+-		fold := toFold(s)
+-		if t := clash[fold]; t != "" {
+-			if s > t {
+-				s, t = t, s
+-			}
+-			return s, t
+-		}
+-		clash[fold] = s
+-	}
+-	return "", ""
+-}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 8fb6bddde1..032687e405 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/str"
+ 	"crypto/sha1"
+ 	"errors"
+ 	"fmt"
+@@ -971,19 +972,19 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 
+ 	// Build list of full paths to all Go files in the package,
+ 	// for use by commands like go fmt.
+-	p.gofiles = stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
++	p.gofiles = str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
+ 	for i := range p.gofiles {
+ 		p.gofiles[i] = filepath.Join(p.Dir, p.gofiles[i])
+ 	}
+ 	sort.Strings(p.gofiles)
+ 
+-	p.sfiles = stringList(p.SFiles)
++	p.sfiles = str.StringList(p.SFiles)
+ 	for i := range p.sfiles {
+ 		p.sfiles[i] = filepath.Join(p.Dir, p.sfiles[i])
+ 	}
+ 	sort.Strings(p.sfiles)
+ 
+-	p.allgofiles = stringList(p.IgnoredGoFiles)
++	p.allgofiles = str.StringList(p.IgnoredGoFiles)
+ 	for i := range p.allgofiles {
+ 		p.allgofiles[i] = filepath.Join(p.Dir, p.allgofiles[i])
+ 	}
+@@ -994,7 +995,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	// To avoid problems on case-insensitive files, we reject any package
+ 	// where two different input files have equal names under a case-insensitive
+ 	// comparison.
+-	f1, f2 := foldDup(stringList(
++	f1, f2 := str.FoldDup(str.StringList(
+ 		p.GoFiles,
+ 		p.CgoFiles,
+ 		p.IgnoredGoFiles,
+@@ -1112,7 +1113,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	// In the absence of errors lower in the dependency tree,
+ 	// check for case-insensitive collisions of import paths.
+ 	if len(p.DepsErrors) == 0 {
+-		dep1, dep2 := foldDup(p.Deps)
++		dep1, dep2 := str.FoldDup(p.Deps)
+ 		if dep1 != "" {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.copy(),
+@@ -1605,7 +1606,7 @@ func isStale(p *Package) (bool, string) {
+ 	// to test for write access, and then skip GOPATH roots we don't have write
+ 	// access to. But hopefully we can just use the mtimes always.
+ 
+-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
++	srcs := str.StringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
+ 	for _, src := range srcs {
+ 		if olderThan(filepath.Join(p.Dir, src)) {
+ 			return true, "newer source file"
+@@ -1623,7 +1624,7 @@ func computeBuildID(p *Package) {
+ 
+ 	// Include the list of files compiled as part of the package.
+ 	// This lets us detect removed files. See issue 3895.
+-	inputFiles := stringList(
++	inputFiles := str.StringList(
+ 		p.GoFiles,
+ 		p.CgoFiles,
+ 		p.CFiles,
+diff --git a/src/cmd/go/pkg_test.go b/src/cmd/go/pkg_test.go
+index fba13636cd..f822df8b6b 100644
+--- a/src/cmd/go/pkg_test.go
++++ b/src/cmd/go/pkg_test.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/str"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -17,16 +18,16 @@ var foldDupTests = []struct {
+ 	list   []string
+ 	f1, f2 string
+ }{
+-	{stringList("math/rand", "math/big"), "", ""},
+-	{stringList("math", "strings"), "", ""},
+-	{stringList("strings"), "", ""},
+-	{stringList("strings", "strings"), "strings", "strings"},
+-	{stringList("Rand", "rand", "math", "math/rand", "math/Rand"), "Rand", "rand"},
++	{str.StringList("math/rand", "math/big"), "", ""},
++	{str.StringList("math", "strings"), "", ""},
++	{str.StringList("strings"), "", ""},
++	{str.StringList("strings", "strings"), "strings", "strings"},
++	{str.StringList("Rand", "rand", "math", "math/rand", "math/Rand"), "Rand", "rand"},
+ }
+ 
+ func TestFoldDup(t *testing.T) {
+ 	for _, tt := range foldDupTests {
+-		f1, f2 := foldDup(tt.list)
++		f1, f2 := str.FoldDup(tt.list)
+ 		if f1 != tt.f1 || f2 != tt.f2 {
+ 			t.Errorf("foldDup(%q) = %q, %q, want %q, %q", tt.list, f1, f2, tt.f1, tt.f2)
+ 		}
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 18387b5eaf..30d589777c 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -5,6 +5,7 @@
+ package main
+ 
+ import (
++	"cmd/go/internal/str"
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
+@@ -130,7 +131,7 @@ func runRun(cmd *Command, args []string) {
+ // runProgram is the action for running a binary that has already
+ // been compiled. We ignore exit status.
+ func (b *builder) runProgram(a *action) error {
+-	cmdline := stringList(findExecCmd(), a.deps[0].target, a.args)
++	cmdline := str.StringList(findExecCmd(), a.deps[0].target, a.args)
+ 	if buildN || buildX {
+ 		b.showcmd("", "%s", strings.Join(cmdline, " "))
+ 		if buildN {
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1445e9f395..ab0add32bb 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/str"
+ 	"errors"
+ 	"fmt"
+ 	"go/ast"
+@@ -636,15 +637,6 @@ func runTest(cmd *Command, args []string) {
+ 	b.do(root)
+ }
+ 
+-func contains(x []string, s string) bool {
+-	for _, t := range x {
+-		if t == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ var windowsBadWords = []string{
+ 	"install",
+ 	"patch",
+@@ -679,7 +671,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
+ 			err.Pos = "" // show full import stack
+ 			return nil, nil, nil, err
+ 		}
+-		if contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
++		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
+ 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
+ 			// Can't change that code, because that code is only for loading the
+ 			// non-test copy of a package.
+@@ -764,7 +756,7 @@ func builderTest(b *builder, p *Package) (buildAction, runAction, printAction *a
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+ 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+ 		ptest.target = ""
+-		ptest.Imports = stringList(p.Imports, p.TestImports)
++		ptest.Imports = str.StringList(p.Imports, p.TestImports)
+ 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
+ 		ptest.pkgdir = testDir
+ 		ptest.fake = true
+@@ -1016,7 +1008,7 @@ func testImportStack(top string, p *Package, target string) []string {
+ Search:
+ 	for p.ImportPath != target {
+ 		for _, p1 := range p.imports {
+-			if p1.ImportPath == target || contains(p1.Deps, target) {
++			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
+ 				stk = append(stk, p1.ImportPath)
+ 				p = p1
+ 				continue Search
+@@ -1103,7 +1095,7 @@ var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+ 
+ // builderRunTest is the action for running a test binary.
+ func builderRunTest(b *builder, a *action) error {
+-	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
++	args := str.StringList(findExecCmd(), a.deps[0].target, testArgs)
+ 	a.testOutput = new(bytes.Buffer)
+ 
+ 	if buildN || buildX {
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index 8e296c8572..2e2d9e1de2 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -4,7 +4,11 @@
+ 
+ package main
+ 
+-import "path/filepath"
++import (
++	"path/filepath"
++
++	"cmd/go/internal/str"
++)
+ 
+ func init() {
+ 	addBuildFlags(cmdVet)
+@@ -36,10 +40,10 @@ func runVet(cmd *Command, args []string) {
+ 		// Vet expects to be given a set of files all from the same package.
+ 		// Run once for package p and once for package p_test.
+ 		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
+-			runVetFiles(p, stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
++			runVetFiles(p, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
+ 		}
+ 		if len(p.XTestGoFiles) > 0 {
+-			runVetFiles(p, stringList(p.XTestGoFiles))
++			runVetFiles(p, str.StringList(p.XTestGoFiles))
+ 		}
+ 	}
+ }

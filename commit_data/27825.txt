@@ -11,7 +11,71 @@ Date:   Thu Apr 14 13:41:32 2016 -0400
     Change-Id: Ica657c00c92f0b19f0df7452cdbe5a95d23cc8a4
     Reviewed-on: https://go-review.googlesource.com/22085
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api_test.go | 25 +++++++++++++++++++++++++
  src/go/types/call.go     |  9 ++++-----
  2 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 9573d80a17..8b8ae1bb5d 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1059,3 +1059,28 @@ func TestIdentical_issue15173(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue15305(t *testing.T) {
++	const src = "package p; func f() int16; var _ = f(undef)"
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "issue15305.go", src, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	conf := Config{
++		Error: func(err error) {}, // allow errors
++	}
++	info := &Info{
++		Types: make(map[ast.Expr]TypeAndValue),
++	}
++	conf.Check("p", fset, []*ast.File{f}, info) // ignore result
++	for e, tv := range info.Types {
++		if _, ok := e.(*ast.CallExpr); ok {
++			if tv.Type != Typ[Int16] {
++				t.Errorf("CallExpr has type %v, want int16", tv.Type)
++			}
++			return
++		}
++	}
++	t.Errorf("CallExpr has no type")
++}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 8aeb862993..45f3e9a605 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -62,14 +62,12 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+ 		}
+ 
+ 		arg, n, _ := unpack(func(x *operand, i int) { check.multiExpr(x, e.Args[i]) }, len(e.Args), false)
+-		if arg == nil {
++		if arg != nil {
++			check.arguments(x, e, sig, arg, n)
++		} else {
+ 			x.mode = invalid
+-			x.expr = e
+-			return statement
+ 		}
+ 
+-		check.arguments(x, e, sig, arg, n)
+-
+ 		// determine result
+ 		switch sig.results.Len() {
+ 		case 0:
+@@ -81,6 +79,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+ 			x.mode = value
+ 			x.typ = sig.results
+ 		}
++
+ 		x.expr = e
+ 		check.hasCallOrRecv = true
+ 

@@ -12,8 +12,64 @@ Date:   Mon Jun 20 21:11:53 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/errors/issue16116.go | 12 ++++++++++++
  misc/cgo/errors/test.bash     |  1 +
  src/cmd/cgo/gcc.go            | 12 +++++++-----
  3 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/errors/issue16116.go b/misc/cgo/errors/issue16116.go
+new file mode 100644
+index 0000000000..1e01cab844
+--- /dev/null
++++ b/misc/cgo/errors/issue16116.go
+@@ -0,0 +1,12 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// void f(void *p, int x) {}
++import "C"
++
++func main() {
++	_ = C.f(1) // ERROR HERE
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index 429cec7627..84d44d8a33 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -45,6 +45,7 @@ expect issue13129.go C.ushort
+ check issue13423.go
+ expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
+ check issue13830.go
++check issue16116.go
+ 
+ if ! go build issue14669.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 3766ff27f0..fc1d01100d 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -597,13 +597,15 @@ func (p *Package) rewriteCalls(f *File) {
+ // rewriteCall rewrites one call to add pointer checks. We replace
+ // each pointer argument x with _cgoCheckPointer(x).(T).
+ func (p *Package) rewriteCall(f *File, call *Call, name *Name) {
++	// Avoid a crash if the number of arguments is
++	// less than the number of parameters.
++	// This will be caught when the generated file is compiled.
++	if len(call.Call.Args) < len(name.FuncType.Params) {
++		return
++	}
++
+ 	any := false
+ 	for i, param := range name.FuncType.Params {
+-		if len(call.Call.Args) <= i {
+-			// Avoid a crash; this will be caught when the
+-			// generated file is compiled.
+-			return
+-		}
+ 		if p.needsPointerCheck(f, param.Go, call.Call.Args[i]) {
+ 			any = true
+ 			break

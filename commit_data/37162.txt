@@ -7,7 +7,34 @@ Date:   Fri Jul 6 09:33:07 2018 +0930
     Change-Id: Ic636be3ffe5c9e9dc0dd8faba7898142f5231d15
     Reviewed-on: https://go-review.googlesource.com/122417
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6c3ac3db61..2fcfdf2a77 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1016,7 +1016,7 @@ Rick Sayre <whorfin@gmail.com>
+ Risto Jaakko Saarelma <rsaarelm@gmail.com>
+ Rob Norman <rob.norman@infinitycloud.com>
+ Rob Phoenix <rob@robphoenix.com>
+-Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
++Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au> <dan@kortschak.io>
+ Robert Dinu <r@varp.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Hencke <robert.hencke@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f76e5156de..60019b308c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1301,7 +1301,7 @@ Rob Earhart <earhart@google.com>
+ Rob Norman <rob.norman@infinitycloud.com>
+ Rob Phoenix <rob@robphoenix.com>
+ Rob Pike <r@golang.org>
+-Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
++Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au> <dan@kortschak.io>
+ Robert Dinu <r@varp.se>
+ Robert Figueiredo <robfig@gmail.com>
+ Robert Griesemer <gri@golang.org>

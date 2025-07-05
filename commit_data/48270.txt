@@ -19,7 +19,98 @@ Date:   Tue Apr 27 14:34:17 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt | 14 +++++++++++++-
  src/internal/fuzz/fuzz.go                | 31 +++++++++++++++++++------------
  2 files changed, 32 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index bfa1b68c67..0b1b85f397 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -154,6 +154,11 @@ stdout ok
+ ! stdout FAIL
+ ! stdout 'fatal here'
+ 
++# Test fails with file containing wrong type
++! go test -run FuzzWrongType corpustesting/fuzz_testdata_corpus_test.go
++! stdout ^ok
++stdout FAIL
++
+ -- noop_fuzz_test.go --
+ package noop_fuzz
+ 
+@@ -384,6 +389,10 @@ func FuzzInNestedDir(f *testing.F) {
+     f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+ 
++func FuzzWrongType(f *testing.F) {
++    f.Fuzz(func(t *testing.T, b []byte) {})
++}
++
+ -- corpustesting/testdata/corpus/FuzzFail/1 --
+ go test fuzz v1
+ []byte("12345")
+@@ -394,4 +403,7 @@ go test fuzz v1
+ malformed
+ -- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
+ go test fuzz v1
+-[]byte("12345")
+\ No newline at end of file
++[]byte("12345")
++-- corpustesting/testdata/corpus/FuzzWrongType/1 --
++go test fuzz v1
++int("00000")
+\ No newline at end of file
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 586b51188c..b9d2d4cd5f 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -506,21 +506,12 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
+ 		if err != nil {
+ 			return nil, fmt.Errorf("failed to read corpus file: %v", err)
+ 		}
+-		vals, err := unmarshalCorpusFile(data)
++		var vals []interface{}
++		vals, err = readCorpusData(data, types)
+ 		if err != nil {
+-			errs = append(errs, fmt.Errorf("failed to unmarshal %q: %v", filename, err))
+-			continue
+-		}
+-		if len(vals) != len(types) {
+-			errs = append(errs, fmt.Errorf("wrong number of values in corpus file %q: %d, want %d", filename, len(vals), len(types)))
++			errs = append(errs, fmt.Errorf("%q: %v", filename, err))
+ 			continue
+ 		}
+-		for i := range types {
+-			if reflect.TypeOf(vals[i]) != types[i] {
+-				errs = append(errs, fmt.Errorf("mismatched types in corpus file %q: %v, want %v", filename, vals, types))
+-				continue
+-			}
+-		}
+ 		corpus = append(corpus, CorpusEntry{Name: file.Name(), Data: data, Values: vals})
+ 	}
+ 	if len(errs) > 0 {
+@@ -529,6 +520,22 @@ func ReadCorpus(dir string, types []reflect.Type) ([]CorpusEntry, error) {
+ 	return corpus, nil
+ }
+ 
++func readCorpusData(data []byte, types []reflect.Type) ([]interface{}, error) {
++	vals, err := unmarshalCorpusFile(data)
++	if err != nil {
++		return nil, fmt.Errorf("unmarshal: %v", err)
++	}
++	if len(vals) != len(types) {
++		return nil, fmt.Errorf("wrong number of values in corpus file: %d, want %d", len(vals), len(types))
++	}
++	for i := range types {
++		if reflect.TypeOf(vals[i]) != types[i] {
++			return nil, fmt.Errorf("mismatched types in corpus file: %v, want %v", vals, types)
++		}
++	}
++	return vals, nil
++}
++
+ // writeToCorpus atomically writes the given bytes to a new file in testdata.
+ // If the directory does not exist, it will create one. If the file already
+ // exists, writeToCorpus will not rewrite it. writeToCorpus returns the

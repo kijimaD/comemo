@@ -7,7 +7,7 @@ Date:   Mon Dec 21 14:34:54 2009 -0800
     R=gri
     CC=rsc
     https://golang.org/cl/178048
-
+---
  src/pkg/Makefile                        |   1 +
  src/pkg/exp/vector/Makefile             |  69 ++++++
  src/pkg/exp/vector/defs.go              |  78 +++++++
@@ -21,3 +21,2233 @@ Date:   Mon Dec 21 14:34:54 2009 -0800
  src/pkg/exp/vector/vector.go            | 210 +++++++++++++++++
  src/pkg/exp/vector/vector_test.go       | 389 ++++++++++++++++++++++++++++++++
  12 files changed, 2152 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index f37502d58d..70c3c6540e 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -57,6 +57,7 @@ DIRS=\
+ 	exp/exception\
+ 	exp/iterable\
+ 	exp/parser\
++	exp/vector\
+ 	expvar\
+ 	flag\
+ 	fmt\
+diff --git a/src/pkg/exp/vector/Makefile b/src/pkg/exp/vector/Makefile
+new file mode 100644
+index 0000000000..a9a5715b02
+--- /dev/null
++++ b/src/pkg/exp/vector/Makefile
+@@ -0,0 +1,69 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.$(GOARCH)
++
++TARG=exp/vector
++GOFILES=\
++	defs.go\
++	intvector.go\
++	stringvector.go\
++	vector.go\
++
++generate: vector.go vector_test.go
++	< vector.go cat\
++	| gofmt -r='Vector -> IntVector'\
++	| gofmt -r='interface{} -> int'\
++	> intvector.go\
++	
++	< vector.go cat\
++	| gofmt -r='Vector -> StringVector'\
++	| gofmt -r='interface{} -> string'\
++	> stringvector.go\
++	
++	< vector_test.go cat\
++	| gofmt -r='Vector -> IntVector'\
++	| gofmt -r='zero -> intzero'\
++	| gofmt -r='elem2Value -> elem2IntValue'\
++	| gofmt -r='intf2Value -> intf2IntValue'\
++	| gofmt -r='int2Value -> int2IntValue'\
++	| gofmt -r='TestZeroLenExp -> TestIntZeroLenExp'\
++	| gofmt -r='TestResizeExp -> TestIntResizeExp'\
++	| gofmt -r='TestResize2Exp -> TestIntResize2Exp'\
++	| gofmt -r='checkZeroExp -> checkIntZeroExp'\
++	| gofmt -r='TestTrailingElementsExp -> TestIntTrailingElementsExp'\
++	| gofmt -r='TestAccessExp -> TestIntAccessExp'\
++	| gofmt -r='TestInsertDeleteClearExp -> TestIntInsertDeleteClearExp'\
++	| gofmt -r='verify_sliceExp -> verify_sliceIntExp'\
++	| gofmt -r='verify_patternExp -> verify_patternIntExp'\
++	| gofmt -r='make_vectorExp -> make_vectorIntExp'\
++	| gofmt -r='TestInsertVectorExp -> TestIntInsertVectorExp'\
++	| gofmt -r='TestDoExp -> TestIntDoExp'\
++	| gofmt -r='TestIterExp -> TestIntIterExp'\
++	| gofmt -r='TestVectorData -> TestIntVectorData'\
++	> intvector_test.go\
++	
++	< vector_test.go cat\
++	| gofmt -r='Vector -> StringVector'\
++	| gofmt -r='zero -> strzero'\
++	| gofmt -r='int2Value -> int2StrValue'\
++	| gofmt -r='intf2Value -> intf2StrValue'\
++	| gofmt -r='elem2Value -> elem2StrValue'\
++	| gofmt -r='TestZeroLenExp -> TestStrZeroLenExp'\
++	| gofmt -r='TestResizeExp -> TestStrResizeExp'\
++	| gofmt -r='TestResize2Exp -> TestStrResize2Exp'\
++	| gofmt -r='checkZeroExp -> checkStrZeroExp'\
++	| gofmt -r='TestTrailingElementsExp -> TestStrTrailingElementsExp'\
++	| gofmt -r='TestAccessExp -> TestStrAccessExp'\
++	| gofmt -r='TestInsertDeleteClearExp -> TestStrInsertDeleteClearExp'\
++	| gofmt -r='verify_sliceExp -> verify_sliceStrExp'\
++	| gofmt -r='verify_patternExp -> verify_patternStrExp'\
++	| gofmt -r='make_vectorExp -> make_vectorStrExp'\
++	| gofmt -r='TestInsertVectorExp -> TestStrInsertVectorExp'\
++	| gofmt -r='TestDoExp -> TestStrDoExp'\
++	| gofmt -r='TestIterExp -> TestStrIterExp'\
++	| gofmt -r='TestVectorData -> TestStrVectorData'\
++	> stringvector_test.go
++
++include ../../../Make.pkg
+diff --git a/src/pkg/exp/vector/defs.go b/src/pkg/exp/vector/defs.go
+new file mode 100644
+index 0000000000..0607a50c6d
+--- /dev/null
++++ b/src/pkg/exp/vector/defs.go
+@@ -0,0 +1,78 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The vector package implements containers for managing sequences
++// of elements. Vectors grow and shrink dynamically as necessary.
++package vector
++
++
++// Vector is a container for numbered sequences of elements of type interface{}.
++// A vector's length and capacity adjusts automatically as necessary.
++// The zero value for Vector is an empty vector ready to use.
++type Vector []interface{}
++
++
++// IntVector is a container for numbered sequences of elements of type int.
++// A vector's length and capacity adjusts automatically as necessary.
++// The zero value for IntVector is an empty vector ready to use.
++type IntVector []int
++
++
++// StringVector is a container for numbered sequences of elements of type string.
++// A vector's length and capacity adjusts automatically as necessary.
++// The zero value for StringVector is an empty vector ready to use.
++type StringVector []string
++
++
++// Initial underlying array size
++const initialSize = 8
++
++
++// Partial sort.Interface support
++
++// LessInterface provides partial support of the sort.Interface.
++type LessInterface interface {
++	Less(y interface{}) bool
++}
++
++
++// Less returns a boolean denoting whether the i'th element is less than the j'th element.
++func (p *Vector) Less(i, j int) bool { return (*p)[i].(LessInterface).Less((*p)[j]) }
++
++
++// sort.Interface support
++
++// Less returns a boolean denoting whether the i'th element is less than the j'th element.
++func (p *IntVector) Less(i, j int) bool { return (*p)[i] < (*p)[j] }
++
++
++// Less returns a boolean denoting whether the i'th element is less than the j'th element.
++func (p *StringVector) Less(i, j int) bool { return (*p)[i] < (*p)[j] }
++
++
++// Do calls function f for each element of the vector, in order.
++// The behavior of Do is undefined if f changes *p.
++func (p *Vector) Do(f func(elem interface{})) {
++	for _, e := range *p {
++		f(e)
++	}
++}
++
++
++// Do calls function f for each element of the vector, in order.
++// The behavior of Do is undefined if f changes *p.
++func (p *IntVector) Do(f func(elem interface{})) {
++	for _, e := range *p {
++		f(e)
++	}
++}
++
++
++// Do calls function f for each element of the vector, in order.
++// The behavior of Do is undefined if f changes *p.
++func (p *StringVector) Do(f func(elem interface{})) {
++	for _, e := range *p {
++		f(e)
++	}
++}
+diff --git a/src/pkg/exp/vector/intvector.go b/src/pkg/exp/vector/intvector.go
+new file mode 100644
+index 0000000000..374287a764
+--- /dev/null
++++ b/src/pkg/exp/vector/intvector.go
+@@ -0,0 +1,212 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++func (p *IntVector) realloc(length, capacity int) (b []int) {
++	if capacity < initialSize {
++		capacity = initialSize
++	}
++	b = make(IntVector, length, capacity)
++	copy(b, *p)
++	*p = b
++	return
++}
++
++
++// Insert n elements at position i.
++func (p *IntVector) Expand(i, n int) {
++	a := *p
++
++	// make sure we have enough space
++	len0 := len(a)
++	len1 := len0 + n
++	if len1 <= cap(a) {
++		// enough space - just expand
++		a = a[0:len1]
++	} else {
++		// not enough space - double capacity
++		capb := cap(a) * 2
++		if capb < len1 {
++			// still not enough - use required length
++			capb = len1
++		}
++		// capb >= len1
++		a = p.realloc(len1, capb)
++	}
++
++	// make a hole
++	for j := len0 - 1; j >= i; j-- {
++		a[j+n] = a[j]
++	}
++
++	*p = a
++}
++
++
++// Insert n elements at the end of a vector.
++func (p *IntVector) Extend(n int) { p.Expand(len(*p), n) }
++
++
++// Resize changes the length and capacity of a vector.
++// If the new length is shorter than the current length, Resize discards
++// trailing elements. If the new length is longer than the current length,
++// Resize adds the respective zero values for the additional elements. The capacity
++// parameter is ignored unless the new length or capacity is longer than the current
++// capacity. The resized vector's capacity may be larger than the requested capacity.
++func (p *IntVector) Resize(length, capacity int) *IntVector {
++	a := *p
++
++	if length > cap(a) || capacity > cap(a) {
++		// not enough space or larger capacity requested explicitly
++		a = p.realloc(length, capacity)
++	} else if length < len(a) {
++		// clear trailing elements
++		for i := range a[length:] {
++			var zero int
++			a[length+i] = zero
++		}
++	}
++
++	*p = a[0:length]
++	return p
++}
++
++
++// Len returns the number of elements in the vector.
++// Same as len(*p).
++func (p *IntVector) Len() int { return len(*p) }
++
++
++// Cap returns the capacity of the vector; that is, the
++// maximum length the vector can grow without resizing.
++// Same as cap(*p).
++func (p *IntVector) Cap() int { return cap(*p) }
++
++
++// At returns the i'th element of the vector.
++func (p *IntVector) At(i int) int { return (*p)[i] }
++
++
++// Set sets the i'th element of the vector to value x.
++func (p *IntVector) Set(i int, x int) { (*p)[i] = x }
++
++
++// Last returns the element in the vector of highest index.
++func (p *IntVector) Last() int { return (*p)[len(*p)-1] }
++
++
++// Data returns all the elements as a slice.
++func (p *IntVector) Data() []int {
++	arr := make(IntVector, len(*p))
++	copy(arr, *p)
++	return arr
++}
++
++
++// Insert inserts into the vector an element of value x before
++// the current element at index i.
++func (p *IntVector) Insert(i int, x int) {
++	p.Expand(i, 1)
++	(*p)[i] = x
++}
++
++
++// Delete deletes the i'th element of the vector.  The gap is closed so the old
++// element at index i+1 has index i afterwards.
++func (p *IntVector) Delete(i int) {
++	a := *p
++	n := len(a)
++
++	copy(a[i:n-1], a[i+1:n])
++	var zero int
++	a[n-1] = zero // support GC, zero out entry
++	*p = a[0 : n-1]
++}
++
++
++// InsertVector inserts into the vector the contents of the vector
++// x such that the 0th element of x appears at index i after insertion.
++func (p *IntVector) InsertVector(i int, x *IntVector) {
++	b := *x
++
++	p.Expand(i, len(b))
++	copy((*p)[i:i+len(b)], b)
++}
++
++
++// Cut deletes elements i through j-1, inclusive.
++func (p *IntVector) Cut(i, j int) {
++	a := *p
++	n := len(a)
++	m := n - (j - i)
++
++	copy(a[i:m], a[j:n])
++	for k := m; k < n; k++ { //TODO(bflm) don't zero out the elements unless it's a Vector.
++		var zero int
++		a[k] = zero // support GC, zero out entries
++	}
++
++	*p = a[0:m]
++}
++
++
++// Slice returns a new sub-vector by slicing the old one to extract slice [i:j].
++// The elements are copied. The original vector is unchanged.
++func (p *IntVector) Slice(i, j int) *IntVector {
++	var s IntVector
++	s.realloc(j-i, 0) // will fail in Init() if j < i
++	copy(s, (*p)[i:j])
++	return &s
++}
++
++
++// Convenience wrappers
++
++// Push appends x to the end of the vector.
++func (p *IntVector) Push(x int) { p.Insert(len(*p), x) }
++
++
++// Pop deletes the last element of the vector.
++func (p *IntVector) Pop() int {
++	a := *p
++
++	i := len(a) - 1
++	x := a[i]
++	var zero int
++	a[i] = zero // support GC, zero out entry
++	*p = a[0:i]
++	return x
++}
++
++
++// AppendVector appends the entire vector x to the end of this vector.
++func (p *IntVector) AppendVector(x *IntVector) {
++	p.InsertVector(len(*p), x)
++}
++
++
++// Swap exchanges the elements at indexes i and j.
++func (p *IntVector) Swap(i, j int) {
++	a := *p
++	a[i], a[j] = a[j], a[i]
++}
++
++
++// Iterate over all elements; driver for range
++func (p *IntVector) iterate(c chan<- int) {
++	for _, v := range *p {
++		c <- v
++	}
++	close(c)
++}
++
++
++// Channel iterator for range.
++func (p *IntVector) Iter() <-chan int {
++	c := make(chan int)
++	go p.iterate(c)
++	return c
++}
+diff --git a/src/pkg/exp/vector/intvector_test.go b/src/pkg/exp/vector/intvector_test.go
+new file mode 100644
+index 0000000000..ef4386bf2b
+--- /dev/null
++++ b/src/pkg/exp/vector/intvector_test.go
+@@ -0,0 +1,389 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++import "testing"
++
++
++func TestIntZeroLenExp(t *testing.T) {
++	a := new(IntVector)
++	if a.Len() != 0 {
++		t.Errorf("%T: B1) expected 0, got %d", a, a.Len())
++	}
++	if len(*a) != 0 {
++		t.Errorf("%T: B2) expected 0, got %d", a, len(*a))
++	}
++	var b IntVector
++	if b.Len() != 0 {
++		t.Errorf("%T: B3) expected 0, got %d", b, b.Len())
++	}
++	if len(b) != 0 {
++		t.Errorf("%T: B4) expected 0, got %d", b, len(b))
++	}
++}
++
++
++func TestIntResizeExp(t *testing.T) {
++	var a IntVector
++	checkSizeExp(t, &a, 0, 0)
++	checkSizeExp(t, a.Resize(0, 5), 0, 5)
++	checkSizeExp(t, a.Resize(1, 0), 1, 5)
++	checkSizeExp(t, a.Resize(10, 0), 10, 10)
++	checkSizeExp(t, a.Resize(5, 0), 5, 10)
++	checkSizeExp(t, a.Resize(3, 8), 3, 10)
++	checkSizeExp(t, a.Resize(0, 100), 0, 100)
++	checkSizeExp(t, a.Resize(11, 100), 11, 100)
++}
++
++
++func TestIntResize2Exp(t *testing.T) {
++	var a IntVector
++	checkSizeExp(t, &a, 0, 0)
++	a.Push(int2IntValue(1))
++	a.Push(int2IntValue(2))
++	a.Push(int2IntValue(3))
++	a.Push(int2IntValue(4))
++	checkSizeExp(t, &a, 4, 4)
++	checkSizeExp(t, a.Resize(10, 0), 10, 10)
++	for i := 4; i < a.Len(); i++ {
++		if a.At(i) != intzero {
++			t.Errorf("%T: expected a.At(%d) == %v; found %v!", a, i, intzero, a.At(i))
++		}
++	}
++	for i := 4; i < len(a); i++ {
++		if a[i] != intzero {
++			t.Errorf("%T: expected a[%d] == %v; found %v", a, i, intzero, a[i])
++		}
++	}
++}
++
++
++func checkIntZeroExp(t *testing.T, a *IntVector, i int) {
++	for j := 0; j < i; j++ {
++		if a.At(j) == intzero {
++			t.Errorf("%T: 1 expected a.At(%d) == %d; found %v", a, j, j, a.At(j))
++		}
++		if (*a)[j] == intzero {
++			t.Errorf("%T: 2 expected (*a)[%d] == %d; found %v", a, j, j, (*a)[j])
++		}
++	}
++	for ; i < a.Len(); i++ {
++		if a.At(i) != intzero {
++			t.Errorf("%T: 3 expected a.At(%d) == %v; found %v", a, i, intzero, a.At(i))
++		}
++		if (*a)[i] != intzero {
++			t.Errorf("%T: 4 expected (*a)[%d] == %v; found %v", a, i, intzero, (*a)[i])
++		}
++	}
++}
++
++
++func TestIntTrailingElementsExp(t *testing.T) {
++	var a IntVector
++	for i := 0; i < 10; i++ {
++		a.Push(int2IntValue(i + 1))
++	}
++	checkIntZeroExp(t, &a, 10)
++	checkSizeExp(t, &a, 10, 16)
++	checkSizeExp(t, a.Resize(5, 0), 5, 16)
++	checkSizeExp(t, a.Resize(10, 0), 10, 16)
++	checkIntZeroExp(t, &a, 5)
++}
++
++
++func TestIntAccessExp(t *testing.T) {
++	const n = 100
++	var a IntVector
++	a.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		a.Set(i, int2IntValue(valExp(i)))
++	}
++	for i := 0; i < n; i++ {
++		if elem2IntValue(a.At(i)) != int2IntValue(valExp(i)) {
++			t.Error(i)
++		}
++	}
++	var b IntVector
++	b.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		b[i] = int2IntValue(valExp(i))
++	}
++	for i := 0; i < n; i++ {
++		if elem2IntValue(b[i]) != int2IntValue(valExp(i)) {
++			t.Error(i)
++		}
++	}
++}
++
++
++func TestIntInsertDeleteClearExp(t *testing.T) {
++	const n = 100
++	var a IntVector
++
++	for i := 0; i < n; i++ {
++		if a.Len() != i {
++			t.Errorf("T%: A) wrong Len() %d (expected %d)", a, a.Len(), i)
++		}
++		if len(a) != i {
++			t.Errorf("T%: A) wrong len() %d (expected %d)", a, len(a), i)
++		}
++		a.Insert(0, int2IntValue(valExp(i)))
++		if elem2IntValue(a.Last()) != int2IntValue(valExp(0)) {
++			t.Error("T%: B", a)
++		}
++	}
++	for i := n - 1; i >= 0; i-- {
++		if elem2IntValue(a.Last()) != int2IntValue(valExp(0)) {
++			t.Error("T%: C", a)
++		}
++		if elem2IntValue(a.At(0)) != int2IntValue(valExp(i)) {
++			t.Error("T%: D", a)
++		}
++		if elem2IntValue(a[0]) != int2IntValue(valExp(i)) {
++			t.Error("T%: D2", a)
++		}
++		a.Delete(0)
++		if a.Len() != i {
++			t.Errorf("T%: E) wrong Len() %d (expected %d)", a, a.Len(), i)
++		}
++		if len(a) != i {
++			t.Errorf("T%: E) wrong len() %d (expected %d)", a, len(a), i)
++		}
++	}
++
++	if a.Len() != 0 {
++		t.Errorf("T%: F) wrong Len() %d (expected 0)", a, a.Len())
++	}
++	if len(a) != 0 {
++		t.Errorf("T%: F) wrong len() %d (expected 0)", a, len(a))
++	}
++	for i := 0; i < n; i++ {
++		a.Push(int2IntValue(valExp(i)))
++		if a.Len() != i+1 {
++			t.Errorf("T%: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
++		}
++		if len(a) != i+1 {
++			t.Errorf("T%: G) wrong len() %d (expected %d)", a, len(a), i+1)
++		}
++		if elem2IntValue(a.Last()) != int2IntValue(valExp(i)) {
++			t.Error("T%: H", a)
++		}
++	}
++	a.Resize(0, 0)
++	if a.Len() != 0 {
++		t.Errorf("T%: I wrong Len() %d (expected 0)", a, a.Len())
++	}
++	if len(a) != 0 {
++		t.Errorf("T%: I wrong len() %d (expected 0)", a, len(a))
++	}
++
++	const m = 5
++	for j := 0; j < m; j++ {
++		a.Push(int2IntValue(j))
++		for i := 0; i < n; i++ {
++			x := valExp(i)
++			a.Push(int2IntValue(x))
++			if elem2IntValue(a.Pop()) != int2IntValue(x) {
++				t.Error("T%: J", a)
++			}
++			if a.Len() != j+1 {
++				t.Errorf("T%: K) wrong Len() %d (expected %d)", a, a.Len(), j+1)
++			}
++			if len(a) != j+1 {
++				t.Errorf("T%: K) wrong len() %d (expected %d)", a, len(a), j+1)
++			}
++		}
++	}
++	if a.Len() != m {
++		t.Errorf("T%: L) wrong Len() %d (expected %d)", a, a.Len(), m)
++	}
++	if len(a) != m {
++		t.Errorf("T%: L) wrong len() %d (expected %d)", a, len(a), m)
++	}
++}
++
++
++func verify_sliceIntExp(t *testing.T, x *IntVector, elt, i, j int) {
++	for k := i; k < j; k++ {
++		if elem2IntValue(x.At(k)) != int2IntValue(elt) {
++			t.Errorf("T%: M) wrong [%d] element %v (expected %v)", x, k, elem2IntValue(x.At(k)), int2IntValue(elt))
++		}
++	}
++
++	s := x.Slice(i, j)
++	for k, n := 0, j-i; k < n; k++ {
++		if elem2IntValue(s.At(k)) != int2IntValue(elt) {
++			t.Errorf("T%: N) wrong [%d] element %v (expected %v)", x, k, elem2IntValue(x.At(k)), int2IntValue(elt))
++		}
++	}
++}
++
++
++func verify_patternIntExp(t *testing.T, x *IntVector, a, b, c int) {
++	n := a + b + c
++	if x.Len() != n {
++		t.Errorf("T%: O) wrong Len() %d (expected %d)", x, x.Len(), n)
++	}
++	if len(*x) != n {
++		t.Errorf("T%: O) wrong len() %d (expected %d)", x, len(*x), n)
++	}
++	verify_sliceIntExp(t, x, 0, 0, a)
++	verify_sliceIntExp(t, x, 1, a, a+b)
++	verify_sliceIntExp(t, x, 0, a+b, n)
++}
++
++
++func make_vectorIntExp(elt, len int) *IntVector {
++	x := new(IntVector).Resize(len, 0)
++	for i := 0; i < len; i++ {
++		x.Set(i, int2IntValue(elt))
++	}
++	return x
++}
++
++
++func TestIntInsertVectorExp(t *testing.T) {
++	// 1
++	a := make_vectorIntExp(0, 0)
++	b := make_vectorIntExp(1, 10)
++	a.InsertVector(0, b)
++	verify_patternIntExp(t, a, 0, 10, 0)
++	// 2
++	a = make_vectorIntExp(0, 10)
++	b = make_vectorIntExp(1, 0)
++	a.InsertVector(5, b)
++	verify_patternIntExp(t, a, 5, 0, 5)
++	// 3
++	a = make_vectorIntExp(0, 10)
++	b = make_vectorIntExp(1, 3)
++	a.InsertVector(3, b)
++	verify_patternIntExp(t, a, 3, 3, 7)
++	// 4
++	a = make_vectorIntExp(0, 10)
++	b = make_vectorIntExp(1, 1000)
++	a.InsertVector(8, b)
++	verify_patternIntExp(t, a, 8, 1000, 2)
++}
++
++
++func TestIntDoExp(t *testing.T) {
++	const n = 25
++	const salt = 17
++	a := new(IntVector).Resize(n, 0)
++	for i := 0; i < n; i++ {
++		a.Set(i, int2IntValue(salt*i))
++	}
++	count := 0
++	a.Do(func(e interface{}) {
++		i := intf2IntValue(e)
++		if i != int2IntValue(count*salt) {
++			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(a), "should visit", n, "values; did visit", count)
++	}
++
++	b := new(IntVector).Resize(n, 0)
++	for i := 0; i < n; i++ {
++		(*b)[i] = int2IntValue(salt * i)
++	}
++	count = 0
++	b.Do(func(e interface{}) {
++		i := intf2IntValue(e)
++		if i != int2IntValue(count*salt) {
++			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(b), "b) should visit", n, "values; did visit", count)
++	}
++
++	var c IntVector
++	c.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		c[i] = int2IntValue(salt * i)
++	}
++	count = 0
++	c.Do(func(e interface{}) {
++		i := intf2IntValue(e)
++		if i != int2IntValue(count*salt) {
++			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(c), "c) should visit", n, "values; did visit", count)
++	}
++
++}
++
++
++func TestIntIterExp(t *testing.T) {
++	const Len = 100
++	x := new(IntVector).Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		x.Set(i, int2IntValue(i*i))
++	}
++	i := 0
++	for v := range x.Iter() {
++		if elem2IntValue(v) != int2IntValue(i*i) {
++			t.Error(tname(x), "Iter expected", i*i, "got", elem2IntValue(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(x), "Iter stopped at", i, "not", Len)
++	}
++	y := new(IntVector).Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		(*y)[i] = int2IntValue(i * i)
++	}
++	i = 0
++	for v := range y.Iter() {
++		if elem2IntValue(v) != int2IntValue(i*i) {
++			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2IntValue(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
++	}
++	var z IntVector
++	z.Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		z[i] = int2IntValue(i * i)
++	}
++	i = 0
++	for v := range z.Iter() {
++		if elem2IntValue(v) != int2IntValue(i*i) {
++			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2IntValue(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
++	}
++}
++
++func TestIntVectorData(t *testing.T) {
++	// verify Data() returns a slice of a copy, not a slice of the original vector
++	const Len = 10
++	var src IntVector
++	for i := 0; i < Len; i++ {
++		src.Push(int2IntValue(i * i))
++	}
++	dest := src.Data()
++	for i := 0; i < Len; i++ {
++		src[i] = int2IntValue(-1)
++		v := elem2IntValue(dest[i])
++		if v != int2IntValue(i*i) {
++			t.Error(tname(src), "expected", i*i, "got", v)
++		}
++	}
++}
+diff --git a/src/pkg/exp/vector/nogen_test.go b/src/pkg/exp/vector/nogen_test.go
+new file mode 100644
+index 0000000000..e0399f7813
+--- /dev/null
++++ b/src/pkg/exp/vector/nogen_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++import (
++	"fmt"
++	"sort"
++	"testing"
++)
++
++var (
++	zero    interface{}
++	intzero int
++	strzero string
++)
++
++
++func int2Value(x int) int       { return x }
++func int2IntValue(x int) int    { return x }
++func int2StrValue(x int) string { return string(x) }
++
++
++func elem2Value(x interface{}) int  { return x.(int) }
++func elem2IntValue(x int) int       { return x }
++func elem2StrValue(x string) string { return x }
++
++
++func intf2Value(x interface{}) int       { return x.(int) }
++func intf2IntValue(x interface{}) int    { return x.(int) }
++func intf2StrValue(x interface{}) string { return x.(string) }
++
++
++type VectorInterfaceExp interface {
++	Len() int
++	Cap() int
++}
++
++
++func checkSizeExp(t *testing.T, v VectorInterfaceExp, len, cap int) {
++	if v.Len() != len {
++		t.Errorf("%T expected len = %d; found %d", v, len, v.Len())
++	}
++	if v.Cap() < cap {
++		t.Errorf("%T expected cap >= %d; found %d", v, cap, v.Cap())
++	}
++}
++
++
++func valExp(i int) int { return i*991 - 1234 }
++
++
++func TestSortingExp(t *testing.T) {
++	const n = 100
++
++	a := new(IntVector).Resize(n, 0)
++	for i := n - 1; i >= 0; i-- {
++		a.Set(i, n-1-i)
++	}
++	if sort.IsSorted(a) {
++		t.Error("int vector not sorted")
++	}
++
++	b := new(StringVector).Resize(n, 0)
++	for i := n - 1; i >= 0; i-- {
++		b.Set(i, fmt.Sprint(n-1-i))
++	}
++	if sort.IsSorted(b) {
++		t.Error("string vector not sorted")
++	}
++}
++
++
++func tname(x interface{}) string { return fmt.Sprintf("%T: ", x) }
+diff --git a/src/pkg/exp/vector/numbers_test.go b/src/pkg/exp/vector/numbers_test.go
+new file mode 100644
+index 0000000000..9a7e2780e6
+--- /dev/null
++++ b/src/pkg/exp/vector/numbers_test.go
+@@ -0,0 +1,122 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++import (
++	"fmt"
++	"malloc"
++	"strings"
++	"testing"
++)
++
++
++const memTestN = 1000000
++
++
++func s(n uint64) string {
++	str := fmt.Sprintf("%d", n)
++	lens := len(str)
++	a := make([]string, (lens+2)/3)
++	start := lens
++	for i, _ := range a {
++		start -= 3
++		if start < 0 {
++			start = 0
++		}
++		a[len(a)-i-1] = str[start:lens]
++		lens -= 3
++	}
++	return strings.Join(a, " ")
++}
++
++
++func TestVectorNums(t *testing.T) {
++	var v Vector
++	c := int(0)
++	malloc.GC()
++	m0 := *malloc.GetStats()
++	v.Resize(memTestN, memTestN)
++	for i := 0; i < memTestN; i++ {
++		v.Set(i, c)
++	}
++	malloc.GC()
++	m := *malloc.GetStats()
++	v.Resize(0, 0)
++	malloc.GC()
++	n := m.Alloc - m0.Alloc
++	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
++}
++
++
++func TestIntVectorNums(t *testing.T) {
++	var v IntVector
++	c := int(0)
++	malloc.GC()
++	m0 := *malloc.GetStats()
++	v.Resize(memTestN, memTestN)
++	for i := 0; i < memTestN; i++ {
++		v.Set(i, c)
++	}
++	malloc.GC()
++	m := *malloc.GetStats()
++	v.Resize(0, 0)
++	malloc.GC()
++	n := m.Alloc - m0.Alloc
++	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
++}
++
++
++func TestStringVectorNums(t *testing.T) {
++	var v StringVector
++	c := ""
++	malloc.GC()
++	m0 := *malloc.GetStats()
++	v.Resize(memTestN, memTestN)
++	for i := 0; i < memTestN; i++ {
++		v.Set(i, c)
++	}
++	malloc.GC()
++	m := *malloc.GetStats()
++	v.Resize(0, 0)
++	malloc.GC()
++	n := m.Alloc - m0.Alloc
++	t.Logf("%T.Push(%#v), n = %s: Alloc/n = %.2f\n", v, c, s(memTestN), float(n)/memTestN)
++}
++
++
++func BenchmarkVectorNums(b *testing.B) {
++	c := int(0)
++	var v Vector
++	b.StopTimer()
++	malloc.GC()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		v.Push(c)
++	}
++}
++
++
++func BenchmarkIntVectorNums(b *testing.B) {
++	c := int(0)
++	var v IntVector
++	b.StopTimer()
++	malloc.GC()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		v.Push(c)
++	}
++}
++
++
++func BenchmarkStringVectorNums(b *testing.B) {
++	c := ""
++	var v StringVector
++	b.StopTimer()
++	malloc.GC()
++	b.StartTimer()
++	for i := 0; i < b.N; i++ {
++		v.Push(c)
++	}
++}
+diff --git a/src/pkg/exp/vector/nums.sh b/src/pkg/exp/vector/nums.sh
+new file mode 100755
+index 0000000000..22bf4dca5d
+--- /dev/null
++++ b/src/pkg/exp/vector/nums.sh
+@@ -0,0 +1,5 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++gotest -v -match Nums -benchmarks Nums
+diff --git a/src/pkg/exp/vector/stringvector.go b/src/pkg/exp/vector/stringvector.go
+new file mode 100644
+index 0000000000..5a54a07e11
+--- /dev/null
++++ b/src/pkg/exp/vector/stringvector.go
+@@ -0,0 +1,212 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++func (p *StringVector) realloc(length, capacity int) (b []string) {
++	if capacity < initialSize {
++		capacity = initialSize
++	}
++	b = make(StringVector, length, capacity)
++	copy(b, *p)
++	*p = b
++	return
++}
++
++
++// Insert n elements at position i.
++func (p *StringVector) Expand(i, n int) {
++	a := *p
++
++	// make sure we have enough space
++	len0 := len(a)
++	len1 := len0 + n
++	if len1 <= cap(a) {
++		// enough space - just expand
++		a = a[0:len1]
++	} else {
++		// not enough space - double capacity
++		capb := cap(a) * 2
++		if capb < len1 {
++			// still not enough - use required length
++			capb = len1
++		}
++		// capb >= len1
++		a = p.realloc(len1, capb)
++	}
++
++	// make a hole
++	for j := len0 - 1; j >= i; j-- {
++		a[j+n] = a[j]
++	}
++
++	*p = a
++}
++
++
++// Insert n elements at the end of a vector.
++func (p *StringVector) Extend(n int) { p.Expand(len(*p), n) }
++
++
++// Resize changes the length and capacity of a vector.
++// If the new length is shorter than the current length, Resize discards
++// trailing elements. If the new length is longer than the current length,
++// Resize adds the respective zero values for the additional elements. The capacity
++// parameter is ignored unless the new length or capacity is longer than the current
++// capacity. The resized vector's capacity may be larger than the requested capacity.
++func (p *StringVector) Resize(length, capacity int) *StringVector {
++	a := *p
++
++	if length > cap(a) || capacity > cap(a) {
++		// not enough space or larger capacity requested explicitly
++		a = p.realloc(length, capacity)
++	} else if length < len(a) {
++		// clear trailing elements
++		for i := range a[length:] {
++			var zero string
++			a[length+i] = zero
++		}
++	}
++
++	*p = a[0:length]
++	return p
++}
++
++
++// Len returns the number of elements in the vector.
++// Same as len(*p).
++func (p *StringVector) Len() int { return len(*p) }
++
++
++// Cap returns the capacity of the vector; that is, the
++// maximum length the vector can grow without resizing.
++// Same as cap(*p).
++func (p *StringVector) Cap() int { return cap(*p) }
++
++
++// At returns the i'th element of the vector.
++func (p *StringVector) At(i int) string { return (*p)[i] }
++
++
++// Set sets the i'th element of the vector to value x.
++func (p *StringVector) Set(i int, x string) { (*p)[i] = x }
++
++
++// Last returns the element in the vector of highest index.
++func (p *StringVector) Last() string { return (*p)[len(*p)-1] }
++
++
++// Data returns all the elements as a slice.
++func (p *StringVector) Data() []string {
++	arr := make(StringVector, len(*p))
++	copy(arr, *p)
++	return arr
++}
++
++
++// Insert inserts into the vector an element of value x before
++// the current element at index i.
++func (p *StringVector) Insert(i int, x string) {
++	p.Expand(i, 1)
++	(*p)[i] = x
++}
++
++
++// Delete deletes the i'th element of the vector.  The gap is closed so the old
++// element at index i+1 has index i afterwards.
++func (p *StringVector) Delete(i int) {
++	a := *p
++	n := len(a)
++
++	copy(a[i:n-1], a[i+1:n])
++	var zero string
++	a[n-1] = zero // support GC, zero out entry
++	*p = a[0 : n-1]
++}
++
++
++// InsertVector inserts into the vector the contents of the vector
++// x such that the 0th element of x appears at index i after insertion.
++func (p *StringVector) InsertVector(i int, x *StringVector) {
++	b := *x
++
++	p.Expand(i, len(b))
++	copy((*p)[i:i+len(b)], b)
++}
++
++
++// Cut deletes elements i through j-1, inclusive.
++func (p *StringVector) Cut(i, j int) {
++	a := *p
++	n := len(a)
++	m := n - (j - i)
++
++	copy(a[i:m], a[j:n])
++	for k := m; k < n; k++ { //TODO(bflm) don't zero out the elements unless it's a Vector.
++		var zero string
++		a[k] = zero // support GC, zero out entries
++	}
++
++	*p = a[0:m]
++}
++
++
++// Slice returns a new sub-vector by slicing the old one to extract slice [i:j].
++// The elements are copied. The original vector is unchanged.
++func (p *StringVector) Slice(i, j int) *StringVector {
++	var s StringVector
++	s.realloc(j-i, 0) // will fail in Init() if j < i
++	copy(s, (*p)[i:j])
++	return &s
++}
++
++
++// Convenience wrappers
++
++// Push appends x to the end of the vector.
++func (p *StringVector) Push(x string) { p.Insert(len(*p), x) }
++
++
++// Pop deletes the last element of the vector.
++func (p *StringVector) Pop() string {
++	a := *p
++
++	i := len(a) - 1
++	x := a[i]
++	var zero string
++	a[i] = zero // support GC, zero out entry
++	*p = a[0:i]
++	return x
++}
++
++
++// AppendVector appends the entire vector x to the end of this vector.
++func (p *StringVector) AppendVector(x *StringVector) {
++	p.InsertVector(len(*p), x)
++}
++
++
++// Swap exchanges the elements at indexes i and j.
++func (p *StringVector) Swap(i, j int) {
++	a := *p
++	a[i], a[j] = a[j], a[i]
++}
++
++
++// Iterate over all elements; driver for range
++func (p *StringVector) iterate(c chan<- string) {
++	for _, v := range *p {
++		c <- v
++	}
++	close(c)
++}
++
++
++// Channel iterator for range.
++func (p *StringVector) Iter() <-chan string {
++	c := make(chan string)
++	go p.iterate(c)
++	return c
++}
+diff --git a/src/pkg/exp/vector/stringvector_test.go b/src/pkg/exp/vector/stringvector_test.go
+new file mode 100644
+index 0000000000..cfa6947754
+--- /dev/null
++++ b/src/pkg/exp/vector/stringvector_test.go
+@@ -0,0 +1,389 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++import "testing"
++
++
++func TestStrZeroLenExp(t *testing.T) {
++	a := new(StringVector)
++	if a.Len() != 0 {
++		t.Errorf("%T: B1) expected 0, got %d", a, a.Len())
++	}
++	if len(*a) != 0 {
++		t.Errorf("%T: B2) expected 0, got %d", a, len(*a))
++	}
++	var b StringVector
++	if b.Len() != 0 {
++		t.Errorf("%T: B3) expected 0, got %d", b, b.Len())
++	}
++	if len(b) != 0 {
++		t.Errorf("%T: B4) expected 0, got %d", b, len(b))
++	}
++}
++
++
++func TestStrResizeExp(t *testing.T) {
++	var a StringVector
++	checkSizeExp(t, &a, 0, 0)
++	checkSizeExp(t, a.Resize(0, 5), 0, 5)
++	checkSizeExp(t, a.Resize(1, 0), 1, 5)
++	checkSizeExp(t, a.Resize(10, 0), 10, 10)
++	checkSizeExp(t, a.Resize(5, 0), 5, 10)
++	checkSizeExp(t, a.Resize(3, 8), 3, 10)
++	checkSizeExp(t, a.Resize(0, 100), 0, 100)
++	checkSizeExp(t, a.Resize(11, 100), 11, 100)
++}
++
++
++func TestStrResize2Exp(t *testing.T) {
++	var a StringVector
++	checkSizeExp(t, &a, 0, 0)
++	a.Push(int2StrValue(1))
++	a.Push(int2StrValue(2))
++	a.Push(int2StrValue(3))
++	a.Push(int2StrValue(4))
++	checkSizeExp(t, &a, 4, 4)
++	checkSizeExp(t, a.Resize(10, 0), 10, 10)
++	for i := 4; i < a.Len(); i++ {
++		if a.At(i) != strzero {
++			t.Errorf("%T: expected a.At(%d) == %v; found %v!", a, i, strzero, a.At(i))
++		}
++	}
++	for i := 4; i < len(a); i++ {
++		if a[i] != strzero {
++			t.Errorf("%T: expected a[%d] == %v; found %v", a, i, strzero, a[i])
++		}
++	}
++}
++
++
++func checkStrZeroExp(t *testing.T, a *StringVector, i int) {
++	for j := 0; j < i; j++ {
++		if a.At(j) == strzero {
++			t.Errorf("%T: 1 expected a.At(%d) == %d; found %v", a, j, j, a.At(j))
++		}
++		if (*a)[j] == strzero {
++			t.Errorf("%T: 2 expected (*a)[%d] == %d; found %v", a, j, j, (*a)[j])
++		}
++	}
++	for ; i < a.Len(); i++ {
++		if a.At(i) != strzero {
++			t.Errorf("%T: 3 expected a.At(%d) == %v; found %v", a, i, strzero, a.At(i))
++		}
++		if (*a)[i] != strzero {
++			t.Errorf("%T: 4 expected (*a)[%d] == %v; found %v", a, i, strzero, (*a)[i])
++		}
++	}
++}
++
++
++func TestStrTrailingElementsExp(t *testing.T) {
++	var a StringVector
++	for i := 0; i < 10; i++ {
++		a.Push(int2StrValue(i + 1))
++	}
++	checkStrZeroExp(t, &a, 10)
++	checkSizeExp(t, &a, 10, 16)
++	checkSizeExp(t, a.Resize(5, 0), 5, 16)
++	checkSizeExp(t, a.Resize(10, 0), 10, 16)
++	checkStrZeroExp(t, &a, 5)
++}
++
++
++func TestStrAccessExp(t *testing.T) {
++	const n = 100
++	var a StringVector
++	a.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		a.Set(i, int2StrValue(valExp(i)))
++	}
++	for i := 0; i < n; i++ {
++		if elem2StrValue(a.At(i)) != int2StrValue(valExp(i)) {
++			t.Error(i)
++		}
++	}
++	var b StringVector
++	b.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		b[i] = int2StrValue(valExp(i))
++	}
++	for i := 0; i < n; i++ {
++		if elem2StrValue(b[i]) != int2StrValue(valExp(i)) {
++			t.Error(i)
++		}
++	}
++}
++
++
++func TestStrInsertDeleteClearExp(t *testing.T) {
++	const n = 100
++	var a StringVector
++
++	for i := 0; i < n; i++ {
++		if a.Len() != i {
++			t.Errorf("T%: A) wrong Len() %d (expected %d)", a, a.Len(), i)
++		}
++		if len(a) != i {
++			t.Errorf("T%: A) wrong len() %d (expected %d)", a, len(a), i)
++		}
++		a.Insert(0, int2StrValue(valExp(i)))
++		if elem2StrValue(a.Last()) != int2StrValue(valExp(0)) {
++			t.Error("T%: B", a)
++		}
++	}
++	for i := n - 1; i >= 0; i-- {
++		if elem2StrValue(a.Last()) != int2StrValue(valExp(0)) {
++			t.Error("T%: C", a)
++		}
++		if elem2StrValue(a.At(0)) != int2StrValue(valExp(i)) {
++			t.Error("T%: D", a)
++		}
++		if elem2StrValue(a[0]) != int2StrValue(valExp(i)) {
++			t.Error("T%: D2", a)
++		}
++		a.Delete(0)
++		if a.Len() != i {
++			t.Errorf("T%: E) wrong Len() %d (expected %d)", a, a.Len(), i)
++		}
++		if len(a) != i {
++			t.Errorf("T%: E) wrong len() %d (expected %d)", a, len(a), i)
++		}
++	}
++
++	if a.Len() != 0 {
++		t.Errorf("T%: F) wrong Len() %d (expected 0)", a, a.Len())
++	}
++	if len(a) != 0 {
++		t.Errorf("T%: F) wrong len() %d (expected 0)", a, len(a))
++	}
++	for i := 0; i < n; i++ {
++		a.Push(int2StrValue(valExp(i)))
++		if a.Len() != i+1 {
++			t.Errorf("T%: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
++		}
++		if len(a) != i+1 {
++			t.Errorf("T%: G) wrong len() %d (expected %d)", a, len(a), i+1)
++		}
++		if elem2StrValue(a.Last()) != int2StrValue(valExp(i)) {
++			t.Error("T%: H", a)
++		}
++	}
++	a.Resize(0, 0)
++	if a.Len() != 0 {
++		t.Errorf("T%: I wrong Len() %d (expected 0)", a, a.Len())
++	}
++	if len(a) != 0 {
++		t.Errorf("T%: I wrong len() %d (expected 0)", a, len(a))
++	}
++
++	const m = 5
++	for j := 0; j < m; j++ {
++		a.Push(int2StrValue(j))
++		for i := 0; i < n; i++ {
++			x := valExp(i)
++			a.Push(int2StrValue(x))
++			if elem2StrValue(a.Pop()) != int2StrValue(x) {
++				t.Error("T%: J", a)
++			}
++			if a.Len() != j+1 {
++				t.Errorf("T%: K) wrong Len() %d (expected %d)", a, a.Len(), j+1)
++			}
++			if len(a) != j+1 {
++				t.Errorf("T%: K) wrong len() %d (expected %d)", a, len(a), j+1)
++			}
++		}
++	}
++	if a.Len() != m {
++		t.Errorf("T%: L) wrong Len() %d (expected %d)", a, a.Len(), m)
++	}
++	if len(a) != m {
++		t.Errorf("T%: L) wrong len() %d (expected %d)", a, len(a), m)
++	}
++}
++
++
++func verify_sliceStrExp(t *testing.T, x *StringVector, elt, i, j int) {
++	for k := i; k < j; k++ {
++		if elem2StrValue(x.At(k)) != int2StrValue(elt) {
++			t.Errorf("T%: M) wrong [%d] element %v (expected %v)", x, k, elem2StrValue(x.At(k)), int2StrValue(elt))
++		}
++	}
++
++	s := x.Slice(i, j)
++	for k, n := 0, j-i; k < n; k++ {
++		if elem2StrValue(s.At(k)) != int2StrValue(elt) {
++			t.Errorf("T%: N) wrong [%d] element %v (expected %v)", x, k, elem2StrValue(x.At(k)), int2StrValue(elt))
++		}
++	}
++}
++
++
++func verify_patternStrExp(t *testing.T, x *StringVector, a, b, c int) {
++	n := a + b + c
++	if x.Len() != n {
++		t.Errorf("T%: O) wrong Len() %d (expected %d)", x, x.Len(), n)
++	}
++	if len(*x) != n {
++		t.Errorf("T%: O) wrong len() %d (expected %d)", x, len(*x), n)
++	}
++	verify_sliceStrExp(t, x, 0, 0, a)
++	verify_sliceStrExp(t, x, 1, a, a+b)
++	verify_sliceStrExp(t, x, 0, a+b, n)
++}
++
++
++func make_vectorStrExp(elt, len int) *StringVector {
++	x := new(StringVector).Resize(len, 0)
++	for i := 0; i < len; i++ {
++		x.Set(i, int2StrValue(elt))
++	}
++	return x
++}
++
++
++func TestStrInsertVectorExp(t *testing.T) {
++	// 1
++	a := make_vectorStrExp(0, 0)
++	b := make_vectorStrExp(1, 10)
++	a.InsertVector(0, b)
++	verify_patternStrExp(t, a, 0, 10, 0)
++	// 2
++	a = make_vectorStrExp(0, 10)
++	b = make_vectorStrExp(1, 0)
++	a.InsertVector(5, b)
++	verify_patternStrExp(t, a, 5, 0, 5)
++	// 3
++	a = make_vectorStrExp(0, 10)
++	b = make_vectorStrExp(1, 3)
++	a.InsertVector(3, b)
++	verify_patternStrExp(t, a, 3, 3, 7)
++	// 4
++	a = make_vectorStrExp(0, 10)
++	b = make_vectorStrExp(1, 1000)
++	a.InsertVector(8, b)
++	verify_patternStrExp(t, a, 8, 1000, 2)
++}
++
++
++func TestStrDoExp(t *testing.T) {
++	const n = 25
++	const salt = 17
++	a := new(StringVector).Resize(n, 0)
++	for i := 0; i < n; i++ {
++		a.Set(i, int2StrValue(salt*i))
++	}
++	count := 0
++	a.Do(func(e interface{}) {
++		i := intf2StrValue(e)
++		if i != int2StrValue(count*salt) {
++			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(a), "should visit", n, "values; did visit", count)
++	}
++
++	b := new(StringVector).Resize(n, 0)
++	for i := 0; i < n; i++ {
++		(*b)[i] = int2StrValue(salt * i)
++	}
++	count = 0
++	b.Do(func(e interface{}) {
++		i := intf2StrValue(e)
++		if i != int2StrValue(count*salt) {
++			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(b), "b) should visit", n, "values; did visit", count)
++	}
++
++	var c StringVector
++	c.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		c[i] = int2StrValue(salt * i)
++	}
++	count = 0
++	c.Do(func(e interface{}) {
++		i := intf2StrValue(e)
++		if i != int2StrValue(count*salt) {
++			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(c), "c) should visit", n, "values; did visit", count)
++	}
++
++}
++
++
++func TestStrIterExp(t *testing.T) {
++	const Len = 100
++	x := new(StringVector).Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		x.Set(i, int2StrValue(i*i))
++	}
++	i := 0
++	for v := range x.Iter() {
++		if elem2StrValue(v) != int2StrValue(i*i) {
++			t.Error(tname(x), "Iter expected", i*i, "got", elem2StrValue(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(x), "Iter stopped at", i, "not", Len)
++	}
++	y := new(StringVector).Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		(*y)[i] = int2StrValue(i * i)
++	}
++	i = 0
++	for v := range y.Iter() {
++		if elem2StrValue(v) != int2StrValue(i*i) {
++			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2StrValue(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
++	}
++	var z StringVector
++	z.Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		z[i] = int2StrValue(i * i)
++	}
++	i = 0
++	for v := range z.Iter() {
++		if elem2StrValue(v) != int2StrValue(i*i) {
++			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2StrValue(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
++	}
++}
++
++func TestStrVectorData(t *testing.T) {
++	// verify Data() returns a slice of a copy, not a slice of the original vector
++	const Len = 10
++	var src StringVector
++	for i := 0; i < Len; i++ {
++		src.Push(int2StrValue(i * i))
++	}
++	dest := src.Data()
++	for i := 0; i < Len; i++ {
++		src[i] = int2StrValue(-1)
++		v := elem2StrValue(dest[i])
++		if v != int2StrValue(i*i) {
++			t.Error(tname(src), "expected", i*i, "got", v)
++		}
++	}
++}
+diff --git a/src/pkg/exp/vector/vector.go b/src/pkg/exp/vector/vector.go
+new file mode 100644
+index 0000000000..68df23f41c
+--- /dev/null
++++ b/src/pkg/exp/vector/vector.go
+@@ -0,0 +1,210 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++func (p *Vector) realloc(length, capacity int) (b []interface{}) {
++	if capacity < initialSize {
++		capacity = initialSize
++	}
++	b = make(Vector, length, capacity)
++	copy(b, *p)
++	*p = b
++	return
++}
++
++
++// Insert n elements at position i.
++func (p *Vector) Expand(i, n int) {
++	a := *p
++
++	// make sure we have enough space
++	len0 := len(a)
++	len1 := len0 + n
++	if len1 <= cap(a) {
++		// enough space - just expand
++		a = a[0:len1]
++	} else {
++		// not enough space - double capacity
++		capb := cap(a) * 2
++		if capb < len1 {
++			// still not enough - use required length
++			capb = len1
++		}
++		// capb >= len1
++		a = p.realloc(len1, capb)
++	}
++
++	// make a hole
++	for j := len0 - 1; j >= i; j-- {
++		a[j+n] = a[j]
++	}
++
++	*p = a
++}
++
++
++// Insert n elements at the end of a vector.
++func (p *Vector) Extend(n int) { p.Expand(len(*p), n) }
++
++
++// Resize changes the length and capacity of a vector.
++// If the new length is shorter than the current length, Resize discards
++// trailing elements. If the new length is longer than the current length,
++// Resize adds the respective zero values for the additional elements. The capacity
++// parameter is ignored unless the new length or capacity is longer than the current
++// capacity. The resized vector's capacity may be larger than the requested capacity.
++func (p *Vector) Resize(length, capacity int) *Vector {
++	a := *p
++
++	if length > cap(a) || capacity > cap(a) {
++		// not enough space or larger capacity requested explicitly
++		a = p.realloc(length, capacity)
++	} else if length < len(a) {
++		// clear trailing elements
++		for i := range a[length:] {
++			var zero interface{}
++			a[length+i] = zero
++		}
++	}
++
++	*p = a[0:length]
++	return p
++}
++
++
++// Len returns the number of elements in the vector.
++// Same as len(*p).
++func (p *Vector) Len() int { return len(*p) }
++
++
++// Cap returns the capacity of the vector; that is, the
++// maximum length the vector can grow without resizing.
++// Same as cap(*p).
++func (p *Vector) Cap() int { return cap(*p) }
++
++
++// At returns the i'th element of the vector.
++func (p *Vector) At(i int) interface{} { return (*p)[i] }
++
++
++// Set sets the i'th element of the vector to value x.
++func (p *Vector) Set(i int, x interface{}) { (*p)[i] = x }
++
++
++// Last returns the element in the vector of highest index.
++func (p *Vector) Last() interface{} { return (*p)[len(*p)-1] }
++
++
++// Data returns all the elements as a slice.
++func (p *Vector) Data() []interface{} {
++	arr := make(Vector, len(*p))
++	copy(arr, *p)
++	return arr
++}
++
++
++// Insert inserts into the vector an element of value x before
++// the current element at index i.
++func (p *Vector) Insert(i int, x interface{}) {
++	p.Expand(i, 1)
++	(*p)[i] = x
++}
++
++
++// Delete deletes the i'th element of the vector.  The gap is closed so the old
++// element at index i+1 has index i afterwards.
++func (p *Vector) Delete(i int) {
++	a := *p
++	n := len(a)
++
++	copy(a[i:n-1], a[i+1:n])
++	var zero interface{}
++	a[n-1] = zero // support GC, zero out entry
++	*p = a[0 : n-1]
++}
++
++
++// InsertVector inserts into the vector the contents of the vector
++// x such that the 0th element of x appears at index i after insertion.
++func (p *Vector) InsertVector(i int, x *Vector) {
++	b := *x
++
++	p.Expand(i, len(b))
++	copy((*p)[i:i+len(b)], b)
++}
++
++
++// Cut deletes elements i through j-1, inclusive.
++func (p *Vector) Cut(i, j int) {
++	a := *p
++	n := len(a)
++	m := n - (j - i)
++
++	copy(a[i:m], a[j:n])
++	for k := m; k < n; k++ { //TODO(bflm) don't zero out the elements unless it's a Vector.
++		var zero interface{}
++		a[k] = zero // support GC, zero out entries
++	}
++
++	*p = a[0:m]
++}
++
++
++// Slice returns a new sub-vector by slicing the old one to extract slice [i:j].
++// The elements are copied. The original vector is unchanged.
++func (p *Vector) Slice(i, j int) *Vector {
++	var s Vector
++	s.realloc(j-i, 0) // will fail in Init() if j < i
++	copy(s, (*p)[i:j])
++	return &s
++}
++
++
++// Convenience wrappers
++
++// Push appends x to the end of the vector.
++func (p *Vector) Push(x interface{}) { p.Insert(len(*p), x) }
++
++
++// Pop deletes the last element of the vector.
++func (p *Vector) Pop() interface{} {
++	a := *p
++
++	i := len(a) - 1
++	x := a[i]
++	var zero interface{}
++	a[i] = zero // support GC, zero out entry
++	*p = a[0:i]
++	return x
++}
++
++
++// AppendVector appends the entire vector x to the end of this vector.
++func (p *Vector) AppendVector(x *Vector) { p.InsertVector(len(*p), x) }
++
++
++// Swap exchanges the elements at indexes i and j.
++func (p *Vector) Swap(i, j int) {
++	a := *p
++	a[i], a[j] = a[j], a[i]
++}
++
++
++// Iterate over all elements; driver for range
++func (p *Vector) iterate(c chan<- interface{}) {
++	for _, v := range *p {
++		c <- v
++	}
++	close(c)
++}
++
++
++// Channel iterator for range.
++func (p *Vector) Iter() <-chan interface{} {
++	c := make(chan interface{})
++	go p.iterate(c)
++	return c
++}
+diff --git a/src/pkg/exp/vector/vector_test.go b/src/pkg/exp/vector/vector_test.go
+new file mode 100644
+index 0000000000..ed2cfd5bd0
+--- /dev/null
++++ b/src/pkg/exp/vector/vector_test.go
+@@ -0,0 +1,389 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vector
++
++
++import "testing"
++
++
++func TestZeroLenExp(t *testing.T) {
++	a := new(Vector)
++	if a.Len() != 0 {
++		t.Errorf("%T: B1) expected 0, got %d", a, a.Len())
++	}
++	if len(*a) != 0 {
++		t.Errorf("%T: B2) expected 0, got %d", a, len(*a))
++	}
++	var b Vector
++	if b.Len() != 0 {
++		t.Errorf("%T: B3) expected 0, got %d", b, b.Len())
++	}
++	if len(b) != 0 {
++		t.Errorf("%T: B4) expected 0, got %d", b, len(b))
++	}
++}
++
++
++func TestResizeExp(t *testing.T) {
++	var a Vector
++	checkSizeExp(t, &a, 0, 0)
++	checkSizeExp(t, a.Resize(0, 5), 0, 5)
++	checkSizeExp(t, a.Resize(1, 0), 1, 5)
++	checkSizeExp(t, a.Resize(10, 0), 10, 10)
++	checkSizeExp(t, a.Resize(5, 0), 5, 10)
++	checkSizeExp(t, a.Resize(3, 8), 3, 10)
++	checkSizeExp(t, a.Resize(0, 100), 0, 100)
++	checkSizeExp(t, a.Resize(11, 100), 11, 100)
++}
++
++
++func TestResize2Exp(t *testing.T) {
++	var a Vector
++	checkSizeExp(t, &a, 0, 0)
++	a.Push(int2Value(1))
++	a.Push(int2Value(2))
++	a.Push(int2Value(3))
++	a.Push(int2Value(4))
++	checkSizeExp(t, &a, 4, 4)
++	checkSizeExp(t, a.Resize(10, 0), 10, 10)
++	for i := 4; i < a.Len(); i++ {
++		if a.At(i) != zero {
++			t.Errorf("%T: expected a.At(%d) == %v; found %v!", a, i, zero, a.At(i))
++		}
++	}
++	for i := 4; i < len(a); i++ {
++		if a[i] != zero {
++			t.Errorf("%T: expected a[%d] == %v; found %v", a, i, zero, a[i])
++		}
++	}
++}
++
++
++func checkZeroExp(t *testing.T, a *Vector, i int) {
++	for j := 0; j < i; j++ {
++		if a.At(j) == zero {
++			t.Errorf("%T: 1 expected a.At(%d) == %d; found %v", a, j, j, a.At(j))
++		}
++		if (*a)[j] == zero {
++			t.Errorf("%T: 2 expected (*a)[%d] == %d; found %v", a, j, j, (*a)[j])
++		}
++	}
++	for ; i < a.Len(); i++ {
++		if a.At(i) != zero {
++			t.Errorf("%T: 3 expected a.At(%d) == %v; found %v", a, i, zero, a.At(i))
++		}
++		if (*a)[i] != zero {
++			t.Errorf("%T: 4 expected (*a)[%d] == %v; found %v", a, i, zero, (*a)[i])
++		}
++	}
++}
++
++
++func TestTrailingElementsExp(t *testing.T) {
++	var a Vector
++	for i := 0; i < 10; i++ {
++		a.Push(int2Value(i + 1))
++	}
++	checkZeroExp(t, &a, 10)
++	checkSizeExp(t, &a, 10, 16)
++	checkSizeExp(t, a.Resize(5, 0), 5, 16)
++	checkSizeExp(t, a.Resize(10, 0), 10, 16)
++	checkZeroExp(t, &a, 5)
++}
++
++
++func TestAccessExp(t *testing.T) {
++	const n = 100
++	var a Vector
++	a.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		a.Set(i, int2Value(valExp(i)))
++	}
++	for i := 0; i < n; i++ {
++		if elem2Value(a.At(i)) != int2Value(valExp(i)) {
++			t.Error(i)
++		}
++	}
++	var b Vector
++	b.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		b[i] = int2Value(valExp(i))
++	}
++	for i := 0; i < n; i++ {
++		if elem2Value(b[i]) != int2Value(valExp(i)) {
++			t.Error(i)
++		}
++	}
++}
++
++
++func TestInsertDeleteClearExp(t *testing.T) {
++	const n = 100
++	var a Vector
++
++	for i := 0; i < n; i++ {
++		if a.Len() != i {
++			t.Errorf("T%: A) wrong Len() %d (expected %d)", a, a.Len(), i)
++		}
++		if len(a) != i {
++			t.Errorf("T%: A) wrong len() %d (expected %d)", a, len(a), i)
++		}
++		a.Insert(0, int2Value(valExp(i)))
++		if elem2Value(a.Last()) != int2Value(valExp(0)) {
++			t.Error("T%: B", a)
++		}
++	}
++	for i := n - 1; i >= 0; i-- {
++		if elem2Value(a.Last()) != int2Value(valExp(0)) {
++			t.Error("T%: C", a)
++		}
++		if elem2Value(a.At(0)) != int2Value(valExp(i)) {
++			t.Error("T%: D", a)
++		}
++		if elem2Value(a[0]) != int2Value(valExp(i)) {
++			t.Error("T%: D2", a)
++		}
++		a.Delete(0)
++		if a.Len() != i {
++			t.Errorf("T%: E) wrong Len() %d (expected %d)", a, a.Len(), i)
++		}
++		if len(a) != i {
++			t.Errorf("T%: E) wrong len() %d (expected %d)", a, len(a), i)
++		}
++	}
++
++	if a.Len() != 0 {
++		t.Errorf("T%: F) wrong Len() %d (expected 0)", a, a.Len())
++	}
++	if len(a) != 0 {
++		t.Errorf("T%: F) wrong len() %d (expected 0)", a, len(a))
++	}
++	for i := 0; i < n; i++ {
++		a.Push(int2Value(valExp(i)))
++		if a.Len() != i+1 {
++			t.Errorf("T%: G) wrong Len() %d (expected %d)", a, a.Len(), i+1)
++		}
++		if len(a) != i+1 {
++			t.Errorf("T%: G) wrong len() %d (expected %d)", a, len(a), i+1)
++		}
++		if elem2Value(a.Last()) != int2Value(valExp(i)) {
++			t.Error("T%: H", a)
++		}
++	}
++	a.Resize(0, 0)
++	if a.Len() != 0 {
++		t.Errorf("T%: I wrong Len() %d (expected 0)", a, a.Len())
++	}
++	if len(a) != 0 {
++		t.Errorf("T%: I wrong len() %d (expected 0)", a, len(a))
++	}
++
++	const m = 5
++	for j := 0; j < m; j++ {
++		a.Push(int2Value(j))
++		for i := 0; i < n; i++ {
++			x := valExp(i)
++			a.Push(int2Value(x))
++			if elem2Value(a.Pop()) != int2Value(x) {
++				t.Error("T%: J", a)
++			}
++			if a.Len() != j+1 {
++				t.Errorf("T%: K) wrong Len() %d (expected %d)", a, a.Len(), j+1)
++			}
++			if len(a) != j+1 {
++				t.Errorf("T%: K) wrong len() %d (expected %d)", a, len(a), j+1)
++			}
++		}
++	}
++	if a.Len() != m {
++		t.Errorf("T%: L) wrong Len() %d (expected %d)", a, a.Len(), m)
++	}
++	if len(a) != m {
++		t.Errorf("T%: L) wrong len() %d (expected %d)", a, len(a), m)
++	}
++}
++
++
++func verify_sliceExp(t *testing.T, x *Vector, elt, i, j int) {
++	for k := i; k < j; k++ {
++		if elem2Value(x.At(k)) != int2Value(elt) {
++			t.Errorf("T%: M) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
++		}
++	}
++
++	s := x.Slice(i, j)
++	for k, n := 0, j-i; k < n; k++ {
++		if elem2Value(s.At(k)) != int2Value(elt) {
++			t.Errorf("T%: N) wrong [%d] element %v (expected %v)", x, k, elem2Value(x.At(k)), int2Value(elt))
++		}
++	}
++}
++
++
++func verify_patternExp(t *testing.T, x *Vector, a, b, c int) {
++	n := a + b + c
++	if x.Len() != n {
++		t.Errorf("T%: O) wrong Len() %d (expected %d)", x, x.Len(), n)
++	}
++	if len(*x) != n {
++		t.Errorf("T%: O) wrong len() %d (expected %d)", x, len(*x), n)
++	}
++	verify_sliceExp(t, x, 0, 0, a)
++	verify_sliceExp(t, x, 1, a, a+b)
++	verify_sliceExp(t, x, 0, a+b, n)
++}
++
++
++func make_vectorExp(elt, len int) *Vector {
++	x := new(Vector).Resize(len, 0)
++	for i := 0; i < len; i++ {
++		x.Set(i, int2Value(elt))
++	}
++	return x
++}
++
++
++func TestInsertVectorExp(t *testing.T) {
++	// 1
++	a := make_vectorExp(0, 0)
++	b := make_vectorExp(1, 10)
++	a.InsertVector(0, b)
++	verify_patternExp(t, a, 0, 10, 0)
++	// 2
++	a = make_vectorExp(0, 10)
++	b = make_vectorExp(1, 0)
++	a.InsertVector(5, b)
++	verify_patternExp(t, a, 5, 0, 5)
++	// 3
++	a = make_vectorExp(0, 10)
++	b = make_vectorExp(1, 3)
++	a.InsertVector(3, b)
++	verify_patternExp(t, a, 3, 3, 7)
++	// 4
++	a = make_vectorExp(0, 10)
++	b = make_vectorExp(1, 1000)
++	a.InsertVector(8, b)
++	verify_patternExp(t, a, 8, 1000, 2)
++}
++
++
++func TestDoExp(t *testing.T) {
++	const n = 25
++	const salt = 17
++	a := new(Vector).Resize(n, 0)
++	for i := 0; i < n; i++ {
++		a.Set(i, int2Value(salt*i))
++	}
++	count := 0
++	a.Do(func(e interface{}) {
++		i := intf2Value(e)
++		if i != int2Value(count*salt) {
++			t.Error(tname(a), "value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(a), "should visit", n, "values; did visit", count)
++	}
++
++	b := new(Vector).Resize(n, 0)
++	for i := 0; i < n; i++ {
++		(*b)[i] = int2Value(salt * i)
++	}
++	count = 0
++	b.Do(func(e interface{}) {
++		i := intf2Value(e)
++		if i != int2Value(count*salt) {
++			t.Error(tname(b), "b) value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(b), "b) should visit", n, "values; did visit", count)
++	}
++
++	var c Vector
++	c.Resize(n, 0)
++	for i := 0; i < n; i++ {
++		c[i] = int2Value(salt * i)
++	}
++	count = 0
++	c.Do(func(e interface{}) {
++		i := intf2Value(e)
++		if i != int2Value(count*salt) {
++			t.Error(tname(c), "c) value at", count, "should be", count*salt, "not", i)
++		}
++		count++
++	})
++	if count != n {
++		t.Error(tname(c), "c) should visit", n, "values; did visit", count)
++	}
++
++}
++
++
++func TestIterExp(t *testing.T) {
++	const Len = 100
++	x := new(Vector).Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		x.Set(i, int2Value(i*i))
++	}
++	i := 0
++	for v := range x.Iter() {
++		if elem2Value(v) != int2Value(i*i) {
++			t.Error(tname(x), "Iter expected", i*i, "got", elem2Value(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(x), "Iter stopped at", i, "not", Len)
++	}
++	y := new(Vector).Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		(*y)[i] = int2Value(i * i)
++	}
++	i = 0
++	for v := range y.Iter() {
++		if elem2Value(v) != int2Value(i*i) {
++			t.Error(tname(y), "y, Iter expected", i*i, "got", elem2Value(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(y), "y, Iter stopped at", i, "not", Len)
++	}
++	var z Vector
++	z.Resize(Len, 0)
++	for i := 0; i < Len; i++ {
++		z[i] = int2Value(i * i)
++	}
++	i = 0
++	for v := range z.Iter() {
++		if elem2Value(v) != int2Value(i*i) {
++			t.Error(tname(z), "z, Iter expected", i*i, "got", elem2Value(v))
++		}
++		i++
++	}
++	if i != Len {
++		t.Error(tname(z), "z, Iter stopped at", i, "not", Len)
++	}
++}
++
++func TestVectorData(t *testing.T) {
++	// verify Data() returns a slice of a copy, not a slice of the original vector
++	const Len = 10
++	var src Vector
++	for i := 0; i < Len; i++ {
++		src.Push(int2Value(i * i))
++	}
++	dest := src.Data()
++	for i := 0; i < Len; i++ {
++		src[i] = int2Value(-1)
++		v := elem2Value(dest[i])
++		if v != int2Value(i*i) {
++			t.Error(tname(src), "expected", i*i, "got", v)
++		}
++	}
++}

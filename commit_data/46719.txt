@@ -10,9 +10,147 @@ Date:   Fri Jan 22 16:24:05 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285993
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/predicates.go |  8 ++------
  src/cmd/compile/internal/types2/type.go       |  7 +++----
  src/cmd/compile/internal/types2/typexpr.go    | 23 ++++++++++++++++++++---
  src/cmd/compile/internal/types2/unify.go      |  6 ++----
  4 files changed, 27 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 9cce189140..94a9b64761 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -6,10 +6,6 @@
+ 
+ package types2
+ 
+-import (
+-	"sort"
+-)
+-
+ // isNamed reports whether typ has a name.
+ // isNamed may be called with types that are not fully set up.
+ func isNamed(typ Type) bool {
+@@ -329,8 +325,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 					p = p.prev
+ 				}
+ 				if debug {
+-					assert(sort.IsSorted(byUniqueMethodName(a)))
+-					assert(sort.IsSorted(byUniqueMethodName(b)))
++					assertSortedMethods(a)
++					assertSortedMethods(b)
+ 				}
+ 				for i, f := range a {
+ 					g := b[i]
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index 1bfde41159..22901b2ba9 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -8,7 +8,6 @@ package types2
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+-	"sort"
+ )
+ 
+ // A Type represents a type of Go.
+@@ -481,8 +480,8 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	}
+ 
+ 	// sort for API stability
+-	sort.Sort(byUniqueMethodName(methods))
+-	sort.Stable(byUniqueTypeName(embeddeds))
++	sortMethods(methods)
++	sortTypes(embeddeds)
+ 
+ 	typ.methods = methods
+ 	typ.embeddeds = embeddeds
+@@ -685,7 +684,7 @@ func (t *Interface) Complete() *Interface {
+ 	}
+ 
+ 	if methods != nil {
+-		sort.Sort(byUniqueMethodName(methods))
++		sortMethods(methods)
+ 		t.allMethods = methods
+ 	}
+ 	t.allTypes = allTypes
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index f0461d5895..d0bf229be9 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -876,8 +876,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 	}
+ 
+ 	// sort for API stability
+-	sort.Sort(byUniqueMethodName(ityp.methods))
+-	sort.Stable(byUniqueTypeName(ityp.embeddeds))
++	sortMethods(ityp.methods)
++	sortTypes(ityp.embeddeds)
+ 
+ 	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
+ }
+@@ -985,7 +985,7 @@ func (check *Checker) completeInterface(pos syntax.Pos, ityp *Interface) {
+ 	}
+ 
+ 	if methods != nil {
+-		sort.Sort(byUniqueMethodName(methods))
++		sortMethods(methods)
+ 		ityp.allMethods = methods
+ 	}
+ 	ityp.allTypes = allTypes
+@@ -1029,6 +1029,10 @@ func intersect(x, y Type) (r Type) {
+ 	return NewSum(rtypes)
+ }
+ 
++func sortTypes(list []Type) {
++	sort.Stable(byUniqueTypeName(list))
++}
++
+ // byUniqueTypeName named type lists can be sorted by their unique type names.
+ type byUniqueTypeName []Type
+ 
+@@ -1043,6 +1047,19 @@ func sortName(t Type) string {
+ 	return ""
+ }
+ 
++func sortMethods(list []*Func) {
++	sort.Sort(byUniqueMethodName(list))
++}
++
++func assertSortedMethods(list []*Func) {
++	if !debug {
++		panic("internal error: assertSortedMethods called outside debug mode")
++	}
++	if !sort.IsSorted(byUniqueMethodName(list)) {
++		panic("internal error: methods not sorted")
++	}
++}
++
+ // byUniqueMethodName method lists can be sorted by their unique method names.
+ type byUniqueMethodName []*Func
+ 
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 60ccf625b9..ab19c5a38b 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -6,8 +6,6 @@
+ 
+ package types2
+ 
+-import "sort"
+-
+ // The unifier maintains two separate sets of type parameters x and y
+ // which are used to resolve type parameters in the x and y arguments
+ // provided to the unify call. For unidirectional unification, only
+@@ -386,8 +384,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 					p = p.prev
+ 				}
+ 				if debug {
+-					assert(sort.IsSorted(byUniqueMethodName(a)))
+-					assert(sort.IsSorted(byUniqueMethodName(b)))
++					assertSortedMethods(a)
++					assertSortedMethods(b)
+ 				}
+ 				for i, f := range a {
+ 					g := b[i]

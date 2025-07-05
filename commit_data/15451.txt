@@ -9,7 +9,34 @@ Date:   Wed Feb 27 09:13:15 2013 +1100
     R=devon.odell, minux.ma, bradfitz, mdempsky
     CC=golang-dev
     https://golang.org/cl/7406050
-
+---
  src/pkg/syscall/passfd_test.go   | 2 +-
  src/pkg/syscall/sockcmsg_unix.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/syscall/passfd_test.go b/src/pkg/syscall/passfd_test.go
+index 20ef39ecaa..71a4a495f0 100644
+--- a/src/pkg/syscall/passfd_test.go
++++ b/src/pkg/syscall/passfd_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux darwin
++// +build linux darwin freebsd netbsd
+ 
+ package syscall_test
+ 
+diff --git a/src/pkg/syscall/sockcmsg_unix.go b/src/pkg/syscall/sockcmsg_unix.go
+index 7d9a6ee815..3af3068fd9 100644
+--- a/src/pkg/syscall/sockcmsg_unix.go
++++ b/src/pkg/syscall/sockcmsg_unix.go
+@@ -37,7 +37,7 @@ func CmsgSpace(datalen int) int {
+ }
+ 
+ func cmsgData(h *Cmsghdr) unsafe.Pointer {
+-	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + SizeofCmsghdr)
++	return unsafe.Pointer(uintptr(unsafe.Pointer(h)) + uintptr(cmsgAlignOf(SizeofCmsghdr)))
+ }
+ 
+ // SocketControlMessage represents a socket control message.

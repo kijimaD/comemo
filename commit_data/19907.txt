@@ -9,8 +9,127 @@ Date:   Wed Aug 6 18:36:48 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/119490044
-
+---
  src/pkg/runtime/malloc.h   |  1 -
  src/pkg/runtime/mcache.c   |  2 +-
  src/pkg/runtime/mcentral.c | 51 ++++++++++++----------------------------------
  3 files changed, 14 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 810d4ac402..1e26509bd9 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -508,7 +508,6 @@ void	runtime·MHeap_Free(MHeap *h, MSpan *s, int32 acct);
+ void	runtime·MHeap_FreeStack(MHeap *h, MSpan *s);
+ MSpan*	runtime·MHeap_Lookup(MHeap *h, void *v);
+ MSpan*	runtime·MHeap_LookupMaybe(MHeap *h, void *v);
+-void	runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *size, int32 *npages, int32 *nobj);
+ void*	runtime·MHeap_SysAlloc(MHeap *h, uintptr n);
+ void	runtime·MHeap_MapBits(MHeap *h);
+ void	runtime·MHeap_MapSpans(MHeap *h);
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index ef31e76a36..665173bff5 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -82,7 +82,7 @@ runtime·MCache_Refill(MCache *c, int32 sizeclass)
+ 	if(s->freelist != nil)
+ 		runtime·throw("refill on a nonempty span");
+ 	if(s != &emptymspan)
+-		runtime·MCentral_UncacheSpan(&runtime·mheap.central[sizeclass], s);
++		s->incache = false;
+ 
+ 	// Get a new cached span from the central lists.
+ 	s = runtime·MCentral_CacheSpan(&runtime·mheap.central[sizeclass]);
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index a39af41a24..5699d11ee6 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -19,7 +19,6 @@
+ #include "malloc.h"
+ 
+ static bool MCentral_Grow(MCentral *c);
+-static void MCentral_ReturnToHeap(MCentral *c, MSpan *s);
+ 
+ // Initialize a single central free list.
+ void
+@@ -110,12 +109,9 @@ runtime·MCentral_UncacheSpan(MCentral *c, MSpan *s)
+ 
+ 	s->incache = false;
+ 
+-	if(s->ref == 0) {
+-		// Free back to heap.  Unlikely, but possible.
+-		MCentral_ReturnToHeap(c, s); // unlocks c
+-		return;
+-	}
+-	
++	if(s->ref == 0)
++		runtime·throw("uncaching full span");
++
+ 	cap = (s->npages << PageShift) / s->elemsize;
+ 	n = cap - s->ref;
+ 	if(n > 0) {
+@@ -159,36 +155,29 @@ runtime·MCentral_FreeSpan(MCentral *c, MSpan *s, int32 n, MLink *start, MLink *
+ 	}
+ 
+ 	// s is completely freed, return it to the heap.
+-	MCentral_ReturnToHeap(c, s); // unlocks c
++	runtime·MSpanList_Remove(s);
++	s->needzero = 1;
++	s->freelist = nil;
++	runtime·unlock(c);
++	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
++	runtime·MHeap_Free(&runtime·mheap, s, 0);
+ 	return true;
+ }
+ 
+-void
+-runtime·MGetSizeClassInfo(int32 sizeclass, uintptr *sizep, int32 *npagesp, int32 *nobj)
+-{
+-	int32 size;
+-	int32 npages;
+-
+-	npages = runtime·class_to_allocnpages[sizeclass];
+-	size = runtime·class_to_size[sizeclass];
+-	*npagesp = npages;
+-	*sizep = size;
+-	*nobj = (npages << PageShift) / size;
+-}
+-
+ // Fetch a new span from the heap and
+ // carve into objects for the free list.
+ static bool
+ MCentral_Grow(MCentral *c)
+ {
+-	int32 i, n, npages;
+-	uintptr size;
++	uintptr size, npages, cap, i, n;
+ 	MLink **tailp, *v;
+ 	byte *p;
+ 	MSpan *s;
+ 
+ 	runtime·unlock(c);
+-	runtime·MGetSizeClassInfo(c->sizeclass, &size, &npages, &n);
++	npages = runtime·class_to_allocnpages[c->sizeclass];
++	size = runtime·class_to_size[c->sizeclass];
++	n = (npages << PageShift) / size;
+ 	s = runtime·MHeap_Alloc(&runtime·mheap, npages, c->sizeclass, 0, 1);
+ 	if(s == nil) {
+ 		// TODO(rsc): Log out of memory
+@@ -213,17 +202,3 @@ MCentral_Grow(MCentral *c)
+ 	runtime·MSpanList_Insert(&c->nonempty, s);
+ 	return true;
+ }
+-
+-// Return s to the heap.  s must be unused (s->ref == 0).  Unlocks c.
+-static void
+-MCentral_ReturnToHeap(MCentral *c, MSpan *s)
+-{
+-	runtime·MSpanList_Remove(s);
+-	s->needzero = 1;
+-	s->freelist = nil;
+-	if(s->ref != 0)
+-		runtime·throw("ref wrong");
+-	runtime·unlock(c);
+-	runtime·unmarkspan((byte*)(s->start<<PageShift), s->npages<<PageShift);
+-	runtime·MHeap_Free(&runtime·mheap, s, 0);
+-}

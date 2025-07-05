@@ -14,6 +14,20 @@ Date:   Thu Mar 3 07:28:44 2022 -0600
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
-
+---
  src/crypto/sha512/sha512block_ppc64x.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/sha512/sha512block_ppc64x.s b/src/crypto/sha512/sha512block_ppc64x.s
+index 955900b714..968183dde9 100644
+--- a/src/crypto/sha512/sha512block_ppc64x.s
++++ b/src/crypto/sha512/sha512block_ppc64x.s
+@@ -292,7 +292,7 @@ GLOBL ·kcon(SB), RODATA, $1312
+ 	VADDUDM		s1, xj, xj
+ 
+ // func block(dig *digest, p []byte)
+-TEXT ·block(SB),0,$128-32
++TEXT ·block(SB),0,$0-32
+ 	MOVD	dig+0(FP), CTX
+ 	MOVD	p_base+8(FP), INP
+ 	MOVD	p_len+16(FP), LEN

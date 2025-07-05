@@ -19,9 +19,97 @@ Date:   Wed Dec 4 20:11:18 2024 +0000
     Commit-Queue: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/next/6-stdlib/6-testing-bloop.md        |  5 +++++
  doc/next/6-stdlib/99-minor/testing/61515.md |  2 +-
  src/testing/benchmark.go                    | 16 +++++++++++++++
  src/testing/benchmark_test.go               | 30 +++++++++++++++++++++++++++++
  4 files changed, 52 insertions(+), 1 deletion(-)
+
+diff --git a/doc/next/6-stdlib/6-testing-bloop.md b/doc/next/6-stdlib/6-testing-bloop.md
+new file mode 100644
+index 0000000000..37fb29303b
+--- /dev/null
++++ b/doc/next/6-stdlib/6-testing-bloop.md
+@@ -0,0 +1,5 @@
++### New benchmark function
++
++Benchmarks may now use the faster and less error-prone [testing.B.Loop] method to perform benchmark iterations like `for b.Loop() { ... }` in place of the typical loop structures involving `b.N` like `for i := n; i < b.N; i++ { ... }` or `for range b.N`. This offers two significant advantages:
++ - The benchmark function will execute exactly once per -count, so expensive setup and cleanup steps execute only once.
++ - Function call parameters and results are kept alive, preventing the compiler from fully optimizing away the loop body.
+diff --git a/doc/next/6-stdlib/99-minor/testing/61515.md b/doc/next/6-stdlib/99-minor/testing/61515.md
+index f724eb1b90..696633a330 100644
+--- a/doc/next/6-stdlib/99-minor/testing/61515.md
++++ b/doc/next/6-stdlib/99-minor/testing/61515.md
+@@ -1 +1 @@
+-Benchmarks can use the new [B.Loop] method in `for b.Loop() { ... }` loops to determine if iteration should continue.
++<!-- testing.B.Loop mentioned in 6-stdlib/6-testing-bloop.md. -->
+\ No newline at end of file
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 67a5abccb4..dbc0814884 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -405,6 +405,22 @@ func (b *B) loopSlowPath() bool {
+ // A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
+ // After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
+ // may use b.N to compute other average metrics.
++//
++// The parameters and results of function calls inside the body of "for b.Loop() {...}" are guaranteed
++// not to be optimized away.
++// Also, the local loop scaling for b.Loop ensures the benchmark function containing the loop will only
++// be executed once, i.e. for such construct:
++//
++//	testing.Benchmark(func(b *testing.B) {
++//			...(setup)
++//			for b.Loop() {
++//				...(benchmark logic)
++//			}
++//			...(clean-up)
++//	}
++//
++// The ...(setup) and ...(clean-up) logic will only be executed once.
++// Also benchtime=Nx (N>1) will result in exactly N executions instead of N+1 for b.N style loops.
+ func (b *B) Loop() bool {
+ 	if b.loopN != 0 && b.loopN < b.N {
+ 		b.loopN++
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 1f55fa5060..259b70ed4c 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -149,6 +149,36 @@ func TestBLoopHasResults(t *testing.T) {
+ 	}
+ }
+ 
++func ExampleB_Loop() {
++	simpleFunc := func(i int) int {
++		return i + 1
++	}
++	n := 0
++	testing.Benchmark(func(b *testing.B) {
++		// Unlike "for i := range N {...}" style loops, this
++		// setup logic will only be executed once, so simpleFunc
++		// will always get argument 1.
++		n++
++		// It behaves just like "for i := range N {...}", except with keeping
++		// function call parameters and results alive.
++		for b.Loop() {
++			// This function call, if was in a normal loop, will be optimized away
++			// completely, first by inlining, then by dead code elimination.
++			// In a b.Loop loop, the compiler ensures that this function is not optimized away.
++			simpleFunc(n)
++		}
++		// This clean-up will only be executed once, so after the benchmark, the user
++		// will see n == 2.
++		n++
++		// Use b.ReportMetric as usual just like what a user may do after
++		// b.N loop.
++	})
++	// We can expect n == 2 here.
++
++	// The return value of the above Benchmark could be used just like
++	// a b.N loop benchmark as well.
++}
++
+ func ExampleB_RunParallel() {
+ 	// Parallel benchmark for text/template.Template.Execute on a single object.
+ 	testing.Benchmark(func(b *testing.B) {

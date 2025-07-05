@@ -11,7 +11,7 @@ Date:   Fri Feb 6 21:44:39 2015 +0900
     Change-Id: Icfc14e4998723e2c2d48f9877a91c5abef6794ea
     Reviewed-on: https://go-review.googlesource.com/4060
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/gccgo_contribute.html          | 4 ++--
  misc/cgo/test/cflags.go            | 2 +-
  misc/cgo/test/setgid_linux.go      | 2 +-
@@ -58,3 +58,614 @@ Date:   Fri Feb 6 21:44:39 2015 +0900
  test/fixedbugs/bug427.go           | 2 +-
  test/fixedbugs/bug435.go           | 2 +-
  45 files changed, 48 insertions(+), 48 deletions(-)
+
+diff --git a/doc/gccgo_contribute.html b/doc/gccgo_contribute.html
+index 44007ffb5e..8878dfe921 100644
+--- a/doc/gccgo_contribute.html
++++ b/doc/gccgo_contribute.html
+@@ -40,7 +40,7 @@ is mirrored to the <code>gcc/go/gofrontend</code> directory in the GCC
+ repository, and the <code>gofrontend</code> <code>libgo</code>
+ directory is mirrored to the GCC <code>libgo</code> directory.  In
+ addition, the <code>test</code> directory
+-from <a href="//code.google.com/p/go">the main Go repository</a>
++from <a href="//go.googlesource.com/go">the main Go repository</a>
+ is mirrored to the <code>gcc/testsuite/go.test/test</code> directory
+ in the GCC repository.
+ </p>
+@@ -65,7 +65,7 @@ from <code>gcc/go/gofrontend</code> to <code>gcc/go</code>.
+ 
+ <p>
+ The run-time library for gccgo is mostly the same as the library
+-in <a href="//code.google.com/p/go">the main Go repository</a>.
++in <a href="//go.googlesource.com/go">the main Go repository</a>.
+ The library code in the Go repository is periodically merged into
+ the <code>libgo/go</code> directory of the <code>gofrontend</code> and
+ then the GCC repositories, using the shell
+diff --git a/misc/cgo/test/cflags.go b/misc/cgo/test/cflags.go
+index 24caab4711..313824a10e 100644
+--- a/misc/cgo/test/cflags.go
++++ b/misc/cgo/test/cflags.go
+@@ -4,7 +4,7 @@
+ 
+ // Test that the #cgo CFLAGS directive works,
+ // with and without platform filters.
+-// See http://code.google.com/p/go/issues/detail?id=5224 for details.
++// See http://golang.org/issue/5224 for details.
+ package cgotest
+ 
+ /*
+diff --git a/misc/cgo/test/setgid_linux.go b/misc/cgo/test/setgid_linux.go
+index 829afce1b3..4da0d300e9 100644
+--- a/misc/cgo/test/setgid_linux.go
++++ b/misc/cgo/test/setgid_linux.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test that setgid does not hang on GNU/Linux.
+-// See http://code.google.com/p/go/issues/detail?id=3871 for details.
++// See http://golang.org/issue/3871 for details.
+ 
+ package cgotest
+ 
+diff --git a/misc/editors b/misc/editors
+index 850ec34011..3a0f73fd7a 100644
+--- a/misc/editors
++++ b/misc/editors
+@@ -1,5 +1,5 @@
+ For information about plugins and other support for Go in editors and shells,
+ see this page on the Go Wiki:
+ 
+-https://code.google.com/p/go-wiki/wiki/IDEsAndTextEditorPlugins
++https://golang.org/wiki/IDEsAndTextEditorPlugins
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3ed194ee8f..5a522efec2 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1211,7 +1211,7 @@ assignop(Type *src, Type *dst, char **why)
+ 		*why = "";
+ 
+ 	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
+-	// https://code.google.com/p/go/issues/detail?id=2795
++	// https://golang.org/issue/2795
+ 	if(safemode && importpkg == nil && src != T && src->etype == TUNSAFEPTR) {
+ 		yyerror("cannot use unsafe.Pointer");
+ 		errorexit();
+diff --git a/src/compress/bzip2/bzip2_test.go b/src/compress/bzip2/bzip2_test.go
+index fb79d089eb..77c50dfe94 100644
+--- a/src/compress/bzip2/bzip2_test.go
++++ b/src/compress/bzip2/bzip2_test.go
+@@ -200,7 +200,7 @@ func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
+ func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+ 
+ func TestBufferOverrun(t *testing.T) {
+-	// Tests https://code.google.com/p/go/issues/detail?id=5747.
++	// Tests https://golang.org/issue/5747.
+ 	buffer := bytes.NewReader([]byte(bufferOverrunBase64))
+ 	decoder := base64.NewDecoder(base64.StdEncoding, buffer)
+ 	decompressor := NewReader(decoder)
+@@ -209,7 +209,7 @@ func TestBufferOverrun(t *testing.T) {
+ }
+ 
+ func TestOutOfRangeSelector(t *testing.T) {
+-	// Tests https://code.google.com/p/go/issues/detail?id=8363.
++	// Tests https://golang.org/issue/8363.
+ 	buffer := bytes.NewReader(outOfRangeSelector)
+ 	decompressor := NewReader(buffer)
+ 	// This shouldn't panic.
+diff --git a/src/compress/flate/deflate_test.go b/src/compress/flate/deflate_test.go
+index 730234c385..53bfd26438 100644
+--- a/src/compress/flate/deflate_test.go
++++ b/src/compress/flate/deflate_test.go
+@@ -407,7 +407,7 @@ func TestWriterDict(t *testing.T) {
+ 	}
+ }
+ 
+-// See http://code.google.com/p/go/issues/detail?id=2508
++// See http://golang.org/issue/2508
+ func TestRegression2508(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Logf("test disabled with -short")
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index a46133439d..c87da50df9 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -172,7 +172,7 @@ Curves:
+ 		// Although sending an empty NPN extension is reasonable, Firefox has
+ 		// had a bug around this. Best to send nothing at all if
+ 		// config.NextProtos is empty. See
+-		// https://code.google.com/p/go/issues/detail?id=5445.
++		// https://golang.org/issue/5445.
+ 		if hs.clientHello.nextProtoNeg && len(config.NextProtos) > 0 {
+ 			hs.hello.nextProtoNeg = true
+ 			hs.hello.nextProtos = config.NextProtos
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index 01f55d0dd0..7d004dc488 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -694,7 +694,7 @@ type Pod struct {
+ 	Pea interface{} `xml:"Pea"`
+ }
+ 
+-// https://code.google.com/p/go/issues/detail?id=6836
++// https://golang.org/issue/6836
+ func TestUnmarshalIntoInterface(t *testing.T) {
+ 	pod := new(Pod)
+ 	pod.Pea = new(Pea)
+diff --git a/src/html/template/clone_test.go b/src/html/template/clone_test.go
+index e11bff2c5d..5de3bc0eef 100644
+--- a/src/html/template/clone_test.go
++++ b/src/html/template/clone_test.go
+@@ -166,7 +166,7 @@ func TestCloneThenParse(t *testing.T) {
+ 	}
+ }
+ 
+-// https://code.google.com/p/go/issues/detail?id=5980
++// https://golang.org/issue/5980
+ func TestFuncMapWorksAfterClone(t *testing.T) {
+ 	funcs := FuncMap{"customFunc": func() (string, error) {
+ 		return "", errors.New("issue5980")
+diff --git a/src/html/template/content_test.go b/src/html/template/content_test.go
+index 5f3ffe2d32..e698328693 100644
+--- a/src/html/template/content_test.go
++++ b/src/html/template/content_test.go
+@@ -260,7 +260,7 @@ func TestStringer(t *testing.T) {
+ 	}
+ }
+ 
+-// https://code.google.com/p/go/issues/detail?id=5982
++// https://golang.org/issue/5982
+ func TestEscapingNilNonemptyInterfaces(t *testing.T) {
+ 	tmpl := Must(New("x").Parse("{{.E}}"))
+ 
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 763efb2e64..0848c506e4 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2606,7 +2606,7 @@ func TestLargeTan(t *testing.T) {
+ 
+ // Check that math constants are accepted by compiler
+ // and have right value (assumes strconv.ParseFloat works).
+-// http://code.google.com/p/go/issues/detail?id=201
++// http://golang.org/issue/201
+ 
+ type floatTest struct {
+ 	val  interface{}
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 1418dca335..cb8c76bed1 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -655,7 +655,7 @@ var primes = []string{
+ 	"10953742525620032441",
+ 	"17908251027575790097",
+ 
+-	// http://code.google.com/p/go/issues/detail?id=638
++	// http://golang.org/issue/638
+ 	"18699199384836356663",
+ 
+ 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index 2fe358e079..5bb663b4c7 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -53,7 +53,7 @@ func TestLookupStaticHost(t *testing.T) {
+ 	hostsPath = p
+ }
+ 
+-// https://code.google.com/p/go/issues/detail?id=6646
++// https://golang.org/issue/6646
+ func TestSingleLineHostsFile(t *testing.T) {
+ 	p := hostsPath
+ 	hostsPath = "testdata/hosts_singleline"
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 85d5705137..c21b57b57e 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -416,7 +416,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
+ 	}
+ }
+ 
+-// Tests for http://code.google.com/p/go/issues/detail?id=900
++// Tests for http://golang.org/issue/900
+ func TestMuxRedirectLeadingSlashes(t *testing.T) {
+ 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
+ 	for _, path := range paths {
+@@ -2124,7 +2124,7 @@ func TestDoubleHijack(t *testing.T) {
+ 	<-conn.closec
+ }
+ 
+-// http://code.google.com/p/go/issues/detail?id=5955
++// http://golang.org/issue/5955
+ // Note that this does not test the "request too large"
+ // exit path from the http server. This is intentional;
+ // not sending Connection: close is just a minor wire
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index a30a2b0313..d26eb9c181 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -922,7 +922,7 @@ func TestSeek(t *testing.T) {
+ 		if off != tt.out || err != nil {
+ 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 {
+ 				// Reiserfs rejects the big seeks.
+-				// http://code.google.com/p/go/issues/detail?id=91
++				// http://golang.org/issue/91
+ 				break
+ 			}
+ 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index c4f74b97ff..293d316124 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1008,7 +1008,7 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
++func TestBug3486(t *testing.T) { // http://golang.org/issue/3486
+ 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/runtime/compiler.go b/src/runtime/compiler.go
+index 562a460226..f6edc95959 100644
+--- a/src/runtime/compiler.go
++++ b/src/runtime/compiler.go
+@@ -7,7 +7,7 @@ package runtime
+ // Compiler is the name of the compiler toolchain that built the
+ // running binary.  Known toolchains are:
+ //
+-//	gc      The 5g/6g/8g compiler suite at code.google.com/p/go.
++//	gc      The 5g/6g/8g compiler suite at go.googlesource.com/go.
+ //	gccgo   The gccgo front end, part of the GCC compiler suite.
+ //
+ const Compiler = "gc"
+diff --git a/src/runtime/malloc1.go b/src/runtime/malloc1.go
+index 4d0754ba9d..18d998b554 100644
+--- a/src/runtime/malloc1.go
++++ b/src/runtime/malloc1.go
+@@ -99,7 +99,7 @@ func mallocinit() {
+ 	var reserved bool
+ 
+ 	// limit = runtime.memlimit();
+-	// See https://code.google.com/p/go/issues/detail?id=5049
++	// See https://golang.org/issue/5049
+ 	// TODO(rsc): Fix after 1.1.
+ 	limit = 0
+ 
+diff --git a/test/fixedbugs/bug214.go b/test/fixedbugs/bug214.go
+index 5420058c46..5f68246031 100644
+--- a/test/fixedbugs/bug214.go
++++ b/test/fixedbugs/bug214.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash the compiler.
+-// http://code.google.com/p/go/issues/detail?id=88
++// http://golang.org/issue/88
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug215.go b/test/fixedbugs/bug215.go
+index 08ed662c65..0bfd678da7 100644
+--- a/test/fixedbugs/bug215.go
++++ b/test/fixedbugs/bug215.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash the compiler.
+-// http://code.google.com/p/go/issues/detail?id=158
++// http://golang.org/issue/158
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug216.go b/test/fixedbugs/bug216.go
+index c83a522bf9..b2a1a70c98 100644
+--- a/test/fixedbugs/bug216.go
++++ b/test/fixedbugs/bug216.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to be rejected
+-// http://code.google.com/p/go/issues/detail?id=188
++// http://golang.org/issue/188
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug217.go b/test/fixedbugs/bug217.go
+index ec93c25d91..bb741b9309 100644
+--- a/test/fixedbugs/bug217.go
++++ b/test/fixedbugs/bug217.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Used to crash
+-// http://code.google.com/p/go/issues/detail?id=204
++// http://golang.org/issue/204
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug218.go b/test/fixedbugs/bug218.go
+index 0e008db17f..db7abe292d 100644
+--- a/test/fixedbugs/bug218.go
++++ b/test/fixedbugs/bug218.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Crashes 6g, 8g
+-// http://code.google.com/p/go/issues/detail?id=238
++// http://golang.org/issue/238
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug221.go b/test/fixedbugs/bug221.go
+index 86fda20351..bc5a1fa6a0 100644
+--- a/test/fixedbugs/bug221.go
++++ b/test/fixedbugs/bug221.go
+@@ -7,7 +7,7 @@
+ // function call arg reordering was picking out 1 call that
+ // didn't need to be in a temporary, but it was picking
+ // out the first call instead of the last call.
+-// http://code.google.com/p/go/issues/detail?id=370
++// http://golang.org/issue/370
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug264.go b/test/fixedbugs/bug264.go
+index fcf373cce9..9d7397c937 100644
+--- a/test/fixedbugs/bug264.go
++++ b/test/fixedbugs/bug264.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test case for http://code.google.com/p/go/issues/detail?id=692
++// Test case for http://golang.org/issue/692
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug265.go b/test/fixedbugs/bug265.go
+index 7f06fced60..e5cad584aa 100644
+--- a/test/fixedbugs/bug265.go
++++ b/test/fixedbugs/bug265.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test case for http://code.google.com/p/go/issues/detail?id=700
++// Test case for http://golang.org/issue/700
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug269.go b/test/fixedbugs/bug269.go
+index c13eb26ce4..d39f0d45e5 100644
+--- a/test/fixedbugs/bug269.go
++++ b/test/fixedbugs/bug269.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=749
++// http://golang.org/issue/749
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug271.go b/test/fixedbugs/bug271.go
+index 88add7040a..47d267d63d 100644
+--- a/test/fixedbugs/bug271.go
++++ b/test/fixedbugs/bug271.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=662
++// http://golang.org/issue/662
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug272.go b/test/fixedbugs/bug272.go
+index c27f7ee446..68840c538a 100644
+--- a/test/fixedbugs/bug272.go
++++ b/test/fixedbugs/bug272.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=589
++// http://golang.org/issue/589
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug273.go b/test/fixedbugs/bug273.go
+index aabb912b91..fc9c19a172 100644
+--- a/test/fixedbugs/bug273.go
++++ b/test/fixedbugs/bug273.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=589
++// http://golang.org/issue/589
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug274.go b/test/fixedbugs/bug274.go
+index beb2d61acc..832ebe3e8d 100644
+--- a/test/fixedbugs/bug274.go
++++ b/test/fixedbugs/bug274.go
+@@ -13,7 +13,7 @@
+ // Both gccgo and gofmt correctly refuse this program as is and accept it
+ // when the semicolons are present.
+ 
+-// This is a test case for issue 777 ( http://code.google.com/p/go/issues/detail?id=777 ).
++// This is a test case for issue 777 ( http://golang.org/issue/777 ).
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug279.go b/test/fixedbugs/bug279.go
+index e5ec5943c0..3921e84057 100644
+--- a/test/fixedbugs/bug279.go
++++ b/test/fixedbugs/bug279.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=799
++// http://golang.org/issue/799
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug280.go b/test/fixedbugs/bug280.go
+index ba594a2c48..15d0bc55bf 100644
+--- a/test/fixedbugs/bug280.go
++++ b/test/fixedbugs/bug280.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=808
++// http://golang.org/issue/808
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug281.go b/test/fixedbugs/bug281.go
+index 24d6fdce8c..a47f8f7b54 100644
+--- a/test/fixedbugs/bug281.go
++++ b/test/fixedbugs/bug281.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=807
++// http://golang.org/issue/807
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug283.go b/test/fixedbugs/bug283.go
+index eefed0334b..f8d2d92481 100644
+--- a/test/fixedbugs/bug283.go
++++ b/test/fixedbugs/bug283.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=806
++// http://golang.org/issue/806
+ // triggered out of registers on 8g
+ 
+ package bug283
+diff --git a/test/fixedbugs/bug290.go b/test/fixedbugs/bug290.go
+index c8ff0bc45d..b2eab2e5de 100644
+--- a/test/fixedbugs/bug290.go
++++ b/test/fixedbugs/bug290.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=920
++// http://golang.org/issue/920
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug291.go b/test/fixedbugs/bug291.go
+index 17a5483ef5..19b9ece899 100644
+--- a/test/fixedbugs/bug291.go
++++ b/test/fixedbugs/bug291.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=915
++// http://golang.org/issue/915
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug292.go b/test/fixedbugs/bug292.go
+index 07051dd3fb..8d46bcf317 100644
+--- a/test/fixedbugs/bug292.go
++++ b/test/fixedbugs/bug292.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=843
++// http://golang.org/issue/843
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug293.go b/test/fixedbugs/bug293.go
+index bf926f5a4d..0190c6a5f4 100644
+--- a/test/fixedbugs/bug293.go
++++ b/test/fixedbugs/bug293.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=846
++// http://golang.org/issue/846
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug294.go b/test/fixedbugs/bug294.go
+index 0f3e38098c..622f2bf08d 100644
+--- a/test/fixedbugs/bug294.go
++++ b/test/fixedbugs/bug294.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=800
++// http://golang.org/issue/800
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug301.go b/test/fixedbugs/bug301.go
+index 572668f191..fadc80bd79 100644
+--- a/test/fixedbugs/bug301.go
++++ b/test/fixedbugs/bug301.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=990
++// http://golang.org/issue/990
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug425.go b/test/fixedbugs/bug425.go
+index 5546bd96ba..36a5eee583 100644
+--- a/test/fixedbugs/bug425.go
++++ b/test/fixedbugs/bug425.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=3119
++// http://golang.org/issue/3119
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug427.go b/test/fixedbugs/bug427.go
+index 1239e7a332..8488d1876b 100644
+--- a/test/fixedbugs/bug427.go
++++ b/test/fixedbugs/bug427.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// http://code.google.com/p/go/issues/detail?id=3351
++// http://golang.org/issue/3351
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug435.go b/test/fixedbugs/bug435.go
+index 45323d8eed..0c2ac7b3be 100644
+--- a/test/fixedbugs/bug435.go
++++ b/test/fixedbugs/bug435.go
+@@ -7,7 +7,7 @@
+ // Test that a syntax error caused by an unexpected EOF
+ // gives an error message with the correct line number.
+ //
+-// https://code.google.com/p/go/issues/detail?id=3392
++// https://golang.org/issue/3392
+ 
+ package main
+ 

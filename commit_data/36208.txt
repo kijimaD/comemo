@@ -15,7 +15,39 @@ Date:   Mon Apr 2 22:15:59 2018 -0700
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql.go      | 5 +++++
  src/database/sql/sql_test.go | 4 ++--
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 355b6aa300..beccf7fec1 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2870,6 +2870,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
+ // string inputs parseable by strconv.ParseBool.
+ func (rs *Rows) Scan(dest ...interface{}) error {
+ 	rs.closemu.RLock()
++
++	if rs.lasterr != nil && rs.lasterr != io.EOF {
++		rs.closemu.RUnlock()
++		return rs.lasterr
++	}
+ 	if rs.closed {
+ 		rs.closemu.RUnlock()
+ 		return errors.New("sql: Rows are closed")
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 12cea0de9f..f194744aef 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -325,8 +325,8 @@ func TestQueryContext(t *testing.T) {
+ 			}
+ 			t.Fatalf("Scan: %v", err)
+ 		}
+-		if index == 2 && err == nil {
+-			t.Fatal("expected an error on last scan")
++		if index == 2 && err != context.Canceled {
++			t.Fatalf("Scan: %v; want context.Canceled", err)
+ 		}
+ 		got = append(got, r)
+ 		index++

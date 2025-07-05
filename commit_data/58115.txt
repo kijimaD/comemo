@@ -15,6 +15,29 @@ Date:   Sun Sep 18 02:36:20 2022 +1000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/link/internal/riscv64/obj.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index a18e8369fd..940a8d611c 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -42,7 +42,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+ 			Netbsddynld:    "XXX",
+-			Openbsddynld:   "XXX",
++			Openbsddynld:   "/usr/libexec/ld.so",
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+ 
+@@ -57,7 +57,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ func archinit(ctxt *ld.Link) {
+ 	switch ctxt.HeadType {
+-	case objabi.Hlinux, objabi.Hfreebsd:
++	case objabi.Hlinux, objabi.Hfreebsd, objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+ 		if *ld.FlagRound == -1 {

@@ -15,6 +15,20 @@ Date:   Thu Nov 16 15:14:04 2023 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/os_openbsd.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index f0d453b34f..aa2ba859a8 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -32,8 +32,6 @@ var sigset_all = ^sigset(0)
+ 
+ // From OpenBSD's <sys/sysctl.h>
+ const (
+-	_CTL_KERN = 1
+-
+ 	_CTL_HW        = 6
+ 	_HW_NCPU       = 3
+ 	_HW_PAGESIZE   = 7

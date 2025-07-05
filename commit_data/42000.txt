@@ -11,8 +11,66 @@ Date:   Sun Nov 3 20:53:47 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go          | 12 +++++++-----
  src/cmd/go/internal/modload/load.go        |  4 ++++
  src/cmd/go/testdata/script/mod_outside.txt |  7 +++----
  3 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index eb94d68aa8..eb0534f24b 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -373,12 +373,14 @@ func runGet(cmd *base.Command, args []string) {
+ 
+ 		default:
+ 			// The argument is a package or module path.
+-			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
+-				// The path is in the main module. Nothing to query.
+-				if vers != "upgrade" && vers != "patch" {
+-					base.Errorf("go get %s: can't request explicit version of path in main module", arg)
++			if modload.HasModRoot() {
++				if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
++					// The path is in the main module. Nothing to query.
++					if vers != "upgrade" && vers != "patch" {
++						base.Errorf("go get %s: can't request explicit version of path in main module", arg)
++					}
++					continue
+ 				}
+-				continue
+ 			}
+ 
+ 			first := path
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index acb968cdfa..2172f81797 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -406,6 +406,10 @@ func loadAll(testAll bool) []string {
+ // matching pattern, which may be relative to the working directory, under all
+ // build tag settings.
+ func TargetPackages(pattern string) []string {
++	// TargetPackages is relative to the main module, so ensure that the main
++	// module is a thing that can contain packages.
++	ModRoot()
++
+ 	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 6f569ca351..34570c76c2 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -67,10 +67,9 @@ go mod graph
+ ! stdout .
+ ! stderr .
+ 
+-# 'go mod why' should report that nothing is a dependency.
+-go mod why -m example.com/version
+-stdout 'does not need'
+-
++# 'go mod why' should fail, since there is no main module to depend on anything.
++! go mod why -m example.com/version
++stderr 'cannot find main module'
+ 
+ # 'go mod edit', 'go mod tidy', and 'go mod fmt' should fail:
+ # there is no go.mod file to edit.

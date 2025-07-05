@@ -16,8 +16,95 @@ Date:   Thu Jun 1 17:35:28 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++++
  .../internal/testplugin/testdata/generic/plugin.go | 22 ++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go                    | 24 ++++++++++++++++------
  3 files changed, 47 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 542ee2d460..53ccc17a07 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -388,3 +388,10 @@ func TestForkExec(t *testing.T) {
+ 		t.Fatalf("subprocess hang")
+ 	}
+ }
++
++func TestGeneric(t *testing.T) {
++	// Issue 58800: generic function name may contain weird characters
++	// that confuse the external linker.
++	globalSkip(t)
++	goCmd(t, "build", "-buildmode=plugin", "-o", "generic.so", "./generic/plugin.go")
++}
+diff --git a/src/cmd/cgo/internal/testplugin/testdata/generic/plugin.go b/src/cmd/cgo/internal/testplugin/testdata/generic/plugin.go
+new file mode 100644
+index 0000000000..6d3835a7ec
+--- /dev/null
++++ b/src/cmd/cgo/internal/testplugin/testdata/generic/plugin.go
+@@ -0,0 +1,22 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Instantiated function name may contain weird characters
++// that confuse the external linker, so it needs to be
++// mangled.
++
++package main
++
++//go:noinline
++func F[T any]() {}
++
++type S struct {
++	X int `parser:"|@@)"`
++}
++
++func P() {
++	F[S]()
++}
++
++func main() {}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 54021b69f4..91e2d5149c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -984,7 +984,9 @@ func (ctxt *Link) mangleTypeSym() {
+ // Leave type:runtime. symbols alone, because other parts of
+ // the linker manipulates them.
+ func typeSymbolMangle(name string) string {
+-	if !strings.HasPrefix(name, "type:") {
++	isType := strings.HasPrefix(name, "type:")
++	if !isType && !strings.Contains(name, "@") {
++		// Issue 58800: instantiated symbols may include a type name, which may contain "@"
+ 		return name
+ 	}
+ 	if strings.HasPrefix(name, "type:runtime.") {
+@@ -993,12 +995,22 @@ func typeSymbolMangle(name string) string {
+ 	if len(name) <= 14 && !strings.Contains(name, "@") { // Issue 19529
+ 		return name
+ 	}
+-	hash := notsha256.Sum256([]byte(name))
+-	prefix := "type:"
+-	if name[5] == '.' {
+-		prefix = "type:."
++	if isType {
++		hash := notsha256.Sum256([]byte(name[5:]))
++		prefix := "type:"
++		if name[5] == '.' {
++			prefix = "type:."
++		}
++		return prefix + base64.StdEncoding.EncodeToString(hash[:6])
++	}
++	// instantiated symbol, replace type name in []
++	i := strings.IndexByte(name, '[')
++	j := strings.LastIndexByte(name, ']')
++	if j == -1 {
++		j = len(name)
+ 	}
+-	return prefix + base64.StdEncoding.EncodeToString(hash[:6])
++	hash := notsha256.Sum256([]byte(name[i+1 : j]))
++	return name[:i+1] + base64.StdEncoding.EncodeToString(hash[:6]) + name[j:]
+ }
+ 
+ /*

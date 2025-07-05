@@ -15,7 +15,46 @@ Date:   Sat Sep 11 20:53:24 2021 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
     Trust: Carlos Amedee <carlos@golang.org>
-
+---
  src/runtime/malloc.go | 4 ++--
  src/runtime/mcache.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index f8d5d48a28..7affe244a2 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -972,7 +972,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 
+ 	shouldhelpgc := false
+ 	dataSize := size
+-	c := getMCache()
++	c := getMCache(mp)
+ 	if c == nil {
+ 		throw("mallocgc called without a P or outside bootstrapping")
+ 	}
+@@ -1247,7 +1247,7 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
+ }
+ 
+ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+-	c := getMCache()
++	c := getMCache(mp)
+ 	if c == nil {
+ 		throw("profilealloc called without a P or outside bootstrapping")
+ 	}
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index a9e959109a..21c36ca750 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -122,9 +122,9 @@ func freemcache(c *mcache) {
+ //
+ // Returns nil if we're not bootstrapping or we don't have a P. The caller's
+ // P must not change, so we must be in a non-preemptible state.
+-func getMCache() *mcache {
++func getMCache(mp *m) *mcache {
+ 	// Grab the mcache, since that's where stats live.
+-	pp := getg().m.p.ptr()
++	pp := mp.p.ptr()
+ 	var c *mcache
+ 	if pp == nil {
+ 		// We will be called without a P while bootstrapping,

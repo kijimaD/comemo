@@ -14,6 +14,27 @@ Date:   Wed May 17 15:59:47 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 40df8c03b8..2a3028aa7e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1130,6 +1130,7 @@ func (t *tester) registerCgoTests(heading string) {
+ 
+ 	cgoTest("auto", "test", "auto", "")
+ 	cgoTest("auto", "testtls", "auto", "")
++	cgoTest("auto", "testnocgo", "auto", "")
+ 
+ 	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
+ 	builderName := os.Getenv("GO_BUILDER_NAME")
+@@ -1209,7 +1210,6 @@ func (t *tester) registerCgoTests(heading string) {
+ 				// TODO(#56629): Why does this fail on netbsd-arm?
+ 				cgoTest("static", "testtls", "external", "static", staticCheck)
+ 			}
+-			cgoTest("auto", "testnocgo", "auto", "", staticCheck)
+ 			cgoTest("external", "testnocgo", "external", "", staticCheck)
+ 			if goos != "android" {
+ 				cgoTest("static", "testnocgo", "external", "static", staticCheck)

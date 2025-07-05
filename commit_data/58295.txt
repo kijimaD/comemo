@@ -13,7 +13,7 @@ Date:   Tue Oct 10 12:43:40 2023 +0000
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/export_test.go   |  8 +++-----
  src/runtime/memmove_test.go  |  4 +---
  src/runtime/mfixalloc.go     |  4 +---
@@ -25,3 +25,327 @@ Date:   Tue Oct 10 12:43:40 2023 +0000
  src/runtime/mpallocbits.go   | 21 +++++++++------------
  src/runtime/symtab.go        |  8 +++-----
  10 files changed, 39 insertions(+), 68 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index fc681b140e..6d1d3c4537 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -806,7 +806,7 @@ func (b *PallocBits) PopcntRange(i, n uint) uint { return (*pageBits)(b).popcntR
+ // SummarizeSlow is a slow but more obviously correct implementation
+ // of (*pallocBits).summarize. Used for testing.
+ func SummarizeSlow(b *PallocBits) PallocSum {
+-	var start, max, end uint
++	var start, most, end uint
+ 
+ 	const N = uint(len(b)) * 64
+ 	for start < N && (*pageBits)(b).get(start) == 0 {
+@@ -822,11 +822,9 @@ func SummarizeSlow(b *PallocBits) PallocSum {
+ 		} else {
+ 			run = 0
+ 		}
+-		if run > max {
+-			max = run
+-		}
++		most = max(most, run)
+ 	}
+-	return PackPallocSum(start, max, end)
++	return PackPallocSum(start, most, end)
+ }
+ 
+ // Expose non-trivial helpers for testing.
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index 21236d19da..587e03d385 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -488,9 +488,7 @@ func BenchmarkMemclrRange(b *testing.B) {
+ 		maxLen := 0
+ 
+ 		for _, clrLen := range t.data {
+-			if clrLen > maxLen {
+-				maxLen = clrLen
+-			}
++			maxLen = max(maxLen, clrLen)
+ 			if clrLen < minLen || minLen == 0 {
+ 				minLen = clrLen
+ 			}
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 1a249e5981..7760ada397 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -57,9 +57,7 @@ func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg uns
+ 	if size > _FixAllocChunk {
+ 		throw("runtime: fixalloc size too large")
+ 	}
+-	if min := unsafe.Sizeof(mlink{}); size < min {
+-		size = min
+-	}
++	size = max(size, unsafe.Sizeof(mlink{}))
+ 
+ 	f.size = size
+ 	f.first = first
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 9ab3b48f2f..aff6c2fb99 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1326,9 +1326,7 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 		// must be a large object, s.base() is the beginning
+ 		// of the object.
+ 		n = s.base() + s.elemsize - b
+-		if n > maxObletBytes {
+-			n = maxObletBytes
+-		}
++		n = min(n, maxObletBytes)
+ 	}
+ 
+ 	hbits := heapBitsForAddr(b, n)
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 1850811865..10767df26c 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1137,9 +1137,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
+ 	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
+ 		maxTrigger = goal - defaultHeapMinimum
+ 	}
+-	if maxTrigger < minTrigger {
+-		maxTrigger = minTrigger
+-	}
++	maxTrigger = max(maxTrigger, minTrigger)
+ 
+ 	// Compute the trigger from our bounds and the runway stored by commit.
+ 	var trigger uint64
+@@ -1149,12 +1147,8 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
+ 	} else {
+ 		trigger = goal - runway
+ 	}
+-	if trigger < minTrigger {
+-		trigger = minTrigger
+-	}
+-	if trigger > maxTrigger {
+-		trigger = maxTrigger
+-	}
++	trigger = max(trigger, minTrigger)
++	trigger = min(trigger, maxTrigger)
+ 	if trigger > goal {
+ 		print("trigger=", trigger, " heapGoal=", goal, "\n")
+ 		print("minTrigger=", minTrigger, " maxTrigger=", maxTrigger, "\n")
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 5df36d0d16..e6725b4622 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -893,12 +893,12 @@ func fillAligned(x uint64, m uint) uint64 {
+ // will round up). That is, even if max is small, the returned size is not guaranteed
+ // to be equal to max. max is allowed to be less than min, in which case it is as if
+ // max == min.
+-func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (uint, uint) {
+-	if min&(min-1) != 0 || min == 0 {
+-		print("runtime: min = ", min, "\n")
++func (m *pallocData) findScavengeCandidate(searchIdx uint, minimum, max uintptr) (uint, uint) {
++	if minimum&(minimum-1) != 0 || minimum == 0 {
++		print("runtime: min = ", minimum, "\n")
+ 		throw("min must be a non-zero power of 2")
+-	} else if min > maxPagesPerPhysPage {
+-		print("runtime: min = ", min, "\n")
++	} else if minimum > maxPagesPerPhysPage {
++		print("runtime: min = ", minimum, "\n")
+ 		throw("min too large")
+ 	}
+ 	// max may not be min-aligned, so we might accidentally truncate to
+@@ -907,16 +907,16 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 	// a power of 2). This also prevents max from ever being less than
+ 	// min, unless it's zero, so handle that explicitly.
+ 	if max == 0 {
+-		max = min
++		max = minimum
+ 	} else {
+-		max = alignUp(max, min)
++		max = alignUp(max, minimum)
+ 	}
+ 
+ 	i := int(searchIdx / 64)
+ 	// Start by quickly skipping over blocks of non-free or scavenged pages.
+ 	for ; i >= 0; i-- {
+ 		// 1s are scavenged OR non-free => 0s are unscavenged AND free
+-		x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
++		x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(minimum))
+ 		if x != ^uint64(0) {
+ 			break
+ 		}
+@@ -929,7 +929,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 	// extend further. Loop until we find the extent of it.
+ 
+ 	// 1s are scavenged OR non-free => 0s are unscavenged AND free
+-	x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(min))
++	x := fillAligned(m.scavenged[i]|m.pallocBits[i], uint(minimum))
+ 	z1 := uint(sys.LeadingZeros64(^x))
+ 	run, end := uint(0), uint(i)*64+(64-z1)
+ 	if x<<z1 != 0 {
+@@ -942,7 +942,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 		// word so it may extend into further words.
+ 		run = 64 - z1
+ 		for j := i - 1; j >= 0; j-- {
+-			x := fillAligned(m.scavenged[j]|m.pallocBits[j], uint(min))
++			x := fillAligned(m.scavenged[j]|m.pallocBits[j], uint(minimum))
+ 			run += uint(sys.LeadingZeros64(x))
+ 			if x != 0 {
+ 				// The run stopped in this word.
+@@ -953,10 +953,7 @@ func (m *pallocData) findScavengeCandidate(searchIdx uint, min, max uintptr) (ui
+ 
+ 	// Split the run we found if it's larger than max but hold on to
+ 	// our original length, since we may need it later.
+-	size := run
+-	if size > uint(max) {
+-		size = uint(max)
+-	}
++	size := min(run, uint(max))
+ 	start := end - size
+ 
+ 	// Each huge page is guaranteed to fit in a single palloc chunk.
+diff --git a/src/runtime/mksizeclasses.go b/src/runtime/mksizeclasses.go
+index 156e61315f..26ca49e6eb 100644
+--- a/src/runtime/mksizeclasses.go
++++ b/src/runtime/mksizeclasses.go
+@@ -278,14 +278,12 @@ func printComment(w io.Writer, classes []class) {
+ }
+ 
+ func maxObjsPerSpan(classes []class) int {
+-	max := 0
++	most := 0
+ 	for _, c := range classes[1:] {
+ 		n := c.npages * pageSize / c.size
+-		if n > max {
+-			max = n
+-		}
++		most = max(most, n)
+ 	}
+-	return max
++	return most
+ }
+ 
+ func printClasses(w io.Writer, classes []class) {
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 3e789ab85c..f87565417f 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -1038,8 +1038,8 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
+ 	// Merge the summaries in sums into one.
+ 	//
+ 	// We do this by keeping a running summary representing the merged
+-	// summaries of sums[:i] in start, max, and end.
+-	start, max, end := sums[0].unpack()
++	// summaries of sums[:i] in start, most, and end.
++	start, most, end := sums[0].unpack()
+ 	for i := 1; i < len(sums); i++ {
+ 		// Merge in sums[i].
+ 		si, mi, ei := sums[i].unpack()
+@@ -1055,12 +1055,7 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
+ 		// across the boundary between the running sum and sums[i]
+ 		// and at the max sums[i], taking the greatest of those two
+ 		// and the max of the running sum.
+-		if end+si > max {
+-			max = end + si
+-		}
+-		if mi > max {
+-			max = mi
+-		}
++		most = max(most, end+si, mi)
+ 
+ 		// Merge in end by checking if this new summary is totally
+ 		// free. If it is, then we want to extend the running sum's
+@@ -1073,5 +1068,5 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
+ 			end = ei
+ 		}
+ 	}
+-	return packPallocSum(start, max, end)
++	return packPallocSum(start, most, end)
+ }
+diff --git a/src/runtime/mpallocbits.go b/src/runtime/mpallocbits.go
+index 2f35ce007c..6b5f15dbd8 100644
+--- a/src/runtime/mpallocbits.go
++++ b/src/runtime/mpallocbits.go
+@@ -134,7 +134,7 @@ type pallocBits pageBits
+ 
+ // summarize returns a packed summary of the bitmap in pallocBits.
+ func (b *pallocBits) summarize() pallocSum {
+-	var start, max, cur uint
++	var start, most, cur uint
+ 	const notSetYet = ^uint(0) // sentinel for start value
+ 	start = notSetYet
+ 	for i := 0; i < len(b); i++ {
+@@ -151,9 +151,7 @@ func (b *pallocBits) summarize() pallocSum {
+ 		if start == notSetYet {
+ 			start = cur
+ 		}
+-		if cur > max {
+-			max = cur
+-		}
++		most = max(most, cur)
+ 		// Final region that might span to next uint64
+ 		cur = l
+ 	}
+@@ -162,12 +160,11 @@ func (b *pallocBits) summarize() pallocSum {
+ 		const n = uint(64 * len(b))
+ 		return packPallocSum(n, n, n)
+ 	}
+-	if cur > max {
+-		max = cur
+-	}
+-	if max >= 64-2 {
++	most = max(most, cur)
++
++	if most >= 64-2 {
+ 		// There is no way an internal run of zeros could beat max.
+-		return packPallocSum(start, max, cur)
++		return packPallocSum(start, most, cur)
+ 	}
+ 	// Now look inside each uint64 for runs of zeros.
+ 	// All uint64s must be nonzero, or we would have aborted above.
+@@ -188,7 +185,7 @@ outer:
+ 
+ 		// Strategy: shrink all runs of zeros by max. If any runs of zero
+ 		// remain, then we've identified a larger maximum zero run.
+-		p := max     // number of zeros we still need to shrink by.
++		p := most    // number of zeros we still need to shrink by.
+ 		k := uint(1) // current minimum length of runs of ones in x.
+ 		for {
+ 			// Shrink all runs of zeros by p places (except the top zeros).
+@@ -217,14 +214,14 @@ outer:
+ 			x >>= j & 63                       // remove trailing ones
+ 			j = uint(sys.TrailingZeros64(x))   // count contiguous trailing zeros
+ 			x >>= j & 63                       // remove zeros
+-			max += j                           // we have a new maximum!
++			most += j                          // we have a new maximum!
+ 			if x&(x+1) == 0 {                  // no more zeros (except at the top).
+ 				continue outer
+ 			}
+ 			p = j // remove j more zeros from each zero run.
+ 		}
+ 	}
+-	return packPallocSum(start, max, cur)
++	return packPallocSum(start, most, cur)
+ }
+ 
+ // find searches for npages contiguous free pages in pallocBits and returns
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 0cc3085f6a..60adb37eac 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -1043,16 +1043,14 @@ func funcMaxSPDelta(f funcInfo) int32 {
+ 	p := datap.pctab[f.pcsp:]
+ 	pc := f.entry()
+ 	val := int32(-1)
+-	max := int32(0)
++	most := int32(0)
+ 	for {
+ 		var ok bool
+ 		p, ok = step(p, &pc, &val, pc == f.entry())
+ 		if !ok {
+-			return max
+-		}
+-		if val > max {
+-			max = val
++			return most
+ 		}
++		most = max(most, val)
+ 	}
+ }
+ 

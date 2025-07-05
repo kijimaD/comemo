@@ -16,6 +16,20 @@ Date:   Mon Sep 18 16:12:36 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/crash_cgo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 4a5d9c3519..20e3b75d79 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -873,7 +873,7 @@ func TestEnsureBindM(t *testing.T) {
+ func TestStackSwitchCallback(t *testing.T) {
+ 	t.Parallel()
+ 	switch runtime.GOOS {
+-	case "windows", "plan9", "android", "openbsd": // no getcontext
++	case "windows", "plan9", "android", "ios", "openbsd": // no getcontext
+ 		t.Skipf("skipping test on %s", runtime.GOOS)
+ 	}
+ 	got := runTestProg(t, "testprogcgo", "StackSwitchCallback")

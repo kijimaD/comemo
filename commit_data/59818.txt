@@ -15,9 +15,86 @@ Date:   Wed Apr 24 09:59:02 2024 +0000
     Auto-Submit: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/compress/bzip2/bzip2.go   | 2 +-
  src/compress/flate/deflate.go | 3 ++-
  src/compress/gzip/gzip.go     | 4 ++--
  src/compress/lzw/writer.go    | 6 +++---
  4 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index 73e201b80e..d41ff2c83b 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -27,8 +27,8 @@ type reader struct {
+ 	blockCRC     uint32
+ 	wantBlockCRC uint32
+ 	setupDone    bool // true if we have parsed the bzip2 header.
+-	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
+ 	eof          bool
++	blockSize    int       // blockSize in bytes, i.e. 900 * 1000.
+ 	c            [256]uint // the ``C'' array for the inverse BWT.
+ 	tt           []uint32  // mirrors the ``tt'' array in the bzip2 source and contains the P array in the upper 24 bits.
+ 	tPos         uint32    // Index of the next output byte in tt.
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index ea343b2298..0e07afab7d 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -87,7 +87,6 @@ type compressor struct {
+ 	// compression algorithm
+ 	fill      func(*compressor, []byte) int // copy data to window
+ 	step      func(*compressor)             // process window
+-	sync      bool                          // requesting flush
+ 	bestSpeed *deflateFast                  // Encoder for BestSpeed
+ 
+ 	// Input hash chains
+@@ -107,6 +106,8 @@ type compressor struct {
+ 	blockStart    int  // window index where current tokens start
+ 	byteAvailable bool // if true, still need to process window[index-1].
+ 
++	sync bool // requesting flush
++
+ 	// queued output tokens
+ 	tokens []token
+ 
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index ab4598d89f..5f24444237 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -30,11 +30,11 @@ type Writer struct {
+ 	w           io.Writer
+ 	level       int
+ 	wroteHeader bool
++	closed      bool
++	buf         [10]byte
+ 	compressor  *flate.Writer
+ 	digest      uint32 // CRC-32, IEEE polynomial (section 8)
+ 	size        uint32 // Uncompressed size (section 2.3.1)
+-	closed      bool
+-	buf         [10]byte
+ 	err         error
+ }
+ 
+diff --git a/src/compress/lzw/writer.go b/src/compress/lzw/writer.go
+index 99ad3501c5..9fbb08dbae 100644
+--- a/src/compress/lzw/writer.go
++++ b/src/compress/lzw/writer.go
+@@ -36,15 +36,15 @@ const (
+ type Writer struct {
+ 	// w is the writer that compressed bytes are written to.
+ 	w writer
++	// litWidth is the width in bits of literal codes.
++	litWidth uint
+ 	// order, write, bits, nBits and width are the state for
+ 	// converting a code stream into a byte stream.
+ 	order Order
+ 	write func(*Writer, uint32) error
+-	bits  uint32
+ 	nBits uint
+ 	width uint
+-	// litWidth is the width in bits of literal codes.
+-	litWidth uint
++	bits  uint32
+ 	// hi is the code implied by the next code emission.
+ 	// overflow is the code at which hi overflows the code width.
+ 	hi, overflow uint32

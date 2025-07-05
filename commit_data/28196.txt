@@ -11,6 +11,27 @@ Date:   Thu May 5 00:04:54 2016 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index f9d665650b..cb46c2a5dc 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
++	"os"
+ 	"os/exec"
+ 	"runtime"
+ 	"strings"
+@@ -250,6 +251,7 @@ func TestCgoPprof(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	fn := strings.TrimSpace(string(got))
++	defer os.Remove(fn)
+ 
+ 	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
+ 	if err != nil {

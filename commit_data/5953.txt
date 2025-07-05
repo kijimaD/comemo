@@ -9,6 +9,21 @@ Date:   Wed Aug 4 17:15:04 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1855051
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 6cfd4d4646..3f62c4d695 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -419,8 +419,8 @@ func (p *Package) rewriteRef(f *File) {
+ 					n.AddError = true
+ 					n.Mangle = "_C2func_" + n.Go
+ 					f.Name["2"+r.Name.Go] = n
+-					expr = ast.NewIdent(n.Mangle)
+ 				}
++				expr = ast.NewIdent(n.Mangle)
+ 				r.Name = n
+ 				break
+ 			}

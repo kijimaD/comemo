@@ -7,6 +7,22 @@ Date:   Wed Jun 27 17:32:41 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6354048
-
+---
  src/pkg/runtime/string.goc | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 8a5d59b81d..7cab6d2417 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -155,7 +155,9 @@ concatstring(int32 n, String *s)
+ 			out = s[i];
+ 		}
+ 	}
+-	if(count <= 1) // zero or one non-empty string in concatenation
++	if(count == 0)
++		return runtime·emptystring;
++	if(count == 1) // zero or one non-empty string in concatenation
+ 		return out;
+ 	
+ 	out = gostringsize(l);

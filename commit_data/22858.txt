@@ -60,10 +60,320 @@ Date:   Thu Apr 9 10:44:05 2015 -0400
     Change-Id: I7611925f210a83afa6bd1e66a5601dd636a428c8
     Reviewed-on: https://go-review.googlesource.com/8711
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/data.go |  11 +++-
  src/cmd/internal/ld/elf.go  |   4 +-
  src/cmd/internal/ld/go.go   |   9 ++-
  src/cmd/internal/ld/lib.go  | 138 +++++++++++++++++++++++++++++---------------
  src/cmd/internal/ld/pobj.go |   1 +
  5 files changed, 110 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index e9a890d84f..75c8dea96d 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -967,8 +967,11 @@ func dosymtype() {
+ 		}
+ 		// Create a new entry in the .init_array section that points to the
+ 		// library initializer function.
+-		if Buildmode == BuildmodeCShared && s.Name == INITENTRY {
+-			addinitarrdata(s)
++		switch Buildmode {
++		case BuildmodeCArchive, BuildmodeCShared:
++			if s.Name == INITENTRY {
++				addinitarrdata(s)
++			}
+ 		}
+ 	}
+ }
+@@ -1329,7 +1332,9 @@ func dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* shared library initializer */
+-	if Buildmode == BuildmodeCShared || DynlinkingGo() {
++	switch Buildmode {
++	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
++		// TODO(mwhudson): switch on Linkshared
+ 		sect := addsection(&Segdata, ".init_array", 06)
+ 		sect.Align = maxalign(s, SINITARR)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index a7674da311..0de24fa6fd 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1658,7 +1658,9 @@ func doelf() {
+ 		Addstring(shstrtab, ".note.GNU-stack")
+ 	}
+ 
+-	if Buildmode == BuildmodeCShared || DynlinkingGo() {
++	switch Buildmode {
++	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
++		// TODO(mwhudson): switch on Linkshared
+ 		Addstring(shstrtab, ".init_array")
+ 		switch Thearch.Thechar {
+ 		case '6', '7', '9':
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index 1d83081025..47e9933d83 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -474,8 +474,11 @@ func loadcgo(file string, pkg string, p string) {
+ 			local = expandpkg(local, pkg)
+ 			s = Linklookup(Ctxt, local, 0)
+ 
+-			if Buildmode == BuildmodeCShared && s == Linklookup(Ctxt, "main", 0) {
+-				continue
++			switch Buildmode {
++			case BuildmodeCShared, BuildmodeCArchive:
++				if s == Linklookup(Ctxt, "main", 0) {
++					continue
++				}
+ 			}
+ 
+ 			// export overrides import, for openbsd/cgo.
+@@ -619,7 +622,7 @@ func deadcode() {
+ 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
+ 	}
+ 
+-	if Buildmode == BuildmodeShared {
++	if Buildmode == BuildmodeShared || Buildmode == BuildmodeCArchive {
+ 		// Mark all symbols as reachable when building a
+ 		// shared library.
+ 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 02d93af6d6..b87f83c177 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -34,7 +34,6 @@ import (
+ 	"bytes"
+ 	"cmd/internal/obj"
+ 	"debug/elf"
+-	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -257,27 +256,35 @@ type BuildMode uint8
+ 
+ const (
+ 	BuildmodeExe BuildMode = iota
++	BuildmodeCArchive
+ 	BuildmodeCShared
+ 	BuildmodeShared
+ )
+ 
+ func (mode *BuildMode) Set(s string) error {
++	goos := obj.Getgoos()
++	goarch := obj.Getgoarch()
++	badmode := func() error {
++		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
++	}
+ 	switch s {
+ 	default:
+-		return errors.New("invalid mode")
++		return fmt.Errorf("invalid buildmode: %q", s)
+ 	case "exe":
+ 		*mode = BuildmodeExe
++	case "c-archive":
++		if goos != "darwin" {
++			return badmode()
++		}
++		*mode = BuildmodeCArchive
+ 	case "c-shared":
+-		goarch := obj.Getgoarch()
+ 		if goarch != "amd64" && goarch != "arm" {
+-			return fmt.Errorf("not supported on %s", goarch)
++			return badmode()
+ 		}
+ 		*mode = BuildmodeCShared
+ 	case "shared":
+-		goos := obj.Getgoos()
+-		goarch := obj.Getgoarch()
+ 		if goos != "linux" || goarch != "amd64" {
+-			return fmt.Errorf("not supported on %s/%s", goos, goarch)
++			return badmode()
+ 		}
+ 		*mode = BuildmodeShared
+ 	}
+@@ -288,6 +295,8 @@ func (mode *BuildMode) String() string {
+ 	switch *mode {
+ 	case BuildmodeExe:
+ 		return "exe"
++	case BuildmodeCArchive:
++		return "c-archive"
+ 	case BuildmodeCShared:
+ 		return "c-shared"
+ 	case BuildmodeShared:
+@@ -339,7 +348,7 @@ func libinit() {
+ 
+ 	if INITENTRY == "" {
+ 		switch Buildmode {
+-		case BuildmodeCShared:
++		case BuildmodeCShared, BuildmodeCArchive:
+ 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
+ 		case BuildmodeExe:
+ 			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
+@@ -402,10 +411,15 @@ func loadinternal(name string) {
+ }
+ 
+ func loadlib() {
+-	if Buildmode == BuildmodeCShared {
++	switch Buildmode {
++	case BuildmodeCShared:
+ 		s := Linklookup(Ctxt, "runtime.islibrary", 0)
+ 		s.Dupok = 1
+ 		Adduint8(Ctxt, s, 1)
++	case BuildmodeCArchive:
++		s := Linklookup(Ctxt, "runtime.isarchive", 0)
++		s.Dupok = 1
++		Adduint8(Ctxt, s, 1)
+ 	}
+ 
+ 	loadinternal("runtime")
+@@ -782,14 +796,79 @@ func hostlinksetup() {
+ 	coutbuf = *Binitw(cout)
+ }
+ 
++// hostobjCopy creates a copy of the object files in hostobj in a
++// temporary directory.
++func hostobjCopy() (paths []string) {
++	for i, h := range hostobj {
++		f, err := os.Open(h.file)
++		if err != nil {
++			Ctxt.Cursym = nil
++			Diag("cannot reopen %s: %v", h.pn, err)
++			Errorexit()
++		}
++		if _, err := f.Seek(h.off, 0); err != nil {
++			Ctxt.Cursym = nil
++			Diag("cannot seek %s: %v", h.pn, err)
++			Errorexit()
++		}
++
++		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
++		paths = append(paths, p)
++		w, err := os.Create(p)
++		if err != nil {
++			Ctxt.Cursym = nil
++			Diag("cannot create %s: %v", p, err)
++			Errorexit()
++		}
++		if _, err := io.CopyN(w, f, h.length); err != nil {
++			Ctxt.Cursym = nil
++			Diag("cannot write %s: %v", p, err)
++			Errorexit()
++		}
++		if err := w.Close(); err != nil {
++			Ctxt.Cursym = nil
++			Diag("cannot close %s: %v", p, err)
++			Errorexit()
++		}
++	}
++	return paths
++}
++
++// archive builds a .a archive from the hostobj object files.
++func archive() {
++	if Buildmode != BuildmodeCArchive {
++		return
++	}
++
++	os.Remove(outfile)
++	argv := []string{"ar", "-q", "-c", outfile}
++	argv = append(argv, hostobjCopy()...)
++	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
++
++	if Debug['v'] != 0 {
++		fmt.Fprintf(&Bso, "archive: %s\n", strings.Join(argv, " "))
++		Bflush(&Bso)
++	}
++
++	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
++		Ctxt.Cursym = nil
++		Diag("%s: running %s failed: %v\n%s", os.Args[0], argv[0], err, out)
++		Errorexit()
++	}
++}
++
+ func hostlink() {
+ 	if Linkmode != LinkExternal || nerrors > 0 {
+ 		return
+ 	}
++	if Buildmode == BuildmodeCArchive {
++		return
++	}
+ 
+ 	if extld == "" {
+ 		extld = "gcc"
+ 	}
++
+ 	var argv []string
+ 	argv = append(argv, extld)
+ 	switch Thearch.Thechar {
+@@ -830,10 +909,11 @@ func hostlink() {
+ 		argv = append(argv, "-Wl,--rosegment")
+ 	}
+ 
+-	if Buildmode == BuildmodeCShared {
++	switch Buildmode {
++	case BuildmodeCShared:
+ 		argv = append(argv, "-Wl,-Bsymbolic")
+ 		argv = append(argv, "-shared")
+-	} else if Buildmode == BuildmodeShared {
++	case BuildmodeShared:
+ 		// TODO(mwhudson): unless you do this, dynamic relocations fill
+ 		// out the findfunctab table and for some reason shared libraries
+ 		// and the executable both define a main function and putting the
+@@ -868,41 +948,7 @@ func hostlink() {
+ 		argv = append(argv, "-Qunused-arguments")
+ 	}
+ 
+-	// already wrote main object file
+-	// copy host objects to temporary directory
+-	for i, h := range hostobj {
+-		f, err := os.Open(h.file)
+-		if err != nil {
+-			Ctxt.Cursym = nil
+-			Diag("cannot reopen %s: %v", h.pn, err)
+-			Errorexit()
+-		}
+-		if _, err := f.Seek(h.off, 0); err != nil {
+-			Ctxt.Cursym = nil
+-			Diag("cannot seek %s: %v", h.pn, err)
+-			Errorexit()
+-		}
+-
+-		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
+-		argv = append(argv, p)
+-		w, err := os.Create(p)
+-		if err != nil {
+-			Ctxt.Cursym = nil
+-			Diag("cannot create %s: %v", p, err)
+-			Errorexit()
+-		}
+-		if _, err := io.CopyN(w, f, h.length); err != nil {
+-			Ctxt.Cursym = nil
+-			Diag("cannot write %s: %v", p, err)
+-			Errorexit()
+-		}
+-		if err := w.Close(); err != nil {
+-			Ctxt.Cursym = nil
+-			Diag("cannot close %s: %v", p, err)
+-			Errorexit()
+-		}
+-	}
+-
++	argv = append(argv, hostobjCopy()...)
+ 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+ 
+ 	if Linkshared {
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/internal/ld/pobj.go
+index c4e779df7a..f5dd2d7944 100644
+--- a/src/cmd/internal/ld/pobj.go
++++ b/src/cmd/internal/ld/pobj.go
+@@ -237,6 +237,7 @@ func Ldmain() {
+ 	Thearch.Asmb()
+ 	undef()
+ 	hostlink()
++	archive()
+ 	if Debug['v'] != 0 {
+ 		fmt.Fprintf(&Bso, "%5.2f cpu time\n", obj.Cputime())
+ 		fmt.Fprintf(&Bso, "%d symbols\n", Ctxt.Nsymbol)

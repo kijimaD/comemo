@@ -12,10 +12,76 @@ Date:   Fri Sep 30 09:19:02 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/internal/coverage/pkid.go      | 2 +-
  src/internal/fuzz/coverage.go      | 2 +-
  src/internal/fuzz/encoding.go      | 2 +-
  src/internal/poll/errno_windows.go | 2 +-
  src/internal/profile/filter.go     | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index 2b4ac2ee56..8ddd44d6bb 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -67,7 +67,7 @@ var rtPkgs = [...]string{
+ // is not part of the runtime and doesn't require a hard-coded ID.
+ const NotHardCoded = -1
+ 
+-// HardCodedPkgId returns the hard-coded ID for the specified package
++// HardCodedPkgID returns the hard-coded ID for the specified package
+ // path, or -1 if we don't use a hard-coded ID. Hard-coded IDs start
+ // at -2 and decrease as we go down the list.
+ func HardCodedPkgID(pkgpath string) int {
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+index 88f98a16b2..0d96be2f7a 100644
+--- a/src/internal/fuzz/coverage.go
++++ b/src/internal/fuzz/coverage.go
+@@ -9,7 +9,7 @@ import (
+ 	"math/bits"
+ )
+ 
+-// ResetCovereage sets all of the counters for each edge of the instrumented
++// ResetCoverage sets all of the counters for each edge of the instrumented
+ // source code to 0.
+ func ResetCoverage() {
+ 	cov := coverage()
+diff --git a/src/internal/fuzz/encoding.go b/src/internal/fuzz/encoding.go
+index c2eed7045e..270ef7a1a3 100644
+--- a/src/internal/fuzz/encoding.go
++++ b/src/internal/fuzz/encoding.go
+@@ -338,7 +338,7 @@ func parseInt(val, typ string) (any, error) {
+ 	}
+ }
+ 
+-// parseInt returns an unsigned integer of value val and type typ.
++// parseUint returns an unsigned integer of value val and type typ.
+ func parseUint(val, typ string) (any, error) {
+ 	switch typ {
+ 	case "uint":
+diff --git a/src/internal/poll/errno_windows.go b/src/internal/poll/errno_windows.go
+index 3679aa8c4c..63814793fd 100644
+--- a/src/internal/poll/errno_windows.go
++++ b/src/internal/poll/errno_windows.go
+@@ -15,7 +15,7 @@ var (
+ 	errERROR_IO_PENDING error = syscall.Errno(syscall.ERROR_IO_PENDING)
+ )
+ 
+-// ErrnoErr returns common boxed Errno values, to prevent
++// errnoErr returns common boxed Errno values, to prevent
+ // allocations at runtime.
+ func errnoErr(e syscall.Errno) error {
+ 	switch e {
+diff --git a/src/internal/profile/filter.go b/src/internal/profile/filter.go
+index 9cad866df8..65e50db99d 100644
+--- a/src/internal/profile/filter.go
++++ b/src/internal/profile/filter.go
+@@ -130,7 +130,7 @@ func (p *Profile) FilterSamplesByTag(focus, ignore TagMatch) (fm, im bool) {
+ 	return
+ }
+ 
+-// focusedTag checks a sample against focus and ignore regexps.
++// focusedSample checks a sample against focus and ignore regexps.
+ // Returns whether the focus/ignore regexps match any tags
+ func focusedSample(s *Sample, focus, ignore TagMatch) (fm, im bool) {
+ 	fm = focus == nil

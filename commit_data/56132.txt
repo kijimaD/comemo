@@ -19,7 +19,59 @@ Date:   Fri Apr 7 18:26:50 2023 -0700
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/time/sys_unix.go        | 12 ++++++++++--
  src/time/zoneinfo_wasip1.go | 12 ++++++++++++
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index 0f06aa6ccd..63634ace7c 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -2,18 +2,26 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix || (js && wasm)
++//go:build unix || (js && wasm) || wasip1
+ 
+ package time
+ 
+ import (
+ 	"errors"
++	"runtime"
+ 	"syscall"
+ )
+ 
+ // for testing: whatever interrupts a sleep
+ func interrupt() {
+-	syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
++	// There is no mechanism in wasi to interrupt the call to poll_oneoff
++	// used to implement runtime.usleep so this function does nothing, which
++	// somewhat defeats the purpose of TestSleep but we are still better off
++	// validating that time elapses when the process calls time.Sleep than
++	// skipping the test altogether.
++	if runtime.GOOS != "wasip1" {
++		syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
++	}
+ }
+ 
+ func open(name string) (uintptr, error) {
+diff --git a/src/time/zoneinfo_wasip1.go b/src/time/zoneinfo_wasip1.go
+new file mode 100644
+index 0000000000..b6c8bbc384
+--- /dev/null
++++ b/src/time/zoneinfo_wasip1.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package time
++
++// in wasip1 zoneinfo is managed by the runtime.
++var platformZoneSources = []string{}
++
++func initLocal() {
++	localLoc.name = "Local"
++}

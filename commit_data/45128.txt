@@ -8,6 +8,25 @@ Date:   Thu Oct 1 14:00:48 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/258679
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/contribute.html | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 3fb617b863..09d43313ff 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -806,10 +806,9 @@ tracker will automatically mark the issue as fixed.
+ 
+ <p>
+ If the change is a partial step towards the resolution of the issue,
+-uses the notation "Updates #12345".
+-This will leave a comment in the issue
+-linking back to the change in Gerrit, but it will not close the issue
+-when the change is applied.
++write "Updates #12345" instead.
++This will leave a comment in the issue linking back to the change in
++Gerrit, but it will not close the issue when the change is applied.
+ </p>
+ 
+ <p>

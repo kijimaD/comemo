@@ -9,6 +9,31 @@ Date:   Thu Jul 30 17:15:16 2015 -0700
     Change-Id: Ie6e721eec3481f67f13de1bfbd7988e227793148
     Reviewed-on: https://go-review.googlesource.com/13000
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4db33a84a7..9422970b98 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2093,9 +2093,18 @@ func genValue(v *ssa.Value) {
+ 		p.To.Reg = regnum(v.Args[0])
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
+ 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
++		x := regnum(v.Args[0])
++		r := regnum(v)
++		if x != r {
++			p := Prog(regMoveAMD64(v.Type.Size()))
++			p.From.Type = obj.TYPE_REG
++			p.From.Reg = x
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = r
++		}
+ 		p := Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = regnum(v.Args[0])
++		p.To.Reg = r
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+ 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,

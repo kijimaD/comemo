@@ -8,6 +8,20 @@ Date:   Fri Jan 30 16:31:26 2009 -0800
     R=ken
     OCL=23990
     CL=23990
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 24a3a39c27..6e959b8c7a 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -170,7 +170,7 @@ loop:
+ void
+ indir(Node *nl, Node *nr)
+ {
+-	if(nr != N)
++	if(nr != N && nl != nr)
+ 		*nl = *nr;
+ }
+ 

@@ -7,7 +7,37 @@ Date:   Thu Apr 16 22:43:34 2009 -0700
     R=rsc
     OCL=27579
     CL=27579
-
+---
  src/lib/net/fd_linux.go       | 4 ++--
  src/lib/os/dir_amd64_linux.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/lib/net/fd_linux.go b/src/lib/net/fd_linux.go
+index 8e2b57f224..ecdf1da841 100644
+--- a/src/lib/net/fd_linux.go
++++ b/src/lib/net/fd_linux.go
+@@ -114,9 +114,9 @@ func (p *pollster) WaitFD(nsec int64) (fd int64, mode int, err *os.Error) {
+ 	if nsec > 0 {
+ 		msec = (nsec + 1e6 - 1)/1e6;
+ 	}
+-	n, e := syscall.Epoll_wait(p.epfd, evarray, msec);
++	n, e := syscall.Epoll_wait(p.epfd, &evarray, msec);
+ 	for e == syscall.EAGAIN || e == syscall.EINTR {
+-		n, e = syscall.Epoll_wait(p.epfd, evarray, msec);
++		n, e = syscall.Epoll_wait(p.epfd, &evarray, msec);
+ 	}
+ 	if e != 0 {
+ 		return -1, 0, os.ErrnoToError(e);
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index 7f8be6f509..582e4f632d 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -59,7 +59,7 @@ func readdirnames(file *File, count int) (names []string, err *os.Error) {
+ 			if dirent.Ino == 0 {	// File absent in directory.
+ 				continue
+ 			}
+-			var name = string(dirent.Name[0:clen(dirent.Name)]);
++			var name = string(dirent.Name[0:clen(&dirent.Name)]);
+ 			if name == "." || name == ".." {	// Useless names
+ 				continue
+ 			}

@@ -9,6 +9,20 @@ Date:   Fri Feb 1 10:02:23 2013 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7239045
-
+---
  src/pkg/reflect/value.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 10a4c0775b..2e2c807ea0 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -1448,7 +1448,7 @@ func (v Value) SetString(x string) {
+ }
+ 
+ // Slice returns a slice of v.
+-// It panics if v's Kind is not Array, Slice, or String.
++// It panics if v's Kind is not Array, Slice or String, or if v is an unaddressable array.
+ func (v Value) Slice(beg, end int) Value {
+ 	var (
+ 		cap  int

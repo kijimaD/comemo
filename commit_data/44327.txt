@@ -9,7 +9,32 @@ Date:   Thu Jun 11 04:39:49 2020 +0000
     GitHub-Pull-Request: golang/go#39520
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237223
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 69e35a13ae..80c79feb33 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1397,6 +1397,7 @@ Upthere, Inc.
+ Uriel Mangado <uriel@berlinblue.org>
+ Vadim Grek <vadimprog@gmail.com>
+ Vadim Vygonets <unixdj@gmail.com>
++Vee Zhang <veezhang@126.com> <vveezhang@gmail.com>
+ Vendasta
+ Veselkov Konstantin <kostozyb@gmail.com>
+ Victor Vrantchan <vrancean+github@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 934834fc79..6b6ee09415 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -2195,6 +2195,7 @@ Vadim Grek <vadimprog@gmail.com>
+ Vadim Vygonets <unixdj@gmail.com>
+ Val Polouchkine <vpolouch@justin.tv>
+ Valentin Vidic <vvidic@valentin-vidic.from.hr>
++Vee Zhang <veezhang@126.com> <vveezhang@gmail.com>
+ Vega Garcia Luis Alfonso <vegacom@gmail.com>
+ Venil Noronha <veniln@vmware.com>
+ Veselkov Konstantin <kostozyb@gmail.com>

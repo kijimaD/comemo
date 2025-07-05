@@ -9,7 +9,32 @@ Date:   Sun Dec 22 08:50:56 2013 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/42800045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f4ac6fc3d3..c5c79758dc 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -307,6 +307,7 @@ Ron Minnich <rminnich@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+ Ryan Slade <ryanslade@gmail.com>
++S.Çağlar Onur <caglar@10ur.org>
+ Sanjay Menakuru <balasanjay@gmail.com>
+ Scott Ferguson <scottwferg@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5117e258c4..7e622b1642 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -436,6 +436,7 @@ Russ Cox <rsc@golang.org>
+ Ryan Barrett <ryanb@google.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+ Ryan Slade <ryanslade@gmail.com>
++S.Çağlar Onur <caglar@10ur.org>
+ Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
+ Sameer Ajmani <sameer@golang.org> <ajmani@gmail.com>
+ Sanjay Menakuru <balasanjay@gmail.com>

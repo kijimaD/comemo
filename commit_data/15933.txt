@@ -14,8 +14,128 @@ Date:   Mon Mar 25 22:12:47 2013 +0100
     R=dvyukov, golang-dev
     CC=golang-dev
     https://golang.org/cl/7986043
-
+---
  src/cmd/gc/racewalk.c                     | 41 +++++++++++++++++++++++++++----
  src/cmd/gc/subr.c                         |  7 ++++++
  src/pkg/runtime/race/testdata/mop_test.go |  6 ++---
  3 files changed, 45 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index 3e5e592ca0..b8bff5c834 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -26,6 +26,7 @@ static Node* uintptraddr(Node *n);
+ static Node* basenod(Node *n);
+ static void foreach(Node *n, void(*f)(Node*, void*), void *c);
+ static void hascallspred(Node *n, void *c);
++static void appendinit(Node **np, NodeList *init);
+ static Node* detachexpr(Node *n, NodeList **init);
+ 
+ // Do not instrument the following packages at all,
+@@ -139,7 +140,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 1, 0);
+ 		racewalknode(&n->right, init, 0, 0);
+ 		goto ret;
+-	
++
+ 	case OCFUNC:
+ 		// can't matter
+ 		goto ret;
+@@ -255,9 +256,13 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case OANDAND:
+ 	case OOROR:
+ 		racewalknode(&n->left, init, wr, 0);
+-		// It requires more complex tree transformation,
+-		// because we don't know whether it will be executed or not.
+-		//racewalknode(&n->right, init, wr, 0);
++		// walk has ensured the node has moved to a location where
++		// side effects are safe.
++		// n->right may not be executed,
++		// so instrumentation goes to n->right->ninit, not init.
++		l = nil;
++		racewalknode(&n->right, &l, wr, 0);
++		appendinit(&n->right, l);
+ 		goto ret;
+ 
+ 	case ONAME:
+@@ -398,7 +403,6 @@ ret:
+ 	racewalklist(n->nbody, nil);
+ 	racewalklist(n->nelse, nil);
+ 	racewalklist(n->rlist, nil);
+-
+ 	*np = n;
+ }
+ 
+@@ -575,3 +579,30 @@ hascallspred(Node *n, void *c)
+ 		(*(int*)c)++;
+ 	}
+ }
++
++// appendinit is like addinit in subr.c
++// but appends rather than prepends.
++static void
++appendinit(Node **np, NodeList *init)
++{
++	Node *n;
++
++	if(init == nil)
++		return;
++
++	n = *np;
++	switch(n->op) {
++	case ONAME:
++	case OLITERAL:
++		// There may be multiple refs to this node;
++		// introduce OCONVNOP to hold init list.
++		n = nod(OCONVNOP, n, N);
++		n->type = n->left->type;
++		n->typecheck = 1;
++		*np = n;
++		break;
++	}
++	n->ninit = concat(n->ninit, init);
++	n->ullman = UINF;
++}
++
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 796851f1ae..de3b92d13c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1759,6 +1759,13 @@ ullmancalc(Node *n)
+ 	case OCALLINTER:
+ 		ul = UINF;
+ 		goto out;
++	case OANDAND:
++	case OOROR:
++		// hard with race detector
++		if(flag_race) {
++			ul = UINF;
++			goto out;
++		}
+ 	}
+ 	ul = 1;
+ 	if(n->left != N)
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index 26cd3a4e41..3ae593580b 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -970,8 +970,7 @@ func TestRaceAnd(t *testing.T) {
+ 	<-c
+ }
+ 
+-// OANDAND is not instrumented in the compiler.
+-func TestRaceFailingAnd2(t *testing.T) {
++func TestRaceAnd2(t *testing.T) {
+ 	c := make(chan bool)
+ 	x, y := 0, 0
+ 	go func() {
+@@ -1007,8 +1006,7 @@ func TestRaceOr(t *testing.T) {
+ 	<-c
+ }
+ 
+-// OOROR is not instrumented in the compiler.
+-func TestRaceFailingOr2(t *testing.T) {
++func TestRaceOr2(t *testing.T) {
+ 	c := make(chan bool)
+ 	x, y := 0, 0
+ 	go func() {

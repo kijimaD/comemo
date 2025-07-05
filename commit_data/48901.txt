@@ -15,8 +15,50 @@ Date:   Thu Jun 24 12:57:20 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/liveness/plive.go | 4 ++++
  test/live.go                               | 2 +-
  test/live_regabi.go                        | 2 +-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index f5c2ef7709..2705eac4f7 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1082,6 +1082,10 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
+ 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
+ 		return
+ 	}
++	if lv.fn.Wrapper() || lv.fn.Dupok() {
++		// Skip reporting liveness information for compiler-generated wrappers.
++		return
++	}
+ 	if !(v == nil || v.Op.IsCall()) {
+ 		// Historically we only printed this information at
+ 		// calls. Keep doing so.
+diff --git a/test/live.go b/test/live.go
+index 5b14932cae..856e56f3d2 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -688,7 +688,7 @@ type T struct{}
+ 
+ func (*T) Foo(ptr *int) {}
+ 
+-type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
++type R struct{ *T }
+ 
+ // issue 18860: output arguments must be live all the time if there is a defer.
+ // In particular, at printint r must be live.
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index c35a27e4e0..d362ee287d 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -683,7 +683,7 @@ type T struct{}
+ 
+ func (*T) Foo(ptr *int) {}
+ 
+-type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
++type R struct{ *T }
+ 
+ // issue 18860: output arguments must be live all the time if there is a defer.
+ // In particular, at printint r must be live.

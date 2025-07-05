@@ -24,8 +24,55 @@ Date:   Mon Jun 21 16:10:14 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/parser.go                        |  7 ++++++-
  src/go/types/testdata/examples/functions.go2   |  2 +-
  src/go/types/testdata/fixedbugs/issue46403.src | 11 +++++++++++
  3 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 3965641713..f10c8650af 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1302,7 +1302,12 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 		p.errorExpected(p.pos, "operand")
+ 		rbrack := p.pos
+ 		p.next()
+-		return &ast.BadExpr{From: x.Pos(), To: rbrack}
++		return &ast.IndexExpr{
++			X:      x,
++			Lbrack: lbrack,
++			Index:  &ast.BadExpr{From: rbrack, To: rbrack},
++			Rbrack: rbrack,
++		}
+ 	}
+ 	p.exprLev++
+ 
+diff --git a/src/go/types/testdata/examples/functions.go2 b/src/go/types/testdata/examples/functions.go2
+index fb74ae7ae2..a053471202 100644
+--- a/src/go/types/testdata/examples/functions.go2
++++ b/src/go/types/testdata/examples/functions.go2
+@@ -210,5 +210,5 @@ func _() {
+ func h[] /* ERROR empty type parameter list */ ()
+ 
+ func _() {
+-	h[] /* ERROR operand */ ()
++	h /* ERROR cannot index */ [] /* ERROR operand */ ()
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue46403.src b/src/go/types/testdata/fixedbugs/issue46403.src
+new file mode 100644
+index 0000000000..9d475222ad
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue46403.src
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue46403
++
++func _() {
++	// a should be used, despite the parser error below.
++	var a []int
++	var _ = a[] // ERROR expected operand
++}

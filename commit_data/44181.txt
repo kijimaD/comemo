@@ -29,7 +29,7 @@ Date:   Mon May 4 14:06:34 2020 -0600
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  .../testdata/script/test_benchmark_chatty_fail.txt |  32 ++++++
  .../script/test_benchmark_chatty_success.txt       |  29 +++++
  src/cmd/go/testdata/script/test_chatty_fail.txt    |  32 ++++++
@@ -42,3 +42,709 @@ Date:   Mon May 4 14:06:34 2020 -0600
  src/testing/sub_test.go                            | 126 +++++++++++----------
  src/testing/testing.go                             |  81 ++++++++++---
  11 files changed, 374 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_benchmark_chatty_fail.txt b/src/cmd/go/testdata/script/test_benchmark_chatty_fail.txt
+new file mode 100644
+index 0000000000..6031eadd0a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_benchmark_chatty_fail.txt
+@@ -0,0 +1,32 @@
++# Run chatty tests. Assert on CONT lines.
++! go test chatty_test.go -v -bench . chatty_bench
++
++# Sanity check that output occurs.
++stdout -count=2 'this is sub-0'
++stdout -count=2 'this is sub-1'
++stdout -count=2 'this is sub-2'
++stdout -count=1 'error from sub-0'
++stdout -count=1 'error from sub-1'
++stdout -count=1 'error from sub-2'
++
++# Benchmarks should not print CONT.
++! stdout CONT
++
++-- chatty_test.go --
++package chatty_bench
++
++import (
++	"testing"
++	"fmt"
++)
++
++func BenchmarkChatty(b *testing.B) {
++    for i := 0; i < 3; i++ {
++        b.Run(fmt.Sprintf("sub-%d", i), func(b *testing.B) {
++            for j := 0; j < 2; j++ {
++                b.Logf("this is sub-%d", i)
++            }
++            b.Errorf("error from sub-%d", i)
++        })
++    }
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_benchmark_chatty_success.txt b/src/cmd/go/testdata/script/test_benchmark_chatty_success.txt
+new file mode 100644
+index 0000000000..a1c0d6545a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_benchmark_chatty_success.txt
+@@ -0,0 +1,29 @@
++# Run chatty tests. Assert on CONT lines.
++go test chatty_test.go -v -bench . chatty_bench
++
++# Sanity check that output happens. We don't provide -count because the amount
++# of output is variable.
++stdout 'this is sub-0'
++stdout 'this is sub-1'
++stdout 'this is sub-2'
++
++# Benchmarks should not print CONT.
++! stdout CONT
++
++-- chatty_test.go --
++package chatty_bench
++
++import (
++	"testing"
++	"fmt"
++)
++
++func BenchmarkChatty(b *testing.B) {
++    for i := 0; i < 3; i++ {
++        b.Run(fmt.Sprintf("sub-%d", i), func(b *testing.B) {
++            for j := 0; j < 2; j++ {
++                b.Logf("this is sub-%d", i)
++            }
++        })
++    }
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_chatty_fail.txt b/src/cmd/go/testdata/script/test_chatty_fail.txt
+new file mode 100644
+index 0000000000..a5ef559c77
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_chatty_fail.txt
+@@ -0,0 +1,32 @@
++# Run chatty tests. Assert on CONT lines.
++! go test chatty_test.go -v
++
++# Sanity check that output occurs.
++stdout -count=2 'this is sub-0'
++stdout -count=2 'this is sub-1'
++stdout -count=2 'this is sub-2'
++stdout -count=1 'error from sub-0'
++stdout -count=1 'error from sub-1'
++stdout -count=1 'error from sub-2'
++
++# Non-parallel tests should not print CONT.
++! stdout CONT
++
++-- chatty_test.go --
++package chatty_test
++
++import (
++	"testing"
++	"fmt"
++)
++
++func TestChatty(t *testing.T) {
++    for i := 0; i < 3; i++ {
++        t.Run(fmt.Sprintf("sub-%d", i), func(t *testing.T) {
++            for j := 0; j < 2; j++ {
++                t.Logf("this is sub-%d", i)
++            }
++            t.Errorf("error from sub-%d", i)
++        })
++    }
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+new file mode 100644
+index 0000000000..5c51a02846
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+@@ -0,0 +1,58 @@
++# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
++# multiple parallel outputs have the appropriate CONT lines between them.
++! go test -parallel 3 chatty_parallel_test.go -v
++
++stdout -count=1 '^=== CONT  TestChattyParallel/sub-0\n    chatty_parallel_test.go:38: error from sub-0$'
++stdout -count=1 '^=== CONT  TestChattyParallel/sub-1\n    chatty_parallel_test.go:38: error from sub-1$'
++stdout -count=1 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.go:38: error from sub-2$'
++
++# Run parallel chatty tests with -json. Assert on CONT lines as above - make
++# sure there are CONT lines before each output line.
++! go test -json -parallel 3 chatty_parallel_test.go -v
++stdout -count=1 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:38: error from sub-0\\n"}'
++stdout -count=1 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:38: error from sub-1\\n"}'
++stdout -count=1 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"}'
++
++-- chatty_parallel_test.go --
++package chatty_paralell_test
++
++import (
++	"testing"
++	"fmt"
++	"flag"
++)
++
++// This test ensures the the order of CONT lines in parallel chatty tests.
++func TestChattyParallel(t *testing.T) {
++	t.Parallel()
++
++	// The number of concurrent tests running. This is closely tied to the
++	// -parallel test flag, so we grab it from the flag rather than setting it
++	// to some constant.
++	parallel := flag.Lookup("test.parallel").Value.(flag.Getter).Get().(int)
++
++	// ready is a synchronization mechanism that causes subtests to execute
++	// round robin.
++	ready := make([]chan bool, parallel)
++	for i := range ready {
++		ready[i] = make(chan bool, 1)
++	}
++	ready[0] <- true
++
++	for i := range ready {
++		i := i
++		t.Run(fmt.Sprintf("sub-%d", i), func(t *testing.T) {
++			t.Parallel()
++
++			// Some basic log output to precede the failures.
++			<-ready[i]
++			t.Logf("this is sub-%d", i)
++			ready[(i+1)%len(ready)] <- true
++
++			// The actual failure messages we care about.
++			<-ready[i]
++			t.Errorf("error from sub-%d", i)
++			ready[(i+1)%len(ready)] <- true
++		})
++	}
++}
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+new file mode 100644
+index 0000000000..0f97d4c221
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+@@ -0,0 +1,52 @@
++# Run parallel chatty tests. Assert on CONT lines. This test makes sure that
++# multiple parallel outputs have the appropriate CONT lines between them.
++go test -parallel 3 chatty_parallel_test.go -v
++stdout -count=2 '^=== CONT  TestChattyParallel/sub-0\n    chatty_parallel_test.go:32: this is sub-0$'
++stdout -count=2 '^=== CONT  TestChattyParallel/sub-1\n    chatty_parallel_test.go:32: this is sub-1$'
++stdout -count=2 '^=== CONT  TestChattyParallel/sub-2\n    chatty_parallel_test.go:32: this is sub-2$'
++
++# Run parallel chatty tests with -json. Assert on CONT lines as above - make
++# sure there are CONT lines before each output line.
++go test -json -parallel 3 chatty_parallel_test.go -v
++stdout -count=2 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"=== CONT  TestChattyParallel/sub-0\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-0","Output":"    chatty_parallel_test.go:32: this is sub-0\\n"}'
++stdout -count=2 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"=== CONT  TestChattyParallel/sub-1\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-1","Output":"    chatty_parallel_test.go:32: this is sub-1\\n"}'
++stdout -count=2 '{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9-TZ:.]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"}'
++
++-- chatty_parallel_test.go --
++package chatty_paralell_test
++
++import (
++	"testing"
++	"fmt"
++	"flag"
++)
++
++// This test ensures the the order of CONT lines in parallel chatty tests.
++func TestChattyParallel(t *testing.T) {
++	t.Parallel()
++
++	// The number of concurrent tests running. This is closely tied to the
++	// -parallel test flag, so we grab it from the flag rather than setting it
++	// to some constant.
++	parallel := flag.Lookup("test.parallel").Value.(flag.Getter).Get().(int)
++
++	// ready is a synchronization mechanism that causes subtests to execute
++	// round robin.
++	ready := make([]chan bool, parallel)
++	for i := range ready {
++		ready[i] = make(chan bool, 1)
++	}
++	ready[0] <- true
++
++	for i := range ready {
++		i := i
++		t.Run(fmt.Sprintf("sub-%d", i), func(t *testing.T) {
++			t.Parallel()
++			for j := 0; j < 2; j++ {
++				<-ready[i]
++				t.Logf("this is sub-%d", i)
++				ready[(i+1)%len(ready)] <- true
++			}
++		})
++	}
++}
+diff --git a/src/cmd/go/testdata/script/test_chatty_success.txt b/src/cmd/go/testdata/script/test_chatty_success.txt
+new file mode 100644
+index 0000000000..8bfa569f80
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_chatty_success.txt
+@@ -0,0 +1,27 @@
++# Run chatty tests. Assert on CONT lines.
++go test chatty_test.go -v
++
++# Non-parallel tests should not print CONT.
++! stdout CONT
++
++# The assertion is condensed into one line so that it precisely matches output,
++# rather than skipping lines and allow rogue CONT lines.
++stdout '=== RUN   TestChatty\n=== RUN   TestChatty/sub-0\n    chatty_test.go:12: this is sub-0\n    chatty_test.go:12: this is sub-0\n=== RUN   TestChatty/sub-1\n    chatty_test.go:12: this is sub-1\n    chatty_test.go:12: this is sub-1\n=== RUN   TestChatty/sub-2\n    chatty_test.go:12: this is sub-2\n    chatty_test.go:12: this is sub-2\n--- PASS: TestChatty'
++
++-- chatty_test.go --
++package chatty_test
++
++import (
++	"testing"
++	"fmt"
++)
++
++func TestChatty(t *testing.T) {
++    for i := 0; i < 3; i++ {
++        t.Run(fmt.Sprintf("sub-%d", i), func(t *testing.T) {
++            for j := 0; j < 2; j++ {
++                t.Logf("this is sub-%d", i)
++            }
++        })
++    }
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index 226b8d1315..27d718a3b2 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -30,23 +30,23 @@ exists ./cover.out
+ # with the 'test.' prefix in the GOFLAGS entry...
+ env GOFLAGS='-test.timeout=24h0m0s -count=1'
+ go test -v -x ./x
+-stdout 'TestLogTimeout: .*: 24h0m0s$'
++stdout '.*: 24h0m0s$'
+ stderr '-test.count=1'
+ 
+ # ...or without.
+ env GOFLAGS='-timeout=24h0m0s -count=1'
+ go test -v -x ./x
+-stdout 'TestLogTimeout: .*: 24h0m0s$'
++stdout '.*: 24h0m0s$'
+ stderr '-test.count=1'
+ 
+ # Arguments from the command line should override GOFLAGS...
+ go test -v -x -timeout=25h0m0s ./x
+-stdout 'TestLogTimeout: .*: 25h0m0s$'
++stdout '.*: 25h0m0s$'
+ stderr '-test.count=1'
+ 
+ # ...even if they use a different flag name.
+ go test -v -x -test.timeout=26h0m0s ./x
+-stdout 'TestLogTimeout: .*: 26h0m0s$'
++stdout '.*: 26h0m0s$'
+ stderr '-test\.timeout=26h0m0s'
+ ! stderr 'timeout=24h0m0s'
+ stderr '-test.count=1'
+diff --git a/src/cmd/go/testdata/script/test_regexps.txt b/src/cmd/go/testdata/script/test_regexps.txt
+index 39dedbf06f..a616195cab 100644
+--- a/src/cmd/go/testdata/script/test_regexps.txt
++++ b/src/cmd/go/testdata/script/test_regexps.txt
+@@ -4,28 +4,28 @@ go test -cpu=1 -run=X/Y -bench=X/Y -count=2 -v testregexp
+ 
+ # TestX is run, twice
+ stdout -count=2 '^=== RUN   TestX$'
+-stdout -count=2 '^    TestX: x_test.go:6: LOG: X running$'
++stdout -count=2 '^    x_test.go:6: LOG: X running$'
+ 
+ # TestX/Y is run, twice
+ stdout -count=2 '^=== RUN   TestX/Y$'
+-stdout -count=2 '^    TestX/Y: x_test.go:8: LOG: Y running$'
++stdout -count=2 '^    x_test.go:8: LOG: Y running$'
+ 
+ # TestXX is run, twice
+ stdout -count=2 '^=== RUN   TestXX$'
+-stdout -count=2 '^    TestXX: z_test.go:10: LOG: XX running'
++stdout -count=2 '^    z_test.go:10: LOG: XX running'
+ 
+ # TestZ is not run
+ ! stdout '^=== RUN   TestZ$'
+ 
+ # BenchmarkX is run with N=1 once, only to discover what sub-benchmarks it has,
+ # and should not print a final summary line.
+-stdout -count=1 '^\s+BenchmarkX: x_test.go:13: LOG: X running N=1$'
++stdout -count=1 '^    x_test.go:13: LOG: X running N=1$'
+ ! stdout '^\s+BenchmarkX: x_test.go:13: LOG: X running N=\d\d+'
+ ! stdout 'BenchmarkX\s+\d+'
+ 
+ # Same for BenchmarkXX.
+-stdout -count=1 '^\s+BenchmarkXX: z_test.go:18: LOG: XX running N=1$'
+-! stdout  '^\s+BenchmarkXX: z_test.go:18: LOG: XX running N=\d\d+'
++stdout -count=1 '^    z_test.go:18: LOG: XX running N=1$'
++! stdout  '^    z_test.go:18: LOG: XX running N=\d\d+'
+ ! stdout 'BenchmarkXX\s+\d+'
+ 
+ # BenchmarkX/Y is run in full twice due to -count=2.
+@@ -33,7 +33,7 @@ stdout -count=1 '^\s+BenchmarkXX: z_test.go:18: LOG: XX running N=1$'
+ # but may cap out at N=1e9.
+ # We don't actually care what the final iteration count is, but it should be
+ # a large number, and the last iteration count prints right before the results.
+-stdout -count=2 '^\s+BenchmarkX/Y: x_test.go:15: LOG: Y running N=[1-9]\d{4,}\nBenchmarkX/Y\s+\d+'
++stdout -count=2 '^    x_test.go:15: LOG: Y running N=[1-9]\d{4,}\nBenchmarkX/Y\s+\d+'
+ 
+ -- testregexp/x_test.go --
+ package x
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 88ba0f0242..52766005bf 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -526,6 +526,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ 			name:   "Main",
+ 			w:      os.Stdout,
+ 			chatty: *chatty,
++			bench:  true,
+ 		},
+ 		importPath: importPath,
+ 		benchFunc: func(b *B) {
+@@ -559,6 +560,7 @@ func (ctx *benchContext) processBench(b *B) {
+ 						name:   b.name,
+ 						w:      b.w,
+ 						chatty: b.chatty,
++						bench:  true,
+ 					},
+ 					benchFunc: b.benchFunc,
+ 					benchTime: b.benchTime,
+@@ -624,6 +626,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 			creator: pc[:n],
+ 			w:       b.w,
+ 			chatty:  b.chatty,
++			bench:   true,
+ 		},
+ 		importPath: b.importPath,
+ 		benchFunc:  f,
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 95f8220f81..8eb0084b1c 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -438,8 +438,6 @@ func TestTRun(t *T) {
+ 	}, {
+ 		// A chatty test should always log with fmt.Print, even if the
+ 		// parent test has completed.
+-		// TODO(deklerk) Capture the log of fmt.Print and assert that the
+-		// subtest message is not lost.
+ 		desc:   "log in finished sub test with chatty",
+ 		ok:     false,
+ 		chatty: true,
+@@ -477,35 +475,37 @@ func TestTRun(t *T) {
+ 		},
+ 	}}
+ 	for _, tc := range testCases {
+-		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+-		buf := &bytes.Buffer{}
+-		root := &T{
+-			common: common{
+-				signal: make(chan bool),
+-				name:   "Test",
+-				w:      buf,
+-				chatty: tc.chatty,
+-			},
+-			context: ctx,
+-		}
+-		ok := root.Run(tc.desc, tc.f)
+-		ctx.release()
++		t.Run(tc.desc, func(t *T) {
++			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
++			buf := &bytes.Buffer{}
++			root := &T{
++				common: common{
++					signal: make(chan bool),
++					name:   "Test",
++					w:      buf,
++					chatty: tc.chatty,
++				},
++				context: ctx,
++			}
++			ok := root.Run(tc.desc, tc.f)
++			ctx.release()
+ 
+-		if ok != tc.ok {
+-			t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
+-		}
+-		if ok != !root.Failed() {
+-			t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
+-		}
+-		if ctx.running != 0 || ctx.numWaiting != 0 {
+-			t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
+-		}
+-		got := strings.TrimSpace(buf.String())
+-		want := strings.TrimSpace(tc.output)
+-		re := makeRegexp(want)
+-		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+-			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+-		}
++			if ok != tc.ok {
++				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
++			}
++			if ok != !root.Failed() {
++				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
++			}
++			if ctx.running != 0 || ctx.numWaiting != 0 {
++				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
++			}
++			got := strings.TrimSpace(buf.String())
++			want := strings.TrimSpace(tc.output)
++			re := makeRegexp(want)
++			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
++				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
++			}
++		})
+ 	}
+ }
+ 
+@@ -655,43 +655,45 @@ func TestBRun(t *T) {
+ 		},
+ 	}}
+ 	for _, tc := range testCases {
+-		var ok bool
+-		buf := &bytes.Buffer{}
+-		// This is almost like the Benchmark function, except that we override
+-		// the benchtime and catch the failure result of the subbenchmark.
+-		root := &B{
+-			common: common{
+-				signal: make(chan bool),
+-				name:   "root",
+-				w:      buf,
+-				chatty: tc.chatty,
+-			},
+-			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
+-			benchTime: benchTimeFlag{d: 1 * time.Microsecond},
+-		}
+-		root.runN(1)
+-		if ok != !tc.failed {
+-			t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, !tc.failed)
+-		}
+-		if !ok != root.Failed() {
+-			t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
+-		}
+-		// All tests are run as subtests
+-		if root.result.N != 1 {
+-			t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
+-		}
+-		got := strings.TrimSpace(buf.String())
+-		want := strings.TrimSpace(tc.output)
+-		re := makeRegexp(want)
+-		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+-			t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+-		}
++		t.Run(tc.desc, func(t *T) {
++			var ok bool
++			buf := &bytes.Buffer{}
++			// This is almost like the Benchmark function, except that we override
++			// the benchtime and catch the failure result of the subbenchmark.
++			root := &B{
++				common: common{
++					signal: make(chan bool),
++					name:   "root",
++					w:      buf,
++					chatty: tc.chatty,
++				},
++				benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
++				benchTime: benchTimeFlag{d: 1 * time.Microsecond},
++			}
++			root.runN(1)
++			if ok != !tc.failed {
++				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, !tc.failed)
++			}
++			if !ok != root.Failed() {
++				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
++			}
++			// All tests are run as subtests
++			if root.result.N != 1 {
++				t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
++			}
++			got := strings.TrimSpace(buf.String())
++			want := strings.TrimSpace(tc.output)
++			re := makeRegexp(want)
++			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
++				t.Errorf("%s:output:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
++			}
++		})
+ 	}
+ }
+ 
+ func makeRegexp(s string) string {
+ 	s = regexp.QuoteMeta(s)
+-	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d:`)
++	s = strings.ReplaceAll(s, ":NNN:", `:\d\d\d\d?:`)
+ 	s = strings.ReplaceAll(s, "N\\.NNs", `\d*\.\d*s`)
+ 	return s
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 608bb39671..4a14d49a91 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -325,6 +325,7 @@ var (
+ 	cpuListStr           *string
+ 	parallel             *int
+ 	testlog              *string
++	printer              *testPrinter
+ 
+ 	haveExamples bool // are there examples?
+ 
+@@ -334,6 +335,49 @@ var (
+ 	numFailed uint32 // number of test failures
+ )
+ 
++type testPrinter struct {
++	chatty bool
++
++	lastNameMu sync.Mutex // guards lastName
++	lastName   string     // last printed test name in chatty mode
++}
++
++func newTestPrinter(chatty bool) *testPrinter {
++	return &testPrinter{
++		chatty: chatty,
++	}
++}
++
++func (p *testPrinter) Print(testName, out string) {
++	p.Fprint(os.Stdout, testName, out)
++}
++
++func (p *testPrinter) Fprint(w io.Writer, testName, out string) {
++	if !p.chatty || strings.HasPrefix(out, "--- PASS") || strings.HasPrefix(out, "--- FAIL") {
++		fmt.Fprint(w, out)
++		return
++	}
++
++	p.lastNameMu.Lock()
++	defer p.lastNameMu.Unlock()
++
++	if strings.HasPrefix(out, "=== CONT") || strings.HasPrefix(out, "=== RUN") {
++		p.lastName = testName
++		fmt.Fprint(w, out)
++		return
++	}
++
++	if p.lastName == "" {
++		p.lastName = testName
++	} else if p.lastName != testName {
++		// Always printed as-is, with 0 decoration or indentation. So, we skip
++		// printing to w.
++		fmt.Printf("=== CONT  %s\n", testName)
++		p.lastName = testName
++	}
++	fmt.Fprint(w, out)
++}
++
+ // The maximum number of stack frames to go through when skipping helper functions for
+ // the purpose of decorating log messages.
+ const maxStackLen = 50
+@@ -354,10 +398,11 @@ type common struct {
+ 	cleanupPc   []uintptr           // The stack trace at the point where Cleanup was called.
+ 
+ 	chatty     bool   // A copy of the chatty flag.
++	bench      bool   // Whether the current test is a benchmark.
+ 	finished   bool   // Test function has completed.
+-	hasSub     int32  // written atomically
+-	raceErrors int    // number of races detected during test
+-	runner     string // function name of tRunner running the test
++	hasSub     int32  // Written atomically.
++	raceErrors int    // Number of races detected during test.
++	runner     string // Function name of tRunner running the test.
+ 
+ 	parent   *common
+ 	level    int       // Nesting depth of test or benchmark.
+@@ -496,9 +541,6 @@ func (c *common) decorate(s string, skip int) string {
+ 	buf := new(strings.Builder)
+ 	// Every line is indented at least 4 spaces.
+ 	buf.WriteString("    ")
+-	if c.chatty {
+-		fmt.Fprintf(buf, "%s: ", c.name)
+-	}
+ 	fmt.Fprintf(buf, "%s:%d: ", file, line)
+ 	lines := strings.Split(s, "\n")
+ 	if l := len(lines); l > 1 && lines[l-1] == "" {
+@@ -517,12 +559,12 @@ func (c *common) decorate(s string, skip int) string {
+ 
+ // flushToParent writes c.output to the parent after first writing the header
+ // with the given format and arguments.
+-func (c *common) flushToParent(format string, args ...interface{}) {
++func (c *common) flushToParent(testName, format string, args ...interface{}) {
+ 	p := c.parent
+ 	p.mu.Lock()
+ 	defer p.mu.Unlock()
+ 
+-	fmt.Fprintf(p.w, format, args...)
++	printer.Fprint(p.w, testName, fmt.Sprintf(format, args...))
+ 
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+@@ -697,7 +739,14 @@ func (c *common) logDepth(s string, depth int) {
+ 		panic("Log in goroutine after " + c.name + " has completed")
+ 	} else {
+ 		if c.chatty {
+-			fmt.Print(c.decorate(s, depth+1))
++			if c.bench {
++				// Benchmarks don't print === CONT, so we should skip the test
++				// printer and just print straight to stdout.
++				fmt.Print(c.decorate(s, depth+1))
++			} else {
++				printer.Print(c.name, c.decorate(s, depth+1))
++			}
++
+ 			return
+ 		}
+ 		c.output = append(c.output, c.decorate(s, depth+1)...)
+@@ -942,7 +991,7 @@ func (t *T) Parallel() {
+ 		for ; root.parent != nil; root = root.parent {
+ 		}
+ 		root.mu.Lock()
+-		fmt.Fprintf(root.w, "=== CONT  %s\n", t.name)
++		printer.Fprint(root.w, t.name, fmt.Sprintf("=== CONT  %s\n", t.name))
+ 		root.mu.Unlock()
+ 	}
+ 
+@@ -1001,7 +1050,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 				root.duration += time.Since(root.start)
+ 				d := root.duration
+ 				root.mu.Unlock()
+-				root.flushToParent("--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
++				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+ 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
+ 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
+ 				}
+@@ -1100,7 +1149,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 		for ; root.parent != nil; root = root.parent {
+ 		}
+ 		root.mu.Lock()
+-		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
++		printer.Fprint(root.w, t.name, fmt.Sprintf("=== RUN   %s\n", t.name))
+ 		root.mu.Unlock()
+ 	}
+ 	// Instead of reducing the running count of this test before calling the
+@@ -1266,6 +1315,8 @@ func (m *M) Run() (code int) {
+ 		flag.Parse()
+ 	}
+ 
++	printer = newTestPrinter(Verbose())
++
+ 	if *parallel < 1 {
+ 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
+ 		flag.Usage()
+@@ -1309,12 +1360,12 @@ func (t *T) report() {
+ 	dstr := fmtDuration(t.duration)
+ 	format := "--- %s: %s (%s)\n"
+ 	if t.Failed() {
+-		t.flushToParent(format, "FAIL", t.name, dstr)
++		t.flushToParent(t.name, format, "FAIL", t.name, dstr)
+ 	} else if t.chatty {
+ 		if t.Skipped() {
+-			t.flushToParent(format, "SKIP", t.name, dstr)
++			t.flushToParent(t.name, format, "SKIP", t.name, dstr)
+ 		} else {
+-			t.flushToParent(format, "PASS", t.name, dstr)
++			t.flushToParent(t.name, format, "PASS", t.name, dstr)
+ 		}
+ 	}
+ }

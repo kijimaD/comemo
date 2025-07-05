@@ -26,10 +26,216 @@ Date:   Mon Feb 10 22:02:47 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/scanner.go      | 18 ++++-----
  src/cmd/compile/internal/syntax/scanner_test.go | 54 ++++++++++++-------------
  test/fixedbugs/bug169.go                        |  2 +-
  test/fixedbugs/issue15611.go                    |  8 ++--
  test/fixedbugs/issue32133.go                    |  2 +-
  5 files changed, 42 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/scanner.go b/src/cmd/compile/internal/syntax/scanner.go
+index fef87171bc..f2f6fd2bb6 100644
+--- a/src/cmd/compile/internal/syntax/scanner.go
++++ b/src/cmd/compile/internal/syntax/scanner.go
+@@ -385,7 +385,7 @@ func (s *scanner) isIdentRune(c rune, first bool) bool {
+ 			s.errorf("identifier cannot begin with digit %#U", c)
+ 		}
+ 	case c >= utf8.RuneSelf:
+-		s.errorf("invalid identifier character %#U", c)
++		s.errorf("invalid character %#U in identifier", c)
+ 	default:
+ 		return false
+ 	}
+@@ -612,13 +612,13 @@ func (s *scanner) rune() {
+ 		if r == '\n' {
+ 			s.ungetr() // assume newline is not part of literal
+ 			if !s.bad {
+-				s.errorf("newline in character literal")
++				s.errorf("newline in rune literal")
+ 			}
+ 			break
+ 		}
+ 		if r < 0 {
+ 			if !s.bad {
+-				s.errorAtf(0, "invalid character literal (missing closing ')")
++				s.errorAtf(0, "rune literal not terminated")
+ 			}
+ 			break
+ 		}
+@@ -626,9 +626,9 @@ func (s *scanner) rune() {
+ 
+ 	if !s.bad {
+ 		if n == 0 {
+-			s.errorf("empty character literal or unescaped ' in character literal")
++			s.errorf("empty rune literal or unescaped '")
+ 		} else if n != 1 {
+-			s.errorAtf(0, "invalid character literal (more than one character)")
++			s.errorAtf(0, "more than one character in rune literal")
+ 		}
+ 	}
+ 
+@@ -815,7 +815,7 @@ func (s *scanner) escape(quote rune) {
+ 		if c < 0 {
+ 			return // complain in caller about EOF
+ 		}
+-		s.errorf("unknown escape sequence")
++		s.errorf("unknown escape")
+ 		return
+ 	}
+ 
+@@ -836,7 +836,7 @@ func (s *scanner) escape(quote rune) {
+ 			if base == 8 {
+ 				kind = "octal"
+ 			}
+-			s.errorf("non-%s character in escape sequence: %c", kind, c)
++			s.errorf("invalid character %q in %s escape", c, kind)
+ 			s.ungetr()
+ 			return
+ 		}
+@@ -847,11 +847,11 @@ func (s *scanner) escape(quote rune) {
+ 	s.ungetr()
+ 
+ 	if x > max && base == 8 {
+-		s.errorf("octal escape value > 255: %d", x)
++		s.errorf("octal escape value %d > 255", x)
+ 		return
+ 	}
+ 
+ 	if x > max || 0xD800 <= x && x < 0xE000 /* surrogate range */ {
+-		s.errorf("escape sequence is invalid Unicode code point %#U", x)
++		s.errorf("escape is invalid Unicode code point %#U", x)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 612c59507e..f683341650 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -596,10 +596,10 @@ func TestScanErrors(t *testing.T) {
+ 		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 2, 0},
+ 
+ 		// token-level errors
+-		{"\u00BD" /* ½ */, "invalid identifier character U+00BD '½'", 0, 0},
+-		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid identifier character U+00BD '½'", 0, 13 /* byte offset */},
++		{"\u00BD" /* ½ */, "invalid character U+00BD '½' in identifier", 0, 0},
++		{"\U0001d736\U0001d737\U0001d738_½" /* 𝜶𝜷𝜸_½ */, "invalid character U+00BD '½' in identifier", 0, 13 /* byte offset */},
+ 		{"\U0001d7d8" /* 𝟘 */, "identifier cannot begin with digit U+1D7D8 '𝟘'", 0, 0},
+-		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid identifier character U+00BD '½'", 0, 8 /* byte offset */},
++		{"foo\U0001d7d8_½" /* foo𝟘_½ */, "invalid character U+00BD '½' in identifier", 0, 8 /* byte offset */},
+ 
+ 		{"x + ~y", "invalid character U+007E '~'", 0, 4},
+ 		{"foo$bar = 0", "invalid character U+0024 '$'", 0, 3},
+@@ -608,20 +608,20 @@ func TestScanErrors(t *testing.T) {
+ 		{"0123456789e0 /*\nfoobar", "comment not terminated", 0, 13}, // valid float constant
+ 		{"var a, b = 09, 07\n", "invalid digit '9' in octal literal", 0, 12},
+ 
+-		{`''`, "empty character literal or unescaped ' in character literal", 0, 1},
+-		{"'\n", "newline in character literal", 0, 1},
+-		{`'\`, "invalid character literal (missing closing ')", 0, 0},
+-		{`'\'`, "invalid character literal (missing closing ')", 0, 0},
+-		{`'\x`, "invalid character literal (missing closing ')", 0, 0},
+-		{`'\x'`, "non-hex character in escape sequence: '", 0, 3},
+-		{`'\y'`, "unknown escape sequence", 0, 2},
+-		{`'\x0'`, "non-hex character in escape sequence: '", 0, 4},
+-		{`'\00'`, "non-octal character in escape sequence: '", 0, 4},
++		{`''`, "empty rune literal or unescaped '", 0, 1},
++		{"'\n", "newline in rune literal", 0, 1},
++		{`'\`, "rune literal not terminated", 0, 0},
++		{`'\'`, "rune literal not terminated", 0, 0},
++		{`'\x`, "rune literal not terminated", 0, 0},
++		{`'\x'`, "invalid character '\\'' in hex escape", 0, 3},
++		{`'\y'`, "unknown escape", 0, 2},
++		{`'\x0'`, "invalid character '\\'' in hex escape", 0, 4},
++		{`'\00'`, "invalid character '\\'' in octal escape", 0, 4},
+ 		{`'\377' /*`, "comment not terminated", 0, 7}, // valid octal escape
+-		{`'\378`, "non-octal character in escape sequence: 8", 0, 4},
+-		{`'\400'`, "octal escape value > 255: 256", 0, 5},
+-		{`'xx`, "invalid character literal (missing closing ')", 0, 0},
+-		{`'xx'`, "invalid character literal (more than one character)", 0, 0},
++		{`'\378`, "invalid character '8' in octal escape", 0, 4},
++		{`'\400'`, "octal escape value 256 > 255", 0, 5},
++		{`'xx`, "rune literal not terminated", 0, 0},
++		{`'xx'`, "more than one character in rune literal", 0, 0},
+ 
+ 		{"\n   \"foo\n", "newline in string", 1, 7},
+ 		{`"`, "string not terminated", 0, 0},
+@@ -633,20 +633,20 @@ func TestScanErrors(t *testing.T) {
+ 		{`"\`, "string not terminated", 0, 0},
+ 		{`"\"`, "string not terminated", 0, 0},
+ 		{`"\x`, "string not terminated", 0, 0},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+-		{`"\y"`, "unknown escape sequence", 0, 2},
+-		{`"\x0"`, "non-hex character in escape sequence: \"", 0, 4},
+-		{`"\00"`, "non-octal character in escape sequence: \"", 0, 4},
++		{`"\x"`, "invalid character '\"' in hex escape", 0, 3},
++		{`"\y"`, "unknown escape", 0, 2},
++		{`"\x0"`, "invalid character '\"' in hex escape", 0, 4},
++		{`"\00"`, "invalid character '\"' in octal escape", 0, 4},
+ 		{`"\377" /*`, "comment not terminated", 0, 7}, // valid octal escape
+-		{`"\378"`, "non-octal character in escape sequence: 8", 0, 4},
+-		{`"\400"`, "octal escape value > 255: 256", 0, 5},
++		{`"\378"`, "invalid character '8' in octal escape", 0, 4},
++		{`"\400"`, "octal escape value 256 > 255", 0, 5},
+ 
+-		{`s := "foo\z"`, "unknown escape sequence", 0, 10},
+-		{`s := "foo\z00\nbar"`, "unknown escape sequence", 0, 10},
++		{`s := "foo\z"`, "unknown escape", 0, 10},
++		{`s := "foo\z00\nbar"`, "unknown escape", 0, 10},
+ 		{`"\x`, "string not terminated", 0, 0},
+-		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
+-		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
+-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point U+FFFFFFFF", 0, 18},
++		{`"\x"`, "invalid character '\"' in hex escape", 0, 3},
++		{`var s string = "\x"`, "invalid character '\"' in hex escape", 0, 18},
++		{`return "\Uffffffff"`, "escape is invalid Unicode code point U+FFFFFFFF", 0, 18},
+ 
+ 		{"0b.0", "invalid radix point in binary literal", 0, 2},
+ 		{"0x.p0\n", "hexadecimal literal has no digits", 0, 3},
+diff --git a/test/fixedbugs/bug169.go b/test/fixedbugs/bug169.go
+index f63c2f3e1a..62ab7c2fa1 100644
+--- a/test/fixedbugs/bug169.go
++++ b/test/fixedbugs/bug169.go
+@@ -5,6 +5,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
+-var x = ''';		// ERROR "char"
++var x = ''';		// ERROR "char|rune"
+ 
+ 
+diff --git a/test/fixedbugs/issue15611.go b/test/fixedbugs/issue15611.go
+index 6a627d9b5e..3634475418 100644
+--- a/test/fixedbugs/issue15611.go
++++ b/test/fixedbugs/issue15611.go
+@@ -8,13 +8,13 @@ package p
+ 
+ // These error messages are for the invalid literals on lines 19 and 20:
+ 
+-// ERROR "newline in character literal"
+-// ERROR "invalid character literal \(missing closing '\)"
++// ERROR "newline in character literal|newline in rune literal"
++// ERROR "invalid character literal \(missing closing '\)|rune literal not terminated"
+ 
+ const (
+-	_ = ''     // ERROR "empty character literal or unescaped ' in character literal"
++	_ = ''     // ERROR "empty character literal or unescaped ' in character literal|empty rune literal"
+ 	_ = 'f'
+-	_ = 'foo'  // ERROR "invalid character literal \(more than one character\)"
++	_ = 'foo'  // ERROR "invalid character literal \(more than one character\)|more than one character in rune literal"
+ //line issue15611.go:11
+ 	_ = '
+ 	_ = '
+\ No newline at end of file
+diff --git a/test/fixedbugs/issue32133.go b/test/fixedbugs/issue32133.go
+index 13e4658a0f..f3cca87a72 100644
+--- a/test/fixedbugs/issue32133.go
++++ b/test/fixedbugs/issue32133.go
+@@ -8,7 +8,7 @@ package p
+ 
+ // errors for the //line-adjusted code below
+ // ERROR "newline in string"
+-// ERROR "newline in character literal"
++// ERROR "newline in character literal|newline in rune literal"
+ // ERROR "newline in string"
+ // ERROR "string not terminated"
+ 

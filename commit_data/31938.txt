@@ -15,6 +15,29 @@ Date:   Fri Mar 24 09:19:46 2017 -0700
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index fa95caca3a..5ee8287889 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 12, 2017",
++	"Subtitle": "Version of March 24, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -2295,7 +2295,8 @@ The key is interpreted as a field name for struct literals,
+ an index for array and slice literals, and a key for map literals.
+ For map literals, all elements must have a key. It is an error
+ to specify multiple elements with the same field name or
+-constant key value.
++constant key value. For non-constant map keys, see the section on
++<a href="#Order_of_evaluation">evaluation order</a>.
+ </p>
+ 
+ <p>

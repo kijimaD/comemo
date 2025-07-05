@@ -7,7 +7,32 @@ Date:   Thu May 19 16:53:50 2011 -0700
     R=iant, iant2
     CC=golang-dev
     https://golang.org/cl/4515114
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6614e5b7c3..e07191bab2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -12,6 +12,7 @@ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Albert Strasheim <fullung@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
++Alexander Orlov <alexander.orlov@loxal.net>
+ Alexey Borzenkov <snaury@gmail.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6f025e25f0..ae77a71a5c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -36,6 +36,7 @@ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Albert Strasheim <fullung@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
++Alexander Orlov <alexander.orlov@loxal.net>
+ Alexey Borzenkov <snaury@gmail.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>

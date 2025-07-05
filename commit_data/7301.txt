@@ -10,7 +10,67 @@ Date:   Tue Feb 1 08:29:21 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3973052
-
+---
  src/cmd/gc/go.y       |  3 ++-
  test/chan/sendstmt.go | 37 +++++++++++++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 1060fdd2bf..b711d360d2 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -93,9 +93,10 @@ static void fixlbrace(int);
+ %type	<type>	hidden_type_func
+ %type	<type>	hidden_type_recv_chan hidden_type_non_recv_chan
+ 
++%left		LCOMM	/* outside the usual hierarchy; here for good error messages */
++
+ %left		LOROR
+ %left		LANDAND
+-%left		LCOMM
+ %left		LEQ LNE LLE LGE LLT LGT
+ %left		'+' '-' '|' '^'
+ %left		'*' '/' '%' '&' LLSH LRSH LANDNOT
+diff --git a/test/chan/sendstmt.go b/test/chan/sendstmt.go
+new file mode 100644
+index 0000000000..ee6f765cf8
+--- /dev/null
++++ b/test/chan/sendstmt.go
+@@ -0,0 +1,37 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test various parsing cases that are a little
++// different now that send is a statement, not a expression.
++
++package main
++
++func main() {
++	chanchan()
++	sendprec()
++}
++
++func chanchan() {
++	cc := make(chan chan int, 1)
++	c := make(chan int, 1)
++	cc <- c
++	select {
++	case <-cc <- 2:
++	default:
++		panic("nonblock")
++	}
++	if <-c != 2 {
++		panic("bad receive")
++	}
++}
++
++func sendprec() {
++	c := make(chan bool, 1)
++	c <- false || true	// not a syntax error: same as c <- (false || true)
++	if !<-c {
++		panic("sent false")
++	}
++}

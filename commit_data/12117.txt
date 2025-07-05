@@ -7,7 +7,69 @@ Date:   Tue Feb 21 14:48:17 2012 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5685069
-
+---
  src/pkg/text/tabwriter/example_test.go | 38 ++++++++++++++++++++++++++++++++++
  src/pkg/text/tabwriter/tabwriter.go    |  6 ------
  2 files changed, 38 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/text/tabwriter/example_test.go b/src/pkg/text/tabwriter/example_test.go
+new file mode 100644
+index 0000000000..20443cb1ff
+--- /dev/null
++++ b/src/pkg/text/tabwriter/example_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tabwriter_test
++
++import (
++	"fmt"
++	"os"
++	"text/tabwriter"
++)
++
++func ExampleWriter_Init() {
++	w := new(tabwriter.Writer)
++
++	// Format in tab-separated columns with a tab stop of 8.
++	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
++	fmt.Fprintln(w, "a\tb\tc\td\t.")
++	fmt.Fprintln(w, "123\t12345\t1234567\t123456789\t.")
++	fmt.Fprintln(w)
++	w.Flush()
++
++	// Format right-aligned in space-separated columns of minimal width 5
++	// and at least one blank of padding (so wider column entries do not
++	// touch each other).
++	w.Init(os.Stdout, 5, 0, 1, ' ', tabwriter.AlignRight)
++	fmt.Fprintln(w, "a\tb\tc\td\t.")
++	fmt.Fprintln(w, "123\t12345\t1234567\t123456789\t.")
++	fmt.Fprintln(w)
++	w.Flush()
++
++	// output:
++	// a	b	c	d		.
++	// 123	12345	1234567	123456789	.
++	//
++	//     a     b       c         d.
++	//   123 12345 1234567 123456789.
++}
+diff --git a/src/pkg/text/tabwriter/tabwriter.go b/src/pkg/text/tabwriter/tabwriter.go
+index ea7c400811..ce84600d60 100644
+--- a/src/pkg/text/tabwriter/tabwriter.go
++++ b/src/pkg/text/tabwriter/tabwriter.go
+@@ -169,12 +169,6 @@ const (
+ //			to the tab width in the viewer displaying the result)
+ //	flags		formatting control
+ //
+-// To format in tab-separated columns with a tab stop of 8:
+-//	b.Init(w, 8, 1, 8, '\t', 0);
+-//
+-// To format in space-separated columns with at least 4 spaces between columns:
+-//	b.Init(w, 0, 4, 8, ' ', 0);
+-//
+ func (b *Writer) Init(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+ 	if minwidth < 0 || tabwidth < 0 || padding < 0 {
+ 		panic("negative minwidth, tabwidth, or padding")

@@ -9,7 +9,56 @@ Date:   Mon Feb 14 17:41:47 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4173050
-
+---
  src/cmd/godoc/godoc.go |  5 +++++
  src/cmd/godoc/main.go  | 10 ++++++++--
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 86d1719805..c91dc33dbb 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -896,6 +896,11 @@ type PageInfo struct {
+ }
+ 
+ 
++func (info *PageInfo) IsEmpty() bool {
++	return info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil
++}
++
++
+ type httpHandler struct {
+ 	pattern string // url pattern; e.g. "/pkg/"
+ 	fsRoot  string // file system root to which the pattern is mapped
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 145eeac346..ea1e3c42e1 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -217,6 +217,7 @@ func makeRx(names []string) (rx *regexp.Regexp) {
+ 	return
+ }
+ 
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+@@ -336,12 +337,17 @@ func main() {
+ 	//            if there are multiple packages in a directory.
+ 	info := pkgHandler.getPageInfo(abspath, relpath, "", mode)
+ 
+-	if info.Err != nil || info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
++	if info.IsEmpty() {
+ 		// try again, this time assume it's a command
+ 		if !pathutil.IsAbs(path) {
+ 			abspath = absolutePath(path, cmdHandler.fsRoot)
+ 		}
+-		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
++		cmdInfo := cmdHandler.getPageInfo(abspath, relpath, "", mode)
++		// only use the cmdInfo if it actually contains a result
++		// (don't hide errors reported from looking up a package)
++		if !cmdInfo.IsEmpty() {
++			info = cmdInfo
++		}
+ 	}
+ 	if info.Err != nil {
+ 		log.Fatalf("%v", info.Err)

@@ -9,6 +9,19 @@ Date:   Tue Aug 4 12:53:05 2015 -0700
     Change-Id: Ia20e2dcb61fde9ec854918b958c3897bafd282a6
     Reviewed-on: https://go-review.googlesource.com/13140
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/print.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 54d6f542b3..2f9db4438f 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -42,6 +42,7 @@ func fprintFunc(w io.Writer, f *Func) {
+ 				fmt.Fprintln(w, v.LongString())
+ 				printed[v.ID] = true
+ 			}
++			fmt.Fprintln(w, "    "+b.LongString())
+ 			continue
+ 		}
+ 

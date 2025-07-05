@@ -7,7 +7,7 @@ Date:   Wed Feb 24 17:06:40 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223044
-
+---
  src/pkg/go/parser/parser.go                     |  2 +-
  src/pkg/go/printer/testdata/declarations.golden | 42 +++++++++++++++++++++++++
  src/pkg/go/printer/testdata/declarations.input  | 42 +++++++++++++++++++++++++
@@ -15,3 +15,199 @@ Date:   Wed Feb 24 17:06:40 2010 -0800
  src/pkg/go/scanner/scanner_test.go              | 13 ++++++++
  src/pkg/go/token/token.go                       |  2 ++
  6 files changed, 106 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 48b9a63c2e..fd215f0d9e 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -959,7 +959,7 @@ func (p *parser) parseOperand() ast.Expr {
+ 	case token.IDENT:
+ 		return p.findIdent()
+ 
+-	case token.INT, token.FLOAT, token.CHAR, token.STRING:
++	case token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
+ 		x := &ast.BasicLit{p.pos, p.tok, p.lit}
+ 		p.next()
+ 		return x
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index b15e52ad64..beb110d87d 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -68,6 +68,48 @@ import _ "io"
+ var _ int
+ 
+ 
++// printing of constant literals
++const (
++	_	= "foobar"
++	_	= "a۰۱۸"
++	_	= "foo६४"
++	_	= "bar９８７６"
++	_	= 0
++	_	= 1
++	_	= 123456789012345678890
++	_	= 01234567
++	_	= 0xcafebabe
++	_	= 0.
++	_	= .0
++	_	= 3.14159265
++	_	= 1e0
++	_	= 1e+100
++	_	= 1e-100
++	_	= 2.71828e-1000
++	_	= 0i
++	_	= 1i
++	_	= 012345678901234567889i
++	_	= 123456789012345678890i
++	_	= 0.i
++	_	= .0i
++	_	= 3.14159265i
++	_	= 1e0i
++	_	= 1e+100i
++	_	= 1e-100i
++	_	= 2.71828e-1000i
++	_	= 'a'
++	_	= '\000'
++	_	= '\xFF'
++	_	= '\uff16'
++	_	= '\U0000ff16'
++	_	= `foobar`
++	_	= `foo
++---
++---
++bar`
++)
++
++
+ func _() {
+ 	// the following decls need a semicolon at the end
+ 	type _ int
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 1d1dc45f0c..c47be82b46 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -67,6 +67,48 @@ import _ "io"
+ var _ int
+ 
+ 
++// printing of constant literals
++const (
++	_ = "foobar"
++	_ = "a۰۱۸"
++	_ = "foo६४"
++	_ = "bar９８７６"
++	_ = 0
++	_ = 1
++	_ = 123456789012345678890
++	_ = 01234567
++	_ = 0xcafebabe
++	_ = 0.
++	_ = .0
++	_ = 3.14159265
++	_ = 1e0
++	_ = 1e+100
++	_ = 1e-100
++	_ = 2.71828e-1000
++	_ = 0i
++	_ = 1i
++	_ = 012345678901234567889i
++	_ = 123456789012345678890i
++	_ = 0.i
++	_ = .0i
++	_ = 3.14159265i
++	_ = 1e0i
++	_ = 1e+100i
++	_ = 1e-100i
++	_ = 2.71828e-1000i
++	_ = 'a'
++	_ = '\000'
++	_ = '\xFF'
++	_ = '\uff16'
++	_ = '\U0000ff16'
++	_ = `foobar`
++	_ = `foo
++---
++---
++bar`
++)
++
++
+ func _() {
+ 	// the following decls need a semicolon at the end
+ 	type _ int
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index b2e120179d..a59212011e 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -302,7 +302,7 @@ func (S *Scanner) scanNumber(pos token.Position, seenDecimalPoint bool) token.To
+ 				seenDecimalDigit = true
+ 				S.scanMantissa(10)
+ 			}
+-			if S.ch == '.' || S.ch == 'e' || S.ch == 'E' {
++			if S.ch == '.' || S.ch == 'e' || S.ch == 'E' || S.ch == 'i' {
+ 				goto fraction
+ 			}
+ 			// octal int
+@@ -333,6 +333,11 @@ exponent:
+ 		S.scanMantissa(10)
+ 	}
+ 
++	if S.ch == 'i' {
++		tok = token.IMAG
++		S.next()
++	}
++
+ exit:
+ 	return tok
+ }
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 762252488a..5a7828e68a 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -51,6 +51,8 @@ var tokens = [...]elt{
+ 	elt{token.IDENT, "foo६४", literal},
+ 	elt{token.IDENT, "bar９８７６", literal},
+ 	elt{token.INT, "0", literal},
++	elt{token.INT, "1", literal},
++	elt{token.INT, "123456789012345678890", literal},
+ 	elt{token.INT, "01234567", literal},
+ 	elt{token.INT, "0xcafebabe", literal},
+ 	elt{token.FLOAT, "0.", literal},
+@@ -60,6 +62,17 @@ var tokens = [...]elt{
+ 	elt{token.FLOAT, "1e+100", literal},
+ 	elt{token.FLOAT, "1e-100", literal},
+ 	elt{token.FLOAT, "2.71828e-1000", literal},
++	elt{token.IMAG, "0i", literal},
++	elt{token.IMAG, "1i", literal},
++	elt{token.IMAG, "012345678901234567889i", literal},
++	elt{token.IMAG, "123456789012345678890i", literal},
++	elt{token.IMAG, "0.i", literal},
++	elt{token.IMAG, ".0i", literal},
++	elt{token.IMAG, "3.14159265i", literal},
++	elt{token.IMAG, "1e0i", literal},
++	elt{token.IMAG, "1e+100i", literal},
++	elt{token.IMAG, "1e-100i", literal},
++	elt{token.IMAG, "2.71828e-1000i", literal},
+ 	elt{token.CHAR, "'a'", literal},
+ 	elt{token.CHAR, "'\\000'", literal},
+ 	elt{token.CHAR, "'\\xFF'", literal},
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index 95a35fed00..df4064c009 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -30,6 +30,7 @@ const (
+ 	IDENT  // main
+ 	INT    // 12345
+ 	FLOAT  // 123.45
++	IMAG   // 123.45i
+ 	CHAR   // 'a'
+ 	STRING // "abc"
+ 	literal_end
+@@ -140,6 +141,7 @@ var tokens = map[Token]string{
+ 	IDENT: "IDENT",
+ 	INT: "INT",
+ 	FLOAT: "FLOAT",
++	IMAG: "IMAG",
+ 	CHAR: "CHAR",
+ 	STRING: "STRING",
+ 

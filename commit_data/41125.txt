@@ -12,7 +12,44 @@ Date:   Fri Sep 6 17:55:35 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/gen.go  | 8 ++++----
  src/cmd/compile/internal/gc/walk.go | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 43d12925eb..929653ebbd 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -52,14 +52,14 @@ func autotmpname(n int) string {
+ // make a new Node off the books
+ func tempAt(pos src.XPos, curfn *Node, t *types.Type) *Node {
+ 	if curfn == nil {
+-		Fatalf("no curfn for tempname")
++		Fatalf("no curfn for tempAt")
+ 	}
+ 	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
+-		Dump("tempname", curfn)
+-		Fatalf("adding tempname to wrong closure function")
++		Dump("tempAt", curfn)
++		Fatalf("adding tempAt to wrong closure function")
+ 	}
+ 	if t == nil {
+-		Fatalf("tempname called with nil type")
++		Fatalf("tempAt called with nil type")
+ 	}
+ 
+ 	s := &types.Sym{
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1c445603d9..0062dddc6c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1753,7 +1753,7 @@ func walkCall(n *Node, init *Nodes) {
+ 			t = params.Field(i).Type
+ 		}
+ 		if instrumenting || fncall(arg, t) {
+-			// make assignment of fncall to tempname
++			// make assignment of fncall to tempAt
+ 			tmp := temp(t)
+ 			a := nod(OAS, tmp, arg)
+ 			a = convas(a, init)

@@ -20,7 +20,83 @@ Date:   Tue Aug 19 08:52:52 2014 +1000
     R=r, dan.kortschak
     CC=golang-codereviews
     https://golang.org/cl/129330043
-
+---
  src/pkg/fmt/fmt_test.go | 29 +++++++++++++++++++++++++++++
  src/pkg/fmt/print.go    | 10 ++++++++--
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 89227cce80..8c577949a1 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -108,6 +108,20 @@ func (p *P) String() string {
+ var barray = [5]renamedUint8{1, 2, 3, 4, 5}
+ var bslice = barray[:]
+ 
++type byteStringer byte
++
++func (byteStringer) String() string { return "X" }
++
++var byteStringerSlice = []byteStringer{97, 98, 99, 100}
++
++type byteFormatter byte
++
++func (byteFormatter) Format(f State, _ rune) {
++	Fprint(f, "X")
++}
++
++var byteFormatterSlice = []byteFormatter{97, 98, 99, 100}
++
+ var b byte
+ 
+ var fmtTests = []struct {
+@@ -629,6 +643,21 @@ var fmtTests = []struct {
+ 	{"%+010.2f", -104.66 + 440.51i, "(-000104.66+000440.51i)"},
+ 	{"%+010.2f", +104.66 - 440.51i, "(+000104.66-000440.51i)"},
+ 	{"%+010.2f", -104.66 - 440.51i, "(-000104.66-000440.51i)"},
++
++	// []T where type T is a byte with a Stringer method.
++	{"%v", byteStringerSlice, "[X X X X]"},
++	{"%s", byteStringerSlice, "abcd"},
++	{"%q", byteStringerSlice, "\"abcd\""},
++	{"%x", byteStringerSlice, "61626364"},
++	{"%#v", byteStringerSlice, "[]fmt_test.byteStringer{0x61, 0x62, 0x63, 0x64}"},
++
++	// And the same for Formatter.
++	{"%v", byteFormatterSlice, "[X X X X]"},
++	{"%s", byteFormatterSlice, "abcd"},
++	{"%q", byteFormatterSlice, "\"abcd\""},
++	{"%x", byteFormatterSlice, "61626364"},
++	// This next case seems wrong, but the docs say the Formatter wins here.
++	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X}"},
+ }
+ 
+ // zeroFill generates zero-filled strings of the specified width. The length
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 302661f4c8..679c577dbd 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -832,6 +832,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, plus, goSyntax bool, dep
+ 	return p.printReflectValue(value, verb, plus, goSyntax, depth)
+ }
+ 
++var byteType = reflect.TypeOf(byte(0))
++
+ // printReflectValue is the fallback for both printArg and printValue.
+ // It uses reflect to print the value.
+ func (p *pp) printReflectValue(value reflect.Value, verb rune, plus, goSyntax bool, depth int) (wasString bool) {
+@@ -925,8 +927,12 @@ BigSwitch:
+ 			wasString = p.printValue(value, verb, plus, goSyntax, depth+1)
+ 		}
+ 	case reflect.Array, reflect.Slice:
+-		// Byte slices are special.
+-		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 {
++		// Byte slices are special:
++		// - Handle []byte (== []uint8) with fmtBytes.
++		// - Handle []T, where T is a named byte type, with fmtBytes only
++		//   for the s, q, an x verbs. For other verbs, T might be a
++		//   Stringer, so we use printValue to print each element.
++		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 && (typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x') {
+ 			var bytes []byte
+ 			if f.Kind() == reflect.Slice {
+ 				bytes = f.Bytes()

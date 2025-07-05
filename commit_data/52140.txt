@@ -13,8 +13,56 @@ Date:   Sun Apr 10 09:12:43 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Eric Fang <eric.fang@arm.com>
-
+---
  src/cmd/internal/obj/arm64/asm7.go           |  2 +-
  src/cmd/internal/obj/arm64/asm_arm64_test.go | 11 +++++++++++
  src/cmd/internal/obj/arm64/asm_arm64_test.s  |  7 +++++++
  3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 72c4cd48ed..57d4e7a8d3 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3977,7 +3977,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if (o1&S64) == 0 && s >= 2 {
+ 			c.ctxt.Diag("illegal bit position\n%v", p)
+ 		}
+-		if ((d >> uint(s*16)) >> 16) != 0 {
++		if ((uint64(d) >> uint(s*16)) >> 16) != 0 {
+ 			c.ctxt.Diag("requires uimm16\n%v", p)
+ 		}
+ 		rt := int(p.To.Reg)
+diff --git a/src/cmd/internal/obj/arm64/asm_arm64_test.go b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+index c6a00f5b94..f468b6b0fe 100644
+--- a/src/cmd/internal/obj/arm64/asm_arm64_test.go
++++ b/src/cmd/internal/obj/arm64/asm_arm64_test.go
+@@ -160,3 +160,14 @@ func TestVMOVQ(t *testing.T) {
+ 		t.Errorf("TestVMOVQ got: a=0x%x, b=0x%x, want: a=0x7040201008040201, b=0x3040201008040201", a, b)
+ 	}
+ }
++
++func testmovk() uint64
++
++// TestMOVK makes sure MOVK with a very large constant works. See issue 52261.
++func TestMOVK(t *testing.T) {
++	x := testmovk()
++	want := uint64(40000 << 48)
++	if x != want {
++		t.Errorf("TestMOVK got %x want %x\n", x, want)
++	}
++}
+diff --git a/src/cmd/internal/obj/arm64/asm_arm64_test.s b/src/cmd/internal/obj/arm64/asm_arm64_test.s
+index 9d337a4fd1..f85433c6e3 100644
+--- a/src/cmd/internal/obj/arm64/asm_arm64_test.s
++++ b/src/cmd/internal/obj/arm64/asm_arm64_test.s
+@@ -12,3 +12,10 @@ TEXT ·testvmovq(SB), NOSPLIT, $0-16
+ 	MOVD    R0, r1+0(FP)
+ 	MOVD    R1, r2+8(FP)
+ 	RET
++
++// testmovk() uint64
++TEXT ·testmovk(SB), NOSPLIT, $0-8
++	MOVD	$0, R0
++	MOVK	$(40000<<48), R0
++	MOVD	R0, ret+0(FP)
++	RET

@@ -11,7 +11,7 @@ Date:   Sun Apr 3 12:43:27 2016 +0100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcshared/test.bash                   | 2 +-
  misc/cgo/testshared/shared_test.go               | 2 +-
  src/cmd/compile/internal/gc/cgen.go              | 2 +-
@@ -37,3 +37,379 @@ Date:   Sun Apr 3 12:43:27 2016 +0100
  src/vendor/golang.org/x/net/http2/hpack/hpack.go | 2 +-
  test/ken/embed.go                                | 2 +-
  24 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/misc/cgo/testcshared/test.bash b/misc/cgo/testcshared/test.bash
+index c5c49a10e1..e4bb7d33f9 100755
+--- a/misc/cgo/testcshared/test.bash
++++ b/misc/cgo/testcshared/test.bash
+@@ -18,7 +18,7 @@ goos=$(go env GOOS)
+ goarch=$(go env GOARCH)
+ goroot=$(go env GOROOT)
+ if [ ! -d "$goroot" ]; then
+-	echo 'misc/cgo/testcshared/test.bash cannnot find GOROOT' 1>&2
++	echo 'misc/cgo/testcshared/test.bash cannot find GOROOT' 1>&2
+ 	echo '$GOROOT:' "$GOROOT" 1>&2
+ 	echo 'go env GOROOT:' "$goroot" 1>&2
+ 	exit 1
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 30b00d5930..abe831a324 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -732,7 +732,7 @@ func TestABIChecking(t *testing.T) {
+ 	// If we make an ABI-breaking change to dep and rebuild libp.so but not exe,
+ 	// exe will abort with a complaint on startup.
+ 	// This assumes adding an exported function breaks ABI, which is not true in
+-	// some senses but suffices for the narrow definition of ABI compatiblity the
++	// some senses but suffices for the narrow definition of ABI compatibility the
+ 	// toolchain uses today.
+ 	resetFileStamps()
+ 	appendFile("src/dep/dep.go", "func ABIBreak() {}\n")
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index a1904404e9..4b2bf456b1 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -116,7 +116,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 				return
+ 			}
+ 
+-			f := true // gen thru register
++			f := true // gen through register
+ 			switch n.Op {
+ 			case OLITERAL:
+ 				if Smallintconst(n) {
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 95dc898924..5c9a67c8b5 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -10,7 +10,7 @@ import (
+ 	"strings"
+ )
+ 
+-// IntLiteral returns the Node's literal value as an interger.
++// IntLiteral returns the Node's literal value as an integer.
+ func (n *Node) IntLiteral() (x int64, ok bool) {
+ 	switch {
+ 	case n == nil:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6fb6c3926c..bfac175975 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4128,7 +4128,7 @@ func fieldIdx(n *Node) int {
+ 	}
+ 	panic(fmt.Sprintf("can't find field in expr %s\n", n))
+ 
+-	// TODO: keep the result of this fucntion somewhere in the ODOT Node
++	// TODO: keep the result of this function somewhere in the ODOT Node
+ 	// so we don't have to recompute it each time we need it.
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index cbf284c8f1..3b08b13508 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -389,7 +389,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		}
+ 		stat = append(stat, n.Nbody.Slice()...)
+ 
+-		// botch - shouldn't fall thru declaration
++		// botch - shouldn't fall through declaration
+ 		last := stat[len(stat)-1]
+ 		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
+ 			if typeswvar != nil {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 77e6c4e1c0..b7edae5af4 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1825,7 +1825,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
+ 			// special case --
+ 			// only if we are assigning a single ddd
+ 			// argument to a ddd parameter then it is
+-			// passed thru unencapsulated
++			// passed through unencapsulated
+ 			if r != nil && len(lr) <= 1 && isddd && Eqtype(l.Type, r.Type) {
+ 				a := Nod(OAS, nodarg(l, fp), r)
+ 				a = convas(a, init)
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index d4dccda058..0fffcdc2af 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -268,7 +268,7 @@ func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linked
+ 		idom[v] = fromID[bucket[0]]
+ 	}
+ 
+-	// Step 4. Explictly define the immediate dominator of each vertex,
++	// Step 4. Explicitly define the immediate dominator of each vertex,
+ 	// carrying out the computation vertex by vertex in increasing order by
+ 	// number.
+ 	for i := 1; i < maxBlockID-1; i++ {
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index 0328655b6a..9741edf331 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -67,7 +67,7 @@ func genFwdBack(size int) []bloc {
+ 	return blocs
+ }
+ 
+-// genManyPred creates an array of blocks where 1/3rd have a sucessor of the
++// genManyPred creates an array of blocks where 1/3rd have a successor of the
+ // first block, 1/3rd the last block, and the remaining third are plain.
+ func genManyPred(size int) []bloc {
+ 	var blocs []bloc
+@@ -80,7 +80,7 @@ func genManyPred(size int) []bloc {
+ 	)
+ 
+ 	// We want predecessor lists to be long, so 2/3rds of the blocks have a
+-	// sucessor of the first or last block.
++	// successor of the first or last block.
+ 	for i := 0; i < size; i++ {
+ 		switch i % 3 {
+ 		case 0:
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 7fbb48a7fc..17486ac49f 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -122,7 +122,7 @@ nextb:
+ 			max = w
+ 		}
+ 
+-		// We can only guarantee that the loops runs withing limits of induction variable
++		// We can only guarantee that the loops runs within limits of induction variable
+ 		// if the increment is 1 or when the limits are constants.
+ 		if inc.AuxInt != 1 {
+ 			ok := false
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 2d1dbc6f3e..d1f38b6951 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -97,7 +97,7 @@ func TestNilcheckSimple(t *testing.T) {
+ 	}
+ }
+ 
+-// TestNilcheckDomOrder ensures that the nil check elimination isn't dependant
++// TestNilcheckDomOrder ensures that the nil check elimination isn't dependent
+ // on the order of the dominees.
+ func TestNilcheckDomOrder(t *testing.T) {
+ 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 2bda780d02..a12a996263 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -44,7 +44,7 @@ const (
+ 
+ // domain represents the domain of a variable pair in which a set
+ // of relations is known.  For example, relations learned for unsigned
+-// pairs cannot be transfered to signed pairs because the same bit
++// pairs cannot be transferred to signed pairs because the same bit
+ // representation can mean something else.
+ type domain uint
+ 
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index d64f4cbce1..5434661384 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -217,7 +217,7 @@ type FuncData struct {
+ type Package struct {
+ 	ImportPath string   // import path denoting this package
+ 	Imports    []string // packages imported by this package
+-	SymRefs    []SymID  // list of symbol names and versions refered to by this pack
++	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
+ 	Syms       []*Sym   // symbols defined by this package
+ 	MaxVersion int      // maximum Version in any SymID in Syms
+ }
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index e372ac8a00..b3de44c029 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -510,7 +510,7 @@ loop:
+ 				r = ctxt.NewProg()
+ 				*r = *p
+ 				if !(r.Mark&FOLL != 0) {
+-					fmt.Printf("cant happen 1\n")
++					fmt.Printf("can't happen 1\n")
+ 				}
+ 				r.Mark |= FOLL
+ 				if p != q {
+@@ -536,7 +536,7 @@ loop:
+ 					xfol(ctxt, r.Link, last)
+ 				}
+ 				if !(r.Pcond.Mark&FOLL != 0) {
+-					fmt.Printf("cant happen 2\n")
++					fmt.Printf("can't happen 2\n")
+ 				}
+ 				return
+ 			}
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index 2ea5aa261d..ca7d4465c9 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -1229,7 +1229,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
+ 			s.used.ireg |= 1 << uint(c-REG_R0)
+ 		}
+ 	}
+-	s.set.ireg &^= (1 << (REGZERO - REG_R0)) /* R0 cant be set */
++	s.set.ireg &^= (1 << (REGZERO - REG_R0)) /* R0 can't be set */
+ }
+ 
+ /*
+@@ -1400,7 +1400,7 @@ loop:
+ 				r = ctxt.NewProg()
+ 				*r = *p
+ 				if r.Mark&FOLL == 0 {
+-					fmt.Printf("cant happen 1\n")
++					fmt.Printf("can't happen 1\n")
+ 				}
+ 				r.Mark |= FOLL
+ 				if p != q {
+@@ -1425,7 +1425,7 @@ loop:
+ 					xfol(ctxt, r.Link, last)
+ 				}
+ 				if r.Pcond.Mark&FOLL == 0 {
+-					fmt.Printf("cant happen 2\n")
++					fmt.Printf("can't happen 2\n")
+ 				}
+ 				return
+ 			}
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 5010873ef7..0497d3b678 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1906,7 +1906,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 22: /* add $lcon,r1,r2 ==> cau+or+add */ /* could do add/sub more efficiently */
+ 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
+-			ctxt.Diag("cant synthesize large constant\n%v", p)
++			ctxt.Diag("can't synthesize large constant\n%v", p)
+ 		}
+ 		d := vregoff(ctxt, &p.From)
+ 		o1 = loadu32(REGTMP, d)
+@@ -1924,7 +1924,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 23: /* and $lcon,r1,r2 ==> cau+or+and */ /* masks could be done using rlnm etc. */
+ 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
+-			ctxt.Diag("cant synthesize large constant\n%v", p)
++			ctxt.Diag("can't synthesize large constant\n%v", p)
+ 		}
+ 		d := vregoff(ctxt, &p.From)
+ 		o1 = loadu32(REGTMP, d)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 445cca1924..483df3a2b3 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -1115,7 +1115,7 @@ loop:
+ 				r = ctxt.NewProg()
+ 				*r = *p
+ 				if r.Mark&FOLL == 0 {
+-					fmt.Printf("cant happen 1\n")
++					fmt.Printf("can't happen 1\n")
+ 				}
+ 				r.Mark |= FOLL
+ 				if p != q {
+@@ -1137,7 +1137,7 @@ loop:
+ 					xfol(ctxt, r.Link, last)
+ 				}
+ 				if r.Pcond.Mark&FOLL == 0 {
+-					fmt.Printf("cant happen 2\n")
++					fmt.Printf("can't happen 2\n")
+ 				}
+ 				return
+ 			}
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 8b8edb520a..239deec6a1 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -916,7 +916,7 @@ func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+ 					r = ctxt.NewProg()
+ 					*r = *p
+ 					if r.Mark&FOLL == 0 {
+-						fmt.Printf("cant happen 1\n")
++						fmt.Printf("can't happen 1\n")
+ 					}
+ 					r.Mark |= FOLL
+ 					if p != q {
+@@ -942,7 +942,7 @@ func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
+ 						xfol(ctxt, r.Link, last)
+ 					}
+ 					if r.Pcond.Mark&FOLL == 0 {
+-						fmt.Printf("cant happen 2\n")
++						fmt.Printf("can't happen 2\n")
+ 					}
+ 					return
+ 				}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index e1badc2a48..56c4370bcc 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -14,7 +14,7 @@ import (
+ // deadcode marks all reachable symbols.
+ //
+ // The basis of the dead code elimination is a flood fill of symbols,
+-// following their relocations, begining at INITENTRY.
++// following their relocations, beginning at INITENTRY.
+ //
+ // This flood fill is wrapped in logic for pruning unused methods.
+ // All methods are mentioned by relocations on their receiver's *rtype.
+diff --git a/src/crypto/elliptic/p256_amd64.go b/src/crypto/elliptic/p256_amd64.go
+index 586cd10c4f..e96933e0c5 100644
+--- a/src/crypto/elliptic/p256_amd64.go
++++ b/src/crypto/elliptic/p256_amd64.go
+@@ -66,7 +66,7 @@ func p256NegCond(val []uint64, cond int)
+ // if cond == 0 res <- b; else res <- a
+ func p256MovCond(res, a, b []uint64, cond int)
+ 
+-// Endianess swap
++// Endianness swap
+ func p256BigToLittle(res []uint64, in []byte)
+ func p256LittleToBig(res []byte, in []uint64)
+ 
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index d30e60afce..af881c2495 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -1285,7 +1285,7 @@ const (
+ 	R_MIPS_LITERAL       R_MIPS = 8  /* Reference to literal section  */
+ 	R_MIPS_GOT16         R_MIPS = 9  /* Reference to global offset table */
+ 	R_MIPS_PC16          R_MIPS = 10 /* 16 bit PC relative reference */
+-	R_MIPS_CALL16        R_MIPS = 11 /* 16 bit call thru glbl offset tbl */
++	R_MIPS_CALL16        R_MIPS = 11 /* 16 bit call through glbl offset tbl */
+ 	R_MIPS_GPREL32       R_MIPS = 12
+ 	R_MIPS_SHIFT5        R_MIPS = 16
+ 	R_MIPS_SHIFT6        R_MIPS = 17
+diff --git a/src/runtime/signal_solaris.go b/src/runtime/signal_solaris.go
+index 2cab5b8239..a86f7bf6b4 100644
+--- a/src/runtime/signal_solaris.go
++++ b/src/runtime/signal_solaris.go
+@@ -32,7 +32,7 @@ var sigtable = [...]sigTabT{
+ 	/* 19 */ {_SigNotify, "SIGPWR: power-fail restart"},
+ 	/* 20 */ {_SigNotify, "SIGWINCH: window size change"},
+ 	/* 21 */ {_SigNotify, "SIGURG: urgent socket condition"},
+-	/* 22 */ {_SigNotify, "SIGPOLL: pollable event occured"},
++	/* 22 */ {_SigNotify, "SIGPOLL: pollable event occurred"},
+ 	/* 23 */ {_SigNotify + _SigDefault, "SIGSTOP: stop (cannot be caught or ignored)"},
+ 	/* 24 */ {_SigNotify + _SigDefault, "SIGTSTP: user stop requested from tty"},
+ 	/* 25 */ {_SigNotify + _SigDefault, "SIGCONT: stopped process has been continued"},
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/hpack.go b/src/vendor/golang.org/x/net/http2/hpack/hpack.go
+index dcf257afa4..8aa197ad67 100644
+--- a/src/vendor/golang.org/x/net/http2/hpack/hpack.go
++++ b/src/vendor/golang.org/x/net/http2/hpack/hpack.go
+@@ -43,7 +43,7 @@ type HeaderField struct {
+ 
+ // IsPseudo reports whether the header field is an http2 pseudo header.
+ // That is, it reports whether it starts with a colon.
+-// It is not otherwise guaranteed to be a valid psuedo header field,
++// It is not otherwise guaranteed to be a valid pseudo header field,
+ // though.
+ func (hf HeaderField) IsPseudo() bool {
+ 	return len(hf.Name) != 0 && hf.Name[0] == ':'
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index 9b35c56acf..f7ca0665e2 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -253,7 +253,7 @@ func main() {
+ 		panic("fail")
+ 	}
+ 
+-	// run it thru an interface
++	// run it through an interface
+ 	i = s
+ 	s = i.(*S)
+ 

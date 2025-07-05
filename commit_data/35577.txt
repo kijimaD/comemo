@@ -38,7 +38,62 @@ Date:   Mon Feb 19 16:10:58 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go | 11 +++++++++++
  src/runtime/mheap.go  |  9 +++++----
  2 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index a44dcd8c9d..b6e3337d67 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -214,6 +214,17 @@ const (
+ 
+ 	pagesPerArena = heapArenaBytes / pageSize
+ 
++	// arenaBaseOffset is the pointer value that corresponds to
++	// index 0 in the heap arena index.
++	//
++	// On amd64, the address space is 48 bits, sign extended to 64
++	// bits. This offset lets us handle "negative" addresses (or
++	// high addresses if viewed as unsigned).
++	//
++	// On other platforms, the user address space is contiguous
++	// and starts at 0, so no offset is necessary.
++	arenaBaseOffset uintptr = sys.GoarchAmd64 * (1 << 47)
++
+ 	// Max number of threads to run garbage collection.
+ 	// 2, 3, and 4 are all plausible maximums depending
+ 	// on the hardware details of the machine. The garbage
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 88fcbdda6e..78cf2c8df9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -96,8 +96,9 @@ type mheap struct {
+ 	nlargefree  uint64                  // number of frees for large objects (>maxsmallsize)
+ 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
+ 
+-	// arenas is the heap arena index. arenas[va/heapArenaBytes]
+-	// points to the metadata for the heap arena containing va.
++	// arenas is the heap arena index.
++	// arenas[(va+arenaBaseOffset)/heapArenaBytes] points to the
++	// metadata for the heap arena containing va.
+ 	//
+ 	// Use arenaIndex to compute indexes into this array.
+ 	//
+@@ -418,13 +419,13 @@ func (sc spanClass) noscan() bool {
+ //
+ //go:nosplit
+ func arenaIndex(p uintptr) uint {
+-	return uint(p / heapArenaBytes)
++	return uint((p + arenaBaseOffset) / heapArenaBytes)
+ }
+ 
+ // arenaBase returns the low address of the region covered by heap
+ // arena i.
+ func arenaBase(i uint) uintptr {
+-	return uintptr(i) * heapArenaBytes
++	return uintptr(i)*heapArenaBytes - arenaBaseOffset
+ }
+ 
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.

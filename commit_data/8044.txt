@@ -7,7 +7,32 @@ Date:   Mon Apr 11 10:20:42 2011 -0400
     R=agl1
     CC=golang-dev
     https://golang.org/cl/4367051
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 080d81de9c..0ce499f410 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -84,6 +84,7 @@ Kevin Ballard <kevin@sb.org>
+ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net>
+ Lorenzo Stoakes <lstoakes@gmail.com>
++Luit van Drongelen <luitvd@gmail.com>
+ Markus Duft <markus.duft@salomon.at>
+ Martin Neubauer <m.ne@gmx.net>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 3d614e0da8..e8e428cbfd 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -131,6 +131,7 @@ Kyle Consalus <consalus@gmail.com>
+ Kyle Lemons <kyle@kylelemons.net> <etherealflaim@gmail.com>
+ Larry Hosken <lahosken@golang.org>
+ Lorenzo Stoakes <lstoakes@gmail.com>
++Luit van Drongelen <luitvd@gmail.com>
+ Luuk van Dijk <lvd@golang.org> <lvd@google.com>
+ Mark Zavislak <zavislak@google.com>
+ Markus Duft <markus.duft@salomon.at>

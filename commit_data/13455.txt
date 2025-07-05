@@ -18,9 +18,137 @@ Date:   Tue Jul 10 18:23:30 2012 -0400
     R=golang-dev, bradfitz, r, r
     CC=golang-dev
     https://golang.org/cl/6348074
-
+---
  src/pkg/crypto/x509/x509_test.go      |  2 +-
  src/pkg/encoding/asn1/common.go       |  2 ++
  src/pkg/encoding/asn1/marshal.go      | 38 +++++++++++++++++++++++++++++------
  src/pkg/encoding/asn1/marshal_test.go |  8 ++++++++
  4 files changed, 43 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 46d04dc999..813a96409b 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -251,7 +251,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		SerialNumber: big.NewInt(1),
+ 		Subject: pkix.Name{
+ 			CommonName:   commonName,
+-			Organization: []string{"Acme Co"},
++			Organization: []string{"Σ Acme Co"},
+ 		},
+ 		NotBefore: time.Unix(1000, 0),
+ 		NotAfter:  time.Unix(100000, 0),
+diff --git a/src/pkg/encoding/asn1/common.go b/src/pkg/encoding/asn1/common.go
+index 03856bc55c..33a117ece1 100644
+--- a/src/pkg/encoding/asn1/common.go
++++ b/src/pkg/encoding/asn1/common.go
+@@ -98,6 +98,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
+ 			ret.stringType = tagIA5String
+ 		case part == "printable":
+ 			ret.stringType = tagPrintableString
++		case part == "utf8":
++			ret.stringType = tagUTF8String
+ 		case strings.HasPrefix(part, "default:"):
+ 			i, err := strconv.ParseInt(part[8:], 10, 64)
+ 			if err == nil {
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index 163bca575d..3fd6be8ad9 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -6,11 +6,13 @@ package asn1
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"math/big"
+ 	"reflect"
+ 	"time"
++	"unicode/utf8"
+ )
+ 
+ // A forkableWriter is an in-memory buffer that can be
+@@ -280,6 +282,11 @@ func marshalIA5String(out *forkableWriter, s string) (err error) {
+ 	return
+ }
+ 
++func marshalUTF8String(out *forkableWriter, s string) (err error) {
++	_, err = out.Write([]byte(s))
++	return
++}
++
+ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
+ 	err = out.WriteByte(byte('0' + (v/10)%10))
+ 	if err != nil {
+@@ -446,10 +453,13 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		}
+ 		return
+ 	case reflect.String:
+-		if params.stringType == tagIA5String {
++		switch params.stringType {
++		case tagIA5String:
+ 			return marshalIA5String(out, v.String())
+-		} else {
++		case tagPrintableString:
+ 			return marshalPrintableString(out, v.String())
++		default:
++			return marshalUTF8String(out, v.String())
+ 		}
+ 		return
+ 	}
+@@ -492,11 +502,27 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 	}
+ 	class := classUniversal
+ 
+-	if params.stringType != 0 {
+-		if tag != tagPrintableString {
+-			return StructuralError{"Explicit string type given to non-string member"}
++	if params.stringType != 0 && tag != tagPrintableString {
++		return StructuralError{"Explicit string type given to non-string member"}
++	}
++
++	if tag == tagPrintableString {
++		if params.stringType == 0 {
++			// This is a string without an explicit string type. We'll use
++			// a PrintableString if the character set in the string is
++			// sufficiently limited, otherwise we'll use a UTF8String.
++			for _, r := range v.String() {
++				if r >= utf8.RuneSelf || !isPrintable(byte(r)) {
++					if !utf8.ValidString(v.String()) {
++						return errors.New("asn1: string not valid UTF-8")
++					}
++					tag = tagUTF8String
++					break
++				}
++			}
++		} else {
++			tag = params.stringType
+ 		}
+-		tag = params.stringType
+ 	}
+ 
+ 	if params.set {
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index f43bcae681..c203533a91 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -122,6 +122,7 @@ var marshalTests = []marshalTest{
+ 	{testSET([]int{10}), "310302010a"},
+ 	{omitEmptyTest{[]string{}}, "3000"},
+ 	{omitEmptyTest{[]string{"1"}}, "30053003130131"},
++	{"Σ", "0c02cea3"},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+@@ -137,3 +138,10 @@ func TestMarshal(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestInvalidUTF8(t *testing.T) {
++	_, err := Marshal(string([]byte{0xff, 0xff}))
++	if err == nil {
++		t.Errorf("invalid UTF8 string was accepted")
++	}
++}

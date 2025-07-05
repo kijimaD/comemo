@@ -8,6 +8,111 @@ Date:   Sat May 17 06:54:05 2014 +0900
     R=golang-codereviews, aram, 0intro, gobot, r
     CC=golang-codereviews
     https://golang.org/cl/100490044
-
+---
  doc/go1.3.html | 65 ++++++++++++++++++++++++++++++++++++----------------------
  1 file changed, 41 insertions(+), 24 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index c7f0d43e03..5a6c4231a6 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -14,7 +14,7 @@ precise garbage collection,
+ a major refactoring of the compiler tool chain that results in
+ faster builds, especially for large projects,
+ significant performance improvements across the board,
+-and support for Solaris, Plan 9 and Google's Native Client architecture (NaCl).
++and support for DragonFly BSD, Solaris, Plan 9 and Google's Native Client architecture (NaCl).
+ It also has an important refinement to the memory model regarding synchronization.
+ As always, Go 1.3 keeps the <a href="/doc/go1compat.html">promise
+ of compatibility</a>,
+@@ -24,6 +24,38 @@ will continue to compile and run without change when moved to 1.3.
+ 
+ <h2 id="os">Changes to the supported operating systems and architectures</h2>
+ 
++<h3 id="win2000">Removal of support for Windows 2000</h3>
++
++<p>
++Microsoft stopped supporting Windows 2000 in 2010.
++Since it has <a href="https://codereview.appspot.com/74790043">implementation difficulties</a>
++regarding exception handling (signals in Unix terminology),
++as of Go 1.3 it is not supported by Go either.
++</p>
++
++<h3 id="dragonfly">Support for DragonFly BSD</h3>
++
++<p>
++Go 1.3 now includes experimental support for DragonFly BSD on the <code>amd64</code> (64-bit x86) and <code>386</code> (32-bit x86) architectures. It uses DragonFly BSD 3.6 or above.
++</p>
++
++<h3 id="freebsd">Support for FreeBSD</h3>
++
++<p>
++It was not announced at the time, but since the release of Go 1.2, support for Go on FreeBSD
++requires FreeBSD 8 or above.
++</p>
++
++<p>
++As of Go 1.3, support for Go on FreeBSD requires that the kernel be compiled with the
++<code>COMPAT_FREEBSD32</code> flag configured.
++</p>
++
++<p>
++In concert with the switch to EABI syscalls for ARM platforms, Go 1.3 will run only on
++FreeBSD 10. The x86 platforms, 386 and amd64, are unaffected.
++</p>
++
+ <h3 id="nacl">Support for Native Client</h3>
+ 
+ <p>
+@@ -36,43 +68,28 @@ Details about Native Client are <a href="https://developers.google.com/native-cl
+ how to set up the Go version is described <a href="http://golang.org/wiki/NativeClient">here</a>.
+ </p>
+ 
+-<h3 id="solaris">Support for Solaris</h3>
++<h3 id="netbsd">Support for NetBSD</h3>
+ 
+ <p>
+-Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture.
++As of Go 1.3, support for Go on NetBSD requires NetBSD 6.0 or above.
+ </p>
+ 
+-<h3 id="plan9">Support for Plan 9</h3>
++<h3 id="openbsd">Support for OpenBSD</h3>
+ 
+ <p>
+-Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-bit x86) architecture.
+-</p>
+-
+-<h3 id="win2000">Removal of support for Windows 2000</h3>
+-
+-<p>
+-Microsoft stopped supporting Windows 2000 in 2010.
+-Since it has <a href="https://codereview.appspot.com/74790043">implementation difficulties</a>
+-regarding exception handling (signals in Unix terminology),
+-as of Go 1.3 it is not supported by Go either.
++As of Go 1.3, support for Go on NetBSD requires OpenBSD 5.5 or above.
+ </p>
+ 
+-
+-<h3 id="freebsd">Support for FreeBSD</h3>
++<h3 id="plan9">Support for Plan 9</h3>
+ 
+ <p>
+-It was not announced at the time, but since the release of Go 1.2, support for Go on FreeBSD
+-requires FreeBSD 8 or above.
++Go 1.3 now includes experimental support for Plan 9 on the <code>386</code> (32-bit x86) architecture. It requires the <code>Tsemacquire</code> syscall, which has been in Plan 9 since June, 2012.
+ </p>
+ 
+-<p>
+-As of Go 1.3, support for Go on FreeBSD requires that the kernel be compiled with the
+-<code>COMPAT_FREEBSD32</code> flag configured.
+-</p>
++<h3 id="solaris">Support for Solaris</h3>
+ 
+ <p>
+-In concert with the switch to EABI syscalls for ARM platforms, Go 1.3 will run only on
+-FreeBSD 10. The x86 platforms, 386 and amd64, are unaffected.
++Go 1.3 now includes experimental support for Solaris on the <code>amd64</code> (64-bit x86) architecture. It uses illumos, equivalent to Solaris 11 or above.
+ </p>
+ 
+ <h2 id="memory">Changes to the memory model</h2>

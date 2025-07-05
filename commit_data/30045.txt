@@ -21,7 +21,58 @@ Date:   Sat Oct 22 15:43:23 2016 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 +++-
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 24 ++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 65d85c4231..08916dedef 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -631,7 +631,9 @@
+ (CMPB x (MOVLconst [c])) -> (CMPBconst x [int64(int8(c))])
+ (CMPB (MOVLconst [c]) x) -> (InvertFlags (CMPBconst x [int64(int8(c))]))
+ 
+-// Using MOVBQZX instead of ANDQ is cheaper.
++// Using MOVZX instead of AND is cheaper.
++(ANDLconst [0xFF] x) -> (MOVBQZX x)
++(ANDLconst [0xFFFF] x) -> (MOVWQZX x)
+ (ANDQconst [0xFF] x) -> (MOVBQZX x)
+ (ANDQconst [0xFFFF] x) -> (MOVWQZX x)
+ (ANDQconst [0xFFFFFFFF] x) -> (MOVLQZX x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index f36a5aa439..86c65382cf 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1409,6 +1409,30 @@ func rewriteValueAMD64_OpAMD64ANDLconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ANDLconst [0xFF] x)
++	// cond:
++	// result: (MOVBQZX x)
++	for {
++		if v.AuxInt != 0xFF {
++			break
++		}
++		x := v.Args[0]
++		v.reset(OpAMD64MOVBQZX)
++		v.AddArg(x)
++		return true
++	}
++	// match: (ANDLconst [0xFFFF] x)
++	// cond:
++	// result: (MOVWQZX x)
++	for {
++		if v.AuxInt != 0xFFFF {
++			break
++		}
++		x := v.Args[0]
++		v.reset(OpAMD64MOVWQZX)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ANDLconst [c] _)
+ 	// cond: int32(c)==0
+ 	// result: (MOVLconst [0])

@@ -9,6 +9,22 @@ Date:   Mon May 16 12:36:02 2016 -0700
     Change-Id: Ib9e97509f5ac239ee54fe6fe37152a7f5fc75087
     Reviewed-on: https://go-review.googlesource.com/23109
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/json/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 8b967471ce..f91a78724c 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -119,8 +119,8 @@ import (
+ //
+ // Map values encode as JSON objects. The map's key type must either be a
+ // string, an integer type, or implement encoding.TextMarshaler. The map keys
+-// are used as JSON object keys by applying the following rules, subject to the
+-// UTF-8 coercion described for string values above:
++// are sorted and used as JSON object keys by applying the following rules,
++// subject to the UTF-8 coercion described for string values above:
+ //   - string keys are used directly
+ //   - encoding.TextMarshalers are marshaled
+ //   - integer keys are converted to strings

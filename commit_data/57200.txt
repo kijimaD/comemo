@@ -9,6 +9,20 @@ Date:   Fri Jul 14 08:23:18 2023 -0400
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/log/slog/handler.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 8398b928c1..a73983cda3 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -253,6 +253,8 @@ func (h *commonHandler) withGroup(name string) *commonHandler {
+ 	return h2
+ }
+ 
++// handle is the internal implementation of Handler.Handle
++// used by TextHandler and JSONHandler.
+ func (h *commonHandler) handle(r Record) error {
+ 	state := h.newHandleState(buffer.New(), true, "")
+ 	defer state.free()

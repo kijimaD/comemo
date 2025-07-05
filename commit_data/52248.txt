@@ -19,7 +19,78 @@ Date:   Wed Apr 20 12:24:09 2022 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/stackcheck.go      |  2 +-
  src/cmd/link/internal/ld/stackcheck_test.go | 19 +++++++++----------
  2 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/stackcheck.go b/src/cmd/link/internal/ld/stackcheck.go
+index 520e4d67b5..f0e1367068 100644
+--- a/src/cmd/link/internal/ld/stackcheck.go
++++ b/src/cmd/link/internal/ld/stackcheck.go
+@@ -101,7 +101,7 @@ func (ctxt *Link) doStackCheck() {
+ 		// the same function multiple times at different
+ 		// depths, but lets us find all paths.
+ 		for _, root := range roots {
+-			ctxt.Errorf(root, "nosplit stack overflow")
++			ctxt.Errorf(root, "nosplit stack over %d byte limit", limit)
+ 			chain := []stackCheckChain{{stackCheckEdge{0, root}, false}}
+ 			sc.report(root, limit, &chain)
+ 		}
+diff --git a/src/cmd/link/internal/ld/stackcheck_test.go b/src/cmd/link/internal/ld/stackcheck_test.go
+index 21dbf2b3fd..2089badbe9 100644
+--- a/src/cmd/link/internal/ld/stackcheck_test.go
++++ b/src/cmd/link/internal/ld/stackcheck_test.go
+@@ -5,13 +5,12 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/objabi"
+-	"cmd/internal/sys"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"regexp"
++	"strconv"
+ 	"testing"
+ )
+ 
+@@ -24,7 +23,7 @@ func TestStackCheckOutput(t *testing.T) {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", os.DevNull, "./testdata/stackcheck")
+ 	// The rules for computing frame sizes on all of the
+ 	// architectures are complicated, so just do this on amd64.
+-	cmd.Env = append(os.Environ(), "GOARCH=amd64")
++	cmd.Env = append(os.Environ(), "GOARCH=amd64", "GOOS=linux")
+ 	outB, err := cmd.CombinedOutput()
+ 
+ 	if err == nil {
+@@ -34,13 +33,13 @@ func TestStackCheckOutput(t *testing.T) {
+ 
+ 	t.Logf("linker output:\n%s", out)
+ 
+-	// Construct expected stanzas
+-	arch := sys.ArchAMD64
+-	call := 0
+-	if !arch.HasLR {
+-		call = arch.RegSize
++	// Get expected limit.
++	limitRe := regexp.MustCompile("nosplit stack over ([0-9]+) byte limit")
++	m := limitRe.FindStringSubmatch(out)
++	if m == nil {
++		t.Fatalf("no overflow errors in output")
+ 	}
+-	limit := objabi.StackLimit - call
++	limit, _ := strconv.Atoi(m[1])
+ 
+ 	wantMap := map[string]string{
+ 		"main.startSelf": fmt.Sprintf(
+@@ -67,7 +66,7 @@ func TestStackCheckOutput(t *testing.T) {
+ 	}
+ 
+ 	// Parse stanzas
+-	stanza := regexp.MustCompile(`^(.*): nosplit stack overflow\n(.*\n(?: .*\n)*)`)
++	stanza := regexp.MustCompile(`^(.*): nosplit stack over [0-9]+ byte limit\n(.*\n(?: .*\n)*)`)
+ 	// Strip comments from cmd/go
+ 	out = regexp.MustCompile(`(?m)^#.*\n`).ReplaceAllString(out, "")
+ 	for len(out) > 0 {

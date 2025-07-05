@@ -8,7 +8,42 @@ Date:   Mon Oct 4 11:57:48 2010 +0200
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/2305043
-
+---
  src/pkg/fmt/fmt_test.go | 3 +++
  src/pkg/fmt/print.go    | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index c8775ba3f2..f0d6a9c970 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -317,6 +317,8 @@ var fmttests = []fmtTest{
+ 	// slices with other formats
+ 	fmtTest{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
+ 	fmtTest{"%x", []int{1, 2, 15}, `[1 2 f]`},
++	fmtTest{"%d", []int{1, 2, 15}, `[1 2 15]`},
++	fmtTest{"%d", []byte{1, 2, 15}, `[1 2 15]`},
+ 	fmtTest{"%q", []string{"a", "b"}, `["a" "b"]`},
+ 
+ 	// renamings
+@@ -334,6 +336,7 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%X", renamedUint64(17), "11"},
+ 	fmtTest{"%o", renamedUintptr(18), "22"},
+ 	fmtTest{"%x", renamedString("thing"), "7468696e67"},
++	fmtTest{"%d", renamedBytes([]byte{1, 2, 15}), `[1 2 15]`},
+ 	fmtTest{"%q", renamedBytes([]byte("hello")), `"hello"`},
+ 	fmtTest{"%v", renamedFloat(11), "11"},
+ 	fmtTest{"%v", renamedFloat32(22), "22"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 0f3dd44bf0..24b1eb32e0 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -439,7 +439,7 @@ func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}) {
+ }
+ 
+ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}) {
+-	if verb == 'v' {
++	if verb == 'v' || verb == 'd' {
+ 		if goSyntax {
+ 			p.buf.Write(bytesBytes)
+ 		} else {

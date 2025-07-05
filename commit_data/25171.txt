@@ -13,6 +13,20 @@ Date:   Sat Oct 3 09:35:40 2015 -0700
     Change-Id: If24fda227edd8207f8069c67f1c45f08e6ac215a
     Reviewed-on: https://go-review.googlesource.com/15286
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 3280710b22..df6b6f662e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2986,7 +2986,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool
+ 	var followptr bool
+ 	var rcvr *Type
+ 	for im := iface.Type; im != nil; im = im.Down {
+-		if im.Broke == 1 {
++		if im.Broke {
+ 			continue
+ 		}
+ 		imtype = methodfunc(im.Type, nil)

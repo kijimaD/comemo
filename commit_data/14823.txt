@@ -13,8 +13,73 @@ Date:   Tue Jan 8 00:23:02 2013 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7059043
-
+---
  src/cmd/gc/const.c          | 10 ++++++++++
  src/cmd/gc/gen.c            |  6 +++++-
  test/fixedbugs/issue4614.go | 20 ++++++++++++++++++++
  3 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 31ea3a251c..0224665519 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -162,6 +162,16 @@ convlit1(Node **np, Type *t, int explicit)
+ 		case TFUNC:
+ 		case TUNSAFEPTR:
+ 			break;
++
++		case TUINTPTR:
++			// A nil literal may be converted to uintptr
++			// if it is an unsafe.Pointer
++			if(n->type->etype == TUNSAFEPTR) {
++				n->val.u.xval = mal(sizeof(*n->val.u.xval));
++				mpmovecfix(n->val.u.xval, 0);
++				n->val.ctype = CTINT;
++			} else
++				goto bad;
+ 		}
+ 		break;
+ 
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 1cbda6245b..8b2120253e 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -810,7 +810,11 @@ cgen_slice(Node *n, Node *res)
+ 		checkref(n->left);
+ 	}
+ 
+-	src = *n->left;
++	if(isnil(n->left)) {
++		tempname(&src, n->left->type);
++		cgen(n->left, &src);
++	} else
++		src = *n->left;
+ 	src.xoffset += Array_array;
+ 	src.type = types[TUINTPTR];
+ 
+diff --git a/test/fixedbugs/issue4614.go b/test/fixedbugs/issue4614.go
+new file mode 100644
+index 0000000000..1aa318c2b2
+--- /dev/null
++++ b/test/fixedbugs/issue4614.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4614: slicing of nil slices confuses the compiler
++// with a uintptr(nil) node.
++
++package p
++
++import "unsafe"
++
++var n int
++
++var _ = []int(nil)[1:]
++var _ = []int(nil)[n:]
++
++var _ = uintptr(unsafe.Pointer(nil))
++var _ = unsafe.Pointer(uintptr(0))

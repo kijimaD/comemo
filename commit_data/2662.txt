@@ -9,6 +9,11 @@ Date:   Thu Jul 9 17:35:32 2009 -0700
     DELTA=422  (211 added, 211 deleted, 0 changed)
     OCL=31425
     CL=31431
-
+---
  usr/austin/{ => ptrace}/process.go | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/usr/austin/process.go b/usr/austin/ptrace/process.go
+similarity index 100%
+rename from usr/austin/process.go
+rename to usr/austin/ptrace/process.go

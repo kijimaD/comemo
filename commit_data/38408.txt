@@ -11,6 +11,19 @@ Date:   Tue Oct 9 17:14:34 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/mvs/mvs.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 8ec9162dab..aa109693f3 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -68,6 +68,7 @@ func (e *MissingModuleError) Error() string {
+ }
+ 
+ // BuildList returns the build list for the target module.
++// The first element is the target itself, with the remainder of the list sorted by path.
+ func BuildList(target module.Version, reqs Reqs) ([]module.Version, error) {
+ 	return buildList(target, reqs, nil)
+ }

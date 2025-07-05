@@ -9,8 +9,72 @@ Date:   Sat Apr 23 10:54:05 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4432061
-
+---
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/lex.c         |  9 ++++++---
  test/fixedbugs/bug332.go | 17 +++++++++++++++++
  3 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 042856b459..58f8acecbe 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -582,6 +582,7 @@ struct	Io
+ 	Biobuf*	bin;
+ 	int32	ilineno;
+ 	int	nlsemi;
++	int	eofnl;
+ 	int	peekc;
+ 	int	peekc1;	// second peekc for ...
+ 	char*	cp;	// used for content when bin==nil
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index bfd96274ed..18803938dd 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1310,7 +1310,7 @@ getc(void)
+ 			lexlineno++;
+ 		return c;
+ 	}
+-
++	
+ 	if(curio.bin == nil) {
+ 		c = *curio.cp & 0xff;
+ 		if(c != 0)
+@@ -1325,8 +1325,11 @@ getc(void)
+ 			break;
+ 		}
+ 	case EOF:
+-		return EOF;
+-
++		// insert \n at EOF
++		if(curio.eofnl)
++			return EOF;
++		curio.eofnl = 1;
++		c = '\n';
+ 	case '\n':
+ 		if(pushedio.bin == nil)
+ 			lexlineno++;
+diff --git a/test/fixedbugs/bug332.go b/test/fixedbugs/bug332.go
+new file mode 100644
+index 0000000000..be79286b81
+--- /dev/null
++++ b/test/fixedbugs/bug332.go
+@@ -0,0 +1,17 @@
++// errchk $G $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// type T int
++
++func main() {}
++
++// issue 1474
++
++// important: no newline on end of next line.
++// 6g used to print <epoch> instead of bug332.go:111 
++func (t *T) F() {} // ERROR "bug332"
+\ No newline at end of file

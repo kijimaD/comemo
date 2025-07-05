@@ -11,8 +11,72 @@ Date:   Thu Aug 30 02:27:35 2018 +0200
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/main.go                      | 18 +++++++++---------
  src/cmd/go/testdata/script/help.txt     |  5 +++++
  src/cmd/go/testdata/script/mod_help.txt |  6 ++++++
  3 files changed, 20 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 31c554e715..d6934ce5e9 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -93,6 +93,15 @@ func main() {
+ 		*get.CmdGet = *modget.CmdGet
+ 	}
+ 
++	if args[0] == "get" || args[0] == "help" {
++		// Replace get with module-aware get if appropriate.
++		// Note that if MustUseModules is true, this happened already above,
++		// but no harm in doing it again.
++		if modload.Init(); modload.Enabled() {
++			*get.CmdGet = *modget.CmdGet
++		}
++	}
++
+ 	cfg.CmdName = args[0] // for error messages
+ 	if args[0] == "help" {
+ 		help.Help(os.Stdout, args[1:])
+@@ -161,15 +170,6 @@ func main() {
+ 		os.Exit(2)
+ 	}
+ 
+-	if args[0] == "get" {
+-		// Replace get with module-aware get if appropriate.
+-		// Note that if MustUseModules is true, this happened already above,
+-		// but no harm in doing it again.
+-		if modload.Init(); modload.Enabled() {
+-			*get.CmdGet = *modget.CmdGet
+-		}
+-	}
+-
+ 	// Set environment (GOOS, GOARCH, etc) explicitly.
+ 	// In theory all the commands we invoke should have
+ 	// the same default computation of these as we do,
+diff --git a/src/cmd/go/testdata/script/help.txt b/src/cmd/go/testdata/script/help.txt
+index 939da30283..656e680100 100644
+--- a/src/cmd/go/testdata/script/help.txt
++++ b/src/cmd/go/testdata/script/help.txt
+@@ -34,3 +34,8 @@ stderr 'Run ''go help mod'' for usage.'
+ ! go vet -h
+ stderr 'usage: go vet'
+ stderr 'Run ''go help vet'' for details'
++
++# go help get shows usage for get
++go help get
++stdout 'usage: go get'
++stdout 'get when using GOPATH'
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/mod_help.txt b/src/cmd/go/testdata/script/mod_help.txt
+new file mode 100644
+index 0000000000..b5cd30c521
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_help.txt
+@@ -0,0 +1,6 @@
++env GO111MODULE=on
++
++# go help get shows usage for get
++go help get
++stdout 'usage: go get'
++stdout 'get using modules to manage source'
+\ No newline at end of file

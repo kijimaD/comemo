@@ -13,6 +13,20 @@ Date:   Thu Apr 28 15:16:46 2016 -0500
     Reviewed-by: Ahmed W. <oneofone@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 76fcba90bf..5121b9b2cc 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -412,7 +412,7 @@ func (c *Cmd) WaitContext(ctx context.Context) error {
+ 
+ 	var waitDone chan struct{}
+ 	if ctx != nil {
+-		waitDone := make(chan struct{})
++		waitDone = make(chan struct{})
+ 		go func() {
+ 			select {
+ 			case <-ctx.Done():

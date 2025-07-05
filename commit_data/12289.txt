@@ -11,7 +11,61 @@ Date:   Thu Mar 1 07:39:03 2012 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5696079
-
+---
  src/pkg/net/dialgoogle_test.go | 15 ++++++---------
  src/pkg/net/lookup_test.go     |  2 +-
  2 files changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index 14356da4ce..03c4499720 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -42,9 +42,8 @@ func doDial(t *testing.T, network, addr string) {
+ }
+ 
+ func TestLookupCNAME(t *testing.T) {
+-	if testing.Short() {
+-		// Don't use external network.
+-		t.Logf("skipping external network test during -short")
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
+ 		return
+ 	}
+ 	cname, err := LookupCNAME("www.google.com")
+@@ -67,9 +66,8 @@ var googleaddrsipv4 = []string{
+ }
+ 
+ func TestDialGoogleIPv4(t *testing.T) {
+-	if testing.Short() {
+-		// Don't use external network.
+-		t.Logf("skipping external network test during -short")
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
+ 		return
+ 	}
+ 
+@@ -124,9 +122,8 @@ var googleaddrsipv6 = []string{
+ }
+ 
+ func TestDialGoogleIPv6(t *testing.T) {
+-	if testing.Short() {
+-		// Don't use external network.
+-		t.Logf("skipping external network test during -short")
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
+ 		return
+ 	}
+ 	// Only run tcp6 if the kernel will take it.
+diff --git a/src/pkg/net/lookup_test.go b/src/pkg/net/lookup_test.go
+index b5e9e63e0b..3a61dfb29c 100644
+--- a/src/pkg/net/lookup_test.go
++++ b/src/pkg/net/lookup_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"testing"
+ )
+ 
+-var testExternal = flag.Bool("external", false, "allow use of external networks during test")
++var testExternal = flag.Bool("external", true, "allow use of external networks during long test")
+ 
+ func TestGoogleSRV(t *testing.T) {
+ 	if testing.Short() || !*testExternal {

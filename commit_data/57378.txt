@@ -20,10 +20,138 @@ Date:   Tue May 9 19:11:20 2023 +0800
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/asm/internal/asm/testdata/mips.s   |  1 +
  src/cmd/asm/internal/asm/testdata/mips64.s |  5 +++++
  src/cmd/internal/obj/mips/a.out.go         |  3 +++
  src/cmd/internal/obj/mips/anames.go        |  3 +++
  src/cmd/internal/obj/mips/asm0.go          | 16 ++++++++++++++++
  5 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/mips.s b/src/cmd/asm/internal/asm/testdata/mips.s
+index 7136d686d7..1ded0b072d 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips.s
++++ b/src/cmd/asm/internal/asm/testdata/mips.s
+@@ -428,6 +428,7 @@ label4:
+ 	NEGW	R1, R2 // 00011023
+ 	CLZ	R1, R2 // 70221020
+ 	CLO	R1, R2 // 70221021
++	WSBH	R1, R2 // 7c0110a0
+ 
+ 	// to (Hi, Lo)
+ 	MADD	R2, R1 // 70220000
+diff --git a/src/cmd/asm/internal/asm/testdata/mips64.s b/src/cmd/asm/internal/asm/testdata/mips64.s
+index 8f628e26c9..573e3d31a6 100644
+--- a/src/cmd/asm/internal/asm/testdata/mips64.s
++++ b/src/cmd/asm/internal/asm/testdata/mips64.s
+@@ -587,8 +587,13 @@ label4:
+ 	CALL	foo(SB)
+ 	RET	foo(SB)
+ 
++	// unary operation
+ 	NEGW	R1, R2 // 00011023
+ 	NEGV	R1, R2 // 0001102f
++	WSBH	R1, R2 // 7c0110a0
++	DSBH	R1, R2 // 7c0110a4
++	DSHD	R1, R2 // 7c011164
++
+ 	RET
+ 
+ // MSA VMOVI
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index c6ce53a8da..c7884a3a3e 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -415,6 +415,7 @@ const (
+ 	ATLBWR
+ 	ATNE
+ 	AWORD
++	AWSBH
+ 	AXOR
+ 
+ 	/* 64-bit */
+@@ -434,6 +435,8 @@ const (
+ 	AADDVU
+ 	ASUBV
+ 	ASUBVU
++	ADSBH
++	ADSHD
+ 
+ 	/* 64-bit FP */
+ 	ATRUNCFV
+diff --git a/src/cmd/internal/obj/mips/anames.go b/src/cmd/internal/obj/mips/anames.go
+index ca2ad5ae26..90972cff71 100644
+--- a/src/cmd/internal/obj/mips/anames.go
++++ b/src/cmd/internal/obj/mips/anames.go
+@@ -103,6 +103,7 @@ var Anames = []string{
+ 	"TLBWR",
+ 	"TNE",
+ 	"WORD",
++	"WSBH",
+ 	"XOR",
+ 	"MOVV",
+ 	"MOVVL",
+@@ -120,6 +121,8 @@ var Anames = []string{
+ 	"ADDVU",
+ 	"SUBV",
+ 	"SUBVU",
++	"DSBH",
++	"DSHD",
+ 	"TRUNCFV",
+ 	"TRUNCDV",
+ 	"TRUNCFW",
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index f71363ac7e..3a4dc5d185 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -382,6 +382,9 @@ var optab = []Optab{
+ 	{AVMOVB, C_SOREG, C_NONE, C_WREG, 57, 4, 0, sys.MIPS64, 0},
+ 	{AVMOVB, C_WREG, C_NONE, C_SOREG, 58, 4, 0, sys.MIPS64, 0},
+ 
++	{AWSBH, C_REG, C_NONE, C_REG, 59, 4, 0, 0, 0},
++	{ADSBH, C_REG, C_NONE, C_REG, 59, 4, 0, sys.MIPS64, 0},
++
+ 	{ABREAK, C_REG, C_NONE, C_SEXT, 7, 4, REGSB, sys.MIPS64, 0}, /* really CACHE instruction */
+ 	{ABREAK, C_REG, C_NONE, C_SAUTO, 7, 4, REGSP, sys.MIPS64, 0},
+ 	{ABREAK, C_REG, C_NONE, C_SOREG, 7, 4, REGZERO, sys.MIPS64, 0},
+@@ -1081,6 +1084,7 @@ func buildop(ctxt *obj.Link) {
+ 			ANEGW,
+ 			ANEGV,
+ 			AWORD,
++			AWSBH,
+ 			obj.ANOP,
+ 			obj.ATEXT,
+ 			obj.AUNDEF,
+@@ -1101,6 +1105,9 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case ATEQ:
+ 			opset(ATNE, r0)
++
++		case ADSBH:
++			opset(ADSHD, r0)
+ 		}
+ 	}
+ }
+@@ -1683,6 +1690,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 58: /* vst wr, $soreg */
+ 		v := c.lsoffset(p.As, c.regoff(&p.To))
+ 		o1 = OP_VMI10(v, uint32(p.To.Reg), uint32(p.From.Reg), 9, c.twobitdf(p.As))
++
++	case 59:
++		o1 = OP_RRR(c.oprrr(p.As), p.From.Reg, REGZERO, p.To.Reg)
+ 	}
+ 
+ 	out[0] = o1
+@@ -1883,6 +1893,12 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return SP(3, 4) | OP(0, 0)
+ 	case AMSUB:
+ 		return SP(3, 4) | OP(0, 4)
++	case AWSBH:
++		return SP(3, 7) | OP(20, 0)
++	case ADSBH:
++		return SP(3, 7) | OP(20, 4)
++	case ADSHD:
++		return SP(3, 7) | OP(44, 4)
+ 	}
+ 
+ 	if a < 0 {

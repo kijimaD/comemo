@@ -9,7 +9,7 @@ Date:   Sun Jul 28 16:30:35 2019 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/rsa/rsa.go      | 2 +-
  src/encoding/csv/writer.go | 2 +-
  src/expvar/expvar.go       | 2 +-
@@ -17,3 +17,91 @@ Date:   Sun Jul 28 16:30:35 2019 +0200
  src/go/types/typestring.go | 2 +-
  src/net/mail/message.go    | 2 +-
  6 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index ad32d3e3ad..d058949242 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -555,7 +555,7 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
+ }
+ 
+ // DecryptOAEP decrypts ciphertext using RSA-OAEP.
+-
++//
+ // OAEP is parameterised by a hash function that is used as a random oracle.
+ // Encryption and decryption of a given message must use the same hash function
+ // and sha256.New() is a reasonable choice.
+diff --git a/src/encoding/csv/writer.go b/src/encoding/csv/writer.go
+index b18996a930..3f34bc51db 100644
+--- a/src/encoding/csv/writer.go
++++ b/src/encoding/csv/writer.go
+@@ -41,7 +41,7 @@ func NewWriter(w io.Writer) *Writer {
+ 	}
+ }
+ 
+-// Writer writes a single CSV record to w along with any necessary quoting.
++// Write writes a single CSV record to w along with any necessary quoting.
+ // A record is a slice of strings with each string being one field.
+ // Writes are buffered, so Flush must eventually be called to ensure
+ // that the record is written to the underlying io.Writer.
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index c0dc0532b1..13b5c99b6e 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -205,7 +205,7 @@ func (v *Map) AddFloat(key string, delta float64) {
+ 	}
+ }
+ 
+-// Deletes the given key from the map.
++// Delete deletes the given key from the map.
+ func (v *Map) Delete(key string) {
+ 	v.keysMu.Lock()
+ 	defer v.keysMu.Unlock()
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index b50ee2fd5f..409b468f20 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -42,7 +42,7 @@ func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
+ // Parent returns the scope's containing (parent) scope.
+ func (s *Scope) Parent() *Scope { return s.parent }
+ 
+-// Len() returns the number of scope elements.
++// Len returns the number of scope elements.
+ func (s *Scope) Len() int { return len(s.elems) }
+ 
+ // Names returns the scope's element names in sorted order.
+@@ -57,7 +57,7 @@ func (s *Scope) Names() []string {
+ 	return names
+ }
+ 
+-// NumChildren() returns the number of scopes nested in s.
++// NumChildren returns the number of scopes nested in s.
+ func (s *Scope) NumChildren() int { return len(s.children) }
+ 
+ // Child returns the i'th child scope for 0 <= i < NumChildren().
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 0c007f6cd0..31c572f83b 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -24,7 +24,7 @@ import (
+ //
+ type Qualifier func(*Package) string
+ 
+-// RelativeTo(pkg) returns a Qualifier that fully qualifies members of
++// RelativeTo returns a Qualifier that fully qualifies members of
+ // all packages other than pkg.
+ func RelativeTo(pkg *Package) Qualifier {
+ 	if pkg == nil {
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index e0907806ca..75207db434 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -148,7 +148,7 @@ type Address struct {
+ 	Address string // user@domain
+ }
+ 
+-// Parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
++// ParseAddress parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
+ func ParseAddress(address string) (*Address, error) {
+ 	return (&addrParser{s: address}).parseSingleAddress()
+ }

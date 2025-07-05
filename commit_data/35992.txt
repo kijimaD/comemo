@@ -15,6 +15,21 @@ Date:   Sun Mar 25 17:19:47 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 088e118df7..c8666653ba 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2563,6 +2563,9 @@ type Rows struct {
+ }
+ 
+ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
++	if ctx.Done() == nil && (txctx == nil || txctx.Done() == nil) {
++		return
++	}
+ 	ctx, rs.cancel = context.WithCancel(ctx)
+ 	go rs.awaitDone(ctx, txctx)
+ }

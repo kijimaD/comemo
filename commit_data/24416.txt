@@ -7,7 +7,70 @@ Date:   Tue Jul 28 12:28:09 2015 +0900
     Change-Id: I82e3aadbd18fccb98a76d1c36876510f5e1c3089
     Reviewed-on: https://go-review.googlesource.com/12750
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/error_posix_test.go | 27 ++++++++++++++++++++++++++-
  src/net/tcpsock_posix.go    |  9 +++++++--
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/error_posix_test.go b/src/net/error_posix_test.go
+index a642e29227..981cc837ba 100644
+--- a/src/net/error_posix_test.go
++++ b/src/net/error_posix_test.go
+@@ -6,7 +6,11 @@
+ 
+ package net
+ 
+-import "syscall"
++import (
++	"os"
++	"syscall"
++	"testing"
++)
+ 
+ var (
+ 	errTimedout       = syscall.ETIMEDOUT
+@@ -17,3 +21,24 @@ func isPlatformError(err error) bool {
+ 	_, ok := err.(syscall.Errno)
+ 	return ok
+ }
++
++func TestSpuriousENOTAVAIL(t *testing.T) {
++	for _, tt := range []struct {
++		error
++		ok bool
++	}{
++		{syscall.EADDRNOTAVAIL, true},
++		{&os.SyscallError{Syscall: "syscall", Err: syscall.EADDRNOTAVAIL}, true},
++		{&OpError{Op: "op", Err: syscall.EADDRNOTAVAIL}, true},
++		{&OpError{Op: "op", Err: &os.SyscallError{Syscall: "syscall", Err: syscall.EADDRNOTAVAIL}}, true},
++
++		{syscall.EINVAL, false},
++		{&os.SyscallError{Syscall: "syscall", Err: syscall.EINVAL}, false},
++		{&OpError{Op: "op", Err: syscall.EINVAL}, false},
++		{&OpError{Op: "op", Err: &os.SyscallError{Syscall: "syscall", Err: syscall.EINVAL}}, false},
++	} {
++		if ok := spuriousENOTAVAIL(tt.error); ok != tt.ok {
++			t.Errorf("spuriousENOTAVAIL(%v) = %v; want %v", tt.error, ok, tt.ok)
++		}
++	}
++}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index f3d5add689..7e49b769e1 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -230,8 +230,13 @@ func selfConnect(fd *netFD, err error) bool {
+ }
+ 
+ func spuriousENOTAVAIL(err error) bool {
+-	e, ok := err.(*OpError)
+-	return ok && e.Err == syscall.EADDRNOTAVAIL
++	if op, ok := err.(*OpError); ok {
++		err = op.Err
++	}
++	if sys, ok := err.(*os.SyscallError); ok {
++		err = sys.Err
++	}
++	return err == syscall.EADDRNOTAVAIL
+ }
+ 
+ // TCPListener is a TCP network listener.  Clients should typically

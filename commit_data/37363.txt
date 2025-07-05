@@ -19,9 +19,72 @@ Date:   Thu Jul 19 00:56:10 2018 -0400
     Change-Id: I55a1cbef127f3f36de54a8d7b93e1fc64bf0a708
     Reviewed-on: https://go-review.googlesource.com/124859
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                 |  5 +++++
  src/cmd/go/internal/get/get.go                 |  5 +++++
  src/cmd/go/internal/modload/init.go            |  3 +++
  src/cmd/go/testdata/script/mod_get_warning.txt | 10 ++++++++++
  4 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 4e69da567b..9dd90ee871 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -73,6 +73,11 @@ var (
+ 	// in module-aware mode (as opposed to GOPATH mode).
+ 	// It is equal to modload.Enabled, but not all packages can import modload.
+ 	ModulesEnabled bool
++
++	// GoModInGOPATH records whether we've found a go.mod in GOPATH/src
++	// in GO111MODULE=auto mode. In that case, we don't use modules
++	// but people might expect us to, so 'go get' warns.
++	GoModInGOPATH string
+ )
+ 
+ func init() {
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 36aa171c7f..0789d5bb3c 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -118,6 +118,11 @@ func runGet(cmd *base.Command, args []string) {
+ 		// Should not happen: main.go should install the separate module-enabled get code.
+ 		base.Fatalf("go get: modules not implemented")
+ 	}
++	if cfg.GoModInGOPATH != "" {
++		// Warn about not using modules with GO111MODULE=auto when go.mod exists.
++		// To silence the warning, users can set GO111MODULE=off.
++		fmt.Fprintf(os.Stderr, "go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring %s;\n\tsee 'go help modules'\n", base.ShortPath(cfg.GoModInGOPATH))
++	}
+ 
+ 	work.BuildInit()
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 602d33acb3..dfab6578a9 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -153,6 +153,9 @@ func Init() {
+ 	} else {
+ 		if inGOPATH && !MustUseModules {
+ 			// No automatic enabling in GOPATH.
++			if root, _ := FindModuleRoot(cwd, "", false); root != "" {
++				cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
++			}
+ 			return
+ 		}
+ 		root, _ := FindModuleRoot(cwd, "", MustUseModules)
+diff --git a/src/cmd/go/testdata/script/mod_get_warning.txt b/src/cmd/go/testdata/script/mod_get_warning.txt
+new file mode 100644
+index 0000000000..36b5434c3b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_warning.txt
+@@ -0,0 +1,10 @@
++# go get in GO111MODULE=auto should warn when not using modules and go.mod exists
++
++env GO111MODULE=auto
++mkdir z
++cd z
++! go get # fails because no code in directory, not the warning
++stderr 'go get: warning: modules disabled by GO111MODULE=auto in GOPATH/src;\n\tignoring ..[/\\]go.mod;\n\tsee ''go help modules'''
++
++-- go.mod --
++module x

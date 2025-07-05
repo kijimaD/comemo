@@ -29,6 +29,28 @@ Date:   Wed Jun 29 03:09:54 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/math/hypot.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/hypot.go b/src/math/hypot.go
+index 4e79de0e9b..6ae70c1333 100644
+--- a/src/math/hypot.go
++++ b/src/math/hypot.go
+@@ -25,14 +25,14 @@ func Hypot(p, q float64) float64 {
+ }
+ 
+ func hypot(p, q float64) float64 {
++	p, q = Abs(p), Abs(q)
+ 	// special cases
+ 	switch {
+-	case IsInf(p, 0) || IsInf(q, 0):
++	case IsInf(p, 1) || IsInf(q, 1):
+ 		return Inf(1)
+ 	case IsNaN(p) || IsNaN(q):
+ 		return NaN()
+ 	}
+-	p, q = Abs(p), Abs(q)
+ 	if p < q {
+ 		p, q = q, p
+ 	}

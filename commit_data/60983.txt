@@ -14,6 +14,34 @@ Date:   Mon Sep 16 14:14:27 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/stubs.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2c3c5e3541..0cc404f030 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -309,8 +309,7 @@ func publicationBarrier()
+ 
+ // getcallerpc returns the program counter (PC) of its caller's caller.
+ // getcallersp returns the stack pointer (SP) of its caller's caller.
+-// The implementation may be a compiler intrinsic; there is not
+-// necessarily code implementing this on every platform.
++// Both are implemented as intrinsics on every platform.
+ //
+ // For example:
+ //
+@@ -331,11 +330,9 @@ func publicationBarrier()
+ // A general rule is that the result of getcallersp should be used
+ // immediately and can only be passed to nosplit functions.
+ 
+-//go:noescape
+ func getcallerpc() uintptr
+ 
+-//go:noescape
+-func getcallersp() uintptr // implemented as an intrinsic on all platforms
++func getcallersp() uintptr
+ 
+ // getclosureptr returns the pointer to the current closure.
+ // getclosureptr can only be used in an assignment statement

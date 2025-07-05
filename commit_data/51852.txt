@@ -23,10 +23,237 @@ Date:   Fri Mar 18 11:40:34 2022 -0400
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/list/list.go             |  1 +
  src/cmd/go/internal/load/pkg.go              | 31 ++++++++--
  src/cmd/go/internal/load/test.go             |  6 +-
  src/cmd/go/internal/work/build.go            |  4 +-
  src/cmd/go/testdata/script/test_buildvcs.txt | 92 ++++++++++++++++++++++++++++
  5 files changed, 123 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 9cebb934bf..5fc33989cd 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -567,6 +567,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	pkgOpts := load.PackageOpts{
+ 		IgnoreImports:   *listFind,
+ 		ModResolveTests: *listTest,
++		LoadVCS:         cfg.BuildBuildvcs,
+ 	}
+ 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
+ 	if !*listE {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 8c169d1643..403bc330e7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -193,6 +193,18 @@ func (p *Package) Desc() string {
+ 	return p.ImportPath
+ }
+ 
++// IsTestOnly reports whether p is a test-only package.
++//
++// A “test-only” package is one that:
++// 	- is a test-only variant of an ordinary package, or
++// 	- is a synthesized "main" package for a test binary, or
++// 	- contains only _test.go files.
++func (p *Package) IsTestOnly() bool {
++	return p.ForTest != "" ||
++		p.Internal.TestmainGo != nil ||
++		len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 && len(p.GoFiles)+len(p.CgoFiles) == 0
++}
++
+ type PackageInternal struct {
+ 	// Unexported fields are not part of the public API.
+ 	Build             *build.Package
+@@ -1926,8 +1938,12 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	}
+ 	p.Internal.Imports = imports
+ 	p.collectDeps()
+-	if p.Error == nil && p.Name == "main" && len(p.DepsErrors) == 0 {
+-		p.setBuildInfo()
++	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 {
++		// TODO(bcmills): loading VCS metadata can be fairly slow.
++		// Consider starting this as a background goroutine and retrieving the result
++		// asynchronously when we're actually ready to build the package, or when we
++		// actually need to evaluate whether the package's metadata is stale.
++		p.setBuildInfo(opts.LoadVCS)
+ 	}
+ 
+ 	// unsafe is a fake package.
+@@ -2216,7 +2232,7 @@ var vcsStatusCache par.Cache
+ //
+ // Note that the GoVersion field is not set here to avoid encoding it twice.
+ // It is stored separately in the binary, mostly for historical reasons.
+-func (p *Package) setBuildInfo() {
++func (p *Package) setBuildInfo(includeVCS bool) {
+ 	// TODO: build and vcs information is not embedded for executables in GOROOT.
+ 	// cmd/dist uses -gcflags=all= -ldflags=all= by default, which means these
+ 	// executables always appear stale unless the user sets the same flags.
+@@ -2346,8 +2362,8 @@ func (p *Package) setBuildInfo() {
+ 	// Add VCS status if all conditions are true:
+ 	//
+ 	// - -buildvcs is enabled.
+-	// - p is contained within a main module (there may be multiple main modules
+-	//   in a workspace, but local replacements don't count).
++	// - p is a non-test contained within a main module (there may be multiple
++	//   main modules in a workspace, but local replacements don't count).
+ 	// - Both the current directory and p's module's root directory are contained
+ 	//   in the same local repository.
+ 	// - We know the VCS commands needed to get the status.
+@@ -2359,7 +2375,7 @@ func (p *Package) setBuildInfo() {
+ 	var vcsCmd *vcs.Cmd
+ 	var err error
+ 	const allowNesting = true
+-	if cfg.BuildBuildvcs && p.Module != nil && p.Module.Version == "" && !p.Standard {
++	if includeVCS && p.Module != nil && p.Module.Version == "" && !p.Standard && !p.IsTestOnly() {
+ 		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
+ 		if err != nil && !errors.Is(err, os.ErrNotExist) {
+ 			setVCSError(err)
+@@ -2648,6 +2664,9 @@ type PackageOpts struct {
+ 	// are not be matched, and their dependencies may not be loaded. A warning
+ 	// may be printed for non-literal arguments that match no main packages.
+ 	MainOnly bool
++
++	// LoadVCS controls whether we also load version-control metadata for main packages.
++	LoadVCS bool
+ }
+ 
+ // PackagesAndErrors returns the packages named by the command line arguments
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 6122428c9c..39f1131a43 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -368,9 +368,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
+ 	if err != nil && pmain.Error == nil {
+ 		pmain.Error = &PackageError{Err: err}
+ 	}
+-	if data != nil {
+-		pmain.Internal.TestmainGo = &data
+-	}
++	// Set TestmainGo even if it is empty: the presence of a TestmainGo
++	// indicates that this package is, in fact, a test main.
++	pmain.Internal.TestmainGo = &data
+ 
+ 	return pmain, ptest, pxtest
+ }
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ce200ec5c2..42f052d341 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -379,7 +379,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	var b Builder
+ 	b.Init()
+ 
+-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
++	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
+ 	load.CheckPackageErrors(pkgs)
+ 
+ 	explicitO := len(cfg.BuildO) > 0
+@@ -603,7 +603,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	modload.InitWorkfile()
+ 	BuildInit()
+-	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{}, args)
++	pkgs := load.PackagesAndErrors(ctx, load.PackageOpts{LoadVCS: cfg.BuildBuildvcs}, args)
+ 	if cfg.ModulesEnabled && !modload.HasModRoot() {
+ 		haveErrors := false
+ 		allMissingErrors := true
+diff --git a/src/cmd/go/testdata/script/test_buildvcs.txt b/src/cmd/go/testdata/script/test_buildvcs.txt
+new file mode 100644
+index 0000000000..a0689195e8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_buildvcs.txt
+@@ -0,0 +1,92 @@
++# https://go.dev/issue/51723: 'go test' should not stamp VCS metadata
++# in the build settings. (It isn't worth the latency hit, given that
++# test binaries are almost never distributed to users.)
++
++[short] skip
++[!exec:git] skip
++
++exec git init
++
++# The test binaries should not have VCS settings stamped.
++# (The test itself verifies that.)
++go test . ./testonly
++
++
++# Remove 'git' from $PATH. The test should still build.
++# This ensures that we aren't loading VCS metadata that
++# we subsequently throw away.
++env PATH=''
++env path=''
++
++# Compiling the test should not require the VCS tool.
++go test -c -o $devnull .
++
++
++# When listing a main package, in general we need its VCS metadata to determine
++# the .Stale and .StaleReason fields.
++! go list .
++stderr '^go: missing Git command\. See https://golang\.org/s/gogetcmd\nerror obtaining VCS status: .*\n\tUse -buildvcs=false to disable VCS stamping.'
++
++# Adding the -test flag should be strictly additive — it should not suppress the error.
++! go list -test .
++stderr '^go: missing Git command\. See https://golang\.org/s/gogetcmd\nerror obtaining VCS status: .*\n\tUse -buildvcs=false to disable VCS stamping.'
++
++# Adding the suggested flag should suppress the error.
++go list -test -buildvcs=false .
++! stderr .
++
++
++# Since the ./testonly package can't produce an actual binary, we shouldn't
++# invoke a VCS tool to compute a build stamp when listing it.
++go list ./testonly
++! stderr .
++go list -test ./testonly
++! stderr .
++
++
++-- go.mod --
++module example
++
++go 1.18
++-- example.go --
++package main
++-- example_test.go --
++package main
++
++import (
++	"runtime/debug"
++	"strings"
++	"testing"
++)
++
++func TestDetail(t *testing.T) {
++	bi, ok := debug.ReadBuildInfo()
++	if !ok {
++		t.Fatal("BuildInfo not present")
++	}
++	for _, s := range bi.Settings {
++		if strings.HasPrefix(s.Key, "vcs.") {
++			t.Fatalf("unexpected VCS setting: %s=%s", s.Key, s.Value)
++		}
++	}
++}
++-- testonly/main_test.go --
++package main
++
++import (
++	"runtime/debug"
++	"strings"
++	"testing"
++)
++
++func TestDetail(t *testing.T) {
++	bi, ok := debug.ReadBuildInfo()
++	if !ok {
++		t.Fatal("BuildInfo not present")
++	}
++	for _, s := range bi.Settings {
++		if strings.HasPrefix(s.Key, "vcs.") {
++			t.Fatalf("unexpected VCS setting: %s=%s", s.Key, s.Value)
++		}
++	}
++}

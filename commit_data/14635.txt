@@ -9,7 +9,32 @@ Date:   Wed Dec 12 22:04:24 2012 -0800
     R=gobot
     CC=golang-dev
     https://golang.org/cl/6939043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f21916eca1..3f843aebee 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -109,6 +109,7 @@ Hong Ruiqi <hongruiqi@gmail.com>
+ Icarus Sparry <golang@icarus.freeuk.com>
+ Ingo Oeser <nightlyone@googlemail.com>
+ Isaac Wagner <ibw@isaacwagner.me>
++James David Chalfant <james.chalfant@gmail.com>
+ James Fysh <james.fysh@gmail.com>
+ James Gray <james@james4k.com>
+ James Meneghello <rawrz0r@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c6004b1bce..74280d33ba 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -169,6 +169,7 @@ Isaac Wagner <ibw@isaacwagner.me>
+ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
++James David Chalfant <james.chalfant@gmail.com>
+ James Fysh <james.fysh@gmail.com>
+ James Gray <james@james4k.com>
+ James Meneghello <rawrz0r@gmail.com>

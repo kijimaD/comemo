@@ -7,6 +7,20 @@ Date:   Wed Dec 8 09:58:46 2010 -0500
     R=rh, gri
     CC=golang-dev
     https://golang.org/cl/3514041
-
+---
  src/pkg/path/path_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 971f32eb7a..6b4be07a95 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -257,7 +257,7 @@ func TestWalk(t *testing.T) {
+ 	errors := make(chan os.Error, 64)
+ 	Walk(tree.name, v, errors)
+ 	if err, ok := <-errors; ok {
+-		t.Error("no error expected, found: s", err)
++		t.Errorf("no error expected, found: %s", err)
+ 	}
+ 	checkMarks(t)
+ 

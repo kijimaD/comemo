@@ -11,8 +11,96 @@ Date:   Mon Oct 18 14:59:05 2021 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/testdata/script/build_overlay.txt      | 28 +++++++++++------------
  src/cmd/go/testdata/script/list_swigcxx.txt       |  6 +++--
  src/cmd/go/testdata/script/test_build_failure.txt |  2 +-
  3 files changed, 19 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index 2932b94e6c..56e812f44b 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -31,17 +31,17 @@ exec ./print_trimpath_two_files$GOEXE
+ stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
+ stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]other.go
+ 
+-go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
+-exec ./main_cgo_replace$GOEXE
+-stdout '^hello cgo\r?\n'
++[cgo] go build -overlay overlay.json -o main_cgo_replace$GOEXE ./cgo_hello_replace
++[cgo] exec ./main_cgo_replace$GOEXE
++[cgo] stdout '^hello cgo\r?\n'
+ 
+-go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
+-exec ./main_cgo_quote$GOEXE
+-stdout '^hello cgo\r?\n'
++[cgo] go build -overlay overlay.json -o main_cgo_quote$GOEXE ./cgo_hello_quote
++[cgo] exec ./main_cgo_quote$GOEXE
++[cgo] stdout '^hello cgo\r?\n'
+ 
+-go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
+-exec ./main_cgo_angle$GOEXE
+-stdout '^hello cgo\r?\n'
++[cgo] go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
++[cgo] exec ./main_cgo_angle$GOEXE
++[cgo] stdout '^hello cgo\r?\n'
+ 
+ go build -overlay overlay.json -o main_call_asm$GOEXE ./call_asm
+ exec ./main_call_asm$GOEXE
+@@ -55,11 +55,11 @@ cp overlay/test_cache_different.go overlay/test_cache.go
+ go list -overlay overlay.json -f '{{.Stale}}' ./test_cache
+ stdout '^true$'
+ 
+-go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
+-cp stdout compiled_cgo_sources.txt
+-go run ../print_line_comments.go compiled_cgo_sources.txt
+-stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
+-! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
++[cgo] go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
++[cgo] cp stdout compiled_cgo_sources.txt
++[cgo] go run ../print_line_comments.go compiled_cgo_sources.txt
++[cgo] stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
++[cgo] ! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
+ 
+ # Run same tests but with gccgo.
+ env GO111MODULE=off
+diff --git a/src/cmd/go/testdata/script/list_swigcxx.txt b/src/cmd/go/testdata/script/list_swigcxx.txt
+index c6acd9ecdb..d4227a80e8 100644
+--- a/src/cmd/go/testdata/script/list_swigcxx.txt
++++ b/src/cmd/go/testdata/script/list_swigcxx.txt
+@@ -2,17 +2,19 @@
+ 
+ [!exec:swig] skip
+ [!exec:g++] skip
++[!cgo] skip
+ 
+ # CompiledGoFiles should contain 4 files:
+ #  a.go
+ #  a.swigcxx.go
+ #  _cgo_gotypes.go
+ #  a.cgo1.go
++#
++# These names we see here, other than a.go, will be from the build cache,
++# so we just count them.
+ 
+ go list -f '{{.CompiledGoFiles}}' -compiled=true example/swig
+ 
+-# These names we see here, other than a.go, will be from the build cache,
+-# so we just count them.
+ stdout a\.go
+ stdout -count=3 $GOCACHE
+ 
+diff --git a/src/cmd/go/testdata/script/test_build_failure.txt b/src/cmd/go/testdata/script/test_build_failure.txt
+index 8d13634c8c..e8c984f272 100644
+--- a/src/cmd/go/testdata/script/test_build_failure.txt
++++ b/src/cmd/go/testdata/script/test_build_failure.txt
+@@ -3,7 +3,7 @@
+ ! go test -x coverbad
+ ! stderr '[\\/]coverbad\.test( |$)' # 'go test' should not claim to have run the test.
+ stderr 'undefined: g'
+-stderr 'undefined: j'
++[cgo] stderr 'undefined: j'
+ 
+ -- go.mod --
+ module coverbad

@@ -10,10 +10,180 @@ Date:   Tue Oct 28 12:35:25 2014 -0400
     R=rsc, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/153670043
-
+---
  src/runtime/debug/garbage.go      | 30 +++++++++++++++++++++---------
  src/runtime/debug/garbage_test.go | 13 +++++++++++++
  src/runtime/malloc.h              |  3 ++-
  src/runtime/mem.go                |  3 ++-
  src/runtime/mgc0.c                | 23 ++++++++++++++---------
  5 files changed, 52 insertions(+), 20 deletions(-)
+
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 30994f2196..4a77dcfcd6 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -16,6 +16,7 @@ type GCStats struct {
+ 	NumGC          int64           // number of garbage collections
+ 	PauseTotal     time.Duration   // total pause for all collections
+ 	Pause          []time.Duration // pause history, most recent first
++	PauseEnd       []time.Time     // pause end times history, most recent first
+ 	PauseQuantiles []time.Duration
+ }
+ 
+@@ -30,25 +31,36 @@ type GCStats struct {
+ func ReadGCStats(stats *GCStats) {
+ 	// Create a buffer with space for at least two copies of the
+ 	// pause history tracked by the runtime. One will be returned
+-	// to the caller and the other will be used as a temporary buffer
+-	// for computing quantiles.
++	// to the caller and the other will be used as transfer buffer
++	// for end times history and as a temporary buffer for
++	// computing quantiles.
+ 	const maxPause = len(((*runtime.MemStats)(nil)).PauseNs)
+-	if cap(stats.Pause) < 2*maxPause {
+-		stats.Pause = make([]time.Duration, 2*maxPause)
++	if cap(stats.Pause) < 2*maxPause+3 {
++		stats.Pause = make([]time.Duration, 2*maxPause+3)
+ 	}
+ 
+-	// readGCStats fills in the pause history (up to maxPause entries)
+-	// and then three more: Unix ns time of last GC, number of GC,
+-	// and total pause time in nanoseconds. Here we depend on the
+-	// fact that time.Duration's native unit is nanoseconds, so the
+-	// pauses and the total pause time do not need any conversion.
++	// readGCStats fills in the pause and end times histories (up to
++	// maxPause entries) and then three more: Unix ns time of last GC,
++	// number of GC, and total pause time in nanoseconds. Here we
++	// depend on the fact that time.Duration's native unit is
++	// nanoseconds, so the pauses and the total pause time do not need
++	// any conversion.
+ 	readGCStats(&stats.Pause)
+ 	n := len(stats.Pause) - 3
+ 	stats.LastGC = time.Unix(0, int64(stats.Pause[n]))
+ 	stats.NumGC = int64(stats.Pause[n+1])
+ 	stats.PauseTotal = stats.Pause[n+2]
++	n /= 2 // buffer holds pauses and end times
+ 	stats.Pause = stats.Pause[:n]
+ 
++	if cap(stats.PauseEnd) < maxPause {
++		stats.PauseEnd = make([]time.Time, 0, maxPause)
++	}
++	stats.PauseEnd = stats.PauseEnd[:0]
++	for _, ns := range stats.Pause[n : n+n] {
++		stats.PauseEnd = append(stats.PauseEnd, time.Unix(0, int64(ns)))
++	}
++
+ 	if len(stats.PauseQuantiles) > 0 {
+ 		if n == 0 {
+ 			for i := range stats.PauseQuantiles {
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index 149bafc6f3..54c33bd4f3 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -70,6 +70,19 @@ func TestReadGCStats(t *testing.T) {
+ 			t.Errorf("stats.PauseQuantiles[%d]=%d > stats.PauseQuantiles[%d]=%d", i, q[i], i+1, q[i+1])
+ 		}
+ 	}
++
++	// compare memory stats with gc stats:
++	if len(stats.PauseEnd) != n {
++		t.Fatalf("len(stats.PauseEnd) = %d, want %d", len(stats.PauseEnd), n)
++	}
++	off := (int(mstats.NumGC) + len(mstats.PauseEnd) - 1) % len(mstats.PauseEnd)
++	for i := 0; i < n; i++ {
++		dt := stats.PauseEnd[i]
++		if dt.UnixNano() != int64(mstats.PauseEnd[off]) {
++			t.Errorf("stats.PauseEnd[%d] = %d, want %d", i, dt, mstats.PauseEnd[off])
++		}
++		off = (off + len(mstats.PauseEnd) - 1) % len(mstats.PauseEnd)
++	}
+ }
+ 
+ var big = make([]byte, 1<<20)
+diff --git a/src/runtime/malloc.h b/src/runtime/malloc.h
+index d1930756a2..adb8d3d677 100644
+--- a/src/runtime/malloc.h
++++ b/src/runtime/malloc.h
+@@ -267,7 +267,8 @@ struct MStats
+ 	uint64	next_gc;	// next GC (in heap_alloc time)
+ 	uint64  last_gc;	// last GC (in absolute time)
+ 	uint64	pause_total_ns;
+-	uint64	pause_ns[256];
++	uint64	pause_ns[256];  // circular buffer of recent GC pause lengths
++	uint64	pause_end[256]; // circular buffer of recent GC end times (nanoseconds since 1970)
+ 	uint32	numgc;
+ 	bool	enablegc;
+ 	bool	debuggc;
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 438f22ec09..e6f1eb0e64 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -44,7 +44,8 @@ type MemStats struct {
+ 	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
+ 	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
+ 	PauseTotalNs uint64
+-	PauseNs      [256]uint64 // circular buffer of recent GC pause times, most recent at [(NumGC+255)%256]
++	PauseNs      [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
++	PauseEnd     [256]uint64 // circular buffer of recent GC pause end times
+ 	NumGC        uint32
+ 	EnableGC     bool
+ 	DebugGC      bool
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 2ff64aaa30..cba2beaa74 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1459,6 +1459,7 @@ gc(struct gc_args *args)
+ 	t4 = runtime·nanotime();
+ 	runtime·atomicstore64(&mstats.last_gc, runtime·unixnanotime());  // must be Unix time to make sense to user
+ 	mstats.pause_ns[mstats.numgc%nelem(mstats.pause_ns)] = t4 - t0;
++	mstats.pause_end[mstats.numgc%nelem(mstats.pause_end)] = t4;
+ 	mstats.pause_total_ns += t4 - t0;
+ 	mstats.numgc++;
+ 	if(mstats.debuggc)
+@@ -1572,7 +1573,7 @@ readgcstats_m(void)
+ {
+ 	Slice *pauses;	
+ 	uint64 *p;
+-	uint32 i, n;
++	uint32 i, j, n;
+ 	
+ 	pauses = g->m->ptrarg[0];
+ 	g->m->ptrarg[0] = nil;
+@@ -1581,25 +1582,29 @@ readgcstats_m(void)
+ 	if(pauses->cap < nelem(mstats.pause_ns)+3)
+ 		runtime·throw("runtime: short slice passed to readGCStats");
+ 
+-	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
++	// Pass back: pauses, pause ends, last gc (absolute time), number of gc, total pause ns.
+ 	p = (uint64*)pauses->array;
+ 	runtime·lock(&runtime·mheap.lock);
++
+ 	n = mstats.numgc;
+ 	if(n > nelem(mstats.pause_ns))
+ 		n = nelem(mstats.pause_ns);
+-	
++
+ 	// The pause buffer is circular. The most recent pause is at
+ 	// pause_ns[(numgc-1)%nelem(pause_ns)], and then backward
+ 	// from there to go back farther in time. We deliver the times
+ 	// most recent first (in p[0]).
+-	for(i=0; i<n; i++)
+-		p[i] = mstats.pause_ns[(mstats.numgc-1-i)%nelem(mstats.pause_ns)];
++	for(i=0; i<n; i++) {
++		j = (mstats.numgc-1-i)%nelem(mstats.pause_ns);
++		p[i] = mstats.pause_ns[j];
++		p[n+i] = mstats.pause_end[j];
++	}
+ 
+-	p[n] = mstats.last_gc;
+-	p[n+1] = mstats.numgc;
+-	p[n+2] = mstats.pause_total_ns;	
++	p[n+n] = mstats.last_gc;
++	p[n+n+1] = mstats.numgc;
++	p[n+n+2] = mstats.pause_total_ns;	
+ 	runtime·unlock(&runtime·mheap.lock);
+-	pauses->len = n+3;
++	pauses->len = n+n+3;
+ }
+ 
+ void

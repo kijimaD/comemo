@@ -9,6 +9,19 @@ Date:   Thu Sep 9 09:24:53 2010 +1000
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/2102043
-
+---
  src/cmd/cgo/out.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index eb39338684..18fb34a22a 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -631,6 +631,7 @@ typedef unsigned char uchar;
+ typedef unsigned short ushort;
+ typedef long long int64;
+ typedef unsigned long long uint64;
++typedef __SIZE_TYPE__ uintptr;
+ 
+ typedef struct { char *p; int n; } GoString;
+ typedef void *GoMap;

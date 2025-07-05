@@ -10,6 +10,20 @@ Date:   Mon Sep 8 17:40:32 2014 -0700
     R=alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/139400043
-
+---
  src/syscall/mkall_windows.bat | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/mkall_windows.bat b/src/syscall/mkall_windows.bat
+index 9c91a1064d..0f3a98b727 100644
+--- a/src/syscall/mkall_windows.bat
++++ b/src/syscall/mkall_windows.bat
+@@ -4,7 +4,7 @@
+ @echo off
+ 
+ if exist mkall.sh goto dirok
+-echo mkall_windows.bat must be run from src\pkg\syscall directory
++echo mkall_windows.bat must be run from src\syscall directory
+ goto :end
+ :dirok
+ 

@@ -18,6 +18,20 @@ Date:   Thu Oct 3 18:18:11 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/malloc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 4fda8a3c23..d376a4a26a 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1224,7 +1224,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// All slots hold nil so no scanning is needed.
+ 	// This may be racing with GC so do it atomically if there can be
+ 	// a race marking the bit.
+-	if gcphase != _GCoff {
++	if writeBarrier.enabled {
+ 		gcmarknewobject(span, uintptr(x))
+ 	}
+ 

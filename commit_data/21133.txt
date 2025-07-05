@@ -8,7 +8,34 @@ Date:   Tue Nov 18 09:54:50 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/177940043
-
+---
  src/runtime/asm_amd64p32.s | 2 +-
  src/runtime/panic.go       | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index cead3cd075..b8370efd36 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -169,7 +169,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
+ // of the G stack.  We need to distinguish the routine that
+ // lives at the bottom of the G stack from the one that lives
+ // at the top of the system stack because the one at the top of
+-// the M stack terminates the stack walk (see topofstack()).
++// the system stack terminates the stack walk (see topofstack()).
+ TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+ 	RET
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 8929467025..95e780b1d9 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -162,7 +162,7 @@ func init() {
+ 
+ // Allocate a Defer, usually using per-P pool.
+ // Each defer must be released with freedefer.
+-// Note: runs on M stack
++// Note: runs on g0 stack
+ func newdefer(siz int32) *_defer {
+ 	var d *_defer
+ 	sc := deferclass(uintptr(siz))

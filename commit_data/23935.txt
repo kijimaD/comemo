@@ -15,6 +15,111 @@ Date:   Thu May 7 12:33:45 2015 +0300
     Change-Id: Iea6f10cf3ce1be5c112a2375d51c13687a8ab4c9
     Reviewed-on: https://go-review.googlesource.com/9803
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/race/testdata/sync_test.go | 74 +++++++++++++---------------------
  1 file changed, 27 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/race/testdata/sync_test.go b/src/runtime/race/testdata/sync_test.go
+index 93af0b1e60..d48680d5e6 100644
+--- a/src/runtime/race/testdata/sync_test.go
++++ b/src/runtime/race/testdata/sync_test.go
+@@ -10,72 +10,52 @@ import (
+ 	"time"
+ )
+ 
+-func TestNoRaceCond(t *testing.T) { // tsan's test02
+-	ch := make(chan bool, 1)
+-	var x int = 0
++func TestNoRaceCond(t *testing.T) {
++	x := 0
++	condition := 0
+ 	var mu sync.Mutex
+-	var cond *sync.Cond = sync.NewCond(&mu)
+-	var condition int = 0
+-	var waker func()
+-	waker = func() {
++	cond := sync.NewCond(&mu)
++	go func() {
+ 		x = 1
+ 		mu.Lock()
+ 		condition = 1
+ 		cond.Signal()
+ 		mu.Unlock()
++	}()
++	mu.Lock()
++	for condition != 1 {
++		cond.Wait()
+ 	}
+-
+-	var waiter func()
+-	waiter = func() {
+-		go waker()
+-		cond.L.Lock()
+-		for condition != 1 {
+-			cond.Wait()
+-		}
+-		cond.L.Unlock()
+-		x = 2
+-		ch <- true
+-	}
+-	go waiter()
+-	<-ch
++	mu.Unlock()
++	x = 2
+ }
+ 
+-func TestRaceCond(t *testing.T) { // tsan's test50
+-	ch := make(chan bool, 2)
+-
+-	var x int = 0
++func TestRaceCond(t *testing.T) {
++	done := make(chan bool)
+ 	var mu sync.Mutex
+-	var condition int = 0
+-	var cond *sync.Cond = sync.NewCond(&mu)
+-
+-	var waker func() = func() {
+-		<-time.After(1e5)
++	cond := sync.NewCond(&mu)
++	x := 0
++	condition := 0
++	go func() {
++		time.Sleep(10 * time.Millisecond) // Enter cond.Wait loop
+ 		x = 1
+ 		mu.Lock()
+ 		condition = 1
+ 		cond.Signal()
+ 		mu.Unlock()
+-		<-time.After(1e5)
++		time.Sleep(10 * time.Millisecond) // Exit cond.Wait loop
+ 		mu.Lock()
+ 		x = 3
+ 		mu.Unlock()
+-		ch <- true
+-	}
+-
+-	var waiter func() = func() {
+-		mu.Lock()
+-		for condition != 1 {
+-			cond.Wait()
+-		}
+-		mu.Unlock()
+-		x = 2
+-		ch <- true
++		done <- true
++	}()
++	mu.Lock()
++	for condition != 1 {
++		cond.Wait()
+ 	}
+-	x = 0
+-	go waker()
+-	go waiter()
+-	<-ch
+-	<-ch
++	mu.Unlock()
++	x = 2
++	<-done
+ }
+ 
+ // We do not currently automatically

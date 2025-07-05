@@ -11,10 +11,191 @@ Date:   Tue Jul 24 19:10:08 2018 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 31 ++++++++++-----
  .../mod/golang.org_notx_useinternal_v0.1.0.txt     | 13 +++++++
  .../testdata/mod/golang.org_x_internal_v0.1.0.txt  | 43 +++++++++++++++++++++
  .../mod/golang.org_x_useinternal_v0.1.0.txt        | 13 +++++++
  src/cmd/go/testdata/script/mod_internal.txt        | 44 ++++++++++++++++++++++
  5 files changed, 135 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 50cd01f8c4..d1cd520245 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -961,16 +961,29 @@ func disallowInternal(srcDir string, p *Package, stk *ImportStack) *Package {
+ 	if i > 0 {
+ 		i-- // rewind over slash in ".../internal"
+ 	}
+-	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
+-	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+-		return p
+-	}
++	if p.Module == nil {
++		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
+ 
+-	// Look for symlinks before reporting error.
+-	srcDir = expandPath(srcDir)
+-	parent = expandPath(parent)
+-	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+-		return p
++		if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
++			return p
++		}
++
++		// Look for symlinks before reporting error.
++		srcDir = expandPath(srcDir)
++		parent = expandPath(parent)
++		if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
++			return p
++		}
++	} else {
++		// p is in a module, so make it available based on the import path instead
++		// of the file path (https://golang.org/issue/23970).
++		parent := p.ImportPath[:i]
++		// TODO(bcmills): In case of replacements, use the module path declared by
++		// the replacement module, not the path seen by the user.
++		importerPath := (*stk)[len(*stk)-2]
++		if strings.HasPrefix(importerPath, parent) {
++			return p
++		}
+ 	}
+ 
+ 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
+diff --git a/src/cmd/go/testdata/mod/golang.org_notx_useinternal_v0.1.0.txt b/src/cmd/go/testdata/mod/golang.org_notx_useinternal_v0.1.0.txt
+new file mode 100644
+index 0000000000..0420a1a4a0
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_notx_useinternal_v0.1.0.txt
+@@ -0,0 +1,13 @@
++written by hand — attempts to use a prohibited internal package
++(https://golang.org/s/go14internal)
++
++-- .mod --
++module golang.org/notx/useinternal
++-- .info --
++{"Version":"v0.1.0","Name":"","Short":"","Time":"2018-07-25T17:24:00Z"}
++-- go.mod --
++module golang.org/notx/useinternal
++-- useinternal.go --
++package useinternal
++
++import _ "golang.org/x/internal/subtle"
+diff --git a/src/cmd/go/testdata/mod/golang.org_x_internal_v0.1.0.txt b/src/cmd/go/testdata/mod/golang.org_x_internal_v0.1.0.txt
+new file mode 100644
+index 0000000000..5737e95cf4
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_x_internal_v0.1.0.txt
+@@ -0,0 +1,43 @@
++written by hand — loosely derived from golang.org/x/crypto/internal/subtle,
++but splitting the internal package across a module boundary
++
++-- .mod --
++module golang.org/x/internal
++-- .info --
++{"Version":"v0.1.0","Name":"","Short":"","Time":"2018-07-25T17:24:00Z"}
++-- go.mod --
++module golang.org/x/internal
++-- subtle/aliasing.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !appengine
++
++// This is a tiny version of golang.org/x/crypto/internal/subtle.
++
++package subtle
++
++import "unsafe"
++
++func AnyOverlap(x, y []byte) bool {
++	return len(x) > 0 && len(y) > 0 &&
++		uintptr(unsafe.Pointer(&x[0])) <= uintptr(unsafe.Pointer(&y[len(y)-1])) &&
++		uintptr(unsafe.Pointer(&y[0])) <= uintptr(unsafe.Pointer(&x[len(x)-1]))
++}
++-- subtle/aliasing_appengine.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build appengine
++
++package subtle
++
++import "reflect"
++
++func AnyOverlap(x, y []byte) bool {
++	return len(x) > 0 && len(y) > 0 &&
++		reflect.ValueOf(&x[0]).Pointer() <= reflect.ValueOf(&y[len(y)-1]).Pointer() &&
++		reflect.ValueOf(&y[0]).Pointer() <= reflect.ValueOf(&x[len(x)-1]).Pointer()
++}
+diff --git a/src/cmd/go/testdata/mod/golang.org_x_useinternal_v0.1.0.txt b/src/cmd/go/testdata/mod/golang.org_x_useinternal_v0.1.0.txt
+new file mode 100644
+index 0000000000..3fcba447be
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/golang.org_x_useinternal_v0.1.0.txt
+@@ -0,0 +1,13 @@
++written by hand — uses an internal package from another module
++(https://golang.org/s/go14internal)
++
++-- .mod --
++module golang.org/x/useinternal
++-- .info --
++{"Version":"v0.1.0","Name":"","Short":"","Time":"2018-07-25T17:24:00Z"}
++-- go.mod --
++module golang.org/x/useinternal
++-- useinternal.go --
++package useinternal
++
++import _ "golang.org/x/internal/subtle"
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+new file mode 100644
+index 0000000000..5ad392c088
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -0,0 +1,44 @@
++env GO111MODULE=on
++
++# golang.org/x/internal should be importable from other golang.org/x modules.
++go mod -init -module golang.org/x/anything
++go build .
++
++# ...but that should not leak into other modules.
++! go build ./baddep
++stderr 'use of internal package'
++
++# Internal packages in the standard library should not leak into modules.
++! go build ./fromstd
++stderr 'use of internal package'
++
++
++# Dependencies should be able to use their own internal modules...
++rm go.mod
++go mod -init -module golang.org/notx
++go build ./throughdep
++
++# ... but other modules should not, even if they have transitive dependencies.
++! go build .
++stderr 'use of internal package'
++
++# And transitive dependencies still should not leak.
++! go build ./baddep
++stderr 'use of internal package'
++
++
++-- useinternal.go --
++package useinternal
++import _ "golang.org/x/internal/subtle"
++
++-- throughdep/useinternal.go --
++package throughdep
++import _ "golang.org/x/useinternal"
++
++-- baddep/useinternal.go --
++package baddep
++import _ "golang.org/notx/useinternal"
++
++-- fromstd/useinternal.go --
++package fromstd
++import _ "internal/testenv"

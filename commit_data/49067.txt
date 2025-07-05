@@ -15,7 +15,7 @@ Date:   Thu Jul 15 16:42:25 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go            |  5 +++--
  src/cmd/compile/internal/types2/object_test.go     |  2 +-
  .../internal/types2/testdata/check/typeparams.go2  |  8 +++----
@@ -24,3 +24,161 @@ Date:   Thu Jul 15 16:42:25 2021 -0700
  test/fixedbugs/issue14652.go                       |  2 +-
  test/typeparam/tparam1.go                          |  4 ++--
  7 files changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 9fb9815f4d..4f656e374a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -617,8 +617,9 @@ func (check *Checker) declareTypeParam(index int, name *syntax.Name) *TypeName {
+ // The type must be an interface, including the predeclared type "any".
+ func (check *Checker) boundType(e syntax.Expr) Type {
+ 	// The predeclared identifier "any" is visible only as a type bound in a type parameter list.
+-	if name, _ := unparen(e).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == nil {
+-		return universeAny
++	// If we allow "any" for general use, this if-statement can be removed (issue #33232).
++	if name, _ := unparen(e).(*syntax.Name); name != nil && name.Value == "any" && check.lookup("any") == universeAny {
++		return universeAny.Type()
+ 	}
+ 
+ 	bound := check.typ(e)
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index 7f63c79332..a86733a5c9 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -25,7 +25,7 @@ func TestIsAlias(t *testing.T) {
+ 	check(Unsafe.Scope().Lookup("Pointer").(*TypeName), false)
+ 	for _, name := range Universe.Names() {
+ 		if obj, _ := Universe.Lookup(name).(*TypeName); obj != nil {
+-			check(obj, name == "byte" || name == "rune")
++			check(obj, name == "any" || name == "byte" || name == "rune")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+index 8a7f6eb2c2..2755a539e5 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go2
+@@ -6,11 +6,11 @@ package p
+ 
+ // import "io" // for type assertion tests
+ 
+-// The predeclared identifier "any" is only visible as a constraint
++// The predeclared identifier "any" can only be used as a constraint
+ // in a type parameter list.
+-var _ any // ERROR undeclared
+-func _[_ any /* ok here */ , _ interface{any /* ERROR undeclared */ }](any /* ERROR undeclared */ ) {
+-        var _ any /* ERROR undeclared */
++var _ any // ERROR cannot use any outside constraint position
++func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ERROR constraint */ ) {
++        var _ any /* ERROR constraint */
+ }
+ 
+ func identity[T any](x T) T { return x }
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index a14d498cec..83cefa19ba 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -25,7 +25,8 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 	// Note that we cannot use check.lookup here because the returned scope
+ 	// may be different from obj.Parent(). See also Scope.LookupParent doc.
+ 	scope, obj := check.scope.LookupParent(e.Value, check.pos)
+-	if obj == nil || obj == universeComparable && !check.allowVersion(check.pkg, 1, 18) {
++	switch obj {
++	case nil:
+ 		if e.Value == "_" {
+ 			check.error(e, "cannot use _ as value or type")
+ 		} else {
+@@ -36,6 +37,16 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *Named, wantType boo
+ 			}
+ 		}
+ 		return
++	case universeAny, universeComparable:
++		if !check.allowVersion(check.pkg, 1, 18) {
++			check.errorf(e, "undeclared name: %s (requires version go1.18 or later)", e.Value)
++			return
++		}
++		// If we allow "any" for general use, this if-statement can be removed (issue #33232).
++		if obj == universeAny {
++			check.error(e, "cannot use any outside constraint position")
++			return
++		}
+ 	}
+ 	check.recordUse(e, obj)
+ 
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index d328b13a8e..e2dd0df69e 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -20,11 +20,11 @@ var Universe *Scope
+ var Unsafe *Package
+ 
+ var (
+-	universeIota       *Const
+-	universeByte       *Basic // uint8 alias, but has name "byte"
+-	universeRune       *Basic // int32 alias, but has name "rune"
+-	universeAny        *Interface
+-	universeError      *Named
++	universeIota       Object
++	universeByte       Type // uint8 alias, but has name "byte"
++	universeRune       Type // int32 alias, but has name "rune"
++	universeAny        Object
++	universeError      Type
+ 	universeComparable Object
+ )
+ 
+@@ -79,9 +79,6 @@ func defPredeclaredTypes() {
+ 	}
+ 
+ 	// type any = interface{}
+-	// Entered into universe scope so we do all the usual checks;
+-	// but removed again from scope later since it's only visible
+-	// as constraint in a type parameter list.
+ 	def(NewTypeName(nopos, nil, "any", &emptyInterface))
+ 
+ 	// type error interface{ Error() string }
+@@ -224,15 +221,12 @@ func init() {
+ 	defPredeclaredNil()
+ 	defPredeclaredFuncs()
+ 
+-	universeIota = Universe.Lookup("iota").(*Const)
+-	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
+-	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+-	universeAny = Universe.Lookup("any").(*TypeName).typ.(*Interface)
+-	universeError = Universe.Lookup("error").(*TypeName).typ.(*Named)
++	universeIota = Universe.Lookup("iota")
++	universeByte = Universe.Lookup("byte").Type()
++	universeRune = Universe.Lookup("rune").Type()
++	universeAny = Universe.Lookup("any")
++	universeError = Universe.Lookup("error").Type()
+ 	universeComparable = Universe.Lookup("comparable")
+-
+-	// "any" is only visible as constraint in a type parameter list
+-	delete(Universe.elems, "any")
+ }
+ 
+ // Objects with names containing blanks are internal and not entered into
+diff --git a/test/fixedbugs/issue14652.go b/test/fixedbugs/issue14652.go
+index d53b412668..14a223977b 100644
+--- a/test/fixedbugs/issue14652.go
++++ b/test/fixedbugs/issue14652.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-var x any // ERROR "undefined: any|undefined type .*any.*"
++var x any // ERROR "undefined: any|undefined type .*any.*|cannot use any outside constraint position"
+diff --git a/test/typeparam/tparam1.go b/test/typeparam/tparam1.go
+index 7043933326..2bcc4af3db 100644
+--- a/test/typeparam/tparam1.go
++++ b/test/typeparam/tparam1.go
+@@ -10,8 +10,8 @@ package tparam1
+ 
+ // The predeclared identifier "any" is only visible as a constraint
+ // in a type parameter list.
+-var _ any // ERROR "undefined"
+-func _(_ any) // ERROR "undefined"
++var _ any // ERROR "cannot use any outside constraint position"
++func _(_ any) // ERROR "cannot use any outside constraint position"
+ type _[_ any /* ok here */ ] struct{}
+ 
+ const N = 10

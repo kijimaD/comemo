@@ -8,6 +8,20 @@ Date:   Wed Aug 7 09:34:39 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12572043
-
+---
  doc/articles/laws_of_reflection.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/laws_of_reflection.html b/doc/articles/laws_of_reflection.html
+index 81f6697ce5..57a769692a 100644
+--- a/doc/articles/laws_of_reflection.html
++++ b/doc/articles/laws_of_reflection.html
+@@ -148,7 +148,7 @@ Continuing, we can do this:
+ {{code "/doc/progs/interface.go" `/var empty interface{}/` `/STOP/`}}
+ 
+ <p>
+-and our empty interface value <code>e</code> will again contain
++and our empty interface value, <code>empty</code>, will again contain
+ that same pair, (<code>tty</code>, <code>*os.File</code>). That's
+ handy: an empty interface can hold any value and contains all the
+ information we could ever need about that value.

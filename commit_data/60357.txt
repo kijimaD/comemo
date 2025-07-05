@@ -17,6 +17,28 @@ Date:   Sun Jun 23 05:53:47 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/README.md | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/README.md b/src/cmd/compile/README.md
+index 3fc7ca6ec6..cffb4e7a80 100644
+--- a/src/cmd/compile/README.md
++++ b/src/cmd/compile/README.md
+@@ -63,7 +63,6 @@ Unified IR is also involved in import/export of packages and inlining.
+ 
+ ### 4. Middle end
+ 
+-* `cmd/compile/internal/deadcode` (dead code elimination)
+ * `cmd/compile/internal/inline` (function call inlining)
+ * `cmd/compile/internal/devirtualize` (devirtualization of known interface method calls)
+ * `cmd/compile/internal/escape` (escape analysis)
+@@ -72,6 +71,8 @@ Several optimization passes are performed on the IR representation:
+ dead code elimination, (early) devirtualization, function call
+ inlining, and escape analysis.
+ 
++The early dead code elimination pass is integrated into the unified IR writer phase.
++
+ ### 5. Walk
+ 
+ * `cmd/compile/internal/walk` (order of evaluation, desugaring)

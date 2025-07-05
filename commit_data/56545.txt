@@ -17,6 +17,25 @@ Date:   Wed May 3 18:27:05 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0febb3081f..54021b69f4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2006,10 +2006,11 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 	if altLinker != "" {
+ 		flags = append(flags, "-fuse-ld="+altLinker)
+ 	}
+-	flags = append(flags, flag, "trivial.c")
++	trivialPath := filepath.Join(*flagTmpdir, "trivial.c")
++	outPath := filepath.Join(*flagTmpdir, "a.out")
++	flags = append(flags, "-o", outPath, flag, trivialPath)
+ 
+ 	cmd := exec.Command(linker, flags...)
+-	cmd.Dir = *flagTmpdir
+ 	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+ 	out, err := cmd.CombinedOutput()
+ 	// GCC says "unrecognized command line option ‘-no-pie’"

@@ -10,6 +10,18 @@ Date:   Tue Jun 11 11:17:05 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/591899
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  doc/next/5-toolchain.md | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/next/5-toolchain.md b/doc/next/5-toolchain.md
+index c9437a6a8b..b1533ad8ac 100644
+--- a/doc/next/5-toolchain.md
++++ b/doc/next/5-toolchain.md
+@@ -25,4 +25,5 @@ TODO: Say what needs to be said in Go 1.23 release notes regarding
+ the locking down of future linkname uses.
+ 
+ <!-- CL 473495 -->
+-The new `-bindnow` flag enables full RELRO on ELF targets.
++When building a dynamically linked ELF binary (including PIE binary), the
++new `-bindnow` flag enables immediate function binding.

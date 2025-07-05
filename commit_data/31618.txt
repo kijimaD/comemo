@@ -12,9 +12,171 @@ Date:   Fri Feb 17 16:55:40 2017 -0500
     Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go |  5 +++++
  src/cmd/internal/obj/inl.go         |  7 +++++++
  src/cmd/internal/obj/link.go        |  2 +-
  src/cmd/internal/obj/pcln.go        | 31 +++++++++++++------------------
  4 files changed, 26 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e9c80c5144..490ac7db40 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -37,6 +37,7 @@ var (
+ 	Debug_panic    int
+ 	Debug_slice    int
+ 	Debug_wb       int
++	Debug_pctab    string
+ )
+ 
+ // Debug arguments.
+@@ -59,6 +60,7 @@ var debugtab = []struct {
+ 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
+ 	{"wb", &Debug_wb},                 // print information about write barriers
+ 	{"export", &Debug_export},         // print export data
++	{"pctab", &Debug_pctab},           // print named pc-value table
+ }
+ 
+ func usage() {
+@@ -319,6 +321,9 @@ func Main() {
+ 		}
+ 	}
+ 
++	// set via a -d flag
++	Ctxt.Debugpcln = Debug_pctab
++
+ 	// enable inlining.  for now:
+ 	//	default: inlining on.  (debug['l'] == 1)
+ 	//	-l: inlining off  (debug['l'] == 0)
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index f5e06959a2..116921995a 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -76,3 +76,10 @@ func (ctxt *Link) OutermostPos(xpos src.XPos) src.Pos {
+ 	}
+ 	return ctxt.PosTable.Pos(outerxpos)
+ }
++
++func dumpInlTree(ctxt *Link, tree InlTree) {
++	for i, call := range tree.nodes {
++		pos := ctxt.PosTable.Pos(call.Pos)
++		ctxt.Logf("%0d | %0d | %s (%s)\n", i, call.Parent, call.Func, pos)
++	}
++}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 9de26a5a03..83a1f4cfbf 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -716,7 +716,7 @@ type Link struct {
+ 	Debugasm      int32
+ 	Debugvlog     int32
+ 	Debugdivmod   int32
+-	Debugpcln     int32
++	Debugpcln     string
+ 	Flag_shared   bool
+ 	Flag_dynlink  bool
+ 	Flag_optimize bool
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 8db7802d0c..44be031dce 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -24,31 +24,23 @@ func addvarint(d *Pcdata, v uint32) {
+ // where func is the function, val is the current value, p is the instruction being
+ // considered, and arg can be used to further parameterize valfunc.
+ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
+-	// To debug a specific function, uncomment lines and change name.
+-	dbg := 0
+-
+-	//if func_.Name == "main.main" || desc == "pctospadj" {
+-	//	dbg = 1
+-	//}
+-
+-	ctxt.Debugpcln += int32(dbg)
++	dbg := desc == ctxt.Debugpcln
+ 
+ 	dst.P = dst.P[:0]
+ 
+-	if ctxt.Debugpcln != 0 {
++	if dbg {
+ 		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
+ 	}
+ 
+ 	val := int32(-1)
+ 	oldval := val
+ 	if func_.Text == nil {
+-		ctxt.Debugpcln -= int32(dbg)
+ 		return
+ 	}
+ 
+ 	pc := func_.Text.Pc
+ 
+-	if ctxt.Debugpcln != 0 {
++	if dbg {
+ 		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Text)
+ 	}
+ 
+@@ -60,7 +52,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 
+ 		if val == oldval && started != 0 {
+ 			val = valfunc(ctxt, func_, val, p, 1, arg)
+-			if ctxt.Debugpcln != 0 {
++			if dbg {
+ 				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
+ 			}
+ 			continue
+@@ -72,7 +64,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		// for a true instruction boundary in the program.
+ 		if p.Link != nil && p.Link.Pc == p.Pc {
+ 			val = valfunc(ctxt, func_, val, p, 1, arg)
+-			if ctxt.Debugpcln != 0 {
++			if dbg {
+ 				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
+ 			}
+ 			continue
+@@ -92,7 +84,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		// as variable-length little-endian base-128 integers,
+ 		// where the 0x80 bit indicates that the integer continues.
+ 
+-		if ctxt.Debugpcln != 0 {
++		if dbg {
+ 			ctxt.Logf("%6x %6d %v\n", uint64(p.Pc), val, p)
+ 		}
+ 
+@@ -114,22 +106,20 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 	}
+ 
+ 	if started != 0 {
+-		if ctxt.Debugpcln != 0 {
++		if dbg {
+ 			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
+ 		}
+ 		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
+ 		addvarint(dst, 0) // terminator
+ 	}
+ 
+-	if ctxt.Debugpcln != 0 {
++	if dbg {
+ 		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
+ 		for i := 0; i < len(dst.P); i++ {
+ 			ctxt.Logf(" %02x", dst.P[i])
+ 		}
+ 		ctxt.Logf("\n")
+ 	}
+-
+-	ctxt.Debugpcln -= int32(dbg)
+ }
+ 
+ // pctofileline computes either the file number (arg == 0)
+@@ -297,6 +287,11 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	pcinlineState := new(pcinlineState)
+ 	funcpctab(ctxt, &pcln.Pcinline, cursym, "pctoinline", pcinlineState.pctoinline, nil)
+ 	pcln.InlTree = pcinlineState.localTree
++	if ctxt.Debugpcln == "pctoinline" && len(pcln.InlTree.nodes) > 0 {
++		ctxt.Logf("-- inlining tree for %s:\n", cursym)
++		dumpInlTree(ctxt, pcln.InlTree)
++		ctxt.Logf("--\n")
++	}
+ 
+ 	// tabulate which pc and func data we have.
+ 	havepc := make([]uint32, (npcdata+31)/32)

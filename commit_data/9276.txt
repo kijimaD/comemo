@@ -9,6 +9,23 @@ Date:   Mon Aug 1 19:17:23 2011 -0700
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/4836047
-
+---
  src/pkg/go/build/path.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/go/build/path.go b/src/pkg/go/build/path.go
+index 7c120d064c..e39b5f8fa5 100644
+--- a/src/pkg/go/build/path.go
++++ b/src/pkg/go/build/path.go
+@@ -54,6 +54,11 @@ func (t *Tree) PkgDir() string {
+ 
+ // BinDir returns the tree's binary executable directory.
+ func (t *Tree) BinDir() string {
++	if t.Goroot {
++		if gobin := os.Getenv("GOBIN"); gobin != "" {
++			return gobin
++		}
++	}
+ 	return filepath.Join(t.Path, "bin")
+ }
+ 

@@ -12,10 +12,832 @@ Date:   Thu Aug 8 17:36:43 2013 +0400
     R=golang-dev, mikioh.mikioh, alex.brainman
     CC=golang-dev
     https://golang.org/cl/12409044
-
+---
  src/pkg/net/fd_windows.go                 |  62 ++++++-
  src/pkg/syscall/syscall_windows.go        |   6 +
  src/pkg/syscall/zsyscall_windows_386.go   | 293 ++++++++++++++++--------------
  src/pkg/syscall/zsyscall_windows_amd64.go | 293 ++++++++++++++++--------------
  src/pkg/syscall/ztypes_windows.go         |  66 +++++++
  5 files changed, 445 insertions(+), 275 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index a667de7b9f..ff3966e433 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -27,7 +27,11 @@ var initErr error
+ // package uses CancelIoEx API, if present, otherwise it fallback
+ // to CancelIo.
+ 
+-var canCancelIO bool // determines if CancelIoEx API is present
++var (
++	canCancelIO                               bool // determines if CancelIoEx API is present
++	skipSyncNotif                             bool
++	hasLoadSetFileCompletionNotificationModes bool
++)
+ 
+ func sysInit() {
+ 	var d syscall.WSAData
+@@ -40,6 +44,27 @@ func sysInit() {
+ 		lookupPort = newLookupPort
+ 		lookupIP = newLookupIP
+ 	}
++
++	hasLoadSetFileCompletionNotificationModes = syscall.LoadSetFileCompletionNotificationModes() == nil
++	if hasLoadSetFileCompletionNotificationModes {
++		// It's not safe to use FILE_SKIP_COMPLETION_PORT_ON_SUCCESS if non IFS providers are installed:
++		// http://support.microsoft.com/kb/2568167
++		skipSyncNotif = true
++		protos := [2]int32{syscall.IPPROTO_TCP, 0}
++		var buf [32]syscall.WSAProtocolInfo
++		len := uint32(unsafe.Sizeof(buf))
++		n, err := syscall.WSAEnumProtocols(&protos[0], &buf[0], &len)
++		if err != nil {
++			skipSyncNotif = false
++		} else {
++			for i := int32(0); i < n; i++ {
++				if buf[i].ServiceFlags1&syscall.XP1_IFS_HANDLES == 0 {
++					skipSyncNotif = false
++					break
++				}
++			}
++		}
++	}
+ }
+ 
+ func closesocket(s syscall.Handle) error {
+@@ -148,7 +173,12 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
+ 	}
+ 	switch err {
+ 	case nil:
+-		// IO completed immediately, but we need to get our completion message anyway.
++		// IO completed immediately
++		if o.fd.skipSyncNotif {
++			// No completion message will follow, so return immediately.
++			return int(o.qty), nil
++		}
++		// Need to get our completion message anyway.
+ 	case syscall.ERROR_IO_PENDING:
+ 		// IO started, and we have to wait for its completion.
+ 		err = nil
+@@ -222,13 +252,14 @@ type netFD struct {
+ 	closing bool
+ 
+ 	// immutable until Close
+-	sysfd       syscall.Handle
+-	family      int
+-	sotype      int
+-	isConnected bool
+-	net         string
+-	laddr       Addr
+-	raddr       Addr
++	sysfd         syscall.Handle
++	family        int
++	sotype        int
++	isConnected   bool
++	skipSyncNotif bool
++	net           string
++	laddr         Addr
++	raddr         Addr
+ 
+ 	rop operation // read operation
+ 	wop operation // write operation
+@@ -249,6 +280,19 @@ func (fd *netFD) init() error {
+ 	if err := fd.pd.Init(fd); err != nil {
+ 		return err
+ 	}
++	if hasLoadSetFileCompletionNotificationModes {
++		// We do not use events, so we can skip them always.
++		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
++		// It's not safe to skip completion notifications for UDP:
++		// http://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
++		if skipSyncNotif && fd.net == "tcp" {
++			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
++		}
++		err := syscall.SetFileCompletionNotificationModes(fd.sysfd, flags)
++		if err == nil && flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
++			fd.skipSyncNotif = true
++		}
++	}
+ 	fd.rop.mode = 'r'
+ 	fd.wop.mode = 'w'
+ 	fd.rop.fd = fd
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 4c7f34e957..3d78b68235 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -508,6 +508,10 @@ func LoadCancelIoEx() error {
+ 	return procCancelIoEx.Find()
+ }
+ 
++func LoadSetFileCompletionNotificationModes() error {
++	return procSetFileCompletionNotificationModes.Find()
++}
++
+ // net api calls
+ 
+ const socket_error = uintptr(^uint32(0))
+@@ -541,6 +545,8 @@ const socket_error = uintptr(^uint32(0))
+ //sys	FreeAddrInfoW(addrinfo *AddrinfoW) = ws2_32.FreeAddrInfoW
+ //sys	GetIfEntry(pIfRow *MibIfRow) (errcode error) = iphlpapi.GetIfEntry
+ //sys	GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) = iphlpapi.GetAdaptersInfo
++//sys	SetFileCompletionNotificationModes(handle Handle, flags uint8) (err error) = kernel32.SetFileCompletionNotificationModes
++//sys	WSAEnumProtocols(protocols *int32, protocolBuffer *WSAProtocolInfo, bufferLength *uint32) (n int32, err error) [failretval==-1] = ws2_32.WSAEnumProtocolsW
+ 
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 838812a620..3cd12dd47f 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -18,139 +18,141 @@ var (
+ 	modnetapi32 = NewLazyDLL("netapi32.dll")
+ 	moduserenv  = NewLazyDLL("userenv.dll")
+ 
+-	procGetLastError                     = modkernel32.NewProc("GetLastError")
+-	procLoadLibraryW                     = modkernel32.NewProc("LoadLibraryW")
+-	procFreeLibrary                      = modkernel32.NewProc("FreeLibrary")
+-	procGetProcAddress                   = modkernel32.NewProc("GetProcAddress")
+-	procGetVersion                       = modkernel32.NewProc("GetVersion")
+-	procFormatMessageW                   = modkernel32.NewProc("FormatMessageW")
+-	procExitProcess                      = modkernel32.NewProc("ExitProcess")
+-	procCreateFileW                      = modkernel32.NewProc("CreateFileW")
+-	procReadFile                         = modkernel32.NewProc("ReadFile")
+-	procWriteFile                        = modkernel32.NewProc("WriteFile")
+-	procSetFilePointer                   = modkernel32.NewProc("SetFilePointer")
+-	procCloseHandle                      = modkernel32.NewProc("CloseHandle")
+-	procGetStdHandle                     = modkernel32.NewProc("GetStdHandle")
+-	procFindFirstFileW                   = modkernel32.NewProc("FindFirstFileW")
+-	procFindNextFileW                    = modkernel32.NewProc("FindNextFileW")
+-	procFindClose                        = modkernel32.NewProc("FindClose")
+-	procGetFileInformationByHandle       = modkernel32.NewProc("GetFileInformationByHandle")
+-	procGetCurrentDirectoryW             = modkernel32.NewProc("GetCurrentDirectoryW")
+-	procSetCurrentDirectoryW             = modkernel32.NewProc("SetCurrentDirectoryW")
+-	procCreateDirectoryW                 = modkernel32.NewProc("CreateDirectoryW")
+-	procRemoveDirectoryW                 = modkernel32.NewProc("RemoveDirectoryW")
+-	procDeleteFileW                      = modkernel32.NewProc("DeleteFileW")
+-	procMoveFileW                        = modkernel32.NewProc("MoveFileW")
+-	procGetComputerNameW                 = modkernel32.NewProc("GetComputerNameW")
+-	procSetEndOfFile                     = modkernel32.NewProc("SetEndOfFile")
+-	procGetSystemTimeAsFileTime          = modkernel32.NewProc("GetSystemTimeAsFileTime")
+-	procGetTimeZoneInformation           = modkernel32.NewProc("GetTimeZoneInformation")
+-	procCreateIoCompletionPort           = modkernel32.NewProc("CreateIoCompletionPort")
+-	procGetQueuedCompletionStatus        = modkernel32.NewProc("GetQueuedCompletionStatus")
+-	procPostQueuedCompletionStatus       = modkernel32.NewProc("PostQueuedCompletionStatus")
+-	procCancelIo                         = modkernel32.NewProc("CancelIo")
+-	procCancelIoEx                       = modkernel32.NewProc("CancelIoEx")
+-	procCreateProcessW                   = modkernel32.NewProc("CreateProcessW")
+-	procOpenProcess                      = modkernel32.NewProc("OpenProcess")
+-	procTerminateProcess                 = modkernel32.NewProc("TerminateProcess")
+-	procGetExitCodeProcess               = modkernel32.NewProc("GetExitCodeProcess")
+-	procGetStartupInfoW                  = modkernel32.NewProc("GetStartupInfoW")
+-	procGetCurrentProcess                = modkernel32.NewProc("GetCurrentProcess")
+-	procGetProcessTimes                  = modkernel32.NewProc("GetProcessTimes")
+-	procDuplicateHandle                  = modkernel32.NewProc("DuplicateHandle")
+-	procWaitForSingleObject              = modkernel32.NewProc("WaitForSingleObject")
+-	procGetTempPathW                     = modkernel32.NewProc("GetTempPathW")
+-	procCreatePipe                       = modkernel32.NewProc("CreatePipe")
+-	procGetFileType                      = modkernel32.NewProc("GetFileType")
+-	procCryptAcquireContextW             = modadvapi32.NewProc("CryptAcquireContextW")
+-	procCryptReleaseContext              = modadvapi32.NewProc("CryptReleaseContext")
+-	procCryptGenRandom                   = modadvapi32.NewProc("CryptGenRandom")
+-	procGetEnvironmentStringsW           = modkernel32.NewProc("GetEnvironmentStringsW")
+-	procFreeEnvironmentStringsW          = modkernel32.NewProc("FreeEnvironmentStringsW")
+-	procGetEnvironmentVariableW          = modkernel32.NewProc("GetEnvironmentVariableW")
+-	procSetEnvironmentVariableW          = modkernel32.NewProc("SetEnvironmentVariableW")
+-	procSetFileTime                      = modkernel32.NewProc("SetFileTime")
+-	procGetFileAttributesW               = modkernel32.NewProc("GetFileAttributesW")
+-	procSetFileAttributesW               = modkernel32.NewProc("SetFileAttributesW")
+-	procGetFileAttributesExW             = modkernel32.NewProc("GetFileAttributesExW")
+-	procGetCommandLineW                  = modkernel32.NewProc("GetCommandLineW")
+-	procCommandLineToArgvW               = modshell32.NewProc("CommandLineToArgvW")
+-	procLocalFree                        = modkernel32.NewProc("LocalFree")
+-	procSetHandleInformation             = modkernel32.NewProc("SetHandleInformation")
+-	procFlushFileBuffers                 = modkernel32.NewProc("FlushFileBuffers")
+-	procGetFullPathNameW                 = modkernel32.NewProc("GetFullPathNameW")
+-	procGetLongPathNameW                 = modkernel32.NewProc("GetLongPathNameW")
+-	procGetShortPathNameW                = modkernel32.NewProc("GetShortPathNameW")
+-	procCreateFileMappingW               = modkernel32.NewProc("CreateFileMappingW")
+-	procMapViewOfFile                    = modkernel32.NewProc("MapViewOfFile")
+-	procUnmapViewOfFile                  = modkernel32.NewProc("UnmapViewOfFile")
+-	procFlushViewOfFile                  = modkernel32.NewProc("FlushViewOfFile")
+-	procVirtualLock                      = modkernel32.NewProc("VirtualLock")
+-	procVirtualUnlock                    = modkernel32.NewProc("VirtualUnlock")
+-	procTransmitFile                     = modmswsock.NewProc("TransmitFile")
+-	procReadDirectoryChangesW            = modkernel32.NewProc("ReadDirectoryChangesW")
+-	procCertOpenSystemStoreW             = modcrypt32.NewProc("CertOpenSystemStoreW")
+-	procCertOpenStore                    = modcrypt32.NewProc("CertOpenStore")
+-	procCertEnumCertificatesInStore      = modcrypt32.NewProc("CertEnumCertificatesInStore")
+-	procCertAddCertificateContextToStore = modcrypt32.NewProc("CertAddCertificateContextToStore")
+-	procCertCloseStore                   = modcrypt32.NewProc("CertCloseStore")
+-	procCertGetCertificateChain          = modcrypt32.NewProc("CertGetCertificateChain")
+-	procCertFreeCertificateChain         = modcrypt32.NewProc("CertFreeCertificateChain")
+-	procCertCreateCertificateContext     = modcrypt32.NewProc("CertCreateCertificateContext")
+-	procCertFreeCertificateContext       = modcrypt32.NewProc("CertFreeCertificateContext")
+-	procCertVerifyCertificateChainPolicy = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
+-	procRegOpenKeyExW                    = modadvapi32.NewProc("RegOpenKeyExW")
+-	procRegCloseKey                      = modadvapi32.NewProc("RegCloseKey")
+-	procRegQueryInfoKeyW                 = modadvapi32.NewProc("RegQueryInfoKeyW")
+-	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
+-	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
+-	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
+-	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
+-	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
+-	procReadConsoleW                     = modkernel32.NewProc("ReadConsoleW")
+-	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
+-	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
+-	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
+-	procsocket                           = modws2_32.NewProc("socket")
+-	procsetsockopt                       = modws2_32.NewProc("setsockopt")
+-	procgetsockopt                       = modws2_32.NewProc("getsockopt")
+-	procbind                             = modws2_32.NewProc("bind")
+-	procconnect                          = modws2_32.NewProc("connect")
+-	procgetsockname                      = modws2_32.NewProc("getsockname")
+-	procgetpeername                      = modws2_32.NewProc("getpeername")
+-	proclisten                           = modws2_32.NewProc("listen")
+-	procshutdown                         = modws2_32.NewProc("shutdown")
+-	procclosesocket                      = modws2_32.NewProc("closesocket")
+-	procAcceptEx                         = modmswsock.NewProc("AcceptEx")
+-	procGetAcceptExSockaddrs             = modmswsock.NewProc("GetAcceptExSockaddrs")
+-	procWSARecv                          = modws2_32.NewProc("WSARecv")
+-	procWSASend                          = modws2_32.NewProc("WSASend")
+-	procWSARecvFrom                      = modws2_32.NewProc("WSARecvFrom")
+-	procWSASendTo                        = modws2_32.NewProc("WSASendTo")
+-	procgethostbyname                    = modws2_32.NewProc("gethostbyname")
+-	procgetservbyname                    = modws2_32.NewProc("getservbyname")
+-	procntohs                            = modws2_32.NewProc("ntohs")
+-	procgetprotobyname                   = modws2_32.NewProc("getprotobyname")
+-	procDnsQuery_W                       = moddnsapi.NewProc("DnsQuery_W")
+-	procDnsRecordListFree                = moddnsapi.NewProc("DnsRecordListFree")
+-	procGetAddrInfoW                     = modws2_32.NewProc("GetAddrInfoW")
+-	procFreeAddrInfoW                    = modws2_32.NewProc("FreeAddrInfoW")
+-	procGetIfEntry                       = modiphlpapi.NewProc("GetIfEntry")
+-	procGetAdaptersInfo                  = modiphlpapi.NewProc("GetAdaptersInfo")
+-	procTranslateNameW                   = modsecur32.NewProc("TranslateNameW")
+-	procGetUserNameExW                   = modsecur32.NewProc("GetUserNameExW")
+-	procNetUserGetInfo                   = modnetapi32.NewProc("NetUserGetInfo")
+-	procNetGetJoinInformation            = modnetapi32.NewProc("NetGetJoinInformation")
+-	procNetApiBufferFree                 = modnetapi32.NewProc("NetApiBufferFree")
+-	procLookupAccountSidW                = modadvapi32.NewProc("LookupAccountSidW")
+-	procLookupAccountNameW               = modadvapi32.NewProc("LookupAccountNameW")
+-	procConvertSidToStringSidW           = modadvapi32.NewProc("ConvertSidToStringSidW")
+-	procConvertStringSidToSidW           = modadvapi32.NewProc("ConvertStringSidToSidW")
+-	procGetLengthSid                     = modadvapi32.NewProc("GetLengthSid")
+-	procCopySid                          = modadvapi32.NewProc("CopySid")
+-	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
+-	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
+-	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
++	procGetLastError                       = modkernel32.NewProc("GetLastError")
++	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
++	procFreeLibrary                        = modkernel32.NewProc("FreeLibrary")
++	procGetProcAddress                     = modkernel32.NewProc("GetProcAddress")
++	procGetVersion                         = modkernel32.NewProc("GetVersion")
++	procFormatMessageW                     = modkernel32.NewProc("FormatMessageW")
++	procExitProcess                        = modkernel32.NewProc("ExitProcess")
++	procCreateFileW                        = modkernel32.NewProc("CreateFileW")
++	procReadFile                           = modkernel32.NewProc("ReadFile")
++	procWriteFile                          = modkernel32.NewProc("WriteFile")
++	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
++	procCloseHandle                        = modkernel32.NewProc("CloseHandle")
++	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
++	procFindFirstFileW                     = modkernel32.NewProc("FindFirstFileW")
++	procFindNextFileW                      = modkernel32.NewProc("FindNextFileW")
++	procFindClose                          = modkernel32.NewProc("FindClose")
++	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
++	procGetCurrentDirectoryW               = modkernel32.NewProc("GetCurrentDirectoryW")
++	procSetCurrentDirectoryW               = modkernel32.NewProc("SetCurrentDirectoryW")
++	procCreateDirectoryW                   = modkernel32.NewProc("CreateDirectoryW")
++	procRemoveDirectoryW                   = modkernel32.NewProc("RemoveDirectoryW")
++	procDeleteFileW                        = modkernel32.NewProc("DeleteFileW")
++	procMoveFileW                          = modkernel32.NewProc("MoveFileW")
++	procGetComputerNameW                   = modkernel32.NewProc("GetComputerNameW")
++	procSetEndOfFile                       = modkernel32.NewProc("SetEndOfFile")
++	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
++	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
++	procCreateIoCompletionPort             = modkernel32.NewProc("CreateIoCompletionPort")
++	procGetQueuedCompletionStatus          = modkernel32.NewProc("GetQueuedCompletionStatus")
++	procPostQueuedCompletionStatus         = modkernel32.NewProc("PostQueuedCompletionStatus")
++	procCancelIo                           = modkernel32.NewProc("CancelIo")
++	procCancelIoEx                         = modkernel32.NewProc("CancelIoEx")
++	procCreateProcessW                     = modkernel32.NewProc("CreateProcessW")
++	procOpenProcess                        = modkernel32.NewProc("OpenProcess")
++	procTerminateProcess                   = modkernel32.NewProc("TerminateProcess")
++	procGetExitCodeProcess                 = modkernel32.NewProc("GetExitCodeProcess")
++	procGetStartupInfoW                    = modkernel32.NewProc("GetStartupInfoW")
++	procGetCurrentProcess                  = modkernel32.NewProc("GetCurrentProcess")
++	procGetProcessTimes                    = modkernel32.NewProc("GetProcessTimes")
++	procDuplicateHandle                    = modkernel32.NewProc("DuplicateHandle")
++	procWaitForSingleObject                = modkernel32.NewProc("WaitForSingleObject")
++	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
++	procCreatePipe                         = modkernel32.NewProc("CreatePipe")
++	procGetFileType                        = modkernel32.NewProc("GetFileType")
++	procCryptAcquireContextW               = modadvapi32.NewProc("CryptAcquireContextW")
++	procCryptReleaseContext                = modadvapi32.NewProc("CryptReleaseContext")
++	procCryptGenRandom                     = modadvapi32.NewProc("CryptGenRandom")
++	procGetEnvironmentStringsW             = modkernel32.NewProc("GetEnvironmentStringsW")
++	procFreeEnvironmentStringsW            = modkernel32.NewProc("FreeEnvironmentStringsW")
++	procGetEnvironmentVariableW            = modkernel32.NewProc("GetEnvironmentVariableW")
++	procSetEnvironmentVariableW            = modkernel32.NewProc("SetEnvironmentVariableW")
++	procSetFileTime                        = modkernel32.NewProc("SetFileTime")
++	procGetFileAttributesW                 = modkernel32.NewProc("GetFileAttributesW")
++	procSetFileAttributesW                 = modkernel32.NewProc("SetFileAttributesW")
++	procGetFileAttributesExW               = modkernel32.NewProc("GetFileAttributesExW")
++	procGetCommandLineW                    = modkernel32.NewProc("GetCommandLineW")
++	procCommandLineToArgvW                 = modshell32.NewProc("CommandLineToArgvW")
++	procLocalFree                          = modkernel32.NewProc("LocalFree")
++	procSetHandleInformation               = modkernel32.NewProc("SetHandleInformation")
++	procFlushFileBuffers                   = modkernel32.NewProc("FlushFileBuffers")
++	procGetFullPathNameW                   = modkernel32.NewProc("GetFullPathNameW")
++	procGetLongPathNameW                   = modkernel32.NewProc("GetLongPathNameW")
++	procGetShortPathNameW                  = modkernel32.NewProc("GetShortPathNameW")
++	procCreateFileMappingW                 = modkernel32.NewProc("CreateFileMappingW")
++	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
++	procUnmapViewOfFile                    = modkernel32.NewProc("UnmapViewOfFile")
++	procFlushViewOfFile                    = modkernel32.NewProc("FlushViewOfFile")
++	procVirtualLock                        = modkernel32.NewProc("VirtualLock")
++	procVirtualUnlock                      = modkernel32.NewProc("VirtualUnlock")
++	procTransmitFile                       = modmswsock.NewProc("TransmitFile")
++	procReadDirectoryChangesW              = modkernel32.NewProc("ReadDirectoryChangesW")
++	procCertOpenSystemStoreW               = modcrypt32.NewProc("CertOpenSystemStoreW")
++	procCertOpenStore                      = modcrypt32.NewProc("CertOpenStore")
++	procCertEnumCertificatesInStore        = modcrypt32.NewProc("CertEnumCertificatesInStore")
++	procCertAddCertificateContextToStore   = modcrypt32.NewProc("CertAddCertificateContextToStore")
++	procCertCloseStore                     = modcrypt32.NewProc("CertCloseStore")
++	procCertGetCertificateChain            = modcrypt32.NewProc("CertGetCertificateChain")
++	procCertFreeCertificateChain           = modcrypt32.NewProc("CertFreeCertificateChain")
++	procCertCreateCertificateContext       = modcrypt32.NewProc("CertCreateCertificateContext")
++	procCertFreeCertificateContext         = modcrypt32.NewProc("CertFreeCertificateContext")
++	procCertVerifyCertificateChainPolicy   = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
++	procRegOpenKeyExW                      = modadvapi32.NewProc("RegOpenKeyExW")
++	procRegCloseKey                        = modadvapi32.NewProc("RegCloseKey")
++	procRegQueryInfoKeyW                   = modadvapi32.NewProc("RegQueryInfoKeyW")
++	procRegEnumKeyExW                      = modadvapi32.NewProc("RegEnumKeyExW")
++	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
++	procGetCurrentProcessId                = modkernel32.NewProc("GetCurrentProcessId")
++	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
++	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
++	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
++	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
++	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
++	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
++	procsocket                             = modws2_32.NewProc("socket")
++	procsetsockopt                         = modws2_32.NewProc("setsockopt")
++	procgetsockopt                         = modws2_32.NewProc("getsockopt")
++	procbind                               = modws2_32.NewProc("bind")
++	procconnect                            = modws2_32.NewProc("connect")
++	procgetsockname                        = modws2_32.NewProc("getsockname")
++	procgetpeername                        = modws2_32.NewProc("getpeername")
++	proclisten                             = modws2_32.NewProc("listen")
++	procshutdown                           = modws2_32.NewProc("shutdown")
++	procclosesocket                        = modws2_32.NewProc("closesocket")
++	procAcceptEx                           = modmswsock.NewProc("AcceptEx")
++	procGetAcceptExSockaddrs               = modmswsock.NewProc("GetAcceptExSockaddrs")
++	procWSARecv                            = modws2_32.NewProc("WSARecv")
++	procWSASend                            = modws2_32.NewProc("WSASend")
++	procWSARecvFrom                        = modws2_32.NewProc("WSARecvFrom")
++	procWSASendTo                          = modws2_32.NewProc("WSASendTo")
++	procgethostbyname                      = modws2_32.NewProc("gethostbyname")
++	procgetservbyname                      = modws2_32.NewProc("getservbyname")
++	procntohs                              = modws2_32.NewProc("ntohs")
++	procgetprotobyname                     = modws2_32.NewProc("getprotobyname")
++	procDnsQuery_W                         = moddnsapi.NewProc("DnsQuery_W")
++	procDnsRecordListFree                  = moddnsapi.NewProc("DnsRecordListFree")
++	procGetAddrInfoW                       = modws2_32.NewProc("GetAddrInfoW")
++	procFreeAddrInfoW                      = modws2_32.NewProc("FreeAddrInfoW")
++	procGetIfEntry                         = modiphlpapi.NewProc("GetIfEntry")
++	procGetAdaptersInfo                    = modiphlpapi.NewProc("GetAdaptersInfo")
++	procSetFileCompletionNotificationModes = modkernel32.NewProc("SetFileCompletionNotificationModes")
++	procWSAEnumProtocolsW                  = modws2_32.NewProc("WSAEnumProtocolsW")
++	procTranslateNameW                     = modsecur32.NewProc("TranslateNameW")
++	procGetUserNameExW                     = modsecur32.NewProc("GetUserNameExW")
++	procNetUserGetInfo                     = modnetapi32.NewProc("NetUserGetInfo")
++	procNetGetJoinInformation              = modnetapi32.NewProc("NetGetJoinInformation")
++	procNetApiBufferFree                   = modnetapi32.NewProc("NetApiBufferFree")
++	procLookupAccountSidW                  = modadvapi32.NewProc("LookupAccountSidW")
++	procLookupAccountNameW                 = modadvapi32.NewProc("LookupAccountNameW")
++	procConvertSidToStringSidW             = modadvapi32.NewProc("ConvertSidToStringSidW")
++	procConvertStringSidToSidW             = modadvapi32.NewProc("ConvertStringSidToSidW")
++	procGetLengthSid                       = modadvapi32.NewProc("GetLengthSid")
++	procCopySid                            = modadvapi32.NewProc("CopySid")
++	procOpenProcessToken                   = modadvapi32.NewProc("OpenProcessToken")
++	procGetTokenInformation                = modadvapi32.NewProc("GetTokenInformation")
++	procGetUserProfileDirectoryW           = moduserenv.NewProc("GetUserProfileDirectoryW")
+ )
+ 
+ func GetLastError() (lasterr error) {
+@@ -1582,6 +1584,31 @@ func GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) {
+ 	return
+ }
+ 
++func SetFileCompletionNotificationModes(handle Handle, flags uint8) (err error) {
++	r1, _, e1 := Syscall(procSetFileCompletionNotificationModes.Addr(), 2, uintptr(handle), uintptr(flags), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func WSAEnumProtocols(protocols *int32, protocolBuffer *WSAProtocolInfo, bufferLength *uint32) (n int32, err error) {
++	r0, _, e1 := Syscall(procWSAEnumProtocolsW.Addr(), 3, uintptr(unsafe.Pointer(protocols)), uintptr(unsafe.Pointer(protocolBuffer)), uintptr(unsafe.Pointer(bufferLength)))
++	n = int32(r0)
++	if n == -1 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) {
+ 	r1, _, e1 := Syscall6(procTranslateNameW.Addr(), 5, uintptr(unsafe.Pointer(accName)), uintptr(accNameFormat), uintptr(desiredNameFormat), uintptr(unsafe.Pointer(translatedName)), uintptr(unsafe.Pointer(nSize)), 0)
+ 	if r1&0xff == 0 {
+diff --git a/src/pkg/syscall/zsyscall_windows_amd64.go b/src/pkg/syscall/zsyscall_windows_amd64.go
+index 1b403be495..d23c2311a0 100644
+--- a/src/pkg/syscall/zsyscall_windows_amd64.go
++++ b/src/pkg/syscall/zsyscall_windows_amd64.go
+@@ -18,139 +18,141 @@ var (
+ 	modnetapi32 = NewLazyDLL("netapi32.dll")
+ 	moduserenv  = NewLazyDLL("userenv.dll")
+ 
+-	procGetLastError                     = modkernel32.NewProc("GetLastError")
+-	procLoadLibraryW                     = modkernel32.NewProc("LoadLibraryW")
+-	procFreeLibrary                      = modkernel32.NewProc("FreeLibrary")
+-	procGetProcAddress                   = modkernel32.NewProc("GetProcAddress")
+-	procGetVersion                       = modkernel32.NewProc("GetVersion")
+-	procFormatMessageW                   = modkernel32.NewProc("FormatMessageW")
+-	procExitProcess                      = modkernel32.NewProc("ExitProcess")
+-	procCreateFileW                      = modkernel32.NewProc("CreateFileW")
+-	procReadFile                         = modkernel32.NewProc("ReadFile")
+-	procWriteFile                        = modkernel32.NewProc("WriteFile")
+-	procSetFilePointer                   = modkernel32.NewProc("SetFilePointer")
+-	procCloseHandle                      = modkernel32.NewProc("CloseHandle")
+-	procGetStdHandle                     = modkernel32.NewProc("GetStdHandle")
+-	procFindFirstFileW                   = modkernel32.NewProc("FindFirstFileW")
+-	procFindNextFileW                    = modkernel32.NewProc("FindNextFileW")
+-	procFindClose                        = modkernel32.NewProc("FindClose")
+-	procGetFileInformationByHandle       = modkernel32.NewProc("GetFileInformationByHandle")
+-	procGetCurrentDirectoryW             = modkernel32.NewProc("GetCurrentDirectoryW")
+-	procSetCurrentDirectoryW             = modkernel32.NewProc("SetCurrentDirectoryW")
+-	procCreateDirectoryW                 = modkernel32.NewProc("CreateDirectoryW")
+-	procRemoveDirectoryW                 = modkernel32.NewProc("RemoveDirectoryW")
+-	procDeleteFileW                      = modkernel32.NewProc("DeleteFileW")
+-	procMoveFileW                        = modkernel32.NewProc("MoveFileW")
+-	procGetComputerNameW                 = modkernel32.NewProc("GetComputerNameW")
+-	procSetEndOfFile                     = modkernel32.NewProc("SetEndOfFile")
+-	procGetSystemTimeAsFileTime          = modkernel32.NewProc("GetSystemTimeAsFileTime")
+-	procGetTimeZoneInformation           = modkernel32.NewProc("GetTimeZoneInformation")
+-	procCreateIoCompletionPort           = modkernel32.NewProc("CreateIoCompletionPort")
+-	procGetQueuedCompletionStatus        = modkernel32.NewProc("GetQueuedCompletionStatus")
+-	procPostQueuedCompletionStatus       = modkernel32.NewProc("PostQueuedCompletionStatus")
+-	procCancelIo                         = modkernel32.NewProc("CancelIo")
+-	procCancelIoEx                       = modkernel32.NewProc("CancelIoEx")
+-	procCreateProcessW                   = modkernel32.NewProc("CreateProcessW")
+-	procOpenProcess                      = modkernel32.NewProc("OpenProcess")
+-	procTerminateProcess                 = modkernel32.NewProc("TerminateProcess")
+-	procGetExitCodeProcess               = modkernel32.NewProc("GetExitCodeProcess")
+-	procGetStartupInfoW                  = modkernel32.NewProc("GetStartupInfoW")
+-	procGetCurrentProcess                = modkernel32.NewProc("GetCurrentProcess")
+-	procGetProcessTimes                  = modkernel32.NewProc("GetProcessTimes")
+-	procDuplicateHandle                  = modkernel32.NewProc("DuplicateHandle")
+-	procWaitForSingleObject              = modkernel32.NewProc("WaitForSingleObject")
+-	procGetTempPathW                     = modkernel32.NewProc("GetTempPathW")
+-	procCreatePipe                       = modkernel32.NewProc("CreatePipe")
+-	procGetFileType                      = modkernel32.NewProc("GetFileType")
+-	procCryptAcquireContextW             = modadvapi32.NewProc("CryptAcquireContextW")
+-	procCryptReleaseContext              = modadvapi32.NewProc("CryptReleaseContext")
+-	procCryptGenRandom                   = modadvapi32.NewProc("CryptGenRandom")
+-	procGetEnvironmentStringsW           = modkernel32.NewProc("GetEnvironmentStringsW")
+-	procFreeEnvironmentStringsW          = modkernel32.NewProc("FreeEnvironmentStringsW")
+-	procGetEnvironmentVariableW          = modkernel32.NewProc("GetEnvironmentVariableW")
+-	procSetEnvironmentVariableW          = modkernel32.NewProc("SetEnvironmentVariableW")
+-	procSetFileTime                      = modkernel32.NewProc("SetFileTime")
+-	procGetFileAttributesW               = modkernel32.NewProc("GetFileAttributesW")
+-	procSetFileAttributesW               = modkernel32.NewProc("SetFileAttributesW")
+-	procGetFileAttributesExW             = modkernel32.NewProc("GetFileAttributesExW")
+-	procGetCommandLineW                  = modkernel32.NewProc("GetCommandLineW")
+-	procCommandLineToArgvW               = modshell32.NewProc("CommandLineToArgvW")
+-	procLocalFree                        = modkernel32.NewProc("LocalFree")
+-	procSetHandleInformation             = modkernel32.NewProc("SetHandleInformation")
+-	procFlushFileBuffers                 = modkernel32.NewProc("FlushFileBuffers")
+-	procGetFullPathNameW                 = modkernel32.NewProc("GetFullPathNameW")
+-	procGetLongPathNameW                 = modkernel32.NewProc("GetLongPathNameW")
+-	procGetShortPathNameW                = modkernel32.NewProc("GetShortPathNameW")
+-	procCreateFileMappingW               = modkernel32.NewProc("CreateFileMappingW")
+-	procMapViewOfFile                    = modkernel32.NewProc("MapViewOfFile")
+-	procUnmapViewOfFile                  = modkernel32.NewProc("UnmapViewOfFile")
+-	procFlushViewOfFile                  = modkernel32.NewProc("FlushViewOfFile")
+-	procVirtualLock                      = modkernel32.NewProc("VirtualLock")
+-	procVirtualUnlock                    = modkernel32.NewProc("VirtualUnlock")
+-	procTransmitFile                     = modmswsock.NewProc("TransmitFile")
+-	procReadDirectoryChangesW            = modkernel32.NewProc("ReadDirectoryChangesW")
+-	procCertOpenSystemStoreW             = modcrypt32.NewProc("CertOpenSystemStoreW")
+-	procCertOpenStore                    = modcrypt32.NewProc("CertOpenStore")
+-	procCertEnumCertificatesInStore      = modcrypt32.NewProc("CertEnumCertificatesInStore")
+-	procCertAddCertificateContextToStore = modcrypt32.NewProc("CertAddCertificateContextToStore")
+-	procCertCloseStore                   = modcrypt32.NewProc("CertCloseStore")
+-	procCertGetCertificateChain          = modcrypt32.NewProc("CertGetCertificateChain")
+-	procCertFreeCertificateChain         = modcrypt32.NewProc("CertFreeCertificateChain")
+-	procCertCreateCertificateContext     = modcrypt32.NewProc("CertCreateCertificateContext")
+-	procCertFreeCertificateContext       = modcrypt32.NewProc("CertFreeCertificateContext")
+-	procCertVerifyCertificateChainPolicy = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
+-	procRegOpenKeyExW                    = modadvapi32.NewProc("RegOpenKeyExW")
+-	procRegCloseKey                      = modadvapi32.NewProc("RegCloseKey")
+-	procRegQueryInfoKeyW                 = modadvapi32.NewProc("RegQueryInfoKeyW")
+-	procRegEnumKeyExW                    = modadvapi32.NewProc("RegEnumKeyExW")
+-	procRegQueryValueExW                 = modadvapi32.NewProc("RegQueryValueExW")
+-	procGetCurrentProcessId              = modkernel32.NewProc("GetCurrentProcessId")
+-	procGetConsoleMode                   = modkernel32.NewProc("GetConsoleMode")
+-	procWriteConsoleW                    = modkernel32.NewProc("WriteConsoleW")
+-	procReadConsoleW                     = modkernel32.NewProc("ReadConsoleW")
+-	procWSAStartup                       = modws2_32.NewProc("WSAStartup")
+-	procWSACleanup                       = modws2_32.NewProc("WSACleanup")
+-	procWSAIoctl                         = modws2_32.NewProc("WSAIoctl")
+-	procsocket                           = modws2_32.NewProc("socket")
+-	procsetsockopt                       = modws2_32.NewProc("setsockopt")
+-	procgetsockopt                       = modws2_32.NewProc("getsockopt")
+-	procbind                             = modws2_32.NewProc("bind")
+-	procconnect                          = modws2_32.NewProc("connect")
+-	procgetsockname                      = modws2_32.NewProc("getsockname")
+-	procgetpeername                      = modws2_32.NewProc("getpeername")
+-	proclisten                           = modws2_32.NewProc("listen")
+-	procshutdown                         = modws2_32.NewProc("shutdown")
+-	procclosesocket                      = modws2_32.NewProc("closesocket")
+-	procAcceptEx                         = modmswsock.NewProc("AcceptEx")
+-	procGetAcceptExSockaddrs             = modmswsock.NewProc("GetAcceptExSockaddrs")
+-	procWSARecv                          = modws2_32.NewProc("WSARecv")
+-	procWSASend                          = modws2_32.NewProc("WSASend")
+-	procWSARecvFrom                      = modws2_32.NewProc("WSARecvFrom")
+-	procWSASendTo                        = modws2_32.NewProc("WSASendTo")
+-	procgethostbyname                    = modws2_32.NewProc("gethostbyname")
+-	procgetservbyname                    = modws2_32.NewProc("getservbyname")
+-	procntohs                            = modws2_32.NewProc("ntohs")
+-	procgetprotobyname                   = modws2_32.NewProc("getprotobyname")
+-	procDnsQuery_W                       = moddnsapi.NewProc("DnsQuery_W")
+-	procDnsRecordListFree                = moddnsapi.NewProc("DnsRecordListFree")
+-	procGetAddrInfoW                     = modws2_32.NewProc("GetAddrInfoW")
+-	procFreeAddrInfoW                    = modws2_32.NewProc("FreeAddrInfoW")
+-	procGetIfEntry                       = modiphlpapi.NewProc("GetIfEntry")
+-	procGetAdaptersInfo                  = modiphlpapi.NewProc("GetAdaptersInfo")
+-	procTranslateNameW                   = modsecur32.NewProc("TranslateNameW")
+-	procGetUserNameExW                   = modsecur32.NewProc("GetUserNameExW")
+-	procNetUserGetInfo                   = modnetapi32.NewProc("NetUserGetInfo")
+-	procNetGetJoinInformation            = modnetapi32.NewProc("NetGetJoinInformation")
+-	procNetApiBufferFree                 = modnetapi32.NewProc("NetApiBufferFree")
+-	procLookupAccountSidW                = modadvapi32.NewProc("LookupAccountSidW")
+-	procLookupAccountNameW               = modadvapi32.NewProc("LookupAccountNameW")
+-	procConvertSidToStringSidW           = modadvapi32.NewProc("ConvertSidToStringSidW")
+-	procConvertStringSidToSidW           = modadvapi32.NewProc("ConvertStringSidToSidW")
+-	procGetLengthSid                     = modadvapi32.NewProc("GetLengthSid")
+-	procCopySid                          = modadvapi32.NewProc("CopySid")
+-	procOpenProcessToken                 = modadvapi32.NewProc("OpenProcessToken")
+-	procGetTokenInformation              = modadvapi32.NewProc("GetTokenInformation")
+-	procGetUserProfileDirectoryW         = moduserenv.NewProc("GetUserProfileDirectoryW")
++	procGetLastError                       = modkernel32.NewProc("GetLastError")
++	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
++	procFreeLibrary                        = modkernel32.NewProc("FreeLibrary")
++	procGetProcAddress                     = modkernel32.NewProc("GetProcAddress")
++	procGetVersion                         = modkernel32.NewProc("GetVersion")
++	procFormatMessageW                     = modkernel32.NewProc("FormatMessageW")
++	procExitProcess                        = modkernel32.NewProc("ExitProcess")
++	procCreateFileW                        = modkernel32.NewProc("CreateFileW")
++	procReadFile                           = modkernel32.NewProc("ReadFile")
++	procWriteFile                          = modkernel32.NewProc("WriteFile")
++	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
++	procCloseHandle                        = modkernel32.NewProc("CloseHandle")
++	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
++	procFindFirstFileW                     = modkernel32.NewProc("FindFirstFileW")
++	procFindNextFileW                      = modkernel32.NewProc("FindNextFileW")
++	procFindClose                          = modkernel32.NewProc("FindClose")
++	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
++	procGetCurrentDirectoryW               = modkernel32.NewProc("GetCurrentDirectoryW")
++	procSetCurrentDirectoryW               = modkernel32.NewProc("SetCurrentDirectoryW")
++	procCreateDirectoryW                   = modkernel32.NewProc("CreateDirectoryW")
++	procRemoveDirectoryW                   = modkernel32.NewProc("RemoveDirectoryW")
++	procDeleteFileW                        = modkernel32.NewProc("DeleteFileW")
++	procMoveFileW                          = modkernel32.NewProc("MoveFileW")
++	procGetComputerNameW                   = modkernel32.NewProc("GetComputerNameW")
++	procSetEndOfFile                       = modkernel32.NewProc("SetEndOfFile")
++	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
++	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
++	procCreateIoCompletionPort             = modkernel32.NewProc("CreateIoCompletionPort")
++	procGetQueuedCompletionStatus          = modkernel32.NewProc("GetQueuedCompletionStatus")
++	procPostQueuedCompletionStatus         = modkernel32.NewProc("PostQueuedCompletionStatus")
++	procCancelIo                           = modkernel32.NewProc("CancelIo")
++	procCancelIoEx                         = modkernel32.NewProc("CancelIoEx")
++	procCreateProcessW                     = modkernel32.NewProc("CreateProcessW")
++	procOpenProcess                        = modkernel32.NewProc("OpenProcess")
++	procTerminateProcess                   = modkernel32.NewProc("TerminateProcess")
++	procGetExitCodeProcess                 = modkernel32.NewProc("GetExitCodeProcess")
++	procGetStartupInfoW                    = modkernel32.NewProc("GetStartupInfoW")
++	procGetCurrentProcess                  = modkernel32.NewProc("GetCurrentProcess")
++	procGetProcessTimes                    = modkernel32.NewProc("GetProcessTimes")
++	procDuplicateHandle                    = modkernel32.NewProc("DuplicateHandle")
++	procWaitForSingleObject                = modkernel32.NewProc("WaitForSingleObject")
++	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
++	procCreatePipe                         = modkernel32.NewProc("CreatePipe")
++	procGetFileType                        = modkernel32.NewProc("GetFileType")
++	procCryptAcquireContextW               = modadvapi32.NewProc("CryptAcquireContextW")
++	procCryptReleaseContext                = modadvapi32.NewProc("CryptReleaseContext")
++	procCryptGenRandom                     = modadvapi32.NewProc("CryptGenRandom")
++	procGetEnvironmentStringsW             = modkernel32.NewProc("GetEnvironmentStringsW")
++	procFreeEnvironmentStringsW            = modkernel32.NewProc("FreeEnvironmentStringsW")
++	procGetEnvironmentVariableW            = modkernel32.NewProc("GetEnvironmentVariableW")
++	procSetEnvironmentVariableW            = modkernel32.NewProc("SetEnvironmentVariableW")
++	procSetFileTime                        = modkernel32.NewProc("SetFileTime")
++	procGetFileAttributesW                 = modkernel32.NewProc("GetFileAttributesW")
++	procSetFileAttributesW                 = modkernel32.NewProc("SetFileAttributesW")
++	procGetFileAttributesExW               = modkernel32.NewProc("GetFileAttributesExW")
++	procGetCommandLineW                    = modkernel32.NewProc("GetCommandLineW")
++	procCommandLineToArgvW                 = modshell32.NewProc("CommandLineToArgvW")
++	procLocalFree                          = modkernel32.NewProc("LocalFree")
++	procSetHandleInformation               = modkernel32.NewProc("SetHandleInformation")
++	procFlushFileBuffers                   = modkernel32.NewProc("FlushFileBuffers")
++	procGetFullPathNameW                   = modkernel32.NewProc("GetFullPathNameW")
++	procGetLongPathNameW                   = modkernel32.NewProc("GetLongPathNameW")
++	procGetShortPathNameW                  = modkernel32.NewProc("GetShortPathNameW")
++	procCreateFileMappingW                 = modkernel32.NewProc("CreateFileMappingW")
++	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
++	procUnmapViewOfFile                    = modkernel32.NewProc("UnmapViewOfFile")
++	procFlushViewOfFile                    = modkernel32.NewProc("FlushViewOfFile")
++	procVirtualLock                        = modkernel32.NewProc("VirtualLock")
++	procVirtualUnlock                      = modkernel32.NewProc("VirtualUnlock")
++	procTransmitFile                       = modmswsock.NewProc("TransmitFile")
++	procReadDirectoryChangesW              = modkernel32.NewProc("ReadDirectoryChangesW")
++	procCertOpenSystemStoreW               = modcrypt32.NewProc("CertOpenSystemStoreW")
++	procCertOpenStore                      = modcrypt32.NewProc("CertOpenStore")
++	procCertEnumCertificatesInStore        = modcrypt32.NewProc("CertEnumCertificatesInStore")
++	procCertAddCertificateContextToStore   = modcrypt32.NewProc("CertAddCertificateContextToStore")
++	procCertCloseStore                     = modcrypt32.NewProc("CertCloseStore")
++	procCertGetCertificateChain            = modcrypt32.NewProc("CertGetCertificateChain")
++	procCertFreeCertificateChain           = modcrypt32.NewProc("CertFreeCertificateChain")
++	procCertCreateCertificateContext       = modcrypt32.NewProc("CertCreateCertificateContext")
++	procCertFreeCertificateContext         = modcrypt32.NewProc("CertFreeCertificateContext")
++	procCertVerifyCertificateChainPolicy   = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
++	procRegOpenKeyExW                      = modadvapi32.NewProc("RegOpenKeyExW")
++	procRegCloseKey                        = modadvapi32.NewProc("RegCloseKey")
++	procRegQueryInfoKeyW                   = modadvapi32.NewProc("RegQueryInfoKeyW")
++	procRegEnumKeyExW                      = modadvapi32.NewProc("RegEnumKeyExW")
++	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
++	procGetCurrentProcessId                = modkernel32.NewProc("GetCurrentProcessId")
++	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
++	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
++	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
++	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
++	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
++	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
++	procsocket                             = modws2_32.NewProc("socket")
++	procsetsockopt                         = modws2_32.NewProc("setsockopt")
++	procgetsockopt                         = modws2_32.NewProc("getsockopt")
++	procbind                               = modws2_32.NewProc("bind")
++	procconnect                            = modws2_32.NewProc("connect")
++	procgetsockname                        = modws2_32.NewProc("getsockname")
++	procgetpeername                        = modws2_32.NewProc("getpeername")
++	proclisten                             = modws2_32.NewProc("listen")
++	procshutdown                           = modws2_32.NewProc("shutdown")
++	procclosesocket                        = modws2_32.NewProc("closesocket")
++	procAcceptEx                           = modmswsock.NewProc("AcceptEx")
++	procGetAcceptExSockaddrs               = modmswsock.NewProc("GetAcceptExSockaddrs")
++	procWSARecv                            = modws2_32.NewProc("WSARecv")
++	procWSASend                            = modws2_32.NewProc("WSASend")
++	procWSARecvFrom                        = modws2_32.NewProc("WSARecvFrom")
++	procWSASendTo                          = modws2_32.NewProc("WSASendTo")
++	procgethostbyname                      = modws2_32.NewProc("gethostbyname")
++	procgetservbyname                      = modws2_32.NewProc("getservbyname")
++	procntohs                              = modws2_32.NewProc("ntohs")
++	procgetprotobyname                     = modws2_32.NewProc("getprotobyname")
++	procDnsQuery_W                         = moddnsapi.NewProc("DnsQuery_W")
++	procDnsRecordListFree                  = moddnsapi.NewProc("DnsRecordListFree")
++	procGetAddrInfoW                       = modws2_32.NewProc("GetAddrInfoW")
++	procFreeAddrInfoW                      = modws2_32.NewProc("FreeAddrInfoW")
++	procGetIfEntry                         = modiphlpapi.NewProc("GetIfEntry")
++	procGetAdaptersInfo                    = modiphlpapi.NewProc("GetAdaptersInfo")
++	procSetFileCompletionNotificationModes = modkernel32.NewProc("SetFileCompletionNotificationModes")
++	procWSAEnumProtocolsW                  = modws2_32.NewProc("WSAEnumProtocolsW")
++	procTranslateNameW                     = modsecur32.NewProc("TranslateNameW")
++	procGetUserNameExW                     = modsecur32.NewProc("GetUserNameExW")
++	procNetUserGetInfo                     = modnetapi32.NewProc("NetUserGetInfo")
++	procNetGetJoinInformation              = modnetapi32.NewProc("NetGetJoinInformation")
++	procNetApiBufferFree                   = modnetapi32.NewProc("NetApiBufferFree")
++	procLookupAccountSidW                  = modadvapi32.NewProc("LookupAccountSidW")
++	procLookupAccountNameW                 = modadvapi32.NewProc("LookupAccountNameW")
++	procConvertSidToStringSidW             = modadvapi32.NewProc("ConvertSidToStringSidW")
++	procConvertStringSidToSidW             = modadvapi32.NewProc("ConvertStringSidToSidW")
++	procGetLengthSid                       = modadvapi32.NewProc("GetLengthSid")
++	procCopySid                            = modadvapi32.NewProc("CopySid")
++	procOpenProcessToken                   = modadvapi32.NewProc("OpenProcessToken")
++	procGetTokenInformation                = modadvapi32.NewProc("GetTokenInformation")
++	procGetUserProfileDirectoryW           = moduserenv.NewProc("GetUserProfileDirectoryW")
+ )
+ 
+ func GetLastError() (lasterr error) {
+@@ -1582,6 +1584,31 @@ func GetAdaptersInfo(ai *IpAdapterInfo, ol *uint32) (errcode error) {
+ 	return
+ }
+ 
++func SetFileCompletionNotificationModes(handle Handle, flags uint8) (err error) {
++	r1, _, e1 := Syscall(procSetFileCompletionNotificationModes.Addr(), 2, uintptr(handle), uintptr(flags), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
++func WSAEnumProtocols(protocols *int32, protocolBuffer *WSAProtocolInfo, bufferLength *uint32) (n int32, err error) {
++	r0, _, e1 := Syscall(procWSAEnumProtocolsW.Addr(), 3, uintptr(unsafe.Pointer(protocols)), uintptr(unsafe.Pointer(protocolBuffer)), uintptr(unsafe.Pointer(bufferLength)))
++	n = int32(r0)
++	if n == -1 {
++		if e1 != 0 {
++			err = error(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func TranslateName(accName *uint16, accNameFormat uint32, desiredNameFormat uint32, translatedName *uint16, nSize *uint32) (err error) {
+ 	r1, _, e1 := Syscall6(procTranslateNameW.Addr(), 5, uintptr(unsafe.Pointer(accName)), uintptr(accNameFormat), uintptr(desiredNameFormat), uintptr(unsafe.Pointer(translatedName)), uintptr(unsafe.Pointer(nSize)), 0)
+ 	if r1&0xff == 0 {
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index 2e9508b1fe..e706e89f99 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -964,3 +964,69 @@ var WSAID_CONNECTEX = GUID{
+ 	0x4660,
+ 	[8]byte{0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e},
+ }
++
++const (
++	FILE_SKIP_COMPLETION_PORT_ON_SUCCESS = 1
++	FILE_SKIP_SET_EVENT_ON_HANDLE        = 2
++)
++
++const (
++	WSAPROTOCOL_LEN    = 255
++	MAX_PROTOCOL_CHAIN = 7
++	BASE_PROTOCOL      = 1
++	LAYERED_PROTOCOL   = 0
++
++	XP1_CONNECTIONLESS           = 0x00000001
++	XP1_GUARANTEED_DELIVERY      = 0x00000002
++	XP1_GUARANTEED_ORDER         = 0x00000004
++	XP1_MESSAGE_ORIENTED         = 0x00000008
++	XP1_PSEUDO_STREAM            = 0x00000010
++	XP1_GRACEFUL_CLOSE           = 0x00000020
++	XP1_EXPEDITED_DATA           = 0x00000040
++	XP1_CONNECT_DATA             = 0x00000080
++	XP1_DISCONNECT_DATA          = 0x00000100
++	XP1_SUPPORT_BROADCAST        = 0x00000200
++	XP1_SUPPORT_MULTIPOINT       = 0x00000400
++	XP1_MULTIPOINT_CONTROL_PLANE = 0x00000800
++	XP1_MULTIPOINT_DATA_PLANE    = 0x00001000
++	XP1_QOS_SUPPORTED            = 0x00002000
++	XP1_UNI_SEND                 = 0x00008000
++	XP1_UNI_RECV                 = 0x00010000
++	XP1_IFS_HANDLES              = 0x00020000
++	XP1_PARTIAL_MESSAGE          = 0x00040000
++	XP1_SAN_SUPPORT_SDP          = 0x00080000
++
++	PFL_MULTIPLE_PROTO_ENTRIES  = 0x00000001
++	PFL_RECOMMENDED_PROTO_ENTRY = 0x00000002
++	PFL_HIDDEN                  = 0x00000004
++	PFL_MATCHES_PROTOCOL_ZERO   = 0x00000008
++	PFL_NETWORKDIRECT_PROVIDER  = 0x00000010
++)
++
++type WSAProtocolInfo struct {
++	ServiceFlags1     uint32
++	ServiceFlags2     uint32
++	ServiceFlags3     uint32
++	ServiceFlags4     uint32
++	ProviderFlags     uint32
++	ProviderId        GUID
++	CatalogEntryId    uint32
++	ProtocolChain     WSAProtocolChain
++	Version           int32
++	AddressFamily     int32
++	MaxSockAddr       int32
++	MinSockAddr       int32
++	SocketType        int32
++	Protocol          int32
++	ProtocolMaxOffset int32
++	NetworkByteOrder  int32
++	SecurityScheme    int32
++	MessageSize       uint32
++	ProviderReserved  uint32
++	ProtocolName      [WSAPROTOCOL_LEN + 1]uint16
++}
++
++type WSAProtocolChain struct {
++	ChainLen     int32
++	ChainEntries [MAX_PROTOCOL_CHAIN]uint32
++}

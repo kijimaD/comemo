@@ -25,7 +25,7 @@ Date:   Tue May 25 16:31:41 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/cgo/gcc.go                                 |  2 ++
  src/cmd/cgo/out.go                                 | 16 +++++++--
  src/cmd/dist/test.go                               | 29 ++++++++++++----
@@ -35,3 +35,274 @@ Date:   Tue May 25 16:31:41 2021 -0700
  src/cmd/link/internal/ld/config.go                 |  6 +++-
  src/cmd/link/internal/ld/lib.go                    | 26 ++++++++++++---
  8 files changed, 140 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index ae61725bc7..a73e998877 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1638,6 +1638,8 @@ func (p *Package) gccCmd() []string {
+ 		c = append(c, "-maix64")
+ 		c = append(c, "-mcmodel=large")
+ 	}
++	// disable LTO so we get an object whose symbols we can read
++	c = append(c, "-fno-lto")
+ 	c = append(c, "-") //read input from standard input
+ 	return c
+ }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8c31d5b794..94152f4278 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -168,8 +168,18 @@ func (p *Package) writeDefs() {
+ 			if *gccgo {
+ 				fmt.Fprintf(fc, "extern byte *%s;\n", n.C)
+ 			} else {
+-				fmt.Fprintf(fm, "extern char %s[];\n", n.C)
+-				fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
++				// Force a reference to all symbols so that
++				// the external linker will add DT_NEEDED
++				// entries as needed on ELF systems.
++				// Treat function variables differently
++				// to avoid type confict errors from LTO
++				// (Link Time Optimization).
++				if n.Kind == "fpvar" {
++					fmt.Fprintf(fm, "extern void %s();\n", n.C)
++				} else {
++					fmt.Fprintf(fm, "extern char %s[];\n", n.C)
++					fmt.Fprintf(fm, "void *_cgohack_%s = %s;\n\n", n.C, n.C)
++				}
+ 				fmt.Fprintf(fgo2, "//go:linkname __cgo_%s %s\n", n.C, n.C)
+ 				fmt.Fprintf(fgo2, "//go:cgo_import_static %s\n", n.C)
+ 				fmt.Fprintf(fgo2, "var __cgo_%s byte\n", n.C)
+@@ -1042,7 +1052,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
+ 		// This unpacks the argument struct above and calls the Go function.
+ 		fmt.Fprintf(fgo2, "func _cgoexp%s_%s(a *%s) {\n", cPrefix, exp.ExpName, gotype)
+ 
+-		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
++		fmt.Fprintf(fm, "void _cgoexp%s_%s(void* p){}\n", cPrefix, exp.ExpName)
+ 
+ 		if gccResult != "void" {
+ 			// Write results back to frame.
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 50bf80ba59..bc49c6d804 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -722,14 +722,29 @@ func (t *tester) registerTests() {
+ 				},
+ 			})
+ 			if t.hasCxx() {
+-				t.tests = append(t.tests, distTest{
+-					name:    "swig_callback",
+-					heading: "../misc/swig/callback",
+-					fn: func(dt *distTest) error {
+-						t.addCmd(dt, "misc/swig/callback", t.goTest())
+-						return nil
++				t.tests = append(t.tests,
++					distTest{
++						name:    "swig_callback",
++						heading: "../misc/swig/callback",
++						fn: func(dt *distTest) error {
++							t.addCmd(dt, "misc/swig/callback", t.goTest())
++							return nil
++						},
++					},
++					distTest{
++						name:    "swig_callback_lto",
++						heading: "../misc/swig/callback",
++						fn: func(dt *distTest) error {
++							cmd := t.addCmd(dt, "misc/swig/callback", t.goTest())
++							cmd.Env = append(os.Environ(),
++								"CGO_CFLAGS=-flto",
++								"CGO_CXXFLAGS=-flto",
++								"CGO_LDFLAGS=-flto",
++							)
++							return nil
++						},
+ 					},
+-				})
++				)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/cgo_lto2_issue43830.txt b/src/cmd/go/testdata/script/cgo_lto2_issue43830.txt
+new file mode 100644
+index 0000000000..e2483ba784
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_lto2_issue43830.txt
+@@ -0,0 +1,33 @@
++# tests golang.org/issue/43830
++
++[!cgo] skip 'skipping test without cgo'
++[openbsd] env CC='clang'
++[openbsd] [!exec:clang] skip 'skipping test without clang present'
++[!openbsd] env CC='gcc'
++[!openbsd] [!exec:gcc] skip 'skipping test without gcc present'
++
++env CGO_CFLAGS='-Wno-ignored-optimization-argument -flto -ffat-lto-objects'
++
++go build main.go
++
++-- main.go --
++
++package main
++
++import "fmt"
++
++// #include "hello.h"
++import "C"
++
++func main() {
++	hello := C.hello
++	fmt.Printf("%v\n", hello)
++}
++
++-- hello.h --
++
++#include <stdio.h>
++
++void hello(void) {
++  printf("hello\n");
++}
+diff --git a/src/cmd/go/testdata/script/cgo_lto_issue43830.txt b/src/cmd/go/testdata/script/cgo_lto_issue43830.txt
+new file mode 100644
+index 0000000000..06ab2f34c9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_lto_issue43830.txt
+@@ -0,0 +1,39 @@
++# tests golang.org/issue/43830
++
++[!cgo] skip 'skipping test without cgo'
++[openbsd] env CC='clang'
++[openbsd] [!exec:clang] skip 'skipping test without clang present'
++[!openbsd] env CC='gcc'
++[!openbsd] [!exec:gcc] skip 'skipping test without gcc present'
++
++env CGO_CFLAGS='-Wno-ignored-optimization-argument -flto -ffat-lto-objects'
++
++go build main.go add.go
++
++-- main.go --
++
++package main
++
++/*
++int c_add(int a, int b) {
++	return myadd(a, b);
++}
++*/
++import "C"
++
++func main() {
++	println(C.c_add(1, 2))
++}
++
++-- add.go --
++
++package main
++
++import "C"
++
++/* test */
++
++//export myadd
++func myadd(a C.int, b C.int) C.int {
++	return a + b
++}
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 22f53a4df2..23915f9032 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -124,6 +124,10 @@ func hostArchive(ctxt *Link, name string) {
+ 
+ 			libgcc := sym.Library{Pkg: "libgcc"}
+ 			h := ldobj(ctxt, f, &libgcc, l, pname, name)
++			if h.ld == nil {
++				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
++				continue
++			}
+ 			f.MustSeek(h.off, 0)
+ 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+ 		}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index ae0d7520eb..20f1d0b8c1 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -241,6 +241,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 		return true, "dynamically linking with a shared library"
+ 	}
+ 
++	if unknownObjFormat {
++		return true, "some input objects have an unrecognized file format"
++	}
++
+ 	return false, ""
+ }
+ 
+@@ -248,7 +252,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ //
+ // It is called after flags are processed and inputs are processed,
+ // so the ctxt.LinkMode variable has an initial value from the -linkmode
+-// flag and the iscgo externalobj variables are set.
++// flag and the iscgo, externalobj, and unknownObjFormat variables are set.
+ func determineLinkMode(ctxt *Link) {
+ 	extNeeded, extReason := mustLinkExternal(ctxt)
+ 	via := ""
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e8f001ba8e..644faeb2fb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -343,10 +343,16 @@ var (
+ const pkgdef = "__.PKGDEF"
+ 
+ var (
+-	// Set if we see an object compiled by the host compiler that is not
+-	// from a package that is known to support internal linking mode.
++	// externalobj is set to true if we see an object compiled by
++	// the host compiler that is not from a package that is known
++	// to support internal linking mode.
+ 	externalobj = false
+-	theline     string
++
++	// unknownObjFormat is set to true if we see an object whose
++	// format we don't recognize.
++	unknownObjFormat = false
++
++	theline string
+ )
+ 
+ func Lflag(ctxt *Link, arg string) {
+@@ -1065,6 +1071,10 @@ func hostobjs(ctxt *Link) {
+ 		}
+ 
+ 		f.MustSeek(h.off, 0)
++		if h.ld == nil {
++			Errorf(nil, "%s: unrecognized object file format", h.pn)
++			continue
++		}
+ 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
+ 		f.Close()
+ 	}
+@@ -1855,6 +1865,14 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
+ 	}
+ 
++	if c1 != 'g' || c2 != 'o' || c3 != ' ' || c4 != 'o' {
++		// An unrecognized object is just passed to the external linker.
++		// If we try to read symbols from this object, we will
++		// report an error at that time.
++		unknownObjFormat = true
++		return ldhostobj(nil, ctxt.HeadType, f, pkg, length, pn, file)
++	}
++
+ 	/* check the header */
+ 	line, err := f.ReadString('\n')
+ 	if err != nil {
+@@ -1874,7 +1892,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 			return nil
+ 		}
+ 
+-		Errorf(nil, "%s: not an object file: @%d %02x%02x%02x%02x", pn, start, c1, c2, c3, c4)
++		Errorf(nil, "%s: not an object file: @%d %q", pn, start, line)
+ 		return nil
+ 	}
+ 

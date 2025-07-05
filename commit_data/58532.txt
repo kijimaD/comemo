@@ -13,8 +13,70 @@ Date:   Thu Nov 16 16:04:17 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/infer.go            |  8 ++++++++
  src/go/types/infer.go                               |  8 ++++++++
  src/internal/types/testdata/fixedbugs/issue60434.go | 17 +++++++++++++++++
  3 files changed, 33 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index c186d70d95..3a7c74dc82 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -56,6 +56,14 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		return targs
+ 	}
+ 
++	// If we have invalid (ordinary) arguments, an error was reported before.
++	// Avoid additional inference errors and exit early (go.dev/issue/60434).
++	for _, arg := range args {
++		if arg.mode == invalid {
++			return nil
++		}
++	}
++
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+ 	if len(targs) < n {
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index b804b0eb08..244f311281 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -58,6 +58,14 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		return targs
+ 	}
+ 
++	// If we have invalid (ordinary) arguments, an error was reported before.
++	// Avoid additional inference errors and exit early (go.dev/issue/60434).
++	for _, arg := range args {
++		if arg.mode == invalid {
++			return nil
++		}
++	}
++
+ 	// Make sure we have a "full" list of type arguments, some of which may
+ 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
+ 	if len(targs) < n {
+diff --git a/src/internal/types/testdata/fixedbugs/issue60434.go b/src/internal/types/testdata/fixedbugs/issue60434.go
+new file mode 100644
+index 0000000000..e1d76527f3
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60434.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that there are no type inference errors
++// if function arguments are invalid.
++
++package p
++
++func f[S any](S) {}
++
++var s struct{ x int }
++
++func _() {
++	f(s.y /* ERROR "s.y undefined" */)
++	f(1 /* ERROR "cannot convert 1" */ / s)
++}

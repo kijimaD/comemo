@@ -12,7 +12,7 @@ Date:   Wed Mar 16 18:19:31 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/393514
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go      | 65 ++++++++++++++++------
  .../internal/types2/testdata/check/decls0.src      |  4 +-
  .../internal/types2/testdata/check/go1_12.src      |  4 +-
@@ -32,3 +32,501 @@ Date:   Wed Mar 16 18:19:31 2022 -0700
  src/go/types/testdata/fixedbugs/issue46090.go2     |  4 +-
  src/go/types/testdata/fixedbugs/issue47818.go2     |  4 +-
  18 files changed, 139 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 5d491a3e16..89d2cc644c 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -23,8 +23,10 @@
+ package types2_test
+ 
+ import (
++	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"flag"
++	"fmt"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -79,18 +81,45 @@ func delta(x, y uint) uint {
+ 	}
+ }
+ 
+-// goVersionRx matches a Go version string using '_', e.g. "go1_12".
+-var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
++// Note: parseFlags is identical to the version in go/types which is
++//       why it has a src argument even though here it is always nil.
++
++// parseFlags parses flags from the first line of the given source
++// (from src if present, or by reading from the file) if the line
++// starts with "//" (line comment) followed by "-" (possiby with
++// spaces between). Otherwise the line is ignored.
++func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
++	// If there is no src, read from the file.
++	const maxLen = 256
++	if len(src) == 0 {
++		f, err := os.Open(filename)
++		if err != nil {
++			return err
++		}
++
++		var buf [maxLen]byte
++		n, err := f.Read(buf[:])
++		if err != nil {
++			return err
++		}
++		src = buf[:n]
++	}
+ 
+-// asGoVersion returns a regular Go language version string
+-// if s is a Go version string using '_' rather than '.' to
+-// separate the major and minor version numbers (e.g. "go1_12").
+-// Otherwise it returns the empty string.
+-func asGoVersion(s string) string {
+-	if goVersionRx.MatchString(s) {
+-		return strings.Replace(s, "_", ".", 1)
++	// we must have a line comment that starts with a "-"
++	const prefix = "//"
++	if !bytes.HasPrefix(src, []byte(prefix)) {
++		return nil // first line is not a line comment
++	}
++	src = src[len(prefix):]
++	if i := bytes.Index(src, []byte("-")); i < 0 || len(bytes.TrimSpace(src[:i])) != 0 {
++		return nil // comment doesn't start with a "-"
+ 	}
+-	return ""
++	end := bytes.Index(src, []byte("\n"))
++	if end < 0 || end > maxLen {
++		return fmt.Errorf("flags comment line too long")
++	}
++
++	return flags.Parse(strings.Fields(string(src[:end])))
+ }
+ 
+ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+@@ -98,6 +127,14 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		t.Fatal("no source files")
+ 	}
+ 
++	var conf Config
++	flags := flag.NewFlagSet("", flag.PanicOnError)
++	flags.StringVar(&conf.GoVersion, "lang", "", "")
++	if err := parseFlags(filenames[0], nil, flags); err != nil {
++		t.Fatal(err)
++	}
++
++	// TODO(gri) remove this or use flag mechanism to set mode if still needed
+ 	var mode syntax.Mode
+ 	if strings.HasSuffix(filenames[0], ".go2") || manual {
+ 		mode |= syntax.AllowGenerics | syntax.AllowMethodTypeParams
+@@ -110,12 +147,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		pkgName = files[0].PkgName.Value
+ 	}
+ 
+-	// if no Go version is given, consider the package name
+-	goVersion := *goVersion
+-	if goVersion == "" {
+-		goVersion = asGoVersion(pkgName)
+-	}
+-
+ 	listErrors := manual && !*verifyErrors
+ 	if listErrors && len(errlist) > 0 {
+ 		t.Errorf("--- %s:", pkgName)
+@@ -125,8 +156,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	}
+ 
+ 	// typecheck and collect typechecker errors
+-	var conf Config
+-	conf.GoVersion = goVersion
+ 	// special case for importC.src
+ 	if len(filenames) == 1 && strings.HasSuffix(filenames[0], "importC.src") {
+ 		conf.FakeImportC = true
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls0.src b/src/cmd/compile/internal/types2/testdata/check/decls0.src
+index 09e5d5c5ad..aa98480b99 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls0.src
++++ b/src/cmd/compile/internal/types2/testdata/check/decls0.src
+@@ -1,10 +1,12 @@
++// -lang=go1.17
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // type declarations
+ 
+-package go1_17 // don't permit non-interface elements in interfaces
++package p // don't permit non-interface elements in interfaces
+ 
+ import "unsafe"
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/go1_12.src b/src/cmd/compile/internal/types2/testdata/check/go1_12.src
+index 75a602b8ff..56c6d5a4c9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/go1_12.src
++++ b/src/cmd/compile/internal/types2/testdata/check/go1_12.src
+@@ -1,10 +1,12 @@
++// -lang=go1.12
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_12 // go1.12
++package p
+ 
+ // numeric literals
+ const (
+diff --git a/src/cmd/compile/internal/types2/testdata/check/go1_13.src b/src/cmd/compile/internal/types2/testdata/check/go1_13.src
+index 93cb4c72a7..cc7861d616 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/go1_13.src
++++ b/src/cmd/compile/internal/types2/testdata/check/go1_13.src
+@@ -1,10 +1,12 @@
++// -lang=go1.13
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_13 // go1.13
++package p
+ 
+ // interface embedding
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/go1_16.src b/src/cmd/compile/internal/types2/testdata/check/go1_16.src
+index fdf5c99d7e..81b529044c 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/go1_16.src
++++ b/src/cmd/compile/internal/types2/testdata/check/go1_16.src
+@@ -1,10 +1,12 @@
++// -lang=go1.16
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_16 // go1.16
++package p
+ 
+ type Slice []byte
+ type Array [8]byte
+diff --git a/src/cmd/compile/internal/types2/testdata/check/go1_8.src b/src/cmd/compile/internal/types2/testdata/check/go1_8.src
+index 0f3ba9443b..15462aba14 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/go1_8.src
++++ b/src/cmd/compile/internal/types2/testdata/check/go1_8.src
+@@ -1,10 +1,12 @@
++// -lang=go1.8
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_8 // go1.8
++package p
+ 
+ // type alias declarations
+ type any /* ERROR type aliases requires go1.9 or later */ = interface{}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.src b/src/cmd/compile/internal/types2/testdata/check/issues.src
+index 42c5bc8f12..4ac3fc2f9d 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.src
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.src
+@@ -1,8 +1,10 @@
++// -lang=go1.17
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package go1_17 // don't permit non-interface elements in interfaces
++package p // don't permit non-interface elements in interfaces
+ 
+ import (
+ 	"fmt"
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go2
+index 81b31974c8..0fb92a3657 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46090.go2
+@@ -1,9 +1,11 @@
++// -lang=go1.17
++
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // The predeclared type comparable is not visible before Go 1.18.
+ 
+-package go1_17
++package p
+ 
+ type _ comparable // ERROR undeclared
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+index 6069f1f97b..58a62092b7 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47818.go2
+@@ -1,3 +1,5 @@
++// -lang=go1.17
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -6,7 +8,7 @@
+ // needs to report any operations that are not permitted
+ // before Go 1.18.
+ 
+-package go1_17
++package p
+ 
+ type T[P /* ERROR type parameter requires go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index b96158a660..6bee41d141 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -23,6 +23,7 @@
+ package types_test
+ 
+ import (
++	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -185,18 +186,42 @@ func eliminate(t *testing.T, errmap map[string][]string, errlist []error) {
+ 	}
+ }
+ 
+-// goVersionRx matches a Go version string using '_', e.g. "go1_12".
+-var goVersionRx = regexp.MustCompile(`^go[1-9][0-9]*_(0|[1-9][0-9]*)$`)
++// parseFlags parses flags from the first line of the given source
++// (from src if present, or by reading from the file) if the line
++// starts with "//" (line comment) followed by "-" (possiby with
++// spaces between). Otherwise the line is ignored.
++func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
++	// If there is no src, read from the file.
++	const maxLen = 256
++	if len(src) == 0 {
++		f, err := os.Open(filename)
++		if err != nil {
++			return err
++		}
+ 
+-// asGoVersion returns a regular Go language version string
+-// if s is a Go version string using '_' rather than '.' to
+-// separate the major and minor version numbers (e.g. "go1_12").
+-// Otherwise it returns the empty string.
+-func asGoVersion(s string) string {
+-	if goVersionRx.MatchString(s) {
+-		return strings.Replace(s, "_", ".", 1)
++		var buf [maxLen]byte
++		n, err := f.Read(buf[:])
++		if err != nil {
++			return err
++		}
++		src = buf[:n]
+ 	}
+-	return ""
++
++	// we must have a line comment that starts with a "-"
++	const prefix = "//"
++	if !bytes.HasPrefix(src, []byte(prefix)) {
++		return nil // first line is not a line comment
++	}
++	src = src[len(prefix):]
++	if i := bytes.Index(src, []byte("-")); i < 0 || len(bytes.TrimSpace(src[:i])) != 0 {
++		return nil // comment doesn't start with a "-"
++	}
++	end := bytes.Index(src, []byte("\n"))
++	if end < 0 || end > maxLen {
++		return fmt.Errorf("flags comment line too long")
++	}
++
++	return flags.Parse(strings.Fields(string(src[:end])))
+ }
+ 
+ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, manual bool, imp Importer) {
+@@ -204,6 +229,15 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		t.Fatal("no source files")
+ 	}
+ 
++	var conf Config
++	conf.Sizes = sizes
++	flags := flag.NewFlagSet("", flag.PanicOnError)
++	flags.StringVar(&conf.GoVersion, "lang", "", "")
++	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
++		t.Fatal(err)
++	}
++
++	// TODO(gri) remove this or use flag mechanism to set mode if still needed
+ 	if strings.HasSuffix(filenames[0], ".go1") {
+ 		// TODO(rfindley): re-enable this test by using GoVersion.
+ 		t.Skip("type params are enabled")
+@@ -222,12 +256,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		pkgName = files[0].Name.Name
+ 	}
+ 
+-	// if no Go version is given, consider the package name
+-	goVersion := *goVersion
+-	if goVersion == "" {
+-		goVersion = asGoVersion(pkgName)
+-	}
+-
+ 	listErrors := manual && !*verifyErrors
+ 	if listErrors && len(errlist) > 0 {
+ 		t.Errorf("--- %s:", pkgName)
+@@ -237,10 +265,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	}
+ 
+ 	// typecheck and collect typechecker errors
+-	var conf Config
+-	conf.Sizes = sizes
+-	conf.GoVersion = goVersion
+-
+ 	// special case for importC.src
+ 	if len(filenames) == 1 {
+ 		if strings.HasSuffix(filenames[0], "importC.src") {
+diff --git a/src/go/types/testdata/check/decls0.src b/src/go/types/testdata/check/decls0.src
+index 18f0d32e1b..740c9b4fdf 100644
+--- a/src/go/types/testdata/check/decls0.src
++++ b/src/go/types/testdata/check/decls0.src
+@@ -1,10 +1,12 @@
++// -lang=go1.17
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // type declarations
+ 
+-package go1_17 // don't permit non-interface elements in interfaces
++package p // don't permit non-interface elements in interfaces
+ 
+ import "unsafe"
+ 
+diff --git a/src/go/types/testdata/check/go1_12.src b/src/go/types/testdata/check/go1_12.src
+index 1e529f18be..14c2d58c33 100644
+--- a/src/go/types/testdata/check/go1_12.src
++++ b/src/go/types/testdata/check/go1_12.src
+@@ -1,10 +1,12 @@
++// -lang=go1.12
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_12 // go1.12
++package p
+ 
+ // numeric literals
+ const (
+diff --git a/src/go/types/testdata/check/go1_13.src b/src/go/types/testdata/check/go1_13.src
+index 6aa1364e8a..5c52dfe602 100644
+--- a/src/go/types/testdata/check/go1_13.src
++++ b/src/go/types/testdata/check/go1_13.src
+@@ -1,10 +1,12 @@
++// -lang=go1.13
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_13 // go1.13
++package p
+ 
+ // interface embedding
+ 
+diff --git a/src/go/types/testdata/check/go1_16.src b/src/go/types/testdata/check/go1_16.src
+index fdf5c99d7e..81b529044c 100644
+--- a/src/go/types/testdata/check/go1_16.src
++++ b/src/go/types/testdata/check/go1_16.src
+@@ -1,10 +1,12 @@
++// -lang=go1.16
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_16 // go1.16
++package p
+ 
+ type Slice []byte
+ type Array [8]byte
+diff --git a/src/go/types/testdata/check/go1_8.src b/src/go/types/testdata/check/go1_8.src
+index 3ead1e981b..5d57cdc65e 100644
+--- a/src/go/types/testdata/check/go1_8.src
++++ b/src/go/types/testdata/check/go1_8.src
+@@ -1,10 +1,12 @@
++// -lang=go1.8
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Check Go language version-specific errors.
+ 
+-package go1_8 // go1.8
++package p
+ 
+ // type alias declarations
+ type any = /* ERROR type aliases requires go1.9 or later */ interface{}
+diff --git a/src/go/types/testdata/check/issues.src b/src/go/types/testdata/check/issues.src
+index 8bb4c8c5ca..6943796392 100644
+--- a/src/go/types/testdata/check/issues.src
++++ b/src/go/types/testdata/check/issues.src
+@@ -1,8 +1,10 @@
++// -lang=go1.17
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package go1_17 // don't permit non-interface elements in interfaces
++package p // don't permit non-interface elements in interfaces
+ 
+ import (
+ 	"fmt"
+diff --git a/src/go/types/testdata/fixedbugs/issue46090.go2 b/src/go/types/testdata/fixedbugs/issue46090.go2
+index 81b31974c8..0fb92a3657 100644
+--- a/src/go/types/testdata/fixedbugs/issue46090.go2
++++ b/src/go/types/testdata/fixedbugs/issue46090.go2
+@@ -1,9 +1,11 @@
++// -lang=go1.17
++
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // The predeclared type comparable is not visible before Go 1.18.
+ 
+-package go1_17
++package p
+ 
+ type _ comparable // ERROR undeclared
+diff --git a/src/go/types/testdata/fixedbugs/issue47818.go2 b/src/go/types/testdata/fixedbugs/issue47818.go2
+index 546de1ce31..dbd532ac12 100644
+--- a/src/go/types/testdata/fixedbugs/issue47818.go2
++++ b/src/go/types/testdata/fixedbugs/issue47818.go2
+@@ -1,3 +1,5 @@
++// -lang=go1.17
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -6,7 +8,7 @@
+ // needs to report any operations that are not permitted
+ // before Go 1.18.
+ 
+-package go1_17
++package p
+ 
+ type T[P /* ERROR type parameters require go1\.18 or later */ any /* ERROR undeclared name: any \(requires version go1\.18 or later\) */ ] struct{}
+ 

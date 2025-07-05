@@ -11,7 +11,7 @@ Date:   Mon Mar 28 16:22:22 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396298
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/signature.go       | 88 +++++++++-------------
  .../types2/testdata/check/decls2/decls2a.go        |  6 +-
  .../internal/types2/testdata/check/decls4.go       |  6 +-
@@ -21,3 +21,326 @@ Date:   Mon Mar 28 16:22:22 2022 -0700
  src/go/types/testdata/check/decls4.go              |  6 +-
  src/go/types/testdata/fixedbugs/issue47968.go      |  4 +-
  8 files changed, 90 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index c98024f924..2dc4dd43f3 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -199,62 +199,48 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 		// Delay validation of receiver type as it may cause premature expansion
+ 		// of types the receiver type is dependent on (see issues #51232, #51233).
+ 		check.later(func() {
+-			rtyp, _ := deref(recv.typ)
+-
+ 			// spec: "The receiver type must be of the form T or *T where T is a type name."
+-			// (ignore invalid types - error was reported before)
+-			if rtyp != Typ[Invalid] {
+-				var err string
+-				switch T := rtyp.(type) {
+-				case *Named:
+-					T.resolve(check.bestContext(nil))
+-					// The receiver type may be an instantiated type referred to
+-					// by an alias (which cannot have receiver parameters for now).
+-					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+-						check.errorf(recv.pos, "cannot define methods on instantiated type %s", recv.typ)
+-						break
+-					}
+-					// spec: "The type denoted by T is called the receiver base type; it must not
+-					// be a pointer or interface type and it must be declared in the same package
+-					// as the method."
+-					if T.obj.pkg != check.pkg {
+-						err = "type not defined in this package"
+-						if check.conf.CompilerErrorMessages {
+-							check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+-							err = ""
+-						}
+-					} else {
+-						// The underlying type of a receiver base type can be a type parameter;
+-						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+-						// TODO(gri) Such declarations are currently disallowed.
+-						//           Revisit the need for underIs.
+-						underIs(T, func(u Type) bool {
+-							switch u := u.(type) {
+-							case *Basic:
+-								// unsafe.Pointer is treated like a regular pointer
+-								if u.kind == UnsafePointer {
+-									err = "unsafe.Pointer"
+-									return false
+-								}
+-							case *Pointer, *Interface:
+-								err = "pointer or interface type"
+-								return false
+-							}
+-							return true
+-						})
+-					}
++			rtyp, _ := deref(recv.typ)
++			if rtyp == Typ[Invalid] {
++				return // error was reported before
++			}
++			// spec: "The type denoted by T is called the receiver base type; it must not
++			// be a pointer or interface type and it must be declared in the same package
++			// as the method."
++			switch T := rtyp.(type) {
++			case *Named:
++				T.resolve(check.bestContext(nil))
++				// The receiver type may be an instantiated type referred to
++				// by an alias (which cannot have receiver parameters for now).
++				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
++					check.errorf(recv, "cannot define new methods on instantiated type %s", rtyp)
++					break
++				}
++				if T.obj.pkg != check.pkg {
++					check.errorf(recv, "cannot define new methods on non-local type %s", rtyp)
++					break
++				}
++				var cause string
++				switch u := T.under().(type) {
+ 				case *Basic:
+-					err = "basic or unnamed type"
+-					if check.conf.CompilerErrorMessages {
+-						check.errorf(recv.pos, "cannot define new methods on non-local type %s", recv.typ)
+-						err = ""
++					// unsafe.Pointer is treated like a regular pointer
++					if u.kind == UnsafePointer {
++						cause = "unsafe.Pointer"
+ 					}
+-				default:
+-					check.errorf(recv.pos, "invalid receiver type %s", recv.typ)
++				case *Pointer, *Interface:
++					cause = "pointer or interface type"
++				case *TypeParam:
++					// The underlying type of a receiver base type cannot be a
++					// type parameter: "type T[P any] P" is not a valid declaration.
++					unreachable()
+ 				}
+-				if err != "" {
+-					check.errorf(recv.pos, "invalid receiver type %s (%s)", recv.typ, err)
++				if cause != "" {
++					check.errorf(recv, "invalid receiver type %s (%s)", rtyp, cause)
+ 				}
++			case *Basic:
++				check.errorf(recv, "cannot define new methods on non-local type %s", rtyp)
++			default:
++				check.errorf(recv, "invalid receiver type %s", recv.typ)
+ 			}
+ 		}).describef(recv, "validate receiver %s", recv)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go b/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go
+index d077db55dd..66ca6ee515 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go
+@@ -93,10 +93,10 @@ func (a, b /* ERROR "multiple receivers" */ T3) _() {}
+ func (a, b, c /* ERROR "multiple receivers" */ T3) _() {}
+ 
+ // Methods associated with non-local or unnamed types.
+-func (int /* ERROR "invalid receiver" */ ) m() {}
++func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
+ func ([ /* ERROR "invalid receiver" */ ]int) m() {}
+-func (time /* ERROR "invalid receiver" */ .Time) m() {}
+-func (* /* ERROR "invalid receiver" */ time.Time) m() {}
++func (time /* ERROR "cannot define new methods on non-local type time\.Time" */ .Time) m() {}
++func (* /* ERROR "cannot define new methods on non-local type time\.Time" */ time.Time) m() {}
+ func (x /* ERROR "invalid receiver" */ interface{}) m() {}
+ 
+ // Unsafe.Pointer is treated like a pointer when used as receiver type.
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls4.go b/src/cmd/compile/internal/types2/testdata/check/decls4.go
+index eb08421bee..384bcd9b89 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls4.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls4.go
+@@ -59,7 +59,7 @@ var (
+ )
+ 
+ // alias receiver types
+-func (Ai /* ERROR "invalid receiver" */) m1() {}
++func (Ai /* ERROR "cannot define new methods on non-local type int" */) m1() {}
+ func (T0) m1() {}
+ func (A0) m1 /* ERROR already declared */ () {}
+ func (A0) m2 () {}
+@@ -115,8 +115,8 @@ type (
+ 	B2 = int
+ )
+ 
+-func (B0 /* ERROR invalid receiver */ ) m() {}
+-func (B1 /* ERROR invalid receiver */ ) n() {}
++func (B0 /* ERROR cannot define new methods on non-local type int */ ) m() {}
++func (B1 /* ERROR cannot define new methods on non-local type int */ ) n() {}
+ 
+ // cycles
+ type (
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go
+index 711e50a55a..3dd303957c 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47968.go
+@@ -14,8 +14,8 @@ func (A1[P]) m2() {}
+ 
+ type A2 = T[int]
+ 
+-func (A2 /* ERROR cannot define methods on instantiated type T\[int\] */) m3()   {}
+-func (_ /* ERROR cannot define methods on instantiated type T\[int\] */ A2) m4() {}
++func (A2 /* ERROR cannot define new methods on instantiated type T\[int\] */) m3()   {}
++func (_ /* ERROR cannot define new methods on instantiated type T\[int\] */ A2) m4() {}
+ 
+ func (T[int]) m5()                                     {} // int is the type parameter name, not an instantiation
+ func (T[* /* ERROR must be an identifier */ int]) m6() {} // syntax error
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index a340ac701e..9e7b63b451 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -206,62 +206,48 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		// Delay validation of receiver type as it may cause premature expansion
+ 		// of types the receiver type is dependent on (see issues #51232, #51233).
+ 		check.later(func() {
+-			rtyp, _ := deref(recv.typ)
+-
+ 			// spec: "The receiver type must be of the form T or *T where T is a type name."
+-			// (ignore invalid types - error was reported before)
+-			if rtyp != Typ[Invalid] {
+-				var err string
+-				switch T := rtyp.(type) {
+-				case *Named:
+-					T.resolve(check.bestContext(nil))
+-					// The receiver type may be an instantiated type referred to
+-					// by an alias (which cannot have receiver parameters for now).
+-					if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
+-						check.errorf(recv, _InvalidRecv, "cannot define methods on instantiated type %s", recv.typ)
+-						break
+-					}
+-					// spec: "The type denoted by T is called the receiver base type; it must not
+-					// be a pointer or interface type and it must be declared in the same package
+-					// as the method."
+-					if T.obj.pkg != check.pkg {
+-						err = "type not defined in this package"
+-						if compilerErrorMessages {
+-							check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
+-							err = ""
+-						}
+-					} else {
+-						// The underlying type of a receiver base type can be a type parameter;
+-						// e.g. for methods with a generic receiver T[P] with type T[P any] P.
+-						// TODO(gri) Such declarations are currently disallowed.
+-						//           Revisit the need for underIs.
+-						underIs(T, func(u Type) bool {
+-							switch u := u.(type) {
+-							case *Basic:
+-								// unsafe.Pointer is treated like a regular pointer
+-								if u.kind == UnsafePointer {
+-									err = "unsafe.Pointer"
+-									return false
+-								}
+-							case *Pointer, *Interface:
+-								err = "pointer or interface type"
+-								return false
+-							}
+-							return true
+-						})
+-					}
++			rtyp, _ := deref(recv.typ)
++			if rtyp == Typ[Invalid] {
++				return // error was reported before
++			}
++			// spec: "The type denoted by T is called the receiver base type; it must not
++			// be a pointer or interface type and it must be declared in the same package
++			// as the method."
++			switch T := rtyp.(type) {
++			case *Named:
++				T.resolve(check.bestContext(nil))
++				// The receiver type may be an instantiated type referred to
++				// by an alias (which cannot have receiver parameters for now).
++				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
++					check.errorf(recv, _InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
++					break
++				}
++				if T.obj.pkg != check.pkg {
++					check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
++					break
++				}
++				var cause string
++				switch u := T.under().(type) {
+ 				case *Basic:
+-					err = "basic or unnamed type"
+-					if compilerErrorMessages {
+-						check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", recv.typ)
+-						err = ""
++					// unsafe.Pointer is treated like a regular pointer
++					if u.kind == UnsafePointer {
++						cause = "unsafe.Pointer"
+ 					}
+-				default:
+-					check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
++				case *Pointer, *Interface:
++					cause = "pointer or interface type"
++				case *TypeParam:
++					// The underlying type of a receiver base type cannot be a
++					// type parameter: "type T[P any] P" is not a valid declaration.
++					unreachable()
+ 				}
+-				if err != "" {
+-					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", recv.typ, err)
++				if cause != "" {
++					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+ 				}
++			case *Basic:
++				check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
++			default:
++				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+ 			}
+ 		}).describef(recv, "validate receiver %s", recv)
+ 	}
+diff --git a/src/go/types/testdata/check/decls2/decls2a.go b/src/go/types/testdata/check/decls2/decls2a.go
+index bdbecd9dbb..9dff17349c 100644
+--- a/src/go/types/testdata/check/decls2/decls2a.go
++++ b/src/go/types/testdata/check/decls2/decls2a.go
+@@ -93,10 +93,10 @@ func (a, b /* ERROR "exactly one receiver" */ T3) _() {}
+ func (a, b, c /* ERROR "exactly one receiver" */ T3) _() {}
+ 
+ // Methods associated with non-local or unnamed types.
+-func (int /* ERROR "invalid receiver" */ ) m() {}
++func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
+ func ([ /* ERROR "invalid receiver" */ ]int) m() {}
+-func (time /* ERROR "invalid receiver" */ .Time) m() {}
+-func (* /* ERROR "invalid receiver" */ time.Time) m() {}
++func (time /* ERROR "cannot define new methods on non-local type time\.Time" */ .Time) m() {}
++func (* /* ERROR "cannot define new methods on non-local type time\.Time" */ time.Time) m() {}
+ func (x /* ERROR "invalid receiver" */ interface{}) m() {}
+ 
+ // Unsafe.Pointer is treated like a pointer when used as receiver type.
+diff --git a/src/go/types/testdata/check/decls4.go b/src/go/types/testdata/check/decls4.go
+index 140bbfd31f..8a9a6ffba7 100644
+--- a/src/go/types/testdata/check/decls4.go
++++ b/src/go/types/testdata/check/decls4.go
+@@ -59,7 +59,7 @@ var (
+ )
+ 
+ // alias receiver types
+-func (Ai /* ERROR "invalid receiver" */) m1() {}
++func (Ai /* ERROR "cannot define new methods on non-local type int" */) m1() {}
+ func (T0) m1() {}
+ func (A0) m1 /* ERROR already declared */ () {}
+ func (A0) m2 () {}
+@@ -115,8 +115,8 @@ type (
+ 	B2 = int
+ )
+ 
+-func (B0 /* ERROR invalid receiver */ ) m() {}
+-func (B1 /* ERROR invalid receiver */ ) n() {}
++func (B0 /* ERROR cannot define new methods on non-local type int */ ) m() {}
++func (B1 /* ERROR cannot define new methods on non-local type int */ ) n() {}
+ 
+ // cycles
+ type (
+diff --git a/src/go/types/testdata/fixedbugs/issue47968.go b/src/go/types/testdata/fixedbugs/issue47968.go
+index 711e50a55a..3dd303957c 100644
+--- a/src/go/types/testdata/fixedbugs/issue47968.go
++++ b/src/go/types/testdata/fixedbugs/issue47968.go
+@@ -14,8 +14,8 @@ func (A1[P]) m2() {}
+ 
+ type A2 = T[int]
+ 
+-func (A2 /* ERROR cannot define methods on instantiated type T\[int\] */) m3()   {}
+-func (_ /* ERROR cannot define methods on instantiated type T\[int\] */ A2) m4() {}
++func (A2 /* ERROR cannot define new methods on instantiated type T\[int\] */) m3()   {}
++func (_ /* ERROR cannot define new methods on instantiated type T\[int\] */ A2) m4() {}
+ 
+ func (T[int]) m5()                                     {} // int is the type parameter name, not an instantiation
+ func (T[* /* ERROR must be an identifier */ int]) m6() {} // syntax error

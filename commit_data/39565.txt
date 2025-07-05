@@ -14,6 +14,20 @@ Date:   Tue Mar 5 17:45:39 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/runtime/testdata/testprogcgo/dll_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/dll_windows.go b/src/runtime/testdata/testprogcgo/dll_windows.go
+index aed2410a45..25380fb217 100644
+--- a/src/runtime/testdata/testprogcgo/dll_windows.go
++++ b/src/runtime/testdata/testprogcgo/dll_windows.go
+@@ -12,7 +12,7 @@ DWORD getthread() {
+ }
+ */
+ import "C"
+-import "./windows"
++import "runtime/testdata/testprogcgo/windows"
+ 
+ func init() {
+ 	register("CgoDLLImportsMain", CgoDLLImportsMain)

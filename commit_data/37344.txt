@@ -10,6 +10,20 @@ Date:   Wed Jul 18 16:20:19 2018 -0400
     Change-Id: Ib94df0a9c8c0517f932b90126232111caa9ad289
     Reviewed-on: https://go-review.googlesource.com/124797
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/str/path.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/str/path.go b/src/cmd/go/internal/str/path.go
+index 65cd639436..a9b4d759a6 100644
+--- a/src/cmd/go/internal/str/path.go
++++ b/src/cmd/go/internal/str/path.go
+@@ -19,7 +19,7 @@ func HasPathPrefix(s, prefix string) bool {
+ 		return true
+ 	}
+ 	if len(s) > len(prefix) {
+-		if prefix != "" && prefix[len(prefix)-1] == '/' || s[len(prefix)] == '/' {
++		if prefix[len(prefix)-1] == '/' || s[len(prefix)] == '/' {
+ 			return s[:len(prefix)] == prefix
+ 		}
+ 	}

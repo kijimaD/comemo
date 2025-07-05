@@ -17,9 +17,317 @@ Date:   Mon Jan 19 12:57:35 2015 -0500
     Change-Id: Iad3dce675571cbdb5ab6298fe6f98f53ede47d5c
     Reviewed-on: https://go-review.googlesource.com/3044
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go     |  59 +++++++++++++++++++----
  src/cmd/dist/buildtool.go | 118 ++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/dist/util.go      |  25 +++++++++-
  src/make.bash             |   1 -
  4 files changed, 191 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index eddc246cf2..d3601043d3 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -37,6 +37,7 @@ var (
+ 	oldgoarch        string
+ 	oldgochar        string
+ 	slash            string
++	exe              string
+ 	defaultcc        string
+ 	defaultcflags    string
+ 	defaultldflags   string
+@@ -654,13 +655,20 @@ func install(dir string) {
+ 		ldargs = splitfields(defaultldflags)
+ 	}
+ 
+-	islib := strings.HasPrefix(dir, "lib") || dir == "cmd/gc"
+-	ispkg := !islib && !strings.HasPrefix(dir, "cmd/")
+-	isgo := ispkg || dir == "cmd/go" || dir == "cmd/cgo"
++	isgo := true
++	ispkg := !strings.HasPrefix(dir, "cmd/") || strings.HasPrefix(dir, "cmd/internal/")
++	islib := false
+ 
+-	exe := ""
+-	if gohostos == "windows" {
+-		exe = ".exe"
++	// Legacy C exceptions.
++	switch dir {
++	case "lib9", "libbio", "liblink", "cmd/gc":
++		islib = true
++		isgo = false
++	case "cmd/5a", "cmd/5g", "cmd/5l",
++		"cmd/6a", "cmd/6g", "cmd/6l",
++		"cmd/8a", "cmd/8g", "cmd/8l",
++		"cmd/9a", "cmd/9g", "cmd/9l":
++		isgo = false
+ 	}
+ 
+ 	// Start final link command line.
+@@ -1127,7 +1135,10 @@ func dopack(dst, src string, extra []string) {
+ }
+ 
+ // buildorder records the order of builds for the 'go bootstrap' command.
++// The Go packages and commands must be in dependency order,
++// maintained by hand, but the order doesn't change often.
+ var buildorder = []string{
++	// Legacy C programs.
+ 	"lib9",
+ 	"libbio",
+ 	"liblink",
+@@ -1137,10 +1148,7 @@ var buildorder = []string{
+ 	"cmd/%sa",
+ 	"cmd/%sg",
+ 
+-	// The dependency order here was copied from a buildscript
+-	// back when there were build scripts.  Will have to
+-	// be maintained by hand, but shouldn't change very
+-	// often.
++	// Go libraries and programs for bootstrap.
+ 	"runtime",
+ 	"errors",
+ 	"sync/atomic",
+@@ -1163,6 +1171,7 @@ var buildorder = []string{
+ 	"reflect",
+ 	"fmt",
+ 	"encoding",
++	"encoding/binary",
+ 	"encoding/json",
+ 	"flag",
+ 	"path/filepath",
+@@ -1182,6 +1191,9 @@ var buildorder = []string{
+ 	"text/template",
+ 	"go/doc",
+ 	"go/build",
++	"cmd/internal/obj",
++	"cmd/internal/obj/x86",
++	"cmd/objwriter",
+ 	"cmd/go",
+ }
+ 
+@@ -1377,6 +1389,8 @@ func cmdbootstrap() {
+ 
+ 	setup()
+ 
++	bootstrapBuildTools()
++
+ 	// For the main bootstrap, building for host os/arch.
+ 	oldgoos = goos
+ 	oldgoarch = goarch
+@@ -1389,6 +1403,31 @@ func cmdbootstrap() {
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOOS", goos)
+ 
++	// TODO(rsc): Enable when appropriate.
++	// This step is only needed if we believe that the Go compiler built from Go 1.4
++	// will produce different object files than the Go compiler built from itself.
++	// In the absence of bugs, that should not happen.
++	// And if there are bugs, they're more likely in the current development tree
++	// than in a standard release like Go 1.4, so don't do this rebuild by default.
++	if false {
++		xprintf("##### Building Go toolchain using itself.\n")
++		for _, pattern := range buildorder {
++			if pattern == "cmd/go" {
++				break
++			}
++			dir := pattern
++			if strings.Contains(pattern, "%s") {
++				dir = fmt.Sprintf(pattern, gohostchar)
++			}
++			install(dir)
++			if oldgochar != gohostchar && strings.Contains(pattern, "%s") {
++				install(fmt.Sprintf(pattern, oldgochar))
++			}
++		}
++		xprintf("\n")
++	}
++
++	xprintf("##### Building compilers and go_bootstrap for host, %s/%s.\n", gohostos, gohostarch)
+ 	for _, pattern := range buildorder {
+ 		dir := pattern
+ 		if strings.Contains(pattern, "%s") {
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+new file mode 100644
+index 0000000000..5e5768bff0
+--- /dev/null
++++ b/src/cmd/dist/buildtool.go
+@@ -0,0 +1,118 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Build toolchain using Go 1.4.
++//
++// The general strategy is to copy the source files we need into
++// a new GOPATH workspace, adjust import paths appropriately,
++// invoke the Go 1.4 go command to build those sources,
++// and then copy the binaries back.
++
++package main
++
++import (
++	"os"
++	"strings"
++)
++
++// bootstrapDirs is a list of directories holding code that must be
++// compiled with a Go 1.4 toolchain to produce the bootstrapTargets.
++// All directories in this list are relative to and must be below $GOROOT/src/cmd.
++// The list is assumed to have two kinds of entries: names without slashes,
++// which are commands, and entries beginning with internal/, which are
++// packages supporting the commands.
++var bootstrapDirs = []string{
++	"internal/obj",
++	"internal/obj/x86",
++	"objwriter",
++}
++
++func bootstrapBuildTools() {
++	goroot_bootstrap := os.Getenv("GOROOT_BOOTSTRAP")
++	if goroot_bootstrap == "" {
++		goroot_bootstrap = pathf("%s/go1.4", os.Getenv("HOME"))
++	}
++	xprintf("##### Building Go toolchain using %s.\n", goroot_bootstrap)
++
++	// Use $GOROOT/pkg/bootstrap as the bootstrap workspace root.
++	// We use a subdirectory of $GOROOT/pkg because that's the
++	// space within $GOROOT where we store all generated objects.
++	// We could use a temporary directory outside $GOROOT instead,
++	// but it is easier to debug on failure if the files are in a known location.
++	workspace := pathf("%s/pkg/bootstrap", goroot)
++	xremoveall(workspace)
++	base := pathf("%s/src/bootstrap", workspace)
++	xmkdirall(base)
++
++	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
++	for _, dir := range bootstrapDirs {
++		src := pathf("%s/src/cmd/%s", goroot, dir)
++		dst := pathf("%s/%s", base, dir)
++		xmkdirall(dst)
++		for _, name := range xreaddirfiles(src) {
++			srcFile := pathf("%s/%s", src, name)
++			text := readfile(srcFile)
++			text = bootstrapFixImports(text, srcFile)
++			writefile(text, pathf("%s/%s", dst, name), 0)
++		}
++	}
++
++	// Set up environment for invoking Go 1.4 go command.
++	// GOROOT points at Go 1.4 GOROOT,
++	// GOPATH points at our bootstrap workspace,
++	// GOBIN is empty, so that binaries are installed to GOPATH/bin,
++	// and GOOS, GOHOSTOS, GOARCH, and GOHOSTOS are empty,
++	// so that Go 1.4 builds whatever kind of binary it knows how to build.
++	// Restore GOROOT, GOPATH, and GOBIN when done.
++	// Don't bother with GOOS, GOHOSTOS, GOARCH, and GOHOSTARCH,
++	// because setup will take care of those when bootstrapBuildTools returns.
++
++	defer os.Setenv("GOROOT", os.Getenv("GOROOT"))
++	os.Setenv("GOROOT", goroot_bootstrap)
++
++	defer os.Setenv("GOPATH", os.Getenv("GOPATH"))
++	os.Setenv("GOPATH", workspace)
++
++	defer os.Setenv("GOBIN", os.Getenv("GOBIN"))
++	os.Setenv("GOBIN", "")
++
++	os.Setenv("GOOS", "")
++	os.Setenv("GOHOSTOS", "")
++	os.Setenv("GOARCH", "")
++	os.Setenv("GOHOSTARCH", "")
++
++	// Run Go 1.4 to build binaries.
++	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-v", "bootstrap/...")
++
++	// Copy binaries into tool binary directory.
++	for _, name := range bootstrapDirs {
++		if !strings.Contains(name, "/") {
++			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), 1)
++		}
++	}
++
++	xprintf("\n")
++}
++
++func bootstrapFixImports(text, srcFile string) string {
++	lines := strings.SplitAfter(text, "\n")
++	inBlock := false
++	for i, line := range lines {
++		if strings.HasPrefix(line, "import (") {
++			inBlock = true
++			continue
++		}
++		if inBlock && strings.HasPrefix(line, ")") {
++			inBlock = false
++			continue
++		}
++		if strings.HasPrefix(line, "import \"") || inBlock && strings.HasPrefix(line, "\t\"") {
++			lines[i] = strings.Replace(line, `"cmd/internal/`, `"bootstrap/internal/`, -1)
++		}
++	}
++
++	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n" + lines[0]
++
++	return strings.Join(lines, "")
++}
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 9ce0749ff3..1bb3ba80e6 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -275,7 +275,7 @@ func xremoveall(p string) {
+ 	os.RemoveAll(p)
+ }
+ 
+-// xreaddir replaces dst with a list of the names of the files in dir.
++// xreaddir replaces dst with a list of the names of the files and subdirectories in dir.
+ // The names are relative to dir; they are not full paths.
+ func xreaddir(dir string) []string {
+ 	f, err := os.Open(dir)
+@@ -290,6 +290,27 @@ func xreaddir(dir string) []string {
+ 	return names
+ }
+ 
++// xreaddir replaces dst with a list of the names of the files in dir.
++// The names are relative to dir; they are not full paths.
++func xreaddirfiles(dir string) []string {
++	f, err := os.Open(dir)
++	if err != nil {
++		fatal("%v", err)
++	}
++	defer f.Close()
++	infos, err := f.Readdir(-1)
++	if err != nil {
++		fatal("reading %s: %v", dir, err)
++	}
++	var names []string
++	for _, fi := range infos {
++		if !fi.IsDir() {
++			names = append(names, fi.Name())
++		}
++	}
++	return names
++}
++
+ // xworkdir creates a new temporary directory to hold object files
+ // and returns the name of that directory.
+ func xworkdir() string {
+@@ -370,6 +391,8 @@ func main() {
+ 		if gohostarch == "" {
+ 			fatal("$objtype is unset")
+ 		}
++	case "windows":
++		exe = ".exe"
+ 	}
+ 
+ 	sysinit()
+diff --git a/src/make.bash b/src/make.bash
+index c8573c9954..e962f04fcf 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -141,7 +141,6 @@ if [ "$1" = "--dist-tool" ]; then
+ 	exit 0
+ fi
+ 
+-echo "##### Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
+ buildall="-a"
+ if [ "$1" = "--no-clean" ]; then
+ 	buildall=""

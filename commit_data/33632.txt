@@ -12,6 +12,20 @@ Date:   Mon Aug 28 14:35:33 2017 +1000
     Change-Id: I5813488f6a98c1b4506c239e968d43344b91be12
     Reviewed-on: https://go-review.googlesource.com/59412
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 014ba06948..d1ce8c4177 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -47,6 +47,8 @@
+ 		%X	base 16, upper-case, two characters per byte
+ 	Pointer:
+ 		%p	base 16 notation, with leading 0x
++		The %b, %d, %o, %x and %X verbs also work with pointers,
++		formatting the value exactly as if it were an integer.
+ 
+ 	The default format for %v is:
+ 		bool:                    %t

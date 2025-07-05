@@ -16,7 +16,7 @@ Date:   Fri Jan 20 16:41:57 2023 -0500
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/base.go           |   1 +
  src/cmd/compile/internal/reflectdata/reflect.go |  30 +-
  src/cmd/link/internal/ld/decodesym.go           |  18 +-
@@ -64,3 +64,4673 @@ Date:   Fri Jan 20 16:41:57 2023 -0500
  src/runtime/typekind.go                         |   2 +-
  src/runtime/unsafe.go                           |   6 +-
  46 files changed, 1479 insertions(+), 711 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/base.go b/src/cmd/compile/internal/base/base.go
+index 521600b404..8caeb41d2f 100644
+--- a/src/cmd/compile/internal/base/base.go
++++ b/src/cmd/compile/internal/base/base.go
+@@ -264,6 +264,7 @@ var NoInstrumentPkgs = []string{
+ 	"runtime/msan",
+ 	"runtime/asan",
+ 	"internal/cpu",
++	"internal/abi",
+ }
+ 
+ // Don't insert racefuncenter/racefuncexit into the following packages.
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index cde8c68876..ede05bfcf7 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -670,20 +670,6 @@ var kinds = []int{
+ 	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
+ }
+ 
+-// tflag is documented in reflect/type.go.
+-//
+-// tflag values must be kept in sync with copies in:
+-//   - cmd/compile/internal/reflectdata/reflect.go
+-//   - cmd/link/internal/ld/decodesym.go
+-//   - reflect/type.go
+-//   - runtime/type.go
+-const (
+-	tflagUncommon      = 1 << 0
+-	tflagExtraStar     = 1 << 1
+-	tflagNamed         = 1 << 2
+-	tflagRegularMemory = 1 << 3
+-)
+-
+ var (
+ 	memhashvarlen  *obj.LSym
+ 	memequalvarlen *obj.LSym
+@@ -727,15 +713,15 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
+ 	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
+ 
+-	var tflag uint8
++	var tflag abi.TFlag
+ 	if uncommonSize(t) != 0 {
+-		tflag |= tflagUncommon
++		tflag |= abi.TFlagUncommon
+ 	}
+ 	if t.Sym() != nil && t.Sym().Name != "" {
+-		tflag |= tflagNamed
++		tflag |= abi.TFlagNamed
+ 	}
+ 	if compare.IsRegularMemory(t) {
+-		tflag |= tflagRegularMemory
++		tflag |= abi.TFlagRegularMemory
+ 	}
+ 
+ 	exported := false
+@@ -747,7 +733,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 	// amount of space taken up by reflect strings.
+ 	if !strings.HasPrefix(p, "*") {
+ 		p = "*" + p
+-		tflag |= tflagExtraStar
++		tflag |= abi.TFlagExtraStar
+ 		if t.Sym() != nil {
+ 			exported = types.IsExported(t.Sym().Name)
+ 		}
+@@ -757,7 +743,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ 		}
+ 	}
+ 
+-	ot = objw.Uint8(lsym, ot, tflag)
++	if tflag != abi.TFlag(uint8(tflag)) {
++		// this should optimize away completely
++		panic("Unexpected change in size of abi.TFlag")
++	}
++	ot = objw.Uint8(lsym, ot, uint8(tflag))
+ 
+ 	// runtime (and common sense) expects alignment to be a power of two.
+ 	i := int(uint8(t.Alignment()))
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 53ed6ccc86..f7293ff032 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"encoding/binary"
++	"internal/abi"
+ 	"log"
+ )
+ 
+@@ -18,19 +19,6 @@ import (
+ // ../../runtime/type.go, or more specifically, with what
+ // cmd/compile/internal/reflectdata/reflect.go stuffs in these.
+ 
+-// tflag is documented in reflect/type.go.
+-//
+-// tflag values must be kept in sync with copies in:
+-//
+-//	cmd/compile/internal/reflectdata/reflect.go
+-//	cmd/link/internal/ld/decodesym.go
+-//	reflect/type.go
+-//	runtime/type.go
+-const (
+-	tflagUncommon  = 1 << 0
+-	tflagExtraStar = 1 << 1
+-)
+-
+ func decodeInuxi(arch *sys.Arch, p []byte, sz int) uint64 {
+ 	switch sz {
+ 	case 2:
+@@ -71,7 +59,7 @@ func decodetypePtrdata(arch *sys.Arch, p []byte) int64 {
+ 
+ // Type.commonType.tflag
+ func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
+-	return p[2*arch.PtrSize+4]&tflagUncommon != 0
++	return abi.TFlag(p[2*arch.PtrSize+4])&abi.TFlagUncommon != 0
+ }
+ 
+ // Type.FuncType.dotdotdot
+@@ -234,7 +222,7 @@ func decodetypeStr(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) string
+ 	relocs := ldr.Relocs(symIdx)
+ 	str := decodetypeName(ldr, symIdx, &relocs, 4*arch.PtrSize+8)
+ 	data := ldr.Data(symIdx)
+-	if data[2*arch.PtrSize+4]&tflagExtraStar != 0 {
++	if data[2*arch.PtrSize+4]&byte(abi.TFlagExtraStar) != 0 {
+ 		return str[1:]
+ 	}
+ 	return str
+diff --git a/src/internal/abi/compiletype.go b/src/internal/abi/compiletype.go
+new file mode 100644
+index 0000000000..d92addec25
+--- /dev/null
++++ b/src/internal/abi/compiletype.go
+@@ -0,0 +1,167 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++// These functions are the build-time version of the Go type data structures.
++
++// Their contents must be kept in sync with their definitions.
++// Because the host and target type sizes can differ, the compiler and
++// linker cannot use the host information that they might get from
++// either unsafe.Sizeof and Alignof, nor runtime, reflect, or reflectlite.
++
++// CommonSize returns sizeof(Type) for a compilation target with a given ptrSize
++func CommonSize(ptrSize int) int { return 4*ptrSize + 8 + 8 }
++
++// StructFieldSize returns sizeof(StructField) for a compilation target with a given ptrSize
++func StructFieldSize(ptrSize int) int { return 3 * ptrSize }
++
++// UncommonSize returns sizeof(UncommonType).  This currently does not depend on ptrSize.
++// This exported function is in an internal package, so it may change to depend on ptrSize in the future.
++func UncommonSize() uint64 { return 4 + 2 + 2 + 4 + 4 }
++
++// IMethodSize returns sizeof(IMethod) for a compilation target with a given ptrSize
++func IMethodSize(ptrSize int) int { return 4 + 4 }
++
++// KindOff returns the offset of Type.Kind_ for a compilation target with a given ptrSize
++func KindOff(ptrSize int) int { return 2*ptrSize + 7 }
++
++// SizeOff returns the offset of Type.Size_ for a compilation target with a given ptrSize
++func SizeOff(ptrSize int) int { return 0 }
++
++// PtrBytes returns the offset of Type.PtrBytes for a compilation target with a given ptrSize
++func PtrBytesOff(ptrSize int) int { return ptrSize }
++
++// TFlagOff returns the offset of Type.TFlag for a compilation target with a given ptrSize
++func TFlagOff(ptrSize int) int { return 2*ptrSize + 4 }
++
++// Offset is for computing offsets of type data structures at compile/link time;
++// the target platform may not be the host platform.  Its state includes the
++// current offset, necessary alignment for the sequence of types, and the size
++// of pointers and alignment of slices, interfaces, and strings (this is for tearing-
++// resistant access to these types, if/when that is supported).
++type Offset struct {
++	off        uint64 // the current offset
++	align      uint8  // the required alignmentof the container
++	ptrSize    uint8  // the size of a pointer in bytes
++	sliceAlign uint8  // the alignment of slices (and interfaces and strings)
++}
++
++// NewOffset returns a new Offset with offset 0 and alignment 1.
++func NewOffset(ptrSize uint8, twoWordAlignSlices bool) Offset {
++	if twoWordAlignSlices {
++		return Offset{off: 0, align: 1, ptrSize: ptrSize, sliceAlign: 2 * ptrSize}
++	}
++	return Offset{off: 0, align: 1, ptrSize: ptrSize, sliceAlign: ptrSize}
++}
++
++func assertIsAPowerOfTwo(x uint8) {
++	if x == 0 {
++		panic("Zero is not a power of two")
++	}
++	if x&-x == x {
++		return
++	}
++	panic("Not a power of two")
++}
++
++// InitializedOffset returns a new Offset with specified offset, alignment, pointer size, and slice alignment.
++func InitializedOffset(off int, align uint8, ptrSize uint8, twoWordAlignSlices bool) Offset {
++	assertIsAPowerOfTwo(align)
++	o0 := NewOffset(ptrSize, twoWordAlignSlices)
++	o0.off = uint64(off)
++	o0.align = align
++	return o0
++}
++
++func (o Offset) align_(a uint8) Offset {
++	o.off = (o.off + uint64(a) - 1) & ^(uint64(a) - 1)
++	if o.align < a {
++		o.align = a
++	}
++	return o
++}
++
++// Align returns the offset obtained by aligning offset to a multiple of a.
++// a must be a power of two.
++func (o Offset) Align(a uint8) Offset {
++	assertIsAPowerOfTwo(a)
++	return o.align_(a)
++}
++
++// plus returns the offset obtained by appending a power-of-2-sized-and-aligned object to o.
++func (o Offset) plus(x uint64) Offset {
++	o = o.align_(uint8(x))
++	o.off += x
++	return o
++}
++
++// D8 returns the offset obtained by appending an 8-bit field to o.
++func (o Offset) D8() Offset {
++	return o.plus(1)
++}
++
++// D16 returns the offset obtained by appending a 16-bit field to o.
++func (o Offset) D16() Offset {
++	return o.plus(2)
++}
++
++// D32 returns the offset obtained by appending a 32-bit field to o.
++func (o Offset) D32() Offset {
++	return o.plus(4)
++}
++
++// D64 returns the offset obtained by appending a 64-bit field to o.
++func (o Offset) D64() Offset {
++	return o.plus(8)
++}
++
++// D64 returns the offset obtained by appending a pointer field to o.
++func (o Offset) P() Offset {
++	if o.ptrSize == 0 {
++		panic("This offset has no defined pointer size")
++	}
++	return o.plus(uint64(o.ptrSize))
++}
++
++// Slice returns the offset obtained by appending a slice field to o.
++func (o Offset) Slice() Offset {
++	o = o.align_(o.sliceAlign)
++	o.off += 3 * uint64(o.ptrSize)
++	// There's been discussion of whether slices should be 2-word aligned to allow
++	// use of aligned 2-word load/store to prevent tearing, this is future proofing.
++	// In general, for purposes of struct layout (and very likely default C layout
++	// compatibility) the "size" of a Go type is rounded up to its alignment.
++	return o.Align(o.sliceAlign)
++}
++
++// String returns the offset obtained by appending a string field to o.
++func (o Offset) String() Offset {
++	o = o.align_(o.sliceAlign)
++	o.off += 2 * uint64(o.ptrSize)
++	return o // We "know" it needs no further alignment
++}
++
++// Interface returns the offset obtained by appending an interface field to o.
++func (o Offset) Interface() Offset {
++	o = o.align_(o.sliceAlign)
++	o.off += 2 * uint64(o.ptrSize)
++	return o // We "know" it needs no further alignment
++}
++
++// Offset returns the struct-aligned offset (size) of o.
++// This is at least as large as the current internal offset; it may be larger.
++func (o Offset) Offset() uint64 {
++	return o.Align(o.align).off
++}
++
++func (o Offset) PlusUncommon() Offset {
++	o.off += UncommonSize()
++	return o
++}
++
++// CommonOffset returns the Offset to the data after the common portion of type data structures.
++func CommonOffset(ptrSize int, twoWordAlignSlices bool) Offset {
++	return InitializedOffset(CommonSize(ptrSize), uint8(ptrSize), uint8(ptrSize), twoWordAlignSlices)
++}
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+new file mode 100644
+index 0000000000..73988b6a2b
+--- /dev/null
++++ b/src/internal/abi/type.go
+@@ -0,0 +1,712 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++import (
++	"unsafe"
++)
++
++// Type is the runtime representation of a Go type.
++//
++// Type is also referenced implicitly
++// (in the form of expressions involving constants and arch.PtrSize)
++// in cmd/compile/internal/reflectdata/reflect.go
++// and cmd/link/internal/ld/decodesym.go
++// (e.g. data[2*arch.PtrSize+4] references the TFlag field)
++// unsafe.OffsetOf(Type{}.TFlag) cannot be used directly in those
++// places because it varies with cross compilation and experiments.
++type Type struct {
++	Size_       uintptr
++	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers
++	Hash        uint32  // hash of type; avoids computation in hash tables
++	TFlag       TFlag   // extra type information flags
++	Align_      uint8   // alignment of variable with this type
++	FieldAlign_ uint8   // alignment of struct field with this type
++	Kind_       uint8   // enumeration for C
++	// function for comparing objects of this type
++	// (ptr to object A, ptr to object B) -> ==?
++	Equal func(unsafe.Pointer, unsafe.Pointer) bool
++	// GCData stores the GC type data for the garbage collector.
++	// If the KindGCProg bit is set in kind, GCData is a GC program.
++	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
++	GCData    *byte
++	Str       NameOff // string form
++	PtrToThis TypeOff // type for pointer to this type, may be zero
++}
++
++// A Kind represents the specific kind of type that a Type represents.
++// The zero Kind is not a valid kind.
++type Kind uint
++
++const (
++	Invalid Kind = iota
++	Bool
++	Int
++	Int8
++	Int16
++	Int32
++	Int64
++	Uint
++	Uint8
++	Uint16
++	Uint32
++	Uint64
++	Uintptr
++	Float32
++	Float64
++	Complex64
++	Complex128
++	Array
++	Chan
++	Func
++	Interface
++	Map
++	Pointer
++	Slice
++	String
++	Struct
++	UnsafePointer
++)
++
++const (
++	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
++	KindDirectIface = 1 << 5
++	KindGCProg      = 1 << 6 // Type.gc points to GC program
++	KindMask        = (1 << 5) - 1
++)
++
++// TFlag is used by a Type to signal what extra type information is
++// available in the memory directly following the Type value.
++type TFlag uint8
++
++const (
++	// TFlagUncommon means that there is a data with a type, UncommonType,
++	// just beyond the shared-per-type common data.  That is, the data
++	// for struct types will store their UncommonType at one offset, the
++	// data for interface types will store their UncommonType at a different
++	// offset.  UncommonType is always accessed via a pointer that is computed
++	// using trust-us-we-are-the-implementors pointer arithmetic.
++	//
++	// For example, if t.Kind() == Struct and t.tflag&TFlagUncommon != 0,
++	// then t has UncommonType data and it can be accessed as:
++	//
++	//	type structTypeUncommon struct {
++	//		structType
++	//		u UncommonType
++	//	}
++	//	u := &(*structTypeUncommon)(unsafe.Pointer(t)).u
++	TFlagUncommon TFlag = 1 << 0
++
++	// TFlagExtraStar means the name in the str field has an
++	// extraneous '*' prefix. This is because for most types T in
++	// a program, the type *T also exists and reusing the str data
++	// saves binary size.
++	TFlagExtraStar TFlag = 1 << 1
++
++	// TFlagNamed means the type has a name.
++	TFlagNamed TFlag = 1 << 2
++
++	// TFlagRegularMemory means that equal and hash functions can treat
++	// this type as a single region of t.size bytes.
++	TFlagRegularMemory TFlag = 1 << 3
++)
++
++// NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
++type NameOff int32
++
++// TypeOff is the offset to a type from moduledata.types.  See resolveTypeOff in runtime.
++type TypeOff int32
++
++// TextOff is an offset from the top of a text section.  See (rtype).textOff in runtime.
++type TextOff int32
++
++// String returns the name of k.
++func (k Kind) String() string {
++	if int(k) < len(kindNames) {
++		return kindNames[k]
++	}
++	return kindNames[0]
++}
++
++var kindNames = []string{
++	Invalid:       "invalid",
++	Bool:          "bool",
++	Int:           "int",
++	Int8:          "int8",
++	Int16:         "int16",
++	Int32:         "int32",
++	Int64:         "int64",
++	Uint:          "uint",
++	Uint8:         "uint8",
++	Uint16:        "uint16",
++	Uint32:        "uint32",
++	Uint64:        "uint64",
++	Uintptr:       "uintptr",
++	Float32:       "float32",
++	Float64:       "float64",
++	Complex64:     "complex64",
++	Complex128:    "complex128",
++	Array:         "array",
++	Chan:          "chan",
++	Func:          "func",
++	Interface:     "interface",
++	Map:           "map",
++	Pointer:       "ptr",
++	Slice:         "slice",
++	String:        "string",
++	Struct:        "struct",
++	UnsafePointer: "unsafe.Pointer",
++}
++
++func (t *Type) Kind() Kind { return Kind(t.Kind_ & KindMask) }
++
++func (t *Type) HasName() bool {
++	return t.TFlag&TFlagNamed != 0
++}
++
++func (t *Type) Pointers() bool { return t.PtrBytes != 0 }
++
++// IfaceIndir reports whether t is stored indirectly in an interface value.
++func (t *Type) IfaceIndir() bool {
++	return t.Kind_&KindDirectIface == 0
++}
++
++// isDirectIface reports whether t is stored directly in an interface value.
++func (t *Type) IsDirectIface() bool {
++	return t.Kind_&KindDirectIface != 0
++}
++
++func (t *Type) GcSlice(begin, end uintptr) []byte {
++	return unsafeSliceFor(t.GCData, int(end))[begin:]
++}
++
++// Method on non-interface type
++type Method struct {
++	Name NameOff // name of method
++	Mtyp TypeOff // method type (without receiver)
++	Ifn  TextOff // fn used in interface call (one-word receiver)
++	Tfn  TextOff // fn used for normal method call
++}
++
++// UncommonType is present only for defined types or types with methods
++// (if T is a defined type, the uncommonTypes for T and *T have methods).
++// Using a pointer to this struct reduces the overall size required
++// to describe a non-defined type with no methods.
++type UncommonType struct {
++	PkgPath NameOff // import path; empty for built-in types like int, string
++	Mcount  uint16  // number of methods
++	Xcount  uint16  // number of exported methods
++	Moff    uint32  // offset from this uncommontype to [mcount]method
++	_       uint32  // unused
++}
++
++func (t *UncommonType) Methods() []Method {
++	if t.Mcount == 0 {
++		return nil
++	}
++	return (*[1 << 16]Method)(addChecked(unsafe.Pointer(t), uintptr(t.Moff), "t.mcount > 0"))[:t.Mcount:t.Mcount]
++}
++
++func (t *UncommonType) ExportedMethods() []Method {
++	if t.Xcount == 0 {
++		return nil
++	}
++	return (*[1 << 16]Method)(addChecked(unsafe.Pointer(t), uintptr(t.Moff), "t.xcount > 0"))[:t.Xcount:t.Xcount]
++}
++
++// addChecked returns p+x.
++//
++// The whySafe string is ignored, so that the function still inlines
++// as efficiently as p+x, but all call sites should use the string to
++// record why the addition is safe, which is to say why the addition
++// does not cause x to advance to the very end of p's allocation
++// and therefore point incorrectly at the next block in memory.
++func addChecked(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(p) + x)
++}
++
++// Imethod represents a method on an interface type
++type Imethod struct {
++	Name NameOff // name of method
++	Typ  TypeOff // .(*FuncType) underneath
++}
++
++// ArrayType represents a fixed array type.
++type ArrayType struct {
++	Type
++	Elem  *Type // array element type
++	Slice *Type // slice type
++	Len   uintptr
++}
++
++// Len returns the length of t if t is an array type, otherwise 0
++func (t *Type) Len() uintptr {
++	if t.Kind() == Array {
++		return (*ArrayType)(unsafe.Pointer(t)).Len
++	}
++	return 0
++}
++
++func (t *Type) Common() *Type {
++	return t
++}
++
++type ChanDir int
++
++const (
++	RecvDir    ChanDir = 1 << iota         // <-chan
++	SendDir                                // chan<-
++	BothDir            = RecvDir | SendDir // chan
++	InvalidDir ChanDir = 0
++)
++
++// ChanType represents a channel type
++type ChanType struct {
++	Type
++	Elem *Type
++	Dir  ChanDir
++}
++
++type structTypeUncommon struct {
++	StructType
++	u UncommonType
++}
++
++// ChanDir returns the direction of t if t is a channel type, otherwise InvalidDir (0).
++func (t *Type) ChanDir() ChanDir {
++	if t.Kind() == Chan {
++		ch := (*ChanType)(unsafe.Pointer(t))
++		return ch.Dir
++	}
++	return InvalidDir
++}
++
++// Uncommon returns a pointer to T's "uncommon" data if there is any, otherwise nil
++func (t *Type) Uncommon() *UncommonType {
++	if t.TFlag&TFlagUncommon == 0 {
++		return nil
++	}
++	switch t.Kind() {
++	case Struct:
++		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
++	case Pointer:
++		type u struct {
++			PtrType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Func:
++		type u struct {
++			FuncType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Slice:
++		type u struct {
++			SliceType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Array:
++		type u struct {
++			ArrayType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Chan:
++		type u struct {
++			ChanType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Map:
++		type u struct {
++			MapType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	case Interface:
++		type u struct {
++			InterfaceType
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	default:
++		type u struct {
++			Type
++			u UncommonType
++		}
++		return &(*u)(unsafe.Pointer(t)).u
++	}
++}
++
++// Elem returns the element type for t if t is an array, channel, map, pointer, or slice, otherwise nil.
++func (t *Type) Elem() *Type {
++	switch t.Kind() {
++	case Array:
++		tt := (*ArrayType)(unsafe.Pointer(t))
++		return tt.Elem
++	case Chan:
++		tt := (*ChanType)(unsafe.Pointer(t))
++		return tt.Elem
++	case Map:
++		tt := (*MapType)(unsafe.Pointer(t))
++		return tt.Elem
++	case Pointer:
++		tt := (*PtrType)(unsafe.Pointer(t))
++		return tt.Elem
++	case Slice:
++		tt := (*SliceType)(unsafe.Pointer(t))
++		return tt.Elem
++	}
++	return nil
++}
++
++// StructType returns t cast to a *StructType, or nil if its tag does not match.
++func (t *Type) StructType() *StructType {
++	if t.Kind() != Struct {
++		return nil
++	}
++	return (*StructType)(unsafe.Pointer(t))
++}
++
++// MapType returns t cast to a *MapType, or nil if its tag does not match.
++func (t *Type) MapType() *MapType {
++	if t.Kind() != Map {
++		return nil
++	}
++	return (*MapType)(unsafe.Pointer(t))
++}
++
++// ArrayType returns t cast to a *ArrayType, or nil if its tag does not match.
++func (t *Type) ArrayType() *ArrayType {
++	if t.Kind() != Array {
++		return nil
++	}
++	return (*ArrayType)(unsafe.Pointer(t))
++}
++
++// FuncType returns t cast to a *FuncType, or nil if its tag does not match.
++func (t *Type) FuncType() *FuncType {
++	if t.Kind() != Func {
++		return nil
++	}
++	return (*FuncType)(unsafe.Pointer(t))
++}
++
++// InterfaceType returns t cast to a *InterfaceType, or nil if its tag does not match.
++func (t *Type) InterfaceType() *InterfaceType {
++	if t.Kind() != Interface {
++		return nil
++	}
++	return (*InterfaceType)(unsafe.Pointer(t))
++}
++
++// Size returns the size of data with type t.
++func (t *Type) Size() uintptr { return t.Size_ }
++
++// Align returns the alignment of data with type t.
++func (t *Type) Align() int { return int(t.Align_) }
++
++func (t *Type) FieldAlign() int { return int(t.FieldAlign_) }
++
++type InterfaceType struct {
++	Type
++	PkgPath Name      // import path
++	Methods []Imethod // sorted by hash
++}
++
++func (t *Type) ExportedMethods() []Method {
++	ut := t.Uncommon()
++	if ut == nil {
++		return nil
++	}
++	return ut.ExportedMethods()
++}
++
++func (t *Type) NumMethod() int {
++	if t.Kind() == Interface {
++		tt := (*InterfaceType)(unsafe.Pointer(t))
++		return tt.NumMethod()
++	}
++	return len(t.ExportedMethods())
++}
++
++// NumMethod returns the number of interface methods in the type's method set.
++func (t *InterfaceType) NumMethod() int { return len(t.Methods) }
++
++type MapType struct {
++	Type
++	Key    *Type
++	Elem   *Type
++	Bucket *Type // internal type representing a hash bucket
++	// function for hashing keys (ptr to key, seed) -> hash
++	Hasher     func(unsafe.Pointer, uintptr) uintptr
++	KeySize    uint8  // size of key slot
++	ValueSize  uint8  // size of elem slot
++	BucketSize uint16 // size of bucket
++	Flags      uint32
++}
++
++// Note: flag values must match those used in the TMAP case
++// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
++func (mt *MapType) IndirectKey() bool { // store ptr to key instead of key itself
++	return mt.Flags&1 != 0
++}
++func (mt *MapType) IndirectElem() bool { // store ptr to elem instead of elem itself
++	return mt.Flags&2 != 0
++}
++func (mt *MapType) ReflexiveKey() bool { // true if k==k for all keys
++	return mt.Flags&4 != 0
++}
++func (mt *MapType) NeedKeyUpdate() bool { // true if we need to update key on an overwrite
++	return mt.Flags&8 != 0
++}
++func (mt *MapType) HashMightPanic() bool { // true if hash function might panic
++	return mt.Flags&16 != 0
++}
++
++func (t *Type) Key() *Type {
++	if t.Kind() == Map {
++		return (*MapType)(unsafe.Pointer(t)).Key
++	}
++	return nil
++}
++
++type SliceType struct {
++	Type
++	Elem *Type // slice element type
++}
++
++// funcType represents a function type.
++//
++// A *Type for each in and out parameter is stored in an array that
++// directly follows the funcType (and possibly its uncommonType). So
++// a function type with one method, one input, and one output is:
++//
++//	struct {
++//		funcType
++//		uncommonType
++//		[2]*rtype    // [0] is in, [1] is out
++//	}
++type FuncType struct {
++	Type
++	InCount  uint16
++	OutCount uint16 // top bit is set if last input parameter is ...
++}
++
++func (t *FuncType) In(i int) *Type {
++	return t.InSlice()[i]
++}
++
++func (t *FuncType) NumIn() int {
++	return int(t.InCount)
++}
++
++func (t *FuncType) NumOut() int {
++	return int(t.OutCount & (1<<15 - 1))
++}
++
++func (t *FuncType) Out(i int) *Type {
++	return (t.OutSlice()[i])
++}
++
++func (t *FuncType) InSlice() []*Type {
++	uadd := unsafe.Sizeof(*t)
++	if t.TFlag&TFlagUncommon != 0 {
++		uadd += unsafe.Sizeof(UncommonType{})
++	}
++	if t.InCount == 0 {
++		return nil
++	}
++	return (*[1 << 16]*Type)(addChecked(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.InCount:t.InCount]
++}
++func (t *FuncType) OutSlice() []*Type {
++	outCount := uint16(t.NumOut())
++	if outCount == 0 {
++		return nil
++	}
++	uadd := unsafe.Sizeof(*t)
++	if t.TFlag&TFlagUncommon != 0 {
++		uadd += unsafe.Sizeof(UncommonType{})
++	}
++	return (*[1 << 17]*Type)(addChecked(unsafe.Pointer(t), uadd, "outCount > 0"))[t.InCount : t.InCount+outCount : t.InCount+outCount]
++}
++
++func (t *FuncType) IsVariadic() bool {
++	return t.OutCount&(1<<15) != 0
++}
++
++type PtrType struct {
++	Type
++	Elem *Type // pointer element (pointed at) type
++}
++
++type StructField struct {
++	Name   Name    // name is always non-empty
++	Typ    *Type   // type of field
++	Offset uintptr // byte offset of field
++}
++
++func (f *StructField) Embedded() bool {
++	return f.Name.IsEmbedded()
++}
++
++type StructType struct {
++	Type
++	PkgPath Name
++	Fields  []StructField
++}
++
++// Name is an encoded type Name with optional extra data.
++//
++// The first byte is a bit field containing:
++//
++//	1<<0 the name is exported
++//	1<<1 tag data follows the name
++//	1<<2 pkgPath nameOff follows the name and tag
++//	1<<3 the name is of an embedded (a.k.a. anonymous) field
++//
++// Following that, there is a varint-encoded length of the name,
++// followed by the name itself.
++//
++// If tag data is present, it also has a varint-encoded length
++// followed by the tag itself.
++//
++// If the import path follows, then 4 bytes at the end of
++// the data form a nameOff. The import path is only set for concrete
++// methods that are defined in a different package than their type.
++//
++// If a name starts with "*", then the exported bit represents
++// whether the pointed to type is exported.
++//
++// Note: this encoding must match here and in:
++//   cmd/compile/internal/reflectdata/reflect.go
++//   cmd/link/internal/ld/decodesym.go
++
++type Name struct {
++	Bytes *byte
++}
++
++// DataChecked does pointer arithmetic on n's Bytes, and that arithmetic is asserted to
++// be safe for the reason in whySafe (which can appear in a backtrace, etc.)
++func (n Name) DataChecked(off int, whySafe string) *byte {
++	return (*byte)(addChecked(unsafe.Pointer(n.Bytes), uintptr(off), whySafe))
++}
++
++// Data does pointer arithmetic on n's Bytes, and that arithmetic is asserted to
++// be safe because the runtime made the call (other packages use DataChecked)
++func (n Name) Data(off int) *byte {
++	return (*byte)(addChecked(unsafe.Pointer(n.Bytes), uintptr(off), "the runtime doesn't need to give you a reason"))
++}
++
++// IsExported returns "is n exported?"
++func (n Name) IsExported() bool {
++	return (*n.Bytes)&(1<<0) != 0
++}
++
++// HasTag returns true iff there is tag data following this name
++func (n Name) HasTag() bool {
++	return (*n.Bytes)&(1<<1) != 0
++}
++
++// IsEmbedded returns true iff n is embedded (an anonymous field).
++func (n Name) IsEmbedded() bool {
++	return (*n.Bytes)&(1<<3) != 0
++}
++
++// ReadVarint parses a varint as encoded by encoding/binary.
++// It returns the number of encoded bytes and the encoded value.
++func (n Name) ReadVarint(off int) (int, int) {
++	v := 0
++	for i := 0; ; i++ {
++		x := *n.DataChecked(off+i, "read varint")
++		v += int(x&0x7f) << (7 * i)
++		if x&0x80 == 0 {
++			return i + 1, v
++		}
++	}
++}
++
++// IsBlank indicates whether n is "_".
++func (n Name) IsBlank() bool {
++	if n.Bytes == nil {
++		return false
++	}
++	_, l := n.ReadVarint(1)
++	return l == 1 && *n.Data(2) == '_'
++}
++
++// writeVarint writes n to buf in varint form. Returns the
++// number of bytes written. n must be nonnegative.
++// Writes at most 10 bytes.
++func writeVarint(buf []byte, n int) int {
++	for i := 0; ; i++ {
++		b := byte(n & 0x7f)
++		n >>= 7
++		if n == 0 {
++			buf[i] = b
++			return i + 1
++		}
++		buf[i] = b | 0x80
++	}
++}
++
++// Name returns the tag string for n, or empty if there is none.
++func (n Name) Name() string {
++	if n.Bytes == nil {
++		return ""
++	}
++	i, l := n.ReadVarint(1)
++	return unsafeStringFor(n.DataChecked(1+i, "non-empty string"), l)
++}
++
++// Tag returns the tag string for n, or empty if there is none.
++func (n Name) Tag() string {
++	if !n.HasTag() {
++		return ""
++	}
++	i, l := n.ReadVarint(1)
++	i2, l2 := n.ReadVarint(1 + i + l)
++	return unsafeStringFor(n.DataChecked(1+i+l+i2, "non-empty string"), l2)
++}
++
++func NewName(n, tag string, exported, embedded bool) Name {
++	if len(n) >= 1<<29 {
++		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
++	}
++	if len(tag) >= 1<<29 {
++		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
++	}
++	var nameLen [10]byte
++	var tagLen [10]byte
++	nameLenLen := writeVarint(nameLen[:], len(n))
++	tagLenLen := writeVarint(tagLen[:], len(tag))
++
++	var bits byte
++	l := 1 + nameLenLen + len(n)
++	if exported {
++		bits |= 1 << 0
++	}
++	if len(tag) > 0 {
++		l += tagLenLen + len(tag)
++		bits |= 1 << 1
++	}
++	if embedded {
++		bits |= 1 << 3
++	}
++
++	b := make([]byte, l)
++	b[0] = bits
++	copy(b[1:], nameLen[:nameLenLen])
++	copy(b[1+nameLenLen:], n)
++	if len(tag) > 0 {
++		tb := b[1+nameLenLen+len(n):]
++		copy(tb, tagLen[:tagLenLen])
++		copy(tb[tagLenLen:], tag)
++	}
++
++	return Name{Bytes: &b[0]}
++}
+diff --git a/src/internal/abi/unsafestring_go119.go b/src/internal/abi/unsafestring_go119.go
+new file mode 100644
+index 0000000000..a7103849a4
+--- /dev/null
++++ b/src/internal/abi/unsafestring_go119.go
+@@ -0,0 +1,32 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !go1.20
++// +build !go1.20
++
++package abi
++
++import "unsafe"
++
++type (
++	stringHeader struct {
++		Data *byte
++		Len  int
++	}
++	sliceHeader struct {
++		Data *byte
++		Len  int
++		Cap  int
++	}
++)
++
++func unsafeStringFor(b *byte, l int) string {
++	h := stringHeader{Data: b, Len: l}
++	return *(*string)(unsafe.Pointer(&h))
++}
++
++func unsafeSliceFor(b *byte, l int) []byte {
++	h := sliceHeader{Data: b, Len: l, Cap: l}
++	return *(*[]byte)(unsafe.Pointer(&h))
++}
+diff --git a/src/internal/abi/unsafestring_go120.go b/src/internal/abi/unsafestring_go120.go
+new file mode 100644
+index 0000000000..93ff8eacc8
+--- /dev/null
++++ b/src/internal/abi/unsafestring_go120.go
+@@ -0,0 +1,18 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.20
++// +build go1.20
++
++package abi
++
++import "unsafe"
++
++func unsafeStringFor(b *byte, l int) string {
++	return unsafe.String(b, l)
++}
++
++func unsafeSliceFor(b *byte, l int) []byte {
++	return unsafe.Slice(b, l)
++}
+diff --git a/src/internal/reflectlite/swapper.go b/src/internal/reflectlite/swapper.go
+index fc402bb38a..1bc1bae87b 100644
+--- a/src/internal/reflectlite/swapper.go
++++ b/src/internal/reflectlite/swapper.go
+@@ -33,7 +33,7 @@ func Swapper(slice any) func(i, j int) {
+ 
+ 	typ := v.Type().Elem().(*rtype)
+ 	size := typ.Size()
+-	hasPtr := typ.ptrdata != 0
++	hasPtr := typ.PtrBytes != 0
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 43440b1126..e913fb6e10 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -3,10 +3,13 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package reflectlite implements lightweight version of reflect, not using
+-// any package except for "runtime" and "unsafe".
++// any package except for "runtime", "unsafe", and "internal/abi"
+ package reflectlite
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ // Type is the representation of a Go type.
+ //
+@@ -106,63 +109,11 @@ const (
+ 
+ const Ptr = Pointer
+ 
+-// tflag is used by an rtype to signal what extra type information is
+-// available in the memory directly following the rtype value.
+-//
+-// tflag values must be kept in sync with copies in:
+-//
+-//	cmd/compile/internal/reflectdata/reflect.go
+-//	cmd/link/internal/ld/decodesym.go
+-//	runtime/type.go
+-type tflag uint8
++type nameOff = abi.NameOff
++type typeOff = abi.TypeOff
++type textOff = abi.TextOff
+ 
+-const (
+-	// tflagUncommon means that there is a pointer, *uncommonType,
+-	// just beyond the outer type structure.
+-	//
+-	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
+-	// then t has uncommonType data and it can be accessed as:
+-	//
+-	//	type tUncommon struct {
+-	//		structType
+-	//		u uncommonType
+-	//	}
+-	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
+-	tflagUncommon tflag = 1 << 0
+-
+-	// tflagExtraStar means the name in the str field has an
+-	// extraneous '*' prefix. This is because for most types T in
+-	// a program, the type *T also exists and reusing the str data
+-	// saves binary size.
+-	tflagExtraStar tflag = 1 << 1
+-
+-	// tflagNamed means the type has a name.
+-	tflagNamed tflag = 1 << 2
+-
+-	// tflagRegularMemory means that equal and hash functions can treat
+-	// this type as a single region of t.size bytes.
+-	tflagRegularMemory tflag = 1 << 3
+-)
+-
+-// rtype is the common implementation of most values.
+-// It is embedded in other struct types.
+-//
+-// rtype must be kept in sync with ../runtime/type.go:/^type._type.
+-type rtype struct {
+-	size       uintptr
+-	ptrdata    uintptr // number of bytes in the type that can contain pointers
+-	hash       uint32  // hash of type; avoids computation in hash tables
+-	tflag      tflag   // extra type information flags
+-	align      uint8   // alignment of variable with this type
+-	fieldAlign uint8   // alignment of struct field with this type
+-	kind       uint8   // enumeration for C
+-	// function for comparing objects of this type
+-	// (ptr to object A, ptr to object B) -> ==?
+-	equal     func(unsafe.Pointer, unsafe.Pointer) bool
+-	gcdata    *byte   // garbage collection data
+-	str       nameOff // string form
+-	ptrToThis typeOff // type for pointer to this type, may be zero
+-}
++type rtype abi.Type
+ 
+ // Method on non-interface type
+ type method struct {
+@@ -446,10 +397,6 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
+ // Implemented in the runtime package.
+ func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+ 
+-type nameOff int32 // offset to a name
+-type typeOff int32 // offset to an *rtype
+-type textOff int32 // offset from top of text section
+-
+ func (t *rtype) nameOff(off nameOff) name {
+ 	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+ }
+@@ -459,7 +406,7 @@ func (t *rtype) typeOff(off typeOff) *rtype {
+ }
+ 
+ func (t *rtype) uncommon() *uncommonType {
+-	if t.tflag&tflagUncommon == 0 {
++	if t.TFlag&abi.TFlagUncommon == 0 {
+ 		return nil
+ 	}
+ 	switch t.Kind() {
+@@ -517,18 +464,18 @@ func (t *rtype) uncommon() *uncommonType {
+ }
+ 
+ func (t *rtype) String() string {
+-	s := t.nameOff(t.str).name()
+-	if t.tflag&tflagExtraStar != 0 {
++	s := t.nameOff(t.Str).name()
++	if t.TFlag&abi.TFlagExtraStar != 0 {
+ 		return s[1:]
+ 	}
+ 	return s
+ }
+ 
+-func (t *rtype) Size() uintptr { return t.size }
++func (t *rtype) Size() uintptr { return t.Size_ }
+ 
+-func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
++func (t *rtype) Kind() Kind { return Kind(t.Kind_ & kindMask) }
+ 
+-func (t *rtype) pointers() bool { return t.ptrdata != 0 }
++func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+ 
+@@ -549,7 +496,7 @@ func (t *rtype) NumMethod() int {
+ }
+ 
+ func (t *rtype) PkgPath() string {
+-	if t.tflag&tflagNamed == 0 {
++	if t.TFlag&abi.TFlagNamed == 0 {
+ 		return ""
+ 	}
+ 	ut := t.uncommon()
+@@ -560,7 +507,7 @@ func (t *rtype) PkgPath() string {
+ }
+ 
+ func (t *rtype) hasName() bool {
+-	return t.tflag&tflagNamed != 0
++	return t.TFlag&abi.TFlagNamed != 0
+ }
+ 
+ func (t *rtype) Name() string {
+@@ -669,7 +616,7 @@ func (t *rtype) Out(i int) Type {
+ 
+ func (t *funcType) in() []*rtype {
+ 	uadd := unsafe.Sizeof(*t)
+-	if t.tflag&tflagUncommon != 0 {
++	if t.TFlag&abi.TFlagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommonType{})
+ 	}
+ 	if t.inCount == 0 {
+@@ -680,7 +627,7 @@ func (t *funcType) in() []*rtype {
+ 
+ func (t *funcType) out() []*rtype {
+ 	uadd := unsafe.Sizeof(*t)
+-	if t.tflag&tflagUncommon != 0 {
++	if t.TFlag&abi.TFlagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommonType{})
+ 	}
+ 	outCount := t.outCount & (1<<15 - 1)
+@@ -730,7 +677,7 @@ func (t *rtype) AssignableTo(u Type) bool {
+ }
+ 
+ func (t *rtype) Comparable() bool {
+-	return t.equal != nil
++	return t.Equal != nil
+ }
+ 
+ // implements reports whether the type V implements the interface type T.
+@@ -970,5 +917,5 @@ func toType(t *rtype) Type {
+ 
+ // ifaceIndir reports whether t is stored indirectly in an interface value.
+ func ifaceIndir(t *rtype) bool {
+-	return t.kind&kindDirectIface == 0
++	return t.Kind_&kindDirectIface == 0
+ }
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index b9bca3ab44..ca31889cfc 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -89,7 +89,7 @@ func (f flag) ro() flag {
+ // pointer returns the underlying pointer represented by v.
+ // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+ func (v Value) pointer() unsafe.Pointer {
+-	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
++	if v.typ.Size_ != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+ 	}
+ 	if v.flag&flagIndir != 0 {
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 32cb314188..c292a842c0 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -125,7 +125,7 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
+ 	// We'll always be adding a new value, so do that first.
+ 	pStart := len(a.steps)
+ 	a.valueStart = append(a.valueStart, pStart)
+-	if t.size == 0 {
++	if t.Size_ == 0 {
+ 		// If the size of the argument type is zero, then
+ 		// in order to degrade gracefully into ABI0, we need
+ 		// to stack-assign this type. The reason is that
+@@ -140,7 +140,7 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
+ 		// non-zero-sized struct do not cause it to be
+ 		// stack-assigned. So we need a special case here
+ 		// at the top.
+-		a.stackBytes = align(a.stackBytes, uintptr(t.align))
++		a.stackBytes = align(a.stackBytes, uintptr(t.Align_))
+ 		return nil
+ 	}
+ 	// Hold a copy of "a" so that we can roll back if
+@@ -150,7 +150,7 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
+ 		// Register assignment failed. Roll back any changes
+ 		// and stack-assign.
+ 		*a = aOld
+-		a.stackAssign(t.size, uintptr(t.align))
++		a.stackAssign(t.Size_, uintptr(t.Align_))
+ 		return &a.steps[len(a.steps)-1]
+ 	}
+ 	return nil
+@@ -198,9 +198,9 @@ func (a *abiSeq) addRcvr(rcvr *rtype) (*abiStep, bool) {
+ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 	switch t.Kind() {
+ 	case UnsafePointer, Pointer, Chan, Map, Func:
+-		return a.assignIntN(offset, t.size, 1, 0b1)
++		return a.assignIntN(offset, t.Size_, 1, 0b1)
+ 	case Bool, Int, Uint, Int8, Uint8, Int16, Uint16, Int32, Uint32, Uintptr:
+-		return a.assignIntN(offset, t.size, 1, 0b0)
++		return a.assignIntN(offset, t.Size_, 1, 0b0)
+ 	case Int64, Uint64:
+ 		switch goarch.PtrSize {
+ 		case 4:
+@@ -209,7 +209,7 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
+ 			return a.assignIntN(offset, 8, 1, 0b0)
+ 		}
+ 	case Float32, Float64:
+-		return a.assignFloatN(offset, t.size, 1)
++		return a.assignFloatN(offset, t.Size_, 1)
+ 	case Complex64:
+ 		return a.assignFloatN(offset, 4, 2)
+ 	case Complex128:
+@@ -421,8 +421,8 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
+ 		if stkStep != nil {
+ 			addTypeBits(stackPtrs, stkStep.stkOff, arg)
+ 		} else {
+-			spill = align(spill, uintptr(arg.align))
+-			spill += arg.size
++			spill = align(spill, uintptr(arg.Align_))
++			spill += arg.Size_
+ 			for _, st := range in.stepsForValue(i) {
+ 				if st.kind == abiStepPointer {
+ 					inRegPtrs.Set(st.ireg)
+diff --git a/src/reflect/benchmark_test.go b/src/reflect/benchmark_test.go
+index 51634ab4f7..2400fd3a6a 100644
+--- a/src/reflect/benchmark_test.go
++++ b/src/reflect/benchmark_test.go
+@@ -247,7 +247,7 @@ func BenchmarkPtrTo(b *testing.B) {
+ 	// Construct a type with a zero ptrToThis.
+ 	type T struct{ int }
+ 	t := SliceOf(TypeOf(T{}))
+-	ptrToThis := ValueOf(t).Elem().FieldByName("ptrToThis")
++	ptrToThis := ValueOf(t).Elem().FieldByName("PtrToThis")
+ 	if !ptrToThis.IsValid() {
+ 		b.Fatalf("%v has no ptrToThis field; was it removed from rtype?", t)
+ 	}
+diff --git a/src/reflect/deepequal.go b/src/reflect/deepequal.go
+index c898bc834a..0c78dbb8c8 100644
+--- a/src/reflect/deepequal.go
++++ b/src/reflect/deepequal.go
+@@ -39,7 +39,7 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool) bool {
+ 	hard := func(v1, v2 Value) bool {
+ 		switch v1.Kind() {
+ 		case Pointer:
+-			if v1.typ.ptrdata == 0 {
++			if v1.typ.PtrBytes == 0 {
+ 				// not-in-heap pointers can't be cyclic.
+ 				// At least, all of our current uses of runtime/internal/sys.NotInHeap
+ 				// have that property. The runtime ones aren't cyclic (and we don't use
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index f7d2cc362d..23199e636a 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -57,14 +57,14 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
+ 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
+ 	}
+-	if ft.kind&kindGCProg != 0 {
++	if ft.Kind_&kindGCProg != 0 {
+ 		panic("can't handle gc programs")
+ 	}
+ 
+ 	// Expand frame type's GC bitmap into byte-map.
+-	ptrs = ft.ptrdata != 0
++	ptrs = ft.PtrBytes != 0
+ 	if ptrs {
+-		nptrs := ft.ptrdata / goarch.PtrSize
++		nptrs := ft.PtrBytes / goarch.PtrSize
+ 		gcdata := ft.gcSlice(0, (nptrs+7)/8)
+ 		for i := uintptr(0); i < nptrs; i++ {
+ 			gc = append(gc, gcdata[i/8]>>(i%8)&1)
+@@ -96,7 +96,7 @@ func MapBucketOf(x, y Type) Type {
+ 
+ func CachedBucketOf(m Type) Type {
+ 	t := m.(*rtype)
+-	if Kind(t.kind&kindMask) != Map {
++	if Kind(t.Kind_&kindMask) != Map {
+ 		panic("not map")
+ 	}
+ 	tt := (*mapType)(unsafe.Pointer(t))
+@@ -135,7 +135,7 @@ type OtherPkgFields struct {
+ 
+ func IsExported(t Type) bool {
+ 	typ := t.(*rtype)
+-	n := typ.nameOff(typ.str)
++	n := typ.nameOff(typ.Str)
+ 	return n.isExported()
+ }
+ 
+diff --git a/src/reflect/swapper.go b/src/reflect/swapper.go
+index 745c7b9f49..a9cff087a3 100644
+--- a/src/reflect/swapper.go
++++ b/src/reflect/swapper.go
+@@ -33,7 +33,7 @@ func Swapper(slice any) func(i, j int) {
+ 
+ 	typ := v.Type().Elem().(*rtype)
+ 	size := typ.Size()
+-	hasPtr := typ.ptrdata != 0
++	hasPtr := typ.PtrBytes != 0
+ 
+ 	// Some common & small cases, without using memmove:
+ 	if hasPtr {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index fdc9d364c1..261c36dbbb 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -273,63 +273,13 @@ const (
+ // Ptr is the old name for the Pointer kind.
+ const Ptr = Pointer
+ 
+-// tflag is used by an rtype to signal what extra type information is
+-// available in the memory directly following the rtype value.
+-//
+-// tflag values must be kept in sync with copies in:
+-//
+-//	cmd/compile/internal/reflectdata/reflect.go
+-//	cmd/link/internal/ld/decodesym.go
+-//	runtime/type.go
+-type tflag uint8
+-
+-const (
+-	// tflagUncommon means that there is a pointer, *uncommonType,
+-	// just beyond the outer type structure.
+-	//
+-	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
+-	// then t has uncommonType data and it can be accessed as:
+-	//
+-	//	type tUncommon struct {
+-	//		structType
+-	//		u uncommonType
+-	//	}
+-	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
+-	tflagUncommon tflag = 1 << 0
+-
+-	// tflagExtraStar means the name in the str field has an
+-	// extraneous '*' prefix. This is because for most types T in
+-	// a program, the type *T also exists and reusing the str data
+-	// saves binary size.
+-	tflagExtraStar tflag = 1 << 1
+-
+-	// tflagNamed means the type has a name.
+-	tflagNamed tflag = 1 << 2
+-
+-	// tflagRegularMemory means that equal and hash functions can treat
+-	// this type as a single region of t.size bytes.
+-	tflagRegularMemory tflag = 1 << 3
+-)
+-
+ // rtype is the common implementation of most values.
+ // It is embedded in other struct types.
+-//
+-// rtype must be kept in sync with ../runtime/type.go:/^type._type.
+-type rtype struct {
+-	size       uintptr
+-	ptrdata    uintptr // number of bytes in the type that can contain pointers
+-	hash       uint32  // hash of type; avoids computation in hash tables
+-	tflag      tflag   // extra type information flags
+-	align      uint8   // alignment of variable with this type
+-	fieldAlign uint8   // alignment of struct field with this type
+-	kind       uint8   // enumeration for C
+-	// function for comparing objects of this type
+-	// (ptr to object A, ptr to object B) -> ==?
+-	equal     func(unsafe.Pointer, unsafe.Pointer) bool
+-	gcdata    *byte   // garbage collection data
+-	str       nameOff // string form
+-	ptrToThis typeOff // type for pointer to this type, may be zero
+-}
++type rtype abi.Type
++
++type nameOff = abi.NameOff
++type typeOff = abi.TypeOff
++type textOff = abi.TextOff
+ 
+ // Method on non-interface type
+ type method struct {
+@@ -722,10 +672,6 @@ func resolveReflectText(ptr unsafe.Pointer) textOff {
+ 	return textOff(addReflectOff(ptr))
+ }
+ 
+-type nameOff int32 // offset to a name
+-type typeOff int32 // offset to an *rtype
+-type textOff int32 // offset from top of text section
+-
+ func (t *rtype) nameOff(off nameOff) name {
+ 	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+ }
+@@ -739,7 +685,7 @@ func (t *rtype) textOff(off textOff) unsafe.Pointer {
+ }
+ 
+ func (t *rtype) uncommon() *uncommonType {
+-	if t.tflag&tflagUncommon == 0 {
++	if t.TFlag&abi.TFlagUncommon == 0 {
+ 		return nil
+ 	}
+ 	switch t.Kind() {
+@@ -797,14 +743,14 @@ func (t *rtype) uncommon() *uncommonType {
+ }
+ 
+ func (t *rtype) String() string {
+-	s := t.nameOff(t.str).name()
+-	if t.tflag&tflagExtraStar != 0 {
++	s := t.nameOff(t.Str).name()
++	if t.TFlag&abi.TFlagExtraStar != 0 {
+ 		return s[1:]
+ 	}
+ 	return s
+ }
+ 
+-func (t *rtype) Size() uintptr { return t.size }
++func (t *rtype) Size() uintptr { return t.Size_ }
+ 
+ func (t *rtype) Bits() int {
+ 	if t == nil {
+@@ -814,16 +760,16 @@ func (t *rtype) Bits() int {
+ 	if k < Int || k > Complex128 {
+ 		panic("reflect: Bits of non-arithmetic Type " + t.String())
+ 	}
+-	return int(t.size) * 8
++	return int(t.Size_) * 8
+ }
+ 
+-func (t *rtype) Align() int { return int(t.align) }
++func (t *rtype) Align() int { return int(t.Align_) }
+ 
+-func (t *rtype) FieldAlign() int { return int(t.fieldAlign) }
++func (t *rtype) FieldAlign() int { return int(t.FieldAlign_) }
+ 
+-func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
++func (t *rtype) Kind() Kind { return Kind(t.Kind_ & kindMask) }
+ 
+-func (t *rtype) pointers() bool { return t.ptrdata != 0 }
++func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
+ 
+ func (t *rtype) common() *rtype { return t }
+ 
+@@ -910,7 +856,7 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+ }
+ 
+ func (t *rtype) PkgPath() string {
+-	if t.tflag&tflagNamed == 0 {
++	if t.TFlag&abi.TFlagNamed == 0 {
+ 		return ""
+ 	}
+ 	ut := t.uncommon()
+@@ -921,7 +867,7 @@ func (t *rtype) PkgPath() string {
+ }
+ 
+ func (t *rtype) hasName() bool {
+-	return t.tflag&tflagNamed != 0
++	return t.TFlag&abi.TFlagNamed != 0
+ }
+ 
+ func (t *rtype) Name() string {
+@@ -1070,7 +1016,7 @@ func (t *rtype) Out(i int) Type {
+ 
+ func (t *funcType) in() []*rtype {
+ 	uadd := unsafe.Sizeof(*t)
+-	if t.tflag&tflagUncommon != 0 {
++	if t.TFlag&abi.TFlagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommonType{})
+ 	}
+ 	if t.inCount == 0 {
+@@ -1081,7 +1027,7 @@ func (t *funcType) in() []*rtype {
+ 
+ func (t *funcType) out() []*rtype {
+ 	uadd := unsafe.Sizeof(*t)
+-	if t.tflag&tflagUncommon != 0 {
++	if t.TFlag&abi.TFlagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommonType{})
+ 	}
+ 	outCount := t.outCount & (1<<15 - 1)
+@@ -1464,8 +1410,8 @@ func PointerTo(t Type) Type {
+ }
+ 
+ func (t *rtype) ptrTo() *rtype {
+-	if t.ptrToThis != 0 {
+-		return t.typeOff(t.ptrToThis)
++	if t.PtrToThis != 0 {
++		return t.typeOff(t.PtrToThis)
+ 	}
+ 
+ 	// Check the cache.
+@@ -1490,15 +1436,15 @@ func (t *rtype) ptrTo() *rtype {
+ 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
+ 	pp := *prototype
+ 
+-	pp.str = resolveReflectName(newName(s, "", false, false))
+-	pp.ptrToThis = 0
++	pp.Str = resolveReflectName(newName(s, "", false, false))
++	pp.PtrToThis = 0
+ 
+ 	// For the type structures linked into the binary, the
+ 	// compiler provides a good hash of the string.
+ 	// Create a good hash for the new string by using
+ 	// the FNV-1 hash's mixing function to combine the
+ 	// old hash and the new "*".
+-	pp.hash = fnv1(t.hash, '*')
++	pp.Hash = fnv1(t.Hash, '*')
+ 
+ 	pp.elem = t
+ 
+@@ -1541,7 +1487,7 @@ func (t *rtype) ConvertibleTo(u Type) bool {
+ }
+ 
+ func (t *rtype) Comparable() bool {
+-	return t.equal != nil
++	return t.Equal != nil
+ }
+ 
+ // implements reports whether the type V implements the interface type T.
+@@ -1873,7 +1819,7 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	}
+ 
+ 	// This restriction is imposed by the gc compiler and the runtime.
+-	if typ.size >= 1<<16 {
++	if typ.Size_ >= 1<<16 {
+ 		panic("reflect.ChanOf: element size too large")
+ 	}
+ 
+@@ -1910,10 +1856,10 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	var ichan any = (chan unsafe.Pointer)(nil)
+ 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
+ 	ch := *prototype
+-	ch.tflag = tflagRegularMemory
++	ch.TFlag = abi.TFlagRegularMemory
+ 	ch.dir = uintptr(dir)
+-	ch.str = resolveReflectName(newName(s, "", false, false))
+-	ch.hash = fnv1(typ.hash, 'c', byte(dir))
++	ch.Str = resolveReflectName(newName(s, "", false, false))
++	ch.Hash = fnv1(typ.Hash, 'c', byte(dir))
+ 	ch.elem = typ
+ 
+ 	ti, _ := lookupCache.LoadOrStore(ckey, &ch.rtype)
+@@ -1930,7 +1876,7 @@ func MapOf(key, elem Type) Type {
+ 	ktyp := key.(*rtype)
+ 	etyp := elem.(*rtype)
+ 
+-	if ktyp.equal == nil {
++	if ktyp.Equal == nil {
+ 		panic("reflect.MapOf: invalid key type " + ktyp.String())
+ 	}
+ 
+@@ -1955,9 +1901,9 @@ func MapOf(key, elem Type) Type {
+ 	// in ../cmd/compile/internal/reflectdata/reflect.go:writeType.
+ 	var imap any = (map[unsafe.Pointer]unsafe.Pointer)(nil)
+ 	mt := **(**mapType)(unsafe.Pointer(&imap))
+-	mt.str = resolveReflectName(newName(s, "", false, false))
+-	mt.tflag = 0
+-	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
++	mt.Str = resolveReflectName(newName(s, "", false, false))
++	mt.TFlag = 0
++	mt.Hash = fnv1(etyp.Hash, 'm', byte(ktyp.Hash>>24), byte(ktyp.Hash>>16), byte(ktyp.Hash>>8), byte(ktyp.Hash))
+ 	mt.key = ktyp
+ 	mt.elem = etyp
+ 	mt.bucket = bucketOf(ktyp, etyp)
+@@ -1965,19 +1911,19 @@ func MapOf(key, elem Type) Type {
+ 		return typehash(ktyp, p, seed)
+ 	}
+ 	mt.flags = 0
+-	if ktyp.size > maxKeySize {
++	if ktyp.Size_ > maxKeySize {
+ 		mt.keysize = uint8(goarch.PtrSize)
+ 		mt.flags |= 1 // indirect key
+ 	} else {
+-		mt.keysize = uint8(ktyp.size)
++		mt.keysize = uint8(ktyp.Size_)
+ 	}
+-	if etyp.size > maxValSize {
++	if etyp.Size_ > maxValSize {
+ 		mt.valuesize = uint8(goarch.PtrSize)
+ 		mt.flags |= 2 // indirect value
+ 	} else {
+-		mt.valuesize = uint8(etyp.size)
++		mt.valuesize = uint8(etyp.Size_)
+ 	}
+-	mt.bucketsize = uint16(mt.bucket.size)
++	mt.bucketsize = uint16(mt.bucket.Size_)
+ 	if isReflexive(ktyp) {
+ 		mt.flags |= 4
+ 	}
+@@ -1987,7 +1933,7 @@ func MapOf(key, elem Type) Type {
+ 	if hashMightPanic(ktyp) {
+ 		mt.flags |= 16
+ 	}
+-	mt.ptrToThis = 0
++	mt.PtrToThis = 0
+ 
+ 	ti, _ := lookupCache.LoadOrStore(ckey, &mt.rtype)
+ 	return ti.(Type)
+@@ -2052,7 +1998,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	for _, in := range in {
+ 		t := in.(*rtype)
+ 		args = append(args, t)
+-		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
++		hash = fnv1(hash, byte(t.Hash>>24), byte(t.Hash>>16), byte(t.Hash>>8), byte(t.Hash))
+ 	}
+ 	if variadic {
+ 		hash = fnv1(hash, 'v')
+@@ -2061,11 +2007,11 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	for _, out := range out {
+ 		t := out.(*rtype)
+ 		args = append(args, t)
+-		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
++		hash = fnv1(hash, byte(t.Hash>>24), byte(t.Hash>>16), byte(t.Hash>>8), byte(t.Hash))
+ 	}
+ 
+-	ft.tflag = 0
+-	ft.hash = hash
++	ft.TFlag = 0
++	ft.Hash = hash
+ 	ft.inCount = uint16(len(in))
+ 	ft.outCount = uint16(len(out))
+ 	if variadic {
+@@ -2110,8 +2056,8 @@ func FuncOf(in, out []Type, variadic bool) Type {
+ 	}
+ 
+ 	// Populate the remaining fields of ft and store in cache.
+-	ft.str = resolveReflectName(newName(str, "", false, false))
+-	ft.ptrToThis = 0
++	ft.Str = resolveReflectName(newName(str, "", false, false))
++	ft.PtrToThis = 0
+ 	return addToCache(&ft.rtype)
+ }
+ 
+@@ -2233,10 +2179,10 @@ const (
+ )
+ 
+ func bucketOf(ktyp, etyp *rtype) *rtype {
+-	if ktyp.size > maxKeySize {
++	if ktyp.Size_ > maxKeySize {
+ 		ktyp = PointerTo(ktyp).(*rtype)
+ 	}
+-	if etyp.size > maxValSize {
++	if etyp.Size_ > maxValSize {
+ 		etyp = PointerTo(etyp).(*rtype)
+ 	}
+ 
+@@ -2248,28 +2194,28 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	var gcdata *byte
+ 	var ptrdata uintptr
+ 
+-	size := bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize
+-	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
++	size := bucketSize*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize
++	if size&uintptr(ktyp.Align_-1) != 0 || size&uintptr(etyp.Align_-1) != 0 {
+ 		panic("reflect: bad size computation in MapOf")
+ 	}
+ 
+-	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
+-		nptr := (bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize) / goarch.PtrSize
++	if ktyp.PtrBytes != 0 || etyp.PtrBytes != 0 {
++		nptr := (bucketSize*(1+ktyp.Size_+etyp.Size_) + goarch.PtrSize) / goarch.PtrSize
+ 		n := (nptr + 7) / 8
+ 		// Runtime needs pointer masks to be a multiple of uintptr in size.
+ 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+ 		mask := make([]byte, n)
+ 		base := bucketSize / goarch.PtrSize
+ 
+-		if ktyp.ptrdata != 0 {
++		if ktyp.PtrBytes != 0 {
+ 			emitGCMask(mask, base, ktyp, bucketSize)
+ 		}
+-		base += bucketSize * ktyp.size / goarch.PtrSize
++		base += bucketSize * ktyp.Size_ / goarch.PtrSize
+ 
+-		if etyp.ptrdata != 0 {
++		if etyp.PtrBytes != 0 {
+ 			emitGCMask(mask, base, etyp, bucketSize)
+ 		}
+-		base += bucketSize * etyp.size / goarch.PtrSize
++		base += bucketSize * etyp.Size_ / goarch.PtrSize
+ 
+ 		word := base
+ 		mask[word/8] |= 1 << (word % 8)
+@@ -2283,29 +2229,29 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
+ 	}
+ 
+ 	b := &rtype{
+-		align:   goarch.PtrSize,
+-		size:    size,
+-		kind:    uint8(Struct),
+-		ptrdata: ptrdata,
+-		gcdata:  gcdata,
++		Align_:   goarch.PtrSize,
++		Size_:    size,
++		Kind_:    uint8(Struct),
++		PtrBytes: ptrdata,
++		GCData:   gcdata,
+ 	}
+ 	s := "bucket(" + ktyp.String() + "," + etyp.String() + ")"
+-	b.str = resolveReflectName(newName(s, "", false, false))
++	b.Str = resolveReflectName(newName(s, "", false, false))
+ 	return b
+ }
+ 
+ func (t *rtype) gcSlice(begin, end uintptr) []byte {
+-	return (*[1 << 30]byte)(unsafe.Pointer(t.gcdata))[begin:end:end]
++	return (*[1 << 30]byte)(unsafe.Pointer(t.GCData))[begin:end:end]
+ }
+ 
+ // emitGCMask writes the GC mask for [n]typ into out, starting at bit
+ // offset base.
+ func emitGCMask(out []byte, base uintptr, typ *rtype, n uintptr) {
+-	if typ.kind&kindGCProg != 0 {
++	if typ.Kind_&kindGCProg != 0 {
+ 		panic("reflect: unexpected GC program")
+ 	}
+-	ptrs := typ.ptrdata / goarch.PtrSize
+-	words := typ.size / goarch.PtrSize
++	ptrs := typ.PtrBytes / goarch.PtrSize
++	words := typ.Size_ / goarch.PtrSize
+ 	mask := typ.gcSlice(0, (ptrs+7)/8)
+ 	for j := uintptr(0); j < ptrs; j++ {
+ 		if (mask[j/8]>>(j%8))&1 != 0 {
+@@ -2320,15 +2266,15 @@ func emitGCMask(out []byte, base uintptr, typ *rtype, n uintptr) {
+ // appendGCProg appends the GC program for the first ptrdata bytes of
+ // typ to dst and returns the extended slice.
+ func appendGCProg(dst []byte, typ *rtype) []byte {
+-	if typ.kind&kindGCProg != 0 {
++	if typ.Kind_&kindGCProg != 0 {
+ 		// Element has GC program; emit one element.
+-		n := uintptr(*(*uint32)(unsafe.Pointer(typ.gcdata)))
++		n := uintptr(*(*uint32)(unsafe.Pointer(typ.GCData)))
+ 		prog := typ.gcSlice(4, 4+n-1)
+ 		return append(dst, prog...)
+ 	}
+ 
+ 	// Element is small with pointer mask; use as literal bits.
+-	ptrs := typ.ptrdata / goarch.PtrSize
++	ptrs := typ.PtrBytes / goarch.PtrSize
+ 	mask := typ.gcSlice(0, (ptrs+7)/8)
+ 
+ 	// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
+@@ -2368,11 +2314,11 @@ func SliceOf(t Type) Type {
+ 	var islice any = ([]unsafe.Pointer)(nil)
+ 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
+ 	slice := *prototype
+-	slice.tflag = 0
+-	slice.str = resolveReflectName(newName(s, "", false, false))
+-	slice.hash = fnv1(typ.hash, '[')
++	slice.TFlag = 0
++	slice.Str = resolveReflectName(newName(s, "", false, false))
++	slice.Hash = fnv1(typ.Hash, '[')
+ 	slice.elem = typ
+-	slice.ptrToThis = 0
++	slice.PtrToThis = 0
+ 
+ 	ti, _ := lookupCache.LoadOrStore(ckey, &slice.rtype)
+ 	return ti.(Type)
+@@ -2456,7 +2402,7 @@ func StructOf(fields []StructField) Type {
+ 		}
+ 		f, fpkgpath := runtimeStructField(field)
+ 		ft := f.typ
+-		if ft.kind&kindGCProg != 0 {
++		if ft.Kind_&kindGCProg != 0 {
+ 			hasGCProg = true
+ 		}
+ 		if fpkgpath != "" {
+@@ -2498,7 +2444,7 @@ func StructOf(fields []StructField) Type {
+ 						tfn     Value
+ 					)
+ 
+-					if ft.kind&kindDirectIface != 0 {
++					if ft.Kind_&kindDirectIface != 0 {
+ 						tfn = MakeFunc(mtyp, func(in []Value) []Value {
+ 							var args []Value
+ 							var recv = in[0]
+@@ -2588,7 +2534,7 @@ func StructOf(fields []StructField) Type {
+ 						// Issue 15924.
+ 						panic("reflect: embedded type with methods not implemented if type is not first field")
+ 					}
+-					if len(fields) > 1 && ft.kind&kindDirectIface != 0 {
++					if len(fields) > 1 && ft.Kind_&kindDirectIface != 0 {
+ 						panic("reflect: embedded type with methods not implemented for non-pointer type")
+ 					}
+ 					for _, m := range unt.methods() {
+@@ -2614,7 +2560,7 @@ func StructOf(fields []StructField) Type {
+ 		}
+ 		fset[name] = struct{}{}
+ 
+-		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
++		hash = fnv1(hash, byte(ft.Hash>>24), byte(ft.Hash>>16), byte(ft.Hash>>8), byte(ft.Hash))
+ 
+ 		repr = append(repr, (" " + ft.String())...)
+ 		if f.name.hasTag() {
+@@ -2625,22 +2571,22 @@ func StructOf(fields []StructField) Type {
+ 			repr = append(repr, ';')
+ 		}
+ 
+-		comparable = comparable && (ft.equal != nil)
++		comparable = comparable && (ft.Equal != nil)
+ 
+-		offset := align(size, uintptr(ft.align))
++		offset := align(size, uintptr(ft.Align_))
+ 		if offset < size {
+ 			panic("reflect.StructOf: struct size would exceed virtual address space")
+ 		}
+-		if ft.align > typalign {
+-			typalign = ft.align
++		if ft.Align_ > typalign {
++			typalign = ft.Align_
+ 		}
+-		size = offset + ft.size
++		size = offset + ft.Size_
+ 		if size < offset {
+ 			panic("reflect.StructOf: struct size would exceed virtual address space")
+ 		}
+ 		f.offset = offset
+ 
+-		if ft.size == 0 {
++		if ft.Size_ == 0 {
+ 			lastzero = size
+ 		}
+ 
+@@ -2750,21 +2696,21 @@ func StructOf(fields []StructField) Type {
+ 		if haveIdenticalUnderlyingType(&typ.rtype, t, true) {
+ 			// even if 't' wasn't a structType with methods, we should be ok
+ 			// as the 'u uncommonType' field won't be accessed except when
+-			// tflag&tflagUncommon is set.
++			// tflag&abi.TFlagUncommon is set.
+ 			return addToCache(t)
+ 		}
+ 	}
+ 
+-	typ.str = resolveReflectName(newName(str, "", false, false))
+-	typ.tflag = 0 // TODO: set tflagRegularMemory
+-	typ.hash = hash
+-	typ.size = size
+-	typ.ptrdata = typeptrdata(typ.common())
+-	typ.align = typalign
+-	typ.fieldAlign = typalign
+-	typ.ptrToThis = 0
++	typ.Str = resolveReflectName(newName(str, "", false, false))
++	typ.TFlag = 0 // TODO: set tflagRegularMemory
++	typ.Hash = hash
++	typ.Size_ = size
++	typ.PtrBytes = typeptrdata(typ.common())
++	typ.Align_ = typalign
++	typ.FieldAlign_ = typalign
++	typ.PtrToThis = 0
+ 	if len(methods) > 0 {
+-		typ.tflag |= tflagUncommon
++		typ.TFlag |= abi.TFlagUncommon
+ 	}
+ 
+ 	if hasGCProg {
+@@ -2798,27 +2744,27 @@ func StructOf(fields []StructField) Type {
+ 			}
+ 
+ 			prog = appendGCProg(prog, ft.typ)
+-			off += ft.typ.ptrdata
++			off += ft.typ.PtrBytes
+ 		}
+ 		prog = append(prog, 0)
+ 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+-		typ.kind |= kindGCProg
+-		typ.gcdata = &prog[0]
++		typ.Kind_ |= kindGCProg
++		typ.GCData = &prog[0]
+ 	} else {
+-		typ.kind &^= kindGCProg
++		typ.Kind_ &^= kindGCProg
+ 		bv := new(bitVector)
+ 		addTypeBits(bv, 0, typ.common())
+ 		if len(bv.data) > 0 {
+-			typ.gcdata = &bv.data[0]
++			typ.GCData = &bv.data[0]
+ 		}
+ 	}
+-	typ.equal = nil
++	typ.Equal = nil
+ 	if comparable {
+-		typ.equal = func(p, q unsafe.Pointer) bool {
++		typ.Equal = func(p, q unsafe.Pointer) bool {
+ 			for _, ft := range typ.fields {
+ 				pi := add(p, ft.offset, "&x.field safe")
+ 				qi := add(q, ft.offset, "&x.field safe")
+-				if !ft.typ.equal(pi, qi) {
++				if !ft.typ.Equal(pi, qi) {
+ 					return false
+ 				}
+ 			}
+@@ -2829,9 +2775,9 @@ func StructOf(fields []StructField) Type {
+ 	switch {
+ 	case len(fs) == 1 && !ifaceIndir(fs[0].typ):
+ 		// structs of 1 direct iface type can be direct
+-		typ.kind |= kindDirectIface
++		typ.Kind_ |= kindDirectIface
+ 	default:
+-		typ.kind &^= kindDirectIface
++		typ.Kind_ &^= kindDirectIface
+ 	}
+ 
+ 	return addToCache(&typ.rtype)
+@@ -2882,7 +2828,7 @@ func typeptrdata(t *rtype) uintptr {
+ 			return 0
+ 		}
+ 		f := st.fields[field]
+-		return f.offset + f.typ.ptrdata
++		return f.offset + f.typ.PtrBytes
+ 
+ 	default:
+ 		panic("reflect.typeptrdata: unexpected type, " + t.String())
+@@ -2924,52 +2870,52 @@ func ArrayOf(length int, elem Type) Type {
+ 	var iarray any = [1]unsafe.Pointer{}
+ 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
+ 	array := *prototype
+-	array.tflag = typ.tflag & tflagRegularMemory
+-	array.str = resolveReflectName(newName(s, "", false, false))
+-	array.hash = fnv1(typ.hash, '[')
++	array.TFlag = typ.TFlag & abi.TFlagRegularMemory
++	array.Str = resolveReflectName(newName(s, "", false, false))
++	array.Hash = fnv1(typ.Hash, '[')
+ 	for n := uint32(length); n > 0; n >>= 8 {
+-		array.hash = fnv1(array.hash, byte(n))
++		array.Hash = fnv1(array.Hash, byte(n))
+ 	}
+-	array.hash = fnv1(array.hash, ']')
++	array.Hash = fnv1(array.Hash, ']')
+ 	array.elem = typ
+-	array.ptrToThis = 0
+-	if typ.size > 0 {
+-		max := ^uintptr(0) / typ.size
++	array.PtrToThis = 0
++	if typ.Size_ > 0 {
++		max := ^uintptr(0) / typ.Size_
+ 		if uintptr(length) > max {
+ 			panic("reflect.ArrayOf: array size would exceed virtual address space")
+ 		}
+ 	}
+-	array.size = typ.size * uintptr(length)
+-	if length > 0 && typ.ptrdata != 0 {
+-		array.ptrdata = typ.size*uintptr(length-1) + typ.ptrdata
++	array.Size_ = typ.Size_ * uintptr(length)
++	if length > 0 && typ.PtrBytes != 0 {
++		array.PtrBytes = typ.Size_*uintptr(length-1) + typ.PtrBytes
+ 	}
+-	array.align = typ.align
+-	array.fieldAlign = typ.fieldAlign
++	array.Align_ = typ.Align_
++	array.FieldAlign_ = typ.FieldAlign_
+ 	array.len = uintptr(length)
+ 	array.slice = SliceOf(elem).(*rtype)
+ 
+ 	switch {
+-	case typ.ptrdata == 0 || array.size == 0:
++	case typ.PtrBytes == 0 || array.Size_ == 0:
+ 		// No pointers.
+-		array.gcdata = nil
+-		array.ptrdata = 0
++		array.GCData = nil
++		array.PtrBytes = 0
+ 
+ 	case length == 1:
+ 		// In memory, 1-element array looks just like the element.
+-		array.kind |= typ.kind & kindGCProg
+-		array.gcdata = typ.gcdata
+-		array.ptrdata = typ.ptrdata
++		array.Kind_ |= typ.Kind_ & kindGCProg
++		array.GCData = typ.GCData
++		array.PtrBytes = typ.PtrBytes
+ 
+-	case typ.kind&kindGCProg == 0 && array.size <= maxPtrmaskBytes*8*goarch.PtrSize:
++	case typ.Kind_&kindGCProg == 0 && array.Size_ <= maxPtrmaskBytes*8*goarch.PtrSize:
+ 		// Element is small with pointer mask; array is still small.
+ 		// Create direct pointer mask by turning each 1 bit in elem
+ 		// into length 1 bits in larger mask.
+-		n := (array.ptrdata/goarch.PtrSize + 7) / 8
++		n := (array.PtrBytes/goarch.PtrSize + 7) / 8
+ 		// Runtime needs pointer masks to be a multiple of uintptr in size.
+ 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+ 		mask := make([]byte, n)
+ 		emitGCMask(mask, 0, typ, array.len)
+-		array.gcdata = &mask[0]
++		array.GCData = &mask[0]
+ 
+ 	default:
+ 		// Create program that emits one element
+@@ -2977,8 +2923,8 @@ func ArrayOf(length int, elem Type) Type {
+ 		prog := []byte{0, 0, 0, 0} // will be length of prog
+ 		prog = appendGCProg(prog, typ)
+ 		// Pad from ptrdata to size.
+-		elemPtrs := typ.ptrdata / goarch.PtrSize
+-		elemWords := typ.size / goarch.PtrSize
++		elemPtrs := typ.PtrBytes / goarch.PtrSize
++		elemWords := typ.Size_ / goarch.PtrSize
+ 		if elemPtrs < elemWords {
+ 			// Emit literal 0 bit, then repeat as needed.
+ 			prog = append(prog, 0x01, 0x00)
+@@ -2997,17 +2943,17 @@ func ArrayOf(length int, elem Type) Type {
+ 		prog = appendVarint(prog, uintptr(length)-1)
+ 		prog = append(prog, 0)
+ 		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+-		array.kind |= kindGCProg
+-		array.gcdata = &prog[0]
+-		array.ptrdata = array.size // overestimate but ok; must match program
++		array.Kind_ |= kindGCProg
++		array.GCData = &prog[0]
++		array.PtrBytes = array.Size_ // overestimate but ok; must match program
+ 	}
+ 
+ 	etyp := typ.common()
+ 	esize := etyp.Size()
+ 
+-	array.equal = nil
+-	if eequal := etyp.equal; eequal != nil {
+-		array.equal = func(p, q unsafe.Pointer) bool {
++	array.Equal = nil
++	if eequal := etyp.Equal; eequal != nil {
++		array.Equal = func(p, q unsafe.Pointer) bool {
+ 			for i := 0; i < length; i++ {
+ 				pi := arrayAt(p, i, esize, "i < length")
+ 				qi := arrayAt(q, i, esize, "i < length")
+@@ -3023,9 +2969,9 @@ func ArrayOf(length int, elem Type) Type {
+ 	switch {
+ 	case length == 1 && !ifaceIndir(typ):
+ 		// array of 1 direct iface type can be direct
+-		array.kind |= kindDirectIface
++		array.Kind_ |= kindDirectIface
+ 	default:
+-		array.kind &^= kindDirectIface
++		array.Kind_ &^= kindDirectIface
+ 	}
+ 
+ 	ti, _ := lookupCache.LoadOrStore(ckey, &array.rtype)
+@@ -3090,16 +3036,16 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
+ 
+ 	// build dummy rtype holding gc program
+ 	x := &rtype{
+-		align: goarch.PtrSize,
++		Align_: goarch.PtrSize,
+ 		// Don't add spill space here; it's only necessary in
+ 		// reflectcall's frame, not in the allocated frame.
+ 		// TODO(mknyszek): Remove this comment when register
+ 		// spill space in the frame is no longer required.
+-		size:    align(abid.retOffset+abid.ret.stackBytes, goarch.PtrSize),
+-		ptrdata: uintptr(abid.stackPtrs.n) * goarch.PtrSize,
++		Size_:    align(abid.retOffset+abid.ret.stackBytes, goarch.PtrSize),
++		PtrBytes: uintptr(abid.stackPtrs.n) * goarch.PtrSize,
+ 	}
+ 	if abid.stackPtrs.n > 0 {
+-		x.gcdata = &abid.stackPtrs.data[0]
++		x.GCData = &abid.stackPtrs.data[0]
+ 	}
+ 
+ 	var s string
+@@ -3108,7 +3054,7 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
+ 	} else {
+ 		s = "funcargs(" + t.String() + ")"
+ 	}
+-	x.str = resolveReflectName(newName(s, "", false, false))
++	x.Str = resolveReflectName(newName(s, "", false, false))
+ 
+ 	// cache result for future callers
+ 	framePool = &sync.Pool{New: func() any {
+@@ -3125,7 +3071,7 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
+ 
+ // ifaceIndir reports whether t is stored indirectly in an interface value.
+ func ifaceIndir(t *rtype) bool {
+-	return t.kind&kindDirectIface == 0
++	return t.Kind_&kindDirectIface == 0
+ }
+ 
+ // Note: this type must agree with runtime.bitvector.
+@@ -3149,11 +3095,11 @@ func (bv *bitVector) append(bit uint8) {
+ }
+ 
+ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+-	if t.ptrdata == 0 {
++	if t.PtrBytes == 0 {
+ 		return
+ 	}
+ 
+-	switch Kind(t.kind & kindMask) {
++	switch Kind(t.Kind_ & kindMask) {
+ 	case Chan, Func, Map, Pointer, Slice, String, UnsafePointer:
+ 		// 1 pointer at start of representation
+ 		for bv.n < uint32(offset/uintptr(goarch.PtrSize)) {
+@@ -3173,7 +3119,7 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
+ 		// repeat inner type
+ 		tt := (*arrayType)(unsafe.Pointer(t))
+ 		for i := 0; i < int(tt.len); i++ {
+-			addTypeBits(bv, offset+uintptr(i)*tt.elem.size, tt.elem)
++			addTypeBits(bv, offset+uintptr(i)*tt.elem.Size_, tt.elem)
+ 		}
+ 
+ 	case Struct:
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index fb29769e87..b0e252c7dd 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -96,7 +96,7 @@ func (f flag) ro() flag {
+ // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+ // if v.Kind() == Pointer, the base type must not be not-in-heap.
+ func (v Value) pointer() unsafe.Pointer {
+-	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
++	if v.typ.Size_ != goarch.PtrSize || !v.typ.pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+ 	}
+ 	if v.flag&flagIndir != 0 {
+@@ -474,7 +474,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 
+ 	// Allocate a chunk of memory for frame if needed.
+ 	var stackArgs unsafe.Pointer
+-	if frametype.size != 0 {
++	if frametype.Size_ != 0 {
+ 		if nout == 0 {
+ 			stackArgs = framePool.Get().(unsafe.Pointer)
+ 		} else {
+@@ -483,7 +483,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 			stackArgs = unsafe_New(frametype)
+ 		}
+ 	}
+-	frameSize := frametype.size
++	frameSize := frametype.Size_
+ 
+ 	if debugReflectCall {
+ 		println("reflect.call", t.String())
+@@ -583,7 +583,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 	}
+ 
+ 	// Call.
+-	call(frametype, fn, stackArgs, uint32(frametype.size), uint32(abid.retOffset), uint32(frameSize), &regArgs)
++	call(frametype, fn, stackArgs, uint32(frametype.Size_), uint32(abid.retOffset), uint32(frameSize), &regArgs)
+ 
+ 	// For testing; see TestCallMethodJump.
+ 	if callGC {
+@@ -725,7 +725,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 				// and we cannot let f keep a reference to the stack frame
+ 				// after this function returns, not even a read-only reference.
+ 				v.ptr = unsafe_New(typ)
+-				if typ.size > 0 {
++				if typ.Size_ > 0 {
+ 					typedmemmove(typ, v.ptr, add(ptr, st.stkOff, "typ.size > 0"))
+ 				}
+ 				v.flag |= flagIndir
+@@ -787,7 +787,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 				panic("reflect: function created by MakeFunc using " + funcName(f) +
+ 					" returned value obtained from unexported field")
+ 			}
+-			if typ.size == 0 {
++			if typ.Size_ == 0 {
+ 				continue
+ 			}
+ 
+@@ -1088,7 +1088,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 		}
+ 	}
+ 
+-	methodFrameSize := methodFrameType.size
++	methodFrameSize := methodFrameType.Size_
+ 	// TODO(mknyszek): Remove this when we no longer have
+ 	// caller reserved spill space.
+ 	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
+@@ -1100,7 +1100,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 	// Call.
+ 	// Call copies the arguments from scratch to the stack, calls fn,
+ 	// and then copies the results back into scratch.
+-	call(methodFrameType, methodFn, methodFrame, uint32(methodFrameType.size), uint32(methodABI.retOffset), uint32(methodFrameSize), &methodRegs)
++	call(methodFrameType, methodFn, methodFrame, uint32(methodFrameType.Size_), uint32(methodABI.retOffset), uint32(methodFrameSize), &methodRegs)
+ 
+ 	// Copy return values.
+ 	//
+@@ -1114,7 +1114,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
+ 	if valueRegs != nil {
+ 		*valueRegs = methodRegs
+ 	}
+-	if retSize := methodFrameType.size - methodABI.retOffset; retSize > 0 {
++	if retSize := methodFrameType.Size_ - methodABI.retOffset; retSize > 0 {
+ 		valueRet := add(valueFrame, valueABI.retOffset, "valueFrame's size > retOffset")
+ 		methodRet := add(methodFrame, methodABI.retOffset, "methodFrame's size > retOffset")
+ 		// This copies to the stack. Write barriers are not needed.
+@@ -1395,7 +1395,7 @@ func (v Value) Index(i int) Value {
+ 			panic("reflect: array index out of range")
+ 		}
+ 		typ := tt.elem
+-		offset := uintptr(i) * typ.size
++		offset := uintptr(i) * typ.Size_
+ 
+ 		// Either flagIndir is set and v.ptr points at array,
+ 		// or flagIndir is not set and v.ptr is the actual array data.
+@@ -1415,7 +1415,7 @@ func (v Value) Index(i int) Value {
+ 		}
+ 		tt := (*sliceType)(unsafe.Pointer(v.typ))
+ 		typ := tt.elem
+-		val := arrayAt(s.Data, i, typ.size, "i < s.Len")
++		val := arrayAt(s.Data, i, typ.Size_, "i < s.Len")
+ 		fl := flagAddr | flagIndir | v.flag.ro() | flag(typ.Kind())
+ 		return Value{typ, val, fl}
+ 
+@@ -1582,11 +1582,11 @@ func (v Value) IsZero() bool {
+ 		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+ 	case Array:
+ 		// If the type is comparable, then compare directly with zero.
+-		if v.typ.equal != nil && v.typ.size <= maxZero {
++		if v.typ.Equal != nil && v.typ.Size_ <= maxZero {
+ 			if v.flag&flagIndir == 0 {
+ 				return v.ptr == nil
+ 			}
+-			return v.typ.equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
++			return v.typ.Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+ 		}
+ 
+ 		n := v.Len()
+@@ -1602,11 +1602,11 @@ func (v Value) IsZero() bool {
+ 		return v.Len() == 0
+ 	case Struct:
+ 		// If the type is comparable, then compare directly with zero.
+-		if v.typ.equal != nil && v.typ.size <= maxZero {
++		if v.typ.Equal != nil && v.typ.Size_ <= maxZero {
+ 			if v.flag&flagIndir == 0 {
+ 				return v.ptr == nil
+ 			}
+-			return v.typ.equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
++			return v.typ.Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+ 		}
+ 
+ 		n := v.NumField()
+@@ -1733,7 +1733,7 @@ func (v Value) MapIndex(key Value) Value {
+ 	// of unexported fields.
+ 
+ 	var e unsafe.Pointer
+-	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
++	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size_ <= maxValSize {
+ 		k := *(*string)(key.ptr)
+ 		e = mapaccess_faststr(v.typ, v.pointer(), k)
+ 	} else {
+@@ -2082,7 +2082,7 @@ func (v Value) OverflowInt(x int64) bool {
+ 	k := v.kind()
+ 	switch k {
+ 	case Int, Int8, Int16, Int32, Int64:
+-		bitSize := v.typ.size * 8
++		bitSize := v.typ.Size_ * 8
+ 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+ 		return x != trunc
+ 	}
+@@ -2095,7 +2095,7 @@ func (v Value) OverflowUint(x uint64) bool {
+ 	k := v.kind()
+ 	switch k {
+ 	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
+-		bitSize := v.typ.size * 8
++		bitSize := v.typ.Size_ * 8
+ 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
+ 		return x != trunc
+ 	}
+@@ -2124,7 +2124,7 @@ func (v Value) Pointer() uintptr {
+ 	k := v.kind()
+ 	switch k {
+ 	case Pointer:
+-		if v.typ.ptrdata == 0 {
++		if v.typ.PtrBytes == 0 {
+ 			val := *(*uintptr)(v.ptr)
+ 			// Since it is a not-in-heap pointer, all pointers to the heap are
+ 			// forbidden! See comment in Value.Elem and issue #48399.
+@@ -2361,7 +2361,7 @@ func (v Value) SetMapIndex(key, elem Value) {
+ 	key.mustBeExported()
+ 	tt := (*mapType)(unsafe.Pointer(v.typ))
+ 
+-	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.size <= maxValSize {
++	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size_ <= maxValSize {
+ 		k := *(*string)(key.ptr)
+ 		if elem.typ == nil {
+ 			mapdelete_faststr(v.typ, v.pointer(), k)
+@@ -2700,7 +2700,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
+ 	k := v.kind()
+ 	switch k {
+ 	case Pointer:
+-		if v.typ.ptrdata == 0 {
++		if v.typ.PtrBytes == 0 {
+ 			// Since it is a not-in-heap pointer, all pointers to the heap are
+ 			// forbidden! See comment in Value.Elem and issue #48399.
+ 			if !verifyNotInHeapPtr(*(*uintptr)(v.ptr)) {
+@@ -3179,7 +3179,7 @@ func Zero(typ Type) Value {
+ 	fl := flag(t.Kind())
+ 	if ifaceIndir(t) {
+ 		var p unsafe.Pointer
+-		if t.size <= maxZero {
++		if t.Size_ <= maxZero {
+ 			p = unsafe.Pointer(&zeroVal[0])
+ 		} else {
+ 			p = unsafe_New(t)
+@@ -3513,7 +3513,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
+ func makeInt(f flag, bits uint64, t Type) Value {
+ 	typ := t.common()
+ 	ptr := unsafe_New(typ)
+-	switch typ.size {
++	switch typ.Size_ {
+ 	case 1:
+ 		*(*uint8)(ptr) = uint8(bits)
+ 	case 2:
+@@ -3531,7 +3531,7 @@ func makeInt(f flag, bits uint64, t Type) Value {
+ func makeFloat(f flag, v float64, t Type) Value {
+ 	typ := t.common()
+ 	ptr := unsafe_New(typ)
+-	switch typ.size {
++	switch typ.Size_ {
+ 	case 4:
+ 		*(*float32)(ptr) = float32(v)
+ 	case 8:
+@@ -3553,7 +3553,7 @@ func makeFloat32(f flag, v float32, t Type) Value {
+ func makeComplex(f flag, v complex128, t Type) Value {
+ 	typ := t.common()
+ 	ptr := unsafe_New(typ)
+-	switch typ.size {
++	switch typ.Size_ {
+ 	case 8:
+ 		*(*complex64)(ptr) = complex64(v)
+ 	case 16:
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 2a413eeef3..3e30e7ca77 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"unsafe"
+@@ -100,7 +101,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
+ 		return h
+ 	}
+ 	t := tab._type
+-	if t.equal == nil {
++	if t.Equal == nil {
+ 		// Check hashability here. We could do this check inside
+ 		// typehash, but we want to report the topmost type in
+ 		// the error text (e.g. in a struct with a field of slice type
+@@ -120,7 +121,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
+ 	if t == nil {
+ 		return h
+ 	}
+-	if t.equal == nil {
++	if t.Equal == nil {
+ 		// See comment in interhash above.
+ 		panic(errorString("hash of unhashable type " + t.string()))
+ 	}
+@@ -142,18 +143,18 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
+ // Note: this function must match the compiler generated
+ // functions exactly. See issue 37716.
+ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+-	if t.tflag&tflagRegularMemory != 0 {
++	if t.TFlag&abi.TFlagRegularMemory != 0 {
+ 		// Handle ptr sizes specially, see issue 37086.
+-		switch t.size {
++		switch t.Size_ {
+ 		case 4:
+ 			return memhash32(p, h)
+ 		case 8:
+ 			return memhash64(p, h)
+ 		default:
+-			return memhash(p, h, t.size)
++			return memhash(p, h, t.Size_)
+ 		}
+ 	}
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	case kindFloat32:
+ 		return f32hash(p, h)
+ 	case kindFloat64:
+@@ -173,7 +174,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 	case kindArray:
+ 		a := (*arraytype)(unsafe.Pointer(t))
+ 		for i := uintptr(0); i < a.len; i++ {
+-			h = typehash(a.elem, add(p, i*a.elem.size), h)
++			h = typehash(a.elem, add(p, i*a.elem.Size_), h)
+ 		}
+ 		return h
+ 	case kindStruct:
+@@ -244,7 +245,7 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
+ 	if t == nil {
+ 		return true
+ 	}
+-	eq := t.equal
++	eq := t.Equal
+ 	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + t.string()))
+ 	}
+@@ -261,7 +262,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
+ 		return true
+ 	}
+ 	t := tab._type
+-	eq := t.equal
++	eq := t.Equal
+ 	if eq == nil {
+ 		panic(errorString("comparing uncomparable type " + t.string()))
+ 	}
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 7ff612e902..235efa1533 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -109,7 +109,7 @@ func arena_newArena() unsafe.Pointer {
+ //go:linkname arena_arena_New arena.runtime_arena_arena_New
+ func arena_arena_New(arena unsafe.Pointer, typ any) any {
+ 	t := (*_type)(efaceOf(&typ).data)
+-	if t.kind&kindMask != kindPtr {
++	if t.Kind_&kindMask != kindPtr {
+ 		throw("arena_New: non-pointer type")
+ 	}
+ 	te := (*ptrtype)(unsafe.Pointer(t)).elem
+@@ -143,7 +143,7 @@ func arena_heapify(s any) any {
+ 	var v unsafe.Pointer
+ 	e := efaceOf(&s)
+ 	t := e._type
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	case kindString:
+ 		v = stringStructOf((*string)(e.data)).str
+ 	case kindSlice:
+@@ -160,7 +160,7 @@ func arena_heapify(s any) any {
+ 	}
+ 	// Heap-allocate storage for a copy.
+ 	var x any
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	case kindString:
+ 		s1 := s.(string)
+ 		s2, b := rawstring(len(s1))
+@@ -281,11 +281,11 @@ func (a *userArena) slice(sl any, cap int) {
+ 	}
+ 	i := efaceOf(&sl)
+ 	typ := i._type
+-	if typ.kind&kindMask != kindPtr {
++	if typ.Kind_&kindMask != kindPtr {
+ 		panic("slice result of non-ptr type")
+ 	}
+ 	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+-	if typ.kind&kindMask != kindSlice {
++	if typ.Kind_&kindMask != kindSlice {
+ 		panic("slice of non-ptr-to-slice type")
+ 	}
+ 	typ = (*slicetype)(unsafe.Pointer(typ)).elem
+@@ -435,7 +435,7 @@ var userArenaState struct {
+ // userArenaNextFree reserves space in the user arena for an item of the specified
+ // type. If cap is not -1, this is for an array of cap elements of type t.
+ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
+-	size := typ.size
++	size := typ.Size_
+ 	if cap > 0 {
+ 		if size > ^uintptr(0)/uintptr(cap) {
+ 			// Overflow.
+@@ -468,14 +468,14 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
+ 	mp.mallocing = 1
+ 
+ 	var ptr unsafe.Pointer
+-	if typ.ptrdata == 0 {
++	if typ.PtrBytes == 0 {
+ 		// Allocate pointer-less objects from the tail end of the chunk.
+-		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.align)
++		v, ok := s.userArenaChunkFree.takeFromBack(size, typ.Align_)
+ 		if ok {
+ 			ptr = unsafe.Pointer(v)
+ 		}
+ 	} else {
+-		v, ok := s.userArenaChunkFree.takeFromFront(size, typ.align)
++		v, ok := s.userArenaChunkFree.takeFromFront(size, typ.Align_)
+ 		if ok {
+ 			ptr = unsafe.Pointer(v)
+ 		}
+@@ -490,7 +490,7 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
+ 		throw("arena chunk needs zeroing, but should already be zeroed")
+ 	}
+ 	// Set up heap bitmap and do extra accounting.
+-	if typ.ptrdata != 0 {
++	if typ.PtrBytes != 0 {
+ 		if cap >= 0 {
+ 			userArenaHeapBitsSetSliceType(typ, cap, ptr, s.base())
+ 		} else {
+@@ -501,9 +501,9 @@ func (s *mspan) userArenaNextFree(typ *_type, cap int) unsafe.Pointer {
+ 			throw("mallocgc called without a P or outside bootstrapping")
+ 		}
+ 		if cap > 0 {
+-			c.scanAlloc += size - (typ.size - typ.ptrdata)
++			c.scanAlloc += size - (typ.Size_ - typ.PtrBytes)
+ 		} else {
+-			c.scanAlloc += typ.ptrdata
++			c.scanAlloc += typ.PtrBytes
+ 		}
+ 	}
+ 
+@@ -556,14 +556,14 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
+ 		h = h.write(b, 1)
+ 	}
+ 
+-	p := typ.gcdata // start of 1-bit pointer mask (or GC program)
++	p := typ.GCData // start of 1-bit pointer mask (or GC program)
+ 	var gcProgBits uintptr
+-	if typ.kind&kindGCProg != 0 {
++	if typ.Kind_&kindGCProg != 0 {
+ 		// Expand gc program, using the object itself for storage.
+ 		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
+ 		p = (*byte)(ptr)
+ 	}
+-	nb := typ.ptrdata / goarch.PtrSize
++	nb := typ.PtrBytes / goarch.PtrSize
+ 
+ 	for i := uintptr(0); i < nb; i += ptrBits {
+ 		k := nb - i
+@@ -578,10 +578,10 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
+ 	// to clear. We don't need to do this to clear stale noMorePtrs
+ 	// markers from previous uses because arena chunk pointer bitmaps
+ 	// are always fully cleared when reused.
+-	h = h.pad(typ.size - typ.ptrdata)
+-	h.flush(uintptr(ptr), typ.size)
++	h = h.pad(typ.Size_ - typ.PtrBytes)
++	h.flush(uintptr(ptr), typ.Size_)
+ 
+-	if typ.kind&kindGCProg != 0 {
++	if typ.Kind_&kindGCProg != 0 {
+ 		// Zero out temporary ptrmask buffer inside object.
+ 		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
+ 	}
+@@ -591,16 +591,16 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
+ 	// Derived from heapBitsSetType.
+ 	const doubleCheck = false
+ 	if doubleCheck {
+-		size := typ.size
++		size := typ.Size_
+ 		x := uintptr(ptr)
+ 		h := heapBitsForAddr(x, size)
+ 		for i := uintptr(0); i < size; i += goarch.PtrSize {
+ 			// Compute the pointer bit we want at offset i.
+ 			want := false
+-			off := i % typ.size
+-			if off < typ.ptrdata {
++			off := i % typ.Size_
++			if off < typ.PtrBytes {
+ 				j := off / goarch.PtrSize
+-				want = *addb(typ.gcdata, j/8)>>(j%8)&1 != 0
++				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
+ 			}
+ 			if want {
+ 				var addr uintptr
+@@ -620,12 +620,12 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, base uintptr) {
+ // Go slice backing store values allocated in a user arena chunk. It sets up the
+ // heap bitmap for n consecutive values with type typ allocated at address ptr.
+ func userArenaHeapBitsSetSliceType(typ *_type, n int, ptr unsafe.Pointer, base uintptr) {
+-	mem, overflow := math.MulUintptr(typ.size, uintptr(n))
++	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
+ 	if overflow || n < 0 || mem > maxAlloc {
+ 		panic(plainError("runtime: allocation size out of range"))
+ 	}
+ 	for i := 0; i < n; i++ {
+-		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.size), base)
++		userArenaHeapBitsSetType(typ, add(ptr, uintptr(i)*typ.Size_), base)
+ 	}
+ }
+ 
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index b29523cab1..c0b0f4fe85 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -407,18 +407,18 @@ func cgoCheckPointer(ptr any, arg any) {
+ 	t := ep._type
+ 
+ 	top := true
+-	if arg != nil && (t.kind&kindMask == kindPtr || t.kind&kindMask == kindUnsafePointer) {
++	if arg != nil && (t.Kind_&kindMask == kindPtr || t.Kind_&kindMask == kindUnsafePointer) {
+ 		p := ep.data
+-		if t.kind&kindDirectIface == 0 {
++		if t.Kind_&kindDirectIface == 0 {
+ 			p = *(*unsafe.Pointer)(p)
+ 		}
+ 		if p == nil || !cgoIsGoPointer(p) {
+ 			return
+ 		}
+ 		aep := efaceOf(&arg)
+-		switch aep._type.kind & kindMask {
++		switch aep._type.Kind_ & kindMask {
+ 		case kindBool:
+-			if t.kind&kindMask == kindUnsafePointer {
++			if t.Kind_&kindMask == kindUnsafePointer {
+ 				// We don't know the type of the element.
+ 				break
+ 			}
+@@ -441,7 +441,7 @@ func cgoCheckPointer(ptr any, arg any) {
+ 		}
+ 	}
+ 
+-	cgoCheckArg(t, ep.data, t.kind&kindDirectIface == 0, top, cgoCheckPointerFail)
++	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, top, cgoCheckPointerFail)
+ }
+ 
+ const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"
+@@ -452,12 +452,12 @@ const cgoResultFail = "cgo result has Go pointer"
+ // depending on indir. The top parameter is whether we are at the top
+ // level, where Go pointers are allowed.
+ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+-	if t.ptrdata == 0 || p == nil {
++	if t.PtrBytes == 0 || p == nil {
+ 		// If the type has no pointers there is nothing to do.
+ 		return
+ 	}
+ 
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	default:
+ 		throw("can't happen")
+ 	case kindArray:
+@@ -466,12 +466,12 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			if at.len != 1 {
+ 				throw("can't happen")
+ 			}
+-			cgoCheckArg(at.elem, p, at.elem.kind&kindDirectIface == 0, top, msg)
++			cgoCheckArg(at.elem, p, at.elem.Kind_&kindDirectIface == 0, top, msg)
+ 			return
+ 		}
+ 		for i := uintptr(0); i < at.len; i++ {
+ 			cgoCheckArg(at.elem, p, true, top, msg)
+-			p = add(p, at.elem.size)
++			p = add(p, at.elem.Size_)
+ 		}
+ 	case kindChan, kindMap:
+ 		// These types contain internal pointers that will
+@@ -504,7 +504,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !top {
+ 			panic(errorString(msg))
+ 		}
+-		cgoCheckArg(it, p, it.kind&kindDirectIface == 0, false, msg)
++		cgoCheckArg(it, p, it.Kind_&kindDirectIface == 0, false, msg)
+ 	case kindSlice:
+ 		st := (*slicetype)(unsafe.Pointer(t))
+ 		s := (*slice)(p)
+@@ -515,12 +515,12 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 		if !top {
+ 			panic(errorString(msg))
+ 		}
+-		if st.elem.ptrdata == 0 {
++		if st.elem.PtrBytes == 0 {
+ 			return
+ 		}
+ 		for i := 0; i < s.cap; i++ {
+ 			cgoCheckArg(st.elem, p, true, false, msg)
+-			p = add(p, st.elem.size)
++			p = add(p, st.elem.Size_)
+ 		}
+ 	case kindString:
+ 		ss := (*stringStruct)(p)
+@@ -536,11 +536,11 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ 			if len(st.fields) != 1 {
+ 				throw("can't happen")
+ 			}
+-			cgoCheckArg(st.fields[0].typ, p, st.fields[0].typ.kind&kindDirectIface == 0, top, msg)
++			cgoCheckArg(st.fields[0].typ, p, st.fields[0].typ.Kind_&kindDirectIface == 0, top, msg)
+ 			return
+ 		}
+ 		for _, f := range st.fields {
+-			if f.typ.ptrdata == 0 {
++			if f.typ.PtrBytes == 0 {
+ 				continue
+ 			}
+ 			cgoCheckArg(f.typ, add(p, f.offset), true, top, msg)
+@@ -645,5 +645,5 @@ func cgoCheckResult(val any) {
+ 
+ 	ep := efaceOf(&val)
+ 	t := ep._type
+-	cgoCheckArg(t, ep.data, t.kind&kindDirectIface == 0, false, cgoResultFail)
++	cgoCheckArg(t, ep.data, t.Kind_&kindDirectIface == 0, false, cgoResultFail)
+ }
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index ee8537e2a6..4d5683b54f 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -70,7 +70,7 @@ func cgoCheckPtrWrite(dst *unsafe.Pointer, src unsafe.Pointer) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
+-	cgoCheckMemmove2(typ, dst, src, 0, typ.size)
++	cgoCheckMemmove2(typ, dst, src, 0, typ.Size_)
+ }
+ 
+ // cgoCheckMemmove2 is called when moving a block of memory.
+@@ -82,7 +82,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if typ.ptrdata == 0 {
++	if typ.PtrBytes == 0 {
+ 		return
+ 	}
+ 	if !cgoIsGoPointer(src) {
+@@ -103,7 +103,7 @@ func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+-	if typ.ptrdata == 0 {
++	if typ.PtrBytes == 0 {
+ 		return
+ 	}
+ 	if !cgoIsGoPointer(src) {
+@@ -114,8 +114,8 @@ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+ 	}
+ 	p := src
+ 	for i := 0; i < n; i++ {
+-		cgoCheckTypedBlock(typ, p, 0, typ.size)
+-		p = add(p, typ.size)
++		cgoCheckTypedBlock(typ, p, 0, typ.Size_)
++		p = add(p, typ.Size_)
+ 	}
+ }
+ 
+@@ -126,16 +126,16 @@ func cgoCheckSliceCopy(typ *_type, dst, src unsafe.Pointer, n int) {
+ //go:nosplit
+ //go:nowritebarrier
+ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+-	// Anything past typ.ptrdata is not a pointer.
+-	if typ.ptrdata <= off {
++	// Anything past typ.PtrBytes is not a pointer.
++	if typ.PtrBytes <= off {
+ 		return
+ 	}
+-	if ptrdataSize := typ.ptrdata - off; size > ptrdataSize {
++	if ptrdataSize := typ.PtrBytes - off; size > ptrdataSize {
+ 		size = ptrdataSize
+ 	}
+ 
+-	if typ.kind&kindGCProg == 0 {
+-		cgoCheckBits(src, typ.gcdata, off, size)
++	if typ.Kind_&kindGCProg == 0 {
++		cgoCheckBits(src, typ.GCData, off, size)
+ 		return
+ 	}
+ 
+@@ -226,37 +226,37 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ //go:nowritebarrier
+ //go:systemstack
+ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+-	if typ.ptrdata == 0 {
++	if typ.PtrBytes == 0 {
+ 		return
+ 	}
+ 
+-	// Anything past typ.ptrdata is not a pointer.
+-	if typ.ptrdata <= off {
++	// Anything past typ.PtrBytes is not a pointer.
++	if typ.PtrBytes <= off {
+ 		return
+ 	}
+-	if ptrdataSize := typ.ptrdata - off; size > ptrdataSize {
++	if ptrdataSize := typ.PtrBytes - off; size > ptrdataSize {
+ 		size = ptrdataSize
+ 	}
+ 
+-	if typ.kind&kindGCProg == 0 {
+-		cgoCheckBits(src, typ.gcdata, off, size)
++	if typ.Kind_&kindGCProg == 0 {
++		cgoCheckBits(src, typ.GCData, off, size)
+ 		return
+ 	}
+-	switch typ.kind & kindMask {
++	switch typ.Kind_ & kindMask {
+ 	default:
+ 		throw("can't happen")
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(typ))
+ 		for i := uintptr(0); i < at.len; i++ {
+-			if off < at.elem.size {
++			if off < at.elem.Size_ {
+ 				cgoCheckUsingType(at.elem, src, off, size)
+ 			}
+-			src = add(src, at.elem.size)
++			src = add(src, at.elem.Size_)
+ 			skipped := off
+-			if skipped > at.elem.size {
+-				skipped = at.elem.size
++			if skipped > at.elem.Size_ {
++				skipped = at.elem.Size_
+ 			}
+-			checked := at.elem.size - skipped
++			checked := at.elem.Size_ - skipped
+ 			off -= skipped
+ 			if size <= checked {
+ 				return
+@@ -266,15 +266,15 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 	case kindStruct:
+ 		st := (*structtype)(unsafe.Pointer(typ))
+ 		for _, f := range st.fields {
+-			if off < f.typ.size {
++			if off < f.typ.Size_ {
+ 				cgoCheckUsingType(f.typ, src, off, size)
+ 			}
+-			src = add(src, f.typ.size)
++			src = add(src, f.typ.Size_)
+ 			skipped := off
+-			if skipped > f.typ.size {
+-				skipped = f.typ.size
++			if skipped > f.typ.Size_ {
++				skipped = f.typ.Size_
+ 			}
+-			checked := f.typ.size - skipped
++			checked := f.typ.Size_ - skipped
+ 			off -= skipped
+ 			if size <= checked {
+ 				return
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 6a0ad35b86..db8ed8c863 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -73,14 +73,14 @@ func makechan(t *chantype, size int) *hchan {
+ 	elem := t.elem
+ 
+ 	// compiler checks this but be safe.
+-	if elem.size >= 1<<16 {
++	if elem.Size_ >= 1<<16 {
+ 		throw("makechan: invalid channel element type")
+ 	}
+-	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
++	if hchanSize%maxAlign != 0 || elem.Align_ > maxAlign {
+ 		throw("makechan: bad alignment")
+ 	}
+ 
+-	mem, overflow := math.MulUintptr(elem.size, uintptr(size))
++	mem, overflow := math.MulUintptr(elem.Size_, uintptr(size))
+ 	if overflow || mem > maxAlloc-hchanSize || size < 0 {
+ 		panic(plainError("makechan: size out of range"))
+ 	}
+@@ -96,7 +96,7 @@ func makechan(t *chantype, size int) *hchan {
+ 		c = (*hchan)(mallocgc(hchanSize, nil, true))
+ 		// Race detector uses this location for synchronization.
+ 		c.buf = c.raceaddr()
+-	case elem.ptrdata == 0:
++	case elem.PtrBytes == 0:
+ 		// Elements do not contain pointers.
+ 		// Allocate hchan and buf in one call.
+ 		c = (*hchan)(mallocgc(hchanSize+mem, nil, true))
+@@ -107,13 +107,13 @@ func makechan(t *chantype, size int) *hchan {
+ 		c.buf = mallocgc(mem, elem, true)
+ 	}
+ 
+-	c.elemsize = uint16(elem.size)
++	c.elemsize = uint16(elem.Size_)
+ 	c.elemtype = elem
+ 	c.dataqsiz = uint(size)
+ 	lockInit(&c.lock, lockRankHchan)
+ 
+ 	if debugChan {
+-		print("makechan: chan=", c, "; elemsize=", elem.size, "; dataqsiz=", size, "\n")
++		print("makechan: chan=", c, "; elemsize=", elem.Size_, "; dataqsiz=", size, "\n")
+ 	}
+ 	return c
+ }
+@@ -339,10 +339,10 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
+ 	// be updated if the destination's stack gets copied (shrunk).
+ 	// So make sure that no preemption points can happen between read & use.
+ 	dst := sg.elem
+-	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
++	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.Size_)
+ 	// No need for cgo write barrier checks because dst is always
+ 	// Go memory.
+-	memmove(dst, src, t.size)
++	memmove(dst, src, t.Size_)
+ }
+ 
+ func recvDirect(t *_type, sg *sudog, dst unsafe.Pointer) {
+@@ -350,8 +350,8 @@ func recvDirect(t *_type, sg *sudog, dst unsafe.Pointer) {
+ 	// The channel is locked, so src will not move during this
+ 	// operation.
+ 	src := sg.elem
+-	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
+-	memmove(dst, src, t.size)
++	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.Size_)
++	memmove(dst, src, t.Size_)
+ }
+ 
+ func closechan(c *hchan) {
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+index 2d4afd5cf6..3c49645a44 100644
+--- a/src/runtime/checkptr.go
++++ b/src/runtime/checkptr.go
+@@ -16,13 +16,13 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+ 	// Note that we allow unaligned pointers if the types they point to contain
+ 	// no pointers themselves. See issue 37298.
+ 	// TODO(mdempsky): What about fieldAlign?
+-	if elem.ptrdata != 0 && uintptr(p)&(uintptr(elem.align)-1) != 0 {
++	if elem.PtrBytes != 0 && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
+ 		throw("checkptr: misaligned pointer conversion")
+ 	}
+ 
+ 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
+ 	// TODO(mdempsky): Fix #46938 so we don't need to worry about overflow here.
+-	if checkptrStraddles(p, n*elem.size) {
++	if checkptrStraddles(p, n*elem.Size_) {
+ 		throw("checkptr: converted pointer straddles multiple allocations")
+ 	}
+ }
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index b18774e6c0..873f1b45bd 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -277,7 +277,7 @@ func (l *dlogger) p(x any) *dlogger {
+ 		l.w.uvarint(0)
+ 	} else {
+ 		v := efaceOf(&x)
+-		switch v._type.kind & kindMask {
++		switch v._type.Kind_ & kindMask {
+ 		case kindChan, kindFunc, kindMap, kindPtr, kindUnsafePointer:
+ 			l.w.uvarint(uint64(uintptr(v.data)))
+ 		default:
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index a211fbf515..933c3cbec3 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -258,7 +258,7 @@ func printanycustomtype(i any) {
+ 	eface := efaceOf(&i)
+ 	typestring := eface._type.string()
+ 
+-	switch eface._type.kind {
++	switch eface._type.Kind_ {
+ 	case kindString:
+ 		print(typestring, `("`, *(*string)(eface.data), `")`)
+ 	case kindBool:
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 2d8a133409..632b325912 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -32,19 +32,19 @@ func InjectDebugCall(gp *g, fn any, regArgs *abi.RegArgs, stackArgs any, tkill f
+ 	}
+ 
+ 	f := efaceOf(&fn)
+-	if f._type == nil || f._type.kind&kindMask != kindFunc {
++	if f._type == nil || f._type.Kind_&kindMask != kindFunc {
+ 		return nil, plainError("fn must be a function")
+ 	}
+ 	fv := (*funcval)(f.data)
+ 
+ 	a := efaceOf(&stackArgs)
+-	if a._type != nil && a._type.kind&kindMask != kindPtr {
++	if a._type != nil && a._type.Kind_&kindMask != kindPtr {
+ 		return nil, plainError("args must be a pointer or nil")
+ 	}
+ 	argp := a.data
+ 	var argSize uintptr
+ 	if argp != nil {
+-		argSize = (*ptrtype)(unsafe.Pointer(a._type)).elem.size
++		argSize = (*ptrtype)(unsafe.Pointer(a._type)).elem.Size_
+ 	}
+ 
+ 	h := new(debugCallHandler)
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index c7c111ce47..cfd7805b5e 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -233,10 +233,10 @@ func BenchSetType(n int, x any) {
+ 	t := e._type
+ 	var size uintptr
+ 	var p unsafe.Pointer
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	case kindPtr:
+ 		t = (*ptrtype)(unsafe.Pointer(t)).elem
+-		size = t.size
++		size = t.Size_
+ 		p = e.data
+ 	case kindSlice:
+ 		slice := *(*struct {
+@@ -244,7 +244,7 @@ func BenchSetType(n int, x any) {
+ 			len, cap uintptr
+ 		})(e.data)
+ 		t = (*slicetype)(unsafe.Pointer(t)).elem
+-		size = t.size * slice.len
++		size = t.Size_ * slice.len
+ 		p = slice.ptr
+ 	}
+ 	allocSize := roundupsize(size)
+@@ -1754,7 +1754,7 @@ func NewUserArena() *UserArena {
+ func (a *UserArena) New(out *any) {
+ 	i := efaceOf(out)
+ 	typ := i._type
+-	if typ.kind&kindMask != kindPtr {
++	if typ.Kind_&kindMask != kindPtr {
+ 		panic("new result of non-ptr type")
+ 	}
+ 	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 74107a2095..70fc5fb34a 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -168,7 +168,7 @@ func dumptype(t *_type) {
+ 
+ 	// If we've definitely serialized the type before,
+ 	// no need to do it again.
+-	b := &typecache[t.hash&(typeCacheBuckets-1)]
++	b := &typecache[t.Hash&(typeCacheBuckets-1)]
+ 	if t == b.t[0] {
+ 		return
+ 	}
+@@ -193,7 +193,7 @@ func dumptype(t *_type) {
+ 	// dump the type
+ 	dumpint(tagType)
+ 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
+-	dumpint(uint64(t.size))
++	dumpint(uint64(t.Size_))
+ 	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
+ 		dumpstr(t.string())
+ 	} else {
+@@ -204,7 +204,7 @@ func dumptype(t *_type) {
+ 		dwritebyte('.')
+ 		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
+ 	}
+-	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
++	dumpbool(t.Kind_&kindDirectIface == 0 || t.PtrBytes != 0)
+ }
+ 
+ // dump an object.
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index f8acbf4ca7..a4ce88ee17 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -28,7 +28,7 @@ type itabTableType struct {
+ 
+ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
+ 	// compiler has provided some good hash codes for us.
+-	return uintptr(inter.typ.hash ^ typ.hash)
++	return uintptr(inter.typ.Hash ^ typ.Hash)
+ }
+ 
+ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+@@ -37,7 +37,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	}
+ 
+ 	// easy case
+-	if typ.tflag&tflagUncommon == 0 {
++	if typ.TFlag&abi.TFlagUncommon == 0 {
+ 		if canfail {
+ 			return nil
+ 		}
+@@ -323,12 +323,12 @@ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ 		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convT))
+ 	}
+ 	if msanenabled {
+-		msanread(v, t.size)
++		msanread(v, t.Size_)
+ 	}
+ 	if asanenabled {
+-		asanread(v, t.size)
++		asanread(v, t.Size_)
+ 	}
+-	x := mallocgc(t.size, t, true)
++	x := mallocgc(t.Size_, t, true)
+ 	typedmemmove(t, x, v)
+ 	return x
+ }
+@@ -338,14 +338,14 @@ func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
+ 		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convTnoptr))
+ 	}
+ 	if msanenabled {
+-		msanread(v, t.size)
++		msanread(v, t.Size_)
+ 	}
+ 	if asanenabled {
+-		asanread(v, t.size)
++		asanread(v, t.Size_)
+ 	}
+ 
+-	x := mallocgc(t.size, t, false)
+-	memmove(x, v, t.size)
++	x := mallocgc(t.Size_, t, false)
++	memmove(x, v, t.Size_)
+ 	return x
+ }
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index b53e10a435..c3a196e496 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1019,7 +1019,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	}
+ 	var span *mspan
+ 	var x unsafe.Pointer
+-	noscan := typ == nil || typ.ptrdata == 0
++	noscan := typ == nil || typ.PtrBytes == 0
+ 	// In some cases block zeroing can profitably (for latency reduction purposes)
+ 	// be delayed till preemption is possible; delayedZeroing tracks that state.
+ 	delayedZeroing := false
+@@ -1142,15 +1142,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	if !noscan {
+ 		var scanSize uintptr
+ 		heapBitsSetType(uintptr(x), size, dataSize, typ)
+-		if dataSize > typ.size {
++		if dataSize > typ.Size_ {
+ 			// Array allocation. If there are any
+ 			// pointers, GC has to scan to the last
+ 			// element.
+-			if typ.ptrdata != 0 {
+-				scanSize = dataSize - typ.size + typ.ptrdata
++			if typ.PtrBytes != 0 {
++				scanSize = dataSize - typ.Size_ + typ.PtrBytes
+ 			}
+ 		} else {
+-			scanSize = typ.ptrdata
++			scanSize = typ.PtrBytes
+ 		}
+ 		c.scanAlloc += scanSize
+ 	}
+@@ -1321,25 +1321,25 @@ func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
+ // compiler (both frontend and SSA backend) knows the signature
+ // of this function.
+ func newobject(typ *_type) unsafe.Pointer {
+-	return mallocgc(typ.size, typ, true)
++	return mallocgc(typ.Size_, typ, true)
+ }
+ 
+ //go:linkname reflect_unsafe_New reflect.unsafe_New
+ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
+-	return mallocgc(typ.size, typ, true)
++	return mallocgc(typ.Size_, typ, true)
+ }
+ 
+ //go:linkname reflectlite_unsafe_New internal/reflectlite.unsafe_New
+ func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
+-	return mallocgc(typ.size, typ, true)
++	return mallocgc(typ.Size_, typ, true)
+ }
+ 
+ // newarray allocates an array of n elements of type typ.
+ func newarray(typ *_type, n int) unsafe.Pointer {
+ 	if n == 1 {
+-		return mallocgc(typ.size, typ, true)
++		return mallocgc(typ.Size_, typ, true)
+ 	}
+-	mem, overflow := math.MulUintptr(typ.size, uintptr(n))
++	mem, overflow := math.MulUintptr(typ.Size_, uintptr(n))
+ 	if overflow || mem > maxAlloc || n < 0 {
+ 		panic(plainError("runtime: allocation size out of range"))
+ 	}
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index e98860fe7a..54206ece9b 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -264,7 +264,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
+ 		ovf = (*bmap)(newobject(t.bucket))
+ 	}
+ 	h.incrnoverflow()
+-	if t.bucket.ptrdata == 0 {
++	if t.bucket.PtrBytes == 0 {
+ 		h.createOverflow()
+ 		*h.extra.overflow = append(*h.extra.overflow, ovf)
+ 	}
+@@ -303,7 +303,7 @@ func makemap_small() *hmap {
+ // If h != nil, the map can be created directly in h.
+ // If h.buckets != nil, bucket pointed to can be used as the first bucket.
+ func makemap(t *maptype, hint int, h *hmap) *hmap {
+-	mem, overflow := math.MulUintptr(uintptr(hint), t.bucket.size)
++	mem, overflow := math.MulUintptr(uintptr(hint), t.bucket.Size_)
+ 	if overflow || mem > maxAlloc {
+ 		hint = 0
+ 	}
+@@ -353,10 +353,10 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ 		// required to insert the median number of elements
+ 		// used with this value of b.
+ 		nbuckets += bucketShift(b - 4)
+-		sz := t.bucket.size * nbuckets
++		sz := t.bucket.Size_ * nbuckets
+ 		up := roundupsize(sz)
+ 		if up != sz {
+-			nbuckets = up / t.bucket.size
++			nbuckets = up / t.bucket.Size_
+ 		}
+ 	}
+ 
+@@ -367,8 +367,8 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
+ 		// the above newarray(t.bucket, int(nbuckets))
+ 		// but may not be empty.
+ 		buckets = dirtyalloc
+-		size := t.bucket.size * nbuckets
+-		if t.bucket.ptrdata != 0 {
++		size := t.bucket.Size_ * nbuckets
++		if t.bucket.PtrBytes != 0 {
+ 			memclrHasPointers(buckets, size)
+ 		} else {
+ 			memclrNoHeapPointers(buckets, size)
+@@ -401,10 +401,10 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+ 	if msanenabled && h != nil {
+-		msanread(key, t.key.size)
++		msanread(key, t.key.Size_)
+ 	}
+ 	if asanenabled && h != nil {
+-		asanread(key, t.key.size)
++		asanread(key, t.key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		if t.hashMightPanic() {
+@@ -442,7 +442,7 @@ bucketloop:
+ 			if t.indirectkey() {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if t.key.equal(key, k) {
++			if t.key.Equal(key, k) {
+ 				e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
+ 				if t.indirectelem() {
+ 					e = *((*unsafe.Pointer)(e))
+@@ -462,10 +462,10 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+ 	if msanenabled && h != nil {
+-		msanread(key, t.key.size)
++		msanread(key, t.key.Size_)
+ 	}
+ 	if asanenabled && h != nil {
+-		asanread(key, t.key.size)
++		asanread(key, t.key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		if t.hashMightPanic() {
+@@ -503,7 +503,7 @@ bucketloop:
+ 			if t.indirectkey() {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if t.key.equal(key, k) {
++			if t.key.Equal(key, k) {
+ 				e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
+ 				if t.indirectelem() {
+ 					e = *((*unsafe.Pointer)(e))
+@@ -547,7 +547,7 @@ bucketloop:
+ 			if t.indirectkey() {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if t.key.equal(key, k) {
++			if t.key.Equal(key, k) {
+ 				e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
+ 				if t.indirectelem() {
+ 					e = *((*unsafe.Pointer)(e))
+@@ -587,10 +587,10 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+ 	if msanenabled {
+-		msanread(key, t.key.size)
++		msanread(key, t.key.Size_)
+ 	}
+ 	if asanenabled {
+-		asanread(key, t.key.size)
++		asanread(key, t.key.Size_)
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		fatal("concurrent map writes")
+@@ -634,7 +634,7 @@ bucketloop:
+ 			if t.indirectkey() {
+ 				k = *((*unsafe.Pointer)(k))
+ 			}
+-			if !t.key.equal(key, k) {
++			if !t.key.Equal(key, k) {
+ 				continue
+ 			}
+ 			// already have a mapping for key. Update it.
+@@ -701,10 +701,10 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		raceReadObjectPC(t.key, key, callerpc, pc)
+ 	}
+ 	if msanenabled && h != nil {
+-		msanread(key, t.key.size)
++		msanread(key, t.key.Size_)
+ 	}
+ 	if asanenabled && h != nil {
+-		asanread(key, t.key.size)
++		asanread(key, t.key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+ 		if t.hashMightPanic() {
+@@ -743,22 +743,22 @@ search:
+ 			if t.indirectkey() {
+ 				k2 = *((*unsafe.Pointer)(k2))
+ 			}
+-			if !t.key.equal(key, k2) {
++			if !t.key.Equal(key, k2) {
+ 				continue
+ 			}
+ 			// Only clear key if there are pointers in it.
+ 			if t.indirectkey() {
+ 				*(*unsafe.Pointer)(k) = nil
+-			} else if t.key.ptrdata != 0 {
+-				memclrHasPointers(k, t.key.size)
++			} else if t.key.PtrBytes != 0 {
++				memclrHasPointers(k, t.key.Size_)
+ 			}
+ 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
+ 			if t.indirectelem() {
+ 				*(*unsafe.Pointer)(e) = nil
+-			} else if t.elem.ptrdata != 0 {
+-				memclrHasPointers(e, t.elem.size)
++			} else if t.elem.PtrBytes != 0 {
++				memclrHasPointers(e, t.elem.Size_)
+ 			} else {
+-				memclrNoHeapPointers(e, t.elem.size)
++				memclrNoHeapPointers(e, t.elem.Size_)
+ 			}
+ 			b.tophash[i] = emptyOne
+ 			// If the bucket now ends in a bunch of emptyOne states,
+@@ -832,7 +832,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	// grab snapshot of bucket state
+ 	it.B = h.B
+ 	it.buckets = h.buckets
+-	if t.bucket.ptrdata == 0 {
++	if t.bucket.PtrBytes == 0 {
+ 		// Allocate the current slice and remember pointers to both current and old.
+ 		// This preserves all relevant overflow buckets alive even if
+ 		// the table grows and/or overflow buckets are added to the table
+@@ -931,7 +931,7 @@ next:
+ 			// through the oldbucket, skipping any keys that will go
+ 			// to the other new bucket (each oldbucket expands to two
+ 			// buckets during a grow).
+-			if t.reflexivekey() || t.key.equal(k, k) {
++			if t.reflexivekey() || t.key.Equal(k, k) {
+ 				// If the item in the oldbucket is not destined for
+ 				// the current new bucket in the iteration, skip it.
+ 				hash := t.hasher(k, uintptr(h.hash0))
+@@ -952,7 +952,7 @@ next:
+ 			}
+ 		}
+ 		if (b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
+-			!(t.reflexivekey() || t.key.equal(k, k)) {
++			!(t.reflexivekey() || t.key.Equal(k, k)) {
+ 			// This is the golden data, we can return it.
+ 			// OR
+ 			// key!=key, so the entry can't be deleted or updated, so we can just return it.
+@@ -1210,7 +1210,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 					// Compute hash to make our evacuation decision (whether we need
+ 					// to send this key/elem to bucket x or bucket y).
+ 					hash := t.hasher(k2, uintptr(h.hash0))
+-					if h.flags&iterator != 0 && !t.reflexivekey() && !t.key.equal(k2, k2) {
++					if h.flags&iterator != 0 && !t.reflexivekey() && !t.key.Equal(k2, k2) {
+ 						// If key != key (NaNs), then the hash could be (and probably
+ 						// will be) entirely different from the old hash. Moreover,
+ 						// it isn't reproducible. Reproducibility is required in the
+@@ -1265,7 +1265,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
++		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+@@ -1309,36 +1309,36 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
+ //go:linkname reflect_makemap reflect.makemap
+ func reflect_makemap(t *maptype, cap int) *hmap {
+ 	// Check invariants and reflects math.
+-	if t.key.equal == nil {
++	if t.key.Equal == nil {
+ 		throw("runtime.reflect_makemap: unsupported map key type")
+ 	}
+-	if t.key.size > maxKeySize && (!t.indirectkey() || t.keysize != uint8(goarch.PtrSize)) ||
+-		t.key.size <= maxKeySize && (t.indirectkey() || t.keysize != uint8(t.key.size)) {
++	if t.key.Size_ > maxKeySize && (!t.indirectkey() || t.keysize != uint8(goarch.PtrSize)) ||
++		t.key.Size_ <= maxKeySize && (t.indirectkey() || t.keysize != uint8(t.key.Size_)) {
+ 		throw("key size wrong")
+ 	}
+-	if t.elem.size > maxElemSize && (!t.indirectelem() || t.elemsize != uint8(goarch.PtrSize)) ||
+-		t.elem.size <= maxElemSize && (t.indirectelem() || t.elemsize != uint8(t.elem.size)) {
++	if t.elem.Size_ > maxElemSize && (!t.indirectelem() || t.elemsize != uint8(goarch.PtrSize)) ||
++		t.elem.Size_ <= maxElemSize && (t.indirectelem() || t.elemsize != uint8(t.elem.Size_)) {
+ 		throw("elem size wrong")
+ 	}
+-	if t.key.align > bucketCnt {
++	if t.key.Align_ > bucketCnt {
+ 		throw("key align too big")
+ 	}
+-	if t.elem.align > bucketCnt {
++	if t.elem.Align_ > bucketCnt {
+ 		throw("elem align too big")
+ 	}
+-	if t.key.size%uintptr(t.key.align) != 0 {
++	if t.key.Size_%uintptr(t.key.Align_) != 0 {
+ 		throw("key size not a multiple of key align")
+ 	}
+-	if t.elem.size%uintptr(t.elem.align) != 0 {
++	if t.elem.Size_%uintptr(t.elem.Align_) != 0 {
+ 		throw("elem size not a multiple of elem align")
+ 	}
+ 	if bucketCnt < 8 {
+ 		throw("bucketsize too small for proper alignment")
+ 	}
+-	if dataOffset%uintptr(t.key.align) != 0 {
++	if dataOffset%uintptr(t.key.Align_) != 0 {
+ 		throw("need padding in bucket (key)")
+ 	}
+-	if dataOffset%uintptr(t.elem.align) != 0 {
++	if dataOffset%uintptr(t.elem.Align_) != 0 {
+ 		throw("need padding in bucket (elem)")
+ 	}
+ 
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 01ea330950..01a10f520b 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -302,16 +302,16 @@ search:
+ 			// Only clear key if there are pointers in it.
+ 			// This can only happen if pointers are 32 bit
+ 			// wide as 64 bit pointers do not fit into a 32 bit key.
+-			if goarch.PtrSize == 4 && t.key.ptrdata != 0 {
++			if goarch.PtrSize == 4 && t.key.PtrBytes != 0 {
+ 				// The key must be a pointer as we checked pointers are
+ 				// 32 bits wide and the key is 32 bits wide also.
+ 				*(*unsafe.Pointer)(k) = nil
+ 			}
+ 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.elemsize))
+-			if t.elem.ptrdata != 0 {
+-				memclrHasPointers(e, t.elem.size)
++			if t.elem.PtrBytes != 0 {
++				memclrHasPointers(e, t.elem.Size_)
+ 			} else {
+-				memclrNoHeapPointers(e, t.elem.size)
++				memclrNoHeapPointers(e, t.elem.Size_)
+ 			}
+ 			b.tophash[i] = emptyOne
+ 			// If the bucket now ends in a bunch of emptyOne states,
+@@ -428,7 +428,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if goarch.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
++				if goarch.PtrSize == 4 && t.key.PtrBytes != 0 && writeBarrier.enabled {
+ 					// Write with a write barrier.
+ 					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+ 				} else {
+@@ -446,7 +446,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
++		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index 2967360b76..0dd90183a4 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -300,7 +300,7 @@ search:
+ 				continue
+ 			}
+ 			// Only clear key if there are pointers in it.
+-			if t.key.ptrdata != 0 {
++			if t.key.PtrBytes != 0 {
+ 				if goarch.PtrSize == 8 {
+ 					*(*unsafe.Pointer)(k) = nil
+ 				} else {
+@@ -310,10 +310,10 @@ search:
+ 				}
+ 			}
+ 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.elemsize))
+-			if t.elem.ptrdata != 0 {
+-				memclrHasPointers(e, t.elem.size)
++			if t.elem.PtrBytes != 0 {
++				memclrHasPointers(e, t.elem.Size_)
+ 			} else {
+-				memclrNoHeapPointers(e, t.elem.size)
++				memclrNoHeapPointers(e, t.elem.Size_)
+ 			}
+ 			b.tophash[i] = emptyOne
+ 			// If the bucket now ends in a bunch of emptyOne states,
+@@ -430,7 +430,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
+ 
+ 				// Copy key.
+-				if t.key.ptrdata != 0 && writeBarrier.enabled {
++				if t.key.PtrBytes != 0 && writeBarrier.enabled {
+ 					if goarch.PtrSize == 8 {
+ 						// Write with a write barrier.
+ 						*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
+@@ -454,7 +454,7 @@ func evacuate_fast64(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
++		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index 006c24cee2..03a4fac169 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -336,10 +336,10 @@ search:
+ 			// Clear key's pointer.
+ 			k.str = nil
+ 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
+-			if t.elem.ptrdata != 0 {
+-				memclrHasPointers(e, t.elem.size)
++			if t.elem.PtrBytes != 0 {
++				memclrHasPointers(e, t.elem.Size_)
+ 			} else {
+-				memclrNoHeapPointers(e, t.elem.size)
++				memclrNoHeapPointers(e, t.elem.Size_)
+ 			}
+ 			b.tophash[i] = emptyOne
+ 			// If the bucket now ends in a bunch of emptyOne states,
+@@ -469,7 +469,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
+ 			}
+ 		}
+ 		// Unlink the overflow buckets & clear key/elem to help GC.
+-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
++		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
+ 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
+ 			// Preserve b.tophash because the evacuation
+ 			// state is maintained there.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index e367d8f524..ed6df2d55e 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -159,8 +159,8 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	if dst == src {
+ 		return
+ 	}
+-	if writeBarrier.needed && typ.ptrdata != 0 {
+-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
++	if writeBarrier.needed && typ.PtrBytes != 0 {
++		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.PtrBytes)
+ 	}
+ 	// There's a race here: if some other goroutine can write to
+ 	// src, it may change some pointer in src after we've
+@@ -169,9 +169,9 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 	// other goroutine must also be accompanied by a write
+ 	// barrier, so at worst we've unnecessarily greyed the old
+ 	// pointer that was in src.
+-	memmove(dst, src, typ.size)
++	memmove(dst, src, typ.Size_)
+ 	if goexperiment.CgoCheck2 {
+-		cgoCheckMemmove2(typ, dst, src, 0, typ.size)
++		cgoCheckMemmove2(typ, dst, src, 0, typ.Size_)
+ 	}
+ }
+ 
+@@ -182,7 +182,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ //go:nowritebarrierrec
+ //go:nosplit
+ func wbZero(typ *_type, dst unsafe.Pointer) {
+-	bulkBarrierPreWrite(uintptr(dst), 0, typ.ptrdata)
++	bulkBarrierPreWrite(uintptr(dst), 0, typ.PtrBytes)
+ }
+ 
+ // wbMove performs the write barrier operations necessary before
+@@ -192,7 +192,7 @@ func wbZero(typ *_type, dst unsafe.Pointer) {
+ //go:nowritebarrierrec
+ //go:nosplit
+ func wbMove(typ *_type, dst, src unsafe.Pointer) {
+-	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
++	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.PtrBytes)
+ }
+ 
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+@@ -202,12 +202,12 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 		raceReadObjectPC(typ, src, getcallerpc(), abi.FuncPCABIInternal(reflect_typedmemmove))
+ 	}
+ 	if msanenabled {
+-		msanwrite(dst, typ.size)
+-		msanread(src, typ.size)
++		msanwrite(dst, typ.Size_)
++		msanread(src, typ.Size_)
+ 	}
+ 	if asanenabled {
+-		asanwrite(dst, typ.size)
+-		asanread(src, typ.size)
++		asanwrite(dst, typ.Size_)
++		asanread(src, typ.Size_)
+ 	}
+ 	typedmemmove(typ, dst, src)
+ }
+@@ -228,7 +228,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ //
+ //go:nosplit
+ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
+-	if writeBarrier.needed && typ != nil && typ.ptrdata != 0 && size >= goarch.PtrSize {
++	if writeBarrier.needed && typ != nil && typ.PtrBytes != 0 && size >= goarch.PtrSize {
+ 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
+ 	}
+ 	memmove(dst, src, size)
+@@ -258,16 +258,16 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+ 		pc := abi.FuncPCABIInternal(slicecopy)
+-		racewriterangepc(dstPtr, uintptr(n)*typ.size, callerpc, pc)
+-		racereadrangepc(srcPtr, uintptr(n)*typ.size, callerpc, pc)
++		racewriterangepc(dstPtr, uintptr(n)*typ.Size_, callerpc, pc)
++		racereadrangepc(srcPtr, uintptr(n)*typ.Size_, callerpc, pc)
+ 	}
+ 	if msanenabled {
+-		msanwrite(dstPtr, uintptr(n)*typ.size)
+-		msanread(srcPtr, uintptr(n)*typ.size)
++		msanwrite(dstPtr, uintptr(n)*typ.Size_)
++		msanread(srcPtr, uintptr(n)*typ.Size_)
+ 	}
+ 	if asanenabled {
+-		asanwrite(dstPtr, uintptr(n)*typ.size)
+-		asanread(srcPtr, uintptr(n)*typ.size)
++		asanwrite(dstPtr, uintptr(n)*typ.Size_)
++		asanread(srcPtr, uintptr(n)*typ.Size_)
+ 	}
+ 
+ 	if goexperiment.CgoCheck2 {
+@@ -278,13 +278,13 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 		return n
+ 	}
+ 
+-	// Note: No point in checking typ.ptrdata here:
++	// Note: No point in checking typ.PtrBytes here:
+ 	// compiler only emits calls to typedslicecopy for types with pointers,
+ 	// and growslice and reflect_typedslicecopy check for pointers
+ 	// before calling typedslicecopy.
+-	size := uintptr(n) * typ.size
++	size := uintptr(n) * typ.Size_
+ 	if writeBarrier.needed {
+-		pwsize := size - typ.size + typ.ptrdata
++		pwsize := size - typ.Size_ + typ.PtrBytes
+ 		bulkBarrierPreWrite(uintptr(dstPtr), uintptr(srcPtr), pwsize)
+ 	}
+ 	// See typedmemmove for a discussion of the race between the
+@@ -295,8 +295,8 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 
+ //go:linkname reflect_typedslicecopy reflect.typedslicecopy
+ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+-	if elemType.ptrdata == 0 {
+-		return slicecopy(dst.array, dst.len, src.array, src.len, elemType.size)
++	if elemType.PtrBytes == 0 {
++		return slicecopy(dst.array, dst.len, src.array, src.len, elemType.Size_)
+ 	}
+ 	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
+ }
+@@ -313,10 +313,10 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ //
+ //go:nosplit
+ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+-	if writeBarrier.needed && typ.ptrdata != 0 {
+-		bulkBarrierPreWrite(uintptr(ptr), 0, typ.ptrdata)
++	if writeBarrier.needed && typ.PtrBytes != 0 {
++		bulkBarrierPreWrite(uintptr(ptr), 0, typ.PtrBytes)
+ 	}
+-	memclrNoHeapPointers(ptr, typ.size)
++	memclrNoHeapPointers(ptr, typ.Size_)
+ }
+ 
+ //go:linkname reflect_typedmemclr reflect.typedmemclr
+@@ -326,7 +326,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+ 
+ //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
+ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+-	if writeBarrier.needed && typ.ptrdata != 0 {
++	if writeBarrier.needed && typ.PtrBytes != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+ 	}
+ 	memclrNoHeapPointers(ptr, size)
+@@ -334,8 +334,8 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
+ 
+ //go:linkname reflect_typedarrayclear reflect.typedarrayclear
+ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+-	size := typ.size * uintptr(len)
+-	if writeBarrier.needed && typ.ptrdata != 0 {
++	size := typ.Size_ * uintptr(len)
++	if writeBarrier.needed && typ.PtrBytes != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+ 	}
+ 	memclrNoHeapPointers(ptr, size)
+@@ -343,7 +343,7 @@ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+ 
+ // memclrHasPointers clears n bytes of typed memory starting at ptr.
+ // The caller must ensure that the type of the object at ptr has
+-// pointers, usually by checking typ.ptrdata. However, ptr
++// pointers, usually by checking typ.PtrBytes. However, ptr
+ // does not have to point to the start of the allocation.
+ //
+ //go:nosplit
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index ac20bd9ade..f8ce5fd006 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -526,7 +526,7 @@ func (h heapBits) nextFast() (heapBits, uintptr) {
+ // The pointer bitmap is not maintained for allocations containing
+ // no pointers at all; any caller of bulkBarrierPreWrite must first
+ // make sure the underlying allocation contains pointers, usually
+-// by checking typ.ptrdata.
++// by checking typ.PtrBytes.
+ //
+ // Callers must perform cgo checks if goexperiment.CgoCheck2.
+ //
+@@ -682,21 +682,21 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 	if typ == nil {
+ 		throw("runtime: typeBitsBulkBarrier without type")
+ 	}
+-	if typ.size != size {
+-		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " of size ", typ.size, " but memory size", size)
++	if typ.Size_ != size {
++		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " of size ", typ.Size_, " but memory size", size)
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+-	if typ.kind&kindGCProg != 0 {
++	if typ.Kind_&kindGCProg != 0 {
+ 		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " with GC prog")
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+ 	if !writeBarrier.needed {
+ 		return
+ 	}
+-	ptrmask := typ.gcdata
++	ptrmask := typ.GCData
+ 	buf := &getg().m.p.ptr().wbBuf
+ 	var bits uint32
+-	for i := uintptr(0); i < typ.ptrdata; i += goarch.PtrSize {
++	for i := uintptr(0); i < typ.PtrBytes; i += goarch.PtrSize {
+ 		if i&(goarch.PtrSize*8-1) == 0 {
+ 			bits = uint32(*ptrmask)
+ 			ptrmask = addb(ptrmask, 1)
+@@ -915,7 +915,7 @@ func readUintptr(p *byte) uintptr {
+ 
+ // heapBitsSetType records that the new allocation [x, x+size)
+ // holds in [x, x+dataSize) one or more values of type typ.
+-// (The number of values is given by dataSize / typ.size.)
++// (The number of values is given by dataSize / typ.Size.)
+ // If dataSize < size, the fragment [x+dataSize, x+size) is
+ // recorded as non-pointer data.
+ // It is known that the type has pointers somewhere;
+@@ -939,8 +939,8 @@ func readUintptr(p *byte) uintptr {
+ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	const doubleCheck = false // slow but helpful; enable to test modifications to this code
+ 
+-	if doubleCheck && dataSize%typ.size != 0 {
+-		throw("heapBitsSetType: dataSize not a multiple of typ.size")
++	if doubleCheck && dataSize%typ.Size_ != 0 {
++		throw("heapBitsSetType: dataSize not a multiple of typ.Size")
+ 	}
+ 
+ 	if goarch.PtrSize == 8 && size == goarch.PtrSize {
+@@ -965,12 +965,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	h := writeHeapBitsForAddr(x)
+ 
+ 	// Handle GC program.
+-	if typ.kind&kindGCProg != 0 {
++	if typ.Kind_&kindGCProg != 0 {
+ 		// Expand the gc program into the storage we're going to use for the actual object.
+ 		obj := (*uint8)(unsafe.Pointer(x))
+-		n := runGCProg(addb(typ.gcdata, 4), obj)
++		n := runGCProg(addb(typ.GCData, 4), obj)
+ 		// Use the expanded program to set the heap bits.
+-		for i := uintptr(0); true; i += typ.size {
++		for i := uintptr(0); true; i += typ.Size_ {
+ 			// Copy expanded program to heap bitmap.
+ 			p := obj
+ 			j := n
+@@ -981,12 +981,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			}
+ 			h = h.write(uintptr(*p), j)
+ 
+-			if i+typ.size == dataSize {
++			if i+typ.Size_ == dataSize {
+ 				break // no padding after last element
+ 			}
+ 
+ 			// Pad with zeros to the start of the next element.
+-			h = h.pad(typ.size - n*goarch.PtrSize)
++			h = h.pad(typ.Size_ - n*goarch.PtrSize)
+ 		}
+ 
+ 		h.flush(x, size)
+@@ -998,16 +998,16 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 
+ 	// Note about sizes:
+ 	//
+-	// typ.size is the number of words in the object,
+-	// and typ.ptrdata is the number of words in the prefix
++	// typ.Size is the number of words in the object,
++	// and typ.PtrBytes is the number of words in the prefix
+ 	// of the object that contains pointers. That is, the final
+-	// typ.size - typ.ptrdata words contain no pointers.
++	// typ.Size - typ.PtrBytes words contain no pointers.
+ 	// This allows optimization of a common pattern where
+ 	// an object has a small header followed by a large scalar
+ 	// buffer. If we know the pointers are over, we don't have
+ 	// to scan the buffer's heap bitmap at all.
+ 	// The 1-bit ptrmasks are sized to contain only bits for
+-	// the typ.ptrdata prefix, zero padded out to a full byte
++	// the typ.PtrBytes prefix, zero padded out to a full byte
+ 	// of bitmap. If there is more room in the allocated object,
+ 	// that space is pointerless. The noMorePtrs bitmap will prevent
+ 	// scanning large pointerless tails of an object.
+@@ -1016,13 +1016,13 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 	// objects with scalar tails, all but the last tail does have to
+ 	// be initialized, because there is no way to say "skip forward".
+ 
+-	ptrs := typ.ptrdata / goarch.PtrSize
+-	if typ.size == dataSize { // Single element
++	ptrs := typ.PtrBytes / goarch.PtrSize
++	if typ.Size_ == dataSize { // Single element
+ 		if ptrs <= ptrBits { // Single small element
+-			m := readUintptr(typ.gcdata)
++			m := readUintptr(typ.GCData)
+ 			h = h.write(m, ptrs)
+ 		} else { // Single large element
+-			p := typ.gcdata
++			p := typ.GCData
+ 			for {
+ 				h = h.write(readUintptr(p), ptrBits)
+ 				p = addb(p, ptrBits/8)
+@@ -1035,10 +1035,10 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			h = h.write(m, ptrs)
+ 		}
+ 	} else { // Repeated element
+-		words := typ.size / goarch.PtrSize // total words, including scalar tail
+-		if words <= ptrBits {              // Repeated small element
+-			n := dataSize / typ.size
+-			m := readUintptr(typ.gcdata)
++		words := typ.Size_ / goarch.PtrSize // total words, including scalar tail
++		if words <= ptrBits {               // Repeated small element
++			n := dataSize / typ.Size_
++			m := readUintptr(typ.GCData)
+ 			// Make larger unit to repeat
+ 			for words <= ptrBits/2 {
+ 				if n&1 != 0 {
+@@ -1058,8 +1058,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			}
+ 			h = h.write(m, ptrs)
+ 		} else { // Repeated large element
+-			for i := uintptr(0); true; i += typ.size {
+-				p := typ.gcdata
++			for i := uintptr(0); true; i += typ.Size_ {
++				p := typ.GCData
+ 				j := ptrs
+ 				for j > ptrBits {
+ 					h = h.write(readUintptr(p), ptrBits)
+@@ -1068,11 +1068,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 				}
+ 				m := readUintptr(p)
+ 				h = h.write(m, j)
+-				if i+typ.size == dataSize {
++				if i+typ.Size_ == dataSize {
+ 					break // don't need the trailing nonptr bits on the last element.
+ 				}
+ 				// Pad with zeros to the start of the next element.
+-				h = h.pad(typ.size - typ.ptrdata)
++				h = h.pad(typ.Size_ - typ.PtrBytes)
+ 			}
+ 		}
+ 	}
+@@ -1084,10 +1084,10 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
+ 			// Compute the pointer bit we want at offset i.
+ 			want := false
+ 			if i < dataSize {
+-				off := i % typ.size
+-				if off < typ.ptrdata {
++				off := i % typ.Size_
++				if off < typ.PtrBytes {
+ 					j := off / goarch.PtrSize
+-					want = *addb(typ.gcdata, j/8)>>(j%8)&1 != 0
++					want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
+ 				}
+ 			}
+ 			if want {
+@@ -1417,7 +1417,7 @@ func getgcmask(ep any) (mask []byte) {
+ 		// data
+ 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
+ 			bitmap := datap.gcdatamask.bytedata
+-			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
++			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+ 			mask = make([]byte, n/goarch.PtrSize)
+ 			for i := uintptr(0); i < n; i += goarch.PtrSize {
+ 				off := (uintptr(p) + i - datap.data) / goarch.PtrSize
+@@ -1429,7 +1429,7 @@ func getgcmask(ep any) (mask []byte) {
+ 		// bss
+ 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
+ 			bitmap := datap.gcbssmask.bytedata
+-			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
++			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+ 			mask = make([]byte, n/goarch.PtrSize)
+ 			for i := uintptr(0); i < n; i += goarch.PtrSize {
+ 				off := (uintptr(p) + i - datap.bss) / goarch.PtrSize
+@@ -1477,7 +1477,7 @@ func getgcmask(ep any) (mask []byte) {
+ 				return
+ 			}
+ 			size := uintptr(locals.n) * goarch.PtrSize
+-			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
++			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+ 			mask = make([]byte, n/goarch.PtrSize)
+ 			for i := uintptr(0); i < n; i += goarch.PtrSize {
+ 				off := (uintptr(p) + i - u.frame.varp + size) / goarch.PtrSize
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index d4d4f1f302..e25c06bcf8 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -234,7 +234,7 @@ func runfinq() {
+ 					// confusing the write barrier.
+ 					*(*[2]uintptr)(frame) = [2]uintptr{}
+ 				}
+-				switch f.fint.kind & kindMask {
++				switch f.fint.Kind_ & kindMask {
+ 				case kindPtr:
+ 					// direct use of pointer
+ 					*(*unsafe.Pointer)(r) = f.arg
+@@ -371,7 +371,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 	if etyp == nil {
+ 		throw("runtime.SetFinalizer: first argument is nil")
+ 	}
+-	if etyp.kind&kindMask != kindPtr {
++	if etyp.Kind_&kindMask != kindPtr {
+ 		throw("runtime.SetFinalizer: first argument is " + etyp.string() + ", not pointer")
+ 	}
+ 	ot := (*ptrtype)(unsafe.Pointer(etyp))
+@@ -415,7 +415,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 	if uintptr(e.data) != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).
+-		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
++		if ot.elem == nil || ot.elem.PtrBytes != 0 || ot.elem.Size_ >= maxTinySize {
+ 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
+ 		}
+ 	}
+@@ -430,7 +430,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 		return
+ 	}
+ 
+-	if ftyp.kind&kindMask != kindFunc {
++	if ftyp.Kind_&kindMask != kindFunc {
+ 		throw("runtime.SetFinalizer: second argument is " + ftyp.string() + ", not a function")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(ftyp))
+@@ -445,13 +445,13 @@ func SetFinalizer(obj any, finalizer any) {
+ 	case fint == etyp:
+ 		// ok - same type
+ 		goto okarg
+-	case fint.kind&kindMask == kindPtr:
++	case fint.Kind_&kindMask == kindPtr:
+ 		if (fint.uncommon() == nil || etyp.uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+ 			// ok - not same type, but both pointers,
+ 			// one or the other is unnamed, and same element type, so assignable.
+ 			goto okarg
+ 		}
+-	case fint.kind&kindMask == kindInterface:
++	case fint.Kind_&kindMask == kindInterface:
+ 		ityp := (*interfacetype)(unsafe.Pointer(fint))
+ 		if len(ityp.mhdr) == 0 {
+ 			// ok - satisfies empty interface
+@@ -466,7 +466,7 @@ okarg:
+ 	// compute size needed for return parameters
+ 	nret := uintptr(0)
+ 	for _, t := range ft.out() {
+-		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
++		nret = alignUp(nret, uintptr(t.Align_)) + uintptr(t.Size_)
+ 	}
+ 	nret = alignUp(nret, goarch.PtrSize)
+ 
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 312802de00..d2ad1ed21c 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -85,7 +85,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*ini
+ 		(*valp)[0] = unsafe.Pointer(t)
+ 
+ 		name := symName.name()
+-		if t.kind&kindMask == kindFunc {
++		if t.Kind_&kindMask == kindFunc {
+ 			name = "." + name
+ 		}
+ 		syms[name] = val
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 9120db28da..c03866fd94 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -93,11 +93,11 @@ const raceenabled = true
+ // callerpc is a return PC of the function that calls this function,
+ // pc is start PC of the function that calls this function.
+ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-	kind := t.kind & kindMask
++	kind := t.Kind_ & kindMask
+ 	if kind == kindArray || kind == kindStruct {
+ 		// for composite objects we have to read every address
+ 		// because a write might happen to any subobject.
+-		racereadrangepc(addr, t.size, callerpc, pc)
++		racereadrangepc(addr, t.Size_, callerpc, pc)
+ 	} else {
+ 		// for non-composite objects we can read just the start
+ 		// address, as any write must write the first byte.
+@@ -106,11 +106,11 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+ }
+ 
+ func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
+-	kind := t.kind & kindMask
++	kind := t.Kind_ & kindMask
+ 	if kind == kindArray || kind == kindStruct {
+ 		// for composite objects we have to write every address
+ 		// because a write might happen to any subobject.
+-		racewriterangepc(addr, t.size, callerpc, pc)
++		racewriterangepc(addr, t.Size_, callerpc, pc)
+ 	} else {
+ 		// for non-composite objects we can write just the start
+ 		// address, as any write must write the first byte.
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 1072465365..339db75d4a 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -400,16 +400,16 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
+ 	}
+ 	if msanenabled {
+ 		if casi < nsends {
+-			msanread(cas.elem, c.elemtype.size)
++			msanread(cas.elem, c.elemtype.Size_)
+ 		} else if cas.elem != nil {
+-			msanwrite(cas.elem, c.elemtype.size)
++			msanwrite(cas.elem, c.elemtype.Size_)
+ 		}
+ 	}
+ 	if asanenabled {
+ 		if casi < nsends {
+-			asanread(cas.elem, c.elemtype.size)
++			asanread(cas.elem, c.elemtype.Size_)
+ 		} else if cas.elem != nil {
+-			asanwrite(cas.elem, c.elemtype.size)
++			asanwrite(cas.elem, c.elemtype.Size_)
+ 		}
+ 	}
+ 
+@@ -425,10 +425,10 @@ bufrecv:
+ 		racenotify(c, c.recvx, nil)
+ 	}
+ 	if msanenabled && cas.elem != nil {
+-		msanwrite(cas.elem, c.elemtype.size)
++		msanwrite(cas.elem, c.elemtype.Size_)
+ 	}
+ 	if asanenabled && cas.elem != nil {
+-		asanwrite(cas.elem, c.elemtype.size)
++		asanwrite(cas.elem, c.elemtype.Size_)
+ 	}
+ 	recvOK = true
+ 	qp = chanbuf(c, c.recvx)
+@@ -451,10 +451,10 @@ bufsend:
+ 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
+ 	}
+ 	if msanenabled {
+-		msanread(cas.elem, c.elemtype.size)
++		msanread(cas.elem, c.elemtype.Size_)
+ 	}
+ 	if asanenabled {
+-		asanread(cas.elem, c.elemtype.size)
++		asanread(cas.elem, c.elemtype.Size_)
+ 	}
+ 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
+ 	c.sendx++
+@@ -492,10 +492,10 @@ send:
+ 		raceReadObjectPC(c.elemtype, cas.elem, casePC(casi), chansendpc)
+ 	}
+ 	if msanenabled {
+-		msanread(cas.elem, c.elemtype.size)
++		msanread(cas.elem, c.elemtype.Size_)
+ 	}
+ 	if asanenabled {
+-		asanread(cas.elem, c.elemtype.size)
++		asanread(cas.elem, c.elemtype.Size_)
+ 	}
+ 	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
+ 	if debugSelect {
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 04062f59fc..228697a708 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -39,21 +39,21 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 	var tomem, copymem uintptr
+ 	if uintptr(tolen) > uintptr(fromlen) {
+ 		var overflow bool
+-		tomem, overflow = math.MulUintptr(et.size, uintptr(tolen))
++		tomem, overflow = math.MulUintptr(et.Size_, uintptr(tolen))
+ 		if overflow || tomem > maxAlloc || tolen < 0 {
+ 			panicmakeslicelen()
+ 		}
+-		copymem = et.size * uintptr(fromlen)
++		copymem = et.Size_ * uintptr(fromlen)
+ 	} else {
+ 		// fromlen is a known good length providing and equal or greater than tolen,
+ 		// thereby making tolen a good slice length too as from and to slices have the
+ 		// same element width.
+-		tomem = et.size * uintptr(tolen)
++		tomem = et.Size_ * uintptr(tolen)
+ 		copymem = tomem
+ 	}
+ 
+ 	var to unsafe.Pointer
+-	if et.ptrdata == 0 {
++	if et.PtrBytes == 0 {
+ 		to = mallocgc(tomem, nil, false)
+ 		if copymem < tomem {
+ 			memclrNoHeapPointers(add(to, copymem), tomem-copymem)
+@@ -86,14 +86,14 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ }
+ 
+ func makeslice(et *_type, len, cap int) unsafe.Pointer {
+-	mem, overflow := math.MulUintptr(et.size, uintptr(cap))
++	mem, overflow := math.MulUintptr(et.Size_, uintptr(cap))
+ 	if overflow || mem > maxAlloc || len < 0 || len > cap {
+ 		// NOTE: Produce a 'len out of range' error instead of a
+ 		// 'cap out of range' error when someone does make([]T, bignumber).
+ 		// 'cap out of range' is true too, but since the cap is only being
+ 		// supplied implicitly, saying len is clearer.
+ 		// See golang.org/issue/4085.
+-		mem, overflow := math.MulUintptr(et.size, uintptr(len))
++		mem, overflow := math.MulUintptr(et.Size_, uintptr(len))
+ 		if overflow || mem > maxAlloc || len < 0 {
+ 			panicmakeslicelen()
+ 		}
+@@ -158,20 +158,20 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 	oldLen := newLen - num
+ 	if raceenabled {
+ 		callerpc := getcallerpc()
+-		racereadrangepc(oldPtr, uintptr(oldLen*int(et.size)), callerpc, abi.FuncPCABIInternal(growslice))
++		racereadrangepc(oldPtr, uintptr(oldLen*int(et.Size_)), callerpc, abi.FuncPCABIInternal(growslice))
+ 	}
+ 	if msanenabled {
+-		msanread(oldPtr, uintptr(oldLen*int(et.size)))
++		msanread(oldPtr, uintptr(oldLen*int(et.Size_)))
+ 	}
+ 	if asanenabled {
+-		asanread(oldPtr, uintptr(oldLen*int(et.size)))
++		asanread(oldPtr, uintptr(oldLen*int(et.Size_)))
+ 	}
+ 
+ 	if newLen < 0 {
+ 		panic(errorString("growslice: len out of range"))
+ 	}
+ 
+-	if et.size == 0 {
++	if et.Size_ == 0 {
+ 		// append should not create a slice with nil pointer but non-zero len.
+ 		// We assume that append doesn't need to preserve oldPtr in this case.
+ 		return slice{unsafe.Pointer(&zerobase), newLen, newLen}
+@@ -204,30 +204,30 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 
+ 	var overflow bool
+ 	var lenmem, newlenmem, capmem uintptr
+-	// Specialize for common values of et.size.
++	// Specialize for common values of et.Size.
+ 	// For 1 we don't need any division/multiplication.
+ 	// For goarch.PtrSize, compiler will optimize division/multiplication into a shift by a constant.
+ 	// For powers of 2, use a variable shift.
+ 	switch {
+-	case et.size == 1:
++	case et.Size_ == 1:
+ 		lenmem = uintptr(oldLen)
+ 		newlenmem = uintptr(newLen)
+ 		capmem = roundupsize(uintptr(newcap))
+ 		overflow = uintptr(newcap) > maxAlloc
+ 		newcap = int(capmem)
+-	case et.size == goarch.PtrSize:
++	case et.Size_ == goarch.PtrSize:
+ 		lenmem = uintptr(oldLen) * goarch.PtrSize
+ 		newlenmem = uintptr(newLen) * goarch.PtrSize
+ 		capmem = roundupsize(uintptr(newcap) * goarch.PtrSize)
+ 		overflow = uintptr(newcap) > maxAlloc/goarch.PtrSize
+ 		newcap = int(capmem / goarch.PtrSize)
+-	case isPowerOfTwo(et.size):
++	case isPowerOfTwo(et.Size_):
+ 		var shift uintptr
+ 		if goarch.PtrSize == 8 {
+ 			// Mask shift for better code generation.
+-			shift = uintptr(sys.TrailingZeros64(uint64(et.size))) & 63
++			shift = uintptr(sys.TrailingZeros64(uint64(et.Size_))) & 63
+ 		} else {
+-			shift = uintptr(sys.TrailingZeros32(uint32(et.size))) & 31
++			shift = uintptr(sys.TrailingZeros32(uint32(et.Size_))) & 31
+ 		}
+ 		lenmem = uintptr(oldLen) << shift
+ 		newlenmem = uintptr(newLen) << shift
+@@ -236,12 +236,12 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 		newcap = int(capmem >> shift)
+ 		capmem = uintptr(newcap) << shift
+ 	default:
+-		lenmem = uintptr(oldLen) * et.size
+-		newlenmem = uintptr(newLen) * et.size
+-		capmem, overflow = math.MulUintptr(et.size, uintptr(newcap))
++		lenmem = uintptr(oldLen) * et.Size_
++		newlenmem = uintptr(newLen) * et.Size_
++		capmem, overflow = math.MulUintptr(et.Size_, uintptr(newcap))
+ 		capmem = roundupsize(capmem)
+-		newcap = int(capmem / et.size)
+-		capmem = uintptr(newcap) * et.size
++		newcap = int(capmem / et.Size_)
++		capmem = uintptr(newcap) * et.Size_
+ 	}
+ 
+ 	// The check of overflow in addition to capmem > maxAlloc is needed
+@@ -262,7 +262,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 	}
+ 
+ 	var p unsafe.Pointer
+-	if et.ptrdata == 0 {
++	if et.PtrBytes == 0 {
+ 		p = mallocgc(capmem, nil, false)
+ 		// The append() that calls growslice is going to overwrite from oldLen to newLen.
+ 		// Only clear the part that will not be overwritten.
+@@ -275,7 +275,7 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice
+ 		if lenmem > 0 && writeBarrier.enabled {
+ 			// Only shade the pointers in oldPtr since we know the destination slice p
+ 			// only contains nil pointers because it has been cleared during alloc.
+-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldPtr), lenmem-et.size+et.ptrdata)
++			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(oldPtr), lenmem-et.Size_+et.PtrBytes)
+ 		}
+ 	}
+ 	memmove(p, oldPtr, lenmem)
+@@ -293,9 +293,9 @@ func reflect_growslice(et *_type, old slice, num int) slice {
+ 	// the memory will be overwritten by an append() that called growslice.
+ 	// Since the caller of reflect_growslice is not append(),
+ 	// zero out this region before returning the slice to the reflect package.
+-	if et.ptrdata == 0 {
+-		oldcapmem := uintptr(old.cap) * et.size
+-		newlenmem := uintptr(new.len) * et.size
++	if et.PtrBytes == 0 {
++		oldcapmem := uintptr(old.cap) * et.Size_
++		newlenmem := uintptr(new.len) * et.Size_
+ 		memclrNoHeapPointers(add(new.array, oldcapmem), newlenmem-oldcapmem)
+ 	}
+ 	new.len = old.len // preserve the old length
+diff --git a/src/runtime/stkframe.go b/src/runtime/stkframe.go
+index 9c8f4be453..5caacbacba 100644
+--- a/src/runtime/stkframe.go
++++ b/src/runtime/stkframe.go
+@@ -264,7 +264,7 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
+ func stkobjinit() {
+ 	var abiRegArgsEface any = abi.RegArgs{}
+ 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
+-	if abiRegArgsType.kind&kindGCProg != 0 {
++	if abiRegArgsType.Kind_&kindGCProg != 0 {
+ 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
+ 	}
+ 	// Set methodValueCallFrameObjs[0].gcdataoff so that
+@@ -281,9 +281,9 @@ func stkobjinit() {
+ 		throw("methodValueCallFrameObjs is not in a module")
+ 	}
+ 	methodValueCallFrameObjs[0] = stackObjectRecord{
+-		off:       -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
+-		size:      int32(abiRegArgsType.size),
+-		_ptrdata:  int32(abiRegArgsType.ptrdata),
+-		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.gcdata)) - mod.rodata),
++		off:       -int32(alignUp(abiRegArgsType.Size_, 8)), // It's always the highest address local.
++		size:      int32(abiRegArgsType.Size_),
++		_ptrdata:  int32(abiRegArgsType.PtrBytes),
++		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.GCData)) - mod.rodata),
+ 	}
+ }
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 947f68510c..1c112be9d4 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -91,7 +91,7 @@ type abiDesc struct {
+ }
+ 
+ func (p *abiDesc) assignArg(t *_type) {
+-	if t.size > goarch.PtrSize {
++	if t.Size_ > goarch.PtrSize {
+ 		// We don't support this right now. In
+ 		// stdcall/cdecl, 64-bit ints and doubles are
+ 		// passed as two words (little endian); and
+@@ -103,7 +103,7 @@ func (p *abiDesc) assignArg(t *_type) {
+ 		// registers and the stack.
+ 		panic("compileCallback: argument size is larger than uintptr")
+ 	}
+-	if k := t.kind & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
++	if k := t.Kind_ & kindMask; GOARCH != "386" && (k == kindFloat32 || k == kindFloat64) {
+ 		// In fastcall, floating-point arguments in
+ 		// the first four positions are passed in
+ 		// floating-point registers, which we don't
+@@ -114,9 +114,9 @@ func (p *abiDesc) assignArg(t *_type) {
+ 		panic("compileCallback: float arguments not supported")
+ 	}
+ 
+-	if t.size == 0 {
++	if t.Size_ == 0 {
+ 		// The Go ABI aligns for zero-sized types.
+-		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.align))
++		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.Align_))
+ 		return
+ 	}
+ 
+@@ -134,15 +134,15 @@ func (p *abiDesc) assignArg(t *_type) {
+ 		//
+ 		// TODO(mknyszek): Remove this when we no longer have
+ 		// caller reserved spill space.
+-		p.dstSpill = alignUp(p.dstSpill, uintptr(t.align))
+-		p.dstSpill += t.size
++		p.dstSpill = alignUp(p.dstSpill, uintptr(t.Align_))
++		p.dstSpill += t.Size_
+ 	} else {
+ 		// Register assignment failed.
+ 		// Undo the work and stack assign.
+ 		p.parts = oldParts
+ 
+ 		// The Go ABI aligns arguments.
+-		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.align))
++		p.dstStackSize = alignUp(p.dstStackSize, uintptr(t.Align_))
+ 
+ 		// Copy just the size of the argument. Note that this
+ 		// could be a small by-value struct, but C and Go
+@@ -152,14 +152,14 @@ func (p *abiDesc) assignArg(t *_type) {
+ 			kind:           abiPartStack,
+ 			srcStackOffset: p.srcStackSize,
+ 			dstStackOffset: p.dstStackSize,
+-			len:            t.size,
++			len:            t.Size_,
+ 		}
+ 		// Add this step to the adapter.
+ 		if len(p.parts) == 0 || !p.parts[len(p.parts)-1].tryMerge(part) {
+ 			p.parts = append(p.parts, part)
+ 		}
+ 		// The Go ABI packs arguments.
+-		p.dstStackSize += t.size
++		p.dstStackSize += t.Size_
+ 	}
+ 
+ 	// cdecl, stdcall, fastcall, and arm pad arguments to word size.
+@@ -174,14 +174,14 @@ func (p *abiDesc) assignArg(t *_type) {
+ //
+ // Returns whether the assignment succeeded.
+ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
+-	switch k := t.kind & kindMask; k {
++	switch k := t.Kind_ & kindMask; k {
+ 	case kindBool, kindInt, kindInt8, kindInt16, kindInt32, kindUint, kindUint8, kindUint16, kindUint32, kindUintptr, kindPtr, kindUnsafePointer:
+ 		// Assign a register for all these types.
+-		return p.assignReg(t.size, offset)
++		return p.assignReg(t.Size_, offset)
+ 	case kindInt64, kindUint64:
+ 		// Only register-assign if the registers are big enough.
+ 		if goarch.PtrSize == 8 {
+-			return p.assignReg(t.size, offset)
++			return p.assignReg(t.Size_, offset)
+ 		}
+ 	case kindArray:
+ 		at := (*arraytype)(unsafe.Pointer(t))
+@@ -269,7 +269,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 		cdecl = false
+ 	}
+ 
+-	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
++	if fn._type == nil || (fn._type.Kind_&kindMask) != kindFunc {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+ 	ft := (*functype)(unsafe.Pointer(fn._type))
+@@ -287,10 +287,10 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
+ 	if len(ft.out()) != 1 {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+-	if ft.out()[0].size != goarch.PtrSize {
++	if ft.out()[0].Size_ != goarch.PtrSize {
+ 		panic("compileCallback: expected function with one uintptr-sized result")
+ 	}
+-	if k := ft.out()[0].kind & kindMask; k == kindFloat32 || k == kindFloat64 {
++	if k := ft.out()[0].Kind_ & kindMask; k == kindFloat32 || k == kindFloat64 {
+ 		// In cdecl and stdcall, float results are returned in
+ 		// ST(0). In fastcall, they're returned in XMM0.
+ 		// Either way, it's not AX.
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 1c6103e6ed..62dce2c377 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -11,59 +11,29 @@ import (
+ 	"unsafe"
+ )
+ 
+-// tflag is documented in reflect/type.go.
+-//
+-// tflag values must be kept in sync with copies in:
+-//
+-//	cmd/compile/internal/reflectdata/reflect.go
+-//	cmd/link/internal/ld/decodesym.go
+-//	reflect/type.go
+-//	internal/reflectlite/type.go
+-type tflag uint8
+-
+-const (
+-	tflagUncommon      tflag = 1 << 0
+-	tflagExtraStar     tflag = 1 << 1
+-	tflagNamed         tflag = 1 << 2
+-	tflagRegularMemory tflag = 1 << 3 // equal and hash can treat values of this type as a single region of t.size bytes
+-)
++type nameOff = abi.NameOff
++type typeOff = abi.TypeOff
++type textOff = abi.TextOff
+ 
+ // Needs to be in sync with ../cmd/link/internal/ld/decodesym.go:/^func.commonsize,
+ // ../cmd/compile/internal/reflectdata/reflect.go:/^func.dcommontype and
+ // ../reflect/type.go:/^type.rtype.
+ // ../internal/reflectlite/type.go:/^type.rtype.
+-type _type struct {
+-	size       uintptr
+-	ptrdata    uintptr // size of memory prefix holding all pointers
+-	hash       uint32
+-	tflag      tflag
+-	align      uint8
+-	fieldAlign uint8
+-	kind       uint8
+-	// function for comparing objects of this type
+-	// (ptr to object A, ptr to object B) -> ==?
+-	equal func(unsafe.Pointer, unsafe.Pointer) bool
+-	// gcdata stores the GC type data for the garbage collector.
+-	// If the KindGCProg bit is set in kind, gcdata is a GC program.
+-	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
+-	gcdata    *byte
+-	str       nameOff
+-	ptrToThis typeOff
+-}
++type _type abi.Type
+ 
+ func (t *_type) string() string {
+-	s := t.nameOff(t.str).name()
+-	if t.tflag&tflagExtraStar != 0 {
++	s := t.nameOff(t.Str).name()
++	if t.TFlag&abi.TFlagExtraStar != 0 {
+ 		return s[1:]
+ 	}
+ 	return s
+ }
+ 
+ func (t *_type) uncommon() *uncommontype {
+-	if t.tflag&tflagUncommon == 0 {
++	if t.TFlag&abi.TFlagUncommon == 0 {
+ 		return nil
+ 	}
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	case kindStruct:
+ 		type u struct {
+ 			structtype
+@@ -122,7 +92,7 @@ func (t *_type) uncommon() *uncommontype {
+ }
+ 
+ func (t *_type) name() string {
+-	if t.tflag&tflagNamed == 0 {
++	if t.TFlag&abi.TFlagNamed == 0 {
+ 		return ""
+ 	}
+ 	s := t.string()
+@@ -148,7 +118,7 @@ func (t *_type) pkgpath() string {
+ 	if u := t.uncommon(); u != nil {
+ 		return t.nameOff(u.pkgpath).name()
+ 	}
+-	switch t.kind & kindMask {
++	switch t.Kind_ & kindMask {
+ 	case kindStruct:
+ 		st := (*structtype)(unsafe.Pointer(t))
+ 		return st.pkgPath.name()
+@@ -303,7 +273,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ func (t *functype) in() []*_type {
+ 	// See funcType in reflect/type.go for details on data layout.
+ 	uadd := uintptr(unsafe.Sizeof(functype{}))
+-	if t.typ.tflag&tflagUncommon != 0 {
++	if t.typ.TFlag&abi.TFlagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommontype{})
+ 	}
+ 	return (*[1 << 20]*_type)(add(unsafe.Pointer(t), uadd))[:t.inCount]
+@@ -312,7 +282,7 @@ func (t *functype) in() []*_type {
+ func (t *functype) out() []*_type {
+ 	// See funcType in reflect/type.go for details on data layout.
+ 	uadd := uintptr(unsafe.Sizeof(functype{}))
+-	if t.typ.tflag&tflagUncommon != 0 {
++	if t.typ.TFlag&abi.TFlagUncommon != 0 {
+ 		uadd += unsafe.Sizeof(uncommontype{})
+ 	}
+ 	outCount := t.outCount & (1<<15 - 1)
+@@ -323,10 +293,6 @@ func (t *functype) dotdotdot() bool {
+ 	return t.outCount&(1<<15) != 0
+ }
+ 
+-type nameOff int32
+-type typeOff int32
+-type textOff int32
+-
+ type method struct {
+ 	name nameOff
+ 	mtyp typeOff
+@@ -519,13 +485,13 @@ func typelinksinit() {
+ 				t = prev.typemap[typeOff(tl)]
+ 			}
+ 			// Add to typehash if not seen before.
+-			tlist := typehash[t.hash]
++			tlist := typehash[t.Hash]
+ 			for _, tcur := range tlist {
+ 				if tcur == t {
+ 					continue collect
+ 				}
+ 			}
+-			typehash[t.hash] = append(tlist, t)
++			typehash[t.Hash] = append(tlist, t)
+ 		}
+ 
+ 		if md.typemap == nil {
+@@ -537,7 +503,7 @@ func typelinksinit() {
+ 			md.typemap = tm
+ 			for _, tl := range md.typelinks {
+ 				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+-				for _, candidate := range typehash[t.hash] {
++				for _, candidate := range typehash[t.Hash] {
+ 					seen := map[_typePair]struct{}{}
+ 					if typesEqual(t, candidate, seen) {
+ 						t = candidate
+@@ -583,8 +549,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 	if t == v {
+ 		return true
+ 	}
+-	kind := t.kind & kindMask
+-	if kind != v.kind&kindMask {
++	kind := t.Kind_ & kindMask
++	if kind != v.Kind_&kindMask {
+ 		return false
+ 	}
+ 	if t.string() != v.string() {
+diff --git a/src/runtime/typekind.go b/src/runtime/typekind.go
+index 7087a9b046..bd2dec94c4 100644
+--- a/src/runtime/typekind.go
++++ b/src/runtime/typekind.go
+@@ -39,5 +39,5 @@ const (
+ 
+ // isDirectIface reports whether t is stored directly in an interface value.
+ func isDirectIface(t *_type) bool {
+-	return t.kind&kindDirectIface != 0
++	return t.Kind_&kindDirectIface != 0
+ }
+diff --git a/src/runtime/unsafe.go b/src/runtime/unsafe.go
+index d2773bc56d..6675264f59 100644
+--- a/src/runtime/unsafe.go
++++ b/src/runtime/unsafe.go
+@@ -55,13 +55,13 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
+ 		panicunsafeslicelen1(getcallerpc())
+ 	}
+ 
+-	if et.size == 0 {
++	if et.Size_ == 0 {
+ 		if ptr == nil && len > 0 {
+ 			panicunsafeslicenilptr1(getcallerpc())
+ 		}
+ 	}
+ 
+-	mem, overflow := math.MulUintptr(et.size, uintptr(len))
++	mem, overflow := math.MulUintptr(et.Size_, uintptr(len))
+ 	if overflow || mem > -uintptr(ptr) {
+ 		if ptr == nil {
+ 			panicunsafeslicenilptr1(getcallerpc())
+@@ -84,7 +84,7 @@ func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
+ 
+ 	// Check that underlying array doesn't straddle multiple heap objects.
+ 	// unsafeslice64 has already checked for overflow.
+-	if checkptrStraddles(ptr, uintptr(len64)*et.size) {
++	if checkptrStraddles(ptr, uintptr(len64)*et.Size_) {
+ 		throw("checkptr: unsafe.Slice result straddles multiple allocations")
+ 	}
+ }

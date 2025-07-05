@@ -12,8 +12,71 @@ Date:   Wed Mar 2 17:14:55 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go               |  5 +++++
  src/cmd/go/internal/run/run.go                    |  5 +++--
  src/cmd/go/testdata/script/run_work_versioned.txt | 16 ++++++++++++++++
  3 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a07066696e..f960edd251 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -288,6 +288,11 @@ func BinDir() string {
+ // operate in workspace mode. It should not be called by other commands,
+ // for example 'go mod tidy', that don't operate in workspace mode.
+ func InitWorkfile() {
++	if RootMode == NoRoot {
++		workFilePath = ""
++		return
++	}
++
+ 	switch gowork := cfg.Getenv("GOWORK"); gowork {
+ 	case "off":
+ 		workFilePath = ""
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 00a3e4b332..312b49ef5d 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -73,8 +73,6 @@ func printStderr(args ...any) (int, error) {
+ }
+ 
+ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+-	modload.InitWorkfile()
+-
+ 	if shouldUseOutsideModuleMode(args) {
+ 		// Set global module flags for 'go run cmd@version'.
+ 		// This must be done before modload.Init, but we need to call work.BuildInit
+@@ -84,7 +82,10 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 		modload.RootMode = modload.NoRoot
+ 		modload.AllowMissingModuleImports()
+ 		modload.Init()
++	} else {
++		modload.InitWorkfile()
+ 	}
++
+ 	work.BuildInit()
+ 	var b work.Builder
+ 	b.Init()
+diff --git a/src/cmd/go/testdata/script/run_work_versioned.txt b/src/cmd/go/testdata/script/run_work_versioned.txt
+new file mode 100644
+index 0000000000..eb0f22d1c0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_work_versioned.txt
+@@ -0,0 +1,16 @@
++[short] skip
++go run example.com/printversion@v0.1.0
++stdout '^main is example.com/printversion v0.1.0$'
++
++-- go.work --
++go 1.18
++
++use (
++	.
++)
++-- go.mod --
++module example
++
++go 1.18
++
++require example.com/printversion v1.0.0

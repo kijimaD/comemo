@@ -26,7 +26,81 @@ Date:   Sat Aug 27 20:46:25 2016 +0430
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go      | 10 ++++++++
  src/net/http/httputil/reverseproxy_test.go | 41 ++++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 49c120afde..79831b3a97 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -184,6 +184,16 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	outreq.ProtoMinor = 1
+ 	outreq.Close = false
+ 
++	// Remove headers with the same name as the connection-tokens.
++	// See RFC 2616, section 14.10.
++	if c := outreq.Header.Get("Connection"); c != "" {
++		for _, f := range strings.Split(c, ",") {
++			if f = strings.TrimSpace(f); f != "" {
++				outreq.Header.Del(f)
++			}
++		}
++	}
++
+ 	// Remove hop-by-hop headers to the backend. Especially
+ 	// important is "Connection" because we want a persistent
+ 	// connection, regardless of what the client sent to us. This
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index fe7cdb888f..bfa13d9b6d 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -135,6 +135,47 @@ func TestReverseProxy(t *testing.T) {
+ 
+ }
+ 
++// Issue 16875: remove any proxied headers mentioned in the "Connection"
++// header value.
++func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
++	const fakeConnectionToken = "X-Fake-Connection-Token"
++	const backendResponse = "I am the backend"
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if c := r.Header.Get(fakeConnectionToken); c != "" {
++			t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
++		}
++		if c := r.Header.Get("Upgrade"); c != "" {
++			t.Errorf("handler got header %q = %q; want empty", "Upgrade", c)
++		}
++		io.WriteString(w, backendResponse)
++	}))
++	defer backend.Close()
++	backendURL, err := url.Parse(backend.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	proxyHandler := NewSingleHostReverseProxy(backendURL)
++	frontend := httptest.NewServer(proxyHandler)
++	defer frontend.Close()
++
++	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
++	getReq.Header.Set("Connection", "Upgrade, "+fakeConnectionToken)
++	getReq.Header.Set("Upgrade", "foo")
++	getReq.Header.Set(fakeConnectionToken, "should be deleted")
++	res, err := http.DefaultClient.Do(getReq)
++	if err != nil {
++		t.Fatalf("Get: %v", err)
++	}
++	defer res.Body.Close()
++	bodyBytes, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatalf("reading body: %v", err)
++	}
++	if got, want := string(bodyBytes), backendResponse; got != want {
++		t.Errorf("got body %q; want %q", got, want)
++	}
++}
++
+ func TestXForwardedFor(t *testing.T) {
+ 	const prevForwardedFor = "client ip"
+ 	const backendResponse = "I am the backend"

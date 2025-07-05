@@ -11,6 +11,24 @@ Date:   Fri Jan 4 13:04:31 2019 -0500
     Change-Id: Ife6443c32673b38000b90dd2efb2985db37ab773
     Reviewed-on: https://go-review.googlesource.com/c/156318
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 01bc6f50e3..d8547e9f96 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -31,12 +31,6 @@ Do not send CLs removing the interior tags from such phrases.
+   We expect almost all Go programs to continue to compile and run as before.
+ </p>
+ 
+-<p>
+-  There is a <a href="https://golang.org/issue/27993"><strong>known issue</strong> in
+-  the garbage collector</a> that can cause rare crashes. It is being investigated.
+-  Please <a href="https://golang.org/issue/new">report</a> any issues you encounter.
+-</p>
+-
+ <h2 id="language">Changes to the language</h2>
+ 
+ <p>

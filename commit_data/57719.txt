@@ -15,6 +15,22 @@ Date:   Thu Aug 24 22:14:44 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/debug/mod.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 7f85174c06..a4705605b8 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -75,8 +75,8 @@ type Module struct {
+ //   - CGO_ENABLED: the effective CGO_ENABLED environment variable
+ //   - CGO_CFLAGS: the effective CGO_CFLAGS environment variable
+ //   - CGO_CPPFLAGS: the effective CGO_CPPFLAGS environment variable
+-//   - CGO_CXXFLAGS:  the effective CGO_CPPFLAGS environment variable
+-//   - CGO_LDFLAGS: the effective CGO_CPPFLAGS environment variable
++//   - CGO_CXXFLAGS:  the effective CGO_CXXFLAGS environment variable
++//   - CGO_LDFLAGS: the effective CGO_LDFLAGS environment variable
+ //   - GOARCH: the architecture target
+ //   - GOAMD64/GOARM/GO386/etc: the architecture feature level for GOARCH
+ //   - GOOS: the operating system target

@@ -9,6 +9,16 @@ Date:   Fri Feb 6 14:54:28 2015 +0900
     Change-Id: If3f7fe2de2ab4c1756f3cef8267199049d468b31
     Reviewed-on: https://go-review.googlesource.com/3983
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/syscall/syscall_darwin_arm.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/syscall/syscall_darwin_arm.go b/src/syscall/syscall_darwin_arm.go
+index e9d187d6c1..2a7d4f2db6 100644
+--- a/src/syscall/syscall_darwin_arm.go
++++ b/src/syscall/syscall_darwin_arm.go
+@@ -68,4 +68,3 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ }
+ 
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic
+-

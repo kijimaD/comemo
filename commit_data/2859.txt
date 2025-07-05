@@ -10,6 +10,49 @@ Date:   Fri Jul 31 18:40:11 2009 -0700
     DELTA=23  (15 added, 0 deleted, 8 changed)
     OCL=32618
     CL=32618
-
+---
  src/pkg/go/doc/doc.go | 29 ++++++++++++++++++++++-------
  1 file changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 287677aa00..634bd0ce91 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -72,15 +72,30 @@ func (doc *docReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
+ }
+ 
+ 
++func isForwardDecl(typ ast.Expr) bool {
++	switch t := typ.(type) {
++	case *ast.StructType:
++		return t.Fields == nil;
++	case *ast.InterfaceType:
++		return t.Methods == nil;
++	}
++	return false;
++}
++
++
+ func (doc *docReader) addType(decl *ast.GenDecl) {
+-	typ := decl.Specs[0].(*ast.TypeSpec);
+-	name := typ.Name.Value;
+-	if _, found := doc.types[name]; !found {
+-		tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+-		doc.types[name] = tdoc;
++	spec := decl.Specs[0].(*ast.TypeSpec);
++	name := spec.Name.Value;
++	if tdoc, found := doc.types[name]; found {
++		if !isForwardDecl(tdoc.decl.Specs[0].(*ast.TypeSpec).Type) || isForwardDecl(spec.Type) {
++			// existing type was not a forward-declaration or the
++			// new type is a forward declaration - leave it alone
++			return;
++		}
++		// replace existing type
+ 	}
+-	// If the type was found it may have been added as a forward
+-	// declaration before, or this is a forward-declaration.
++	tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
++	doc.types[name] = tdoc;
+ }
+ 
+ 

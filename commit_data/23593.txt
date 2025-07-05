@@ -24,7 +24,7 @@ Date:   Wed May 27 15:01:44 2015 -0400
     Change-Id: I491f201241f87543964a7d0f48b85830759be9d0
     Reviewed-on: https://go-review.googlesource.com/10457
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/asm/internal/asm/asm.go        |  23 ++-
  src/cmd/compile/internal/arm64/peep.go |   4 +-
  src/cmd/compile/internal/gc/gsubr.go   |   2 +
@@ -51,3 +51,4389 @@ Date:   Wed May 27 15:01:44 2015 -0400
  src/cmd/old9a/lex.go                   |   5 +-
  src/cmd/old9a/y.go                     | 259 ++++++++++++++++----------
  25 files changed, 863 insertions(+), 548 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index d5d2772ef3..7ac8bf49de 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -151,7 +151,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
+ 		As:     obj.ATEXT,
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+-		From3: obj.Addr{
++		From3: &obj.Addr{
+ 			Type:   obj.TYPE_CONST,
+ 			Offset: flag,
+ 		},
+@@ -205,7 +205,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 		As:     obj.ADATA,
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+-		From3: obj.Addr{
++		From3: &obj.Addr{
+ 			Offset: int64(scale),
+ 		},
+ 		To: valueAddr,
+@@ -244,7 +244,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
+ 		As:     obj.AGLOBL,
+ 		Lineno: p.histLineNum,
+ 		From:   nameAddr,
+-		From3: obj.Addr{
++		From3: &obj.Addr{
+ 			Offset: flag,
+ 		},
+ 		To: addr,
+@@ -504,7 +504,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			prog.To = a[2]
+ 		case '6', '8':
+ 			prog.From = a[0]
+-			prog.From3 = a[1]
++			prog.From3 = newAddr(a[1])
+ 			prog.To = a[2]
+ 		case '9':
+ 			if arch.IsPPC64CMP(op) {
+@@ -526,7 +526,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 				prog.To = a[2]
+ 			case obj.TYPE_CONST:
+ 				prog.From = a[0]
+-				prog.From3 = a[1]
++				prog.From3 = newAddr(a[1])
+ 				prog.To = a[2]
+ 			default:
+ 				p.errorf("invalid addressing modes for %s instruction", obj.Aconv(op))
+@@ -551,7 +551,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 		if p.arch.Thechar == '7' {
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+-			prog.From3 = a[2]
++			prog.From3 = newAddr(a[2])
+ 			prog.To = a[3]
+ 			break
+ 		}
+@@ -561,7 +561,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			// That is, are there 4-operand instructions without this property?
+ 			prog.From = a[0]
+ 			prog.Reg = p.getRegister(prog, op, &a[1])
+-			prog.From3 = a[2]
++			prog.From3 = newAddr(a[2])
+ 			prog.To = a[3]
+ 			break
+ 		}
+@@ -579,7 +579,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			} else {
+ 				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
+ 			}
+-			prog.From3 = obj.Addr{
++			prog.From3 = &obj.Addr{
+ 				Type:   obj.TYPE_CONST,
+ 				Offset: int64(mask),
+ 			}
+@@ -615,6 +615,13 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 	p.append(prog, cond, true)
+ }
+ 
++// newAddr returns a new(Addr) initialized to x.
++func newAddr(x obj.Addr) *obj.Addr {
++	p := new(obj.Addr)
++	*p = x
++	return p
++}
++
+ var emptyProg obj.Prog
+ 
+ // getConstantPseudo checks that addr represents a plain constant and returns its value.
+diff --git a/src/cmd/compile/internal/arm64/peep.go b/src/cmd/compile/internal/arm64/peep.go
+index 3dbccb70b2..387a30ec29 100644
+--- a/src/cmd/compile/internal/arm64/peep.go
++++ b/src/cmd/compile/internal/arm64/peep.go
+@@ -418,9 +418,9 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
+ //	  can be rewritten independently)
+ //	0 otherwise (not touched)
+ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+-	if p.From3.Type != obj.TYPE_NONE {
++	if p.From3Type() != obj.TYPE_NONE {
+ 		// 7g never generates a from3
+-		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(&p.From3))
++		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(p.From3))
+ 	}
+ 	if p.RegTo2 != obj.REG_NONE {
+ 		// 7g never generates a to2
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 5ec4587e74..fe3ee4e77a 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -214,6 +214,7 @@ func ggloblnod(nam *Node) {
+ 	p.To.Sym = nil
+ 	p.To.Type = obj.TYPE_CONST
+ 	p.To.Offset = nam.Type.Width
++	p.From3 = new(obj.Addr)
+ 	if nam.Name.Readonly {
+ 		p.From3.Offset = obj.RODATA
+ 	}
+@@ -233,6 +234,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
+ 	}
+ 	p.To.Type = obj.TYPE_CONST
+ 	p.To.Offset = int64(width)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Offset = int64(flags)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 9bb334ca34..690582a162 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -286,6 +286,7 @@ func dstringptr(s *Sym, off int, str string) int {
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Sym = Linksym(s)
+ 	p.From.Offset = int64(off)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(Widthptr)
+ 
+@@ -334,6 +335,7 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Sym = Linksym(s)
+ 	p.From.Offset = int64(off)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(Widthptr)
+ 	datagostring(*lit, &p.To)
+@@ -350,6 +352,7 @@ func dsname(s *Sym, off int, t string) int {
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Offset = int64(off)
+ 	p.From.Sym = Linksym(s)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(len(t))
+ 
+@@ -366,6 +369,7 @@ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
+ 	p.From.Name = obj.NAME_EXTERN
+ 	p.From.Sym = Linksym(s)
+ 	p.From.Offset = int64(off)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(Widthptr)
+ 	p.To.Type = obj.TYPE_ADDR
+@@ -391,6 +395,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 	}
+ 
+ 	p := Thearch.Gins(obj.ADATA, nam, nr)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(wid)
+ }
+@@ -400,12 +405,14 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
+ 	w = int(Types[w].Width)
+ 
+ 	p := Thearch.Gins(obj.ADATA, nam, nil)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(w)
+ 	p.To.Type = obj.TYPE_FCONST
+ 	p.To.Val = mpgetflt(&cval.Real)
+ 
+ 	p = Thearch.Gins(obj.ADATA, nam, nil)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(w)
+ 	p.From.Offset += int64(w)
+@@ -418,6 +425,7 @@ func gdatastring(nam *Node, sval string) {
+ 
+ 	p := Thearch.Gins(obj.ADATA, nam, nil)
+ 	Datastring(sval, &p.To)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = Types[Tptr].Width
+ 	p.To.Type = obj.TYPE_ADDR
+@@ -427,6 +435,7 @@ func gdatastring(nam *Node, sval string) {
+ 	Nodconst(&nod1, Types[TINT], int64(len(sval)))
+ 
+ 	p = Thearch.Gins(obj.ADATA, nam, &nod1)
++	p.From3 = new(obj.Addr)
+ 	p.From3.Type = obj.TYPE_CONST
+ 	p.From3.Offset = int64(Widthint)
+ 	p.From.Offset += int64(Widthptr)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 5fb0776f3c..5428307769 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -413,6 +413,7 @@ func compile(fn *Node) {
+ 		nam = nil
+ 	}
+ 	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
++	ptxt.From3 = new(obj.Addr)
+ 	if fn.Func.Dupok {
+ 		ptxt.From3.Offset |= obj.DUPOK
+ 	}
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index afe95230c7..e3988f7eff 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -1119,7 +1119,7 @@ func regopt(firstp *obj.Prog) {
+ 
+ 		// Currently we never generate three register forms.
+ 		// If we do, this will need to change.
+-		if p.From3.Type != obj.TYPE_NONE {
++		if p.From3Type() != obj.TYPE_NONE {
+ 			Fatal("regopt not implemented for from3")
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ppc64/peep.go b/src/cmd/compile/internal/ppc64/peep.go
+index 16eeb39097..8c08b6ff6b 100644
+--- a/src/cmd/compile/internal/ppc64/peep.go
++++ b/src/cmd/compile/internal/ppc64/peep.go
+@@ -606,9 +606,9 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
+ // 	  can be rewritten independently)
+ //	0 otherwise (not touched)
+ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+-	if p.From3.Type != obj.TYPE_NONE {
++	if p.From3Type() != obj.TYPE_NONE {
+ 		// 9g never generates a from3
+-		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(&p.From3))
++		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(p.From3))
+ 	}
+ 
+ 	switch p.As {
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 9e643932be..53f08a3d5e 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2040,7 +2040,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		rt := int(p.To.Reg)
+ 		var r int
+ 		var ra int
+-		if p.From3.Type == obj.TYPE_REG {
++		if p.From3Type() == obj.TYPE_REG {
+ 			r = int(p.From3.Reg)
+ 			ra = int(p.Reg)
+ 			if ra == 0 {
+@@ -2091,7 +2091,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		r := int(p.Reg)
+ 		var rf int
+ 		if r != 0 {
+-			if p.From3.Type == obj.TYPE_NONE {
++			if p.From3Type() == obj.TYPE_NONE {
+ 				/* CINC/CINV/CNEG */
+ 				rf = r
+ 
+@@ -2348,7 +2348,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			ctxt.Diag("requires uimm16\n%v", p)
+ 		}
+ 		s := 0
+-		if p.From3.Type != obj.TYPE_NONE {
++		if p.From3Type() != obj.TYPE_NONE {
+ 			if p.From3.Type != obj.TYPE_CONST {
+ 				ctxt.Diag("missing bit position\n%v", p)
+ 			}
+@@ -2656,8 +2656,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			ctxt.Diag("implausible condition\n%v", p)
+ 		}
+ 		rf := int(p.Reg)
+-		if p.From3.Reg < REG_F0 || p.From3.Reg > REG_F31 {
++		if p.From3 == nil || p.From3.Reg < REG_F0 || p.From3.Reg > REG_F31 {
+ 			ctxt.Diag("illegal FCCMP\n%v", p)
++			break
+ 		}
+ 		rt := int(p.From3.Reg)
+ 		o1 |= uint32(rf&31)<<16 | uint32(cond)<<12 | uint32(rt&31)<<5 | uint32(nzcv)
+diff --git a/src/cmd/internal/obj/go.go b/src/cmd/internal/obj/go.go
+index 24ed07f94d..9c0264e22f 100644
+--- a/src/cmd/internal/obj/go.go
++++ b/src/cmd/internal/obj/go.go
+@@ -55,7 +55,7 @@ func Nopout(p *Prog) {
+ 	p.As = ANOP
+ 	p.Scond = 0
+ 	p.From = Addr{}
+-	p.From3 = Addr{}
++	p.From3 = nil
+ 	p.Reg = 0
+ 	p.To = Addr{}
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2fc12c1eb1..f7728bf080 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -204,7 +204,7 @@ type Prog struct {
+ 	Ctxt     *Link
+ 	Link     *Prog
+ 	From     Addr
+-	From3    Addr
++	From3    *Addr // optional
+ 	To       Addr
+ 	Opt      interface{}
+ 	Forwd    *Prog
+@@ -231,6 +231,14 @@ type Prog struct {
+ 	Info ProgInfo
+ }
+ 
++// From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
++func (p *Prog) From3Type() int16 {
++	if p.From3 == nil {
++		return TYPE_NONE
++	}
++	return p.From3.Type
++}
++
+ // ProgInfo holds information about the instruction for use
+ // by clients such as the compiler. The exact meaning of this
+ // data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index a74b35fb48..b92dfe23fb 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -157,7 +157,9 @@ func linkpatch(ctxt *Link, sym *LSym) {
+ 
+ 	for p := sym.Text; p != nil; p = p.Link {
+ 		checkaddr(ctxt, p, &p.From)
+-		checkaddr(ctxt, p, &p.From3)
++		if p.From3 != nil {
++			checkaddr(ctxt, p, p.From3)
++		}
+ 		checkaddr(ctxt, p, &p.To)
+ 
+ 		if ctxt.Arch.Progedit != nil {
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 0a92a2958b..16574d2407 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -724,10 +724,13 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	}
+ 
+ 	a1--
+-	a3 := int(p.From3.Class)
+-	if a3 == 0 {
+-		a3 = aclass(ctxt, &p.From3) + 1
+-		p.From3.Class = int8(a3)
++	a3 := C_NONE
++	if p.From3 != nil {
++		a3 = int(p.From3.Class)
++		if a3 == 0 {
++			a3 = aclass(ctxt, p.From3) + 1
++			p.From3.Class = int8(a3)
++		}
+ 	}
+ 
+ 	a3--
+@@ -1703,7 +1706,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == 0 {
+ 			r = int(p.To.Reg)
+ 		}
+-		d := vregoff(ctxt, &p.From3)
++		d := vregoff(ctxt, p.From3)
+ 		var mask [2]uint8
+ 		maskgen64(ctxt, p, mask[:], uint64(d))
+ 		var a int
+@@ -1916,7 +1919,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGTMP, uint32(v))
+ 
+ 	case 27: /* subc ra,$simm,rd => subfic rd,ra,$simm */
+-		v := regoff(ctxt, &p.From3)
++		v := regoff(ctxt, p.From3)
+ 
+ 		r := int(p.From.Reg)
+ 		o1 = AOP_IRR(uint32(opirr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(r), uint32(v))
+@@ -1925,7 +1928,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		if p.To.Reg == REGTMP || p.From.Reg == REGTMP {
+ 			ctxt.Diag("can't synthesize large constant\n%v", p)
+ 		}
+-		v := regoff(ctxt, &p.From3)
++		v := regoff(ctxt, p.From3)
+ 		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, uint32(v)>>16)
+ 		o2 = LOP_IRR(OP_ORI, REGTMP, REGTMP, uint32(v))
+ 		o3 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Reg), REGTMP)
+@@ -1938,7 +1941,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 29: /* rldic[lr]? $sh,s,$mask,a -- left, right, plain give different masks */
+ 		v := regoff(ctxt, &p.From)
+ 
+-		d := vregoff(ctxt, &p.From3)
++		d := vregoff(ctxt, p.From3)
+ 		var mask [2]uint8
+ 		maskgen64(ctxt, p, mask[:], uint64(d))
+ 		var a int
+@@ -1978,7 +1981,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 30: /* rldimi $sh,s,$mask,a */
+ 		v := regoff(ctxt, &p.From)
+ 
+-		d := vregoff(ctxt, &p.From3)
++		d := vregoff(ctxt, p.From3)
+ 		var mask [2]uint8
+ 		maskgen64(ctxt, p, mask[:], uint64(d))
+ 		if int32(mask[1]) != (63 - v) {
+@@ -2069,10 +2072,10 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = uint32(regoff(ctxt, &p.From))
+ 
+ 	case 41: /* stswi */
+-		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Reg), 0) | (uint32(regoff(ctxt, &p.From3))&0x7F)<<11
++		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Reg), 0) | (uint32(regoff(ctxt, p.From3))&0x7F)<<11
+ 
+ 	case 42: /* lswi */
+-		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Reg), 0) | (uint32(regoff(ctxt, &p.From3))&0x7F)<<11
++		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Reg), 0) | (uint32(regoff(ctxt, p.From3))&0x7F)<<11
+ 
+ 	case 43: /* unary indexed source: dcbf (b); dcbf (a+b) */
+ 		o1 = AOP_RRR(uint32(oprrr(ctxt, int(p.As))), 0, uint32(p.From.Index), uint32(p.From.Reg))
+@@ -2242,21 +2245,21 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		v := regoff(ctxt, &p.From)
+ 
+ 		var mask [2]uint8
+-		maskgen(ctxt, p, mask[:], uint32(regoff(ctxt, &p.From3)))
++		maskgen(ctxt, p, mask[:], uint32(regoff(ctxt, p.From3)))
+ 		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.Reg), uint32(p.To.Reg), uint32(v))
+ 		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+ 
+ 	case 63: /* rlwmi b,s,$mask,a */
+ 		var mask [2]uint8
+-		maskgen(ctxt, p, mask[:], uint32(regoff(ctxt, &p.From3)))
++		maskgen(ctxt, p, mask[:], uint32(regoff(ctxt, p.From3)))
+ 
+ 		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
+ 		o1 |= (uint32(mask[0])&31)<<6 | (uint32(mask[1])&31)<<1
+ 
+ 	case 64: /* mtfsf fr[, $m] {,fpcsr} */
+ 		var v int32
+-		if p.From3.Type != obj.TYPE_NONE {
+-			v = regoff(ctxt, &p.From3) & 255
++		if p.From3Type() != obj.TYPE_NONE {
++			v = regoff(ctxt, p.From3) & 255
+ 		} else {
+ 			v = 255
+ 		}
+@@ -2307,11 +2310,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 69: /* mtcrf CRM,rS */
+ 		var v int32
+-		if p.From3.Type != obj.TYPE_NONE {
++		if p.From3Type() != obj.TYPE_NONE {
+ 			if p.To.Reg != 0 {
+ 				ctxt.Diag("can't use both mask and CR(n)\n%v", p)
+ 			}
+-			v = regoff(ctxt, &p.From3) & 0xff
++			v = regoff(ctxt, p.From3) & 0xff
+ 		} else {
+ 			if p.To.Reg == 0 {
+ 				v = 0xff /* CR */
+@@ -2408,7 +2411,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 
+ func vregoff(ctxt *obj.Link, a *obj.Addr) int64 {
+ 	ctxt.Instoffset = 0
+-	aclass(ctxt, a)
++	if a != nil {
++		aclass(ctxt, a)
++	}
+ 	return ctxt.Instoffset
+ }
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index efecae62ac..0418d55e1c 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -315,12 +315,12 @@ func (p *Prog) String() string {
+ 		fmt.Fprintf(&buf, "%s%v", sep, Rconv(int(p.Reg)))
+ 		sep = ", "
+ 	}
+-	if p.From3.Type != TYPE_NONE {
++	if p.From3Type() != TYPE_NONE {
+ 		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
+ 			// Special case - omit $.
+ 			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
+ 		} else {
+-			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From3))
++			fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, p.From3))
+ 		}
+ 		sep = ", "
+ 	}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 2b9c2670df..bf1bfa98aa 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2945,6 +2945,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
+ 	// Change encoding generated by assemblers and compilers and remove.
+ 	if (p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_REG) && p.From.Index != REG_NONE && p.From.Scale == 0 {
++		p.From3 = new(obj.Addr)
+ 		p.From3.Type = obj.TYPE_REG
+ 		p.From3.Reg = p.From.Index
+ 		p.From.Index = 0
+@@ -2954,16 +2955,18 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 	// Change encoding generated by assemblers and compilers (if any) and remove.
+ 	switch p.As {
+ 	case AIMUL3Q, APEXTRW, APINSRW, APINSRD, APINSRQ, APSHUFHW, APSHUFL, APSHUFW, ASHUFPD, ASHUFPS, AAESKEYGENASSIST, APSHUFD, APCLMULQDQ:
+-		if p.From3.Type == obj.TYPE_NONE {
+-			p.From3 = p.From
++		if p.From3Type() == obj.TYPE_NONE {
++			p.From3 = new(obj.Addr)
++			*p.From3 = p.From
+ 			p.From = obj.Addr{}
+ 			p.From.Type = obj.TYPE_CONST
+ 			p.From.Offset = p.To.Offset
+ 			p.To.Offset = 0
+ 		}
+ 	case ACMPSD, ACMPSS, ACMPPS, ACMPPD:
+-		if p.From3.Type == obj.TYPE_NONE {
+-			p.From3 = p.To
++		if p.From3Type() == obj.TYPE_NONE {
++			p.From3 = new(obj.Addr)
++			*p.From3 = p.To
+ 			p.To = obj.Addr{}
+ 			p.To.Type = obj.TYPE_CONST
+ 			p.To.Offset = p.From3.Offset
+@@ -2979,7 +2982,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	ft := int(p.Ft) * Ymax
+-	f3t := oclass(ctxt, p, &p.From3) * Ymax
++	f3t := Ynone * Ymax
++	if p.From3 != nil {
++		f3t = oclass(ctxt, p, p.From3) * Ymax
++	}
+ 	tt := int(p.Tt) * Ymax
+ 
+ 	xo := obj.Bool2int(o.op[0] == 0x0f)
+@@ -3153,7 +3159,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 			case Zm_r_i_xm:
+ 				mediaop(ctxt, o, op, int(yt.zoffset), z)
+-				asmand(ctxt, p, &p.From, &p.From3)
++				asmand(ctxt, p, &p.From, p.From3)
+ 				ctxt.Andptr[0] = byte(p.To.Offset)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+@@ -3177,7 +3183,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 					ctxt.Andptr[0] = byte(op)
+ 					ctxt.Andptr = ctxt.Andptr[1:]
+ 				}
+-				asmand(ctxt, p, &p.From3, &p.To)
++				asmand(ctxt, p, p.From3, &p.To)
+ 				ctxt.Andptr[0] = byte(p.From.Offset)
+ 				ctxt.Andptr = ctxt.Andptr[1:]
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 4798c8f7fb..4a4785eb4b 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -209,7 +209,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 
+ 	if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
+-		nacladdr(ctxt, p, &p.From3)
++		if p.From3 != nil {
++			nacladdr(ctxt, p, p.From3)
++		}
+ 		nacladdr(ctxt, p, &p.From)
+ 		nacladdr(ctxt, p, &p.To)
+ 	}
+@@ -347,7 +349,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 				p.From.Offset = 0
+ 			}
+ 		}
+-		if p.From3.Name == obj.NAME_EXTERN {
++		if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+ 			ctxt.Diag("don't know how to handle %v with -dynlink", p)
+ 		}
+ 		var source *obj.Addr
+@@ -715,12 +717,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		if a == obj.NAME_PARAM {
+ 			p.From.Offset += int64(deltasp) + int64(pcsize)
+ 		}
+-		a = int(p.From3.Name)
+-		if a == obj.NAME_AUTO {
+-			p.From3.Offset += int64(deltasp) - int64(bpsize)
+-		}
+-		if a == obj.NAME_PARAM {
+-			p.From3.Offset += int64(deltasp) + int64(pcsize)
++		if p.From3 != nil {
++			a = int(p.From3.Name)
++			if a == obj.NAME_AUTO {
++				p.From3.Offset += int64(deltasp) - int64(bpsize)
++			}
++			if a == obj.NAME_PARAM {
++				p.From3.Offset += int64(deltasp) + int64(pcsize)
++			}
+ 		}
+ 		a = int(p.To.Name)
+ 		if a == obj.NAME_AUTO {
+diff --git a/src/cmd/old5a/a.y b/src/cmd/old5a/a.y
+index 0ef8ae904c..c2248750ac 100644
+--- a/src/cmd/old5a/a.y
++++ b/src/cmd/old5a/a.y
+@@ -221,12 +221,16 @@ inst:
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode($1, Always, &$2, 0, &$5);
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}
+ 	}
+ |	LTYPEB name ',' con ',' '$' textsize
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode($1, Always, &$2, 0, &$7);
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST;
+ 			lastpc.From3.Offset = int64($4)
+ 		}
+@@ -238,12 +242,16 @@ inst:
+ 	{
+ 		asm.Settext($2.Sym)
+ 		outcode($1, Always, &$2, 0, &$4)
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}
+ 	}
+ |	LGLOBL name ',' con ',' imm
+ 	{
+ 		asm.Settext($2.Sym)
+ 		outcode($1, Always, &$2, 0, &$6)
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = int64($4)
+ 		}
+@@ -256,6 +264,7 @@ inst:
+ 	{
+ 		outcode($1, Always, &$2, 0, &$6)
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = int64($4)
+ 		}
+diff --git a/src/cmd/old5a/y.go b/src/cmd/old5a/y.go
+index 9f5988f8d7..9ce17160b8 100644
+--- a/src/cmd/old5a/y.go
++++ b/src/cmd/old5a/y.go
+@@ -70,7 +70,10 @@ const LNAME = 57392
+ const LLAB = 57393
+ const LVAR = 57394
+ 
+-var yyToknames = []string{
++var yyToknames = [...]string{
++	"$end",
++	"error",
++	"$unk",
+ 	"'|'",
+ 	"'^'",
+ 	"'&'",
+@@ -130,15 +133,25 @@ var yyToknames = []string{
+ 	"LNAME",
+ 	"LLAB",
+ 	"LVAR",
++	"':'",
++	"'='",
++	"';'",
++	"','",
++	"'['",
++	"']'",
++	"'$'",
++	"'('",
++	"')'",
++	"'~'",
+ }
+-var yyStatenames = []string{}
++var yyStatenames = [...]string{}
+ 
+ const yyEofCode = 1
+ const yyErrCode = 2
+ const yyMaxDepth = 200
+ 
+ //line yacctab:1
+-var yyExca = []int{
++var yyExca = [...]int{
+ 	-1, 1,
+ 	1, -1,
+ 	-2, 2,
+@@ -155,7 +168,7 @@ var yyStates []string
+ 
+ const yyLast = 708
+ 
+-var yyAct = []int{
++var yyAct = [...]int{
+ 
+ 	125, 328, 259, 73, 202, 79, 85, 106, 91, 195,
+ 	3, 129, 84, 115, 75, 72, 338, 324, 278, 136,
+@@ -229,7 +242,7 @@ var yyAct = []int{
+ 	171, 172, 173, 176, 174, 175, 169, 170, 171, 172,
+ 	173, 174, 175, 169, 170, 171, 172, 173,
+ }
+-var yyPact = []int{
++var yyPact = [...]int{
+ 
+ 	-1000, -1000, 368, -1000, 174, 140, -1000, 109, 73, -1000,
+ 	-1000, -1000, -1000, 84, 84, -1000, -1000, -1000, -1000, -1000,
+@@ -267,14 +280,14 @@ var yyPact = []int{
+ 	-5, 295, -1000, 201, 400, -55, 57, 18, -1000, -1000,
+ 	400, -1000, 679,
+ }
+-var yyPgo = []int{
++var yyPgo = [...]int{
+ 
+ 	0, 212, 19, 424, 4, 11, 8, 0, 1, 18,
+ 	640, 9, 21, 13, 20, 423, 6, 323, 120, 421,
+ 	2, 7, 5, 15, 12, 14, 420, 3, 369, 417,
+ 	414, 10, 375, 374, 80,
+ }
+-var yyR1 = []int{
++var yyR1 = [...]int{
+ 
+ 	0, 29, 30, 29, 32, 31, 31, 31, 31, 31,
+ 	31, 33, 33, 33, 33, 33, 33, 33, 33, 33,
+@@ -291,7 +304,7 @@ var yyR1 = []int{
+ 	1, 3, 3, 2, 2, 2, 2, 2, 2, 2,
+ 	2, 2, 2, 2,
+ }
+-var yyR2 = []int{
++var yyR2 = [...]int{
+ 
+ 	0, 0, 0, 3, 0, 4, 4, 4, 1, 2,
+ 	2, 7, 6, 5, 5, 5, 4, 4, 3, 3,
+@@ -308,7 +321,7 @@ var yyR2 = []int{
+ 	3, 0, 2, 1, 3, 3, 3, 3, 3, 4,
+ 	4, 3, 3, 3,
+ }
+-var yyChk = []int{
++var yyChk = [...]int{
+ 
+ 	-1000, -29, -30, -31, 60, 62, 65, -33, 2, 14,
+ 	15, 16, 17, 36, 18, 19, 20, 21, 22, 23,
+@@ -346,7 +359,7 @@ var yyChk = []int{
+ 	50, 66, -7, 66, 70, -7, -8, -2, 71, -3,
+ 	66, 71, -2,
+ }
+-var yyDef = []int{
++var yyDef = [...]int{
+ 
+ 	1, -2, 0, 3, 0, 0, 8, 0, 0, 50,
+ 	50, 50, 50, 53, 53, 50, 50, 50, 50, 50,
+@@ -384,7 +397,7 @@ var yyDef = []int{
+ 	0, 0, 41, 0, 0, 0, 121, 0, 88, 39,
+ 	0, 101, 122,
+ }
+-var yyTok1 = []int{
++var yyTok1 = [...]int{
+ 
+ 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+@@ -400,7 +413,7 @@ var yyTok1 = []int{
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 4, 3, 72,
+ }
+-var yyTok2 = []int{
++var yyTok2 = [...]int{
+ 
+ 	2, 3, 14, 15, 16, 17, 18, 19, 20, 21,
+ 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+@@ -409,15 +422,24 @@ var yyTok2 = []int{
+ 	52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
+ 	62,
+ }
+-var yyTok3 = []int{
++var yyTok3 = [...]int{
+ 	0,
+ }
+ 
++var yyErrorMessages = [...]struct {
++	state int
++	token int
++	msg   string
++}{}
++
+ //line yaccpar:1
+ 
+ /*	parser for yacc output	*/
+ 
+-var yyDebug = 0
++var (
++	yyDebug        = 0
++	yyErrorVerbose = false
++)
+ 
+ type yyLexer interface {
+ 	Lex(lval *yySymType) int
+@@ -447,10 +469,9 @@ func yyNewParser() yyParser {
+ const yyFlag = -1000
+ 
+ func yyTokname(c int) string {
+-	// 4 is TOKSTART above
+-	if c >= 4 && c-4 < len(yyToknames) {
+-		if yyToknames[c-4] != "" {
+-			return yyToknames[c-4]
++	if c >= 1 && c-1 < len(yyToknames) {
++		if yyToknames[c-1] != "" {
++			return yyToknames[c-1]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)
+@@ -465,6 +486,70 @@ func yyStatname(s int) string {
+ 	return __yyfmt__.Sprintf("state-%v", s)
+ }
+ 
++func yyErrorMessage(state, lookAhead int) string {
++	const TOKSTART = 4
++
++	if !yyErrorVerbose {
++		return "syntax error"
++	}
++
++	for _, e := range yyErrorMessages {
++		if e.state == state && e.token == lookAhead {
++			return "syntax error: " + e.msg
++		}
++	}
++
++	res := "syntax error: unexpected " + yyTokname(lookAhead)
++
++	// To match Bison, suggest at most four expected tokens.
++	expected := make([]int, 0, 4)
++
++	// Look for shiftable tokens.
++	base := yyPact[state]
++	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
++		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++	}
++
++	if yyDef[state] == -2 {
++		i := 0
++		for yyExca[i] != -1 || yyExca[i+1] != state {
++			i += 2
++		}
++
++		// Look for tokens that we accept or reduce.
++		for i += 2; yyExca[i] >= 0; i += 2 {
++			tok := yyExca[i]
++			if tok < TOKSTART || yyExca[i+1] == 0 {
++				continue
++			}
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++
++		// If the default action is to accept or reduce, give up.
++		if yyExca[i+1] != 0 {
++			return res
++		}
++	}
++
++	for i, tok := range expected {
++		if i == 0 {
++			res += ", expecting "
++		} else {
++			res += " or "
++		}
++		res += yyTokname(tok)
++	}
++	return res
++}
++
+ func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
+ 	token = 0
+ 	char = lex.Lex(lval)
+@@ -519,6 +604,7 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
+ 	yyrcvr.lookahead = func() int { return yychar }
+ 	defer func() {
+ 		// Make sure we report no lookahead when not parsing.
++		yystate = -1
+ 		yychar = -1
+ 		yytoken = -1
+ 	}()
+@@ -601,7 +687,7 @@ yydefault:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			yylex.Error("syntax error")
++			yylex.Error(yyErrorMessage(yystate, yytoken))
+ 			Nerrs++
+ 			if yyDebug >= 1 {
+ 				__yyfmt__.Printf("%s", yyStatname(yystate))
+@@ -838,77 +924,80 @@ yydefault:
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(yyDollar[1].lval, Always, &yyDollar[2].addr, 0, &yyDollar[7].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = int64(yyDollar[4].lval)
+ 			}
+ 		}
+ 	case 30:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:238
++		//line a.y:239
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(yyDollar[1].lval, Always, &yyDollar[2].addr, 0, &yyDollar[4].addr)
+ 		}
+ 	case 31:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:243
++		//line a.y:244
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(yyDollar[1].lval, Always, &yyDollar[2].addr, 0, &yyDollar[6].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = int64(yyDollar[4].lval)
+ 			}
+ 		}
+ 	case 32:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:256
++		//line a.y:258
+ 		{
+ 			outcode(yyDollar[1].lval, Always, &yyDollar[2].addr, 0, &yyDollar[6].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = int64(yyDollar[4].lval)
+ 			}
+ 		}
+ 	case 33:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:267
++		//line a.y:270
+ 		{
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, 0, &nullgen)
+ 		}
+ 	case 34:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:274
++		//line a.y:277
+ 		{
+ 			outcode(yyDollar[1].lval, Always, &nullgen, 0, &yyDollar[3].addr)
+ 		}
+ 	case 35:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:281
++		//line a.y:284
+ 		{
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, 0, &yyDollar[5].addr)
+ 		}
+ 	case 36:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:285
++		//line a.y:288
+ 		{
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, 0, &yyDollar[5].addr)
+ 		}
+ 	case 37:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:289
++		//line a.y:292
+ 		{
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, yyDollar[5].lval, &yyDollar[7].addr)
+ 		}
+ 	case 38:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:293
++		//line a.y:296
+ 		{
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, int32(yyDollar[5].addr.Reg), &nullgen)
+ 		}
+ 	case 39:
+ 		yyDollar = yyS[yypt-12 : yypt+1]
+-		//line a.y:300
++		//line a.y:303
+ 		{
+ 			var g obj.Addr
+ 
+@@ -929,13 +1018,13 @@ yydefault:
+ 		}
+ 	case 40:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:312
++		//line a.y:315
+ 		{
+ 			outcode(yyDollar[1].lval, yyDollar[2].lval, &yyDollar[3].addr, int32(yyDollar[5].addr.Reg), &yyDollar[7].addr)
+ 		}
+ 	case 41:
+ 		yyDollar = yyS[yypt-9 : yypt+1]
+-		//line a.y:320
++		//line a.y:323
+ 		{
+ 			yyDollar[7].addr.Type = obj.TYPE_REGREG2
+ 			yyDollar[7].addr.Offset = int64(yyDollar[9].lval)
+@@ -943,13 +1032,13 @@ yydefault:
+ 		}
+ 	case 42:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:329
++		//line a.y:332
+ 		{
+ 			outcode(yyDollar[1].lval, Always, &yyDollar[2].addr, 0, &nullgen)
+ 		}
+ 	case 43:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:336
++		//line a.y:339
+ 		{
+ 			if yyDollar[2].addr.Type != obj.TYPE_CONST || yyDollar[4].addr.Type != obj.TYPE_CONST {
+ 				yyerror("arguments to PCDATA must be integer constants")
+@@ -958,7 +1047,7 @@ yydefault:
+ 		}
+ 	case 44:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:346
++		//line a.y:349
+ 		{
+ 			if yyDollar[2].addr.Type != obj.TYPE_CONST {
+ 				yyerror("index for FUNCDATA must be integer constant")
+@@ -970,13 +1059,13 @@ yydefault:
+ 		}
+ 	case 45:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:359
++		//line a.y:362
+ 		{
+ 			outcode(yyDollar[1].lval, Always, &nullgen, 0, &nullgen)
+ 		}
+ 	case 46:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:365
++		//line a.y:368
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -985,7 +1074,7 @@ yydefault:
+ 		}
+ 	case 47:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:372
++		//line a.y:375
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -994,7 +1083,7 @@ yydefault:
+ 		}
+ 	case 48:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:379
++		//line a.y:382
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1003,7 +1092,7 @@ yydefault:
+ 		}
+ 	case 49:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:386
++		//line a.y:389
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1012,25 +1101,25 @@ yydefault:
+ 		}
+ 	case 50:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:394
++		//line a.y:397
+ 		{
+ 			yyVAL.lval = Always
+ 		}
+ 	case 51:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:398
++		//line a.y:401
+ 		{
+ 			yyVAL.lval = (yyDollar[1].lval & ^C_SCOND) | yyDollar[2].lval
+ 		}
+ 	case 52:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:402
++		//line a.y:405
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval | yyDollar[2].lval
+ 		}
+ 	case 55:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:411
++		//line a.y:414
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_BRANCH
+@@ -1038,7 +1127,7 @@ yydefault:
+ 		}
+ 	case 56:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:417
++		//line a.y:420
+ 		{
+ 			yyDollar[1].sym = asm.LabelLookup(yyDollar[1].sym)
+ 			yyVAL.addr = nullgen
+@@ -1050,7 +1139,7 @@ yydefault:
+ 		}
+ 	case 57:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:428
++		//line a.y:431
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_CONST
+@@ -1058,24 +1147,22 @@ yydefault:
+ 		}
+ 	case 58:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:434
++		//line a.y:437
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 			yyVAL.addr.Type = obj.TYPE_ADDR
+ 		}
+ 	case 59:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:439
++		//line a.y:442
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+ 			yyVAL.addr.Val = yyDollar[2].sval
+ 		}
+-	case 60:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 61:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:448
++		//line a.y:451
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1083,7 +1170,7 @@ yydefault:
+ 		}
+ 	case 62:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:454
++		//line a.y:457
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1091,13 +1178,13 @@ yydefault:
+ 		}
+ 	case 63:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:462
++		//line a.y:465
+ 		{
+ 			yyVAL.lval = 1 << uint(yyDollar[1].lval&15)
+ 		}
+ 	case 64:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:466
++		//line a.y:469
+ 		{
+ 			yyVAL.lval = 0
+ 			for i := yyDollar[1].lval; i <= yyDollar[3].lval; i++ {
+@@ -1109,26 +1196,20 @@ yydefault:
+ 		}
+ 	case 65:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:476
++		//line a.y:479
+ 		{
+ 			yyVAL.lval = (1 << uint(yyDollar[1].lval&15)) | yyDollar[3].lval
+ 		}
+-	case 66:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 67:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 68:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 69:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:485
++		//line a.y:488
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 			yyVAL.addr.Reg = int16(yyDollar[3].lval)
+ 		}
+ 	case 70:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:490
++		//line a.y:493
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1136,7 +1217,7 @@ yydefault:
+ 		}
+ 	case 71:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:496
++		//line a.y:499
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1144,21 +1225,15 @@ yydefault:
+ 		}
+ 	case 72:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:502
++		//line a.y:505
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+ 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
+ 		}
+-	case 73:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 74:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 75:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 76:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:513
++		//line a.y:516
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 			if yyDollar[1].addr.Name != obj.NAME_EXTERN && yyDollar[1].addr.Name != obj.NAME_STATIC {
+@@ -1166,45 +1241,33 @@ yydefault:
+ 		}
+ 	case 77:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:521
++		//line a.y:524
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+ 			yyVAL.addr.Reg = int16(yyDollar[2].lval)
+ 			yyVAL.addr.Offset = 0
+ 		}
+-	case 78:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 79:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:531
++		//line a.y:534
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+ 			yyVAL.addr.Reg = int16(yyDollar[3].lval)
+ 			yyVAL.addr.Offset = int64(yyDollar[1].lval)
+ 		}
+-	case 80:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 81:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:541
++		//line a.y:544
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+ 			yyVAL.addr.Reg = int16(yyDollar[3].lval)
+ 		}
+-	case 82:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 83:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 84:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 85:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 86:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:554
++		//line a.y:557
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_CONST
+@@ -1212,7 +1275,7 @@ yydefault:
+ 		}
+ 	case 87:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:562
++		//line a.y:565
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1220,7 +1283,7 @@ yydefault:
+ 		}
+ 	case 88:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:570
++		//line a.y:573
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REGREG
+@@ -1229,7 +1292,7 @@ yydefault:
+ 		}
+ 	case 89:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:579
++		//line a.y:582
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SHIFT
+@@ -1237,7 +1300,7 @@ yydefault:
+ 		}
+ 	case 90:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:585
++		//line a.y:588
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SHIFT
+@@ -1245,7 +1308,7 @@ yydefault:
+ 		}
+ 	case 91:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:591
++		//line a.y:594
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SHIFT
+@@ -1253,7 +1316,7 @@ yydefault:
+ 		}
+ 	case 92:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:597
++		//line a.y:600
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SHIFT
+@@ -1261,7 +1324,7 @@ yydefault:
+ 		}
+ 	case 93:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:605
++		//line a.y:608
+ 		{
+ 			if yyVAL.lval < REG_R0 || yyVAL.lval > REG_R15 {
+ 				print("register value out of range\n")
+@@ -1270,56 +1333,46 @@ yydefault:
+ 		}
+ 	case 94:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:612
++		//line a.y:615
+ 		{
+ 			if yyVAL.lval < 0 || yyVAL.lval >= 32 {
+ 				print("shift value out of range\n")
+ 			}
+ 			yyVAL.lval = (yyDollar[1].lval & 31) << 7
+ 		}
+-	case 95:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 96:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:622
++		//line a.y:625
+ 		{
+ 			yyVAL.lval = REGPC
+ 		}
+ 	case 97:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:626
++		//line a.y:629
+ 		{
+ 			if yyDollar[3].lval < 0 || yyDollar[3].lval >= NREG {
+ 				print("register value out of range\n")
+ 			}
+ 			yyVAL.lval = REG_R0 + yyDollar[3].lval
+ 		}
+-	case 98:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 99:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:636
++		//line a.y:639
+ 		{
+ 			yyVAL.lval = REGSP
+ 		}
+-	case 100:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 101:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:643
++		//line a.y:646
+ 		{
+ 			if yyDollar[3].lval < 0 || yyDollar[3].lval >= NREG {
+ 				print("register value out of range\n")
+ 			}
+ 			yyVAL.lval = yyDollar[3].lval // TODO(rsc): REG_C0+$3
+ 		}
+-	case 102:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 103:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 104:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:656
++		//line a.y:659
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1327,7 +1380,7 @@ yydefault:
+ 		}
+ 	case 105:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:662
++		//line a.y:665
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1335,7 +1388,7 @@ yydefault:
+ 		}
+ 	case 106:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:670
++		//line a.y:673
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1345,7 +1398,7 @@ yydefault:
+ 		}
+ 	case 107:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:678
++		//line a.y:681
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1355,7 +1408,7 @@ yydefault:
+ 		}
+ 	case 108:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:686
++		//line a.y:689
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1365,131 +1418,121 @@ yydefault:
+ 		}
+ 	case 109:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:695
++		//line a.y:698
+ 		{
+ 			yyVAL.lval = 0
+ 		}
+ 	case 110:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:699
++		//line a.y:702
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 111:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:703
++		//line a.y:706
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+-	case 112:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 113:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 114:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 115:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 116:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:715
++		//line a.y:718
+ 		{
+ 			yyVAL.lval = int32(yyDollar[1].sym.Value)
+ 		}
+ 	case 117:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:719
++		//line a.y:722
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+ 	case 118:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:723
++		//line a.y:726
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 119:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:727
++		//line a.y:730
+ 		{
+ 			yyVAL.lval = ^yyDollar[2].lval
+ 		}
+ 	case 120:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:731
++		//line a.y:734
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 121:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:736
++		//line a.y:739
+ 		{
+ 			yyVAL.lval = 0
+ 		}
+ 	case 122:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:740
++		//line a.y:743
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+-	case 123:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 124:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:747
++		//line a.y:750
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval + yyDollar[3].lval
+ 		}
+ 	case 125:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:751
++		//line a.y:754
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval - yyDollar[3].lval
+ 		}
+ 	case 126:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:755
++		//line a.y:758
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval * yyDollar[3].lval
+ 		}
+ 	case 127:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:759
++		//line a.y:762
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval / yyDollar[3].lval
+ 		}
+ 	case 128:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:763
++		//line a.y:766
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval % yyDollar[3].lval
+ 		}
+ 	case 129:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:767
++		//line a.y:770
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval << uint(yyDollar[4].lval)
+ 		}
+ 	case 130:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:771
++		//line a.y:774
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval >> uint(yyDollar[4].lval)
+ 		}
+ 	case 131:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:775
++		//line a.y:778
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval & yyDollar[3].lval
+ 		}
+ 	case 132:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:779
++		//line a.y:782
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval ^ yyDollar[3].lval
+ 		}
+ 	case 133:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:783
++		//line a.y:786
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval | yyDollar[3].lval
+ 		}
+diff --git a/src/cmd/old6a/a.y b/src/cmd/old6a/a.y
+index 46da420c96..93944f93ab 100644
+--- a/src/cmd/old6a/a.y
++++ b/src/cmd/old6a/a.y
+@@ -196,6 +196,7 @@ spec1:	/* DATA */
+ 		a.to = $6
+ 		outcode(obj.ADATA, &a)
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -206,12 +207,16 @@ spec2:	/* TEXT */
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(obj.ATEXT, &Addr2{from: $2, to: $5})
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}	
+ 	}
+ |	LTYPET mem ',' con ',' '$' textsize
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(obj.ATEXT, &Addr2{from: $2, to: $7})
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -222,12 +227,16 @@ spec11:	/* GLOBL */
+ 	{
+ 		asm.Settext($2.Sym)
+ 		outcode(obj.AGLOBL, &Addr2{from: $2, to: $4})
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}	
+ 	}
+ |	LTYPEG mem ',' con ',' imm
+ 	{
+ 		asm.Settext($2.Sym)
+ 		outcode(obj.AGLOBL, &Addr2{from: $2, to: $6})
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+diff --git a/src/cmd/old6a/lex.go b/src/cmd/old6a/lex.go
+index c228ac7696..94312ae9ed 100644
+--- a/src/cmd/old6a/lex.go
++++ b/src/cmd/old6a/lex.go
+@@ -960,7 +960,10 @@ func outcode(a int, g2 *Addr2) {
+ 	p.As = int16(a)
+ 	p.Lineno = stmtline
+ 	p.From = g2.from
+-	p.From3 = g2.from3
++	if g2.from3.Type != 0 {
++		p.From3 = new(obj.Addr)
++		*p.From3 = g2.from3
++	}
+ 	p.To = g2.to
+ 	p.Pc = int64(asm.PC)
+ 
+diff --git a/src/cmd/old6a/y.go b/src/cmd/old6a/y.go
+index 5738c5666b..9a3cf6a333 100644
+--- a/src/cmd/old6a/y.go
++++ b/src/cmd/old6a/y.go
+@@ -57,7 +57,10 @@ const LNAME = 57378
+ const LLAB = 57379
+ const LVAR = 57380
+ 
+-var yyToknames = []string{
++var yyToknames = [...]string{
++	"$end",
++	"error",
++	"$unk",
+ 	"'|'",
+ 	"'^'",
+ 	"'&'",
+@@ -103,15 +106,23 @@ var yyToknames = []string{
+ 	"LNAME",
+ 	"LLAB",
+ 	"LVAR",
++	"':'",
++	"';'",
++	"'='",
++	"','",
++	"'$'",
++	"'('",
++	"')'",
++	"'~'",
+ }
+-var yyStatenames = []string{}
++var yyStatenames = [...]string{}
+ 
+ const yyEofCode = 1
+ const yyErrCode = 2
+ const yyMaxDepth = 200
+ 
+ //line yacctab:1
+-var yyExca = []int{
++var yyExca = [...]int{
+ 	-1, 1,
+ 	1, -1,
+ 	-2, 2,
+@@ -125,7 +136,7 @@ var yyStates []string
+ 
+ const yyLast = 593
+ 
+-var yyAct = []int{
++var yyAct = [...]int{
+ 
+ 	52, 227, 41, 3, 80, 208, 269, 64, 123, 50,
+ 	51, 79, 54, 170, 268, 74, 267, 118, 85, 72,
+@@ -188,7 +199,7 @@ var yyAct = []int{
+ 	162, 156, 157, 158, 159, 160, 161, 162, 156, 157,
+ 	158, 159, 160,
+ }
+-var yyPact = []int{
++var yyPact = [...]int{
+ 
+ 	-1000, -1000, 250, -1000, 72, -1000, 74, 67, 65, 61,
+ 	374, 294, 294, 394, 159, -1000, -1000, 274, 354, 294,
+@@ -218,14 +229,14 @@ var yyPact = []int{
+ 	-1000, 215, 199, -1000, 502, -1000, -34, -1000, 155, -1000,
+ 	502, 502, -39, -1000, -1000, -41, -49, -1000, -1000, -1000,
+ }
+-var yyPgo = []int{
++var yyPgo = [...]int{
+ 
+ 	0, 0, 17, 324, 8, 202, 7, 1, 2, 12,
+ 	4, 96, 43, 11, 9, 10, 208, 323, 198, 321,
+ 	318, 317, 310, 309, 308, 306, 305, 302, 301, 299,
+ 	297, 263, 254, 253, 3, 250, 249, 248, 247, 245,
+ }
+-var yyR1 = []int{
++var yyR1 = [...]int{
+ 
+ 	0, 32, 33, 32, 35, 34, 34, 34, 34, 36,
+ 	36, 36, 36, 36, 36, 36, 36, 36, 36, 36,
+@@ -242,7 +253,7 @@ var yyR1 = []int{
+ 	7, 7, 2, 2, 2, 2, 2, 2, 2, 2,
+ 	2, 2, 2,
+ }
+-var yyR2 = []int{
++var yyR2 = [...]int{
+ 
+ 	0, 0, 0, 3, 0, 4, 1, 2, 2, 3,
+ 	3, 2, 2, 2, 2, 2, 2, 1, 1, 2,
+@@ -259,7 +270,7 @@ var yyR2 = []int{
+ 	3, 4, 1, 3, 3, 3, 3, 3, 4, 4,
+ 	3, 3, 3,
+ }
+-var yyChk = []int{
++var yyChk = [...]int{
+ 
+ 	-1000, -32, -33, -34, 46, 50, -36, 2, 48, 14,
+ 	15, 16, 17, 18, 22, -37, -38, 19, 21, 26,
+@@ -289,7 +300,7 @@ var yyChk = []int{
+ 	-6, 38, 39, 55, 11, 55, 36, 33, 10, -7,
+ 	11, 11, -1, 55, 33, -1, -1, 55, 55, 55,
+ }
+-var yyDef = []int{
++var yyDef = [...]int{
+ 
+ 	1, -2, 0, 3, 0, 6, 0, 0, 0, 30,
+ 	0, 0, 0, 0, 0, 17, 18, 0, 30, 0,
+@@ -319,7 +330,7 @@ var yyDef = []int{
+ 	45, 0, 0, 95, 0, 103, 0, 120, 0, 43,
+ 	0, 0, 0, 105, 121, 0, 0, 101, 96, 97,
+ }
+-var yyTok1 = []int{
++var yyTok1 = [...]int{
+ 
+ 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+@@ -335,22 +346,31 @@ var yyTok1 = []int{
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 4, 3, 56,
+ }
+-var yyTok2 = []int{
++var yyTok2 = [...]int{
+ 
+ 	2, 3, 14, 15, 16, 17, 18, 19, 20, 21,
+ 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+ 	32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+ 	42, 43, 44, 45, 46, 47, 48,
+ }
+-var yyTok3 = []int{
++var yyTok3 = [...]int{
+ 	0,
+ }
+ 
++var yyErrorMessages = [...]struct {
++	state int
++	token int
++	msg   string
++}{}
++
+ //line yaccpar:1
+ 
+ /*	parser for yacc output	*/
+ 
+-var yyDebug = 0
++var (
++	yyDebug        = 0
++	yyErrorVerbose = false
++)
+ 
+ type yyLexer interface {
+ 	Lex(lval *yySymType) int
+@@ -380,10 +400,9 @@ func yyNewParser() yyParser {
+ const yyFlag = -1000
+ 
+ func yyTokname(c int) string {
+-	// 4 is TOKSTART above
+-	if c >= 4 && c-4 < len(yyToknames) {
+-		if yyToknames[c-4] != "" {
+-			return yyToknames[c-4]
++	if c >= 1 && c-1 < len(yyToknames) {
++		if yyToknames[c-1] != "" {
++			return yyToknames[c-1]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)
+@@ -398,6 +417,70 @@ func yyStatname(s int) string {
+ 	return __yyfmt__.Sprintf("state-%v", s)
+ }
+ 
++func yyErrorMessage(state, lookAhead int) string {
++	const TOKSTART = 4
++
++	if !yyErrorVerbose {
++		return "syntax error"
++	}
++
++	for _, e := range yyErrorMessages {
++		if e.state == state && e.token == lookAhead {
++			return "syntax error: " + e.msg
++		}
++	}
++
++	res := "syntax error: unexpected " + yyTokname(lookAhead)
++
++	// To match Bison, suggest at most four expected tokens.
++	expected := make([]int, 0, 4)
++
++	// Look for shiftable tokens.
++	base := yyPact[state]
++	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
++		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++	}
++
++	if yyDef[state] == -2 {
++		i := 0
++		for yyExca[i] != -1 || yyExca[i+1] != state {
++			i += 2
++		}
++
++		// Look for tokens that we accept or reduce.
++		for i += 2; yyExca[i] >= 0; i += 2 {
++			tok := yyExca[i]
++			if tok < TOKSTART || yyExca[i+1] == 0 {
++				continue
++			}
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++
++		// If the default action is to accept or reduce, give up.
++		if yyExca[i+1] != 0 {
++			return res
++		}
++	}
++
++	for i, tok := range expected {
++		if i == 0 {
++			res += ", expecting "
++		} else {
++			res += " or "
++		}
++		res += yyTokname(tok)
++	}
++	return res
++}
++
+ func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
+ 	token = 0
+ 	char = lex.Lex(lval)
+@@ -452,6 +535,7 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
+ 	yyrcvr.lookahead = func() int { return yychar }
+ 	defer func() {
+ 		// Make sure we report no lookahead when not parsing.
++		yystate = -1
+ 		yychar = -1
+ 		yytoken = -1
+ 	}()
+@@ -534,7 +618,7 @@ yydefault:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			yylex.Error("syntax error")
++			yylex.Error(yyErrorMessage(yystate, yytoken))
+ 			Nerrs++
+ 			if yyDebug >= 1 {
+ 				__yyfmt__.Printf("%s", yyStatname(yystate))
+@@ -827,74 +911,79 @@ yydefault:
+ 			a.to = yyDollar[6].addr
+ 			outcode(obj.ADATA, &a)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 42:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:206
++		//line a.y:207
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.ATEXT, &Addr2{from: yyDollar[2].addr, to: yyDollar[5].addr})
++			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
++			}
+ 		}
+ 	case 43:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:211
++		//line a.y:215
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.ATEXT, &Addr2{from: yyDollar[2].addr, to: yyDollar[7].addr})
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 44:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:222
++		//line a.y:227
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.AGLOBL, &Addr2{from: yyDollar[2].addr, to: yyDollar[4].addr})
++			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
++			}
+ 		}
+ 	case 45:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:227
++		//line a.y:235
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.AGLOBL, &Addr2{from: yyDollar[2].addr, to: yyDollar[6].addr})
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 46:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:238
++		//line a.y:247
+ 		{
+ 			yyVAL.addr2.from = nullgen
+ 			yyVAL.addr2.to = yyDollar[2].addr
+ 		}
+ 	case 47:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:243
++		//line a.y:252
+ 		{
+ 			yyVAL.addr2.from = nullgen
+ 			yyVAL.addr2.to = yyDollar[1].addr
+ 		}
+-	case 48:
+-		yyVAL.addr2 = yyS[yypt-0].addr2
+-	case 49:
+-		yyVAL.addr2 = yyS[yypt-0].addr2
+ 	case 50:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:254
++		//line a.y:263
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+ 	case 51:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:259
++		//line a.y:268
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+@@ -905,14 +994,14 @@ yydefault:
+ 		}
+ 	case 52:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:270
++		//line a.y:279
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+ 	case 53:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:275
++		//line a.y:284
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+@@ -923,28 +1012,28 @@ yydefault:
+ 		}
+ 	case 54:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:286
++		//line a.y:295
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = nullgen
+ 		}
+ 	case 55:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:291
++		//line a.y:300
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = nullgen
+ 		}
+ 	case 56:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:296
++		//line a.y:305
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+ 	case 57:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:303
++		//line a.y:312
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.from3 = yyDollar[3].addr
+@@ -953,7 +1042,7 @@ yydefault:
+ 		}
+ 	case 58:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:312
++		//line a.y:321
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.from3 = yyDollar[3].addr
+@@ -961,21 +1050,21 @@ yydefault:
+ 		}
+ 	case 59:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:319
++		//line a.y:328
+ 		{
+ 			yyVAL.addr2.from = nullgen
+ 			yyVAL.addr2.to = nullgen
+ 		}
+ 	case 60:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:324
++		//line a.y:333
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = nullgen
+ 		}
+ 	case 61:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:331
++		//line a.y:340
+ 		{
+ 			if yyDollar[1].addr.Type != obj.TYPE_CONST || yyDollar[3].addr.Type != obj.TYPE_CONST {
+ 				yyerror("arguments to asm.PCDATA must be integer constants")
+@@ -985,7 +1074,7 @@ yydefault:
+ 		}
+ 	case 62:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:341
++		//line a.y:350
+ 		{
+ 			if yyDollar[1].addr.Type != obj.TYPE_CONST {
+ 				yyerror("index for FUNCDATA must be integer constant")
+@@ -996,37 +1085,21 @@ yydefault:
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+-	case 63:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 64:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 65:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 66:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 67:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:360
++		//line a.y:369
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 		}
+ 	case 68:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:364
++		//line a.y:373
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 		}
+-	case 69:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 70:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 71:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 72:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 73:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:376
++		//line a.y:385
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_BRANCH
+@@ -1034,7 +1107,7 @@ yydefault:
+ 		}
+ 	case 74:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:382
++		//line a.y:391
+ 		{
+ 			yyDollar[1].sym = asm.LabelLookup(yyDollar[1].sym)
+ 			yyVAL.addr = nullgen
+@@ -1046,7 +1119,7 @@ yydefault:
+ 		}
+ 	case 75:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:394
++		//line a.y:403
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1054,7 +1127,7 @@ yydefault:
+ 		}
+ 	case 76:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:400
++		//line a.y:409
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1062,7 +1135,7 @@ yydefault:
+ 		}
+ 	case 77:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:406
++		//line a.y:415
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1070,7 +1143,7 @@ yydefault:
+ 		}
+ 	case 78:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:412
++		//line a.y:421
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1078,7 +1151,7 @@ yydefault:
+ 		}
+ 	case 79:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:418
++		//line a.y:427
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1086,7 +1159,7 @@ yydefault:
+ 		}
+ 	case 80:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:424
++		//line a.y:433
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1094,7 +1167,7 @@ yydefault:
+ 		}
+ 	case 81:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:430
++		//line a.y:439
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1102,7 +1175,7 @@ yydefault:
+ 		}
+ 	case 82:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:438
++		//line a.y:447
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_CONST
+@@ -1110,7 +1183,7 @@ yydefault:
+ 		}
+ 	case 83:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:444
++		//line a.y:453
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 			yyVAL.addr.Type = obj.TYPE_ADDR
+@@ -1122,7 +1195,7 @@ yydefault:
+ 		}
+ 	case 84:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:453
++		//line a.y:462
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+@@ -1130,7 +1203,7 @@ yydefault:
+ 		}
+ 	case 85:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:459
++		//line a.y:468
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1138,7 +1211,7 @@ yydefault:
+ 		}
+ 	case 86:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:465
++		//line a.y:474
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1146,7 +1219,7 @@ yydefault:
+ 		}
+ 	case 87:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:471
++		//line a.y:480
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1154,19 +1227,15 @@ yydefault:
+ 		}
+ 	case 88:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:477
++		//line a.y:486
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+ 			yyVAL.addr.Val = -yyDollar[3].dval
+ 		}
+-	case 89:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 90:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 91:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:489
++		//line a.y:498
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1174,7 +1243,7 @@ yydefault:
+ 		}
+ 	case 92:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:495
++		//line a.y:504
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1183,7 +1252,7 @@ yydefault:
+ 		}
+ 	case 93:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:502
++		//line a.y:511
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1192,7 +1261,7 @@ yydefault:
+ 		}
+ 	case 94:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:509
++		//line a.y:518
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1201,7 +1270,7 @@ yydefault:
+ 		}
+ 	case 95:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:516
++		//line a.y:525
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1212,7 +1281,7 @@ yydefault:
+ 		}
+ 	case 96:
+ 		yyDollar = yyS[yypt-9 : yypt+1]
+-		//line a.y:525
++		//line a.y:534
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1224,7 +1293,7 @@ yydefault:
+ 		}
+ 	case 97:
+ 		yyDollar = yyS[yypt-9 : yypt+1]
+-		//line a.y:535
++		//line a.y:544
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1236,7 +1305,7 @@ yydefault:
+ 		}
+ 	case 98:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:545
++		//line a.y:554
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1244,7 +1313,7 @@ yydefault:
+ 		}
+ 	case 99:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:551
++		//line a.y:560
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1252,7 +1321,7 @@ yydefault:
+ 		}
+ 	case 100:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:557
++		//line a.y:566
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1262,7 +1331,7 @@ yydefault:
+ 		}
+ 	case 101:
+ 		yyDollar = yyS[yypt-8 : yypt+1]
+-		//line a.y:565
++		//line a.y:574
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1273,13 +1342,13 @@ yydefault:
+ 		}
+ 	case 102:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:576
++		//line a.y:585
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 		}
+ 	case 103:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:580
++		//line a.y:589
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 			yyVAL.addr.Index = int16(yyDollar[3].lval)
+@@ -1288,7 +1357,7 @@ yydefault:
+ 		}
+ 	case 104:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:589
++		//line a.y:598
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1298,7 +1367,7 @@ yydefault:
+ 		}
+ 	case 105:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:597
++		//line a.y:606
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1308,67 +1377,61 @@ yydefault:
+ 		}
+ 	case 106:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:606
++		//line a.y:615
+ 		{
+ 			yyVAL.lval = 0
+ 		}
+ 	case 107:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:610
++		//line a.y:619
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 108:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:614
++		//line a.y:623
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+-	case 109:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 110:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:621
++		//line a.y:630
+ 		{
+ 			yyVAL.lval = obj.NAME_AUTO
+ 		}
+-	case 111:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 112:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 113:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:629
++		//line a.y:638
+ 		{
+ 			yyVAL.lval = yyDollar[1].sym.Value
+ 		}
+ 	case 114:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:633
++		//line a.y:642
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+ 	case 115:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:637
++		//line a.y:646
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 116:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:641
++		//line a.y:650
+ 		{
+ 			yyVAL.lval = ^yyDollar[2].lval
+ 		}
+ 	case 117:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:645
++		//line a.y:654
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 118:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:651
++		//line a.y:660
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1377,7 +1440,7 @@ yydefault:
+ 		}
+ 	case 119:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:658
++		//line a.y:667
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1386,7 +1449,7 @@ yydefault:
+ 		}
+ 	case 120:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:665
++		//line a.y:674
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1395,72 +1458,70 @@ yydefault:
+ 		}
+ 	case 121:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:672
++		//line a.y:681
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -yyDollar[2].lval
+ 			yyVAL.addr.Val = int32(yyDollar[4].lval)
+ 		}
+-	case 122:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 123:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:682
++		//line a.y:691
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval + yyDollar[3].lval
+ 		}
+ 	case 124:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:686
++		//line a.y:695
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval - yyDollar[3].lval
+ 		}
+ 	case 125:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:690
++		//line a.y:699
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval * yyDollar[3].lval
+ 		}
+ 	case 126:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:694
++		//line a.y:703
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval / yyDollar[3].lval
+ 		}
+ 	case 127:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:698
++		//line a.y:707
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval % yyDollar[3].lval
+ 		}
+ 	case 128:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:702
++		//line a.y:711
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval << uint(yyDollar[4].lval)
+ 		}
+ 	case 129:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:706
++		//line a.y:715
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval >> uint(yyDollar[4].lval)
+ 		}
+ 	case 130:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:710
++		//line a.y:719
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval & yyDollar[3].lval
+ 		}
+ 	case 131:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:714
++		//line a.y:723
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval ^ yyDollar[3].lval
+ 		}
+ 	case 132:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:718
++		//line a.y:727
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval | yyDollar[3].lval
+ 		}
+diff --git a/src/cmd/old8a/a.y b/src/cmd/old8a/a.y
+index fc12580e62..fae3b8100a 100644
+--- a/src/cmd/old8a/a.y
++++ b/src/cmd/old8a/a.y
+@@ -194,6 +194,7 @@ spec1:	/* DATA */
+ 	{
+ 		outcode(obj.ADATA, &Addr2{$2, $6})
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -204,12 +205,16 @@ spec2:	/* TEXT */
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(obj.ATEXT, &Addr2{$2, $5})
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}
+ 	}
+ |	LTYPET mem ',' con ',' '$' textsize
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(obj.ATEXT, &Addr2{$2, $7})
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -220,12 +225,16 @@ spec8:	/* GLOBL */
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(obj.AGLOBL, &Addr2{$2, $4})
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}
+ 	}
+ |	LTYPEG mem ',' con ',' imm
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(obj.AGLOBL, &Addr2{$2, $6})
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+diff --git a/src/cmd/old8a/y.go b/src/cmd/old8a/y.go
+index c727aca45a..b00f888048 100644
+--- a/src/cmd/old8a/y.go
++++ b/src/cmd/old8a/y.go
+@@ -59,7 +59,10 @@ const LNAME = 57376
+ const LLAB = 57377
+ const LVAR = 57378
+ 
+-var yyToknames = []string{
++var yyToknames = [...]string{
++	"$end",
++	"error",
++	"$unk",
+ 	"'|'",
+ 	"'^'",
+ 	"'&'",
+@@ -103,15 +106,23 @@ var yyToknames = []string{
+ 	"LNAME",
+ 	"LLAB",
+ 	"LVAR",
++	"':'",
++	"';'",
++	"'='",
++	"','",
++	"'$'",
++	"'('",
++	"')'",
++	"'~'",
+ }
+-var yyStatenames = []string{}
++var yyStatenames = [...]string{}
+ 
+ const yyEofCode = 1
+ const yyErrCode = 2
+ const yyMaxDepth = 200
+ 
+ //line yacctab:1
+-var yyExca = []int{
++var yyExca = [...]int{
+ 	-1, 1,
+ 	1, -1,
+ 	-2, 2,
+@@ -125,7 +136,7 @@ var yyStates []string
+ 
+ const yyLast = 594
+ 
+-var yyAct = []int{
++var yyAct = [...]int{
+ 
+ 	50, 226, 40, 3, 79, 77, 120, 49, 62, 207,
+ 	268, 267, 48, 169, 266, 72, 60, 262, 84, 70,
+@@ -188,7 +199,7 @@ var yyAct = []int{
+ 	160, 161, 155, 156, 157, 158, 159, 160, 161, 155,
+ 	156, 157, 158, 159,
+ }
+-var yyPact = []int{
++var yyPact = [...]int{
+ 
+ 	-1000, -1000, 249, -1000, 67, -1000, 71, 69, 66, 63,
+ 	368, 320, 320, 392, 44, -1000, -1000, 272, 344, 320,
+@@ -218,14 +229,14 @@ var yyPact = []int{
+ 	199, 195, -1000, 498, -1000, -36, -1000, 116, -1000, 498,
+ 	498, -39, -1000, -1000, -42, -43, -1000, -1000, -1000,
+ }
+-var yyPgo = []int{
++var yyPgo = [...]int{
+ 
+ 	0, 0, 27, 325, 6, 182, 8, 2, 39, 4,
+ 	86, 16, 5, 12, 7, 1, 180, 321, 178, 320,
+ 	319, 317, 314, 313, 303, 302, 301, 300, 299, 298,
+ 	296, 294, 292, 3, 291, 290, 288, 287, 286,
+ }
+-var yyR1 = []int{
++var yyR1 = [...]int{
+ 
+ 	0, 31, 32, 31, 34, 33, 33, 33, 33, 35,
+ 	35, 35, 35, 35, 35, 35, 35, 35, 35, 35,
+@@ -242,7 +253,7 @@ var yyR1 = []int{
+ 	2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+ 	2,
+ }
+-var yyR2 = []int{
++var yyR2 = [...]int{
+ 
+ 	0, 0, 0, 3, 0, 4, 1, 2, 2, 3,
+ 	3, 2, 2, 2, 2, 2, 2, 1, 1, 2,
+@@ -259,7 +270,7 @@ var yyR2 = []int{
+ 	1, 3, 3, 3, 3, 3, 4, 4, 3, 3,
+ 	3,
+ }
+-var yyChk = []int{
++var yyChk = [...]int{
+ 
+ 	-1000, -31, -32, -33, 44, 48, -35, 2, 46, 14,
+ 	15, 16, 17, 18, 22, -36, -37, 19, 21, 24,
+@@ -289,7 +300,7 @@ var yyChk = []int{
+ 	37, 38, 53, 11, 53, 35, 32, 10, -15, 11,
+ 	11, -1, 53, 32, -1, -1, 53, 53, 53,
+ }
+-var yyDef = []int{
++var yyDef = [...]int{
+ 
+ 	1, -2, 0, 3, 0, 6, 0, 0, 0, 29,
+ 	0, 0, 0, 0, 0, 17, 18, 0, 29, 0,
+@@ -319,7 +330,7 @@ var yyDef = []int{
+ 	0, 0, 96, 0, 105, 0, 89, 0, 42, 0,
+ 	0, 0, 107, 90, 0, 0, 103, 97, 98,
+ }
+-var yyTok1 = []int{
++var yyTok1 = [...]int{
+ 
+ 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+@@ -335,22 +346,31 @@ var yyTok1 = []int{
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 4, 3, 54,
+ }
+-var yyTok2 = []int{
++var yyTok2 = [...]int{
+ 
+ 	2, 3, 14, 15, 16, 17, 18, 19, 20, 21,
+ 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+ 	32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+ 	42, 43, 44, 45, 46,
+ }
+-var yyTok3 = []int{
++var yyTok3 = [...]int{
+ 	0,
+ }
+ 
++var yyErrorMessages = [...]struct {
++	state int
++	token int
++	msg   string
++}{}
++
+ //line yaccpar:1
+ 
+ /*	parser for yacc output	*/
+ 
+-var yyDebug = 0
++var (
++	yyDebug        = 0
++	yyErrorVerbose = false
++)
+ 
+ type yyLexer interface {
+ 	Lex(lval *yySymType) int
+@@ -380,10 +400,9 @@ func yyNewParser() yyParser {
+ const yyFlag = -1000
+ 
+ func yyTokname(c int) string {
+-	// 4 is TOKSTART above
+-	if c >= 4 && c-4 < len(yyToknames) {
+-		if yyToknames[c-4] != "" {
+-			return yyToknames[c-4]
++	if c >= 1 && c-1 < len(yyToknames) {
++		if yyToknames[c-1] != "" {
++			return yyToknames[c-1]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)
+@@ -398,6 +417,70 @@ func yyStatname(s int) string {
+ 	return __yyfmt__.Sprintf("state-%v", s)
+ }
+ 
++func yyErrorMessage(state, lookAhead int) string {
++	const TOKSTART = 4
++
++	if !yyErrorVerbose {
++		return "syntax error"
++	}
++
++	for _, e := range yyErrorMessages {
++		if e.state == state && e.token == lookAhead {
++			return "syntax error: " + e.msg
++		}
++	}
++
++	res := "syntax error: unexpected " + yyTokname(lookAhead)
++
++	// To match Bison, suggest at most four expected tokens.
++	expected := make([]int, 0, 4)
++
++	// Look for shiftable tokens.
++	base := yyPact[state]
++	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
++		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++	}
++
++	if yyDef[state] == -2 {
++		i := 0
++		for yyExca[i] != -1 || yyExca[i+1] != state {
++			i += 2
++		}
++
++		// Look for tokens that we accept or reduce.
++		for i += 2; yyExca[i] >= 0; i += 2 {
++			tok := yyExca[i]
++			if tok < TOKSTART || yyExca[i+1] == 0 {
++				continue
++			}
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++
++		// If the default action is to accept or reduce, give up.
++		if yyExca[i+1] != 0 {
++			return res
++		}
++	}
++
++	for i, tok := range expected {
++		if i == 0 {
++			res += ", expecting "
++		} else {
++			res += " or "
++		}
++		res += yyTokname(tok)
++	}
++	return res
++}
++
+ func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
+ 	token = 0
+ 	char = lex.Lex(lval)
+@@ -452,6 +535,7 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
+ 	yyrcvr.lookahead = func() int { return yychar }
+ 	defer func() {
+ 		// Make sure we report no lookahead when not parsing.
++		yystate = -1
+ 		yychar = -1
+ 		yytoken = -1
+ 	}()
+@@ -534,7 +618,7 @@ yydefault:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			yylex.Error("syntax error")
++			yylex.Error(yyErrorMessage(yystate, yytoken))
+ 			Nerrs++
+ 			if yyDebug >= 1 {
+ 				__yyfmt__.Printf("%s", yyStatname(yystate))
+@@ -818,82 +902,81 @@ yydefault:
+ 		{
+ 			outcode(obj.ADATA, &Addr2{yyDollar[2].addr, yyDollar[6].addr})
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 41:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:204
++		//line a.y:205
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.ATEXT, &Addr2{yyDollar[2].addr, yyDollar[5].addr})
+ 		}
+ 	case 42:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:209
++		//line a.y:210
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.ATEXT, &Addr2{yyDollar[2].addr, yyDollar[7].addr})
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 43:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:220
++		//line a.y:222
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.AGLOBL, &Addr2{yyDollar[2].addr, yyDollar[4].addr})
+ 		}
+ 	case 44:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:225
++		//line a.y:227
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(obj.AGLOBL, &Addr2{yyDollar[2].addr, yyDollar[6].addr})
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 45:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:237
++		//line a.y:240
+ 		{
+ 			yyVAL.addr2.from = nullgen
+ 			yyVAL.addr2.to = yyDollar[2].addr
+ 		}
+ 	case 46:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:242
++		//line a.y:245
+ 		{
+ 			yyVAL.addr2.from = nullgen
+ 			yyVAL.addr2.to = yyDollar[1].addr
+ 		}
+ 	case 47:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:247
++		//line a.y:250
+ 		{
+ 			yyVAL.addr2.from = nullgen
+ 			yyVAL.addr2.to = yyDollar[2].addr
+ 			yyVAL.addr2.to.Type = obj.TYPE_INDIR
+ 		}
+-	case 48:
+-		yyVAL.addr2 = yyS[yypt-0].addr2
+-	case 49:
+-		yyVAL.addr2 = yyS[yypt-0].addr2
+ 	case 50:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:259
++		//line a.y:262
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+ 	case 51:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:264
++		//line a.y:267
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+@@ -904,14 +987,14 @@ yydefault:
+ 		}
+ 	case 52:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:275
++		//line a.y:278
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+ 	case 53:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:280
++		//line a.y:283
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+@@ -922,28 +1005,28 @@ yydefault:
+ 		}
+ 	case 54:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:291
++		//line a.y:294
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = nullgen
+ 		}
+ 	case 55:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:296
++		//line a.y:299
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = nullgen
+ 		}
+ 	case 56:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:301
++		//line a.y:304
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+ 	case 57:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:308
++		//line a.y:311
+ 		{
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+@@ -951,7 +1034,7 @@ yydefault:
+ 		}
+ 	case 58:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:316
++		//line a.y:319
+ 		{
+ 			yyVAL.addr2.from = yyDollar[3].addr
+ 			yyVAL.addr2.to = yyDollar[5].addr
+@@ -962,7 +1045,7 @@ yydefault:
+ 		}
+ 	case 59:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:327
++		//line a.y:330
+ 		{
+ 			if yyDollar[1].addr.Type != obj.TYPE_CONST || yyDollar[3].addr.Type != obj.TYPE_CONST {
+ 				yyerror("arguments to PCDATA must be integer constants")
+@@ -972,7 +1055,7 @@ yydefault:
+ 		}
+ 	case 60:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:337
++		//line a.y:340
+ 		{
+ 			if yyDollar[1].addr.Type != obj.TYPE_CONST {
+ 				yyerror("index for FUNCDATA must be integer constant")
+@@ -983,39 +1066,21 @@ yydefault:
+ 			yyVAL.addr2.from = yyDollar[1].addr
+ 			yyVAL.addr2.to = yyDollar[3].addr
+ 		}
+-	case 61:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 62:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 63:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 64:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 65:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:356
++		//line a.y:359
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 		}
+ 	case 66:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:360
++		//line a.y:363
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 		}
+-	case 67:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 68:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 69:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 70:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 71:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 72:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:373
++		//line a.y:376
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_BRANCH
+@@ -1023,7 +1088,7 @@ yydefault:
+ 		}
+ 	case 73:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:379
++		//line a.y:382
+ 		{
+ 			yyDollar[1].sym = asm.LabelLookup(yyDollar[1].sym)
+ 			yyVAL.addr = nullgen
+@@ -1035,7 +1100,7 @@ yydefault:
+ 		}
+ 	case 74:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:391
++		//line a.y:394
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1043,7 +1108,7 @@ yydefault:
+ 		}
+ 	case 75:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:397
++		//line a.y:400
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1051,7 +1116,7 @@ yydefault:
+ 		}
+ 	case 76:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:403
++		//line a.y:406
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1059,7 +1124,7 @@ yydefault:
+ 		}
+ 	case 77:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:409
++		//line a.y:412
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1067,7 +1132,7 @@ yydefault:
+ 		}
+ 	case 78:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:415
++		//line a.y:418
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1075,7 +1140,7 @@ yydefault:
+ 		}
+ 	case 79:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:421
++		//line a.y:424
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1083,7 +1148,7 @@ yydefault:
+ 		}
+ 	case 80:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:429
++		//line a.y:432
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_CONST
+@@ -1091,7 +1156,7 @@ yydefault:
+ 		}
+ 	case 81:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:435
++		//line a.y:438
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 			yyVAL.addr.Type = obj.TYPE_ADDR
+@@ -1103,7 +1168,7 @@ yydefault:
+ 		}
+ 	case 82:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:444
++		//line a.y:447
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+@@ -1111,7 +1176,7 @@ yydefault:
+ 		}
+ 	case 83:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:450
++		//line a.y:453
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1119,7 +1184,7 @@ yydefault:
+ 		}
+ 	case 84:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:456
++		//line a.y:459
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1127,7 +1192,7 @@ yydefault:
+ 		}
+ 	case 85:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:462
++		//line a.y:465
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1135,7 +1200,7 @@ yydefault:
+ 		}
+ 	case 86:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:468
++		//line a.y:471
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1143,7 +1208,7 @@ yydefault:
+ 		}
+ 	case 87:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:476
++		//line a.y:479
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1152,7 +1217,7 @@ yydefault:
+ 		}
+ 	case 88:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:483
++		//line a.y:486
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1161,7 +1226,7 @@ yydefault:
+ 		}
+ 	case 89:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:490
++		//line a.y:493
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1170,20 +1235,16 @@ yydefault:
+ 		}
+ 	case 90:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:497
++		//line a.y:500
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+ 			yyVAL.addr.Offset = -yyDollar[2].lval
+ 			yyVAL.addr.Val = int32(yyDollar[4].lval)
+ 		}
+-	case 91:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 92:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 93:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:511
++		//line a.y:514
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1191,7 +1252,7 @@ yydefault:
+ 		}
+ 	case 94:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:517
++		//line a.y:520
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1200,7 +1261,7 @@ yydefault:
+ 		}
+ 	case 95:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:524
++		//line a.y:527
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1209,7 +1270,7 @@ yydefault:
+ 		}
+ 	case 96:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:531
++		//line a.y:534
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1220,7 +1281,7 @@ yydefault:
+ 		}
+ 	case 97:
+ 		yyDollar = yyS[yypt-9 : yypt+1]
+-		//line a.y:540
++		//line a.y:543
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1232,7 +1293,7 @@ yydefault:
+ 		}
+ 	case 98:
+ 		yyDollar = yyS[yypt-9 : yypt+1]
+-		//line a.y:550
++		//line a.y:553
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1244,7 +1305,7 @@ yydefault:
+ 		}
+ 	case 99:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:560
++		//line a.y:563
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1252,7 +1313,7 @@ yydefault:
+ 		}
+ 	case 100:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:566
++		//line a.y:569
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1260,7 +1321,7 @@ yydefault:
+ 		}
+ 	case 101:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:572
++		//line a.y:575
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1269,7 +1330,7 @@ yydefault:
+ 		}
+ 	case 102:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:579
++		//line a.y:582
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1279,7 +1340,7 @@ yydefault:
+ 		}
+ 	case 103:
+ 		yyDollar = yyS[yypt-8 : yypt+1]
+-		//line a.y:587
++		//line a.y:590
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1290,13 +1351,13 @@ yydefault:
+ 		}
+ 	case 104:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:598
++		//line a.y:601
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 		}
+ 	case 105:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:602
++		//line a.y:605
+ 		{
+ 			yyVAL.addr = yyDollar[1].addr
+ 			yyVAL.addr.Index = int16(yyDollar[3].lval)
+@@ -1305,7 +1366,7 @@ yydefault:
+ 		}
+ 	case 106:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:611
++		//line a.y:614
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1315,7 +1376,7 @@ yydefault:
+ 		}
+ 	case 107:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:619
++		//line a.y:622
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1325,123 +1386,115 @@ yydefault:
+ 		}
+ 	case 108:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:628
++		//line a.y:631
+ 		{
+ 			yyVAL.lval = 0
+ 		}
+ 	case 109:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:632
++		//line a.y:635
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 110:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:636
++		//line a.y:639
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+-	case 111:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 112:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:643
++		//line a.y:646
+ 		{
+ 			yyVAL.lval = obj.NAME_AUTO
+ 		}
+-	case 113:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 114:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 115:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:651
++		//line a.y:654
+ 		{
+ 			yyVAL.lval = yyDollar[1].sym.Value
+ 		}
+ 	case 116:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:655
++		//line a.y:658
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+ 	case 117:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:659
++		//line a.y:662
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 118:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:663
++		//line a.y:666
+ 		{
+ 			yyVAL.lval = ^yyDollar[2].lval
+ 		}
+ 	case 119:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:667
++		//line a.y:670
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+-	case 120:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 121:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:674
++		//line a.y:677
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval + yyDollar[3].lval
+ 		}
+ 	case 122:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:678
++		//line a.y:681
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval - yyDollar[3].lval
+ 		}
+ 	case 123:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:682
++		//line a.y:685
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval * yyDollar[3].lval
+ 		}
+ 	case 124:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:686
++		//line a.y:689
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval / yyDollar[3].lval
+ 		}
+ 	case 125:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:690
++		//line a.y:693
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval % yyDollar[3].lval
+ 		}
+ 	case 126:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:694
++		//line a.y:697
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval << uint(yyDollar[4].lval)
+ 		}
+ 	case 127:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:698
++		//line a.y:701
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval >> uint(yyDollar[4].lval)
+ 		}
+ 	case 128:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:702
++		//line a.y:705
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval & yyDollar[3].lval
+ 		}
+ 	case 129:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:706
++		//line a.y:709
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval ^ yyDollar[3].lval
+ 		}
+ 	case 130:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:710
++		//line a.y:713
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval | yyDollar[3].lval
+ 		}
+diff --git a/src/cmd/old9a/a.y b/src/cmd/old9a/a.y
+index bdcd84d54d..f7e8925fb6 100644
+--- a/src/cmd/old9a/a.y
++++ b/src/cmd/old9a/a.y
+@@ -630,12 +630,16 @@ inst:
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(int($1), &$2, 0, &$5);
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}
+ 	}
+ |	LTEXT name ',' con ',' '$' textsize
+ 	{
+ 		asm.Settext($2.Sym);
+ 		outcode(int($1), &$2, int($4), &$7);
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -647,12 +651,16 @@ inst:
+ 	{
+ 		asm.Settext($2.Sym)
+ 		outcode(int($1), &$2, 0, &$4)
++		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
++		}
+ 	}
+ |	LGLOBL name ',' con ',' imm
+ 	{
+ 		asm.Settext($2.Sym)
+ 		outcode(int($1), &$2, 0, &$6)
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -665,6 +673,7 @@ inst:
+ 	{
+ 		outcode(int($1), &$2, 0, &$6);
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -673,6 +682,7 @@ inst:
+ 	{
+ 		outcode(int($1), &$2, 0, &$6);
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+@@ -681,6 +691,7 @@ inst:
+ 	{
+ 		outcode(int($1), &$2, 0, &$6);
+ 		if asm.Pass > 1 {
++			lastpc.From3 = new(obj.Addr)
+ 			lastpc.From3.Type = obj.TYPE_CONST
+ 			lastpc.From3.Offset = $4
+ 		}
+diff --git a/src/cmd/old9a/lex.go b/src/cmd/old9a/lex.go
+index ac16647853..4f9b7eeda8 100644
+--- a/src/cmd/old9a/lex.go
++++ b/src/cmd/old9a/lex.go
+@@ -536,7 +536,10 @@ func outgcode(a int, g1 *obj.Addr, reg int, g2, g3 *obj.Addr) {
+ 	}
+ 	p.From = *g1
+ 	p.Reg = int16(reg)
+-	p.From3 = *g2
++	if g2.Type != 0 {
++		p.From3 = new(obj.Addr)
++		*p.From3 = *g2
++	}
+ 	p.To = *g3
+ 	p.Pc = int64(asm.PC)
+ 
+diff --git a/src/cmd/old9a/y.go b/src/cmd/old9a/y.go
+index 65f612611f..d238bccab3 100644
+--- a/src/cmd/old9a/y.go
++++ b/src/cmd/old9a/y.go
+@@ -82,7 +82,10 @@ const LNAME = 57404
+ const LLAB = 57405
+ const LVAR = 57406
+ 
+-var yyToknames = []string{
++var yyToknames = [...]string{
++	"$end",
++	"error",
++	"$unk",
+ 	"'|'",
+ 	"'^'",
+ 	"'&'",
+@@ -154,15 +157,23 @@ var yyToknames = []string{
+ 	"LNAME",
+ 	"LLAB",
+ 	"LVAR",
++	"':'",
++	"'='",
++	"';'",
++	"','",
++	"'('",
++	"')'",
++	"'$'",
++	"'~'",
+ }
+-var yyStatenames = []string{}
++var yyStatenames = [...]string{}
+ 
+ const yyEofCode = 1
+ const yyErrCode = 2
+ const yyMaxDepth = 200
+ 
+ //line yacctab:1
+-var yyExca = []int{
++var yyExca = [...]int{
+ 	-1, 1,
+ 	1, -1,
+ 	-2, 2,
+@@ -176,7 +187,7 @@ var yyStates []string
+ 
+ const yyLast = 900
+ 
+-var yyAct = []int{
++var yyAct = [...]int{
+ 
+ 	48, 394, 54, 90, 427, 273, 440, 58, 52, 102,
+ 	80, 79, 85, 172, 94, 95, 97, 98, 100, 101,
+@@ -269,7 +280,7 @@ var yyAct = []int{
+ 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ 	0, 0, 0, 0, 0, 0, 0, 0, 0, 236,
+ }
+-var yyPact = []int{
++var yyPact = [...]int{
+ 
+ 	-1000, -1000, 497, -1000, 309, 294, 290, -1000, 288, 68,
+ 	287, 600, 67, -67, -7, 396, -7, 396, 396, 308,
+@@ -319,14 +330,14 @@ var yyPact = []int{
+ 	383, -1000, 686, -1000, -1000, -1000, -1000, -1000, -1000, -1000,
+ 	-1000, -1000,
+ }
+-var yyPgo = []int{
++var yyPgo = [...]int{
+ 
+ 	0, 88, 42, 5, 13, 294, 200, 0, 90, 453,
+ 	119, 20, 7, 536, 526, 1, 35, 2, 3, 68,
+ 	26, 21, 9, 8, 510, 4, 505, 483, 23, 482,
+ 	451, 210,
+ }
+-var yyR1 = []int{
++var yyR1 = [...]int{
+ 
+ 	0, 26, 27, 26, 29, 28, 28, 28, 28, 28,
+ 	28, 28, 30, 30, 30, 30, 30, 30, 30, 30,
+@@ -348,7 +359,7 @@ var yyR1 = []int{
+ 	1, 1, 1, 1, 1, 1, 2, 2, 2, 2,
+ 	2, 2, 2, 2, 2, 2, 2,
+ }
+-var yyR2 = []int{
++var yyR2 = [...]int{
+ 
+ 	0, 0, 0, 3, 0, 4, 4, 4, 2, 1,
+ 	2, 2, 4, 4, 4, 4, 4, 4, 4, 4,
+@@ -370,7 +381,7 @@ var yyR2 = []int{
+ 	1, 1, 2, 2, 2, 3, 1, 3, 3, 3,
+ 	3, 3, 4, 4, 3, 3, 3,
+ }
+-var yyChk = []int{
++var yyChk = [...]int{
+ 
+ 	-1000, -26, -27, -28, 72, 74, 59, 77, -30, 2,
+ 	14, 15, 23, 68, 19, 17, 18, 16, 69, 21,
+@@ -420,7 +431,7 @@ var yyChk = []int{
+ 	10, -15, 10, 80, 80, -11, -7, -7, -1, -7,
+ 	-7, 38,
+ }
+-var yyDef = []int{
++var yyDef = [...]int{
+ 
+ 	1, -2, 0, 3, 0, 0, 0, 9, 0, 0,
+ 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+@@ -470,7 +481,7 @@ var yyDef = []int{
+ 	0, 118, 0, 161, 78, 86, 93, 94, 143, 95,
+ 	96, 147,
+ }
+-var yyTok1 = []int{
++var yyTok1 = [...]int{
+ 
+ 	1, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+@@ -486,7 +497,7 @@ var yyTok1 = []int{
+ 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+ 	3, 3, 3, 3, 4, 3, 82,
+ }
+-var yyTok2 = []int{
++var yyTok2 = [...]int{
+ 
+ 	2, 3, 14, 15, 16, 17, 18, 19, 20, 21,
+ 	22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+@@ -496,15 +507,24 @@ var yyTok2 = []int{
+ 	62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
+ 	72, 73, 74,
+ }
+-var yyTok3 = []int{
++var yyTok3 = [...]int{
+ 	0,
+ }
+ 
++var yyErrorMessages = [...]struct {
++	state int
++	token int
++	msg   string
++}{}
++
+ //line yaccpar:1
+ 
+ /*	parser for yacc output	*/
+ 
+-var yyDebug = 0
++var (
++	yyDebug        = 0
++	yyErrorVerbose = false
++)
+ 
+ type yyLexer interface {
+ 	Lex(lval *yySymType) int
+@@ -534,10 +554,9 @@ func yyNewParser() yyParser {
+ const yyFlag = -1000
+ 
+ func yyTokname(c int) string {
+-	// 4 is TOKSTART above
+-	if c >= 4 && c-4 < len(yyToknames) {
+-		if yyToknames[c-4] != "" {
+-			return yyToknames[c-4]
++	if c >= 1 && c-1 < len(yyToknames) {
++		if yyToknames[c-1] != "" {
++			return yyToknames[c-1]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)
+@@ -552,6 +571,70 @@ func yyStatname(s int) string {
+ 	return __yyfmt__.Sprintf("state-%v", s)
+ }
+ 
++func yyErrorMessage(state, lookAhead int) string {
++	const TOKSTART = 4
++
++	if !yyErrorVerbose {
++		return "syntax error"
++	}
++
++	for _, e := range yyErrorMessages {
++		if e.state == state && e.token == lookAhead {
++			return "syntax error: " + e.msg
++		}
++	}
++
++	res := "syntax error: unexpected " + yyTokname(lookAhead)
++
++	// To match Bison, suggest at most four expected tokens.
++	expected := make([]int, 0, 4)
++
++	// Look for shiftable tokens.
++	base := yyPact[state]
++	for tok := TOKSTART; tok-1 < len(yyToknames); tok++ {
++		if n := base + tok; n >= 0 && n < yyLast && yyChk[yyAct[n]] == tok {
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++	}
++
++	if yyDef[state] == -2 {
++		i := 0
++		for yyExca[i] != -1 || yyExca[i+1] != state {
++			i += 2
++		}
++
++		// Look for tokens that we accept or reduce.
++		for i += 2; yyExca[i] >= 0; i += 2 {
++			tok := yyExca[i]
++			if tok < TOKSTART || yyExca[i+1] == 0 {
++				continue
++			}
++			if len(expected) == cap(expected) {
++				return res
++			}
++			expected = append(expected, tok)
++		}
++
++		// If the default action is to accept or reduce, give up.
++		if yyExca[i+1] != 0 {
++			return res
++		}
++	}
++
++	for i, tok := range expected {
++		if i == 0 {
++			res += ", expecting "
++		} else {
++			res += " or "
++		}
++		res += yyTokname(tok)
++	}
++	return res
++}
++
+ func yylex1(lex yyLexer, lval *yySymType) (char, token int) {
+ 	token = 0
+ 	char = lex.Lex(lval)
+@@ -606,6 +689,7 @@ func (yyrcvr *yyParserImpl) Parse(yylex yyLexer) int {
+ 	yyrcvr.lookahead = func() int { return yychar }
+ 	defer func() {
+ 		// Make sure we report no lookahead when not parsing.
++		yystate = -1
+ 		yychar = -1
+ 		yytoken = -1
+ 	}()
+@@ -688,7 +772,7 @@ yydefault:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			yylex.Error("syntax error")
++			yylex.Error(yyErrorMessage(yystate, yytoken))
+ 			Nerrs++
+ 			if yyDebug >= 1 {
+ 				__yyfmt__.Printf("%s", yyStatname(yystate))
+@@ -1470,67 +1554,72 @@ yydefault:
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(int(yyDollar[1].lval), &yyDollar[2].addr, int(yyDollar[4].lval), &yyDollar[7].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 119:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:647
++		//line a.y:648
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(int(yyDollar[1].lval), &yyDollar[2].addr, 0, &yyDollar[4].addr)
+ 		}
+ 	case 120:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:652
++		//line a.y:653
+ 		{
+ 			asm.Settext(yyDollar[2].addr.Sym)
+ 			outcode(int(yyDollar[1].lval), &yyDollar[2].addr, 0, &yyDollar[6].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 121:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:665
++		//line a.y:667
+ 		{
+ 			outcode(int(yyDollar[1].lval), &yyDollar[2].addr, 0, &yyDollar[6].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 122:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:673
++		//line a.y:676
+ 		{
+ 			outcode(int(yyDollar[1].lval), &yyDollar[2].addr, 0, &yyDollar[6].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 123:
+ 		yyDollar = yyS[yypt-6 : yypt+1]
+-		//line a.y:681
++		//line a.y:685
+ 		{
+ 			outcode(int(yyDollar[1].lval), &yyDollar[2].addr, 0, &yyDollar[6].addr)
+ 			if asm.Pass > 1 {
++				lastpc.From3 = new(obj.Addr)
+ 				lastpc.From3.Type = obj.TYPE_CONST
+ 				lastpc.From3.Offset = yyDollar[4].lval
+ 			}
+ 		}
+ 	case 124:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:692
++		//line a.y:697
+ 		{
+ 			outcode(int(yyDollar[1].lval), &nullgen, 0, &nullgen)
+ 		}
+ 	case 125:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:698
++		//line a.y:703
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_BRANCH
+@@ -1538,7 +1627,7 @@ yydefault:
+ 		}
+ 	case 126:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:704
++		//line a.y:709
+ 		{
+ 			yyDollar[1].sym = asm.LabelLookup(yyDollar[1].sym)
+ 			yyVAL.addr = nullgen
+@@ -1550,19 +1639,15 @@ yydefault:
+ 		}
+ 	case 127:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:716
++		//line a.y:721
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+ 			yyVAL.addr.Reg = int16(yyDollar[1].lval)
+ 		}
+-	case 128:
+-		yyVAL.addr = yyS[yypt-0].addr
+-	case 129:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 130:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:728
++		//line a.y:733
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1570,7 +1655,7 @@ yydefault:
+ 		}
+ 	case 131:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:736
++		//line a.y:741
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1578,7 +1663,7 @@ yydefault:
+ 		}
+ 	case 132:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:743
++		//line a.y:748
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1586,7 +1671,7 @@ yydefault:
+ 		}
+ 	case 133:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:751
++		//line a.y:756
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1594,7 +1679,7 @@ yydefault:
+ 		}
+ 	case 134:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:759
++		//line a.y:764
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1602,7 +1687,7 @@ yydefault:
+ 		}
+ 	case 135:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:765
++		//line a.y:770
+ 		{
+ 			if yyDollar[3].lval < 0 || yyDollar[3].lval >= 1024 {
+ 				yyerror("SPR/DCR out of range")
+@@ -1611,11 +1696,9 @@ yydefault:
+ 			yyVAL.addr.Type = obj.TYPE_REG
+ 			yyVAL.addr.Reg = int16(yyDollar[1].lval + yyDollar[3].lval)
+ 		}
+-	case 136:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 137:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:777
++		//line a.y:782
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1623,7 +1706,7 @@ yydefault:
+ 		}
+ 	case 138:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:785
++		//line a.y:790
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1631,7 +1714,7 @@ yydefault:
+ 		}
+ 	case 139:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:791
++		//line a.y:796
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1639,7 +1722,7 @@ yydefault:
+ 		}
+ 	case 140:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:799
++		//line a.y:804
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1647,7 +1730,7 @@ yydefault:
+ 		}
+ 	case 141:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:805
++		//line a.y:810
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1655,7 +1738,7 @@ yydefault:
+ 		}
+ 	case 142:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:813
++		//line a.y:818
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_REG
+@@ -1663,7 +1746,7 @@ yydefault:
+ 		}
+ 	case 143:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:821
++		//line a.y:826
+ 		{
+ 			var mb, me int
+ 			var v uint32
+@@ -1686,7 +1769,7 @@ yydefault:
+ 		}
+ 	case 144:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:844
++		//line a.y:849
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1695,7 +1778,7 @@ yydefault:
+ 		}
+ 	case 145:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:851
++		//line a.y:856
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1704,7 +1787,7 @@ yydefault:
+ 		}
+ 	case 146:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:858
++		//line a.y:863
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1713,7 +1796,7 @@ yydefault:
+ 		}
+ 	case 147:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:865
++		//line a.y:870
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_TEXTSIZE
+@@ -1722,14 +1805,14 @@ yydefault:
+ 		}
+ 	case 148:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:874
++		//line a.y:879
+ 		{
+ 			yyVAL.addr = yyDollar[2].addr
+ 			yyVAL.addr.Type = obj.TYPE_ADDR
+ 		}
+ 	case 149:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:879
++		//line a.y:884
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_SCONST
+@@ -1737,7 +1820,7 @@ yydefault:
+ 		}
+ 	case 150:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:887
++		//line a.y:892
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1745,7 +1828,7 @@ yydefault:
+ 		}
+ 	case 151:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:893
++		//line a.y:898
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_FCONST
+@@ -1753,17 +1836,15 @@ yydefault:
+ 		}
+ 	case 152:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:900
++		//line a.y:905
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_CONST
+ 			yyVAL.addr.Offset = yyDollar[2].lval
+ 		}
+-	case 153:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 154:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:909
++		//line a.y:914
+ 		{
+ 			if yyVAL.lval < 0 || yyVAL.lval >= NREG {
+ 				print("register value out of range\n")
+@@ -1772,7 +1853,7 @@ yydefault:
+ 		}
+ 	case 155:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:918
++		//line a.y:923
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1781,7 +1862,7 @@ yydefault:
+ 		}
+ 	case 156:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:925
++		//line a.y:930
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1789,11 +1870,9 @@ yydefault:
+ 			yyVAL.addr.Scale = int16(yyDollar[4].lval)
+ 			yyVAL.addr.Offset = 0
+ 		}
+-	case 157:
+-		yyVAL.addr = yyS[yypt-0].addr
+ 	case 158:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:936
++		//line a.y:941
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1802,7 +1881,7 @@ yydefault:
+ 		}
+ 	case 159:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:945
++		//line a.y:950
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1812,7 +1891,7 @@ yydefault:
+ 		}
+ 	case 160:
+ 		yyDollar = yyS[yypt-5 : yypt+1]
+-		//line a.y:953
++		//line a.y:958
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1822,7 +1901,7 @@ yydefault:
+ 		}
+ 	case 161:
+ 		yyDollar = yyS[yypt-7 : yypt+1]
+-		//line a.y:961
++		//line a.y:966
+ 		{
+ 			yyVAL.addr = nullgen
+ 			yyVAL.addr.Type = obj.TYPE_MEM
+@@ -1832,119 +1911,109 @@ yydefault:
+ 		}
+ 	case 164:
+ 		yyDollar = yyS[yypt-0 : yypt+1]
+-		//line a.y:973
++		//line a.y:978
+ 		{
+ 			yyVAL.lval = 0
+ 		}
+ 	case 165:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:977
++		//line a.y:982
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 166:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:981
++		//line a.y:986
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+-	case 167:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 168:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 169:
+-		yyVAL.lval = yyS[yypt-0].lval
+-	case 170:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 171:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+-		//line a.y:993
++		//line a.y:998
+ 		{
+ 			yyVAL.lval = yyDollar[1].sym.Value
+ 		}
+ 	case 172:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:997
++		//line a.y:1002
+ 		{
+ 			yyVAL.lval = -yyDollar[2].lval
+ 		}
+ 	case 173:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:1001
++		//line a.y:1006
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+ 	case 174:
+ 		yyDollar = yyS[yypt-2 : yypt+1]
+-		//line a.y:1005
++		//line a.y:1010
+ 		{
+ 			yyVAL.lval = ^yyDollar[2].lval
+ 		}
+ 	case 175:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1009
++		//line a.y:1014
+ 		{
+ 			yyVAL.lval = yyDollar[2].lval
+ 		}
+-	case 176:
+-		yyVAL.lval = yyS[yypt-0].lval
+ 	case 177:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1016
++		//line a.y:1021
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval + yyDollar[3].lval
+ 		}
+ 	case 178:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1020
++		//line a.y:1025
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval - yyDollar[3].lval
+ 		}
+ 	case 179:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1024
++		//line a.y:1029
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval * yyDollar[3].lval
+ 		}
+ 	case 180:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1028
++		//line a.y:1033
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval / yyDollar[3].lval
+ 		}
+ 	case 181:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1032
++		//line a.y:1037
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval % yyDollar[3].lval
+ 		}
+ 	case 182:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:1036
++		//line a.y:1041
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval << uint(yyDollar[4].lval)
+ 		}
+ 	case 183:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+-		//line a.y:1040
++		//line a.y:1045
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval >> uint(yyDollar[4].lval)
+ 		}
+ 	case 184:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1044
++		//line a.y:1049
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval & yyDollar[3].lval
+ 		}
+ 	case 185:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1048
++		//line a.y:1053
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval ^ yyDollar[3].lval
+ 		}
+ 	case 186:
+ 		yyDollar = yyS[yypt-3 : yypt+1]
+-		//line a.y:1052
++		//line a.y:1057
+ 		{
+ 			yyVAL.lval = yyDollar[1].lval | yyDollar[3].lval
+ 		}

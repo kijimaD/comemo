@@ -7,6 +7,35 @@ Date:   Tue Sep 28 18:12:46 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2295041
-
+---
  src/cmd/5g/gsubr.c | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 88837c3567..6cccdac25f 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1395,15 +1395,21 @@ optoas(int op, Type *t)
+ 
+ 	case CASE(OAS, TBOOL):
+ 	case CASE(OAS, TINT8):
+-	case CASE(OAS, TUINT8):
+ 		a = AMOVB;
+ 		break;
+ 
++	case CASE(OAS, TUINT8):
++		a = AMOVBU;
++		break;
++
+ 	case CASE(OAS, TINT16):
+-	case CASE(OAS, TUINT16):
+ 		a = AMOVH;
+ 		break;
+ 
++	case CASE(OAS, TUINT16):
++		a = AMOVHU;
++		break;
++
+ 	case CASE(OAS, TINT32):
+ 	case CASE(OAS, TUINT32):
+ 	case CASE(OAS, TPTR32):

@@ -12,6 +12,41 @@ Date:   Thu Sep 18 23:25:11 2014 +0200
     R=golang-codereviews, aram, gobot, r, rsc
     CC=golang-codereviews
     https://golang.org/cl/132520043
-
+---
  src/runtime/runtime.c | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index ae754dc5cd..aa8dd8f7a0 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -287,18 +287,18 @@ runtime·parsedebugvars(void)
+ 	intgo i, n;
+ 
+ 	p = runtime·getenv("GODEBUG");
+-	if(p == nil)
+-		return;
+-	for(;;) {
+-		for(i=0; i<nelem(dbgvar); i++) {
+-			n = runtime·findnull((byte*)dbgvar[i].name);
+-			if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
+-				*dbgvar[i].value = runtime·atoi(p+n+1);
++	if(p != nil){
++		for(;;) {
++			for(i=0; i<nelem(dbgvar); i++) {
++				n = runtime·findnull((byte*)dbgvar[i].name);
++				if(runtime·mcmp(p, (byte*)dbgvar[i].name, n) == 0 && p[n] == '=')
++					*dbgvar[i].value = runtime·atoi(p+n+1);
++			}
++			p = runtime·strstr(p, (byte*)",");
++			if(p == nil)
++				break;
++			p++;
+ 		}
+-		p = runtime·strstr(p, (byte*)",");
+-		if(p == nil)
+-			break;
+-		p++;
+ 	}
+ 
+ 	p = runtime·getenv("GOTRACEBACK");

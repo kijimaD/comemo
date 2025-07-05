@@ -20,7 +20,7 @@ Date:   Tue Aug 29 14:23:59 2023 -0700
     Run-TryBot: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/work/gc.go            | 14 ++++++++
  src/internal/cpu/cpu.go                   |  9 ++---
  src/internal/cpu/cpu_arm.go               | 14 ++++++++
@@ -31,3 +31,303 @@ Date:   Tue Aug 29 14:23:59 2023 -0700
  src/runtime/os_linux.go                   | 13 +++----
  src/runtime/os_linux_arm.go               |  7 +++-
  9 files changed, 93 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 1e5022fd8c..e2a5456bde 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -361,6 +361,20 @@ func asmArgs(a *Action, p *load.Package) []any {
+ 		}
+ 	}
+ 
++	if cfg.Goarch == "arm" {
++		// Define GOARM_value from cfg.GOARM.
++		switch cfg.GOARM {
++		case "7":
++			args = append(args, "-D", "GOARM_7")
++			fallthrough
++		case "6":
++			args = append(args, "-D", "GOARM_6")
++			fallthrough
++		default:
++			args = append(args, "-D", "GOARM_5")
++		}
++	}
++
+ 	return args
+ }
+ 
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 1352810f42..b6cbf2f661 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -48,10 +48,11 @@ var X86 struct {
+ // The booleans in ARM contain the correspondingly named cpu feature bit.
+ // The struct is padded to avoid false sharing.
+ var ARM struct {
+-	_        CacheLinePad
+-	HasVFPv4 bool
+-	HasIDIVA bool
+-	_        CacheLinePad
++	_            CacheLinePad
++	HasVFPv4     bool
++	HasIDIVA     bool
++	HasV7Atomics bool
++	_            CacheLinePad
+ }
+ 
+ // The booleans in ARM64 contain the correspondingly named cpu feature bit.
+diff --git a/src/internal/cpu/cpu_arm.go b/src/internal/cpu/cpu_arm.go
+index b624526860..080e788112 100644
+--- a/src/internal/cpu/cpu_arm.go
++++ b/src/internal/cpu/cpu_arm.go
+@@ -11,24 +11,38 @@ const CacheLinePadSize = 32
+ // initialized.
+ var HWCap uint
+ var HWCap2 uint
++var Platform string
+ 
+ // HWCAP/HWCAP2 bits. These are exposed by Linux and FreeBSD.
+ const (
+ 	hwcap_VFPv4 = 1 << 16
+ 	hwcap_IDIVA = 1 << 17
++	hwcap_LPAE  = 1 << 20
+ )
+ 
+ func doinit() {
+ 	options = []option{
+ 		{Name: "vfpv4", Feature: &ARM.HasVFPv4},
+ 		{Name: "idiva", Feature: &ARM.HasIDIVA},
++		{Name: "v7atomics", Feature: &ARM.HasV7Atomics},
+ 	}
+ 
+ 	// HWCAP feature bits
+ 	ARM.HasVFPv4 = isSet(HWCap, hwcap_VFPv4)
+ 	ARM.HasIDIVA = isSet(HWCap, hwcap_IDIVA)
++	// lpae is required to make the 64-bit instructions LDRD and STRD (and variants) atomic.
++	// See ARMv7 manual section B1.6.
++	// We also need at least a v7 chip, for the DMB instruction.
++	ARM.HasV7Atomics = isSet(HWCap, hwcap_LPAE) && isV7(Platform)
+ }
+ 
+ func isSet(hwc uint, value uint) bool {
+ 	return hwc&value != 0
+ }
++
++func isV7(s string) bool {
++	if s == "aarch64" {
++		return true
++	}
++	return s >= "v7" // will be something like v5, v7, v8, v8l
++}
+diff --git a/src/runtime/internal/atomic/atomic_arm.go b/src/runtime/internal/atomic/atomic_arm.go
+index bdb1847279..567e951244 100644
+--- a/src/runtime/internal/atomic/atomic_arm.go
++++ b/src/runtime/internal/atomic/atomic_arm.go
+@@ -11,6 +11,10 @@ import (
+ 	"unsafe"
+ )
+ 
++const (
++	offsetARMHasV7Atomics = unsafe.Offsetof(cpu.ARM.HasV7Atomics)
++)
++
+ // Export some functions via linkname to assembly in sync/atomic.
+ //
+ //go:linkname Xchg
+diff --git a/src/runtime/internal/atomic/atomic_arm.s b/src/runtime/internal/atomic/atomic_arm.s
+index 92cbe8a34f..662b5987f2 100644
+--- a/src/runtime/internal/atomic/atomic_arm.s
++++ b/src/runtime/internal/atomic/atomic_arm.s
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include "go_asm.h"
+ #include "textflag.h"
+ #include "funcdata.h"
+ 
+@@ -28,9 +29,11 @@ casl:
+ 	CMP	R0, R2
+ 	BNE	casfail
+ 
+-	MOVB	runtime·goarm(SB), R8
+-	CMP	$7, R8
+-	BLT	2(PC)
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$0, R11
++	BEQ	2(PC)
++#endif
+ 	DMB	MB_ISHST
+ 
+ 	STREX	R3, (R1), R0
+@@ -246,52 +249,62 @@ TEXT ·Cas64(SB),NOSPLIT,$-4-21
+ 	MOVW	addr+0(FP), R1
+ 	CHECK_ALIGN
+ 
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$7, R11
+-	BLT	2(PC)
+-	JMP	armCas64<>(SB)
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$1, R11
++	BEQ	2(PC)
+ 	JMP	·goCas64(SB)
++#endif
++	JMP	armCas64<>(SB)
+ 
+ TEXT ·Xadd64(SB),NOSPLIT,$-4-20
+ 	NO_LOCAL_POINTERS
+ 	MOVW	addr+0(FP), R1
+ 	CHECK_ALIGN
+ 
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$7, R11
+-	BLT	2(PC)
+-	JMP	armXadd64<>(SB)
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$1, R11
++	BEQ	2(PC)
+ 	JMP	·goXadd64(SB)
++#endif
++	JMP	armXadd64<>(SB)
+ 
+ TEXT ·Xchg64(SB),NOSPLIT,$-4-20
+ 	NO_LOCAL_POINTERS
+ 	MOVW	addr+0(FP), R1
+ 	CHECK_ALIGN
+ 
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$7, R11
+-	BLT	2(PC)
+-	JMP	armXchg64<>(SB)
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$1, R11
++	BEQ	2(PC)
+ 	JMP	·goXchg64(SB)
++#endif
++	JMP	armXchg64<>(SB)
+ 
+ TEXT ·Load64(SB),NOSPLIT,$-4-12
+ 	NO_LOCAL_POINTERS
+ 	MOVW	addr+0(FP), R1
+ 	CHECK_ALIGN
+ 
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$7, R11
+-	BLT	2(PC)
+-	JMP	armLoad64<>(SB)
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$1, R11
++	BEQ	2(PC)
+ 	JMP	·goLoad64(SB)
++#endif
++	JMP	armLoad64<>(SB)
+ 
+ TEXT ·Store64(SB),NOSPLIT,$-4-12
+ 	NO_LOCAL_POINTERS
+ 	MOVW	addr+0(FP), R1
+ 	CHECK_ALIGN
+ 
+-	MOVB	runtime·goarm(SB), R11
+-	CMP	$7, R11
+-	BLT	2(PC)
+-	JMP	armStore64<>(SB)
++#ifndef GOARM_7
++	MOVB	internal∕cpu·ARM+const_offsetARMHasV7Atomics(SB), R11
++	CMP	$1, R11
++	BEQ	2(PC)
+ 	JMP	·goStore64(SB)
++#endif
++	JMP	armStore64<>(SB)
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index ba609c0acc..c05e00f6ac 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -420,6 +420,7 @@ func sysargs(argc int32, argv **byte) {
+ const (
+ 	_AT_NULL     = 0  // Terminates the vector
+ 	_AT_PAGESZ   = 6  // Page size in bytes
++	_AT_PLATFORM = 15 // string identifying platform
+ 	_AT_TIMEKEEP = 22 // Pointer to timehands.
+ 	_AT_HWCAP    = 25 // CPU feature flags
+ 	_AT_HWCAP2   = 26 // CPU feature flags 2
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index 3feaa5e225..df8c709b8f 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "internal/cpu"
++import (
++	"internal/cpu"
++	"unsafe"
++)
+ 
+ const (
+ 	_HWCAP_VFP   = 1 << 6
+@@ -37,6 +40,8 @@ func archauxv(tag, val uintptr) {
+ 		cpu.HWCap = uint(val)
+ 	case _AT_HWCAP2:
+ 		cpu.HWCap2 = uint(val)
++	case _AT_PLATFORM:
++		cpu.Platform = gostringnocopy((*byte)(unsafe.Pointer(val)))
+ 	}
+ }
+ 
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 26b5ecd1f0..4319a99c7d 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -213,12 +213,13 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+ }
+ 
+ const (
+-	_AT_NULL   = 0  // End of vector
+-	_AT_PAGESZ = 6  // System physical page size
+-	_AT_HWCAP  = 16 // hardware capability bit vector
+-	_AT_SECURE = 23 // secure mode boolean
+-	_AT_RANDOM = 25 // introduced in 2.6.29
+-	_AT_HWCAP2 = 26 // hardware capability bit vector 2
++	_AT_NULL     = 0  // End of vector
++	_AT_PAGESZ   = 6  // System physical page size
++	_AT_PLATFORM = 15 // string identifying platform
++	_AT_HWCAP    = 16 // hardware capability bit vector
++	_AT_SECURE   = 23 // secure mode boolean
++	_AT_RANDOM   = 25 // introduced in 2.6.29
++	_AT_HWCAP2   = 26 // hardware capability bit vector 2
+ )
+ 
+ var procAuxv = []byte("/proc/self/auxv\x00")
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index bd3ab44a11..6e0c729855 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "internal/cpu"
++import (
++	"internal/cpu"
++	"unsafe"
++)
+ 
+ const (
+ 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
+@@ -38,6 +41,8 @@ func archauxv(tag, val uintptr) {
+ 		cpu.HWCap = uint(val)
+ 	case _AT_HWCAP2:
+ 		cpu.HWCap2 = uint(val)
++	case _AT_PLATFORM:
++		cpu.Platform = gostringnocopy((*byte)(unsafe.Pointer(val)))
+ 	}
+ }
+ 

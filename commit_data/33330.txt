@@ -31,7 +31,70 @@ Date:   Wed Aug 2 19:18:30 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/csv/reader.go      | 11 +++++++----
  src/encoding/csv/reader_test.go | 14 ++++++++++++++
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index a3497c84f9..4085321a71 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -115,9 +115,10 @@ type Reader struct {
+ 	// By default, each call to Read returns newly allocated memory owned by the caller.
+ 	ReuseRecord bool
+ 
+-	line   int
+-	column int
+-	r      *bufio.Reader
++	line       int
++	recordLine int // line where the current record started
++	column     int
++	r          *bufio.Reader
+ 	// lineBuffer holds the unescaped fields read by readField, one after another.
+ 	// The fields can be accessed by using the indexes in fieldIndexes.
+ 	// Example: for the row `a,"b","c""d",e` lineBuffer will contain `abc"de` and
+@@ -142,7 +143,7 @@ func NewReader(r io.Reader) *Reader {
+ // error creates a new ParseError based on err.
+ func (r *Reader) error(err error) error {
+ 	return &ParseError{
+-		Line:   r.line,
++		Line:   r.recordLine,
+ 		Column: r.column,
+ 		Err:    err,
+ 	}
+@@ -251,7 +252,9 @@ func (r *Reader) parseRecord(dst []string) (fields []string, err error) {
+ 	// Each record starts on a new line. We increment our line
+ 	// number (lines start at 1, not 0) and set column to -1
+ 	// so as we increment in readRune it points to the character we read.
++	// We track the line where the record starts in recordLine for use in errors.
+ 	r.line++
++	r.recordLine = r.line
+ 	r.column = -1
+ 
+ 	// Peek at the first rune. If it is an error we are done.
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index 5ab1b61256..76e94bab3e 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -270,6 +270,20 @@ x,,,
+ 			{"c", "d"},
+ 		},
+ 	},
++	{ // issue 19019
++		Name:   "RecordLine1",
++		Input:  "a,\"b\nc\"d,e",
++		Error:  `extraneous " in field`,
++		Line:   1,
++		Column: 1,
++	},
++	{
++		Name:   "RecordLine2",
++		Input:  "a,b\n\"d\n\n,e",
++		Error:  `extraneous " in field`,
++		Line:   2,
++		Column: 2,
++	},
+ }
+ 
+ func TestRead(t *testing.T) {

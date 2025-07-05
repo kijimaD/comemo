@@ -9,7 +9,34 @@ Date:   Fri Feb 16 18:33:15 2018 +0000
     Change-Id: I7242c5cc35f04e23d807f5e91180c4ef510e7d1a
     Reviewed-on: https://go-review.googlesource.com/94840
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index e861bfc22c..606995e3f7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -29,7 +29,7 @@ Aeneas Rekkas (arekkas) <aeneas@ory.am>
+ Afanasev Stanislav <phpprogger@gmail.com>
+ Agis Anastasopoulos <agis.anast@gmail.com>
+ Agniva De Sarker <agnivade@yahoo.co.in>
+-Ahmed Waheed Moanes <oneofone@gmail.com>
++Ahmed Wahed <oneofone@gmail.com>
+ Ahmy Yulrizka <yulrizka@gmail.com>
+ Aiden Scandella <ai@uber.com>
+ Ainar Garipov <gugl.zadolbal@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 27078cfee2..7c27a71d84 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -55,7 +55,7 @@ Aeneas Rekkas (arekkas) <aeneas@ory.am>
+ Afanasev Stanislav <phpprogger@gmail.com>
+ Agis Anastasopoulos <agis.anast@gmail.com>
+ Agniva De Sarker <agnivade@yahoo.co.in>
+-Ahmed Waheed Moanes <oneofone@gmail.com>
++Ahmed Wahed <oneofone@gmail.com>
+ Ahmet Alp Balkan <ahmetb@google.com>
+ Ahmy Yulrizka <yulrizka@gmail.com>
+ Aiden Scandella <ai@uber.com>

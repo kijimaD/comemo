@@ -7,7 +7,174 @@ Date:   Tue Jan 18 11:24:43 2011 -0500
     R=r, rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/4044041
-
+---
  src/pkg/expvar/expvar.go      | 54 +++++++++++++++++++++++++++++++++++++++++--
  src/pkg/expvar/expvar_test.go | 42 +++++++++++++++++++++++++++++++++
  2 files changed, 94 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index fb20b25b2e..b1f0f6c1b8 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -38,7 +38,7 @@ type Var interface {
+ 	String() string
+ }
+ 
+-// Int is a 64-bit integer variable, and satisfies the Var interface.
++// Int is a 64-bit integer variable that satisfies the Var interface.
+ type Int struct {
+ 	i  int64
+ 	mu sync.Mutex
+@@ -58,7 +58,29 @@ func (v *Int) Set(value int64) {
+ 	v.i = value
+ }
+ 
+-// Map is a string-to-Var map variable, and satisfies the Var interface.
++// Float is a 64-bit float variable that satisfies the Var interface.
++type Float struct {
++	f  float64
++	mu sync.Mutex
++}
++
++func (v *Float) String() string { return strconv.Ftoa64(v.f, 'g', -1) }
++
++// Add adds delta to v.
++func (v *Float) Add(delta float64) {
++	v.mu.Lock()
++	defer v.mu.Unlock()
++	v.f += delta
++}
++
++// Set sets v to value.
++func (v *Float) Set(value float64) {
++	v.mu.Lock()
++	defer v.mu.Unlock()
++	v.f = value
++}
++
++// Map is a string-to-Var map variable that satisfies the Var interface.
+ type Map struct {
+ 	m  map[string]Var
+ 	mu sync.Mutex
+@@ -119,6 +141,22 @@ func (v *Map) Add(key string, delta int64) {
+ 	}
+ }
+ 
++// AddFloat adds delta to the *Float value stored under the given map key.
++func (v *Map) AddFloat(key string, delta float64) {
++	v.mu.Lock()
++	defer v.mu.Unlock()
++	av, ok := v.m[key]
++	if !ok {
++		av = new(Float)
++		v.m[key] = av
++	}
++
++	// Add to Float; ignore otherwise.
++	if iv, ok := av.(*Float); ok {
++		iv.Add(delta)
++	}
++}
++
+ // TODO(rsc): Make sure map access in separate thread is safe.
+ func (v *Map) iterate(c chan<- KeyValue) {
+ 	for k, v := range v.m {
+@@ -148,6 +186,12 @@ type IntFunc func() int64
+ 
+ func (v IntFunc) String() string { return strconv.Itoa64(v()) }
+ 
++// FloatFunc wraps a func() float64 to create a value that satisfies the Var interface.
++// The function will be called each time the Var is evaluated.
++type FloatFunc func() float64
++
++func (v FloatFunc) String() string { return strconv.Ftoa64(v(), 'g', -1) }
++
+ // StringFunc wraps a func() string to create value that satisfies the Var interface.
+ // The function will be called each time the Var is evaluated.
+ type StringFunc func() string
+@@ -192,6 +236,12 @@ func NewInt(name string) *Int {
+ 	return v
+ }
+ 
++func NewFloat(name string) *Float {
++	v := new(Float)
++	Publish(name, v)
++	return v
++}
++
+ func NewMap(name string) *Map {
+ 	v := new(Map).Init()
+ 	Publish(name, v)
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index 009f24d1a7..2659434438 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -34,6 +34,31 @@ func TestInt(t *testing.T) {
+ 	}
+ }
+ 
++func TestFloat(t *testing.T) {
++	reqs := NewFloat("requests-float")
++	if reqs.f != 0.0 {
++		t.Errorf("reqs.f = %v, want 0", reqs.f)
++	}
++	if reqs != Get("requests-float").(*Float) {
++		t.Errorf("Get() failed.")
++	}
++
++	reqs.Add(1.5)
++	reqs.Add(1.25)
++	if reqs.f != 2.75 {
++		t.Errorf("reqs.f = %v, want 2.75", reqs.f)
++	}
++
++	if s := reqs.String(); s != "2.75" {
++		t.Errorf("reqs.String() = %q, want \"4.64\"", s)
++	}
++
++	reqs.Add(-2)
++	if reqs.f != 0.75 {
++		t.Errorf("reqs.f = %v, want 0.75", reqs.f)
++	}
++}
++
+ func TestString(t *testing.T) {
+ 	name := NewString("my-name")
+ 	if name.s != "" {
+@@ -56,12 +81,16 @@ func TestMapCounter(t *testing.T) {
+ 	colours.Add("red", 1)
+ 	colours.Add("red", 2)
+ 	colours.Add("blue", 4)
++	colours.AddFloat("green", 4.125)
+ 	if x := colours.m["red"].(*Int).i; x != 3 {
+ 		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
+ 	}
+ 	if x := colours.m["blue"].(*Int).i; x != 4 {
+ 		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
+ 	}
++	if x := colours.m["green"].(*Float).f; x != 4.125 {
++		t.Errorf("colours.m[\"green\"] = %v, want 3.14", x)
++	}
+ 
+ 	// colours.String() should be '{"red":3, "blue":4}',
+ 	// though the order of red and blue could vary.
+@@ -98,6 +127,19 @@ func TestIntFunc(t *testing.T) {
+ 	}
+ }
+ 
++func TestFloatFunc(t *testing.T) {
++	x := float64(8.5)
++	ix := FloatFunc(func() float64 { return x })
++	if s := ix.String(); s != "8.5" {
++		t.Errorf("ix.String() = %v, want 3.14", s)
++	}
++
++	x -= 1.25
++	if s := ix.String(); s != "7.25" {
++		t.Errorf("ix.String() = %v, want 4.34", s)
++	}
++}
++
+ func TestStringFunc(t *testing.T) {
+ 	x := "hello"
+ 	sx := StringFunc(func() string { return x })

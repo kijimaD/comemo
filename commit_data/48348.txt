@@ -12,6 +12,20 @@ Date:   Sat Dec 12 09:45:45 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/internal/objfile/goobj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index f19bec5dcb..dd21d22351 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -168,7 +168,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ 			code = 'T'
+ 		case objabi.SRODATA:
+ 			code = 'R'
+-		case objabi.SDATA:
++		case objabi.SNOPTRDATA, objabi.SDATA:
+ 			code = 'D'
+ 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+ 			code = 'B'

@@ -9,6 +9,22 @@ Date:   Fri Feb 22 15:58:15 2019 -0500
     Change-Id: I41bbedf15fa51242f69a3b1ecafd0d3191271799
     Reviewed-on: https://go-review.googlesource.com/c/163518
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  test/nosplit.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 734f456cc9..46810b1a2f 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -218,6 +218,10 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
++	if err := ioutil.WriteFile(filepath.Join(dir, "go.mod"), []byte("module go-test-nosplit\n"), 0666); err != nil {
++		log.Panic(err)
++	}
++
+ 	tests = strings.Replace(tests, "\t", " ", -1)
+ 	tests = commentRE.ReplaceAllString(tests, "")
+ 

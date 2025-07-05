@@ -9,6 +9,20 @@ Date:   Thu Feb 16 15:23:50 2012 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5675067
-
+---
  src/pkg/syscall/syscall_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index 26a12a6278..d4e02f68a7 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -95,7 +95,7 @@ func (m *mmapper) Munmap(data []byte) (err error) {
+ type Errno uintptr
+ 
+ func (e Errno) Error() string {
+-	if 0 <= e && int(e) < len(errors) {
++	if 0 <= int(e) && int(e) < len(errors) {
+ 		s := errors[e]
+ 		if s != "" {
+ 			return s

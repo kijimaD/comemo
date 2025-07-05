@@ -15,7 +15,7 @@ Date:   Wed Nov 27 12:33:35 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/ar.go             |  5 ++-
  src/cmd/link/internal/ld/lib.go            | 34 +++++++---------
  src/cmd/link/internal/loadelf/ldelf.go     |  7 ++--
@@ -25,3 +25,418 @@ Date:   Wed Nov 27 12:33:35 2019 -0500
  src/cmd/link/internal/loadxcoff/ldxcoff.go | 15 ++++----
  src/cmd/link/internal/sym/symbols.go       |  1 +
  8 files changed, 74 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 4a20d96f96..1271d2d37d 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -104,7 +104,10 @@ func hostArchive(ctxt *Link, name string) {
+ 	any := true
+ 	for any {
+ 		var load []uint64
+-		for _, s := range ctxt.Syms.Allsym {
++		for _, s := range ctxt.loader.Syms {
++			if s == nil {
++				continue
++			}
+ 			for i := range s.R {
+ 				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+ 				if r.Sym != nil && r.Sym.Type == sym.SXREF {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 20852b5377..dc3f1692f7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -461,16 +461,15 @@ func (ctxt *Link) loadlib() {
+ 		// the host object loaders still work with sym.Symbols (for now),
+ 		// and they need cgo attributes set to work properly. So process
+ 		// them now.
+-		lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
+ 		for _, d := range ctxt.cgodata {
+-			setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
++			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
+ 		}
+ 		ctxt.cgodata = nil
+ 
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+-		for _, s := range ctxt.Syms.Allsym {
+-			if s.Type == sym.SHOSTOBJ {
++		for _, s := range ctxt.loader.Syms {
++			if s != nil && s.Type == sym.SHOSTOBJ {
+ 				// If a symbol was marked both
+ 				// cgo_import_static and cgo_import_dynamic,
+ 				// then we want to make it cgo_import_dynamic
+@@ -495,7 +494,10 @@ func (ctxt *Link) loadlib() {
+ 		// If we have any undefined symbols in external
+ 		// objects, try to read them from the libgcc file.
+ 		any := false
+-		for _, s := range ctxt.Syms.Allsym {
++		for _, s := range ctxt.loader.Syms {
++			if s == nil {
++				continue
++			}
+ 			for i := range s.R {
+ 				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+ 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
+@@ -1674,7 +1676,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+ 	if magic == 0x7f454c46 { // \x7F E L F
+ 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
++			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1687,7 +1689,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
+ 		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
++			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1699,7 +1701,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+ 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
++			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1714,7 +1716,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
+ 		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+-			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
++			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+ 				Errorf(nil, "%v", err)
+ 				return
+@@ -1960,12 +1962,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 			ver = sym.SymVerABIInternal
+ 		}
+ 
+-		i := ctxt.loader.AddExtSym(elfsym.Name, ver)
+-		if i == 0 {
+-			continue
+-		}
+-		lsym := ctxt.Syms.Newsym(elfsym.Name, ver)
+-		ctxt.loader.Syms[i] = lsym
++		lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
+ 
+ 		// Because loadlib above loads all .a files before loading any shared
+ 		// libraries, any non-dynimport symbols we find that duplicate symbols
+@@ -1995,12 +1992,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		// mangle Go function names in the .so to include the
+ 		// ABI.
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+-			i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
+-			if i == 0 {
+-				continue
+-			}
+-			alias := ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
+-			ctxt.loader.Syms[i] = alias
++			alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
+ 			if alias.Type != 0 {
+ 				continue
+ 			}
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 8bcba8b2f9..2ee8af6bc9 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -460,13 +460,12 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags
+ // parameter initEhdrFlags contains the current header flags for the output
+ // object, and the returned ehdrFlags contains what this Load function computes.
+ // TODO: find a better place for this logic.
+-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+-	localSymVersion := syms.IncVersion()
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+ 	newSym := func(name string, version int) *sym.Symbol {
+-		return l.Create(name, syms)
++		return l.Create(name)
+ 	}
+ 	lookup := func(name string, version int) *sym.Symbol {
+-		return l.LookupOrCreate(name, version, syms)
++		return l.LookupOrCreate(name, version)
+ 	}
+ 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
+ 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 48ff5aecc8..47de38b034 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -109,7 +109,8 @@ type Loader struct {
+ 
+ 	objByPkg map[string]*oReader // map package path to its Go object reader
+ 
+-	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
++	Syms     []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
++	symBatch []sym.Symbol  // batch of symbols.
+ 
+ 	anonVersion int // most recently assigned ext static sym pseudo-version
+ 
+@@ -805,7 +806,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 		}
+ 		nv := l.extSyms[i-l.extStart]
+ 		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "gofile..") { // XXX file symbols are used but not marked
+-			s := syms.Newsym(nv.name, nv.v)
++			s := l.allocSym(nv.name, nv.v)
+ 			preprocess(arch, s)
+ 			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
+ 			l.Syms[i] = s
+@@ -844,12 +845,14 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		l.Syms[oldI] = nil
+ 	}
+ 
+-	// Add symbols to the ctxt.Syms lookup table. This explicitly
+-	// skips things created via loader.Create (marked with versions
+-	// less than zero), since if we tried to add these we'd wind up
+-	// with collisions. Along the way, update the version from the
+-	// negative anon version to something larger than sym.SymVerStatic
+-	// (needed so that sym.symbol.IsFileLocal() works properly).
++	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
++	// created via loader.Create (marked with versions less than zero), since
++	// if we tried to add these we'd wind up with collisions. We do, however,
++	// add these symbols to the list of global symbols so that other future
++	// steps (like pclntab generation) can find these symbols if neceassary.
++	// Along the way, update the version from the negative anon version to
++	// something larger than sym.SymVerStatic (needed so that
++	// sym.symbol.IsFileLocal() works properly).
+ 	anonVerReplacement := syms.IncVersion()
+ 	for _, s := range l.Syms {
+ 		if s == nil {
+@@ -857,6 +860,8 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		}
+ 		if s.Name != "" && s.Version >= 0 {
+ 			syms.Add(s)
++		} else {
++			syms.Allsym = append(syms.Allsym, s)
+ 		}
+ 		if s.Version < 0 {
+ 			s.Version = int16(anonVerReplacement)
+@@ -864,9 +869,25 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 	}
+ }
+ 
++// allocSym allocates a new symbol backing.
++func (l *Loader) allocSym(name string, version int) *sym.Symbol {
++	batch := l.symBatch
++	if len(batch) == 0 {
++		batch = make([]sym.Symbol, 1000)
++	}
++	s := &batch[0]
++	l.symBatch = batch[1:]
++
++	s.Dynid = -1
++	s.Name = name
++	s.Version = int16(version)
++
++	return s
++}
++
+ // addNewSym adds a new sym.Symbol to the i-th index in the list of symbols.
+-func (l *Loader) addNewSym(i Sym, syms *sym.Symbols, name string, ver int, unit *sym.CompilationUnit, t sym.SymKind) *sym.Symbol {
+-	s := syms.Newsym(name, ver)
++func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUnit, t sym.SymKind) *sym.Symbol {
++	s := l.allocSym(name, ver)
+ 	if s.Type != 0 && s.Type != sym.SXREF {
+ 		fmt.Println("symbol already processed:", unit.Lib, i, s)
+ 		panic("symbol already processed")
+@@ -921,7 +942,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 			continue
+ 		}
+ 
+-		s := l.addNewSym(istart+Sym(i), syms, name, ver, r.unit, t)
++		s := l.addNewSym(istart+Sym(i), name, ver, r.unit, t)
+ 		s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
+ 		nr += r.NReloc(i)
+ 	}
+@@ -947,10 +968,9 @@ type funcAllocInfo struct {
+ 	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
+ }
+ 
+-// LoadSymbol loads a single symbol by name.
+-// This function should only be used by the host object loaders.
++// loadSymbol loads a single symbol by name.
+ // NB: This function does NOT set the symbol as reachable.
+-func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Symbol {
++func (l *Loader) loadSymbol(name string, version int) *sym.Symbol {
+ 	global := l.Lookup(name, version)
+ 
+ 	// If we're already loaded, bail.
+@@ -968,27 +988,27 @@ func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Sy
+ 		return nil
+ 	}
+ 
+-	return l.addNewSym(istart+Sym(i), syms, name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
++	return l.addNewSym(istart+Sym(i), name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+ }
+ 
+ // LookupOrCreate looks up a symbol by name, and creates one if not found.
+ // Either way, it will also create a sym.Symbol for it, if not already.
+ // This should only be called when interacting with parts of the linker
+ // that still works on sym.Symbols (i.e. internal cgo linking, for now).
+-func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sym.Symbol {
++func (l *Loader) LookupOrCreate(name string, version int) *sym.Symbol {
+ 	i := l.Lookup(name, version)
+ 	if i != 0 {
+ 		// symbol exists
+ 		if int(i) < len(l.Syms) && l.Syms[i] != nil {
+-			return l.Syms[i] // already loaded
++			return l.Syms[i]
+ 		}
+ 		if l.IsExternal(i) {
+ 			panic("Can't load an external symbol.")
+ 		}
+-		return l.LoadSymbol(name, version, syms)
++		return l.loadSymbol(name, version)
+ 	}
+ 	i = l.AddExtSym(name, version)
+-	s := syms.Newsym(name, version)
++	s := l.allocSym(name, version)
+ 	l.Syms[i] = s
+ 	return s
+ }
+@@ -1001,7 +1021,7 @@ func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sy
+ // them fictitious (unique) versions, starting at -1 and decreasing by
+ // one for each newly created symbol, and record them in the
+ // extStaticSyms hash.
+-func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
++func (l *Loader) Create(name string) *sym.Symbol {
+ 	i := l.max + 1
+ 	l.max++
+ 	if l.extStart == 0 {
+@@ -1015,7 +1035,7 @@ func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
+ 	ver := l.anonVersion
+ 	l.extSyms = append(l.extSyms, nameVer{name, ver})
+ 	l.growSyms(int(i))
+-	s := syms.Newsym(name, ver)
++	s := l.allocSym(name, ver)
+ 	l.Syms[i] = s
+ 	l.extStaticSyms[nameVer{name, ver}] = i
+ 
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index a98b962210..e27701403e 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -423,8 +423,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
+ 
+ // Load the Mach-O file pn from f.
+ // Symbols are written into syms, and a slice of the text symbols is returned.
+-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+-	localSymVersion := syms.IncVersion()
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+ 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
+ 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
+ 	}
+@@ -560,7 +559,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pk
+ 			continue
+ 		}
+ 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
+-		s := l.LookupOrCreate(name, localSymVersion, syms)
++		s := l.LookupOrCreate(name, localSymVersion)
+ 		if s.Type != 0 {
+ 			return errorf("duplicate %s/%s", sect.segname, sect.name)
+ 		}
+@@ -609,7 +608,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pk
+ 		if machsym.type_&N_EXT == 0 {
+ 			v = localSymVersion
+ 		}
+-		s := l.LookupOrCreate(name, v, syms)
++		s := l.LookupOrCreate(name, v)
+ 		if machsym.type_&N_EXT == 0 {
+ 			s.Attr |= sym.AttrDuplicateOK
+ 		}
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index ab3aeef168..7924d16b7c 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -148,11 +148,10 @@ func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
+ // Load loads the PE file pn from input.
+ // Symbols are written into syms, and a slice of the text symbols is returned.
+ // If an .rsrc section is found, its symbol is returned as rsrc.
+-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+ 	lookup := func(name string, version int) *sym.Symbol {
+-		return l.LookupOrCreate(name, version, syms)
++		return l.LookupOrCreate(name, version)
+ 	}
+-	localSymVersion := syms.IncVersion()
+ 	sectsyms := make(map[*pe.Section]*sym.Symbol)
+ 	sectdata := make(map[*pe.Section][]byte)
+ 
+diff --git a/src/cmd/link/internal/loadxcoff/ldxcoff.go b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+index f0e3567f9c..e684432a6e 100644
+--- a/src/cmd/link/internal/loadxcoff/ldxcoff.go
++++ b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+@@ -40,9 +40,8 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
+ }
+ 
+ // loads the Xcoff file pn from f.
+-// Symbols are written into syms, and a slice of the text symbols is returned.
+-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+-	localSymVersion := syms.IncVersion()
++// Symbols are written into loader, and a slice of the text symbols is returned.
++func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+ 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
+ 		return nil, fmt.Errorf("loadxcoff: %v: %v", pn, fmt.Sprintf(str, args...))
+ 	}
+@@ -63,7 +62,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
+ 		lds := new(ldSection)
+ 		lds.Section = *sect
+ 		name := fmt.Sprintf("%s(%s)", pkg, lds.Name)
+-		s := l.LookupOrCreate(name, localSymVersion, syms)
++		s := l.LookupOrCreate(name, localSymVersion)
+ 
+ 		switch lds.Type {
+ 		default:
+@@ -90,7 +89,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
+ 	}
+ 
+ 	// sx = symbol from file
+-	// s = symbol for syms
++	// s = symbol for loader
+ 	for _, sx := range f.Symbols {
+ 		// get symbol type
+ 		stype, errmsg := getSymbolType(f, sx)
+@@ -101,7 +100,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
+ 			continue
+ 		}
+ 
+-		s := l.LookupOrCreate(sx.Name, 0, syms)
++		s := l.LookupOrCreate(sx.Name, 0)
+ 
+ 		// Text symbol
+ 		if s.Type == sym.STEXT {
+@@ -123,7 +122,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
+ 		for i, rx := range sect.Relocs {
+ 			r := &rs[i]
+ 
+-			r.Sym = l.LookupOrCreate(rx.Symbol.Name, 0, syms)
++			r.Sym = l.LookupOrCreate(rx.Symbol.Name, 0)
+ 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
+ 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
+ 			}
+@@ -157,7 +156,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
+ }
+ 
+ // Convert symbol xcoff type to sym.SymKind
+-// Returns nil if this shouldn't be added into syms (like .file or .dw symbols )
++// Returns nil if this shouldn't be added into loader (like .file or .dw symbols )
+ func getSymbolType(f *xcoff.File, s *xcoff.Symbol) (stype sym.SymKind, err string) {
+ 	// .file symbol
+ 	if s.SectionNumber == -2 {
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index e772496534..566f2506a7 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -95,6 +95,7 @@ func (syms *Symbols) Add(s *Symbol) {
+ 		panic(name + " already added")
+ 	}
+ 	m[name] = s
++	syms.Allsym = append(syms.Allsym, s)
+ }
+ 
+ // Allocate a new version (i.e. symbol namespace).

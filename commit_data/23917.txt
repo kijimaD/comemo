@@ -14,6 +14,20 @@ Date:   Mon Jun 22 14:05:00 2015 -0400
     Change-Id: I1200b54353ee1eda002d92645fd8d26048600ceb
     Reviewed-on: https://go-review.googlesource.com/11342
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbitmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 146ffbfcb6..4d39c321d8 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -164,7 +164,7 @@ func heapBitsForAddr(addr uintptr) heapBits {
+ 
+ // heapBitsForSpan returns the heapBits for the span base address base.
+ func heapBitsForSpan(base uintptr) (hbits heapBits) {
+-	if base < mheap_.arena_start || base >= mheap_.arena_end {
++	if base < mheap_.arena_start || base >= mheap_.arena_used {
+ 		throw("heapBitsForSpan: base out of range")
+ 	}
+ 	hbits = heapBitsForAddr(base)

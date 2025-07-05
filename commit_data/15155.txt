@@ -15,9 +15,152 @@ Date:   Wed Feb 6 17:18:53 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7303056
-
+---
  src/pkg/net/fd_bsd.go    |  7 ++++++-
  src/pkg/net/fd_darwin.go |  7 ++++++-
  src/pkg/net/fd_linux.go  |  7 ++++++-
  src/pkg/net/fd_unix.go   | 18 ++++++++++++++----
  4 files changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/fd_bsd.go b/src/pkg/net/fd_bsd.go
+index 4f5dd6e524..8bb1ae5384 100644
+--- a/src/pkg/net/fd_bsd.go
++++ b/src/pkg/net/fd_bsd.go
+@@ -33,6 +33,8 @@ func newpollster() (p *pollster, err error) {
+ 	return p, nil
+ }
+ 
++// First return value is whether the pollServer should be woken up.
++// This version always returns false.
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	// pollServer is locked.
+ 
+@@ -64,7 +66,9 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	return false, nil
+ }
+ 
+-func (p *pollster) DelFD(fd int, mode int) {
++// Return value is whether the pollServer should be woken up.
++// This version always returns false.
++func (p *pollster) DelFD(fd int, mode int) bool {
+ 	// pollServer is locked.
+ 
+ 	var kmode int
+@@ -77,6 +81,7 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 	// EV_DELETE - delete event from kqueue list
+ 	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE)
+ 	syscall.Kevent(p.kq, p.kbuf[:], nil, nil)
++	return false
+ }
+ 
+ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err error) {
+diff --git a/src/pkg/net/fd_darwin.go b/src/pkg/net/fd_darwin.go
+index 3dd33edc20..382465ba66 100644
+--- a/src/pkg/net/fd_darwin.go
++++ b/src/pkg/net/fd_darwin.go
+@@ -32,6 +32,8 @@ func newpollster() (p *pollster, err error) {
+ 	return p, nil
+ }
+ 
++// First return value is whether the pollServer should be woken up.
++// This version always returns false.
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	// pollServer is locked.
+ 
+@@ -65,7 +67,9 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	return false, nil
+ }
+ 
+-func (p *pollster) DelFD(fd int, mode int) {
++// Return value is whether the pollServer should be woken up.
++// This version always returns false.
++func (p *pollster) DelFD(fd int, mode int) bool {
+ 	// pollServer is locked.
+ 
+ 	var kmode int
+@@ -80,6 +84,7 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 	//	rather than waiting for real event
+ 	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE|syscall.EV_RECEIPT)
+ 	syscall.Kevent(p.kq, p.kbuf[0:], p.kbuf[0:], nil)
++	return false
+ }
+ 
+ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err error) {
+diff --git a/src/pkg/net/fd_linux.go b/src/pkg/net/fd_linux.go
+index 085e423072..03679196d9 100644
+--- a/src/pkg/net/fd_linux.go
++++ b/src/pkg/net/fd_linux.go
+@@ -51,6 +51,8 @@ func newpollster() (p *pollster, err error) {
+ 	return p, nil
+ }
+ 
++// First return value is whether the pollServer should be woken up.
++// This version always returns false.
+ func (p *pollster) AddFD(fd int, mode int, repeat bool) (bool, error) {
+ 	// pollServer is locked.
+ 
+@@ -114,7 +116,9 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
+ 	}
+ }
+ 
+-func (p *pollster) DelFD(fd int, mode int) {
++// Return value is whether the pollServer should be woken up.
++// This version always returns false.
++func (p *pollster) DelFD(fd int, mode int) bool {
+ 	// pollServer is locked.
+ 
+ 	if mode == 'r' {
+@@ -133,6 +137,7 @@ func (p *pollster) DelFD(fd int, mode int) {
+ 			i++
+ 		}
+ 	}
++	return false
+ }
+ 
+ func (p *pollster) WaitFD(s *pollServer, nsec int64) (fd int, mode int, err error) {
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index e9d2e4165f..a97674267c 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -109,17 +109,24 @@ func (s *pollServer) AddFD(fd *netFD, mode int) error {
+ // Evict evicts fd from the pending list, unblocking
+ // any I/O running on fd.  The caller must have locked
+ // pollserver.
+-func (s *pollServer) Evict(fd *netFD) {
++// Return value is whether the pollServer should be woken up.
++func (s *pollServer) Evict(fd *netFD) bool {
++	doWakeup := false
+ 	if s.pending[fd.sysfd<<1] == fd {
+ 		s.WakeFD(fd, 'r', errClosing)
+-		s.poll.DelFD(fd.sysfd, 'r')
++		if s.poll.DelFD(fd.sysfd, 'r') {
++			doWakeup = true
++		}
+ 		delete(s.pending, fd.sysfd<<1)
+ 	}
+ 	if s.pending[fd.sysfd<<1|1] == fd {
+ 		s.WakeFD(fd, 'w', errClosing)
+-		s.poll.DelFD(fd.sysfd, 'w')
++		if s.poll.DelFD(fd.sysfd, 'w') {
++			doWakeup = true
++		}
+ 		delete(s.pending, fd.sysfd<<1|1)
+ 	}
++	return doWakeup
+ }
+ 
+ var wakeupbuf [1]byte
+@@ -386,9 +393,12 @@ func (fd *netFD) Close() error {
+ 	// the final decref will close fd.sysfd.  This should happen
+ 	// fairly quickly, since all the I/O is non-blocking, and any
+ 	// attempts to block in the pollserver will return errClosing.
+-	fd.pollServer.Evict(fd)
++	doWakeup := fd.pollServer.Evict(fd)
+ 	fd.pollServer.Unlock()
+ 	fd.decref()
++	if doWakeup {
++		fd.pollServer.Wakeup()
++	}
+ 	return nil
+ }
+ 

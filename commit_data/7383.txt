@@ -12,7 +12,81 @@ Date:   Mon Feb 7 09:23:18 2011 +0100
     R=adg
     CC=golang-dev
     https://golang.org/cl/4105054
-
+---
  doc/codelab/wiki/index.html | 15 ++++++++++++---
  doc/codelab/wiki/wiki.html  |  6 +++---
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/doc/codelab/wiki/index.html b/doc/codelab/wiki/index.html
+index fe99c32d1e..ee7af33442 100644
+--- a/doc/codelab/wiki/index.html
++++ b/doc/codelab/wiki/index.html
+@@ -573,7 +573,11 @@ redirect the client to the edit Page so the content may be created:
+ </p>
+ 
+ <pre>
+-func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
++func viewHandler(w http.ResponseWriter, r *http.Request) {
++	title, err := getTitle(w, r)
++	if err != nil {
++		return
++	}
+ 	p, err := loadPage(title)
+ 	if err != nil {
+ 		http.Redirect(w, r, &#34;/edit/&#34;+title, http.StatusFound)
+@@ -658,10 +662,14 @@ Now let's fix up <code>saveHandler</code>:
+ </p>
+ 
+ <pre>
+-func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
++func saveHandler(w http.ResponseWriter, r *http.Request) {
++	title, err := getTitle(w, r)
++	if err != nil {
++		return
++	}
+ 	body := r.FormValue(&#34;body&#34;)
+ 	p := &amp;Page{Title: title, Body: []byte(body)}
+-	err := p.save()
++	err = p.save()
+ 	if err != nil {
+ 		http.Error(w, err.String(), http.StatusInternalServerError)
+ 		return
+@@ -747,6 +755,7 @@ Then we can create a global variable to store our validation regexp:
+ </p>
+ 
+ <pre>
++var titleValidator = regexp.MustCompile(&#34;^[a-zA-Z0-9]+$&#34;)
+ </pre>
+ 
+ <p>
+diff --git a/doc/codelab/wiki/wiki.html b/doc/codelab/wiki/wiki.html
+index ff2c3088b0..3ddbd96b77 100644
+--- a/doc/codelab/wiki/wiki.html
++++ b/doc/codelab/wiki/wiki.html
+@@ -477,7 +477,7 @@ redirect the client to the edit Page so the content may be created:
+ </p>
+ 
+ <pre>
+-!./srcextract.bin -src=final.go -name=viewHandler
++!./srcextract.bin -src=final-noclosure.go -name=viewHandler
+ </pre>
+ 
+ <p>
+@@ -539,7 +539,7 @@ Now let's fix up <code>saveHandler</code>:
+ </p>
+ 
+ <pre>
+-!./srcextract.bin -src=final.go -name=saveHandler
++!./srcextract.bin -src=final-noclosure.go -name=saveHandler
+ </pre>
+ 
+ <p>
+@@ -610,7 +610,7 @@ Then we can create a global variable to store our validation regexp:
+ </p>
+ 
+ <pre>
+-!./srcextract.bin -src=final-noclosure.go -name=TitleValidator
++!./srcextract.bin -src=final-noclosure.go -name=titleValidator
+ </pre>
+ 
+ <p>

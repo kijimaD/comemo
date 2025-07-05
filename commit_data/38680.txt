@@ -22,7 +22,33 @@ Date:   Wed Nov 14 19:34:48 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/cmd/go/internal/run/run.go              | 3 +++
  src/cmd/go/testdata/script/run_wildcard.txt | 5 +++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 303e6842e7..feccf23b27 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -78,6 +78,9 @@ func runRun(cmd *base.Command, args []string) {
+ 		p = load.GoFilesPackage(files)
+ 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+ 		pkgs := load.PackagesAndErrors(args[:1])
++		if len(pkgs) == 0 {
++			base.Fatalf("go run: no packages loaded from %s", args[0])
++		}
+ 		if len(pkgs) > 1 {
+ 			var names []string
+ 			for _, p := range pkgs {
+diff --git a/src/cmd/go/testdata/script/run_wildcard.txt b/src/cmd/go/testdata/script/run_wildcard.txt
+new file mode 100644
+index 0000000000..cd401e00e6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_wildcard.txt
+@@ -0,0 +1,5 @@
++# Fix for https://github.com/golang/go/issues/28696:
++# go run x/... should not panic when directory x doesn't exist.
++
++! go run nonexistent/...
++stderr '^go run: no packages loaded from nonexistent/...$'

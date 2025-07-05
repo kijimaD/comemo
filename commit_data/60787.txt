@@ -19,7 +19,7 @@ Date:   Wed Aug 28 20:32:37 2024 +0000
     Auto-Submit: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go.mod                                      |  2 +-
  src/cmd/go.sum                                      |  4 ++--
  .../x/telemetry/internal/configstore/download.go    | 11 +++++++++++
@@ -28,3 +28,181 @@ Date:   Wed Aug 28 20:32:37 2024 +0000
  src/cmd/vendor/golang.org/x/telemetry/start.go      | 19 ++++++++++++++-----
  src/cmd/vendor/modules.txt                          |  2 +-
  7 files changed, 49 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 89a64e906e..7e8860c5b4 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.20.0
+ 	golang.org/x/sync v0.8.0
+ 	golang.org/x/sys v0.23.0
+-	golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755
++	golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
+ 	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
+ 	golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index c93d286f12..fff1e51f80 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
+ golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
+ golang.org/x/sys v0.23.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755 h1:Gv9T6gPIHuUCC/THKUdLbAj1GeBKx7auk9c9w/5CHPk=
+-golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755/go.mod h1:m7R/r+o5h7UvF2JD9n2iLSGY4v8v+zNSyTJ6xynLrqs=
++golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97 h1:5xPN7d0u5VdgF2gFFXUDaeD3NP1pPgFMHocnCQGAh5M=
++golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97/go.mod h1:m7R/r+o5h7UvF2JD9n2iLSGY4v8v+zNSyTJ6xynLrqs=
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFONf27MxXigcYa9x+iW5JuCXw=
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292/go.mod h1:F3qCibpT5AMpCRfhfT53vVJwhLtIVHhB9XDjfFvnMI4=
+ golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
+index a38f371d0f..e60ab7e9fd 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
+@@ -16,6 +16,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"sync/atomic"
+ 
+ 	"golang.org/x/telemetry/internal/telemetry"
+ )
+@@ -29,12 +30,22 @@ const (
+ // creation flag.
+ var needNoConsole = func(cmd *exec.Cmd) {}
+ 
++var downloads int64
++
++// Downloads reports, for testing purposes, the number of times [Download] has
++// been called.
++func Downloads() int64 {
++	return atomic.LoadInt64(&downloads)
++}
++
+ // Download fetches the requested telemetry UploadConfig using "go mod
+ // download". If envOverlay is provided, it is appended to the environment used
+ // for invoking the go command.
+ //
+ // The second result is the canonical version of the requested configuration.
+ func Download(version string, envOverlay []string) (*telemetry.UploadConfig, string, error) {
++	atomic.AddInt64(&downloads, 1)
++
+ 	if version == "" {
+ 		version = "latest"
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/monitor.go b/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/monitor.go
+index f475f7eec2..612f7563a7 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/monitor.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/monitor.go
+@@ -21,12 +21,12 @@ import (
+ 	"golang.org/x/telemetry/internal/counter"
+ )
+ 
+-// Supported reports whether the runtime supports [runtime.SetCrashOutput].
++// Supported reports whether the runtime supports [runtime/debug.SetCrashOutput].
+ //
+ // TODO(adonovan): eliminate once go1.23+ is assured.
+ func Supported() bool { return setCrashOutput != nil }
+ 
+-var setCrashOutput func(*os.File) error // = runtime.SetCrashOutput on go1.23+
++var setCrashOutput func(*os.File) error // = runtime/debug.SetCrashOutput on go1.23+
+ 
+ // Parent sets up the parent side of the crashmonitor. It requires
+ // exclusive use of a writable pipe connected to the child process's stdin.
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+index eba13b1a57..e9c8dc2071 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+@@ -112,9 +112,24 @@ func newUploader(rcfg RunConfig) (*uploader, error) {
+ 	logger := log.New(logWriter, "", log.Ltime|log.Lmicroseconds|log.Lshortfile)
+ 
+ 	// Fetch the upload config, if it is not provided.
+-	config, configVersion, err := configstore.Download("latest", rcfg.Env)
+-	if err != nil {
+-		return nil, err
++	var (
++		config        *telemetry.UploadConfig
++		configVersion string
++	)
++
++	if mode, _ := dir.Mode(); mode == "on" {
++		// golang/go#68946: only download the upload config if it will be used.
++		//
++		// TODO(rfindley): This is a narrow change aimed at minimally fixing the
++		// associated bug. In the future, we should read the mode only once during
++		// the upload process.
++		config, configVersion, err = configstore.Download("latest", rcfg.Env)
++		if err != nil {
++			return nil, err
++		}
++	} else {
++		config = &telemetry.UploadConfig{}
++		configVersion = "v0.0.0-0"
+ 	}
+ 
+ 	// Set the start time, if it is not provided.
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 4b37a5c394..69ebcc7135 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -206,7 +206,8 @@ func startChild(reportCrashes, upload bool, result *StartResult) {
+ 	fd, err := os.Stat(telemetry.Default.DebugDir())
+ 	if err != nil {
+ 		if !os.IsNotExist(err) {
+-			log.Fatalf("failed to stat debug directory: %v", err)
++			log.Printf("failed to stat debug directory: %v", err)
++			return
+ 		}
+ 	} else if fd.IsDir() {
+ 		// local/debug exists and is a directory. Set stderr to a log file path
+@@ -214,23 +215,31 @@ func startChild(reportCrashes, upload bool, result *StartResult) {
+ 		childLogPath := filepath.Join(telemetry.Default.DebugDir(), "sidecar.log")
+ 		childLog, err := os.OpenFile(childLogPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+ 		if err != nil {
+-			log.Fatalf("opening sidecar log file for child: %v", err)
++			log.Printf("opening sidecar log file for child: %v", err)
++			return
+ 		}
+ 		defer childLog.Close()
+ 		cmd.Stderr = childLog
+ 	}
+ 
++	var crashOutputFile *os.File
+ 	if reportCrashes {
+ 		pipe, err := cmd.StdinPipe()
+ 		if err != nil {
+-			log.Fatalf("StdinPipe: %v", err)
++			log.Printf("StdinPipe: %v", err)
++			return
+ 		}
+ 
+-		crashmonitor.Parent(pipe.(*os.File)) // (this conversion is safe)
++		crashOutputFile = pipe.(*os.File) // (this conversion is safe)
+ 	}
+ 
+ 	if err := cmd.Start(); err != nil {
+-		log.Fatalf("can't start telemetry child process: %v", err)
++		// The child couldn't be started. Log the failure.
++		log.Printf("can't start telemetry child process: %v", err)
++		return
++	}
++	if reportCrashes {
++		crashmonitor.Parent(crashOutputFile)
+ 	}
+ 	result.wg.Add(1)
+ 	go func() {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index c99bc74ce0..698b0255b3 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -46,7 +46,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755
++# golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

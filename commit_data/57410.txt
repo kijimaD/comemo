@@ -15,6 +15,45 @@ Date:   Sat Aug 5 15:52:52 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/flag.go | 18 +++++++-----------
  1 file changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 753a60ae1e..7bd27c92a3 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -470,26 +470,22 @@ func readImportCfg(file string) {
+ 			continue
+ 		}
+ 
+-		var verb, args string
+-		if i := strings.Index(line, " "); i < 0 {
+-			verb = line
+-		} else {
+-			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+-		}
+-		var before, after string
+-		if i := strings.Index(args, "="); i >= 0 {
+-			before, after = args[:i], args[i+1:]
++		verb, args, found := strings.Cut(line, " ")
++		if found {
++			args = strings.TrimSpace(args)
+ 		}
++		before, after, hasEq := strings.Cut(args, "=")
++
+ 		switch verb {
+ 		default:
+ 			log.Fatalf("%s:%d: unknown directive %q", file, lineNum, verb)
+ 		case "importmap":
+-			if before == "" || after == "" {
++			if !hasEq || before == "" || after == "" {
+ 				log.Fatalf(`%s:%d: invalid importmap: syntax is "importmap old=new"`, file, lineNum)
+ 			}
+ 			Flag.Cfg.ImportMap[before] = after
+ 		case "packagefile":
+-			if before == "" || after == "" {
++			if !hasEq || before == "" || after == "" {
+ 				log.Fatalf(`%s:%d: invalid packagefile: syntax is "packagefile path=filename"`, file, lineNum)
+ 			}
+ 			Flag.Cfg.PackageFile[before] = after

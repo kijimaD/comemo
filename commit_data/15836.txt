@@ -9,7 +9,7 @@ Date:   Tue Mar 19 15:45:42 2013 -0400
     R=golang-dev, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/7783044
-
+---
  src/cmd/5l/asm.c  |  2 +-
  src/cmd/5l/obj.c  |  6 ++++++
  src/cmd/6l/asm.c  |  4 ++--
@@ -22,3 +22,376 @@ Date:   Tue Mar 19 15:45:42 2013 -0400
  src/cmd/ld/lib.h  |  1 +
  src/run.bash      |  5 +++--
  11 files changed, 75 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index f81ec2ff99..a1220a38e6 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -605,7 +605,7 @@ asmb(void)
+ 					Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 				dwarfemitdebugsections();
+ 				
+-				if(isobj)
++				if(linkmode == LinkExternal)
+ 					elfemitreloc();
+ 			}
+ 			break;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index f70cb6c336..a025db2094 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -117,6 +117,7 @@ main(int argc, char *argv[])
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
++	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+ 	flagcount("n", "dump symbol table", &debug['n']);
+ 	flagstr("o", "outfile: set output file", &outfile);
+ 	flagcount("p", "insert profiling code", &debug['p']);
+@@ -135,6 +136,11 @@ main(int argc, char *argv[])
+ 	if(argc != 1)
+ 		usage();
+ 
++	if(linkmode != Linkinternal) {
++		diag("only -linkmode=internal is supported");
++		errorexit();
++	}
++
+ 	libinit();
+ 
+ 	if(HEADTYPE == -1)
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index de6ea3a63c..07ba59ad98 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -711,7 +711,7 @@ asmb(void)
+ 
+ 				dwarfemitdebugsections();
+ 				
+-				if(isobj)
++				if(linkmode == LinkExternal)
+ 					elfemitreloc();
+ 			}
+ 			break;
+@@ -735,7 +735,7 @@ asmb(void)
+ 			dwarfemitdebugsections();
+ 			break;
+ 		case Hdarwin:
+-			if(isobj)
++			if(linkmode == LinkExternal)
+ 				machoemitreloc();
+ 			break;
+ 		}
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 91569794bf..3775df9de5 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -109,7 +109,7 @@ main(int argc, char *argv[])
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+-	flagcount("hostobj", "generate host object file", &isobj);
++	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+ 	flagcount("n", "dump symbol table", &debug['n']);
+ 	flagstr("o", "outfile: set output file", &outfile);
+@@ -124,10 +124,6 @@ main(int argc, char *argv[])
+ 	flagcount("w", "disable DWARF generation", &debug['w']);
+ 	
+ 	flagparse(&argc, &argv, usage);
+-	
+-	// TODO: link mode flag instead of isobj
+-	if(isobj)
+-		linkmode = LinkExternal;
+ 
+ 	if(argc != 1)
+ 		usage();
+@@ -137,17 +133,19 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 
+-	if(isobj) {
+-		switch(HEADTYPE) {
+-		default:
+-			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+-		case Hdarwin:
+-		case Hfreebsd:
+-		case Hlinux:
+-		case Hnetbsd:
+-		case Hopenbsd:
+-			break;
+-		}
++	switch(HEADTYPE) {
++	default:
++		if(linkmode == LinkAuto)
++			linkmode = LinkInternal;
++		if(linkmode == LinkExternal)
++			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
++		break;
++	case Hdarwin:
++	case Hfreebsd:
++	case Hlinux:
++	case Hnetbsd:
++	case Hopenbsd:
++		break;
+ 	}
+ 
+ 	if(outfile == nil) {
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 402360d704..bfeb138390 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -671,7 +671,7 @@ asmb(void)
+ 					Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 				dwarfemitdebugsections();
+ 				
+-				if(isobj)
++				if(linkmode == LinkExternal)
+ 					elfemitreloc();
+ 			}
+ 			break;
+@@ -694,7 +694,7 @@ asmb(void)
+ 			dwarfemitdebugsections();
+ 			break;
+ 		case Hdarwin:
+-			if(isobj)
++			if(linkmode == LinkExternal)
+ 				machoemitreloc();
+ 			break;
+ 		}
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 14c6b6aa97..306e288a35 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -115,7 +115,7 @@ main(int argc, char *argv[])
+ 	flagcount("d", "disable dynamic executable", &debug['d']);
+ 	flagcount("f", "ignore version mismatch", &debug['f']);
+ 	flagcount("g", "disable go package data checks", &debug['g']);
+-	flagcount("hostobj", "generate host object file", &isobj);
++	flagfn1("linkmode", "mode: set link mode (internal, external, auto)", setlinkmode);
+ 	flagstr("k", "sym: set field tracking symbol", &tracksym);
+ 	flagstr("o", "outfile: set output file", &outfile);
+ 	flagcount("p", "insert profiling code", &debug['p']);
+@@ -131,10 +131,6 @@ main(int argc, char *argv[])
+ 	
+ 	flagparse(&argc, &argv, usage);
+ 
+-	// TODO: link mode flag instead of isobj
+-	if(isobj)
+-		linkmode = LinkExternal;
+-
+ 	if(argc != 1)
+ 		usage();
+ 
+@@ -143,17 +139,19 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 
+-	if(isobj) {
+-		switch(HEADTYPE) {
+-		default:
+-			sysfatal("cannot use -hostobj with -H %s", headstr(HEADTYPE));
+-		case Hdarwin:
+-		case Hfreebsd:
+-		case Hlinux:
+-		case Hnetbsd:
+-		case Hopenbsd:
+-			break;
+-		}
++	switch(HEADTYPE) {
++	default:
++		if(linkmode == LinkAuto)
++			linkmode = LinkInternal;
++		if(linkmode == LinkExternal)
++			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
++		break;
++	case Hdarwin:
++	case Hfreebsd:
++	case Hlinux:
++	case Hnetbsd:
++	case Hopenbsd:
++		break;
+ 	}
+ 
+ 	if(outfile == nil) {
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index fdf4d043d5..b70d4636cc 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -178,11 +178,11 @@ relocsym(Sym *s)
+ 		switch(r->type) {
+ 		default:
+ 			o = 0;
+-			if(isobj || archreloc(r, s, &o) < 0)
++			if(linkmode == LinkExternal || archreloc(r, s, &o) < 0)
+ 				diag("unknown reloc %d", r->type);
+ 			break;
+ 		case D_ADDR:
+-			if(isobj && r->sym->type != SCONST) {
++			if(linkmode == LinkExternal && r->sym->type != SCONST) {
+ 				r->done = 0;
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+@@ -212,7 +212,7 @@ relocsym(Sym *s)
+ 			break;
+ 		case D_PCREL:
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+-			if(isobj && r->sym && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
++			if(linkmode == LinkExternal && r->sym && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
+ 				r->done = 0;
+ 
+ 				// set up addend for eventual relocation via outer symbol.
+@@ -630,7 +630,7 @@ datblk(int32 addr, int32 size)
+ 			Bprint(&bso, " %.2ux", 0);
+ 		Bprint(&bso, "\n");
+ 		
+-		if(isobj) {
++		if(linkmode == LinkExternal) {
+ 			for(i=0; i<sym->nr; i++) {
+ 				r = &sym->r[i];
+ 				rsname = "";
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 50711a0ec1..f5cce9c524 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -758,7 +758,7 @@ elfshbits(Section *sect)
+ 		sh->flags |= SHF_EXECINSTR;
+ 	if(sect->rwx & 2)
+ 		sh->flags |= SHF_WRITE;
+-	if(!isobj)
++	if(linkmode != LinkExternal)
+ 		sh->addr = sect->vaddr;
+ 	sh->addralign = sect->align;
+ 	sh->size = sect->len;
+@@ -899,7 +899,7 @@ doelf(void)
+ 	addstring(shstrtab, ".gosymtab");
+ 	addstring(shstrtab, ".gopclntab");
+ 	
+-	if(isobj) {
++	if(linkmode == LinkExternal) {
+ 		debug['s'] = 0;
+ 		debug['d'] = 1;
+ 
+@@ -1131,7 +1131,7 @@ asmbelf(vlong symo)
+ 	resoff = ELFRESERVE;
+ 	
+ 	pph = nil;
+-	if(isobj) {
++	if(linkmode == LinkExternal) {
+ 		/* skip program headers */
+ 		eh->phoff = 0;
+ 		eh->phentsize = 0;
+@@ -1392,7 +1392,7 @@ elfobj:
+ 	for(sect=segdata.sect; sect!=nil; sect=sect->next)
+ 		elfshbits(sect);
+ 
+-	if(isobj) {
++	if(linkmode == LinkExternal) {
+ 		for(sect=segtext.sect; sect!=nil; sect=sect->next)
+ 			elfshreloc(sect);
+ 		for(sect=segdata.sect; sect!=nil; sect=sect->next)
+@@ -1415,8 +1415,8 @@ elfobj:
+ 		sh->size = elfstrsize;
+ 		sh->addralign = 1;
+ 
+-		// TODO(rsc): Enable for isobj too, once we know it works.
+-		if(!isobj)
++		// TODO(rsc): Enable for linkmode == LinkExternal too, once we know it works.
++		if(linkmode != LinkExternal)
+ 			dwarfaddelfheaders();
+ 	}
+ 
+@@ -1440,12 +1440,12 @@ elfobj:
+ 
+ 	if(flag_shared)
+ 		eh->type = ET_DYN;
+-	else if(isobj)
++	else if(linkmode == LinkExternal)
+ 		eh->type = ET_REL;
+ 	else
+ 		eh->type = ET_EXEC;
+ 
+-	if(!isobj)
++	if(linkmode != LinkExternal)
+ 		eh->entry = entryvalue();
+ 
+ 	eh->version = EV_CURRENT;
+@@ -1462,7 +1462,7 @@ elfobj:
+ 	a += elfwriteshdrs();
+ 	if(!debug['d'])
+ 		a += elfwriteinterp();
+-	if(!isobj) {
++	if(linkmode != LinkExternal) {
+ 		if(HEADTYPE == Hnetbsd)
+ 			a += elfwritenetbsdsig();
+ 		if(HEADTYPE == Hopenbsd)
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index ff1f5f437b..f933cbba34 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -476,12 +476,10 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 		if(strcmp(f[0], "cgo_import_static") == 0) {
+ 			if(nf != 2)
+ 				goto err;
+-			if(isobj) {
+-				local = f[1];
+-				s = lookup(local, 0);
+-				s->type = SHOSTOBJ;
+-				s->size = 0;
+-			}
++			local = f[1];
++			s = lookup(local, 0);
++			s->type = SHOSTOBJ;
++			s->size = 0;
+ 			continue;
+ 		}
+ 
+@@ -925,3 +923,18 @@ importcycles(void)
+ 	for(p=pkgall; p; p=p->all)
+ 		cycle(p);
+ }
++
++void
++setlinkmode(char *arg)
++{
++	if(strcmp(arg, "internal") == 0)
++		linkmode = LinkInternal;
++	else if(strcmp(arg, "external") == 0)
++		linkmode = LinkExternal;
++	else if(strcmp(arg, "auto") == 0)
++		linkmode = LinkAuto;
++	else {
++		fprint(2, "unknown link mode -linkmode %s\n", arg);
++		errorexit();
++	}
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index e5dcdc353c..78232c0759 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -170,6 +170,7 @@ EXTERN	Segment	segtext;
+ EXTERN	Segment	segdata;
+ EXTERN	Segment	segdwarf;
+ 
++void	setlinkmode(char*);
+ void	addlib(char *src, char *obj);
+ void	addlibpath(char *srcref, char *objref, char *file, char *pkg);
+ Section*	addsection(Segment*, char*, int);
+diff --git a/src/run.bash b/src/run.bash
+index 6c96d5ddd2..538d4f6fe0 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -75,10 +75,11 @@ go run $GOROOT/test/run.go - .
+ 
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/test
+-go test
++go test -ldflags '-linkmode=auto'
++go test -ldflags '-linkmode=internal'
+ case "$GOHOSTOS-$GOARCH" in
+ darwin-386 | darwin-amd64 | freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64 | openbsd-386 | openbsd-amd64)
+-	go test -ldflags '-w -hostobj'
++	go test -ldflags '-linkmode=external'
+ esac
+ ) || exit $?
+ 

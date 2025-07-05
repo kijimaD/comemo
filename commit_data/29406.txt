@@ -13,7 +13,60 @@ Date:   Tue Sep 13 15:33:55 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go   |  2 --
  src/cmd/compile/internal/gc/main.go | 10 +++++-----
  2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 860f29e5b4..97fa7e2ddd 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -22,9 +22,7 @@ type Pkg struct {
+ 	Pathsym  *obj.LSym
+ 	Prefix   string // escaped path for use in symbol table
+ 	Imported bool   // export data of this package was parsed
+-	Exported bool   // import line written in export data
+ 	Direct   bool   // imported directly
+-	Safe     bool   // whether the package is marked as safe
+ 	Syms     map[string]*Sym
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 99c6fe5a74..19d92d3bc0 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -810,6 +810,7 @@ func importfile(f *Val, indent []byte) {
+ 	}
+ 
+ 	// process header lines
++	safe := false
+ 	for {
+ 		p, err = imp.ReadString('\n')
+ 		if err != nil {
+@@ -819,10 +820,13 @@ func importfile(f *Val, indent []byte) {
+ 			break // header ends with blank line
+ 		}
+ 		if strings.HasPrefix(p, "safe") {
+-			importpkg.Safe = true
++			safe = true
+ 			break // ok to ignore rest
+ 		}
+ 	}
++	if safemode && !safe {
++		Yyerror("cannot import unsafe package %q", importpkg.Path)
++	}
+ 
+ 	// assume files move (get installed)
+ 	// so don't record the full path.
+@@ -867,10 +871,6 @@ func importfile(f *Val, indent []byte) {
+ 		Yyerror("no import in %q", path_)
+ 		errorexit()
+ 	}
+-
+-	if safemode && !importpkg.Safe {
+-		Yyerror("cannot import unsafe package %q", importpkg.Path)
+-	}
+ }
+ 
+ func pkgnotused(lineno int32, path string, name string) {

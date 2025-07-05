@@ -15,7 +15,152 @@ Date:   Mon Feb 8 11:00:43 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/19340
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go   |  7 ++--
  src/cmd/compile/internal/ssa/decompose.go | 67 +++++++++++++++++++++++--------
  2 files changed, 55 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 04fd82bfb5..69f751187d 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -99,7 +99,8 @@ var passes = [...]pass{
+ 	{"early copyelim", copyelim, false},
+ 	{"early deadcode", deadcode, false}, // remove generated dead code to avoid doing pointless work during opt
+ 	{"short circuit", shortcircuit, false},
+-	{"decompose", decompose, true},
++	{"decompose user", decomposeUser, true},
++	{"decompose builtin", decomposeBuiltIn, true},
+ 	{"opt", opt, true},                // TODO: split required rules and optimizing rules
+ 	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
+ 	{"generic cse", cse, true},
+@@ -148,8 +149,8 @@ var passOrder = [...]constraint{
+ 	// tighten will be most effective when as many values have been removed as possible
+ 	{"generic deadcode", "tighten"},
+ 	{"generic cse", "tighten"},
+-	// don't run optimization pass until we've decomposed compound objects
+-	{"decompose", "opt"},
++	// don't run optimization pass until we've decomposed builtin objects
++	{"decompose builtin", "opt"},
+ 	// don't layout blocks until critical edges have been removed
+ 	{"critical", "layout"},
+ 	// regalloc requires the removal of all critical edges
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index fd8d6b802c..826eff1ee0 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -4,16 +4,16 @@
+ 
+ package ssa
+ 
+-// decompose converts phi ops on compound types into phi
++// decompose converts phi ops on compound builtin types into phi
+ // ops on simple types.
+ // (The remaining compound ops are decomposed with rewrite rules.)
+-func decompose(f *Func) {
++func decomposeBuiltIn(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			if v.Op != OpPhi {
+ 				continue
+ 			}
+-			decomposePhi(v)
++			decomposeBuiltInPhi(v)
+ 		}
+ 	}
+ 
+@@ -78,22 +78,13 @@ func decompose(f *Func) {
+ 				f.NamedValues[typeName] = append(f.NamedValues[typeName], typ)
+ 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
+ 			}
+-		case t.IsStruct():
+-			n := t.NumFields()
+-			for _, v := range f.NamedValues[name] {
+-				for i := int64(0); i < n; i++ {
+-					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
+-					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
+-					f.NamedValues[fname] = append(f.NamedValues[fname], x)
+-				}
+-			}
+ 		case t.Size() > f.Config.IntSize:
+ 			f.Unimplementedf("undecomposed named type %s", t)
+ 		}
+ 	}
+ }
+ 
+-func decomposePhi(v *Value) {
++func decomposeBuiltInPhi(v *Value) {
+ 	// TODO: decompose 64-bit ops on 32-bit archs?
+ 	switch {
+ 	case v.Type.IsComplex():
+@@ -104,8 +95,6 @@ func decomposePhi(v *Value) {
+ 		decomposeSlicePhi(v)
+ 	case v.Type.IsInterface():
+ 		decomposeInterfacePhi(v)
+-	case v.Type.IsStruct():
+-		decomposeStructPhi(v)
+ 	case v.Type.Size() > v.Block.Func.Config.IntSize:
+ 		v.Unimplementedf("undecomposed type %s", v.Type)
+ 	}
+@@ -182,6 +171,50 @@ func decomposeInterfacePhi(v *Value) {
+ 	v.AddArg(itab)
+ 	v.AddArg(data)
+ }
++
++func decomposeUser(f *Func) {
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			if v.Op != OpPhi {
++				continue
++			}
++			decomposeUserPhi(v)
++		}
++	}
++	// Split up named values into their components.
++	// NOTE: the component values we are making are dead at this point.
++	// We must do the opt pass before any deadcode elimination or we will
++	// lose the name->value correspondence.
++	i := 0
++	for _, name := range f.Names {
++		t := name.Type
++		switch {
++		case t.IsStruct():
++			n := t.NumFields()
++			for _, v := range f.NamedValues[name] {
++				for i := int64(0); i < n; i++ {
++					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
++					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
++					f.NamedValues[fname] = append(f.NamedValues[fname], x)
++				}
++			}
++			delete(f.NamedValues, name)
++		default:
++			f.Names[i] = name
++			i++
++		}
++	}
++	f.Names = f.Names[:i]
++}
++
++func decomposeUserPhi(v *Value) {
++	switch {
++	case v.Type.IsStruct():
++		decomposeStructPhi(v)
++	}
++	// TODO: Arrays of length 1?
++}
++
+ func decomposeStructPhi(v *Value) {
+ 	t := v.Type
+ 	n := t.NumFields()
+@@ -199,7 +232,9 @@ func decomposeStructPhi(v *Value) {
+ 
+ 	// Recursively decompose phis for each field.
+ 	for _, f := range fields[:n] {
+-		decomposePhi(f)
++		if f.Type.IsStruct() {
++			decomposeStructPhi(f)
++		}
+ 	}
+ }
+ 

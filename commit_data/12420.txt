@@ -7,7 +7,7 @@ Date:   Tue Mar 6 15:41:17 2012 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5753048
-
+---
  src/pkg/net/multicast_test.go |  3 +++
  src/pkg/net/net_test.go       |  1 +
  src/pkg/net/parse_test.go     |  4 +++-
@@ -16,3 +16,179 @@ Date:   Tue Mar 6 15:41:17 2012 +0900
  src/pkg/net/udp_test.go       |  4 +++-
  src/pkg/net/unicast_test.go   |  7 +++++++
  7 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 1d760c2105..fe5e8de2f6 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -47,9 +47,11 @@ var multicastListenerTests = []struct {
+ func TestMulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "netbsd", "openbsd", "plan9", "windows":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	case "linux":
+ 		if runtime.GOARCH == "arm" || runtime.GOARCH == "alpha" {
++			t.Logf("skipping test on %q/%q", runtime.GOOS, runtime.GOARCH)
+ 			return
+ 		}
+ 	}
+@@ -86,6 +88,7 @@ func TestMulticastListener(t *testing.T) {
+ func TestSimpleMulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index f62fc6547c..d4409cc491 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -21,6 +21,7 @@ var avoidOSXFirewallDialogPopup = func() bool {
+ 
+ func TestShutdown(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 	l, err := Listen("tcp", "127.0.0.1:0")
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index dfbaba4d9e..30fda45dfd 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -13,7 +13,9 @@ import (
+ 
+ func TestReadLine(t *testing.T) {
+ 	// /etc/services file does not exist on windows and Plan 9.
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 	filename := "/etc/services" // a nice big file
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 64a979634d..d5ea789880 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -142,6 +142,7 @@ var seqpacketConnServerTests = []struct {
+ 
+ func TestSeqpacketConnServer(t *testing.T) {
+ 	if runtime.GOOS != "linux" {
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index acae7fa03b..672fb7241d 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -57,7 +57,9 @@ func testTimeout(t *testing.T, net, addr string, readFrom bool) {
+ }
+ 
+ func TestTimeoutUDP(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -73,7 +75,9 @@ func TestTimeoutUDP(t *testing.T) {
+ }
+ 
+ func TestTimeoutTCP(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -88,7 +92,9 @@ func TestTimeoutTCP(t *testing.T) {
+ }
+ 
+ func TestDeadlineReset(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 	ln, err := Listen("tcp", "127.0.0.1:0")
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index ea5fad41a5..f80d3b5a9c 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -10,7 +10,9 @@ import (
+ )
+ 
+ func TestWriteToUDP(t *testing.T) {
+-	if runtime.GOOS == "plan9" {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 4fd5d32d91..fc6089414d 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -45,6 +45,7 @@ var listenerTests = []struct {
+ func TestTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -80,6 +81,7 @@ func TestTCPListener(t *testing.T) {
+ func TestUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -125,6 +127,7 @@ func TestUDPListener(t *testing.T) {
+ func TestSimpleTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -150,6 +153,7 @@ func TestSimpleTCPListener(t *testing.T) {
+ func TestSimpleUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 
+@@ -255,6 +259,7 @@ var dualStackListenerTests = []struct {
+ func TestDualStackTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 	if !supportsIPv6 {
+@@ -291,6 +296,7 @@ func TestDualStackTCPListener(t *testing.T) {
+ func TestDualStackUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 	if !supportsIPv6 {
+@@ -521,6 +527,7 @@ var prohibitionaryDialArgTests = []struct {
+ func TestProhibitionaryDialArgs(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
++		t.Logf("skipping test on %q", runtime.GOOS)
+ 		return
+ 	}
+ 	// This test requires both IPv6 and IPv6 IPv4-mapping functionality.

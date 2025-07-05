@@ -15,10 +15,169 @@ Date:   Mon Jul 13 22:24:52 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go |  7 ++++++-
  src/path/match.go         |  4 ++--
  src/path/match_test.go    |  7 +++++--
  src/path/path.go          | 36 ++++++++++++++++++++++++++----------
  src/path/path_test.go     |  3 ++-
  5 files changed, 41 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 1edd96c5e3..79836c0d67 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -101,6 +101,11 @@ var depsRules = `
+ 
+ 	reflect !< sort;
+ 
++	RUNTIME, unicode/utf8
++	< path;
++
++	unicode !< path;
++
+ 	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
+ 	RUNTIME, unicode/utf8, unicode/utf16
+ 	< internal/syscall/windows/sysdll, syscall/js
+@@ -137,7 +142,7 @@ var depsRules = `
+ 	# STR is basic string and buffer manipulation.
+ 	RUNTIME, io, unicode/utf8, unicode/utf16, unicode
+ 	< bytes, strings
+-	< bufio, path;
++	< bufio;
+ 
+ 	bufio, path, strconv
+ 	< STR;
+diff --git a/src/path/match.go b/src/path/match.go
+index d39d24450a..837eb8bb8b 100644
+--- a/src/path/match.go
++++ b/src/path/match.go
+@@ -6,7 +6,7 @@ package path
+ 
+ import (
+ 	"errors"
+-	"strings"
++	"internal/bytealg"
+ 	"unicode/utf8"
+ )
+ 
+@@ -43,7 +43,7 @@ Pattern:
+ 		star, chunk, pattern = scanChunk(pattern)
+ 		if star && chunk == "" {
+ 			// Trailing * matches rest of string unless it has a /.
+-			return !strings.Contains(name, "/"), nil
++			return bytealg.IndexByteString(name, '/') < 0, nil
+ 		}
+ 		// Look for match at current position.
+ 		t, ok, err := matchChunk(chunk, name)
+diff --git a/src/path/match_test.go b/src/path/match_test.go
+index 127180e570..3e027e1f68 100644
+--- a/src/path/match_test.go
++++ b/src/path/match_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package path
++package path_test
+ 
+-import "testing"
++import (
++	. "path"
++	"testing"
++)
+ 
+ type MatchTest struct {
+ 	pattern, s string
+diff --git a/src/path/path.go b/src/path/path.go
+index c513114b4d..f1f3499f63 100644
+--- a/src/path/path.go
++++ b/src/path/path.go
+@@ -11,10 +11,6 @@
+ // operating system paths, use the path/filepath package.
+ package path
+ 
+-import (
+-	"strings"
+-)
+-
+ // A lazybuf is a lazily constructed path buffer.
+ // It supports append, reading previously appended bytes,
+ // and retrieving the final string. It does not allocate a buffer
+@@ -139,13 +135,22 @@ func Clean(path string) string {
+ 	return out.string()
+ }
+ 
++// lastSlash(s) is strings.LastIndex(s, "/") but we can't import strings.
++func lastSlash(s string) int {
++	i := len(s) - 1
++	for i >= 0 && s[i] != '/' {
++		i--
++	}
++	return i
++}
++
+ // Split splits path immediately following the final slash,
+ // separating it into a directory and file name component.
+ // If there is no slash in path, Split returns an empty dir and
+ // file set to path.
+ // The returned values have the property that path = dir+file.
+ func Split(path string) (dir, file string) {
+-	i := strings.LastIndex(path, "/")
++	i := lastSlash(path)
+ 	return path[:i+1], path[i+1:]
+ }
+ 
+@@ -155,12 +160,23 @@ func Split(path string) (dir, file string) {
+ // empty or all its elements are empty, Join returns
+ // an empty string.
+ func Join(elem ...string) string {
+-	for i, e := range elem {
+-		if e != "" {
+-			return Clean(strings.Join(elem[i:], "/"))
++	size := 0
++	for _, e := range elem {
++		size += len(e)
++	}
++	if size == 0 {
++		return ""
++	}
++	buf := make([]byte, 0, size+len(elem)-1)
++	for _, e := range elem {
++		if len(buf) > 0 || e != "" {
++			if len(buf) > 0 {
++				buf = append(buf, '/')
++			}
++			buf = append(buf, e...)
+ 		}
+ 	}
+-	return ""
++	return Clean(string(buf))
+ }
+ 
+ // Ext returns the file name extension used by path.
+@@ -189,7 +205,7 @@ func Base(path string) string {
+ 		path = path[0 : len(path)-1]
+ 	}
+ 	// Find the last element
+-	if i := strings.LastIndex(path, "/"); i >= 0 {
++	if i := lastSlash(path); i >= 0 {
+ 		path = path[i+1:]
+ 	}
+ 	// If empty now, it had only slashes.
+diff --git a/src/path/path_test.go b/src/path/path_test.go
+index 2a3635300e..a57286f6b8 100644
+--- a/src/path/path_test.go
++++ b/src/path/path_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package path
++package path_test
+ 
+ import (
++	. "path"
+ 	"runtime"
+ 	"testing"
+ )

@@ -17,6 +17,21 @@ Date:   Wed Mar 1 05:42:32 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/net/http/client_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 4f674dd8d6..105b310c6a 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -555,7 +555,8 @@ func TestClientRedirect308NoLocation(t *testing.T) {
+ 		w.WriteHeader(308)
+ 	}))
+ 	defer ts.Close()
+-	res, err := Get(ts.URL)
++	c := &Client{Transport: &Transport{DisableKeepAlives: true}}
++	res, err := c.Get(ts.URL)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

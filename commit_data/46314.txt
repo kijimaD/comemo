@@ -11,10 +11,172 @@ Date:   Mon Dec 21 02:22:42 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279303
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  4 ++--
  src/cmd/compile/internal/gc/main.go      |  4 ++++
  src/cmd/compile/internal/gc/subr.go      |  6 +++---
  src/cmd/compile/internal/gc/typecheck.go | 37 +++++++++++++++++++++++++++++---
  src/cmd/compile/internal/gc/walk.go      | 13 ++++-------
  5 files changed, 47 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 036a1e7491..46ae76d58d 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -816,7 +816,7 @@ func eqstring(s, t ir.Node) (eqlen *ir.BinaryExpr, eqmem *ir.CallExpr) {
+ 	fn := syslook("memequal")
+ 	fn = substArgTypes(fn, types.Types[types.TUINT8], types.Types[types.TUINT8])
+ 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{sptr, tptr, ir.Copy(slen)})
+-	call = typecheck(call, ctxExpr|ctxMultiOK).(*ir.CallExpr)
++	TypecheckCall(call)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, slen, tlen)
+ 	cmp = typecheck(cmp, ctxExpr).(*ir.BinaryExpr)
+@@ -853,7 +853,7 @@ func eqinterface(s, t ir.Node) (eqtab *ir.BinaryExpr, eqdata *ir.CallExpr) {
+ 	tdata.SetTypecheck(1)
+ 
+ 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, []ir.Node{stab, sdata, tdata})
+-	call = typecheck(call, ctxExpr|ctxMultiOK).(*ir.CallExpr)
++	TypecheckCall(call)
+ 
+ 	cmp := ir.NewBinaryExpr(base.Pos, ir.OEQ, stab, ttab)
+ 	cmp = typecheck(cmp, ctxExpr).(*ir.BinaryExpr)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 343ad9d1d9..2a5ff3f5fd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -212,6 +212,10 @@ func Main(archInit func(*Arch)) {
+ 
+ 	Target = new(ir.Package)
+ 
++	NeedFuncSym = makefuncsym
++	NeedITab = func(t, iface *types.Type) { itabname(t, iface) }
++	NeedRuntimeType = addsignat // TODO(rsc): typenamesym for lock?
++
+ 	// initialize types package
+ 	// (we need to do this to break dependencies that otherwise
+ 	// would lead to import cycles)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 48cbd2505e..0f6c7023f2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -309,7 +309,7 @@ func assignop(src, dst *types.Type) (ir.Op, string) {
+ 			// us to de-virtualize calls through this
+ 			// type/interface pair later. See peekitabs in reflect.go
+ 			if isdirectiface(src) && !dst.IsEmptyInterface() {
+-				itabname(src, dst)
++				NeedITab(src, dst)
+ 			}
+ 
+ 			return ir.OCONVIFACE, ""
+@@ -1011,6 +1011,7 @@ func adddot(n *ir.SelectorExpr) *ir.SelectorExpr {
+ 		for c := len(path) - 1; c >= 0; c-- {
+ 			dot := nodSym(ir.ODOT, n.Left(), path[c].field.Sym)
+ 			dot.SetImplicit(true)
++			dot.SetType(path[c].field.Type)
+ 			n.SetLeft(dot)
+ 		}
+ 	case ambig:
+@@ -1240,8 +1241,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(thearch.LinkArch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+ 		// generate tail call: adjust pointer receiver and jump to embedded method.
+ 		left := dot.Left() // skip final .M
+-		// TODO(mdempsky): Remove dependency on dotlist.
+-		if !dotlist[0].field.Type.IsPtr() {
++		if !left.Type().IsPtr() {
+ 			left = nodAddr(left)
+ 		}
+ 		as := ir.Nod(ir.OAS, nthis, convnop(left, rcvr))
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2d383ab49e..1aaa93fc3d 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -14,6 +14,37 @@ import (
+ 	"strings"
+ )
+ 
++var (
++	NeedFuncSym     = func(*types.Sym) {}
++	NeedITab        = func(t, itype *types.Type) {}
++	NeedRuntimeType = func(*types.Type) {}
++)
++
++func TypecheckAssignExpr(n ir.Node) ir.Node { return typecheck(n, ctxExpr|ctxAssign) }
++func TypecheckExpr(n ir.Node) ir.Node       { return typecheck(n, ctxExpr) }
++func TypecheckStmt(n ir.Node) ir.Node       { return typecheck(n, ctxStmt) }
++
++func TypecheckExprs(exprs []ir.Node) { typecheckslice(exprs, ctxExpr) }
++func TypecheckStmts(stmts []ir.Node) { typecheckslice(stmts, ctxStmt) }
++
++func TypecheckCall(call *ir.CallExpr) {
++	t := call.X.Type()
++	if t == nil {
++		panic("misuse of Call")
++	}
++	ctx := ctxStmt
++	if t.NumResults() > 0 {
++		ctx = ctxExpr | ctxMultiOK
++	}
++	if typecheck(call, ctx) != call {
++		panic("bad typecheck")
++	}
++}
++
++func TypecheckCallee(n ir.Node) ir.Node {
++	return typecheck(n, ctxExpr|ctxCallee)
++}
++
+ // To enable tracing support (-t flag), set enableTrace to true.
+ const enableTrace = false
+ 
+@@ -2384,7 +2415,7 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 		// to make sure to generate wrappers for anonymous
+ 		// receiver types too.
+ 		if mt.Sym() == nil {
+-			addsignat(t)
++			NeedRuntimeType(t)
+ 		}
+ 	}
+ 
+@@ -2417,7 +2448,7 @@ func typecheckMethodExpr(n *ir.SelectorExpr) (res ir.Node) {
+ 
+ 	// Issue 25065. Make sure that we emit the symbol for a local method.
+ 	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
+-		makefuncsym(me.FuncName_.Sym())
++		NeedFuncSym(me.FuncName_.Sym())
+ 	}
+ 
+ 	return me
+@@ -3451,7 +3482,7 @@ func typecheckfunc(n *ir.Func) {
+ 	}
+ 
+ 	if base.Ctxt.Flag_dynlink && !inimport && n.Nname != nil {
+-		makefuncsym(n.Sym())
++		NeedFuncSym(n.Sym())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7651bbca10..410155b3ea 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2520,15 +2520,10 @@ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallEx
+ 		base.Fatalf("vmkcall %v needs %v args got %v", fn, n, len(va))
+ 	}
+ 
+-	call := ir.Nod(ir.OCALL, fn, nil)
+-	call.PtrList().Set(va)
+-	ctx := ctxStmt
+-	if fn.Type().NumResults() > 0 {
+-		ctx = ctxExpr | ctxMultiOK
+-	}
+-	r1 := typecheck(call, ctx)
+-	r1.SetType(t)
+-	return walkexpr(r1, init).(*ir.CallExpr)
++	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, va)
++	TypecheckCall(call)
++	call.SetType(t)
++	return walkexpr(call, init).(*ir.CallExpr)
+ }
+ 
+ func mkcall(name string, t *types.Type, init *ir.Nodes, args ...ir.Node) *ir.CallExpr {

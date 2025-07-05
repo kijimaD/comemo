@@ -10,6 +10,41 @@ Date:   Fri Feb 20 11:05:36 2015 -0500
     Change-Id: If36a152e6a743e4a58ea3470e62cccb742630a5d
     Reviewed-on: https://go-review.googlesource.com/5443
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index a8110f385d..c44a2199dc 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -772,6 +772,10 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		recompileForTest(pmain, p, ptest, testDir)
+ 	}
+ 
++	if buildContext.GOOS == "darwin" && buildContext.GOARCH == "arm" {
++		t.NeedCgo = true
++	}
++
+ 	for _, cp := range pmain.imports {
+ 		if len(cp.coverVars) > 0 {
+ 			t.Cover = append(t.Cover, coverInfo{cp, cp.coverVars})
+@@ -1207,6 +1211,7 @@ type testFuncs struct {
+ 	NeedTest    bool
+ 	ImportXtest bool
+ 	NeedXtest   bool
++	NeedCgo     bool
+ 	Cover       []coverInfo
+ }
+ 
+@@ -1310,6 +1315,10 @@ import (
+ {{range $i, $p := .Cover}}
+ 	_cover{{$i}} {{$p.Package.ImportPath | printf "%q"}}
+ {{end}}
++
++{{if .NeedCgo}}
++	_ "runtime/cgo"
++{{end}}
+ )
+ 
+ var tests = []testing.InternalTest{

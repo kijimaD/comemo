@@ -11,6 +11,31 @@ Date:   Mon Jul 27 10:41:41 2015 -0700
     Change-Id: Iac34af822c93468bf68cab8879db3ee20891caaf
     Reviewed-on: https://go-review.googlesource.com/12704
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os3_solaris.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 7caa72e3be..d766b7db6d 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -16,7 +16,9 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_exit exit "libc.so"
+ //go:cgo_import_dynamic libc_fstat fstat "libc.so"
+ //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
++//go:cgo_import_dynamic libc_getpid getpid "libc.so"
+ //go:cgo_import_dynamic libc_getrlimit getrlimit "libc.so"
++//go:cgo_import_dynamic libc_kill kill "libc.so"
+ //go:cgo_import_dynamic libc_madvise madvise "libc.so"
+ //go:cgo_import_dynamic libc_malloc malloc "libc.so"
+ //go:cgo_import_dynamic libc_mmap mmap "libc.so"
+@@ -449,7 +451,8 @@ func raise(sig int32) /* int32 */ {
+ }
+ 
+ func raiseproc(sig int32) /* int32 */ {
+-	sysvicall1(&libc_raise, uintptr(sig))
++	pid := sysvicall0(&libc_getpid)
++	sysvicall2(&libc_kill, pid, uintptr(sig))
+ }
+ 
+ //go:nosplit

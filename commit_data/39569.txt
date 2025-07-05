@@ -11,7 +11,7 @@ Date:   Wed Mar 6 14:24:29 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go                      | 11 +------
  src/cmd/go/go_test.go                      | 51 +++++-------------------------
  src/cmd/go/internal/help/helpdoc.go        |  9 ------
@@ -20,3 +20,230 @@ Date:   Wed Mar 6 14:24:29 2019 -0500
  src/cmd/go/testdata/script/binary_only.txt | 12 -------
  src/go/build/doc.go                        | 24 ++++++++------
  7 files changed, 27 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 186f42156a..6445a6b5e8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -648,7 +648,7 @@
+ //         StaleReason   string   // explanation for Stale==true
+ //         Root          string   // Go root or Go path dir containing this package
+ //         ConflictDir   string   // this directory shadows Dir in $GOPATH
+-//         BinaryOnly    bool     // binary-only package: cannot be recompiled from sources
++//         BinaryOnly    bool     // binary-only package (no longer supported)
+ //         ForTest       string   // package is only for use in named test
+ //         Export        string   // file containing export data (when using -export)
+ //         Module        *Module  // info about package's containing module, if any (can be nil)
+@@ -1598,15 +1598,6 @@
+ // line comment. See the go/build package documentation for
+ // more details.
+ //
+-// Through the Go 1.12 release, non-test Go source files can also include
+-// a //go:binary-only-package comment, indicating that the package
+-// sources are included for documentation only and must not be used to
+-// build the package binary. This enables distribution of Go packages in
+-// their compiled form alone. Even binary-only packages require accurate
+-// import blocks listing required dependencies, so that those
+-// dependencies can be supplied when linking the resulting command.
+-// Note that this feature is scheduled to be removed after the Go 1.12 release.
+-//
+ //
+ // The go.mod file
+ //
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c6fb046b32..19fbf6d718 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4206,9 +4206,9 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 
+ 		package p1
+ 	`)
+-	tg.wantStale("p1", "missing or invalid binary-only package", "p1 is binary-only but has no binary, should be stale")
++	tg.wantStale("p1", "binary-only packages are no longer supported", "p1 is binary-only, and this message should always be printed")
+ 	tg.runFail("install", "p1")
+-	tg.grepStderr("missing or invalid binary-only package", "did not report attempt to compile binary-only package")
++	tg.grepStderr("binary-only packages are no longer supported", "did not report attempt to compile binary-only package")
+ 
+ 	tg.tempFile("src/p1/p1.go", `
+ 		package p1
+@@ -4234,48 +4234,13 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 		import _ "fmt"
+ 		func G()
+ 	`)
+-	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
+-	tg.run("install", "-x", "p1") // no-op, up to date
+-	tg.grepBothNot(`[\\/]compile`, "should not have run compiler")
+-	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
+-	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
+-
+-	// changes to the non-source-code do not matter,
+-	// and only one file needs the special comment.
+-	tg.tempFile("src/p1/missing2.go", `
+-		package p1
+-		func H()
+-	`)
+-	tg.wantNotStale("p1", "binary-only package", "should NOT want to rebuild p1 (second)")
+-	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
+-
+-	tg.tempFile("src/p3/p3.go", `
+-		package main
+-		import (
+-			"p1"
+-			"p2"
+-		)
+-		func main() {
+-			p1.F(false)
+-			p2.F()
+-		}
+-	`)
+-	tg.run("install", "p3")
+-
+-	tg.run("run", tg.path("src/p3/p3.go"))
+-	tg.grepStdout("hello from p1", "did not see message from p1")
+-
+-	tg.tempFile("src/p4/p4.go", `package main`)
+-	// The odd string split below avoids vet complaining about
+-	// a // +build line appearing too late in this source file.
+-	tg.tempFile("src/p4/p4not.go", `//go:binary-only-package
+-
+-		/`+`/ +build asdf
++	tg.wantStale("p1", "binary-only package", "should NOT want to rebuild p1 (first)")
++	tg.runFail("install", "p2")
++	tg.grepStderr("p1: binary-only packages are no longer supported", "did not report error for binary-only p1")
+ 
+-		package main
+-	`)
+-	tg.run("list", "-f", "{{.BinaryOnly}}", "p4")
+-	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
++	tg.run("list", "-deps", "-f", "{{.ImportPath}}: {{.BinaryOnly}}", "p2")
++	tg.grepStdout("p1: true", "p1 not listed as BinaryOnly")
++	tg.grepStdout("p2: false", "p2 listed as BinaryOnly")
+ }
+ 
+ // Issue 16050.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index c219a45d74..916b91efa7 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -635,15 +635,6 @@ constraints, but the go command stops scanning for build constraints
+ at the first item in the file that is not a blank line or //-style
+ line comment. See the go/build package documentation for
+ more details.
+-
+-Through the Go 1.12 release, non-test Go source files can also include
+-a //go:binary-only-package comment, indicating that the package
+-sources are included for documentation only and must not be used to
+-build the package binary. This enables distribution of Go packages in
+-their compiled form alone. Even binary-only packages require accurate
+-import blocks listing required dependencies, so that those
+-dependencies can be supplied when linking the resulting command.
+-Note that this feature is scheduled to be removed after the Go 1.12 release.
+ 	`,
+ }
+ 
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index f3cb4e47ec..0c576b6128 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -60,7 +60,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
+         StaleReason   string   // explanation for Stale==true
+         Root          string   // Go root or Go path dir containing this package
+         ConflictDir   string   // this directory shadows Dir in $GOPATH
+-        BinaryOnly    bool     // binary-only package: cannot be recompiled from sources
++        BinaryOnly    bool     // binary-only package (no longer supported)
+         ForTest       string   // package is only for use in named test
+         Export        string   // file containing export data (when using -export)
+         Module        *Module  // info about package's containing module, if any (can be nil)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 62651cc683..3a7d3fe767 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -422,24 +422,12 @@ func (b *Builder) build(a *Action) (err error) {
+ 	}
+ 
+ 	if a.Package.BinaryOnly {
+-		_, err := os.Stat(a.Package.Target)
+-		if err == nil {
+-			a.built = a.Package.Target
+-			a.Target = a.Package.Target
+-			if b.NeedExport {
+-				a.Package.Export = a.Package.Target
+-			}
+-			a.buildID = b.fileHash(a.Package.Target)
+-			a.Package.Stale = false
+-			a.Package.StaleReason = "binary-only package"
+-			return nil
+-		}
+-		a.Package.Stale = true
+-		a.Package.StaleReason = "missing or invalid binary-only package"
++		p.Stale = true
++		p.StaleReason = "binary-only packages are no longer supported"
+ 		if b.IsCmdList {
+ 			return nil
+ 		}
+-		return fmt.Errorf("missing or invalid binary-only package; expected file %q", a.Package.Target)
++		return errors.New("binary-only packages are no longer supported")
+ 	}
+ 
+ 	if err := b.Mkdir(a.Objdir); err != nil {
+diff --git a/src/cmd/go/testdata/script/binary_only.txt b/src/cmd/go/testdata/script/binary_only.txt
+deleted file mode 100644
+index 1842d8cea3..0000000000
+--- a/src/cmd/go/testdata/script/binary_only.txt
++++ /dev/null
+@@ -1,12 +0,0 @@
+-env GO111MODULE=off
+-
+-# check that error for missing binary-only says where it should be
+-! go build b
+-stderr pkg[\\/].*a\.a
+-
+--- a/a.go --
+-//go:binary-only-package
+-
+-package a
+--- b/b.go --
+-package b; import "a"
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index f6444c7e05..7b044bc838 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -149,24 +149,28 @@
+ //
+ // Binary-Only Packages
+ //
+-// It is possible to distribute packages in binary form without including the
+-// source code used for compiling the package. To do this, the package must
+-// be distributed with a source file not excluded by build constraints and
+-// containing a "//go:binary-only-package" comment.
+-// Like a build constraint, this comment must appear near the top of the file,
+-// preceded only by blank lines and other line comments and with a blank line
++// In Go 1.12 and earlier, it was possible to distribute packages in binary
++// form without including the source code used for compiling the package.
++// The package was distributed with a source file not excluded by build
++// constraints and containing a "//go:binary-only-package" comment. Like a
++// build constraint, this comment appeared at the top of a file, preceded
++// only by blank lines and other line comments and with a blank line
+ // following the comment, to separate it from the package documentation.
+ // Unlike build constraints, this comment is only recognized in non-test
+ // Go source files.
+ //
+-// The minimal source code for a binary-only package is therefore:
++// The minimal source code for a binary-only package was therefore:
+ //
+ //	//go:binary-only-package
+ //
+ //	package mypkg
+ //
+-// The source code may include additional Go code. That code is never compiled
+-// but will be processed by tools like godoc and might be useful as end-user
+-// documentation.
++// The source code could include additional Go code. That code was never
++// compiled but would be processed by tools like godoc and might be useful
++// as end-user documentation.
++//
++// "go build" and other commands no longer support binary-only-packages.
++// Import and ImportDir will still set the BinaryOnly flag in packages
++// containing these comments for use in tools and error messages.
+ //
+ package build

@@ -7,6 +7,19 @@ Date:   Mon Jan 11 13:03:01 2010 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/181186
-
+---
  src/cmd/gc/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 6629361d4e..40254c709c 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -64,6 +64,6 @@ opnames.h:	mkopnames go.h
+ 	./mkopnames go.h >opnames.h
+ 
+ clean:
+-	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
++	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c opnames.h
+ 
+ install: $(LIB)

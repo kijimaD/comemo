@@ -6,7 +6,7 @@ Date:   Fri Nov 6 16:51:49 2009 -0800
     
     R=rsc
     http://go/go-review/1025011
-
+---
  src/cmd/6g/reg.c    |    2 +-
  src/cmd/8g/Makefile |    6 +-
  src/cmd/8g/gg.h     |    3 +-
@@ -17,3 +17,2642 @@ Date:   Fri Nov 6 16:51:49 2009 -0800
  src/cmd/8g/reg.c    | 1449 +++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/gc/go.h     |   12 +-
  9 files changed, 2499 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 83c2c9d9f4..fde26772d1 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1146,7 +1146,7 @@ allreg(uint32 b, Rgn *r)
+ 	switch(v->etype) {
+ 
+ 	default:
+-		fatal("unknown etype %d/%d", bitno(b), v->etype);
++		fatal("unknown etype %d/%E", bitno(b), v->etype);
+ 		break;
+ 
+ 	case TINT8:
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index b5c272ea45..b2b9d91d60 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -11,7 +11,7 @@ HFILES=\
+ 	../gc/go.h\
+ 	../8l/8.out.h\
+ 	gg.h\
+-#	opt.h\
++	opt.h\
+ 
+ OFILES=\
+ 	../8l/enam.$O\
+@@ -22,8 +22,8 @@ OFILES=\
+ 	gsubr.$O\
+ 	cgen.$O\
+ 	cgen64.$O\
+-#	peep.$O\
+-#	reg.$O\
++	peep.$O\
++	reg.$O\
+ 
+ LIB=\
+ 	../gc/gc.a$O
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 447162c7bc..b36d0730b7 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -23,12 +23,13 @@ struct	Addr
+ 	Prog*	branch;
+ 	char	sval[NSNAME];
+ 
++	Sym*	gotype;
+ 	Sym*	sym;
++	int	width;
+ 	uchar	type;
+ 	uchar	index;
+ 	uchar	etype;
+ 	uchar	scale;	/* doubles as width in DATA op */
+-	Sym*	gotype;
+ };
+ #define	A	((Addr*)0)
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 99c8b786dc..7fc0aab70f 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -5,6 +5,7 @@
+ #undef	EXTERN
+ #define	EXTERN
+ #include "gg.h"
++#include "opt.h"
+ 
+ void
+ compile(Node *fn)
+@@ -78,9 +79,9 @@ compile(Node *fn)
+ 	pc->as = ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+-//	if(!debug['N'] || debug['R'] || debug['P'])
+-//		regopt(ptxt);
+-
++	if(!debug['N'] || debug['R'] || debug['P']) {
++		regopt(ptxt);
++	}
+ 	// fill in argument size
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
+ 
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 953b755c1a..dea802f4e1 100755
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1714,6 +1714,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		// n->left is PHEAP ONAME for stack parameter.
+ 		// compute address of actual parameter on stack.
+ 		a->etype = n->left->type->etype;
++		a->width = n->left->type->width;
+ 		a->offset = n->xoffset;
+ 		a->sym = n->left->sym;
+ 		a->type = D_PARAM;
+@@ -1721,8 +1722,10 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 
+ 	case ONAME:
+ 		a->etype = 0;
++		a->width = 0;
+ 		if(n->type != T) {
+ 			a->etype = simtype[n->type->etype];
++			a->width = n->type->width;
+ 			a->gotype = ngotype(n);
+ 		}
+ 		a->offset = n->xoffset;
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+new file mode 100644
+index 0000000000..9a8866b8d1
+--- /dev/null
++++ b/src/cmd/8g/opt.h
+@@ -0,0 +1,166 @@
++// Derived from Inferno utils/6c/gc.h
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/gc.h
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#define	Z	N
++#define	Adr	Addr
++
++#define	D_HI	D_NONE
++#define	D_LO	D_NONE
++
++#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
++
++#define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
++#define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
++#define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])
++#define	STORE(r)	(~r->calbehind.b[z] & r->calahead.b[z])
++
++#define	CLOAD	5
++#define	CREF	5
++#define	CINF	1000
++#define	LOOP	3
++
++typedef	struct	Reg	Reg;
++typedef	struct	Rgn	Rgn;
++
++struct	Reg
++{
++
++	Bits	set;
++	Bits	use1;
++	Bits	use2;
++
++	Bits	refbehind;
++	Bits	refahead;
++	Bits	calbehind;
++	Bits	calahead;
++	Bits	regdiff;
++	Bits	act;
++
++	int32	regu;		// register used bitmap
++	int32	rpo;		// reverse post ordering
++	int32	active;
++
++	uint16	loop;		// x5 for every loop
++	uchar	refset;		// diagnostic generated
++
++	Reg*	p1;
++	Reg*	p2;
++	Reg*	p2link;
++	Reg*	s1;
++	Reg*	s2;
++	Reg*	link;
++	Prog*	prog;
++};
++#define	R	((Reg*)0)
++
++#define	NRGN	600
++struct	Rgn
++{
++	Reg*	enter;
++	short	cost;
++	short	varno;
++	short	regno;
++};
++
++EXTERN	int32	exregoffset;		// not set
++EXTERN	int32	exfregoffset;		// not set
++EXTERN	Reg*	firstr;
++EXTERN	Reg*	lastr;
++EXTERN	Reg	zreg;
++EXTERN	Reg*	freer;
++EXTERN	Reg**	rpo2r;
++EXTERN	Rgn	region[NRGN];
++EXTERN	Rgn*	rgp;
++EXTERN	int	nregion;
++EXTERN	int	nvar;
++EXTERN	int32	regbits;
++EXTERN	int32	exregbits;
++EXTERN	Bits	externs;
++EXTERN	Bits	params;
++EXTERN	Bits	consts;
++EXTERN	Bits	addrs;
++EXTERN	Bits	ovar;
++EXTERN	int	change;
++EXTERN	int32	maxnr;
++EXTERN	int32*	idom;
++
++EXTERN	struct
++{
++	int32	ncvtreg;
++	int32	nspill;
++	int32	nreload;
++	int32	ndelmov;
++	int32	nvar;
++	int32	naddr;
++} ostats;
++
++/*
++ * reg.c
++ */
++Reg*	rega(void);
++int	rcmp(const void*, const void*);
++void	regopt(Prog*);
++void	addmove(Reg*, int, int, int);
++Bits	mkvar(Reg*, Adr*);
++void	prop(Reg*, Bits, Bits);
++void	loopit(Reg*, int32);
++void	synch(Reg*, Bits);
++uint32	allreg(uint32, Rgn*);
++void	paint1(Reg*, int);
++uint32	paint2(Reg*, int);
++void	paint3(Reg*, int, int32, int);
++void	addreg(Adr*, int);
++void	dumpone(Reg*);
++void	dumpit(char*, Reg*);
++int	noreturn(Prog *p);
++
++/*
++ * peep.c
++ */
++void	peep(void);
++void	excise(Reg*);
++Reg*	uniqp(Reg*);
++Reg*	uniqs(Reg*);
++int	regtyp(Adr*);
++int	anyvar(Adr*);
++int	subprop(Reg*);
++int	copyprop(Reg*);
++int	copy1(Adr*, Adr*, Reg*, int);
++int	copyu(Prog*, Adr*, Adr*);
++
++int	copyas(Adr*, Adr*);
++int	copyau(Adr*, Adr*);
++int	copysub(Adr*, Adr*, Adr*, int);
++int	copysub1(Prog*, Adr*, Adr*, int);
++
++int32	RtoB(int);
++int32	FtoB(int);
++int	BtoR(int32);
++int	BtoF(int32);
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+new file mode 100644
+index 0000000000..580b1a9223
+--- /dev/null
++++ b/src/cmd/8g/peep.c
+@@ -0,0 +1,865 @@
++// Derived from Inferno utils/6c/peep.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include "gg.h"
++#include "opt.h"
++
++#define	REGEXT	0
++
++static void	conprop(Reg *r);
++
++// do we need the carry bit
++static int
++needc(Prog *p)
++{
++	while(p != P) {
++		switch(p->as) {
++		case AADCL:
++		case ASBBL:
++		case ARCRL:
++			return 1;
++		case AADDL:
++		case ASUBL:
++		case AJMP:
++		case ARET:
++		case ACALL:
++			return 0;
++		default:
++			if(p->to.type == D_BRANCH)
++				return 0;
++		}
++		p = p->link;
++	}
++	return 0;
++}
++
++static Reg*
++rnops(Reg *r)
++{
++	Prog *p;
++	Reg *r1;
++
++	if(r != R)
++	for(;;) {
++		p = r->prog;
++		if(p->as != ANOP || p->from.type != D_NONE || p->to.type != D_NONE)
++			break;
++		r1 = uniqs(r);
++		if(r1 == R)
++			break;
++		r = r1;
++	}
++	return r;
++}
++
++void
++peep(void)
++{
++	Reg *r, *r1, *r2;
++	Prog *p, *p1;
++	int t;
++
++	/*
++	 * complete R structure
++	 */
++	t = 0;
++	for(r=firstr; r!=R; r=r1) {
++		r1 = r->link;
++		if(r1 == R)
++			break;
++		p = r->prog->link;
++		while(p != r1->prog)
++		switch(p->as) {
++		default:
++			r2 = rega();
++			r->link = r2;
++			r2->link = r1;
++
++			r2->prog = p;
++			p->reg = r2;
++
++			r2->p1 = r;
++			r->s1 = r2;
++			r2->s1 = r1;
++			r1->p1 = r2;
++
++			r = r2;
++			t++;
++
++		case ADATA:
++		case AGLOBL:
++		case ANAME:
++		case ASIGNAME:
++			p = p->link;
++		}
++	}
++
++	// constant propagation
++	// find MOV $con,R followed by
++	// another MOV $con,R without
++	// setting R in the interim
++	for(r=firstr; r!=R; r=r->link) {
++		p = r->prog;
++		switch(p->as) {
++		case ALEAL:
++			if(regtyp(&p->to))
++			if(p->from.sym != S)
++				conprop(r);
++			break;
++
++		case AMOVB:
++		case AMOVW:
++		case AMOVL:
++			if(regtyp(&p->to))
++			if(p->from.type == D_CONST)
++				conprop(r);
++			break;
++		}
++	}
++
++loop1:
++	if(debug['P'] && debug['v'])
++		dumpit("loop1", firstr);
++
++	t = 0;
++	for(r=firstr; r!=R; r=r->link) {
++		p = r->prog;
++		switch(p->as) {
++		case AMOVL:
++			if(regtyp(&p->to))
++			if(regtyp(&p->from)) {
++				if(copyprop(r)) {
++					excise(r);
++					t++;
++				} else
++				if(subprop(r) && copyprop(r)) {
++					excise(r);
++					t++;
++				}
++			}
++			break;
++
++		case AMOVBLZX:
++		case AMOVWLZX:
++		case AMOVBLSX:
++		case AMOVWLSX:
++			if(regtyp(&p->to)) {
++				r1 = rnops(uniqs(r));
++				if(r1 != R) {
++					p1 = r1->prog;
++					if(p->as == p1->as && p->to.type == p1->from.type){
++						p1->as = AMOVL;
++						t++;
++					}
++				}
++			}
++			break;
++
++		case AADDL:
++		case AADDW:
++			if(p->from.type != D_CONST || needc(p->link))
++				break;
++			if(p->from.offset == -1){
++				if(p->as == AADDL)
++					p->as = ADECL;
++				else
++					p->as = ADECW;
++				p->from = zprog.from;
++				break;
++			}
++			if(p->from.offset == 1){
++				if(p->as == AADDL)
++					p->as = AINCL;
++				else
++					p->as = AINCW;
++				p->from = zprog.from;
++				break;
++			}
++			break;
++
++		case ASUBL:
++		case ASUBW:
++			if(p->from.type != D_CONST || needc(p->link))
++				break;
++			if(p->from.offset == -1) {
++				if(p->as == ASUBL)
++					p->as = AINCL;
++				else
++					p->as = AINCW;
++				p->from = zprog.from;
++				break;
++			}
++			if(p->from.offset == 1){
++				if(p->as == ASUBL)
++					p->as = ADECL;
++				else
++					p->as = ADECW;
++				p->from = zprog.from;
++				break;
++			}
++			break;
++		}
++	}
++	if(t)
++		goto loop1;
++}
++
++void
++excise(Reg *r)
++{
++	Prog *p;
++
++	p = r->prog;
++	if(debug['P'] && debug['v'])
++		print("%P ===delete===\n", p);
++
++	p->as = ANOP;
++	p->from = zprog.from;
++	p->to = zprog.to;
++
++	ostats.ndelmov++;
++}
++
++Reg*
++uniqp(Reg *r)
++{
++	Reg *r1;
++
++	r1 = r->p1;
++	if(r1 == R) {
++		r1 = r->p2;
++		if(r1 == R || r1->p2link != R)
++			return R;
++	} else
++		if(r->p2 != R)
++			return R;
++	return r1;
++}
++
++Reg*
++uniqs(Reg *r)
++{
++	Reg *r1;
++
++	r1 = r->s1;
++	if(r1 == R) {
++		r1 = r->s2;
++		if(r1 == R)
++			return R;
++	} else
++		if(r->s2 != R)
++			return R;
++	return r1;
++}
++
++int
++regtyp(Adr *a)
++{
++	int t;
++
++	t = a->type;
++	if(t >= D_AX && t <= D_DI)
++		return 1;
++	return 0;
++}
++
++/*
++ * the idea is to substitute
++ * one register for another
++ * from one MOV to another
++ *	MOV	a, R0
++ *	ADD	b, R0	/ no use of R1
++ *	MOV	R0, R1
++ * would be converted to
++ *	MOV	a, R1
++ *	ADD	b, R1
++ *	MOV	R1, R0
++ * hopefully, then the former or latter MOV
++ * will be eliminated by copy propagation.
++ */
++int
++subprop(Reg *r0)
++{
++	Prog *p;
++	Adr *v1, *v2;
++	Reg *r;
++	int t;
++
++	p = r0->prog;
++	v1 = &p->from;
++	if(!regtyp(v1))
++		return 0;
++	v2 = &p->to;
++	if(!regtyp(v2))
++		return 0;
++	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
++		if(uniqs(r) == R)
++			break;
++		p = r->prog;
++		switch(p->as) {
++		case ACALL:
++			return 0;
++
++		case AIMULL:
++		case AIMULW:
++			if(p->to.type != D_NONE)
++				break;
++
++		case ADIVB:
++		case ADIVL:
++		case ADIVW:
++		case AIDIVB:
++		case AIDIVL:
++		case AIDIVW:
++		case AIMULB:
++		case AMULB:
++		case AMULL:
++		case AMULW:
++
++		case ARCLB:
++		case ARCLL:
++		case ARCLW:
++		case ARCRB:
++		case ARCRL:
++		case ARCRW:
++		case AROLB:
++		case AROLL:
++		case AROLW:
++		case ARORB:
++		case ARORL:
++		case ARORW:
++		case ASALB:
++		case ASALL:
++		case ASALW:
++		case ASARB:
++		case ASARL:
++		case ASARW:
++		case ASHLB:
++		case ASHLL:
++		case ASHLW:
++		case ASHRB:
++		case ASHRL:
++		case ASHRW:
++
++		case AREP:
++		case AREPN:
++
++		case ACWD:
++		case ACDQ:
++
++		case ASTOSB:
++		case ASTOSL:
++		case AMOVSB:
++		case AMOVSL:
++			return 0;
++
++		case AMOVL:
++			if(p->to.type == v1->type)
++				goto gotit;
++			break;
++		}
++		if(copyau(&p->from, v2) ||
++		   copyau(&p->to, v2))
++			break;
++		if(copysub(&p->from, v1, v2, 0) ||
++		   copysub(&p->to, v1, v2, 0))
++			break;
++	}
++	return 0;
++
++gotit:
++	copysub(&p->to, v1, v2, 1);
++	if(debug['P']) {
++		print("gotit: %D->%D\n%P", v1, v2, r->prog);
++		if(p->from.type == v2->type)
++			print(" excise");
++		print("\n");
++	}
++	for(r=uniqs(r); r!=r0; r=uniqs(r)) {
++		p = r->prog;
++		copysub(&p->from, v1, v2, 1);
++		copysub(&p->to, v1, v2, 1);
++		if(debug['P'])
++			print("%P\n", r->prog);
++	}
++	t = v1->type;
++	v1->type = v2->type;
++	v2->type = t;
++	if(debug['P'])
++		print("%P last\n", r->prog);
++	return 1;
++}
++
++/*
++ * The idea is to remove redundant copies.
++ *	v1->v2	F=0
++ *	(use v2	s/v2/v1/)*
++ *	set v1	F=1
++ *	use v2	return fail
++ *	-----------------
++ *	v1->v2	F=0
++ *	(use v2	s/v2/v1/)*
++ *	set v1	F=1
++ *	set v2	return success
++ */
++int
++copyprop(Reg *r0)
++{
++	Prog *p;
++	Adr *v1, *v2;
++	Reg *r;
++
++	p = r0->prog;
++	v1 = &p->from;
++	v2 = &p->to;
++	if(copyas(v1, v2))
++		return 1;
++	for(r=firstr; r!=R; r=r->link)
++		r->active = 0;
++	return copy1(v1, v2, r0->s1, 0);
++}
++
++int
++copy1(Adr *v1, Adr *v2, Reg *r, int f)
++{
++	int t;
++	Prog *p;
++
++	if(r->active) {
++		if(debug['P'])
++			print("act set; return 1\n");
++		return 1;
++	}
++	r->active = 1;
++	if(debug['P'])
++		print("copy %D->%D f=%d\n", v1, v2, f);
++	for(; r != R; r = r->s1) {
++		p = r->prog;
++		if(debug['P'])
++			print("%P", p);
++		if(!f && uniqp(r) == R) {
++			f = 1;
++			if(debug['P'])
++				print("; merge; f=%d", f);
++		}
++		t = copyu(p, v2, A);
++		switch(t) {
++		case 2:	/* rar, cant split */
++			if(debug['P'])
++				print("; %D rar; return 0\n", v2);
++			return 0;
++
++		case 3:	/* set */
++			if(debug['P'])
++				print("; %D set; return 1\n", v2);
++			return 1;
++
++		case 1:	/* used, substitute */
++		case 4:	/* use and set */
++			if(f) {
++				if(!debug['P'])
++					return 0;
++				if(t == 4)
++					print("; %D used+set and f=%d; return 0\n", v2, f);
++				else
++					print("; %D used and f=%d; return 0\n", v2, f);
++				return 0;
++			}
++			if(copyu(p, v2, v1)) {
++				if(debug['P'])
++					print("; sub fail; return 0\n");
++				return 0;
++			}
++			if(debug['P'])
++				print("; sub %D/%D", v2, v1);
++			if(t == 4) {
++				if(debug['P'])
++					print("; %D used+set; return 1\n", v2);
++				return 1;
++			}
++			break;
++		}
++		if(!f) {
++			t = copyu(p, v1, A);
++			if(!f && (t == 2 || t == 3 || t == 4)) {
++				f = 1;
++				if(debug['P'])
++					print("; %D set and !f; f=%d", v1, f);
++			}
++		}
++		if(debug['P'])
++			print("\n");
++		if(r->s2)
++			if(!copy1(v1, v2, r->s2, f))
++				return 0;
++	}
++	return 1;
++}
++
++/*
++ * return
++ * 1 if v only used (and substitute),
++ * 2 if read-alter-rewrite
++ * 3 if set
++ * 4 if set and used
++ * 0 otherwise (not touched)
++ */
++int
++copyu(Prog *p, Adr *v, Adr *s)
++{
++
++	switch(p->as) {
++
++	default:
++		if(debug['P'])
++			print("unknown op %A\n", p->as);
++		/* SBBL; ADCL; FLD1; SAHF */
++		return 2;
++
++
++	case ANEGB:
++	case ANEGW:
++	case ANEGL:
++	case ANOTB:
++	case ANOTW:
++	case ANOTL:
++		if(copyas(&p->to, v))
++			return 2;
++		break;
++
++	case ALEAL:	/* lhs addr, rhs store */
++		if(copyas(&p->from, v))
++			return 2;
++
++
++	case ANOP:	/* rhs store */
++	case AMOVL:
++	case AMOVBLSX:
++	case AMOVBLZX:
++	case AMOVWLSX:
++	case AMOVWLZX:
++		if(copyas(&p->to, v)) {
++			if(s != A)
++				return copysub(&p->from, v, s, 1);
++			if(copyau(&p->from, v))
++				return 4;
++			return 3;
++		}
++		goto caseread;
++
++	case ARCLB:
++	case ARCLL:
++	case ARCLW:
++	case ARCRB:
++	case ARCRL:
++	case ARCRW:
++	case AROLB:
++	case AROLL:
++	case AROLW:
++	case ARORB:
++	case ARORL:
++	case ARORW:
++	case ASALB:
++	case ASALL:
++	case ASALW:
++	case ASARB:
++	case ASARL:
++	case ASARW:
++	case ASHLB:
++	case ASHLL:
++	case ASHLW:
++	case ASHRB:
++	case ASHRL:
++	case ASHRW:
++		if(copyas(&p->to, v))
++			return 2;
++		if(copyas(&p->from, v))
++			if(p->from.type == D_CX)
++				return 2;
++		goto caseread;
++
++	case AADDB:	/* rhs rar */
++	case AADDL:
++	case AADDW:
++	case AANDB:
++	case AANDL:
++	case AANDW:
++	case ADECL:
++	case ADECW:
++	case AINCL:
++	case AINCW:
++	case ASUBB:
++	case ASUBL:
++	case ASUBW:
++	case AORB:
++	case AORL:
++	case AORW:
++	case AXORB:
++	case AXORL:
++	case AXORW:
++	case AMOVB:
++	case AMOVW:
++		if(copyas(&p->to, v))
++			return 2;
++		goto caseread;
++
++	case ACMPL:	/* read only */
++	case ACMPW:
++	case ACMPB:
++	caseread:
++		if(s != A) {
++			if(copysub(&p->from, v, s, 1))
++				return 1;
++			return copysub(&p->to, v, s, 1);
++		}
++		if(copyau(&p->from, v))
++			return 1;
++		if(copyau(&p->to, v))
++			return 1;
++		break;
++
++	case AJGE:	/* no reference */
++	case AJNE:
++	case AJLE:
++	case AJEQ:
++	case AJHI:
++	case AJLS:
++	case AJMI:
++	case AJPL:
++	case AJGT:
++	case AJLT:
++	case AJCC:
++	case AJCS:
++
++	case AADJSP:
++	case AWAIT:
++	case ACLD:
++		break;
++
++	case AIMULL:
++	case AIMULW:
++		if(p->to.type != D_NONE) {
++			if(copyas(&p->to, v))
++				return 2;
++			goto caseread;
++		}
++
++	case ADIVB:
++	case ADIVL:
++	case ADIVW:
++	case AIDIVB:
++	case AIDIVL:
++	case AIDIVW:
++	case AIMULB:
++	case AMULB:
++	case AMULL:
++	case AMULW:
++
++	case ACWD:
++	case ACDQ:
++		if(v->type == D_AX || v->type == D_DX)
++			return 2;
++		goto caseread;
++
++	case AREP:
++	case AREPN:
++		if(v->type == D_CX)
++			return 2;
++		goto caseread;
++
++	case AMOVSB:
++	case AMOVSL:
++		if(v->type == D_DI || v->type == D_SI)
++			return 2;
++		goto caseread;
++
++	case ASTOSB:
++	case ASTOSL:
++		if(v->type == D_AX || v->type == D_DI)
++			return 2;
++		goto caseread;
++
++	case AJMP:	/* funny */
++		if(s != A) {
++			if(copysub(&p->to, v, s, 1))
++				return 1;
++			return 0;
++		}
++		if(copyau(&p->to, v))
++			return 1;
++		return 0;
++
++	case ARET:	/* funny */
++		if(v->type == REGRET || v->type == FREGRET)
++			return 2;
++		if(s != A)
++			return 1;
++		return 3;
++
++	case ACALL:	/* funny */
++		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
++			return 2;
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
++			return 2;
++
++		if(s != A) {
++			if(copysub(&p->to, v, s, 1))
++				return 1;
++			return 0;
++		}
++		if(copyau(&p->to, v))
++			return 4;
++		return 3;
++
++	case ATEXT:	/* funny */
++		if(REGARG >= 0 && v->type == (uchar)REGARG)
++			return 3;
++		return 0;
++	}
++	return 0;
++}
++
++/*
++ * direct reference,
++ * could be set/use depending on
++ * semantics
++ */
++int
++copyas(Adr *a, Adr *v)
++{
++	if(a->type != v->type)
++		return 0;
++	if(regtyp(v))
++		return 1;
++	if(v->type == D_AUTO || v->type == D_PARAM)
++		if(v->offset == a->offset)
++			return 1;
++	return 0;
++}
++
++/*
++ * either direct or indirect
++ */
++int
++copyau(Adr *a, Adr *v)
++{
++
++	if(copyas(a, v))
++		return 1;
++	if(regtyp(v)) {
++		if(a->type-D_INDIR == v->type)
++			return 1;
++		if(a->index == v->type)
++			return 1;
++	}
++	return 0;
++}
++
++/*
++ * substitute s for v in a
++ * return failure to substitute
++ */
++int
++copysub(Adr *a, Adr *v, Adr *s, int f)
++{
++	int t;
++
++	if(copyas(a, v)) {
++		t = s->type;
++		if(t >= D_AX && t <= D_DI) {
++			if(f)
++				a->type = t;
++		}
++		return 0;
++	}
++	if(regtyp(v)) {
++		t = v->type;
++		if(a->type == t+D_INDIR) {
++			if((s->type == D_BP) && a->index != D_NONE)
++				return 1;	/* can't use BP-base with index */
++			if(f)
++				a->type = s->type+D_INDIR;
++//			return 0;
++		}
++		if(a->index == t) {
++			if(f)
++				a->index = s->type;
++			return 0;
++		}
++		return 0;
++	}
++	return 0;
++}
++
++static void
++conprop(Reg *r0)
++{
++	Reg *r;
++	Prog *p, *p0;
++	int t;
++	Adr *v0;
++
++	p0 = r0->prog;
++	v0 = &p0->to;
++	r = r0;
++
++loop:
++	r = uniqs(r);
++	if(r == R || r == r0)
++		return;
++	if(uniqp(r) == R)
++		return;
++
++	p = r->prog;
++	t = copyu(p, v0, A);
++	switch(t) {
++	case 0:	// miss
++	case 1:	// use
++		goto loop;
++
++	case 2:	// rar
++	case 4:	// use and set
++		break;
++
++	case 3:	// set
++		if(p->as == p0->as)
++		if(p->from.type == p0->from.type)
++		if(p->from.sym == p0->from.sym)
++		if(p->from.offset == p0->from.offset)
++		if(p->from.scale == p0->from.scale)
++		if(p->from.dval == p0->from.dval)
++		if(p->from.index == p0->from.index) {
++			excise(r);
++			t++;
++			goto loop;
++		}
++		break;
++	}
++}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+new file mode 100644
+index 0000000000..cd98be4e61
+--- /dev/null
++++ b/src/cmd/8g/reg.c
+@@ -0,0 +1,1449 @@
++// Derived from Inferno utils/6c/reg.c
++// http://code.google.com/p/inferno-os/source/browse/utils/6c/reg.c
++//
++//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
++//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
++//	Portions Copyright © 1997-1999 Vita Nuova Limited
++//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
++//	Portions Copyright © 2004,2006 Bruce Ellis
++//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
++//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
++//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
++//
++// Permission is hereby granted, free of charge, to any person obtaining a copy
++// of this software and associated documentation files (the "Software"), to deal
++// in the Software without restriction, including without limitation the rights
++// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++// copies of the Software, and to permit persons to whom the Software is
++// furnished to do so, subject to the following conditions:
++//
++// The above copyright notice and this permission notice shall be included in
++// all copies or substantial portions of the Software.
++//
++// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
++// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++// THE SOFTWARE.
++
++#include "gg.h"
++#undef	EXTERN
++#define	EXTERN
++#include "opt.h"
++
++#define	P2R(p)	(Reg*)(p->reg)
++
++static	int	first	= 1;
++
++Reg*
++rega(void)
++{
++	Reg *r;
++
++	r = freer;
++	if(r == R) {
++		r = mal(sizeof(*r));
++	} else
++		freer = r->link;
++
++	*r = zreg;
++	return r;
++}
++
++int
++rcmp(const void *a1, const void *a2)
++{
++	Rgn *p1, *p2;
++	int c1, c2;
++
++	p1 = (Rgn*)a1;
++	p2 = (Rgn*)a2;
++	c1 = p2->cost;
++	c2 = p1->cost;
++	if(c1 -= c2)
++		return c1;
++	return p2->varno - p1->varno;
++}
++
++void
++setoutvar(void)
++{
++	Type *t;
++	Node *n;
++	Addr a;
++	Iter save;
++	Bits bit;
++	int z;
++
++	t = structfirst(&save, getoutarg(curfn->type));
++	while(t != T) {
++		n = nodarg(t, 1);
++		a = zprog.from;
++		naddr(n, &a, 0);
++		bit = mkvar(R, &a);
++		for(z=0; z<BITS; z++)
++			ovar.b[z] |= bit.b[z];
++		t = structnext(&save);
++	}
++//if(bany(b))
++//print("ovars = %Q\n", &ovar);
++}
++
++void
++regopt(Prog *firstp)
++{
++	Reg *r, *r1;
++	Prog *p;
++	int i, z, nr;
++	uint32 vreg;
++	Bits bit;
++
++	if(first) {
++		fmtinstall('Q', Qconv);
++		exregoffset = D_DI;	// no externals
++		first = 0;
++	}
++
++	// count instructions
++	nr = 0;
++	for(p=firstp; p!=P; p=p->link)
++		nr++;
++	// if too big dont bother
++	if(nr >= 10000) {
++//		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
++		return;
++	}
++
++	r1 = R;
++	firstr = R;
++	lastr = R;
++	nvar = 0;
++	regbits = RtoB(D_SP);
++	for(z=0; z<BITS; z++) {
++		externs.b[z] = 0;
++		params.b[z] = 0;
++		consts.b[z] = 0;
++		addrs.b[z] = 0;
++		ovar.b[z] = 0;
++	}
++
++	// build list of return variables
++	setoutvar();
++
++	/*
++	 * pass 1
++	 * build aux data structure
++	 * allocate pcs
++	 * find use and set of variables
++	 */
++	nr = 0;
++	for(p=firstp; p!=P; p=p->link) {
++		switch(p->as) {
++		case ADATA:
++		case AGLOBL:
++		case ANAME:
++		case ASIGNAME:
++			continue;
++		}
++		r = rega();
++		nr++;
++		if(firstr == R) {
++			firstr = r;
++			lastr = r;
++		} else {
++			lastr->link = r;
++			r->p1 = lastr;
++			lastr->s1 = r;
++			lastr = r;
++		}
++		r->prog = p;
++		p->reg = r;
++
++		r1 = r->p1;
++		if(r1 != R) {
++			switch(r1->prog->as) {
++			case ARET:
++			case AJMP:
++			case AIRETL:
++				r->p1 = R;
++				r1->s1 = R;
++			}
++		}
++
++		bit = mkvar(r, &p->from);
++		if(bany(&bit))
++		switch(p->as) {
++		/*
++		 * funny
++		 */
++		case ALEAL:
++			for(z=0; z<BITS; z++)
++				addrs.b[z] |= bit.b[z];
++			break;
++
++		/*
++		 * left side read
++		 */
++		default:
++			for(z=0; z<BITS; z++)
++				r->use1.b[z] |= bit.b[z];
++			break;
++
++		/*
++		 * left side read+write
++		 */
++		case AXCHGB:
++		case AXCHGW:
++		case AXCHGL:
++			for(z=0; z<BITS; z++) {
++				r->use1.b[z] |= bit.b[z];
++				r->set.b[z] |= bit.b[z];
++			}
++			break;
++		}
++
++		bit = mkvar(r, &p->to);
++		if(bany(&bit))
++		switch(p->as) {
++		default:
++			yyerror("reg: unknown op: %A", p->as);
++			break;
++
++		/*
++		 * right side read
++		 */
++		case ACMPB:
++		case ACMPL:
++		case ACMPW:
++			for(z=0; z<BITS; z++)
++				r->use2.b[z] |= bit.b[z];
++			break;
++
++		/*
++		 * right side write
++		 */
++		case ANOP:
++		case AMOVL:
++		case AMOVB:
++		case AMOVW:
++		case AMOVBLSX:
++		case AMOVBLZX:
++		case AMOVWLSX:
++		case AMOVWLZX:
++			for(z=0; z<BITS; z++)
++				r->set.b[z] |= bit.b[z];
++			break;
++
++		/*
++		 * right side read+write
++		 */
++		case AINCB:
++		case AINCL:
++		case AINCW:
++		case ADECB:
++		case ADECL:
++		case ADECW:
++
++		case AADDB:
++		case AADDL:
++		case AADDW:
++		case AANDB:
++		case AANDL:
++		case AANDW:
++		case ASUBB:
++		case ASUBL:
++		case ASUBW:
++		case AORB:
++		case AORL:
++		case AORW:
++		case AXORB:
++		case AXORL:
++		case AXORW:
++		case ASALB:
++		case ASALL:
++		case ASALW:
++		case ASARB:
++		case ASARL:
++		case ASARW:
++		case ARCLB:
++		case ARCLL:
++		case ARCLW:
++		case ARCRB:
++		case ARCRL:
++		case ARCRW:
++		case AROLB:
++		case AROLL:
++		case AROLW:
++		case ARORB:
++		case ARORL:
++		case ARORW:
++		case ASHLB:
++		case ASHLL:
++		case ASHLW:
++		case ASHRB:
++		case ASHRL:
++		case ASHRW:
++		case AIMULL:
++		case AIMULW:
++		case ANEGL:
++		case ANOTL:
++		case AADCL:
++		case ASBBL:
++
++		case AXCHGB:
++		case AXCHGW:
++		case AXCHGL:
++			for(z=0; z<BITS; z++) {
++				r->set.b[z] |= bit.b[z];
++				r->use2.b[z] |= bit.b[z];
++			}
++			break;
++
++		/*
++		 * funny
++		 */
++		case AFMOVDP:
++		case AFMOVFP:
++		case AFMOVVP:
++		case AFMOVLP:
++		case ACALL:
++			for(z=0; z<BITS; z++)
++				addrs.b[z] |= bit.b[z];
++			break;
++		}
++
++		switch(p->as) {
++		case AIMULL:
++		case AIMULW:
++			if(p->to.type != D_NONE)
++				break;
++
++		case AIDIVB:
++		case AIDIVL:
++		case AIDIVW:
++		case AIMULB:
++		case ADIVB:
++		case ADIVL:
++		case ADIVW:
++		case AMULB:
++		case AMULL:
++		case AMULW:
++
++		case ACWD:
++		case ACDQ:
++			r->regu |= RtoB(D_AX) | RtoB(D_DX);
++			break;
++
++		case AREP:
++		case AREPN:
++		case ALOOP:
++		case ALOOPEQ:
++		case ALOOPNE:
++			r->regu |= RtoB(D_CX);
++			break;
++
++		case AMOVSB:
++		case AMOVSL:
++		case AMOVSW:
++		case ACMPSB:
++		case ACMPSL:
++		case ACMPSW:
++			r->regu |= RtoB(D_SI) | RtoB(D_DI);
++			break;
++
++		case ASTOSB:
++		case ASTOSL:
++		case ASTOSW:
++		case ASCASB:
++		case ASCASL:
++		case ASCASW:
++			r->regu |= RtoB(D_AX) | RtoB(D_DI);
++			break;
++
++		case AINSB:
++		case AINSL:
++		case AINSW:
++		case AOUTSB:
++		case AOUTSL:
++		case AOUTSW:
++			r->regu |= RtoB(D_DI) | RtoB(D_DX);
++			break;
++		}
++	}
++	if(firstr == R)
++		return;
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass1", firstr);
++
++	/*
++	 * pass 2
++	 * turn branch references to pointers
++	 * build back pointers
++	 */
++	for(r=firstr; r!=R; r=r->link) {
++		p = r->prog;
++		if(p->to.type == D_BRANCH) {
++			if(p->to.branch == P)
++				fatal("pnil %P", p);
++			r1 = p->to.branch->reg;
++			if(r1 == R)
++				fatal("rnil %P", p);
++			if(r1 == r) {
++				//fatal("ref to self %P", p);
++				continue;
++			}
++			r->s2 = r1;
++			r->p2link = r1->p2;
++			r1->p2 = r;
++		}
++	}
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass2", firstr);
++
++	/*
++	 * pass 2.5
++	 * find looping structure
++	 */
++	for(r = firstr; r != R; r = r->link)
++		r->active = 0;
++	change = 0;
++	loopit(firstr, nr);
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass2.5", firstr);
++
++	/*
++	 * pass 3
++	 * iterate propagating usage
++	 * 	back until flow graph is complete
++	 */
++loop1:
++	change = 0;
++	for(r = firstr; r != R; r = r->link)
++		r->active = 0;
++	for(r = firstr; r != R; r = r->link)
++		if(r->prog->as == ARET)
++			prop(r, zbits, zbits);
++loop11:
++	/* pick up unreachable code */
++	i = 0;
++	for(r = firstr; r != R; r = r1) {
++		r1 = r->link;
++		if(r1 && r1->active && !r->active) {
++			prop(r, zbits, zbits);
++			i = 1;
++		}
++	}
++	if(i)
++		goto loop11;
++	if(change)
++		goto loop1;
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass3", firstr);
++
++	/*
++	 * pass 4
++	 * iterate propagating register/variable synchrony
++	 * 	forward until graph is complete
++	 */
++loop2:
++	change = 0;
++	for(r = firstr; r != R; r = r->link)
++		r->active = 0;
++	synch(firstr, zbits);
++	if(change)
++		goto loop2;
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass4", firstr);
++
++	/*
++	 * pass 5
++	 * isolate regions
++	 * calculate costs (paint1)
++	 */
++	r = firstr;
++	if(r) {
++		for(z=0; z<BITS; z++)
++			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
++			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
++		if(bany(&bit) && !r->refset) {
++			// should never happen - all variables are preset
++			if(debug['w'])
++				print("%L: used and not set: %Q\n", r->prog->lineno, bit);
++			r->refset = 1;
++		}
++	}
++	for(r = firstr; r != R; r = r->link)
++		r->act = zbits;
++	rgp = region;
++	nregion = 0;
++	for(r = firstr; r != R; r = r->link) {
++		for(z=0; z<BITS; z++)
++			bit.b[z] = r->set.b[z] &
++			  ~(r->refahead.b[z] | r->calahead.b[z] | addrs.b[z]);
++		if(bany(&bit) && !r->refset) {
++			if(debug['w'])
++				print("%L: set and not used: %Q\n", r->prog->lineno, bit);
++			r->refset = 1;
++			excise(r);
++		}
++		for(z=0; z<BITS; z++)
++			bit.b[z] = LOAD(r) & ~(r->act.b[z] | addrs.b[z]);
++		while(bany(&bit)) {
++			i = bnum(bit);
++			rgp->enter = r;
++			rgp->varno = i;
++			change = 0;
++			paint1(r, i);
++			bit.b[i/32] &= ~(1L<<(i%32));
++			if(change <= 0)
++				continue;
++			rgp->cost = change;
++			nregion++;
++			if(nregion >= NRGN) {
++				if(debug['R'] && debug['v'])
++					print("too many regions\n");
++				goto brk;
++			}
++			rgp++;
++		}
++	}
++brk:
++	qsort(region, nregion, sizeof(region[0]), rcmp);
++
++	/*
++	 * pass 6
++	 * determine used registers (paint2)
++	 * replace code (paint3)
++	 */
++	rgp = region;
++	for(i=0; i<nregion; i++) {
++		bit = blsh(rgp->varno);
++		vreg = paint2(rgp->enter, rgp->varno);
++		vreg = allreg(vreg, rgp);
++		if(rgp->regno != 0)
++			paint3(rgp->enter, rgp->varno, vreg, rgp->regno);
++		rgp++;
++	}
++
++	if(debug['R'] && debug['v'])
++		dumpit("pass6", firstr);
++
++	/*
++	 * pass 7
++	 * peep-hole on basic block
++	 */
++	if(!debug['R'] || debug['P']) {
++		peep();
++	}
++
++	/*
++	 * eliminate nops
++	 * free aux structures
++	 */
++	for(p=firstp; p!=P; p=p->link) {
++		while(p->link != P && p->link->as == ANOP)
++			p->link = p->link->link;
++		if(p->to.type == D_BRANCH)
++			while(p->to.branch != P && p->to.branch->as == ANOP)
++				p->to.branch = p->to.branch->link;
++	}
++
++	if(r1 != R) {
++		r1->link = freer;
++		freer = firstr;
++	}
++
++	if(debug['R']) {
++		if(ostats.ncvtreg ||
++		   ostats.nspill ||
++		   ostats.nreload ||
++		   ostats.ndelmov ||
++		   ostats.nvar ||
++		   ostats.naddr ||
++		   0)
++			print("\nstats\n");
++
++		if(ostats.ncvtreg)
++			print("	%4ld cvtreg\n", ostats.ncvtreg);
++		if(ostats.nspill)
++			print("	%4ld spill\n", ostats.nspill);
++		if(ostats.nreload)
++			print("	%4ld reload\n", ostats.nreload);
++		if(ostats.ndelmov)
++			print("	%4ld delmov\n", ostats.ndelmov);
++		if(ostats.nvar)
++			print("	%4ld delmov\n", ostats.nvar);
++		if(ostats.naddr)
++			print("	%4ld delmov\n", ostats.naddr);
++
++		memset(&ostats, 0, sizeof(ostats));
++	}
++}
++
++/*
++ * add mov b,rn
++ * just after r
++ */
++void
++addmove(Reg *r, int bn, int rn, int f)
++{
++	Prog *p, *p1;
++	Adr *a;
++	Var *v;
++
++	p1 = mal(sizeof(*p1));
++	clearp(p1);
++	p1->loc = 9999;
++
++	p = r->prog;
++	p1->link = p->link;
++	p->link = p1;
++	p1->lineno = p->lineno;
++
++	v = var + bn;
++
++	a = &p1->to;
++	a->sym = v->sym;
++	a->offset = v->offset;
++	a->etype = v->etype;
++	a->type = v->name;
++	a->gotype = v->gotype;
++
++	// need to clean this up with wptr and
++	// some of the defaults
++	p1->as = AMOVL;
++	switch(v->etype) {
++	default:
++		fatal("unknown type\n");
++	case TINT8:
++	case TUINT8:
++	case TBOOL:
++		p1->as = AMOVB;
++		break;
++	case TINT16:
++	case TUINT16:
++		p1->as = AMOVW;
++		break;
++	case TINT:
++	case TUINT:
++	case TINT32:
++	case TUINT32:
++	case TPTR32:
++		break;
++	}
++
++	p1->from.type = rn;
++	if(!f) {
++		p1->from = *a;
++		*a = zprog.from;
++		a->type = rn;
++		if(v->etype == TUINT8)
++			p1->as = AMOVB;
++		if(v->etype == TUINT16)
++			p1->as = AMOVW;
++	}
++	if(debug['R'] && debug['v'])
++		print("%P ===add=== %P\n", p, p1);
++	ostats.nspill++;
++}
++
++uint32
++doregbits(int r)
++{
++	uint32 b;
++
++	b = 0;
++	if(r >= D_INDIR)
++		r -= D_INDIR;
++	if(r >= D_AX && r <= D_DI)
++		b |= RtoB(r);
++	else
++	if(r >= D_AL && r <= D_BL)
++		b |= RtoB(r-D_AL+D_AX);
++	else
++	if(r >= D_AH && r <= D_BH)
++		b |= RtoB(r-D_AH+D_AX);
++	return b;
++}
++
++static int
++overlap(Var *v, int o2, int w2)
++{
++	int o1, w1, t1, t2, z;
++	Bits bit;
++
++	o1 = v->offset;
++	w1 = v->width;
++	t1 = o1+w1;
++	t2 = o2+w2;
++	if(!(t1 > o2 && t2 > o1))
++		return 0;
++
++	// set to max extent
++	if(o2 < o1)
++		v->offset = o2;
++	if(t1 > t2)
++		v->width = t1-v->offset;
++	else
++		v->width = t2-v->offset;
++
++	// and dont registerize
++	bit = blsh(v-var);
++	for(z=0; z<BITS; z++)
++		addrs.b[z] |= bit.b[z];
++
++	return 1;
++}
++
++Bits
++mkvar(Reg *r, Adr *a)
++{
++	Var *v;
++	int i, t, n, et, z, w, flag;
++	int32 o;
++	Bits bit;
++	Sym *s;
++
++	/*
++	 * mark registers used
++	 */
++	t = a->type;
++	if(r != R) {
++		r->regu |= doregbits(t);
++		r->regu |= doregbits(a->index);
++	}
++
++	switch(t) {
++	default:
++		goto none;
++	case D_ADDR:
++		a->type = a->index;
++		bit = mkvar(r, a);
++		for(z=0; z<BITS; z++)
++			addrs.b[z] |= bit.b[z];
++		a->type = t;
++		ostats.naddr++;
++		goto none;
++	case D_EXTERN:
++	case D_STATIC:
++	case D_PARAM:
++	case D_AUTO:
++		n = t;
++		break;
++	}
++
++	s = a->sym;
++	if(s == S)
++		goto none;
++	if(s->name[0] == '.')
++		goto none;
++	et = a->etype;
++	o = a->offset;
++	w = a->width;
++	v = var;
++
++	flag = 0;
++	for(i=0; i<nvar; i++) {
++		if(s == v->sym)
++		if(n == v->name) {
++			// if it is the same, use it
++			if(v->etype == et)
++			if(v->width == w)
++			if(v->offset == o)
++				goto out;
++
++			// if it overlaps, set max
++			// width and dont registerize
++			if(overlap(v, o, w))
++				flag = 1;
++		}
++		v++;
++	}
++	if(flag)
++		goto none;
++
++	switch(et) {
++	case 0:
++	case TFUNC:
++	case TARRAY:
++		goto none;
++	}
++
++	if(nvar >= NVAR) {
++		if(debug['w'] > 1 && s)
++			fatal("variable not optimized: %D", a);
++		goto none;
++	}
++	i = nvar;
++	nvar++;
++	v = &var[i];
++	v->sym = s;
++	v->offset = o;
++	v->name = n;
++	v->gotype = a->gotype;
++	v->etype = et;
++	v->width = w;
++	if(debug['R'])
++		print("bit=%2d et=%2d w=%d %D\n", i, et, w, a);
++	ostats.nvar++;
++
++out:
++	bit = blsh(i);
++
++	// funny punning
++	if(v->etype != et) {
++		if(debug['R'])
++			print("pun et=%d/%d w=%d/%d o=%d/%d %D\n",
++				v->etype, et,
++				v->width, w,
++				v->offset, o, a);
++		for(z=0; z<BITS; z++)
++			addrs.b[z] |= bit.b[z];
++		goto none;
++	}
++
++	if(n == D_EXTERN || n == D_STATIC)
++		for(z=0; z<BITS; z++)
++			externs.b[z] |= bit.b[z];
++	if(n == D_PARAM)
++		for(z=0; z<BITS; z++)
++			params.b[z] |= bit.b[z];
++
++	return bit;
++
++none:
++	return zbits;
++}
++
++void
++prop(Reg *r, Bits ref, Bits cal)
++{
++	Reg *r1, *r2;
++	int z;
++
++	for(r1 = r; r1 != R; r1 = r1->p1) {
++		for(z=0; z<BITS; z++) {
++			ref.b[z] |= r1->refahead.b[z];
++			if(ref.b[z] != r1->refahead.b[z]) {
++				r1->refahead.b[z] = ref.b[z];
++				change++;
++			}
++			cal.b[z] |= r1->calahead.b[z];
++			if(cal.b[z] != r1->calahead.b[z]) {
++				r1->calahead.b[z] = cal.b[z];
++				change++;
++			}
++		}
++		switch(r1->prog->as) {
++		case ACALL:
++			if(noreturn(r1->prog))
++				break;
++			for(z=0; z<BITS; z++) {
++				cal.b[z] |= ref.b[z] | externs.b[z];
++				ref.b[z] = 0;
++			}
++			break;
++
++		case ATEXT:
++			for(z=0; z<BITS; z++) {
++				cal.b[z] = 0;
++				ref.b[z] = 0;
++			}
++			break;
++
++		case ARET:
++			for(z=0; z<BITS; z++) {
++				cal.b[z] = externs.b[z] | ovar.b[z];
++				ref.b[z] = 0;
++			}
++			break;
++		}
++		for(z=0; z<BITS; z++) {
++			ref.b[z] = (ref.b[z] & ~r1->set.b[z]) |
++				r1->use1.b[z] | r1->use2.b[z];
++			cal.b[z] &= ~(r1->set.b[z] | r1->use1.b[z] | r1->use2.b[z]);
++			r1->refbehind.b[z] = ref.b[z];
++			r1->calbehind.b[z] = cal.b[z];
++		}
++		if(r1->active)
++			break;
++		r1->active = 1;
++	}
++	for(; r != r1; r = r->p1)
++		for(r2 = r->p2; r2 != R; r2 = r2->p2link)
++			prop(r2, r->refbehind, r->calbehind);
++}
++
++/*
++ * find looping structure
++ *
++ * 1) find reverse postordering
++ * 2) find approximate dominators,
++ *	the actual dominators if the flow graph is reducible
++ *	otherwise, dominators plus some other non-dominators.
++ *	See Matthew S. Hecht and Jeffrey D. Ullman,
++ *	"Analysis of a Simple Algorithm for Global Data Flow Problems",
++ *	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
++ *	Oct. 1-3, 1973, pp.  207-217.
++ * 3) find all nodes with a predecessor dominated by the current node.
++ *	such a node is a loop head.
++ *	recursively, all preds with a greater rpo number are in the loop
++ */
++int32
++postorder(Reg *r, Reg **rpo2r, int32 n)
++{
++	Reg *r1;
++
++	r->rpo = 1;
++	r1 = r->s1;
++	if(r1 && !r1->rpo)
++		n = postorder(r1, rpo2r, n);
++	r1 = r->s2;
++	if(r1 && !r1->rpo)
++		n = postorder(r1, rpo2r, n);
++	rpo2r[n] = r;
++	n++;
++	return n;
++}
++
++int32
++rpolca(int32 *idom, int32 rpo1, int32 rpo2)
++{
++	int32 t;
++
++	if(rpo1 == -1)
++		return rpo2;
++	while(rpo1 != rpo2){
++		if(rpo1 > rpo2){
++			t = rpo2;
++			rpo2 = rpo1;
++			rpo1 = t;
++		}
++		while(rpo1 < rpo2){
++			t = idom[rpo2];
++			if(t >= rpo2)
++				fatal("bad idom");
++			rpo2 = t;
++		}
++	}
++	return rpo1;
++}
++
++int
++doms(int32 *idom, int32 r, int32 s)
++{
++	while(s > r)
++		s = idom[s];
++	return s == r;
++}
++
++int
++loophead(int32 *idom, Reg *r)
++{
++	int32 src;
++
++	src = r->rpo;
++	if(r->p1 != R && doms(idom, src, r->p1->rpo))
++		return 1;
++	for(r = r->p2; r != R; r = r->p2link)
++		if(doms(idom, src, r->rpo))
++			return 1;
++	return 0;
++}
++
++void
++loopmark(Reg **rpo2r, int32 head, Reg *r)
++{
++	if(r->rpo < head || r->active == head)
++		return;
++	r->active = head;
++	r->loop += LOOP;
++	if(r->p1 != R)
++		loopmark(rpo2r, head, r->p1);
++	for(r = r->p2; r != R; r = r->p2link)
++		loopmark(rpo2r, head, r);
++}
++
++void
++loopit(Reg *r, int32 nr)
++{
++	Reg *r1;
++	int32 i, d, me;
++
++	if(nr > maxnr) {
++		rpo2r = mal(nr * sizeof(Reg*));
++		idom = mal(nr * sizeof(int32));
++		maxnr = nr;
++	}
++
++	d = postorder(r, rpo2r, 0);
++	if(d > nr)
++		fatal("too many reg nodes %d %d", d, nr);
++	nr = d;
++	for(i = 0; i < nr / 2; i++) {
++		r1 = rpo2r[i];
++		rpo2r[i] = rpo2r[nr - 1 - i];
++		rpo2r[nr - 1 - i] = r1;
++	}
++	for(i = 0; i < nr; i++)
++		rpo2r[i]->rpo = i;
++
++	idom[0] = 0;
++	for(i = 0; i < nr; i++) {
++		r1 = rpo2r[i];
++		me = r1->rpo;
++		d = -1;
++		if(r1->p1 != R && r1->p1->rpo < me)
++			d = r1->p1->rpo;
++		for(r1 = r1->p2; r1 != nil; r1 = r1->p2link)
++			if(r1->rpo < me)
++				d = rpolca(idom, d, r1->rpo);
++		idom[i] = d;
++	}
++
++	for(i = 0; i < nr; i++) {
++		r1 = rpo2r[i];
++		r1->loop++;
++		if(r1->p2 != R && loophead(idom, r1))
++			loopmark(rpo2r, i, r1);
++	}
++}
++
++void
++synch(Reg *r, Bits dif)
++{
++	Reg *r1;
++	int z;
++
++	for(r1 = r; r1 != R; r1 = r1->s1) {
++		for(z=0; z<BITS; z++) {
++			dif.b[z] = (dif.b[z] &
++				~(~r1->refbehind.b[z] & r1->refahead.b[z])) |
++					r1->set.b[z] | r1->regdiff.b[z];
++			if(dif.b[z] != r1->regdiff.b[z]) {
++				r1->regdiff.b[z] = dif.b[z];
++				change++;
++			}
++		}
++		if(r1->active)
++			break;
++		r1->active = 1;
++		for(z=0; z<BITS; z++)
++			dif.b[z] &= ~(~r1->calbehind.b[z] & r1->calahead.b[z]);
++		if(r1->s2 != R)
++			synch(r1->s2, dif);
++	}
++}
++
++uint32
++allreg(uint32 b, Rgn *r)
++{
++	Var *v;
++	int i;
++
++	v = var + r->varno;
++	r->regno = 0;
++	switch(v->etype) {
++
++	default:
++		fatal("unknown etype %d/%E", bitno(b), v->etype);
++		break;
++
++	case TINT8:
++	case TUINT8:
++	case TINT16:
++	case TUINT16:
++	case TINT32:
++	case TUINT32:
++	case TINT64:
++	case TINT:
++	case TUINT:
++	case TUINTPTR:
++	case TBOOL:
++	case TPTR32:
++		i = BtoR(~b);
++		if(i && r->cost > 0) {
++			r->regno = i;
++			return RtoB(i);
++		}
++		break;
++
++	case TFLOAT32:
++	case TFLOAT64:
++	case TFLOAT:
++		break;
++	}
++	return 0;
++}
++
++void
++paint1(Reg *r, int bn)
++{
++	Reg *r1;
++	Prog *p;
++	int z;
++	uint32 bb;
++
++	z = bn/32;
++	bb = 1L<<(bn%32);
++	if(r->act.b[z] & bb)
++		return;
++	for(;;) {
++		if(!(r->refbehind.b[z] & bb))
++			break;
++		r1 = r->p1;
++		if(r1 == R)
++			break;
++		if(!(r1->refahead.b[z] & bb))
++			break;
++		if(r1->act.b[z] & bb)
++			break;
++		r = r1;
++	}
++
++	if(LOAD(r) & ~(r->set.b[z]&~(r->use1.b[z]|r->use2.b[z])) & bb) {
++		change -= CLOAD * r->loop;
++	}
++	for(;;) {
++		r->act.b[z] |= bb;
++		p = r->prog;
++
++		if(r->use1.b[z] & bb) {
++			change += CREF * r->loop;
++			if(p->as == AFMOVL || p->as == AFMOVW)
++				if(BtoR(bb) != D_F0)
++					change = -CINF;
++		}
++
++		if((r->use2.b[z]|r->set.b[z]) & bb) {
++			change += CREF * r->loop;
++			if(p->as == AFMOVL || p->as == AFMOVW)
++				if(BtoR(bb) != D_F0)
++					change = -CINF;
++		}
++
++		if(STORE(r) & r->regdiff.b[z] & bb) {
++			change -= CLOAD * r->loop;
++			if(p->as == AFMOVL || p->as == AFMOVW)
++				if(BtoR(bb) != D_F0)
++					change = -CINF;
++		}
++
++		if(r->refbehind.b[z] & bb)
++			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
++				if(r1->refahead.b[z] & bb)
++					paint1(r1, bn);
++
++		if(!(r->refahead.b[z] & bb))
++			break;
++		r1 = r->s2;
++		if(r1 != R)
++			if(r1->refbehind.b[z] & bb)
++				paint1(r1, bn);
++		r = r->s1;
++		if(r == R)
++			break;
++		if(r->act.b[z] & bb)
++			break;
++		if(!(r->refbehind.b[z] & bb))
++			break;
++	}
++}
++
++uint32
++regset(Reg *r, uint32 bb)
++{
++	uint32 b, set;
++	Adr v;
++	int c;
++
++	set = 0;
++	v = zprog.from;
++	while(b = bb & ~(bb-1)) {
++		v.type = BtoR(b);
++		c = copyu(r->prog, &v, A);
++		if(c == 3)
++			set |= b;
++		bb &= ~b;
++	}
++	return set;
++}
++
++uint32
++reguse(Reg *r, uint32 bb)
++{
++	uint32 b, set;
++	Adr v;
++	int c;
++
++	set = 0;
++	v = zprog.from;
++	while(b = bb & ~(bb-1)) {
++		v.type = BtoR(b);
++		c = copyu(r->prog, &v, A);
++		if(c == 1 || c == 2 || c == 4)
++			set |= b;
++		bb &= ~b;
++	}
++	return set;
++}
++
++uint32
++paint2(Reg *r, int bn)
++{
++	Reg *r1;
++	int z;
++	uint32 bb, vreg, x;
++
++	z = bn/32;
++	bb = 1L << (bn%32);
++	vreg = regbits;
++	if(!(r->act.b[z] & bb))
++		return vreg;
++	for(;;) {
++		if(!(r->refbehind.b[z] & bb))
++			break;
++		r1 = r->p1;
++		if(r1 == R)
++			break;
++		if(!(r1->refahead.b[z] & bb))
++			break;
++		if(!(r1->act.b[z] & bb))
++			break;
++		r = r1;
++	}
++	for(;;) {
++		r->act.b[z] &= ~bb;
++
++		vreg |= r->regu;
++
++		if(r->refbehind.b[z] & bb)
++			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
++				if(r1->refahead.b[z] & bb)
++					vreg |= paint2(r1, bn);
++
++		if(!(r->refahead.b[z] & bb))
++			break;
++		r1 = r->s2;
++		if(r1 != R)
++			if(r1->refbehind.b[z] & bb)
++				vreg |= paint2(r1, bn);
++		r = r->s1;
++		if(r == R)
++			break;
++		if(!(r->act.b[z] & bb))
++			break;
++		if(!(r->refbehind.b[z] & bb))
++			break;
++	}
++
++	bb = vreg;
++	for(; r; r=r->s1) {
++		x = r->regu & ~bb;
++		if(x) {
++			vreg |= reguse(r, x);
++			bb |= regset(r, x);
++		}
++	}
++	return vreg;
++}
++
++void
++paint3(Reg *r, int bn, int32 rb, int rn)
++{
++	Reg *r1;
++	Prog *p;
++	int z;
++	uint32 bb;
++
++	z = bn/32;
++	bb = 1L << (bn%32);
++	if(r->act.b[z] & bb)
++		return;
++	for(;;) {
++		if(!(r->refbehind.b[z] & bb))
++			break;
++		r1 = r->p1;
++		if(r1 == R)
++			break;
++		if(!(r1->refahead.b[z] & bb))
++			break;
++		if(r1->act.b[z] & bb)
++			break;
++		r = r1;
++	}
++
++	if(LOAD(r) & ~(r->set.b[z] & ~(r->use1.b[z]|r->use2.b[z])) & bb)
++		addmove(r, bn, rn, 0);
++	for(;;) {
++		r->act.b[z] |= bb;
++		p = r->prog;
++
++		if(r->use1.b[z] & bb) {
++			if(debug['R'] && debug['v'])
++				print("%P", p);
++			addreg(&p->from, rn);
++			if(debug['R'] && debug['v'])
++				print(" ===change== %P\n", p);
++		}
++		if((r->use2.b[z]|r->set.b[z]) & bb) {
++			if(debug['R'] && debug['v'])
++				print("%P", p);
++			addreg(&p->to, rn);
++			if(debug['R'] && debug['v'])
++				print(" ===change== %P\n", p);
++		}
++
++		if(STORE(r) & r->regdiff.b[z] & bb)
++			addmove(r, bn, rn, 1);
++		r->regu |= rb;
++
++		if(r->refbehind.b[z] & bb)
++			for(r1 = r->p2; r1 != R; r1 = r1->p2link)
++				if(r1->refahead.b[z] & bb)
++					paint3(r1, bn, rb, rn);
++
++		if(!(r->refahead.b[z] & bb))
++			break;
++		r1 = r->s2;
++		if(r1 != R)
++			if(r1->refbehind.b[z] & bb)
++				paint3(r1, bn, rb, rn);
++		r = r->s1;
++		if(r == R)
++			break;
++		if(r->act.b[z] & bb)
++			break;
++		if(!(r->refbehind.b[z] & bb))
++			break;
++	}
++}
++
++void
++addreg(Adr *a, int rn)
++{
++
++	a->sym = 0;
++	a->offset = 0;
++	a->type = rn;
++
++	ostats.ncvtreg++;
++}
++
++int32
++RtoB(int r)
++{
++
++	if(r < D_AX || r > D_DI)
++		return 0;
++	return 1L << (r-D_AX);
++}
++
++int
++BtoR(int32 b)
++{
++
++	b &= 0xffL;
++	if(b == 0)
++		return 0;
++	return bitno(b) + D_AX;
++}
++
++void
++dumpone(Reg *r)
++{
++	int z;
++	Bits bit;
++
++	print("%ld:%P", r->loop, r->prog);
++	for(z=0; z<BITS; z++)
++		bit.b[z] =
++			r->set.b[z] |
++			r->use1.b[z] |
++			r->use2.b[z] |
++			r->refbehind.b[z] |
++			r->refahead.b[z] |
++			r->calbehind.b[z] |
++			r->calahead.b[z] |
++			r->regdiff.b[z] |
++			r->act.b[z] |
++				0;
++	if(bany(&bit)) {
++		print("\t");
++		if(bany(&r->set))
++			print(" s:%Q", r->set);
++		if(bany(&r->use1))
++			print(" u1:%Q", r->use1);
++		if(bany(&r->use2))
++			print(" u2:%Q", r->use2);
++		if(bany(&r->refbehind))
++			print(" rb:%Q ", r->refbehind);
++		if(bany(&r->refahead))
++			print(" ra:%Q ", r->refahead);
++		if(bany(&r->calbehind))
++			print("cb:%Q ", r->calbehind);
++		if(bany(&r->calahead))
++			print(" ca:%Q ", r->calahead);
++		if(bany(&r->regdiff))
++			print(" d:%Q ", r->regdiff);
++		if(bany(&r->act))
++			print(" a:%Q ", r->act);
++	}
++	print("\n");
++}
++
++void
++dumpit(char *str, Reg *r0)
++{
++	Reg *r, *r1;
++
++	print("\n%s\n", str);
++	for(r = r0; r != R; r = r->link) {
++		dumpone(r);
++		r1 = r->p2;
++		if(r1 != R) {
++			print("	pred:");
++			for(; r1 != R; r1 = r1->p2link)
++				print(" %.4lud", r1->prog->loc);
++			print("\n");
++		}
++//		r1 = r->s1;
++//		if(r1 != R) {
++//			print("	succ:");
++//			for(; r1 != R; r1 = r1->s1)
++//				print(" %.4lud", r1->prog->loc);
++//			print("\n");
++//		}
++	}
++}
++
++static Sym*	symlist[10];
++
++int
++noreturn(Prog *p)
++{
++	Sym *s;
++	int i;
++
++	if(symlist[0] == S) {
++		symlist[0] = pkglookup("throwindex", "sys");
++		symlist[1] = pkglookup("throwslice", "sys");
++		symlist[2] = pkglookup("throwinit", "sys");
++		symlist[3] = pkglookup("panicl", "sys");
++	}
++
++	s = p->to.sym;
++	if(s == S)
++		return 0;
++	for(i=0; symlist[i]!=S; i++)
++		if(s == symlist[i])
++			return 1;
++	return 0;
++}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index d76bacd1b0..bb11f4c92b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -408,25 +408,25 @@ enum
+ 	TFLOAT64,
+ 	TFLOAT,
+ 
+-	TBOOL,			// 16
++	TBOOL,			// 15
+ 
+-	TPTR32, TPTR64,		// 17
++	TPTR32, TPTR64,		// 16
+ 
+-	TDDD,			// 19
++	TDDD,			// 18
+ 	TFUNC,
+ 	TARRAY,
+ 	T_old_DARRAY,
+-	TSTRUCT,		// 23
++	TSTRUCT,		// 22
+ 	TCHAN,
+ 	TMAP,
+-	TINTER,			// 26
++	TINTER,			// 25
+ 	TFORW,
+ 	TFIELD,
+ 	TANY,
+ 	TSTRING,
+ 
+ 	// pseudo-types for literals
+-	TIDEAL,
++	TIDEAL,			// 30
+ 	TNIL,
+ 	TBLANK,
+ 	

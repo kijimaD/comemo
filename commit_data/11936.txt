@@ -14,7 +14,66 @@ Date:   Wed Feb 15 11:48:17 2012 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5673056
-
+---
  src/cmd/dist/build.c | 10 ++++++----
  src/make.bash        |  8 ++++++--
  2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 67860cdf33..9d168b364f 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -314,12 +314,12 @@ setup(void)
+ 	p = bpathf(&b, "%s/pkg/%s_%s", goroot, gohostos, gohostarch);
+ 	if(rebuildall)
+ 		xremoveall(p);
+-	xmkdir(p);
++	xmkdirall(p);
+ 	if(!streq(goos, gohostos) || !streq(goarch, gohostarch)) {
+ 		p = bpathf(&b, "%s/pkg/%s_%s", goroot, goos, goarch);
+ 		if(rebuildall)
+ 			xremoveall(p);
+-		xmkdir(p);
++		xmkdirall(p);
+ 	}
+ 	
+ 	// Create object directory.
+@@ -337,7 +337,8 @@ setup(void)
+ 
+ 	// Create tool directory.
+ 	// We keep it in pkg/, just like the object directory above.
+-	xremoveall(tooldir);
++	if(rebuildall)
++		xremoveall(tooldir);
+ 	xmkdirall(tooldir);
+ 
+ 	// Remove tool binaries from before the tool/gohostos_gohostarch
+@@ -1330,7 +1331,8 @@ cmdbootstrap(int argc, char **argv)
+ 	if(argc > 0)
+ 		usage();
+ 
+-	clean();
++	if(rebuildall)
++		clean();
+ 	goversion = findgoversion();
+ 	setup();
+ 	
+diff --git a/src/make.bash b/src/make.bash
+index 43183e786b..cb7051bab3 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -75,8 +75,12 @@ if [ "$1" = "--dist-tool" ]; then
+ fi
+ 
+ echo "# Building compilers and Go bootstrap tool for host, $GOHOSTOS/$GOHOSTARCH."
+-./cmd/dist/dist bootstrap -a -v # builds go_bootstrap
+-# Delay move of dist tool to now, because bootstrap cleared tool directory.
++buildall="-a"
++if [ "$1" = "--no-clean" ]; then
++	buildall=""
++fi
++./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
++# Delay move of dist tool to now, because bootstrap may clear tool directory.
+ mv cmd/dist/dist $GOTOOLDIR/dist
+ $GOTOOLDIR/go_bootstrap clean -i std
+ echo

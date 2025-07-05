@@ -30,9 +30,184 @@ Date:   Mon Jan 9 11:35:42 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go |  6 +++--
  src/runtime/mgc.go    | 74 ++++++++++++++++++++++++++++++++++++++-------------
  src/runtime/mheap.go  |  2 +-
  src/runtime/proc.go   |  6 ++---
  4 files changed, 64 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 344771c899..188b0453df 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -764,8 +764,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		assistG.gcAssistBytes -= int64(size - dataSize)
+ 	}
+ 
+-	if shouldhelpgc && gcShouldStart(false) {
+-		gcStart(gcBackgroundMode, false)
++	if shouldhelpgc {
++		if t := (gcTrigger{kind: gcTriggerHeap}); t.test() {
++			gcStart(gcBackgroundMode, t)
++		}
+ 	}
+ 
+ 	return x
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0d4178dd9e..f231a182d1 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -888,7 +888,7 @@ var work struct {
+ // garbage collection is complete. It may also block the entire
+ // program.
+ func GC() {
+-	gcStart(gcForceBlockMode, false)
++	gcStart(gcForceBlockMode, gcTrigger{kind: gcTriggerAlways})
+ }
+ 
+ // gcMode indicates how concurrent a GC cycle should be.
+@@ -900,24 +900,62 @@ const (
+ 	gcForceBlockMode               // stop-the-world GC now and STW sweep (forced by user)
+ )
+ 
+-// gcShouldStart returns true if the exit condition for the _GCoff
+-// phase has been met. The exit condition should be tested when
+-// allocating.
+-//
+-// If forceTrigger is true, it ignores the current heap size, but
+-// checks all other conditions. In general this should be false.
+-func gcShouldStart(forceTrigger bool) bool {
+-	return gcphase == _GCoff && (forceTrigger || memstats.heap_live >= memstats.gc_trigger) && memstats.enablegc && panicking == 0 && gcpercent >= 0
++// A gcTrigger is a predicate for starting a GC cycle. Specifically,
++// it is an exit condition for the _GCoff phase.
++type gcTrigger struct {
++	kind gcTriggerKind
++	now  int64 // gcTriggerTime: current time
++}
++
++type gcTriggerKind int
++
++const (
++	// gcTriggerAlways indicates that a cycle should be started
++	// unconditionally, even if GOGC is off. This cannot be
++	// consolidated with other cycles.
++	gcTriggerAlways gcTriggerKind = iota
++
++	// gcTriggerHeap indicates that a cycle should be started when
++	// the heap size reaches the trigger heap size computed by the
++	// controller.
++	gcTriggerHeap
++
++	// gcTriggerTime indicates that a cycle should be started when
++	// it's been more than forcegcperiod nanoseconds since the
++	// previous GC cycle.
++	gcTriggerTime
++)
++
++// test returns true if the trigger condition is satisfied, meaning
++// that the exit condition for the _GCoff phase has been met. The exit
++// condition should be tested when allocating.
++func (t gcTrigger) test() bool {
++	if !(gcphase == _GCoff && memstats.enablegc && panicking == 0) {
++		return false
++	}
++	if t.kind == gcTriggerAlways {
++		return true
++	}
++	if gcpercent < 0 {
++		return false
++	}
++	switch t.kind {
++	case gcTriggerHeap:
++		return memstats.heap_live >= memstats.gc_trigger
++	case gcTriggerTime:
++		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
++		return lastgc != 0 && t.now-lastgc > forcegcperiod
++	}
++	return true
+ }
+ 
+-// gcStart transitions the GC from _GCoff to _GCmark (if mode ==
+-// gcBackgroundMode) or _GCmarktermination (if mode !=
+-// gcBackgroundMode) by performing sweep termination and GC
+-// initialization.
++// gcStart transitions the GC from _GCoff to _GCmark (if
++// !mode.stwMark) or _GCmarktermination (if mode.stwMark) by
++// performing sweep termination and GC initialization.
+ //
+ // This may return without performing this transition in some cases,
+ // such as when called on a system stack or with locks held.
+-func gcStart(mode gcMode, forceTrigger bool) {
++func gcStart(mode gcMode, trigger gcTrigger) {
+ 	// Since this is called from malloc and malloc is called in
+ 	// the guts of a number of libraries that might be holding
+ 	// locks, don't attempt to start GC in non-preemptible or
+@@ -940,7 +978,7 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	//
+ 	// We check the transition condition continuously here in case
+ 	// this G gets delayed in to the next GC cycle.
+-	for (mode != gcBackgroundMode || gcShouldStart(forceTrigger)) && gosweepone() != ^uintptr(0) {
++	for trigger.test() && gosweepone() != ^uintptr(0) {
+ 		sweep.nbgsweep++
+ 	}
+ 
+@@ -951,18 +989,18 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 	// or re-check the transition condition because we
+ 	// specifically *don't* want to share the transition with
+ 	// another thread.
+-	useStartSema := mode == gcBackgroundMode
++	useStartSema := trigger.kind != gcTriggerAlways
+ 	if useStartSema {
+ 		semacquire(&work.startSema)
+ 		// Re-check transition condition under transition lock.
+-		if !gcShouldStart(forceTrigger) {
++		if !trigger.test() {
+ 			semrelease(&work.startSema)
+ 			return
+ 		}
+ 	}
+ 
+ 	// For stats, check if this GC was forced by the user.
+-	forced := mode != gcBackgroundMode
++	forced := trigger.kind == gcTriggerAlways
+ 
+ 	// In gcstoptheworld debug mode, upgrade the mode accordingly.
+ 	// We do this after re-checking the transition condition so
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 7a505dc00f..2f6cc358c3 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1062,7 +1062,7 @@ func (h *mheap) scavenge(k int32, now, limit uint64) {
+ 
+ //go:linkname runtime_debug_freeOSMemory runtime/debug.freeOSMemory
+ func runtime_debug_freeOSMemory() {
+-	gcStart(gcForceBlockMode, false)
++	gcStart(gcForceBlockMode, gcTrigger{kind: gcTriggerAlways})
+ 	systemstack(func() { mheap_.scavenge(-1, ^uint64(0), 0) })
+ }
+ 
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ae19120a31..dae8f135bc 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -228,7 +228,8 @@ func forcegchelper() {
+ 		if debug.gctrace > 0 {
+ 			println("GC forced")
+ 		}
+-		gcStart(gcBackgroundMode, true)
++		// Time-triggered, fully concurrent.
++		gcStart(gcBackgroundMode, gcTrigger{kind: gcTriggerTime, now: nanotime()})
+ 	}
+ }
+ 
+@@ -3790,8 +3791,7 @@ func sysmon() {
+ 			idle++
+ 		}
+ 		// check if we need to force a GC
+-		lastgc := int64(atomic.Load64(&memstats.last_gc_nanotime))
+-		if gcShouldStart(true) && lastgc != 0 && now-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
++		if t := (gcTrigger{kind: gcTriggerTime, now: now}); t.test() && atomic.Load(&forcegc.idle) != 0 {
+ 			lock(&forcegc.lock)
+ 			forcegc.idle = 0
+ 			forcegc.g.schedlink = 0

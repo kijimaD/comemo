@@ -15,7 +15,7 @@ Date:   Mon Dec 28 23:42:49 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ir/func.go        |  2 +-
  src/cmd/compile/internal/ir/node_gen.go    | 10 +++++-----
  src/cmd/compile/internal/ir/type.go        | 22 +++++++++++-----------
@@ -23,3 +23,216 @@ Date:   Mon Dec 28 23:42:49 2020 -0800
  src/cmd/compile/internal/typecheck/func.go |  2 +-
  src/cmd/compile/internal/typecheck/type.go | 12 ++++++------
  6 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index a4f5875aab..4613425f1a 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -67,7 +67,7 @@ type Func struct {
+ 	Dcl []*Name
+ 
+ 	ClosureEnter Nodes   // list of ONAME nodes (or OADDR-of-ONAME nodes, for output parameters) of captured variables
+-	ClosureType  Node    // closure representation type
++	ClosureType  Ntype   // closure representation type
+ 	ClosureVars  []*Name // closure params; each has closurevar set
+ 
+ 	// Parents records the parent scope of each scope within a
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 1d24904a3f..fe54b62f18 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -52,7 +52,7 @@ func (n *ArrayType) doChildren(do func(Node) error) error {
+ }
+ func (n *ArrayType) editChildren(edit func(Node) Node) {
+ 	n.Len = maybeEdit(n.Len, edit)
+-	n.Elem = maybeEdit(n.Elem, edit)
++	n.Elem = toNtype(maybeEdit(n.Elem, edit))
+ }
+ 
+ func (n *AssignListStmt) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -241,7 +241,7 @@ func (n *ChanType) doChildren(do func(Node) error) error {
+ 	return err
+ }
+ func (n *ChanType) editChildren(edit func(Node) Node) {
+-	n.Elem = maybeEdit(n.Elem, edit)
++	n.Elem = toNtype(maybeEdit(n.Elem, edit))
+ }
+ 
+ func (n *ClosureExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -632,8 +632,8 @@ func (n *MapType) doChildren(do func(Node) error) error {
+ 	return err
+ }
+ func (n *MapType) editChildren(edit func(Node) Node) {
+-	n.Key = maybeEdit(n.Key, edit)
+-	n.Elem = maybeEdit(n.Elem, edit)
++	n.Key = toNtype(maybeEdit(n.Key, edit))
++	n.Elem = toNtype(maybeEdit(n.Elem, edit))
+ }
+ 
+ func (n *Name) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+@@ -873,7 +873,7 @@ func (n *SliceType) doChildren(do func(Node) error) error {
+ 	return err
+ }
+ func (n *SliceType) editChildren(edit func(Node) Node) {
+-	n.Elem = maybeEdit(n.Elem, edit)
++	n.Elem = toNtype(maybeEdit(n.Elem, edit))
+ }
+ 
+ func (n *StarExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index bd3a05d06e..408f6ed563 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -46,7 +46,7 @@ func (n *miniType) Type() *types.Type { return n.typ }
+ // setOTYPE also records t.Nod = self if t.Nod is not already set.
+ // (Some types are shared by multiple OTYPE nodes, so only
+ // the first such node is used as t.Nod.)
+-func (n *miniType) setOTYPE(t *types.Type, self Node) {
++func (n *miniType) setOTYPE(t *types.Type, self Ntype) {
+ 	if n.typ != nil {
+ 		panic(n.op.String() + " SetType: type already set")
+ 	}
+@@ -61,11 +61,11 @@ func (n *miniType) Implicit() bool  { return false } // for Format OTYPE
+ // A ChanType represents a chan Elem syntax with the direction Dir.
+ type ChanType struct {
+ 	miniType
+-	Elem Node
++	Elem Ntype
+ 	Dir  types.ChanDir
+ }
+ 
+-func NewChanType(pos src.XPos, elem Node, dir types.ChanDir) *ChanType {
++func NewChanType(pos src.XPos, elem Ntype, dir types.ChanDir) *ChanType {
+ 	n := &ChanType{Elem: elem, Dir: dir}
+ 	n.op = OTCHAN
+ 	n.pos = pos
+@@ -80,11 +80,11 @@ func (n *ChanType) SetOTYPE(t *types.Type) {
+ // A MapType represents a map[Key]Value type syntax.
+ type MapType struct {
+ 	miniType
+-	Key  Node
+-	Elem Node
++	Key  Ntype
++	Elem Ntype
+ }
+ 
+-func NewMapType(pos src.XPos, key, elem Node) *MapType {
++func NewMapType(pos src.XPos, key, elem Ntype) *MapType {
+ 	n := &MapType{Key: key, Elem: elem}
+ 	n.op = OTMAP
+ 	n.pos = pos
+@@ -246,11 +246,11 @@ func editFields(list []*Field, edit func(Node) Node) {
+ // If DDD is true, it's the ...Elem at the end of a function list.
+ type SliceType struct {
+ 	miniType
+-	Elem Node
++	Elem Ntype
+ 	DDD  bool
+ }
+ 
+-func NewSliceType(pos src.XPos, elem Node) *SliceType {
++func NewSliceType(pos src.XPos, elem Ntype) *SliceType {
+ 	n := &SliceType{Elem: elem}
+ 	n.op = OTSLICE
+ 	n.pos = pos
+@@ -267,11 +267,11 @@ func (n *SliceType) SetOTYPE(t *types.Type) {
+ type ArrayType struct {
+ 	miniType
+ 	Len  Node
+-	Elem Node
++	Elem Ntype
+ }
+ 
+-func NewArrayType(pos src.XPos, size Node, elem Node) *ArrayType {
+-	n := &ArrayType{Len: size, Elem: elem}
++func NewArrayType(pos src.XPos, len Node, elem Ntype) *ArrayType {
++	n := &ArrayType{Len: len, Elem: elem}
+ 	n.op = OTARRAY
+ 	n.pos = pos
+ 	return n
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index f3e3a93150..5752139c0b 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -230,7 +230,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 
+ 	// Need to handle [...]T arrays specially.
+ 	if array, ok := n.Ntype.(*ir.ArrayType); ok && array.Elem != nil && array.Len == nil {
+-		array.Elem = typecheck(array.Elem, ctxType)
++		array.Elem = typecheckNtype(array.Elem)
+ 		elemType := array.Elem.Type()
+ 		if elemType == nil {
+ 			n.SetType(nil)
+@@ -243,7 +243,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
+ 		return n
+ 	}
+ 
+-	n.Ntype = ir.Node(typecheck(n.Ntype, ctxType)).(ir.Ntype)
++	n.Ntype = typecheckNtype(n.Ntype)
+ 	t := n.Ntype.Type()
+ 	if t == nil {
+ 		n.SetType(nil)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index c58fef10ec..9bb9245d4a 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -342,7 +342,7 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
+ 		fn.Iota = x
+ 	}
+ 
+-	fn.ClosureType = typecheck(fn.ClosureType, ctxType)
++	fn.ClosureType = typecheckNtype(fn.ClosureType)
+ 	clo.SetType(fn.ClosureType.Type())
+ 	fn.SetClosureCalled(top&ctxCallee != 0)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/type.go b/src/cmd/compile/internal/typecheck/type.go
+index 0c2ebb8b26..6fdafef77d 100644
+--- a/src/cmd/compile/internal/typecheck/type.go
++++ b/src/cmd/compile/internal/typecheck/type.go
+@@ -14,7 +14,7 @@ import (
+ 
+ // tcArrayType typechecks an OTARRAY node.
+ func tcArrayType(n *ir.ArrayType) ir.Node {
+-	n.Elem = typecheck(n.Elem, ctxType)
++	n.Elem = typecheckNtype(n.Elem)
+ 	if n.Elem.Type() == nil {
+ 		return n
+ 	}
+@@ -59,7 +59,7 @@ func tcArrayType(n *ir.ArrayType) ir.Node {
+ 
+ // tcChanType typechecks an OTCHAN node.
+ func tcChanType(n *ir.ChanType) ir.Node {
+-	n.Elem = typecheck(n.Elem, ctxType)
++	n.Elem = typecheckNtype(n.Elem)
+ 	l := n.Elem
+ 	if l.Type() == nil {
+ 		return n
+@@ -103,7 +103,7 @@ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
+ 		n.SetOTYPE(types.Types[types.TINTER])
+ 		return n
+ 	}
+-	
++
+ 	lno := base.Pos
+ 	methods := tcFields(n.Methods, nil)
+ 	base.Pos = lno
+@@ -114,8 +114,8 @@ func tcInterfaceType(n *ir.InterfaceType) ir.Node {
+ 
+ // tcMapType typechecks an OTMAP node.
+ func tcMapType(n *ir.MapType) ir.Node {
+-	n.Key = typecheck(n.Key, ctxType)
+-	n.Elem = typecheck(n.Elem, ctxType)
++	n.Key = typecheckNtype(n.Key)
++	n.Elem = typecheckNtype(n.Elem)
+ 	l := n.Key
+ 	r := n.Elem
+ 	if l.Type() == nil || r.Type() == nil {
+@@ -134,7 +134,7 @@ func tcMapType(n *ir.MapType) ir.Node {
+ 
+ // tcSliceType typechecks an OTSLICE node.
+ func tcSliceType(n *ir.SliceType) ir.Node {
+-	n.Elem = typecheck(n.Elem, ctxType)
++	n.Elem = typecheckNtype(n.Elem)
+ 	if n.Elem.Type() == nil {
+ 		return n
+ 	}

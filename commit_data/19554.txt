@@ -10,9 +10,190 @@ Date:   Tue Jun 17 00:36:23 2014 -0700
     R=golang-codereviews, bradfitz, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/103470045
-
+---
  src/pkg/runtime/export_test.go |  4 ++
  src/pkg/runtime/string.c       | 92 +++++++++++++++++++++++++++++++++++++++++-
  src/pkg/runtime/string_test.go | 23 +++++++++++
  src/pkg/runtime/stubs.goc      |  6 +++
  4 files changed, 123 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 7a31b63b31..72d4e11086 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -90,3 +90,7 @@ var MemclrBytes = memclrBytes
+ func gogoBytes() int32
+ 
+ var GogoBytes = gogoBytes
++
++func gostringW([]byte) string
++
++var GostringW = gostringW
+diff --git a/src/pkg/runtime/string.c b/src/pkg/runtime/string.c
+index d5b668bd61..60a0545a9a 100644
+--- a/src/pkg/runtime/string.c
++++ b/src/pkg/runtime/string.c
+@@ -100,6 +100,94 @@ runtime·gostringnocopy(byte *str)
+ 	return s;
+ }
+ 
++// TODO: move this elsewhere
++enum
++{
++	Bit1	= 7,
++	Bitx	= 6,
++	Bit2	= 5,
++	Bit3	= 4,
++	Bit4	= 3,
++	Bit5	= 2,
++
++	Tx	= ((1<<(Bitx+1))-1) ^ 0xFF,	/* 1000 0000 */
++	T2	= ((1<<(Bit2+1))-1) ^ 0xFF,	/* 1100 0000 */
++	T3	= ((1<<(Bit3+1))-1) ^ 0xFF,	/* 1110 0000 */
++	T4	= ((1<<(Bit4+1))-1) ^ 0xFF,	/* 1111 0000 */
++
++	Rune1	= (1<<(Bit1+0*Bitx))-1,		/* 0000 0000 0111 1111 */
++	Rune2	= (1<<(Bit2+1*Bitx))-1,		/* 0000 0111 1111 1111 */
++	Rune3	= (1<<(Bit3+2*Bitx))-1,		/* 1111 1111 1111 1111 */
++
++	Maskx	= (1<<Bitx)-1,			/* 0011 1111 */
++
++	Runeerror	= 0xFFFD,
++
++	SurrogateMin = 0xD800,
++	SurrogateMax = 0xDFFF,
++
++	Runemax	= 0x10FFFF,	/* maximum rune value */
++};
++
++static int32
++runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
++{
++	/* Runes are signed, so convert to unsigned for range check. */
++	uint32 c;
++
++	/*
++	 * one character sequence
++	 *	00000-0007F => 00-7F
++	 */
++	c = rune;
++	if(c <= Rune1) {
++		str[0] = c;
++		return 1;
++	}
++
++	/*
++	 * two character sequence
++	 *	0080-07FF => T2 Tx
++	 */
++	if(c <= Rune2) {
++		str[0] = T2 | (c >> 1*Bitx);
++		str[1] = Tx | (c & Maskx);
++		return 2;
++	}
++
++	/*
++	 * If the Rune is out of range or a surrogate half, convert it to the error rune.
++	 * Do this test here because the error rune encodes to three bytes.
++	 * Doing it earlier would duplicate work, since an out of range
++	 * Rune wouldn't have fit in one or two bytes.
++	 */
++	if (c > Runemax)
++		c = Runeerror;
++	if (SurrogateMin <= c && c <= SurrogateMax)
++		c = Runeerror;
++
++	/*
++	 * three character sequence
++	 *	0800-FFFF => T3 Tx Tx
++	 */
++	if (c <= Rune3) {
++		str[0] = T3 |  (c >> 2*Bitx);
++		str[1] = Tx | ((c >> 1*Bitx) & Maskx);
++		str[2] = Tx |  (c & Maskx);
++		return 3;
++	}
++
++	/*
++	 * four character sequence (21-bit value)
++	 *     10000-1FFFFF => T4 Tx Tx Tx
++	 */
++	str[0] = T4 | (c >> 3*Bitx);
++	str[1] = Tx | ((c >> 2*Bitx) & Maskx);
++	str[2] = Tx | ((c >> 1*Bitx) & Maskx);
++	str[3] = Tx | (c & Maskx);
++	return 4;
++}
++
+ String
+ runtime·gostringw(uint16 *str)
+ {
+@@ -109,14 +197,14 @@ runtime·gostringw(uint16 *str)
+ 
+ 	n1 = 0;
+ 	for(i=0; str[i]; i++)
+-		n1 += runtime·runetochar(buf, str[i]);
++		n1 += runetochar(buf, str[i]);
+ 	s = gostringsize(n1+4);
+ 	n2 = 0;
+ 	for(i=0; str[i]; i++) {
+ 		// check for race
+ 		if(n2 >= n1)
+ 			break;
+-		n2 += runtime·runetochar(s.str+n2, str[i]);
++		n2 += runetochar(s.str+n2, str[i]);
+ 	}
+ 	s.len = n2;
+ 	s.str[s.len] = 0;
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index dbccc24a5b..28a5c6bd1e 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -99,3 +100,25 @@ func BenchmarkRuneIterate2(b *testing.B) {
+ 		}
+ 	}
+ }
++
++func TestStringW(t *testing.T) {
++	strings := []string{
++		"hello",
++		"a\u5566\u7788\b",
++	}
++
++	for _, s := range strings {
++		var b []byte
++		for _, c := range s {
++			b = append(b, byte(c&255))
++			b = append(b, byte(c>>8))
++			if c>>16 != 0 {
++				t.Errorf("bad test: stringW can't handle >16 bit runes")
++			}
++		}
++		r := runtime.GostringW(b)
++		if r != s {
++			t.Errorf("gostringW(%v) = %s, want %s", b, r, s)
++		}
++	}
++}
+diff --git a/src/pkg/runtime/stubs.goc b/src/pkg/runtime/stubs.goc
+index bd493d44ae..1cdc0fabea 100644
+--- a/src/pkg/runtime/stubs.goc
++++ b/src/pkg/runtime/stubs.goc
+@@ -64,3 +64,9 @@ func rawruneslice(size intgo) (b Slice) {
+ 	b.len = size;
+ 	b.cap = mem/sizeof(int32);
+ }
++
++// entry point for testing
++// TODO: mcall and run on M stack
++func gostringW(str Slice) (s String) {
++	s = runtime·gostringw((uint16*)str.array);
++}

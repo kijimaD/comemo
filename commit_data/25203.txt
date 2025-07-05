@@ -11,7 +11,7 @@ Date:   Wed Sep 2 11:23:15 2015 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/arm/asm5.go   | 17 +----------------
  src/cmd/internal/obj/arm/obj5.go   | 18 ------------------
  src/cmd/internal/obj/arm64/asm7.go |  3 ---
@@ -28,3 +28,390 @@ Date:   Wed Sep 2 11:23:15 2015 +1200
  src/runtime/tls_arm64.s            |  3 ---
  src/runtime/tls_ppc64x.s           |  6 ++++--
  15 files changed, 27 insertions(+), 132 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index c240e89d46..3bf4a31729 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -739,9 +739,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
+ 	 * code references to be relocated too, and then
+ 	 * perhaps we'd be able to parallelize the span loop above.
+ 	 */
+-	if ctxt.Tlsg == nil {
+-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+-	}
+ 
+ 	p = cursym.Text
+ 	ctxt.Autosize = int32(p.To.Offset + 4)
+@@ -1646,19 +1643,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			rel.Sym = p.To.Sym
+ 			rel.Add = p.To.Offset
+ 
+-			// runtime.tlsg is special.
+-			// Its "address" is the offset from the TLS thread pointer
+-			// to the thread-local g and m pointers.
+-			// Emit a TLS relocation instead of a standard one if its
+-			// type is not explicitly set by runtime. This assumes that
+-			// all references to runtime.tlsg should be accompanied with
+-			// its type declaration if necessary.
+-			if rel.Sym == ctxt.Tlsg && ctxt.Tlsg.Type == 0 {
+-				rel.Type = obj.R_TLS
+-				if ctxt.Flag_shared != 0 {
+-					rel.Add += ctxt.Pc - p.Rel.Pc - 8 - int64(rel.Siz)
+-				}
+-			} else if ctxt.Flag_shared != 0 {
++			if ctxt.Flag_shared != 0 {
+ 				rel.Type = obj.R_PCREL
+ 				rel.Add += ctxt.Pc - p.Rel.Pc - 8
+ 			} else {
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index d9f587b087..00ab13ccc3 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -129,24 +129,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			p.From.Offset = 0
+ 		}
+ 	}
+-
+-	if ctxt.Flag_shared != 0 {
+-		// Shared libraries use R_ARM_TLS_IE32 instead of
+-		// R_ARM_TLS_LE32, replacing the link time constant TLS offset in
+-		// runtime.tlsg with an address to a GOT entry containing the
+-		// offset. Rewrite $runtime.tlsg(SB) to runtime.tlsg(SB) to
+-		// compensate.
+-		if ctxt.Tlsg == nil {
+-			ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+-		}
+-
+-		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && p.From.Sym == ctxt.Tlsg {
+-			p.From.Type = obj.TYPE_MEM
+-		}
+-		if p.To.Type == obj.TYPE_ADDR && p.To.Name == obj.NAME_EXTERN && p.To.Sym == ctxt.Tlsg {
+-			p.To.Type = obj.TYPE_MEM
+-		}
+-	}
+ }
+ 
+ // Prog.mark
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 3a56018985..a78c37e87d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -631,9 +631,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.
+ 	 */
+-	if ctxt.Tlsg == nil {
+-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+-	}
+ 	obj.Symgrow(ctxt, cursym, cursym.Size)
+ 	bp := cursym.P
+ 	psz := int32(0)
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 4217d6b0cb..4d6f7d7bdb 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -414,23 +414,16 @@ const (
+ 	R_CALLPOWER
+ 	R_CONST
+ 	R_PCREL
+-	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
+-	// a regular variable) resolves to data needed to access the thread-local g. It is
+-	// interpreted differently depending on toolchain flags to implement either the
+-	// "local exec" or "inital exec" model for tls access.
+-	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
+-	// R_TLS do double duty.
+-	R_TLS
+-	// R_TLS_LE (only used on 386 and amd64 currently) resolves to the offset of the
+-	// thread-local g from the thread local base and is used to implement the "local
+-	// exec" model for tls access (r.Sym is not set by the compiler for this case but
+-	// is set to Tlsg in the linker when externally linking).
++	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
++	// thread-local symbol from the thread local base and is used to implement the
++	// "local exec" model for tls access (r.Sym is not set on intel platforms but is
++	// set to a TLS symbol -- runtime.tlsg -- in the linker when externally linking).
+ 	R_TLS_LE
+-	// R_TLS_IE (only used on 386 and amd64 currently) resolves to the PC-relative
+-	// offset to a GOT slot containing the offset the thread-local g from the thread
+-	// local base and is used to implemented the "initial exec" model for tls access
+-	// (r.Sym is not set by the compiler for this case but is set to Tlsg in the
+-	// linker when externally linking).
++	// R_TLS_IE, used 386, amd64, and ARM resolves to the PC-relative offset to a GOT
++	// slot containing the offset from the thread-local symbol from the thread local
++	// base and is used to implemented the "initial exec" model for tls access (r.Sym
++	// is not set on intel platforms but is set to a TLS symbol -- runtime.tlsg -- in
++	// the linker when externally linking).
+ 	R_TLS_IE
+ 	R_GOTOFF
+ 	R_PLT0
+@@ -505,7 +498,6 @@ type Link struct {
+ 	Sym_divu           *LSym
+ 	Sym_mod            *LSym
+ 	Sym_modu           *LSym
+-	Tlsg               *LSym
+ 	Plan9privates      *LSym
+ 	Curp               *Prog
+ 	Printp             *Prog
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 2955a0023d..c7498ea5f3 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -504,9 +504,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.
+ 	 */
+-	if ctxt.Tlsg == nil {
+-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+-	}
+ 
+ 	obj.Symgrow(ctxt, cursym, cursym.Size)
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 5a1ba9cff2..745da9ef0d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -504,9 +504,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 	/*
+ 	 * lay out the code, emitting code and data relocations.
+ 	 */
+-	if ctxt.Tlsg == nil {
+-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+-	}
+ 
+ 	obj.Symgrow(ctxt, cursym, cursym.Size)
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e221bdab82..8fbe865219 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -435,10 +435,6 @@ func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ }
+ 
+ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+-	if ctxt.Tlsg == nil {
+-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
+-	}
+-
+ 	if ctxt.Headtype == obj.Hplan9 && ctxt.Plan9privates == nil {
+ 		ctxt.Plan9privates = obj.Linklookup(ctxt, "_privates", 0)
+ 	}
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 848d0963ce..01b2aaa3b4 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -223,17 +223,6 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 			return -1
+ 		}
+ 
+-	case obj.R_TLS:
+-		if r.Siz == 4 {
+-			if ld.Buildmode == ld.BuildmodeCShared {
+-				ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
+-			} else {
+-				ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
+-			}
+-		} else {
+-			return -1
+-		}
+-
+ 	case obj.R_TLS_LE:
+ 		ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
+ 
+@@ -345,7 +334,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 				rs = rs.Outer
+ 			}
+ 
+-			if rs.Type != obj.SHOSTOBJ && rs.Sect == nil {
++			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+ 				ld.Diag("missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b8cf5b9fc2..2855e55181 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -362,11 +362,6 @@ func relocsym(s *LSym) {
+ 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
+ 		}
+ 
+-		// Android emulates runtime.tlsg as a regular variable.
+-		if r.Type == obj.R_TLS && goos == "android" {
+-			r.Type = obj.R_ADDR
+-		}
+-
+ 		switch r.Type {
+ 		default:
+ 			switch siz {
+@@ -385,26 +380,6 @@ func relocsym(s *LSym) {
+ 				Diag("unknown reloc %d", r.Type)
+ 			}
+ 
+-		case obj.R_TLS:
+-			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+-				r.Done = 0
+-				r.Sym = Ctxt.Tlsg
+-				r.Xsym = Ctxt.Tlsg
+-				r.Xadd = r.Add
+-				o = r.Add
+-				break
+-			}
+-			if Linkmode == LinkInternal && Iself && Thearch.Thechar == '5' {
+-				panic("should no longer get here")
+-				break
+-			}
+-
+-			r.Done = 0
+-			o = 0
+-			if Thearch.Thechar != '6' {
+-				o = r.Add
+-			}
+-
+ 		case obj.R_TLS_LE:
+ 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+ 				r.Done = 0
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 19865a15bf..a2084dae26 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1506,9 +1506,7 @@ func elfshbits(sect *Section) *ElfShdr {
+ 		sh.flags |= SHF_WRITE
+ 	}
+ 	if sect.Name == ".tbss" {
+-		if goos != "android" {
+-			sh.flags |= SHF_TLS // no TLS on android
+-		}
++		sh.flags |= SHF_TLS
+ 		sh.type_ = SHT_NOBITS
+ 	}
+ 
+@@ -1517,7 +1515,7 @@ func elfshbits(sect *Section) *ElfShdr {
+ 	}
+ 	sh.addralign = uint64(sect.Align)
+ 	sh.size = sect.Length
+-	if sect.Name != ".tbss" || goos == "android" {
++	if sect.Name != ".tbss" {
+ 		sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d511e1bff4..23fd44b6a8 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -307,7 +307,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildmodeCShared
+ 	case "shared":
+-		if goos != "linux" || goarch != "amd64" {
++		if goos != "linux" || (goarch != "amd64" && goarch != "arm") {
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodeShared
+@@ -549,17 +549,14 @@ func loadlib() {
+ 
+ 	tlsg := Linklookup(Ctxt, "runtime.tlsg", 0)
+ 
+-	// For most ports, runtime.tlsg is a placeholder symbol for TLS
+-	// relocation. However, the Android and Darwin arm ports need it
+-	// to be a real variable.
+-	//
+-	// TODO(crawshaw): android should require leaving the tlsg->type
+-	// alone (as the runtime-provided SNOPTRBSS) just like darwin/arm.
+-	// But some other part of the linker is expecting STLSBSS.
+-	if tlsg.Type != obj.SDYNIMPORT && (goos != "darwin" || Thearch.Thechar != '5') {
++	// runtime.tlsg is used for external linking on platforms that do not define
++	// a variable to hold g in assembly (currently only intel).
++	if tlsg.Type == 0 {
+ 		tlsg.Type = obj.STLSBSS
++		tlsg.Size = int64(Thearch.Ptrsize)
++	} else if tlsg.Type != obj.SDYNIMPORT {
++		Diag("internal error: runtime declared tlsg variable %d", tlsg.Type)
+ 	}
+-	tlsg.Size = int64(Thearch.Ptrsize)
+ 	tlsg.Reachable = true
+ 	Ctxt.Tlsg = tlsg
+ 
+@@ -1821,13 +1818,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+ 
+ 		case obj.STLSBSS:
+ 			if Linkmode == LinkExternal && HEADTYPE != obj.Hopenbsd {
+-				var type_ int
+-				if goos == "android" {
+-					type_ = 'B'
+-				} else {
+-					type_ = 't'
+-				}
+-				put(s, s.Name, type_, Symaddr(s), s.Size, int(s.Version), s.Gotype)
++				put(s, s.Name, 't', Symaddr(s), s.Size, int(s.Version), s.Gotype)
+ 			}
+ 		}
+ 	}
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 797c95eaba..2f2d8ca43d 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -36,9 +36,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MRS_TPIDR_R0			// load TLS base pointer
+ 	MOVD	R0, R3			// arg 3: TLS base pointer
+ #ifdef TLSG_IS_VARIABLE
+-	MOVD	$runtime·tls_g(SB), R2 	// arg 2: tlsg
++	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
+ #else
+-	MOVD	$0x10, R2		// arg 2: tlsg TODO(minux): hardcoded for linux
++	MOVD	0, R2		        // arg 2: not used when using platform's TLS
+ #endif
+ 	MOVD	$setg_gcc<>(SB), R1	// arg 1: setg
+ 	MOVD	g, R0			// arg 0: G
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index 4ff0ae4ccc..00ca46993f 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -58,9 +58,6 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	// See save_g
+ 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+ 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
+-	// $runtime.tlsg(SB) is a special linker symbol.
+-	// It is the offset from the TLS base pointer to our
+-	// thread-local storage for g.
+ 	MOVW	runtime·tls_g(SB), R11
+ 	ADD	R11, R0
+ 	MOVW	0(R0), g
+diff --git a/src/runtime/tls_arm64.s b/src/runtime/tls_arm64.s
+index a5f86c4199..f31a16b202 100644
+--- a/src/runtime/tls_arm64.s
++++ b/src/runtime/tls_arm64.s
+@@ -53,8 +53,5 @@ nocgo:
+ 	RET
+ 
+ #ifdef TLSG_IS_VARIABLE
+-// The runtime.tlsg name is being handled specially in the
+-// linker. As we just need a regular variable here, don't
+-// use that name.
+ GLOBL runtime·tls_g+0(SB), NOPTR, $8
+ #endif
+diff --git a/src/runtime/tls_ppc64x.s b/src/runtime/tls_ppc64x.s
+index fc1718f508..127e7024e2 100644
+--- a/src/runtime/tls_ppc64x.s
++++ b/src/runtime/tls_ppc64x.s
+@@ -30,7 +30,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-8-0
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the start of TLS to our
+ 	// thread-local storage for g.
+-	MOVD	$runtime·tlsg(SB), R31
++	MOVD	$runtime·tls_g(SB), R31
+ 	ADD	R13, R31
+ 	// The actual TLS base is 0x7000 below R13
+ 	SUB	$0x7000, R31
+@@ -51,10 +51,12 @@ nocgo:
+ //
+ // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
+ TEXT runtime·load_g(SB),NOSPLIT,$-8-0
+-	MOVD	$runtime·tlsg(SB), R31
++	MOVD	$runtime·tls_g(SB), R31
+ 	// R13 is the C ABI TLS base pointer + 0x7000
+ 	ADD	R13, R31
+ 	SUB	$0x7000, R31
+ 
+ 	MOVD	0(R31), g
+ 	RET
++
++GLOBL runtime·tls_g+0(SB), TLSBSS, $8

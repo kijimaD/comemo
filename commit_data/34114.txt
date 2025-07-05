@@ -12,6 +12,20 @@ Date:   Wed Oct 4 12:28:20 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/gc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index ece5641e1f..0620f2d61e 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -170,7 +170,7 @@ func TestPeriodicGC(t *testing.T) {
+ 	// slack if things are slow.
+ 	var numGCs uint32
+ 	const want = 2
+-	for i := 0; i < 20 && numGCs < want; i++ {
++	for i := 0; i < 200 && numGCs < want; i++ {
+ 		time.Sleep(5 * time.Millisecond)
+ 
+ 		// Test that periodic GC actually happened.

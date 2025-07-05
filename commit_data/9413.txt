@@ -8,8 +8,115 @@ Date:   Thu Aug 18 16:07:28 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4905052
-
+---
  src/pkg/template/parse/node.go  | 31 ++++++++++++++++---------------
  src/pkg/template/parse/parse.go |  8 ++++----
  src/pkg/template/parse/set.go   |  2 +-
  3 files changed, 21 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/template/parse/node.go b/src/pkg/template/parse/node.go
+index a917418dc3..6f0b429b95 100644
+--- a/src/pkg/template/parse/node.go
++++ b/src/pkg/template/parse/node.go
+@@ -35,8 +35,8 @@ const (
+ 	NodeBool                       // A boolean constant.
+ 	NodeCommand                    // An element of a pipeline.
+ 	NodeDot                        // The cursor, dot.
+-	NodeElse                       // An else action.
+-	NodeEnd                        // An end action.
++	nodeElse                       // An else action. Not added to tree.
++	nodeEnd                        // An end action. Not added to tree.
+ 	NodeField                      // A field or method name.
+ 	NodeIdentifier                 // An identifier; always a function name.
+ 	NodeIf                         // An if action.
+@@ -356,36 +356,37 @@ func (s *StringNode) String() string {
+ 	return fmt.Sprintf("S=%#q", s.Text)
+ }
+ 
+-// EndNode represents an {{end}} action. It is represented by a nil pointer.
+-type EndNode bool
++// endNode represents an {{end}} action. It is represented by a nil pointer.
++// It does not appear in the final parse tree.
++type endNode bool
+ 
+-func newEnd() *EndNode {
++func newEnd() *endNode {
+ 	return nil
+ }
+ 
+-func (e *EndNode) Type() NodeType {
+-	return NodeEnd
++func (e *endNode) Type() NodeType {
++	return nodeEnd
+ }
+ 
+-func (e *EndNode) String() string {
++func (e *endNode) String() string {
+ 	return "{{end}}"
+ }
+ 
+-// ElseNode represents an {{else}} action.
+-type ElseNode struct {
++// elseNode represents an {{else}} action. Does not appear in the final tree.
++type elseNode struct {
+ 	NodeType
+ 	Line int // The line number in the input.
+ }
+ 
+-func newElse(line int) *ElseNode {
+-	return &ElseNode{NodeType: NodeElse, Line: line}
++func newElse(line int) *elseNode {
++	return &elseNode{NodeType: nodeElse, Line: line}
+ }
+ 
+-func (e *ElseNode) Type() NodeType {
+-	return NodeElse
++func (e *elseNode) Type() NodeType {
++	return nodeElse
+ }
+ 
+-func (e *ElseNode) String() string {
++func (e *elseNode) String() string {
+ 	return "{{else}}"
+ }
+ 
+diff --git a/src/pkg/template/parse/parse.go b/src/pkg/template/parse/parse.go
+index 9a411a3f37..6918074664 100644
+--- a/src/pkg/template/parse/parse.go
++++ b/src/pkg/template/parse/parse.go
+@@ -173,7 +173,7 @@ func (t *Tree) itemList(toEOF bool) (list *ListNode, next Node) {
+ 	for t.peek().typ != itemEOF {
+ 		n := t.textOrAction()
+ 		switch n.Type() {
+-		case NodeEnd, NodeElse:
++		case nodeEnd, nodeElse:
+ 			return list, n
+ 		}
+ 		list.append(n)
+@@ -278,10 +278,10 @@ func (t *Tree) parseControl(context string) (lineNum int, pipe *PipeNode, list,
+ 	var next Node
+ 	list, next = t.itemList(false)
+ 	switch next.Type() {
+-	case NodeEnd: //done
+-	case NodeElse:
++	case nodeEnd: //done
++	case nodeElse:
+ 		elseList, next = t.itemList(false)
+-		if next.Type() != NodeEnd {
++		if next.Type() != nodeEnd {
+ 			t.errorf("expected end; found %s", next)
+ 		}
+ 		elseList = elseList
+diff --git a/src/pkg/template/parse/set.go b/src/pkg/template/parse/set.go
+index 4820da925b..dca41ea76c 100644
+--- a/src/pkg/template/parse/set.go
++++ b/src/pkg/template/parse/set.go
+@@ -37,7 +37,7 @@ func Set(text string, funcs ...map[string]interface{}) (tree map[string]*Tree, e
+ 		if end == nil {
+ 			t.errorf("unexpected EOF in %s", context)
+ 		}
+-		if end.Type() != NodeEnd {
++		if end.Type() != nodeEnd {
+ 			t.errorf("unexpected %s in %s", end, context)
+ 		}
+ 		t.stopParse()

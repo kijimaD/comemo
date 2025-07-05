@@ -14,8 +14,144 @@ Date:   Sun Jun 20 21:33:54 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/export.go  | 26 +++++++++++++-------------
  src/cmd/compile/internal/typecheck/iimport.go | 10 +++++-----
  src/cmd/compile/internal/typecheck/syms.go    |  4 ++--
  3 files changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/export.go b/src/cmd/compile/internal/typecheck/export.go
+index 63d0a1ec6c..30726d4327 100644
+--- a/src/cmd/compile/internal/typecheck/export.go
++++ b/src/cmd/compile/internal/typecheck/export.go
+@@ -15,22 +15,22 @@ import (
+ 
+ // importalias declares symbol s as an imported type alias with type t.
+ // ipkg is the package being imported
+-func importalias(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+-	return importobj(ipkg, pos, s, ir.OTYPE, ir.PEXTERN, t)
++func importalias(pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
++	return importobj(pos, s, ir.OTYPE, ir.PEXTERN, t)
+ }
+ 
+ // importconst declares symbol s as an imported constant with type t and value val.
+ // ipkg is the package being imported
+-func importconst(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) *ir.Name {
+-	n := importobj(ipkg, pos, s, ir.OLITERAL, ir.PEXTERN, t)
++func importconst(pos src.XPos, s *types.Sym, t *types.Type, val constant.Value) *ir.Name {
++	n := importobj(pos, s, ir.OLITERAL, ir.PEXTERN, t)
+ 	n.SetVal(val)
+ 	return n
+ }
+ 
+ // importfunc declares symbol s as an imported function with type t.
+ // ipkg is the package being imported
+-func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+-	n := importobj(ipkg, pos, s, ir.ONAME, ir.PFUNC, t)
++func importfunc(pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
++	n := importobj(pos, s, ir.ONAME, ir.PFUNC, t)
+ 	n.Func = ir.NewFunc(pos)
+ 	n.Func.Nname = n
+ 	return n
+@@ -38,8 +38,8 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.
+ 
+ // importobj declares symbol s as an imported object representable by op.
+ // ipkg is the package being imported
+-func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) *ir.Name {
+-	n := importsym(ipkg, pos, s, op, ctxt)
++func importobj(pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class, t *types.Type) *ir.Name {
++	n := importsym(pos, s, op, ctxt)
+ 	n.SetType(t)
+ 	if ctxt == ir.PFUNC {
+ 		n.Sym().SetFunc(true)
+@@ -47,7 +47,7 @@ func importobj(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
+ 	return n
+ }
+ 
+-func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class) *ir.Name {
++func importsym(pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Class) *ir.Name {
+ 	if n := s.PkgDef(); n != nil {
+ 		base.Fatalf("importsym of symbol that already exists: %v", n)
+ 	}
+@@ -61,14 +61,14 @@ func importsym(ipkg *types.Pkg, pos src.XPos, s *types.Sym, op ir.Op, ctxt ir.Cl
+ // importtype returns the named type declared by symbol s.
+ // If no such type has been declared yet, a forward declaration is returned.
+ // ipkg is the package being imported
+-func importtype(ipkg *types.Pkg, pos src.XPos, s *types.Sym) *ir.Name {
+-	n := importsym(ipkg, pos, s, ir.OTYPE, ir.PEXTERN)
++func importtype(pos src.XPos, s *types.Sym) *ir.Name {
++	n := importsym(pos, s, ir.OTYPE, ir.PEXTERN)
+ 	n.SetType(types.NewNamed(n))
+ 	return n
+ }
+ 
+ // importvar declares symbol s as an imported variable with type t.
+ // ipkg is the package being imported
+-func importvar(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
+-	return importobj(ipkg, pos, s, ir.ONAME, ir.PEXTERN, t)
++func importvar(pos src.XPos, s *types.Sym, t *types.Type) *ir.Name {
++	return importobj(pos, s, ir.ONAME, ir.PEXTERN, t)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 81f8ea05d9..d94f649a45 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -294,13 +294,13 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 	case 'A':
+ 		typ := r.typ()
+ 
+-		return importalias(r.p.ipkg, pos, sym, typ)
++		return importalias(pos, sym, typ)
+ 
+ 	case 'C':
+ 		typ := r.typ()
+ 		val := r.value(typ)
+ 
+-		n := importconst(r.p.ipkg, pos, sym, typ, val)
++		n := importconst(pos, sym, typ, val)
+ 		r.constExt(n)
+ 		return n
+ 
+@@ -311,7 +311,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		}
+ 		typ := r.signature(nil, tparams)
+ 
+-		n := importfunc(r.p.ipkg, pos, sym, typ)
++		n := importfunc(pos, sym, typ)
+ 		r.funcExt(n)
+ 		return n
+ 
+@@ -323,7 +323,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+-		n := importtype(r.p.ipkg, pos, sym)
++		n := importtype(pos, sym)
+ 		t := n.Type()
+ 		if rparams != nil {
+ 			t.SetRParams(rparams)
+@@ -401,7 +401,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 	case 'V':
+ 		typ := r.typ()
+ 
+-		n := importvar(r.p.ipkg, pos, sym, typ)
++		n := importvar(pos, sym, typ)
+ 		r.varExt(n)
+ 		return n
+ 
+diff --git a/src/cmd/compile/internal/typecheck/syms.go b/src/cmd/compile/internal/typecheck/syms.go
+index f29af82db2..ed3aaecc5a 100644
+--- a/src/cmd/compile/internal/typecheck/syms.go
++++ b/src/cmd/compile/internal/typecheck/syms.go
+@@ -75,9 +75,9 @@ func InitRuntime() {
+ 		typ := typs[d.typ]
+ 		switch d.tag {
+ 		case funcTag:
+-			importfunc(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
++			importfunc(src.NoXPos, sym, typ)
+ 		case varTag:
+-			importvar(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
++			importvar(src.NoXPos, sym, typ)
+ 		default:
+ 			base.Fatalf("unhandled declaration tag %v", d.tag)
+ 		}

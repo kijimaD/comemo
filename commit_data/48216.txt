@@ -14,9 +14,111 @@ Date:   Fri Apr 30 14:49:40 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go                    |  2 +-
  src/go/types/conversions.go            | 18 ++++++++++++++----
  src/go/types/decl.go                   |  2 +-
  src/go/types/testdata/check/go1_16.src | 13 +++++++++++++
  4 files changed, 29 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 436c23099b..da23c8c52a 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -406,7 +406,7 @@ func AssignableTo(V, T Type) bool {
+ // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+ func ConvertibleTo(V, T Type) bool {
+ 	x := operand{mode: value, typ: V}
+-	return x.convertibleTo(nil, T) // check not needed for non-constant x
++	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
+ }
+ 
+ // Implements reports whether type V implements interface T.
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index e977d0db1f..ad6d3eef10 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -17,6 +17,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	constArg := x.mode == constant_
+ 
+ 	var ok bool
++	var reason string
+ 	switch {
+ 	case constArg && isConstType(T):
+ 		// constant conversion
+@@ -31,14 +32,18 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 			x.val = constant.MakeString(string(codepoint))
+ 			ok = true
+ 		}
+-	case x.convertibleTo(check, T):
++	case x.convertibleTo(check, T, &reason):
+ 		// non-constant conversion
+ 		x.mode = value
+ 		ok = true
+ 	}
+ 
+ 	if !ok {
+-		check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
++		if reason != "" {
++			check.errorf(x, _InvalidConversion, "cannot convert %s to %s (%s)", x, T, reason)
++		} else {
++			check.errorf(x, _InvalidConversion, "cannot convert %s to %s", x, T)
++		}
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -79,7 +84,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ // convertibleTo reports whether T(x) is valid.
+ // The check parameter may be nil if convertibleTo is invoked through an
+ // exported API call, i.e., when all methods have been type-checked.
+-func (x *operand) convertibleTo(check *Checker, T Type) bool {
++func (x *operand) convertibleTo(check *Checker, T Type, reason *string) bool {
+ 	// "x is assignable to T"
+ 	if ok, _ := x.assignableTo(check, T, nil); ok {
+ 		return true
+@@ -139,7 +144,12 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 		if p := asPointer(T); p != nil {
+ 			if a := asArray(p.Elem()); a != nil {
+ 				if check.identical(s.Elem(), a.Elem()) {
+-					return true
++					if check == nil || check.allowVersion(check.pkg, 1, 17) {
++						return true
++					}
++					if reason != nil {
++						*reason = "conversion of slices to array pointers requires go1.17 or later"
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index b5b9d35b24..5f38a346ce 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -655,7 +655,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 
+ 	if alias {
+ 		// type alias declaration
+-		if !check.allowVersion(obj.pkg, 1, 9) {
++		if !check.allowVersion(check.pkg, 1, 9) {
+ 			check.errorf(atPos(tdecl.Assign), _BadDecl, "type aliases requires go1.9 or later")
+ 		}
+ 
+diff --git a/src/go/types/testdata/check/go1_16.src b/src/go/types/testdata/check/go1_16.src
+new file mode 100644
+index 0000000000..fdf5c99d7e
+--- /dev/null
++++ b/src/go/types/testdata/check/go1_16.src
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++package go1_16 // go1.16
++
++type Slice []byte
++type Array [8]byte
++
++var s Slice
++var p = (*Array)(s /* ERROR requires go1.17 or later */ )

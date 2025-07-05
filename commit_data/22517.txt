@@ -9,6 +9,33 @@ Date:   Sun Mar 15 21:08:57 2015 -0400
     Change-Id: Id7eeaa14c26201db34db0820371c92a63af485b0
     Reviewed-on: https://go-review.googlesource.com/7604
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/testing/testing.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 966b5466b7..51631238aa 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -130,13 +130,17 @@
+ // then the generated test will call TestMain(m) instead of running the tests
+ // directly. TestMain runs in the main goroutine and can do whatever setup
+ // and teardown is necessary around a call to m.Run. It should then call
+-// os.Exit with the result of m.Run.
++// os.Exit with the result of m.Run. When TestMain is called, flag.Parse has
++// not been run. If TestMain depends on command-line flags, including those
++// of the testing package, it should call flag.Parse explicitly.
+ //
+-// The minimal implementation of TestMain is:
++// A simple implementation of TestMain is:
+ //
+-//	func TestMain(m *testing.M) { os.Exit(m.Run()) }
++//	func TestMain(m *testing.M) {
++//		flag.Parse()
++//		os.Exit(m.Run())
++//	}
+ //
+-// In effect, that is the implementation used when no TestMain is explicitly defined.
+ package testing
+ 
+ import (

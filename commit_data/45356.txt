@@ -10,7 +10,7 @@ Date:   Mon Oct 19 21:41:37 2020 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  .../compile/internal/types2/testdata/builtins.go2  |  53 +++
  src/cmd/compile/internal/types2/testdata/chans.go2 |  62 +++
  .../compile/internal/types2/testdata/issues.go2    | 249 ++++++++++++
@@ -25,3 +25,1769 @@ Date:   Mon Oct 19 21:41:37 2020 -0700
  .../compile/internal/types2/testdata/typeinst2.go2 | 256 +++++++++++++
  .../internal/types2/testdata/typeparams.go2        | 422 +++++++++++++++++++++
  13 files changed, 1685 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/builtins.go2 b/src/cmd/compile/internal/types2/testdata/builtins.go2
+new file mode 100644
+index 0000000000..3918d836b5
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/builtins.go2
+@@ -0,0 +1,53 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file tests built-in calls on generic types.
++
++package builtins
++
++type Bmc interface {
++	type map[rune]string, chan int
++}
++
++type Bms interface {
++	type map[string]int, []int
++}
++
++type Bcs interface {
++	type chan bool, []float64
++}
++
++type Bss interface {
++	type []int, []string
++}
++
++func _[T any] () {
++	_ = make(T /* ERROR invalid argument */ )
++	_ = make(T /* ERROR invalid argument */ , 10)
++	_ = make(T /* ERROR invalid argument */ , 10, 20)
++}
++
++func _[T Bmc] () {
++	_ = make(T)
++	_ = make(T, 10)
++	_ = make /* ERROR expects 1 or 2 arguments */ (T, 10, 20)
++}
++
++func _[T Bms] () {
++	_ = make /* ERROR expects 2 arguments */ (T)
++	_ = make(T, 10)
++	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
++}
++
++func _[T Bcs] () {
++	_ = make /* ERROR expects 2 arguments */ (T)
++	_ = make(T, 10)
++	_ = make /* ERROR expects 2 arguments */ (T, 10, 20)
++}
++
++func _[T Bss] () {
++	_ = make /* ERROR expects 2 or 3 arguments */ (T)
++	_ = make(T, 10)
++	_ = make(T, 10, 20)
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/chans.go2 b/src/cmd/compile/internal/types2/testdata/chans.go2
+new file mode 100644
+index 0000000000..fad2bcec9d
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/chans.go2
+@@ -0,0 +1,62 @@
++package chans
++
++import "runtime"
++
++// Ranger returns a Sender and a Receiver. The Receiver provides a
++// Next method to retrieve values. The Sender provides a Send method
++// to send values and a Close method to stop sending values. The Next
++// method indicates when the Sender has been closed, and the Send
++// method indicates when the Receiver has been freed.
++//
++// This is a convenient way to exit a goroutine sending values when
++// the receiver stops reading them.
++func Ranger[T any]() (*Sender[T], *Receiver[T]) {
++	c := make(chan T)
++	d := make(chan bool)
++	s := &Sender[T]{values: c, done: d}
++	r := &Receiver[T]{values: c, done: d}
++	runtime.SetFinalizer(r, r.finalize)
++	return s, r
++}
++
++// A sender is used to send values to a Receiver.
++type Sender[T any] struct {
++	values chan<- T
++	done <-chan bool
++}
++
++// Send sends a value to the receiver. It returns whether any more
++// values may be sent; if it returns false the value was not sent.
++func (s *Sender[T]) Send(v T) bool {
++	select {
++	case s.values <- v:
++		return true
++	case <-s.done:
++		return false
++	}
++}
++
++// Close tells the receiver that no more values will arrive.
++// After Close is called, the Sender may no longer be used.
++func (s *Sender[T]) Close() {
++	close(s.values)
++}
++
++// A Receiver receives values from a Sender.
++type Receiver[T any] struct {
++	values <-chan T
++	done chan<- bool
++}
++
++// Next returns the next value from the channel. The bool result
++// indicates whether the value is valid, or whether the Sender has
++// been closed and no more values will be received.
++func (r *Receiver[T]) Next() (T, bool) {
++	v, ok := <-r.values
++	return v, ok
++}
++
++// finalize is a finalizer for the receiver.
++func (r *Receiver[T]) finalize() {
++	close(r.done)
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/issues.go2 b/src/cmd/compile/internal/types2/testdata/issues.go2
+new file mode 100644
+index 0000000000..1c73b5da92
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/issues.go2
+@@ -0,0 +1,249 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains regression tests for bugs found.
++
++package p
++
++import "io"
++import "context"
++
++// Interfaces are always comparable (though the comparison may panic at runtime).
++func eql[T comparable](x, y T) bool {
++	return x == y
++}
++
++func _() {
++	var x interface{}
++	var y interface{ m() }
++	eql(x, y /* ERROR does not match */ ) // interfaces of different types
++	eql(x, x)
++	eql(y, y)
++	eql(y, nil)
++	eql[io.Reader](nil, nil)
++}
++
++// If we have a receiver of pointer type (below: *T) we must ignore
++// the pointer in the implementation of the method lookup because
++// the type bound of T is an interface and pointer to interface types
++// have no methods and then the lookup would fail.
++type C[T any] interface {
++    m()
++}
++
++// using type bound C
++func _[T C[T]](x *T) {
++	x.m()
++}
++
++// using an interface literal as bound
++func _[T interface{ m() }](x *T) {
++	x.m()
++}
++
++func f2[_ interface{ m1(); m2() }]()
++
++type T struct{}
++func (T) m1()
++func (*T) m2()
++
++func _() {
++	f2[T /* ERROR wrong method signature */ ]()
++	f2[*T]()
++}
++
++// When a type parameter is used as an argument to instantiate a parameterized
++// type with a type list constraint, all of the type argument's types in its
++// bound, but at least one (!), must be in the type list of the bound of the
++// corresponding parameterized type's type parameter.
++type T1[P interface{type uint}] struct{}
++
++func _[P any]() {
++    _ = T1[P /* ERROR P has no type constraints */ ]{}
++}
++
++// This is the original (simplified) program causing the same issue.
++type Unsigned interface {
++	type uint
++}
++
++type T2[U Unsigned] struct {
++    s U
++}
++
++func (u T2[U]) Add1() U {
++    return u.s + 1
++}
++
++func NewT2[U any]() T2[U /* ERROR U has no type constraints */ ] {
++    return T2[U /* ERROR U has no type constraints */ ]{}
++}
++
++func _() {
++    u := NewT2[string]()
++    _ = u.Add1()
++}
++
++// When we encounter an instantiated type such as Elem[T] we must
++// not "expand" the instantiation when the type to be instantiated
++// (Elem in this case) is not yet fully set up.
++type Elem[T any] struct {
++	next *Elem[T]
++	list *List[T]
++}
++
++type List[T any] struct {
++	root Elem[T]
++}
++
++func (l *List[T]) Init() {
++	l.root.next = &l.root
++}
++
++// This is the original program causing the same issue.
++type Element2[TElem any] struct {
++	next, prev *Element2[TElem]
++	list *List2[TElem]
++	Value TElem
++}
++
++type List2[TElem any] struct {
++	root Element2[TElem]
++	len  int
++}
++
++func (l *List2[TElem]) Init() *List2[TElem] {
++	l.root.next = &l.root
++	l.root.prev = &l.root
++	l.len = 0
++	return l
++}
++
++// Self-recursive instantiations must work correctly.
++type A[P any] struct { _ *A[P] }
++
++type AB[P any] struct { _ *BA[P] }
++type BA[P any] struct { _ *AB[P] }
++
++// And a variation that also caused a problem with an
++// unresolved underlying type.
++type Element3[TElem any] struct {
++	next, prev *Element3[TElem]
++	list *List3[TElem]
++	Value TElem
++}
++
++func (e *Element3[TElem]) Next() *Element3[TElem] {
++	if p := e.next; e.list != nil && p != &e.list.root {
++		return p
++	}
++	return nil
++}
++
++type List3[TElem any] struct {
++	root Element3[TElem]
++	len  int
++}
++
++// Infinite generic type declarations must lead to an error.
++type inf1[T any] struct{ _ inf1 /* ERROR illegal cycle */ [T] }
++type inf2[T any] struct{ inf2 /* ERROR illegal cycle */ [T] }
++
++// The implementation of conversions T(x) between integers and floating-point
++// numbers checks that both T and x have either integer or floating-point
++// type. When the type of T or x is a type parameter, the respective simple
++// predicate disjunction in the implementation was wrong because if a type list
++// contains both an integer and a floating-point type, the type parameter is
++// neither an integer or a floating-point number.
++func convert[T1, T2 interface{type int, uint, float32}](v T1) T2 {
++	return T2(v)
++}
++
++func _() {
++	convert[int, uint](5)
++}
++
++// When testing binary operators, for +, the operand types must either be
++// both numeric, or both strings. The implementation had the same problem
++// with this check as the conversion issue above (issue #39623).
++
++func issue39623[T interface{type int, string}](x, y T) T {
++	return x + y
++}
++
++// Simplified, from https://go2goplay.golang.org/p/efS6x6s-9NI:
++func Sum[T interface{type int, string}](s []T) (sum T) {
++	for _, v := range s {
++		sum += v
++	}
++	return
++}
++
++// Assignability of an unnamed pointer type to a type parameter that
++// has a matching underlying type.
++func _[T interface{}, PT interface{type *T}] (x T) PT {
++    return &x
++}
++
++// Indexing of generic types containing type parameters in their type list:
++func at[T interface{ type []E }, E interface{}](x T, i int) E {
++        return x[i]
++}
++
++// A generic type inside a function acts like a named type. Its underlying
++// type is itself, its "operational type" is defined by the type list in
++// the tybe bound, if any.
++func _[T interface{type int}](x T) {
++	type myint int
++	var _ int = int(x)
++	var _ T = 42
++	var _ T = T(myint(42))
++}
++
++// Indexing a generic type with an array type bound checks length.
++// (Example by mdempsky@.)
++func _[T interface { type [10]int }](x T) {
++	_ = x[9] // ok
++	_ = x[20 /* ERROR out of bounds */ ]
++}
++
++// Pointer indirection of a generic type.
++func _[T interface{ type *int }](p T) int {
++	return *p
++}
++
++// Channel sends and receives on generic types.
++func _[T interface{ type chan int }](ch T) int {
++	ch <- 0
++	return <- ch
++}
++
++// Calling of a generic variable.
++func _[T interface{ type func() }](f T) {
++	f()
++	go f()
++}
++
++// We must compare against the underlying type of type list entries
++// when checking if a constraint is satisfied by a type. The under-
++// lying type of each type list entry must be computed after the
++// interface has been instantiated as its typelist may contain a
++// type parameter that was substituted with a defined type.
++// Test case from an (originally) failing example.
++
++type sliceOf[E any] interface{ type []E }
++
++func append[T interface{}, S sliceOf[T], T2 interface{ type T }](s S, t ...T2) S
++
++var f           func()
++var cancelSlice []context.CancelFunc
++var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](cancelSlice, f)
++
++// A generic function must be instantiated with a type, not a value.
++
++func g[T any](T) T
++
++var _ = g[int]
++var _ = g[nil /* ERROR is not a type */ ]
++var _ = g(0)
+diff --git a/src/cmd/compile/internal/types2/testdata/linalg.go2 b/src/cmd/compile/internal/types2/testdata/linalg.go2
+new file mode 100644
+index 0000000000..0d27603a58
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/linalg.go2
+@@ -0,0 +1,83 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package linalg
++
++import "math"
++
++// Numeric is type bound that matches any numeric type.
++// It would likely be in a constraints package in the standard library.
++type Numeric interface {
++	type int, int8, int16, int32, int64,
++		uint, uint8, uint16, uint32, uint64, uintptr,
++		float32, float64,
++		complex64, complex128
++}
++
++func DotProduct[T Numeric](s1, s2 []T) T {
++	if len(s1) != len(s2) {
++		panic("DotProduct: slices of unequal length")
++	}
++	var r T
++	for i := range s1 {
++		r += s1[i] * s2[i]
++	}
++	return r
++}
++
++// NumericAbs matches numeric types with an Abs method.
++type NumericAbs[T any] interface {
++	Numeric
++
++	Abs() T
++}
++
++// AbsDifference computes the absolute value of the difference of
++// a and b, where the absolute value is determined by the Abs method.
++func AbsDifference[T NumericAbs[T]](a, b T) T {
++	d := a - b
++	return d.Abs()
++}
++
++// OrderedNumeric is a type bound that matches numeric types that support the < operator.
++type OrderedNumeric interface {
++	type int, int8, int16, int32, int64,
++		uint, uint8, uint16, uint32, uint64, uintptr,
++		float32, float64
++}
++
++// Complex is a type bound that matches the two complex types, which do not have a < operator.
++type Complex interface {
++	type complex64, complex128
++}
++
++// OrderedAbs is a helper type that defines an Abs method for
++// ordered numeric types.
++type OrderedAbs[T OrderedNumeric] T
++
++func (a OrderedAbs[T]) Abs() OrderedAbs[T] {
++	if a < 0 {
++		return -a
++	}
++	return a
++}
++
++// ComplexAbs is a helper type that defines an Abs method for
++// complex types.
++type ComplexAbs[T Complex] T
++
++func (a ComplexAbs[T]) Abs() ComplexAbs[T] {
++	r := float64(real(a))
++	i := float64(imag(a))
++	d := math.Sqrt(r * r + i * i)
++	return ComplexAbs[T](complex(d, 0))
++}
++
++func OrderedAbsDifference[T OrderedNumeric](a, b T) T {
++	return T(AbsDifference(OrderedAbs[T](a), OrderedAbs[T](b)))
++}
++
++func ComplexAbsDifference[T Complex](a, b T) T {
++	return T(AbsDifference(ComplexAbs[T](a), ComplexAbs[T](b)))
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/map.go2 b/src/cmd/compile/internal/types2/testdata/map.go2
+new file mode 100644
+index 0000000000..814d9539fd
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/map.go2
+@@ -0,0 +1,113 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package orderedmap provides an ordered map, implemented as a binary tree.
++package orderedmap
++
++// TODO(gri) fix imports for tests
++import "chans" // ERROR could not import
++
++// Map is an ordered map.
++type Map[K, V any] struct {
++	root    *node[K, V]
++	compare func(K, K) int
++}
++
++// node is the type of a node in the binary tree.
++type node[K, V any] struct {
++	key         K
++	val         V
++	left, right *node[K, V]
++}
++
++// New returns a new map.
++func New[K, V any](compare func(K, K) int) *Map[K, V] {
++        return &Map[K, V]{compare: compare}
++}
++
++// find looks up key in the map, and returns either a pointer
++// to the node holding key, or a pointer to the location where
++// such a node would go.
++func (m *Map[K, V]) find(key K) **node[K, V] {
++	pn := &m.root
++	for *pn != nil {
++		switch cmp := m.compare(key, (*pn).key); {
++		case cmp < 0:
++			pn = &(*pn).left
++		case cmp > 0:
++			pn = &(*pn).right
++		default:
++			return pn
++		}
++	}
++	return pn
++}
++
++// Insert inserts a new key/value into the map.
++// If the key is already present, the value is replaced.
++// Returns true if this is a new key, false if already present.
++func (m *Map[K, V]) Insert(key K, val V) bool {
++	pn := m.find(key)
++	if *pn != nil {
++		(*pn).val = val
++		return false
++	}
++        *pn = &node[K, V]{key: key, val: val}
++	return true
++}
++
++// Find returns the value associated with a key, or zero if not present.
++// The found result reports whether the key was found.
++func (m *Map[K, V]) Find(key K) (V, bool) {
++	pn := m.find(key)
++	if *pn == nil {
++		var zero V // see the discussion of zero values, above
++		return zero, false
++	}
++	return (*pn).val, true
++}
++
++// keyValue is a pair of key and value used when iterating.
++type keyValue[K, V any] struct {
++	key K
++	val V
++}
++
++// InOrder returns an iterator that does an in-order traversal of the map.
++func (m *Map[K, V]) InOrder() *Iterator[K, V] {
++	sender, receiver := chans.Ranger[keyValue[K, V]]()
++	var f func(*node[K, V]) bool
++	f = func(n *node[K, V]) bool {
++		if n == nil {
++			return true
++		}
++		// Stop sending values if sender.Send returns false,
++		// meaning that nothing is listening at the receiver end.
++		return f(n.left) &&
++                        sender.Send(keyValue[K, V]{n.key, n.val}) &&
++			f(n.right)
++	}
++	go func() {
++		f(m.root)
++		sender.Close()
++	}()
++	return &Iterator[K, V]{receiver}
++}
++
++// Iterator is used to iterate over the map.
++type Iterator[K, V any] struct {
++	r *chans.Receiver[keyValue[K, V]]
++}
++
++// Next returns the next key and value pair, and a boolean indicating
++// whether they are valid or whether we have reached the end.
++func (it *Iterator[K, V]) Next() (K, V, bool) {
++	keyval, ok := it.r.Next()
++	if !ok {
++		var zerok K
++		var zerov V
++		return zerok, zerov, false
++	}
++	return keyval.key, keyval.val, true
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/map2.go2 b/src/cmd/compile/internal/types2/testdata/map2.go2
+new file mode 100644
+index 0000000000..2833445662
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/map2.go2
+@@ -0,0 +1,146 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is like map.go2, but instead if importing chans, it contains
++// the necessary functionality at the end of the file.
++
++// Package orderedmap provides an ordered map, implemented as a binary tree.
++package orderedmap
++
++// Map is an ordered map.
++type Map[K, V any] struct {
++	root    *node[K, V]
++	compare func(K, K) int
++}
++
++// node is the type of a node in the binary tree.
++type node[K, V any] struct {
++	key         K
++	val         V
++	left, right *node[K, V]
++}
++
++// New returns a new map.
++func New[K, V any](compare func(K, K) int) *Map[K, V] {
++        return &Map[K, V]{compare: compare}
++}
++
++// find looks up key in the map, and returns either a pointer
++// to the node holding key, or a pointer to the location where
++// such a node would go.
++func (m *Map[K, V]) find(key K) **node[K, V] {
++	pn := &m.root
++	for *pn != nil {
++		switch cmp := m.compare(key, (*pn).key); {
++		case cmp < 0:
++			pn = &(*pn).left
++		case cmp > 0:
++			pn = &(*pn).right
++		default:
++			return pn
++		}
++	}
++	return pn
++}
++
++// Insert inserts a new key/value into the map.
++// If the key is already present, the value is replaced.
++// Returns true if this is a new key, false if already present.
++func (m *Map[K, V]) Insert(key K, val V) bool {
++	pn := m.find(key)
++	if *pn != nil {
++		(*pn).val = val
++		return false
++	}
++	*pn = &node[K, V]{key: key, val: val}
++	return true
++}
++
++// Find returns the value associated with a key, or zero if not present.
++// The found result reports whether the key was found.
++func (m *Map[K, V]) Find(key K) (V, bool) {
++	pn := m.find(key)
++	if *pn == nil {
++		var zero V // see the discussion of zero values, above
++		return zero, false
++	}
++	return (*pn).val, true
++}
++
++// keyValue is a pair of key and value used when iterating.
++type keyValue[K, V any] struct {
++	key K
++	val V
++}
++
++// InOrder returns an iterator that does an in-order traversal of the map.
++func (m *Map[K, V]) InOrder() *Iterator[K, V] {
++	sender, receiver := chans_Ranger[keyValue[K, V]]()
++	var f func(*node[K, V]) bool
++	f = func(n *node[K, V]) bool {
++		if n == nil {
++			return true
++		}
++		// Stop sending values if sender.Send returns false,
++		// meaning that nothing is listening at the receiver end.
++		return f(n.left) &&
++                        sender.Send(keyValue[K, V]{n.key, n.val}) &&
++			f(n.right)
++	}
++	go func() {
++		f(m.root)
++		sender.Close()
++	}()
++	return &Iterator[K, V]{receiver}
++}
++
++// Iterator is used to iterate over the map.
++type Iterator[K, V any] struct {
++	r *chans_Receiver[keyValue[K, V]]
++}
++
++// Next returns the next key and value pair, and a boolean indicating
++// whether they are valid or whether we have reached the end.
++func (it *Iterator[K, V]) Next() (K, V, bool) {
++	keyval, ok := it.r.Next()
++	if !ok {
++		var zerok K
++		var zerov V
++		return zerok, zerov, false
++	}
++	return keyval.key, keyval.val, true
++}
++
++// chans
++
++func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T])
++
++// A sender is used to send values to a Receiver.
++type chans_Sender[T any] struct {
++	values chan<- T
++	done <-chan bool
++}
++
++func (s *chans_Sender[T]) Send(v T) bool {
++	select {
++	case s.values <- v:
++		return true
++	case <-s.done:
++		return false
++	}
++}
++
++func (s *chans_Sender[T]) Close() {
++	close(s.values)
++}
++
++type chans_Receiver[T any] struct {
++	values <-chan T
++	done chan<- bool
++}
++
++func (r *chans_Receiver[T]) Next() (T, bool) {
++	v, ok := <-r.values
++	return v, ok
++}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/mtypeparams.go2 b/src/cmd/compile/internal/types2/testdata/mtypeparams.go2
+new file mode 100644
+index 0000000000..c2f282bae1
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/mtypeparams.go2
+@@ -0,0 +1,52 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// If types2.Config.AcceptMethodTypeParams is set,
++// the type checker accepts methods that have their
++// own type parameter list.
++
++package p
++
++type S struct{}
++
++func (S) m[T any](v T)
++
++// TODO(gri) Once we collect interface method type parameters
++//           in the parser, we can enable these tests again.
++/*
++type I interface {
++   m[T any](v T)
++}
++
++type J interface {
++   m[T any](v T)
++}
++
++var _ I = S{}
++var _ I = J(nil)
++
++type C interface{ n() }
++
++type Sc struct{}
++
++func (Sc) m[T C](v T)
++
++type Ic interface {
++   m[T C](v T)
++}
++
++type Jc interface {
++   m[T C](v T)
++}
++
++var _ Ic = Sc{}
++var _ Ic = Jc(nil)
++
++// TODO(gri) These should fail because the constraints don't match.
++var _ I = Sc{}
++var _ I = Jc(nil)
++
++var _ Ic = S{}
++var _ Ic = J(nil)
++*/
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/slices.go2 b/src/cmd/compile/internal/types2/testdata/slices.go2
+new file mode 100644
+index 0000000000..2bacd1c2aa
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/slices.go2
+@@ -0,0 +1,68 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package slices implements various slice algorithms.
++package slices
++
++// Map turns a []T1 to a []T2 using a mapping function.
++func Map[T1, T2 any](s []T1, f func(T1) T2) []T2 {
++	r := make([]T2, len(s))
++	for i, v := range s {
++		r[i] = f(v)
++	}
++	return r
++}
++
++// Reduce reduces a []T1 to a single value using a reduction function.
++func Reduce[T1, T2 any](s []T1, initializer T2, f func(T2, T1) T2) T2 {
++	r := initializer
++	for _, v := range s {
++		r = f(r, v)
++	}
++	return r
++}
++
++// Filter filters values from a slice using a filter function.
++func Filter[T any](s []T, f func(T) bool) []T {
++	var r []T
++	for _, v := range s {
++		if f(v) {
++			r = append(r, v)
++		}
++	}
++	return r
++}
++
++// Example uses
++
++func limiter(x int) byte {
++	switch {
++	case x < 0:
++		return 0
++	default:
++		return byte(x)
++	case x > 255:
++		return 255
++	}
++}
++
++var input = []int{-4, 68954, 7, 44, 0, -555, 6945}
++var limited1 = Map[int, byte](input, limiter)
++var limited2 = Map(input, limiter) // using type inference
++
++func reducer(x float64, y int) float64 {
++	return x + float64(y)
++}
++
++var reduced1 = Reduce[int, float64](input, 0, reducer)
++var reduced2 = Reduce(input, 1i /* ERROR overflows */, reducer) // using type inference
++var reduced3 = Reduce(input, 1, reducer) // using type inference
++
++func filter(x int) bool {
++	return x&1 != 0
++}
++
++var filtered1 = Filter[int](input, filter)
++var filtered2 = Filter(input, filter) // using type inference
++
+diff --git a/src/cmd/compile/internal/types2/testdata/tinference.go2 b/src/cmd/compile/internal/types2/testdata/tinference.go2
+new file mode 100644
+index 0000000000..a53fde0a2a
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/tinference.go2
+@@ -0,0 +1,105 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tinferenceB
++
++import "strconv"
++
++type any interface{}
++
++func f0[A any, B interface{type C}, C interface{type D}, D interface{type A}](A, B, C, D)
++func _() {
++	f := f0[string]
++	f("a", "b", "c", "d")
++	f0("a", "b", "c", "d")
++}
++
++func f1[A any, B interface{type A}](A, B)
++func _() {
++	f := f1[int]
++	f(int(0), int(0))
++	f1(int(0), int(0))
++}
++
++func f2[A any, B interface{type []A}](A, B)
++func _() {
++	f := f2[byte]
++	f(byte(0), []byte{})
++	f2(byte(0), []byte{})
++}
++
++func f3[A any, B interface{type C}, C interface{type *A}](A, B, C)
++func _() {
++	f := f3[int]
++	var x int
++	f(x, &x, &x)
++	f3(x, &x, &x)
++}
++
++func f4[A any, B interface{type []C}, C interface{type *A}](A, B, C)
++func _() {
++	f := f4[int]
++	var x int
++	f(x, []*int{}, &x)
++	f4(x, []*int{}, &x)
++}
++
++func f5[A interface{type struct{b B; c C}}, B any, C interface{type *B}](x B) A
++func _() {
++	x := f5(1.2)
++	var _ float64 = x.b
++	var _ float64 = *x.c
++}
++
++func f6[A any, B interface{type struct{f []A}}](B) A
++func _() {
++	x := f6(struct{f []string}{})
++	var _ string = x
++}
++
++// TODO(gri) Need to flag invalid recursive constraints. At the
++// moment these cause infinite recursions and stack overflow.
++// func f7[A interface{type B}, B interface{type A}]()
++
++// More realistic examples
++
++func Double[S interface{ type []E }, E interface{ type int, int8, int16, int32, int64 }](s S) S {
++	r := make(S, len(s))
++	for i, v := range s {
++		r[i] = v + v
++	}
++	return r
++}
++
++type MySlice []int
++
++var _ = Double(MySlice{1})
++
++// From the draft design.
++
++type Setter[B any] interface {
++	Set(string)
++	type *B
++}
++
++func FromStrings[T interface{}, PT Setter[T]](s []string) []T {
++	result := make([]T, len(s))
++	for i, v := range s {
++		// The type of &result[i] is *T which is in the type list
++		// of Setter2, so we can convert it to PT.
++		p := PT(&result[i])
++		// PT has a Set method.
++		p.Set(v)
++	}
++	return result
++}
++
++type Settable int
++
++func (p *Settable) Set(s string) {
++	i, _ := strconv.Atoi(s) // real code should not ignore the error
++	*p = Settable(i)
++}
++
++var _ = FromStrings[Settable]([]string{"1", "2"})
+diff --git a/src/cmd/compile/internal/types2/testdata/tmp.go2 b/src/cmd/compile/internal/types2/testdata/tmp.go2
+new file mode 100644
+index 0000000000..dae78caff8
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/tmp.go2
+@@ -0,0 +1,17 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is meant as "dumping ground" for debugging code.
++
++package p
++
++// fun test case
++type C[P interface{m()}] P
++
++func (r C[P]) m() { r.m() }
++
++func f[T interface{m(); n()}](x T) {
++	y := C[T](x)
++	y.m()
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/typeinst.go2 b/src/cmd/compile/internal/types2/testdata/typeinst.go2
+new file mode 100644
+index 0000000000..6757cd57fd
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/typeinst.go2
+@@ -0,0 +1,59 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type myInt int
++
++// Parameterized type declarations
++
++type T1[P any] P
++
++type T2[P any] struct {
++        f P
++        g int // int should still be in scope chain
++}
++
++type List[P any] []P
++
++// Alias type declarations cannot have type parameters. Syntax error.
++type A1[P any] = /* ERROR cannot be alias */ P
++
++// But an alias may refer to a generic, uninstantiated type.
++type A2 = List
++var _ A2[int]
++var _ A2 /* ERROR without instantiation */
++
++type A3 = List[int]
++var _ A3
++
++// Parameterized type instantiations
++
++var x int
++type _ x /* ERROR not a type */ [int]
++
++type _ int[] // ERROR expecting type
++type _ myInt[] // ERROR expecting type
++
++// TODO(gri) better error messages
++type _ T1 /* ERROR without instantiation */ [] // ERROR expecting type
++type _ T1[x /* ERROR not a type */ ]
++type _ T1 /* ERROR got 2 arguments but 1 type parameters */ [int, float32]
++
++var _ T2[int] = T2[int]{}
++
++var _ List[int] = []int{1, 2, 3}
++var _ List[[]int] = [][]int{{1, 2, 3}}
++var _ List[List[List[int]]]
++
++// Parameterized types containing parameterized types
++
++type T3[P any] List[P]
++
++var _ T3[int] = T3[int](List[int]{1, 2, 3})
++
++// Self-recursive generic types are not permitted
++
++type self1[P any] self1 /* ERROR illegal cycle */ [P]
++type self2[P any] *self2[P] // this is ok
+diff --git a/src/cmd/compile/internal/types2/testdata/typeinst2.go2 b/src/cmd/compile/internal/types2/testdata/typeinst2.go2
+new file mode 100644
+index 0000000000..6e2104a515
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/typeinst2.go2
+@@ -0,0 +1,256 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type List[E any] []E
++var _ List[List[List[int]]]
++var _ List[List[List[int]]] = []List[List[int]]{}
++
++type (
++	T1[P1 any] struct {
++		f1 T2[P1, float32]
++	}
++
++	T2[P2, P3 any] struct {
++		f2 P2
++		f3 P3
++	}
++)
++
++func _() {
++	var x1 T1[int]
++	var x2 T2[int, float32]
++
++	x1.f1.f2 = 0
++	x1.f1 = x2
++}
++
++type T3[P any] T1[T2[P, P]]
++
++func _() {
++	var x1 T3[int]
++	var x2 T2[int, int]
++	x1.f1.f2 = x2
++}
++
++func f[P any] (x P) List[P] {
++	return List[P]{x}
++}
++
++var (
++	_ []int = f(0)
++	_ []float32 = f[float32](10)
++	_ List[complex128] = f(1i)
++	_ []List[int] = f(List[int]{})
++        _ List[List[int]] = []List[int]{}
++        _ = []List[int]{}
++)
++
++// Parameterized types with methods
++
++func (l List[E]) Head() (_ E, _ bool) {
++	if len(l) > 0 {
++		return l[0], true
++	}
++	return
++}
++
++// A test case for instantiating types with other types (extracted from map.go2)
++
++type Pair[K any] struct {
++	key K
++}
++
++type Receiver[T any] struct {
++	values T
++}
++
++type Iterator[K any] struct {
++	r Receiver[Pair[K]]
++}
++
++func Values [T any] (r Receiver[T]) T {
++        return r.values
++}
++
++func (it Iterator[K]) Next() K {
++        return Values[Pair[K]](it.r).key
++}
++
++// A more complex test case testing type bounds (extracted from linalg.go2 and reduced to essence)
++
++type NumericAbs[T any] interface {
++	Abs() T
++}
++
++func AbsDifference[T NumericAbs[T]](x T)
++
++type OrderedAbs[T any] T
++
++func (a OrderedAbs[T]) Abs() OrderedAbs[T]
++
++func OrderedAbsDifference[T any](x T) {
++	AbsDifference(OrderedAbs[T](x))
++}
++
++// same code, reduced to essence
++
++func g[P interface{ m() P }](x P)
++
++type T4[P any] P
++
++func (_ T4[P]) m() T4[P]
++
++func _[Q any](x Q) {
++	g(T4[Q](x))
++}
++
++// Another test case that caused  problems in the past
++
++type T5[_ interface { a() }, _ interface{}] struct{}
++
++type A[P any] struct{ x P }
++
++func (_ A[P]) a() {}
++
++var _ T5[A[int], int]
++
++// Invoking methods with parameterized receiver types uses
++// type inference to determine the actual type arguments matching
++// the receiver type parameters from the actual receiver argument.
++// Go does implicit address-taking and dereferenciation depending
++// on the actual receiver and the method's receiver type. To make
++// type inference work, the type-checker matches "pointer-ness"
++// of the actual receiver and the method's receiver type.
++// The following code tests this mechanism.
++
++type R1[A any] struct{}
++func (_ R1[A]) vm()
++func (_ *R1[A]) pm()
++
++func _[T any](r R1[T], p *R1[T]) {
++	r.vm()
++	r.pm()
++	p.vm()
++	p.pm()
++}
++
++type R2[A, B any] struct{}
++func (_ R2[A, B]) vm()
++func (_ *R2[A, B]) pm()
++
++func _[T any](r R2[T, int], p *R2[string, T]) {
++	r.vm()
++	r.pm()
++	p.vm()
++	p.pm()
++}
++
++// An interface can (explicitly) declare at most one type list.
++type _ interface {
++	m0()
++	type int, string, bool
++	type /* ERROR multiple type lists */ float32, float64
++	m1()
++	m2()
++	type /* ERROR multiple type lists */ complex64, complex128
++	type /* ERROR multiple type lists */ rune
++}
++
++// Interface type lists may contain each type at most once.
++// (If there are multiple lists, we assume the author intended
++// for them to be all in a single list, and we report the error
++// as well.)
++type _ interface {
++	type int, int /* ERROR duplicate type int */
++	type /* ERROR multiple type lists */ int /* ERROR duplicate type int */
++}
++
++type _ interface {
++	type struct{f int}, struct{g int}, struct /* ERROR duplicate type */ {f int}
++}
++
++// Interface type lists can contain any type, incl. *Named types.
++// Verify that we use the underlying type to compute the operational type.
++type MyInt int
++func add1[T interface{type MyInt}](x T) T {
++	return x + 1
++}
++
++type MyString string
++func double[T interface{type MyInt, MyString}](x T) T {
++	return x + x
++}
++
++// Embedding of interfaces with type lists leads to interfaces
++// with type lists that are the intersection of the embedded
++// type lists.
++
++type E0 interface {
++	type int, bool, string
++}
++
++type E1 interface {
++	type int, float64, string
++}
++
++type E2 interface {
++	type float64
++}
++
++type I0 interface {
++	E0
++}
++
++func f0[T I0]()
++var _ = f0[int]
++var _ = f0[bool]
++var _ = f0[string]
++var _ = f0[float64 /* ERROR does not satisfy I0 */ ]
++
++type I01 interface {
++	E0
++	E1
++}
++
++func f01[T I01]()
++var _ = f01[int]
++var _ = f01[bool /* ERROR does not satisfy I0 */ ]
++var _ = f01[string]
++var _ = f01[float64 /* ERROR does not satisfy I0 */ ]
++
++type I012 interface {
++	E0
++	E1
++	E2
++}
++
++func f012[T I012]()
++var _ = f012[int /* ERROR does not satisfy I012 */ ]
++var _ = f012[bool /* ERROR does not satisfy I012 */ ]
++var _ = f012[string /* ERROR does not satisfy I012 */ ]
++var _ = f012[float64 /* ERROR does not satisfy I012 */ ]
++
++type I12 interface {
++	E1
++	E2
++}
++
++func f12[T I12]()
++var _ = f12[int /* ERROR does not satisfy I12 */ ]
++var _ = f12[bool /* ERROR does not satisfy I12 */ ]
++var _ = f12[string /* ERROR does not satisfy I12 */ ]
++var _ = f12[float64]
++
++type I0_ interface {
++	E0
++	type int
++}
++
++func f0_[T I0_]()
++var _ = f0_[int]
++var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
++var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
++var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
+diff --git a/src/cmd/compile/internal/types2/testdata/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/typeparams.go2
+new file mode 100644
+index 0000000000..54cb34ec3b
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/typeparams.go2
+@@ -0,0 +1,422 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// import "io" // for type assertion tests
++
++// The predeclared identifier "any" is only visible as a constraint
++// in a type parameter list.
++var _ any // ERROR undeclared
++func _[_ any /* ok here */ , _ interface{any /* ERROR undeclared */ }](any /* ERROR undeclared */ ) {
++        var _ any /* ERROR undeclared */
++}
++
++func identity[T any](x T) T { return x }
++
++func _[_ any](x int) int
++func _[T any](T /* ERROR redeclared */ T)()
++func _[T, T /* ERROR redeclared */ any]()
++
++func reverse[T any](list []T) []T {
++        rlist := make([]T, len(list))
++        i := len(list)
++        for _, x := range list {
++                i--
++                rlist[i] = x
++        }
++        return rlist
++}
++
++var _ = reverse /* ERROR cannot use generic function reverse */
++var _ = reverse[int, float32 /* ERROR got 2 type arguments */ ] ([]int{1, 2, 3})
++var _ = reverse[int]([ /* ERROR cannot use */ ]float32{1, 2, 3})
++var f = reverse[chan int]
++var _ = f(0 /* ERROR cannot convert 0 .* to \[\]chan int */ )
++
++func swap[A, B any](a A, b B) (B, A) { return b, a }
++
++var _ = swap /* ERROR single value is expected */ [int, float32](1, 2)
++var f32, i = swap[int, float32](swap[float32, int](1, 2))
++var _ float32 = f32
++var _ int = i
++
++func swapswap[A, B any](a A, b B) (A, B) {
++        return swap[B, A](b, a)
++}
++
++type F[A, B any] func(A, B) (B, A)
++
++func min[T interface{ type int }](x, y T) T {
++        if x < y {
++                return x
++        }
++        return y
++}
++
++func _[T interface{type int, float32}](x, y T) bool { return x < y }
++func _[T any](x, y T) bool { return x /* ERROR cannot compare */ < y }
++func _[T interface{type int, float32, bool}](x, y T) bool { return x /* ERROR cannot compare */ < y }
++
++func _[T C1[T]](x, y T) bool { return x /* ERROR cannot compare */ < y }
++func _[T C2[T]](x, y T) bool { return x < y }
++
++type C1[T any] interface{}
++type C2[T any] interface{ type int, float32 }
++
++func new[T any]() *T {
++        var x T
++        return &x
++}
++
++var _ = new /* ERROR cannot use generic function new */
++var _ *int = new[int]()
++
++func _[T any](map[T /* ERROR invalid map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
++
++func f1[T1 any](struct{T1}) int
++var _ = f1[int](struct{T1}{})
++type T1 = int
++
++func f2[t1 any](struct{t1; x float32}) int
++var _ = f2[t1](struct{t1; x float32}{})
++type t1 = int
++
++
++func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int
++
++var _ = f3[int, rune, bool](1, struct{x rune}{}, nil)
++
++// indexing
++
++func _[T any] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++func _[T interface{ type int }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++func _[T interface{ type string }] (x T, i int) { _ = x[i] }
++func _[T interface{ type []int }] (x T, i int) { _ = x[i] }
++func _[T interface{ type [10]int, *[20]int, map[string]int }] (x T, i int) { _ = x[i] }
++func _[T interface{ type string, []byte }] (x T, i int) { _ = x[i] }
++func _[T interface{ type []int, [1]rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++func _[T interface{ type string, []rune }] (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
++
++// slicing
++// TODO(gri) implement this
++
++func _[T interface{ type string }] (x T, i, j, k int) { _ = x /* ERROR invalid operation */ [i:j:k] }
++
++// len/cap built-ins
++
++func _[T any](x T) { _ = len(x /* ERROR invalid argument */ ) }
++func _[T interface{ type int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
++func _[T interface{ type string, []byte, int }](x T) { _ = len(x /* ERROR invalid argument */ ) }
++func _[T interface{ type string }](x T) { _ = len(x) }
++func _[T interface{ type [10]int }](x T) { _ = len(x) }
++func _[T interface{ type []byte }](x T) { _ = len(x) }
++func _[T interface{ type map[int]int }](x T) { _ = len(x) }
++func _[T interface{ type chan int }](x T) { _ = len(x) }
++func _[T interface{ type string, []byte, chan int }](x T) { _ = len(x) }
++
++func _[T any](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ type int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ type string, []byte, int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ type string }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ type [10]int }](x T) { _ = cap(x) }
++func _[T interface{ type []byte }](x T) { _ = cap(x) }
++func _[T interface{ type map[int]int }](x T) { _ = cap(x /* ERROR invalid argument */ ) }
++func _[T interface{ type chan int }](x T) { _ = cap(x) }
++func _[T interface{ type []byte, chan int }](x T) { _ = cap(x) }
++
++// range iteration
++
++func _[T interface{}](x T) {
++        for range x /* ERROR cannot range */ {}
++}
++
++func _[T interface{ type string, []string }](x T) {
++        for range x {}
++        for i := range x { _ = i }
++        for i, _ := range x { _ = i }
++        for i, e := range x /* ERROR must have the same element type */ { _ = i }
++        for _, e := range x /* ERROR must have the same element type */ {}
++        var e rune
++        _ = e
++        for _, (e) = range x /* ERROR must have the same element type */ {}
++}
++
++
++func _[T interface{ type string, []rune, map[int]rune }](x T) {
++        for _, e := range x { _ = e }
++        for i, e := range x { _ = i; _ = e }
++}
++
++func _[T interface{ type string, []rune, map[string]rune }](x T) {
++        for _, e := range x { _ = e }
++        for i, e := range x /* ERROR must have the same key type */ { _ = e }
++}
++
++func _[T interface{ type string, chan int }](x T) {
++        for range x {}
++        for i := range x { _ = i }
++        for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
++}
++
++func _[T interface{ type string, chan<-int }](x T) {
++        for i := range x /* ERROR send-only channel */ { _ = i }
++}
++
++// type inference checks
++
++var _ = new() /* ERROR cannot infer T */
++
++func f4[A, B, C any](A, B) C
++
++var _ = f4(1, 2) /* ERROR cannot infer C */
++var _ = f4[int, float32, complex128](1, 2)
++
++func f5[A, B, C any](A, []*B, struct{f []C}) int
++
++var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
++var _ = f5(0, nil, struct{f []complex128}{}) // ERROR cannot infer
++var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
++
++func f6[A any](A, []A) int
++
++var _ = f6(0, nil)
++
++func f6nil[A any](A) int
++
++var _ = f6nil(nil) // ERROR cannot infer
++
++// type inference with variadic functions
++
++func f7[T any](...T) T
++
++var _ int = f7() /* ERROR cannot infer T */
++var _ int = f7(1)
++var _ int = f7(1, 2)
++var _ int = f7([]int{}...)
++var _ int = f7 /* ERROR cannot use */ ([]float64{}...)
++var _ float64 = f7([]float64{}...)
++var _ = f7[float64](1, 2.3)
++var _ = f7(float64(1), 2.3)
++var _ = f7(1, 2.3 /* ERROR does not match */ )
++var _ = f7(1.2, 3 /* ERROR does not match */ )
++
++func f8[A, B any](A, B, ...B) int
++
++var _ = f8(1) /* ERROR not enough arguments */
++var _ = f8(1, 2.3)
++var _ = f8(1, 2.3, 3.4, 4.5)
++var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
++var _ = f8[int, float64](1, 2.3, 3.4, 4)
++
++var _ = f8[int, float64](0, 0, nil...) // test case for #18268
++
++// init functions cannot have type parameters
++
++func init() {}
++func init[/* ERROR func init must have no type parameters */ _ any]() {}
++func init[/* ERROR func init must have no type parameters */ P any]() {}
++
++type T struct {}
++
++func (T) m1() {}
++// The type checker accepts method type parameters if configured accordingly.
++func (T) m2[_ any]() {}
++func (T) m3[P any]() {}
++
++// type inference across parameterized types
++
++type S1[P any] struct { f P }
++
++func f9[P any](x S1[P])
++
++func _() {
++        f9[int](S1[int]{42})
++	f9(S1[int]{42})
++}
++
++type S2[A, B, C any] struct{}
++
++func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool])
++
++func _[P any]() {
++        f10[int, float32, string](S2[int, int, string]{}, S2[int, float32, bool]{})
++        f10(S2[int, int, string]{}, S2[int, float32, bool]{})
++        f10(S2[P, int, P]{}, S2[P, float32, bool]{})
++}
++
++// corner case for type inference
++// (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
++
++func f11[T any]()
++
++func _() {
++	f11[int]()
++}
++
++// the previous example was extracted from
++
++func f12[T interface{m() T}]()
++
++type A[T any] T
++
++func (a A[T]) m() A[T]
++
++func _[T any]() {
++	f12[A[T]]()
++}
++
++// method expressions
++
++func (_ S1[P]) m()
++
++func _() {
++	m := S1[int].m
++	m(struct { f int }{42})
++}
++
++func _[T any] (x T) {
++        m := S1[T].m
++        m(S1[T]{x})
++}
++
++// type parameters in methods (generalization)
++
++type R0 struct{}
++
++func (R0) _[T any](x T)
++func (R0 /* ERROR invalid receiver */ ) _[R0 any]() // scope of type parameters starts at "func"
++
++type R1[A, B any] struct{}
++
++func (_ R1[A, B]) m0(A, B)
++func (_ R1[A, B]) m1[T any](A, B, T) T
++func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
++func (_ R1[A, B]) _[A /* ERROR redeclared */ any](B)
++
++func _() {
++        var r R1[int, string]
++        r.m1[rune](42, "foo", 'a')
++        r.m1[rune](42, "foo", 1.2 /* ERROR truncated to rune */)
++        r.m1(42, "foo", 1.2) // using type inference
++        var _ float64 = r.m1(42, "foo", 1.2)
++}
++
++type I1[A any] interface {
++        m1(A)
++}
++
++var _ I1[int] = r1[int]{}
++
++type r1[T any] struct{}
++
++func (_ r1[T]) m1(T)
++
++type I2[A, B any] interface {
++        m1(A)
++        m2(A) B
++}
++
++var _ I2[int, float32] = R2[int, float32]{}
++
++type R2[P, Q any] struct{}
++
++func (_ R2[X, Y]) m1(X)
++func (_ R2[X, Y]) m2(X) Y
++
++// type assertions and type switches over generic types
++// NOTE: These are currently disabled because it's unclear what the correct
++// approach is, and one can always work around by assigning the variable to
++// an interface first.
++
++// // ReadByte1 corresponds to the ReadByte example in the draft design.
++// func ReadByte1[T io.Reader](r T) (byte, error) {
++// 	if br, ok := r.(io.ByteReader); ok {
++// 		return br.ReadByte()
++// 	}
++// 	var b [1]byte
++// 	_, err := r.Read(b[:])
++// 	return b[0], err
++// }
++//
++// // ReadBytes2 is like ReadByte1 but uses a type switch instead.
++// func ReadByte2[T io.Reader](r T) (byte, error) {
++//         switch br := r.(type) {
++//         case io.ByteReader:
++//                 return br.ReadByte()
++//         }
++// 	var b [1]byte
++// 	_, err := r.Read(b[:])
++// 	return b[0], err
++// }
++//
++// // type assertions and type switches over generic types are strict
++// type I3 interface {
++//         m(int)
++// }
++//
++// type I4 interface {
++//         m() int // different signature from I3.m
++// }
++//
++// func _[T I3](x I3, p T) {
++//         // type assertions and type switches over interfaces are not strict
++//         _ = x.(I4)
++//         switch x.(type) {
++//         case I4:
++//         }
++//
++//         // type assertions and type switches over generic types are strict
++//         _ = p /* ERROR cannot have dynamic type I4 */.(I4)
++//         switch p.(type) {
++//         case I4 /* ERROR cannot have dynamic type I4 */ :
++//         }
++// }
++
++// type assertions and type switches over generic types lead to errors for now
++
++func _[T any](x T) {
++	_ = x /* ERROR not an interface */ .(int)
++	switch x /* ERROR not an interface */ .(type) {
++	}
++
++	// work-around
++	var t interface{} = x
++	_ = t.(int)
++	switch t.(type) {
++	}
++}
++
++func _[T interface{type int}](x T) {
++	_ = x /* ERROR not an interface */ .(int)
++	switch x /* ERROR not an interface */ .(type) {
++	}
++
++	// work-around
++	var t interface{} = x
++	_ = t.(int)
++	switch t.(type) {
++	}
++}
++
++// error messages related to type bounds mention those bounds
++type C[P any] interface{}
++
++func _[P C[P]] (x P) {
++	x.m /* ERROR x.m undefined */ ()
++}
++
++type I interface {}
++
++func _[P I] (x P) {
++	x.m /* ERROR interface I has no method m */ ()
++}
++
++func _[P interface{}] (x P) {
++	x.m /* ERROR type bound for P has no method m */ ()
++}
++
++func _[P any] (x P) {
++	x.m /* ERROR type bound for P has no method m */ ()
++}

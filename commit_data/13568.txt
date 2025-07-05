@@ -14,8 +14,104 @@ Date:   Fri Aug 3 21:47:26 2012 +0200
     R=rsc
     CC=gobot, golang-dev, r, remy
     https://golang.org/cl/6442074
-
+---
  src/cmd/gc/swt.c | 10 +++++++---
  test/switch.go   | 32 ++++++++++++++++++++++++++++++++
  test/switch3.go  | 11 +++++++++++
  3 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 4079b67da2..aff1b5ea87 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -813,7 +813,7 @@ typecheckswitch(Node *n)
+ {
+ 	int top, lno, ptr;
+ 	char *nilonly;
+-	Type *t, *missing, *have;
++	Type *t, *badtype, *missing, *have;
+ 	NodeList *l, *ll;
+ 	Node *ncase, *nvar;
+ 	Node *def;
+@@ -839,10 +839,14 @@ typecheckswitch(Node *n)
+ 		} else
+ 			t = types[TBOOL];
+ 		if(t) {
+-			if(!okforeq[t->etype] || isfixedarray(t))
++			if(!okforeq[t->etype])
+ 				yyerror("cannot switch on %lN", n->ntest);
+-			else if(t->etype == TARRAY)
++			else if(t->etype == TARRAY && !isfixedarray(t))
+ 				nilonly = "slice";
++			else if(t->etype == TARRAY && isfixedarray(t) && algtype1(t, nil) == ANOEQ)
++				yyerror("cannot switch on %lN", n->ntest);
++			else if(t->etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ)
++				yyerror("cannot switch on %lN (struct containing %T cannot be compared)", n->ntest, badtype);
+ 			else if(t->etype == TFUNC)
+ 				nilonly = "func";
+ 			else if(t->etype == TMAP)
+diff --git a/test/switch.go b/test/switch.go
+index 09bf4341a0..a4242f2571 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -284,6 +284,38 @@ func main() {
+ 	default:
+ 	}
+ 
++	// switch on interface.
++	switch i := interface{}("hello"); i {
++	case 42:
++		assert(false, `i should be "hello"`)
++	case "hello":
++		assert(true, "hello")
++	default:
++		assert(false, `i should be "hello"`)
++	}
++
++	// switch on array.
++	switch ar := [3]int{1, 2, 3}; ar {
++	case [3]int{1,2,3}:
++		assert(true, "[1 2 3]")
++	case [3]int{4,5,6}:
++		assert(false, "ar should be [1 2 3]")
++	default:
++		assert(false, "ar should be [1 2 3]")
++	}
++
++	// switch on channel
++	switch c1, c2 := make(chan int), make(chan int); c1 {
++	case nil:
++		assert(false, "c1 did not match itself")
++	case c2:
++		assert(false, "c1 did not match itself")
++	case c1:
++		assert(true, "chan")
++	default:
++		assert(false, "c1 did not match itself")
++	}
++
+ 	i := 0
+ 	switch x := 5; {
+ 		case i < x:
+diff --git a/test/switch3.go b/test/switch3.go
+index dcb6fff208..28705e464e 100644
+--- a/test/switch3.go
++++ b/test/switch3.go
+@@ -45,6 +45,17 @@ func bad() {
+ 	case f1: // ERROR "can only compare func f to nil|func can only be compared to nil"
+ 	default:
+ 	}
++
++	var ar, ar1 [4]func()
++	switch ar { // ERROR "cannot switch on"
++	case ar1:
++	default:
++	}
++
++	var st, st1 struct{ f func() }
++	switch st { // ERROR "cannot switch on"
++	case st1:
++	}
+ }
+ 
+ func good() {

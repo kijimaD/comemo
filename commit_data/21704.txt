@@ -92,7 +92,7 @@ Date:   Mon Jan 19 22:59:58 2015 +0300
     Change-Id: I0cd51e4d356331d7f3c5f447669080cd19b0d2ca
     Reviewed-on: https://go-review.googlesource.com/3166
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/closure.c     | 181 +++++++++++++++++++++++++++++++----------------
  src/cmd/gc/dcl.c         |   1 -
  src/cmd/gc/esc.c         |  16 +++--
@@ -108,3 +108,1132 @@ Date:   Mon Jan 19 22:59:58 2015 +0300
  test/escape2.go          |  84 +++++++++++++++++-----
  test/escape2n.go         |  84 +++++++++++++++++-----
  14 files changed, 441 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 603a026852..b067228052 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -70,7 +70,7 @@ closurebody(NodeList *body)
+ 	for(l=func->cvars; l; l=l->next) {
+ 		v = l->n;
+ 		v->closure->closure = v->outer;
+-		v->heapaddr = nod(OADDR, oldname(v->sym), N);
++		v->outerexpr = oldname(v->sym);
+ 	}
+ 
+ 	return func;
+@@ -81,48 +81,46 @@ static Node* makeclosure(Node *func);
+ void
+ typecheckclosure(Node *func, int top)
+ {
+-	Node *oldfn;
++	Node *oldfn, *n;
+ 	NodeList *l;
+-	Node *v;
++	int olddd;
++
++	for(l=func->cvars; l; l=l->next) {
++		n = l->n->closure;
++		if(!n->captured) {
++			n->captured = 1;
++			if(n->decldepth == 0)
++				fatal("typecheckclosure: var %hN does not have decldepth assigned", n);
++			// Ignore assignments to the variable in straightline code
++			// preceding the first capturing by a closure.
++			if(n->decldepth == decldepth)
++				n->assigned = 0;
++		}
++	}
++
++	for(l=func->dcl; l; l=l->next)
++		if(l->n->op == ONAME && (l->n->class == PPARAM || l->n->class == PPARAMOUT))
++			l->n->decldepth = 1;
+ 
+ 	oldfn = curfn;
+ 	typecheck(&func->ntype, Etype);
+ 	func->type = func->ntype->type;
+-	
++
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+ 	// ready to type check code yet; we'll check it later, because the
+ 	// underlying closure function we create is added to xtop.
+ 	if(curfn && func->type != T) {
+ 		curfn = func;
++		olddd = decldepth;
++		decldepth = 1;
+ 		typechecklist(func->nbody, Etop);
++		decldepth = olddd;
+ 		curfn = oldfn;
+ 	}
+ 
+-	// type check the & of closed variables outside the closure,
+-	// so that the outer frame also grabs them and knows they
+-	// escape.
+-	func->enter = nil;
+-	for(l=func->cvars; l; l=l->next) {
+-		v = l->n;
+-		if(v->type == T) {
+-			// if v->type is nil, it means v looked like it was
+-			// going to be used in the closure but wasn't.
+-			// this happens because when parsing a, b, c := f()
+-			// the a, b, c gets parsed as references to older
+-			// a, b, c before the parser figures out this is a
+-			// declaration.
+-			v->op = 0;
+-			continue;
+-		}
+-		// For a closure that is called in place, but not
+-		// inside a go statement, avoid moving variables to the heap.
+-		if ((top & (Ecall|Eproc)) == Ecall)
+-			v->heapaddr->etype = 1;
+-		typecheck(&v->heapaddr, Erv);
+-		func->enter = list(func->enter, v->heapaddr);
+-		v->heapaddr = N;
+-	}
++	// Remember closure context for capturevars.
++	func->etype = (top & (Ecall|Eproc)) == Ecall;
+ 
+ 	// Create top-level function 
+ 	xtop = list(xtop, makeclosure(func));
+@@ -131,11 +129,8 @@ typecheckclosure(Node *func, int top)
+ static Node*
+ makeclosure(Node *func)
+ {
+-	Node *xtype, *v, *addr, *xfunc, *cv;
+-	NodeList *l, *body;
++	Node *xtype, *xfunc;
+ 	static int closgen;
+-	char *p;
+-	vlong offset;
+ 
+ 	/*
+ 	 * wrap body in external function
+@@ -156,16 +151,81 @@ makeclosure(Node *func)
+ 	xfunc->nname->funcdepth = func->funcdepth;
+ 	xfunc->funcdepth = func->funcdepth;
+ 	xfunc->endlineno = func->endlineno;
++
++	xfunc->nbody = func->nbody;
++	xfunc->dcl = concat(func->dcl, xfunc->dcl);
++	if(xfunc->nbody == nil)
++		fatal("empty body - won't generate any code");
++	typecheck(&xfunc, Etop);
++
++	xfunc->closure = func;
++	func->closure = xfunc;
+ 	
+-	// declare variables holding addresses taken from closure
+-	// and initialize in entry prologue.
++	func->nbody = nil;
++	func->list = nil;
++	func->rlist = nil;
++
++	return xfunc;
++}
++
++// capturevars is called in a separate phase after all typechecking is done.
++// It decides whether each variable captured by a closure should be captured
++// by value or by reference.
++// We use value capturing for values <= 128 bytes that are never reassigned
++// after declaration.
++void
++capturevars(Node *xfunc)
++{
++	Node *func, *v, *addr, *cv, *outer;
++	NodeList *l, *body;
++	char *p;
++	vlong offset;
++	int nvar, lno;
++
++	lno = lineno;
++	lineno = xfunc->lineno;
++
++	nvar = 0;
+ 	body = nil;
+ 	offset = widthptr;
+-	xfunc->needctxt = func->cvars != nil;
++	func = xfunc->closure;
++	func->enter = nil;
+ 	for(l=func->cvars; l; l=l->next) {
+ 		v = l->n;
+-		if(v->op == 0)
++		if(v->type == T) {
++			// if v->type is nil, it means v looked like it was
++			// going to be used in the closure but wasn't.
++			// this happens because when parsing a, b, c := f()
++			// the a, b, c gets parsed as references to older
++			// a, b, c before the parser figures out this is a
++			// declaration.
++			v->op = OXXX;
+ 			continue;
++		}
++		nvar++;
++
++		// type check the & of closed variables outside the closure,
++		// so that the outer frame also grabs them and knows they escape.
++		dowidth(v->type);
++		outer = v->outerexpr;
++		v->outerexpr = N;
++		if(!v->closure->addrtaken && !v->closure->assigned && v->type->width <= 128)
++			v->byval = 1;
++		else {
++			outer = nod(OADDR, outer, N);
++			// For a closure that is called in place, but not
++			// inside a go statement, avoid moving variables to the heap.
++			outer->etype = func->etype;
++		}
++		if(debug['m'] > 1)
++			warnl(v->lineno, "%S capturing by %s: %S (addr=%d assign=%d width=%d)",
++				(v->curfn && v->curfn->nname) ? v->curfn->nname->sym : S, v->byval ? "value" : "ref",
++				v->sym, v->closure->addrtaken, v->closure->assigned, (int32)v->type->width);
++		typecheck(&outer, Erv);
++		func->enter = list(func->enter, outer);
++
++		// declare variables holding addresses taken from closure
++		// and initialize in entry prologue.
+ 		addr = nod(ONAME, N, N);
+ 		p = smprint("&%s", v->sym->name);
+ 		addr->sym = lookup(p);
+@@ -179,38 +239,35 @@ makeclosure(Node *func)
+ 		xfunc->dcl = list(xfunc->dcl, addr);
+ 		v->heapaddr = addr;
+ 		cv = nod(OCLOSUREVAR, N, N);
+-		cv->type = ptrto(v->type);
+-		cv->xoffset = offset;
+-		body = list(body, nod(OAS, addr, cv));
+-		offset += widthptr;
++		if(v->byval) {
++			cv->type = v->type;
++			offset = rnd(offset, v->type->align);
++			cv->xoffset = offset;
++			offset += v->type->width;
++			body = list(body, nod(OAS, addr, nod(OADDR, cv, N)));
++		} else {
++			v->closure->addrtaken = 1;
++			cv->type = ptrto(v->type);
++			offset = rnd(offset, widthptr);
++			cv->xoffset = offset;
++			offset += widthptr;
++			body = list(body, nod(OAS, addr, cv));
++		}
+ 	}
+ 	typechecklist(body, Etop);
+ 	walkstmtlist(body);
+ 	xfunc->enter = body;
++	xfunc->needctxt = nvar > 0;
++	func->etype = 0;
+ 
+-	xfunc->nbody = func->nbody;
+-	xfunc->dcl = concat(func->dcl, xfunc->dcl);
+-	if(xfunc->nbody == nil)
+-		fatal("empty body - won't generate any code");
+-	typecheck(&xfunc, Etop);
+-
+-	xfunc->closure = func;
+-	func->closure = xfunc;
+-	
+-	func->nbody = nil;
+-	func->list = nil;
+-	func->rlist = nil;
+-
+-	return xfunc;
++	lineno = lno;
+ }
+ 
+ Node*
+ walkclosure(Node *func, NodeList **init)
+ {
+-	Node *clos, *typ;
++	Node *clos, *typ, *typ1, *v;
+ 	NodeList *l;
+-	char buf[20];
+-	int narg;
+ 
+ 	// If no closure vars, don't bother wrapping.
+ 	if(func->cvars == nil)
+@@ -230,14 +287,16 @@ walkclosure(Node *func, NodeList **init)
+ 	// the struct is unnamed so that closures in multiple packages with the
+ 	// same struct type can share the descriptor.
+ 
+-	narg = 0;
+ 	typ = nod(OTSTRUCT, N, N);
+ 	typ->list = list1(nod(ODCLFIELD, newname(lookup("F")), typenod(types[TUINTPTR])));
+ 	for(l=func->cvars; l; l=l->next) {
+-		if(l->n->op == 0)
++		v = l->n;
++		if(v->op == OXXX)
+ 			continue;
+-		snprint(buf, sizeof buf, "A%d", narg++);
+-		typ->list = list(typ->list, nod(ODCLFIELD, newname(lookup(buf)), l->n->heapaddr->ntype));
++		typ1 = typenod(v->type);
++		if(!v->byval)
++			typ1 = nod(OIND, typ1, N);
++		typ->list = list(typ->list, nod(ODCLFIELD, newname(v->sym), typ1));
+ 	}
+ 
+ 	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 556660c923..f47ca2b50e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -452,7 +452,6 @@ oldname(Sym *s)
+ 			c->funcdepth = funcdepth;
+ 			c->outer = n->closure;
+ 			n->closure = c;
+-			n->addrtaken = 1;
+ 			c->closure = n;
+ 			c->xoffset = 0;
+ 			curfn->cvars = list(curfn->cvars, c);
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index c4bf961c97..4f77983926 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -429,7 +429,7 @@ esc(EscState *e, Node *n, Node *up)
+ {
+ 	int lno;
+ 	NodeList *ll, *lr;
+-	Node *a;
++	Node *a, *v;
+ 
+ 	if(n == N)
+ 		return;
+@@ -676,12 +676,16 @@ esc(EscState *e, Node *n, Node *up)
+ 	case OCLOSURE:
+ 		// Link addresses of captured variables to closure.
+ 		for(ll=n->cvars; ll; ll=ll->next) {
+-			if(ll->n->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
++			v = ll->n;
++			if(v->op == OXXX)  // unnamed out argument; see dcl.c:/^funcargs
+ 				continue;
+-			a = nod(OADDR, ll->n->closure, N);
+-			a->lineno = ll->n->lineno;
+-			a->escloopdepth = e->loopdepth;
+-			typecheck(&a, Erv);
++			a = v->closure;
++			if(!v->byval) {
++				a = nod(OADDR, a, N);
++				a->lineno = v->lineno;
++				a->escloopdepth = e->loopdepth;
++				typecheck(&a, Erv);
++			}
+ 			escassign(e, n, a);
+ 		}
+ 		// fallthrough
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 89d2a14046..f9eb0ba2b3 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -278,6 +278,12 @@ Jconv(Fmt *fp)
+ 	if(n->embedded != 0)
+ 		fmtprint(fp, " embedded(%d)", n->embedded);
+ 
++	if(n->addrtaken != 0)
++		fmtprint(fp, " addrtaken");
++
++	if(n->assigned != 0)
++		fmtprint(fp, " assigned");
++
+ 	if(!c && n->used != 0)
+ 		fmtprint(fp, " used(%d)", n->used);
+ 	return 0;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f3cbd923a0..11fbe1a825 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -284,6 +284,9 @@ struct	Node
+ 	uchar	readonly;
+ 	uchar	implicit;
+ 	uchar	addrtaken;	// address taken, even if not moved to heap
++	uchar	assigned;	// is the variable ever assigned to
++	uchar	captured;	// is the variable captured by a closure
++	uchar	byval;		// is the variable captured by value or by reference
+ 	uchar	dupok;	// duplicate definitions ok (for func)
+ 	uchar	wrapper;	// is method wrapper (for func)
+ 	uchar	reslice;	// this is a reslice x = x[0:y] or x = append(x, ...)
+@@ -317,9 +320,11 @@ struct	Node
+ 	Node*	pack;	// real package for import . names
+ 	Node*	curfn;	// function for local variables
+ 	Type*	paramfld; // TFIELD for this PPARAM; also for ODOT, curfn
++	int	decldepth;	// declaration loop depth, increased for every loop or label
+ 
+ 	// ONAME func param with PHEAP
+ 	Node*	heapaddr;	// temp holding heap address of param
++	Node*	outerexpr;	// expression copied into closure for variable
+ 	Node*	stackparam;	// OPARAM node referring to stack copy of param
+ 	Node*	alloc;	// allocation call
+ 
+@@ -874,6 +879,7 @@ EXTERN	Biobuf*	bout;
+ EXTERN	int	nerrors;
+ EXTERN	int	nsavederrors;
+ EXTERN	int	nsyntaxerrors;
++EXTERN	int	decldepth;
+ EXTERN	int	safemode;
+ EXTERN	int	nolocalimports;
+ EXTERN	char	namebuf[NSYMB];
+@@ -943,7 +949,6 @@ EXTERN	Mpflt*	maxfltval[NTYPE];
+ 
+ EXTERN	NodeList*	xtop;
+ EXTERN	NodeList*	externdcl;
+-EXTERN	NodeList*	closures;
+ EXTERN	NodeList*	exportlist;
+ EXTERN	NodeList*	importlist;	// imported functions and methods with inlinable bodies
+ EXTERN	NodeList*	funcsyms;
+@@ -1068,6 +1073,7 @@ void	bvset(Bvec *bv, int32 i);
+ Node*	closurebody(NodeList *body);
+ void	closurehdr(Node *ntype);
+ void	typecheckclosure(Node *func, int top);
++void	capturevars(Node *func);
+ Node*	walkclosure(Node *func, NodeList **init);
+ void	typecheckpartialcall(Node*, Node*);
+ Node*	walkpartialcall(Node*, NodeList**);
+@@ -1454,7 +1460,7 @@ void	typechecklist(NodeList *l, int top);
+ Node*	typecheckdef(Node *n);
+ void	copytype(Node *n, Type *t);
+ void	checkreturn(Node*);
+-void	checkassign(Node*);
++void	checkassign(Node *stmt, Node*);
+ void	queuemethod(Node *n);
+ 
+ /*
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 8e6c236acc..2bff531e57 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -391,6 +391,7 @@ gcmain(int argc, char *argv[])
+ 	for(l=xtop; l; l=l->next) {
+ 		if(l->n->op == ODCLFUNC || l->n->op == OCLOSURE) {
+ 			curfn = l->n;
++			decldepth = 1;
+ 			saveerrors();
+ 			typechecklist(l->n->nbody, Etop);
+ 			checkreturn(l->n);
+@@ -399,12 +400,21 @@ gcmain(int argc, char *argv[])
+ 		}
+ 	}
+ 
++	// Phase 4: Decide how to capture variables
++	// and transform closure bodies accordingly.
++	for(l=xtop; l; l=l->next) {
++		if(l->n->op == ODCLFUNC && l->n->closure) {
++			curfn = l->n;
++			capturevars(l->n);
++		}
++	}
++
+ 	curfn = nil;
+ 	
+ 	if(nsavederrors+nerrors)
+ 		errorexit();
+ 
+-	// Phase 4: Inlining
++	// Phase 5: Inlining
+ 	if(debug['l'] > 1) {
+ 		// Typecheck imported function bodies if debug['l'] > 1,
+ 		// otherwise lazily when used or re-exported.
+@@ -430,7 +440,7 @@ gcmain(int argc, char *argv[])
+ 				inlcalls(l->n);
+ 	}
+ 
+-	// Phase 5: Escape analysis.
++	// Phase 6: Escape analysis.
+ 	// Required for moving heap allocations onto stack,
+ 	// which in turn is required by the closure implementation,
+ 	// which stores the addresses of stack variables into the closure.
+@@ -442,7 +452,7 @@ gcmain(int argc, char *argv[])
+ 	// Move large values off stack too.
+ 	movelarge(xtop);
+ 
+-	// Phase 6: Compile top level functions.
++	// Phase 7: Compile top level functions.
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			funccompile(l->n, 0);
+@@ -450,7 +460,7 @@ gcmain(int argc, char *argv[])
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
+-	// Phase 7: Check external declarations.
++	// Phase 8: Check external declarations.
+ 	for(l=externdcl; l; l=l->next)
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index f5f87b2165..5d6a562ab8 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -89,14 +89,14 @@ typecheckrange(Node *n)
+ 			v1->type = t1;
+ 		else if(v1->type != T && assignop(t1, v1->type, &why) == 0)
+ 			yyerror("cannot assign type %T to %lN in range%s", t1, v1, why);
+-		checkassign(v1);
++		checkassign(n, v1);
+ 	}
+ 	if(v2) {
+ 		if(v2->defn == n)
+ 			v2->type = t2;
+ 		else if(v2->type != T && assignop(t2, v2->type, &why) == 0)
+ 			yyerror("cannot assign type %T to %lN in range%s", t2, v2, why);
+-		checkassign(v2);
++		checkassign(n, v2);
+ 	}
+ 
+ out:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ef330c6baf..0699ca1f47 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -27,7 +27,7 @@ static void	typecheckas2(Node*);
+ static void	typecheckas(Node*);
+ static void	typecheckfunc(Node*);
+ static void	checklvalue(Node*, char*);
+-static void	checkassignlist(NodeList*);
++static void	checkassignlist(Node*, NodeList*);
+ static void	stringtoarraylit(Node**);
+ static Node*	resolve(Node*);
+ static void	checkdefergo(Node*);
+@@ -348,6 +348,8 @@ reswitch:
+ 		goto ret;
+ 
+ 	case ONAME:
++		if(n->decldepth == 0)
++			n->decldepth = decldepth;
+ 		if(n->etype != 0) {
+ 			ok |= Ecall;
+ 			goto ret;
+@@ -521,8 +523,8 @@ reswitch:
+ 	case OASOP:
+ 		ok |= Etop;
+ 		l = typecheck(&n->left, Erv);
+-		checkassign(n->left);
+ 		r = typecheck(&n->right, Erv);
++		checkassign(n, n->left);
+ 		if(l->type == T || r->type == T)
+ 			goto error;
+ 		op = n->etype;
+@@ -741,11 +743,16 @@ reswitch:
+ 			goto error;
+ 		checklvalue(n->left, "take the address of");
+ 		r = outervalue(n->left);
+-		for(l = n->left; l != r; l = l->left)
++		for(l = n->left; l != r; l = l->left) {
+ 			l->addrtaken = 1;
++			if(l->closure)
++				l->closure->addrtaken = 1;
++		}
+ 		if(l->orig != l && l->op == ONAME)
+ 			fatal("found non-orig name node %N", l);
+ 		l->addrtaken = 1;
++		if(l->closure)
++			l->closure->addrtaken = 1;
+ 		defaultlit(&n->left, T);
+ 		l = n->left;
+ 		if((t = l->type) == T)
+@@ -1680,12 +1687,16 @@ reswitch:
+ 	case ODCL:
+ 	case OEMPTY:
+ 	case OGOTO:
+-	case OLABEL:
+ 	case OXFALL:
+ 	case OVARKILL:
+ 		ok |= Etop;
+ 		goto ret;
+ 
++	case OLABEL:
++		ok |= Etop;
++		decldepth++;
++		goto ret;
++
+ 	case ODEFER:
+ 		ok |= Etop;
+ 		typecheck(&n->left, Etop|Erv);
+@@ -1702,11 +1713,13 @@ reswitch:
+ 	case OFOR:
+ 		ok |= Etop;
+ 		typechecklist(n->ninit, Etop);
++		decldepth++;
+ 		typecheck(&n->ntest, Erv);
+ 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
+ 			yyerror("non-bool %lN used as for condition", n->ntest);
+ 		typecheck(&n->nincr, Etop);
+ 		typechecklist(n->nbody, Etop);
++		decldepth--;
+ 		goto ret;
+ 
+ 	case OIF:
+@@ -2811,8 +2824,22 @@ checklvalue(Node *n, char *verb)
+ }
+ 
+ void
+-checkassign(Node *n)
++checkassign(Node *stmt, Node *n)
+ {
++	Node *r, *l;
++
++	if(n->defn != stmt) {
++		r = outervalue(n);
++		for(l = n; l != r; l = l->left) {
++			l->assigned = 1;
++			if(l->closure)
++				l->closure->assigned = 1;
++		}
++		l->assigned = 1;
++		if(l->closure)
++			l->closure->assigned = 1;
++	}
++
+ 	if(islvalue(n))
+ 		return;
+ 	if(n->op == OINDEXMAP) {
+@@ -2828,10 +2855,10 @@ checkassign(Node *n)
+ }
+ 
+ static void
+-checkassignlist(NodeList *l)
++checkassignlist(Node *stmt, NodeList *l)
+ {
+ 	for(; l; l=l->next)
+-		checkassign(l->n);
++		checkassign(stmt, l->n);
+ }
+ 
+ // Check whether l and r are the same side effect-free expression,
+@@ -2881,8 +2908,8 @@ typecheckas(Node *n)
+ 	if(n->left->defn != n || n->left->ntype)
+ 		typecheck(&n->left, Erv | Easgn);
+ 
+-	checkassign(n->left);
+ 	typecheck(&n->right, Erv);
++	checkassign(n, n->left);
+ 	if(n->right && n->right->type != T) {
+ 		if(n->left->type != T)
+ 			n->right = assignconv(n->right, n->left->type, "assignment");
+@@ -2953,11 +2980,11 @@ typecheckas2(Node *n)
+ 	}
+ 	cl = count(n->list);
+ 	cr = count(n->rlist);
+-	checkassignlist(n->list);
+ 	if(cl > 1 && cr == 1)
+ 		typecheck(&n->rlist->n, Erv | Efnstruct);
+ 	else
+ 		typechecklist(n->rlist, Erv);
++	checkassignlist(n, n->list);
+ 
+ 	if(cl == cr) {
+ 		// easy
+@@ -3048,6 +3075,7 @@ static void
+ typecheckfunc(Node *n)
+ {
+ 	Type *t, *rcvr;
++	NodeList *l;
+ 
+ 	typecheck(&n->nname, Erv | Easgn);
+ 	if((t = n->nname->type) == T)
+@@ -3057,6 +3085,10 @@ typecheckfunc(Node *n)
+ 	rcvr = getthisx(t)->type;
+ 	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
+ 		addmethod(n->shortname->sym, t, 1, n->nname->nointerface);
++
++	for(l=n->dcl; l; l=l->next)
++		if(l->n->op == ONAME && (l->n->class == PPARAM || l->n->class == PPARAMOUT))
++			l->n->decldepth = 1;
+ }
+ 
+ static void
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5625d6b5dd..0b190779b1 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1973,7 +1973,7 @@ isglobal(Node *n)
+ {
+ 	while(n->op == ODOT || n->op == OPAREN || n->op == OCONVNOP || n->op == OINDEX && isfixedarray(n->left->type))
+ 		n = n->left;
+-	
++
+ 	switch(n->op) {
+ 	case ONAME:
+ 		switch(n->class) {
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index aa9bc81ac4..3b78b01ca3 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -7,6 +7,7 @@ package runtime_test
+ import (
+ 	"math"
+ 	"runtime"
++	"sync"
+ 	"sync/atomic"
+ 	"syscall"
+ 	"testing"
+@@ -415,6 +416,25 @@ func benchmarkCreateGoroutines(b *testing.B, procs int) {
+ 	}
+ }
+ 
++func BenchmarkCreateGoroutinesCapture(b *testing.B) {
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		const N = 4
++		var wg sync.WaitGroup
++		wg.Add(N)
++		for i := 0; i < N; i++ {
++			i := i
++			go func() {
++				if i >= N {
++					b.Logf("bad") // just to capture b
++				}
++				wg.Done()
++			}()
++		}
++		wg.Wait()
++	}
++}
++
+ type Matrix [][]float64
+ 
+ func BenchmarkMatmult(b *testing.B) {
+diff --git a/test/closure1.go b/test/closure1.go
+new file mode 100644
+index 0000000000..586998203a
+--- /dev/null
++++ b/test/closure1.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	x := 0
++	func() {
++		x = 1
++	}()
++	func() {
++		if x != 1 {
++			panic("x != 1")
++		}
++	}()
++}
+\ No newline at end of file
+diff --git a/test/closure2.go b/test/closure2.go
+new file mode 100644
+index 0000000000..785e3ae275
+--- /dev/null
++++ b/test/closure2.go
+@@ -0,0 +1,64 @@
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that these do not use "by value" capturing,
++// because changes are made to the value during the closure.
++
++package main
++
++func main() {
++	type X struct {
++		v int
++	}
++	var x X
++	func() {
++		x.v++
++	}()
++	if x.v != 1 {
++		panic("x.v != 1")
++	}
++
++	type Y struct {
++		X
++	}
++	var y Y
++	func() {
++		y.v = 1
++	}()
++	if y.v != 1 {
++		panic("y.v != 1")
++	}
++
++	type Z struct {
++		a [3]byte
++	}
++	var z Z
++	func() {
++		i := 0
++		for z.a[1] = 1; i < 10; i++ {
++		}
++	}()
++	if z.a[1] != 1 {
++		panic("z.a[1] != 1")
++	}
++
++	w := 0
++	tmp := 0
++	f := func() {
++		if w != 1 {
++			panic("w != 1")
++		}
++	}
++	func() {
++		tmp = w // force capture of w, but do not write to it yet
++		func() {
++			func() {
++				w++ // write in a nested closure
++			}()
++		}()
++	}()
++	f()
++}
+diff --git a/test/escape2.go b/test/escape2.go
+index 1523d9f1ff..8c50277e9d 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -203,9 +203,17 @@ func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
+ }
+ 
+ func foo21() func() int {
++	x := 42
++	return func() int { // ERROR "func literal escapes to heap"
++		return x
++	}
++}
++
++func foo21a() func() int {
+ 	x := 42             // ERROR "moved to heap: x"
+ 	return func() int { // ERROR "func literal escapes to heap"
+-		return x // ERROR "&x escapes to heap"
++		x++  // ERROR "&x escapes to heap"
++		return x
+ 	}
+ }
+ 
+@@ -216,24 +224,31 @@ func foo22() int {
+ 	}()
+ }
+ 
+-func foo23(x int) func() int { // ERROR "moved to heap: x"
++func foo23(x int) func() int {
+ 	return func() int { // ERROR "func literal escapes to heap"
+-		return x // ERROR "&x escapes to heap"
++		return x
+ 	}
+ }
+ 
+-func foo23a(x int) func() int { // ERROR "moved to heap: x"
++func foo23a(x int) func() int {
+ 	f := func() int { // ERROR "func literal escapes to heap"
+-		return x // ERROR "&x escapes to heap"
++		return x
+ 	}
+ 	return f
+ }
+ 
+-func foo23b(x int) *(func() int) { // ERROR "moved to heap: x"
+-	f := func() int { return x } // ERROR "moved to heap: f" "func literal escapes to heap" "&x escapes to heap"
++func foo23b(x int) *(func() int) {
++	f := func() int { return x } // ERROR "moved to heap: f" "func literal escapes to heap"
+ 	return &f                    // ERROR "&f escapes to heap"
+ }
+ 
++func foo23c(x int) func() int { // ERROR "moved to heap: x"
++	return func() int { // ERROR "func literal escapes to heap"
++		x++ // ERROR "&x escapes to heap"
++		return x
++	}
++}
++
+ func foo24(x int) int {
+ 	return func() int { // ERROR "func literal does not escape"
+ 		return x
+@@ -523,23 +538,48 @@ func foo72b() [10]*int {
+ 
+ // issue 2145
+ func foo73() {
++	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
++	for _, v := range s {
++		vv := v
++		// actually just escapes its scope
++		defer func() { // ERROR "func literal escapes to heap"
++			println(vv)
++		}()
++	}
++}
++
++func foo731() {
+ 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+ 	for _, v := range s {
+ 		vv := v // ERROR "moved to heap: vv"
+ 		// actually just escapes its scope
+ 		defer func() { // ERROR "func literal escapes to heap"
+-			println(vv) // ERROR "&vv escapes to heap"
++			vv = 42 // ERROR "&vv escapes to heap"
++			println(vv)
+ 		}()
+ 	}
+ }
+ 
+ func foo74() {
++	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
++	for _, v := range s {
++		vv := v
++		// actually just escapes its scope
++		fn := func() { // ERROR "func literal escapes to heap"
++			println(vv)
++		}
++		defer fn()
++	}
++}
++
++func foo74a() {
+ 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+ 	for _, v := range s {
+ 		vv := v // ERROR "moved to heap: vv"
+ 		// actually just escapes its scope
+ 		fn := func() { // ERROR "func literal escapes to heap"
+-			println(vv) // ERROR "&vv escapes to heap"
++			vv += 1 // ERROR "&vv escapes to heap"
++			println(vv)
+ 		}
+ 		defer fn()
+ 	}
+@@ -547,13 +587,25 @@ func foo74() {
+ 
+ // issue 3975
+ func foo74b() {
++	var array [3]func()
++	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
++	for i, v := range s {
++		vv := v
++		// actually just escapes its scope
++		array[i] = func() { // ERROR "func literal escapes to heap"
++			println(vv)
++		}
++	}
++}
++
++func foo74c() {
+ 	var array [3]func()
+ 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+ 	for i, v := range s {
+ 		vv := v // ERROR "moved to heap: vv"
+ 		// actually just escapes its scope
+ 		array[i] = func() { // ERROR "func literal escapes to heap"
+-			println(vv) // ERROR "&vv escapes to heap"
++			println(&vv) // ERROR "&vv escapes to heap" "&vv does not escape"
+ 		}
+ 	}
+ }
+@@ -1213,9 +1265,9 @@ func foo134() {
+ 
+ func foo135() {
+ 	var i int   // ERROR "moved to heap: i"
+-	p := &i     // ERROR "&i escapes to heap" "moved to heap: p"
++	p := &i     // ERROR "&i escapes to heap"
+ 	go func() { // ERROR "func literal escapes to heap"
+-		q := p   // ERROR "&p escapes to heap"
++		q := p
+ 		func() { // ERROR "func literal does not escape"
+ 			r := q
+ 			_ = r
+@@ -1225,9 +1277,9 @@ func foo135() {
+ 
+ func foo136() {
+ 	var i int   // ERROR "moved to heap: i"
+-	p := &i     // ERROR "&i escapes to heap" "moved to heap: p"
++	p := &i     // ERROR "&i escapes to heap"
+ 	go func() { // ERROR "func literal escapes to heap"
+-		q := p   // ERROR "&p escapes to heap" "leaking closure reference p"
++		q := p   // ERROR "leaking closure reference p"
+ 		func() { // ERROR "func literal does not escape"
+ 			r := q // ERROR "leaking closure reference q"
+ 			px = r
+@@ -1239,9 +1291,9 @@ func foo137() {
+ 	var i int // ERROR "moved to heap: i"
+ 	p := &i   // ERROR "&i escapes to heap"
+ 	func() {  // ERROR "func literal does not escape"
+-		q := p      // ERROR "leaking closure reference p" "moved to heap: q"
++		q := p      // ERROR "leaking closure reference p"
+ 		go func() { // ERROR "func literal escapes to heap"
+-			r := q // ERROR "&q escapes to heap"
++			r := q
+ 			_ = r
+ 		}()
+ 	}()
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 03c0f4b75d..31f4ed083c 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -203,9 +203,17 @@ func (b *Bar2) LeakSelf2() { // ERROR "leaking param: b"
+ }
+ 
+ func foo21() func() int {
++	x := 42
++	return func() int { // ERROR "func literal escapes to heap"
++		return x
++	}
++}
++
++func foo21a() func() int {
+ 	x := 42             // ERROR "moved to heap: x"
+ 	return func() int { // ERROR "func literal escapes to heap"
+-		return x // ERROR "&x escapes to heap"
++		x++  // ERROR "&x escapes to heap"
++		return x
+ 	}
+ }
+ 
+@@ -216,24 +224,31 @@ func foo22() int {
+ 	}()
+ }
+ 
+-func foo23(x int) func() int { // ERROR "moved to heap: x"
++func foo23(x int) func() int {
+ 	return func() int { // ERROR "func literal escapes to heap"
+-		return x // ERROR "&x escapes to heap"
++		return x
+ 	}
+ }
+ 
+-func foo23a(x int) func() int { // ERROR "moved to heap: x"
++func foo23a(x int) func() int {
+ 	f := func() int { // ERROR "func literal escapes to heap"
+-		return x // ERROR "&x escapes to heap"
++		return x
+ 	}
+ 	return f
+ }
+ 
+-func foo23b(x int) *(func() int) { // ERROR "moved to heap: x"
+-	f := func() int { return x } // ERROR "moved to heap: f" "func literal escapes to heap" "&x escapes to heap"
++func foo23b(x int) *(func() int) {
++	f := func() int { return x } // ERROR "moved to heap: f" "func literal escapes to heap"
+ 	return &f                    // ERROR "&f escapes to heap"
+ }
+ 
++func foo23c(x int) func() int { // ERROR "moved to heap: x"
++	return func() int { // ERROR "func literal escapes to heap"
++		x++ // ERROR "&x escapes to heap"
++		return x
++	}
++}
++
+ func foo24(x int) int {
+ 	return func() int { // ERROR "func literal does not escape"
+ 		return x
+@@ -523,23 +538,48 @@ func foo72b() [10]*int {
+ 
+ // issue 2145
+ func foo73() {
++	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
++	for _, v := range s {
++		vv := v
++		// actually just escapes its scope
++		defer func() { // ERROR "func literal escapes to heap"
++			println(vv)
++		}()
++	}
++}
++
++func foo731() {
+ 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+ 	for _, v := range s {
+ 		vv := v // ERROR "moved to heap: vv"
+ 		// actually just escapes its scope
+ 		defer func() { // ERROR "func literal escapes to heap"
+-			println(vv) // ERROR "&vv escapes to heap"
++			vv = 42 // ERROR "&vv escapes to heap"
++			println(vv)
+ 		}()
+ 	}
+ }
+ 
+ func foo74() {
++	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
++	for _, v := range s {
++		vv := v
++		// actually just escapes its scope
++		fn := func() { // ERROR "func literal escapes to heap"
++			println(vv)
++		}
++		defer fn()
++	}
++}
++
++func foo74a() {
+ 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+ 	for _, v := range s {
+ 		vv := v // ERROR "moved to heap: vv"
+ 		// actually just escapes its scope
+ 		fn := func() { // ERROR "func literal escapes to heap"
+-			println(vv) // ERROR "&vv escapes to heap"
++			vv += 1 // ERROR "&vv escapes to heap"
++			println(vv)
+ 		}
+ 		defer fn()
+ 	}
+@@ -547,13 +587,25 @@ func foo74() {
+ 
+ // issue 3975
+ func foo74b() {
++	var array [3]func()
++	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
++	for i, v := range s {
++		vv := v
++		// actually just escapes its scope
++		array[i] = func() { // ERROR "func literal escapes to heap"
++			println(vv)
++		}
++	}
++}
++
++func foo74c() {
+ 	var array [3]func()
+ 	s := []int{3, 2, 1} // ERROR "\[\]int literal does not escape"
+ 	for i, v := range s {
+ 		vv := v // ERROR "moved to heap: vv"
+ 		// actually just escapes its scope
+ 		array[i] = func() { // ERROR "func literal escapes to heap"
+-			println(vv) // ERROR "&vv escapes to heap"
++			println(&vv) // ERROR "&vv escapes to heap" "&vv does not escape"
+ 		}
+ 	}
+ }
+@@ -1213,9 +1265,9 @@ func foo134() {
+ 
+ func foo135() {
+ 	var i int   // ERROR "moved to heap: i"
+-	p := &i     // ERROR "&i escapes to heap" "moved to heap: p"
++	p := &i     // ERROR "&i escapes to heap"
+ 	go func() { // ERROR "func literal escapes to heap"
+-		q := p   // ERROR "&p escapes to heap"
++		q := p
+ 		func() { // ERROR "func literal does not escape"
+ 			r := q
+ 			_ = r
+@@ -1225,9 +1277,9 @@ func foo135() {
+ 
+ func foo136() {
+ 	var i int   // ERROR "moved to heap: i"
+-	p := &i     // ERROR "&i escapes to heap" "moved to heap: p"
++	p := &i     // ERROR "&i escapes to heap"
+ 	go func() { // ERROR "func literal escapes to heap"
+-		q := p   // ERROR "&p escapes to heap" "leaking closure reference p"
++		q := p   // ERROR "leaking closure reference p"
+ 		func() { // ERROR "func literal does not escape"
+ 			r := q // ERROR "leaking closure reference q"
+ 			px = r
+@@ -1239,9 +1291,9 @@ func foo137() {
+ 	var i int // ERROR "moved to heap: i"
+ 	p := &i   // ERROR "&i escapes to heap"
+ 	func() {  // ERROR "func literal does not escape"
+-		q := p      // ERROR "leaking closure reference p" "moved to heap: q"
++		q := p      // ERROR "leaking closure reference p"
+ 		go func() { // ERROR "func literal escapes to heap"
+-			r := q // ERROR "&q escapes to heap"
++			r := q
+ 			_ = r
+ 		}()
+ 	}()

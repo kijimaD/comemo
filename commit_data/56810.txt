@@ -30,6 +30,466 @@ Date:   Wed May 24 11:42:57 2023 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  doc/go_spec.html | 384 ++++++++++++++++++++++++++++---------------------------
  1 file changed, 195 insertions(+), 189 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 51af33c175..3f24b53f7f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 20, 2023",
++	"Subtitle": "Version of May 24, 2023",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -7183,6 +7183,89 @@ so they can only appear in <a href="#Calls">call expressions</a>;
+ they cannot be used as function values.
+ </p>
+ 
++
++<h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
++
++<p>
++The built-in functions <code>append</code> and <code>copy</code> assist in
++common slice operations.
++For both functions, the result is independent of whether the memory referenced
++by the arguments overlaps.
++</p>
++
++<p>
++The <a href="#Function_types">variadic</a> function <code>append</code>
++appends zero or more values <code>x</code> to a slice <code>s</code>
++and returns the resulting slice of the same type as <code>s</code>.
++The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
++of type <code>[]E</code>.
++The values <code>x</code> are passed to a parameter of type <code>...E</code>
++and the respective <a href="#Passing_arguments_to_..._parameters">parameter
++passing rules</a> apply.
++As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
++<code>append</code> also accepts a second argument with core type
++<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
++This form appends the bytes of the byte slice or string.
++</p>
++
++<pre class="grammar">
++append(s S, x ...E) S  // core type of S is []E
++</pre>
++
++<p>
++If the capacity of <code>s</code> is not large enough to fit the additional
++values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
++array that fits both the existing slice elements and the additional values.
++Otherwise, <code>append</code> re-uses the underlying array.
++</p>
++
++<pre>
++s0 := []int{0, 0}
++s1 := append(s0, 2)                // append a single element     s1 is []int{0, 0, 2}
++s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 is []int{0, 0, 2, 3, 5, 7}
++s3 := append(s2, s0...)            // append a slice              s3 is []int{0, 0, 2, 3, 5, 7, 0, 0}
++s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 is []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
++
++var t []interface{}
++t = append(t, 42, 3.1415, "foo")   //                             t is []interface{}{42, 3.1415, "foo"}
++
++var b []byte
++b = append(b, "bar"...)            // append string contents      b is []byte{'b', 'a', 'r' }
++</pre>
++
++<p>
++The function <code>copy</code> copies slice elements from
++a source <code>src</code> to a destination <code>dst</code> and returns the
++number of elements copied.
++The <a href="#Core_types">core types</a> of both arguments must be slices
++with <a href="#Type_identity">identical</a> element type.
++The number of elements copied is the minimum of
++<code>len(src)</code> and <code>len(dst)</code>.
++As a special case, if the destination's core type is <code>[]byte</code>,
++<code>copy</code> also accepts a source argument with core type
++</a> <a href="#Core_types"><code>bytestring</code></a>.
++This form copies the bytes from the byte slice or string into the byte slice.
++</p>
++
++<pre class="grammar">
++copy(dst, src []T) int
++copy(dst []byte, src string) int
++</pre>
++
++<p>
++Examples:
++</p>
++
++<pre>
++var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
++var s = make([]int, 6)
++var b = make([]byte, 5)
++n1 := copy(s, a[0:])            // n1 == 6, s is []int{0, 1, 2, 3, 4, 5}
++n2 := copy(s, s[2:])            // n2 == 4, s is []int{2, 3, 4, 5, 4, 5}
++n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
++</pre>
++
++
+ <h3 id="Clear">Clear</h3>
+ 
+ <p>
+@@ -7213,6 +7296,7 @@ performs the operation corresponding to the actual type argument.
+ If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
+ </p>
+ 
++
+ <h3 id="Close">Close</h3>
+ 
+ <p>
+@@ -7229,6 +7313,100 @@ The multi-valued <a href="#Receive_operator">receive operation</a>
+ returns a received value along with an indication of whether the channel is closed.
+ </p>
+ 
++
++<h3 id="Complex_numbers">Manipulating complex numbers</h3>
++
++<p>
++Three functions assemble and disassemble complex numbers.
++The built-in function <code>complex</code> constructs a complex
++value from a floating-point real and imaginary part, while
++<code>real</code> and <code>imag</code>
++extract the real and imaginary parts of a complex value.
++</p>
++
++<pre class="grammar">
++complex(realPart, imaginaryPart floatT) complexT
++real(complexT) floatT
++imag(complexT) floatT
++</pre>
++
++<p>
++The type of the arguments and return value correspond.
++For <code>complex</code>, the two arguments must be of the same
++<a href="#Numeric_types">floating-point type</a> and the return type is the
++<a href="#Numeric_types">complex type</a>
++with the corresponding floating-point constituents:
++<code>complex64</code> for <code>float32</code> arguments, and
++<code>complex128</code> for <code>float64</code> arguments.
++If one of the arguments evaluates to an untyped constant, it is first implicitly
++<a href="#Conversions">converted</a> to the type of the other argument.
++If both arguments evaluate to untyped constants, they must be non-complex
++numbers or their imaginary parts must be zero, and the return value of
++the function is an untyped complex constant.
++</p>
++
++<p>
++For <code>real</code> and <code>imag</code>, the argument must be
++of complex type, and the return type is the corresponding floating-point
++type: <code>float32</code> for a <code>complex64</code> argument, and
++<code>float64</code> for a <code>complex128</code> argument.
++If the argument evaluates to an untyped constant, it must be a number,
++and the return value of the function is an untyped floating-point constant.
++</p>
++
++<p>
++The <code>real</code> and <code>imag</code> functions together form the inverse of
++<code>complex</code>, so for a value <code>z</code> of a complex type <code>Z</code>,
++<code>z&nbsp;==&nbsp;Z(complex(real(z),&nbsp;imag(z)))</code>.
++</p>
++
++<p>
++If the operands of these functions are all constants, the return
++value is a constant.
++</p>
++
++<pre>
++var a = complex(2, -2)             // complex128
++const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
++x := float32(math.Cos(math.Pi/2))  // float32
++var c64 = complex(5, -x)           // complex64
++var s int = complex(1, 0)          // untyped complex constant 1 + 0i can be converted to int
++_ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
++var rl = real(c64)                 // float32
++var im = imag(a)                   // float64
++const c = imag(b)                  // untyped constant -1.4
++_ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, cannot shift
++</pre>
++
++<p>
++Arguments of type parameter type are not permitted.
++</p>
++
++
++<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
++
++<p>
++The built-in function <code>delete</code> removes the element with key
++<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
++value <code>k</code> must be <a href="#Assignability">assignable</a>
++to the key type of <code>m</code>.
++</p>
++
++<pre class="grammar">
++delete(m, k)  // remove element m[k] from map m
++</pre>
++
++<p>
++If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
++all types in that type set must be maps, and they must all have identical key types.
++</p>
++
++<p>
++If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
++does not exist, <code>delete</code> is a no-op.
++</p>
++
++
+ <h3 id="Length_and_capacity">Length and capacity</h3>
+ 
+ <p>
+@@ -7299,36 +7477,6 @@ const (
+ var z complex128
+ </pre>
+ 
+-<h3 id="Allocation">Allocation</h3>
+-
+-<p>
+-The built-in function <code>new</code> takes a type <code>T</code>,
+-allocates storage for a <a href="#Variables">variable</a> of that type
+-at run time, and returns a value of type <code>*T</code>
+-<a href="#Pointer_types">pointing</a> to it.
+-The variable is initialized as described in the section on
+-<a href="#The_zero_value">initial values</a>.
+-</p>
+-
+-<pre class="grammar">
+-new(T)
+-</pre>
+-
+-<p>
+-For instance
+-</p>
+-
+-<pre>
+-type S struct { a int; b float64 }
+-new(S)
+-</pre>
+-
+-<p>
+-allocates storage for a variable of type <code>S</code>,
+-initializes it (<code>a=0</code>, <code>b=0.0</code>),
+-and returns a value of type <code>*S</code> containing the address
+-of the location.
+-</p>
+ 
+ <h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
+ 
+@@ -7355,7 +7503,6 @@ make(T)          channel      unbuffered channel of type T
+ make(T, n)       channel      buffered channel of type T, buffer size n
+ </pre>
+ 
+-
+ <p>
+ Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
+ have a <a href="#Interface_types">type set</a> containing only integer types,
+@@ -7384,179 +7531,37 @@ The precise behavior is implementation-dependent.
+ </p>
+ 
+ 
+-<h3 id="Appending_and_copying_slices">Appending to and copying slices</h3>
+-
+-<p>
+-The built-in functions <code>append</code> and <code>copy</code> assist in
+-common slice operations.
+-For both functions, the result is independent of whether the memory referenced
+-by the arguments overlaps.
+-</p>
+-
+-<p>
+-The <a href="#Function_types">variadic</a> function <code>append</code>
+-appends zero or more values <code>x</code> to a slice <code>s</code>
+-and returns the resulting slice of the same type as <code>s</code>.
+-The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
+-of type <code>[]E</code>.
+-The values <code>x</code> are passed to a parameter of type <code>...E</code>
+-and the respective <a href="#Passing_arguments_to_..._parameters">parameter
+-passing rules</a> apply.
+-As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
+-<code>append</code> also accepts a second argument with core type
+-<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
+-This form appends the bytes of the byte slice or string.
+-</p>
+-
+-<pre class="grammar">
+-append(s S, x ...E) S  // core type of S is []E
+-</pre>
+-
+-<p>
+-If the capacity of <code>s</code> is not large enough to fit the additional
+-values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
+-array that fits both the existing slice elements and the additional values.
+-Otherwise, <code>append</code> re-uses the underlying array.
+-</p>
+-
+-<pre>
+-s0 := []int{0, 0}
+-s1 := append(s0, 2)                // append a single element     s1 is []int{0, 0, 2}
+-s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 is []int{0, 0, 2, 3, 5, 7}
+-s3 := append(s2, s0...)            // append a slice              s3 is []int{0, 0, 2, 3, 5, 7, 0, 0}
+-s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 is []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
+-
+-var t []interface{}
+-t = append(t, 42, 3.1415, "foo")   //                             t is []interface{}{42, 3.1415, "foo"}
+-
+-var b []byte
+-b = append(b, "bar"...)            // append string contents      b is []byte{'b', 'a', 'r' }
+-</pre>
++<h3 id="Allocation">Allocation</h3>
+ 
+ <p>
+-The function <code>copy</code> copies slice elements from
+-a source <code>src</code> to a destination <code>dst</code> and returns the
+-number of elements copied.
+-The <a href="#Core_types">core types</a> of both arguments must be slices
+-with <a href="#Type_identity">identical</a> element type.
+-The number of elements copied is the minimum of
+-<code>len(src)</code> and <code>len(dst)</code>.
+-As a special case, if the destination's core type is <code>[]byte</code>,
+-<code>copy</code> also accepts a source argument with core type
+-</a> <a href="#Core_types"><code>bytestring</code></a>.
+-This form copies the bytes from the byte slice or string into the byte slice.
++The built-in function <code>new</code> takes a type <code>T</code>,
++allocates storage for a <a href="#Variables">variable</a> of that type
++at run time, and returns a value of type <code>*T</code>
++<a href="#Pointer_types">pointing</a> to it.
++The variable is initialized as described in the section on
++<a href="#The_zero_value">initial values</a>.
+ </p>
+ 
+ <pre class="grammar">
+-copy(dst, src []T) int
+-copy(dst []byte, src string) int
++new(T)
+ </pre>
+ 
+ <p>
+-Examples:
++For instance
+ </p>
+ 
+ <pre>
+-var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
+-var s = make([]int, 6)
+-var b = make([]byte, 5)
+-n1 := copy(s, a[0:])            // n1 == 6, s is []int{0, 1, 2, 3, 4, 5}
+-n2 := copy(s, s[2:])            // n2 == 4, s is []int{2, 3, 4, 5, 4, 5}
+-n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
+-</pre>
+-
+-
+-<h3 id="Deletion_of_map_elements">Deletion of map elements</h3>
+-
+-<p>
+-The built-in function <code>delete</code> removes the element with key
+-<code>k</code> from a <a href="#Map_types">map</a> <code>m</code>. The
+-value <code>k</code> must be <a href="#Assignability">assignable</a>
+-to the key type of <code>m</code>.
+-</p>
+-
+-<pre class="grammar">
+-delete(m, k)  // remove element m[k] from map m
+-</pre>
+-
+-<p>
+-If the type of <code>m</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+-all types in that type set must be maps, and they must all have identical key types.
+-</p>
+-
+-<p>
+-If the map <code>m</code> is <code>nil</code> or the element <code>m[k]</code>
+-does not exist, <code>delete</code> is a no-op.
+-</p>
+-
+-
+-<h3 id="Complex_numbers">Manipulating complex numbers</h3>
+-
+-<p>
+-Three functions assemble and disassemble complex numbers.
+-The built-in function <code>complex</code> constructs a complex
+-value from a floating-point real and imaginary part, while
+-<code>real</code> and <code>imag</code>
+-extract the real and imaginary parts of a complex value.
+-</p>
+-
+-<pre class="grammar">
+-complex(realPart, imaginaryPart floatT) complexT
+-real(complexT) floatT
+-imag(complexT) floatT
++type S struct { a int; b float64 }
++new(S)
+ </pre>
+ 
+ <p>
+-The type of the arguments and return value correspond.
+-For <code>complex</code>, the two arguments must be of the same
+-<a href="#Numeric_types">floating-point type</a> and the return type is the
+-<a href="#Numeric_types">complex type</a>
+-with the corresponding floating-point constituents:
+-<code>complex64</code> for <code>float32</code> arguments, and
+-<code>complex128</code> for <code>float64</code> arguments.
+-If one of the arguments evaluates to an untyped constant, it is first implicitly
+-<a href="#Conversions">converted</a> to the type of the other argument.
+-If both arguments evaluate to untyped constants, they must be non-complex
+-numbers or their imaginary parts must be zero, and the return value of
+-the function is an untyped complex constant.
+-</p>
+-
+-<p>
+-For <code>real</code> and <code>imag</code>, the argument must be
+-of complex type, and the return type is the corresponding floating-point
+-type: <code>float32</code> for a <code>complex64</code> argument, and
+-<code>float64</code> for a <code>complex128</code> argument.
+-If the argument evaluates to an untyped constant, it must be a number,
+-and the return value of the function is an untyped floating-point constant.
+-</p>
+-
+-<p>
+-The <code>real</code> and <code>imag</code> functions together form the inverse of
+-<code>complex</code>, so for a value <code>z</code> of a complex type <code>Z</code>,
+-<code>z&nbsp;==&nbsp;Z(complex(real(z),&nbsp;imag(z)))</code>.
+-</p>
+-
+-<p>
+-If the operands of these functions are all constants, the return
+-value is a constant.
++allocates storage for a variable of type <code>S</code>,
++initializes it (<code>a=0</code>, <code>b=0.0</code>),
++and returns a value of type <code>*S</code> containing the address
++of the location.
+ </p>
+ 
+-<pre>
+-var a = complex(2, -2)             // complex128
+-const b = complex(1.0, -1.4)       // untyped complex constant 1 - 1.4i
+-x := float32(math.Cos(math.Pi/2))  // float32
+-var c64 = complex(5, -x)           // complex64
+-var s int = complex(1, 0)          // untyped complex constant 1 + 0i can be converted to int
+-_ = complex(1, 2&lt;&lt;s)               // illegal: 2 assumes floating-point type, cannot shift
+-var rl = real(c64)                 // float32
+-var im = imag(a)                   // float64
+-const c = imag(b)                  // untyped constant -1.4
+-_ = imag(3 &lt;&lt; s)                   // illegal: 3 assumes complex type, cannot shift
+-</pre>
+-
+-<p>
+-Arguments of type parameter type are not permitted.
+-</p>
+ 
+ <h3 id="Handling_panics">Handling panics</h3>
+ 
+@@ -7655,6 +7660,7 @@ accept arbitrary argument types, but printing of boolean, numeric, and string
+ <a href="#Types">types</a> must be supported.
+ </p>
+ 
++
+ <h2 id="Packages">Packages</h2>
+ 
+ <p>

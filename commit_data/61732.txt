@@ -19,7 +19,7 @@ Date:   Mon Nov 18 22:18:56 2024 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/boring/fipstls/stub.s       |  12 --
  src/crypto/internal/boring/fipstls/tls.go       |  51 --------
  src/crypto/tls/auth.go                          |   3 +-
@@ -40,3 +40,1152 @@ Date:   Mon Nov 18 22:18:56 2024 +0100
  src/crypto/x509/verify.go                       |   7 --
  src/go/build/deps_test.go                       |   8 +-
  19 files changed, 225 insertions(+), 384 deletions(-)
+
+diff --git a/src/crypto/internal/boring/fipstls/stub.s b/src/crypto/internal/boring/fipstls/stub.s
+deleted file mode 100644
+index f2e5a503ea..0000000000
+--- a/src/crypto/internal/boring/fipstls/stub.s
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build boringcrypto
+-
+-// runtime_arg0 is declared in tls.go without a body.
+-// It's provided by package runtime,
+-// but the go command doesn't know that.
+-// Having this assembly file keeps the go command
+-// from complaining about the missing body
+-// (because the implementation might be here).
+diff --git a/src/crypto/internal/boring/fipstls/tls.go b/src/crypto/internal/boring/fipstls/tls.go
+deleted file mode 100644
+index b51f142fde..0000000000
+--- a/src/crypto/internal/boring/fipstls/tls.go
++++ /dev/null
+@@ -1,51 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build boringcrypto
+-
+-// Package fipstls allows control over whether crypto/tls requires FIPS-approved settings.
+-// This package only exists with GOEXPERIMENT=boringcrypto, but the effects are independent
+-// of the use of BoringCrypto.
+-package fipstls
+-
+-import (
+-	"internal/stringslite"
+-	"sync/atomic"
+-)
+-
+-var required atomic.Bool
+-
+-// Force forces crypto/tls to restrict TLS configurations to FIPS-approved settings.
+-// By design, this call is impossible to undo (except in tests).
+-//
+-// Note that this call has an effect even in programs using
+-// standard crypto (that is, even when Enabled = false).
+-func Force() {
+-	required.Store(true)
+-}
+-
+-// Abandon allows non-FIPS-approved settings.
+-// If called from a non-test binary, it panics.
+-func Abandon() {
+-	// Note: Not using boring.UnreachableExceptTests because we want
+-	// this test to happen even when boring.Enabled = false.
+-	name := runtime_arg0()
+-	// Allow _test for Go command, .test for Bazel,
+-	// NaClMain for NaCl (where all binaries run as NaClMain),
+-	// and empty string for Windows (where runtime_arg0 can't easily find the name).
+-	// Since this is an internal package, testing that this isn't used on the
+-	// other operating systems should suffice to catch any mistakes.
+-	if !stringslite.HasSuffix(name, "_test") && !stringslite.HasSuffix(name, ".test") && name != "NaClMain" && name != "" {
+-		panic("fipstls: invalid use of Abandon in " + name)
+-	}
+-	required.Store(false)
+-}
+-
+-// provided by runtime
+-func runtime_arg0() string
+-
+-// Required reports whether FIPS-approved settings are required.
+-func Required() bool {
+-	return required.Load()
+-}
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index 5bb202cd6a..9e3ce22f71 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
++	"crypto/tls/internal/fips140tls"
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+@@ -242,7 +243,7 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
+ 	// Pick signature scheme in the peer's preference order, as our
+ 	// preference order is not configurable.
+ 	for _, preferredAlg := range peerAlgs {
+-		if needFIPS() && !isSupportedSignatureAlgorithm(preferredAlg, defaultSupportedSignatureAlgorithmsFIPS) {
++		if fips140tls.Required() && !isSupportedSignatureAlgorithm(preferredAlg, defaultSupportedSignatureAlgorithmsFIPS) {
+ 			continue
+ 		}
+ 		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
+diff --git a/src/crypto/tls/boring.go b/src/crypto/tls/boring.go
+deleted file mode 100644
+index c44ae92f25..0000000000
+--- a/src/crypto/tls/boring.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build boringcrypto
+-
+-package tls
+-
+-import "crypto/internal/boring/fipstls"
+-
+-// needFIPS returns fipstls.Required(), which is not available without the
+-// boringcrypto build tag.
+-func needFIPS() bool {
+-	return fipstls.Required()
+-}
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index dba9650936..662f1fc27a 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -15,6 +15,7 @@ import (
+ 	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/sha512"
++	"crypto/tls/internal/fips140tls"
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
+@@ -1061,12 +1062,12 @@ func (c *Config) time() time.Time {
+ 
+ func (c *Config) cipherSuites() []uint16 {
+ 	if c.CipherSuites == nil {
+-		if needFIPS() {
++		if fips140tls.Required() {
+ 			return defaultCipherSuitesFIPS
+ 		}
+ 		return defaultCipherSuites()
+ 	}
+-	if needFIPS() {
++	if fips140tls.Required() {
+ 		cipherSuites := slices.Clone(c.CipherSuites)
+ 		return slices.DeleteFunc(cipherSuites, func(id uint16) bool {
+ 			return !slices.Contains(defaultCipherSuitesFIPS, id)
+@@ -1092,7 +1093,7 @@ var tls10server = godebug.New("tls10server")
+ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+ 	for _, v := range supportedVersions {
+-		if needFIPS() && !slices.Contains(defaultSupportedVersionsFIPS, v) {
++		if fips140tls.Required() && !slices.Contains(defaultSupportedVersionsFIPS, v) {
+ 			continue
+ 		}
+ 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
+@@ -1140,12 +1141,12 @@ func (c *Config) curvePreferences(version uint16) []CurveID {
+ 	var curvePreferences []CurveID
+ 	if c != nil && len(c.CurvePreferences) != 0 {
+ 		curvePreferences = slices.Clone(c.CurvePreferences)
+-		if needFIPS() {
++		if fips140tls.Required() {
+ 			return slices.DeleteFunc(curvePreferences, func(c CurveID) bool {
+ 				return !slices.Contains(defaultCurvePreferencesFIPS, c)
+ 			})
+ 		}
+-	} else if needFIPS() {
++	} else if fips140tls.Required() {
+ 		curvePreferences = slices.Clone(defaultCurvePreferencesFIPS)
+ 	} else {
+ 		curvePreferences = defaultCurvePreferences()
+@@ -1617,7 +1618,7 @@ func unexpectedMessageError(wanted, got any) error {
+ 
+ // supportedSignatureAlgorithms returns the supported signature algorithms.
+ func supportedSignatureAlgorithms() []SignatureScheme {
+-	if !needFIPS() {
++	if !fips140tls.Required() {
+ 		return defaultSupportedSignatureAlgorithms
+ 	}
+ 	return defaultSupportedSignatureAlgorithmsFIPS
+@@ -1646,3 +1647,56 @@ func (e *CertificateVerificationError) Error() string {
+ func (e *CertificateVerificationError) Unwrap() error {
+ 	return e.Err
+ }
++
++// fipsAllowedChains returns chains that are allowed to be used in a TLS connection
++// based on the current fips140tls enforcement setting.
++//
++// If fips140tls is not required, the chains are returned as-is with no processing.
++// Otherwise, the returned chains are filtered to only those allowed by FIPS 140-3.
++// If this results in no chains it returns an error.
++func fipsAllowedChains(chains [][]*x509.Certificate) ([][]*x509.Certificate, error) {
++	if !fips140tls.Required() {
++		return chains, nil
++	}
++
++	permittedChains := make([][]*x509.Certificate, 0, len(chains))
++	for _, chain := range chains {
++		if fipsAllowChain(chain) {
++			permittedChains = append(permittedChains, chain)
++		}
++	}
++
++	if len(permittedChains) == 0 {
++		return nil, errors.New("tls: no FIPS compatible certificate chains found")
++	}
++
++	return permittedChains, nil
++}
++
++func fipsAllowChain(chain []*x509.Certificate) bool {
++	if len(chain) == 0 {
++		return false
++	}
++
++	for _, cert := range chain {
++		if !fipsAllowCert(cert) {
++			return false
++		}
++	}
++
++	return true
++}
++
++func fipsAllowCert(c *x509.Certificate) bool {
++	// The key must be RSA 2048, RSA 3072, RSA 4096,
++	// or ECDSA P-256, P-384, P-521.
++	switch k := c.PublicKey.(type) {
++	case *rsa.PublicKey:
++		size := k.N.BitLen()
++		return size == 2048 || size == 3072 || size == 4096
++	case *ecdsa.PublicKey:
++		return k.Curve == elliptic.P256() || k.Curve == elliptic.P384() || k.Curve == elliptic.P521()
++	}
++
++	return false
++}
+diff --git a/src/crypto/tls/defaults.go b/src/crypto/tls/defaults.go
+index ad4070df4a..170c200858 100644
+--- a/src/crypto/tls/defaults.go
++++ b/src/crypto/tls/defaults.go
+@@ -90,7 +90,9 @@ var defaultCipherSuitesTLS13NoAES = []uint16{
+ 	TLS_AES_256_GCM_SHA384,
+ }
+ 
+-// The FIPS-only policies below match BoringSSL's ssl_policy_fips_202205.
++// The FIPS-only policies below match BoringSSL's
++// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2.
++// https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
+ 
+ var defaultSupportedVersionsFIPS = []uint16{
+ 	VersionTLS12,
+diff --git a/src/crypto/tls/boring_test.go b/src/crypto/tls/fips_test.go
+similarity index 81%
+rename from src/crypto/tls/boring_test.go
+rename to src/crypto/tls/fips_test.go
+index 5605042198..b28b6f446c 100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/fips_test.go
+@@ -2,21 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto
+-
+ package tls
+ 
+ import (
+ 	"crypto/ecdsa"
+ 	"crypto/elliptic"
+-	"crypto/internal/boring/fipstls"
+ 	"crypto/rand"
+ 	"crypto/rsa"
++	"crypto/tls/internal/fips140tls"
+ 	"crypto/x509"
+ 	"crypto/x509/pkix"
+ 	"encoding/pem"
+ 	"fmt"
+ 	"internal/obscuretestdata"
++	"internal/testenv"
+ 	"math/big"
+ 	"net"
+ 	"runtime"
+@@ -50,7 +49,7 @@ func generateKeyShare(group CurveID) keyShare {
+ 	return keyShare{group: group, data: key.PublicKey().Bytes()}
+ }
+ 
+-func TestBoringServerProtocolVersion(t *testing.T) {
++func TestFIPSServerProtocolVersion(t *testing.T) {
+ 	test := func(t *testing.T, name string, v uint16, msg string) {
+ 		t.Run(name, func(t *testing.T) {
+ 			serverConfig := testConfig.Clone()
+@@ -79,9 +78,9 @@ func TestBoringServerProtocolVersion(t *testing.T) {
+ 	test(t, "VersionTLS12", VersionTLS12, "")
+ 	test(t, "VersionTLS13", VersionTLS13, "")
+ 
+-	t.Run("fipstls", func(t *testing.T) {
+-		fipstls.Force()
+-		defer fipstls.Abandon()
++	t.Run("fips140tls", func(t *testing.T) {
++		fips140tls.Force()
++		defer fips140tls.TestingOnlyAbandon()
+ 		test(t, "VersionTLS10", VersionTLS10, "supported versions")
+ 		test(t, "VersionTLS11", VersionTLS11, "supported versions")
+ 		test(t, "VersionTLS12", VersionTLS12, "")
+@@ -89,11 +88,11 @@ func TestBoringServerProtocolVersion(t *testing.T) {
+ 	})
+ }
+ 
+-func isBoringVersion(v uint16) bool {
++func isFIPSVersion(v uint16) bool {
+ 	return v == VersionTLS12 || v == VersionTLS13
+ }
+ 
+-func isBoringCipherSuite(id uint16) bool {
++func isFIPSCipherSuite(id uint16) bool {
+ 	switch id {
+ 	case TLS_AES_128_GCM_SHA256,
+ 		TLS_AES_256_GCM_SHA384,
+@@ -106,7 +105,7 @@ func isBoringCipherSuite(id uint16) bool {
+ 	return false
+ }
+ 
+-func isBoringCurve(id CurveID) bool {
++func isFIPSCurve(id CurveID) bool {
+ 	switch id {
+ 	case CurveP256, CurveP384:
+ 		return true
+@@ -123,7 +122,7 @@ func isECDSA(id uint16) bool {
+ 	return false // TLS 1.3 cipher suites are not tied to the signature algorithm.
+ }
+ 
+-func isBoringSignatureScheme(alg SignatureScheme) bool {
++func isFIPSSignatureScheme(alg SignatureScheme) bool {
+ 	switch alg {
+ 	default:
+ 		return false
+@@ -140,7 +139,7 @@ func isBoringSignatureScheme(alg SignatureScheme) bool {
+ 	return true
+ }
+ 
+-func TestBoringServerCipherSuites(t *testing.T) {
++func TestFIPSServerCipherSuites(t *testing.T) {
+ 	serverConfig := testConfig.Clone()
+ 	serverConfig.Certificates = make([]Certificate, 1)
+ 
+@@ -170,11 +169,11 @@ func TestBoringServerCipherSuites(t *testing.T) {
+ 			}
+ 
+ 			testClientHello(t, serverConfig, clientHello)
+-			t.Run("fipstls", func(t *testing.T) {
+-				fipstls.Force()
+-				defer fipstls.Abandon()
++			t.Run("fips140tls", func(t *testing.T) {
++				fips140tls.Force()
++				defer fips140tls.TestingOnlyAbandon()
+ 				msg := ""
+-				if !isBoringCipherSuite(id) {
++				if !isFIPSCipherSuite(id) {
+ 					msg = "no cipher suite supported by both client and server"
+ 				}
+ 				testClientHelloFailure(t, serverConfig, clientHello, msg)
+@@ -183,7 +182,7 @@ func TestBoringServerCipherSuites(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBoringServerCurves(t *testing.T) {
++func TestFIPSServerCurves(t *testing.T) {
+ 	serverConfig := testConfig.Clone()
+ 	serverConfig.BuildNameToCertificate()
+ 
+@@ -199,14 +198,14 @@ func TestBoringServerCurves(t *testing.T) {
+ 				t.Fatalf("got error: %v, expected success", err)
+ 			}
+ 
+-			// With fipstls forced, bad curves should be rejected.
+-			t.Run("fipstls", func(t *testing.T) {
+-				fipstls.Force()
+-				defer fipstls.Abandon()
++			// With fips140tls forced, bad curves should be rejected.
++			t.Run("fips140tls", func(t *testing.T) {
++				fips140tls.Force()
++				defer fips140tls.TestingOnlyAbandon()
+ 				_, _, err := testHandshake(t, clientConfig, serverConfig)
+-				if err != nil && isBoringCurve(curveid) {
++				if err != nil && isFIPSCurve(curveid) {
+ 					t.Fatalf("got error: %v, expected success", err)
+-				} else if err == nil && !isBoringCurve(curveid) {
++				} else if err == nil && !isFIPSCurve(curveid) {
+ 					t.Fatalf("got success, expected error")
+ 				}
+ 			})
+@@ -214,7 +213,7 @@ func TestBoringServerCurves(t *testing.T) {
+ 	}
+ }
+ 
+-func boringHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr, serverErr error) {
++func fipsHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr, serverErr error) {
+ 	c, s := localPipe(t)
+ 	client := Client(c, clientConfig)
+ 	server := Server(s, serverConfig)
+@@ -229,7 +228,7 @@ func boringHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientEr
+ 	return
+ }
+ 
+-func TestBoringServerSignatureAndHash(t *testing.T) {
++func TestFIPSServerSignatureAndHash(t *testing.T) {
+ 	defer func() {
+ 		testingOnlyForceClientHelloSignatureAlgorithms = nil
+ 	}()
+@@ -261,17 +260,17 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
+ 			// 1.3, and the ECDSA ones bind to the curve used.
+ 			serverConfig.MaxVersion = VersionTLS12
+ 
+-			clientErr, serverErr := boringHandshake(t, testConfig, serverConfig)
++			clientErr, serverErr := fipsHandshake(t, testConfig, serverConfig)
+ 			if clientErr != nil {
+ 				t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
+ 			}
+ 
+-			// With fipstls forced, bad curves should be rejected.
+-			t.Run("fipstls", func(t *testing.T) {
+-				fipstls.Force()
+-				defer fipstls.Abandon()
+-				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
+-				if isBoringSignatureScheme(sigHash) {
++			// With fips140tls forced, bad curves should be rejected.
++			t.Run("fips140tls", func(t *testing.T) {
++				fips140tls.Force()
++				defer fips140tls.TestingOnlyAbandon()
++				clientErr, _ := fipsHandshake(t, testConfig, serverConfig)
++				if isFIPSSignatureScheme(sigHash) {
+ 					if clientErr != nil {
+ 						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
+ 					}
+@@ -285,11 +284,11 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBoringClientHello(t *testing.T) {
++func TestFIPSClientHello(t *testing.T) {
+ 	// Test that no matter what we put in the client config,
+ 	// the client does not offer non-FIPS configurations.
+-	fipstls.Force()
+-	defer fipstls.Abandon()
++	fips140tls.Force()
++	defer fips140tls.TestingOnlyAbandon()
+ 
+ 	c, s := net.Pipe()
+ 	defer c.Close()
+@@ -313,52 +312,57 @@ func TestBoringClientHello(t *testing.T) {
+ 		t.Fatalf("unexpected message type %T", msg)
+ 	}
+ 
+-	if !isBoringVersion(hello.vers) {
++	if !isFIPSVersion(hello.vers) {
+ 		t.Errorf("client vers=%#x", hello.vers)
+ 	}
+ 	for _, v := range hello.supportedVersions {
+-		if !isBoringVersion(v) {
++		if !isFIPSVersion(v) {
+ 			t.Errorf("client offered disallowed version %#x", v)
+ 		}
+ 	}
+ 	for _, id := range hello.cipherSuites {
+-		if !isBoringCipherSuite(id) {
++		if !isFIPSCipherSuite(id) {
+ 			t.Errorf("client offered disallowed suite %#x", id)
+ 		}
+ 	}
+ 	for _, id := range hello.supportedCurves {
+-		if !isBoringCurve(id) {
++		if !isFIPSCurve(id) {
+ 			t.Errorf("client offered disallowed curve %d", id)
+ 		}
+ 	}
+ 	for _, sigHash := range hello.supportedSignatureAlgorithms {
+-		if !isBoringSignatureScheme(sigHash) {
++		if !isFIPSSignatureScheme(sigHash) {
+ 			t.Errorf("client offered disallowed signature-and-hash %v", sigHash)
+ 		}
+ 	}
+ }
+ 
+-func TestBoringCertAlgs(t *testing.T) {
+-	// NaCl, arm and wasm time out generating keys. Nothing in this test is architecture-specific, so just don't bother on those.
+-	if runtime.GOOS == "nacl" || runtime.GOARCH == "arm" || runtime.GOOS == "js" {
++func TestFIPSCertAlgs(t *testing.T) {
++	// arm and wasm time out generating keys. Nothing in this test is
++	// architecture-specific, so just don't bother on those.
++	if testenv.CPUIsSlow() {
+ 		t.Skipf("skipping on %s/%s because key generation takes too long", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
+ 	// Set up some roots, intermediate CAs, and leaf certs with various algorithms.
+ 	// X_Y is X signed by Y.
+-	R1 := boringCert(t, "R1", boringRSAKey(t, 2048), nil, boringCertCA|boringCertFIPSOK)
+-	R2 := boringCert(t, "R2", boringRSAKey(t, 512), nil, boringCertCA)
++	R1 := fipsCert(t, "R1", fipsRSAKey(t, 2048), nil, fipsCertCA|fipsCertFIPSOK)
++	R2 := fipsCert(t, "R2", fipsRSAKey(t, 512), nil, fipsCertCA)
++	R3 := fipsCert(t, "R3", fipsRSAKey(t, 4096), nil, fipsCertCA|fipsCertFIPSOK)
++
++	M1_R1 := fipsCert(t, "M1_R1", fipsECDSAKey(t, elliptic.P256()), R1, fipsCertCA|fipsCertFIPSOK)
++	M2_R1 := fipsCert(t, "M2_R1", fipsECDSAKey(t, elliptic.P224()), R1, fipsCertCA)
+ 
+-	M1_R1 := boringCert(t, "M1_R1", boringECDSAKey(t, elliptic.P256()), R1, boringCertCA|boringCertFIPSOK)
+-	M2_R1 := boringCert(t, "M2_R1", boringECDSAKey(t, elliptic.P224()), R1, boringCertCA)
++	I_R1 := fipsCert(t, "I_R1", fipsRSAKey(t, 3072), R1, fipsCertCA|fipsCertFIPSOK)
++	I_R2 := fipsCert(t, "I_R2", I_R1.key, R2, fipsCertCA|fipsCertFIPSOK)
++	I_M1 := fipsCert(t, "I_M1", I_R1.key, M1_R1, fipsCertCA|fipsCertFIPSOK)
++	I_M2 := fipsCert(t, "I_M2", I_R1.key, M2_R1, fipsCertCA|fipsCertFIPSOK)
+ 
+-	I_R1 := boringCert(t, "I_R1", boringRSAKey(t, 3072), R1, boringCertCA|boringCertFIPSOK)
+-	I_R2 := boringCert(t, "I_R2", I_R1.key, R2, boringCertCA|boringCertFIPSOK)
+-	I_M1 := boringCert(t, "I_M1", I_R1.key, M1_R1, boringCertCA|boringCertFIPSOK)
+-	I_M2 := boringCert(t, "I_M2", I_R1.key, M2_R1, boringCertCA|boringCertFIPSOK)
++	I_R3 := fipsCert(t, "I_R3", fipsRSAKey(t, 3072), R3, fipsCertCA|fipsCertFIPSOK)
++	fipsCert(t, "I_R3", I_R3.key, R3, fipsCertCA|fipsCertFIPSOK)
+ 
+-	L1_I := boringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
+-	L2_I := boringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
++	L1_I := fipsCert(t, "L1_I", fipsECDSAKey(t, elliptic.P384()), I_R1, fipsCertLeaf|fipsCertFIPSOK)
++	L2_I := fipsCert(t, "L2_I", fipsRSAKey(t, 1024), I_R1, fipsCertLeaf)
+ 
+ 	// client verifying server cert
+ 	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key interface{}, list [][]byte, ok bool) {
+@@ -371,7 +375,7 @@ func TestBoringCertAlgs(t *testing.T) {
+ 		serverConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
+ 		serverConfig.BuildNameToCertificate()
+ 
+-		clientErr, _ := boringHandshake(t, clientConfig, serverConfig)
++		clientErr, _ := fipsHandshake(t, clientConfig, serverConfig)
+ 
+ 		if (clientErr == nil) == ok {
+ 			if ok {
+@@ -398,7 +402,7 @@ func TestBoringCertAlgs(t *testing.T) {
+ 		serverConfig.ClientCAs = pool
+ 		serverConfig.ClientAuth = RequireAndVerifyClientCert
+ 
+-		_, serverErr := boringHandshake(t, clientConfig, serverConfig)
++		_, serverErr := fipsHandshake(t, clientConfig, serverConfig)
+ 
+ 		if (serverErr == nil) == ok {
+ 			if ok {
+@@ -421,10 +425,10 @@ func TestBoringCertAlgs(t *testing.T) {
+ 	r1pool.AddCert(R1.cert)
+ 	testServerCert(t, "basic", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+ 	testClientCert(t, "basic (client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+-	fipstls.Force()
++	fips140tls.Force()
+ 	testServerCert(t, "basic (fips)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+ 	testClientCert(t, "basic (fips, client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+-	fipstls.Abandon()
++	fips140tls.TestingOnlyAbandon()
+ 
+ 	if t.Failed() {
+ 		t.Fatal("basic test failed, skipping exhaustive test")
+@@ -445,7 +449,7 @@ func TestBoringCertAlgs(t *testing.T) {
+ 			reachableFIPS := map[string]bool{leaf.parentOrg: leaf.fipsOK}
+ 			list := [][]byte{leaf.der}
+ 			listName := leaf.name
+-			addList := func(cond int, c *boringCertificate) {
++			addList := func(cond int, c *fipsCertificate) {
+ 				if cond != 0 {
+ 					list = append(list, c.der)
+ 					listName += "," + c.name
+@@ -469,7 +473,7 @@ func TestBoringCertAlgs(t *testing.T) {
+ 				rootName := ","
+ 				shouldVerify := false
+ 				shouldVerifyFIPS := false
+-				addRoot := func(cond int, c *boringCertificate) {
++				addRoot := func(cond int, c *fipsCertificate) {
+ 					if cond != 0 {
+ 						rootName += "," + c.name
+ 						pool.AddCert(c.cert)
+@@ -486,22 +490,22 @@ func TestBoringCertAlgs(t *testing.T) {
+ 				rootName = rootName[1:] // strip leading comma
+ 				testServerCert(t, listName+"->"+rootName[1:], pool, leaf.key, list, shouldVerify)
+ 				testClientCert(t, listName+"->"+rootName[1:]+"(client cert)", pool, leaf.key, list, shouldVerify)
+-				fipstls.Force()
++				fips140tls.Force()
+ 				testServerCert(t, listName+"->"+rootName[1:]+" (fips)", pool, leaf.key, list, shouldVerifyFIPS)
+ 				testClientCert(t, listName+"->"+rootName[1:]+" (fips, client cert)", pool, leaf.key, list, shouldVerifyFIPS)
+-				fipstls.Abandon()
++				fips140tls.TestingOnlyAbandon()
+ 			}
+ 		}
+ 	}
+ }
+ 
+ const (
+-	boringCertCA = iota
+-	boringCertLeaf
+-	boringCertFIPSOK = 0x80
++	fipsCertCA = iota
++	fipsCertLeaf
++	fipsCertFIPSOK = 0x80
+ )
+ 
+-func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
++func fipsRSAKey(t *testing.T, size int) *rsa.PrivateKey {
+ 	k, err := rsa.GenerateKey(rand.Reader, size)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -509,7 +513,7 @@ func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
+ 	return k
+ }
+ 
+-func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
++func fipsECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
+ 	k, err := ecdsa.GenerateKey(curve, rand.Reader)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -517,7 +521,7 @@ func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
+ 	return k
+ }
+ 
+-type boringCertificate struct {
++type fipsCertificate struct {
+ 	name      string
+ 	org       string
+ 	parentOrg string
+@@ -527,7 +531,7 @@ type boringCertificate struct {
+ 	fipsOK    bool
+ }
+ 
+-func boringCert(t *testing.T, name string, key interface{}, parent *boringCertificate, mode int) *boringCertificate {
++func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificate, mode int) *fipsCertificate {
+ 	org := name
+ 	parentOrg := ""
+ 	if i := strings.Index(org, "_"); i >= 0 {
+@@ -546,7 +550,7 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
+ 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+ 		BasicConstraintsValid: true,
+ 	}
+-	if mode&^boringCertFIPSOK == boringCertLeaf {
++	if mode&^fipsCertFIPSOK == fipsCertLeaf {
+ 		tmpl.DNSNames = []string{"example.com"}
+ 	} else {
+ 		tmpl.IsCA = true
+@@ -564,11 +568,14 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
+ 	}
+ 
+ 	var pub interface{}
++	var desc string
+ 	switch k := key.(type) {
+ 	case *rsa.PrivateKey:
+ 		pub = &k.PublicKey
++		desc = fmt.Sprintf("RSA-%d", k.N.BitLen())
+ 	case *ecdsa.PrivateKey:
+ 		pub = &k.PublicKey
++		desc = "ECDSA-" + k.Curve.Params().Name
+ 	default:
+ 		t.Fatalf("invalid key %T", key)
+ 	}
+@@ -582,8 +589,15 @@ func boringCert(t *testing.T, name string, key interface{}, parent *boringCertif
+ 		t.Fatal(err)
+ 	}
+ 
+-	fipsOK := mode&boringCertFIPSOK != 0
+-	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
++	fips140tls.Force()
++	defer fips140tls.TestingOnlyAbandon()
++
++	fipsOK := mode&fipsCertFIPSOK != 0
++	if fipsAllowCert(cert) != fipsOK {
++		t.Errorf("fipsAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
++	}
++
++	return &fipsCertificate{name, org, parentOrg, der, cert, key, fipsOK}
+ }
+ 
+ // A self-signed test certificate with an RSA key of size 2048, for testing
+diff --git a/src/crypto/tls/fipsonly/fipsonly.go b/src/crypto/tls/fipsonly/fipsonly.go
+index e5e47835e2..e702f44e98 100644
+--- a/src/crypto/tls/fipsonly/fipsonly.go
++++ b/src/crypto/tls/fipsonly/fipsonly.go
+@@ -19,11 +19,11 @@ package fipsonly
+ // new source file and not modifying any existing source files.
+ 
+ import (
+-	"crypto/internal/boring/fipstls"
+ 	"crypto/internal/boring/sig"
++	"crypto/tls/internal/fips140tls"
+ )
+ 
+ func init() {
+-	fipstls.Force()
++	fips140tls.Force()
+ 	sig.FIPSOnly()
+ }
+diff --git a/src/crypto/tls/fipsonly/fipsonly_test.go b/src/crypto/tls/fipsonly/fipsonly_test.go
+index f8485dc3ca..027bc22c33 100644
+--- a/src/crypto/tls/fipsonly/fipsonly_test.go
++++ b/src/crypto/tls/fipsonly/fipsonly_test.go
+@@ -7,12 +7,12 @@
+ package fipsonly
+ 
+ import (
+-	"crypto/internal/boring/fipstls"
++	"crypto/tls/internal/fips140tls"
+ 	"testing"
+ )
+ 
+ func Test(t *testing.T) {
+-	if !fipstls.Required() {
+-		t.Fatal("fipstls.Required() = false, must be true")
++	if !fips140tls.Required() {
++		t.Fatal("fips140tls.Required() = false, must be true")
+ 	}
+ }
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index be88278e45..2ee1136b79 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -15,6 +15,7 @@ import (
+ 	"crypto/internal/hpke"
+ 	"crypto/rsa"
+ 	"crypto/subtle"
++	"crypto/tls/internal/fips140tls"
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
+@@ -142,7 +143,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCon
+ 		if len(hello.supportedVersions) == 1 {
+ 			hello.cipherSuites = nil
+ 		}
+-		if needFIPS() {
++		if fips140tls.Required() {
+ 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13FIPS...)
+ 		} else if hasAESGCMHardwareSupport {
+ 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
+@@ -632,11 +633,11 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
+ 		return errors.New("tls: server chose an unconfigured cipher suite")
+ 	}
+ 
+-	if hs.c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
++	if hs.c.config.CipherSuites == nil && !fips140tls.Required() && rsaKexCiphers[hs.suite.id] {
+ 		tlsrsakex.Value() // ensure godebug is initialized
+ 		tlsrsakex.IncNonDefault()
+ 	}
+-	if hs.c.config.CipherSuites == nil && !needFIPS() && tdesCiphers[hs.suite.id] {
++	if hs.c.config.CipherSuites == nil && !fips140tls.Required() && tdesCiphers[hs.suite.id] {
+ 		tls3des.Value() // ensure godebug is initialized
+ 		tls3des.IncNonDefault()
+ 	}
+@@ -1112,8 +1113,13 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 			for _, cert := range certs[1:] {
+ 				opts.Intermediates.AddCert(cert)
+ 			}
+-			var err error
+-			c.verifiedChains, err = certs[0].Verify(opts)
++			chains, err := certs[0].Verify(opts)
++			if err != nil {
++				c.sendAlert(alertBadCertificate)
++				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
++			}
++
++			c.verifiedChains, err = fipsAllowedChains(chains)
+ 			if err != nil {
+ 				c.sendAlert(alertBadCertificate)
+ 				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+@@ -1130,8 +1136,13 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 		for _, cert := range certs[1:] {
+ 			opts.Intermediates.AddCert(cert)
+ 		}
+-		var err error
+-		c.verifiedChains, err = certs[0].Verify(opts)
++		chains, err := certs[0].Verify(opts)
++		if err != nil {
++			c.sendAlert(alertBadCertificate)
++			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
++		}
++
++		c.verifiedChains, err = fipsAllowedChains(chains)
+ 		if err != nil {
+ 			c.sendAlert(alertBadCertificate)
+ 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 740c149d92..6fb1755a2f 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/ed25519"
+ 	"crypto/rsa"
+ 	"crypto/subtle"
++	"crypto/tls/internal/fips140tls"
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
+@@ -372,11 +373,11 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	}
+ 	c.cipherSuite = hs.suite.id
+ 
+-	if c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
++	if c.config.CipherSuites == nil && !fips140tls.Required() && rsaKexCiphers[hs.suite.id] {
+ 		tlsrsakex.Value() // ensure godebug is initialized
+ 		tlsrsakex.IncNonDefault()
+ 	}
+-	if c.config.CipherSuites == nil && !needFIPS() && tdesCiphers[hs.suite.id] {
++	if c.config.CipherSuites == nil && !fips140tls.Required() && tdesCiphers[hs.suite.id] {
+ 		tls3des.Value() // ensure godebug is initialized
+ 		tls3des.IncNonDefault()
+ 	}
+@@ -923,7 +924,11 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
+ 			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+ 		}
+ 
+-		c.verifiedChains = chains
++		c.verifiedChains, err = fipsAllowedChains(chains)
++		if err != nil {
++			c.sendAlert(alertBadCertificate)
++			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
++		}
+ 	}
+ 
+ 	c.peerCertificates = certs
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index c2349ad4a4..64c6b1349c 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/internal/fips140/mlkem"
+ 	"crypto/internal/fips140/tls13"
+ 	"crypto/rsa"
++	"crypto/tls/internal/fips140tls"
+ 	"errors"
+ 	"hash"
+ 	"internal/byteorder"
+@@ -162,7 +163,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
+ 		preferenceList = defaultCipherSuitesTLS13NoAES
+ 	}
+-	if needFIPS() {
++	if fips140tls.Required() {
+ 		preferenceList = defaultCipherSuitesTLS13FIPS
+ 	}
+ 	for _, suiteID := range preferenceList {
+diff --git a/src/crypto/tls/internal/fips140tls/fipstls.go b/src/crypto/tls/internal/fips140tls/fipstls.go
+new file mode 100644
+index 0000000000..24d78d60cf
+--- /dev/null
++++ b/src/crypto/tls/internal/fips140tls/fipstls.go
+@@ -0,0 +1,37 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fips140tls controls whether crypto/tls requires FIPS-approved settings.
++package fips140tls
++
++import (
++	"crypto/internal/fips140"
++	"sync/atomic"
++)
++
++var required atomic.Bool
++
++func init() {
++	if fips140.Enabled {
++		Force()
++	}
++}
++
++// Force forces crypto/tls to restrict TLS configurations to FIPS-approved settings.
++// By design, this call is impossible to undo (except in tests).
++func Force() {
++	required.Store(true)
++}
++
++// Required reports whether FIPS-approved settings are required.
++//
++// Required is true if FIPS 140-3 mode is enabled with GODEBUG=fips140=on, or if
++// the crypto/tls/fipsonly package is imported by a Go+BoringCrypto build.
++func Required() bool {
++	return required.Load()
++}
++
++func TestingOnlyAbandon() {
++	required.Store(false)
++}
+diff --git a/src/crypto/tls/notboring.go b/src/crypto/tls/notboring.go
+deleted file mode 100644
+index bdbc32e05b..0000000000
+--- a/src/crypto/tls/notboring.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !boringcrypto
+-
+-package tls
+-
+-func needFIPS() bool { return false }
+diff --git a/src/crypto/x509/boring.go b/src/crypto/x509/boring.go
+deleted file mode 100644
+index 095b58c315..0000000000
+--- a/src/crypto/x509/boring.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build boringcrypto
+-
+-package x509
+-
+-import (
+-	"crypto/ecdsa"
+-	"crypto/elliptic"
+-	"crypto/internal/boring/fipstls"
+-	"crypto/rsa"
+-)
+-
+-// boringAllowCert reports whether c is allowed to be used
+-// in a certificate chain by the current fipstls enforcement setting.
+-// It is called for each leaf, intermediate, and root certificate.
+-func boringAllowCert(c *Certificate) bool {
+-	if !fipstls.Required() {
+-		return true
+-	}
+-
+-	// The key must be RSA 2048, RSA 3072, RSA 4096,
+-	// or ECDSA P-256, P-384, P-521.
+-	switch k := c.PublicKey.(type) {
+-	default:
+-		return false
+-	case *rsa.PublicKey:
+-		if size := k.N.BitLen(); size != 2048 && size != 3072 && size != 4096 {
+-			return false
+-		}
+-	case *ecdsa.PublicKey:
+-		if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() && k.Curve != elliptic.P521() {
+-			return false
+-		}
+-	}
+-	return true
+-}
+diff --git a/src/crypto/x509/boring_test.go b/src/crypto/x509/boring_test.go
+deleted file mode 100644
+index 319ac61f49..0000000000
+--- a/src/crypto/x509/boring_test.go
++++ /dev/null
+@@ -1,144 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build boringcrypto
+-
+-package x509
+-
+-import (
+-	"crypto/ecdsa"
+-	"crypto/elliptic"
+-	"crypto/internal/boring/fipstls"
+-	"crypto/rand"
+-	"crypto/rsa"
+-	"crypto/x509/pkix"
+-	"fmt"
+-	"math/big"
+-	"strings"
+-	"testing"
+-	"time"
+-)
+-
+-const (
+-	boringCertCA = iota
+-	boringCertLeaf
+-	boringCertFIPSOK = 0x80
+-)
+-
+-func boringRSAKey(t *testing.T, size int) *rsa.PrivateKey {
+-	t.Helper()
+-	k, err := rsa.GenerateKey(rand.Reader, size)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return k
+-}
+-
+-func boringECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
+-	t.Helper()
+-	k, err := ecdsa.GenerateKey(curve, rand.Reader)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return k
+-}
+-
+-type boringCertificate struct {
+-	name      string
+-	org       string
+-	parentOrg string
+-	der       []byte
+-	cert      *Certificate
+-	key       interface{}
+-	fipsOK    bool
+-}
+-
+-func TestBoringAllowCert(t *testing.T) {
+-	R1 := testBoringCert(t, "R1", boringRSAKey(t, 2048), nil, boringCertCA|boringCertFIPSOK)
+-	R2 := testBoringCert(t, "R2", boringRSAKey(t, 512), nil, boringCertCA)
+-	R3 := testBoringCert(t, "R3", boringRSAKey(t, 4096), nil, boringCertCA|boringCertFIPSOK)
+-
+-	M1_R1 := testBoringCert(t, "M1_R1", boringECDSAKey(t, elliptic.P256()), R1, boringCertCA|boringCertFIPSOK)
+-	M2_R1 := testBoringCert(t, "M2_R1", boringECDSAKey(t, elliptic.P224()), R1, boringCertCA)
+-
+-	I_R1 := testBoringCert(t, "I_R1", boringRSAKey(t, 3072), R1, boringCertCA|boringCertFIPSOK)
+-	testBoringCert(t, "I_R2", I_R1.key, R2, boringCertCA|boringCertFIPSOK)
+-	testBoringCert(t, "I_M1", I_R1.key, M1_R1, boringCertCA|boringCertFIPSOK)
+-	testBoringCert(t, "I_M2", I_R1.key, M2_R1, boringCertCA|boringCertFIPSOK)
+-
+-	I_R3 := testBoringCert(t, "I_R3", boringRSAKey(t, 3072), R3, boringCertCA|boringCertFIPSOK)
+-	testBoringCert(t, "I_R3", I_R3.key, R3, boringCertCA|boringCertFIPSOK)
+-
+-	testBoringCert(t, "L1_I", boringECDSAKey(t, elliptic.P384()), I_R1, boringCertLeaf|boringCertFIPSOK)
+-	testBoringCert(t, "L2_I", boringRSAKey(t, 1024), I_R1, boringCertLeaf)
+-}
+-
+-func testBoringCert(t *testing.T, name string, key interface{}, parent *boringCertificate, mode int) *boringCertificate {
+-	org := name
+-	parentOrg := ""
+-	if i := strings.Index(org, "_"); i >= 0 {
+-		org = org[:i]
+-		parentOrg = name[i+1:]
+-	}
+-	tmpl := &Certificate{
+-		SerialNumber: big.NewInt(1),
+-		Subject: pkix.Name{
+-			Organization: []string{org},
+-		},
+-		NotBefore: time.Unix(0, 0),
+-		NotAfter:  time.Unix(0, 0),
+-
+-		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature,
+-		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth, ExtKeyUsageClientAuth},
+-		BasicConstraintsValid: true,
+-	}
+-	if mode&^boringCertFIPSOK == boringCertLeaf {
+-		tmpl.DNSNames = []string{"example.com"}
+-	} else {
+-		tmpl.IsCA = true
+-		tmpl.KeyUsage |= KeyUsageCertSign
+-	}
+-
+-	var pcert *Certificate
+-	var pkey interface{}
+-	if parent != nil {
+-		pcert = parent.cert
+-		pkey = parent.key
+-	} else {
+-		pcert = tmpl
+-		pkey = key
+-	}
+-
+-	var pub interface{}
+-	var desc string
+-	switch k := key.(type) {
+-	case *rsa.PrivateKey:
+-		pub = &k.PublicKey
+-		desc = fmt.Sprintf("RSA-%d", k.N.BitLen())
+-	case *ecdsa.PrivateKey:
+-		pub = &k.PublicKey
+-		desc = "ECDSA-" + k.Curve.Params().Name
+-	default:
+-		t.Fatalf("invalid key %T", key)
+-	}
+-
+-	der, err := CreateCertificate(rand.Reader, tmpl, pcert, pub, pkey)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	cert, err := ParseCertificate(der)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	// Tell isBoringCertificate to enforce FIPS restrictions for this check.
+-	fipstls.Force()
+-	defer fipstls.Abandon()
+-
+-	fipsOK := mode&boringCertFIPSOK != 0
+-	if boringAllowCert(cert) != fipsOK {
+-		t.Errorf("boringAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
+-	}
+-	return &boringCertificate{name, org, parentOrg, der, cert, key, fipsOK}
+-}
+diff --git a/src/crypto/x509/notboring.go b/src/crypto/x509/notboring.go
+deleted file mode 100644
+index c83a7272c9..0000000000
+--- a/src/crypto/x509/notboring.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !boringcrypto
+-
+-package x509
+-
+-func boringAllowCert(c *Certificate) bool { return true }
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 7170087287..60e376a8d5 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -708,13 +708,6 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		}
+ 	}
+ 
+-	if !boringAllowCert(c) {
+-		// IncompatibleUsage is not quite right here,
+-		// but it's also the "no chains found" error
+-		// and is close enough.
+-		return CertificateInvalidError{c, IncompatibleUsage, ""}
+-	}
+-
+ 	return nil
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c31beec72e..bbaedbfbd8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -488,9 +488,11 @@ var depsRules = `
+ 
+ 	FIPS < crypto/internal/fips140/check/checktest;
+ 
++	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
++
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+-	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
+-	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
++	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
++	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
+ 
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+ 	FIPS,
+@@ -556,7 +558,7 @@ var depsRules = `
+ 	< crypto/x509/internal/macos
+ 	< crypto/x509/pkix;
+ 
+-	crypto/internal/boring/fipstls, crypto/x509/pkix
++	crypto/tls/internal/fips140tls, crypto/x509/pkix
+ 	< crypto/x509
+ 	< crypto/tls;
+ 

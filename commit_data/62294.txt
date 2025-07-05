@@ -16,7 +16,41 @@ Date:   Tue Feb 18 20:40:58 2025 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go        | 4 ++--
  src/cmd/compile/internal/ir/sizeof_test.go | 3 ++-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 4a2e996569..5bd26fc145 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -24,12 +24,12 @@ type Expr interface {
+ // A miniExpr is a miniNode with extra fields common to expressions.
+ // TODO(rsc): Once we are sure about the contents, compact the bools
+ // into a bit field and leave extra bits available for implementations
+-// embedding miniExpr. Right now there are ~60 unused bits sitting here.
++// embedding miniExpr. Right now there are ~24 unused bits sitting here.
+ type miniExpr struct {
+ 	miniNode
++	flags bitset8
+ 	typ   *types.Type
+ 	init  Nodes // TODO(rsc): Don't require every Node to have an init
+-	flags bitset8
+ }
+ 
+ const (
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index ea74296315..1715bad0c1 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,8 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 184, 312},
+-		{Name{}, 96, 168},
++		{Name{}, 96, 160},
++		{miniExpr{}, 32, 48},
+ 	}
+ 
+ 	for _, tt := range tests {

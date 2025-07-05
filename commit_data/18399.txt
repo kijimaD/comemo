@@ -10,7 +10,32 @@ Date:   Sun Feb 2 12:58:45 2014 +0100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/54800045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6a79e64659..2ea7fe79fd 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -204,6 +204,7 @@ Joseph Holsten <joseph@josephholsten.com>
+ Josh Bleecher Snyder <josharian@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Josh Holland <jrh@joshh.co.uk>
++Joshua Chase <jcjoshuachase@gmail.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>
+ Julien Schmidt <google@julienschmidt.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6a73b5ba13..5e27b92cb5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -297,6 +297,7 @@ Josh Bleecher Snyder <josharian@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Josh Hoak <jhoak@google.com>
+ Josh Holland <jrh@joshh.co.uk>
++Joshua Chase <jcjoshuachase@gmail.com>
+ JP Sugarbroad <jpsugar@google.com>
+ Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+ Julian Phillips <julian@quantumfyre.co.uk>

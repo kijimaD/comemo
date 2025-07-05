@@ -7,6 +7,20 @@ Date:   Fri Dec 16 14:59:50 2011 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/5495060
-
+---
  misc/dashboard/app/build/key.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/app/build/key.go b/misc/dashboard/app/build/key.go
+index d19902a554..d31bef9da0 100644
+--- a/misc/dashboard/app/build/key.go
++++ b/misc/dashboard/app/build/key.go
+@@ -9,7 +9,7 @@ import "appengine"
+ // Delete this init function before deploying to production.
+ func init() {
+ 	if !appengine.IsDevAppServer() {
+-		panic("please read key.go")
++		panic("please read misc/dashboard/app/build/key.go")
+ 	}
+ }
+ 

@@ -9,6 +9,22 @@ Date:   Fri Sep 24 12:58:08 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2279041
-
+---
  src/cmd/gofmt/rewrite.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 3aaaebdd1a..6170a64f4d 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -203,6 +203,10 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
+ 	}
+ 
+ 	if pos != nil && pattern.Type() == positionType {
++		// use new position only if old position was valid in the first place
++		if old := pattern.Interface().(token.Position); !old.IsValid() {
++			return pattern
++		}
+ 		return pos
+ 	}
+ 

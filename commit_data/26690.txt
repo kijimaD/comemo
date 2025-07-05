@@ -9,6 +9,22 @@ Date:   Mon Feb 22 11:27:32 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mprof.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index fc73bbfbe1..3efa375d6a 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -506,9 +506,7 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
+ 		ok = true
+ 		i := 0
+ 		for mp := first; mp != nil; mp = mp.alllink {
+-			for s := range mp.createstack {
+-				p[i].Stack0[s] = uintptr(mp.createstack[s])
+-			}
++			p[i].Stack0 = mp.createstack
+ 			i++
+ 		}
+ 	}

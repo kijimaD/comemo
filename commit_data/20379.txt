@@ -8,6 +8,20 @@ Date:   Thu Sep 4 10:16:57 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/140990043
-
+---
  src/pkg/runtime/atomic_arm.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/atomic_arm.c b/src/pkg/runtime/atomic_arm.c
+index 5369820c09..487b128cbb 100644
+--- a/src/pkg/runtime/atomic_arm.c
++++ b/src/pkg/runtime/atomic_arm.c
+@@ -58,7 +58,7 @@ runtime·xchgp(void* volatile* addr, void* v)
+ void*
+ runtime·xchguintptr(void* volatile* addr, void* v)
+ {
+-	return runtime·xchg((uint32*)addr, (uint32)v);
++	return (void*)runtime·xchg((uint32*)addr, (uint32)v);
+ }
+ 
+ #pragma textflag NOSPLIT

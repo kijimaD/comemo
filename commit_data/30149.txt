@@ -26,6 +26,22 @@ Date:   Wed Oct 26 18:03:32 2016 +0200
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/stat_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/os/stat_plan9.go b/src/os/stat_plan9.go
+index 1ae165807f..274d0d86f3 100644
+--- a/src/os/stat_plan9.go
++++ b/src/os/stat_plan9.go
+@@ -31,6 +31,10 @@ func fileInfoFromStat(d *syscall.Dir) FileInfo {
+ 	if d.Mode&syscall.DMTMP != 0 {
+ 		fs.mode |= ModeTemporary
+ 	}
++	// Consider all files not served by #M as device files.
++	if d.Type != 'M' {
++		fs.mode |= ModeDevice
++	}
+ 	return fs
+ }
+ 

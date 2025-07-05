@@ -18,10 +18,312 @@ Date:   Fri Apr 26 12:49:23 2019 -0700
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/database/sql/convert.go           |  44 ++++++++++++++
  src/database/sql/convert_test.go      | 104 ++++++++++++++++++++++++++++++++++
  src/database/sql/driver/types.go      |  16 +++++-
  src/database/sql/driver/types_test.go |  14 +++++
  src/database/sql/sql_test.go          |  12 ++--
  5 files changed, 183 insertions(+), 7 deletions(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 7a3b5fa7da..4c056a1eda 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -288,6 +288,11 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
+ 			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
+ 			return nil
+ 		}
++	case decimalDecompose:
++		switch d := dest.(type) {
++		case decimalCompose:
++			return d.Compose(s.Decompose(nil))
++		}
+ 	case nil:
+ 		switch d := dest.(type) {
+ 		case *interface{}:
+@@ -553,3 +558,42 @@ func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
+ 	}
+ 	return vr.Value()
+ }
++
++// decimal composes or decomposes a decimal value to and from individual parts.
++// There are four parts: a boolean negative flag, a form byte with three possible states
++// (finite=0, infinite=1, NaN=2), a base-2 big-endian integer
++// coefficient (also known as a significand) as a []byte, and an int32 exponent.
++// These are composed into a final value as "decimal = (neg) (form=finite) coefficient * 10 ^ exponent".
++// A zero length coefficient is a zero value.
++// The big-endian integer coefficent stores the most significant byte first (at coefficent[0]).
++// If the form is not finite the coefficient and exponent should be ignored.
++// The negative parameter may be set to true for any form, although implementations are not required
++// to respect the negative parameter in the non-finite form.
++//
++// Implementations may choose to set the negative parameter to true on a zero or NaN value,
++// but implementations that do not differentiate between negative and positive
++// zero or NaN values should ignore the negative parameter without error.
++// If an implementation does not support Infinity it may be converted into a NaN without error.
++// If a value is set that is larger than what is supported by an implementation,
++// an error must be returned.
++// Implementations must return an error if a NaN or Infinity is attempted to be set while neither
++// are supported.
++//
++// NOTE(kardianos): This is an experimental interface. See https://golang.org/issue/30870
++type decimal interface {
++	decimalDecompose
++	decimalCompose
++}
++
++type decimalDecompose interface {
++	// Decompose returns the internal decimal state in parts.
++	// If the provided buf has sufficient capacity, buf may be returned as the coefficient with
++	// the value set and length set as appropriate.
++	Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32)
++}
++
++type decimalCompose interface {
++	// Compose sets the internal decimal value from parts. If the value cannot be
++	// represented then an error should be returned.
++	Compose(form byte, negative bool, coefficient []byte, exponent int32) error
++}
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index 412f0b1823..8a82891c25 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -494,3 +494,107 @@ func TestDriverArgs(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type dec struct {
++	form        byte
++	neg         bool
++	coefficient [16]byte
++	exponent    int32
++}
++
++func (d dec) Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32) {
++	coef := make([]byte, 16)
++	copy(coef, d.coefficient[:])
++	return d.form, d.neg, coef, d.exponent
++}
++
++func (d *dec) Compose(form byte, negative bool, coefficient []byte, exponent int32) error {
++	switch form {
++	default:
++		return fmt.Errorf("unknown form %d", form)
++	case 1, 2:
++		d.form = form
++		d.neg = negative
++		return nil
++	case 0:
++	}
++	d.form = form
++	d.neg = negative
++	d.exponent = exponent
++
++	// This isn't strictly correct, as the extra bytes could be all zero,
++	// ignore this for this test.
++	if len(coefficient) > 16 {
++		return fmt.Errorf("coefficent too large")
++	}
++	copy(d.coefficient[:], coefficient)
++
++	return nil
++}
++
++type decFinite struct {
++	neg         bool
++	coefficient [16]byte
++	exponent    int32
++}
++
++func (d decFinite) Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32) {
++	coef := make([]byte, 16)
++	copy(coef, d.coefficient[:])
++	return 0, d.neg, coef, d.exponent
++}
++
++func (d *decFinite) Compose(form byte, negative bool, coefficient []byte, exponent int32) error {
++	switch form {
++	default:
++		return fmt.Errorf("unknown form %d", form)
++	case 1, 2:
++		return fmt.Errorf("unsupported form %d", form)
++	case 0:
++	}
++	d.neg = negative
++	d.exponent = exponent
++
++	// This isn't strictly correct, as the extra bytes could be all zero,
++	// ignore this for this test.
++	if len(coefficient) > 16 {
++		return fmt.Errorf("coefficent too large")
++	}
++	copy(d.coefficient[:], coefficient)
++
++	return nil
++}
++
++func TestDecimal(t *testing.T) {
++	list := []struct {
++		name string
++		in   decimalDecompose
++		out  dec
++		err  bool
++	}{
++		{name: "same", in: dec{exponent: -6}, out: dec{exponent: -6}},
++
++		// Ensure reflection is not used to assign the value by using different types.
++		{name: "diff", in: decFinite{exponent: -6}, out: dec{exponent: -6}},
++
++		{name: "bad-form", in: dec{form: 200}, err: true},
++	}
++	for _, item := range list {
++		t.Run(item.name, func(t *testing.T) {
++			out := dec{}
++			err := convertAssign(&out, item.in)
++			if item.err {
++				if err == nil {
++					t.Fatalf("unexpected nil error")
++				}
++				return
++			}
++			if err != nil {
++				t.Fatalf("unexpected error: %v", err)
++			}
++			if !reflect.DeepEqual(out, item.out) {
++				t.Fatalf("got %#v want %#v", out, item.out)
++			}
++		})
++	}
++}
+diff --git a/src/database/sql/driver/types.go b/src/database/sql/driver/types.go
+index 64b41faaa8..24c3a45483 100644
+--- a/src/database/sql/driver/types.go
++++ b/src/database/sql/driver/types.go
+@@ -180,6 +180,8 @@ func IsValue(v interface{}) bool {
+ 	switch v.(type) {
+ 	case []byte, bool, float64, int64, string, time.Time:
+ 		return true
++	case decimalDecompose:
++		return true
+ 	}
+ 	return false
+ }
+@@ -236,7 +238,8 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+ 		return v, nil
+ 	}
+ 
+-	if vr, ok := v.(Valuer); ok {
++	switch vr := v.(type) {
++	case Valuer:
+ 		sv, err := callValuerValue(vr)
+ 		if err != nil {
+ 			return nil, err
+@@ -245,6 +248,10 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+ 			return nil, fmt.Errorf("non-Value type %T returned from Value", sv)
+ 		}
+ 		return sv, nil
++
++	// For now, continue to prefer the Valuer interface over the decimal decompose interface.
++	case decimalDecompose:
++		return vr, nil
+ 	}
+ 
+ 	rv := reflect.ValueOf(v)
+@@ -281,3 +288,10 @@ func (defaultConverter) ConvertValue(v interface{}) (Value, error) {
+ 	}
+ 	return nil, fmt.Errorf("unsupported type %T, a %s", v, rv.Kind())
+ }
++
++type decimalDecompose interface {
++	// Decompose returns the internal decimal state into parts.
++	// If the provided buf has sufficient capacity, buf may be returned as the coefficient with
++	// the value set and length set as appropriate.
++	Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32)
++}
+diff --git a/src/database/sql/driver/types_test.go b/src/database/sql/driver/types_test.go
+index 0379bf8892..4c2996da85 100644
+--- a/src/database/sql/driver/types_test.go
++++ b/src/database/sql/driver/types_test.go
+@@ -57,6 +57,7 @@ var valueConverterTests = []valueConverterTest{
+ 	{DefaultParameterConverter, bs{1}, []byte{1}, ""},
+ 	{DefaultParameterConverter, s("a"), "a", ""},
+ 	{DefaultParameterConverter, is{1}, nil, "unsupported type driver.is, a slice of int"},
++	{DefaultParameterConverter, dec{exponent: -6}, dec{exponent: -6}, ""},
+ }
+ 
+ func TestValueConverters(t *testing.T) {
+@@ -79,3 +80,16 @@ func TestValueConverters(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type dec struct {
++	form        byte
++	neg         bool
++	coefficient [16]byte
++	exponent    int32
++}
++
++func (d dec) Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32) {
++	coef := make([]byte, 16)
++	copy(coef, d.coefficient[:])
++	return d.form, d.neg, coef, d.exponent
++}
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index a95b70cadb..f68cefe43a 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -3606,7 +3606,7 @@ type nvcConn struct {
+ 	skipNamedValueCheck bool
+ }
+ 
+-type decimal struct {
++type decimalInt struct {
+ 	value int
+ }
+ 
+@@ -3630,7 +3630,7 @@ func (c *nvcConn) CheckNamedValue(nv *driver.NamedValue) error {
+ 			nv.Value = "OUT:*string"
+ 		}
+ 		return nil
+-	case decimal, []int64:
++	case decimalInt, []int64:
+ 		return nil
+ 	case doNotInclude:
+ 		return driver.ErrRemoveArgument
+@@ -3659,13 +3659,13 @@ func TestNamedValueChecker(t *testing.T) {
+ 	}
+ 
+ 	o1 := ""
+-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimal{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
++	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A,str1=?,out1=?O1,array1=?", Named("A", decimalInt{123}), "hello", Named("O1", Out{Dest: &o1}), []int64{42, 128, 707}, doNotInclude{})
+ 	if err != nil {
+ 		t.Fatal("exec insert", err)
+ 	}
+ 	var (
+ 		str1 string
+-		dec1 decimal
++		dec1 decimalInt
+ 		arr1 []int64
+ 	)
+ 	err = db.QueryRowContext(ctx, "SELECT|keys|dec1,str1,array1|").Scan(&dec1, &str1, &arr1)
+@@ -3675,7 +3675,7 @@ func TestNamedValueChecker(t *testing.T) {
+ 
+ 	list := []struct{ got, want interface{} }{
+ 		{o1, "from-server"},
+-		{dec1, decimal{123}},
++		{dec1, decimalInt{123}},
+ 		{str1, "hello"},
+ 		{arr1, []int64{42, 128, 707}},
+ 	}
+@@ -3708,7 +3708,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
+ 		t.Fatal("exec create", err)
+ 	}
+ 
+-	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimal{123}))
++	_, err = db.ExecContext(ctx, "INSERT|keys|dec1=?A", Named("A", decimalInt{123}))
+ 	if err == nil {
+ 		t.Fatalf("expected error with bad argument, got %v", err)
+ 	}

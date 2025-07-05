@@ -10,6 +10,20 @@ Date:   Sat Dec 5 17:24:48 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275712
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index a7c05c6c0f..990921189a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3361,7 +3361,7 @@ out:
+ 
+ // type check function definition
+ // To be called by typecheck, not directly.
+-// (Call typecheckfn instead.)
++// (Call typecheckFunc instead.)
+ func typecheckfunc(n *ir.Func) {
+ 	if enableTrace && base.Flag.LowerT {
+ 		defer tracePrint("typecheckfunc", n)(nil)

@@ -11,6 +11,17 @@ Date:   Mon Jul 20 15:24:03 2015 -0700
     Change-Id: Ibf0280d7cc14bf48927e25215de6b91c111983d9
     Reviewed-on: https://go-review.googlesource.com/12438
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/short_ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/short_ssa.go b/src/cmd/compile/internal/gc/testdata/short_ssa.go
+index 9427423ff3..1aa7d3e677 100644
+--- a/src/cmd/compile/internal/gc/testdata/short_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/short_ssa.go
+@@ -1,4 +1,4 @@
+-// compile
++// run
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

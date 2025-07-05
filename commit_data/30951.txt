@@ -11,6 +11,34 @@ Date:   Sat Dec 24 00:06:02 2016 -0800
     Change-Id: I37dd8b1cd7279abe7810deaf8a5d485c5c3b73ca
     Reviewed-on: https://go-review.googlesource.com/34714
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/fixedbugs/issue6772.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/test/fixedbugs/issue6772.go b/test/fixedbugs/issue6772.go
+new file mode 100644
+index 0000000000..4d0001c870
+--- /dev/null
++++ b/test/fixedbugs/issue6772.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f1() {
++	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :="
++		println(a)
++	}
++}
++
++func f2() {
++	var a int
++	for a, a := range []int{1, 2, 3} { // ERROR "a repeated on left side of :="
++		println(a)
++	}
++	println(a)
++}

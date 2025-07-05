@@ -19,7 +19,141 @@ Date:   Thu Sep 16 18:22:06 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Carlos Amedee <carlos@golang.org>
-
+---
  src/time/time.go      | 30 ++++++++++++++++++++++++------
  src/time/time_test.go | 32 +++++++++++++++++++++++++++++++-
  2 files changed, 55 insertions(+), 7 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 1919ebbc2c..edf0c62610 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1162,19 +1162,26 @@ func (t Time) UnixNano() int64 {
+ 	return (t.unixSec())*1e9 + int64(t.nsec())
+ }
+ 
+-const timeBinaryVersion byte = 1
++const (
++	timeBinaryVersionV1 byte = iota + 1 // For general situation
++	timeBinaryVersionV2                 // For LMT only
++)
+ 
+ // MarshalBinary implements the encoding.BinaryMarshaler interface.
+ func (t Time) MarshalBinary() ([]byte, error) {
+ 	var offsetMin int16 // minutes east of UTC. -1 is UTC.
++	var offsetSec int8
++	version := timeBinaryVersionV1
+ 
+ 	if t.Location() == UTC {
+ 		offsetMin = -1
+ 	} else {
+ 		_, offset := t.Zone()
+ 		if offset%60 != 0 {
+-			return nil, errors.New("Time.MarshalBinary: zone offset has fractional minute")
++			version = timeBinaryVersionV2
++			offsetSec = int8(offset % 60)
+ 		}
++
+ 		offset /= 60
+ 		if offset < -32768 || offset == -1 || offset > 32767 {
+ 			return nil, errors.New("Time.MarshalBinary: unexpected zone offset")
+@@ -1185,8 +1192,8 @@ func (t Time) MarshalBinary() ([]byte, error) {
+ 	sec := t.sec()
+ 	nsec := t.nsec()
+ 	enc := []byte{
+-		timeBinaryVersion, // byte 0 : version
+-		byte(sec >> 56),   // bytes 1-8: seconds
++		version,         // byte 0 : version
++		byte(sec >> 56), // bytes 1-8: seconds
+ 		byte(sec >> 48),
+ 		byte(sec >> 40),
+ 		byte(sec >> 32),
+@@ -1201,6 +1208,9 @@ func (t Time) MarshalBinary() ([]byte, error) {
+ 		byte(offsetMin >> 8), // bytes 13-14: zone offset in minutes
+ 		byte(offsetMin),
+ 	}
++	if version == timeBinaryVersionV2 {
++		enc = append(enc, byte(offsetSec))
++	}
+ 
+ 	return enc, nil
+ }
+@@ -1212,11 +1222,16 @@ func (t *Time) UnmarshalBinary(data []byte) error {
+ 		return errors.New("Time.UnmarshalBinary: no data")
+ 	}
+ 
+-	if buf[0] != timeBinaryVersion {
++	version := buf[0]
++	if version != timeBinaryVersionV1 && version != timeBinaryVersionV2 {
+ 		return errors.New("Time.UnmarshalBinary: unsupported version")
+ 	}
+ 
+-	if len(buf) != /*version*/ 1+ /*sec*/ 8+ /*nsec*/ 4+ /*zone offset*/ 2 {
++	wantLen := /*version*/ 1 + /*sec*/ 8 + /*nsec*/ 4 + /*zone offset*/ 2
++	if version == timeBinaryVersionV2 {
++		wantLen++
++	}
++	if len(buf) != wantLen {
+ 		return errors.New("Time.UnmarshalBinary: invalid length")
+ 	}
+ 
+@@ -1229,6 +1244,9 @@ func (t *Time) UnmarshalBinary(data []byte) error {
+ 
+ 	buf = buf[4:]
+ 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
++	if version == timeBinaryVersionV2 {
++		offset += int(buf[2])
++	}
+ 
+ 	*t = Time{}
+ 	t.wall = uint64(nsec)
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index cea5f2d3f5..e2fb897b6d 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -767,7 +767,6 @@ var notEncodableTimes = []struct {
+ 	time Time
+ 	want string
+ }{
+-	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 1)), "Time.MarshalBinary: zone offset has fractional minute"},
+ 	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -1*60)), "Time.MarshalBinary: unexpected zone offset"},
+ 	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", -32769*60)), "Time.MarshalBinary: unexpected zone offset"},
+ 	{Date(0, 1, 2, 3, 4, 5, 6, FixedZone("", 32768*60)), "Time.MarshalBinary: unexpected zone offset"},
+@@ -1437,6 +1436,37 @@ func TestMarshalBinaryZeroTime(t *testing.T) {
+ 	}
+ }
+ 
++func TestMarshalBinaryVersion2(t *testing.T) {
++	t0, err := Parse(RFC3339, "1880-01-01T00:00:00Z")
++	if err != nil {
++		t.Errorf("Failed to parse time, error = %v", err)
++	}
++	loc, err := LoadLocation("US/Eastern")
++	if err != nil {
++		t.Errorf("Failed to load location, error = %v", err)
++	}
++	t1 := t0.In(loc)
++	b, err := t1.MarshalBinary()
++	if err != nil {
++		t.Errorf("Failed to Marshal, error = %v", err)
++	}
++
++	t2 := Time{}
++	err = t2.UnmarshalBinary(b)
++	if err != nil {
++		t.Errorf("Failed to Unmarshal, error = %v", err)
++	}
++
++	if !(t0.Equal(t1) && t1.Equal(t2)) {
++		if !t0.Equal(t1) {
++			t.Errorf("The result t1: %+v after Marshal is not matched original t0: %+v", t1, t0)
++		}
++		if !t1.Equal(t2) {
++			t.Errorf("The result t2: %+v after Unmarshal is not matched original t1: %+v", t2, t1)
++		}
++	}
++}
++
+ // Issue 17720: Zero value of time.Month fails to print
+ func TestZeroMonthString(t *testing.T) {
+ 	if got, want := Month(0).String(), "%!Month(0)"; got != want {

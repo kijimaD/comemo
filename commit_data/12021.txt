@@ -7,7 +7,7 @@ Date:   Sat Feb 18 11:48:33 2012 +1100
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/5676071
-
+---
  src/pkg/archive/zip/example_test.go   | 75 +++++++++++++++++++++++++++++++++++
  src/pkg/crypto/md5/md5_test.go        | 13 +++++-
  src/pkg/crypto/sha1/sha1_test.go      | 12 +++++-
@@ -18,3 +18,434 @@ Date:   Sat Feb 18 11:48:33 2012 +1100
  src/pkg/net/url/example_test.go       | 41 +++++++++++++++++++
  src/pkg/sync/example_test.go          | 34 ++++++++++++++++
  9 files changed, 298 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/archive/zip/example_test.go b/src/pkg/archive/zip/example_test.go
+new file mode 100644
+index 0000000000..c2ed9e79ca
+--- /dev/null
++++ b/src/pkg/archive/zip/example_test.go
+@@ -0,0 +1,75 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package zip_test
++
++import (
++	"archive/zip"
++	"bytes"
++	"fmt"
++	"io"
++	"log"
++	"os"
++)
++
++func ExampleWriter() {
++	// Create a buffer to write our archive to.
++	buf := new(bytes.Buffer)
++
++	// Create a new zip archive.
++	w := zip.NewWriter(buf)
++
++	// Add some files to the archive.
++	var files = []struct {
++		Name, Body string
++	}{
++		{"readme.txt", "This archive contains some text files."},
++		{"gopher.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
++		{"todo.txt", "Get animal handling licence.\nWrite more examples."},
++	}
++	for _, file := range files {
++		f, err := w.Create(file.Name)
++		if err != nil {
++			log.Fatal(err)
++		}
++		_, err = f.Write([]byte(file.Body))
++		if err != nil {
++			log.Fatal(err)
++		}
++	}
++
++	// Make sure to check the error on Close.
++	err := w.Close()
++	if err != nil {
++		log.Fatal(err)
++	}
++}
++
++func ExampleReader() {
++	// Open a zip archive for reading.
++	r, err := zip.OpenReader("testdata/readme.zip")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer r.Close()
++
++	// Iterate through the files in the archive,
++	// printing some of their contents.
++	for _, f := range r.File {
++		fmt.Printf("Contents of %s:\n", f.Name)
++		rc, err := f.Open()
++		if err != nil {
++			log.Fatal(err)
++		}
++		_, err = io.CopyN(os.Stdout, rc, 68)
++		if err != nil {
++			log.Fatal(err)
++		}
++		rc.Close()
++		fmt.Println()
++	}
++	// Output:
++	// Contents of README:
++	// This is the source code repository for the Go programming language.
++}
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index b15e4668c3..aae875464f 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package md5
++package md5_test
+ 
+ import (
++	"crypto/md5"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -52,7 +53,7 @@ var golden = []md5Test{
+ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
+-		c := New()
++		c := md5.New()
+ 		for j := 0; j < 3; j++ {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+@@ -69,3 +70,11 @@ func TestGolden(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func ExampleNew() {
++	h := md5.New()
++	io.WriteString(h, "The fog is getting thicker!")
++	io.WriteString(h, "And Leon's getting laaarger!")
++	fmt.Printf("%x", h.Sum(nil))
++	// Output: e2c569be17396eca2a2e3c11578123ed
++}
+diff --git a/src/pkg/crypto/sha1/sha1_test.go b/src/pkg/crypto/sha1/sha1_test.go
+index c23df6c41e..2dc14ac986 100644
+--- a/src/pkg/crypto/sha1/sha1_test.go
++++ b/src/pkg/crypto/sha1/sha1_test.go
+@@ -4,9 +4,10 @@
+ 
+ // SHA1 hash algorithm.  See RFC 3174.
+ 
+-package sha1
++package sha1_test
+ 
+ import (
++	"crypto/sha1"
+ 	"fmt"
+ 	"io"
+ 	"testing"
+@@ -54,7 +55,7 @@ var golden = []sha1Test{
+ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
+-		c := New()
++		c := sha1.New()
+ 		for j := 0; j < 3; j++ {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+@@ -71,3 +72,10 @@ func TestGolden(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func ExampleNew() {
++	h := sha1.New()
++	io.WriteString(h, "His money is twice tainted: 'taint yours and 'taint mine.")
++	fmt.Printf("% x", h.Sum(nil))
++	// Output: 59 7f 6a 54 00 10 f9 4c 15 d7 18 06 a9 9a 2c 87 10 e7 47 bd
++}
+diff --git a/src/pkg/encoding/json/example_test.go b/src/pkg/encoding/json/example_test.go
+index e4bff41008..b8d150eda5 100644
+--- a/src/pkg/encoding/json/example_test.go
++++ b/src/pkg/encoding/json/example_test.go
+@@ -7,7 +7,10 @@ package json_test
+ import (
+ 	"encoding/json"
+ 	"fmt"
++	"io"
++	"log"
+ 	"os"
++	"strings"
+ )
+ 
+ func ExampleMarshal() {
+@@ -48,3 +51,33 @@ func ExampleUnmarshal() {
+ 	// Output:
+ 	// [{Name:Platypus Order:Monotremata} {Name:Quoll Order:Dasyuromorphia}]
+ }
++
++// This example uses a Decoder to decode a stream of distinct JSON values.
++func ExampleDecoder() {
++	const jsonStream = `
++		{"Name": "Ed", "Text": "Knock knock."}
++		{"Name": "Sam", "Text": "Who's there?"}
++		{"Name": "Ed", "Text": "Go fmt."}
++		{"Name": "Sam", "Text": "Go fmt who?"}
++		{"Name": "Ed", "Text": "Go fmt yourself!"}
++	`
++	type Message struct {
++		Name, Text string
++	}
++	dec := json.NewDecoder(strings.NewReader(jsonStream))
++	for {
++		var m Message
++		if err := dec.Decode(&m); err == io.EOF {
++			break
++		} else if err != nil {
++			log.Fatal(err)
++		}
++		fmt.Printf("%s: %s\n", m.Name, m.Text)
++	}
++	// Output:
++	// Ed: Knock knock.
++	// Sam: Who's there?
++	// Ed: Go fmt.
++	// Sam: Go fmt who?
++	// Ed: Go fmt yourself!
++}
+diff --git a/src/pkg/errors/errors_test.go b/src/pkg/errors/errors_test.go
+index c537eeb625..63c05d7185 100644
+--- a/src/pkg/errors/errors_test.go
++++ b/src/pkg/errors/errors_test.go
+@@ -5,29 +5,49 @@
+ package errors_test
+ 
+ import (
+-	. "errors"
++	"errors"
++	"fmt"
+ 	"testing"
+ )
+ 
+ func TestNewEqual(t *testing.T) {
+ 	// Different allocations should not be equal.
+-	if New("abc") == New("abc") {
++	if errors.New("abc") == errors.New("abc") {
+ 		t.Errorf(`New("abc") == New("abc")`)
+ 	}
+-	if New("abc") == New("xyz") {
++	if errors.New("abc") == errors.New("xyz") {
+ 		t.Errorf(`New("abc") == New("xyz")`)
+ 	}
+ 
+ 	// Same allocation should be equal to itself (not crash).
+-	err := New("jkl")
++	err := errors.New("jkl")
+ 	if err != err {
+ 		t.Errorf(`err != err`)
+ 	}
+ }
+ 
+ func TestErrorMethod(t *testing.T) {
+-	err := New("abc")
++	err := errors.New("abc")
+ 	if err.Error() != "abc" {
+ 		t.Errorf(`New("abc").Error() = %q, want %q`, err.Error(), "abc")
+ 	}
+ }
++
++func ExampleNew() {
++	err := errors.New("emit macho dwarf: elf header corrupted")
++	if err != nil {
++		fmt.Print(err)
++	}
++	// Output: emit macho dwarf: elf header corrupted
++}
++
++// The fmt package's Errorf function lets us use the package's formatting
++// features to create descriptive error messages.
++func ExampleNew_errorf() {
++	const name, id = "bimmler", 17
++	err := fmt.Errorf("user %q (id %d) not found", name, id)
++	if err != nil {
++		fmt.Print(err)
++	}
++	// Output: user "bimmler" (id 17) not found
++}
+diff --git a/src/pkg/errors/example_test.go b/src/pkg/errors/example_test.go
+new file mode 100644
+index 0000000000..0e86828f4e
+--- /dev/null
++++ b/src/pkg/errors/example_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package errors_test
++
++import (
++	"fmt"
++	"time"
++)
++
++// MyError is an error implementation that includes a time and message.
++type MyError struct {
++	When time.Time
++	What string
++}
++
++func (e MyError) Error() string {
++	return fmt.Sprintf("%v: %v", e.When, e.What)
++}
++
++func oops() error {
++	return MyError{
++		time.Date(1989, 3, 15, 22, 30, 0, 0, time.UTC),
++		"the file system has gone away",
++	}
++}
++
++func Example() {
++	if err := oops(); err != nil {
++		fmt.Println(err)
++	}
++	// Output: 1989-03-15 22:30:00 +0000 UTC: the file system has gone away
++}
+diff --git a/src/pkg/net/example_test.go b/src/pkg/net/example_test.go
+new file mode 100644
+index 0000000000..1a1c2edfea
+--- /dev/null
++++ b/src/pkg/net/example_test.go
+@@ -0,0 +1,35 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net_test
++
++import (
++	"io"
++	"log"
++	"net"
++)
++
++func ExampleListener() {
++	// Listen on TCP port 2000 on all interfaces.
++	l, err := net.Listen("tcp", ":2000")
++	if err != nil {
++		log.Fatal(err)
++	}
++	for {
++		// Wait for a connection. 
++		conn, err := l.Accept()
++		if err != nil {
++			log.Fatal(err)
++		}
++		// Handle the connection in a new goroutine.
++		// The loop then returns to accepting, so that
++		// multiple connections may be served concurrently.
++		go func(c net.Conn) {
++			// Echo all incoming data.
++			io.Copy(c, c)
++			// Shut down the connection.
++			c.Close()
++		}(conn)
++	}
++}
+diff --git a/src/pkg/net/url/example_test.go b/src/pkg/net/url/example_test.go
+new file mode 100644
+index 0000000000..56c5dc696a
+--- /dev/null
++++ b/src/pkg/net/url/example_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package url_test
++
++import (
++	"fmt"
++	"log"
++	"net/url"
++)
++
++func ExampleValues() {
++	v := url.Values{}
++	v.Set("name", "Ava")
++	v.Add("friend", "Jess")
++	v.Add("friend", "Sarah")
++	v.Add("friend", "Zoe")
++	// v.Encode() == "name=Ava&friend=Jess&friend=Sarah&friend=Zoe"
++	fmt.Println(v.Get("name"))
++	fmt.Println(v.Get("friend"))
++	fmt.Println(v["friend"])
++	// Output:
++	// Ava
++	// Jess
++	// [Jess Sarah Zoe]
++}
++
++func ExampleURL() {
++	u, err := url.Parse("http://bing.com/search?q=dotnet")
++	if err != nil {
++		log.Fatal(err)
++	}
++	u.Scheme = "https"
++	u.Host = "google.com"
++	q := u.Query()
++	q.Set("q", "golang")
++	u.RawQuery = q.Encode()
++	fmt.Println(u)
++	// Output: https://google.com/search?q=golang
++}
+diff --git a/src/pkg/sync/example_test.go b/src/pkg/sync/example_test.go
+new file mode 100644
+index 0000000000..1424b1e79e
+--- /dev/null
++++ b/src/pkg/sync/example_test.go
+@@ -0,0 +1,34 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sync_test
++
++import (
++	"net/http"
++	"sync"
++)
++
++// This example fetches several URLs concurrently,
++// using a WaitGroup to block until all the fetches are complete.
++func ExampleWaitGroup() {
++	var wg sync.WaitGroup
++	var urls = []string{
++		"http://www.golang.org/",
++		"http://www.google.com/",
++		"http://www.somestupidname.com/",
++	}
++	for _, url := range urls {
++		// Increment the WaitGroup counter.
++		wg.Add(1)
++		// Launch a goroutine to fetch the URL.
++		go func(url string) {
++			// Fetch the URL.
++			http.Get(url)
++			// Decrement the counter.
++			wg.Done()
++		}(url)
++	}
++	// Wait for all HTTP fetches to complete.
++	wg.Wait()
++}

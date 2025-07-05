@@ -7,8 +7,81 @@ Date:   Sat May 21 08:00:53 2011 -0700
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/4538083
-
+---
  src/cmd/5l/asm.c  | 7 +------
  src/cmd/5l/obj.c  | 3 +--
  src/cmd/5l/span.c | 2 --
  3 files changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 3463a82b3f..9e9c2c1ebb 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -295,15 +295,12 @@ asmb(void)
+ {
+ 	int32 t;
+ 	int a, dynsym;
+-	uint32 va, fo, w, symo, startva, elfsymo, elfstro, elfsymsize;
+-	int strtabsize;
++	uint32 fo, symo, startva, elfsymo, elfstro, elfsymsize;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+ 	ElfShdr *sh;
+ 	Section *sect;
+ 
+-	strtabsize = 0;
+-
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+@@ -467,9 +464,7 @@ asmb(void)
+ 		/* elf arm */
+ 		eh = getElfEhdr();
+ 		fo = HEADR;
+-		va = INITTEXT;
+ 		startva = INITTEXT - fo;	/* va of byte 0 of file */
+-		w = textsize;
+ 		
+ 		/* This null SHdr must appear before all others */
+ 		sh = newElfShdr(elfstr[ElfStrEmpty]);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 29c3b3d83d..96ba0010fa 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -412,7 +412,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ {
+ 	int32 ipc;
+ 	Prog *p;
+-	Sym *h[NSYM], *s, *di;
++	Sym *h[NSYM], *s;
+ 	int v, o, r, skip;
+ 	uint32 sig;
+ 	char *name;
+@@ -424,7 +424,6 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	lastp = nil;
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+-	di = S;
+ 	src[0] = 0;
+ 
+ newloop:
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index be6b3767ef..4067f1a327 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -168,7 +168,6 @@ span(void)
+ 	Optab *o;
+ 	int m, bflag, i, v;
+ 	int32 c, otxt, out[6];
+-	int lastthumb = -1;
+ 	Section *sect;
+ 	uchar *bp;
+ 
+@@ -187,7 +186,6 @@ span(void)
+ 		p->pc = c;
+ 		cursym->value = c;
+ 
+-		lastthumb = thumb;
+ 		autosize = p->to.offset + 4;
+ 		if(p->from.sym != S)
+ 			p->from.sym->value = c;

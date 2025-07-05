@@ -10,7 +10,56 @@ Date:   Mon Jan 2 13:41:39 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/34793
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go  | 20 ++++++++++++++++++++
  src/cmd/go/testflag.go |  4 ++--
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f7ea6c8bbd..5727eb094e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1885,6 +1885,26 @@ func TestGoTestCpuprofileDashOControlsBinaryLocation(t *testing.T) {
+ 	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -cpuprofile -o myerrors.test did not create myerrors.test")
+ }
+ 
++func TestGoTestMutexprofileLeavesBinaryBehind(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	// TODO: tg.parallel()
++	tg.makeTempdir()
++	tg.cd(tg.path("."))
++	tg.run("test", "-mutexprofile", "errors.prof", "errors")
++	tg.wantExecutable("errors.test"+exeSuffix, "go test -mutexprofile did not create errors.test")
++}
++
++func TestGoTestMutexprofileDashOControlsBinaryLocation(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	// TODO: tg.parallel()
++	tg.makeTempdir()
++	tg.cd(tg.path("."))
++	tg.run("test", "-mutexprofile", "errors.prof", "-o", "myerrors.test"+exeSuffix, "errors")
++	tg.wantExecutable("myerrors.test"+exeSuffix, "go test -mutexprofile -o myerrors.test did not create myerrors.test")
++}
++
+ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index cf4d2b47ff..fa53bfcdf0 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -151,10 +151,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				testBench = true
+ 			case "timeout":
+ 				testTimeout = value
+-			case "blockprofile", "cpuprofile", "memprofile":
++			case "blockprofile", "cpuprofile", "memprofile", "mutexprofile":
+ 				testProfile = true
+ 				testNeedBinary = true
+-			case "mutexprofile", "trace":
++			case "trace":
+ 				testProfile = true
+ 			case "coverpkg":
+ 				testCover = true

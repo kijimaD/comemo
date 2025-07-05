@@ -24,8 +24,129 @@ Date:   Wed Jun 1 06:41:08 2016 -0400
     Change-Id: I8980b34e7a64eb98153540e9e19a3782e20406ff
     Reviewed-on: https://go-review.googlesource.com/23792
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/flagalloc.go | 29 ++++++++++++++++++-----------
  src/cmd/compile/internal/ssa/schedule.go  | 27 ++++++++++++++++++++++++++-
  src/cmd/compile/internal/ssa/tighten.go   |  5 ++++-
  3 files changed, 48 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index 85c75e99d6..1aa82a3947 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -95,18 +95,9 @@ func flagalloc(f *Func) {
+ 					continue
+ 				}
+ 				// Recalculate a
+-				var c1 *Value
+-				if a.Op == OpARMCarry {
+-					// Pseudo-op does not generate flags, its arg actually does
+-					//TODO: generalize this condition?
+-					c1 = a.Args[0].copyInto(b)
+-				}
+-				c := a.copyInto(b)
++				c := copyFlags(a, b)
+ 				// Update v.
+ 				v.SetArg(i, c)
+-				if c1 != nil {
+-					c.SetArg(0, c1)
+-				}
+ 				// Remember the most-recently computed flag value.
+ 				flag = a
+ 			}
+@@ -128,7 +119,7 @@ func flagalloc(f *Func) {
+ 		if v := end[b.ID]; v != nil && v != flag {
+ 			// Need to reissue flag generator for use by
+ 			// subsequent blocks.
+-			_ = v.copyInto(b)
++			copyFlags(v, b)
+ 			// Note: this flag generator is not properly linked up
+ 			// with the flag users. This breaks the SSA representation.
+ 			// We could fix up the users with another pass, but for now
+@@ -142,3 +133,19 @@ func flagalloc(f *Func) {
+ 		b.FlagsLiveAtEnd = end[b.ID] != nil
+ 	}
+ }
++
++// copyFlags copies v (flag generator) into b, returns the copy.
++// If v's arg is also flags, copy recursively.
++func copyFlags(v *Value, b *Block) *Value {
++	flagsArgs := make(map[int]*Value)
++	for i, a := range v.Args {
++		if a.Type.IsFlags() || a.Type.IsTuple() {
++			flagsArgs[i] = copyFlags(a, b)
++		}
++	}
++	c := v.copyInto(b)
++	for i, a := range flagsArgs {
++		c.SetArg(i, a)
++	}
++	return c
++}
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 67efd089e3..856ee24617 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -211,6 +211,7 @@ func schedule(f *Func) {
+ 
+ 		// Schedule highest priority value, update use counts, repeat.
+ 		order = order[:0]
++		tuples := make(map[ID][]*Value)
+ 		for {
+ 			// Find highest priority schedulable value.
+ 			// Note that schedule is assembled backwards.
+@@ -222,7 +223,31 @@ func schedule(f *Func) {
+ 			v := heap.Pop(priq).(*Value)
+ 
+ 			// Add it to the schedule.
+-			order = append(order, v)
++			// Do not emit tuple-reading ops until we're ready to emit the tuple-generating op.
++			//TODO: maybe remove ReadTuple score above, if it does not help on performance
++			switch {
++			case v.Op == OpARMCarry || v.Op == OpARMLoweredSelect0:
++				if tuples[v.Args[0].ID] == nil {
++					tuples[v.Args[0].ID] = make([]*Value, 2)
++				}
++				tuples[v.Args[0].ID][0] = v
++			case v.Op == OpARMLoweredSelect1:
++				if tuples[v.Args[0].ID] == nil {
++					tuples[v.Args[0].ID] = make([]*Value, 2)
++				}
++				tuples[v.Args[0].ID][1] = v
++			case v.Type.IsTuple() && tuples[v.ID] != nil:
++				if tuples[v.ID][1] != nil {
++					order = append(order, tuples[v.ID][1])
++				}
++				if tuples[v.ID][0] != nil {
++					order = append(order, tuples[v.ID][0])
++				}
++				delete(tuples, v.ID)
++				fallthrough
++			default:
++				order = append(order, v)
++			}
+ 
+ 			// Update use counts of arguments.
+ 			for _, w := range v.Args {
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index ecb43c101d..7f800655b0 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -54,13 +54,16 @@ func tighten(f *Func) {
+ 		for _, b := range f.Blocks {
+ 			for i := 0; i < len(b.Values); i++ {
+ 				v := b.Values[i]
+-				if v.Op == OpPhi || v.Op == OpGetClosurePtr || v.Op == OpConvert || v.Op == OpArg {
++				switch v.Op {
++				case OpPhi, OpGetClosurePtr, OpConvert, OpArg, OpSelect0, OpSelect1:
+ 					// GetClosurePtr & Arg must stay in entry block.
+ 					// OpConvert must not float over call sites.
++					// Select{0,1} reads a tuple, it must stay with the tuple-generating op.
+ 					// TODO do we instead need a dependence edge of some sort for OpConvert?
+ 					// Would memory do the trick, or do we need something else that relates
+ 					// to safe point operations?
+ 					continue
++				default:
+ 				}
+ 				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
+ 					// We can't move values which have a memory arg - it might

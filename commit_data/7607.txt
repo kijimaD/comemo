@@ -7,8 +7,58 @@ Date:   Wed Mar 2 14:57:47 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4257045
-
+---
  src/clean.bash        | 11 +++--------
  test/bench/Makefile   | 14 ++++++++++++++
  test/bench/clean.bash |  4 ----
  3 files changed, 17 insertions(+), 12 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 5c1dded565..7969e2cd06 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -22,11 +22,6 @@ rm -f "$GOROOT"/lib/*.a
+ for i in lib9 libbio libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+ 	../test/bench ../test/garbage
+-do(
+-	cd "$GOROOT"/src/$i || exit 1
+-	if test -f clean.bash; then
+-		bash clean.bash --gomake $MAKE
+-	else
+-		$MAKE clean
+-	fi
+-)done
++do
++	gomake -C "$GOROOT/src/$i" clean
++done
+diff --git a/test/bench/Makefile b/test/bench/Makefile
+new file mode 100644
+index 0000000000..145fe0cea6
+--- /dev/null
++++ b/test/bench/Makefile
+@@ -0,0 +1,14 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../src/Make.inc
++
++all:
++	@echo "make clean or timing"
++
++timing:
++	./timing.sh
++
++clean:
++	rm -f [568].out *.[568]
+diff --git a/test/bench/clean.bash b/test/bench/clean.bash
+deleted file mode 100755
+index d56c0e3940..0000000000
+--- a/test/bench/clean.bash
++++ /dev/null
+@@ -1,4 +0,0 @@
+-#!/bin/sh
+-
+-OS=568
+-rm -f [$OS].out *.[$OS]

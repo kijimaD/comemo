@@ -13,6 +13,27 @@ Date:   Mon Aug 8 15:47:09 2022 -0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 760ae7df1e..5912438d09 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1127,6 +1127,15 @@ func dumpNode(w io.Writer, n Node, depth int) {
+ 		dumpNodeHeader(w, n)
+ 		return
+ 
++	case OLINKSYMOFFSET:
++		n := n.(*LinksymOffsetExpr)
++		fmt.Fprintf(w, "%+v-%v", n.Op(), n.Linksym)
++		// Offset is almost always 0, so only print when it's interesting.
++		if n.Offset_ != 0 {
++			fmt.Fprintf(w, "%+v", n.Offset_)
++		}
++		dumpNodeHeader(w, n)
++
+ 	case OASOP:
+ 		n := n.(*AssignOpStmt)
+ 		fmt.Fprintf(w, "%+v-%+v", n.Op(), n.AsOp)

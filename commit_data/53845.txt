@@ -11,7 +11,42 @@ Date:   Sun Sep 4 18:05:12 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/io/example_test.go | 3 +--
  src/io/multi_test.go   | 2 +-
  2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/io/example_test.go b/src/io/example_test.go
+index 419e449982..818020e9de 100644
+--- a/src/io/example_test.go
++++ b/src/io/example_test.go
+@@ -5,7 +5,6 @@
+ package io_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"log"
+@@ -239,7 +238,7 @@ func ExampleSeeker_Seek() {
+ func ExampleMultiWriter() {
+ 	r := strings.NewReader("some io.Reader stream to be read\n")
+ 
+-	var buf1, buf2 bytes.Buffer
++	var buf1, buf2 strings.Builder
+ 	w := io.MultiWriter(&buf1, &buf2)
+ 
+ 	if _, err := io.Copy(w, r); err != nil {
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index 679312c23b..7a24a8afc5 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -228,7 +228,7 @@ func TestMultiReaderCopy(t *testing.T) {
+ 
+ // Test that MultiWriter copies the input slice and is insulated from future modification.
+ func TestMultiWriterCopy(t *testing.T) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	slice := []Writer{&buf}
+ 	w := MultiWriter(slice...)
+ 	slice[0] = nil

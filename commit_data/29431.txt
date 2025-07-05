@@ -13,8 +13,284 @@ Date:   Fri Aug 26 10:50:12 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/order.go |  47 ++++++++----
  src/cmd/compile/internal/gc/walk.go  |  13 +++-
  test/fixedbugs/issue16870.go         | 140 +++++++++++++++++++++++++++++++++++
  3 files changed, 181 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 2512e4cedf..3fa414ff20 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -573,16 +573,29 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 		orderexprlist(n.List, order)
+ 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // i in i.(T)
+-		if isblank(n.List.First()) {
+-			order.out = append(order.out, n)
+-		} else {
++
++		var tmp1, tmp2 *Node
++		if !isblank(n.List.First()) {
+ 			typ := n.Rlist.First().Type
+-			tmp1 := ordertemp(typ, order, haspointers(typ))
+-			order.out = append(order.out, n)
++			tmp1 = ordertemp(typ, order, haspointers(typ))
++		}
++		if !isblank(n.List.Second()) && !n.List.Second().Type.IsBoolean() {
++			tmp2 = ordertemp(Types[TBOOL], order, false)
++		}
++
++		order.out = append(order.out, n)
++
++		if tmp1 != nil {
+ 			r := Nod(OAS, n.List.First(), tmp1)
+ 			r = typecheck(r, Etop)
+ 			ordermapassign(r, order)
+-			n.List.Set([]*Node{tmp1, n.List.Second()})
++			n.List.SetIndex(0, tmp1)
++		}
++		if tmp2 != nil {
++			r := okas(n.List.Second(), tmp2)
++			r = typecheck(r, Etop)
++			ordermapassign(r, order)
++			n.List.SetIndex(1, tmp2)
+ 		}
+ 
+ 		cleantemp(t, order)
+@@ -596,17 +609,12 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // arg to recv
+ 		ch := n.Rlist.First().Left.Type
+ 		tmp1 := ordertemp(ch.Elem(), order, haspointers(ch.Elem()))
+-		var tmp2 *Node
+-		if !isblank(n.List.Second()) {
+-			tmp2 = ordertemp(n.List.Second().Type, order, false)
+-		} else {
+-			tmp2 = ordertemp(Types[TBOOL], order, false)
+-		}
++		tmp2 := ordertemp(Types[TBOOL], order, false)
+ 		order.out = append(order.out, n)
+ 		r := Nod(OAS, n.List.First(), tmp1)
+ 		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+-		r = Nod(OAS, n.List.Second(), tmp2)
++		r = okas(n.List.Second(), tmp2)
+ 		r = typecheck(r, Etop)
+ 		ordermapassign(r, order)
+ 		n.List.Set([]*Node{tmp1, tmp2})
+@@ -882,8 +890,8 @@ func orderstmt(n *Node, order *Order) {
+ 							n2.Ninit.Append(tmp2)
+ 						}
+ 
+-						r.List.Set1(ordertemp(tmp1.Type, order, false))
+-						tmp2 = Nod(OAS, tmp1, r.List.First())
++						r.List.Set1(ordertemp(Types[TBOOL], order, false))
++						tmp2 = okas(tmp1, r.List.First())
+ 						tmp2 = typecheck(tmp2, Etop)
+ 						n2.Ninit.Append(tmp2)
+ 					}
+@@ -1206,3 +1214,12 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 	lineno = lno
+ 	return n
+ }
++
++// okas creates and returns an assignment of val to ok,
++// including an explicit conversion if necessary.
++func okas(ok, val *Node) *Node {
++	if !isblank(ok) {
++		val = conv(val, ok.Type)
++	}
++	return Nod(OAS, ok, val)
++}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 67a29374c7..927bcedc1b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -842,8 +842,9 @@ opswitch:
+ 		}
+ 		n1.Etype = 1 // addr does not escape
+ 		fn := chanfn("chanrecv2", 2, r.Left.Type)
+-		r = mkcall1(fn, n.List.Second().Type, init, typename(r.Left.Type), r.Left, n1)
+-		n = Nod(OAS, n.List.Second(), r)
++		ok := n.List.Second()
++		call := mkcall1(fn, ok.Type, init, typename(r.Left.Type), r.Left, n1)
++		n = Nod(OAS, ok, call)
+ 		n = typecheck(n, Etop)
+ 
+ 		// a,b = m[i];
+@@ -898,8 +899,8 @@ opswitch:
+ 		// mapaccess2* returns a typed bool, but due to spec changes,
+ 		// the boolean result of i.(T) is now untyped so we make it the
+ 		// same type as the variable on the lhs.
+-		if !isblank(n.List.Second()) {
+-			r.Type.Field(1).Type = n.List.Second().Type
++		if ok := n.List.Second(); !isblank(ok) && ok.Type.IsBoolean() {
++			r.Type.Field(1).Type = ok.Type
+ 		}
+ 		n.Rlist.Set1(r)
+ 		n.Op = OAS2FUNC
+@@ -933,6 +934,7 @@ opswitch:
+ 
+ 	case OAS2DOTTYPE:
+ 		e := n.Rlist.First() // i.(T)
++
+ 		// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
+ 		// It needs to be removed in all three places.
+ 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+@@ -957,6 +959,9 @@ opswitch:
+ 		if !isblank(ok) {
+ 			oktype = ok.Type
+ 		}
++		if !oktype.IsBoolean() {
++			Fatalf("orderstmt broken: got %L, want boolean", oktype)
++		}
+ 
+ 		fromKind := from.Type.iet()
+ 		toKind := t.iet()
+diff --git a/test/fixedbugs/issue16870.go b/test/fixedbugs/issue16870.go
+new file mode 100644
+index 0000000000..2309997cac
+--- /dev/null
++++ b/test/fixedbugs/issue16870.go
+@@ -0,0 +1,140 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"log"
++	"reflect"
++)
++
++func test(got, want interface{}) {
++	if !reflect.DeepEqual(got, want) {
++		log.Fatalf("got %v, want %v", got, want)
++	}
++}
++
++func main() {
++	var i int
++	var ip *int
++	var ok interface{}
++
++	// Channel receives.
++	c := make(chan int, 1)
++	c2 := make(chan int)
++
++	c <- 42
++	i, ok = <-c
++	test(i, 42)
++	test(ok, true)
++
++	c <- 42
++	_, ok = <-c
++	test(ok, true)
++
++	c <- 42
++	select {
++	case i, ok = <-c:
++		test(i, 42)
++		test(ok, true)
++	}
++
++	c <- 42
++	select {
++	case _, ok = <-c:
++		test(ok, true)
++	}
++
++	c <- 42
++	select {
++	case i, ok = <-c:
++		test(i, 42)
++		test(ok, true)
++	default:
++		log.Fatal("bad select")
++	}
++
++	c <- 42
++	select {
++	case _, ok = <-c:
++		test(ok, true)
++	default:
++		log.Fatal("bad select")
++	}
++
++	c <- 42
++	select {
++	case i, ok = <-c:
++		test(i, 42)
++		test(ok, true)
++	case <-c2:
++		log.Fatal("bad select")
++	}
++
++	c <- 42
++	select {
++	case _, ok = <-c:
++		test(ok, true)
++	case <-c2:
++		log.Fatal("bad select")
++	}
++
++	close(c)
++	i, ok = <-c
++	test(i, 0)
++	test(ok, false)
++
++	_, ok = <-c
++	test(ok, false)
++
++	// Map indexing.
++	m := make(map[int]int)
++
++	i, ok = m[0]
++	test(i, 0)
++	test(ok, false)
++
++	_, ok = m[0]
++	test(ok, false)
++
++	m[0] = 42
++	i, ok = m[0]
++	test(i, 42)
++	test(ok, true)
++
++	_, ok = m[0]
++	test(ok, true)
++
++	// Type assertions.
++	var u interface{}
++
++	i, ok = u.(int)
++	test(i, 0)
++	test(ok, false)
++
++	ip, ok = u.(*int)
++	test(ip, (*int)(nil))
++	test(ok, false)
++
++	_, ok = u.(int)
++	test(ok, false)
++
++	u = 42
++	i, ok = u.(int)
++	test(i, 42)
++	test(ok, true)
++
++	_, ok = u.(int)
++	test(ok, true)
++
++	u = &i
++	ip, ok = u.(*int)
++	test(ip, &i)
++	test(ok, true)
++
++	_, ok = u.(*int)
++	test(ok, true)
++}

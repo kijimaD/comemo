@@ -12,7 +12,38 @@ Date:   Fri Sep 1 13:00:51 2017 +1000
     Change-Id: Ie7b2a354f1e30c928b40888c51fc68e599a5444a
     Reviewed-on: https://go-review.googlesource.com/60830
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go          | 4 +++-
  src/cmd/go/internal/vet/vet.go | 4 +++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 5f7de4adc0..7de7e36e25 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -808,7 +808,9 @@
+ // The -n flag prints commands that would be executed.
+ // The -x flag prints commands as they are executed.
+ //
+-// For more about build flags, see 'go help build'.
++// The build flags supported by go vet are those that control package resolution
++// and execution, such as -n, -x, -v, -tags, and -toolexec.
++// For more about these flags, see 'go help build'.
+ //
+ // See also: go fmt, go fix.
+ //
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index ddacd085b0..79777817b4 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -28,7 +28,9 @@ For more about specifying packages, see 'go help packages'.
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
+-For more about build flags, see 'go help build'.
++The build flags supported by go vet are those that control package resolution
++and execution, such as -n, -x, -v, -tags, and -toolexec.
++For more about these flags, see 'go help build'.
+ 
+ See also: go fmt, go fix.
+ 	`,

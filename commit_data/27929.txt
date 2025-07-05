@@ -29,7 +29,7 @@ Date:   Tue Apr 19 08:31:04 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/compile/internal/gc/builtin.go         |  2 +
  src/cmd/compile/internal/gc/builtin/runtime.go |  2 +
  src/cmd/compile/internal/gc/go.go              |  3 ++
@@ -41,3 +41,450 @@ Date:   Tue Apr 19 08:31:04 2016 -0700
  src/runtime/hashmap_fast.go                    | 33 +++++++------
  src/runtime/map_test.go                        | 16 +++++++
  10 files changed, 110 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 411c7b8605..b593d11296 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -70,10 +70,12 @@ const runtimeimport = "" +
+ 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
+ 	"func @\"\".mapaccess1_fast64 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
+ 	"func @\"\".mapaccess1_faststr (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
++	"func @\"\".mapaccess1_fat (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any, @\"\".zero·5 *byte) (@\"\".val·1 *any)\n" +
+ 	"func @\"\".mapaccess2 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 *any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+ 	"func @\"\".mapaccess2_fast32 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+ 	"func @\"\".mapaccess2_fast64 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+ 	"func @\"\".mapaccess2_faststr (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
++	"func @\"\".mapaccess2_fat (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 *any, @\"\".zero·6 *byte) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+ 	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any, @\"\".val·4 *any)\n" +
+ 	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *any)\n" +
+ 	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any)\n" +
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 584368a144..e9316cb313 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -89,10 +89,12 @@ func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
+ func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapaccess1_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
++func mapaccess1_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any)
+ func mapaccess2(mapType *byte, hmap map[any]any, key *any) (val *any, pres bool)
+ func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+ func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
++func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
+ func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
+ func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+ func mapdelete(mapType *byte, hmap map[any]any, key *any)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index af9aaf0dae..87b6121c8e 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -175,6 +175,9 @@ var unsafepkg *Pkg // package unsafe
+ 
+ var trackpkg *Pkg // fake package for field tracking
+ 
++var mappkg *Pkg // fake package for map zero value
++var zerosize int64
++
+ var Tptr EType // either TPTR32 or TPTR64
+ 
+ var myimportpath string
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 37e8a17886..2afd262fed 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -137,6 +137,11 @@ func Main() {
+ 	typepkg = mkpkg("type")
+ 	typepkg.Name = "type"
+ 
++	// pseudo-package used for map zero values
++	mappkg = mkpkg("go.map")
++	mappkg.Name = "go.map"
++	mappkg.Prefix = "go.map"
++
+ 	goroot = obj.Getgoroot()
+ 	goos = obj.Getgoos()
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index b60f78f638..fab611fdb5 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -87,6 +87,11 @@ func dumpobj() {
+ 	dumpglobls()
+ 	externdcl = tmp
+ 
++	if zerosize > 0 {
++		zero := Pkglookup("zero", mappkg)
++		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
++	}
++
+ 	dumpdata()
+ 	obj.Writeobjdirect(Ctxt, bout.Writer)
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 5031045c64..4792f88abe 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1689,3 +1689,27 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 		}
+ 	}
+ }
++
++// zeroaddr returns the address of a symbol with at least
++// size bytes of zeros.
++func zeroaddr(size int64) *Node {
++	if size >= 1<<31 {
++		Fatalf("map value too big %d", size)
++	}
++	if zerosize < size {
++		zerosize = size
++	}
++	s := Pkglookup("zero", mappkg)
++	if s.Def == nil {
++		x := newname(s)
++		x.Type = Types[TUINT8]
++		x.Class = PEXTERN
++		x.Typecheck = 1
++		s.Def = x
++	}
++	z := Nod(OADDR, s.Def, nil)
++	z.Type = Ptrto(Types[TUINT8])
++	z.Addable = true
++	z.Typecheck = 1
++	return z
++}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 82ac74ae33..8cce85de9a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -864,8 +864,14 @@ opswitch:
+ 		//   a = *var
+ 		a := n.List.First()
+ 
+-		fn := mapfn(p, t)
+-		r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
++		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
++			fn := mapfn(p, t)
++			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
++		} else {
++			fn := mapfn("mapaccess2_fat", t)
++			z := zeroaddr(w)
++			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key, z)
++		}
+ 
+ 		// mapaccess2* returns a typed bool, but due to spec changes,
+ 		// the boolean result of i.(T) is now untyped so we make it the
+@@ -1222,7 +1228,13 @@ opswitch:
+ 			p = "mapaccess1"
+ 		}
+ 
+-		n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
++		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
++			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
++		} else {
++			p = "mapaccess1_fat"
++			z := zeroaddr(w)
++			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key, z)
++		}
+ 		n = Nod(OIND, n, nil)
+ 		n.Type = t.Val()
+ 		n.Typecheck = 1
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index 4f5d03d983..ff59faab5d 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -236,9 +236,6 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 		throw("need padding in bucket (value)")
+ 	}
+ 
+-	// make sure zeroptr is large enough
+-	mapzero(t.elem)
+-
+ 	// find size parameter which will hold the requested # of elements
+ 	B := uint8(0)
+ 	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
+@@ -283,7 +280,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		msanread(key, t.key.size)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
++		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -321,7 +318,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
++			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 	}
+ }
+@@ -337,7 +334,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		msanread(key, t.key.size)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -375,7 +372,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 	}
+ }
+@@ -426,6 +423,22 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
+ 	}
+ }
+ 
++func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointer {
++	v := mapaccess1(t, h, key)
++	if v == unsafe.Pointer(&zeroVal[0]) {
++		return zero
++	}
++	return v
++}
++
++func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
++	v := mapaccess1(t, h, key)
++	if v == unsafe.Pointer(&zeroVal[0]) {
++		return zero, false
++	}
++	return v, true
++}
++
+ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
+ 	if h == nil {
+ 		panic(plainError("assignment to entry in nil map"))
+@@ -1044,39 +1057,5 @@ func reflect_ismapkey(t *_type) bool {
+ 	return ismapkey(t)
+ }
+ 
+-var zerolock mutex
+-
+-const initialZeroSize = 1024
+-
+-var zeroinitial [initialZeroSize]byte
+-
+-// All accesses to zeroptr and zerosize must be atomic so that they
+-// can be accessed without locks in the common case.
+-var zeroptr unsafe.Pointer = unsafe.Pointer(&zeroinitial)
+-var zerosize uintptr = initialZeroSize
+-
+-// mapzero ensures that zeroptr points to a buffer large enough to
+-// serve as the zero value for t.
+-func mapzero(t *_type) {
+-	// Is the type small enough for existing buffer?
+-	cursize := uintptr(atomic.Loadp(unsafe.Pointer(&zerosize)))
+-	if t.size <= cursize {
+-		return
+-	}
+-
+-	// Allocate a new buffer.
+-	lock(&zerolock)
+-	cursize = uintptr(atomic.Loadp(unsafe.Pointer(&zerosize)))
+-	if cursize < t.size {
+-		for cursize < t.size {
+-			cursize *= 2
+-			if cursize == 0 {
+-				// need >2GB zero on 32-bit machine
+-				throw("map element too large")
+-			}
+-		}
+-		atomic.StorepNoWB(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
+-		atomic.StorepNoWB(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
+-	}
+-	unlock(&zerolock)
+-}
++const maxZero = 1024 // must match value in ../cmd/compile/internal/gc/walk.go
++var zeroVal [maxZero]byte
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index 6a5484edee..8f9bb5a6fc 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -5,7 +5,6 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -16,7 +15,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
++		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -50,7 +49,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
++			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 	}
+ }
+@@ -61,7 +60,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast32))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -95,7 +94,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 	}
+ }
+@@ -106,7 +105,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
++		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -140,7 +139,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
++			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 	}
+ }
+@@ -151,7 +150,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_fast64))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -185,7 +184,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 	}
+ }
+@@ -196,7 +195,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess1_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
++		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -220,7 +219,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
+ 				}
+ 			}
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
++			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+@@ -258,7 +257,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.valuesize))
+ 			}
+ 		}
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
++		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ dohash:
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+@@ -290,7 +289,7 @@ dohash:
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
++			return unsafe.Pointer(&zeroVal[0])
+ 		}
+ 	}
+ }
+@@ -301,7 +300,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapaccess2_faststr))
+ 	}
+ 	if h == nil || h.count == 0 {
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 	if h.flags&hashWriting != 0 {
+ 		throw("concurrent map read and map write")
+@@ -325,7 +324,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
+ 				}
+ 			}
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 		// long key, try not to do more comparisons than necessary
+ 		keymaybe := uintptr(bucketCnt)
+@@ -361,7 +360,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
+ 				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.valuesize)), true
+ 			}
+ 		}
+-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ dohash:
+ 	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
+@@ -393,7 +392,7 @@ dohash:
+ 		}
+ 		b = b.overflow(t)
+ 		if b == nil {
+-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
++			return unsafe.Pointer(&zeroVal[0]), false
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 9d2894cb6f..496f8e8868 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -317,6 +317,22 @@ func TestBigItems(t *testing.T) {
+ 	}
+ }
+ 
++func TestMapHugeZero(t *testing.T) {
++	type T [4000]byte
++	m := map[int]T{}
++	x := m[0]
++	if x != (T{}) {
++		t.Errorf("map value not zero")
++	}
++	y, ok := m[0]
++	if ok {
++		t.Errorf("map value should be missing")
++	}
++	if y != (T{}) {
++		t.Errorf("map value not zero")
++	}
++}
++
+ type empty struct {
+ }
+ 

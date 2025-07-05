@@ -7,7 +7,52 @@ Date:   Wed Feb 26 11:59:05 2020 -0500
     Change-Id: Ie5f48a542889be5d5a15c16b6bd8ce19ee0f5bdd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/221277
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  misc/boring/merge.sh   | 10 +++++-----
  misc/boring/release.sh |  4 +++-
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/misc/boring/merge.sh b/misc/boring/merge.sh
+index 9809b224b3..7f1a39c48e 100755
+--- a/misc/boring/merge.sh
++++ b/misc/boring/merge.sh
+@@ -9,7 +9,6 @@ if [ "$#" -ne 2 ]; then
+     exit 1
+ fi
+ 
+-set -x
+ TARGET="$1"
+ SOURCE="$2"
+ WORKTREE="$(mktemp -d)"
+@@ -20,11 +19,12 @@ git worktree add --track -b "$BRANCH" "$WORKTREE" "origin/$TARGET"
+ 
+ cd "$WORKTREE"
+ export GIT_GOFMT_HOOK=off
+-git merge -m "all: merge $SOURCE into $TARGET" "$SOURCE" || \
+-    (git rm VERSION && git commit -m "all: merge $SOURCE into $TARGET")
++git merge --no-commit "$SOURCE" || echo "Ignoring conflict..."
++[[ -f VERSION ]] && git rm -f VERSION
++git commit -m "all: merge $SOURCE into $TARGET"
+ 
+-if ! git log --format=%B -n 1 | grep "\[dev.boringcrypto"; then
+-    echo "The commit does not seem to be targeting a BoringCrypto branch."
++if ! git log --format=%B -n 1 | grep "\[$TARGET\] "; then
++    echo "The commit does not seem to be targeting the BoringCrypto branch."
+     exit 1
+ fi
+ 
+diff --git a/misc/boring/release.sh b/misc/boring/release.sh
+index 09a11db5c5..e7168bfbd8 100755
+--- a/misc/boring/release.sh
++++ b/misc/boring/release.sh
+@@ -8,7 +8,9 @@ if [ "$#" -eq 0 ]; then
+     exit 1
+ fi
+ 
+-set -x
++# Check that the Docker daemon is available.
++docker ps > /dev/null
++
+ WORKTREE="$(mktemp -d)"
+ BRANCH="boring/release-$(date +%Y%m%d%H%M%S)"
+ 

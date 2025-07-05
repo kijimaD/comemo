@@ -17,7 +17,62 @@ Date:   Wed Feb 27 20:43:29 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go |  7 +++++++
  test/fixedbugs/issue30476.go             | 30 ++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 8946cf6b5c..a265479316 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1220,6 +1220,13 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					// This forces later liveness analysis to make the
+ 					// value live at this point.
+ 					v.SetArg(0, s.makeSpill(a, b))
++				} else if _, ok := a.Aux.(GCNode); ok && vi.rematerializeable {
++					// Rematerializeable value with a gc.Node. This is the address of
++					// a stack object (e.g. an LEAQ). Keep the object live.
++					// Change it to VarLive, which is what plive expects for locals.
++					v.Op = OpVarLive
++					v.SetArgs1(v.Args[1])
++					v.Aux = a.Aux
+ 				} else {
+ 					// In-register and rematerializeable values are already live.
+ 					// These are typically rematerializeable constants like nil,
+diff --git a/test/fixedbugs/issue30476.go b/test/fixedbugs/issue30476.go
+new file mode 100644
+index 0000000000..a2147ec0c1
+--- /dev/null
++++ b/test/fixedbugs/issue30476.go
+@@ -0,0 +1,30 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 30476: KeepAlive didn't keep stack object alive.
++
++package main
++
++import "runtime"
++
++func main() {
++	x := new([10]int)
++	runtime.SetFinalizer(x, func(*[10]int) { panic("FAIL: finalizer runs") })
++	p := &T{x, 0}
++	use(p)
++	runtime.GC()
++	runtime.GC()
++	runtime.GC()
++	runtime.KeepAlive(p)
++}
++
++type T struct {
++	x *[10]int
++	y int
++}
++
++//go:noinline
++func use(*T) {}

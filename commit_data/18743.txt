@@ -11,6 +11,20 @@ Date:   Tue Mar 4 14:59:08 2014 -0500
     TBR=minux
     CC=golang-codereviews
     https://golang.org/cl/71260043
-
+---
  src/liblink/obj5.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 91d13d8c18..96d7aa052d 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -411,7 +411,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			}
+ 
+ 			if(!(p->reg & NOSPLIT))
+-				p = stacksplit(ctxt, p, autosize, !(cursym->text->from.scale&NEEDCTXT)); // emit split check
++				p = stacksplit(ctxt, p, autosize, !(cursym->text->reg&NEEDCTXT)); // emit split check
+ 			
+ 			// MOVW.W		R14,$-autosize(SP)
+ 			p = appendp(ctxt, p);

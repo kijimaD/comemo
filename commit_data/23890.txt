@@ -9,7 +9,55 @@ Date:   Thu Jun 11 12:04:30 2015 -0700
     Change-Id: Id981814a6e55a57403ce7a8ac45ab3ba081a3a86
     Reviewed-on: https://go-review.googlesource.com/10925
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 18 ++++++++++++++++++
  src/cmd/go/pkg.go     | 10 ++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 4360603326..0ba72b0486 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1830,3 +1830,21 @@ func TestGoGetRscIoToolstash(t *testing.T) {
+ 	tg.cd(tg.path("src/rsc.io"))
+ 	tg.run("get", "./toolstash")
+ }
++
++// Test that you can not import a main package.
++func TestIssue4210(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("src/x/main.go", `package main
++		var X int
++		func main() {}`)
++	tg.tempFile("src/y/main.go", `package main
++		import "fmt"
++		import xmain "x"
++		func main() {
++			fmt.Println(xmain.X)
++		}`)
++	tg.setenv("GOPATH", tg.path("."))
++	tg.runFail("build", "y")
++	tg.grepBoth("is a program", `did not find expected error message ("is a program")`)
++}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index cf3e8b38aa..71d6587116 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -631,6 +631,16 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 			continue
+ 		}
+ 		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
++		if p1.Name == "main" {
++			p.Error = &PackageError{
++				ImportStack: stk.copy(),
++				Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
++			}
++			pos := p.build.ImportPos[path]
++			if len(pos) > 0 {
++				p.Error.Pos = pos[0].String()
++			}
++		}
+ 		if p1.local {
+ 			if !p.local && p.Error == nil {
+ 				p.Error = &PackageError{

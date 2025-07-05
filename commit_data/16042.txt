@@ -13,9 +13,70 @@ Date:   Mon Apr 1 15:17:00 2013 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/8118047
-
+---
  src/cmd/go/doc.go          | 3 ++-
  src/cmd/go/mkdoc.sh        | 1 +
  src/cmd/go/test.go         | 3 ++-
  src/pkg/testing/testing.go | 6 ++++--
  4 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index a8a9b66aa0..498365f838 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -763,7 +763,8 @@ control the execution of any test:
+ 		If a test runs longer than t, panic.
+ 
+ 	-v
+-	    Verbose output: log all tests as they are run.
++	    Verbose output: log all tests as they are run. Also print all
++	    text from Log and Logf calls even if the test succeeds.
+ 
+ The test binary, called pkg.test where pkg is the name of the
+ directory containing the package sources, can be invoked directly
+diff --git a/src/cmd/go/mkdoc.sh b/src/cmd/go/mkdoc.sh
+index 7768baeb6b..12fd7ba3e7 100755
+--- a/src/cmd/go/mkdoc.sh
++++ b/src/cmd/go/mkdoc.sh
+@@ -3,6 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++go install # So the next line will produce updated documentation.
+ go help documentation > doc.go
+ gofmt -w doc.go
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index de69efe8f2..56046a8c71 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -153,7 +153,8 @@ control the execution of any test:
+ 		If a test runs longer than t, panic.
+ 
+ 	-v
+-	    Verbose output: log all tests as they are run.
++	    Verbose output: log all tests as they are run. Also print all
++	    text from Log and Logf calls even if the test succeeds.
+ 
+ The test binary, called pkg.test where pkg is the name of the
+ directory containing the package sources, can be invoked directly
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index d0c759e292..c834aa1f7e 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -246,11 +246,13 @@ func (c *common) log(s string) {
+ }
+ 
+ // Log formats its arguments using default formatting, analogous to Println,
+-// and records the text in the error log.
++// and records the text in the error log. The text will be printed only if
++// the test fails or the -test.v flag is set.
+ func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
+ 
+ // Logf formats its arguments according to the format, analogous to Printf,
+-// and records the text in the error log.
++// and records the text in the error log. The text will be printed only if
++// the test fails or the -test.v flag is set.
+ func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
+ 
+ // Error is equivalent to Log followed by Fail.

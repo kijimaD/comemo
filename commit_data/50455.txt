@@ -20,7 +20,7 @@ Date:   Mon Oct 25 09:13:16 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/358594
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go    |  5 ++-
  src/cmd/compile/internal/types2/conversions.go | 11 ++++--
  src/cmd/compile/internal/types2/expr.go        |  2 ++
@@ -29,3 +29,206 @@ Date:   Mon Oct 25 09:13:16 2021 -0700
  src/cmd/compile/internal/types2/typeparam.go   | 11 ++++++
  src/cmd/compile/internal/types2/typeset.go     | 46 ++++++++++++++------------
  7 files changed, 54 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 37e1f00d26..318894b69b 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -834,7 +834,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var terms []*Term
+-		if !tp.iface().typeSet().is(func(t *term) bool {
++		if !tp.is(func(t *term) bool {
++			if t == nil {
++				return false
++			}
+ 			if r := f(t.typ); r != nil {
+ 				terms = append(terms, NewTerm(t.tilde, r))
+ 				return true
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index a4fba28fce..8389770ce5 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -20,7 +20,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	var cause string
+ 	switch {
+ 	case constArg && isConstType(T):
+-		// constant conversion
++		// constant conversion (T cannot be a type parameter)
+ 		switch t := asBasic(T); {
+ 		case representableConst(x.val, check, t, &x.val):
+ 			ok = true
+@@ -94,8 +94,15 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
++	// determine type parameter operands with specific type terms
+ 	Vp, _ := under(x.typ).(*TypeParam)
+ 	Tp, _ := under(T).(*TypeParam)
++	if Vp != nil && !Vp.hasTerms() {
++		Vp = nil
++	}
++	if Tp != nil && !Tp.hasTerms() {
++		Tp = nil
++	}
+ 
+ 	errorf := func(format string, args ...interface{}) {
+ 		if check != nil && cause != nil {
+@@ -107,7 +114,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		}
+ 	}
+ 
+-	// generic cases
++	// generic cases with specific type terms
+ 	// (generic operands cannot be constants, so we can ignore x.val)
+ 	switch {
+ 	case Vp != nil && Tp != nil:
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 3a39de7406..9afe3b7f01 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -155,6 +155,8 @@ var op2str2 = [...]string{
+ 	syntax.Shl: "shift",
+ }
+ 
++// If typ is a type parameter, underIs returns the result of typ.underIs(f).
++// Otherwise, underIs returns the result of f(under(typ)).
+ func underIs(typ Type, f func(Type) bool) bool {
+ 	u := under(typ)
+ 	if tpar, _ := u.(*TypeParam); tpar != nil {
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index ad8c6ac412..142ae6cb33 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -320,7 +320,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 			}
+ 		}
+ 		return tset.is(func(t *term) bool {
+-			return w.isParameterized(t.typ)
++			return t != nil && w.isParameterized(t.typ)
+ 		})
+ 
+ 	case *Map:
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 5c8654dbf1..69426f4d03 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -273,6 +273,9 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 		if t, ok := under(T).(*TypeParam); ok {
+ 			return t.is(func(t *term) bool {
+ 				// TODO(gri) this could probably be more efficient
++				if t == nil {
++					return false
++				}
+ 				if t.tilde {
+ 					// TODO(gri) We need to check assignability
+ 					//           for the underlying type of x.
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index f7cdff0180..75e2fe8f0e 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -119,10 +119,21 @@ func (t *TypeParam) structuralType() Type {
+ 	return t.iface().typeSet().structuralType()
+ }
+ 
++// hasTerms reports whether the type parameter constraint has specific type terms.
++func (t *TypeParam) hasTerms() bool {
++	return t.iface().typeSet().hasTerms()
++}
++
++// is calls f with the specific type terms of t's constraint and reports whether
++// all calls to f returned true. If there are no specific terms, is
++// returns the result of f(nil).
+ func (t *TypeParam) is(f func(*term) bool) bool {
+ 	return t.iface().typeSet().is(f)
+ }
+ 
++// underIs calls f with the underlying types of the specific type terms
++// of t's constraint and reports whether all calls to f returned true.
++// If there are no specific terms, underIs returns the result of f(nil).
+ func (t *TypeParam) underIs(f func(Type) bool) bool {
+ 	return t.iface().typeSet().underIs(f)
+ }
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index f9e3af7ba8..c99d02744b 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -39,7 +39,7 @@ func (s *_TypeSet) IsComparable() bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return Comparable(t.typ)
++		return t != nil && Comparable(t.typ)
+ 	})
+ }
+ 
+@@ -101,27 +101,29 @@ func (s *_TypeSet) String() string {
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func (s *_TypeSet) hasTerms() bool              { return !s.terms.isEmpty() && !s.terms.isAll() }
+-func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
+-func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
++// hasTerms reports whether the type set has specific type terms.
++func (s *_TypeSet) hasTerms() bool { return !s.terms.isEmpty() && !s.terms.isAll() }
++
++// structuralType returns the single type in s if there is exactly one; otherwise the result is nil.
++func (s *_TypeSet) structuralType() Type { return s.terms.structuralType() }
++
++// includes reports whether t ∈ s.
++func (s *_TypeSet) includes(t Type) bool { return s.terms.includes(t) }
++
++// subsetOf reports whether s1 ⊆ s2.
+ func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }
+ 
+ // TODO(gri) TypeSet.is and TypeSet.underIs should probably also go into termlist.go
+ 
+-var topTerm = term{false, theTop}
+-
++// is calls f with the specific type terms of s and reports whether
++// all calls to f returned true. If there are no specific terms, is
++// returns the result of f(nil).
+ func (s *_TypeSet) is(f func(*term) bool) bool {
+-	if len(s.terms) == 0 {
+-		return false
++	if !s.hasTerms() {
++		return f(nil)
+ 	}
+ 	for _, t := range s.terms {
+-		// Terms represent the top term with a nil type.
+-		// The rest of the type checker uses the top type
+-		// instead. Convert.
+-		// TODO(gri) investigate if we can do without this
+-		if t.typ == nil {
+-			t = &topTerm
+-		}
++		assert(t.typ != nil)
+ 		if !f(t) {
+ 			return false
+ 		}
+@@ -129,17 +131,17 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
+ 	return true
+ }
+ 
++// underIs calls f with the underlying types of the specific type terms
++// of s and reports whether all calls to f returned true. If there are
++// no specific terms, is returns the result of f(nil).
+ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+-	if len(s.terms) == 0 {
+-		return false
++	if !s.hasTerms() {
++		return f(nil)
+ 	}
+ 	for _, t := range s.terms {
+-		// see corresponding comment in TypeSet.is
++		assert(t.typ != nil)
++		// x == under(x) for ~x terms
+ 		u := t.typ
+-		if u == nil {
+-			u = theTop
+-		}
+-		// t == under(t) for ~t terms
+ 		if !t.tilde {
+ 			u = under(u)
+ 		}

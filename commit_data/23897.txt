@@ -38,7 +38,7 @@ Date:   Tue Jun 9 12:09:12 2015 -0700
     Change-Id: I2c6527e777d14ac6dc43c53e4b3ff24f3279216e
     Reviewed-on: https://go-review.googlesource.com/10923
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/build.go                                |   8 +
  src/cmd/go/pkg.go                                  | 219 ++++++++++++++++++++-
  src/cmd/go/test.go                                 |  12 +-
@@ -57,3 +57,635 @@ Date:   Tue Jun 9 12:09:12 2015 -0700
  src/cmd/go/testdata/src/vend/x/x.go                |   5 +
  src/cmd/go/vendor_test.go                          | 117 +++++++++++
  17 files changed, 403 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b8f6b32536..49893de0ed 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2135,6 +2135,14 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 		gcargs = append(gcargs, "-buildid", p.buildID)
+ 	}
+ 
++	for _, path := range p.Imports {
++		if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
++			gcargs = append(gcargs, "-importmap", path[i+len("/vendor/"):]+"="+path)
++		} else if strings.HasPrefix(path, "vendor/") {
++			gcargs = append(gcargs, "-importmap", path[len("vendor/"):]+"="+path)
++		}
++	}
++
+ 	args := []interface{}{buildToolExec, tool("compile"), "-o", ofile, "-trimpath", b.work, buildGcflags, gcargs, "-D", p.localPrefix, importArgs}
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 71d6587116..3ba5235328 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -215,6 +215,12 @@ func reloadPackage(arg string, stk *importStack) *Package {
+ 	return loadPackage(arg, stk)
+ }
+ 
++// The Go 1.5 vendoring experiment is enabled by setting GO15VENDOREXPERIMENT=1.
++// The variable is obnoxiously long so that years from now when people find it in
++// their profiles and wonder what it does, there is some chance that a web search
++// might answer the question.
++var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") == "1"
++
+ // dirToImportPath returns the pseudo-import path we use for a package
+ // outside the Go path.  It begins with _/ and then contains the full path
+ // to the directory.  If the package lives in c:\home\gopher\my\pkg then
+@@ -239,7 +245,7 @@ func makeImportValid(r rune) rune {
+ // but possibly a local import path (an absolute file system path or one beginning
+ // with ./ or ../).  A local relative path is interpreted relative to srcDir.
+ // It returns a *Package describing the package found in that directory.
+-func loadImport(path string, srcDir string, stk *importStack, importPos []token.Position) *Package {
++func loadImport(path, srcDir string, parent *Package, stk *importStack, importPos []token.Position) *Package {
+ 	stk.push(path)
+ 	defer stk.pop()
+ 
+@@ -247,15 +253,25 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 	// For a local import the identifier is the pseudo-import path
+ 	// we create from the full directory to the package.
+ 	// Otherwise it is the usual import path.
++	// For vendored imports, it is the expanded form.
+ 	importPath := path
++	origPath := path
+ 	isLocal := build.IsLocalImport(path)
++	var vendorSearch []string
+ 	if isLocal {
+ 		importPath = dirToImportPath(filepath.Join(srcDir, path))
++	} else {
++		path, vendorSearch = vendoredImportPath(parent, path)
++		importPath = path
+ 	}
++
+ 	if p := packageCache[importPath]; p != nil {
+ 		if perr := disallowInternal(srcDir, p, stk); perr != p {
+ 			return perr
+ 		}
++		if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
++			return perr
++		}
+ 		return reusePackage(p, stk)
+ 	}
+ 
+@@ -271,11 +287,33 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
+ 	// See issue 3268 for mistakes to avoid.
+ 	bp, err := buildContext.Import(path, srcDir, build.ImportComment)
++
++	// If we got an error from go/build about package not found,
++	// it contains the directories from $GOROOT and $GOPATH that
++	// were searched. Add to that message the vendor directories
++	// that were searched.
++	if err != nil && len(vendorSearch) > 0 {
++		// NOTE(rsc): The direct text manipulation here is fairly awful,
++		// but it avoids defining new go/build API (an exported error type)
++		// late in the Go 1.5 release cycle. If this turns out to be a more general
++		// problem we could define a real error type when the decision can be
++		// considered more carefully.
++		text := err.Error()
++		if strings.Contains(text, "cannot find package \"") && strings.Contains(text, "\" in any of:\n\t") {
++			old := strings.SplitAfter(text, "\n")
++			lines := []string{old[0]}
++			for _, dir := range vendorSearch {
++				lines = append(lines, "\t"+dir+" (vendor tree)\n")
++			}
++			lines = append(lines, old[1:]...)
++			err = errors.New(strings.Join(lines, ""))
++		}
++	}
+ 	bp.ImportPath = importPath
+ 	if gobin != "" {
+ 		bp.BinDir = gobin
+ 	}
+-	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path {
++	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path && (!go15VendorExperiment || !strings.Contains(path, "/vendor/")) {
+ 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
+ 	}
+ 	p.load(stk, bp, err)
+@@ -288,10 +326,81 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 	if perr := disallowInternal(srcDir, p, stk); perr != p {
+ 		return perr
+ 	}
++	if perr := disallowVendor(srcDir, origPath, p, stk); perr != p {
++		return perr
++	}
+ 
+ 	return p
+ }
+ 
++var isDirCache = map[string]bool{}
++
++func isDir(path string) bool {
++	result, ok := isDirCache[path]
++	if ok {
++		return result
++	}
++
++	fi, err := os.Stat(path)
++	result = err == nil && fi.IsDir()
++	isDirCache[path] = result
++	return result
++}
++
++// vendoredImportPath returns the expansion of path when it appears in parent.
++// If parent is x/y/z, then path might expand to x/y/z/vendor/path, x/y/vendor/path,
++// x/vendor/path, vendor/path, or else stay x/y/z if none of those exist.
++// vendoredImportPath returns the expanded path or, if no expansion is found, the original.
++// If no epxansion is found, vendoredImportPath also returns a list of vendor directories
++// it searched along the way, to help prepare a useful error message should path turn
++// out not to exist.
++func vendoredImportPath(parent *Package, path string) (found string, searched []string) {
++	if parent == nil || !go15VendorExperiment {
++		return path, nil
++	}
++	dir := filepath.Clean(parent.Dir)
++	root := filepath.Clean(parent.Root)
++	if !strings.HasPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
++		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
++	}
++	vpath := "vendor/" + path
++	for i := len(dir); i >= len(root); i-- {
++		if i < len(dir) && dir[i] != filepath.Separator {
++			continue
++		}
++		// Note: checking for the vendor directory before checking
++		// for the vendor/path directory helps us hit the
++		// isDir cache more often. It also helps us prepare a more useful
++		// list of places we looked, to report when an import is not found.
++		if !isDir(filepath.Join(dir[:i], "vendor")) {
++			continue
++		}
++		targ := filepath.Join(dir[:i], vpath)
++		if isDir(targ) {
++			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
++			// We know the import path for parent's dir.
++			// We chopped off some number of path elements and
++			// added vendor\path to produce c:\gopath\src\foo\bar\baz\vendor\path.
++			// Now we want to know the import path for that directory.
++			// Construct it by chopping the same number of path elements
++			// (actually the same number of bytes) from parent's import path
++			// and then append /vendor/path.
++			chopped := len(dir) - i
++			if chopped == len(parent.ImportPath)+1 {
++				// We walked up from c:\gopath\src\foo\bar
++				// and found c:\gopath\src\vendor\path.
++				// We chopped \foo\bar (length 8) but the import path is "foo/bar" (length 7).
++				// Use "vendor/path" without any prefix.
++				return vpath, nil
++			}
++			return parent.ImportPath[:len(parent.ImportPath)-chopped] + "/" + vpath, nil
++		}
++		// Note the existence of a vendor directory in case path is not found anywhere.
++		searched = append(searched, targ)
++	}
++	return path, searched
++}
++
+ // reusePackage reuses package p to satisfy the import at the top
+ // of the import stack stk.  If this use causes an import loop,
+ // reusePackage updates p's error information to record the loop.
+@@ -384,6 +493,101 @@ func findInternal(path string) (index int, ok bool) {
+ 	return 0, false
+ }
+ 
++// disallowVendor checks that srcDir is allowed to import p as path.
++// If the import is allowed, disallowVendor returns the original package p.
++// If not, it returns a new package containing just an appropriate error.
++func disallowVendor(srcDir, path string, p *Package, stk *importStack) *Package {
++	if !go15VendorExperiment {
++		return p
++	}
++
++	// The stack includes p.ImportPath.
++	// If that's the only thing on the stack, we started
++	// with a name given on the command line, not an
++	// import. Anything listed on the command line is fine.
++	if len(*stk) == 1 {
++		return p
++	}
++
++	if perr := disallowVendorVisibility(srcDir, p, stk); perr != p {
++		return perr
++	}
++
++	// Paths like x/vendor/y must be imported as y, never as x/vendor/y.
++	if i, ok := findVendor(path); ok {
++		perr := *p
++		perr.Error = &PackageError{
++			ImportStack: stk.copy(),
++			Err:         "must be imported as " + path[i+len("vendor/"):],
++		}
++		perr.Incomplete = true
++		return &perr
++	}
++
++	return p
++}
++
++// disallowVendorVisibility checks that srcDir is allowed to import p.
++// The rules are the same as for /internal/ except that a path ending in /vendor
++// is not subject to the rules, only subdirectories of vendor.
++// This allows people to have packages and commands named vendor,
++// for maximal compatibility with existing source trees.
++func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Package {
++	// The stack includes p.ImportPath.
++	// If that's the only thing on the stack, we started
++	// with a name given on the command line, not an
++	// import. Anything listed on the command line is fine.
++	if len(*stk) == 1 {
++		return p
++	}
++
++	// Check for "vendor" element.
++	i, ok := findVendor(p.ImportPath)
++	if !ok {
++		return p
++	}
++
++	// Vendor is present.
++	// Map import path back to directory corresponding to parent of vendor.
++	if i > 0 {
++		i-- // rewind over slash in ".../vendor"
++	}
++	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
++	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
++		return p
++	}
++
++	// Vendor is present, and srcDir is outside parent's tree. Not allowed.
++	perr := *p
++	perr.Error = &PackageError{
++		ImportStack: stk.copy(),
++		Err:         "use of vendored package not allowed",
++	}
++	perr.Incomplete = true
++	return &perr
++}
++
++// findVendor looks for the last non-terminating "vendor" path element in the given import path.
++// If there isn't one, findVendor returns ok=false.
++// Otherwise, findInternal returns ok=true and the index of the "vendor".
++//
++// Note that terminating "vendor" elements don't count: "x/vendor" is its own package,
++// not the vendored copy of an import "" (the empty import path).
++// This will allow people to have packages or commands named vendor.
++// This may help reduce breakage, or it may just be confusing. We'll see.
++func findVendor(path string) (index int, ok bool) {
++	// Two cases, depending on internal at start of string or not.
++	// The order matters: we must return the index of the final element,
++	// because the final one is where the effective import path starts.
++	switch {
++	case strings.Contains(path, "/vendor/"):
++		return strings.LastIndex(path, "/vendor/") + 1, true
++	case strings.HasPrefix(path, "vendor/"):
++		return 0, true
++	}
++	return 0, false
++}
++
+ type targetDir int
+ 
+ const (
+@@ -630,7 +834,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		if path == "C" {
+ 			continue
+ 		}
+-		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
++		p1 := loadImport(path, p.Dir, p, stk, p.build.ImportPos[path])
+ 		if p1.Name == "main" {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.copy(),
+@@ -652,8 +856,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 					p.Error.Pos = pos[0].String()
+ 				}
+ 			}
+-			path = p1.ImportPath
+-			importPaths[i] = path
++		}
++		path = p1.ImportPath
++		importPaths[i] = path
++		if i < len(p.Imports) {
++			p.Imports[i] = path
+ 		}
+ 		deps[path] = p1
+ 		imports = append(imports, p1)
+@@ -1294,7 +1501,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 		}
+ 	}
+ 
+-	return loadImport(arg, cwd, stk, nil)
++	return loadImport(arg, cwd, nil, stk, nil)
+ }
+ 
+ // packages returns the packages named by the
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index b89ab7570e..1f138bc3f5 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -573,8 +573,8 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	var imports, ximports []*Package
+ 	var stk importStack
+ 	stk.push(p.ImportPath + " (test)")
+-	for _, path := range p.TestImports {
+-		p1 := loadImport(path, p.Dir, &stk, p.build.TestImportPos[path])
++	for i, path := range p.TestImports {
++		p1 := loadImport(path, p.Dir, p, &stk, p.build.TestImportPos[path])
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
+@@ -589,21 +589,23 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 			}
+ 			return nil, nil, nil, err
+ 		}
++		p.TestImports[i] = p1.ImportPath
+ 		imports = append(imports, p1)
+ 	}
+ 	stk.pop()
+ 	stk.push(p.ImportPath + "_test")
+ 	pxtestNeedsPtest := false
+-	for _, path := range p.XTestImports {
++	for i, path := range p.XTestImports {
+ 		if path == p.ImportPath {
+ 			pxtestNeedsPtest = true
+ 			continue
+ 		}
+-		p1 := loadImport(path, p.Dir, &stk, p.build.XTestImportPos[path])
++		p1 := loadImport(path, p.Dir, p, &stk, p.build.XTestImportPos[path])
+ 		if p1.Error != nil {
+ 			return nil, nil, nil, p1.Error
+ 		}
+ 		ximports = append(ximports, p1)
++		p.XTestImports[i] = p1.ImportPath
+ 	}
+ 	stk.pop()
+ 
+@@ -728,7 +730,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 		if dep == ptest.ImportPath {
+ 			pmain.imports = append(pmain.imports, ptest)
+ 		} else {
+-			p1 := loadImport(dep, "", &stk, nil)
++			p1 := loadImport(dep, "", nil, &stk, nil)
+ 			if p1.Error != nil {
+ 				return nil, nil, nil, p1.Error
+ 			}
+diff --git a/src/cmd/go/testdata/src/vend/bad.go b/src/cmd/go/testdata/src/vend/bad.go
+new file mode 100644
+index 0000000000..57cc595220
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/bad.go
+@@ -0,0 +1,3 @@
++package vend
++
++import _ "r"
+diff --git a/src/cmd/go/testdata/src/vend/good.go b/src/cmd/go/testdata/src/vend/good.go
+new file mode 100644
+index 0000000000..952ada3108
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/good.go
+@@ -0,0 +1,3 @@
++package vend
++
++import _ "p"
+diff --git a/src/cmd/go/testdata/src/vend/hello/hello.go b/src/cmd/go/testdata/src/vend/hello/hello.go
+new file mode 100644
+index 0000000000..41dc03e0ce
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/hello/hello.go
+@@ -0,0 +1,10 @@
++package main
++
++import (
++	"fmt"
++	"strings" // really ../vendor/strings
++)
++
++func main() {
++	fmt.Printf("%s\n", strings.Msg)
++}
+diff --git a/src/cmd/go/testdata/src/vend/hello/hello_test.go b/src/cmd/go/testdata/src/vend/hello/hello_test.go
+new file mode 100644
+index 0000000000..5e72ada938
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/hello/hello_test.go
+@@ -0,0 +1,12 @@
++package main
++
++import (
++	"strings" // really ../vendor/strings
++	"testing"
++)
++
++func TestMsgInternal(t *testing.T) {
++	if strings.Msg != "hello, world" {
++		t.Fatal("unexpected msg: %v", strings.Msg)
++	}
++}
+diff --git a/src/cmd/go/testdata/src/vend/hello/hellox_test.go b/src/cmd/go/testdata/src/vend/hello/hellox_test.go
+new file mode 100644
+index 0000000000..96e6049dad
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/hello/hellox_test.go
+@@ -0,0 +1,12 @@
++package main_test
++
++import (
++	"strings" // really ../vendor/strings
++	"testing"
++)
++
++func TestMsgExternal(t *testing.T) {
++	if strings.Msg != "hello, world" {
++		t.Fatal("unexpected msg: %v", strings.Msg)
++	}
++}
+diff --git a/src/cmd/go/testdata/src/vend/subdir/bad.go b/src/cmd/go/testdata/src/vend/subdir/bad.go
+new file mode 100644
+index 0000000000..d0ddaacfea
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/subdir/bad.go
+@@ -0,0 +1,3 @@
++package subdir
++
++import _ "r"
+diff --git a/src/cmd/go/testdata/src/vend/subdir/good.go b/src/cmd/go/testdata/src/vend/subdir/good.go
+new file mode 100644
+index 0000000000..edd04543a2
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/subdir/good.go
+@@ -0,0 +1,3 @@
++package subdir
++
++import _ "p"
+diff --git a/src/cmd/go/testdata/src/vend/vendor/p/p.go b/src/cmd/go/testdata/src/vend/vendor/p/p.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/vendor/p/p.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/vend/vendor/q/q.go b/src/cmd/go/testdata/src/vend/vendor/q/q.go
+new file mode 100644
+index 0000000000..946e6d9910
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/vendor/q/q.go
+@@ -0,0 +1 @@
++package q
+diff --git a/src/cmd/go/testdata/src/vend/vendor/strings/msg.go b/src/cmd/go/testdata/src/vend/vendor/strings/msg.go
+new file mode 100644
+index 0000000000..438126ba2b
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/vendor/strings/msg.go
+@@ -0,0 +1,3 @@
++package strings
++
++var Msg = "hello, world"
+diff --git a/src/cmd/go/testdata/src/vend/x/vendor/p/p.go b/src/cmd/go/testdata/src/vend/x/vendor/p/p.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/x/vendor/p/p.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/vend/x/vendor/r/r.go b/src/cmd/go/testdata/src/vend/x/vendor/r/r.go
+new file mode 100644
+index 0000000000..838c177a57
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/x/vendor/r/r.go
+@@ -0,0 +1 @@
++package r
+diff --git a/src/cmd/go/testdata/src/vend/x/x.go b/src/cmd/go/testdata/src/vend/x/x.go
+new file mode 100644
+index 0000000000..ae526ebdda
+--- /dev/null
++++ b/src/cmd/go/testdata/src/vend/x/x.go
+@@ -0,0 +1,5 @@
++package x
++
++import _ "p"
++import _ "q"
++import _ "r"
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+new file mode 100644
+index 0000000000..5fe5aaa91b
+--- /dev/null
++++ b/src/cmd/go/vendor_test.go
+@@ -0,0 +1,117 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Tests for vendoring semantics.
++
++package main_test
++
++import (
++	"bytes"
++	"fmt"
++	"path/filepath"
++	"regexp"
++	"strings"
++	"testing"
++)
++
++func TestVendorImports(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
++	want := `
++		vend [vend/vendor/p r]
++		vend/hello [fmt vend/vendor/strings]
++		vend/subdir [vend/vendor/p r]
++		vend/vendor/p []
++		vend/vendor/q []
++		vend/vendor/strings []
++		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r]
++		vend/x/vendor/p []
++		vend/x/vendor/p/p [notfound]
++		vend/x/vendor/r []
++	`
++	want = strings.Replace(want+"\t", "\n\t\t", "\n", -1)
++	want = strings.TrimPrefix(want, "\n")
++
++	have := tg.stdout.String()
++
++	if have != want {
++		t.Errorf("incorrect go list output:\n%s", diffSortedOutputs(have, want))
++	}
++}
++
++func TestVendorRun(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.cd(filepath.Join(tg.pwd(), "testdata/src/vend/hello"))
++	tg.run("run", "hello.go")
++	tg.grepStdout("hello, world", "missing hello world output")
++}
++
++func TestVendorTest(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++	tg.cd(filepath.Join(tg.pwd(), "testdata/src/vend/hello"))
++	tg.run("test", "-v")
++	tg.grepStdout("TestMsgInternal", "missing use in internal test")
++	tg.grepStdout("TestMsgExternal", "missing use in external test")
++}
++
++func TestVendorImportError(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.setenv("GO15VENDOREXPERIMENT", "1")
++
++	tg.runFail("build", "vend/x/vendor/p/p")
++
++	re := regexp.MustCompile(`cannot find package "notfound" in any of:
++	.*[\\/]testdata[\\/]src[\\/]vend[\\/]x[\\/]vendor[\\/]notfound \(vendor tree\)
++	.*[\\/]testdata[\\/]src[\\/]vend[\\/]vendor[\\/]notfound \(vendor tree\)
++	.*[\\/]src[\\/]notfound \(from \$GOROOT\)
++	.*[\\/]testdata[\\/]src[\\/]notfound \(from \$GOPATH\)`)
++
++	if !re.MatchString(tg.stderr.String()) {
++		t.Errorf("did not find expected search list in error text")
++	}
++}
++
++// diffSortedOutput prepares a diff of the already sorted outputs haveText and wantText.
++// The diff shows common lines prefixed by a tab, lines present only in haveText
++// prefixed by "unexpected: ", and lines present only in wantText prefixed by "missing: ".
++func diffSortedOutputs(haveText, wantText string) string {
++	var diff bytes.Buffer
++	have := splitLines(haveText)
++	want := splitLines(wantText)
++	for len(have) > 0 || len(want) > 0 {
++		if len(want) == 0 || len(have) > 0 && have[0] < want[0] {
++			fmt.Fprintf(&diff, "unexpected: %s\n", have[0])
++			have = have[1:]
++			continue
++		}
++		if len(have) == 0 || len(want) > 0 && want[0] < have[0] {
++			fmt.Fprintf(&diff, "missing: %s\n", want[0])
++			want = want[1:]
++			continue
++		}
++		fmt.Fprintf(&diff, "\t%s\n", want[0])
++		want = want[1:]
++		have = have[1:]
++	}
++	return diff.String()
++}
++
++func splitLines(s string) []string {
++	x := strings.Split(s, "\n")
++	if x[len(x)-1] == "" {
++		x = x[:len(x)-1]
++	}
++	return x
++}

@@ -8,6 +8,19 @@ Date:   Thu Feb 16 16:07:26 2012 +1100
     TBR=dsymonds
     CC=golang-dev
     https://golang.org/cl/5673064
-
+---
  src/pkg/exp/winfsnotify/winfsnotify_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/exp/winfsnotify/winfsnotify_test.go b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+index 3f8ef504e9..4a1929a839 100644
+--- a/src/pkg/exp/winfsnotify/winfsnotify_test.go
++++ b/src/pkg/exp/winfsnotify/winfsnotify_test.go
+@@ -7,6 +7,7 @@
+ package winfsnotify
+ 
+ import (
++	"io/ioutil"
+ 	"os"
+ 	"testing"
+ 	"time"

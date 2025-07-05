@@ -16,7 +16,30 @@ Date:   Thu Feb 11 19:55:07 2021 -0500
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  test/abi/regabipragma.go | 2 +-
  test/run.go              | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/abi/regabipragma.go b/test/abi/regabipragma.go
+index 6a1b1938ea..e7ecd58fc8 100644
+--- a/test/abi/regabipragma.go
++++ b/test/abi/regabipragma.go
+@@ -1,4 +1,4 @@
+-// runindir
++// runindir -gcflags=-c=1
+ // +build !windows
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+diff --git a/test/run.go b/test/run.go
+index 116f983a97..dba4d16d63 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -902,6 +902,7 @@ func (t *test) run() {
+ 		if *linkshared {
+ 			cmd = append(cmd, "-linkshared")
+ 		}
++		cmd = append(cmd, flags...)
+ 		cmd = append(cmd, ".")
+ 		out, err := runcmd(cmd...)
+ 		if err != nil {

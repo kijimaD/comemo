@@ -16,9 +16,170 @@ Date:   Wed May 24 07:10:17 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/gotoolchain.go                         | 62 +++++++----------------
  src/cmd/go/internal/modload/init.go               | 14 +++++
  src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt |  4 ++
  src/cmd/go/testdata/script/gotoolchain.txt        | 13 +++++
  4 files changed, 50 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index 26d80db246..03e2e95edd 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -15,18 +15,15 @@ import (
+ 	"log"
+ 	"os"
+ 	"os/exec"
+-	"path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+-	"sync"
+ 	"syscall"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modcmd"
+-	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/run"
+ 
+@@ -374,46 +371,25 @@ func goInstallVersion() (m module.Version, goVers string, ok bool) {
+ 		return module.Version{}, "", false
+ 	}
+ 
+-	// We need to resolve the pkg to a module, to find its go.mod.
+-	// Normally we use the module loading code to grab the full
+-	// module file tree for pkg and all its path prefixes, checking each
+-	// for a file tree that contains source code for pkg.
+-	// We can't do that here, because the modules may use newer versions
+-	// of Go that affect which files are contained in the modules and therefore
+-	// affect their checksums: there is no guarantee an older version of Go
+-	// can extract a newer Go module from a VCS repo and choose the right files
+-	// (this allows evolution such as https://go.dev/issue/42965).
+-	// Instead, we check for a module at all path prefixes (including path itself)
+-	// and take the max of the Go versions along the path.
+-	var paths []string
+-	for len(m.Path) > 1 {
+-		paths = append(paths, m.Path)
+-		m.Path = path.Dir(m.Path)
+-	}
+-	goVersions := make([]string, len(paths))
+-	var wg sync.WaitGroup
+-	for i, path := range paths {
+-		i := i
+-		path := path
+-		wg.Add(1)
+-		go func() {
+-			defer wg.Done()
+-			// TODO(rsc): m.Version could in general be something like latest or patch or upgrade.
+-			// Use modload.Query. See review comment on https://go.dev/cl/497079.
+-			data, err := modfetch.GoMod(context.Background(), path, m.Version)
+-			if err != nil {
+-				return
+-			}
+-			goVersions[i] = gover.GoModLookup(data, "go")
+-		}()
++	// Set up modules without an explicit go.mod, to download go.mod.
++	modload.ForceUseModules = true
++	modload.RootMode = modload.NoRoot
++	modload.Init()
++	defer modload.Reset()
++
++	// See internal/load.PackagesAndErrorsOutsideModule
++	ctx := context.Background()
++	allowed := modload.CheckAllowed
++	if modload.IsRevisionQuery(m.Path, m.Version) {
++		// Don't check for retractions if a specific revision is requested.
++		allowed = nil
+ 	}
+-	wg.Wait()
+-	goVers = ""
+-	for i, v := range goVersions {
+-		if gover.Compare(goVers, v) < 0 {
+-			m.Path = paths[i]
+-			goVers = v
+-		}
++	noneSelected := func(path string) (version string) { return "none" }
++	_, err := modload.QueryPackages(ctx, m.Path, m.Version, noneSelected, allowed)
++	tooNew, ok := err.(*gover.TooNewError)
++	if !ok {
++		return module.Version{}, "", false
+ 	}
+-	return m, goVers, true
++	m.Path, m.Version, _ = strings.Cut(tooNew.What, "@")
++	return m, tooNew.GoVersion, true
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 58747e7129..86be7da243 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -323,6 +323,20 @@ func WorkFilePath() string {
+ 	return workFilePath
+ }
+ 
++// Reset clears all the initialized, cached state about the use of modules,
++// so that we can start over.
++func Reset() {
++	initialized = false
++	ForceUseModules = false
++	RootMode = 0
++	modRoots = nil
++	cfg.ModulesEnabled = false
++	MainModules = nil
++	requirements = nil
++	workFilePath = ""
++	modfetch.Reset()
++}
++
+ // Init determines whether module mode is enabled, locates the root of the
+ // current module (if any), sets environment variables for Git subprocesses, and
+ // configures the cfg, codehost, load, modfetch, and search packages for use
+diff --git a/src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt b/src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt
+index 7aae658d41..644695cba1 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt
+@@ -5,6 +5,10 @@ written by hand
+ module rsc.io/fortune
+ go 1.21rc999
+ 
++-- go.mod --
++module rsc.io/fortune
++go 1.21rc999
++
+ -- .info --
+ {"Version":"v0.0.1"}
+ -- fortune.go --
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+index 97e6d5fd1b..406bbd7568 100644
+--- a/src/cmd/go/testdata/script/gotoolchain.txt
++++ b/src/cmd/go/testdata/script/gotoolchain.txt
+@@ -212,6 +212,10 @@ cp go1999 go.mod
+ ! go install rsc.io/fortune/nonexist@v0.0.1
+ stderr '^go: cannot find "go1.21rc999" in PATH$'
+ 
++# go install m@v should handle queries
++! go install rsc.io/fortune/nonexist@v0.0
++stderr '^go: cannot find "go1.21rc999" in PATH$'
++
+ # go run m@v should use go version in m@v's go.mod
+ env GOTOOLCHAIN=path
+ env TESTGO_VERSION=go1.19
+@@ -227,6 +231,15 @@ stderr '^go: cannot find "go1.21rc999" in PATH$'
+ ! go run -x rsc.io/fortune/nonexist@v0.0.1 args here
+ stderr '^go: cannot find "go1.21rc999" in PATH$'
+ 
++# go run m@v should handle queries
++! go run rsc.io/fortune/nonexist@v0
++stderr '^go: cannot find "go1.21rc999" in PATH$'
++
++# go install m@v should work if not upgrading
++go install rsc.io/fortune/nonexist@v1
++stderr '^go: downloading rsc.io/fortune v1.0.0$'
++stdout '^go1.999testpath here!'
++
+ -- empty --
+ 
+ -- go1999 --

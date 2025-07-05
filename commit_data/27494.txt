@@ -9,8 +9,122 @@ Date:   Tue Mar 29 10:15:02 2016 -0700
     Change-Id: I7dffd9bc5bab323590df6fb591bf1e73edf2e465
     Reviewed-on: https://go-review.googlesource.com/21305
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go   | 25 +++++++++----------------
  src/cmd/compile/internal/gc/bexport.go |  4 ++--
  src/cmd/compile/internal/gc/type.go    | 22 ++++++++++++++++++++++
  3 files changed, 33 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 1ca7dd4d20..351ca73aa4 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -198,14 +198,12 @@ func dowidth(t *Type) {
+ 
+ 		// make fake type to check later to
+ 		// trigger channel argument check.
+-		t1 := typ(TCHANARGS)
+-
+-		t1.Type = t
++		t1 := typWrapper(TCHANARGS, t)
+ 		checkwidth(t1)
+ 
+ 	case TCHANARGS:
+-		t1 := t.Type
+-		dowidth(t.Type) // just in case
++		t1 := t.Wrapped()
++		dowidth(t1) // just in case
+ 		if t1.Type.Width >= 1<<16 {
+ 			Yyerror("channel element type too large (>64kB)")
+ 		}
+@@ -273,22 +271,17 @@ func dowidth(t *Type) {
+ 	// make fake type to check later to
+ 	// trigger function argument computation.
+ 	case TFUNC:
+-		t1 := typ(TFUNCARGS)
+-
+-		t1.Type = t
++		t1 := typWrapper(TFUNCARGS, t)
+ 		checkwidth(t1)
+-
+-		// width of func type is pointer
+-		w = int64(Widthptr)
++		w = int64(Widthptr) // width of func type is pointer
+ 
+ 	// function is 3 cated structures;
+ 	// compute their widths as side-effect.
+ 	case TFUNCARGS:
+-		t1 := t.Type
+-
+-		w = widstruct(t.Type, t1.Recvs(), 0, 0)
+-		w = widstruct(t.Type, t1.Params(), w, Widthreg)
+-		w = widstruct(t.Type, t1.Results(), w, Widthreg)
++		t1 := t.Wrapped()
++		w = widstruct(t1, t1.Recvs(), 0, 0)
++		w = widstruct(t1, t1.Params(), w, Widthreg)
++		w = widstruct(t1, t1.Results(), w, Widthreg)
+ 		t1.Argwid = w
+ 		if w%int64(Widthreg) != 0 {
+ 			Warn("bad type %v %d\n", t1, w)
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index f47d7bb06e..f14f12fdc0 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -517,7 +517,7 @@ func (p *exporter) typ(t *Type) {
+ 	case TDDDFIELD:
+ 		// see p.param use of TDDDFIELD
+ 		p.tag(dddTag)
+-		p.typ(t.Type)
++		p.typ(t.Wrapped())
+ 
+ 	case TSTRUCT:
+ 		p.tag(structTag)
+@@ -666,7 +666,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
+ 	t := q.Type
+ 	if q.Isddd {
+ 		// create a fake type to encode ... just for the p.typ call
+-		t = &Type{Etype: TDDDFIELD, Type: t.Type}
++		t = typWrapper(TDDDFIELD, t.Type)
+ 	}
+ 	p.typ(t)
+ 	if n > 0 {
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 6d0476eedb..c6a2dd92a3 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -267,6 +267,18 @@ func typeChan(elem *Type, dir uint8) *Type {
+ 	return t
+ }
+ 
++// typWrapper returns a new wrapper psuedo-type.
++func typWrapper(et EType, wrapped *Type) *Type {
++	switch et {
++	case TCHANARGS, TFUNCARGS, TDDDFIELD:
++	default:
++		Fatalf("typWrapper bad etype %s", et)
++	}
++	t := typ(et)
++	t.Type = wrapped
++	return t
++}
++
+ func newField() *Field {
+ 	return &Field{
+ 		Offset: BADWIDTH,
+@@ -474,6 +486,16 @@ func (t *Type) Val() *Type {
+ 	return t.Type
+ }
+ 
++// Wrapped returns the type that pseudo-type t wraps.
++func (t *Type) Wrapped() *Type {
++	switch t.Etype {
++	case TCHANARGS, TFUNCARGS, TDDDFIELD:
++	default:
++		Fatalf("Type.Wrapped %s", t.Etype)
++	}
++	return t.Type
++}
++
+ func (t *Type) Methods() *Fields {
+ 	// TODO(mdempsky): Validate t?
+ 	return &t.methods

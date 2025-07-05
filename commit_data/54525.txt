@@ -14,6 +14,20 @@ Date:   Fri Sep 30 09:17:11 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/math/rand/rand.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 2d45a28280..f6b015aba2 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -377,6 +377,8 @@ func Shuffle(n int, swap func(i, j int)) { globalRand.Shuffle(n, swap) }
+ // Read generates len(p) random bytes from the default Source and
+ // writes them into p. It always returns len(p) and a nil error.
+ // Read, unlike the Rand.Read method, is safe for concurrent use.
++//
++// Deprecated: For almost all use cases, crypto/rand.Read is more appropriate.
+ func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
+ 
+ // NormFloat64 returns a normally distributed float64 in the range

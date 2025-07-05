@@ -21,9 +21,296 @@ Date:   Wed Jun 6 12:38:35 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go |  2 +-
  src/runtime/runtime-gdb_test.go    |  2 +-
  test/closure3.dir/main.go          | 69 ++++++++++++++++++++------------------
  test/escape4.go                    |  4 +--
  4 files changed, 41 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 46fe87e8c3..25452911eb 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -352,7 +352,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		v.budget -= v.extraCallCost
+ 
+ 	case OPANIC:
+-		v.budget -= v.extraCallCost
++		v.budget -= inlineExtraPanicCost
+ 
+ 	case ORECOVER:
+ 		// recover matches the argument frame pointer to find
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 79f9cb3538..3f936b15b3 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -538,7 +538,7 @@ func TestGdbPanic(t *testing.T) {
+ 		`main`,
+ 	}
+ 	for _, name := range bt {
+-		s := fmt.Sprintf("#.* .* in main\\.%v", name)
++		s := fmt.Sprintf("(#.* .* in )?main\\.%v", name)
+ 		re := regexp.MustCompile(s)
+ 		if found := re.Find(got) != nil; !found {
+ 			t.Errorf("could not find '%v' in backtrace", s)
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 4364343160..e382ad980b 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -15,12 +15,12 @@ func main() {
+ 		if x := func() int { // ERROR "can inline main.func1"
+ 			return 1
+ 		}(); x != 1 { // ERROR "inlining call to main.func1"
+-			panic("x != 1")
++			ppanic("x != 1")
+ 		}
+ 		if x := func() int { // ERROR "can inline main.func2" "func literal does not escape"
+ 			return 1
+ 		}; x() != 1 { // ERROR "inlining call to main.func2"
+-			panic("x() != 1")
++			ppanic("x() != 1")
+ 		}
+ 	}
+ 
+@@ -28,12 +28,12 @@ func main() {
+ 		if y := func(x int) int { // ERROR "can inline main.func3"
+ 			return x + 2
+ 		}(40); y != 42 { // ERROR "inlining call to main.func3"
+-			panic("y != 42")
++			ppanic("y != 42")
+ 		}
+ 		if y := func(x int) int { // ERROR "can inline main.func4" "func literal does not escape"
+ 			return x + 2
+ 		}; y(40) != 42 { // ERROR "inlining call to main.func4"
+-			panic("y(40) != 42")
++			ppanic("y(40) != 42")
+ 		}
+ 	}
+ 
+@@ -45,7 +45,7 @@ func main() {
+ 			return x + 1
+ 		}
+ 		if y(40) != 41 {
+-			panic("y(40) != 41")
++			ppanic("y(40) != 41")
+ 		}
+ 	}
+ 
+@@ -58,7 +58,7 @@ func main() {
+ 				return x + 1
+ 			}
+ 			if y(40) != 41 {
+-				panic("y(40) != 41")
++				ppanic("y(40) != 41")
+ 			}
+ 		}()
+ 	}
+@@ -71,7 +71,7 @@ func main() {
+ 			return x + 1
+ 		}, 42
+ 		if y(40) != 41 {
+-			panic("y(40) != 41")
++			ppanic("y(40) != 41")
+ 		}
+ 	}
+ 
+@@ -84,7 +84,7 @@ func main() {
+ 				return x + 1
+ 			}, 42
+ 			if y(40) != 41 {
+-				panic("y(40) != 41")
++				ppanic("y(40) != 41")
+ 			}
+ 		}()
+ 	}
+@@ -93,13 +93,13 @@ func main() {
+ 		y := func(x int) int { // ERROR "can inline main.func11" "func literal does not escape"
+ 			return x + 2
+ 		}
+-		y, sink = func() (func(int)int, int) { // ERROR "func literal does not escape"
++		y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
+ 			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes"
+ 				return x + 1
+ 			}, 42
+ 		}()
+ 		if y(40) != 41 {
+-			panic("y(40) != 41")
++			ppanic("y(40) != 41")
+ 		}
+ 	}
+ 
+@@ -114,7 +114,7 @@ func main() {
+ 				}, 42
+ 			}()
+ 			if y(40) != 41 {
+-				panic("y(40) != 41")
++				ppanic("y(40) != 41")
+ 			}
+ 		}()
+ 	}
+@@ -123,11 +123,11 @@ func main() {
+ 		y := func(x int) int { // ERROR "can inline main.func14" "func literal does not escape"
+ 			return x + 2
+ 		}
+-		y, ok = map[int]func(int)int { // ERROR "does not escape"
+-			0: func (x int) int { return x + 1 }, // ERROR "can inline main.func15" "func literal escapes"
++		y, ok = map[int]func(int) int{ // ERROR "does not escape"
++			0: func(x int) int { return x + 1 }, // ERROR "can inline main.func15" "func literal escapes"
+ 		}[0]
+ 		if y(40) != 41 {
+-			panic("y(40) != 41")
++			ppanic("y(40) != 41")
+ 		}
+ 	}
+ 
+@@ -136,11 +136,11 @@ func main() {
+ 			y := func(x int) int { // ERROR "can inline main.func16.1" "func literal does not escape"
+ 				return x + 2
+ 			}
+-			y, ok = map[int]func(int) int{// ERROR "does not escape"
++			y, ok = map[int]func(int) int{ // ERROR "does not escape"
+ 				0: func(x int) int { return x + 1 }, // ERROR "can inline main.func16.2" "func literal escapes"
+ 			}[0]
+ 			if y(40) != 41 {
+-				panic("y(40) != 41")
++				ppanic("y(40) != 41")
+ 			}
+ 		}()
+ 	}
+@@ -149,11 +149,11 @@ func main() {
+ 		y := func(x int) int { // ERROR "can inline main.func17" "func literal does not escape"
+ 			return x + 2
+ 		}
+-		y, ok = interface{}(func (x int) int { // ERROR "can inline main.func18" "does not escape"
++		y, ok = interface{}(func(x int) int { // ERROR "can inline main.func18" "does not escape"
+ 			return x + 1
+-		}).(func(int)int)
++		}).(func(int) int)
+ 		if y(40) != 41 {
+-			panic("y(40) != 41")
++			ppanic("y(40) != 41")
+ 		}
+ 	}
+ 
+@@ -166,7 +166,7 @@ func main() {
+ 				return x + 1
+ 			}).(func(int) int)
+ 			if y(40) != 41 {
+-				panic("y(40) != 41")
++				ppanic("y(40) != 41")
+ 			}
+ 		}()
+ 	}
+@@ -176,12 +176,12 @@ func main() {
+ 		if y := func() int { // ERROR "can inline main.func20"
+ 			return x
+ 		}(); y != 42 { // ERROR "inlining call to main.func20"
+-			panic("y != 42")
++			ppanic("y != 42")
+ 		}
+ 		if y := func() int { // ERROR "can inline main.func21" "func literal does not escape"
+ 			return x
+ 		}; y() != 42 { // ERROR "inlining call to main.func21"
+-			panic("y() != 42")
++			ppanic("y() != 42")
+ 		}
+ 	}
+ 
+@@ -192,14 +192,14 @@ func main() {
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func22.1"
+ 		}(1); z != 43 {
+-			panic("z != 43")
++			ppanic("z != 43")
+ 		}
+ 		if z := func(y int) int { // ERROR "func literal does not escape"
+ 			return func() int { // ERROR "can inline main.func23.1"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func23.1"
+ 		}; z(1) != 43 {
+-			panic("z(1) != 43")
++			ppanic("z(1) != 43")
+ 		}
+ 	}
+ 
+@@ -211,7 +211,7 @@ func main() {
+ 			}() // ERROR "inlining call to main.func24" "&a does not escape"
+ 		}()
+ 		if a != 2 {
+-			panic("a != 2")
++			ppanic("a != 2")
+ 		}
+ 	}
+ 
+@@ -222,11 +222,11 @@ func main() {
+ 				b = 3
+ 			}() // ERROR "inlining call to main.func25.1" "&b does not escape"
+ 			if b != 3 {
+-				panic("b != 3")
++				ppanic("b != 3")
+ 			}
+ 		}(b)
+ 		if b != 2 {
+-			panic("b != 2")
++			ppanic("b != 2")
+ 		}
+ 	}
+ 
+@@ -236,12 +236,12 @@ func main() {
+ 			c = 4
+ 			func() { // ERROR "func literal does not escape"
+ 				if c != 4 {
+-					panic("c != 4")
++					ppanic("c != 4")
+ 				}
+ 			}()
+ 		}()
+ 		if c != 4 {
+-			panic("c != 4")
++			ppanic("c != 4")
+ 		}
+ 	}
+ 
+@@ -256,7 +256,7 @@ func main() {
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+ 			}(100)
+ 		}(1000); r != 2350 {
+-			panic("r != 2350")
++			ppanic("r != 2350")
+ 		}
+ 	}
+ 
+@@ -274,10 +274,15 @@ func main() {
+ 				return a + c
+ 			}(100) + b
+ 		}(1000); r != 2350 {
+-			panic("r != 2350")
++			ppanic("r != 2350")
+ 		}
+ 		if a != 2000 {
+-			panic("a != 2000")
++			ppanic("a != 2000")
+ 		}
+ 	}
+ }
++
++//go:noinline
++func ppanic(s string) { // ERROR "leaking param: s"
++	panic(s)
++}
+diff --git a/test/escape4.go b/test/escape4.go
+index 22a37c1d0a..0fe3305397 100644
+--- a/test/escape4.go
++++ b/test/escape4.go
+@@ -34,8 +34,8 @@ func f1() {
+ 
+ func f2() {} // ERROR "can inline f2"
+ 
+-// No inline for panic, recover.
+-func f3() { panic(1) }
++// No inline for recover; panic now allowed to inline.
++func f3() { panic(1) } // ERROR "can inline f3"
+ func f4() { recover() }
+ 
+ func f5() *byte {

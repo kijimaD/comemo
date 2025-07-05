@@ -15,6 +15,33 @@ Date:   Mon Jan 6 13:43:51 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index d5ad96c890..fa0b7c8a6b 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -54,7 +54,10 @@ import (
+ 
+ // If multiple rules match, the first one in file order is selected.
+ 
+-var genLog = flag.Bool("log", false, "generate code that logs; for debugging only")
++var (
++	genLog  = flag.Bool("log", false, "generate code that logs; for debugging only")
++	addLine = flag.Bool("line", false, "add line number comment to generated rules; for debugging only")
++)
+ 
+ type Rule struct {
+ 	rule string
+@@ -598,6 +601,9 @@ func fprint(w io.Writer, n Node) {
+ 			fprint(w, n)
+ 		}
+ 	case *RuleRewrite:
++		if *addLine {
++			fmt.Fprintf(w, "// %s\n", n.loc)
++		}
+ 		fmt.Fprintf(w, "// match: %s\n", n.match)
+ 		if n.cond != "" {
+ 			fmt.Fprintf(w, "// cond: %s\n", n.cond)

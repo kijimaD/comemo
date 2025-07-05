@@ -11,6 +11,25 @@ Date:   Tue Apr 19 16:38:04 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/map.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index e91b25eaec..2e513e2d52 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -842,9 +842,11 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	// decide where to start
+-	r := uintptr(fastrand())
++	var r uintptr
+ 	if h.B > 31-bucketCntBits {
+-		r += uintptr(fastrand()) << 31
++		r = uintptr(fastrand64())
++	} else {
++		r = uintptr(fastrand())
+ 	}
+ 	it.startBucket = r & bucketMask(h.B)
+ 	it.offset = uint8(r >> h.B & (bucketCnt - 1))

@@ -24,6 +24,25 @@ Date:   Fri Jun 11 02:44:16 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 0fcb7e3d6d..bdc3527011 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1800,8 +1800,11 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 	}
+ 
+ 	// Only generate I.M wrappers for I in I's own package
+-	// but keep doing it for error.Error (was issue #29304).
+-	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg && rcvr != types.ErrorType {
++	// but keep doing it for error.Error (was issue #29304)
++	// and methods of instantiated interfaces.
++	if rcvr.IsInterface() && rcvr != types.ErrorType &&
++		rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg &&
++		!rcvr.IsFullyInstantiated() {
+ 		return lsym
+ 	}
+ 

@@ -7,9 +7,70 @@ Date:   Tue Nov 10 10:55:53 2009 -0800
     R=rsc
     CC=r
     http://go/go-review/1026038
-
+---
  src/pkg/asn1/asn1.go           | 4 ++--
  src/pkg/big/nat.go             | 4 ++--
  src/pkg/bytes/bytes.go         | 2 +-
  src/pkg/tabwriter/tabwriter.go | 5 +++--
  4 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index bc045e31f9..3afd6fbb1e 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements parsing of DER-encoded ASN.1 data structures,
+-// as defined in ITU-T Rec. X.690.
++// The asn1 package implements parsing of DER-encoded ASN.1 data structures,
++// as defined in ITU-T Rec X.690.
+ //
+ // See also ``A Layman's Guide to a Subset of ASN.1, BER, and DER,''
+ // http://luca.ntop.org/Teaching/Appunti/asn1.html.
+diff --git a/src/pkg/big/nat.go b/src/pkg/big/nat.go
+index a795cd6267..c8e69a3826 100644
+--- a/src/pkg/big/nat.go
++++ b/src/pkg/big/nat.go
+@@ -6,9 +6,9 @@
+ // These are the building blocks for the operations on signed integers
+ // and rationals.
+ 
+-//	NOTE: PACKAGE UNDER CONSTRUCTION (use bignum for the time being)
++//	NOTE: PACKAGE UNDER CONSTRUCTION.
+ //
+-// This package implements multi-precision arithmetic (big numbers).
++// The big package implements multi-precision arithmetic (big numbers).
+ // The following numeric types are supported:
+ //
+ //	- Int	signed integers
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index c0a861f7ff..ccaa71a933 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A package of simple functions to manipulate arrays of bytes.
++// The bytes package implements functions for the manipulation of byte slices.
+ // Analagous to the facilities of the strings package.
+ package bytes
+ 
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index 67767f18ca..c469ae41db 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -3,8 +3,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The tabwriter package implements a write filter (tabwriter.Writer)
+-// that translates tabbed columns in input into properly aligned text,
+-// using the Elastic Tabstops algorithm described at
++// that translates tabbed columns in input into properly aligned text.
++//
++// The package is using the Elastic Tabstops algorithm described at
+ // http://nickgravgaard.com/elastictabstops/index.html.
+ //
+ package tabwriter

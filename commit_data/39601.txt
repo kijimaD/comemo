@@ -11,6 +11,40 @@ Date:   Fri Mar 8 13:48:00 2019 +1100
     Change-Id: I1fab7dd93091865a8240769eca5dd19cdbc78b81
     Reviewed-on: https://go-review.googlesource.com/c/go/+/166177
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/gob/doc.go | 15 +++++++++++----
  1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index fa534313cc..c765707139 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -193,10 +193,14 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
+ description, constructed from these types:
+ 
+ 	type wireType struct {
+-		ArrayT  *ArrayType
+-		SliceT  *SliceType
+-		StructT *StructType
+-		MapT    *MapType
++		ArrayT           *ArrayType
++		SliceT           *SliceType
++		StructT          *StructType
++		MapT             *MapType
++		GobEncoderT      *gobEncoderType
++		BinaryMarshalerT *gobEncoderType
++		TextMarshalerT   *gobEncoderType
++
+ 	}
+ 	type arrayType struct {
+ 		CommonType
+@@ -224,6 +228,9 @@ description, constructed from these types:
+ 		Key  typeId
+ 		Elem typeId
+ 	}
++	type gobEncoderType struct {
++		CommonType
++	}
+ 
+ If there are nested type ids, the types for all inner type ids must be defined
+ before the top-level type id is used to describe an encoded-v.

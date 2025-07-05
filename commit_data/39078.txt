@@ -15,8 +15,142 @@ Date:   Fri Dec 21 11:21:02 2018 +0700
     Reviewed-on: https://go-review.googlesource.com/c/155597
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/path/filepath/path_test.go       | 37 ++++++++++++++++++++++++++++++++++++
  src/path/filepath/symlink.go         |  9 ++++++---
  src/path/filepath/symlink_windows.go | 18 +++++++++++++++++-
  3 files changed, 60 insertions(+), 4 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 3434ea2e6e..1b9f286c4d 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -1371,3 +1372,39 @@ func TestWalkSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 	testWalkSymlink(t, os.Symlink)
+ }
++
++func TestIssue29372(t *testing.T) {
++	f, err := ioutil.TempFile("", "issue29372")
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.Close()
++	path := f.Name()
++	defer os.Remove(path)
++
++	isWin := runtime.GOOS == "windows"
++	pathSeparator := string(filepath.Separator)
++	tests := []struct {
++		path string
++		skip bool
++	}{
++		{path + strings.Repeat(pathSeparator, 1), false},
++		{path + strings.Repeat(pathSeparator, 2), false},
++		{path + strings.Repeat(pathSeparator, 1) + ".", false},
++		{path + strings.Repeat(pathSeparator, 2) + ".", false},
++		// windows.GetFinalPathNameByHandle return the directory part with trailing dot dot
++		// C:\path\to\existing_dir\existing_file\.. returns C:\path\to\existing_dir
++		{path + strings.Repeat(pathSeparator, 1) + "..", isWin},
++		{path + strings.Repeat(pathSeparator, 2) + "..", isWin},
++	}
++
++	for i, test := range tests {
++		if test.skip {
++			continue
++		}
++		_, err = filepath.EvalSymlinks(test.path)
++		if err != syscall.ENOTDIR {
++			t.Fatalf("test#%d: want %q, got %q", i, syscall.ENOTDIR, err)
++		}
++	}
++}
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index 98a92357be..a08b85a29c 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -8,10 +8,13 @@ import (
+ 	"errors"
+ 	"os"
+ 	"runtime"
++	"syscall"
+ )
+ 
+ func walkSymlinks(path string) (string, error) {
+ 	volLen := volumeNameLen(path)
++	pathSeparator := string(os.PathSeparator)
++
+ 	if volLen < len(path) && os.IsPathSeparator(path[volLen]) {
+ 		volLen++
+ 	}
+@@ -50,7 +53,7 @@ func walkSymlinks(path string) (string, error) {
+ 			}
+ 			if r < volLen {
+ 				if len(dest) > volLen {
+-					dest += string(os.PathSeparator)
++					dest += pathSeparator
+ 				}
+ 				dest += ".."
+ 			} else {
+@@ -62,7 +65,7 @@ func walkSymlinks(path string) (string, error) {
+ 		// Ordinary path component. Add it to result.
+ 
+ 		if len(dest) > volumeNameLen(dest) && !os.IsPathSeparator(dest[len(dest)-1]) {
+-			dest += string(os.PathSeparator)
++			dest += pathSeparator
+ 		}
+ 
+ 		dest += path[start:end]
+@@ -76,7 +79,7 @@ func walkSymlinks(path string) (string, error) {
+ 
+ 		if fi.Mode()&os.ModeSymlink == 0 {
+ 			if !fi.Mode().IsDir() && end < len(path) {
+-				return "", os.ErrNotExist
++				return "", syscall.ENOTDIR
+ 			}
+ 			continue
+ 		}
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index 7095a6b4bd..1108b3ddff 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -159,6 +159,18 @@ func evalSymlinksUsingGetFinalPathNameByHandle(path string) (string, error) {
+ 	return "", errors.New("GetFinalPathNameByHandle returned unexpected path=" + s)
+ }
+ 
++func symlinkOrDir(path string) (string, error) {
++	fi, err := os.Lstat(path)
++	if err != nil {
++		return "", err
++	}
++
++	if fi.Mode()&os.ModeSymlink == 0 && !fi.Mode().IsDir() {
++		return "", syscall.ENOTDIR
++	}
++	return path, nil
++}
++
+ func samefile(path1, path2 string) bool {
+ 	fi1, err := os.Lstat(path1)
+ 	if err != nil {
+@@ -176,7 +188,11 @@ func evalSymlinks(path string) (string, error) {
+ 	if err != nil {
+ 		newpath2, err2 := evalSymlinksUsingGetFinalPathNameByHandle(path)
+ 		if err2 == nil {
+-			return toNorm(newpath2, normBase)
++			normPath, toNormErr := toNorm(newpath2, normBase)
++			if toNormErr != nil {
++				return "", toNormErr
++			}
++			return symlinkOrDir(normPath)
+ 		}
+ 		return "", err
+ 	}

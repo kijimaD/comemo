@@ -19,7 +19,74 @@ Date:   Mon Feb 13 16:11:13 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36936
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/main.go           | 26 +++++++++++++++++++++++---
  src/cmd/vet/all/whitelist/all.txt |  1 -
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index f4ee8fe15a..e4c0946971 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -59,11 +59,12 @@ func main() {
+ 	case *flagAll:
+ 		vetPlatforms(allPlatforms())
+ 	default:
+-		host := platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
+-		host.vet(runtime.GOMAXPROCS(-1))
++		hostPlatform.vet(runtime.GOMAXPROCS(-1))
+ 	}
+ }
+ 
++var hostPlatform = platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
++
+ func allPlatforms() []platform {
+ 	var pp []platform
+ 	cmd := exec.Command(cmdGoPath, "tool", "dist", "list")
+@@ -177,6 +178,14 @@ var ignorePathPrefixes = [...]string{
+ 	"cmd/go/testdata/",
+ 	"cmd/vet/testdata/",
+ 	"go/printer/testdata/",
++	// fmt_test contains a known bad format string.
++	// We cannot add it to any given whitelist,
++	// because it won't show up for any non-host platform,
++	// due to deficiencies in vet.
++	// Just whitelist the whole file.
++	// TODO: If vet ever uses go/loader and starts working off source,
++	// this problem will likely go away.
++	"fmt/fmt_test.go",
+ }
+ 
+ func vetPlatforms(pp []platform) {
+@@ -224,7 +233,18 @@ func (p platform) vet(ncpus int) {
+ 	// and no clear way to improve vet to eliminate large chunks of them.
+ 	// And having them in the whitelists will just cause annoyance
+ 	// and churn when working on the runtime.
+-	cmd = exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", ".")
++	args := []string{"tool", "vet", "-unsafeptr=false"}
++	if p != hostPlatform {
++		// When not checking the host platform, vet gets confused by
++		// the fmt.Formatters in cmd/compile,
++		// so just skip the printf checks on non-host platforms for now.
++		// There's not too much platform-specific code anyway.
++		// TODO: If vet ever uses go/loader and starts working off source,
++		// this problem will likely go away.
++		args = append(args, "-printf=false")
++	}
++	args = append(args, ".")
++	cmd = exec.Command(cmdGoPath, args...)
+ 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
+ 	cmd.Env = env
+ 	stderr, err := cmd.StderrPipe()
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 7250de1999..1d118b0d58 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -23,7 +23,6 @@ runtime/sys_GOOS_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly functi
+ // Legitimate vet complaints in which we are testing for correct runtime behavior
+ // in bad situations that vet can also detect statically.
+ cmd/cover/testdata/test.go: unreachable code
+-fmt/fmt_test.go: arg nil for printf verb %s of wrong type: untyped nil
+ encoding/json/decode_test.go: struct field m has json tag but is not exported
+ encoding/json/decode_test.go: struct field m2 has json tag but is not exported
+ encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key

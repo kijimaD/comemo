@@ -7,8 +7,86 @@ Date:   Thu Jan 27 10:32:41 2011 +1000
     R=rsc, bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4087043
-
+---
  doc/codelab/wiki/Makefile |  4 ++--
  doc/codelab/wiki/get.go   | 36 ++++++++++++++++++++++++++++++++++++
  doc/codelab/wiki/test.sh  |  6 +++---
  3 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/doc/codelab/wiki/Makefile b/doc/codelab/wiki/Makefile
+index 4bc2d39848..6c2701de59 100644
+--- a/doc/codelab/wiki/Makefile
++++ b/doc/codelab/wiki/Makefile
+@@ -13,9 +13,9 @@ CLEANFILES+=index.html srcextract.bin htmlify.bin
+ index.html: srcextract.bin htmlify.bin
+ 	awk '/^!/{system(substr($$0,2)); next} {print}' "$$@" < wiki.html > index.html
+ 
+-test: final.bin
++test: final.bin get.bin
+ 	bash ./test.sh
+-	rm -f final.6 final.bin
++	rm -f final.6 final.bin get.6 get.bin
+ 
+ %.bin: %.$O
+ 	$(LD) -o $@ $<
+diff --git a/doc/codelab/wiki/get.go b/doc/codelab/wiki/get.go
+new file mode 100644
+index 0000000000..92e0c0f623
+--- /dev/null
++++ b/doc/codelab/wiki/get.go
+@@ -0,0 +1,36 @@
++package main
++
++import (
++	"http"
++	"flag"
++	"io"
++	"log"
++	"os"
++	"strings"
++)
++
++var post = flag.String("post", "", "urlencoded form data to POST")
++
++func main() {
++	flag.Parse()
++	url := flag.Arg(0)
++	if url == "" {
++		log.Exit("no url supplied")
++	}
++	var r *http.Response
++	var err os.Error
++	if *post != "" {
++		b := strings.NewReader(*post)
++		r, err = http.Post(url, "application/x-www-form-urlencoded", b)
++	} else {
++		r, _, err = http.Get(url)
++	}
++	if err != nil {
++		log.Exit(err)
++	}
++	defer r.Body.Close()
++	_, err = io.Copy(os.Stdout, r.Body)
++	if err != nil {
++		log.Exit(err)
++	}
++}
+diff --git a/doc/codelab/wiki/test.sh b/doc/codelab/wiki/test.sh
+index 5aad5704f1..27c7be66ca 100755
+--- a/doc/codelab/wiki/test.sh
++++ b/doc/codelab/wiki/test.sh
+@@ -12,11 +12,11 @@ trap cleanup INT
+ 
+ sleep 1
+ 
+-curl -s -o test_edit.out http://localhost:8080/edit/Test 
++./get.bin http://localhost:8080/edit/Test > test_edit.out
+ diff -u test_edit.out test_edit.good || cleanup 1
+-curl -s -o /dev/null -d body=some%20content http://localhost:8080/save/Test
++./get.bin -post=body=some%20content http://localhost:8080/save/Test
+ diff -u Test.txt test_Test.txt.good || cleanup 1
+-curl -s -o test_view.out http://localhost:8080/view/Test
++./get.bin http://localhost:8080/view/Test > test_view.out
+ diff -u test_view.out test_view.good || cleanup 1
+ 
+ echo "Passed"

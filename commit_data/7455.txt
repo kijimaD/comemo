@@ -7,7 +7,7 @@ Date:   Mon Feb 14 12:15:13 2011 -0500
     R=rsc, brainman, iant2
     CC=golang-dev
     https://golang.org/cl/4129049
-
+---
  src/pkg/runtime/windows/386/defs.h   |  3 +++
  src/pkg/runtime/windows/386/signal.c |  7 +------
  src/pkg/runtime/windows/386/sys.s    | 39 ++++++++++++++++++++++++++++++++++++
@@ -15,3 +15,203 @@ Date:   Mon Feb 14 12:15:13 2011 -0500
  src/pkg/runtime/windows/os.h         |  1 +
  src/pkg/runtime/windows/thread.c     | 39 ++++++++++++++++++++++++++++++++++++
  6 files changed, 89 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/windows/386/defs.h b/src/pkg/runtime/windows/386/defs.h
+index a2a8821034..49fc19504a 100644
+--- a/src/pkg/runtime/windows/386/defs.h
++++ b/src/pkg/runtime/windows/386/defs.h
+@@ -10,6 +10,9 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x1,
+ 	MAP_PRIVATE = 0x2,
++	SIGINT = 0x2,
++	CTRL_C_EVENT = 0,
++	CTRL_BREAK_EVENT = 0x1,
+ 	EXCEPTION_ACCESS_VIOLATION = 0xc0000005,
+ 	EXCEPTION_BREAKPOINT = 0x80000003,
+ 	EXCEPTION_FLT_DENORMAL_OPERAND = 0xc000008d,
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index 69178cdd08..9036369102 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -27,12 +27,7 @@ runtime·dumpregs(Context *r)
+ void
+ runtime·initsig(int32)
+ {
+-}
+-
+-String
+-runtime·signame(int32)
+-{
+-	return runtime·emptystring;
++	runtime·siginit();
+ }
+ 
+ uint32
+diff --git a/src/pkg/runtime/windows/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+index 26069d3912..bca48febe7 100644
+--- a/src/pkg/runtime/windows/386/sys.s
++++ b/src/pkg/runtime/windows/386/sys.s
+@@ -99,6 +99,45 @@ TEXT runtime·sigtramp1(SB),0,$16-28
+ sigdone:
+ 	RET
+ 
++// Windows runs the ctrl handler in a new thread.
++TEXT runtime·ctrlhandler(SB),7,$0
++	PUSHL	BP
++	MOVL	SP, BP
++	PUSHL	BX
++	PUSHL	SI
++	PUSHL	DI
++	PUSHL	0x2c(FS)
++	MOVL	SP, BX
++
++	// setup dummy m, g
++	SUBL	$(m_sehframe+4), SP	// at least space for m_sehframe
++	LEAL	m_tls(SP), CX
++	MOVL	CX, 0x2c(FS)
++	MOVL	SP, m(CX)
++	MOVL	SP, DX
++	SUBL	$8, SP			// space for g_stack{guard,base}
++	MOVL	SP, g(CX)
++	MOVL	SP, m_g0(DX)
++	LEAL	-4096(SP), CX
++	MOVL	CX, g_stackguard(SP)
++	MOVL	BX, g_stackbase(SP)
++
++	PUSHL	8(BP)
++	CALL	runtime·ctrlhandler1(SB)
++	POPL	CX
++
++	get_tls(CX)
++	MOVL	g(CX), CX
++	MOVL	g_stackbase(CX), SP
++	POPL	0x2c(FS)
++	POPL	DI
++	POPL	SI
++	POPL	BX
++	POPL	BP
++	MOVL	0(SP), CX
++	ADDL	$8, SP
++	JMP	CX
++
+ // Called from dynamic function created by ../thread.c compilecallback,
+ // running on Windows stack (not Go stack).
+ // BX, BP, SI, DI registers and DF flag are preserved
+diff --git a/src/pkg/runtime/windows/defs.c b/src/pkg/runtime/windows/defs.c
+index 5aac03c816..3b2824940f 100644
+--- a/src/pkg/runtime/windows/defs.c
++++ b/src/pkg/runtime/windows/defs.c
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <signal.h>
+ #include <stdarg.h>
+ #include <windef.h>
+ #include <winbase.h>
++#include <wincon.h>
+ 
+ enum {
+ 	$PROT_NONE = 0,
+@@ -15,6 +17,10 @@ enum {
+ 	$MAP_ANON = 1,
+ 	$MAP_PRIVATE = 2,
+ 
++	$SIGINT = SIGINT,
++	$CTRL_C_EVENT = CTRL_C_EVENT,
++	$CTRL_BREAK_EVENT = CTRL_BREAK_EVENT,
++
+ 	$EXCEPTION_ACCESS_VIOLATION = STATUS_ACCESS_VIOLATION,
+ 	$EXCEPTION_BREAKPOINT = STATUS_BREAKPOINT,
+ 	$EXCEPTION_FLT_DENORMAL_OPERAND = STATUS_FLOAT_DENORMAL_OPERAND,
+diff --git a/src/pkg/runtime/windows/os.h b/src/pkg/runtime/windows/os.h
+index 391eace5a0..77881e86ec 100644
+--- a/src/pkg/runtime/windows/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -20,6 +20,7 @@ uint32 runtime·tstart_stdcall(M *newm);
+ 
+ uint32 runtime·issigpanic(uint32);
+ void runtime·sigpanic(void);
++uint32 runtime·ctrlhandler(uint32 type);
+ 
+ // Windows dll function to go callback entry.
+ byte *runtime·compilecallback(Eface fn, bool cleanstack);
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 278a5da692..525fd09801 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -18,6 +18,7 @@
+ #pragma dynimport runtime·LoadLibraryEx LoadLibraryExA "kernel32.dll"
+ #pragma dynimport runtime·QueryPerformanceCounter QueryPerformanceCounter "kernel32.dll"
+ #pragma dynimport runtime·QueryPerformanceFrequency QueryPerformanceFrequency "kernel32.dll"
++#pragma dynimport runtime·SetConsoleCtrlHandler SetConsoleCtrlHandler "kernel32.dll"
+ #pragma dynimport runtime·SetEvent SetEvent "kernel32.dll"
+ #pragma dynimport runtime·WaitForSingleObject WaitForSingleObject "kernel32.dll"
+ #pragma dynimport runtime·WriteFile WriteFile "kernel32.dll"
+@@ -33,6 +34,7 @@ extern void *runtime·GetStdHandle;
+ extern void *runtime·LoadLibraryEx;
+ extern void *runtime·QueryPerformanceCounter;
+ extern void *runtime·QueryPerformanceFrequency;
++extern void *runtime·SetConsoleCtrlHandler;
+ extern void *runtime·SetEvent;
+ extern void *runtime·WaitForSingleObject;
+ extern void *runtime·WriteFile;
+@@ -43,6 +45,7 @@ void
+ runtime·osinit(void)
+ {
+ 	runtime·stdcall(runtime·QueryPerformanceFrequency, 1, &timerfreq);
++	runtime·stdcall(runtime·SetConsoleCtrlHandler, 2, runtime·ctrlhandler, 1);
+ }
+ 
+ void
+@@ -161,6 +164,7 @@ runtime·destroylock(Lock *l)
+ void
+ runtime·noteclear(Note *n)
+ {
++	n->lock.key = 0;	// memset(n, 0, sizeof *n)
+ 	eventlock(&n->lock);
+ }
+ 
+@@ -279,6 +283,41 @@ runtime·sigpanic(void)
+ 	runtime·throw("fault");
+ }
+ 
++String
++runtime·signame(int32 sig)
++{
++	int8 *s;
++
++	switch(sig) {
++	case SIGINT:
++		s = "SIGINT: interrupt";
++		break;
++	default:
++		return runtime·emptystring;
++	}
++	return runtime·gostringnocopy((byte*)s);
++}
++
++uint32
++runtime·ctrlhandler1(uint32 type)
++{
++	int32 s;
++
++	switch(type) {
++	case CTRL_C_EVENT:
++	case CTRL_BREAK_EVENT:
++		s = SIGINT;
++		break;
++	default:
++		return 0;
++	}
++
++	if(runtime·sigsend(s))
++		return 1;
++	runtime·exit(2);	// SIGINT, SIGTERM, etc
++	return 0;
++}
++
+ // Call back from windows dll into go.
+ byte *
+ runtime·compilecallback(Eface fn, bool cleanstack)

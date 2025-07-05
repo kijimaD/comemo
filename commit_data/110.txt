@@ -3,6 +3,20 @@ Author: Ken Thompson <ken@golang.org>
 Date:   Fri Jun 6 17:01:33 2008 -0700
 
     SVN=121547
-
+---
  src/cmd/6g/cgen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 531f0614b1..ef77fa19fd 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -40,7 +40,7 @@ cgen(Node *n, Node *res)
+ 
+ 	if(!res->addable) {
+ 		if(n->ullman > res->ullman) {
+-			regalloc(&n1, nr->type, res);
++			regalloc(&n1, n->type, res);
+ 			cgen(n, &n1);
+ 			cgen(&n1, res);
+ 			regfree(&n1);

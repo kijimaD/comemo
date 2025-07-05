@@ -9,7 +9,54 @@ Date:   Thu Jan 6 11:21:18 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/3879041
-
+---
  src/cmd/gc/walk.c        |  8 ++++----
  test/fixedbugs/bug317.go | 16 ++++++++++++++++
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 536c37701d..fa3e5d5e4c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -960,15 +960,15 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OASOP:
+-		n->left = safeexpr(n->left, init);
+-		walkexpr(&n->left, init);
+-		l = n->left;
+-		walkexpr(&n->right, init);
+ 		if(n->etype == OANDNOT) {
+ 			n->etype = OAND;
+ 			n->right = nod(OCOM, n->right, N);
+ 			typecheck(&n->right, Erv);
+ 		}
++		n->left = safeexpr(n->left, init);
++		walkexpr(&n->left, init);
++		l = n->left;
++		walkexpr(&n->right, init);
+ 
+ 		/*
+ 		 * on 32-bit arch, rewrite 64-bit ops into l = l op r.
+diff --git a/test/fixedbugs/bug317.go b/test/fixedbugs/bug317.go
+new file mode 100644
+index 0000000000..0cb26c29ba
+--- /dev/null
++++ b/test/fixedbugs/bug317.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out || echo BUG: bug317
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	x := []uint{0}
++	x[0] &^= f()
++}
++
++func f() uint {
++	return 1<<31 // doesn't panic with 1<<31 - 1
++}

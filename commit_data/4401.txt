@@ -7,6 +7,23 @@ Date:   Sun Dec 13 12:11:56 2009 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/174077
-
+---
  src/cmd/gc/go.y | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 6e100d1f41..2fd36e751e 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -7,9 +7,8 @@
+  *
+  * The Go semicolon rules are:
+  *
+- *  1. all statements and declarations are terminated by semicolons
+- *  2. semicolons can be omitted before and after the closing ) or }
+- *	on a list of statements or declarations.
++ *  1. all statements and declarations are terminated by semicolons.
++ *  2. semicolons can be omitted before a closing ) or }.
+  *  3. semicolons are inserted by the lexer before a newline
+  *      following a specific list of tokens.
+  *

@@ -20,10 +20,418 @@ Date:   Sat Mar 31 16:49:07 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/compile/internal/gc/const.go     | 119 +++++++++++--------------------
  src/cmd/compile/internal/gc/sinit.go     |   3 +-
  src/cmd/compile/internal/gc/subr.go      |  22 ------
  src/cmd/compile/internal/gc/typecheck.go |  68 +++++++-----------
  src/cmd/compile/internal/gc/walk.go      |   2 +-
  5 files changed, 72 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 8422eec17e..aad3db9b77 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ 	"math/big"
+ 	"strings"
+ )
+@@ -564,8 +563,8 @@ func overflow(v Val, t *types.Type) bool {
+ 		return false
+ 	}
+ 
+-	// Only uintptrs may be converted to unsafe.Pointer, which cannot overflow.
+-	if t.Etype == TUNSAFEPTR {
++	// Only uintptrs may be converted to pointers, which cannot overflow.
++	if t.IsPtr() || t.IsUnsafePtr() {
+ 		return false
+ 	}
+ 
+@@ -610,18 +609,6 @@ func Isconst(n *Node, ct Ctype) bool {
+ 	return t == ct || (ct == CTINT && t == CTRUNE)
+ }
+ 
+-func saveorig(n *Node) *Node {
+-	if n == n.Orig {
+-		// duplicate node for n->orig.
+-		n1 := nod(OLITERAL, nil, nil)
+-
+-		n.Orig = n1
+-		*n1 = *n
+-	}
+-
+-	return n.Orig
+-}
+-
+ // if n is constant, rewrite as OLITERAL node.
+ func evconst(n *Node) {
+ 	// pick off just the opcodes that can be
+@@ -745,20 +732,13 @@ func evconst(n *Node) {
+ 
+ 	nr := n.Right
+ 	var rv Val
+-	var lno src.XPos
+ 	var wr types.EType
+ 	var ctype uint32
+ 	var v Val
+-	var norig *Node
+-	var nn *Node
+ 	if nr == nil {
+ 		// copy numeric value to avoid modifying
+ 		// nl, in case someone still refers to it (e.g. iota).
+-		v = nl.Val()
+-
+-		if wl == TIDEAL {
+-			v = copyval(v)
+-		}
++		v = copyval(nl.Val())
+ 
+ 		// rune values are int values for the purpose of constant folding.
+ 		ctype = uint32(v.Ctype())
+@@ -900,12 +880,7 @@ func evconst(n *Node) {
+ 
+ 	// copy numeric value to avoid modifying
+ 	// n->left, in case someone still refers to it (e.g. iota).
+-	v = nl.Val()
+-
+-	if wl == TIDEAL {
+-		v = copyval(v)
+-	}
+-
++	v = copyval(nl.Val())
+ 	rv = nr.Val()
+ 
+ 	// convert to common ideal
+@@ -1202,41 +1177,15 @@ func evconst(n *Node) {
+ 	}
+ 
+ ret:
+-	norig = saveorig(n)
+-	*n = *nl
+-
+-	// restore value of n->orig.
+-	n.Orig = norig
+-
+-	n.SetVal(v)
+-
+-	// check range.
+-	lno = setlineno(n)
+-	overflow(v, n.Type)
+-	lineno = lno
+-
+-	// truncate precision for non-ideal float.
+-	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
+-		n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
+-	}
++	setconst(n, v)
+ 	return
+ 
+ settrue:
+-	nn = nodbool(true)
+-	nn.Orig = saveorig(n)
+-	if !iscmp[n.Op] {
+-		nn.Type = nl.Type
+-	}
+-	*n = *nn
++	setconst(n, Val{true})
+ 	return
+ 
+ setfalse:
+-	nn = nodbool(false)
+-	nn.Orig = saveorig(n)
+-	if !iscmp[n.Op] {
+-		nn.Type = nl.Type
+-	}
+-	*n = *nn
++	setconst(n, Val{false})
+ 	return
+ 
+ illegal:
+@@ -1246,6 +1195,42 @@ illegal:
+ 	}
+ }
+ 
++// setconst rewrites n as an OLITERAL with value v.
++func setconst(n *Node, v Val) {
++	// Ensure n.Orig still points to a semantically-equivalent
++	// expression after we rewrite n into a constant.
++	if n.Orig == n {
++		var ncopy Node
++		n.Orig = &ncopy
++		ncopy = *n
++	}
++
++	*n = Node{
++		Op:      OLITERAL,
++		Pos:     n.Pos,
++		Orig:    n.Orig,
++		Type:    n.Type,
++		Xoffset: BADWIDTH,
++	}
++	n.SetVal(v)
++
++	// Check range.
++	lno := setlineno(n)
++	overflow(v, n.Type)
++	lineno = lno
++
++	// Truncate precision for non-ideal float.
++	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
++		n.SetVal(Val{truncfltlit(v.U.(*Mpflt), n.Type)})
++	}
++}
++
++func setintconst(n *Node, v int64) {
++	u := new(Mpint)
++	u.SetInt64(v)
++	setconst(n, Val{u})
++}
++
+ // nodlit returns a new untyped constant with value v.
+ func nodlit(v Val) *Node {
+ 	n := nod(OLITERAL, nil, nil)
+@@ -1270,24 +1255,6 @@ func nodlit(v Val) *Node {
+ 	return n
+ }
+ 
+-func nodcplxlit(r Val, i Val) *Node {
+-	r = toflt(r)
+-	i = toflt(i)
+-
+-	c := new(Mpcplx)
+-	n := nod(OLITERAL, nil, nil)
+-	n.Type = types.Types[TIDEAL]
+-	n.SetVal(Val{c})
+-
+-	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
+-		Fatalf("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
+-	}
+-
+-	c.Real.Set(r.U.(*Mpflt))
+-	c.Imag.Set(i.U.(*Mpflt))
+-	return n
+-}
+-
+ // idealkind returns a constant kind like consttype
+ // but for an arbitrary "ideal" (untyped constant) expression.
+ func idealkind(n *Node) Ctype {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 071d7dc2a5..a7e9f54b3f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -790,7 +790,8 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		}
+ 
+ 		var v Node
+-		nodconst(&v, types.Types[TINT], t.NumElem())
++		v.Type = types.Types[TINT]
++		setintconst(&v, t.NumElem())
+ 
+ 		nam.Xoffset += int64(array_array)
+ 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 7354625de0..0351de41d5 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -364,15 +364,6 @@ func nodSym(op Op, left *Node, sym *types.Sym) *Node {
+ 	return n
+ }
+ 
+-func saveorignode(n *Node) {
+-	if n.Orig != nil {
+-		return
+-	}
+-	norig := nod(n.Op, nil, nil)
+-	*norig = *n
+-	n.Orig = norig
+-}
+-
+ // methcmp sorts methods by name with exported methods first,
+ // and then non-exported methods by their package path.
+ type methcmp []*types.Field
+@@ -424,19 +415,6 @@ func nodfltconst(v *Mpflt) *Node {
+ 	return nodlit(Val{u})
+ }
+ 
+-func nodconst(n *Node, t *types.Type, v int64) {
+-	*n = Node{}
+-	n.Op = OLITERAL
+-	n.SetAddable(true)
+-	n.SetVal(Val{new(Mpint)})
+-	n.Val().U.(*Mpint).SetInt64(v)
+-	n.Type = t
+-
+-	if t.IsFloat() {
+-		Fatalf("nodconst: bad type %v", t)
+-	}
+-}
+-
+ func nodnil() *Node {
+ 	return nodlit(Val{new(NilVal)})
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 30fb185c9d..9cbbc0b9b6 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1294,12 +1294,10 @@ func typecheck1(n *Node, top int) *Node {
+ 			n.Type = nil
+ 			return n
+ 		}
++		n.Type = types.Types[TUINTPTR]
+ 
+ 		// any side effects disappear; ignore init
+-		var r Node
+-		nodconst(&r, types.Types[TUINTPTR], evalunsafe(n))
+-		r.Orig = n
+-		n = &r
++		setintconst(n, evalunsafe(n))
+ 
+ 	case OCAP, OLEN:
+ 		ok |= Erv
+@@ -1330,7 +1328,9 @@ func typecheck1(n *Node, top int) *Node {
+ 			return n
+ 		}
+ 
+-		// result might be constant
++		n.Type = types.Types[TINT]
++
++		// Result might be constant.
+ 		var res int64 = -1 // valid if >= 0
+ 		switch t.Etype {
+ 		case TSTRING:
+@@ -1344,14 +1344,9 @@ func typecheck1(n *Node, top int) *Node {
+ 			}
+ 		}
+ 		if res >= 0 {
+-			var r Node
+-			nodconst(&r, types.Types[TINT], res)
+-			r.Orig = n
+-			n = &r
++			setintconst(n, res)
+ 		}
+ 
+-		n.Type = types.Types[TINT]
+-
+ 	case OREAL, OIMAG:
+ 		ok |= Erv
+ 		if !onearg(n, "%v", n.Op) {
+@@ -1367,11 +1362,21 @@ func typecheck1(n *Node, top int) *Node {
+ 			return n
+ 		}
+ 
+-		if t.Etype != TIDEAL && !t.IsComplex() {
++		// Determine result type.
++		et := t.Etype
++		switch et {
++		case TIDEAL:
++			// result is ideal
++		case TCOMPLEX64:
++			et = TFLOAT32
++		case TCOMPLEX128:
++			et = TFLOAT64
++		default:
+ 			yyerror("invalid argument %L for %v", l, n.Op)
+ 			n.Type = nil
+ 			return n
+ 		}
++		n.Type = types.Types[et]
+ 
+ 		// if the argument is a constant, the result is a constant
+ 		// (any untyped numeric constant can be represented as a
+@@ -1400,24 +1405,8 @@ func typecheck1(n *Node, top int) *Node {
+ 				}
+ 				re = im
+ 			}
+-			orig := n
+-			n = nodfltconst(re)
+-			n.Orig = orig
+-		}
+-
+-		// determine result type
+-		et := t.Etype
+-		switch et {
+-		case TIDEAL:
+-			// result is ideal
+-		case TCOMPLEX64:
+-			et = TFLOAT32
+-		case TCOMPLEX128:
+-			et = TFLOAT64
+-		default:
+-			Fatalf("unexpected Etype: %v\n", et)
++			setconst(n, Val{re})
+ 		}
+-		n.Type = types.Types[et]
+ 
+ 	case OCOMPLEX:
+ 		ok |= Erv
+@@ -1489,17 +1478,16 @@ func typecheck1(n *Node, top int) *Node {
+ 		case TFLOAT64:
+ 			t = types.Types[TCOMPLEX128]
+ 		}
++		n.Type = t
+ 
+ 		if l.Op == OLITERAL && r.Op == OLITERAL {
+ 			// make it a complex literal
+-			r = nodcplxlit(l.Val(), r.Val())
+-
+-			r.Orig = n
+-			n = r
++			c := new(Mpcplx)
++			c.Real.Set(toflt(l.Val()).U.(*Mpflt))
++			c.Imag.Set(toflt(r.Val()).U.(*Mpflt))
++			setconst(n, Val{c})
+ 		}
+ 
+-		n.Type = t
+-
+ 	case OCLOSE:
+ 		if !onearg(n, "%v", n.Op) {
+ 			n.Type = nil
+@@ -1701,7 +1689,6 @@ func typecheck1(n *Node, top int) *Node {
+ 
+ 	case OCONV:
+ 		ok |= Erv
+-		saveorignode(n)
+ 		checkwidth(n.Type) // ensure width is calculated for backend
+ 		n.Left = typecheck(n.Left, Erv)
+ 		n.Left = convlit1(n.Left, n.Type, true, noReuse)
+@@ -1717,19 +1704,16 @@ func typecheck1(n *Node, top int) *Node {
+ 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
+ 				n.SetDiag(true)
+ 			}
+-
+ 			n.Op = OCONV
++			n.Type = nil
++			return n
+ 		}
+ 
+ 		switch n.Op {
+ 		case OCONVNOP:
+ 			if n.Left.Op == OLITERAL {
+-				r := nod(OXXX, nil, nil)
+ 				n.Op = OCONV
+-				n.Orig = r
+-				*r = *n
+-				n.Op = OLITERAL
+-				n.SetVal(n.Left.Val())
++				setconst(n, n.Left.Val())
+ 			} else if t.Etype == n.Type.Etype {
+ 				switch t.Etype {
+ 				case TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7798a4f364..6b862d3bf1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -548,7 +548,7 @@ opswitch:
+ 		}
+ 		if t.IsArray() {
+ 			safeexpr(n.Left, init)
+-			nodconst(n, n.Type, t.NumElem())
++			setintconst(n, t.NumElem())
+ 			n.SetTypecheck(1)
+ 		}
+ 

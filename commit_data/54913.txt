@@ -16,6 +16,20 @@ Date:   Mon Nov 21 11:46:23 2022 -0500
     Auto-Submit: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/signal_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index b27eca9b60..c9b8e90118 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -21,7 +21,7 @@ func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+ 	}
+-	if testenv.Builder() == "windows-amd64-2012" {
++	if strings.HasPrefix(testenv.Builder(), "windows-amd64-2012") {
+ 		testenv.SkipFlaky(t, 49681)
+ 	}
+ 	testenv.MustHaveGoBuild(t)

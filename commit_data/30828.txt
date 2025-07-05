@@ -11,7 +11,7 @@ Date:   Thu Dec 8 22:15:40 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  doc/devel/weekly.html                          | 6 +++---
  src/cmd/compile/internal/gc/testdata/array.go  | 4 ++--
  src/cmd/compile/internal/gc/testdata/string.go | 6 +++---
@@ -28,3 +28,261 @@ Date:   Thu Dec 8 22:15:40 2016 +0000
  src/runtime/panic.go                           | 2 +-
  test/fixedbugs/issue16130.go                   | 2 +-
  15 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index 7166a76507..e17461db24 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -519,7 +519,7 @@ Other changes:
+ 	fix FreeBSD signal handling around thread creation (thanks Devon H. O'Dell),
+ 	goroutine profile, stack dumps,
+ 	implement runtime.osyield on FreeBSD 386, amd64 (thanks Devon H. O'Dell),
+-	permit default behaviour of SIGTSTP, SIGTTIN, SIGTTOU,
++	permit default behavior of SIGTSTP, SIGTTIN, SIGTTOU,
+ 	release unused memory to the OS (thanks Sébastien Paolacci),
+ 	remove an obsolete file (thanks Mikio Hara).
+ * spec: make all comparison results untyped bool,
+@@ -4157,7 +4157,7 @@ Other changes in this release:
+ * suffixarray: use binary search for both ends of Lookup (thanks Eric Eisner).
+ * syscall: add missing network interface constants (thanks Mikio Hara).
+ * template: treat map keys as zero, not non-existent (thanks Roger Peppe).
+-* time: allow cancelling of After events (thanks Roger Peppe),
++* time: allow canceling of After events (thanks Roger Peppe),
+         support Solaris zoneinfo directory.
+ * token/position: added SetLinesForContent.
+ * unicode: update to unicode 6.0.0.
+@@ -5696,7 +5696,7 @@ This release contains many changes:
+ * cmath: new complex math library (thanks Charles L. Dorian).
+ * docs: update to match current coding style (thanks Christopher Wedgwood).
+ * exp/eval: fix example and add target to Makefile (thanks Evan Shaw).
+-* fmt: change behaviour of format verb %b to match %x when negative (thanks Andrei Vieru).
++* fmt: change behavior of format verb %b to match %x when negative (thanks Andrei Vieru).
+ * gc: compile s == "" as len(s) == 0,
+ 	distinguish fatal compiler bug from error+exit,
+ 	fix alignment on non-amd64,
+diff --git a/src/cmd/compile/internal/gc/testdata/array.go b/src/cmd/compile/internal/gc/testdata/array.go
+index 0334339d43..6be8d9155b 100644
+--- a/src/cmd/compile/internal/gc/testdata/array.go
++++ b/src/cmd/compile/internal/gc/testdata/array.go
+@@ -106,7 +106,7 @@ func testSliceSetElement() {
+ func testSlicePanic1() {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("paniced as expected")
++			println("panicked as expected")
+ 		}
+ 	}()
+ 
+@@ -119,7 +119,7 @@ func testSlicePanic1() {
+ func testSlicePanic2() {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("paniced as expected")
++			println("panicked as expected")
+ 		}
+ 	}()
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/string.go b/src/cmd/compile/internal/gc/testdata/string.go
+index 897e874ee5..03053a6134 100644
+--- a/src/cmd/compile/internal/gc/testdata/string.go
++++ b/src/cmd/compile/internal/gc/testdata/string.go
+@@ -73,7 +73,7 @@ func testStructSlice() {
+ func testStringSlicePanic() {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("paniced as expected")
++			println("panicked as expected")
+ 		}
+ 	}()
+ 
+@@ -148,7 +148,7 @@ func testInt64Index() {
+ func testInt64IndexPanic() {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("paniced as expected")
++			println("panicked as expected")
+ 		}
+ 	}()
+ 
+@@ -161,7 +161,7 @@ func testInt64IndexPanic() {
+ func testInt64SlicePanic() {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+-			println("paniced as expected")
++			println("panicked as expected")
+ 		}
+ 	}()
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 1e2a9eadc5..aca8973a85 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1250,7 +1250,7 @@ func (p *GCProg) AddSym(s *Symbol) {
+ }
+ 
+ // dataSortKey is used to sort a slice of data symbol *Symbol pointers.
+-// The sort keys are kept inline to improve cache behaviour while sorting.
++// The sort keys are kept inline to improve cache behavior while sorting.
+ type dataSortKey struct {
+ 	size int64
+ 	name string
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 7304b5b0d3..ef9f253414 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2777,7 +2777,7 @@ func Elfadddynsym(ctxt *Link, s *Symbol) {
+ 		/* type */
+ 		t := STB_GLOBAL << 4
+ 
+-		// TODO(mwhudson): presumably the behaviour should actually be the same on both arm and 386.
++		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
+ 		if SysArch.Family == sys.I386 && s.Attr.CgoExport() && s.Type&obj.SMASK == obj.STEXT {
+ 			t |= STT_FUNC
+ 		} else if SysArch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type&obj.SMASK == obj.STEXT {
+diff --git a/src/cmd/pprof/internal/svg/svgpan.go b/src/cmd/pprof/internal/svg/svgpan.go
+index 4975b103e3..d8f12afea4 100644
+--- a/src/cmd/pprof/internal/svg/svgpan.go
++++ b/src/cmd/pprof/internal/svg/svgpan.go
+@@ -17,7 +17,7 @@ const svgPanJS = `
+  *  - Mouse zooming (using the wheel)
+  *  - Object dragging
+  *
+- * You can configure the behaviour of the pan/zoom/drag with the variables
++ * You can configure the behavior of the pan/zoom/drag with the variables
+  * listed in the CONFIGURATION section of this file.
+  *
+  * Known issues:
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 2d604a04d3..6efc06cbe5 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -595,14 +595,14 @@ func XTestCancelRemoves(t testingT) {
+ 	_, cancel := WithCancel(ctx)
+ 	checkChildren("with WithCancel child ", ctx, 1)
+ 	cancel()
+-	checkChildren("after cancelling WithCancel child", ctx, 0)
++	checkChildren("after canceling WithCancel child", ctx, 0)
+ 
+ 	ctx, _ = WithCancel(Background())
+ 	checkChildren("after creation", ctx, 0)
+ 	_, cancel = WithTimeout(ctx, 60*time.Minute)
+ 	checkChildren("with WithTimeout child ", ctx, 1)
+ 	cancel()
+-	checkChildren("after cancelling WithTimeout child", ctx, 0)
++	checkChildren("after canceling WithTimeout child", ctx, 0)
+ }
+ 
+ func XTestWithCancelCanceledParent(t testingT) {
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/aes/gcm_s390x.go
+index 9eaaf7c21e..438310d3de 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/aes/gcm_s390x.go
+@@ -257,7 +257,7 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
+ 		// The AESNI code decrypts and authenticates concurrently, and
+ 		// so overwrites dst in the event of a tag mismatch. That
+-		// behaviour is mimicked here in order to be consistent across
++		// behavior is mimicked here in order to be consistent across
+ 		// platforms.
+ 		for i := range out {
+ 			out[i] = 0
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 793a4459e5..62085aac0f 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -188,7 +188,7 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
+ 		// The AESNI code decrypts and authenticates concurrently, and
+ 		// so overwrites dst in the event of a tag mismatch. That
+-		// behaviour is mimicked here in order to be consistent across
++		// behavior is mimicked here in order to be consistent across
+ 		// platforms.
+ 		for i := range out {
+ 			out[i] = 0
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 0d3de30bec..29345a1755 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -153,7 +153,7 @@ type VerifyOptions struct {
+ 	CurrentTime   time.Time // if zero, the current time is used
+ 	// KeyUsage specifies which Extended Key Usage values are acceptable.
+ 	// An empty list means ExtKeyUsageServerAuth. Key usage is considered a
+-	// constraint down the chain which mirrors Windows CryptoAPI behaviour,
++	// constraint down the chain which mirrors Windows CryptoAPI behavior,
+ 	// but not the spec. To accept any key usage, include ExtKeyUsageAny.
+ 	KeyUsages []ExtKeyUsage
+ }
+@@ -262,7 +262,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ // WARNING: this doesn't do any revocation checking.
+ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+ 	// Platform-specific verification needs the ASN.1 contents so
+-	// this makes the behaviour consistent across platforms.
++	// this makes the behavior consistent across platforms.
+ 	if len(c.Raw) == 0 {
+ 		return nil, errNotParsed
+ 	}
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 76d0b0c825..225fd0849c 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -535,7 +535,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
+ 
+ 	// If no default value is given then the zero value for the type is
+ 	// assumed to be the default value. This isn't obviously the correct
+-	// behaviour, but it's what Go has traditionally done.
++	// behavior, but it's what Go has traditionally done.
+ 	if params.optional && params.defaultValue == nil {
+ 		if reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+ 			return bytesEncoder(nil), nil
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index d3ac7ab4b9..4052e71042 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -978,7 +978,7 @@ func TestContextCancel(t *testing.T) {
+ 			break
+ 		}
+ 		if time.Since(start) > time.Second {
+-			t.Fatal("cancelling context did not stop program")
++			t.Fatal("canceling context did not stop program")
+ 		}
+ 		time.Sleep(time.Millisecond)
+ 	}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index c932e149dd..18f5c588b4 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -179,7 +179,7 @@ func panicnildottype(want *_type) {
+ 
+ // The conv and assert functions below do very similar things.
+ // The convXXX functions are guaranteed by the compiler to succeed.
+-// The assertXXX functions may fail (either panicing or returning false,
++// The assertXXX functions may fail (either panicking or returning false,
+ // depending on whether they are 1-result or 2-result).
+ // The convXXX functions succeed on a nil input, whereas the assertXXX
+ // functions fail on a nil input.
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 73924365c3..876bca7fd4 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -646,7 +646,7 @@ func startpanic_m() {
+ 		freezetheworld()
+ 		return
+ 	case 1:
+-		// Something failed while panicing, probably the print of the
++		// Something failed while panicking, probably the print of the
+ 		// argument to panic().  Just print a stack trace and exit.
+ 		_g_.m.dying = 2
+ 		print("panic during panic\n")
+diff --git a/test/fixedbugs/issue16130.go b/test/fixedbugs/issue16130.go
+index 19c8264c6f..c4e3ffd33d 100644
+--- a/test/fixedbugs/issue16130.go
++++ b/test/fixedbugs/issue16130.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Test that an interface conversion error panics with an "interface
+-// conversion" run-time error. It was (incorrectly) panicing with a
++// conversion" run-time error. It was (incorrectly) panicking with a
+ // "nil pointer dereference."
+ 
+ package main

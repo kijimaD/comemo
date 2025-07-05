@@ -14,9 +14,110 @@ Date:   Wed Jul 14 14:46:09 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  api/go1.17.txt          |  1 +
  doc/go1.17.html         | 12 ++++++++++++
  src/reflect/all_test.go |  9 +++++++++
  src/reflect/value.go    | 20 ++++++++++++++++++++
  4 files changed, 42 insertions(+)
+
+diff --git a/api/go1.17.txt b/api/go1.17.txt
+index 3d0a464fec..48505381f1 100644
+--- a/api/go1.17.txt
++++ b/api/go1.17.txt
+@@ -80,6 +80,7 @@ pkg net/url, method (Values) Has(string) bool
+ pkg reflect, func VisibleFields(Type) []StructField
+ pkg reflect, method (Method) IsExported() bool
+ pkg reflect, method (StructField) IsExported() bool
++pkg reflect, method (Value) CanConvert(Type) bool
+ pkg runtime/cgo (darwin-amd64-cgo), func NewHandle(interface{}) Handle
+ pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Delete()
+ pkg runtime/cgo (darwin-amd64-cgo), method (Handle) Value() interface{}
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index b31006fe65..7739d1c62e 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -989,6 +989,18 @@ func Foo() bool {
+ 
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
++    <p><!-- CL 334669 -->
++      The new
++      <a href="/pkg/reflect/#Value.CanConvert"><code>Value.CanConvert</code></a>
++      method reports whether a value can be converted to a type.
++      This may be used to avoid a panic when converting a slice to an
++      array pointer type if the slice is too short.
++      Previously it was sufficient to use
++      <a href="/pkg/reflect/#Type.ConvertibleTo"><code>Type.ConvertibleTo</code></a>
++      for this, but the newly permitted conversion from slice to array
++      pointer type can panic even if the types are convertible.
++    </p>
++
+     <p><!-- CL 266197 -->
+       The new
+       <a href="/pkg/reflect/#StructField.IsExported"><code>StructField.IsExported</code></a>
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 0db5e13217..eac27e886f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4304,6 +4304,9 @@ func TestConvert(t *testing.T) {
+ 
+ 		// vout1 represents the in value converted to the in type.
+ 		v1 := tt.in
++		if !v1.CanConvert(t1) {
++			t.Errorf("ValueOf(%T(%[1]v)).CanConvert(%s) = false, want true", tt.in.Interface(), t1)
++		}
+ 		vout1 := v1.Convert(t1)
+ 		out1 := vout1.Interface()
+ 		if vout1.Type() != tt.in.Type() || !DeepEqual(out1, tt.in.Interface()) {
+@@ -4311,6 +4314,9 @@ func TestConvert(t *testing.T) {
+ 		}
+ 
+ 		// vout2 represents the in value converted to the out type.
++		if !v1.CanConvert(t2) {
++			t.Errorf("ValueOf(%T(%[1]v)).CanConvert(%s) = false, want true", tt.in.Interface(), t2)
++		}
+ 		vout2 := v1.Convert(t2)
+ 		out2 := vout2.Interface()
+ 		if vout2.Type() != tt.out.Type() || !DeepEqual(out2, tt.out.Interface()) {
+@@ -4371,6 +4377,9 @@ func TestConvertPanic(t *testing.T) {
+ 	if !v.Type().ConvertibleTo(pt) {
+ 		t.Errorf("[]byte should be convertible to *[8]byte")
+ 	}
++	if v.CanConvert(pt) {
++		t.Errorf("slice with length 4 should not be convertible to *[8]byte")
++	}
+ 	shouldPanic("reflect: cannot convert slice with length 4 to pointer to array with length 8", func() {
+ 		_ = v.Convert(pt)
+ 	})
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 9dce251ac5..6f878eba5b 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2811,6 +2811,26 @@ func (v Value) Convert(t Type) Value {
+ 	return op(v, t)
+ }
+ 
++// CanConvert reports whether the value v can be converted to type t.
++// If v.CanConvert(t) returns true then v.Convert(t) will not panic.
++func (v Value) CanConvert(t Type) bool {
++	vt := v.Type()
++	if !vt.ConvertibleTo(t) {
++		return false
++	}
++	// Currently the only conversion that is OK in terms of type
++	// but that can panic depending on the value is converting
++	// from slice to pointer-to-array.
++	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
++		n := t.Elem().Len()
++		h := (*unsafeheader.Slice)(v.ptr)
++		if n > h.Len {
++			return false
++		}
++	}
++	return true
++}
++
+ // convertOp returns the function to convert a value of type src
+ // to a value of type dst. If the conversion is illegal, convertOp returns nil.
+ func convertOp(dst, src *rtype) func(Value, Type) Value {

@@ -27,7 +27,7 @@ Date:   Sat Oct 12 16:21:55 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go   |   8 +-
  src/cmd/compile/internal/gc/dcl.go       |   2 +-
  src/cmd/compile/internal/gc/esc.go       |   4 +-
@@ -42,3 +42,620 @@ Date:   Sat Oct 12 16:21:55 2019 -0700
  src/cmd/compile/internal/gc/typecheck.go |  31 +++----
  src/cmd/compile/internal/gc/walk.go      |   6 +-
  13 files changed, 125 insertions(+), 133 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 6080777e8e..055ddbae33 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -101,7 +101,7 @@ func typecheckclosure(clo *Node, top int) {
+ 			// Ignore assignments to the variable in straightline code
+ 			// preceding the first capturing by a closure.
+ 			if n.Name.Decldepth == decldepth {
+-				n.SetAssigned(false)
++				n.Name.SetAssigned(false)
+ 			}
+ 		}
+ 	}
+@@ -192,10 +192,10 @@ func capturevars(xfunc *Node) {
+ 		outermost := v.Name.Defn
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+-		if outermost.Class() != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
++		if outermost.Class() != PPARAMOUT && !outermost.Name.Addrtaken() && !outermost.Name.Assigned() && v.Type.Width <= 128 {
+ 			v.Name.SetByval(true)
+ 		} else {
+-			outermost.SetAddrtaken(true)
++			outermost.Name.SetAddrtaken(true)
+ 			outer = nod(OADDR, outer, nil)
+ 		}
+ 
+@@ -208,7 +208,7 @@ func capturevars(xfunc *Node) {
+ 			if v.Name.Byval() {
+ 				how = "value"
+ 			}
+-			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken(), outermost.Assigned(), int32(v.Type.Width))
++			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Name.Addrtaken(), outermost.Name.Assigned(), int32(v.Type.Width))
+ 		}
+ 
+ 		outer = typecheck(outer, ctxExpr)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 8168f739f4..54c6a24df5 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -278,7 +278,7 @@ func oldname(s *types.Sym) *Node {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = newname(s)
+ 			c.SetClass(PAUTOHEAP)
+-			c.SetIsClosureVar(true)
++			c.Name.SetIsClosureVar(true)
+ 			c.SetIsDDD(n.IsDDD())
+ 			c.Name.Defn = n
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 92f229b97f..ee2a27cb7e 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -201,7 +201,7 @@ func addrescapes(n *Node) {
+ 		}
+ 
+ 		// If a closure reference escapes, mark the outer variable as escaping.
+-		if n.IsClosureVar() {
++		if n.Name.IsClosureVar() {
+ 			addrescapes(n.Name.Defn)
+ 			break
+ 		}
+@@ -293,7 +293,7 @@ func moveToHeap(n *Node) {
+ 			// Thus, we need the pointer to the heap copy always available so the
+ 			// post-deferreturn code can copy the return value back to the stack.
+ 			// See issue 16095.
+-			heapaddr.SetIsOutputParamHeapAddr(true)
++			heapaddr.Name.SetIsOutputParamHeapAddr(true)
+ 		}
+ 		n.Name.Param.Stackcopy = stackcopy
+ 
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 3d41c83627..b855f4a174 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -995,9 +995,9 @@ func (e *Escape) later(k EscHole) EscHole {
+ // canonicalNode returns the canonical *Node that n logically
+ // represents.
+ func canonicalNode(n *Node) *Node {
+-	if n != nil && n.IsClosureVar() {
++	if n != nil && n.Op == ONAME && n.Name.IsClosureVar() {
+ 		n = n.Name.Defn
+-		if n.IsClosureVar() {
++		if n.Name.IsClosureVar() {
+ 			Fatalf("still closure var")
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 877bbe4469..fd6b9ce53c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -483,12 +483,13 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " embedded")
+ 	}
+ 
+-	if n.Addrtaken() {
+-		fmt.Fprint(s, " addrtaken")
+-	}
+-
+-	if n.Assigned() {
+-		fmt.Fprint(s, " assigned")
++	if n.Op == ONAME {
++		if n.Name.Addrtaken() {
++			fmt.Fprint(s, " addrtaken")
++		}
++		if n.Name.Assigned() {
++			fmt.Fprint(s, " assigned")
++		}
+ 	}
+ 	if n.Bounded() {
+ 		fmt.Fprint(s, " bounded")
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 4a376305bb..9b2ecc073b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -655,7 +655,7 @@ func inlnode(n *Node, maxCost int32) *Node {
+ 					// NB: this check is necessary to prevent indirect re-assignment of the variable
+ 					// having the address taken after the invocation or only used for reads is actually fine
+ 					// but we have no easy way to distinguish the safe cases
+-					if d.Left.Addrtaken() {
++					if d.Left.Name.Addrtaken() {
+ 						if Debug['m'] > 1 {
+ 							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
+ 						}
+@@ -919,9 +919,9 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 		if genDwarfInline > 0 {
+ 			inlf := inlvars[ln]
+ 			if ln.Class() == PPARAM {
+-				inlf.SetInlFormal(true)
++				inlf.Name.SetInlFormal(true)
+ 			} else {
+-				inlf.SetInlLocal(true)
++				inlf.Name.SetInlLocal(true)
+ 			}
+ 			inlf.Pos = ln.Pos
+ 			inlfvars = append(inlfvars, inlf)
+@@ -947,7 +947,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 			// was manufactured by the inliner (e.g. "~R2"); such vars
+ 			// were not part of the original callee.
+ 			if !strings.HasPrefix(m.Sym.Name, "~R") {
+-				m.SetInlFormal(true)
++				m.Name.SetInlFormal(true)
+ 				m.Pos = mpos
+ 				inlfvars = append(inlfvars, m)
+ 			}
+@@ -1125,7 +1125,7 @@ func inlvar(var_ *Node) *Node {
+ 	n.SetClass(PAUTO)
+ 	n.Name.SetUsed(true)
+ 	n.Name.Curfn = Curfn // the calling function, not the called one
+-	n.SetAddrtaken(var_.Addrtaken())
++	n.Name.SetAddrtaken(var_.Name.Addrtaken())
+ 
+ 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+ 	return n
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 939f3df93a..6822be4137 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -298,7 +298,7 @@ func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
+ 		n := o.temp[i]
+ 		if n.Name.Keepalive() {
+ 			n.Name.SetKeepalive(false)
+-			n.SetAddrtaken(true) // ensure SSA keeps the n variable
++			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
+ 			live := nod(OVARLIVE, n, nil)
+ 			live = typecheck(live, ctxStmt)
+ 			out = append(out, live)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index b1f9bc9d55..ec25277a2b 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -262,7 +262,7 @@ func compile(fn *Node) {
+ 	for _, n := range fn.Func.Dcl {
+ 		switch n.Class() {
+ 		case PPARAM, PPARAMOUT, PAUTO:
+-			if livenessShouldTrack(n) && n.Addrtaken() {
++			if livenessShouldTrack(n) && n.Name.Addrtaken() {
+ 				dtypesym(n.Type)
+ 				// Also make sure we allocate a linker symbol
+ 				// for the stack object data, for the same reason.
+@@ -498,9 +498,9 @@ func createSimpleVar(n *Node) *dwarf.Var {
+ 	typename := dwarf.InfoPrefix + typesymname(n.Type)
+ 	inlIndex := 0
+ 	if genDwarfInline > 1 {
+-		if n.InlFormal() || n.InlLocal() {
++		if n.Name.InlFormal() || n.Name.InlLocal() {
+ 			inlIndex = posInlIndex(n.Pos) + 1
+-			if n.InlFormal() {
++			if n.Name.InlFormal() {
+ 				abbrev = dwarf.DW_ABRV_PARAM
+ 			}
+ 		}
+@@ -509,7 +509,7 @@ func createSimpleVar(n *Node) *dwarf.Var {
+ 	return &dwarf.Var{
+ 		Name:          n.Sym.Name,
+ 		IsReturnValue: n.Class() == PPARAMOUT,
+-		IsInlFormal:   n.InlFormal(),
++		IsInlFormal:   n.Name.InlFormal(),
+ 		Abbrev:        abbrev,
+ 		StackOffset:   int32(offs),
+ 		Type:          Ctxt.Lookup(typename),
+@@ -619,9 +619,9 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, apDecls []*Node) ([]*Node, []*dw
+ 		}
+ 		inlIndex := 0
+ 		if genDwarfInline > 1 {
+-			if n.InlFormal() || n.InlLocal() {
++			if n.Name.InlFormal() || n.Name.InlLocal() {
+ 				inlIndex = posInlIndex(n.Pos) + 1
+-				if n.InlFormal() {
++				if n.Name.InlFormal() {
+ 					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 				}
+ 			}
+@@ -707,9 +707,9 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
+ 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+ 	inlIndex := 0
+ 	if genDwarfInline > 1 {
+-		if n.InlFormal() || n.InlLocal() {
++		if n.Name.InlFormal() || n.Name.InlLocal() {
+ 			inlIndex = posInlIndex(n.Pos) + 1
+-			if n.InlFormal() {
++			if n.Name.InlFormal() {
+ 				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 			}
+ 		}
+@@ -718,7 +718,7 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
+ 	dvar := &dwarf.Var{
+ 		Name:          n.Sym.Name,
+ 		IsReturnValue: n.Class() == PPARAMOUT,
+-		IsInlFormal:   n.InlFormal(),
++		IsInlFormal:   n.Name.InlFormal(),
+ 		Abbrev:        abbrev,
+ 		Type:          Ctxt.Lookup(typename),
+ 		// The stack offset is used as a sorting key, so for decomposed
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 8809a644d5..1745b92e6b 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -908,7 +908,7 @@ func (lv *Liveness) epilogue() {
+ 	if lv.fn.Func.HasDefer() {
+ 		for i, n := range lv.vars {
+ 			if n.Class() == PPARAMOUT {
+-				if n.IsOutputParamHeapAddr() {
++				if n.Name.IsOutputParamHeapAddr() {
+ 					// Just to be paranoid.  Heap addresses are PAUTOs.
+ 					Fatalf("variable %v both output param and heap output param", n)
+ 				}
+@@ -920,7 +920,7 @@ func (lv *Liveness) epilogue() {
+ 				// Note: zeroing is handled by zeroResults in walk.go.
+ 				livedefer.Set(int32(i))
+ 			}
+-			if n.IsOutputParamHeapAddr() {
++			if n.Name.IsOutputParamHeapAddr() {
+ 				// This variable will be overwritten early in the function
+ 				// prologue (from the result of a mallocgc) but we need to
+ 				// zero it in case that malloc causes a stack scan.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index be09fc5f83..c833d8eff2 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1264,7 +1264,7 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OVARLIVE:
+ 		// Insert a varlive op to record that a variable is still live.
+-		if !n.Left.Addrtaken() {
++		if !n.Left.Name.Addrtaken() {
+ 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
+ 		}
+ 		switch n.Left.Class() {
+@@ -4090,7 +4090,7 @@ func (s *state) canSSA(n *Node) bool {
+ 	if n.Op != ONAME {
+ 		return false
+ 	}
+-	if n.Addrtaken() {
++	if n.Name.Addrtaken() {
+ 		return false
+ 	}
+ 	if n.isParamHeapCopy() {
+@@ -5257,7 +5257,7 @@ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ func emitStackObjects(e *ssafn, pp *Progs) {
+ 	var vars []*Node
+ 	for _, n := range e.curfn.Func.Dcl {
+-		if livenessShouldTrack(n) && n.Addrtaken() {
++		if livenessShouldTrack(n) && n.Name.Addrtaken() {
+ 			vars = append(vars, n)
+ 		}
+ 	}
+@@ -6015,7 +6015,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+ 	ptrType := types.NewPtr(types.Types[TUINT8])
+ 	lenType := types.Types[TINT]
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		// Split this string up into two separate variables.
+ 		p := e.splitSlot(&name, ".ptr", 0, ptrType)
+ 		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
+@@ -6029,7 +6029,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
+ 	n := name.N.(*Node)
+ 	u := types.Types[TUINTPTR]
+ 	t := types.NewPtr(types.Types[TUINT8])
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		// Split this interface up into two separate variables.
+ 		f := ".itab"
+ 		if n.Type.IsEmptyInterface() {
+@@ -6047,7 +6047,7 @@ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ss
+ 	n := name.N.(*Node)
+ 	ptrType := types.NewPtr(name.Type.Elem())
+ 	lenType := types.Types[TINT]
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		// Split this slice up into three separate variables.
+ 		p := e.splitSlot(&name, ".ptr", 0, ptrType)
+ 		l := e.splitSlot(&name, ".len", ptrType.Size(), lenType)
+@@ -6069,7 +6069,7 @@ func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot)
+ 	} else {
+ 		t = types.Types[TFLOAT32]
+ 	}
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		// Split this complex up into two separate variables.
+ 		r := e.splitSlot(&name, ".real", 0, t)
+ 		i := e.splitSlot(&name, ".imag", t.Size(), t)
+@@ -6087,7 +6087,7 @@ func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	} else {
+ 		t = types.Types[TUINT32]
+ 	}
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		// Split this int64 up into two separate variables.
+ 		if thearch.LinkArch.ByteOrder == binary.BigEndian {
+ 			return e.splitSlot(&name, ".hi", 0, t), e.splitSlot(&name, ".lo", t.Size(), types.Types[TUINT32])
+@@ -6109,7 +6109,7 @@ func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+ 	for f := 0; f < i; f++ {
+ 		offset += st.FieldType(f).Size()
+ 	}
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		// Note: the _ field may appear several times.  But
+ 		// have no fear, identically-named but distinct Autos are
+ 		// ok, albeit maybe confusing for a debugger.
+@@ -6125,7 +6125,7 @@ func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
+ 		e.Fatalf(n.Pos, "bad array size")
+ 	}
+ 	et := at.Elem()
+-	if n.Class() == PAUTO && !n.Addrtaken() {
++	if n.Class() == PAUTO && !n.Name.Addrtaken() {
+ 		return e.splitSlot(&name, "[0]", 0, et)
+ 	}
+ 	return ssa.LocalSlot{N: n, Type: et, Off: name.Off}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 69d8a5590b..98903100fc 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -141,11 +141,7 @@ const (
+ 	nodeInitorder, _                   // tracks state during init1; two bits
+ 	_, _                               // second nodeInitorder bit
+ 	_, nodeHasBreak
+-	_, nodeIsClosureVar
+-	_, nodeIsOutputParamHeapAddr
+-	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+-	_, nodeAssigned  // is the variable ever assigned to
+-	_, nodeAddrtaken // address taken, even if not moved to heap
++	_, nodeNoInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+ 	_, nodeImplicit
+ 	_, nodeIsDDD     // is the argument variadic
+ 	_, nodeDiag      // already printed error about this
+@@ -158,8 +154,6 @@ const (
+ 	_, nodeHasVal    // node.E contains a Val
+ 	_, nodeHasOpt    // node.E contains an Opt
+ 	_, nodeEmbedded  // ODCLFIELD embedded type
+-	_, nodeInlFormal // OPAUTO created by inliner, derived from callee formal
+-	_, nodeInlLocal  // OPAUTO created by inliner, derived from callee local
+ )
+ 
+ func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
+@@ -167,52 +161,40 @@ func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
+ func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
+ func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
+ 
+-func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
+-func (n *Node) IsClosureVar() bool          { return n.flags&nodeIsClosureVar != 0 }
+-func (n *Node) NoInline() bool              { return n.flags&nodeNoInline != 0 }
+-func (n *Node) IsOutputParamHeapAddr() bool { return n.flags&nodeIsOutputParamHeapAddr != 0 }
+-func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
+-func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
+-func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
+-func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
+-func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
+-func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
+-func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
+-func (n *Node) Transient() bool             { return n.flags&nodeTransient != 0 }
+-func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
+-func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
+-func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
+-func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
+-func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+-func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
+-func (n *Node) InlFormal() bool             { return n.flags&nodeInlFormal != 0 }
+-func (n *Node) InlLocal() bool              { return n.flags&nodeInlLocal != 0 }
++func (n *Node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
++func (n *Node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
++func (n *Node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
++func (n *Node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
++func (n *Node) Diag() bool      { return n.flags&nodeDiag != 0 }
++func (n *Node) Colas() bool     { return n.flags&nodeColas != 0 }
++func (n *Node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
++func (n *Node) Transient() bool { return n.flags&nodeTransient != 0 }
++func (n *Node) Bounded() bool   { return n.flags&nodeBounded != 0 }
++func (n *Node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
++func (n *Node) Likely() bool    { return n.flags&nodeLikely != 0 }
++func (n *Node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
++func (n *Node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
++func (n *Node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
+ 
+ func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+ func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
+ func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
+ func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
+ 
+-func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
+-func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
+-func (n *Node) SetNoInline(b bool)              { n.flags.set(nodeNoInline, b) }
+-func (n *Node) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nodeIsOutputParamHeapAddr, b) }
+-func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
+-func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
+-func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
+-func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
+-func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
+-func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
+-func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
+-func (n *Node) SetTransient(b bool)             { n.flags.set(nodeTransient, b) }
+-func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
+-func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
+-func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
+-func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
+-func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
+-func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
+-func (n *Node) SetInlFormal(b bool)             { n.flags.set(nodeInlFormal, b) }
+-func (n *Node) SetInlLocal(b bool)              { n.flags.set(nodeInlLocal, b) }
++func (n *Node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
++func (n *Node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
++func (n *Node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
++func (n *Node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
++func (n *Node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
++func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
++func (n *Node) SetNonNil(b bool)    { n.flags.set(nodeNonNil, b) }
++func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
++func (n *Node) SetBounded(b bool)   { n.flags.set(nodeBounded, b) }
++func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
++func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
++func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
++func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
++func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+ 
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {
+@@ -296,34 +278,52 @@ type Name struct {
+ 	Param     *Param     // additional fields for ONAME, OTYPE
+ 	Decldepth int32      // declaration loop depth, increased for every loop or label
+ 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+-	flags     bitset8
++	flags     bitset16
+ }
+ 
+ const (
+ 	nameCaptured = 1 << iota // is the variable captured by a closure
+ 	nameReadonly
+-	nameByval     // is the variable captured by value or by reference
+-	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
+-	nameKeepalive // mark value live across unknown assembly call
+-	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+-	nameUsed      // for variable declared and not used error
++	nameByval                 // is the variable captured by value or by reference
++	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
++	nameKeepalive             // mark value live across unknown assembly call
++	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
++	nameUsed                  // for variable declared and not used error
++	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
++	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
++	nameAssigned              // is the variable ever assigned to
++	nameAddrtaken             // address taken, even if not moved to heap
++	nameInlFormal             // OPAUTO created by inliner, derived from callee formal
++	nameInlLocal              // OPAUTO created by inliner, derived from callee local
+ )
+ 
+-func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
+-func (n *Name) Readonly() bool  { return n.flags&nameReadonly != 0 }
+-func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
+-func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
+-func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
+-func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
+-func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
+-
+-func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
+-func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
+-func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
+-func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
+-func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
+-func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
+-func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
++func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
++func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
++func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
++func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
++func (n *Name) Keepalive() bool             { return n.flags&nameKeepalive != 0 }
++func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
++func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
++func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
++func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
++func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
++func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
++func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
++func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
++
++func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
++func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
++func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
++func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
++func (n *Name) SetKeepalive(b bool)             { n.flags.set(nameKeepalive, b) }
++func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
++func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
++func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
++func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
++func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
++func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
++func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
++func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+ 
+ type Param struct {
+ 	Ntype    *Node
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d5483c9ce5..6067454a3c 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -828,20 +828,17 @@ func typecheck1(n *Node, top int) (res *Node) {
+ 		default:
+ 			checklvalue(n.Left, "take the address of")
+ 			r := outervalue(n.Left)
+-			if r.Orig != r && r.Op == ONAME {
+-				Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
+-			}
+-			for l := n.Left; ; l = l.Left {
+-				l.SetAddrtaken(true)
+-				if l.IsClosureVar() && !capturevarscomplete {
++			if r.Op == ONAME {
++				if r.Orig != r {
++					Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
++				}
++				r.Name.SetAddrtaken(true)
++				if r.Name.IsClosureVar() && !capturevarscomplete {
+ 					// Mark the original variable as Addrtaken so that capturevars
+ 					// knows not to pass it by value.
+ 					// But if the capturevars phase is complete, don't touch it,
+ 					// in case l.Name's containing function has not yet been compiled.
+-					l.Name.Defn.SetAddrtaken(true)
+-				}
+-				if l == r {
+-					break
++					r.Name.Defn.Name.SetAddrtaken(true)
+ 				}
+ 			}
+ 			n.Left = defaultlit(n.Left, nil)
+@@ -3061,18 +3058,12 @@ func checkassign(stmt *Node, n *Node) {
+ 	// Variables declared in ORANGE are assigned on every iteration.
+ 	if n.Name == nil || n.Name.Defn != stmt || stmt.Op == ORANGE {
+ 		r := outervalue(n)
+-		var l *Node
+-		for l = n; l != r; l = l.Left {
+-			l.SetAssigned(true)
+-			if l.IsClosureVar() {
+-				l.Name.Defn.SetAssigned(true)
++		if r.Op == ONAME {
++			r.Name.SetAssigned(true)
++			if r.Name.IsClosureVar() {
++				r.Name.Defn.Name.SetAssigned(true)
+ 			}
+ 		}
+-
+-		l.SetAssigned(true)
+-		if l.IsClosureVar() {
+-			l.Name.Defn.SetAssigned(true)
+-		}
+ 	}
+ 
+ 	if islvalue(n) {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 325eea019f..bebb9b6afe 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -97,7 +97,7 @@ func paramoutheap(fn *Node) bool {
+ 	for _, ln := range fn.Func.Dcl {
+ 		switch ln.Class() {
+ 		case PPARAMOUT:
+-			if ln.isParamStackCopy() || ln.Addrtaken() {
++			if ln.isParamStackCopy() || ln.Name.Addrtaken() {
+ 				return true
+ 			}
+ 
+@@ -2097,7 +2097,7 @@ func aliased(n *Node, all []*Node, i int) bool {
+ 			continue
+ 
+ 		case PAUTO, PPARAM, PPARAMOUT:
+-			if n.Addrtaken() {
++			if n.Name.Addrtaken() {
+ 				varwrite = true
+ 				continue
+ 			}
+@@ -2145,7 +2145,7 @@ func varexpr(n *Node) bool {
+ 	case ONAME:
+ 		switch n.Class() {
+ 		case PAUTO, PPARAM, PPARAMOUT:
+-			if !n.Addrtaken() {
++			if !n.Name.Addrtaken() {
+ 				return true
+ 			}
+ 		}

@@ -11,6 +11,20 @@ Date:   Tue Oct 9 22:12:40 2018 +0530
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_libinit.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 3dc5bde4cc..3dafd10b7b 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -63,7 +63,7 @@ _cgo_wait_runtime_init_done() {
+ }
+ 
+ void
+-x_cgo_notify_runtime_init_done(void* dummy) {
++x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
+ 	pthread_mutex_lock(&runtime_init_mu);
+ 	runtime_init_done = 1;
+ 	pthread_cond_broadcast(&runtime_init_cond);

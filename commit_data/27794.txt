@@ -12,8 +12,78 @@ Date:   Wed Apr 13 10:58:38 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go  | 5 +++--
  src/cmd/compile/internal/ssa/cse.go      | 8 +++-----
  src/cmd/compile/internal/ssa/cse_test.go | 1 +
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index f4f0d8cab2..a0b5ff71cf 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -233,8 +233,8 @@ var passes = [...]pass{
+ 	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+ 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
+ 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
+-	{name: "generic cse", fn: cse},
+ 	{name: "generic domtree", fn: domTree},
++	{name: "generic cse", fn: cse},
+ 	{name: "phiopt", fn: phiopt},
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+ 	{name: "prove", fn: prove},
+@@ -289,7 +289,8 @@ var passOrder = [...]constraint{
+ 	{"opt", "nilcheckelim"},
+ 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
+ 	{"tighten", "lower"},
+-	// nilcheckelim, prove and loopbce share idom.
++	// cse, nilcheckelim, prove and loopbce share idom.
++	{"generic domtree", "generic cse"},
+ 	{"generic domtree", "nilcheckelim"},
+ 	{"generic domtree", "prove"},
+ 	{"generic domtree", "loopbce"},
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 9853ff06d0..c12d51e50c 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -131,9 +131,7 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 
+-	// Compute dominator tree
+-	idom := dominators(f)
+-	sdom := newSparseTree(f, idom)
++	// Dominator tree (f.sdom) is computed by the generic domtree pass.
+ 
+ 	// Compute substitutions we would like to do. We substitute v for w
+ 	// if v and w are in the same equivalence class and v dominates w.
+@@ -143,7 +141,7 @@ func cse(f *Func) {
+ 			// Find a maximal dominant element in e
+ 			v := e[0]
+ 			for _, w := range e[1:] {
+-				if sdom.isAncestorEq(w.Block, v.Block) {
++				if f.sdom.isAncestorEq(w.Block, v.Block) {
+ 					v = w
+ 				}
+ 			}
+@@ -153,7 +151,7 @@ func cse(f *Func) {
+ 				w := e[i]
+ 				if w == v {
+ 					e, e[i] = e[:len(e)-1], e[len(e)-1]
+-				} else if sdom.isAncestorEq(v.Block, w.Block) {
++				} else if f.sdom.isAncestorEq(v.Block, w.Block) {
+ 					rewrite[w.ID] = v
+ 					e, e[i] = e[:len(e)-1], e[len(e)-1]
+ 				} else {
+diff --git a/src/cmd/compile/internal/ssa/cse_test.go b/src/cmd/compile/internal/ssa/cse_test.go
+index 905939fc32..d5be2b52ec 100644
+--- a/src/cmd/compile/internal/ssa/cse_test.go
++++ b/src/cmd/compile/internal/ssa/cse_test.go
+@@ -44,6 +44,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
+ 			Exit("rstore")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	cse(fun.f)
+ 	deadcode(fun.f)
+ 	CheckFunc(fun.f)

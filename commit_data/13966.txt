@@ -7,7 +7,58 @@ Date:   Wed Sep 26 14:47:47 2012 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/6571056
-
+---
  src/pkg/crypto/x509/root_plan9.go | 31 +++++++++++++++++++++++++++++++
  src/pkg/crypto/x509/root_stub.go  |  2 +-
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/root_plan9.go b/src/pkg/crypto/x509/root_plan9.go
+new file mode 100644
+index 0000000000..677927a3b6
+--- /dev/null
++++ b/src/pkg/crypto/x509/root_plan9.go
+@@ -0,0 +1,31 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package x509
++
++import "io/ioutil"
++
++// Possible certificate files; stop after finding one.
++var certFiles = []string{
++	"/sys/lib/tls/ca.pem",
++}
++
++func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
++	return nil, nil
++}
++
++func initSystemRoots() {
++	roots := NewCertPool()
++	for _, file := range certFiles {
++		data, err := ioutil.ReadFile(file)
++		if err == nil {
++			roots.AppendCertsFromPEM(data)
++			break
++		}
++	}
++
++	systemRoots = roots
++}
+diff --git a/src/pkg/crypto/x509/root_stub.go b/src/pkg/crypto/x509/root_stub.go
+index 568004108b..756732f7d4 100644
+--- a/src/pkg/crypto/x509/root_stub.go
++++ b/src/pkg/crypto/x509/root_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build plan9 darwin,!cgo
++// +build darwin,!cgo
+ 
+ package x509
+ 

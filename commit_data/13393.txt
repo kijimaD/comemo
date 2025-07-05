@@ -7,7 +7,48 @@ Date:   Mon Jun 25 17:18:44 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6330059
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e274db8d9a..f7130325fa 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -17,6 +17,7 @@ Alex Brainman <alex.brainman@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
++Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
+@@ -203,6 +204,7 @@ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
++Thomas Alan Copeland <talan.copeland@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 620e563f36..48ac47e59d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -43,6 +43,7 @@ Alexander Orlov <alexander.orlov@loxal.net>
+ Alexander Reece <awreece@gmail.com>
+ Alexandru Moșoi <brtzsnr@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
++Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrea Spadaccini <spadaccio@google.com>
+ Andrei Vieru <euvieru@gmail.com>
+@@ -294,6 +295,7 @@ Sven Almgren <sven@tras.se>
+ Szabolcs Nagy <nsz@port70.net>
+ Tarmigan Casebolt <tarmigan@gmail.com>
+ Taru Karttunen <taruti@taruti.net>
++Thomas Alan Copeland <talan.copeland@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>

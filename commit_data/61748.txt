@@ -17,6 +17,20 @@ Date:   Thu Nov 21 12:50:14 2024 -0500
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/internal/copyright/copyright_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/copyright/copyright_test.go b/src/internal/copyright/copyright_test.go
+index 4676f18a59..dbaefa92dd 100644
+--- a/src/internal/copyright/copyright_test.go
++++ b/src/internal/copyright/copyright_test.go
+@@ -34,7 +34,7 @@ var permitted = [][]byte{
+ func TestCopyright(t *testing.T) {
+ 	buf := make([]byte, 2048)
+ 	filepath.WalkDir(filepath.Join(testenv.GOROOT(t), "src"), func(path string, d fs.DirEntry, err error) error {
+-		if d.Name() == "testdata" || d.Name() == "vendor" {
++		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "vendor") {
+ 			return filepath.SkipDir
+ 		}
+ 		switch filepath.Ext(d.Name()) {

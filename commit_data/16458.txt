@@ -9,7 +9,48 @@ Date:   Sat Jun 1 16:33:54 2013 +0200
     R=golang-dev, remyoudompheng, r
     CC=golang-dev
     https://golang.org/cl/9757045
-
+---
  src/cmd/gc/typecheck.c      |  8 ++++----
  test/fixedbugs/issue5609.go | 13 +++++++++++++
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 12839009e3..550021de69 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -420,12 +420,12 @@ reswitch:
+ 				goto error;
+ 			}
+ 			t->bound = mpgetfix(v.u.xval);
+-			if(t->bound < 0) {
+-				yyerror("array bound must be non-negative");
+-				goto error;
+-			} else if(doesoverflow(v, types[TINT])) {
++			if(doesoverflow(v, types[TINT])) {
+ 				yyerror("array bound is too large"); 
+ 				goto error;
++			} else if(t->bound < 0) {
++				yyerror("array bound must be non-negative");
++				goto error;
+ 			}
+ 		}
+ 		typecheck(&r, Etype);
+diff --git a/test/fixedbugs/issue5609.go b/test/fixedbugs/issue5609.go
+new file mode 100644
+index 0000000000..34619b3418
+--- /dev/null
++++ b/test/fixedbugs/issue5609.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 5609: overflow when calculating array size
++
++package pkg
++
++const Large uint64 = 18446744073709551615
++
++var foo [Large]uint64 // ERROR "array bound is too large"

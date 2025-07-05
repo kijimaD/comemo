@@ -19,6 +19,23 @@ Date:   Mon Apr 24 06:37:52 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/mem_linux.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 31815fb421..b456f7f2ff 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -92,6 +92,11 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
++	if uintptr(v)&(physPageSize-1) != 0 {
++		// The Linux implementation requires that the address
++		// addr be page-aligned, and allows length to be zero.
++		throw("unaligned sysNoHugePageOS")
++	}
+ 	madvise(v, n, _MADV_NOHUGEPAGE)
+ }
+ 

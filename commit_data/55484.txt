@@ -9,6 +9,20 @@ Date:   Fri Feb 10 15:51:11 2023 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/math/rand/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index a6f467622e..a98b3905bd 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -391,7 +391,7 @@ func (fs *fastSource) read(p []byte, readVal *int64, readPos *int8) (n int, err
+ // of results from the global random source (using functions such as Int)
+ // can be broken when a dependency changes how much it consumes
+ // from the global random source. To avoid such breakages, programs
+-// that need a specific result sequence should use NewRand(NewSource(seed))
++// that need a specific result sequence should use New(NewSource(seed))
+ // to obtain a random generator that other packages cannot access.
+ func Seed(seed int64) {
+ 	orig := globalRandGenerator.Load()

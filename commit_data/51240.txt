@@ -10,7 +10,7 @@ Date:   Mon Dec 20 17:47:42 2021 +1030
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/types2/assignments.go   | 2 +-
  src/cmd/compile/internal/types2/decl.go          | 2 +-
  src/cmd/compile/internal/types2/typeterm_test.go | 2 +-
@@ -21,3 +21,121 @@ Date:   Mon Dec 20 17:47:42 2021 +1030
  src/internal/fuzz/fuzz.go                        | 2 +-
  src/testing/fuzz.go                              | 2 +-
  9 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 668eeac00e..936930f0b1 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -268,7 +268,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 		var s string
+ 		switch {
+ 		case t == nil:
+-			fallthrough // should not happend but be cautious
++			fallthrough // should not happen but be cautious
+ 		case t == Typ[Invalid]:
+ 			s = "<T>"
+ 		case isUntyped(t):
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index a4bc3969c0..d5495304fa 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -351,7 +351,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		// Instantiating such a type would lead to an infinite sequence of instantiations.
+ 		// In general, we need "type flow analysis" to recognize those cases.
+ 		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
+-		// In this algorithm we always only consider the orginal, uninstantiated type.
++		// In this algorithm we always only consider the original, uninstantiated type.
+ 		// This won't recognize some invalid cases with parameterized types, but it
+ 		// will terminate.
+ 		t = t.orig
+diff --git a/src/cmd/compile/internal/types2/typeterm_test.go b/src/cmd/compile/internal/types2/typeterm_test.go
+index 5a5c1fa447..6d9c8db034 100644
+--- a/src/cmd/compile/internal/types2/typeterm_test.go
++++ b/src/cmd/compile/internal/types2/typeterm_test.go
+@@ -99,7 +99,7 @@ func TestTermUnion(t *testing.T) {
+ 		"~int ~string ~int ~string",
+ 		"~int myInt ~int ∅",
+ 
+-		// union is symmetric, but the result order isn't - repeat symmetric cases explictly
++		// union is symmetric, but the result order isn't - repeat symmetric cases explicitly
+ 		"𝓤 ∅ 𝓤 ∅",
+ 		"int ∅ int ∅",
+ 		"~int ∅ ~int ∅",
+diff --git a/src/cmd/internal/obj/ppc64/asm_test.go b/src/cmd/internal/obj/ppc64/asm_test.go
+index ee2e5962f7..1de6e76b09 100644
+--- a/src/cmd/internal/obj/ppc64/asm_test.go
++++ b/src/cmd/internal/obj/ppc64/asm_test.go
+@@ -300,7 +300,7 @@ func TestLarge(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			if !matched {
+-				t.Errorf("Failed to detect long foward BC fixup in (%v):%s\n", platenv, out)
++				t.Errorf("Failed to detect long forward BC fixup in (%v):%s\n", platenv, out)
+ 			}
+ 			matched, err = regexp.MatchString(strings.Join(test.backpattern, "\n\t*"), string(out))
+ 			if err != nil {
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index fa05a10920..f75b8b6f6b 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -264,7 +264,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 		var s string
+ 		switch {
+ 		case t == nil:
+-			fallthrough // should not happend but be cautious
++			fallthrough // should not happen but be cautious
+ 		case t == Typ[Invalid]:
+ 			s = "<T>"
+ 		case isUntyped(t):
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 2c51329be9..db29f11920 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -350,7 +350,7 @@ func (check *Checker) validType(typ Type, path []Object) typeInfo {
+ 		// Instantiating such a type would lead to an infinite sequence of instantiations.
+ 		// In general, we need "type flow analysis" to recognize those cases.
+ 		// Example: type A[T any] struct{ x A[*T] } (issue #48951)
+-		// In this algorithm we always only consider the orginal, uninstantiated type.
++		// In this algorithm we always only consider the original, uninstantiated type.
+ 		// This won't recognize some invalid cases with parameterized types, but it
+ 		// will terminate.
+ 		t = t.orig
+diff --git a/src/go/types/typeterm_test.go b/src/go/types/typeterm_test.go
+index 27f132a1d2..24a14102d0 100644
+--- a/src/go/types/typeterm_test.go
++++ b/src/go/types/typeterm_test.go
+@@ -100,7 +100,7 @@ func TestTermUnion(t *testing.T) {
+ 		"~int ~string ~int ~string",
+ 		"~int myInt ~int ∅",
+ 
+-		// union is symmetric, but the result order isn't - repeat symmetric cases explictly
++		// union is symmetric, but the result order isn't - repeat symmetric cases explicitly
+ 		"𝓤 ∅ 𝓤 ∅",
+ 		"int ∅ int ∅",
+ 		"~int ∅ ~int ∅",
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index b3f1381dbb..37b6d2b391 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -323,7 +323,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 							// flakiness in the coverage counters). In order to prevent adding
+ 							// duplicate entries to the corpus (and re-writing the file on
+ 							// disk), skip it if the on disk file already exists.
+-							// TOOD(roland): this check is limited in that it will only be
++							// TODO(roland): this check is limited in that it will only be
+ 							// applied if we are using the CacheDir. Another option would be
+ 							// to iterate through the corpus and check if it is already present,
+ 							// which would catch cases where we are not caching entries.
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 17a8753ae6..efb59b3e57 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -199,7 +199,7 @@ var supportedTypes = map[reflect.Type]bool{
+ // the corresponding *T method instead. The only *F methods that are allowed in
+ // the (*F).Fuzz function are (*F).Failed and (*F).Name.
+ //
+-// This function sould be fast and deterministic, and its behavior should not
++// This function should be fast and deterministic, and its behavior should not
+ // depend on shared state. No mutatable input arguments, or pointers to them,
+ // should be retained between executions of the fuzz function, as the memory
+ // backing them may be mutated during a subsequent invocation. ff must not

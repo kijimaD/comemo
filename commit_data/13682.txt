@@ -13,6 +13,36 @@ Date:   Thu Aug 23 19:29:47 2012 -0700
     R=golang-dev, dave, bradfitz, jameshuachow, BlakeSGentry
     CC=golang-dev
     https://golang.org/cl/6348069
-
+---
  src/pkg/database/sql/sql.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+old mode 100644
+new mode 100755
+index b87f57f92f..b0cba949c6
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -311,7 +311,10 @@ func (db *DB) prepare(query string) (stmt *Stmt, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer db.putConn(ci, err)
++	defer func() {
++		db.putConn(ci, err)
++	}()
++
+ 	si, err := ci.Prepare(query)
+ 	if err != nil {
+ 		return nil, err
+@@ -342,7 +345,9 @@ func (db *DB) exec(query string, args []interface{}) (res Result, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer db.putConn(ci, err)
++	defer func() {
++		db.putConn(ci, err)
++	}()
+ 
+ 	if execer, ok := ci.(driver.Execer); ok {
+ 		dargs, err := driverArgs(nil, args)

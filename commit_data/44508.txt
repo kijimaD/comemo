@@ -14,10 +14,477 @@ Date:   Mon Jul 27 09:45:21 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go           |   6 +-
  src/cmd/compile/internal/ssa/addressingmodes.go |  17 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |  34 ++-
  src/cmd/compile/internal/ssa/opGen.go           | 320 ++++++++++++++++++++++++
  test/codegen/memops.go                          |  23 ++
  5 files changed, 391 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 47cb422ab1..9d8a0920b3 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -874,7 +874,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpAMD64SUBLloadidx1, ssa.OpAMD64SUBLloadidx4, ssa.OpAMD64SUBLloadidx8, ssa.OpAMD64SUBQloadidx1, ssa.OpAMD64SUBQloadidx8,
+ 		ssa.OpAMD64ANDLloadidx1, ssa.OpAMD64ANDLloadidx4, ssa.OpAMD64ANDLloadidx8, ssa.OpAMD64ANDQloadidx1, ssa.OpAMD64ANDQloadidx8,
+ 		ssa.OpAMD64ORLloadidx1, ssa.OpAMD64ORLloadidx4, ssa.OpAMD64ORLloadidx8, ssa.OpAMD64ORQloadidx1, ssa.OpAMD64ORQloadidx8,
+-		ssa.OpAMD64XORLloadidx1, ssa.OpAMD64XORLloadidx4, ssa.OpAMD64XORLloadidx8, ssa.OpAMD64XORQloadidx1, ssa.OpAMD64XORQloadidx8:
++		ssa.OpAMD64XORLloadidx1, ssa.OpAMD64XORLloadidx4, ssa.OpAMD64XORLloadidx8, ssa.OpAMD64XORQloadidx1, ssa.OpAMD64XORQloadidx8,
++		ssa.OpAMD64ADDSSloadidx1, ssa.OpAMD64ADDSSloadidx4, ssa.OpAMD64ADDSDloadidx1, ssa.OpAMD64ADDSDloadidx8,
++		ssa.OpAMD64SUBSSloadidx1, ssa.OpAMD64SUBSSloadidx4, ssa.OpAMD64SUBSDloadidx1, ssa.OpAMD64SUBSDloadidx8,
++		ssa.OpAMD64MULSSloadidx1, ssa.OpAMD64MULSSloadidx4, ssa.OpAMD64MULSDloadidx1, ssa.OpAMD64MULSDloadidx8,
++		ssa.OpAMD64DIVSSloadidx1, ssa.OpAMD64DIVSSloadidx4, ssa.OpAMD64DIVSDloadidx1, ssa.OpAMD64DIVSDloadidx8:
+ 		p := s.Prog(v.Op.Asm())
+ 
+ 		r, i := v.Args[1].Reg(), v.Args[2].Reg()
+diff --git a/src/cmd/compile/internal/ssa/addressingmodes.go b/src/cmd/compile/internal/ssa/addressingmodes.go
+index 78c979b7cb..97a5ab4f03 100644
+--- a/src/cmd/compile/internal/ssa/addressingmodes.go
++++ b/src/cmd/compile/internal/ssa/addressingmodes.go
+@@ -321,6 +321,23 @@ var combine = map[[2]Op]Op{
+ 	[2]Op{OpAMD64XORQconstmodify, OpAMD64LEAQ1}: OpAMD64XORQconstmodifyidx1,
+ 	[2]Op{OpAMD64XORQconstmodify, OpAMD64LEAQ8}: OpAMD64XORQconstmodifyidx8,
+ 
++	[2]Op{OpAMD64ADDSSload, OpAMD64LEAQ1}: OpAMD64ADDSSloadidx1,
++	[2]Op{OpAMD64ADDSSload, OpAMD64LEAQ4}: OpAMD64ADDSSloadidx4,
++	[2]Op{OpAMD64ADDSDload, OpAMD64LEAQ1}: OpAMD64ADDSDloadidx1,
++	[2]Op{OpAMD64ADDSDload, OpAMD64LEAQ8}: OpAMD64ADDSDloadidx8,
++	[2]Op{OpAMD64SUBSSload, OpAMD64LEAQ1}: OpAMD64SUBSSloadidx1,
++	[2]Op{OpAMD64SUBSSload, OpAMD64LEAQ4}: OpAMD64SUBSSloadidx4,
++	[2]Op{OpAMD64SUBSDload, OpAMD64LEAQ1}: OpAMD64SUBSDloadidx1,
++	[2]Op{OpAMD64SUBSDload, OpAMD64LEAQ8}: OpAMD64SUBSDloadidx8,
++	[2]Op{OpAMD64MULSSload, OpAMD64LEAQ1}: OpAMD64MULSSloadidx1,
++	[2]Op{OpAMD64MULSSload, OpAMD64LEAQ4}: OpAMD64MULSSloadidx4,
++	[2]Op{OpAMD64MULSDload, OpAMD64LEAQ1}: OpAMD64MULSDloadidx1,
++	[2]Op{OpAMD64MULSDload, OpAMD64LEAQ8}: OpAMD64MULSDloadidx8,
++	[2]Op{OpAMD64DIVSSload, OpAMD64LEAQ1}: OpAMD64DIVSSloadidx1,
++	[2]Op{OpAMD64DIVSSload, OpAMD64LEAQ4}: OpAMD64DIVSSloadidx4,
++	[2]Op{OpAMD64DIVSDload, OpAMD64LEAQ1}: OpAMD64DIVSDloadidx1,
++	[2]Op{OpAMD64DIVSDload, OpAMD64LEAQ8}: OpAMD64DIVSDloadidx8,
++
+ 	// 386
+ 	[2]Op{Op386MOVBload, Op386ADDL}:  Op386MOVBloadidx1,
+ 	[2]Op{Op386MOVWload, Op386ADDL}:  Op386MOVWloadidx1,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index cd9cb515c0..a3b29049df 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -149,14 +149,15 @@ func init() {
+ 		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: []regMask{gp}}
+ 		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
+ 
+-		fp01     = regInfo{inputs: nil, outputs: fponly}
+-		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
+-		fp31     = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
+-		fp21load = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
+-		fpgp     = regInfo{inputs: fponly, outputs: gponly}
+-		gpfp     = regInfo{inputs: gponly, outputs: fponly}
+-		fp11     = regInfo{inputs: fponly, outputs: fponly}
+-		fp2flags = regInfo{inputs: []regMask{fp, fp}}
++		fp01        = regInfo{inputs: nil, outputs: fponly}
++		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
++		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
++		fp21load    = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
++		fp21loadidx = regInfo{inputs: []regMask{fp, gpspsb, gpspsb, 0}, outputs: fponly}
++		fpgp        = regInfo{inputs: fponly, outputs: gponly}
++		gpfp        = regInfo{inputs: gponly, outputs: fponly}
++		fp11        = regInfo{inputs: fponly, outputs: fponly}
++		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
+ 
+ 		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
+ 		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
+@@ -201,6 +202,23 @@ func init() {
+ 		{name: "DIVSSload", argLength: 3, reg: fp21load, asm: "DIVSS", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+ 		{name: "DIVSDload", argLength: 3, reg: fp21load, asm: "DIVSD", aux: "SymOff", resultInArg0: true, faultOnNilArg1: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+auxint+aux, arg2 = mem
+ 
++		{name: "ADDSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "ADDSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 + tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "ADDSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "ADDSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 + tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "ADDSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "ADDSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 + tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "ADDSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "ADDSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 + tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "SUBSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "SUBSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 - tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "SUBSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "SUBSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 - tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "SUBSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "SUBSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 - tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "SUBSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "SUBSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 - tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "MULSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "MULSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 * tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "MULSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "MULSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 * tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "MULSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "MULSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "MULSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "MULSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 * tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
++		{name: "DIVSSloadidx1", argLength: 4, reg: fp21loadidx, asm: "DIVSS", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "DIVSSloadidx4", argLength: 4, reg: fp21loadidx, asm: "DIVSS", scale: 4, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp32 arg0 / tmp, tmp loaded from arg1+4*arg2+auxint+aux, arg3 = mem
++		{name: "DIVSDloadidx1", argLength: 4, reg: fp21loadidx, asm: "DIVSD", scale: 1, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+arg2+auxint+aux, arg3 = mem
++		{name: "DIVSDloadidx8", argLength: 4, reg: fp21loadidx, asm: "DIVSD", scale: 8, aux: "SymOff", resultInArg0: true, symEffect: "Read"}, // fp64 arg0 / tmp, tmp loaded from arg1+8*arg2+auxint+aux, arg3 = mem
++
+ 		// binary ops
+ 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                                                                   // arg0 + arg1
+ 		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                                                                   // arg0 + arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d27682e3b3..9efa1bfcc4 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -572,6 +572,22 @@ const (
+ 	OpAMD64MULSDload
+ 	OpAMD64DIVSSload
+ 	OpAMD64DIVSDload
++	OpAMD64ADDSSloadidx1
++	OpAMD64ADDSSloadidx4
++	OpAMD64ADDSDloadidx1
++	OpAMD64ADDSDloadidx8
++	OpAMD64SUBSSloadidx1
++	OpAMD64SUBSSloadidx4
++	OpAMD64SUBSDloadidx1
++	OpAMD64SUBSDloadidx8
++	OpAMD64MULSSloadidx1
++	OpAMD64MULSSloadidx4
++	OpAMD64MULSDloadidx1
++	OpAMD64MULSDloadidx8
++	OpAMD64DIVSSloadidx1
++	OpAMD64DIVSSloadidx4
++	OpAMD64DIVSDloadidx1
++	OpAMD64DIVSDloadidx8
+ 	OpAMD64ADDQ
+ 	OpAMD64ADDL
+ 	OpAMD64ADDQconst
+@@ -6576,6 +6592,310 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "ADDSSloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDSS,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "ADDSSloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDSS,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "ADDSDloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDSD,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "ADDSDloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AADDSD,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "SUBSSloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBSS,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "SUBSSloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBSS,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "SUBSDloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBSD,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "SUBSDloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ASUBSD,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "MULSSloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AMULSS,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "MULSSloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AMULSS,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "MULSDloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AMULSD,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "MULSDloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.AMULSD,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "DIVSSloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ADIVSS,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "DIVSSloadidx4",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ADIVSS,
++		scale:        4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "DIVSDloadidx1",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ADIVSD,
++		scale:        1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
++	{
++		name:         "DIVSDloadidx8",
++		auxType:      auxSymOff,
++		argLen:       4,
++		resultInArg0: true,
++		symEffect:    SymRead,
++		asm:          x86.ADIVSD,
++		scale:        8,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++				{2, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
+ 	{
+ 		name:         "ADDQ",
+ 		argLen:       2,
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index cd35910c12..a234283146 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -354,3 +354,26 @@ func idxCompare(i int) int {
+ 	}
+ 	return 1
+ }
++
++func idxFloatOps(a []float64, b []float32, i int) (float64, float32) {
++	c := float64(7)
++	// amd64: `ADDSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	c += a[i+1]
++	// amd64: `SUBSD\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	c -= a[i+2]
++	// amd64: `MULSD\t24\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	c *= a[i+3]
++	// amd64: `DIVSD\t32\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	c /= a[i+4]
++
++	d := float32(8)
++	// amd64: `ADDSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	d += b[i+1]
++	// amd64: `SUBSS\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	d -= b[i+2]
++	// amd64: `MULSS\t12\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	d *= b[i+3]
++	// amd64: `DIVSS\t16\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	d /= b[i+4]
++	return c, d
++}

@@ -23,7 +23,53 @@ Date:   Wed Feb 14 14:08:17 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 14 ++++++++++----
  test/fixedbugs/issue23414.go         | 13 +++++++++++++
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index dcc16b6dec..af84005908 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -232,11 +232,17 @@ func convlit1(n *Node, t *types.Type, explicit bool, reuse canReuseNode) *Node {
+ 	switch n.Op {
+ 	default:
+ 		if n.Type == types.Idealbool {
+-			if t.IsBoolean() {
+-				n.Type = t
+-			} else {
+-				n.Type = types.Types[TBOOL]
++			if !t.IsBoolean() {
++				t = types.Types[TBOOL]
+ 			}
++			switch n.Op {
++			case ONOT:
++				n.Left = convlit(n.Left, t)
++			case OANDAND, OOROR:
++				n.Left = convlit(n.Left, t)
++				n.Right = convlit(n.Right, t)
++			}
++			n.Type = t
+ 		}
+ 
+ 		if n.Type.Etype == TIDEAL {
+diff --git a/test/fixedbugs/issue23414.go b/test/fixedbugs/issue23414.go
+new file mode 100644
+index 0000000000..7ef3d831fd
+--- /dev/null
++++ b/test/fixedbugs/issue23414.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var x struct{}
++
++func f() bool {
++	return x == x && x == x
++}

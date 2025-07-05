@@ -13,6 +13,31 @@ Date:   Sat Aug 14 00:03:09 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/dist/test.go | 13 -------------
  1 file changed, 13 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index f40fa926df..a104b5c8f3 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -491,19 +491,6 @@ func (t *tester) registerTests() {
+ 		})
+ 	}
+ 
+-	// Test go/... cmd/gofmt with type parameters enabled.
+-	if !t.compileOnly {
+-		t.tests = append(t.tests, distTest{
+-			name:    "tyepparams",
+-			heading: "go/... and cmd/gofmt tests with tag typeparams",
+-			fn: func(dt *distTest) error {
+-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=typeparams", "go/...")
+-				t.addCmd(dt, "src", t.goTest(), t.timeout(300), "-tags=typeparams", "cmd/gofmt")
+-				return nil
+-			},
+-		})
+-	}
+-
+ 	if t.iOS() && !t.compileOnly {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "x509omitbundledroots",

@@ -13,10 +13,169 @@ Date:   Sat Aug 30 14:54:09 2014 -0400
     R=golang-codereviews, r, dvyukov
     CC=golang-codereviews, iant
     https://golang.org/cl/137020043
-
+---
  src/cmd/5c/swt.c                   | 9 ++++++---
  src/cmd/6c/swt.c                   | 9 ++++++---
  src/cmd/8c/swt.c                   | 9 ++++++---
  src/pkg/runtime/defs_linux_amd64.h | 2 +-
  src/pkg/runtime/netpoll_epoll.c    | 2 +-
  5 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index d24a5df9b0..f39963b8f2 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -374,10 +374,11 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+ 	int32 o;
+ 	Type *v;
+-	int w;
++	int w, packw;
+ 
+ 	o = i;
+ 	w = 1;
++	packw = 0;
+ 	switch(op) {
+ 	default:
+ 		diag(Z, "unknown align opcode %d", op);
+@@ -388,7 +389,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		if(w < 1)
+ 			w = 1;
+ 		if(packflg)
+-			w = packflg;
++			packw = packflg;
+ 		break;
+ 
+ 	case Ael1:	/* initial align of struct element */
+@@ -404,7 +405,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		if(w < 1 || w > SZ_LONG)
+ 			fatal(Z, "align");
+ 		if(packflg) 
+-			w = packflg;
++			packw = packflg;
+ 		break;
+ 
+ 	case Ael2:	/* width of a struct element */
+@@ -440,6 +441,8 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		w = SZ_LONG;	/* because of a pun in cc/dcl.c:contig() */
+ 		break;
+ 	}
++	if(packw != 0 && xround(o, w) != xround(o, packw))
++		diag(Z, "#pragma pack changes offset of %T", t);
+ 	o = xround(o, w);
+ 	if(maxalign != nil && *maxalign < w)
+ 		*maxalign = w;
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index d7713648de..6e918eb109 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -250,10 +250,11 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+ 	int32 o;
+ 	Type *v;
+-	int w;
++	int w, packw;
+ 
+ 	o = i;
+ 	w = 1;
++	packw = 0;
+ 	switch(op) {
+ 	default:
+ 		diag(Z, "unknown align opcode %d", op);
+@@ -264,7 +265,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		if(w < 1)
+ 			w = 1;
+ 		if(packflg)
+-			w = packflg;
++			packw = packflg;
+ 		break;
+ 
+ 	case Ael1:	/* initial align of struct element */
+@@ -277,7 +278,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		if(w < 1 || w > SZ_VLONG)
+ 			fatal(Z, "align");
+ 		if(packflg) 
+-			w = packflg;
++			packw = packflg;
+ 		break;
+ 
+ 	case Ael2:	/* width of a struct element */
+@@ -331,6 +332,8 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		o = align(o, t, Ael2, nil);
+ 		break;
+ 	}
++	if(packw != 0 && xround(o, w) != xround(o, packw))
++		diag(Z, "#pragma pack changes offset of %T", t);
+ 	o = xround(o, w);
+ 	if(maxalign && *maxalign < w)
+ 		*maxalign = w;
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index ae36f84eac..d960519e3b 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -255,10 +255,11 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ {
+ 	int32 o;
+ 	Type *v;
+-	int w;
++	int w, packw;
+ 
+ 	o = i;
+ 	w = 1;
++	packw = 0;
+ 	switch(op) {
+ 	default:
+ 		diag(Z, "unknown align opcode %d", op);
+@@ -269,7 +270,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		if(w < 1)
+ 			w = 1;
+ 		if(packflg)
+-			w = packflg;
++			packw = packflg;
+ 		break;
+ 
+ 	case Ael1:	/* initial align of struct element */
+@@ -285,7 +286,7 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		if(w < 1 || w > SZ_LONG)
+ 			fatal(Z, "align");
+ 		if(packflg) 
+-			w = packflg;
++			packw = packflg;
+ 		break;
+ 
+ 	case Ael2:	/* width of a struct element */
+@@ -320,6 +321,8 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 		o = align(o, t, Ael2, nil);
+ 		break;
+ 	}
++	if(packw != 0 && xround(o, w) != xround(o, packw))
++		diag(Z, "#pragma pack changes offset of %T", t);
+ 	o = xround(o, w);
+ 	if(maxalign && *maxalign < w)
+ 		*maxalign = w;
+diff --git a/src/pkg/runtime/defs_linux_amd64.h b/src/pkg/runtime/defs_linux_amd64.h
+index 73fd9947a7..14616dffed 100644
+--- a/src/pkg/runtime/defs_linux_amd64.h
++++ b/src/pkg/runtime/defs_linux_amd64.h
+@@ -122,7 +122,7 @@ struct Itimerval {
+ };
+ struct EpollEvent {
+ 	uint32	events;
+-	uint64	data;
++	byte	data[8]; // unaligned uintptr
+ };
+ 
+ 
+diff --git a/src/pkg/runtime/netpoll_epoll.c b/src/pkg/runtime/netpoll_epoll.c
+index a0ae7df310..2cf9b3760d 100644
+--- a/src/pkg/runtime/netpoll_epoll.c
++++ b/src/pkg/runtime/netpoll_epoll.c
+@@ -37,7 +37,7 @@ runtime·netpollopen(uintptr fd, PollDesc *pd)
+ 	int32 res;
+ 
+ 	ev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
+-	ev.data = (uint64)pd;
++	*(uintptr*)ev.data = (uintptr)pd;
+ 	res = runtime·epollctl(epfd, EPOLL_CTL_ADD, (int32)fd, &ev);
+ 	return -res;
+ }

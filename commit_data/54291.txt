@@ -23,7 +23,47 @@ Date:   Thu Sep 22 13:35:08 2022 +0100
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/gob/decode.go       |  5 ++---
  src/encoding/gob/encoder_test.go | 13 +++++++++++++
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 480832ca4f..316565adb2 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -450,11 +450,10 @@ func (dec *Decoder) decodeStruct(engine *decEngine, value reflect.Value) {
+ 		if delta == 0 { // struct terminator is zero delta fieldnum
+ 			break
+ 		}
+-		fieldnum := state.fieldnum + delta
+-		if fieldnum >= len(engine.instr) {
++		if state.fieldnum >= len(engine.instr)-delta { // subtract to compare without overflow
+ 			error_(errRange)
+-			break
+ 		}
++		fieldnum := state.fieldnum + delta
+ 		instr := &engine.instr[fieldnum]
+ 		var field reflect.Value
+ 		if instr.index != nil {
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 6934841b3a..484be43c47 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -1265,3 +1265,16 @@ func TestDecodePartial(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDecoderOverflow(t *testing.T) {
++	// Issue 55337.
++	dec := NewDecoder(bytes.NewReader([]byte{
++		0x12, 0xff, 0xff, 0x2, 0x2, 0x20, 0x0, 0xf8, 0x7f, 0xff, 0xff, 0xff,
++		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x20, 0x20, 0x20, 0x20, 0x20,
++	}))
++	var r interface{}
++	err := dec.Decode(r)
++	if err == nil {
++		t.Fatalf("expected an error")
++	}
++}

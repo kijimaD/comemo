@@ -9,8 +9,87 @@ Date:   Fri Apr 17 11:56:29 2015 -0400
     Change-Id: I0e8dbd1756cdec1ef6095ae67629cd3fae0fb4a4
     Reviewed-on: https://go-review.googlesource.com/9031
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/gc/fmt.go      | 16 ++++++++++++++++
  src/cmd/internal/gc/mparith2.go |  4 ++++
  src/cmd/internal/gc/mparith3.go |  4 ++++
  3 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index ff5dc5e909..5d1990e48c 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1591,6 +1591,10 @@ func nodedump(n *Node, flag int) string {
+ 	return buf.String()
+ }
+ 
++func (s *Sym) String() string {
++	return Sconv(s, 0)
++}
++
+ // Fmt "%S": syms
+ // Flags:  "%hS" suppresses qualifying with package
+ func Sconv(s *Sym, flag int) string {
+@@ -1616,6 +1620,10 @@ func Sconv(s *Sym, flag int) string {
+ 	return str
+ }
+ 
++func (t *Type) String() string {
++	return Tconv(t, 0)
++}
++
+ // Fmt "%T": types.
+ // Flags: 'l' print definition, not name
+ //	  'h' omit 'func' and receiver from function types, short type names
+@@ -1654,6 +1662,10 @@ func Tconv(t *Type, flag int) string {
+ 	return str
+ }
+ 
++func (n *Node) String() string {
++	return Nconv(n, 0)
++}
++
+ // Fmt '%N': Nodes.
+ // Flags: 'l' suffix with "(type %T)" where possible
+ //	  '+h' in debug mode, don't recurse, no multiline output
+@@ -1685,6 +1697,10 @@ func Nconv(n *Node, flag int) string {
+ 	return str
+ }
+ 
++func (l *NodeList) String() string {
++	return Hconv(l, 0)
++}
++
+ // Fmt '%H': NodeList.
+ // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
+ func Hconv(l *NodeList, flag int) string {
+diff --git a/src/cmd/internal/gc/mparith2.go b/src/cmd/internal/gc/mparith2.go
+index e369ad064f..de96e97809 100644
+--- a/src/cmd/internal/gc/mparith2.go
++++ b/src/cmd/internal/gc/mparith2.go
+@@ -288,6 +288,10 @@ func mpatofix(a *Mpint, as string) {
+ 	}
+ }
+ 
++func (x *Mpint) String() string {
++	return Bconv(x, 0)
++}
++
+ func Bconv(xval *Mpint, flag int) string {
+ 	if flag&obj.FmtSharp != 0 {
+ 		return fmt.Sprintf("%#x", &xval.Val)
+diff --git a/src/cmd/internal/gc/mparith3.go b/src/cmd/internal/gc/mparith3.go
+index 88ab0e7413..53ab9c63a0 100644
+--- a/src/cmd/internal/gc/mparith3.go
++++ b/src/cmd/internal/gc/mparith3.go
+@@ -184,6 +184,10 @@ func mpatoflt(a *Mpflt, as string) {
+ 	}
+ }
+ 
++func (f *Mpflt) String() string {
++	return Fconv(f, 0)
++}
++
+ func Fconv(fvp *Mpflt, flag int) string {
+ 	if flag&obj.FmtSharp == 0 {
+ 		return fvp.Val.Format('b', 0)

@@ -10,6 +10,24 @@ Date:   Thu Apr 8 20:42:47 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/308409
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/crypto/x509/root_unix_test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/crypto/x509/root_unix_test.go b/src/crypto/x509/root_unix_test.go
+index 38038a65f3..7118f12d74 100644
+--- a/src/crypto/x509/root_unix_test.go
++++ b/src/crypto/x509/root_unix_test.go
+@@ -147,11 +147,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
+ 		os.Setenv(certFileEnv, origFile)
+ 	}()
+ 
+-	tmpDir, err := os.MkdirTemp(os.TempDir(), "x509-issue35325")
+-	if err != nil {
+-		t.Fatalf("Failed to create temporary directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpDir)
++	tmpDir := t.TempDir()
+ 
+ 	rootPEMs := []string{
+ 		geoTrustRoot,

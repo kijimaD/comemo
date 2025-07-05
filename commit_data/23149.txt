@@ -9,6 +9,38 @@ Date:   Mon Apr 27 16:50:05 2015 -0700
     Change-Id: Ib870e7b9d26eb118eefdaa3e76dcec4a4d459584
     Reviewed-on: https://go-review.googlesource.com/9398
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/run.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index 83afce4282..10ba7a8432 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -829,22 +829,22 @@ func (t *test) updateErrors(out string, file string) {
+ 	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
+ 	for _, errStr := range splitOutput(out) {
+ 		colon1 := strings.Index(errStr, ":")
+-		if colon1 < 0 || errStr[:colon1] != file{
++		if colon1 < 0 || errStr[:colon1] != file {
+ 			continue
+ 		}
+ 		colon2 := strings.Index(errStr[colon1+1:], ":")
+ 		if colon2 < 0 {
+ 			continue
+ 		}
+-		colon2 += colon1+1
+-		line, err := strconv.Atoi(errStr[colon1+1:colon2])
++		colon2 += colon1 + 1
++		line, err := strconv.Atoi(errStr[colon1+1 : colon2])
+ 		line--
+ 		if err != nil || line < 0 || line >= len(lines) {
+ 			continue
+ 		}
+ 		msg := errStr[colon2+2:]
+ 		for _, r := range []string{`\`, `*`, `+`, `[`, `]`, `(`, `)`} {
+-			msg = strings.Replace(msg, r, `\` + r, -1)
++			msg = strings.Replace(msg, r, `\`+r, -1)
+ 		}
+ 		msg = strings.Replace(msg, `"`, `.`, -1)
+ 		msg = tmpRe.ReplaceAllLiteralString(msg, `autotmp_[0-9]+`)

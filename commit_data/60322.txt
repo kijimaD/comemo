@@ -13,7 +13,27 @@ Date:   Wed Jun 12 13:08:00 2024 -0400
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/next/6-stdlib/99-minor/crypto/tls/66214.md | 2 +-
  doc/next/6-stdlib/99-minor/crypto/tls/67061.md | 5 +++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/66214.md b/doc/next/6-stdlib/99-minor/crypto/tls/66214.md
+index 4a32ca9fc9..ebe1b490f5 100644
+--- a/doc/next/6-stdlib/99-minor/crypto/tls/66214.md
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/66214.md
+@@ -1,3 +1,3 @@
+ 3DES cipher suites were removed from the default list used when
+-[Config.CipherSuites] is nil. The default can be reverted adding `tls3des=1` to
++[Config.CipherSuites] is nil. The default can be reverted by adding `tls3des=1` to
+ the GODEBUG environment variable.
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/67061.md b/doc/next/6-stdlib/99-minor/crypto/tls/67061.md
+index 4f53f509ef..fe3620ed6d 100644
+--- a/doc/next/6-stdlib/99-minor/crypto/tls/67061.md
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/67061.md
+@@ -1,2 +1,3 @@
+-<!-- TODO: Improve the wording. Mention the tlskyber GODEBUG. -->
+-X25519Kyber768Draft00 is now enabled by default when [Config.CurvePreferences] is not set.
++The experimental post-quantum key exchange mechanism X25519Kyber768Draft00
++is now enabled by default when [Config.CurvePreferences] is nil.
++The default can be reverted by adding `tlskyber=0` to the GODEBUG environment variable.

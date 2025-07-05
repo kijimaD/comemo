@@ -16,9 +16,89 @@ Date:   Tue Aug 7 09:35:09 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6460045
-
+---
  src/pkg/exp/html/parse.go                  | 16 ++++++++++------
  src/pkg/exp/html/parse_test.go             |  2 ++
  src/pkg/exp/html/testlogs/tests26.dat.log  |  2 +-
  src/pkg/exp/html/testlogs/tricky01.dat.log |  2 +-
  4 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index afdfc9989c..6b1f40cb8e 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -208,7 +208,15 @@ loop:
+ // addChild adds a child node n to the top element, and pushes n onto the stack
+ // of open elements if it is an element node.
+ func (p *parser) addChild(n *Node) {
++	fp := false
+ 	if p.fosterParenting {
++		switch p.top().DataAtom {
++		case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
++			fp = true
++		}
++	}
++
++	if fp {
+ 		p.fosterParent(n)
+ 	} else {
+ 		p.top().Add(n)
+@@ -222,7 +230,6 @@ func (p *parser) addChild(n *Node) {
+ // fosterParent adds a child node according to the foster parenting rules.
+ // Section 12.2.5.3, "foster parenting".
+ func (p *parser) fosterParent(n *Node) {
+-	p.fosterParenting = false
+ 	var table, parent *Node
+ 	var i int
+ 	for i = len(p.oe) - 1; i >= 0; i-- {
+@@ -1308,11 +1315,8 @@ func inTableIM(p *parser) bool {
+ 		return true
+ 	}
+ 
+-	switch p.top().DataAtom {
+-	case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
+-		p.fosterParenting = true
+-		defer func() { p.fosterParenting = false }()
+-	}
++	p.fosterParenting = true
++	defer func() { p.fosterParenting = false }()
+ 
+ 	return inBodyIM(p)
+ }
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index e3c69b6f5b..e159b492f5 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -389,6 +389,8 @@ var renderTestBlacklist = map[string]bool{
+ 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
+ 	`<a><table><a></table><p><a><div><a>`:                                     true,
+ 	`<a><table><td><a><table></table><a></tr><a></table><a>`:                  true,
++	// A similar reparenting situation involving <nobr>:
++	`<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3`: true,
+ 	// A <plaintext> element is reparented, putting it before a table.
+ 	// A <plaintext> element can't have anything after it in HTML.
+ 	`<table><plaintext><td>`: true,
+diff --git a/src/pkg/exp/html/testlogs/tests26.dat.log b/src/pkg/exp/html/testlogs/tests26.dat.log
+index fa97b44cd1..8f4d545abb 100644
+--- a/src/pkg/exp/html/testlogs/tests26.dat.log
++++ b/src/pkg/exp/html/testlogs/tests26.dat.log
+@@ -1,6 +1,6 @@
+ PASS "<!DOCTYPE html><body><a href='#1'><nobr>1<nobr></a><br><a href='#2'><nobr>2<nobr></a><br><a href='#3'><nobr>3<nobr></a>"
+ PASS "<!DOCTYPE html><body><b><nobr>1<nobr></b><i><nobr>2<nobr></i>3"
+-FAIL "<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3"
++PASS "<!DOCTYPE html><body><b><nobr>1<table><nobr></b><i><nobr>2<nobr></i>3"
+ PASS "<!DOCTYPE html><body><b><nobr>1<table><tr><td><nobr></b><i><nobr>2<nobr></i>3"
+ PASS "<!DOCTYPE html><body><b><nobr>1<div><nobr></b><i><nobr>2<nobr></i>3"
+ PASS "<!DOCTYPE html><body><b><nobr>1<nobr></b><div><i><nobr>2<nobr></i>3"
+diff --git a/src/pkg/exp/html/testlogs/tricky01.dat.log b/src/pkg/exp/html/testlogs/tricky01.dat.log
+index fb0390f818..4d4cd0de93 100644
+--- a/src/pkg/exp/html/testlogs/tricky01.dat.log
++++ b/src/pkg/exp/html/testlogs/tricky01.dat.log
+@@ -4,6 +4,6 @@ PASS "<html><body>\n<p><font size=\"7\">First paragraph.</p>\n<p>Second paragrap
+ PASS "<html>\n<dl>\n<dt><b>Boo\n<dd>Goo?\n</dl>\n</html>"
+ PASS "<html><body>\n<label><a><div>Hello<div>World</div></a></label>  \n</body></html>"
+ PASS "<table><center> <font>a</center> <img> <tr><td> </td> </tr> </table>"
+-FAIL "<table><tr><p><a><p>You should see this text."
++PASS "<table><tr><p><a><p>You should see this text."
+ PASS "<TABLE>\n<TR>\n<CENTER><CENTER><TD></TD></TR><TR>\n<FONT>\n<TABLE><tr></tr></TABLE>\n</P>\n<a></font><font></a>\nThis page contains an insanely badly-nested tag sequence."
+ PASS "<html>\n<body>\n<b><nobr><div>This text is in a div inside a nobr</nobr>More text that should not be in the nobr, i.e., the\nnobr should have closed the div inside it implicitly. </b><pre>A pre tag outside everything else.</pre>\n</body>\n</html>"

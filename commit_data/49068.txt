@@ -28,7 +28,7 @@ Date:   Sun Jul 11 13:06:54 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/object.go      |  2 +-
  src/cmd/compile/internal/noder/stmt.go        | 14 ++++++++++++--
  src/cmd/compile/internal/noder/types.go       |  5 +++++
@@ -37,3 +37,160 @@ Date:   Sun Jul 11 13:06:54 2021 -0700
  test/run.go                                   |  7 +------
  test/typeparam/issue39755.go                  | 27 +++++++++++++++++++++++++++
  7 files changed, 58 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index 581a3652ec..40c0b9cf42 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -29,7 +29,7 @@ func (g *irgen) use(name *syntax.Name) *ir.Name {
+ 	if !ok {
+ 		base.FatalfAt(g.pos(name), "unknown name %v", name)
+ 	}
+-	obj := ir.CaptureName(g.pos(obj2), ir.CurFunc, g.obj(obj2))
++	obj := ir.CaptureName(g.pos(name), ir.CurFunc, g.obj(obj2))
+ 	if obj.Defn != nil && obj.Defn.Op() == ir.ONAME {
+ 		// If CaptureName created a closure variable, then transfer the
+ 		// type of the captured name to the new closure variable.
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 672a732187..b7085c4776 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -57,7 +57,10 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 			if stmt.Rhs == nil {
+ 				n = IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
+ 			} else {
+-				n = ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
++				// Eval rhs before lhs, for compatibility with noder1
++				rhs := g.expr(stmt.Rhs)
++				lhs := g.expr(stmt.Lhs)
++				n = ir.NewAssignOpStmt(g.pos(stmt), op, lhs, rhs)
+ 			}
+ 			if n.X.Typecheck() == 3 {
+ 				n.SetTypecheck(3)
+@@ -68,8 +71,9 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 			return n
+ 		}
+ 
+-		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
++		// Eval rhs before lhs, for compatibility with noder1
+ 		rhs := g.exprList(stmt.Rhs)
++		names, lhs := g.assignList(stmt.Lhs, stmt.Op == syntax.Def)
+ 
+ 		// We must delay transforming the assign statement if any of the
+ 		// lhs or rhs nodes are also delayed, since transformAssign needs
+@@ -262,6 +266,12 @@ func (g *irgen) forStmt(stmt *syntax.ForStmt) ir.Node {
+ 		key, value := unpackTwo(lhs)
+ 		n := ir.NewRangeStmt(g.pos(r), key, value, g.expr(r.X), g.blockStmt(stmt.Body))
+ 		n.Def = initDefn(n, names)
++		if key != nil {
++			transformCheckAssign(n, key)
++		}
++		if value != nil {
++			transformCheckAssign(n, value)
++		}
+ 		return n
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index d925f991c8..c18ae3a1fc 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -39,6 +39,11 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
+ 	// recursive types have been fully constructed before we call CheckSize.
+ 	if res != nil && !res.IsUntyped() && !res.IsFuncArgStruct() && !res.HasTParam() {
+ 		types.CheckSize(res)
++		if res.IsPtr() {
++			// Pointers always have their size set, even though their element
++			// may not have its size set.
++			types.CheckSize(res.Elem())
++		}
+ 	}
+ 	return res
+ }
+diff --git a/src/cmd/compile/internal/noder/validate.go b/src/cmd/compile/internal/noder/validate.go
+index b926222c89..68a059b96f 100644
+--- a/src/cmd/compile/internal/noder/validate.go
++++ b/src/cmd/compile/internal/noder/validate.go
+@@ -55,7 +55,15 @@ func (g *irgen) validate(n syntax.Node) {
+ 	case *syntax.CallExpr:
+ 		tv := g.info.Types[n.Fun]
+ 		if tv.IsBuiltin() {
+-			switch builtin := n.Fun.(type) {
++			fun := n.Fun
++			for {
++				builtin, ok := fun.(*syntax.ParenExpr)
++				if !ok {
++					break
++				}
++				fun = builtin.X
++			}
++			switch builtin := fun.(type) {
+ 			case *syntax.Name:
+ 				g.validateBuiltin(builtin.Value, n)
+ 			case *syntax.SelectorExpr:
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 4fbc48f17b..b054c73ad8 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1636,7 +1636,9 @@ func (w *exportWriter) expr(n ir.Node) {
+ 	// (somewhat closely following the structure of exprfmt in fmt.go)
+ 	case ir.ONIL:
+ 		n := n.(*ir.NilExpr)
+-		if !n.Type().HasNil() {
++		// If n is a typeparam, it will have already been checked
++		// for proper use by the types2 typechecker.
++		if !n.Type().IsTypeParam() && !n.Type().HasNil() {
+ 			base.Fatalf("unexpected type for nil: %v", n.Type())
+ 		}
+ 		w.op(ir.ONIL)
+diff --git a/test/run.go b/test/run.go
+index 82d49270f2..3ccf1046ce 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2167,12 +2167,7 @@ var types2Failures32Bit = setOf(
+ )
+ 
+ var g3Failures = setOf(
+-	"writebarrier.go",         // correct diagnostics, but different lines (probably irgen's fault)
+-	"fixedbugs/issue17270.go", // ICE in irgen
+-	"fixedbugs/issue20174.go", // ICE due to width not calculated (probably irgen's fault)
+-	"fixedbugs/issue20250.go", // correct diagnostics, but different lines (probably irgen's fault)
+-	"fixedbugs/issue37837.go", // ICE due to width not calculated
+-	"fixedbugs/issue9691.go",  // "cannot assign to int(.autotmp_4)" (probably irgen's fault)
++	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+diff --git a/test/typeparam/issue39755.go b/test/typeparam/issue39755.go
+new file mode 100644
+index 0000000000..13a575d16f
+--- /dev/null
++++ b/test/typeparam/issue39755.go
+@@ -0,0 +1,27 @@
++// compile -G=3
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// copied from cmd/compile/internal/types2/testdata/fixedbugs/issue39755.go
++
++package p
++
++func _[T interface{~map[string]int}](x T) {
++	_ = x == nil
++}
++
++// simplified test case from issue
++
++type PathParamsConstraint interface {
++        ~map[string]string | ~[]struct{key, value string}
++}
++
++type PathParams[T PathParamsConstraint] struct {
++	t T
++}
++
++func (pp *PathParams[T]) IsNil() bool {
++	return pp.t == nil // this must succeed
++}

@@ -10,6 +10,20 @@ Date:   Sat May 30 03:10:57 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/235518
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/driver/driver.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 99fbd431be..5bbcf20db2 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -96,7 +96,7 @@ type Driver interface {
+ 
+ // If a Driver implements DriverContext, then sql.DB will call
+ // OpenConnector to obtain a Connector and then invoke
+-// that Connector's Conn method to obtain each needed connection,
++// that Connector's Connect method to obtain each needed connection,
+ // instead of invoking the Driver's Open method for each connection.
+ // The two-step sequence allows drivers to parse the name just once
+ // and also provides access to per-Conn contexts.

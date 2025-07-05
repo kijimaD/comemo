@@ -16,7 +16,68 @@ Date:   Tue Feb 11 15:09:39 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/sys_linux_386.s   | 12 ++++++------
  src/runtime/sys_linux_amd64.s | 12 ++++++------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 8e05acf894..1b28098ad9 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -233,9 +233,9 @@ TEXT runtime·walltime1(SB), NOSPLIT, $0-12
+ 	MOVL	g_m(AX), SI // SI unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+-	MOVL	0(SP), DX
+-	MOVL	DX, m_vdsoPC(SI)
+-	LEAL	sec+0(SP), DX
++	LEAL	sec+0(FP), DX
++	MOVL	-4(DX), CX
++	MOVL	CX, m_vdsoPC(SI)
+ 	MOVL	DX, m_vdsoSP(SI)
+ 
+ 	CMPL	AX, m_curg(SI)	// Only switch if on curg.
+@@ -296,9 +296,9 @@ TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
+ 	MOVL	g_m(AX), SI // SI unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+-	MOVL	0(SP), DX
+-	MOVL	DX, m_vdsoPC(SI)
+-	LEAL	ret+0(SP), DX
++	LEAL	ret+0(FP), DX
++	MOVL	-4(DX), CX
++	MOVL	CX, m_vdsoPC(SI)
+ 	MOVL	DX, m_vdsoSP(SI)
+ 
+ 	CMPL	AX, m_curg(SI)	// Only switch if on curg.
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 9493101460..58d3bc54b4 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -221,9 +221,9 @@ TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+ 	MOVQ	g_m(AX), BX // BX unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+-	MOVQ	0(SP), DX
+-	MOVQ	DX, m_vdsoPC(BX)
+-	LEAQ	sec+0(SP), DX
++	LEAQ	sec+0(FP), DX
++	MOVQ	-8(DX), CX
++	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.
+@@ -275,9 +275,9 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
+ 	MOVQ	g_m(AX), BX // BX unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+-	MOVQ	0(SP), DX
+-	MOVQ	DX, m_vdsoPC(BX)
+-	LEAQ	ret+0(SP), DX
++	LEAQ	ret+0(FP), DX
++	MOVQ	-8(DX), CX
++	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	DX, m_vdsoSP(BX)
+ 
+ 	CMPQ	AX, m_curg(BX)	// Only switch if on curg.

@@ -17,7 +17,50 @@ Date:   Fri Apr 22 14:41:57 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  api/next/51684.txt         | 4 ++--
  src/regexp/syntax/parse.go | 8 ++++----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/api/next/51684.txt b/api/next/51684.txt
+index f35d13f088..b8a0645256 100644
+--- a/api/next/51684.txt
++++ b/api/next/51684.txt
+@@ -1,2 +1,2 @@
+-pkg regexp/syntax, const ErrInvalidDepth = "expression nests too deeply" #51684
+-pkg regexp/syntax, const ErrInvalidDepth ErrorCode #51684
++pkg regexp/syntax, const ErrNestingDepth = "expression nests too deeply" #51684
++pkg regexp/syntax, const ErrNestingDepth ErrorCode #51684
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 1462f4c082..350f297e5b 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -43,7 +43,7 @@ const (
+ 	ErrMissingRepeatArgument ErrorCode = "missing argument to repetition operator"
+ 	ErrTrailingBackslash     ErrorCode = "trailing backslash at end of expression"
+ 	ErrUnexpectedParen       ErrorCode = "unexpected )"
+-	ErrInvalidDepth          ErrorCode = "expression nests too deeply"
++	ErrNestingDepth          ErrorCode = "expression nests too deeply"
+ )
+ 
+ func (e ErrorCode) String() string {
+@@ -134,7 +134,7 @@ func (p *parser) checkHeight(re *Regexp) {
+ 		}
+ 	}
+ 	if p.calcHeight(re, true) > maxHeight {
+-		panic(ErrInvalidDepth)
++		panic(ErrNestingDepth)
+ 	}
+ }
+ 
+@@ -762,8 +762,8 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
+ 			panic(r)
+ 		case nil:
+ 			// ok
+-		case ErrInvalidDepth:
+-			err = &Error{Code: ErrInvalidDepth, Expr: s}
++		case ErrNestingDepth:
++			err = &Error{Code: ErrNestingDepth, Expr: s}
+ 		}
+ 	}()
+ 

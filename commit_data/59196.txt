@@ -18,7 +18,34 @@ Date:   Fri Dec 22 11:38:29 2023 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Max Coplan <mchcopl@gmail.com>
-
+---
  src/net/http/fs.go      | 2 ++
  src/net/http/fs_test.go | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index af7511a7a4..678b978b7b 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -151,6 +151,8 @@ func dirList(w ResponseWriter, r *Request, f File) {
+ 	sort.Slice(dirs, func(i, j int) bool { return dirs.name(i) < dirs.name(j) })
+ 
+ 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
++	fmt.Fprintf(w, "<!doctype html>\n")
++	fmt.Fprintf(w, "<meta name=\"viewport\" content=\"width=device-width\">\n")
+ 	fmt.Fprintf(w, "<pre>\n")
+ 	for i, n := 0, dirs.len(); i < n; i++ {
+ 		name := dirs.name(i)
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 861e70caf2..383d27df9b 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -325,7 +325,7 @@ func TestFileServerCleans(t *testing.T) {
+ 
+ func TestFileServerEscapesNames(t *testing.T) { run(t, testFileServerEscapesNames) }
+ func testFileServerEscapesNames(t *testing.T, mode testMode) {
+-	const dirListPrefix = "<pre>\n"
++	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<pre>\n"
+ 	const dirListSuffix = "\n</pre>\n"
+ 	tests := []struct {
+ 		name, escaped string

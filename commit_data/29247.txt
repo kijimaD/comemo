@@ -13,7 +13,7 @@ Date:   Sun Jun 19 07:20:28 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go   |   2 +-
  src/cmd/compile/internal/gc/bimport.go   |   2 +-
  src/cmd/compile/internal/gc/esc.go       |  24 ++--
@@ -29,3 +29,551 @@ Date:   Sun Jun 19 07:20:28 2016 -0700
  src/cmd/compile/internal/gc/typecheck.go |   4 +-
  src/cmd/compile/internal/gc/walk.go      |   3 +-
  14 files changed, 114 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3ac1ade28e..dba3b948ad 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1258,7 +1258,7 @@ func (p *exporter) expr(n *Node) {
+ 		p.typ(n.Type)
+ 		p.elemList(n.List) // special handling of field names
+ 
+-	case OARRAYLIT, OMAPLIT:
++	case OARRAYLIT, OSLICELIT, OMAPLIT:
+ 		p.op(OCOMPLIT)
+ 		p.typ(n.Type)
+ 		p.exprList(n.List)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 3b95979320..9737b1b2ab 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -897,7 +897,7 @@ func (p *importer) node() *Node {
+ 		n.List.Set(p.elemList()) // special handling of field names
+ 		return n
+ 
+-	// case OARRAYLIT, OMAPLIT:
++	// case OARRAYLIT, OSLICELIT, OMAPLIT:
+ 	// 	unreachable - mapped to case OCOMPLIT below by exporter
+ 
+ 	case OCOMPLIT:
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 90ad75cbea..c5597d7f48 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -863,15 +863,17 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		escassignNilWhy(e, n, n.Left, "interface-converted")
+ 
+ 	case OARRAYLIT:
+-		why := "array literal element"
+-		if n.Type.IsSlice() {
+-			// Slice itself is not leaked until proven otherwise
+-			e.track(n)
+-			why = "slice literal element"
++		// Link values to array
++		for _, n5 := range n.List.Slice() {
++			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, "array literal element"))
+ 		}
+-		// Link values to array/slice
++
++	case OSLICELIT:
++		// Slice is not leaked until proven otherwise
++		e.track(n)
++		// Link values to slice
+ 		for _, n5 := range n.List.Slice() {
+-			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, why))
++			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, "slice literal element"))
+ 		}
+ 
+ 		// Link values to struct.
+@@ -1015,6 +1017,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ 		Fatalf("escassign: unexpected dst")
+ 
+ 	case OARRAYLIT,
++		OSLICELIT,
+ 		OCLOSURE,
+ 		OCONV,
+ 		OCONVIFACE,
+@@ -1071,6 +1074,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
+ 		ODDDARG,
+ 		OPTRLIT,
+ 		OARRAYLIT,
++		OSLICELIT,
+ 		OMAPLIT,
+ 		OSTRUCTLIT,
+ 		OMAKECHAN,
+@@ -1587,6 +1591,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 					OCLOSURE,
+ 					ODDDARG,
+ 					OARRAYLIT,
++					OSLICELIT,
+ 					OPTRLIT,
+ 					OSTRUCTLIT:
+ 					a.Noescape = true
+@@ -1881,10 +1886,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep,
+ 		// similar to a slice arraylit and its args.
+ 		level = level.dec()
+ 
+-	case OARRAYLIT:
+-		if src.Type.IsArray() {
+-			break
+-		}
++	case OSLICELIT:
+ 		for _, n1 := range src.List.Slice() {
+ 			escwalk(e, level.dec(), dst, n1.Right, e.stepWalk(dst, n1.Right, "slice-literal-element", step))
+ 		}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b982009cef..9f0f4344b7 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -182,6 +182,7 @@ func reexportdep(n *Node) {
+ 		ODOTTYPE2,
+ 		OSTRUCTLIT,
+ 		OARRAYLIT,
++		OSLICELIT,
+ 		OPTRLIT,
+ 		OMAKEMAP,
+ 		OMAKESLICE,
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 0e2669be1b..8f8976c97c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -931,6 +931,7 @@ var opprec = []int{
+ 	OAPPEND:       8,
+ 	OARRAYBYTESTR: 8,
+ 	OARRAYLIT:     8,
++	OSLICELIT:     8,
+ 	OARRAYRUNESTR: 8,
+ 	OCALLFUNC:     8,
+ 	OCALLINTER:    8,
+@@ -1172,7 +1173,7 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
+ 	case OPTRLIT:
+ 		return p.f("&%v", n.Left)
+ 
+-	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
++	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
+ 		if fmtmode == FErr {
+ 			return p.f("%v literal", n.Type)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 095471ba60..45054aa5a3 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -48,6 +48,7 @@ var opnames = []string{
+ 	OMAPLIT:          "MAPLIT",
+ 	OSTRUCTLIT:       "STRUCTLIT",
+ 	OARRAYLIT:        "ARRAYLIT",
++	OSLICELIT:        "SLICELIT",
+ 	OPTRLIT:          "PTRLIT",
+ 	OCONV:            "CONV",
+ 	OCONVIFACE:       "CONVIFACE",
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index f3b102829b..5b01d4b905 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1160,7 +1160,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+ 		}
+ 
+-	case OARRAYLIT, OCALLPART:
++	case OARRAYLIT, OSLICELIT, OCALLPART:
+ 		n.Left = orderexpr(n.Left, order, nil)
+ 		n.Right = orderexpr(n.Right, order, nil)
+ 		orderexprlist(n.List, order)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 80282eb8cc..07733da517 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -368,6 +368,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		OCLOSURE,  // lowered to PTRLIT
+ 		ORANGE,    // lowered to ordinary for loop
+ 		OARRAYLIT, // lowered to assignments
++		OSLICELIT,
+ 		OMAPLIT,
+ 		OSTRUCTLIT,
+ 		OAS2,
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e073a5fad4..668e311cbf 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -316,33 +316,26 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
+ 
+ 	case OPTRLIT:
+ 		switch r.Left.Op {
+-		//dump("not static addr", r);
+-		default:
+-			break
+-
++		case OARRAYLIT, OSLICELIT, OSTRUCTLIT, OMAPLIT:
+ 			// copy pointer
+-		case OARRAYLIT, OSTRUCTLIT, OMAPLIT:
+ 			gdata(l, Nod(OADDR, inittemps[r], nil), int(l.Type.Width))
+-
+ 			return true
+ 		}
+ 
+-	case OARRAYLIT:
+-		if r.Type.IsSlice() {
+-			// copy slice
+-			a := inittemps[r]
++	case OSLICELIT:
++		// copy slice
++		a := inittemps[r]
+ 
+-			n := *l
+-			n.Xoffset = l.Xoffset + int64(Array_array)
+-			gdata(&n, Nod(OADDR, a, nil), Widthptr)
+-			n.Xoffset = l.Xoffset + int64(Array_nel)
+-			gdata(&n, r.Right, Widthint)
+-			n.Xoffset = l.Xoffset + int64(Array_cap)
+-			gdata(&n, r.Right, Widthint)
+-			return true
+-		}
+-		fallthrough
+-	case OSTRUCTLIT:
++		n := *l
++		n.Xoffset = l.Xoffset + int64(Array_array)
++		gdata(&n, Nod(OADDR, a, nil), Widthptr)
++		n.Xoffset = l.Xoffset + int64(Array_nel)
++		gdata(&n, r.Right, Widthint)
++		n.Xoffset = l.Xoffset + int64(Array_cap)
++		gdata(&n, r.Right, Widthint)
++		return true
++
++	case OARRAYLIT, OSTRUCTLIT:
+ 		p := initplans[r]
+ 
+ 		n := *l
+@@ -405,7 +398,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 
+ 	case OPTRLIT:
+ 		switch r.Left.Op {
+-		case OARRAYLIT, OMAPLIT, OSTRUCTLIT:
++		case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT:
+ 			// Init pointer.
+ 			a := staticname(r.Left.Type, 1)
+ 
+@@ -427,28 +420,26 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 			return true
+ 		}
+ 
+-	case OARRAYLIT:
++	case OSLICELIT:
+ 		initplan(r)
+-		if r.Type.IsSlice() {
+-			// Init slice.
+-			bound := r.Right.Int64()
+-			ta := typArray(r.Type.Elem(), bound)
+-			a := staticname(ta, 1)
+-			inittemps[r] = a
+-			n := *l
+-			n.Xoffset = l.Xoffset + int64(Array_array)
+-			gdata(&n, Nod(OADDR, a, nil), Widthptr)
+-			n.Xoffset = l.Xoffset + int64(Array_nel)
+-			gdata(&n, r.Right, Widthint)
+-			n.Xoffset = l.Xoffset + int64(Array_cap)
+-			gdata(&n, r.Right, Widthint)
+-
+-			// Fall through to init underlying array.
+-			l = a
+-		}
++		// Init slice.
++		bound := r.Right.Int64()
++		ta := typArray(r.Type.Elem(), bound)
++		a := staticname(ta, 1)
++		inittemps[r] = a
++		n := *l
++		n.Xoffset = l.Xoffset + int64(Array_array)
++		gdata(&n, Nod(OADDR, a, nil), Widthptr)
++		n.Xoffset = l.Xoffset + int64(Array_nel)
++		gdata(&n, r.Right, Widthint)
++		n.Xoffset = l.Xoffset + int64(Array_cap)
++		gdata(&n, r.Right, Widthint)
++
++		// Fall through to init underlying array.
++		l = a
+ 		fallthrough
+ 
+-	case OSTRUCTLIT:
++	case OARRAYLIT, OSTRUCTLIT:
+ 		initplan(r)
+ 
+ 		p := initplans[r]
+@@ -543,12 +534,12 @@ func getdyn(n *Node, top bool) initGenType {
+ 		}
+ 		return initDynamic
+ 
+-	case OARRAYLIT:
+-		if !top && n.Type.IsSlice() {
++	case OSLICELIT:
++		if !top {
+ 			return initDynamic
+ 		}
+ 
+-	case OSTRUCTLIT:
++	case OARRAYLIT, OSTRUCTLIT:
+ 	}
+ 
+ 	var mode initGenType
+@@ -565,30 +556,27 @@ func getdyn(n *Node, top bool) initGenType {
+ // isStaticCompositeLiteral reports whether n is a compile-time constant.
+ func isStaticCompositeLiteral(n *Node) bool {
+ 	switch n.Op {
+-	case OARRAYLIT:
+-		if n.Type.IsSlice() {
+-			return false
++	case OSLICELIT:
++		return false
++	case OARRAYLIT, OSTRUCTLIT:
++		for _, r := range n.List.Slice() {
++			if r.Op != OKEY {
++				Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
++			}
++			index := r.Left
++			if n.Op == OARRAYLIT && index.Op != OLITERAL {
++				return false
++			}
++			value := r.Right
++			if !isStaticCompositeLiteral(value) {
++				return false
++			}
+ 		}
+-	case OSTRUCTLIT:
++		return true
+ 	case OLITERAL:
+ 		return true
+-	default:
+-		return false
+ 	}
+-	for _, r := range n.List.Slice() {
+-		if r.Op != OKEY {
+-			Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
+-		}
+-		index := r.Left
+-		if n.Op == OARRAYLIT && index.Op != OLITERAL {
+-			return false
+-		}
+-		value := r.Right
+-		if !isStaticCompositeLiteral(value) {
+-			return false
+-		}
+-	}
+-	return true
++	return false
+ }
+ 
+ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+@@ -600,20 +588,19 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		value := r.Right
+ 
+ 		switch value.Op {
+-		case OARRAYLIT:
+-			if value.Type.IsSlice() {
+-				if pass == 1 && ctxt != 0 {
+-					a := NodSym(ODOT, var_, index.Sym)
+-					slicelit(ctxt, value, a, init)
+-				} else if pass == 2 && ctxt == 0 {
+-					a := NodSym(ODOT, var_, index.Sym)
+-					slicelit(ctxt, value, a, init)
+-				} else if pass == 3 {
+-					break
+-				}
+-				continue
++		case OSLICELIT:
++			if pass == 1 && ctxt != 0 {
++				a := NodSym(ODOT, var_, index.Sym)
++				slicelit(ctxt, value, a, init)
++			} else if pass == 2 && ctxt == 0 {
++				a := NodSym(ODOT, var_, index.Sym)
++				slicelit(ctxt, value, a, init)
++			} else if pass == 3 {
++				break
+ 			}
++			continue
+ 
++		case OARRAYLIT:
+ 			a := NodSym(ODOT, var_, index.Sym)
+ 			arraylit(ctxt, pass, value, a, init)
+ 			continue
+@@ -662,20 +649,19 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		value := r.Right
+ 
+ 		switch value.Op {
+-		case OARRAYLIT:
+-			if value.Type.IsSlice() {
+-				if pass == 1 && ctxt != 0 {
+-					a := Nod(OINDEX, var_, index)
+-					slicelit(ctxt, value, a, init)
+-				} else if pass == 2 && ctxt == 0 {
+-					a := Nod(OINDEX, var_, index)
+-					slicelit(ctxt, value, a, init)
+-				} else if pass == 3 {
+-					break
+-				}
+-				continue
++		case OSLICELIT:
++			if pass == 1 && ctxt != 0 {
++				a := Nod(OINDEX, var_, index)
++				slicelit(ctxt, value, a, init)
++			} else if pass == 2 && ctxt == 0 {
++				a := Nod(OINDEX, var_, index)
++				slicelit(ctxt, value, a, init)
++			} else if pass == 3 {
++				break
+ 			}
++			continue
+ 
++		case OARRAYLIT:
+ 			a := Nod(OINDEX, var_, index)
+ 			arraylit(ctxt, pass, value, a, init)
+ 			continue
+@@ -825,10 +811,10 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		// TODO need to check bounds?
+ 
+ 		switch value.Op {
++		case OSLICELIT:
++			break
++
+ 		case OARRAYLIT:
+-			if value.Type.IsSlice() {
+-				break
+-			}
+ 			arraylit(ctxt, 2, value, a, init)
+ 			continue
+ 
+@@ -1079,15 +1065,10 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		structlit(ctxt, 3, n, var_, init)
+ 
+-	case OARRAYLIT:
+-		if t.IsSlice() {
+-			slicelit(ctxt, n, var_, init)
+-			break
+-		}
+-		if !t.IsArray() {
+-			Fatalf("anylit: not array")
+-		}
++	case OSLICELIT:
++		slicelit(ctxt, n, var_, init)
+ 
++	case OARRAYLIT:
+ 		if var_.isSimpleName() && n.List.Len() > 4 {
+ 			if ctxt == 0 {
+ 				// lay out static data
+@@ -1162,7 +1143,7 @@ func oaslit(n *Node, init *Nodes) bool {
+ 		// not a special composit literal assignment
+ 		return false
+ 
+-	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
++	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
+ 		if vmatch1(n.Left, n.Right) {
+ 			// not a special composit literal assignment
+ 			return false
+@@ -1235,7 +1216,7 @@ func initplan(n *Node) {
+ 	default:
+ 		Fatalf("initplan")
+ 
+-	case OARRAYLIT:
++	case OARRAYLIT, OSLICELIT:
+ 		for _, a := range n.List.Slice() {
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+ 				Fatalf("initplan arraylit")
+@@ -1304,12 +1285,7 @@ func iszero(n *Node) bool {
+ 			return u.Real.CmpFloat64(0) == 0 && u.Imag.CmpFloat64(0) == 0
+ 		}
+ 
+-	case OARRAYLIT:
+-		if n.Type.IsSlice() {
+-			break
+-		}
+-		fallthrough
+-	case OSTRUCTLIT:
++	case OARRAYLIT, OSTRUCTLIT:
+ 		for _, n1 := range n.List.Slice() {
+ 			if !iszero(n1.Right) {
+ 				return false
+@@ -1322,7 +1298,7 @@ func iszero(n *Node) bool {
+ }
+ 
+ func isvaluelit(n *Node) bool {
+-	return (n.Op == OARRAYLIT && n.Type.IsArray()) || n.Op == OSTRUCTLIT
++	return n.Op == OARRAYLIT || n.Op == OSTRUCTLIT
+ }
+ 
+ // gen_as_init attempts to emit static data for n and reports whether it succeeded.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2a8619f1c2..83c048f1df 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -702,7 +702,7 @@ func (s *state) stmt(n *Node) {
+ 		rhs := n.Right
+ 		if rhs != nil {
+ 			switch rhs.Op {
+-			case OSTRUCTLIT, OARRAYLIT:
++			case OSTRUCTLIT, OARRAYLIT, OSLICELIT:
+ 				// All literals with nonzero fields have already been
+ 				// rewritten during walk. Any that remain are just T{}
+ 				// or equivalents. Use the zero value.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 2e279b108e..c004dbf8ce 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1397,7 +1397,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		a = walkexpr(a, init)
+ 		return a
+ 
+-	case OSTRUCTLIT, OARRAYLIT:
++	case OSTRUCTLIT, OARRAYLIT, OSLICELIT:
+ 		if isStaticCompositeLiteral(n) {
+ 			return n
+ 		}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index bced2429b1..90be65e6a9 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -362,7 +362,8 @@ const (
+ 	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
+ 	OMAPLIT          // Type{List} (composite literal, Type is map)
+ 	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
+-	OARRAYLIT        // Type{List} (composite literal, Type is array or slice)
++	OARRAYLIT        // Type{List} (composite literal, Type is array)
++	OSLICELIT        // Type{List} (composite literal, Type is slice)
+ 	OPTRLIT          // &Left (left is composite literal)
+ 	OCONV            // Type(Left) (type conversion)
+ 	OCONVIFACE       // Type(Left) (type conversion, to interface)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index df527a5036..c71d4d342a 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2941,8 +2941,10 @@ func typecheckcomplit(n *Node) *Node {
+ 		}
+ 		if t.IsSlice() {
+ 			n.Right = Nodintconst(length)
++			n.Op = OSLICELIT
++		} else {
++			n.Op = OARRAYLIT
+ 		}
+-		n.Op = OARRAYLIT
+ 
+ 	case TMAP:
+ 		hash := make(map[uint32][]*Node)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 91895dd8af..5674dbee89 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1632,7 +1632,7 @@ opswitch:
+ 		r.Type = n.Type
+ 		n = r
+ 
+-	case OARRAYLIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
++	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
+ 		if isStaticCompositeLiteral(n) {
+ 			// n can be directly represented in the read-only data section.
+ 			// Make direct reference to the static data. See issue 12841.
+@@ -4051,6 +4051,7 @@ func candiscard(n *Node) bool {
+ 		OMAPLIT,
+ 		OSTRUCTLIT,
+ 		OARRAYLIT,
++		OSLICELIT,
+ 		OPTRLIT,
+ 		OCONV,
+ 		OCONVIFACE,

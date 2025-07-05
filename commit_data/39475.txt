@@ -13,6 +13,34 @@ Date:   Fri Mar 1 13:08:30 2019 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/vet/vet_test.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index e9b8c69d53..5d8139d977 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -28,16 +28,19 @@ var binary string
+ 
+ // We implement TestMain so remove the test binary when all is done.
+ func TestMain(m *testing.M) {
++	os.Exit(testMain(m))
++}
++
++func testMain(m *testing.M) int {
+ 	dir, err := ioutil.TempDir("", "vet_test")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, err)
+-		os.Exit(1)
++		return 1
+ 	}
+ 	defer os.RemoveAll(dir)
+ 	binary = filepath.Join(dir, "testvet.exe")
+ 
+-	result := m.Run()
+-	os.Exit(result)
++	return m.Run()
+ }
+ 
+ var (

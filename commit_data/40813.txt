@@ -12,6 +12,22 @@ Date:   Wed Jul 10 10:33:12 2019 -0500
     Change-Id: Ia147bb053adc098bd696dbdb01553c23222f8134
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185537
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.13.html | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index a4cea9b86a..afc345c1d3 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -101,6 +101,10 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="ports">Ports</h2>
+ 
++<p>
++  Go 1.13 is the last release that will run on Native Client (NaCl).
++</p>
++
+ <h3 id="aix">AIX</h3>
+ 
+ <p><!-- CL 164003, CL 169120 -->

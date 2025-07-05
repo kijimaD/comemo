@@ -17,7 +17,7 @@ Date:   Thu Aug 25 16:41:35 2022 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 50 +++++++++++-----------
  .../compile/internal/syntax/testdata/issue47704.go |  4 +-
  .../compile/internal/syntax/testdata/tparams.go    |  2 +-
@@ -34,3 +34,457 @@ Date:   Thu Aug 25 16:41:35 2022 -0700
  test/syntax/ddd.go                                 |  2 +-
  test/syntax/semi4.go                               |  2 +-
  15 files changed, 55 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 8ae2ebbe76..d86fe1b72e 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -190,7 +190,7 @@ func (p *parser) got(tok token) bool {
+ 
+ func (p *parser) want(tok token) {
+ 	if !p.got(tok) {
+-		p.syntaxError("expecting " + tokstring(tok))
++		p.syntaxError("expected " + tokstring(tok))
+ 		p.advance()
+ 	}
+ }
+@@ -200,7 +200,7 @@ func (p *parser) want(tok token) {
+ func (p *parser) gotAssign() bool {
+ 	switch p.tok {
+ 	case _Define:
+-		p.syntaxError("expecting =")
++		p.syntaxError("expected =")
+ 		fallthrough
+ 	case _Assign:
+ 		p.next()
+@@ -246,7 +246,7 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
+ 		// nothing to do
+ 	case strings.HasPrefix(msg, "in "), strings.HasPrefix(msg, "at "), strings.HasPrefix(msg, "after "):
+ 		msg = " " + msg
+-	case strings.HasPrefix(msg, "expecting "):
++	case strings.HasPrefix(msg, "expected "):
+ 		msg = ", " + msg
+ 	default:
+ 		// plain error - we don't care about current token
+@@ -272,6 +272,8 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
+ 		tok = tokstring(p.tok)
+ 	}
+ 
++	// TODO(gri) This may print "unexpected X, expected Y".
++	//           Consider "got X, expected Y" in this case.
+ 	p.errorAt(pos, "syntax error: unexpected "+tok+msg)
+ }
+ 
+@@ -774,7 +776,7 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
+ 	}
+ 
+ 	if p.tok != _Name {
+-		p.syntaxError("expecting name or (")
++		p.syntaxError("expected name or (")
+ 		p.advance(_Lbrace, _Semi)
+ 		return nil
+ 	}
+@@ -904,7 +906,7 @@ func (p *parser) unaryExpr() Expr {
+ 				if dir == RecvOnly {
+ 					// t is type <-chan E but <-<-chan E is not permitted
+ 					// (report same error as for "type _ <-<-chan E")
+-					p.syntaxError("unexpected <-, expecting chan")
++					p.syntaxError("unexpected <-, expected chan")
+ 					// already progressed, no need to advance
+ 				}
+ 				c.Dir = RecvOnly
+@@ -913,7 +915,7 @@ func (p *parser) unaryExpr() Expr {
+ 			if dir == SendOnly {
+ 				// channel dir is <- but channel element E is not a channel
+ 				// (report same error as for "type _ <-chan<-E")
+-				p.syntaxError(fmt.Sprintf("unexpected %s, expecting chan", String(t)))
++				p.syntaxError(fmt.Sprintf("unexpected %s, expected chan", String(t)))
+ 				// already progressed, no need to advance
+ 			}
+ 			return x
+@@ -1038,7 +1040,7 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 
+ 	default:
+ 		x := p.badExpr()
+-		p.syntaxError("expecting expression")
++		p.syntaxError("expected expression")
+ 		p.advance(_Rparen, _Rbrack, _Rbrace)
+ 		return x
+ 	}
+@@ -1109,7 +1111,7 @@ loop:
+ 				p.want(_Rparen)
+ 
+ 			default:
+-				p.syntaxError("expecting name or (")
++				p.syntaxError("expected name or (")
+ 				p.advance(_Semi, _Rparen)
+ 			}
+ 
+@@ -1121,7 +1123,7 @@ loop:
+ 				var comma bool
+ 				if p.tok == _Rbrack {
+ 					// invalid empty instance, slice or index expression; accept but complain
+-					p.syntaxError("expecting operand")
++					p.syntaxError("expected operand")
+ 					i = p.badExpr()
+ 				} else {
+ 					i, comma = p.typeList()
+@@ -1141,7 +1143,7 @@ loop:
+ 			// x[i:...
+ 			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
+ 			if !p.got(_Colon) {
+-				p.syntaxError("expecting comma, : or ]")
++				p.syntaxError("expected comma, : or ]")
+ 				p.advance(_Comma, _Colon, _Rbrack)
+ 			}
+ 			p.xnest++
+@@ -1293,7 +1295,7 @@ func (p *parser) type_() Expr {
+ 	typ := p.typeOrNil()
+ 	if typ == nil {
+ 		typ = p.badExpr()
+-		p.syntaxError("expecting type")
++		p.syntaxError("expected type")
+ 		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
+ 	}
+ 
+@@ -1405,7 +1407,7 @@ func (p *parser) typeInstance(typ Expr) Expr {
+ 	x.pos = pos
+ 	x.X = typ
+ 	if p.tok == _Rbrack {
+-		p.syntaxError("expecting type")
++		p.syntaxError("expected type argument list")
+ 		x.Index = p.badExpr()
+ 	} else {
+ 		x.Index, _ = p.typeList()
+@@ -1460,7 +1462,7 @@ func (p *parser) arrayType(pos Pos, len Expr) Expr {
+ 		// Trailing commas are accepted in type parameter
+ 		// lists but not in array type declarations.
+ 		// Accept for better error handling but complain.
+-		p.syntaxError("unexpected comma; expecting ]")
++		p.syntaxError("unexpected comma; expected ]")
+ 		p.next()
+ 	}
+ 	p.want(_Rbrack)
+@@ -1660,7 +1662,7 @@ func (p *parser) fieldDecl(styp *StructType) {
+ 		p.addField(styp, pos, nil, typ, tag)
+ 
+ 	default:
+-		p.syntaxError("expecting field name or embedded type")
++		p.syntaxError("expected field name or embedded type")
+ 		p.advance(_Semi, _Rbrace)
+ 	}
+ }
+@@ -1850,7 +1852,7 @@ func (p *parser) embeddedTerm() Expr {
+ 	t := p.typeOrNil()
+ 	if t == nil {
+ 		t = p.badExpr()
+-		p.syntaxError("expecting ~ term or type")
++		p.syntaxError("expected ~ term or type")
+ 		p.advance(_Operator, _Semi, _Rparen, _Rbrack, _Rbrace)
+ 	}
+ 
+@@ -1949,7 +1951,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
+ 		return f
+ 	}
+ 
+-	p.syntaxError("expecting " + tokstring(follow))
++	p.syntaxError("expected " + tokstring(follow))
+ 	p.advance(_Comma, follow)
+ 	return nil
+ }
+@@ -2155,7 +2157,7 @@ func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
+ 		return p.newAssignStmt(pos, op, lhs, rhs)
+ 
+ 	default:
+-		p.syntaxError("expecting := or = or comma")
++		p.syntaxError("expected := or = or comma")
+ 		p.advance(_Semi, _Rbrace)
+ 		// make the best of what we have
+ 		if x, ok := lhs.(*ListExpr); ok {
+@@ -2230,7 +2232,7 @@ func (p *parser) blockStmt(context string) *BlockStmt {
+ 
+ 	// people coming from C may forget that braces are mandatory in Go
+ 	if !p.got(_Lbrace) {
+-		p.syntaxError("expecting { after " + context)
++		p.syntaxError("expected { after " + context)
+ 		p.advance(_Name, _Rbrace)
+ 		s.Rbrace = p.pos() // in case we found "}"
+ 		if p.got(_Rbrace) {
+@@ -2321,7 +2323,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 		if keyword == _For {
+ 			if p.tok != _Semi {
+ 				if p.tok == _Lbrace {
+-					p.syntaxError("expecting for loop condition")
++					p.syntaxError("expected for loop condition")
+ 					goto done
+ 				}
+ 				condStmt = p.simpleStmt(nil, 0 /* range not permitted */)
+@@ -2347,7 +2349,7 @@ done:
+ 	case nil:
+ 		if keyword == _If && semi.pos.IsKnown() {
+ 			if semi.lit != "semicolon" {
+-				p.syntaxErrorAt(semi.pos, fmt.Sprintf("unexpected %s, expecting { after if clause", semi.lit))
++				p.syntaxErrorAt(semi.pos, fmt.Sprintf("unexpected %s, expected { after if clause", semi.lit))
+ 			} else {
+ 				p.syntaxErrorAt(semi.pos, "missing condition in if statement")
+ 			}
+@@ -2466,7 +2468,7 @@ func (p *parser) caseClause() *CaseClause {
+ 		p.next()
+ 
+ 	default:
+-		p.syntaxError("expecting case or default or }")
++		p.syntaxError("expected case or default or }")
+ 		p.advance(_Colon, _Case, _Default, _Rbrace)
+ 	}
+ 
+@@ -2506,7 +2508,7 @@ func (p *parser) commClause() *CommClause {
+ 		p.next()
+ 
+ 	default:
+-		p.syntaxError("expecting case or default or }")
++		p.syntaxError("expected case or default or }")
+ 		p.advance(_Colon, _Case, _Default, _Rbrace)
+ 	}
+ 
+@@ -2683,7 +2685,7 @@ func (p *parser) name() *Name {
+ 	}
+ 
+ 	n := NewName(p.pos(), "_")
+-	p.syntaxError("expecting name")
++	p.syntaxError("expected name")
+ 	p.advance()
+ 	return n
+ }
+@@ -2721,7 +2723,7 @@ func (p *parser) qualifiedName(name *Name) Expr {
+ 		x = p.name()
+ 	default:
+ 		x = NewName(p.pos(), "_")
+-		p.syntaxError("expecting name")
++		p.syntaxError("expected name")
+ 		p.advance(_Dot, _Semi, _Rbrace)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.go b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+index 2f2e29b693..e4cdad148f 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue47704.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+@@ -5,13 +5,13 @@
+ package p
+ 
+ func _() {
+-	_ = m[] // ERROR expecting operand
++	_ = m[] // ERROR expected operand
+ 	_ = m[x,]
+ 	_ = m[x /* ERROR unexpected a */ a b c d]
+ }
+ 
+ // test case from the issue
+ func f(m map[int]int) int {
+-	return m[0 // ERROR expecting comma, \: or \]
++	return m[0 // ERROR expected comma, \: or \]
+ 		]
+ }
+diff --git a/src/cmd/compile/internal/syntax/testdata/tparams.go b/src/cmd/compile/internal/syntax/testdata/tparams.go
+index 671833f931..646fbbebc8 100644
+--- a/src/cmd/compile/internal/syntax/testdata/tparams.go
++++ b/src/cmd/compile/internal/syntax/testdata/tparams.go
+@@ -21,7 +21,7 @@ func f[ /* ERROR empty type parameter list */ ]()
+ func f[a, b /* ERROR missing type constraint */ ]()
+ func f[a t, b t, c /* ERROR missing type constraint */ ]()
+ 
+-func f[a b,  /* ERROR expecting ] */ 0] ()
++func f[a b,  /* ERROR expected ] */ 0] ()
+ 
+ // issue #49482
+ type (
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst0.go b/src/cmd/compile/internal/types2/testdata/check/typeinst0.go
+index 0e6dc0a98f..6423cb801f 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst0.go
+@@ -36,11 +36,11 @@ var _ A3
+ var x int
+ type _ x /* ERROR not a type */ [int]
+ 
+-type _ int /* ERROR not a generic type */ [] // ERROR expecting type
+-type _ myInt /* ERROR not a generic type */ [] // ERROR expecting type
++type _ int /* ERROR not a generic type */ [] // ERROR expected type argument list
++type _ myInt /* ERROR not a generic type */ [] // ERROR expected type argument list
+ 
+ // TODO(gri) better error messages
+-type _ T1[] // ERROR expecting type
++type _ T1[] // ERROR expected type argument list
+ type _ T1[x /* ERROR not a type */ ]
+ type _ T1 /* ERROR got 2 arguments but 1 type parameters */ [int, float32]
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/vardecl.go b/src/cmd/compile/internal/types2/testdata/check/vardecl.go
+index c3fe61c3d4..19ccc98009 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/vardecl.go
++++ b/src/cmd/compile/internal/types2/testdata/check/vardecl.go
+@@ -14,9 +14,9 @@ var m map[string]int
+ var _ int
+ var _, _ int
+ 
+-var _ /* ERROR "expecting type" */
+-var _, _ /* ERROR "expecting type" */
+-var _, _, _ /* ERROR "expecting type" */
++var _ /* ERROR "expected type" */
++var _, _ /* ERROR "expected type" */
++var _, _, _ /* ERROR "expected type" */
+ 
+ // The initializer must be an expression.
+ var _ = int /* ERROR "not an expression" */
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
+index 2937959105..3d8e3453ed 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue45635.go
+@@ -10,7 +10,7 @@ func main() {
+ 
+ type N[T any] struct{}
+ 
+-var _ N[] /* ERROR expecting type */
++var _ N[] /* ERROR expected type */
+ 
+ type I interface {
+ 	~[]int
+diff --git a/test/fixedbugs/issue13273.go b/test/fixedbugs/issue13273.go
+index 2498da4d47..ea729d6080 100644
+--- a/test/fixedbugs/issue13273.go
++++ b/test/fixedbugs/issue13273.go
+@@ -47,9 +47,9 @@ func f() {
+ 	<-(<-chan (<-chan (<-chan (<-chan int))))(nil)
+ 	<-(<-chan (<-chan (<-chan (<-chan (<-chan int)))))(nil)
+ 
+-	type _ <-<-chan int // ERROR "unexpected <-, expecting chan|expected .*chan.*"
+-	<-<-chan int // ERROR "unexpected <-, expecting chan|expecting {" (new parser: same error as for type decl)
++	type _ <-<-chan int // ERROR "unexpected <-, expected chan|expected .*chan.*"
++	<-<-chan int // ERROR "unexpected <-, expected chan|expecting {" (new parser: same error as for type decl)
+ 
+-	type _ <-chan<-int // ERROR "unexpected int, expecting chan|expected .*chan.*|expecting chan|expected .*;.* or .*}.* or newline"
+-	<-chan<-int // ERROR "unexpected int, expecting chan|expecting {" (new parser: same error as for type decl)
++	type _ <-chan<-int // ERROR "unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline"
++	<-chan<-int // ERROR "unexpected int, expected chan|expecting {" (new parser: same error as for type decl)
+ }
+diff --git a/test/fixedbugs/issue18092.go b/test/fixedbugs/issue18092.go
+index a0f7eddda5..c8e60f31c5 100644
+--- a/test/fixedbugs/issue18092.go
++++ b/test/fixedbugs/issue18092.go
+@@ -11,5 +11,5 @@ func _() {
+ 	select {
+ 	default:
+ 	case <-ch { // GCCGO_ERROR "expected colon"
+-	}           // GC_ERROR "expecting :"
++	}           // GC_ERROR "expected :"
+ }
+diff --git a/test/fixedbugs/issue18747.go b/test/fixedbugs/issue18747.go
+index fb8331fcc9..4eabe0e61d 100644
+--- a/test/fixedbugs/issue18747.go
++++ b/test/fixedbugs/issue18747.go
+@@ -23,6 +23,6 @@ func _ () {
+ 
+ 	if ; foo {}
+ 
+-	if foo // ERROR "unexpected newline, expecting { after if clause"
++	if foo // ERROR "unexpected newline, expected { after if clause"
+ 	{}
+ }
+diff --git a/test/fixedbugs/issue19667.go b/test/fixedbugs/issue19667.go
+index e33e350487..4b0925add2 100644
+--- a/test/fixedbugs/issue19667.go
++++ b/test/fixedbugs/issue19667.go
+@@ -10,4 +10,4 @@ package p
+ 
+ func f() {
+ 	if err := http.ListenAndServe( // GCCGO_ERROR "undefined name"
+-} // ERROR "unexpected }, expecting expression|expected operand|missing .*\)|expected .*;|expected .*{"
++} // ERROR "unexpected }, expected expression|expected operand|missing .*\)|expected .*;|expected .*{"
+diff --git a/test/fixedbugs/issue23664.go b/test/fixedbugs/issue23664.go
+index 1925ebffe7..715654be70 100644
+--- a/test/fixedbugs/issue23664.go
++++ b/test/fixedbugs/issue23664.go
+@@ -9,9 +9,9 @@
+ package p
+ 
+ func f() {
+-	if f() true { // ERROR "unexpected true, expecting {"
++	if f() true { // ERROR "unexpected true, expected {"
+ 	}
+ 	
+-	switch f() true { // ERROR "unexpected true, expecting {"
++	switch f() true { // ERROR "unexpected true, expected {"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue33386.go b/test/fixedbugs/issue33386.go
+index 7b2f565285..a7074069fe 100644
+--- a/test/fixedbugs/issue33386.go
++++ b/test/fixedbugs/issue33386.go
+@@ -13,17 +13,17 @@ package p
+ func _() {
+ 	go func() {     // no error here about goroutine
+ 		send <- // GCCGO_ERROR "undefined name"
+-	}()             // ERROR "expecting expression|expected operand"
++	}()             // ERROR "expected expression|expected operand"
+ }
+ 
+ func _() {
+ 	defer func() { // no error here about deferred function
+ 		1 +    // GCCGO_ERROR "value computed is not used"
+-	}()            // ERROR "expecting expression|expected operand"
++	}()            // ERROR "expected expression|expected operand"
+ }
+ 
+ func _() {
+-	_ = (1 +)             // ERROR "expecting expression|expected operand"
+-	_ = a[2 +]            // ERROR "expecting expression|expected operand|undefined name"
+-	_ = []int{1, 2, 3 + } // ERROR "expecting expression|expected operand"
++	_ = (1 +)             // ERROR "expected expression|expected operand"
++	_ = a[2 +]            // ERROR "expected expression|expected operand|undefined name"
++	_ = []int{1, 2, 3 + } // ERROR "expected expression|expected operand"
+ }
+diff --git a/test/switch2.go b/test/switch2.go
+index 11b85d3692..66e89fda19 100644
+--- a/test/switch2.go
++++ b/test/switch2.go
+@@ -11,11 +11,11 @@ package main
+ 
+ func f() {
+ 	switch {
+-	case 0; // ERROR "expecting := or = or : or comma|expecting :"
++	case 0; // ERROR "expecting := or = or : or comma|expected :"
+ 	}
+ 
+ 	switch {
+-	case 0; // ERROR "expecting := or = or : or comma|expecting :"
++	case 0; // ERROR "expecting := or = or : or comma|expected :"
+ 	default:
+ 	}
+ 
+@@ -34,6 +34,6 @@ func f() {
+ 	}
+ 
+ 	switch {
+-	if x: // ERROR "expecting case or default or }"
++	if x: // ERROR "expected case or default or }"
+ 	}
+ }
+diff --git a/test/syntax/ddd.go b/test/syntax/ddd.go
+index 476ae22793..8d1e4d1903 100644
+--- a/test/syntax/ddd.go
++++ b/test/syntax/ddd.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func f() {
+-	g(f..3) // ERROR "unexpected literal \.3, expecting name or \("
++	g(f..3) // ERROR "unexpected literal \.3, expected name or \("
+ }
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index 08c354751b..62a511e610 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+ 	for x		// GCCGO_ERROR "undefined"
+-	{		// ERROR "unexpected {, expecting for loop condition|expecting .*{.* after for clause"
++	{		// ERROR "unexpected {, expected for loop condition|expecting .*{.* after for clause"
+ 		z	// GCCGO_ERROR "undefined"

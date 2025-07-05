@@ -23,7 +23,7 @@ Date:   Fri Dec 7 00:07:43 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/c/153078
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/proc.go                                |  5 +-
  src/runtime/proc_test.go                           |  6 ++
  src/runtime/testdata/testprog/gettid.go            | 29 -------
@@ -31,3 +31,276 @@ Date:   Fri Dec 7 00:07:43 2018 +0000
  src/runtime/testdata/testprog/syscalls.go          | 54 ++++++++++++
  .../testprog/{gettid_none.go => syscalls_none.go}  | 12 +++
  6 files changed, 175 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index fc77a964b6..bdf73e0412 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2703,7 +2703,6 @@ func goexit0(gp *g) {
+ 		print("invalid m->lockedInt = ", _g_.m.lockedInt, "\n")
+ 		throw("internal lockOSThread error")
+ 	}
+-	_g_.m.lockedExt = 0
+ 	gfput(_g_.m.p.ptr(), gp)
+ 	if locked {
+ 		// The goroutine may have locked this thread because
+@@ -2714,6 +2713,10 @@ func goexit0(gp *g) {
+ 		// the thread.
+ 		if GOOS != "plan9" { // See golang.org/issue/22227.
+ 			gogo(&_g_.m.g0.sched)
++		} else {
++			// Clear lockedExt on plan9 since we may end up re-using
++			// this thread.
++			_g_.m.lockedExt = 0
+ 		}
+ 	}
+ 	schedule()
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index ad325987ac..e6947d5849 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -885,6 +885,12 @@ func TestLockOSThreadNesting(t *testing.T) {
+ 
+ func TestLockOSThreadExit(t *testing.T) {
+ 	testLockOSThreadExit(t, "testprog")
++
++	want := "OK\n"
++	output := runTestProg(t, "testprog", "LockOSThreadAvoidsStatePropagation", "GOMAXPROCS=1")
++	if output != want {
++		t.Errorf("want %s, got %s\n", want, output)
++	}
+ }
+ 
+ func testLockOSThreadExit(t *testing.T, prog string) {
+diff --git a/src/runtime/testdata/testprog/gettid.go b/src/runtime/testdata/testprog/gettid.go
+deleted file mode 100644
+index 1b3e29ab08..0000000000
+--- a/src/runtime/testdata/testprog/gettid.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build linux
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io/ioutil"
+-	"os"
+-	"syscall"
+-)
+-
+-func gettid() int {
+-	return syscall.Gettid()
+-}
+-
+-func tidExists(tid int) (exists, supported bool) {
+-	stat, err := ioutil.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
+-	if os.IsNotExist(err) {
+-		return false, true
+-	}
+-	// Check if it's a zombie thread.
+-	state := bytes.Fields(stat)[2]
+-	return !(len(state) == 1 && state[0] == 'Z'), true
+-}
+diff --git a/src/runtime/testdata/testprog/lockosthread.go b/src/runtime/testdata/testprog/lockosthread.go
+index 88c0d12e4c..5119cf8131 100644
+--- a/src/runtime/testdata/testprog/lockosthread.go
++++ b/src/runtime/testdata/testprog/lockosthread.go
+@@ -24,6 +24,12 @@ func init() {
+ 		runtime.LockOSThread()
+ 	})
+ 	register("LockOSThreadAlt", LockOSThreadAlt)
++
++	registerInit("LockOSThreadAvoidsStatePropagation", func() {
++		// Lock the OS thread now so main runs on the main thread.
++		runtime.LockOSThread()
++	})
++	register("LockOSThreadAvoidsStatePropagation", LockOSThreadAvoidsStatePropagation)
+ }
+ 
+ func LockOSThreadMain() {
+@@ -92,3 +98,96 @@ func LockOSThreadAlt() {
+ ok:
+ 	println("OK")
+ }
++
++func LockOSThreadAvoidsStatePropagation() {
++	// This test is similar to LockOSThreadAlt in that it will detect if a thread
++	// which should have died is still running. However, rather than do this with
++	// thread IDs, it does this by unsharing state on that thread. This way, it
++	// also detects whether new threads were cloned from the dead thread, and not
++	// from a clean thread. Cloning from a locked thread is undesirable since
++	// cloned threads will inherit potentially unwanted OS state.
++	//
++	// unshareFs, getcwd, and chdir("/tmp") are only guaranteed to work on
++	// Linux, so on other platforms this just checks that the runtime doesn't
++	// do anything terrible.
++	//
++	// This is running locked to the main OS thread.
++
++	// GOMAXPROCS=1 makes this fail much more reliably if a tainted thread is
++	// cloned from.
++	if runtime.GOMAXPROCS(-1) != 1 {
++		println("requires GOMAXPROCS=1")
++		os.Exit(1)
++	}
++
++	if err := chdir("/"); err != nil {
++		println("failed to chdir:", err.Error())
++		os.Exit(1)
++	}
++	// On systems other than Linux, cwd == "".
++	cwd, err := getcwd()
++	if err != nil {
++		println("failed to get cwd:", err.Error())
++		os.Exit(1)
++	}
++	if cwd != "" && cwd != "/" {
++		println("unexpected cwd", cwd, " wanted /")
++		os.Exit(1)
++	}
++
++	ready := make(chan bool, 1)
++	go func() {
++		// This goroutine must be running on a new thread.
++		runtime.LockOSThread()
++
++		// Unshare details about the FS, like the CWD, with
++		// the rest of the process on this thread.
++		// On systems other than Linux, this is a no-op.
++		if err := unshareFs(); err != nil {
++			println("failed to unshare fs:", err.Error())
++			os.Exit(1)
++		}
++		// Chdir to somewhere else on this thread.
++		// On systems other than Linux, this is a no-op.
++		if err := chdir("/tmp"); err != nil {
++			println("failed to chdir:", err.Error())
++			os.Exit(1)
++		}
++
++		// The state on this thread is now considered "tainted", but it
++		// should no longer be observable in any other context.
++
++		ready <- true
++		// Exit with the thread locked.
++	}()
++	<-ready
++
++	// Spawn yet another goroutine and lock it. Since GOMAXPROCS=1, if
++	// for some reason state from the (hopefully dead) locked thread above
++	// propagated into a newly created thread (via clone), or that thread
++	// is actually being re-used, then we should get scheduled on such a
++	// thread with high likelihood.
++	done := make(chan bool)
++	go func() {
++		runtime.LockOSThread()
++
++		// Get the CWD and check if this is the same as the main thread's
++		// CWD. Every thread should share the same CWD.
++		// On systems other than Linux, wd == "".
++		wd, err := getcwd()
++		if err != nil {
++			println("failed to get cwd:", err.Error())
++			os.Exit(1)
++		}
++		if wd != cwd {
++			println("bad state from old thread propagated after it should have died")
++			os.Exit(1)
++		}
++		<-done
++
++		runtime.UnlockOSThread()
++	}()
++	done <- true
++	runtime.UnlockOSThread()
++	println("OK")
++}
+diff --git a/src/runtime/testdata/testprog/syscalls.go b/src/runtime/testdata/testprog/syscalls.go
+new file mode 100644
+index 0000000000..08284fc561
+--- /dev/null
++++ b/src/runtime/testdata/testprog/syscalls.go
+@@ -0,0 +1,54 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"io/ioutil"
++	"os"
++	"syscall"
++)
++
++func gettid() int {
++	return syscall.Gettid()
++}
++
++func tidExists(tid int) (exists, supported bool) {
++	stat, err := ioutil.ReadFile(fmt.Sprintf("/proc/self/task/%d/stat", tid))
++	if os.IsNotExist(err) {
++		return false, true
++	}
++	// Check if it's a zombie thread.
++	state := bytes.Fields(stat)[2]
++	return !(len(state) == 1 && state[0] == 'Z'), true
++}
++
++func getcwd() (string, error) {
++	if !syscall.ImplementsGetwd {
++		return "", nil
++	}
++	// Use the syscall to get the current working directory.
++	// This is imperative for checking for OS thread state
++	// after an unshare since os.Getwd might just check the
++	// environment, or use some other mechanism.
++	var buf [4096]byte
++	n, err := syscall.Getcwd(buf[:])
++	if err != nil {
++		return "", err
++	}
++	// Subtract one for null terminator.
++	return string(buf[:n-1]), nil
++}
++
++func unshareFs() error {
++	return syscall.Unshare(syscall.CLONE_FS)
++}
++
++func chdir(path string) error {
++	return syscall.Chdir(path)
++}
+diff --git a/src/runtime/testdata/testprog/gettid_none.go b/src/runtime/testdata/testprog/syscalls_none.go
+similarity index 68%
+rename from src/runtime/testdata/testprog/gettid_none.go
+rename to src/runtime/testdata/testprog/syscalls_none.go
+index 036db87e10..7f8ded3994 100644
+--- a/src/runtime/testdata/testprog/gettid_none.go
++++ b/src/runtime/testdata/testprog/syscalls_none.go
+@@ -13,3 +13,15 @@ func gettid() int {
+ func tidExists(tid int) (exists, supported bool) {
+ 	return false, false
+ }
++
++func getcwd() (string, error) {
++	return "", nil
++}
++
++func unshareFs() error {
++	return nil
++}
++
++func chdir(path string) error {
++	return nil
++}

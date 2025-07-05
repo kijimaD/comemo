@@ -8,7 +8,7 @@ Date:   Tue Jan 27 14:12:35 2009 -0800
     R=r
     OCL=23613
     CL=23613
-
+---
  src/cmd/6a/lex.c   |  7 +++++++
  src/cmd/6c/txt.c   |  4 +++-
  src/cmd/8c/txt.c   |  4 +++-
@@ -18,3 +18,172 @@ Date:   Tue Jan 27 14:12:35 2009 -0800
  src/cmd/cc/macbody |  4 ++--
  src/runtime/proc.c |  4 ++++
  8 files changed, 27 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 22539fc7ea..8dea599a65 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1334,5 +1334,12 @@ praghjdicks(void)
+ 		;
+ }
+ 
++void
++pragtextflag(void)
++{
++	while(getnsc() != '\n')
++		;
++}
++
+ #include "../cc/lexbody"
+ #include "../cc/macbody"
+diff --git a/src/cmd/6c/txt.c b/src/cmd/6c/txt.c
+index 595e102fcd..fba5d2316e 100644
+--- a/src/cmd/6c/txt.c
++++ b/src/cmd/6c/txt.c
+@@ -1473,7 +1473,9 @@ gpseudo(int a, Sym *s, Node *n)
+ 	p->as = a;
+ 	p->from.type = D_EXTERN;
+ 	p->from.sym = s;
+-	p->from.scale = (profileflg ? 0 : NOPROF);
++	p->from.scale = textflag;
++	textflag = 0;
++	
+ 	if(s->class == CSTATIC)
+ 		p->from.type = D_STATIC;
+ 	naddr(n, &p->to);
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 5aab9dba94..4e95f3c7a8 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -1363,7 +1363,9 @@ gpseudo(int a, Sym *s, Node *n)
+ 	p->as = a;
+ 	p->from.type = D_EXTERN;
+ 	p->from.sym = s;
+-	p->from.scale = (profileflg ? 0 : NOPROF);
++	p->from.scale = textflag;
++	textflag = 0;
++
+ 	if(s->class == CSTATIC)
+ 		p->from.type = D_STATIC;
+ 	naddr(n, &p->to);
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index eefe5bed9e..3b13126df4 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -498,7 +498,7 @@ EXTERN	Term	term[NTERM];
+ EXTERN	int	nterm;
+ EXTERN	int	packflg;
+ EXTERN	int	fproundflg;
+-EXTERN	int	profileflg;
++EXTERN	int	textflag;
+ EXTERN	int	ncontin;
+ EXTERN	int	canreach;
+ EXTERN	int	warnreach;
+@@ -747,7 +747,7 @@ void	arginit(void);
+ void	pragvararg(void);
+ void	pragpack(void);
+ void	pragfpround(void);
+-void pragprofile(void);
++void	pragtextflag(void);
+ void	pragincomplete(void);
+ 
+ /*
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 6a8193435e..9d22e621ed 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -450,25 +450,19 @@ pragfpround(void)
+ }
+ 
+ void
+-pragprofile(void)
++pragtextflag(void)
+ {
+ 	Sym *s;
+ 
+-	profileflg = 0;
++	textflag = 0;
+ 	s = getsym();
+-	if(s) {
+-		profileflg = atoi(s->name+1);
+-		if(strcmp(s->name, "on") == 0 ||
+-		   strcmp(s->name, "yes") == 0)
+-			profileflg = 1;
+-	}
++	textflag = 7;
++	if(s)
++		textflag = atoi(s->name+1);
+ 	while(getnsc() != '\n')
+ 		;
+ 	if(debug['f'])
+-		if(profileflg)
+-			print("%4ld: profileflg %d\n", lineno, profileflg);
+-		else
+-			print("%4ld: profileflg off\n", lineno);
++		print("%4ld: textflag %d\n", lineno, textflag);
+ }
+ 
+ void
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index cf5a844e87..c5126b7edd 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -75,7 +75,6 @@ main(int argc, char *argv[])
+ 	ginit();
+ 	arginit();
+ 
+-	profileflg = 1;	/* #pragma can turn it off */
+ 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
+ 	ndef = 0;
+ 	outfile = 0;
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index 6077915e64..e23d1bdc95 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -725,8 +725,8 @@ macprag(void)
+ 		pragfpround();
+ 		return;
+ 	}
+-	if(s && strcmp(s->name, "profile") == 0) {
+-		pragprofile();
++	if(s && strcmp(s->name, "textflag") == 0) {
++		pragtextflag();
+ 		return;
+ 	}
+ 	if(s && strcmp(s->name, "varargck") == 0) {
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 0b509bb875..349074bfde 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -155,6 +155,7 @@ malg(int32 stacksize)
+ 	return g;
+ }
+ 
++#pragma textflag 7
+ void
+ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ {
+@@ -204,6 +205,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
+ //printf(" goid=%d\n", newg->goid);
+ }
+ 
++#pragma textflag 7
+ void
+ sys·deferproc(int32 siz, byte* fn, byte* arg0)
+ {
+@@ -219,6 +221,7 @@ sys·deferproc(int32 siz, byte* fn, byte* arg0)
+ 	g->defer = d;
+ }
+ 
++#pragma textflag 7
+ void
+ sys·deferreturn(int32 arg0)
+ {
+@@ -760,6 +763,7 @@ newstack(void)
+ 	*(int32*)345 = 123;	// never return
+ }
+ 
++#pragma textflag 7
+ void
+ sys·morestack(uint64 u)
+ {

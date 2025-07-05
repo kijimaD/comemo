@@ -51,7 +51,7 @@ Date:   Mon Aug 23 13:53:22 2021 +0200
     Trust: Martin Möhrmann <martin@golang.org>
     Run-TryBot: Martin Möhrmann <martin@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu.go     |  1 +
  src/internal/cpu/cpu_x86.go | 14 ++++++++++++++
  src/runtime/asm_386.s       | 37 +++++++++++++++++++++++++------------
@@ -59,3 +59,214 @@ Date:   Mon Aug 23 13:53:22 2021 +0200
  src/runtime/cpuflags.go     |  9 +++++----
  src/runtime/runtime2.go     |  1 -
  6 files changed, 64 insertions(+), 28 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index dab5d068ef..a87d8a2314 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -36,6 +36,7 @@ var X86 struct {
+ 	HasOSXSAVE   bool
+ 	HasPCLMULQDQ bool
+ 	HasPOPCNT    bool
++	HasRDTSCP    bool
+ 	HasSSE2      bool
+ 	HasSSE3      bool
+ 	HasSSSE3     bool
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index fd1217a05d..a3f1fb809a 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -37,6 +37,9 @@ const (
+ 	cpuid_BMI2 = 1 << 8
+ 	cpuid_ERMS = 1 << 9
+ 	cpuid_ADX  = 1 << 19
++
++	// edx bits for CPUID 0x80000001
++	cpuid_RDTSCP = 1 << 27
+ )
+ 
+ var maxExtendedFunctionInformation uint32
+@@ -53,6 +56,7 @@ func doinit() {
+ 		{Name: "fma", Feature: &X86.HasFMA},
+ 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
+ 		{Name: "popcnt", Feature: &X86.HasPOPCNT},
++		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
+ 		{Name: "sse3", Feature: &X86.HasSSE3},
+ 		{Name: "sse41", Feature: &X86.HasSSE41},
+ 		{Name: "sse42", Feature: &X86.HasSSE42},
+@@ -112,6 +116,16 @@ func doinit() {
+ 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
+ 	X86.HasERMS = isSet(ebx7, cpuid_ERMS)
+ 	X86.HasADX = isSet(ebx7, cpuid_ADX)
++
++	var maxExtendedInformation uint32
++	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
++
++	if maxExtendedInformation < 0x80000001 {
++		return
++	}
++
++	_, _, _, edxExt1 := cpuid(0x80000001, 0)
++	X86.HasRDTSCP = isSet(edxExt1, cpuid_RDTSCP)
+ }
+ 
+ func isSet(hwc uint32, value uint32) bool {
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 571aa28a9e..b711356822 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -137,9 +137,6 @@ has_cpuid:
+ 	CMPL	AX, $0
+ 	JE	nocpuinfo
+ 
+-	// Figure out how to serialize RDTSC.
+-	// On Intel processors LFENCE is enough. AMD requires MFENCE.
+-	// Don't know about the rest, so let's do MFENCE.
+ 	CMPL	BX, $0x756E6547  // "Genu"
+ 	JNE	notintel
+ 	CMPL	DX, $0x49656E69  // "ineI"
+@@ -147,7 +144,6 @@ has_cpuid:
+ 	CMPL	CX, $0x6C65746E  // "ntel"
+ 	JNE	notintel
+ 	MOVB	$1, runtime·isIntel(SB)
+-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
+ 
+ 	// Load EAX=1 cpuid flags
+@@ -838,19 +834,36 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
++	// LFENCE/MFENCE instruction support is dependent on SSE2.
++	// When no SSE2 support is present do not enforce any serialization
++	// since using CPUID to serialize the instruction stream is
++	// very costly.
+ 	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE	done
+-	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+-	JNE	mfence
+-	LFENCE
+-	JMP	done
+-mfence:
+-	MFENCE
++	JNE	rdtsc
++	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
++	JNE	fences
++	// Instruction stream serializing RDTSCP is supported.
++	// RDTSCP is supported by Intel Nehalem (2008) and
++	// AMD K8 Rev. F (2006) and newer.
++	RDTSCP
+ done:
+-	RDTSC
+ 	MOVL	AX, ret_lo+0(FP)
+ 	MOVL	DX, ret_hi+4(FP)
+ 	RET
++fences:
++	// MFENCE is instruction stream serializing and flushes the
++	// store buffers on AMD. The serialization semantics of LFENCE on AMD
++	// are dependent on MSR C001_1029 and CPU generation.
++	// LFENCE on Intel does wait for all previous instructions to have executed.
++	// Intel recommends MFENCE;LFENCE in its manuals before RDTSC to have all
++	// previous instructions executed and all previous loads and stores to globally visible.
++	// Using MFENCE;LFENCE here aligns the serializing properties without
++	// runtime detection of CPU manufacturer.
++	MFENCE
++	LFENCE
++rdtsc:
++	RDTSC
++	JMP done
+ 
+ TEXT ldt0setup<>(SB),NOSPLIT,$16-0
+ 	// set up ldt 7 to point at m0.tls
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index a6b321aa42..3ab6060ec0 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -103,9 +103,6 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	CMPL	AX, $0
+ 	JE	nocpuinfo
+ 
+-	// Figure out how to serialize RDTSC.
+-	// On Intel processors LFENCE is enough. AMD requires MFENCE.
+-	// Don't know about the rest, so let's do MFENCE.
+ 	CMPL	BX, $0x756E6547  // "Genu"
+ 	JNE	notintel
+ 	CMPL	DX, $0x49656E69  // "ineI"
+@@ -113,7 +110,6 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ 	CMPL	CX, $0x6C65746E  // "ntel"
+ 	JNE	notintel
+ 	MOVB	$1, runtime·isIntel(SB)
+-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
+ notintel:
+ 
+ 	// Load EAX=1 cpuid flags
+@@ -928,18 +924,30 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-0
+-	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+-	JNE	mfence
+-	LFENCE
+-	JMP	done
+-mfence:
+-	MFENCE
++	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
++	JNE	fences
++	// Instruction stream serializing RDTSCP is supported.
++	// RDTSCP is supported by Intel Nehalem (2008) and
++	// AMD K8 Rev. F (2006) and newer.
++	RDTSCP
+ done:
+-	RDTSC
+ 	SHLQ	$32, DX
+ 	ADDQ	DX, AX
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
++fences:
++	// MFENCE is instruction stream serializing and flushes the
++	// store buffers on AMD. The serialization semantics of LFENCE on AMD
++	// are dependent on MSR C001_1029 and CPU generation.
++	// LFENCE on Intel does wait for all previous instructions to have executed.
++	// Intel recommends MFENCE;LFENCE in its manuals before RDTSC to have all
++	// previous instructions executed and all previous loads and stores to globally visible.
++	// Using MFENCE;LFENCE here aligns the serializing properties without
++	// runtime detection of CPU manufacturer.
++	MFENCE
++	LFENCE
++	RDTSC
++	JMP done
+ 
+ // func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+ // hash function using AES hardware instructions
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 5104650c5d..c5291ce4ee 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -11,10 +11,11 @@ import (
+ 
+ // Offsets into internal/cpu records for use in assembly.
+ const (
+-	offsetX86HasAVX  = unsafe.Offsetof(cpu.X86.HasAVX)
+-	offsetX86HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+-	offsetX86HasERMS = unsafe.Offsetof(cpu.X86.HasERMS)
+-	offsetX86HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
++	offsetX86HasAVX    = unsafe.Offsetof(cpu.X86.HasAVX)
++	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
++	offsetX86HasERMS   = unsafe.Offsetof(cpu.X86.HasERMS)
++	offsetX86HasRDTSCP = unsafe.Offsetof(cpu.X86.HasRDTSCP)
++	offsetX86HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
+ 
+ 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index e4e9ee50b8..271d57e5d0 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1128,7 +1128,6 @@ var (
+ 	// Set on startup in asm_{386,amd64}.s
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+-	lfenceBeforeRdtsc    bool
+ 
+ 	goarm uint8 // set by cmd/link on arm systems
+ )

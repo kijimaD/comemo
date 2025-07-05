@@ -11,7 +11,7 @@ Date:   Sat Sep 16 22:11:43 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/gsubr.go         |  2 +-
  src/cmd/compile/internal/gc/ssa.go           | 16 ++++++++--------
  src/cmd/compile/internal/gc/typecheck.go     |  2 +-
@@ -20,3 +20,176 @@ Date:   Sat Sep 16 22:11:43 2017 +0100
  src/cmd/compile/internal/ssa/redblack32.go   |  4 ++--
  src/cmd/compile/internal/types/type.go       | 10 +++++-----
  7 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index b25709b999..5ec2e02544 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -37,7 +37,7 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-var sharedProgArray *[10000]obj.Prog = new([10000]obj.Prog) // *T instead of T to work around issue 19839
++var sharedProgArray = new([10000]obj.Prog) // *T instead of T to work around issue 19839
+ 
+ // Progs accumulates Progs for a function and converts them into machine code.
+ type Progs struct {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3896ed16b1..0ae0c26286 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3775,7 +3775,7 @@ type u642fcvtTab struct {
+ 	one                           func(*state, *types.Type, int64) *ssa.Value
+ }
+ 
+-var u64_f64 u642fcvtTab = u642fcvtTab{
++var u64_f64 = u642fcvtTab{
+ 	geq:   ssa.OpGeq64,
+ 	cvt2F: ssa.OpCvt64to64F,
+ 	and:   ssa.OpAnd64,
+@@ -3785,7 +3785,7 @@ var u64_f64 u642fcvtTab = u642fcvtTab{
+ 	one:   (*state).constInt64,
+ }
+ 
+-var u64_f32 u642fcvtTab = u642fcvtTab{
++var u64_f32 = u642fcvtTab{
+ 	geq:   ssa.OpGeq64,
+ 	cvt2F: ssa.OpCvt64to32F,
+ 	and:   ssa.OpAnd64,
+@@ -3866,12 +3866,12 @@ type u322fcvtTab struct {
+ 	cvtI2F, cvtF2F ssa.Op
+ }
+ 
+-var u32_f64 u322fcvtTab = u322fcvtTab{
++var u32_f64 = u322fcvtTab{
+ 	cvtI2F: ssa.OpCvt32to64F,
+ 	cvtF2F: ssa.OpCopy,
+ }
+ 
+-var u32_f32 u322fcvtTab = u322fcvtTab{
++var u32_f32 = u322fcvtTab{
+ 	cvtI2F: ssa.OpCvt32to32F,
+ 	cvtF2F: ssa.OpCvt64Fto32F,
+ }
+@@ -3980,7 +3980,7 @@ type f2uCvtTab struct {
+ 	cutoff               uint64
+ }
+ 
+-var f32_u64 f2uCvtTab = f2uCvtTab{
++var f32_u64 = f2uCvtTab{
+ 	ltf:        ssa.OpLess32F,
+ 	cvt2U:      ssa.OpCvt32Fto64,
+ 	subf:       ssa.OpSub32F,
+@@ -3990,7 +3990,7 @@ var f32_u64 f2uCvtTab = f2uCvtTab{
+ 	cutoff:     9223372036854775808,
+ }
+ 
+-var f64_u64 f2uCvtTab = f2uCvtTab{
++var f64_u64 = f2uCvtTab{
+ 	ltf:        ssa.OpLess64F,
+ 	cvt2U:      ssa.OpCvt64Fto64,
+ 	subf:       ssa.OpSub64F,
+@@ -4000,7 +4000,7 @@ var f64_u64 f2uCvtTab = f2uCvtTab{
+ 	cutoff:     9223372036854775808,
+ }
+ 
+-var f32_u32 f2uCvtTab = f2uCvtTab{
++var f32_u32 = f2uCvtTab{
+ 	ltf:        ssa.OpLess32F,
+ 	cvt2U:      ssa.OpCvt32Fto32,
+ 	subf:       ssa.OpSub32F,
+@@ -4010,7 +4010,7 @@ var f32_u32 f2uCvtTab = f2uCvtTab{
+ 	cutoff:     2147483648,
+ }
+ 
+-var f64_u32 f2uCvtTab = f2uCvtTab{
++var f64_u32 = f2uCvtTab{
+ 	ltf:        ssa.OpLess64F,
+ 	cvt2U:      ssa.OpCvt64Fto32,
+ 	subf:       ssa.OpSub64F,
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cb00edb39e..59dea3a2e1 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -612,7 +612,7 @@ func typecheck1(n *Node, top int) *Node {
+ 		if et == TIDEAL {
+ 			et = TINT
+ 		}
+-		var aop Op = OXXX
++		aop := OXXX
+ 		if iscmp[n.Op] && t.Etype != TIDEAL && !eqtype(l.Type, r.Type) {
+ 			// comparison is okay as long as one side is
+ 			// assignable to the other.  convert so they have
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 327ca469c3..fba037b164 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2869,10 +2869,10 @@ func mkmapnames(base string) mapnames {
+ 	return mapnames{base, base + "_fast32", base + "_fast64", base + "_faststr"}
+ }
+ 
+-var mapaccess1 mapnames = mkmapnames("mapaccess1")
+-var mapaccess2 mapnames = mkmapnames("mapaccess2")
+-var mapassign mapnames = mkmapnames("mapassign")
+-var mapdelete mapnames = mkmapnames("mapdelete")
++var mapaccess1 = mkmapnames("mapaccess1")
++var mapaccess2 = mkmapnames("mapaccess2")
++var mapassign = mkmapnames("mapassign")
++var mapdelete = mkmapnames("mapdelete")
+ 
+ func mapfast(t *types.Type) int {
+ 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 323de3d76b..d15037dd95 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -104,7 +104,7 @@ const (
+ 	blEXIT    = 3
+ )
+ 
+-var bllikelies [4]string = [4]string{"default", "call", "ret", "exit"}
++var bllikelies = [4]string{"default", "call", "ret", "exit"}
+ 
+ func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
+ 	s := ""
+diff --git a/src/cmd/compile/internal/ssa/redblack32.go b/src/cmd/compile/internal/ssa/redblack32.go
+index ae1ec352e7..fc9cc71ba0 100644
+--- a/src/cmd/compile/internal/ssa/redblack32.go
++++ b/src/cmd/compile/internal/ssa/redblack32.go
+@@ -244,7 +244,7 @@ func (t *node32) max() *node32 {
+ }
+ 
+ func (t *node32) glb(key int32, allow_eq bool) *node32 {
+-	var best *node32 = nil
++	var best *node32
+ 	for t != nil {
+ 		if key <= t.key {
+ 			if key == t.key && allow_eq {
+@@ -262,7 +262,7 @@ func (t *node32) glb(key int32, allow_eq bool) *node32 {
+ }
+ 
+ func (t *node32) lub(key int32, allow_eq bool) *node32 {
+-	var best *node32 = nil
++	var best *node32
+ 	for t != nil {
+ 		if key >= t.key {
+ 			if key == t.key && allow_eq {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index d485e9cab1..da5b095618 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1429,9 +1429,9 @@ func FakeRecvType() *Type {
+ }
+ 
+ var (
+-	TypeInvalid *Type = newSSA("invalid")
+-	TypeMem     *Type = newSSA("mem")
+-	TypeFlags   *Type = newSSA("flags")
+-	TypeVoid    *Type = newSSA("void")
+-	TypeInt128  *Type = newSSA("int128")
++	TypeInvalid = newSSA("invalid")
++	TypeMem     = newSSA("mem")
++	TypeFlags   = newSSA("flags")
++	TypeVoid    = newSSA("void")
++	TypeInt128  = newSSA("int128")
+ )

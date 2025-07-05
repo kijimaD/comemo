@@ -11,6 +11,20 @@ Date:   Fri Dec 6 23:27:29 2019 +0000
     GitHub-Pull-Request: golang/go#36030
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210289
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/conn.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 029f7443d2..fac4b91473 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1344,7 +1344,7 @@ func (c *Conn) Handshake() error {
+ 	if c.handshakeErr == nil {
+ 		c.handshakes++
+ 	} else {
+-		// If an error occurred during the hadshake try to flush the
++		// If an error occurred during the handshake try to flush the
+ 		// alert that might be left in the buffer.
+ 		c.flush()
+ 	}

@@ -61,7 +61,7 @@ Date:   Fri Oct 21 18:10:23 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go        |  1 +
  src/cmd/compile/internal/base/flag.go         |  4 ++
  src/cmd/compile/internal/base/hashdebug.go    |  1 +
@@ -75,3 +75,652 @@ Date:   Fri Oct 21 18:10:23 2022 -0400
  src/cmd/compile/internal/ssa/rewriteS390X.go  | 16 +++++
  src/cmd/compile/internal/ssa/testdata/fma.go  | 31 ++++++++++
  12 files changed, 250 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 6cb7a54cad..25a5c8c98f 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -25,6 +25,7 @@ type DebugFlags struct {
+ 	DumpPtrs                      int    `help:"show Node pointers values in dump output"`
+ 	DwarfInl                      int    `help:"print information about DWARF inlined function creation"`
+ 	Export                        int    `help:"print export data"`
++	Fmahash                       string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+ 	GCProg                        int    `help:"print dump of GC programs"`
+ 	Gossahash                     string `help:"hash value for use in debugging the compiler"`
+ 	InlFuncsWithClosures          int    `help:"allow functions with closures to be inlined"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 98cfc189ae..6d2847bc06 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -190,6 +190,10 @@ func ParseFlags() {
+ 		hashDebug = NewHashDebug("gosshash", Debug.Gossahash, nil)
+ 	}
+ 
++	if Debug.Fmahash != "" {
++		FmaHash = NewHashDebug("fmahash", Debug.Fmahash, nil)
++	}
++
+ 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+ 	}
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 08c4fbcc00..c93d042f71 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -38,6 +38,7 @@ type HashDebug struct {
+ 
+ // The default compiler-debugging HashDebug, for "-d=gossahash=..."
+ var hashDebug *HashDebug
++var FmaHash *HashDebug
+ 
+ // DebugHashMatch reports whether debug variable Gossahash
+ //
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 4dafef574e..727204d80a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -2937,18 +2937,19 @@
+ (FNEGD (FNMULD x y)) => (FMULD x y)
+ (FNMULS (FNEGS x) y) => (FMULS x y)
+ (FNMULD (FNEGD x) y) => (FMULD x y)
+-(FADDS a (FMULS x y)) => (FMADDS a x y)
+-(FADDD a (FMULD x y)) => (FMADDD a x y)
+-(FSUBS a (FMULS x y)) => (FMSUBS a x y)
+-(FSUBD a (FMULD x y)) => (FMSUBD a x y)
+-(FSUBS (FMULS x y) a) => (FNMSUBS a x y)
+-(FSUBD (FMULD x y) a) => (FNMSUBD a x y)
+-(FADDS a (FNMULS x y)) => (FMSUBS a x y)
+-(FADDD a (FNMULD x y)) => (FMSUBD a x y)
+-(FSUBS a (FNMULS x y)) => (FMADDS a x y)
+-(FSUBD a (FNMULD x y)) => (FMADDD a x y)
+-(FSUBS (FNMULS x y) a) => (FNMADDS a x y)
+-(FSUBD (FNMULD x y) a) => (FNMADDD a x y)
++
++(FADDS a (FMULS x y)) && a.Block.Func.useFMA(v) => (FMADDS a x y)
++(FADDD a (FMULD x y)) && a.Block.Func.useFMA(v) => (FMADDD a x y)
++(FSUBS a (FMULS x y)) && a.Block.Func.useFMA(v) => (FMSUBS a x y)
++(FSUBD a (FMULD x y)) && a.Block.Func.useFMA(v) => (FMSUBD a x y)
++(FSUBS (FMULS x y) a) && a.Block.Func.useFMA(v) => (FNMSUBS a x y)
++(FSUBD (FMULD x y) a) && a.Block.Func.useFMA(v) => (FNMSUBD a x y)
++(FADDS a (FNMULS x y)) && a.Block.Func.useFMA(v) => (FMSUBS a x y)
++(FADDD a (FNMULD x y)) && a.Block.Func.useFMA(v) => (FMSUBD a x y)
++(FSUBS a (FNMULS x y)) && a.Block.Func.useFMA(v) => (FMADDS a x y)
++(FSUBD a (FNMULD x y)) && a.Block.Func.useFMA(v) => (FMADDD a x y)
++(FSUBS (FNMULS x y) a) && a.Block.Func.useFMA(v) => (FNMADDS a x y)
++(FSUBD (FNMULD x y) a) && a.Block.Func.useFMA(v) => (FNMADDD a x y)
+ 
+ (MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read8(sym, int64(off)))])
+ (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 79e633e3e4..aee53d4f0f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -942,8 +942,8 @@
+ (FNEG (F(ABS|NABS) x)) => (F(NABS|ABS) x)
+ 
+ // floating-point fused multiply-add/sub
+-(F(ADD|SUB) (FMUL x y) z) => (FM(ADD|SUB) x y z)
+-(F(ADDS|SUBS) (FMULS x y) z) => (FM(ADDS|SUBS) x y z)
++(F(ADD|SUB) (FMUL x y) z) && x.Block.Func.useFMA(v) => (FM(ADD|SUB) x y z)
++(F(ADDS|SUBS) (FMULS x y) z) && x.Block.Func.useFMA(v) => (FM(ADDS|SUBS) x y z)
+ 
+ // The following statements are found in encoding/binary functions UintXX (load) and PutUintXX (store)
+ // and convert the statements in these functions from multiple single byte loads or stores to
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+index 8c48d6f601..e9becb2e17 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+@@ -1254,8 +1254,8 @@
+ (C(G|LG)IJ {s390x.Greater}       (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.Borrow}   borrow)
+ 
+ // fused multiply-add
+-(Select0 (F(ADD|SUB) (FMUL y z) x)) => (FM(ADD|SUB) x y z)
+-(Select0 (F(ADDS|SUBS) (FMULS y z) x)) => (FM(ADDS|SUBS) x y z)
++(Select0 (F(ADD|SUB) (FMUL y z) x)) && x.Block.Func.useFMA(v) => (FM(ADD|SUB) x y z)
++(Select0 (F(ADDS|SUBS) (FMULS y z) x)) && x.Block.Func.useFMA(v) => (FM(ADDS|SUBS) x y z)
+ 
+ // Convert floating point comparisons against zero into 'load and test' instructions.
+ (F(CMP|CMPS) x (FMOV(D|S)const [0.0])) => (LT(D|E)BR x)
+diff --git a/src/cmd/compile/internal/ssa/fmahash_test.go b/src/cmd/compile/internal/ssa/fmahash_test.go
+new file mode 100644
+index 0000000000..78dd0baea2
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/fmahash_test.go
+@@ -0,0 +1,56 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa_test
++
++import (
++	"internal/testenv"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
++
++// TestFmaHash checks that the hash-test machinery works properly for a single case.
++// It does not check or run the generated code.
++// The test file is however a useful example of fused-vs-cascaded multiply-add.
++func TestFmaHash(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Slow test, usually avoid it, testing.Short")
++	}
++	switch runtime.GOOS {
++	case "linux", "darwin":
++	default:
++		t.Skipf("Slow test, usually avoid it, os=%s not linux or darwin", runtime.GOOS)
++	}
++	switch runtime.GOARCH {
++	case "amd64", "arm64":
++	default:
++		t.Skipf("Slow test, usually avoid it, arch=%s not amd64 or arm64", runtime.GOARCH)
++	}
++
++	testenv.MustHaveGoBuild(t)
++	gocmd := testenv.GoToolPath(t)
++	tmpdir, err := os.MkdirTemp("", "x")
++	if err != nil {
++		t.Error(err)
++	}
++	defer os.RemoveAll(tmpdir)
++	source := filepath.Join("testdata", "fma.go")
++	output := filepath.Join(tmpdir, "fma.exe")
++	cmd := exec.Command(gocmd, "build", "-o", output, source)
++	cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=fmahash=101111101101111001110110", "GOOS=linux", "GOARCH=arm64", "HOME="+tmpdir)
++	t.Logf("%v", cmd)
++	t.Logf("%v", cmd.Env)
++	b, e := cmd.CombinedOutput()
++	if e != nil {
++		t.Error(e)
++	}
++	s := string(b) // Looking for "GOFMAHASH triggered main.main:24"
++	if !strings.Contains(s, "fmahash triggered main.main:24") {
++		t.Errorf("Expected to see 'fmahash triggered main.main:24' in \n-----\n%s-----", s)
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index d9a51ac424..18226c42b9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -801,3 +801,17 @@ func (f *Func) spSb() (sp, sb *Value) {
+ 	}
+ 	return
+ }
++
++// useFMA allows targeted debugging w/ GOFMAHASH
++// If you have an architecture-dependent FP glitch, this will help you find it.
++func (f *Func) useFMA(v *Value) bool {
++	if !f.Config.UseFMA {
++		return false
++	}
++	if base.FmaHash == nil {
++		return true
++	}
++
++	name := f.fe.MyImportPath() + "." + f.Name
++	return base.FmaHash.DebugHashMatchParam(name, uint64(v.Pos.Line()))
++}
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index e8b3aeb9cb..d7386729e7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -4342,6 +4342,7 @@ func rewriteValueARM64_OpARM64FADDD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FADDD a (FMULD x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMADDD a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -4351,6 +4352,9 @@ func rewriteValueARM64_OpARM64FADDD(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
++			if !(a.Block.Func.useFMA(v)) {
++				continue
++			}
+ 			v.reset(OpARM64FMADDD)
+ 			v.AddArg3(a, x, y)
+ 			return true
+@@ -4358,6 +4362,7 @@ func rewriteValueARM64_OpARM64FADDD(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (FADDD a (FNMULD x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMSUBD a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -4367,6 +4372,9 @@ func rewriteValueARM64_OpARM64FADDD(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
++			if !(a.Block.Func.useFMA(v)) {
++				continue
++			}
+ 			v.reset(OpARM64FMSUBD)
+ 			v.AddArg3(a, x, y)
+ 			return true
+@@ -4379,6 +4387,7 @@ func rewriteValueARM64_OpARM64FADDS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FADDS a (FMULS x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMADDS a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -4388,6 +4397,9 @@ func rewriteValueARM64_OpARM64FADDS(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
++			if !(a.Block.Func.useFMA(v)) {
++				continue
++			}
+ 			v.reset(OpARM64FMADDS)
+ 			v.AddArg3(a, x, y)
+ 			return true
+@@ -4395,6 +4407,7 @@ func rewriteValueARM64_OpARM64FADDS(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (FADDS a (FNMULS x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMSUBS a x y)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -4404,6 +4417,9 @@ func rewriteValueARM64_OpARM64FADDS(v *Value) bool {
+ 			}
+ 			y := v_1.Args[1]
+ 			x := v_1.Args[0]
++			if !(a.Block.Func.useFMA(v)) {
++				continue
++			}
+ 			v.reset(OpARM64FMSUBS)
+ 			v.AddArg3(a, x, y)
+ 			return true
+@@ -5458,6 +5474,7 @@ func rewriteValueARM64_OpARM64FSUBD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FSUBD a (FMULD x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMSUBD a x y)
+ 	for {
+ 		a := v_0
+@@ -5466,11 +5483,15 @@ func rewriteValueARM64_OpARM64FSUBD(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FMSUBD)
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+ 	// match: (FSUBD (FMULD x y) a)
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FNMSUBD a x y)
+ 	for {
+ 		if v_0.Op != OpARM64FMULD {
+@@ -5479,11 +5500,15 @@ func rewriteValueARM64_OpARM64FSUBD(v *Value) bool {
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+ 		a := v_1
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FNMSUBD)
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+ 	// match: (FSUBD a (FNMULD x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMADDD a x y)
+ 	for {
+ 		a := v_0
+@@ -5492,11 +5517,15 @@ func rewriteValueARM64_OpARM64FSUBD(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FMADDD)
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+ 	// match: (FSUBD (FNMULD x y) a)
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FNMADDD a x y)
+ 	for {
+ 		if v_0.Op != OpARM64FNMULD {
+@@ -5505,6 +5534,9 @@ func rewriteValueARM64_OpARM64FSUBD(v *Value) bool {
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+ 		a := v_1
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FNMADDD)
+ 		v.AddArg3(a, x, y)
+ 		return true
+@@ -5515,6 +5547,7 @@ func rewriteValueARM64_OpARM64FSUBS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FSUBS a (FMULS x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMSUBS a x y)
+ 	for {
+ 		a := v_0
+@@ -5523,11 +5556,15 @@ func rewriteValueARM64_OpARM64FSUBS(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FMSUBS)
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+ 	// match: (FSUBS (FMULS x y) a)
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FNMSUBS a x y)
+ 	for {
+ 		if v_0.Op != OpARM64FMULS {
+@@ -5536,11 +5573,15 @@ func rewriteValueARM64_OpARM64FSUBS(v *Value) bool {
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+ 		a := v_1
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FNMSUBS)
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+ 	// match: (FSUBS a (FNMULS x y))
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FMADDS a x y)
+ 	for {
+ 		a := v_0
+@@ -5549,11 +5590,15 @@ func rewriteValueARM64_OpARM64FSUBS(v *Value) bool {
+ 		}
+ 		y := v_1.Args[1]
+ 		x := v_1.Args[0]
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FMADDS)
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+ 	// match: (FSUBS (FNMULS x y) a)
++	// cond: a.Block.Func.useFMA(v)
+ 	// result: (FNMADDS a x y)
+ 	for {
+ 		if v_0.Op != OpARM64FNMULS {
+@@ -5562,6 +5607,9 @@ func rewriteValueARM64_OpARM64FSUBS(v *Value) bool {
+ 		y := v_0.Args[1]
+ 		x := v_0.Args[0]
+ 		a := v_1
++		if !(a.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpARM64FNMADDS)
+ 		v.AddArg3(a, x, y)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d1bacf1bf4..8b5ea14757 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -4655,18 +4655,27 @@ func rewriteValuePPC64_OpPPC64FADD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FADD (FMUL x y) z)
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMADD x y z)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpPPC64FMUL {
+ 				continue
+ 			}
+-			y := v_0.Args[1]
+-			x := v_0.Args[0]
+-			z := v_1
+-			v.reset(OpPPC64FMADD)
+-			v.AddArg3(x, y, z)
+-			return true
++			_ = v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			v_0_1 := v_0.Args[1]
++			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
++				x := v_0_0
++				y := v_0_1
++				z := v_1
++				if !(x.Block.Func.useFMA(v)) {
++					continue
++				}
++				v.reset(OpPPC64FMADD)
++				v.AddArg3(x, y, z)
++				return true
++			}
+ 		}
+ 		break
+ 	}
+@@ -4676,18 +4685,27 @@ func rewriteValuePPC64_OpPPC64FADDS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FADDS (FMULS x y) z)
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMADDS x y z)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			if v_0.Op != OpPPC64FMULS {
+ 				continue
+ 			}
+-			y := v_0.Args[1]
+-			x := v_0.Args[0]
+-			z := v_1
+-			v.reset(OpPPC64FMADDS)
+-			v.AddArg3(x, y, z)
+-			return true
++			_ = v_0.Args[1]
++			v_0_0 := v_0.Args[0]
++			v_0_1 := v_0.Args[1]
++			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
++				x := v_0_0
++				y := v_0_1
++				z := v_1
++				if !(x.Block.Func.useFMA(v)) {
++					continue
++				}
++				v.reset(OpPPC64FMADDS)
++				v.AddArg3(x, y, z)
++				return true
++			}
+ 		}
+ 		break
+ 	}
+@@ -5078,17 +5096,27 @@ func rewriteValuePPC64_OpPPC64FSUB(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FSUB (FMUL x y) z)
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMSUB x y z)
+ 	for {
+ 		if v_0.Op != OpPPC64FMUL {
+ 			break
+ 		}
+-		y := v_0.Args[1]
+-		x := v_0.Args[0]
+-		z := v_1
+-		v.reset(OpPPC64FMSUB)
+-		v.AddArg3(x, y, z)
+-		return true
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			y := v_0_1
++			z := v_1
++			if !(x.Block.Func.useFMA(v)) {
++				continue
++			}
++			v.reset(OpPPC64FMSUB)
++			v.AddArg3(x, y, z)
++			return true
++		}
++		break
+ 	}
+ 	return false
+ }
+@@ -5096,17 +5124,27 @@ func rewriteValuePPC64_OpPPC64FSUBS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	// match: (FSUBS (FMULS x y) z)
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMSUBS x y z)
+ 	for {
+ 		if v_0.Op != OpPPC64FMULS {
+ 			break
+ 		}
+-		y := v_0.Args[1]
+-		x := v_0.Args[0]
+-		z := v_1
+-		v.reset(OpPPC64FMSUBS)
+-		v.AddArg3(x, y, z)
+-		return true
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
++			x := v_0_0
++			y := v_0_1
++			z := v_1
++			if !(x.Block.Func.useFMA(v)) {
++				continue
++			}
++			v.reset(OpPPC64FMSUBS)
++			v.AddArg3(x, y, z)
++			return true
++		}
++		break
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index db1747689d..8f40ecdc81 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -15335,6 +15335,7 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Select0 (FADD (FMUL y z) x))
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMADD x y z)
+ 	for {
+ 		if v_0.Op != OpS390XFADD {
+@@ -15350,6 +15351,9 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 			z := v_0_0.Args[1]
+ 			y := v_0_0.Args[0]
+ 			x := v_0_1
++			if !(x.Block.Func.useFMA(v)) {
++				continue
++			}
+ 			v.reset(OpS390XFMADD)
+ 			v.AddArg3(x, y, z)
+ 			return true
+@@ -15357,6 +15361,7 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Select0 (FSUB (FMUL y z) x))
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMSUB x y z)
+ 	for {
+ 		if v_0.Op != OpS390XFSUB {
+@@ -15369,11 +15374,15 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 		}
+ 		z := v_0_0.Args[1]
+ 		y := v_0_0.Args[0]
++		if !(x.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpS390XFMSUB)
+ 		v.AddArg3(x, y, z)
+ 		return true
+ 	}
+ 	// match: (Select0 (FADDS (FMULS y z) x))
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMADDS x y z)
+ 	for {
+ 		if v_0.Op != OpS390XFADDS {
+@@ -15389,6 +15398,9 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 			z := v_0_0.Args[1]
+ 			y := v_0_0.Args[0]
+ 			x := v_0_1
++			if !(x.Block.Func.useFMA(v)) {
++				continue
++			}
+ 			v.reset(OpS390XFMADDS)
+ 			v.AddArg3(x, y, z)
+ 			return true
+@@ -15396,6 +15408,7 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 		break
+ 	}
+ 	// match: (Select0 (FSUBS (FMULS y z) x))
++	// cond: x.Block.Func.useFMA(v)
+ 	// result: (FMSUBS x y z)
+ 	for {
+ 		if v_0.Op != OpS390XFSUBS {
+@@ -15408,6 +15421,9 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
+ 		}
+ 		z := v_0_0.Args[1]
+ 		y := v_0_0.Args[0]
++		if !(x.Block.Func.useFMA(v)) {
++			break
++		}
+ 		v.reset(OpS390XFMSUBS)
+ 		v.AddArg3(x, y, z)
+ 		return true
+diff --git a/src/cmd/compile/internal/ssa/testdata/fma.go b/src/cmd/compile/internal/ssa/testdata/fma.go
+new file mode 100644
+index 0000000000..468448b9e6
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/testdata/fma.go
+@@ -0,0 +1,31 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++)
++
++//go:noinline
++func f(x float64) float64 {
++	return x
++}
++
++func main() {
++	w, x, y := 1.0, 1.0, 1.0
++	x = f(x + x/(1<<52))
++	w = f(w / (1 << 27))
++	y = f(y + y/(1<<52))
++	w0 := f(2 * w * (1 - w))
++	w1 := f(w * (1 + w))
++	x = x + w0*w1 // GOFMAHASH=101111101101111001110110
++	y = y + f(w0*w1)
++	fmt.Println(x, y, x-y)
++
++	if x != y {
++		os.Exit(1)
++	}
++}

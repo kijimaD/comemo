@@ -17,7 +17,81 @@ Date:   Fri Jan 10 17:33:26 2025 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 15 +++++++++++++++
  test/codegen/writebarrier.go                 | 25 +++++++++++++++++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 1caccb7c18..71acefbf8a 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -252,6 +252,7 @@ func writebarrier(f *Func) {
+ 		var start, end int
+ 		var nonPtrStores int
+ 		values := b.Values
++		hasMove := false
+ 	FindSeq:
+ 		for i := len(values) - 1; i >= 0; i-- {
+ 			w := values[i]
+@@ -263,6 +264,9 @@ func writebarrier(f *Func) {
+ 					end = i + 1
+ 				}
+ 				nonPtrStores = 0
++				if w.Op == OpMoveWB {
++					hasMove = true
++				}
+ 			case OpVarDef, OpVarLive:
+ 				continue
+ 			case OpStore:
+@@ -273,6 +277,17 @@ func writebarrier(f *Func) {
+ 				if nonPtrStores > 2 {
+ 					break FindSeq
+ 				}
++				if hasMove {
++					// We need to ensure that this store happens
++					// before we issue a wbMove, as the wbMove might
++					// use the result of this store as its source.
++					// Even though this store is not write-barrier
++					// eligible, it might nevertheless be the store
++					// of a pointer to the stack, which is then the
++					// source of the move.
++					// See issue 71228.
++					break FindSeq
++				}
+ 			default:
+ 				if last == nil {
+ 					continue
+diff --git a/test/codegen/writebarrier.go b/test/codegen/writebarrier.go
+index e125973e7c..e2b1399399 100644
+--- a/test/codegen/writebarrier.go
++++ b/test/codegen/writebarrier.go
+@@ -63,3 +63,28 @@ func trickyWriteNil(p *int, q **int) {
+ 		*q = p
+ 	}
+ }
++
++type S struct {
++	a, b string
++	c    *int
++}
++
++var g1, g2 *int
++
++func issue71228(dst *S, ptr *int) {
++	// Make sure that the non-write-barrier write.
++	// "sp.c = ptr" happens before the large write
++	// barrier "*dst = *sp". We approximate testing
++	// that by ensuring that two global variable write
++	// barriers aren't combined.
++	_ = *dst
++	var s S
++	sp := &s
++	//amd64:`.*runtime[.]gcWriteBarrier1`
++	g1 = nil
++	sp.c = ptr // outside of any write barrier
++	//amd64:`.*runtime[.]gcWriteBarrier1`
++	g2 = nil
++	//amd64:`.*runtime[.]wbMove`
++	*dst = *sp
++}

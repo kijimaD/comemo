@@ -13,7 +13,7 @@ Date:   Mon Mar 14 21:14:15 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/link.go        | 1 -
  src/cmd/internal/obj/mips/asm0.go   | 4 ++--
  src/cmd/internal/obj/objfile.go     | 2 +-
@@ -22,3 +22,103 @@ Date:   Mon Mar 14 21:14:15 2016 -0700
  src/cmd/internal/obj/sizeof_test.go | 2 +-
  src/cmd/internal/obj/sym.go         | 1 -
  7 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index fd1cef7bcf..2e305478eb 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -333,7 +333,6 @@ type LSym struct {
+ 	Local  bool
+ 	Args   int32
+ 	Locals int32
+-	Value  int64
+ 	Size   int64
+ 	Next   *LSym
+ 	Gotype *LSym
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 9a71c18edf..e9dd34e0a3 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -536,11 +536,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 				break
+ 			}
+ 			if s.Type == obj.SCONST {
+-				ctxt.Instoffset = s.Value + a.Offset
++				ctxt.Instoffset = a.Offset
+ 				goto consize
+ 			}
+ 
+-			ctxt.Instoffset = s.Value + a.Offset
++			ctxt.Instoffset = a.Offset
+ 
+ 			/* not sure why this barfs */
+ 			return C_LCON
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index f82bbe598f..dc64dad6cd 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -418,7 +418,7 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
+ 		if s.Nosplit != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "nosplit ")
+ 		}
+-		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
++		fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 		if s.Type == STEXT {
+ 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
+ 			if s.Leaf != 0 {
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 3ed4ecfd8d..9a2e3f3aa8 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -120,7 +120,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
+ 		if ctxt.Debugpcln != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(int64(func_.Text.Pc)+func_.Size))
+ 		}
+-		addvarint(ctxt, dst, uint32((func_.Value+func_.Size-pc)/int64(ctxt.Arch.Minlc)))
++		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.Minlc)))
+ 		addvarint(ctxt, dst, 0) // terminator
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index f5260b8d68..722d179e66 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -652,11 +652,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 				break
+ 			}
+ 			if s.Type == obj.SCONST {
+-				ctxt.Instoffset = s.Value + a.Offset
++				ctxt.Instoffset = a.Offset
+ 				goto consize
+ 			}
+ 
+-			ctxt.Instoffset = s.Value + a.Offset
++			ctxt.Instoffset = a.Offset
+ 
+ 			/* not sure why this barfs */
+ 			return C_LCON
+diff --git a/src/cmd/internal/obj/sizeof_test.go b/src/cmd/internal/obj/sizeof_test.go
+index d2945e158f..1c72a1e22a 100644
+--- a/src/cmd/internal/obj/sizeof_test.go
++++ b/src/cmd/internal/obj/sizeof_test.go
+@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Addr{}, 52, 80},
+-		{LSym{}, 100, 168},
++		{LSym{}, 92, 160},
+ 		{Prog{}, 196, 288},
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 5f856e0bf7..41623266f5 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -124,7 +124,6 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
+ 		Name:    name,
+ 		Type:    0,
+ 		Version: int16(v),
+-		Value:   0,
+ 		Size:    0,
+ 	}
+ 	ctxt.Hash[SymVer{name, v}] = s

@@ -14,6 +14,32 @@ Date:   Wed Sep 21 08:11:40 2022 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/transport_test.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index e1f2a24f46..26293befb4 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4429,8 +4429,19 @@ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
+ 	defer ts.Close()
+ 	c := ts.Client()
+ 
++	trace := &httptrace.ClientTrace{
++		GetConn:      func(hostPort string) { t.Logf("GetConn(%q)", hostPort) },
++		GotConn:      func(ci httptrace.GotConnInfo) { t.Logf("GotConn(%+v)", ci) },
++		PutIdleConn:  func(err error) { t.Logf("PutIdleConn(%v)", err) },
++		ConnectStart: func(network, addr string) { t.Logf("ConnectStart(%q, %q)", network, addr) },
++		ConnectDone:  func(network, addr string, err error) { t.Logf("ConnectDone(%q, %q, %v)", network, addr, err) },
++	}
++	ctx := httptrace.WithClientTrace(context.Background(), trace)
++
+ 	for i := 0; i < 2; i++ {
+-		res, err := c.Get(ts.URL)
++		req, _ := NewRequest("GET", ts.URL, nil)
++		req = req.WithContext(ctx)
++		res, err := c.Do(req)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}

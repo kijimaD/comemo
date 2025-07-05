@@ -12,6 +12,20 @@ Date:   Sat Sep 3 15:57:48 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mfinal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 14ebec81bf..9bad6f0aa3 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -352,7 +352,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	if ft.dotdotdot() {
+ 		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string() + " because dotdotdot")
+ 	}
+-	if ft.dotdotdot() || ft.inCount != 1 {
++	if ft.inCount != 1 {
+ 		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string())
+ 	}
+ 	fint := ft.in()[0]

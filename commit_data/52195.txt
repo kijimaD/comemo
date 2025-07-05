@@ -46,7 +46,7 @@ Date:   Tue Dec 14 13:52:05 2021 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  src/sort/example_multi_test.go |   2 +-
  src/sort/export_test.go        |   4 +
  src/sort/gen_sort_variants.go  | 391 ++++++++++++++++++++++++++++-------------
@@ -56,3 +56,1480 @@ Date:   Tue Dec 14 13:52:05 2021 +0800
  src/sort/zsortfunc.go          | 371 ++++++++++++++++++++++++++------------
  src/sort/zsortinterface.go     | 371 ++++++++++++++++++++++++++------------
  8 files changed, 885 insertions(+), 366 deletions(-)
+
+diff --git a/src/sort/example_multi_test.go b/src/sort/example_multi_test.go
+index de6ec142d1..93f2d3ec57 100644
+--- a/src/sort/example_multi_test.go
++++ b/src/sort/example_multi_test.go
+@@ -126,7 +126,7 @@ func Example_sortMultiKeys() {
+ 	// By user: [{dmr C 100} {glenda Go 200} {gri Go 100} {gri Smalltalk 80} {ken C 150} {ken Go 200} {r Go 100} {r C 150} {rsc Go 200}]
+ 	// By user,<lines: [{dmr C 100} {glenda Go 200} {gri Smalltalk 80} {gri Go 100} {ken C 150} {ken Go 200} {r Go 100} {r C 150} {rsc Go 200}]
+ 	// By user,>lines: [{dmr C 100} {glenda Go 200} {gri Go 100} {gri Smalltalk 80} {ken Go 200} {ken C 150} {r C 150} {r Go 100} {rsc Go 200}]
+-	// By language,<lines: [{dmr C 100} {ken C 150} {r C 150} {r Go 100} {gri Go 100} {ken Go 200} {glenda Go 200} {rsc Go 200} {gri Smalltalk 80}]
++	// By language,<lines: [{dmr C 100} {ken C 150} {r C 150} {gri Go 100} {r Go 100} {glenda Go 200} {ken Go 200} {rsc Go 200} {gri Smalltalk 80}]
+ 	// By language,<lines,user: [{dmr C 100} {ken C 150} {r C 150} {gri Go 100} {r Go 100} {glenda Go 200} {ken Go 200} {rsc Go 200} {gri Smalltalk 80}]
+ 
+ }
+diff --git a/src/sort/export_test.go b/src/sort/export_test.go
+index b6e30ceb57..2a3c21fe15 100644
+--- a/src/sort/export_test.go
++++ b/src/sort/export_test.go
+@@ -7,3 +7,7 @@ package sort
+ func Heapsort(data Interface) {
+ 	heapSort(data, 0, data.Len())
+ }
++
++func ReverseRange(data Interface, a, b int) {
++	reverseRange(data, a, b)
++}
+diff --git a/src/sort/gen_sort_variants.go b/src/sort/gen_sort_variants.go
+index 0ff1869544..2b671ceb02 100644
+--- a/src/sort/gen_sort_variants.go
++++ b/src/sort/gen_sort_variants.go
+@@ -84,6 +84,9 @@ func main() {
+ 			ExtraArg:   "",
+ 			DataType:   "[]E",
+ 			Funcs: template.FuncMap{
++				"GreaterOrEqual": func(name, i, j string) string {
++					return fmt.Sprintf("(%s[%s] >= %s[%s])", name, i, name, j)
++				},
+ 				"Less": func(name, i, j string) string {
+ 					return fmt.Sprintf("(%s[%s] < %s[%s])", name, i, name, j)
+ 				},
+@@ -103,6 +106,9 @@ func main() {
+ 			ExtraArg:   ", less",
+ 			DataType:   "[]E",
+ 			Funcs: template.FuncMap{
++				"GreaterOrEqual": func(name, i, j string) string {
++					return fmt.Sprintf("!less(%s[%s], %s[%s])", name, i, name, j)
++				},
+ 				"Less": func(name, i, j string) string {
+ 					return fmt.Sprintf("less(%s[%s], %s[%s])", name, i, name, j)
+ 				},
+@@ -123,6 +129,9 @@ func main() {
+ 			ExtraArg:   "",
+ 			DataType:   "Interface",
+ 			Funcs: template.FuncMap{
++				"GreaterOrEqual": func(name, i, j string) string {
++					return fmt.Sprintf("!%s.Less(%s, %s)", name, i, j)
++				},
+ 				"Less": func(name, i, j string) string {
+ 					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
+ 				},
+@@ -143,6 +152,9 @@ func main() {
+ 			ExtraArg:   "",
+ 			DataType:   "lessSwap",
+ 			Funcs: template.FuncMap{
++				"GreaterOrEqual": func(name, i, j string) string {
++					return fmt.Sprintf("!%s.Less(%s, %s)", name, i, j)
++				},
+ 				"Less": func(name, i, j string) string {
+ 					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
+ 				},
+@@ -210,7 +222,7 @@ func siftDown{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, lo, hi, first int
+ 		if child+1 < hi && {{Less "data" "first+child" "first+child+1"}} {
+ 			child++
+ 		}
+-		if !{{Less "data" "first+root" "first+child"}} {
++		if {{GreaterOrEqual "data" "first+root" "first+child"}} {
+ 			return
+ 		}
+ 		{{Swap "data" "first+root" "first+child"}}
+@@ -235,146 +247,283 @@ func heapSort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b int {{.Extra
+ 	}
+ }
+ 
+-// Quicksort, loosely following Bentley and McIlroy,
+-// "Engineering a Sort Function" SP&E November 1993.
++// pdqsort{{.FuncSuffix}} sorts data[a:b].
++// The algorithm based on pattern-defeating quicksort(pdqsort), but without the optimizations from BlockQuicksort.
++// pdqsort paper: https://arxiv.org/pdf/2106.05123.pdf
++// C++ implementation: https://github.com/orlp/pdqsort
++// Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
++// limit is the number of allowed bad (very unbalanced) pivots before falling back to heapsort.
++func pdqsort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, limit int {{.ExtraParam}}) {
++	const maxInsertion = 12
+ 
+-// medianOfThree{{.FuncSuffix}} moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
+-func medianOfThree{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, m1, m0, m2 int {{.ExtraParam}}) {
+-	// sort 3 elements
+-	if {{Less "data" "m1" "m0"}} {
+-		{{Swap "data" "m1" "m0"}}
+-	}
+-	// data[m0] <= data[m1]
+-	if {{Less "data" "m2" "m1"}} {
+-		{{Swap "data" "m2" "m1"}}
+-		// data[m0] <= data[m2] && data[m1] < data[m2]
+-		if {{Less "data" "m1" "m0"}} {
+-			{{Swap "data" "m1" "m0"}}
++	var (
++		wasBalanced    = true // whether the last partitioning was reasonably balanced
++		wasPartitioned = true // whether the slice was already partitioned
++	)
++
++	for {
++		length := b - a
++
++		if length <= maxInsertion {
++			insertionSort{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
++			return
++		}
++
++		// Fall back to heapsort if too many bad choices were made.
++		if limit == 0 {
++			heapSort{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
++			return
++		}
++
++		// If the last partitioning was imbalanced, we need to breaking patterns.
++		if !wasBalanced {
++			breakPatterns{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
++			limit--
++		}
++
++		pivot, hint := choosePivot{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
++		if hint == decreasingHint {
++			reverseRange{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
++			// The chosen pivot was pivot-a elements after the start of the array.
++			// After reversing it is pivot-a elements before the end of the array.
++			// The idea came from Rust's implementation.
++			pivot = (b - 1) - (pivot - a)
++			hint = increasingHint
++		}
++
++		// The slice is likely already sorted.
++		if wasBalanced && wasPartitioned && hint == increasingHint {
++			if partialInsertionSort{{.FuncSuffix}}(data, a, b {{.ExtraArg}}) {
++				return
++			}
++		}
++
++		// Probably the slice contains many duplicate elements, partition the slice into
++		// elements equal to and elements greater than the pivot.
++		if a > 0 && {{GreaterOrEqual "data" "a-1" "pivot"}} {
++			mid := partitionEqual{{.FuncSuffix}}(data, a, b, pivot {{.ExtraArg}})
++			a = mid
++			continue
++		}
++
++		mid, alreadyPartitioned := partition{{.FuncSuffix}}(data, a, b, pivot {{.ExtraArg}})
++		wasPartitioned = alreadyPartitioned
++
++		leftLen, rightLen := mid-a, b-mid
++		balanceThreshold := length / 8
++		if leftLen < rightLen {
++			wasBalanced = leftLen >= balanceThreshold
++			pdqsort{{.FuncSuffix}}(data, a, mid, limit {{.ExtraArg}})
++			a = mid + 1
++		} else {
++			wasBalanced = rightLen >= balanceThreshold
++			pdqsort{{.FuncSuffix}}(data, mid+1, b, limit {{.ExtraArg}})
++			b = mid
+ 		}
+ 	}
+-	// now data[m0] <= data[m1] <= data[m2]
+ }
+ 
+-func swapRange{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, n int {{.ExtraParam}}) {
+-	for i := 0; i < n; i++ {
+-		{{Swap "data" "a+i" "b+i"}}
++// partition{{.FuncSuffix}} does one quicksort partition.
++// Let p = data[pivot]
++// Moves elements in data[a:b] around, so that data[i]<p and data[j]>=p for i<newpivot and j>newpivot.
++// On return, data[newpivot] = p
++func partition{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, pivot int {{.ExtraParam}}) (newpivot int, alreadyPartitioned bool) {
++	{{Swap "data" "a" "pivot"}}
++	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
++
++	for i <= j && {{Less "data" "i" "a"}} {
++		i++
++	}
++	for i <= j && {{GreaterOrEqual "data" "j" "a"}} {
++		j--
+ 	}
++	if i > j {
++		{{Swap "data" "j" "a"}}
++		return j, true
++	}
++	{{Swap "data" "i" "j"}}
++	i++
++	j--
++
++	for {
++		for i <= j && {{Less "data" "i" "a"}} {
++			i++
++		}
++		for i <= j && {{GreaterOrEqual "data" "j" "a"}} {
++			j--
++		}
++		if i > j {
++			break
++		}
++		{{Swap "data" "i" "j"}}
++		i++
++		j--
++	}
++	{{Swap "data" "j" "a"}}
++	return j, false
+ }
+ 
+-func doPivot{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, lo, hi int {{.ExtraParam}}) (midlo, midhi int) {
+-	m := int(uint(lo+hi) >> 1) // Written like this to avoid integer overflow.
+-	if hi-lo > 40 {
+-		// Tukey's "Ninther" median of three medians of three.
+-		s := (hi - lo) / 8
+-		medianOfThree{{.FuncSuffix}}(data, lo, lo+s, lo+2*s {{.ExtraArg}})
+-		medianOfThree{{.FuncSuffix}}(data, m, m-s, m+s {{.ExtraArg}})
+-		medianOfThree{{.FuncSuffix}}(data, hi-1, hi-1-s, hi-1-2*s {{.ExtraArg}})
+-	}
+-	medianOfThree{{.FuncSuffix}}(data, lo, m, hi-1 {{.ExtraArg}})
+-
+-	// Invariants are:
+-	//	data[lo] = pivot (set up by ChoosePivot)
+-	//	data[lo < i < a] < pivot
+-	//	data[a <= i < b] <= pivot
+-	//	data[b <= i < c] unexamined
+-	//	data[c <= i < hi-1] > pivot
+-	//	data[hi-1] >= pivot
+-	pivot := lo
+-	a, c := lo+1, hi-1
+-
+-	for ; a < c && {{Less "data" "a" "pivot"}}; a++ {
+-	}
+-	b := a
++// partitionEqual{{.FuncSuffix}} partitions data[a:b] into elements equal to data[pivot] followed by elements greater than data[pivot].
++// It assumed that data[a:b] does not contain elements smaller than the data[pivot].
++func partitionEqual{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, pivot int {{.ExtraParam}}) (newpivot int) {
++	{{Swap "data" "a" "pivot"}}
++	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
++
+ 	for {
+-		for ; b < c && !{{Less "data" "pivot" "b"}}; b++ { // data[b] <= pivot
++		for i <= j && {{GreaterOrEqual "data" "a" "i"}} {
++			i++
+ 		}
+-		for ; b < c && {{Less "data" "pivot" "c-1"}}; c-- { // data[c-1] > pivot
++		for i <= j && {{Less "data" "a" "j"}} {
++			j--
+ 		}
+-		if b >= c {
++		if i > j {
+ 			break
+ 		}
+-		// data[b] > pivot; data[c-1] <= pivot
+-		{{Swap "data" "b" "c-1"}}
+-		b++
+-		c--
+-	}
+-	// If hi-c<3 then there are duplicates (by property of median of nine).
+-	// Let's be a bit more conservative, and set border to 5.
+-	protect := hi-c < 5
+-	if !protect && hi-c < (hi-lo)/4 {
+-		// Lets test some points for equality to pivot
+-		dups := 0
+-		if !{{Less "data" "pivot" "hi-1"}} { // data[hi-1] = pivot
+-			{{Swap "data" "c" "hi-1"}}
+-			c++
+-			dups++
+-		}
+-		if !{{Less "data" "b-1" "pivot"}} { // data[b-1] = pivot
+-			b--
+-			dups++
+-		}
+-		// m-lo = (hi-lo)/2 > 6
+-		// b-lo > (hi-lo)*3/4-1 > 8
+-		// ==> m < b ==> data[m] <= pivot
+-		if !{{Less "data" "m" "pivot"}} { // data[m] = pivot
+-			{{Swap "data" "m" "b-1"}}
+-			b--
+-			dups++
+-		}
+-		// if at least 2 points are equal to pivot, assume skewed distribution
+-		protect = dups > 1
+-	}
+-	if protect {
+-		// Protect against a lot of duplicates
+-		// Add invariant:
+-		//	data[a <= i < b] unexamined
+-		//	data[b <= i < c] = pivot
+-		for {
+-			for ; a < b && !{{Less "data" "b-1" "pivot"}}; b-- { // data[b] == pivot
+-			}
+-			for ; a < b && {{Less "data" "a" "pivot"}}; a++ { // data[a] < pivot
++		{{Swap "data" "i" "j"}}
++		i++
++		j--
++	}
++	return i
++}
++
++// partialInsertionSort{{.FuncSuffix}} partially sorts a slice, returns true if the slice is sorted at the end.
++func partialInsertionSort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b int {{.ExtraParam}}) bool {
++	const (
++		maxSteps         = 5  // maximum number of adjacent out-of-order pairs that will get shifted
++		shortestShifting = 50 // don't shift any elements on short arrays
++	)
++	i := a + 1
++	for j := 0; j < maxSteps; j++ {
++		for i < b && {{GreaterOrEqual "data" "i" "i-1"}} {
++			i++
++		}
++
++		if i == b {
++			return true
++		}
++
++		if b-a < shortestShifting {
++			return false
++		}
++
++		{{Swap "data" "i" "i-1"}}
++
++		// Shift the smaller one to the left.
++		if i-a >= 2 {
++			for j := i - 1; j >= 1; j-- {
++				if {{GreaterOrEqual "data" "j" "j-1"}} {
++					break
++				}
++				{{Swap "data" "j" "j-1"}}
+ 			}
+-			if a >= b {
+-				break
++		}
++		// Shift the greater one to the right.
++		if b-i >= 2 {
++			for j := i + 1; j < b; j++ {
++				if {{GreaterOrEqual "data" "j" "j-1"}} {
++					break
++				}
++				{{Swap "data" "j" "j-1"}}
+ 			}
+-			// data[a] == pivot; data[b-1] < pivot
+-			{{Swap "data" "a" "b-1"}}
+-			a++
+-			b--
+ 		}
+ 	}
+-	// Swap pivot into middle
+-	{{Swap "data" "pivot" "b-1"}}
+-	return b - 1, c
++	return false
+ }
+ 
+-func quickSort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, maxDepth int {{.ExtraParam}}) {
+-	for b-a > 12 { // Use ShellSort for slices <= 12 elements
+-		if maxDepth == 0 {
+-			heapSort{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
+-			return
+-		}
+-		maxDepth--
+-		mlo, mhi := doPivot{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
+-		// Avoiding recursion on the larger subproblem guarantees
+-		// a stack depth of at most lg(b-a).
+-		if mlo-a < b-mhi {
+-			quickSort{{.FuncSuffix}}(data, a, mlo, maxDepth {{.ExtraArg}})
+-			a = mhi // i.e., quickSort{{.FuncSuffix}}(data, mhi, b)
+-		} else {
+-			quickSort{{.FuncSuffix}}(data, mhi, b, maxDepth {{.ExtraArg}})
+-			b = mlo // i.e., quickSort{{.FuncSuffix}}(data, a, mlo)
++// breakPatterns{{.FuncSuffix}} scatters some elements around in an attempt to break some patterns
++// that might cause imbalanced partitions in quicksort.
++func breakPatterns{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b int {{.ExtraParam}}) {
++	length := b - a
++	if length >= 8 {
++		random := xorshift(length)
++		modulus := nextPowerOfTwo(length)
++
++		for idx := a + (length/4)*2 - 1; idx <= a + (length/4)*2 + 1; idx++ {
++			other := int(uint(random.Next()) & (modulus - 1))
++			if other >= length {
++				other -= length
++			}
++			{{Swap "data" "idx" "a+other"}}
+ 		}
+ 	}
+-	if b-a > 1 {
+-		// Do ShellSort pass with gap 6
+-		// It could be written in this simplified form cause b-a <= 12
+-		for i := a + 6; i < b; i++ {
+-			if {{Less "data" "i" "i-6"}} {
+-				{{Swap "data" "i" "i-6"}}
+-			}
++}
++
++// choosePivot{{.FuncSuffix}} chooses a pivot in data[a:b].
++//
++// [0,8): chooses a static pivot.
++// [8,shortestNinther): uses the simple median-of-three method.
++// [shortestNinther,∞): uses the Tukey ninther method.
++func choosePivot{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b int {{.ExtraParam}}) (pivot int, hint sortedHint) {
++	const (
++		shortestNinther = 50
++		maxSwaps        = 4 * 3
++	)
++
++	l := b - a
++
++	var (
++		swaps int
++		i     = a + l/4*1
++		j     = a + l/4*2
++		k     = a + l/4*3
++	)
++
++	if l >= 8 {
++		if l >= shortestNinther {
++			// Tukey ninther method, the idea came from Rust's implementation.
++			i = medianAdjacent{{.FuncSuffix}}(data, i, &swaps {{.ExtraArg}})
++			j = medianAdjacent{{.FuncSuffix}}(data, j, &swaps {{.ExtraArg}})
++			k = medianAdjacent{{.FuncSuffix}}(data, k, &swaps {{.ExtraArg}})
+ 		}
+-		insertionSort{{.FuncSuffix}}(data, a, b {{.ExtraArg}})
++		// Find the median among i, j, k and stores it into j.
++		j = median{{.FuncSuffix}}(data, i, j, k, &swaps {{.ExtraArg}})
++	}
++
++	switch swaps {
++	case 0:
++		return j, increasingHint
++	case maxSwaps:
++		return j, decreasingHint
++	default:
++		return j, unknownHint
++	}
++}
++
++// order2{{.FuncSuffix}} returns x,y where data[x] <= data[y], where x,y=a,b or x,y=b,a.
++func order2{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b int, swaps *int {{.ExtraParam}}) (int, int) {
++	if {{Less "data" "b" "a"}} {
++		*swaps++
++		return b, a
++	}
++	return a, b
++}
++
++// median{{.FuncSuffix}} returns x where data[x] is the median of data[a],data[b],data[c], where x is a, b, or c.
++func median{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, c int, swaps *int {{.ExtraParam}}) int {
++	a, b = order2{{.FuncSuffix}}(data, a, b, swaps {{.ExtraArg}})
++	b, c = order2{{.FuncSuffix}}(data, b, c, swaps {{.ExtraArg}})
++	a, b = order2{{.FuncSuffix}}(data, a, b, swaps {{.ExtraArg}})
++	return b
++}
++
++// medianAdjacent{{.FuncSuffix}} finds the median of data[a - 1], data[a], data[a + 1] and stores the index into a.
++func medianAdjacent{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a int, swaps *int {{.ExtraParam}}) int {
++	return median{{.FuncSuffix}}(data, a-1, a, a+1, swaps {{.ExtraArg}})
++}
++
++func reverseRange{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b int {{.ExtraParam}}) {
++	i := a
++	j := b - 1
++	for i < j {
++		{{Swap "data" "i" "j"}}
++		i++
++		j--
++	}
++}
++
++func swapRange{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, n int {{.ExtraParam}}) {
++	for i := 0; i < n; i++ {
++		{{Swap "data" "a+i" "b+i"}}
+ 	}
+ }
+ 
+@@ -457,7 +606,7 @@ func symMerge{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, m, b int {{.Ex
+ 		j := m
+ 		for i < j {
+ 			h := int(uint(i+j) >> 1)
+-			if !{{Less "data" "m" "h"}} {
++			if {{GreaterOrEqual "data" "m" "h"}} {
+ 				i = h + 1
+ 			} else {
+ 				j = h
+@@ -484,7 +633,7 @@ func symMerge{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, m, b int {{.Ex
+ 
+ 	for start < r {
+ 		c := int(uint(start+r) >> 1)
+-		if !{{Less "data" "p-c" "c"}} {
++		if {{GreaterOrEqual "data" "p-c" "c"}} {
+ 			start = c + 1
+ 		} else {
+ 			r = c
+diff --git a/src/sort/slice.go b/src/sort/slice.go
+index ba5c2e2f3d..443182b42e 100644
+--- a/src/sort/slice.go
++++ b/src/sort/slice.go
+@@ -4,6 +4,8 @@
+ 
+ package sort
+ 
++import "math/bits"
++
+ // Slice sorts the slice x given the provided less function.
+ // It panics if x is not a slice.
+ //
+@@ -17,7 +19,8 @@ func Slice(x any, less func(i, j int) bool) {
+ 	rv := reflectValueOf(x)
+ 	swap := reflectSwapper(x)
+ 	length := rv.Len()
+-	quickSort_func(lessSwap{less, swap}, 0, length, maxDepth(length))
++	limit := bits.Len(uint(length))
++	pdqsort_func(lessSwap{less, swap}, 0, length, limit)
+ }
+ 
+ // SliceStable sorts the slice x using the provided less
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index aed0eaba30..68e2f0d082 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -7,6 +7,8 @@
+ // Package sort provides primitives for sorting slices and user-defined collections.
+ package sort
+ 
++import "math/bits"
++
+ // An implementation of Interface can be sorted by the routines in this package.
+ // The methods refer to elements of the underlying collection by integer index.
+ type Interface interface {
+@@ -39,17 +41,34 @@ type Interface interface {
+ // data.Less and data.Swap. The sort is not guaranteed to be stable.
+ func Sort(data Interface) {
+ 	n := data.Len()
+-	quickSort(data, 0, n, maxDepth(n))
++	if n <= 1 {
++		return
++	}
++	limit := bits.Len(uint(n))
++	pdqsort(data, 0, n, limit)
+ }
+ 
+-// maxDepth returns a threshold at which quicksort should switch
+-// to heapsort. It returns 2*ceil(lg(n+1)).
+-func maxDepth(n int) int {
+-	var depth int
+-	for i := n; i > 0; i >>= 1 {
+-		depth++
+-	}
+-	return depth * 2
++type sortedHint int // hint for pdqsort when choosing the pivot
++
++const (
++	unknownHint sortedHint = iota
++	increasingHint
++	decreasingHint
++)
++
++// xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
++type xorshift uint64
++
++func (r *xorshift) Next() uint64 {
++	*r ^= *r << 13
++	*r ^= *r >> 17
++	*r ^= *r << 5
++	return uint64(*r)
++}
++
++func nextPowerOfTwo(length int) uint {
++	shift := uint(bits.Len(uint(length)))
++	return uint(1 << shift)
+ }
+ 
+ // lessSwap is a pair of Less and Swap function for use with the
+diff --git a/src/sort/sort_test.go b/src/sort/sort_test.go
+index bfff3528d3..862bba2d44 100644
+--- a/src/sort/sort_test.go
++++ b/src/sort/sort_test.go
+@@ -122,6 +122,37 @@ func TestReverseSortIntSlice(t *testing.T) {
+ 	}
+ }
+ 
++func TestBreakPatterns(t *testing.T) {
++	// Special slice used to trigger breakPatterns.
++	data := make([]int, 30)
++	for i := range data {
++		data[i] = 10
++	}
++	data[(len(data)/4)*1] = 0
++	data[(len(data)/4)*2] = 1
++	data[(len(data)/4)*3] = 2
++	Sort(IntSlice(data))
++}
++
++func TestReverseRange(t *testing.T) {
++	data := []int{1, 2, 3, 4, 5, 6, 7}
++	ReverseRange(IntSlice(data), 0, len(data))
++	for i := len(data) - 1; i > 0; i-- {
++		if data[i] > data[i-1] {
++			t.Fatalf("reverseRange didn't work")
++		}
++	}
++
++	data1 := []int{1, 2, 3, 4, 5, 6, 7}
++	data2 := []int{1, 2, 5, 4, 3, 6, 7}
++	ReverseRange(IntSlice(data1), 2, 5)
++	for i, v := range data1 {
++		if v != data2[i] {
++			t.Fatalf("reverseRange didn't work")
++		}
++	}
++}
++
+ type nonDeterministicTestingData struct {
+ 	r *rand.Rand
+ }
+@@ -220,6 +251,45 @@ func BenchmarkSortInt1K(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSortInt1K_Sorted(b *testing.B) {
++	b.StopTimer()
++	for i := 0; i < b.N; i++ {
++		data := make([]int, 1<<10)
++		for i := 0; i < len(data); i++ {
++			data[i] = i
++		}
++		b.StartTimer()
++		Ints(data)
++		b.StopTimer()
++	}
++}
++
++func BenchmarkSortInt1K_Reversed(b *testing.B) {
++	b.StopTimer()
++	for i := 0; i < b.N; i++ {
++		data := make([]int, 1<<10)
++		for i := 0; i < len(data); i++ {
++			data[i] = len(data) - i
++		}
++		b.StartTimer()
++		Ints(data)
++		b.StopTimer()
++	}
++}
++
++func BenchmarkSortInt1K_Mod8(b *testing.B) {
++	b.StopTimer()
++	for i := 0; i < b.N; i++ {
++		data := make([]int, 1<<10)
++		for i := 0; i < len(data); i++ {
++			data[i] = i % 8
++		}
++		b.StartTimer()
++		Ints(data)
++		b.StopTimer()
++	}
++}
++
+ func BenchmarkStableInt1K(b *testing.B) {
+ 	b.StopTimer()
+ 	unsorted := make([]int, 1<<10)
+diff --git a/src/sort/zsortfunc.go b/src/sort/zsortfunc.go
+index 80c8a77995..49b6169b97 100644
+--- a/src/sort/zsortfunc.go
++++ b/src/sort/zsortfunc.go
+@@ -52,146 +52,283 @@ func heapSort_func(data lessSwap, a, b int) {
+ 	}
+ }
+ 
+-// Quicksort, loosely following Bentley and McIlroy,
+-// "Engineering a Sort Function" SP&E November 1993.
+-
+-// medianOfThree_func moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
+-func medianOfThree_func(data lessSwap, m1, m0, m2 int) {
+-	// sort 3 elements
+-	if data.Less(m1, m0) {
+-		data.Swap(m1, m0)
+-	}
+-	// data[m0] <= data[m1]
+-	if data.Less(m2, m1) {
+-		data.Swap(m2, m1)
+-		// data[m0] <= data[m2] && data[m1] < data[m2]
+-		if data.Less(m1, m0) {
+-			data.Swap(m1, m0)
++// pdqsort_func sorts data[a:b].
++// The algorithm based on pattern-defeating quicksort(pdqsort), but without the optimizations from BlockQuicksort.
++// pdqsort paper: https://arxiv.org/pdf/2106.05123.pdf
++// C++ implementation: https://github.com/orlp/pdqsort
++// Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
++// limit is the number of allowed bad (very unbalanced) pivots before falling back to heapsort.
++func pdqsort_func(data lessSwap, a, b, limit int) {
++	const maxInsertion = 12
++
++	var (
++		wasBalanced    = true // whether the last partitioning was reasonably balanced
++		wasPartitioned = true // whether the slice was already partitioned
++	)
++
++	for {
++		length := b - a
++
++		if length <= maxInsertion {
++			insertionSort_func(data, a, b)
++			return
+ 		}
+-	}
+-	// now data[m0] <= data[m1] <= data[m2]
+-}
+ 
+-func swapRange_func(data lessSwap, a, b, n int) {
+-	for i := 0; i < n; i++ {
+-		data.Swap(a+i, b+i)
++		// Fall back to heapsort if too many bad choices were made.
++		if limit == 0 {
++			heapSort_func(data, a, b)
++			return
++		}
++
++		// If the last partitioning was imbalanced, we need to breaking patterns.
++		if !wasBalanced {
++			breakPatterns_func(data, a, b)
++			limit--
++		}
++
++		pivot, hint := choosePivot_func(data, a, b)
++		if hint == decreasingHint {
++			reverseRange_func(data, a, b)
++			// The chosen pivot was pivot-a elements after the start of the array.
++			// After reversing it is pivot-a elements before the end of the array.
++			// The idea came from Rust's implementation.
++			pivot = (b - 1) - (pivot - a)
++			hint = increasingHint
++		}
++
++		// The slice is likely already sorted.
++		if wasBalanced && wasPartitioned && hint == increasingHint {
++			if partialInsertionSort_func(data, a, b) {
++				return
++			}
++		}
++
++		// Probably the slice contains many duplicate elements, partition the slice into
++		// elements equal to and elements greater than the pivot.
++		if a > 0 && !data.Less(a-1, pivot) {
++			mid := partitionEqual_func(data, a, b, pivot)
++			a = mid
++			continue
++		}
++
++		mid, alreadyPartitioned := partition_func(data, a, b, pivot)
++		wasPartitioned = alreadyPartitioned
++
++		leftLen, rightLen := mid-a, b-mid
++		balanceThreshold := length / 8
++		if leftLen < rightLen {
++			wasBalanced = leftLen >= balanceThreshold
++			pdqsort_func(data, a, mid, limit)
++			a = mid + 1
++		} else {
++			wasBalanced = rightLen >= balanceThreshold
++			pdqsort_func(data, mid+1, b, limit)
++			b = mid
++		}
+ 	}
+ }
+ 
+-func doPivot_func(data lessSwap, lo, hi int) (midlo, midhi int) {
+-	m := int(uint(lo+hi) >> 1) // Written like this to avoid integer overflow.
+-	if hi-lo > 40 {
+-		// Tukey's "Ninther" median of three medians of three.
+-		s := (hi - lo) / 8
+-		medianOfThree_func(data, lo, lo+s, lo+2*s)
+-		medianOfThree_func(data, m, m-s, m+s)
+-		medianOfThree_func(data, hi-1, hi-1-s, hi-1-2*s)
++// partition_func does one quicksort partition.
++// Let p = data[pivot]
++// Moves elements in data[a:b] around, so that data[i]<p and data[j]>=p for i<newpivot and j>newpivot.
++// On return, data[newpivot] = p
++func partition_func(data lessSwap, a, b, pivot int) (newpivot int, alreadyPartitioned bool) {
++	data.Swap(a, pivot)
++	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
++
++	for i <= j && data.Less(i, a) {
++		i++
++	}
++	for i <= j && !data.Less(j, a) {
++		j--
+ 	}
+-	medianOfThree_func(data, lo, m, hi-1)
+-
+-	// Invariants are:
+-	//	data[lo] = pivot (set up by ChoosePivot)
+-	//	data[lo < i < a] < pivot
+-	//	data[a <= i < b] <= pivot
+-	//	data[b <= i < c] unexamined
+-	//	data[c <= i < hi-1] > pivot
+-	//	data[hi-1] >= pivot
+-	pivot := lo
+-	a, c := lo+1, hi-1
+-
+-	for ; a < c && data.Less(a, pivot); a++ {
++	if i > j {
++		data.Swap(j, a)
++		return j, true
+ 	}
+-	b := a
++	data.Swap(i, j)
++	i++
++	j--
++
+ 	for {
+-		for ; b < c && !data.Less(pivot, b); b++ { // data[b] <= pivot
++		for i <= j && data.Less(i, a) {
++			i++
+ 		}
+-		for ; b < c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
++		for i <= j && !data.Less(j, a) {
++			j--
+ 		}
+-		if b >= c {
++		if i > j {
+ 			break
+ 		}
+-		// data[b] > pivot; data[c-1] <= pivot
+-		data.Swap(b, c-1)
+-		b++
+-		c--
++		data.Swap(i, j)
++		i++
++		j--
+ 	}
+-	// If hi-c<3 then there are duplicates (by property of median of nine).
+-	// Let's be a bit more conservative, and set border to 5.
+-	protect := hi-c < 5
+-	if !protect && hi-c < (hi-lo)/4 {
+-		// Lets test some points for equality to pivot
+-		dups := 0
+-		if !data.Less(pivot, hi-1) { // data[hi-1] = pivot
+-			data.Swap(c, hi-1)
+-			c++
+-			dups++
+-		}
+-		if !data.Less(b-1, pivot) { // data[b-1] = pivot
+-			b--
+-			dups++
+-		}
+-		// m-lo = (hi-lo)/2 > 6
+-		// b-lo > (hi-lo)*3/4-1 > 8
+-		// ==> m < b ==> data[m] <= pivot
+-		if !data.Less(m, pivot) { // data[m] = pivot
+-			data.Swap(m, b-1)
+-			b--
+-			dups++
+-		}
+-		// if at least 2 points are equal to pivot, assume skewed distribution
+-		protect = dups > 1
++	data.Swap(j, a)
++	return j, false
++}
++
++// partitionEqual_func partitions data[a:b] into elements equal to data[pivot] followed by elements greater than data[pivot].
++// It assumed that data[a:b] does not contain elements smaller than the data[pivot].
++func partitionEqual_func(data lessSwap, a, b, pivot int) (newpivot int) {
++	data.Swap(a, pivot)
++	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
++
++	for {
++		for i <= j && !data.Less(a, i) {
++			i++
++		}
++		for i <= j && data.Less(a, j) {
++			j--
++		}
++		if i > j {
++			break
++		}
++		data.Swap(i, j)
++		i++
++		j--
+ 	}
+-	if protect {
+-		// Protect against a lot of duplicates
+-		// Add invariant:
+-		//	data[a <= i < b] unexamined
+-		//	data[b <= i < c] = pivot
+-		for {
+-			for ; a < b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
+-			}
+-			for ; a < b && data.Less(a, pivot); a++ { // data[a] < pivot
++	return i
++}
++
++// partialInsertionSort_func partially sorts a slice, returns true if the slice is sorted at the end.
++func partialInsertionSort_func(data lessSwap, a, b int) bool {
++	const (
++		maxSteps         = 5  // maximum number of adjacent out-of-order pairs that will get shifted
++		shortestShifting = 50 // don't shift any elements on short arrays
++	)
++	i := a + 1
++	for j := 0; j < maxSteps; j++ {
++		for i < b && !data.Less(i, i-1) {
++			i++
++		}
++
++		if i == b {
++			return true
++		}
++
++		if b-a < shortestShifting {
++			return false
++		}
++
++		data.Swap(i, i-1)
++
++		// Shift the smaller one to the left.
++		if i-a >= 2 {
++			for j := i - 1; j >= 1; j-- {
++				if !data.Less(j, j-1) {
++					break
++				}
++				data.Swap(j, j-1)
+ 			}
+-			if a >= b {
+-				break
++		}
++		// Shift the greater one to the right.
++		if b-i >= 2 {
++			for j := i + 1; j < b; j++ {
++				if !data.Less(j, j-1) {
++					break
++				}
++				data.Swap(j, j-1)
+ 			}
+-			// data[a] == pivot; data[b-1] < pivot
+-			data.Swap(a, b-1)
+-			a++
+-			b--
+ 		}
+ 	}
+-	// Swap pivot into middle
+-	data.Swap(pivot, b-1)
+-	return b - 1, c
++	return false
+ }
+ 
+-func quickSort_func(data lessSwap, a, b, maxDepth int) {
+-	for b-a > 12 { // Use ShellSort for slices <= 12 elements
+-		if maxDepth == 0 {
+-			heapSort_func(data, a, b)
+-			return
+-		}
+-		maxDepth--
+-		mlo, mhi := doPivot_func(data, a, b)
+-		// Avoiding recursion on the larger subproblem guarantees
+-		// a stack depth of at most lg(b-a).
+-		if mlo-a < b-mhi {
+-			quickSort_func(data, a, mlo, maxDepth)
+-			a = mhi // i.e., quickSort_func(data, mhi, b)
+-		} else {
+-			quickSort_func(data, mhi, b, maxDepth)
+-			b = mlo // i.e., quickSort_func(data, a, mlo)
++// breakPatterns_func scatters some elements around in an attempt to break some patterns
++// that might cause imbalanced partitions in quicksort.
++func breakPatterns_func(data lessSwap, a, b int) {
++	length := b - a
++	if length >= 8 {
++		random := xorshift(length)
++		modulus := nextPowerOfTwo(length)
++
++		for idx := a + (length/4)*2 - 1; idx <= a+(length/4)*2+1; idx++ {
++			other := int(uint(random.Next()) & (modulus - 1))
++			if other >= length {
++				other -= length
++			}
++			data.Swap(idx, a+other)
+ 		}
+ 	}
+-	if b-a > 1 {
+-		// Do ShellSort pass with gap 6
+-		// It could be written in this simplified form cause b-a <= 12
+-		for i := a + 6; i < b; i++ {
+-			if data.Less(i, i-6) {
+-				data.Swap(i, i-6)
+-			}
++}
++
++// choosePivot_func chooses a pivot in data[a:b].
++//
++// [0,8): chooses a static pivot.
++// [8,shortestNinther): uses the simple median-of-three method.
++// [shortestNinther,∞): uses the Tukey ninther method.
++func choosePivot_func(data lessSwap, a, b int) (pivot int, hint sortedHint) {
++	const (
++		shortestNinther = 50
++		maxSwaps        = 4 * 3
++	)
++
++	l := b - a
++
++	var (
++		swaps int
++		i     = a + l/4*1
++		j     = a + l/4*2
++		k     = a + l/4*3
++	)
++
++	if l >= 8 {
++		if l >= shortestNinther {
++			// Tukey ninther method, the idea came from Rust's implementation.
++			i = medianAdjacent_func(data, i, &swaps)
++			j = medianAdjacent_func(data, j, &swaps)
++			k = medianAdjacent_func(data, k, &swaps)
+ 		}
+-		insertionSort_func(data, a, b)
++		// Find the median among i, j, k and stores it into j.
++		j = median_func(data, i, j, k, &swaps)
++	}
++
++	switch swaps {
++	case 0:
++		return j, increasingHint
++	case maxSwaps:
++		return j, decreasingHint
++	default:
++		return j, unknownHint
++	}
++}
++
++// order2_func returns x,y where data[x] <= data[y], where x,y=a,b or x,y=b,a.
++func order2_func(data lessSwap, a, b int, swaps *int) (int, int) {
++	if data.Less(b, a) {
++		*swaps++
++		return b, a
++	}
++	return a, b
++}
++
++// median_func returns x where data[x] is the median of data[a],data[b],data[c], where x is a, b, or c.
++func median_func(data lessSwap, a, b, c int, swaps *int) int {
++	a, b = order2_func(data, a, b, swaps)
++	b, c = order2_func(data, b, c, swaps)
++	a, b = order2_func(data, a, b, swaps)
++	return b
++}
++
++// medianAdjacent_func finds the median of data[a - 1], data[a], data[a + 1] and stores the index into a.
++func medianAdjacent_func(data lessSwap, a int, swaps *int) int {
++	return median_func(data, a-1, a, a+1, swaps)
++}
++
++func reverseRange_func(data lessSwap, a, b int) {
++	i := a
++	j := b - 1
++	for i < j {
++		data.Swap(i, j)
++		i++
++		j--
++	}
++}
++
++func swapRange_func(data lessSwap, a, b, n int) {
++	for i := 0; i < n; i++ {
++		data.Swap(a+i, b+i)
+ 	}
+ }
+ 
+diff --git a/src/sort/zsortinterface.go b/src/sort/zsortinterface.go
+index e0d7093678..51fa5032e9 100644
+--- a/src/sort/zsortinterface.go
++++ b/src/sort/zsortinterface.go
+@@ -52,146 +52,283 @@ func heapSort(data Interface, a, b int) {
+ 	}
+ }
+ 
+-// Quicksort, loosely following Bentley and McIlroy,
+-// "Engineering a Sort Function" SP&E November 1993.
+-
+-// medianOfThree moves the median of the three values data[m0], data[m1], data[m2] into data[m1].
+-func medianOfThree(data Interface, m1, m0, m2 int) {
+-	// sort 3 elements
+-	if data.Less(m1, m0) {
+-		data.Swap(m1, m0)
+-	}
+-	// data[m0] <= data[m1]
+-	if data.Less(m2, m1) {
+-		data.Swap(m2, m1)
+-		// data[m0] <= data[m2] && data[m1] < data[m2]
+-		if data.Less(m1, m0) {
+-			data.Swap(m1, m0)
++// pdqsort sorts data[a:b].
++// The algorithm based on pattern-defeating quicksort(pdqsort), but without the optimizations from BlockQuicksort.
++// pdqsort paper: https://arxiv.org/pdf/2106.05123.pdf
++// C++ implementation: https://github.com/orlp/pdqsort
++// Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
++// limit is the number of allowed bad (very unbalanced) pivots before falling back to heapsort.
++func pdqsort(data Interface, a, b, limit int) {
++	const maxInsertion = 12
++
++	var (
++		wasBalanced    = true // whether the last partitioning was reasonably balanced
++		wasPartitioned = true // whether the slice was already partitioned
++	)
++
++	for {
++		length := b - a
++
++		if length <= maxInsertion {
++			insertionSort(data, a, b)
++			return
+ 		}
+-	}
+-	// now data[m0] <= data[m1] <= data[m2]
+-}
+ 
+-func swapRange(data Interface, a, b, n int) {
+-	for i := 0; i < n; i++ {
+-		data.Swap(a+i, b+i)
++		// Fall back to heapsort if too many bad choices were made.
++		if limit == 0 {
++			heapSort(data, a, b)
++			return
++		}
++
++		// If the last partitioning was imbalanced, we need to breaking patterns.
++		if !wasBalanced {
++			breakPatterns(data, a, b)
++			limit--
++		}
++
++		pivot, hint := choosePivot(data, a, b)
++		if hint == decreasingHint {
++			reverseRange(data, a, b)
++			// The chosen pivot was pivot-a elements after the start of the array.
++			// After reversing it is pivot-a elements before the end of the array.
++			// The idea came from Rust's implementation.
++			pivot = (b - 1) - (pivot - a)
++			hint = increasingHint
++		}
++
++		// The slice is likely already sorted.
++		if wasBalanced && wasPartitioned && hint == increasingHint {
++			if partialInsertionSort(data, a, b) {
++				return
++			}
++		}
++
++		// Probably the slice contains many duplicate elements, partition the slice into
++		// elements equal to and elements greater than the pivot.
++		if a > 0 && !data.Less(a-1, pivot) {
++			mid := partitionEqual(data, a, b, pivot)
++			a = mid
++			continue
++		}
++
++		mid, alreadyPartitioned := partition(data, a, b, pivot)
++		wasPartitioned = alreadyPartitioned
++
++		leftLen, rightLen := mid-a, b-mid
++		balanceThreshold := length / 8
++		if leftLen < rightLen {
++			wasBalanced = leftLen >= balanceThreshold
++			pdqsort(data, a, mid, limit)
++			a = mid + 1
++		} else {
++			wasBalanced = rightLen >= balanceThreshold
++			pdqsort(data, mid+1, b, limit)
++			b = mid
++		}
+ 	}
+ }
+ 
+-func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
+-	m := int(uint(lo+hi) >> 1) // Written like this to avoid integer overflow.
+-	if hi-lo > 40 {
+-		// Tukey's "Ninther" median of three medians of three.
+-		s := (hi - lo) / 8
+-		medianOfThree(data, lo, lo+s, lo+2*s)
+-		medianOfThree(data, m, m-s, m+s)
+-		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s)
++// partition does one quicksort partition.
++// Let p = data[pivot]
++// Moves elements in data[a:b] around, so that data[i]<p and data[j]>=p for i<newpivot and j>newpivot.
++// On return, data[newpivot] = p
++func partition(data Interface, a, b, pivot int) (newpivot int, alreadyPartitioned bool) {
++	data.Swap(a, pivot)
++	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
++
++	for i <= j && data.Less(i, a) {
++		i++
++	}
++	for i <= j && !data.Less(j, a) {
++		j--
+ 	}
+-	medianOfThree(data, lo, m, hi-1)
+-
+-	// Invariants are:
+-	//	data[lo] = pivot (set up by ChoosePivot)
+-	//	data[lo < i < a] < pivot
+-	//	data[a <= i < b] <= pivot
+-	//	data[b <= i < c] unexamined
+-	//	data[c <= i < hi-1] > pivot
+-	//	data[hi-1] >= pivot
+-	pivot := lo
+-	a, c := lo+1, hi-1
+-
+-	for ; a < c && data.Less(a, pivot); a++ {
++	if i > j {
++		data.Swap(j, a)
++		return j, true
+ 	}
+-	b := a
++	data.Swap(i, j)
++	i++
++	j--
++
+ 	for {
+-		for ; b < c && !data.Less(pivot, b); b++ { // data[b] <= pivot
++		for i <= j && data.Less(i, a) {
++			i++
+ 		}
+-		for ; b < c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
++		for i <= j && !data.Less(j, a) {
++			j--
+ 		}
+-		if b >= c {
++		if i > j {
+ 			break
+ 		}
+-		// data[b] > pivot; data[c-1] <= pivot
+-		data.Swap(b, c-1)
+-		b++
+-		c--
++		data.Swap(i, j)
++		i++
++		j--
+ 	}
+-	// If hi-c<3 then there are duplicates (by property of median of nine).
+-	// Let's be a bit more conservative, and set border to 5.
+-	protect := hi-c < 5
+-	if !protect && hi-c < (hi-lo)/4 {
+-		// Lets test some points for equality to pivot
+-		dups := 0
+-		if !data.Less(pivot, hi-1) { // data[hi-1] = pivot
+-			data.Swap(c, hi-1)
+-			c++
+-			dups++
+-		}
+-		if !data.Less(b-1, pivot) { // data[b-1] = pivot
+-			b--
+-			dups++
+-		}
+-		// m-lo = (hi-lo)/2 > 6
+-		// b-lo > (hi-lo)*3/4-1 > 8
+-		// ==> m < b ==> data[m] <= pivot
+-		if !data.Less(m, pivot) { // data[m] = pivot
+-			data.Swap(m, b-1)
+-			b--
+-			dups++
+-		}
+-		// if at least 2 points are equal to pivot, assume skewed distribution
+-		protect = dups > 1
++	data.Swap(j, a)
++	return j, false
++}
++
++// partitionEqual partitions data[a:b] into elements equal to data[pivot] followed by elements greater than data[pivot].
++// It assumed that data[a:b] does not contain elements smaller than the data[pivot].
++func partitionEqual(data Interface, a, b, pivot int) (newpivot int) {
++	data.Swap(a, pivot)
++	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
++
++	for {
++		for i <= j && !data.Less(a, i) {
++			i++
++		}
++		for i <= j && data.Less(a, j) {
++			j--
++		}
++		if i > j {
++			break
++		}
++		data.Swap(i, j)
++		i++
++		j--
+ 	}
+-	if protect {
+-		// Protect against a lot of duplicates
+-		// Add invariant:
+-		//	data[a <= i < b] unexamined
+-		//	data[b <= i < c] = pivot
+-		for {
+-			for ; a < b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
+-			}
+-			for ; a < b && data.Less(a, pivot); a++ { // data[a] < pivot
++	return i
++}
++
++// partialInsertionSort partially sorts a slice, returns true if the slice is sorted at the end.
++func partialInsertionSort(data Interface, a, b int) bool {
++	const (
++		maxSteps         = 5  // maximum number of adjacent out-of-order pairs that will get shifted
++		shortestShifting = 50 // don't shift any elements on short arrays
++	)
++	i := a + 1
++	for j := 0; j < maxSteps; j++ {
++		for i < b && !data.Less(i, i-1) {
++			i++
++		}
++
++		if i == b {
++			return true
++		}
++
++		if b-a < shortestShifting {
++			return false
++		}
++
++		data.Swap(i, i-1)
++
++		// Shift the smaller one to the left.
++		if i-a >= 2 {
++			for j := i - 1; j >= 1; j-- {
++				if !data.Less(j, j-1) {
++					break
++				}
++				data.Swap(j, j-1)
+ 			}
+-			if a >= b {
+-				break
++		}
++		// Shift the greater one to the right.
++		if b-i >= 2 {
++			for j := i + 1; j < b; j++ {
++				if !data.Less(j, j-1) {
++					break
++				}
++				data.Swap(j, j-1)
+ 			}
+-			// data[a] == pivot; data[b-1] < pivot
+-			data.Swap(a, b-1)
+-			a++
+-			b--
+ 		}
+ 	}
+-	// Swap pivot into middle
+-	data.Swap(pivot, b-1)
+-	return b - 1, c
++	return false
+ }
+ 
+-func quickSort(data Interface, a, b, maxDepth int) {
+-	for b-a > 12 { // Use ShellSort for slices <= 12 elements
+-		if maxDepth == 0 {
+-			heapSort(data, a, b)
+-			return
+-		}
+-		maxDepth--
+-		mlo, mhi := doPivot(data, a, b)
+-		// Avoiding recursion on the larger subproblem guarantees
+-		// a stack depth of at most lg(b-a).
+-		if mlo-a < b-mhi {
+-			quickSort(data, a, mlo, maxDepth)
+-			a = mhi // i.e., quickSort(data, mhi, b)
+-		} else {
+-			quickSort(data, mhi, b, maxDepth)
+-			b = mlo // i.e., quickSort(data, a, mlo)
++// breakPatterns scatters some elements around in an attempt to break some patterns
++// that might cause imbalanced partitions in quicksort.
++func breakPatterns(data Interface, a, b int) {
++	length := b - a
++	if length >= 8 {
++		random := xorshift(length)
++		modulus := nextPowerOfTwo(length)
++
++		for idx := a + (length/4)*2 - 1; idx <= a+(length/4)*2+1; idx++ {
++			other := int(uint(random.Next()) & (modulus - 1))
++			if other >= length {
++				other -= length
++			}
++			data.Swap(idx, a+other)
+ 		}
+ 	}
+-	if b-a > 1 {
+-		// Do ShellSort pass with gap 6
+-		// It could be written in this simplified form cause b-a <= 12
+-		for i := a + 6; i < b; i++ {
+-			if data.Less(i, i-6) {
+-				data.Swap(i, i-6)
+-			}
++}
++
++// choosePivot chooses a pivot in data[a:b].
++//
++// [0,8): chooses a static pivot.
++// [8,shortestNinther): uses the simple median-of-three method.
++// [shortestNinther,∞): uses the Tukey ninther method.
++func choosePivot(data Interface, a, b int) (pivot int, hint sortedHint) {
++	const (
++		shortestNinther = 50
++		maxSwaps        = 4 * 3
++	)
++
++	l := b - a
++
++	var (
++		swaps int
++		i     = a + l/4*1
++		j     = a + l/4*2
++		k     = a + l/4*3
++	)
++
++	if l >= 8 {
++		if l >= shortestNinther {
++			// Tukey ninther method, the idea came from Rust's implementation.
++			i = medianAdjacent(data, i, &swaps)
++			j = medianAdjacent(data, j, &swaps)
++			k = medianAdjacent(data, k, &swaps)
+ 		}
+-		insertionSort(data, a, b)
++		// Find the median among i, j, k and stores it into j.
++		j = median(data, i, j, k, &swaps)
++	}
++
++	switch swaps {
++	case 0:
++		return j, increasingHint
++	case maxSwaps:
++		return j, decreasingHint
++	default:
++		return j, unknownHint
++	}
++}
++
++// order2 returns x,y where data[x] <= data[y], where x,y=a,b or x,y=b,a.
++func order2(data Interface, a, b int, swaps *int) (int, int) {
++	if data.Less(b, a) {
++		*swaps++
++		return b, a
++	}
++	return a, b
++}
++
++// median returns x where data[x] is the median of data[a],data[b],data[c], where x is a, b, or c.
++func median(data Interface, a, b, c int, swaps *int) int {
++	a, b = order2(data, a, b, swaps)
++	b, c = order2(data, b, c, swaps)
++	a, b = order2(data, a, b, swaps)
++	return b
++}
++
++// medianAdjacent finds the median of data[a - 1], data[a], data[a + 1] and stores the index into a.
++func medianAdjacent(data Interface, a int, swaps *int) int {
++	return median(data, a-1, a, a+1, swaps)
++}
++
++func reverseRange(data Interface, a, b int) {
++	i := a
++	j := b - 1
++	for i < j {
++		data.Swap(i, j)
++		i++
++		j--
++	}
++}
++
++func swapRange(data Interface, a, b, n int) {
++	for i := 0; i < n; i++ {
++		data.Swap(a+i, b+i)
+ 	}
+ }
+ 

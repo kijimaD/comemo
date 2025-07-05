@@ -7,7 +7,32 @@ Date:   Thu Jun 7 09:37:05 2012 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6305059
-
+---
  src/pkg/runtime/callback_windows_386.c   | 1 +
  src/pkg/runtime/callback_windows_amd64.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/callback_windows_386.c b/src/pkg/runtime/callback_windows_386.c
+index fcd292fbcd..97df7c242f 100644
+--- a/src/pkg/runtime/callback_windows_386.c
++++ b/src/pkg/runtime/callback_windows_386.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "type.h"
++#include "typekind.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ 
+diff --git a/src/pkg/runtime/callback_windows_amd64.c b/src/pkg/runtime/callback_windows_amd64.c
+index 99d7cb9e38..0a2e53e6f5 100644
+--- a/src/pkg/runtime/callback_windows_amd64.c
++++ b/src/pkg/runtime/callback_windows_amd64.c
+@@ -4,6 +4,7 @@
+ 
+ #include "runtime.h"
+ #include "type.h"
++#include "typekind.h"
+ #include "defs_GOOS_GOARCH.h"
+ #include "os_GOOS.h"
+ 

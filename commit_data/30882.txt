@@ -12,9 +12,157 @@ Date:   Sat Dec 10 13:30:13 2016 -0500
     Change-Id: I50d8706777a6133b3e95f696bc0bc586b84faa9e
     Reviewed-on: https://go-review.googlesource.com/34199
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/plugin2/plugin2.go | 13 ++++++++++--
  src/cmd/link/internal/ld/macho.go          | 19 ++++++++++++++++--
  src/cmd/link/internal/ld/pcln.go           | 18 ++++++++++++++++-
  src/runtime/plugin.go                      | 32 ++++++++++++++++++++++++++++++
  4 files changed, 77 insertions(+), 5 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/plugin2/plugin2.go b/misc/cgo/testplugin/src/plugin2/plugin2.go
+index 6c23a5e633..9c507fc365 100644
+--- a/misc/cgo/testplugin/src/plugin2/plugin2.go
++++ b/misc/cgo/testplugin/src/plugin2/plugin2.go
+@@ -4,12 +4,21 @@
+ 
+ package main
+ 
+-// // No C code required.
++//#include <errno.h>
++//#include <string.h>
+ import "C"
+ 
+-import "common"
++// #include
++// void cfunc() {} // uses cgo_topofstack
++
++import (
++	"common"
++	"strings"
++)
+ 
+ func init() {
++	_ = strings.NewReplacer() // trigger stack unwind, Issue #18190.
++	C.strerror(C.EIO)         // uses cgo_topofstack
+ 	common.X = 2
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index ff5fe5747b..f3687daa91 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -695,7 +695,16 @@ func machoShouldExport(ctxt *Link, s *Symbol) bool {
+ 	if Buildmode == BuildmodePlugin && strings.HasPrefix(s.Extname, *flagPluginPath) {
+ 		return true
+ 	}
+-	return s.Type != obj.STEXT
++	if strings.HasPrefix(s.Name, "type.") && !strings.HasPrefix(s.Name, "type..") {
++		// reduce runtime typemap pressure, but do not
++		// export alg functions (type..*), as these
++		// appear in pclntable.
++		return true
++	}
++	if strings.HasPrefix(s.Name, "go.link.pkghash") {
++		return true
++	}
++	return s.Type >= obj.SELFSECT // only writable sections
+ }
+ 
+ func machosymtab(ctxt *Link) {
+@@ -710,7 +719,13 @@ func machosymtab(ctxt *Link) {
+ 
+ 		// In normal buildmodes, only add _ to C symbols, as
+ 		// Go symbols have dot in the name.
+-		if !strings.Contains(s.Extname, ".") || export {
++		//
++		// Do not export C symbols in plugins, as runtime C
++		// symbols like crosscall2 are in pclntab and end up
++		// pointing at the host binary, breaking unwinding.
++		// See Issue #18190.
++		cexport := !strings.Contains(s.Extname, ".") && (Buildmode != BuildmodePlugin || onlycsymbol(s))
++		if cexport || export {
+ 			Adduint8(ctxt, symstr, '_')
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 5a6c425f3e..d317501d47 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -154,10 +154,26 @@ func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
+ 	*d = out
+ }
+ 
++// onlycsymbol reports whether this is a cgo symbol provided by the
++// runtime and only used from C code.
++func onlycsymbol(s *Symbol) bool {
++	switch s.Name {
++	case "_cgo_topofstack", "_cgo_panic", "crosscall2":
++		return true
++	}
++	return false
++}
++
+ func container(s *Symbol) int {
++	if s == nil {
++		return 0
++	}
++	if Buildmode == BuildmodePlugin && onlycsymbol(s) {
++		return 1
++	}
+ 	// We want to generate func table entries only for the "lowest level" symbols,
+ 	// not containers of subsymbols.
+-	if s != nil && s.Type&obj.SCONTAINER != 0 {
++	if s.Type&obj.SCONTAINER != 0 {
+ 		return 1
+ 	}
+ 	return 0
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 845bf76e92..80869e1b1c 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -51,6 +51,9 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
+ 	modulesinit()
+ 	typelinksinit()
+ 
++	pluginftabverify(md)
++	moduledataverify1(md)
++
+ 	lock(&ifaceLock)
+ 	for _, i := range md.itablinks {
+ 		additab(i, true, false)
+@@ -82,6 +85,35 @@ func plugin_lastmoduleinit() (path string, syms map[string]interface{}, mismatch
+ 	return md.pluginpath, syms, ""
+ }
+ 
++func pluginftabverify(md *moduledata) {
++	badtable := false
++	for i := 0; i < len(md.ftab); i++ {
++		entry := md.ftab[i].entry
++		if md.minpc <= entry && entry <= md.maxpc {
++			continue
++		}
++
++		f := (*_func)(unsafe.Pointer(&md.pclntable[md.ftab[i].funcoff]))
++		name := funcname(f)
++
++		// A common bug is f.entry has a relocation to a duplicate
++		// function symbol, meaning if we search for its PC we get
++		// a valid entry with a name that is useful for debugging.
++		name2 := "none"
++		entry2 := uintptr(0)
++		f2 := findfunc(entry)
++		if f2 != nil {
++			name2 = funcname(f2)
++			entry2 = f2.entry
++		}
++		badtable = true
++		println("ftab entry outside pc range: ", hex(entry), "/", hex(entry2), ": ", name, "/", name2)
++	}
++	if badtable {
++		throw("runtime: plugin has bad symbol table")
++	}
++}
++
+ // inRange reports whether v0 or v1 are in the range [r0, r1].
+ func inRange(r0, r1, v0, v1 uintptr) bool {
+ 	return (v0 >= r0 && v0 <= r1) || (v1 >= r0 && v1 <= r1)

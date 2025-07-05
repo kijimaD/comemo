@@ -21,7 +21,115 @@ Date:   Thu Dec 16 12:55:15 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types/fmt.go | 45 +++++++++++++++++++++++++++++++++--
  test/fixedbugs/issue50190.go          | 31 ++++++++++++++++++++++++
  2 files changed, 74 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 3198a1f53c..e1b395559a 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -631,6 +631,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 	}
+ 
+ 	var name string
++	nameSep := " "
+ 	if verb != 'S' {
+ 		s := f.Sym
+ 
+@@ -639,7 +640,47 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 			s = OrigSym(s)
+ 		}
+ 
+-		if s != nil && f.Embedded == 0 {
++		// Using type aliases and embedded fields, it's possible to
++		// construct types that can't be directly represented as a
++		// type literal. For example, given "type Int = int" (#50190),
++		// it would be incorrect to format "struct{ Int }" as either
++		// "struct{ int }" or "struct{ Int int }", because those each
++		// represent other, distinct types.
++		//
++		// So for the purpose of LinkString (i.e., fmtTypeID), we use
++		// the non-standard syntax "struct{ Int = int }" to represent
++		// embedded fields that have been renamed through the use of
++		// type aliases.
++		if f.Embedded != 0 {
++			if mode == fmtTypeID {
++				nameSep = " = "
++
++				// Compute tsym, the symbol that would normally be used as
++				// the field name when embedding f.Type.
++				// TODO(mdempsky): Check for other occurences of this logic
++				// and deduplicate.
++				typ := f.Type
++				if typ.IsPtr() {
++					base.Assertf(typ.Sym() == nil, "embedded pointer type has name: %L", typ)
++					typ = typ.Elem()
++				}
++				tsym := typ.Sym()
++
++				// If the field name matches the embedded type's name, then
++				// suppress printing of the field name. For example, format
++				// "struct{ T }" as simply that instead of "struct{ T = T }".
++				if tsym != nil && (s == tsym || IsExported(tsym.Name) && s.Name == tsym.Name) {
++					s = nil
++				}
++			} else {
++				// Suppress the field name for embedded fields for
++				// non-LinkString formats, to match historical behavior.
++				// TODO(mdempsky): Re-evaluate this.
++				s = nil
++			}
++		}
++
++		if s != nil {
+ 			if funarg != FunargNone {
+ 				name = fmt.Sprint(f.Nname)
+ 			} else if verb == 'L' {
+@@ -658,7 +699,7 @@ func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Ty
+ 
+ 	if name != "" {
+ 		b.WriteString(name)
+-		b.WriteString(" ")
++		b.WriteString(nameSep)
+ 	}
+ 
+ 	if f.IsDDD() {
+diff --git a/test/fixedbugs/issue50190.go b/test/fixedbugs/issue50190.go
+new file mode 100644
+index 0000000000..a5ee646a1a
+--- /dev/null
++++ b/test/fixedbugs/issue50190.go
+@@ -0,0 +1,31 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Int = int
++
++type A = struct{ int }
++type B = struct{ Int }
++
++func main() {
++	var x, y interface{} = A{}, B{}
++	if x == y {
++		panic("FAIL")
++	}
++
++	{
++		type C = int32
++		x = struct{ C }{}
++	}
++	{
++		type C = uint32
++		y = struct{ C }{}
++	}
++	if x == y {
++		panic("FAIL")
++	}
++}

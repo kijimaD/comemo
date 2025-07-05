@@ -16,9 +16,395 @@ Date:   Wed Jun 24 11:53:24 2015 +0200
     Change-Id: I26628413aa5f623a96ef7c2609a8d03c746669e5
     Reviewed-on: https://go-review.googlesource.com/11412
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/request.go    |   3 +-
  src/net/http/serve_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     |  28 +++++++-
  src/net/http/transfer.go   |  54 ++++++++++++---
  4 files changed, 231 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index cd50cb9459..08d1230df1 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -686,12 +686,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+ 
+ 	fixPragmaCacheControl(req.Header)
+ 
++	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
++
+ 	err = readTransfer(req, b)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
+ 	return req, nil
+ }
+ 
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6cbe24b6b5..d48ea686d9 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -20,6 +20,7 @@ import (
+ 	. "net/http"
+ 	"net/http/httptest"
+ 	"net/http/httputil"
++	"net/http/internal"
+ 	"net/url"
+ 	"os"
+ 	"os/exec"
+@@ -1167,6 +1168,164 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
+ 	}
+ }
+ 
++type handlerBodyCloseTest struct {
++	bodySize     int
++	bodyChunked  bool
++	reqConnClose bool
++
++	wantEOFSearch bool // should Handler's Body.Close do Reads, looking for EOF?
++	wantNextReq   bool // should it find the next request on the same conn?
++}
++
++func (t handlerBodyCloseTest) connectionHeader() string {
++	if t.reqConnClose {
++		return "Connection: close\r\n"
++	}
++	return ""
++}
++
++var handlerBodyCloseTests = [...]handlerBodyCloseTest{
++	// Small enough to slurp past to the next request +
++	// has Content-Length.
++	0: {
++		bodySize:      20 << 10,
++		bodyChunked:   false,
++		reqConnClose:  false,
++		wantEOFSearch: true,
++		wantNextReq:   true,
++	},
++
++	// Small enough to slurp past to the next request +
++	// is chunked.
++	1: {
++		bodySize:      20 << 10,
++		bodyChunked:   true,
++		reqConnClose:  false,
++		wantEOFSearch: true,
++		wantNextReq:   true,
++	},
++
++	// Small enough to slurp past to the next request +
++	// has Content-Length +
++	// declares Connection: close (so pointless to read more).
++	2: {
++		bodySize:      20 << 10,
++		bodyChunked:   false,
++		reqConnClose:  true,
++		wantEOFSearch: false,
++		wantNextReq:   false,
++	},
++
++	// Small enough to slurp past to the next request +
++	// declares Connection: close,
++	// but chunked, so it might have trailers.
++	// TODO: maybe skip this search if no trailers were declared
++	// in the headers.
++	3: {
++		bodySize:      20 << 10,
++		bodyChunked:   true,
++		reqConnClose:  true,
++		wantEOFSearch: true,
++		wantNextReq:   false,
++	},
++
++	// Big with Content-Length, so give up immediately if we know it's too big.
++	4: {
++		bodySize:      1 << 20,
++		bodyChunked:   false, // has a Content-Length
++		reqConnClose:  false,
++		wantEOFSearch: false,
++		wantNextReq:   false,
++	},
++
++	// Big chunked, so read a bit before giving up.
++	5: {
++		bodySize:      1 << 20,
++		bodyChunked:   true,
++		reqConnClose:  false,
++		wantEOFSearch: true,
++		wantNextReq:   false,
++	},
++
++	// Big with Connection: close, but chunked, so search for trailers.
++	// TODO: maybe skip this search if no trailers were declared
++	// in the headers.
++	6: {
++		bodySize:      1 << 20,
++		bodyChunked:   true,
++		reqConnClose:  true,
++		wantEOFSearch: true,
++		wantNextReq:   false,
++	},
++
++	// Big with Connection: close, so don't do any reads on Close.
++	// With Content-Length.
++	7: {
++		bodySize:      1 << 20,
++		bodyChunked:   false,
++		reqConnClose:  true,
++		wantEOFSearch: false,
++		wantNextReq:   false,
++	},
++}
++
++func TestHandlerBodyClose(t *testing.T) {
++	for i, tt := range handlerBodyCloseTests {
++		testHandlerBodyClose(t, i, tt)
++	}
++}
++
++func testHandlerBodyClose(t *testing.T, i int, tt handlerBodyCloseTest) {
++	conn := new(testConn)
++	body := strings.Repeat("x", tt.bodySize)
++	if tt.bodyChunked {
++		conn.readBuf.WriteString("POST / HTTP/1.1\r\n" +
++			"Host: test\r\n" +
++			tt.connectionHeader() +
++			"Transfer-Encoding: chunked\r\n" +
++			"\r\n")
++		cw := internal.NewChunkedWriter(&conn.readBuf)
++		io.WriteString(cw, body)
++		cw.Close()
++		conn.readBuf.WriteString("\r\n")
++	} else {
++		conn.readBuf.Write([]byte(fmt.Sprintf(
++			"POST / HTTP/1.1\r\n"+
++				"Host: test\r\n"+
++				tt.connectionHeader()+
++				"Content-Length: %d\r\n"+
++				"\r\n", len(body))))
++		conn.readBuf.Write([]byte(body))
++	}
++	if !tt.reqConnClose {
++		conn.readBuf.WriteString("GET / HTTP/1.1\r\nHost: test\r\n\r\n")
++	}
++	conn.closec = make(chan bool, 1)
++
++	ls := &oneConnListener{conn}
++	var numReqs int
++	var size0, size1 int
++	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
++		numReqs++
++		if numReqs == 1 {
++			size0 = conn.readBuf.Len()
++			req.Body.Close()
++			size1 = conn.readBuf.Len()
++		}
++	}))
++	<-conn.closec
++	if numReqs < 1 || numReqs > 2 {
++		t.Fatalf("%d. bug in test. unexpected number of requests = %d", i, numReqs)
++	}
++	didSearch := size0 != size1
++	if didSearch != tt.wantEOFSearch {
++		t.Errorf("%d. did EOF search = %v; want %v (size went from %d to %d)", i, didSearch, !didSearch, size0, size1)
++	}
++	if tt.wantNextReq && numReqs != 2 {
++		t.Errorf("%d. numReq = %d; want 2", i, numReqs)
++	}
++}
++
+ func TestTimeoutHandler(t *testing.T) {
+ 	defer afterTest(t)
+ 	sendHi := make(chan bool, 1)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index e17dacc559..e1a2825a6a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -502,6 +502,8 @@ func newBufioReader(r io.Reader) *bufio.Reader {
+ 		br.Reset(r)
+ 		return br
+ 	}
++	// Note: if this reader size is every changed, update
++	// TestHandlerBodyClose's assumptions.
+ 	return bufio.NewReader(r)
+ }
+ 
+@@ -627,6 +629,9 @@ func (c *conn) readRequest() (w *response, err error) {
+ 
+ 	req.RemoteAddr = c.remoteAddr
+ 	req.TLS = c.tlsState
++	if body, ok := req.Body.(*body); ok {
++		body.doEarlyClose = true
++	}
+ 
+ 	w = &response{
+ 		conn:          c,
+@@ -1088,17 +1093,34 @@ func (w *response) finishRequest() {
+ 	if w.req.MultipartForm != nil {
+ 		w.req.MultipartForm.RemoveAll()
+ 	}
++}
++
++// shouldReuseConnection reports whether the underlying TCP connection can be reused.
++// It must only be called after the handler is done executing.
++func (w *response) shouldReuseConnection() bool {
++	if w.closeAfterReply {
++		// The request or something set while executing the
++		// handler indicated we shouldn't reuse this
++		// connection.
++		return false
++	}
+ 
+ 	if w.req.Method != "HEAD" && w.contentLength != -1 && w.bodyAllowed() && w.contentLength != w.written {
+ 		// Did not write enough. Avoid getting out of sync.
+-		w.closeAfterReply = true
++		return false
+ 	}
+ 
+ 	// There was some error writing to the underlying connection
+ 	// during the request, so don't re-use this conn.
+ 	if w.conn.werr != nil {
+-		w.closeAfterReply = true
++		return false
+ 	}
++
++	if body, ok := w.req.Body.(*body); ok && body.didEarlyClose() {
++		return false
++	}
++
++	return true
+ }
+ 
+ func (w *response) Flush() {
+@@ -1267,7 +1289,7 @@ func (c *conn) serve() {
+ 			return
+ 		}
+ 		w.finishRequest()
+-		if w.closeAfterReply {
++		if !w.shouldReuseConnection() {
+ 			if w.requestBodyLimitHit {
+ 				c.closeWriteAndWait()
+ 			}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 289d53dec0..0cd94eb16f 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -27,7 +27,7 @@ type errorReader struct {
+ 	err error
+ }
+ 
+-func (r *errorReader) Read(p []byte) (n int, err error) {
++func (r errorReader) Read(p []byte) (n int, err error) {
+ 	return 0, r.err
+ }
+ 
+@@ -71,7 +71,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
+ 				n, rerr := io.ReadFull(t.Body, buf[:])
+ 				if rerr != nil && rerr != io.EOF {
+ 					t.ContentLength = -1
+-					t.Body = &errorReader{rerr}
++					t.Body = errorReader{rerr}
+ 				} else if n == 1 {
+ 					// Oh, guess there is data in this Body Reader after all.
+ 					// The ContentLength field just wasn't set.
+@@ -322,6 +322,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
+ 		// Transfer semantics for Requests are exactly like those for
+ 		// Responses with status code 200, responding to a GET method
+ 		t.StatusCode = 200
++		t.Close = rr.Close
+ 	default:
+ 		panic("unexpected type")
+ 	}
+@@ -561,13 +562,16 @@ func fixTrailer(header Header, te []string) (Header, error) {
+ // Close ensures that the body has been fully read
+ // and then reads the trailer if necessary.
+ type body struct {
+-	src     io.Reader
+-	hdr     interface{}   // non-nil (Response or Request) value means read trailer
+-	r       *bufio.Reader // underlying wire-format reader for the trailer
+-	closing bool          // is the connection to be closed after reading body?
+-
+-	mu     sync.Mutex // guards closed, and calls to Read and Close
+-	closed bool
++	src          io.Reader
++	hdr          interface{}   // non-nil (Response or Request) value means read trailer
++	r            *bufio.Reader // underlying wire-format reader for the trailer
++	closing      bool          // is the connection to be closed after reading body?
++	doEarlyClose bool          // whether Close should stop early
++
++	mu         sync.Mutex // guards closed, and calls to Read and Close
++	sawEOF     bool
++	closed     bool
++	earlyClose bool // Close called and we didn't read to the end of src
+ }
+ 
+ // ErrBodyReadAfterClose is returned when reading a Request or Response
+@@ -587,9 +591,13 @@ func (b *body) Read(p []byte) (n int, err error) {
+ 
+ // Must hold b.mu.
+ func (b *body) readLocked(p []byte) (n int, err error) {
++	if b.sawEOF {
++		return 0, io.EOF
++	}
+ 	n, err = b.src.Read(p)
+ 
+ 	if err == io.EOF {
++		b.sawEOF = true
+ 		// Chunked case. Read the trailer.
+ 		if b.hdr != nil {
+ 			if e := b.readTrailer(); e != nil {
+@@ -613,6 +621,7 @@ func (b *body) readLocked(p []byte) (n int, err error) {
+ 	if err == nil && n > 0 {
+ 		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N == 0 {
+ 			err = io.EOF
++			b.sawEOF = true
+ 		}
+ 	}
+ 
+@@ -701,9 +710,30 @@ func (b *body) Close() error {
+ 	}
+ 	var err error
+ 	switch {
++	case b.sawEOF:
++		// Already saw EOF, so no need going to look for it.
+ 	case b.hdr == nil && b.closing:
+ 		// no trailer and closing the connection next.
+ 		// no point in reading to EOF.
++	case b.doEarlyClose:
++		// Read up to maxPostHandlerReadBytes bytes of the body, looking for
++		// for EOF (and trailers), so we can re-use this connection.
++		if lr, ok := b.src.(*io.LimitedReader); ok && lr.N > maxPostHandlerReadBytes {
++			// There was a declared Content-Length, and we have more bytes remaining
++			// than our maxPostHandlerReadBytes tolerance. So, give up.
++			b.earlyClose = true
++		} else {
++			var n int64
++			// Consume the body, or, which will also lead to us reading
++			// the trailer headers after the body, if present.
++			n, err = io.CopyN(ioutil.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
++			if err == io.EOF {
++				err = nil
++			}
++			if n == maxPostHandlerReadBytes {
++				b.earlyClose = true
++			}
++		}
+ 	default:
+ 		// Fully consume the body, which will also lead to us reading
+ 		// the trailer headers after the body, if present.
+@@ -713,6 +743,12 @@ func (b *body) Close() error {
+ 	return err
+ }
+ 
++func (b *body) didEarlyClose() bool {
++	b.mu.Lock()
++	defer b.mu.Unlock()
++	return b.earlyClose
++}
++
+ // bodyLocked is a io.Reader reading from a *body when its mutex is
+ // already held.
+ type bodyLocked struct {

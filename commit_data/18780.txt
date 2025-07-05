@@ -8,7 +8,51 @@ Date:   Thu Mar 6 21:33:19 2014 +0400
     R=khr
     CC=golang-codereviews, rsc
     https://golang.org/cl/69870054
-
+---
  src/pkg/runtime/proc.c  | 6 ++++++
  src/pkg/runtime/stack.c | 1 +
  2 files changed, 7 insertions(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6a65e590de..fdcbca4c32 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1364,6 +1364,8 @@ top:
+ void
+ runtime·park(bool(*unlockf)(G*, void*), void *lock, int8 *reason)
+ {
++	if(g->status != Grunning)
++		runtime·throw("bad g status");
+ 	m->waitlock = lock;
+ 	m->waitunlockf = unlockf;
+ 	g->waitreason = reason;
+@@ -1415,6 +1417,8 @@ park0(G *gp)
+ void
+ runtime·gosched(void)
+ {
++	if(g->status != Grunning)
++		runtime·throw("bad g status");
+ 	runtime·mcall(runtime·gosched0);
+ }
+ 
+@@ -1443,6 +1447,8 @@ runtime·gosched0(G *gp)
+ void
+ runtime·goexit(void)
+ {
++	if(g->status != Grunning)
++		runtime·throw("bad g status");
+ 	if(raceenabled)
+ 		runtime·racegoend();
+ 	runtime·mcall(goexit0);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 85885e80f9..e3daed5f28 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -640,6 +640,7 @@ runtime·newstack(void)
+ 			copystack(gp, nframes, newsize);
+ 			if(StackDebug >= 1)
+ 				runtime·printf("stack grow done\n");
++			gp->status = oldstatus;
+ 			runtime·gogo(&gp->sched);
+ 		}
+ 		// TODO: if stack is uncopyable because we're in C code, patch return value at

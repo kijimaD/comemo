@@ -27,6 +27,21 @@ Date:   Tue Feb 20 07:18:11 2024 +0000
     Reviewed-by: Sean Liao <sean@liao.dev>
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Sean Liao <sean@liao.dev>
-
+---
  src/net/http/server.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b452f643bd..a29b8b39aa 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2006,6 +2006,9 @@ func (c *conn) serve(ctx context.Context) {
+ 			// If we read any bytes off the wire, we're active.
+ 			c.setState(c.rwc, StateActive, runHooks)
+ 		}
++		if c.server.shuttingDown() {
++			return
++		}
+ 		if err != nil {
+ 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
+ 

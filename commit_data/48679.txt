@@ -25,8 +25,118 @@ Date:   Fri Jun 4 22:54:08 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/transform.go |  5 ++-
  src/cmd/compile/internal/typecheck/subr.go  | 12 +++++-
  test/typeparam/ifaceconv.go                 | 58 +++++++++++++++++++++++++++++
  3 files changed, 73 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index a084f0b7be..946d335f07 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -437,7 +437,10 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
+ 		return n
+ 	}
+ 
+-	op, _ := typecheck.Assignop(n.Type(), t)
++	op, why := typecheck.Assignop(n.Type(), t)
++	if op == ir.OXXX {
++		base.Fatalf("found illegal assignment %+v -> %+v; %s", n.Type(), t, why)
++	}
+ 
+ 	r := ir.NewConvExpr(base.Pos, op, t, n)
+ 	r.SetTypecheck(1)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index e9a9a57126..0e306eaea8 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -723,13 +723,23 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field,
+ 	return m, followptr
+ }
+ 
++// implements reports whether t implements the interface iface. t can be
++// an interface, a type parameter, or a concrete type. If implements returns
++// false, it stores a method of iface that is not implemented in *m. If the
++// method name matches but the type is wrong, it additionally stores the type
++// of the method (on t) in *samename.
+ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool {
+ 	t0 := t
+ 	if t == nil {
+ 		return false
+ 	}
+ 
+-	if t.IsInterface() {
++	if t.IsInterface() || t.IsTypeParam() {
++		if t.IsTypeParam() {
++			// A typeparam satisfies an interface if its type bound
++			// has all the methods of that interface.
++			t = t.Bound()
++		}
+ 		i := 0
+ 		tms := t.AllMethods().Slice()
+ 		for _, im := range iface.AllMethods().Slice() {
+diff --git a/test/typeparam/ifaceconv.go b/test/typeparam/ifaceconv.go
+new file mode 100644
+index 0000000000..0b0776815c
+--- /dev/null
++++ b/test/typeparam/ifaceconv.go
+@@ -0,0 +1,58 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we can convert type parameters to both empty
++// and nonempty interfaces, and named and nonnamed versions
++// thereof.
++
++package main
++
++import "fmt"
++
++type E interface{}
++
++func f[T any](x T) interface{} {
++	var i interface{} = x
++	return i
++}
++func g[T any](x T) E {
++	var i E = x
++	return i
++}
++
++type C interface {
++	foo() int
++}
++
++type myInt int
++
++func (x myInt) foo() int {
++	return int(x+1)
++}
++
++func h[T C](x T) interface{foo() int} {
++	var i interface{foo()int} = x
++	return i
++}
++func i[T C](x T) C {
++	var i C = x
++	return i
++}
++
++func main() {
++	if got, want := f[int](7), 7; got != want {
++		panic(fmt.Sprintf("got %d want %d", got, want))
++	}
++	if got, want := g[int](7), 7; got != want {
++		panic(fmt.Sprintf("got %d want %d", got, want))
++	}
++	if got, want := h[myInt](7).foo(), 8; got != want {
++		panic(fmt.Sprintf("got %d want %d", got, want))
++	}
++	if got, want := i[myInt](7).foo(), 8; got != want {
++		panic(fmt.Sprintf("got %d want %d", got, want))
++	}
++}

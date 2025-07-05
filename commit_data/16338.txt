@@ -9,6 +9,19 @@ Date:   Sat May 18 15:47:49 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9258043
-
+---
  src/pkg/runtime/os_plan9.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index c7ed59fc93..53ec4ae176 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -122,6 +122,7 @@ runtime·osyield(void)
+ 	runtime·sleep(0);
+ }
+ 
++#pragma textflag 7
+ void
+ runtime·usleep(uint32 µs)
+ {

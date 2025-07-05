@@ -25,9 +25,73 @@ Date:   Tue Jan 20 21:17:17 2015 -0500
     Change-Id: I60855e001a682efce55ad9aa307a8f3ee47f7366
     Reviewed-on: https://go-review.googlesource.com/3100
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/liblink/objfile.c | 2 +-
  src/make.bash         | 1 -
  src/make.bat          | 2 --
  src/make.rc           | 2 --
  4 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/liblink/objfile.c b/src/liblink/objfile.c
+index 26a7e3ad54..6711aaf776 100644
+--- a/src/liblink/objfile.c
++++ b/src/liblink/objfile.c
+@@ -124,7 +124,7 @@ void	writeobjdirect(Link*, Biobuf*);
+ void
+ writeobj(Link *ctxt, Biobuf *b)
+ {
+-	char *cmd[2];
++	char *cmd[3];
+ 	
+ 	// TODO(rsc): Use 'go tool objwriter' to write object file,
+ 	// allowing the bulk of liblink to be moved into Go.
+diff --git a/src/make.bash b/src/make.bash
+index e962f04fcf..e6c3fd02d0 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -149,7 +149,6 @@ fi
+ ./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+ # Delay move of dist tool to now, because bootstrap may clear tool directory.
+ mv cmd/dist/dist "$GOTOOLDIR"/dist
+-"$GOTOOLDIR"/go_bootstrap clean -i std
+ echo
+ 
+ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+diff --git a/src/make.bat b/src/make.bat
+index fab9c88ff6..ba3469e69e 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -71,14 +71,12 @@ echo.
+ if x%1==x--dist-tool goto copydist
+ if x%2==x--dist-tool goto copydist
+ 
+-echo ##### Building compilers and Go bootstrap tool.
+ set buildall=-a
+ if x%1==x--no-clean set buildall=
+ .\cmd\dist\dist bootstrap %buildall% -v
+ if errorlevel 1 goto fail
+ :: Delay move of dist tool to now, because bootstrap cleared tool directory.
+ move .\cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
+-"%GOTOOLDIR%\go_bootstrap" clean -i std
+ echo.
+ 
+ if not %GOHOSTARCH% == %GOARCH% goto localbuild
+diff --git a/src/make.rc b/src/make.rc
+index 5fe30aced7..593ebc8f2f 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -72,14 +72,12 @@ if(~ $1 --dist-tool){
+ 	exit
+ }
+ 
+-echo '# Building compilers and Go bootstrap tool for host,' $GOHOSTOS/$GOHOSTARCH^.
+ buildall = -a
+ if(~ $1 --no-clean)
+ 	buildall = ()
+ ./cmd/dist/dist bootstrap $buildall -v # builds go_bootstrap
+ # Delay move of dist tool to now, because bootstrap may clear tool directory.
+ mv cmd/dist/dist $GOTOOLDIR/dist
+-$GOTOOLDIR/go_bootstrap clean -i std
+ echo
+ 
+ # Run only one process at a time on 9vx.

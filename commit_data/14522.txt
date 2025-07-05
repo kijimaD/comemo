@@ -11,10 +11,558 @@ Date:   Thu Nov 29 09:57:37 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6856107
-
+---
  src/pkg/exp/types/expr.go             | 178 ++++++++++++++++++++--------------
  src/pkg/exp/types/stmt.go             |  19 +++-
  src/pkg/exp/types/testdata/decls0.src |   9 ++
  src/pkg/exp/types/testdata/expr3.src  | 143 ++++++++++++++++++---------
  src/pkg/exp/types/testdata/stmt0.src  |  18 +++-
  5 files changed, 249 insertions(+), 118 deletions(-)
+
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index c952507a04..e2e7b6deb6 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -449,31 +449,81 @@ func (check *checker) binary(x, y *operand, op token.Token, hint Type) {
+ }
+ 
+ // index checks an index expression for validity. If length >= 0, it is the upper
+-// bound for the index. The result is a valid integer constant, or nil.
++// bound for the index. The result is a valid index >= 0, or a negative value.
+ //
+-func (check *checker) index(index ast.Expr, length int64, iota int) interface{} {
++func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
+ 	var x operand
+ 
+ 	check.expr(&x, index, nil, iota)
+ 	if !x.isInteger() {
+ 		check.errorf(x.pos(), "index %s must be integer", &x)
+-		return nil
++		return -1
+ 	}
+ 	if x.mode != constant {
+-		return nil // we cannot check more
++		return -1 // we cannot check more
+ 	}
+-	// x.mode == constant and the index value must be >= 0
+-	if isNegConst(x.val) {
++	// The spec doesn't require int64 indices, but perhaps it should.
++	i, ok := x.val.(int64)
++	if !ok {
++		check.errorf(x.pos(), "stupid index %s", &x)
++		return -1
++	}
++	if i < 0 {
+ 		check.errorf(x.pos(), "index %s must not be negative", &x)
+-		return nil
++		return -1
+ 	}
+-	// x.val >= 0
+-	if length >= 0 && compareConst(x.val, length, token.GEQ) {
++	if length >= 0 && i >= length {
+ 		check.errorf(x.pos(), "index %s is out of bounds (>= %d)", &x, length)
+-		return nil
++		return -1
+ 	}
+ 
+-	return x.val
++	return i
++}
++
++// indexElts checks the elements (elts) of an array or slice composite literal
++// against the literals element type (typ), and the element indices against
++// the literal length if known (length >= 0). It returns the length of the
++// literal (maximum index value + 1).
++//
++func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota int) int64 {
++	visited := make(map[int64]bool, len(elts))
++	var index, max int64
++	for _, e := range elts {
++		// determine and check index
++		validIndex := false
++		eval := e
++		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
++			if i := check.index(kv.Key, length, iota); i >= 0 {
++				index = i
++				validIndex = true
++			}
++			eval = kv.Value
++		} else if length >= 0 && index >= length {
++			check.errorf(e.Pos(), "index %d is out of bounds (>= %d)", index, length)
++		} else {
++			validIndex = true
++		}
++
++		// if we have a valid index, check for duplicate entries
++		if validIndex {
++			if visited[index] {
++				check.errorf(e.Pos(), "duplicate index %d in array or slice literal", index)
++			}
++			visited[index] = true
++		}
++		index++
++		if index > max {
++			max = index
++		}
++
++		// check element against composite literal element type
++		var x operand
++		check.expr(&x, eval, typ, iota)
++		if !x.isAssignable(typ) {
++			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
++		}
++	}
++	return max
+ }
+ 
+ func (check *checker) callRecord(x *operand) {
+@@ -552,7 +602,10 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		x.typ = obj.Type.(Type)
+ 
+ 	case *ast.Ellipsis:
+-		unimplemented()
++		// ellipses are handled explictly where they are legal
++		// (array composite literals and parameter lists)
++		check.errorf(e.Pos(), "invalid use of '...'")
++		goto Error
+ 
+ 	case *ast.BasicLit:
+ 		x.setConst(e.Kind, e.Value)
+@@ -573,16 +626,29 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 
+ 	case *ast.CompositeLit:
+ 		typ := hint
++		openArray := false
+ 		if e.Type != nil {
+-			typ = check.typ(e.Type, false)
++			// [...]T array types may only appear with composite literals.
++			// Check for them here so we don't have to handle ... in general.
++			typ = nil
++			if atyp, _ := e.Type.(*ast.ArrayType); atyp != nil && atyp.Len != nil {
++				if ellip, _ := atyp.Len.(*ast.Ellipsis); ellip != nil && ellip.Elt == nil {
++					// We have an "open" [...]T array type.
++					// Create a new ArrayType with unknown length (-1)
++					// and finish setting it up after analyzing the literal.
++					typ = &Array{Len: -1, Elt: check.typ(atyp.Elt, cycleOk)}
++					openArray = true
++				}
++			}
++			if typ == nil {
++				typ = check.typ(e.Type, false)
++			}
+ 		}
+ 		if typ == nil {
+ 			check.errorf(e.Pos(), "missing type in composite literal")
+ 			goto Error
+ 		}
+ 
+-		// TODO(gri) try to factor code below better
+-
+ 		switch utyp := underlying(deref(typ)).(type) {
+ 		case *Struct:
+ 			if len(e.Elts) == 0 {
+@@ -631,8 +697,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					check.expr(x, e, nil, iota)
+ 					if i >= len(fields) {
+ 						check.errorf(x.pos(), "too many values in struct literal")
+-						goto Error
++						break // cannot continue
+ 					}
++					// i < len(fields)
+ 					etyp := fields[i].Type
+ 					if !x.isAssignable(etyp) {
+ 						check.errorf(x.pos(), "cannot use %s as an element of type %s in struct literal", x, etyp)
+@@ -641,42 +708,19 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 				}
+ 				if len(e.Elts) < len(fields) {
+ 					check.errorf(e.Rbrace, "too few values in struct literal")
+-					goto Error
++					// ok to continue
+ 				}
+ 			}
+ 
+ 		case *Array:
+-			var index int64
+-			for _, e := range e.Elts {
+-				eval := e
+-				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+-					check.index(kv.Key, -1, iota)
+-					eval = kv.Value
+-				}
+-				// TODO(gri) missing index range & duplicate check
+-				check.expr(x, eval, utyp.Elt, iota)
+-				if !x.isAssignable(utyp.Elt) {
+-					check.errorf(x.pos(), "cannot use %s as %s value in array literal", x, utyp.Elt)
+-				}
+-				index++
++			n := check.indexedElts(e.Elts, utyp.Elt, utyp.Len, iota)
++			// if we have an "open" [...]T array, set the length now that we know it
++			if openArray {
++				utyp.Len = n
+ 			}
+ 
+ 		case *Slice:
+-			var index int64
+-			for _, e := range e.Elts {
+-				eval := e
+-				if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+-					// TODO(gri) check key
+-					check.index(kv.Key, -1, iota)
+-					eval = kv.Value
+-				}
+-				// TODO(gri) missing index range & duplicate check
+-				check.expr(x, eval, utyp.Elt, iota)
+-				if !x.isAssignable(utyp.Elt) {
+-					check.errorf(x.pos(), "cannot use %s as %s value in slice literal", x, utyp.Elt)
+-				}
+-				index++
+-			}
++			check.indexedElts(e.Elts, utyp.Elt, -1, iota)
+ 
+ 		case *Map:
+ 			visited := make(map[interface{}]bool, len(e.Elts))
+@@ -856,7 +900,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 				}
+ 				// a sliced string always yields a string value
+ 				// of the same type as the original string (not
+-				// a constant) even if the string and the indexes
++				// a constant) even if the string and the indices
+ 				// are constant
+ 				x.mode = value
+ 				// x.typ doesn't change
+@@ -882,20 +926,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 			goto Error
+ 		}
+ 
+-		var lo interface{} = zeroConst
++		lo := int64(0)
+ 		if e.Low != nil {
+ 			lo = check.index(e.Low, length, iota)
+ 		}
+ 
+-		var hi interface{}
++		hi := int64(-1)
+ 		if e.High != nil {
+ 			hi = check.index(e.High, length, iota)
+ 		} else if length >= 0 {
+ 			hi = length
+ 		}
+ 
+-		if lo != nil && hi != nil && compareConst(lo, hi, token.GTR) {
+-			check.errorf(e.Low.Pos(), "inverted slice range: %v > %v", lo, hi)
++		if lo >= 0 && hi >= 0 && lo > hi {
++			check.errorf(e.Low.Pos(), "inverted slice range: %d > %d", lo, hi)
+ 			// ok to continue
+ 		}
+ 
+@@ -991,28 +1035,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 
+ 	case *ast.ArrayType:
+ 		if e.Len != nil {
+-			var n int64 = -1
+-			if ellip, ok := e.Len.(*ast.Ellipsis); ok {
+-				// TODO(gri) need to check somewhere that [...]T types are only used with composite literals
+-				if ellip.Elt != nil {
+-					check.invalidAST(ellip.Pos(), "ellipsis only expected")
+-					// ok to continue
+-				}
+-			} else {
+-				check.expr(x, e.Len, nil, 0)
+-				if x.mode == invalid {
+-					goto Error
+-				}
+-				if x.mode == constant {
+-					if i, ok := x.val.(int64); ok && i == int64(int(i)) {
+-						n = i
+-					}
+-				}
+-				if n < 0 {
+-					check.errorf(e.Len.Pos(), "invalid array bound %s", e.Len)
+-					// ok to continue
+-					n = 0
++			check.expr(x, e.Len, nil, iota)
++			if x.mode == invalid {
++				goto Error
++			}
++			if x.mode != constant {
++				if x.mode != invalid {
++					check.errorf(x.pos(), "array length %s must be constant", x)
+ 				}
++				goto Error
++			}
++			n, ok := x.val.(int64)
++			if !ok || n < 0 {
++				check.errorf(x.pos(), "invalid array length %s", x)
++				goto Error
+ 			}
+ 			x.typ = &Array{Len: n, Elt: check.typ(e.Elt, cycleOk)}
+ 		} else {
+diff --git a/src/pkg/exp/types/stmt.go b/src/pkg/exp/types/stmt.go
+index 4f012499a2..dc172c35bc 100644
+--- a/src/pkg/exp/types/stmt.go
++++ b/src/pkg/exp/types/stmt.go
+@@ -226,6 +226,21 @@ func (check *checker) stmtList(list []ast.Stmt) {
+ 	}
+ }
+ 
++func (check *checker) call(c ast.Expr) {
++	call, _ := c.(*ast.CallExpr)
++	if call == nil {
++		// For go/defer, the parser makes sure that we have a function call,
++		// so if we don't, the AST was created incorrectly elsewhere.
++		// TODO(gri) consider removing the checks from the parser.
++		check.invalidAST(c.Pos(), "%s is not a function call", c)
++		return
++	}
++	var x operand
++	check.rawExpr(&x, call, nil, -1, false) // don't check if value is used
++	// TODO(gri) If a builtin is called, the builtin must be valid in statement
++	//           context. However, the spec doesn't say that explicitly.
++}
++
+ // stmt typechecks statement s.
+ func (check *checker) stmt(s ast.Stmt) {
+ 	switch s := s.(type) {
+@@ -347,10 +362,10 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		}
+ 
+ 	case *ast.GoStmt:
+-		unimplemented()
++		check.call(s.Call)
+ 
+ 	case *ast.DeferStmt:
+-		unimplemented()
++		check.call(s.Call)
+ 
+ 	case *ast.ReturnStmt:
+ 		sig := check.functypes[len(check.functypes)-1]
+diff --git a/src/pkg/exp/types/testdata/decls0.src b/src/pkg/exp/types/testdata/decls0.src
+index f5fd3d8b86..70623c6166 100644
+--- a/src/pkg/exp/types/testdata/decls0.src
++++ b/src/pkg/exp/types/testdata/decls0.src
+@@ -40,6 +40,15 @@ type (
+ )
+ 
+ 
++// invalid array types
++type (
++	iA0 [... /* ERROR "invalid use of '...'" */ ]byte
++	iA1 [1 /* ERROR "invalid array length" */ <<100]int
++	iA2 [- /* ERROR "invalid array length" */ 1]complex128
++	iA3 ["foo" /* ERROR "invalid array length" */ ]string
++)
++
++
+ type (
+ 	p1 pi /* ERROR "no single field or method foo" */ .foo
+ 	p2 unsafe.Pointer
+diff --git a/src/pkg/exp/types/testdata/expr3.src b/src/pkg/exp/types/testdata/expr3.src
+index 1a7c5dfb90..816f21e472 100644
+--- a/src/pkg/exp/types/testdata/expr3.src
++++ b/src/pkg/exp/types/testdata/expr3.src
+@@ -6,43 +6,43 @@
+ 
+ package expr3
+ 
+-// TODO(gri) Move the code below into function "shifts" once we check
+-//           declarations with initilizations inside functions.
+-var (
+-	i0 int
+-	u0 uint
+-)
+-
+-var (
+-	v0 = 1<<0
+-	v1 = 1<<i0 /* ERROR "must be unsigned" */
+-	v2 = 1<<u0
+-	v3 = 1<<"foo" /* ERROR "must be unsigned" */
+-	v4 = 1<<- /* ERROR "stupid shift" */ 1
+-	v5 = 1<<1025 /* ERROR "stupid shift" */
+-	v6 = 1 /* ERROR "overflows" */ <<100
+-
+-	v10 uint = 1 << 0
+-	v11 uint = 1 << u0
+-	v12 float32 = 1 /* ERROR "must be integer" */ << u0
+-)
+-
+-// TODO(gri) enable commented out tests below.
+-
+-// from the spec
+-var (
+-	s uint = 33
+-	i = 1<<s           // 1 has type int
+-	j int32 = 1<<s     // 1 has type int32; j == 0
+-	k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
+-	m int = 1.0<<s     // 1.0 has type int
+-//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
+-	o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
+-//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
+-	u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
+-	v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
+-	w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
+-)
++func shifts1() {
++	var (
++		i0 int
++		u0 uint
++	)
++
++	var (
++		v0 = 1<<0
++		v1 = 1<<i0 /* ERROR "must be unsigned" */
++		v2 = 1<<u0
++		v3 = 1<<"foo" /* ERROR "must be unsigned" */
++		v4 = 1<<- /* ERROR "stupid shift" */ 1
++		v5 = 1<<1025 /* ERROR "stupid shift" */
++		v6 = 1 /* ERROR "overflows" */ <<100
++
++		v10 uint = 1 << 0
++		v11 uint = 1 << u0
++		v12 float32 = 1 /* ERROR "must be integer" */ << u0
++	)
++}
++
++func shifts2() {
++	// TODO(gri) enable commented out tests below.
++	var (
++		s uint = 33
++		i = 1<<s           // 1 has type int
++		j int32 = 1<<s     // 1 has type int32; j == 0
++		k = uint64(1<<s)   // 1 has type uint64; k == 1<<33
++		m int = 1.0<<s     // 1.0 has type int
++	//	n = 1.0<<s != 0    // 1.0 has type int; n == false if ints are 32bits in size
++		o = 1<<s == 2<<s   // 1 and 2 have type int; o == true if ints are 32bits in size
++	//	p = 1<<s == 1 /* ERROR "overflows" */ <<33  // illegal if ints are 32bits in size: 1 has type int, but 1<<33 overflows int
++		u = 1.0 /* ERROR "must be integer" */ <<s         // illegal: 1.0 has type float64, cannot shift
++		v float32 = 1 /* ERROR "must be integer" */ <<s   // illegal: 1 has type float32, cannot shift
++		w int64 = 1.0<<33  // 1.0<<33 is a constant shift expression
++	)
++}
+ 
+ // TODO(gri) The error messages below depond on adjusting the spec
+ //           to reflect what gc is doing at the moment (the spec
+@@ -67,11 +67,13 @@ func indexes() {
+ 	a1 = a /* ERROR "cannot assign" */ [1] 
+ 	_ = a[9]
+ 	_ = a[10 /* ERROR "index .* out of bounds" */ ]
++	_ = a[1 /* ERROR "stupid index" */ <<100]
+ 	_ = a[10:]
+ 	_ = a[:10]
+ 	_ = a[10:10]
+ 	_ = a[11 /* ERROR "index .* out of bounds" */ :]
+ 	_ = a[: 11 /* ERROR "index .* out of bounds" */ ]
++	_ = a[: 1 /* ERROR "stupid index" */ <<100]
+ 
+ 	var b [0]int
+ 	_ = b[0 /* ERROR "index .* out of bounds" */ ]
+@@ -88,11 +90,9 @@ func indexes() {
+ 	_ = s[1 : 2]
+ 	_ = s[2 /* ERROR "inverted slice range" */ : 1]
+ 	_ = s[2 :]
+-	_ = s[: 1<<100]
+-	_ = s[1<<100 :]
+-	_ = s[1<<100 : 1<<100]
+-	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 1<<100]
+-	_ = s[1 /* ERROR "inverted slice range" */ <<100+1 : 10]
++	_ = s[: 1 /* ERROR "stupid index" */ <<100]
++	_ = s[1 /* ERROR "stupid index" */ <<100 :]
++	_ = s[1 /* ERROR "stupid index" */ <<100 : 1 /* ERROR "stupid index" */ <<100]
+ 
+ 	var t string
+ 	_ = t[- /* ERROR "index .* negative" */ 1]
+@@ -166,11 +166,66 @@ func struct_literals() {
+ }
+ 
+ func array_literals() {
+-	// TODO(gri)
++	type A0 [0]int
++	_ = A0{}
++	_ = A0{0 /* ERROR "index .* out of bounds" */}
++	_ = A0{0 /* ERROR "index .* out of bounds" */ : 0}
++
++	type A1 [10]int
++	_ = A1{}
++	_ = A1{0, 1, 2}
++	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
++	_ = A1{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 /* ERROR "index .* out of bounds" */ }
++	_ = A1{- /* ERROR "index .* negative" */ 1: 0}
++	_ = A1{8: 8, 9}
++	_ = A1{8: 8, 9, 10 /* ERROR "index .* out of bounds" */ }
++	_ = A1{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
++	_ = A1{5: 5, 6, 7, 3: 3, 4}
++	_ = A1{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
++	_ = A1{10 /* ERROR "index .* out of bounds" */ : 10, 10 /* ERROR "index .* out of bounds" */ : 10}
++	_ = A1{5: 5, 6, 7, 3: 3, 1 /* ERROR "stupid index" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
++	_ = A1{5: 5, 6, 7, 4: 4, 1 /* ERROR "stupid index" */ <<100: 4}
++	_ = A1{2.0}
++	_ = A1{2.1 /* ERROR "cannot use" */ }
++	_ = A1{"foo" /* ERROR "cannot use" */ }
++
++	a0 := [...]int{}
++	assert(len(a0) == 0)
++	
++	a1 := [...]int{0, 1, 2}
++	assert(len(a1) == 3)
++	var a13 [3]int
++	var a14 [4]int
++	a13 = a1
++	a14 = a1 /* ERROR "cannot assign" */
++	
++	a2 := [...]int{- /* ERROR "index .* negative" */ 1: 0}
++
++	a3 := [...]int{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
++	assert(len(a3) == 5) // somewhat arbitrary
++
++	a4 := [...]complex128{0, 1, 2, 1<<10-2: -1i, 1i, 400: 10, 12, 14}
++	assert(len(a4) == 1024)
+ }
+ 
+ func slice_literals() {
+-	// TODO(gri)
++	type S0 []int
++	_ = S0{}
++	_ = S0{0, 1, 2}
++	_ = S0{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
++	_ = S0{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
++	_ = S0{- /* ERROR "index .* negative" */ 1: 0}
++	_ = S0{8: 8, 9}
++	_ = S0{8: 8, 9, 10}
++	_ = S0{0, 1, 2, 0 /* ERROR "duplicate index" */ : 0, 3: 3, 4}
++	_ = S0{5: 5, 6, 7, 3: 3, 4}
++	_ = S0{5: 5, 6, 7, 3: 3, 4, 5 /* ERROR "duplicate index" */ }
++	_ = S0{10: 10, 10 /* ERROR "duplicate index" */ : 10}
++	_ = S0{5: 5, 6, 7, 3: 3, 1 /* ERROR "stupid index" */ <<100: 4, 5 /* ERROR "duplicate index" */ }
++	_ = S0{5: 5, 6, 7, 4: 4, 1 /* ERROR "stupid index" */ <<100: 4}
++	_ = S0{2.0}
++	_ = S0{2.1 /* ERROR "cannot use" */ }
++	_ = S0{"foo" /* ERROR "cannot use" */ }
+ }
+ 
+ func map_literals() {
+diff --git a/src/pkg/exp/types/testdata/stmt0.src b/src/pkg/exp/types/testdata/stmt0.src
+index e3436bc41d..e13e3280f1 100644
+--- a/src/pkg/exp/types/testdata/stmt0.src
++++ b/src/pkg/exp/types/testdata/stmt0.src
+@@ -71,4 +71,20 @@ func _selects() {
+ 		x = t
+ 	case <-sc /* ERROR "cannot receive from send-only channel" */ :
+ 	}
+-}
+\ No newline at end of file
++}
++
++func _gos() {
++	go 1 /* ERROR "expected function/method call" */
++	go _gos()
++	var c chan int
++	go close(c)
++	go len(c) // TODO(gri) this should not be legal
++}
++
++func _defers() {
++	defer 1 /* ERROR "expected function/method call" */
++	defer _defers()
++	var c chan int
++	defer close(c)
++	defer len(c) // TODO(gri) this should not be legal
++}

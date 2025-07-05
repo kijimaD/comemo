@@ -15,6 +15,22 @@ Date:   Thu Jun 3 15:23:22 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/abi_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index 1a2a48b5ed..26e77f14dd 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.regabireflect
+-// +build goexperiment.regabireflect
++//go:build goexperiment.regabireflect && goexperiment.regabiargs
++// +build goexperiment.regabireflect,goexperiment.regabiargs
+ 
+ package reflect_test
+ 

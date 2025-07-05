@@ -30,9 +30,213 @@ Date:   Sun Sep 11 02:00:38 2016 +0000
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/http_test.go      |  4 +++
  src/net/http/request.go        | 33 +++++++++++++++++---
  src/net/http/transport.go      | 13 +++++---
  src/net/http/transport_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 111 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index ea0e731677..b95dab053c 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -51,6 +51,10 @@ func TestCleanHost(t *testing.T) {
+ 		{"www.google.com foo", "www.google.com"},
+ 		{"www.google.com/foo", "www.google.com"},
+ 		{" first character is a space", ""},
++		{"гофер.рф/foo", "xn--c1ae0ajs.xn--p1ai"},
++		{"bücher.de", "xn--bcher-kva.de"},
++		{"bücher.de:8080", "xn--bcher-kva.de:8080"},
++		{"[1::6]:8080", "[1::6]:8080"},
+ 	}
+ 	for _, tt := range tests {
+ 		got := cleanHost(tt.in)
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index dc5559282d..16e7009424 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -18,12 +18,15 @@ import (
+ 	"io/ioutil"
+ 	"mime"
+ 	"mime/multipart"
++	"net"
+ 	"net/http/httptrace"
+ 	"net/textproto"
+ 	"net/url"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++
++	"golang_org/x/net/idna"
+ )
+ 
+ const (
+@@ -175,11 +178,15 @@ type Request struct {
+ 	// For server requests Host specifies the host on which the
+ 	// URL is sought. Per RFC 2616, this is either the value of
+ 	// the "Host" header or the host name given in the URL itself.
+-	// It may be of the form "host:port".
++	// It may be of the form "host:port". For international domain
++	// names, Host may be in Punycode or Unicode form. Use
++	// golang.org/x/net/idna to convert it to either format if
++	// needed.
+ 	//
+ 	// For client requests Host optionally overrides the Host
+ 	// header to send. If empty, the Request.Write method uses
+-	// the value of URL.Host.
++	// the value of URL.Host. Host may contain an international
++	// domain name.
+ 	Host string
+ 
+ 	// Form contains the parsed form data, including both the URL
+@@ -573,7 +580,11 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 	return nil
+ }
+ 
+-// cleanHost strips anything after '/' or ' '.
++// cleanHost cleans up the host sent in request's Host header.
++//
++// It both strips anything after '/' or ' ', and puts the value
++// into Punycode form, if necessary.
++//
+ // Ideally we'd clean the Host header according to the spec:
+ //   https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
+ //   https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
+@@ -584,9 +595,21 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ // first offending character.
+ func cleanHost(in string) string {
+ 	if i := strings.IndexAny(in, " /"); i != -1 {
+-		return in[:i]
++		in = in[:i]
++	}
++	host, port, err := net.SplitHostPort(in)
++	if err != nil { // input was just a host
++		a, err := idna.ToASCII(in)
++		if err != nil {
++			return in // garbage in, garbage out
++		}
++		return a
++	}
++	a, err := idna.ToASCII(host)
++	if err != nil {
++		return in // garbage in, garbage out
+ 	}
+-	return in
++	return net.JoinHostPort(a, port)
+ }
+ 
+ // removeZone removes IPv6 zone identifier from host.
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 44e29c642f..cde7acac31 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -27,6 +27,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"golang_org/x/net/idna"
+ 	"golang_org/x/net/lex/httplex"
+ )
+ 
+@@ -1943,11 +1944,15 @@ var portMap = map[string]string{
+ 
+ // canonicalAddr returns url.Host but always with a ":port" suffix
+ func canonicalAddr(url *url.URL) string {
+-	addr := url.Host
+-	if !hasPort(addr) {
+-		return addr + ":" + portMap[url.Scheme]
++	addr := url.Hostname()
++	if v, err := idna.ToASCII(addr); err == nil {
++		addr = v
+ 	}
+-	return addr
++	port := url.Port()
++	if port == "" {
++		port = portMap[url.Scheme]
++	}
++	return net.JoinHostPort(addr, port)
+ }
+ 
+ // bodyEOFSignal is used by the HTTP/1 transport when reading response
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 48d4de4fab..a77c5fcc39 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3629,6 +3629,76 @@ func TestTransportReturnsPeekError(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 13835: international domain names should work
++func TestTransportIDNA_h1(t *testing.T) { testTransportIDNA(t, h1Mode) }
++func TestTransportIDNA_h2(t *testing.T) { testTransportIDNA(t, h2Mode) }
++func testTransportIDNA(t *testing.T, h2 bool) {
++	defer afterTest(t)
++
++	const uniDomain = "гофер.го"
++	const punyDomain = "xn--c1ae0ajs.xn--c1aw"
++
++	var port string
++	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
++		want := punyDomain + ":" + port
++		if r.Host != want {
++			t.Errorf("Host header = %q; want %q", r.Host, want)
++		}
++		if h2 {
++			if r.TLS == nil {
++				t.Errorf("r.TLS == nil")
++			} else if r.TLS.ServerName != punyDomain {
++				t.Errorf("TLS.ServerName = %q; want %q", r.TLS.ServerName, punyDomain)
++			}
++		}
++		w.Header().Set("Hit-Handler", "1")
++	}))
++	defer cst.close()
++
++	ip, port, err := net.SplitHostPort(cst.ts.Listener.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Install a fake DNS server.
++	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
++		if host != punyDomain {
++			t.Errorf("got DNS host lookup for %q; want %q", host, punyDomain)
++			return nil, nil
++		}
++		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
++	})
++
++	req, _ := NewRequest("GET", cst.scheme()+"://"+uniDomain+":"+port, nil)
++	trace := &httptrace.ClientTrace{
++		GetConn: func(hostPort string) {
++			want := net.JoinHostPort(punyDomain, port)
++			if hostPort != want {
++				t.Errorf("getting conn for %q; want %q", hostPort, want)
++			}
++		},
++		DNSStart: func(e httptrace.DNSStartInfo) {
++			if e.Host != punyDomain {
++				t.Errorf("DNSStart Host = %q; want %q", e.Host, punyDomain)
++			}
++		},
++	}
++	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
++
++	res, err := cst.tr.RoundTrip(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.Header.Get("Hit-Handler") != "1" {
++		out, err := httputil.DumpResponse(res, true)
++		if err != nil {
++			t.Fatal(err)
++		}
++		t.Errorf("Response body wasn't from Handler. Got:\n%s\n", out)
++	}
++}
++
+ var errFakeRoundTrip = errors.New("fake roundtrip")
+ 
+ type funcRoundTripper func()

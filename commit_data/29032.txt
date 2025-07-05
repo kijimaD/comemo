@@ -9,6 +9,20 @@ Date:   Mon Aug 22 22:22:44 2016 +0000
     Change-Id: I0bcc34bb5a92a2c480aebfb0eb6ba57bcc7f7cfd
     Reviewed-on: https://go-review.googlesource.com/27551
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/io/multi_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/multi_test.go b/src/io/multi_test.go
+index 5c6bb84c1d..339362eb8c 100644
+--- a/src/io/multi_test.go
++++ b/src/io/multi_test.go
+@@ -211,7 +211,7 @@ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
+ 	return 1, EOF
+ }
+ 
+-// In Go 1.7, this yielded bytes forever.
++// This used to yield bytes forever; issue 16795.
+ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
+ 	got, err := ioutil.ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
+ 	if err != nil {

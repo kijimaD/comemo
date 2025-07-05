@@ -10,6 +10,20 @@ Date:   Sat Feb 5 13:55:37 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4128064
-
+---
  src/pkg/asn1/marshal.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 24548714b2..57b8f20ba7 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -317,7 +317,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 	switch v := value.(type) {
+ 	case *reflect.BoolValue:
+ 		if v.Get() {
+-			return out.WriteByte(1)
++			return out.WriteByte(255)
+ 		} else {
+ 			return out.WriteByte(0)
+ 		}

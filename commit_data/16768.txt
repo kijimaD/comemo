@@ -8,6 +8,19 @@ Date:   Mon Jul 15 14:37:36 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10914045
-
+---
  misc/cgo/test/issue3250.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/cgo/test/issue3250.go b/misc/cgo/test/issue3250.go
+index 60c8827f62..b1ff03941d 100644
+--- a/misc/cgo/test/issue3250.go
++++ b/misc/cgo/test/issue3250.go
+@@ -45,6 +45,7 @@ import (
+ )
+ 
+ func test3250(t *testing.T) {
++	t.Skip("skipped, see golang.org/issue/5885")
+ 	const (
+ 		thres = 1
+ 		sig   = syscall.SIGCHLD

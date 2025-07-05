@@ -9,9 +9,85 @@ Date:   Wed May 31 09:02:40 2017 -0700
     Change-Id: I28ecb2d2d857090c1ecc40b1d1866ac24a844848
     Reviewed-on: https://go-review.googlesource.com/44473
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 6 ++----
  src/reflect/value.go                   | 3 +--
  src/runtime/iface.go                   | 4 ++--
  src/runtime/runtime2.go                | 5 ++---
  4 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 4490daba24..1b4198d03d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1459,16 +1459,14 @@ func dumptabs() {
+ 		//   _type  *_type
+ 		//   _      uintptr TODO: remove
+ 		//   hash   uint32
+-		//   bad    bool
+-		//   _      [3]byte
++		//   _      [4]byte
+ 		//   fun    [1]uintptr // variable sized
+ 		// }
+ 		o := dsymptr(i.lsym, 0, dtypesym(i.itype).Linksym(), 0)
+ 		o = dsymptr(i.lsym, o, dtypesym(i.t).Linksym(), 0)
+ 		o = duintptr(i.lsym, o, 0)             // unused
+ 		o = duint32(i.lsym, o, typehash(i.t))  // copy of type hash
+-		o += 1                                 // bad is false
+-		o += 3                                 // skip unused fields
++		o += 4                                 // skip unused field
+ 		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
+ 		// at runtime the itab will contain pointers to types, other itabs and
+ 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 21e0878e80..9cc68d610f 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -184,8 +184,7 @@ type nonEmptyInterface struct {
+ 		typ  *rtype // dynamic concrete type
+ 		_    uintptr
+ 		hash uint32 // copy of typ.hash
+-		bad  bool
+-		_    [3]byte
++		_    [4]byte
+ 		fun  [100000]unsafe.Pointer // method table
+ 	}
+ 	word unsafe.Pointer
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 3aa2fe6fde..bac0b37b3a 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -70,7 +70,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	itabAdd(m)
+ 	unlock(&itabLock)
+ finish:
+-	if !m.bad {
++	if m.fun[0] != 0 {
+ 		return m
+ 	}
+ 	if canfail {
+@@ -219,7 +219,7 @@ imethods:
+ 			}
+ 		}
+ 		// didn't find method
+-		m.bad = true
++		m.fun[0] = 0
+ 		return iname
+ 	}
+ 	return ""
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 456b650f5c..ebcbe65820 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -628,9 +628,8 @@ type itab struct {
+ 	_type *_type
+ 	_     uintptr
+ 	hash  uint32 // copy of _type.hash. Used for type switches.
+-	bad   bool   // type does not implement interface
+-	_     [3]byte
+-	fun   [1]uintptr // variable sized
++	_     [4]byte
++	fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
+ }
+ 
+ // Lock-free stack node.

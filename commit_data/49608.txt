@@ -20,7 +20,7 @@ Date:   Tue Aug 31 16:24:00 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/internal/typeparams/typeparams.go | 23 -----------------------
  src/go/parser/parser.go                  | 12 ++++++++----
  src/go/parser/resolver.go                | 12 ++++--------
@@ -29,3 +29,242 @@ Date:   Tue Aug 31 16:24:00 2021 -0400
  src/go/types/interface.go                |  5 ++---
  src/go/types/signature.go                |  6 +++---
  7 files changed, 24 insertions(+), 50 deletions(-)
+
+diff --git a/src/go/internal/typeparams/typeparams.go b/src/go/internal/typeparams/typeparams.go
+index 3191654d4f..9bf4f7bf97 100644
+--- a/src/go/internal/typeparams/typeparams.go
++++ b/src/go/internal/typeparams/typeparams.go
+@@ -5,7 +5,6 @@
+ package typeparams
+ 
+ import (
+-	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ )
+@@ -54,25 +53,3 @@ func UnpackIndexExpr(n ast.Node) *IndexExpr {
+ 	}
+ 	return nil
+ }
+-
+-func Get(n ast.Node) *ast.FieldList {
+-	switch n := n.(type) {
+-	case *ast.TypeSpec:
+-		return n.TParams
+-	case *ast.FuncType:
+-		return n.TParams
+-	default:
+-		panic(fmt.Sprintf("node type %T has no type parameters", n))
+-	}
+-}
+-
+-func Set(n ast.Node, params *ast.FieldList) {
+-	switch n := n.(type) {
+-	case *ast.TypeSpec:
+-		n.TParams = params
+-	case *ast.FuncType:
+-		n.TParams = params
+-	default:
+-		panic(fmt.Sprintf("node type %T has no type parameters", n))
+-	}
+-}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index bdc2ad308c..5a7becf6da 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -972,8 +972,12 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 				_, params := p.parseParameters(false)
+ 				results := p.parseResult()
+ 				idents = []*ast.Ident{ident}
+-				typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+-				typeparams.Set(typ, tparams)
++				typ = &ast.FuncType{
++					Func:    token.NoPos,
++					TParams: tparams,
++					Params:  params,
++					Results: results,
++				}
+ 			} else {
+ 				// embedded instantiated type
+ 				// TODO(rfindley) should resolve all identifiers in x.
+@@ -2505,7 +2509,7 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword toke
+ func (p *parser) parseGenericType(spec *ast.TypeSpec, openPos token.Pos, name0 *ast.Ident, closeTok token.Token) {
+ 	list := p.parseParameterList(name0, closeTok, p.parseParamDecl, true)
+ 	closePos := p.expect(closeTok)
+-	typeparams.Set(spec, &ast.FieldList{Opening: openPos, List: list, Closing: closePos})
++	spec.TParams = &ast.FieldList{Opening: openPos, List: list, Closing: closePos}
+ 	// Type alias cannot have type parameters. Accept them for robustness but complain.
+ 	if p.tok == token.ASSIGN {
+ 		p.error(p.pos, "generic type cannot be alias")
+@@ -2636,12 +2640,12 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 		Name: ident,
+ 		Type: &ast.FuncType{
+ 			Func:    pos,
++			TParams: tparams,
+ 			Params:  params,
+ 			Results: results,
+ 		},
+ 		Body: body,
+ 	}
+-	typeparams.Set(decl.Type, tparams)
+ 	return decl
+ }
+ 
+diff --git a/src/go/parser/resolver.go b/src/go/parser/resolver.go
+index cf92c7e4f5..cfdb5e1193 100644
+--- a/src/go/parser/resolver.go
++++ b/src/go/parser/resolver.go
+@@ -7,7 +7,6 @@ package parser
+ import (
+ 	"fmt"
+ 	"go/ast"
+-	"go/internal/typeparams"
+ 	"go/token"
+ )
+ 
+@@ -455,10 +454,10 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 				// at the identifier in the TypeSpec and ends at the end of the innermost
+ 				// containing block.
+ 				r.declare(spec, nil, r.topScope, ast.Typ, spec.Name)
+-				if tparams := typeparams.Get(spec); tparams != nil {
++				if spec.TParams != nil {
+ 					r.openScope(spec.Pos())
+ 					defer r.closeScope()
+-					r.walkTParams(tparams)
++					r.walkTParams(spec.TParams)
+ 				}
+ 				ast.Walk(r, spec.Type)
+ 			}
+@@ -474,8 +473,8 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
+ 
+ 		// Type parameters are walked normally: they can reference each other, and
+ 		// can be referenced by normal parameters.
+-		if tparams := typeparams.Get(n.Type); tparams != nil {
+-			r.walkTParams(tparams)
++		if n.Type.TParams != nil {
++			r.walkTParams(n.Type.TParams)
+ 			// TODO(rFindley): need to address receiver type parameters.
+ 		}
+ 
+@@ -539,9 +538,6 @@ func (r *resolver) walkFieldList(list *ast.FieldList, kind ast.ObjKind) {
+ // that they may be resolved in the constraint expressions held in the field
+ // Type.
+ func (r *resolver) walkTParams(list *ast.FieldList) {
+-	if list == nil {
+-		return
+-	}
+ 	r.declareList(list, ast.Typ)
+ 	r.resolveList(list)
+ }
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 239fcbde1c..58887153f2 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -11,7 +11,6 @@ package printer
+ import (
+ 	"bytes"
+ 	"go/ast"
+-	"go/internal/typeparams"
+ 	"go/token"
+ 	"math"
+ 	"strconv"
+@@ -383,8 +382,8 @@ func (p *printer) parameters(fields *ast.FieldList, isTypeParam bool) {
+ }
+ 
+ func (p *printer) signature(sig *ast.FuncType) {
+-	if tparams := typeparams.Get(sig); tparams != nil {
+-		p.parameters(tparams, true)
++	if sig.TParams != nil {
++		p.parameters(sig.TParams, true)
+ 	}
+ 	if sig.Params != nil {
+ 		p.parameters(sig.Params, false)
+@@ -1633,8 +1632,8 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
+ 	case *ast.TypeSpec:
+ 		p.setComment(s.Doc)
+ 		p.expr(s.Name)
+-		if tparams := typeparams.Get(s); tparams != nil {
+-			p.parameters(tparams, true)
++		if s.TParams != nil {
++			p.parameters(s.TParams, true)
+ 		}
+ 		if n == 1 {
+ 			p.print(blank)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 8222cb3fc3..758ebf5d7f 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+-	"go/internal/typeparams"
+ 	"go/token"
+ )
+ 
+@@ -590,7 +589,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	})
+ 
+ 	alias := tdecl.Assign.IsValid()
+-	if alias && typeparams.Get(tdecl) != nil {
++	if alias && tdecl.TParams.NumFields() != 0 {
+ 		// The parser will ensure this but we may still get an invalid AST.
+ 		// Complain and continue as regular type definition.
+ 		check.error(atPos(tdecl.Assign), 0, "generic type cannot be alias")
+@@ -613,10 +612,10 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	named := check.newNamed(obj, nil, nil, nil, nil)
+ 	def.setUnderlying(named)
+ 
+-	if tparams := typeparams.Get(tdecl); tparams != nil {
++	if tdecl.TParams != nil {
+ 		check.openScope(tdecl, "type parameters")
+ 		defer check.closeScope()
+-		named.tparams = check.collectTypeParams(tparams)
++		named.tparams = check.collectTypeParams(tdecl.TParams)
+ 	}
+ 
+ 	// determine underlying type of named
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index e9970ba101..ebd246da98 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -6,7 +6,6 @@ package types
+ 
+ import (
+ 	"go/ast"
+-	"go/internal/typeparams"
+ 	"go/token"
+ )
+ 
+@@ -195,8 +194,8 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		// a receiver specification.)
+ 		if sig.tparams != nil {
+ 			var at positioner = f.Type
+-			if tparams := typeparams.Get(f.Type); tparams != nil {
+-				at = tparams
++			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TParams != nil {
++				at = ftyp.TParams
+ 			}
+ 			check.errorf(at, _Todo, "methods cannot have type parameters")
+ 		}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index d6c12cf3d9..d1d50b38c4 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -156,13 +156,13 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 		}
+ 	}
+ 
+-	if tparams := typeparams.Get(ftyp); tparams != nil {
+-		sig.tparams = check.collectTypeParams(tparams)
++	if ftyp.TParams != nil {
++		sig.tparams = check.collectTypeParams(ftyp.TParams)
+ 		// Always type-check method type parameters but complain that they are not allowed.
+ 		// (A separate check is needed when type-checking interface method signatures because
+ 		// they don't have a receiver specification.)
+ 		if recvPar != nil {
+-			check.errorf(tparams, _Todo, "methods cannot have type parameters")
++			check.errorf(ftyp.TParams, _Todo, "methods cannot have type parameters")
+ 		}
+ 	}
+ 

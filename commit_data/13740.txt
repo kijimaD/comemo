@@ -7,7 +7,57 @@ Date:   Mon Sep 3 03:51:13 2012 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6449127
-
+---
  src/cmd/5l/l.h   |  1 +
  src/cmd/5l/obj.c | 12 +++++++++++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index e6f2ec3d98..ee2794ae00 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -307,6 +307,7 @@ EXTERN	Prog	zprg;
+ EXTERN	int	dtype;
+ EXTERN	int	tlsoffset;
+ EXTERN	int	armsize;
++EXTERN	int	goarm;
+ 
+ extern	char*	anames[];
+ extern	Optab	optab[];
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 05967ac9c0..0e738394c8 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -76,6 +76,7 @@ main(int argc, char *argv[])
+ {
+ 	int c;
+ 	char *p, *name, *val;
++	Sym *s;
+ 
+ 	Binit(&bso, 1, OWRITE);
+ 	listinit();
+@@ -89,7 +90,11 @@ main(int argc, char *argv[])
+ 	nuxiinit();
+ 	
+ 	p = getenv("GOARM");
+-	if(p != nil && strcmp(p, "5") == 0)
++	if(p != nil)
++		goarm = atoi(p);
++	else
++		goarm = 7;
++	if(goarm == 5)
+ 		debug['F'] = 1;
+ 
+ 	ARGBEGIN {
+@@ -243,6 +248,11 @@ main(int argc, char *argv[])
+ 	cbp = buf.cbuf;
+ 	cbc = sizeof(buf.cbuf);
+ 
++	// embed goarm to runtime.goarm
++	s = lookup("runtime.goarm", 0);
++	s->dupok = 1;
++	adduint8(s, goarm);
++
+ 	addlibpath("command line", "command line", argv[0], "main");
+ 	loadlib();
+ 

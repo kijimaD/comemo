@@ -14,10 +14,83 @@ Date:   Tue Jun 16 10:03:48 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Akhil Indurti <aindurti@gmail.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                                   | 2 +-
  src/cmd/go.sum                                                   | 4 ++--
  src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go             | 9 +++++++++
  .../x/tools/go/analysis/passes/stringintconv/string.go           | 2 +-
  src/cmd/vendor/modules.txt                                       | 2 +-
  5 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c25ae383f7..48cfa67e0b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,5 +9,5 @@ require (
+ 	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
+ 	golang.org/x/mod v0.3.0
+ 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect
+-	golang.org/x/tools v0.0.0-20200601175630-2caf76543d99
++	golang.org/x/tools v0.0.0-20200616133436-c1934b75d054
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 067315ad54..9f4ec07577 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -28,8 +28,8 @@ golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 h1:5B6i6EAiSYyejWfvc5Rc9BbI3
+ golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.0.0-20200601175630-2caf76543d99 h1:deddXmhOJb/bvD/4M/j2AUMrhHeh6GkqykJSCWyTNVk=
+-golang.org/x/tools v0.0.0-20200601175630-2caf76543d99/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
++golang.org/x/tools v0.0.0-20200616133436-c1934b75d054 h1:HHeAlu5H9b71C+Fx0K+1dGgVFN1DM1/wz4aoGOA5qS8=
++golang.org/x/tools v0.0.0-20200616133436-c1934b75d054/go.mod h1:EkVYQZoAsY45+roYkvgYkIh4xh/qjgUK9TdY2XT94GE=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index ea56b724e8..fb17a0e415 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -170,6 +170,15 @@ Diagnostic is defined as:
+ The optional Category field is a short identifier that classifies the
+ kind of message when an analysis produces several kinds of diagnostic.
+ 
++Many analyses want to associate diagnostics with a severity level.
++Because Diagnostic does not have a severity level field, an Analyzer's
++diagnostics effectively all have the same severity level. To separate which
++diagnostics are high severity and which are low severity, expose multiple
++Analyzers instead. Analyzers should also be separated when their
++diagnostics belong in different groups, or could be tagged differently
++before being shown to the end user. Analyzers should document their severity
++level to help downstream tools surface diagnostics properly.
++
+ Most Analyzers inspect typed Go syntax trees, but a few, such as asmdecl
+ and buildtag, inspect the raw text of Go source files or even non-Go
+ files such as assembly. To report a diagnostic against a line of a
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+index ac2cd84ad3..7a005901e8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stringintconv/string.go
+@@ -101,7 +101,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		}
+ 		diag := analysis.Diagnostic{
+ 			Pos:     n.Pos(),
+-			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune", source, target),
++			Message: fmt.Sprintf("conversion from %s to %s yields a string of one rune, not a string of digits (did you mean fmt.Sprint(x)?)", source, target),
+ 			SuggestedFixes: []analysis.SuggestedFix{
+ 				{
+ 					Message: "Did you mean to convert a rune to a string?",
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 334aef0462..3f5ea193b7 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/mod/zip
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20200601175630-2caf76543d99
++# golang.org/x/tools v0.0.0-20200616133436-c1934b75d054
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags

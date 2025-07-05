@@ -27,10 +27,157 @@ Date:   Mon Dec 21 18:06:35 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go                  |  6 +++---
  src/cmd/go/internal/modload/import_test.go             | 13 +++++++++----
  src/cmd/go/internal/modload/init.go                    | 16 ++++++++--------
  src/cmd/go/internal/modload/modfile.go                 |  2 +-
  src/cmd/go/testdata/script/mod_install_pkg_version.txt |  5 +++++
  5 files changed, 26 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index ce5671728e..c16531e2f4 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -58,7 +58,7 @@ func (e *ImportMissingError) Error() string {
+ 		if e.QueryErr != nil {
+ 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
+ 		}
+-		if cfg.BuildMod == "mod" {
++		if cfg.BuildMod == "mod" || (cfg.BuildMod == "readonly" && allowMissingModuleImports) {
+ 			return "cannot find module providing package " + e.Path
+ 		}
+ 
+@@ -365,7 +365,7 @@ func queryImport(ctx context.Context, path string) (module.Version, error) {
+ 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
+ 	}
+ 
+-	if cfg.BuildMod == "readonly" {
++	if cfg.BuildMod == "readonly" && !allowMissingModuleImports {
+ 		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
+ 		// the module. If readonly mode was enabled explicitly, include that in
+ 		// the error message.
+@@ -547,7 +547,7 @@ func fetch(ctx context.Context, mod module.Version, needSum bool) (dir string, i
+ 		mod = r
+ 	}
+ 
+-	if cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
++	if HasModRoot() && cfg.BuildMod == "readonly" && needSum && !modfetch.HaveSum(mod) {
+ 		return "", false, module.VersionError(mod, &sumMissingError{})
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index 22d5b82e21..9420dc5646 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -58,10 +58,15 @@ var importTests = []struct {
+ func TestQueryImport(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
+-	defer func(old bool) {
+-		allowMissingModuleImports = old
+-	}(allowMissingModuleImports)
+-	AllowMissingModuleImports()
++
++	oldAllowMissingModuleImports := allowMissingModuleImports
++	oldRootMode := RootMode
++	defer func() {
++		allowMissingModuleImports = oldAllowMissingModuleImports
++		RootMode = oldRootMode
++	}()
++	allowMissingModuleImports = true
++	RootMode = NoRoot
+ 
+ 	ctx := context.Background()
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 445ebb262f..b0acb7b25d 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -202,6 +202,8 @@ func Init() {
+ 	}
+ 
+ 	// We're in module mode. Set any global variables that need to be set.
++	cfg.ModulesEnabled = true
++	setDefaultBuildMod()
+ 	list := filepath.SplitList(cfg.BuildContext.GOPATH)
+ 	if len(list) == 0 || list[0] == "" {
+ 		base.Fatalf("missing $GOPATH")
+@@ -211,8 +213,6 @@ func Init() {
+ 		base.Fatalf("$GOPATH/go.mod exists but should not")
+ 	}
+ 
+-	cfg.ModulesEnabled = true
+-
+ 	if modRoot == "" {
+ 		// We're in module mode, but not inside a module.
+ 		//
+@@ -348,8 +348,8 @@ func die() {
+ // ensuring requirements are consistent. WriteGoMod should be called later to
+ // write changes out to disk or report errors in readonly mode.
+ //
+-// As a side-effect, LoadModFile sets a default for cfg.BuildMod if it does not
+-// already have an explicit value.
++// As a side-effect, LoadModFile may change cfg.BuildMod to "vendor" if
++// -mod wasn't set explicitly and automatic vendoring should be enabled.
+ func LoadModFile(ctx context.Context) {
+ 	if len(buildList) > 0 {
+ 		return
+@@ -387,7 +387,7 @@ func LoadModFile(ctx context.Context) {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	setDefaultBuildMod()
++	setDefaultBuildMod() // possibly enable automatic vendoring
+ 	modFileToBuildList()
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList()
+@@ -586,8 +586,8 @@ func modFileToBuildList() {
+ 	buildList = list
+ }
+ 
+-// setDefaultBuildMod sets a default value for cfg.BuildMod
+-// if it is currently empty.
++// setDefaultBuildMod sets a default value for cfg.BuildMod if the -mod flag
++// wasn't provided. setDefaultBuildMod may be called multiple times.
+ func setDefaultBuildMod() {
+ 	if cfg.BuildModExplicit {
+ 		// Don't override an explicit '-mod=' argument.
+@@ -608,7 +608,7 @@ func setDefaultBuildMod() {
+ 
+ 	if fi, err := fsys.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+ 		modGo := "unspecified"
+-		if index.goVersionV != "" {
++		if index != nil && index.goVersionV != "" {
+ 			if semver.Compare(index.goVersionV, "v1.14") >= 0 {
+ 				// The Go version is at least 1.14, and a vendor directory exists.
+ 				// Set -mod=vendor by default.
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index eb05e9f9c9..d5a17236cd 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -446,7 +446,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 	if actual.Path == "" {
+ 		actual = m
+ 	}
+-	if cfg.BuildMod == "readonly" && actual.Version != "" {
++	if HasModRoot() && cfg.BuildMod == "readonly" && actual.Version != "" {
+ 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
+ 		if !modfetch.HaveSum(key) {
+ 			suggestion := fmt.Sprintf("; try 'go mod download %s' to add it", m.Path)
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index e4a7668351..93896d4593 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -175,6 +175,11 @@ stdout '^\tmod\texample.com/cmd\tv1.0.0\t'
+ go install example.com/cmd/a@v1.9.0
+ go version -m $GOPATH/bin/a$GOEXE
+ stdout '^\tmod\texample.com/cmd\tv1.9.0\t'
++env GO111MODULE=
++
++# 'go install pkg@version' succeeds when -mod=readonly is set explicitly.
++# Verifies #43278.
++go install -mod=readonly example.com/cmd/a@v1.0.0
+ 
+ -- m/go.mod --
+ module m

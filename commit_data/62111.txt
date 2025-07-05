@@ -34,6 +34,25 @@ Date:   Tue Feb 4 11:56:38 2025 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/internal/vcweb/vcstest/vcstest_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go b/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go
+index 4a6d60039e..df707d529e 100644
+--- a/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go
++++ b/src/cmd/go/internal/vcweb/vcstest/vcstest_test.go
+@@ -158,6 +158,13 @@ func TestScripts(t *testing.T) {
+ 				if notInstalled := (vcweb.ServerNotInstalledError{}); errors.As(err, &notInstalled) || errors.Is(err, exec.ErrNotFound) {
+ 					t.Skip(err)
+ 				}
++
++				// For issue #71504 ignore an error about
++				// bzr not being able to find dependencies.
++				if strings.Contains(buf.String(), "brz: ERROR: Couldn't import breezy and dependencies.") {
++					t.Skip("skipping test due to bzr installation problem")
++				}
++
+ 				t.Error(err)
+ 			}
+ 		})

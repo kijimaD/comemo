@@ -11,7 +11,30 @@ Date:   Wed Oct 31 07:36:42 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/imports/build.go | 2 +-
  src/go/build/syslist.go              | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index a67d2ebaae..ddf425b020 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -207,5 +207,5 @@ func init() {
+ 	}
+ }
+ 
+-const goosList = "aix android darwin dragonfly freebsd js linux nacl netbsd openbsd plan9 solaris windows zos "
++const goosList = "aix android darwin dragonfly freebsd hurd js linux nacl netbsd openbsd plan9 solaris windows zos "
+ const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 597212b6d0..d13fe9c4f9 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -4,5 +4,5 @@
+ 
+ package build
+ 
+-const goosList = "aix android darwin dragonfly freebsd js linux nacl netbsd openbsd plan9 solaris windows zos "
++const goosList = "aix android darwin dragonfly freebsd hurd js linux nacl netbsd openbsd plan9 solaris windows zos "
+ const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "

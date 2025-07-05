@@ -12,6 +12,24 @@ Date:   Tue Dec 14 16:09:36 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.18.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 59a307a438..9cb3cae20d 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -97,6 +97,12 @@ Do not send CLs removing the interior tags from such phrases.
+       The Go compiler cannot currently handle type declarations inside generic functions
+       or methods. We hope to provide support for this feature in Go 1.19.
+     </li>
++    <li><!-- https://golang.org/issue/49030 -->
++      Embedding a type parameter, or a pointer to a type parameter, as
++      an unnamed field in a struct type is not permitted. Similarly
++      embedding a type parameter in an interface type is not permitted.
++      Whether these will ever be permitted is unclear at present.
++    </li>
+   </ul>
+ </p>
+ 

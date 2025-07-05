@@ -21,6 +21,22 @@ Date:   Thu Dec 9 16:09:24 2021 -0600
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/runtime-gdb_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index bb76116ee9..063b9a7d45 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -500,6 +500,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 	args := []string{"-nx", "-batch",
+ 		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
+ 		"-ex", "set startup-with-shell off",
++		// Some gdb may set scheduling-locking as "step" by default. This prevents background tasks
++		// (e.g GC) from completing which may result in a hang when executing the step command.
++		// See #49852.
++		"-ex", "set scheduler-locking off",
+ 		"-ex", "break main.main",
+ 		"-ex", "run",
+ 		"-ex", "step",

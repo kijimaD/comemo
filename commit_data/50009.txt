@@ -20,8 +20,116 @@ Date:   Fri Sep 24 14:55:06 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/link/internal/ld/pcln.go              | 30 +++++++++++++++++++++++++--
  src/cmd/link/internal/loader/loader.go        | 16 --------------
  src/cmd/link/internal/loader/symbolbuilder.go | 10 +++++++++
  3 files changed, 38 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 3abbf05c54..56c4fe0b46 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -14,6 +14,7 @@ import (
+ 	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ )
+ 
+ // pclntab holds the state needed for pclntab generation.
+@@ -286,11 +287,35 @@ func walkFuncs(ctxt *Link, funcs []loader.Sym, f func(loader.Sym)) {
+ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[loader.Sym]uint32 {
+ 	nameOffsets := make(map[loader.Sym]uint32, state.nfunc)
+ 
++	// The name used by the runtime is the concatenation of the 3 returned strings.
++	// For regular functions, only one returned string is nonempty.
++	// For generic functions, we use three parts so that we can print everything
++	// within the outermost "[]" as "...".
++	nameParts := func(name string) (string, string, string) {
++		i := strings.IndexByte(name, '[')
++		if i < 0 {
++			return name, "", ""
++		}
++		// TODO: use LastIndexByte once the bootstrap compiler is >= Go 1.5.
++		j := len(name) - 1
++		for j > i && name[j] != ']' {
++			j--
++		}
++		if j <= i {
++			return name, "", ""
++		}
++		return name[:i], "[...]", name[j+1:]
++	}
++
+ 	// Write the null terminated strings.
+ 	writeFuncNameTab := func(ctxt *Link, s loader.Sym) {
+ 		symtab := ctxt.loader.MakeSymbolUpdater(s)
+ 		for s, off := range nameOffsets {
+-			symtab.AddStringAt(int64(off), ctxt.loader.SymName(s))
++			a, b, c := nameParts(ctxt.loader.SymName(s))
++			o := int64(off)
++			o = symtab.AddStringAt(o, a)
++			o = symtab.AddStringAt(o, b)
++			_ = symtab.AddCStringAt(o, c)
+ 		}
+ 	}
+ 
+@@ -298,7 +323,8 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
+ 	var size int64
+ 	walkFuncs(ctxt, funcs, func(s loader.Sym) {
+ 		nameOffsets[s] = uint32(size)
+-		size += int64(ctxt.loader.SymNameLen(s)) + 1 // NULL terminate
++		a, b, c := nameParts(ctxt.loader.SymName(s))
++		size += int64(len(a) + len(b) + len(c) + 1) // NULL terminate
+ 	})
+ 
+ 	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index dcc33b966b..4bf5475a32 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -752,22 +752,6 @@ func (l *Loader) NReachableSym() int {
+ 	return l.attrReachable.Count()
+ }
+ 
+-// SymNameLen returns the length of the symbol name, trying hard not to load
+-// the name.
+-func (l *Loader) SymNameLen(i Sym) int {
+-	// Not much we can do about external symbols.
+-	if l.IsExternal(i) {
+-		return len(l.SymName(i))
+-	}
+-	r, li := l.toLocal(i)
+-	le := r.Sym(li).NameLen(r.Reader)
+-	if !r.NeedNameExpansion() {
+-		return le
+-	}
+-	// Just load the symbol name. We don't know how expanded it'll be.
+-	return len(l.SymName(i))
+-}
+-
+ // Returns the raw (unpatched) name of the i-th symbol.
+ func (l *Loader) RawSymName(i Sym) string {
+ 	if l.IsExternal(i) {
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 204d04412d..558c0a7dff 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -308,6 +308,16 @@ func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
+ }
+ 
+ func (sb *SymbolBuilder) AddStringAt(off int64, str string) int64 {
++	strLen := int64(len(str))
++	if off+strLen > int64(len(sb.data)) {
++		panic("attempt to write past end of buffer")
++	}
++	copy(sb.data[off:off+strLen], str)
++	return off + strLen
++}
++
++// AddCStringAt adds str plus a null terminating byte.
++func (sb *SymbolBuilder) AddCStringAt(off int64, str string) int64 {
+ 	strLen := int64(len(str))
+ 	if off+strLen+1 > int64(len(sb.data)) {
+ 		panic("attempt to write past end of buffer")

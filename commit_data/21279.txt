@@ -7,6 +7,38 @@ Date:   Thu Dec 18 12:55:22 2014 +1100
     Change-Id: Ib31fb1f8239d8113728bc4c6e411416721571341
     Reviewed-on: https://go-review.googlesource.com/1743
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 883196a0ba..a50dd85c42 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -139,7 +139,7 @@ Make sure <code>git-codereview</code> is installed in your shell path, so that t
+ </p>
+ 
+ <pre>
+-$ git review help
++$ git codereview help
+ </pre>
+ 
+ <p>
+@@ -165,7 +165,7 @@ by typing, for instance,
+ </p>
+ 
+ <pre>
+-$ git review sync
++$ git codereview sync
+ </pre>
+ 
+ <p>
+@@ -204,7 +204,7 @@ To install them, copy this text into your Git configuration file
+ <p>After installing the <code>git-codereview</code> command, you can run</p>
+ 
+ <pre>
+-$ git review help
++$ git codereview help
+ </pre>
+ 
+ <p>

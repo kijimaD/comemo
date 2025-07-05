@@ -8,7 +8,7 @@ Date:   Mon Feb 7 14:34:21 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4127051
-
+---
  src/cmd/5l/asm.c    | 21 ---------------------
  src/cmd/5l/l.h      |  1 +
  src/cmd/6l/asm.c    | 46 ----------------------------------------------
@@ -17,3 +17,245 @@ Date:   Mon Feb 7 14:34:21 2011 -0800
  src/cmd/ld/lib.c    |  3 +--
  src/cmd/ld/symtab.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
  7 files changed, 49 insertions(+), 108 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 34565629f6..de6b89cfe8 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -637,13 +637,6 @@ wput(int32 l)
+ 		cflush();
+ }
+ 
+-void
+-wputl(ushort w)
+-{
+-	cput(w);
+-	cput(w>>8);
+-}
+-
+ 
+ void
+ hput(int32 l)
+@@ -671,20 +664,6 @@ lput(int32 l)
+ 		cflush();
+ }
+ 
+-void
+-lputl(int32 l)
+-{
+-
+-	cbp[3] = l>>24;
+-	cbp[2] = l>>16;
+-	cbp[1] = l>>8;
+-	cbp[0] = l;
+-	cbp += 4;
+-	cbc -= 4;
+-	if(cbc <= 0)
+-		cflush();
+-}
+-
+ void
+ cflush(void)
+ {
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index c310284169..e42be4e98f 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -410,6 +410,7 @@ Sym*	lookup(char*, int);
+ void	cput(int);
+ void	hput(int32);
+ void	lput(int32);
++void	lputb(int32);
+ void	lputl(int32);
+ void*	mysbrk(uint32);
+ void	names(void);
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d6ffa4ff9d..d179e77b1e 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -63,52 +63,6 @@ entryvalue(void)
+ 	return s->value;
+ }
+ 
+-void
+-wputl(uint16 w)
+-{
+-	cput(w);
+-	cput(w>>8);
+-}
+-
+-void
+-wputb(uint16 w)
+-{
+-	cput(w>>8);
+-	cput(w);
+-}
+-
+-void
+-lputb(int32 l)
+-{
+-	cput(l>>24);
+-	cput(l>>16);
+-	cput(l>>8);
+-	cput(l);
+-}
+-
+-void
+-vputb(uint64 v)
+-{
+-	lputb(v>>32);
+-	lputb(v);
+-}
+-
+-void
+-lputl(int32 l)
+-{
+-	cput(l);
+-	cput(l>>8);
+-	cput(l>>16);
+-	cput(l>>24);
+-}
+-
+-void
+-vputl(uint64 v)
+-{
+-	lputl(v);
+-	lputl(v>>32);
+-}
+-
+ vlong
+ datoff(vlong addr)
+ {
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 7f22493e0c..70473ecd27 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -429,6 +429,7 @@ vlong	rnd(vlong, vlong);
+ void	span(void);
+ void	undef(void);
+ vlong	symaddr(Sym*);
++void	vputb(uint64);
+ void	vputl(uint64);
+ void	wputb(uint16);
+ void	wputl(uint16);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 1518dc5dbf..d90eab7e7d 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -59,45 +59,6 @@ entryvalue(void)
+ 	return s->value;
+ }
+ 
+-void
+-wputl(ushort w)
+-{
+-	cput(w);
+-	cput(w>>8);
+-}
+-
+-void
+-wputb(ushort w)
+-{
+-	cput(w>>8);
+-	cput(w);
+-}
+-
+-void
+-lputb(int32 l)
+-{
+-	cput(l>>24);
+-	cput(l>>16);
+-	cput(l>>8);
+-	cput(l);
+-}
+-
+-void
+-lputl(int32 l)
+-{
+-	cput(l);
+-	cput(l>>8);
+-	cput(l>>16);
+-	cput(l>>24);
+-}
+-
+-void
+-vputl(uvlong l)
+-{
+-	lputl(l >> 32);
+-	lputl(l);
+-}
+-
+ vlong
+ datoff(vlong addr)
+ {
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 0c9ea0b7c9..c144d4295d 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -378,8 +378,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, int whence)
+ 	int n, c1, c2, c3, c4;
+ 	uint32 magic;
+ 	vlong import0, import1, eof;
+-	char *fld[10], *s, *t;
+-	int nfld;
++	char *t;
+ 
+ 	eof = Boffset(f) + len;
+ 
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index eba0589c2a..413e6397c0 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -220,6 +220,52 @@ slputb(int32 v)
+ 	symt->size += 4;
+ }
+ 
++void
++wputl(ushort w)
++{
++	cput(w);
++	cput(w>>8);
++}
++
++void
++wputb(ushort w)
++{
++	cput(w>>8);
++	cput(w);
++}
++
++void
++lputb(int32 l)
++{
++	cput(l>>24);
++	cput(l>>16);
++	cput(l>>8);
++	cput(l);
++}
++
++void
++lputl(int32 l)
++{
++	cput(l);
++	cput(l>>8);
++	cput(l>>16);
++	cput(l>>24);
++}
++
++void
++vputb(uint64 v)
++{
++	lputb(v>>32);
++	lputb(v);
++}
++
++void
++vputl(uvlong v)
++{
++	lputl(v);
++	lputl(v >> 32);
++}
++
+ void
+ putsymb(Sym *s, char *name, int t, vlong v, vlong size, int ver, Sym *typ)
+ {

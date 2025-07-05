@@ -13,7 +13,43 @@ Date:   Sun Feb 23 08:04:13 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/time/format.go      |  2 +-
  src/time/format_test.go | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 9beb5d9a48..899b6a40b0 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -1112,7 +1112,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
+ 		}
+ 		if m == 0 {
+-			m = yday/31 + 1
++			m = (yday-1)/31 + 1
+ 			if int(daysBefore[m]) < yday {
+ 				m++
+ 			}
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 34990cdbc3..a030242e6a 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -756,3 +756,17 @@ func TestParseMonthOutOfRange(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Issue 37387.
++func TestParseYday(t *testing.T) {
++	t.Parallel()
++	for i := 1; i <= 365; i++ {
++		d := fmt.Sprintf("2020-%03d", i)
++		tm, err := Parse("2006-002", d)
++		if err != nil {
++			t.Errorf("unexpected error for %s: %v", d, err)
++		} else if tm.Year() != 2020 || tm.YearDay() != i {
++			t.Errorf("got year %d yearday %d, want %d %d", tm.Year(), tm.YearDay(), 2020, i)
++		}
++	}
++}

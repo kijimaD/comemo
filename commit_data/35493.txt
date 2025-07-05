@@ -21,7 +21,7 @@ Date:   Mon Dec 18 20:35:34 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/cgocall.go  | 12 +-----------
  src/runtime/heapdump.go | 13 +++++++++++--
  src/runtime/malloc.go   |  2 +-
@@ -30,3 +30,213 @@ Date:   Mon Dec 18 20:35:34 2017 -0800
  src/runtime/mgcmark.go  | 39 ++++++++++++++-------------------------
  src/runtime/mwbbuf.go   |  3 +--
  7 files changed, 29 insertions(+), 54 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 8e4b0dea65..a06bed20f5 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -572,17 +572,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
+ // pointer into Go memory. If it does, we panic.
+ // The return values are unused but useful to see in panic tracebacks.
+ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+-	if cgoInRange(p, mheap_.arena_start, mheap_.arena_used) {
+-		if !inheap(uintptr(p)) {
+-			// On 32-bit systems it is possible for C's allocated memory
+-			// to have addresses between arena_start and arena_used.
+-			// Either this pointer is a stack or an unused span or it's
+-			// a C allocation. Escape analysis should prevent the first,
+-			// garbage collection should prevent the second,
+-			// and the third is completely OK.
+-			return
+-		}
+-
++	if inheap(uintptr(p)) {
+ 		b, span, _ := findObject(uintptr(p), 0, 0)
+ 		base = b
+ 		if base == 0 {
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 2b51758ae1..8854a5b634 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -488,8 +488,17 @@ func dumpparams() {
+ 		dumpbool(true) // big-endian ptrs
+ 	}
+ 	dumpint(sys.PtrSize)
+-	dumpint(uint64(mheap_.arena_start))
+-	dumpint(uint64(mheap_.arena_used))
++	var arenaStart, arenaEnd uintptr
++	for i, ha := range mheap_.arenas {
++		if ha != nil {
++			if arenaStart == 0 {
++				arenaStart = uintptr(i) * heapArenaBytes
++			}
++			arenaEnd = uintptr(i+1) * heapArenaBytes
++		}
++	}
++	dumpint(uint64(arenaStart))
++	dumpint(uint64(arenaEnd))
+ 	dumpstr(sys.GOARCH)
+ 	dumpstr(sys.Goexperiment)
+ 	dumpint(uint64(ncpu))
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 5584d7ddef..a95a7fffde 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -862,7 +862,7 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+ 		throw("out of memory")
+ 	}
+ 	s.limit = s.base() + size
+-	heapBitsForSpan(s.base()).initSpan(s)
++	heapBitsForAddr(s.base()).initSpan(s)
+ 	return s
+ }
+ 
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 5e109f5906..0027bc9c05 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -308,9 +308,6 @@ func (m markBits) clearMarked() {
+ 
+ // markBitsForSpan returns the markBits for the span base address base.
+ func markBitsForSpan(base uintptr) (mbits markBits) {
+-	if base < mheap_.arena_start || base >= mheap_.arena_used {
+-		throw("markBitsForSpan: base out of range")
+-	}
+ 	mbits = markBitsForAddr(base)
+ 	if mbits.mask != 1 {
+ 		throw("markBitsForSpan: unaligned start")
+@@ -352,15 +349,6 @@ func heapBitsForAddr(addr uintptr) heapBits {
+ 	return heapBits{bitp, uint32(off & 3), uint32(arena), last}
+ }
+ 
+-// heapBitsForSpan returns the heapBits for the span base address base.
+-func heapBitsForSpan(base uintptr) (hbits heapBits) {
+-	if base < mheap_.arena_start || base >= mheap_.arena_used {
+-		print("runtime: base ", hex(base), " not in range [", hex(mheap_.arena_start), ",", hex(mheap_.arena_used), ")\n")
+-		throw("heapBitsForSpan: base out of range")
+-	}
+-	return heapBitsForAddr(base)
+-}
+-
+ // findObject returns the base address for the heap object containing
+ // the address p, the object's span, and the index of the object in s.
+ // If p does not point into a heap object, it returns base == 0.
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index eaabcb9c29..c1e0b472bc 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -237,6 +237,6 @@ func (c *mcentral) grow() *mspan {
+ 	p := s.base()
+ 	s.limit = p + size*n
+ 
+-	heapBitsForSpan(s.base()).initSpan(s)
++	heapBitsForAddr(s.base()).initSpan(s)
+ 	return s
+ }
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 29514d948f..46c92d1983 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1085,9 +1085,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	b := b0
+ 	n := n0
+ 
+-	arena_start := mheap_.arena_start
+-	arena_used := mheap_.arena_used
+-
+ 	for i := uintptr(0); i < n; {
+ 		// Find bits for the next word.
+ 		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
+@@ -1099,7 +1096,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 			if bits&1 != 0 {
+ 				// Same work as in scanobject; see comments there.
+ 				obj := *(*uintptr)(unsafe.Pointer(b + i))
+-				if obj != 0 && arena_start <= obj && obj < arena_used {
++				if obj != 0 {
+ 					if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
+ 						greyobject(obj, b, i, span, gcw, objIndex)
+ 					}
+@@ -1118,18 +1115,6 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ //
+ //go:nowritebarrier
+ func scanobject(b uintptr, gcw *gcWork) {
+-	// Note that arena_used may change concurrently during
+-	// scanobject and hence scanobject may encounter a pointer to
+-	// a newly allocated heap object that is *not* in
+-	// [start,used). It will not mark this object; however, we
+-	// know that it was just installed by a mutator, which means
+-	// that mutator will execute a write barrier and take care of
+-	// marking it. This is even more pronounced on relaxed memory
+-	// architectures since we access arena_used without barriers
+-	// or synchronization, but the same logic applies.
+-	arena_start := mheap_.arena_start
+-	arena_used := mheap_.arena_used
+-
+ 	// Find the bits for b and the size of the object at b.
+ 	//
+ 	// b is either the beginning of an object, in which case this
+@@ -1203,9 +1188,17 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 		obj := *(*uintptr)(unsafe.Pointer(b + i))
+ 
+ 		// At this point we have extracted the next potential pointer.
+-		// Check if it points into heap and not back at the current object.
+-		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
+-			// Mark the object.
++		// Quickly filter out nil and pointers back to the current object.
++		if obj != 0 && obj-b >= n {
++			// Test if obj points into the Go heap and, if so,
++			// mark the object.
++			//
++			// Note that it's possible for findObject to
++			// fail if obj points to a just-allocated heap
++			// object because of a race with growing the
++			// heap. In this case, we know the object was
++			// just allocated and hence will be marked by
++			// allocation itself.
+ 			if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
+ 				greyobject(obj, b, i, span, gcw, objIndex)
+ 			}
+@@ -1305,10 +1298,6 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
+ // gcDumpObject dumps the contents of obj for debugging and marks the
+ // field at byte offset off in obj.
+ func gcDumpObject(label string, obj, off uintptr) {
+-	if obj < mheap_.arena_start || obj >= mheap_.arena_used {
+-		print(label, "=", hex(obj), " is not in the Go heap\n")
+-		return
+-	}
+ 	s := spanOf(obj)
+ 	print(label, "=", hex(obj))
+ 	if s == nil {
+@@ -1421,7 +1410,7 @@ func initCheckmarks() {
+ 	useCheckmark = true
+ 	for _, s := range mheap_.allspans {
+ 		if s.state == _MSpanInUse {
+-			heapBitsForSpan(s.base()).initCheckmarkSpan(s.layout())
++			heapBitsForAddr(s.base()).initCheckmarkSpan(s.layout())
+ 		}
+ 	}
+ }
+@@ -1430,7 +1419,7 @@ func clearCheckmarks() {
+ 	useCheckmark = false
+ 	for _, s := range mheap_.allspans {
+ 		if s.state == _MSpanInUse {
+-			heapBitsForSpan(s.base()).clearCheckmarkSpan(s.layout())
++			heapBitsForAddr(s.base()).clearCheckmarkSpan(s.layout())
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index 13b161ebde..c02ccd8ab7 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -232,9 +232,8 @@ func wbBufFlush1(_p_ *p) {
+ 	// un-shaded stacks and flush after each stack scan.
+ 	gcw := &_p_.gcw
+ 	pos := 0
+-	arenaStart := mheap_.arena_start
+ 	for _, ptr := range ptrs {
+-		if ptr < arenaStart {
++		if ptr < minLegalPointer {
+ 			// nil pointers are very common, especially
+ 			// for the "old" values. Filter out these and
+ 			// other "obvious" non-heap pointers ASAP.

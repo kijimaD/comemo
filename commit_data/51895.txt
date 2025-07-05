@@ -13,6 +13,29 @@ Date:   Mon Mar 21 15:15:40 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/loader/loader.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 34c1c6a4c8..dfaad10143 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -75,8 +75,7 @@ func (a Aux) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
+ type oReader struct {
+ 	*goobj.Reader
+ 	unit         *sym.CompilationUnit
+-	version      int    // version of static symbol
+-	flags        uint32 // read from object file
++	version      int // version of static symbol
+ 	pkgprefix    string
+ 	syms         []Sym    // Sym's global index, indexed by local index
+ 	pkg          []uint32 // indices of referenced package by PkgIdx (index into loader.objs array)
+@@ -2076,7 +2075,6 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
+ 		Reader:       r,
+ 		unit:         unit,
+ 		version:      localSymVersion,
+-		flags:        r.Flags(),
+ 		pkgprefix:    pkgprefix,
+ 		syms:         make([]Sym, ndef+nhashed64def+nhasheddef+r.NNonpkgdef()+r.NNonpkgref()),
+ 		ndef:         ndef,

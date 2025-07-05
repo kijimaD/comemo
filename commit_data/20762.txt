@@ -10,7 +10,46 @@ Date:   Tue Oct 7 10:56:58 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/148650043
-
+---
  src/math/big/int.go | 4 ++--
  src/math/big/rat.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 3998652e93..fc53719d71 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -1016,12 +1016,12 @@ func (z *Int) UnmarshalJSON(text []byte) error {
+ 	return nil
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface
++// MarshalText implements the encoding.TextMarshaler interface.
+ func (z *Int) MarshalText() (text []byte, err error) {
+ 	return []byte(z.String()), nil
+ }
+ 
+-// UnmarshalText implements the encoding.TextUnmarshaler interface
++// UnmarshalText implements the encoding.TextUnmarshaler interface.
+ func (z *Int) UnmarshalText(text []byte) error {
+ 	if _, ok := z.SetString(string(text), 0); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index e6ab0bb483..0bcec30252 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -699,12 +699,12 @@ func (z *Rat) GobDecode(buf []byte) error {
+ 	return nil
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface
++// MarshalText implements the encoding.TextMarshaler interface.
+ func (r *Rat) MarshalText() (text []byte, err error) {
+ 	return []byte(r.RatString()), nil
+ }
+ 
+-// UnmarshalText implements the encoding.TextUnmarshaler interface
++// UnmarshalText implements the encoding.TextUnmarshaler interface.
+ func (r *Rat) UnmarshalText(text []byte) error {
+ 	if _, ok := r.SetString(string(text)); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)

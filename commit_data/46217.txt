@@ -15,6 +15,20 @@ Date:   Mon Dec 14 19:18:20 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue19028.dir/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue19028.dir/main.go b/test/fixedbugs/issue19028.dir/main.go
+index 627e926f93..e2ee7b8ca1 100644
+--- a/test/fixedbugs/issue19028.dir/main.go
++++ b/test/fixedbugs/issue19028.dir/main.go
+@@ -6,7 +6,7 @@ package main
+ 
+ import (
+         "reflect"
+-        fake "./reflect" // 2nd package with name "reflect"
++        fake "./a" // 2nd package with name "reflect"
+ )
+ 
+ type T struct {

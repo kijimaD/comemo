@@ -28,10 +28,317 @@ Date:   Thu Nov 2 11:25:07 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/539319
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/check_reassign_no.go   |   9 +
  src/cmd/compile/internal/ir/check_reassign_yes.go  |   9 +
  src/cmd/compile/internal/ir/expr.go                |   2 +
  .../internal/ir/reassign_consistency_check.go      |  46 +++++
  src/cmd/compile/internal/ir/reassignment.go        | 205 +++++++++++++++++++++
  5 files changed, 271 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ir/check_reassign_no.go b/src/cmd/compile/internal/ir/check_reassign_no.go
+new file mode 100644
+index 0000000000..8290a7da7e
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/check_reassign_no.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !checknewoldreassignment
++
++package ir
++
++const consistencyCheckEnabled = false
+diff --git a/src/cmd/compile/internal/ir/check_reassign_yes.go b/src/cmd/compile/internal/ir/check_reassign_yes.go
+new file mode 100644
+index 0000000000..30876cca20
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/check_reassign_yes.go
+@@ -0,0 +1,9 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build checknewoldreassignment
++
++package ir
++
++const consistencyCheckEnabled = true
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 1bcd648282..da5b437f99 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -923,6 +923,8 @@ FindRHS:
+ // NB: global variables are always considered to be re-assigned.
+ // TODO: handle initial declaration not including an assignment and
+ // followed by a single assignment?
++// NOTE: any changes made here should also be made in the corresponding
++// code in the ReassignOracle.Init method.
+ func Reassigned(name *Name) bool {
+ 	if name.Op() != ONAME {
+ 		base.Fatalf("reassigned %v", name)
+diff --git a/src/cmd/compile/internal/ir/reassign_consistency_check.go b/src/cmd/compile/internal/ir/reassign_consistency_check.go
+new file mode 100644
+index 0000000000..e4d928d132
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/reassign_consistency_check.go
+@@ -0,0 +1,46 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/internal/src"
++	"fmt"
++	"path/filepath"
++	"strings"
++)
++
++// checkStaticValueResult compares the result from ReassignOracle.StaticValue
++// with the corresponding result from ir.StaticValue to make sure they agree.
++// This method is called only when turned on via build tag.
++func checkStaticValueResult(n Node, newres Node) {
++	oldres := StaticValue(n)
++	if oldres != newres {
++		base.Fatalf("%s: new/old static value disagreement on %v:\nnew=%v\nold=%v", fmtFullPos(n.Pos()), n, newres, oldres)
++	}
++}
++
++// checkStaticValueResult compares the result from ReassignOracle.Reassigned
++// with the corresponding result from ir.Reassigned to make sure they agree.
++// This method is called only when turned on via build tag.
++func checkReassignedResult(n *Name, newres bool) {
++	origres := Reassigned(n)
++	if newres != origres {
++		base.Fatalf("%s: new/old reassigned disagreement on %v (class %s) newres=%v oldres=%v", fmtFullPos(n.Pos()), n, n.Class.String(), newres, origres)
++	}
++}
++
++// fmtFullPos returns a verbose dump for pos p, including inlines.
++func fmtFullPos(p src.XPos) string {
++	var sb strings.Builder
++	sep := ""
++	base.Ctxt.AllPos(p, func(pos src.Pos) {
++		fmt.Fprintf(&sb, sep)
++		sep = "|"
++		file := filepath.Base(pos.Filename())
++		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
++	})
++	return sb.String()
++}
+diff --git a/src/cmd/compile/internal/ir/reassignment.go b/src/cmd/compile/internal/ir/reassignment.go
+new file mode 100644
+index 0000000000..9974292471
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/reassignment.go
+@@ -0,0 +1,205 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/base"
++)
++
++// A ReassignOracle efficiently answers queries about whether local
++// variables are reassigned. This helper works by looking for function
++// params and short variable declarations (e.g.
++// https://go.dev/ref/spec#Short_variable_declarations) that are
++// neither address taken nor subsequently re-assigned. It is intended
++// to operate much like "ir.StaticValue" and "ir.Reassigned", but in a
++// way that does just a single walk of the containing function (as
++// opposed to a new walk on every call).
++type ReassignOracle struct {
++	fn *Func
++	// maps candidate name to its defining assignment (or for
++	// for params, defining func).
++	singleDef map[*Name]Node
++}
++
++// Init initializes the oracle based on the IR in function fn, laying
++// the groundwork for future calls to the StaticValue and Reassigned
++// methods. If the fn's IR is subsequently modified, Init must be
++// called again.
++func (ro *ReassignOracle) Init(fn *Func) {
++	ro.fn = fn
++
++	// Collect candidate map. Start by adding function parameters
++	// explicitly.
++	ro.singleDef = make(map[*Name]Node)
++	sig := fn.Type()
++	numParams := sig.NumRecvs() + sig.NumParams()
++	for _, param := range fn.Dcl[:numParams] {
++		if IsBlank(param) {
++			continue
++		}
++		// For params, use func itself as defining node.
++		ro.singleDef[param] = fn
++	}
++
++	// Walk the function body to discover any locals assigned
++	// via ":=" syntax (e.g. "a := <expr>").
++	var findLocals func(n Node) bool
++	findLocals = func(n Node) bool {
++		if nn, ok := n.(*Name); ok {
++			if nn.Defn != nil && !nn.Addrtaken() && nn.Class == PAUTO {
++				ro.singleDef[nn] = nn.Defn
++			}
++		} else if nn, ok := n.(*ClosureExpr); ok {
++			Any(nn.Func, findLocals)
++		}
++		return false
++	}
++	Any(fn, findLocals)
++
++	outerName := func(x Node) *Name {
++		if x == nil {
++			return nil
++		}
++		n, ok := OuterValue(x).(*Name)
++		if ok {
++			return n.Canonical()
++		}
++		return nil
++	}
++
++	// pruneIfNeeded examines node nn appearing on the left hand side
++	// of assignment statement asn to see if it contains a reassignment
++	// to any nodes in our candidate map ro.singleDef; if a reassignment
++	// is found, the corresponding name is deleted from singleDef.
++	pruneIfNeeded := func(nn Node, asn Node) {
++		oname := outerName(nn)
++		if oname == nil {
++			return
++		}
++		defn, ok := ro.singleDef[oname]
++		if !ok {
++			return
++		}
++		// any assignment to a param invalidates the entry.
++		paramAssigned := oname.Class == PPARAM
++		// assignment to local ok iff assignment is its orig def.
++		localAssigned := (oname.Class == PAUTO && asn != defn)
++		if paramAssigned || localAssigned {
++			// We found an assignment to name N that doesn't
++			// correspond to its original definition; remove
++			// from candidates.
++			delete(ro.singleDef, oname)
++		}
++	}
++
++	// Prune away anything that looks assigned. This code modeled after
++	// similar code in ir.Reassigned; any changes there should be made
++	// here as well.
++	var do func(n Node) bool
++	do = func(n Node) bool {
++		switch n.Op() {
++		case OAS:
++			asn := n.(*AssignStmt)
++			pruneIfNeeded(asn.X, n)
++		case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV, OSELRECV2:
++			asn := n.(*AssignListStmt)
++			for _, p := range asn.Lhs {
++				pruneIfNeeded(p, n)
++			}
++		case OASOP:
++			asn := n.(*AssignOpStmt)
++			pruneIfNeeded(asn.X, n)
++		case ORANGE:
++			rs := n.(*RangeStmt)
++			pruneIfNeeded(rs.Key, n)
++			pruneIfNeeded(rs.Value, n)
++		case OCLOSURE:
++			n := n.(*ClosureExpr)
++			Any(n.Func, do)
++		}
++		return false
++	}
++	Any(fn, do)
++}
++
++// StaticValue method has the same semantics as the ir package function
++// of the same name; see comments on [StaticValue].
++func (ro *ReassignOracle) StaticValue(n Node) Node {
++	arg := n
++	for {
++		if n.Op() == OCONVNOP {
++			n = n.(*ConvExpr).X
++			continue
++		}
++
++		if n.Op() == OINLCALL {
++			n = n.(*InlinedCallExpr).SingleResult()
++			continue
++		}
++
++		n1 := ro.staticValue1(n)
++		if n1 == nil {
++			if consistencyCheckEnabled {
++				checkStaticValueResult(arg, n)
++			}
++			return n
++		}
++		n = n1
++	}
++}
++
++func (ro *ReassignOracle) staticValue1(nn Node) Node {
++	if nn.Op() != ONAME {
++		return nil
++	}
++	n := nn.(*Name).Canonical()
++	if n.Class != PAUTO {
++		return nil
++	}
++
++	defn := n.Defn
++	if defn == nil {
++		return nil
++	}
++
++	var rhs Node
++FindRHS:
++	switch defn.Op() {
++	case OAS:
++		defn := defn.(*AssignStmt)
++		rhs = defn.Y
++	case OAS2:
++		defn := defn.(*AssignListStmt)
++		for i, lhs := range defn.Lhs {
++			if lhs == n {
++				rhs = defn.Rhs[i]
++				break FindRHS
++			}
++		}
++		base.Fatalf("%v missing from LHS of %v", n, defn)
++	default:
++		return nil
++	}
++	if rhs == nil {
++		base.Fatalf("RHS is nil: %v", defn)
++	}
++
++	if _, ok := ro.singleDef[n]; !ok {
++		return nil
++	}
++
++	return rhs
++}
++
++// Reassigned method has the same semantics as the ir package function
++// of the same name; see comments on [Reassigned] for more info.
++func (ro *ReassignOracle) Reassigned(n *Name) bool {
++	_, ok := ro.singleDef[n]
++	result := !ok
++	if consistencyCheckEnabled {
++		checkReassignedResult(n, result)
++	}
++	return result
++}

@@ -12,7 +12,7 @@ Date:   Tue Feb 20 10:02:10 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/html/template/context.go        | 100 ++++--------------------------------
  src/html/template/delim_string.go   |  16 ++++++
  src/html/template/element_string.go |  16 ++++++
@@ -20,3 +20,282 @@ Date:   Tue Feb 20 10:02:10 2018 +0000
  src/html/template/state_string.go   |  16 ++++++
  src/html/template/urlpart_string.go |  16 ++++++
  6 files changed, 90 insertions(+), 90 deletions(-)
+
+diff --git a/src/html/template/context.go b/src/html/template/context.go
+index 7e28cf47e2..fdbf7e25ee 100644
+--- a/src/html/template/context.go
++++ b/src/html/template/context.go
+@@ -77,6 +77,8 @@ func (c context) mangle(templateName string) string {
+ // is a single token in HTML's grammar but in a template spans several nodes.
+ type state uint8
+ 
++//go:generate stringer -type state
++
+ const (
+ 	// stateText is parsed character data. An HTML parser is in
+ 	// this state when its parse position is outside an HTML tag,
+@@ -137,41 +139,6 @@ const (
+ 	stateError
+ )
+ 
+-var stateNames = [...]string{
+-	stateText:        "stateText",
+-	stateTag:         "stateTag",
+-	stateAttrName:    "stateAttrName",
+-	stateAfterName:   "stateAfterName",
+-	stateBeforeValue: "stateBeforeValue",
+-	stateHTMLCmt:     "stateHTMLCmt",
+-	stateRCDATA:      "stateRCDATA",
+-	stateAttr:        "stateAttr",
+-	stateURL:         "stateURL",
+-	stateSrcset:      "stateSrcset",
+-	stateJS:          "stateJS",
+-	stateJSDqStr:     "stateJSDqStr",
+-	stateJSSqStr:     "stateJSSqStr",
+-	stateJSRegexp:    "stateJSRegexp",
+-	stateJSBlockCmt:  "stateJSBlockCmt",
+-	stateJSLineCmt:   "stateJSLineCmt",
+-	stateCSS:         "stateCSS",
+-	stateCSSDqStr:    "stateCSSDqStr",
+-	stateCSSSqStr:    "stateCSSSqStr",
+-	stateCSSDqURL:    "stateCSSDqURL",
+-	stateCSSSqURL:    "stateCSSSqURL",
+-	stateCSSURL:      "stateCSSURL",
+-	stateCSSBlockCmt: "stateCSSBlockCmt",
+-	stateCSSLineCmt:  "stateCSSLineCmt",
+-	stateError:       "stateError",
+-}
+-
+-func (s state) String() string {
+-	if int(s) < len(stateNames) {
+-		return stateNames[s]
+-	}
+-	return fmt.Sprintf("illegal state %d", int(s))
+-}
+-
+ // isComment is true for any state that contains content meant for template
+ // authors & maintainers, not for end-users or machines.
+ func isComment(s state) bool {
+@@ -194,6 +161,8 @@ func isInTag(s state) bool {
+ // delim is the delimiter that will end the current HTML attribute.
+ type delim uint8
+ 
++//go:generate stringer -type delim
++
+ const (
+ 	// delimNone occurs outside any attribute.
+ 	delimNone delim = iota
+@@ -206,24 +175,12 @@ const (
+ 	delimSpaceOrTagEnd
+ )
+ 
+-var delimNames = [...]string{
+-	delimNone:          "delimNone",
+-	delimDoubleQuote:   "delimDoubleQuote",
+-	delimSingleQuote:   "delimSingleQuote",
+-	delimSpaceOrTagEnd: "delimSpaceOrTagEnd",
+-}
+-
+-func (d delim) String() string {
+-	if int(d) < len(delimNames) {
+-		return delimNames[d]
+-	}
+-	return fmt.Sprintf("illegal delim %d", int(d))
+-}
+-
+ // urlPart identifies a part in an RFC 3986 hierarchical URL to allow different
+ // encoding strategies.
+ type urlPart uint8
+ 
++//go:generate stringer -type urlPart
++
+ const (
+ 	// urlPartNone occurs when not in a URL, or possibly at the start:
+ 	// ^ in "^http://auth/path?k=v#frag".
+@@ -239,24 +196,12 @@ const (
+ 	urlPartUnknown
+ )
+ 
+-var urlPartNames = [...]string{
+-	urlPartNone:        "urlPartNone",
+-	urlPartPreQuery:    "urlPartPreQuery",
+-	urlPartQueryOrFrag: "urlPartQueryOrFrag",
+-	urlPartUnknown:     "urlPartUnknown",
+-}
+-
+-func (u urlPart) String() string {
+-	if int(u) < len(urlPartNames) {
+-		return urlPartNames[u]
+-	}
+-	return fmt.Sprintf("illegal urlPart %d", int(u))
+-}
+-
+ // jsCtx determines whether a '/' starts a regular expression literal or a
+ // division operator.
+ type jsCtx uint8
+ 
++//go:generate stringer -type jsCtx
++
+ const (
+ 	// jsCtxRegexp occurs where a '/' would start a regexp literal.
+ 	jsCtxRegexp jsCtx = iota
+@@ -266,18 +211,6 @@ const (
+ 	jsCtxUnknown
+ )
+ 
+-func (c jsCtx) String() string {
+-	switch c {
+-	case jsCtxRegexp:
+-		return "jsCtxRegexp"
+-	case jsCtxDivOp:
+-		return "jsCtxDivOp"
+-	case jsCtxUnknown:
+-		return "jsCtxUnknown"
+-	}
+-	return fmt.Sprintf("illegal jsCtx %d", int(c))
+-}
+-
+ // element identifies the HTML element when inside a start tag or special body.
+ // Certain HTML element (for example <script> and <style>) have bodies that are
+ // treated differently from stateText so the element type is necessary to
+@@ -285,6 +218,8 @@ func (c jsCtx) String() string {
+ // end delimiter for the body.
+ type element uint8
+ 
++//go:generate stringer -type element
++
+ const (
+ 	// elementNone occurs outside a special tag or special element body.
+ 	elementNone element = iota
+@@ -299,21 +234,6 @@ const (
+ 	elementTitle
+ )
+ 
+-var elementNames = [...]string{
+-	elementNone:     "elementNone",
+-	elementScript:   "elementScript",
+-	elementStyle:    "elementStyle",
+-	elementTextarea: "elementTextarea",
+-	elementTitle:    "elementTitle",
+-}
+-
+-func (e element) String() string {
+-	if int(e) < len(elementNames) {
+-		return elementNames[e]
+-	}
+-	return fmt.Sprintf("illegal element %d", int(e))
+-}
+-
+ //go:generate stringer -type attr
+ 
+ // attr identifies the current HTML attribute when inside the attribute,
+diff --git a/src/html/template/delim_string.go b/src/html/template/delim_string.go
+new file mode 100644
+index 0000000000..6d80e09a44
+--- /dev/null
++++ b/src/html/template/delim_string.go
+@@ -0,0 +1,16 @@
++// Code generated by "stringer -type delim"; DO NOT EDIT.
++
++package template
++
++import "strconv"
++
++const _delim_name = "delimNonedelimDoubleQuotedelimSingleQuotedelimSpaceOrTagEnd"
++
++var _delim_index = [...]uint8{0, 9, 25, 41, 59}
++
++func (i delim) String() string {
++	if i >= delim(len(_delim_index)-1) {
++		return "delim(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++	return _delim_name[_delim_index[i]:_delim_index[i+1]]
++}
+diff --git a/src/html/template/element_string.go b/src/html/template/element_string.go
+new file mode 100644
+index 0000000000..4573e0873e
+--- /dev/null
++++ b/src/html/template/element_string.go
+@@ -0,0 +1,16 @@
++// Code generated by "stringer -type element"; DO NOT EDIT.
++
++package template
++
++import "strconv"
++
++const _element_name = "elementNoneelementScriptelementStyleelementTextareaelementTitle"
++
++var _element_index = [...]uint8{0, 11, 24, 36, 51, 63}
++
++func (i element) String() string {
++	if i >= element(len(_element_index)-1) {
++		return "element(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++	return _element_name[_element_index[i]:_element_index[i+1]]
++}
+diff --git a/src/html/template/jsctx_string.go b/src/html/template/jsctx_string.go
+new file mode 100644
+index 0000000000..dd1d87ee45
+--- /dev/null
++++ b/src/html/template/jsctx_string.go
+@@ -0,0 +1,16 @@
++// Code generated by "stringer -type jsCtx"; DO NOT EDIT.
++
++package template
++
++import "strconv"
++
++const _jsCtx_name = "jsCtxRegexpjsCtxDivOpjsCtxUnknown"
++
++var _jsCtx_index = [...]uint8{0, 11, 21, 33}
++
++func (i jsCtx) String() string {
++	if i >= jsCtx(len(_jsCtx_index)-1) {
++		return "jsCtx(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++	return _jsCtx_name[_jsCtx_index[i]:_jsCtx_index[i+1]]
++}
+diff --git a/src/html/template/state_string.go b/src/html/template/state_string.go
+new file mode 100644
+index 0000000000..05104be89c
+--- /dev/null
++++ b/src/html/template/state_string.go
+@@ -0,0 +1,16 @@
++// Code generated by "stringer -type state"; DO NOT EDIT.
++
++package template
++
++import "strconv"
++
++const _state_name = "stateTextstateTagstateAttrNamestateAfterNamestateBeforeValuestateHTMLCmtstateRCDATAstateAttrstateURLstateSrcsetstateJSstateJSDqStrstateJSSqStrstateJSRegexpstateJSBlockCmtstateJSLineCmtstateCSSstateCSSDqStrstateCSSSqStrstateCSSDqURLstateCSSSqURLstateCSSURLstateCSSBlockCmtstateCSSLineCmtstateError"
++
++var _state_index = [...]uint16{0, 9, 17, 30, 44, 60, 72, 83, 92, 100, 111, 118, 130, 142, 155, 170, 184, 192, 205, 218, 231, 244, 255, 271, 286, 296}
++
++func (i state) String() string {
++	if i >= state(len(_state_index)-1) {
++		return "state(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++	return _state_name[_state_index[i]:_state_index[i+1]]
++}
+diff --git a/src/html/template/urlpart_string.go b/src/html/template/urlpart_string.go
+new file mode 100644
+index 0000000000..813eea9e44
+--- /dev/null
++++ b/src/html/template/urlpart_string.go
+@@ -0,0 +1,16 @@
++// Code generated by "stringer -type urlPart"; DO NOT EDIT.
++
++package template
++
++import "strconv"
++
++const _urlPart_name = "urlPartNoneurlPartPreQueryurlPartQueryOrFragurlPartUnknown"
++
++var _urlPart_index = [...]uint8{0, 11, 26, 44, 58}
++
++func (i urlPart) String() string {
++	if i >= urlPart(len(_urlPart_index)-1) {
++		return "urlPart(" + strconv.FormatInt(int64(i), 10) + ")"
++	}
++	return _urlPart_name[_urlPart_index[i]:_urlPart_index[i+1]]
++}

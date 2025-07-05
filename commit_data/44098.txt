@@ -21,6 +21,26 @@ Date:   Thu May 7 22:34:25 2020 +0000
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/testdata/testprog/numcpu_freebsd.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprog/numcpu_freebsd.go b/src/runtime/testdata/testprog/numcpu_freebsd.go
+index 42ee154883..aff36ec702 100644
+--- a/src/runtime/testdata/testprog/numcpu_freebsd.go
++++ b/src/runtime/testdata/testprog/numcpu_freebsd.go
+@@ -85,7 +85,13 @@ func getList() ([]string, error) {
+ 	if err != nil {
+ 		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
+ 	}
+-	pos := bytes.IndexRune(output, ':')
++	pos := bytes.IndexRune(output, '\n')
++	if pos == -1 {
++		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
++	}
++	output = output[0:pos]
++
++	pos = bytes.IndexRune(output, ':')
+ 	if pos == -1 {
+ 		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
+ 	}

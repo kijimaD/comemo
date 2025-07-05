@@ -9,6 +9,27 @@ Date:   Wed Feb 1 07:31:00 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5610051
-
+---
  test/chan/select3.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index d919de3e0d..fd881c90e9 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -197,13 +197,13 @@ func main() {
+ 	})
+ 	testBlock(never, func() {
+ 		select {
+-		case x := <-closedch:
++		case x := (<-closedch):
+ 			_ = x
+ 		}
+ 	})
+ 	testBlock(never, func() {
+ 		select {
+-		case x, ok := <-closedch:
++		case x, ok := (<-closedch):
+ 			_, _ = x, ok
+ 		}
+ 	})

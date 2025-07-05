@@ -15,7 +15,50 @@ Date:   Mon Oct 31 21:18:00 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/32477
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  9 +++++----
  test/fixedbugs/issue17710.go       | 13 +++++++++++++
  2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ea9fc5b845..b77dafd345 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4399,13 +4399,14 @@ func KeepAlive(v *ssa.Value) {
+ 	if !v.Args[0].Type.IsPtrShaped() {
+ 		v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+ 	}
+-	n, off := AutoVar(v.Args[0])
++	n, _ := AutoVar(v.Args[0])
+ 	if n == nil {
+ 		v.Fatalf("KeepAlive with non-spilled value %s %s", v, v.Args[0])
+ 	}
+-	if off != 0 {
+-		v.Fatalf("KeepAlive with non-zero offset spill location %v:%d", n, off)
+-	}
++	// Note: KeepAlive arg may be a small part of a larger variable n.  We keep the
++	// whole variable n alive at this point. (Typically, this happens when
++	// we are requested to keep the idata portion of an interface{} alive, and
++	// we end up keeping the whole interface{} alive.  That's ok.)
+ 	Gvarlive(n)
+ }
+ 
+diff --git a/test/fixedbugs/issue17710.go b/test/fixedbugs/issue17710.go
+new file mode 100644
+index 0000000000..2843458c61
+--- /dev/null
++++ b/test/fixedbugs/issue17710.go
+@@ -0,0 +1,13 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++func f(x interface{}) {
++	runtime.KeepAlive(x)
++}

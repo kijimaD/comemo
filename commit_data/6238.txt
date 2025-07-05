@@ -7,7 +7,54 @@ Date:   Fri Sep 10 19:12:43 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2127045
-
+---
  test/bugs/bug305.go | 24 ++++++++++++++++++++++++
  test/golden.out     |  8 ++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/test/bugs/bug305.go b/test/bugs/bug305.go
+new file mode 100644
+index 0000000000..1369d560e8
+--- /dev/null
++++ b/test/bugs/bug305.go
+@@ -0,0 +1,24 @@
++// errchk $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Use //line to set the line number of the next line to 20.
++//line bug305.go:20
++
++package p
++
++// Introduce an error which should be reported on line 24.
++var a int = "bogus"
++
++// Line 15 of file.
++// 16
++// 17
++// 18
++// 19
++// 20
++// 21
++// 22
++// 23
++// ERROR "cannot|incompatible"
+diff --git a/test/golden.out b/test/golden.out
+index 49bca4b874..eb1f2320a1 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -177,3 +177,11 @@ panic PC=xxx
+ =========== bugs/bug260.go
+ FAIL
+ BUG: bug260 failed
++
++=========== bugs/bug305.go
++BUG: errchk: bugs/bug305.go:24: missing expected error: 'cannot|incompatible'
++errchk: bugs/bug305.go: unmatched error messages:
++==================================================
++bug305.go:23[bugs/bug305.go:12]: cannot convert "bogus" to type int
++bug305.go:23[bugs/bug305.go:12]: cannot use "bogus" (type string) as type int in assignment
++==================================================

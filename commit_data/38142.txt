@@ -13,6 +13,24 @@ Date:   Thu Oct 4 17:06:21 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/debug/pe/file_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/pe/file_test.go b/src/debug/pe/file_test.go
+index 24cd673254..c65c82d342 100644
+--- a/src/debug/pe/file_test.go
++++ b/src/debug/pe/file_test.go
+@@ -535,7 +535,11 @@ func TestBuildingWindowsGUI(t *testing.T) {
+ 
+ func TestImportTableInUnknownSection(t *testing.T) {
+ 	if runtime.GOOS != "windows" {
+-		t.Skip("skipping windows only test")
++		t.Skip("skipping Windows-only test")
++	}
++	if runtime.GOARCH == "arm" {
++		// Issue 27904
++		t.Skip("skipping test on arm; no atmfd.dll available")
+ 	}
+ 
+ 	// first we need to find this font driver

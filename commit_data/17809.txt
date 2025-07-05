@@ -7,7 +7,32 @@ Date:   Thu Oct 17 11:48:27 2013 +1100
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/14765043
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4d414468ca..689762f210 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -105,6 +105,7 @@ Dmitriy Shelenin <deemok@googlemail.com> <deemok@gmail.com>
+ Dmitry Chestnykh <dchest@gmail.com>
+ Dominik Honnef <dominik.honnef@gmail.com>
+ Donovan Hide <donovanhide@gmail.com>
++Dropbox, Inc.
+ Duncan Holm <mail@frou.org>
+ Dustin Sallings <dsallings@gmail.com>
+ Dustin Shields-Cloues <dcloues@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a7d4c0039f..af071f30a5 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -230,6 +230,7 @@ James Toy <nil@opensesame.st>
+ James Tucker <raggi@google.com>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jamie Gennis <jgennis@google.com> <jgennis@gmail.com>
++Jamie Turner <jamwt@dropbox.com>
+ Jamie Wilkinson <jaq@spacepants.org>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <0xjnml@gmail.com>

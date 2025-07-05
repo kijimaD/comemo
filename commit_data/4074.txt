@@ -6,8 +6,126 @@ Date:   Mon Nov 16 13:39:59 2009 -0800
     
     R=rsc
     https://golang.org/cl/155065
-
+---
  src/pkg/exp/iterable/Makefile         |  1 +
  src/pkg/exp/iterable/array.go         | 59 +++++++++++++++++++++++++++++++++++
  src/pkg/exp/iterable/iterable_test.go | 29 ++++++++++-------
  3 files changed, 78 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/exp/iterable/Makefile b/src/pkg/exp/iterable/Makefile
+index 18e9e81707..f448089ce6 100644
+--- a/src/pkg/exp/iterable/Makefile
++++ b/src/pkg/exp/iterable/Makefile
+@@ -6,6 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ 
+ TARG=exp/iterable
+ GOFILES=\
++	array.go\
+ 	iterable.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/exp/iterable/array.go b/src/pkg/exp/iterable/array.go
+new file mode 100644
+index 0000000000..371508e5d2
+--- /dev/null
++++ b/src/pkg/exp/iterable/array.go
+@@ -0,0 +1,59 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package iterable
++
++// This file implements the Iterable interface on some primitive types.
++
++type ByteArray []byte
++
++func (a ByteArray) Iter() <-chan interface{} {
++	ch := make(chan interface{});
++	go func() {
++		for _, e := range a {
++			ch <- e
++		}
++		close(ch);
++	}();
++	return ch;
++}
++
++type IntArray []int
++
++func (a IntArray) Iter() <-chan interface{} {
++	ch := make(chan interface{});
++	go func() {
++		for _, e := range a {
++			ch <- e
++		}
++		close(ch);
++	}();
++	return ch;
++}
++
++type FloatArray []float
++
++func (a FloatArray) Iter() <-chan interface{} {
++	ch := make(chan interface{});
++	go func() {
++		for _, e := range a {
++			ch <- e
++		}
++		close(ch);
++	}();
++	return ch;
++}
++
++type StringArray []string
++
++func (a StringArray) Iter() <-chan interface{} {
++	ch := make(chan interface{});
++	go func() {
++		for _, e := range a {
++			ch <- e
++		}
++		close(ch);
++	}();
++	return ch;
++}
+diff --git a/src/pkg/exp/iterable/iterable_test.go b/src/pkg/exp/iterable/iterable_test.go
+index 1580357eeb..c6307dca05 100644
+--- a/src/pkg/exp/iterable/iterable_test.go
++++ b/src/pkg/exp/iterable/iterable_test.go
+@@ -8,17 +8,24 @@ import (
+ 	"testing";
+ )
+ 
+-type IntArray []int
+-
+-func (arr IntArray) Iter() <-chan interface{} {
+-	ch := make(chan interface{});
+-	go func() {
+-		for _, x := range arr {
+-			ch <- x
+-		}
+-		close(ch);
+-	}();
+-	return ch;
++func TestArrayTypes(t *testing.T) {
++	// Test that conversion works correctly.
++	bytes := ByteArray([]byte{1, 2, 3});
++	if x := Data(bytes)[1].(byte); x != 2 {
++		t.Error("Data(bytes)[1].(byte) = %v, want 2", x)
++	}
++	ints := IntArray([]int{1, 2, 3});
++	if x := Data(ints)[2].(int); x != 3 {
++		t.Error("Data(ints)[2].(int) = %v, want 3", x)
++	}
++	floats := FloatArray([]float{1, 2, 3});
++	if x := Data(floats)[0].(float); x != 1 {
++		t.Error("Data(floats)[0].(float) = %v, want 1", x)
++	}
++	strings := StringArray([]string{"a", "b", "c"});
++	if x := Data(strings)[1].(string); x != "b" {
++		t.Error(`Data(strings)[1].(string) = %q, want "b"`, x)
++	}
+ }
+ 
+ var oneToFive = IntArray{1, 2, 3, 4, 5}

@@ -23,9 +23,148 @@ Date:   Thu Jun 23 15:57:10 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/debug/macho/fat.go          | 11 +++++++++--
  src/go/build/deps_test.go       |  6 +++---
  src/internal/saferio/io.go      | 29 ++++++++++++++++++++++++++++-
  src/internal/saferio/io_test.go | 25 +++++++++++++++++++++++++
  4 files changed, 65 insertions(+), 6 deletions(-)
+
+diff --git a/src/debug/macho/fat.go b/src/debug/macho/fat.go
+index 6bd730dc0b..775beaf12c 100644
+--- a/src/debug/macho/fat.go
++++ b/src/debug/macho/fat.go
+@@ -7,6 +7,7 @@ package macho
+ import (
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/saferio"
+ 	"io"
+ 	"os"
+ )
+@@ -85,9 +86,13 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
+ 
+ 	// Following the fat_header comes narch fat_arch structs that index
+ 	// Mach-O images further in the file.
+-	ff.Arches = make([]FatArch, narch)
++	c := saferio.SliceCap(FatArch{}, uint64(narch))
++	if c < 0 {
++		return nil, &FormatError{offset, "too many images", nil}
++	}
++	ff.Arches = make([]FatArch, 0, c)
+ 	for i := uint32(0); i < narch; i++ {
+-		fa := &ff.Arches[i]
++		var fa FatArch
+ 		err = binary.Read(sr, binary.BigEndian, &fa.FatArchHeader)
+ 		if err != nil {
+ 			return nil, &FormatError{offset, "invalid fat_arch header", nil}
+@@ -115,6 +120,8 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
+ 				return nil, &FormatError{offset, fmt.Sprintf("Mach-O type for architecture #%d (type=%#x) does not match first (type=%#x)", i, fa.Type, machoType), nil}
+ 			}
+ 		}
++
++		ff.Arches = append(ff.Arches, fa)
+ 	}
+ 
+ 	return &ff, nil
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e911f2f341..061345f64b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -123,9 +123,6 @@ var depsRules = `
+ 
+ 	unicode !< strconv;
+ 
+-	io
+-	< internal/saferio;
+-
+ 	# STR is basic string and buffer manipulation.
+ 	RUNTIME, io, unicode/utf8, unicode/utf16, unicode
+ 	< bytes, strings
+@@ -242,6 +239,9 @@ var depsRules = `
+ 	encoding/binary, regexp
+ 	< index/suffixarray;
+ 
++	io, reflect
++	< internal/saferio;
++
+ 	# executable parsing
+ 	FMT, encoding/binary, compress/zlib, internal/saferio
+ 	< runtime/debug
+diff --git a/src/internal/saferio/io.go b/src/internal/saferio/io.go
+index 019216f352..0361011e95 100644
+--- a/src/internal/saferio/io.go
++++ b/src/internal/saferio/io.go
+@@ -9,7 +9,10 @@
+ // untrustworthy attacker.
+ package saferio
+ 
+-import "io"
++import (
++	"io"
++	"reflect"
++)
+ 
+ // chunk is an arbitrary limit on how much memory we are willing
+ // to allocate without concern.
+@@ -91,3 +94,27 @@ func ReadDataAt(r io.ReaderAt, n uint64, off int64) ([]byte, error) {
+ 	}
+ 	return buf, nil
+ }
++
++// SliceCap returns the capacity to use when allocating a slice.
++// After the slice is allocated with the capacity, it should be
++// built using append. This will avoid allocating too much memory
++// if the capacity is large and incorrect.
++//
++// A negative result means that the value is always too big.
++//
++// The element type is described by passing a value of that type.
++// This would ideally use generics, but this code is built with
++// the bootstrap compiler which need not support generics.
++func SliceCap(v any, c uint64) int {
++	if int64(c) < 0 || c != uint64(int(c)) {
++		return -1
++	}
++	size := reflect.TypeOf(v).Size()
++	if uintptr(c)*size > chunk {
++		c = uint64(chunk / size)
++		if c == 0 {
++			c = 1
++		}
++	}
++	return int(c)
++}
+diff --git a/src/internal/saferio/io_test.go b/src/internal/saferio/io_test.go
+index 301b798834..9214e735c2 100644
+--- a/src/internal/saferio/io_test.go
++++ b/src/internal/saferio/io_test.go
+@@ -81,3 +81,28 @@ func TestReadDataAt(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestSliceCap(t *testing.T) {
++	t.Run("small", func(t *testing.T) {
++		c := SliceCap(0, 10)
++		if c != 10 {
++			t.Errorf("got capacity %d, want %d", c, 10)
++		}
++	})
++
++	t.Run("large", func(t *testing.T) {
++		c := SliceCap(byte(0), 1<<30)
++		if c < 0 {
++			t.Error("SliceCap failed unexpectedly")
++		} else if c == 1<<30 {
++			t.Errorf("got capacity %d which is too high", c)
++		}
++	})
++
++	t.Run("maxint", func(t *testing.T) {
++		c := SliceCap(byte(0), 1<<63)
++		if c >= 0 {
++			t.Errorf("SliceCap returned %d, expected failure", c)
++		}
++	})
++}

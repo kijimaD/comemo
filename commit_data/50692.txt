@@ -28,6 +28,37 @@ Date:   Fri Nov 5 15:58:34 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/stack.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 7d9ae1e9d2..25a6f5bbb4 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1002,7 +1002,7 @@ func newstack() {
+ 	// NOTE: stackguard0 may change underfoot, if another thread
+ 	// is about to try to preempt gp. Read it just once and use that same
+ 	// value now and below.
+-	preempt := atomic.Loaduintptr(&gp.stackguard0) == stackPreempt
++	stackguard0 := atomic.Loaduintptr(&gp.stackguard0)
+ 
+ 	// Be conservative about where we preempt.
+ 	// We are interested in preempting user Go code, not runtime code.
+@@ -1016,6 +1016,7 @@ func newstack() {
+ 	// If the GC is in some way dependent on this goroutine (for example,
+ 	// it needs a lock held by the goroutine), that small preemption turns
+ 	// into a real deadlock.
++	preempt := stackguard0 == stackPreempt
+ 	if preempt {
+ 		if !canPreemptM(thisg.m) {
+ 			// Let the goroutine keep running for now.
+@@ -1083,7 +1084,7 @@ func newstack() {
+ 		}
+ 	}
+ 
+-	if gp.stackguard0 == stackForceMove {
++	if stackguard0 == stackForceMove {
+ 		// Forced stack movement used for debugging.
+ 		// Don't double the stack (or we may quickly run out
+ 		// if this is done repeatedly).

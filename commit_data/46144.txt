@@ -11,7 +11,7 @@ Date:   Tue Dec 8 22:01:22 2020 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go |   6 +-
  test/fixedbugs/issue11326.go            |  16 ++---
  test/fixedbugs/issue11674.go            |  18 ++---
@@ -35,3 +35,597 @@ Date:   Tue Dec 8 22:01:22 2020 -0800
  test/run.go                             |  33 ++-------
  test/runtime.go                         |   2 +-
  22 files changed, 147 insertions(+), 159 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index a29096322a..fe3c17fc6b 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -490,7 +490,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr) {
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+ 					if !pkg.fake {
+-						check.errorf(e.Sel, "%s not declared by package %s", sel, pkg.name)
++						if check.conf.CompilerErrorMessages {
++							check.errorf(e.Sel, "undefined: %s.%s", pkg.name, sel)
++						} else {
++							check.errorf(e.Sel, "%s not declared by package %s", sel, pkg.name)
++						}
+ 					}
+ 					goto Error
+ 				}
+diff --git a/test/fixedbugs/issue11326.go b/test/fixedbugs/issue11326.go
+index 82754c73fb..f6cb109ba7 100644
+--- a/test/fixedbugs/issue11326.go
++++ b/test/fixedbugs/issue11326.go
+@@ -18,14 +18,14 @@ func main() {
+ 
+ 	// Any implementation must be able to handle these constants at
+ 	// compile time (even though they cannot be assigned to a float64).
+-	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64"
+-	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64"
+-	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64"
+-	var _ = 1e646456     // ERROR "1e\+646456 overflows float64"
+-	var _ = 1e64645      // ERROR "1e\+64645 overflows float64"
+-	var _ = 1e6464       // ERROR "1e\+6464 overflows float64"
+-	var _ = 1e646        // ERROR "1e\+646 overflows float64"
+-	var _ = 1e309        // ERROR "1e\+309 overflows float64"
++	var _ = 1e646456992  // ERROR "1e\+?646456992 .*overflows float64"
++	var _ = 1e64645699   // ERROR "1e\+?64645699 .*overflows float64"
++	var _ = 1e6464569    // ERROR "1e\+?6464569 .*overflows float64"
++	var _ = 1e646456     // ERROR "1e\+?646456 .*overflows float64"
++	var _ = 1e64645      // ERROR "1e\+?64645 .*overflows float64"
++	var _ = 1e6464       // ERROR "1e\+?6464 .*overflows float64"
++	var _ = 1e646        // ERROR "1e\+?646 .*overflows float64"
++	var _ = 1e309        // ERROR "1e\+?309 .*overflows float64"
+ 
+ 	var _ = 1e308
+ }
+diff --git a/test/fixedbugs/issue11674.go b/test/fixedbugs/issue11674.go
+index e7d0bf298b..62e8e8f962 100644
+--- a/test/fixedbugs/issue11674.go
++++ b/test/fixedbugs/issue11674.go
+@@ -13,28 +13,28 @@ const x complex64 = 0
+ const y complex128 = 0
+ 
+ var _ = x / 1e-20
+-var _ = x / 1e-50   // ERROR "complex division by zero"
+-var _ = x / 1e-1000 // ERROR "complex division by zero"
++var _ = x / 1e-50   // ERROR "(complex )?division by zero"
++var _ = x / 1e-1000 // ERROR "(complex )?division by zero"
+ var _ = x / 1e-20i
+-var _ = x / 1e-50i   // ERROR "complex division by zero"
+-var _ = x / 1e-1000i // ERROR "complex division by zero"
++var _ = x / 1e-50i   // ERROR "(complex )?division by zero"
++var _ = x / 1e-1000i // ERROR "(complex )?division by zero"
+ 
+ var _ = x / 1e-45 // smallest positive float32
+ 
+ var _ = x / (1e-20 + 1e-20i)
+ var _ = x / (1e-50 + 1e-20i)
+ var _ = x / (1e-20 + 1e-50i)
+-var _ = x / (1e-50 + 1e-50i)     // ERROR "complex division by zero"
+-var _ = x / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
++var _ = x / (1e-50 + 1e-50i)     // ERROR "(complex )?division by zero"
++var _ = x / (1e-1000 + 1e-1000i) // ERROR "(complex )?division by zero"
+ 
+ var _ = y / 1e-50
+-var _ = y / 1e-1000 // ERROR "complex division by zero"
++var _ = y / 1e-1000 // ERROR "(complex )?division by zero"
+ var _ = y / 1e-50i
+-var _ = y / 1e-1000i // ERROR "complex division by zero"
++var _ = y / 1e-1000i // ERROR "(complex )?division by zero"
+ 
+ var _ = y / 5e-324 // smallest positive float64
+ 
+ var _ = y / (1e-50 + 1e-50)
+ var _ = y / (1e-1000 + 1e-50i)
+ var _ = y / (1e-50 + 1e-1000i)
+-var _ = y / (1e-1000 + 1e-1000i) // ERROR "complex division by zero"
++var _ = y / (1e-1000 + 1e-1000i) // ERROR "(complex )?division by zero"
+diff --git a/test/fixedbugs/issue11737.go b/test/fixedbugs/issue11737.go
+index 86ecf9ac4b..eb4bfe8964 100644
+--- a/test/fixedbugs/issue11737.go
++++ b/test/fixedbugs/issue11737.go
+@@ -12,6 +12,6 @@ func f()
+ 
+ func s(x interface{}) {
+ 	switch x {
+-	case f: // ERROR "invalid case f \(type func\(\)\) in switch \(incomparable type\)"
++	case f: // ERROR "invalid case f \(type func\(\)\) in switch \(incomparable type\)|cannot compare"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue13365.go b/test/fixedbugs/issue13365.go
+index 4bd103e38d..5b07e1a6be 100644
+--- a/test/fixedbugs/issue13365.go
++++ b/test/fixedbugs/issue13365.go
+@@ -11,15 +11,15 @@ package main
+ var t struct{}
+ 
+ func main() {
+-	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant"
+-	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant"
+-	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant"
++	_ = []int{-1: 0}    // ERROR "index must be non\-negative integer constant|must not be negative"
++	_ = [10]int{-1: 0}  // ERROR "index must be non\-negative integer constant|must not be negative"
++	_ = [...]int{-1: 0} // ERROR "index must be non\-negative integer constant|must not be negative"
+ 
+ 	_ = []int{100: 0}
+ 	_ = [10]int{100: 0} // ERROR "array index 100 out of bounds"
+ 	_ = [...]int{100: 0}
+ 
+-	_ = []int{t}    // ERROR "cannot use .* as type int in slice literal"
+-	_ = [10]int{t}  // ERROR "cannot use .* as type int in array literal"
+-	_ = [...]int{t} // ERROR "cannot use .* as type int in array literal"
++	_ = []int{t}    // ERROR "cannot use .* as (type )?int( in slice literal)?"
++	_ = [10]int{t}  // ERROR "cannot use .* as (type )?int( in array literal)?"
++	_ = [...]int{t} // ERROR "cannot use .* as (type )?int( in array literal)?"
+ }
+diff --git a/test/fixedbugs/issue13471.go b/test/fixedbugs/issue13471.go
+index 0bfed42616..8382c670ed 100644
+--- a/test/fixedbugs/issue13471.go
++++ b/test/fixedbugs/issue13471.go
+@@ -9,17 +9,17 @@
+ package main
+ 
+ func main() {
+-	const _ int64 = 1e646456992 // ERROR "integer too large"
+-	const _ int32 = 1e64645699  // ERROR "integer too large"
+-	const _ int16 = 1e6464569   // ERROR "integer too large"
+-	const _ int8 = 1e646456     // ERROR "integer too large"
+-	const _ int = 1e64645       // ERROR "integer too large"
++	const _ int64 = 1e646456992 // ERROR "integer too large|truncated to .*"
++	const _ int32 = 1e64645699  // ERROR "integer too large|truncated to .*"
++	const _ int16 = 1e6464569   // ERROR "integer too large|truncated to .*"
++	const _ int8 = 1e646456     // ERROR "integer too large|truncated to .*"
++	const _ int = 1e64645       // ERROR "integer too large|truncated to .*"
+ 
+-	const _ uint64 = 1e646456992 // ERROR "integer too large"
+-	const _ uint32 = 1e64645699  // ERROR "integer too large"
+-	const _ uint16 = 1e6464569   // ERROR "integer too large"
+-	const _ uint8 = 1e646456     // ERROR "integer too large"
+-	const _ uint = 1e64645       // ERROR "integer too large"
++	const _ uint64 = 1e646456992 // ERROR "integer too large|truncated to .*"
++	const _ uint32 = 1e64645699  // ERROR "integer too large|truncated to .*"
++	const _ uint16 = 1e6464569   // ERROR "integer too large|truncated to .*"
++	const _ uint8 = 1e646456     // ERROR "integer too large|truncated to .*"
++	const _ uint = 1e64645       // ERROR "integer too large|truncated to .*"
+ 
+-	const _ rune = 1e64645 // ERROR "integer too large"
++	const _ rune = 1e64645 // ERROR "integer too large|truncated to .*"
+ }
+diff --git a/test/fixedbugs/issue13480.go b/test/fixedbugs/issue13480.go
+index cd2f05de5f..8c2fc44922 100644
+--- a/test/fixedbugs/issue13480.go
++++ b/test/fixedbugs/issue13480.go
+@@ -18,21 +18,21 @@ func bug() {
+ 	var m M
+ 	var f F
+ 
+-	_ = s == S(nil) // ERROR "compare.*to nil"
+-	_ = S(nil) == s // ERROR "compare.*to nil"
++	_ = s == S(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
++	_ = S(nil) == s // ERROR "compare.*to nil|operator \=\= not defined for ."
+ 	switch s {
+-	case S(nil): // ERROR "compare.*to nil"
++	case S(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
+ 	}
+ 
+-	_ = m == M(nil) // ERROR "compare.*to nil"
+-	_ = M(nil) == m // ERROR "compare.*to nil"
++	_ = m == M(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
++	_ = M(nil) == m // ERROR "compare.*to nil|operator \=\= not defined for ."
+ 	switch m {
+-	case M(nil): // ERROR "compare.*to nil"
++	case M(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
+ 	}
+ 
+-	_ = f == F(nil) // ERROR "compare.*to nil"
+-	_ = F(nil) == f // ERROR "compare.*to nil"
++	_ = f == F(nil) // ERROR "compare.*to nil|operator \=\= not defined for ."
++	_ = F(nil) == f // ERROR "compare.*to nil|operator \=\= not defined for ."
+ 	switch f {
+-	case F(nil): // ERROR "compare.*to nil"
++	case F(nil): // ERROR "compare.*to nil|operator \=\= not defined for ."
+ 	}
+ }
+diff --git a/test/fixedbugs/issue13485.go b/test/fixedbugs/issue13485.go
+index a9beea1f7d..d928c1e1fa 100644
+--- a/test/fixedbugs/issue13485.go
++++ b/test/fixedbugs/issue13485.go
+@@ -9,10 +9,10 @@ package p
+ var (
+ 	_ [10]int
+ 	_ [10.0]int
+-	_ [float64(10)]int                // ERROR "invalid array bound"
++	_ [float64(10)]int                // ERROR "invalid array bound|must be integer"
+ 	_ [10 + 0i]int
+ 	_ [complex(10, 0)]int
+-	_ [complex128(complex(10, 0))]int // ERROR "invalid array bound"
++	_ [complex128(complex(10, 0))]int // ERROR "invalid array bound|must be integer"
+ 	_ ['a']int
+ 	_ [rune(65)]int
+ )
+diff --git a/test/fixedbugs/issue13539.go b/test/fixedbugs/issue13539.go
+index 72c3ab0ae0..181fbef9bf 100644
+--- a/test/fixedbugs/issue13539.go
++++ b/test/fixedbugs/issue13539.go
+@@ -10,7 +10,7 @@
+ 
+ package main
+ 
+-import "math" // ERROR "imported and not used"
++import "math" // ERROR "imported and not used|imported but not used"
+ 
+ func main() {
+ math:
+diff --git a/test/fixedbugs/issue13559.go b/test/fixedbugs/issue13559.go
+index 16de2a2e31..07cf2ca211 100644
+--- a/test/fixedbugs/issue13559.go
++++ b/test/fixedbugs/issue13559.go
+@@ -10,80 +10,80 @@
+ package p
+ 
+ // failure case in issue
+-const _ int64 = 1e-10000 // ERROR "1e\-10000 truncated"
++const _ int64 = 1e-10000 // ERROR "1e\-10000 truncated|.* truncated to int64"
+ 
+ const (
+-	_ int64 = 1e10000000 // ERROR "integer too large"
+-	_ int64 = 1e1000000  // ERROR "integer too large"
+-	_ int64 = 1e100000   // ERROR "integer too large"
+-	_ int64 = 1e10000    // ERROR "integer too large"
+-	_ int64 = 1e1000     // ERROR "integer too large"
+-	_ int64 = 1e100      // ERROR "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = 1e10000000 // ERROR "integer too large|truncated to int64"
++	_ int64 = 1e1000000  // ERROR "integer too large|truncated to int64"
++	_ int64 = 1e100000   // ERROR "integer too large|truncated to int64"
++	_ int64 = 1e10000    // ERROR "integer too large|truncated to int64"
++	_ int64 = 1e1000     // ERROR "integer too large|truncated to int64"
++	_ int64 = 1e100      // ERROR "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
+ 	_ int64 = 1e10
+ 	_ int64 = 1e1
+ 	_ int64 = 1e0
+-	_ int64 = 1e-1       // ERROR "0\.1 truncated"
+-	_ int64 = 1e-10      // ERROR "1e\-10 truncated"
+-	_ int64 = 1e-100     // ERROR "1e\-100 truncated"
+-	_ int64 = 1e-1000    // ERROR "1e\-1000 truncated"
+-	_ int64 = 1e-10000   // ERROR "1e\-10000 truncated"
+-	_ int64 = 1e-100000  // ERROR "1e\-100000 truncated"
+-	_ int64 = 1e-1000000 // ERROR "1e\-1000000 truncated"
++	_ int64 = 1e-1       // ERROR "0\.1 truncated|.* truncated to int64"
++	_ int64 = 1e-10      // ERROR "1e\-10 truncated|.* truncated to int64"
++	_ int64 = 1e-100     // ERROR "1e\-100 truncated|.* truncated to int64"
++	_ int64 = 1e-1000    // ERROR "1e\-1000 truncated|.* truncated to int64"
++	_ int64 = 1e-10000   // ERROR "1e\-10000 truncated|.* truncated to int64"
++	_ int64 = 1e-100000  // ERROR "1e\-100000 truncated|.* truncated to int64"
++	_ int64 = 1e-1000000 // ERROR "1e\-1000000 truncated|.* truncated to int64"
+ )
+ 
+ const (
+-	_ int64 = -1e10000000 // ERROR "integer too large"
+-	_ int64 = -1e1000000  // ERROR "integer too large"
+-	_ int64 = -1e100000   // ERROR "integer too large"
+-	_ int64 = -1e10000    // ERROR "integer too large"
+-	_ int64 = -1e1000     // ERROR "integer too large"
+-	_ int64 = -1e100      // ERROR "\-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = -1e10000000 // ERROR "integer too large|truncated to int64"
++	_ int64 = -1e1000000  // ERROR "integer too large|truncated to int64"
++	_ int64 = -1e100000   // ERROR "integer too large|truncated to int64"
++	_ int64 = -1e10000    // ERROR "integer too large|truncated to int64"
++	_ int64 = -1e1000     // ERROR "integer too large|truncated to int64"
++	_ int64 = -1e100      // ERROR "\-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
+ 	_ int64 = -1e10
+ 	_ int64 = -1e1
+ 	_ int64 = -1e0
+-	_ int64 = -1e-1       // ERROR "\-0\.1 truncated"
+-	_ int64 = -1e-10      // ERROR "\-1e\-10 truncated"
+-	_ int64 = -1e-100     // ERROR "\-1e\-100 truncated"
+-	_ int64 = -1e-1000    // ERROR "\-1e\-1000 truncated"
+-	_ int64 = -1e-10000   // ERROR "\-1e\-10000 truncated"
+-	_ int64 = -1e-100000  // ERROR "\-1e\-100000 truncated"
+-	_ int64 = -1e-1000000 // ERROR "\-1e\-1000000 truncated"
++	_ int64 = -1e-1       // ERROR "\-0\.1 truncated|.* truncated to int64"
++	_ int64 = -1e-10      // ERROR "\-1e\-10 truncated|.* truncated to int64"
++	_ int64 = -1e-100     // ERROR "\-1e\-100 truncated|.* truncated to int64"
++	_ int64 = -1e-1000    // ERROR "\-1e\-1000 truncated|.* truncated to int64"
++	_ int64 = -1e-10000   // ERROR "\-1e\-10000 truncated|.* truncated to int64"
++	_ int64 = -1e-100000  // ERROR "\-1e\-100000 truncated|.* truncated to int64"
++	_ int64 = -1e-1000000 // ERROR "\-1e\-1000000 truncated|.* truncated to int64"
+ )
+ 
+ const (
+-	_ int64 = 1.23456789e10000000 // ERROR "integer too large"
+-	_ int64 = 1.23456789e1000000  // ERROR "integer too large"
+-	_ int64 = 1.23456789e100000   // ERROR "integer too large"
+-	_ int64 = 1.23456789e10000    // ERROR "integer too large"
+-	_ int64 = 1.23456789e1000     // ERROR "integer too large"
+-	_ int64 = 1.23456789e100      // ERROR "12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = 1.23456789e10000000 // ERROR "integer too large|truncated to int64"
++	_ int64 = 1.23456789e1000000  // ERROR "integer too large|truncated to int64"
++	_ int64 = 1.23456789e100000   // ERROR "integer too large|truncated to int64"
++	_ int64 = 1.23456789e10000    // ERROR "integer too large|truncated to int64"
++	_ int64 = 1.23456789e1000     // ERROR "integer too large|truncated to int64"
++	_ int64 = 1.23456789e100      // ERROR "12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
+ 	_ int64 = 1.23456789e10
+-	_ int64 = 1.23456789e1        // ERROR "12\.3457 truncated"
+-	_ int64 = 1.23456789e0        // ERROR "1\.23457 truncated"
+-	_ int64 = 1.23456789e-1       // ERROR "0\.123457 truncated"
+-	_ int64 = 1.23456789e-10      // ERROR "1\.23457e\-10 truncated"
+-	_ int64 = 1.23456789e-100     // ERROR "1\.23457e\-100 truncated"
+-	_ int64 = 1.23456789e-1000    // ERROR "1\.23457e\-1000 truncated"
+-	_ int64 = 1.23456789e-10000   // ERROR "1\.23457e\-10000 truncated"
+-	_ int64 = 1.23456789e-100000  // ERROR "1\.23457e\-100000 truncated"
+-	_ int64 = 1.23456789e-1000000 // ERROR "1\.23457e\-1000000 truncated"
++	_ int64 = 1.23456789e1        // ERROR "12\.3457 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e0        // ERROR "1\.23457 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-1       // ERROR "0\.123457 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-10      // ERROR "1\.23457e\-10 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-100     // ERROR "1\.23457e\-100 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-1000    // ERROR "1\.23457e\-1000 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-10000   // ERROR "1\.23457e\-10000 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-100000  // ERROR "1\.23457e\-100000 truncated|.* truncated to int64"
++	_ int64 = 1.23456789e-1000000 // ERROR "1\.23457e\-1000000 truncated|.* truncated to int64"
+ )
+ 
+ const (
+-	_ int64 = -1.23456789e10000000 // ERROR "integer too large"
+-	_ int64 = -1.23456789e1000000  // ERROR "integer too large"
+-	_ int64 = -1.23456789e100000   // ERROR "integer too large"
+-	_ int64 = -1.23456789e10000    // ERROR "integer too large"
+-	_ int64 = -1.23456789e1000     // ERROR "integer too large"
+-	_ int64 = -1.23456789e100      // ERROR "\-12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = -1.23456789e10000000 // ERROR "integer too large|truncated to int64"
++	_ int64 = -1.23456789e1000000  // ERROR "integer too large|truncated to int64"
++	_ int64 = -1.23456789e100000   // ERROR "integer too large|truncated to int64"
++	_ int64 = -1.23456789e10000    // ERROR "integer too large|truncated to int64"
++	_ int64 = -1.23456789e1000     // ERROR "integer too large|truncated to int64"
++	_ int64 = -1.23456789e100      // ERROR "\-12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows|truncated to int64"
+ 	_ int64 = -1.23456789e10
+-	_ int64 = -1.23456789e1        // ERROR "\-12\.3457 truncated"
+-	_ int64 = -1.23456789e0        // ERROR "\-1\.23457 truncated"
+-	_ int64 = -1.23456789e-1       // ERROR "\-0\.123457 truncated"
+-	_ int64 = -1.23456789e-10      // ERROR "\-1\.23457e\-10 truncated"
+-	_ int64 = -1.23456789e-100     // ERROR "\-1\.23457e\-100 truncated"
+-	_ int64 = -1.23456789e-1000    // ERROR "\-1\.23457e\-1000 truncated"
+-	_ int64 = -1.23456789e-10000   // ERROR "\-1\.23457e\-10000 truncated"
+-	_ int64 = -1.23456789e-100000  // ERROR "\-1\.23457e\-100000 truncated"
+-	_ int64 = -1.23456789e-1000000 // ERROR "\-1\.23457e\-1000000 truncated"
++	_ int64 = -1.23456789e1        // ERROR "\-12\.3457 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e0        // ERROR "\-1\.23457 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-1       // ERROR "\-0\.123457 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-10      // ERROR "\-1\.23457e\-10 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-100     // ERROR "\-1\.23457e\-100 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-1000    // ERROR "\-1\.23457e\-1000 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-10000   // ERROR "\-1\.23457e\-10000 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-100000  // ERROR "\-1\.23457e\-100000 truncated|.* truncated to int64"
++	_ int64 = -1.23456789e-1000000 // ERROR "\-1\.23457e\-1000000 truncated|.* truncated to int64"
+ )
+diff --git a/test/fixedbugs/issue14136.go b/test/fixedbugs/issue14136.go
+index f9efd05f96..ff54a246f1 100644
+--- a/test/fixedbugs/issue14136.go
++++ b/test/fixedbugs/issue14136.go
+@@ -14,6 +14,8 @@ package main
+ type T struct{}
+ 
+ func main() {
+-	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T"
+-	var s string = 1 // ERROR "cannot use 1"
++	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown field 'X' in struct literal of type T|unknown field X"
++	_ = t
++	var s string = 1 // ERROR "cannot use 1|cannot convert"
++	_ = s
+ }
+diff --git a/test/fixedbugs/issue14321.go b/test/fixedbugs/issue14321.go
+index 058008c386..925b0b7a40 100644
+--- a/test/fixedbugs/issue14321.go
++++ b/test/fixedbugs/issue14321.go
+@@ -30,4 +30,4 @@ type C struct {
+ var _ = C.F // ERROR "ambiguous selector"
+ var _ = C.G // ERROR "ambiguous selector"
+ var _ = C.H // ERROR "ambiguous selector"
+-var _ = C.I // ERROR "no method I"
++var _ = C.I // ERROR "no method I|C.I undefined"
+diff --git a/test/fixedbugs/issue14729.go b/test/fixedbugs/issue14729.go
+index 88e01f9e16..52201f34e2 100644
+--- a/test/fixedbugs/issue14729.go
++++ b/test/fixedbugs/issue14729.go
+@@ -10,5 +10,5 @@ package main
+ 
+ import "unsafe"
+ 
+-type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer"
++type s struct { unsafe.Pointer } // ERROR "embedded type cannot be a pointer|embedded field type cannot be unsafe.Pointer"
+ type s1 struct { p unsafe.Pointer }
+diff --git a/test/fixedbugs/issue15055.go b/test/fixedbugs/issue15055.go
+index e58047e411..b6c3d96da6 100644
+--- a/test/fixedbugs/issue15055.go
++++ b/test/fixedbugs/issue15055.go
+@@ -8,10 +8,10 @@ package main
+ 
+ func main() {
+ 	type name string
+-	_ = []byte("abc", "def", 12)    // ERROR "too many arguments to conversion to \[\]byte: \(\[\]byte\)\(.abc., .def., 12\)"
+-	_ = string("a", "b", nil)       // ERROR "too many arguments to conversion to string: string\(.a., .b., nil\)"
+-	_ = []byte()                    // ERROR "missing argument to conversion to \[\]byte: \(\[\]byte\)\(\)"
+-	_ = string()                    // ERROR "missing argument to conversion to string: string\(\)"
+-	_ = name("a", 1, 3.3)           // ERROR "too many arguments to conversion to name: name\(.a., 1, 3.3\)"
+-	_ = map[string]string(nil, nil) // ERROR "too many arguments to conversion to map\[string\]string: \(map\[string\]string\)\(nil, nil\)"
++	_ = []byte("abc", "def", 12)    // ERROR "too many arguments (to conversion to \[\]byte: \(\[\]byte\)\(.abc., .def., 12\))?"
++	_ = string("a", "b", nil)       // ERROR "too many arguments (to conversion to string: string\(.a., .b., nil\))?"
++	_ = []byte()                    // ERROR "missing argument (to conversion to \[\]byte: \(\[\]byte\)\(\))?"
++	_ = string()                    // ERROR "missing argument (to conversion to string: string\(\))?"
++	_ = name("a", 1, 3.3)           // ERROR "too many arguments (to conversion to name: name\(.a., 1, 3.3\))?"
++	_ = map[string]string(nil, nil) // ERROR "too many arguments (to conversion to map\[string\]string: \(map\[string\]string\)\(nil, nil\))?"
+ }
+diff --git a/test/fixedbugs/issue15898.go b/test/fixedbugs/issue15898.go
+index 7b66ea23dc..7739bafccc 100644
+--- a/test/fixedbugs/issue15898.go
++++ b/test/fixedbugs/issue15898.go
+@@ -8,11 +8,11 @@ package p
+ 
+ func f(e interface{}) {
+ 	switch e.(type) {
+-	case nil, nil: // ERROR "multiple nil cases in type switch"
++	case nil, nil: // ERROR "multiple nil cases in type switch|duplicate case nil in type switch"
+ 	}
+ 
+ 	switch e.(type) {
+ 	case nil:
+-	case nil: // ERROR "multiple nil cases in type switch"
++	case nil: // ERROR "multiple nil cases in type switch|duplicate case nil in type switch"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue16439.go b/test/fixedbugs/issue16439.go
+index f9382bafcd..0a842ca1fb 100644
+--- a/test/fixedbugs/issue16439.go
++++ b/test/fixedbugs/issue16439.go
+@@ -7,12 +7,12 @@
+ package p
+ 
+ var a []int = []int{1: 1}
+-var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant"
++var b []int = []int{-1: 1} // ERROR "must be non-negative integer constant|must not be negative"
+ 
+ var c []int = []int{2.0: 2}
+-var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant"
++var d []int = []int{-2.0: 2} // ERROR "must be non-negative integer constant|must not be negative"
+ 
+ var e []int = []int{3 + 0i: 3}
+-var f []int = []int{3i: 3} // ERROR "truncated to integer"
++var f []int = []int{3i: 3} // ERROR "truncated to integer|truncated to int"
+ 
+-var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant"
++var g []int = []int{"a": 4} // ERROR "must be non-negative integer constant|cannot convert"
+diff --git a/test/fixedbugs/issue16949.go b/test/fixedbugs/issue16949.go
+index 9ee3387e96..1007d701de 100644
+--- a/test/fixedbugs/issue16949.go
++++ b/test/fixedbugs/issue16949.go
+@@ -12,19 +12,19 @@ var sink []byte
+ 
+ func main() {
+ 	sink = make([]byte, 1.0)
+-	sink = make([]byte, float32(1.0)) // ERROR "non-integer.*len"
+-	sink = make([]byte, float64(1.0)) // ERROR "non-integer.*len"
++	sink = make([]byte, float32(1.0)) // ERROR "non-integer.*len|must be integer"
++	sink = make([]byte, float64(1.0)) // ERROR "non-integer.*len|must be integer"
+ 
+ 	sink = make([]byte, 0, 1.0)
+-	sink = make([]byte, 0, float32(1.0)) // ERROR "non-integer.*cap"
+-	sink = make([]byte, 0, float64(1.0)) // ERROR "non-integer.*cap"
++	sink = make([]byte, 0, float32(1.0)) // ERROR "non-integer.*cap|must be integer"
++	sink = make([]byte, 0, float64(1.0)) // ERROR "non-integer.*cap|must be integer"
+ 
+ 	sink = make([]byte, 1+0i)
+-	sink = make([]byte, complex64(1+0i))  // ERROR "non-integer.*len"
+-	sink = make([]byte, complex128(1+0i)) // ERROR "non-integer.*len"
++	sink = make([]byte, complex64(1+0i))  // ERROR "non-integer.*len|must be integer"
++	sink = make([]byte, complex128(1+0i)) // ERROR "non-integer.*len|must be integer"
+ 
+ 	sink = make([]byte, 0, 1+0i)
+-	sink = make([]byte, 0, complex64(1+0i))  // ERROR "non-integer.*cap"
+-	sink = make([]byte, 0, complex128(1+0i)) // ERROR "non-integer.*cap"
++	sink = make([]byte, 0, complex64(1+0i))  // ERROR "non-integer.*cap|must be integer"
++	sink = make([]byte, 0, complex128(1+0i)) // ERROR "non-integer.*cap|must be integer"
+ 
+ }
+diff --git a/test/fixedbugs/issue6402.go b/test/fixedbugs/issue6402.go
+index da5980c9ab..027291a0ea 100644
+--- a/test/fixedbugs/issue6402.go
++++ b/test/fixedbugs/issue6402.go
+@@ -9,5 +9,5 @@
+ package p
+ 
+ func f() uintptr {
+-	return nil // ERROR "cannot use nil as type uintptr in return argument"
++	return nil // ERROR "cannot use nil as type uintptr in return argument|cannot convert nil"
+ }
+diff --git a/test/fixedbugs/issue6572.go b/test/fixedbugs/issue6572.go
+index e4465e9d1e..9f4d2de0e3 100644
+--- a/test/fixedbugs/issue6572.go
++++ b/test/fixedbugs/issue6572.go
+@@ -17,5 +17,6 @@ func bar() (T, string, T) { // ERROR "undefined"
+ func main() {
+ 	var x, y, z int
+ 	x, y = foo()
+-	x, y, z = bar() // ERROR "cannot (use type|assign) string"
++	x, y, z = bar() // ERROR "cannot (use type|assign) string|incompatible type"
++	_, _, _ = x, y, z
+ }
+diff --git a/test/initloop.go b/test/initloop.go
+index ca652f86f4..b1a8470b3a 100644
+--- a/test/initloop.go
++++ b/test/initloop.go
+@@ -11,7 +11,7 @@ package main
+ 
+ var (
+ 	x int = a
+-	a int = b // ERROR "a refers to\n.*b refers to\n.*c refers to\n.*a|initialization cycle"
++	a int = b // ERROR "a refers to\n.*b refers to\n.*c refers to\n.*a|initialization loop"
+ 	b int = c
+ 	c int = a
+ )
+diff --git a/test/run.go b/test/run.go
+index 3c8a20712b..8e1b06974c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1981,30 +1981,14 @@ var excluded = map[string]bool{
+ 	"fixedbugs/bug462.go":      true,
+ 	"fixedbugs/bug463.go":      true,
+ 	"fixedbugs/bug487.go":      true,
+-	"fixedbugs/issue11326.go":  true,
+ 	"fixedbugs/issue11362.go":  true,
+ 	"fixedbugs/issue11590.go":  true,
+ 	"fixedbugs/issue11610.go":  true,
+-	"fixedbugs/issue11614.go":  true,
+-	"fixedbugs/issue11674.go":  true,
+-	"fixedbugs/issue11737.go":  true,
+-	"fixedbugs/issue13365.go":  true,
+-	"fixedbugs/issue13415.go":  true,
+-	"fixedbugs/issue13471.go":  true,
+-	"fixedbugs/issue13480.go":  true,
+-	"fixedbugs/issue13485.go":  true,
+-	"fixedbugs/issue13539.go":  true,
+-	"fixedbugs/issue13559.go":  true,
+-	"fixedbugs/issue14136.go":  true,
+-	"fixedbugs/issue14321.go":  true,
+-	"fixedbugs/issue14520.go":  true,
+-	"fixedbugs/issue14540.go":  true,
+-	"fixedbugs/issue14729.go":  true,
+-	"fixedbugs/issue15055.go":  true,
+-	"fixedbugs/issue15898.go":  true,
+-	"fixedbugs/issue16428.go":  true,
+-	"fixedbugs/issue16439.go":  true,
+-	"fixedbugs/issue16949.go":  true,
++	"fixedbugs/issue11614.go":  true, // types2 reports an extra error
++	"fixedbugs/issue13415.go":  true, // declared but not used conflict
++	"fixedbugs/issue14520.go":  true, // missing import path error by types2
++	"fixedbugs/issue14540.go":  true, // types2 is missing a fallthrough error
++	"fixedbugs/issue16428.go":  true, // types2 reports two instead of one error
+ 	"fixedbugs/issue17038.go":  true,
+ 	"fixedbugs/issue17588.go":  true,
+ 	"fixedbugs/issue17631.go":  true,
+@@ -2084,11 +2068,8 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue4517d.go":  true,
+ 	"fixedbugs/issue4847.go":   true,
+ 	"fixedbugs/issue4909a.go":  true,
+-	"fixedbugs/issue5609.go":   true,
+-	"fixedbugs/issue6402.go":   true,
+-	"fixedbugs/issue6403.go":   true,
+-	"fixedbugs/issue6500.go":   true,
+-	"fixedbugs/issue6572.go":   true,
++	"fixedbugs/issue5609.go":   true, // types2 needs a better error message
++	"fixedbugs/issue6500.go":   true, // compiler -G is not reporting an error (but types2 does)
+ 	"fixedbugs/issue6889.go":   true, // types2 can handle this without constant overflow
+ 	"fixedbugs/issue7525.go":   true, // init cycle error on different line - ok otherwise
+ 	"fixedbugs/issue7525b.go":  true, // init cycle error on different line - ok otherwise
+diff --git a/test/runtime.go b/test/runtime.go
+index a833129dd6..58a5eee709 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -17,5 +17,5 @@ package main
+ import "runtime"
+ 
+ func main() {
+-	runtime.printbool(true)	// ERROR "unexported|not declared"
++	runtime.printbool(true)	// ERROR "unexported|undefined"
+ }

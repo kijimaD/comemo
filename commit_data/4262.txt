@@ -9,8 +9,61 @@ Date:   Tue Dec 1 15:53:50 2009 -0800
     
     R=rsc
     https://golang.org/cl/163042
-
+---
  src/cmd/8c/reg.c   |  2 ++
  src/cmd/8g/gsubr.c | 10 ++++++----
  src/cmd/8g/reg.c   |  3 ++-
  3 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/8c/reg.c b/src/cmd/8c/reg.c
+index a94653fff0..837da2d04c 100644
+--- a/src/cmd/8c/reg.c
++++ b/src/cmd/8c/reg.c
+@@ -254,7 +254,9 @@ regopt(Prog *p)
+ 		 */
+ 		case AFMOVDP:
+ 		case AFMOVFP:
++		case AFMOVLP:
+ 		case AFMOVVP:
++		case AFMOVWP:
+ 		case ACALL:
+ 			for(z=0; z<BITS; z++)
+ 				addrs.b[z] |= bit.b[z];
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+old mode 100755
+new mode 100644
+index 71a7494fc2..2e8c01bec2
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1289,10 +1289,12 @@ gmove(Node *f, Node *t)
+ 		if(t->op == OREGISTER)
+ 			goto hardmem;
+ 		nodreg(&r1, types[ft], D_F0);
+-		if(ft == TFLOAT32 && f->op != OREGISTER)
+-			gins(AFMOVF, f, &r1);
+-		else
+-			gins(AFMOVD, f, &r1);
++		if(f->op != OREGISTER) {
++			if(ft == TFLOAT32)
++				gins(AFMOVF, f, &r1);
++			else
++				gins(AFMOVD, f, &r1);
++		}
+ 
+ 		// set round to zero mode during conversion
+ 		tempalloc(&t1, types[TUINT16]);
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index cd98be4e61..568f72912f 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -306,8 +306,9 @@ regopt(Prog *firstp)
+ 		 */
+ 		case AFMOVDP:
+ 		case AFMOVFP:
+-		case AFMOVVP:
+ 		case AFMOVLP:
++		case AFMOVVP:
++		case AFMOVWP:
+ 		case ACALL:
+ 			for(z=0; z<BITS; z++)
+ 				addrs.b[z] |= bit.b[z];

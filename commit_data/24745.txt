@@ -10,9 +10,142 @@ Date:   Thu Aug 27 12:16:09 2015 -0400
     Change-Id: I8306b7829d8d13b564a1466c902ec6ba1a5a58c1
     Reviewed-on: https://go-review.googlesource.com/13967
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 28 +++++++++++++++++-----------
  src/cmd/go/get.go     |  4 ++--
  src/cmd/go/help.go    | 24 +++++++++++++++---------
  src/cmd/go/pkg.go     |  6 ++++--
  4 files changed, 38 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 6077d93a43..10509f85d9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -484,8 +484,8 @@ rule is that if the local installation is running version "go1", get
+ searches for a branch or tag named "go1". If no such version exists it
+ retrieves the most recent version of the package.
+ 
+-If the vendoring experiment is enabled (see 'go help gopath'),
+-then when go get checks out or updates a Git repository,
++Unless vendoring support is disabled (see 'go help gopath'),
++when go get checks out or updates a Git repository,
+ it also updates any git submodules referenced by the repository.
+ 
+ For more about specifying packages, see 'go help packages'.
+@@ -934,13 +934,10 @@ See https://golang.org/s/go14internal for details.
+ 
+ Vendor Directories
+ 
+-Go 1.5 includes experimental support for using local copies
+-of external dependencies to satisfy imports of those dependencies,
+-often referred to as vendoring. Setting the environment variable
+-GO15VENDOREXPERIMENT=1 enables that experimental support.
++Go 1.6 includes support for using local copies of external dependencies
++to satisfy imports of those dependencies, often referred to as vendoring.
+ 
+-When the vendor experiment is enabled,
+-code below a directory named "vendor" is importable only
++Code below a directory named "vendor" is importable only
+ by code in the directory tree rooted at the parent of "vendor",
+ and only using an import path that omits the prefix up to and
+ including the vendor element.
+@@ -978,9 +975,18 @@ top-level "crash/bang".
+ Code in vendor directories is not subject to import path
+ checking (see 'go help importpath').
+ 
+-When the vendor experiment is enabled, 'go get' checks out
+-submodules when checking out or updating a git repository
+-(see 'go help get').
++When 'go get' checks out or updates a git repository, it now also
++updates submodules.
++
++Vendor directories do not affect the placement of new repositories
++being checked out for the first time by 'go get': those are always
++placed in the main GOPATH, never in a vendor subtree.
++
++In Go 1.5, as an experiment, setting the environment variable
++GO15VENDOREXPERIMENT=1 enabled these features.
++As of Go 1.6 they are on by default. To turn them off, set
++GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
++variable will stop having any effect.
+ 
+ The vendoring semantics are an experiment, and they may change
+ in future releases. Once settled, they will be on by default.
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index e95201a693..283de18eba 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -51,8 +51,8 @@ rule is that if the local installation is running version "go1", get
+ searches for a branch or tag named "go1". If no such version exists it
+ retrieves the most recent version of the package.
+ 
+-If the vendoring experiment is enabled (see 'go help gopath'),
+-then when go get checks out or updates a Git repository,
++Unless vendoring support is disabled (see 'go help gopath'),
++when go get checks out or updates a Git repository,
+ it also updates any git submodules referenced by the repository.
+ 
+ For more about specifying packages, see 'go help packages'.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 5dff2670f1..034dfc3cac 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -365,13 +365,10 @@ See https://golang.org/s/go14internal for details.
+ 
+ Vendor Directories
+ 
+-Go 1.5 includes experimental support for using local copies
+-of external dependencies to satisfy imports of those dependencies,
+-often referred to as vendoring. Setting the environment variable
+-GO15VENDOREXPERIMENT=1 enables that experimental support.
++Go 1.6 includes support for using local copies of external dependencies
++to satisfy imports of those dependencies, often referred to as vendoring.
+ 
+-When the vendor experiment is enabled,
+-code below a directory named "vendor" is importable only
++Code below a directory named "vendor" is importable only
+ by code in the directory tree rooted at the parent of "vendor",
+ and only using an import path that omits the prefix up to and
+ including the vendor element.
+@@ -409,9 +406,18 @@ top-level "crash/bang".
+ Code in vendor directories is not subject to import path
+ checking (see 'go help importpath').
+ 
+-When the vendor experiment is enabled, 'go get' checks out
+-submodules when checking out or updating a git repository
+-(see 'go help get').
++When 'go get' checks out or updates a git repository, it now also
++updates submodules.
++
++Vendor directories do not affect the placement of new repositories
++being checked out for the first time by 'go get': those are always
++placed in the main GOPATH, never in a vendor subtree.
++
++In Go 1.5, as an experiment, setting the environment variable
++GO15VENDOREXPERIMENT=1 enabled these features.
++As of Go 1.6 they are on by default. To turn them off, set
++GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
++variable will stop having any effect.
+ 
+ The vendoring semantics are an experiment, and they may change
+ in future releases. Once settled, they will be on by default.
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index adce1820ef..539e8b92e1 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -250,11 +250,13 @@ func reloadPackage(arg string, stk *importStack) *Package {
+ 	return loadPackage(arg, stk)
+ }
+ 
+-// The Go 1.5 vendoring experiment is enabled by setting GO15VENDOREXPERIMENT=1.
++// The Go 1.5 vendoring experiment was enabled by setting GO15VENDOREXPERIMENT=1.
++// In Go 1.6 this is on by default and is disabled by setting GO15VENDOREXPERIMENT=0.
++// In Go 1.7 the variable will stop having any effect.
+ // The variable is obnoxiously long so that years from now when people find it in
+ // their profiles and wonder what it does, there is some chance that a web search
+ // might answer the question.
+-var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") == "1"
++var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") != "0"
+ 
+ // dirToImportPath returns the pseudo-import path we use for a package
+ // outside the Go path.  It begins with _/ and then contains the full path

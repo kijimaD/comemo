@@ -9,6 +9,19 @@ Date:   Wed Apr 6 16:45:20 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4374041
-
+---
  src/pkg/Makefile | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index ed69ed88d4..4171c2fd65 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -209,7 +209,6 @@ endif
+ # Disable tests that windows cannot run yet.
+ ifeq ($(GOOS),windows)
+ NOTEST+=os/signal    # no signals
+-NOTEST+=path         # tree walking does not work
+ NOTEST+=syslog       # no network
+ NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+ endif

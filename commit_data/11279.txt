@@ -7,7 +7,7 @@ Date:   Fri Jan 20 07:31:13 2012 +0900
     R=rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5536068
-
+---
  src/pkg/net/fd.go              | 10 +++++-----
  src/pkg/net/ipsock_posix.go    |  4 ++--
  src/pkg/net/sock.go            |  8 ++++----
@@ -17,3 +17,317 @@ Date:   Fri Jan 20 07:31:13 2012 +0900
  src/pkg/net/unicast_test.go    | 15 +++++++++++----
  src/pkg/net/unixsock_posix.go  | 30 +++++++++++++++---------------
  8 files changed, 44 insertions(+), 35 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 1b39cd7c4b..7ecd135d20 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -24,7 +24,7 @@ type netFD struct {
+ 	// immutable until Close
+ 	sysfd   int
+ 	family  int
+-	proto   int
++	sotype  int
+ 	sysfile *os.File
+ 	cr      chan bool
+ 	cw      chan bool
+@@ -274,7 +274,7 @@ func startServer() {
+ 	pollserver = p
+ }
+ 
+-func newFD(fd, family, proto int, net string) (f *netFD, err error) {
++func newFD(fd, family, sotype int, net string) (f *netFD, err error) {
+ 	onceStartServer.Do(startServer)
+ 	if e := syscall.SetNonblock(fd, true); e != nil {
+ 		return nil, e
+@@ -282,7 +282,7 @@ func newFD(fd, family, proto int, net string) (f *netFD, err error) {
+ 	f = &netFD{
+ 		sysfd:  fd,
+ 		family: family,
+-		proto:  proto,
++		sotype: sotype,
+ 		net:    net,
+ 	}
+ 	f.cr = make(chan bool, 1)
+@@ -397,7 +397,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 		}
+ 		if err != nil {
+ 			n = 0
+-		} else if n == 0 && err == nil && fd.proto != syscall.SOCK_DGRAM {
++		} else if n == 0 && err == nil && fd.sotype != syscall.SOCK_DGRAM {
+ 			err = io.EOF
+ 		}
+ 		break
+@@ -599,7 +599,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err err
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+ 
+-	if nfd, err = newFD(s, fd.family, fd.proto, fd.net); err != nil {
++	if nfd, err = newFD(s, fd.family, fd.sotype, fd.net); err != nil {
+ 		syscall.Close(s)
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index 45fe0d9640..3a059f516b 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -101,7 +101,7 @@ type sockaddr interface {
+ 	family() int
+ }
+ 
+-func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++func internetSocket(net string, laddr, raddr sockaddr, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	var oserr error
+ 	var la, ra syscall.Sockaddr
+ 	family := favoriteAddrFamily(net, raddr, laddr, mode)
+@@ -115,7 +115,7 @@ func internetSocket(net string, laddr, raddr sockaddr, socktype, proto int, mode
+ 			goto Error
+ 		}
+ 	}
+-	fd, oserr = socket(net, family, socktype, proto, la, ra, toAddr)
++	fd, oserr = socket(net, family, sotype, proto, la, ra, toAddr)
+ 	if oserr != nil {
+ 		goto Error
+ 	}
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 5e775e87d9..2f3210b428 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -17,10 +17,10 @@ import (
+ var listenerBacklog = maxListenerBacklog()
+ 
+ // Generic socket creation.
+-func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	// See ../syscall/exec.go for description of ForkLock.
+ 	syscall.ForkLock.RLock()
+-	s, err := syscall.Socket(f, p, t)
++	s, err := syscall.Socket(f, t, p)
+ 	if err != nil {
+ 		syscall.ForkLock.RUnlock()
+ 		return nil, err
+@@ -28,7 +28,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	syscall.CloseOnExec(s)
+ 	syscall.ForkLock.RUnlock()
+ 
+-	setDefaultSockopts(s, f, p)
++	setDefaultSockopts(s, f, t)
+ 
+ 	if la != nil {
+ 		err = syscall.Bind(s, la)
+@@ -38,7 +38,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 		}
+ 	}
+ 
+-	if fd, err = newFD(s, f, p, net); err != nil {
++	if fd, err = newFD(s, f, t, net); err != nil {
+ 		closesocket(s)
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/sockopt_bsd.go b/src/pkg/net/sockopt_bsd.go
+index e99fb418cd..2093e08127 100644
+--- a/src/pkg/net/sockopt_bsd.go
++++ b/src/pkg/net/sockopt_bsd.go
+@@ -12,14 +12,15 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s, f, p int) {
++func setDefaultSockopts(s, f, t int) {
+ 	switch f {
+ 	case syscall.AF_INET6:
+ 		// Allow both IP versions even if the OS default is otherwise.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+ 	}
+ 
+-	if f == syscall.AF_UNIX || p == syscall.IPPROTO_TCP {
++	if f == syscall.AF_UNIX ||
++		(f == syscall.AF_INET || f == syscall.AF_INET6) && t == syscall.SOCK_STREAM {
+ 		// Allow reuse of recently-used addresses.
+ 		syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+ 
+diff --git a/src/pkg/net/sockopt_linux.go b/src/pkg/net/sockopt_linux.go
+index 51583844f1..9dbb4e5dde 100644
+--- a/src/pkg/net/sockopt_linux.go
++++ b/src/pkg/net/sockopt_linux.go
+@@ -10,14 +10,15 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s, f, p int) {
++func setDefaultSockopts(s, f, t int) {
+ 	switch f {
+ 	case syscall.AF_INET6:
+ 		// Allow both IP versions even if the OS default is otherwise.
+ 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, 0)
+ 	}
+ 
+-	if f == syscall.AF_UNIX || p == syscall.IPPROTO_TCP {
++	if f == syscall.AF_UNIX ||
++		(f == syscall.AF_INET || f == syscall.AF_INET6) && t == syscall.SOCK_STREAM {
+ 		// Allow reuse of recently-used addresses.
+ 		syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+ 	}
+diff --git a/src/pkg/net/sockopt_windows.go b/src/pkg/net/sockopt_windows.go
+index 485c14a2d3..a7b5606d86 100644
+--- a/src/pkg/net/sockopt_windows.go
++++ b/src/pkg/net/sockopt_windows.go
+@@ -10,7 +10,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func setDefaultSockopts(s syscall.Handle, f, p int) {
++func setDefaultSockopts(s syscall.Handle, f, t int) {
+ 	switch f {
+ 	case syscall.AF_INET6:
+ 		// Allow both IP versions even if the OS default is otherwise.
+diff --git a/src/pkg/net/unicast_test.go b/src/pkg/net/unicast_test.go
+index 6ed6f59cdd..a89b9baa5e 100644
+--- a/src/pkg/net/unicast_test.go
++++ b/src/pkg/net/unicast_test.go
+@@ -15,10 +15,12 @@ var unicastTests = []struct {
+ 	ipv6   bool
+ 	packet bool
+ }{
+-	{"tcp4", "127.0.0.1:0", false, false},
+-	{"tcp6", "[::1]:0", true, false},
+-	{"udp4", "127.0.0.1:0", false, true},
+-	{"udp6", "[::1]:0", true, true},
++	{net: "tcp4", laddr: "127.0.0.1:0"},
++	{net: "tcp4", laddr: "previous"},
++	{net: "tcp6", laddr: "[::1]:0", ipv6: true},
++	{net: "tcp6", laddr: "previous", ipv6: true},
++	{net: "udp4", laddr: "127.0.0.1:0", packet: true},
++	{net: "udp6", laddr: "[::1]:0", ipv6: true, packet: true},
+ }
+ 
+ func TestUnicastTCPAndUDP(t *testing.T) {
+@@ -26,16 +28,21 @@ func TestUnicastTCPAndUDP(t *testing.T) {
+ 		return
+ 	}
+ 
++	prevladdr := ""
+ 	for _, tt := range unicastTests {
+ 		if tt.ipv6 && !supportsIPv6 {
+ 			continue
+ 		}
+ 		var fd *netFD
+ 		if !tt.packet {
++			if tt.laddr == "previous" {
++				tt.laddr = prevladdr
++			}
+ 			c, err := Listen(tt.net, tt.laddr)
+ 			if err != nil {
+ 				t.Fatalf("Listen failed: %v", err)
+ 			}
++			prevladdr = c.Addr().String()
+ 			defer c.Close()
+ 			fd = c.(*TCPListener).fd
+ 		} else {
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index c1bb90b60a..5b8b2e4c7c 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -15,16 +15,16 @@ import (
+ )
+ 
+ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err error) {
+-	var proto int
++	var sotype int
+ 	switch net {
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	case "unix":
+-		proto = syscall.SOCK_STREAM
++		sotype = syscall.SOCK_STREAM
+ 	case "unixgram":
+-		proto = syscall.SOCK_DGRAM
++		sotype = syscall.SOCK_DGRAM
+ 	case "unixpacket":
+-		proto = syscall.SOCK_SEQPACKET
++		sotype = syscall.SOCK_SEQPACKET
+ 	}
+ 
+ 	var la, ra syscall.Sockaddr
+@@ -38,7 +38,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 		}
+ 		if raddr != nil {
+ 			ra = &syscall.SockaddrUnix{Name: raddr.Name}
+-		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
++		} else if sotype != syscall.SOCK_DGRAM || laddr == nil {
+ 			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
+ 		}
+ 
+@@ -53,13 +53,13 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
+ 	}
+ 
+ 	f := sockaddrToUnix
+-	if proto == syscall.SOCK_DGRAM {
++	if sotype == syscall.SOCK_DGRAM {
+ 		f = sockaddrToUnixgram
+-	} else if proto == syscall.SOCK_SEQPACKET {
++	} else if sotype == syscall.SOCK_SEQPACKET {
+ 		f = sockaddrToUnixpacket
+ 	}
+ 
+-	fd, oserr := socket(net, syscall.AF_UNIX, proto, 0, la, ra, f)
++	fd, oserr := socket(net, syscall.AF_UNIX, sotype, 0, la, ra, f)
+ 	if oserr != nil {
+ 		goto Error
+ 	}
+@@ -94,8 +94,8 @@ func sockaddrToUnixpacket(sa syscall.Sockaddr) Addr {
+ 	return nil
+ }
+ 
+-func protoToNet(proto int) string {
+-	switch proto {
++func sotypeToNet(sotype int) string {
++	switch sotype {
+ 	case syscall.SOCK_STREAM:
+ 		return "unix"
+ 	case syscall.SOCK_SEQPACKET:
+@@ -103,7 +103,7 @@ func protoToNet(proto int) string {
+ 	case syscall.SOCK_DGRAM:
+ 		return "unixgram"
+ 	default:
+-		panic("protoToNet unknown protocol")
++		panic("sotypeToNet unknown socket type")
+ 	}
+ 	return ""
+ }
+@@ -221,7 +221,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err error) {
+ 	n, sa, err := c.fd.ReadFrom(b)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+-		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
++		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+ 	}
+ 	return
+ }
+@@ -245,7 +245,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, os.EINVAL
+ 	}
+-	if addr.Net != protoToNet(c.fd.proto) {
++	if addr.Net != sotypeToNet(c.fd.sotype) {
+ 		return 0, os.EAFNOSUPPORT
+ 	}
+ 	sa := &syscall.SockaddrUnix{Name: addr.Name}
+@@ -271,7 +271,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ 	n, oobn, flags, sa, err := c.fd.ReadMsg(b, oob)
+ 	switch sa := sa.(type) {
+ 	case *syscall.SockaddrUnix:
+-		addr = &UnixAddr{sa.Name, protoToNet(c.fd.proto)}
++		addr = &UnixAddr{sa.Name, sotypeToNet(c.fd.sotype)}
+ 	}
+ 	return
+ }
+@@ -281,7 +281,7 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 		return 0, 0, os.EINVAL
+ 	}
+ 	if addr != nil {
+-		if addr.Net != protoToNet(c.fd.proto) {
++		if addr.Net != sotypeToNet(c.fd.sotype) {
+ 			return 0, 0, os.EAFNOSUPPORT
+ 		}
+ 		sa := &syscall.SockaddrUnix{Name: addr.Name}

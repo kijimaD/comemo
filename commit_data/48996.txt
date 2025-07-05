@@ -22,7 +22,7 @@ Date:   Sat Jul 3 04:53:25 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/escape/call.go        |  11 +++
  src/cmd/compile/internal/escape/expr.go        |   2 +-
  src/cmd/compile/internal/escape/stmt.go        |   2 +-
@@ -34,3 +34,409 @@ Date:   Sat Jul 3 04:53:25 2021 -0700
  src/cmd/compile/internal/typecheck/dcl.go      |   1 +
  src/cmd/compile/internal/walk/order.go         |  33 +++++++-
  10 files changed, 102 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 5bd748027e..6fcfb1b3b4 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -110,6 +110,17 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
+ 			argumentFunc(fn, e.tagHole(ks, fn, param), &args[i])
+ 		}
+ 
++	case ir.OINLCALL:
++		call := call.(*ir.InlinedCallExpr)
++		e.stmts(call.Body)
++		for i, result := range call.ReturnVars {
++			k := e.discardHole()
++			if ks != nil {
++				k = ks[i]
++			}
++			e.expr(k, result)
++		}
++
+ 	case ir.OAPPEND:
+ 		call := call.(*ir.CallExpr)
+ 		args := call.Args
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index c2a679d474..60b44fe0aa 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -130,7 +130,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		n := n.(*ir.UnaryExpr)
+ 		e.discard(n.X)
+ 
+-	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER, ir.OUNSAFEADD, ir.OUNSAFESLICE:
++	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OINLCALL, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+ 		e.call([]hole{k}, n)
+ 
+ 	case ir.ONEW:
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index 0bdb07b278..c71848b8a1 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -173,7 +173,7 @@ func (e *escape) stmt(n ir.Node) {
+ 			dsts[i] = res.Nname.(*ir.Name)
+ 		}
+ 		e.assignList(dsts, n.Results, "return", n)
+-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
++	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.ORECOVER:
+ 		e.call(nil, n)
+ 	case ir.OGO, ir.ODEFER:
+ 		n := n.(*ir.GoDeferStmt)
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index a6961e4e4d..f1e927d643 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -515,37 +515,6 @@ func InlineCalls(fn *ir.Func) {
+ 	ir.CurFunc = savefn
+ }
+ 
+-// Turn an OINLCALL into a statement.
+-func inlconv2stmt(inlcall *ir.InlinedCallExpr) ir.Node {
+-	n := ir.NewBlockStmt(inlcall.Pos(), nil)
+-	n.List = inlcall.Init()
+-	n.List.Append(inlcall.Body.Take()...)
+-	return n
+-}
+-
+-// Turn an OINLCALL into a single valued expression.
+-// The result of inlconv2expr MUST be assigned back to n, e.g.
+-// 	n.Left = inlconv2expr(n.Left)
+-func inlconv2expr(n *ir.InlinedCallExpr) ir.Node {
+-	r := n.ReturnVars[0]
+-	return ir.InitExpr(append(n.Init(), n.Body...), r)
+-}
+-
+-// Turn the rlist (with the return values) of the OINLCALL in
+-// n into an expression list lumping the ninit and body
+-// containing the inlined statements on the first list element so
+-// order will be preserved. Used in return, oas2func and call
+-// statements.
+-func inlconv2list(n *ir.InlinedCallExpr) []ir.Node {
+-	if n.Op() != ir.OINLCALL || len(n.ReturnVars) == 0 {
+-		base.Fatalf("inlconv2list %+v\n", n)
+-	}
+-
+-	s := n.ReturnVars
+-	s[0] = ir.InitExpr(append(n.Init(), n.Body...), s[0])
+-	return s
+-}
+-
+ // inlnode recurses over the tree to find inlineable calls, which will
+ // be turned into OINLCALLs by mkinlcall. When the recursion comes
+ // back up will examine left, right, list, rlist, ninit, ntest, nincr,
+@@ -599,33 +568,18 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 
+ 	ir.EditChildren(n, edit)
+ 
+-	if as := n; as.Op() == ir.OAS2FUNC {
+-		as := as.(*ir.AssignListStmt)
+-		if as.Rhs[0].Op() == ir.OINLCALL {
+-			as.Rhs = inlconv2list(as.Rhs[0].(*ir.InlinedCallExpr))
+-			as.SetOp(ir.OAS2)
+-			as.SetTypecheck(0)
+-			n = typecheck.Stmt(as)
+-		}
+-	}
+-
+ 	// with all the branches out of the way, it is now time to
+ 	// transmogrify this node itself unless inhibited by the
+ 	// switch at the top of this function.
+ 	switch n.Op() {
+ 	case ir.OCALLMETH:
+ 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+-	case ir.OCALLFUNC:
+-		n := n.(*ir.CallExpr)
+-		if n.NoInline {
+-			return n
+-		}
+-	}
+ 
+-	var call *ir.CallExpr
+-	switch n.Op() {
+ 	case ir.OCALLFUNC:
+-		call = n.(*ir.CallExpr)
++		call := n.(*ir.CallExpr)
++		if call.NoInline {
++			break
++		}
+ 		if base.Flag.LowerM > 3 {
+ 			fmt.Printf("%v:call to func %+v\n", ir.Line(n), call.X)
+ 		}
+@@ -635,27 +589,10 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool, edit func(ir.No
+ 		if fn := inlCallee(call.X); fn != nil && fn.Inl != nil {
+ 			n = mkinlcall(call, fn, maxCost, inlMap, edit)
+ 		}
+-	case ir.OCALLMETH:
+-		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+ 	}
+ 
+ 	base.Pos = lno
+ 
+-	if n.Op() == ir.OINLCALL {
+-		ic := n.(*ir.InlinedCallExpr)
+-		switch call.Use {
+-		default:
+-			ir.Dump("call", call)
+-			base.Fatalf("call missing use")
+-		case ir.CallUseExpr:
+-			n = inlconv2expr(ic)
+-		case ir.CallUseStmt:
+-			n = inlconv2stmt(ic)
+-		case ir.CallUseList:
+-			// leave for caller to convert
+-		}
+-	}
+-
+ 	return n
+ }
+ 
+@@ -811,6 +748,30 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 	return res
+ }
+ 
++// CalleeEffects appends any side effects from evaluating callee to init.
++func CalleeEffects(init *ir.Nodes, callee ir.Node) {
++	for {
++		switch callee.Op() {
++		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
++			return // done
++
++		case ir.OCONVNOP:
++			conv := callee.(*ir.ConvExpr)
++			init.Append(ir.TakeInit(conv)...)
++			callee = conv.X
++
++		case ir.OINLCALL:
++			ic := callee.(*ir.InlinedCallExpr)
++			init.Append(ir.TakeInit(ic)...)
++			init.Append(ic.Body.Take()...)
++			callee = ic.SingleResult()
++
++		default:
++			base.FatalfAt(callee.Pos(), "unexpected callee expression: %v", callee)
++		}
++	}
++}
++
+ // oldInline creates an InlinedCallExpr to replace the given call
+ // expression. fn is the callee function to be inlined. inlIndex is
+ // the inlining tree position index, for use with src.NewInliningBase
+@@ -825,19 +786,10 @@ func oldInline(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr
+ 	ninit := call.Init()
+ 
+ 	// For normal function calls, the function callee expression
+-	// may contain side effects (e.g., added by addinit during
+-	// inlconv2expr or inlconv2list). Make sure to preserve these,
++	// may contain side effects. Make sure to preserve these,
+ 	// if necessary (#42703).
+ 	if call.Op() == ir.OCALLFUNC {
+-		callee := call.X
+-		for callee.Op() == ir.OCONVNOP {
+-			conv := callee.(*ir.ConvExpr)
+-			ninit.Append(ir.TakeInit(conv)...)
+-			callee = conv.X
+-		}
+-		if callee.Op() != ir.ONAME && callee.Op() != ir.OCLOSURE && callee.Op() != ir.OMETHEXPR {
+-			base.Fatalf("unexpected callee expression: %v", callee)
+-		}
++		CalleeEffects(&ninit, call.X)
+ 	}
+ 
+ 	// Make temp names to use instead of the originals.
+@@ -979,6 +931,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
+ 
+ 	n := typecheck.NewName(var_.Sym())
+ 	n.SetType(var_.Type())
++	n.SetTypecheck(1)
+ 	n.Class = ir.PAUTO
+ 	n.SetUsed(true)
+ 	n.SetAutoTemp(var_.AutoTemp())
+@@ -993,6 +946,7 @@ func inlvar(var_ *ir.Name) *ir.Name {
+ func retvar(t *types.Field, i int) *ir.Name {
+ 	n := typecheck.NewName(typecheck.LookupNum("~R", i))
+ 	n.SetType(t.Type)
++	n.SetTypecheck(1)
+ 	n.Class = ir.PAUTO
+ 	n.SetUsed(true)
+ 	n.Curfn = ir.CurFunc // the calling function, not the called one
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 919cb3362f..4ff75e616d 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -345,7 +345,7 @@ func (n *StructKeyExpr) Sym() *types.Sym { return n.Field.Sym }
+ type InlinedCallExpr struct {
+ 	miniExpr
+ 	Body       Nodes
+-	ReturnVars Nodes
++	ReturnVars Nodes // must be side-effect free
+ }
+ 
+ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
+@@ -357,6 +357,13 @@ func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
+ 	return n
+ }
+ 
++func (n *InlinedCallExpr) SingleResult() Node {
++	if have := len(n.ReturnVars); have != 1 {
++		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
++	}
++	return n.ReturnVars[0]
++}
++
+ // A LogicalExpr is a expression X Op Y where Op is && or ||.
+ // It is separate from BinaryExpr to make room for statements
+ // that must be executed before Y but after X.
+@@ -800,6 +807,11 @@ func StaticValue(n Node) Node {
+ 			continue
+ 		}
+ 
++		if n.Op() == OINLCALL {
++			n = n.(*InlinedCallExpr).SingleResult()
++			continue
++		}
++
+ 		n1 := staticValue1(n)
+ 		if n1 == nil {
+ 			return n
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index ae62d5f51b..6f6e26dec4 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -859,6 +859,15 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		}
+ 		fmt.Fprintf(s, "(%.v)", n.Args)
+ 
++	case OINLCALL:
++		n := n.(*InlinedCallExpr)
++		// TODO(mdempsky): Print Init and/or Body?
++		if len(n.ReturnVars) == 1 {
++			fmt.Fprintf(s, "%v", n.ReturnVars[0])
++			return
++		}
++		fmt.Fprintf(s, "(.%v)", n.ReturnVars)
++
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+ 		n := n.(*MakeExpr)
+ 		if n.Cap != nil {
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 41a11b0c70..902cbc8091 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -221,7 +221,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~R0 = \u0026y.b (assign-pair)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~R0:"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return (*int)(~R0) (return)"}]}`)
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return ~R0 (return)"}]}`)
+ 	})
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 14d982a1af..d938dca5d4 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/deadcode"
+ 	"cmd/compile/internal/dwarfgen"
++	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/typecheck"
+@@ -1848,23 +1849,10 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 	init := ir.TakeInit(call)
+ 
+ 	// For normal function calls, the function callee expression
+-	// may contain side effects (e.g., added by addinit during
+-	// inlconv2expr or inlconv2list). Make sure to preserve these,
++	// may contain side effects. Make sure to preserve these,
+ 	// if necessary (#42703).
+ 	if call.Op() == ir.OCALLFUNC {
+-		callee := call.X
+-		for callee.Op() == ir.OCONVNOP {
+-			conv := callee.(*ir.ConvExpr)
+-			init.Append(ir.TakeInit(conv)...)
+-			callee = conv.X
+-		}
+-
+-		switch callee.Op() {
+-		case ir.ONAME, ir.OCLOSURE, ir.OMETHEXPR:
+-			// ok
+-		default:
+-			base.Fatalf("unexpected callee expression: %v", callee)
+-		}
++		inline.CalleeEffects(&init, call.X)
+ 	}
+ 
+ 	var args ir.Nodes
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 66d755089a..90d3020fe0 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -418,6 +418,7 @@ func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	n := ir.NewNameAt(pos, s)
+ 	s.Def = n
+ 	n.SetType(t)
++	n.SetTypecheck(1)
+ 	n.Class = ir.PAUTO
+ 	n.SetEsc(ir.EscNever)
+ 	n.Curfn = curfn
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 007af03d4b..eec340261e 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -655,9 +655,20 @@ func (o *orderState) stmt(n ir.Node) {
+ 		n := n.(*ir.AssignListStmt)
+ 		t := o.markTemp()
+ 		o.exprList(n.Lhs)
+-		o.init(n.Rhs[0])
+-		o.call(n.Rhs[0])
+-		o.as2func(n)
++		call := n.Rhs[0]
++		o.init(call)
++		if ic, ok := call.(*ir.InlinedCallExpr); ok {
++			o.stmtList(ic.Body)
++
++			n.SetOp(ir.OAS2)
++			n.Rhs = ic.ReturnVars
++
++			o.exprList(n.Rhs)
++			o.out = append(o.out, n)
++		} else {
++			o.call(call)
++			o.as2func(n)
++		}
+ 		o.cleanTemp(t)
+ 
+ 	// Special: use temporary variables to hold result,
+@@ -717,6 +728,17 @@ func (o *orderState) stmt(n ir.Node) {
+ 		o.out = append(o.out, n)
+ 		o.cleanTemp(t)
+ 
++	case ir.OINLCALL:
++		n := n.(*ir.InlinedCallExpr)
++		o.stmtList(n.Body)
++
++		// discard results; double-check for no side effects
++		for _, result := range n.ReturnVars {
++			if staticinit.AnySideEffects(result) {
++				base.FatalfAt(result.Pos(), "inlined call result has side effects: %v", result)
++			}
++		}
++
+ 	case ir.OCHECKNIL, ir.OCLOSE, ir.OPANIC, ir.ORECV:
+ 		n := n.(*ir.UnaryExpr)
+ 		t := o.markTemp()
+@@ -1241,6 +1263,11 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 		}
+ 		return n
+ 
++	case ir.OINLCALL:
++		n := n.(*ir.InlinedCallExpr)
++		o.stmtList(n.Body)
++		return n.SingleResult()
++
+ 	case ir.OAPPEND:
+ 		// Check for append(x, make([]T, y)...) .
+ 		n := n.(*ir.CallExpr)

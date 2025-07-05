@@ -9,6 +9,20 @@ Date:   Fri Sep 5 17:00:32 2014 -0400
     TBR=khr
     CC=golang-codereviews
     https://golang.org/cl/132640044
-
+---
  src/pkg/runtime/stack.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index facf0c5e82..20a37046f9 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -26,7 +26,7 @@ enum
+ 
+ 	StackCache = 1,
+ 	
+-	StackCopyAlways = 1,	// expect to be able to copy stacks 100% of the time
++	StackCopyAlways = 0,	// expect to be able to copy stacks 100% of the time
+ };
+ 
+ // Global pool of spans that have free stacks.

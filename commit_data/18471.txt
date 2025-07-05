@@ -11,10 +11,185 @@ Date:   Wed Feb 12 22:31:36 2014 +0400
     R=rsc, alex.brainman, ality
     CC=golang-codereviews
     https://golang.org/cl/61270043
-
+---
  src/pkg/runtime/os_windows.c        |  7 +++++++
  src/pkg/runtime/proc.c              | 40 ++++++++++++++++++++++++++++++-------
  src/pkg/runtime/runtime.h           |  3 +++
  src/pkg/runtime/sys_windows_386.s   | 19 ++++++++++++++++--
  src/pkg/runtime/sys_windows_amd64.s | 21 +++++++++++++++----
  5 files changed, 77 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index d867b0d50e..6c9d687b70 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -291,7 +291,14 @@ runtime·stdcall(void *fn, int32 count, ...)
+ 	m->libcall.fn = fn;
+ 	m->libcall.n = count;
+ 	m->libcall.args = (uintptr*)&count + 1;
++	if(m->profilehz != 0) {
++		// leave pc/sp for cpu profiler
++		m->libcallpc = (uintptr)runtime·getcallerpc(&fn);
++		m->libcallsp = (uintptr)runtime·getcallersp(&fn);
++		m->libcallg = g;
++	}
+ 	runtime·asmcgocall(runtime·asmstdcall, &m->libcall);
++	m->libcallsp = 0;
+ 	return (void*)m->libcall.r1;
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c771d5f916..88d6acead3 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2104,10 +2104,10 @@ static struct {
+ 	uintptr pcbuf[100];
+ } prof;
+ 
+-static void
+-System(void)
+-{
+-}
++static void System(void) {}
++static void ExternalCode(void) {}
++static void GC(void) {}
++extern byte etext[];
+ 
+ // Called if we receive a SIGPROF signal.
+ void
+@@ -2221,9 +2221,35 @@ runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp, M *mp)
+ 	if(traceback)
+ 		n = runtime·gentraceback((uintptr)pc, (uintptr)sp, (uintptr)lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
+ 	if(!traceback || n <= 0) {
+-		n = 2;
+-		prof.pcbuf[0] = (uintptr)pc;
+-		prof.pcbuf[1] = (uintptr)System + 1;
++		// Normal traceback is impossible or has failed.
++		// See if it falls into several common cases.
++		n = 0;
++		if(mp->ncgo > 0 && mp->curg != nil &&
++			mp->curg->syscallpc != 0 && mp->curg->syscallsp != 0) {
++			// Cgo, we can't unwind and symbolize arbitrary C code,
++			// so instead collect Go stack that leads to the cgo call.
++			// This is especially important on windows, since all syscalls are cgo calls.
++			n = runtime·gentraceback(mp->curg->syscallpc, mp->curg->syscallsp, 0, mp->curg, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
++		}
++#ifdef GOOS_windows
++		if(n == 0 && mp->libcallg != nil && mp->libcallpc != 0 && mp->libcallsp != 0) {
++			// Libcall, i.e. runtime syscall on windows.
++			// Collect Go stack that leads to the call.
++			n = runtime·gentraceback(mp->libcallpc, mp->libcallsp, 0, mp->libcallg, 0, prof.pcbuf, nelem(prof.pcbuf), nil, nil, false);
++		}
++#endif
++		if(n == 0) {
++			// If all of the above has failed, account it against abstract "System" or "GC".
++			n = 2;
++			// "ExternalCode" is better than "etext".
++			if((uintptr)pc > (uintptr)etext)
++				pc = (byte*)ExternalCode + PCQuantum;
++			prof.pcbuf[0] = (uintptr)pc;
++			if(mp->gcing || mp->helpgc)
++				prof.pcbuf[1] = (uintptr)GC + PCQuantum;
++			else
++				prof.pcbuf[1] = (uintptr)System + PCQuantum;
++		}
+ 	}
+ 	prof.fn(prof.pcbuf, n);
+ 	runtime·unlock(&prof);
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 57b5329e68..fa56e30152 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -350,6 +350,9 @@ struct	M
+ 	// these are here because they are too large to be on the stack
+ 	// of low-level NOSPLIT functions.
+ 	LibCall	libcall;
++	uintptr	libcallpc;	// for cpu profiler
++	uintptr	libcallsp;
++	G*	libcallg;
+ #endif
+ #ifdef GOOS_solaris
+ 	int32*	perrno; 	// pointer to TLS errno
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 49742c3e04..af10ca8644 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -343,19 +343,34 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	RET
+ 
+ 	MOVL	m(CX), BP
++
++	// leave pc/sp for cpu profiler
++	MOVL	(SP), SI
++	MOVL	SI, m_libcallpc(BP)
++	LEAL	4(SP), SI
++	MOVL	SI, m_libcallsp(BP)
++	MOVL	g(BP), SI
++	MOVL	SI, m_libcallg(BP)
++
+ 	MOVL	m_g0(BP), SI
+ 	CMPL	g(CX), SI
+-	JNE	3(PC)
++	JNE	usleep1_switch
+ 	// executing on m->g0 already
+ 	CALL	AX
+-	RET
++	JMP	usleep1_ret
+ 
++usleep1_switch:
+ 	// Switch to m->g0 stack and back.
+ 	MOVL	(g_sched+gobuf_sp)(SI), SI
+ 	MOVL	SP, -4(SI)
+ 	LEAL	-4(SI), SP
+ 	CALL	AX
+ 	MOVL	0(SP), SP
++
++usleep1_ret:
++	get_tls(CX)
++	MOVL	m(CX), BP
++	MOVL	$0, m_libcallsp(BP)
+ 	RET
+ 
+ // Runs on OS stack. duration (in 100ns units) is in BX.
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index cdfde3c61a..6576c4283c 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -337,20 +337,33 @@ TEXT runtime·usleep1(SB),NOSPLIT,$0
+ 	CALL	AX
+ 	RET
+ 
+-	MOVQ	m(R15), R14
+-	MOVQ	m_g0(R14), R14
++	MOVQ	m(R15), R13
++
++	// leave pc/sp for cpu profiler
++	MOVQ	(SP), R12
++	MOVQ	R12, m_libcallpc(R13)
++	LEAQ	8(SP), R12
++	MOVQ	R12, m_libcallsp(R13)
++	MOVQ	g(R13), R12
++	MOVQ	R12, m_libcallg(R13)
++
++	MOVQ	m_g0(R13), R14
+ 	CMPQ	g(R15), R14
+-	JNE	3(PC)
++	JNE	usleep1_switch
+ 	// executing on m->g0 already
+ 	CALL	AX
+-	RET
++	JMP	usleep1_ret
+ 
++usleep1_switch:
+ 	// Switch to m->g0 stack and back.
+ 	MOVQ	(g_sched+gobuf_sp)(R14), R14
+ 	MOVQ	SP, -8(R14)
+ 	LEAQ	-8(R14), SP
+ 	CALL	AX
+ 	MOVQ	0(SP), SP
++
++usleep1_ret:
++	MOVQ	$0, m_libcallsp(R13)
+ 	RET
+ 
+ // Runs on OS stack. duration (in 100ns units) is in BX.

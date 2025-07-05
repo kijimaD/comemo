@@ -14,8 +14,622 @@ Date:   Thu Jan 21 12:02:39 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go          | 146 +++++++++++----
  src/cmd/compile/internal/test/abiutils_test.go    | 214 ++++++++++++----------
  src/cmd/compile/internal/test/abiutilsaux_test.go |  18 +-
  3 files changed, 244 insertions(+), 134 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 3ac59e6f75..e935821802 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -25,9 +25,8 @@ import (
+ type ABIParamResultInfo struct {
+ 	inparams          []ABIParamAssignment // Includes receiver for method calls.  Does NOT include hidden closure pointer.
+ 	outparams         []ABIParamAssignment
+-	intSpillSlots     int
+-	floatSpillSlots   int
+ 	offsetToSpillArea int64
++	spillAreaSize     int64
+ 	config            *ABIConfig // to enable String() method
+ }
+ 
+@@ -47,18 +46,14 @@ func (a *ABIParamResultInfo) OutParam(i int) ABIParamAssignment {
+ 	return a.outparams[i]
+ }
+ 
+-func (a *ABIParamResultInfo) IntSpillCount() int {
+-	return a.intSpillSlots
+-}
+-
+-func (a *ABIParamResultInfo) FloatSpillCount() int {
+-	return a.floatSpillSlots
+-}
+-
+ func (a *ABIParamResultInfo) SpillAreaOffset() int64 {
+ 	return a.offsetToSpillArea
+ }
+ 
++func (a *ABIParamResultInfo) SpillAreaSize() int64 {
++	return a.spillAreaSize
++}
++
+ // RegIndex stores the index into the set of machine registers used by
+ // the ABI on a specific architecture for parameter passing.  RegIndex
+ // values 0 through N-1 (where N is the number of integer registers
+@@ -78,7 +73,27 @@ type RegIndex uint8
+ type ABIParamAssignment struct {
+ 	Type      *types.Type
+ 	Registers []RegIndex
+-	Offset    int32
++	offset    int32
++}
++
++// Offset returns the stack offset for addressing the parameter that "a" describes.
++// This will panic if "a" describes a register-allocated parameter.
++func (a *ABIParamAssignment) Offset() int32 {
++	if len(a.Registers) > 0 {
++		panic("Register allocated parameters have no offset")
++	}
++	return a.offset
++}
++
++// SpillOffset returns the offset *within the spill area* for the parameter that "a" describes.
++// Registers will be spilled here; if a memory home is needed (for a pointer method e.g.)
++// then that will be the address.
++// This will panic if "a" describes a stack-allocated parameter.
++func (a *ABIParamAssignment) SpillOffset() int32 {
++	if len(a.Registers) == 0 {
++		panic("Stack-allocated parameters have no spill offset")
++	}
++	return a.offset
+ }
+ 
+ // RegAmounts holds a specified number of integer/float registers.
+@@ -91,20 +106,58 @@ type RegAmounts struct {
+ // by the ABI rules for parameter passing and result returning.
+ type ABIConfig struct {
+ 	// Do we need anything more than this?
+-	regAmounts RegAmounts
++	regAmounts       RegAmounts
++	regsForTypeCache map[*types.Type]int
+ }
+ 
+ // NewABIConfig returns a new ABI configuration for an architecture with
+ // iRegsCount integer/pointer registers and fRegsCount floating point registers.
+ func NewABIConfig(iRegsCount, fRegsCount int) *ABIConfig {
+-	return &ABIConfig{RegAmounts{iRegsCount, fRegsCount}}
++	return &ABIConfig{regAmounts: RegAmounts{iRegsCount, fRegsCount}, regsForTypeCache: make(map[*types.Type]int)}
++}
++
++// NumParamRegs returns the number of parameter registers used for a given type,
++// without regard for the number available.
++func (a *ABIConfig) NumParamRegs(t *types.Type) int {
++	if n, ok := a.regsForTypeCache[t]; ok {
++		return n
++	}
++
++	if t.IsScalar() || t.IsPtrShaped() {
++		var n int
++		if t.IsComplex() {
++			n = 2
++		} else {
++			n = (int(t.Size()) + types.RegSize - 1) / types.RegSize
++		}
++		a.regsForTypeCache[t] = n
++		return n
++	}
++	typ := t.Kind()
++	n := 0
++	switch typ {
++	case types.TARRAY:
++		n = a.NumParamRegs(t.Elem()) * int(t.NumElem())
++	case types.TSTRUCT:
++		for _, f := range t.FieldSlice() {
++			n += a.NumParamRegs(f.Type)
++		}
++	case types.TSLICE:
++		n = a.NumParamRegs(synthSlice)
++	case types.TSTRING:
++		n = a.NumParamRegs(synthString)
++	case types.TINTER:
++		n = a.NumParamRegs(synthIface)
++	}
++	a.regsForTypeCache[t] = n
++	return n
+ }
+ 
+ // ABIAnalyze takes a function type 't' and an ABI rules description
+ // 'config' and analyzes the function to determine how its parameters
+ // and results will be passed (in registers or on the stack), returning
+ // an ABIParamResultInfo object that holds the results of the analysis.
+-func ABIAnalyze(t *types.Type, config *ABIConfig) ABIParamResultInfo {
++func (config *ABIConfig) ABIAnalyze(t *types.Type) ABIParamResultInfo {
+ 	setup()
+ 	s := assignState{
+ 		rTotal: config.regAmounts,
+@@ -116,28 +169,27 @@ func ABIAnalyze(t *types.Type, config *ABIConfig) ABIParamResultInfo {
+ 	if t.NumRecvs() != 0 {
+ 		rfsl := ft.Receiver.FieldSlice()
+ 		result.inparams = append(result.inparams,
+-			s.assignParamOrReturn(rfsl[0].Type))
++			s.assignParamOrReturn(rfsl[0].Type, false))
+ 	}
+ 
+ 	// Inputs
+ 	ifsl := ft.Params.FieldSlice()
+ 	for _, f := range ifsl {
+ 		result.inparams = append(result.inparams,
+-			s.assignParamOrReturn(f.Type))
++			s.assignParamOrReturn(f.Type, false))
+ 	}
+ 	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
+ 
+-	// Record number of spill slots needed.
+-	result.intSpillSlots = s.rUsed.intRegs
+-	result.floatSpillSlots = s.rUsed.floatRegs
+-
+ 	// Outputs
+ 	s.rUsed = RegAmounts{}
+ 	ofsl := ft.Results.FieldSlice()
+ 	for _, f := range ofsl {
+-		result.outparams = append(result.outparams, s.assignParamOrReturn(f.Type))
++		result.outparams = append(result.outparams, s.assignParamOrReturn(f.Type, true))
+ 	}
+-	result.offsetToSpillArea = s.stackOffset
++	// The spill area is at a register-aligned offset and its size is rounded up to a register alignment.
++	// TODO in theory could align offset only to minimum required by spilled data types.
++	result.offsetToSpillArea = alignTo(s.stackOffset, types.RegSize)
++	result.spillAreaSize = alignTo(s.spillOffset, types.RegSize)
+ 
+ 	return result
+ }
+@@ -160,10 +212,14 @@ func (c *RegAmounts) regString(r RegIndex) string {
+ // form, suitable for debugging or unit testing.
+ func (ri *ABIParamAssignment) toString(config *ABIConfig) string {
+ 	regs := "R{"
++	offname := "spilloffset" // offset is for spill for register(s)
++	if len(ri.Registers) == 0 {
++		offname = "offset" // offset is for memory arg
++	}
+ 	for _, r := range ri.Registers {
+ 		regs += " " + config.regAmounts.regString(r)
+ 	}
+-	return fmt.Sprintf("%s } offset: %d typ: %v", regs, ri.Offset, ri.Type)
++	return fmt.Sprintf("%s } %s: %d typ: %v", regs, offname, ri.offset, ri.Type)
+ }
+ 
+ // toString method renders an ABIParamResultInfo in human-readable
+@@ -176,8 +232,8 @@ func (ri *ABIParamResultInfo) String() string {
+ 	for k, r := range ri.outparams {
+ 		res += fmt.Sprintf("OUT %d: %s\n", k, r.toString(ri.config))
+ 	}
+-	res += fmt.Sprintf("intspill: %d floatspill: %d offsetToSpillArea: %d",
+-		ri.intSpillSlots, ri.floatSpillSlots, ri.offsetToSpillArea)
++	res += fmt.Sprintf("offsetToSpillArea: %d spillAreaSize: %d",
++		ri.offsetToSpillArea, ri.spillAreaSize)
+ 	return res
+ }
+ 
+@@ -188,16 +244,27 @@ type assignState struct {
+ 	rUsed       RegAmounts // regs used by params completely assigned so far
+ 	pUsed       RegAmounts // regs used by the current param (or pieces therein)
+ 	stackOffset int64      // current stack offset
++	spillOffset int64      // current spill offset
++}
++
++// align returns a rounded up to t's alignment
++func align(a int64, t *types.Type) int64 {
++	return alignTo(a, int(t.Align))
++}
++
++// alignTo returns a rounded up to t, where t must be 0 or a power of 2.
++func alignTo(a int64, t int) int64 {
++	if t == 0 {
++		return a
++	}
++	return types.Rnd(a, int64(t))
+ }
+ 
+ // stackSlot returns a stack offset for a param or result of the
+ // specified type.
+ func (state *assignState) stackSlot(t *types.Type) int64 {
+-	if t.Align > 0 {
+-		state.stackOffset = types.Rnd(state.stackOffset, int64(t.Align))
+-	}
+-	rv := state.stackOffset
+-	state.stackOffset += t.Width
++	rv := align(state.stackOffset, t)
++	state.stackOffset = rv + t.Width
+ 	return rv
+ }
+ 
+@@ -225,11 +292,17 @@ func (state *assignState) allocateRegs() []RegIndex {
+ // regAllocate creates a register ABIParamAssignment object for a param
+ // or result with the specified type, as a final step (this assumes
+ // that all of the safety/suitability analysis is complete).
+-func (state *assignState) regAllocate(t *types.Type) ABIParamAssignment {
++func (state *assignState) regAllocate(t *types.Type, isReturn bool) ABIParamAssignment {
++	spillLoc := int64(-1)
++	if !isReturn {
++		// Spill for register-resident t must be aligned for storage of a t.
++		spillLoc = align(state.spillOffset, t)
++		state.spillOffset = spillLoc + t.Size()
++	}
+ 	return ABIParamAssignment{
+ 		Type:      t,
+ 		Registers: state.allocateRegs(),
+-		Offset:    -1,
++		offset:    int32(spillLoc),
+ 	}
+ }
+ 
+@@ -239,7 +312,7 @@ func (state *assignState) regAllocate(t *types.Type) ABIParamAssignment {
+ func (state *assignState) stackAllocate(t *types.Type) ABIParamAssignment {
+ 	return ABIParamAssignment{
+ 		Type:   t,
+-		Offset: int32(state.stackSlot(t)),
++		offset: int32(state.stackSlot(t)),
+ 	}
+ }
+ 
+@@ -261,6 +334,9 @@ func (state *assignState) floatUsed() int {
+ // accordingly).
+ func (state *assignState) regassignIntegral(t *types.Type) bool {
+ 	regsNeeded := int(types.Rnd(t.Width, int64(types.PtrSize)) / int64(types.PtrSize))
++	if t.IsComplex() {
++		regsNeeded = 2
++	}
+ 
+ 	// Floating point and complex.
+ 	if t.IsFloat() || t.IsComplex() {
+@@ -371,14 +447,14 @@ func (state *assignState) regassign(pt *types.Type) bool {
+ // of type 'pt' to determine whether it can be register assigned.
+ // The result of the analysis is recorded in the result
+ // ABIParamResultInfo held in 'state'.
+-func (state *assignState) assignParamOrReturn(pt *types.Type) ABIParamAssignment {
++func (state *assignState) assignParamOrReturn(pt *types.Type, isReturn bool) ABIParamAssignment {
+ 	state.pUsed = RegAmounts{}
+ 	if pt.Width == types.BADWIDTH {
+ 		panic("should never happen")
+ 	} else if pt.Width == 0 {
+ 		return state.stackAllocate(pt)
+ 	} else if state.regassign(pt) {
+-		return state.regAllocate(pt)
++		return state.regAllocate(pt, isReturn)
+ 	} else {
+ 		return state.stackAllocate(pt)
+ 	}
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index ae7d484062..decc29667e 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -21,7 +21,7 @@ import (
+ // AMD64 registers available:
+ // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
+ // - floating point: X0 - X14
+-var configAMD64 = abi.NewABIConfig(9,15)
++var configAMD64 = abi.NewABIConfig(9, 15)
+ 
+ func TestMain(m *testing.M) {
+ 	ssagen.Arch.LinkArch = &x86.Linkamd64
+@@ -46,9 +46,9 @@ func TestABIUtilsBasic1(t *testing.T) {
+ 
+ 	// expected results
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 } offset: -1 typ: int32
+-		OUT 0: R{ I0 } offset: -1 typ: int32
+-		intspill: 1 floatspill: 0 offsetToSpillArea: 0
++        IN 0: R{ I0 } spilloffset: 0 typ: int32
++        OUT 0: R{ I0 } spilloffset: -1 typ: int32
++        offsetToSpillArea: 0 spillAreaSize: 8
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -75,39 +75,39 @@ func TestABIUtilsBasic2(t *testing.T) {
+ 			i8, i16, i32, i64},
+ 		[]*types.Type{i32, f64, f64})
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 } offset: -1 typ: int8
+-		IN 1: R{ I1 } offset: -1 typ: int16
+-		IN 2: R{ I2 } offset: -1 typ: int32
+-		IN 3: R{ I3 } offset: -1 typ: int64
+-		IN 4: R{ F0 } offset: -1 typ: float32
+-		IN 5: R{ F1 } offset: -1 typ: float32
+-		IN 6: R{ F2 } offset: -1 typ: float64
+-		IN 7: R{ F3 } offset: -1 typ: float64
+-		IN 8: R{ I4 } offset: -1 typ: int8
+-		IN 9: R{ I5 } offset: -1 typ: int16
+-		IN 10: R{ I6 } offset: -1 typ: int32
+-		IN 11: R{ I7 } offset: -1 typ: int64
+-		IN 12: R{ F4 } offset: -1 typ: float32
+-		IN 13: R{ F5 } offset: -1 typ: float32
+-		IN 14: R{ F6 } offset: -1 typ: float64
+-		IN 15: R{ F7 } offset: -1 typ: float64
+-		IN 16: R{ F8 F9 } offset: -1 typ: complex128
+-		IN 17: R{ F10 F11 } offset: -1 typ: complex128
+-		IN 18: R{ F12 F13 } offset: -1 typ: complex128
+-		IN 19: R{ } offset: 0 typ: complex128
+-		IN 20: R{ F14 } offset: -1 typ: complex64
+-		IN 21: R{ I8 } offset: -1 typ: int8
+-		IN 22: R{ } offset: 16 typ: int16
+-		IN 23: R{ } offset: 20 typ: int32
+-		IN 24: R{ } offset: 24 typ: int64
+-		IN 25: R{ } offset: 32 typ: int8
+-		IN 26: R{ } offset: 34 typ: int16
+-		IN 27: R{ } offset: 36 typ: int32
+-		IN 28: R{ } offset: 40 typ: int64
+-		OUT 0: R{ I0 } offset: -1 typ: int32
+-		OUT 1: R{ F0 } offset: -1 typ: float64
+-		OUT 2: R{ F1 } offset: -1 typ: float64
+-		intspill: 9 floatspill: 15 offsetToSpillArea: 48
++        IN 0: R{ I0 } spilloffset: 0 typ: int8
++        IN 1: R{ I1 } spilloffset: 2 typ: int16
++        IN 2: R{ I2 } spilloffset: 4 typ: int32
++        IN 3: R{ I3 } spilloffset: 8 typ: int64
++        IN 4: R{ F0 } spilloffset: 16 typ: float32
++        IN 5: R{ F1 } spilloffset: 20 typ: float32
++        IN 6: R{ F2 } spilloffset: 24 typ: float64
++        IN 7: R{ F3 } spilloffset: 32 typ: float64
++        IN 8: R{ I4 } spilloffset: 40 typ: int8
++        IN 9: R{ I5 } spilloffset: 42 typ: int16
++        IN 10: R{ I6 } spilloffset: 44 typ: int32
++        IN 11: R{ I7 } spilloffset: 48 typ: int64
++        IN 12: R{ F4 } spilloffset: 56 typ: float32
++        IN 13: R{ F5 } spilloffset: 60 typ: float32
++        IN 14: R{ F6 } spilloffset: 64 typ: float64
++        IN 15: R{ F7 } spilloffset: 72 typ: float64
++        IN 16: R{ F8 F9 } spilloffset: 80 typ: complex128
++        IN 17: R{ F10 F11 } spilloffset: 96 typ: complex128
++        IN 18: R{ F12 F13 } spilloffset: 112 typ: complex128
++        IN 19: R{ } offset: 0 typ: complex128
++        IN 20: R{ } offset: 16 typ: complex64
++        IN 21: R{ I8 } spilloffset: 128 typ: int8
++        IN 22: R{ } offset: 24 typ: int16
++        IN 23: R{ } offset: 28 typ: int32
++        IN 24: R{ } offset: 32 typ: int64
++        IN 25: R{ } offset: 40 typ: int8
++        IN 26: R{ } offset: 42 typ: int16
++        IN 27: R{ } offset: 44 typ: int32
++        IN 28: R{ } offset: 48 typ: int64
++        OUT 0: R{ I0 } spilloffset: -1 typ: int32
++        OUT 1: R{ F0 } spilloffset: -1 typ: float64
++        OUT 2: R{ F1 } spilloffset: -1 typ: float64
++        offsetToSpillArea: 56 spillAreaSize: 136
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -123,15 +123,15 @@ func TestABIUtilsArrays(t *testing.T) {
+ 		[]*types.Type{a2, a1, ae, aa1})
+ 
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 } offset: -1 typ: [1]int32
+-		IN 1: R{ } offset: 0 typ: [0]int32
+-		IN 2: R{ I1 } offset: -1 typ: [1][1]int32
+-		IN 3: R{ } offset: 0 typ: [2]int32
+-		OUT 0: R{ } offset: 8 typ: [2]int32
+-		OUT 1: R{ I0 } offset: -1 typ: [1]int32
+-		OUT 2: R{ } offset: 16 typ: [0]int32
+-		OUT 3: R{ I1 } offset: -1 typ: [1][1]int32
+-		intspill: 2 floatspill: 0 offsetToSpillArea: 16
++        IN 0: R{ I0 } spilloffset: 0 typ: [1]int32
++        IN 1: R{ } offset: 0 typ: [0]int32
++        IN 2: R{ I1 } spilloffset: 4 typ: [1][1]int32
++        IN 3: R{ } offset: 0 typ: [2]int32
++        OUT 0: R{ } offset: 8 typ: [2]int32
++        OUT 1: R{ I0 } spilloffset: -1 typ: [1]int32
++        OUT 2: R{ } offset: 16 typ: [0]int32
++        OUT 3: R{ I1 } spilloffset: -1 typ: [1][1]int32
++        offsetToSpillArea: 16 spillAreaSize: 8
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -147,13 +147,13 @@ func TestABIUtilsStruct1(t *testing.T) {
+ 		[]*types.Type{s, i8, i32})
+ 
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 } offset: -1 typ: int8
+-		IN 1: R{ I1 I2 I3 I4 } offset: -1 typ: struct { int8; int8; struct {}; int8; int16 }
+-		IN 2: R{ I5 } offset: -1 typ: int64
+-		OUT 0: R{ I0 I1 I2 I3 } offset: -1 typ: struct { int8; int8; struct {}; int8; int16 }
+-		OUT 1: R{ I4 } offset: -1 typ: int8
+-		OUT 2: R{ I5 } offset: -1 typ: int32
+-		intspill: 6 floatspill: 0 offsetToSpillArea: 0
++        IN 0: R{ I0 } spilloffset: 0 typ: int8
++        IN 1: R{ I1 I2 I3 I4 } spilloffset: 2 typ: struct { int8; int8; struct {}; int8; int16 }
++        IN 2: R{ I5 } spilloffset: 8 typ: int64
++        OUT 0: R{ I0 I1 I2 I3 } spilloffset: -1 typ: struct { int8; int8; struct {}; int8; int16 }
++        OUT 1: R{ I4 } spilloffset: -1 typ: int8
++        OUT 2: R{ I5 } spilloffset: -1 typ: int32
++        offsetToSpillArea: 0 spillAreaSize: 16
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -168,12 +168,12 @@ func TestABIUtilsStruct2(t *testing.T) {
+ 		[]*types.Type{fs, fs})
+ 
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 } offset: -1 typ: struct { int64; struct {} }
+-		IN 1: R{ I1 } offset: -1 typ: struct { int64; struct {} }
+-		IN 2: R{ I2 F0 } offset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+-		OUT 0: R{ I0 F0 } offset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+-		OUT 1: R{ I1 F1 } offset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
+-		intspill: 3 floatspill: 1 offsetToSpillArea: 0
++        IN 0: R{ I0 } spilloffset: 0 typ: struct { int64; struct {} }
++        IN 1: R{ I1 } spilloffset: 16 typ: struct { int64; struct {} }
++        IN 2: R{ I2 F0 } spilloffset: 32 typ: struct { float64; struct { int64; struct {} }; struct {} }
++        OUT 0: R{ I0 F0 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
++        OUT 1: R{ I1 F1 } spilloffset: -1 typ: struct { float64; struct { int64; struct {} }; struct {} }
++        offsetToSpillArea: 0 spillAreaSize: 64
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -189,19 +189,19 @@ func TestABIUtilsSliceString(t *testing.T) {
+ 		[]*types.Type{str, i64, str, sli32})
+ 
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 I1 I2 } offset: -1 typ: []int32
+-		IN 1: R{ I3 } offset: -1 typ: int8
+-		IN 2: R{ I4 I5 I6 } offset: -1 typ: []int32
+-		IN 3: R{ I7 } offset: -1 typ: int8
+-		IN 4: R{ } offset: 0 typ: string
+-		IN 5: R{ I8 } offset: -1 typ: int8
+-		IN 6: R{ } offset: 16 typ: int64
+-		IN 7: R{ } offset: 24 typ: []int32
+-		OUT 0: R{ I0 I1 } offset: -1 typ: string
+-		OUT 1: R{ I2 } offset: -1 typ: int64
+-		OUT 2: R{ I3 I4 } offset: -1 typ: string
+-		OUT 3: R{ I5 I6 I7 } offset: -1 typ: []int32
+-		intspill: 9 floatspill: 0 offsetToSpillArea: 48
++        IN 0: R{ I0 I1 I2 } spilloffset: 0 typ: []int32
++        IN 1: R{ I3 } spilloffset: 24 typ: int8
++        IN 2: R{ I4 I5 I6 } spilloffset: 32 typ: []int32
++        IN 3: R{ I7 } spilloffset: 56 typ: int8
++        IN 4: R{ } offset: 0 typ: string
++        IN 5: R{ I8 } spilloffset: 57 typ: int8
++        IN 6: R{ } offset: 16 typ: int64
++        IN 7: R{ } offset: 24 typ: []int32
++        OUT 0: R{ I0 I1 } spilloffset: -1 typ: string
++        OUT 1: R{ I2 } spilloffset: -1 typ: int64
++        OUT 2: R{ I3 I4 } spilloffset: -1 typ: string
++        OUT 3: R{ I5 I6 I7 } spilloffset: -1 typ: []int32
++        offsetToSpillArea: 48 spillAreaSize: 64
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -219,17 +219,17 @@ func TestABIUtilsMethod(t *testing.T) {
+ 		[]*types.Type{a7, f64, i64})
+ 
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 I1 I2 } offset: -1 typ: struct { int16; int16; int16 }
+-		IN 1: R{ I3 } offset: -1 typ: *struct { int16; int16; int16 }
+-		IN 2: R{ } offset: 0 typ: [7]*struct { int16; int16; int16 }
+-		IN 3: R{ F0 } offset: -1 typ: float64
+-		IN 4: R{ I4 } offset: -1 typ: int16
+-		IN 5: R{ I5 } offset: -1 typ: int16
+-		IN 6: R{ I6 } offset: -1 typ: int16
+-		OUT 0: R{ } offset: 56 typ: [7]*struct { int16; int16; int16 }
+-		OUT 1: R{ F0 } offset: -1 typ: float64
+-		OUT 2: R{ I0 } offset: -1 typ: int64
+-		intspill: 7 floatspill: 1 offsetToSpillArea: 112
++        IN 0: R{ I0 I1 I2 } spilloffset: 0 typ: struct { int16; int16; int16 }
++        IN 1: R{ I3 } spilloffset: 8 typ: *struct { int16; int16; int16 }
++        IN 2: R{ } offset: 0 typ: [7]*struct { int16; int16; int16 }
++        IN 3: R{ F0 } spilloffset: 16 typ: float64
++        IN 4: R{ I4 } spilloffset: 24 typ: int16
++        IN 5: R{ I5 } spilloffset: 26 typ: int16
++        IN 6: R{ I6 } spilloffset: 28 typ: int16
++        OUT 0: R{ } offset: 56 typ: [7]*struct { int16; int16; int16 }
++        OUT 1: R{ F0 } spilloffset: -1 typ: float64
++        OUT 2: R{ I0 } spilloffset: -1 typ: int64
++        offsetToSpillArea: 112 spillAreaSize: 32
+ `)
+ 
+ 	abitest(t, ft, exp)
+@@ -252,18 +252,44 @@ func TestABIUtilsInterfaces(t *testing.T) {
+ 		[]*types.Type{ei, nei, pei})
+ 
+ 	exp := makeExpectedDump(`
+-		IN 0: R{ I0 I1 I2 } offset: -1 typ: struct { int16; int16; bool }
+-		IN 1: R{ I3 I4 } offset: -1 typ: interface {}
+-		IN 2: R{ I5 I6 } offset: -1 typ: interface {}
+-		IN 3: R{ I7 I8 } offset: -1 typ: interface { () untyped string }
+-		IN 4: R{ } offset: 0 typ: *interface {}
+-		IN 5: R{ } offset: 8 typ: interface { () untyped string }
+-		IN 6: R{ } offset: 24 typ: int16
+-		OUT 0: R{ I0 I1 } offset: -1 typ: interface {}
+-		OUT 1: R{ I2 I3 } offset: -1 typ: interface { () untyped string }
+-		OUT 2: R{ I4 } offset: -1 typ: *interface {}
+-		intspill: 9 floatspill: 0 offsetToSpillArea: 32
++        IN 0: R{ I0 I1 I2 } spilloffset: 0 typ: struct { int16; int16; bool }
++        IN 1: R{ I3 I4 } spilloffset: 8 typ: interface {}
++        IN 2: R{ I5 I6 } spilloffset: 24 typ: interface {}
++        IN 3: R{ I7 I8 } spilloffset: 40 typ: interface { () untyped string }
++        IN 4: R{ } offset: 0 typ: *interface {}
++        IN 5: R{ } offset: 8 typ: interface { () untyped string }
++        IN 6: R{ } offset: 24 typ: int16
++        OUT 0: R{ I0 I1 } spilloffset: -1 typ: interface {}
++        OUT 1: R{ I2 I3 } spilloffset: -1 typ: interface { () untyped string }
++        OUT 2: R{ I4 } spilloffset: -1 typ: *interface {}
++        offsetToSpillArea: 32 spillAreaSize: 56
+ `)
+ 
+ 	abitest(t, ft, exp)
+ }
++
++func TestABINumParamRegs(t *testing.T) {
++	i8 := types.Types[types.TINT8]
++	i16 := types.Types[types.TINT16]
++	i32 := types.Types[types.TINT32]
++	i64 := types.Types[types.TINT64]
++	f32 := types.Types[types.TFLOAT32]
++	f64 := types.Types[types.TFLOAT64]
++	c64 := types.Types[types.TCOMPLEX64]
++	c128 := types.Types[types.TCOMPLEX128]
++
++	s := mkstruct([]*types.Type{i8, i8, mkstruct([]*types.Type{}), i8, i16})
++	a := types.NewArray(s, 3)
++
++	nrtest(t, i8, 1)
++	nrtest(t, i16, 1)
++	nrtest(t, i32, 1)
++	nrtest(t, i64, 1)
++	nrtest(t, f32, 1)
++	nrtest(t, f64, 1)
++	nrtest(t, c64, 2)
++	nrtest(t, c128, 2)
++	nrtest(t, s, 4)
++	nrtest(t, a, 12)
++
++}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index 10fb668745..19dd3a51fd 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -78,9 +78,9 @@ func tokenize(src string) []string {
+ 
+ func verifyParamResultOffset(t *testing.T, f *types.Field, r abi.ABIParamAssignment, which string, idx int) int {
+ 	n := ir.AsNode(f.Nname).(*ir.Name)
+-	if n.FrameOffset() != int64(r.Offset) {
++	if n.FrameOffset() != int64(r.Offset()) {
+ 		t.Errorf("%s %d: got offset %d wanted %d t=%v",
+-			which, idx, r.Offset, n.Offset_, f.Type)
++			which, idx, r.Offset(), n.Offset_, f.Type)
+ 		return 1
+ 	}
+ 	return 0
+@@ -106,12 +106,20 @@ func difftokens(atoks []string, etoks []string) string {
+ 	return ""
+ }
+ 
++func nrtest(t *testing.T, ft *types.Type, expected int) {
++	types.CalcSize(ft)
++	got := configAMD64.NumParamRegs(ft)
++	if got != expected {
++		t.Errorf("]\nexpected num regs = %d, got %d, type %v", expected, got, ft)
++	}
++}
++
+ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 
+ 	types.CalcSize(ft)
+ 
+ 	// Analyze with full set of registers.
+-	regRes := abi.ABIAnalyze(ft, configAMD64)
++	regRes := configAMD64.ABIAnalyze(ft)
+ 	regResString := strings.TrimSpace(regRes.String())
+ 
+ 	// Check results.
+@@ -122,8 +130,8 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 	}
+ 
+ 	// Analyze again with empty register set.
+-	empty := &abi.ABIConfig{}
+-	emptyRes := abi.ABIAnalyze(ft, empty)
++	empty := abi.NewABIConfig(0, 0)
++	emptyRes := empty.ABIAnalyze(ft)
+ 	emptyResString := emptyRes.String()
+ 
+ 	// Walk the results and make sure the offsets assigned match

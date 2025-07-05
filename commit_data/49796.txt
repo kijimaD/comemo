@@ -25,8 +25,102 @@ Date:   Wed Aug 4 01:22:45 2021 -0700
     Run-TryBot: Joe Tsai <joetsai@digital-static.net>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bufio/bufio.go        |  8 ++++++++
  src/bufio/bufio_test.go   | 33 +++++++++++++++++++++++++++++++++
  src/bufio/example_test.go | 12 ++++++++++++
  3 files changed, 53 insertions(+)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 391ecf46b3..506b84f6ba 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -633,6 +633,14 @@ func (b *Writer) Flush() error {
+ // Available returns how many bytes are unused in the buffer.
+ func (b *Writer) Available() int { return len(b.buf) - b.n }
+ 
++// AvailableBuffer returns an empty buffer with b.Available() capacity.
++// This buffer is intended to be appended to and
++// passed to an immediately succeeding Write call.
++// The buffer is only valid until the next write operation on b.
++func (b *Writer) AvailableBuffer() []byte {
++	return b.buf[b.n:][:0]
++}
++
+ // Buffered returns the number of bytes that have been written into the current buffer.
+ func (b *Writer) Buffered() int { return b.n }
+ 
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index eb5136c9ea..04a810c206 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -10,6 +10,8 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"math/rand"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"testing/iotest"
+@@ -608,6 +610,37 @@ func TestWriter(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriterAppend(t *testing.T) {
++	got := new(bytes.Buffer)
++	var want []byte
++	rn := rand.New(rand.NewSource(0))
++	w := NewWriterSize(got, 64)
++	for i := 0; i < 100; i++ {
++		// Obtain a buffer to append to.
++		b := w.AvailableBuffer()
++		if w.Available() != cap(b) {
++			t.Fatalf("Available() = %v, want %v", w.Available(), cap(b))
++		}
++
++		// While not recommended, it is valid to append to a shifted buffer.
++		// This forces Write to copy the the input.
++		if rn.Intn(8) == 0 && cap(b) > 0 {
++			b = b[1:1:cap(b)]
++		}
++
++		// Append a random integer of varying width.
++		n := int64(rn.Intn(1 << rn.Intn(30)))
++		want = append(strconv.AppendInt(want, n, 10), ' ')
++		b = append(strconv.AppendInt(b, n, 10), ' ')
++		w.Write(b)
++	}
++	w.Flush()
++
++	if !bytes.Equal(got.Bytes(), want) {
++		t.Errorf("output mismatch:\ngot  %s\nwant %s", got.Bytes(), want)
++	}
++}
++
+ // Check that write errors are returned properly.
+ 
+ type errorWriterTest struct {
+diff --git a/src/bufio/example_test.go b/src/bufio/example_test.go
+index 8885d40549..a864d11012 100644
+--- a/src/bufio/example_test.go
++++ b/src/bufio/example_test.go
+@@ -20,6 +20,18 @@ func ExampleWriter() {
+ 	// Output: Hello, world!
+ }
+ 
++func ExampleWriter_AvailableBuffer() {
++	w := bufio.NewWriter(os.Stdout)
++	for _, i := range []int64{1, 2, 3, 4} {
++		b := w.AvailableBuffer()
++		b = strconv.AppendInt(b, i, 10)
++		b = append(b, ' ')
++		w.Write(b)
++	}
++	w.Flush()
++	// Output: 1 2 3 4
++}
++
+ // The simplest use of a Scanner, to read standard input as a set of lines.
+ func ExampleScanner_lines() {
+ 	scanner := bufio.NewScanner(os.Stdin)

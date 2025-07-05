@@ -9,6 +9,20 @@ Date:   Tue Feb 16 18:53:46 2016 +0000
     Change-Id: I450efcbeee0f8861a84b209f2e6636764034232a
     Reviewed-on: https://go-review.googlesource.com/19469
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index ac8f4a661f..5eb45c6d4a 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -335,7 +335,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+ //    unstable or rely on enough different elements in each step to encode the
+ //    performed block rearrangements. See also "In-Place Merging Algorithms",
+ //    Denham Coates-Evely, Department of Computer Science, Kings College,
+-//    January 2004 and the reverences in there.
++//    January 2004 and the references in there.
+ //  - Often "optimal" algorithms are optimal in the number of assignments
+ //    but Interface has only Swap as operation.
+ 

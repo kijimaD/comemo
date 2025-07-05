@@ -9,8 +9,93 @@ Date:   Tue Jun 4 19:51:26 2013 -0400
     R=golang-dev, gedimitr
     CC=golang-dev
     https://golang.org/cl/9751043
-
+---
  src/pkg/encoding/asn1/asn1.go      | 10 +++++-----
  src/pkg/encoding/asn1/asn1_test.go |  0
  src/pkg/encoding/asn1/marshal.go   |  6 +++---
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+old mode 100755
+new mode 100644
+index a14df04eff..453c1743c7
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -32,14 +32,14 @@ type StructuralError struct {
+ 	Msg string
+ }
+ 
+-func (e StructuralError) Error() string { return "ASN.1 structure error: " + e.Msg }
++func (e StructuralError) Error() string { return "asn1: structure error: " + e.Msg }
+ 
+ // A SyntaxError suggests that the ASN.1 data is invalid.
+ type SyntaxError struct {
+ 	Msg string
+ }
+ 
+-func (e SyntaxError) Error() string { return "ASN.1 syntax error: " + e.Msg }
++func (e SyntaxError) Error() string { return "asn1: syntax error: " + e.Msg }
+ 
+ // We start by dealing with each of the primitive types in turn.
+ 
+@@ -47,7 +47,7 @@ func (e SyntaxError) Error() string { return "ASN.1 syntax error: " + e.Msg }
+ 
+ func parseBool(bytes []byte) (ret bool, err error) {
+ 	if len(bytes) != 1 {
+-		err = SyntaxError{"encoding/asn1: invalid boolean"}
++		err = SyntaxError{"invalid boolean"}
+ 		return
+ 	}
+ 
+@@ -60,7 +60,7 @@ func parseBool(bytes []byte) (ret bool, err error) {
+ 	case 0xff:
+ 		ret = true
+ 	default:
+-		err = SyntaxError{"encoding/asn1: invalid boolean"}
++		err = SyntaxError{"invalid boolean"}
+ 	}
+ 
+ 	return
+@@ -585,7 +585,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 				}
+ 			} else {
+ 				if fieldType != flagType {
+-					err = StructuralError{"Zero length explicit tag was not an asn1.Flag"}
++					err = StructuralError{"zero length explicit tag was not an asn1.Flag"}
+ 					return
+ 				}
+ 				v.SetBool(true)
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+old mode 100755
+new mode 100644
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index adaf80dcdb..7a1f7c23e1 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -304,7 +304,7 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+ 	case 2000 <= year && year < 2050:
+ 		err = marshalTwoDigits(out, int(year-2000))
+ 	default:
+-		return StructuralError{"Cannot represent time as UTCTime"}
++		return StructuralError{"cannot represent time as UTCTime"}
+ 	}
+ 	if err != nil {
+ 		return
+@@ -501,7 +501,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 	class := classUniversal
+ 
+ 	if params.stringType != 0 && tag != tagPrintableString {
+-		return StructuralError{"Explicit string type given to non-string member"}
++		return StructuralError{"explicit string type given to non-string member"}
+ 	}
+ 
+ 	if tag == tagPrintableString {
+@@ -525,7 +525,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 
+ 	if params.set {
+ 		if tag != tagSequence {
+-			return StructuralError{"Non sequence tagged as set"}
++			return StructuralError{"non sequence tagged as set"}
+ 		}
+ 		tag = tagSet
+ 	}

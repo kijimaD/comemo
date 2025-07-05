@@ -8,7 +8,34 @@ Date:   Thu May 15 12:41:45 2014 -0700
     R=golang-codereviews, ruiu
     CC=golang-codereviews
     https://golang.org/cl/91480043
-
+---
  src/pkg/net/http/serve_test.go     | 2 +-
  src/pkg/net/http/transport_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 030fd6e7b2..b3850a590d 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2144,7 +2144,7 @@ func TestCodesPreventingContentTypeAndBody(t *testing.T) {
+ 			got := ht.rawResponse(req)
+ 			wantStatus := fmt.Sprintf("%d %s", code, StatusText(code))
+ 			if !strings.Contains(got, wantStatus) {
+-				t.Errorf("Code %d: Wanted %q Modified for %q: %s", code, req, got)
++				t.Errorf("Code %d: Wanted %q Modified for %q: %s", code, wantStatus, req, got)
+ 			} else if strings.Contains(got, "Content-Length") {
+ 				t.Errorf("Code %d: Got a Content-Length from %q: %s", code, req, got)
+ 			} else if strings.Contains(got, "stuff") {
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index a69e61720f..964ca0fca5 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -2081,7 +2081,7 @@ func TestTransportClosesBodyOnError(t *testing.T) {
+ 		defer res.Body.Close()
+ 	}
+ 	if err == nil || !strings.Contains(err.Error(), fakeErr.Error()) {
+-		t.Fatalf("Do error = %v; want something containing %q", fakeErr.Error())
++		t.Fatalf("Do error = %v; want something containing %q", err, fakeErr.Error())
+ 	}
+ 	select {
+ 	case err := <-readBody:

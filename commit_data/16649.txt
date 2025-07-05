@@ -9,8 +9,66 @@ Date:   Wed Jun 26 11:29:30 2013 -0700
     R=golang-dev, agl
     CC=golang-dev
     https://golang.org/cl/10624044
-
+---
  src/pkg/crypto/md5/md5.go           | 14 +++++++++++++-
  src/pkg/crypto/md5/md5_test.go      |  4 ++++
  src/pkg/crypto/md5/md5block_decl.go |  2 ++
  3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/md5/md5.go b/src/pkg/crypto/md5/md5.go
+index 825e5c8a28..1a1f35fabc 100644
+--- a/src/pkg/crypto/md5/md5.go
++++ b/src/pkg/crypto/md5/md5.go
+@@ -88,7 +88,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
+ func (d0 *digest) Sum(in []byte) []byte {
+ 	// Make a copy of d0 so that caller can keep writing and summing.
+ 	d := *d0
++	hash := d.checkSum()
++	return append(in, hash[:]...)
++}
+ 
++func (d *digest) checkSum() [Size]byte {
+ 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+ 	len := d.len
+ 	var tmp [64]byte
+@@ -118,5 +122,13 @@ func (d0 *digest) Sum(in []byte) []byte {
+ 		digest[i*4+3] = byte(s >> 24)
+ 	}
+ 
+-	return append(in, digest[:]...)
++	return digest
++}
++
++// Sum returns the MD5 checksum of the data.
++func Sum(data []byte) [Size]byte {
++	var d digest
++	d.Reset()
++	d.Write(data)
++	return d.checkSum()
+ }
+diff --git a/src/pkg/crypto/md5/md5_test.go b/src/pkg/crypto/md5/md5_test.go
+index 3ef4519b9a..4901655e77 100644
+--- a/src/pkg/crypto/md5/md5_test.go
++++ b/src/pkg/crypto/md5/md5_test.go
+@@ -53,6 +53,10 @@ var golden = []md5Test{
+ func TestGolden(t *testing.T) {
+ 	for i := 0; i < len(golden); i++ {
+ 		g := golden[i]
++		s := fmt.Sprintf("%x", Sum([]byte(g.in)))
++		if s != g.out {
++			t.Fatalf("Sum function: md5(%s) = %s want %s", g.in, s, g.out)
++		}
+ 		c := New()
+ 		buf := make([]byte, len(g.in)+4)
+ 		for j := 0; j < 3+4; j++ {
+diff --git a/src/pkg/crypto/md5/md5block_decl.go b/src/pkg/crypto/md5/md5block_decl.go
+index 14190c6ff2..3365200860 100644
+--- a/src/pkg/crypto/md5/md5block_decl.go
++++ b/src/pkg/crypto/md5/md5block_decl.go
+@@ -6,4 +6,6 @@
+ 
+ package md5
+ 
++//go:noescape
++
+ func block(dig *digest, p []byte)

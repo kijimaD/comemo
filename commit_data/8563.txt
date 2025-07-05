@@ -7,9 +7,170 @@ Date:   Tue May 31 13:16:51 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4560056
-
+---
  misc/chrome/gophertool/background.html | 24 +++++++++++++++++++
  misc/chrome/gophertool/gopher.js       | 34 +++++++++++++++++++++++++++
  misc/chrome/gophertool/manifest.json   |  5 ++++
  misc/chrome/gophertool/popup.html      | 42 +++++++++++-----------------------
  4 files changed, 76 insertions(+), 29 deletions(-)
+
+diff --git a/misc/chrome/gophertool/background.html b/misc/chrome/gophertool/background.html
+new file mode 100644
+index 0000000000..058c18142b
+--- /dev/null
++++ b/misc/chrome/gophertool/background.html
+@@ -0,0 +1,24 @@
++<html>
++<!--
++ Copyright 2011 The Go Authors. All rights reserved.
++ Use of this source code is governed by a BSD-style
++ license that can be found in the LICENSE file.
++-->
++<head>
++<script src="gopher.js"></script>
++<script>
++    
++chrome.omnibox.onInputEntered.addListener(function(t) {
++  var url = urlForInput(t);
++  if (url) {
++    chrome.tabs.getSelected(null, function(tab) {
++      if (!tab) return;
++      chrome.tabs.update(tab.id, { "url": url, "selected": true });
++    });
++  }
++});
++
++</script>
++</head>
++</html>
++
+diff --git a/misc/chrome/gophertool/gopher.js b/misc/chrome/gophertool/gopher.js
+new file mode 100644
+index 0000000000..847c1c70d6
+--- /dev/null
++++ b/misc/chrome/gophertool/gopher.js
+@@ -0,0 +1,34 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++var numericRE = /^\d+$/;
++var commitRE = /^(?:\d+:)?([0-9a-f]{6,20})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
++var pkgRE = /^[a-z0-9_\/]+$/;
++
++function urlForInput(t) {
++    if (!t) {
++        return null;
++    }
++
++    if (numericRE.test(t)) {
++        if (t < 1000000) {
++            return "http://code.google.com/p/go/issues/detail?id=" + t;
++        }
++        return "http://codereview.appspot.com/" + t + "/";
++    }
++
++    var match = commitRE.exec(t);
++    if (match) {
++        return "http://code.google.com/p/go/source/detail?r=" + match[1];
++    }
++
++    if (pkgRE.test(t)) {
++        // TODO: make this smarter, using a list of packages + substring matches.
++        // Get the list from godoc itself in JSON format?
++        // TODO: prefer localhost:6060 to golang.org if localhost:6060 is responding. 
++        return "http://golang.org/pkg/" + t;
++    }
++
++    return null;
++}
+diff --git a/misc/chrome/gophertool/manifest.json b/misc/chrome/gophertool/manifest.json
+index a8de8dfd25..9a936ca8bf 100644
+--- a/misc/chrome/gophertool/manifest.json
++++ b/misc/chrome/gophertool/manifest.json
+@@ -2,10 +2,15 @@
+   "name": "Hacking Gopher",
+   "version": "1.0",
+   "description": "Go Hacking utility",
++  "background_page": "background.html",
+   "browser_action": {
+     "default_icon": "gopher.png",
+     "popup": "popup.html"
+   },
++  "omnibox": { "keyword": "go" },
++  "icons": {
++    "16": "gopher.png"
++  },
+   "permissions": [
+      "tabs"
+   ]
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index 4e30ced86c..ebbc71f3aa 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -5,52 +5,36 @@
+  license that can be found in the LICENSE file.
+ -->
+ <head>
+-  <script>
++<script src="gopher.js"></script>
++<script>
+     
+ function focusinput() {
+-  box = document.getElementById("inputbox");
+-  box.focus();
++  document.getElementById("inputbox").focus();
+ }
+ 
+-var numericRE = /^\d+$/;
+-var commitRE = /^(?:\d+:)?([0-9a-f]{6,20})$/; // e.g "8486:ab29d2698a47" or "ab29d2698a47"
+-var pkgRE = /^[a-z0-9_\/]+$/;
+-
+ function navigate() {
+-  box = document.getElementById("inputbox");
++  var box = document.getElementById("inputbox");
+   box.focus();
++
+   var t = box.value;
+   if (t == "") {
+     return false;
+   }
+ 
+-  success = function(url) {
++  var success = function(url) {
+     console.log("matched " + t + " to: " + url)
+     box.value = "";
+     openURL(url);
+     return false;  // cancel form submission
+-   };
++  };
+ 
+-   if (numericRE.test(t)) {
+-     if (t < 1000000) {
+-       return success("http://code.google.com/p/go/issues/detail?id=" + t);
+-     }
+-     return success("http://codereview.appspot.com/" + t + "/");
+-   }
+-
+-   var match = commitRE.exec(t);
+-   if (match) {
+-     return success("http://code.google.com/p/go/source/detail?r=" + match[1])
+-   }
++  var url = urlForInput(t);
++  if (url) {
++    return success(url);
++  }
+ 
+-   if (pkgRE.test(t)) {
+-     // TODO: make this smarter, using a list of packages + substring matches.
+-     // Get the list from godoc itself in JSON format?
+-     // TODO: prefer localhost:6060 to golang.org if localhost:6060 is responding. 
+-     return success("http://golang.org/pkg/" + t);
+-   }
+-   console.log("no match for text: " + t)
+-   return false;
++  console.log("no match for text: " + t)
++  return false;
+ }
+ 
+ function openURL(url) {

@@ -7,7 +7,34 @@ Date:   Wed Mar 6 16:55:08 2013 -0500
     TBR=golang-dev
     CC=golang-dev
     https://golang.org/cl/7539043
-
+---
  src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
  src/pkg/runtime/rt0_windows_amd64.s | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/rt0_netbsd_amd64.s b/src/pkg/runtime/rt0_netbsd_amd64.s
+index 245a4c0f9b..9e7b78edc6 100644
+--- a/src/pkg/runtime/rt0_netbsd_amd64.s
++++ b/src/pkg/runtime/rt0_netbsd_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT _rt0_amd64_openbsd(SB),7,$-8
++TEXT _rt0_amd64_netbsd(SB),7,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index 4fc61dc687..b48c055705 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "zasm_GOOS_GOARCH.h"
+ 
+-TEXT _rt0_amd64_darwin(SB),7,$-8
++TEXT _rt0_amd64_windows(SB),7,$-8
+ 	LEAQ	8(SP), SI // argv
+ 	MOVQ	0(SP), DI // argc
+ 	MOVQ	$main(SB), AX

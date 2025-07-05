@@ -11,6 +11,28 @@ Date:   Wed Jan 15 01:34:43 2020 +0000
     GitHub-Pull-Request: golang/go#36559
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214821
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 06c1edf7a6..154bdbfeaf 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of Jan 13, 2020",
++	"Subtitle": "Version of Jan 14, 2020",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -2413,7 +2413,7 @@ operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
+ Operand     = Literal | OperandName | "(" Expression ")" .
+ Literal     = BasicLit | CompositeLit | FunctionLit .
+ BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
+-OperandName = identifier | QualifiedIdent.
++OperandName = identifier | QualifiedIdent .
+ </pre>
+ 
+ <h3 id="Qualified_identifiers">Qualified identifiers</h3>

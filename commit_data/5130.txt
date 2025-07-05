@@ -7,7 +7,88 @@ Date:   Wed Mar 24 22:12:59 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/748041
-
+---
  test/fixedbugs/bug262.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++
  test/fixedbugs/bug263.go | 16 +++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/test/fixedbugs/bug262.go b/test/fixedbugs/bug262.go
+new file mode 100644
+index 0000000000..1ace12ee35
+--- /dev/null
++++ b/test/fixedbugs/bug262.go
+@@ -0,0 +1,52 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os"
++	"strconv"
++)
++
++var trace string
++
++func f() string {
++	trace += "f"
++	return "abc"
++}
++
++func g() *os.Error {
++	trace += "g"
++	var x os.Error
++	return &x
++}
++
++func h() string {
++	trace += "h"
++	return "123"
++}
++
++func i() *int {
++	trace += "i"
++	var i int
++	return &i
++}
++
++
++func main() {
++	m := make(map[string]int)
++	m[f()], *g() = strconv.Atoi(h())
++	if m["abc"] != 123 || trace != "fgh" {
++		panic("BUG", m["abc"], trace)
++	}
++	mm := make(map[string]os.Error)
++	trace = ""
++	mm["abc"] = os.EINVAL
++	*i(), mm[f()] = strconv.Atoi(h())
++	if mm["abc"] != nil || trace != "ifh" {
++		panic("BUG1", mm["abc"], trace)
++	}
++}
+diff --git a/test/fixedbugs/bug263.go b/test/fixedbugs/bug263.go
+new file mode 100644
+index 0000000000..cab986ad59
+--- /dev/null
++++ b/test/fixedbugs/bug263.go
+@@ -0,0 +1,16 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	data := make(map[int]string, 1)
++	data[0] = "hello, "
++	data[0] += "world!"
++	if data[0] != "hello, world!" {
++		panic("BUG: " + data[0])
++	}
++}

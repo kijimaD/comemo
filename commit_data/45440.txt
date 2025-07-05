@@ -23,7 +23,55 @@ Date:   Fri Oct 16 16:23:54 2020 +0000
     Reviewed-by: Dan Peterson <dpiddy@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/conf.go      |  5 -----
  src/net/conf_test.go | 13 ++++++++++---
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 5340847123..f1bbfedad0 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -202,11 +202,6 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 			// illumos defaults to "nis [NOTFOUND=return] files"
+ 			return fallbackOrder
+ 		}
+-		if c.goos == "linux" {
+-			// glibc says the default is "dns [!UNAVAIL=return] files"
+-			// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html.
+-			return hostLookupDNSFiles
+-		}
+ 		return hostLookupFilesDNS
+ 	}
+ 	if nss.err != nil {
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 4c21d56ba0..1fe3cf41b1 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -170,8 +170,6 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 			},
+ 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
+ 		},
+-		// glibc lacking an nsswitch.conf, per
+-		// https://www.gnu.org/software/libc/manual/html_node/Notes-on-NSS-Configuration-File.html
+ 		{
+ 			name: "linux_no_nsswitch.conf",
+ 			c: &conf{
+@@ -179,7 +177,16 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 				nss:    &nssConf{err: fs.ErrNotExist},
+ 				resolv: defaultResolvConf,
+ 			},
+-			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupDNSFiles}},
++			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
++		},
++		{
++			name: "linux_empty_nsswitch.conf",
++			c: &conf{
++				goos:   "linux",
++				nss:    nssStr(""),
++				resolv: defaultResolvConf,
++			},
++			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupFilesDNS}},
+ 		},
+ 		{
+ 			name: "files_mdns_dns",

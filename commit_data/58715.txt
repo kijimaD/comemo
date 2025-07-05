@@ -12,7 +12,34 @@ Date:   Tue Dec 5 14:22:53 2023 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Alan Donovan <adonovan@google.com>
-
+---
  doc/go1.17_spec.html | 2 +-
  doc/go_spec.html     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.17_spec.html b/doc/go1.17_spec.html
+index 15e73c3867..16c6d40ffc 100644
+--- a/doc/go1.17_spec.html
++++ b/doc/go1.17_spec.html
+@@ -8,7 +8,7 @@
+ 
+ <p>
+ This is a reference manual for the Go programming language. For
+-more information and other documents, see <a href="/">golang.org</a>.
++more information and other documents, see <a href="/">go.dev</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 18f88d5ead..f68441e664 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -10,7 +10,7 @@
+ This is the reference manual for the Go programming language.
+ The pre-Go1.18 version, without generics, can be found
+ <a href="/doc/go1.17_spec.html">here</a>.
+-For more information and other documents, see <a href="/">golang.org</a>.
++For more information and other documents, see <a href="/">go.dev</a>.
+ </p>
+ 
+ <p>

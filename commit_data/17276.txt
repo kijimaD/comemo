@@ -8,6 +8,19 @@ Date:   Fri Aug 16 10:35:22 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/13004044
-
+---
  doc/go1.2.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index 9a59cae6dc..78ff3469c3 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -21,6 +21,7 @@ cmd/gc: three-index slicing to set cap as well as length (CL 10743046).
+ cmd/gc: make missing package error fatal (CL 12677043).
+ cmd/go: test coverage (CL 10413044).
+ cmd/go: add -t flag to 'go get' to download test dependencies (CL 12566046).
++cmd/go: delete 'go doc' (CL 12974043).
+ 
+ archive/zip: add File.DataOffset accessor (CL 12784045).
+ bufio: add Reset methods to Reader and Writer (CL 12603049).

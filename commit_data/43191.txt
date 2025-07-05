@@ -13,6 +13,31 @@ Date:   Fri Mar 6 12:36:58 2020 -0500
     Change-Id: Iacfbc7243a882158a9a090b7400e216536a311b4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222304
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index d5a9b4aa8c..d93c28afff 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -617,12 +617,17 @@ func (r *Reader) DataOff(i int) uint32 {
+ 
+ // DataSize returns the size of the i-th symbol's data.
+ func (r *Reader) DataSize(i int) int {
+-	return int(r.DataOff(i+1) - r.DataOff(i))
++	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
++	return int(r.uint32At(dataIdxOff+4) - r.uint32At(dataIdxOff))
+ }
+ 
+ // Data returns the i-th symbol's data.
+ func (r *Reader) Data(i int) []byte {
+-	return r.BytesAt(r.DataOff(i), r.DataSize(i))
++	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
++	base := r.h.Offsets[BlkData]
++	off := r.uint32At(dataIdxOff)
++	end := r.uint32At(dataIdxOff + 4)
++	return r.BytesAt(base+off, int(end-off))
+ }
+ 
+ // AuxDataBase returns the base offset of the aux data block.

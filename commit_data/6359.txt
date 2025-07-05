@@ -7,8 +7,160 @@ Date:   Fri Sep 24 11:53:26 2010 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/2198044
-
+---
  src/pkg/fmt/doc.go      | 26 +++++++++++++++++++++++---
  src/pkg/fmt/fmt_test.go | 28 ++++++++++++++--------------
  src/pkg/fmt/print.go    |  9 +++++----
  3 files changed, 42 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 25184d1e45..06dc730089 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -69,8 +69,8 @@
+ 	Regardless of the verb, if an operand is an interface value,
+ 	the internal concrete value is used, not the interface itself.
+ 	Thus:
+-		var i interface{} = 23;
+-		fmt.Printf("%v\n", i);
++		var i interface{} = 23
++		fmt.Printf("%v\n", i)
+ 	will print 23.
+ 
+ 	If an operand implements interface Formatter, that interface
+@@ -85,6 +85,26 @@
+ 	cast the value before recurring:
+ 		func (x X) String() string { return Sprintf("%d", int(x)) }
+ 
++	Format errors:
++
++	If an invalid argument is given for a verb, such as providing
++	a string to %d, the generated string will contain a
++	description of the problem, as in these examples:
++
++		Wrong type or unknown verb: %!verb(type=value)
++			Printf("%d", hi):          %!d(string=hi)
++		Too many arguments: %!(EXTRA type=value)
++			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
++		Too few arguments: %!verb(MISSING)
++			Printf("hi%d"):            hi %!d(MISSING)
++		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
++			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
++			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
++
++	All errors begin with the string "%!" followed sometimes
++	by a single character (the verb) and end with a parenthesized
++	description.
++
+ 	Scanning:
+ 
+ 	An analogous set of functions scans formatted text to yield
+@@ -97,7 +117,7 @@
+ 	routines treat newlines as spaces.
+ 
+ 	Scanf, Fscanf, and Sscanf parse the arguments according to a
+-	format string, analogous to that of Printf.  For example, "%x"
++	format string, analogous to that of Printf.  For example, %x
+ 	will scan an integer as a hexadecimal number, and %v will scan
+ 	the default representation format for the value.
+ 
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b8d15a7dc7..c8775ba3f2 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -193,8 +193,8 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%+.3g", complex128(1 + 2i), "(+1+2i)"},
+ 
+ 	// erroneous formats
+-	fmtTest{"", 2, "?(extra int=2)"},
+-	fmtTest{"%d", "hello", "%d(string=hello)"},
++	fmtTest{"", 2, "%!(EXTRA int=2)"},
++	fmtTest{"%d", "hello", "%!d(string=hello)"},
+ 
+ 	// old test/fmt_test.go
+ 	fmtTest{"%d", 1234, "1234"},
+@@ -301,7 +301,7 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%s", I(23), `<23>`},
+ 	fmtTest{"%q", I(23), `"<23>"`},
+ 	fmtTest{"%x", I(23), `3c32333e`},
+-	fmtTest{"%d", I(23), `%d(string=<23>)`},
++	fmtTest{"%d", I(23), `%!d(string=<23>)`},
+ 
+ 	// go syntax
+ 	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+@@ -321,7 +321,7 @@ var fmttests = []fmtTest{
+ 
+ 	// renamings
+ 	fmtTest{"%v", renamedBool(true), "true"},
+-	fmtTest{"%d", renamedBool(true), "%d(fmt_test.renamedBool=true)"},
++	fmtTest{"%d", renamedBool(true), "%!d(fmt_test.renamedBool=true)"},
+ 	fmtTest{"%o", renamedInt(8), "10"},
+ 	fmtTest{"%d", renamedInt8(-9), "-9"},
+ 	fmtTest{"%v", renamedInt16(10), "10"},
+@@ -366,14 +366,14 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%p", make(chan int), "PTR"},
+ 	fmtTest{"%p", make(map[int]int), "PTR"},
+ 	fmtTest{"%p", make([]int, 1), "PTR"},
+-	fmtTest{"%p", 27, "%p(int=27)"}, // not a pointer at all
++	fmtTest{"%p", 27, "%!p(int=27)"}, // not a pointer at all
+ 
+ 	// erroneous things
+-	fmtTest{"%d", "hello", "%d(string=hello)"},
+-	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
+-	fmtTest{"%s", nil, "%s(<nil>)"},
++	fmtTest{"%d", "hello", "%!d(string=hello)"},
++	fmtTest{"no args", "hello", "no args%!(EXTRA string=hello)"},
++	fmtTest{"%s", nil, "%!s(<nil>)"},
+ 	fmtTest{"%T", nil, "<nil>"},
+-	fmtTest{"%-1", 100, "%1(int=100)"},
++	fmtTest{"%-1", 100, "%!1(int=100)"},
+ }
+ 
+ func TestSprintf(t *testing.T) {
+@@ -622,12 +622,12 @@ var startests = []starTest{
+ 	starTest{"%-*d", args(4, 42), "42  "},
+ 
+ 	// erroneous
+-	starTest{"%*d", args(nil, 42), "%(badwidth)42"},
+-	starTest{"%.*d", args(nil, 42), "%(badprec)42"},
+-	starTest{"%*d", args(5, "foo"), "%d(string=  foo)"},
++	starTest{"%*d", args(nil, 42), "%!(BADWIDTH)42"},
++	starTest{"%.*d", args(nil, 42), "%!(BADPREC)42"},
++	starTest{"%*d", args(5, "foo"), "%!d(string=  foo)"},
+ 	starTest{"%*% %d", args(20, 5), "% 5"},
+-	starTest{"%*", args(4), "%(badwidth)%*(int=4)"},
+-	starTest{"%*d", args(int32(4), 42), "%(badwidth)42"},
++	starTest{"%*", args(4), "%!(BADWIDTH)%!*(int=4)"},
++	starTest{"%*d", args(int32(4), 42), "%!(BADWIDTH)42"},
+ }
+ 
+ // TODO: there's no conversion from []T to ...T, but we can fake it.  These
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 8585c2dcaf..33095627dc 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -20,12 +20,12 @@ var (
+ 	nilParenBytes   = []byte("(nil)")
+ 	nilBytes        = []byte("nil")
+ 	mapBytes        = []byte("map[")
+-	missingBytes    = []byte("missing")
+-	extraBytes      = []byte("?(extra ")
++	missingBytes    = []byte("(MISSING)")
++	extraBytes      = []byte("%!(EXTRA ")
+ 	irparenBytes    = []byte("i)")
+ 	bytesBytes      = []byte("[]byte{")
+-	widthBytes      = []byte("%(badwidth)")
+-	precBytes       = []byte("%(badprec)")
++	widthBytes      = []byte("%!(BADWIDTH)")
++	precBytes       = []byte("%!(BADPREC)")
+ )
+ 
+ // State represents the printer state passed to custom formatters.
+@@ -266,6 +266,7 @@ func (p *pp) unknownType(v interface{}) {
+ 
+ func (p *pp) badVerb(verb int, val interface{}) {
+ 	p.add('%')
++	p.add('!')
+ 	p.add(verb)
+ 	p.add('(')
+ 	if val == nil {

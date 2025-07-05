@@ -7,7 +7,32 @@ Date:   Wed Nov 9 16:00:17 2011 -0500
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/5375046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 5f792fab68..7c13a6417f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -116,6 +116,7 @@ Matthew Horsnell <matthew.horsnell@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl>
+ Mikael Tillenius <mikti42@gmail.com>
+ Mike Rosset <mike.rosset@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ca3f03908f..fb1672978d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -179,6 +179,7 @@ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Shields <mshields@google.com>
+ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
++Michał Derkacz <ziutek@lnet.pl>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
+ Mike Rosset <mike.rosset@gmail.com>

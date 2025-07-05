@@ -9,6 +9,19 @@ Date:   Tue Oct 5 11:02:15 2010 +1100
     R=golang-dev, adg
     CC=Joe Poirier, golang-dev
     https://golang.org/cl/2367041
-
+---
  src/pkg/Makefile | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 5bec3ce901..cc8279a1f9 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -197,7 +197,6 @@ NOTEST+=os/signal    # no signals
+ NOTEST+=path         # tree walking does not work
+ NOTEST+=syslog       # no network
+ NOTEST+=time         # no syscall.Kill, syscall.SIGCHLD for sleep tests
+-NOTEST+=websocket    # no network
+ endif
+ 
+ ifeq ($(GOARCH),arm)

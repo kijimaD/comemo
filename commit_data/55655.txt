@@ -12,6 +12,20 @@ Date:   Tue Feb 28 10:11:51 2023 -0800
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/crypto/x509/pkcs8.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index 63bfa9987d..2d085e0a96 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -28,7 +28,7 @@ type pkcs8 struct {
+ // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+ //
+ // It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, a ed25519.PrivateKey (not
+-// a pointer), or a *ecdh.PublicKey (for X25519). More types might be supported
++// a pointer), or a *ecdh.PrivateKey (for X25519). More types might be supported
+ // in the future.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".

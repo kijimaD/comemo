@@ -13,6 +13,19 @@ Date:   Thu Jul 9 16:20:48 2020 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgc.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 0a4d5616a5..65ac654b14 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -983,7 +983,6 @@ var work struct {
+ 	nproc  uint32
+ 	tstart int64
+ 	nwait  uint32
+-	ndone  uint32
+ 
+ 	// Number of roots of various root types. Set by gcMarkRootPrepare.
+ 	nFlushCacheRoots                               int

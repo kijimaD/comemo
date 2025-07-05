@@ -19,7 +19,35 @@ Date:   Sun Nov 27 14:41:08 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5436069
-
+---
  src/pkg/html/parse.go      | 3 +++
  src/pkg/html/parse_test.go | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 36a5fd2fdc..723f65a4d7 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -518,6 +518,9 @@ func inHeadIM(p *parser) bool {
+ 			p.setOriginalIM()
+ 			p.im = textIM
+ 			return true
++		case "head":
++			// Ignore the token.
++			return true
+ 		default:
+ 			implied = true
+ 		}
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index cb1559169e..4a088c74b1 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -152,7 +152,7 @@ func TestParser(t *testing.T) {
+ 		{"doctype01.dat", -1},
+ 		{"tests1.dat", -1},
+ 		{"tests2.dat", -1},
+-		{"tests3.dat", 12},
++		{"tests3.dat", 20},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)

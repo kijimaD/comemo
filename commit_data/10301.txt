@@ -7,6 +7,20 @@ Date:   Wed Nov 9 15:43:21 2011 +1100
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/5359055
-
+---
  doc/devel/weekly.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/weekly.html b/doc/devel/weekly.html
+index acfefc6798..37ff9252c5 100644
+--- a/doc/devel/weekly.html
++++ b/doc/devel/weekly.html
+@@ -14,7 +14,7 @@ hg pull
+ hg update weekly.<i>YYYY-MM-DD</i>
+ </pre>
+ 
+-<h2 id="2011-11-08">2011-11-09</h2>
++<h2 id="2011-11-09">2011-11-09</h2>
+ 
+ <pre>
+ This weekly snapshot renames various Go packages as described in the Go 1 plan.

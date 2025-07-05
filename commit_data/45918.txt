@@ -15,7 +15,7 @@ Date:   Sat Nov 28 01:11:49 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go        | 11 ++++++-----
  src/cmd/compile/internal/gc/noder.go       | 22 +++++++++++-----------
  src/cmd/compile/internal/gc/subr.go        |  4 ++--
@@ -23,3 +23,200 @@ Date:   Sat Nov 28 01:11:49 2020 -0500
  src/cmd/compile/internal/ir/node.go        |  8 +-------
  src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
  6 files changed, 44 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 30ee57c02d..7d2933f360 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -955,8 +955,9 @@ func clearImports() {
+ 			// leave s->block set to cause redeclaration
+ 			// errors if a conflicting top-level name is
+ 			// introduced by a different file.
+-			if !n.Name().Used() && base.SyntaxErrors() == 0 {
+-				unused = append(unused, importedPkg{n.Pos(), n.Name().Pkg.Path, s.Name})
++			p := n.(*ir.PkgName)
++			if !p.Used && base.SyntaxErrors() == 0 {
++				unused = append(unused, importedPkg{p.Pos(), p.Pkg.Path, s.Name})
+ 			}
+ 			s.Def = nil
+ 			continue
+@@ -964,9 +965,9 @@ func clearImports() {
+ 		if IsAlias(s) {
+ 			// throw away top-level name left over
+ 			// from previous import . "x"
+-			if n.Name() != nil && n.Name().Pack != nil && !n.Name().Pack.Name().Used() && base.SyntaxErrors() == 0 {
+-				unused = append(unused, importedPkg{n.Name().Pack.Pos(), n.Name().Pack.Name().Pkg.Path, ""})
+-				n.Name().Pack.Name().SetUsed(true)
++			if name := n.Name(); name != nil && name.PkgName != nil && !name.PkgName.Used && base.SyntaxErrors() == 0 {
++				unused = append(unused, importedPkg{name.PkgName.Pos(), name.PkgName.Pkg.Path, ""})
++				name.PkgName.Used = true
+ 			}
+ 			s.Def = nil
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index ecd50b87f6..54915d7693 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -356,9 +356,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		my = lookup(ipkg.Name)
+ 	}
+ 
+-	pack := p.nod(imp, ir.OPACK, nil, nil)
+-	pack.SetSym(my)
+-	pack.Name().Pkg = ipkg
++	pack := ir.NewPkgName(p.pos(imp), my, ipkg)
+ 
+ 	switch my.Name {
+ 	case ".":
+@@ -685,8 +683,9 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 		// parser.new_dotname
+ 		obj := p.expr(expr.X)
+ 		if obj.Op() == ir.OPACK {
+-			obj.Name().SetUsed(true)
+-			return importName(obj.Name().Pkg.Lookup(expr.Sel.Value))
++			pack := obj.(*ir.PkgName)
++			pack.Used = true
++			return importName(pack.Pkg.Lookup(expr.Sel.Value))
+ 		}
+ 		n := nodSym(ir.OXDOT, obj, p.name(expr.Sel))
+ 		n.SetPos(p.pos(expr)) // lineno may have been changed by p.expr(expr.X)
+@@ -910,8 +909,8 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
+ 	switch expr := expr.(type) {
+ 	case *syntax.Name:
+ 		name := p.name(expr)
+-		if n := oldname(name); n.Name() != nil && n.Name().Pack != nil {
+-			n.Name().Pack.Name().SetUsed(true)
++		if n := oldname(name); n.Name() != nil && n.Name().PkgName != nil {
++			n.Name().PkgName.Used = true
+ 		}
+ 		return name
+ 	case *syntax.SelectorExpr:
+@@ -926,8 +925,9 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
+ 			base.Errorf("%v is not a package", name)
+ 			pkg = ir.LocalPkg
+ 		} else {
+-			def.Name().SetUsed(true)
+-			pkg = def.Name().Pkg
++			def := def.(*ir.PkgName)
++			def.Used = true
++			pkg = def.Pkg
+ 		}
+ 		return pkg.Lookup(expr.Sel.Value)
+ 	}
+@@ -1675,8 +1675,8 @@ func safeArg(name string) bool {
+ 
+ func mkname(sym *types.Sym) ir.Node {
+ 	n := oldname(sym)
+-	if n.Name() != nil && n.Name().Pack != nil {
+-		n.Name().Pack.Name().SetUsed(true)
++	if n.Name() != nil && n.Name().PkgName != nil {
++		n.Name().PkgName.Used = true
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 722876abf5..5c410ce3ba 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -102,7 +102,7 @@ func autolabel(prefix string) *types.Sym {
+ 
+ // find all the exported symbols in package opkg
+ // and make them available in the current package
+-func importdot(opkg *types.Pkg, pack ir.Node) {
++func importdot(opkg *types.Pkg, pack *ir.PkgName) {
+ 	n := 0
+ 	for _, s := range opkg.Syms {
+ 		if s.Def == nil {
+@@ -124,7 +124,7 @@ func importdot(opkg *types.Pkg, pack ir.Node) {
+ 			ir.Dump("s1def", ir.AsNode(s1.Def))
+ 			base.Fatalf("missing Name")
+ 		}
+-		ir.AsNode(s1.Def).Name().Pack = pack
++		ir.AsNode(s1.Def).Name().PkgName = pack
+ 		s1.Origpkg = opkg
+ 		n++
+ 	}
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index fc7a5049e0..64d5d2a2ed 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -9,13 +9,13 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"fmt"
+ 	"go/constant"
+ )
+ 
+-// Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
++// Name holds Node fields used only by named nodes (ONAME, OTYPE, some OLITERAL).
+ type Name struct {
+-	Pack Node       // real package for import . names
+-	Pkg  *types.Pkg // pkg for OPACK nodes
++	PkgName *PkgName // real package for import . names
+ 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
+ 	// For a closure var, the ONAME node of the outer captured variable
+ 	Defn Node
+@@ -374,3 +374,23 @@ const (
+ 	// Careful: Class is stored in three bits in Node.flags.
+ 	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
+ )
++
++// A Pack is an identifier referring to an imported package.
++type PkgName struct {
++	miniNode
++	sym  *types.Sym
++	Pkg  *types.Pkg
++	Used bool
++}
++
++func (p *PkgName) String() string                { return fmt.Sprint(p) }
++func (p *PkgName) Format(s fmt.State, verb rune) { FmtNode(p, s, verb) }
++func (p *PkgName) RawCopy() Node                 { c := *p; return &c }
++func (p *PkgName) Sym() *types.Sym               { return p.sym }
++
++func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
++	p := &PkgName{sym: sym, Pkg: pkg}
++	p.op = OPACK
++	p.pos = pos
++	return p
++}
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 079871879d..0023df97a8 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -1339,12 +1339,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 		n.SetFunc(&x.f)
+ 		n.Func().Decl = n
+ 	case OPACK:
+-		var x struct {
+-			n node
+-			m Name
+-		}
+-		n = &x.n
+-		n.SetName(&x.m)
++		return NewPkgName(pos, nil, nil)
+ 	case OEMPTY:
+ 		return NewEmptyStmt(pos)
+ 	case OBREAK, OCONTINUE, OFALL, OGOTO:
+@@ -1462,7 +1457,6 @@ var okForNod = [OEND]bool{
+ 	OOFFSETOF:      true,
+ 	OOR:            true,
+ 	OOROR:          true,
+-	OPACK:          true,
+ 	OPANIC:         true,
+ 	OPAREN:         true,
+ 	OPLUS:          true,
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 0a9542fa44..a025cb5986 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Func{}, 152, 280},
+-		{Name{}, 44, 80},
++		{Name{}, 36, 64},
+ 		{Param{}, 44, 88},
+ 		{node{}, 88, 152},
+ 	}

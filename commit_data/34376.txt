@@ -10,6 +10,29 @@ Date:   Mon Oct 23 14:08:41 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/72792
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go_spec.html | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2309ce47fe..af82931247 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of October 19, 2017",
++	"Subtitle": "Version of October 23, 2017",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -16,8 +16,7 @@ Go is a general-purpose language designed with systems programming
+ in mind. It is strongly typed and garbage-collected and has explicit
+ support for concurrent programming.  Programs are constructed from
+ <i>packages</i>, whose properties allow efficient management of
+-dependencies. The existing implementations use a traditional
+-compile/link model to generate executable binaries.
++dependencies.
+ </p>
+ 
+ <p>

@@ -7,6 +7,19 @@ Date:   Tue Jan 19 13:52:51 2016 -0800
     Change-Id: Ie8cb7c7428ae9026c11643b22f9ecf7977e25f5f
     Reviewed-on: https://go-review.googlesource.com/18737
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/opnames.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 9134bd4332..06096437bf 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -149,6 +149,7 @@ var opnames = []string{
+ 	OCFUNC:           "CFUNC",
+ 	OCHECKNIL:        "CHECKNIL",
+ 	OVARKILL:         "VARKILL",
++	OVARLIVE:         "VARLIVE",
+ 	OREGISTER:        "REGISTER",
+ 	OINDREG:          "INDREG",
+ 	OCMP:             "CMP",

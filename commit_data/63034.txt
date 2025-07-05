@@ -19,10 +19,211 @@ Date:   Thu May 15 15:21:06 2025 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/asm.go                 |  5 ++
  src/cmd/asm/internal/asm/testdata/loong64enc1.s |  3 -
  src/cmd/asm/internal/asm/testdata/loong64enc5.s |  5 ++
  src/cmd/internal/obj/loong64/asm.go             | 73 +++++++++++++++++++------
  src/cmd/internal/obj/loong64/doc.go             | 26 +++++++++
  5 files changed, 93 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index c8ad5d28e1..9a6e22cab2 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -676,6 +676,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 				prog.From = a[0]
+ 				prog.To = a[1]
+ 				prog.RegTo2 = a[2].Reg
++
++			case arch.IsLoong64PRELD(op):
++				prog.From = a[0]
++				prog.AddRestSourceArgs([]obj.Addr{a[1], a[2]})
++
+ 			default:
+ 				prog.From = a[0]
+ 				prog.Reg = p.getRegister(prog, op, &a[1])
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index d5e9b6c899..bfff555782 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -1035,6 +1035,3 @@ lable2:
+ 	PRELD	(R4), $0		// 8000c02a
+ 	PRELD	-1(R4), $8		// 88fcff2a
+ 	PRELD	8(R4),  $31		// 9f20c02a
+-	PRELDX	(R4)(R5), $0		// 80142c38
+-	PRELDX	(R4)(R6), $8		// 88182c38
+-	PRELDX	(R4)(R7), $31		// 9f1c2c38
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc5.s b/src/cmd/asm/internal/asm/testdata/loong64enc5.s
+index 423e5c3b01..b7ecd6b63b 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc5.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc5.s
+@@ -15,3 +15,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	AND	$0xfedcba9876543210, R4		// AND	$-81985529216486896, R4		// 7ea8ec14de4388031e539717deb73f0384f81400
+ 	AND	$0xfedcba9876543210, R5, R4	// AND	$-81985529216486896, R5, R4	// 7ea8ec14de4388031e539717deb73f03a4f81400
+ 
++	PRELDX	0(R7), $0x80001021, $0		// PRELDX (R7), $2147487777, $0		// 1e020014de0380031e000016de130003e0782c38
++	PRELDX	-1(R7), $0x1021, $2		// PRELDX -1(R7), $4129, $2		// fe030014deffbf031e000016de030003e2782c38
++	PRELDX	8(R7), $0x80100800, $31		// PRELDX 8(R7), $2148534272, $31	// 1ee00714de238003fe1f0016de130003ff782c38
++	PRELDX	16(R7), $0x202040, $1		// PRELDX 16(R7), $2105408, $1		// 1e200014de4380033e000216de030003e1782c38
++
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index c92c6b01b2..6e09930183 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -416,8 +416,8 @@ var optab = []Optab{
+ 
+ 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0},
+ 
+-	{APRELD, C_SOREG, C_NONE, C_U5CON, C_NONE, C_NONE, 46, 4, 0, 0},
+-	{APRELDX, C_ROFF, C_NONE, C_U5CON, C_NONE, C_NONE, 47, 4, 0, 0},
++	{APRELD, C_SOREG, C_U5CON, C_NONE, C_NONE, C_NONE, 46, 4, 0, 0},
++	{APRELDX, C_SOREG, C_DCON, C_U5CON, C_NONE, C_NONE, 47, 20, 0, 0},
+ 
+ 	{obj.APCALIGN, C_U12CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_32CON, C_NONE, C_NONE, C_32CON, C_NONE, 0, 0, 0, 0},
+@@ -1105,6 +1105,22 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 		c.ctxt.Diag("loong64 ops not initialized, call loong64.buildop first")
+ 	}
+ 
++	restArgsIndex := 0
++	restArgsLen := len(p.RestArgs)
++	if restArgsLen > 2 {
++		c.ctxt.Diag("too many RestArgs: got %v, maximum is 2\n", restArgsLen)
++		return nil
++	}
++
++	restArgsv := [2]int{C_NONE + 1, C_NONE + 1}
++	for i, ap := range p.RestArgs {
++		restArgsv[i] = int(ap.Addr.Class)
++		if restArgsv[i] == 0 {
++			restArgsv[i] = c.aclass(&ap.Addr) + 1
++			ap.Addr.Class = int8(restArgsv[i])
++		}
++	}
++
+ 	a1 := int(p.Optab)
+ 	if a1 != 0 {
+ 		return &optab[a1-1]
+@@ -1130,6 +1146,9 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 	a2 := C_NONE
+ 	if p.Reg != 0 {
+ 		a2 = c.rclass(p.Reg)
++	} else if restArgsLen > 0 {
++		a2 = restArgsv[restArgsIndex] - 1
++		restArgsIndex++
+ 	}
+ 
+ 	// 2nd destination operand
+@@ -1140,22 +1159,20 @@ func (c *ctxt0) oplook(p *obj.Prog) *Optab {
+ 
+ 	// 3rd source operand
+ 	a3 := C_NONE
+-	if len(p.RestArgs) > 0 {
+-		a3 = int(p.RestArgs[0].Class)
+-		if a3 == 0 {
+-			a3 = c.aclass(&p.RestArgs[0].Addr) + 1
+-			p.RestArgs[0].Class = int8(a3)
+-		}
+-		a3--
++	if restArgsLen > 0 && restArgsIndex < restArgsLen {
++		a3 = restArgsv[restArgsIndex] - 1
++		restArgsIndex++
+ 	}
+ 
+ 	ops := oprange[p.As&obj.AMask]
+ 	c1 := &xcmp[a1]
++	c2 := &xcmp[a2]
+ 	c3 := &xcmp[a3]
+ 	c4 := &xcmp[a4]
++	c5 := &xcmp[a5]
+ 	for i := range ops {
+ 		op := &ops[i]
+-		if (int(op.reg) == a2) && c3[op.from3] && c1[op.from1] && c4[op.to1] && (int(op.to2) == a5) {
++		if c1[op.from1] && c2[op.reg] && c3[op.from3] && c4[op.to1] && c5[op.to2] {
+ 			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
+ 			return op
+ 		}
+@@ -2457,16 +2474,40 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		c.checkindex(p, index, m)
+ 		o1 = v | (index << 10) | (vj << 5) | vd
+ 
+-	case 46:
+-		// preld  offset(Rbase), hint
++	case 46: // preld  offset(Rbase), $hint
+ 		offs := c.regoff(&p.From)
+ 		hint := p.GetFrom3().Offset
+ 		o1 = OP_12IR_5I(c.opiir(p.As), uint32(offs), uint32(p.From.Reg), uint32(hint))
+ 
+-	case 47:
+-		// preldx (Rbase)(Roff), hint
+-		hint := p.GetFrom3().Offset
+-		o1 = OP_5IRR(c.opirr(p.As), uint32(p.From.Index), uint32(p.From.Reg), uint32(hint))
++	case 47: // preldx offset(Rbase), $n, $hint
++		offs := c.regoff(&p.From)
++		hint := p.RestArgs[1].Offset
++		n := uint64(p.GetFrom3().Offset)
++
++		addrSeq := (n >> 0) & 0x1
++		blkSize := (n >> 1) & 0x7ff
++		blkNums := (n >> 12) & 0x1ff
++		stride := (n >> 21) & 0xffff
++
++		if blkSize > 1024 {
++			c.ctxt.Diag("%v: block_size amount out of range[16, 1024]: %v\n", p, blkSize)
++		}
++
++		if blkNums > 256 {
++			c.ctxt.Diag("%v: block_nums amount out of range[1, 256]: %v\n", p, blkSize)
++		}
++
++		v := (uint64(offs) & 0xffff)
++		v += addrSeq << 16
++		v += ((blkSize / 16) - 1) << 20
++		v += (blkNums - 1) << 32
++		v += stride << 44
++
++		o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(REGTMP))
++		o2 = OP_12IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
++		o3 = OP_IR(c.opir(ALU32ID), uint32(v>>32), uint32(REGTMP))
++		o4 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
++		o5 = OP_5IRR(c.opirr(p.As), uint32(REGTMP), uint32(p.From.Reg), uint32(hint))
+ 
+ 	case 49:
+ 		if p.As == ANOOP {
+diff --git a/src/cmd/internal/obj/loong64/doc.go b/src/cmd/internal/obj/loong64/doc.go
+index 0896168fa1..0818389c8d 100644
+--- a/src/cmd/internal/obj/loong64/doc.go
++++ b/src/cmd/internal/obj/loong64/doc.go
+@@ -226,5 +226,31 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
+   - When using the AM*_.W[U]/D[U] instruction, registers rd and rj cannot be the same,
+     otherwise an exception is triggered, and rd and rk cannot be the same, otherwise
+     the execution result is uncertain.
++
++3. Prefetch instructions
++    Instruction format:
++      PRELD	offset(Rbase), $hint
++      PRELDX	offset(Rbase), $n, $hint
++
++    Mapping between Go and platform assembly:
++               Go assembly            |    platform assembly
++      PRELD  offset(Rbase), $hint     | preld hint, Rbase, offset
++      PRELDX offset(Rbase), $n, $hint | move rk, $x; preldx hint, Rbase, rk
++
++      note: $x is the value after $n and offset are reassembled
++
++    Definition of hint value:
++      0: load to L1
++      2: load to L3
++      8: store to L1
++
++      The meaning of the rest of values is not defined yet, and the processor executes it as NOP
++
++    Definition of $n in the PRELDX instruction:
++      bit[0]: address sequence, 0 indicating ascending and 1 indicating descending
++      bits[11:1]:  block size, the value range is [16, 1024], and it must be an integer multiple of 16
++      bits[20:12]: block num, the value range is [1, 256]
++      bits[36:21]: stride, the value range is [0, 0xffff]
+ */
++
+ package loong64

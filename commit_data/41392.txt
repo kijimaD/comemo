@@ -15,9 +15,86 @@ Date:   Sat Sep 28 23:47:37 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  misc/wasm/wasm_exec.js    |  5 +++++
  src/syscall/js/js.go      | 11 +++++++++++
  src/syscall/js/js_js.s    |  4 ++++
  src/syscall/js/js_test.go | 12 ++++++++++++
  4 files changed, 32 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 9639585693..9ffa9201e8 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -308,6 +308,11 @@
+ 						Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
+ 					},
+ 
++					// func valueDelete(v ref, p string)
++					"syscall/js.valueDelete": (sp) => {
++						Reflect.deleteProperty(loadValue(sp + 8), loadString(sp + 16));
++					},
++
+ 					// func valueIndex(v ref, i int) ref
+ 					"syscall/js.valueIndex": (sp) => {
+ 						storeValue(sp + 24, Reflect.get(loadValue(sp + 8), getInt64(sp + 16)));
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 7300d2c769..f42a16f0d0 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -267,6 +267,17 @@ func (v Value) Set(p string, x interface{}) {
+ 
+ func valueSet(v ref, p string, x ref)
+ 
++// Delete deletes the JavaScript property p of value v.
++// It panics if v is not a JavaScript object.
++func (v Value) Delete(p string) {
++	if vType := v.Type(); !vType.isObject() {
++		panic(&ValueError{"Value.Delete", vType})
++	}
++	valueDelete(v.ref, p)
++}
++
++func valueDelete(v ref, p string)
++
+ // Index returns JavaScript index i of value v.
+ // It panics if v is not a JavaScript object.
+ func (v Value) Index(i int) Value {
+diff --git a/src/syscall/js/js_js.s b/src/syscall/js/js_js.s
+index 5f29468237..ab56087c16 100644
+--- a/src/syscall/js/js_js.s
++++ b/src/syscall/js/js_js.s
+@@ -16,6 +16,10 @@ TEXT ·valueSet(SB), NOSPLIT, $0
+   CallImport
+   RET
+ 
++TEXT ·valueDelete(SB), NOSPLIT, $0
++  CallImport
++  RET
++
+ TEXT ·valueIndex(SB), NOSPLIT, $0
+   CallImport
+   RET
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 753c2c3a0d..10d4364e4c 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -212,6 +212,18 @@ func TestSet(t *testing.T) {
+ 	})
+ }
+ 
++func TestDelete(t *testing.T) {
++	dummys.Set("test", 42)
++	dummys.Delete("test")
++	if dummys.Call("hasOwnProperty", "test").Bool() {
++		t.Errorf("property still exists")
++	}
++
++	expectValueError(t, func() {
++		dummys.Get("zero").Delete("badField")
++	})
++}
++
+ func TestIndex(t *testing.T) {
+ 	if got := dummys.Get("someArray").Index(1).Int(); got != 42 {
+ 		t.Errorf("got %#v, want %#v", got, 42)

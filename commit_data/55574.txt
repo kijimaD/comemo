@@ -17,8 +17,114 @@ Date:   Mon Feb 20 09:08:00 2023 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/list/list.go                |  5 ++--
  src/cmd/go/internal/load/pkg.go                 | 18 ++++++++----
  src/cmd/go/testdata/script/list_json_fields.txt | 38 +++++++++++++++++++++++++
  3 files changed, 53 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index fc2e087dba..ec23024ac8 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -603,8 +603,9 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		// for test variants of packages and users who have been providing format strings
+ 		// might not expect those errors to stop showing up.
+ 		// See issue #52443.
+-		SuppressDeps:      !listJsonFields.needAny("Deps", "DepsErrors"),
+-		SuppressBuildInfo: !listJsonFields.needAny("Stale", "StaleReason"),
++		SuppressDeps:       !listJsonFields.needAny("Deps", "DepsErrors"),
++		SuppressBuildInfo:  !listJsonFields.needAny("Stale", "StaleReason"),
++		SuppressEmbedFiles: !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
+ 	}
+ 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
+ 	if !*listE {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2d479561ac..799f7de85e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1922,12 +1922,14 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 	}
+ 	p.DefaultGODEBUG = defaultGODEBUG(p, nil, nil, nil)
+ 
+-	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+-	if err != nil {
+-		p.Incomplete = true
+-		setError(err)
+-		embedErr := err.(*EmbedError)
+-		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
++	if !opts.SuppressEmbedFiles {
++		p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
++		if err != nil {
++			p.Incomplete = true
++			setError(err)
++			embedErr := err.(*EmbedError)
++			p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
++		}
+ 	}
+ 
+ 	// Check for case-insensitive collision of input files.
+@@ -2780,6 +2782,10 @@ type PackageOpts struct {
+ 	// SuppressBuildInfo is true if the caller does not need p.Stale, p.StaleReason, or p.Internal.BuildInfo
+ 	// to be populated on the package.
+ 	SuppressBuildInfo bool
++
++	// SuppressEmbedFiles is true if the caller does not need any embed files to be populated on the
++	// package.
++	SuppressEmbedFiles bool
+ }
+ 
+ // PackagesAndErrors returns the packages named by the command line arguments
+diff --git a/src/cmd/go/testdata/script/list_json_fields.txt b/src/cmd/go/testdata/script/list_json_fields.txt
+index 54d2220110..7e008eaabf 100644
+--- a/src/cmd/go/testdata/script/list_json_fields.txt
++++ b/src/cmd/go/testdata/script/list_json_fields.txt
+@@ -26,6 +26,21 @@ go list -json=Deps
+ stdout '"Deps": \['
+ stdout '"errors",'
+ 
++# Test -json=<field> with *EmbedPatterns outputs embed patterns.
++cd embed
++go list -json=EmbedPatterns,TestEmbedPatterns,XTestEmbedPatterns
++stdout '"EmbedPatterns": \['
++stdout '"TestEmbedPatterns": \['
++stdout '"XTestEmbedPatterns": \['
++# Test -json=<field> with *EmbedFiles fails due to broken file reference.
++! go list -json=EmbedFiles
++stderr 'no matching files found'
++! go list -json=TestEmbedFiles
++stderr 'no matching files found'
++! go list -json=XTestEmbedFiles
++stderr 'no matching files found'
++cd ..
++
+ [!git] skip
+ 
+ # Test -json=<field> without Stale skips computing buildinfo
+@@ -73,3 +88,26 @@ module example.com/repo
+ package main
+ 
+ func main() {}
++-- embed/go.mod --
++module example.com/embed
++-- embed/embed.go --
++package embed
++
++import _ "embed"
++
++//go:embed non-existing-file.txt
++var s string
++-- embed/embed_test.go --
++package embed
++
++import _ "embed"
++
++//go:embed non-existing-file.txt
++var s string
++-- embed/embed_xtest_test.go --
++package embed_test
++
++import _ "embed"
++
++//go:embed non-existing-file.txt
++var s string

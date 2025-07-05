@@ -9,7 +9,7 @@ Date:   Thu Feb 18 11:15:36 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/215048
-
+---
  src/cmd/gc/dcl.c                   | 44 ++++++++++++++++++++--------------
  src/cmd/gc/go.h                    |  2 ++
  src/cmd/gc/typecheck.c             |  2 +-
@@ -18,3 +18,217 @@ Date:   Thu Feb 18 11:15:36 2010 -0800
  test/{bugs => fixedbugs}/bug251.go |  6 ++---
  test/golden.out                    | 14 -----------
  7 files changed, 76 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 9aedf4bcce..5359d7252d 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -809,23 +809,33 @@ stotype(NodeList *l, int et, Type **t)
+ 		if(n->op != ODCLFIELD)
+ 			fatal("stotype: oops %N\n", n);
+ 		if(n->right != N) {
+-			typecheck(&n->right, Etype);
+-			n->type = n->right->type;
+-			if(n->type == T) {
+-				*t0 = T;
+-				return t0;
+-			}
+-			if(n->left != N)
+-				n->left->type = n->type;
+-			n->right = N;
+-			if(n->embedded && n->type != T) {
+-				t1 = n->type;
+-				if(t1->sym == S && isptr[t1->etype])
+-					t1 = t1->type;
+-				if(isptr[t1->etype])
+-					yyerror("embedded type cannot be a pointer");
+-				else if(t1->etype == TFORW && t1->embedlineno == 0)
+-					t1->embedlineno = lineno;
++			if(et == TINTER && n->left != N) {
++				// queue resolution of method type for later.
++				// right now all we need is the name list.
++				// avoids cycles for recursive interface types.
++				n->type = typ(TINTERMETH);
++				n->type->nod = n->right;
++				n->right = N;
++				queuemethod(n);
++			} else {
++				typecheck(&n->right, Etype);
++				n->type = n->right->type;
++				if(n->type == T) {
++					*t0 = T;
++					return t0;
++				}
++				if(n->left != N)
++					n->left->type = n->type;
++				n->right = N;
++				if(n->embedded && n->type != T) {
++					t1 = n->type;
++					if(t1->sym == S && isptr[t1->etype])
++						t1 = t1->type;
++					if(isptr[t1->etype])
++						yyerror("embedded type cannot be a pointer");
++					else if(t1->etype == TFORW && t1->embedlineno == 0)
++						t1->embedlineno = lineno;
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index b9d87070c3..642b706111 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -462,6 +462,7 @@ enum
+ 	// pseudo-type for frame layout
+ 	TFUNCARGS,
+ 	TCHANARGS,
++	TINTERMETH,
+ 
+ 	NTYPE,
+ };
+@@ -1088,6 +1089,7 @@ Node*	typecheckconv(Node*, Node*, Type*, int, char*);
+ int	checkconv(Type*, Type*, int, int*, int*, char*);
+ Node*	typecheck(Node**, int);
+ int	islvalue(Node*);
++void	queuemethod(Node*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index a7d95a9cd5..d36775b028 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -51,7 +51,7 @@ typecheck(Node **np, int top)
+ 	int et, op;
+ 	Node *n, *l, *r;
+ 	NodeList *args;
+-	int lno, ok, ntop, ct;
++	int lno, ok, ntop;
+ 	Type *t;
+ 	Sym *sym;
+ 	Val v;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 067db0fc77..a6b420eb66 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -115,11 +115,25 @@ gettype(Node **np, NodeList **init)
+ 		dump("after gettype", *np);
+ }
+ 
+-void
+-walkdeflist(NodeList *l)
++static int nwalkdeftype;
++static NodeList *methodqueue;
++
++static void
++domethod(Node *n)
+ {
+-	for(; l; l=l->next)
+-		walkdef(l->n);
++	Node *nt;
++	
++	nt = n->type->nod;
++	typecheck(&nt, Etype);
++	if(nt->type == T) {
++		// type check failed; leave empty func
++		n->type->etype = TFUNC;
++		n->type->nod = N;
++		return;
++	}
++	*n->type = *nt->type;
++	n->type->nod = N;
++	checkwidth(n->type);
+ }
+ 
+ static void
+@@ -127,7 +141,9 @@ walkdeftype(Node *n)
+ {
+ 	int maplineno, embedlineno, lno;
+ 	Type *t;
+-
++	NodeList *l;
++	
++	nwalkdeftype++;
+ 	lno = lineno;
+ 	setlineno(n);
+ 	n->type->sym = n->sym;
+@@ -168,6 +184,28 @@ walkdeftype(Node *n)
+ 
+ ret:
+ 	lineno = lno;
++	
++	// if there are no type definitions going on, it's safe to
++	// try to resolve the method types for the interfaces
++	// we just read.
++	if(nwalkdeftype == 1) {
++		while((l = methodqueue) != nil) {
++			methodqueue = nil;
++			for(; l; l=l->next)
++				domethod(l->n);
++		}
++	}
++	nwalkdeftype--;
++}
++
++void
++queuemethod(Node *n)
++{
++	if(nwalkdeftype == 0) {
++		domethod(n);
++		return;
++	}
++	methodqueue = list(methodqueue, n);
+ }
+ 
+ void
+diff --git a/test/bugs/bug250.go b/test/fixedbugs/bug250.go
+similarity index 100%
+rename from test/bugs/bug250.go
+rename to test/fixedbugs/bug250.go
+diff --git a/test/bugs/bug251.go b/test/fixedbugs/bug251.go
+similarity index 77%
+rename from test/bugs/bug251.go
+rename to test/fixedbugs/bug251.go
+index f6365f1e63..6ddc4a5a65 100644
+--- a/test/bugs/bug251.go
++++ b/test/fixedbugs/bug251.go
+@@ -8,14 +8,14 @@ package main
+ 
+ type I1 interface {
+ 	m() I2
+-	I2	// ERROR "loop|interface"
++	I2
+ }
+ 
+ type I2 interface {
+-	I1
++	I1	// ERROR "loop|interface"
+ }
+ 
+ 
+-var i1 I1 = i2
++var i1 I1 = i2	// ERROR "need type assertion"
+ var i2 I2
+ var i2a I2 = i1
+diff --git a/test/golden.out b/test/golden.out
+index 22abf0c4bd..cf2297e1a7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -150,17 +150,3 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
+-
+-=========== bugs/bug250.go
+-bugs/bug250.go:14: interface type loop involving I1
+-bugs/bug250.go:17: need type assertion to use I2 as I1
+-	missing m() I2
+-BUG: bug250
+-
+-=========== bugs/bug251.go
+-BUG: errchk: bugs/bug251.go:11: missing expected error: 'loop|interface'
+-errchk: bugs/bug251.go: unmatched error messages:
+-==================================================
+-bugs/bug251.go:15: interface type loop involving I1
+-bugs/bug251.go:19: need type assertion to use I2 as I1
+-==================================================

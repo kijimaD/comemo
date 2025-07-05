@@ -12,8 +12,153 @@ Date:   Fri Jul 5 13:25:23 2013 +1000
     R=golang-dev, mikioh.mikioh, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/10775043
-
+---
  src/pkg/syscall/syscall_bsd.go   | 38 --------------------------------------
  src/pkg/syscall/syscall_linux.go | 32 --------------------------------
  src/pkg/syscall/syscall_unix.go  | 37 +++++++++++++++++++++++++++++++++++++
  3 files changed, 37 insertions(+), 70 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index 438e0b4634..cc940cffae 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -352,44 +352,6 @@ func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
+ 	return &value, err
+ }
+ 
+-func SetsockoptByte(fd, level, opt int, value byte) (err error) {
+-	var n = byte(value)
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 1)
+-}
+-
+-func SetsockoptInt(fd, level, opt int, value int) (err error) {
+-	var n = int32(value)
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+-}
+-
+-func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
+-}
+-
+-func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
+-}
+-
+-func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+-}
+-
+-func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+-}
+-
+-func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+-}
+-
+-func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
+-}
+-
+-func SetsockoptString(fd, level, opt int, s string) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
+-}
+-
+ //sys   recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
+ //sys   sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index c0ddf3a8a7..b6d728e9f7 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -485,42 +485,10 @@ func GetsockoptUcred(fd, level, opt int) (*Ucred, error) {
+ 	return &value, err
+ }
+ 
+-func SetsockoptInt(fd, level, opt int, value int) (err error) {
+-	var n = int32(value)
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+-}
+-
+-func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
+-}
+-
+-func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
+-}
+-
+-func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
+-}
+-
+-func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+-}
+-
+ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+ }
+ 
+-func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), unsafe.Sizeof(*mreq))
+-}
+-
+-func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
+-}
+-func SetsockoptString(fd, level, opt int, s string) (err error) {
+-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
+-}
+-
+ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+ 	var msg Msghdr
+ 	var rsa RawSockaddrAny
+diff --git a/src/pkg/syscall/syscall_unix.go b/src/pkg/syscall/syscall_unix.go
+index ad826b5359..046b93b2f6 100644
+--- a/src/pkg/syscall/syscall_unix.go
++++ b/src/pkg/syscall/syscall_unix.go
+@@ -230,6 +230,43 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
+ 	return sendto(fd, p, flags, ptr, n)
+ }
+ 
++func SetsockoptByte(fd, level, opt int, value byte) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value)), 1)
++}
++
++func SetsockoptInt(fd, level, opt int, value int) (err error) {
++	var n = int32(value)
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
++}
++
++func SetsockoptInet4Addr(fd, level, opt int, value [4]byte) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&value[0])), 4)
++}
++
++func SetsockoptIPMreq(fd, level, opt int, mreq *IPMreq) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), SizeofIPMreq)
++}
++
++func SetsockoptIPv6Mreq(fd, level, opt int, mreq *IPv6Mreq) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(mreq)), SizeofIPv6Mreq)
++}
++
++func SetsockoptICMPv6Filter(fd, level, opt int, filter *ICMPv6Filter) error {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(filter)), SizeofICMPv6Filter)
++}
++
++func SetsockoptLinger(fd, level, opt int, l *Linger) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), SizeofLinger)
++}
++
++func SetsockoptString(fd, level, opt int, s string) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&[]byte(s)[0])), uintptr(len(s)))
++}
++
++func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (err error) {
++	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
++}
++
+ func Socket(domain, typ, proto int) (fd int, err error) {
+ 	if domain == AF_INET6 && SocketDisableIPv6 {
+ 		return -1, EAFNOSUPPORT

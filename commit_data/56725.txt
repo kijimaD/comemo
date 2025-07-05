@@ -30,7 +30,56 @@ Date:   Mon May 22 16:58:12 2023 -0400
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/hashdebug.go      | 12 +++++++++---
  src/cmd/compile/internal/base/hashdebug_test.go |  4 ++--
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 11b9dcbb1d..167b0df4f0 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -286,19 +286,25 @@ func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) b
+ // change is selected.
+ func (d *HashDebug) matchAndLog(hash uint64, text, note func() string) bool {
+ 	if d.bisect != nil {
++		enabled := d.bisect.ShouldEnable(hash)
+ 		if d.bisect.ShouldPrint(hash) {
++			disabled := ""
++			if !enabled {
++				disabled = " [DISABLED]"
++			}
+ 			var t string
+ 			if !d.bisect.MarkerOnly() {
+ 				t = text()
+ 				if note != nil {
+ 					if n := note(); n != "" {
+-						t += ": " + n
++						t += ": " + n + disabled
++						disabled = ""
+ 					}
+ 				}
+ 			}
+-			d.log(d.name, hash, t)
++			d.log(d.name, hash, strings.TrimSpace(t+disabled))
+ 		}
+-		return d.bisect.ShouldEnable(hash)
++		return enabled
+ 	}
+ 
+ 	// TODO: Delete rest of function body when we switch to bisect-only.
+diff --git a/src/cmd/compile/internal/base/hashdebug_test.go b/src/cmd/compile/internal/base/hashdebug_test.go
+index 086801a2f0..62ef2ed493 100644
+--- a/src/cmd/compile/internal/base/hashdebug_test.go
++++ b/src/cmd/compile/internal/base/hashdebug_test.go
+@@ -93,8 +93,8 @@ func TestNMatch(t *testing.T) {
+ 	if check {
+ 		t.Errorf("GOSSAHASH=n should NOT have matched for 'bar', '0'")
+ 	}
+-	wantPrefix(t, msg, "bar.0 [bisect-match ")
+-	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 010100100011100101011110")
++	wantPrefix(t, msg, "bar.0 [DISABLED] [bisect-match ")
++	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 [DISABLED] 010100100011100101011110")
+ }
+ 
+ func TestHashNoMatch(t *testing.T) {

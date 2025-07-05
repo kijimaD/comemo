@@ -63,7 +63,7 @@ Date:   Mon Jul 8 23:45:44 2019 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/mips64/ssa.go        |   6 +
  src/cmd/compile/internal/ssa/gen/MIPS64.rules |  12 +
  src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  18 +
@@ -72,3 +72,808 @@ Date:   Mon Jul 8 23:45:44 2019 +0800
  src/runtime/duff_mips64x.s                    | 644 +++++++++++++++++++++++++-
  src/runtime/mkduff.go                         |  10 +-
  7 files changed, 720 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 68eff97dfa..7eae35373d 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -426,6 +426,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p4.Reg = mips.REG_R1
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p2)
++	case ssa.OpMIPS64DUFFCOPY:
++		p := s.Prog(obj.ADUFFCOPY)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Duffcopy
++		p.To.Offset = v.AuxInt
+ 	case ssa.OpMIPS64LoweredMove:
+ 		// SUBV	$8, R1
+ 		// MOVV	8(R1), Rtmp
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index a3df00aa33..69fe4b721e 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -370,6 +370,18 @@
+ 		(MOVVstore [8] dst (MOVVload [8] src mem)
+ 			(MOVVstore dst (MOVVload src mem) mem)))
+ 
++// medium move uses a duff device
++(Move [s] {t} dst src mem)
++	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0
++	&& !config.noDuffDevice ->
++	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
++// 16 and 128 are magic constants.  16 is the number of bytes to encode:
++//	MOVV	(R1), R23
++//	ADDV	$8, R1
++//	MOVV	R23, (R2)
++//	ADDV	$8, R2
++// and 128 is the number of such blocks. See runtime/duff_mips64.s:duffcopy.
++
+ // large or unaligned move uses a loop
+ (Move [s] {t} dst src mem)
+ 	&& s > 24 || t.(*types.Type).Alignment()%8 != 0 ->
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index ba02e0fcb5..e0a920f23d 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -292,6 +292,24 @@ func init() {
+ 			faultOnNilArg0: true,
+ 		},
+ 
++		// duffcopy
++		// arg0 = address of dst memory (in R2, changed as side effect)
++		// arg1 = address of src memory (in R1, changed as side effect)
++		// arg2 = mem
++		// auxint = offset into duffcopy code to start executing
++		// returns mem
++		{
++			name:      "DUFFCOPY",
++			aux:       "Int64",
++			argLength: 3,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R2"), buildReg("R1")},
++				clobbers: buildReg("R1 R2 R31"),
++			},
++			faultOnNilArg0: true,
++			faultOnNilArg1: true,
++		},
++
+ 		// large or unaligned zeroing
+ 		// arg0 = address of memory to zero (in R1, changed as side effect)
+ 		// arg1 = address of the last element to zero
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d692ed21e8..ef99da2330 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1635,6 +1635,7 @@ const (
+ 	OpMIPS64CALLclosure
+ 	OpMIPS64CALLinter
+ 	OpMIPS64DUFFZERO
++	OpMIPS64DUFFCOPY
+ 	OpMIPS64LoweredZero
+ 	OpMIPS64LoweredMove
+ 	OpMIPS64LoweredAtomicLoad8
+@@ -21768,6 +21769,20 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 134217730, // R1 R31
+ 		},
+ 	},
++	{
++		name:           "DUFFCOPY",
++		auxType:        auxInt64,
++		argLen:         3,
++		faultOnNilArg0: true,
++		faultOnNilArg1: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4}, // R2
++				{1, 2}, // R1
++			},
++			clobbers: 134217734, // R1 R2 R31
++		},
++	},
+ 	{
+ 		name:           "LoweredZero",
+ 		auxType:        auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 8b75c032cc..a5a58b9bbe 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -6969,6 +6969,25 @@ func rewriteValueMIPS64_OpMove_10(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] {t} dst src mem)
++	// cond: s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0 && !config.noDuffDevice
++	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
++	for {
++		s := v.AuxInt
++		t := v.Aux
++		mem := v.Args[2]
++		dst := v.Args[0]
++		src := v.Args[1]
++		if !(s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0 && !config.noDuffDevice) {
++			break
++		}
++		v.reset(OpMIPS64DUFFCOPY)
++		v.AuxInt = 16 * (128 - s/8)
++		v.AddArg(dst)
++		v.AddArg(src)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [s] {t} dst src mem)
+ 	// cond: s > 24 || t.(*types.Type).Alignment()%8 != 0
+ 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDVconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
+ 	for {
+diff --git a/src/runtime/duff_mips64x.s b/src/runtime/duff_mips64x.s
+index acf0a4e698..c4e04ccc9d 100644
+--- a/src/runtime/duff_mips64x.s
++++ b/src/runtime/duff_mips64x.s
+@@ -265,7 +265,645 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+ 	ADDV	$8, R1
+ 	RET
+ 
+-// TODO: Implement runtime·duffcopy.
+-TEXT runtime·duffcopy(SB),NOSPLIT|NOFRAME,$0-0
+-	MOVV	R0, 2(R0)
++TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
++	MOVV	(R1), R23
++	ADDV	$8, R1
++	MOVV	R23, (R2)
++	ADDV	$8, R2
++
+ 	RET
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index b6fe701497..6ac5e7da44 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -216,5 +216,13 @@ func zeroMIPS64x(w io.Writer) {
+ }
+ 
+ func copyMIPS64x(w io.Writer) {
+-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
++	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
++	for i := 0; i < 128; i++ {
++		fmt.Fprintln(w, "\tMOVV\t(R1), R23")
++		fmt.Fprintln(w, "\tADDV\t$8, R1")
++		fmt.Fprintln(w, "\tMOVV\tR23, (R2)")
++		fmt.Fprintln(w, "\tADDV\t$8, R2")
++		fmt.Fprintln(w)
++	}
++	fmt.Fprintln(w, "\tRET")
+ }

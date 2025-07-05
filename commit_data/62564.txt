@@ -15,6 +15,23 @@ Date:   Wed Mar 12 15:14:44 2025 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/3-tools.md | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 5b52fe200d..68017c8def 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -10,5 +10,11 @@ These new error reports may be disabled by setting
+ `ASAN_OPTIONS=detect_leaks=0` in the environment when running the
+ program.
+ 
++<!-- go.dev/issue/65847 -->
++
++When the go command updates the `go` line in a `go.mod` or `go.work` file,
++it [no longer](/ref/mod#go-mod-file-toolchain) adds a toolchain line
++specifying the command's current version.
++
+ ### Cgo {#cgo}
+ 

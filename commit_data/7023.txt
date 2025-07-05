@@ -9,6 +9,22 @@ Date:   Tue Jan 4 11:55:13 2011 -0500
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/3731048
-
+---
  src/pkg/net/fd.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index b2e24f5986..5adaf1df3c 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -567,6 +567,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 	var s, e int
+ 	var sa syscall.Sockaddr
+ 	for {
++		if fd.closing {
++			syscall.ForkLock.RUnlock()
++			return nil, os.EINVAL
++		}
+ 		s, sa, e = syscall.Accept(fd.sysfd)
+ 		if e != syscall.EAGAIN {
+ 			break

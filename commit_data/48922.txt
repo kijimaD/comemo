@@ -11,6 +11,20 @@ Date:   Sat Jun 26 14:34:56 2021 +0700
     Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/expr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 6928f2ac70..86c6d44501 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -489,7 +489,7 @@ func walkAddString(n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+ 
+ // walkCall walks an OCALLFUNC, OCALLINTER, or OCALLMETH node.
+ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+-	if n.Op() == ir.OCALLINTER || n.X.Op() == ir.OMETHEXPR {
++	if n.Op() == ir.OCALLINTER || n.Op() == ir.OCALLMETH || n.X.Op() == ir.OMETHEXPR {
+ 		// We expect both interface call reflect.Type.Method and concrete
+ 		// call reflect.(*rtype).Method.
+ 		usemethod(n)

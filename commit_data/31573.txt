@@ -12,8 +12,64 @@ Date:   Wed Mar 1 13:08:22 2017 -0800
     Change-Id: Ib4319784f7a855f593dfa5231604ca2c24e4c882
     Reviewed-on: https://go-review.googlesource.com/37651
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/config.go       |  1 -
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 10 ++++------
  3 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 3aabd054b9..6a8101a562 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -221,7 +221,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.FPReg = framepointerRegPPC64
+ 		c.LinkReg = linkRegPPC64
+ 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
+-		c.NeedsFpScratch = true
+ 		c.hasGReg = true
+ 	case "mips64":
+ 		c.BigEndian = true
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index 94917bea2c..4af2cf854a 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -211,8 +211,8 @@ func init() {
+ 		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
+ 		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
+ 
+-		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64", usesScratch: true},   // move 64 bits of F register into G register
+-		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64", usesScratch: true}, // move 64 bits of G register into F register
++		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64"},   // move 64 bits of F register into G register
++		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64"}, // move 64 bits of G register into F register
+ 
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
+ 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1742197f6e..a05e339f08 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -16419,9 +16419,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "Xf2i64",
+-		argLen:      1,
+-		usesScratch: true,
++		name:   "Xf2i64",
++		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+@@ -16432,9 +16431,8 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "Xi2f64",
+-		argLen:      1,
+-		usesScratch: true,
++		name:   "Xi2f64",
++		argLen: 1,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29

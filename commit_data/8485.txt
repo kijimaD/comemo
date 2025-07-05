@@ -10,6 +10,21 @@ Date:   Tue May 24 22:53:37 2011 -0700
     R=rsc, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/4559043
-
+---
  src/pkg/os/os_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index b06d57b851..b146b92cf0 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -442,7 +442,8 @@ func exec(t *testing.T, dir, cmd string, args []string, expect string) {
+ 	var b bytes.Buffer
+ 	io.Copy(&b, r)
+ 	output := b.String()
+-	if output != expect {
++	// Accept /usr prefix because Solaris /bin is symlinked to /usr/bin.
++	if output != expect && output != "/usr"+expect {
+ 		t.Errorf("exec %q returned %q wanted %q",
+ 			strings.Join(append([]string{cmd}, args...), " "), output, expect)
+ 	}

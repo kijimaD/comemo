@@ -16,6 +16,19 @@ Date:   Tue Mar 5 17:01:19 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 9ba52e609e..c6fb046b32 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3670,6 +3670,7 @@ func TestGoGetInsecure(t *testing.T) {
+ 			tg.tempFile("go.mod", "module m")
+ 			tg.cd(tg.path("."))
+ 			tg.setenv("GO111MODULE", "on")
++			tg.setenv("GO111PROXY", "")
+ 		} else {
+ 			tg.setenv("GOPATH", tg.path("."))
+ 			tg.setenv("GO111MODULE", "off")

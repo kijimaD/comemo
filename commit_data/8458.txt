@@ -7,6 +7,20 @@ Date:   Sun May 22 11:55:02 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4543064
-
+---
  src/pkg/flag/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index ec254fd888..e5d2f94e9b 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -567,7 +567,7 @@ func Var(value Value, name string, usage string) {
+ // returns the error.
+ func (f *FlagSet) failf(format string, a ...interface{}) os.Error {
+ 	err := fmt.Errorf(format, a...)
+-	fmt.Println(errc)
++	fmt.Fprintln(os.Stderr, err)
+ 	if f == commandLine {
+ 		Usage()
+ 	} else {

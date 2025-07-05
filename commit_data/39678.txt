@@ -11,9 +11,69 @@ Date:   Sun Dec 23 15:01:11 2018 +0530
     Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 8 ++++++++
  src/cmd/go/testdata/testcover/pkg4/a.go      | 5 +++++
  src/cmd/go/testdata/testcover/pkg4/a_test.go | 9 +++++++++
  src/testing/cover.go                         | 3 ++-
  4 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f25d6f4503..60e02e7532 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2612,6 +2612,14 @@ func TestCoverageDepLoop(t *testing.T) {
+ 	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
+ }
+ 
++func TestCoverageNoStatements(t *testing.T) {
++	tooSlow(t)
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "-cover", "./testdata/testcover/pkg4")
++	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
++}
++
+ func TestCoverageImportMainLoop(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/testdata/testcover/pkg4/a.go b/src/cmd/go/testdata/testcover/pkg4/a.go
+new file mode 100644
+index 0000000000..cf09e6f1b0
+--- /dev/null
++++ b/src/cmd/go/testdata/testcover/pkg4/a.go
+@@ -0,0 +1,5 @@
++package pkg4
++
++type T struct {
++	X bool
++}
+diff --git a/src/cmd/go/testdata/testcover/pkg4/a_test.go b/src/cmd/go/testdata/testcover/pkg4/a_test.go
+new file mode 100644
+index 0000000000..12b8685294
+--- /dev/null
++++ b/src/cmd/go/testdata/testcover/pkg4/a_test.go
+@@ -0,0 +1,9 @@
++package pkg4
++
++import (
++	"testing"
++)
++
++func TestT(t *testing.T) {
++	_ = T{}
++}
+diff --git a/src/testing/cover.go b/src/testing/cover.go
+index 17c03f5e5e..62ee5ac9c0 100644
+--- a/src/testing/cover.go
++++ b/src/testing/cover.go
+@@ -109,7 +109,8 @@ func coverReport() {
+ 		}
+ 	}
+ 	if total == 0 {
+-		total = 1
++		fmt.Println("coverage: [no statements]")
++		return
+ 	}
+ 	fmt.Printf("coverage: %.1f%% of statements%s\n", 100*float64(active)/float64(total), cover.CoveredPackages)
+ }

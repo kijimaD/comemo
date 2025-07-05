@@ -9,10 +9,110 @@ Date:   Mon Sep 9 12:21:09 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/13250046
-
+---
  src/cmd/gc/lex.c                  | 26 ++++++++++++++++++++++++--
  test/fixedbugs/issue5957.dir/a.go |  3 +++
  test/fixedbugs/issue5957.dir/b.go |  2 ++
  test/fixedbugs/issue5957.dir/c.go | 12 ++++++++++++
  test/fixedbugs/issue5957.go       |  7 +++++++
  5 files changed, 48 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 21708aae2c..f4a6e0503e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -2279,6 +2279,28 @@ yytinit(void)
+ 	}		
+ }
+ 
++static void
++pkgnotused(int lineno, Strlit *path, char *name)
++{
++	char *elem;
++	
++	// If the package was imported with a name other than the final
++	// import path element, show it explicitly in the error message.
++	// Note that this handles both renamed imports and imports of
++	// packages containing unconventional package declarations.
++	// Note that this uses / always, even on Windows, because Go import
++	// paths always use forward slashes.
++	elem = strrchr(path->s, '/');
++	if(elem != nil)
++		elem++;
++	else
++		elem = path->s;
++	if(strcmp(elem, name) == 0)
++		yyerrorl(lineno, "imported and not used: \"%Z\"", path);
++	else
++		yyerrorl(lineno, "imported and not used: \"%Z\" as %s", path, name);
++}
++
+ void
+ mkpackage(char* pkgname)
+ {
+@@ -2304,7 +2326,7 @@ mkpackage(char* pkgname)
+ 					// errors if a conflicting top-level name is
+ 					// introduced by a different file.
+ 					if(!s->def->used && !nsyntaxerrors)
+-						yyerrorl(s->def->lineno, "imported and not used: \"%Z\"", s->def->pkg->path);
++						pkgnotused(s->def->lineno, s->def->pkg->path, s->name);
+ 					s->def = N;
+ 					continue;
+ 				}
+@@ -2312,7 +2334,7 @@ mkpackage(char* pkgname)
+ 					// throw away top-level name left over
+ 					// from previous import . "x"
+ 					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
+-						yyerrorl(s->def->pack->lineno, "imported and not used: \"%Z\"", s->def->pack->pkg->path);
++						pkgnotused(s->def->pack->lineno, s->def->pack->pkg->path, s->name);
+ 						s->def->pack->used = 1;
+ 					}
+ 					s->def = N;
+diff --git a/test/fixedbugs/issue5957.dir/a.go b/test/fixedbugs/issue5957.dir/a.go
+new file mode 100644
+index 0000000000..7411d5fcd5
+--- /dev/null
++++ b/test/fixedbugs/issue5957.dir/a.go
+@@ -0,0 +1,3 @@
++package surprise
++
++var X int
+diff --git a/test/fixedbugs/issue5957.dir/b.go b/test/fixedbugs/issue5957.dir/b.go
+new file mode 100644
+index 0000000000..9bc561b9ce
+--- /dev/null
++++ b/test/fixedbugs/issue5957.dir/b.go
+@@ -0,0 +1,2 @@
++package surprise2
++
+diff --git a/test/fixedbugs/issue5957.dir/c.go b/test/fixedbugs/issue5957.dir/c.go
+new file mode 100644
+index 0000000000..42c88177b5
+--- /dev/null
++++ b/test/fixedbugs/issue5957.dir/c.go
+@@ -0,0 +1,12 @@
++package p
++
++import (
++	"./a" // ERROR "imported and not used: \x22a\x22 as surprise"
++	"./b" // ERROR "imported and not used: \x22b\x22 as surprise2"
++	b "./b" // ERROR "imported and not used: \x22b\x22$"
++	foo "math" // ERROR "imported and not used: \x22math\x22 as foo"
++	"fmt" // actually used
++	"strings" // ERROR "imported and not used: \x22strings\x22"
++)
++
++var _ = fmt.Printf
+diff --git a/test/fixedbugs/issue5957.go b/test/fixedbugs/issue5957.go
+new file mode 100644
+index 0000000000..891d8e6d2e
+--- /dev/null
++++ b/test/fixedbugs/issue5957.go
+@@ -0,0 +1,7 @@
++// errorcheckdir
++
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

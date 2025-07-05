@@ -22,7 +22,7 @@ Date:   Wed Jan 13 22:36:19 2021 +0800
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go             |  23 +-
  src/runtime/internal/atomic/asm_amd64.s            | 187 ------------
  src/runtime/internal/atomic/asm_arm64.s            |  61 ----
@@ -44,3 +44,2991 @@ Date:   Wed Jan 13 22:36:19 2021 +0800
  src/runtime/internal/atomic/sys_linux_arm.s        |   2 +-
  src/runtime/mgc.go                                 |   3 +-
  20 files changed, 1401 insertions(+), 1027 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 9c1c493233..67c9e9c198 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4042,18 +4042,23 @@ func InitTables() {
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TNIL, types.TNIL, atomicAndOrEmitterARM64),
+ 		sys.ARM64)
+ 
++	// Aliases for atomic load operations
++	alias("runtime/internal/atomic", "Loadint32", "runtime/internal/atomic", "Load", all...)
+ 	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
+-	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
+-	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
+ 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
+ 	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
++	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", p4...)
++	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", p8...)
+ 	alias("runtime/internal/atomic", "LoadAcq", "runtime/internal/atomic", "Load", lwatomics...)
+ 	alias("runtime/internal/atomic", "LoadAcq64", "runtime/internal/atomic", "Load64", lwatomics...)
+ 	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...)
+ 	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq", p4...) // linknamed
+ 	alias("runtime/internal/atomic", "LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...)
+ 	alias("sync", "runtime_LoadAcquintptr", "runtime/internal/atomic", "LoadAcq64", p8...) // linknamed
++
++	// Aliases for atomic store operations
++	alias("runtime/internal/atomic", "Storeint32", "runtime/internal/atomic", "Store", all...)
++	alias("runtime/internal/atomic", "Storeint64", "runtime/internal/atomic", "Store64", all...)
+ 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
+ 	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
+ 	alias("runtime/internal/atomic", "StoreRel", "runtime/internal/atomic", "Store", lwatomics...)
+@@ -4062,10 +4067,22 @@ func InitTables() {
+ 	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel", p4...) // linknamed
+ 	alias("runtime/internal/atomic", "StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...)
+ 	alias("sync", "runtime_StoreReluintptr", "runtime/internal/atomic", "StoreRel64", p8...) // linknamed
++
++	// Aliases for atomic swap operations
++	alias("runtime/internal/atomic", "Xchgint32", "runtime/internal/atomic", "Xchg", all...)
++	alias("runtime/internal/atomic", "Xchgint64", "runtime/internal/atomic", "Xchg64", all...)
+ 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
+ 	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
++
++	// Aliases for atomic add operations
++	alias("runtime/internal/atomic", "Xaddint32", "runtime/internal/atomic", "Xadd", all...)
++	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
+ 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
+ 	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd64", p8...)
++
++	// Aliases for atomic CAS operations
++	alias("runtime/internal/atomic", "Casint32", "runtime/internal/atomic", "Cas", all...)
++	alias("runtime/internal/atomic", "Casint64", "runtime/internal/atomic", "Cas64", all...)
+ 	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas", p4...)
+ 	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas64", p8...)
+ 	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)
+diff --git a/src/runtime/internal/atomic/asm_amd64.s b/src/runtime/internal/atomic/asm_amd64.s
+deleted file mode 100644
+index 2cf7c55870..0000000000
+--- a/src/runtime/internal/atomic/asm_amd64.s
++++ /dev/null
+@@ -1,187 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Note: some of these functions are semantically inlined
+-// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
+-
+-#include "textflag.h"
+-
+-// bool Cas(int32 *val, int32 old, int32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0-17
+-	MOVQ	ptr+0(FP), BX
+-	MOVL	old+8(FP), AX
+-	MOVL	new+12(FP), CX
+-	LOCK
+-	CMPXCHGL	CX, 0(BX)
+-	SETEQ	ret+16(FP)
+-	RET
+-
+-// bool	runtime∕internal∕atomic·Cas64(uint64 *val, uint64 old, uint64 new)
+-// Atomically:
+-//	if(*val == *old){
+-//		*val = new;
+-//		return 1;
+-//	} else {
+-//		return 0;
+-//	}
+-TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	old+8(FP), AX
+-	MOVQ	new+16(FP), CX
+-	LOCK
+-	CMPXCHGQ	CX, 0(BX)
+-	SETEQ	ret+24(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
+-	JMP	runtime∕internal∕atomic·Cas64(SB)
+-
+-TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-17
+-	JMP	runtime∕internal∕atomic·Cas(SB)
+-
+-TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-16
+-	JMP	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT, $0-16
+-	JMP	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-16
+-	JMP	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
+-	JMP	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
+-	JMP	runtime∕internal∕atomic·Xadd64(SB)
+-
+-// bool Casp1(void **val, void *old, void *new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-25
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	old+8(FP), AX
+-	MOVQ	new+16(FP), CX
+-	LOCK
+-	CMPXCHGQ	CX, 0(BX)
+-	SETEQ	ret+24(FP)
+-	RET
+-
+-// uint32 Xadd(uint32 volatile *val, int32 delta)
+-// Atomically:
+-//	*val += delta;
+-//	return *val;
+-TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
+-	MOVQ	ptr+0(FP), BX
+-	MOVL	delta+8(FP), AX
+-	MOVL	AX, CX
+-	LOCK
+-	XADDL	AX, 0(BX)
+-	ADDL	CX, AX
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	delta+8(FP), AX
+-	MOVQ	AX, CX
+-	LOCK
+-	XADDQ	AX, 0(BX)
+-	ADDQ	CX, AX
+-	MOVQ	AX, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-24
+-	JMP	runtime∕internal∕atomic·Xadd64(SB)
+-
+-TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
+-	MOVQ	ptr+0(FP), BX
+-	MOVL	new+8(FP), AX
+-	XCHGL	AX, 0(BX)
+-	MOVL	AX, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	new+8(FP), AX
+-	XCHGQ	AX, 0(BX)
+-	MOVQ	AX, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
+-	JMP	runtime∕internal∕atomic·Xchg64(SB)
+-
+-TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	val+8(FP), AX
+-	XCHGQ	AX, 0(BX)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
+-	MOVQ	ptr+0(FP), BX
+-	MOVL	val+8(FP), AX
+-	XCHGL	AX, 0(BX)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+-	JMP	runtime∕internal∕atomic·Store(SB)
+-
+-TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
+-	JMP	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
+-	JMP	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+-	MOVQ	ptr+0(FP), BX
+-	MOVB	val+8(FP), AX
+-	XCHGB	AX, 0(BX)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
+-	MOVQ	ptr+0(FP), BX
+-	MOVQ	val+8(FP), AX
+-	XCHGQ	AX, 0(BX)
+-	RET
+-
+-// void	runtime∕internal∕atomic·Or8(byte volatile*, byte);
+-TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
+-	MOVQ	ptr+0(FP), AX
+-	MOVB	val+8(FP), BX
+-	LOCK
+-	ORB	BX, (AX)
+-	RET
+-
+-// void	runtime∕internal∕atomic·And8(byte volatile*, byte);
+-TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
+-	MOVQ	ptr+0(FP), AX
+-	MOVB	val+8(FP), BX
+-	LOCK
+-	ANDB	BX, (AX)
+-	RET
+-
+-// func Or(addr *uint32, v uint32)
+-TEXT runtime∕internal∕atomic·Or(SB), NOSPLIT, $0-12
+-	MOVQ	ptr+0(FP), AX
+-	MOVL	val+8(FP), BX
+-	LOCK
+-	ORL	BX, (AX)
+-	RET
+-
+-// func And(addr *uint32, v uint32)
+-TEXT runtime∕internal∕atomic·And(SB), NOSPLIT, $0-12
+-	MOVQ	ptr+0(FP), AX
+-	MOVL	val+8(FP), BX
+-	LOCK
+-	ANDL	BX, (AX)
+-	RET
+diff --git a/src/runtime/internal/atomic/asm_arm64.s b/src/runtime/internal/atomic/asm_arm64.s
+deleted file mode 100644
+index 8336a859ad..0000000000
+--- a/src/runtime/internal/atomic/asm_arm64.s
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// bool Cas(uint32 *ptr, uint32 old, uint32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-17
+-	MOVD	ptr+0(FP), R0
+-	MOVW	old+8(FP), R1
+-	MOVW	new+12(FP), R2
+-again:
+-	LDAXRW	(R0), R3
+-	CMPW	R1, R3
+-	BNE	ok
+-	STLXRW	R2, (R0), R3
+-	CBNZ	R3, again
+-ok:
+-	CSET	EQ, R0
+-	MOVB	R0, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
+-	B	runtime∕internal∕atomic·Cas64(SB)
+-
+-TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-17
+-	B	runtime∕internal∕atomic·Cas(SB)
+-
+-TEXT runtime∕internal∕atomic·Loaduintptr(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-24
+-	B	runtime∕internal∕atomic·Xadd64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
+-	B	runtime∕internal∕atomic·Xadd64(SB)
+-
+-// bool Casp1(void **val, void *old, void *new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-25
+-	B runtime∕internal∕atomic·Cas64(SB)
+diff --git a/src/runtime/internal/atomic/asm_mips64x.s b/src/runtime/internal/atomic/asm_mips64x.s
+deleted file mode 100644
+index a515683ebb..0000000000
+--- a/src/runtime/internal/atomic/asm_mips64x.s
++++ /dev/null
+@@ -1,271 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build mips64 mips64le
+-
+-#include "textflag.h"
+-
+-// bool cas(uint32 *ptr, uint32 old, uint32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT ·Cas(SB), NOSPLIT, $0-17
+-	MOVV	ptr+0(FP), R1
+-	MOVW	old+8(FP), R2
+-	MOVW	new+12(FP), R5
+-	SYNC
+-cas_again:
+-	MOVV	R5, R3
+-	LL	(R1), R4
+-	BNE	R2, R4, cas_fail
+-	SC	R3, (R1)
+-	BEQ	R3, cas_again
+-	MOVV	$1, R1
+-	MOVB	R1, ret+16(FP)
+-	SYNC
+-	RET
+-cas_fail:
+-	MOVV	$0, R1
+-	JMP	-4(PC)
+-
+-// bool	cas64(uint64 *ptr, uint64 old, uint64 new)
+-// Atomically:
+-//	if(*val == *old){
+-//		*val = new;
+-//		return 1;
+-//	} else {
+-//		return 0;
+-//	}
+-TEXT ·Cas64(SB), NOSPLIT, $0-25
+-	MOVV	ptr+0(FP), R1
+-	MOVV	old+8(FP), R2
+-	MOVV	new+16(FP), R5
+-	SYNC
+-cas64_again:
+-	MOVV	R5, R3
+-	LLV	(R1), R4
+-	BNE	R2, R4, cas64_fail
+-	SCV	R3, (R1)
+-	BEQ	R3, cas64_again
+-	MOVV	$1, R1
+-	MOVB	R1, ret+24(FP)
+-	SYNC
+-	RET
+-cas64_fail:
+-	MOVV	$0, R1
+-	JMP	-4(PC)
+-
+-TEXT ·Casuintptr(SB), NOSPLIT, $0-25
+-	JMP	·Cas64(SB)
+-
+-TEXT ·CasRel(SB), NOSPLIT, $0-17
+-	JMP	·Cas(SB)
+-
+-TEXT ·Loaduintptr(SB),  NOSPLIT|NOFRAME, $0-16
+-	JMP	·Load64(SB)
+-
+-TEXT ·Loaduint(SB), NOSPLIT|NOFRAME, $0-16
+-	JMP	·Load64(SB)
+-
+-TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
+-	JMP	·Store64(SB)
+-
+-TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+-	JMP	·Xadd64(SB)
+-
+-TEXT ·Loadint64(SB), NOSPLIT, $0-16
+-	JMP	·Load64(SB)
+-
+-TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+-	JMP	·Xadd64(SB)
+-
+-// bool casp(void **val, void *old, void *new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT ·Casp1(SB), NOSPLIT, $0-25
+-	JMP runtime∕internal∕atomic·Cas64(SB)
+-
+-// uint32 xadd(uint32 volatile *ptr, int32 delta)
+-// Atomically:
+-//	*val += delta;
+-//	return *val;
+-TEXT ·Xadd(SB), NOSPLIT, $0-20
+-	MOVV	ptr+0(FP), R2
+-	MOVW	delta+8(FP), R3
+-	SYNC
+-	LL	(R2), R1
+-	ADDU	R1, R3, R4
+-	MOVV	R4, R1
+-	SC	R4, (R2)
+-	BEQ	R4, -4(PC)
+-	MOVW	R1, ret+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·Xadd64(SB), NOSPLIT, $0-24
+-	MOVV	ptr+0(FP), R2
+-	MOVV	delta+8(FP), R3
+-	SYNC
+-	LLV	(R2), R1
+-	ADDVU	R1, R3, R4
+-	MOVV	R4, R1
+-	SCV	R4, (R2)
+-	BEQ	R4, -4(PC)
+-	MOVV	R1, ret+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·Xchg(SB), NOSPLIT, $0-20
+-	MOVV	ptr+0(FP), R2
+-	MOVW	new+8(FP), R5
+-
+-	SYNC
+-	MOVV	R5, R3
+-	LL	(R2), R1
+-	SC	R3, (R2)
+-	BEQ	R3, -3(PC)
+-	MOVW	R1, ret+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·Xchg64(SB), NOSPLIT, $0-24
+-	MOVV	ptr+0(FP), R2
+-	MOVV	new+8(FP), R5
+-
+-	SYNC
+-	MOVV	R5, R3
+-	LLV	(R2), R1
+-	SCV	R3, (R2)
+-	BEQ	R3, -3(PC)
+-	MOVV	R1, ret+16(FP)
+-	SYNC
+-	RET
+-
+-TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+-	JMP	·Xchg64(SB)
+-
+-TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
+-	JMP	·Store64(SB)
+-
+-TEXT ·StoreRel(SB), NOSPLIT, $0-12
+-	JMP	·Store(SB)
+-
+-TEXT ·StoreRel64(SB), NOSPLIT, $0-16
+-	JMP	·Store64(SB)
+-
+-TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
+-	JMP	·Store64(SB)
+-
+-TEXT ·Store(SB), NOSPLIT, $0-12
+-	MOVV	ptr+0(FP), R1
+-	MOVW	val+8(FP), R2
+-	SYNC
+-	MOVW	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-TEXT ·Store8(SB), NOSPLIT, $0-9
+-	MOVV	ptr+0(FP), R1
+-	MOVB	val+8(FP), R2
+-	SYNC
+-	MOVB	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-TEXT ·Store64(SB), NOSPLIT, $0-16
+-	MOVV	ptr+0(FP), R1
+-	MOVV	val+8(FP), R2
+-	SYNC
+-	MOVV	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-// void	Or8(byte volatile*, byte);
+-TEXT ·Or8(SB), NOSPLIT, $0-9
+-	MOVV	ptr+0(FP), R1
+-	MOVBU	val+8(FP), R2
+-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+-	MOVV	$~3, R3
+-	AND	R1, R3
+-	// Compute val shift.
+-#ifdef GOARCH_mips64
+-	// Big endian.  ptr = ptr ^ 3
+-	XOR	$3, R1
+-#endif
+-	// R4 = ((ptr & 3) * 8)
+-	AND	$3, R1, R4
+-	SLLV	$3, R4
+-	// Shift val for aligned ptr. R2 = val << R4
+-	SLLV	R4, R2
+-
+-	SYNC
+-	LL	(R3), R4
+-	OR	R2, R4
+-	SC	R4, (R3)
+-	BEQ	R4, -4(PC)
+-	SYNC
+-	RET
+-
+-// void	And8(byte volatile*, byte);
+-TEXT ·And8(SB), NOSPLIT, $0-9
+-	MOVV	ptr+0(FP), R1
+-	MOVBU	val+8(FP), R2
+-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+-	MOVV	$~3, R3
+-	AND	R1, R3
+-	// Compute val shift.
+-#ifdef GOARCH_mips64
+-	// Big endian.  ptr = ptr ^ 3
+-	XOR	$3, R1
+-#endif
+-	// R4 = ((ptr & 3) * 8)
+-	AND	$3, R1, R4
+-	SLLV	$3, R4
+-	// Shift val for aligned ptr. R2 = val << R4 | ^(0xFF << R4)
+-	MOVV	$0xFF, R5
+-	SLLV	R4, R2
+-	SLLV	R4, R5
+-	NOR	R0, R5
+-	OR	R5, R2
+-
+-	SYNC
+-	LL	(R3), R4
+-	AND	R2, R4
+-	SC	R4, (R3)
+-	BEQ	R4, -4(PC)
+-	SYNC
+-	RET
+-
+-// func Or(addr *uint32, v uint32)
+-TEXT ·Or(SB), NOSPLIT, $0-12
+-	MOVV	ptr+0(FP), R1
+-	MOVW	val+8(FP), R2
+-
+-	SYNC
+-	LL	(R1), R3
+-	OR	R2, R3
+-	SC	R3, (R1)
+-	BEQ	R3, -4(PC)
+-	SYNC
+-	RET
+-
+-// func And(addr *uint32, v uint32)
+-TEXT ·And(SB), NOSPLIT, $0-12
+-	MOVV	ptr+0(FP), R1
+-	MOVW	val+8(FP), R2
+-
+-	SYNC
+-	LL	(R1), R3
+-	AND	R2, R3
+-	SC	R3, (R1)
+-	BEQ	R3, -4(PC)
+-	SYNC
+-	RET
+diff --git a/src/runtime/internal/atomic/asm_mipsx.s b/src/runtime/internal/atomic/asm_mipsx.s
+deleted file mode 100644
+index 2b2cfabe08..0000000000
+--- a/src/runtime/internal/atomic/asm_mipsx.s
++++ /dev/null
+@@ -1,200 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build mips mipsle
+-
+-#include "textflag.h"
+-
+-TEXT ·Cas(SB),NOSPLIT,$0-13
+-	MOVW	ptr+0(FP), R1
+-	MOVW	old+4(FP), R2
+-	MOVW	new+8(FP), R5
+-	SYNC
+-try_cas:
+-	MOVW	R5, R3
+-	LL	(R1), R4	// R4 = *R1
+-	BNE	R2, R4, cas_fail
+-	SC	R3, (R1)	// *R1 = R3
+-	BEQ	R3, try_cas
+-	SYNC
+-	MOVB	R3, ret+12(FP)
+-	RET
+-cas_fail:
+-	MOVB	R0, ret+12(FP)
+-	RET
+-
+-TEXT ·Store(SB),NOSPLIT,$0-8
+-	MOVW	ptr+0(FP), R1
+-	MOVW	val+4(FP), R2
+-	SYNC
+-	MOVW	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-TEXT ·Store8(SB),NOSPLIT,$0-5
+-	MOVW	ptr+0(FP), R1
+-	MOVB	val+4(FP), R2
+-	SYNC
+-	MOVB	R2, 0(R1)
+-	SYNC
+-	RET
+-
+-TEXT ·Load(SB),NOSPLIT,$0-8
+-	MOVW	ptr+0(FP), R1
+-	SYNC
+-	MOVW	0(R1), R1
+-	SYNC
+-	MOVW	R1, ret+4(FP)
+-	RET
+-
+-TEXT ·Load8(SB),NOSPLIT,$0-5
+-	MOVW	ptr+0(FP), R1
+-	SYNC
+-	MOVB	0(R1), R1
+-	SYNC
+-	MOVB	R1, ret+4(FP)
+-	RET
+-
+-TEXT ·Xadd(SB),NOSPLIT,$0-12
+-	MOVW	ptr+0(FP), R2
+-	MOVW	delta+4(FP), R3
+-	SYNC
+-try_xadd:
+-	LL	(R2), R1	// R1 = *R2
+-	ADDU	R1, R3, R4
+-	MOVW	R4, R1
+-	SC	R4, (R2)	// *R2 = R4
+-	BEQ	R4, try_xadd
+-	SYNC
+-	MOVW	R1, ret+8(FP)
+-	RET
+-
+-TEXT ·Xchg(SB),NOSPLIT,$0-12
+-	MOVW	ptr+0(FP), R2
+-	MOVW	new+4(FP), R5
+-	SYNC
+-try_xchg:
+-	MOVW	R5, R3
+-	LL	(R2), R1	// R1 = *R2
+-	SC	R3, (R2)	// *R2 = R3
+-	BEQ	R3, try_xchg
+-	SYNC
+-	MOVW	R1, ret+8(FP)
+-	RET
+-
+-TEXT ·Casuintptr(SB),NOSPLIT,$0-13
+-	JMP	·Cas(SB)
+-
+-TEXT ·CasRel(SB),NOSPLIT,$0-13
+-	JMP	·Cas(SB)
+-
+-TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
+-	JMP	·Load(SB)
+-
+-TEXT ·Loaduint(SB),NOSPLIT,$0-8
+-	JMP	·Load(SB)
+-
+-TEXT ·Loadp(SB),NOSPLIT,$-0-8
+-	JMP	·Load(SB)
+-
+-TEXT ·Storeuintptr(SB),NOSPLIT,$0-8
+-	JMP	·Store(SB)
+-
+-TEXT ·Xadduintptr(SB),NOSPLIT,$0-12
+-	JMP	·Xadd(SB)
+-
+-TEXT ·Loadint64(SB),NOSPLIT,$0-12
+-	JMP	·Load64(SB)
+-
+-TEXT ·Xaddint64(SB),NOSPLIT,$0-20
+-	JMP	·Xadd64(SB)
+-
+-TEXT ·Casp1(SB),NOSPLIT,$0-13
+-	JMP	·Cas(SB)
+-
+-TEXT ·Xchguintptr(SB),NOSPLIT,$0-12
+-	JMP	·Xchg(SB)
+-
+-TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
+-	JMP	·Store(SB)
+-
+-TEXT ·StoreRel(SB),NOSPLIT,$0-8
+-	JMP	·Store(SB)
+-
+-TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
+-	JMP	·Store(SB)
+-
+-// void	Or8(byte volatile*, byte);
+-TEXT ·Or8(SB),NOSPLIT,$0-5
+-	MOVW	ptr+0(FP), R1
+-	MOVBU	val+4(FP), R2
+-	MOVW	$~3, R3	// Align ptr down to 4 bytes so we can use 32-bit load/store.
+-	AND	R1, R3
+-#ifdef GOARCH_mips
+-	// Big endian.  ptr = ptr ^ 3
+-	XOR	$3, R1
+-#endif
+-	AND	$3, R1, R4	// R4 = ((ptr & 3) * 8)
+-	SLL	$3, R4
+-	SLL	R4, R2, R2	// Shift val for aligned ptr. R2 = val << R4
+-	SYNC
+-try_or8:
+-	LL	(R3), R4	// R4 = *R3
+-	OR	R2, R4
+-	SC	R4, (R3)	// *R3 = R4
+-	BEQ	R4, try_or8
+-	SYNC
+-	RET
+-
+-// void	And8(byte volatile*, byte);
+-TEXT ·And8(SB),NOSPLIT,$0-5
+-	MOVW	ptr+0(FP), R1
+-	MOVBU	val+4(FP), R2
+-	MOVW	$~3, R3
+-	AND	R1, R3
+-#ifdef GOARCH_mips
+-	// Big endian.  ptr = ptr ^ 3
+-	XOR	$3, R1
+-#endif
+-	AND	$3, R1, R4	// R4 = ((ptr & 3) * 8)
+-	SLL	$3, R4
+-	MOVW	$0xFF, R5
+-	SLL	R4, R2
+-	SLL	R4, R5
+-	NOR	R0, R5
+-	OR	R5, R2	// Shift val for aligned ptr. R2 = val << R4 | ^(0xFF << R4)
+-	SYNC
+-try_and8:
+-	LL	(R3), R4	// R4 = *R3
+-	AND	R2, R4
+-	SC	R4, (R3)	// *R3 = R4
+-	BEQ	R4, try_and8
+-	SYNC
+-	RET
+-
+-// func Or(addr *uint32, v uint32)
+-TEXT ·Or(SB), NOSPLIT, $0-8
+-	MOVW	ptr+0(FP), R1
+-	MOVW	val+4(FP), R2
+-
+-	SYNC
+-	LL	(R1), R3
+-	OR	R2, R3
+-	SC	R3, (R1)
+-	BEQ	R3, -4(PC)
+-	SYNC
+-	RET
+-
+-// func And(addr *uint32, v uint32)
+-TEXT ·And(SB), NOSPLIT, $0-8
+-	MOVW	ptr+0(FP), R1
+-	MOVW	val+4(FP), R2
+-
+-	SYNC
+-	LL	(R1), R3
+-	AND	R2, R3
+-	SC	R3, (R1)
+-	BEQ	R3, -4(PC)
+-	SYNC
+-	RET
+diff --git a/src/runtime/internal/atomic/asm_ppc64x.s b/src/runtime/internal/atomic/asm_ppc64x.s
+deleted file mode 100644
+index bb009ab34d..0000000000
+--- a/src/runtime/internal/atomic/asm_ppc64x.s
++++ /dev/null
+@@ -1,253 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ppc64 ppc64le
+-
+-#include "textflag.h"
+-
+-// bool cas(uint32 *ptr, uint32 old, uint32 new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-17
+-	MOVD	ptr+0(FP), R3
+-	MOVWZ	old+8(FP), R4
+-	MOVWZ	new+12(FP), R5
+-	LWSYNC
+-cas_again:
+-	LWAR	(R3), R6
+-	CMPW	R6, R4
+-	BNE	cas_fail
+-	STWCCC	R5, (R3)
+-	BNE	cas_again
+-	MOVD	$1, R3
+-	LWSYNC
+-	MOVB	R3, ret+16(FP)
+-	RET
+-cas_fail:
+-	MOVB	R0, ret+16(FP)
+-	RET
+-
+-// bool	runtime∕internal∕atomic·Cas64(uint64 *ptr, uint64 old, uint64 new)
+-// Atomically:
+-//	if(*val == *old){
+-//		*val = new;
+-//		return 1;
+-//	} else {
+-//		return 0;
+-//	}
+-TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
+-	MOVD	ptr+0(FP), R3
+-	MOVD	old+8(FP), R4
+-	MOVD	new+16(FP), R5
+-	LWSYNC
+-cas64_again:
+-	LDAR	(R3), R6
+-	CMP	R6, R4
+-	BNE	cas64_fail
+-	STDCCC	R5, (R3)
+-	BNE	cas64_again
+-	MOVD	$1, R3
+-	LWSYNC
+-	MOVB	R3, ret+24(FP)
+-	RET
+-cas64_fail:
+-	MOVB	R0, ret+24(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·CasRel(SB), NOSPLIT, $0-17
+-	MOVD    ptr+0(FP), R3
+-	MOVWZ   old+8(FP), R4
+-	MOVWZ   new+12(FP), R5
+-	LWSYNC
+-cas_again:
+-	LWAR    (R3), $0, R6        // 0 = Mutex release hint
+-	CMPW    R6, R4
+-	BNE     cas_fail
+-	STWCCC  R5, (R3)
+-	BNE     cas_again
+-	MOVD    $1, R3
+-	MOVB    R3, ret+16(FP)
+-	RET
+-cas_fail:
+-	MOVB    R0, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
+-	BR	runtime∕internal∕atomic·Cas64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loaduintptr(SB),  NOSPLIT|NOFRAME, $0-16
+-	BR	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·LoadAcquintptr(SB),  NOSPLIT|NOFRAME, $0-16
+-	BR	runtime∕internal∕atomic·LoadAcq64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT|NOFRAME, $0-16
+-	BR	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-16
+-	BR	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
+-	BR	runtime∕internal∕atomic·StoreRel64(SB)
+-
+-TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-24
+-	BR	runtime∕internal∕atomic·Xadd64(SB)
+-
+-TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
+-	BR	runtime∕internal∕atomic·Load64(SB)
+-
+-TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
+-	BR	runtime∕internal∕atomic·Xadd64(SB)
+-
+-// bool casp(void **val, void *old, void *new)
+-// Atomically:
+-//	if(*val == old){
+-//		*val = new;
+-//		return 1;
+-//	} else
+-//		return 0;
+-TEXT runtime∕internal∕atomic·Casp1(SB), NOSPLIT, $0-25
+-	BR runtime∕internal∕atomic·Cas64(SB)
+-
+-// uint32 xadd(uint32 volatile *ptr, int32 delta)
+-// Atomically:
+-//	*val += delta;
+-//	return *val;
+-TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
+-	MOVD	ptr+0(FP), R4
+-	MOVW	delta+8(FP), R5
+-	LWSYNC
+-	LWAR	(R4), R3
+-	ADD	R5, R3
+-	STWCCC	R3, (R4)
+-	BNE	-3(PC)
+-	MOVW	R3, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
+-	MOVD	ptr+0(FP), R4
+-	MOVD	delta+8(FP), R5
+-	LWSYNC
+-	LDAR	(R4), R3
+-	ADD	R5, R3
+-	STDCCC	R3, (R4)
+-	BNE	-3(PC)
+-	MOVD	R3, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
+-	MOVD	ptr+0(FP), R4
+-	MOVW	new+8(FP), R5
+-	LWSYNC
+-	LWAR	(R4), R3
+-	STWCCC	R5, (R4)
+-	BNE	-2(PC)
+-	ISYNC
+-	MOVW	R3, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
+-	MOVD	ptr+0(FP), R4
+-	MOVD	new+8(FP), R5
+-	LWSYNC
+-	LDAR	(R4), R3
+-	STDCCC	R5, (R4)
+-	BNE	-2(PC)
+-	ISYNC
+-	MOVD	R3, ret+16(FP)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
+-	BR	runtime∕internal∕atomic·Xchg64(SB)
+-
+-
+-TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+-	BR	runtime∕internal∕atomic·Store64(SB)
+-
+-TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
+-	MOVD	ptr+0(FP), R3
+-	MOVW	val+8(FP), R4
+-	SYNC
+-	MOVW	R4, 0(R3)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+-	MOVD	ptr+0(FP), R3
+-	MOVB	val+8(FP), R4
+-	SYNC
+-	MOVB	R4, 0(R3)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
+-	MOVD	ptr+0(FP), R3
+-	MOVD	val+8(FP), R4
+-	SYNC
+-	MOVD	R4, 0(R3)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+-	MOVD	ptr+0(FP), R3
+-	MOVW	val+8(FP), R4
+-	LWSYNC
+-	MOVW	R4, 0(R3)
+-	RET
+-
+-TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
+-	MOVD	ptr+0(FP), R3
+-	MOVD	val+8(FP), R4
+-	LWSYNC
+-	MOVD	R4, 0(R3)
+-	RET
+-
+-// void runtime∕internal∕atomic·Or8(byte volatile*, byte);
+-TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
+-	MOVD	ptr+0(FP), R3
+-	MOVBZ	val+8(FP), R4
+-	LWSYNC
+-again:
+-	LBAR	(R3), R6
+-	OR	R4, R6
+-	STBCCC	R6, (R3)
+-	BNE	again
+-	RET
+-
+-// void runtime∕internal∕atomic·And8(byte volatile*, byte);
+-TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
+-	MOVD	ptr+0(FP), R3
+-	MOVBZ	val+8(FP), R4
+-	LWSYNC
+-again:
+-	LBAR	(R3), R6
+-	AND	R4, R6
+-	STBCCC	R6, (R3)
+-	BNE	again
+-	RET
+-
+-// func Or(addr *uint32, v uint32)
+-TEXT runtime∕internal∕atomic·Or(SB), NOSPLIT, $0-12
+-	MOVD	ptr+0(FP), R3
+-	MOVW	val+8(FP), R4
+-	LWSYNC
+-again:
+-	LWAR	(R3), R6
+-	OR	R4, R6
+-	STWCCC	R6, (R3)
+-	BNE	again
+-	RET
+-
+-// func And(addr *uint32, v uint32)
+-TEXT runtime∕internal∕atomic·And(SB), NOSPLIT, $0-12
+-	MOVD	ptr+0(FP), R3
+-	MOVW	val+8(FP), R4
+-	LWSYNC
+-again:
+-	LWAR	(R3),R6
+-	AND	R4, R6
+-	STWCCC	R6, (R3)
+-	BNE	again
+-	RET
+diff --git a/src/runtime/internal/atomic/asm_386.s b/src/runtime/internal/atomic/atomic_386.s
+similarity index 90%
+rename from src/runtime/internal/atomic/asm_386.s
+rename to src/runtime/internal/atomic/atomic_386.s
+index d82faef1f0..37318e0ad7 100644
+--- a/src/runtime/internal/atomic/asm_386.s
++++ b/src/runtime/internal/atomic/atomic_386.s
+@@ -21,6 +21,12 @@ TEXT ·Cas(SB), NOSPLIT, $0-13
+ 	SETEQ	ret+12(FP)
+ 	RET
+ 
++TEXT ·Casint32(SB), NOSPLIT, $0-13
++	JMP	·Cas(SB)
++
++TEXT ·Casint64(SB), NOSPLIT, $0-21
++	JMP	·Cas64(SB)
++
+ TEXT ·Casuintptr(SB), NOSPLIT, $0-13
+ 	JMP	·Cas(SB)
+ 
+@@ -33,15 +39,27 @@ TEXT ·Loaduintptr(SB), NOSPLIT, $0-8
+ TEXT ·Loaduint(SB), NOSPLIT, $0-8
+ 	JMP	·Load(SB)
+ 
++TEXT ·Storeint32(SB), NOSPLIT, $0-8
++	JMP	·Store(SB)
++
++TEXT ·Storeint64(SB), NOSPLIT, $0-12
++	JMP	·Store64(SB)
++
+ TEXT ·Storeuintptr(SB), NOSPLIT, $0-8
+ 	JMP	·Store(SB)
+ 
+ TEXT ·Xadduintptr(SB), NOSPLIT, $0-12
+ 	JMP	·Xadd(SB)
+ 
++TEXT ·Loadint32(SB), NOSPLIT, $0-8
++	JMP	·Load(SB)
++
+ TEXT ·Loadint64(SB), NOSPLIT, $0-12
+ 	JMP	·Load64(SB)
+ 
++TEXT ·Xaddint32(SB), NOSPLIT, $0-12
++	JMP	·Xadd(SB)
++
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-20
+ 	JMP	·Xadd64(SB)
+ 
+@@ -142,6 +160,12 @@ TEXT ·Xchg(SB), NOSPLIT, $0-12
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
++TEXT ·Xchgint32(SB), NOSPLIT, $0-12
++	JMP	·Xchg(SB)
++
++TEXT ·Xchgint64(SB), NOSPLIT, $0-20
++	JMP	·Xchg64(SB)
++
+ TEXT ·Xchguintptr(SB), NOSPLIT, $0-12
+ 	JMP	·Xchg(SB)
+ 
+@@ -189,8 +213,8 @@ TEXT ·Store(SB), NOSPLIT, $0-8
+ TEXT ·StoreRel(SB), NOSPLIT, $0-8
+ 	JMP	·Store(SB)
+ 
+-TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-8
+-	JMP	runtime∕internal∕atomic·Store(SB)
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-8
++	JMP	·Store(SB)
+ 
+ // uint64 atomicload64(uint64 volatile* addr);
+ TEXT ·Load64(SB), NOSPLIT, $0-12
+diff --git a/src/runtime/internal/atomic/atomic_amd64.s b/src/runtime/internal/atomic/atomic_amd64.s
+new file mode 100644
+index 0000000000..57cd59dd8c
+--- /dev/null
++++ b/src/runtime/internal/atomic/atomic_amd64.s
+@@ -0,0 +1,225 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Note: some of these functions are semantically inlined
++// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
++
++#include "textflag.h"
++
++TEXT ·Loaduintptr(SB), NOSPLIT, $0-16
++	JMP	·Load64(SB)
++
++TEXT ·Loaduint(SB), NOSPLIT, $0-16
++	JMP	·Load64(SB)
++
++TEXT ·Loadint32(SB), NOSPLIT, $0-12
++	JMP	·Load(SB)
++
++TEXT ·Loadint64(SB), NOSPLIT, $0-16
++	JMP	·Load64(SB)
++
++// bool Cas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Cas(SB),NOSPLIT,$0-17
++	MOVQ	ptr+0(FP), BX
++	MOVL	old+8(FP), AX
++	MOVL	new+12(FP), CX
++	LOCK
++	CMPXCHGL	CX, 0(BX)
++	SETEQ	ret+16(FP)
++	RET
++
++// bool	·Cas64(uint64 *val, uint64 old, uint64 new)
++// Atomically:
++//	if(*val == *old){
++//		*val = new;
++//		return 1;
++//	} else {
++//		return 0;
++//	}
++TEXT ·Cas64(SB), NOSPLIT, $0-25
++	MOVQ	ptr+0(FP), BX
++	MOVQ	old+8(FP), AX
++	MOVQ	new+16(FP), CX
++	LOCK
++	CMPXCHGQ	CX, 0(BX)
++	SETEQ	ret+24(FP)
++	RET
++
++// bool Casp1(void **val, void *old, void *new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Casp1(SB), NOSPLIT, $0-25
++	MOVQ	ptr+0(FP), BX
++	MOVQ	old+8(FP), AX
++	MOVQ	new+16(FP), CX
++	LOCK
++	CMPXCHGQ	CX, 0(BX)
++	SETEQ	ret+24(FP)
++	RET
++
++TEXT ·Casint32(SB), NOSPLIT, $0-17
++	JMP	·Cas(SB)
++
++TEXT ·Casint64(SB), NOSPLIT, $0-25
++	JMP	·Cas64(SB)
++
++TEXT ·Casuintptr(SB), NOSPLIT, $0-25
++	JMP	·Cas64(SB)
++
++TEXT ·CasRel(SB), NOSPLIT, $0-17
++	JMP	·Cas(SB)
++
++// uint32 Xadd(uint32 volatile *val, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd(SB), NOSPLIT, $0-20
++	MOVQ	ptr+0(FP), BX
++	MOVL	delta+8(FP), AX
++	MOVL	AX, CX
++	LOCK
++	XADDL	AX, 0(BX)
++	ADDL	CX, AX
++	MOVL	AX, ret+16(FP)
++	RET
++
++// uint64 Xadd64(uint64 volatile *val, int64 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd64(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	delta+8(FP), AX
++	MOVQ	AX, CX
++	LOCK
++	XADDQ	AX, 0(BX)
++	ADDQ	CX, AX
++	MOVQ	AX, ret+16(FP)
++	RET
++
++TEXT ·Xaddint32(SB), NOSPLIT, $0-20
++	JMP	·Xadd(SB)
++
++TEXT ·Xaddint64(SB), NOSPLIT, $0-24
++	JMP	·Xadd64(SB)
++
++TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
++	JMP	·Xadd64(SB)
++
++// uint32 Xchg(ptr *uint32, new uint32)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg(SB), NOSPLIT, $0-20
++	MOVQ	ptr+0(FP), BX
++	MOVL	new+8(FP), AX
++	XCHGL	AX, 0(BX)
++	MOVL	AX, ret+16(FP)
++	RET
++
++// uint64 Xchg64(ptr *uint64, new uint64)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg64(SB), NOSPLIT, $0-24
++	MOVQ	ptr+0(FP), BX
++	MOVQ	new+8(FP), AX
++	XCHGQ	AX, 0(BX)
++	MOVQ	AX, ret+16(FP)
++	RET
++
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	JMP	·Xchg(SB)
++
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	JMP	·Xchg64(SB)
++
++TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
++	JMP	·Xchg64(SB)
++
++TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
++	MOVQ	ptr+0(FP), BX
++	MOVQ	val+8(FP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
++TEXT ·Store(SB), NOSPLIT, $0-12
++	MOVQ	ptr+0(FP), BX
++	MOVL	val+8(FP), AX
++	XCHGL	AX, 0(BX)
++	RET
++
++TEXT ·Store8(SB), NOSPLIT, $0-9
++	MOVQ	ptr+0(FP), BX
++	MOVB	val+8(FP), AX
++	XCHGB	AX, 0(BX)
++	RET
++
++TEXT ·Store64(SB), NOSPLIT, $0-16
++	MOVQ	ptr+0(FP), BX
++	MOVQ	val+8(FP), AX
++	XCHGQ	AX, 0(BX)
++	RET
++
++TEXT ·Storeint32(SB), NOSPLIT, $0-12
++	JMP	·Store(SB)
++
++TEXT ·Storeint64(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·StoreRel(SB), NOSPLIT, $0-12
++	JMP	·Store(SB)
++
++TEXT ·StoreRel64(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++// void	·Or8(byte volatile*, byte);
++TEXT ·Or8(SB), NOSPLIT, $0-9
++	MOVQ	ptr+0(FP), AX
++	MOVB	val+8(FP), BX
++	LOCK
++	ORB	BX, (AX)
++	RET
++
++// void	·And8(byte volatile*, byte);
++TEXT ·And8(SB), NOSPLIT, $0-9
++	MOVQ	ptr+0(FP), AX
++	MOVB	val+8(FP), BX
++	LOCK
++	ANDB	BX, (AX)
++	RET
++
++// func Or(addr *uint32, v uint32)
++TEXT ·Or(SB), NOSPLIT, $0-12
++	MOVQ	ptr+0(FP), AX
++	MOVL	val+8(FP), BX
++	LOCK
++	ORL	BX, (AX)
++	RET
++
++// func And(addr *uint32, v uint32)
++TEXT ·And(SB), NOSPLIT, $0-12
++	MOVQ	ptr+0(FP), AX
++	MOVL	val+8(FP), BX
++	LOCK
++	ANDL	BX, (AX)
++	RET
+diff --git a/src/runtime/internal/atomic/asm_arm.s b/src/runtime/internal/atomic/atomic_arm.s
+similarity index 91%
+rename from src/runtime/internal/atomic/asm_arm.s
+rename to src/runtime/internal/atomic/atomic_arm.s
+index 274925ed60..be3fd3a395 100644
+--- a/src/runtime/internal/atomic/asm_arm.s
++++ b/src/runtime/internal/atomic/atomic_arm.s
+@@ -60,6 +60,12 @@ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-8
+ TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-8
+ 	B 	·Load(SB)
+ 
++TEXT ·Casint32(SB),NOSPLIT,$0-13
++	B	·Cas(SB)
++
++TEXT ·Casint64(SB),NOSPLIT,$-4-21
++	B	·Cas64(SB)
++
+ TEXT ·Casuintptr(SB),NOSPLIT,$0-13
+ 	B	·Cas(SB)
+ 
+@@ -69,12 +75,24 @@ TEXT ·Casp1(SB),NOSPLIT,$0-13
+ TEXT ·CasRel(SB),NOSPLIT,$0-13
+ 	B	·Cas(SB)
+ 
++TEXT ·Loadint32(SB),NOSPLIT,$0-8
++	B	·Load(SB)
++
++TEXT ·Loadint64(SB),NOSPLIT,$-4-12
++	B	·Load64(SB)
++
+ TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
+ 	B	·Load(SB)
+ 
+ TEXT ·Loaduint(SB),NOSPLIT,$0-8
+ 	B	·Load(SB)
+ 
++TEXT ·Storeint32(SB),NOSPLIT,$0-8
++	B	·Store(SB)
++
++TEXT ·Storeint64(SB),NOSPLIT,$0-12
++	B	·Store64(SB)
++
+ TEXT ·Storeuintptr(SB),NOSPLIT,$0-8
+ 	B	·Store(SB)
+ 
+@@ -87,21 +105,26 @@ TEXT ·StoreRel(SB),NOSPLIT,$0-8
+ TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
+ 	B	·Store(SB)
+ 
++TEXT ·Xaddint32(SB),NOSPLIT,$0-12
++	B	·Xadd(SB)
++
++TEXT ·Xaddint64(SB),NOSPLIT,$-4-20
++	B	·Xadd64(SB)
++
+ TEXT ·Xadduintptr(SB),NOSPLIT,$0-12
+ 	B	·Xadd(SB)
+ 
+-TEXT ·Loadint64(SB),NOSPLIT,$0-12
+-	B	·Load64(SB)
++TEXT ·Xchgint32(SB),NOSPLIT,$0-12
++	B	·Xchg(SB)
+ 
+-TEXT ·Xaddint64(SB),NOSPLIT,$0-20
+-	B	·Xadd64(SB)
++TEXT ·Xchgint64(SB),NOSPLIT,$-4-20
++	B	·Xchg64(SB)
+ 
+ // 64-bit atomics
+ // The native ARM implementations use LDREXD/STREXD, which are
+ // available on ARMv6k or later. We use them only on ARMv7.
+ // On older ARM, we use Go implementations which simulate 64-bit
+ // atomics with locks.
+-
+ TEXT armCas64<>(SB),NOSPLIT,$0-21
+ 	// addr is already in R1
+ 	MOVW	old_lo+4(FP), R2
+diff --git a/src/runtime/internal/atomic/atomic_arm64.s b/src/runtime/internal/atomic/atomic_arm64.s
+index 0cf3c40223..587e7f05e2 100644
+--- a/src/runtime/internal/atomic/atomic_arm64.s
++++ b/src/runtime/internal/atomic/atomic_arm64.s
+@@ -4,77 +4,127 @@
+ 
+ #include "textflag.h"
+ 
+-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* addr)
++TEXT ·Casint32(SB), NOSPLIT, $0-17
++	B	·Cas(SB)
++
++TEXT ·Casint64(SB), NOSPLIT, $0-25
++	B	·Cas64(SB)
++
++TEXT ·Casuintptr(SB), NOSPLIT, $0-25
++	B	·Cas64(SB)
++
++TEXT ·CasRel(SB), NOSPLIT, $0-17
++	B	·Cas(SB)
++
++TEXT ·Loadint32(SB), NOSPLIT, $0-12
++	B	·Load(SB)
++
++TEXT ·Loadint64(SB), NOSPLIT, $0-16
++	B	·Load64(SB)
++
++TEXT ·Loaduintptr(SB), NOSPLIT, $0-16
++	B	·Load64(SB)
++
++TEXT ·Loaduint(SB), NOSPLIT, $0-16
++	B	·Load64(SB)
++
++TEXT ·Storeint32(SB), NOSPLIT, $0-12
++	B	·Store(SB)
++
++TEXT ·Storeint64(SB), NOSPLIT, $0-16
++	B	·Store64(SB)
++
++TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
++	B	·Store64(SB)
++
++TEXT ·Xaddint32(SB), NOSPLIT, $0-20
++	B	·Xadd(SB)
++
++TEXT ·Xaddint64(SB), NOSPLIT, $0-24
++	B	·Xadd64(SB)
++
++TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
++	B	·Xadd64(SB)
++
++TEXT ·Casp1(SB), NOSPLIT, $0-25
++	B ·Cas64(SB)
++
++// uint32 ·Load(uint32 volatile* addr)
+ TEXT ·Load(SB),NOSPLIT,$0-12
+ 	MOVD	ptr+0(FP), R0
+ 	LDARW	(R0), R0
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+-// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* addr)
++// uint8 ·Load8(uint8 volatile* addr)
+ TEXT ·Load8(SB),NOSPLIT,$0-9
+ 	MOVD	ptr+0(FP), R0
+ 	LDARB	(R0), R0
+ 	MOVB	R0, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* addr)
++// uint64 ·Load64(uint64 volatile* addr)
+ TEXT ·Load64(SB),NOSPLIT,$0-16
+ 	MOVD	ptr+0(FP), R0
+ 	LDAR	(R0), R0
+ 	MOVD	R0, ret+8(FP)
+ 	RET
+ 
+-// void *runtime∕internal∕atomic·Loadp(void *volatile *addr)
++// void *·Loadp(void *volatile *addr)
+ TEXT ·Loadp(SB),NOSPLIT,$0-16
+ 	MOVD	ptr+0(FP), R0
+ 	LDAR	(R0), R0
+ 	MOVD	R0, ret+8(FP)
+ 	RET
+ 
+-// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* addr)
++// uint32 ·LoadAcq(uint32 volatile* addr)
+ TEXT ·LoadAcq(SB),NOSPLIT,$0-12
+ 	B	·Load(SB)
+ 
+-// uint64 runtime∕internal∕atomic·LoadAcquintptr(uint64 volatile* addr)
++// uint64 ·LoadAcquintptr(uint64 volatile* addr)
+ TEXT ·LoadAcq64(SB),NOSPLIT,$0-16
+ 	B	·Load64(SB)
+ 
+-// uintptr runtime∕internal∕atomic·LoadAcq64(uintptr volatile* addr)
++// uintptr ·LoadAcq64(uintptr volatile* addr)
+ TEXT ·LoadAcquintptr(SB),NOSPLIT,$0-16
+ 	B	·Load64(SB)
+ 
+-TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Store64(SB)
++TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
++	B	·Store64(SB)
+ 
+-TEXT runtime∕internal∕atomic·StoreRel(SB), NOSPLIT, $0-12
+-	B	runtime∕internal∕atomic·Store(SB)
++TEXT ·StoreRel(SB), NOSPLIT, $0-12
++	B	·Store(SB)
+ 
+-TEXT runtime∕internal∕atomic·StoreRel64(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Store64(SB)
++TEXT ·StoreRel64(SB), NOSPLIT, $0-16
++	B	·Store64(SB)
+ 
+-TEXT runtime∕internal∕atomic·StoreReluintptr(SB), NOSPLIT, $0-16
+-	B	runtime∕internal∕atomic·Store64(SB)
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
++	B	·Store64(SB)
+ 
+-TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
++TEXT ·Store(SB), NOSPLIT, $0-12
+ 	MOVD	ptr+0(FP), R0
+ 	MOVW	val+8(FP), R1
+ 	STLRW	R1, (R0)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
++TEXT ·Store8(SB), NOSPLIT, $0-9
+ 	MOVD	ptr+0(FP), R0
+ 	MOVB	val+8(FP), R1
+ 	STLRB	R1, (R0)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
++TEXT ·Store64(SB), NOSPLIT, $0-16
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	val+8(FP), R1
+ 	STLR	R1, (R0)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
++// uint32 Xchg(ptr *uint32, new uint32)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg(SB), NOSPLIT, $0-20
+ 	MOVD	ptr+0(FP), R0
+ 	MOVW	new+8(FP), R1
+ again:
+@@ -84,7 +134,12 @@ again:
+ 	MOVW	R2, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
++// uint64 Xchg64(ptr *uint64, new uint64)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg64(SB), NOSPLIT, $0-24
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	new+8(FP), R1
+ again:
+@@ -94,7 +149,29 @@ again:
+ 	MOVD	R2, ret+16(FP)
+ 	RET
+ 
+-// bool runtime∕internal∕atomic·Cas64(uint64 *ptr, uint64 old, uint64 new)
++// bool Cas(uint32 *ptr, uint32 old, uint32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Cas(SB), NOSPLIT, $0-17
++	MOVD	ptr+0(FP), R0
++	MOVW	old+8(FP), R1
++	MOVW	new+12(FP), R2
++again:
++	LDAXRW	(R0), R3
++	CMPW	R1, R3
++	BNE	ok
++	STLXRW	R2, (R0), R3
++	CBNZ	R3, again
++ok:
++	CSET	EQ, R0
++	MOVB	R0, ret+16(FP)
++	RET
++
++// bool ·Cas64(uint64 *ptr, uint64 old, uint64 new)
+ // Atomically:
+ //      if(*val == *old){
+ //              *val = new;
+@@ -102,7 +179,7 @@ again:
+ //      } else {
+ //              return 0;
+ //      }
+-TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
++TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	old+8(FP), R1
+ 	MOVD	new+16(FP), R2
+@@ -121,7 +198,7 @@ ok:
+ // Atomically:
+ //      *val += delta;
+ //      return *val;
+-TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
++TEXT ·Xadd(SB), NOSPLIT, $0-20
+ 	MOVD	ptr+0(FP), R0
+ 	MOVW	delta+8(FP), R1
+ again:
+@@ -132,7 +209,11 @@ again:
+ 	MOVW	R2, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
++// uint64 Xadd64(uint64 volatile *ptr, int64 delta)
++// Atomically:
++//      *val += delta;
++//      return *val;
++TEXT ·Xadd64(SB), NOSPLIT, $0-24
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	delta+8(FP), R1
+ again:
+@@ -143,8 +224,14 @@ again:
+ 	MOVD	R2, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
+-	B	runtime∕internal∕atomic·Xchg64(SB)
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	B	·Xchg(SB)
++
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	B	·Xchg64(SB)
++
++TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
++	B	·Xchg64(SB)
+ 
+ TEXT ·And8(SB), NOSPLIT, $0-9
+ 	MOVD	ptr+0(FP), R0
+diff --git a/src/runtime/internal/atomic/atomic_mips64x.s b/src/runtime/internal/atomic/atomic_mips64x.s
+index 125c0c221c..2751c6f808 100644
+--- a/src/runtime/internal/atomic/atomic_mips64x.s
++++ b/src/runtime/internal/atomic/atomic_mips64x.s
+@@ -8,7 +8,309 @@
+ 
+ #define SYNC	WORD $0xf
+ 
+-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
++// bool cas(uint32 *ptr, uint32 old, uint32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Cas(SB), NOSPLIT, $0-17
++	MOVV	ptr+0(FP), R1
++	MOVW	old+8(FP), R2
++	MOVW	new+12(FP), R5
++	SYNC
++cas_again:
++	MOVV	R5, R3
++	LL	(R1), R4
++	BNE	R2, R4, cas_fail
++	SC	R3, (R1)
++	BEQ	R3, cas_again
++	MOVV	$1, R1
++	MOVB	R1, ret+16(FP)
++	SYNC
++	RET
++cas_fail:
++	MOVV	$0, R1
++	JMP	-4(PC)
++
++// bool	cas64(uint64 *ptr, uint64 old, uint64 new)
++// Atomically:
++//	if(*val == *old){
++//		*val = new;
++//		return 1;
++//	} else {
++//		return 0;
++//	}
++TEXT ·Cas64(SB), NOSPLIT, $0-25
++	MOVV	ptr+0(FP), R1
++	MOVV	old+8(FP), R2
++	MOVV	new+16(FP), R5
++	SYNC
++cas64_again:
++	MOVV	R5, R3
++	LLV	(R1), R4
++	BNE	R2, R4, cas64_fail
++	SCV	R3, (R1)
++	BEQ	R3, cas64_again
++	MOVV	$1, R1
++	MOVB	R1, ret+24(FP)
++	SYNC
++	RET
++cas64_fail:
++	MOVV	$0, R1
++	JMP	-4(PC)
++
++TEXT ·Casint32(SB), NOSPLIT, $0-17
++	JMP	·Cas(SB)
++
++TEXT ·Casint64(SB), NOSPLIT, $0-25
++	JMP	·Cas64(SB)
++
++TEXT ·Casuintptr(SB), NOSPLIT, $0-25
++	JMP	·Cas64(SB)
++
++TEXT ·CasRel(SB), NOSPLIT, $0-17
++	JMP	·Cas(SB)
++
++TEXT ·Loaduintptr(SB),  NOSPLIT|NOFRAME, $0-16
++	JMP	·Load64(SB)
++
++TEXT ·Loaduint(SB), NOSPLIT|NOFRAME, $0-16
++	JMP	·Load64(SB)
++
++TEXT ·Storeint32(SB), NOSPLIT, $0-12
++	JMP	·Store(SB)
++
++TEXT ·Storeint64(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
++	JMP	·Xadd64(SB)
++
++TEXT ·Loadint32(SB), NOSPLIT, $0-12
++	JMP	·Load(SB)
++
++TEXT ·Loadint64(SB), NOSPLIT, $0-16
++	JMP	·Load64(SB)
++
++TEXT ·Xaddint32(SB), NOSPLIT, $0-20
++	JMP	·Xadd(SB)
++
++TEXT ·Xaddint64(SB), NOSPLIT, $0-24
++	JMP	·Xadd64(SB)
++
++// bool casp(void **val, void *old, void *new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Casp1(SB), NOSPLIT, $0-25
++	JMP ·Cas64(SB)
++
++// uint32 xadd(uint32 volatile *ptr, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd(SB), NOSPLIT, $0-20
++	MOVV	ptr+0(FP), R2
++	MOVW	delta+8(FP), R3
++	SYNC
++	LL	(R2), R1
++	ADDU	R1, R3, R4
++	MOVV	R4, R1
++	SC	R4, (R2)
++	BEQ	R4, -4(PC)
++	MOVW	R1, ret+16(FP)
++	SYNC
++	RET
++
++// uint64 Xadd64(uint64 volatile *ptr, int64 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd64(SB), NOSPLIT, $0-24
++	MOVV	ptr+0(FP), R2
++	MOVV	delta+8(FP), R3
++	SYNC
++	LLV	(R2), R1
++	ADDVU	R1, R3, R4
++	MOVV	R4, R1
++	SCV	R4, (R2)
++	BEQ	R4, -4(PC)
++	MOVV	R1, ret+16(FP)
++	SYNC
++	RET
++
++// uint32 Xchg(ptr *uint32, new uint32)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg(SB), NOSPLIT, $0-20
++	MOVV	ptr+0(FP), R2
++	MOVW	new+8(FP), R5
++
++	SYNC
++	MOVV	R5, R3
++	LL	(R2), R1
++	SC	R3, (R2)
++	BEQ	R3, -3(PC)
++	MOVW	R1, ret+16(FP)
++	SYNC
++	RET
++
++// uint64 Xchg64(ptr *uint64, new uint64)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg64(SB), NOSPLIT, $0-24
++	MOVV	ptr+0(FP), R2
++	MOVV	new+8(FP), R5
++
++	SYNC
++	MOVV	R5, R3
++	LLV	(R2), R1
++	SCV	R3, (R2)
++	BEQ	R3, -3(PC)
++	MOVV	R1, ret+16(FP)
++	SYNC
++	RET
++
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	JMP	·Xchg(SB)
++
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	JMP	·Xchg64(SB)
++
++TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
++	JMP	·Xchg64(SB)
++
++TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·StoreRel(SB), NOSPLIT, $0-12
++	JMP	·Store(SB)
++
++TEXT ·StoreRel64(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
++	JMP	·Store64(SB)
++
++TEXT ·Store(SB), NOSPLIT, $0-12
++	MOVV	ptr+0(FP), R1
++	MOVW	val+8(FP), R2
++	SYNC
++	MOVW	R2, 0(R1)
++	SYNC
++	RET
++
++TEXT ·Store8(SB), NOSPLIT, $0-9
++	MOVV	ptr+0(FP), R1
++	MOVB	val+8(FP), R2
++	SYNC
++	MOVB	R2, 0(R1)
++	SYNC
++	RET
++
++TEXT ·Store64(SB), NOSPLIT, $0-16
++	MOVV	ptr+0(FP), R1
++	MOVV	val+8(FP), R2
++	SYNC
++	MOVV	R2, 0(R1)
++	SYNC
++	RET
++
++// void	Or8(byte volatile*, byte);
++TEXT ·Or8(SB), NOSPLIT, $0-9
++	MOVV	ptr+0(FP), R1
++	MOVBU	val+8(FP), R2
++	// Align ptr down to 4 bytes so we can use 32-bit load/store.
++	MOVV	$~3, R3
++	AND	R1, R3
++	// Compute val shift.
++#ifdef GOARCH_mips64
++	// Big endian.  ptr = ptr ^ 3
++	XOR	$3, R1
++#endif
++	// R4 = ((ptr & 3) * 8)
++	AND	$3, R1, R4
++	SLLV	$3, R4
++	// Shift val for aligned ptr. R2 = val << R4
++	SLLV	R4, R2
++
++	SYNC
++	LL	(R3), R4
++	OR	R2, R4
++	SC	R4, (R3)
++	BEQ	R4, -4(PC)
++	SYNC
++	RET
++
++// void	And8(byte volatile*, byte);
++TEXT ·And8(SB), NOSPLIT, $0-9
++	MOVV	ptr+0(FP), R1
++	MOVBU	val+8(FP), R2
++	// Align ptr down to 4 bytes so we can use 32-bit load/store.
++	MOVV	$~3, R3
++	AND	R1, R3
++	// Compute val shift.
++#ifdef GOARCH_mips64
++	// Big endian.  ptr = ptr ^ 3
++	XOR	$3, R1
++#endif
++	// R4 = ((ptr & 3) * 8)
++	AND	$3, R1, R4
++	SLLV	$3, R4
++	// Shift val for aligned ptr. R2 = val << R4 | ^(0xFF << R4)
++	MOVV	$0xFF, R5
++	SLLV	R4, R2
++	SLLV	R4, R5
++	NOR	R0, R5
++	OR	R5, R2
++
++	SYNC
++	LL	(R3), R4
++	AND	R2, R4
++	SC	R4, (R3)
++	BEQ	R4, -4(PC)
++	SYNC
++	RET
++
++// func Or(addr *uint32, v uint32)
++TEXT ·Or(SB), NOSPLIT, $0-12
++	MOVV	ptr+0(FP), R1
++	MOVW	val+8(FP), R2
++
++	SYNC
++	LL	(R1), R3
++	OR	R2, R3
++	SC	R3, (R1)
++	BEQ	R3, -4(PC)
++	SYNC
++	RET
++
++// func And(addr *uint32, v uint32)
++TEXT ·And(SB), NOSPLIT, $0-12
++	MOVV	ptr+0(FP), R1
++	MOVW	val+8(FP), R2
++
++	SYNC
++	LL	(R1), R3
++	AND	R2, R3
++	SC	R3, (R1)
++	BEQ	R3, -4(PC)
++	SYNC
++	RET
++
++// uint32 ·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+@@ -17,7 +319,7 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
+ 	MOVW	R1, ret+8(FP)
+ 	RET
+ 
+-// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* ptr)
++// uint8 ·Load8(uint8 volatile* ptr)
+ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+@@ -26,7 +328,7 @@ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
+ 	MOVB	R1, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
++// uint64 ·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+@@ -35,7 +337,7 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	R1, ret+8(FP)
+ 	RET
+ 
+-// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
++// void *·Loadp(void *volatile *ptr)
+ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	ptr+0(FP), R1
+ 	SYNC
+@@ -44,14 +346,14 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVV	R1, ret+8(FP)
+ 	RET
+ 
+-// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
++// uint32 ·LoadAcq(uint32 volatile* ptr)
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$0-12
+ 	JMP	atomic·Load(SB)
+ 
+-// uint64 runtime∕internal∕atomic·LoadAcq64(uint64 volatile* ptr)
++// uint64 ·LoadAcq64(uint64 volatile* ptr)
+ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$0-16
+ 	JMP	atomic·Load64(SB)
+ 
+-// uintptr runtime∕internal∕atomic·LoadAcquintptr(uintptr volatile* ptr)
++// uintptr ·LoadAcquintptr(uintptr volatile* ptr)
+ TEXT ·LoadAcquintptr(SB),NOSPLIT|NOFRAME,$0-16
+ 	JMP	atomic·Load64(SB)
+diff --git a/src/runtime/internal/atomic/atomic_mipsx.s b/src/runtime/internal/atomic/atomic_mipsx.s
+index aeebc8f2ff..3f61321450 100644
+--- a/src/runtime/internal/atomic/atomic_mipsx.s
++++ b/src/runtime/internal/atomic/atomic_mipsx.s
+@@ -6,6 +6,239 @@
+ 
+ #include "textflag.h"
+ 
++// bool Cas(int32 *val, int32 old, int32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Cas(SB),NOSPLIT,$0-13
++	MOVW	ptr+0(FP), R1
++	MOVW	old+4(FP), R2
++	MOVW	new+8(FP), R5
++	SYNC
++try_cas:
++	MOVW	R5, R3
++	LL	(R1), R4	// R4 = *R1
++	BNE	R2, R4, cas_fail
++	SC	R3, (R1)	// *R1 = R3
++	BEQ	R3, try_cas
++	SYNC
++	MOVB	R3, ret+12(FP)
++	RET
++cas_fail:
++	MOVB	R0, ret+12(FP)
++	RET
++
++TEXT ·Store(SB),NOSPLIT,$0-8
++	MOVW	ptr+0(FP), R1
++	MOVW	val+4(FP), R2
++	SYNC
++	MOVW	R2, 0(R1)
++	SYNC
++	RET
++
++TEXT ·Store8(SB),NOSPLIT,$0-5
++	MOVW	ptr+0(FP), R1
++	MOVB	val+4(FP), R2
++	SYNC
++	MOVB	R2, 0(R1)
++	SYNC
++	RET
++
++TEXT ·Load(SB),NOSPLIT,$0-8
++	MOVW	ptr+0(FP), R1
++	SYNC
++	MOVW	0(R1), R1
++	SYNC
++	MOVW	R1, ret+4(FP)
++	RET
++
++TEXT ·Load8(SB),NOSPLIT,$0-5
++	MOVW	ptr+0(FP), R1
++	SYNC
++	MOVB	0(R1), R1
++	SYNC
++	MOVB	R1, ret+4(FP)
++	RET
++
++// uint32 Xadd(uint32 volatile *val, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd(SB),NOSPLIT,$0-12
++	MOVW	ptr+0(FP), R2
++	MOVW	delta+4(FP), R3
++	SYNC
++try_xadd:
++	LL	(R2), R1	// R1 = *R2
++	ADDU	R1, R3, R4
++	MOVW	R4, R1
++	SC	R4, (R2)	// *R2 = R4
++	BEQ	R4, try_xadd
++	SYNC
++	MOVW	R1, ret+8(FP)
++	RET
++
++// uint32 Xchg(ptr *uint32, new uint32)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg(SB),NOSPLIT,$0-12
++	MOVW	ptr+0(FP), R2
++	MOVW	new+4(FP), R5
++	SYNC
++try_xchg:
++	MOVW	R5, R3
++	LL	(R2), R1	// R1 = *R2
++	SC	R3, (R2)	// *R2 = R3
++	BEQ	R3, try_xchg
++	SYNC
++	MOVW	R1, ret+8(FP)
++	RET
++
++TEXT ·Casint32(SB),NOSPLIT,$0-13
++	JMP	·Cas(SB)
++
++TEXT ·Casint64(SB),NOSPLIT,$0-21
++	JMP	·Cas64(SB)
++
++TEXT ·Casuintptr(SB),NOSPLIT,$0-13
++	JMP	·Cas(SB)
++
++TEXT ·CasRel(SB),NOSPLIT,$0-13
++	JMP	·Cas(SB)
++
++TEXT ·Loaduintptr(SB),NOSPLIT,$0-8
++	JMP	·Load(SB)
++
++TEXT ·Loaduint(SB),NOSPLIT,$0-8
++	JMP	·Load(SB)
++
++TEXT ·Loadp(SB),NOSPLIT,$-0-8
++	JMP	·Load(SB)
++
++TEXT ·Storeint32(SB),NOSPLIT,$0-8
++	JMP	·Store(SB)
++
++TEXT ·Storeint64(SB),NOSPLIT,$0-12
++	JMP	·Store64(SB)
++
++TEXT ·Storeuintptr(SB),NOSPLIT,$0-8
++	JMP	·Store(SB)
++
++TEXT ·Xadduintptr(SB),NOSPLIT,$0-12
++	JMP	·Xadd(SB)
++
++TEXT ·Loadint32(SB),NOSPLIT,$0-8
++	JMP	·Load(SB)
++
++TEXT ·Loadint64(SB),NOSPLIT,$0-12
++	JMP	·Load64(SB)
++
++TEXT ·Xaddint32(SB),NOSPLIT,$0-12
++	JMP	·Xadd(SB)
++
++TEXT ·Xaddint64(SB),NOSPLIT,$0-20
++	JMP	·Xadd64(SB)
++
++TEXT ·Casp1(SB),NOSPLIT,$0-13
++	JMP	·Cas(SB)
++
++TEXT ·Xchgint32(SB),NOSPLIT,$0-12
++	JMP	·Xchg(SB)
++
++TEXT ·Xchgint64(SB),NOSPLIT,$0-20
++	JMP	·Xchg64(SB)
++
++TEXT ·Xchguintptr(SB),NOSPLIT,$0-12
++	JMP	·Xchg(SB)
++
++TEXT ·StorepNoWB(SB),NOSPLIT,$0-8
++	JMP	·Store(SB)
++
++TEXT ·StoreRel(SB),NOSPLIT,$0-8
++	JMP	·Store(SB)
++
++TEXT ·StoreReluintptr(SB),NOSPLIT,$0-8
++	JMP	·Store(SB)
++
++// void	Or8(byte volatile*, byte);
++TEXT ·Or8(SB),NOSPLIT,$0-5
++	MOVW	ptr+0(FP), R1
++	MOVBU	val+4(FP), R2
++	MOVW	$~3, R3	// Align ptr down to 4 bytes so we can use 32-bit load/store.
++	AND	R1, R3
++#ifdef GOARCH_mips
++	// Big endian.  ptr = ptr ^ 3
++	XOR	$3, R1
++#endif
++	AND	$3, R1, R4	// R4 = ((ptr & 3) * 8)
++	SLL	$3, R4
++	SLL	R4, R2, R2	// Shift val for aligned ptr. R2 = val << R4
++	SYNC
++try_or8:
++	LL	(R3), R4	// R4 = *R3
++	OR	R2, R4
++	SC	R4, (R3)	// *R3 = R4
++	BEQ	R4, try_or8
++	SYNC
++	RET
++
++// void	And8(byte volatile*, byte);
++TEXT ·And8(SB),NOSPLIT,$0-5
++	MOVW	ptr+0(FP), R1
++	MOVBU	val+4(FP), R2
++	MOVW	$~3, R3
++	AND	R1, R3
++#ifdef GOARCH_mips
++	// Big endian.  ptr = ptr ^ 3
++	XOR	$3, R1
++#endif
++	AND	$3, R1, R4	// R4 = ((ptr & 3) * 8)
++	SLL	$3, R4
++	MOVW	$0xFF, R5
++	SLL	R4, R2
++	SLL	R4, R5
++	NOR	R0, R5
++	OR	R5, R2	// Shift val for aligned ptr. R2 = val << R4 | ^(0xFF << R4)
++	SYNC
++try_and8:
++	LL	(R3), R4	// R4 = *R3
++	AND	R2, R4
++	SC	R4, (R3)	// *R3 = R4
++	BEQ	R4, try_and8
++	SYNC
++	RET
++
++// func Or(addr *uint32, v uint32)
++TEXT ·Or(SB), NOSPLIT, $0-8
++	MOVW	ptr+0(FP), R1
++	MOVW	val+4(FP), R2
++
++	SYNC
++	LL	(R1), R3
++	OR	R2, R3
++	SC	R3, (R1)
++	BEQ	R3, -4(PC)
++	SYNC
++	RET
++
++// func And(addr *uint32, v uint32)
++TEXT ·And(SB), NOSPLIT, $0-8
++	MOVW	ptr+0(FP), R1
++	MOVW	val+4(FP), R2
++
++	SYNC
++	LL	(R1), R3
++	AND	R2, R3
++	SC	R3, (R1)
++	BEQ	R3, -4(PC)
++	SYNC
++	RET
++
+ TEXT ·spinLock(SB),NOSPLIT,$0-4
+ 	MOVW	state+0(FP), R1
+ 	MOVW	$1, R2
+diff --git a/src/runtime/internal/atomic/atomic_ppc64x.s b/src/runtime/internal/atomic/atomic_ppc64x.s
+index b79cdbca34..37c8515d37 100644
+--- a/src/runtime/internal/atomic/atomic_ppc64x.s
++++ b/src/runtime/internal/atomic/atomic_ppc64x.s
+@@ -15,7 +15,7 @@
+ //
+ // http://www.rdrop.com/users/paulmck/scalability/paper/N2745r.2011.03.04a.html
+ 
+-// uint32 runtime∕internal∕atomic·Load(uint32 volatile* ptr)
++// uint32 ·Load(uint32 volatile* ptr)
+ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVD	ptr+0(FP), R3
+ 	SYNC
+@@ -26,7 +26,7 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVW	R3, ret+8(FP)
+ 	RET
+ 
+-// uint8 runtime∕internal∕atomic·Load8(uint8 volatile* ptr)
++// uint8 ·Load8(uint8 volatile* ptr)
+ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$-8-9
+ 	MOVD	ptr+0(FP), R3
+ 	SYNC
+@@ -37,7 +37,7 @@ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$-8-9
+ 	MOVB	R3, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·Load64(uint64 volatile* ptr)
++// uint64 ·Load64(uint64 volatile* ptr)
+ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD	ptr+0(FP), R3
+ 	SYNC
+@@ -48,7 +48,7 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD	R3, ret+8(FP)
+ 	RET
+ 
+-// void *runtime∕internal∕atomic·Loadp(void *volatile *ptr)
++// void *·Loadp(void *volatile *ptr)
+ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD	ptr+0(FP), R3
+ 	SYNC
+@@ -59,7 +59,7 @@ TEXT ·Loadp(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD	R3, ret+8(FP)
+ 	RET
+ 
+-// uint32 runtime∕internal∕atomic·LoadAcq(uint32 volatile* ptr)
++// uint32 ·LoadAcq(uint32 volatile* ptr)
+ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVD   ptr+0(FP), R3
+ 	MOVWZ  0(R3), R3
+@@ -69,7 +69,7 @@ TEXT ·LoadAcq(SB),NOSPLIT|NOFRAME,$-8-12
+ 	MOVW   R3, ret+8(FP)
+ 	RET
+ 
+-// uint64 runtime∕internal∕atomic·LoadAcq64(uint64 volatile* ptr)
++// uint64 ·LoadAcq64(uint64 volatile* ptr)
+ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	MOVD   ptr+0(FP), R3
+ 	MOVD   0(R3), R3
+@@ -78,3 +78,286 @@ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
+ 	ISYNC
+ 	MOVD   R3, ret+8(FP)
+ 	RET
++
++// bool cas(uint32 *ptr, uint32 old, uint32 new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Cas(SB), NOSPLIT, $0-17
++	MOVD	ptr+0(FP), R3
++	MOVWZ	old+8(FP), R4
++	MOVWZ	new+12(FP), R5
++	LWSYNC
++cas_again:
++	LWAR	(R3), R6
++	CMPW	R6, R4
++	BNE	cas_fail
++	STWCCC	R5, (R3)
++	BNE	cas_again
++	MOVD	$1, R3
++	LWSYNC
++	MOVB	R3, ret+16(FP)
++	RET
++cas_fail:
++	MOVB	R0, ret+16(FP)
++	RET
++
++// bool	·Cas64(uint64 *ptr, uint64 old, uint64 new)
++// Atomically:
++//	if(*val == *old){
++//		*val = new;
++//		return 1;
++//	} else {
++//		return 0;
++//	}
++TEXT ·Cas64(SB), NOSPLIT, $0-25
++	MOVD	ptr+0(FP), R3
++	MOVD	old+8(FP), R4
++	MOVD	new+16(FP), R5
++	LWSYNC
++cas64_again:
++	LDAR	(R3), R6
++	CMP	R6, R4
++	BNE	cas64_fail
++	STDCCC	R5, (R3)
++	BNE	cas64_again
++	MOVD	$1, R3
++	LWSYNC
++	MOVB	R3, ret+24(FP)
++	RET
++cas64_fail:
++	MOVB	R0, ret+24(FP)
++	RET
++
++TEXT ·CasRel(SB), NOSPLIT, $0-17
++	MOVD    ptr+0(FP), R3
++	MOVWZ   old+8(FP), R4
++	MOVWZ   new+12(FP), R5
++	LWSYNC
++cas_again:
++	LWAR    (R3), $0, R6        // 0 = Mutex release hint
++	CMPW    R6, R4
++	BNE     cas_fail
++	STWCCC  R5, (R3)
++	BNE     cas_again
++	MOVD    $1, R3
++	MOVB    R3, ret+16(FP)
++	RET
++cas_fail:
++	MOVB    R0, ret+16(FP)
++	RET
++
++TEXT ·Casint32(SB), NOSPLIT, $0-17
++	BR	·Cas(SB)
++
++TEXT ·Casint64(SB), NOSPLIT, $0-25
++	BR	·Cas64(SB)
++
++TEXT ·Casuintptr(SB), NOSPLIT, $0-25
++	BR	·Cas64(SB)
++
++TEXT ·Loaduintptr(SB),  NOSPLIT|NOFRAME, $0-16
++	BR	·Load64(SB)
++
++TEXT ·LoadAcquintptr(SB),  NOSPLIT|NOFRAME, $0-16
++	BR	·LoadAcq64(SB)
++
++TEXT ·Loaduint(SB), NOSPLIT|NOFRAME, $0-16
++	BR	·Load64(SB)
++
++TEXT ·Storeint32(SB), NOSPLIT, $0-12
++	BR	·Store(SB)
++
++TEXT ·Storeint64(SB), NOSPLIT, $0-16
++	BR	·Store64(SB)
++
++TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
++	BR	·Store64(SB)
++
++TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
++	BR	·StoreRel64(SB)
++
++TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
++	BR	·Xadd64(SB)
++
++TEXT ·Loadint32(SB), NOSPLIT, $0-12
++	BR	·Load(SB)
++
++TEXT ·Loadint64(SB), NOSPLIT, $0-16
++	BR	·Load64(SB)
++
++TEXT ·Xaddint32(SB), NOSPLIT, $0-20
++	BR	·Xadd(SB)
++
++TEXT ·Xaddint64(SB), NOSPLIT, $0-24
++	BR	·Xadd64(SB)
++
++// bool casp(void **val, void *old, void *new)
++// Atomically:
++//	if(*val == old){
++//		*val = new;
++//		return 1;
++//	} else
++//		return 0;
++TEXT ·Casp1(SB), NOSPLIT, $0-25
++	BR ·Cas64(SB)
++
++// uint32 xadd(uint32 volatile *ptr, int32 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd(SB), NOSPLIT, $0-20
++	MOVD	ptr+0(FP), R4
++	MOVW	delta+8(FP), R5
++	LWSYNC
++	LWAR	(R4), R3
++	ADD	R5, R3
++	STWCCC	R3, (R4)
++	BNE	-3(PC)
++	MOVW	R3, ret+16(FP)
++	RET
++
++// uint64 Xadd64(uint64 volatile *val, int64 delta)
++// Atomically:
++//	*val += delta;
++//	return *val;
++TEXT ·Xadd64(SB), NOSPLIT, $0-24
++	MOVD	ptr+0(FP), R4
++	MOVD	delta+8(FP), R5
++	LWSYNC
++	LDAR	(R4), R3
++	ADD	R5, R3
++	STDCCC	R3, (R4)
++	BNE	-3(PC)
++	MOVD	R3, ret+16(FP)
++	RET
++
++// uint32 Xchg(ptr *uint32, new uint32)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg(SB), NOSPLIT, $0-20
++	MOVD	ptr+0(FP), R4
++	MOVW	new+8(FP), R5
++	LWSYNC
++	LWAR	(R4), R3
++	STWCCC	R5, (R4)
++	BNE	-2(PC)
++	ISYNC
++	MOVW	R3, ret+16(FP)
++	RET
++
++// uint64 Xchg64(ptr *uint64, new uint64)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg64(SB), NOSPLIT, $0-24
++	MOVD	ptr+0(FP), R4
++	MOVD	new+8(FP), R5
++	LWSYNC
++	LDAR	(R4), R3
++	STDCCC	R5, (R4)
++	BNE	-2(PC)
++	ISYNC
++	MOVD	R3, ret+16(FP)
++	RET
++
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	BR	·Xchg(SB)
++
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	BR	·Xchg64(SB)
++
++TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
++	BR	·Xchg64(SB)
++
++TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
++	BR	·Store64(SB)
++
++TEXT ·Store(SB), NOSPLIT, $0-12
++	MOVD	ptr+0(FP), R3
++	MOVW	val+8(FP), R4
++	SYNC
++	MOVW	R4, 0(R3)
++	RET
++
++TEXT ·Store8(SB), NOSPLIT, $0-9
++	MOVD	ptr+0(FP), R3
++	MOVB	val+8(FP), R4
++	SYNC
++	MOVB	R4, 0(R3)
++	RET
++
++TEXT ·Store64(SB), NOSPLIT, $0-16
++	MOVD	ptr+0(FP), R3
++	MOVD	val+8(FP), R4
++	SYNC
++	MOVD	R4, 0(R3)
++	RET
++
++TEXT ·StoreRel(SB), NOSPLIT, $0-12
++	MOVD	ptr+0(FP), R3
++	MOVW	val+8(FP), R4
++	LWSYNC
++	MOVW	R4, 0(R3)
++	RET
++
++TEXT ·StoreRel64(SB), NOSPLIT, $0-16
++	MOVD	ptr+0(FP), R3
++	MOVD	val+8(FP), R4
++	LWSYNC
++	MOVD	R4, 0(R3)
++	RET
++
++// void ·Or8(byte volatile*, byte);
++TEXT ·Or8(SB), NOSPLIT, $0-9
++	MOVD	ptr+0(FP), R3
++	MOVBZ	val+8(FP), R4
++	LWSYNC
++again:
++	LBAR	(R3), R6
++	OR	R4, R6
++	STBCCC	R6, (R3)
++	BNE	again
++	RET
++
++// void ·And8(byte volatile*, byte);
++TEXT ·And8(SB), NOSPLIT, $0-9
++	MOVD	ptr+0(FP), R3
++	MOVBZ	val+8(FP), R4
++	LWSYNC
++again:
++	LBAR	(R3), R6
++	AND	R4, R6
++	STBCCC	R6, (R3)
++	BNE	again
++	RET
++
++// func Or(addr *uint32, v uint32)
++TEXT ·Or(SB), NOSPLIT, $0-12
++	MOVD	ptr+0(FP), R3
++	MOVW	val+8(FP), R4
++	LWSYNC
++again:
++	LWAR	(R3), R6
++	OR	R4, R6
++	STWCCC	R6, (R3)
++	BNE	again
++	RET
++
++// func And(addr *uint32, v uint32)
++TEXT ·And(SB), NOSPLIT, $0-12
++	MOVD	ptr+0(FP), R3
++	MOVW	val+8(FP), R4
++	LWSYNC
++again:
++	LWAR	(R3),R6
++	AND	R4, R6
++	STWCCC	R6, (R3)
++	BNE	again
++	RET
+diff --git a/src/runtime/internal/atomic/atomic_riscv64.s b/src/runtime/internal/atomic/atomic_riscv64.s
+index 74c896cea6..ec05302a78 100644
+--- a/src/runtime/internal/atomic/atomic_riscv64.s
++++ b/src/runtime/internal/atomic/atomic_riscv64.s
+@@ -37,7 +37,6 @@
+ //      } else {
+ //              return 0;
+ //      }
+-
+ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOV	ptr+0(FP), A0
+ 	MOVW	old+8(FP), A1
+@@ -121,6 +120,12 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
+ TEXT ·Casp1(SB), NOSPLIT, $0-25
+ 	JMP	·Cas64(SB)
+ 
++TEXT ·Casint32(SB),NOSPLIT,$0-17
++	JMP	·Cas(SB)
++
++TEXT ·Casint64(SB),NOSPLIT,$0-25
++	JMP	·Cas64(SB)
++
+ TEXT ·Casuintptr(SB),NOSPLIT,$0-25
+ 	JMP	·Cas64(SB)
+ 
+@@ -130,14 +135,26 @@ TEXT ·CasRel(SB), NOSPLIT, $0-17
+ TEXT ·Loaduintptr(SB),NOSPLIT,$0-16
+ 	JMP	·Load64(SB)
+ 
++TEXT ·Storeint32(SB),NOSPLIT,$0-12
++	JMP	·Store(SB)
++
++TEXT ·Storeint64(SB),NOSPLIT,$0-16
++	JMP	·Store64(SB)
++
+ TEXT ·Storeuintptr(SB),NOSPLIT,$0-16
+ 	JMP	·Store64(SB)
+ 
+ TEXT ·Loaduint(SB),NOSPLIT,$0-16
+ 	JMP ·Loaduintptr(SB)
+ 
++TEXT ·Loadint32(SB),NOSPLIT,$0-12
++	JMP ·Load(SB)
++
+ TEXT ·Loadint64(SB),NOSPLIT,$0-16
+-	JMP ·Loaduintptr(SB)
++	JMP ·Load64(SB)
++
++TEXT ·Xaddint32(SB),NOSPLIT,$0-20
++	JMP ·Xadd(SB)
+ 
+ TEXT ·Xaddint64(SB),NOSPLIT,$0-24
+ 	MOV	ptr+0(FP), A0
+@@ -215,6 +232,14 @@ TEXT ·Xadd64(SB), NOSPLIT, $0-24
+ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+ 	JMP	·Xadd64(SB)
+ 
++// func Xchgint32(ptr *int32, new int32) int32
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	JMP	·Xchg(SB)
++
++// func Xchgint64(ptr *int64, new int64) int64
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	JMP	·Xchg64(SB)
++
+ // func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+ 	JMP	·Xchg64(SB)
+diff --git a/src/runtime/internal/atomic/asm_s390x.s b/src/runtime/internal/atomic/atomic_s390x.s
+similarity index 86%
+rename from src/runtime/internal/atomic/asm_s390x.s
+rename to src/runtime/internal/atomic/atomic_s390x.s
+index daf1f3cc9f..a0c204b0e1 100644
+--- a/src/runtime/internal/atomic/asm_s390x.s
++++ b/src/runtime/internal/atomic/atomic_s390x.s
+@@ -76,6 +76,14 @@ cas64_fail:
+ 	MOVB	$0, ret+24(FP)
+ 	RET
+ 
++// func Casint32(ptr *int32, old, new int32) bool
++TEXT ·Casint32(SB), NOSPLIT, $0-17
++	BR	·Cas(SB)
++
++// func Casint64(ptr *int64, old, new int64) bool
++TEXT ·Casint64(SB), NOSPLIT, $0-25
++	BR	·Cas64(SB)
++
+ // func Casuintptr(ptr *uintptr, old, new uintptr) bool
+ TEXT ·Casuintptr(SB), NOSPLIT, $0-25
+ 	BR	·Cas64(SB)
+@@ -92,10 +100,22 @@ TEXT ·Loaduintptr(SB), NOSPLIT, $0-16
+ TEXT ·Loaduint(SB), NOSPLIT, $0-16
+ 	BR	·Load64(SB)
+ 
++// func Storeint32(ptr *int32, new int32)
++TEXT ·Storeint32(SB), NOSPLIT, $0-12
++	BR	·Store(SB)
++
++// func Storeint64(ptr *int64, new int64)
++TEXT ·Storeint64(SB), NOSPLIT, $0-16
++	BR	·Store64(SB)
++
+ // func Storeuintptr(ptr *uintptr, new uintptr)
+ TEXT ·Storeuintptr(SB), NOSPLIT, $0-16
+ 	BR	·Store64(SB)
+ 
++// func Loadint32(ptr *int32) int32
++TEXT ·Loadint32(SB), NOSPLIT, $0-12
++	BR	·Load(SB)
++
+ // func Loadint64(ptr *int64) int64
+ TEXT ·Loadint64(SB), NOSPLIT, $0-16
+ 	BR	·Load64(SB)
+@@ -104,6 +124,10 @@ TEXT ·Loadint64(SB), NOSPLIT, $0-16
+ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+ 	BR	·Xadd64(SB)
+ 
++// func Xaddint32(ptr *int32, delta int32) int32
++TEXT ·Xaddint32(SB), NOSPLIT, $0-20
++	BR	·Xadd(SB)
++
+ // func Xaddint64(ptr *int64, delta int64) int64
+ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ 	BR	·Xadd64(SB)
+@@ -168,6 +192,14 @@ repeat:
+ 	MOVD	R6, ret+16(FP)
+ 	RET
+ 
++// func Xchgint32(ptr *int32, new int32) int32
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	BR	·Xchg(SB)
++
++// func Xchgint64(ptr *int64, new int64) int64
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	BR	·Xchg64(SB)
++
+ // func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+ 	BR	·Xchg64(SB)
+diff --git a/src/runtime/internal/atomic/atomic_wasm.go b/src/runtime/internal/atomic/atomic_wasm.go
+index b05d98ed51..3f77f16b4e 100644
+--- a/src/runtime/internal/atomic/atomic_wasm.go
++++ b/src/runtime/internal/atomic/atomic_wasm.go
+@@ -9,18 +9,28 @@
+ //go:linkname Load
+ //go:linkname Loadp
+ //go:linkname Load64
++//go:linkname Loadint32
++//go:linkname Loadint64
+ //go:linkname Loaduintptr
+ //go:linkname Xadd
++//go:linkname Xaddint32
++//go:linkname Xaddint64
+ //go:linkname Xadd64
+ //go:linkname Xadduintptr
+ //go:linkname Xchg
+ //go:linkname Xchg64
++//go:linkname Xchgint32
++//go:linkname Xchgint64
+ //go:linkname Xchguintptr
+ //go:linkname Cas
+ //go:linkname Cas64
++//go:linkname Casint32
++//go:linkname Casint64
+ //go:linkname Casuintptr
+ //go:linkname Store
+ //go:linkname Store64
++//go:linkname Storeint32
++//go:linkname Storeint64
+ //go:linkname Storeuintptr
+ 
+ package atomic
+@@ -109,6 +119,22 @@ func Xchg64(ptr *uint64, new uint64) uint64 {
+ 	return old
+ }
+ 
++//go:nosplit
++//go:noinline
++func Xchgint32(ptr *int32, new int32) int32 {
++	old := *ptr
++	*ptr = new
++	return old
++}
++
++//go:nosplit
++//go:noinline
++func Xchgint64(ptr *int64, new int64) int64 {
++	old := *ptr
++	*ptr = new
++	return old
++}
++
+ //go:nosplit
+ //go:noinline
+ func Xchguintptr(ptr *uintptr, new uintptr) uintptr {
+@@ -195,6 +221,26 @@ func Store64(ptr *uint64, val uint64) {
+ // NO go:noescape annotation; see atomic_pointer.go.
+ func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+ 
++//go:nosplit
++//go:noinline
++func Casint32(ptr *int32, old, new int32) bool {
++	if *ptr == old {
++		*ptr = new
++		return true
++	}
++	return false
++}
++
++//go:nosplit
++//go:noinline
++func Casint64(ptr *int64, old, new int64) bool {
++	if *ptr == old {
++		*ptr = new
++		return true
++	}
++	return false
++}
++
+ //go:nosplit
+ //go:noinline
+ func Cas(ptr *uint32, old, new uint32) bool {
+@@ -235,6 +281,18 @@ func CasRel(ptr *uint32, old, new uint32) bool {
+ 	return false
+ }
+ 
++//go:nosplit
++//go:noinline
++func Storeint32(ptr *int32, new int32) {
++	*ptr = new
++}
++
++//go:nosplit
++//go:noinline
++func Storeint64(ptr *int64, new int64) {
++	*ptr = new
++}
++
+ //go:nosplit
+ //go:noinline
+ func Storeuintptr(ptr *uintptr, new uintptr) {
+@@ -253,12 +311,26 @@ func Loaduint(ptr *uint) uint {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func Loadint32(ptr *int32) int32 {
++	return *ptr
++}
++
+ //go:nosplit
+ //go:noinline
+ func Loadint64(ptr *int64) int64 {
+ 	return *ptr
+ }
+ 
++//go:nosplit
++//go:noinline
++func Xaddint32(ptr *int32, delta int32) int32 {
++	new := *ptr + delta
++	*ptr = new
++	return new
++}
++
+ //go:nosplit
+ //go:noinline
+ func Xaddint64(ptr *int64, delta int64) int64 {
+diff --git a/src/runtime/internal/atomic/asm_wasm.s b/src/runtime/internal/atomic/atomic_wasm.s
+similarity index 78%
+rename from src/runtime/internal/atomic/asm_wasm.s
+rename to src/runtime/internal/atomic/atomic_wasm.s
+index 7c33cb1ee9..1c2d1ce5e1 100644
+--- a/src/runtime/internal/atomic/asm_wasm.s
++++ b/src/runtime/internal/atomic/atomic_wasm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
++TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
+ 	MOVD ptr+0(FP), R0
+ 	MOVD val+8(FP), 0(R0)
+ 	RET
+diff --git a/src/runtime/internal/atomic/stubs.go b/src/runtime/internal/atomic/stubs.go
+index 1275884b2f..e7544ba448 100644
+--- a/src/runtime/internal/atomic/stubs.go
++++ b/src/runtime/internal/atomic/stubs.go
+@@ -15,9 +15,21 @@ func Cas(ptr *uint32, old, new uint32) bool
+ // NO go:noescape annotation; see atomic_pointer.go.
+ func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+ 
++//go:noescape
++func Casint32(ptr *int32, old, new int32) bool
++
++//go:noescape
++func Casint64(ptr *int64, old, new int64) bool
++
+ //go:noescape
+ func Casuintptr(ptr *uintptr, old, new uintptr) bool
+ 
++//go:noescape
++func Storeint32(ptr *int32, new int32)
++
++//go:noescape
++func Storeint64(ptr *int64, new int64)
++
+ //go:noescape
+ func Storeuintptr(ptr *uintptr, new uintptr)
+ 
+@@ -29,8 +41,20 @@ func Loaduint(ptr *uint) uint
+ 
+ // TODO(matloob): Should these functions have the go:noescape annotation?
+ 
++//go:noescape
++func Loadint32(ptr *int32) int32
++
+ //go:noescape
+ func Loadint64(ptr *int64) int64
+ 
++//go:noescape
++func Xaddint32(ptr *int32, delta int32) int32
++
+ //go:noescape
+ func Xaddint64(ptr *int64, delta int64) int64
++
++//go:noescape
++func Xchgint32(ptr *int32, new int32) int32
++
++//go:noescape
++func Xchgint64(ptr *int64, new int64) int64
+diff --git a/src/runtime/internal/atomic/sys_linux_arm.s b/src/runtime/internal/atomic/sys_linux_arm.s
+index 192be4b64f..0cc7fa73d1 100644
+--- a/src/runtime/internal/atomic/sys_linux_arm.s
++++ b/src/runtime/internal/atomic/sys_linux_arm.s
+@@ -24,7 +24,7 @@
+ TEXT cas<>(SB),NOSPLIT,$0
+ 	MOVW	$0xffff0fc0, R15 // R15 is hardware PC.
+ 
+-TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT|NOFRAME,$0
++TEXT ·Cas(SB),NOSPLIT|NOFRAME,$0
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4895fa5ef6..4c165ddcdb 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -759,8 +759,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 				return false
+ 			}
+ 
+-			// TODO: having atomic.Casint64 would be more pleasant.
+-			if atomic.Cas64((*uint64)(unsafe.Pointer(ptr)), uint64(v), uint64(v-1)) {
++			if atomic.Casint64(ptr, v, v-1) {
+ 				return true
+ 			}
+ 		}

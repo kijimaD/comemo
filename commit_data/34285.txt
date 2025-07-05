@@ -25,8 +25,186 @@ Date:   Wed Oct 4 16:15:35 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go      | 28 +++++++++++++++++++++++-----
  src/runtime/mgcmark.go  | 39 +++++++++++++++++++++++++++------------
  src/runtime/runtime2.go |  4 ++++
  3 files changed, 54 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2726d293d1..f070fc2f3d 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -711,6 +711,8 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 		// This P has picked the token for the fractional worker.
+ 		// Is the GC currently under or at the utilization goal?
+ 		// If so, do more work.
++		//
++		// This should be kept in sync with pollFractionalWorkerExit.
+ 
+ 		// TODO(austin): We could fast path this and basically
+ 		// eliminate contention on c.fractionalMarkWorkersNeeded by
+@@ -719,10 +721,6 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 		// don't have to fight in the window where we've
+ 		// passed that deadline and no one has started the
+ 		// worker yet.
+-		//
+-		// TODO(austin): Shorter preemption interval for mark
+-		// worker to improve fairness and give this
+-		// finer-grained control over schedule?
+ 		delta := nanotime() - c.markStartTime
+ 		if delta > 0 && float64(c.fractionalMarkTime)/float64(delta) > c.fractionalUtilizationGoal {
+ 			// Nope, we'd overshoot the utilization goal
+@@ -741,6 +739,25 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 	return gp
+ }
+ 
++// pollFractionalWorkerExit returns true if a fractional mark worker
++// should self-preempt. It assumes it is called from the fractional
++// worker.
++func pollFractionalWorkerExit() bool {
++	// This should be kept in sync with the fractional worker
++	// scheduler logic in findRunnableGCWorker.
++	now := nanotime()
++	delta := now - gcController.markStartTime
++	if delta <= 0 {
++		return true
++	}
++	p := getg().m.p.ptr()
++	// Account for time since starting this worker.
++	selfTime := gcController.fractionalMarkTime + (now - p.gcMarkWorkerStartTime)
++	// Add some slack to the utilization goal so that the
++	// fractional worker isn't behind again the instant it exits.
++	return float64(selfTime)/float64(delta) > 1.2*gcController.fractionalUtilizationGoal
++}
++
+ // gcSetTriggerRatio sets the trigger ratio and updates everything
+ // derived from it: the absolute trigger, the heap goal, mark pacing,
+ // and sweep pacing.
+@@ -1765,6 +1782,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 		}
+ 
+ 		startTime := nanotime()
++		_p_.gcMarkWorkerStartTime = startTime
+ 
+ 		decnwait := atomic.Xadd(&work.nwait, -1)
+ 		if decnwait == work.nproc {
+@@ -1806,7 +1824,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 				// without preemption.
+ 				gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
+ 			case gcMarkWorkerFractionalMode:
+-				gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
++				gcDrain(&_p_.gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+ 			case gcMarkWorkerIdleMode:
+ 				gcDrain(&_p_.gcw, gcDrainIdle|gcDrainUntilPreempt|gcDrainFlushBgCredit)
+ 			}
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 016c1f786b..ed256efc80 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -34,13 +34,13 @@ const (
+ 	// span base.
+ 	maxObletBytes = 128 << 10
+ 
+-	// idleCheckThreshold specifies how many units of work to do
+-	// between run queue checks in an idle worker. Assuming a scan
++	// drainCheckThreshold specifies how many units of work to do
++	// between self-preemption checks in gcDrain. Assuming a scan
+ 	// rate of 1 MB/ms, this is ~100 µs. Lower values have higher
+ 	// overhead in the scan loop (the scheduler check may perform
+ 	// a syscall, so its overhead is nontrivial). Higher values
+ 	// make the system less responsive to incoming work.
+-	idleCheckThreshold = 100000
++	drainCheckThreshold = 100000
+ )
+ 
+ // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
+@@ -861,6 +861,7 @@ const (
+ 	gcDrainNoBlock
+ 	gcDrainFlushBgCredit
+ 	gcDrainIdle
++	gcDrainFractional
+ 
+ 	// gcDrainBlock means neither gcDrainUntilPreempt or
+ 	// gcDrainNoBlock. It is the default, but callers should use
+@@ -877,6 +878,10 @@ const (
+ // If flags&gcDrainIdle != 0, gcDrain returns when there is other work
+ // to do. This implies gcDrainNoBlock.
+ //
++// If flags&gcDrainFractional != 0, gcDrain self-preempts when
++// pollFractionalWorkerExit() returns true. This implies
++// gcDrainNoBlock.
++//
+ // If flags&gcDrainNoBlock != 0, gcDrain returns as soon as it is
+ // unable to get more work. Otherwise, it will block until all
+ // blocking calls are blocked in gcDrain.
+@@ -893,14 +898,24 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 
+ 	gp := getg().m.curg
+ 	preemptible := flags&gcDrainUntilPreempt != 0
+-	blocking := flags&(gcDrainUntilPreempt|gcDrainIdle|gcDrainNoBlock) == 0
++	blocking := flags&(gcDrainUntilPreempt|gcDrainIdle|gcDrainFractional|gcDrainNoBlock) == 0
+ 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
+ 	idle := flags&gcDrainIdle != 0
+ 
+ 	initScanWork := gcw.scanWork
+-	// idleCheck is the scan work at which to perform the next
+-	// idle check with the scheduler.
+-	idleCheck := initScanWork + idleCheckThreshold
++
++	// checkWork is the scan work before performing the next
++	// self-preempt check.
++	checkWork := int64(1<<63 - 1)
++	var check func() bool
++	if flags&(gcDrainIdle|gcDrainFractional) != 0 {
++		checkWork = initScanWork + drainCheckThreshold
++		if idle {
++			check = pollWork
++		} else if flags&gcDrainFractional != 0 {
++			check = pollFractionalWorkerExit
++		}
++	}
+ 
+ 	// Drain root marking jobs.
+ 	if work.markrootNext < work.markrootJobs {
+@@ -910,7 +925,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 				break
+ 			}
+ 			markroot(gcw, job)
+-			if idle && pollWork() {
++			if check != nil && check() {
+ 				goto done
+ 			}
+ 		}
+@@ -951,12 +966,12 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 				gcFlushBgCredit(gcw.scanWork - initScanWork)
+ 				initScanWork = 0
+ 			}
+-			idleCheck -= gcw.scanWork
++			checkWork -= gcw.scanWork
+ 			gcw.scanWork = 0
+ 
+-			if idle && idleCheck <= 0 {
+-				idleCheck += idleCheckThreshold
+-				if pollWork() {
++			if checkWork <= 0 {
++				checkWork += drainCheckThreshold
++				if check != nil && check() {
+ 					break
+ 				}
+ 			}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ac10ec99fa..ff8b3ff74c 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -526,6 +526,10 @@ type p struct {
+ 	gcBgMarkWorker   guintptr
+ 	gcMarkWorkerMode gcMarkWorkerMode
+ 
++	// gcMarkWorkerStartTime is the nanotime() at which this mark
++	// worker started.
++	gcMarkWorkerStartTime int64
++
+ 	// gcw is this P's GC work buffer cache. The work buffer is
+ 	// filled by write barriers, drained by mutator assists, and
+ 	// disposed on certain GC state transitions.

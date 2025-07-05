@@ -15,7 +15,7 @@ Date:   Thu Apr 2 18:25:18 2009 -0700
     R=r
     OCL=27049
     CL=27049
-
+---
  usr/gri/pretty/Makefile               |  20 +--
  usr/gri/pretty/dir_template.html      |  17 --
  usr/gri/pretty/docprinter.go          | 108 ++++++------
@@ -24,3 +24,721 @@ Date:   Thu Apr 2 18:25:18 2009 -0700
  usr/gri/pretty/packages_template.html |  10 --
  usr/gri/pretty/template.html          |  18 --
  7 files changed, 282 insertions(+), 206 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 43dea48071..0636289efd 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -22,29 +22,27 @@ test: pretty
+ smoketest: pretty
+ 	./test.sh astprinter.go
+ 
+-install: pretty
++install: pretty godoc untab
+ 	cp pretty $(HOME)/bin/pretty
++	cp godoc $(HOME)/bin/godoc
++	cp untab $(HOME)/bin/untab
+ 
+ clean:
+-	rm -f pretty *.6 *.a *~
++	rm -f pretty untab godoc *.6 *.a 6.out *~
+ 
+-godoc.6:	 utils.6 platform.6 compilation.6 docprinter.6
++godoc.6:	docprinter.6 compilation.6
+ 
+-pretty.6:	 platform.6 ast.6 astprinter.6 compilation.6
++pretty.6:	 platform.6 astprinter.6 compilation.6
+ 
+-compilation.6:	 platform.6 ast.6 typechecker.6
+-
+-typechecker.6:	 ast.6
+-
+-ast.6:	 symboltable.6
++compilation.6:	 platform.6 typechecker.6
+ 
+ symboltable.6:	
+ 
+ platform.6:	 utils.6
+ 
+-astprinter.6:	 utils.6 ast.6 symboltable.6 template.6
++astprinter.6:	 utils.6 symboltable.6 template.6
+ 
+-docprinter.6:	ast.6 astprinter.6 template.6
++docprinter.6:	astprinter.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/dir_template.html b/usr/gri/pretty/dir_template.html
+deleted file mode 100644
+index 2fbb698bfb..0000000000
+--- a/usr/gri/pretty/dir_template.html
++++ /dev/null
+@@ -1,17 +0,0 @@
+-
+-<h1><!--PATH--></h1>
+-
+-<h2>Directories</h2>
+-<!--DIRECTORIES-->
+-
+-<h2>Go files</h2>
+-<!--GO FILES-->
+-
+-<h2>Other files</h2>
+-<font color=grey>
+-<!--OTHER FILES-->
+-</font>
+-
+-</div>  <!-- content -->
+-</body>
+-</html>
+diff --git a/usr/gri/pretty/docprinter.go b/usr/gri/pretty/docprinter.go
+index f9737a790a..a5f6b4b44b 100644
+--- a/usr/gri/pretty/docprinter.go
++++ b/usr/gri/pretty/docprinter.go
+@@ -5,16 +5,15 @@
+ package docPrinter
+ 
+ import (
+-	"vector";
+-	"utf8";
+-	"unicode";
+-	"io";
+-	"fmt";
+-
+ 	"ast";
++	"fmt";
++	"io";
+ 	"token";
++	"unicode";
++	"utf8";
++	"vector";
++
+ 	"astprinter";
+-	"template";
+ )
+ 
+ 
+@@ -76,6 +75,11 @@ type PackageDoc struct {
+ }
+ 
+ 
++func (doc *PackageDoc) PackageName() string {
++	return doc.name;
++}
++
++
+ // PackageDoc initializes a document to collect package documentation.
+ // The package name is provided as initial argument. Use AddPackage to
+ // add the AST for each source file belonging to the same package.
+@@ -418,64 +422,44 @@ func (t *typeDoc) print(p *astPrinter.Printer) {
+ }
+ 
+ 
+-// TODO make this a parameter for Init or Print?
+-var templ = template.NewTemplateOrDie("template.html");
+-
+ func (doc *PackageDoc) Print(writer io.Write) {
+ 	var p astPrinter.Printer;
+ 	p.Init(writer, nil, true);
+ 	
+-	// TODO propagate Apply errors
+-	templ.Apply(writer, "<!--", template.Substitution {
+-		"PACKAGE_NAME-->" :
+-			func() {
+-				fmt.Fprint(writer, doc.name);
+-			},
+-
+-		"PROGRAM_HEADER-->":
+-			func() {
+-				fmt.Fprintf(writer, "<p><code>import \"%s\"</code></p>\n", doc.name);
+-				printComments(&p, doc.doc);
+-			},
+-
+-		"CONSTANTS-->" :
+-			func() {
+-				if doc.consts.Len() > 0 {
+-					fmt.Fprintln(writer, "<hr />");
+-					fmt.Fprintln(writer, "<h2>Constants</h2>");
+-					for i := 0; i < doc.consts.Len(); i++ {
+-						doc.consts.At(i).(*valueDoc).print(&p);
+-					}
+-				}
+-			},
++	// program header
++	fmt.Fprintf(writer, "<h1>package %s</h1>\n", doc.name);
++	fmt.Fprintf(writer, "<p><code>import \"%s\"</code></p>\n", doc.name);
++	printComments(&p, doc.doc);
++
++	// constants
++	if doc.consts.Len() > 0 {
++		fmt.Fprintln(writer, "<hr />");
++		fmt.Fprintln(writer, "<h2>Constants</h2>");
++		for i := 0; i < doc.consts.Len(); i++ {
++			doc.consts.At(i).(*valueDoc).print(&p);
++		}
++	}
+ 
+-		"TYPES-->" :
+-			func() {
+-				for name, t := range doc.types {
+-					fmt.Fprintln(writer, "<hr />");
+-					t.print(&p);
+-				}
+-			},
+-
+-		"VARIABLES-->" :
+-			func() {
+-				if doc.vars.Len() > 0 {
+-					fmt.Fprintln(writer, "<hr />");
+-					fmt.Fprintln(writer, "<h2>Variables</h2>");
+-					for i := 0; i < doc.vars.Len(); i++ {
+-						doc.vars.At(i).(*valueDoc).print(&p);
+-					}
+-				}
+-			},
+-
+-		"FUNCTIONS-->" :
+-			func() {
+-				if len(doc.funcs) > 0 {
+-					fmt.Fprintln(writer, "<hr />");
+-					for name, f := range doc.funcs {
+-						f.print(&p, 2);
+-					}
+-				}
+-			},
+-	});
++	// types
++	for name, t := range doc.types {
++		fmt.Fprintln(writer, "<hr />");
++		t.print(&p);
++	}
++
++	// variables
++	if doc.vars.Len() > 0 {
++		fmt.Fprintln(writer, "<hr />");
++		fmt.Fprintln(writer, "<h2>Variables</h2>");
++		for i := 0; i < doc.vars.Len(); i++ {
++			doc.vars.At(i).(*valueDoc).print(&p);
++		}
++	}
++
++	// functions
++	if len(doc.funcs) > 0 {
++		fmt.Fprintln(writer, "<hr />");
++		for name, f := range doc.funcs {
++			f.print(&p, 2);
++		}
++	}
+ }
+diff --git a/usr/gri/pretty/error_template.html b/usr/gri/pretty/error_template.html
+deleted file mode 100644
+index cfc1df1616..0000000000
+--- a/usr/gri/pretty/error_template.html
++++ /dev/null
+@@ -1,12 +0,0 @@
+-
+-<font color=red>THIS SECTION IS CURRENTLY UNDER CONSTRUCTION</font>
+-
+-<h1>Compilation errors in <!--FILE_NAME--></h1>
+-
+-<pre>
+-<!--ERRORS-->
+-</pre>
+-
+-</div>  <!-- content -->
+-</body>
+-</html>
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 13e58bd6cb..143fd09611 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -7,6 +7,7 @@
+ package main
+ 
+ import (
++	"ast";
+ 	"bufio";
+ 	"flag";
+ 	"fmt";
+@@ -15,44 +16,87 @@ import (
+ 	"log";
+ 	"net";
+ 	"os";
++	"parser";
+ 	"sort";
+ 	"tabwriter";
+ 	"template";
++	"time";
++	"token";
+ 	"regexp";
+-
+-	"ast";
+ 	"vector";
+-	"utils";
+-	"platform";
+-	"compilation";
+-	"parser";
++
++	"compilation";  // TODO removing this causes link errors - why?
+ 	"docprinter";
+ )
+ 
+ 
++// TODO
++// - uniform use of path, filename, dirname, pakname, etc.
++
++
++func getenv(varname string) string {
++	value, err := os.Getenv(varname);
++	return value;
++}
++
++
+ var (
++	GOROOT string;
++
++	// server control
+ 	verbose = flag.Bool("v", false, "verbose mode");
+ 	port = flag.String("port", "6060", "server port");
+-	root = flag.String("root", Platform.GOROOT, "go root directory");
++	root = flag.String("root", getenv("GOROOT"), "go root directory");
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width");
+ 	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
++
++	// html template
++	godoc_template = template.NewTemplateOrDie("godoc.html");
+ )
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Support
+ 
+-type dirArray []os.Dir
+-func (p dirArray) Len() int            { return len(p); }
+-func (p dirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
+-func (p dirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++func cleanPath(s string) string {
++	for i := 0; i < len(s); i++ {
++		if s[i] == '/' {
++			i++;
++			j := i;
++			for j < len(s) && s[j] == '/' {
++				j++;
++			}
++			if j > i {  // more then one '/'
++				return s[0 : i] + cleanPath(s[j : len(s)]);
++			}
++		}
++	}
++	return s;
++}
++
++
++// Reduce sequences of multiple '/'s into a single '/' and
++// strip any trailing '/' (may result in the empty string).
++func sanitizePath(s string) string {
++	s = cleanPath(s);
++	if s[len(s)-1] == '/' {  // strip trailing '/'
++		s = s[0 : len(s)-1];
++	}
++	return s;
++}
++
++
++func contains(s, sub string, pos int) bool {
++	end := pos + len(sub);
++	return pos >= 0 && end <= len(s) && s[pos : end] == sub;
++}
+ 
+ 
+ func isGoFile(dir *os.Dir) bool {
+ 	const ext = ".go";
+-	return dir.IsRegular() && Utils.Contains(dir.Name, ext, len(dir.Name) - len(ext));
++	return dir.IsRegular() && contains(dir.Name, ext, len(dir.Name) - len(ext));
+ }
+ 
+ 
+@@ -70,10 +114,77 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Compilation
++
++type parseError struct {
++	pos token.Position;
++	msg string;
++}
++
++
++type errorList []parseError
++func (list errorList) Len() int { return len(list); }
++func (list errorList) Less(i, j int) bool { return list[i].pos.Offset < list[j].pos.Offset; }
++func (list errorList) Swap(i, j int) { list[i], list[j] = list[j], list[i]; }
++
++
++type errorHandler struct {
++	lastLine int;
++	errors *vector.Vector;
++}
++
++
++func (h *errorHandler) Error(pos token.Position, msg string) {
++	// only collect errors that are on a new line 
++	// in the hope to avoid most follow-up errors
++	if pos.Line != h.lastLine {
++		h.lastLine = pos.Line;
++		if h.errors == nil {
++			// lazy initialize - most of the time there are no errors
++			h.errors = vector.New(0);
++		}
++		h.errors.Push(parseError{pos, msg});
++	}
++}
++
++
++// Compiles a file (path) and returns the corresponding AST and
++// a sorted list (by file position) of errors, if any.
++//
++func compile(path string, mode uint) (*ast.Program, errorList) {
++	src, err := os.Open(path, os.O_RDONLY, 0);
++	defer src.Close();
++	if err != nil {
++		log.Stdoutf("%s: %v", path, err);
++		var noPos token.Position;
++		return nil, errorList{parseError{noPos, err.String()}};
++	}
++
++	var handler errorHandler;
++	prog, ok := parser.Parse(src, &handler, mode);
++	if !ok {
++		// convert error list and sort it
++		errors := make(errorList, handler.errors.Len());
++		for i := 0; i < handler.errors.Len(); i++ {
++			errors[i] = handler.errors.At(i).(parseError);
++		}
++		sort.Sort(errors);
++		return nil, errors;
++	}
++
++	return prog, nil;
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Directories
+ 
+-var dir_template = template.NewTemplateOrDie("dir_template.html");
++type dirArray []os.Dir
++func (p dirArray) Len() int            { return len(p); }
++func (p dirArray) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
++func (p dirArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
++
+ 
+ func serveDir(c *http.Conn, dirname string) {
+ 	fd, err1 := os.Open(*root + dirname, os.O_RDONLY, 0);
+@@ -98,28 +209,35 @@ func serveDir(c *http.Conn, dirname string) {
+ 	// Print contents in 3 sections: directories, go files, everything else
+ 
+ 	// TODO handle Apply errors
+-	dir_template.Apply(c, "<!--", template.Substitution {
+-		"PATH-->" : func() {
+-			fmt.Fprintf(c, "%s", path);
++	godoc_template.Apply(c, "<!--", template.Substitution {
++		"TITLE-->" : func() {
++			fmt.Fprint(c, dirname);
++		},
++
++		"HEADER-->" : func() {
++			fmt.Fprint(c, dirname);
++		},
++
++		"TIMESTAMP-->" : func() {
++			fmt.Fprint(c, time.UTC().String());
+ 		},
+ 
+-		"DIRECTORIES-->" : func() {
++		"CONTENTS-->" : func () {
++			fmt.Fprintln(c, "<h2>Directories</h2>");
+ 			for i, entry := range list {
+ 				if entry.IsDirectory() {
+ 					printLink(c, path, entry.Name);
+ 				}
+ 			}
+-		},
+ 
+-		"GO FILES-->" : func() {
++			fmt.Fprintln(c, "<h2>Go files</h2>");
+ 			for i, entry := range list {
+ 				if isGoFile(&entry) {
+ 					printLink(c, path, entry.Name);
+ 				}
+ 			}
+-		},
+ 
+-		"OTHER FILES-->" : func() {
++			fmt.Fprintln(c, "<h2>Other files</h2>");
+ 			for i, entry := range list {
+ 				if !entry.IsDirectory() && !isGoFile(&entry) {
+ 					fmt.Fprintf(c, "%s<br />\n", entry.Name);
+@@ -133,37 +251,66 @@ func serveDir(c *http.Conn, dirname string) {
+ // ----------------------------------------------------------------------------
+ // Files
+ 
+-var error_template = template.NewTemplateOrDie("error_template.html");
++func printErrors(c *http.Conn, filename string, errors errorList) {
++	// open file
++	path := *root + filename;
++	fd, err1 := os.Open(path, os.O_RDONLY, 0);
++	defer fd.Close();
++	if err1 != nil {
++		// TODO better error handling
++		log.Stdoutf("%s: %v", path, err1);
++	}
+ 
+-func printErrors(c *http.Conn, filename string, errors Compilation.ErrorList) {
+-	// TODO factor code - shouldn't do this here and in Compilation
+-	src, ok := Platform.ReadSourceFile(*root + filename);
++	// read source
++	var buf io.ByteBuffer;
++	n, err2 := io.Copy(fd, &buf);
++	if err2 != nil {
++		// TODO better error handling
++		log.Stdoutf("%s: %v", path, err2);
++	}
++	src := buf.Data();
+ 
+ 	// TODO handle Apply errors
+-	error_template.Apply(c, "<!--", template.Substitution {
+-		"FILE_NAME-->" : func() {
+-			fmt.Fprintf(c, "%s", filename);
++	godoc_template.Apply(c, "<!--", template.Substitution {
++		"TITLE-->" : func() {
++			fmt.Fprint(c, filename);
++		},
++
++		"HEADER-->" : func() {
++			fmt.Fprint(c, filename);
++		},
++
++		"TIMESTAMP-->" : func() {
++			fmt.Fprint(c, time.UTC().String());
+ 		},
+ 
+-		"ERRORS-->" : func () {
+-			if ok == false /* 6g bug139 */ {
+-				fmt.Fprintf(c, "could not read file %s\n", *root + filename);
++		"CONTENTS-->" : func () {
++			// section title
++			fmt.Fprintf(c, "<h1>Compilation errors in %s</h1>\n", filename);
++			
++			// handle read errors
++			if err1 != nil || err2 != nil /* 6g bug139 */ {
++				fmt.Fprintf(c, "could not read file %s\n", filename);
+ 				return;
+ 			}
++			
++			// write source with error messages interspersed
++			fmt.Fprintln(c, "<pre>");
+ 			offs := 0;
+ 			for i, e := range errors {
+-				if 0 <= e.Pos.Offset && e.Pos.Offset <= len(src) {
++				if 0 <= e.pos.Offset && e.pos.Offset <= len(src) {
+ 					// TODO handle Write errors
+-					c.Write(src[offs : e.Pos.Offset]);
++					c.Write(src[offs : e.pos.Offset]);
+ 					// TODO this should be done using a .css file
+-					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.Msg);
+-					offs = e.Pos.Offset;
++					fmt.Fprintf(c, "<b><font color=red>%s >>></font></b>", e.msg);
++					offs = e.pos.Offset;
+ 				} else {
+-					log.Stdoutf("error position %d out of bounds (len = %d)", e.Pos.Offset, len(src));
++					log.Stdoutf("error position %d out of bounds (len = %d)", e.pos.Offset, len(src));
+ 				}
+ 			}
+ 			// TODO handle Write errors
+ 			c.Write(src[offs : len(src)]);
++			fmt.Fprintln(c, "</pre>");
+ 		}
+ 	});
+ }
+@@ -173,14 +320,8 @@ func serveGoFile(c *http.Conn, dirname string, filenames []string) {
+ 	// compute documentation
+ 	var doc docPrinter.PackageDoc;
+ 	for i, filename := range filenames {
+-		var flags Compilation.Flags;
+-		prog, errors := Compilation.Compile(*root + "/" + dirname + "/" + filename, &flags);
+-		if errors == nil {
+-			c.WriteHeader(http.StatusNotFound);
+-			fmt.Fprintf(c, "Error: could not read file (%s)\n", filename);
+-			return;
+-		}
+-
++		path := *root + "/" + dirname + "/" + filename;
++		prog, errors := compile(path, parser.ParseComments);
+ 		if len(errors) > 0 {
+ 			c.SetHeader("content-type", "text/html; charset=utf-8");
+ 			printErrors(c, filename, errors);
+@@ -196,10 +337,26 @@ func serveGoFile(c *http.Conn, dirname string, filenames []string) {
+ 
+ 	c.SetHeader("content-type", "text/html; charset=utf-8");
+ 	
+-	// write documentation
+-	writer := makeTabwriter(c);  // for nicely formatted output
+-	doc.Print(writer);
+-	writer.Flush();  // ignore errors
++	godoc_template.Apply(c, "<!--", template.Substitution {
++		"TITLE-->" : func() {
++			fmt.Fprintf(c, "%s - Go package documentation", doc.PackageName());
++		},
++
++		"HEADER-->" : func() {
++			fmt.Fprintf(c, "%s - Go package documentation", doc.PackageName());
++		},
++
++		"TIMESTAMP-->" : func() {
++			fmt.Fprint(c, time.UTC().String());
++		},
++
++		"CONTENTS-->" : func () {
++			// write documentation
++			writer := makeTabwriter(c);  // for nicely formatted output
++			doc.Print(writer);
++			writer.Flush();  // ignore errors
++		}
++	});
+ }
+ 
+ 
+@@ -245,30 +402,10 @@ var (
+ )
+ 
+ 
+-func getAST(dirname string, filename string, mode uint) *ast.Program {
+-	// open file
+-	fullname := *root + "/" + dirname + "/" + filename;
+-	src, err := os.Open(fullname, os.O_RDONLY, 0);
+-	defer src.Close();
+-	if err != nil {
+-		log.Stdoutf("%s: %v", fullname, err);
+-		return nil;
+-	}
+-
+-	// determine package name
+-	prog, ok := parser.Parse(src, nil, mode);
+-	if !ok {
+-		log.Stdoutf("%s: compilation errors", fullname);
+-		return nil;
+-	}
+-	
+-	return prog;
+-}
+-
+-
+ func addFile(dirname string, filename string) {
+ 	// determine package name
+-	prog := getAST(dirname, filename, parser.PackageClauseOnly);
++	path := *root + "/" + dirname + "/" + filename;
++	prog, errors := compile(path, parser.PackageClauseOnly);
+ 	if prog == nil {
+ 		return;
+ 	}
+@@ -341,10 +478,12 @@ func makePackageMap() {
+ 		i++;
+ 	}
+ 	sort.Sort(pakList);
+-}
+ 
++	if *verbose {
++		log.Stdoutf("%d packages found under %s", i, *root);
++	}
++}
+ 
+-var packages_template = template.NewTemplateOrDie("packages_template.html");
+ 
+ func serveGoPackage(c *http.Conn, p *pakDesc) {
+ 	// make a filename list
+@@ -360,8 +499,20 @@ func serveGoPackage(c *http.Conn, p *pakDesc) {
+ 
+ 
+ func servePackageList(c *http.Conn, list *vector.Vector) {
+-	packages_template.Apply(c, "<!--", template.Substitution {
+-		"PACKAGE_LIST-->" : func() {
++	godoc_template.Apply(c, "<!--", template.Substitution {
++		"TITLE-->" : func() {
++			fmt.Fprint(c, "Packages");
++		},
++
++		"HEADER-->" : func() {
++			fmt.Fprint(c, "Packages");
++		},
++
++		"TIMESTAMP-->" : func() {
++			fmt.Fprint(c, time.UTC().String());
++		},
++
++		"CONTENTS-->" : func () {
+ 			// TODO should do this under a lock, eventually
+ 			for i := 0; i < list.Len(); i++ {
+ 				p := list.At(i).(*pakDesc);
+@@ -405,7 +556,7 @@ func serve(c *http.Conn, req *http.Request) {
+ 		log.Stdoutf("%s\t%s", req.Host, req.RawUrl);
+ 	}
+ 
+-	path := Utils.SanitizePath(req.Url.Path);
++	path := sanitizePath(req.Url.Path);
+ 
+ 	if len(req.Url.Query) > 0 {  // for now any query will do
+ 		servePackage(c, path);
+@@ -418,7 +569,7 @@ func serve(c *http.Conn, req *http.Request) {
+ func main() {
+ 	flag.Parse();
+ 
+-	*root = Utils.SanitizePath(*root);
++	*root = sanitizePath(*root);
+ 	{	dir, err := os.Stat(*root);
+ 		if err != nil || !dir.IsDirectory() {
+ 			log.Exitf("root not found or not a directory: %s", *root);
+diff --git a/usr/gri/pretty/packages_template.html b/usr/gri/pretty/packages_template.html
+deleted file mode 100644
+index 552ce6220e..0000000000
+--- a/usr/gri/pretty/packages_template.html
++++ /dev/null
+@@ -1,10 +0,0 @@
+-
+-<font color=red>THIS SECTION IS CURRENTLY UNDER CONSTRUCTION</font>
+-
+-<h1>Packages</h1>
+-
+-<!--PACKAGE_LIST-->
+-
+-</div>  <!-- content -->
+-</body>
+-</html>
+diff --git a/usr/gri/pretty/template.html b/usr/gri/pretty/template.html
+deleted file mode 100644
+index ab415c9272..0000000000
+--- a/usr/gri/pretty/template.html
++++ /dev/null
+@@ -1,18 +0,0 @@
+-
+-<font color=red>THIS SECTION IS CURRENTLY UNDER CONSTRUCTION</font>
+-
+-<h1>package <!--PACKAGE_NAME--></h1>
+-
+-<!--PROGRAM_HEADER-->
+-
+-<!--CONSTANTS-->
+-
+-<!--TYPES-->
+-
+-<!--VARIABLES-->
+-
+-<!--FUNCTIONS-->
+-
+-</div>  <!-- content -->
+-</body>
+-</html>

@@ -10,7 +10,7 @@ Date:   Thu Mar 26 10:53:14 2009 -0700
     DELTA=57  (3 added, 0 deleted, 54 changed)
     OCL=26764
     CL=26777
-
+---
  src/lib/go/scanner.go      | 14 +++++++-------
  src/lib/go/scanner_test.go | 16 ++++++++--------
  src/lib/go/token.go        | 25 ++++++++++++++-----------
@@ -18,3 +18,402 @@ Date:   Thu Mar 26 10:53:14 2009 -0700
  usr/gri/pretty/parser.go   | 20 ++++++++++----------
  usr/gri/pretty/printer.go  | 12 ++++++------
  6 files changed, 53 insertions(+), 50 deletions(-)
+
+diff --git a/src/lib/go/scanner.go b/src/lib/go/scanner.go
+index 0910e59de1..51dca3aa59 100644
+--- a/src/lib/go/scanner.go
++++ b/src/lib/go/scanner.go
+@@ -167,7 +167,7 @@ func isDigit(ch int) bool {
+ }
+ 
+ 
+-func (S *Scanner) scanIdentifier() int {
++func (S *Scanner) scanIdentifier() token.Token {
+ 	pos := S.loc.Pos;
+ 	for isLetter(S.ch) || isDigit(S.ch) {
+ 		S.next();
+@@ -193,7 +193,7 @@ func (S *Scanner) scanMantissa(base int) {
+ }
+ 
+ 
+-func (S *Scanner) scanNumber(seen_decimal_point bool) int {
++func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
+ 	tok := token.INT;
+ 
+ 	if seen_decimal_point {
+@@ -335,7 +335,7 @@ func (S *Scanner) scanRawString(loc Location) {
+ // respectively. Otherwise, the result is tok0 if there was no other
+ // matching character, or tok2 if the matching character was ch2.
+ 
+-func (S *Scanner) switch2(tok0, tok1 int) int {
++func (S *Scanner) switch2(tok0, tok1 token.Token) token.Token {
+ 	if S.ch == '=' {
+ 		S.next();
+ 		return tok1;
+@@ -344,7 +344,7 @@ func (S *Scanner) switch2(tok0, tok1 int) int {
+ }
+ 
+ 
+-func (S *Scanner) switch3(tok0, tok1, ch2, tok2 int) int {
++func (S *Scanner) switch3(tok0, tok1 token.Token, ch2 int, tok2 token.Token) token.Token {
+ 	if S.ch == '=' {
+ 		S.next();
+ 		return tok1;
+@@ -357,7 +357,7 @@ func (S *Scanner) switch3(tok0, tok1, ch2, tok2 int) int {
+ }
+ 
+ 
+-func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
++func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Token) token.Token {
+ 	if S.ch == '=' {
+ 		S.next();
+ 		return tok1;
+@@ -378,7 +378,7 @@ func (S *Scanner) switch4(tok0, tok1, ch2, tok2, tok3 int) int {
+ // the token tok, and the literal text lit corresponding to the
+ // token. The source end is indicated by token.EOF.
+ //
+-func (S *Scanner) Scan() (loc Location, tok int, lit []byte) {
++func (S *Scanner) Scan() (loc Location, tok token.Token, lit []byte) {
+ scan_again:
+ 	// skip white space
+ 	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' || S.ch == '\r' {
+@@ -468,7 +468,7 @@ scan_again:
+ // meaning as for the Init function. Tokenize keeps scanning until f returns
+ // false (usually when the token value is token.EOF).
+ //
+-func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (loc Location, tok int, lit []byte) bool) {
++func Tokenize(src []byte, err ErrorHandler, scan_comments bool, f func (loc Location, tok token.Token, lit []byte) bool) {
+ 	var s Scanner;
+ 	s.Init(src, err, scan_comments);
+ 	for f(s.Scan()) {
+diff --git a/src/lib/go/scanner_test.go b/src/lib/go/scanner_test.go
+index 247bbe4df0..2309fcd097 100644
+--- a/src/lib/go/scanner_test.go
++++ b/src/lib/go/scanner_test.go
+@@ -20,18 +20,18 @@ const /* class */ (
+ )
+ 
+ 
+-func tokenclass(tok int) int {
++func tokenclass(tok token.Token) int {
+ 	switch {
+-	case token.IsLiteral(tok): return literal;
+-	case token.IsOperator(tok): return operator;
+-	case token.IsKeyword(tok): return keyword;
++	case tok.IsLiteral(): return literal;
++	case tok.IsOperator(): return operator;
++	case tok.IsKeyword(): return keyword;
+ 	}
+ 	return special;
+ }
+ 
+ 
+ type elt struct {
+-	tok int;
++	tok token.Token;
+ 	lit string;
+ 	class int;
+ }
+@@ -188,7 +188,7 @@ func Test(t *testing.T) {
+ 	index := 0;
+ 	eloc := scanner.Location{0, 1, 1};
+ 	scanner.Tokenize(io.StringBytes(src), &TestErrorHandler{t}, true,
+-		func (loc Location, tok int, litb []byte) bool {
++		func (loc Location, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special};
+ 			if index < len(tokens) {
+ 				e = tokens[index];
+@@ -208,9 +208,9 @@ func Test(t *testing.T) {
+ 				t.Errorf("bad column for %s: got %d, expected %d", lit, loc.Col, eloc.Col);
+ 			}
+ 			if tok != e.tok {
+-				t.Errorf("bad token for %s: got %s, expected %s", lit, token.TokenString(tok), token.TokenString(e.tok));
++				t.Errorf("bad token for %s: got %s, expected %s", lit, tok.String(), e.tok.String());
+ 			}
+-			if token.IsLiteral(e.tok) && lit != e.lit {
++			if e.tok.IsLiteral() && lit != e.lit {
+ 				t.Errorf("bad literal for %s: got %s, expected %s", lit, lit, e.lit);
+ 			}
+ 			if tokenclass(tok) != e.class {
+diff --git a/src/lib/go/token.go b/src/lib/go/token.go
+index 26ff1cb993..a0439b8687 100644
+--- a/src/lib/go/token.go
++++ b/src/lib/go/token.go
+@@ -10,10 +10,13 @@ package token
+ 
+ import "strconv"
+ 
++// Token is the set of lexical tokens of the Go programming language.
++type Token int
++
+ // The list of tokens.
+ const (
+ 	// Special tokens
+-	ILLEGAL = iota;
++	ILLEGAL Token = iota;
+ 	EOF;
+ 	COMMENT;
+ 	
+@@ -124,7 +127,7 @@ const (
+ // At the moment we have no array literal syntax that lets us describe
+ // the index for each element - use a map for now to make sure they are
+ // in sync.
+-var tokens = map [int] string {
++var tokens = map [Token] string {
+ 	ILLEGAL : "ILLEGAL",
+ 
+ 	EOF : "EOF",
+@@ -224,13 +227,13 @@ var tokens = map [int] string {
+ }
+ 
+ 
+-// TokenString returns the string corresponding to the token tok.
++// String returns the string corresponding to the token tok.
+ // For operators, delimiters, and keywords the string is the actual
+ // token character sequence (e.g., for the token ADD, the string is
+ // "+"). For all other tokens the string corresponds to the token
+ // constant name (e.g. for the token IDENT, the string is "IDENT").
+ //
+-func TokenString(tok int) string {
++func (tok Token) String() string {
+ 	if str, exists := tokens[tok]; exists {
+ 		return str;
+ 	}
+@@ -254,7 +257,7 @@ const (
+ // Precedence returns the syntax precedence of the operator
+ // token tok or LowestPrecedence if tok is not an operator.
+ //
+-func Precedence(tok int) int {
++func (tok Token) Precedence() int {
+ 	switch tok {
+ 	case COLON:
+ 		return 0;
+@@ -275,10 +278,10 @@ func Precedence(tok int) int {
+ }
+ 
+ 
+-var keywords map [string] int;
++var keywords map [string] Token;
+ 
+ func init() {
+-	keywords = make(map [string] int);
++	keywords = make(map [string] Token);
+ 	for i := keyword_beg + 1; i < keyword_end; i++ {
+ 		keywords[tokens[i]] = i;
+ 	}
+@@ -287,7 +290,7 @@ func init() {
+ 
+ // Lookup maps an identifier to its keyword token or IDENT (if not a keyword).
+ //
+-func Lookup(ident []byte) int {
++func Lookup(ident []byte) Token {
+ 	// TODO Maps with []byte key are illegal because []byte does not
+ 	//      support == . Should find a more efficient solution eventually.
+ 	if tok, is_keyword := keywords[string(ident)]; is_keyword {
+@@ -302,20 +305,20 @@ func Lookup(ident []byte) int {
+ // IsLiteral returns true for tokens corresponding to identifiers
+ // and basic type literals; returns false otherwise.
+ //
+-func IsLiteral(tok int) bool {
++func (tok Token) IsLiteral() bool {
+ 	return literal_beg < tok && tok < literal_end;
+ }
+ 
+ // IsOperator returns true for tokens corresponding to operators and
+ // delimiters; returns false otherwise.
+ //
+-func IsOperator(tok int) bool {
++func (tok Token) IsOperator() bool {
+ 	return operator_beg < tok && tok < operator_end;
+ }
+ 
+ // IsKeyword returns true for tokens corresponding to keywords;
+ // returns false otherwise.
+ //
+-func IsKeyword(tok int) bool {
++func (tok Token) IsKeyword() bool {
+ 	return keyword_beg < tok && tok < keyword_end;
+ }
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 1f852fc9b1..cb3c69c5c5 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -247,7 +247,7 @@ type (
+ 	//
+ 	UnaryExpr struct {
+ 		Pos_ Position;  // token position
+-		Tok int;  // operator
++		Tok token.Token;  // operator
+ 		X Expr;  // operand
+ 	};
+ 
+@@ -255,7 +255,7 @@ type (
+ 	BinaryExpr struct {
+ 		X Expr;  // left operand
+ 		Pos_ Position;  // token position
+-		Tok int;  // operator
++		Tok token.Token;  // operator
+ 		Y Expr;  // right operand
+ 	};
+ )
+@@ -472,7 +472,7 @@ type (
+ 	// An IncDecStmt node represents an increment or decrement statement.
+ 	IncDecStmt struct {
+ 		X Expr;
+-		Tok int;  // INC or DEC
++		Tok token.Token;  // INC or DEC
+ 	};
+ 
+ 	// An AssignStmt node represents an assignment or
+@@ -480,7 +480,7 @@ type (
+ 	AssignStmt struct {
+ 		Lhs []Expr;
+ 		Pos_ Position;  // token position
+-		Tok int;  // assignment token, DEFINE
++		Tok token.Token;  // assignment token, DEFINE
+ 		Rhs []Expr;
+ 	};
+ 
+@@ -507,7 +507,7 @@ type (
+ 	//
+ 	BranchStmt struct {
+ 		Pos_ Position;  // position of keyword
+-		Tok int;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
++		Tok token.Token;  // keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+ 		Label *Ident;
+ 	};
+ 
+@@ -562,7 +562,7 @@ type (
+ 	// A CommClause node represents a case of a select statement.
+ 	CommClause struct {
+ 		Case Position;  // position of "case" or "default" keyword
+-		Tok int;  // ASSIGN or DEFINE (valid only if Lhs != nil)
++		Tok token.Token;  // ASSIGN or DEFINE (valid only if Lhs != nil)
+ 		Lhs, Rhs Expr;  // Rhs == nil means default case
+ 		Colon Position;  // position of ":"
+ 		Body []Stmt;  // statement list; or nil
+@@ -588,7 +588,7 @@ type (
+ 		For Position;  // position of "for" keyword
+ 		Key, Value Expr;  // Value may be nil
+ 		Pos_ Position;  // token position
+-		Tok int;  // ASSIGN or DEFINE
++		Tok token.Token;  // ASSIGN or DEFINE
+ 		X Expr;  // value to range over
+ 		Body *BlockStmt;
+ 	};
+@@ -730,7 +730,7 @@ type (
+ 	DeclList struct {
+ 		Doc Comments;  // associated documentation; or nil
+ 		Pos_ Position;  // position of token
+-		Tok int;  // IMPORT, CONST, VAR, TYPE
++		Tok token.Token;  // IMPORT, CONST, VAR, TYPE
+ 		Lparen Position;  // position of '('
+ 		List []Decl;  // the list of parenthesized declarations
+ 		Rparen Position;  // position of ')'
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index d8984a97be..d1de483b17 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -47,7 +47,7 @@ type Parser struct {
+ 
+ 	// The next token
+ 	pos Position;  // token location
+-	tok int;  // one token look-ahead
++	tok token.Token;  // one token look-ahead
+ 	val []byte;  // token value
+ 
+ 	// Non-syntactic parser control
+@@ -107,7 +107,7 @@ func (P *Parser) next0() {
+ 		P.printIndent();
+ 		switch P.tok {
+ 		case token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING:
+-			fmt.Printf("%d:%d: %s = %s\n", P.pos.Line, P.pos.Col, token.TokenString(P.tok), P.val);
++			fmt.Printf("%d:%d: %s = %s\n", P.pos.Line, P.pos.Col, P.tok.String(), P.val);
+ 		case token.LPAREN:
+ 			// don't print '(' - screws up selection in terminal window
+ 			fmt.Printf("%d:%d: LPAREN\n", P.pos.Line, P.pos.Col);
+@@ -115,7 +115,7 @@ func (P *Parser) next0() {
+ 			// don't print ')' - screws up selection in terminal window
+ 			fmt.Printf("%d:%d: RPAREN\n", P.pos.Line, P.pos.Col);
+ 		default:
+-			fmt.Printf("%d:%d: %s\n", P.pos.Line, P.pos.Col, token.TokenString(P.tok));
++			fmt.Printf("%d:%d: %s\n", P.pos.Line, P.pos.Col, P.tok.String());
+ 		}
+ 	}
+ }
+@@ -178,10 +178,10 @@ func (P *Parser) error(pos Position, msg string) {
+ }
+ 
+ 
+-func (P *Parser) expect(tok int) Position {
++func (P *Parser) expect(tok token.Token) Position {
+ 	if P.tok != tok {
+-		msg := "expected '" + token.TokenString(tok) + "', found '" + token.TokenString(P.tok) + "'";
+-		if token.IsLiteral(P.tok) {
++		msg := "expected '" + tok.String() + "', found '" + P.tok.String() + "'";
++		if P.tok.IsLiteral() {
+ 			msg += " " + string(P.val);
+ 		}
+ 		P.error(P.pos, msg);
+@@ -1082,8 +1082,8 @@ func (P *Parser) parseBinaryExpr(prec1 int) ast.Expr {
+ 	}
+ 
+ 	x := P.parseUnaryExpr();
+-	for prec := token.Precedence(P.tok); prec >= prec1; prec-- {
+-		for token.Precedence(P.tok) == prec {
++	for prec := P.tok.Precedence(); prec >= prec1; prec-- {
++		for P.tok.Precedence() == prec {
+ 			pos, tok := P.pos, P.tok;
+ 			P.next();
+ 			y := P.parseBinaryExpr(prec + 1);
+@@ -1217,7 +1217,7 @@ func (P *Parser) parseReturnStmt() *ast.ReturnStmt {
+ }
+ 
+ 
+-func (P *Parser) parseBranchStmt(tok int) *ast.BranchStmt {
++func (P *Parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
+ 	if P.trace {
+ 		defer un(trace(P, "BranchStmt"));
+ 	}
+@@ -1396,7 +1396,7 @@ func (P *Parser) parseCommClause() *ast.CommClause {
+ 
+ 	// CommCase
+ 	loc := P.pos;
+-	var tok int;
++	var tok token.Token;
+ 	var lhs, rhs ast.Expr;
+ 	if P.tok == token.CASE {
+ 		P.next();
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index a7f823c4b5..f59fb9d917 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -393,14 +393,14 @@ func (P *Printer) String(loc scanner.Location, s string) {
+ }
+ 
+ 
+-func (P *Printer) Token(loc scanner.Location, tok int) {
+-	P.String(loc, token.TokenString(tok));
+-	//P.TaggedString(pos, "<b>", token.TokenString(tok), "</b>");
++func (P *Printer) Token(loc scanner.Location, tok token.Token) {
++	P.String(loc, tok.String());
++	//P.TaggedString(pos, "<b>", tok.String(), "</b>");
+ }
+ 
+ 
+-func (P *Printer) Error(loc scanner.Location, tok int, msg string) {
+-	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", loc.Pos, token.TokenString(tok), msg);
++func (P *Printer) Error(loc scanner.Location, tok token.Token, msg string) {
++	fmt.Printf("\ninternal printing error: pos = %d, tok = %s, %s\n", loc.Pos, tok.String(), msg);
+ 	panic();
+ }
+ 
+@@ -576,7 +576,7 @@ func (P *Printer) DoIdent(x *ast.Ident) {
+ 
+ 
+ func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
+-	prec := token.Precedence(x.Tok);
++	prec := x.Tok.Precedence();
+ 	if prec < P.prec {
+ 		P.Token(nopos, token.LPAREN);
+ 	}

@@ -17,6 +17,36 @@ Date:   Thu Aug 31 10:16:01 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/scope_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index ae4a87c52a..ee4170ef44 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -50,13 +50,14 @@ type testline struct {
+ 
+ var testfile = []testline{
+ 	{line: "package main"},
++	{line: "var sink any"},
+ 	{line: "func f1(x int) { }"},
+ 	{line: "func f2(x int) { }"},
+ 	{line: "func f3(x int) { }"},
+ 	{line: "func f4(x int) { }"},
+ 	{line: "func f5(x int) { }"},
+ 	{line: "func f6(x int) { }"},
+-	{line: "func fi(x interface{}) { if a, ok := x.(error); ok { a.Error() } }"},
++	{line: "func leak(x interface{}) { sink = x }"},
+ 	{line: "func gret1() int { return 2 }"},
+ 	{line: "func gretbool() bool { return true }"},
+ 	{line: "func gret3() (int, int, int) { return 0, 1, 2 }"},
+@@ -177,7 +178,7 @@ var testfile = []testline{
+ 	{line: "		b := 2", scopes: []int{1}, vars: []string{"var &b *int", "var p *int"}},
+ 	{line: "		p := &b", scopes: []int{1}},
+ 	{line: "		f1(a)", scopes: []int{1}},
+-	{line: "		fi(p)", scopes: []int{1}},
++	{line: "		leak(p)", scopes: []int{1}},
+ 	{line: "	}"},
+ 	{line: "}"},
+ 	{line: "var fglob func() int"},

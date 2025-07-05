@@ -11,7 +11,41 @@ Date:   Wed Oct 20 16:38:57 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2616041
-
+---
  src/pkg/encoding/hex/hex.go      | 2 +-
  src/pkg/encoding/hex/hex_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/hex/hex.go b/src/pkg/encoding/hex/hex.go
+index 1c52885e2e..292d917eb4 100644
+--- a/src/pkg/encoding/hex/hex.go
++++ b/src/pkg/encoding/hex/hex.go
+@@ -71,7 +71,7 @@ func Decode(dst, src []byte) (int, os.Error) {
+ // fromHexChar converts a hex character into its value and a success flag.
+ func fromHexChar(c byte) (byte, bool) {
+ 	switch {
+-	case 0 <= c && c <= '9':
++	case '0' <= c && c <= '9':
+ 		return c - '0', true
+ 	case 'a' <= c && c <= 'f':
+ 		return c - 'a' + 10, true
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+index d741e595a1..b66d1bfbe7 100644
+--- a/src/pkg/encoding/hex/hex_test.go
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -58,6 +58,7 @@ var decodeTests = []decodeTest{
+ 	decodeTest{[]byte{}, []byte{}, true},
+ 	decodeTest{[]byte{'0'}, []byte{}, false},
+ 	decodeTest{[]byte{'0', 'g'}, []byte{}, false},
++	decodeTest{[]byte{'0', '\x01'}, []byte{}, false},
+ 	decodeTest{[]byte{'0', '0'}, []byte{0}, true},
+ 	decodeTest{[]byte{'0', '1'}, []byte{1}, true},
+ 	decodeTest{[]byte{'0', '2'}, []byte{2}, true},
+@@ -129,6 +130,7 @@ var decodeStringTests = []decodeStringTest{
+ 	decodeStringTest{"", []byte{}, true},
+ 	decodeStringTest{"0", []byte{}, false},
+ 	decodeStringTest{"00", []byte{0}, true},
++	decodeStringTest{"0\x01", []byte{}, false},
+ 	decodeStringTest{"0g", []byte{}, false},
+ 	decodeStringTest{"00ff00", []byte{0, 255, 0}, true},
+ 	decodeStringTest{"0000ff", []byte{0, 0, 255}, true},

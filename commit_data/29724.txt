@@ -14,6 +14,23 @@ Date:   Wed Oct 5 11:27:34 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/multipart/formdata.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index 8085bd3975..c9e3188c33 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -79,8 +79,10 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 			if err != nil {
+ 				return nil, err
+ 			}
+-			defer file.Close()
+ 			_, err = io.Copy(file, io.MultiReader(&b, p))
++			if cerr := file.Close(); err == nil {
++				err = cerr
++			}
+ 			if err != nil {
+ 				os.Remove(file.Name())
+ 				return nil, err

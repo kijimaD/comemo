@@ -9,10 +9,177 @@ Date:   Tue Jul 21 19:14:18 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/target.go  |  3 ++-
  src/cmd/link/internal/mips/asm.go   | 38 +++++++++++++++++++++---------
  src/cmd/link/internal/mips/obj.go   |  1 +
  src/cmd/link/internal/mips64/asm.go | 46 ++++++++++++++++++++++++-------------
  src/cmd/link/internal/mips64/obj.go |  1 +
  5 files changed, 61 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index d075bce17f..9f0aab3d6c 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -184,5 +184,6 @@ func (t *Target) IsBigEndian() bool {
+ 
+ // Temporary helper.
+ func (t *Target) StreamExtRelocs() bool {
+-	return (t.IsELF || t.IsDarwin()) && (t.IsAMD64() || t.Is386() || t.IsARM64())
++	return (t.IsELF || t.IsDarwin()) &&
++		(t.IsAMD64() || t.Is386() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64())
+ }
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index b8443da4ad..558027d819 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -100,19 +100,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 
+ 		case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
+ 			// set up addend for eventual relocation via outer symbol.
+-			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-			rr.Xadd = r.Add() + off
+-			rst := ldr.SymType(rs)
+-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+-				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+-			}
+-			rr.Xsym = rs
+-			return applyrel(target.Arch, ldr, r.Type(), r.Off(), s, val, rr.Xadd), 1, true
++			_, off := ld.FoldSubSymbolOffset(ldr, rs)
++			xadd := r.Add() + off
++			return applyrel(target.Arch, ldr, r.Type(), r.Off(), s, val, xadd), 1, true
+ 
+ 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
+-			rr.Xsym = rs
+-			rr.Xadd = r.Add()
+-			return applyrel(target.Arch, ldr, r.Type(), r.Off(), s, val, rr.Xadd), 1, true
++			return applyrel(target.Arch, ldr, r.Type(), r.Off(), s, val, r.Add()), 1, true
+ 		}
+ 	}
+ 
+@@ -150,3 +143,26 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+ 	return -1
+ }
++
++func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
++	rs := ldr.ResolveABIAlias(r.Sym())
++	var rr loader.ExtReloc
++	switch r.Type() {
++	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
++		// set up addend for eventual relocation via outer symbol.
++		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
++		rr.Xadd = r.Add() + off
++		rst := ldr.SymType(rs)
++		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
++			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++		}
++		rr.Xsym = rs
++		return rr, true
++
++	case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
++		rr.Xsym = rs
++		rr.Xadd = r.Add()
++		return rr, true
++	}
++	return rr, false
++}
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index e59c382bfa..f20597c0f5 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -52,6 +52,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
++		Extreloc:         extreloc,
+ 		Elfreloc1:        elfreloc1,
+ 		ElfrelocSize:     8,
+ 		Elfsetupplt:      elfsetupplt,
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index f4fb13f2b5..8b7342d4f2 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -95,36 +95,24 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
+ }
+ 
+ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc2, rr *loader.ExtReloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
+-	rs := r.Sym()
+-	rs = ldr.ResolveABIAlias(rs)
+ 	if target.IsExternal() {
+ 		switch r.Type() {
+ 		default:
+ 			return val, 0, false
+ 
+ 		case objabi.R_ADDRMIPS,
+-			objabi.R_ADDRMIPSU:
+-			// set up addend for eventual relocation via outer symbol.
+-			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-			rr.Xadd = r.Add() + off
+-			rst := ldr.SymType(rs)
+-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
+-				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+-			}
+-			rr.Xsym = rs
+-			return val, 1, true
+-
+-		case objabi.R_ADDRMIPSTLS,
++			objabi.R_ADDRMIPSU,
++			objabi.R_ADDRMIPSTLS,
+ 			objabi.R_CALLMIPS,
+ 			objabi.R_JMPMIPS:
+-			rr.Xsym = rs
+-			rr.Xadd = r.Add()
+ 			return val, 1, true
+ 		}
+ 	}
+ 
+ 	const isOk = true
+ 	const noExtReloc = 0
++	rs := r.Sym()
++	rs = ldr.ResolveABIAlias(rs)
+ 	switch r.Type() {
+ 	case objabi.R_ADDRMIPS,
+ 		objabi.R_ADDRMIPSU:
+@@ -153,3 +141,29 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc2, sym.RelocVariant, loader.Sym, int64) int64 {
+ 	return -1
+ }
++
++func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
++	rs := ldr.ResolveABIAlias(r.Sym())
++	var rr loader.ExtReloc
++	switch r.Type() {
++	case objabi.R_ADDRMIPS,
++		objabi.R_ADDRMIPSU:
++		// set up addend for eventual relocation via outer symbol.
++		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
++		rr.Xadd = r.Add() + off
++		rst := ldr.SymType(rs)
++		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
++			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++		}
++		rr.Xsym = rs
++		return rr, true
++
++	case objabi.R_ADDRMIPSTLS,
++		objabi.R_CALLMIPS,
++		objabi.R_JMPMIPS:
++		rr.Xsym = rs
++		rr.Xadd = r.Add()
++		return rr, true
++	}
++	return rr, false
++}
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 6ef27cedb9..d2dc20f5c1 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -51,6 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
++		Extreloc:         extreloc,
+ 		Elfreloc1:        elfreloc1,
+ 		ElfrelocSize:     24,
+ 		Elfsetupplt:      elfsetupplt,

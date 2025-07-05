@@ -9,7 +9,37 @@ Date:   Sun Dec 10 10:14:41 2017 +1100
     Change-Id: I089feafef2900413d46f2358b6e41ab78187eced
     Reviewed-on: https://go-review.googlesource.com/83076
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/testenv/testenv_notwin.go  | 4 ++++
  src/internal/testenv/testenv_windows.go | 9 +++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/internal/testenv/testenv_notwin.go b/src/internal/testenv/testenv_notwin.go
+index d8ce6cd385..385397378d 100644
+--- a/src/internal/testenv/testenv_notwin.go
++++ b/src/internal/testenv/testenv_notwin.go
+@@ -18,3 +18,7 @@ func hasSymlink() (ok bool, reason string) {
+ 
+ 	return true, ""
+ }
++
++func IsWindowsXP() bool {
++	return false
++}
+diff --git a/src/internal/testenv/testenv_windows.go b/src/internal/testenv/testenv_windows.go
+index eb8d6ac165..4a7da5fcb6 100644
+--- a/src/internal/testenv/testenv_windows.go
++++ b/src/internal/testenv/testenv_windows.go
+@@ -46,3 +46,12 @@ func hasSymlink() (ok bool, reason string) {
+ 
+ 	return false, ""
+ }
++
++func IsWindowsXP() bool {
++	v, err := syscall.GetVersion()
++	if err != nil {
++		panic("GetVersion failed: " + err.Error())
++	}
++	major := byte(v)
++	return major < 6
++}

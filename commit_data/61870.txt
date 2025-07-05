@@ -16,7 +16,50 @@ Date:   Fri Dec 6 15:49:52 2024 +0000
     Reviewed-by: Chris Ingram <chrisingram@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Truc Le <trucleduc@google.com>
-
+---
  src/encoding/base32/base32.go | 3 +++
  src/encoding/base64/base64.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 66f24e98a6..8bda6c6799 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -401,6 +401,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ // AppendDecode appends the base32 decoded src to dst
+ // and returns the extended buffer.
+ // If the input is malformed, it returns the partially decoded src and an error.
++// New line characters (\r and \n) are ignored.
+ func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+ 	// Compute the output size without padding to avoid over allocating.
+ 	n := len(src)
+@@ -415,6 +416,8 @@ func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+ }
+ 
+ // DecodeString returns the bytes represented by the base32 string s.
++// If the input is malformed, it returns the partially decoded data and
++// [CorruptInputError]. New line characters (\r and \n) are ignored.
+ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ 	buf := []byte(s)
+ 	l := stripNewlines(buf, buf)
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 7f0fa2de78..f94bea132c 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -409,6 +409,7 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
+ // AppendDecode appends the base64 decoded src to dst
+ // and returns the extended buffer.
+ // If the input is malformed, it returns the partially decoded src and an error.
++// New line characters (\r and \n) are ignored.
+ func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+ 	// Compute the output size without padding to avoid over allocating.
+ 	n := len(src)
+@@ -423,6 +424,8 @@ func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+ }
+ 
+ // DecodeString returns the bytes represented by the base64 string s.
++// If the input is malformed, it returns the partially decoded data and
++// [CorruptInputError]. New line characters (\r and \n) are ignored.
+ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ 	dbuf := make([]byte, enc.DecodedLen(len(s)))
+ 	n, err := enc.Decode(dbuf, []byte(s))

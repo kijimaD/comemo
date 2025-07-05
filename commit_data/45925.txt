@@ -21,7 +21,7 @@ Date:   Sat Nov 28 09:07:48 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go   |  4 ++--
  src/cmd/compile/internal/gc/dcl.go       | 17 -----------------
  src/cmd/compile/internal/gc/iexport.go   |  2 +-
@@ -33,3 +33,290 @@ Date:   Sat Nov 28 09:07:48 2020 -0500
  src/cmd/compile/internal/gc/walk.go      |  4 ++--
  src/cmd/compile/internal/ir/type.go      | 27 +++++++++++++++++++++++++++
  10 files changed, 49 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 58113977d5..ee09e7876e 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -392,7 +392,7 @@ func walkclosure(clo ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 	typ := closureType(clo)
+ 
+-	clos := ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
++	clos := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
+ 	clos.SetEsc(clo.Esc())
+ 	clos.PtrList().Set(append([]ir.Node{ir.Nod(ir.OCFUNC, fn.Nname, nil)}, fn.ClosureEnter.Slice()...))
+ 
+@@ -542,7 +542,7 @@ func walkpartialcall(n *ir.CallPartExpr, init *ir.Nodes) ir.Node {
+ 
+ 	typ := partialCallType(n)
+ 
+-	clos := ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
++	clos := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
+ 	clos.SetEsc(n.Esc())
+ 	clos.PtrList().Set2(ir.Nod(ir.OCFUNC, n.Func().Nname, nil), n.Left())
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5d1bde384a..3d8f97d93d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -221,23 +221,6 @@ func dclname(s *types.Sym) *ir.Name {
+ 	return n
+ }
+ 
+-func typenod(t *types.Type) ir.Node {
+-	return typenodl(src.NoXPos, t)
+-}
+-
+-func typenodl(pos src.XPos, t *types.Type) ir.Node {
+-	// if we copied another type with *t = *u
+-	// then t->nod might be out of date, so
+-	// check t->nod->type too
+-	if ir.AsNode(t.Nod) == nil || ir.AsNode(t.Nod).Type() != t {
+-		t.Nod = ir.NodAt(pos, ir.OTYPE, nil, nil)
+-		ir.AsNode(t.Nod).SetType(t)
+-		ir.AsNode(t.Nod).SetSym(t.Sym)
+-	}
+-
+-	return ir.AsNode(t.Nod)
+-}
+-
+ func anonfield(typ *types.Type) ir.Node {
+ 	return symfield(nil, typ)
+ }
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 3f5ec2e4dd..3f0f381974 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -640,7 +640,7 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		}
+ 
+ 		w.startType(definedType)
+-		w.qualifiedIdent(typenod(t))
++		w.qualifiedIdent(ir.TypeNode(t))
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 5a50682ab2..88f6e36e07 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -836,7 +836,7 @@ func (r *importReader) node() ir.Node {
+ 	// 	unreachable - should have been resolved by typechecking
+ 
+ 	case ir.OTYPE:
+-		return typenod(r.typ())
++		return ir.TypeNode(r.typ())
+ 
+ 	case ir.OTYPESW:
+ 		n := ir.NodAt(r.pos(), ir.OTYPESW, nil, nil)
+@@ -860,7 +860,7 @@ func (r *importReader) node() ir.Node {
+ 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.
+ 		savedlineno := base.Pos
+ 		base.Pos = r.pos()
+-		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, typenod(r.typ()))
++		n := ir.NodAt(base.Pos, ir.OCOMPLIT, nil, ir.TypeNode(r.typ()))
+ 		n.PtrList().Set(r.elemList()) // special handling of field names
+ 		base.Pos = savedlineno
+ 		return n
+@@ -869,7 +869,7 @@ func (r *importReader) node() ir.Node {
+ 	// 	unreachable - mapped to case OCOMPLIT below by exporter
+ 
+ 	case ir.OCOMPLIT:
+-		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, typenod(r.typ()))
++		n := ir.NodAt(r.pos(), ir.OCOMPLIT, nil, ir.TypeNode(r.typ()))
+ 		n.PtrList().Set(r.exprList())
+ 		return n
+ 
+@@ -944,7 +944,7 @@ func (r *importReader) node() ir.Node {
+ 
+ 	case ir.OMAKEMAP, ir.OMAKECHAN, ir.OMAKESLICE:
+ 		n := npos(r.pos(), builtinCall(ir.OMAKE))
+-		n.PtrList().Append(typenod(r.typ()))
++		n.PtrList().Append(ir.TypeNode(r.typ()))
+ 		n.PtrList().Append(r.exprList()...)
+ 		return n
+ 
+@@ -971,7 +971,7 @@ func (r *importReader) node() ir.Node {
+ 	case ir.ODCL:
+ 		pos := r.pos()
+ 		lhs := npos(pos, dclname(r.ident()))
+-		typ := typenod(r.typ())
++		typ := ir.TypeNode(r.typ())
+ 		return npos(pos, liststmt(variter([]ir.Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+ 
+ 	// case ODCLFIELD:
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 97f37a4716..bbbffebf5c 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1108,7 +1108,7 @@ func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool)
+ 			vas.SetRight(nodnil())
+ 			vas.Right().SetType(param.Type)
+ 		} else {
+-			vas.SetRight(ir.Nod(ir.OCOMPLIT, nil, typenod(param.Type)))
++			vas.SetRight(ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(param.Type)))
+ 			vas.Right().PtrList().Set(varargs)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index fca81763c0..ff3d3281dd 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -687,7 +687,7 @@ func slicelit(ctxt initContext, n ir.Node, var_ ir.Node, init *ir.Nodes) {
+ 		a = ir.Nod(ir.OADDR, a, nil)
+ 	} else {
+ 		a = ir.Nod(ir.ONEW, nil, nil)
+-		a.PtrList().Set1(typenod(t))
++		a.PtrList().Set1(ir.TypeNode(t))
+ 	}
+ 
+ 	a = ir.Nod(ir.OAS, vauto, a)
+@@ -763,7 +763,7 @@ func maplit(n ir.Node, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+ 	a := ir.Nod(ir.OMAKE, nil, nil)
+ 	a.SetEsc(n.Esc())
+-	a.PtrList().Set2(typenod(n.Type()), nodintconst(int64(n.List().Len())))
++	a.PtrList().Set2(ir.TypeNode(n.Type()), nodintconst(int64(n.List().Len())))
+ 	litas(m, a, init)
+ 
+ 	entries := n.List().Slice()
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0ed5009a22..a1b1809790 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2785,11 +2785,11 @@ func pushtype(n ir.Node, t *types.Type) ir.Node {
+ 	switch {
+ 	case iscomptype(t):
+ 		// For T, return T{...}.
+-		n.SetRight(typenod(t))
++		n.SetRight(ir.TypeNode(t))
+ 
+ 	case t.IsPtr() && iscomptype(t.Elem()):
+ 		// For *T, return &T{...}.
+-		n.SetRight(typenod(t.Elem()))
++		n.SetRight(ir.TypeNode(t.Elem()))
+ 
+ 		n = ir.NodAt(n.Pos(), ir.OADDR, n, nil)
+ 		n.SetImplicit(true)
+@@ -3458,7 +3458,7 @@ func stringtoruneslit(n ir.Node) ir.Node {
+ 		i++
+ 	}
+ 
+-	nn := ir.Nod(ir.OCOMPLIT, nil, typenod(n.Type()))
++	nn := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(n.Type()))
+ 	nn.PtrList().Set(l)
+ 	nn = typecheck(nn, ctxExpr)
+ 	return nn
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 1068720748..931135759a 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -109,7 +109,7 @@ func lexinit() {
+ 			}
+ 			types.Types[etype] = t
+ 		}
+-		s2.Def = typenod(t)
++		s2.Def = ir.TypeNode(t)
+ 	}
+ 
+ 	for _, s := range &builtinFuncs {
+@@ -176,7 +176,7 @@ func typeinit() {
+ 	t := types.New(types.TUNSAFEPTR)
+ 	types.Types[types.TUNSAFEPTR] = t
+ 	t.Sym = unsafepkg.Lookup("Pointer")
+-	t.Sym.Def = typenod(t)
++	t.Sym.Def = ir.TypeNode(t)
+ 	dowidth(types.Types[types.TUNSAFEPTR])
+ 
+ 	for et := types.TINT8; et <= types.TUINT64; et++ {
+@@ -337,7 +337,7 @@ func lexinit1() {
+ 	types.Errortype = makeErrorInterface()
+ 	types.Errortype.Sym = s
+ 	types.Errortype.Orig = makeErrorInterface()
+-	s.Def = typenod(types.Errortype)
++	s.Def = ir.TypeNode(types.Errortype)
+ 	dowidth(types.Errortype)
+ 
+ 	// We create separate byte and rune types for better error messages
+@@ -352,14 +352,14 @@ func lexinit1() {
+ 	s = ir.BuiltinPkg.Lookup("byte")
+ 	types.Bytetype = types.New(types.TUINT8)
+ 	types.Bytetype.Sym = s
+-	s.Def = typenod(types.Bytetype)
++	s.Def = ir.TypeNode(types.Bytetype)
+ 	dowidth(types.Bytetype)
+ 
+ 	// rune alias
+ 	s = ir.BuiltinPkg.Lookup("rune")
+ 	types.Runetype = types.New(types.TINT32)
+ 	types.Runetype.Sym = s
+-	s.Def = typenod(types.Runetype)
++	s.Def = ir.TypeNode(types.Runetype)
+ 	dowidth(types.Runetype)
+ 
+ 	// backend-dependent builtin types (e.g. int).
+@@ -376,7 +376,7 @@ func lexinit1() {
+ 		t := types.New(s.etype)
+ 		t.Sym = s1
+ 		types.Types[s.etype] = t
+-		s1.Def = typenod(t)
++		s1.Def = ir.TypeNode(t)
+ 		s1.Origpkg = ir.BuiltinPkg
+ 
+ 		dowidth(t)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e04413841a..2376bfc093 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1810,7 +1810,7 @@ func mkdotargslice(typ *types.Type, args []ir.Node) ir.Node {
+ 		n = nodnil()
+ 		n.SetType(typ)
+ 	} else {
+-		n = ir.Nod(ir.OCOMPLIT, nil, typenod(typ))
++		n = ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(typ))
+ 		n.PtrList().Append(args...)
+ 		n.SetImplicit(true)
+ 	}
+@@ -2687,7 +2687,7 @@ func addstr(n ir.Node, init *ir.Nodes) ir.Node {
+ 		fn = "concatstrings"
+ 
+ 		t := types.NewSlice(types.Types[types.TSTRING])
+-		slice := ir.Nod(ir.OCOMPLIT, nil, typenod(t))
++		slice := ir.Nod(ir.OCOMPLIT, nil, ir.TypeNode(t))
+ 		if prealloc[n] != nil {
+ 			prealloc[slice] = prealloc[n]
+ 		}
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+new file mode 100644
+index 0000000000..3409424fed
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/src"
++)
++
++func TypeNode(t *types.Type) Node {
++	return TypeNodeAt(src.NoXPos, t)
++}
++
++func TypeNodeAt(pos src.XPos, t *types.Type) Node {
++	// if we copied another type with *t = *u
++	// then t->nod might be out of date, so
++	// check t->nod->type too
++	if AsNode(t.Nod) == nil || AsNode(t.Nod).Type() != t {
++		t.Nod = NodAt(pos, OTYPE, nil, nil)
++		AsNode(t.Nod).SetType(t)
++		AsNode(t.Nod).SetSym(t.Sym)
++	}
++
++	return AsNode(t.Nod)
++}

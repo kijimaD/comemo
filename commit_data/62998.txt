@@ -11,9 +11,115 @@ Date:   Sun May 11 21:55:57 2025 +0100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/pprof/pprof.go      |  6 ++----
  src/runtime/pprof/proto.go      |  9 ++++++---
  src/runtime/pprof/proto_test.go | 18 +++++++++++++++++-
  src/runtime/pprof/protomem.go   |  3 +--
  4 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index d295991ef7..55563009b3 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -446,8 +446,7 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, records []
+ 		locs = b.appendLocsForStack(locs[:0], expandedStack[:n])
+ 		b.pbSample(values, locs, nil)
+ 	}
+-	b.build()
+-	return nil
++	return b.build()
+ }
+ 
+ // printCountProfile prints a countProfile at the specified debug level.
+@@ -517,8 +516,7 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 		}
+ 		b.pbSample(values, locs, labels)
+ 	}
+-	b.build()
+-	return nil
++	return b.build()
+ }
+ 
+ // keysByCount sorts keys with higher counts first, breaking ties by key string order.
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index a664fdc6ed..28ceb81542 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -345,7 +345,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error
+ }
+ 
+ // build completes and returns the constructed profile.
+-func (b *profileBuilder) build() {
++func (b *profileBuilder) build() error {
+ 	b.end = time.Now()
+ 
+ 	b.pb.int64Opt(tagProfile_TimeNanos, b.start.UnixNano())
+@@ -387,8 +387,11 @@ func (b *profileBuilder) build() {
+ 	// TODO: Anything for tagProfile_KeepFrames?
+ 
+ 	b.pb.strings(tagProfile_StringTable, b.strings)
+-	b.zw.Write(b.pb.data)
+-	b.zw.Close()
++	_, err := b.zw.Write(b.pb.data)
++	if err != nil {
++		return err
++	}
++	return b.zw.Close()
+ }
+ 
+ // appendLocsForStack appends the location IDs for the given stack trace to the given
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index a4ae95d4c4..b22d6e2b03 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -7,6 +7,7 @@ package pprof
+ import (
+ 	"bytes"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/profile"
+@@ -33,7 +34,9 @@ func translateCPUProfile(data []uint64, count int) (*profile.Profile, error) {
+ 	if err := b.addCPUData(data, tags); err != nil {
+ 		return nil, err
+ 	}
+-	b.build()
++	if err := b.build(); err != nil {
++		return nil, err
++	}
+ 	return profile.Parse(&buf)
+ }
+ 
+@@ -473,3 +476,16 @@ func TestEmptyStack(t *testing.T) {
+ 		t.Fatalf("translating profile: %v", err)
+ 	}
+ }
++
++var errWrite = errors.New("error from writer")
++
++type errWriter struct{}
++
++func (errWriter) Write(p []byte) (int, error) { return 0, errWrite }
++
++func TestWriteToErr(t *testing.T) {
++	err := Lookup("heap").WriteTo(&errWriter{}, 0)
++	if !errors.Is(err, errWrite) {
++		t.Fatalf("want error from writer, got: %v", err)
++	}
++}
+diff --git a/src/runtime/pprof/protomem.go b/src/runtime/pprof/protomem.go
+index 72aad82b30..e0d3746e36 100644
+--- a/src/runtime/pprof/protomem.go
++++ b/src/runtime/pprof/protomem.go
+@@ -63,8 +63,7 @@ func writeHeapProto(w io.Writer, p []profilerecord.MemProfileRecord, rate int64,
+ 			}
+ 		})
+ 	}
+-	b.build()
+-	return nil
++	return b.build()
+ }
+ 
+ // scaleHeapSample adjusts the data from a heap Sample to

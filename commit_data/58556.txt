@@ -14,7 +14,40 @@ Date:   Wed Nov 15 17:55:46 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/slices/slices.go      | 6 +++++-
  src/slices/slices_test.go | 2 ++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index f92a25da6a..38b0fc14ad 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -217,7 +217,11 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ // make a single call deleting them all together than to delete one at a time.
+ // Delete zeroes the elements s[len(s)-(j-i):len(s)].
+ func Delete[S ~[]E, E any](s S, i, j int) S {
+-	_ = s[i:j] // bounds check
++	_ = s[i:j:len(s)] // bounds check
++
++	if i == j {
++		return s
++	}
+ 
+ 	oldlen := len(s)
+ 	s = append(s[:i], s[j:]...)
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 8772fe1f19..ab25bd8dfd 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -679,8 +679,10 @@ func TestDeletePanics(t *testing.T) {
+ 		{"with negative second index", []int{42}, 1, -1},
+ 		{"with out-of-bounds first index", []int{42}, 2, 3},
+ 		{"with out-of-bounds second index", []int{42}, 0, 2},
++		{"with out-of-bounds both indexes", []int{42}, 2, 2},
+ 		{"with invalid i>j", []int{42}, 1, 0},
+ 		{"s[i:j] is valid and j > len(s)", s, 0, 4},
++		{"s[i:j] is valid and i == j > len(s)", s, 3, 3},
+ 	} {
+ 		if !panics(func() { Delete(test.s, test.i, test.j) }) {
+ 			t.Errorf("Delete %s: got no panic, want panic", test.name)

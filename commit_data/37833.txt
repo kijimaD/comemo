@@ -13,6 +13,30 @@ Date:   Thu Aug 30 16:59:29 2018 -0400
     Change-Id: I0a709f51e0878c57185d901b899d209f001dfcce
     Reviewed-on: https://go-review.googlesource.com/132284
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  doc/go_spec.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f70ff7a02f..57bb3b53f5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of May 9, 2018",
++	"Subtitle": "Version of August 30, 2018",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -2112,8 +2112,8 @@ with initializer expressions but no types:
+ i, j := 0, 10
+ f := func() int { return 7 }
+ ch := make(chan int)
+-r, w := os.Pipe(fd)  // os.Pipe() returns two values
+-_, y, _ := coord(p)  // coord() returns three values; only interested in y coordinate
++r, w, _ := os.Pipe()  // os.Pipe() returns a connected pair of Files and an error, if any
++_, y, _ := coord(p)   // coord() returns three values; only interested in y coordinate
+ </pre>
+ 
+ <p>

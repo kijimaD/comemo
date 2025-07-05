@@ -82,8 +82,60 @@ Date:   Tue Apr 12 17:12:26 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/gc/subr.go    | 4 ++++
  src/cmd/compile/internal/ssa/config.go | 6 ++++++
  src/cmd/compile/internal/ssa/cse.go    | 8 ++++++++
  3 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 035bd815c2..091762f496 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1081,6 +1081,10 @@ func syslook(name string) *Node {
+ 	return s.Def
+ }
+ 
++func (s *Sym) IsRuntimeCall(name string) bool {
++	return s.Pkg == Runtimepkg && s.Name == name
++}
++
+ // typehash computes a hash value for type t to use in type switch
+ // statements.
+ func typehash(t *Type) uint32 {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 2a676e39b3..a60291ea53 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -116,6 +116,12 @@ type GCNode interface {
+ 	String() string
+ }
+ 
++// GCSym is an interface that *gc.Sym implements.
++// Using *gc.Sym directly would lead to import cycles.
++type GCSym interface {
++	IsRuntimeCall(name string) bool
++}
++
+ // NewConfig returns a new configuration object for the given architecture.
+ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config {
+ 	c := &Config{arch: arch, fe: fe}
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 1ec5712be0..9853ff06d0 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -255,6 +255,14 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
+ 		return lt2Cmp(v.Block.ID < w.Block.ID)
+ 	}
+ 
++	switch v.Op {
++	case OpStaticCall, OpAMD64CALLstatic, OpARMCALLstatic:
++		sym := v.Aux.(GCSym)
++		if sym.IsRuntimeCall("newobject") {
++			return lt2Cmp(v.ID < w.ID)
++		}
++	}
++
+ 	if tc := v.Type.Compare(w.Type); tc != CMPeq {
+ 		return tc
+ 	}

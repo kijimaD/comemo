@@ -7,6 +7,26 @@ Date:   Mon Jan 28 09:37:10 2013 -0800
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7229050
-
+---
  src/pkg/net/sock_windows.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+index cce6181c9e..fc5d9e5de2 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -41,3 +41,14 @@ func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(
+ 	}
+ 	return la, nil
+ }
++
++func sysSocket(f, t, p int) (syscall.Handle, error) {
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	syscall.ForkLock.RLock()
++	s, err := syscall.Socket(f, t, p)
++	if err == nil {
++		syscall.CloseOnExec(s)
++	}
++	syscall.ForkLock.RUnlock()
++	return s, err
++}

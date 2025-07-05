@@ -12,6 +12,22 @@ Date:   Thu Feb 25 10:44:31 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/util.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 12b048d8e1..8ecf800502 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -287,6 +287,10 @@ func CConv(s uint8) string {
+ }
+ 
+ func (p *Prog) String() string {
++	if p == nil {
++		return "<nil Prog>"
++	}
++
+ 	if p.Ctxt == nil {
+ 		return "<Prog without ctxt>"
+ 	}

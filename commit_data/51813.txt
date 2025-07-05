@@ -19,7 +19,7 @@ Date:   Tue Mar 15 22:49:12 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/func.go             |   2 -
  src/cmd/compile/internal/ir/name.go             |  10 ---
  src/cmd/compile/internal/ir/node.go             |   1 -
@@ -29,3 +29,276 @@ Date:   Tue Mar 15 22:49:12 2022 -0700
  src/cmd/compile/internal/typecheck/typecheck.go |  23 ------
  src/cmd/compile/internal/typecheck/universe.go  |   4 -
  8 files changed, 53 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 29c77444a2..894fff23ff 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -50,7 +50,6 @@ import (
+ type Func struct {
+ 	miniNode
+ 	Body Nodes
+-	Iota int64
+ 
+ 	Nname    *Name        // ONAME node
+ 	OClosure *ClosureExpr // OCLOSURE node
+@@ -140,7 +139,6 @@ func NewFunc(pos src.XPos) *Func {
+ 	f := new(Func)
+ 	f.pos = pos
+ 	f.op = ODCLFUNC
+-	f.Iota = -1
+ 	// Most functions are ABIInternal. The importer or symabis
+ 	// pass may override this.
+ 	f.ABI = obj.ABIInternal
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index f522d3e76a..ee28ca8332 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -166,14 +166,6 @@ func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
+ 	return newNameAt(pos, ONAME, sym)
+ }
+ 
+-// NewIota returns a new OIOTA Node.
+-func NewIota(pos src.XPos, sym *types.Sym) *Name {
+-	if sym == nil {
+-		base.Fatalf("NewIota nil")
+-	}
+-	return newNameAt(pos, OIOTA, sym)
+-}
+-
+ // NewDeclNameAt returns a new Name associated with symbol s at position pos.
+ // The caller is responsible for setting Curfn.
+ func NewDeclNameAt(pos src.XPos, op Op, sym *types.Sym) *Name {
+@@ -223,8 +215,6 @@ func (n *Name) SetOffset(x int64) {
+ }
+ func (n *Name) FrameOffset() int64     { return n.Offset_ }
+ func (n *Name) SetFrameOffset(x int64) { n.Offset_ = x }
+-func (n *Name) Iota() int64            { return n.Offset_ }
+-func (n *Name) SetIota(x int64)        { n.Offset_ = x }
+ func (n *Name) Walkdef() uint8         { return n.bits.get2(miniWalkdefShift) }
+ func (n *Name) SetWalkdef(x uint8) {
+ 	if x > 3 {
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index e4cff85136..d8c4022950 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -240,7 +240,6 @@ const (
+ 	ORECV        // <-X
+ 	ORUNESTR     // Type(X) (Type is string, X is rune)
+ 	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
+-	OIOTA        // iota
+ 	OREAL        // real(X)
+ 	OIMAG        // imag(X)
+ 	OCOMPLEX     // complex(X, Y)
+diff --git a/src/cmd/compile/internal/ir/op_string.go b/src/cmd/compile/internal/ir/op_string.go
+index f623735f6d..14eb84083a 100644
+--- a/src/cmd/compile/internal/ir/op_string.go
++++ b/src/cmd/compile/internal/ir/op_string.go
+@@ -112,62 +112,61 @@ func _() {
+ 	_ = x[ORECV-101]
+ 	_ = x[ORUNESTR-102]
+ 	_ = x[OSELRECV2-103]
+-	_ = x[OIOTA-104]
+-	_ = x[OREAL-105]
+-	_ = x[OIMAG-106]
+-	_ = x[OCOMPLEX-107]
+-	_ = x[OALIGNOF-108]
+-	_ = x[OOFFSETOF-109]
+-	_ = x[OSIZEOF-110]
+-	_ = x[OUNSAFEADD-111]
+-	_ = x[OUNSAFESLICE-112]
+-	_ = x[OMETHEXPR-113]
+-	_ = x[OMETHVALUE-114]
+-	_ = x[OBLOCK-115]
+-	_ = x[OBREAK-116]
+-	_ = x[OCASE-117]
+-	_ = x[OCONTINUE-118]
+-	_ = x[ODEFER-119]
+-	_ = x[OFALL-120]
+-	_ = x[OFOR-121]
+-	_ = x[OFORUNTIL-122]
+-	_ = x[OGOTO-123]
+-	_ = x[OIF-124]
+-	_ = x[OLABEL-125]
+-	_ = x[OGO-126]
+-	_ = x[ORANGE-127]
+-	_ = x[ORETURN-128]
+-	_ = x[OSELECT-129]
+-	_ = x[OSWITCH-130]
+-	_ = x[OTYPESW-131]
+-	_ = x[OFUNCINST-132]
+-	_ = x[OTFUNC-133]
+-	_ = x[OINLCALL-134]
+-	_ = x[OEFACE-135]
+-	_ = x[OITAB-136]
+-	_ = x[OIDATA-137]
+-	_ = x[OSPTR-138]
+-	_ = x[OCFUNC-139]
+-	_ = x[OCHECKNIL-140]
+-	_ = x[OVARDEF-141]
+-	_ = x[OVARKILL-142]
+-	_ = x[OVARLIVE-143]
+-	_ = x[ORESULT-144]
+-	_ = x[OINLMARK-145]
+-	_ = x[OLINKSYMOFFSET-146]
+-	_ = x[ODYNAMICDOTTYPE-147]
+-	_ = x[ODYNAMICDOTTYPE2-148]
+-	_ = x[ODYNAMICTYPE-149]
+-	_ = x[OTAILCALL-150]
+-	_ = x[OGETG-151]
+-	_ = x[OGETCALLERPC-152]
+-	_ = x[OGETCALLERSP-153]
+-	_ = x[OEND-154]
++	_ = x[OREAL-104]
++	_ = x[OIMAG-105]
++	_ = x[OCOMPLEX-106]
++	_ = x[OALIGNOF-107]
++	_ = x[OOFFSETOF-108]
++	_ = x[OSIZEOF-109]
++	_ = x[OUNSAFEADD-110]
++	_ = x[OUNSAFESLICE-111]
++	_ = x[OMETHEXPR-112]
++	_ = x[OMETHVALUE-113]
++	_ = x[OBLOCK-114]
++	_ = x[OBREAK-115]
++	_ = x[OCASE-116]
++	_ = x[OCONTINUE-117]
++	_ = x[ODEFER-118]
++	_ = x[OFALL-119]
++	_ = x[OFOR-120]
++	_ = x[OFORUNTIL-121]
++	_ = x[OGOTO-122]
++	_ = x[OIF-123]
++	_ = x[OLABEL-124]
++	_ = x[OGO-125]
++	_ = x[ORANGE-126]
++	_ = x[ORETURN-127]
++	_ = x[OSELECT-128]
++	_ = x[OSWITCH-129]
++	_ = x[OTYPESW-130]
++	_ = x[OFUNCINST-131]
++	_ = x[OTFUNC-132]
++	_ = x[OINLCALL-133]
++	_ = x[OEFACE-134]
++	_ = x[OITAB-135]
++	_ = x[OIDATA-136]
++	_ = x[OSPTR-137]
++	_ = x[OCFUNC-138]
++	_ = x[OCHECKNIL-139]
++	_ = x[OVARDEF-140]
++	_ = x[OVARKILL-141]
++	_ = x[OVARLIVE-142]
++	_ = x[ORESULT-143]
++	_ = x[OINLMARK-144]
++	_ = x[OLINKSYMOFFSET-145]
++	_ = x[ODYNAMICDOTTYPE-146]
++	_ = x[ODYNAMICDOTTYPE2-147]
++	_ = x[ODYNAMICTYPE-148]
++	_ = x[OTAILCALL-149]
++	_ = x[OGETG-150]
++	_ = x[OGETCALLERPC-151]
++	_ = x[OGETCALLERSP-152]
++	_ = x[OEND-153]
+ }
+ 
+-const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2IOTAREALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTFUNCINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
++const _Op_name = "XXXNAMENONAMETYPELITERALNILADDSUBORXORADDSTRADDRANDANDAPPENDBYTES2STRBYTES2STRTMPRUNES2STRSTR2BYTESSTR2BYTESTMPSTR2RUNESSLICE2ARRPTRASAS2AS2DOTTYPEAS2FUNCAS2MAPRAS2RECVASOPCALLCALLFUNCCALLMETHCALLINTERCAPCLOSECLOSURECOMPLITMAPLITSTRUCTLITARRAYLITSLICELITPTRLITCONVCONVIFACECONVIDATACONVNOPCOPYDCLDCLFUNCDCLCONSTDCLTYPEDELETEDOTDOTPTRDOTMETHDOTINTERXDOTDOTTYPEDOTTYPE2EQNELTLEGEGTDEREFINDEXINDEXMAPKEYSTRUCTKEYLENMAKEMAKECHANMAKEMAPMAKESLICEMAKESLICECOPYMULDIVMODLSHRSHANDANDNOTNEWNOTBITNOTPLUSNEGORORPANICPRINTPRINTNPARENSENDSLICESLICEARRSLICESTRSLICE3SLICE3ARRSLICEHEADERRECOVERRECOVERFPRECVRUNESTRSELRECV2REALIMAGCOMPLEXALIGNOFOFFSETOFSIZEOFUNSAFEADDUNSAFESLICEMETHEXPRMETHVALUEBLOCKBREAKCASECONTINUEDEFERFALLFORFORUNTILGOTOIFLABELGORANGERETURNSELECTSWITCHTYPESWFUNCINSTTFUNCINLCALLEFACEITABIDATASPTRCFUNCCHECKNILVARDEFVARKILLVARLIVERESULTINLMARKLINKSYMOFFSETDYNAMICDOTTYPEDYNAMICDOTTYPE2DYNAMICTYPETAILCALLGETGGETCALLERPCGETCALLERSPEND"
+ 
+-var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 619, 626, 633, 641, 647, 656, 667, 675, 684, 689, 694, 698, 706, 711, 715, 718, 726, 730, 732, 737, 739, 744, 750, 756, 762, 768, 776, 781, 788, 793, 797, 802, 806, 811, 819, 825, 832, 839, 845, 852, 865, 879, 894, 905, 913, 917, 928, 939, 942}
++var _Op_index = [...]uint16{0, 3, 7, 13, 17, 24, 27, 30, 33, 35, 38, 44, 48, 54, 60, 69, 81, 90, 99, 111, 120, 132, 134, 137, 147, 154, 161, 168, 172, 176, 184, 192, 201, 204, 209, 216, 223, 229, 238, 246, 254, 260, 264, 273, 282, 289, 293, 296, 303, 311, 318, 324, 327, 333, 340, 348, 352, 359, 367, 369, 371, 373, 375, 377, 379, 384, 389, 397, 400, 409, 412, 416, 424, 431, 440, 453, 456, 459, 462, 465, 468, 471, 477, 480, 483, 489, 493, 496, 500, 505, 510, 516, 521, 525, 530, 538, 546, 552, 561, 572, 579, 588, 592, 599, 607, 611, 615, 622, 629, 637, 643, 652, 663, 671, 680, 685, 690, 694, 702, 707, 711, 714, 722, 726, 728, 733, 735, 740, 746, 752, 758, 764, 772, 777, 784, 789, 793, 798, 802, 807, 815, 821, 828, 835, 841, 848, 861, 875, 890, 901, 909, 913, 924, 935, 938}
+ 
+ func (i Op) String() string {
+ 	if i >= Op(len(_Op_index)-1) {
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index fca11ffc7c..c1167f23f8 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 192, 328},
++		{Func{}, 184, 320},
+ 		{Name{}, 108, 192},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index c6fd273bd1..5c1a2341b6 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -241,12 +241,6 @@ func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
+ 		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
+ 	}
+ 
+-	// Set current associated iota value, so iota can be used inside
+-	// function in ConstSpec, see issue #22344
+-	if x := getIotaValue(); x >= 0 {
+-		fn.Iota = x
+-	}
+-
+ 	ir.NameClosure(clo, ir.CurFunc)
+ 	Func(fn)
+ 
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 71a7841684..6b1c820818 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -153,13 +153,6 @@ func Resolve(n ir.Node) (res ir.Node) {
+ 		return n
+ 	}
+ 
+-	if r.Op() == ir.OIOTA {
+-		if x := getIotaValue(); x >= 0 {
+-			return ir.NewInt(x)
+-		}
+-		return n
+-	}
+-
+ 	return r
+ }
+ 
+@@ -2152,22 +2145,6 @@ func CheckReturn(fn *ir.Func) {
+ 	}
+ }
+ 
+-// getIotaValue returns the current value for "iota",
+-// or -1 if not within a ConstSpec.
+-func getIotaValue() int64 {
+-	if i := len(typecheckdefstack); i > 0 {
+-		if x := typecheckdefstack[i-1]; x.Op() == ir.OLITERAL {
+-			return x.Iota()
+-		}
+-	}
+-
+-	if ir.CurFunc != nil && ir.CurFunc.Iota >= 0 {
+-		return ir.CurFunc.Iota
+-	}
+-
+-	return -1
+-}
+-
+ // curpkg returns the current package, based on Curfn.
+ func curpkg() *types.Pkg {
+ 	fn := ir.CurFunc
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index 0254d96e68..204c31b758 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -7,7 +7,6 @@ package typecheck
+ import (
+ 	"go/constant"
+ 
+-	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+@@ -108,9 +107,6 @@ func InitUniverse() {
+ 	nnil.(*ir.NilExpr).SetSym(s)
+ 	s.Def = nnil
+ 
+-	s = types.BuiltinPkg.Lookup("iota")
+-	s.Def = ir.NewIota(base.Pos, s)
+-
+ 	// initialize okfor
+ 	for et := types.Kind(0); et < types.NTYPE; et++ {
+ 		if types.IsInt[et] || et == types.TIDEAL {

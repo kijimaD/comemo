@@ -12,8 +12,114 @@ Date:   Mon Nov 18 16:23:43 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/reflectdata/map_swiss.go  | 6 ++++++
  src/internal/runtime/maps/runtime_fast64_swiss.go  | 8 ++++----
  src/internal/runtime/maps/runtime_faststr_swiss.go | 9 +++++----
  3 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index 86c07ef117..074c36a453 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -269,6 +269,12 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
+ 
+ 	slotTyp := gtyp.Field(1).Type.Elem()
+ 	elemOff := slotTyp.Field(1).Offset
++	if AlgType(t.Key()) == types.AMEM64 && elemOff != 8 {
++		base.Fatalf("runtime assumes elemOff for 8-byte keys is 8, got %d", elemOff)
++	}
++	if AlgType(t.Key()) == types.ASTRING && elemOff != int64(2*types.PtrSize) {
++		base.Fatalf("runtime assumes elemOff for string keys is %d, got %d", 2*types.PtrSize, elemOff)
++	}
+ 
+ 	c.Field("Key").WritePtr(s1)
+ 	c.Field("Elem").WritePtr(s2)
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index f4716dffda..90e84f83d2 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -39,7 +39,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ 		slotSize := typ.SlotSize
+ 		for full != 0 {
+ 			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
+-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
+ 				return slotElem
+ 			}
+ 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+@@ -66,7 +66,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*uint64)(slotKey) {
+-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
+ 				return slotElem
+ 			}
+ 			match = match.removeFirst()
+@@ -107,7 +107,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
+ 		slotSize := typ.SlotSize
+ 		for full != 0 {
+ 			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
+-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
+ 				return slotElem, true
+ 			}
+ 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+@@ -134,7 +134,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*uint64)(slotKey) {
+-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index eed8d8666d..a104945501 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -8,6 +8,7 @@ package maps
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"internal/race"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+@@ -48,7 +49,7 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, key string) unsaf
+ 		// There's exactly one slot that passed the quick test. Do the single expensive comparison.
+ 		slotKey = g.key(typ, uintptr(j))
+ 		if key == *(*string)(slotKey) {
+-			return unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++			return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+ 		}
+ 		return nil
+ 	}
+@@ -62,7 +63,7 @@ dohash:
+ 
+ 	for range abi.SwissMapGroupSlots {
+ 		if uint8(ctrls) == h2 && key == *(*string)(slotKey) {
+-			return unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++			return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+ 		}
+ 		slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+ 		ctrls >>= 8
+@@ -141,7 +142,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*string)(slotKey) {
+-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+ 				return slotElem
+ 			}
+ 			match = match.removeFirst()
+@@ -199,7 +200,7 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*string)(slotKey) {
+-				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()

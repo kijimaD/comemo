@@ -8,6 +8,16 @@ Date:   Thu Jul 21 14:06:27 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/25142
     Run-TryBot: Chris Broadfoot <cbro@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+index 240b370de1..e95a35a167 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-go1.7rc2
+\ No newline at end of file
++go1.7rc3
+\ No newline at end of file

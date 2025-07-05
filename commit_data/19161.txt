@@ -9,7 +9,32 @@ Date:   Wed Apr 16 13:39:51 2014 +1000
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/87830046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 08c107833b..77742d278e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -62,6 +62,7 @@ Ben Olive <sionide21@gmail.com>
+ Benjamin Black <b@b3k.us>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <berengar.lehr@gmx.de>
++Billie Harold Cleek <bhcleek@gmail.com>
+ Bjorn Tillenius <bjorn@tillenius.me>
+ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9c22cb5808..46c76bd481 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -102,6 +102,7 @@ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com> <bill.neubauer@gmail.com>
+ Bill Thiede <couchmoney@gmail.com>
++Billie Harold Cleek <bhcleek@gmail.com>
+ Bjorn Tillenius <bjorn@tillenius.me>
+ Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>

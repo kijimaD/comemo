@@ -15,6 +15,34 @@ Date:   Mon Aug 29 16:42:21 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/build_overlay.txt | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index b64bc02614..c9c6a7f9da 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -83,6 +83,11 @@ go build -compiler=gccgo -overlay overlay.json -o print_trimpath_gccgo$GOEXE -tr
+ exec ./print_trimpath_gccgo$GOEXE
+ stdout ^\.[/\\]printpath[/\\]main.go
+ 
++go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
++exec ./main_call_asm_gccgo$GOEXE
++! stdout .
++
++skip 'broken as of CL 421879: see https://go.dev/issue/54761'
+ 
+ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_replace_gccgo$GOEXE ./cgo_hello_replace
+ exec ./main_cgo_replace_gccgo$GOEXE
+@@ -96,10 +101,6 @@ go build -compiler=gccgo  -overlay overlay.json -o main_cgo_angle_gccgo$GOEXE ./
+ exec ./main_cgo_angle_gccgo$GOEXE
+ stdout '^hello cgo\r?\n'
+ 
+-go build -compiler=gccgo -overlay overlay.json -o main_call_asm_gccgo$GOEXE ./call_asm
+-exec ./main_call_asm_gccgo$GOEXE
+-! stdout .
+-
+ 
+ -- m/go.mod --
+ // TODO(matloob): how do overlays work with go.mod (especially if mod=readonly)

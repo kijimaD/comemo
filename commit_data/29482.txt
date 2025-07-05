@@ -11,7 +11,7 @@ Date:   Fri Sep 16 13:56:39 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/galign.go  |  5 +----
  src/cmd/compile/internal/arm/galign.go    |  5 +----
  src/cmd/compile/internal/arm64/galign.go  |  5 +----
@@ -21,3 +21,192 @@ Date:   Fri Sep 16 13:56:39 2016 -0700
  src/cmd/compile/internal/x86/galign.go    |  5 +----
  src/cmd/compile/main.go                   | 18 +++++++++++-------
  8 files changed, 18 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 9813f6ac83..9d67812a92 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -12,7 +12,7 @@ import (
+ 
+ var leaptr = x86.ALEAQ
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &x86.Linkamd64
+ 	if obj.GOARCH == "amd64p32" {
+ 		gc.Thearch.LinkArch = &x86.Linkamd64p32
+@@ -28,7 +28,4 @@ func Main() {
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+ 	gc.Thearch.SSAGenBlock = ssaGenBlock
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/arm/galign.go b/src/cmd/compile/internal/arm/galign.go
+index 3d36b827f0..1533f6cf59 100644
+--- a/src/cmd/compile/internal/arm/galign.go
++++ b/src/cmd/compile/internal/arm/galign.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/obj/arm"
+ )
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &arm.Linkarm
+ 	gc.Thearch.REGSP = arm.REGSP
+ 	gc.Thearch.REGCTXT = arm.REGCTXT
+@@ -22,7 +22,4 @@ func Main() {
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+ 	gc.Thearch.SSAGenBlock = ssaGenBlock
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/arm64/galign.go b/src/cmd/compile/internal/arm64/galign.go
+index 6449b111c9..587186f446 100644
+--- a/src/cmd/compile/internal/arm64/galign.go
++++ b/src/cmd/compile/internal/arm64/galign.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/obj/arm64"
+ )
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &arm64.Linkarm64
+ 	gc.Thearch.REGSP = arm64.REGSP
+ 	gc.Thearch.REGCTXT = arm64.REGCTXT
+@@ -22,7 +22,4 @@ func Main() {
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+ 	gc.Thearch.SSAGenBlock = ssaGenBlock
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index 02d9e46672..007938c096 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -11,7 +11,7 @@ import (
+ 	"cmd/internal/obj/mips"
+ )
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &mips.Linkmips64
+ 	if obj.GOARCH == "mips64le" {
+ 		gc.Thearch.LinkArch = &mips.Linkmips64le
+@@ -26,7 +26,4 @@ func Main() {
+ 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+ 	gc.Thearch.SSAGenBlock = ssaGenBlock
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 6ce732c21d..94d338ed6b 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ )
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &ppc64.Linkppc64
+ 	if obj.GOARCH == "ppc64le" {
+ 		gc.Thearch.LinkArch = &ppc64.Linkppc64le
+@@ -28,7 +28,4 @@ func Main() {
+ 
+ 	initvariants()
+ 	initproginfo()
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/s390x/galign.go b/src/cmd/compile/internal/s390x/galign.go
+index 8e51d0f866..eb2a51a46d 100644
+--- a/src/cmd/compile/internal/s390x/galign.go
++++ b/src/cmd/compile/internal/s390x/galign.go
+@@ -9,7 +9,7 @@ import (
+ 	"cmd/internal/obj/s390x"
+ )
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &s390x.Links390x
+ 	gc.Thearch.REGSP = s390x.REGSP
+ 	gc.Thearch.REGCTXT = s390x.REGCTXT
+@@ -21,7 +21,4 @@ func Main() {
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+ 	gc.Thearch.SSAGenBlock = ssaGenBlock
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 01115cb934..4b021b643a 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -12,7 +12,7 @@ import (
+ 	"os"
+ )
+ 
+-func Main() {
++func Init() {
+ 	gc.Thearch.LinkArch = &x86.Link386
+ 	gc.Thearch.REGSP = x86.REGSP
+ 	gc.Thearch.REGCTXT = x86.REGCTXT
+@@ -32,7 +32,4 @@ func Main() {
+ 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+ 	gc.Thearch.SSAGenValue = ssaGenValue
+ 	gc.Thearch.SSAGenBlock = ssaGenBlock
+-
+-	gc.Main()
+-	gc.Exit(0)
+ }
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index 892383f3cc..4376eda6a9 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/amd64"
+ 	"cmd/compile/internal/arm"
+ 	"cmd/compile/internal/arm64"
++	"cmd/compile/internal/gc"
+ 	"cmd/compile/internal/mips64"
+ 	"cmd/compile/internal/ppc64"
+ 	"cmd/compile/internal/s390x"
+@@ -28,18 +29,21 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+-		x86.Main()
++		x86.Init()
+ 	case "amd64", "amd64p32":
+-		amd64.Main()
++		amd64.Init()
+ 	case "arm":
+-		arm.Main()
++		arm.Init()
+ 	case "arm64":
+-		arm64.Main()
++		arm64.Init()
+ 	case "mips64", "mips64le":
+-		mips64.Main()
++		mips64.Init()
+ 	case "ppc64", "ppc64le":
+-		ppc64.Main()
++		ppc64.Init()
+ 	case "s390x":
+-		s390x.Main()
++		s390x.Init()
+ 	}
++
++	gc.Main()
++	gc.Exit(0)
+ }

@@ -20,7 +20,7 @@ Date:   Sun Jun 4 22:33:50 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                     | 2 +-
  src/cmd/go.sum                                     | 4 ++--
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 6 +++---
@@ -29,3 +29,112 @@ Date:   Sun Jun 4 22:33:50 2023 -0400
  src/cmd/vendor/golang.org/x/mod/sumdb/server.go    | 1 +
  src/cmd/vendor/modules.txt                         | 2 +-
  7 files changed, 15 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 32da6ff3de..12feee05b6 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.21
+ require (
+ 	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+ 	golang.org/x/arch v0.3.0
+-	golang.org/x/mod v0.10.1-0.20230523205221-fc83a8faf993
++	golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7
+ 	golang.org/x/sync v0.2.1-0.20230523185436-4966af63bb0c
+ 	golang.org/x/sys v0.8.1-0.20230523194307-b5c7a0975ddc
+ 	golang.org/x/term v0.8.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 2af241c78a..54a7d86658 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,8 +4,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLh
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+ golang.org/x/arch v0.3.0 h1:02VY4/ZcO/gBOH6PUaoiptASxtXU10jazRCP865E97k=
+ golang.org/x/arch v0.3.0/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/mod v0.10.1-0.20230523205221-fc83a8faf993 h1:hr4tBhz2ITxV3Dj4xUzXUVtuRnMSzdWcTF8JYcrbdGs=
+-golang.org/x/mod v0.10.1-0.20230523205221-fc83a8faf993/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
++golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7 h1:OSEstGpBW1+G0wiXI0bBgOnI8nRJQKX3GCNxF75VR1s=
++golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.2.1-0.20230523185436-4966af63bb0c h1:w3VOlmQViynAglgPijJYTjrryY2u09i59amSGCFck24=
+ golang.org/x/sync v0.2.1-0.20230523185436-4966af63bb0c/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
+ golang.org/x/sys v0.8.1-0.20230523194307-b5c7a0975ddc h1:p4WpFbnzwh0EhIaGMueCjfMUkyWX6WQcJfxbS7GOQtQ=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 39f03f26c1..b4dd7997b6 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -306,9 +306,9 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
+ var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
+ var laxGoVersionRE = lazyregexp.New(`^v?(([1-9][0-9]*)\.(0|[1-9][0-9]*))([^0-9].*)$`)
+ 
+-// Toolchains must be named beginning with `go1` or containing `-go1` as a substring,
+-// like "go1.20.3" or "gccgo-go1.20.3". As a special case, "local" is also permitted.
+-var ToolchainRE = lazyregexp.New(`^local$|(^|-)go1`)
++// Toolchains must be named beginning with `go1`,
++// like "go1.20.3" or "go1.20.3-gccgo". As a special case, "default" is also permitted.
++var ToolchainRE = lazyregexp.New(`^default$|^go1($|\.)`)
+ 
+ func (f *File) add(errs *ErrorList, block *LineBlock, line *Line, verb string, args []string, fix VersionFixer, strict bool) {
+ 	// If strict is false, this module is a dependency.
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+index 70dd56f103..1c1b0297f0 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+@@ -109,7 +109,7 @@ func NewClient(ops ClientOps) *Client {
+ 	}
+ }
+ 
+-// init initiailzes the client (if not already initialized)
++// init initializes the client (if not already initialized)
+ // and returns any initialization error.
+ func (c *Client) init() error {
+ 	c.initOnce.Do(c.initWork)
+@@ -553,6 +553,11 @@ func (r *tileReader) ReadTiles(tiles []tlog.Tile) ([][]byte, error) {
+ 		wg.Add(1)
+ 		go func(i int, tile tlog.Tile) {
+ 			defer wg.Done()
++			defer func() {
++				if e := recover(); e != nil {
++					errs[i] = fmt.Errorf("panic: %v", e)
++				}
++			}()
+ 			data[i], errs[i] = r.c.readTile(tile)
+ 		}(i, tile)
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+index 140b937005..8c22b19d31 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go
+@@ -124,7 +124,7 @@
+ // not contain spaces or newlines).
+ //
+ // If Open is given access to a Verifiers including the
+-// Verifier for this key, then it will succeed at verifiying
++// Verifier for this key, then it will succeed at verifying
+ // the encoded message and returning the parsed Note:
+ //
+ //	vkey := "PeterNeumann+c74f20a3+ARpc2QcUPDhMQegwxbzhKqiBfsVkmqq/LDE4izWy10TW"
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/server.go b/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
+index 2e523a566d..899bd462bc 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/server.go
+@@ -148,6 +148,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 				msg, err := tlog.FormatRecord(start+int64(i), text)
+ 				if err != nil {
+ 					http.Error(w, err.Error(), http.StatusInternalServerError)
++					return
+ 				}
+ 				data = append(data, msg...)
+ 			}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9cf8077e5a..283ace8e65 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.10.1-0.20230523205221-fc83a8faf993
++# golang.org/x/mod v0.10.1-0.20230606122920-62c7e578f1a7
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

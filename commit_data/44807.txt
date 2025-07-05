@@ -15,8 +15,108 @@ Date:   Sun Aug 30 18:15:03 2020 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                           |  5 ++++-
  src/cmd/go/internal/get/get.go                  | 16 ++++++++------
  src/cmd/go/testdata/script/get_insecure_env.txt | 29 +++++++++++++++++++++++++
  3 files changed, 42 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 98861c8a0d..8ad4f66d09 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2172,7 +2172,10 @@
+ // before resolving dependencies or building the code.
+ //
+ // The -insecure flag permits fetching from repositories and resolving
+-// custom domains using insecure schemes such as HTTP. Use with caution.
++// custom domains using insecure schemes such as HTTP. Use with caution. The
++// GOINSECURE environment variable is usually a better alternative, since it
++// provides control over which modules may be retrieved using an insecure scheme.
++// See 'go help environment' for details.
+ //
+ // The -t flag instructs get to also download the packages required to build
+ // the tests for the specified packages.
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index d1f032a167..d0be3fe1e7 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -43,7 +43,10 @@ The -fix flag instructs get to run the fix tool on the downloaded packages
+ before resolving dependencies or building the code.
+ 
+ The -insecure flag permits fetching from repositories and resolving
+-custom domains using insecure schemes such as HTTP. Use with caution.
++custom domains using insecure schemes such as HTTP. Use with caution. The
++GOINSECURE environment variable is usually a better alternative, since it
++provides control over which modules may be retrieved using an insecure scheme.
++See 'go help environment' for details.
+ 
+ The -t flag instructs get to also download the packages required to build
+ the tests for the specified packages.
+@@ -411,11 +414,6 @@ func downloadPackage(p *load.Package) error {
+ 		blindRepo      bool // set if the repo has unusual configuration
+ 	)
+ 
+-	security := web.SecureOnly
+-	if Insecure {
+-		security = web.Insecure
+-	}
+-
+ 	// p can be either a real package, or a pseudo-package whose “import path” is
+ 	// actually a wildcard pattern.
+ 	// Trim the path at the element containing the first wildcard,
+@@ -432,6 +430,10 @@ func downloadPackage(p *load.Package) error {
+ 	if err := module.CheckImportPath(importPrefix); err != nil {
+ 		return fmt.Errorf("%s: invalid import path: %v", p.ImportPath, err)
+ 	}
++	security := web.SecureOnly
++	if Insecure || module.MatchPrefixPatterns(cfg.GOINSECURE, importPrefix) {
++		security = web.Insecure
++	}
+ 
+ 	if p.Internal.Build.SrcRoot != "" {
+ 		// Directory exists. Look for checkout along path to src.
+@@ -475,7 +477,7 @@ func downloadPackage(p *load.Package) error {
+ 		}
+ 		vcs, repo, rootPath = rr.vcs, rr.Repo, rr.Root
+ 	}
+-	if !blindRepo && !vcs.isSecure(repo) && !Insecure {
++	if !blindRepo && !vcs.isSecure(repo) && security != web.Insecure {
+ 		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/get_insecure_env.txt b/src/cmd/go/testdata/script/get_insecure_env.txt
+new file mode 100644
+index 0000000000..8d88427c31
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_insecure_env.txt
+@@ -0,0 +1,29 @@
++[!net] skip
++[!exec:git] skip
++
++# GOPATH: Set up
++env GO111MODULE=off
++
++# GOPATH: Try go get -d of HTTP-only repo (should fail).
++! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try again with invalid GOINSECURE (should fail).
++env GOINSECURE=insecure.go-get-issue-15410.appspot.com/pkg/q
++! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try with correct GOINSECURE (should succeed).
++env GOINSECURE=insecure.go-get-issue-15410.appspot.com/pkg/p
++go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try updating without GOINSECURE (should fail).
++env GOINSECURE=
++! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try updating with GOINSECURE glob (should succeed).
++env GOINSECURE=*.go-get-*.appspot.com
++go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try updating with GOINSECURE base URL (should succeed).
++env GOINSECURE=insecure.go-get-issue-15410.appspot.com
++go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
++

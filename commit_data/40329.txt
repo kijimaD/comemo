@@ -14,7 +14,7 @@ Date:   Wed Apr 24 17:01:11 2019 +0000
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/internal/sys/arch_386.go      |  1 -
  src/runtime/internal/sys/arch_amd64.go    |  1 -
  src/runtime/internal/sys/arch_amd64p32.go |  1 -
@@ -30,3 +30,243 @@ Date:   Wed Apr 24 17:01:11 2019 +0000
  src/runtime/internal/sys/arch_wasm.go     |  1 -
  src/runtime/mem_linux.go                  | 28 ++++++++++++----------------
  14 files changed, 12 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/internal/sys/arch_386.go b/src/runtime/internal/sys/arch_386.go
+index 5375701337..3426fd1702 100644
+--- a/src/runtime/internal/sys/arch_386.go
++++ b/src/runtime/internal/sys/arch_386.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = GoosNacl*65536 + (1-GoosNacl)*4096 // 4k normally; 64k on NaCl
+ 	PCQuantum           = 1
+ 	Int64Align          = 4
+-	HugePageSize        = 1 << 21
+ 	MinFrameSize        = 0
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_amd64.go b/src/runtime/internal/sys/arch_amd64.go
+index 86fed4d531..3d6776e71e 100644
+--- a/src/runtime/internal/sys/arch_amd64.go
++++ b/src/runtime/internal/sys/arch_amd64.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 4096
+ 	PCQuantum           = 1
+ 	Int64Align          = 8
+-	HugePageSize        = 1 << 21
+ 	MinFrameSize        = 0
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_amd64p32.go b/src/runtime/internal/sys/arch_amd64p32.go
+index 749d724809..d51c8a5354 100644
+--- a/src/runtime/internal/sys/arch_amd64p32.go
++++ b/src/runtime/internal/sys/arch_amd64p32.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536*GoosNacl + 4096*(1-GoosNacl)
+ 	PCQuantum           = 1
+ 	Int64Align          = 8
+-	HugePageSize        = 1 << 21
+ 	MinFrameSize        = 0
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index 2af09e0e35..97960d6f83 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 4
+-	HugePageSize        = 0
+ 	MinFrameSize        = 4
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index f13d2de129..911a9485e1 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 8
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_mips.go b/src/runtime/internal/sys/arch_mips.go
+index e9bd69c928..75cdb2e07f 100644
+--- a/src/runtime/internal/sys/arch_mips.go
++++ b/src/runtime/internal/sys/arch_mips.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 4
+-	HugePageSize        = 0
+ 	MinFrameSize        = 4
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_mips64.go b/src/runtime/internal/sys/arch_mips64.go
+index 5eb7b2b7b1..494291a802 100644
+--- a/src/runtime/internal/sys/arch_mips64.go
++++ b/src/runtime/internal/sys/arch_mips64.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 16384
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 8
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_mips64le.go b/src/runtime/internal/sys/arch_mips64le.go
+index 14c804ed85..d36d1202f6 100644
+--- a/src/runtime/internal/sys/arch_mips64le.go
++++ b/src/runtime/internal/sys/arch_mips64le.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 16384
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 8
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_mipsle.go b/src/runtime/internal/sys/arch_mipsle.go
+index 91badb17d5..323bf82059 100644
+--- a/src/runtime/internal/sys/arch_mipsle.go
++++ b/src/runtime/internal/sys/arch_mipsle.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 4
+-	HugePageSize        = 0
+ 	MinFrameSize        = 4
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index 8cde4e18d0..da1fe3d596 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 32
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index 10c0066849..605979903a 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 4
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 32
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_s390x.go b/src/runtime/internal/sys/arch_s390x.go
+index 77fd4bf07d..12cb8a0fcb 100644
+--- a/src/runtime/internal/sys/arch_s390x.go
++++ b/src/runtime/internal/sys/arch_s390x.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 4096
+ 	PCQuantum           = 2
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 8
+ )
+ 
+diff --git a/src/runtime/internal/sys/arch_wasm.go b/src/runtime/internal/sys/arch_wasm.go
+index 203fc2e472..eb825df626 100644
+--- a/src/runtime/internal/sys/arch_wasm.go
++++ b/src/runtime/internal/sys/arch_wasm.go
+@@ -10,7 +10,6 @@ const (
+ 	DefaultPhysPageSize = 65536
+ 	PCQuantum           = 1
+ 	Int64Align          = 8
+-	HugePageSize        = 0
+ 	MinFrameSize        = 0
+ )
+ 
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 1e45ed6301..bf399227a1 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -63,37 +62,35 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ 	// gets most of the benefit of huge pages while keeping the
+ 	// number of VMAs under control. With hugePageSize = 2MB, even
+ 	// a pessimal heap can reach 128GB before running out of VMAs.
+-	if sys.HugePageSize != 0 {
+-		var s uintptr = sys.HugePageSize // division by constant 0 is a compile-time error :(
+-
++	if physHugePageSize != 0 {
+ 		// If it's a large allocation, we want to leave huge
+ 		// pages enabled. Hence, we only adjust the huge page
+ 		// flag on the huge pages containing v and v+n-1, and
+ 		// only if those aren't aligned.
+ 		var head, tail uintptr
+-		if uintptr(v)%s != 0 {
++		if uintptr(v)%physHugePageSize != 0 {
+ 			// Compute huge page containing v.
+-			head = uintptr(v) &^ (s - 1)
++			head = uintptr(v) &^ (physHugePageSize - 1)
+ 		}
+-		if (uintptr(v)+n)%s != 0 {
++		if (uintptr(v)+n)%physHugePageSize != 0 {
+ 			// Compute huge page containing v+n-1.
+-			tail = (uintptr(v) + n - 1) &^ (s - 1)
++			tail = (uintptr(v) + n - 1) &^ (physHugePageSize - 1)
+ 		}
+ 
+ 		// Note that madvise will return EINVAL if the flag is
+ 		// already set, which is quite likely. We ignore
+ 		// errors.
+-		if head != 0 && head+sys.HugePageSize == tail {
++		if head != 0 && head+physHugePageSize == tail {
+ 			// head and tail are different but adjacent,
+ 			// so do this in one call.
+-			madvise(unsafe.Pointer(head), 2*sys.HugePageSize, _MADV_NOHUGEPAGE)
++			madvise(unsafe.Pointer(head), 2*physHugePageSize, _MADV_NOHUGEPAGE)
+ 		} else {
+ 			// Advise the huge pages containing v and v+n-1.
+ 			if head != 0 {
+-				madvise(unsafe.Pointer(head), sys.HugePageSize, _MADV_NOHUGEPAGE)
++				madvise(unsafe.Pointer(head), physHugePageSize, _MADV_NOHUGEPAGE)
+ 			}
+ 			if tail != 0 && tail != head {
+-				madvise(unsafe.Pointer(tail), sys.HugePageSize, _MADV_NOHUGEPAGE)
++				madvise(unsafe.Pointer(tail), physHugePageSize, _MADV_NOHUGEPAGE)
+ 			}
+ 		}
+ 	}
+@@ -120,7 +117,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ }
+ 
+ func sysUsed(v unsafe.Pointer, n uintptr) {
+-	if sys.HugePageSize != 0 {
++	if physHugePageSize != 0 {
+ 		// Partially undo the NOHUGEPAGE marks from sysUnused
+ 		// for whole huge pages between v and v+n. This may
+ 		// leave huge pages off at the end points v and v+n
+@@ -129,12 +126,11 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ 		// the end points as well, but it's probably not worth
+ 		// the cost because when neighboring allocations are
+ 		// freed sysUnused will just set NOHUGEPAGE again.
+-		var s uintptr = sys.HugePageSize
+ 
+ 		// Round v up to a huge page boundary.
+-		beg := (uintptr(v) + (s - 1)) &^ (s - 1)
++		beg := (uintptr(v) + (physHugePageSize - 1)) &^ (physHugePageSize - 1)
+ 		// Round v+n down to a huge page boundary.
+-		end := (uintptr(v) + n) &^ (s - 1)
++		end := (uintptr(v) + n) &^ (physHugePageSize - 1)
+ 
+ 		if beg < end {
+ 			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)

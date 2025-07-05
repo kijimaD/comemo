@@ -9,6 +9,34 @@ Date:   Fri Sep 13 03:50:50 2013 +0000
     R=ken2
     CC=golang-dev, khr
     https://golang.org/cl/13272050
-
+---
  src/cmd/5l/noop.c | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 0bd76040d3..fb70599b51 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -321,6 +321,13 @@ noops(void)
+ 				}
+ 
+ 				if(cursym->text->reg & WRAPPER) {
++					int cond;
++					
++					// Preserve original RET's cond, to allow RET.EQ
++					// in the implementation of reflect.call.
++					cond = p->scond;
++					p->scond = C_SCOND_NONE;
++
+ 					// g->panicwrap -= autosize;
+ 					// MOVW panicwrap_offset(g), R3
+ 					// SUB $autosize, R3
+@@ -347,6 +354,8 @@ noops(void)
+ 					p->to.reg = REGG;
+ 					p->to.offset = 2*PtrSize;
+ 					p = appendp(p);
++
++					p->scond = cond;
+ 				}
+ 
+ 				p->as = AMOVW;

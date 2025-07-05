@@ -23,10 +23,71 @@ Date:   Wed Feb 21 23:29:12 2024 +1100
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  api/next/66054.txt                            | 2 ++
  doc/next/6-stdlib/99-minor/debug/elf/66054.md | 3 +++
  src/cmd/link/internal/ld/elf.go               | 4 ++++
  src/cmd/link/internal/ld/lib.go               | 5 +++++
  src/debug/elf/elf.go                          | 1 +
  5 files changed, 15 insertions(+)
+
+diff --git a/api/next/66054.txt b/api/next/66054.txt
+new file mode 100644
+index 0000000000..bef794c7cf
+--- /dev/null
++++ b/api/next/66054.txt
+@@ -0,0 +1,2 @@
++pkg debug/elf, const PT_OPENBSD_NOBTCFI = 1705237480 #66054
++pkg debug/elf, const PT_OPENBSD_NOBTCFI ProgType #66054
+diff --git a/doc/next/6-stdlib/99-minor/debug/elf/66054.md b/doc/next/6-stdlib/99-minor/debug/elf/66054.md
+new file mode 100644
+index 0000000000..9cf1fa7ad1
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/debug/elf/66054.md
+@@ -0,0 +1,3 @@
++The debug/elf package now defines PT_OPENBSD_NOBTCFI. This elf.ProgType is
++used to disable Branch Tracking Control Flow Integrity (BTCFI) enforcement
++on OpenBSD binaries.
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 7c035df97e..746f359b68 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2185,6 +2185,10 @@ func asmbElf(ctxt *Link) {
+ 		ph.Type = elf.PT_GNU_STACK
+ 		ph.Flags = elf.PF_W + elf.PF_R
+ 		ph.Align = uint64(ctxt.Arch.RegSize)
++	} else if ctxt.HeadType == objabi.Hopenbsd {
++		ph := newElfPhdr()
++		ph.Type = elf.PT_OPENBSD_NOBTCFI
++		ph.Flags = elf.PF_X
+ 	} else if ctxt.HeadType == objabi.Hsolaris {
+ 		ph := newElfPhdr()
+ 		ph.Type = elf.PT_SUNWSTACK
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 97f3ed37e3..c68da4070b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1437,6 +1437,11 @@ func (ctxt *Link) hostlink() {
+ 		}
+ 	case objabi.Hopenbsd:
+ 		argv = append(argv, "-Wl,-nopie")
++		if linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-z,nobtcfi") {
++			// -Wl,-z,nobtcfi is only supported on OpenBSD 7.4+, remove guard
++			// when OpenBSD 7.5 is released and 7.3 is no longer supported.
++			argv = append(argv, "-Wl,-z,nobtcfi")
++		}
+ 		argv = append(argv, "-pthread")
+ 		if ctxt.Arch.InFamily(sys.ARM64) {
+ 			// Disable execute-only on openbsd/arm64 - the Go arm64 assembler
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index e78367750f..b97ddbf7cf 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -773,6 +773,7 @@ const (
+ 
+ 	PT_OPENBSD_RANDOMIZE ProgType = 0x65a3dbe6 /* Random data */
+ 	PT_OPENBSD_WXNEEDED  ProgType = 0x65a3dbe7 /* W^X violations */
++	PT_OPENBSD_NOBTCFI   ProgType = 0x65a3dbe8 /* No branch target CFI */
+ 	PT_OPENBSD_BOOTDATA  ProgType = 0x65a41be6 /* Boot arguments */
+ 
+ 	PT_SUNW_EH_FRAME ProgType = 0x6474e550 /* Frame unwind information */

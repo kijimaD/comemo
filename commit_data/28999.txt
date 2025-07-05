@@ -11,7 +11,7 @@ Date:   Mon Aug 22 10:27:20 2016 +1200
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go    | 12 ++++++------
  src/cmd/link/internal/ld/elf.go     |  2 +-
  src/cmd/link/internal/ld/link.go    | 12 ++++++------
@@ -19,3 +19,147 @@ Date:   Mon Aug 22 10:27:20 2016 +1200
  src/cmd/link/internal/ld/sym.go     |  4 ++--
  src/cmd/link/internal/ld/symtab.go  |  4 ++--
  6 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b5780c6135..2f93e1ad51 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -239,7 +239,7 @@ func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
+ 
+ /*
+  * divide-and-conquer list-link
+- * sort of LSym* structures.
++ * sort of Symbol* structures.
+  * Used for the data block.
+  */
+ 
+@@ -1161,12 +1161,12 @@ func (p *GCProg) AddSym(s *Symbol) {
+ 	p.w.Append(prog[4:], nptr)
+ }
+ 
+-// dataSortKey is used to sort a slice of data symbol *LSym pointers.
++// dataSortKey is used to sort a slice of data symbol *Symbol pointers.
+ // The sort keys are kept inline to improve cache behaviour while sorting.
+ type dataSortKey struct {
+ 	size int64
+ 	name string
+-	lsym *Symbol
++	sym  *Symbol
+ }
+ 
+ type bySizeAndName []dataSortKey
+@@ -1786,7 +1786,7 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
+ 		symsSort[i] = dataSortKey{
+ 			size: s.Size,
+ 			name: s.Name,
+-			lsym: s,
++			sym:  s,
+ 		}
+ 
+ 		switch s.Type {
+@@ -1806,8 +1806,8 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
+ 	sort.Sort(bySizeAndName(symsSort))
+ 
+ 	for i, symSort := range symsSort {
+-		syms[i] = symSort.lsym
+-		align := symalign(symSort.lsym)
++		syms[i] = symSort.sym
++		align := symalign(symSort.sym)
+ 		if maxAlign < align {
+ 			maxAlign = align
+ 		}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3b97323621..0d2115c5a5 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1640,7 +1640,7 @@ func elfshbits(ctxt *Link, sect *Section) *ElfShdr {
+ 			// in a loadable segment (e.g. the abihash note) but not for
+ 			// notes that we do not want to be mapped (e.g. the package
+ 			// list note). The real fix is probably to define new values
+-			// for LSym.Type corresponding to mapped and unmapped notes
++			// for Symbol.Type corresponding to mapped and unmapped notes
+ 			// and handle them in dodata().
+ 			ctxt.Diag("sh.type_ == SHT_NOTE in elfshbits when linking internally")
+ 		}
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 57cf8e7c4f..1988b91d18 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -177,12 +177,12 @@ type Link struct {
+ 	Shlibs    []Shlib
+ 	Tlsoffset int
+ 
+-	Cursym     *Symbol
+-	Version    int
+-	Textp      []*Symbol
+-	Filesyms   []*Symbol
+-	Moduledata *Symbol
+-	LSymBatch  []Symbol
++	Cursym      *Symbol
++	Version     int
++	Textp       []*Symbol
++	Filesyms    []*Symbol
++	Moduledata  *Symbol
++	SymbolBatch []Symbol
+ }
+ 
+ // The smallest possible offset from the hardware stack pointer to a local
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index ad9e96c35b..cb77fb5536 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -44,11 +44,11 @@ package ld
+ // A symbol reference is a string name followed by a version.
+ //
+ // A symbol points to other symbols using an index into the symbol
+-// reference sequence. Index 0 corresponds to a nil LSym* pointer.
++// reference sequence. Index 0 corresponds to a nil Object* pointer.
+ // In the symbol layout described below "symref index" stands for this
+ // index.
+ //
+-// Each symbol is laid out as the following fields (taken from LSym*):
++// Each symbol is laid out as the following fields (taken from Object*):
+ //
+ //	- byte 0xfe (sanity check for synchronization)
+ //	- type [int]
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 707ba81d94..163d5b07a6 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -161,12 +161,12 @@ func linknew(arch *sys.Arch) *Link {
+ }
+ 
+ func linknewsym(ctxt *Link, name string, v int) *Symbol {
+-	batch := ctxt.LSymBatch
++	batch := ctxt.SymbolBatch
+ 	if len(batch) == 0 {
+ 		batch = make([]Symbol, 1000)
+ 	}
+ 	s := &batch[0]
+-	ctxt.LSymBatch = batch[1:]
++	ctxt.SymbolBatch = batch[1:]
+ 
+ 	s.Dynid = -1
+ 	s.Plt = -1
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 90888e3ee0..2bad21ba65 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -46,7 +46,7 @@ func putelfstr(s string) int {
+ 		putelfstr("")
+ 	}
+ 
+-	// When dynamically linking, we create LSym's by reading the names from
++	// When dynamically linking, we create Symbols by reading the names from
+ 	// the symbol tables of the shared libraries and so the names need to
+ 	// match exactly. Tools like DTrace will have to wait for now.
+ 	if !DynlinkingGo() {
+@@ -168,7 +168,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
+ 		// PLT. We force this by writing an additional local symbol for every
+ 		// global function symbol and making all relocations against the
+ 		// global symbol refer to this local symbol instead (see
+-		// (*LSym).ElfsymForReloc). This is approximately equivalent to the
++		// (*Symbol).ElfsymForReloc). This is approximately equivalent to the
+ 		// ELF linker -Bsymbolic-functions option, but that is buggy on
+ 		// several platforms.
+ 		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)

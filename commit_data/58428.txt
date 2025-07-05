@@ -11,6 +11,24 @@ Date:   Wed Nov 8 10:45:34 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/540776
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types/pkg.go | 9 ---------
  1 file changed, 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 8223d80135..c6ce7889af 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -129,12 +129,3 @@ func InternString(b []byte) string {
+ 	internedStringsmu.Unlock()
+ 	return s
+ }
+-
+-// CleanroomDo invokes f in an environment with no preexisting packages.
+-// For testing of import/export only.
+-func CleanroomDo(f func()) {
+-	saved := pkgMap
+-	pkgMap = make(map[string]*Pkg)
+-	f()
+-	pkgMap = saved
+-}

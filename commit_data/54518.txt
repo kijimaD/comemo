@@ -27,6 +27,22 @@ Date:   Tue Oct 25 23:18:45 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/flag/example_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/flag/example_test.go b/src/flag/example_test.go
+index 04a0d20ee4..088447d43f 100644
+--- a/src/flag/example_test.go
++++ b/src/flag/example_test.go
+@@ -78,6 +78,8 @@ func Example() {
+ 	// to enable the flag package to see the flags defined there, one must
+ 	// execute, typically at the start of main (not init!):
+ 	//	flag.Parse()
+-	// We don't run it here because this is not a main function and
+-	// the testing suite has already parsed the flags.
++	// We don't call it here because this code is a function called "Example"
++	// that is part of the testing suite for the package, which has already
++	// parsed the flags. When viewed at pkg.go.dev, however, the function is
++	// renamed to "main" and it could be run as a standalone example.
+ }

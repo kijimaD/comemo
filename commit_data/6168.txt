@@ -7,7 +7,7 @@ Date:   Fri Sep 3 18:08:16 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2121042
-
+---
  misc/dashboard/builder/Makefile |  14 ---
  misc/dashboard/builder/doc.go   |  61 ----------
  misc/dashboard/builder/exec.go  |  45 -------
@@ -15,3 +15,546 @@ Date:   Fri Sep 3 18:08:16 2010 +1000
  misc/dashboard/builder/http.go  |  71 -----------
  misc/dashboard/builder/main.go  | 259 ----------------------------------------
  6 files changed, 506 deletions(-)
+
+diff --git a/misc/dashboard/builder/Makefile b/misc/dashboard/builder/Makefile
+deleted file mode 100644
+index 7270a3f425..0000000000
+--- a/misc/dashboard/builder/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-TARG=gobuilder
+-GOFILES=\
+-	exec.go\
+-	hg.go\
+-	http.go\
+-	main.go\
+-
+-include ../../../src/Make.cmd
+diff --git a/misc/dashboard/builder/doc.go b/misc/dashboard/builder/doc.go
+deleted file mode 100644
+index ed722b5427..0000000000
+--- a/misc/dashboard/builder/doc.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-
+-Go Builder is a continuous build client for the Go project. 
+-It integrates with the Go Dashboard AppEngine application.
+-
+-Go Builder is intended to run continuously as a background process.
+-
+-It periodically pulls updates from the Go Mercurial repository. 
+-
+-When a newer revision is found, Go Builder creates a clone of the repository,
+-runs all.bash, and reports build success or failure to the Go Dashboard. 
+-
+-For a successful build, Go Builder will also run benchmarks 
+-(cd $GOROOT/src/pkg; make bench) and send the results to the Go Dashboard.
+-
+-For release revision (a change description that matches "release.YYYY-MM-DD"),
+-Go Builder will create a tar.gz archive of the GOROOT and deliver it to the
+-Go Google Code project's downloads section.
+-
+-Command-line options (and defaults):
+-
+-  -goarch="": $GOARCH
+-  -goos="": $GOOS
+-    The target architecture and operating system of this build client.
+-
+-  -goroot="": $GOROOT
+-    A persistent Go checkout. Go Builder will periodically run 'hg pull -u' 
+-    from this location and use it as a source repository when cloning a
+-    revision to be built.
+-
+-  -path="": Build Path
+-    The base path in which building, testing, and archival will occur,
+-    such as "/tmp/build".  This can be considered volatile.
+-
+-  -keyfile="": Key File
+-    The file containing the build key and Google Code credentials.
+-    It is a text file of the format:
+-
+-      godashboard-key
+-      googlecode-username
+-      googlecode-password
+-
+-    If the Google Code credentials are not provided the archival step
+-    will be skipped.
+-
+-  -host="godashboard.appspot.com": Go Dashboard Host
+-    The location of the Go Dashboard application to which Go Builder will
+-    report its results.
+-
+-  -pybin="/usr/bin/python": Python Binary
+-  -hgbin="/usr/local/bin/hg": Mercurial Binary
+-    These name the local Python and Mercurial binaries.
+-    (Python is required only to run the Google Code uploader script, found
+-     at $GOROOT/misc/dashboard/googlecode_upload.py.)
+-
+-*/
+-package documentation
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+deleted file mode 100644
+index 9201e8a51f..0000000000
+--- a/misc/dashboard/builder/exec.go
++++ /dev/null
+@@ -1,45 +0,0 @@
+-package main
+-
+-import (
+-	"bytes"
+-	"exec"
+-	"os"
+-)
+-
+-// run is a simple wrapper for exec.Run/Close
+-func run(envv []string, dir string, argv ...string) os.Error {
+-	bin, err := exec.LookPath(argv[0])
+-	if err != nil {
+-		return err
+-	}
+-	p, err := exec.Run(bin, argv, envv, dir,
+-		exec.DevNull, exec.DevNull, exec.PassThrough)
+-	if err != nil {
+-		return err
+-	}
+-	return p.Close()
+-}
+-
+-// runLog runs a process and returns the combined stdout/stderr
+-func runLog(envv []string, dir string, argv ...string) (o string, s int, err os.Error) {
+-	s = -1
+-	bin, err := exec.LookPath(argv[0])
+-	if err != nil {
+-		return
+-	}
+-	p, err := exec.Run(bin, argv, envv, dir,
+-		exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+-	if err != nil {
+-		return
+-	}
+-	b := new(bytes.Buffer)
+-	_, err = b.ReadFrom(p.Stdout)
+-	if err != nil {
+-		return
+-	}
+-	w, err := p.Wait(0)
+-	if err != nil {
+-		return
+-	}
+-	return b.String(), w.WaitStatus.ExitStatus(), nil
+-}
+diff --git a/misc/dashboard/builder/hg.go b/misc/dashboard/builder/hg.go
+deleted file mode 100644
+index 63236b1862..0000000000
+--- a/misc/dashboard/builder/hg.go
++++ /dev/null
+@@ -1,56 +0,0 @@
+-package main
+-
+-import (
+-	"os"
+-	"fmt"
+-	"strconv"
+-	"strings"
+-)
+-
+-type Commit struct {
+-	num    int    // mercurial revision number
+-	node   string // mercurial hash
+-	parent string // hash of commit's parent
+-	user   string // author's name and email
+-	date   string // date of commit
+-	desc   string // description
+-}
+-
+-// getCommit returns details about the Commit specified by the revision hash
+-func getCommit(rev string) (c Commit, err os.Error) {
+-	defer func() {
+-		if err != nil {
+-			err = os.NewError(fmt.Sprintf("getCommit: %s: %s",
+-				rev, err))
+-		}
+-	}()
+-	parts, err := getCommitParts(rev)
+-	if err != nil {
+-		return
+-	}
+-	num, err := strconv.Atoi(parts[0])
+-	if err != nil {
+-		return
+-	}
+-	parent := ""
+-	if num > 0 {
+-		prev := strconv.Itoa(num - 1)
+-		if pparts, err := getCommitParts(prev); err == nil {
+-			parent = pparts[1]
+-		}
+-	}
+-	user := strings.Replace(parts[2], "&lt;", "<", -1)
+-	user = strings.Replace(user, "&gt;", ">", -1)
+-	return Commit{num, parts[1], parent, user, parts[3], parts[4]}, nil
+-}
+-
+-func getCommitParts(rev string) (parts []string, err os.Error) {
+-	format := "{rev}>{node|escape}>{author|escape}>{date}>{desc}"
+-	s, _, err := runLog(nil, goroot,
+-		"hg", "log", "-r", rev, "-l", "1", "--template", format)
+-	if err != nil {
+-		return
+-	}
+-	return strings.Split(s, ">", -1), nil
+-}
+-
+diff --git a/misc/dashboard/builder/http.go b/misc/dashboard/builder/http.go
+deleted file mode 100644
+index bfc0bd1fea..0000000000
+--- a/misc/dashboard/builder/http.go
++++ /dev/null
+@@ -1,71 +0,0 @@
+-package main
+-
+-import (
+-	"bytes"
+-	"encoding/base64"
+-	"encoding/binary"
+-	"fmt"
+-	"http"
+-	"os"
+-	"regexp"
+-)
+-
+-// getHighWater returns the current highwater revision hash for this builder
+-func (b *Builder) getHighWater() (rev string, err os.Error) {
+-	url := fmt.Sprintf("http://%s/hw-get?builder=%s",
+-		*dashboardhost, b.name)
+-	r, _, err := http.Get(url)
+-	if err != nil {
+-		return
+-	}
+-	buf := new(bytes.Buffer)
+-	_, err = buf.ReadFrom(r.Body)
+-	if err != nil {
+-		return
+-	}
+-	r.Body.Close()
+-	return buf.String(), nil
+-}
+-
+-// recordResult sends build results to the dashboard
+-func (b *Builder) recordResult(buildLog string, c Commit) os.Error {
+-	return httpCommand("build", map[string]string{
+-		"builder": b.name,
+-		"key":     b.key,
+-		"node":    c.node,
+-		"parent":  c.parent,
+-		"user":    c.user,
+-		"date":    c.date,
+-		"desc":    c.desc,
+-		"log":     buildLog,
+-	})
+-}
+-
+-// match lines like: "package.BechmarkFunc	100000	    999 ns/op"
+-var benchmarkRegexp = regexp.MustCompile("([^\n\t ]+)[\t ]+([0-9]+)[\t ]+([0-9]+) ns/op")
+-
+-// recordBenchmarks sends benchmark results to the dashboard
+-func (b *Builder) recordBenchmarks(benchLog string, c Commit) os.Error {
+-	results := benchmarkRegexp.FindAllStringSubmatch(benchLog, -1)
+-	var buf bytes.Buffer
+-	b64 := base64.NewEncoder(base64.StdEncoding, &buf)
+-	for _, r := range results {
+-		for _, s := range r[1:] {
+-			binary.Write(b64, binary.BigEndian, uint16(len(s)))
+-			b64.Write([]byte(s))
+-		}
+-	}
+-	b64.Close()
+-	return httpCommand("benchmarks", map[string]string{
+-		"builder":       b.name,
+-		"key":           b.key,
+-		"node":          c.node,
+-		"benchmarkdata": buf.String(),
+-	})
+-}
+-
+-func httpCommand(cmd string, args map[string]string) os.Error {
+-	url := fmt.Sprintf("http://%v/%v", *dashboardhost, cmd)
+-	_, err := http.PostForm(url, args)
+-	return err
+-}
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+deleted file mode 100644
+index 3f8fe2c901..0000000000
+--- a/misc/dashboard/builder/main.go
++++ /dev/null
+@@ -1,259 +0,0 @@
+-package main
+-
+-import (
+-	"flag"
+-	"fmt"
+-	"io/ioutil"
+-	"log"
+-	"os"
+-	"path"
+-	"regexp"
+-	"strconv"
+-	"strings"
+-	"time"
+-)
+-
+-const (
+-	codeProject  = "go"
+-	codePyScript = "misc/dashboard/googlecode_upload.py"
+-	hgUrl        = "https://go.googlecode.com/hg/"
+-	waitInterval = 10e9 // time to wait before checking for new revs
+-)
+-
+-var (
+-	goroot        = path.Join(os.Getenv("PWD"), "goroot")
+-	releaseRegexp = regexp.MustCompile(`^release\.[0-9\-]+`)
+-	dashboardhost = flag.String("dashboard", "godashboard.appspot.com",
+-		"Godashboard Host")
+-)
+-
+-type Builder struct {
+-	name         string
+-	goos, goarch string
+-	key          string
+-	codeUsername string
+-	codePassword string
+-}
+-
+-func main() {
+-	flag.Parse()
+-	builders := make(map[string]*Builder)
+-	if len(flag.Args()) == 0{
+-		log.Exit("No builders specified.")
+-	}
+-	for _, builder := range flag.Args() {
+-		b, err := NewBuilder(builder)
+-		if err != nil {
+-			log.Exit(err)
+-		}
+-		builders[builder] = b
+-	}
+-	err := run(nil, "", "hg", "clone", hgUrl, goroot)
+-	if err != nil {
+-		log.Exit("Error cloning repository:", err)
+-	}
+-	// check for new commits and build them
+-	for {
+-		err := run(nil, goroot, "hg", "pull", "-u")
+-		if err != nil {
+-			log.Stderr("hg pull failed:", err)
+-			time.Sleep(waitInterval)
+-			continue
+-		}
+-		built := false
+-		for _, b := range builders {
+-			built = b.tryBuild() || built
+-		}
+-		// only wait if we didn't do anything
+-		if !built {
+-			time.Sleep(waitInterval)
+-		}
+-	}
+-}
+-
+-func NewBuilder(builder string) (*Builder, os.Error) {
+-	b := &Builder{name:builder}
+-
+-	// get goos/goarch from builder string
+-	s := strings.Split(builder, "-", 3)
+-	if len(s) == 2 {
+-		b.goos, b.goarch = s[0], s[1]
+-	} else {
+-		return nil, os.NewError(fmt.Sprintf(
+-			"unsupported builder form: %s", builder))
+-	}
+-
+-	// read keys from keyfile
+-	fn := path.Join(os.Getenv("HOME"), ".gobuildkey")
+-	if isFile(fn + "-" + b.name) { // builder-specific file
+-		fn += "-" + b.name
+-	}
+-	c, err := ioutil.ReadFile(fn)
+-	if err != nil {
+-		return nil, os.NewError(fmt.Sprintf("readKeys %s (%s): %s",
+-			b.name, fn, err))
+-	}
+-	v := strings.Split(string(c), "\n", -1)
+-	b.key = v[0]
+-	if len(v) >= 3 {
+-		b.codeUsername, b.codePassword = v[1], v[2]
+-	}
+-
+-	return b, nil
+-}
+-
+-// tryBuild checks for a new commit for this builder, 
+-// and builds it if one is found. 
+-// Its return value indicates whether a build happened or not.
+-func (b *Builder) tryBuild() bool {
+-	c, err := b.nextCommit()
+-	if err != nil {
+-		log.Stderr(err)
+-		return false
+-	}
+-	if c == nil {
+-		return false
+-	}
+-	log.Stderr("Building new revision: ", c.num)
+-	err = b.build(*c)
+-	if err != nil {
+-		log.Stderr(err)
+-	}
+-	return true
+-}
+-
+-// nextCommit returns the next unbuilt Commit for this builder
+-func (b *Builder) nextCommit() (nextC *Commit, err os.Error) {
+-	defer func() {
+-		if err != nil {
+-			err = os.NewError(fmt.Sprintf(
+-				"%s nextCommit: %s", b.name, err))
+-		}
+-	}()
+-	hw, err := b.getHighWater()
+-	if err != nil {
+-		return
+-	}
+-	c, err := getCommit(hw)
+-	if err != nil {
+-		return
+-	}
+-	next := c.num + 1
+-	c, err = getCommit(strconv.Itoa(next))
+-	if err == nil || c.num == next {
+-		return &c, nil
+-	}
+-	return nil, nil
+-}
+-
+-func (b *Builder) build(c Commit) (err os.Error) {
+-	defer func() {
+-		if err != nil {
+-			err = os.NewError(fmt.Sprintf(
+-				"%s buildRev commit: %s: %s",
+-				b.name, c.num, err))
+-		}
+-	}()
+-
+-	// destroy old build candidate
+-	err = run(nil, "", "rm", "-Rf", "go")
+-	if err != nil {
+-		return
+-	}
+-
+-	// clone repo at revision num (new candidate)
+-	err = run(nil, "", 
+-		"hg", "clone", 
+-		"-r", strconv.Itoa(c.num), 
+-		goroot, "go")
+-	if err != nil {
+-		return
+-	}
+-
+-	// set up environment for build/bench execution
+-	env := []string{
+-		"GOOS=" + b.goos,
+-		"GOARCH=" + b.goarch,
+-		"GOROOT_FINAL=/usr/local/go",
+-		"PATH=" + os.Getenv("PATH"),
+-	}
+-	srcDir := path.Join("", "go", "src")
+-
+-	// build the release candidate
+-	buildLog, status, err := runLog(env, srcDir, "./all.bash")
+-	if err != nil {
+-		return
+-	}
+-	if status != 0 {
+-		// record failure
+-		return b.recordResult(buildLog, c)
+-	}
+-
+-	// record success
+-	if err = b.recordResult("", c); err != nil {
+-		return
+-	}
+-
+-	// run benchmarks and send to dashboard
+-	pkgDir := path.Join(srcDir, "pkg")
+-	benchLog, _, err := runLog(env, pkgDir, "gomake", "bench")
+-	if err != nil {
+-		log.Stderr("gomake bench:", err)
+-	} else if err = b.recordBenchmarks(benchLog, c); err != nil {
+-		log.Stderr("recordBenchmarks:", err)
+-	}
+-
+-	// finish here if codeUsername and codePassword aren't set
+-	if b.codeUsername == "" || b.codePassword == "" {
+-		return
+-	}
+-
+-	// if this is a release, create tgz and upload to google code
+-	if release := releaseRegexp.FindString(c.desc); release != "" {
+-		// clean out build state
+-		err = run(env, srcDir, "sh", "clean.bash", "--nopkg")
+-		if err != nil {
+-			return
+-		}
+-		// upload binary release
+-		err = b.codeUpload(release)
+-		if err != nil {
+-			return
+-		}
+-	}
+-
+-	return
+-}
+-
+-func (b *Builder) codeUpload(release string) (err os.Error) {
+-	defer func() {
+-		if err != nil {
+-			err = os.NewError(fmt.Sprintf(
+-				"%s codeUpload release: %s: %s",
+-				b.name, release, err))
+-		}
+-	}()
+-	fn := fmt.Sprintf("%s.%s-%s.tar.gz", release, b.goos, b.goarch)
+-	err = run(nil, "", "tar", "czf", fn, "go")
+-	if err != nil {
+-		return
+-	}
+-	return run(nil, "", "python", 
+-		path.Join(goroot, codePyScript),
+-		"-s", release, 
+-		"-p", codeProject,
+-		"-u", b.codeUsername, 
+-		"-w", b.codePassword,
+-		"-l", fmt.Sprintf("%s,%s", b.goos, b.goarch),
+-		fn)
+-}
+-
+-func isDirectory(name string) bool {
+-	s, err := os.Stat(name)
+-	return err == nil && s.IsDirectory()
+-}
+-
+-func isFile(name string) bool {
+-	s, err := os.Stat(name)
+-	return err == nil && (s.IsRegular() || s.IsSymlink())
+-}

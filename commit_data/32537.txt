@@ -35,7 +35,7 @@ Date:   Tue Feb 9 17:53:07 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/export_test.go |  4 ++--
  src/runtime/malloc.go      | 23 +++++++++++-----------
  src/runtime/mbitmap.go     |  1 +
@@ -48,3 +48,469 @@ Date:   Tue Feb 9 17:53:07 2016 -0500
  src/runtime/mstats.go      | 19 +++++++++++-------
  src/runtime/stubs.go       |  7 +++++++
  11 files changed, 93 insertions(+), 52 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 4bff1bd454..af91d5291c 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -300,13 +300,13 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			if s.state != mSpanInUse {
+ 				continue
+ 			}
+-			if s.sizeclass == 0 {
++			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
+ 				slow.Mallocs++
+ 				slow.Alloc += uint64(s.elemsize)
+ 			} else {
+ 				slow.Mallocs += uint64(s.allocCount)
+ 				slow.Alloc += uint64(s.allocCount) * uint64(s.elemsize)
+-				bySize[s.sizeclass].Mallocs += uint64(s.allocCount)
++				bySize[sizeclass].Mallocs += uint64(s.allocCount)
+ 			}
+ 		}
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 2e6c3aca0a..db5df37868 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -518,8 +518,8 @@ func nextFreeFast(s *mspan) gclinkptr {
+ // weight allocation. If it is a heavy weight allocation the caller must
+ // determine whether a new GC cycle needs to be started or if the GC is active
+ // whether this goroutine needs to assist the GC.
+-func (c *mcache) nextFree(sizeclass uint8) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+-	s = c.alloc[sizeclass]
++func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bool) {
++	s = c.alloc[spc]
+ 	shouldhelpgc = false
+ 	freeIndex := s.nextFreeIndex()
+ 	if freeIndex == s.nelems {
+@@ -529,10 +529,10 @@ func (c *mcache) nextFree(sizeclass uint8) (v gclinkptr, s *mspan, shouldhelpgc
+ 			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+ 		}
+ 		systemstack(func() {
+-			c.refill(int32(sizeclass))
++			c.refill(spc)
+ 		})
+ 		shouldhelpgc = true
+-		s = c.alloc[sizeclass]
++		s = c.alloc[spc]
+ 
+ 		freeIndex = s.nextFreeIndex()
+ 	}
+@@ -656,10 +656,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 				return x
+ 			}
+ 			// Allocate a new maxTinySize block.
+-			span := c.alloc[tinySizeClass]
++			span := c.alloc[tinySpanClass]
+ 			v := nextFreeFast(span)
+ 			if v == 0 {
+-				v, _, shouldhelpgc = c.nextFree(tinySizeClass)
++				v, _, shouldhelpgc = c.nextFree(tinySpanClass)
+ 			}
+ 			x = unsafe.Pointer(v)
+ 			(*[2]uint64)(x)[0] = 0
+@@ -679,10 +679,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 				sizeclass = size_to_class128[(size-smallSizeMax+largeSizeDiv-1)/largeSizeDiv]
+ 			}
+ 			size = uintptr(class_to_size[sizeclass])
+-			span := c.alloc[sizeclass]
++			spc := makeSpanClass(sizeclass, noscan)
++			span := c.alloc[spc]
+ 			v := nextFreeFast(span)
+ 			if v == 0 {
+-				v, span, shouldhelpgc = c.nextFree(sizeclass)
++				v, span, shouldhelpgc = c.nextFree(spc)
+ 			}
+ 			x = unsafe.Pointer(v)
+ 			if needzero && span.needzero != 0 {
+@@ -693,7 +694,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		var s *mspan
+ 		shouldhelpgc = true
+ 		systemstack(func() {
+-			s = largeAlloc(size, needzero)
++			s = largeAlloc(size, needzero, noscan)
+ 		})
+ 		s.freeindex = 1
+ 		s.allocCount = 1
+@@ -784,7 +785,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	return x
+ }
+ 
+-func largeAlloc(size uintptr, needzero bool) *mspan {
++func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+ 	// print("largeAlloc size=", size, "\n")
+ 
+ 	if size+_PageSize < size {
+@@ -800,7 +801,7 @@ func largeAlloc(size uintptr, needzero bool) *mspan {
+ 	// pays the debt down to npage pages.
+ 	deductSweepCredit(npages*_PageSize, npages)
+ 
+-	s := mheap_.alloc(npages, 0, true, needzero)
++	s := mheap_.alloc(npages, makeSpanClass(0, noscan), true, needzero)
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 8075f66115..844e662a04 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -499,6 +499,7 @@ func (h heapBits) isPointer() bool {
+ // It must be told how large the object at h is for efficiency.
+ // h must describe the initial word of the object.
+ func (h heapBits) hasPointers(size uintptr) bool {
++	// TODO: Use span.noScan instead of the heap bitmap.
+ 	if size == sys.PtrSize { // 1-word objects are always pointers
+ 		return true
+ 	}
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index c483310cee..96fb273337 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -33,7 +33,8 @@ type mcache struct {
+ 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
+ 
+ 	// The rest is not accessed on every malloc.
+-	alloc [_NumSizeClasses]*mspan // spans to allocate from
++
++	alloc [numSpanClasses]*mspan // spans to allocate from, indexed by spanClass
+ 
+ 	stackcache [_NumStackOrders]stackfreelist
+ 
+@@ -77,7 +78,7 @@ func allocmcache() *mcache {
+ 	lock(&mheap_.lock)
+ 	c := (*mcache)(mheap_.cachealloc.alloc())
+ 	unlock(&mheap_.lock)
+-	for i := 0; i < _NumSizeClasses; i++ {
++	for i := range c.alloc {
+ 		c.alloc[i] = &emptymspan
+ 	}
+ 	c.next_sample = nextSample()
+@@ -103,12 +104,12 @@ func freemcache(c *mcache) {
+ 
+ // Gets a span that has a free object in it and assigns it
+ // to be the cached span for the given sizeclass. Returns this span.
+-func (c *mcache) refill(sizeclass int32) *mspan {
++func (c *mcache) refill(spc spanClass) *mspan {
+ 	_g_ := getg()
+ 
+ 	_g_.m.locks++
+ 	// Return the current cached span to the central lists.
+-	s := c.alloc[sizeclass]
++	s := c.alloc[spc]
+ 
+ 	if uintptr(s.allocCount) != s.nelems {
+ 		throw("refill of span with free space remaining")
+@@ -119,7 +120,7 @@ func (c *mcache) refill(sizeclass int32) *mspan {
+ 	}
+ 
+ 	// Get a new cached span from the central lists.
+-	s = mheap_.central[sizeclass].mcentral.cacheSpan()
++	s = mheap_.central[spc].mcentral.cacheSpan()
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+@@ -128,13 +129,13 @@ func (c *mcache) refill(sizeclass int32) *mspan {
+ 		throw("span has no free space")
+ 	}
+ 
+-	c.alloc[sizeclass] = s
++	c.alloc[spc] = s
+ 	_g_.m.locks--
+ 	return s
+ }
+ 
+ func (c *mcache) releaseAll() {
+-	for i := 0; i < _NumSizeClasses; i++ {
++	for i := range c.alloc {
+ 		s := c.alloc[i]
+ 		if s != &emptymspan {
+ 			mheap_.central[i].mcentral.uncacheSpan(s)
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 5302dd8e3d..eaabcb9c29 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -19,7 +19,7 @@ import "runtime/internal/atomic"
+ //go:notinheap
+ type mcentral struct {
+ 	lock      mutex
+-	sizeclass int32
++	spanclass spanClass
+ 	nonempty  mSpanList // list of spans with a free object, ie a nonempty free list
+ 	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
+ 
+@@ -30,8 +30,8 @@ type mcentral struct {
+ }
+ 
+ // Initialize a single central free list.
+-func (c *mcentral) init(sizeclass int32) {
+-	c.sizeclass = sizeclass
++func (c *mcentral) init(spc spanClass) {
++	c.spanclass = spc
+ 	c.nonempty.init()
+ 	c.empty.init()
+ }
+@@ -39,7 +39,7 @@ func (c *mcentral) init(sizeclass int32) {
+ // Allocate a span to use in an MCache.
+ func (c *mcentral) cacheSpan() *mspan {
+ 	// Deduct credit for this span allocation and sweep if necessary.
+-	spanBytes := uintptr(class_to_allocnpages[c.sizeclass]) * _PageSize
++	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
+ 	deductSweepCredit(spanBytes, 0)
+ 
+ 	lock(&c.lock)
+@@ -225,11 +225,11 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
+ 
+ // grow allocates a new empty span from the heap and initializes it for c's size class.
+ func (c *mcentral) grow() *mspan {
+-	npages := uintptr(class_to_allocnpages[c.sizeclass])
+-	size := uintptr(class_to_size[c.sizeclass])
++	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
++	size := uintptr(class_to_size[c.spanclass.sizeclass()])
+ 	n := (npages << _PageShift) / size
+ 
+-	s := mheap_.alloc(npages, c.sizeclass, false, true)
++	s := mheap_.alloc(npages, c.spanclass, false, true)
+ 	if s == nil {
+ 		return nil
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 6ba1322881..a8729b1aa4 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -455,7 +455,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
+ 	}
+ 
+ 	n = s.elemsize
+-	if s.sizeclass != 0 {
++	if s.spanclass.sizeclass() != 0 {
+ 		x = add(x, (uintptr(v)-uintptr(x))/n*n)
+ 	}
+ 	return
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f330c1a668..1046aa896e 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1290,7 +1290,7 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 		print(" s=nil\n")
+ 		return
+ 	}
+-	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, " s.state=")
++	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.spanclass=", s.spanclass, " s.elemsize=", s.elemsize, " s.state=")
+ 	if 0 <= s.state && int(s.state) < len(mSpanStateNames) {
+ 		print(mSpanStateNames[s.state], "\n")
+ 	} else {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 102d734c4d..1bb19ec689 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -195,7 +195,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 
+ 	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
+ 
+-	cl := s.sizeclass
++	spc := s.spanclass
+ 	size := s.elemsize
+ 	res := false
+ 
+@@ -288,7 +288,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 
+ 	// Count the number of free objects in this span.
+ 	nalloc := uint16(s.countAlloc())
+-	if cl == 0 && nalloc == 0 {
++	if spc.sizeclass() == 0 && nalloc == 0 {
+ 		s.needzero = 1
+ 		freeToHeap = true
+ 	}
+@@ -331,9 +331,9 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		atomic.Store(&s.sweepgen, sweepgen)
+ 	}
+ 
+-	if nfreed > 0 && cl != 0 {
+-		c.local_nsmallfree[cl] += uintptr(nfreed)
+-		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
++	if nfreed > 0 && spc.sizeclass() != 0 {
++		c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
++		res = mheap_.central[spc].mcentral.freeSpan(s, preserve, wasempty)
+ 		// MCentral_FreeSpan updates sweepgen
+ 	} else if freeToHeap {
+ 		// Free large span to heap
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 82dc599b97..f237ec26aa 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -119,7 +119,8 @@ type mheap struct {
+ 	// the padding makes sure that the MCentrals are
+ 	// spaced CacheLineSize bytes apart, so that each MCentral.lock
+ 	// gets its own cache line.
+-	central [_NumSizeClasses]struct {
++	// central is indexed by spanClass.
++	central [numSpanClasses]struct {
+ 		mcentral mcentral
+ 		pad      [sys.CacheLineSize - unsafe.Sizeof(mcentral{})%sys.CacheLineSize]byte
+ 	}
+@@ -260,7 +261,7 @@ type mspan struct {
+ 	divMul      uint16     // for divide by elemsize - divMagic.mul
+ 	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
+ 	allocCount  uint16     // number of allocated objects
+-	sizeclass   uint8      // size class
++	spanclass   spanClass  // size class and noscan (uint8)
+ 	incache     bool       // being used by an mcache
+ 	state       mSpanState // mspaninuse etc
+ 	needzero    uint8      // needs to be zeroed before allocation
+@@ -315,6 +316,31 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 	h.allspans = append(h.allspans, s)
+ }
+ 
++// A spanClass represents the size class and noscan-ness of a span.
++//
++// Each size class has a noscan spanClass and a scan spanClass. The
++// noscan spanClass contains only noscan objects, which do not contain
++// pointers and thus do not need to be scanned by the garbage
++// collector.
++type spanClass uint8
++
++const (
++	numSpanClasses = _NumSizeClasses << 1
++	tinySpanClass  = tinySizeClass<<1 | 1
++)
++
++func makeSpanClass(sizeclass uint8, noscan bool) spanClass {
++	return spanClass(sizeclass<<1) | spanClass(bool2int(noscan))
++}
++
++func (sc spanClass) sizeclass() int8 {
++	return int8(sc >> 1)
++}
++
++func (sc spanClass) noscan() bool {
++	return sc&1 != 0
++}
++
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+ // It returns false for pointers into _MSpanManual spans.
+ // Non-preemptible because it is used by write barriers.
+@@ -399,7 +425,7 @@ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
+ 	}
+ 
+ 	p := s.base()
+-	if s.sizeclass == 0 {
++	if s.spanclass.sizeclass() == 0 {
+ 		// Large object.
+ 		if base != nil {
+ 			*base = p
+@@ -447,7 +473,7 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
+ 
+ 	h.busylarge.init()
+ 	for i := range h.central {
+-		h.central[i].mcentral.init(int32(i))
++		h.central[i].mcentral.init(spanClass(i))
+ 	}
+ 
+ 	sp := (*slice)(unsafe.Pointer(&h.spans))
+@@ -577,7 +603,7 @@ func (h *mheap) reclaim(npage uintptr) {
+ 
+ // Allocate a new span of npage pages from the heap for GC'd memory
+ // and record its size class in the HeapMap and HeapMapCache.
+-func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
++func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
+ 	_g_ := getg()
+ 	if _g_ != _g_.m.g0 {
+ 		throw("_mheap_alloc not on g0 stack")
+@@ -617,8 +643,8 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 		h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
+ 		s.state = _MSpanInUse
+ 		s.allocCount = 0
+-		s.sizeclass = uint8(sizeclass)
+-		if sizeclass == 0 {
++		s.spanclass = spanclass
++		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
+ 			s.elemsize = s.npages << _PageShift
+ 			s.divShift = 0
+ 			s.divMul = 0
+@@ -670,13 +696,13 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+ 	return s
+ }
+ 
+-func (h *mheap) alloc(npage uintptr, sizeclass int32, large bool, needzero bool) *mspan {
++func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
+ 	// Don't do any operations that lock the heap on the G stack.
+ 	// It might trigger stack growth, and the stack growth code needs
+ 	// to be able to allocate heap.
+ 	var s *mspan
+ 	systemstack(func() {
+-		s = h.alloc_m(npage, sizeclass, large)
++		s = h.alloc_m(npage, spanclass, large)
+ 	})
+ 
+ 	if s != nil {
+@@ -710,7 +736,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
+ 		s.state = _MSpanManual
+ 		s.manualFreeList = 0
+ 		s.allocCount = 0
+-		s.sizeclass = 0
++		s.spanclass = 0
+ 		s.nelems = 0
+ 		s.elemsize = 0
+ 		s.limit = s.base() + s.npages<<_PageShift
+@@ -1144,7 +1170,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.startAddr = base
+ 	span.npages = npages
+ 	span.allocCount = 0
+-	span.sizeclass = 0
++	span.spanclass = 0
+ 	span.incache = false
+ 	span.elemsize = 0
+ 	span.state = _MSpanDead
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 95824a9c09..849e01860b 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -552,7 +552,18 @@ func updatememstats() {
+ 	// Collect allocation stats. This is safe and consistent
+ 	// because the world is stopped.
+ 	var smallFree, totalAlloc, totalFree uint64
+-	for i := range mheap_.central {
++	// Collect per-spanclass stats.
++	for spc := range mheap_.central {
++		// The mcaches are now empty, so mcentral stats are
++		// up-to-date.
++		c := &mheap_.central[spc].mcentral
++		memstats.nmalloc += c.nmalloc
++		i := spanClass(spc).sizeclass()
++		memstats.by_size[i].nmalloc += c.nmalloc
++		totalAlloc += c.nmalloc * uint64(class_to_size[i])
++	}
++	// Collect per-sizeclass stats.
++	for i := 0; i < _NumSizeClasses; i++ {
+ 		if i == 0 {
+ 			memstats.nmalloc += mheap_.nlargealloc
+ 			totalAlloc += mheap_.largealloc
+@@ -560,12 +571,6 @@ func updatememstats() {
+ 			memstats.nfree += mheap_.nlargefree
+ 			continue
+ 		}
+-		// The mcaches are now empty, so mcentral stats are
+-		// up-to-date.
+-		c := &mheap_.central[i].mcentral
+-		memstats.nmalloc += c.nmalloc
+-		memstats.by_size[i].nmalloc += c.nmalloc
+-		totalAlloc += c.nmalloc * uint64(class_to_size[i])
+ 
+ 		// The mcache stats have been flushed to mheap_.
+ 		memstats.nfree += mheap_.nsmallfree[i]
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index f2139c2a02..c4f32a8482 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -291,3 +291,10 @@ func checkASM() bool
+ 
+ func memequal_varlen(a, b unsafe.Pointer) bool
+ func eqstring(s1, s2 string) bool
++
++// bool2int returns 0 if x is false or 1 if x is true.
++func bool2int(x bool) int {
++	// Avoid branches. In the SSA compiler, this compiles to
++	// exactly what you would want it to.
++	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
++}

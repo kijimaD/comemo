@@ -15,6 +15,20 @@ Date:   Mon Sep 11 10:39:40 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/62910
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Run-TryBot: Matt Layher <mdlayher@gmail.com>
-
+---
  src/cmd/go/internal/get/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index 57c632eade..3960cdd1e4 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -940,7 +940,7 @@ var vcsPaths = []*vcsPath{
+ 	// chiselapp.com for fossil
+ 	{
+ 		prefix: "chiselapp.com",
+-		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-za-z0-9_.\-]+)$`,
++		re:     `^(?P<root>chiselapp\.com/user/[A-Za-z0-9]+/repository/[A-Za-z0-9_.\-]+)$`,
+ 		vcs:    "fossil",
+ 		repo:   "https://{root}",
+ 	},

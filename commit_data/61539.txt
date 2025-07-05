@@ -13,6 +13,36 @@ Date:   Thu Nov 14 13:37:38 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/628735
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/fips.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/internal/obj/fips.go b/src/cmd/internal/obj/fips.go
+index acf74691f6..978028f70a 100644
+--- a/src/cmd/internal/obj/fips.go
++++ b/src/cmd/internal/obj/fips.go
+@@ -148,6 +148,12 @@ const enableFIPS = true
+ 
+ // IsFIPS reports whether we are compiling one of the crypto/internal/fips/... packages.
+ func (ctxt *Link) IsFIPS() bool {
++	if strings.HasSuffix(ctxt.Pkgpath, "_test") {
++		// External test packages are outside the FIPS hash scope.
++		// This allows them to use //go:embed, which would otherwise
++		// emit absolute relocations in the global data.
++		return false
++	}
+ 	return ctxt.Pkgpath == "crypto/internal/fips" || strings.HasPrefix(ctxt.Pkgpath, "crypto/internal/fips/")
+ }
+ 
+@@ -225,6 +231,11 @@ func (s *LSym) setFIPSType(ctxt *Link) {
+ 		return
+ 	}
+ 
++	if strings.Contains(name, "_test.") {
++		// External test packages are not in the scope.
++		return
++	}
++
+ 	// Now we're at least handling a FIPS symbol.
+ 	// It's okay to be slower now, since this code only runs when compiling a few packages.
+ 

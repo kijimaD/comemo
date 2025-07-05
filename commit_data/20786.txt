@@ -9,6 +9,20 @@ Date:   Thu Oct 9 17:05:38 2014 +0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/156010043
-
+---
  src/runtime/mgc0.h | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/mgc0.h b/src/runtime/mgc0.h
+index 10f24d009f..64f8189143 100644
+--- a/src/runtime/mgc0.h
++++ b/src/runtime/mgc0.h
+@@ -42,6 +42,8 @@ enum {
+ 	BitsMask	= (1<<BitsPerPointer)-1,
+ 	PointersPerByte	= 8/BitsPerPointer,
+ 
++	// If you change these, also change scanblock.
++	// scanblock does "if(bits == BitsScalar || bits == BitsDead)" as "if(bits <= BitsScalar)".
+ 	BitsDead	= 0,
+ 	BitsScalar	= 1,
+ 	BitsPointer	= 2,

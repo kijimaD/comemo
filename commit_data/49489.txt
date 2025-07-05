@@ -28,10 +28,102 @@ Date:   Tue Jul 6 21:45:02 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/walk/complit.go |  4 ++--
  test/fixedbugs/issue47068.dir/a.go       | 15 +++++++++++++++
  test/fixedbugs/issue47068.dir/b.go       | 15 +++++++++++++++
  test/fixedbugs/issue47068.dir/main.go    | 15 +++++++++++++++
  test/fixedbugs/issue47068.go             |  7 +++++++
  5 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 6c6b4982a0..e8e941dd91 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -440,8 +440,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 		tk := types.NewArray(n.Type().Key(), int64(len(entries)))
+ 		te := types.NewArray(n.Type().Elem(), int64(len(entries)))
+ 
+-		tk.SetNoalg(true)
+-		te.SetNoalg(true)
++		// TODO(#47904): mark tk and te NoAlg here once the
++		// compiler/linker can handle NoAlg types correctly.
+ 
+ 		types.CalcSize(tk)
+ 		types.CalcSize(te)
+diff --git a/test/fixedbugs/issue47068.dir/a.go b/test/fixedbugs/issue47068.dir/a.go
+new file mode 100644
+index 0000000000..f7b780d459
+--- /dev/null
++++ b/test/fixedbugs/issue47068.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func A() {
++	var m map[int]int = map[int]int{
++		0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0,
++		10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 0, 19: 0,
++		20: 0, 21: 0, 22: 0, 23: 0, 24: 0, 25: 0, 26: 0, 27: 0, 28: 0, 29: 0}
++	if len(m) != 30 {
++		panic("unepexted map length")
++	}
++}
+diff --git a/test/fixedbugs/issue47068.dir/b.go b/test/fixedbugs/issue47068.dir/b.go
+new file mode 100644
+index 0000000000..d341a4a395
+--- /dev/null
++++ b/test/fixedbugs/issue47068.dir/b.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "reflect"
++
++func B() {
++	t1 := reflect.TypeOf([30]int{})
++	t2 := reflect.TypeOf(new([30]int)).Elem()
++	if t1 != t2 {
++		panic("[30]int types do not match")
++	}
++}
+diff --git a/test/fixedbugs/issue47068.dir/main.go b/test/fixedbugs/issue47068.dir/main.go
+new file mode 100644
+index 0000000000..16ef5b780b
+--- /dev/null
++++ b/test/fixedbugs/issue47068.dir/main.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"b"
++)
++
++func main() {
++	a.A()
++	b.B()
++}
+diff --git a/test/fixedbugs/issue47068.go b/test/fixedbugs/issue47068.go
+new file mode 100644
+index 0000000000..af6f134172
+--- /dev/null
++++ b/test/fixedbugs/issue47068.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

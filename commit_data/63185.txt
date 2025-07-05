@@ -26,7 +26,44 @@ Date:   Sat May 17 11:33:07 2025 -0400
     Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_config.json      | 1 -
  src/crypto/tls/handshake_messages.go | 6 ++++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 8276d08d35..1bc647ce60 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -72,7 +72,6 @@
+         "TicketSessionIDLength-33-TLS-TLS11": "TODO: first pass, this should be fixed",
+         "UnsolicitedServerNameAck-TLS-TLS12": "TODO: first pass, this should be fixed",
+         "TicketSessionIDLength-33-TLS-TLS12": "TODO: first pass, this should be fixed",
+-        "DuplicateExtensionClient-TLS-TLS13": "TODO: first pass, this should be fixed",
+         "UnsolicitedServerNameAck-TLS-TLS13": "TODO: first pass, this should be fixed",
+         "RenegotiationInfo-Forbidden-TLS13": "TODO: first pass, this should be fixed",
+         "EMS-Forbidden-TLS13": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index 6c6141c421..ad3e5fa352 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -1056,6 +1056,7 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
+ 		return false
+ 	}
+ 
++	seenExts := make(map[uint16]bool)
+ 	for !extensions.Empty() {
+ 		var extension uint16
+ 		var extData cryptobyte.String
+@@ -1064,6 +1065,11 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
+ 			return false
+ 		}
+ 
++		if seenExts[extension] {
++			return false
++		}
++		seenExts[extension] = true
++
+ 		switch extension {
+ 		case extensionALPN:
+ 			var protoList cryptobyte.String

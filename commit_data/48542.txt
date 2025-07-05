@@ -24,9 +24,138 @@ Date:   Wed May 26 19:52:31 2021 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/noder.go       |  6 ++++--
  src/cmd/compile/internal/typecheck/iexport.go | 23 ++++++++++++++++++-----
  src/cmd/compile/internal/types/size.go        |  7 ++++++-
  src/cmd/compile/internal/types/sort.go        | 13 +++++++++----
  4 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 06c3b00601..44385f34fd 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -986,6 +986,8 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
+ }
+ 
+ func (p *noder) embedded(typ syntax.Expr) *ir.Field {
++	pos := p.pos(syntax.StartPos(typ))
++
+ 	op, isStar := typ.(*syntax.Operation)
+ 	if isStar {
+ 		if op.Op != syntax.Mul || op.Y != nil {
+@@ -995,11 +997,11 @@ func (p *noder) embedded(typ syntax.Expr) *ir.Field {
+ 	}
+ 
+ 	sym := p.packname(typ)
+-	n := ir.NewField(p.pos(typ), typecheck.Lookup(sym.Name), importName(sym).(ir.Ntype), nil)
++	n := ir.NewField(pos, typecheck.Lookup(sym.Name), importName(sym).(ir.Ntype), nil)
+ 	n.Embedded = true
+ 
+ 	if isStar {
+-		n.Ntype = ir.NewStarExpr(p.pos(op), n.Ntype)
++		n.Ntype = ir.NewStarExpr(pos, n.Ntype)
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 9c24213176..e798ce5143 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -540,9 +540,12 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			break
+ 		}
+ 
+-		ms := t.Methods()
+-		w.uint64(uint64(ms.Len()))
+-		for _, m := range ms.Slice() {
++		// Sort methods, for consistency with types2.
++		methods := append([]*types.Field(nil), t.Methods().Slice()...)
++		sort.Sort(types.MethodsByName(methods))
++
++		w.uint64(uint64(len(methods)))
++		for _, m := range methods {
+ 			w.pos(m.Pos)
+ 			w.selector(m.Sym)
+ 			w.param(m.Type.Recv())
+@@ -550,7 +553,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		}
+ 
+ 		w.typeExt(t)
+-		for _, m := range ms.Slice() {
++		for _, m := range methods {
+ 			w.methExt(m)
+ 		}
+ 
+@@ -939,6 +942,12 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 			}
+ 		}
+ 
++		// Sort methods and embedded types, for consistency with types2.
++		// Note: embedded types may be anonymous, and types2 sorts them
++		// with sort.Stable too.
++		sort.Sort(types.MethodsByName(methods))
++		sort.Stable(types.EmbeddedsByName(embeddeds))
++
+ 		w.startType(interfaceType)
+ 		w.setPkg(t.Pkg(), true)
+ 
+@@ -1590,7 +1599,11 @@ func (w *exportWriter) expr(n ir.Node) {
+ 
+ 	case ir.OLITERAL:
+ 		w.op(ir.OLITERAL)
+-		w.pos(n.Pos())
++		if ir.HasUniquePos(n) {
++			w.pos(n.Pos())
++		} else {
++			w.pos(src.NoXPos)
++		}
+ 		w.value(n.Type(), n.Val())
+ 
+ 	case ir.ONAME:
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 7059eff398..e6ca4556b9 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -126,10 +126,15 @@ func expandiface(t *Type) {
+ 		// (including broken ones, if any) and add to t's
+ 		// method set.
+ 		for _, t1 := range m.Type.AllMethods().Slice() {
+-			// Use m.Pos rather than t1.Pos to preserve embedding position.
+ 			f := NewField(m.Pos, t1.Sym, t1.Type)
+ 			addMethod(f, false)
++
++			// Clear position after typechecking, for consistency with types2.
++			f.Pos = src.NoXPos
+ 		}
++
++		// Clear position after typechecking, for consistency with types2.
++		m.Pos = src.NoXPos
+ 	}
+ 
+ 	sort.Sort(MethodsByName(methods))
+diff --git a/src/cmd/compile/internal/types/sort.go b/src/cmd/compile/internal/types/sort.go
+index dc59b06415..765c070cd9 100644
+--- a/src/cmd/compile/internal/types/sort.go
++++ b/src/cmd/compile/internal/types/sort.go
+@@ -4,11 +4,16 @@
+ 
+ package types
+ 
+-// MethodsByName sorts methods by symbol.
++// MethodsByName sorts methods by name.
+ type MethodsByName []*Field
+ 
+-func (x MethodsByName) Len() int { return len(x) }
++func (x MethodsByName) Len() int           { return len(x) }
++func (x MethodsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x MethodsByName) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
+ 
+-func (x MethodsByName) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
++// EmbeddedsByName sorts embedded types by name.
++type EmbeddedsByName []*Field
+ 
+-func (x MethodsByName) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
++func (x EmbeddedsByName) Len() int           { return len(x) }
++func (x EmbeddedsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x EmbeddedsByName) Less(i, j int) bool { return x[i].Type.Sym().Less(x[j].Type.Sym()) }

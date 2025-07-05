@@ -8,6 +8,24 @@ Date:   Wed Sep 2 17:14:30 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=34283
     CL=34283
-
+---
  src/cmd/6g/reg.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 77b85d262b..64616e4a5b 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1551,9 +1551,9 @@ noreturn(Prog *p)
+ 
+ 	if(symlist[0] == S) {
+ 		symlist[0] = pkglookup("throwindex", "sys");
+-		symlist[0] = pkglookup("throwslice", "sys");
+-		symlist[0] = pkglookup("throwinit", "sys");
+-		symlist[1] = pkglookup("panicl", "sys");
++		symlist[1] = pkglookup("throwslice", "sys");
++		symlist[2] = pkglookup("throwinit", "sys");
++		symlist[3] = pkglookup("panicl", "sys");
+ 	}
+ 
+ 	s = p->to.sym;

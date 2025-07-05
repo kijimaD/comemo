@@ -13,6 +13,22 @@ Date:   Fri Mar 2 22:20:36 2018 +0100
     Change-Id: Iff7e34b8c2703a2f19ee8087a4d64d0bb98496cd
     Reviewed-on: https://go-review.googlesource.com/98275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/scope_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index cc384e54c7..944a81e670 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -447,6 +447,10 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
+ func TestEmptyDwarfRanges(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
+ 	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)

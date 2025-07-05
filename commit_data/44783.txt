@@ -11,7 +11,7 @@ Date:   Thu Aug 27 23:34:32 2020 +0000
     Change-Id: I2ffc59bc5535be60b884b281c8d0eff4647dc756
     Reviewed-on: https://go-review.googlesource.com/c/go/+/251169
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go |  4 ++--
  src/cmd/compile/internal/gc/gsubr.go  |  2 +-
  src/cmd/compile/internal/gc/ssa.go    |  2 +-
@@ -34,3 +34,1008 @@ Date:   Thu Aug 27 23:34:32 2020 +0000
  src/cmd/internal/obj/x86/asm6.go      | 12 ++++++------
  src/cmd/internal/obj/x86/obj6.go      | 12 ++++++------
  21 files changed, 134 insertions(+), 142 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 4ac877986c..9d8a0920b3 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -319,8 +319,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			// TODO(khr): issue only the -1 fixup code we need.
+ 			// For instance, if only the quotient is used, no point in zeroing the remainder.
+ 
+-			j1.To.SetTarget(n1)
+-			j2.To.SetTarget(s.Pc())
++			j1.To.Val = n1
++			j2.To.Val = s.Pc()
+ 		}
+ 
+ 	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU:
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 480d411f49..15a84a8a43 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -342,6 +342,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ 	if p.To.Type != obj.TYPE_BRANCH {
+ 		Fatalf("patch: not a branch")
+ 	}
+-	p.To.SetTarget(to)
++	p.To.Val = to
+ 	p.To.Offset = to.Pc
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 52083d999e..104dd403ea 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -6182,7 +6182,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 
+ 	// Resolve branches, and relax DefaultStmt into NotStmt
+ 	for _, br := range s.Branches {
+-		br.P.To.SetTarget(s.bstart[br.B.ID])
++		br.P.To.Val = s.bstart[br.B.ID]
+ 		if br.P.Pos.IsStmt() != src.PosIsStmt {
+ 			br.P.Pos = br.P.Pos.WithNotStmt()
+ 		} else if v0 := br.B.FirstPossibleStmtValue(); v0 != nil && v0.Pos.Line() == br.P.Pos.Line() && v0.Pos.IsStmt() == src.PosIsStmt {
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 00d253c95a..4cf4b70a32 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -338,8 +338,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				n.To.Reg = dividend
+ 			}
+ 
+-			j.To.SetTarget(n)
+-			j2.To.SetTarget(s.Pc())
++			j.To.Val = n
++			j2.To.Val = s.Pc()
+ 		}
+ 	case ssa.OpS390XADDconst, ssa.OpS390XADDWconst:
+ 		opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), v.AuxInt)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index c21ac32297..2de978c28a 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -261,8 +261,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 				n.To.Reg = x86.REG_DX
+ 			}
+ 
+-			j.To.SetTarget(n)
+-			j2.To.SetTarget(s.Pc())
++			j.To.Val = n
++			j2.To.Val = s.Pc()
+ 		}
+ 
+ 	case ssa.Op386HMULL, ssa.Op386HMULLU:
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 269a4223d5..7b7e42ee2e 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -644,7 +644,7 @@ func (c *ctxt5) flushpool(p *obj.Prog, skip int, force int) bool {
+ 			q := c.newprog()
+ 			q.As = AB
+ 			q.To.Type = obj.TYPE_BRANCH
+-			q.To.SetTarget(p.Link)
++			q.Pcond = p.Link
+ 			q.Link = c.blitrl
+ 			q.Pos = p.Pos
+ 			c.blitrl = q
+@@ -705,7 +705,7 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
+ 	if t.Rel == nil {
+ 		for q := c.blitrl; q != nil; q = q.Link { /* could hash on t.t0.offset */
+ 			if q.Rel == nil && q.To == t.To {
+-				p.Pool = q
++				p.Pcond = q
+ 				return
+ 			}
+ 		}
+@@ -724,8 +724,8 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
+ 	c.elitrl = q
+ 	c.pool.size += 4
+ 
+-	// Store the link to the pool entry in Pool.
+-	p.Pool = q
++	// Store the link to the pool entry in Pcond.
++	p.Pcond = q
+ }
+ 
+ func (c *ctxt5) regoff(a *obj.Addr) int32 {
+@@ -1584,8 +1584,8 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			break
+ 		}
+ 
+-		if p.To.Target() != nil {
+-			v = int32((p.To.Target().Pc - c.pc) - 8)
++		if p.Pcond != nil {
++			v = int32((p.Pcond.Pc - c.pc) - 8)
+ 		}
+ 		o1 |= (uint32(v) >> 2) & 0xffffff
+ 
+@@ -3023,7 +3023,7 @@ func (c *ctxt5) omvr(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 
+ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 	var o1 uint32
+-	if p.Pool == nil {
++	if p.Pcond == nil {
+ 		c.aclass(a)
+ 		v := immrot(^uint32(c.instoffset))
+ 		if v == 0 {
+@@ -3035,7 +3035,7 @@ func (c *ctxt5) omvl(p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 		o1 |= uint32(v)
+ 		o1 |= (uint32(dr) & 15) << 12
+ 	} else {
+-		v := int32(p.Pool.Pc - p.Pc - 8)
++		v := int32(p.Pcond.Pc - p.Pc - 8)
+ 		o1 = c.olr(v, REGPC, dr, int(p.Scond)&C_SCOND)
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 4d9187b530..86831f2b44 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -406,7 +406,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				mov.To.Reg = REG_R2
+ 
+ 				// B.NE branch target is MOVW above
+-				bne.To.SetTarget(mov)
++				bne.Pcond = mov
+ 
+ 				// ADD $(autosize+4), R13, R3
+ 				p = obj.Appendp(mov, newprog)
+@@ -428,7 +428,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p = obj.Appendp(p, newprog)
+ 				p.As = ABNE
+ 				p.To.Type = obj.TYPE_BRANCH
+-				p.To.SetTarget(end)
++				p.Pcond = end
+ 
+ 				// ADD $4, R13, R4
+ 				p = obj.Appendp(p, newprog)
+@@ -452,7 +452,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p = obj.Appendp(p, newprog)
+ 				p.As = AB
+ 				p.To.Type = obj.TYPE_BRANCH
+-				p.To.SetTarget(end)
++				p.Pcond = end
+ 
+ 				// reset for subsequent passes
+ 				p = end
+@@ -741,7 +741,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	movw.To.Type = obj.TYPE_REG
+ 	movw.To.Reg = REG_R3
+ 
+-	bls.To.SetTarget(movw)
++	bls.Pcond = movw
+ 
+ 	// BL runtime.morestack
+ 	call := obj.Appendp(movw, c.newprog)
+@@ -762,7 +762,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	b := obj.Appendp(pcdata, c.newprog)
+ 	b.As = obj.AJMP
+ 	b.To.Type = obj.TYPE_BRANCH
+-	b.To.SetTarget(c.cursym.Func.Text.Link)
++	b.Pcond = c.cursym.Func.Text.Link
+ 	b.Spadj = +framesize
+ 
+ 	return end
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 0fa0c20b6a..7a5a8ff38c 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -977,8 +977,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			o = c.oplook(p)
+ 
+ 			/* very large branches */
+-			if (o.type_ == 7 || o.type_ == 39 || o.type_ == 40) && p.To.Target() != nil { // 7: BEQ and like, 39: CBZ and like, 40: TBZ and like
+-				otxt := p.To.Target().Pc - pc
++			if (o.type_ == 7 || o.type_ == 39 || o.type_ == 40) && p.Pcond != nil { // 7: BEQ and like, 39: CBZ and like, 40: TBZ and like
++				otxt := p.Pcond.Pc - pc
+ 				var toofar bool
+ 				switch o.type_ {
+ 				case 7, 39: // branch instruction encodes 19 bits
+@@ -992,14 +992,14 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					p.Link = q
+ 					q.As = AB
+ 					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(p.To.Target())
+-					p.To.SetTarget(q)
++					q.Pcond = p.Pcond
++					p.Pcond = q
+ 					q = c.newprog()
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = AB
+ 					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(q.Link.Link)
++					q.Pcond = q.Link.Link
+ 					bflag = 1
+ 				}
+ 			}
+@@ -1123,7 +1123,7 @@ func (c *ctxt7) flushpool(p *obj.Prog, skip int) {
+ 			q := c.newprog()
+ 			q.As = AB
+ 			q.To.Type = obj.TYPE_BRANCH
+-			q.To.SetTarget(p.Link)
++			q.Pcond = p.Link
+ 			q.Link = c.blitrl
+ 			q.Pos = p.Pos
+ 			c.blitrl = q
+@@ -1249,7 +1249,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 
+ 	for q := c.blitrl; q != nil; q = q.Link { /* could hash on t.t0.offset */
+ 		if q.To == t.To {
+-			p.Pool = q
++			p.Pcond = q
+ 			return
+ 		}
+ 	}
+@@ -1266,7 +1266,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 	c.elitrl = q
+ 	c.pool.size = -c.pool.size & (funcAlign - 1)
+ 	c.pool.size += uint32(sz)
+-	p.Pool = q
++	p.Pcond = q
+ }
+ 
+ func (c *ctxt7) regoff(a *obj.Addr) uint32 {
+@@ -6042,15 +6042,15 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
+ func (c *ctxt7) brdist(p *obj.Prog, preshift int, flen int, shift int) int64 {
+ 	v := int64(0)
+ 	t := int64(0)
+-	if p.To.Target() != nil {
+-		v = (p.To.Target().Pc >> uint(preshift)) - (c.pc >> uint(preshift))
++	if p.Pcond != nil {
++		v = (p.Pcond.Pc >> uint(preshift)) - (c.pc >> uint(preshift))
+ 		if (v & ((1 << uint(shift)) - 1)) != 0 {
+ 			c.ctxt.Diag("misaligned label\n%v", p)
+ 		}
+ 		v >>= uint(shift)
+ 		t = int64(1) << uint(flen-1)
+ 		if v < -t || v >= t {
+-			c.ctxt.Diag("branch too far %#x vs %#x [%p]\n%v\n%v", v, t, c.blitrl, p, p.To.Target())
++			c.ctxt.Diag("branch too far %#x vs %#x [%p]\n%v\n%v", v, t, c.blitrl, p, p.Pcond)
+ 			panic("branch too far")
+ 		}
+ 	}
+@@ -6526,7 +6526,7 @@ func (c *ctxt7) oaddi(p *obj.Prog, o1 int32, v int32, r int, rt int) uint32 {
+  */
+ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 	var o1 int32
+-	if p.Pool == nil { /* not in literal pool */
++	if p.Pcond == nil { /* not in literal pool */
+ 		c.aclass(a)
+ 		c.ctxt.Logf("omovlit add %d (%#x)\n", c.instoffset, uint64(c.instoffset))
+ 
+@@ -6552,11 +6552,11 @@ func (c *ctxt7) omovlit(as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 			w = 1 /* 64-bit SIMD/FP */
+ 
+ 		case AMOVD:
+-			if p.Pool.As == ADWORD {
++			if p.Pcond.As == ADWORD {
+ 				w = 1 /* 64-bit */
+-			} else if p.Pool.To.Offset < 0 {
++			} else if p.Pcond.To.Offset < 0 {
+ 				w = 2 /* 32-bit, sign-extended to 64-bit */
+-			} else if p.Pool.To.Offset >= 0 {
++			} else if p.Pcond.To.Offset >= 0 {
+ 				w = 0 /* 32-bit, zero-extended to 64-bit */
+ 			} else {
+ 				c.ctxt.Diag("invalid operand %v in %v", a, p)
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 56da854f16..f54429fabe 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -187,9 +187,9 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	movlr.To.Type = obj.TYPE_REG
+ 	movlr.To.Reg = REG_R3
+ 	if q != nil {
+-		q.To.SetTarget(movlr)
++		q.Pcond = movlr
+ 	}
+-	bls.To.SetTarget(movlr)
++	bls.Pcond = movlr
+ 
+ 	debug := movlr
+ 	if false {
+@@ -220,7 +220,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	jmp := obj.Appendp(pcdata, c.newprog)
+ 	jmp.As = AB
+ 	jmp.To.Type = obj.TYPE_BRANCH
+-	jmp.To.SetTarget(c.cursym.Func.Text.Link)
++	jmp.Pcond = c.cursym.Func.Text.Link
+ 	jmp.Spadj = +framesize
+ 
+ 	return end
+@@ -697,7 +697,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				mov.To.Reg = REG_R2
+ 
+ 				// CBNZ branches to the MOV above
+-				cbnz.To.SetTarget(mov)
++				cbnz.Pcond = mov
+ 
+ 				// ADD $(autosize+8), SP, R3
+ 				q = obj.Appendp(mov, c.newprog)
+@@ -719,7 +719,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = ABNE
+ 				q.To.Type = obj.TYPE_BRANCH
+-				q.To.SetTarget(end)
++				q.Pcond = end
+ 
+ 				// ADD $8, SP, R4
+ 				q = obj.Appendp(q, c.newprog)
+@@ -743,7 +743,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 				q.As = AB
+ 				q.To.Type = obj.TYPE_BRANCH
+-				q.To.SetTarget(end)
++				q.Pcond = end
+ 			}
+ 
+ 		case obj.ARET:
+@@ -913,7 +913,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q5.Reg = REGSP
+ 				q5.To.Type = obj.TYPE_REG
+ 				q5.To.Reg = REGFP
+-				q1.From.SetTarget(q5)
++				q1.Pcond = q5
+ 				p = q5
+ 			}
+ 
+@@ -966,7 +966,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q5.Reg = REGSP
+ 				q5.To.Type = obj.TYPE_REG
+ 				q5.To.Reg = REGFP
+-				q1.From.SetTarget(q5)
++				q1.Pcond = q5
+ 				p = q5
+ 			}
+ 		}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 1d4217b5f5..1fc90db864 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -237,19 +237,6 @@ const (
+ 	TYPE_REGLIST
+ )
+ 
+-func (a *Addr) Target() *Prog {
+-	if a.Type == TYPE_BRANCH && a.Val != nil {
+-		return a.Val.(*Prog)
+-	}
+-	return nil
+-}
+-func (a *Addr) SetTarget(t *Prog) {
+-	if a.Type != TYPE_BRANCH {
+-		panic("setting branch target when type is not TYPE_BRANCH")
+-	}
+-	a.Val = t
+-}
+-
+ // Prog describes a single machine instruction.
+ //
+ // The general instruction form is:
+@@ -268,7 +255,7 @@ func (a *Addr) SetTarget(t *Prog) {
+ // to avoid too much changes in a single swing.
+ // (1) scheme is enough to express any kind of operand combination.
+ //
+-// Jump instructions use the To.Val field to point to the target *Prog,
++// Jump instructions use the Pcond field to point to the target instruction,
+ // which must be in the same linked list as the jump instruction.
+ //
+ // The Progs for a given function are arranged in a list linked through the Link field.
+@@ -287,7 +274,7 @@ type Prog struct {
+ 	From     Addr     // first source operand
+ 	RestArgs []Addr   // can pack any operands that not fit into {Prog.From, Prog.To}
+ 	To       Addr     // destination operand (second is RegTo2 below)
+-	Pool     *Prog    // constant pool entry, for arm,arm64 back ends
++	Pcond    *Prog    // target of conditional jump
+ 	Forwd    *Prog    // for x86 back end
+ 	Rel      *Prog    // for x86, arm back ends
+ 	Pc       int64    // for back ends or assembler: virtual or actual program counter, depending on phase
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 6107974745..faa827da9f 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -460,8 +460,8 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			o = c.oplook(p)
+ 
+ 			// very large conditional branches
+-			if o.type_ == 6 && p.To.Target() != nil {
+-				otxt = p.To.Target().Pc - pc
++			if o.type_ == 6 && p.Pcond != nil {
++				otxt = p.Pcond.Pc - pc
+ 				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
+ 					q = c.newprog()
+ 					q.Link = p.Link
+@@ -469,15 +469,15 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					q.As = AJMP
+ 					q.Pos = p.Pos
+ 					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(p.To.Target())
+-					p.To.SetTarget(q)
++					q.Pcond = p.Pcond
++					p.Pcond = q
+ 					q = c.newprog()
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = AJMP
+ 					q.Pos = p.Pos
+ 					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(q.Link.Link)
++					q.Pcond = q.Link.Link
+ 
+ 					c.addnop(p.Link)
+ 					c.addnop(p)
+@@ -1230,10 +1230,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 6: /* beq r1,[r2],sbra */
+ 		v := int32(0)
+-		if p.To.Target() == nil {
++		if p.Pcond == nil {
+ 			v = int32(-4) >> 2
+ 		} else {
+-			v = int32(p.To.Target().Pc-p.Pc-4) >> 2
++			v = int32(p.Pcond.Pc-p.Pc-4) >> 2
+ 		}
+ 		if (v<<16)>>16 != v {
+ 			c.ctxt.Diag("short branch too far\n%v", p)
+@@ -1285,25 +1285,25 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if c.aclass(&p.To) == C_SBRA && p.To.Sym == nil && p.As == AJMP {
+ 			// use PC-relative branch for short branches
+ 			// BEQ	R0, R0, sbra
+-			if p.To.Target() == nil {
++			if p.Pcond == nil {
+ 				v = int32(-4) >> 2
+ 			} else {
+-				v = int32(p.To.Target().Pc-p.Pc-4) >> 2
++				v = int32(p.Pcond.Pc-p.Pc-4) >> 2
+ 			}
+ 			if (v<<16)>>16 == v {
+ 				o1 = OP_IRR(c.opirr(ABEQ), uint32(v), uint32(REGZERO), uint32(REGZERO))
+ 				break
+ 			}
+ 		}
+-		if p.To.Target() == nil {
++		if p.Pcond == nil {
+ 			v = int32(p.Pc) >> 2
+ 		} else {
+-			v = int32(p.To.Target().Pc) >> 2
++			v = int32(p.Pcond.Pc) >> 2
+ 		}
+ 		o1 = OP_JMP(c.opirr(p.As), uint32(v))
+ 		if p.To.Sym == nil {
+ 			p.To.Sym = c.cursym.Func.Text.From.Sym
+-			p.To.Offset = p.To.Target().Pc
++			p.To.Offset = p.Pcond.Pc
+ 		}
+ 		rel := obj.Addrel(c.cursym)
+ 		rel.Off = int32(c.pc)
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index f19facc00c..77cad979a6 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -227,11 +227,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			} else {
+ 				p.Mark |= BRANCH
+ 			}
+-			q1 := p.To.Target()
++			q1 := p.Pcond
+ 			if q1 != nil {
+ 				for q1.As == obj.ANOP {
+ 					q1 = q1.Link
+-					p.To.SetTarget(q1)
++					p.Pcond = q1
+ 				}
+ 
+ 				if q1.Mark&LEAF == 0 {
+@@ -424,8 +424,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, newprog)
+ 
+ 				q.As = obj.ANOP
+-				p1.To.SetTarget(q)
+-				p2.To.SetTarget(q)
++				p1.Pcond = q
++				p2.Pcond = q
+ 			}
+ 
+ 		case ARET:
+@@ -778,7 +778,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R3
+ 	if q != nil {
+-		q.To.SetTarget(p)
++		q.Pcond = p
+ 		p.Mark |= LABEL
+ 	}
+ 
+@@ -805,14 +805,14 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 
+ 	p.As = AJMP
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(c.cursym.Func.Text.Link)
++	p.Pcond = c.cursym.Func.Text.Link
+ 	p.Mark |= BRANCH
+ 
+ 	// placeholder for q1's jump target
+ 	p = obj.Appendp(p, c.newprog)
+ 
+ 	p.As = obj.ANOP // zero-width place holder
+-	q1.To.SetTarget(p)
++	q1.Pcond = p
+ 
+ 	return p
+ }
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index 09d520b4e9..4f156d969b 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -36,8 +36,8 @@ package obj
+ // In the case of an infinite loop, brloop returns nil.
+ func brloop(p *Prog) *Prog {
+ 	c := 0
+-	for q := p; q != nil; q = q.To.Target() {
+-		if q.As != AJMP || q.To.Target() == nil {
++	for q := p; q != nil; q = q.Pcond {
++		if q.As != AJMP || q.Pcond == nil {
+ 			return q
+ 		}
+ 		c++
+@@ -132,6 +132,8 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+ 			continue
+ 		}
+ 		if p.To.Val != nil {
++			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
++			p.Pcond = p.To.Val.(*Prog)
+ 			continue
+ 		}
+ 
+@@ -156,7 +158,8 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+ 			p.To.Type = TYPE_NONE
+ 		}
+ 
+-		p.To.SetTarget(q)
++		p.To.Val = q
++		p.Pcond = q
+ 	}
+ 
+ 	if !ctxt.Flag_optimize {
+@@ -165,12 +168,12 @@ func linkpatch(ctxt *Link, sym *LSym, newprog ProgAlloc) {
+ 
+ 	// Collapse series of jumps to jumps.
+ 	for p := sym.Func.Text; p != nil; p = p.Link {
+-		if p.To.Target() == nil {
++		if p.Pcond == nil {
+ 			continue
+ 		}
+-		p.To.SetTarget(brloop(p.To.Target()))
+-		if p.To.Target() != nil && p.To.Type == TYPE_BRANCH {
+-			p.To.Offset = p.To.Target().Pc
++		p.Pcond = brloop(p.Pcond)
++		if p.Pcond != nil && p.To.Type == TYPE_BRANCH {
++			p.To.Offset = p.Pcond.Pc
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 98b453de6c..3c82477fc4 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -725,22 +725,22 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			o = c.oplook(p)
+ 
+ 			// very large conditional branches
+-			if (o.type_ == 16 || o.type_ == 17) && p.To.Target() != nil {
+-				otxt = p.To.Target().Pc - pc
++			if (o.type_ == 16 || o.type_ == 17) && p.Pcond != nil {
++				otxt = p.Pcond.Pc - pc
+ 				if otxt < -(1<<15)+10 || otxt >= (1<<15)-10 {
+ 					q = c.newprog()
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = ABR
+ 					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(p.To.Target())
+-					p.To.SetTarget(q)
++					q.Pcond = p.Pcond
++					p.Pcond = q
+ 					q = c.newprog()
+ 					q.Link = p.Link
+ 					p.Link = q
+ 					q.As = ABR
+ 					q.To.Type = obj.TYPE_BRANCH
+-					q.To.SetTarget(q.Link.Link)
++					q.Pcond = q.Link.Link
+ 
+ 					//addnop(p->link);
+ 					//addnop(p);
+@@ -2630,8 +2630,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	case 11: /* br/bl lbra */
+ 		v := int32(0)
+ 
+-		if p.To.Target() != nil {
+-			v = int32(p.To.Target().Pc - p.Pc)
++		if p.Pcond != nil {
++			v = int32(p.Pcond.Pc - p.Pc)
+ 			if v&03 != 0 {
+ 				c.ctxt.Diag("odd branch target address\n%v", p)
+ 				v &^= 03
+@@ -2781,8 +2781,8 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			}
+ 		}
+ 		v := int32(0)
+-		if p.To.Target() != nil {
+-			v = int32(p.To.Target().Pc - p.Pc)
++		if p.Pcond != nil {
++			v = int32(p.Pcond.Pc - p.Pc)
+ 		}
+ 		if v&03 != 0 {
+ 			c.ctxt.Diag("odd branch target address\n%v", p)
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index c012762a18..749f7066de 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -556,7 +556,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			ABVS:
+ 			p.Mark |= BRANCH
+ 			q = p
+-			q1 = p.To.Target()
++			q1 = p.Pcond
+ 			if q1 != nil {
+ 				// NOPs are not removed due to #40689.
+ 
+@@ -841,8 +841,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 
+ 				q.As = obj.ANOP
+-				p1.To.SetTarget(q)
+-				p2.To.SetTarget(q)
++				p1.Pcond = q
++				p2.Pcond = q
+ 			}
+ 
+ 		case obj.ARET:
+@@ -1153,7 +1153,7 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R5
+ 	if q != nil {
+-		q.To.SetTarget(p)
++		q.Pcond = p
+ 	}
+ 
+ 	p = c.ctxt.EmitEntryStackMap(c.cursym, p, c.newprog)
+@@ -1248,13 +1248,13 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p = obj.Appendp(p, c.newprog)
+ 	p.As = ABR
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(p0.Link)
++	p.Pcond = p0.Link
+ 
+ 	// placeholder for q1's jump target
+ 	p = obj.Appendp(p, c.newprog)
+ 
+ 	p.As = obj.ANOP // zero-width place holder
+-	q1.To.SetTarget(p)
++	q1.Pcond = p
+ 
+ 	return p
+ }
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index d2816487e4..2eb2935b31 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -634,7 +634,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		getargp.Reg = 0
+ 		getargp.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+ 
+-		bneadj.To.SetTarget(getargp)
++		bneadj.Pcond = getargp
+ 
+ 		calcargp := obj.Appendp(getargp, newprog)
+ 		calcargp.As = AADDI
+@@ -647,7 +647,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		testargp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_X12}
+ 		testargp.Reg = REG_X13
+ 		testargp.To.Type = obj.TYPE_BRANCH
+-		testargp.To.SetTarget(endadj)
++		testargp.Pcond = endadj
+ 
+ 		adjargp := obj.Appendp(testargp, newprog)
+ 		adjargp.As = AADDI
+@@ -665,7 +665,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		godone.As = AJAL
+ 		godone.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+ 		godone.To.Type = obj.TYPE_BRANCH
+-		godone.To.SetTarget(endadj)
++		godone.Pcond = endadj
+ 	}
+ 
+ 	// Update stack-based offsets.
+@@ -890,27 +890,27 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				if p.To.Type != obj.TYPE_BRANCH {
+ 					panic("assemble: instruction with branch-like opcode lacks destination")
+ 				}
+-				offset := p.To.Target().Pc - p.Pc
++				offset := p.Pcond.Pc - p.Pc
+ 				if offset < -4096 || 4096 <= offset {
+ 					// Branch is long.  Replace it with a jump.
+ 					jmp := obj.Appendp(p, newprog)
+ 					jmp.As = AJAL
+ 					jmp.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+ 					jmp.To = obj.Addr{Type: obj.TYPE_BRANCH}
+-					jmp.To.SetTarget(p.To.Target())
++					jmp.Pcond = p.Pcond
+ 
+ 					p.As = InvertBranch(p.As)
+-					p.To.SetTarget(jmp.Link)
++					p.Pcond = jmp.Link
+ 
+ 					// We may have made previous branches too long,
+ 					// so recheck them.
+ 					rescan = true
+ 				}
+ 			case AJAL:
+-				if p.To.Target() == nil {
++				if p.Pcond == nil {
+ 					panic("intersymbol jumps should be expressed as AUIPC+JALR")
+ 				}
+-				offset := p.To.Target().Pc - p.Pc
++				offset := p.Pcond.Pc - p.Pc
+ 				if offset < -(1<<20) || (1<<20) <= offset {
+ 					// Replace with 2-instruction sequence. This assumes
+ 					// that TMP is not live across J instructions, since
+@@ -946,16 +946,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
+ 			switch p.To.Type {
+ 			case obj.TYPE_BRANCH:
+-				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.To.Target().Pc-p.Pc
++				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.Pcond.Pc-p.Pc
+ 			case obj.TYPE_MEM:
+ 				panic("unhandled type")
+ 			}
+ 
+ 		case AAUIPC:
+ 			if p.From.Type == obj.TYPE_BRANCH {
+-				low, high, err := Split32BitImmediate(p.To.Target().Pc - p.Pc)
++				low, high, err := Split32BitImmediate(p.Pcond.Pc - p.Pc)
+ 				if err != nil {
+-					ctxt.Diag("%v: jump displacement %d too large", p, p.To.Target().Pc-p.Pc)
++					ctxt.Diag("%v: jump displacement %d too large", p, p.Pcond.Pc-p.Pc)
+ 				}
+ 				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high, Sym: cursym}
+ 				p.Link.From.Offset = low
+@@ -1098,7 +1098,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 		p.To.Sym = ctxt.Lookup("runtime.morestack")
+ 	}
+ 	if to_more != nil {
+-		to_more.To.SetTarget(p)
++		to_more.Pcond = p
+ 	}
+ 	p = jalrToSym(ctxt, p, newprog, REG_X5)
+ 
+@@ -1107,12 +1107,12 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	p.As = AJAL
+ 	p.To = obj.Addr{Type: obj.TYPE_BRANCH}
+ 	p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_ZERO}
+-	p.To.SetTarget(cursym.Func.Text.Link)
++	p.Pcond = cursym.Func.Text.Link
+ 
+ 	// placeholder for to_done's jump target
+ 	p = obj.Appendp(p, newprog)
+ 	p.As = obj.ANOP // zero-width place holder
+-	to_done.To.SetTarget(p)
++	to_done.Pcond = p
+ 
+ 	return p
+ }
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 68f01f1c5d..29182ea805 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -3001,8 +3001,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 	case 11: // br/bl
+ 		v := int32(0)
+ 
+-		if p.To.Target() != nil {
+-			v = int32((p.To.Target().Pc - p.Pc) >> 1)
++		if p.Pcond != nil {
++			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+ 		}
+ 
+ 		if p.As == ABR && p.To.Sym == nil && int32(int16(v)) == v {
+@@ -3122,8 +3122,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 
+ 	case 16: // conditional branch
+ 		v := int32(0)
+-		if p.To.Target() != nil {
+-			v = int32((p.To.Target().Pc - p.Pc) >> 1)
++		if p.Pcond != nil {
++			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+ 		}
+ 		mask := uint32(c.branchMask(p))
+ 		if p.To.Sym == nil && int32(int16(v)) == v {
+@@ -3440,7 +3440,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 
+ 	case 41: // branch on count
+ 		r1 := p.From.Reg
+-		ri2 := (p.To.Target().Pc - p.Pc) >> 1
++		ri2 := (p.Pcond.Pc - p.Pc) >> 1
+ 		if int64(int16(ri2)) != ri2 {
+ 			c.ctxt.Diag("branch target too far away")
+ 		}
+@@ -3885,8 +3885,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 
+ 	case 89: // compare and branch reg reg
+ 		var v int32
+-		if p.To.Target() != nil {
+-			v = int32((p.To.Target().Pc - p.Pc) >> 1)
++		if p.Pcond != nil {
++			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+ 		}
+ 
+ 		// Some instructions take a mask as the first argument.
+@@ -3930,8 +3930,8 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 
+ 	case 90: // compare and branch reg $constant
+ 		var v int32
+-		if p.To.Target() != nil {
+-			v = int32((p.To.Target().Pc - p.Pc) >> 1)
++		if p.Pcond != nil {
++			v = int32((p.Pcond.Pc - p.Pc) >> 1)
+ 		}
+ 
+ 		// Some instructions take a mask as the first argument.
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 625bb0f7b4..ef6335d849 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -454,8 +454,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, c.newprog)
+ 
+ 				q.As = obj.ANOP
+-				p1.To.SetTarget(q)
+-				p2.To.SetTarget(q)
++				p1.Pcond = q
++				p2.Pcond = q
+ 			}
+ 
+ 		case obj.ARET:
+@@ -679,14 +679,14 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog,
+ 
+ 	// MOVD	LR, R5
+ 	p = obj.Appendp(pcdata, c.newprog)
+-	pPre.To.SetTarget(p)
++	pPre.Pcond = p
+ 	p.As = AMOVD
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = REG_LR
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R5
+ 	if pPreempt != nil {
+-		pPreempt.To.SetTarget(p)
++		pPreempt.Pcond = p
+ 	}
+ 
+ 	// BL	runtime.morestack(SB)
+@@ -709,7 +709,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog,
+ 
+ 	p.As = ABR
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.To.SetTarget(c.cursym.Func.Text.Link)
++	p.Pcond = c.cursym.Func.Text.Link
+ 	return p
+ }
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index a30ccf0564..d020026445 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -251,8 +251,10 @@ func WriteDconv(w io.Writer, p *Prog, a *Addr) {
+ 	case TYPE_BRANCH:
+ 		if a.Sym != nil {
+ 			fmt.Fprintf(w, "%s(SB)", a.Sym.Name)
+-		} else if a.Target() != nil {
+-			fmt.Fprint(w, a.Target().Pc)
++		} else if p != nil && p.Pcond != nil {
++			fmt.Fprint(w, p.Pcond.Pc)
++		} else if a.Val != nil {
++			fmt.Fprint(w, a.Val.(*Prog).Pc)
+ 		} else {
+ 			fmt.Fprintf(w, "%d(PC)", a.Offset)
+ 		}
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index fb99c620ad..a530636373 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1855,7 +1855,7 @@ func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
+ // no standalone or macro-fused jump will straddle or end on a 32 byte boundary
+ // by inserting NOPs before the jumps
+ func isJump(p *obj.Prog) bool {
+-	return p.To.Target() != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
++	return p.Pcond != nil || p.As == obj.AJMP || p.As == obj.ACALL ||
+ 		p.As == obj.ARET || p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO
+ }
+ 
+@@ -1867,7 +1867,7 @@ func lookForJCC(p *obj.Prog) *obj.Prog {
+ 	for q = p.Link; q != nil && (q.As == obj.APCDATA || q.As == obj.AFUNCDATA || q.As == obj.ANOP); q = q.Link {
+ 	}
+ 
+-	if q == nil || q.To.Target() == nil || p.As == obj.AJMP || p.As == obj.ACALL {
++	if q == nil || q.Pcond == nil || p.As == obj.AJMP || p.As == obj.ACALL {
+ 		return nil
+ 	}
+ 
+@@ -2051,8 +2051,8 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ 
+ 	for p := s.Func.Text; p != nil; p = p.Link {
+-		if p.To.Type == obj.TYPE_BRANCH && p.To.Target() == nil {
+-			p.To.SetTarget(p)
++		if p.To.Type == obj.TYPE_BRANCH && p.Pcond == nil {
++			p.Pcond = p
+ 		}
+ 		if p.As == AADJSP {
+ 			p.To.Type = obj.TYPE_REG
+@@ -2088,7 +2088,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	for p := s.Func.Text; p != nil; p = p.Link {
+ 		count++
+ 		p.Back = branchShort // use short branches first time through
+-		if q := p.To.Target(); q != nil && (q.Back&branchShort != 0) {
++		if q := p.Pcond; q != nil && (q.Back&branchShort != 0) {
+ 			p.Back |= branchBackwards
+ 			q.Back |= branchLoopHead
+ 		}
+@@ -4886,7 +4886,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 				// TODO: Check in input, preserve in brchain.
+ 
+ 				// Fill in backward jump now.
+-				q = p.To.Target()
++				q = p.Pcond
+ 
+ 				if q == nil {
+ 					ctxt.Diag("jmp/branch/loop without target")
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 18a6afcd77..016c247ff5 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -765,7 +765,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		}
+ 
+ 		// Set jne branch target.
+-		jne.To.SetTarget(p)
++		jne.Pcond = p
+ 
+ 		// CMPQ panic_argp(BX), DI
+ 		p = obj.Appendp(p, newprog)
+@@ -783,7 +783,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = AJNE
+ 		p.To.Type = obj.TYPE_BRANCH
+-		p.To.SetTarget(end)
++		p.Pcond = end
+ 
+ 		// MOVQ SP, panic_argp(BX)
+ 		p = obj.Appendp(p, newprog)
+@@ -801,7 +801,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = obj.AJMP
+ 		p.To.Type = obj.TYPE_BRANCH
+-		p.To.SetTarget(end)
++		p.Pcond = end
+ 
+ 		// Reset p for following code.
+ 		p = end
+@@ -1144,12 +1144,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	jmp := obj.Appendp(pcdata, newprog)
+ 	jmp.As = obj.AJMP
+ 	jmp.To.Type = obj.TYPE_BRANCH
+-	jmp.To.SetTarget(cursym.Func.Text.Link)
++	jmp.Pcond = cursym.Func.Text.Link
+ 	jmp.Spadj = +framesize
+ 
+-	jls.To.SetTarget(call)
++	jls.Pcond = call
+ 	if q1 != nil {
+-		q1.To.SetTarget(call)
++		q1.Pcond = call
+ 	}
+ 
+ 	return end

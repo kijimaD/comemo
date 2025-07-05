@@ -11,6 +11,24 @@ Date:   Tue Mar 10 03:27:44 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/222638
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index f8f7de0a95..845b2bd724 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -705,12 +705,6 @@ func (lv *Liveness) markUnsafePoints() {
+ 					v = v.Args[0]
+ 					continue
+ 				}
+-			case ssa.OpRISCV64SUBW:
+-				// RISCV64 lowers Neq32 to include a SUBW with multiple arguments.
+-				// TODO(jsing): it would be preferable not to use Neq32 for
+-				// writeBuffer.enabled checks on this platform.
+-				v = v.Args[0]
+-				continue
+ 			case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
+ 				// Args[0] is the address of the write
+ 				// barrier control. Ignore Args[1],

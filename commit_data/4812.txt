@@ -7,7 +7,7 @@ Date:   Mon Feb 8 09:46:53 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/204044
-
+---
  src/cmd/5l/doc.go |  2 ++
  src/cmd/5l/obj.c  |  3 +++
  src/cmd/6l/doc.go |  2 ++
@@ -20,3 +20,175 @@ Date:   Mon Feb 8 09:46:53 2010 -0800
  src/lib9/goos.c   |  6 ++++++
  src/version.bash  | 22 ++++++++++++++++++++++
  11 files changed, 50 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index 132426158a..b724e7012f 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -23,6 +23,8 @@ Options new in this version:
+ -L dir1,dir2,..
+ 	Search for libraries (package files) in the comma-separated list of directories.
+ 	The default is the single location $GOROOT/pkg/$GOOS_arm.
++-V
++	Print the linker version.
+ 
+ */
+ package documentation
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 5dbd7655c5..374e3dfd90 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -141,6 +141,9 @@ main(int argc, char *argv[])
+ 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+ 			readundefs(ARGF(), SIMPORT);
+ 		break;
++	case 'V':
++		print("%cl version %s\n", thechar, getgoversion());
++		errorexit();
+ 	} ARGEND
+ 
+ 	USED(argc);
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index 6a0a735c8e..fb88df500d 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -35,6 +35,8 @@ Options new in this version:
+ -L dir1,dir2,..
+ 	Search for libraries (package files) in the comma-separated list of directories.
+ 	The default is the single location $GOROOT/pkg/$GOOS_amd64.
++-V
++	Print the linker version.
+ 
+ 
+ */
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 537ef9e9aa..d951696978 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -136,6 +136,9 @@ main(int argc, char *argv[])
+ 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+ 			readundefs(ARGF(), SIMPORT);
+ 		break;
++	case 'V':
++		print("%cl version %s\n", thechar, getgoversion());
++		errorexit();
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index 0de4dfc1b1..3a830cb8e1 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -32,6 +32,8 @@ Options new in this version:
+ -L dir1,dir2,..
+ 	Search for libraries (package files) in the comma-separated list of directories.
+ 	The default is the single location $GOROOT/pkg/$GOOS_386.
++-V
++	Print the linker version.
+ 
+ 
+ */
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 6ab48622cd..c3044c2561 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -142,6 +142,9 @@ main(int argc, char *argv[])
+ 		if(argv[1] != nil && argv[1][0] != '-' && !isobjfile(argv[1]))
+ 			readundefs(ARGF(), SIMPORT);
+ 		break;
++	case 'V':
++		print("%cl version %s\n", thechar, getgoversion());
++		errorexit();
+ 	} ARGEND
+ 
+ 	if(argc != 1)
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 5250cfcbe8..108a091b28 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -38,6 +38,8 @@ Flags:
+ 		disable optimization
+ 	-S
+ 		write assembly language text to standard output
++	-V
++		print the compiler version
+ 
+ There are also a number of debugging flags; run the command with no arguments
+ to get a usage message.
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 175d7a3efc..9c1cbfcf07 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -65,6 +65,9 @@ main(int argc, char *argv[])
+ 	case 'I':
+ 		addidir(ARGF());
+ 		break;
++	case 'V':
++		print("%cg version %s\n", thechar, getgoversion());
++		errorexit();
+ 	} ARGEND
+ 
+ 	if(argc < 1)
+@@ -168,6 +171,7 @@ usage:
+ 	print("  -h panic on an error\n");
+ 	print("  -o file specify output file\n");
+ 	print("  -S print the assembly language\n");
++	print("  -V print the compiler version\n");
+ 	print("  -w print the parse tree after typing\n");
+ 	print("  -x print lex tokens\n");
+ 	exit(0);
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 592bc3b1a6..3061cfdbb4 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -117,7 +117,7 @@ $(LIB): $(OFILES)
+ 	$(CC) -c $(CFLAGS) $<
+ 
+ goos.$O: goos.c
+-	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' $<
++	$(CC) -c $(CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
+ 
+ clean:
+ 	rm -f *.$O *.6 6.out $(LIB)
+diff --git a/src/lib9/goos.c b/src/lib9/goos.c
+index 668dc1941d..f3ee1110a0 100644
+--- a/src/lib9/goos.c
++++ b/src/lib9/goos.c
+@@ -33,3 +33,9 @@ getgoroot(void)
+ {
+ 	return defgetenv("GOROOT", GOROOT);
+ }
++
++char*
++getgoversion(void)
++{
++	return GOVERSION;
++}
+diff --git a/src/version.bash b/src/version.bash
+new file mode 100755
+index 0000000000..c2a70ac1f7
+--- /dev/null
++++ b/src/version.bash
+@@ -0,0 +1,22 @@
++#!/usr/bin/env bash
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# Check that we can use 'hg'
++if ! hg version > /dev/null 2>&1; then
++	echo 'hg not installed' 1>&2
++	exit 2
++fi
++
++# Get numerical revision
++VERSION="`hg identify -n`"
++
++# Append tag if not 'tip'
++TAG=$(hg identify -t | sed 's!/release!!')
++if [[ "$TAG" != "tip" ]]; then
++	VERSION="$VERSION $TAG"
++fi
++
++echo $VERSION
++

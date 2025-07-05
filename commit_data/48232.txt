@@ -18,8 +18,201 @@ Date:   Fri Apr 30 19:45:11 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/compile.go |  6 +++
  src/cmd/compile/internal/ssagen/ssa.go | 38 +++++++++--------
  src/cmd/internal/obj/plist.go          | 75 ++++++++++++++++++++--------------
  3 files changed, 71 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index a71684a859..a7380510d1 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -13,10 +13,12 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/liveness"
++	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssagen"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/walk"
++	"cmd/internal/obj"
+ )
+ 
+ // "Portable" code generation.
+@@ -47,6 +49,10 @@ func enqueueFunc(fn *ir.Func) {
+ 		a := ssagen.AbiForBodylessFuncStackMap(fn)
+ 		abiInfo := a.ABIAnalyzeFuncType(fn.Type().FuncType()) // abiInfo has spill/home locations for wrapper
+ 		liveness.WriteFuncMap(fn, abiInfo)
++		if fn.ABI == obj.ABI0 {
++			x := ssagen.EmitArgInfo(fn, abiInfo)
++			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
++		}
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0d4e3264ba..b8f84f5712 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6563,15 +6563,27 @@ func (s *State) DebugFriendlySetPosFrom(v *ssa.Value) {
+ }
+ 
+ // emit argument info (locations on stack) for traceback.
+-func emitArgInfo(e *ssafn, pp *objw.Progs) {
++func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
+ 	ft := e.curfn.Type()
+ 	if ft.NumRecvs() == 0 && ft.NumParams() == 0 {
+ 		return
+ 	}
+ 
+-	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", e.curfn.LSym.Name, e.curfn.LSym.ABI()))
++	x := EmitArgInfo(e.curfn, f.OwnAux.ABIInfo())
+ 	e.curfn.LSym.Func().ArgInfo = x
+ 
++	// Emit a funcdata pointing at the arg info data.
++	p := pp.Prog(obj.AFUNCDATA)
++	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = x
++}
++
++// emit argument info (locations on stack) of f for traceback.
++func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
++	x := base.Ctxt.Lookup(fmt.Sprintf("%s.arginfo%d", f.LSym.Name, f.ABI))
++
+ 	PtrSize := int64(types.PtrSize)
+ 
+ 	isAggregate := func(t *types.Type) bool {
+@@ -6696,27 +6708,19 @@ func emitArgInfo(e *ssafn, pp *objw.Progs) {
+ 	}
+ 
+ 	c := true
+-outer:
+-	for _, fs := range &types.RecvsParams {
+-		for _, a := range fs(ft).Fields().Slice() {
+-			if !c {
+-				writebyte(_dotdotdot)
+-				break outer
+-			}
+-			c = visitType(a.Offset, a.Type, 0)
++	for _, a := range abiInfo.InParams() {
++		if !c {
++			writebyte(_dotdotdot)
++			break
+ 		}
++		c = visitType(a.FrameOffset(abiInfo), a.Type, 0)
+ 	}
+ 	writebyte(_endSeq)
+ 	if wOff > maxLen {
+ 		base.Fatalf("ArgInfo too large")
+ 	}
+ 
+-	// Emit a funcdata pointing at the arg info data.
+-	p := pp.Prog(obj.AFUNCDATA)
+-	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
+-	p.To.Type = obj.TYPE_MEM
+-	p.To.Name = obj.NAME_EXTERN
+-	p.To.Sym = x
++	return x
+ }
+ 
+ // genssa appends entries to pp for each instruction in f.
+@@ -6727,7 +6731,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	e := f.Frontend().(*ssafn)
+ 
+ 	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
+-	emitArgInfo(e, pp)
++	emitArgInfo(e, f, pp)
+ 
+ 	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
+ 	if openDeferInfo != nil {
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 54b035bb96..6beb4dd94c 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -75,38 +75,51 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
+ 		newprog = ctxt.NewProg
+ 	}
+ 
+-	// Add reference to Go arguments for C or assembly functions without them.
+-	for _, s := range text {
+-		if !strings.HasPrefix(s.Name, "\"\".") {
+-			continue
+-		}
+-		if s.ABIWrapper() {
+-			// Don't create an args_stackmap symbol reference for an ABI
+-			// wrapper function
+-			continue
+-		}
+-		// The current args_stackmap generation in the compiler assumes
+-		// that the function in question is ABI0, so avoid introducing
+-		// an args_stackmap reference if the func is not ABI0 (better to
+-		// have no stackmap than an incorrect/lying stackmap).
+-		if s.ABI() != ABI0 {
+-			continue
+-		}
+-		found := false
+-		for p := s.Func().Text; p != nil; p = p.Link {
+-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
+-				found = true
+-				break
++	// Add reference to Go arguments for assembly functions without them.
++	if ctxt.IsAsm {
++		for _, s := range text {
++			if !strings.HasPrefix(s.Name, "\"\".") {
++				continue
++			}
++			// The current args_stackmap generation in the compiler assumes
++			// that the function in question is ABI0, so avoid introducing
++			// an args_stackmap reference if the func is not ABI0 (better to
++			// have no stackmap than an incorrect/lying stackmap).
++			if s.ABI() != ABI0 {
++				continue
++			}
++			foundArgMap, foundArgInfo := false, false
++			for p := s.Func().Text; p != nil; p = p.Link {
++				if p.As == AFUNCDATA && p.From.Type == TYPE_CONST {
++					if p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
++						foundArgMap = true
++					}
++					if p.From.Offset == objabi.FUNCDATA_ArgInfo {
++						foundArgInfo = true
++					}
++					if foundArgMap && foundArgInfo {
++						break
++					}
++				}
++			}
++			if !foundArgMap {
++				p := Appendp(s.Func().Text, newprog)
++				p.As = AFUNCDATA
++				p.From.Type = TYPE_CONST
++				p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
++				p.To.Type = TYPE_MEM
++				p.To.Name = NAME_EXTERN
++				p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
++			}
++			if !foundArgInfo {
++				p := Appendp(s.Func().Text, newprog)
++				p.As = AFUNCDATA
++				p.From.Type = TYPE_CONST
++				p.From.Offset = objabi.FUNCDATA_ArgInfo
++				p.To.Type = TYPE_MEM
++				p.To.Name = NAME_EXTERN
++				p.To.Sym = ctxt.LookupDerived(s, fmt.Sprintf("%s.arginfo%d", s.Name, s.ABI()))
+ 			}
+-		}
+-		if !found {
+-			p := Appendp(s.Func().Text, newprog)
+-			p.As = AFUNCDATA
+-			p.From.Type = TYPE_CONST
+-			p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
+-			p.To.Type = TYPE_MEM
+-			p.To.Name = NAME_EXTERN
+-			p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
+ 		}
+ 	}
+ 

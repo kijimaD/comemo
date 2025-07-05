@@ -10,6 +10,20 @@ Date:   Mon Nov 29 11:05:41 2021 -0500
     Change-Id: I38c2fd9b57fbbacf220a2bc679f67e2dfdcc7cb1
     Reviewed-on: https://go-review.googlesource.com/c/go/+/367514
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.18.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 1788e97663..022541b83d 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -194,7 +194,7 @@ proposal</a>.
+ <h2 id="runtime">Runtime</h2>
+ 
+ <p><!-- https://golang.org/issue/49759 -->
+-  The <pre>windows/arm</pre> and <pre>windows/arm64</pre> ports now support
++  The <code>windows/arm</code> and <code>windows/arm64</code> ports now support
+   non-cooperative preemption, bringing that capability to all four Windows
+   ports, which should hopefully address subtle bugs encountered when calling
+   into Win32 functions that block for extended periods of time.

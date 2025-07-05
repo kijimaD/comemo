@@ -28,7 +28,82 @@ Date:   Fri Jan 22 09:47:59 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285772
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go        |  5 +++++
  src/runtime/signal_unix.go | 30 +++++++++++++++++-------------
  2 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index aa44c625c5..d51dcb0d22 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1251,6 +1251,11 @@ func mstart() {
+ 		// Initialize stack bounds from system stack.
+ 		// Cgo may have left stack size in stack.hi.
+ 		// minit may update the stack bounds.
++		//
++		// Note: these bounds may not be very accurate.
++		// We set hi to &size, but there are things above
++		// it. The 1024 is supposed to compensate this,
++		// but is somewhat arbitrary.
+ 		size := _g_.stack.hi
+ 		if size == 0 {
+ 			size = 8192 * sys.StackGuardMultiplier
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 382ba37a87..3f70707ab4 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -475,6 +475,14 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
+ 		return false
+ 	}
+ 
++	var st stackt
++	sigaltstack(nil, &st)
++	stsp := uintptr(unsafe.Pointer(st.ss_sp))
++	if st.ss_flags&_SS_DISABLE == 0 && sp >= stsp && sp < stsp+st.ss_size {
++		setGsignalStack(&st, gsigStack)
++		return true
++	}
++
+ 	if sp >= mp.g0.stack.lo && sp < mp.g0.stack.hi {
+ 		// The signal was delivered on the g0 stack.
+ 		// This can happen when linked with C code
+@@ -483,29 +491,25 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
+ 		// the signal handler directly when C code,
+ 		// including C code called via cgo, calls a
+ 		// TSAN-intercepted function such as malloc.
++		//
++		// We check this condition last as g0.stack.lo
++		// may be not very accurate (see mstart).
+ 		st := stackt{ss_size: mp.g0.stack.hi - mp.g0.stack.lo}
+ 		setSignalstackSP(&st, mp.g0.stack.lo)
+ 		setGsignalStack(&st, gsigStack)
+ 		return true
+ 	}
+ 
+-	var st stackt
+-	sigaltstack(nil, &st)
++	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
++	setg(nil)
++	needm()
+ 	if st.ss_flags&_SS_DISABLE != 0 {
+-		setg(nil)
+-		needm()
+ 		noSignalStack(sig)
+-		dropm()
+-	}
+-	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-	if sp < stsp || sp >= stsp+st.ss_size {
+-		setg(nil)
+-		needm()
++	} else {
+ 		sigNotOnStack(sig)
+-		dropm()
+ 	}
+-	setGsignalStack(&st, gsigStack)
+-	return true
++	dropm()
++	return false
+ }
+ 
+ // crashing is the number of m's we have waited for when implementing

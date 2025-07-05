@@ -13,6 +13,39 @@ Date:   Mon Jan 4 14:24:40 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go | 19 +++++++++++++------
  1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 27f47fad4d..9a8b0cf177 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1083,14 +1083,21 @@ func (ld *loader) load(pkg *loadPkg) {
+ 		}
+ 	}
+ 
+-	imports, testImports, err := scanDir(pkg.dir, ld.Tags)
+-	if err != nil {
+-		pkg.err = err
+-		return
+-	}
+-
+ 	pkg.inStd = (search.IsStandardImportPath(pkg.path) && search.InDir(pkg.dir, cfg.GOROOTsrc) != "")
+ 
++	var imports, testImports []string
++
++	if cfg.BuildContext.Compiler == "gccgo" && pkg.inStd {
++		// We can't scan standard packages for gccgo.
++	} else {
++		var err error
++		imports, testImports, err = scanDir(pkg.dir, ld.Tags)
++		if err != nil {
++			pkg.err = err
++			return
++		}
++	}
++
+ 	pkg.imports = make([]*loadPkg, 0, len(imports))
+ 	var importFlags loadPkgFlags
+ 	if pkg.flags.has(pkgInAll) {

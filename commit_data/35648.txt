@@ -14,7 +14,42 @@ Date:   Tue Feb 27 11:14:11 2018 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go |  3 ++-
  test/fixedbugs/issue24120.go       | 14 ++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 60df4d06fd..85bbb4b4f3 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -363,7 +363,8 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 	case OIF:
+ 		if Isconst(n.Left, CTBOOL) {
+ 			// This if and the condition cost nothing.
+-			return v.visitList(n.Nbody) || v.visitList(n.Rlist)
++			return v.visitList(n.Ninit) || v.visitList(n.Nbody) ||
++				v.visitList(n.Rlist)
+ 		}
+ 	}
+ 
+diff --git a/test/fixedbugs/issue24120.go b/test/fixedbugs/issue24120.go
+new file mode 100644
+index 0000000000..6c7d871b76
+--- /dev/null
++++ b/test/fixedbugs/issue24120.go
+@@ -0,0 +1,14 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var F func(int)
++
++func G() {
++	if F(func() int { return 1 }()); false {
++	}
++}

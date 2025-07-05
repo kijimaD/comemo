@@ -20,7 +20,108 @@ Date:   Tue Aug 28 11:27:07 2018 -0400
     Change-Id: I3b91290d11bb3b9b36fb61271d80b801841401ee
     Reviewed-on: https://go-review.googlesource.com/131895
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/dwinl.go | 27 ---------------------------
  src/cmd/compile/internal/gc/pgen.go  | 27 ---------------------------
  2 files changed, 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index d191b7ba6c..51251c9139 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -8,7 +8,6 @@ import (
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+-	"sort"
+ 	"strings"
+ )
+ 
+@@ -96,7 +95,6 @@ func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
+ 	// the pre-inlining decls for the target function and assign child
+ 	// index accordingly.
+ 	for ii, sl := range vmap {
+-		sort.Sort(byClassThenName(sl))
+ 		var m map[varPos]int
+ 		if ii == 0 {
+ 			if !fnsym.WasInlined() {
+@@ -311,31 +309,6 @@ func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *d
+ 	return &call.Ranges[len(call.Ranges)-1]
+ }
+ 
+-func cmpDwarfVar(a, b *dwarf.Var) bool {
+-	// named before artificial
+-	aart := 0
+-	if strings.HasPrefix(a.Name, "~r") {
+-		aart = 1
+-	}
+-	bart := 0
+-	if strings.HasPrefix(b.Name, "~r") {
+-		bart = 1
+-	}
+-	if aart != bart {
+-		return aart < bart
+-	}
+-
+-	// otherwise sort by name
+-	return a.Name < b.Name
+-}
+-
+-// byClassThenName implements sort.Interface for []*dwarf.Var using cmpDwarfVar.
+-type byClassThenName []*dwarf.Var
+-
+-func (s byClassThenName) Len() int           { return len(s) }
+-func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
+-func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-
+ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
+ 	for i := 0; i < ilevel; i++ {
+ 		Ctxt.Logf("  ")
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index cf1164772b..7f20643ab5 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -15,7 +15,6 @@ import (
+ 	"fmt"
+ 	"math/rand"
+ 	"sort"
+-	"strings"
+ 	"sync"
+ 	"time"
+ )
+@@ -594,35 +593,9 @@ func preInliningDcls(fnsym *obj.LSym) []*Node {
+ 		}
+ 		rdcl = append(rdcl, n)
+ 	}
+-	sort.Sort(byNodeName(rdcl))
+ 	return rdcl
+ }
+ 
+-func cmpNodeName(a, b *Node) bool {
+-	aart := 0
+-	if strings.HasPrefix(a.Sym.Name, "~") {
+-		aart = 1
+-	}
+-	bart := 0
+-	if strings.HasPrefix(b.Sym.Name, "~") {
+-		bart = 1
+-	}
+-	if aart != bart {
+-		return aart < bart
+-	}
+-
+-	aname := unversion(a.Sym.Name)
+-	bname := unversion(b.Sym.Name)
+-	return aname < bname
+-}
+-
+-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
+-type byNodeName []*Node
+-
+-func (s byNodeName) Len() int           { return len(s) }
+-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
+-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-
+ // stackOffset returns the stack location of a LocalSlot relative to the
+ // stack pointer, suitable for use in a DWARF location entry. This has nothing
+ // to do with its offset in the user variable.

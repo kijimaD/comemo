@@ -14,10 +14,439 @@ Date:   Tue Mar 21 20:39:45 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/build/deps_test.go                          |   2 +-
  src/log/slog/internal/benchmarks/benchmarks.go     |  50 +++++++
  .../slog/internal/benchmarks/benchmarks_test.go    | 152 +++++++++++++++++++++
  src/log/slog/internal/benchmarks/handlers.go       | 147 ++++++++++++++++++++
  src/log/slog/internal/benchmarks/handlers_test.go  |  42 ++++++
  5 files changed, 392 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5209397f9e..8779b8b8c1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -386,7 +386,7 @@ var depsRules = `
+ 	log/slog/internal, log/slog/internal/buffer,
+ 	slices
+ 	< log/slog
+-	< log/slog/internal/slogtest;
++	< log/slog/internal/slogtest, log/slog/internal/benchmarks;
+ 
+ 	NET, log
+ 	< net/mail;
+diff --git a/src/log/slog/internal/benchmarks/benchmarks.go b/src/log/slog/internal/benchmarks/benchmarks.go
+new file mode 100644
+index 0000000000..3a28523beb
+--- /dev/null
++++ b/src/log/slog/internal/benchmarks/benchmarks.go
+@@ -0,0 +1,50 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package benchmarks contains benchmarks for slog.
++//
++// These benchmarks are loosely based on github.com/uber-go/zap/benchmarks.
++// They have the following desirable properties:
++//
++//   - They test a complete log event, from the user's call to its return.
++//
++//   - The benchmarked code is run concurrently in multiple goroutines, to
++//     better simulate a real server (the most common environment for structured
++//     logs).
++//
++//   - Some handlers are optimistic versions of real handlers, doing real-world
++//     tasks as fast as possible (and sometimes faster, in that an
++//     implementation may not be concurrency-safe). This gives us an upper bound
++//     on handler performance, so we can evaluate the (handler-independent) core
++//     activity of the package in an end-to-end context without concern that a
++//     slow handler implementation is skewing the results.
++//
++//   - We also test the built-in handlers, for comparison.
++package benchmarks
++
++import (
++	"errors"
++	"log/slog"
++	"time"
++)
++
++const testMessage = "Test logging, but use a somewhat realistic message length."
++
++var (
++	testTime     = time.Date(2022, time.May, 1, 0, 0, 0, 0, time.UTC)
++	testString   = "7e3b3b2aaeff56a7108fe11e154200dd/7819479873059528190"
++	testInt      = 32768
++	testDuration = 23 * time.Second
++	testError    = errors.New("fail")
++)
++
++var testAttrs = []slog.Attr{
++	slog.String("string", testString),
++	slog.Int("status", testInt),
++	slog.Duration("duration", testDuration),
++	slog.Time("time", testTime),
++	slog.Any("error", testError),
++}
++
++const wantText = "time=1651363200 level=0 msg=Test logging, but use a somewhat realistic message length. string=7e3b3b2aaeff56a7108fe11e154200dd/7819479873059528190 status=32768 duration=23000000000 time=1651363200 error=fail\n"
+diff --git a/src/log/slog/internal/benchmarks/benchmarks_test.go b/src/log/slog/internal/benchmarks/benchmarks_test.go
+new file mode 100644
+index 0000000000..5cbd1be29a
+--- /dev/null
++++ b/src/log/slog/internal/benchmarks/benchmarks_test.go
+@@ -0,0 +1,152 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package benchmarks
++
++import (
++	"context"
++	"flag"
++	"internal/race"
++	"io"
++	"log/slog"
++	"log/slog/internal"
++	"testing"
++)
++
++func init() {
++	flag.BoolVar(&internal.IgnorePC, "nopc", false, "do not invoke runtime.Callers")
++}
++
++// We pass Attrs inline because it affects allocations: building
++// up a list outside of the benchmarked code and passing it in with "..."
++// reduces measured allocations.
++
++func BenchmarkAttrs(b *testing.B) {
++	ctx := context.Background()
++	for _, handler := range []struct {
++		name     string
++		h        slog.Handler
++		skipRace bool
++	}{
++		{"disabled", disabledHandler{}, false},
++		{"async discard", newAsyncHandler(), true},
++		{"fastText discard", newFastTextHandler(io.Discard), false},
++		{"Text discard", slog.NewTextHandler(io.Discard), false},
++		{"JSON discard", slog.NewJSONHandler(io.Discard), false},
++	} {
++		logger := slog.New(handler.h)
++		b.Run(handler.name, func(b *testing.B) {
++			if handler.skipRace && race.Enabled {
++				b.Skip("skipping benchmark in race mode")
++			}
++			for _, call := range []struct {
++				name string
++				f    func()
++			}{
++				{
++					// The number should match nAttrsInline in slog/record.go.
++					// This should exercise the code path where no allocations
++					// happen in Record or Attr. If there are allocations, they
++					// should only be from Duration.String and Time.String.
++					"5 args",
++					func() {
++						logger.LogAttrs(nil, slog.LevelInfo, testMessage,
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++						)
++					},
++				},
++				{
++					"5 args ctx",
++					func() {
++						logger.LogAttrs(ctx, slog.LevelInfo, testMessage,
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++						)
++					},
++				},
++				{
++					"10 args",
++					func() {
++						logger.LogAttrs(nil, slog.LevelInfo, testMessage,
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++						)
++					},
++				},
++				{
++					// Try an extreme value to see if the results are reasonable.
++					"40 args",
++					func() {
++						logger.LogAttrs(nil, slog.LevelInfo, testMessage,
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++							slog.String("string", testString),
++							slog.Int("status", testInt),
++							slog.Duration("duration", testDuration),
++							slog.Time("time", testTime),
++							slog.Any("error", testError),
++						)
++					},
++				},
++			} {
++				b.Run(call.name, func(b *testing.B) {
++					b.ReportAllocs()
++					b.RunParallel(func(pb *testing.PB) {
++						for pb.Next() {
++							call.f()
++						}
++					})
++				})
++			}
++		})
++	}
++}
+diff --git a/src/log/slog/internal/benchmarks/handlers.go b/src/log/slog/internal/benchmarks/handlers.go
+new file mode 100644
+index 0000000000..4f9213fb5c
+--- /dev/null
++++ b/src/log/slog/internal/benchmarks/handlers.go
+@@ -0,0 +1,147 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package benchmarks
++
++// Handlers for benchmarking.
++
++import (
++	"context"
++	"fmt"
++	"io"
++	"log/slog"
++	"log/slog/internal/buffer"
++	"strconv"
++	"time"
++)
++
++// A fastTextHandler writes a Record to an io.Writer in a format similar to
++// slog.TextHandler, but without quoting or locking. It has a few other
++// performance-motivated shortcuts, like writing times as seconds since the
++// epoch instead of strings.
++//
++// It is intended to represent a high-performance Handler that synchronously
++// writes text (as opposed to binary).
++type fastTextHandler struct {
++	w io.Writer
++}
++
++func newFastTextHandler(w io.Writer) slog.Handler {
++	return &fastTextHandler{w: w}
++}
++
++func (h *fastTextHandler) Enabled(context.Context, slog.Level) bool { return true }
++
++func (h *fastTextHandler) Handle(_ context.Context, r slog.Record) error {
++	buf := buffer.New()
++	defer buf.Free()
++
++	if !r.Time.IsZero() {
++		buf.WriteString("time=")
++		h.appendTime(buf, r.Time)
++		buf.WriteByte(' ')
++	}
++	buf.WriteString("level=")
++	*buf = strconv.AppendInt(*buf, int64(r.Level), 10)
++	buf.WriteByte(' ')
++	buf.WriteString("msg=")
++	buf.WriteString(r.Message)
++	r.Attrs(func(a slog.Attr) {
++		buf.WriteByte(' ')
++		buf.WriteString(a.Key)
++		buf.WriteByte('=')
++		h.appendValue(buf, a.Value)
++	})
++	buf.WriteByte('\n')
++	_, err := h.w.Write(*buf)
++	return err
++}
++
++func (h *fastTextHandler) appendValue(buf *buffer.Buffer, v slog.Value) {
++	switch v.Kind() {
++	case slog.KindString:
++		buf.WriteString(v.String())
++	case slog.KindInt64:
++		*buf = strconv.AppendInt(*buf, v.Int64(), 10)
++	case slog.KindUint64:
++		*buf = strconv.AppendUint(*buf, v.Uint64(), 10)
++	case slog.KindFloat64:
++		*buf = strconv.AppendFloat(*buf, v.Float64(), 'g', -1, 64)
++	case slog.KindBool:
++		*buf = strconv.AppendBool(*buf, v.Bool())
++	case slog.KindDuration:
++		*buf = strconv.AppendInt(*buf, v.Duration().Nanoseconds(), 10)
++	case slog.KindTime:
++		h.appendTime(buf, v.Time())
++	case slog.KindAny:
++		a := v.Any()
++		switch a := a.(type) {
++		case error:
++			buf.WriteString(a.Error())
++		default:
++			fmt.Fprint(buf, a)
++		}
++	default:
++		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
++	}
++}
++
++func (h *fastTextHandler) appendTime(buf *buffer.Buffer, t time.Time) {
++	*buf = strconv.AppendInt(*buf, t.Unix(), 10)
++}
++
++func (h *fastTextHandler) WithAttrs([]slog.Attr) slog.Handler {
++	panic("fastTextHandler: With unimplemented")
++}
++
++func (*fastTextHandler) WithGroup(string) slog.Handler {
++	panic("fastTextHandler: WithGroup unimplemented")
++}
++
++// An asyncHandler simulates a Handler that passes Records to a
++// background goroutine for processing.
++// Because sending to a channel can be expensive due to locking,
++// we simulate a lock-free queue by adding the Record to a ring buffer.
++// Omitting the locking makes this little more than a copy of the Record,
++// but that is a worthwhile thing to measure because Records are on the large
++// side. Since nothing actually reads from the ring buffer, it can handle an
++// arbitrary number of Records without either blocking or allocation.
++type asyncHandler struct {
++	ringBuffer [100]slog.Record
++	next       int
++}
++
++func newAsyncHandler() *asyncHandler {
++	return &asyncHandler{}
++}
++
++func (*asyncHandler) Enabled(context.Context, slog.Level) bool { return true }
++
++func (h *asyncHandler) Handle(_ context.Context, r slog.Record) error {
++	h.ringBuffer[h.next] = r.Clone()
++	h.next = (h.next + 1) % len(h.ringBuffer)
++	return nil
++}
++
++func (*asyncHandler) WithAttrs([]slog.Attr) slog.Handler {
++	panic("asyncHandler: With unimplemented")
++}
++
++func (*asyncHandler) WithGroup(string) slog.Handler {
++	panic("asyncHandler: WithGroup unimplemented")
++}
++
++// A disabledHandler's Enabled method always returns false.
++type disabledHandler struct{}
++
++func (disabledHandler) Enabled(context.Context, slog.Level) bool  { return false }
++func (disabledHandler) Handle(context.Context, slog.Record) error { panic("should not be called") }
++
++func (disabledHandler) WithAttrs([]slog.Attr) slog.Handler {
++	panic("disabledHandler: With unimplemented")
++}
++
++func (disabledHandler) WithGroup(string) slog.Handler {
++	panic("disabledHandler: WithGroup unimplemented")
++}
+diff --git a/src/log/slog/internal/benchmarks/handlers_test.go b/src/log/slog/internal/benchmarks/handlers_test.go
+new file mode 100644
+index 0000000000..1777fde368
+--- /dev/null
++++ b/src/log/slog/internal/benchmarks/handlers_test.go
+@@ -0,0 +1,42 @@
++package benchmarks
++
++import (
++	"bytes"
++	"context"
++	"log/slog"
++	"slices"
++	"testing"
++)
++
++func TestHandlers(t *testing.T) {
++	ctx := context.Background()
++	r := slog.NewRecord(testTime, slog.LevelInfo, testMessage, 0)
++	r.AddAttrs(testAttrs...)
++	t.Run("text", func(t *testing.T) {
++		var b bytes.Buffer
++		h := newFastTextHandler(&b)
++		if err := h.Handle(ctx, r); err != nil {
++			t.Fatal(err)
++		}
++		got := b.String()
++		if got != wantText {
++			t.Errorf("\ngot  %q\nwant %q", got, wantText)
++		}
++	})
++	t.Run("async", func(t *testing.T) {
++		h := newAsyncHandler()
++		if err := h.Handle(ctx, r); err != nil {
++			t.Fatal(err)
++		}
++		got := h.ringBuffer[0]
++		if !got.Time.Equal(r.Time) || !slices.EqualFunc(attrSlice(got), attrSlice(r), slog.Attr.Equal) {
++			t.Errorf("got %+v, want %+v", got, r)
++		}
++	})
++}
++
++func attrSlice(r slog.Record) []slog.Attr {
++	var as []slog.Attr
++	r.Attrs(func(a slog.Attr) { as = append(as, a) })
++	return as
++}

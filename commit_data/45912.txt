@@ -15,7 +15,69 @@ Date:   Sat Nov 28 00:05:15 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/escape.go | 2 +-
  src/cmd/compile/internal/ir/node.go   | 9 ++++-----
  2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 34f52c743a..6b6fb44a99 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1092,7 +1092,7 @@ func (e *Escape) newLoc(n ir.Node, transient bool) *EscLocation {
+ 			base.Fatalf("curfn mismatch: %v != %v", n.Name().Curfn, e.curfn)
+ 		}
+ 
+-		if n.HasOpt() {
++		if n.Opt() != nil {
+ 			base.Fatalf("%v already has a location", n)
+ 		}
+ 		n.SetOpt(loc)
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 477d07f502..acfddd2dc7 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -111,7 +111,6 @@ type Node interface {
+ 	SetWalkdef(x uint8)
+ 	Opt() interface{}
+ 	SetOpt(x interface{})
+-	HasOpt() bool
+ 	Diag() bool
+ 	SetDiag(x bool)
+ 	Bounded() bool
+@@ -325,7 +324,7 @@ func (n *node) Bounded() bool   { return n.flags&nodeBounded != 0 }
+ func (n *node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
+ func (n *node) Likely() bool    { return n.flags&nodeLikely != 0 }
+ func (n *node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
+-func (n *node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
++func (n *node) hasOpt() bool    { return n.flags&nodeHasOpt != 0 }
+ func (n *node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
+ 
+ func (n *node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+@@ -399,7 +398,7 @@ func (n *node) Val() constant.Value {
+ // SetVal sets the constant.Value for the node,
+ // which must not have been used with SetOpt.
+ func (n *node) SetVal(v constant.Value) {
+-	if n.HasOpt() {
++	if n.hasOpt() {
+ 		base.Flag.LowerH = 1
+ 		Dump("have Opt", n)
+ 		base.Fatalf("have Opt")
+@@ -413,7 +412,7 @@ func (n *node) SetVal(v constant.Value) {
+ 
+ // Opt returns the optimizer data for the node.
+ func (n *node) Opt() interface{} {
+-	if !n.HasOpt() {
++	if !n.hasOpt() {
+ 		return nil
+ 	}
+ 	return n.e
+@@ -423,7 +422,7 @@ func (n *node) Opt() interface{} {
+ // SetOpt(nil) is ignored for Vals to simplify call sites that are clearing Opts.
+ func (n *node) SetOpt(x interface{}) {
+ 	if x == nil {
+-		if n.HasOpt() {
++		if n.hasOpt() {
+ 			n.setHasOpt(false)
+ 			n.e = nil
+ 		}

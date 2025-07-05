@@ -7,6 +7,22 @@ Date:   Tue Mar 29 15:47:35 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4326042
-
+---
  src/pkg/crypto/cipher/ctr.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/crypto/cipher/ctr.go b/src/pkg/crypto/cipher/ctr.go
+index 04436ec23b..147b74fc2f 100644
+--- a/src/pkg/crypto/cipher/ctr.go
++++ b/src/pkg/crypto/cipher/ctr.go
+@@ -22,6 +22,10 @@ type ctr struct {
+ // NewCTR returns a Stream which encrypts/decrypts using the given Block in
+ // counter mode. The length of iv must be the same as the Block's block size.
+ func NewCTR(block Block, iv []byte) Stream {
++	if len(iv) != block.BlockSize() {
++		panic("cipher.NewCTR: iv length must equal block size")
++	}
++
+ 	return &ctr{
+ 		b:       block,
+ 		ctr:     dup(iv),

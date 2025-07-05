@@ -15,6 +15,31 @@ Date:   Fri Jan 7 10:11:08 2022 -0800
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/net/http/httputil/reverseproxy.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 319e2a3f3f..b7244134f0 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -218,7 +218,18 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	ctx := req.Context()
+-	if cn, ok := rw.(http.CloseNotifier); ok {
++	if ctx.Done() != nil {
++		// CloseNotifier predates context.Context, and has been
++		// entirely superseded by it. If the request contains
++		// a Context that carries a cancelation signal, don't
++		// bother spinning up a goroutine to watch the CloseNotify
++		// channel (if any).
++		//
++		// If the request Context has a nil Done channel (which
++		// means it is either context.Background, or a custom
++		// Context implementation with no cancelation signal),
++		// then consult the CloseNotifier if available.
++	} else if cn, ok := rw.(http.CloseNotifier); ok {
+ 		var cancel context.CancelFunc
+ 		ctx, cancel = context.WithCancel(ctx)
+ 		defer cancel()

@@ -23,9 +23,240 @@ Date:   Wed Dec 23 00:44:42 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/export.go          |  3 +-
  src/cmd/compile/internal/gc/main.go            | 18 +++-------
  src/cmd/compile/internal/gc/subr.go            |  3 +-
  src/cmd/compile/internal/{gc => inline}/inl.go | 46 ++++++++++++++++----------
  4 files changed, 37 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a414962431..c65c6c8335 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -83,7 +84,7 @@ func (p *exporter) markObject(n ir.Node) {
+ 	if n.Op() == ir.ONAME {
+ 		n := n.(*ir.Name)
+ 		if n.Class_ == ir.PFUNC {
+-			inlFlood(n, typecheck.Export)
++			inline.Inline_Flood(n, typecheck.Export)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b98d1f2e10..7f20d6b8a5 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -10,6 +10,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+@@ -184,7 +185,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	ir.EscFmt = escFmt
+ 	ir.IsIntrinsicCall = isIntrinsicCall
+-	SSADumpInline = ssaDumpInline
++	inline.SSADumpInline = ssaDumpInline
+ 	initSSAEnv()
+ 	initSSATables()
+ 
+@@ -231,13 +232,13 @@ func Main(archInit func(*Arch)) {
+ 	// Inlining
+ 	base.Timer.Start("fe", "inlining")
+ 	if base.Flag.LowerL != 0 {
+-		InlinePackage()
++		inline.InlinePackage()
+ 	}
+ 
+ 	// Devirtualize.
+ 	for _, n := range typecheck.Target.Decls {
+ 		if n.Op() == ir.ODCLFUNC {
+-			devirtualize(n.(*ir.Func))
++			inline.Devirtualize(n.(*ir.Func))
+ 		}
+ 	}
+ 	ir.CurFunc = nil
+@@ -372,17 +373,6 @@ func cgoSymABIs() {
+ 	}
+ }
+ 
+-// numNonClosures returns the number of functions in list which are not closures.
+-func numNonClosures(list []*ir.Func) int {
+-	count := 0
+-	for _, fn := range list {
+-		if fn.OClosure == nil {
+-			count++
+-		}
+-	}
+-	return count
+-}
+-
+ func writebench(filename string) error {
+ 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8e2093d488..f76fb8e24a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -481,7 +482,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	// generate those wrappers within the same compilation unit as (T).M.
+ 	// TODO(mdempsky): Investigate why we can't enable this more generally.
+ 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym() != nil {
+-		inlcalls(fn)
++		inline.InlineCalls(fn)
+ 	}
+ 	escapeFuncs([]*ir.Func{fn}, false)
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/inline/inl.go
+similarity index 97%
+rename from src/cmd/compile/internal/gc/inl.go
+rename to src/cmd/compile/internal/inline/inl.go
+index 9cf23caf0e..222e62d0cc 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -24,9 +24,14 @@
+ // The Debug.m flag enables diagnostic output.  a single -m is useful for verifying
+ // which calls get inlined or not, more is for debugging, and may go away at any point.
+ 
+-package gc
++package inline
+ 
+ import (
++	"errors"
++	"fmt"
++	"go/constant"
++	"strings"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+@@ -34,10 +39,6 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+-	"errors"
+-	"fmt"
+-	"go/constant"
+-	"strings"
+ )
+ 
+ // Inlining budget parameters, gathered in one place
+@@ -62,21 +63,21 @@ func InlinePackage() {
+ 				// We allow inlining if there is no
+ 				// recursion, or the recursion cycle is
+ 				// across more than one function.
+-				caninl(n)
++				CanInline(n)
+ 			} else {
+ 				if base.Flag.LowerM > 1 {
+ 					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+ 				}
+ 			}
+-			inlcalls(n)
++			InlineCalls(n)
+ 		}
+ 	})
+ }
+ 
+ // Caninl determines whether fn is inlineable.
+-// If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
++// If so, CanInline saves fn->nbody in fn->inl and substitutes it with a copy.
+ // fn and ->nbody will already have been typechecked.
+-func caninl(fn *ir.Func) {
++func CanInline(fn *ir.Func) {
+ 	if fn.Nname == nil {
+ 		base.Fatalf("caninl no nname %+v", fn)
+ 	}
+@@ -192,9 +193,9 @@ func caninl(fn *ir.Func) {
+ 	}
+ }
+ 
+-// inlFlood marks n's inline body for export and recursively ensures
++// Inline_Flood marks n's inline body for export and recursively ensures
+ // all called functions are marked too.
+-func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
++func Inline_Flood(n *ir.Name, exportsym func(*ir.Name)) {
+ 	if n == nil {
+ 		return
+ 	}
+@@ -222,13 +223,13 @@ func inlFlood(n *ir.Name, exportsym func(*ir.Name)) {
+ 	ir.VisitList(ir.Nodes(fn.Inl.Body), func(n ir.Node) {
+ 		switch n.Op() {
+ 		case ir.OMETHEXPR, ir.ODOTMETH:
+-			inlFlood(ir.MethodExprName(n), exportsym)
++			Inline_Flood(ir.MethodExprName(n), exportsym)
+ 
+ 		case ir.ONAME:
+ 			n := n.(*ir.Name)
+ 			switch n.Class_ {
+ 			case ir.PFUNC:
+-				inlFlood(n, exportsym)
++				Inline_Flood(n, exportsym)
+ 				exportsym(n)
+ 			case ir.PEXTERN:
+ 				exportsym(n)
+@@ -442,7 +443,7 @@ func isBigFunc(fn *ir.Func) bool {
+ 
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+-func inlcalls(fn *ir.Func) {
++func InlineCalls(fn *ir.Func) {
+ 	savefn := ir.CurFunc
+ 	ir.CurFunc = fn
+ 	maxCost := int32(inlineMaxBudget)
+@@ -631,7 +632,7 @@ func inlCallee(fn ir.Node) *ir.Func {
+ 	case ir.OCLOSURE:
+ 		fn := fn.(*ir.ClosureExpr)
+ 		c := fn.Func
+-		caninl(c)
++		CanInline(c)
+ 		return c
+ 	}
+ 	return nil
+@@ -1202,9 +1203,9 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
+ 	return s
+ }
+ 
+-// devirtualize replaces interface method calls within fn with direct
++// Devirtualize replaces interface method calls within fn with direct
+ // concrete-type method calls where applicable.
+-func devirtualize(fn *ir.Func) {
++func Devirtualize(fn *ir.Func) {
+ 	ir.CurFunc = fn
+ 	ir.VisitList(fn.Body, func(n ir.Node) {
+ 		if n.Op() == ir.OCALLINTER {
+@@ -1268,3 +1269,14 @@ func devirtualizeCall(call *ir.CallExpr) {
+ 		call.SetType(ft.Results())
+ 	}
+ }
++
++// numNonClosures returns the number of functions in list which are not closures.
++func numNonClosures(list []*ir.Func) int {
++	count := 0
++	for _, fn := range list {
++		if fn.OClosure == nil {
++			count++
++		}
++	}
++	return count
++}

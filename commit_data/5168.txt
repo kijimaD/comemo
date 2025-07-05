@@ -9,7 +9,7 @@ Date:   Mon Mar 29 17:30:07 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/843041
-
+---
  src/pkg/runtime/extern.go      | 2 ++
  src/pkg/runtime/malloc.h       | 2 ++
  src/pkg/runtime/mheap.c        | 1 +
@@ -18,3 +18,111 @@ Date:   Mon Mar 29 17:30:07 2010 -0700
  src/pkg/runtime/mprof.cgo      | 4 +++-
  src/pkg/runtime/pprof/pprof.go | 3 +++
  7 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index bcef7244aa..6d98e50db4 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -157,6 +157,8 @@ type MemStatsType struct {
+ 	MSpanSys    uint64
+ 	MCacheInuse uint64 // mcache structures
+ 	MCacheSys   uint64
++	MHeapMapSys uint64 // heap map
++	BuckHashSys uint64 // profiling bucket hash table
+ 
+ 	// Garbage collector statistics.
+ 	NextGC   uint64
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index ff869cacbd..caed4d3fc4 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -192,6 +192,8 @@ struct MStats
+ 	uint64	mspan_sys;
+ 	uint64	mcache_inuse;	// MCache structures
+ 	uint64	mcache_sys;
++	uint64	heapmap_sys;	// heap map
++	uint64	buckhash_sys;	// profiling bucket hash table
+ 	
+ 	// Statistics about garbage collector.
+ 	// Protected by stopping the world during GC.
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 1b47b3fe27..44817ddd5a 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -176,6 +176,7 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 		if(v == nil)
+ 			return false;
+ 	}
++	mstats.heap_sys += ask;
+ 
+ 	if((byte*)v < h->min || h->min == nil)
+ 		h->min = v;
+diff --git a/src/pkg/runtime/mheapmap32.c b/src/pkg/runtime/mheapmap32.c
+index 1e3598cbea..4481e11f65 100644
+--- a/src/pkg/runtime/mheapmap32.c
++++ b/src/pkg/runtime/mheapmap32.c
+@@ -84,6 +84,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
++			mstats.heapmap_sys += sizeof *p2;
+ 			m->p[i1] = p2;
+ 		}
+ 
+diff --git a/src/pkg/runtime/mheapmap64.c b/src/pkg/runtime/mheapmap64.c
+index 2f856ee179..d5590a2d84 100644
+--- a/src/pkg/runtime/mheapmap64.c
++++ b/src/pkg/runtime/mheapmap64.c
+@@ -96,6 +96,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p2 = m->allocator(sizeof *p2);
+ 			if(p2 == nil)
+ 				return false;
++			mstats.heapmap_sys += sizeof *p2;
+ 			m->p[i1] = p2;
+ 		}
+ 
+@@ -104,6 +105,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
+ 			p3 = m->allocator(sizeof *p3);
+ 			if(p3 == nil)
+ 				return false;
++			mstats.heapmap_sys += sizeof *p3;
+ 			p2->p[i2] = p3;
+ 		}
+ 
+diff --git a/src/pkg/runtime/mprof.cgo b/src/pkg/runtime/mprof.cgo
+index 50bcaec3c3..0cddb243d2 100644
+--- a/src/pkg/runtime/mprof.cgo
++++ b/src/pkg/runtime/mprof.cgo
+@@ -44,8 +44,10 @@ stkbucket(uintptr *stk, int32 nstk)
+ 	uintptr h;
+ 	Bucket *b;
+ 
+-	if(buckhash == nil)
++	if(buckhash == nil) {
+ 		buckhash = SysAlloc(BuckHashSize*sizeof buckhash[0]);
++		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
++	}
+ 
+ 	// Hash stack.
+ 	h = 0;
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 3a60551283..d0cc730899 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -88,6 +88,8 @@ func WriteHeapProfile(w io.Writer) os.Error {
+ 	fmt.Fprintf(b, "# Stack = %d / %d\n", s.StackInuse, s.StackSys)
+ 	fmt.Fprintf(b, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
+ 	fmt.Fprintf(b, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
++	fmt.Fprintf(b, "# MHeapMapSys = %d\n", s.MHeapMapSys)
++	fmt.Fprintf(b, "# BuckHashSys = %d\n", s.BuckHashSys)
+ 
+ 	fmt.Fprintf(b, "# NextGC = %d\n", s.NextGC)
+ 	fmt.Fprintf(b, "# PauseNs = %d\n", s.PauseNs)
+@@ -96,6 +98,7 @@ func WriteHeapProfile(w io.Writer) os.Error {
+ 	fmt.Fprintf(b, "# DebugGC = %v\n", s.DebugGC)
+ 
+ 	fmt.Fprintf(b, "# BySize = Size * (Active = Mallocs - Frees)\n")
++	fmt.Fprintf(b, "# (Excluding large blocks.)\n")
+ 	for _, t := range s.BySize {
+ 		if t.Mallocs > 0 {
+ 			fmt.Fprintf(b, "#   %d * (%d = %d - %d)\n", t.Size, t.Mallocs-t.Frees, t.Mallocs, t.Frees)

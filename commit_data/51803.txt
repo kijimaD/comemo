@@ -17,7 +17,7 @@ Date:   Wed Jan 26 10:23:48 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/elf_test.go             |  3 +++
  src/cmd/link/internal/ld/data.go     | 27 +++++++++++++++++++++++----
  src/cmd/link/internal/ld/dwarf.go    | 11 +++++++++--
@@ -26,3 +26,165 @@ Date:   Wed Jan 26 10:23:48 2022 +0800
  src/cmd/link/internal/sym/segment.go |  2 ++
  src/debug/elf/file.go                | 34 ++++++++++++++++++++++++++++++----
  7 files changed, 71 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 760d9ea60d..318bd76aba 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -455,6 +455,9 @@ func TestPIESize(t *testing.T) {
+ 			extraexe := extrasize(elfexe)
+ 			extrapie := extrasize(elfpie)
+ 
++			if sizepie < sizeexe || sizepie-extrapie < sizeexe-extraexe {
++				return
++			}
+ 			diffReal := (sizepie - extrapie) - (sizeexe - extraexe)
+ 			diffExpected := (textpie + dynpie) - (textexe + dynexe)
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 95a8e0facb..0ec1e526a9 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2778,10 +2778,29 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	buf.Write([]byte("ZLIB"))
+-	var sizeBytes [8]byte
+-	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
+-	buf.Write(sizeBytes[:])
++	if ctxt.IsELF {
++		switch ctxt.Arch.PtrSize {
++		case 8:
++			binary.Write(&buf, ctxt.Arch.ByteOrder, elf.Chdr64{
++				Type:      uint32(elf.COMPRESS_ZLIB),
++				Size:      uint64(total),
++				Addralign: uint64(ctxt.Arch.Alignment),
++			})
++		case 4:
++			binary.Write(&buf, ctxt.Arch.ByteOrder, elf.Chdr32{
++				Type:      uint32(elf.COMPRESS_ZLIB),
++				Size:      uint32(total),
++				Addralign: uint32(ctxt.Arch.Alignment),
++			})
++		default:
++			log.Fatalf("can't compress header size:%d", ctxt.Arch.PtrSize)
++		}
++	} else {
++		buf.Write([]byte("ZLIB"))
++		var sizeBytes [8]byte
++		binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
++		buf.Write(sizeBytes[:])
++	}
+ 
+ 	var relocbuf []byte // temporary buffer for applying relocations
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 4aaed7baf0..289ebcb595 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2227,11 +2227,18 @@ func dwarfcompress(ctxt *Link) {
+ 			newDwarfp = append(newDwarfp, ds)
+ 			Segdwarf.Sections = append(Segdwarf.Sections, ldr.SymSect(s))
+ 		} else {
+-			compressedSegName := ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
++			var compressedSegName string
++			if ctxt.IsELF {
++				compressedSegName = ldr.SymSect(s).Name
++			} else {
++				compressedSegName = ".zdebug_" + ldr.SymSect(s).Name[len(".debug_"):]
++			}
+ 			sect := addsection(ctxt.loader, ctxt.Arch, &Segdwarf, compressedSegName, 04)
+ 			sect.Align = 1
+ 			sect.Length = uint64(len(z.compressed))
+-			newSym := ldr.CreateSymForUpdate(compressedSegName, 0)
++			sect.Compressed = true
++			newSym := ldr.MakeSymbolBuilder(compressedSegName)
++			ldr.SetAttrReachable(s, true)
+ 			newSym.SetData(z.compressed)
+ 			newSym.SetSize(int64(len(z.compressed)))
+ 			ldr.SetSymSect(newSym.Sym(), sect)
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 1bdfb3369c..7f45a8fce5 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1102,6 +1102,9 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
+ 	}
+ 	if strings.HasPrefix(sect.Name, ".debug") || strings.HasPrefix(sect.Name, ".zdebug") {
+ 		sh.Flags = 0
++		if sect.Compressed {
++			sh.Flags |= uint64(elf.SHF_COMPRESSED)
++		}
+ 	}
+ 
+ 	if linkmode != LinkExternal {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f1a37e955e..a81232b2a4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1477,7 +1477,7 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, unusedArguments)
+ 	}
+ 
+-	const compressDWARF = "-Wl,--compress-debug-sections=zlib-gnu"
++	const compressDWARF = "-Wl,--compress-debug-sections=zlib"
+ 	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
+ 		argv = append(argv, compressDWARF)
+ 	}
+diff --git a/src/cmd/link/internal/sym/segment.go b/src/cmd/link/internal/sym/segment.go
+index 97853b9355..c889e71ad6 100644
+--- a/src/cmd/link/internal/sym/segment.go
++++ b/src/cmd/link/internal/sym/segment.go
+@@ -63,4 +63,6 @@ type Section struct {
+ 	Relcount uint32
+ 	Sym      LoaderSym // symbol for the section, if any
+ 	Index    uint16    // each section has a unique index, used internally
++
++	Compressed bool
+ }
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 8c84661c5f..e93200a11d 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -1150,11 +1150,37 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 		if err != nil && uint64(len(b)) < s.Size {
+ 			return nil, err
+ 		}
+-
++		var (
++			dlen uint64
++			dbuf []byte
++		)
+ 		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
+-			dlen := binary.BigEndian.Uint64(b[4:12])
+-			dbuf := make([]byte, dlen)
+-			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
++			dlen = binary.BigEndian.Uint64(b[4:12])
++			s.compressionOffset = 12
++		}
++		if dlen == 0 && len(b) >= 12 && s.Flags&SHF_COMPRESSED != 0 &&
++			s.Flags&SHF_ALLOC == 0 &&
++			f.FileHeader.ByteOrder.Uint32(b[:]) == uint32(COMPRESS_ZLIB) {
++			s.compressionType = COMPRESS_ZLIB
++			switch f.FileHeader.Class {
++			case ELFCLASS32:
++				// Chdr32.Size offset
++				dlen = uint64(f.FileHeader.ByteOrder.Uint32(b[4:]))
++				s.compressionOffset = 12
++			case ELFCLASS64:
++				if len(b) < 24 {
++					return nil, errors.New("invalid compress header 64")
++				}
++				// Chdr64.Size offset
++				dlen = f.FileHeader.ByteOrder.Uint64(b[8:])
++				s.compressionOffset = 24
++			default:
++				return nil, fmt.Errorf("unsupported compress header:%s", f.FileHeader.Class)
++			}
++		}
++		if dlen > 0 {
++			dbuf = make([]byte, dlen)
++			r, err := zlib.NewReader(bytes.NewBuffer(b[s.compressionOffset:]))
+ 			if err != nil {
+ 				return nil, err
+ 			}

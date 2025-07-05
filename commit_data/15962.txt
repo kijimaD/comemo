@@ -17,9 +17,381 @@ Date:   Tue Mar 26 18:28:16 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7860049
-
+---
  lib/godoc/package.html | 42 +++++++++++++++++++++---------------------
  lib/godoc/package.txt  | 28 ++++++++++++++--------------
  src/cmd/godoc/godoc.go | 49 ++++++++++++++++++++++---------------------------
  src/cmd/godoc/main.go  |  4 ++--
  4 files changed, 59 insertions(+), 64 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 33c2c27917..5dcc9f9a20 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -40,7 +40,7 @@
+ 				{{comment_html .Doc}}
+ 			</div>
+ 		</div>
+-		{{example_html "" $.Examples $.FSet}}
++		{{example_html $ ""}}
+ 
+ 		<div id="pkg-index" class="toggleVisible">
+ 		<div class="collapsed">
+@@ -60,18 +60,18 @@
+ 			{{end}}
+ 			{{range .Funcs}}
+ 				{{$name_html := html .Name}}
+-				<dd><a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
++				<dd><a href="#{{$name_html}}">{{node_html $ .Decl}}</a></dd>
+ 			{{end}}
+ 			{{range .Types}}
+ 				{{$tname_html := html .Name}}
+ 				<dd><a href="#{{$tname_html}}">type {{$tname_html}}</a></dd>
+ 				{{range .Funcs}}
+ 					{{$name_html := html .Name}}
+-					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
++					<dd>&nbsp; &nbsp; <a href="#{{$name_html}}">{{node_html $ .Decl}}</a></dd>
+ 				{{end}}
+ 				{{range .Methods}}
+ 					{{$name_html := html .Name}}
+-					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html .Decl $.FSet}}</a></dd>
++					<dd>&nbsp; &nbsp; <a href="#{{$tname_html}}.{{$name_html}}">{{node_html $ .Decl}}</a></dd>
+ 				{{end}}
+ 			{{end}}
+ 			{{if $.Notes}}
+@@ -109,59 +109,59 @@
+ 		{{with .Consts}}
+ 			<h2 id="pkg-constants">Constants</h2>
+ 			{{range .}}
+-				<pre>{{node_html .Decl $.FSet}}</pre>
++				<pre>{{node_html $ .Decl}}</pre>
+ 				{{comment_html .Doc}}
+ 			{{end}}
+ 		{{end}}
+ 		{{with .Vars}}
+ 			<h2 id="pkg-variables">Variables</h2>
+ 			{{range .}}
+-				<pre>{{node_html .Decl $.FSet}}</pre>
++				<pre>{{node_html $ .Decl}}</pre>
+ 				{{comment_html .Doc}}
+ 			{{end}}
+ 		{{end}}
+ 		{{range .Funcs}}
+ 			{{/* Name is a string - no need for FSet */}}
+ 			{{$name_html := html .Name}}
+-			<h2 id="{{$name_html}}">func <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h2>
+-			<pre>{{node_html .Decl $.FSet}}</pre>
++			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h2>
++			<pre>{{node_html $ .Decl}}</pre>
+ 			{{comment_html .Doc}}
+-			{{example_html .Name $.Examples $.FSet}}
++			{{example_html $ .Name}}
+ 		{{end}}
+ 		{{range .Types}}
+ 			{{$tname := .Name}}
+ 			{{$tname_html := html .Name}}
+-			<h2 id="{{$tname_html}}">type <a href="{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
+-			<pre>{{node_html .Decl $.FSet}}</pre>
++			<h2 id="{{$tname_html}}">type <a href="{{posLink_url $ .Decl}}">{{$tname_html}}</a></h2>
++			<pre>{{node_html $ .Decl}}</pre>
+ 			{{comment_html .Doc}}
+ 
+ 			{{range .Consts}}
+-				<pre>{{node_html .Decl $.FSet}}</pre>
++				<pre>{{node_html $ .Decl}}</pre>
+ 				{{comment_html .Doc}}
+ 			{{end}}
+ 
+ 			{{range .Vars}}
+-				<pre>{{node_html .Decl $.FSet}}</pre>
++				<pre>{{node_html $ .Decl}}</pre>
+ 				{{comment_html .Doc}}
+ 			{{end}}
+ 
+-			{{example_html $tname $.Examples $.FSet}}
++			{{example_html $ $tname}}
+ 
+ 			{{range .Funcs}}
+ 				{{$name_html := html .Name}}
+-				<h3 id="{{$name_html}}">func <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+-				<pre>{{node_html .Decl $.FSet}}</pre>
++				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
++				<pre>{{node_html $ .Decl}}</pre>
+ 				{{comment_html .Doc}}
+-				{{example_html .Name $.Examples $.FSet}}
++				{{example_html $ .Name}}
+ 			{{end}}
+ 
+ 			{{range .Methods}}
+ 				{{$name_html := html .Name}}
+-				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url .Decl $.FSet}}">{{$name_html}}</a></h3>
+-				<pre>{{node_html .Decl $.FSet}}</pre>
++				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
++				<pre>{{node_html $ .Decl}}</pre>
+ 				{{comment_html .Doc}}
+ 				{{$name := printf "%s_%s" $tname .Name}}
+-				{{example_html $name $.Examples $.FSet}}
++				{{example_html $ $name}}
+ 			{{end}}
+ 		{{end}}
+ 	{{end}}
+@@ -179,7 +179,7 @@
+ {{end}}
+ 
+ {{with .PAst}}
+-	<pre>{{node_html . $.FSet}}</pre>
++	<pre>{{node_html $ .}}</pre>
+ {{end}}
+ 
+ {{with .Dirs}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index bc11fc3c54..407be57875 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -1,4 +1,4 @@
+-{{with .PAst}}{{node . $.FSet}}{{end}}{{/*
++{{with .PAst}}{{node $ .}}{{end}}{{/*
+ 
+ ---------------------------------------
+ 
+@@ -11,14 +11,14 @@ package {{.Name}}
+     import "{{.ImportPath}}"
+ 
+ {{comment_text .Doc "    " "\t"}}
+-{{example_text "" $.Examples $.FSet "    "}}{{/*
++{{example_text $ "" "    "}}{{/*
+ 
+ ---------------------------------------
+ 
+ */}}{{with .Consts}}
+ CONSTANTS
+ 
+-{{range .}}{{node .Decl $.FSet}}
++{{range .}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}{{end}}
+ {{end}}{{/*
+ 
+@@ -27,7 +27,7 @@ CONSTANTS
+ */}}{{with .Vars}}
+ VARIABLES
+ 
+-{{range .}}{{node .Decl $.FSet}}
++{{range .}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}{{end}}
+ {{end}}{{/*
+ 
+@@ -36,9 +36,9 @@ VARIABLES
+ */}}{{with .Funcs}}
+ FUNCTIONS
+ 
+-{{range .}}{{node .Decl $.FSet}}
++{{range .}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}
+-{{example_text .Name $.Examples $.FSet "    "}}
++{{example_text $ .Name "    "}}
+ {{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+@@ -46,19 +46,19 @@ FUNCTIONS
+ */}}{{with .Types}}
+ TYPES
+ 
+-{{range .}}{{$tname := .Name}}{{node .Decl $.FSet}}
++{{range .}}{{$tname := .Name}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}
+-{{range .Consts}}{{node .Decl $.FSet}}
++{{range .Consts}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}
+-{{end}}{{range .Vars}}{{node .Decl $.FSet}}
++{{end}}{{range .Vars}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}
+-{{end}}{{example_text .Name $.Examples $.FSet "    "}}
+-{{range .Funcs}}{{node .Decl $.FSet}}
++{{end}}{{example_text $ .Name "    "}}
++{{range .Funcs}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}
+-{{example_text .Name $.Examples $.FSet "    "}}
+-{{end}}{{range .Methods}}{{node .Decl $.FSet}}
++{{example_text $ .Name "    "}}
++{{end}}{{range .Methods}}{{node $ .Decl}}
+ {{comment_text .Doc "    " "\t"}}
+-{{$name := printf "%s_%s" $tname .Name}}{{example_text $name $.Examples $.FSet "    "}}
++{{$name := printf "%s_%s" $tname .Name}}{{example_text $ $name "    "}}
+ {{end}}{{end}}{{end}}{{end}}{{/*
+ 
+ ---------------------------------------
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index b5282b863d..2e05c50598 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -273,25 +273,20 @@ func infoSnippet_htmlFunc(info SpotInfo) string {
+ 	return `<span class="alert">no snippet text available</span>`
+ }
+ 
+-func nodeFunc(node interface{}, fset *token.FileSet) string {
++func nodeFunc(info *PageInfo, node interface{}) string {
+ 	var buf bytes.Buffer
+-	writeNode(&buf, fset, node)
++	writeNode(&buf, info.FSet, node)
+ 	return buf.String()
+ }
+ 
+-func node_htmlFunc(node interface{}, fset *token.FileSet) string {
++func node_htmlFunc(info *PageInfo, node interface{}) string {
+ 	var buf1 bytes.Buffer
+-	writeNode(&buf1, fset, node)
++	writeNode(&buf1, info.FSet, node)
+ 
+ 	var buf2 bytes.Buffer
+-	// BUG(gri):  When showing full source text (?m=src),
+-	//            identifier links are incorrect.
+-	// TODO(gri): Only linkify exported code snippets, not the
+-	//            full source text: identifier resolution is
+-	//            not sufficiently strong w/o type checking.
+-	//            Need to check if info.PAst != nil - requires
+-	//            to pass *PageInfo around instead of fset.
+-	if n, _ := node.(ast.Node); n != nil && *declLinks {
++	// Don't linkify full source text (info.PAst != nil) - identifier
++	// resolution is not strong enough without full type checking.
++	if n, _ := node.(ast.Node); n != nil && *declLinks && info.PAst == nil {
+ 		LinkifyText(&buf2, buf1.Bytes(), n)
+ 	} else {
+ 		FormatText(&buf2, buf1.Bytes(), -1, true, "", nil)
+@@ -347,14 +342,14 @@ func stripExampleSuffix(name string) string {
+ 	return name
+ }
+ 
+-func example_textFunc(funcName string, examples []*doc.Example, fset *token.FileSet, indent string) string {
++func example_textFunc(info *PageInfo, funcName, indent string) string {
+ 	if !*showExamples {
+ 		return ""
+ 	}
+ 
+ 	var buf bytes.Buffer
+ 	first := true
+-	for _, eg := range examples {
++	for _, eg := range info.Examples {
+ 		name := stripExampleSuffix(eg.Name)
+ 		if name != funcName {
+ 			continue
+@@ -368,7 +363,7 @@ func example_textFunc(funcName string, examples []*doc.Example, fset *token.File
+ 		// print code
+ 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
+ 		var buf1 bytes.Buffer
+-		writeNode(&buf1, fset, cnode)
++		writeNode(&buf1, info.FSet, cnode)
+ 		code := buf1.String()
+ 		// Additional formatting if this is a function body.
+ 		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
+@@ -388,9 +383,9 @@ func example_textFunc(funcName string, examples []*doc.Example, fset *token.File
+ 	return buf.String()
+ }
+ 
+-func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
++func example_htmlFunc(info *PageInfo, funcName string) string {
+ 	var buf bytes.Buffer
+-	for _, eg := range examples {
++	for _, eg := range info.Examples {
+ 		name := stripExampleSuffix(eg.Name)
+ 
+ 		if name != funcName {
+@@ -399,7 +394,7 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 
+ 		// print code
+ 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
+-		code := node_htmlFunc(cnode, fset)
++		code := node_htmlFunc(info, cnode)
+ 		out := eg.Output
+ 		wholeFile := true
+ 
+@@ -421,7 +416,7 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 		play := ""
+ 		if eg.Play != nil && *showPlayground {
+ 			var buf bytes.Buffer
+-			if err := format.Node(&buf, fset, eg.Play); err != nil {
++			if err := format.Node(&buf, info.FSet, eg.Play); err != nil {
+ 				log.Print(err)
+ 			} else {
+ 				play = buf.String()
+@@ -486,19 +481,19 @@ func pkgLinkFunc(path string) string {
+ 	return pkgHandler.pattern[1:] + relpath // remove trailing '/' for relative URL
+ }
+ 
+-func posLink_urlFunc(node ast.Node, fset *token.FileSet) string {
++func posLink_urlFunc(info *PageInfo, node ast.Node) string {
+ 	var relpath string
+ 	var line int
+ 	var low, high int // selection
+ 
+ 	if p := node.Pos(); p.IsValid() {
+-		pos := fset.Position(p)
++		pos := info.FSet.Position(p)
+ 		relpath = pos.Filename
+ 		line = pos.Line
+ 		low = pos.Offset
+ 	}
+ 	if p := node.End(); p.IsValid() {
+-		high = fset.Position(p).Offset
++		high = info.FSet.Position(p).Offset
+ 	}
+ 
+ 	var buf bytes.Buffer
+@@ -1059,8 +1054,8 @@ func poorMansImporter(imports map[string]*ast.Object, path string) (*ast.Object,
+ // directories, PageInfo.Dirs is nil. If an error occurred, PageInfo.Err is
+ // set to the respective error but the error is not logged.
+ //
+-func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (info PageInfo) {
+-	info.Dirname = abspath
++func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) *PageInfo {
++	info := &PageInfo{Dirname: abspath}
+ 
+ 	// Restrict to the package files that would be used when building
+ 	// the package on this system.  This makes sure that if there are
+@@ -1077,7 +1072,7 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
+ 	// continue if there are no Go source files; we still want the directory info
+ 	if _, nogo := err.(*build.NoGoError); err != nil && !nogo {
+ 		info.Err = err
+-		return
++		return info
+ 	}
+ 
+ 	// collect package files
+@@ -1100,7 +1095,7 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
+ 		files, err := parseFiles(fset, abspath, pkgfiles)
+ 		if err != nil {
+ 			info.Err = err
+-			return
++			return info
+ 		}
+ 
+ 		// ignore any errors - they are due to unresolved identifiers
+@@ -1176,7 +1171,7 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) (inf
+ 	info.DirTime = timestamp
+ 	info.DirFlat = mode&flatDir != 0
+ 
+-	return
++	return info
+ }
+ 
+ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 1344100906..d61141530e 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -374,14 +374,14 @@ func main() {
+ 	}
+ 
+ 	// first, try as package unless forced as command
+-	var info PageInfo
++	var info *PageInfo
+ 	if !forceCmd {
+ 		info = pkgHandler.getPageInfo(abspath, relpath, mode)
+ 	}
+ 
+ 	// second, try as command unless the path is absolute
+ 	// (the go command invokes godoc w/ absolute paths; don't override)
+-	var cinfo PageInfo
++	var cinfo *PageInfo
+ 	if !filepath.IsAbs(path) {
+ 		abspath = pathpkg.Join(cmdHandler.fsRoot, path)
+ 		cinfo = cmdHandler.getPageInfo(abspath, relpath, mode)

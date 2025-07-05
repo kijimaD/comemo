@@ -7,7 +7,69 @@ Date:   Wed Mar 4 08:58:03 2015 -0800
     Change-Id: I932c2f1b1d27c437722cd27d2001b085a655c572
     Reviewed-on: https://go-review.googlesource.com/6722
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/math/big/float.go      | 12 ++++++------
  src/math/big/float_test.go |  5 -----
  2 files changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 0ad8312afe..62d539b755 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -261,34 +261,34 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
+ }
+ 
+ // IsNeg reports whether x is negative.
+-// A NaN is not negative.
++// A NaN value is not negative.
+ func (x *Float) IsNeg() bool {
+ 	return x.neg && x.exp != nanExp
+ }
+ 
+-// IsZero reports whether x is a +0 or -0.
++// IsZero reports whether x is +0 or -0.
+ func (x *Float) IsZero() bool {
+ 	return len(x.mant) == 0 && x.exp == 0
+ }
+ 
+ // IsFinite reports whether -Inf < x < Inf.
+-// A NaN is not finite.
++// A NaN value is not finite.
+ func (x *Float) IsFinite() bool {
+ 	return len(x.mant) != 0 || x.exp == 0
+ }
+ 
+-// IsInf reports whether x is a +Inf or -Inf.
++// IsInf reports whether x is +Inf or -Inf.
+ func (x *Float) IsInf() bool {
+ 	return x.exp == infExp
+ }
+ 
+-// IsNaN reports whether x is a NaN.
++// IsNaN reports whether x is a NaN value.
+ func (x *Float) IsNaN() bool {
+ 	return x.exp == nanExp
+ }
+ 
+ // IsInt reports whether x is an integer.
+-// ±Inf and NaN are not considered integers.
++// ±Inf and NaN values are not integers.
+ func (x *Float) IsInt() bool {
+ 	if debugFloat {
+ 		validate(x)
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 0be6a957d3..cfd41118b7 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -1058,11 +1058,6 @@ func TestFloatAdd(t *testing.T) {
+ // TestFloatAdd32 tests that Float.Add/Sub of numbers with
+ // 24bit mantissa behaves like float32 addition/subtraction.
+ func TestFloatAdd32(t *testing.T) {
+-	// TODO(gri) fix test for 32bit platforms
+-	if _W == 32 {
+-		return
+-	}
+-
+ 	// chose base such that we cross the mantissa precision limit
+ 	const base = 1<<26 - 0x10 // 11...110000 (26 bits)
+ 	for d := 0; d <= 0x10; d++ {

@@ -8,8 +8,251 @@ Date:   Tue Mar 31 17:33:04 2009 -0700
     DELTA=156  (149 added, 2 deleted, 5 changed)
     OCL=26973
     CL=26973
-
+---
  src/runtime/iface.c   | 61 ++++++++++++++++++++++++++++++++-
  src/runtime/runtime.c | 10 +++---
  test/interface7.go    | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 158 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 154374b1f4..42a572f351 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -459,6 +459,8 @@ ifacehash(Iface a)
+ 		// calling nohash will throw too,
+ 		// but we can print a better error.
+ 		printf("hash of unhashable type %s\n", sigt->name);
++		if(alg == AFAKE)
++			throw("fake interface hash");
+ 		throw("interface hash");
+ 	}
+ 	if(wid <= sizeof(a.data))
+@@ -502,6 +504,8 @@ ifaceeq(Iface i1, Iface i2)
+ 		// calling noequal will throw too,
+ 		// but we can print a better error.
+ 		printf("comparing uncomparable type %s\n", i1.type->sigt->name);
++		if(alg == AFAKE)
++			throw("fake interface compare");
+ 		throw("interface compare");
+ 	}
+ 
+@@ -594,16 +598,18 @@ extern int32 ngotypesigs;
+ // vv.Interface() returns the result of sys.Unreflect with
+ // a typestring of "[]int".  If []int is not used with interfaces
+ // in the rest of the program, there will be no signature in gotypesigs
+-// for "[]int", so we have to invent one.  The only requirements
++// for "[]int", so we have to invent one.  The requirements
+ // on the fake signature are:
+ //
+ //	(1) any interface conversion using the signature will fail
+ //	(2) calling sys.Reflect() returns the args to unreflect
++//	(3) the right algorithm type is used, for == and map insertion
+ //
+ // (1) is ensured by the fact that we allocate a new Sigt,
+ // so it will necessarily be != any Sigt in gotypesigs.
+ // (2) is ensured by storing the type string in the signature
+ // and setting the width to force the correct value of the bool indir.
++// (3) is ensured by sniffing the type string.
+ //
+ // Note that (1) is correct behavior: if the program had tested
+ // for .([]int) instead of .(string) above, then there would be a
+@@ -613,6 +619,47 @@ extern int32 ngotypesigs;
+ static	Sigt*	fake[1009];
+ static	int32	nfake;
+ 
++enum
++{
++	SizeofInt = 4,
++	SizeofFloat = 4,
++};
++
++// Table of prefixes of names of comparable types.
++static	struct {
++	int8 *s;
++	int8 n;
++	int8 alg;
++	int8 w;
++} cmp[] =
++{
++	// basic types
++	"int", 3+1, AMEM, SizeofInt, // +1 is NUL
++	"uint", 4+1, AMEM, SizeofInt,
++	"int8", 4+1, AMEM, 1,
++	"uint8", 5+1, AMEM, 1,
++	"int16", 5+1, AMEM, 2,
++	"uint16", 6+1, AMEM, 2,
++	"int32", 5+1, AMEM, 4,
++	"uint32", 6+1, AMEM, 4,
++	"int64", 5+1, AMEM, 8,
++	"uint64", 6+1, AMEM, 8,
++	"uintptr", 7+1, AMEM, sizeof(uintptr),
++	"float", 5+1, AMEM, SizeofFloat,
++	"float32", 7+1, AMEM, 4,
++	"float64", 7+1, AMEM, 8,
++	"bool", 4+1, AMEM, sizeof(bool),
++
++	// string compare is special
++	"string", 6+1, ASTRING, sizeof(string),
++
++	// generic types, identified by prefix
++	"*", 1, AMEM, sizeof(uintptr),
++	"chan ", 5, AMEM, sizeof(uintptr),
++	"func(", 5, AMEM, sizeof(uintptr),
++	"map[", 4, AMEM, sizeof(uintptr),
++};
++
+ static Sigt*
+ fakesigt(string type, bool indir)
+ {
+@@ -648,10 +695,22 @@ fakesigt(string type, bool indir)
+ 	sigt = mal(sizeof(*sigt));
+ 	sigt->name = mal(type->len + 1);
+ 	mcpy(sigt->name, type->str, type->len);
++
+ 	sigt->alg = AFAKE;
+ 	sigt->width = 1;  // small width
+ 	if(indir)
+ 		sigt->width = 2*sizeof(niliface.data);  // big width
++
++	// AFAKE is like ANOEQ; check whether the type
++	// should have a more capable algorithm.
++	for(i=0; i<nelem(cmp); i++) {
++		if(mcmp((byte*)sigt->name, (byte*)cmp[i].s, cmp[i].n) == 0) {
++			sigt->alg = cmp[i].alg;
++			sigt->width = cmp[i].w;
++			break;
++		}
++	}
++
+ 	sigt->link = fake[h];
+ 	fake[h] = sigt;
+ 
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 25e2568c06..504c4781d0 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -29,7 +29,7 @@ sys·panicl(int32 lno)
+ 	}
+ 	panicking++;
+ 
+-	printf("\npanic PC=%X [%d]\n", (uint64)(uintptr)&lno, panicking);
++	printf("\npanic PC=%X\n", (uint64)(uintptr)&lno);
+ 	sp = (uint8*)&lno;
+ 	if(gotraceback()){
+ 		traceback(sys·getcallerpc(&lno), sp, g);
+@@ -54,12 +54,10 @@ sys·throwreturn(void)
+ void
+ throw(int8 *s)
+ {
+-	prints("throw: ");
+-	prints(s);
+-	prints("\n");
++	printf("throw: %s\n", s);
+ 	sys·panicl(-1);
+-	*(int32*)0 = 0;
+-	sys_Exit(1);
++	*(int32*)0 = 0;	// not reached
++	sys_Exit(1);	// even more not reached
+ }
+ 
+ void
+diff --git a/test/interface7.go b/test/interface7.go
+new file mode 100644
+index 0000000000..ee1ac31165
+--- /dev/null
++++ b/test/interface7.go
+@@ -0,0 +1,94 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "reflect"
++
++type T struct {
++	f float32;
++	g float32;
++
++	s string;
++	t string;
++
++	u uint32;
++	v uint32;
++
++	w uint32;
++	x uint32;
++
++	y uint32;
++	z uint32;
++}
++
++func add(s, t string) string {
++	return s + t;
++}
++
++func assert(b bool) {
++	if !b {
++		panic("assert");
++	}
++}
++
++func main() {
++	var x T;
++	x.f = 1.0;
++	x.g = x.f;
++	x.s = add("abc", "def");
++	x.t = add("abc", "def");
++	x.u = 1;
++	x.v = 2;
++	x.w = 1<<28;
++	x.x = 2<<28;
++	x.y = 0x12345678;
++	x.z = x.y;
++
++	// check mem and string
++	v := reflect.NewValue(x);
++	i := v.(reflect.StructValue).Field(0);
++	j := v.(reflect.StructValue).Field(1);
++	assert(i.Interface() == j.Interface());
++
++	s := v.(reflect.StructValue).Field(2);
++	t := v.(reflect.StructValue).Field(3);
++	assert(s.Interface() == t.Interface());
++
++	// make sure different values are different.
++	// make sure whole word is being compared,
++	// not just a single byte.
++	i = v.(reflect.StructValue).Field(4);
++	j = v.(reflect.StructValue).Field(5);
++	assert(i.Interface() != j.Interface());
++
++	i = v.(reflect.StructValue).Field(6);
++	j = v.(reflect.StructValue).Field(7);
++	assert(i.Interface() != j.Interface());
++
++	i = v.(reflect.StructValue).Field(8);
++	j = v.(reflect.StructValue).Field(9);
++	assert(i.Interface() == j.Interface());
++}
++
++/*
++comparing uncomparable type float32
++throw: interface compare
++
++panic PC=0x28ceb8 [1]
++throw+0x41 /Users/rsc/goX/src/runtime/runtime.c:54
++	throw(0x3014a, 0x0)
++ifaceeq+0x15c /Users/rsc/goX/src/runtime/iface.c:501
++	ifaceeq(0x2aa7c0, 0x0, 0x0, 0x0, 0x2aa7c0, ...)
++sys·ifaceeq+0x48 /Users/rsc/goX/src/runtime/iface.c:527
++	sys·ifaceeq(0x2aa7c0, 0x0, 0x0, 0x0, 0x2aa7c0, ...)
++main·main+0x190 /Users/rsc/goX/src/cmd/gc/x.go:10
++	main·main()
++mainstart+0xf /Users/rsc/goX/src/runtime/amd64/asm.s:53
++	mainstart()
++sys·Goexit /Users/rsc/goX/src/runtime/proc.c:124
++	sys·Goexit()
++*/

@@ -10,8 +10,86 @@ Date:   Wed Aug 18 22:29:05 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2007042
-
+---
  src/cmd/cgo/out.go         | 12 ++++++++++--
  src/pkg/runtime/runtime.h  |  1 +
  src/pkg/runtime/string.goc | 10 ++++++++++
  3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index adf7abef44..906b2c511f 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -154,7 +154,7 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name, soprefix, sopath str
+ 	printer.Fprint(fgo2, d)
+ 	fmt.Fprintf(fgo2, "\n")
+ 
+-	if name == "CString" || name == "GoString" {
++	if name == "CString" || name == "GoString" || name == "GoStringN" {
+ 		// The builtins are already defined in the C prolog.
+ 		return
+ 	}
+@@ -230,7 +230,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 
+ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
+ 	name := n.Mangle
+-	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || p.Written[name] {
++	if name == "_Cfunc_CString" || name == "_Cfunc_GoString" || name == "_Cfunc_GoStringN" || p.Written[name] {
+ 		// The builtins are already defined in the C prolog, and we don't
+ 		// want to duplicate function definitions we've already done.
+ 		return
+@@ -580,6 +580,7 @@ __cgo_size_assert(double, 8)
+ const builtinProlog = `
+ typedef struct { char *p; int n; } _GoString_;
+ _GoString_ GoString(char *p);
++_GoString_ GoStringN(char *p, int l);
+ char *CString(_GoString_);
+ `
+ 
+@@ -602,6 +603,13 @@ void
+ 	FLUSH(&s);
+ }
+ 
++void
++·_Cfunc_GoStringN(int8 *p, int32 l, String s)
++{
++	s = gostringn((byte*)p, l);
++	FLUSH(&s);
++}
++
+ void
+ ·_Cfunc_CString(String s, int8 *p)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a774d96d50..0e4adafb35 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -387,6 +387,7 @@ void*	mal(uintptr);
+ uint32	cmpstring(String, String);
+ String	catstring(String, String);
+ String	gostring(byte*);
++String  gostringn(byte*, int32);
+ String	gostringnocopy(byte*);
+ String	gostringw(uint16*);
+ void	initsig(int32);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 1a48473221..ec45735164 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -60,6 +60,16 @@ gostring(byte *str)
+ 	return s;
+ }
+ 
++String
++gostringn(byte *str, int32 l)
++{
++    String s;
++
++    s = gostringsize(l);
++    mcpy(s.str, str, l);
++    return s;
++}
++
+ String
+ gostringnocopy(byte *str)
+ {

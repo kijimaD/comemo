@@ -38,7 +38,103 @@ Date:   Mon Apr 17 13:32:03 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/net/interface_test.go    |  6 ++++++
  src/syscall/netlink_linux.go | 16 +++++++++++++---
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index da54a660e5..5590b06262 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -300,6 +300,7 @@ func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) err
+ }
+ 
+ func BenchmarkInterfaces(b *testing.B) {
++	b.ReportAllocs()
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+@@ -310,6 +311,7 @@ func BenchmarkInterfaces(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceByIndex(b *testing.B) {
++	b.ReportAllocs()
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+@@ -324,6 +326,7 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceByName(b *testing.B) {
++	b.ReportAllocs()
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+@@ -338,6 +341,7 @@ func BenchmarkInterfaceByName(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfaceAddrs(b *testing.B) {
++	b.ReportAllocs()
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	for i := 0; i < b.N; i++ {
+@@ -348,6 +352,7 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfacesAndAddrs(b *testing.B) {
++	b.ReportAllocs()
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+@@ -362,6 +367,7 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
+ }
+ 
+ func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
++	b.ReportAllocs()
+ 	testHookUninstaller.Do(uninstallTestHooks)
+ 
+ 	ifi := loopbackInterface()
+diff --git a/src/syscall/netlink_linux.go b/src/syscall/netlink_linux.go
+index e976c70ef1..a503a07440 100644
+--- a/src/syscall/netlink_linux.go
++++ b/src/syscall/netlink_linux.go
+@@ -6,7 +6,10 @@
+ 
+ package syscall
+ 
+-import "unsafe"
++import (
++	"sync"
++	"unsafe"
++)
+ 
+ // Round the length of a netlink message up to align it properly.
+ func nlmAlignOf(msglen int) int {
+@@ -47,6 +50,11 @@ func newNetlinkRouteRequest(proto, seq, family int) []byte {
+ 	return rr.toWireFormat()
+ }
+ 
++var pageBufPool = &sync.Pool{New: func() any {
++	b := make([]byte, Getpagesize())
++	return &b
++}}
++
+ // NetlinkRIB returns routing information base, as known as RIB, which
+ // consists of network facility information, states and parameters.
+ func NetlinkRIB(proto, family int) ([]byte, error) {
+@@ -72,10 +80,12 @@ func NetlinkRIB(proto, family int) ([]byte, error) {
+ 		return nil, EINVAL
+ 	}
+ 	var tab []byte
+-	rbNew := make([]byte, Getpagesize())
++
++	rbNew := pageBufPool.Get().(*[]byte)
++	defer pageBufPool.Put(rbNew)
+ done:
+ 	for {
+-		rb := rbNew
++		rb := *rbNew
+ 		nr, _, err := Recvfrom(s, rb, 0)
+ 		if err != nil {
+ 			return nil, err

@@ -11,8 +11,166 @@ Date:   Fri Feb 11 08:34:19 2011 -0500
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4179043
-
+---
  src/pkg/crypto/openpgp/error/error.go  | 18 ++++++++++
  src/pkg/crypto/openpgp/packet/Makefile | 22 ++++++++++++
  src/pkg/crypto/openpgp/s2k/s2k.go      | 66 ++++++++++++++++++++--------------
  3 files changed, 80 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/error/error.go b/src/pkg/crypto/openpgp/error/error.go
+index 2d80ce3734..053d159672 100644
+--- a/src/pkg/crypto/openpgp/error/error.go
++++ b/src/pkg/crypto/openpgp/error/error.go
+@@ -5,6 +5,10 @@
+ // This package contains common error types for the OpenPGP packages.
+ package error
+ 
++import (
++	"strconv"
++)
++
+ // A StructuralError is returned when OpenPGP data is found to be syntactically
+ // invalid.
+ type StructuralError string
+@@ -44,3 +48,17 @@ func (ki keyIncorrect) String() string {
+ }
+ 
+ var KeyIncorrectError = keyIncorrect(0)
++
++type unknownIssuer int
++
++func (unknownIssuer) String() string {
++	return "signature make by unknown entity"
++}
++
++var UnknownIssuerError = unknownIssuer(0)
++
++type UnknownPacketTypeError uint8
++
++func (upte UnknownPacketTypeError) String() string {
++	return "unknown OpenPGP packet type: " + strconv.Itoa(int(upte))
++}
+diff --git a/src/pkg/crypto/openpgp/packet/Makefile b/src/pkg/crypto/openpgp/packet/Makefile
+new file mode 100644
+index 0000000000..0f0d94eb1f
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/Makefile
+@@ -0,0 +1,22 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../../Make.inc
++
++TARG=crypto/openpgp/packet
++GOFILES=\
++	compressed.go\
++	encrypted_key.go\
++	literal.go\
++	one_pass_signature.go\
++	packet.go\
++	private_key.go\
++	public_key.go\
++	reader.go\
++	signature.go\
++	symmetrically_encrypted.go\
++	symmetric_key_encrypted.go\
++	userid.go\
++
++include ../../../../Make.pkg
+diff --git a/src/pkg/crypto/openpgp/s2k/s2k.go b/src/pkg/crypto/openpgp/s2k/s2k.go
+index f369d7ed4f..873b33dc0d 100644
+--- a/src/pkg/crypto/openpgp/s2k/s2k.go
++++ b/src/pkg/crypto/openpgp/s2k/s2k.go
+@@ -7,15 +7,12 @@
+ package s2k
+ 
+ import (
+-	"crypto/md5"
++	"crypto"
+ 	"crypto/openpgp/error"
+-	"crypto/ripemd160"
+-	"crypto/sha1"
+-	"crypto/sha256"
+-	"crypto/sha512"
+ 	"hash"
+ 	"io"
+ 	"os"
++	"strconv"
+ )
+ 
+ // Simple writes to out the result of computing the Simple S2K function (RFC
+@@ -87,9 +84,13 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
+ 		return
+ 	}
+ 
+-	h := hashFuncFromType(buf[1])
++	hash, ok := HashIdToHash(buf[1])
++	if !ok {
++		return nil, error.UnsupportedError("hash for S2K function: " + strconv.Itoa(int(buf[1])))
++	}
++	h := hash.New()
+ 	if h == nil {
+-		return nil, error.UnsupportedError("hash for S2K function")
++		return nil, error.UnsupportedError("hash not availible: " + strconv.Itoa(int(hash)))
+ 	}
+ 
+ 	switch buf[0] {
+@@ -122,25 +123,38 @@ func Parse(r io.Reader) (f func(out, in []byte), err os.Error) {
+ 	return nil, error.UnsupportedError("S2K function")
+ }
+ 
+-// hashFuncFromType returns a hash.Hash which corresponds to the given hash
+-// type byte. See RFC 4880, section 9.4.
+-func hashFuncFromType(hashType byte) hash.Hash {
+-	switch hashType {
+-	case 1:
+-		return md5.New()
+-	case 2:
+-		return sha1.New()
+-	case 3:
+-		return ripemd160.New()
+-	case 8:
+-		return sha256.New()
+-	case 9:
+-		return sha512.New384()
+-	case 10:
+-		return sha512.New()
+-	case 11:
+-		return sha256.New224()
++// hashToHashIdMapping contains pairs relating OpenPGP's hash identifier with
++// Go's crypto.Hash type. See RFC 4880, section 9.4.
++var hashToHashIdMapping = []struct {
++	id   byte
++	hash crypto.Hash
++}{
++	{1, crypto.MD5},
++	{2, crypto.SHA1},
++	{3, crypto.RIPEMD160},
++	{8, crypto.SHA256},
++	{9, crypto.SHA384},
++	{10, crypto.SHA512},
++	{11, crypto.SHA224},
++}
++
++// HashIdToHash returns a crypto.Hash which corresponds to the given OpenPGP
++// hash id.
++func HashIdToHash(id byte) (h crypto.Hash, ok bool) {
++	for _, m := range hashToHashIdMapping {
++		if m.id == id {
++			return m.hash, true
++		}
+ 	}
++	return 0, false
++}
+ 
+-	return nil
++// HashIdToHash returns an OpenPGP hash id which corresponds the given Hash.
++func HashToHashId(h crypto.Hash) (id byte, ok bool) {
++	for _, m := range hashToHashIdMapping {
++		if m.hash == h {
++			return m.id, true
++		}
++	}
++	return 0, false
+ }

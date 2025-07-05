@@ -12,7 +12,142 @@ Date:   Sat Jul 4 13:49:47 2015 +0900
     Change-Id: I6a7a0c0601f18638f5c624ab63e12ee40f77b182
     Reviewed-on: https://go-review.googlesource.com/11883
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go      | 31 +++++++++++++++----------------
  src/net/ip_test.go | 20 ++++++++++++++++++++
  2 files changed, 35 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index a7f45642e3..cc004d6072 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -108,26 +108,23 @@ var (
+ 
+ // IsUnspecified reports whether ip is an unspecified address.
+ func (ip IP) IsUnspecified() bool {
+-	if ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified) {
+-		return true
+-	}
+-	return false
++	return ip.Equal(IPv4zero) || ip.Equal(IPv6unspecified)
+ }
+ 
+ // IsLoopback reports whether ip is a loopback address.
+ func (ip IP) IsLoopback() bool {
+-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 127 {
+-		return true
++	if ip4 := ip.To4(); ip4 != nil {
++		return ip4[0] == 127
+ 	}
+ 	return ip.Equal(IPv6loopback)
+ }
+ 
+ // IsMulticast reports whether ip is a multicast address.
+ func (ip IP) IsMulticast() bool {
+-	if ip4 := ip.To4(); ip4 != nil && ip4[0]&0xf0 == 0xe0 {
+-		return true
++	if ip4 := ip.To4(); ip4 != nil {
++		return ip4[0]&0xf0 == 0xe0
+ 	}
+-	return ip[0] == 0xff
++	return len(ip) == IPv6len && ip[0] == 0xff
+ }
+ 
+ // IsInterfaceLocalMulticast reports whether ip is
+@@ -139,25 +136,27 @@ func (ip IP) IsInterfaceLocalMulticast() bool {
+ // IsLinkLocalMulticast reports whether ip is a link-local
+ // multicast address.
+ func (ip IP) IsLinkLocalMulticast() bool {
+-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0 {
+-		return true
++	if ip4 := ip.To4(); ip4 != nil {
++		return ip4[0] == 224 && ip4[1] == 0 && ip4[2] == 0
+ 	}
+-	return ip[0] == 0xff && ip[1]&0x0f == 0x02
++	return len(ip) == IPv6len && ip[0] == 0xff && ip[1]&0x0f == 0x02
+ }
+ 
+ // IsLinkLocalUnicast reports whether ip is a link-local
+ // unicast address.
+ func (ip IP) IsLinkLocalUnicast() bool {
+-	if ip4 := ip.To4(); ip4 != nil && ip4[0] == 169 && ip4[1] == 254 {
+-		return true
++	if ip4 := ip.To4(); ip4 != nil {
++		return ip4[0] == 169 && ip4[1] == 254
+ 	}
+-	return ip[0] == 0xfe && ip[1]&0xc0 == 0x80
++	return len(ip) == IPv6len && ip[0] == 0xfe && ip[1]&0xc0 == 0x80
+ }
+ 
+ // IsGlobalUnicast reports whether ip is a global unicast
+ // address.
+ func (ip IP) IsGlobalUnicast() bool {
+-	return !ip.IsUnspecified() &&
++	return (len(ip) == IPv4len || len(ip) == IPv6len) &&
++		!ip.Equal(IPv4bcast) &&
++		!ip.IsUnspecified() &&
+ 		!ip.IsLoopback() &&
+ 		!ip.IsMulticast() &&
+ 		!ip.IsLinkLocalUnicast()
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 9c831d74b3..554bb1eaa0 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -480,31 +480,44 @@ var ipAddrScopeTests = []struct {
+ 	{IP.IsUnspecified, IPv4(127, 0, 0, 1), false},
+ 	{IP.IsUnspecified, IPv6unspecified, true},
+ 	{IP.IsUnspecified, IPv6interfacelocalallnodes, false},
++	{IP.IsUnspecified, nil, false},
+ 	{IP.IsLoopback, IPv4(127, 0, 0, 1), true},
+ 	{IP.IsLoopback, IPv4(127, 255, 255, 254), true},
+ 	{IP.IsLoopback, IPv4(128, 1, 2, 3), false},
+ 	{IP.IsLoopback, IPv6loopback, true},
+ 	{IP.IsLoopback, IPv6linklocalallrouters, false},
++	{IP.IsLoopback, nil, false},
+ 	{IP.IsMulticast, IPv4(224, 0, 0, 0), true},
+ 	{IP.IsMulticast, IPv4(239, 0, 0, 0), true},
+ 	{IP.IsMulticast, IPv4(240, 0, 0, 0), false},
+ 	{IP.IsMulticast, IPv6linklocalallnodes, true},
+ 	{IP.IsMulticast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+ 	{IP.IsMulticast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
++	{IP.IsMulticast, nil, false},
++	{IP.IsInterfaceLocalMulticast, IPv4(224, 0, 0, 0), false},
++	{IP.IsInterfaceLocalMulticast, IPv4(0xff, 0x01, 0, 0), false},
++	{IP.IsInterfaceLocalMulticast, IPv6interfacelocalallnodes, true},
++	{IP.IsInterfaceLocalMulticast, nil, false},
+ 	{IP.IsLinkLocalMulticast, IPv4(224, 0, 0, 0), true},
+ 	{IP.IsLinkLocalMulticast, IPv4(239, 0, 0, 0), false},
++	{IP.IsLinkLocalMulticast, IPv4(0xff, 0x02, 0, 0), false},
+ 	{IP.IsLinkLocalMulticast, IPv6linklocalallrouters, true},
+ 	{IP.IsLinkLocalMulticast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
++	{IP.IsLinkLocalMulticast, nil, false},
+ 	{IP.IsLinkLocalUnicast, IPv4(169, 254, 0, 0), true},
+ 	{IP.IsLinkLocalUnicast, IPv4(169, 255, 0, 0), false},
++	{IP.IsLinkLocalUnicast, IPv4(0xfe, 0x80, 0, 0), false},
+ 	{IP.IsLinkLocalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
+ 	{IP.IsLinkLocalUnicast, IP{0xfe, 0xc0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
++	{IP.IsLinkLocalUnicast, nil, false},
+ 	{IP.IsGlobalUnicast, IPv4(240, 0, 0, 0), true},
+ 	{IP.IsGlobalUnicast, IPv4(232, 0, 0, 0), false},
+ 	{IP.IsGlobalUnicast, IPv4(169, 254, 0, 0), false},
++	{IP.IsGlobalUnicast, IPv4bcast, false},
+ 	{IP.IsGlobalUnicast, IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, true},
+ 	{IP.IsGlobalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+ 	{IP.IsGlobalUnicast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
++	{IP.IsGlobalUnicast, nil, false},
+ }
+ 
+ func name(f interface{}) string {
+@@ -516,5 +529,12 @@ func TestIPAddrScope(t *testing.T) {
+ 		if ok := tt.scope(tt.in); ok != tt.ok {
+ 			t.Errorf("%s(%q) = %v, want %v", name(tt.scope), tt.in, ok, tt.ok)
+ 		}
++		ip := tt.in.To4()
++		if ip == nil {
++			continue
++		}
++		if ok := tt.scope(ip); ok != tt.ok {
++			t.Errorf("%s(%q) = %v, want %v", name(tt.scope), ip, ok, tt.ok)
++		}
+ 	}
+ }

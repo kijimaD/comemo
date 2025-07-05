@@ -16,7 +16,80 @@ Date:   Thu Feb 27 10:48:36 2014 -0800
     R=golang-codereviews, iant, gri
     CC=golang-codereviews
     https://golang.org/cl/69220046
-
+---
  src/pkg/bufio/bufio.go      |  6 ++++++
  src/pkg/bufio/bufio_test.go | 33 +++++++++++++++++++++++----------
  2 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index d1ff3c9edc..ef74471915 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -410,6 +410,12 @@ func (b *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ 		return n, err
+ 	}
+ 
++	if w, ok := w.(io.ReaderFrom); ok {
++		m, err := w.ReadFrom(b.rd)
++		n += m
++		return n, err
++	}
++
+ 	for b.fill(); b.r < b.w; b.fill() {
+ 		m, err := b.writeBuf(w)
+ 		n += m
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 3c86857e10..e48f5f89d9 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -1094,20 +1094,12 @@ func TestWriterReset(t *testing.T) {
+ 
+ // An onlyReader only implements io.Reader, no matter what other methods the underlying implementation may have.
+ type onlyReader struct {
+-	r io.Reader
+-}
+-
+-func (r onlyReader) Read(b []byte) (int, error) {
+-	return r.r.Read(b)
++	io.Reader
+ }
+ 
+ // An onlyWriter only implements io.Writer, no matter what other methods the underlying implementation may have.
+ type onlyWriter struct {
+-	w io.Writer
+-}
+-
+-func (w onlyWriter) Write(b []byte) (int, error) {
+-	return w.w.Write(b)
++	io.Writer
+ }
+ 
+ func BenchmarkReaderCopyOptimal(b *testing.B) {
+@@ -1152,6 +1144,27 @@ func BenchmarkReaderCopyNoWriteTo(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkReaderWriteToOptimal(b *testing.B) {
++	const bufSize = 16 << 10
++	buf := make([]byte, bufSize)
++	r := bytes.NewReader(buf)
++	srcReader := NewReaderSize(onlyReader{r}, 1<<10)
++	if _, ok := ioutil.Discard.(io.ReaderFrom); !ok {
++		b.Fatal("ioutil.Discard doesn't support ReaderFrom")
++	}
++	for i := 0; i < b.N; i++ {
++		r.Seek(0, 0)
++		srcReader.Reset(onlyReader{r})
++		n, err := srcReader.WriteTo(ioutil.Discard)
++		if err != nil {
++			b.Fatal(err)
++		}
++		if n != bufSize {
++			b.Fatalf("n = %d; want %d", n, bufSize)
++		}
++	}
++}
++
+ func BenchmarkWriterCopyOptimal(b *testing.B) {
+ 	// Optimal case is where the underlying writer implements io.ReaderFrom
+ 	srcBuf := bytes.NewBuffer(make([]byte, 8192))

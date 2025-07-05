@@ -13,9 +13,107 @@ Date:   Tue Apr 18 12:32:05 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/api.go                      |  2 +-
  src/net/http/transport.go                |  2 +-
  src/net/internal/socktest/sys_cloexec.go |  2 +-
  src/net/internal/socktest/sys_unix.go    | 12 ++++++------
  4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 7202828f32..11e76867a1 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -245,7 +245,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
+ // Precondition: the Uses and Defs maps are populated.
+ //
+ func (info *Info) ObjectOf(id *ast.Ident) Object {
+-	if obj, _ := info.Defs[id]; obj != nil {
++	if obj := info.Defs[id]; obj != nil {
+ 		return obj
+ 	}
+ 	return info.Uses[id]
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 5be7488d6d..425db36018 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -805,7 +805,7 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+ 	}
+ 	t.idleLRU.remove(pconn)
+ 	key := pconn.cacheKey
+-	pconns, _ := t.idleConn[key]
++	pconns := t.idleConn[key]
+ 	switch len(pconns) {
+ 	case 0:
+ 		// Nothing
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+index 007710c486..d1b8f4f374 100644
+--- a/src/net/internal/socktest/sys_cloexec.go
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -15,7 +15,7 @@ func (sw *Switch) Accept4(s, flags int) (ns int, sa syscall.Sockaddr, err error)
+ 		return syscall.Accept4(s, flags)
+ 	}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterAccept]
++	f := sw.fltab[FilterAccept]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)
+diff --git a/src/net/internal/socktest/sys_unix.go b/src/net/internal/socktest/sys_unix.go
+index f983e266f1..9fe86b55cf 100644
+--- a/src/net/internal/socktest/sys_unix.go
++++ b/src/net/internal/socktest/sys_unix.go
+@@ -14,7 +14,7 @@ func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
+ 
+ 	so := &Status{Cookie: cookie(family, sotype, proto)}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterSocket]
++	f := sw.fltab[FilterSocket]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)
+@@ -47,7 +47,7 @@ func (sw *Switch) Close(s int) (err error) {
+ 		return syscall.Close(s)
+ 	}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterClose]
++	f := sw.fltab[FilterClose]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)
+@@ -77,7 +77,7 @@ func (sw *Switch) Connect(s int, sa syscall.Sockaddr) (err error) {
+ 		return syscall.Connect(s, sa)
+ 	}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterConnect]
++	f := sw.fltab[FilterConnect]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)
+@@ -106,7 +106,7 @@ func (sw *Switch) Listen(s, backlog int) (err error) {
+ 		return syscall.Listen(s, backlog)
+ 	}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterListen]
++	f := sw.fltab[FilterListen]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)
+@@ -135,7 +135,7 @@ func (sw *Switch) Accept(s int) (ns int, sa syscall.Sockaddr, err error) {
+ 		return syscall.Accept(s)
+ 	}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterAccept]
++	f := sw.fltab[FilterAccept]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)
+@@ -168,7 +168,7 @@ func (sw *Switch) GetsockoptInt(s, level, opt int) (soerr int, err error) {
+ 		return syscall.GetsockoptInt(s, level, opt)
+ 	}
+ 	sw.fmu.RLock()
+-	f, _ := sw.fltab[FilterGetsockoptInt]
++	f := sw.fltab[FilterGetsockoptInt]
+ 	sw.fmu.RUnlock()
+ 
+ 	af, err := f.apply(so)

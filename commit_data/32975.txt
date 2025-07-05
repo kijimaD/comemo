@@ -16,6 +16,27 @@ Date:   Tue Jun 20 15:59:02 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/syscall/exec_linux.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index db52360717..5cbabf7896 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -90,6 +90,15 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	return pid, 0
+ }
+ 
++// forkAndExecInChild1 implements the body of forkAndExecInChild up to
++// the parent's post-fork path. This is a separate function so we can
++// separate the child's and parent's stack frames if we're using
++// vfork.
++//
++// This is go:noinline because the point is to keep the stack frames
++// of this and forkAndExecInChild separate.
++//
++//go:noinline
+ //go:norace
+ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (r1 uintptr, err1 Errno, p [2]int, locked bool) {
+ 	// vfork requires that the child not touch any of the parent's

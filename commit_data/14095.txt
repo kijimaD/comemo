@@ -7,6 +7,21 @@ Date:   Tue Oct 9 20:21:39 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6642045
-
+---
  src/cmd/fix/reflect_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/fix/reflect_test.go b/src/cmd/fix/reflect_test.go
+index 032cbc7450..a62027eb4b 100644
+--- a/src/cmd/fix/reflect_test.go
++++ b/src/cmd/fix/reflect_test.go
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file
+ 
++// Too slow under race detector.
++// +build !race
++
+ package main
+ 
+ import (

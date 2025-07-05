@@ -8,6 +8,35 @@ Date:   Tue Mar 31 15:44:43 2009 -0700
     DELTA=6  (3 added, 0 deleted, 3 changed)
     OCL=26944
     CL=26967
-
+---
  src/cmd/godefs/stabs.c | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/godefs/stabs.c b/src/cmd/godefs/stabs.c
+index 5a6f18b15c..e3f175f37c 100644
+--- a/src/cmd/godefs/stabs.c
++++ b/src/cmd/godefs/stabs.c
+@@ -140,6 +140,7 @@ Intrange intranges[] = {
+ };
+ 
+ static int kindsize[] = {
++	0,
+ 	0,
+ 	8,
+ 	8,
+@@ -366,10 +367,12 @@ parsedef(char **pp, char *name)
+ 			// into
+ 			//	uint8 x;
+ 			// hooray for bitfields.
++			while(f->type->kind == Typedef)
++				f->type = f->type->type;
+ 			while(Int16 <= f->type->kind && f->type->kind <= Uint64 && kindsize[f->type->kind] > f->size) {
+-				t = emalloc(sizeof *t);
+-				*t = *f->type;
+-				f->type = t;
++				tt = emalloc(sizeof *tt);
++				*tt = *f->type;
++				f->type = tt;
+ 				f->type->kind -= 2;
+ 			}
+ 			p++;

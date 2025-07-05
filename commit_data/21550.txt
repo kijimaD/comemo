@@ -11,6 +11,23 @@ Date:   Wed Jan 14 13:30:34 2015 -0800
     Change-Id: Ie4fcb3716cb4fe6e618033071df9de545ab3e0af
     Reviewed-on: https://go-review.googlesource.com/2830
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/signal_amd64x.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 8185e9ac12..50ecfbe4de 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -170,9 +170,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 
+ 	if docrash {
+ 		// TODO(rsc): Implement raiseproc on other systems
+-		// and then add to this switch.
+-		switch GOOS {
+-		case "darwin", "linux":
++		// and then add to this if condition.
++		if GOOS == "darwin" || GOOS == "linux" {
+ 			crashing++
+ 			if crashing < sched.mcount {
+ 				// There are other m's that need to dump their stacks.
